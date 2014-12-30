@@ -224,7 +224,6 @@ static struct platform_driver byt_rt5640_audio = {
 	.probe = byt_rt5640_probe,
 	.driver = {
 		.name = "byt-rt5640",
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 	},
 };

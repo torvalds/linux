@@ -741,37 +741,27 @@ static int pxa27x_keypad_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	keypad = kzalloc(sizeof(struct pxa27x_keypad), GFP_KERNEL);
-	input_dev = input_allocate_device();
-	if (!keypad || !input_dev) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
-		error = -ENOMEM;
-		goto failed_free;
-	}
+	keypad = devm_kzalloc(&pdev->dev, sizeof(*keypad),
+			      GFP_KERNEL);
+	if (!keypad)
+		return -ENOMEM;
+
+	input_dev = devm_input_allocate_device(&pdev->dev);
+	if (!input_dev)
+		return -ENOMEM;
 
 	keypad->pdata = pdata;
 	keypad->input_dev = input_dev;
 	keypad->irq = irq;
 
-	res = request_mem_region(res->start, resource_size(res), pdev->name);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "failed to request I/O memory\n");
-		error = -EBUSY;
-		goto failed_free;
-	}
+	keypad->mmio_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(keypad->mmio_base))
+		return PTR_ERR(keypad->mmio_base);
 
-	keypad->mmio_base = ioremap(res->start, resource_size(res));
-	if (keypad->mmio_base == NULL) {
-		dev_err(&pdev->dev, "failed to remap I/O memory\n");
-		error = -ENXIO;
-		goto failed_free_mem;
-	}
-
-	keypad->clk = clk_get(&pdev->dev, NULL);
+	keypad->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(keypad->clk)) {
 		dev_err(&pdev->dev, "failed to get keypad clock\n");
-		error = PTR_ERR(keypad->clk);
-		goto failed_free_io;
+		return PTR_ERR(keypad->clk);
 	}
 
 	input_dev->name = pdev->name;
@@ -802,7 +792,7 @@ static int pxa27x_keypad_probe(struct platform_device *pdev)
 	}
 	if (error) {
 		dev_err(&pdev->dev, "failed to build keycode\n");
-		goto failed_put_clk;
+		return error;
 	}
 
 	keypad->row_shift = get_count_order(pdata->matrix_key_cols);
@@ -812,60 +802,25 @@ static int pxa27x_keypad_probe(struct platform_device *pdev)
 		input_dev->evbit[0] |= BIT_MASK(EV_REL);
 	}
 
-	error = request_irq(irq, pxa27x_keypad_irq_handler, 0,
-			    pdev->name, keypad);
+	error = devm_request_irq(&pdev->dev, irq, pxa27x_keypad_irq_handler,
+				 0, pdev->name, keypad);
 	if (error) {
 		dev_err(&pdev->dev, "failed to request IRQ\n");
-		goto failed_put_clk;
+		return error;
 	}
 
 	/* Register the input device */
 	error = input_register_device(input_dev);
 	if (error) {
 		dev_err(&pdev->dev, "failed to register input device\n");
-		goto failed_free_irq;
+		return error;
 	}
 
 	platform_set_drvdata(pdev, keypad);
 	device_init_wakeup(&pdev->dev, 1);
 
 	return 0;
-
-failed_free_irq:
-	free_irq(irq, keypad);
-failed_put_clk:
-	clk_put(keypad->clk);
-failed_free_io:
-	iounmap(keypad->mmio_base);
-failed_free_mem:
-	release_mem_region(res->start, resource_size(res));
-failed_free:
-	input_free_device(input_dev);
-	kfree(keypad);
-	return error;
 }
-
-static int pxa27x_keypad_remove(struct platform_device *pdev)
-{
-	struct pxa27x_keypad *keypad = platform_get_drvdata(pdev);
-	struct resource *res;
-
-	free_irq(keypad->irq, keypad);
-	clk_put(keypad->clk);
-
-	input_unregister_device(keypad->input_dev);
-	iounmap(keypad->mmio_base);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, resource_size(res));
-
-	kfree(keypad);
-
-	return 0;
-}
-
-/* work with hotplug and coldplug */
-MODULE_ALIAS("platform:pxa27x-keypad");
 
 #ifdef CONFIG_OF
 static const struct of_device_id pxa27x_keypad_dt_match[] = {
@@ -877,11 +832,9 @@ MODULE_DEVICE_TABLE(of, pxa27x_keypad_dt_match);
 
 static struct platform_driver pxa27x_keypad_driver = {
 	.probe		= pxa27x_keypad_probe,
-	.remove		= pxa27x_keypad_remove,
 	.driver		= {
 		.name	= "pxa27x-keypad",
 		.of_match_table = of_match_ptr(pxa27x_keypad_dt_match),
-		.owner	= THIS_MODULE,
 		.pm	= &pxa27x_keypad_pm_ops,
 	},
 };
@@ -889,3 +842,5 @@ module_platform_driver(pxa27x_keypad_driver);
 
 MODULE_DESCRIPTION("PXA27x Keypad Controller Driver");
 MODULE_LICENSE("GPL");
+/* work with hotplug and coldplug */
+MODULE_ALIAS("platform:pxa27x-keypad");

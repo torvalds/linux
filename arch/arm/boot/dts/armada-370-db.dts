@@ -203,27 +203,3 @@
 		compatible = "linux,spdif-dir";
 	};
 };
-
-&pinctrl {
-	/*
-	 * These pins might be muxed as I2S by
-	 * the bootloader, but it conflicts
-	 * with the real I2S pins that are
-	 * muxed using i2s_pins. We must mux
-	 * those pins to a function other than
-	 * I2S.
-	 */
-	pinctrl-0 = <&hog_pins1 &hog_pins2>;
-	pinctrl-names = "default";
-
-	hog_pins1: hog-pins1 {
-		marvell,pins = "mpp6",  "mpp8", "mpp10",
-			       "mpp12", "mpp13";
-		marvell,function = "gpio";
-	};
-
-	hog_pins2: hog-pins2 {
-		marvell,pins = "mpp5", "mpp7", "mpp9";
-		marvell,function = "gpo";
-	};
-};

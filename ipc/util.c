@@ -71,44 +71,6 @@ struct ipc_proc_iface {
 	int (*show)(struct seq_file *, void *);
 };
 
-static void ipc_memory_notifier(struct work_struct *work)
-{
-	ipcns_notify(IPCNS_MEMCHANGED);
-}
-
-static int ipc_memory_callback(struct notifier_block *self,
-				unsigned long action, void *arg)
-{
-	static DECLARE_WORK(ipc_memory_wq, ipc_memory_notifier);
-
-	switch (action) {
-	case MEM_ONLINE:    /* memory successfully brought online */
-	case MEM_OFFLINE:   /* or offline: it's time to recompute msgmni */
-		/*
-		 * This is done by invoking the ipcns notifier chain with the
-		 * IPC_MEMCHANGED event.
-		 * In order not to keep the lock on the hotplug memory chain
-		 * for too long, queue a work item that will, when waken up,
-		 * activate the ipcns notification chain.
-		 */
-		schedule_work(&ipc_memory_wq);
-		break;
-	case MEM_GOING_ONLINE:
-	case MEM_GOING_OFFLINE:
-	case MEM_CANCEL_ONLINE:
-	case MEM_CANCEL_OFFLINE:
-	default:
-		break;
-	}
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block ipc_memory_nb = {
-	.notifier_call = ipc_memory_callback,
-	.priority = IPC_CALLBACK_PRI,
-};
-
 /**
  * ipc_init - initialise ipc subsystem
  *
@@ -124,8 +86,6 @@ static int __init ipc_init(void)
 	sem_init();
 	msg_init();
 	shm_init();
-	register_hotmemory_notifier(&ipc_memory_nb);
-	register_ipcns_notifier(&init_ipc_ns);
 	return 0;
 }
 device_initcall(ipc_init);

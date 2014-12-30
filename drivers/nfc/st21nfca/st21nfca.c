@@ -77,10 +77,6 @@
 	((p & 0x0f) == (ST21NFCA_DM_PIPE_CREATED | ST21NFCA_DM_PIPE_OPEN))
 
 #define ST21NFCA_NFC_MODE			0x03	/* NFC_MODE parameter*/
-#define ST21NFCA_EVT_FIELD_ON			0x11
-#define ST21NFCA_EVT_CARD_DEACTIVATED		0x12
-#define ST21NFCA_EVT_CARD_ACTIVATED		0x13
-#define ST21NFCA_EVT_FIELD_OFF			0x14
 
 static DECLARE_BITMAP(dev_mask, ST21NFCA_NUM_DEVICES);
 
@@ -841,31 +837,11 @@ static int st21nfca_hci_check_presence(struct nfc_hci_dev *hdev,
 static int st21nfca_hci_event_received(struct nfc_hci_dev *hdev, u8 gate,
 				       u8 event, struct sk_buff *skb)
 {
-	int r;
-	struct st21nfca_hci_info *info = nfc_hci_get_clientdata(hdev);
+	pr_debug("hci event: %d gate: %x\n", event, gate);
 
-	pr_debug("hci event: %d\n", event);
-
-	switch (event) {
-	case ST21NFCA_EVT_CARD_ACTIVATED:
-		if (gate == ST21NFCA_RF_CARD_F_GATE)
-			info->dep_info.curr_nfc_dep_pni = 0;
-		break;
-	case ST21NFCA_EVT_CARD_DEACTIVATED:
-		break;
-	case ST21NFCA_EVT_FIELD_ON:
-		break;
-	case ST21NFCA_EVT_FIELD_OFF:
-		break;
-	case ST21NFCA_EVT_SEND_DATA:
-		if (gate == ST21NFCA_RF_CARD_F_GATE) {
-			r = st21nfca_tm_event_send_data(hdev, skb, gate);
-			if (r < 0)
-				return r;
-			return 0;
-		}
-		info->dep_info.curr_nfc_dep_pni = 0;
-		return 1;
+	switch (gate) {
+	case ST21NFCA_RF_CARD_F_GATE:
+		return st21nfca_dep_event_received(hdev, event, skb);
 	default:
 		return 1;
 	}

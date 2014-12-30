@@ -121,6 +121,9 @@ eb_lookup_vmas(struct eb_vmas *eb,
 			goto err;
 		}
 
+		WARN_ONCE(obj->base.dumb,
+			  "GPU use of dumb buffer is illegal.\n");
+
 		drm_gem_object_reference(&obj->base);
 		list_add_tail(&obj->obj_exec_link, &objects);
 	}
@@ -357,12 +360,9 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 	 * through the ppgtt for non_secure batchbuffers. */
 	if (unlikely(IS_GEN6(dev) &&
 	    reloc->write_domain == I915_GEM_DOMAIN_INSTRUCTION &&
-	    !target_i915_obj->has_global_gtt_mapping)) {
-		struct i915_vma *vma =
-			list_first_entry(&target_i915_obj->vma_list,
-					 typeof(*vma), vma_link);
-		vma->bind_vma(vma, target_i915_obj->cache_level, GLOBAL_BIND);
-	}
+	    !(target_vma->bound & GLOBAL_BIND)))
+		target_vma->bind_vma(target_vma, target_i915_obj->cache_level,
+				GLOBAL_BIND);
 
 	/* Validate that the target is in a valid r/w GPU domain */
 	if (unlikely(reloc->write_domain & (reloc->write_domain - 1))) {
@@ -531,7 +531,7 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 
 	flags = 0;
 	if (entry->flags & __EXEC_OBJECT_NEEDS_MAP)
-		flags |= PIN_MAPPABLE;
+		flags |= PIN_GLOBAL | PIN_MAPPABLE;
 	if (entry->flags & EXEC_OBJECT_NEEDS_GTT)
 		flags |= PIN_GLOBAL;
 	if (entry->flags & __EXEC_OBJECT_NEEDS_BIAS)
@@ -1023,6 +1023,47 @@ i915_reset_gen7_sol_offsets(struct drm_device *dev,
 	return 0;
 }
 
+static int
+i915_emit_box(struct intel_engine_cs *ring,
+	      struct drm_clip_rect *box,
+	      int DR1, int DR4)
+{
+	int ret;
+
+	if (box->y2 <= box->y1 || box->x2 <= box->x1 ||
+	    box->y2 <= 0 || box->x2 <= 0) {
+		DRM_ERROR("Bad box %d,%d..%d,%d\n",
+			  box->x1, box->y1, box->x2, box->y2);
+		return -EINVAL;
+	}
+
+	if (INTEL_INFO(ring->dev)->gen >= 4) {
+		ret = intel_ring_begin(ring, 4);
+		if (ret)
+			return ret;
+
+		intel_ring_emit(ring, GFX_OP_DRAWRECT_INFO_I965);
+		intel_ring_emit(ring, (box->x1 & 0xffff) | box->y1 << 16);
+		intel_ring_emit(ring, ((box->x2 - 1) & 0xffff) | (box->y2 - 1) << 16);
+		intel_ring_emit(ring, DR4);
+	} else {
+		ret = intel_ring_begin(ring, 6);
+		if (ret)
+			return ret;
+
+		intel_ring_emit(ring, GFX_OP_DRAWRECT_INFO);
+		intel_ring_emit(ring, DR1);
+		intel_ring_emit(ring, (box->x1 & 0xffff) | box->y1 << 16);
+		intel_ring_emit(ring, ((box->x2 - 1) & 0xffff) | (box->y2 - 1) << 16);
+		intel_ring_emit(ring, DR4);
+		intel_ring_emit(ring, 0);
+	}
+	intel_ring_advance(ring);
+
+	return 0;
+}
+
+
 int
 i915_gem_ringbuffer_submission(struct drm_device *dev, struct drm_file *file,
 			       struct intel_engine_cs *ring,
@@ -1151,7 +1192,7 @@ i915_gem_ringbuffer_submission(struct drm_device *dev, struct drm_file *file,
 	exec_len = args->batch_len;
 	if (cliprects) {
 		for (i = 0; i < args->num_cliprects; i++) {
-			ret = i915_emit_box(dev, &cliprects[i],
+			ret = i915_emit_box(ring, &cliprects[i],
 					    args->DR1, args->DR4);
 			if (ret)
 				goto error;
@@ -1300,12 +1341,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (ret)
 		goto pre_mutex_err;
 
-	if (dev_priv->ums.mm_suspended) {
-		mutex_unlock(&dev->struct_mutex);
-		ret = -EBUSY;
-		goto pre_mutex_err;
-	}
-
 	ctx = i915_gem_validate_context(dev, file, ring, ctx_id);
 	if (IS_ERR(ctx)) {
 		mutex_unlock(&dev->struct_mutex);
@@ -1368,17 +1403,19 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 				      batch_obj,
 				      args->batch_start_offset,
 				      file->is_master);
-		if (ret)
-			goto err;
-
-		/*
-		 * XXX: Actually do this when enabling batch copy...
-		 *
-		 * Set the DISPATCH_SECURE bit to remove the NON_SECURE bit
-		 * from MI_BATCH_BUFFER_START commands issued in the
-		 * dispatch_execbuffer implementations. We specifically don't
-		 * want that set when the command parser is enabled.
-		 */
+		if (ret) {
+			if (ret != -EACCES)
+				goto err;
+		} else {
+			/*
+			 * XXX: Actually do this when enabling batch copy...
+			 *
+			 * Set the DISPATCH_SECURE bit to remove the NON_SECURE bit
+			 * from MI_BATCH_BUFFER_START commands issued in the
+			 * dispatch_execbuffer implementations. We specifically don't
+			 * want that set when the command parser is enabled.
+			 */
+		}
 	}
 
 	/* snb/ivb/vlv conflate the "batch in ppgtt" bit with the "non-secure

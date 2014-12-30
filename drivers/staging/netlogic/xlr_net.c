@@ -1133,7 +1133,6 @@ static struct platform_driver xlr_net_driver = {
 	.remove		= xlr_net_remove,
 	.driver		= {
 		.name	= "xlr-net",
-		.owner	= THIS_MODULE,
 	},
 };
 

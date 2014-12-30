@@ -189,6 +189,8 @@ static void __vb2_queue_cancel(struct vb2_queue *q);
 static int __vb2_buf_mem_alloc(struct vb2_buffer *vb)
 {
 	struct vb2_queue *q = vb->vb2_queue;
+	enum dma_data_direction dma_dir =
+		V4L2_TYPE_IS_OUTPUT(q->type) ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
 	void *mem_priv;
 	int plane;
 
@@ -200,7 +202,7 @@ static int __vb2_buf_mem_alloc(struct vb2_buffer *vb)
 		unsigned long size = PAGE_ALIGN(q->plane_sizes[plane]);
 
 		mem_priv = call_ptr_memop(vb, alloc, q->alloc_ctx[plane],
-				      size, q->gfp_flags);
+				      size, dma_dir, q->gfp_flags);
 		if (IS_ERR_OR_NULL(mem_priv))
 			goto free;
 
@@ -1358,7 +1360,8 @@ static int __qbuf_userptr(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 	void *mem_priv;
 	unsigned int plane;
 	int ret;
-	int write = !V4L2_TYPE_IS_OUTPUT(q->type);
+	enum dma_data_direction dma_dir =
+		V4L2_TYPE_IS_OUTPUT(q->type) ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
 	bool reacquired = vb->planes[0].mem_priv == NULL;
 
 	memset(planes, 0, sizeof(planes[0]) * vb->num_planes);
@@ -1400,7 +1403,7 @@ static int __qbuf_userptr(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 		/* Acquire each plane's memory */
 		mem_priv = call_ptr_memop(vb, get_userptr, q->alloc_ctx[plane],
 				      planes[plane].m.userptr,
-				      planes[plane].length, write);
+				      planes[plane].length, dma_dir);
 		if (IS_ERR_OR_NULL(mem_priv)) {
 			dprintk(1, "failed acquiring userspace "
 						"memory for plane %d\n", plane);
@@ -1461,7 +1464,8 @@ static int __qbuf_dmabuf(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 	void *mem_priv;
 	unsigned int plane;
 	int ret;
-	int write = !V4L2_TYPE_IS_OUTPUT(q->type);
+	enum dma_data_direction dma_dir =
+		V4L2_TYPE_IS_OUTPUT(q->type) ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
 	bool reacquired = vb->planes[0].mem_priv == NULL;
 
 	memset(planes, 0, sizeof(planes[0]) * vb->num_planes);
@@ -1509,7 +1513,7 @@ static int __qbuf_dmabuf(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 
 		/* Acquire each plane's memory */
 		mem_priv = call_ptr_memop(vb, attach_dmabuf, q->alloc_ctx[plane],
-			dbuf, planes[plane].length, write);
+			dbuf, planes[plane].length, dma_dir);
 		if (IS_ERR(mem_priv)) {
 			dprintk(1, "failed to attach dmabuf\n");
 			ret = PTR_ERR(mem_priv);
@@ -3385,14 +3389,14 @@ int _vb2_fop_release(struct file *file, struct mutex *lock)
 {
 	struct video_device *vdev = video_devdata(file);
 
+	if (lock)
+		mutex_lock(lock);
 	if (file->private_data == vdev->queue->owner) {
-		if (lock)
-			mutex_lock(lock);
 		vb2_queue_release(vdev->queue);
 		vdev->queue->owner = NULL;
-		if (lock)
-			mutex_unlock(lock);
 	}
+	if (lock)
+		mutex_unlock(lock);
 	return v4l2_fh_release(file);
 }
 EXPORT_SYMBOL_GPL(_vb2_fop_release);
@@ -3455,27 +3459,16 @@ unsigned int vb2_fop_poll(struct file *file, poll_table *wait)
 	struct video_device *vdev = video_devdata(file);
 	struct vb2_queue *q = vdev->queue;
 	struct mutex *lock = q->lock ? q->lock : vdev->lock;
-	unsigned long req_events = poll_requested_events(wait);
 	unsigned res;
 	void *fileio;
-	bool must_lock = false;
 
-	/* Try to be smart: only lock if polling might start fileio,
-	   otherwise locking will only introduce unwanted delays. */
-	if (q->num_buffers == 0 && !vb2_fileio_is_active(q)) {
-		if (!V4L2_TYPE_IS_OUTPUT(q->type) && (q->io_modes & VB2_READ) &&
-				(req_events & (POLLIN | POLLRDNORM)))
-			must_lock = true;
-		else if (V4L2_TYPE_IS_OUTPUT(q->type) && (q->io_modes & VB2_WRITE) &&
-				(req_events & (POLLOUT | POLLWRNORM)))
-			must_lock = true;
-	}
+	/*
+	 * If this helper doesn't know how to lock, then you shouldn't be using
+	 * it but you should write your own.
+	 */
+	WARN_ON(!lock);
 
-	/* If locking is needed, but this helper doesn't know how, then you
-	   shouldn't be using this helper but you should write your own. */
-	WARN_ON(must_lock && !lock);
-
-	if (must_lock && lock && mutex_lock_interruptible(lock))
+	if (lock && mutex_lock_interruptible(lock))
 		return POLLERR;
 
 	fileio = q->fileio;
@@ -3483,9 +3476,9 @@ unsigned int vb2_fop_poll(struct file *file, poll_table *wait)
 	res = vb2_poll(vdev->queue, file, wait);
 
 	/* If fileio was started, then we have a new queue owner. */
-	if (must_lock && !fileio && q->fileio)
+	if (!fileio && q->fileio)
 		q->owner = file->private_data;
-	if (must_lock && lock)
+	if (lock)
 		mutex_unlock(lock);
 	return res;
 }

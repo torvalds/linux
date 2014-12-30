@@ -1180,7 +1180,6 @@ static struct platform_driver marvell_crypto = {
 	.probe		= mv_probe,
 	.remove		= mv_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "mv_crypto",
 		.of_match_table = mv_cesa_of_match_table,
 	},

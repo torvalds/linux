@@ -12,6 +12,9 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/if_arp.h>
@@ -337,9 +340,6 @@ nfulnl_alloc_skb(struct net *net, u32 peer_portid, unsigned int inst_size,
 
 			skb = nfnetlink_alloc_skb(net, pkt_size,
 						  peer_portid, GFP_ATOMIC);
-			if (!skb)
-				pr_err("nfnetlink_log: can't even alloc %u bytes\n",
-				       pkt_size);
 		}
 	}
 
@@ -570,10 +570,8 @@ __build_packet_message(struct nfnl_log_net *log,
 		struct nlattr *nla;
 		int size = nla_attr_size(data_len);
 
-		if (skb_tailroom(inst->skb) < nla_total_size(data_len)) {
-			printk(KERN_WARNING "nfnetlink_log: no tailroom!\n");
-			return -1;
-		}
+		if (skb_tailroom(inst->skb) < nla_total_size(data_len))
+			goto nla_put_failure;
 
 		nla = (struct nlattr *)skb_put(inst->skb, nla_total_size(data_len));
 		nla->nla_type = NFULA_PAYLOAD;
@@ -1069,19 +1067,19 @@ static int __init nfnetlink_log_init(void)
 	netlink_register_notifier(&nfulnl_rtnl_notifier);
 	status = nfnetlink_subsys_register(&nfulnl_subsys);
 	if (status < 0) {
-		pr_err("log: failed to create netlink socket\n");
+		pr_err("failed to create netlink socket\n");
 		goto cleanup_netlink_notifier;
 	}
 
 	status = nf_log_register(NFPROTO_UNSPEC, &nfulnl_logger);
 	if (status < 0) {
-		pr_err("log: failed to register logger\n");
+		pr_err("failed to register logger\n");
 		goto cleanup_subsys;
 	}
 
 	status = register_pernet_subsys(&nfnl_log_net_ops);
 	if (status < 0) {
-		pr_err("log: failed to register pernet ops\n");
+		pr_err("failed to register pernet ops\n");
 		goto cleanup_logger;
 	}
 	return status;

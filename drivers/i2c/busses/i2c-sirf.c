@@ -451,7 +451,6 @@ MODULE_DEVICE_TABLE(of, sirfsoc_i2c_of_match);
 static struct platform_driver i2c_sirfsoc_driver = {
 	.driver = {
 		.name = "sirfsoc_i2c",
-		.owner = THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm = &i2c_sirfsoc_pm_ops,
 #endif

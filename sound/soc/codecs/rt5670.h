@@ -228,6 +228,12 @@
 #define RT5670_R_VOL_MASK			(0x3f)
 #define RT5670_R_VOL_SFT			0
 
+/* SW Reset & Device ID (0x00) */
+#define RT5670_ID_MASK				(0x3 << 1)
+#define RT5670_ID_5670				(0x0 << 1)
+#define RT5670_ID_5672				(0x1 << 1)
+#define RT5670_ID_5671				(0x2 << 1)
+
 /* Combo Jack Control 1 (0x0a) */
 #define RT5670_CBJ_BST1_MASK			(0xf << 12)
 #define RT5670_CBJ_BST1_SFT			(12)

@@ -9,7 +9,6 @@ generic-y += errno.h
 generic-y += exec.h
 generic-y += fcntl.h
 generic-y += hardirq.h
-generic-y += hash.h
 generic-y += ioctl.h
 generic-y += irq_regs.h
 generic-y += irq_work.h

@@ -170,7 +170,7 @@ static int __init corenet_generic_probe(void)
 
 			ppc_md.get_irq = ehv_pic_get_irq;
 			ppc_md.restart = fsl_hv_restart;
-			ppc_md.power_off = fsl_hv_halt;
+			pm_power_off = fsl_hv_halt;
 			ppc_md.halt = fsl_hv_halt;
 #ifdef CONFIG_SMP
 			/*

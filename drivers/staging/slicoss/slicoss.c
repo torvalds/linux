@@ -498,12 +498,14 @@ static int slic_card_download(struct adapter *adapter)
 			slic_reg32_write(&slic_regs->slic_wcs,
 					 baseaddress + codeaddr, FLUSH);
 			/* Write out instruction to low addr */
-			slic_reg32_write(&slic_regs->slic_wcs, instruction, FLUSH);
+			slic_reg32_write(&slic_regs->slic_wcs,
+					instruction, FLUSH);
 			instruction = *(u32 *)(fw->data + index);
 			index += 4;
 
 			/* Write out instruction to high addr */
-			slic_reg32_write(&slic_regs->slic_wcs, instruction, FLUSH);
+			slic_reg32_write(&slic_regs->slic_wcs,
+					instruction, FLUSH);
 			instruction = *(u32 *)(fw->data + index);
 			index += 4;
 		}
@@ -596,8 +598,7 @@ static void slic_mac_address_config(struct adapter *adapter)
 	u32 value2;
 	__iomem struct slic_regs *slic_regs = adapter->slic_regs;
 
-	value = *(u32 *) &adapter->currmacaddr[2];
-	value = ntohl(value);
+	value = ntohl(*(__be32 *) &adapter->currmacaddr[2]);
 	slic_reg32_write(&slic_regs->slic_wraddral, value, FLUSH);
 	slic_reg32_write(&slic_regs->slic_wraddrbl, value, FLUSH);
 
@@ -1533,14 +1534,18 @@ retry_rcvqfill:
 				dev_err(dev, "%s: LOW 32bits PHYSICAL ADDRESS == 0\n",
 					__func__);
 				dev_err(dev, "skb[%p] PROBLEM\n", skb);
-				dev_err(dev, "         skbdata[%p]\n", skb->data);
+				dev_err(dev, "         skbdata[%p]\n",
+						skb->data);
 				dev_err(dev, "         skblen[%x]\n", skb->len);
 				dev_err(dev, "         paddr[%p]\n", paddr);
 				dev_err(dev, "         paddrl[%x]\n", paddrl);
 				dev_err(dev, "         paddrh[%x]\n", paddrh);
-				dev_err(dev, "         rcvq->head[%p]\n", rcvq->head);
-				dev_err(dev, "         rcvq->tail[%p]\n", rcvq->tail);
-				dev_err(dev, "         rcvq->count[%x]\n", rcvq->count);
+				dev_err(dev, "         rcvq->head[%p]\n",
+						rcvq->head);
+				dev_err(dev, "         rcvq->tail[%p]\n",
+						rcvq->tail);
+				dev_err(dev, "         rcvq->count[%x]\n",
+						rcvq->count);
 				dev_err(dev, "SKIP THIS SKB!!!!!!!!\n");
 				goto retry_rcvqfill;
 			}
@@ -1549,14 +1554,18 @@ retry_rcvqfill:
 				dev_err(dev, "%s: LOW 32bits PHYSICAL ADDRESS == 0\n",
 					__func__);
 				dev_err(dev, "skb[%p] PROBLEM\n", skb);
-				dev_err(dev, "         skbdata[%p]\n", skb->data);
+				dev_err(dev, "         skbdata[%p]\n",
+						skb->data);
 				dev_err(dev, "         skblen[%x]\n", skb->len);
 				dev_err(dev, "         paddr[%p]\n", paddr);
 				dev_err(dev, "         paddrl[%x]\n", paddrl);
 				dev_err(dev, "         paddrh[%x]\n", paddrh);
-				dev_err(dev, "         rcvq->head[%p]\n", rcvq->head);
-				dev_err(dev, "         rcvq->tail[%p]\n", rcvq->tail);
-				dev_err(dev, "         rcvq->count[%x]\n", rcvq->count);
+				dev_err(dev, "         rcvq->head[%p]\n",
+						rcvq->head);
+				dev_err(dev, "         rcvq->tail[%p]\n",
+						rcvq->tail);
+				dev_err(dev, "         rcvq->count[%x]\n",
+						rcvq->count);
 				dev_err(dev, "GIVE TO CARD ANYWAY\n");
 			}
 #endif
@@ -1612,7 +1621,7 @@ static int slic_rcvqueue_init(struct adapter *adapter)
 	rcvq->size = SLIC_RCVQ_ENTRIES;
 	rcvq->errors = 0;
 	rcvq->count = 0;
-	i = (SLIC_RCVQ_ENTRIES / SLIC_RCVQ_FILLENTRIES);
+	i = SLIC_RCVQ_ENTRIES / SLIC_RCVQ_FILLENTRIES;
 	count = 0;
 	while (i) {
 		count += slic_rcvqueue_fill(adapter);
@@ -1788,7 +1797,7 @@ static int slic_mcast_add_list(struct adapter *adapter, char *address)
 	if (mcaddr == NULL)
 		return 1;
 
-	memcpy(mcaddr->address, address, ETH_ALEN);
+	ether_addr_copy(mcaddr->address, address);
 
 	mcaddr->next = adapter->mcastaddrs;
 	adapter->mcastaddrs = mcaddr;
@@ -1885,7 +1894,8 @@ static void slic_xmit_fail(struct adapter *adapter,
 			break;
 		case XMIT_FAIL_HOSTCMD_FAIL:
 			dev_err(&adapter->netdev->dev,
-				"xmit_start skb[%p] type[%x] No host commands available\n", skb, skb->pkt_type);
+				"xmit_start skb[%p] type[%x] No host commands available\n",
+				skb, skb->pkt_type);
 			break;
 		}
 	}
@@ -2097,7 +2107,8 @@ static void slic_interrupt_card_up(u32 isr, struct adapter *adapter,
 				}
 			} else if (isr & ISR_XDROP) {
 				dev_err(&dev->dev,
-						"isr & ISR_ERR [%x] ISR_XDROP\n", isr);
+						"isr & ISR_ERR [%x] ISR_XDROP\n",
+						isr);
 			} else {
 				dev_err(&dev->dev,
 						"isr & ISR_ERR [%x]\n",
@@ -2341,7 +2352,8 @@ static int slic_if_init(struct adapter *adapter)
 				 SLIC_GET_ADDR_LOW(&pshmem->isr), FLUSH);
 #else
 		slic_reg32_write(&slic_regs->slic_addr_upper, 0, DONT_FLUSH);
-		slic_reg32_write(&slic_regs->slic_isp, (u32)&pshmem->isr, FLUSH);
+		slic_reg32_write(&slic_regs->slic_isp, (u32)&pshmem->isr,
+				FLUSH);
 #endif
 		spin_unlock_irqrestore(&adapter->bit64reglock.lock,
 					adapter->bit64reglock.flags);

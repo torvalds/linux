@@ -10,8 +10,6 @@
 
 #include "affs.h"
 
-static char ErrorBuffer[256];
-
 /*
  * Functions for accessing Amiga-FFS structures.
  */
@@ -125,7 +123,7 @@ affs_fix_dcache(struct inode *inode, u32 entry_ino)
 {
 	struct dentry *dentry;
 	spin_lock(&inode->i_lock);
-	hlist_for_each_entry(dentry, &inode->i_dentry, d_alias) {
+	hlist_for_each_entry(dentry, &inode->i_dentry, d_u.d_alias) {
 		if (entry_ino == (u32)(long)dentry->d_fsdata) {
 			dentry->d_fsdata = (void *)inode->i_ino;
 			break;
@@ -444,30 +442,30 @@ mode_to_prot(struct inode *inode)
 void
 affs_error(struct super_block *sb, const char *function, const char *fmt, ...)
 {
-	va_list	 args;
+	struct va_format vaf;
+	va_list args;
 
-	va_start(args,fmt);
-	vsnprintf(ErrorBuffer,sizeof(ErrorBuffer),fmt,args);
-	va_end(args);
-
-	pr_crit("error (device %s): %s(): %s\n", sb->s_id,
-		function,ErrorBuffer);
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+	pr_crit("error (device %s): %s(): %pV\n", sb->s_id, function, &vaf);
 	if (!(sb->s_flags & MS_RDONLY))
 		pr_warn("Remounting filesystem read-only\n");
 	sb->s_flags |= MS_RDONLY;
+	va_end(args);
 }
 
 void
 affs_warning(struct super_block *sb, const char *function, const char *fmt, ...)
 {
-	va_list	 args;
+	struct va_format vaf;
+	va_list args;
 
-	va_start(args,fmt);
-	vsnprintf(ErrorBuffer,sizeof(ErrorBuffer),fmt,args);
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+	pr_warn("(device %s): %s(): %pV\n", sb->s_id, function, &vaf);
 	va_end(args);
-
-	pr_warn("(device %s): %s(): %s\n", sb->s_id,
-		function,ErrorBuffer);
 }
 
 bool

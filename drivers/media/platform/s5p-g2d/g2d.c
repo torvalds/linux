@@ -297,14 +297,8 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strncpy(cap->driver, G2D_NAME, sizeof(cap->driver) - 1);
 	strncpy(cap->card, G2D_NAME, sizeof(cap->card) - 1);
 	cap->bus_info[0] = 0;
-	cap->version = KERNEL_VERSION(1, 0, 0);
-	/*
-	 * This is only a mem-to-mem video device. The capture and output
-	 * device capability flags are left only for backward compatibility
-	 * and are scheduled for removal.
-	 */
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OUTPUT |
-			    V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
+	cap->device_caps = V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -812,7 +806,6 @@ static struct platform_driver g2d_pdrv = {
 	.id_table	= g2d_driver_ids,
 	.driver		= {
 		.name = G2D_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = exynos_g2d_match,
 	},
 };

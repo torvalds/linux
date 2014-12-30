@@ -317,7 +317,7 @@ struct obd_device *class_newdev(const char *type_name, const char *name)
 					 result->obd_minor, new_obd_minor);
 
 				obd_devs[result->obd_minor] = NULL;
-				result->obd_name[0]='\0';
+				result->obd_name[0] = '\0';
 			 }
 			result = ERR_PTR(-EEXIST);
 			break;
@@ -524,8 +524,8 @@ void class_obd_list(void)
 /* Search for a client OBD connected to tgt_uuid.  If grp_uuid is
    specified, then only the client with that uuid is returned,
    otherwise any client connected to the tgt is returned. */
-struct obd_device * class_find_client_obd(struct obd_uuid *tgt_uuid,
-					  const char * typ_name,
+struct obd_device *class_find_client_obd(struct obd_uuid *tgt_uuid,
+					  const char *typ_name,
 					  struct obd_uuid *grp_uuid)
 {
 	int i;
@@ -557,7 +557,7 @@ EXPORT_SYMBOL(class_find_client_obd);
    searching at *next, and if a device is found, the next index to look
    at is saved in *next. If next is NULL, then the first matching device
    will always be returned. */
-struct obd_device * class_devices_in_group(struct obd_uuid *grp_uuid, int *next)
+struct obd_device *class_devices_in_group(struct obd_uuid *grp_uuid, int *next)
 {
 	int i;
 
@@ -1087,8 +1087,7 @@ void __class_export_del_lock_ref(struct obd_export *exp, struct ldlm_lock *lock)
 	spin_lock(&exp->exp_locks_list_guard);
 	LASSERT(lock->l_exp_refs_nr > 0);
 	if (lock->l_exp_refs_target != exp) {
-		LCONSOLE_WARN("lock %p, "
-			      "mismatching export pointers: %p, %p\n",
+		LCONSOLE_WARN("lock %p, mismatching export pointers: %p, %p\n",
 			      lock, lock->l_exp_refs_target, exp);
 	}
 	if (-- lock->l_exp_refs_nr == 0) {
@@ -1259,8 +1258,7 @@ static void class_disconnect_export_list(struct list_head *list,
 		}
 
 		class_export_get(exp);
-		CDEBUG(D_HA, "%s: disconnecting export at %s (%p), "
-		       "last request at "CFS_TIME_T"\n",
+		CDEBUG(D_HA, "%s: disconnecting export at %s (%p), last request at " CFS_TIME_T "\n",
 		       exp->exp_obd->obd_name, obd_export_nid2str(exp),
 		       exp, exp->exp_last_request_time);
 		/* release one export reference anyway */
@@ -1284,8 +1282,8 @@ void class_disconnect_exports(struct obd_device *obd)
 	spin_unlock(&obd->obd_dev_lock);
 
 	if (!list_empty(&work_list)) {
-		CDEBUG(D_HA, "OBD device %d (%p) has exports, "
-		       "disconnecting them\n", obd->obd_minor, obd);
+		CDEBUG(D_HA, "OBD device %d (%p) has exports, disconnecting them\n",
+		       obd->obd_minor, obd);
 		class_disconnect_export_list(&work_list,
 					     exp_flags_from_obd(obd));
 	} else
@@ -1422,8 +1420,8 @@ int obd_export_evict_by_nid(struct obd_device *obd, const char *nid)
 		LASSERTF(doomed_exp != obd->obd_self_export,
 			 "self-export is hashed by NID?\n");
 		exports_evicted++;
-		LCONSOLE_WARN("%s: evicting %s (at %s) by administrative "
-			      "request\n", obd->obd_name,
+		LCONSOLE_WARN("%s: evicting %s (at %s) by administrative request\n",
+			      obd->obd_name,
 			      obd_uuid2str(&doomed_exp->exp_client_uuid),
 			      obd_export_nid2str(doomed_exp));
 		class_fail_export(doomed_exp);
@@ -1546,9 +1544,7 @@ void obd_exports_barrier(struct obd_device *obd)
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(cfs_time_seconds(waited));
 		if (waited > 5 && IS_PO2(waited)) {
-			LCONSOLE_WARN("%s is waiting for obd_unlinked_exports "
-				      "more than %d seconds. "
-				      "The obd refcount = %d. Is it stuck?\n",
+			LCONSOLE_WARN("%s is waiting for obd_unlinked_exports more than %d seconds. The obd refcount = %d. Is it stuck?\n",
 				      obd->obd_name, waited,
 				      atomic_read(&obd->obd_refcount));
 			dump_exports(obd, 1);
@@ -1783,7 +1779,7 @@ EXPORT_SYMBOL(kuc_len);
  * @param p Pointer to payload area
  * @returns Pointer to kuc header
  */
-struct kuc_hdr * kuc_ptr(void *p)
+struct kuc_hdr *kuc_ptr(void *p)
 {
 	struct kuc_hdr *lh = ((struct kuc_hdr *)p) - 1;
 	LASSERT(lh->kuc_magic == KUC_MAGIC);

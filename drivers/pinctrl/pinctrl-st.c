@@ -1512,7 +1512,7 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 					     gpio_irq, st_gpio_irq_handler);
 	}
 
-	if (info->irqmux_base > 0 || gpio_irq > 0) {
+	if (info->irqmux_base || gpio_irq > 0) {
 		err = gpiochip_irqchip_add(&bank->gpio_chip, &st_gpio_irqchip,
 					   0, handle_simple_irq,
 					   IRQ_TYPE_LEVEL_LOW);
@@ -1689,7 +1689,6 @@ static int st_pctl_probe(struct platform_device *pdev)
 static struct platform_driver st_pctl_driver = {
 	.driver = {
 		.name = "st-pinctrl",
-		.owner = THIS_MODULE,
 		.of_match_table = st_pctl_of_match,
 	},
 	.probe = st_pctl_probe,

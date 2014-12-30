@@ -59,21 +59,6 @@ static struct usb_driver rtl8723a_usb_drv = {
 
 static struct usb_driver *usb_drv = &rtl8723a_usb_drv;
 
-static inline int RT_usb_endpoint_is_bulk_in(const struct usb_endpoint_descriptor *epd)
-{
-	return usb_endpoint_xfer_bulk(epd) && usb_endpoint_dir_in(epd);
-}
-
-static inline int RT_usb_endpoint_is_bulk_out(const struct usb_endpoint_descriptor *epd)
-{
-	return usb_endpoint_xfer_bulk(epd) && usb_endpoint_dir_out(epd);
-}
-
-static inline int RT_usb_endpoint_is_int_in(const struct usb_endpoint_descriptor *epd)
-{
-	return usb_endpoint_xfer_int(epd) && usb_endpoint_dir_in(epd);
-}
-
 static int rtw_init_intf_priv(struct dvobj_priv *dvobj)
 {
 	mutex_init(&dvobj->usb_vendor_req_mutex);
@@ -143,21 +128,21 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 				  le16_to_cpu(pendp_desc->wMaxPacketSize));
 			DBG_8723A("bInterval =%x\n", pendp_desc->bInterval);
 
-			if (RT_usb_endpoint_is_bulk_in(pendp_desc)) {
-				DBG_8723A("RT_usb_endpoint_is_bulk_in = %x\n",
+			if (usb_endpoint_is_bulk_in(pendp_desc)) {
+				DBG_8723A("usb_endpoint_is_bulk_in = %x\n",
 					  usb_endpoint_num(pendp_desc));
 				pdvobjpriv->RtInPipe[pdvobjpriv->RtNumInPipes] =
 					usb_endpoint_num(pendp_desc);
 				pdvobjpriv->RtNumInPipes++;
-			} else if (RT_usb_endpoint_is_int_in(pendp_desc)) {
-				DBG_8723A("RT_usb_endpoint_is_int_in = %x, Interval = %x\n",
+			} else if (usb_endpoint_is_int_in(pendp_desc)) {
+				DBG_8723A("usb_endpoint_is_int_in = %x, Interval = %x\n",
 					  usb_endpoint_num(pendp_desc),
 					  pendp_desc->bInterval);
 				pdvobjpriv->RtInPipe[pdvobjpriv->RtNumInPipes] =
 					usb_endpoint_num(pendp_desc);
 				pdvobjpriv->RtNumInPipes++;
-			} else if (RT_usb_endpoint_is_bulk_out(pendp_desc)) {
-				DBG_8723A("RT_usb_endpoint_is_bulk_out = %x\n",
+			} else if (usb_endpoint_is_bulk_out(pendp_desc)) {
+				DBG_8723A("usb_endpoint_is_bulk_out = %x\n",
 					  usb_endpoint_num(pendp_desc));
 				pdvobjpriv->RtOutPipe[pdvobjpriv->RtNumOutPipes] =
 					usb_endpoint_num(pendp_desc);
@@ -257,6 +242,7 @@ void rtl8723a_usb_intf_stop(struct rtw_adapter *padapter)
 
 static void rtw_dev_unload(struct rtw_adapter *padapter)
 {
+	struct submit_ctx *pack_tx_ops = &padapter->xmitpriv.ack_tx_ops;
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+rtw_dev_unload\n"));
 
 	if (padapter->bup) {
@@ -264,8 +250,8 @@ static void rtw_dev_unload(struct rtw_adapter *padapter)
 
 		padapter->bDriverStopped = true;
 		if (padapter->xmitpriv.ack_tx)
-			rtw_ack_tx_done23a(&padapter->xmitpriv,
-					RTW_SCTX_DONE_DRV_STOP);
+			rtw23a_sctx_done_err(&pack_tx_ops,
+					     RTW_SCTX_DONE_DRV_STOP);
 
 		/* s3. */
 		rtl8723a_usb_intf_stop(padapter);
@@ -321,8 +307,6 @@ int rtw_hw_suspend23a(struct rtw_adapter *padapter)
 		/* rtw_indicate_disconnect23a(padapter); */
 		if (check_fwstate(pmlmepriv, _FW_LINKED)) {
 			_clr_fwstate_(pmlmepriv, _FW_LINKED);
-
-			rtw_led_control(padapter, LED_CTL_NO_LINK);
 
 			rtw_os_indicate_disconnect23a(padapter);
 
@@ -546,7 +530,8 @@ static struct rtw_adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	rtl8723a_read_chip_version(padapter);
 
 	/* step usb endpoint mapping */
-	rtl8723au_chip_configure(padapter);
+	if (!rtl8723au_chip_configure(padapter))
+		goto free_hal_data;
 
 	/* step read efuse/eeprom data and get mac_addr */
 	rtl8723a_read_adapter_info(padapter);

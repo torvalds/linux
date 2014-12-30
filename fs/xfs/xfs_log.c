@@ -21,8 +21,6 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_error.h"
 #include "xfs_trans.h"
@@ -1031,7 +1029,7 @@ xfs_log_need_covered(xfs_mount_t *mp)
 	struct xlog	*log = mp->m_log;
 	int		needed = 0;
 
-	if (!xfs_fs_writable(mp))
+	if (!xfs_fs_writable(mp, SB_FREEZE_WRITE))
 		return 0;
 
 	if (!xlog_cil_empty(log))
@@ -1808,6 +1806,8 @@ xlog_sync(
 	XFS_BUF_ZEROFLAGS(bp);
 	XFS_BUF_ASYNC(bp);
 	bp->b_flags |= XBF_SYNCIO;
+	/* use high priority completion wq */
+	bp->b_ioend_wq = log->l_mp->m_log_workqueue;
 
 	if (log->l_mp->m_flags & XFS_MOUNT_BARRIER) {
 		bp->b_flags |= XBF_FUA;
@@ -1856,6 +1856,8 @@ xlog_sync(
 		bp->b_flags |= XBF_SYNCIO;
 		if (log->l_mp->m_flags & XFS_MOUNT_BARRIER)
 			bp->b_flags |= XBF_FUA;
+		/* use high priority completion wq */
+		bp->b_ioend_wq = log->l_mp->m_log_workqueue;
 
 		ASSERT(XFS_BUF_ADDR(bp) <= log->l_logBBsize-1);
 		ASSERT(XFS_BUF_ADDR(bp) + BTOBB(count) <= log->l_logBBsize);

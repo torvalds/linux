@@ -263,7 +263,6 @@ MODULE_DEVICE_TABLE(of, octeon_mdiobus_match);
 static struct platform_driver octeon_mdiobus_driver = {
 	.driver = {
 		.name		= "mdio-octeon",
-		.owner		= THIS_MODULE,
 		.of_match_table = octeon_mdiobus_match,
 	},
 	.probe		= octeon_mdiobus_probe,

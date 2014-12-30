@@ -78,8 +78,10 @@ static struct rfcomm_session *rfcomm_session_del(struct rfcomm_session *s);
 #define __get_type(b)     ((b & 0xef))
 
 #define __test_ea(b)      ((b & 0x01))
-#define __test_cr(b)      ((b & 0x02))
-#define __test_pf(b)      ((b & 0x10))
+#define __test_cr(b)      (!!(b & 0x02))
+#define __test_pf(b)      (!!(b & 0x10))
+
+#define __session_dir(s)  ((s)->initiator ? 0x00 : 0x01)
 
 #define __addr(cr, dlci)       (((dlci & 0x3f) << 2) | (cr << 1) | 0x01)
 #define __ctrl(type, pf)       (((type & 0xef) | (pf << 4)))
@@ -101,11 +103,11 @@ static struct rfcomm_session *rfcomm_session_del(struct rfcomm_session *s);
 #define __get_rpn_stop_bits(line) (((line) >> 2) & 0x1)
 #define __get_rpn_parity(line)    (((line) >> 3) & 0x7)
 
+static DECLARE_WAIT_QUEUE_HEAD(rfcomm_wq);
+
 static void rfcomm_schedule(void)
 {
-	if (!rfcomm_thread)
-		return;
-	wake_up_process(rfcomm_thread);
+	wake_up_all(&rfcomm_wq);
 }
 
 /* ---- RFCOMM FCS computation ---- */
@@ -388,7 +390,7 @@ static int __rfcomm_dlc_open(struct rfcomm_dlc *d, bdaddr_t *src, bdaddr_t *dst,
 			return err;
 	}
 
-	dlci = __dlci(!s->initiator, channel);
+	dlci = __dlci(__session_dir(s), channel);
 
 	/* Check if DLCI already exists */
 	if (rfcomm_dlc_get(s, dlci))
@@ -543,7 +545,7 @@ struct rfcomm_dlc *rfcomm_dlc_exists(bdaddr_t *src, bdaddr_t *dst, u8 channel)
 	rfcomm_lock();
 	s = rfcomm_session_get(src, dst);
 	if (s) {
-		dlci = __dlci(!s->initiator, channel);
+		dlci = __dlci(__session_dir(s), channel);
 		dlc = rfcomm_dlc_get(s, dlci);
 	}
 	rfcomm_unlock();
@@ -904,7 +906,7 @@ static int rfcomm_send_nsc(struct rfcomm_session *s, int cr, u8 type)
 	hdr->len  = __len8(sizeof(*mcc) + 1);
 
 	mcc = (void *) ptr; ptr += sizeof(*mcc);
-	mcc->type = __mcc_type(cr, RFCOMM_NSC);
+	mcc->type = __mcc_type(0, RFCOMM_NSC);
 	mcc->len  = __len8(1);
 
 	/* Type that we didn't like */
@@ -2086,24 +2088,22 @@ static void rfcomm_kill_listener(void)
 
 static int rfcomm_run(void *unused)
 {
+	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 	BT_DBG("");
 
 	set_user_nice(current, -10);
 
 	rfcomm_add_listener(BDADDR_ANY);
 
-	while (1) {
-		set_current_state(TASK_INTERRUPTIBLE);
-
-		if (kthread_should_stop())
-			break;
+	add_wait_queue(&rfcomm_wq, &wait);
+	while (!kthread_should_stop()) {
 
 		/* Process stuff */
 		rfcomm_process_sessions();
 
-		schedule();
+		wait_woken(&wait, TASK_INTERRUPTIBLE, MAX_SCHEDULE_TIMEOUT);
 	}
-	__set_current_state(TASK_RUNNING);
+	remove_wait_queue(&rfcomm_wq, &wait);
 
 	rfcomm_kill_listener();
 

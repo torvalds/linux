@@ -158,7 +158,7 @@ static int apci1500_di_config(struct comedi_device *dev,
 			      struct comedi_insn *insn,
 			      unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci1500_private *devpriv = dev->private;
 	int i_PatternPolarity = 0, i_PatternTransition = 0, i_PatternMask = 0;
 	int i_MaxChannel = 0, i_Count = 0, i_EventMask = 0;
 	int i_PatternTransitionCount = 0, i_RegValue;
@@ -466,7 +466,7 @@ static int apci1500_di_write(struct comedi_device *dev,
 			     struct comedi_insn *insn,
 			     unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci1500_private *devpriv = dev->private;
 	int i_Event1InterruptStatus = 0, i_Event2InterruptStatus =
 		0, i_RegValue;
 
@@ -653,7 +653,7 @@ static int apci1500_di_read(struct comedi_device *dev,
 			    struct comedi_insn *insn,
 			    unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci1500_private *devpriv = dev->private;
 	int i_DummyRead = 0;
 
 	/* Software reset */
@@ -789,7 +789,7 @@ static int apci1500_di_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci1500_private *devpriv = dev->private;
 
 	data[1] = inw(devpriv->i_IobaseAddon + APCI1500_DIGITAL_IP);
 
@@ -807,7 +807,7 @@ static int apci1500_do_config(struct comedi_device *dev,
 			      struct comedi_insn *insn,
 			      unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci1500_private *devpriv = dev->private;
 
 	devpriv->b_OutputMemoryStatus = data[0];
 	return insn->n;
@@ -821,7 +821,7 @@ static int apci1500_do_write(struct comedi_device *dev,
 			     struct comedi_insn *insn,
 			     unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci1500_private *devpriv = dev->private;
 	static unsigned int ui_Temp;
 	unsigned int ui_Temp1;
 	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	/*  get the channel */
@@ -981,7 +981,7 @@ static int apci1500_timer_config(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci1500_private *devpriv = dev->private;
 	int i_TimerCounterMode, i_MasterConfiguration;
 
 	devpriv->tsk_Current = current;
@@ -1471,7 +1471,7 @@ static int apci1500_timer_write(struct comedi_device *dev,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci1500_private *devpriv = dev->private;
 	int i_CommandAndStatusValue;
 
 	switch (data[0]) {
@@ -1731,7 +1731,7 @@ static int apci1500_timer_bits(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci1500_private *devpriv = dev->private;
 	int i_CommandAndStatusValue;
 
 	switch (data[0]) {
@@ -1895,7 +1895,7 @@ static int apci1500_do_bits(struct comedi_device *dev,
 			    struct comedi_insn *insn,
 			    unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci1500_private *devpriv = dev->private;
 	unsigned int ui_Status;
 	int i_RegValue;
 	int i_Constant;
@@ -2011,11 +2011,11 @@ static int apci1500_do_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static void apci1500_interrupt(int irq, void *d)
+static irqreturn_t apci1500_interrupt(int irq, void *d)
 {
 
 	struct comedi_device *dev = d;
-	struct addi_private *devpriv = dev->private;
+	struct apci1500_private *devpriv = dev->private;
 	unsigned int ui_InterruptStatus = 0;
 	int i_RegValue = 0;
 
@@ -2180,11 +2180,13 @@ static void apci1500_interrupt(int irq, void *d)
 			"Interrupt from unknown source\n");
 
 	}
+
+	return IRQ_HANDLED;
 }
 
 static int apci1500_reset(struct comedi_device *dev)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci1500_private *devpriv = dev->private;
 	int i_DummyRead = 0;
 
 	i_TimerCounter1Init = 0;

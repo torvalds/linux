@@ -92,20 +92,13 @@ static irqreturn_t schedule_cxl_fault(struct cxl_context *ctx, u64 dsisr, u64 da
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t cxl_irq(int irq, void *data)
+static irqreturn_t cxl_irq(int irq, void *data, struct cxl_irq_info *irq_info)
 {
 	struct cxl_context *ctx = data;
-	struct cxl_irq_info irq_info;
 	u64 dsisr, dar;
-	int result;
 
-	if ((result = cxl_get_irq(ctx, &irq_info))) {
-		WARN(1, "Unable to get CXL IRQ Info: %i\n", result);
-		return IRQ_HANDLED;
-	}
-
-	dsisr = irq_info.dsisr;
-	dar = irq_info.dar;
+	dsisr = irq_info->dsisr;
+	dar = irq_info->dar;
 
 	pr_devel("CXL interrupt %i for afu pe: %i DSISR: %#llx DAR: %#llx\n", irq, ctx->pe, dsisr, dar);
 
@@ -149,9 +142,9 @@ static irqreturn_t cxl_irq(int irq, void *data)
 	if (dsisr & CXL_PSL_DSISR_An_UR)
 		pr_devel("CXL interrupt: AURP PTE not found\n");
 	if (dsisr & CXL_PSL_DSISR_An_PE)
-		return handle_psl_slice_error(ctx, dsisr, irq_info.errstat);
+		return handle_psl_slice_error(ctx, dsisr, irq_info->errstat);
 	if (dsisr & CXL_PSL_DSISR_An_AE) {
-		pr_devel("CXL interrupt: AFU Error %.llx\n", irq_info.afu_err);
+		pr_devel("CXL interrupt: AFU Error %.llx\n", irq_info->afu_err);
 
 		if (ctx->pending_afu_err) {
 			/*
@@ -163,10 +156,10 @@ static irqreturn_t cxl_irq(int irq, void *data)
 			 */
 			dev_err_ratelimited(&ctx->afu->dev, "CXL AFU Error "
 					    "undelivered to pe %i: %.llx\n",
-					    ctx->pe, irq_info.afu_err);
+					    ctx->pe, irq_info->afu_err);
 		} else {
 			spin_lock(&ctx->lock);
-			ctx->afu_err = irq_info.afu_err;
+			ctx->afu_err = irq_info->afu_err;
 			ctx->pending_afu_err = 1;
 			spin_unlock(&ctx->lock);
 
@@ -182,24 +175,43 @@ static irqreturn_t cxl_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t fail_psl_irq(struct cxl_afu *afu, struct cxl_irq_info *irq_info)
+{
+	if (irq_info->dsisr & CXL_PSL_DSISR_TRANS)
+		cxl_p2n_write(afu, CXL_PSL_TFC_An, CXL_PSL_TFC_An_AE);
+	else
+		cxl_p2n_write(afu, CXL_PSL_TFC_An, CXL_PSL_TFC_An_A);
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t cxl_irq_multiplexed(int irq, void *data)
 {
 	struct cxl_afu *afu = data;
 	struct cxl_context *ctx;
+	struct cxl_irq_info irq_info;
 	int ph = cxl_p2n_read(afu, CXL_PSL_PEHandle_An) & 0xffff;
 	int ret;
+
+	if ((ret = cxl_get_irq(afu, &irq_info))) {
+		WARN(1, "Unable to get CXL IRQ Info: %i\n", ret);
+		return fail_psl_irq(afu, &irq_info);
+	}
 
 	rcu_read_lock();
 	ctx = idr_find(&afu->contexts_idr, ph);
 	if (ctx) {
-		ret = cxl_irq(irq, ctx);
+		ret = cxl_irq(irq, ctx, &irq_info);
 		rcu_read_unlock();
 		return ret;
 	}
 	rcu_read_unlock();
 
-	WARN(1, "Unable to demultiplex CXL PSL IRQ\n");
-	return IRQ_HANDLED;
+	WARN(1, "Unable to demultiplex CXL PSL IRQ for PE %i DSISR %.16llx DAR"
+		" %.16llx\n(Possible AFU HW issue - was a term/remove acked"
+		" with outstanding transactions?)\n", ph, irq_info.dsisr,
+		irq_info.dar);
+	return fail_psl_irq(afu, &irq_info);
 }
 
 static irqreturn_t cxl_irq_afu(int irq, void *data)
@@ -243,7 +255,7 @@ static irqreturn_t cxl_irq_afu(int irq, void *data)
 }
 
 unsigned int cxl_map_irq(struct cxl *adapter, irq_hw_number_t hwirq,
-			 irq_handler_t handler, void *cookie)
+			 irq_handler_t handler, void *cookie, const char *name)
 {
 	unsigned int virq;
 	int result;
@@ -259,7 +271,7 @@ unsigned int cxl_map_irq(struct cxl *adapter, irq_hw_number_t hwirq,
 
 	pr_devel("hwirq %#lx mapped to virq %u\n", hwirq, virq);
 
-	result = request_irq(virq, handler, 0, "cxl", cookie);
+	result = request_irq(virq, handler, 0, name, cookie);
 	if (result) {
 		dev_warn(&adapter->dev, "cxl_map_irq: request_irq failed: %i\n", result);
 		return 0;
@@ -278,14 +290,15 @@ static int cxl_register_one_irq(struct cxl *adapter,
 				irq_handler_t handler,
 				void *cookie,
 				irq_hw_number_t *dest_hwirq,
-				unsigned int *dest_virq)
+				unsigned int *dest_virq,
+				const char *name)
 {
 	int hwirq, virq;
 
 	if ((hwirq = cxl_alloc_one_irq(adapter)) < 0)
 		return hwirq;
 
-	if (!(virq = cxl_map_irq(adapter, hwirq, handler, cookie)))
+	if (!(virq = cxl_map_irq(adapter, hwirq, handler, cookie, name)))
 		goto err;
 
 	*dest_hwirq = hwirq;
@@ -302,10 +315,19 @@ int cxl_register_psl_err_irq(struct cxl *adapter)
 {
 	int rc;
 
+	adapter->irq_name = kasprintf(GFP_KERNEL, "cxl-%s-err",
+				      dev_name(&adapter->dev));
+	if (!adapter->irq_name)
+		return -ENOMEM;
+
 	if ((rc = cxl_register_one_irq(adapter, cxl_irq_err, adapter,
 				       &adapter->err_hwirq,
-				       &adapter->err_virq)))
+				       &adapter->err_virq,
+				       adapter->irq_name))) {
+		kfree(adapter->irq_name);
+		adapter->irq_name = NULL;
 		return rc;
+	}
 
 	cxl_p1_write(adapter, CXL_PSL_ErrIVTE, adapter->err_hwirq & 0xffff);
 
@@ -317,6 +339,7 @@ void cxl_release_psl_err_irq(struct cxl *adapter)
 	cxl_p1_write(adapter, CXL_PSL_ErrIVTE, 0x0000000000000000);
 	cxl_unmap_irq(adapter->err_virq, adapter);
 	cxl_release_one_irq(adapter, adapter->err_hwirq);
+	kfree(adapter->irq_name);
 }
 
 int cxl_register_serr_irq(struct cxl_afu *afu)
@@ -324,10 +347,18 @@ int cxl_register_serr_irq(struct cxl_afu *afu)
 	u64 serr;
 	int rc;
 
+	afu->err_irq_name = kasprintf(GFP_KERNEL, "cxl-%s-err",
+				      dev_name(&afu->dev));
+	if (!afu->err_irq_name)
+		return -ENOMEM;
+
 	if ((rc = cxl_register_one_irq(afu->adapter, cxl_slice_irq_err, afu,
 				       &afu->serr_hwirq,
-				       &afu->serr_virq)))
+				       &afu->serr_virq, afu->err_irq_name))) {
+		kfree(afu->err_irq_name);
+		afu->err_irq_name = NULL;
 		return rc;
+	}
 
 	serr = cxl_p1n_read(afu, CXL_PSL_SERR_An);
 	serr = (serr & 0x00ffffffffff0000ULL) | (afu->serr_hwirq & 0xffff);
@@ -341,24 +372,50 @@ void cxl_release_serr_irq(struct cxl_afu *afu)
 	cxl_p1n_write(afu, CXL_PSL_SERR_An, 0x0000000000000000);
 	cxl_unmap_irq(afu->serr_virq, afu);
 	cxl_release_one_irq(afu->adapter, afu->serr_hwirq);
+	kfree(afu->err_irq_name);
 }
 
 int cxl_register_psl_irq(struct cxl_afu *afu)
 {
-	return cxl_register_one_irq(afu->adapter, cxl_irq_multiplexed, afu,
-			&afu->psl_hwirq, &afu->psl_virq);
+	int rc;
+
+	afu->psl_irq_name = kasprintf(GFP_KERNEL, "cxl-%s",
+				      dev_name(&afu->dev));
+	if (!afu->psl_irq_name)
+		return -ENOMEM;
+
+	if ((rc = cxl_register_one_irq(afu->adapter, cxl_irq_multiplexed, afu,
+				    &afu->psl_hwirq, &afu->psl_virq,
+				    afu->psl_irq_name))) {
+		kfree(afu->psl_irq_name);
+		afu->psl_irq_name = NULL;
+	}
+	return rc;
 }
 
 void cxl_release_psl_irq(struct cxl_afu *afu)
 {
 	cxl_unmap_irq(afu->psl_virq, afu);
 	cxl_release_one_irq(afu->adapter, afu->psl_hwirq);
+	kfree(afu->psl_irq_name);
+}
+
+void afu_irq_name_free(struct cxl_context *ctx)
+{
+	struct cxl_irq_name *irq_name, *tmp;
+
+	list_for_each_entry_safe(irq_name, tmp, &ctx->irq_names, list) {
+		kfree(irq_name->name);
+		list_del(&irq_name->list);
+		kfree(irq_name);
+	}
 }
 
 int afu_register_irqs(struct cxl_context *ctx, u32 count)
 {
 	irq_hw_number_t hwirq;
-	int rc, r, i;
+	int rc, r, i, j = 1;
+	struct cxl_irq_name *irq_name;
 
 	if ((rc = cxl_alloc_irq_ranges(&ctx->irqs, ctx->afu->adapter, count)))
 		return rc;
@@ -372,15 +429,47 @@ int afu_register_irqs(struct cxl_context *ctx, u32 count)
 				  sizeof(*ctx->irq_bitmap), GFP_KERNEL);
 	if (!ctx->irq_bitmap)
 		return -ENOMEM;
+
+	/*
+	 * Allocate names first.  If any fail, bail out before allocating
+	 * actual hardware IRQs.
+	 */
+	INIT_LIST_HEAD(&ctx->irq_names);
+	for (r = 1; r < CXL_IRQ_RANGES; r++) {
+		for (i = 0; i < ctx->irqs.range[r]; hwirq++, i++) {
+			irq_name = kmalloc(sizeof(struct cxl_irq_name),
+					   GFP_KERNEL);
+			if (!irq_name)
+				goto out;
+			irq_name->name = kasprintf(GFP_KERNEL, "cxl-%s-pe%i-%i",
+						   dev_name(&ctx->afu->dev),
+						   ctx->pe, j);
+			if (!irq_name->name) {
+				kfree(irq_name);
+				goto out;
+			}
+			/* Add to tail so next look get the correct order */
+			list_add_tail(&irq_name->list, &ctx->irq_names);
+			j++;
+		}
+	}
+
+	/* We've allocated all memory now, so let's do the irq allocations */
+	irq_name = list_first_entry(&ctx->irq_names, struct cxl_irq_name, list);
 	for (r = 1; r < CXL_IRQ_RANGES; r++) {
 		hwirq = ctx->irqs.offset[r];
 		for (i = 0; i < ctx->irqs.range[r]; hwirq++, i++) {
 			cxl_map_irq(ctx->afu->adapter, hwirq,
-				     cxl_irq_afu, ctx);
+				    cxl_irq_afu, ctx, irq_name->name);
+			irq_name = list_next_entry(irq_name, list);
 		}
 	}
 
 	return 0;
+
+out:
+	afu_irq_name_free(ctx);
+	return -ENOMEM;
 }
 
 void afu_release_irqs(struct cxl_context *ctx)
@@ -398,5 +487,6 @@ void afu_release_irqs(struct cxl_context *ctx)
 		}
 	}
 
+	afu_irq_name_free(ctx);
 	cxl_release_irq_ranges(&ctx->irqs, ctx->afu->adapter);
 }

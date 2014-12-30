@@ -25,8 +25,6 @@
 struct mdp4_crtc {
 	struct drm_crtc base;
 	char name[8];
-	struct drm_plane *plane;
-	struct drm_plane *planes[8];
 	int id;
 	int ovlp;
 	enum mdp4_dma dma;
@@ -52,24 +50,10 @@ struct mdp4_crtc {
 
 	/* if there is a pending flip, these will be non-null: */
 	struct drm_pending_vblank_event *event;
-	struct msm_fence_cb pageflip_cb;
 
 #define PENDING_CURSOR 0x1
 #define PENDING_FLIP   0x2
 	atomic_t pending;
-
-	/* the fb that we logically (from PoV of KMS API) hold a ref
-	 * to.  Which we may not yet be scanning out (we may still
-	 * be scanning out previous in case of page_flip while waiting
-	 * for gpu rendering to complete:
-	 */
-	struct drm_framebuffer *fb;
-
-	/* the fb that we currently hold a scanout ref to: */
-	struct drm_framebuffer *scanout_fb;
-
-	/* for unref'ing framebuffers after scanout completes: */
-	struct drm_flip_work unref_fb_work;
 
 	/* for unref'ing cursor bo's after scanout completes: */
 	struct drm_flip_work unref_cursor_work;
@@ -97,61 +81,19 @@ static void crtc_flush(struct drm_crtc *crtc)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	struct mdp4_kms *mdp4_kms = get_kms(crtc);
-	uint32_t i, flush = 0;
+	struct drm_plane *plane;
+	uint32_t flush = 0;
 
-	for (i = 0; i < ARRAY_SIZE(mdp4_crtc->planes); i++) {
-		struct drm_plane *plane = mdp4_crtc->planes[i];
-		if (plane) {
-			enum mdp4_pipe pipe_id = mdp4_plane_pipe(plane);
-			flush |= pipe2flush(pipe_id);
-		}
+	drm_atomic_crtc_for_each_plane(plane, crtc) {
+		enum mdp4_pipe pipe_id = mdp4_plane_pipe(plane);
+		flush |= pipe2flush(pipe_id);
 	}
+
 	flush |= ovlp2flush(mdp4_crtc->ovlp);
 
 	DBG("%s: flush=%08x", mdp4_crtc->name, flush);
 
 	mdp4_write(mdp4_kms, REG_MDP4_OVERLAY_FLUSH, flush);
-}
-
-static void update_fb(struct drm_crtc *crtc, struct drm_framebuffer *new_fb)
-{
-	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
-	struct drm_framebuffer *old_fb = mdp4_crtc->fb;
-
-	/* grab reference to incoming scanout fb: */
-	drm_framebuffer_reference(new_fb);
-	mdp4_crtc->base.primary->fb = new_fb;
-	mdp4_crtc->fb = new_fb;
-
-	if (old_fb)
-		drm_flip_work_queue(&mdp4_crtc->unref_fb_work, old_fb);
-}
-
-/* unlike update_fb(), take a ref to the new scanout fb *before* updating
- * plane, then call this.  Needed to ensure we don't unref the buffer that
- * is actually still being scanned out.
- *
- * Note that this whole thing goes away with atomic.. since we can defer
- * calling into driver until rendering is done.
- */
-static void update_scanout(struct drm_crtc *crtc, struct drm_framebuffer *fb)
-{
-	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
-
-	/* flush updates, to make sure hw is updated to new scanout fb,
-	 * so that we can safely queue unref to current fb (ie. next
-	 * vblank we know hw is done w/ previous scanout_fb).
-	 */
-	crtc_flush(crtc);
-
-	if (mdp4_crtc->scanout_fb)
-		drm_flip_work_queue(&mdp4_crtc->unref_fb_work,
-				mdp4_crtc->scanout_fb);
-
-	mdp4_crtc->scanout_fb = fb;
-
-	/* enable vblank to complete flip: */
-	request_pending(crtc, PENDING_FLIP);
 }
 
 /* if file!=NULL, this is preclose potential cancel-flip path */
@@ -171,36 +113,11 @@ static void complete_flip(struct drm_crtc *crtc, struct drm_file *file)
 		 */
 		if (!file || (event->base.file_priv == file)) {
 			mdp4_crtc->event = NULL;
+			DBG("%s: send event: %p", mdp4_crtc->name, event);
 			drm_send_vblank_event(dev, mdp4_crtc->id, event);
 		}
 	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
-}
-
-static void pageflip_cb(struct msm_fence_cb *cb)
-{
-	struct mdp4_crtc *mdp4_crtc =
-		container_of(cb, struct mdp4_crtc, pageflip_cb);
-	struct drm_crtc *crtc = &mdp4_crtc->base;
-	struct drm_framebuffer *fb = crtc->primary->fb;
-
-	if (!fb)
-		return;
-
-	drm_framebuffer_reference(fb);
-	mdp4_plane_set_scanout(mdp4_crtc->plane, fb);
-	update_scanout(crtc, fb);
-}
-
-static void unref_fb_worker(struct drm_flip_work *work, void *val)
-{
-	struct mdp4_crtc *mdp4_crtc =
-		container_of(work, struct mdp4_crtc, unref_fb_work);
-	struct drm_device *dev = mdp4_crtc->base.dev;
-
-	mutex_lock(&dev->mode_config.mutex);
-	drm_framebuffer_unreference(val);
-	mutex_unlock(&dev->mode_config.mutex);
 }
 
 static void unref_cursor_worker(struct drm_flip_work *work, void *val)
@@ -218,7 +135,6 @@ static void mdp4_crtc_destroy(struct drm_crtc *crtc)
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 
 	drm_crtc_cleanup(crtc);
-	drm_flip_work_cleanup(&mdp4_crtc->unref_fb_work);
 	drm_flip_work_cleanup(&mdp4_crtc->unref_cursor_work);
 
 	kfree(mdp4_crtc);
@@ -251,56 +167,69 @@ static bool mdp4_crtc_mode_fixup(struct drm_crtc *crtc,
 	return true;
 }
 
-static void blend_setup(struct drm_crtc *crtc)
+/* statically (for now) map planes to mixer stage (z-order): */
+static const int idxs[] = {
+		[VG1]  = 1,
+		[VG2]  = 2,
+		[RGB1] = 0,
+		[RGB2] = 0,
+		[RGB3] = 0,
+		[VG3]  = 3,
+		[VG4]  = 4,
+
+};
+
+/* setup mixer config, for which we need to consider all crtc's and
+ * the planes attached to them
+ *
+ * TODO may possibly need some extra locking here
+ */
+static void setup_mixer(struct mdp4_kms *mdp4_kms)
 {
-	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
-	struct mdp4_kms *mdp4_kms = get_kms(crtc);
-	int i, ovlp = mdp4_crtc->ovlp;
+	struct drm_mode_config *config = &mdp4_kms->dev->mode_config;
+	struct drm_crtc *crtc;
 	uint32_t mixer_cfg = 0;
 	static const enum mdp_mixer_stage_id stages[] = {
 			STAGE_BASE, STAGE0, STAGE1, STAGE2, STAGE3,
 	};
-	/* statically (for now) map planes to mixer stage (z-order): */
-	static const int idxs[] = {
-			[VG1]  = 1,
-			[VG2]  = 2,
-			[RGB1] = 0,
-			[RGB2] = 0,
-			[RGB3] = 0,
-			[VG3]  = 3,
-			[VG4]  = 4,
 
-	};
+	list_for_each_entry(crtc, &config->crtc_list, head) {
+		struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
+		struct drm_plane *plane;
+
+		drm_atomic_crtc_for_each_plane(plane, crtc) {
+			enum mdp4_pipe pipe_id = mdp4_plane_pipe(plane);
+			int idx = idxs[pipe_id];
+			mixer_cfg = mixercfg(mixer_cfg, mdp4_crtc->mixer,
+					pipe_id, stages[idx]);
+		}
+	}
+
+	mdp4_write(mdp4_kms, REG_MDP4_LAYERMIXER_IN_CFG, mixer_cfg);
+}
+
+static void blend_setup(struct drm_crtc *crtc)
+{
+	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
+	struct mdp4_kms *mdp4_kms = get_kms(crtc);
+	struct drm_plane *plane;
+	int i, ovlp = mdp4_crtc->ovlp;
 	bool alpha[4]= { false, false, false, false };
-
-	/* Don't rely on value read back from hw, but instead use our
-	 * own shadowed value.  Possibly disable/reenable looses the
-	 * previous value and goes back to power-on default?
-	 */
-	mixer_cfg = mdp4_kms->mixer_cfg;
 
 	mdp4_write(mdp4_kms, REG_MDP4_OVLP_TRANSP_LOW0(ovlp), 0);
 	mdp4_write(mdp4_kms, REG_MDP4_OVLP_TRANSP_LOW1(ovlp), 0);
 	mdp4_write(mdp4_kms, REG_MDP4_OVLP_TRANSP_HIGH0(ovlp), 0);
 	mdp4_write(mdp4_kms, REG_MDP4_OVLP_TRANSP_HIGH1(ovlp), 0);
 
-	for (i = 0; i < ARRAY_SIZE(mdp4_crtc->planes); i++) {
-		struct drm_plane *plane = mdp4_crtc->planes[i];
-		if (plane) {
-			enum mdp4_pipe pipe_id = mdp4_plane_pipe(plane);
-			int idx = idxs[pipe_id];
-			if (idx > 0) {
-				const struct mdp_format *format =
+	drm_atomic_crtc_for_each_plane(plane, crtc) {
+		enum mdp4_pipe pipe_id = mdp4_plane_pipe(plane);
+		int idx = idxs[pipe_id];
+		if (idx > 0) {
+			const struct mdp_format *format =
 					to_mdp_format(msm_framebuffer_format(plane->fb));
-				alpha[idx-1] = format->alpha_enable;
-			}
-			mixer_cfg = mixercfg(mixer_cfg, mdp4_crtc->mixer,
-					pipe_id, stages[idx]);
+			alpha[idx-1] = format->alpha_enable;
 		}
 	}
-
-	/* this shouldn't happen.. and seems to cause underflow: */
-	WARN_ON(!mixer_cfg);
 
 	for (i = 0; i < 4; i++) {
 		uint32_t op;
@@ -324,22 +253,21 @@ static void blend_setup(struct drm_crtc *crtc)
 		mdp4_write(mdp4_kms, REG_MDP4_OVLP_STAGE_TRANSP_HIGH1(ovlp, i), 0);
 	}
 
-	mdp4_kms->mixer_cfg = mixer_cfg;
-	mdp4_write(mdp4_kms, REG_MDP4_LAYERMIXER_IN_CFG, mixer_cfg);
+	setup_mixer(mdp4_kms);
 }
 
-static int mdp4_crtc_mode_set(struct drm_crtc *crtc,
-		struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode,
-		int x, int y,
-		struct drm_framebuffer *old_fb)
+static void mdp4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	struct mdp4_kms *mdp4_kms = get_kms(crtc);
 	enum mdp4_dma dma = mdp4_crtc->dma;
-	int ret, ovlp = mdp4_crtc->ovlp;
+	int ovlp = mdp4_crtc->ovlp;
+	struct drm_display_mode *mode;
 
-	mode = adjusted_mode;
+	if (WARN_ON(!crtc->state))
+		return;
+
+	mode = &crtc->state->adjusted_mode;
 
 	DBG("%s: set mode: %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
 			mdp4_crtc->name, mode->base.id, mode->name,
@@ -350,28 +278,13 @@ static int mdp4_crtc_mode_set(struct drm_crtc *crtc,
 			mode->vsync_end, mode->vtotal,
 			mode->type, mode->flags);
 
-	/* grab extra ref for update_scanout() */
-	drm_framebuffer_reference(crtc->primary->fb);
-
-	ret = mdp4_plane_mode_set(mdp4_crtc->plane, crtc, crtc->primary->fb,
-			0, 0, mode->hdisplay, mode->vdisplay,
-			x << 16, y << 16,
-			mode->hdisplay << 16, mode->vdisplay << 16);
-	if (ret) {
-		drm_framebuffer_unreference(crtc->primary->fb);
-		dev_err(crtc->dev->dev, "%s: failed to set mode on plane: %d\n",
-				mdp4_crtc->name, ret);
-		return ret;
-	}
-
 	mdp4_write(mdp4_kms, REG_MDP4_DMA_SRC_SIZE(dma),
 			MDP4_DMA_SRC_SIZE_WIDTH(mode->hdisplay) |
 			MDP4_DMA_SRC_SIZE_HEIGHT(mode->vdisplay));
 
 	/* take data from pipe: */
 	mdp4_write(mdp4_kms, REG_MDP4_DMA_SRC_BASE(dma), 0);
-	mdp4_write(mdp4_kms, REG_MDP4_DMA_SRC_STRIDE(dma),
-			crtc->primary->fb->pitches[0]);
+	mdp4_write(mdp4_kms, REG_MDP4_DMA_SRC_STRIDE(dma), 0);
 	mdp4_write(mdp4_kms, REG_MDP4_DMA_DST_SIZE(dma),
 			MDP4_DMA_DST_SIZE_WIDTH(0) |
 			MDP4_DMA_DST_SIZE_HEIGHT(0));
@@ -380,8 +293,7 @@ static int mdp4_crtc_mode_set(struct drm_crtc *crtc,
 	mdp4_write(mdp4_kms, REG_MDP4_OVLP_SIZE(ovlp),
 			MDP4_OVLP_SIZE_WIDTH(mode->hdisplay) |
 			MDP4_OVLP_SIZE_HEIGHT(mode->vdisplay));
-	mdp4_write(mdp4_kms, REG_MDP4_OVLP_STRIDE(ovlp),
-			crtc->primary->fb->pitches[0]);
+	mdp4_write(mdp4_kms, REG_MDP4_OVLP_STRIDE(ovlp), 0);
 
 	mdp4_write(mdp4_kms, REG_MDP4_OVLP_CFG(ovlp), 1);
 
@@ -390,11 +302,6 @@ static int mdp4_crtc_mode_set(struct drm_crtc *crtc,
 		mdp4_write(mdp4_kms, REG_MDP4_DMA_E_QUANT(1), 0x00ff0000);
 		mdp4_write(mdp4_kms, REG_MDP4_DMA_E_QUANT(2), 0x00ff0000);
 	}
-
-	update_fb(crtc, crtc->primary->fb);
-	update_scanout(crtc, crtc->primary->fb);
-
-	return 0;
 }
 
 static void mdp4_crtc_prepare(struct drm_crtc *crtc)
@@ -416,60 +323,51 @@ static void mdp4_crtc_commit(struct drm_crtc *crtc)
 	drm_crtc_vblank_put(crtc);
 }
 
-static int mdp4_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
-		struct drm_framebuffer *old_fb)
-{
-	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
-	struct drm_plane *plane = mdp4_crtc->plane;
-	struct drm_display_mode *mode = &crtc->mode;
-	int ret;
-
-	/* grab extra ref for update_scanout() */
-	drm_framebuffer_reference(crtc->primary->fb);
-
-	ret = mdp4_plane_mode_set(plane, crtc, crtc->primary->fb,
-			0, 0, mode->hdisplay, mode->vdisplay,
-			x << 16, y << 16,
-			mode->hdisplay << 16, mode->vdisplay << 16);
-	if (ret) {
-		drm_framebuffer_unreference(crtc->primary->fb);
-		return ret;
-	}
-
-	update_fb(crtc, crtc->primary->fb);
-	update_scanout(crtc, crtc->primary->fb);
-
-	return 0;
-}
-
 static void mdp4_crtc_load_lut(struct drm_crtc *crtc)
 {
 }
 
-static int mdp4_crtc_page_flip(struct drm_crtc *crtc,
-		struct drm_framebuffer *new_fb,
-		struct drm_pending_vblank_event *event,
-		uint32_t page_flip_flags)
+static int mdp4_crtc_atomic_check(struct drm_crtc *crtc,
+		struct drm_crtc_state *state)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
-	struct drm_gem_object *obj;
-	unsigned long flags;
+
+	DBG("%s: check", mdp4_crtc->name);
 
 	if (mdp4_crtc->event) {
 		dev_err(dev->dev, "already pending flip!\n");
 		return -EBUSY;
 	}
 
-	obj = msm_framebuffer_bo(new_fb, 0);
+	// TODO anything else to check?
+
+	return 0;
+}
+
+static void mdp4_crtc_atomic_begin(struct drm_crtc *crtc)
+{
+	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
+	DBG("%s: begin", mdp4_crtc->name);
+}
+
+static void mdp4_crtc_atomic_flush(struct drm_crtc *crtc)
+{
+	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	unsigned long flags;
+
+	DBG("%s: flush", mdp4_crtc->name);
+
+	WARN_ON(mdp4_crtc->event);
 
 	spin_lock_irqsave(&dev->event_lock, flags);
-	mdp4_crtc->event = event;
+	mdp4_crtc->event = crtc->state->event;
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
-	update_fb(crtc, new_fb);
-
-	return msm_gem_queue_inactive_cb(obj, &mdp4_crtc->pageflip_cb);
+	blend_setup(crtc);
+	crtc_flush(crtc);
+	request_pending(crtc, PENDING_FLIP);
 }
 
 static int mdp4_crtc_set_property(struct drm_crtc *crtc,
@@ -607,22 +505,29 @@ static int mdp4_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 }
 
 static const struct drm_crtc_funcs mdp4_crtc_funcs = {
-	.set_config = drm_crtc_helper_set_config,
+	.set_config = drm_atomic_helper_set_config,
 	.destroy = mdp4_crtc_destroy,
-	.page_flip = mdp4_crtc_page_flip,
+	.page_flip = drm_atomic_helper_page_flip,
 	.set_property = mdp4_crtc_set_property,
 	.cursor_set = mdp4_crtc_cursor_set,
 	.cursor_move = mdp4_crtc_cursor_move,
+	.reset = drm_atomic_helper_crtc_reset,
+	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 };
 
 static const struct drm_crtc_helper_funcs mdp4_crtc_helper_funcs = {
 	.dpms = mdp4_crtc_dpms,
 	.mode_fixup = mdp4_crtc_mode_fixup,
-	.mode_set = mdp4_crtc_mode_set,
+	.mode_set_nofb = mdp4_crtc_mode_set_nofb,
+	.mode_set = drm_helper_crtc_mode_set,
+	.mode_set_base = drm_helper_crtc_mode_set_base,
 	.prepare = mdp4_crtc_prepare,
 	.commit = mdp4_crtc_commit,
-	.mode_set_base = mdp4_crtc_mode_set_base,
 	.load_lut = mdp4_crtc_load_lut,
+	.atomic_check = mdp4_crtc_atomic_check,
+	.atomic_begin = mdp4_crtc_atomic_begin,
+	.atomic_flush = mdp4_crtc_atomic_flush,
 };
 
 static void mdp4_crtc_vblank_irq(struct mdp_irq *irq, uint32_t irqstatus)
@@ -638,7 +543,6 @@ static void mdp4_crtc_vblank_irq(struct mdp_irq *irq, uint32_t irqstatus)
 
 	if (pending & PENDING_FLIP) {
 		complete_flip(crtc, NULL);
-		drm_flip_work_commit(&mdp4_crtc->unref_fb_work, priv->wq);
 	}
 
 	if (pending & PENDING_CURSOR) {
@@ -663,7 +567,8 @@ uint32_t mdp4_crtc_vblank(struct drm_crtc *crtc)
 
 void mdp4_crtc_cancel_pending_flip(struct drm_crtc *crtc, struct drm_file *file)
 {
-	DBG("cancel: %p", file);
+	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
+	DBG("%s: cancel: %p", mdp4_crtc->name, file);
 	complete_flip(crtc, file);
 }
 
@@ -717,35 +622,6 @@ void mdp4_crtc_set_intf(struct drm_crtc *crtc, enum mdp4_intf intf, int mixer)
 	mdp4_write(mdp4_kms, REG_MDP4_DISP_INTF_SEL, intf_sel);
 }
 
-static void set_attach(struct drm_crtc *crtc, enum mdp4_pipe pipe_id,
-		struct drm_plane *plane)
-{
-	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
-
-	BUG_ON(pipe_id >= ARRAY_SIZE(mdp4_crtc->planes));
-
-	if (mdp4_crtc->planes[pipe_id] == plane)
-		return;
-
-	mdp4_crtc->planes[pipe_id] = plane;
-	blend_setup(crtc);
-	if (mdp4_crtc->enabled && (plane != mdp4_crtc->plane))
-		crtc_flush(crtc);
-}
-
-void mdp4_crtc_attach(struct drm_crtc *crtc, struct drm_plane *plane)
-{
-	set_attach(crtc, mdp4_plane_pipe(plane), plane);
-}
-
-void mdp4_crtc_detach(struct drm_crtc *crtc, struct drm_plane *plane)
-{
-	/* don't actually detatch our primary plane: */
-	if (to_mdp4_crtc(crtc)->plane == plane)
-		return;
-	set_attach(crtc, mdp4_plane_pipe(plane), NULL);
-}
-
 static const char *dma_names[] = {
 		"DMA_P", "DMA_S", "DMA_E",
 };
@@ -757,17 +633,13 @@ struct drm_crtc *mdp4_crtc_init(struct drm_device *dev,
 {
 	struct drm_crtc *crtc = NULL;
 	struct mdp4_crtc *mdp4_crtc;
-	int ret;
 
 	mdp4_crtc = kzalloc(sizeof(*mdp4_crtc), GFP_KERNEL);
-	if (!mdp4_crtc) {
-		ret = -ENOMEM;
-		goto fail;
-	}
+	if (!mdp4_crtc)
+		return ERR_PTR(-ENOMEM);
 
 	crtc = &mdp4_crtc->base;
 
-	mdp4_crtc->plane = plane;
 	mdp4_crtc->id = id;
 
 	mdp4_crtc->ovlp = ovlp_id;
@@ -784,26 +656,14 @@ struct drm_crtc *mdp4_crtc_init(struct drm_device *dev,
 
 	spin_lock_init(&mdp4_crtc->cursor.lock);
 
-	ret = drm_flip_work_init(&mdp4_crtc->unref_fb_work, 16,
-			"unref fb", unref_fb_worker);
-	if (ret)
-		goto fail;
-
-	ret = drm_flip_work_init(&mdp4_crtc->unref_cursor_work, 64,
+	drm_flip_work_init(&mdp4_crtc->unref_cursor_work,
 			"unref cursor", unref_cursor_worker);
-
-	INIT_FENCE_CB(&mdp4_crtc->pageflip_cb, pageflip_cb);
 
 	drm_crtc_init_with_planes(dev, crtc, plane, NULL, &mdp4_crtc_funcs);
 	drm_crtc_helper_add(crtc, &mdp4_crtc_helper_funcs);
+	plane->crtc = crtc;
 
-	mdp4_plane_install_properties(mdp4_crtc->plane, &crtc->base);
+	mdp4_plane_install_properties(plane, &crtc->base);
 
 	return crtc;
-
-fail:
-	if (crtc)
-		mdp4_crtc_destroy(crtc);
-
-	return ERR_PTR(ret);
 }

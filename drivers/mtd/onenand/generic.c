@@ -106,7 +106,6 @@ static int generic_onenand_remove(struct platform_device *pdev)
 static struct platform_driver generic_onenand_driver = {
 	.driver = {
 		.name		= DRIVER_NAME,
-		.owner		= THIS_MODULE,
 	},
 	.probe		= generic_onenand_probe,
 	.remove		= generic_onenand_remove,

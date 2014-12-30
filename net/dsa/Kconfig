@@ -11,6 +11,17 @@ config NET_DSA
 
 if NET_DSA
 
+config NET_DSA_HWMON
+	bool "Distributed Switch Architecture HWMON support"
+	default y
+	depends on HWMON && !(NET_DSA=y && HWMON=m)
+	---help---
+	  Say Y if you want to expose thermal sensor data on switches supported
+	  by the Distributed Switch Architecture.
+
+	  Some of those switches contain thermal sensors. This data is available
+	  via the hwmon sysfs interface and exposes the onboard sensors.
+
 # tagging formats
 config NET_DSA_TAG_BRCM
 	bool

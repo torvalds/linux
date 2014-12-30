@@ -227,9 +227,13 @@ static void callchain_node__init_have_children_rb_tree(struct callchain_node *no
 	}
 }
 
-static void callchain_node__init_have_children(struct callchain_node *node)
+static void callchain_node__init_have_children(struct callchain_node *node,
+					       bool has_sibling)
 {
 	struct callchain_list *chain;
+
+	chain = list_entry(node->val.next, struct callchain_list, list);
+	chain->ms.has_children = has_sibling;
 
 	if (!list_empty(&node->val)) {
 		chain = list_entry(node->val.prev, struct callchain_list, list);
@@ -241,11 +245,12 @@ static void callchain_node__init_have_children(struct callchain_node *node)
 
 static void callchain__init_have_children(struct rb_root *root)
 {
-	struct rb_node *nd;
+	struct rb_node *nd = rb_first(root);
+	bool has_sibling = nd && rb_next(nd);
 
 	for (nd = rb_first(root); nd; nd = rb_next(nd)) {
 		struct callchain_node *node = rb_entry(nd, struct callchain_node, rb_node);
-		callchain_node__init_have_children(node);
+		callchain_node__init_have_children(node, has_sibling);
 	}
 }
 
@@ -463,23 +468,6 @@ out:
 	return key;
 }
 
-static char *callchain_list__sym_name(struct callchain_list *cl,
-				      char *bf, size_t bfsize, bool show_dso)
-{
-	int printed;
-
-	if (cl->ms.sym)
-		printed = scnprintf(bf, bfsize, "%s", cl->ms.sym->name);
-	else
-		printed = scnprintf(bf, bfsize, "%#" PRIx64, cl->ip);
-
-	if (show_dso)
-		scnprintf(bf + printed, bfsize - printed, " %s",
-			  cl->ms.map ? cl->ms.map->dso->short_name : "unknown");
-
-	return bf;
-}
-
 struct callchain_print_arg {
 	/* for hists browser */
 	off_t	row_offset;
@@ -559,8 +547,11 @@ static int hist_browser__show_callchain(struct hist_browser *browser,
 	struct rb_node *node;
 	int first_row = row, offset = level * LEVEL_OFFSET_STEP;
 	u64 new_total;
+	bool need_percent;
 
 	node = rb_first(root);
+	need_percent = !!rb_next(node);
+
 	while (node) {
 		struct callchain_node *child = rb_entry(node, struct callchain_node, rb_node);
 		struct rb_node *next = rb_next(node);
@@ -577,7 +568,7 @@ static int hist_browser__show_callchain(struct hist_browser *browser,
 
 			if (first)
 				first = false;
-			else if (level > 1)
+			else if (need_percent)
 				extra_offset = LEVEL_OFFSET_STEP;
 
 			folded_sign = callchain_list__folded(chain);
@@ -590,7 +581,7 @@ static int hist_browser__show_callchain(struct hist_browser *browser,
 			str = callchain_list__sym_name(chain, bf, sizeof(bf),
 						       browser->show_dso);
 
-			if (was_first && level > 1) {
+			if (was_first && need_percent) {
 				double percent = cumul * 100.0 / total;
 
 				if (asprintf(&alloc_str, "%2.2f%% %s", percent, str) < 0)
@@ -806,6 +797,13 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 			.row_offset = row_offset,
 			.is_current_entry = current_entry,
 		};
+
+		if (callchain_param.mode == CHAIN_GRAPH_REL) {
+			if (symbol_conf.cumulate_callchain)
+				total = entry->stat_acc->period;
+			else
+				total = entry->stat.period;
+		}
 
 		printed += hist_browser__show_callchain(browser,
 					&entry->sorted_chain, 1, row, total,
@@ -1254,7 +1252,7 @@ static int hists__browser_title(struct hists *hists,
 
 	nr_samples = convert_unit(nr_samples, &unit);
 	printed = scnprintf(bf, size,
-			   "Samples: %lu%c of event '%s', Event count (approx.): %lu",
+			   "Samples: %lu%c of event '%s', Event count (approx.): %" PRIu64,
 			   nr_samples, unit, ev_name, nr_events);
 
 

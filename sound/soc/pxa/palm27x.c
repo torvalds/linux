@@ -172,7 +172,6 @@ static struct platform_driver palm27x_wm9712_driver = {
 	.remove		= palm27x_asoc_remove,
 	.driver		= {
 		.name		= "palm27x-asoc",
-		.owner		= THIS_MODULE,
 		.pm     = &snd_soc_pm_ops,
 	},
 };

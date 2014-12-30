@@ -132,6 +132,7 @@ static int queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
 		lines = VBI_NTSC_LINE_COUNT;
 	*num_planes = 1;
 	sizes[0] = lines * VBI_LINE_LENGTH * 2;
+	alloc_ctxs[0] = dev->alloc_ctx;
 	return 0;
 }
 
@@ -142,7 +143,6 @@ static int buffer_prepare(struct vb2_buffer *vb)
 		struct cx23885_buffer, vb);
 	struct sg_table *sgt = vb2_dma_sg_plane_desc(vb, 0);
 	unsigned lines = VBI_PAL_LINE_COUNT;
-	int ret;
 
 	if (dev->tvnorm & V4L2_STD_525_60)
 		lines = VBI_NTSC_LINE_COUNT;
@@ -150,10 +150,6 @@ static int buffer_prepare(struct vb2_buffer *vb)
 	if (vb2_plane_size(vb, 0) < lines * VBI_LINE_LENGTH * 2)
 		return -EINVAL;
 	vb2_set_plane_payload(vb, 0, lines * VBI_LINE_LENGTH * 2);
-
-	ret = dma_map_sg(&dev->pci->dev, sgt->sgl, sgt->nents, DMA_FROM_DEVICE);
-	if (!ret)
-		return -EIO;
 
 	cx23885_risc_vbibuffer(dev->pci, &buf->risc,
 			 sgt->sgl,
@@ -165,14 +161,10 @@ static int buffer_prepare(struct vb2_buffer *vb)
 
 static void buffer_finish(struct vb2_buffer *vb)
 {
-	struct cx23885_dev *dev = vb->vb2_queue->drv_priv;
 	struct cx23885_buffer *buf = container_of(vb,
 		struct cx23885_buffer, vb);
-	struct sg_table *sgt = vb2_dma_sg_plane_desc(vb, 0);
 
 	cx23885_free_buffer(vb->vb2_queue->drv_priv, buf);
-
-	dma_unmap_sg(&dev->pci->dev, sgt->sgl, sgt->nents, DMA_FROM_DEVICE);
 }
 
 /*

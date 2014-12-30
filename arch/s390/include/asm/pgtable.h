@@ -133,6 +133,18 @@ extern unsigned long MODULES_END;
 #define MODULES_LEN	(1UL << 31)
 #endif
 
+static inline int is_module_addr(void *addr)
+{
+#ifdef CONFIG_64BIT
+	BUILD_BUG_ON(MODULES_LEN > (1UL << 31));
+	if (addr < (void *)MODULES_VADDR)
+		return 0;
+	if (addr > (void *)MODULES_END)
+		return 0;
+#endif
+	return 1;
+}
+
 /*
  * A 31 bit pagetable entry of S390 has following format:
  *  |   PFRA          |    |  OS  |
@@ -479,6 +491,11 @@ static inline int mm_has_pgste(struct mm_struct *mm)
 	return 0;
 }
 
+/*
+ * In the case that a guest uses storage keys
+ * faults should no longer be backed by zero pages
+ */
+#define mm_forbids_zeropage mm_use_skey
 static inline int mm_use_skey(struct mm_struct *mm)
 {
 #ifdef CONFIG_PGSTE
@@ -1634,6 +1651,19 @@ static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm,
 	return pmd;
 }
 
+#define __HAVE_ARCH_PMDP_GET_AND_CLEAR_FULL
+static inline pmd_t pmdp_get_and_clear_full(struct mm_struct *mm,
+					    unsigned long address,
+					    pmd_t *pmdp, int full)
+{
+	pmd_t pmd = *pmdp;
+
+	if (!full)
+		pmdp_flush_lazy(mm, address, pmdp);
+	pmd_clear(pmdp);
+	return pmd;
+}
+
 #define __HAVE_ARCH_PMDP_CLEAR_FLUSH
 static inline pmd_t pmdp_clear_flush(struct vm_area_struct *vma,
 				     unsigned long address, pmd_t *pmdp)
@@ -1746,7 +1776,8 @@ static inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
 extern int vmem_add_mapping(unsigned long start, unsigned long size);
 extern int vmem_remove_mapping(unsigned long start, unsigned long size);
 extern int s390_enable_sie(void);
-extern void s390_enable_skey(void);
+extern int s390_enable_skey(void);
+extern void s390_reset_cmma(struct mm_struct *mm);
 
 /*
  * No page table caches to initialise

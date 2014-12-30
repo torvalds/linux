@@ -209,7 +209,7 @@ EXPORT_SYMBOL(sptlrpc_flavor2name_bulk);
 
 char *sptlrpc_flavor2name(struct sptlrpc_flavor *sf, char *buf, int bufsize)
 {
-	snprintf(buf, bufsize, "%s", sptlrpc_flavor2name_base(sf->sf_rpc));
+	strlcpy(buf, sptlrpc_flavor2name_base(sf->sf_rpc), bufsize);
 
 	/*
 	 * currently we don't support customized bulk specification for
@@ -220,10 +220,9 @@ char *sptlrpc_flavor2name(struct sptlrpc_flavor *sf, char *buf, int bufsize)
 
 		bspec[0] = '-';
 		sptlrpc_flavor2name_bulk(sf, &bspec[1], sizeof(bspec) - 1);
-		strncat(buf, bspec, bufsize);
+		strlcat(buf, bspec, bufsize);
 	}
 
-	buf[bufsize - 1] = '\0';
 	return buf;
 }
 EXPORT_SYMBOL(sptlrpc_flavor2name);
@@ -457,8 +456,8 @@ int sptlrpc_req_ctx_switch(struct ptlrpc_request *req,
 	LASSERT(req->rq_reqlen);
 	LASSERT(req->rq_replen);
 
-	CDEBUG(D_SEC, "req %p: switch ctx %p(%u->%s) -> %p(%u->%s), "
-	       "switch sec %p(%s) -> %p(%s)\n", req,
+	CDEBUG(D_SEC, "req %p: switch ctx %p(%u->%s) -> %p(%u->%s), switch sec %p(%s) -> %p(%s)\n",
+	       req,
 	       oldctx, oldctx->cc_vcred.vc_uid, sec2target_str(oldctx->cc_sec),
 	       newctx, newctx->cc_vcred.vc_uid, sec2target_str(newctx->cc_sec),
 	       oldctx->cc_sec, oldctx->cc_sec->ps_policy->sp_name,
@@ -1842,8 +1841,8 @@ int sptlrpc_target_export_check(struct obd_export *exp,
 							req->rq_svc_ctx,
 							&flavor);
 		} else {
-			CDEBUG(D_SEC, "exp %p (%x|%x|%x): is current flavor, "
-			       "install rvs ctx\n", exp, exp->exp_flvr.sf_rpc,
+			CDEBUG(D_SEC, "exp %p (%x|%x|%x): is current flavor, install rvs ctx\n",
+			       exp, exp->exp_flvr.sf_rpc,
 			       exp->exp_flvr_old[0].sf_rpc,
 			       exp->exp_flvr_old[1].sf_rpc);
 			spin_unlock(&exp->exp_lock);
@@ -1856,13 +1855,12 @@ int sptlrpc_target_export_check(struct obd_export *exp,
 	if (exp->exp_flvr_expire[0]) {
 		if (exp->exp_flvr_expire[0] >= get_seconds()) {
 			if (flavor_allowed(&exp->exp_flvr_old[0], req)) {
-				CDEBUG(D_SEC, "exp %p (%x|%x|%x): match the "
-				       "middle one ("CFS_DURATION_T")\n", exp,
+				CDEBUG(D_SEC, "exp %p (%x|%x|%x): match the middle one (" CFS_DURATION_T ")\n", exp,
 				       exp->exp_flvr.sf_rpc,
 				       exp->exp_flvr_old[0].sf_rpc,
 				       exp->exp_flvr_old[1].sf_rpc,
 				       exp->exp_flvr_expire[0] -
-						get_seconds());
+				       get_seconds());
 				spin_unlock(&exp->exp_lock);
 				return 0;
 			}
@@ -1881,13 +1879,13 @@ int sptlrpc_target_export_check(struct obd_export *exp,
 	if (exp->exp_flvr_changed == 0 && exp->exp_flvr_expire[1]) {
 		if (exp->exp_flvr_expire[1] >= get_seconds()) {
 			if (flavor_allowed(&exp->exp_flvr_old[1], req)) {
-				CDEBUG(D_SEC, "exp %p (%x|%x|%x): match the "
-				       "oldest one ("CFS_DURATION_T")\n", exp,
+				CDEBUG(D_SEC, "exp %p (%x|%x|%x): match the oldest one (" CFS_DURATION_T ")\n",
+				       exp,
 				       exp->exp_flvr.sf_rpc,
 				       exp->exp_flvr_old[0].sf_rpc,
 				       exp->exp_flvr_old[1].sf_rpc,
 				       exp->exp_flvr_expire[1] -
-						get_seconds());
+				       get_seconds());
 				spin_unlock(&exp->exp_lock);
 				return 0;
 			}
@@ -1907,8 +1905,7 @@ int sptlrpc_target_export_check(struct obd_export *exp,
 
 	spin_unlock(&exp->exp_lock);
 
-	CWARN("exp %p(%s): req %p (%u|%u|%u|%u|%u|%u) with "
-	      "unauthorized flavor %x, expect %x|%x(%+ld)|%x(%+ld)\n",
+	CWARN("exp %p(%s): req %p (%u|%u|%u|%u|%u|%u) with unauthorized flavor %x, expect %x|%x(%+ld)|%x(%+ld)\n",
 	      exp, exp->exp_obd->obd_name,
 	      req, req->rq_auth_gss, req->rq_ctx_init, req->rq_ctx_fini,
 	      req->rq_auth_usr_root, req->rq_auth_usr_mdt, req->rq_auth_usr_ost,

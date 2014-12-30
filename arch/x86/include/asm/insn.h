@@ -65,6 +65,7 @@ struct insn {
 	unsigned char x86_64;
 
 	const insn_byte_t *kaddr;	/* kernel address of insn to analyze */
+	const insn_byte_t *end_kaddr;	/* kernel address of last insn in buffer */
 	const insn_byte_t *next_byte;
 };
 
@@ -96,7 +97,7 @@ struct insn {
 #define X86_VEX_P(vex)	((vex) & 0x03)		/* VEX3 Byte2, VEX2 Byte1 */
 #define X86_VEX_M_MAX	0x1f			/* VEX3.M Maximum value */
 
-extern void insn_init(struct insn *insn, const void *kaddr, int x86_64);
+extern void insn_init(struct insn *insn, const void *kaddr, int buf_len, int x86_64);
 extern void insn_get_prefixes(struct insn *insn);
 extern void insn_get_opcode(struct insn *insn);
 extern void insn_get_modrm(struct insn *insn);
@@ -115,12 +116,13 @@ static inline void insn_get_attribute(struct insn *insn)
 extern int insn_rip_relative(struct insn *insn);
 
 /* Init insn for kernel text */
-static inline void kernel_insn_init(struct insn *insn, const void *kaddr)
+static inline void kernel_insn_init(struct insn *insn,
+				    const void *kaddr, int buf_len)
 {
 #ifdef CONFIG_X86_64
-	insn_init(insn, kaddr, 1);
+	insn_init(insn, kaddr, buf_len, 1);
 #else /* CONFIG_X86_32 */
-	insn_init(insn, kaddr, 0);
+	insn_init(insn, kaddr, buf_len, 0);
 #endif
 }
 

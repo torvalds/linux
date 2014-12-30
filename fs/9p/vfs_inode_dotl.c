@@ -826,8 +826,8 @@ v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, umode_t omode,
 	struct dentry *dir_dentry;
 	struct posix_acl *dacl = NULL, *pacl = NULL;
 
-	p9_debug(P9_DEBUG_VFS, " %lu,%s mode: %hx MAJOR: %u MINOR: %u\n",
-		 dir->i_ino, dentry->d_name.name, omode,
+	p9_debug(P9_DEBUG_VFS, " %lu,%pd mode: %hx MAJOR: %u MINOR: %u\n",
+		 dir->i_ino, dentry, omode,
 		 MAJOR(rdev), MINOR(rdev));
 
 	if (!new_valid_dev(rdev))

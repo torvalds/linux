@@ -24,10 +24,9 @@ struct mempolicy;
  * tree) of these proc_dir_entries, so that we can dynamically
  * add new files to /proc.
  *
- * The "next" pointer creates a linked list of one /proc directory,
- * while parent/subdir create the directory structure (every
- * /proc file has a parent, but "subdir" is NULL for all
- * non-directory entries).
+ * parent/subdir are used for the directory structure (every /proc file has a
+ * parent, but "subdir" is empty for all non-directory entries).
+ * subdir_node is used to build the rb tree "subdir" of the parent.
  */
 struct proc_dir_entry {
 	unsigned int low_ino;
@@ -38,7 +37,9 @@ struct proc_dir_entry {
 	loff_t size;
 	const struct inode_operations *proc_iops;
 	const struct file_operations *proc_fops;
-	struct proc_dir_entry *next, *parent, *subdir;
+	struct proc_dir_entry *parent;
+	struct rb_root subdir;
+	struct rb_node subdir_node;
 	void *data;
 	atomic_t count;		/* use count */
 	atomic_t in_use;	/* number of callers into module in progress; */
@@ -64,7 +65,7 @@ struct proc_inode {
 	struct proc_dir_entry *pde;
 	struct ctl_table_header *sysctl;
 	struct ctl_table *sysctl_entry;
-	struct proc_ns ns;
+	const struct proc_ns_operations *ns_ops;
 	struct inode vfs_inode;
 };
 

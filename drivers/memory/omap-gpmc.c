@@ -1987,7 +1987,6 @@ static struct platform_driver gpmc_driver = {
 	.remove		= gpmc_remove,
 	.driver		= {
 		.name	= DEVICE_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(gpmc_dt_ids),
 		.pm	= &gpmc_pm_ops,
 	},

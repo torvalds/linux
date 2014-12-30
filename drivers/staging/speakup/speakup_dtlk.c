@@ -231,7 +231,7 @@ static void do_catch_up(struct spk_synth *synth)
 		if (ch == '\n')
 			ch = PROCSPEECH;
 		spk_out(ch);
-		if ((jiffies >= jiff_max) && (ch == SPACE)) {
+		if (time_after_eq(jiffies, jiff_max) && (ch == SPACE)) {
 			spk_out(PROCSPEECH);
 			spin_lock_irqsave(&speakup_info.spinlock, flags);
 			delay_time_val = delay_time->u.n.value;

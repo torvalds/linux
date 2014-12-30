@@ -34,9 +34,14 @@ struct drm_fb_helper;
 
 #include <linux/kgdb.h>
 
+struct drm_fb_offset {
+	int x, y;
+};
+
 struct drm_fb_helper_crtc {
 	struct drm_mode_set mode_set;
 	struct drm_display_mode *desired_mode;
+	int x, y;
 };
 
 struct drm_fb_helper_surface_size {
@@ -72,6 +77,7 @@ struct drm_fb_helper_funcs {
 	bool (*initial_config)(struct drm_fb_helper *fb_helper,
 			       struct drm_fb_helper_crtc **crtcs,
 			       struct drm_display_mode **modes,
+			       struct drm_fb_offset *offsets,
 			       bool *enabled, int width, int height);
 };
 

@@ -303,7 +303,8 @@
 #define DP_TEST_CRC_B_CB		    0x244
 
 #define DP_TEST_SINK_MISC		    0x246
-#define DP_TEST_CRC_SUPPORTED		    (1 << 5)
+# define DP_TEST_CRC_SUPPORTED		    (1 << 5)
+# define DP_TEST_COUNT_MASK		    0x7
 
 #define DP_TEST_RESPONSE		    0x260
 # define DP_TEST_ACK			    (1 << 0)
@@ -313,7 +314,7 @@
 #define DP_TEST_EDID_CHECKSUM		    0x261
 
 #define DP_TEST_SINK			    0x270
-#define DP_TEST_SINK_START	    (1 << 0)
+# define DP_TEST_SINK_START		    (1 << 0)
 
 #define DP_PAYLOAD_TABLE_UPDATE_STATUS      0x2c0   /* 1.2 MST */
 # define DP_PAYLOAD_TABLE_UPDATED           (1 << 0)
@@ -403,26 +404,6 @@
 #define MODE_I2C_WRITE	2
 #define MODE_I2C_READ	4
 #define MODE_I2C_STOP	8
-
-/**
- * struct i2c_algo_dp_aux_data - driver interface structure for i2c over dp
- * 				 aux algorithm
- * @running: set by the algo indicating whether an i2c is ongoing or whether
- * 	     the i2c bus is quiescent
- * @address: i2c target address for the currently ongoing transfer
- * @aux_ch: driver callback to transfer a single byte of the i2c payload
- */
-struct i2c_algo_dp_aux_data {
-	bool running;
-	u16 address;
-	int (*aux_ch) (struct i2c_adapter *adapter,
-		       int mode, uint8_t write_byte,
-		       uint8_t *read_byte);
-};
-
-int
-i2c_dp_aux_add_bus(struct i2c_adapter *adapter);
-
 
 #define DP_LINK_STATUS_SIZE	   6
 bool drm_dp_channel_eq_ok(const u8 link_status[DP_LINK_STATUS_SIZE],
@@ -550,6 +531,7 @@ struct drm_dp_aux {
 	struct mutex hw_mutex;
 	ssize_t (*transfer)(struct drm_dp_aux *aux,
 			    struct drm_dp_aux_msg *msg);
+	unsigned i2c_nack_count, i2c_defer_count;
 };
 
 ssize_t drm_dp_dpcd_read(struct drm_dp_aux *aux, unsigned int offset,

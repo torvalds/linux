@@ -980,18 +980,7 @@ EXPORT_SYMBOL(RMF_CONN);
 struct req_msg_field RMF_CONNECT_DATA =
 	DEFINE_MSGF("cdata",
 		    RMF_F_NO_SIZE_CHECK /* we allow extra space for interop */,
-#if LUSTRE_VERSION_CODE > OBD_OCD_VERSION(2, 7, 50, 0)
 		    sizeof(struct obd_connect_data),
-#else
-/* For interoperability with 1.8 and 2.0 clients/servers.
- * The RPC verification code allows larger RPC buffers, but not
- * smaller buffers.  Until we no longer need to keep compatibility
- * with older servers/clients we can only check that the buffer
- * size is at least as large as obd_connect_data_v1.  That is not
- * not in itself harmful, since the chance of just corrupting this
- * field is low.  See JIRA LU-16 for details. */
-		    sizeof(struct obd_connect_data_v1),
-#endif
 		    lustre_swab_connect, NULL);
 EXPORT_SYMBOL(RMF_CONNECT_DATA);
 
@@ -1897,8 +1886,8 @@ swabber_dumper_helper(struct req_capsule *pill,
 		swabber(value);
 		ptlrpc_buf_set_swabbed(pill->rc_req, inout, offset);
 		if (dump) {
-			CDEBUG(D_RPCTRACE, "Dump of swabbed field %s "
-			       "follows\n", field->rmf_name);
+			CDEBUG(D_RPCTRACE, "Dump of swabbed field %s follows\n",
+			       field->rmf_name);
 			field->rmf_dumper(value);
 		}
 
@@ -1914,8 +1903,7 @@ swabber_dumper_helper(struct req_capsule *pill,
 	     i < n;
 	     i++, p += field->rmf_size) {
 		if (dump) {
-			CDEBUG(D_RPCTRACE, "Dump of %sarray field %s, "
-			       "element %d follows\n",
+			CDEBUG(D_RPCTRACE, "Dump of %sarray field %s, element %d follows\n",
 			       do_swab ? "unswabbed " : "", field->rmf_name, i);
 			field->rmf_dumper(p);
 		}
@@ -1923,8 +1911,8 @@ swabber_dumper_helper(struct req_capsule *pill,
 			continue;
 		swabber(p);
 		if (dump) {
-			CDEBUG(D_RPCTRACE, "Dump of swabbed array field %s, "
-			       "element %d follows\n", field->rmf_name, i);
+			CDEBUG(D_RPCTRACE, "Dump of swabbed array field %s, element %d follows\n",
+			       field->rmf_name, i);
 			field->rmf_dumper(value);
 		}
 	}
@@ -1983,8 +1971,7 @@ static void *__req_capsule_get(struct req_capsule *pill,
 		 */
 		len = lustre_msg_buflen(msg, offset);
 		if ((len % field->rmf_size) != 0) {
-			CERROR("%s: array field size mismatch "
-			       "%d modulo %d != 0 (%d)\n",
+			CERROR("%s: array field size mismatch %d modulo %d != 0 (%d)\n",
 			       field->rmf_name, len, field->rmf_size, loc);
 			return NULL;
 		}
@@ -1997,8 +1984,7 @@ static void *__req_capsule_get(struct req_capsule *pill,
 
 	if (value == NULL) {
 		DEBUG_REQ(D_ERROR, pill->rc_req,
-			  "Wrong buffer for field `%s' (%d of %d) "
-			  "in format `%s': %d vs. %d (%s)\n",
+			  "Wrong buffer for field `%s' (%d of %d) in format `%s': %d vs. %d (%s)\n",
 			  field->rmf_name, offset, lustre_msg_bufcount(msg),
 			  fmt->rf_name, lustre_msg_buflen(msg, offset), len,
 			  rcl_names[loc]);
@@ -2013,7 +1999,7 @@ static void *__req_capsule_get(struct req_capsule *pill,
 /**
  * Dump a request and/or reply
  */
-void __req_capsule_dump(struct req_capsule *pill, enum req_location loc)
+static void __req_capsule_dump(struct req_capsule *pill, enum req_location loc)
 {
 	const struct    req_format *fmt;
 	const struct    req_msg_field *field;
@@ -2031,8 +2017,8 @@ void __req_capsule_dump(struct req_capsule *pill, enum req_location loc)
 			 * have a specific dumper
 			 */
 			len = req_capsule_get_size(pill, field, loc);
-			CDEBUG(D_RPCTRACE, "Field %s has no dumper function;"
-			       "field size is %d\n", field->rmf_name, len);
+			CDEBUG(D_RPCTRACE, "Field %s has no dumper function; field size is %d\n",
+			       field->rmf_name, len);
 		} else {
 			/* It's the dumping side-effect that we're interested in */
 			(void) __req_capsule_get(pill, field, loc, NULL, 1);
@@ -2184,8 +2170,7 @@ void req_capsule_set_size(struct req_capsule *pill,
 	    (size > 0)) {
 		if ((field->rmf_flags & RMF_F_STRUCT_ARRAY) &&
 		    (size % field->rmf_size != 0)) {
-			CERROR("%s: array field size mismatch "
-			       "%d %% %d != 0 (%d)\n",
+			CERROR("%s: array field size mismatch %d %% %d != 0 (%d)\n",
 			       field->rmf_name, size, field->rmf_size, loc);
 			LBUG();
 		} else if (!(field->rmf_flags & RMF_F_STRUCT_ARRAY) &&

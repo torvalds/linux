@@ -113,6 +113,13 @@ enum {
 	MLX5_REG_HOST_ENDIANNESS = 0x7004,
 };
 
+enum mlx5_page_fault_resume_flags {
+	MLX5_PAGE_FAULT_RESUME_REQUESTOR = 1 << 0,
+	MLX5_PAGE_FAULT_RESUME_WRITE	 = 1 << 1,
+	MLX5_PAGE_FAULT_RESUME_RDMA	 = 1 << 2,
+	MLX5_PAGE_FAULT_RESUME_ERROR	 = 1 << 7,
+};
+
 enum dbg_rsc_type {
 	MLX5_DBG_RSC_QP,
 	MLX5_DBG_RSC_EQ,
@@ -467,7 +474,7 @@ struct mlx5_priv {
 	struct workqueue_struct *pg_wq;
 	struct rb_root		page_root;
 	int			fw_pages;
-	int			reg_pages;
+	atomic_t		reg_pages;
 	struct list_head	free_list;
 
 	struct mlx5_core_health health;
@@ -633,14 +640,6 @@ static inline void *mlx5_vzalloc(unsigned long size)
 	return rtn;
 }
 
-static inline void mlx5_vfree(const void *addr)
-{
-	if (addr && is_vmalloc_addr(addr))
-		vfree(addr);
-	else
-		kfree(addr);
-}
-
 static inline u32 mlx5_base_mkey(const u32 key)
 {
 	return key & 0xffffff00u;
@@ -711,6 +710,9 @@ void mlx5_eq_cleanup(struct mlx5_core_dev *dev);
 void mlx5_fill_page_array(struct mlx5_buf *buf, __be64 *pas);
 void mlx5_cq_completion(struct mlx5_core_dev *dev, u32 cqn);
 void mlx5_rsc_event(struct mlx5_core_dev *dev, u32 rsn, int event_type);
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+void mlx5_eq_pagefault(struct mlx5_core_dev *dev, struct mlx5_eqe *eqe);
+#endif
 void mlx5_srq_event(struct mlx5_core_dev *dev, u32 srqn, int event_type);
 struct mlx5_core_srq *mlx5_core_get_srq(struct mlx5_core_dev *dev, u32 srqn);
 void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, unsigned long vector);
@@ -748,6 +750,8 @@ int mlx5_core_create_psv(struct mlx5_core_dev *dev, u32 pdn,
 			 int npsvs, u32 *sig_index);
 int mlx5_core_destroy_psv(struct mlx5_core_dev *dev, int psv_num);
 void mlx5_core_put_rsc(struct mlx5_core_rsc_common *common);
+int mlx5_query_odp_caps(struct mlx5_core_dev *dev,
+			struct mlx5_odp_caps *odp_caps);
 
 static inline u32 mlx5_mkey_to_idx(u32 mkey)
 {

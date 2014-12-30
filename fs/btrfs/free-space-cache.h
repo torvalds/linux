@@ -38,6 +38,8 @@ struct btrfs_free_space_ctl {
 	u64 start;
 	struct btrfs_free_space_op *op;
 	void *private;
+	struct mutex cache_writeout_mutex;
+	struct list_head trimming_ranges;
 };
 
 struct btrfs_free_space_op {

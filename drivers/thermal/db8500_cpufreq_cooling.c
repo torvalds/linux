@@ -78,7 +78,6 @@ static const struct of_device_id db8500_cpufreq_cooling_match[] = {
 
 static struct platform_driver db8500_cpufreq_cooling_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "db8500-cpufreq-cooling",
 		.of_match_table = of_match_ptr(db8500_cpufreq_cooling_match),
 	},

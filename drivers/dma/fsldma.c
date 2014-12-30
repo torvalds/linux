@@ -1337,7 +1337,6 @@ static int fsl_dma_chan_probe(struct fsldma_device *fdev,
 
 	/* Add the channel to DMA device channel list */
 	list_add_tail(&chan->common.device_node, &fdev->common.channels);
-	fdev->common.chancnt++;
 
 	dev_info(fdev->dev, "#%d (%s), irq %d\n", chan->id, compatible,
 		 chan->irq != NO_IRQ ? chan->irq : fdev->irq);
@@ -1540,7 +1539,6 @@ static const struct of_device_id fsldma_of_ids[] = {
 static struct platform_driver fsldma_of_driver = {
 	.driver = {
 		.name = "fsl-elo-dma",
-		.owner = THIS_MODULE,
 		.of_match_table = fsldma_of_ids,
 #ifdef CONFIG_PM
 		.pm = &fsldma_pm_ops,

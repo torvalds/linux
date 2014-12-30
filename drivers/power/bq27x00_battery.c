@@ -1014,7 +1014,6 @@ static struct platform_driver bq27000_battery_driver = {
 	.remove = bq27000_battery_remove,
 	.driver = {
 		.name = "bq27000-battery",
-		.owner = THIS_MODULE,
 	},
 };
 

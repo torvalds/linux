@@ -239,7 +239,6 @@ static struct platform_driver amiga_parallel_driver = {
 	.remove = __exit_p(amiga_parallel_remove),
 	.driver   = {
 		.name	= "amiga-parallel",
-		.owner	= THIS_MODULE,
 	},
 };
 

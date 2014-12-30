@@ -562,17 +562,17 @@ int mei_hbm_cl_disconnect_rsp(struct mei_device *dev, struct mei_cl *cl)
  * mei_hbm_cl_disconnect_res - update the client state according
  *       disconnect response
  *
+ * @dev: the device structure
  * @cl: mei host client
  * @cmd: disconnect client response host bus message
  */
-static void mei_hbm_cl_disconnect_res(struct mei_cl *cl,
+static void mei_hbm_cl_disconnect_res(struct mei_device *dev, struct mei_cl *cl,
 				      struct mei_hbm_cl_cmd *cmd)
 {
 	struct hbm_client_connect_response *rs =
 		(struct hbm_client_connect_response *)cmd;
 
-	dev_dbg(cl->dev->dev, "hbm: disconnect response cl:host=%02d me=%02d status=%d\n",
-			rs->me_addr, rs->host_addr, rs->status);
+	cl_dbg(dev, cl, "hbm: disconnect response status=%d\n", rs->status);
 
 	if (rs->status == MEI_CL_DISCONN_SUCCESS)
 		cl->state = MEI_FILE_DISCONNECTED;
@@ -598,17 +598,17 @@ int mei_hbm_cl_connect_req(struct mei_device *dev, struct mei_cl *cl)
  * mei_hbm_cl_connect_res - update the client state according
  *        connection response
  *
+ * @dev: the device structure
  * @cl: mei host client
  * @cmd: connect client response host bus message
  */
-static void mei_hbm_cl_connect_res(struct mei_cl *cl,
+static void mei_hbm_cl_connect_res(struct mei_device *dev, struct mei_cl *cl,
 				   struct mei_hbm_cl_cmd *cmd)
 {
 	struct hbm_client_connect_response *rs =
 		(struct hbm_client_connect_response *)cmd;
 
-	dev_dbg(cl->dev->dev, "hbm: connect response cl:host=%02d me=%02d status=%s\n",
-			rs->me_addr, rs->host_addr,
+	cl_dbg(dev, cl, "hbm: connect response status=%s\n",
 			mei_cl_conn_status_str(rs->status));
 
 	if (rs->status == MEI_CL_CONN_SUCCESS)
@@ -637,11 +637,6 @@ static void mei_hbm_cl_res(struct mei_device *dev,
 	list_for_each_entry_safe(cb, next, &dev->ctrl_rd_list.list, list) {
 
 		cl = cb->cl;
-		/* this should not happen */
-		if (WARN_ON(!cl)) {
-			list_del_init(&cb->list);
-			continue;
-		}
 
 		if (cb->fop_type != fop_type)
 			continue;
@@ -657,10 +652,10 @@ static void mei_hbm_cl_res(struct mei_device *dev,
 
 	switch (fop_type) {
 	case MEI_FOP_CONNECT:
-		mei_hbm_cl_connect_res(cl, rs);
+		mei_hbm_cl_connect_res(dev, cl, rs);
 		break;
 	case MEI_FOP_DISCONNECT:
-		mei_hbm_cl_disconnect_res(cl, rs);
+		mei_hbm_cl_disconnect_res(dev, cl, rs);
 		break;
 	default:
 		return;
@@ -810,8 +805,6 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 				dev->dev_state, dev->hbm_state);
 			return -EPROTO;
 		}
-
-		dev->hbm_state = MEI_HBM_STARTED;
 
 		if (mei_hbm_enum_clients_req(dev)) {
 			dev_err(dev->dev, "hbm: start: failed to send enumeration request\n");

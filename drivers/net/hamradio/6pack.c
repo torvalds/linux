@@ -675,8 +675,7 @@ out_free:
 	kfree(xbuff);
 	kfree(rbuff);
 
-	if (dev)
-		free_netdev(dev);
+	free_netdev(dev);
 
 out:
 	return err;

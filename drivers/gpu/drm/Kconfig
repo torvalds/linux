@@ -167,6 +167,8 @@ config DRM_SAVAGE
 
 source "drivers/gpu/drm/exynos/Kconfig"
 
+source "drivers/gpu/drm/rockchip/Kconfig"
+
 source "drivers/gpu/drm/vmwgfx/Kconfig"
 
 source "drivers/gpu/drm/gma500/Kconfig"
@@ -200,3 +202,7 @@ source "drivers/gpu/drm/tegra/Kconfig"
 source "drivers/gpu/drm/panel/Kconfig"
 
 source "drivers/gpu/drm/sti/Kconfig"
+
+source "drivers/gpu/drm/amd/amdkfd/Kconfig"
+
+source "drivers/gpu/drm/imx/Kconfig"

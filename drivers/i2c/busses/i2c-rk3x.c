@@ -24,6 +24,7 @@
 #include <linux/wait.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
+#include <linux/math64.h>
 
 
 /* Register Map */
@@ -97,6 +98,7 @@ struct rk3x_i2c {
 	/* Hardware resources */
 	void __iomem *regs;
 	struct clk *clk;
+	struct notifier_block clk_rate_nb;
 
 	/* Settings */
 	unsigned int scl_frequency;
@@ -428,18 +430,231 @@ out:
 	return IRQ_HANDLED;
 }
 
-static void rk3x_i2c_set_scl_rate(struct rk3x_i2c *i2c, unsigned long scl_rate)
+/**
+ * Calculate divider values for desired SCL frequency
+ *
+ * @clk_rate: I2C input clock rate
+ * @scl_rate: Desired SCL rate
+ * @div_low: Divider output for low
+ * @div_high: Divider output for high
+ *
+ * Returns: 0 on success, -EINVAL if the goal SCL rate is too slow. In that case
+ * a best-effort divider value is returned in divs. If the target rate is
+ * too high, we silently use the highest possible rate.
+ */
+static int rk3x_i2c_calc_divs(unsigned long clk_rate, unsigned long scl_rate,
+			      unsigned long *div_low, unsigned long *div_high)
 {
-	unsigned long i2c_rate = clk_get_rate(i2c->clk);
-	unsigned int div;
+	unsigned long min_low_ns, min_high_ns;
+	unsigned long max_data_hold_ns;
+	unsigned long data_hold_buffer_ns;
+	unsigned long max_low_ns, min_total_ns;
 
-	/* set DIV = DIVH = DIVL
-	 * SCL rate = (clk rate) / (8 * (DIVH + 1 + DIVL + 1))
-	 *          = (clk rate) / (16 * (DIV + 1))
+	unsigned long clk_rate_khz, scl_rate_khz;
+
+	unsigned long min_low_div, min_high_div;
+	unsigned long max_low_div;
+
+	unsigned long min_div_for_hold, min_total_div;
+	unsigned long extra_div, extra_low_div, ideal_low_div;
+
+	int ret = 0;
+
+	/* Only support standard-mode and fast-mode */
+	if (WARN_ON(scl_rate > 400000))
+		scl_rate = 400000;
+
+	/* prevent scl_rate_khz from becoming 0 */
+	if (WARN_ON(scl_rate < 1000))
+		scl_rate = 1000;
+
+	/*
+	 * min_low_ns:  The minimum number of ns we need to hold low
+	 *		to meet i2c spec
+	 * min_high_ns: The minimum number of ns we need to hold high
+	 *		to meet i2c spec
+	 * max_low_ns:  The maximum number of ns we can hold low
+	 *		to meet i2c spec
+	 *
+	 * Note: max_low_ns should be (max data hold time * 2 - buffer)
+	 *	 This is because the i2c host on Rockchip holds the data line
+	 *	 for half the low time.
 	 */
-	div = DIV_ROUND_UP(i2c_rate, scl_rate * 16) - 1;
+	if (scl_rate <= 100000) {
+		min_low_ns = 4700;
+		min_high_ns = 4000;
+		max_data_hold_ns = 3450;
+		data_hold_buffer_ns = 50;
+	} else {
+		min_low_ns = 1300;
+		min_high_ns = 600;
+		max_data_hold_ns = 900;
+		data_hold_buffer_ns = 50;
+	}
+	max_low_ns = max_data_hold_ns * 2 - data_hold_buffer_ns;
+	min_total_ns = min_low_ns + min_high_ns;
 
-	i2c_writel(i2c, (div << 16) | (div & 0xffff), REG_CLKDIV);
+	/* Adjust to avoid overflow */
+	clk_rate_khz = DIV_ROUND_UP(clk_rate, 1000);
+	scl_rate_khz = scl_rate / 1000;
+
+	/*
+	 * We need the total div to be >= this number
+	 * so we don't clock too fast.
+	 */
+	min_total_div = DIV_ROUND_UP(clk_rate_khz, scl_rate_khz * 8);
+
+	/* These are the min dividers needed for min hold times. */
+	min_low_div = DIV_ROUND_UP(clk_rate_khz * min_low_ns, 8 * 1000000);
+	min_high_div = DIV_ROUND_UP(clk_rate_khz * min_high_ns, 8 * 1000000);
+	min_div_for_hold = (min_low_div + min_high_div);
+
+	/*
+	 * This is the maximum divider so we don't go over the max.
+	 * We don't round up here (we round down) since this is a max.
+	 */
+	max_low_div = clk_rate_khz * max_low_ns / (8 * 1000000);
+
+	if (min_low_div > max_low_div) {
+		WARN_ONCE(true,
+			  "Conflicting, min_low_div %lu, max_low_div %lu\n",
+			  min_low_div, max_low_div);
+		max_low_div = min_low_div;
+	}
+
+	if (min_div_for_hold > min_total_div) {
+		/*
+		 * Time needed to meet hold requirements is important.
+		 * Just use that.
+		 */
+		*div_low = min_low_div;
+		*div_high = min_high_div;
+	} else {
+		/*
+		 * We've got to distribute some time among the low and high
+		 * so we don't run too fast.
+		 */
+		extra_div = min_total_div - min_div_for_hold;
+
+		/*
+		 * We'll try to split things up perfectly evenly,
+		 * biasing slightly towards having a higher div
+		 * for low (spend more time low).
+		 */
+		ideal_low_div = DIV_ROUND_UP(clk_rate_khz * min_low_ns,
+					     scl_rate_khz * 8 * min_total_ns);
+
+		/* Don't allow it to go over the max */
+		if (ideal_low_div > max_low_div)
+			ideal_low_div = max_low_div;
+
+		/*
+		 * Handle when the ideal low div is going to take up
+		 * more than we have.
+		 */
+		if (ideal_low_div > min_low_div + extra_div)
+			ideal_low_div = min_low_div + extra_div;
+
+		/* Give low the "ideal" and give high whatever extra is left */
+		extra_low_div = ideal_low_div - min_low_div;
+		*div_low = ideal_low_div;
+		*div_high = min_high_div + (extra_div - extra_low_div);
+	}
+
+	/*
+	 * Adjust to the fact that the hardware has an implicit "+1".
+	 * NOTE: Above calculations always produce div_low > 0 and div_high > 0.
+	 */
+	*div_low = *div_low - 1;
+	*div_high = *div_high - 1;
+
+	/* Maximum divider supported by hw is 0xffff */
+	if (*div_low > 0xffff) {
+		*div_low = 0xffff;
+		ret = -EINVAL;
+	}
+
+	if (*div_high > 0xffff) {
+		*div_high = 0xffff;
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+static void rk3x_i2c_adapt_div(struct rk3x_i2c *i2c, unsigned long clk_rate)
+{
+	unsigned long div_low, div_high;
+	u64 t_low_ns, t_high_ns;
+	int ret;
+
+	ret = rk3x_i2c_calc_divs(clk_rate, i2c->scl_frequency, &div_low,
+				 &div_high);
+
+	WARN_ONCE(ret != 0, "Could not reach SCL freq %u", i2c->scl_frequency);
+
+	clk_enable(i2c->clk);
+	i2c_writel(i2c, (div_high << 16) | (div_low & 0xffff), REG_CLKDIV);
+	clk_disable(i2c->clk);
+
+	t_low_ns = div_u64(((u64)div_low + 1) * 8 * 1000000000, clk_rate);
+	t_high_ns = div_u64(((u64)div_high + 1) * 8 * 1000000000, clk_rate);
+	dev_dbg(i2c->dev,
+		"CLK %lukhz, Req %uns, Act low %lluns high %lluns\n",
+		clk_rate / 1000,
+		1000000000 / i2c->scl_frequency,
+		t_low_ns, t_high_ns);
+}
+
+/**
+ * rk3x_i2c_clk_notifier_cb - Clock rate change callback
+ * @nb:		Pointer to notifier block
+ * @event:	Notification reason
+ * @data:	Pointer to notification data object
+ *
+ * The callback checks whether a valid bus frequency can be generated after the
+ * change. If so, the change is acknowledged, otherwise the change is aborted.
+ * New dividers are written to the HW in the pre- or post change notification
+ * depending on the scaling direction.
+ *
+ * Code adapted from i2c-cadence.c.
+ *
+ * Return:	NOTIFY_STOP if the rate change should be aborted, NOTIFY_OK
+ *		to acknowedge the change, NOTIFY_DONE if the notification is
+ *		considered irrelevant.
+ */
+static int rk3x_i2c_clk_notifier_cb(struct notifier_block *nb, unsigned long
+				    event, void *data)
+{
+	struct clk_notifier_data *ndata = data;
+	struct rk3x_i2c *i2c = container_of(nb, struct rk3x_i2c, clk_rate_nb);
+	unsigned long div_low, div_high;
+
+	switch (event) {
+	case PRE_RATE_CHANGE:
+		if (rk3x_i2c_calc_divs(ndata->new_rate, i2c->scl_frequency,
+				      &div_low, &div_high) != 0) {
+			return NOTIFY_STOP;
+		}
+
+		/* scale up */
+		if (ndata->new_rate > ndata->old_rate)
+			rk3x_i2c_adapt_div(i2c, ndata->new_rate);
+
+		return NOTIFY_OK;
+	case POST_RATE_CHANGE:
+		/* scale down */
+		if (ndata->new_rate < ndata->old_rate)
+			rk3x_i2c_adapt_div(i2c, ndata->new_rate);
+		return NOTIFY_OK;
+	case ABORT_RATE_CHANGE:
+		/* scale up */
+		if (ndata->new_rate > ndata->old_rate)
+			rk3x_i2c_adapt_div(i2c, ndata->old_rate);
+		return NOTIFY_OK;
+	default:
+		return NOTIFY_DONE;
+	}
 }
 
 /**
@@ -536,9 +751,6 @@ static int rk3x_i2c_xfer(struct i2c_adapter *adap,
 
 	clk_enable(i2c->clk);
 
-	/* The clock rate might have changed, so setup the divider again */
-	rk3x_i2c_set_scl_rate(i2c, i2c->scl_frequency);
-
 	i2c->is_last_msg = false;
 
 	/*
@@ -624,6 +836,7 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 	int bus_nr;
 	u32 value;
 	int irq;
+	unsigned long clk_rate;
 
 	i2c = devm_kzalloc(&pdev->dev, sizeof(struct rk3x_i2c), GFP_KERNEL);
 	if (!i2c)
@@ -724,16 +937,28 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	i2c->clk_rate_nb.notifier_call = rk3x_i2c_clk_notifier_cb;
+	ret = clk_notifier_register(i2c->clk, &i2c->clk_rate_nb);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "Unable to register clock notifier\n");
+		goto err_clk;
+	}
+
+	clk_rate = clk_get_rate(i2c->clk);
+	rk3x_i2c_adapt_div(i2c, clk_rate);
+
 	ret = i2c_add_adapter(&i2c->adap);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Could not register adapter\n");
-		goto err_clk;
+		goto err_clk_notifier;
 	}
 
 	dev_info(&pdev->dev, "Initialized RK3xxx I2C bus at %p\n", i2c->regs);
 
 	return 0;
 
+err_clk_notifier:
+	clk_notifier_unregister(i2c->clk, &i2c->clk_rate_nb);
 err_clk:
 	clk_unprepare(i2c->clk);
 	return ret;
@@ -744,6 +969,8 @@ static int rk3x_i2c_remove(struct platform_device *pdev)
 	struct rk3x_i2c *i2c = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&i2c->adap);
+
+	clk_notifier_unregister(i2c->clk, &i2c->clk_rate_nb);
 	clk_unprepare(i2c->clk);
 
 	return 0;
@@ -753,7 +980,6 @@ static struct platform_driver rk3x_i2c_driver = {
 	.probe   = rk3x_i2c_probe,
 	.remove  = rk3x_i2c_remove,
 	.driver  = {
-		.owner = THIS_MODULE,
 		.name  = "rk3x-i2c",
 		.of_match_table = rk3x_i2c_match,
 	},

@@ -3,6 +3,8 @@
  *
  *  Copyright (C) 1992  Rick Sladkey
  */
+#include <linux/fs.h>
+#include <linux/falloc.h>
 #include <linux/nfs_fs.h>
 #include "internal.h"
 #include "fscache.h"
@@ -134,6 +136,32 @@ static loff_t nfs4_file_llseek(struct file *filep, loff_t offset, int whence)
 		return nfs_file_llseek(filep, offset, whence);
 	}
 }
+
+static long nfs42_fallocate(struct file *filep, int mode, loff_t offset, loff_t len)
+{
+	struct inode *inode = file_inode(filep);
+	long ret;
+
+	if (!S_ISREG(inode->i_mode))
+		return -EOPNOTSUPP;
+
+	if ((mode != 0) && (mode != (FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE)))
+		return -EOPNOTSUPP;
+
+	ret = inode_newsize_ok(inode, offset + len);
+	if (ret < 0)
+		return ret;
+
+	mutex_lock(&inode->i_mutex);
+	if (mode & FALLOC_FL_PUNCH_HOLE)
+		ret = nfs42_proc_deallocate(filep, offset, len);
+	else
+		ret = nfs42_proc_allocate(filep, offset, len);
+	mutex_unlock(&inode->i_mutex);
+
+	nfs_zap_caches(inode);
+	return ret;
+}
 #endif /* CONFIG_NFS_V4_2 */
 
 const struct file_operations nfs4_file_operations = {
@@ -155,6 +183,9 @@ const struct file_operations nfs4_file_operations = {
 	.flock		= nfs_flock,
 	.splice_read	= nfs_file_splice_read,
 	.splice_write	= iter_file_splice_write,
+#ifdef CONFIG_NFS_V4_2
+	.fallocate	= nfs42_fallocate,
+#endif /* CONFIG_NFS_V4_2 */
 	.check_flags	= nfs_check_flags,
 	.setlease	= simple_nosetlease,
 };

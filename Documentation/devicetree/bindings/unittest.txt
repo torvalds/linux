@@ -1,0 +1,14 @@
+* OF selftest platform device
+
+** selftest
+
+Required properties:
+- compatible: must be "selftest"
+
+All other properties are optional.
+
+Example:
+	selftest {
+		compatible = "selftest";
+		status = "okay";
+	};

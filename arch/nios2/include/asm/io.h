@@ -45,6 +45,8 @@ static inline void iounmap(void __iomem *addr)
 	__iounmap(addr);
 }
 
+#define ioremap_wc ioremap_nocache
+
 /* Pages to physical address... */
 #define page_to_phys(page)	virt_to_phys(page_to_virt(page))
 #define page_to_bus(page)	page_to_virt(page)

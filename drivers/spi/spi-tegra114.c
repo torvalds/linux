@@ -1223,7 +1223,6 @@ static const struct dev_pm_ops tegra_spi_pm_ops = {
 static struct platform_driver tegra_spi_driver = {
 	.driver = {
 		.name		= "spi-tegra114",
-		.owner		= THIS_MODULE,
 		.pm		= &tegra_spi_pm_ops,
 		.of_match_table	= tegra_spi_of_match,
 	},

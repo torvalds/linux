@@ -54,7 +54,6 @@ static int __init clps711x_cpuidle_probe(struct platform_device *pdev)
 static struct platform_driver clps711x_cpuidle_driver = {
 	.driver	= {
 		.name	= CLPS711X_CPUIDLE_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 module_platform_driver_probe(clps711x_cpuidle_driver, clps711x_cpuidle_probe);

@@ -313,7 +313,6 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				? rti800_ao_ranges[it->options[7]]
 				: &range_unknown;
 		s->insn_write	= rti800_ao_insn_write;
-		s->insn_read	= comedi_readback_insn_read;
 
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)

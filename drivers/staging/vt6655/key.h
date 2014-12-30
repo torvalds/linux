@@ -30,9 +30,7 @@
 #ifndef __KEY_H__
 #define __KEY_H__
 
-#include "ttype.h"
-#include "tether.h"
-#include "80211mgr.h"
+#include <net/mac80211.h>
 
 /*---------------------  Export Definitions -------------------------*/
 #define MAX_GROUP_KEY       4
@@ -53,124 +51,19 @@
 #define KEY_CTL_CCMP        0x03
 #define KEY_CTL_INVALID     0xFF
 
-typedef struct tagSKeyItem {
-	bool bKeyValid;
-	unsigned long uKeyLength;
-	unsigned char abyKey[MAX_KEY_LEN];
-	u64 KeyRSC;
-	unsigned long dwTSC47_16;
-	unsigned short wTSC15_0;
-	unsigned char byCipherSuite;
-	unsigned char byReserved0;
-	unsigned long dwKeyIndex;
-	void *pvKeyTable;
-} SKeyItem, *PSKeyItem; //64
+#define VNT_KEY_DEFAULTKEY	0x1
+#define VNT_KEY_GROUP_ADDRESS	0x2
+#define VNT_KEY_ALLGROUP	0x4
+#define VNT_KEY_GROUP		0x40
+#define VNT_KEY_PAIRWISE	0x00
+#define VNT_KEY_ONFLY		0x8000
+#define VNT_KEY_ONFLY_ALL	0x4000
 
-typedef struct tagSKeyTable {
-	unsigned char abyBSSID[ETH_ALEN];  //6
-	unsigned char byReserved0[2];              //8
-	SKeyItem    PairwiseKey;
-	SKeyItem    GroupKey[MAX_GROUP_KEY]; //64*5 = 320, 320+8=328
-	unsigned long dwGTKeyIndex;            // GroupTransmitKey Index
-	bool bInUse;
-	//2006-1116-01,<Modify> by NomadZhao
-	bool bSoftWEP;
-	unsigned short wKeyCtl;      // for address of wKeyCtl at align 4
+struct vnt_private;
 
-	unsigned char byReserved1[6];
-} SKeyTable, *PSKeyTable; //348
+int vnt_key_init_table(struct vnt_private *);
 
-typedef struct tagSKeyManagement {
-	SKeyTable   KeyTable[MAX_KEY_TABLE];
-} SKeyManagement, *PSKeyManagement;
-
-/*---------------------  Export Types  ------------------------------*/
-
-/*---------------------  Export Macros ------------------------------*/
-
-/*---------------------  Export Classes  ----------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
-
-void KeyvInitTable(PSKeyManagement pTable, void __iomem *dwIoBase);
-
-bool KeybGetKey(
-	PSKeyManagement pTable,
-	unsigned char *pbyBSSID,
-	unsigned long dwKeyIndex,
-	PSKeyItem       *pKey
-);
-
-bool KeybSetKey(
-	PSKeyManagement pTable,
-	unsigned char *pbyBSSID,
-	unsigned long dwKeyIndex,
-	unsigned long uKeyLength,
-	u64 *pKeyRSC,
-	unsigned char *pbyKey,
-	unsigned char byKeyDecMode,
-	void __iomem *dwIoBase,
-	unsigned char byLocalID
-);
-
-bool KeybSetDefaultKey(
-	PSKeyManagement pTable,
-	unsigned long dwKeyIndex,
-	unsigned long uKeyLength,
-	u64 *pKeyRSC,
-	unsigned char *pbyKey,
-	unsigned char byKeyDecMode,
-	void __iomem *dwIoBase,
-	unsigned char byLocalID
-);
-
-bool KeybRemoveKey(
-	PSKeyManagement pTable,
-	unsigned char *pbyBSSID,
-	unsigned long dwKeyIndex,
-	void __iomem *dwIoBase
-);
-
-bool KeybGetTransmitKey(
-	PSKeyManagement pTable,
-	unsigned char *pbyBSSID,
-	unsigned long dwKeyType,
-	PSKeyItem       *pKey
-);
-
-bool KeybCheckPairewiseKey(
-	PSKeyManagement pTable,
-	PSKeyItem       *pKey
-);
-
-bool KeybRemoveAllKey(
-	PSKeyManagement pTable,
-	unsigned char *pbyBSSID,
-	void __iomem *dwIoBase
-);
-
-void KeyvRemoveWEPKey(
-	PSKeyManagement pTable,
-	unsigned long dwKeyIndex,
-	void __iomem *dwIoBase
-);
-
-void KeyvRemoveAllWEPKey(
-	PSKeyManagement pTable,
-	void __iomem *dwIoBase
-);
-
-bool KeybSetAllGroupKey(
-	PSKeyManagement pTable,
-	unsigned long dwKeyIndex,
-	unsigned long uKeyLength,
-	u64 *pKeyRSC,
-	unsigned char *pbyKey,
-	unsigned char byKeyDecMode,
-	void __iomem *dwIoBase,
-	unsigned char byLocalID
-);
+int vnt_set_keys(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
+		 struct ieee80211_vif *vif, struct ieee80211_key_conf *key);
 
 #endif // __KEY_H__

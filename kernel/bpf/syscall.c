@@ -169,7 +169,7 @@ static int map_lookup_elem(union bpf_attr *attr)
 	if (copy_from_user(key, ukey, map->key_size) != 0)
 		goto free_key;
 
-	err = -ESRCH;
+	err = -ENOENT;
 	rcu_read_lock();
 	value = map->ops->map_lookup_elem(map, key);
 	if (!value)
@@ -190,7 +190,7 @@ err_put:
 	return err;
 }
 
-#define BPF_MAP_UPDATE_ELEM_LAST_FIELD value
+#define BPF_MAP_UPDATE_ELEM_LAST_FIELD flags
 
 static int map_update_elem(union bpf_attr *attr)
 {
@@ -231,7 +231,7 @@ static int map_update_elem(union bpf_attr *attr)
 	 * therefore all map accessors rely on this fact, so do the same here
 	 */
 	rcu_read_lock();
-	err = map->ops->map_update_elem(map, key, value);
+	err = map->ops->map_update_elem(map, key, value, attr->flags);
 	rcu_read_unlock();
 
 free_value:

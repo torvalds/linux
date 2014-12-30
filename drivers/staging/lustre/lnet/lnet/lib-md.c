@@ -218,7 +218,7 @@ lnet_md_deconstruct(lnet_libmd_t *lmd, lnet_md_t *umd)
 	lnet_eq2handle(&umd->eq_handle, lmd->md_eq);
 }
 
-int
+static int
 lnet_md_validate(lnet_md_t *umd)
 {
 	if (umd->start == NULL && umd->length != 0) {

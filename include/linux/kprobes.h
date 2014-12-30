@@ -335,6 +335,7 @@ extern void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
 extern int arch_prepare_kprobe_ftrace(struct kprobe *p);
 #endif
 
+int arch_check_ftrace_location(struct kprobe *p);
 
 /* Get the kprobe at this addr (if any) - called with preemption disabled */
 struct kprobe *get_kprobe(void *addr);

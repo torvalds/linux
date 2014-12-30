@@ -344,7 +344,7 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 	DRM_DEBUG_KMS("\n");
 
 	power_domain = intel_display_port_power_domain(encoder);
-	if (!intel_display_power_enabled(dev_priv, power_domain))
+	if (!intel_display_power_is_enabled(dev_priv, power_domain))
 		return false;
 
 	/* XXX: this only works for one DSI output */

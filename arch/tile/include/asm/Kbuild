@@ -11,7 +11,6 @@ generic-y += errno.h
 generic-y += exec.h
 generic-y += fb.h
 generic-y += fcntl.h
-generic-y += hash.h
 generic-y += hw_irq.h
 generic-y += ioctl.h
 generic-y += ioctls.h

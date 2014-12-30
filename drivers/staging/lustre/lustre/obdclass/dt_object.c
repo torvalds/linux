@@ -332,8 +332,7 @@ static struct dt_object *dt_reg_open(const struct lu_env *env,
 	result = dt_lookup_dir(env, p, name, fid);
 	if (result == 0){
 		o = dt_locate(env, dt, fid);
-	}
-	else
+	} else
 		o = ERR_PTR(result);
 
 	return o;
@@ -950,8 +949,8 @@ int lprocfs_dt_rd_blksize(char *page, char **start, off_t off,
 {
 	struct dt_device *dt = data;
 	struct obd_statfs osfs;
-
 	int rc = dt_statfs(NULL, dt, &osfs);
+
 	if (rc == 0) {
 		*eof = 1;
 		rc = snprintf(page, count, "%u\n",
@@ -967,8 +966,8 @@ int lprocfs_dt_rd_kbytestotal(char *page, char **start, off_t off,
 {
 	struct dt_device *dt = data;
 	struct obd_statfs osfs;
-
 	int rc = dt_statfs(NULL, dt, &osfs);
+
 	if (rc == 0) {
 		__u32 blk_size = osfs.os_bsize >> 10;
 		__u64 result = osfs.os_blocks;
@@ -989,8 +988,8 @@ int lprocfs_dt_rd_kbytesfree(char *page, char **start, off_t off,
 {
 	struct dt_device *dt = data;
 	struct obd_statfs osfs;
-
 	int rc = dt_statfs(NULL, dt, &osfs);
+
 	if (rc == 0) {
 		__u32 blk_size = osfs.os_bsize >> 10;
 		__u64 result = osfs.os_bfree;
@@ -1011,8 +1010,8 @@ int lprocfs_dt_rd_kbytesavail(char *page, char **start, off_t off,
 {
 	struct dt_device *dt = data;
 	struct obd_statfs osfs;
-
 	int rc = dt_statfs(NULL, dt, &osfs);
+
 	if (rc == 0) {
 		__u32 blk_size = osfs.os_bsize >> 10;
 		__u64 result = osfs.os_bavail;
@@ -1033,8 +1032,8 @@ int lprocfs_dt_rd_filestotal(char *page, char **start, off_t off,
 {
 	struct dt_device *dt = data;
 	struct obd_statfs osfs;
-
 	int rc = dt_statfs(NULL, dt, &osfs);
+
 	if (rc == 0) {
 		*eof = 1;
 		rc = snprintf(page, count, "%llu\n", osfs.os_files);
@@ -1049,8 +1048,8 @@ int lprocfs_dt_rd_filesfree(char *page, char **start, off_t off,
 {
 	struct dt_device *dt = data;
 	struct obd_statfs osfs;
-
 	int rc = dt_statfs(NULL, dt, &osfs);
+
 	if (rc == 0) {
 		*eof = 1;
 		rc = snprintf(page, count, "%llu\n", osfs.os_ffree);

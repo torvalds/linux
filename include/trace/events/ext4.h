@@ -43,15 +43,13 @@ struct extent_status;
 	{ EXT4_GET_BLOCKS_METADATA_NOFAIL,	"METADATA_NOFAIL" },	\
 	{ EXT4_GET_BLOCKS_NO_NORMALIZE,		"NO_NORMALIZE" },	\
 	{ EXT4_GET_BLOCKS_KEEP_SIZE,		"KEEP_SIZE" },		\
-	{ EXT4_GET_BLOCKS_NO_LOCK,		"NO_LOCK" },		\
-	{ EXT4_GET_BLOCKS_NO_PUT_HOLE,		"NO_PUT_HOLE" })
+	{ EXT4_GET_BLOCKS_NO_LOCK,		"NO_LOCK" })
 
 #define show_mflags(flags) __print_flags(flags, "",	\
 	{ EXT4_MAP_NEW,		"N" },			\
 	{ EXT4_MAP_MAPPED,	"M" },			\
 	{ EXT4_MAP_UNWRITTEN,	"U" },			\
-	{ EXT4_MAP_BOUNDARY,	"B" },			\
-	{ EXT4_MAP_FROM_CLUSTER, "C" })
+	{ EXT4_MAP_BOUNDARY,	"B" })
 
 #define show_free_flags(flags) __print_flags(flags, "|",	\
 	{ EXT4_FREE_BLOCKS_METADATA,		"METADATA" },	\
@@ -2452,15 +2450,14 @@ TRACE_EVENT(ext4_collapse_range,
 
 TRACE_EVENT(ext4_es_shrink,
 	TP_PROTO(struct super_block *sb, int nr_shrunk, u64 scan_time,
-		 int skip_precached, int nr_skipped, int retried),
+		 int nr_skipped, int retried),
 
-	TP_ARGS(sb, nr_shrunk, scan_time, skip_precached, nr_skipped, retried),
+	TP_ARGS(sb, nr_shrunk, scan_time, nr_skipped, retried),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,		dev		)
 		__field(	int,		nr_shrunk	)
 		__field(	unsigned long long, scan_time	)
-		__field(	int,		skip_precached	)
 		__field(	int,		nr_skipped	)
 		__field(	int,		retried		)
 	),
@@ -2469,16 +2466,14 @@ TRACE_EVENT(ext4_es_shrink,
 		__entry->dev		= sb->s_dev;
 		__entry->nr_shrunk	= nr_shrunk;
 		__entry->scan_time	= div_u64(scan_time, 1000);
-		__entry->skip_precached = skip_precached;
 		__entry->nr_skipped	= nr_skipped;
 		__entry->retried	= retried;
 	),
 
-	TP_printk("dev %d,%d nr_shrunk %d, scan_time %llu skip_precached %d "
+	TP_printk("dev %d,%d nr_shrunk %d, scan_time %llu "
 		  "nr_skipped %d retried %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->nr_shrunk,
-		  __entry->scan_time, __entry->skip_precached,
-		  __entry->nr_skipped, __entry->retried)
+		  __entry->scan_time, __entry->nr_skipped, __entry->retried)
 );
 
 #endif /* _TRACE_EXT4_H */

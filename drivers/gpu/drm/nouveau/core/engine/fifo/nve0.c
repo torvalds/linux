@@ -792,7 +792,7 @@ nve0_fifo_intr_fault(struct nve0_fifo_priv *priv, int unit)
 	nouveau_engctx_put(engctx);
 }
 
-static const struct nouveau_bitfield nve0_fifo_pbdma_intr[] = {
+static const struct nouveau_bitfield nve0_fifo_pbdma_intr_0[] = {
 	{ 0x00000001, "MEMREQ" },
 	{ 0x00000002, "MEMACK_TIMEOUT" },
 	{ 0x00000004, "MEMACK_EXTRA" },
@@ -827,9 +827,10 @@ static const struct nouveau_bitfield nve0_fifo_pbdma_intr[] = {
 };
 
 static void
-nve0_fifo_intr_pbdma(struct nve0_fifo_priv *priv, int unit)
+nve0_fifo_intr_pbdma_0(struct nve0_fifo_priv *priv, int unit)
 {
-	u32 stat = nv_rd32(priv, 0x040108 + (unit * 0x2000));
+	u32 mask = nv_rd32(priv, 0x04010c + (unit * 0x2000));
+	u32 stat = nv_rd32(priv, 0x040108 + (unit * 0x2000)) & mask;
 	u32 addr = nv_rd32(priv, 0x0400c0 + (unit * 0x2000));
 	u32 data = nv_rd32(priv, 0x0400c4 + (unit * 0x2000));
 	u32 chid = nv_rd32(priv, 0x040120 + (unit * 0x2000)) & 0xfff;
@@ -840,11 +841,12 @@ nve0_fifo_intr_pbdma(struct nve0_fifo_priv *priv, int unit)
 	if (stat & 0x00800000) {
 		if (!nve0_fifo_swmthd(priv, chid, mthd, data))
 			show &= ~0x00800000;
+		nv_wr32(priv, 0x0400c0 + (unit * 0x2000), 0x80600008);
 	}
 
 	if (show) {
 		nv_error(priv, "PBDMA%d:", unit);
-		nouveau_bitfield_print(nve0_fifo_pbdma_intr, show);
+		nouveau_bitfield_print(nve0_fifo_pbdma_intr_0, show);
 		pr_cont("\n");
 		nv_error(priv,
 			 "PBDMA%d: ch %d [%s] subc %d mthd 0x%04x data 0x%08x\n",
@@ -853,8 +855,35 @@ nve0_fifo_intr_pbdma(struct nve0_fifo_priv *priv, int unit)
 			 subc, mthd, data);
 	}
 
-	nv_wr32(priv, 0x0400c0 + (unit * 0x2000), 0x80600008);
 	nv_wr32(priv, 0x040108 + (unit * 0x2000), stat);
+}
+
+static const struct nouveau_bitfield nve0_fifo_pbdma_intr_1[] = {
+	{ 0x00000001, "HCE_RE_ILLEGAL_OP" },
+	{ 0x00000002, "HCE_RE_ALIGNB" },
+	{ 0x00000004, "HCE_PRIV" },
+	{ 0x00000008, "HCE_ILLEGAL_MTHD" },
+	{ 0x00000010, "HCE_ILLEGAL_CLASS" },
+	{}
+};
+
+static void
+nve0_fifo_intr_pbdma_1(struct nve0_fifo_priv *priv, int unit)
+{
+	u32 mask = nv_rd32(priv, 0x04014c + (unit * 0x2000));
+	u32 stat = nv_rd32(priv, 0x040148 + (unit * 0x2000)) & mask;
+	u32 chid = nv_rd32(priv, 0x040120 + (unit * 0x2000)) & 0xfff;
+
+	if (stat) {
+		nv_error(priv, "PBDMA%d:", unit);
+		nouveau_bitfield_print(nve0_fifo_pbdma_intr_1, stat);
+		pr_cont("\n");
+		nv_error(priv, "PBDMA%d: ch %d %08x %08x\n", unit, chid,
+			 nv_rd32(priv, 0x040150 + (unit * 0x2000)),
+			 nv_rd32(priv, 0x040154 + (unit * 0x2000)));
+	}
+
+	nv_wr32(priv, 0x040148 + (unit * 0x2000), stat);
 }
 
 static void
@@ -939,7 +968,8 @@ nve0_fifo_intr(struct nouveau_subdev *subdev)
 		u32 mask = nv_rd32(priv, 0x0025a0);
 		while (mask) {
 			u32 unit = __ffs(mask);
-			nve0_fifo_intr_pbdma(priv, unit);
+			nve0_fifo_intr_pbdma_0(priv, unit);
+			nve0_fifo_intr_pbdma_1(priv, unit);
 			nv_wr32(priv, 0x0025a0, (1 << unit));
 			mask &= ~(1 << unit);
 		}
@@ -1020,6 +1050,12 @@ nve0_fifo_init(struct nouveau_object *object)
 		nv_mask(priv, 0x04013c + (i * 0x2000), 0x10000100, 0x00000000);
 		nv_wr32(priv, 0x040108 + (i * 0x2000), 0xffffffff); /* INTR */
 		nv_wr32(priv, 0x04010c + (i * 0x2000), 0xfffffeff); /* INTREN */
+	}
+
+	/* PBDMA[n].HCE */
+	for (i = 0; i < priv->spoon_nr; i++) {
+		nv_wr32(priv, 0x040148 + (i * 0x2000), 0xffffffff); /* INTR */
+		nv_wr32(priv, 0x04014c + (i * 0x2000), 0xffffffff); /* INTREN */
 	}
 
 	nv_wr32(priv, 0x002254, 0x10000000 | priv->user.bar.offset >> 12);

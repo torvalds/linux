@@ -2508,7 +2508,6 @@ static struct platform_driver rhine_driver_platform = {
 	.remove		= rhine_remove_one_platform,
 	.driver = {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table	= rhine_of_tbl,
 		.pm		= RHINE_PM_OPS,
 	}

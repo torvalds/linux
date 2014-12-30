@@ -31,28 +31,13 @@
 #include "../internal.h"
 
 /*
- * Recalculate the mask of events relevant to a given inode locked.
- */
-static void fsnotify_recalc_inode_mask_locked(struct inode *inode)
-{
-	struct fsnotify_mark *mark;
-	__u32 new_mask = 0;
-
-	assert_spin_locked(&inode->i_lock);
-
-	hlist_for_each_entry(mark, &inode->i_fsnotify_marks, i.i_list)
-		new_mask |= mark->mask;
-	inode->i_fsnotify_mask = new_mask;
-}
-
-/*
  * Recalculate the inode->i_fsnotify_mask, or the mask of all FS_* event types
  * any notifier is interested in hearing for this inode.
  */
 void fsnotify_recalc_inode_mask(struct inode *inode)
 {
 	spin_lock(&inode->i_lock);
-	fsnotify_recalc_inode_mask_locked(inode);
+	inode->i_fsnotify_mask = fsnotify_recalc_mask(&inode->i_fsnotify_marks);
 	spin_unlock(&inode->i_lock);
 
 	__fsnotify_update_child_dentry_flags(inode);
@@ -60,23 +45,22 @@ void fsnotify_recalc_inode_mask(struct inode *inode)
 
 void fsnotify_destroy_inode_mark(struct fsnotify_mark *mark)
 {
-	struct inode *inode = mark->i.inode;
+	struct inode *inode = mark->inode;
 
 	BUG_ON(!mutex_is_locked(&mark->group->mark_mutex));
 	assert_spin_locked(&mark->lock);
 
 	spin_lock(&inode->i_lock);
 
-	hlist_del_init_rcu(&mark->i.i_list);
-	mark->i.inode = NULL;
+	hlist_del_init_rcu(&mark->obj_list);
+	mark->inode = NULL;
 
 	/*
 	 * this mark is now off the inode->i_fsnotify_marks list and we
 	 * hold the inode->i_lock, so this is the perfect time to update the
 	 * inode->i_fsnotify_mask
 	 */
-	fsnotify_recalc_inode_mask_locked(inode);
-
+	inode->i_fsnotify_mask = fsnotify_recalc_mask(&inode->i_fsnotify_marks);
 	spin_unlock(&inode->i_lock);
 }
 
@@ -85,30 +69,19 @@ void fsnotify_destroy_inode_mark(struct fsnotify_mark *mark)
  */
 void fsnotify_clear_marks_by_inode(struct inode *inode)
 {
-	struct fsnotify_mark *mark, *lmark;
+	struct fsnotify_mark *mark;
 	struct hlist_node *n;
 	LIST_HEAD(free_list);
 
 	spin_lock(&inode->i_lock);
-	hlist_for_each_entry_safe(mark, n, &inode->i_fsnotify_marks, i.i_list) {
-		list_add(&mark->i.free_i_list, &free_list);
-		hlist_del_init_rcu(&mark->i.i_list);
+	hlist_for_each_entry_safe(mark, n, &inode->i_fsnotify_marks, obj_list) {
+		list_add(&mark->free_list, &free_list);
+		hlist_del_init_rcu(&mark->obj_list);
 		fsnotify_get_mark(mark);
 	}
 	spin_unlock(&inode->i_lock);
 
-	list_for_each_entry_safe(mark, lmark, &free_list, i.free_i_list) {
-		struct fsnotify_group *group;
-
-		spin_lock(&mark->lock);
-		fsnotify_get_group(mark->group);
-		group = mark->group;
-		spin_unlock(&mark->lock);
-
-		fsnotify_destroy_mark(mark, group);
-		fsnotify_put_mark(mark);
-		fsnotify_put_group(group);
-	}
+	fsnotify_destroy_marks(&free_list);
 }
 
 /*
@@ -123,34 +96,13 @@ void fsnotify_clear_inode_marks_by_group(struct fsnotify_group *group)
  * given a group and inode, find the mark associated with that combination.
  * if found take a reference to that mark and return it, else return NULL
  */
-static struct fsnotify_mark *fsnotify_find_inode_mark_locked(
-		struct fsnotify_group *group,
-		struct inode *inode)
-{
-	struct fsnotify_mark *mark;
-
-	assert_spin_locked(&inode->i_lock);
-
-	hlist_for_each_entry(mark, &inode->i_fsnotify_marks, i.i_list) {
-		if (mark->group == group) {
-			fsnotify_get_mark(mark);
-			return mark;
-		}
-	}
-	return NULL;
-}
-
-/*
- * given a group and inode, find the mark associated with that combination.
- * if found take a reference to that mark and return it, else return NULL
- */
 struct fsnotify_mark *fsnotify_find_inode_mark(struct fsnotify_group *group,
 					       struct inode *inode)
 {
 	struct fsnotify_mark *mark;
 
 	spin_lock(&inode->i_lock);
-	mark = fsnotify_find_inode_mark_locked(group, inode);
+	mark = fsnotify_find_mark(&inode->i_fsnotify_marks, group);
 	spin_unlock(&inode->i_lock);
 
 	return mark;
@@ -168,10 +120,10 @@ void fsnotify_set_inode_mark_mask_locked(struct fsnotify_mark *mark,
 	assert_spin_locked(&mark->lock);
 
 	if (mask &&
-	    mark->i.inode &&
+	    mark->inode &&
 	    !(mark->flags & FSNOTIFY_MARK_FLAG_OBJECT_PINNED)) {
 		mark->flags |= FSNOTIFY_MARK_FLAG_OBJECT_PINNED;
-		inode = igrab(mark->i.inode);
+		inode = igrab(mark->inode);
 		/*
 		 * we shouldn't be able to get here if the inode wasn't
 		 * already safely held in memory.  But bug in case it
@@ -192,9 +144,7 @@ int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 			    struct fsnotify_group *group, struct inode *inode,
 			    int allow_dups)
 {
-	struct fsnotify_mark *lmark, *last = NULL;
-	int ret = 0;
-	int cmp;
+	int ret;
 
 	mark->flags |= FSNOTIFY_MARK_FLAG_INODE;
 
@@ -202,37 +152,10 @@ int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 	assert_spin_locked(&mark->lock);
 
 	spin_lock(&inode->i_lock);
-
-	mark->i.inode = inode;
-
-	/* is mark the first mark? */
-	if (hlist_empty(&inode->i_fsnotify_marks)) {
-		hlist_add_head_rcu(&mark->i.i_list, &inode->i_fsnotify_marks);
-		goto out;
-	}
-
-	/* should mark be in the middle of the current list? */
-	hlist_for_each_entry(lmark, &inode->i_fsnotify_marks, i.i_list) {
-		last = lmark;
-
-		if ((lmark->group == group) && !allow_dups) {
-			ret = -EEXIST;
-			goto out;
-		}
-
-		cmp = fsnotify_compare_groups(lmark->group, mark->group);
-		if (cmp < 0)
-			continue;
-
-		hlist_add_before_rcu(&mark->i.i_list, &lmark->i.i_list);
-		goto out;
-	}
-
-	BUG_ON(last == NULL);
-	/* mark should be the last entry.  last is the current last entry */
-	hlist_add_behind_rcu(&mark->i.i_list, &last->i.i_list);
-out:
-	fsnotify_recalc_inode_mask_locked(inode);
+	mark->inode = inode;
+	ret = fsnotify_add_mark_list(&inode->i_fsnotify_marks, mark,
+				     allow_dups);
+	inode->i_fsnotify_mask = fsnotify_recalc_mask(&inode->i_fsnotify_marks);
 	spin_unlock(&inode->i_lock);
 
 	return ret;

@@ -258,7 +258,6 @@ static struct platform_driver geodewdt_driver = {
 	.remove		= geodewdt_remove,
 	.shutdown	= geodewdt_shutdown,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= DRV_NAME,
 	},
 };

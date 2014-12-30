@@ -55,7 +55,7 @@
 
 #include "xprt_rdma.h"
 
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY	RPCDBG_TRANS
 #endif
 
@@ -73,9 +73,9 @@ static unsigned int xprt_rdma_max_inline_read = RPCRDMA_DEF_INLINE;
 static unsigned int xprt_rdma_max_inline_write = RPCRDMA_DEF_INLINE;
 static unsigned int xprt_rdma_inline_write_padding;
 static unsigned int xprt_rdma_memreg_strategy = RPCRDMA_FRMR;
-                int xprt_rdma_pad_optimize = 0;
+		int xprt_rdma_pad_optimize = 1;
 
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 
 static unsigned int min_slot_table_size = RPCRDMA_MIN_SLOT_TABLE;
 static unsigned int max_slot_table_size = RPCRDMA_MAX_SLOT_TABLE;
@@ -599,7 +599,7 @@ xprt_rdma_send_request(struct rpc_task *task)
 
 	if (req->rl_niovs == 0)
 		rc = rpcrdma_marshal_req(rqst);
-	else if (r_xprt->rx_ia.ri_memreg_strategy == RPCRDMA_FRMR)
+	else if (r_xprt->rx_ia.ri_memreg_strategy != RPCRDMA_ALLPHYSICAL)
 		rc = rpcrdma_marshal_chunks(rqst, 0);
 	if (rc < 0)
 		goto failed_marshal;
@@ -705,7 +705,7 @@ static void __exit xprt_rdma_cleanup(void)
 	int rc;
 
 	dprintk("RPCRDMA Module Removed, deregister RPC RDMA transport\n");
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 	if (sunrpc_table_header) {
 		unregister_sysctl_table(sunrpc_table_header);
 		sunrpc_table_header = NULL;
@@ -736,7 +736,7 @@ static int __init xprt_rdma_init(void)
 	dprintk("\tPadding %d\n\tMemreg %d\n",
 		xprt_rdma_inline_write_padding, xprt_rdma_memreg_strategy);
 
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 	if (!sunrpc_table_header)
 		sunrpc_table_header = register_sysctl_table(sunrpc_table);
 #endif

@@ -48,6 +48,8 @@ void nouveau_memx_wait(struct nouveau_memx *,
 		       u32 addr, u32 mask, u32 data, u32 nsec);
 void nouveau_memx_nsec(struct nouveau_memx *, u32 nsec);
 void nouveau_memx_wait_vblank(struct nouveau_memx *);
+void nouveau_memx_train(struct nouveau_memx *);
+int  nouveau_memx_train_result(struct nouveau_pwr *, u32 *, int);
 void nouveau_memx_block(struct nouveau_memx *);
 void nouveau_memx_unblock(struct nouveau_memx *);
 

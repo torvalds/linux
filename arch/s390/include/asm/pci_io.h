@@ -139,7 +139,8 @@ static inline int zpci_memcpy_fromio(void *dst,
 	int size, rc = 0;
 
 	while (n > 0) {
-		size = zpci_get_max_write_size((u64) src, (u64) dst, n, 8);
+		size = zpci_get_max_write_size((u64 __force) src,
+					       (u64) dst, n, 8);
 		req = ZPCI_CREATE_REQ(entry->fh, entry->bar, size);
 		rc = zpci_read_single(req, dst, offset, size);
 		if (rc)
@@ -162,7 +163,8 @@ static inline int zpci_memcpy_toio(volatile void __iomem *dst,
 		return -EINVAL;
 
 	while (n > 0) {
-		size = zpci_get_max_write_size((u64) dst, (u64) src, n, 128);
+		size = zpci_get_max_write_size((u64 __force) dst,
+					       (u64) src, n, 128);
 		req = ZPCI_CREATE_REQ(entry->fh, entry->bar, size);
 
 		if (size > 8) /* main path */

@@ -114,7 +114,7 @@ print_syscall_enter(struct trace_iterator *iter, int flags,
 	struct trace_entry *ent = iter->ent;
 	struct syscall_trace_enter *trace;
 	struct syscall_metadata *entry;
-	int i, ret, syscall;
+	int i, syscall;
 
 	trace = (typeof(trace))ent;
 	syscall = trace->nr;
@@ -128,35 +128,28 @@ print_syscall_enter(struct trace_iterator *iter, int flags,
 		goto end;
 	}
 
-	ret = trace_seq_printf(s, "%s(", entry->name);
-	if (!ret)
-		return TRACE_TYPE_PARTIAL_LINE;
+	trace_seq_printf(s, "%s(", entry->name);
 
 	for (i = 0; i < entry->nb_args; i++) {
+
+		if (trace_seq_has_overflowed(s))
+			goto end;
+
 		/* parameter types */
-		if (trace_flags & TRACE_ITER_VERBOSE) {
-			ret = trace_seq_printf(s, "%s ", entry->types[i]);
-			if (!ret)
-				return TRACE_TYPE_PARTIAL_LINE;
-		}
+		if (trace_flags & TRACE_ITER_VERBOSE)
+			trace_seq_printf(s, "%s ", entry->types[i]);
+
 		/* parameter values */
-		ret = trace_seq_printf(s, "%s: %lx%s", entry->args[i],
-				       trace->args[i],
-				       i == entry->nb_args - 1 ? "" : ", ");
-		if (!ret)
-			return TRACE_TYPE_PARTIAL_LINE;
+		trace_seq_printf(s, "%s: %lx%s", entry->args[i],
+				 trace->args[i],
+				 i == entry->nb_args - 1 ? "" : ", ");
 	}
 
-	ret = trace_seq_putc(s, ')');
-	if (!ret)
-		return TRACE_TYPE_PARTIAL_LINE;
-
+	trace_seq_putc(s, ')');
 end:
-	ret =  trace_seq_putc(s, '\n');
-	if (!ret)
-		return TRACE_TYPE_PARTIAL_LINE;
+	trace_seq_putc(s, '\n');
 
-	return TRACE_TYPE_HANDLED;
+	return trace_handle_return(s);
 }
 
 static enum print_line_t
@@ -168,7 +161,6 @@ print_syscall_exit(struct trace_iterator *iter, int flags,
 	struct syscall_trace_exit *trace;
 	int syscall;
 	struct syscall_metadata *entry;
-	int ret;
 
 	trace = (typeof(trace))ent;
 	syscall = trace->nr;
@@ -176,7 +168,7 @@ print_syscall_exit(struct trace_iterator *iter, int flags,
 
 	if (!entry) {
 		trace_seq_putc(s, '\n');
-		return TRACE_TYPE_HANDLED;
+		goto out;
 	}
 
 	if (entry->exit_event->event.type != ent->type) {
@@ -184,12 +176,11 @@ print_syscall_exit(struct trace_iterator *iter, int flags,
 		return TRACE_TYPE_UNHANDLED;
 	}
 
-	ret = trace_seq_printf(s, "%s -> 0x%lx\n", entry->name,
+	trace_seq_printf(s, "%s -> 0x%lx\n", entry->name,
 				trace->ret);
-	if (!ret)
-		return TRACE_TYPE_PARTIAL_LINE;
 
-	return TRACE_TYPE_HANDLED;
+ out:
+	return trace_handle_return(s);
 }
 
 extern char *__bad_type_size(void);
@@ -523,7 +514,7 @@ unsigned long __init __weak arch_syscall_addr(int nr)
 	return (unsigned long)sys_call_table[nr];
 }
 
-static int __init init_ftrace_syscalls(void)
+void __init init_ftrace_syscalls(void)
 {
 	struct syscall_metadata *meta;
 	unsigned long addr;
@@ -533,7 +524,7 @@ static int __init init_ftrace_syscalls(void)
 				    GFP_KERNEL);
 	if (!syscalls_metadata) {
 		WARN_ON(1);
-		return -ENOMEM;
+		return;
 	}
 
 	for (i = 0; i < NR_syscalls; i++) {
@@ -545,10 +536,7 @@ static int __init init_ftrace_syscalls(void)
 		meta->syscall_nr = i;
 		syscalls_metadata[i] = meta;
 	}
-
-	return 0;
 }
-early_initcall(init_ftrace_syscalls);
 
 #ifdef CONFIG_PERF_EVENTS
 

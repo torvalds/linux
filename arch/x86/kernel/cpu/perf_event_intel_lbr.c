@@ -465,7 +465,7 @@ static int branch_type(unsigned long from, unsigned long to, int abort)
 {
 	struct insn insn;
 	void *addr;
-	int bytes, size = MAX_INSN_SIZE;
+	int bytes_read, bytes_left;
 	int ret = X86_BR_NONE;
 	int ext, to_plm, from_plm;
 	u8 buf[MAX_INSN_SIZE];
@@ -493,8 +493,10 @@ static int branch_type(unsigned long from, unsigned long to, int abort)
 			return X86_BR_NONE;
 
 		/* may fail if text not present */
-		bytes = copy_from_user_nmi(buf, (void __user *)from, size);
-		if (bytes != 0)
+		bytes_left = copy_from_user_nmi(buf, (void __user *)from,
+						MAX_INSN_SIZE);
+		bytes_read = MAX_INSN_SIZE - bytes_left;
+		if (!bytes_read)
 			return X86_BR_NONE;
 
 		addr = buf;
@@ -505,10 +507,19 @@ static int branch_type(unsigned long from, unsigned long to, int abort)
 		 * Ensure we don't blindy read any address by validating it is
 		 * a known text address.
 		 */
-		if (kernel_text_address(from))
+		if (kernel_text_address(from)) {
 			addr = (void *)from;
-		else
+			/*
+			 * Assume we can get the maximum possible size
+			 * when grabbing kernel data.  This is not
+			 * _strictly_ true since we could possibly be
+			 * executing up next to a memory hole, but
+			 * it is very unlikely to be a problem.
+			 */
+			bytes_read = MAX_INSN_SIZE;
+		} else {
 			return X86_BR_NONE;
+		}
 	}
 
 	/*
@@ -518,8 +529,10 @@ static int branch_type(unsigned long from, unsigned long to, int abort)
 #ifdef CONFIG_X86_64
 	is64 = kernel_ip((unsigned long)addr) || !test_thread_flag(TIF_IA32);
 #endif
-	insn_init(&insn, addr, is64);
+	insn_init(&insn, addr, bytes_read, is64);
 	insn_get_opcode(&insn);
+	if (!insn.opcode.got)
+		return X86_BR_ABORT;
 
 	switch (insn.opcode.bytes[0]) {
 	case 0xf:

@@ -108,7 +108,7 @@ static int vvp_io_fault_iter_init(const struct lu_env *env,
 	struct inode  *inode = ccc_object_inode(ios->cis_obj);
 
 	LASSERT(inode ==
-		cl2ccc_io(env, ios)->cui_fd->fd_file->f_dentry->d_inode);
+		file_inode(cl2ccc_io(env, ios)->cui_fd->fd_file));
 	vio->u.fault.ft_mtime = LTIME_S(inode->i_mtime);
 	return 0;
 }
@@ -239,7 +239,7 @@ static int vvp_mmap_locks(const struct lu_env *env,
 
 		down_read(&mm->mmap_sem);
 		while ((vma = our_vma(mm, addr, count)) != NULL) {
-			struct inode *inode = vma->vm_file->f_dentry->d_inode;
+			struct inode *inode = file_inode(vma->vm_file);
 			int flags = CEF_MUST;
 
 			if (ll_file_nolock(vma->vm_file)) {
@@ -709,7 +709,7 @@ static int vvp_io_fault_start(const struct lu_env *env,
 	}
 
 
-	if (fio->ft_mkwrite ) {
+	if (fio->ft_mkwrite) {
 		pgoff_t last_index;
 		/*
 		 * Capture the size while holding the lli_trunc_sem from above
@@ -720,9 +720,8 @@ static int vvp_io_fault_start(const struct lu_env *env,
 		last_index = cl_index(obj, size - 1);
 		if (last_index < fio->ft_index) {
 			CDEBUG(D_PAGE,
-				"llite: mkwrite and truncate race happened: "
-				"%p: 0x%lx 0x%lx\n",
-				vmpage->mapping, fio->ft_index, last_index);
+			       "llite: mkwrite and truncate race happened: %p: 0x%lx 0x%lx\n",
+			       vmpage->mapping, fio->ft_index, last_index);
 			/*
 			 * We need to return if we are
 			 * passed the end of the file. This will propagate

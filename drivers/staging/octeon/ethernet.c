@@ -98,12 +98,6 @@ MODULE_PARM_DESC(pow_send_list, "\n"
 	"\t\"eth2,spi3,spi7\" would cause these three devices to transmit\n"
 	"\tusing the pow_send_group.");
 
-int max_rx_cpus = -1;
-module_param(max_rx_cpus, int, 0444);
-MODULE_PARM_DESC(max_rx_cpus, "\n"
-	"\t\tThe maximum number of CPUs to use for packet reception.\n"
-	"\t\tUse -1 to use all available CPUs.");
-
 int rx_napi_weight = 32;
 module_param(rx_napi_weight, int, 0444);
 MODULE_PARM_DESC(rx_napi_weight, "The NAPI WEIGHT parameter.");
@@ -452,7 +446,7 @@ int cvm_oct_common_init(struct net_device *dev)
 		mac = of_get_mac_address(priv->of_node);
 
 	if (mac)
-		memcpy(dev->dev_addr, mac, ETH_ALEN);
+		ether_addr_copy(dev->dev_addr, mac);
 	else
 		eth_hw_addr_random(dev);
 
@@ -877,7 +871,6 @@ static struct platform_driver cvm_oct_driver = {
 	.probe		= cvm_oct_probe,
 	.remove		= cvm_oct_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= KBUILD_MODNAME,
 		.of_match_table = cvm_oct_match,
 	},

@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  * Written by:
  * Sergey Lapin <slapin@ossfans.org>
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
@@ -27,9 +23,9 @@
 #include <linux/if_arp.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+#include <linux/ieee802154.h>
 #include <net/sock.h>
 #include <net/af_ieee802154.h>
-#include <net/ieee802154.h>
 #include <net/ieee802154_netdev.h>
 
 #include <asm/ioctls.h>
@@ -158,7 +154,6 @@ static int dgram_ioctl(struct sock *sk, int cmd, unsigned long arg)
 		spin_unlock_bh(&sk->sk_receive_queue.lock);
 		return put_user(amount, (int __user *)arg);
 	}
-
 	}
 
 	return -ENOIOCTLCMD;
@@ -280,7 +275,7 @@ static int dgram_sendmsg(struct kiocb *iocb, struct sock *sk,
 	if (err < 0)
 		goto out_skb;
 
-	err = memcpy_fromiovec(skb_put(skb, size), msg->msg_iov, size);
+	err = memcpy_from_msg(skb_put(skb, size), msg, size);
 	if (err < 0)
 		goto out_skb;
 
@@ -324,7 +319,7 @@ static int dgram_recvmsg(struct kiocb *iocb, struct sock *sk,
 	}
 
 	/* FIXME: skip headers if necessary ?! */
-	err = skb_copy_datagram_iovec(skb, 0, msg->msg_iov, copied);
+	err = skb_copy_datagram_msg(skb, 0, msg, copied);
 	if (err)
 		goto done;
 

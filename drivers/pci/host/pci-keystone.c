@@ -353,10 +353,9 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 
 	ks_pcie = devm_kzalloc(&pdev->dev, sizeof(*ks_pcie),
 				GFP_KERNEL);
-	if (!ks_pcie) {
-		dev_err(dev, "no memory for keystone pcie\n");
+	if (!ks_pcie)
 		return -ENOMEM;
-	}
+
 	pp = &ks_pcie->pp;
 
 	/* initialize SerDes Phy if present */
@@ -403,7 +402,6 @@ static struct platform_driver ks_pcie_driver __refdata = {
 	.remove = __exit_p(ks_pcie_remove),
 	.driver = {
 		.name	= "keystone-pcie",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(ks_pcie_of_match),
 	},
 };

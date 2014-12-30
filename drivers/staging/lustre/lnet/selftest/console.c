@@ -1208,8 +1208,7 @@ again:
 
 		lstcon_rpc_trans_destroy(trans);
 		/* return if any error */
-		CDEBUG(D_NET, "Failed to add test %s, "
-			      "RPC error %d, framework error %d\n",
+		CDEBUG(D_NET, "Failed to add test %s, RPC error %d, framework error %d\n",
 		       transop == LST_TRANS_TSBCLIADD ? "client" : "server",
 		       lstcon_trans_stat()->trs_rpc_errno,
 		       lstcon_trans_stat()->trs_fwk_errno);
@@ -1885,8 +1884,7 @@ lstcon_session_feats_check(unsigned feats)
 	spin_unlock(&console_session.ses_rpc_lock);
 
 	if (rc != 0) {
-		CERROR("remote features %x do not match with "
-		       "session features %x of console\n",
+		CERROR("remote features %x do not match with session features %x of console\n",
 		       feats, console_session.ses_features);
 	}
 

@@ -187,7 +187,6 @@ static struct platform_driver wm8994_ldo_driver = {
 	.probe = wm8994_ldo_probe,
 	.driver		= {
 		.name	= "wm8994-ldo",
-		.owner	= THIS_MODULE,
 	},
 };
 

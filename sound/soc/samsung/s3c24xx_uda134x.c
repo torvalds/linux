@@ -340,7 +340,6 @@ static struct platform_driver s3c24xx_uda134x_driver = {
 	.remove = s3c24xx_uda134x_remove,
 	.driver = {
 		.name = "s3c24xx_uda134x",
-		.owner = THIS_MODULE,
 	},
 };
 

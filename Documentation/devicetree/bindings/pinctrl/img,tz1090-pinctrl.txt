@@ -67,7 +67,7 @@ Valid values for pin and group names are:
     They also all support the some form of muxing. Any pins which are contained
     in one of the mux groups (see below) can be muxed only to the functions
     supported by the mux group. All other pins can be muxed to the "perip"
-    function which which enables them with their intended peripheral.
+    function which enables them with their intended peripheral.
 
     Different pins in the same mux group cannot be muxed to different functions,
     however it is possible to mux only a subset of the pins in a mux group to a

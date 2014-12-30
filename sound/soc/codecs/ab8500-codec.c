@@ -126,13 +126,13 @@ struct ab8500_codec_drvdata_dbg {
 /* Private data for AB8500 device-driver */
 struct ab8500_codec_drvdata {
 	struct regmap *regmap;
+	struct mutex ctrl_lock;
 
 	/* Sidetone */
 	long *sid_fir_values;
 	enum sid_state sid_status;
 
 	/* ANC */
-	struct mutex anc_lock;
 	long *anc_fir_values;
 	long *anc_iir_values;
 	enum anc_state anc_status;
@@ -1129,9 +1129,9 @@ static int sid_status_control_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct ab8500_codec_drvdata *drvdata = dev_get_drvdata(codec->dev);
 
-	mutex_lock(&codec->mutex);
+	mutex_lock(&drvdata->ctrl_lock);
 	ucontrol->value.integer.value[0] = drvdata->sid_status;
-	mutex_unlock(&codec->mutex);
+	mutex_unlock(&drvdata->ctrl_lock);
 
 	return 0;
 }
@@ -1154,7 +1154,7 @@ static int sid_status_control_put(struct snd_kcontrol *kcontrol,
 		return -EIO;
 	}
 
-	mutex_lock(&codec->mutex);
+	mutex_lock(&drvdata->ctrl_lock);
 
 	sidconf = snd_soc_read(codec, AB8500_SIDFIRCONF);
 	if (((sidconf & BIT(AB8500_SIDFIRCONF_FIRSIDBUSY)) != 0)) {
@@ -1185,7 +1185,7 @@ static int sid_status_control_put(struct snd_kcontrol *kcontrol,
 	drvdata->sid_status = SID_FIR_CONFIGURED;
 
 out:
-	mutex_unlock(&codec->mutex);
+	mutex_unlock(&drvdata->ctrl_lock);
 
 	dev_dbg(codec->dev, "%s: Exit\n", __func__);
 
@@ -1198,9 +1198,9 @@ static int anc_status_control_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct ab8500_codec_drvdata *drvdata = dev_get_drvdata(codec->dev);
 
-	mutex_lock(&codec->mutex);
+	mutex_lock(&drvdata->ctrl_lock);
 	ucontrol->value.integer.value[0] = drvdata->anc_status;
-	mutex_unlock(&codec->mutex);
+	mutex_unlock(&drvdata->ctrl_lock);
 
 	return 0;
 }
@@ -1217,7 +1217,7 @@ static int anc_status_control_put(struct snd_kcontrol *kcontrol,
 
 	dev_dbg(dev, "%s: Enter.\n", __func__);
 
-	mutex_lock(&drvdata->anc_lock);
+	mutex_lock(&drvdata->ctrl_lock);
 
 	req = ucontrol->value.integer.value[0];
 	if (req >= ARRAY_SIZE(enum_anc_state)) {
@@ -1244,9 +1244,7 @@ static int anc_status_control_put(struct snd_kcontrol *kcontrol,
 	}
 	snd_soc_dapm_sync(&codec->dapm);
 
-	mutex_lock(&codec->mutex);
 	anc_configure(codec, apply_fir, apply_iir);
-	mutex_unlock(&codec->mutex);
 
 	if (apply_fir) {
 		if (drvdata->anc_status == ANC_IIR_CONFIGURED)
@@ -1265,7 +1263,7 @@ static int anc_status_control_put(struct snd_kcontrol *kcontrol,
 	snd_soc_dapm_sync(&codec->dapm);
 
 cleanup:
-	mutex_unlock(&drvdata->anc_lock);
+	mutex_unlock(&drvdata->ctrl_lock);
 
 	if (status < 0)
 		dev_err(dev, "%s: Unable to configure ANC! (status = %d)\n",
@@ -1294,14 +1292,15 @@ static int filter_control_get(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct ab8500_codec_drvdata *drvdata = snd_soc_codec_get_drvdata(codec);
 	struct filter_control *fc =
 			(struct filter_control *)kcontrol->private_value;
 	unsigned int i;
 
-	mutex_lock(&codec->mutex);
+	mutex_lock(&drvdata->ctrl_lock);
 	for (i = 0; i < fc->count; i++)
 		ucontrol->value.integer.value[i] = fc->value[i];
-	mutex_unlock(&codec->mutex);
+	mutex_unlock(&drvdata->ctrl_lock);
 
 	return 0;
 }
@@ -1310,14 +1309,15 @@ static int filter_control_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct ab8500_codec_drvdata *drvdata = snd_soc_codec_get_drvdata(codec);
 	struct filter_control *fc =
 			(struct filter_control *)kcontrol->private_value;
 	unsigned int i;
 
-	mutex_lock(&codec->mutex);
+	mutex_lock(&drvdata->ctrl_lock);
 	for (i = 0; i < fc->count; i++)
 		fc->value[i] = ucontrol->value.integer.value[i];
-	mutex_unlock(&codec->mutex);
+	mutex_unlock(&drvdata->ctrl_lock);
 
 	return 0;
 }
@@ -2545,7 +2545,7 @@ static int ab8500_codec_probe(struct snd_soc_codec *codec)
 
 	(void)snd_soc_dapm_disable_pin(&codec->dapm, "ANC Configure Input");
 
-	mutex_init(&drvdata->anc_lock);
+	mutex_init(&drvdata->ctrl_lock);
 
 	return status;
 }
@@ -2609,7 +2609,6 @@ static int ab8500_codec_driver_remove(struct platform_device *pdev)
 static struct platform_driver ab8500_codec_platform_driver = {
 	.driver	= {
 		.name	= "ab8500-codec",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ab8500_codec_driver_probe,
 	.remove		= ab8500_codec_driver_remove,

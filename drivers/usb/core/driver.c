@@ -1493,10 +1493,6 @@ int usb_resume(struct device *dev, pm_message_t msg)
 	return status;
 }
 
-#endif /* CONFIG_PM */
-
-#ifdef CONFIG_PM_RUNTIME
-
 /**
  * usb_enable_autosuspend - allow a USB device to be autosuspended
  * @udev: the USB device which may be autosuspended
@@ -1876,7 +1872,7 @@ int usb_set_usb2_hardware_lpm(struct usb_device *udev, int enable)
 	return ret;
 }
 
-#endif /* CONFIG_PM_RUNTIME */
+#endif /* CONFIG_PM */
 
 struct bus_type usb_bus_type = {
 	.name =		"usb",

@@ -308,7 +308,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	ret = nouveau_gem_new(dev, PAGE_SIZE, 0, NOUVEAU_GEM_DOMAIN_GART,
 			      0, 0, &chan->ntfy);
 	if (ret == 0)
-		ret = nouveau_bo_pin(chan->ntfy, TTM_PL_FLAG_TT);
+		ret = nouveau_bo_pin(chan->ntfy, TTM_PL_FLAG_TT, false);
 	if (ret)
 		goto done;
 

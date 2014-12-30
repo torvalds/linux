@@ -177,7 +177,6 @@ MODULE_DEVICE_TABLE(of, iio_hwmon_of_match);
 static struct platform_driver __refdata iio_hwmon_driver = {
 	.driver = {
 		.name = "iio_hwmon",
-		.owner = THIS_MODULE,
 		.of_match_table = iio_hwmon_of_match,
 	},
 	.probe = iio_hwmon_probe,

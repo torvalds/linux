@@ -222,8 +222,7 @@ kiblnd_tunables_init (void)
 		*kiblnd_tunables.kib_concurrent_sends = *kiblnd_tunables.kib_peertxcredits / 2;
 
 	if (*kiblnd_tunables.kib_concurrent_sends < *kiblnd_tunables.kib_peertxcredits) {
-		CWARN("Concurrent sends %d is lower than message queue size: %d, "
-		      "performance may drop slightly.\n",
+		CWARN("Concurrent sends %d is lower than message queue size: %d, performance may drop slightly.\n",
 		      *kiblnd_tunables.kib_concurrent_sends, *kiblnd_tunables.kib_peertxcredits);
 	}
 

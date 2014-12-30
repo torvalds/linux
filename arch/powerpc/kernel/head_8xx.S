@@ -33,13 +33,31 @@
 
 /* Macro to make the code more readable. */
 #ifdef CONFIG_8xx_CPU6
-#define DO_8xx_CPU6(val, reg)	\
-	li	reg, val;	\
-	stw	reg, 12(r0);	\
-	lwz	reg, 12(r0);
+#define SPRN_MI_TWC_ADDR	0x2b80
+#define SPRN_MI_RPN_ADDR	0x2d80
+#define SPRN_MD_TWC_ADDR	0x3b80
+#define SPRN_MD_RPN_ADDR	0x3d80
+
+#define MTSPR_CPU6(spr, reg, treg)	\
+	li	treg, spr##_ADDR;	\
+	stw	treg, 12(r0);		\
+	lwz	treg, 12(r0);		\
+	mtspr	spr, reg
 #else
-#define DO_8xx_CPU6(val, reg)
+#define MTSPR_CPU6(spr, reg, treg)	\
+	mtspr	spr, reg
 #endif
+
+/*
+ * Value for the bits that have fixed value in RPN entries.
+ * Also used for tagging DAR for DTLBerror.
+ */
+#ifdef CONFIG_PPC_16K_PAGES
+#define RPN_PATTERN	(0x00f0 | MD_SPS16K)
+#else
+#define RPN_PATTERN	0x00f0
+#endif
+
 	__HEAD
 _ENTRY(_stext);
 _ENTRY(_start);
@@ -64,13 +82,6 @@ _ENTRY(_start);
  * entry into each of the instruction and data TLBs to map the first
  * 8M 1:1.  I also mapped an additional I/O space 1:1 so we can get to
  * the "internal" processor registers before MMU_init is called.
- *
- * The TLB code currently contains a major hack.  Since I use the condition
- * code register, I have to save and restore it.  I am out of registers, so
- * I just store it in memory location 0 (the TLB handlers are not reentrant).
- * To avoid making any decisions, I need to use the "segment" valid bit
- * in the first level table, but that would require many changes to the
- * Linux page directory/table functions that I don't want to do right now.
  *
  *	-- Dan
  */
@@ -211,7 +222,7 @@ MachineCheck:
 	EXCEPTION_PROLOG
 	mfspr r4,SPRN_DAR
 	stw r4,_DAR(r11)
-	li r5,0x00f0
+	li r5,RPN_PATTERN
 	mtspr SPRN_DAR,r5	/* Tag DAR, to be used in DTLB Error */
 	mfspr r5,SPRN_DSISR
 	stw r5,_DSISR(r11)
@@ -219,30 +230,16 @@ MachineCheck:
 	EXC_XFER_STD(0x200, machine_check_exception)
 
 /* Data access exception.
- * This is "never generated" by the MPC8xx.  We jump to it for other
- * translation errors.
+ * This is "never generated" by the MPC8xx.
  */
 	. = 0x300
 DataAccess:
-	EXCEPTION_PROLOG
-	mfspr	r10,SPRN_DSISR
-	stw	r10,_DSISR(r11)
-	mr	r5,r10
-	mfspr	r4,SPRN_DAR
-	li	r10,0x00f0
-	mtspr	SPRN_DAR,r10	/* Tag DAR, to be used in DTLB Error */
-	EXC_XFER_LITE(0x300, handle_page_fault)
 
 /* Instruction access exception.
- * This is "never generated" by the MPC8xx.  We jump to it for other
- * translation errors.
+ * This is "never generated" by the MPC8xx.
  */
 	. = 0x400
 InstructionAccess:
-	EXCEPTION_PROLOG
-	mr	r4,r12
-	mr	r5,r9
-	EXC_XFER_LITE(0x400, handle_page_fault)
 
 /* External interrupt */
 	EXCEPTION(0x500, HardwareInterrupt, do_IRQ, EXC_XFER_LITE)
@@ -253,7 +250,7 @@ Alignment:
 	EXCEPTION_PROLOG
 	mfspr	r4,SPRN_DAR
 	stw	r4,_DAR(r11)
-	li	r5,0x00f0
+	li	r5,RPN_PATTERN
 	mtspr	SPRN_DAR,r5	/* Tag DAR, to be used in DTLB Error */
 	mfspr	r5,SPRN_DSISR
 	stw	r5,_DSISR(r11)
@@ -292,8 +289,8 @@ SystemCall:
 	. = 0x1100
 /*
  * For the MPC8xx, this is a software tablewalk to load the instruction
- * TLB.  It is modelled after the example in the Motorola manual.  The task
- * switch loads the M_TWB register with the pointer to the first level table.
+ * TLB.  The task switch loads the M_TW register with the pointer to the first
+ * level table.
  * If we discover there is no second level table (value is zero) or if there
  * is an invalid pte, we load that into the TLB, which causes another fault
  * into the TLB Error interrupt where we can handle such problems.
@@ -302,20 +299,17 @@ SystemCall:
  */
 InstructionTLBMiss:
 #ifdef CONFIG_8xx_CPU6
-	stw	r3, 8(r0)
+	mtspr	SPRN_DAR, r3
 #endif
 	EXCEPTION_PROLOG_0
 	mtspr	SPRN_SPRG_SCRATCH2, r10
 	mfspr	r10, SPRN_SRR0	/* Get effective address of fault */
 #ifdef CONFIG_8xx_CPU15
-	addi	r11, r10, 0x1000
+	addi	r11, r10, PAGE_SIZE
 	tlbie	r11
-	addi	r11, r10, -0x1000
+	addi	r11, r10, -PAGE_SIZE
 	tlbie	r11
 #endif
-	DO_8xx_CPU6(0x3780, r3)
-	mtspr	SPRN_MD_EPN, r10	/* Have to use MD_EPN for walk, MI_EPN can't */
-	mfspr	r10, SPRN_M_TWB	/* Get level 1 table entry address */
 
 	/* If we are faulting a kernel address, we have to use the
 	 * kernel page tables.
@@ -323,32 +317,37 @@ InstructionTLBMiss:
 #ifdef CONFIG_MODULES
 	/* Only modules will cause ITLB Misses as we always
 	 * pin the first 8MB of kernel memory */
-	andi.	r11, r10, 0x0800	/* Address >= 0x80000000 */
+	andis.	r11, r10, 0x8000	/* Address >= 0x80000000 */
+#endif
+	mfspr	r11, SPRN_M_TW	/* Get level 1 table base address */
+#ifdef CONFIG_MODULES
 	beq	3f
-	lis	r11, swapper_pg_dir@h
-	ori	r11, r11, swapper_pg_dir@l
-	rlwimi	r10, r11, 0, 2, 19
+	lis	r11, (swapper_pg_dir-PAGE_OFFSET)@h
+	ori	r11, r11, (swapper_pg_dir-PAGE_OFFSET)@l
 3:
 #endif
-	lwz	r11, 0(r10)	/* Get the level 1 entry */
+	/* Extract level 1 index */
+	rlwinm	r10, r10, 32 - ((PAGE_SHIFT - 2) << 1), (PAGE_SHIFT - 2) << 1, 29
+	lwzx	r11, r10, r11	/* Get the level 1 entry */
 	rlwinm.	r10, r11,0,0,19	/* Extract page descriptor page address */
 	beq	2f		/* If zero, don't try to find a pte */
 
 	/* We have a pte table, so load the MI_TWC with the attributes
 	 * for this "segment."
 	 */
-	ori	r11,r11,1		/* Set valid bit */
-	DO_8xx_CPU6(0x2b80, r3)
-	mtspr	SPRN_MI_TWC, r11	/* Set segment attributes */
-	DO_8xx_CPU6(0x3b80, r3)
-	mtspr	SPRN_MD_TWC, r11	/* Load pte table base address */
-	mfspr	r11, SPRN_MD_TWC	/* ....and get the pte address */
-	lwz	r10, 0(r11)	/* Get the pte */
+	MTSPR_CPU6(SPRN_MI_TWC, r11, r3)	/* Set segment attributes */
+	mfspr	r11, SPRN_SRR0	/* Get effective address of fault */
+	/* Extract level 2 index */
+	rlwinm	r11, r11, 32 - (PAGE_SHIFT - 2), 32 - PAGE_SHIFT, 29
+	lwzx	r10, r10, r11	/* Get the pte */
 
 #ifdef CONFIG_SWAP
 	andi.	r11, r10, _PAGE_ACCESSED | _PAGE_PRESENT
 	cmpwi	cr0, r11, _PAGE_ACCESSED | _PAGE_PRESENT
+	li	r11, RPN_PATTERN
 	bne-	cr0, 2f
+#else
+	li	r11, RPN_PATTERN
 #endif
 	/* The Linux PTE won't go exactly into the MMU TLB.
 	 * Software indicator bits 21 and 28 must be clear.
@@ -356,62 +355,63 @@ InstructionTLBMiss:
 	 * set.  All other Linux PTE bits control the behavior
 	 * of the MMU.
 	 */
-	li	r11, 0x00f0
 	rlwimi	r10, r11, 0, 0x07f8	/* Set 24-27, clear 21-23,28 */
-	DO_8xx_CPU6(0x2d80, r3)
-	mtspr	SPRN_MI_RPN, r10	/* Update TLB entry */
+	MTSPR_CPU6(SPRN_MI_RPN, r10, r3)	/* Update TLB entry */
 
 	/* Restore registers */
 #ifdef CONFIG_8xx_CPU6
-	lwz	r3, 8(r0)
+	mfspr	r3, SPRN_DAR
+	mtspr	SPRN_DAR, r11	/* Tag DAR */
 #endif
 	mfspr	r10, SPRN_SPRG_SCRATCH2
 	EXCEPTION_EPILOG_0
 	rfi
 2:
-	mfspr	r11, SPRN_SRR1
+	mfspr	r10, SPRN_SRR1
 	/* clear all error bits as TLB Miss
 	 * sets a few unconditionally
 	*/
-	rlwinm	r11, r11, 0, 0xffff
-	mtspr	SPRN_SRR1, r11
+	rlwinm	r10, r10, 0, 0xffff
+	mtspr	SPRN_SRR1, r10
 
 	/* Restore registers */
 #ifdef CONFIG_8xx_CPU6
-	lwz	r3, 8(r0)
+	mfspr	r3, SPRN_DAR
+	mtspr	SPRN_DAR, r11	/* Tag DAR */
 #endif
 	mfspr	r10, SPRN_SPRG_SCRATCH2
-	EXCEPTION_EPILOG_0
-	b	InstructionAccess
+	b	InstructionTLBError1
 
 	. = 0x1200
 DataStoreTLBMiss:
 #ifdef CONFIG_8xx_CPU6
-	stw	r3, 8(r0)
+	mtspr	SPRN_DAR, r3
 #endif
 	EXCEPTION_PROLOG_0
 	mtspr	SPRN_SPRG_SCRATCH2, r10
-	mfspr	r10, SPRN_M_TWB	/* Get level 1 table entry address */
+	mfspr	r10, SPRN_MD_EPN
 
 	/* If we are faulting a kernel address, we have to use the
 	 * kernel page tables.
 	 */
-	andi.	r11, r10, 0x0800
+	andis.	r11, r10, 0x8000
+	mfspr	r11, SPRN_M_TW	/* Get level 1 table base address */
 	beq	3f
-	lis	r11, swapper_pg_dir@h
-	ori	r11, r11, swapper_pg_dir@l
-	rlwimi	r10, r11, 0, 2, 19
+	lis	r11, (swapper_pg_dir-PAGE_OFFSET)@h
+	ori	r11, r11, (swapper_pg_dir-PAGE_OFFSET)@l
 3:
-	lwz	r11, 0(r10)	/* Get the level 1 entry */
+	/* Extract level 1 index */
+	rlwinm	r10, r10, 32 - ((PAGE_SHIFT - 2) << 1), (PAGE_SHIFT - 2) << 1, 29
+	lwzx	r11, r10, r11	/* Get the level 1 entry */
 	rlwinm.	r10, r11,0,0,19	/* Extract page descriptor page address */
 	beq	2f		/* If zero, don't try to find a pte */
 
 	/* We have a pte table, so load fetch the pte from the table.
 	 */
-	ori	r11, r11, 1	/* Set valid bit in physical L2 page */
-	DO_8xx_CPU6(0x3b80, r3)
-	mtspr	SPRN_MD_TWC, r11	/* Load pte table base address */
-	mfspr	r10, SPRN_MD_TWC	/* ....and get the pte address */
+	mfspr	r10, SPRN_MD_EPN	/* Get address of fault */
+	/* Extract level 2 index */
+	rlwinm	r10, r10, 32 - (PAGE_SHIFT - 2), 32 - PAGE_SHIFT, 29
+	rlwimi	r10, r11, 0, 0, 32 - PAGE_SHIFT - 1	/* Add level 2 base */
 	lwz	r10, 0(r10)	/* Get the pte */
 
 	/* Insert the Guarded flag into the TWC from the Linux PTE.
@@ -425,8 +425,7 @@ DataStoreTLBMiss:
 	 * It is bit 25 in the Linux PTE and bit 30 in the TWC
 	 */
 	rlwimi	r11, r10, 32-5, 30, 30
-	DO_8xx_CPU6(0x3b80, r3)
-	mtspr	SPRN_MD_TWC, r11
+	MTSPR_CPU6(SPRN_MD_TWC, r11, r3)
 
 	/* Both _PAGE_ACCESSED and _PAGE_PRESENT has to be set.
 	 * We also need to know if the insn is a load/store, so:
@@ -442,14 +441,8 @@ DataStoreTLBMiss:
 	and	r11, r11, r10
 	rlwimi	r10, r11, 0, _PAGE_PRESENT
 #endif
-	/* Honour kernel RO, User NA */
-	/* 0x200 == Extended encoding, bit 22 */
-	rlwimi	r10, r10, 32-2, 0x200 /* Copy USER to bit 22, 0x200 */
-	/* r11 =  (r10 & _PAGE_RW) >> 1 */
-	rlwinm	r11, r10, 32-1, 0x200
-	or	r10, r11, r10
-	/* invert RW and 0x200 bits */
-	xori	r10, r10, _PAGE_RW | 0x200
+	/* invert RW */
+	xori	r10, r10, _PAGE_RW
 
 	/* The Linux PTE won't go exactly into the MMU TLB.
 	 * Software indicator bits 22 and 28 must be clear.
@@ -457,14 +450,13 @@ DataStoreTLBMiss:
 	 * set.  All other Linux PTE bits control the behavior
 	 * of the MMU.
 	 */
-2:	li	r11, 0x00f0
+2:	li	r11, RPN_PATTERN
 	rlwimi	r10, r11, 0, 24, 28	/* Set 24-27, clear 28 */
-	DO_8xx_CPU6(0x3d80, r3)
-	mtspr	SPRN_MD_RPN, r10	/* Update TLB entry */
+	MTSPR_CPU6(SPRN_MD_RPN, r10, r3)	/* Update TLB entry */
 
 	/* Restore registers */
 #ifdef CONFIG_8xx_CPU6
-	lwz	r3, 8(r0)
+	mfspr	r3, SPRN_DAR
 #endif
 	mtspr	SPRN_DAR, r11	/* Tag DAR */
 	mfspr	r10, SPRN_SPRG_SCRATCH2
@@ -477,7 +469,17 @@ DataStoreTLBMiss:
  */
 	. = 0x1300
 InstructionTLBError:
-	b	InstructionAccess
+	EXCEPTION_PROLOG_0
+InstructionTLBError1:
+	EXCEPTION_PROLOG_1
+	EXCEPTION_PROLOG_2
+	mr	r4,r12
+	mr	r5,r9
+	andis.	r10,r5,0x4000
+	beq+	1f
+	tlbie	r4
+	/* 0x400 is InstructionAccess exception, needed by bad_page_fault() */
+1:	EXC_XFER_LITE(0x400, handle_page_fault)
 
 /* This is the data TLB error on the MPC8xx.  This could be due to
  * many reasons, including a dirty update to a pte.  We bail out to
@@ -488,11 +490,21 @@ DataTLBError:
 	EXCEPTION_PROLOG_0
 
 	mfspr	r11, SPRN_DAR
-	cmpwi	cr0, r11, 0x00f0
+	cmpwi	cr0, r11, RPN_PATTERN
 	beq-	FixupDAR	/* must be a buggy dcbX, icbi insn. */
 DARFixed:/* Return from dcbx instruction bug workaround */
-	EXCEPTION_EPILOG_0
-	b	DataAccess
+	EXCEPTION_PROLOG_1
+	EXCEPTION_PROLOG_2
+	mfspr	r5,SPRN_DSISR
+	stw	r5,_DSISR(r11)
+	mfspr	r4,SPRN_DAR
+	andis.	r10,r5,0x4000
+	beq+	1f
+	tlbie	r4
+1:	li	r10,RPN_PATTERN
+	mtspr	SPRN_DAR,r10	/* Tag DAR, to be used in DTLB Error */
+	/* 0x300 is DataAccess exception, needed by bad_page_fault() */
+	EXC_XFER_LITE(0x300, handle_page_fault)
 
 	EXCEPTION(0x1500, Trap_15, unknown_exception, EXC_XFER_EE)
 	EXCEPTION(0x1600, Trap_16, unknown_exception, EXC_XFER_EE)
@@ -521,29 +533,30 @@ DARFixed:/* Return from dcbx instruction bug workaround */
 #define NO_SELF_MODIFYING_CODE
 FixupDAR:/* Entry point for dcbx workaround. */
 #ifdef CONFIG_8xx_CPU6
-	stw	r3, 8(r0)
+	mtspr	SPRN_DAR, r3
 #endif
 	mtspr	SPRN_SPRG_SCRATCH2, r10
 	/* fetch instruction from memory. */
 	mfspr	r10, SPRN_SRR0
 	andis.	r11, r10, 0x8000	/* Address >= 0x80000000 */
-	DO_8xx_CPU6(0x3780, r3)
-	mtspr	SPRN_MD_EPN, r10
-	mfspr	r11, SPRN_M_TWB	/* Get level 1 table entry address */
+	mfspr	r11, SPRN_M_TW	/* Get level 1 table base address */
 	beq-	3f		/* Branch if user space */
 	lis	r11, (swapper_pg_dir-PAGE_OFFSET)@h
 	ori	r11, r11, (swapper_pg_dir-PAGE_OFFSET)@l
-	rlwimi	r11, r10, 32-20, 0xffc /* r11 = r11&~0xffc|(r10>>20)&0xffc */
-3:	lwz	r11, 0(r11)	/* Get the level 1 entry */
-	DO_8xx_CPU6(0x3b80, r3)
-	mtspr	SPRN_MD_TWC, r11	/* Load pte table base address */
-	mfspr	r11, SPRN_MD_TWC	/* ....and get the pte address */
-	lwz	r11, 0(r11)	/* Get the pte */
+	/* Extract level 1 index */
+3:	rlwinm	r10, r10, 32 - ((PAGE_SHIFT - 2) << 1), (PAGE_SHIFT - 2) << 1, 29
+	lwzx	r11, r10, r11	/* Get the level 1 entry */
+	rlwinm	r10, r11,0,0,19	/* Extract page descriptor page address */
+	mfspr	r11, SPRN_SRR0	/* Get effective address of fault */
+	/* Extract level 2 index */
+	rlwinm	r11, r11, 32 - (PAGE_SHIFT - 2), 32 - PAGE_SHIFT, 29
+	lwzx	r11, r10, r11	/* Get the pte */
 #ifdef CONFIG_8xx_CPU6
-	lwz	r3, 8(r0)	/* restore r3 from memory */
+	mfspr	r3, SPRN_DAR
 #endif
 	/* concat physical page address(r11) and page offset(r10) */
-	rlwimi	r11, r10, 0, 20, 31
+	mfspr	r10, SPRN_SRR0
+	rlwimi	r11, r10, 0, 32 - PAGE_SHIFT, 31
 	lwz	r11,0(r11)
 /* Check if it really is a dcbx instruction. */
 /* dcbt and dcbtst does not generate DTLB Misses/Errors,
@@ -698,11 +711,11 @@ start_here:
 #ifdef CONFIG_8xx_CPU6
 	lis	r4, cpu6_errata_word@h
 	ori	r4, r4, cpu6_errata_word@l
-	li	r3, 0x3980
+	li	r3, 0x3f80
 	stw	r3, 12(r4)
 	lwz	r3, 12(r4)
 #endif
-	mtspr	SPRN_M_TWB, r6
+	mtspr	SPRN_M_TW, r6
 	lis	r4,2f@h
 	ori	r4,r4,2f@l
 	tophys(r4,r4)
@@ -876,10 +889,10 @@ _GLOBAL(set_context)
 	lis	r6, cpu6_errata_word@h
 	ori	r6, r6, cpu6_errata_word@l
 	tophys	(r4, r4)
-	li	r7, 0x3980
+	li	r7, 0x3f80
 	stw	r7, 12(r6)
 	lwz	r7, 12(r6)
-        mtspr   SPRN_M_TWB, r4               /* Update MMU base address */
+        mtspr   SPRN_M_TW, r4               /* Update MMU base address */
 	li	r7, 0x3380
 	stw	r7, 12(r6)
 	lwz	r7, 12(r6)
@@ -887,7 +900,7 @@ _GLOBAL(set_context)
 #else
         mtspr   SPRN_M_CASID,r3		/* Update context */
 	tophys	(r4, r4)
-	mtspr	SPRN_M_TWB, r4		/* and pgd */
+	mtspr	SPRN_M_TW, r4		/* and pgd */
 #endif
 	SYNC
 	blr
@@ -919,12 +932,13 @@ set_dec_cpu6:
 	.globl	sdata
 sdata:
 	.globl	empty_zero_page
+	.align	PAGE_SHIFT
 empty_zero_page:
-	.space	4096
+	.space	PAGE_SIZE
 
 	.globl	swapper_pg_dir
 swapper_pg_dir:
-	.space	4096
+	.space	PGD_TABLE_SIZE
 
 /* Room for two PTE table poiners, usually the kernel and current user
  * pointer to their respective root page table (pgdir).

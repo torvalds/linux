@@ -6063,7 +6063,7 @@ il4965_mac_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 }
 
 void
-il4965_mac_channel_switch(struct ieee80211_hw *hw,
+il4965_mac_channel_switch(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			  struct ieee80211_channel_switch *ch_switch)
 {
 	struct il_priv *il = hw->priv;

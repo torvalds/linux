@@ -148,7 +148,6 @@ static struct platform_driver jornada720_ts_driver = {
 	.probe		= jornada720_ts_probe,
 	.driver		= {
 		.name	= "jornada_ts",
-		.owner	= THIS_MODULE,
 	},
 };
 module_platform_driver(jornada720_ts_driver);

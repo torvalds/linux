@@ -34,6 +34,1077 @@ struct xfs_buf;
 struct xfs_ifork;
 
 /*
+ * Super block
+ * Fits into a sector-sized buffer at address 0 of each allocation group.
+ * Only the first of these is ever updated except during growfs.
+ */
+#define	XFS_SB_MAGIC		0x58465342	/* 'XFSB' */
+#define	XFS_SB_VERSION_1	1		/* 5.3, 6.0.1, 6.1 */
+#define	XFS_SB_VERSION_2	2		/* 6.2 - attributes */
+#define	XFS_SB_VERSION_3	3		/* 6.2 - new inode version */
+#define	XFS_SB_VERSION_4	4		/* 6.2+ - bitmask version */
+#define	XFS_SB_VERSION_5	5		/* CRC enabled filesystem */
+#define	XFS_SB_VERSION_NUMBITS		0x000f
+#define	XFS_SB_VERSION_ALLFBITS		0xfff0
+#define	XFS_SB_VERSION_ATTRBIT		0x0010
+#define	XFS_SB_VERSION_NLINKBIT		0x0020
+#define	XFS_SB_VERSION_QUOTABIT		0x0040
+#define	XFS_SB_VERSION_ALIGNBIT		0x0080
+#define	XFS_SB_VERSION_DALIGNBIT	0x0100
+#define	XFS_SB_VERSION_SHAREDBIT	0x0200
+#define XFS_SB_VERSION_LOGV2BIT		0x0400
+#define XFS_SB_VERSION_SECTORBIT	0x0800
+#define	XFS_SB_VERSION_EXTFLGBIT	0x1000
+#define	XFS_SB_VERSION_DIRV2BIT		0x2000
+#define	XFS_SB_VERSION_BORGBIT		0x4000	/* ASCII only case-insens. */
+#define	XFS_SB_VERSION_MOREBITSBIT	0x8000
+
+/*
+ * Supported feature bit list is just all bits in the versionnum field because
+ * we've used them all up and understand them all. Except, of course, for the
+ * shared superblock bit, which nobody knows what it does and so is unsupported.
+ */
+#define	XFS_SB_VERSION_OKBITS		\
+	((XFS_SB_VERSION_NUMBITS | XFS_SB_VERSION_ALLFBITS) & \
+		~XFS_SB_VERSION_SHAREDBIT)
+
+/*
+ * There are two words to hold XFS "feature" bits: the original
+ * word, sb_versionnum, and sb_features2.  Whenever a bit is set in
+ * sb_features2, the feature bit XFS_SB_VERSION_MOREBITSBIT must be set.
+ *
+ * These defines represent bits in sb_features2.
+ */
+#define XFS_SB_VERSION2_RESERVED1BIT	0x00000001
+#define XFS_SB_VERSION2_LAZYSBCOUNTBIT	0x00000002	/* Superblk counters */
+#define XFS_SB_VERSION2_RESERVED4BIT	0x00000004
+#define XFS_SB_VERSION2_ATTR2BIT	0x00000008	/* Inline attr rework */
+#define XFS_SB_VERSION2_PARENTBIT	0x00000010	/* parent pointers */
+#define XFS_SB_VERSION2_PROJID32BIT	0x00000080	/* 32 bit project id */
+#define XFS_SB_VERSION2_CRCBIT		0x00000100	/* metadata CRCs */
+#define XFS_SB_VERSION2_FTYPE		0x00000200	/* inode type in dir */
+
+#define	XFS_SB_VERSION2_OKBITS		\
+	(XFS_SB_VERSION2_LAZYSBCOUNTBIT	| \
+	 XFS_SB_VERSION2_ATTR2BIT	| \
+	 XFS_SB_VERSION2_PROJID32BIT	| \
+	 XFS_SB_VERSION2_FTYPE)
+
+/*
+ * Superblock - in core version.  Must match the ondisk version below.
+ * Must be padded to 64 bit alignment.
+ */
+typedef struct xfs_sb {
+	__uint32_t	sb_magicnum;	/* magic number == XFS_SB_MAGIC */
+	__uint32_t	sb_blocksize;	/* logical block size, bytes */
+	xfs_rfsblock_t	sb_dblocks;	/* number of data blocks */
+	xfs_rfsblock_t	sb_rblocks;	/* number of realtime blocks */
+	xfs_rtblock_t	sb_rextents;	/* number of realtime extents */
+	uuid_t		sb_uuid;	/* file system unique id */
+	xfs_fsblock_t	sb_logstart;	/* starting block of log if internal */
+	xfs_ino_t	sb_rootino;	/* root inode number */
+	xfs_ino_t	sb_rbmino;	/* bitmap inode for realtime extents */
+	xfs_ino_t	sb_rsumino;	/* summary inode for rt bitmap */
+	xfs_agblock_t	sb_rextsize;	/* realtime extent size, blocks */
+	xfs_agblock_t	sb_agblocks;	/* size of an allocation group */
+	xfs_agnumber_t	sb_agcount;	/* number of allocation groups */
+	xfs_extlen_t	sb_rbmblocks;	/* number of rt bitmap blocks */
+	xfs_extlen_t	sb_logblocks;	/* number of log blocks */
+	__uint16_t	sb_versionnum;	/* header version == XFS_SB_VERSION */
+	__uint16_t	sb_sectsize;	/* volume sector size, bytes */
+	__uint16_t	sb_inodesize;	/* inode size, bytes */
+	__uint16_t	sb_inopblock;	/* inodes per block */
+	char		sb_fname[12];	/* file system name */
+	__uint8_t	sb_blocklog;	/* log2 of sb_blocksize */
+	__uint8_t	sb_sectlog;	/* log2 of sb_sectsize */
+	__uint8_t	sb_inodelog;	/* log2 of sb_inodesize */
+	__uint8_t	sb_inopblog;	/* log2 of sb_inopblock */
+	__uint8_t	sb_agblklog;	/* log2 of sb_agblocks (rounded up) */
+	__uint8_t	sb_rextslog;	/* log2 of sb_rextents */
+	__uint8_t	sb_inprogress;	/* mkfs is in progress, don't mount */
+	__uint8_t	sb_imax_pct;	/* max % of fs for inode space */
+					/* statistics */
+	/*
+	 * These fields must remain contiguous.  If you really
+	 * want to change their layout, make sure you fix the
+	 * code in xfs_trans_apply_sb_deltas().
+	 */
+	__uint64_t	sb_icount;	/* allocated inodes */
+	__uint64_t	sb_ifree;	/* free inodes */
+	__uint64_t	sb_fdblocks;	/* free data blocks */
+	__uint64_t	sb_frextents;	/* free realtime extents */
+	/*
+	 * End contiguous fields.
+	 */
+	xfs_ino_t	sb_uquotino;	/* user quota inode */
+	xfs_ino_t	sb_gquotino;	/* group quota inode */
+	__uint16_t	sb_qflags;	/* quota flags */
+	__uint8_t	sb_flags;	/* misc. flags */
+	__uint8_t	sb_shared_vn;	/* shared version number */
+	xfs_extlen_t	sb_inoalignmt;	/* inode chunk alignment, fsblocks */
+	__uint32_t	sb_unit;	/* stripe or raid unit */
+	__uint32_t	sb_width;	/* stripe or raid width */
+	__uint8_t	sb_dirblklog;	/* log2 of dir block size (fsbs) */
+	__uint8_t	sb_logsectlog;	/* log2 of the log sector size */
+	__uint16_t	sb_logsectsize;	/* sector size for the log, bytes */
+	__uint32_t	sb_logsunit;	/* stripe unit size for the log */
+	__uint32_t	sb_features2;	/* additional feature bits */
+
+	/*
+	 * bad features2 field as a result of failing to pad the sb
+	 * structure to 64 bits. Some machines will be using this field
+	 * for features2 bits. Easiest just to mark it bad and not use
+	 * it for anything else.
+	 */
+	__uint32_t	sb_bad_features2;
+
+	/* version 5 superblock fields start here */
+
+	/* feature masks */
+	__uint32_t	sb_features_compat;
+	__uint32_t	sb_features_ro_compat;
+	__uint32_t	sb_features_incompat;
+	__uint32_t	sb_features_log_incompat;
+
+	__uint32_t	sb_crc;		/* superblock crc */
+	__uint32_t	sb_pad;
+
+	xfs_ino_t	sb_pquotino;	/* project quota inode */
+	xfs_lsn_t	sb_lsn;		/* last write sequence */
+
+	/* must be padded to 64 bit alignment */
+} xfs_sb_t;
+
+#define XFS_SB_CRC_OFF		offsetof(struct xfs_sb, sb_crc)
+
+/*
+ * Superblock - on disk version.  Must match the in core version above.
+ * Must be padded to 64 bit alignment.
+ */
+typedef struct xfs_dsb {
+	__be32		sb_magicnum;	/* magic number == XFS_SB_MAGIC */
+	__be32		sb_blocksize;	/* logical block size, bytes */
+	__be64		sb_dblocks;	/* number of data blocks */
+	__be64		sb_rblocks;	/* number of realtime blocks */
+	__be64		sb_rextents;	/* number of realtime extents */
+	uuid_t		sb_uuid;	/* file system unique id */
+	__be64		sb_logstart;	/* starting block of log if internal */
+	__be64		sb_rootino;	/* root inode number */
+	__be64		sb_rbmino;	/* bitmap inode for realtime extents */
+	__be64		sb_rsumino;	/* summary inode for rt bitmap */
+	__be32		sb_rextsize;	/* realtime extent size, blocks */
+	__be32		sb_agblocks;	/* size of an allocation group */
+	__be32		sb_agcount;	/* number of allocation groups */
+	__be32		sb_rbmblocks;	/* number of rt bitmap blocks */
+	__be32		sb_logblocks;	/* number of log blocks */
+	__be16		sb_versionnum;	/* header version == XFS_SB_VERSION */
+	__be16		sb_sectsize;	/* volume sector size, bytes */
+	__be16		sb_inodesize;	/* inode size, bytes */
+	__be16		sb_inopblock;	/* inodes per block */
+	char		sb_fname[12];	/* file system name */
+	__u8		sb_blocklog;	/* log2 of sb_blocksize */
+	__u8		sb_sectlog;	/* log2 of sb_sectsize */
+	__u8		sb_inodelog;	/* log2 of sb_inodesize */
+	__u8		sb_inopblog;	/* log2 of sb_inopblock */
+	__u8		sb_agblklog;	/* log2 of sb_agblocks (rounded up) */
+	__u8		sb_rextslog;	/* log2 of sb_rextents */
+	__u8		sb_inprogress;	/* mkfs is in progress, don't mount */
+	__u8		sb_imax_pct;	/* max % of fs for inode space */
+					/* statistics */
+	/*
+	 * These fields must remain contiguous.  If you really
+	 * want to change their layout, make sure you fix the
+	 * code in xfs_trans_apply_sb_deltas().
+	 */
+	__be64		sb_icount;	/* allocated inodes */
+	__be64		sb_ifree;	/* free inodes */
+	__be64		sb_fdblocks;	/* free data blocks */
+	__be64		sb_frextents;	/* free realtime extents */
+	/*
+	 * End contiguous fields.
+	 */
+	__be64		sb_uquotino;	/* user quota inode */
+	__be64		sb_gquotino;	/* group quota inode */
+	__be16		sb_qflags;	/* quota flags */
+	__u8		sb_flags;	/* misc. flags */
+	__u8		sb_shared_vn;	/* shared version number */
+	__be32		sb_inoalignmt;	/* inode chunk alignment, fsblocks */
+	__be32		sb_unit;	/* stripe or raid unit */
+	__be32		sb_width;	/* stripe or raid width */
+	__u8		sb_dirblklog;	/* log2 of dir block size (fsbs) */
+	__u8		sb_logsectlog;	/* log2 of the log sector size */
+	__be16		sb_logsectsize;	/* sector size for the log, bytes */
+	__be32		sb_logsunit;	/* stripe unit size for the log */
+	__be32		sb_features2;	/* additional feature bits */
+	/*
+	 * bad features2 field as a result of failing to pad the sb
+	 * structure to 64 bits. Some machines will be using this field
+	 * for features2 bits. Easiest just to mark it bad and not use
+	 * it for anything else.
+	 */
+	__be32		sb_bad_features2;
+
+	/* version 5 superblock fields start here */
+
+	/* feature masks */
+	__be32		sb_features_compat;
+	__be32		sb_features_ro_compat;
+	__be32		sb_features_incompat;
+	__be32		sb_features_log_incompat;
+
+	__le32		sb_crc;		/* superblock crc */
+	__be32		sb_pad;
+
+	__be64		sb_pquotino;	/* project quota inode */
+	__be64		sb_lsn;		/* last write sequence */
+
+	/* must be padded to 64 bit alignment */
+} xfs_dsb_t;
+
+/*
+ * Sequence number values for the fields.
+ */
+typedef enum {
+	XFS_SBS_MAGICNUM, XFS_SBS_BLOCKSIZE, XFS_SBS_DBLOCKS, XFS_SBS_RBLOCKS,
+	XFS_SBS_REXTENTS, XFS_SBS_UUID, XFS_SBS_LOGSTART, XFS_SBS_ROOTINO,
+	XFS_SBS_RBMINO, XFS_SBS_RSUMINO, XFS_SBS_REXTSIZE, XFS_SBS_AGBLOCKS,
+	XFS_SBS_AGCOUNT, XFS_SBS_RBMBLOCKS, XFS_SBS_LOGBLOCKS,
+	XFS_SBS_VERSIONNUM, XFS_SBS_SECTSIZE, XFS_SBS_INODESIZE,
+	XFS_SBS_INOPBLOCK, XFS_SBS_FNAME, XFS_SBS_BLOCKLOG,
+	XFS_SBS_SECTLOG, XFS_SBS_INODELOG, XFS_SBS_INOPBLOG, XFS_SBS_AGBLKLOG,
+	XFS_SBS_REXTSLOG, XFS_SBS_INPROGRESS, XFS_SBS_IMAX_PCT, XFS_SBS_ICOUNT,
+	XFS_SBS_IFREE, XFS_SBS_FDBLOCKS, XFS_SBS_FREXTENTS, XFS_SBS_UQUOTINO,
+	XFS_SBS_GQUOTINO, XFS_SBS_QFLAGS, XFS_SBS_FLAGS, XFS_SBS_SHARED_VN,
+	XFS_SBS_INOALIGNMT, XFS_SBS_UNIT, XFS_SBS_WIDTH, XFS_SBS_DIRBLKLOG,
+	XFS_SBS_LOGSECTLOG, XFS_SBS_LOGSECTSIZE, XFS_SBS_LOGSUNIT,
+	XFS_SBS_FEATURES2, XFS_SBS_BAD_FEATURES2, XFS_SBS_FEATURES_COMPAT,
+	XFS_SBS_FEATURES_RO_COMPAT, XFS_SBS_FEATURES_INCOMPAT,
+	XFS_SBS_FEATURES_LOG_INCOMPAT, XFS_SBS_CRC, XFS_SBS_PAD,
+	XFS_SBS_PQUOTINO, XFS_SBS_LSN,
+	XFS_SBS_FIELDCOUNT
+} xfs_sb_field_t;
+
+/*
+ * Mask values, defined based on the xfs_sb_field_t values.
+ * Only define the ones we're using.
+ */
+#define	XFS_SB_MVAL(x)		(1LL << XFS_SBS_ ## x)
+#define	XFS_SB_UUID		XFS_SB_MVAL(UUID)
+#define	XFS_SB_FNAME		XFS_SB_MVAL(FNAME)
+#define	XFS_SB_ROOTINO		XFS_SB_MVAL(ROOTINO)
+#define	XFS_SB_RBMINO		XFS_SB_MVAL(RBMINO)
+#define	XFS_SB_RSUMINO		XFS_SB_MVAL(RSUMINO)
+#define	XFS_SB_VERSIONNUM	XFS_SB_MVAL(VERSIONNUM)
+#define XFS_SB_UQUOTINO		XFS_SB_MVAL(UQUOTINO)
+#define XFS_SB_GQUOTINO		XFS_SB_MVAL(GQUOTINO)
+#define XFS_SB_QFLAGS		XFS_SB_MVAL(QFLAGS)
+#define XFS_SB_SHARED_VN	XFS_SB_MVAL(SHARED_VN)
+#define XFS_SB_UNIT		XFS_SB_MVAL(UNIT)
+#define XFS_SB_WIDTH		XFS_SB_MVAL(WIDTH)
+#define XFS_SB_ICOUNT		XFS_SB_MVAL(ICOUNT)
+#define XFS_SB_IFREE		XFS_SB_MVAL(IFREE)
+#define XFS_SB_FDBLOCKS		XFS_SB_MVAL(FDBLOCKS)
+#define XFS_SB_FEATURES2	XFS_SB_MVAL(FEATURES2)
+#define XFS_SB_BAD_FEATURES2	XFS_SB_MVAL(BAD_FEATURES2)
+#define XFS_SB_FEATURES_COMPAT	XFS_SB_MVAL(FEATURES_COMPAT)
+#define XFS_SB_FEATURES_RO_COMPAT XFS_SB_MVAL(FEATURES_RO_COMPAT)
+#define XFS_SB_FEATURES_INCOMPAT XFS_SB_MVAL(FEATURES_INCOMPAT)
+#define XFS_SB_FEATURES_LOG_INCOMPAT XFS_SB_MVAL(FEATURES_LOG_INCOMPAT)
+#define XFS_SB_CRC		XFS_SB_MVAL(CRC)
+#define XFS_SB_PQUOTINO		XFS_SB_MVAL(PQUOTINO)
+#define	XFS_SB_NUM_BITS		((int)XFS_SBS_FIELDCOUNT)
+#define	XFS_SB_ALL_BITS		((1LL << XFS_SB_NUM_BITS) - 1)
+#define	XFS_SB_MOD_BITS		\
+	(XFS_SB_UUID | XFS_SB_ROOTINO | XFS_SB_RBMINO | XFS_SB_RSUMINO | \
+	 XFS_SB_VERSIONNUM | XFS_SB_UQUOTINO | XFS_SB_GQUOTINO | \
+	 XFS_SB_QFLAGS | XFS_SB_SHARED_VN | XFS_SB_UNIT | XFS_SB_WIDTH | \
+	 XFS_SB_ICOUNT | XFS_SB_IFREE | XFS_SB_FDBLOCKS | XFS_SB_FEATURES2 | \
+	 XFS_SB_BAD_FEATURES2 | XFS_SB_FEATURES_COMPAT | \
+	 XFS_SB_FEATURES_RO_COMPAT | XFS_SB_FEATURES_INCOMPAT | \
+	 XFS_SB_FEATURES_LOG_INCOMPAT | XFS_SB_PQUOTINO)
+
+
+/*
+ * Misc. Flags - warning - these will be cleared by xfs_repair unless
+ * a feature bit is set when the flag is used.
+ */
+#define XFS_SBF_NOFLAGS		0x00	/* no flags set */
+#define XFS_SBF_READONLY	0x01	/* only read-only mounts allowed */
+
+/*
+ * define max. shared version we can interoperate with
+ */
+#define XFS_SB_MAX_SHARED_VN	0
+
+#define	XFS_SB_VERSION_NUM(sbp)	((sbp)->sb_versionnum & XFS_SB_VERSION_NUMBITS)
+
+/*
+ * The first XFS version we support is a v4 superblock with V2 directories.
+ */
+static inline bool xfs_sb_good_v4_features(struct xfs_sb *sbp)
+{
+	if (!(sbp->sb_versionnum & XFS_SB_VERSION_DIRV2BIT))
+		return false;
+
+	/* check for unknown features in the fs */
+	if ((sbp->sb_versionnum & ~XFS_SB_VERSION_OKBITS) ||
+	    ((sbp->sb_versionnum & XFS_SB_VERSION_MOREBITSBIT) &&
+	     (sbp->sb_features2 & ~XFS_SB_VERSION2_OKBITS)))
+		return false;
+
+	return true;
+}
+
+static inline bool xfs_sb_good_version(struct xfs_sb *sbp)
+{
+	if (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5)
+		return true;
+	if (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_4)
+		return xfs_sb_good_v4_features(sbp);
+	return false;
+}
+
+/*
+ * Detect a mismatched features2 field.  Older kernels read/wrote
+ * this into the wrong slot, so to be safe we keep them in sync.
+ */
+static inline bool xfs_sb_has_mismatched_features2(struct xfs_sb *sbp)
+{
+	return sbp->sb_bad_features2 != sbp->sb_features2;
+}
+
+static inline bool xfs_sb_version_hasattr(struct xfs_sb *sbp)
+{
+	return (sbp->sb_versionnum & XFS_SB_VERSION_ATTRBIT);
+}
+
+static inline void xfs_sb_version_addattr(struct xfs_sb *sbp)
+{
+	sbp->sb_versionnum |= XFS_SB_VERSION_ATTRBIT;
+}
+
+static inline bool xfs_sb_version_hasquota(struct xfs_sb *sbp)
+{
+	return (sbp->sb_versionnum & XFS_SB_VERSION_QUOTABIT);
+}
+
+static inline void xfs_sb_version_addquota(struct xfs_sb *sbp)
+{
+	sbp->sb_versionnum |= XFS_SB_VERSION_QUOTABIT;
+}
+
+static inline bool xfs_sb_version_hasalign(struct xfs_sb *sbp)
+{
+	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5 ||
+		(sbp->sb_versionnum & XFS_SB_VERSION_ALIGNBIT));
+}
+
+static inline bool xfs_sb_version_hasdalign(struct xfs_sb *sbp)
+{
+	return (sbp->sb_versionnum & XFS_SB_VERSION_DALIGNBIT);
+}
+
+static inline bool xfs_sb_version_haslogv2(struct xfs_sb *sbp)
+{
+	return XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5 ||
+	       (sbp->sb_versionnum & XFS_SB_VERSION_LOGV2BIT);
+}
+
+static inline bool xfs_sb_version_hasextflgbit(struct xfs_sb *sbp)
+{
+	return XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5 ||
+	       (sbp->sb_versionnum & XFS_SB_VERSION_EXTFLGBIT);
+}
+
+static inline bool xfs_sb_version_hassector(struct xfs_sb *sbp)
+{
+	return (sbp->sb_versionnum & XFS_SB_VERSION_SECTORBIT);
+}
+
+static inline bool xfs_sb_version_hasasciici(struct xfs_sb *sbp)
+{
+	return (sbp->sb_versionnum & XFS_SB_VERSION_BORGBIT);
+}
+
+static inline bool xfs_sb_version_hasmorebits(struct xfs_sb *sbp)
+{
+	return XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5 ||
+	       (sbp->sb_versionnum & XFS_SB_VERSION_MOREBITSBIT);
+}
+
+/*
+ * sb_features2 bit version macros.
+ */
+static inline bool xfs_sb_version_haslazysbcount(struct xfs_sb *sbp)
+{
+	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5) ||
+	       (xfs_sb_version_hasmorebits(sbp) &&
+		(sbp->sb_features2 & XFS_SB_VERSION2_LAZYSBCOUNTBIT));
+}
+
+static inline bool xfs_sb_version_hasattr2(struct xfs_sb *sbp)
+{
+	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5) ||
+	       (xfs_sb_version_hasmorebits(sbp) &&
+		(sbp->sb_features2 & XFS_SB_VERSION2_ATTR2BIT));
+}
+
+static inline void xfs_sb_version_addattr2(struct xfs_sb *sbp)
+{
+	sbp->sb_versionnum |= XFS_SB_VERSION_MOREBITSBIT;
+	sbp->sb_features2 |= XFS_SB_VERSION2_ATTR2BIT;
+	sbp->sb_bad_features2 |= XFS_SB_VERSION2_ATTR2BIT;
+}
+
+static inline void xfs_sb_version_removeattr2(struct xfs_sb *sbp)
+{
+	sbp->sb_features2 &= ~XFS_SB_VERSION2_ATTR2BIT;
+	sbp->sb_bad_features2 &= ~XFS_SB_VERSION2_ATTR2BIT;
+	if (!sbp->sb_features2)
+		sbp->sb_versionnum &= ~XFS_SB_VERSION_MOREBITSBIT;
+}
+
+static inline bool xfs_sb_version_hasprojid32bit(struct xfs_sb *sbp)
+{
+	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5) ||
+	       (xfs_sb_version_hasmorebits(sbp) &&
+		(sbp->sb_features2 & XFS_SB_VERSION2_PROJID32BIT));
+}
+
+static inline void xfs_sb_version_addprojid32bit(struct xfs_sb *sbp)
+{
+	sbp->sb_versionnum |= XFS_SB_VERSION_MOREBITSBIT;
+	sbp->sb_features2 |= XFS_SB_VERSION2_PROJID32BIT;
+	sbp->sb_bad_features2 |= XFS_SB_VERSION2_PROJID32BIT;
+}
+
+/*
+ * Extended v5 superblock feature masks. These are to be used for new v5
+ * superblock features only.
+ *
+ * Compat features are new features that old kernels will not notice or affect
+ * and so can mount read-write without issues.
+ *
+ * RO-Compat (read only) are features that old kernels can read but will break
+ * if they write. Hence only read-only mounts of such filesystems are allowed on
+ * kernels that don't support the feature bit.
+ *
+ * InCompat features are features which old kernels will not understand and so
+ * must not mount.
+ *
+ * Log-InCompat features are for changes to log formats or new transactions that
+ * can't be replayed on older kernels. The fields are set when the filesystem is
+ * mounted, and a clean unmount clears the fields.
+ */
+#define XFS_SB_FEAT_COMPAT_ALL 0
+#define XFS_SB_FEAT_COMPAT_UNKNOWN	~XFS_SB_FEAT_COMPAT_ALL
+static inline bool
+xfs_sb_has_compat_feature(
+	struct xfs_sb	*sbp,
+	__uint32_t	feature)
+{
+	return (sbp->sb_features_compat & feature) != 0;
+}
+
+#define XFS_SB_FEAT_RO_COMPAT_FINOBT   (1 << 0)		/* free inode btree */
+#define XFS_SB_FEAT_RO_COMPAT_ALL \
+		(XFS_SB_FEAT_RO_COMPAT_FINOBT)
+#define XFS_SB_FEAT_RO_COMPAT_UNKNOWN	~XFS_SB_FEAT_RO_COMPAT_ALL
+static inline bool
+xfs_sb_has_ro_compat_feature(
+	struct xfs_sb	*sbp,
+	__uint32_t	feature)
+{
+	return (sbp->sb_features_ro_compat & feature) != 0;
+}
+
+#define XFS_SB_FEAT_INCOMPAT_FTYPE	(1 << 0)	/* filetype in dirent */
+#define XFS_SB_FEAT_INCOMPAT_ALL \
+		(XFS_SB_FEAT_INCOMPAT_FTYPE)
+
+#define XFS_SB_FEAT_INCOMPAT_UNKNOWN	~XFS_SB_FEAT_INCOMPAT_ALL
+static inline bool
+xfs_sb_has_incompat_feature(
+	struct xfs_sb	*sbp,
+	__uint32_t	feature)
+{
+	return (sbp->sb_features_incompat & feature) != 0;
+}
+
+#define XFS_SB_FEAT_INCOMPAT_LOG_ALL 0
+#define XFS_SB_FEAT_INCOMPAT_LOG_UNKNOWN	~XFS_SB_FEAT_INCOMPAT_LOG_ALL
+static inline bool
+xfs_sb_has_incompat_log_feature(
+	struct xfs_sb	*sbp,
+	__uint32_t	feature)
+{
+	return (sbp->sb_features_log_incompat & feature) != 0;
+}
+
+/*
+ * V5 superblock specific feature checks
+ */
+static inline int xfs_sb_version_hascrc(struct xfs_sb *sbp)
+{
+	return XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5;
+}
+
+static inline int xfs_sb_version_has_pquotino(struct xfs_sb *sbp)
+{
+	return XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5;
+}
+
+static inline int xfs_sb_version_hasftype(struct xfs_sb *sbp)
+{
+	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5 &&
+		xfs_sb_has_incompat_feature(sbp, XFS_SB_FEAT_INCOMPAT_FTYPE)) ||
+	       (xfs_sb_version_hasmorebits(sbp) &&
+		 (sbp->sb_features2 & XFS_SB_VERSION2_FTYPE));
+}
+
+static inline int xfs_sb_version_hasfinobt(xfs_sb_t *sbp)
+{
+	return (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5) &&
+		(sbp->sb_features_ro_compat & XFS_SB_FEAT_RO_COMPAT_FINOBT);
+}
+
+/*
+ * end of superblock version macros
+ */
+
+static inline bool
+xfs_is_quota_inode(struct xfs_sb *sbp, xfs_ino_t ino)
+{
+	return (ino == sbp->sb_uquotino ||
+		ino == sbp->sb_gquotino ||
+		ino == sbp->sb_pquotino);
+}
+
+#define XFS_SB_DADDR		((xfs_daddr_t)0) /* daddr in filesystem/ag */
+#define	XFS_SB_BLOCK(mp)	XFS_HDR_BLOCK(mp, XFS_SB_DADDR)
+#define XFS_BUF_TO_SBP(bp)	((xfs_dsb_t *)((bp)->b_addr))
+
+#define	XFS_HDR_BLOCK(mp,d)	((xfs_agblock_t)XFS_BB_TO_FSBT(mp,d))
+#define	XFS_DADDR_TO_FSB(mp,d)	XFS_AGB_TO_FSB(mp, \
+			xfs_daddr_to_agno(mp,d), xfs_daddr_to_agbno(mp,d))
+#define	XFS_FSB_TO_DADDR(mp,fsbno)	XFS_AGB_TO_DADDR(mp, \
+			XFS_FSB_TO_AGNO(mp,fsbno), XFS_FSB_TO_AGBNO(mp,fsbno))
+
+/*
+ * File system sector to basic block conversions.
+ */
+#define XFS_FSS_TO_BB(mp,sec)	((sec) << (mp)->m_sectbb_log)
+
+/*
+ * File system block to basic block conversions.
+ */
+#define	XFS_FSB_TO_BB(mp,fsbno)	((fsbno) << (mp)->m_blkbb_log)
+#define	XFS_BB_TO_FSB(mp,bb)	\
+	(((bb) + (XFS_FSB_TO_BB(mp,1) - 1)) >> (mp)->m_blkbb_log)
+#define	XFS_BB_TO_FSBT(mp,bb)	((bb) >> (mp)->m_blkbb_log)
+
+/*
+ * File system block to byte conversions.
+ */
+#define XFS_FSB_TO_B(mp,fsbno)	((xfs_fsize_t)(fsbno) << (mp)->m_sb.sb_blocklog)
+#define XFS_B_TO_FSB(mp,b)	\
+	((((__uint64_t)(b)) + (mp)->m_blockmask) >> (mp)->m_sb.sb_blocklog)
+#define XFS_B_TO_FSBT(mp,b)	(((__uint64_t)(b)) >> (mp)->m_sb.sb_blocklog)
+#define XFS_B_FSB_OFFSET(mp,b)	((b) & (mp)->m_blockmask)
+
+/*
+ * Allocation group header
+ *
+ * This is divided into three structures, placed in sequential 512-byte
+ * buffers after a copy of the superblock (also in a 512-byte buffer).
+ */
+#define	XFS_AGF_MAGIC	0x58414746	/* 'XAGF' */
+#define	XFS_AGI_MAGIC	0x58414749	/* 'XAGI' */
+#define	XFS_AGFL_MAGIC	0x5841464c	/* 'XAFL' */
+#define	XFS_AGF_VERSION	1
+#define	XFS_AGI_VERSION	1
+
+#define	XFS_AGF_GOOD_VERSION(v)	((v) == XFS_AGF_VERSION)
+#define	XFS_AGI_GOOD_VERSION(v)	((v) == XFS_AGI_VERSION)
+
+/*
+ * Btree number 0 is bno, 1 is cnt.  This value gives the size of the
+ * arrays below.
+ */
+#define	XFS_BTNUM_AGF	((int)XFS_BTNUM_CNTi + 1)
+
+/*
+ * The second word of agf_levels in the first a.g. overlaps the EFS
+ * superblock's magic number.  Since the magic numbers valid for EFS
+ * are > 64k, our value cannot be confused for an EFS superblock's.
+ */
+
+typedef struct xfs_agf {
+	/*
+	 * Common allocation group header information
+	 */
+	__be32		agf_magicnum;	/* magic number == XFS_AGF_MAGIC */
+	__be32		agf_versionnum;	/* header version == XFS_AGF_VERSION */
+	__be32		agf_seqno;	/* sequence # starting from 0 */
+	__be32		agf_length;	/* size in blocks of a.g. */
+	/*
+	 * Freespace information
+	 */
+	__be32		agf_roots[XFS_BTNUM_AGF];	/* root blocks */
+	__be32		agf_spare0;	/* spare field */
+	__be32		agf_levels[XFS_BTNUM_AGF];	/* btree levels */
+	__be32		agf_spare1;	/* spare field */
+
+	__be32		agf_flfirst;	/* first freelist block's index */
+	__be32		agf_fllast;	/* last freelist block's index */
+	__be32		agf_flcount;	/* count of blocks in freelist */
+	__be32		agf_freeblks;	/* total free blocks */
+
+	__be32		agf_longest;	/* longest free space */
+	__be32		agf_btreeblks;	/* # of blocks held in AGF btrees */
+	uuid_t		agf_uuid;	/* uuid of filesystem */
+
+	/*
+	 * reserve some contiguous space for future logged fields before we add
+	 * the unlogged fields. This makes the range logging via flags and
+	 * structure offsets much simpler.
+	 */
+	__be64		agf_spare64[16];
+
+	/* unlogged fields, written during buffer writeback. */
+	__be64		agf_lsn;	/* last write sequence */
+	__be32		agf_crc;	/* crc of agf sector */
+	__be32		agf_spare2;
+
+	/* structure must be padded to 64 bit alignment */
+} xfs_agf_t;
+
+#define XFS_AGF_CRC_OFF		offsetof(struct xfs_agf, agf_crc)
+
+#define	XFS_AGF_MAGICNUM	0x00000001
+#define	XFS_AGF_VERSIONNUM	0x00000002
+#define	XFS_AGF_SEQNO		0x00000004
+#define	XFS_AGF_LENGTH		0x00000008
+#define	XFS_AGF_ROOTS		0x00000010
+#define	XFS_AGF_LEVELS		0x00000020
+#define	XFS_AGF_FLFIRST		0x00000040
+#define	XFS_AGF_FLLAST		0x00000080
+#define	XFS_AGF_FLCOUNT		0x00000100
+#define	XFS_AGF_FREEBLKS	0x00000200
+#define	XFS_AGF_LONGEST		0x00000400
+#define	XFS_AGF_BTREEBLKS	0x00000800
+#define	XFS_AGF_UUID		0x00001000
+#define	XFS_AGF_NUM_BITS	13
+#define	XFS_AGF_ALL_BITS	((1 << XFS_AGF_NUM_BITS) - 1)
+
+#define XFS_AGF_FLAGS \
+	{ XFS_AGF_MAGICNUM,	"MAGICNUM" }, \
+	{ XFS_AGF_VERSIONNUM,	"VERSIONNUM" }, \
+	{ XFS_AGF_SEQNO,	"SEQNO" }, \
+	{ XFS_AGF_LENGTH,	"LENGTH" }, \
+	{ XFS_AGF_ROOTS,	"ROOTS" }, \
+	{ XFS_AGF_LEVELS,	"LEVELS" }, \
+	{ XFS_AGF_FLFIRST,	"FLFIRST" }, \
+	{ XFS_AGF_FLLAST,	"FLLAST" }, \
+	{ XFS_AGF_FLCOUNT,	"FLCOUNT" }, \
+	{ XFS_AGF_FREEBLKS,	"FREEBLKS" }, \
+	{ XFS_AGF_LONGEST,	"LONGEST" }, \
+	{ XFS_AGF_BTREEBLKS,	"BTREEBLKS" }, \
+	{ XFS_AGF_UUID,		"UUID" }
+
+/* disk block (xfs_daddr_t) in the AG */
+#define XFS_AGF_DADDR(mp)	((xfs_daddr_t)(1 << (mp)->m_sectbb_log))
+#define	XFS_AGF_BLOCK(mp)	XFS_HDR_BLOCK(mp, XFS_AGF_DADDR(mp))
+#define	XFS_BUF_TO_AGF(bp)	((xfs_agf_t *)((bp)->b_addr))
+
+/*
+ * Size of the unlinked inode hash table in the agi.
+ */
+#define	XFS_AGI_UNLINKED_BUCKETS	64
+
+typedef struct xfs_agi {
+	/*
+	 * Common allocation group header information
+	 */
+	__be32		agi_magicnum;	/* magic number == XFS_AGI_MAGIC */
+	__be32		agi_versionnum;	/* header version == XFS_AGI_VERSION */
+	__be32		agi_seqno;	/* sequence # starting from 0 */
+	__be32		agi_length;	/* size in blocks of a.g. */
+	/*
+	 * Inode information
+	 * Inodes are mapped by interpreting the inode number, so no
+	 * mapping data is needed here.
+	 */
+	__be32		agi_count;	/* count of allocated inodes */
+	__be32		agi_root;	/* root of inode btree */
+	__be32		agi_level;	/* levels in inode btree */
+	__be32		agi_freecount;	/* number of free inodes */
+
+	__be32		agi_newino;	/* new inode just allocated */
+	__be32		agi_dirino;	/* last directory inode chunk */
+	/*
+	 * Hash table of inodes which have been unlinked but are
+	 * still being referenced.
+	 */
+	__be32		agi_unlinked[XFS_AGI_UNLINKED_BUCKETS];
+	/*
+	 * This marks the end of logging region 1 and start of logging region 2.
+	 */
+	uuid_t		agi_uuid;	/* uuid of filesystem */
+	__be32		agi_crc;	/* crc of agi sector */
+	__be32		agi_pad32;
+	__be64		agi_lsn;	/* last write sequence */
+
+	__be32		agi_free_root; /* root of the free inode btree */
+	__be32		agi_free_level;/* levels in free inode btree */
+
+	/* structure must be padded to 64 bit alignment */
+} xfs_agi_t;
+
+#define XFS_AGI_CRC_OFF		offsetof(struct xfs_agi, agi_crc)
+
+#define	XFS_AGI_MAGICNUM	(1 << 0)
+#define	XFS_AGI_VERSIONNUM	(1 << 1)
+#define	XFS_AGI_SEQNO		(1 << 2)
+#define	XFS_AGI_LENGTH		(1 << 3)
+#define	XFS_AGI_COUNT		(1 << 4)
+#define	XFS_AGI_ROOT		(1 << 5)
+#define	XFS_AGI_LEVEL		(1 << 6)
+#define	XFS_AGI_FREECOUNT	(1 << 7)
+#define	XFS_AGI_NEWINO		(1 << 8)
+#define	XFS_AGI_DIRINO		(1 << 9)
+#define	XFS_AGI_UNLINKED	(1 << 10)
+#define	XFS_AGI_NUM_BITS_R1	11	/* end of the 1st agi logging region */
+#define	XFS_AGI_ALL_BITS_R1	((1 << XFS_AGI_NUM_BITS_R1) - 1)
+#define	XFS_AGI_FREE_ROOT	(1 << 11)
+#define	XFS_AGI_FREE_LEVEL	(1 << 12)
+#define	XFS_AGI_NUM_BITS_R2	13
+
+/* disk block (xfs_daddr_t) in the AG */
+#define XFS_AGI_DADDR(mp)	((xfs_daddr_t)(2 << (mp)->m_sectbb_log))
+#define	XFS_AGI_BLOCK(mp)	XFS_HDR_BLOCK(mp, XFS_AGI_DADDR(mp))
+#define	XFS_BUF_TO_AGI(bp)	((xfs_agi_t *)((bp)->b_addr))
+
+/*
+ * The third a.g. block contains the a.g. freelist, an array
+ * of block pointers to blocks owned by the allocation btree code.
+ */
+#define XFS_AGFL_DADDR(mp)	((xfs_daddr_t)(3 << (mp)->m_sectbb_log))
+#define	XFS_AGFL_BLOCK(mp)	XFS_HDR_BLOCK(mp, XFS_AGFL_DADDR(mp))
+#define	XFS_BUF_TO_AGFL(bp)	((xfs_agfl_t *)((bp)->b_addr))
+
+#define XFS_BUF_TO_AGFL_BNO(mp, bp) \
+	(xfs_sb_version_hascrc(&((mp)->m_sb)) ? \
+		&(XFS_BUF_TO_AGFL(bp)->agfl_bno[0]) : \
+		(__be32 *)(bp)->b_addr)
+
+/*
+ * Size of the AGFL.  For CRC-enabled filesystes we steal a couple of
+ * slots in the beginning of the block for a proper header with the
+ * location information and CRC.
+ */
+#define XFS_AGFL_SIZE(mp) \
+	(((mp)->m_sb.sb_sectsize - \
+	 (xfs_sb_version_hascrc(&((mp)->m_sb)) ? \
+		sizeof(struct xfs_agfl) : 0)) / \
+	  sizeof(xfs_agblock_t))
+
+typedef struct xfs_agfl {
+	__be32		agfl_magicnum;
+	__be32		agfl_seqno;
+	uuid_t		agfl_uuid;
+	__be64		agfl_lsn;
+	__be32		agfl_crc;
+	__be32		agfl_bno[];	/* actually XFS_AGFL_SIZE(mp) */
+} xfs_agfl_t;
+
+#define XFS_AGFL_CRC_OFF	offsetof(struct xfs_agfl, agfl_crc)
+
+
+#define	XFS_AG_MAXLEVELS(mp)		((mp)->m_ag_maxlevels)
+#define	XFS_MIN_FREELIST_RAW(bl,cl,mp)	\
+	(MIN(bl + 1, XFS_AG_MAXLEVELS(mp)) + MIN(cl + 1, XFS_AG_MAXLEVELS(mp)))
+#define	XFS_MIN_FREELIST(a,mp)		\
+	(XFS_MIN_FREELIST_RAW(		\
+		be32_to_cpu((a)->agf_levels[XFS_BTNUM_BNOi]), \
+		be32_to_cpu((a)->agf_levels[XFS_BTNUM_CNTi]), mp))
+#define	XFS_MIN_FREELIST_PAG(pag,mp)	\
+	(XFS_MIN_FREELIST_RAW(		\
+		(unsigned int)(pag)->pagf_levels[XFS_BTNUM_BNOi], \
+		(unsigned int)(pag)->pagf_levels[XFS_BTNUM_CNTi], mp))
+
+#define XFS_AGB_TO_FSB(mp,agno,agbno)	\
+	(((xfs_fsblock_t)(agno) << (mp)->m_sb.sb_agblklog) | (agbno))
+#define	XFS_FSB_TO_AGNO(mp,fsbno)	\
+	((xfs_agnumber_t)((fsbno) >> (mp)->m_sb.sb_agblklog))
+#define	XFS_FSB_TO_AGBNO(mp,fsbno)	\
+	((xfs_agblock_t)((fsbno) & xfs_mask32lo((mp)->m_sb.sb_agblklog)))
+#define	XFS_AGB_TO_DADDR(mp,agno,agbno)	\
+	((xfs_daddr_t)XFS_FSB_TO_BB(mp, \
+		(xfs_fsblock_t)(agno) * (mp)->m_sb.sb_agblocks + (agbno)))
+#define	XFS_AG_DADDR(mp,agno,d)		(XFS_AGB_TO_DADDR(mp, agno, 0) + (d))
+
+/*
+ * For checking for bad ranges of xfs_daddr_t's, covering multiple
+ * allocation groups or a single xfs_daddr_t that's a superblock copy.
+ */
+#define	XFS_AG_CHECK_DADDR(mp,d,len)	\
+	((len) == 1 ? \
+	    ASSERT((d) == XFS_SB_DADDR || \
+		   xfs_daddr_to_agbno(mp, d) != XFS_SB_DADDR) : \
+	    ASSERT(xfs_daddr_to_agno(mp, d) == \
+		   xfs_daddr_to_agno(mp, (d) + (len) - 1)))
+
+typedef struct xfs_timestamp {
+	__be32		t_sec;		/* timestamp seconds */
+	__be32		t_nsec;		/* timestamp nanoseconds */
+} xfs_timestamp_t;
+
+/*
+ * On-disk inode structure.
+ *
+ * This is just the header or "dinode core", the inode is expanded to fill a
+ * variable size the leftover area split into a data and an attribute fork.
+ * The format of the data and attribute fork depends on the format of the
+ * inode as indicated by di_format and di_aformat.  To access the data and
+ * attribute use the XFS_DFORK_DPTR, XFS_DFORK_APTR, and XFS_DFORK_PTR macros
+ * below.
+ *
+ * There is a very similar struct icdinode in xfs_inode which matches the
+ * layout of the first 96 bytes of this structure, but is kept in native
+ * format instead of big endian.
+ *
+ * Note: di_flushiter is only used by v1/2 inodes - it's effectively a zeroed
+ * padding field for v3 inodes.
+ */
+#define	XFS_DINODE_MAGIC		0x494e	/* 'IN' */
+#define XFS_DINODE_GOOD_VERSION(v)	((v) >= 1 && (v) <= 3)
+typedef struct xfs_dinode {
+	__be16		di_magic;	/* inode magic # = XFS_DINODE_MAGIC */
+	__be16		di_mode;	/* mode and type of file */
+	__u8		di_version;	/* inode version */
+	__u8		di_format;	/* format of di_c data */
+	__be16		di_onlink;	/* old number of links to file */
+	__be32		di_uid;		/* owner's user id */
+	__be32		di_gid;		/* owner's group id */
+	__be32		di_nlink;	/* number of links to file */
+	__be16		di_projid_lo;	/* lower part of owner's project id */
+	__be16		di_projid_hi;	/* higher part owner's project id */
+	__u8		di_pad[6];	/* unused, zeroed space */
+	__be16		di_flushiter;	/* incremented on flush */
+	xfs_timestamp_t	di_atime;	/* time last accessed */
+	xfs_timestamp_t	di_mtime;	/* time last modified */
+	xfs_timestamp_t	di_ctime;	/* time created/inode modified */
+	__be64		di_size;	/* number of bytes in file */
+	__be64		di_nblocks;	/* # of direct & btree blocks used */
+	__be32		di_extsize;	/* basic/minimum extent size for file */
+	__be32		di_nextents;	/* number of extents in data fork */
+	__be16		di_anextents;	/* number of extents in attribute fork*/
+	__u8		di_forkoff;	/* attr fork offs, <<3 for 64b align */
+	__s8		di_aformat;	/* format of attr fork's data */
+	__be32		di_dmevmask;	/* DMIG event mask */
+	__be16		di_dmstate;	/* DMIG state info */
+	__be16		di_flags;	/* random flags, XFS_DIFLAG_... */
+	__be32		di_gen;		/* generation number */
+
+	/* di_next_unlinked is the only non-core field in the old dinode */
+	__be32		di_next_unlinked;/* agi unlinked list ptr */
+
+	/* start of the extended dinode, writable fields */
+	__le32		di_crc;		/* CRC of the inode */
+	__be64		di_changecount;	/* number of attribute changes */
+	__be64		di_lsn;		/* flush sequence */
+	__be64		di_flags2;	/* more random flags */
+	__u8		di_pad2[16];	/* more padding for future expansion */
+
+	/* fields only written to during inode creation */
+	xfs_timestamp_t	di_crtime;	/* time created */
+	__be64		di_ino;		/* inode number */
+	uuid_t		di_uuid;	/* UUID of the filesystem */
+
+	/* structure must be padded to 64 bit alignment */
+} xfs_dinode_t;
+
+#define XFS_DINODE_CRC_OFF	offsetof(struct xfs_dinode, di_crc)
+
+#define DI_MAX_FLUSH 0xffff
+
+/*
+ * Size of the core inode on disk.  Version 1 and 2 inodes have
+ * the same size, but version 3 has grown a few additional fields.
+ */
+static inline uint xfs_dinode_size(int version)
+{
+	if (version == 3)
+		return sizeof(struct xfs_dinode);
+	return offsetof(struct xfs_dinode, di_crc);
+}
+
+/*
+ * The 32 bit link count in the inode theoretically maxes out at UINT_MAX.
+ * Since the pathconf interface is signed, we use 2^31 - 1 instead.
+ * The old inode format had a 16 bit link count, so its maximum is USHRT_MAX.
+ */
+#define	XFS_MAXLINK		((1U << 31) - 1U)
+#define	XFS_MAXLINK_1		65535U
+
+/*
+ * Values for di_format
+ */
+typedef enum xfs_dinode_fmt {
+	XFS_DINODE_FMT_DEV,		/* xfs_dev_t */
+	XFS_DINODE_FMT_LOCAL,		/* bulk data */
+	XFS_DINODE_FMT_EXTENTS,		/* struct xfs_bmbt_rec */
+	XFS_DINODE_FMT_BTREE,		/* struct xfs_bmdr_block */
+	XFS_DINODE_FMT_UUID		/* uuid_t */
+} xfs_dinode_fmt_t;
+
+/*
+ * Inode minimum and maximum sizes.
+ */
+#define	XFS_DINODE_MIN_LOG	8
+#define	XFS_DINODE_MAX_LOG	11
+#define	XFS_DINODE_MIN_SIZE	(1 << XFS_DINODE_MIN_LOG)
+#define	XFS_DINODE_MAX_SIZE	(1 << XFS_DINODE_MAX_LOG)
+
+/*
+ * Inode size for given fs.
+ */
+#define XFS_LITINO(mp, version) \
+	((int)(((mp)->m_sb.sb_inodesize) - xfs_dinode_size(version)))
+
+/*
+ * Inode data & attribute fork sizes, per inode.
+ */
+#define XFS_DFORK_Q(dip)		((dip)->di_forkoff != 0)
+#define XFS_DFORK_BOFF(dip)		((int)((dip)->di_forkoff << 3))
+
+#define XFS_DFORK_DSIZE(dip,mp) \
+	(XFS_DFORK_Q(dip) ? \
+		XFS_DFORK_BOFF(dip) : \
+		XFS_LITINO(mp, (dip)->di_version))
+#define XFS_DFORK_ASIZE(dip,mp) \
+	(XFS_DFORK_Q(dip) ? \
+		XFS_LITINO(mp, (dip)->di_version) - XFS_DFORK_BOFF(dip) : \
+		0)
+#define XFS_DFORK_SIZE(dip,mp,w) \
+	((w) == XFS_DATA_FORK ? \
+		XFS_DFORK_DSIZE(dip, mp) : \
+		XFS_DFORK_ASIZE(dip, mp))
+
+/*
+ * Return pointers to the data or attribute forks.
+ */
+#define XFS_DFORK_DPTR(dip) \
+	((char *)dip + xfs_dinode_size(dip->di_version))
+#define XFS_DFORK_APTR(dip)	\
+	(XFS_DFORK_DPTR(dip) + XFS_DFORK_BOFF(dip))
+#define XFS_DFORK_PTR(dip,w)	\
+	((w) == XFS_DATA_FORK ? XFS_DFORK_DPTR(dip) : XFS_DFORK_APTR(dip))
+
+#define XFS_DFORK_FORMAT(dip,w) \
+	((w) == XFS_DATA_FORK ? \
+		(dip)->di_format : \
+		(dip)->di_aformat)
+#define XFS_DFORK_NEXTENTS(dip,w) \
+	((w) == XFS_DATA_FORK ? \
+		be32_to_cpu((dip)->di_nextents) : \
+		be16_to_cpu((dip)->di_anextents))
+
+/*
+ * For block and character special files the 32bit dev_t is stored at the
+ * beginning of the data fork.
+ */
+static inline xfs_dev_t xfs_dinode_get_rdev(struct xfs_dinode *dip)
+{
+	return be32_to_cpu(*(__be32 *)XFS_DFORK_DPTR(dip));
+}
+
+static inline void xfs_dinode_put_rdev(struct xfs_dinode *dip, xfs_dev_t rdev)
+{
+	*(__be32 *)XFS_DFORK_DPTR(dip) = cpu_to_be32(rdev);
+}
+
+/*
+ * Values for di_flags
+ * There should be a one-to-one correspondence between these flags and the
+ * XFS_XFLAG_s.
+ */
+#define XFS_DIFLAG_REALTIME_BIT  0	/* file's blocks come from rt area */
+#define XFS_DIFLAG_PREALLOC_BIT  1	/* file space has been preallocated */
+#define XFS_DIFLAG_NEWRTBM_BIT   2	/* for rtbitmap inode, new format */
+#define XFS_DIFLAG_IMMUTABLE_BIT 3	/* inode is immutable */
+#define XFS_DIFLAG_APPEND_BIT    4	/* inode is append-only */
+#define XFS_DIFLAG_SYNC_BIT      5	/* inode is written synchronously */
+#define XFS_DIFLAG_NOATIME_BIT   6	/* do not update atime */
+#define XFS_DIFLAG_NODUMP_BIT    7	/* do not dump */
+#define XFS_DIFLAG_RTINHERIT_BIT 8	/* create with realtime bit set */
+#define XFS_DIFLAG_PROJINHERIT_BIT   9	/* create with parents projid */
+#define XFS_DIFLAG_NOSYMLINKS_BIT   10	/* disallow symlink creation */
+#define XFS_DIFLAG_EXTSIZE_BIT      11	/* inode extent size allocator hint */
+#define XFS_DIFLAG_EXTSZINHERIT_BIT 12	/* inherit inode extent size */
+#define XFS_DIFLAG_NODEFRAG_BIT     13	/* do not reorganize/defragment */
+#define XFS_DIFLAG_FILESTREAM_BIT   14  /* use filestream allocator */
+#define XFS_DIFLAG_REALTIME      (1 << XFS_DIFLAG_REALTIME_BIT)
+#define XFS_DIFLAG_PREALLOC      (1 << XFS_DIFLAG_PREALLOC_BIT)
+#define XFS_DIFLAG_NEWRTBM       (1 << XFS_DIFLAG_NEWRTBM_BIT)
+#define XFS_DIFLAG_IMMUTABLE     (1 << XFS_DIFLAG_IMMUTABLE_BIT)
+#define XFS_DIFLAG_APPEND        (1 << XFS_DIFLAG_APPEND_BIT)
+#define XFS_DIFLAG_SYNC          (1 << XFS_DIFLAG_SYNC_BIT)
+#define XFS_DIFLAG_NOATIME       (1 << XFS_DIFLAG_NOATIME_BIT)
+#define XFS_DIFLAG_NODUMP        (1 << XFS_DIFLAG_NODUMP_BIT)
+#define XFS_DIFLAG_RTINHERIT     (1 << XFS_DIFLAG_RTINHERIT_BIT)
+#define XFS_DIFLAG_PROJINHERIT   (1 << XFS_DIFLAG_PROJINHERIT_BIT)
+#define XFS_DIFLAG_NOSYMLINKS    (1 << XFS_DIFLAG_NOSYMLINKS_BIT)
+#define XFS_DIFLAG_EXTSIZE       (1 << XFS_DIFLAG_EXTSIZE_BIT)
+#define XFS_DIFLAG_EXTSZINHERIT  (1 << XFS_DIFLAG_EXTSZINHERIT_BIT)
+#define XFS_DIFLAG_NODEFRAG      (1 << XFS_DIFLAG_NODEFRAG_BIT)
+#define XFS_DIFLAG_FILESTREAM    (1 << XFS_DIFLAG_FILESTREAM_BIT)
+
+#define XFS_DIFLAG_ANY \
+	(XFS_DIFLAG_REALTIME | XFS_DIFLAG_PREALLOC | XFS_DIFLAG_NEWRTBM | \
+	 XFS_DIFLAG_IMMUTABLE | XFS_DIFLAG_APPEND | XFS_DIFLAG_SYNC | \
+	 XFS_DIFLAG_NOATIME | XFS_DIFLAG_NODUMP | XFS_DIFLAG_RTINHERIT | \
+	 XFS_DIFLAG_PROJINHERIT | XFS_DIFLAG_NOSYMLINKS | XFS_DIFLAG_EXTSIZE | \
+	 XFS_DIFLAG_EXTSZINHERIT | XFS_DIFLAG_NODEFRAG | XFS_DIFLAG_FILESTREAM)
+
+/*
+ * Inode number format:
+ * low inopblog bits - offset in block
+ * next agblklog bits - block number in ag
+ * next agno_log bits - ag number
+ * high agno_log-agblklog-inopblog bits - 0
+ */
+#define	XFS_INO_MASK(k)			(__uint32_t)((1ULL << (k)) - 1)
+#define	XFS_INO_OFFSET_BITS(mp)		(mp)->m_sb.sb_inopblog
+#define	XFS_INO_AGBNO_BITS(mp)		(mp)->m_sb.sb_agblklog
+#define	XFS_INO_AGINO_BITS(mp)		(mp)->m_agino_log
+#define	XFS_INO_AGNO_BITS(mp)		(mp)->m_agno_log
+#define	XFS_INO_BITS(mp)		\
+	XFS_INO_AGNO_BITS(mp) + XFS_INO_AGINO_BITS(mp)
+#define	XFS_INO_TO_AGNO(mp,i)		\
+	((xfs_agnumber_t)((i) >> XFS_INO_AGINO_BITS(mp)))
+#define	XFS_INO_TO_AGINO(mp,i)		\
+	((xfs_agino_t)(i) & XFS_INO_MASK(XFS_INO_AGINO_BITS(mp)))
+#define	XFS_INO_TO_AGBNO(mp,i)		\
+	(((xfs_agblock_t)(i) >> XFS_INO_OFFSET_BITS(mp)) & \
+		XFS_INO_MASK(XFS_INO_AGBNO_BITS(mp)))
+#define	XFS_INO_TO_OFFSET(mp,i)		\
+	((int)(i) & XFS_INO_MASK(XFS_INO_OFFSET_BITS(mp)))
+#define	XFS_INO_TO_FSB(mp,i)		\
+	XFS_AGB_TO_FSB(mp, XFS_INO_TO_AGNO(mp,i), XFS_INO_TO_AGBNO(mp,i))
+#define	XFS_AGINO_TO_INO(mp,a,i)	\
+	(((xfs_ino_t)(a) << XFS_INO_AGINO_BITS(mp)) | (i))
+#define	XFS_AGINO_TO_AGBNO(mp,i)	((i) >> XFS_INO_OFFSET_BITS(mp))
+#define	XFS_AGINO_TO_OFFSET(mp,i)	\
+	((i) & XFS_INO_MASK(XFS_INO_OFFSET_BITS(mp)))
+#define	XFS_OFFBNO_TO_AGINO(mp,b,o)	\
+	((xfs_agino_t)(((b) << XFS_INO_OFFSET_BITS(mp)) | (o)))
+
+#define	XFS_MAXINUMBER		((xfs_ino_t)((1ULL << 56) - 1ULL))
+#define	XFS_MAXINUMBER_32	((xfs_ino_t)((1ULL << 32) - 1ULL))
+
+/*
  * RealTime Device format definitions
  */
 
@@ -412,5 +1483,41 @@ struct xfs_btree_block {
 	offsetof(struct xfs_btree_block, bb_u.s.bb_crc)
 #define XFS_BTREE_LBLOCK_CRC_OFF \
 	offsetof(struct xfs_btree_block, bb_u.l.bb_crc)
+
+/*
+ * On-disk XFS access control list structure.
+ */
+struct xfs_acl_entry {
+	__be32	ae_tag;
+	__be32	ae_id;
+	__be16	ae_perm;
+	__be16	ae_pad;		/* fill the implicit hole in the structure */
+};
+
+struct xfs_acl {
+	__be32			acl_cnt;
+	struct xfs_acl_entry	acl_entry[0];
+};
+
+/*
+ * The number of ACL entries allowed is defined by the on-disk format.
+ * For v4 superblocks, that is limited to 25 entries. For v5 superblocks, it is
+ * limited only by the maximum size of the xattr that stores the information.
+ */
+#define XFS_ACL_MAX_ENTRIES(mp)	\
+	(xfs_sb_version_hascrc(&mp->m_sb) \
+		?  (XATTR_SIZE_MAX - sizeof(struct xfs_acl)) / \
+						sizeof(struct xfs_acl_entry) \
+		: 25)
+
+#define XFS_ACL_MAX_SIZE(mp) \
+	(sizeof(struct xfs_acl) + \
+		sizeof(struct xfs_acl_entry) * XFS_ACL_MAX_ENTRIES((mp)))
+
+/* On-disk XFS extended attribute names */
+#define SGI_ACL_FILE		(unsigned char *)"SGI_ACL_FILE"
+#define SGI_ACL_DEFAULT		(unsigned char *)"SGI_ACL_DEFAULT"
+#define SGI_ACL_FILE_SIZE	(sizeof(SGI_ACL_FILE)-1)
+#define SGI_ACL_DEFAULT_SIZE	(sizeof(SGI_ACL_DEFAULT)-1)
 
 #endif /* __XFS_FORMAT_H__ */

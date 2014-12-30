@@ -77,7 +77,6 @@ MODULE_DEVICE_TABLE(platform, bt_sco_driver_ids);
 static struct platform_driver bt_sco_driver = {
 	.driver = {
 		.name = "bt-sco",
-		.owner = THIS_MODULE,
 	},
 	.probe = bt_sco_probe,
 	.remove = bt_sco_remove,

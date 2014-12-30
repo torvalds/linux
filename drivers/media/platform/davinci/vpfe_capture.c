@@ -414,13 +414,13 @@ static int vpfe_config_image_format(struct vpfe_device *vpfe_dev,
 		/* assume V4L2_PIX_FMT_UYVY as default */
 		pix->pixelformat = V4L2_PIX_FMT_UYVY;
 		v4l2_fill_mbus_format(&mbus_fmt, pix,
-				V4L2_MBUS_FMT_YUYV10_2X10);
+				MEDIA_BUS_FMT_YUYV10_2X10);
 	} else {
 		pix->field = V4L2_FIELD_NONE;
 		/* assume V4L2_PIX_FMT_SBGGR8 */
 		pix->pixelformat = V4L2_PIX_FMT_SBGGR8;
 		v4l2_fill_mbus_format(&mbus_fmt, pix,
-				V4L2_MBUS_FMT_SBGGR8_1X8);
+				MEDIA_BUS_FMT_SBGGR8_1X8);
 	}
 
 	/* if sub device supports g_mbus_fmt, override the defaults */
@@ -930,8 +930,8 @@ static int vpfe_querycap(struct file *file, void  *priv,
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_querycap\n");
 
-	cap->version = VPFE_CAPTURE_VERSION_CODE;
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
+	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	strlcpy(cap->driver, CAPTURE_DRV_NAME, sizeof(cap->driver));
 	strlcpy(cap->bus_info, "VPFE", sizeof(cap->bus_info));
 	strlcpy(cap->card, vpfe_dev->cfg->card_name, sizeof(cap->card));
@@ -2031,7 +2031,6 @@ static const struct dev_pm_ops vpfe_dev_pm_ops = {
 static struct platform_driver vpfe_driver = {
 	.driver = {
 		.name = CAPTURE_DRV_NAME,
-		.owner = THIS_MODULE,
 		.pm = &vpfe_dev_pm_ops,
 	},
 	.probe = vpfe_probe,

@@ -74,19 +74,14 @@ static int spear_ohci_hcd_drv_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		retval = -ENODEV;
-		goto err_put_hcd;
-	}
-
-	hcd->rsrc_start = pdev->resource[0].start;
-	hcd->rsrc_len = resource_size(res);
-
 	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(hcd->regs)) {
 		retval = PTR_ERR(hcd->regs);
 		goto err_put_hcd;
 	}
+
+	hcd->rsrc_start = pdev->resource[0].start;
+	hcd->rsrc_len = resource_size(res);
 
 	sohci_p = to_spear_ohci(hcd);
 	sohci_p->clk = usbh_clk;
@@ -176,7 +171,6 @@ static struct platform_driver spear_ohci_hcd_driver = {
 	.resume =	spear_ohci_hcd_drv_resume,
 #endif
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "spear-ohci",
 		.of_match_table = spear_ohci_id_table,
 	},

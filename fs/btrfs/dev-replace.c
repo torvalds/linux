@@ -316,11 +316,6 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	struct btrfs_device *tgt_device = NULL;
 	struct btrfs_device *src_device = NULL;
 
-	if (btrfs_fs_incompat(fs_info, RAID56)) {
-		btrfs_warn(fs_info, "dev_replace cannot yet handle RAID5/RAID6");
-		return -EOPNOTSUPP;
-	}
-
 	switch (args->start.cont_reading_from_srcdev_mode) {
 	case BTRFS_IOCTL_DEV_REPLACE_CONT_READING_FROM_SRCDEV_MODE_ALWAYS:
 	case BTRFS_IOCTL_DEV_REPLACE_CONT_READING_FROM_SRCDEV_MODE_AVOID:
@@ -422,9 +417,15 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 			      &dev_replace->scrub_progress, 0, 1);
 
 	ret = btrfs_dev_replace_finishing(root->fs_info, ret);
-	WARN_ON(ret);
+	/* don't warn if EINPROGRESS, someone else might be running scrub */
+	if (ret == -EINPROGRESS) {
+		args->result = BTRFS_IOCTL_DEV_REPLACE_RESULT_SCRUB_INPROGRESS;
+		ret = 0;
+	} else {
+		WARN_ON(ret);
+	}
 
-	return 0;
+	return ret;
 
 leave:
 	dev_replace->srcdev = NULL;
@@ -542,7 +543,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 			btrfs_destroy_dev_replace_tgtdev(fs_info, tgt_device);
 		mutex_unlock(&dev_replace->lock_finishing_cancel_unmount);
 
-		return 0;
+		return scrub_ret;
 	}
 
 	printk_in_rcu(KERN_INFO
@@ -571,15 +572,11 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	list_add(&tgt_device->dev_alloc_list, &fs_info->fs_devices->alloc_list);
 	fs_info->fs_devices->rw_devices++;
 
-	/* replace the sysfs entry */
-	btrfs_kobj_rm_device(fs_info, src_device);
-	btrfs_kobj_add_device(fs_info, tgt_device);
-
 	btrfs_dev_replace_unlock(dev_replace);
 
 	btrfs_rm_dev_replace_blocked(fs_info);
 
-	btrfs_rm_dev_replace_srcdev(fs_info, src_device);
+	btrfs_rm_dev_replace_remove_srcdev(fs_info, src_device);
 
 	btrfs_rm_dev_replace_unblocked(fs_info);
 
@@ -593,6 +590,11 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	mutex_unlock(&root->fs_info->chunk_mutex);
 	mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
 	mutex_unlock(&uuid_mutex);
+
+	/* replace the sysfs entry */
+	btrfs_kobj_rm_device(fs_info, src_device);
+	btrfs_kobj_add_device(fs_info, tgt_device);
+	btrfs_rm_dev_replace_free_srcdev(fs_info, src_device);
 
 	/* write back the superblocks */
 	trans = btrfs_start_transaction(root, 0);
@@ -920,9 +922,9 @@ void btrfs_bio_counter_inc_noblocked(struct btrfs_fs_info *fs_info)
 	percpu_counter_inc(&fs_info->bio_counter);
 }
 
-void btrfs_bio_counter_dec(struct btrfs_fs_info *fs_info)
+void btrfs_bio_counter_sub(struct btrfs_fs_info *fs_info, s64 amount)
 {
-	percpu_counter_dec(&fs_info->bio_counter);
+	percpu_counter_sub(&fs_info->bio_counter, amount);
 
 	if (waitqueue_active(&fs_info->replace_wait))
 		wake_up(&fs_info->replace_wait);

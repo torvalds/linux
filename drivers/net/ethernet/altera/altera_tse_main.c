@@ -1587,7 +1587,6 @@ static struct platform_driver altera_tse_driver = {
 	.resume		= NULL,
 	.driver		= {
 		.name	= ALTERA_TSE_RESOURCE_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = altera_tse_ids,
 	},
 };

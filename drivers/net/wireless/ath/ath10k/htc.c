@@ -160,6 +160,7 @@ int ath10k_htc_send(struct ath10k_htc *htc,
 
 	ath10k_htc_prepare_tx_skb(ep, skb);
 
+	skb_cb->eid = eid;
 	skb_cb->paddr = dma_map_single(dev, skb->data, skb->len, DMA_TO_DEVICE);
 	ret = dma_mapping_error(dev, skb_cb->paddr);
 	if (ret)
@@ -197,14 +198,17 @@ err_pull:
 }
 
 static int ath10k_htc_tx_completion_handler(struct ath10k *ar,
-					    struct sk_buff *skb,
-					    unsigned int eid)
+					    struct sk_buff *skb)
 {
 	struct ath10k_htc *htc = &ar->htc;
-	struct ath10k_htc_ep *ep = &htc->endpoint[eid];
+	struct ath10k_skb_cb *skb_cb;
+	struct ath10k_htc_ep *ep;
 
 	if (WARN_ON_ONCE(!skb))
 		return 0;
+
+	skb_cb = ATH10K_SKB_CB(skb);
+	ep = &htc->endpoint[skb_cb->eid];
 
 	ath10k_htc_notify_tx_completion(ep, skb);
 	/* the skb now belongs to the completion handler */
@@ -317,8 +321,7 @@ static int ath10k_htc_process_trailer(struct ath10k_htc *htc,
 }
 
 static int ath10k_htc_rx_completion_handler(struct ath10k *ar,
-					    struct sk_buff *skb,
-					    u8 pipe_id)
+					    struct sk_buff *skb)
 {
 	int status = 0;
 	struct ath10k_htc *htc = &ar->htc;

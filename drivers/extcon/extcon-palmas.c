@@ -291,7 +291,6 @@ static struct platform_driver palmas_usb_driver = {
 	.driver = {
 		.name = "palmas-usb",
 		.of_match_table = of_palmas_match_tbl,
-		.owner = THIS_MODULE,
 		.pm = &palmas_pm_ops,
 	},
 };

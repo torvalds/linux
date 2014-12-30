@@ -56,6 +56,7 @@ struct at24_data {
 	struct at24_platform_data chip;
 	struct memory_accessor macc;
 	int use_smbus;
+	int use_smbus_write;
 
 	/*
 	 * Lock protects against activities from other Linux tasks,
@@ -324,7 +325,7 @@ static ssize_t at24_eeprom_write(struct at24_data *at24, const char *buf,
 {
 	struct i2c_client *client;
 	struct i2c_msg msg;
-	ssize_t status;
+	ssize_t status = 0;
 	unsigned long timeout, write_time;
 	unsigned next_page;
 
@@ -365,9 +366,18 @@ static ssize_t at24_eeprom_write(struct at24_data *at24, const char *buf,
 	timeout = jiffies + msecs_to_jiffies(write_timeout);
 	do {
 		write_time = jiffies;
-		if (at24->use_smbus) {
-			status = i2c_smbus_write_i2c_block_data(client,
-					offset, count, buf);
+		if (at24->use_smbus_write) {
+			switch (at24->use_smbus_write) {
+			case I2C_SMBUS_I2C_BLOCK_DATA:
+				status = i2c_smbus_write_i2c_block_data(client,
+						offset, count, buf);
+				break;
+			case I2C_SMBUS_BYTE_DATA:
+				status = i2c_smbus_write_byte_data(client,
+						offset, buf[0]);
+				break;
+			}
+
 			if (status == 0)
 				status = count;
 		} else {
@@ -487,6 +497,7 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	struct at24_platform_data chip;
 	bool writable;
 	int use_smbus = 0;
+	int use_smbus_write = 0;
 	struct at24_data *at24;
 	int err;
 	unsigned i, num_addresses;
@@ -546,6 +557,18 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		}
 	}
 
+	/* Use I2C operations unless we're stuck with SMBus extensions. */
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
+		if (i2c_check_functionality(client->adapter,
+				I2C_FUNC_SMBUS_WRITE_I2C_BLOCK)) {
+			use_smbus_write = I2C_SMBUS_I2C_BLOCK_DATA;
+		} else if (i2c_check_functionality(client->adapter,
+				I2C_FUNC_SMBUS_WRITE_BYTE_DATA)) {
+			use_smbus_write = I2C_SMBUS_BYTE_DATA;
+			chip.page_size = 1;
+		}
+	}
+
 	if (chip.flags & AT24_FLAG_TAKE8ADDR)
 		num_addresses = 8;
 	else
@@ -559,6 +582,7 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	mutex_init(&at24->lock);
 	at24->use_smbus = use_smbus;
+	at24->use_smbus_write = use_smbus_write;
 	at24->chip = chip;
 	at24->num_addresses = num_addresses;
 
@@ -576,8 +600,7 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	writable = !(chip.flags & AT24_FLAG_READONLY);
 	if (writable) {
-		if (!use_smbus || i2c_check_functionality(client->adapter,
-				I2C_FUNC_SMBUS_WRITE_I2C_BLOCK)) {
+		if (!use_smbus || use_smbus_write) {
 
 			unsigned write_max = chip.page_size;
 

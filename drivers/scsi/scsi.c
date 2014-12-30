@@ -739,32 +739,10 @@ int scsi_track_queue_full(struct scsi_device *sdev, int depth)
 
 	if (sdev->last_queue_full_count <= 10)
 		return 0;
-	if (sdev->last_queue_full_depth < 8) {
-		/* Drop back to untagged */
-		scsi_set_tag_type(sdev, 0);
-		scsi_change_queue_depth(sdev, sdev->host->cmd_per_lun);
-		return -1;
-	}
 
 	return scsi_change_queue_depth(sdev, depth);
 }
 EXPORT_SYMBOL(scsi_track_queue_full);
-
-/**
- * scsi_change_queue_type() - Change a device's queue type
- * @sdev:     The SCSI device whose queue depth is to change
- * @tag_type: Identifier for queue type
- */
-int scsi_change_queue_type(struct scsi_device *sdev, int tag_type)
-{
-	if (!sdev->tagged_supported)
-		return 0;
-
-	scsi_set_tag_type(sdev, tag_type);
-	return tag_type;
-
-}
-EXPORT_SYMBOL(scsi_change_queue_type);
 
 /**
  * scsi_vpd_inquiry - Request a device provide us with a VPD page

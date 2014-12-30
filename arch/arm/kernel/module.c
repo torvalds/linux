@@ -251,7 +251,7 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 #endif
 
 		default:
-			printk(KERN_ERR "%s: unknown relocation: %u\n",
+			pr_err("%s: unknown relocation: %u\n",
 			       module->name, ELF32_R_TYPE(rel->r_info));
 			return -ENOEXEC;
 		}

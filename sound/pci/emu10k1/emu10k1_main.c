@@ -1289,10 +1289,8 @@ static int snd_emu10k1_free(struct snd_emu10k1 *emu)
 	}
 	if (emu->emu1010.firmware_thread)
 		kthread_stop(emu->emu1010.firmware_thread);
-	if (emu->firmware)
-		release_firmware(emu->firmware);
-	if (emu->dock_fw)
-		release_firmware(emu->dock_fw);
+	release_firmware(emu->firmware);
+	release_firmware(emu->dock_fw);
 	if (emu->irq >= 0)
 		free_irq(emu->irq, emu);
 	/* remove reserved page */
@@ -1301,8 +1299,7 @@ static int snd_emu10k1_free(struct snd_emu10k1 *emu)
 			(struct snd_util_memblk *)emu->reserved_page);
 		emu->reserved_page = NULL;
 	}
-	if (emu->memhdr)
-		snd_util_memhdr_free(emu->memhdr);
+	snd_util_memhdr_free(emu->memhdr);
 	if (emu->silent_page.area)
 		snd_dma_free_pages(&emu->silent_page);
 	if (emu->ptb_pages.area)

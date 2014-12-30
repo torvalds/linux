@@ -620,10 +620,9 @@ static int snd_ice1712_playback_ds_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_ice1712 *ice = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	u32 period_size, buf_size, rate, tmp, chn;
+	u32 period_size, rate, tmp, chn;
 
 	period_size = snd_pcm_lib_period_bytes(substream) - 1;
-	buf_size = snd_pcm_lib_buffer_bytes(substream) - 1;
 	tmp = 0x0064;
 	if (snd_pcm_format_width(runtime->format) == 16)
 		tmp &= ~0x04;
@@ -1295,10 +1294,7 @@ static int snd_ice1712_pcm_profi(struct snd_ice1712 *ice, int device, struct snd
 			return err;
 	}
 
-	err = snd_ice1712_build_pro_mixer(ice);
-	if (err < 0)
-		return err;
-	return 0;
+	return snd_ice1712_build_pro_mixer(ice);
 }
 
 /*
@@ -1545,10 +1541,9 @@ static int snd_ice1712_ac97_mixer(struct snd_ice1712 *ice)
 			dev_warn(ice->card->dev,
 				 "cannot initialize ac97 for consumer, skipped\n");
 		else {
-			err = snd_ctl_add(ice->card, snd_ctl_new1(&snd_ice1712_mixer_digmix_route_ac97, ice));
-			if (err < 0)
-				return err;
-			return 0;
+			return snd_ctl_add(ice->card,
+			snd_ctl_new1(&snd_ice1712_mixer_digmix_route_ac97,
+				     ice));
 		}
 	}
 
@@ -1839,13 +1834,7 @@ static int snd_ice1712_pro_internal_clock_info(struct snd_kcontrol *kcontrol,
 		"96000",	/* 12: 7 */
 		"IEC958 Input",	/* 13: -- */
 	};
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 14;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 14, texts);
 }
 
 static int snd_ice1712_pro_internal_clock_get(struct snd_kcontrol *kcontrol,
@@ -1930,13 +1919,7 @@ static int snd_ice1712_pro_internal_clock_default_info(struct snd_kcontrol *kcon
 		"96000",	/* 12: 7 */
 		/* "IEC958 Input",	13: -- */
 	};
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 13;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 13, texts);
 }
 
 static int snd_ice1712_pro_internal_clock_default_get(struct snd_kcontrol *kcontrol,
@@ -2057,15 +2040,8 @@ static int snd_ice1712_pro_route_info(struct snd_kcontrol *kcontrol,
 		"IEC958 In L", "IEC958 In R", /* 9-10 */
 		"Digital Mixer", /* 11 - optional */
 	};
-
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items =
-		snd_ctl_get_ioffidx(kcontrol, &uinfo->id) < 2 ? 12 : 11;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	int num_items = snd_ctl_get_ioffidx(kcontrol, &uinfo->id) < 2 ? 12 : 11;
+	return snd_ctl_enum_info(uinfo, 1, num_items, texts);
 }
 
 static int snd_ice1712_pro_route_analog_get(struct snd_kcontrol *kcontrol,
@@ -2516,11 +2492,8 @@ static int snd_ice1712_build_controls(struct snd_ice1712 *ice)
 	err = snd_ctl_add(ice->card, snd_ctl_new1(&snd_ice1712_mixer_pro_volume_rate, ice));
 	if (err < 0)
 		return err;
-	err = snd_ctl_add(ice->card, snd_ctl_new1(&snd_ice1712_mixer_pro_peak, ice));
-	if (err < 0)
-		return err;
-
-	return 0;
+	return snd_ctl_add(ice->card,
+			   snd_ctl_new1(&snd_ice1712_mixer_pro_peak, ice));
 }
 
 static int snd_ice1712_free(struct snd_ice1712 *ice)
@@ -2905,8 +2878,7 @@ static int snd_ice1712_resume(struct device *dev)
 	outw(ice->pm_saved_spdif_ctrl, ICEMT(ice, ROUTE_SPDOUT));
 	outw(ice->pm_saved_route, ICEMT(ice, ROUTE_PSDOUT03));
 
-	if (ice->ac97)
-		snd_ac97_resume(ice->ac97);
+	snd_ac97_resume(ice->ac97);
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;

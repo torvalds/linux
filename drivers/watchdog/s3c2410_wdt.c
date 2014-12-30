@@ -741,7 +741,6 @@ static struct platform_driver s3c2410wdt_driver = {
 	.shutdown	= s3c2410wdt_shutdown,
 	.id_table	= s3c2410_wdt_ids,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "s3c2410-wdt",
 		.pm	= &s3c2410wdt_pm_ops,
 		.of_match_table	= of_match_ptr(s3c2410_wdt_match),

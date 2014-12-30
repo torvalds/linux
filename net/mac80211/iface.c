@@ -259,6 +259,15 @@ static int ieee80211_check_concurrent_iface(struct ieee80211_sub_if_data *sdata,
 	list_for_each_entry(nsdata, &local->interfaces, list) {
 		if (nsdata != sdata && ieee80211_sdata_running(nsdata)) {
 			/*
+			 * Only OCB and monitor mode may coexist
+			 */
+			if ((sdata->vif.type == NL80211_IFTYPE_OCB &&
+			     nsdata->vif.type != NL80211_IFTYPE_MONITOR) ||
+			    (sdata->vif.type != NL80211_IFTYPE_MONITOR &&
+			     nsdata->vif.type == NL80211_IFTYPE_OCB))
+				return -EBUSY;
+
+			/*
 			 * Allow only a single IBSS interface to be up at any
 			 * time. This is restricted because beacon distribution
 			 * cannot work properly if both are in the same IBSS.
@@ -511,6 +520,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		sdata->vif.cab_queue = master->vif.cab_queue;
 		memcpy(sdata->vif.hw_queue, master->vif.hw_queue,
 		       sizeof(sdata->vif.hw_queue));
+		sdata->vif.bss_conf.chandef = master->vif.bss_conf.chandef;
 		break;
 		}
 	case NL80211_IFTYPE_AP:
@@ -521,6 +531,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 	case NL80211_IFTYPE_MONITOR:
 	case NL80211_IFTYPE_ADHOC:
 	case NL80211_IFTYPE_P2P_DEVICE:
+	case NL80211_IFTYPE_OCB:
 		/* no special treatment */
 		break;
 	case NL80211_IFTYPE_UNSPECIFIED:
@@ -631,6 +642,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		case NL80211_IFTYPE_ADHOC:
 		case NL80211_IFTYPE_AP:
 		case NL80211_IFTYPE_MESH_POINT:
+		case NL80211_IFTYPE_OCB:
 			netif_carrier_off(dev);
 			break;
 		case NL80211_IFTYPE_WDS:
@@ -844,6 +856,8 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	sdata_lock(sdata);
 	mutex_lock(&local->mtx);
 	sdata->vif.csa_active = false;
+	if (sdata->vif.type == NL80211_IFTYPE_STATION)
+		sdata->u.mgd.csa_waiting_bcn = false;
 	if (sdata->csa_block_tx) {
 		ieee80211_wake_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
@@ -1195,6 +1209,8 @@ static void ieee80211_iface_work(struct work_struct *work)
 							WLAN_BACK_RECIPIENT, 0,
 							false);
 			mutex_unlock(&local->sta_mtx);
+		} else if (skb->pkt_type == IEEE80211_SDATA_QUEUE_TDLS_CHSW) {
+			ieee80211_process_tdls_channel_switch(sdata, skb);
 		} else if (ieee80211_is_action(mgmt->frame_control) &&
 			   mgmt->u.action.category == WLAN_CATEGORY_BACK) {
 			int len = skb->len;
@@ -1285,6 +1301,9 @@ static void ieee80211_iface_work(struct work_struct *work)
 			break;
 		ieee80211_mesh_work(sdata);
 		break;
+	case NL80211_IFTYPE_OCB:
+		ieee80211_ocb_work(sdata);
+		break;
 	default:
 		break;
 	}
@@ -1304,6 +1323,9 @@ static void ieee80211_recalc_smps_work(struct work_struct *work)
 static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 				  enum nl80211_iftype type)
 {
+	static const u8 bssid_wildcard[ETH_ALEN] = {0xff, 0xff, 0xff,
+						    0xff, 0xff, 0xff};
+
 	/* clear type-dependent union */
 	memset(&sdata->u, 0, sizeof(sdata->u));
 
@@ -1355,6 +1377,10 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 		sdata->vif.bss_conf.bssid = sdata->u.mgd.bssid;
 		ieee80211_sta_setup_sdata(sdata);
 		break;
+	case NL80211_IFTYPE_OCB:
+		sdata->vif.bss_conf.bssid = bssid_wildcard;
+		ieee80211_ocb_setup_sdata(sdata);
+		break;
 	case NL80211_IFTYPE_ADHOC:
 		sdata->vif.bss_conf.bssid = sdata->u.ibss.bssid;
 		ieee80211_ibss_setup_sdata(sdata);
@@ -1402,6 +1428,7 @@ static int ieee80211_runtime_change_iftype(struct ieee80211_sub_if_data *sdata,
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_OCB:
 		/*
 		 * Could maybe also all others here?
 		 * Just not sure how that interacts
@@ -1417,6 +1444,7 @@ static int ieee80211_runtime_change_iftype(struct ieee80211_sub_if_data *sdata,
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_OCB:
 		/*
 		 * Could probably support everything
 		 * but WDS here (WDS do_open can fail
@@ -1675,7 +1703,10 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		}
 
 		ieee80211_assign_perm_addr(local, ndev->perm_addr, type);
-		memcpy(ndev->dev_addr, ndev->perm_addr, ETH_ALEN);
+		if (params && is_valid_ether_addr(params->macaddr))
+			memcpy(ndev->dev_addr, params->macaddr, ETH_ALEN);
+		else
+			memcpy(ndev->dev_addr, ndev->perm_addr, ETH_ALEN);
 		SET_NETDEV_DEV(ndev, wiphy_dev(local->hw.wiphy));
 
 		/* don't use IEEE80211_DEV_TO_SUB_IF -- it checks too much */

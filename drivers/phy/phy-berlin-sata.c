@@ -30,7 +30,8 @@
 #define MBUS_WRITE_REQUEST_SIZE_128	(BIT(2) << 16)
 #define MBUS_READ_REQUEST_SIZE_128	(BIT(2) << 19)
 
-#define PHY_BASE		0x200
+#define BG2_PHY_BASE		0x080
+#define BG2Q_PHY_BASE		0x200
 
 /* register 0x01 */
 #define REF_FREF_SEL_25		BIT(0)
@@ -61,15 +62,16 @@ struct phy_berlin_priv {
 	struct clk		*clk;
 	struct phy_berlin_desc	**phys;
 	unsigned		nphys;
+	u32			phy_base;
 };
 
-static inline void phy_berlin_sata_reg_setbits(void __iomem *ctrl_reg, u32 reg,
-					       u32 mask, u32 val)
+static inline void phy_berlin_sata_reg_setbits(void __iomem *ctrl_reg,
+			       u32 phy_base, u32 reg, u32 mask, u32 val)
 {
 	u32 regval;
 
 	/* select register */
-	writel(PHY_BASE + reg, ctrl_reg + PORT_VSR_ADDR);
+	writel(phy_base + reg, ctrl_reg + PORT_VSR_ADDR);
 
 	/* set bits */
 	regval = readl(ctrl_reg + PORT_VSR_DATA);
@@ -103,17 +105,20 @@ static int phy_berlin_sata_power_on(struct phy *phy)
 	writel(regval, priv->base + HOST_VSA_DATA);
 
 	/* set PHY mode and ref freq to 25 MHz */
-	phy_berlin_sata_reg_setbits(ctrl_reg, 0x1, 0xff,
-				    REF_FREF_SEL_25 | PHY_MODE_SATA);
+	phy_berlin_sata_reg_setbits(ctrl_reg, priv->phy_base, 0x01,
+				    0x00ff, REF_FREF_SEL_25 | PHY_MODE_SATA);
 
 	/* set PHY up to 6 Gbps */
-	phy_berlin_sata_reg_setbits(ctrl_reg, 0x25, 0xc00, PHY_GEN_MAX_6_0);
+	phy_berlin_sata_reg_setbits(ctrl_reg, priv->phy_base, 0x25,
+				    0x0c00, PHY_GEN_MAX_6_0);
 
 	/* set 40 bits width */
-	phy_berlin_sata_reg_setbits(ctrl_reg, 0x23,  0xc00, DATA_BIT_WIDTH_40);
+	phy_berlin_sata_reg_setbits(ctrl_reg, priv->phy_base, 0x23,
+				    0x0c00, DATA_BIT_WIDTH_40);
 
 	/* use max pll rate */
-	phy_berlin_sata_reg_setbits(ctrl_reg, 0x2, 0x0, USE_MAX_PLL_RATE);
+	phy_berlin_sata_reg_setbits(ctrl_reg, priv->phy_base, 0x02,
+				    0x0000, USE_MAX_PLL_RATE);
 
 	/* set Gen3 controller speed */
 	regval = readl(ctrl_reg + PORT_SCR_CTL);
@@ -218,6 +223,11 @@ static int phy_berlin_sata_probe(struct platform_device *pdev)
 	if (!priv->phys)
 		return -ENOMEM;
 
+	if (of_device_is_compatible(dev->of_node, "marvell,berlin2-sata-phy"))
+		priv->phy_base = BG2_PHY_BASE;
+	else
+		priv->phy_base = BG2Q_PHY_BASE;
+
 	dev_set_drvdata(dev, priv);
 	spin_lock_init(&priv->lock);
 
@@ -239,7 +249,7 @@ static int phy_berlin_sata_probe(struct platform_device *pdev)
 		if (!phy_desc)
 			return -ENOMEM;
 
-		phy = devm_phy_create(dev, NULL, &phy_berlin_sata_ops, NULL);
+		phy = devm_phy_create(dev, NULL, &phy_berlin_sata_ops);
 		if (IS_ERR(phy)) {
 			dev_err(dev, "failed to create PHY %d\n", phy_id);
 			return PTR_ERR(phy);
@@ -258,13 +268,11 @@ static int phy_berlin_sata_probe(struct platform_device *pdev)
 
 	phy_provider =
 		devm_of_phy_provider_register(dev, phy_berlin_sata_phy_xlate);
-	if (IS_ERR(phy_provider))
-		return PTR_ERR(phy_provider);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(phy_provider);
 }
 
 static const struct of_device_id phy_berlin_sata_of_match[] = {
+	{ .compatible = "marvell,berlin2-sata-phy" },
 	{ .compatible = "marvell,berlin2q-sata-phy" },
 	{ },
 };

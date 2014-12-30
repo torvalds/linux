@@ -1373,6 +1373,7 @@ void cayman_fence_ring_emit(struct radeon_device *rdev,
 void cayman_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 {
 	struct radeon_ring *ring = &rdev->ring[ib->ring];
+	unsigned vm_id = ib->vm ? ib->vm->ids[ib->ring].id : 0;
 	u32 cp_coher_cntl = PACKET3_FULL_CACHE_ENA | PACKET3_TC_ACTION_ENA |
 		PACKET3_SH_ACTION_ENA;
 
@@ -1395,15 +1396,14 @@ void cayman_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 #endif
 			  (ib->gpu_addr & 0xFFFFFFFC));
 	radeon_ring_write(ring, upper_32_bits(ib->gpu_addr) & 0xFF);
-	radeon_ring_write(ring, ib->length_dw | 
-			  (ib->vm ? (ib->vm->id << 24) : 0));
+	radeon_ring_write(ring, ib->length_dw | (vm_id << 24));
 
 	/* flush read cache over gart for this vmid */
 	radeon_ring_write(ring, PACKET3(PACKET3_SURFACE_SYNC, 3));
 	radeon_ring_write(ring, PACKET3_ENGINE_ME | cp_coher_cntl);
 	radeon_ring_write(ring, 0xFFFFFFFF);
 	radeon_ring_write(ring, 0);
-	radeon_ring_write(ring, ((ib->vm ? ib->vm->id : 0) << 24) | 10); /* poll interval */
+	radeon_ring_write(ring, (vm_id << 24) | 10); /* poll interval */
 }
 
 static void cayman_cp_enable(struct radeon_device *rdev, bool enable)
@@ -2502,15 +2502,11 @@ void cayman_vm_decode_fault(struct radeon_device *rdev,
  * Update the page table base and flush the VM TLB
  * using the CP (cayman-si).
  */
-void cayman_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
+void cayman_vm_flush(struct radeon_device *rdev, struct radeon_ring *ring,
+		     unsigned vm_id, uint64_t pd_addr)
 {
-	struct radeon_ring *ring = &rdev->ring[ridx];
-
-	if (vm == NULL)
-		return;
-
-	radeon_ring_write(ring, PACKET0(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + (vm->id << 2), 0));
-	radeon_ring_write(ring, vm->pd_gpu_addr >> 12);
+	radeon_ring_write(ring, PACKET0(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + (vm_id << 2), 0));
+	radeon_ring_write(ring, pd_addr >> 12);
 
 	/* flush hdp cache */
 	radeon_ring_write(ring, PACKET0(HDP_MEM_COHERENCY_FLUSH_CNTL, 0));
@@ -2518,7 +2514,7 @@ void cayman_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
 
 	/* bits 0-7 are the VM contexts0-7 */
 	radeon_ring_write(ring, PACKET0(VM_INVALIDATE_REQUEST, 0));
-	radeon_ring_write(ring, 1 << vm->id);
+	radeon_ring_write(ring, 1 << vm_id);
 
 	/* sync PFP to ME, otherwise we might get invalid PFP reads */
 	radeon_ring_write(ring, PACKET3(PACKET3_PFP_SYNC_ME, 0));

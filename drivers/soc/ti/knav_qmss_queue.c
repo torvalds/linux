@@ -1805,7 +1805,6 @@ static struct platform_driver keystone_qmss_driver = {
 	.remove		= knav_queue_remove,
 	.driver		= {
 		.name	= "keystone-navigator-qmss",
-		.owner	= THIS_MODULE,
 		.of_match_table = keystone_qmss_of_match,
 	},
 };

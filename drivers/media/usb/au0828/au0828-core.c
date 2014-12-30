@@ -153,6 +153,14 @@ static void au0828_usb_disconnect(struct usb_interface *interface)
 
 	dprintk(1, "%s()\n", __func__);
 
+	/* there is a small window after disconnect, before
+	   dev->usbdev is NULL, for poll (e.g: IR) try to access
+	   the device and fill the dmesg with error messages.
+	   Set the status so poll routines can check and avoid
+	   access after disconnect.
+	*/
+	dev->dev_state = DEV_DISCONNECTED;
+
 	au0828_rc_unregister(dev);
 	/* Digital TV */
 	au0828_dvb_unregister(dev);

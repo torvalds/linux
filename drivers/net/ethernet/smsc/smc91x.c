@@ -2472,7 +2472,6 @@ static struct platform_driver smc_driver = {
 	.remove		= smc_drv_remove,
 	.driver		= {
 		.name	= CARDNAME,
-		.owner	= THIS_MODULE,
 		.pm	= &smc_drv_pm_ops,
 		.of_match_table = of_match_ptr(smc91x_match),
 	},

@@ -880,9 +880,7 @@ mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 
 	/* Set Capability info */
 	bss_desc->cap_info_bitmap |= WLAN_CAPABILITY_IBSS;
-	tmp_cap = le16_to_cpu(adhoc_start->cap_info_bitmap);
-	tmp_cap &= ~WLAN_CAPABILITY_ESS;
-	tmp_cap |= WLAN_CAPABILITY_IBSS;
+	tmp_cap = WLAN_CAPABILITY_IBSS;
 
 	/* Set up privacy in bss_desc */
 	if (priv->sec_info.encryption_mode) {

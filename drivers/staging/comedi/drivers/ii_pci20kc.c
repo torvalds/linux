@@ -392,7 +392,6 @@ static int ii20k_init_module(struct comedi_device *dev,
 		s->maxdata	= 0xffff;
 		s->range_table	= &ii20k_ao_ranges;
 		s->insn_write	= ii20k_ao_insn_write;
-		s->insn_read	= comedi_readback_insn_read;
 
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)

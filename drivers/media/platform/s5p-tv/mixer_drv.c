@@ -487,7 +487,6 @@ static struct platform_driver mxr_driver __refdata = {
 	.remove = mxr_remove,
 	.driver = {
 		.name = MXR_DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.pm = &mxr_pm_ops,
 	}
 };

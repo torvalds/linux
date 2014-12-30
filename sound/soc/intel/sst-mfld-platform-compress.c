@@ -67,8 +67,11 @@ static int sst_platform_compr_open(struct snd_compr_stream *cstream)
 		goto out_ops;
 	}
 	stream->compr_ops = sst->compr_ops;
-
 	stream->id = 0;
+
+	/* Turn on LPE */
+	sst->compr_ops->power(sst->dev, true);
+
 	sst_set_stream_status(stream, SST_PLATFORM_INIT);
 	runtime->private_data = stream;
 	return 0;
@@ -83,6 +86,9 @@ static int sst_platform_compr_free(struct snd_compr_stream *cstream)
 	int ret_val = 0, str_id;
 
 	stream = cstream->runtime->private_data;
+	/* Turn off LPE */
+	sst->compr_ops->power(sst->dev, false);
+
 	/*need to check*/
 	str_id = stream->id;
 	if (str_id)

@@ -354,7 +354,6 @@ static int bfin_i2s_soc_platform_remove(struct platform_device *pdev)
 static struct platform_driver bfin_i2s_pcm_driver = {
 	.driver = {
 		.name = "bfin-i2s-pcm-audio",
-		.owner = THIS_MODULE,
 	},
 
 	.probe = bfin_i2s_soc_platform_probe,

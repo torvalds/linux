@@ -74,14 +74,14 @@ struct hdspm_config {
 #define SNDRV_HDSPM_IOCTL_GET_CONFIG \
 	_IOR('H', 0x41, struct hdspm_config)
 
-/**
+/*
  * If there's a TCO (TimeCode Option) board installed,
  * there are further options and status data available.
  * The hdspm_ltc structure contains the current SMPTE
  * timecode and some status information and can be
  * obtained via SNDRV_HDSPM_IOCTL_GET_LTC or in the
  * hdspm_status struct.
- **/
+ */
 
 enum hdspm_ltc_format {
 	format_invalid,
@@ -113,11 +113,11 @@ struct hdspm_ltc {
 
 #define SNDRV_HDSPM_IOCTL_GET_LTC _IOR('H', 0x46, struct hdspm_ltc)
 
-/**
+/*
  * The status data reflects the device's current state
  * as determined by the card's configuration and
  * connection status.
- **/
+ */
 
 enum hdspm_sync {
 	hdspm_sync_no_lock = 0,
@@ -171,9 +171,9 @@ struct hdspm_status {
 #define SNDRV_HDSPM_IOCTL_GET_STATUS \
 	_IOR('H', 0x47, struct hdspm_status)
 
-/**
+/*
  * Get information about the card and its add-ons.
- **/
+ */
 
 #define HDSPM_ADDON_TCO 1
 

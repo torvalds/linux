@@ -330,13 +330,13 @@ static inline void paravirt_activate_mm(struct mm_struct *prev,
 	PVOP_VCALL2(pv_mmu_ops.activate_mm, prev, next);
 }
 
-static inline void arch_dup_mmap(struct mm_struct *oldmm,
-				 struct mm_struct *mm)
+static inline void paravirt_arch_dup_mmap(struct mm_struct *oldmm,
+					  struct mm_struct *mm)
 {
 	PVOP_VCALL2(pv_mmu_ops.dup_mmap, oldmm, mm);
 }
 
-static inline void arch_exit_mmap(struct mm_struct *mm)
+static inline void paravirt_arch_exit_mmap(struct mm_struct *mm)
 {
 	PVOP_VCALL1(pv_mmu_ops.exit_mmap, mm);
 }
@@ -986,5 +986,15 @@ extern void default_banner(void);
 #endif /* __ASSEMBLY__ */
 #else  /* CONFIG_PARAVIRT */
 # define default_banner x86_init_noop
+#ifndef __ASSEMBLY__
+static inline void paravirt_arch_dup_mmap(struct mm_struct *oldmm,
+					  struct mm_struct *mm)
+{
+}
+
+static inline void paravirt_arch_exit_mmap(struct mm_struct *mm)
+{
+}
+#endif /* __ASSEMBLY__ */
 #endif /* !CONFIG_PARAVIRT */
 #endif /* _ASM_X86_PARAVIRT_H */

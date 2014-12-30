@@ -829,6 +829,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			CONFIG_DEBUG_PAGEALLOC, hence this option will not help
 			tracking down these problems.
 
+	debug_pagealloc=
+			[KNL] When CONFIG_DEBUG_PAGEALLOC is set, this
+			parameter enables the feature at boot time. In
+			default, it is disabled. We can avoid allocating huge
+			chunk of memory for debug pagealloc if we don't enable
+			it at boot time and the system will work mostly same
+			with the kernel built without CONFIG_DEBUG_PAGEALLOC.
+			on: enable the feature
+
 	debugpat	[X86] Enable PAT debugging
 
 	decnet.addr=	[HW,NET]
@@ -1228,9 +1237,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			multiple times interleaved with hugepages= to reserve
 			huge pages of different sizes. Valid pages sizes on
 			x86-64 are 2M (when the CPU supports "pse") and 1G
-			(when the CPU supports the "pdpe1gb" cpuinfo flag)
-			Note that 1GB pages can only be allocated at boot time
-			using hugepages= and not freed afterwards.
+			(when the CPU supports the "pdpe1gb" cpuinfo flag).
 
 	hvc_iucv=	[S390] Number of z/VM IUCV hypervisor console (HVC)
 			       terminal devices. Valid values: 0..8
@@ -1369,6 +1376,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Formats: { "ima" | "ima-ng" }
 			Default: "ima-ng"
 
+	ima_template_fmt=
+	                [IMA] Define a custom template format.
+			Format: { "field1|...|fieldN" }
+
 	ima.ahash_minsize= [IMA] Minimum file size for asynchronous hash usage
 			Format: <min_file_size>
 			Set the minimal file size for using asynchronous hash.
@@ -1446,6 +1457,18 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 		       disable
 		         Do not enable intel_pstate as the default
 		         scaling driver for the supported processors
+		       force
+			 Enable intel_pstate on systems that prohibit it by default
+			 in favor of acpi-cpufreq. Forcing the intel_pstate driver
+			 instead of acpi-cpufreq may disable platform features, such
+			 as thermal controls and power capping, that rely on ACPI
+			 P-States information being indicated to OSPM and therefore
+			 should be used with caution. This option does not work with
+			 processors that aren't supported by the intel_pstate driver
+			 or on platforms that use pcc-cpufreq instead of acpi-cpufreq.
+		       no_hwp
+		         Do not enable hardware P state control (HWP)
+			 if available.
 
 	intremap=	[X86-64, Intel-IOMMU]
 			on	enable Interrupt Remapping (default)
@@ -2503,11 +2526,20 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	OSS		[HW,OSS]
 			See Documentation/sound/oss/oss-parameters.txt
 
+	page_owner=	[KNL] Boot-time page_owner enabling option.
+			Storage of the information about who allocated
+			each page is disabled in default. With this switch,
+			we can turn it on.
+			on: enable the feature
+
 	panic=		[KNL] Kernel behaviour on panic: delay <timeout>
 			timeout > 0: seconds before rebooting
 			timeout = 0: wait forever
 			timeout < 0: reboot immediately
 			Format: <timeout>
+
+	panic_on_warn	panic() instead of WARN().  Useful to cause kdump
+			on a WARN().
 
 	crash_kexec_post_notifiers
 			Run kdump after running panic-notifiers and dumping
@@ -2940,6 +2972,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			quiescent states.  Units are jiffies, minimum
 			value is one, and maximum value is HZ.
 
+	rcutree.kthread_prio= 	 [KNL,BOOT]
+			Set the SCHED_FIFO priority of the RCU
+			per-CPU kthreads (rcuc/N). This value is also
+			used for the priority of the RCU boost threads
+			(rcub/N). Valid values are 1-99 and the default
+			is 1 (the least-favored priority).
+
 	rcutree.rcu_nocb_leader_stride= [KNL]
 			Set the number of NOCB kthread groups, which
 			defaults to the square root of the number of
@@ -3088,6 +3127,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Set timeout in jiffies for RCU task stall warning
 			messages.  Disable with a value less than or equal
 			to zero.
+
+	rcupdate.rcu_self_test= [KNL]
+			Run the RCU early boot self tests
+
+	rcupdate.rcu_self_test_bh= [KNL]
+			Run the RCU bh early boot self tests
+
+	rcupdate.rcu_self_test_sched= [KNL]
+			Run the RCU sched early boot self tests
 
 	rdinit=		[KNL]
 			Format: <full_path>
@@ -3412,6 +3460,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			neutralize any effect of /proc/sys/kernel/sysrq.
 			Useful for debugging.
 
+	tcpmhash_entries= [KNL,NET]
+			Set the number of tcp_metrics_hash slots.
+			Default value is 8192 or 16384 depending on total
+			ram pages. This is used to specify the TCP metrics
+			cache size. See Documentation/networking/ip-sysctl.txt
+			"tcp_no_metrics_save" section for more details.
+
 	tdfx=		[HW,DRM]
 
 	test_suspend=	[SUSPEND][,N]
@@ -3501,7 +3556,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			are saved.
 
 	trace_buf_size=nn[KMG]
-			[FTRACE] will set tracing buffer size.
+			[FTRACE] will set tracing buffer size on each cpu.
 
 	trace_event=[event-list]
 			[FTRACE] Set and start specified trace events in order
@@ -3523,6 +3578,24 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 			See also Documentation/trace/ftrace.txt "trace options"
 			section.
+
+	tp_printk[FTRACE]
+			Have the tracepoints sent to printk as well as the
+			tracing ring buffer. This is useful for early boot up
+			where the system hangs or reboots and does not give the
+			option for reading the tracing buffer or performing a
+			ftrace_dump_on_oops.
+
+			To turn off having tracepoints sent to printk,
+			 echo 0 > /proc/sys/kernel/tracepoint_printk
+			Note, echoing 1 into this file without the
+			tracepoint_printk kernel cmdline option has no effect.
+
+			** CAUTION **
+
+			Having tracepoints sent to printk() and activating high
+			frequency tracepoints such as irq or sched, can cause
+			the system to live lock.
 
 	traceoff_on_warning
 			[FTRACE] enable this option to disable tracing when a

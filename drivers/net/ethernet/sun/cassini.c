@@ -5179,8 +5179,7 @@ static void cas_remove_one(struct pci_dev *pdev)
 	cp = netdev_priv(dev);
 	unregister_netdev(dev);
 
-	if (cp->fw_data)
-		vfree(cp->fw_data);
+	vfree(cp->fw_data);
 
 	mutex_lock(&cp->pm_mutex);
 	cancel_work_sync(&cp->reset_task);

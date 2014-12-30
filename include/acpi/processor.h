@@ -67,9 +67,6 @@ struct acpi_processor_cx {
 };
 
 struct acpi_processor_power {
-	struct acpi_processor_cx *state;
-	unsigned long bm_check_timestamp;
-	u32 default_state;
 	int count;
 	struct acpi_processor_cx states[ACPI_PROCESSOR_MAX_POWER];
 	int timer_broadcast_on_state;
@@ -313,10 +310,12 @@ static inline int acpi_processor_get_bios_limit(int cpu, unsigned int *limit)
 #endif				/* CONFIG_CPU_FREQ */
 
 /* in processor_core.c */
-void acpi_processor_set_pdc(acpi_handle handle);
 int acpi_get_apicid(acpi_handle, int type, u32 acpi_id);
 int acpi_map_cpuid(int apic_id, u32 acpi_id);
 int acpi_get_cpuid(acpi_handle, int type, u32 acpi_id);
+
+/* in processor_pdc.c */
+void acpi_processor_set_pdc(acpi_handle handle);
 
 /* in processor_throttling.c */
 int acpi_processor_tstate_has_changed(struct acpi_processor *pr);

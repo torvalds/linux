@@ -112,10 +112,8 @@ static int __init ion_dummy_init(void)
 	}
 	return 0;
 err:
-	for (i = 0; i < dummy_ion_pdata.nr; i++) {
-		if (heaps[i])
-			ion_heap_destroy(heaps[i]);
-	}
+	for (i = 0; i < dummy_ion_pdata.nr; ++i)
+		ion_heap_destroy(heaps[i]);
 	kfree(heaps);
 
 	if (carveout_ptr) {

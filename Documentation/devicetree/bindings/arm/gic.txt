@@ -97,3 +97,56 @@ Example:
 		      <0x2c006000 0x2000>;
 		interrupts = <1 9 0xf04>;
 	};
+
+
+* GICv2m extension for MSI/MSI-x support (Optional)
+
+Certain revisions of GIC-400 supports MSI/MSI-x via V2M register frame(s).
+This is enabled by specifying v2m sub-node(s).
+
+Required properties:
+
+- compatible	    : The value here should contain "arm,gic-v2m-frame".
+
+- msi-controller    : Identifies the node as an MSI controller.
+
+- reg		    : GICv2m MSI interface register base and size
+
+Optional properties:
+
+- arm,msi-base-spi  : When the MSI_TYPER register contains an incorrect
+  		      value, this property should contain the SPI base of
+		      the MSI frame, overriding the HW value.
+
+- arm,msi-num-spis  : When the MSI_TYPER register contains an incorrect
+  		      value, this property should contain the number of
+		      SPIs assigned to the frame, overriding the HW value.
+
+Example:
+
+	interrupt-controller@e1101000 {
+		compatible = "arm,gic-400";
+		#interrupt-cells = <3>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		interrupt-controller;
+		interrupts = <1 8 0xf04>;
+		ranges = <0 0 0 0xe1100000 0 0x100000>;
+		reg = <0x0 0xe1110000 0 0x01000>,
+		      <0x0 0xe112f000 0 0x02000>,
+		      <0x0 0xe1140000 0 0x10000>,
+		      <0x0 0xe1160000 0 0x10000>;
+		v2m0: v2m@0x8000 {
+			compatible = "arm,gic-v2m-frame";
+			msi-controller;
+			reg = <0x0 0x80000 0 0x1000>;
+		};
+
+		....
+
+		v2mN: v2m@0x9000 {
+			compatible = "arm,gic-v2m-frame";
+			msi-controller;
+			reg = <0x0 0x90000 0 0x1000>;
+		};
+	};

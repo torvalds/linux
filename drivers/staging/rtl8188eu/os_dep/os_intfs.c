@@ -512,7 +512,6 @@ void rtw_proc_remove_one(struct net_device *dev)
 
 static uint loadparam(struct adapter *padapter,  struct  net_device *pnetdev)
 {
-	uint status = _SUCCESS;
 	struct registry_priv  *registry_par = &padapter->registrypriv;
 
 
@@ -527,7 +526,7 @@ static uint loadparam(struct adapter *padapter,  struct  net_device *pnetdev)
 
 	registry_par->channel = (u8)rtw_channel;
 	registry_par->wireless_mode = (u8)rtw_wireless_mode;
-	registry_par->vrtl_carrier_sense = (u8)rtw_vrtl_carrier_sense ;
+	registry_par->vrtl_carrier_sense = (u8)rtw_vrtl_carrier_sense;
 	registry_par->vcs_type = (u8)rtw_vcs_type;
 	registry_par->rts_thresh = (u16)rtw_rts_thresh;
 	registry_par->frag_thresh = (u16)rtw_frag_thresh;
@@ -582,7 +581,7 @@ static uint loadparam(struct adapter *padapter,  struct  net_device *pnetdev)
 	snprintf(registry_par->ifname, 16, "%s", ifname);
 	snprintf(registry_par->if2name, 16, "%s", if2name);
 	registry_par->notch_filter = (u8)rtw_notch_filter;
-	return status;
+	return _SUCCESS;
 }
 
 static int rtw_net_set_mac_address(struct net_device *pnetdev, void *p)
@@ -760,7 +759,6 @@ void rtw_stop_drv_threads(struct adapter *padapter)
 
 static u8 rtw_init_default_value(struct adapter *padapter)
 {
-	u8 ret  = _SUCCESS;
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
 	struct xmit_priv	*pxmitpriv = &padapter->xmitpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -803,12 +801,11 @@ static u8 rtw_init_default_value(struct adapter *padapter)
 	padapter->bWritePortCancel = false;
 	padapter->bRxRSSIDisplay = 0;
 	padapter->bNotifyChannelChange = 0;
-	return ret;
+	return _SUCCESS;
 }
 
 u8 rtw_reset_drv_sw(struct adapter *padapter)
 {
-	u8	ret8 = _SUCCESS;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct pwrctrl_priv *pwrctrlpriv = &padapter->pwrctrlpriv;
 
@@ -833,7 +830,7 @@ u8 rtw_reset_drv_sw(struct adapter *padapter)
 
 	rtw_set_signal_stat_timer(&padapter->recvpriv);
 
-	return ret8;
+	return _SUCCESS;
 }
 
 u8 rtw_init_drv_sw(struct adapter *padapter)

@@ -660,7 +660,7 @@ static int hdmi_g_mbus_fmt(struct v4l2_subdev *sd,
 	memset(fmt, 0, sizeof(*fmt));
 	fmt->width = t->hact.end - t->hact.beg;
 	fmt->height = t->vact[0].end - t->vact[0].beg;
-	fmt->code = V4L2_MBUS_FMT_FIXED; /* means RGB888 */
+	fmt->code = MEDIA_BUS_FMT_FIXED; /* means RGB888 */
 	fmt->colorspace = V4L2_COLORSPACE_SRGB;
 	if (t->interlaced) {
 		fmt->field = V4L2_FIELD_INTERLACED;
@@ -1046,7 +1046,6 @@ static struct platform_driver hdmi_driver __refdata = {
 	.id_table = hdmi_driver_types,
 	.driver = {
 		.name = "s5p-hdmi",
-		.owner = THIS_MODULE,
 		.pm = &hdmi_pm_ops,
 	}
 };

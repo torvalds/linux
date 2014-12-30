@@ -22,10 +22,13 @@
 #include <linux/clk.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/slab.h>
 #include <linux/prefetch.h>
 #include <linux/byteorder/generic.h>
 #include <linux/platform_data/pxa2xx_udc.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
 
 #include <linux/usb.h>
 #include <linux/usb/ch9.h>
@@ -1507,18 +1510,13 @@ static struct usb_ep_ops pxa_ep_ops = {
  */
 static void dplus_pullup(struct pxa_udc *udc, int on)
 {
-	if (on) {
-		if (gpio_is_valid(udc->mach->gpio_pullup))
-			gpio_set_value(udc->mach->gpio_pullup,
-				       !udc->mach->gpio_pullup_inverted);
-		if (udc->mach->udc_command)
-			udc->mach->udc_command(PXA2XX_UDC_CMD_CONNECT);
-	} else {
-		if (gpio_is_valid(udc->mach->gpio_pullup))
-			gpio_set_value(udc->mach->gpio_pullup,
-				       udc->mach->gpio_pullup_inverted);
-		if (udc->mach->udc_command)
-			udc->mach->udc_command(PXA2XX_UDC_CMD_DISCONNECT);
+	if (udc->gpiod) {
+		gpiod_set_value(udc->gpiod, on);
+	} else if (udc->udc_command) {
+		if (on)
+			udc->udc_command(PXA2XX_UDC_CMD_CONNECT);
+		else
+			udc->udc_command(PXA2XX_UDC_CMD_DISCONNECT);
 	}
 	udc->pullup_on = on;
 }
@@ -1609,7 +1607,7 @@ static int pxa_udc_pullup(struct usb_gadget *_gadget, int is_active)
 {
 	struct pxa_udc *udc = to_gadget_udc(_gadget);
 
-	if (!gpio_is_valid(udc->mach->gpio_pullup) && !udc->mach->udc_command)
+	if (!udc->gpiod && !udc->udc_command)
 		return -EOPNOTSUPP;
 
 	dplus_pullup(udc, is_active);
@@ -1671,8 +1669,7 @@ static int pxa_udc_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
 
 static int pxa27x_udc_start(struct usb_gadget *g,
 		struct usb_gadget_driver *driver);
-static int pxa27x_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver);
+static int pxa27x_udc_stop(struct usb_gadget *g);
 
 static const struct usb_gadget_ops pxa_udc_ops = {
 	.get_frame	= pxa_udc_get_frame,
@@ -1701,10 +1698,10 @@ static void udc_disable(struct pxa_udc *udc)
 	udc_writel(udc, UDCICR1, 0);
 
 	udc_clear_mask_UDCCR(udc, UDCCR_UDE);
-	clk_disable(udc->clk);
 
 	ep0_idle(udc);
 	udc->gadget.speed = USB_SPEED_UNKNOWN;
+	clk_disable(udc->clk);
 
 	udc->enabled = 0;
 }
@@ -1757,16 +1754,16 @@ static void udc_enable(struct pxa_udc *udc)
 	if (udc->enabled)
 		return;
 
+	clk_enable(udc->clk);
 	udc_writel(udc, UDCICR0, 0);
 	udc_writel(udc, UDCICR1, 0);
 	udc_clear_mask_UDCCR(udc, UDCCR_UDE);
-
-	clk_enable(udc->clk);
 
 	ep0_idle(udc);
 	udc->gadget.speed = USB_SPEED_FULL;
 	memset(&udc->stats, 0, sizeof(udc->stats));
 
+	pxa_eps_setup(udc);
 	udc_set_mask_UDCCR(udc, UDCCR_UDE);
 	ep_write_UDCCSR(&udc->pxa_ep[0], UDCCSR0_ACM);
 	udelay(2);
@@ -1859,12 +1856,11 @@ static void stop_activity(struct pxa_udc *udc, struct usb_gadget_driver *driver)
  *
  * Returns 0 if no error, -ENODEV, -EINVAL otherwise
  */
-static int pxa27x_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver)
+static int pxa27x_udc_stop(struct usb_gadget *g)
 {
 	struct pxa_udc *udc = to_pxa(g);
 
-	stop_activity(udc, driver);
+	stop_activity(udc, NULL);
 	udc_disable(udc);
 	dplus_pullup(udc, 0);
 
@@ -2404,6 +2400,14 @@ static struct pxa_udc memory = {
 	}
 };
 
+#if defined(CONFIG_OF)
+static struct of_device_id udc_pxa_dt_ids[] = {
+	{ .compatible = "marvell,pxa270-udc" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, udc_pxa_dt_ids);
+#endif
+
 /**
  * pxa_udc_probe - probes the udc device
  * @_dev: platform device
@@ -2416,81 +2420,77 @@ static int pxa_udc_probe(struct platform_device *pdev)
 	struct resource *regs;
 	struct pxa_udc *udc = &memory;
 	int retval = 0, gpio;
+	struct pxa2xx_udc_mach_info *mach = dev_get_platdata(&pdev->dev);
+	unsigned long gpio_flags;
+
+	if (mach) {
+		gpio_flags = mach->gpio_pullup_inverted ? GPIOF_ACTIVE_LOW : 0;
+		gpio = mach->gpio_pullup;
+		if (gpio_is_valid(gpio)) {
+			retval = devm_gpio_request_one(&pdev->dev, gpio,
+						       gpio_flags,
+						       "USB D+ pullup");
+			if (retval)
+				return retval;
+			udc->gpiod = gpio_to_desc(mach->gpio_pullup);
+		}
+		udc->udc_command = mach->udc_command;
+	} else {
+		udc->gpiod = devm_gpiod_get(&pdev->dev, NULL);
+	}
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!regs)
-		return -ENXIO;
+	udc->regs = devm_ioremap_resource(&pdev->dev, regs);
+	if (IS_ERR(udc->regs))
+		return PTR_ERR(udc->regs);
 	udc->irq = platform_get_irq(pdev, 0);
 	if (udc->irq < 0)
 		return udc->irq;
 
 	udc->dev = &pdev->dev;
-	udc->mach = dev_get_platdata(&pdev->dev);
 	udc->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
 
-	gpio = udc->mach->gpio_pullup;
-	if (gpio_is_valid(gpio)) {
-		retval = gpio_request(gpio, "USB D+ pullup");
-		if (retval == 0)
-			gpio_direction_output(gpio,
-				       udc->mach->gpio_pullup_inverted);
+	if (IS_ERR(udc->gpiod)) {
+		dev_err(&pdev->dev, "Couldn't find or request D+ gpio : %ld\n",
+			PTR_ERR(udc->gpiod));
+		return PTR_ERR(udc->gpiod);
 	}
-	if (retval) {
-		dev_err(&pdev->dev, "Couldn't request gpio %d : %d\n",
-			gpio, retval);
-		return retval;
-	}
+	if (udc->gpiod)
+		gpiod_direction_output(udc->gpiod, 0);
 
-	udc->clk = clk_get(&pdev->dev, NULL);
-	if (IS_ERR(udc->clk)) {
-		retval = PTR_ERR(udc->clk);
-		goto err_clk;
-	}
+	udc->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(udc->clk))
+		return PTR_ERR(udc->clk);
+
 	retval = clk_prepare(udc->clk);
 	if (retval)
-		goto err_clk_prepare;
-
-	retval = -ENOMEM;
-	udc->regs = ioremap(regs->start, resource_size(regs));
-	if (!udc->regs) {
-		dev_err(&pdev->dev, "Unable to map UDC I/O memory\n");
-		goto err_map;
-	}
+		return retval;
 
 	udc->vbus_sensed = 0;
 
 	the_controller = udc;
 	platform_set_drvdata(pdev, udc);
 	udc_init_data(udc);
-	pxa_eps_setup(udc);
 
 	/* irq setup after old hardware state is cleaned up */
-	retval = request_irq(udc->irq, pxa_udc_irq,
-			IRQF_SHARED, driver_name, udc);
+	retval = devm_request_irq(&pdev->dev, udc->irq, pxa_udc_irq,
+				  IRQF_SHARED, driver_name, udc);
 	if (retval != 0) {
 		dev_err(udc->dev, "%s: can't get irq %i, err %d\n",
 			driver_name, udc->irq, retval);
-		goto err_irq;
+		goto err;
 	}
 
 	retval = usb_add_gadget_udc(&pdev->dev, &udc->gadget);
 	if (retval)
-		goto err_add_udc;
+		goto err;
 
 	pxa_init_debugfs(udc);
-
+	if (should_enable_udc(udc))
+		udc_enable(udc);
 	return 0;
-
-err_add_udc:
-	free_irq(udc->irq, udc);
-err_irq:
-	iounmap(udc->regs);
-err_map:
+err:
 	clk_unprepare(udc->clk);
-err_clk_prepare:
-	clk_put(udc->clk);
-	udc->clk = NULL;
-err_clk:
 	return retval;
 }
 
@@ -2501,22 +2501,15 @@ err_clk:
 static int pxa_udc_remove(struct platform_device *_dev)
 {
 	struct pxa_udc *udc = platform_get_drvdata(_dev);
-	int gpio = udc->mach->gpio_pullup;
 
 	usb_del_gadget_udc(&udc->gadget);
-	usb_gadget_unregister_driver(udc->driver);
-	free_irq(udc->irq, udc);
 	pxa_cleanup_debugfs(udc);
-	if (gpio_is_valid(gpio))
-		gpio_free(gpio);
 
 	usb_put_phy(udc->transceiver);
 
 	udc->transceiver = NULL;
 	the_controller = NULL;
 	clk_unprepare(udc->clk);
-	clk_put(udc->clk);
-	iounmap(udc->regs);
 
 	return 0;
 }
@@ -2546,19 +2539,11 @@ extern void pxa27x_clear_otgph(void);
  */
 static int pxa_udc_suspend(struct platform_device *_dev, pm_message_t state)
 {
-	int i;
 	struct pxa_udc *udc = platform_get_drvdata(_dev);
 	struct pxa_ep *ep;
 
 	ep = &udc->pxa_ep[0];
 	udc->udccsr0 = udc_ep_readl(ep, UDCCSR);
-	for (i = 1; i < NR_PXA_ENDPOINTS; i++) {
-		ep = &udc->pxa_ep[i];
-		ep->udccsr_value = udc_ep_readl(ep, UDCCSR);
-		ep->udccr_value  = udc_ep_readl(ep, UDCCR);
-		ep_dbg(ep, "udccsr:0x%03x, udccr:0x%x\n",
-				ep->udccsr_value, ep->udccr_value);
-	}
 
 	udc_disable(udc);
 	udc->pullup_resume = udc->pullup_on;
@@ -2576,19 +2561,11 @@ static int pxa_udc_suspend(struct platform_device *_dev, pm_message_t state)
  */
 static int pxa_udc_resume(struct platform_device *_dev)
 {
-	int i;
 	struct pxa_udc *udc = platform_get_drvdata(_dev);
 	struct pxa_ep *ep;
 
 	ep = &udc->pxa_ep[0];
 	udc_ep_writel(ep, UDCCSR, udc->udccsr0 & (UDCCSR0_FST | UDCCSR0_DME));
-	for (i = 1; i < NR_PXA_ENDPOINTS; i++) {
-		ep = &udc->pxa_ep[i];
-		udc_ep_writel(ep, UDCCSR, ep->udccsr_value);
-		udc_ep_writel(ep, UDCCR,  ep->udccr_value);
-		ep_dbg(ep, "udccsr:0x%03x, udccr:0x%x\n",
-				ep->udccsr_value, ep->udccr_value);
-	}
 
 	dplus_pullup(udc, udc->pullup_resume);
 	if (should_enable_udc(udc))
@@ -2614,7 +2591,7 @@ MODULE_ALIAS("platform:pxa27x-udc");
 static struct platform_driver udc_driver = {
 	.driver		= {
 		.name	= "pxa27x-udc",
-		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(udc_pxa_dt_ids),
 	},
 	.probe		= pxa_udc_probe,
 	.remove		= pxa_udc_remove,

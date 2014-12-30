@@ -1,8 +1,18 @@
+config PAGE_EXTENSION
+	bool "Extend memmap on extra space for more information on page"
+	---help---
+	  Extend memmap on extra space for more information on page. This
+	  could be used for debugging features that need to insert extra
+	  field for every page. This extension enables us to save memory
+	  by not allocating this extra memory according to boottime
+	  configuration.
+
 config DEBUG_PAGEALLOC
 	bool "Debug page memory allocations"
 	depends on DEBUG_KERNEL
 	depends on !HIBERNATION || ARCH_SUPPORTS_DEBUG_PAGEALLOC && !PPC && !SPARC
 	depends on !KMEMCHECK
+	select PAGE_EXTENSION
 	select PAGE_POISONING if !ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	select PAGE_GUARD if ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	---help---

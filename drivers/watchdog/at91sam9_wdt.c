@@ -393,7 +393,6 @@ static struct platform_driver at91wdt_driver = {
 	.remove		= __exit_p(at91wdt_remove),
 	.driver		= {
 		.name	= "at91_wdt",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(at91_wdt_dt_ids),
 	},
 };

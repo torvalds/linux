@@ -47,7 +47,6 @@
 
 struct apci2032_int_private {
 	spinlock_t spinlock;
-	unsigned int stop_count;
 	bool active;
 	unsigned char enabled_isns;
 };
@@ -148,7 +147,6 @@ static int apci2032_int_cmd(struct comedi_device *dev,
 	spin_lock_irqsave(&subpriv->spinlock, flags);
 
 	subpriv->enabled_isns = enabled_isns;
-	subpriv->stop_count = cmd->stop_arg;
 	subpriv->active = true;
 	outl(enabled_isns, dev->iobase + APCI2032_INT_CTRL_REG);
 
@@ -178,7 +176,6 @@ static irqreturn_t apci2032_interrupt(int irq, void *d)
 	struct comedi_cmd *cmd = &s->async->cmd;
 	struct apci2032_int_private *subpriv;
 	unsigned int val;
-	bool do_event = false;
 
 	if (!dev->attached)
 		return IRQ_NONE;
@@ -212,27 +209,16 @@ static irqreturn_t apci2032_interrupt(int irq, void *d)
 				bits |= (1 << i);
 		}
 
-		if (comedi_buf_put(s, bits)) {
-			s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
-			if (cmd->stop_src == TRIG_COUNT &&
-			    subpriv->stop_count > 0) {
-				subpriv->stop_count--;
-				if (subpriv->stop_count == 0) {
-					/* end of acquisition */
-					s->async->events |= COMEDI_CB_EOA;
-					apci2032_int_stop(dev, s);
-				}
-			}
-		} else {
-			apci2032_int_stop(dev, s);
-			s->async->events |= COMEDI_CB_OVERFLOW;
-		}
-		do_event = true;
+		comedi_buf_write_samples(s, &bits, 1);
+
+		if (cmd->stop_src == TRIG_COUNT &&
+		    s->async->scans_done >= cmd->stop_arg)
+			s->async->events |= COMEDI_CB_EOA;
 	}
 
 	spin_unlock(&subpriv->spinlock);
-	if (do_event)
-		comedi_event(dev, s);
+
+	comedi_handle_events(dev, s);
 
 	return IRQ_HANDLED;
 }
@@ -274,7 +260,7 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 	/* Initialize the digital output subdevice */
 	s = &dev->subdevices[0];
 	s->type		= COMEDI_SUBD_DO;
-	s->subdev_flags	= SDF_WRITEABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 32;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
@@ -303,7 +289,7 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 			return -ENOMEM;
 		spin_lock_init(&subpriv->spinlock);
 		s->private	= subpriv;
-		s->subdev_flags	= SDF_READABLE | SDF_CMD_READ;
+		s->subdev_flags	= SDF_READABLE | SDF_CMD_READ | SDF_PACKED;
 		s->len_chanlist = 2;
 		s->do_cmdtest	= apci2032_int_cmdtest;
 		s->do_cmd	= apci2032_int_cmd;

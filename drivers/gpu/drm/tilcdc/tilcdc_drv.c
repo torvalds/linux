@@ -58,8 +58,7 @@ static struct drm_framebuffer *tilcdc_fb_create(struct drm_device *dev,
 static void tilcdc_fb_output_poll_changed(struct drm_device *dev)
 {
 	struct tilcdc_drm_private *priv = dev->dev_private;
-	if (priv->fbdev)
-		drm_fbdev_cma_hotplug_event(priv->fbdev);
+	drm_fbdev_cma_hotplug_event(priv->fbdev);
 }
 
 static const struct drm_mode_config_funcs mode_config_funcs = {
@@ -645,7 +644,6 @@ static struct platform_driver tilcdc_platform_driver = {
 	.probe      = tilcdc_pdev_probe,
 	.remove     = tilcdc_pdev_remove,
 	.driver     = {
-		.owner  = THIS_MODULE,
 		.name   = "tilcdc",
 		.pm     = &tilcdc_pm_ops,
 		.of_match_table = tilcdc_of_match,

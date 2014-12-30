@@ -121,7 +121,7 @@ static ssize_t reset_store_afu(struct device *device,
 	int rc;
 
 	/* Not safe to reset if it is currently in use */
-	spin_lock(&afu->contexts_lock);
+	mutex_lock(&afu->contexts_lock);
 	if (!idr_is_empty(&afu->contexts_idr)) {
 		rc = -EBUSY;
 		goto err;
@@ -132,7 +132,7 @@ static ssize_t reset_store_afu(struct device *device,
 
 	rc = count;
 err:
-	spin_unlock(&afu->contexts_lock);
+	mutex_unlock(&afu->contexts_lock);
 	return rc;
 }
 
@@ -247,7 +247,7 @@ static ssize_t mode_store(struct device *device, struct device_attribute *attr,
 	int rc = -EBUSY;
 
 	/* can't change this if we have a user */
-	spin_lock(&afu->contexts_lock);
+	mutex_lock(&afu->contexts_lock);
 	if (!idr_is_empty(&afu->contexts_idr))
 		goto err;
 
@@ -271,7 +271,7 @@ static ssize_t mode_store(struct device *device, struct device_attribute *attr,
 	afu->current_mode = 0;
 	afu->num_procs = 0;
 
-	spin_unlock(&afu->contexts_lock);
+	mutex_unlock(&afu->contexts_lock);
 
 	if ((rc = _cxl_afu_deactivate_mode(afu, old_mode)))
 		return rc;
@@ -280,7 +280,7 @@ static ssize_t mode_store(struct device *device, struct device_attribute *attr,
 
 	return count;
 err:
-	spin_unlock(&afu->contexts_lock);
+	mutex_unlock(&afu->contexts_lock);
 	return rc;
 }
 

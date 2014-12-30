@@ -16,6 +16,8 @@
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
 ******************************************************************************/
+#include <asm/byteorder.h>
+#include <asm/unaligned.h>
 #include "rtllib.h"
 #include "rtl819x_BA.h"
 
@@ -79,7 +81,6 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 	struct sk_buff *skb = NULL;
 	 struct rtllib_hdr_3addr *BAReq = NULL;
 	u8 *tag = NULL;
-	u16 tmp = 0;
 	u16 len = ieee->tx_headroom + 9;
 
 	RTLLIB_DEBUG(RTLLIB_DL_TRACE | RTLLIB_DL_BA, "========>%s(), frame(%d)"
@@ -115,15 +116,15 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 
 	if (ACT_ADDBARSP == type) {
 		RT_TRACE(COMP_DBG, "====>to send ADDBARSP\n");
-		tmp = StatusCode;
-		memcpy(tag, (u8 *)&tmp, 2);
+
+		put_unaligned_le16(StatusCode, tag);
 		tag += 2;
 	}
-	tmp = pBA->BaParamSet.shortData;
-	memcpy(tag, (u8 *)&tmp, 2);
+
+	put_unaligned_le16(pBA->BaParamSet.shortData, tag);
 	tag += 2;
-	tmp = pBA->BaTimeoutValue;
-	memcpy(tag, (u8 *)&tmp, 2);
+
+	put_unaligned_le16(pBA->BaTimeoutValue, tag);
 	tag += 2;
 
 	if (ACT_ADDBAREQ == type) {
@@ -143,7 +144,6 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 	struct sk_buff *skb = NULL;
 	 struct rtllib_hdr_3addr *Delba = NULL;
 	u8 *tag = NULL;
-	u16 tmp = 0;
 	u16 len = 6 + ieee->tx_headroom;
 
 	if (net_ratelimit())
@@ -178,11 +178,11 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 	*tag++ = ACT_CAT_BA;
 	*tag++ = ACT_DELBA;
 
-	tmp = DelbaParamSet.shortData;
-	memcpy(tag, (u8 *)&tmp, 2);
+
+	put_unaligned_le16(DelbaParamSet.shortData, tag);
 	tag += 2;
-	tmp = ReasonCode;
-	memcpy(tag, (u8 *)&tmp, 2);
+
+	put_unaligned_le16(ReasonCode, tag);
 	tag += 2;
 
 	RTLLIB_DEBUG_DATA(RTLLIB_DL_DATA|RTLLIB_DL_BA, skb->data, skb->len);

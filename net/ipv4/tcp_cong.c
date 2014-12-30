@@ -1,5 +1,5 @@
 /*
- * Plugable TCP congestion control support and newReno
+ * Pluggable TCP congestion control support and newReno
  * congestion control.
  * Based on ideas from I/O scheduler support and Web100.
  *

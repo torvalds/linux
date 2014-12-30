@@ -2086,7 +2086,6 @@ static const struct dev_pm_ops charger_manager_pm = {
 static struct platform_driver charger_manager_driver = {
 	.driver = {
 		.name = "charger-manager",
-		.owner = THIS_MODULE,
 		.pm = &charger_manager_pm,
 		.of_match_table = charger_manager_match,
 	},

@@ -152,7 +152,7 @@
 #define pmd_none(pmd)		(!pmd_val(pmd))
 #define	pmd_bad(pmd)		(!is_kernel_addr(pmd_val(pmd)) \
 				 || (pmd_val(pmd) & PMD_BAD_BITS))
-#define	pmd_present(pmd)	(pmd_val(pmd) != 0)
+#define	pmd_present(pmd)	(!pmd_none(pmd))
 #define	pmd_clear(pmdp)		(pmd_val(*(pmdp)) = 0)
 #define pmd_page_vaddr(pmd)	(pmd_val(pmd) & ~PMD_MASKED_BITS)
 extern struct page *pmd_page(pmd_t pmd);
@@ -164,9 +164,21 @@ extern struct page *pmd_page(pmd_t pmd);
 #define pud_present(pud)	(pud_val(pud) != 0)
 #define pud_clear(pudp)		(pud_val(*(pudp)) = 0)
 #define pud_page_vaddr(pud)	(pud_val(pud) & ~PUD_MASKED_BITS)
-#define pud_page(pud)		virt_to_page(pud_page_vaddr(pud))
 
+extern struct page *pud_page(pud_t pud);
+
+static inline pte_t pud_pte(pud_t pud)
+{
+	return __pte(pud_val(pud));
+}
+
+static inline pud_t pte_pud(pte_t pte)
+{
+	return __pud(pte_val(pte));
+}
+#define pud_write(pud)		pte_write(pud_pte(pud))
 #define pgd_set(pgdp, pudp)	({pgd_val(*(pgdp)) = (unsigned long)(pudp);})
+#define pgd_write(pgd)		pte_write(pgd_pte(pgd))
 
 /*
  * Find an entry in a page-table-directory.  We combine the address region
@@ -422,23 +434,28 @@ extern void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 		       pmd_t *pmdp, pmd_t pmd);
 extern void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
 				 pmd_t *pmd);
-
+/*
+ *
+ * For core kernel code by design pmd_trans_huge is never run on any hugetlbfs
+ * page. The hugetlbfs page table walking and mangling paths are totally
+ * separated form the core VM paths and they're differentiated by
+ *  VM_HUGETLB being set on vm_flags well before any pmd_trans_huge could run.
+ *
+ * pmd_trans_huge() is defined as false at build time if
+ * CONFIG_TRANSPARENT_HUGEPAGE=n to optimize away code blocks at build
+ * time in such case.
+ *
+ * For ppc64 we need to differntiate from explicit hugepages from THP, because
+ * for THP we also track the subpage details at the pmd level. We don't do
+ * that for explicit huge pages.
+ *
+ */
 static inline int pmd_trans_huge(pmd_t pmd)
 {
 	/*
 	 * leaf pte for huge page, bottom two bits != 00
 	 */
 	return (pmd_val(pmd) & 0x3) && (pmd_val(pmd) & _PAGE_THP_HUGE);
-}
-
-static inline int pmd_large(pmd_t pmd)
-{
-	/*
-	 * leaf pte for huge page, bottom two bits != 00
-	 */
-	if (pmd_trans_huge(pmd))
-		return pmd_val(pmd) & _PAGE_PRESENT;
-	return 0;
 }
 
 static inline int pmd_trans_splitting(pmd_t pmd)
@@ -450,6 +467,14 @@ static inline int pmd_trans_splitting(pmd_t pmd)
 
 extern int has_transparent_hugepage(void);
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+
+static inline int pmd_large(pmd_t pmd)
+{
+	/*
+	 * leaf pte for huge page, bottom two bits != 00
+	 */
+	return ((pmd_val(pmd) & 0x3) != 0x0);
+}
 
 static inline pte_t pmd_pte(pmd_t pmd)
 {
@@ -467,6 +492,7 @@ static inline pte_t *pmdp_ptep(pmd_t *pmd)
 }
 
 #define pmd_pfn(pmd)		pte_pfn(pmd_pte(pmd))
+#define pmd_dirty(pmd)		pte_dirty(pmd_pte(pmd))
 #define pmd_young(pmd)		pte_young(pmd_pte(pmd))
 #define pmd_mkold(pmd)		pte_pmd(pte_mkold(pmd_pte(pmd)))
 #define pmd_wrprotect(pmd)	pte_pmd(pte_wrprotect(pmd_pte(pmd)))
@@ -575,6 +601,5 @@ static inline int pmd_move_must_withdraw(struct spinlock *new_pmd_ptl,
 	 */
 	return true;
 }
-
 #endif /* __ASSEMBLY__ */
 #endif /* _ASM_POWERPC_PGTABLE_PPC64_H_ */

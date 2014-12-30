@@ -372,23 +372,6 @@ static struct snd_soc_dai_driver wm8523_dai = {
 	.ops = &wm8523_dai_ops,
 };
 
-#ifdef CONFIG_PM
-static int wm8523_suspend(struct snd_soc_codec *codec)
-{
-	wm8523_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int wm8523_resume(struct snd_soc_codec *codec)
-{
-	wm8523_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-#else
-#define wm8523_suspend NULL
-#define wm8523_resume NULL
-#endif
-
 static int wm8523_probe(struct snd_soc_codec *codec)
 {
 	struct wm8523_priv *wm8523 = snd_soc_codec_get_drvdata(codec);
@@ -402,23 +385,13 @@ static int wm8523_probe(struct snd_soc_codec *codec)
 			    WM8523_DACR_VU, WM8523_DACR_VU);
 	snd_soc_update_bits(codec, WM8523_DAC_CTRL3, WM8523_ZC, WM8523_ZC);
 
-	wm8523_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
-
-static int wm8523_remove(struct snd_soc_codec *codec)
-{
-	wm8523_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_wm8523 = {
 	.probe =	wm8523_probe,
-	.remove =	wm8523_remove,
-	.suspend =	wm8523_suspend,
-	.resume =	wm8523_resume,
 	.set_bias_level = wm8523_set_bias_level,
+	.suspend_bias_off = true,
 
 	.controls = wm8523_controls,
 	.num_controls = ARRAY_SIZE(wm8523_controls),

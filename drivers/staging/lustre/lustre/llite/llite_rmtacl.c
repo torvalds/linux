@@ -131,8 +131,8 @@ int rct_add(struct rmtacl_ctl_table *rct, pid_t key, int ops)
 	spin_lock(&rct->rct_lock);
 	e = __rct_search(rct, key);
 	if (unlikely(e != NULL)) {
-		CWARN("Unexpected stale rmtacl_entry found: "
-		      "[key: %d] [ops: %d]\n", (int)key, ops);
+		CWARN("Unexpected stale rmtacl_entry found: [key: %d] [ops: %d]\n",
+		      (int)key, ops);
 		rce_free(e);
 	}
 	list_add_tail(&rce->rce_list, &rct->rct_entries[rce_hashfunc(key)]);
@@ -263,8 +263,7 @@ int ee_add(struct eacl_table *et, pid_t key, struct lu_fid *fid, int type,
 	spin_lock(&et->et_lock);
 	e = __et_search_del(et, key, fid, type);
 	if (unlikely(e != NULL)) {
-		CWARN("Unexpected stale eacl_entry found: "
-		      "[key: %d] [fid: "DFID"] [type: %d]\n",
+		CWARN("Unexpected stale eacl_entry found: [key: %d] [fid: " DFID "] [type: %d]\n",
 		      (int)key, PFID(fid), type);
 		ee_free(e);
 	}

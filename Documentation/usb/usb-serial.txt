@@ -145,7 +145,7 @@ Keyspan PDA Serial Adapter
   Single port DB-9 serial adapter, pushed as a PDA adapter for iMacs (mostly
   sold in Macintosh catalogs, comes in a translucent white/green dongle).
   Fairly simple device. Firmware is homebrew.
-  This driver also works for the Xircom/Entrgra single port serial adapter.
+  This driver also works for the Xircom/Entrega single port serial adapter.
 
   Current status:
    Things that work:

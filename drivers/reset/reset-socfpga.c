@@ -150,7 +150,6 @@ static struct platform_driver socfpga_reset_driver = {
 	.remove	= socfpga_reset_remove,
 	.driver = {
 		.name		= "socfpga-reset",
-		.owner		= THIS_MODULE,
 		.of_match_table	= socfpga_reset_dt_ids,
 	},
 };

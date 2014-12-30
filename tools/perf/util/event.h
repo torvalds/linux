@@ -143,6 +143,32 @@ struct branch_stack {
 	struct branch_entry	entries[0];
 };
 
+enum {
+	PERF_IP_FLAG_BRANCH		= 1ULL << 0,
+	PERF_IP_FLAG_CALL		= 1ULL << 1,
+	PERF_IP_FLAG_RETURN		= 1ULL << 2,
+	PERF_IP_FLAG_CONDITIONAL	= 1ULL << 3,
+	PERF_IP_FLAG_SYSCALLRET		= 1ULL << 4,
+	PERF_IP_FLAG_ASYNC		= 1ULL << 5,
+	PERF_IP_FLAG_INTERRUPT		= 1ULL << 6,
+	PERF_IP_FLAG_TX_ABORT		= 1ULL << 7,
+	PERF_IP_FLAG_TRACE_BEGIN	= 1ULL << 8,
+	PERF_IP_FLAG_TRACE_END		= 1ULL << 9,
+	PERF_IP_FLAG_IN_TX		= 1ULL << 10,
+};
+
+#define PERF_BRANCH_MASK		(\
+	PERF_IP_FLAG_BRANCH		|\
+	PERF_IP_FLAG_CALL		|\
+	PERF_IP_FLAG_RETURN		|\
+	PERF_IP_FLAG_CONDITIONAL	|\
+	PERF_IP_FLAG_SYSCALLRET		|\
+	PERF_IP_FLAG_ASYNC		|\
+	PERF_IP_FLAG_INTERRUPT		|\
+	PERF_IP_FLAG_TX_ABORT		|\
+	PERF_IP_FLAG_TRACE_BEGIN	|\
+	PERF_IP_FLAG_TRACE_END)
+
 struct perf_sample {
 	u64 ip;
 	u32 pid, tid;
@@ -162,6 +188,7 @@ struct perf_sample {
 	struct ip_callchain *callchain;
 	struct branch_stack *branch_stack;
 	struct regs_dump  user_regs;
+	struct regs_dump  intr_regs;
 	struct stack_dump user_stack;
 	struct sample_read read;
 };
@@ -187,6 +214,7 @@ enum perf_user_event_type { /* above any possible kernel type */
 	PERF_RECORD_HEADER_TRACING_DATA		= 66,
 	PERF_RECORD_HEADER_BUILD_ID		= 67,
 	PERF_RECORD_FINISHED_ROUND		= 68,
+	PERF_RECORD_ID_INDEX			= 69,
 	PERF_RECORD_HEADER_MAX
 };
 
@@ -214,6 +242,7 @@ struct events_stats {
 	u32 nr_invalid_chains;
 	u32 nr_unknown_id;
 	u32 nr_unprocessable_samples;
+	u32 nr_unordered_events;
 };
 
 struct attr_event {
@@ -239,6 +268,19 @@ struct tracing_data_event {
 	u32 size;
 };
 
+struct id_index_entry {
+	u64 id;
+	u64 idx;
+	u64 cpu;
+	u64 tid;
+};
+
+struct id_index_event {
+	struct perf_event_header header;
+	u64 nr;
+	struct id_index_entry entries[0];
+};
+
 union perf_event {
 	struct perf_event_header	header;
 	struct mmap_event		mmap;
@@ -253,6 +295,7 @@ union perf_event {
 	struct event_type_event		event_type;
 	struct tracing_data_event	tracing_data;
 	struct build_id_event		build_id;
+	struct id_index_event		id_index;
 };
 
 void perf_event__print_totals(void);
@@ -322,7 +365,6 @@ bool is_bts_event(struct perf_event_attr *attr);
 bool sample_addr_correlates_sym(struct perf_event_attr *attr);
 void perf_event__preprocess_sample_addr(union perf_event *event,
 					struct perf_sample *sample,
-					struct machine *machine,
 					struct thread *thread,
 					struct addr_location *al);
 

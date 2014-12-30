@@ -347,8 +347,7 @@ static void pixcir_input_close(struct input_dev *dev)
 	pixcir_stop(ts);
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int pixcir_i2c_ts_suspend(struct device *dev)
+static int __maybe_unused pixcir_i2c_ts_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct pixcir_i2c_ts_data *ts = i2c_get_clientdata(client);
@@ -377,7 +376,7 @@ unlock:
 	return ret;
 }
 
-static int pixcir_i2c_ts_resume(struct device *dev)
+static int __maybe_unused pixcir_i2c_ts_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct pixcir_i2c_ts_data *ts = i2c_get_clientdata(client);
@@ -405,7 +404,6 @@ unlock:
 
 	return ret;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(pixcir_dev_pm_ops,
 			 pixcir_i2c_ts_suspend, pixcir_i2c_ts_resume);

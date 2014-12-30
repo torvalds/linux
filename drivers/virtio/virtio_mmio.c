@@ -142,7 +142,7 @@ struct virtio_mmio_vq_info {
 
 /* Configuration interface */
 
-static u32 vm_get_features(struct virtio_device *vdev)
+static u64 vm_get_features(struct virtio_device *vdev)
 {
 	struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vdev);
 
@@ -152,19 +152,20 @@ static u32 vm_get_features(struct virtio_device *vdev)
 	return readl(vm_dev->base + VIRTIO_MMIO_HOST_FEATURES);
 }
 
-static void vm_finalize_features(struct virtio_device *vdev)
+static int vm_finalize_features(struct virtio_device *vdev)
 {
 	struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vdev);
-	int i;
 
 	/* Give virtio_ring a chance to accept features. */
 	vring_transport_features(vdev);
 
-	for (i = 0; i < ARRAY_SIZE(vdev->features); i++) {
-		writel(i, vm_dev->base + VIRTIO_MMIO_GUEST_FEATURES_SEL);
-		writel(vdev->features[i],
-				vm_dev->base + VIRTIO_MMIO_GUEST_FEATURES);
-	}
+	/* Make sure we don't have any features > 32 bits! */
+	BUG_ON((u32)vdev->features != vdev->features);
+
+	writel(0, vm_dev->base + VIRTIO_MMIO_GUEST_FEATURES_SEL);
+	writel(vdev->features, vm_dev->base + VIRTIO_MMIO_GUEST_FEATURES);
+
+	return 0;
 }
 
 static void vm_get(struct virtio_device *vdev, unsigned offset,
@@ -639,7 +640,6 @@ static struct platform_driver virtio_mmio_driver = {
 	.remove		= virtio_mmio_remove,
 	.driver		= {
 		.name	= "virtio-mmio",
-		.owner	= THIS_MODULE,
 		.of_match_table	= virtio_mmio_match,
 	},
 };

@@ -193,7 +193,9 @@ static bool netvsc_set_hash(u32 *hash, struct sk_buff *skb)
 	struct flow_keys flow;
 	int data_len;
 
-	if (!skb_flow_dissect(skb, &flow) || flow.n_proto != htons(ETH_P_IP))
+	if (!skb_flow_dissect(skb, &flow) ||
+	    !(flow.n_proto == htons(ETH_P_IP) ||
+	      flow.n_proto == htons(ETH_P_IPV6)))
 		return false;
 
 	if (flow.ip_proto == IPPROTO_TCP)
@@ -697,9 +699,10 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 		return -ENODEV;
 
 	if (nvdev->nvsp_version >= NVSP_PROTOCOL_VERSION_2)
-		limit = NETVSC_MTU;
+		limit = NETVSC_MTU - ETH_HLEN;
 
-	if (mtu < 68 || mtu > limit)
+	/* Hyper-V hosts don't support MTU < ETH_DATA_LEN (1500) */
+	if (mtu < ETH_DATA_LEN || mtu > limit)
 		return -EINVAL;
 
 	nvdev->start_remove = true;

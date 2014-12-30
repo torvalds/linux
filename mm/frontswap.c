@@ -182,7 +182,7 @@ void __frontswap_init(unsigned type, unsigned long *map)
 	if (frontswap_ops)
 		frontswap_ops->init(type);
 	else {
-		BUG_ON(type > MAX_SWAPFILES);
+		BUG_ON(type >= MAX_SWAPFILES);
 		set_bit(type, need_init);
 	}
 }

@@ -746,7 +746,7 @@ static int fallback_migrate_page(struct address_space *mapping,
  *  MIGRATEPAGE_SUCCESS - success
  */
 static int move_to_new_page(struct page *newpage, struct page *page,
-				int remap_swapcache, enum migrate_mode mode)
+				int page_was_mapped, enum migrate_mode mode)
 {
 	struct address_space *mapping;
 	int rc;
@@ -784,7 +784,7 @@ static int move_to_new_page(struct page *newpage, struct page *page,
 		newpage->mapping = NULL;
 	} else {
 		mem_cgroup_migrate(page, newpage, false);
-		if (remap_swapcache)
+		if (page_was_mapped)
 			remove_migration_ptes(page, newpage);
 		page->mapping = NULL;
 	}
@@ -798,7 +798,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
 				int force, enum migrate_mode mode)
 {
 	int rc = -EAGAIN;
-	int remap_swapcache = 1;
+	int page_was_mapped = 0;
 	struct anon_vma *anon_vma = NULL;
 
 	if (!trylock_page(page)) {
@@ -870,7 +870,6 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
 			 * migrated but are not remapped when migration
 			 * completes
 			 */
-			remap_swapcache = 0;
 		} else {
 			goto out_unlock;
 		}
@@ -910,13 +909,17 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
 	}
 
 	/* Establish migration ptes or remove ptes */
-	try_to_unmap(page, TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
+	if (page_mapped(page)) {
+		try_to_unmap(page,
+			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
+		page_was_mapped = 1;
+	}
 
 skip_unmap:
 	if (!page_mapped(page))
-		rc = move_to_new_page(newpage, page, remap_swapcache, mode);
+		rc = move_to_new_page(newpage, page, page_was_mapped, mode);
 
-	if (rc && remap_swapcache)
+	if (rc && page_was_mapped)
 		remove_migration_ptes(page, page);
 
 	/* Drop an anon_vma reference if we took one */
@@ -1017,6 +1020,7 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
 {
 	int rc = 0;
 	int *result = NULL;
+	int page_was_mapped = 0;
 	struct page *new_hpage;
 	struct anon_vma *anon_vma = NULL;
 
@@ -1047,12 +1051,16 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
 	if (PageAnon(hpage))
 		anon_vma = page_get_anon_vma(hpage);
 
-	try_to_unmap(hpage, TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
+	if (page_mapped(hpage)) {
+		try_to_unmap(hpage,
+			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
+		page_was_mapped = 1;
+	}
 
 	if (!page_mapped(hpage))
-		rc = move_to_new_page(new_hpage, hpage, 1, mode);
+		rc = move_to_new_page(new_hpage, hpage, page_was_mapped, mode);
 
-	if (rc != MIGRATEPAGE_SUCCESS)
+	if (rc != MIGRATEPAGE_SUCCESS && page_was_mapped)
 		remove_migration_ptes(hpage, hpage);
 
 	if (anon_vma)
@@ -1528,27 +1536,6 @@ out:
 	return err;
 }
 
-/*
- * Call migration functions in the vma_ops that may prepare
- * memory in a vm for migration. migration functions may perform
- * the migration for vmas that do not have an underlying page struct.
- */
-int migrate_vmas(struct mm_struct *mm, const nodemask_t *to,
-	const nodemask_t *from, unsigned long flags)
-{
- 	struct vm_area_struct *vma;
- 	int err = 0;
-
-	for (vma = mm->mmap; vma && !err; vma = vma->vm_next) {
- 		if (vma->vm_ops && vma->vm_ops->migrate) {
- 			err = vma->vm_ops->migrate(vma, to, from, flags);
- 			if (err)
- 				break;
- 		}
- 	}
- 	return err;
-}
-
 #ifdef CONFIG_NUMA_BALANCING
 /*
  * Returns true if this is a safe migration target node for misplaced NUMA
@@ -1854,7 +1841,7 @@ fail_putback:
 	 */
 	flush_cache_range(vma, mmun_start, mmun_end);
 	page_add_anon_rmap(new_page, vma, mmun_start);
-	pmdp_clear_flush(vma, mmun_start, pmd);
+	pmdp_clear_flush_notify(vma, mmun_start, pmd);
 	set_pmd_at(mm, mmun_start, pmd, entry);
 	flush_tlb_range(vma, mmun_start, mmun_end);
 	update_mmu_cache_pmd(vma, address, &entry);
@@ -1862,6 +1849,7 @@ fail_putback:
 	if (page_count(page) != 2) {
 		set_pmd_at(mm, mmun_start, pmd, orig_entry);
 		flush_tlb_range(vma, mmun_start, mmun_end);
+		mmu_notifier_invalidate_range(mm, mmun_start, mmun_end);
 		update_mmu_cache_pmd(vma, address, &entry);
 		page_remove_rmap(new_page);
 		goto fail_putback;

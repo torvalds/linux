@@ -22,6 +22,7 @@
  * MCHAN: multi-channel for concurrent P2P.
  */
 #define BRCMF_FEAT_LIST \
+	BRCMF_FEAT_DEF(MBSS) \
 	BRCMF_FEAT_DEF(MCHAN) \
 	BRCMF_FEAT_DEF(WOWL)
 /*

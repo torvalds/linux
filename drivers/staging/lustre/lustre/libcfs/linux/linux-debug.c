@@ -87,8 +87,7 @@ void libcfs_run_debug_log_upcall(char *file)
 
 	rc = call_usermodehelper(argv[0], argv, envp, 1);
 	if (rc < 0 && rc != -ENOENT) {
-		CERROR("Error %d invoking LNET debug log upcall %s %s; "
-		       "check /proc/sys/lnet/debug_log_upcall\n",
+		CERROR("Error %d invoking LNET debug log upcall %s %s; check /proc/sys/lnet/debug_log_upcall\n",
 		       rc, argv[0], argv[1]);
 	} else {
 		CDEBUG(D_HA, "Invoked LNET debug log upcall %s %s\n",
@@ -114,8 +113,7 @@ void libcfs_run_upcall(char **argv)
 
 	rc = call_usermodehelper(argv[0], argv, envp, 1);
 	if (rc < 0 && rc != -ENOENT) {
-		CERROR("Error %d invoking LNET upcall %s %s%s%s%s%s%s%s%s; "
-		       "check /proc/sys/lnet/upcall\n",
+		CERROR("Error %d invoking LNET upcall %s %s%s%s%s%s%s%s%s; check /proc/sys/lnet/upcall\n",
 		       rc, argv[0], argv[1],
 		       argc < 3 ? "" : ",", argc < 3 ? "" : argv[2],
 		       argc < 4 ? "" : ",", argc < 4 ? "" : argv[3],

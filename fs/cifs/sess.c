@@ -46,7 +46,7 @@ static __u32 cifs_ssetup_hdr(struct cifs_ses *ses, SESSION_SETUP_ANDX *pSMB)
 					CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4,
 					USHRT_MAX));
 	pSMB->req.MaxMpxCount = cpu_to_le16(ses->server->maxReq);
-	pSMB->req.VcNumber = __constant_cpu_to_le16(1);
+	pSMB->req.VcNumber = cpu_to_le16(1);
 
 	/* Now no need to set SMBFLG_CASELESS or obsolete CANONICAL PATH */
 
@@ -1302,6 +1302,11 @@ sess_auth_rawntlmssp_authenticate(struct sess_data *sess_data)
 
 	if (le16_to_cpu(pSMB->resp.Action) & GUEST_LOGIN)
 		cifs_dbg(FYI, "Guest login\n"); /* BB mark SesInfo struct? */
+
+	if (ses->Suid != smb_buf->Uid) {
+		ses->Suid = smb_buf->Uid;
+		cifs_dbg(FYI, "UID changed! new UID = %llu\n", ses->Suid);
+	}
 
 	bytes_remaining = get_bcc(smb_buf);
 	bcc_ptr = pByteArea(smb_buf);

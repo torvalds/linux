@@ -171,7 +171,6 @@ static int r8192_wx_set_crcmon(struct net_device *dev,
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int *parms = (int *)extra;
 	int enable = (parms[0] > 0);
-	short prev = priv->crcmon;
 
 	down(&priv->wx_sem);
 
@@ -182,11 +181,6 @@ static int r8192_wx_set_crcmon(struct net_device *dev,
 
 	DMESG("bad CRC in monitor mode are %s",
 	      priv->crcmon ? "accepted" : "rejected");
-
-	if (prev != priv->crcmon && priv->up) {
-		/* rtl8180_down(dev); */
-		/* rtl8180_up(dev); */
-	}
 
 	up(&priv->wx_sem);
 

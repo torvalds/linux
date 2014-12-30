@@ -119,6 +119,18 @@ struct tpg_data {
 	u32				fourcc;
 	bool				is_yuv;
 	u32				colorspace;
+	u32				ycbcr_enc;
+	/*
+	 * Stores the actual Y'CbCr encoding, i.e. will never be
+	 * V4L2_YCBCR_ENC_DEFAULT.
+	 */
+	u32				real_ycbcr_enc;
+	u32				quantization;
+	/*
+	 * Stores the actual quantization, i.e. will never be
+	 * V4L2_QUANTIZATION_DEFAULT.
+	 */
+	u32				real_quantization;
 	enum tpg_video_aspect		vid_aspect;
 	enum tpg_pixel_aspect		pix_aspect;
 	unsigned			rgb_range;
@@ -284,6 +296,32 @@ static inline void tpg_s_colorspace(struct tpg_data *tpg, u32 colorspace)
 static inline u32 tpg_g_colorspace(const struct tpg_data *tpg)
 {
 	return tpg->colorspace;
+}
+
+static inline void tpg_s_ycbcr_enc(struct tpg_data *tpg, u32 ycbcr_enc)
+{
+	if (tpg->ycbcr_enc == ycbcr_enc)
+		return;
+	tpg->ycbcr_enc = ycbcr_enc;
+	tpg->recalc_colors = true;
+}
+
+static inline u32 tpg_g_ycbcr_enc(const struct tpg_data *tpg)
+{
+	return tpg->ycbcr_enc;
+}
+
+static inline void tpg_s_quantization(struct tpg_data *tpg, u32 quantization)
+{
+	if (tpg->quantization == quantization)
+		return;
+	tpg->quantization = quantization;
+	tpg->recalc_colors = true;
+}
+
+static inline u32 tpg_g_quantization(const struct tpg_data *tpg)
+{
+	return tpg->quantization;
 }
 
 static inline unsigned tpg_g_planes(const struct tpg_data *tpg)

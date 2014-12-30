@@ -36,7 +36,7 @@
 /*
  * Callback function for readdir
  */
-typedef int (*nfsd_dirop_t)(struct inode *, struct dentry *, int, int);
+typedef int (*nfsd_filldir_t)(void *, const char *, int, loff_t, u64, unsigned);
 
 /* nfsd/vfs.c */
 int		nfsd_racache_init(int);
@@ -54,6 +54,8 @@ int nfsd_mountpoint(struct dentry *, struct svc_export *);
 #ifdef CONFIG_NFSD_V4
 __be32          nfsd4_set_nfs4_label(struct svc_rqst *, struct svc_fh *,
 		    struct xdr_netobj *);
+__be32		nfsd4_vfs_fallocate(struct svc_rqst *, struct svc_fh *,
+				    struct file *, loff_t, loff_t, int);
 #endif /* CONFIG_NFSD_V4 */
 __be32		nfsd_create(struct svc_rqst *, struct svc_fh *,
 				char *name, int len, struct iattr *attrs,
@@ -95,7 +97,7 @@ __be32		nfsd_rename(struct svc_rqst *,
 __be32		nfsd_unlink(struct svc_rqst *, struct svc_fh *, int type,
 				char *name, int len);
 __be32		nfsd_readdir(struct svc_rqst *, struct svc_fh *,
-			     loff_t *, struct readdir_cd *, filldir_t);
+			     loff_t *, struct readdir_cd *, nfsd_filldir_t);
 __be32		nfsd_statfs(struct svc_rqst *, struct svc_fh *,
 				struct kstatfs *, int access);
 

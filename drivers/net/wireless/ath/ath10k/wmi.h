@@ -222,128 +222,131 @@ static inline char *wmi_service_name(int service_id)
 #undef SVCSTR
 }
 
-#define WMI_SERVICE_IS_ENABLED(wmi_svc_bmap, svc_id) \
-	(__le32_to_cpu((wmi_svc_bmap)[(svc_id)/(sizeof(u32))]) & \
+#define WMI_SERVICE_IS_ENABLED(wmi_svc_bmap, svc_id, len) \
+	((svc_id) < (len) && \
+	 __le32_to_cpu((wmi_svc_bmap)[(svc_id)/(sizeof(u32))]) & \
 	 BIT((svc_id)%(sizeof(u32))))
 
-#define SVCMAP(x, y) \
+#define SVCMAP(x, y, len) \
 	do { \
-		if (WMI_SERVICE_IS_ENABLED((in), (x))) \
+		if (WMI_SERVICE_IS_ENABLED((in), (x), (len))) \
 			__set_bit(y, out); \
 	} while (0)
 
-static inline void wmi_10x_svc_map(const __le32 *in, unsigned long *out)
+static inline void wmi_10x_svc_map(const __le32 *in, unsigned long *out,
+				   size_t len)
 {
 	SVCMAP(WMI_10X_SERVICE_BEACON_OFFLOAD,
-	       WMI_SERVICE_BEACON_OFFLOAD);
+	       WMI_SERVICE_BEACON_OFFLOAD, len);
 	SVCMAP(WMI_10X_SERVICE_SCAN_OFFLOAD,
-	       WMI_SERVICE_SCAN_OFFLOAD);
+	       WMI_SERVICE_SCAN_OFFLOAD, len);
 	SVCMAP(WMI_10X_SERVICE_ROAM_OFFLOAD,
-	       WMI_SERVICE_ROAM_OFFLOAD);
+	       WMI_SERVICE_ROAM_OFFLOAD, len);
 	SVCMAP(WMI_10X_SERVICE_BCN_MISS_OFFLOAD,
-	       WMI_SERVICE_BCN_MISS_OFFLOAD);
+	       WMI_SERVICE_BCN_MISS_OFFLOAD, len);
 	SVCMAP(WMI_10X_SERVICE_STA_PWRSAVE,
-	       WMI_SERVICE_STA_PWRSAVE);
+	       WMI_SERVICE_STA_PWRSAVE, len);
 	SVCMAP(WMI_10X_SERVICE_STA_ADVANCED_PWRSAVE,
-	       WMI_SERVICE_STA_ADVANCED_PWRSAVE);
+	       WMI_SERVICE_STA_ADVANCED_PWRSAVE, len);
 	SVCMAP(WMI_10X_SERVICE_AP_UAPSD,
-	       WMI_SERVICE_AP_UAPSD);
+	       WMI_SERVICE_AP_UAPSD, len);
 	SVCMAP(WMI_10X_SERVICE_AP_DFS,
-	       WMI_SERVICE_AP_DFS);
+	       WMI_SERVICE_AP_DFS, len);
 	SVCMAP(WMI_10X_SERVICE_11AC,
-	       WMI_SERVICE_11AC);
+	       WMI_SERVICE_11AC, len);
 	SVCMAP(WMI_10X_SERVICE_BLOCKACK,
-	       WMI_SERVICE_BLOCKACK);
+	       WMI_SERVICE_BLOCKACK, len);
 	SVCMAP(WMI_10X_SERVICE_PHYERR,
-	       WMI_SERVICE_PHYERR);
+	       WMI_SERVICE_PHYERR, len);
 	SVCMAP(WMI_10X_SERVICE_BCN_FILTER,
-	       WMI_SERVICE_BCN_FILTER);
+	       WMI_SERVICE_BCN_FILTER, len);
 	SVCMAP(WMI_10X_SERVICE_RTT,
-	       WMI_SERVICE_RTT);
+	       WMI_SERVICE_RTT, len);
 	SVCMAP(WMI_10X_SERVICE_RATECTRL,
-	       WMI_SERVICE_RATECTRL);
+	       WMI_SERVICE_RATECTRL, len);
 	SVCMAP(WMI_10X_SERVICE_WOW,
-	       WMI_SERVICE_WOW);
+	       WMI_SERVICE_WOW, len);
 	SVCMAP(WMI_10X_SERVICE_RATECTRL_CACHE,
-	       WMI_SERVICE_RATECTRL_CACHE);
+	       WMI_SERVICE_RATECTRL_CACHE, len);
 	SVCMAP(WMI_10X_SERVICE_IRAM_TIDS,
-	       WMI_SERVICE_IRAM_TIDS);
+	       WMI_SERVICE_IRAM_TIDS, len);
 	SVCMAP(WMI_10X_SERVICE_BURST,
-	       WMI_SERVICE_BURST);
+	       WMI_SERVICE_BURST, len);
 	SVCMAP(WMI_10X_SERVICE_SMART_ANTENNA_SW_SUPPORT,
-	       WMI_SERVICE_SMART_ANTENNA_SW_SUPPORT);
+	       WMI_SERVICE_SMART_ANTENNA_SW_SUPPORT, len);
 	SVCMAP(WMI_10X_SERVICE_FORCE_FW_HANG,
-	       WMI_SERVICE_FORCE_FW_HANG);
+	       WMI_SERVICE_FORCE_FW_HANG, len);
 	SVCMAP(WMI_10X_SERVICE_SMART_ANTENNA_HW_SUPPORT,
-	       WMI_SERVICE_SMART_ANTENNA_HW_SUPPORT);
+	       WMI_SERVICE_SMART_ANTENNA_HW_SUPPORT, len);
 }
 
-static inline void wmi_main_svc_map(const __le32 *in, unsigned long *out)
+static inline void wmi_main_svc_map(const __le32 *in, unsigned long *out,
+				    size_t len)
 {
 	SVCMAP(WMI_MAIN_SERVICE_BEACON_OFFLOAD,
-	       WMI_SERVICE_BEACON_OFFLOAD);
+	       WMI_SERVICE_BEACON_OFFLOAD, len);
 	SVCMAP(WMI_MAIN_SERVICE_SCAN_OFFLOAD,
-	       WMI_SERVICE_SCAN_OFFLOAD);
+	       WMI_SERVICE_SCAN_OFFLOAD, len);
 	SVCMAP(WMI_MAIN_SERVICE_ROAM_OFFLOAD,
-	       WMI_SERVICE_ROAM_OFFLOAD);
+	       WMI_SERVICE_ROAM_OFFLOAD, len);
 	SVCMAP(WMI_MAIN_SERVICE_BCN_MISS_OFFLOAD,
-	       WMI_SERVICE_BCN_MISS_OFFLOAD);
+	       WMI_SERVICE_BCN_MISS_OFFLOAD, len);
 	SVCMAP(WMI_MAIN_SERVICE_STA_PWRSAVE,
-	       WMI_SERVICE_STA_PWRSAVE);
+	       WMI_SERVICE_STA_PWRSAVE, len);
 	SVCMAP(WMI_MAIN_SERVICE_STA_ADVANCED_PWRSAVE,
-	       WMI_SERVICE_STA_ADVANCED_PWRSAVE);
+	       WMI_SERVICE_STA_ADVANCED_PWRSAVE, len);
 	SVCMAP(WMI_MAIN_SERVICE_AP_UAPSD,
-	       WMI_SERVICE_AP_UAPSD);
+	       WMI_SERVICE_AP_UAPSD, len);
 	SVCMAP(WMI_MAIN_SERVICE_AP_DFS,
-	       WMI_SERVICE_AP_DFS);
+	       WMI_SERVICE_AP_DFS, len);
 	SVCMAP(WMI_MAIN_SERVICE_11AC,
-	       WMI_SERVICE_11AC);
+	       WMI_SERVICE_11AC, len);
 	SVCMAP(WMI_MAIN_SERVICE_BLOCKACK,
-	       WMI_SERVICE_BLOCKACK);
+	       WMI_SERVICE_BLOCKACK, len);
 	SVCMAP(WMI_MAIN_SERVICE_PHYERR,
-	       WMI_SERVICE_PHYERR);
+	       WMI_SERVICE_PHYERR, len);
 	SVCMAP(WMI_MAIN_SERVICE_BCN_FILTER,
-	       WMI_SERVICE_BCN_FILTER);
+	       WMI_SERVICE_BCN_FILTER, len);
 	SVCMAP(WMI_MAIN_SERVICE_RTT,
-	       WMI_SERVICE_RTT);
+	       WMI_SERVICE_RTT, len);
 	SVCMAP(WMI_MAIN_SERVICE_RATECTRL,
-	       WMI_SERVICE_RATECTRL);
+	       WMI_SERVICE_RATECTRL, len);
 	SVCMAP(WMI_MAIN_SERVICE_WOW,
-	       WMI_SERVICE_WOW);
+	       WMI_SERVICE_WOW, len);
 	SVCMAP(WMI_MAIN_SERVICE_RATECTRL_CACHE,
-	       WMI_SERVICE_RATECTRL_CACHE);
+	       WMI_SERVICE_RATECTRL_CACHE, len);
 	SVCMAP(WMI_MAIN_SERVICE_IRAM_TIDS,
-	       WMI_SERVICE_IRAM_TIDS);
+	       WMI_SERVICE_IRAM_TIDS, len);
 	SVCMAP(WMI_MAIN_SERVICE_ARPNS_OFFLOAD,
-	       WMI_SERVICE_ARPNS_OFFLOAD);
+	       WMI_SERVICE_ARPNS_OFFLOAD, len);
 	SVCMAP(WMI_MAIN_SERVICE_NLO,
-	       WMI_SERVICE_NLO);
+	       WMI_SERVICE_NLO, len);
 	SVCMAP(WMI_MAIN_SERVICE_GTK_OFFLOAD,
-	       WMI_SERVICE_GTK_OFFLOAD);
+	       WMI_SERVICE_GTK_OFFLOAD, len);
 	SVCMAP(WMI_MAIN_SERVICE_SCAN_SCH,
-	       WMI_SERVICE_SCAN_SCH);
+	       WMI_SERVICE_SCAN_SCH, len);
 	SVCMAP(WMI_MAIN_SERVICE_CSA_OFFLOAD,
-	       WMI_SERVICE_CSA_OFFLOAD);
+	       WMI_SERVICE_CSA_OFFLOAD, len);
 	SVCMAP(WMI_MAIN_SERVICE_CHATTER,
-	       WMI_SERVICE_CHATTER);
+	       WMI_SERVICE_CHATTER, len);
 	SVCMAP(WMI_MAIN_SERVICE_COEX_FREQAVOID,
-	       WMI_SERVICE_COEX_FREQAVOID);
+	       WMI_SERVICE_COEX_FREQAVOID, len);
 	SVCMAP(WMI_MAIN_SERVICE_PACKET_POWER_SAVE,
-	       WMI_SERVICE_PACKET_POWER_SAVE);
+	       WMI_SERVICE_PACKET_POWER_SAVE, len);
 	SVCMAP(WMI_MAIN_SERVICE_FORCE_FW_HANG,
-	       WMI_SERVICE_FORCE_FW_HANG);
+	       WMI_SERVICE_FORCE_FW_HANG, len);
 	SVCMAP(WMI_MAIN_SERVICE_GPIO,
-	       WMI_SERVICE_GPIO);
+	       WMI_SERVICE_GPIO, len);
 	SVCMAP(WMI_MAIN_SERVICE_STA_DTIM_PS_MODULATED_DTIM,
-	       WMI_SERVICE_STA_DTIM_PS_MODULATED_DTIM);
+	       WMI_SERVICE_STA_DTIM_PS_MODULATED_DTIM, len);
 	SVCMAP(WMI_MAIN_SERVICE_STA_UAPSD_BASIC_AUTO_TRIG,
-	       WMI_SERVICE_STA_UAPSD_BASIC_AUTO_TRIG);
+	       WMI_SERVICE_STA_UAPSD_BASIC_AUTO_TRIG, len);
 	SVCMAP(WMI_MAIN_SERVICE_STA_UAPSD_VAR_AUTO_TRIG,
-	       WMI_SERVICE_STA_UAPSD_VAR_AUTO_TRIG);
+	       WMI_SERVICE_STA_UAPSD_VAR_AUTO_TRIG, len);
 	SVCMAP(WMI_MAIN_SERVICE_STA_KEEP_ALIVE,
-	       WMI_SERVICE_STA_KEEP_ALIVE);
+	       WMI_SERVICE_STA_KEEP_ALIVE, len);
 	SVCMAP(WMI_MAIN_SERVICE_TX_ENCAP,
-	       WMI_SERVICE_TX_ENCAP);
+	       WMI_SERVICE_TX_ENCAP, len);
 }
 
 #undef SVCMAP
@@ -1428,11 +1431,11 @@ struct wmi_service_ready_event {
 	 * where FW can access this memory directly (or) by DMA.
 	 */
 	__le32 num_mem_reqs;
-	struct wlan_host_mem_req mem_reqs[1];
+	struct wlan_host_mem_req mem_reqs[0];
 } __packed;
 
 /* This is the definition from 10.X firmware branch */
-struct wmi_service_ready_event_10x {
+struct wmi_10x_service_ready_event {
 	__le32 sw_version;
 	__le32 abi_version;
 
@@ -1467,7 +1470,7 @@ struct wmi_service_ready_event_10x {
 	 */
 	__le32 num_mem_reqs;
 
-	struct wlan_host_mem_req mem_reqs[1];
+	struct wlan_host_mem_req mem_reqs[0];
 } __packed;
 
 #define WMI_SERVICE_READY_TIMEOUT_HZ (5*HZ)
@@ -1883,38 +1886,26 @@ struct host_memory_chunk {
 	__le32 size;
 } __packed;
 
+struct wmi_host_mem_chunks {
+	__le32 count;
+	/* some fw revisions require at least 1 chunk regardless of count */
+	struct host_memory_chunk items[1];
+} __packed;
+
 struct wmi_init_cmd {
 	struct wmi_resource_config resource_config;
-	__le32 num_host_mem_chunks;
-
-	/*
-	 * variable number of host memory chunks.
-	 * This should be the last element in the structure
-	 */
-	struct host_memory_chunk host_mem_chunks[1];
+	struct wmi_host_mem_chunks mem_chunks;
 } __packed;
 
 /* _10x stucture is from 10.X FW API */
 struct wmi_init_cmd_10x {
 	struct wmi_resource_config_10x resource_config;
-	__le32 num_host_mem_chunks;
-
-	/*
-	 * variable number of host memory chunks.
-	 * This should be the last element in the structure
-	 */
-	struct host_memory_chunk host_mem_chunks[1];
+	struct wmi_host_mem_chunks mem_chunks;
 } __packed;
 
 struct wmi_init_cmd_10_2 {
 	struct wmi_resource_config_10_2 resource_config;
-	__le32 num_host_mem_chunks;
-
-	/*
-	 * variable number of host memory chunks.
-	 * This should be the last element in the structure
-	 */
-	struct host_memory_chunk host_mem_chunks[1];
+	struct wmi_host_mem_chunks mem_chunks;
 } __packed;
 
 struct wmi_chan_list_entry {
@@ -1964,6 +1955,11 @@ struct wmi_ssid_list {
 #define WLAN_SCAN_PARAMS_MAX_BSSID   4
 #define WLAN_SCAN_PARAMS_MAX_IE_LEN  256
 
+/* Values lower than this may be refused by some firmware revisions with a scan
+ * completion with a timedout reason.
+ */
+#define WMI_SCAN_CHAN_MIN_TIME_MSEC 40
+
 /* Scan priority numbers must be sequential, starting with 0 */
 enum wmi_scan_priority {
 	WMI_SCAN_PRIORITY_VERY_LOW = 0,
@@ -1974,7 +1970,7 @@ enum wmi_scan_priority {
 	WMI_SCAN_PRIORITY_COUNT   /* number of priorities supported */
 };
 
-struct wmi_start_scan_cmd {
+struct wmi_start_scan_common {
 	/* Scan ID */
 	__le32 scan_id;
 	/* Scan requestor ID */
@@ -2032,95 +2028,25 @@ struct wmi_start_scan_cmd {
 	__le32 probe_delay;
 	/* Scan control flags */
 	__le32 scan_ctrl_flags;
+} __packed;
 
-	/* Burst duration time in msecs */
-	__le32 burst_duration;
-	/*
-	 * TLV (tag length value )  paramerters follow the scan_cmd structure.
-	 * TLV can contain channel list, bssid list, ssid list and
-	 * ie. the TLV tags are defined above;
+struct wmi_start_scan_tlvs {
+	/* TLV parameters. These includes channel list, ssid list, bssid list,
+	 * extra ies.
 	 */
+	u8 tlvs[0];
+} __packed;
+
+struct wmi_start_scan_cmd {
+	struct wmi_start_scan_common common;
+	__le32 burst_duration_ms;
+	struct wmi_start_scan_tlvs tlvs;
 } __packed;
 
 /* This is the definition from 10.X firmware branch */
-struct wmi_start_scan_cmd_10x {
-	/* Scan ID */
-	__le32 scan_id;
-
-	/* Scan requestor ID */
-	__le32 scan_req_id;
-
-	/* VDEV id(interface) that is requesting scan */
-	__le32 vdev_id;
-
-	/* Scan Priority, input to scan scheduler */
-	__le32 scan_priority;
-
-	/* Scan events subscription */
-	__le32 notify_scan_events;
-
-	/* dwell time in msec on active channels */
-	__le32 dwell_time_active;
-
-	/* dwell time in msec on passive channels */
-	__le32 dwell_time_passive;
-
-	/*
-	 * min time in msec on the BSS channel,only valid if atleast one
-	 * VDEV is active
-	 */
-	__le32 min_rest_time;
-
-	/*
-	 * max rest time in msec on the BSS channel,only valid if at least
-	 * one VDEV is active
-	 */
-	/*
-	 * the scanner will rest on the bss channel at least min_rest_time
-	 * after min_rest_time the scanner will start checking for tx/rx
-	 * activity on all VDEVs. if there is no activity the scanner will
-	 * switch to off channel. if there is activity the scanner will let
-	 * the radio on the bss channel until max_rest_time expires.at
-	 * max_rest_time scanner will switch to off channel irrespective of
-	 * activity. activity is determined by the idle_time parameter.
-	 */
-	__le32 max_rest_time;
-
-	/*
-	 * time before sending next set of probe requests.
-	 * The scanner keeps repeating probe requests transmission with
-	 * period specified by repeat_probe_time.
-	 * The number of probe requests specified depends on the ssid_list
-	 * and bssid_list
-	 */
-	__le32 repeat_probe_time;
-
-	/* time in msec between 2 consequetive probe requests with in a set. */
-	__le32 probe_spacing_time;
-
-	/*
-	 * data inactivity time in msec on bss channel that will be used by
-	 * scanner for measuring the inactivity.
-	 */
-	__le32 idle_time;
-
-	/* maximum time in msec allowed for scan  */
-	__le32 max_scan_time;
-
-	/*
-	 * delay in msec before sending first probe request after switching
-	 * to a channel
-	 */
-	__le32 probe_delay;
-
-	/* Scan control flags */
-	__le32 scan_ctrl_flags;
-
-	/*
-	 * TLV (tag length value )  paramerters follow the scan_cmd structure.
-	 * TLV can contain channel list, bssid list, ssid list and
-	 * ie. the TLV tags are defined above;
-	 */
+struct wmi_10x_start_scan_cmd {
+	struct wmi_start_scan_common common;
+	struct wmi_start_scan_tlvs tlvs;
 } __packed;
 
 struct wmi_ssid_arg {
@@ -2306,94 +2232,25 @@ struct wmi_mgmt_rx_event_v2 {
 #define PHY_ERROR_FALSE_RADAR_EXT		0x24
 #define PHY_ERROR_RADAR				0x05
 
-struct wmi_single_phyerr_rx_hdr {
-	/* TSF timestamp */
+struct wmi_phyerr {
 	__le32 tsf_timestamp;
-
-	/*
-	 * Current freq1, freq2
-	 *
-	 * [7:0]:    freq1[lo]
-	 * [15:8] :   freq1[hi]
-	 * [23:16]:   freq2[lo]
-	 * [31:24]:   freq2[hi]
-	 */
 	__le16 freq1;
 	__le16 freq2;
-
-	/*
-	 * Combined RSSI over all chains and channel width for this PHY error
-	 *
-	 * [7:0]: RSSI combined
-	 * [15:8]: Channel width (MHz)
-	 * [23:16]: PHY error code
-	 * [24:16]: reserved (future use)
-	 */
 	u8 rssi_combined;
 	u8 chan_width_mhz;
 	u8 phy_err_code;
 	u8 rsvd0;
-
-	/*
-	 * RSSI on chain 0 through 3
-	 *
-	 * This is formatted the same as the PPDU_START RX descriptor
-	 * field:
-	 *
-	 * [7:0]:   pri20
-	 * [15:8]:  sec20
-	 * [23:16]: sec40
-	 * [31:24]: sec80
-	 */
-
-	__le32 rssi_chain0;
-	__le32 rssi_chain1;
-	__le32 rssi_chain2;
-	__le32 rssi_chain3;
-
-	/*
-	 * Last calibrated NF value for chain 0 through 3
-	 *
-	 * nf_list_1:
-	 *
-	 * + [15:0] - chain 0
-	 * + [31:16] - chain 1
-	 *
-	 * nf_list_2:
-	 *
-	 * + [15:0] - chain 2
-	 * + [31:16] - chain 3
-	 */
-	__le32 nf_list_1;
-	__le32 nf_list_2;
-
-	/* Length of the frame */
+	__le32 rssi_chains[4];
+	__le16 nf_chains[4];
 	__le32 buf_len;
+	u8 buf[0];
 } __packed;
 
-struct wmi_single_phyerr_rx_event {
-	/* Phy error event header */
-	struct wmi_single_phyerr_rx_hdr hdr;
-	/* frame buffer */
-	u8 bufp[0];
-} __packed;
-
-struct wmi_comb_phyerr_rx_hdr {
-	/* Phy error phy error count */
-	__le32 num_phyerr_events;
+struct wmi_phyerr_event {
+	__le32 num_phyerrs;
 	__le32 tsf_l32;
 	__le32 tsf_u32;
-} __packed;
-
-struct wmi_comb_phyerr_rx_event {
-	/* Phy error phy error count */
-	struct wmi_comb_phyerr_rx_hdr hdr;
-	/*
-	 * frame buffer - contains multiple payloads in the order:
-	 *                    header - payload, header - payload...
-	 *  (The header is of type: wmi_single_phyerr_rx_hdr)
-	 */
-	u8 bufp[0];
+	struct wmi_phyerr phyerrs[0];
 } __packed;
 
 #define PHYERR_TLV_SIG				0xBB
@@ -2908,11 +2765,6 @@ enum wmi_tp_scale {
 	WMI_TP_SCALE_SIZE   = 5,	/* max num of enum     */
 };
 
-struct wmi_set_channel_cmd {
-	/* channel (only frequency and mode info are used) */
-	struct wmi_channel chan;
-} __packed;
-
 struct wmi_pdev_chanlist_update_event {
 	/* number of channels */
 	__le32 num_chan;
@@ -2941,6 +2793,10 @@ enum {
 struct wmi_pdev_set_channel_cmd {
 	/* idnore power , only use flags , mode and freq */
 	struct wmi_channel chan;
+} __packed;
+
+struct wmi_pdev_pktlog_enable_cmd {
+	__le32 ev_bitmap;
 } __packed;
 
 /* Customize the DSCP (bit) to TID (0-7) mapping for QOS */
@@ -3177,7 +3033,7 @@ struct wmi_stats_event {
  * PDEV statistics
  * TODO: add all PDEV stats here
  */
-struct wmi_pdev_stats_old {
+struct wmi_pdev_stats {
 	__le32 chan_nf;        /* Channel noise floor */
 	__le32 tx_frame_count; /* TX frame count */
 	__le32 rx_frame_count; /* RX frame count */
@@ -3188,15 +3044,8 @@ struct wmi_pdev_stats_old {
 	struct wal_dbg_stats wal; /* WAL dbg stats */
 } __packed;
 
-struct wmi_pdev_stats_10x {
-	__le32 chan_nf;        /* Channel noise floor */
-	__le32 tx_frame_count; /* TX frame count */
-	__le32 rx_frame_count; /* RX frame count */
-	__le32 rx_clear_count; /* rx clear count */
-	__le32 cycle_count;    /* cycle count */
-	__le32 phy_err_count;  /* Phy error count */
-	__le32 chan_tx_pwr;    /* channel tx power */
-	struct wal_dbg_stats wal; /* WAL dbg stats */
+struct wmi_10x_pdev_stats {
+	struct wmi_pdev_stats old;
 	__le32 ack_rx_bad;
 	__le32 rts_bad;
 	__le32 rts_good;
@@ -3217,16 +3066,14 @@ struct wmi_vdev_stats {
  * peer statistics.
  * TODO: add more stats
  */
-struct wmi_peer_stats_old {
+struct wmi_peer_stats {
 	struct wmi_mac_addr peer_macaddr;
 	__le32 peer_rssi;
 	__le32 peer_tx_rate;
 } __packed;
 
-struct wmi_peer_stats_10x {
-	struct wmi_mac_addr peer_macaddr;
-	__le32 peer_rssi;
-	__le32 peer_tx_rate;
+struct wmi_10x_peer_stats {
+	struct wmi_peer_stats old;
 	__le32 peer_rx_rate;
 } __packed;
 
@@ -4708,7 +4555,6 @@ struct wmi_dbglog_cfg_cmd {
 	__le32 config_valid;
 } __packed;
 
-#define ATH10K_RTS_MAX		2347
 #define ATH10K_FRAGMT_THRESHOLD_MIN	540
 #define ATH10K_FRAGMT_THRESHOLD_MAX	2346
 
@@ -4719,8 +4565,27 @@ struct wmi_dbglog_cfg_cmd {
 /* By default disable power save for IBSS */
 #define ATH10K_DEFAULT_ATIM 0
 
+#define WMI_MAX_MEM_REQS 16
+
+struct wmi_svc_rdy_ev_arg {
+	__le32 min_tx_power;
+	__le32 max_tx_power;
+	__le32 ht_cap;
+	__le32 vht_cap;
+	__le32 sw_ver0;
+	__le32 sw_ver1;
+	__le32 phy_capab;
+	__le32 num_rf_chains;
+	__le32 eeprom_rd;
+	__le32 num_mem_reqs;
+	const __le32 *service_map;
+	size_t service_map_len;
+	const struct wlan_host_mem_req *mem_reqs[WMI_MAX_MEM_REQS];
+};
+
 struct ath10k;
 struct ath10k_vif;
+struct ath10k_fw_stats;
 
 int ath10k_wmi_attach(struct ath10k *ar);
 void ath10k_wmi_detach(struct ath10k *ar);
@@ -4732,8 +4597,6 @@ int ath10k_wmi_connect(struct ath10k *ar);
 struct sk_buff *ath10k_wmi_alloc_skb(struct ath10k *ar, u32 len);
 int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id);
 
-int ath10k_wmi_pdev_set_channel(struct ath10k *ar,
-				const struct wmi_channel_arg *);
 int ath10k_wmi_pdev_suspend_target(struct ath10k *ar, u32 suspend_opt);
 int ath10k_wmi_pdev_resume_target(struct ath10k *ar);
 int ath10k_wmi_pdev_set_regdomain(struct ath10k *ar, u16 rd, u16 rd2g,
@@ -4794,5 +4657,9 @@ int ath10k_wmi_force_fw_hang(struct ath10k *ar,
 			     enum wmi_force_fw_hang_type type, u32 delay_ms);
 int ath10k_wmi_mgmt_tx(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_wmi_dbglog_cfg(struct ath10k *ar, u32 module_enable);
+int ath10k_wmi_pull_fw_stats(struct ath10k *ar, struct sk_buff *skb,
+			     struct ath10k_fw_stats *stats);
+int ath10k_wmi_pdev_pktlog_enable(struct ath10k *ar, u32 ev_list);
+int ath10k_wmi_pdev_pktlog_disable(struct ath10k *ar);
 
 #endif /* _WMI_H_ */

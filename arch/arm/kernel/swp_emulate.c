@@ -260,7 +260,7 @@ static int __init swp_emulation_init(void)
 		return -ENOMEM;
 #endif /* CONFIG_PROC_FS */
 
-	printk(KERN_NOTICE "Registering SWP/SWPB emulation handler\n");
+	pr_notice("Registering SWP/SWPB emulation handler\n");
 	register_undef_hook(&swp_hook);
 
 	return 0;

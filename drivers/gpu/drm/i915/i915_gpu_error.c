@@ -242,11 +242,15 @@ static const char *hangcheck_action_to_str(enum intel_ring_hangcheck_action a)
 
 static void i915_ring_error_state(struct drm_i915_error_state_buf *m,
 				  struct drm_device *dev,
-				  struct drm_i915_error_ring *ring)
+				  struct drm_i915_error_state *error,
+				  int ring_idx)
 {
+	struct drm_i915_error_ring *ring = &error->ring[ring_idx];
+
 	if (!ring->valid)
 		return;
 
+	err_printf(m, "%s command stream:\n", ring_str(ring_idx));
 	err_printf(m, "  HEAD: 0x%08x\n", ring->head);
 	err_printf(m, "  TAIL: 0x%08x\n", ring->tail);
 	err_printf(m, "  CTL: 0x%08x\n", ring->ctl);
@@ -388,10 +392,8 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	if (INTEL_INFO(dev)->gen == 7)
 		err_printf(m, "ERR_INT: 0x%08x\n", error->err_int);
 
-	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
-		err_printf(m, "%s command stream:\n", ring_str(i));
-		i915_ring_error_state(m, dev, &error->ring[i]);
-	}
+	for (i = 0; i < ARRAY_SIZE(error->ring); i++)
+		i915_ring_error_state(m, dev, error, i);
 
 	for (i = 0; i < error->vm_count; i++) {
 		err_printf(m, "vm[%d]\n", i);
@@ -565,6 +567,7 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 			 struct i915_address_space *vm)
 {
 	struct drm_i915_error_object *dst;
+	struct i915_vma *vma = NULL;
 	int num_pages;
 	bool use_ggtt;
 	int i = 0;
@@ -585,16 +588,17 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 		dst->gtt_offset = -1;
 
 	reloc_offset = dst->gtt_offset;
+	if (i915_is_ggtt(vm))
+		vma = i915_gem_obj_to_ggtt(src);
 	use_ggtt = (src->cache_level == I915_CACHE_NONE &&
-		    i915_is_ggtt(vm) &&
-		    src->has_global_gtt_mapping &&
-		    reloc_offset + num_pages * PAGE_SIZE <= dev_priv->gtt.mappable_end);
+		   vma && (vma->bound & GLOBAL_BIND) &&
+		   reloc_offset + num_pages * PAGE_SIZE <= dev_priv->gtt.mappable_end);
 
 	/* Cannot access stolen address directly, try to use the aperture */
 	if (src->stolen) {
 		use_ggtt = true;
 
-		if (!src->has_global_gtt_mapping)
+		if (!(vma && vma->bound & GLOBAL_BIND))
 			goto unwind;
 
 		reloc_offset = i915_gem_obj_ggtt_offset(src);
@@ -765,6 +769,7 @@ static void i915_gem_record_fences(struct drm_device *dev,
 
 	/* Fences */
 	switch (INTEL_INFO(dev)->gen) {
+	case 9:
 	case 8:
 	case 7:
 	case 6:
@@ -804,9 +809,8 @@ static void gen8_record_semaphore_state(struct drm_i915_private *dev_priv,
 
 	if (!error->semaphore_obj)
 		error->semaphore_obj =
-			i915_error_object_create(dev_priv,
-						 dev_priv->semaphore_obj,
-						 &dev_priv->gtt.base);
+			i915_error_ggtt_object_create(dev_priv,
+						      dev_priv->semaphore_obj);
 
 	for_each_ring(to, dev_priv, i) {
 		int idx;
@@ -923,6 +927,7 @@ static void i915_record_ring_state(struct drm_device *dev,
 		ering->vm_info.gfx_mode = I915_READ(RING_MODE_GEN7(ring));
 
 		switch (INTEL_INFO(dev)->gen) {
+		case 9:
 		case 8:
 			for (i = 0; i < 4; i++) {
 				ering->vm_info.pdp[i] =
@@ -1238,7 +1243,8 @@ static void i915_error_capture_msg(struct drm_device *dev,
 	ecode = i915_error_generate_code(dev_priv, error, &ring_id);
 
 	len = scnprintf(error->error_msg, sizeof(error->error_msg),
-			"GPU HANG: ecode %d:0x%08x", ring_id, ecode);
+			"GPU HANG: ecode %d:%d:0x%08x",
+			INTEL_INFO(dev)->gen, ring_id, ecode);
 
 	if (ring_id != -1 && error->ring[ring_id].pid != -1)
 		len += scnprintf(error->error_msg + len,
@@ -1326,13 +1332,12 @@ void i915_error_state_get(struct drm_device *dev,
 			  struct i915_error_state_file_priv *error_priv)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long flags;
 
-	spin_lock_irqsave(&dev_priv->gpu_error.lock, flags);
+	spin_lock_irq(&dev_priv->gpu_error.lock);
 	error_priv->error = dev_priv->gpu_error.first_error;
 	if (error_priv->error)
 		kref_get(&error_priv->error->ref);
-	spin_unlock_irqrestore(&dev_priv->gpu_error.lock, flags);
+	spin_unlock_irq(&dev_priv->gpu_error.lock);
 
 }
 
@@ -1346,12 +1351,11 @@ void i915_destroy_error_state(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_error_state *error;
-	unsigned long flags;
 
-	spin_lock_irqsave(&dev_priv->gpu_error.lock, flags);
+	spin_lock_irq(&dev_priv->gpu_error.lock);
 	error = dev_priv->gpu_error.first_error;
 	dev_priv->gpu_error.first_error = NULL;
-	spin_unlock_irqrestore(&dev_priv->gpu_error.lock, flags);
+	spin_unlock_irq(&dev_priv->gpu_error.lock);
 
 	if (error)
 		kref_put(&error->ref, i915_error_state_free);
@@ -1389,6 +1393,7 @@ void i915_get_extra_instdone(struct drm_device *dev, uint32_t *instdone)
 		WARN_ONCE(1, "Unsupported platform\n");
 	case 7:
 	case 8:
+	case 9:
 		instdone[0] = I915_READ(GEN7_INSTDONE_1);
 		instdone[1] = I915_READ(GEN7_SC_INSTDONE);
 		instdone[2] = I915_READ(GEN7_SAMPLER_INSTDONE);

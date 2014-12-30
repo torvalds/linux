@@ -465,16 +465,8 @@ static void mc_bp_resume(void)
 
 	if (uci->valid && uci->mc)
 		microcode_ops->apply_microcode(cpu);
-#ifdef CONFIG_X86_64
 	else if (!uci->mc)
-		/*
-		 * We might resume and not have applied late microcode but still
-		 * have a newer patch stashed from the early loader. We don't
-		 * have it in uci->mc so we have to load it the same way we're
-		 * applying patches early on the APs.
-		 */
-		load_ucode_ap();
-#endif
+		reload_early_microcode();
 }
 
 static struct syscore_ops mc_syscore_ops = {
@@ -559,7 +551,7 @@ static int __init microcode_init(void)
 	struct cpuinfo_x86 *c = &cpu_data(0);
 	int error;
 
-	if (dis_ucode_ldr)
+	if (paravirt_enabled() || dis_ucode_ldr)
 		return 0;
 
 	if (c->x86_vendor == X86_VENDOR_INTEL)

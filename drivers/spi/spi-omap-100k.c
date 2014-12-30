@@ -453,7 +453,6 @@ err:
 static struct platform_driver omap1_spi100k_driver = {
 	.driver = {
 		.name		= "omap1_spi100k",
-		.owner		= THIS_MODULE,
 	},
 	.probe		= omap1_spi100k_probe,
 };

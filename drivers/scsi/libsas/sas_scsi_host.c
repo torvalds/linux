@@ -906,13 +906,6 @@ int sas_change_queue_depth(struct scsi_device *sdev, int depth)
 	return scsi_change_queue_depth(sdev, depth);
 }
 
-int sas_change_queue_type(struct scsi_device *scsi_dev, int type)
-{
-	if (dev_is_sata(sdev_to_domain_dev(scsi_dev)))
-		return -EINVAL;
-	return scsi_change_queue_type(scsi_dev, type);
-}
-
 int sas_bios_param(struct scsi_device *scsi_dev,
 			  struct block_device *bdev,
 			  sector_t capacity, int *hsc)
@@ -1011,7 +1004,6 @@ EXPORT_SYMBOL_GPL(sas_queuecommand);
 EXPORT_SYMBOL_GPL(sas_target_alloc);
 EXPORT_SYMBOL_GPL(sas_slave_configure);
 EXPORT_SYMBOL_GPL(sas_change_queue_depth);
-EXPORT_SYMBOL_GPL(sas_change_queue_type);
 EXPORT_SYMBOL_GPL(sas_bios_param);
 EXPORT_SYMBOL_GPL(sas_task_abort);
 EXPORT_SYMBOL_GPL(sas_phy_reset);

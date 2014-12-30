@@ -124,15 +124,15 @@ struct dentry {
 	void *d_fsdata;			/* fs-specific data */
 
 	struct list_head d_lru;		/* LRU list */
+	struct list_head d_child;	/* child of parent list */
+	struct list_head d_subdirs;	/* our children */
 	/*
-	 * d_child and d_rcu can share memory
+	 * d_alias and d_rcu can share memory
 	 */
 	union {
-		struct list_head d_child;	/* child of parent list */
+		struct hlist_node d_alias;	/* inode alias list */
 	 	struct rcu_head d_rcu;
 	} d_u;
-	struct list_head d_subdirs;	/* our children */
-	struct hlist_node d_alias;	/* inode alias list */
 };
 
 /*
@@ -230,7 +230,6 @@ extern seqlock_t rename_lock;
  */
 extern void d_instantiate(struct dentry *, struct inode *);
 extern struct dentry * d_instantiate_unique(struct dentry *, struct inode *);
-extern struct dentry * d_materialise_unique(struct dentry *, struct inode *);
 extern int d_instantiate_no_diralias(struct dentry *, struct inode *);
 extern void __d_drop(struct dentry *dentry);
 extern void d_drop(struct dentry *dentry);

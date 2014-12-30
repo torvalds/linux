@@ -2078,8 +2078,7 @@ void rtl8821ae_dm_txpwr_track_set_pwr(struct ieee80211_hw *hw,
 	if (rtldm->tx_rate != 0xFF)
 		tx_rate = rtl8821ae_hw_rate_to_mrate(hw, rtldm->tx_rate);
 
-	RT_TRACE(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
-		 "===>rtl8812ae_dm_txpwr_track_set_pwr\n");
+	RT_TRACE(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD, "===>%s\n", __func__);
 
 	if (tx_rate != 0xFF) { /* Mimic Modify High Rate BBSwing Limit.*/
 		/*CCK*/
@@ -2128,7 +2127,7 @@ void rtl8821ae_dm_txpwr_track_set_pwr(struct ieee80211_hw *hw,
 
 	if (method == BBSWING) {
 		RT_TRACE(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
-			 "===>rtl8812ae_dm_txpwr_track_set_pwr\n");
+			 "===>%s\n", __func__);
 		if (rf_path == RF90_PATH_A) {
 			final_swing_idx[RF90_PATH_A] =
 				(rtldm->ofdm_index[RF90_PATH_A] >
@@ -2260,7 +2259,8 @@ void rtl8821ae_dm_txpower_tracking_callback_thermalmeter(
 	rtldm->txpower_trackinginit = true;
 
 	RT_TRACE(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
-		 "===>rtl8812ae_dm_txpower_tracking_callback_thermalmeter,\n pDM_Odm->BbSwingIdxCckBase: %d,pDM_Odm->BbSwingIdxOfdmBase[A]:%d, pDM_Odm->DefaultOfdmIndex: %d\n",
+		 "===>%s,\n pDM_Odm->BbSwingIdxCckBase: %d,pDM_Odm->BbSwingIdxOfdmBase[A]:%d, pDM_Odm->DefaultOfdmIndex: %d\n",
+		 __func__,
 		 rtldm->swing_idx_cck_base,
 		 rtldm->swing_idx_ofdm_base[RF90_PATH_A],
 		 rtldm->default_ofdm_index);
@@ -2539,8 +2539,7 @@ void rtl8821ae_dm_txpower_tracking_callback_thermalmeter(
 		}
 	}
 
-	RT_TRACE(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD,
-		 "<===rtl8812ae_dm_txpower_tracking_callback_thermalmeter\n");
+	RT_TRACE(rtlpriv, COMP_POWER_TRACKING, DBG_LOUD, "<===%s\n", __func__);
 }
 
 void rtl8821ae_dm_check_txpower_tracking_thermalmeter(struct ieee80211_hw *hw)

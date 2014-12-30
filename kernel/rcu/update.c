@@ -306,7 +306,7 @@ struct debug_obj_descr rcuhead_debug_descr = {
 EXPORT_SYMBOL_GPL(rcuhead_debug_descr);
 #endif /* #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD */
 
-#if defined(CONFIG_TREE_RCU) || defined(CONFIG_TREE_PREEMPT_RCU) || defined(CONFIG_RCU_TRACE)
+#if defined(CONFIG_TREE_RCU) || defined(CONFIG_PREEMPT_RCU) || defined(CONFIG_RCU_TRACE)
 void do_trace_rcu_torture_read(const char *rcutorturename, struct rcu_head *rhp,
 			       unsigned long secs,
 			       unsigned long c_old, unsigned long c)
@@ -531,7 +531,8 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 	struct rcu_head *next;
 	LIST_HEAD(rcu_tasks_holdouts);
 
-	/* FIXME: Add housekeeping affinity. */
+	/* Run on housekeeping CPUs by default.  Sysadm can move if desired. */
+	housekeeping_affine(current);
 
 	/*
 	 * Each pass through the following loop makes one check for
@@ -690,3 +691,87 @@ static void rcu_spawn_tasks_kthread(void)
 }
 
 #endif /* #ifdef CONFIG_TASKS_RCU */
+
+#ifdef CONFIG_PROVE_RCU
+
+/*
+ * Early boot self test parameters, one for each flavor
+ */
+static bool rcu_self_test;
+static bool rcu_self_test_bh;
+static bool rcu_self_test_sched;
+
+module_param(rcu_self_test, bool, 0444);
+module_param(rcu_self_test_bh, bool, 0444);
+module_param(rcu_self_test_sched, bool, 0444);
+
+static int rcu_self_test_counter;
+
+static void test_callback(struct rcu_head *r)
+{
+	rcu_self_test_counter++;
+	pr_info("RCU test callback executed %d\n", rcu_self_test_counter);
+}
+
+static void early_boot_test_call_rcu(void)
+{
+	static struct rcu_head head;
+
+	call_rcu(&head, test_callback);
+}
+
+static void early_boot_test_call_rcu_bh(void)
+{
+	static struct rcu_head head;
+
+	call_rcu_bh(&head, test_callback);
+}
+
+static void early_boot_test_call_rcu_sched(void)
+{
+	static struct rcu_head head;
+
+	call_rcu_sched(&head, test_callback);
+}
+
+void rcu_early_boot_tests(void)
+{
+	pr_info("Running RCU self tests\n");
+
+	if (rcu_self_test)
+		early_boot_test_call_rcu();
+	if (rcu_self_test_bh)
+		early_boot_test_call_rcu_bh();
+	if (rcu_self_test_sched)
+		early_boot_test_call_rcu_sched();
+}
+
+static int rcu_verify_early_boot_tests(void)
+{
+	int ret = 0;
+	int early_boot_test_counter = 0;
+
+	if (rcu_self_test) {
+		early_boot_test_counter++;
+		rcu_barrier();
+	}
+	if (rcu_self_test_bh) {
+		early_boot_test_counter++;
+		rcu_barrier_bh();
+	}
+	if (rcu_self_test_sched) {
+		early_boot_test_counter++;
+		rcu_barrier_sched();
+	}
+
+	if (rcu_self_test_counter != early_boot_test_counter) {
+		WARN_ON(1);
+		ret = -1;
+	}
+
+	return ret;
+}
+late_initcall(rcu_verify_early_boot_tests);
+#else
+void rcu_early_boot_tests(void) {}
+#endif /* CONFIG_PROVE_RCU */

@@ -128,7 +128,6 @@ static const char *scsi_debug_version_date = "20141022";
 #define DEF_REMOVABLE false
 #define DEF_SCSI_LEVEL   6    /* INQUIRY, byte2 [6->SPC-4] */
 #define DEF_SECTOR_SIZE 512
-#define DEF_TAGGED_QUEUING 0 /* 0 | MSG_SIMPLE_TAG | MSG_ORDERED_TAG */
 #define DEF_UNMAP_ALIGNMENT 0
 #define DEF_UNMAP_GRANULARITY 1
 #define DEF_UNMAP_MAX_BLOCKS 0xFFFFFFFF
@@ -817,6 +816,7 @@ static int check_readiness(struct scsi_cmnd *SCpnt, int uas_only,
 					UA_CHANGED_ASC, CAPACITY_CHANGED_ASCQ);
 			if (debug)
 				cp = "capacity data changed";
+			break;
 		default:
 			pr_warn("%s: unexpected unit attention code=%d\n",
 				__func__, k);
@@ -3045,18 +3045,12 @@ resp_comp_write(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	u8 num;
 	unsigned long iflags;
 	int ret;
+	int retval = 0;
 
-	lba = get_unaligned_be32(cmd + 2);
+	lba = get_unaligned_be64(cmd + 2);
 	num = cmd[13];		/* 1 to a maximum of 255 logical blocks */
 	if (0 == num)
 		return 0;	/* degenerate case, not an error */
-	dnum = 2 * num;
-	arr = kzalloc(dnum * lb_size, GFP_ATOMIC);
-	if (NULL == arr) {
-		mk_sense_buffer(scp, ILLEGAL_REQUEST, INSUFF_RES_ASC,
-				INSUFF_RES_ASCQ);
-		return check_condition_result;
-	}
 	if (scsi_debug_dif == SD_DIF_TYPE2_PROTECTION &&
 	    (cmd[1] & 0xe0)) {
 		mk_sense_invalid_opcode(scp);
@@ -3079,6 +3073,13 @@ resp_comp_write(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 		mk_sense_buffer(scp, ILLEGAL_REQUEST, INVALID_FIELD_IN_CDB, 0);
 		return check_condition_result;
 	}
+	dnum = 2 * num;
+	arr = kzalloc(dnum * lb_size, GFP_ATOMIC);
+	if (NULL == arr) {
+		mk_sense_buffer(scp, ILLEGAL_REQUEST, INSUFF_RES_ASC,
+				INSUFF_RES_ASCQ);
+		return check_condition_result;
+	}
 
 	write_lock_irqsave(&atomic_rw, iflags);
 
@@ -3089,24 +3090,24 @@ resp_comp_write(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	ret = do_device_access(scp, 0, dnum, true);
 	fake_storep = fake_storep_hold;
 	if (ret == -1) {
-		write_unlock_irqrestore(&atomic_rw, iflags);
-		kfree(arr);
-		return DID_ERROR << 16;
+		retval = DID_ERROR << 16;
+		goto cleanup;
 	} else if ((ret < (dnum * lb_size)) &&
 		 (SCSI_DEBUG_OPT_NOISE & scsi_debug_opts))
 		sdev_printk(KERN_INFO, scp->device, "%s: compare_write: cdb "
 			    "indicated=%u, IO sent=%d bytes\n", my_name,
 			    dnum * lb_size, ret);
 	if (!comp_write_worker(lba, num, arr)) {
-		write_unlock_irqrestore(&atomic_rw, iflags);
-		kfree(arr);
 		mk_sense_buffer(scp, MISCOMPARE, MISCOMPARE_VERIFY_ASC, 0);
-		return check_condition_result;
+		retval = check_condition_result;
+		goto cleanup;
 	}
 	if (scsi_debug_lbp())
 		map_region(lba, num);
+cleanup:
 	write_unlock_irqrestore(&atomic_rw, iflags);
-	return 0;
+	kfree(arr);
+	return retval;
 }
 
 struct unmap_block_desc {
@@ -4438,6 +4439,7 @@ static ssize_t virtual_gb_store(struct device_driver *ddp, const char *buf,
 			struct sdebug_host_info *sdhp;
 			struct sdebug_dev_info *dp;
 
+			spin_lock(&sdebug_host_list_lock);
 			list_for_each_entry(sdhp, &sdebug_host_list,
 					    host_list) {
 				list_for_each_entry(dp, &sdhp->dev_info_list,
@@ -4446,6 +4448,7 @@ static ssize_t virtual_gb_store(struct device_driver *ddp, const char *buf,
 						dp->uas_bm);
 				}
 			}
+			spin_unlock(&sdebug_host_list_lock);
 		}
 		return count;
 	}
@@ -4988,32 +4991,6 @@ sdebug_change_qdepth(struct scsi_device *sdev, int qdepth)
 }
 
 static int
-sdebug_change_qtype(struct scsi_device *sdev, int qtype)
-{
-	qtype = scsi_change_queue_type(sdev, qtype);
-	if (SCSI_DEBUG_OPT_Q_NOISE & scsi_debug_opts) {
-		const char *cp;
-
-		switch (qtype) {
-		case 0:
-			cp = "untagged";
-			break;
-		case MSG_SIMPLE_TAG:
-			cp = "simple tags";
-			break;
-		case MSG_ORDERED_TAG:
-			cp = "ordered tags";
-			break;
-		default:
-			cp = "unknown";
-			break;
-		}
-		sdev_printk(KERN_INFO, sdev, "%s: to %s\n", __func__, cp);
-	}
-	return qtype;
-}
-
-static int
 check_inject(struct scsi_cmnd *scp)
 {
 	struct sdebug_scmd_extra_t *ep = scsi_cmd_priv(scp);
@@ -5212,7 +5189,6 @@ static struct scsi_host_template sdebug_driver_template = {
 	.ioctl =		scsi_debug_ioctl,
 	.queuecommand =		sdebug_queuecommand_lock_or_not,
 	.change_queue_depth =	sdebug_change_qdepth,
-	.change_queue_type =	sdebug_change_qtype,
 	.eh_abort_handler =	scsi_debug_abort,
 	.eh_device_reset_handler = scsi_debug_device_reset,
 	.eh_target_reset_handler = scsi_debug_target_reset,

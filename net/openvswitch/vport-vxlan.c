@@ -24,6 +24,7 @@
 #include <linux/net.h>
 #include <linux/rculist.h>
 #include <linux/udp.h>
+#include <linux/module.h>
 
 #include <net/icmp.h>
 #include <net/ip.h>
@@ -50,6 +51,8 @@ struct vxlan_port {
 	char name[IFNAMSIZ];
 };
 
+static struct vport_ops ovs_vxlan_vport_ops;
+
 static inline struct vxlan_port *vxlan_vport(const struct vport *vport)
 {
 	return vport_priv(vport);
@@ -66,7 +69,9 @@ static void vxlan_rcv(struct vxlan_sock *vs, struct sk_buff *skb, __be32 vx_vni)
 	/* Save outer tunnel values */
 	iph = ip_hdr(skb);
 	key = cpu_to_be64(ntohl(vx_vni) >> 8);
-	ovs_flow_tun_info_init(&tun_info, iph, key, TUNNEL_KEY, NULL, 0);
+	ovs_flow_tun_info_init(&tun_info, iph,
+			       udp_hdr(skb)->source, udp_hdr(skb)->dest,
+			       key, TUNNEL_KEY, NULL, 0);
 
 	ovs_vport_receive(vport, skb, &tun_info);
 }
@@ -186,17 +191,55 @@ error:
 	return err;
 }
 
+static int vxlan_get_egress_tun_info(struct vport *vport, struct sk_buff *skb,
+				     struct ovs_tunnel_info *egress_tun_info)
+{
+	struct net *net = ovs_dp_get_net(vport->dp);
+	struct vxlan_port *vxlan_port = vxlan_vport(vport);
+	__be16 dst_port = inet_sk(vxlan_port->vs->sock->sk)->inet_sport;
+	__be16 src_port;
+	int port_min;
+	int port_max;
+
+	inet_get_local_port_range(net, &port_min, &port_max);
+	src_port = udp_flow_src_port(net, skb, 0, 0, true);
+
+	return ovs_tunnel_get_egress_info(egress_tun_info, net,
+					  OVS_CB(skb)->egress_tun_info,
+					  IPPROTO_UDP, skb->mark,
+					  src_port, dst_port);
+}
+
 static const char *vxlan_get_name(const struct vport *vport)
 {
 	struct vxlan_port *vxlan_port = vxlan_vport(vport);
 	return vxlan_port->name;
 }
 
-const struct vport_ops ovs_vxlan_vport_ops = {
+static struct vport_ops ovs_vxlan_vport_ops = {
 	.type		= OVS_VPORT_TYPE_VXLAN,
 	.create		= vxlan_tnl_create,
 	.destroy	= vxlan_tnl_destroy,
 	.get_name	= vxlan_get_name,
 	.get_options	= vxlan_get_options,
 	.send		= vxlan_tnl_send,
+	.get_egress_tun_info	= vxlan_get_egress_tun_info,
+	.owner		= THIS_MODULE,
 };
+
+static int __init ovs_vxlan_tnl_init(void)
+{
+	return ovs_vport_ops_register(&ovs_vxlan_vport_ops);
+}
+
+static void __exit ovs_vxlan_tnl_exit(void)
+{
+	ovs_vport_ops_unregister(&ovs_vxlan_vport_ops);
+}
+
+module_init(ovs_vxlan_tnl_init);
+module_exit(ovs_vxlan_tnl_exit);
+
+MODULE_DESCRIPTION("OVS: VXLAN switching port");
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("vport-type-4");

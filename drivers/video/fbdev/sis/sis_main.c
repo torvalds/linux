@@ -5989,7 +5989,7 @@ static int sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if(!ivideo->sisvga_enabled) {
 		if(pci_enable_device(pdev)) {
-			if(ivideo->nbridge) pci_dev_put(ivideo->nbridge);
+			pci_dev_put(ivideo->nbridge);
 			framebuffer_release(sis_fb_info);
 			return -EIO;
 		}
@@ -6202,10 +6202,8 @@ error_0:	iounmap(ivideo->video_vbase);
 error_1:	release_mem_region(ivideo->video_base, ivideo->video_size);
 error_2:	release_mem_region(ivideo->mmio_base, ivideo->mmio_size);
 error_3:	vfree(ivideo->bios_abase);
-		if(ivideo->lpcdev)
-			pci_dev_put(ivideo->lpcdev);
-		if(ivideo->nbridge)
-			pci_dev_put(ivideo->nbridge);
+		pci_dev_put(ivideo->lpcdev);
+		pci_dev_put(ivideo->nbridge);
 		if(!ivideo->sisvga_enabled)
 			pci_disable_device(pdev);
 		framebuffer_release(sis_fb_info);
@@ -6505,11 +6503,9 @@ static void sisfb_remove(struct pci_dev *pdev)
 
 	vfree(ivideo->bios_abase);
 
-	if(ivideo->lpcdev)
-		pci_dev_put(ivideo->lpcdev);
+	pci_dev_put(ivideo->lpcdev);
 
-	if(ivideo->nbridge)
-		pci_dev_put(ivideo->nbridge);
+	pci_dev_put(ivideo->nbridge);
 
 #ifdef CONFIG_MTRR
 	/* Release MTRR region */

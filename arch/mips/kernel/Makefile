@@ -4,9 +4,10 @@
 
 extra-y		:= head.o vmlinux.lds
 
-obj-y		+= cpu-probe.o branch.o entry.o genex.o idle.o irq.o process.o \
-		   prom.o ptrace.o reset.o setup.o signal.o syscall.o \
-		   time.o topology.o traps.o unaligned.o watch.o vdso.o
+obj-y		+= cpu-probe.o branch.o elf.o entry.o genex.o idle.o irq.o \
+		   process.o prom.o ptrace.o reset.o setup.o signal.o \
+		   syscall.o time.o topology.o traps.o unaligned.o watch.o \
+		   vdso.o
 
 ifdef CONFIG_FUNCTION_TRACER
 CFLAGS_REMOVE_ftrace.o = -pg
@@ -18,12 +19,10 @@ endif
 obj-$(CONFIG_CEVT_BCM1480)	+= cevt-bcm1480.o
 obj-$(CONFIG_CEVT_R4K)		+= cevt-r4k.o
 obj-$(CONFIG_CEVT_DS1287)	+= cevt-ds1287.o
-obj-$(CONFIG_CEVT_GIC)		+= cevt-gic.o
 obj-$(CONFIG_CEVT_GT641XX)	+= cevt-gt641xx.o
 obj-$(CONFIG_CEVT_SB1250)	+= cevt-sb1250.o
 obj-$(CONFIG_CEVT_TXX9)		+= cevt-txx9.o
 obj-$(CONFIG_CSRC_BCM1480)	+= csrc-bcm1480.o
-obj-$(CONFIG_CSRC_GIC)		+= csrc-gic.o
 obj-$(CONFIG_CSRC_IOASIC)	+= csrc-ioasic.o
 obj-$(CONFIG_CSRC_R4K)		+= csrc-r4k.o
 obj-$(CONFIG_CSRC_SB1250)	+= csrc-sb1250.o
@@ -68,7 +67,6 @@ obj-$(CONFIG_IRQ_CPU_RM7K)	+= irq-rm7000.o
 obj-$(CONFIG_MIPS_MSC)		+= irq-msc01.o
 obj-$(CONFIG_IRQ_TXX9)		+= irq_txx9.o
 obj-$(CONFIG_IRQ_GT641XX)	+= irq-gt641xx.o
-obj-$(CONFIG_IRQ_GIC)		+= irq-gic.o
 
 obj-$(CONFIG_KPROBES)		+= kprobes.o
 obj-$(CONFIG_32BIT)		+= scall32-o32.o

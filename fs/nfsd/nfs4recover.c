@@ -245,10 +245,11 @@ struct nfs4_dir_ctx {
 };
 
 static int
-nfsd4_build_namelist(void *arg, const char *name, int namlen,
+nfsd4_build_namelist(struct dir_context *__ctx, const char *name, int namlen,
 		loff_t offset, u64 ino, unsigned int d_type)
 {
-	struct nfs4_dir_ctx *ctx = arg;
+	struct nfs4_dir_ctx *ctx =
+		container_of(__ctx, struct nfs4_dir_ctx, ctx);
 	struct name_list *entry;
 
 	if (namlen != HEXDIR_LEN - 1)
@@ -704,7 +705,7 @@ cld_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	struct cld_upcall *tmp, *cup;
 	struct cld_msg __user *cmsg = (struct cld_msg __user *)src;
 	uint32_t xid;
-	struct nfsd_net *nn = net_generic(filp->f_dentry->d_sb->s_fs_info,
+	struct nfsd_net *nn = net_generic(file_inode(filp)->i_sb->s_fs_info,
 						nfsd_net_id);
 	struct cld_net *cn = nn->cld_net;
 

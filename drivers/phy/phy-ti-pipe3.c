@@ -399,7 +399,7 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, phy);
 	pm_runtime_enable(phy->dev);
 
-	generic_phy = devm_phy_create(phy->dev, NULL, &ops, NULL);
+	generic_phy = devm_phy_create(phy->dev, NULL, &ops);
 	if (IS_ERR(generic_phy))
 		return PTR_ERR(generic_phy);
 
@@ -423,7 +423,7 @@ static int ti_pipe3_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 
 static int ti_pipe3_runtime_suspend(struct device *dev)
 {

@@ -52,7 +52,6 @@ static struct cpuidle_driver zynq_idle_driver = {
 			.enter			= zynq_enter_idle,
 			.exit_latency		= 10,
 			.target_residency	= 10000,
-			.flags			= CPUIDLE_FLAG_TIME_VALID,
 			.name			= "RAM_SR",
 			.desc			= "WFI and RAM Self Refresh",
 		},
@@ -72,7 +71,6 @@ static int zynq_cpuidle_probe(struct platform_device *pdev)
 static struct platform_driver zynq_cpuidle_driver = {
 	.driver = {
 		.name = "cpuidle-zynq",
-		.owner = THIS_MODULE,
 	},
 	.probe = zynq_cpuidle_probe,
 };

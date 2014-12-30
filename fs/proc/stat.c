@@ -159,7 +159,7 @@ static int show_stat(struct seq_file *p, void *v)
 
 	/* sum again ? it could be updated? */
 	for_each_irq_nr(j)
-		seq_put_decimal_ull(p, ' ', kstat_irqs(j));
+		seq_put_decimal_ull(p, ' ', kstat_irqs_usr(j));
 
 	seq_printf(p,
 		"\nctxt %llu\n"

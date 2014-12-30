@@ -1104,7 +1104,7 @@ static int pci_pm_restore(struct device *dev)
 
 #endif /* !CONFIG_HIBERNATE_CALLBACKS */
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 
 static int pci_pm_runtime_suspend(struct device *dev)
 {
@@ -1200,16 +1200,6 @@ static int pci_pm_runtime_idle(struct device *dev)
 	return ret;
 }
 
-#else /* !CONFIG_PM_RUNTIME */
-
-#define pci_pm_runtime_suspend	NULL
-#define pci_pm_runtime_resume	NULL
-#define pci_pm_runtime_idle	NULL
-
-#endif /* !CONFIG_PM_RUNTIME */
-
-#ifdef CONFIG_PM
-
 static const struct dev_pm_ops pci_dev_pm_ops = {
 	.prepare = pci_pm_prepare,
 	.suspend = pci_pm_suspend,
@@ -1231,11 +1221,15 @@ static const struct dev_pm_ops pci_dev_pm_ops = {
 
 #define PCI_PM_OPS_PTR	(&pci_dev_pm_ops)
 
-#else /* !COMFIG_PM_OPS */
+#else /* !CONFIG_PM */
+
+#define pci_pm_runtime_suspend	NULL
+#define pci_pm_runtime_resume	NULL
+#define pci_pm_runtime_idle	NULL
 
 #define PCI_PM_OPS_PTR	NULL
 
-#endif /* !COMFIG_PM_OPS */
+#endif /* !CONFIG_PM */
 
 /**
  * __pci_register_driver - register a new pci driver

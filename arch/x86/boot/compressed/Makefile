@@ -3,6 +3,18 @@
 #
 # create a compressed vmlinux image from the original vmlinux
 #
+# vmlinuz is:
+#	decompression code (*.o)
+#	asm globals (piggy.S), including:
+#		vmlinux.bin.(gz|bz2|lzma|...)
+#
+# vmlinux.bin is:
+#	vmlinux stripped of debugging and comments
+# vmlinux.bin.all is:
+#	vmlinux.bin + vmlinux.relocs
+# vmlinux.bin.(gz|bz2|lzma|...) is:
+#	(see scripts/Makefile.lib size_append)
+#	compressed vmlinux.bin.all + u32 size of vmlinux.bin.all
 
 targets := vmlinux vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2 vmlinux.bin.lzma \
 	vmlinux.bin.xz vmlinux.bin.lzo vmlinux.bin.lz4
@@ -35,7 +47,8 @@ vmlinux-objs-$(CONFIG_RANDOMIZE_BASE) += $(obj)/aslr.o
 
 $(obj)/eboot.o: KBUILD_CFLAGS += -fshort-wchar -mno-red-zone
 
-vmlinux-objs-$(CONFIG_EFI_STUB) += $(obj)/eboot.o $(obj)/efi_stub_$(BITS).o
+vmlinux-objs-$(CONFIG_EFI_STUB) += $(obj)/eboot.o $(obj)/efi_stub_$(BITS).o \
+	$(objtree)/drivers/firmware/efi/libstub/lib.a
 
 $(obj)/vmlinux: $(vmlinux-objs-y) FORCE
 	$(call if_changed,ld)

@@ -155,6 +155,7 @@ struct acpi_video_bus {
 	u8 dos_setting;
 	struct acpi_video_enumerated_device *attached_array;
 	u8 attached_count;
+	u8 child_count;
 	struct acpi_video_bus_cap cap;
 	struct acpi_video_bus_flags flags;
 	struct list_head video_device_list;
@@ -1159,8 +1160,12 @@ static bool acpi_video_device_in_dod(struct acpi_video_device *device)
 	struct acpi_video_bus *video = device->video;
 	int i;
 
-	/* If we have a broken _DOD, no need to test */
-	if (!video->attached_count)
+	/*
+	 * If we have a broken _DOD or we have more than 8 output devices
+	 * under the graphics controller node that we can't proper deal with
+	 * in the operation region code currently, no need to test.
+	 */
+	if (!video->attached_count || video->child_count > 8)
 		return true;
 
 	for (i = 0; i < video->attached_count; i++) {
@@ -1413,6 +1418,7 @@ acpi_video_bus_get_devices(struct acpi_video_bus *video,
 			dev_err(&dev->dev, "Can't attach device\n");
 			break;
 		}
+		video->child_count++;
 	}
 	return status;
 }
@@ -1681,12 +1687,27 @@ static void acpi_video_dev_register_backlight(struct acpi_video_device *device)
 		printk(KERN_ERR PREFIX "Create sysfs link\n");
 }
 
+static void acpi_video_run_bcl_for_osi(struct acpi_video_bus *video)
+{
+	struct acpi_video_device *dev;
+	union acpi_object *levels;
+
+	mutex_lock(&video->device_list_lock);
+	list_for_each_entry(dev, &video->video_device_list, entry) {
+		if (!acpi_video_device_lcd_query_levels(dev, &levels))
+			kfree(levels);
+	}
+	mutex_unlock(&video->device_list_lock);
+}
+
 static int acpi_video_bus_register_backlight(struct acpi_video_bus *video)
 {
 	struct acpi_video_device *dev;
 
 	if (video->backlight_registered)
 		return 0;
+
+	acpi_video_run_bcl_for_osi(video);
 
 	if (!acpi_video_verify_backlight_support())
 		return 0;

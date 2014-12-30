@@ -272,10 +272,9 @@ static int ipv6_clear_mutable_options(struct ipv6hdr *iph, int len, int dir)
 				ipv6_rearrange_destopt(iph, exthdr.opth);
 		case NEXTHDR_HOP:
 			if (!zero_out_mutable_opts(exthdr.opth)) {
-				LIMIT_NETDEBUG(
-					KERN_WARNING "overrun %sopts\n",
-					nexthdr == NEXTHDR_HOP ?
-						"hop" : "dest");
+				net_dbg_ratelimited("overrun %sopts\n",
+						    nexthdr == NEXTHDR_HOP ?
+						    "hop" : "dest");
 				return -EINVAL;
 			}
 			break;
@@ -354,7 +353,8 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 	ahp = x->data;
 	ahash = ahp->ahash;
 
-	if ((err = skb_cow_data(skb, 0, &trailer)) < 0)
+	err = skb_cow_data(skb, 0, &trailer);
+	if (err < 0)
 		goto out;
 	nfrags = err;
 
@@ -560,8 +560,8 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 	if (!pskb_may_pull(skb, ah_hlen))
 		goto out;
 
-
-	if ((err = skb_cow_data(skb, 0, &trailer)) < 0)
+	err = skb_cow_data(skb, 0, &trailer);
+	if (err < 0)
 		goto out;
 	nfrags = err;
 

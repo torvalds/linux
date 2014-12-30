@@ -359,6 +359,7 @@
 #define UART_OMAP_SYSC		0x15	/* System configuration register */
 #define UART_OMAP_SYSS		0x16	/* System status register */
 #define UART_OMAP_WER		0x17	/* Wake-up enable register */
+#define UART_OMAP_TX_LVL	0x1a	/* TX FIFO level register */
 
 /*
  * These are the definitions for the MDR1 register

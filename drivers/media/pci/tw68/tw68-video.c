@@ -384,6 +384,7 @@ static int tw68_queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
 	unsigned tot_bufs = q->num_buffers + *num_buffers;
 
 	sizes[0] = (dev->fmt->depth * dev->width * dev->height) >> 3;
+	alloc_ctxs[0] = dev->alloc_ctx;
 	/*
 	 * We allow create_bufs, but only if the sizeimage is the same as the
 	 * current sizeimage. The tw68_buffer_count calculation becomes quite
@@ -461,16 +462,11 @@ static int tw68_buf_prepare(struct vb2_buffer *vb)
 	struct tw68_buf *buf = container_of(vb, struct tw68_buf, vb);
 	struct sg_table *dma = vb2_dma_sg_plane_desc(vb, 0);
 	unsigned size, bpl;
-	int rc;
 
 	size = (dev->width * dev->height * dev->fmt->depth) >> 3;
 	if (vb2_plane_size(vb, 0) < size)
 		return -EINVAL;
 	vb2_set_plane_payload(vb, 0, size);
-
-	rc = dma_map_sg(&dev->pci->dev, dma->sgl, dma->nents, DMA_FROM_DEVICE);
-	if (!rc)
-		return -EIO;
 
 	bpl = (dev->width * dev->fmt->depth) >> 3;
 	switch (dev->field) {
@@ -505,10 +501,7 @@ static void tw68_buf_finish(struct vb2_buffer *vb)
 {
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct tw68_dev *dev = vb2_get_drv_priv(vq);
-	struct sg_table *dma = vb2_dma_sg_plane_desc(vb, 0);
 	struct tw68_buf *buf = container_of(vb, struct tw68_buf, vb);
-
-	dma_unmap_sg(&dev->pci->dev, dma->sgl, dma->nents, DMA_FROM_DEVICE);
 
 	pci_free_consistent(dev->pci, buf->size, buf->cpu, buf->dma);
 }

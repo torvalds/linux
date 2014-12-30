@@ -369,7 +369,6 @@ static int f71882fg_remove(struct platform_device *pdev);
 
 static struct platform_driver f71882fg_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= DRVNAME,
 	},
 	.probe		= f71882fg_probe,

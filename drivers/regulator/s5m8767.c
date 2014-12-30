@@ -988,7 +988,6 @@ MODULE_DEVICE_TABLE(platform, s5m8767_pmic_id);
 static struct platform_driver s5m8767_pmic_driver = {
 	.driver = {
 		.name = "s5m8767-pmic",
-		.owner = THIS_MODULE,
 	},
 	.probe = s5m8767_pmic_probe,
 	.id_table = s5m8767_pmic_id,

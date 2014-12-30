@@ -158,10 +158,7 @@ int __init zpci_debug_init(void)
 
 void zpci_debug_exit(void)
 {
-	if (pci_debug_msg_id)
-		debug_unregister(pci_debug_msg_id);
-	if (pci_debug_err_id)
-		debug_unregister(pci_debug_err_id);
-
+	debug_unregister(pci_debug_msg_id);
+	debug_unregister(pci_debug_err_id);
 	debugfs_remove(debugfs_root);
 }

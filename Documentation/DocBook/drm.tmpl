@@ -492,10 +492,10 @@ char *date;</synopsis>
     <sect2>
       <title>The Translation Table Manager (TTM)</title>
       <para>
-	TTM design background and information belongs here.
+        TTM design background and information belongs here.
       </para>
       <sect3>
-	<title>TTM initialization</title>
+        <title>TTM initialization</title>
         <warning><para>This section is outdated.</para></warning>
         <para>
           Drivers wishing to support TTM must fill out a drm_bo_driver
@@ -503,42 +503,42 @@ char *date;</synopsis>
           pointers for initializing the TTM, allocating and freeing memory,
           waiting for command completion and fence synchronization, and memory
           migration. See the radeon_ttm.c file for an example of usage.
-	</para>
-	<para>
-	  The ttm_global_reference structure is made up of several fields:
-	</para>
-	<programlisting>
-	  struct ttm_global_reference {
-	  	enum ttm_global_types global_type;
-	  	size_t size;
-	  	void *object;
-	  	int (*init) (struct ttm_global_reference *);
-	  	void (*release) (struct ttm_global_reference *);
-	  };
-	</programlisting>
-	<para>
-	  There should be one global reference structure for your memory
-	  manager as a whole, and there will be others for each object
-	  created by the memory manager at runtime.  Your global TTM should
-	  have a type of TTM_GLOBAL_TTM_MEM.  The size field for the global
-	  object should be sizeof(struct ttm_mem_global), and the init and
-	  release hooks should point at your driver-specific init and
-	  release routines, which probably eventually call
-	  ttm_mem_global_init and ttm_mem_global_release, respectively.
-	</para>
-	<para>
-	  Once your global TTM accounting structure is set up and initialized
-	  by calling ttm_global_item_ref() on it,
-	  you need to create a buffer object TTM to
-	  provide a pool for buffer object allocation by clients and the
-	  kernel itself.  The type of this object should be TTM_GLOBAL_TTM_BO,
-	  and its size should be sizeof(struct ttm_bo_global).  Again,
-	  driver-specific init and release functions may be provided,
-	  likely eventually calling ttm_bo_global_init() and
-	  ttm_bo_global_release(), respectively.  Also, like the previous
-	  object, ttm_global_item_ref() is used to create an initial reference
-	  count for the TTM, which will call your initialization function.
-	</para>
+        </para>
+        <para>
+          The ttm_global_reference structure is made up of several fields:
+        </para>
+        <programlisting>
+          struct ttm_global_reference {
+                  enum ttm_global_types global_type;
+                  size_t size;
+                  void *object;
+                  int (*init) (struct ttm_global_reference *);
+                  void (*release) (struct ttm_global_reference *);
+          };
+        </programlisting>
+        <para>
+          There should be one global reference structure for your memory
+          manager as a whole, and there will be others for each object
+          created by the memory manager at runtime.  Your global TTM should
+          have a type of TTM_GLOBAL_TTM_MEM.  The size field for the global
+          object should be sizeof(struct ttm_mem_global), and the init and
+          release hooks should point at your driver-specific init and
+          release routines, which probably eventually call
+          ttm_mem_global_init and ttm_mem_global_release, respectively.
+        </para>
+        <para>
+          Once your global TTM accounting structure is set up and initialized
+          by calling ttm_global_item_ref() on it,
+          you need to create a buffer object TTM to
+          provide a pool for buffer object allocation by clients and the
+          kernel itself.  The type of this object should be TTM_GLOBAL_TTM_BO,
+          and its size should be sizeof(struct ttm_bo_global).  Again,
+          driver-specific init and release functions may be provided,
+          likely eventually calling ttm_bo_global_init() and
+          ttm_bo_global_release(), respectively.  Also, like the previous
+          object, ttm_global_item_ref() is used to create an initial reference
+          count for the TTM, which will call your initialization function.
+        </para>
       </sect3>
     </sect2>
     <sect2 id="drm-gem">
@@ -566,19 +566,19 @@ char *date;</synopsis>
         using driver-specific ioctls.
       </para>
       <para>
-	On a fundamental level, GEM involves several operations:
-	<itemizedlist>
-	  <listitem>Memory allocation and freeing</listitem>
-	  <listitem>Command execution</listitem>
-	  <listitem>Aperture management at command execution time</listitem>
-	</itemizedlist>
-	Buffer object allocation is relatively straightforward and largely
+        On a fundamental level, GEM involves several operations:
+        <itemizedlist>
+          <listitem>Memory allocation and freeing</listitem>
+          <listitem>Command execution</listitem>
+          <listitem>Aperture management at command execution time</listitem>
+        </itemizedlist>
+        Buffer object allocation is relatively straightforward and largely
         provided by Linux's shmem layer, which provides memory to back each
         object.
       </para>
       <para>
         Device-specific operations, such as command execution, pinning, buffer
-	read &amp; write, mapping, and domain ownership transfers are left to
+        read &amp; write, mapping, and domain ownership transfers are left to
         driver-specific ioctls.
       </para>
       <sect3>
@@ -738,16 +738,16 @@ char *date;</synopsis>
           respectively. The conversion is handled by the DRM core without any
           driver-specific support.
         </para>
-	<para>
-	  GEM also supports buffer sharing with dma-buf file descriptors through
-	  PRIME. GEM-based drivers must use the provided helpers functions to
-	  implement the exporting and importing correctly. See <xref linkend="drm-prime-support" />.
-	  Since sharing file descriptors is inherently more secure than the
-	  easily guessable and global GEM names it is the preferred buffer
-	  sharing mechanism. Sharing buffers through GEM names is only supported
-	  for legacy userspace. Furthermore PRIME also allows cross-device
-	  buffer sharing since it is based on dma-bufs.
-	</para>
+        <para>
+          GEM also supports buffer sharing with dma-buf file descriptors through
+          PRIME. GEM-based drivers must use the provided helpers functions to
+          implement the exporting and importing correctly. See <xref linkend="drm-prime-support" />.
+          Since sharing file descriptors is inherently more secure than the
+          easily guessable and global GEM names it is the preferred buffer
+          sharing mechanism. Sharing buffers through GEM names is only supported
+          for legacy userspace. Furthermore PRIME also allows cross-device
+          buffer sharing since it is based on dma-bufs.
+        </para>
       </sect3>
       <sect3 id="drm-gem-objects-mapping">
         <title>GEM Objects Mapping</title>
@@ -852,7 +852,7 @@ char *date;</synopsis>
       <sect3>
         <title>Command Execution</title>
         <para>
-	  Perhaps the most important GEM function for GPU devices is providing a
+          Perhaps the most important GEM function for GPU devices is providing a
           command execution interface to clients. Client programs construct
           command buffers containing references to previously allocated memory
           objects, and then submit them to GEM. At that point, GEM takes care to
@@ -874,95 +874,101 @@ char *date;</synopsis>
         <title>GEM Function Reference</title>
 !Edrivers/gpu/drm/drm_gem.c
       </sect3>
-      </sect2>
-      <sect2>
-	<title>VMA Offset Manager</title>
+    </sect2>
+    <sect2>
+      <title>VMA Offset Manager</title>
 !Pdrivers/gpu/drm/drm_vma_manager.c vma offset manager
 !Edrivers/gpu/drm/drm_vma_manager.c
 !Iinclude/drm/drm_vma_manager.h
-      </sect2>
-      <sect2 id="drm-prime-support">
-	<title>PRIME Buffer Sharing</title>
-	<para>
-	  PRIME is the cross device buffer sharing framework in drm, originally
-	  created for the OPTIMUS range of multi-gpu platforms. To userspace
-	  PRIME buffers are dma-buf based file descriptors.
-	</para>
-	<sect3>
-	  <title>Overview and Driver Interface</title>
-	  <para>
-	    Similar to GEM global names, PRIME file descriptors are
-	    also used to share buffer objects across processes. They offer
-	    additional security: as file descriptors must be explicitly sent over
-	    UNIX domain sockets to be shared between applications, they can't be
-	    guessed like the globally unique GEM names.
-	  </para>
-	  <para>
-	    Drivers that support the PRIME
-	    API must set the DRIVER_PRIME bit in the struct
-	    <structname>drm_driver</structname>
-	    <structfield>driver_features</structfield> field, and implement the
-	    <methodname>prime_handle_to_fd</methodname> and
-	    <methodname>prime_fd_to_handle</methodname> operations.
-	  </para>
-	  <para>
-	    <synopsis>int (*prime_handle_to_fd)(struct drm_device *dev,
-			  struct drm_file *file_priv, uint32_t handle,
-			  uint32_t flags, int *prime_fd);
+    </sect2>
+    <sect2 id="drm-prime-support">
+      <title>PRIME Buffer Sharing</title>
+      <para>
+        PRIME is the cross device buffer sharing framework in drm, originally
+        created for the OPTIMUS range of multi-gpu platforms. To userspace
+        PRIME buffers are dma-buf based file descriptors.
+      </para>
+      <sect3>
+        <title>Overview and Driver Interface</title>
+        <para>
+          Similar to GEM global names, PRIME file descriptors are
+          also used to share buffer objects across processes. They offer
+          additional security: as file descriptors must be explicitly sent over
+          UNIX domain sockets to be shared between applications, they can't be
+          guessed like the globally unique GEM names.
+        </para>
+        <para>
+          Drivers that support the PRIME
+          API must set the DRIVER_PRIME bit in the struct
+          <structname>drm_driver</structname>
+          <structfield>driver_features</structfield> field, and implement the
+          <methodname>prime_handle_to_fd</methodname> and
+          <methodname>prime_fd_to_handle</methodname> operations.
+        </para>
+        <para>
+          <synopsis>int (*prime_handle_to_fd)(struct drm_device *dev,
+                          struct drm_file *file_priv, uint32_t handle,
+                          uint32_t flags, int *prime_fd);
 int (*prime_fd_to_handle)(struct drm_device *dev,
-			  struct drm_file *file_priv, int prime_fd,
-			  uint32_t *handle);</synopsis>
-	    Those two operations convert a handle to a PRIME file descriptor and
-	    vice versa. Drivers must use the kernel dma-buf buffer sharing framework
-	    to manage the PRIME file descriptors. Similar to the mode setting
-	    API PRIME is agnostic to the underlying buffer object manager, as
-	    long as handles are 32bit unsigned integers.
-	  </para>
-	  <para>
-	    While non-GEM drivers must implement the operations themselves, GEM
-	    drivers must use the <function>drm_gem_prime_handle_to_fd</function>
-	    and <function>drm_gem_prime_fd_to_handle</function> helper functions.
-	    Those helpers rely on the driver
-	    <methodname>gem_prime_export</methodname> and
-	    <methodname>gem_prime_import</methodname> operations to create a dma-buf
-	    instance from a GEM object (dma-buf exporter role) and to create a GEM
-	    object from a dma-buf instance (dma-buf importer role).
-	  </para>
-	  <para>
-	    <synopsis>struct dma_buf * (*gem_prime_export)(struct drm_device *dev,
-				     struct drm_gem_object *obj,
-				     int flags);
+                          struct drm_file *file_priv, int prime_fd,
+                          uint32_t *handle);</synopsis>
+            Those two operations convert a handle to a PRIME file descriptor and
+            vice versa. Drivers must use the kernel dma-buf buffer sharing framework
+            to manage the PRIME file descriptors. Similar to the mode setting
+            API PRIME is agnostic to the underlying buffer object manager, as
+            long as handles are 32bit unsigned integers.
+          </para>
+          <para>
+            While non-GEM drivers must implement the operations themselves, GEM
+            drivers must use the <function>drm_gem_prime_handle_to_fd</function>
+            and <function>drm_gem_prime_fd_to_handle</function> helper functions.
+            Those helpers rely on the driver
+            <methodname>gem_prime_export</methodname> and
+            <methodname>gem_prime_import</methodname> operations to create a dma-buf
+            instance from a GEM object (dma-buf exporter role) and to create a GEM
+            object from a dma-buf instance (dma-buf importer role).
+          </para>
+          <para>
+            <synopsis>struct dma_buf * (*gem_prime_export)(struct drm_device *dev,
+                             struct drm_gem_object *obj,
+                             int flags);
 struct drm_gem_object * (*gem_prime_import)(struct drm_device *dev,
-					    struct dma_buf *dma_buf);</synopsis>
-	    These two operations are mandatory for GEM drivers that support
-	    PRIME.
-	  </para>
-	</sect3>
-        <sect3>
-          <title>PRIME Helper Functions</title>
-!Pdrivers/gpu/drm/drm_prime.c PRIME Helpers
+                                            struct dma_buf *dma_buf);</synopsis>
+            These two operations are mandatory for GEM drivers that support
+            PRIME.
+          </para>
         </sect3>
-      </sect2>
-      <sect2>
-	<title>PRIME Function References</title>
+      <sect3>
+        <title>PRIME Helper Functions</title>
+!Pdrivers/gpu/drm/drm_prime.c PRIME Helpers
+      </sect3>
+    </sect2>
+    <sect2>
+      <title>PRIME Function References</title>
 !Edrivers/gpu/drm/drm_prime.c
-      </sect2>
-      <sect2>
-	<title>DRM MM Range Allocator</title>
-	<sect3>
-	  <title>Overview</title>
+    </sect2>
+    <sect2>
+      <title>DRM MM Range Allocator</title>
+      <sect3>
+        <title>Overview</title>
 !Pdrivers/gpu/drm/drm_mm.c Overview
-	</sect3>
-	<sect3>
-	  <title>LRU Scan/Eviction Support</title>
+      </sect3>
+      <sect3>
+        <title>LRU Scan/Eviction Support</title>
 !Pdrivers/gpu/drm/drm_mm.c lru scan roaster
-	</sect3>
+      </sect3>
       </sect2>
-      <sect2>
-	<title>DRM MM Range Allocator Function References</title>
+    <sect2>
+      <title>DRM MM Range Allocator Function References</title>
 !Edrivers/gpu/drm/drm_mm.c
 !Iinclude/drm/drm_mm.h
-      </sect2>
+    </sect2>
+    <sect2>
+      <title>CMA Helper Functions Reference</title>
+!Pdrivers/gpu/drm/drm_gem_cma_helper.c cma helpers
+!Edrivers/gpu/drm/drm_gem_cma_helper.c
+!Iinclude/drm/drm_gem_cma_helper.h
+    </sect2>
   </sect1>
 
   <!-- Internals: mode setting -->
@@ -994,6 +1000,10 @@ int max_width, max_height;</synopsis>
       <title>Display Modes Function Reference</title>
 !Iinclude/drm/drm_modes.h
 !Edrivers/gpu/drm/drm_modes.c
+    </sect2>
+    <sect2>
+      <title>Atomic Mode Setting Function Reference</title>
+!Edrivers/gpu/drm/drm_atomic.c
     </sect2>
     <sect2>
       <title>Frame Buffer Creation</title>
@@ -1827,6 +1837,10 @@ void intel_crt_init(struct drm_device *dev)
 !Edrivers/gpu/drm/drm_crtc.c
     </sect2>
     <sect2>
+      <title>KMS Data Structures</title>
+!Iinclude/drm/drm_crtc.h
+    </sect2>
+    <sect2>
       <title>KMS Locking</title>
 !Pdrivers/gpu/drm/drm_modeset_lock.c kms locking
 !Iinclude/drm/drm_modeset_lock.h
@@ -1933,10 +1947,16 @@ void intel_crt_init(struct drm_device *dev)
             and then retrieves a list of modes by calling the connector
             <methodname>get_modes</methodname> helper operation.
           </para>
+         <para>
+            If the helper operation returns no mode, and if the connector status
+            is connector_status_connected, standard VESA DMT modes up to
+            1024x768 are automatically added to the modes list by a call to
+            <function>drm_add_modes_noedid</function>.
+          </para>
           <para>
-            The function filters out modes larger than
+            The function then filters out modes larger than
             <parameter>max_width</parameter> and <parameter>max_height</parameter>
-            if specified. It then calls the optional connector
+            if specified. It finally calls the optional connector
             <methodname>mode_valid</methodname> helper operation for each mode in
             the probed list to check whether the mode is valid for the connector.
           </para>
@@ -2076,10 +2096,18 @@ void intel_crt_init(struct drm_device *dev)
           <synopsis>int (*get_modes)(struct drm_connector *connector);</synopsis>
           <para>
             Fill the connector's <structfield>probed_modes</structfield> list
-            by parsing EDID data with <function>drm_add_edid_modes</function> or
-            calling <function>drm_mode_probed_add</function> directly for every
+            by parsing EDID data with <function>drm_add_edid_modes</function>,
+            adding standard VESA DMT modes with <function>drm_add_modes_noedid</function>,
+            or calling <function>drm_mode_probed_add</function> directly for every
             supported mode and return the number of modes it has detected. This
             operation is mandatory.
+          </para>
+          <para>
+            Note that the caller function will automatically add standard VESA
+            DMT modes up to 1024x768 if the <methodname>get_modes</methodname>
+            helper operation returns no mode and if the connector status is
+            connector_status_connected. There is no need to call
+            <function>drm_add_edid_modes</function> manually in that case.
           </para>
           <para>
             When adding modes manually the driver creates each mode with a call to
@@ -2278,7 +2306,7 @@ void intel_crt_init(struct drm_device *dev)
             <function>drm_helper_probe_single_connector_modes</function>.
           </para>
           <para>
-            When parsing EDID data, <function>drm_add_edid_modes</function> fill the
+            When parsing EDID data, <function>drm_add_edid_modes</function> fills the
             connector <structfield>display_info</structfield>
             <structfield>width_mm</structfield> and
             <structfield>height_mm</structfield> fields. When creating modes
@@ -2316,8 +2344,26 @@ void intel_crt_init(struct drm_device *dev)
       </itemizedlist>
     </sect2>
     <sect2>
+      <title>Atomic Modeset Helper Functions Reference</title>
+      <sect3>
+	<title>Overview</title>
+!Pdrivers/gpu/drm/drm_atomic_helper.c overview
+      </sect3>
+      <sect3>
+	<title>Implementing Asynchronous Atomic Commit</title>
+!Pdrivers/gpu/drm/drm_atomic_helper.c implementing async commit
+      </sect3>
+      <sect3>
+	<title>Atomic State Reset and Initialization</title>
+!Pdrivers/gpu/drm/drm_atomic_helper.c atomic state reset and initialization
+      </sect3>
+!Iinclude/drm/drm_atomic_helper.h
+!Edrivers/gpu/drm/drm_atomic_helper.c
+    </sect2>
+    <sect2>
       <title>Modeset Helper Functions Reference</title>
 !Edrivers/gpu/drm/drm_crtc_helper.c
+!Pdrivers/gpu/drm/drm_crtc_helper.c overview
     </sect2>
     <sect2>
       <title>Output Probing Helper Functions Reference</title>
@@ -2341,6 +2387,12 @@ void intel_crt_init(struct drm_device *dev)
 !Pdrivers/gpu/drm/drm_dp_mst_topology.c dp mst helper
 !Iinclude/drm/drm_dp_mst_helper.h
 !Edrivers/gpu/drm/drm_dp_mst_topology.c
+    </sect2>
+    <sect2>
+      <title>MIPI DSI Helper Functions Reference</title>
+!Pdrivers/gpu/drm/drm_mipi_dsi.c dsi helpers
+!Iinclude/drm/drm_mipi_dsi.h
+!Edrivers/gpu/drm/drm_mipi_dsi.c
     </sect2>
     <sect2>
       <title>EDID Helper Functions Reference</title>
@@ -2371,7 +2423,12 @@ void intel_crt_init(struct drm_device *dev)
     </sect2>
     <sect2>
       <title id="drm-kms-planehelpers">Plane Helper Reference</title>
-!Edrivers/gpu/drm/drm_plane_helper.c Plane Helpers
+!Edrivers/gpu/drm/drm_plane_helper.c
+!Pdrivers/gpu/drm/drm_plane_helper.c overview
+    </sect2>
+    <sect2>
+	  <title>Tile group</title>
+!Pdrivers/gpu/drm/drm_crtc.c Tile group
     </sect2>
   </sect1>
 
@@ -2507,8 +2564,8 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >Description/Restrictions</td>
 	</tr>
 	<tr>
-	<td rowspan="21" valign="top" >DRM</td>
-	<td rowspan="2" valign="top" >Generic</td>
+	<td rowspan="25" valign="top" >DRM</td>
+	<td rowspan="4" valign="top" >Generic</td>
 	<td valign="top" >“EDID”</td>
 	<td valign="top" >BLOB | IMMUTABLE</td>
 	<td valign="top" >0</td>
@@ -2521,6 +2578,20 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >{ “On”, “Standby”, “Suspend”, “Off” }</td>
 	<td valign="top" >Connector</td>
 	<td valign="top" >Contains DPMS operation mode value.</td>
+	</tr>
+	<tr>
+	<td valign="top" >“PATH”</td>
+	<td valign="top" >BLOB | IMMUTABLE</td>
+	<td valign="top" >0</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >Contains topology path to a connector.</td>
+	</tr>
+	<tr>
+	<td valign="top" >“TILE”</td>
+	<td valign="top" >BLOB | IMMUTABLE</td>
+	<td valign="top" >0</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >Contains tiling information for a connector.</td>
 	</tr>
 	<tr>
 	<td rowspan="1" valign="top" >Plane</td>
@@ -2636,6 +2707,21 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >Min=0, Max=100</td>
 	<td valign="top" >Connector</td>
 	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td rowspan="2" valign="top" >Virtual GPU</td>
+	<td valign="top" >“suggested X”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=0xffffffff</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >property to suggest an X offset for a connector</td>
+	</tr>
+	<tr>
+	<td valign="top" >“suggested Y”</td>
+	<td valign="top" >RANGE</td>
+	<td valign="top" >Min=0, Max=0xffffffff</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >property to suggest an Y offset for a connector</td>
 	</tr>
 	<tr>
 	<td rowspan="3" valign="top" >Optional</td>
@@ -3788,6 +3874,26 @@ int num_ioctls;</synopsis>
       those have basic support through the gma500 drm driver.
     </para>
     <sect1>
+      <title>Core Driver Infrastructure</title>
+      <para>
+	This section covers core driver infrastructure used by both the display
+	and the GEM parts of the driver.
+      </para>
+      <sect2>
+        <title>Runtime Power Management</title>
+!Pdrivers/gpu/drm/i915/intel_runtime_pm.c runtime pm
+!Idrivers/gpu/drm/i915/intel_runtime_pm.c
+      </sect2>
+      <sect2>
+        <title>Interrupt Handling</title>
+!Pdrivers/gpu/drm/i915/i915_irq.c interrupt handling
+!Fdrivers/gpu/drm/i915/i915_irq.c intel_irq_init intel_irq_init_hw intel_hpd_init
+!Fdrivers/gpu/drm/i915/i915_irq.c intel_irq_fini
+!Fdrivers/gpu/drm/i915/i915_irq.c intel_runtime_pm_disable_interrupts
+!Fdrivers/gpu/drm/i915/i915_irq.c intel_runtime_pm_enable_interrupts
+      </sect2>
+    </sect1>
+    <sect1>
       <title>Display Hardware Handling</title>
       <para>
         This section covers everything related to the display hardware including
@@ -3802,6 +3908,18 @@ int num_ioctls;</synopsis>
           has its own tailor-made infrastructure for executing a display
           configuration change.
         </para>
+      </sect2>
+      <sect2>
+        <title>Frontbuffer Tracking</title>
+!Pdrivers/gpu/drm/i915/intel_frontbuffer.c frontbuffer tracking
+!Idrivers/gpu/drm/i915/intel_frontbuffer.c
+!Fdrivers/gpu/drm/i915/intel_drv.h intel_frontbuffer_flip
+!Fdrivers/gpu/drm/i915/i915_gem.c i915_gem_track_fb
+      </sect2>
+      <sect2>
+        <title>Display FIFO Underrun Reporting</title>
+!Pdrivers/gpu/drm/i915/intel_fifo_underrun.c fifo underrun handling
+!Idrivers/gpu/drm/i915/intel_fifo_underrun.c
       </sect2>
       <sect2>
         <title>Plane Configuration</title>
@@ -3821,6 +3939,16 @@ int num_ioctls;</synopsis>
 	  i915 driver still uses most of the common DRM helper code for output
 	  probing, so those sections fully apply.
         </para>
+      </sect2>
+      <sect2>
+	<title>High Definition Audio</title>
+!Pdrivers/gpu/drm/i915/intel_audio.c High Definition Audio over HDMI and Display Port
+!Idrivers/gpu/drm/i915/intel_audio.c
+      </sect2>
+      <sect2>
+	<title>Panel Self Refresh PSR (PSR/SRD)</title>
+!Pdrivers/gpu/drm/i915/intel_psr.c Panel Self Refresh (PSR/SRD)
+!Idrivers/gpu/drm/i915/intel_psr.c
       </sect2>
       <sect2>
         <title>DPIO</title>
@@ -3931,6 +4059,28 @@ int num_ioctls;</synopsis>
 !Idrivers/gpu/drm/i915/intel_lrc.c
       </sect2>
     </sect1>
+
+    <sect1>
+      <title> Tracing </title>
+      <para>
+    This sections covers all things related to the tracepoints implemented in
+    the i915 driver.
+      </para>
+      <sect2>
+        <title> i915_ppgtt_create and i915_ppgtt_release </title>
+!Pdrivers/gpu/drm/i915/i915_trace.h i915_ppgtt_create and i915_ppgtt_release tracepoints
+      </sect2>
+      <sect2>
+        <title> i915_context_create and i915_context_free </title>
+!Pdrivers/gpu/drm/i915/i915_trace.h i915_context_create and i915_context_free tracepoints
+      </sect2>
+      <sect2>
+        <title> switch_mm </title>
+!Pdrivers/gpu/drm/i915/i915_trace.h switch_mm tracepoint
+      </sect2>
+    </sect1>
+
   </chapter>
+!Cdrivers/gpu/drm/i915/i915_irq.c
 </part>
 </book>

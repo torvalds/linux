@@ -36,9 +36,6 @@ extern int migrate_pages(struct list_head *l, new_page_t new, free_page_t free,
 
 extern int migrate_prep(void);
 extern int migrate_prep_local(void);
-extern int migrate_vmas(struct mm_struct *mm,
-		const nodemask_t *from, const nodemask_t *to,
-		unsigned long flags);
 extern void migrate_page_copy(struct page *newpage, struct page *page);
 extern int migrate_huge_page_move_mapping(struct address_space *mapping,
 				  struct page *newpage, struct page *page);
@@ -56,13 +53,6 @@ static inline int migrate_pages(struct list_head *l, new_page_t new,
 
 static inline int migrate_prep(void) { return -ENOSYS; }
 static inline int migrate_prep_local(void) { return -ENOSYS; }
-
-static inline int migrate_vmas(struct mm_struct *mm,
-		const nodemask_t *from, const nodemask_t *to,
-		unsigned long flags)
-{
-	return -ENOSYS;
-}
 
 static inline void migrate_page_copy(struct page *newpage,
 				     struct page *page) {}

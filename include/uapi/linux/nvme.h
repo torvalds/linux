@@ -181,6 +181,22 @@ enum {
 	NVME_LBART_ATTRIB_HIDE	= 1 << 1,
 };
 
+struct nvme_reservation_status {
+	__le32	gen;
+	__u8	rtype;
+	__u8	regctl[2];
+	__u8	resv5[2];
+	__u8	ptpls;
+	__u8	resv10[13];
+	struct {
+		__le16	cntlid;
+		__u8	rcsts;
+		__u8	resv3[5];
+		__le64	hostid;
+		__le64	rkey;
+	} regctl_ds[];
+};
+
 /* I/O commands */
 
 enum nvme_opcode {
@@ -189,7 +205,12 @@ enum nvme_opcode {
 	nvme_cmd_read		= 0x02,
 	nvme_cmd_write_uncor	= 0x04,
 	nvme_cmd_compare	= 0x05,
+	nvme_cmd_write_zeroes	= 0x08,
 	nvme_cmd_dsm		= 0x09,
+	nvme_cmd_resv_register	= 0x0d,
+	nvme_cmd_resv_report	= 0x0e,
+	nvme_cmd_resv_acquire	= 0x11,
+	nvme_cmd_resv_release	= 0x15,
 };
 
 struct nvme_common_command {
@@ -305,7 +326,11 @@ enum {
 	NVME_FEAT_IRQ_CONFIG	= 0x09,
 	NVME_FEAT_WRITE_ATOMIC	= 0x0a,
 	NVME_FEAT_ASYNC_EVENT	= 0x0b,
-	NVME_FEAT_SW_PROGRESS	= 0x0c,
+	NVME_FEAT_AUTO_PST	= 0x0c,
+	NVME_FEAT_SW_PROGRESS	= 0x80,
+	NVME_FEAT_HOST_ID	= 0x81,
+	NVME_FEAT_RESV_MASK	= 0x82,
+	NVME_FEAT_RESV_PERSIST	= 0x83,
 	NVME_LOG_ERROR		= 0x01,
 	NVME_LOG_SMART		= 0x02,
 	NVME_LOG_FW_SLOT	= 0x03,
@@ -440,9 +465,15 @@ enum {
 	NVME_SC_FUSED_MISSING		= 0xa,
 	NVME_SC_INVALID_NS		= 0xb,
 	NVME_SC_CMD_SEQ_ERROR		= 0xc,
+	NVME_SC_SGL_INVALID_LAST	= 0xd,
+	NVME_SC_SGL_INVALID_COUNT	= 0xe,
+	NVME_SC_SGL_INVALID_DATA	= 0xf,
+	NVME_SC_SGL_INVALID_METADATA	= 0x10,
+	NVME_SC_SGL_INVALID_TYPE	= 0x11,
 	NVME_SC_LBA_RANGE		= 0x80,
 	NVME_SC_CAP_EXCEEDED		= 0x81,
 	NVME_SC_NS_NOT_READY		= 0x82,
+	NVME_SC_RESERVATION_CONFLICT	= 0x83,
 	NVME_SC_CQ_INVALID		= 0x100,
 	NVME_SC_QID_INVALID		= 0x101,
 	NVME_SC_QUEUE_SIZE		= 0x102,
@@ -454,7 +485,15 @@ enum {
 	NVME_SC_INVALID_VECTOR		= 0x108,
 	NVME_SC_INVALID_LOG_PAGE	= 0x109,
 	NVME_SC_INVALID_FORMAT		= 0x10a,
+	NVME_SC_FIRMWARE_NEEDS_RESET	= 0x10b,
+	NVME_SC_INVALID_QUEUE		= 0x10c,
+	NVME_SC_FEATURE_NOT_SAVEABLE	= 0x10d,
+	NVME_SC_FEATURE_NOT_CHANGEABLE	= 0x10e,
+	NVME_SC_FEATURE_NOT_PER_NS	= 0x10f,
+	NVME_SC_FW_NEEDS_RESET_SUBSYS	= 0x110,
 	NVME_SC_BAD_ATTRIBUTES		= 0x180,
+	NVME_SC_INVALID_PI		= 0x181,
+	NVME_SC_READ_ONLY		= 0x182,
 	NVME_SC_WRITE_FAULT		= 0x280,
 	NVME_SC_READ_ERROR		= 0x281,
 	NVME_SC_GUARD_CHECK		= 0x282,
@@ -489,7 +528,7 @@ struct nvme_user_io {
 	__u16	appmask;
 };
 
-struct nvme_admin_cmd {
+struct nvme_passthru_cmd {
 	__u8	opcode;
 	__u8	flags;
 	__u16	rsvd1;
@@ -510,8 +549,11 @@ struct nvme_admin_cmd {
 	__u32	result;
 };
 
+#define nvme_admin_cmd nvme_passthru_cmd
+
 #define NVME_IOCTL_ID		_IO('N', 0x40)
 #define NVME_IOCTL_ADMIN_CMD	_IOWR('N', 0x41, struct nvme_admin_cmd)
 #define NVME_IOCTL_SUBMIT_IO	_IOW('N', 0x42, struct nvme_user_io)
+#define NVME_IOCTL_IO_CMD	_IOWR('N', 0x43, struct nvme_passthru_cmd)
 
 #endif /* _UAPI_LINUX_NVME_H */

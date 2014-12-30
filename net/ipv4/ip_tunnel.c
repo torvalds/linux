@@ -56,7 +56,6 @@
 #include <net/netns/generic.h>
 #include <net/rtnetlink.h>
 #include <net/udp.h>
-#include <net/gue.h>
 
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ipv6.h>
@@ -491,17 +490,56 @@ EXPORT_SYMBOL_GPL(ip_tunnel_rcv);
 
 static int ip_encap_hlen(struct ip_tunnel_encap *e)
 {
-	switch (e->type) {
-	case TUNNEL_ENCAP_NONE:
+	const struct ip_tunnel_encap_ops *ops;
+	int hlen = -EINVAL;
+
+	if (e->type == TUNNEL_ENCAP_NONE)
 		return 0;
-	case TUNNEL_ENCAP_FOU:
-		return sizeof(struct udphdr);
-	case TUNNEL_ENCAP_GUE:
-		return sizeof(struct udphdr) + sizeof(struct guehdr);
-	default:
+
+	if (e->type >= MAX_IPTUN_ENCAP_OPS)
 		return -EINVAL;
-	}
+
+	rcu_read_lock();
+	ops = rcu_dereference(iptun_encaps[e->type]);
+	if (likely(ops && ops->encap_hlen))
+		hlen = ops->encap_hlen(e);
+	rcu_read_unlock();
+
+	return hlen;
 }
+
+const struct ip_tunnel_encap_ops __rcu *
+		iptun_encaps[MAX_IPTUN_ENCAP_OPS] __read_mostly;
+
+int ip_tunnel_encap_add_ops(const struct ip_tunnel_encap_ops *ops,
+			    unsigned int num)
+{
+	if (num >= MAX_IPTUN_ENCAP_OPS)
+		return -ERANGE;
+
+	return !cmpxchg((const struct ip_tunnel_encap_ops **)
+			&iptun_encaps[num],
+			NULL, ops) ? 0 : -1;
+}
+EXPORT_SYMBOL(ip_tunnel_encap_add_ops);
+
+int ip_tunnel_encap_del_ops(const struct ip_tunnel_encap_ops *ops,
+			    unsigned int num)
+{
+	int ret;
+
+	if (num >= MAX_IPTUN_ENCAP_OPS)
+		return -ERANGE;
+
+	ret = (cmpxchg((const struct ip_tunnel_encap_ops **)
+		       &iptun_encaps[num],
+		       ops, NULL) == ops) ? 0 : -1;
+
+	synchronize_net();
+
+	return ret;
+}
+EXPORT_SYMBOL(ip_tunnel_encap_del_ops);
 
 int ip_tunnel_encap_setup(struct ip_tunnel *t,
 			  struct ip_tunnel_encap *ipencap)
@@ -526,63 +564,25 @@ int ip_tunnel_encap_setup(struct ip_tunnel *t,
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_encap_setup);
 
-static int fou_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
-			    size_t hdr_len, u8 *protocol, struct flowi4 *fl4)
-{
-	struct udphdr *uh;
-	__be16 sport;
-	bool csum = !!(e->flags & TUNNEL_ENCAP_FLAG_CSUM);
-	int type = csum ? SKB_GSO_UDP_TUNNEL_CSUM : SKB_GSO_UDP_TUNNEL;
-
-	skb = iptunnel_handle_offloads(skb, csum, type);
-
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
-
-	/* Get length and hash before making space in skb */
-
-	sport = e->sport ? : udp_flow_src_port(dev_net(skb->dev),
-					       skb, 0, 0, false);
-
-	skb_push(skb, hdr_len);
-
-	skb_reset_transport_header(skb);
-	uh = udp_hdr(skb);
-
-	if (e->type == TUNNEL_ENCAP_GUE) {
-		struct guehdr *guehdr = (struct guehdr *)&uh[1];
-
-		guehdr->version = 0;
-		guehdr->hlen = 0;
-		guehdr->flags = 0;
-		guehdr->next_hdr = *protocol;
-	}
-
-	uh->dest = e->dport;
-	uh->source = sport;
-	uh->len = htons(skb->len);
-	uh->check = 0;
-	udp_set_csum(!(e->flags & TUNNEL_ENCAP_FLAG_CSUM), skb,
-		     fl4->saddr, fl4->daddr, skb->len);
-
-	*protocol = IPPROTO_UDP;
-
-	return 0;
-}
-
 int ip_tunnel_encap(struct sk_buff *skb, struct ip_tunnel *t,
 		    u8 *protocol, struct flowi4 *fl4)
 {
-	switch (t->encap.type) {
-	case TUNNEL_ENCAP_NONE:
+	const struct ip_tunnel_encap_ops *ops;
+	int ret = -EINVAL;
+
+	if (t->encap.type == TUNNEL_ENCAP_NONE)
 		return 0;
-	case TUNNEL_ENCAP_FOU:
-	case TUNNEL_ENCAP_GUE:
-		return fou_build_header(skb, &t->encap, t->encap_hlen,
-					protocol, fl4);
-	default:
+
+	if (t->encap.type >= MAX_IPTUN_ENCAP_OPS)
 		return -EINVAL;
-	}
+
+	rcu_read_lock();
+	ops = rcu_dereference(iptun_encaps[t->encap.type]);
+	if (likely(ops && ops->build_header))
+		ret = ops->build_header(skb, &t->encap, protocol, fl4);
+	rcu_read_unlock();
+
+	return ret;
 }
 EXPORT_SYMBOL(ip_tunnel_encap);
 

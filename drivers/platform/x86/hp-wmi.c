@@ -1006,7 +1006,6 @@ static const struct dev_pm_ops hp_wmi_pm_ops = {
 static struct platform_driver hp_wmi_driver = {
 	.driver = {
 		.name = "hp-wmi",
-		.owner = THIS_MODULE,
 		.pm = &hp_wmi_pm_ops,
 	},
 	.remove = __exit_p(hp_wmi_bios_remove),

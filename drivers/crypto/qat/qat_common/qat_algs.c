@@ -161,7 +161,7 @@ static int qat_alg_do_precomputes(struct icp_qat_hw_auth_algo_blk *hash,
 	__be64 *hash512_state_out;
 	int i, offset;
 
-	memset(auth_state.data, '\0', MAX_AUTH_STATE_SIZE + 64);
+	memzero_explicit(auth_state.data, MAX_AUTH_STATE_SIZE + 64);
 	shash->tfm = ctx->hash_tfm;
 	shash->flags = 0x0;
 
@@ -174,13 +174,13 @@ static int qat_alg_do_precomputes(struct icp_qat_hw_auth_algo_blk *hash,
 
 		memcpy(ipad, buff, digest_size);
 		memcpy(opad, buff, digest_size);
-		memset(ipad + digest_size, 0, block_size - digest_size);
-		memset(opad + digest_size, 0, block_size - digest_size);
+		memzero_explicit(ipad + digest_size, block_size - digest_size);
+		memzero_explicit(opad + digest_size, block_size - digest_size);
 	} else {
 		memcpy(ipad, auth_key, auth_keylen);
 		memcpy(opad, auth_key, auth_keylen);
-		memset(ipad + auth_keylen, 0, block_size - auth_keylen);
-		memset(opad + auth_keylen, 0, block_size - auth_keylen);
+		memzero_explicit(ipad + auth_keylen, block_size - auth_keylen);
+		memzero_explicit(opad + auth_keylen, block_size - auth_keylen);
 	}
 
 	for (i = 0; i < block_size; i++) {
@@ -254,6 +254,8 @@ static int qat_alg_do_precomputes(struct icp_qat_hw_auth_algo_blk *hash,
 	default:
 		return -EFAULT;
 	}
+	memzero_explicit(ipad, block_size);
+	memzero_explicit(opad, block_size);
 	return 0;
 }
 
@@ -466,7 +468,6 @@ static int qat_alg_init_sessions(struct qat_alg_session_ctx *ctx,
 		break;
 	default:
 		goto bad_key;
-		break;
 	}
 
 	if (qat_alg_init_enc_session(ctx, alg, &keys))
@@ -493,12 +494,12 @@ static int qat_alg_setkey(struct crypto_aead *tfm, const uint8_t *key,
 	if (ctx->enc_cd) {
 		/* rekeying */
 		dev = &GET_DEV(ctx->inst->accel_dev);
-		memset(ctx->enc_cd, 0, sizeof(struct qat_alg_cd));
-		memset(ctx->dec_cd, 0, sizeof(struct qat_alg_cd));
-		memset(&ctx->enc_fw_req_tmpl, 0,
-		       sizeof(struct icp_qat_fw_la_bulk_req));
-		memset(&ctx->dec_fw_req_tmpl, 0,
-		       sizeof(struct icp_qat_fw_la_bulk_req));
+		memzero_explicit(ctx->enc_cd, sizeof(struct qat_alg_cd));
+		memzero_explicit(ctx->dec_cd, sizeof(struct qat_alg_cd));
+		memzero_explicit(&ctx->enc_fw_req_tmpl,
+				 sizeof(struct icp_qat_fw_la_bulk_req));
+		memzero_explicit(&ctx->dec_fw_req_tmpl,
+				 sizeof(struct icp_qat_fw_la_bulk_req));
 	} else {
 		/* new key */
 		int node = get_current_node();
@@ -535,10 +536,12 @@ static int qat_alg_setkey(struct crypto_aead *tfm, const uint8_t *key,
 	return 0;
 
 out_free_all:
+	memzero_explicit(ctx->dec_cd, sizeof(struct qat_alg_cd));
 	dma_free_coherent(dev, sizeof(struct qat_alg_cd),
 			  ctx->dec_cd, ctx->dec_cd_paddr);
 	ctx->dec_cd = NULL;
 out_free_enc:
+	memzero_explicit(ctx->enc_cd, sizeof(struct qat_alg_cd));
 	dma_free_coherent(dev, sizeof(struct qat_alg_cd),
 			  ctx->enc_cd, ctx->enc_cd_paddr);
 	ctx->enc_cd = NULL;
@@ -836,7 +839,7 @@ static int qat_alg_init(struct crypto_tfm *tfm,
 {
 	struct qat_alg_session_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	memset(ctx, '\0', sizeof(*ctx));
+	memzero_explicit(ctx, sizeof(*ctx));
 	ctx->hash_tfm = crypto_alloc_shash(hash_name, 0, 0);
 	if (IS_ERR(ctx->hash_tfm))
 		return -EFAULT;
@@ -876,12 +879,16 @@ static void qat_alg_exit(struct crypto_tfm *tfm)
 		return;
 
 	dev = &GET_DEV(inst->accel_dev);
-	if (ctx->enc_cd)
+	if (ctx->enc_cd) {
+		memzero_explicit(ctx->enc_cd, sizeof(struct qat_alg_cd));
 		dma_free_coherent(dev, sizeof(struct qat_alg_cd),
 				  ctx->enc_cd, ctx->enc_cd_paddr);
-	if (ctx->dec_cd)
+	}
+	if (ctx->dec_cd) {
+		memzero_explicit(ctx->dec_cd, sizeof(struct qat_alg_cd));
 		dma_free_coherent(dev, sizeof(struct qat_alg_cd),
 				  ctx->dec_cd, ctx->dec_cd_paddr);
+	}
 	qat_crypto_put_instance(inst);
 }
 

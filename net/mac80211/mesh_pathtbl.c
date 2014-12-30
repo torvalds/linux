@@ -44,6 +44,7 @@ static struct mesh_table __rcu *mesh_paths;
 static struct mesh_table __rcu *mpp_paths; /* Store paths for MPP&MAP */
 
 int mesh_paths_generation;
+int mpp_paths_generation;
 
 /* This lock will have the grow table function as writer and add / delete nodes
  * as readers. RCU provides sufficient protection only when reading the table
@@ -410,6 +411,33 @@ mesh_path_lookup_by_idx(struct ieee80211_sub_if_data *sdata, int idx)
 }
 
 /**
+ * mpp_path_lookup_by_idx - look up a path in the proxy path table by its index
+ * @idx: index
+ * @sdata: local subif, or NULL for all entries
+ *
+ * Returns: pointer to the proxy path structure, or NULL if not found.
+ *
+ * Locking: must be called within a read rcu section.
+ */
+struct mesh_path *
+mpp_path_lookup_by_idx(struct ieee80211_sub_if_data *sdata, int idx)
+{
+	struct mesh_table *tbl = rcu_dereference(mpp_paths);
+	struct mpath_node *node;
+	int i;
+	int j = 0;
+
+	for_each_mesh_entry(tbl, node, i) {
+		if (sdata && node->mpath->sdata != sdata)
+			continue;
+		if (j++ == idx)
+			return node->mpath;
+	}
+
+	return NULL;
+}
+
+/**
  * mesh_path_add_gate - add the given mpath to a mesh gate to our path table
  * @mpath: gate path to add to table
  */
@@ -691,6 +719,9 @@ int mpp_path_add(struct ieee80211_sub_if_data *sdata,
 
 	spin_unlock(&tbl->hashwlock[hash_idx]);
 	read_unlock_bh(&pathtbl_resize_lock);
+
+	mpp_paths_generation++;
+
 	if (grow) {
 		set_bit(MESH_WORK_GROW_MPP_TABLE,  &ifmsh->wrkq_flags);
 		ieee80211_queue_work(&local->hw, &sdata->work);

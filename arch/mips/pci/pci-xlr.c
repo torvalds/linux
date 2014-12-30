@@ -260,7 +260,7 @@ int arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc)
 	if (ret < 0)
 		return ret;
 
-	write_msi_msg(irq, &msg);
+	pci_write_msi_msg(irq, &msg);
 	return 0;
 }
 #endif

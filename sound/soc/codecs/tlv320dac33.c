@@ -1436,8 +1436,6 @@ static int dac33_soc_remove(struct snd_soc_codec *codec)
 {
 	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 
-	dac33_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
 	if (dac33->irq >= 0) {
 		free_irq(dac33->irq, dac33->codec);
 		destroy_workqueue(dac33->dac33_wq);

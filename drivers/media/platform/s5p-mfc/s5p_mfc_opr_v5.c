@@ -1178,7 +1178,6 @@ static void s5p_mfc_run_res_change(struct s5p_mfc_ctx *ctx)
 
 	s5p_mfc_set_dec_stream_buffer_v5(ctx, 0, 0, 0);
 	dev->curr_ctx = ctx->num;
-	s5p_mfc_clean_ctx_int_flags(ctx);
 	s5p_mfc_decode_one_frame_v5(ctx, MFC_DEC_RES_CHANGE);
 }
 
@@ -1192,7 +1191,6 @@ static int s5p_mfc_run_dec_frame(struct s5p_mfc_ctx *ctx, int last_frame)
 		last_frame = MFC_DEC_LAST_FRAME;
 		s5p_mfc_set_dec_stream_buffer_v5(ctx, 0, 0, 0);
 		dev->curr_ctx = ctx->num;
-		s5p_mfc_clean_ctx_int_flags(ctx);
 		s5p_mfc_decode_one_frame_v5(ctx, last_frame);
 		return 0;
 	}
@@ -1212,7 +1210,6 @@ static int s5p_mfc_run_dec_frame(struct s5p_mfc_ctx *ctx, int last_frame)
 		ctx->consumed_stream, temp_vb->b->v4l2_planes[0].bytesused);
 	spin_unlock_irqrestore(&dev->irqlock, flags);
 	dev->curr_ctx = ctx->num;
-	s5p_mfc_clean_ctx_int_flags(ctx);
 	if (temp_vb->b->v4l2_planes[0].bytesused == 0) {
 		last_frame = MFC_DEC_LAST_FRAME;
 		mfc_debug(2, "Setting ctx->state to FINISHING\n");
@@ -1273,7 +1270,6 @@ static int s5p_mfc_run_enc_frame(struct s5p_mfc_ctx *ctx)
 	s5p_mfc_set_enc_stream_buffer_v5(ctx, dst_addr, dst_size);
 	spin_unlock_irqrestore(&dev->irqlock, flags);
 	dev->curr_ctx = ctx->num;
-	s5p_mfc_clean_ctx_int_flags(ctx);
 	mfc_debug(2, "encoding buffer with index=%d state=%d\n",
 		  src_mb ? src_mb->b->v4l2_buf.index : -1, ctx->state);
 	s5p_mfc_encode_one_frame_v5(ctx);
@@ -1297,7 +1293,6 @@ static void s5p_mfc_run_init_dec(struct s5p_mfc_ctx *ctx)
 				0, temp_vb->b->v4l2_planes[0].bytesused);
 	spin_unlock_irqrestore(&dev->irqlock, flags);
 	dev->curr_ctx = ctx->num;
-	s5p_mfc_clean_ctx_int_flags(ctx);
 	s5p_mfc_init_decode_v5(ctx);
 }
 
@@ -1317,7 +1312,6 @@ static void s5p_mfc_run_init_enc(struct s5p_mfc_ctx *ctx)
 	s5p_mfc_set_enc_stream_buffer_v5(ctx, dst_addr, dst_size);
 	spin_unlock_irqrestore(&dev->irqlock, flags);
 	dev->curr_ctx = ctx->num;
-	s5p_mfc_clean_ctx_int_flags(ctx);
 	s5p_mfc_init_encode_v5(ctx);
 }
 
@@ -1352,7 +1346,6 @@ static int s5p_mfc_run_init_dec_buffers(struct s5p_mfc_ctx *ctx)
 				0, temp_vb->b->v4l2_planes[0].bytesused);
 	spin_unlock_irqrestore(&dev->irqlock, flags);
 	dev->curr_ctx = ctx->num;
-	s5p_mfc_clean_ctx_int_flags(ctx);
 	ret = s5p_mfc_set_dec_frame_buffer_v5(ctx);
 	if (ret) {
 		mfc_err("Failed to alloc frame mem\n");
@@ -1396,6 +1389,8 @@ static void s5p_mfc_try_run_v5(struct s5p_mfc_dev *dev)
 	 * Now obtaining frames from MFC buffer
 	 */
 	s5p_mfc_clock_on();
+	s5p_mfc_clean_ctx_int_flags(ctx);
+
 	if (ctx->type == MFCINST_DECODER) {
 		s5p_mfc_set_dec_desc_buffer(ctx);
 		switch (ctx->state) {
@@ -1406,12 +1401,10 @@ static void s5p_mfc_try_run_v5(struct s5p_mfc_dev *dev)
 			ret = s5p_mfc_run_dec_frame(ctx, MFC_DEC_FRAME);
 			break;
 		case MFCINST_INIT:
-			s5p_mfc_clean_ctx_int_flags(ctx);
 			ret = s5p_mfc_hw_call(dev->mfc_cmds, open_inst_cmd,
 					ctx);
 			break;
 		case MFCINST_RETURN_INST:
-			s5p_mfc_clean_ctx_int_flags(ctx);
 			ret = s5p_mfc_hw_call(dev->mfc_cmds, close_inst_cmd,
 					ctx);
 			break;
@@ -1444,12 +1437,10 @@ static void s5p_mfc_try_run_v5(struct s5p_mfc_dev *dev)
 			ret = s5p_mfc_run_enc_frame(ctx);
 			break;
 		case MFCINST_INIT:
-			s5p_mfc_clean_ctx_int_flags(ctx);
 			ret = s5p_mfc_hw_call(dev->mfc_cmds, open_inst_cmd,
 					ctx);
 			break;
 		case MFCINST_RETURN_INST:
-			s5p_mfc_clean_ctx_int_flags(ctx);
 			ret = s5p_mfc_hw_call(dev->mfc_cmds, close_inst_cmd,
 					ctx);
 			break;

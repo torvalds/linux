@@ -51,6 +51,7 @@
 #include <uapi/linux/if_ether.h>
 
 #include <linux/atomic.h>
+#include <linux/mmu_notifier.h>
 #include <asm/uaccess.h>
 
 extern struct workqueue_struct *ib_wq;
@@ -123,7 +124,8 @@ enum ib_device_cap_flags {
 	IB_DEVICE_MEM_WINDOW_TYPE_2A	= (1<<23),
 	IB_DEVICE_MEM_WINDOW_TYPE_2B	= (1<<24),
 	IB_DEVICE_MANAGED_FLOW_STEERING = (1<<29),
-	IB_DEVICE_SIGNATURE_HANDOVER	= (1<<30)
+	IB_DEVICE_SIGNATURE_HANDOVER	= (1<<30),
+	IB_DEVICE_ON_DEMAND_PAGING	= (1<<31),
 };
 
 enum ib_signature_prot_cap {
@@ -141,6 +143,27 @@ enum ib_atomic_cap {
 	IB_ATOMIC_NONE,
 	IB_ATOMIC_HCA,
 	IB_ATOMIC_GLOB
+};
+
+enum ib_odp_general_cap_bits {
+	IB_ODP_SUPPORT = 1 << 0,
+};
+
+enum ib_odp_transport_cap_bits {
+	IB_ODP_SUPPORT_SEND	= 1 << 0,
+	IB_ODP_SUPPORT_RECV	= 1 << 1,
+	IB_ODP_SUPPORT_WRITE	= 1 << 2,
+	IB_ODP_SUPPORT_READ	= 1 << 3,
+	IB_ODP_SUPPORT_ATOMIC	= 1 << 4,
+};
+
+struct ib_odp_caps {
+	uint64_t general_caps;
+	struct {
+		uint32_t  rc_odp_caps;
+		uint32_t  uc_odp_caps;
+		uint32_t  ud_odp_caps;
+	} per_transport_caps;
 };
 
 struct ib_device_attr {
@@ -186,6 +209,7 @@ struct ib_device_attr {
 	u8			local_ca_ack_delay;
 	int			sig_prot_cap;
 	int			sig_guard_cap;
+	struct ib_odp_caps	odp_caps;
 };
 
 enum ib_mtu {
@@ -1073,7 +1097,8 @@ enum ib_access_flags {
 	IB_ACCESS_REMOTE_READ	= (1<<2),
 	IB_ACCESS_REMOTE_ATOMIC	= (1<<3),
 	IB_ACCESS_MW_BIND	= (1<<4),
-	IB_ZERO_BASED		= (1<<5)
+	IB_ZERO_BASED		= (1<<5),
+	IB_ACCESS_ON_DEMAND     = (1<<6),
 };
 
 struct ib_phys_buf {
@@ -1115,6 +1140,8 @@ struct ib_fmr_attr {
 	u8	page_shift;
 };
 
+struct ib_umem;
+
 struct ib_ucontext {
 	struct ib_device       *device;
 	struct list_head	pd_list;
@@ -1127,6 +1154,24 @@ struct ib_ucontext {
 	struct list_head	xrcd_list;
 	struct list_head	rule_list;
 	int			closing;
+
+	struct pid             *tgid;
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+	struct rb_root      umem_tree;
+	/*
+	 * Protects .umem_rbroot and tree, as well as odp_mrs_count and
+	 * mmu notifiers registration.
+	 */
+	struct rw_semaphore	umem_rwsem;
+	void (*invalidate_range)(struct ib_umem *umem,
+				 unsigned long start, unsigned long end);
+
+	struct mmu_notifier	mn;
+	atomic_t		notifier_count;
+	/* A list of umems that don't have private mmu notifier counters yet. */
+	struct list_head	no_private_counters;
+	int                     odp_mrs_count;
+#endif
 };
 
 struct ib_uobject {
@@ -1662,7 +1707,10 @@ static inline int ib_copy_from_udata(void *dest, struct ib_udata *udata, size_t 
 
 static inline int ib_copy_to_udata(struct ib_udata *udata, void *src, size_t len)
 {
-	return copy_to_user(udata->outbuf, src, len) ? -EFAULT : 0;
+	size_t copy_sz;
+
+	copy_sz = min_t(size_t, len, udata->outlen);
+	return copy_to_user(udata->outbuf, src, copy_sz) ? -EFAULT : 0;
 }
 
 /**

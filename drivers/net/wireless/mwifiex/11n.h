@@ -84,6 +84,8 @@ mwifiex_is_amsdu_in_ampdu_allowed(struct mwifiex_private *priv,
 {
 	struct mwifiex_tx_ba_stream_tbl *tx_tbl;
 
+	if (is_broadcast_ether_addr(ptr->ra))
+		return false;
 	tx_tbl = mwifiex_get_ba_tbl(priv, tid, ptr->ra);
 	if (tx_tbl)
 		return tx_tbl->amsdu;
@@ -96,6 +98,8 @@ static inline u8
 mwifiex_is_ampdu_allowed(struct mwifiex_private *priv,
 			 struct mwifiex_ra_list_tbl *ptr, int tid)
 {
+	if (is_broadcast_ether_addr(ptr->ra))
+		return false;
 	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {
 		return mwifiex_is_station_ampdu_allowed(priv, ptr, tid);
 	} else {

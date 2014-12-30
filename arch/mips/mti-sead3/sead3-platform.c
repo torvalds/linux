@@ -7,12 +7,15 @@
  */
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/irqchip/mips-gic.h>
 #include <linux/serial_8250.h>
 
-#define UART(base, int)							\
+#include <asm/mips-boards/sead3int.h>
+
+#define UART(base)							\
 {									\
 	.mapbase	= base,						\
-	.irq		= int,						\
+	.irq		= -1,						\
 	.uartclk	= 14745600,					\
 	.iotype		= UPIO_MEM32,					\
 	.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST | UPF_IOREMAP, \
@@ -20,8 +23,8 @@
 }
 
 static struct plat_serial8250_port uart8250_data[] = {
-	UART(0x1f000900, MIPS_CPU_IRQ_BASE + 4),   /* ttyS0 = USB   */
-	UART(0x1f000800, MIPS_CPU_IRQ_BASE + 4),   /* ttyS1 = RS232 */
+	UART(0x1f000900),   /* ttyS0 = USB   */
+	UART(0x1f000800),   /* ttyS1 = RS232 */
 	{ },
 };
 
@@ -35,6 +38,13 @@ static struct platform_device uart8250_device = {
 
 static int __init uart8250_init(void)
 {
+	if (gic_present) {
+		uart8250_data[0].irq = MIPS_GIC_IRQ_BASE + GIC_INT_UART0;
+		uart8250_data[1].irq = MIPS_GIC_IRQ_BASE + GIC_INT_UART1;
+	} else {
+		uart8250_data[0].irq = MIPS_CPU_IRQ_BASE + CPU_INT_UART0;
+		uart8250_data[1].irq = MIPS_CPU_IRQ_BASE + CPU_INT_UART1;
+	}
 	return platform_device_register(&uart8250_device);
 }
 

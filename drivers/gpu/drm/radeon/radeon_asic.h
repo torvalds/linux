@@ -599,7 +599,8 @@ int cayman_asic_reset(struct radeon_device *rdev);
 void cayman_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
 int cayman_vm_init(struct radeon_device *rdev);
 void cayman_vm_fini(struct radeon_device *rdev);
-void cayman_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm);
+void cayman_vm_flush(struct radeon_device *rdev, struct radeon_ring *ring,
+		     unsigned vm_id, uint64_t pd_addr);
 uint32_t cayman_vm_page_flags(struct radeon_device *rdev, uint32_t flags);
 int evergreen_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib);
 int evergreen_dma_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib);
@@ -624,7 +625,8 @@ void cayman_dma_vm_set_pages(struct radeon_device *rdev,
 			     uint32_t incr, uint32_t flags);
 void cayman_dma_vm_pad_ib(struct radeon_ib *ib);
 
-void cayman_dma_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm);
+void cayman_dma_vm_flush(struct radeon_device *rdev, struct radeon_ring *ring,
+			 unsigned vm_id, uint64_t pd_addr);
 
 u32 cayman_gfx_get_rptr(struct radeon_device *rdev,
 			struct radeon_ring *ring);
@@ -699,7 +701,8 @@ int si_irq_set(struct radeon_device *rdev);
 int si_irq_process(struct radeon_device *rdev);
 int si_vm_init(struct radeon_device *rdev);
 void si_vm_fini(struct radeon_device *rdev);
-void si_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm);
+void si_vm_flush(struct radeon_device *rdev, struct radeon_ring *ring,
+		 unsigned vm_id, uint64_t pd_addr);
 int si_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib);
 struct radeon_fence *si_copy_dma(struct radeon_device *rdev,
 				 uint64_t src_offset, uint64_t dst_offset,
@@ -721,7 +724,8 @@ void si_dma_vm_set_pages(struct radeon_device *rdev,
 			 uint64_t addr, unsigned count,
 			 uint32_t incr, uint32_t flags);
 
-void si_dma_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm);
+void si_dma_vm_flush(struct radeon_device *rdev, struct radeon_ring *ring,
+		     unsigned vm_id, uint64_t pd_addr);
 u32 si_get_xclk(struct radeon_device *rdev);
 uint64_t si_get_gpu_clock_counter(struct radeon_device *rdev);
 int si_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk);
@@ -793,7 +797,8 @@ int cik_irq_set(struct radeon_device *rdev);
 int cik_irq_process(struct radeon_device *rdev);
 int cik_vm_init(struct radeon_device *rdev);
 void cik_vm_fini(struct radeon_device *rdev);
-void cik_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm);
+void cik_vm_flush(struct radeon_device *rdev, struct radeon_ring *ring,
+		  unsigned vm_id, uint64_t pd_addr);
 
 void cik_sdma_vm_copy_pages(struct radeon_device *rdev,
 			    struct radeon_ib *ib,
@@ -811,7 +816,8 @@ void cik_sdma_vm_set_pages(struct radeon_device *rdev,
 			   uint32_t incr, uint32_t flags);
 void cik_sdma_vm_pad_ib(struct radeon_ib *ib);
 
-void cik_dma_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm);
+void cik_dma_vm_flush(struct radeon_device *rdev, struct radeon_ring *ring,
+		      unsigned vm_id, uint64_t pd_addr);
 int cik_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib);
 u32 cik_gfx_get_rptr(struct radeon_device *rdev,
 		     struct radeon_ring *ring);

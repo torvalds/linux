@@ -34,8 +34,7 @@
 #include "controlvmcompletionstatus.h"
 
 struct uisqueue_info {
-
-	CHANNEL_HEADER __iomem *chan;
+	struct channel_header __iomem *chan;
 	/* channel containing queues in which scsi commands &
 	 * responses are queued
 	 */
@@ -48,8 +47,8 @@ struct uisqueue_info {
 	u64 non_empty_wakeup_cnt;
 
 	struct {
-		SIGNAL_QUEUE_HEADER reserved1;	/*  */
-		SIGNAL_QUEUE_HEADER reserved2;	/*  */
+		struct signal_queue_header reserved1;	/*  */
+		struct signal_queue_header reserved2;	/*  */
 	} safe_uis_queue;
 	unsigned int (*send_int_if_needed)(struct uisqueue_info *info,
 					   unsigned int whichcqueue,
@@ -119,7 +118,7 @@ struct extport_info {
 	*/
 
 	struct switch_info *swtch;
-	struct PciId pci_id;
+	struct pci_id pci_id;
 	char name[MAX_NAME_SIZE_UISQUEUE];
 	union {
 		struct vhba_wwnn wwnn;
@@ -133,7 +132,7 @@ struct device_info {
 	u64 channel_bytes;
 	uuid_le channel_uuid;
 	uuid_le instance_uuid;
-	struct InterruptInfo intr;
+	struct irq_info intr;
 	struct switch_info *swtch;
 	char devid[30];		/* "vbus<busno>:dev<devno>" */
 	u16 polling;
@@ -149,29 +148,26 @@ struct device_info {
 	unsigned long long last_on_list_cnt;
 };
 
-typedef enum {
+enum switch_type {
 	RECOVERY_LAN = 1,
 	IB_LAN = 2
-} SWITCH_TYPE;
+};
 
 struct bus_info {
-	u32 busNo, deviceCount;
+	u32 bus_no, device_count;
 	struct device_info **device;
-	u64 guestHandle, recvBusInterruptHandle;
-	uuid_le busInstGuid;
-	ULTRA_VBUS_CHANNEL_PROTOCOL __iomem *pBusChannel;
-	int busChannelBytes;
+	u64 guest_handle, recv_bus_irq_handle;
+	uuid_le bus_inst_uuid;
+	struct ultra_vbus_channel_protocol __iomem *bus_channel;
+	int bus_channel_bytes;
 	struct proc_dir_entry *proc_dir;	/* proc/uislib/vbus/<x> */
 	struct proc_dir_entry *proc_info;	/* proc/uislib/vbus/<x>/info */
 	char name[25];
-	char partitionName[99];
+	char partition_name[99];
 	struct bus_info *next;
-	u8 localVnic;		/* 1 if local vnic created internally
+	u8 local_vnic;		/* 1 if local vnic created internally
 				 * by IOVM; 0 otherwise... */
 };
-
-#define DEDICATED_SWITCH(s) ((s->extPortCount == 1) &&	\
-			     (s->intPortCount == 1))
 
 struct sn_list_entry {
 	struct uisscsi_dest pdest;	/* scsi bus, target, lun for
@@ -183,23 +179,12 @@ struct sn_list_entry {
 	struct sn_list_entry *next;
 };
 
-struct network_policy {
-	u32 promiscuous:1;
-	u32 macassign:1;
-	u32 peerforwarding:1;
-	u32 nonotify:1;
-	u32 standby:1;
-	u32 callhome:2;
-	char ip_addr[30];
-};
-
 /*
  * IO messages sent to UisnicControlChanFunc & UissdControlChanFunc by
  * code that processes the ControlVm channel messages.
  */
 
-
-typedef enum {
+enum iopart_msg_type {
 	IOPART_ADD_VNIC,
 	IOPART_DEL_VNIC,
 	IOPART_DEL_ALL_VNICS,
@@ -219,7 +204,7 @@ typedef enum {
 	IOPART_RESUME_VDISK,
 	IOPART_ADD_DEVICE,	/* add generic device */
 	IOPART_DEL_DEVICE,	/* del generic device */
-} IOPART_MSG_TYPE;
+};
 
 struct add_virt_iopart {
 	void *chanptr;		/* pointer to data channel */
@@ -228,7 +213,7 @@ struct add_virt_iopart {
 				 * for DMA, for ex. */
 	u64 recv_bus_irq_handle;	/* used to register to receive
 					 * bus level interrupts. */
-	struct InterruptInfo intr;	/* contains recv & send
+	struct irq_info intr;	/* contains recv & send
 					 * interrupt info */
 	/* recvInterruptHandle is used to register to receive
 	* interrupts on the data channel. Used by GuestLinux/Windows
@@ -259,21 +244,15 @@ struct add_vdisk_iopart {
 	struct uisscsi_dest pdest;    /* scsi bus, target, lun for phys disk */
 	u8 sernum[MAX_SERIAL_NUM];    /* serial num of physical disk */
 	u32 serlen;		      /* length of serial num */
-	u32 bus_no;
-	u32 dev_no;
 };
 
 struct del_vdisk_iopart {
 	void *chanptr;		     /* pointer to data channel */
 	struct uisscsi_dest vdest;   /* scsi bus, target, lun for virt disk */
-	u32 bus_no;
-	u32 dev_no;
 };
 
 struct del_virt_iopart {
 	void *chanptr;		     /* pointer to data channel */
-	u32 bus_no;
-	u32 dev_no;
 };
 
 struct det_virt_iopart {	     /* detach internal port */
@@ -297,8 +276,7 @@ struct del_switch_iopart {	     /* destroy switch */
 };
 
 struct io_msgs {
-
-	IOPART_MSG_TYPE msgtype;
+	enum iopart_msg_type msgtype;
 
 	/* additional params needed by some messages */
 	union {
@@ -329,7 +307,7 @@ struct io_msgs {
 * the ControlVm channel messages.
 */
 
-typedef enum {
+enum guestpart_msg_type {
 	GUEST_ADD_VBUS,
 	GUEST_ADD_VHBA,
 	GUEST_ADD_VNIC,
@@ -344,15 +322,15 @@ typedef enum {
 	GUEST_PAUSE_VNIC,
 	GUEST_RESUME_VHBA,
 	GUEST_RESUME_VNIC
-} GUESTPART_MSG_TYPE;
+};
 
 struct add_vbus_guestpart {
 	void __iomem *chanptr;		/* pointer to data channel for bus -
 					 * NOT YET USED */
-	u32 busNo;		/* bus number to be created/deleted */
-	u32 deviceCount;	/* max num of devices on bus */
-	uuid_le busTypeGuid;	/* indicates type of bus */
-	uuid_le busInstGuid;	/* instance guid for device */
+	u32 bus_no;		/* bus number to be created/deleted */
+	u32 dev_count;	/* max num of devices on bus */
+	uuid_le bus_uuid;	/* indicates type of bus */
+	uuid_le instance_uuid;	/* instance guid for device */
 };
 
 struct del_vbus_guestpart {
@@ -367,7 +345,7 @@ struct add_virt_guestpart {
 	u32 bus_no;		/* bus number for the operation */
 	u32 device_no;		/* number of device on the bus */
 	uuid_le instance_uuid;	/* instance guid for device */
-	struct InterruptInfo intr;	/* recv/send interrupt info */
+	struct irq_info intr;	/* recv/send interrupt info */
 	/* recvInterruptHandle contains info needed in order to
 	 * register to receive interrupts on the data channel.
 	 * sendInterruptHandle contains handle which is provided to
@@ -394,8 +372,7 @@ struct init_chipset_guestpart {
 };
 
 struct guest_msgs {
-
-	GUESTPART_MSG_TYPE msgtype;
+	enum guestpart_msg_type msgtype;
 
 	/* additional params needed by messages */
 	union {

@@ -1360,13 +1360,8 @@ void gfs2_quota_cleanup(struct gfs2_sbd *sdp)
 
 	gfs2_assert_warn(sdp, !atomic_read(&sdp->sd_quota_count));
 
-	if (sdp->sd_quota_bitmap) {
-		if (is_vmalloc_addr(sdp->sd_quota_bitmap))
-			vfree(sdp->sd_quota_bitmap);
-		else
-			kfree(sdp->sd_quota_bitmap);
-		sdp->sd_quota_bitmap = NULL;
-	}
+	kvfree(sdp->sd_quota_bitmap);
+	sdp->sd_quota_bitmap = NULL;
 }
 
 static void quotad_error(struct gfs2_sbd *sdp, const char *msg, int error)

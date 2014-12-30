@@ -37,6 +37,10 @@ struct si2168_config {
 
 	/* TS mode */
 	u8 ts_mode;
+
+	/* TS clock inverted */
+	bool ts_clock_inv;
+
 };
 
 #define SI2168_TS_PARALLEL	0x06

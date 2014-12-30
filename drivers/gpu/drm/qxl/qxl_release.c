@@ -264,7 +264,8 @@ int qxl_release_reserve_list(struct qxl_release *release, bool no_intr)
 	if (list_is_singular(&release->bos))
 		return 0;
 
-	ret = ttm_eu_reserve_buffers(&release->ticket, &release->bos, !no_intr);
+	ret = ttm_eu_reserve_buffers(&release->ticket, &release->bos,
+				     !no_intr, NULL);
 	if (ret)
 		return ret;
 

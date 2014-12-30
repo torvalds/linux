@@ -385,7 +385,7 @@ static int bcm_enet_receive_queue(struct net_device *dev, int budget)
 		if (len < copybreak) {
 			struct sk_buff *nskb;
 
-			nskb = netdev_alloc_skb_ip_align(dev, len);
+			nskb = napi_alloc_skb(&priv->napi, len);
 			if (!nskb) {
 				/* forget packet, just rearm desc */
 				dev->stats.rx_dropped++;

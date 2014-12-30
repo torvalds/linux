@@ -477,7 +477,7 @@ config TREE_RCU
 	  thousands of CPUs.  It also scales down nicely to
 	  smaller systems.
 
-config TREE_PREEMPT_RCU
+config PREEMPT_RCU
 	bool "Preemptible tree-based hierarchical RCU"
 	depends on PREEMPT
 	select IRQ_WORK
@@ -501,12 +501,6 @@ config TINY_RCU
 
 endchoice
 
-config PREEMPT_RCU
-	def_bool TREE_PREEMPT_RCU
-	help
-	  This option enables preemptible-RCU code that is common between
-	  TREE_PREEMPT_RCU and, in the old days, TINY_PREEMPT_RCU.
-
 config TASKS_RCU
 	bool "Task_based RCU implementation using voluntary context switch"
 	default n
@@ -518,7 +512,7 @@ config TASKS_RCU
 	  If unsure, say N.
 
 config RCU_STALL_COMMON
-	def_bool ( TREE_RCU || TREE_PREEMPT_RCU || RCU_TRACE )
+	def_bool ( TREE_RCU || PREEMPT_RCU || RCU_TRACE )
 	help
 	  This option enables RCU CPU stall code that is common between
 	  the TINY and TREE variants of RCU.  The purpose is to allow
@@ -576,7 +570,7 @@ config RCU_FANOUT
 	int "Tree-based hierarchical RCU fanout value"
 	range 2 64 if 64BIT
 	range 2 32 if !64BIT
-	depends on TREE_RCU || TREE_PREEMPT_RCU
+	depends on TREE_RCU || PREEMPT_RCU
 	default 64 if 64BIT
 	default 32 if !64BIT
 	help
@@ -596,7 +590,7 @@ config RCU_FANOUT_LEAF
 	int "Tree-based hierarchical RCU leaf-level fanout value"
 	range 2 RCU_FANOUT if 64BIT
 	range 2 RCU_FANOUT if !64BIT
-	depends on TREE_RCU || TREE_PREEMPT_RCU
+	depends on TREE_RCU || PREEMPT_RCU
 	default 16
 	help
 	  This option controls the leaf-level fanout of hierarchical
@@ -621,7 +615,7 @@ config RCU_FANOUT_LEAF
 
 config RCU_FANOUT_EXACT
 	bool "Disable tree-based hierarchical RCU auto-balancing"
-	depends on TREE_RCU || TREE_PREEMPT_RCU
+	depends on TREE_RCU || PREEMPT_RCU
 	default n
 	help
 	  This option forces use of the exact RCU_FANOUT value specified,
@@ -652,11 +646,11 @@ config RCU_FAST_NO_HZ
 	  Say N if you are unsure.
 
 config TREE_RCU_TRACE
-	def_bool RCU_TRACE && ( TREE_RCU || TREE_PREEMPT_RCU )
+	def_bool RCU_TRACE && ( TREE_RCU || PREEMPT_RCU )
 	select DEBUG_FS
 	help
 	  This option provides tracing for the TREE_RCU and
-	  TREE_PREEMPT_RCU implementations, permitting Makefile to
+	  PREEMPT_RCU implementations, permitting Makefile to
 	  trivially select kernel/rcutree_trace.c.
 
 config RCU_BOOST
@@ -672,30 +666,31 @@ config RCU_BOOST
 	  Say Y here if you are working with real-time apps or heavy loads
 	  Say N here if you are unsure.
 
-config RCU_BOOST_PRIO
-	int "Real-time priority to boost RCU readers to"
+config RCU_KTHREAD_PRIO
+	int "Real-time priority to use for RCU worker threads"
 	range 1 99
 	depends on RCU_BOOST
 	default 1
 	help
-	  This option specifies the real-time priority to which long-term
-	  preempted RCU readers are to be boosted.  If you are working
-	  with a real-time application that has one or more CPU-bound
-	  threads running at a real-time priority level, you should set
-	  RCU_BOOST_PRIO to a priority higher then the highest-priority
-	  real-time CPU-bound thread.  The default RCU_BOOST_PRIO value
-	  of 1 is appropriate in the common case, which is real-time
+	  This option specifies the SCHED_FIFO priority value that will be
+	  assigned to the rcuc/n and rcub/n threads and is also the value
+	  used for RCU_BOOST (if enabled). If you are working with a
+	  real-time application that has one or more CPU-bound threads
+	  running at a real-time priority level, you should set
+	  RCU_KTHREAD_PRIO to a priority higher than the highest-priority
+	  real-time CPU-bound application thread.  The default RCU_KTHREAD_PRIO
+	  value of 1 is appropriate in the common case, which is real-time
 	  applications that do not have any CPU-bound threads.
 
 	  Some real-time applications might not have a single real-time
 	  thread that saturates a given CPU, but instead might have
 	  multiple real-time threads that, taken together, fully utilize
-	  that CPU.  In this case, you should set RCU_BOOST_PRIO to
+	  that CPU.  In this case, you should set RCU_KTHREAD_PRIO to
 	  a priority higher than the lowest-priority thread that is
 	  conspiring to prevent the CPU from running any non-real-time
 	  tasks.  For example, if one thread at priority 10 and another
 	  thread at priority 5 are between themselves fully consuming
-	  the CPU time on a given CPU, then RCU_BOOST_PRIO should be
+	  the CPU time on a given CPU, then RCU_KTHREAD_PRIO should be
 	  set to priority 6 or higher.
 
 	  Specify the real-time priority, or take the default if unsure.
@@ -715,7 +710,7 @@ config RCU_BOOST_DELAY
 
 config RCU_NOCB_CPU
 	bool "Offload RCU callback processing from boot-selected CPUs"
-	depends on TREE_RCU || TREE_PREEMPT_RCU
+	depends on TREE_RCU || PREEMPT_RCU
 	default n
 	help
 	  Use this option to reduce OS jitter for aggressive HPC or
@@ -739,6 +734,7 @@ config RCU_NOCB_CPU
 choice
 	prompt "Build-forced no-CBs CPUs"
 	default RCU_NOCB_CPU_NONE
+	depends on RCU_NOCB_CPU
 	help
 	  This option allows no-CBs CPUs (whose RCU callbacks are invoked
 	  from kthreads rather than from softirq context) to be specified
@@ -747,7 +743,6 @@ choice
 
 config RCU_NOCB_CPU_NONE
 	bool "No build_forced no-CBs CPUs"
-	depends on RCU_NOCB_CPU
 	help
 	  This option does not force any of the CPUs to be no-CBs CPUs.
 	  Only CPUs designated by the rcu_nocbs= boot parameter will be
@@ -761,7 +756,6 @@ config RCU_NOCB_CPU_NONE
 
 config RCU_NOCB_CPU_ZERO
 	bool "CPU 0 is a build_forced no-CBs CPU"
-	depends on RCU_NOCB_CPU
 	help
 	  This option forces CPU 0 to be a no-CBs CPU, so that its RCU
 	  callbacks are invoked by a per-CPU kthread whose name begins
@@ -776,7 +770,6 @@ config RCU_NOCB_CPU_ZERO
 
 config RCU_NOCB_CPU_ALL
 	bool "All CPUs are build_forced no-CBs CPUs"
-	depends on RCU_NOCB_CPU
 	help
 	  This option forces all CPUs to be no-CBs CPUs.  The rcu_nocbs=
 	  boot parameter will be ignored.  All CPUs' RCU callbacks will
@@ -900,14 +893,6 @@ config ARCH_SUPPORTS_INT128
 config ARCH_WANT_NUMA_VARIABLE_LOCALITY
 	bool
 
-config NUMA_BALANCING_DEFAULT_ENABLED
-	bool "Automatically enable NUMA aware memory/task placement"
-	default y
-	depends on NUMA_BALANCING
-	help
-	  If set, automatic NUMA balancing will be enabled if running on a NUMA
-	  machine.
-
 config NUMA_BALANCING
 	bool "Memory placement aware NUMA scheduler"
 	depends on ARCH_SUPPORTS_NUMA_BALANCING
@@ -919,6 +904,14 @@ config NUMA_BALANCING
 	  it has references to the node the task is running on.
 
 	  This system will be inactive on UMA systems.
+
+config NUMA_BALANCING_DEFAULT_ENABLED
+	bool "Automatically enable NUMA aware memory/task placement"
+	default y
+	depends on NUMA_BALANCING
+	help
+	  If set, automatic NUMA balancing will be enabled if running on a NUMA
+	  machine.
 
 menuconfig CGROUPS
 	boolean "Control Group support"
@@ -979,31 +972,16 @@ config CGROUP_CPUACCT
 	  Provides a simple Resource Controller for monitoring the
 	  total CPU consumed by the tasks in a cgroup.
 
-config RESOURCE_COUNTERS
-	bool "Resource counters"
-	help
-	  This option enables controller independent resource accounting
-	  infrastructure that works with cgroups.
+config PAGE_COUNTER
+       bool
 
 config MEMCG
 	bool "Memory Resource Controller for Control Groups"
-	depends on RESOURCE_COUNTERS
+	select PAGE_COUNTER
 	select EVENTFD
 	help
 	  Provides a memory resource controller that manages both anonymous
 	  memory and page cache. (See Documentation/cgroups/memory.txt)
-
-	  Note that setting this option increases fixed memory overhead
-	  associated with each page of memory in the system. By this,
-	  8(16)bytes/PAGE_SIZE on 32(64)bit system will be occupied by memory
-	  usage tracking struct at boot. Total amount of this is printed out
-	  at boot.
-
-	  Only enable when you're ok with these trade offs and really
-	  sure you need the memory resource controller. Even when you enable
-	  this, you can set "cgroup_disable=memory" at your boot option to
-	  disable memory resource controller and you can avoid overheads.
-	  (and lose benefits of memory resource controller)
 
 config MEMCG_SWAP
 	bool "Memory Resource Controller Swap Extension"
@@ -1055,7 +1033,8 @@ config MEMCG_KMEM
 
 config CGROUP_HUGETLB
 	bool "HugeTLB Resource Controller for Control Groups"
-	depends on RESOURCE_COUNTERS && HUGETLB_PAGE
+	depends on HUGETLB_PAGE
+	select PAGE_COUNTER
 	default n
 	help
 	  Provides a cgroup Resource Controller for HugeTLB pages.
@@ -1300,6 +1279,22 @@ if BLK_DEV_INITRD
 source "usr/Kconfig"
 
 endif
+
+config INIT_FALLBACK
+	bool "Fall back to defaults if init= parameter is bad"
+	default y
+	help
+	  If enabled, the kernel will try the default init binaries if an
+	  explicit request from the init= parameter fails.
+
+	  This can have unexpected effects.  For example, booting
+	  with init=/sbin/kiosk_app will run /sbin/init or even /bin/sh
+	  if /sbin/kiosk_app cannot be executed.
+
+	  The default value of Y is consistent with historical behavior.
+	  Selecting N is likely to be more appropriate for most uses,
+	  especially on kiosks and on kernels that are intended to be
+	  run under the control of a script.
 
 config CC_OPTIMIZE_FOR_SIZE
 	bool "Optimize for size"

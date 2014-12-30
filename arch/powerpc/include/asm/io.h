@@ -855,9 +855,6 @@ static inline void * bus_to_virt(unsigned long address)
 
 #define clrsetbits_8(addr, clear, set) clrsetbits(8, addr, clear, set)
 
-void __iomem *devm_ioremap_prot(struct device *dev, resource_size_t offset,
-				size_t size, unsigned long flags);
-
 #endif /* __KERNEL__ */
 
 #endif /* _ASM_POWERPC_IO_H */

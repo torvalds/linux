@@ -893,7 +893,6 @@ static int da9063_regulator_remove(struct platform_device *pdev)
 static struct platform_driver da9063_regulator_driver = {
 	.driver = {
 		.name = DA9063_DRVNAME_REGULATORS,
-		.owner = THIS_MODULE,
 	},
 	.probe = da9063_regulator_probe,
 	.remove = da9063_regulator_remove,

@@ -321,6 +321,10 @@ struct radeon_crtc {
 	uint32_t crtc_offset;
 	struct drm_gem_object *cursor_bo;
 	uint64_t cursor_addr;
+	int cursor_x;
+	int cursor_y;
+	int cursor_hot_x;
+	int cursor_hot_y;
 	int cursor_width;
 	int cursor_height;
 	int max_cursor_width;
@@ -462,6 +466,7 @@ struct radeon_gpio_rec {
 	u8 id;
 	u32 reg;
 	u32 mask;
+	u32 shift;
 };
 
 struct radeon_hpd {
@@ -748,6 +753,8 @@ extern bool radeon_atombios_get_ppll_ss_info(struct radeon_device *rdev,
 extern bool radeon_atombios_get_asic_ss_info(struct radeon_device *rdev,
 					     struct radeon_atom_ss *ss,
 					     int id, u32 clock);
+extern struct radeon_gpio_rec radeon_atombios_lookup_gpio(struct radeon_device *rdev,
+							  u8 id);
 
 extern void radeon_compute_pll_legacy(struct radeon_pll *pll,
 				      uint64_t freq,
@@ -802,13 +809,16 @@ extern int radeon_crtc_set_base_atomic(struct drm_crtc *crtc,
 extern int radeon_crtc_do_set_base(struct drm_crtc *crtc,
 				   struct drm_framebuffer *fb,
 				   int x, int y, int atomic);
-extern int radeon_crtc_cursor_set(struct drm_crtc *crtc,
-				  struct drm_file *file_priv,
-				  uint32_t handle,
-				  uint32_t width,
-				  uint32_t height);
+extern int radeon_crtc_cursor_set2(struct drm_crtc *crtc,
+				   struct drm_file *file_priv,
+				   uint32_t handle,
+				   uint32_t width,
+				   uint32_t height,
+				   int32_t hot_x,
+				   int32_t hot_y);
 extern int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 				   int x, int y);
+extern void radeon_cursor_reset(struct drm_crtc *crtc);
 
 extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc,
 				      unsigned int flags,

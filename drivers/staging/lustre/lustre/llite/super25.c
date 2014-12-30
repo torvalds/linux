@@ -162,7 +162,7 @@ static int __init init_lustre_lite(void)
 
 	/* Nodes with small feet have little entropy
 	 * the NID for this node gives the most entropy in the low bits */
-	for (i=0; ; i++) {
+	for (i = 0; ; i++) {
 		if (LNetGetId(i, &lnet_id) == -ENOENT) {
 			break;
 		}

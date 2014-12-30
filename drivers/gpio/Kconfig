@@ -112,6 +112,20 @@ config GPIO_MAX730X
 
 comment "Memory mapped GPIO drivers:"
 
+config GPIO_74XX_MMIO
+	tristate "GPIO driver for 74xx-ICs with MMIO access"
+	depends on OF_GPIO
+	select GPIO_GENERIC
+	help
+	  Say yes here to support GPIO functionality for 74xx-compatible ICs
+	  with MMIO access. Compatible models include:
+	    1 bit:	741G125 (Input), 741G74 (Output)
+	    2 bits:	742G125 (Input), 7474 (Output)
+	    4 bits:	74125 (Input), 74175 (Output)
+	    6 bits:	74365 (Input), 74174 (Output)
+	    8 bits:	74244 (Input), 74273 (Output)
+	    16 bits:	741624 (Input), 7416374 (Output)
+
 config GPIO_CLPS711X
 	tristate "CLPS711X GPIO support"
 	depends on ARCH_CLPS711X || COMPILE_TEST
@@ -134,6 +148,8 @@ config GPIO_GENERIC_PLATFORM
 
 config GPIO_DWAPB
 	tristate "Synopsys DesignWare APB GPIO driver"
+	depends on ARM
+	depends on OF_GPIO
 	select GPIO_GENERIC
 	select GENERIC_IRQ_CHIP
 	help
@@ -332,6 +348,13 @@ config GPIO_TZ1090_PDC
 	default y
 	help
 	  Say yes here to support Toumaz Xenif TZ1090 PDC GPIOs.
+
+config GPIO_VF610
+	def_bool y
+	depends on ARCH_MXC && SOC_VF610
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to support Vybrid vf610 GPIOs.
 
 config GPIO_XGENE
 	bool "APM X-Gene GPIO controller support"

@@ -37,8 +37,7 @@ enum{
 #define IQK_BB_REG_NUM			9
 #define HP_THERMAL_NUM		8
 /*  duplicate code,will move to ODM ######### */
-struct dm_priv
-{
+struct dm_priv {
 	u32	InitODMFlag;
 
 	/*  Upper and Lower Signal threshold for Rate Adaptive*/

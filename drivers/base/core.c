@@ -1021,18 +1021,6 @@ int device_add(struct device *dev)
 	if (error)
 		goto attrError;
 
-	if (MAJOR(dev->devt)) {
-		error = device_create_file(dev, &dev_attr_dev);
-		if (error)
-			goto ueventattrError;
-
-		error = device_create_sys_dev_entry(dev);
-		if (error)
-			goto devtattrError;
-
-		devtmpfs_create_node(dev);
-	}
-
 	error = device_add_class_symlinks(dev);
 	if (error)
 		goto SymlinkError;
@@ -1046,6 +1034,18 @@ int device_add(struct device *dev)
 	if (error)
 		goto DPMError;
 	device_pm_add(dev);
+
+	if (MAJOR(dev->devt)) {
+		error = device_create_file(dev, &dev_attr_dev);
+		if (error)
+			goto DevAttrError;
+
+		error = device_create_sys_dev_entry(dev);
+		if (error)
+			goto SysEntryError;
+
+		devtmpfs_create_node(dev);
+	}
 
 	/* Notify clients of device addition.  This call must come
 	 * after dpm_sysfs_add() and before kobject_uevent().
@@ -1076,6 +1076,12 @@ int device_add(struct device *dev)
 done:
 	put_device(dev);
 	return error;
+ SysEntryError:
+	if (MAJOR(dev->devt))
+		device_remove_file(dev, &dev_attr_dev);
+ DevAttrError:
+	device_pm_remove(dev);
+	dpm_sysfs_remove(dev);
  DPMError:
 	bus_remove_device(dev);
  BusError:
@@ -1083,14 +1089,6 @@ done:
  AttrsError:
 	device_remove_class_symlinks(dev);
  SymlinkError:
-	if (MAJOR(dev->devt))
-		devtmpfs_delete_node(dev);
-	if (MAJOR(dev->devt))
-		device_remove_sys_dev_entry(dev);
- devtattrError:
-	if (MAJOR(dev->devt))
-		device_remove_file(dev, &dev_attr_dev);
- ueventattrError:
 	device_remove_file(dev, &dev_attr_uevent);
  attrError:
 	kobject_uevent(&dev->kobj, KOBJ_REMOVE);

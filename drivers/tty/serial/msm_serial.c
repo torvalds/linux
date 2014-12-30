@@ -54,6 +54,7 @@ struct msm_port {
 	unsigned int		imr;
 	int			is_uartdm;
 	unsigned int		old_snap_state;
+	bool			break_detected;
 };
 
 static inline void wait_for_xmitr(struct uart_port *port)
@@ -126,23 +127,38 @@ static void handle_rx_dm(struct uart_port *port, unsigned int misr)
 
 	while (count > 0) {
 		unsigned char buf[4];
+		int sysrq, r_count, i;
 
 		sr = msm_read(port, UART_SR);
 		if ((sr & UART_SR_RX_READY) == 0) {
 			msm_port->old_snap_state -= count;
 			break;
 		}
-		ioread32_rep(port->membase + UARTDM_RF, buf, 1);
-		if (sr & UART_SR_RX_BREAK) {
-			port->icount.brk++;
-			if (uart_handle_break(port))
-				continue;
-		} else if (sr & UART_SR_PAR_FRAME_ERR)
-			port->icount.frame++;
 
-		/* TODO: handle sysrq */
-		tty_insert_flip_string(tport, buf, min(count, 4));
-		count -= 4;
+		ioread32_rep(port->membase + UARTDM_RF, buf, 1);
+		r_count = min_t(int, count, sizeof(buf));
+
+		for (i = 0; i < r_count; i++) {
+			char flag = TTY_NORMAL;
+
+			if (msm_port->break_detected && buf[i] == 0) {
+				port->icount.brk++;
+				flag = TTY_BREAK;
+				msm_port->break_detected = false;
+				if (uart_handle_break(port))
+					continue;
+			}
+
+			if (!(port->read_status_mask & UART_SR_RX_BREAK))
+				flag = TTY_NORMAL;
+
+			spin_unlock(&port->lock);
+			sysrq = uart_handle_sysrq_char(port, buf[i]);
+			spin_lock(&port->lock);
+			if (!sysrq)
+				tty_insert_flip_char(tport, buf[i], flag);
+		}
+		count -= r_count;
 	}
 
 	spin_unlock(&port->lock);
@@ -174,6 +190,7 @@ static void handle_rx(struct uart_port *port)
 	while ((sr = msm_read(port, UART_SR)) & UART_SR_RX_READY) {
 		unsigned int c;
 		char flag = TTY_NORMAL;
+		int sysrq;
 
 		c = msm_read(port, UART_RF);
 
@@ -195,7 +212,10 @@ static void handle_rx(struct uart_port *port)
 		else if (sr & UART_SR_PAR_FRAME_ERR)
 			flag = TTY_FRAME;
 
-		if (!uart_handle_sysrq_char(port, c))
+		spin_unlock(&port->lock);
+		sysrq = uart_handle_sysrq_char(port, c);
+		spin_lock(&port->lock);
+		if (!sysrq)
 			tty_insert_flip_char(tport, c, flag);
 	}
 
@@ -286,6 +306,11 @@ static irqreturn_t msm_irq(int irq, void *dev_id)
 	spin_lock(&port->lock);
 	misr = msm_read(port, UART_MISR);
 	msm_write(port, 0, UART_IMR); /* disable interrupt */
+
+	if (misr & UART_IMR_RXBREAK_START) {
+		msm_port->break_detected = true;
+		msm_write(port, UART_CR_CMD_RESET_RXBREAK_START, UART_CR);
+	}
 
 	if (misr & (UART_IMR_RXLEV | UART_IMR_RXSTALE)) {
 		if (msm_port->is_uartdm)
@@ -402,9 +427,6 @@ static int msm_set_baud_rate(struct uart_port *port, unsigned int baud)
 
 	entry = msm_find_best_baud(port, baud);
 
-	if (msm_port->is_uartdm)
-		msm_write(port, UART_CR_CMD_RESET_RX, UART_CR);
-
 	msm_write(port, entry->code, UART_CSR);
 
 	/* RX stale watermark */
@@ -420,6 +442,18 @@ static int msm_set_baud_rate(struct uart_port *port, unsigned int baud)
 
 	/* set TX watermark */
 	msm_write(port, 10, UART_TFWR);
+
+	msm_write(port, UART_CR_CMD_PROTECTION_EN, UART_CR);
+	msm_reset(port);
+
+	/* Enable RX and TX */
+	msm_write(port, UART_CR_TX_ENABLE | UART_CR_RX_ENABLE, UART_CR);
+
+	/* turn on RX and CTS interrupts */
+	msm_port->imr = UART_IMR_RXLEV | UART_IMR_RXSTALE |
+			UART_IMR_CURRENT_CTS | UART_IMR_RXBREAK_START;
+
+	msm_write(port, msm_port->imr, UART_IMR);
 
 	if (msm_port->is_uartdm) {
 		msm_write(port, UART_CR_CMD_RESET_STALE_INT, UART_CR);
@@ -467,40 +501,6 @@ static int msm_startup(struct uart_port *port)
 	data |= UART_MR1_AUTO_RFR_LEVEL1 & (rfr_level << 2);
 	data |= UART_MR1_AUTO_RFR_LEVEL0 & rfr_level;
 	msm_write(port, data, UART_MR1);
-
-	/* make sure that RXSTALE count is non-zero */
-	data = msm_read(port, UART_IPR);
-	if (unlikely(!data)) {
-		data |= UART_IPR_RXSTALE_LAST;
-		data |= UART_IPR_STALE_LSB;
-		msm_write(port, data, UART_IPR);
-	}
-
-	data = 0;
-	if (!port->cons || (port->cons && !(port->cons->flags & CON_ENABLED))) {
-		msm_write(port, UART_CR_CMD_PROTECTION_EN, UART_CR);
-		msm_reset(port);
-		data = UART_CR_TX_ENABLE;
-	}
-
-	data |= UART_CR_RX_ENABLE;
-	msm_write(port, data, UART_CR);	/* enable TX & RX */
-
-	/* Make sure IPR is not 0 to start with*/
-	if (msm_port->is_uartdm)
-		msm_write(port, UART_IPR_STALE_LSB, UART_IPR);
-
-	/* turn on RX and CTS interrupts */
-	msm_port->imr = UART_IMR_RXLEV | UART_IMR_RXSTALE |
-			UART_IMR_CURRENT_CTS;
-
-	if (msm_port->is_uartdm) {
-		msm_write(port, 0xFFFFFF, UARTDM_DMRX);
-		msm_write(port, UART_CR_CMD_RESET_STALE_INT, UART_CR);
-		msm_write(port, UART_CR_CMD_STALE_EVENT_ENABLE, UART_CR);
-	}
-
-	msm_write(port, msm_port->imr, UART_IMR);
 	return 0;
 }
 
@@ -1044,17 +1044,22 @@ static int msm_serial_probe(struct platform_device *pdev)
 	struct resource *resource;
 	struct uart_port *port;
 	const struct of_device_id *id;
-	int irq;
+	int irq, line;
 
-	if (pdev->id == -1)
-		pdev->id = atomic_inc_return(&msm_uart_next_id) - 1;
+	if (pdev->dev.of_node)
+		line = of_alias_get_id(pdev->dev.of_node, "serial");
+	else
+		line = pdev->id;
 
-	if (unlikely(pdev->id < 0 || pdev->id >= UART_NR))
+	if (line < 0)
+		line = atomic_inc_return(&msm_uart_next_id) - 1;
+
+	if (unlikely(line < 0 || line >= UART_NR))
 		return -ENXIO;
 
-	dev_info(&pdev->dev, "msm_serial: detected port #%d\n", pdev->id);
+	dev_info(&pdev->dev, "msm_serial: detected port #%d\n", line);
 
-	port = get_port_from_line(pdev->id);
+	port = get_port_from_line(line);
 	port->dev = &pdev->dev;
 	msm_port = UART_TO_MSM(port);
 
@@ -1114,7 +1119,6 @@ static struct platform_driver msm_platform_driver = {
 	.probe = msm_serial_probe,
 	.driver = {
 		.name = "msm_serial",
-		.owner = THIS_MODULE,
 		.of_match_table = msm_match_table,
 	},
 };

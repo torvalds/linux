@@ -37,20 +37,29 @@ config NET_DSA_MV88E6123_61_65
 	  ethernet switch chips.
 
 config NET_DSA_MV88E6171
-	tristate "Marvell 88E6171 ethernet switch chip support"
+	tristate "Marvell 88E6171/6172 ethernet switch chip support"
 	select NET_DSA
 	select NET_DSA_MV88E6XXX
 	select NET_DSA_TAG_EDSA
 	---help---
-	  This enables support for the Marvell 88E6171 ethernet switch
-	  chip.
+	  This enables support for the Marvell 88E6171/6172 ethernet switch
+	  chips.
+
+config NET_DSA_MV88E6352
+	tristate "Marvell 88E6176/88E6352 ethernet switch chip support"
+	select NET_DSA
+	select NET_DSA_MV88E6XXX
+	select NET_DSA_TAG_EDSA
+	---help---
+	  This enables support for the Marvell 88E6176 and 88E6352 ethernet
+	  switch chips.
 
 config NET_DSA_BCM_SF2
 	tristate "Broadcom Starfighter 2 Ethernet switch support"
 	depends on HAS_IOMEM
 	select NET_DSA
 	select NET_DSA_TAG_BRCM
-	select FIXED_PHY if NET_DSA_BCM_SF2=y
+	select FIXED_PHY
 	select BCM7XXX_PHY
 	select MDIO_BCM_UNIMAC
 	---help---

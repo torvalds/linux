@@ -1222,7 +1222,7 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 		       SKB_GSO_TCPV6 |
 		       SKB_GSO_UDP_TUNNEL |
 		       SKB_GSO_UDP_TUNNEL_CSUM |
-		       SKB_GSO_MPLS |
+		       SKB_GSO_TUNNEL_REMCSUM |
 		       0)))
 		goto out;
 

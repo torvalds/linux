@@ -14,11 +14,19 @@ survive after a restart.
 
 1. Ramoops concepts
 
-Ramoops uses a predefined memory area to store the dump. The start and size of
-the memory area are set using two variables:
+Ramoops uses a predefined memory area to store the dump. The start and size
+and type of the memory area are set using three variables:
   * "mem_address" for the start
   * "mem_size" for the size. The memory size will be rounded down to a
   power of two.
+  * "mem_type" to specifiy if the memory type (default is pgprot_writecombine).
+
+Typically the default value of mem_type=0 should be used as that sets the pstore
+mapping to pgprot_writecombine. Setting mem_type=1 attempts to use
+pgprot_noncached, which only works on some platforms. This is because pstore
+depends on atomic operations. At least on ARM, pgprot_noncached causes the
+memory to be mapped strongly ordered, and atomic operations on strongly ordered
+memory are implementation defined, and won't work on many ARMs such as omaps.
 
 The memory area is divided into "record_size" chunks (also rounded down to
 power of two) and each oops/panic writes a "record_size" chunk of
@@ -55,6 +63,7 @@ Setting the ramoops parameters can be done in 2 different manners:
 static struct ramoops_platform_data ramoops_data = {
         .mem_size               = <...>,
         .mem_address            = <...>,
+        .mem_type               = <...>,
         .record_size            = <...>,
         .dump_oops              = <...>,
         .ecc                    = <...>,

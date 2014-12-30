@@ -102,7 +102,7 @@ extern struct group_info init_groups;
 #define INIT_IDS
 #endif
 
-#ifdef CONFIG_TREE_PREEMPT_RCU
+#ifdef CONFIG_PREEMPT_RCU
 #define INIT_TASK_RCU_TREE_PREEMPT()					\
 	.rcu_blocked_node = NULL,
 #else
@@ -164,6 +164,15 @@ extern struct task_group root_task_group;
 	.pi_waiters_leftmost = NULL,
 #else
 # define INIT_RT_MUTEXES(tsk)
+#endif
+
+#ifdef CONFIG_NUMA_BALANCING
+# define INIT_NUMA_BALANCING(tsk)					\
+	.numa_preferred_nid = -1,					\
+	.numa_group = NULL,						\
+	.numa_faults = NULL,
+#else
+# define INIT_NUMA_BALANCING(tsk)
 #endif
 
 /*
@@ -237,6 +246,7 @@ extern struct task_group root_task_group;
 	INIT_CPUSET_SEQ(tsk)						\
 	INIT_RT_MUTEXES(tsk)						\
 	INIT_VTIME(tsk)							\
+	INIT_NUMA_BALANCING(tsk)					\
 }
 
 

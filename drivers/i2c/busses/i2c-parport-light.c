@@ -183,7 +183,6 @@ static int i2c_parport_remove(struct platform_device *pdev)
 
 static struct platform_driver i2c_parport_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= DRVNAME,
 	},
 	.probe		= i2c_parport_probe,

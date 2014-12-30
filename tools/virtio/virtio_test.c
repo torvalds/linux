@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <stdbool.h>
+#include <linux/virtio_types.h>
 #include <linux/vhost.h>
 #include <linux/virtio.h>
 #include <linux/virtio_ring.h>
@@ -60,7 +61,7 @@ void vhost_vq_setup(struct vdev_info *dev, struct vq_info *info)
 {
 	struct vhost_vring_state state = { .index = info->idx };
 	struct vhost_vring_file file = { .index = info->idx };
-	unsigned long long features = dev->vdev.features[0];
+	unsigned long long features = dev->vdev.features;
 	struct vhost_vring_addr addr = {
 		.index = info->idx,
 		.desc_user_addr = (uint64_t)(unsigned long)info->vring.desc,
@@ -113,8 +114,7 @@ static void vdev_info_init(struct vdev_info* dev, unsigned long long features)
 {
 	int r;
 	memset(dev, 0, sizeof *dev);
-	dev->vdev.features[0] = features;
-	dev->vdev.features[1] = features >> 32;
+	dev->vdev.features = features;
 	dev->buf_size = 1024;
 	dev->buf = malloc(dev->buf_size);
 	assert(dev->buf);
@@ -228,6 +228,14 @@ const struct option longopts[] = {
 		.val = 'i',
 	},
 	{
+		.name = "virtio-1",
+		.val = '1',
+	},
+	{
+		.name = "no-virtio-1",
+		.val = '0',
+	},
+	{
 		.name = "delayed-interrupt",
 		.val = 'D',
 	},
@@ -244,6 +252,7 @@ static void help(void)
 	fprintf(stderr, "Usage: virtio_test [--help]"
 		" [--no-indirect]"
 		" [--no-event-idx]"
+		" [--no-virtio-1]"
 		" [--delayed-interrupt]"
 		"\n");
 }
@@ -252,7 +261,7 @@ int main(int argc, char **argv)
 {
 	struct vdev_info dev;
 	unsigned long long features = (1ULL << VIRTIO_RING_F_INDIRECT_DESC) |
-		(1ULL << VIRTIO_RING_F_EVENT_IDX);
+		(1ULL << VIRTIO_RING_F_EVENT_IDX) | (1ULL << VIRTIO_F_VERSION_1);
 	int o;
 	bool delayed = false;
 
@@ -272,6 +281,9 @@ int main(int argc, char **argv)
 			goto done;
 		case 'i':
 			features &= ~(1ULL << VIRTIO_RING_F_INDIRECT_DESC);
+			break;
+		case '0':
+			features &= ~(1ULL << VIRTIO_F_VERSION_1);
 			break;
 		case 'D':
 			delayed = true;
