@@ -154,7 +154,8 @@ static int rk3368_lcdc_clk_disable(struct lcdc_device *lcdc_dev)
 	return 0;
 }
 
-static int rk3368_lcdc_disable_irq(struct lcdc_device *lcdc_dev)
+static int __maybe_unused
+	rk3368_lcdc_disable_irq(struct lcdc_device *lcdc_dev)
 {
 	u32 mask, val;
 
@@ -498,16 +499,20 @@ static int rk3368_lcdc_post_cfg(struct rk_lcdc_driver *dev_drv)
 	}
 
 	if (screen->mode.vmode == FB_VMODE_INTERLACED) {
-		post_dsp_vact_st = screen->post_dsp_sty +
-		    screen->mode.vsync_len + screen->mode.upper_margin;
-		post_dsp_vact_end = post_dsp_vact_st + screen->post_ysize;
+		post_dsp_vact_st = screen->post_dsp_sty / 2 +
+					screen->mode.vsync_len +
+					screen->mode.upper_margin;
+		post_dsp_vact_end = post_dsp_vact_st +
+					screen->post_ysize / 2;
 
 		post_dsp_vact_st_f1 = screen->mode.vsync_len +
 				      screen->mode.upper_margin +
 				      y_res/2 +
 				      screen->mode.lower_margin +
 				      screen->mode.vsync_len +
-				      screen->mode.upper_margin + 1;
+				      screen->mode.upper_margin +
+				      screen->post_dsp_sty / 2 +
+				      1;
 		post_dsp_vact_end_f1 = post_dsp_vact_st_f1 +
 					screen->post_ysize/2;
 	} else {
@@ -2563,14 +2568,19 @@ static int dsp_y_pos(int mirror_en, struct rk_screen *screen,
 
 	if (screen->y_mirror && mirror_en)
 		pr_err("not support both win and global mirror\n");
-
-	if ((!mirror_en) && (!screen->y_mirror))
-		pos = area->ypos + screen->mode.upper_margin +
+	if (screen->mode.vmode == FB_VMODE_NONINTERLACED) {
+		if ((!mirror_en) && (!screen->y_mirror))
+			pos = area->ypos + screen->mode.upper_margin +
+				screen->mode.vsync_len;
+		else
+			pos = screen->mode.yres - area->ypos -
+				area->ysize + screen->mode.upper_margin +
+				screen->mode.vsync_len;
+	} else if (screen->mode.vmode == FB_VMODE_INTERLACED) {
+		pos = area->ypos / 2 + screen->mode.upper_margin +
 			screen->mode.vsync_len;
-	else
-		pos = screen->mode.yres - area->ypos -
-			area->ysize + screen->mode.upper_margin +
-			screen->mode.vsync_len;
+		area->ysize /= 2;
+	}
 
 	return pos;
 }
