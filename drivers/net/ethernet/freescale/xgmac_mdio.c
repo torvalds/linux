@@ -94,13 +94,6 @@ static int xgmac_mdio_write(struct mii_bus *bus, int phy_id, int regnum, u16 val
 	uint16_t dev_addr = regnum >> 16;
 	int ret;
 
-	/* Setup the MII Mgmt clock speed */
-	out_be32(&regs->mdio_stat, MDIO_STAT_CLKDIV(100));
-
-	ret = xgmac_wait_until_free(&bus->dev, regs);
-	if (ret)
-		return ret;
-
 	/* Set the port and dev addr */
 	out_be32(&regs->mdio_ctl,
 		 MDIO_CTL_PORT_ADDR(phy_id) | MDIO_CTL_DEV_ADDR(dev_addr));
@@ -134,13 +127,6 @@ static int xgmac_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
 	uint32_t mdio_ctl;
 	uint16_t value;
 	int ret;
-
-	/* Setup the MII Mgmt clock speed */
-	out_be32(&regs->mdio_stat, MDIO_STAT_CLKDIV(100));
-
-	ret = xgmac_wait_until_free(&bus->dev, regs);
-	if (ret)
-		return ret;
 
 	/* Set the Port and Device Addrs */
 	mdio_ctl = MDIO_CTL_PORT_ADDR(phy_id) | MDIO_CTL_DEV_ADDR(dev_addr);
