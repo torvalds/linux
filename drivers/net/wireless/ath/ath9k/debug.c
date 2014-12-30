@@ -1078,11 +1078,6 @@ static ssize_t write_file_tpc(struct file *file, const char __user *user_buf,
 	ssize_t len;
 	bool tpc_enabled;
 
-	if (!AR_SREV_9300_20_OR_LATER(ah)) {
-		/* ar9002 does not support TPC for the moment */
-		return -EOPNOTSUPP;
-	}
-
 	len = min(count, sizeof(buf) - 1);
 	if (copy_from_user(buf, user_buf, len))
 		return -EFAULT;

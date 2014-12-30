@@ -424,8 +424,7 @@ static void ath9k_hw_init_defaults(struct ath_hw *ah)
 	ah->power_mode = ATH9K_PM_UNDEFINED;
 	ah->htc_reset_init = true;
 
-	/* ar9002 does not support TPC for the moment */
-	ah->tpc_enabled = !!AR_SREV_9300_20_OR_LATER(ah);
+	ah->tpc_enabled = true;
 
 	ah->ani_function = ATH9K_ANI_ALL;
 	if (!AR_SREV_9300_20_OR_LATER(ah))
