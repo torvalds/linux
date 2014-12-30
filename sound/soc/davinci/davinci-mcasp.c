@@ -364,6 +364,20 @@ static irqreturn_t davinci_mcasp_rx_irq_handler(int irq, void *data)
 	return IRQ_RETVAL(handled_mask);
 }
 
+static irqreturn_t davinci_mcasp_common_irq_handler(int irq, void *data)
+{
+	struct davinci_mcasp *mcasp = (struct davinci_mcasp *)data;
+	irqreturn_t ret = IRQ_NONE;
+
+	if (mcasp->substreams[SNDRV_PCM_STREAM_PLAYBACK])
+		ret = davinci_mcasp_tx_irq_handler(irq, data);
+
+	if (mcasp->substreams[SNDRV_PCM_STREAM_CAPTURE])
+		ret |= davinci_mcasp_rx_irq_handler(irq, data);
+
+	return ret;
+}
+
 static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 					 unsigned int fmt)
 {
@@ -1440,6 +1454,22 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	mcasp->rxnumevt = pdata->rxnumevt;
 
 	mcasp->dev = &pdev->dev;
+
+	irq = platform_get_irq_byname(pdev, "common");
+	if (irq >= 0) {
+		irq_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s_common\n",
+					  dev_name(&pdev->dev));
+		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
+						davinci_mcasp_common_irq_handler,
+						IRQF_ONESHOT, irq_name, mcasp);
+		if (ret) {
+			dev_err(&pdev->dev, "common IRQ request failed\n");
+			goto err;
+		}
+
+		mcasp->irq_request[SNDRV_PCM_STREAM_PLAYBACK] = XUNDRN;
+		mcasp->irq_request[SNDRV_PCM_STREAM_CAPTURE] = ROVRN;
+	}
 
 	irq = platform_get_irq_byname(pdev, "rx");
 	if (irq >= 0) {
