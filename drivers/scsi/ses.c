@@ -423,16 +423,23 @@ static void ses_enclosure_data_process(struct enclosure_device *edev,
 			    type_ptr[0] == ENCLOSURE_COMPONENT_ARRAY_DEVICE) {
 
 				if (create)
-					ecomp =	enclosure_component_register(edev,
-									     components++,
-									     type_ptr[0],
-									     name);
+					ecomp =	enclosure_component_alloc(
+						edev,
+						components++,
+						type_ptr[0],
+						name);
 				else
 					ecomp = &edev->component[components++];
 
-				if (!IS_ERR(ecomp) && addl_desc_ptr)
-					ses_process_descriptor(ecomp,
-							       addl_desc_ptr);
+				if (!IS_ERR(ecomp)) {
+					if (addl_desc_ptr)
+						ses_process_descriptor(
+							ecomp,
+							addl_desc_ptr);
+					if (create)
+						enclosure_component_register(
+							ecomp);
+				}
 			}
 			if (desc_ptr)
 				desc_ptr += len;

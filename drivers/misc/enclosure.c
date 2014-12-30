@@ -273,27 +273,26 @@ enclosure_component_find_by_name(struct enclosure_device *edev,
 static const struct attribute_group *enclosure_component_groups[];
 
 /**
- * enclosure_component_register - add a particular component to an enclosure
+ * enclosure_component_alloc - prepare a new enclosure component
  * @edev:	the enclosure to add the component
  * @num:	the device number
  * @type:	the type of component being added
  * @name:	an optional name to appear in sysfs (leave NULL if none)
  *
- * Registers the component.  The name is optional for enclosures that
- * give their components a unique name.  If not, leave the field NULL
- * and a name will be assigned.
+ * The name is optional for enclosures that give their components a unique
+ * name.  If not, leave the field NULL and a name will be assigned.
  *
  * Returns a pointer to the enclosure component or an error.
  */
 struct enclosure_component *
-enclosure_component_register(struct enclosure_device *edev,
-			     unsigned int number,
-			     enum enclosure_component_type type,
-			     const char *name)
+enclosure_component_alloc(struct enclosure_device *edev,
+			  unsigned int number,
+			  enum enclosure_component_type type,
+			  const char *name)
 {
 	struct enclosure_component *ecomp;
 	struct device *cdev;
-	int err, i;
+	int i;
 	char newname[COMPONENT_NAME_SIZE];
 
 	if (number >= edev->components)
@@ -327,14 +326,30 @@ enclosure_component_register(struct enclosure_device *edev,
 	cdev->release = enclosure_component_release;
 	cdev->groups = enclosure_component_groups;
 
+	return ecomp;
+}
+EXPORT_SYMBOL_GPL(enclosure_component_alloc);
+
+/**
+ * enclosure_component_register - publishes an initialized enclosure component
+ * @ecomp:	component to add
+ *
+ * Returns 0 on successful registration, releases the component otherwise
+ */
+int enclosure_component_register(struct enclosure_component *ecomp)
+{
+	struct device *cdev;
+	int err;
+
+	cdev = &ecomp->cdev;
 	err = device_register(cdev);
 	if (err) {
 		ecomp->number = -1;
 		put_device(cdev);
-		return ERR_PTR(err);
+		return err;
 	}
 
-	return ecomp;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(enclosure_component_register);
 
