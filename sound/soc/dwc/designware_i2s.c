@@ -396,13 +396,13 @@ static int dw_i2s_probe(struct platform_device *pdev)
 
 	dev->capability = pdata->cap;
 	dev->i2s_clk_cfg = pdata->i2s_clk_cfg;
-	dev->clk = clk_get(&pdev->dev, NULL);
+	dev->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dev->clk))
 		return  PTR_ERR(dev->clk);
 
 	ret = clk_enable(dev->clk);
 	if (ret < 0)
-		goto err_clk_put;
+		return ret;
 
 	dev_set_drvdata(&pdev->dev, dev);
 	ret = snd_soc_register_component(&pdev->dev, &dw_i2s_component,
@@ -416,18 +416,12 @@ static int dw_i2s_probe(struct platform_device *pdev)
 
 err_clk_disable:
 	clk_disable(dev->clk);
-err_clk_put:
-	clk_put(dev->clk);
 	return ret;
 }
 
 static int dw_i2s_remove(struct platform_device *pdev)
 {
-	struct dw_i2s_dev *dev = dev_get_drvdata(&pdev->dev);
-
 	snd_soc_unregister_component(&pdev->dev);
-
-	clk_put(dev->clk);
 
 	return 0;
 }
