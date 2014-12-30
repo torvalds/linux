@@ -349,10 +349,6 @@ install-gtk: $(OUTPUT)libperf-gtk.so
 		$(INSTALL) $(OUTPUT)libperf-gtk.so '$(DESTDIR_SQ)$(libdir_SQ)'
 endif
 
-ifndef NO_ZLIB
-  LIB_OBJS += $(OUTPUT)util/zlib.o
-endif
-
 ifdef ASCIIDOC8
   export ASCIIDOC8
 endif

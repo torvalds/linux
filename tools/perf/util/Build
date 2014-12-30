@@ -91,6 +91,7 @@ libperf-$(CONFIG_LIBUNWIND)          += unwind-libunwind.o
 libperf-y += scripting-engines/
 
 libperf-$(CONFIG_PERF_REGS) += perf_regs.o
+libperf-$(CONFIG_ZLIB) += zlib.o
 
 CFLAGS_config.o   += -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
 CFLAGS_exec_cmd.o += -DPERF_EXEC_PATH="BUILD_STR($(perfexecdir_SQ))" -DPREFIX="BUILD_STR($(prefix_SQ))"

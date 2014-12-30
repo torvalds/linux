@@ -640,6 +640,7 @@ ifndef NO_ZLIB
   ifeq ($(feature-zlib), 1)
     CFLAGS += -DHAVE_ZLIB_SUPPORT
     EXTLIBS += -lz
+    $(call detected,CONFIG_ZLIB)
   else
     NO_ZLIB := 1
   endif
