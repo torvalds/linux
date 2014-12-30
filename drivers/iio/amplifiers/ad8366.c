@@ -31,7 +31,7 @@ struct ad8366_state {
 };
 
 static int ad8366_write(struct iio_dev *indio_dev,
-			unsigned char ch_a, char unsigned ch_b)
+			unsigned char ch_a, unsigned char ch_b)
 {
 	struct ad8366_state *st = iio_priv(indio_dev);
 	int ret;
