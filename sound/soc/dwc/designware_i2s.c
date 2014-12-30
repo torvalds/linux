@@ -54,6 +54,31 @@
 #define I2S_COMP_VERSION	0x01F8
 #define I2S_COMP_TYPE		0x01FC
 
+/*
+ * Component parameter register fields - define the I2S block's
+ * configuration.
+ */
+#define	COMP1_TX_WORDSIZE_3(r)	(((r) & GENMASK(27, 25)) >> 25)
+#define	COMP1_TX_WORDSIZE_2(r)	(((r) & GENMASK(24, 22)) >> 22)
+#define	COMP1_TX_WORDSIZE_1(r)	(((r) & GENMASK(21, 19)) >> 19)
+#define	COMP1_TX_WORDSIZE_0(r)	(((r) & GENMASK(18, 16)) >> 16)
+#define	COMP1_TX_CHANNELS(r)	(((r) & GENMASK(10, 9)) >> 9)
+#define	COMP1_RX_CHANNELS(r)	(((r) & GENMASK(8, 7)) >> 7)
+#define	COMP1_RX_ENABLED(r)	(((r) & BIT(6)) >> 6)
+#define	COMP1_TX_ENABLED(r)	(((r) & BIT(5)) >> 5)
+#define	COMP1_MODE_EN(r)	(((r) & BIT(4)) >> 4)
+#define	COMP1_FIFO_DEPTH_GLOBAL(r)	(((r) & GENMASK(3, 2)) >> 2)
+#define	COMP1_APB_DATA_WIDTH(r)	(((r) & GENMASK(1, 0)) >> 0)
+
+#define	COMP2_RX_WORDSIZE_3(r)	(((r) & GENMASK(12, 10)) >> 10)
+#define	COMP2_RX_WORDSIZE_2(r)	(((r) & GENMASK(9, 7)) >> 7)
+#define	COMP2_RX_WORDSIZE_1(r)	(((r) & GENMASK(5, 3)) >> 3)
+#define	COMP2_RX_WORDSIZE_0(r)	(((r) & GENMASK(2, 0)) >> 0)
+
+/* Number of entries in WORDSIZE and DATA_WIDTH parameter registers */
+#define	COMP_MAX_WORDSIZE	(1 << 3)
+#define	COMP_MAX_DATA_WIDTH	(1 << 2)
+
 #define MAX_CHANNEL_NUM		8
 #define MIN_CHANNEL_NUM		2
 
@@ -324,11 +349,50 @@ static int dw_i2s_resume(struct snd_soc_dai *dai)
 #define dw_i2s_resume	NULL
 #endif
 
-static void dw_configure_dai_by_pd(struct dw_i2s_dev *dev,
+/*
+ * The following tables allow a direct lookup of various parameters
+ * defined in the I2S block's configuration in terms of sound system
+ * parameters.  Each table is sized to the number of entries possible
+ * according to the number of configuration bits describing an I2S
+ * block parameter.
+ */
+
+/* Width of (DMA) bus */
+static const u32 bus_widths[COMP_MAX_DATA_WIDTH] = {
+	DMA_SLAVE_BUSWIDTH_1_BYTE,
+	DMA_SLAVE_BUSWIDTH_2_BYTES,
+	DMA_SLAVE_BUSWIDTH_4_BYTES,
+	DMA_SLAVE_BUSWIDTH_UNDEFINED
+};
+
+/* PCM format to support channel resolution */
+static const u32 formats[COMP_MAX_WORDSIZE] = {
+	SNDRV_PCM_FMTBIT_S16_LE,
+	SNDRV_PCM_FMTBIT_S16_LE,
+	SNDRV_PCM_FMTBIT_S24_LE,
+	SNDRV_PCM_FMTBIT_S24_LE,
+	SNDRV_PCM_FMTBIT_S32_LE,
+	0,
+	0,
+	0
+};
+
+static int dw_configure_dai_by_pd(struct dw_i2s_dev *dev,
 				   struct snd_soc_dai_driver *dw_i2s_dai,
 				   struct resource *res,
 				   const struct i2s_platform_data *pdata)
 {
+	/*
+	 * Read component parameter registers to extract
+	 * the I2S block's configuration.
+	 */
+	u32 comp1 = i2s_read_reg(dev->i2s_base, I2S_COMP_PARAM_1);
+	u32 comp2 = i2s_read_reg(dev->i2s_base, I2S_COMP_PARAM_2);
+	u32 idx = COMP1_APB_DATA_WIDTH(comp1);
+
+	if (WARN_ON(idx >= ARRAY_SIZE(bus_widths)))
+		return -EINVAL;
+
 	/* Set DMA slaves info */
 
 	dev->play_dma_data.data = pdata->play_dma_data;
@@ -337,26 +401,36 @@ static void dw_configure_dai_by_pd(struct dw_i2s_dev *dev,
 	dev->capture_dma_data.addr = res->start + I2S_RXDMA;
 	dev->play_dma_data.max_burst = 16;
 	dev->capture_dma_data.max_burst = 16;
-	dev->play_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
-	dev->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
+	dev->play_dma_data.addr_width = bus_widths[idx];
+	dev->capture_dma_data.addr_width = bus_widths[idx];
 	dev->play_dma_data.filter = pdata->filter;
 	dev->capture_dma_data.filter = pdata->filter;
 
-	if (pdata->cap & DWC_I2S_PLAY) {
+	if (COMP1_TX_ENABLED(comp1)) {
 		dev_dbg(dev->dev, " designware: play supported\n");
+		idx = COMP1_TX_WORDSIZE_0(comp1);
+		if (WARN_ON(idx >= ARRAY_SIZE(formats)))
+			return -EINVAL;
 		dw_i2s_dai->playback.channels_min = MIN_CHANNEL_NUM;
-		dw_i2s_dai->playback.channels_max = pdata->channel;
-		dw_i2s_dai->playback.formats = pdata->snd_fmts;
+		dw_i2s_dai->playback.channels_max =
+				1 << (COMP1_TX_CHANNELS(comp1) + 1);
+		dw_i2s_dai->playback.formats = formats[idx];
 		dw_i2s_dai->playback.rates = pdata->snd_rates;
 	}
 
-	if (pdata->cap & DWC_I2S_RECORD) {
+	if (COMP1_RX_ENABLED(comp1)) {
 		dev_dbg(dev->dev, "designware: record supported\n");
+		idx = COMP2_RX_WORDSIZE_0(comp2);
+		if (WARN_ON(idx >= ARRAY_SIZE(formats)))
+			return -EINVAL;
 		dw_i2s_dai->capture.channels_min = MIN_CHANNEL_NUM;
-		dw_i2s_dai->capture.channels_max = pdata->channel;
-		dw_i2s_dai->capture.formats = pdata->snd_fmts;
+		dw_i2s_dai->capture.channels_max =
+				1 << (COMP1_RX_CHANNELS(comp1) + 1);
+		dw_i2s_dai->capture.formats = formats[idx];
 		dw_i2s_dai->capture.rates = pdata->snd_rates;
 	}
+
+	return 0;
 }
 
 static int dw_i2s_probe(struct platform_device *pdev)
@@ -392,7 +466,9 @@ static int dw_i2s_probe(struct platform_device *pdev)
 		return PTR_ERR(dev->i2s_base);
 
 	dev->dev = &pdev->dev;
-	dw_configure_dai_by_pd(dev, dw_i2s_dai, res, pdata);
+	ret = dw_configure_dai_by_pd(dev, dw_i2s_dai, res, pdata);
+	if (ret < 0)
+		return ret;
 
 	dev->capability = pdata->cap;
 	dev->i2s_clk_cfg = pdata->i2s_clk_cfg;
