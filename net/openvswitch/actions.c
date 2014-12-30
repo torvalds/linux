@@ -147,7 +147,8 @@ static int push_mpls(struct sk_buff *skb, struct sw_flow_key *key,
 	hdr = eth_hdr(skb);
 	hdr->h_proto = mpls->mpls_ethertype;
 
-	skb_set_inner_protocol(skb, skb->protocol);
+	if (!skb->inner_protocol)
+		skb_set_inner_protocol(skb, skb->protocol);
 	skb->protocol = mpls->mpls_ethertype;
 
 	invalidate_flow_key(key);
