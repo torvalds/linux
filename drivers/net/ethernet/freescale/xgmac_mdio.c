@@ -174,24 +174,6 @@ static int xgmac_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
 	return value;
 }
 
-/* Reset the MIIM registers, and wait for the bus to free */
-static int xgmac_mdio_reset(struct mii_bus *bus)
-{
-	struct tgec_mdio_controller __iomem *regs = bus->priv;
-	int ret;
-
-	mutex_lock(&bus->mdio_lock);
-
-	/* Setup the MII Mgmt clock speed */
-	out_be32(&regs->mdio_stat, MDIO_STAT_CLKDIV(100));
-
-	ret = xgmac_wait_until_free(&bus->dev, regs);
-
-	mutex_unlock(&bus->mdio_lock);
-
-	return ret;
-}
-
 static int xgmac_mdio_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -212,7 +194,6 @@ static int xgmac_mdio_probe(struct platform_device *pdev)
 	bus->name = "Freescale XGMAC MDIO Bus";
 	bus->read = xgmac_mdio_read;
 	bus->write = xgmac_mdio_write;
-	bus->reset = xgmac_mdio_reset;
 	bus->irq = bus->priv;
 	bus->parent = &pdev->dev;
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%llx", (unsigned long long)res.start);
