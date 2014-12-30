@@ -43,6 +43,9 @@ config HID_SENSOR_ACCEL_3D
 	  Say yes here to build support for the HID SENSOR
 	  accelerometers 3D.
 
+	  To compile this driver as a module, choose M here: the
+	  module will be called hid-sensor-accel-3d.
+
 config IIO_ST_ACCEL_3AXIS
 	tristate "STMicroelectronics accelerometers 3-Axis Driver"
 	depends on (I2C || SPI_MASTER) && SYSFS
@@ -79,6 +82,9 @@ config KXSD9
 	help
 	  Say yes here to build support for the Kionix KXSD9 accelerometer.
 	  Currently this only supports the device via an SPI interface.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called kxsd9.
 
 config MMA8452
 	tristate "Freescale MMA8452Q Accelerometer Driver"
