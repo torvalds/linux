@@ -379,11 +379,6 @@ int bmpdecoder(void *bmp_addr, void *pdst, int *width, int *height, int *bits)
 		pr_info("unsupport bit=%d now\n", infoheader.bitcount);
 		break;
 	case 24:
-		if (size % 3 != 0) {
-			pr_info("wrong bmp file with unalign size\n");
-
-			return -EINVAL;
-		}
 		if (flip)
 			src += (*width) * (*height - 1) * 3;
 
