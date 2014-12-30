@@ -22,7 +22,7 @@
 
 #include <linux/ptp_clock_kernel.h>
 #include <linux/net_tstamp.h>
-#include <linux/clocksource.h>
+#include <linux/timecounter.h>
 
 /* compilation time flags */
 
