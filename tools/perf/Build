@@ -25,12 +25,15 @@ perf-$(CONFIG_LIBELF) += builtin-probe.o
 perf-y += bench/
 perf-y += tests/
 
+perf-y += perf.o
+
 paths += -DPERF_HTML_PATH="BUILD_STR($(htmldir_SQ))"
 paths += -DPERF_INFO_PATH="BUILD_STR($(infodir_SQ))"
 paths += -DPERF_MAN_PATH="BUILD_STR($(mandir_SQ))"
 
 CFLAGS_builtin-help.o      += $(paths)
 CFLAGS_builtin-timechart.o += $(paths)
+CFLAGS_perf.o              += -DPERF_HTML_PATH="BUILD_STR($(htmldir_SQ))" -include $(OUTPUT)PERF-VERSION-FILE
 
 libperf-y += util/
 libperf-y += arch/

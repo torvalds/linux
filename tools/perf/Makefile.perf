@@ -376,16 +376,11 @@ PERF_IN := $(OUTPUT)perf-in.o
 export srctree OUTPUT RM CC LD AR CFLAGS V BISON FLEX
 build := -f $(srctree)/tools/build/Makefile.build dir=. obj
 
-$(PERF_IN): $(OUTPUT)common-cmds.h FORCE
+$(PERF_IN): $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h FORCE
 	@$(MAKE) $(build)=perf
 
-$(OUTPUT)perf.o: perf.c $(OUTPUT)common-cmds.h $(OUTPUT)PERF-CFLAGS
-	$(QUIET_CC)$(CC) -include $(OUTPUT)PERF-VERSION-FILE \
-		'-DPERF_HTML_PATH="$(htmldir_SQ)"' \
-		$(CFLAGS) -c $(filter %.c,$^) -o $@
-
-$(OUTPUT)perf: $(OUTPUT)perf.o $(BUILTIN_OBJS) $(PERFLIBS) $(PERF_IN)
-	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) $(OUTPUT)perf.o \
+$(OUTPUT)perf: $(BUILTIN_OBJS) $(PERFLIBS) $(PERF_IN)
+	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) \
                $(BUILTIN_OBJS) $(PERF_IN) $(LIBS) -o $@
 
 $(GTK_IN): FORCE
@@ -403,8 +398,7 @@ $(SCRIPTS) : % : %.sh
 	$(QUIET_GEN)$(INSTALL) '$@.sh' '$(OUTPUT)$@'
 
 # These can record PERF_VERSION
-$(OUTPUT)perf.o perf.spec \
-	$(SCRIPTS) \
+perf.spec $(SCRIPTS) \
 	: $(OUTPUT)PERF-VERSION-FILE
 
 .SUFFIXES:
@@ -659,7 +653,7 @@ config-clean:
 	@$(MAKE) -C config/feature-checks clean >/dev/null
 
 clean: $(LIBTRACEEVENT)-clean $(LIBAPIKFS)-clean config-clean
-	$(call QUIET_CLEAN, core-objs)  $(RM) $(LIB_OBJS) $(BUILTIN_OBJS) $(LIB_FILE) $(OUTPUT)perf-archive $(OUTPUT)perf-with-kcore $(OUTPUT)perf.o $(LANG_BINDINGS)
+	$(call QUIET_CLEAN, core-objs)  $(RM) $(LIB_OBJS) $(BUILTIN_OBJS) $(LIB_FILE) $(OUTPUT)perf-archive $(OUTPUT)perf-with-kcore $(LANG_BINDINGS)
 	@find . -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
 	@$(RM) .config-detected
 	$(call QUIET_CLEAN, core-progs) $(RM) $(ALL_PROGRAMS) perf perf-read-vdso32 perf-read-vdsox32
