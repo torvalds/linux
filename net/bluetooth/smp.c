@@ -3259,7 +3259,11 @@ static int __init test_h6(struct crypto_hash *tfm_cmac)
 static int __init run_selftests(struct crypto_blkcipher *tfm_aes,
 				struct crypto_hash *tfm_cmac)
 {
+	ktime_t calltime, delta, rettime;
+	unsigned long long duration;
 	int err;
+
+	calltime = ktime_get();
 
 	err = test_ah(tfm_aes);
 	if (err) {
@@ -3309,7 +3313,11 @@ static int __init run_selftests(struct crypto_blkcipher *tfm_aes,
 		return err;
 	}
 
-	BT_INFO("SMP test passed");
+	rettime = ktime_get();
+	delta = ktime_sub(rettime, calltime);
+	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
+
+	BT_INFO("SMP test passed in %lld usecs", duration);
 
 	return 0;
 }
