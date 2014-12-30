@@ -88,6 +88,8 @@ libperf-$(CONFIG_DWARF) += dwarf-aux.o
 libperf-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o
 libperf-$(CONFIG_LIBUNWIND)          += unwind-libunwind.o
 
+libperf-y += scripting-engines/
+
 CFLAGS_config.o   += -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
 CFLAGS_exec_cmd.o += -DPERF_EXEC_PATH="BUILD_STR($(perfexecdir_SQ))" -DPREFIX="BUILD_STR($(prefix_SQ))"
 

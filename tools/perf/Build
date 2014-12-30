@@ -35,5 +35,6 @@ CFLAGS_builtin-timechart.o += $(paths)
 libperf-y += util/
 libperf-y += arch/
 libperf-y += ui/
+libperf-y += scripts/
 
 gtk-y += ui/gtk/
