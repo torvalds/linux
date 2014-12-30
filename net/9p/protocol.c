@@ -273,7 +273,7 @@ p9pdu_vreadf(struct p9_fcall *pdu, int proto_version, const char *fmt,
 			}
 			break;
 		case 'R':{
-				int16_t *nwqid = va_arg(ap, int16_t *);
+				uint16_t *nwqid = va_arg(ap, uint16_t *);
 				struct p9_qid **wqids =
 				    va_arg(ap, struct p9_qid **);
 
@@ -448,7 +448,7 @@ p9pdu_vwritef(struct p9_fcall *pdu, int proto_version, const char *fmt,
 			}
 			break;
 		case 'U':{
-				int32_t count = va_arg(ap, int32_t);
+				uint32_t count = va_arg(ap, uint32_t);
 				const char __user *udata =
 						va_arg(ap, const void __user *);
 				errcode = p9pdu_writef(pdu, proto_version, "d",
@@ -479,7 +479,7 @@ p9pdu_vwritef(struct p9_fcall *pdu, int proto_version, const char *fmt,
 			}
 			break;
 		case 'R':{
-				int16_t nwqid = va_arg(ap, int);
+				uint16_t nwqid = va_arg(ap, int);
 				struct p9_qid *wqids =
 				    va_arg(ap, struct p9_qid *);
 
