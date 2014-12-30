@@ -166,7 +166,7 @@ static int ad8366_probe(struct spi_device *spi)
 	if (ret)
 		goto error_disable_reg;
 
-	ad8366_write(indio_dev, 0 , 0);
+	ad8366_write(indio_dev, 0, 0);
 
 	return 0;
 
