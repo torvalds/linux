@@ -421,16 +421,33 @@ endif
 # These two need to be here so that when O= is not used they take precedence
 # over the general rule for .o
 
-$(OUTPUT)%.o: %.c $(OUTPUT)PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) $<
-$(OUTPUT)%.i: %.c $(OUTPUT)PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $@ -E $(CFLAGS) $<
-$(OUTPUT)%.s: %.c $(OUTPUT)PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $@ -S $(CFLAGS) $<
-$(OUTPUT)%.o: %.S
-	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) $<
-$(OUTPUT)%.s: %.S
-	$(QUIET_CC)$(CC) -o $@ -E $(CFLAGS) $<
+# get relative building directory (to $(OUTPUT))
+# and '.' if it's $(OUTPUT) itself
+__build-dir = $(subst $(OUTPUT),,$(dir $@))
+build-dir   = $(if $(__build-dir),$(__build-dir),.)
+
+single_dep: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h
+
+$(OUTPUT)%.o: %.c single_dep FORCE
+	@$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
+
+$(OUTPUT)%.i: %.c single_dep FORCE
+	@$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
+
+$(OUTPUT)%.s: %.c single_dep FORCE
+	@$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
+
+$(OUTPUT)%-bison.o: %.c single_dep FORCE
+	@$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
+
+$(OUTPUT)%-flex.o: %.c single_dep FORCE
+	@$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
+
+$(OUTPUT)%.o: %.S single_dep FORCE
+	@$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
+
+$(OUTPUT)%.i: %.S single_dep FORCE
+	@$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
 
 $(OUTPUT)perf-%: %.o $(PERFLIBS)
 	$(QUIET_LINK)$(CC) $(CFLAGS) -o $@ $(LDFLAGS) $(filter %.o,$^) $(LIBS)
@@ -675,5 +692,5 @@ FORCE:
 
 .PHONY: all install clean config-clean strip install-gtk
 .PHONY: shell_compatibility_test please_set_SHELL_PATH_to_a_more_modern_shell
-.PHONY: $(GIT-HEAD-PHONY) TAGS tags cscope .FORCE-PERF-CFLAGS FORCE
+.PHONY: $(GIT-HEAD-PHONY) TAGS tags cscope .FORCE-PERF-CFLAGS FORCE single_dep
 

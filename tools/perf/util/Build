@@ -97,15 +97,19 @@ CFLAGS_config.o   += -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
 CFLAGS_exec_cmd.o += -DPERF_EXEC_PATH="BUILD_STR($(perfexecdir_SQ))" -DPREFIX="BUILD_STR($(prefix_SQ))"
 
 $(OUTPUT)util/parse-events-flex.c: util/parse-events.l $(OUTPUT)util/parse-events-bison.c
+	$(call rule_mkdir)
 	@$(call echo-cmd,flex)$(FLEX) -o $@ --header-file=$(OUTPUT)util/parse-events-flex.h $(PARSER_DEBUG_FLEX) util/parse-events.l
 
 $(OUTPUT)util/parse-events-bison.c: util/parse-events.y
+	$(call rule_mkdir)
 	@$(call echo-cmd,bison)$(BISON) -v util/parse-events.y -d $(PARSER_DEBUG_BISON) -o $@ -p parse_events_
 
 $(OUTPUT)util/pmu-flex.c: util/pmu.l $(OUTPUT)util/pmu-bison.c
+	$(call rule_mkdir)
 	@$(call echo-cmd,flex)$(FLEX) -o $@ --header-file=$(OUTPUT)util/pmu-flex.h util/pmu.l
 
 $(OUTPUT)util/pmu-bison.c: util/pmu.y
+	$(call rule_mkdir)
 	@$(call echo-cmd,bison)$(BISON) -v util/pmu.y -d -o $@ -p perf_pmu_
 
 CFLAGS_parse-events-flex.o  += -w
@@ -122,13 +126,17 @@ CFLAGS_hweight.o       += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ET
 CFLAGS_parse-events.o  += -Wno-redundant-decls
 
 $(OUTPUT)util/kallsyms.o: ../lib/symbol/kallsyms.c FORCE
+	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)
 
 $(OUTPUT)util/find_next_bit.o: ../lib/util/find_next_bit.c FORCE
+	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)
 
 $(OUTPUT)util/rbtree.o: ../../lib/rbtree.c FORCE
+	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)
 
 $(OUTPUT)util/hweight.o: ../../lib/hweight.c FORCE
+	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)

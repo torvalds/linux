@@ -49,6 +49,12 @@ quiet_cmd_mkdir = MKDIR    $(dir $@)
 quiet_cmd_cc_o_c = CC       $@
       cmd_cc_o_c = $(CC) $(c_flags) -c -o $@ $<
 
+quiet_cmd_cc_i_c = CPP      $@
+      cmd_cc_i_c = $(CC) $(c_flags) -E -o $@ $<
+
+quiet_cmd_cc_s_c = AS       $@
+      cmd_cc_s_c = $(CC) $(c_flags) -S -o $@ $<
+
 # Link agregate command
 # If there's nothing to link, create empty $@ object.
 quiet_cmd_ld_multi = LD       $@
@@ -63,6 +69,18 @@ $(OUTPUT)%.o: %.c FORCE
 $(OUTPUT)%.o: %.S FORCE
 	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)
+
+$(OUTPUT)%.i: %.c FORCE
+	$(call rule_mkdir)
+	$(call if_changed_dep,cc_i_c)
+
+$(OUTPUT)%.i: %.S FORCE
+	$(call rule_mkdir)
+	$(call if_changed_dep,cc_i_c)
+
+$(OUTPUT)%.s: %.c FORCE
+	$(call rule_mkdir)
+	$(call if_changed_dep,cc_s_c)
 
 # Gather build data:
 #   obj-y        - list of build objects
@@ -100,7 +118,7 @@ FORCE:
 
 # Include all cmd files to get all the dependency rules
 # for all objects included
-targets   := $(wildcard $(sort $(obj-y) $(in-target)))
+targets   := $(wildcard $(sort $(obj-y) $(in-target) $(MAKECMDGOALS)))
 cmd_files := $(wildcard $(foreach f,$(targets),$(dir $(f)).$(notdir $(f)).cmd))
 
 ifneq ($(cmd_files),)
