@@ -1141,6 +1141,7 @@ static const char *kxcjk1013_match_acpi_device(struct device *dev,
 					       bool *is_smo8500_device)
 {
 	const struct acpi_device_id *id;
+
 	id = acpi_match_device(dev->driver->acpi_match_table, dev);
 	if (!id)
 		return NULL;
