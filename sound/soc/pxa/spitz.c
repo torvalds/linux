@@ -352,7 +352,6 @@ static int spitz_remove(struct platform_device *pdev)
 static struct platform_driver spitz_driver = {
 	.driver		= {
 		.name	= "spitz-audio",
-		.owner	= THIS_MODULE,
 		.pm     = &snd_soc_pm_ops,
 	},
 	.probe		= spitz_probe,

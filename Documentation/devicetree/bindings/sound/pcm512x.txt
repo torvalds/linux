@@ -5,7 +5,8 @@ on the board).
 
 Required properties:
 
-  - compatible : One of "ti,pcm5121" or "ti,pcm5122"
+  - compatible : One of "ti,pcm5121", "ti,pcm5122", "ti,pcm5141" or
+                 "ti,pcm5142"
 
   - reg : the I2C address of the device for I2C, the chip select
           number for SPI.

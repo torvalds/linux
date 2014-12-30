@@ -497,6 +497,7 @@ struct sst_module *sst_module_new(struct sst_fw *sst_fw,
 	sst_module->sst_fw = sst_fw;
 	sst_module->scratch_size = template->scratch_size;
 	sst_module->persistent_size = template->persistent_size;
+	sst_module->entry = template->entry;
 
 	INIT_LIST_HEAD(&sst_module->block_list);
 	INIT_LIST_HEAD(&sst_module->runtime_list);
@@ -763,8 +764,12 @@ static int block_alloc_fixed(struct sst_dsp *dsp, struct sst_block_allocator *ba
 		/* does block span more than 1 section */
 		if (ba->offset >= block->offset && ba->offset < block_end) {
 
+			/* add block */
+			list_move(&block->list, &dsp->used_block_list);
+			list_add(&block->module_list, block_list);
 			/* align ba to block boundary */
-			ba->offset = block->offset;
+			ba->size -= block_end - ba->offset;
+			ba->offset = block_end;
 
 			err = block_alloc_contiguous(dsp, ba, block_list);
 			if (err < 0)
