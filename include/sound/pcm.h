@@ -94,9 +94,6 @@ struct snd_pcm_ops {
 #define SNDRV_PCM_DEVICES	8
 #endif
 
-#define SNDRV_PCM_IOCTL1_FALSE		((void *)0)
-#define SNDRV_PCM_IOCTL1_TRUE		((void *)1)
-
 #define SNDRV_PCM_IOCTL1_RESET		0
 #define SNDRV_PCM_IOCTL1_INFO		1
 #define SNDRV_PCM_IOCTL1_CHANNEL_INFO	2
@@ -857,7 +854,7 @@ static inline unsigned int params_channels(const struct snd_pcm_hw_params *p)
 }
 
 /**
- * params_channels - Get the sample rate from the hw params
+ * params_rate - Get the sample rate from the hw params
  * @p: hw params
  */
 static inline unsigned int params_rate(const struct snd_pcm_hw_params *p)
@@ -866,7 +863,7 @@ static inline unsigned int params_rate(const struct snd_pcm_hw_params *p)
 }
 
 /**
- * params_channels - Get the period size (in frames) from the hw params
+ * params_period_size - Get the period size (in frames) from the hw params
  * @p: hw params
  */
 static inline unsigned int params_period_size(const struct snd_pcm_hw_params *p)
@@ -875,7 +872,7 @@ static inline unsigned int params_period_size(const struct snd_pcm_hw_params *p)
 }
 
 /**
- * params_channels - Get the number of periods from the hw params
+ * params_periods - Get the number of periods from the hw params
  * @p: hw params
  */
 static inline unsigned int params_periods(const struct snd_pcm_hw_params *p)
@@ -884,7 +881,7 @@ static inline unsigned int params_periods(const struct snd_pcm_hw_params *p)
 }
 
 /**
- * params_channels - Get the buffer size (in frames) from the hw params
+ * params_buffer_size - Get the buffer size (in frames) from the hw params
  * @p: hw params
  */
 static inline unsigned int params_buffer_size(const struct snd_pcm_hw_params *p)
@@ -893,7 +890,7 @@ static inline unsigned int params_buffer_size(const struct snd_pcm_hw_params *p)
 }
 
 /**
- * params_channels - Get the buffer size (in bytes) from the hw params
+ * params_buffer_bytes - Get the buffer size (in bytes) from the hw params
  * @p: hw params
  */
 static inline unsigned int params_buffer_bytes(const struct snd_pcm_hw_params *p)
