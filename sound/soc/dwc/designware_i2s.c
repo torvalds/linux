@@ -476,7 +476,7 @@ static int dw_i2s_probe(struct platform_device *pdev)
 	if (IS_ERR(dev->clk))
 		return  PTR_ERR(dev->clk);
 
-	ret = clk_enable(dev->clk);
+	ret = clk_prepare_enable(dev->clk);
 	if (ret < 0)
 		return ret;
 
@@ -491,13 +491,16 @@ static int dw_i2s_probe(struct platform_device *pdev)
 	return 0;
 
 err_clk_disable:
-	clk_disable(dev->clk);
+	clk_disable_unprepare(dev->clk);
 	return ret;
 }
 
 static int dw_i2s_remove(struct platform_device *pdev)
 {
+	struct dw_i2s_dev *dev = dev_get_drvdata(&pdev->dev);
+
 	snd_soc_unregister_component(&pdev->dev);
+	clk_disable_unprepare(dev->clk);
 
 	return 0;
 }
