@@ -95,6 +95,9 @@ config HID_SENSOR_ALS
 	  Say yes here to build support for the HID SENSOR
 	  Ambient light sensor.
 
+	  To compile this driver as a module, choose M here: the
+	  module will be called hid-sensor-als.
+
 config HID_SENSOR_PROX
 	depends on HID_SENSOR_HUB
 	select IIO_BUFFER
