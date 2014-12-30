@@ -63,6 +63,7 @@ static int set_disp_mode_auto(void);
 const vinfo_t * hdmi_get_current_vinfo(void);
 
 struct hdmi_config_platform_data *hdmi_pdata;
+static unsigned int dvi_mode;
 
 static hdmitx_dev_t hdmitx_device;
 static struct switch_dev sdev = {      // android ics switch device
@@ -361,13 +362,11 @@ static int set_disp_mode_auto(void)
 
     if((vic_ready != HDMI_Unkown) && (vic_ready == vic)) {
         hdmi_print(IMP, SYS "[%s] ALREADY init VIC = %d\n", __func__, vic);
-#ifdef CONFIG_AML_HDMI_TX_CTS_DVI
-        if(hdmitx_device.RXCap.IEEEOUI == 0) {
-            // DVI case judgement. In uboot, directly output HDMI mode
+        if(dvi_mode == 1) { 
+			pr_emerg("hdmi: dvi case judgement -> IEEEOUI: %d\n", hdmitx_device.RXCap.IEEEOUI);
+			hdmitx_device.RXCap.IEEEOUI = 0;
             hdmitx_device.HWOp.CntlConfig(&hdmitx_device, CONF_HDMI_DVI_MODE, DVI_MODE);
-            hdmi_print(IMP, SYS "change to DVI mode\n");
         }
-#endif
         hdmitx_device.cur_VIC = vic;
         hdmitx_device.output_blank_flag = 1;
         return 1;
@@ -377,6 +376,7 @@ static int set_disp_mode_auto(void)
     }
 
     hdmitx_device.cur_VIC = HDMI_Unkown;
+    
     ret = hdmitx_set_display(&hdmitx_device, vic); //if vic is HDMI_Unkown, hdmitx_set_display will disable HDMI
     if(ret>=0){
         hdmitx_device.HWOp.Cntl(&hdmitx_device, HDMITX_AVMUTE_CNTL, AVMUTE_CLEAR);
@@ -1849,6 +1849,15 @@ static  int __init hdmitx_boot_para_setup(char *s)
 }
 
 __setup("hdmitx=",hdmitx_boot_para_setup);
+
+static  int __init vout_setup(char *s) {
+	if(strcmp(s, "dvi"))
+		dvi_mode = 0;
+	else
+		dvi_mode = 1;
+	return 0;
+}
+__setup("vout=", vout_setup);
 
 #ifdef CONFIG_AM_TV_OUTPUT2
 MODULE_PARM_DESC(force_vout_index, "\n force_vout_index\n");

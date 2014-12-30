@@ -454,19 +454,14 @@ void hdmitx_init_parameters(HDMI_TX_INFO_t *info)
 //If not, treated as a DVI Device
 static int is_dvi_device(rx_cap_t* pRXCap)
 {
-    hdmitx_dev_t *hdmitx_device = container_of(pRXCap, struct hdmi_tx_dev_s, RXCap);
+	
+	if(pRXCap->IEEEOUI == 0) {
+		pr_emerg("hdmi: fixing to DVI mode\n");
+		return 1;
+	}
 
-#ifndef CONFIG_AML_HDMI_TX_CTS_DVI
-    hdmi_print(IMP, SYS "fixed HDMI mode output\n");
+    pr_emerg("hdmi: Fixing to HDMI Mode\n");
     return 0;
-#endif
-    if(hdmitx_device->tv_no_edid)
-        return 0;
-
-    if(pRXCap->IEEEOUI != 0x000c03)
-        return 1;
-    else
-        return 0;
 }
 
 void hdmitx_output_rgb(void)
@@ -523,30 +518,30 @@ int hdmitx_set_display(hdmitx_dev_t* hdmitx_device, HDMI_Video_Codes_t VideoCode
 //0: DVI Mode       1: HDMI Mode
             //if(hdmitx_device->hdmi_info.output_state==CABLE_PLUGIN_DVI_OUT)
             if(is_dvi_device(&hdmitx_device->RXCap)) {
-                hdmi_print(1,"Sink is DVI device\n");
+                pr_emerg("hdmi: Sink is DVI device\n");
                 hdmitx_device->HWOp.CntlConfig(hdmitx_device, CONF_HDMI_DVI_MODE, DVI_MODE);        //todo ColorFormat
             }
             else {
-                hdmi_print(1,"Sink is HDMI device\n");
+                pr_emerg("hdmi: Sink is HDMI device\n");
                 hdmitx_device->HWOp.CntlConfig(hdmitx_device, CONF_HDMI_DVI_MODE, HDMI_MODE);
             }
 //check system status by reading EDID_STATUS
             switch(hdmitx_device->HWOp.CntlConfig(hdmitx_device, CONF_SYSTEM_ST, 0))
             {
                 case 0:
-                    hdmi_print(1,"No sink attached\n");
+                    pr_emerg("hdmi: No sink attached\n");
                     break;
                 case 1:
-                    hdmi_print(1,"Source reading EDID\n");
+                    pr_emerg("hdmi: Source reading EDID\n");
                     break;
                 case 2:
-                    hdmi_print(1,"Source in DVI Mode\n");
+                    pr_emerg("hdmi: Source in DVI Mode\n");
                     break;
                 case 3:
-                    hdmi_print(1,"Source in HDMI Mode\n");
+                    pr_emerg("hdmi: Source in HDMI Mode\n");
                     break;
                 default:
-                    hdmi_print(1,"EDID Status error\n");
+                    pr_emerg("hdmi: EDID Status error\n");
             }
 
             hdmi_tx_construct_avi_packet(param, (char*)AVI_DB);
@@ -658,4 +653,3 @@ static void hdmitx_set_spd_info(hdmitx_dev_t* hdmitx_device)
     }
     hdmitx_device->HWOp.SetPacket(HDMI_SOURCE_DESCRIPTION, SPD_DB, SPD_HB);
 }
-
