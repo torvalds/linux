@@ -47,7 +47,6 @@ struct ses_device {
 
 struct ses_component {
 	u64 addr;
-	unsigned char *desc;
 };
 
 static int ses_probe(struct device *dev)
@@ -307,19 +306,26 @@ static void ses_process_descriptor(struct enclosure_component *ecomp,
 	int invalid = desc[0] & 0x80;
 	enum scsi_protocol proto = desc[0] & 0x0f;
 	u64 addr = 0;
+	int slot = -1;
 	struct ses_component *scomp = ecomp->scratch;
 	unsigned char *d;
-
-	scomp->desc = desc;
 
 	if (invalid)
 		return;
 
 	switch (proto) {
+	case SCSI_PROTOCOL_FCP:
+		if (eip) {
+			d = desc + 4;
+			slot = d[3];
+		}
+		break;
 	case SCSI_PROTOCOL_SAS:
-		if (eip)
+		if (eip) {
+			d = desc + 4;
+			slot = d[3];
 			d = desc + 8;
-		else
+		} else
 			d = desc + 4;
 		/* only take the phy0 addr */
 		addr = (u64)d[12] << 56 |
@@ -335,6 +341,7 @@ static void ses_process_descriptor(struct enclosure_component *ecomp,
 		/* FIXME: Need to add more protocols than just SAS */
 		break;
 	}
+	ecomp->slot = slot;
 	scomp->addr = addr;
 }
 

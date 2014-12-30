@@ -145,8 +145,10 @@ enclosure_register(struct device *dev, const char *name, int components,
 	if (err)
 		goto err;
 
-	for (i = 0; i < components; i++)
+	for (i = 0; i < components; i++) {
 		edev->component[i].number = -1;
+		edev->component[i].slot = -1;
+	}
 
 	mutex_lock(&container_list_lock);
 	list_add_tail(&edev->node, &container_list);
@@ -589,6 +591,20 @@ static ssize_t get_component_type(struct device *cdev,
 	return snprintf(buf, 40, "%s\n", enclosure_type[ecomp->type]);
 }
 
+static ssize_t get_component_slot(struct device *cdev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct enclosure_component *ecomp = to_enclosure_component(cdev);
+	int slot;
+
+	/* if the enclosure does not override then use 'number' as a stand-in */
+	if (ecomp->slot >= 0)
+		slot = ecomp->slot;
+	else
+		slot = ecomp->number;
+
+	return snprintf(buf, 40, "%d\n", slot);
+}
 
 static DEVICE_ATTR(fault, S_IRUGO | S_IWUSR, get_component_fault,
 		    set_component_fault);
@@ -599,6 +615,7 @@ static DEVICE_ATTR(active, S_IRUGO | S_IWUSR, get_component_active,
 static DEVICE_ATTR(locate, S_IRUGO | S_IWUSR, get_component_locate,
 		   set_component_locate);
 static DEVICE_ATTR(type, S_IRUGO, get_component_type, NULL);
+static DEVICE_ATTR(slot, S_IRUGO, get_component_slot, NULL);
 
 static struct attribute *enclosure_component_attrs[] = {
 	&dev_attr_fault.attr,
@@ -606,6 +623,7 @@ static struct attribute *enclosure_component_attrs[] = {
 	&dev_attr_active.attr,
 	&dev_attr_locate.attr,
 	&dev_attr_type.attr,
+	&dev_attr_slot.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(enclosure_component);

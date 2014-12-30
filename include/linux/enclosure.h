@@ -92,6 +92,7 @@ struct enclosure_component {
 	int fault;
 	int active;
 	int locate;
+	int slot;
 	enum enclosure_status status;
 };
 
