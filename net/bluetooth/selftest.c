@@ -22,8 +22,10 @@
 */
 
 #include <net/bluetooth/bluetooth.h>
+#include <net/bluetooth/hci_core.h>
 
 #include "ecc.h"
+#include "smp.h"
 #include "selftest.h"
 
 #if IS_ENABLED(CONFIG_BT_SELFTEST_ECDH)
@@ -195,7 +197,12 @@ static int __init run_selftest(void)
 	BT_INFO("Starting self testing");
 
 	err = test_ecdh();
+	if (err)
+		goto done;
 
+	err = bt_selftest_smp();
+
+done:
 	BT_INFO("Finished self testing");
 
 	return err;

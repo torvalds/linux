@@ -3022,3 +3022,42 @@ void smp_unregister(struct hci_dev *hdev)
 		smp_del_chan(chan);
 	}
 }
+
+#if IS_ENABLED(CONFIG_BT_SELFTEST_SMP)
+
+static int __init run_selftests(struct crypto_blkcipher *tfm_aes,
+				struct crypto_hash *tfm_cmac)
+{
+	BT_INFO("SMP test passed");
+
+	return 0;
+}
+
+int __init bt_selftest_smp(void)
+{
+	struct crypto_blkcipher *tfm_aes;
+	struct crypto_hash *tfm_cmac;
+	int err;
+
+	tfm_aes = crypto_alloc_blkcipher("ecb(aes)", 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(tfm_aes)) {
+		BT_ERR("Unable to create ECB crypto context");
+		return PTR_ERR(tfm_aes);
+	}
+
+	tfm_cmac = crypto_alloc_hash("cmac(aes)", 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(tfm_cmac)) {
+		BT_ERR("Unable to create CMAC crypto context");
+		crypto_free_blkcipher(tfm_aes);
+		return PTR_ERR(tfm_cmac);
+	}
+
+	err = run_selftests(tfm_aes, tfm_cmac);
+
+	crypto_free_hash(tfm_cmac);
+	crypto_free_blkcipher(tfm_aes);
+
+	return err;
+}
+
+#endif

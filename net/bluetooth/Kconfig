@@ -84,4 +84,11 @@ config BT_SELFTEST_ECDH
 	  Run test cases for ECDH cryptographic functionality used by the
 	  Bluetooth Low Energy Secure Connections feature.
 
+config BT_SELFTEST_SMP
+	bool "SMP test cases"
+	depends on BT_LE && BT_SELFTEST
+	help
+	  Run test cases for SMP cryptographic functionality, including both
+	  legacy SMP as well as the Secure Connections features.
+
 source "drivers/bluetooth/Kconfig"
