@@ -156,7 +156,11 @@ static int __init test_ecdh_sample(const u8 priv_a[32], const u8 priv_b[32],
 
 static int __init test_ecdh(void)
 {
+	ktime_t calltime, delta, rettime;
+	unsigned long long duration;
 	int err;
+
+	calltime = ktime_get();
 
 	err = test_ecdh_sample(priv_a_1, priv_b_1, pub_a_1, pub_b_1, dhkey_1);
 	if (err) {
@@ -176,7 +180,11 @@ static int __init test_ecdh(void)
 		return err;
 	}
 
-	BT_INFO("ECDH test passed");
+	rettime = ktime_get();
+	delta = ktime_sub(rettime, calltime);
+	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
+
+	BT_INFO("ECDH test passed in %lld usecs", duration);
 
 	return 0;
 }
