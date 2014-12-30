@@ -349,7 +349,8 @@ static int ses_enclosure_find_by_addr(struct enclosure_device *edev,
 		if (scomp->addr != efd->addr)
 			continue;
 
-		enclosure_add_device(edev, i, efd->dev);
+		if (enclosure_add_device(edev, i, efd->dev) == 0)
+			kobject_uevent(&efd->dev->kobj, KOBJ_CHANGE);
 		return 1;
 	}
 	return 0;
