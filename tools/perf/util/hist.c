@@ -947,6 +947,7 @@ void hist_entry__free(struct hist_entry *he)
 	zfree(&he->mem_info);
 	zfree(&he->stat_acc);
 	free_srcline(he->srcline);
+	free_callchain(he->callchain);
 	free(he);
 }
 
