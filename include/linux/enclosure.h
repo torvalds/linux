@@ -79,6 +79,7 @@ struct enclosure_component_callbacks {
 	int (*set_locate)(struct enclosure_device *,
 			  struct enclosure_component *,
 			  enum enclosure_component_setting);
+	int (*show_id)(struct enclosure_device *, char *buf);
 };
 
 

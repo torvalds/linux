@@ -258,6 +258,14 @@ static int ses_set_active(struct enclosure_device *edev,
 	return ses_set_page2_descriptor(edev, ecomp, desc);
 }
 
+static int ses_show_id(struct enclosure_device *edev, char *buf)
+{
+	struct ses_device *ses_dev = edev->scratch;
+	unsigned long long id = get_unaligned_be64(ses_dev->page1+8+4);
+
+	return sprintf(buf, "%#llx\n", id);
+}
+
 static struct enclosure_component_callbacks ses_enclosure_callbacks = {
 	.get_fault		= ses_get_fault,
 	.set_fault		= ses_set_fault,
@@ -265,6 +273,7 @@ static struct enclosure_component_callbacks ses_enclosure_callbacks = {
 	.get_locate		= ses_get_locate,
 	.set_locate		= ses_set_locate,
 	.set_active		= ses_set_active,
+	.show_id		= ses_show_id,
 };
 
 struct ses_host_edev {

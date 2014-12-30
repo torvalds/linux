@@ -432,8 +432,21 @@ static ssize_t components_show(struct device *cdev,
 }
 static DEVICE_ATTR_RO(components);
 
+static ssize_t id_show(struct device *cdev,
+				 struct device_attribute *attr,
+				 char *buf)
+{
+	struct enclosure_device *edev = to_enclosure_device(cdev);
+
+	if (edev->cb->show_id)
+		return edev->cb->show_id(edev, buf);
+	return -EINVAL;
+}
+static DEVICE_ATTR_RO(id);
+
 static struct attribute *enclosure_class_attrs[] = {
 	&dev_attr_components.attr,
+	&dev_attr_id.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(enclosure_class);
