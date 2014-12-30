@@ -124,7 +124,7 @@ nouveau_mc_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	pmc->unk260 = nouveau_mc_unk260;
 
-	if (nv_device_is_pci(device))
+	if (nv_device_is_pci(device)) {
 		switch (device->pdev->device & 0x0ff0) {
 		case 0x00f0:
 		case 0x02e0:
@@ -138,6 +138,7 @@ nouveau_mc_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 			default:
 				pmc->use_msi = true;
 				break;
+			}
 		}
 
 		pmc->use_msi = nouveau_boolopt(device->cfgopt, "NvMSI",
