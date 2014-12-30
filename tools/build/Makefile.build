@@ -37,6 +37,11 @@ subdir-obj-y :=
 build-file := $(dir)/Build
 include $(build-file)
 
+# Create directory unless it exists
+quiet_cmd_mkdir = MKDIR    $(dir $@)
+      cmd_mkdir = mkdir -p $(dir $@)
+     rule_mkdir = $(if $(wildcard $(dir $@)),,@$(call echo-cmd,mkdir) $(cmd_mkdir))
+
 # Compile command
 quiet_cmd_cc_o_c = CC       $@
       cmd_cc_o_c = $(CC) $(c_flags) -c -o $@ $<
@@ -49,9 +54,11 @@ quiet_cmd_ld_multi = LD       $@
 
 # Build rules
 $(OUTPUT)%.o: %.c FORCE
+	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)
 
 $(OUTPUT)%.o: %.S FORCE
+	$(call rule_mkdir)
 	$(call if_changed_dep,cc_o_c)
 
 # Gather build data:
