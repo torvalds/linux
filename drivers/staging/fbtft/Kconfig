@@ -145,3 +145,9 @@ config FB_TFT_UC1701
 	depends on FB_TFT
 	help
 	  Generic Framebuffer support for UC1701
+
+config FB_TFT_UPD161704
+	tristate "FB driver for the uPD161704 LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for uPD161704
