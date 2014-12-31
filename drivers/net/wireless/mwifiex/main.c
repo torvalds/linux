@@ -511,8 +511,7 @@ err_dnld_fw:
 	if (adapter->if_ops.unregister_dev)
 		adapter->if_ops.unregister_dev(adapter);
 
-	if ((adapter->hw_status == MWIFIEX_HW_STATUS_FW_READY) ||
-	    (adapter->hw_status == MWIFIEX_HW_STATUS_READY)) {
+	if (adapter->hw_status == MWIFIEX_HW_STATUS_READY) {
 		pr_debug("info: %s: shutdown mwifiex\n", __func__);
 		adapter->init_wait_q_woken = false;
 
@@ -1116,8 +1115,7 @@ err_init_fw:
 	pr_debug("info: %s: unregister device\n", __func__);
 	if (adapter->if_ops.unregister_dev)
 		adapter->if_ops.unregister_dev(adapter);
-	if ((adapter->hw_status == MWIFIEX_HW_STATUS_FW_READY) ||
-	    (adapter->hw_status == MWIFIEX_HW_STATUS_READY)) {
+	if (adapter->hw_status == MWIFIEX_HW_STATUS_READY) {
 		pr_debug("info: %s: shutdown mwifiex\n", __func__);
 		adapter->init_wait_q_woken = false;
 
