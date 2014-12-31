@@ -1536,9 +1536,13 @@ static int dwc_otg_pm_suspend(struct device *dev)
 	dwc_otg_device_t *dwc_otg_device;
 	struct dwc_otg_platform_data *pdata_otg;
 
+	dwc_otg_device = dev_get_platdata(dev);
+
 	dev_dbg(dev, "dwc_otg PM suspend\n");
 
-	dwc_otg_device = dev_get_platdata(dev);
+	if (dwc_otg_device->core_if->op_state == B_PERIPHERAL)
+		return 0;
+
 	pdata_otg = dwc_otg_device->pldata;
 	pdata_otg->phy_suspend(pdata_otg, USB_PHY_SUSPEND);
 
@@ -1550,9 +1554,13 @@ static int dwc_otg_pm_resume(struct device *dev)
 	dwc_otg_device_t *dwc_otg_device;
 	struct dwc_otg_platform_data *pdata_otg;
 
+	dwc_otg_device = dev_get_platdata(dev);
+
 	dev_dbg(dev, "dwc_otg PM resume\n");
 
-	dwc_otg_device = dev_get_platdata(dev);
+	if (dwc_otg_device->core_if->op_state == B_PERIPHERAL)
+		return 0;
+
 	pdata_otg = dwc_otg_device->pldata;
 	pdata_otg->phy_suspend(pdata_otg, USB_PHY_ENABLED);
 
