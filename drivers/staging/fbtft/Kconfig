@@ -79,3 +79,9 @@ config FB_TFT_PCD8544
 	depends on FB_TFT
 	help
 	  Generic Framebuffer support for PCD8544
+
+config FB_TFT_RA8875
+        tristate "FB driver for the RA8875 LCD Controller"
+        depends on FB_TFT
+	help
+	  Generic Framebuffer support for RA8875
