@@ -240,6 +240,8 @@ static int axi_i2s_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_clk_disable;
 
+	return 0;
+
 err_clk_disable:
 	clk_disable_unprepare(i2s->clk);
 	return ret;
