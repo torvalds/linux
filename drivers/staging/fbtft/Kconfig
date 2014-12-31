@@ -157,3 +157,9 @@ config FB_TFT_WATTEROTT
 	depends on FB_TFT
 	help
 	  Generic Framebuffer support for WATTEROTT
+
+config FB_FLEX
+	tristate "Generic FB driver for TFT LCD displays"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for TFT LCD displays.
