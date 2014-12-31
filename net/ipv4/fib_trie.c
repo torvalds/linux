@@ -391,8 +391,6 @@ static void put_child(struct tnode *tn, unsigned long i, struct tnode *n)
 	else if (!wasfull && isfull)
 		tn->full_children++;
 
-	node_set_parent(n, tn);
-
 	rcu_assign_pointer(tn->child[i], n);
 }
 
@@ -436,10 +434,8 @@ static void tnode_free(struct tnode *tn)
 
 static int inflate(struct trie *t, struct tnode *oldtnode)
 {
-	unsigned long olen = tnode_child_length(oldtnode);
-	struct tnode *tp = node_parent(oldtnode);
-	struct tnode *tn;
-	unsigned long i;
+	struct tnode *inode, *node0, *node1, *tn, *tp;
+	unsigned long i, j, k;
 	t_key m;
 
 	pr_debug("In inflate\n");
@@ -448,43 +444,13 @@ static int inflate(struct trie *t, struct tnode *oldtnode)
 	if (!tn)
 		return -ENOMEM;
 
-	/*
-	 * Preallocate and store tnodes before the actual work so we
-	 * don't get into an inconsistent state if memory allocation
-	 * fails. In case of failure we return the oldnode and  inflate
-	 * of tnode is ignored.
+	/* Assemble all of the pointers in our cluster, in this case that
+	 * represents all of the pointers out of our allocated nodes that
+	 * point to existing tnodes and the links between our allocated
+	 * nodes.
 	 */
-	for (i = 0, m = 1u << tn->pos; i < olen; i++) {
-		struct tnode *inode = tnode_get_child(oldtnode, i);
-
-		if (tnode_full(oldtnode, inode) && (inode->bits > 1)) {
-			struct tnode *left, *right;
-
-			left = tnode_new(inode->key & ~m, inode->pos,
-					 inode->bits - 1);
-			if (!left)
-				goto nomem;
-			tnode_free_append(tn, left);
-
-			right = tnode_new(inode->key | m, inode->pos,
-					  inode->bits - 1);
-
-			if (!right)
-				goto nomem;
-			tnode_free_append(tn, right);
-
-			put_child(tn, 2*i, left);
-			put_child(tn, 2*i+1, right);
-		}
-	}
-
-	/* prepare oldtnode to be freed */
-	tnode_free_init(oldtnode);
-
-	for (i = 0; i < olen; i++) {
-		struct tnode *inode = tnode_get_child(oldtnode, i);
-		struct tnode *left, *right;
-		unsigned long size, j;
+	for (i = tnode_child_length(oldtnode), m = 1u << tn->pos; i;) {
+		inode = tnode_get_child(oldtnode, --i);
 
 		/* An empty child */
 		if (inode == NULL)
@@ -496,64 +462,98 @@ static int inflate(struct trie *t, struct tnode *oldtnode)
 			continue;
 		}
 
-		/* drop the node in the old tnode free list */
-		tnode_free_append(oldtnode, inode);
-
 		/* An internal node with two children */
 		if (inode->bits == 1) {
-			put_child(tn, 2*i, rtnl_dereference(inode->child[0]));
-			put_child(tn, 2*i+1, rtnl_dereference(inode->child[1]));
+			put_child(tn, 2 * i + 1, tnode_get_child(inode, 1));
+			put_child(tn, 2 * i, tnode_get_child(inode, 0));
 			continue;
 		}
 
-		/* An internal node with more than two children */
-
 		/* We will replace this node 'inode' with two new
-		 * ones, 'left' and 'right', each with half of the
+		 * ones, 'node0' and 'node1', each with half of the
 		 * original children. The two new nodes will have
 		 * a position one bit further down the key and this
 		 * means that the "significant" part of their keys
 		 * (see the discussion near the top of this file)
 		 * will differ by one bit, which will be "0" in
-		 * left's key and "1" in right's key. Since we are
+		 * node0's key and "1" in node1's key. Since we are
 		 * moving the key position by one step, the bit that
 		 * we are moving away from - the bit at position
-		 * (inode->pos) - is the one that will differ between
-		 * left and right. So... we synthesize that bit in the
-		 * two  new keys.
-		 * The mask 'm' below will be a single "one" bit at
-		 * the position (inode->pos)
+		 * (tn->pos) - is the one that will differ between
+		 * node0 and node1. So... we synthesize that bit in the
+		 * two new keys.
 		 */
+		node1 = tnode_new(inode->key | m, inode->pos, inode->bits - 1);
+		if (!node1)
+			goto nomem;
+		tnode_free_append(tn, node1);
 
-		/* Use the old key, but set the new significant
-		 *   bit to zero.
-		 */
+		node0 = tnode_new(inode->key & ~m, inode->pos, inode->bits - 1);
+		if (!node0)
+			goto nomem;
+		tnode_free_append(tn, node0);
 
-		left = tnode_get_child(tn, 2*i);
-		put_child(tn, 2*i, NULL);
-
-		BUG_ON(!left);
-
-		right = tnode_get_child(tn, 2*i+1);
-		put_child(tn, 2*i+1, NULL);
-
-		BUG_ON(!right);
-
-		size = tnode_child_length(left);
-		for (j = 0; j < size; j++) {
-			put_child(left, j, rtnl_dereference(inode->child[j]));
-			put_child(right, j, rtnl_dereference(inode->child[j + size]));
+		/* populate child pointers in new nodes */
+		for (k = tnode_child_length(inode), j = k / 2; j;) {
+			put_child(node1, --j, tnode_get_child(inode, --k));
+			put_child(node0, j, tnode_get_child(inode, j));
+			put_child(node1, --j, tnode_get_child(inode, --k));
+			put_child(node0, j, tnode_get_child(inode, j));
 		}
 
-		put_child(tn, 2 * i, left);
-		put_child(tn, 2 * i + 1, right);
+		/* link new nodes to parent */
+		NODE_INIT_PARENT(node1, tn);
+		NODE_INIT_PARENT(node0, tn);
 
-		/* resize child nodes */
-		resize(t, left);
-		resize(t, right);
+		/* link parent to nodes */
+		put_child(tn, 2 * i + 1, node1);
+		put_child(tn, 2 * i, node0);
 	}
 
+	/* setup the parent pointer into and out of this node */
+	tp = node_parent(oldtnode);
+	NODE_INIT_PARENT(tn, tp);
 	put_child_root(tp, t, tn->key, tn);
+
+	/* prepare oldtnode to be freed */
+	tnode_free_init(oldtnode);
+
+	/* update all child nodes parent pointers to route to us */
+	for (i = tnode_child_length(oldtnode); i;) {
+		inode = tnode_get_child(oldtnode, --i);
+
+		/* A leaf or an internal node with skipped bits */
+		if (!tnode_full(oldtnode, inode)) {
+			node_set_parent(inode, tn);
+			continue;
+		}
+
+		/* drop the node in the old tnode free list */
+		tnode_free_append(oldtnode, inode);
+
+		/* fetch new nodes */
+		node1 = tnode_get_child(tn, 2 * i + 1);
+		node0 = tnode_get_child(tn, 2 * i);
+
+		/* bits == 1 then node0 and node1 represent inode's children */
+		if (inode->bits == 1) {
+			node_set_parent(node1, tn);
+			node_set_parent(node0, tn);
+			continue;
+		}
+
+		/* update parent pointers in child node's children */
+		for (k = tnode_child_length(inode), j = k / 2; j;) {
+			node_set_parent(tnode_get_child(inode, --k), node1);
+			node_set_parent(tnode_get_child(inode, --j), node0);
+			node_set_parent(tnode_get_child(inode, --k), node1);
+			node_set_parent(tnode_get_child(inode, --j), node0);
+		}
+
+		/* resize child nodes */
+		resize(t, node1);
+		resize(t, node0);
+	}
 
 	/* we completed without error, prepare to free old node */
 	tnode_free(oldtnode);
@@ -566,10 +566,8 @@ nomem:
 
 static int halve(struct trie *t, struct tnode *oldtnode)
 {
-	unsigned long olen = tnode_child_length(oldtnode);
-	struct tnode *tp = node_parent(oldtnode);
-	struct tnode *tn, *left, *right;
-	int i;
+	struct tnode *tn, *tp, *inode, *node0, *node1;
+	unsigned long i;
 
 	pr_debug("In halve\n");
 
@@ -577,67 +575,63 @@ static int halve(struct trie *t, struct tnode *oldtnode)
 	if (!tn)
 		return -ENOMEM;
 
-	/*
-	 * Preallocate and store tnodes before the actual work so we
-	 * don't get into an inconsistent state if memory allocation
-	 * fails. In case of failure we return the oldnode and halve
-	 * of tnode is ignored.
+	/* Assemble all of the pointers in our cluster, in this case that
+	 * represents all of the pointers out of our allocated nodes that
+	 * point to existing tnodes and the links between our allocated
+	 * nodes.
 	 */
+	for (i = tnode_child_length(oldtnode); i;) {
+		node1 = tnode_get_child(oldtnode, --i);
+		node0 = tnode_get_child(oldtnode, --i);
 
-	for (i = 0; i < olen; i += 2) {
-		left = tnode_get_child(oldtnode, i);
-		right = tnode_get_child(oldtnode, i+1);
-
-		/* Two nonempty children */
-		if (left && right) {
-			struct tnode *newn;
-
-			newn = tnode_new(left->key, oldtnode->pos, 1);
-			if (!newn) {
-				tnode_free(tn);
-				return -ENOMEM;
-			}
-			tnode_free_append(tn, newn);
-
-			put_child(tn, i/2, newn);
+		/* At least one of the children is empty */
+		if (!node1 || !node0) {
+			put_child(tn, i / 2, node1 ? : node0);
+			continue;
 		}
 
+		/* Two nonempty children */
+		inode = tnode_new(node0->key, oldtnode->pos, 1);
+		if (!inode) {
+			tnode_free(tn);
+			return -ENOMEM;
+		}
+		tnode_free_append(tn, inode);
+
+		/* initialize pointers out of node */
+		put_child(inode, 1, node1);
+		put_child(inode, 0, node0);
+		NODE_INIT_PARENT(inode, tn);
+
+		/* link parent to node */
+		put_child(tn, i / 2, inode);
 	}
+
+	/* setup the parent pointer out of and back into this node */
+	tp = node_parent(oldtnode);
+	NODE_INIT_PARENT(tn, tp);
+	put_child_root(tp, t, tn->key, tn);
 
 	/* prepare oldtnode to be freed */
 	tnode_free_init(oldtnode);
 
-	for (i = 0; i < olen; i += 2) {
-		struct tnode *newBinNode;
+	/* update all of the child parent pointers */
+	for (i = tnode_child_length(tn); i;) {
+		inode = tnode_get_child(tn, --i);
 
-		left = tnode_get_child(oldtnode, i);
-		right = tnode_get_child(oldtnode, i+1);
-
-		/* At least one of the children is empty */
-		if (left == NULL) {
-			if (right == NULL)    /* Both are empty */
-				continue;
-			put_child(tn, i/2, right);
-			continue;
-		}
-
-		if (right == NULL) {
-			put_child(tn, i/2, left);
+		/* only new tnodes will be considered "full" nodes */
+		if (!tnode_full(tn, inode)) {
+			node_set_parent(inode, tn);
 			continue;
 		}
 
 		/* Two nonempty children */
-		newBinNode = tnode_get_child(tn, i/2);
-		put_child(newBinNode, 0, left);
-		put_child(newBinNode, 1, right);
-
-		put_child(tn, i / 2, newBinNode);
+		node_set_parent(tnode_get_child(inode, 1), inode);
+		node_set_parent(tnode_get_child(inode, 0), inode);
 
 		/* resize child node */
-		resize(t, newBinNode);
+		resize(t, inode);
 	}
-
-	put_child_root(tp, t, tn->key, tn);
 
 	/* all pointers should be clean so we are done */
 	tnode_free(oldtnode);
