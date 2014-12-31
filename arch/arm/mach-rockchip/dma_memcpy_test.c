@@ -165,8 +165,8 @@ static int dma_memtest_channel_setup_and_init(struct Dma_MemToMem *DmaMemInfo, c
 	}
 	
 
-	DmaMemInfo->src = dma_alloc_coherent(NULL, DMA_TEST_BUFFER_SIZE, &DmaMemInfo->config->src_addr, GFP_KERNEL); 
-	DmaMemInfo->dst = dma_alloc_coherent(NULL, DMA_TEST_BUFFER_SIZE, &DmaMemInfo->config->dst_addr, GFP_KERNEL);
+	DmaMemInfo->src = kmalloc(DMA_TEST_BUFFER_SIZE, GFP_KERNEL);
+	DmaMemInfo->dst = kmalloc(DMA_TEST_BUFFER_SIZE, GFP_KERNEL);
 	if(DmaMemInfo->src == NULL || DmaMemInfo->dst == NULL)
 	{
 		printk("dma_alloc_coherent %s fail\n",DmaMemInfo->name);
@@ -176,15 +176,6 @@ static int dma_memtest_channel_setup_and_init(struct Dma_MemToMem *DmaMemInfo, c
 	{
 		printk("dma_alloc_coherent %s success\n",DmaMemInfo->name);
 	}
-	
-	DmaMemInfo->MenSize = DMA_TEST_BUFFER_SIZE;
-	DmaMemInfo->config->direction = direction;
-	DmaMemInfo->config->src_addr_width = addr_width;
-	DmaMemInfo->config->dst_addr_width = addr_width;
-	DmaMemInfo->config->src_maxburst = maxburst;
-	DmaMemInfo->config->dst_maxburst = maxburst;
-	
-	dmaengine_slave_config(DmaMemInfo->dma_chan,DmaMemInfo->config);
 
 	return 0;
 

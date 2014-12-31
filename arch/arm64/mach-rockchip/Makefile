@@ -7,3 +7,4 @@ obj-$(CONFIG_PM) += ../../arm/mach-rockchip/rockchip_pm.o
 obj-$(CONFIG_RK_LAST_LOG) += ../../arm/mach-rockchip/last_log.o
 obj-$(CONFIG_DVFS) += ../../arm/mach-rockchip/dvfs.o
 obj-$(CONFIG_BLOCK_RKNAND) += ../../arm/mach-rockchip/rknandbase.o
+obj-$(CONFIG_RK_PL330_DMA_TEST) += ../../arm/mach-rockchip/dma_memcpy_test.o
