@@ -375,52 +375,6 @@ static const struct file_operations sc_only_mode_fops = {
 	.llseek		= default_llseek,
 };
 
-static ssize_t force_sc_support_read(struct file *file, char __user *user_buf,
-				     size_t count, loff_t *ppos)
-{
-	struct hci_dev *hdev = file->private_data;
-	char buf[3];
-
-	buf[0] = test_bit(HCI_FORCE_SC, &hdev->dbg_flags) ? 'Y': 'N';
-	buf[1] = '\n';
-	buf[2] = '\0';
-	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
-}
-
-static ssize_t force_sc_support_write(struct file *file,
-				      const char __user *user_buf,
-				      size_t count, loff_t *ppos)
-{
-	struct hci_dev *hdev = file->private_data;
-	char buf[32];
-	size_t buf_size = min(count, (sizeof(buf)-1));
-	bool enable;
-
-	if (test_bit(HCI_UP, &hdev->flags))
-		return -EBUSY;
-
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-
-	buf[buf_size] = '\0';
-	if (strtobool(buf, &enable))
-		return -EINVAL;
-
-	if (enable == test_bit(HCI_FORCE_SC, &hdev->dbg_flags))
-		return -EALREADY;
-
-	change_bit(HCI_FORCE_SC, &hdev->dbg_flags);
-
-	return count;
-}
-
-static const struct file_operations force_sc_support_fops = {
-	.open		= simple_open,
-	.read		= force_sc_support_read,
-	.write		= force_sc_support_write,
-	.llseek		= default_llseek,
-};
-
 static int idle_timeout_set(void *data, u64 val)
 {
 	struct hci_dev *hdev = data;
@@ -521,9 +475,6 @@ void hci_debugfs_create_bredr(struct hci_dev *hdev)
 				    hdev, &auto_accept_delay_fops);
 		debugfs_create_file("sc_only_mode", 0444, hdev->debugfs,
 				    hdev, &sc_only_mode_fops);
-
-		debugfs_create_file("force_sc_support", 0644, hdev->debugfs,
-				    hdev, &force_sc_support_fops);
 	}
 
 	if (lmp_sniff_capable(hdev)) {

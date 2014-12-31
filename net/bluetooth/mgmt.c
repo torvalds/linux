@@ -570,8 +570,7 @@ static u32 get_supported_settings(struct hci_dev *hdev)
 			settings |= MGMT_SETTING_HS;
 		}
 
-		if (lmp_sc_capable(hdev) ||
-		    test_bit(HCI_FORCE_SC, &hdev->dbg_flags))
+		if (lmp_sc_capable(hdev))
 			settings |= MGMT_SETTING_SECURE_CONN;
 	}
 
@@ -4727,8 +4726,8 @@ static int set_secure_conn(struct sock *sk, struct hci_dev *hdev,
 
 	BT_DBG("request for %s", hdev->name);
 
-	if (!test_bit(HCI_LE_ENABLED, &hdev->dev_flags) &&
-	    !lmp_sc_capable(hdev) && !test_bit(HCI_FORCE_SC, &hdev->dbg_flags))
+	if (!lmp_sc_capable(hdev) &&
+	    !test_bit(HCI_LE_ENABLED, &hdev->dev_flags))
 		return cmd_status(sk, hdev->id, MGMT_OP_SET_SECURE_CONN,
 				  MGMT_STATUS_NOT_SUPPORTED);
 
@@ -4738,9 +4737,7 @@ static int set_secure_conn(struct sock *sk, struct hci_dev *hdev,
 
 	hci_dev_lock(hdev);
 
-	if (!hdev_is_powered(hdev) ||
-	    (!lmp_sc_capable(hdev) &&
-	     !test_bit(HCI_FORCE_SC, &hdev->dbg_flags)) ||
+	if (!hdev_is_powered(hdev) || !lmp_sc_capable(hdev) ||
 	    !test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags)) {
 		bool changed;
 

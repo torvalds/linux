@@ -172,7 +172,6 @@ enum {
  */
 enum {
 	HCI_DUT_MODE,
-	HCI_FORCE_SC,
 	HCI_FORCE_BREDR_SMP,
 	HCI_FORCE_STATIC_ADDR,
 };

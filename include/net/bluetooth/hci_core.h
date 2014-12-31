@@ -1017,8 +1017,7 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 
 #define hdev_is_powered(hdev) (test_bit(HCI_UP, &hdev->flags) && \
 				!test_bit(HCI_AUTO_OFF, &hdev->dev_flags))
-#define bredr_sc_enabled(dev) ((lmp_sc_capable(dev) || \
-				test_bit(HCI_FORCE_SC, &(dev)->dbg_flags)) && \
+#define bredr_sc_enabled(dev) (lmp_sc_capable(dev) && \
 			       test_bit(HCI_SC_ENABLED, &(dev)->dev_flags))
 
 /* ----- HCI protocols ----- */
