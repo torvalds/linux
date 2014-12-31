@@ -22,3 +22,4 @@ obj-$(CONFIG_FB_TFT_SSD1289)     += fb_ssd1289.o
 obj-$(CONFIG_FB_TFT_SSD1306)     += fb_ssd1306.o
 obj-$(CONFIG_FB_TFT_SSD1331)     += fb_ssd1331.o
 obj-$(CONFIG_FB_TFT_SSD1351)     += fb_ssd1351.o
+obj-$(CONFIG_FB_TFT_ST7735R)     += fb_st7735r.o
