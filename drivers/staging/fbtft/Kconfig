@@ -31,3 +31,9 @@ config FB_TFT_HX8347D
 	depends on FB_TFT
 	help
 	  Generic Framebuffer support for HX8347D
+
+config FB_TFT_HX8353D
+	tristate "FB driver for the HX8353D LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for HX8353D
