@@ -656,7 +656,8 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 
 		/* Single frame failure in an AMPDU queue => send BAR */
 		if (txq_id >= mvm->first_agg_queue &&
-		    !(info->flags & IEEE80211_TX_STAT_ACK))
+		    !(info->flags & IEEE80211_TX_STAT_ACK) &&
+		    !(info->flags & IEEE80211_TX_STAT_TX_FILTERED))
 			info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
 
 		/* W/A FW bug: seq_ctl is wrong when the status isn't success */
