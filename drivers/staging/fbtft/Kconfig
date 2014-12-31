@@ -85,3 +85,9 @@ config FB_TFT_RA8875
         depends on FB_TFT
 	help
 	  Generic Framebuffer support for RA8875
+
+config FB_TFT_S6D02A1
+	tristate "FB driver for the S6D02A1 LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for S6D02A1
