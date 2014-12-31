@@ -222,16 +222,19 @@ static inline struct fib_table *fib_new_table(struct net *net, u32 id)
 static inline int fib_lookup(struct net *net, const struct flowi4 *flp,
 			     struct fib_result *res)
 {
-	struct fib_table *table;
+	int err = -ENETUNREACH;
 
-	table = fib_get_table(net, RT_TABLE_LOCAL);
-	if (!fib_table_lookup(table, flp, res, FIB_LOOKUP_NOREF))
-		return 0;
+	rcu_read_lock();
 
-	table = fib_get_table(net, RT_TABLE_MAIN);
-	if (!fib_table_lookup(table, flp, res, FIB_LOOKUP_NOREF))
-		return 0;
-	return -ENETUNREACH;
+	if (!fib_table_lookup(fib_get_table(net, RT_TABLE_LOCAL), flp, res,
+			      FIB_LOOKUP_NOREF) ||
+	    !fib_table_lookup(fib_get_table(net, RT_TABLE_MAIN), flp, res,
+			      FIB_LOOKUP_NOREF))
+		err = 0;
+
+	rcu_read_unlock();
+
+	return err;
 }
 
 #else /* CONFIG_IP_MULTIPLE_TABLES */
@@ -247,20 +250,25 @@ static inline int fib_lookup(struct net *net, struct flowi4 *flp,
 			     struct fib_result *res)
 {
 	if (!net->ipv4.fib_has_custom_rules) {
+		int err = -ENETUNREACH;
+
+		rcu_read_lock();
+
 		res->tclassid = 0;
-		if (net->ipv4.fib_local &&
-		    !fib_table_lookup(net->ipv4.fib_local, flp, res,
-				      FIB_LOOKUP_NOREF))
-			return 0;
-		if (net->ipv4.fib_main &&
-		    !fib_table_lookup(net->ipv4.fib_main, flp, res,
-				      FIB_LOOKUP_NOREF))
-			return 0;
-		if (net->ipv4.fib_default &&
-		    !fib_table_lookup(net->ipv4.fib_default, flp, res,
-				      FIB_LOOKUP_NOREF))
-			return 0;
-		return -ENETUNREACH;
+		if ((net->ipv4.fib_local &&
+		     !fib_table_lookup(net->ipv4.fib_local, flp, res,
+				       FIB_LOOKUP_NOREF)) ||
+		    (net->ipv4.fib_main &&
+		     !fib_table_lookup(net->ipv4.fib_main, flp, res,
+				       FIB_LOOKUP_NOREF)) ||
+		    (net->ipv4.fib_default &&
+		     !fib_table_lookup(net->ipv4.fib_default, flp, res,
+				       FIB_LOOKUP_NOREF)))
+			err = 0;
+
+		rcu_read_unlock();
+
+		return err;
 	}
 	return __fib_lookup(net, flp, res);
 }

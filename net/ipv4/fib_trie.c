@@ -1181,72 +1181,6 @@ err:
 	return err;
 }
 
-/* should be called with rcu_read_lock */
-static int check_leaf(struct fib_table *tb, struct trie *t, struct tnode *l,
-		      t_key key,  const struct flowi4 *flp,
-		      struct fib_result *res, int fib_flags)
-{
-	struct leaf_info *li;
-	struct hlist_head *hhead = &l->list;
-
-	hlist_for_each_entry_rcu(li, hhead, hlist) {
-		struct fib_alias *fa;
-
-		if (l->key != (key & li->mask_plen))
-			continue;
-
-		list_for_each_entry_rcu(fa, &li->falh, fa_list) {
-			struct fib_info *fi = fa->fa_info;
-			int nhsel, err;
-
-			if (fa->fa_tos && fa->fa_tos != flp->flowi4_tos)
-				continue;
-			if (fi->fib_dead)
-				continue;
-			if (fa->fa_info->fib_scope < flp->flowi4_scope)
-				continue;
-			fib_alias_accessed(fa);
-			err = fib_props[fa->fa_type].error;
-			if (unlikely(err < 0)) {
-#ifdef CONFIG_IP_FIB_TRIE_STATS
-				this_cpu_inc(t->stats->semantic_match_passed);
-#endif
-				return err;
-			}
-			if (fi->fib_flags & RTNH_F_DEAD)
-				continue;
-			for (nhsel = 0; nhsel < fi->fib_nhs; nhsel++) {
-				const struct fib_nh *nh = &fi->fib_nh[nhsel];
-
-				if (nh->nh_flags & RTNH_F_DEAD)
-					continue;
-				if (flp->flowi4_oif && flp->flowi4_oif != nh->nh_oif)
-					continue;
-
-#ifdef CONFIG_IP_FIB_TRIE_STATS
-				this_cpu_inc(t->stats->semantic_match_passed);
-#endif
-				res->prefixlen = li->plen;
-				res->nh_sel = nhsel;
-				res->type = fa->fa_type;
-				res->scope = fi->fib_scope;
-				res->fi = fi;
-				res->table = tb;
-				res->fa_head = &li->falh;
-				if (!(fib_flags & FIB_LOOKUP_NOREF))
-					atomic_inc(&fi->fib_clntref);
-				return 0;
-			}
-		}
-
-#ifdef CONFIG_IP_FIB_TRIE_STATS
-		this_cpu_inc(t->stats->semantic_match_miss);
-#endif
-	}
-
-	return 1;
-}
-
 static inline t_key prefix_mismatch(t_key key, struct tnode *n)
 {
 	t_key prefix = n->key;
@@ -1254,6 +1188,7 @@ static inline t_key prefix_mismatch(t_key key, struct tnode *n)
 	return (key ^ prefix) & (prefix | -prefix);
 }
 
+/* should be called with rcu_read_lock */
 int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
 		     struct fib_result *res, int fib_flags)
 {
@@ -1263,14 +1198,12 @@ int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
 #endif
 	const t_key key = ntohl(flp->daddr);
 	struct tnode *n, *pn;
+	struct leaf_info *li;
 	t_key cindex;
-	int ret = 1;
-
-	rcu_read_lock();
 
 	n = rcu_dereference(t->trie);
 	if (!n)
-		goto failed;
+		return -EAGAIN;
 
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 	this_cpu_inc(stats->gets);
@@ -1350,7 +1283,7 @@ backtrace:
 
 				pn = node_parent_rcu(pn);
 				if (unlikely(!pn))
-					goto failed;
+					return -EAGAIN;
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 				this_cpu_inc(stats->backtrack);
 #endif
@@ -1368,12 +1301,62 @@ backtrace:
 
 found:
 	/* Step 3: Process the leaf, if that fails fall back to backtracing */
-	ret = check_leaf(tb, t, n, key, flp, res, fib_flags);
-	if (unlikely(ret > 0))
-		goto backtrace;
-failed:
-	rcu_read_unlock();
-	return ret;
+	hlist_for_each_entry_rcu(li, &n->list, hlist) {
+		struct fib_alias *fa;
+
+		if ((key ^ n->key) & li->mask_plen)
+			continue;
+
+		list_for_each_entry_rcu(fa, &li->falh, fa_list) {
+			struct fib_info *fi = fa->fa_info;
+			int nhsel, err;
+
+			if (fa->fa_tos && fa->fa_tos != flp->flowi4_tos)
+				continue;
+			if (fi->fib_dead)
+				continue;
+			if (fa->fa_info->fib_scope < flp->flowi4_scope)
+				continue;
+			fib_alias_accessed(fa);
+			err = fib_props[fa->fa_type].error;
+			if (unlikely(err < 0)) {
+#ifdef CONFIG_IP_FIB_TRIE_STATS
+				this_cpu_inc(stats->semantic_match_passed);
+#endif
+				return err;
+			}
+			if (fi->fib_flags & RTNH_F_DEAD)
+				continue;
+			for (nhsel = 0; nhsel < fi->fib_nhs; nhsel++) {
+				const struct fib_nh *nh = &fi->fib_nh[nhsel];
+
+				if (nh->nh_flags & RTNH_F_DEAD)
+					continue;
+				if (flp->flowi4_oif && flp->flowi4_oif != nh->nh_oif)
+					continue;
+
+				if (!(fib_flags & FIB_LOOKUP_NOREF))
+					atomic_inc(&fi->fib_clntref);
+
+				res->prefixlen = li->plen;
+				res->nh_sel = nhsel;
+				res->type = fa->fa_type;
+				res->scope = fi->fib_scope;
+				res->fi = fi;
+				res->table = tb;
+				res->fa_head = &li->falh;
+#ifdef CONFIG_IP_FIB_TRIE_STATS
+				this_cpu_inc(stats->semantic_match_passed);
+#endif
+				return err;
+			}
+		}
+
+#ifdef CONFIG_IP_FIB_TRIE_STATS
+		this_cpu_inc(stats->semantic_match_miss);
+#endif
+	}
+	goto backtrace;
 }
 EXPORT_SYMBOL_GPL(fib_table_lookup);
 
