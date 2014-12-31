@@ -930,7 +930,8 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 	} while ((dnld_cmd != FW_HAS_LAST_BLOCK) && retries);
 
 cleanup:
-	dev_dbg(adapter->dev, "%s: %d bytes downloaded\n", __func__, tlen);
+	dev_notice(adapter->dev,
+		   "info: FW download over, size %d bytes\n", tlen);
 
 	kfree(recv_buff);
 	kfree(fwdata);
