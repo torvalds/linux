@@ -103,3 +103,9 @@ config FB_TFT_SSD1289
 	depends on FB_TFT
 	help
 	  Framebuffer support for SSD1289
+
+config FB_TFT_SSD1306
+	tristate "FB driver for the SSD1306 OLED Controller"
+	depends on FB_TFT
+	help
+	  Framebuffer support for SSD1306
