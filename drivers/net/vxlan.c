@@ -549,10 +549,7 @@ static struct sk_buff **vxlan_gro_receive(struct sk_buff **head, struct sk_buff 
 {
 	struct sk_buff *p, **pp = NULL;
 	struct vxlanhdr *vh, *vh2;
-	struct ethhdr *eh, *eh2;
-	unsigned int hlen, off_vx, off_eth;
-	const struct packet_offload *ptype;
-	__be16 type;
+	unsigned int hlen, off_vx;
 	int flush = 1;
 
 	off_vx = skb_gro_offset(skb);
@@ -563,17 +560,6 @@ static struct sk_buff **vxlan_gro_receive(struct sk_buff **head, struct sk_buff 
 		if (unlikely(!vh))
 			goto out;
 	}
-	skb_gro_pull(skb, sizeof(struct vxlanhdr)); /* pull vxlan header */
-	skb_gro_postpull_rcsum(skb, vh, sizeof(struct vxlanhdr));
-
-	off_eth = skb_gro_offset(skb);
-	hlen = off_eth + sizeof(*eh);
-	eh   = skb_gro_header_fast(skb, off_eth);
-	if (skb_gro_header_hard(skb, hlen)) {
-		eh = skb_gro_header_slow(skb, hlen, off_eth);
-		if (unlikely(!eh))
-			goto out;
-	}
 
 	flush = 0;
 
@@ -582,28 +568,16 @@ static struct sk_buff **vxlan_gro_receive(struct sk_buff **head, struct sk_buff 
 			continue;
 
 		vh2 = (struct vxlanhdr *)(p->data + off_vx);
-		eh2 = (struct ethhdr   *)(p->data + off_eth);
-		if (vh->vx_vni != vh2->vx_vni || compare_ether_header(eh, eh2)) {
+		if (vh->vx_vni != vh2->vx_vni) {
 			NAPI_GRO_CB(p)->same_flow = 0;
 			continue;
 		}
 	}
 
-	type = eh->h_proto;
+	skb_gro_pull(skb, sizeof(struct vxlanhdr));
+	skb_gro_postpull_rcsum(skb, vh, sizeof(struct vxlanhdr));
+	pp = eth_gro_receive(head, skb);
 
-	rcu_read_lock();
-	ptype = gro_find_receive_by_type(type);
-	if (ptype == NULL) {
-		flush = 1;
-		goto out_unlock;
-	}
-
-	skb_gro_pull(skb, sizeof(*eh)); /* pull inner eth header */
-	skb_gro_postpull_rcsum(skb, eh, sizeof(*eh));
-	pp = ptype->callbacks.gro_receive(head, skb);
-
-out_unlock:
-	rcu_read_unlock();
 out:
 	NAPI_GRO_CB(skb)->flush |= flush;
 
@@ -612,24 +586,9 @@ out:
 
 static int vxlan_gro_complete(struct sk_buff *skb, int nhoff)
 {
-	struct ethhdr *eh;
-	struct packet_offload *ptype;
-	__be16 type;
-	int vxlan_len  = sizeof(struct vxlanhdr) + sizeof(struct ethhdr);
-	int err = -ENOSYS;
-
 	udp_tunnel_gro_complete(skb, nhoff);
 
-	eh = (struct ethhdr *)(skb->data + nhoff + sizeof(struct vxlanhdr));
-	type = eh->h_proto;
-
-	rcu_read_lock();
-	ptype = gro_find_complete_by_type(type);
-	if (ptype != NULL)
-		err = ptype->callbacks.gro_complete(skb, nhoff + vxlan_len);
-
-	rcu_read_unlock();
-	return err;
+	return eth_gro_complete(skb, nhoff + sizeof(struct vxlanhdr));
 }
 
 /* Notify netdevs that UDP port started listening */

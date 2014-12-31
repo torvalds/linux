@@ -424,3 +424,95 @@ ssize_t sysfs_format_mac(char *buf, const unsigned char *addr, int len)
 	return scnprintf(buf, PAGE_SIZE, "%*phC\n", len, addr);
 }
 EXPORT_SYMBOL(sysfs_format_mac);
+
+struct sk_buff **eth_gro_receive(struct sk_buff **head,
+				 struct sk_buff *skb)
+{
+	struct sk_buff *p, **pp = NULL;
+	struct ethhdr *eh, *eh2;
+	unsigned int hlen, off_eth;
+	const struct packet_offload *ptype;
+	__be16 type;
+	int flush = 1;
+
+	off_eth = skb_gro_offset(skb);
+	hlen = off_eth + sizeof(*eh);
+	eh = skb_gro_header_fast(skb, off_eth);
+	if (skb_gro_header_hard(skb, hlen)) {
+		eh = skb_gro_header_slow(skb, hlen, off_eth);
+		if (unlikely(!eh))
+			goto out;
+	}
+
+	flush = 0;
+
+	for (p = *head; p; p = p->next) {
+		if (!NAPI_GRO_CB(p)->same_flow)
+			continue;
+
+		eh2 = (struct ethhdr *)(p->data + off_eth);
+		if (compare_ether_header(eh, eh2)) {
+			NAPI_GRO_CB(p)->same_flow = 0;
+			continue;
+		}
+	}
+
+	type = eh->h_proto;
+
+	rcu_read_lock();
+	ptype = gro_find_receive_by_type(type);
+	if (ptype == NULL) {
+		flush = 1;
+		goto out_unlock;
+	}
+
+	skb_gro_pull(skb, sizeof(*eh));
+	skb_gro_postpull_rcsum(skb, eh, sizeof(*eh));
+	pp = ptype->callbacks.gro_receive(head, skb);
+
+out_unlock:
+	rcu_read_unlock();
+out:
+	NAPI_GRO_CB(skb)->flush |= flush;
+
+	return pp;
+}
+EXPORT_SYMBOL(eth_gro_receive);
+
+int eth_gro_complete(struct sk_buff *skb, int nhoff)
+{
+	struct ethhdr *eh = (struct ethhdr *)(skb->data + nhoff);
+	__be16 type = eh->h_proto;
+	struct packet_offload *ptype;
+	int err = -ENOSYS;
+
+	if (skb->encapsulation)
+		skb_set_inner_mac_header(skb, nhoff);
+
+	rcu_read_lock();
+	ptype = gro_find_complete_by_type(type);
+	if (ptype != NULL)
+		err = ptype->callbacks.gro_complete(skb, nhoff +
+						    sizeof(struct ethhdr));
+
+	rcu_read_unlock();
+	return err;
+}
+EXPORT_SYMBOL(eth_gro_complete);
+
+static struct packet_offload eth_packet_offload __read_mostly = {
+	.type = cpu_to_be16(ETH_P_TEB),
+	.callbacks = {
+		.gro_receive = eth_gro_receive,
+		.gro_complete = eth_gro_complete,
+	},
+};
+
+static int __init eth_offload_init(void)
+{
+	dev_add_offload(&eth_packet_offload);
+
+	return 0;
+}
+
+fs_initcall(eth_offload_init);
