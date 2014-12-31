@@ -2527,6 +2527,7 @@ static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 				    struct cfg80211_wowlan *wowlan)
 {
 	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
+	struct mwifiex_ds_hs_cfg hs_cfg;
 	int ret = 0;
 	struct mwifiex_private *priv =
 			mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA);
@@ -2546,6 +2547,20 @@ static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 		ret = mwifiex_set_mef_filter(priv, wowlan);
 		if (ret) {
 			dev_err(adapter->dev, "Failed to set MEF filter\n");
+			return ret;
+		}
+	}
+
+	if (wowlan->disconnect) {
+		memset(&hs_cfg, 0, sizeof(hs_cfg));
+		hs_cfg.is_invoke_hostcmd = false;
+		hs_cfg.conditions = HS_CFG_COND_MAC_EVENT;
+		hs_cfg.gpio = HS_CFG_GPIO_DEF;
+		hs_cfg.gap = HS_CFG_GAP_DEF;
+		ret = mwifiex_set_hs_params(priv, HostCmd_ACT_GEN_SET,
+					    MWIFIEX_SYNC_CMD, &hs_cfg);
+		if (ret) {
+			dev_err(adapter->dev, "Failed to set HS params\n");
 			return ret;
 		}
 	}
@@ -2890,7 +2905,7 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 
 #ifdef CONFIG_PM
 static const struct wiphy_wowlan_support mwifiex_wowlan_support = {
-	.flags = WIPHY_WOWLAN_MAGIC_PKT,
+	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT,
 	.n_patterns = MWIFIEX_MEF_MAX_FILTERS,
 	.pattern_min_len = 1,
 	.pattern_max_len = MWIFIEX_MAX_PATTERN_LEN,
