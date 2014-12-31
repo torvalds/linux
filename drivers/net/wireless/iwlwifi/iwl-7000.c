@@ -105,7 +105,7 @@
 #define IWL7265_MODULE_FIRMWARE(api) IWL7265_FW_PRE __stringify(api) ".ucode"
 
 #define IWL7265D_FW_PRE "iwlwifi-7265D-"
-#define IWL7265D_MODULE_FIRMWARE(api) IWL7265_FW_PRE __stringify(api) ".ucode"
+#define IWL7265D_MODULE_FIRMWARE(api) IWL7265D_FW_PRE __stringify(api) ".ucode"
 
 #define NVM_HW_SECTION_NUM_FAMILY_7000		0
 
