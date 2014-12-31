@@ -830,6 +830,7 @@ struct mwifiex_adapter {
 	u16 gen_null_pkt;
 	u16 pps_uapsd_mode;
 	u32 pm_wakeup_fw_try;
+	struct timer_list wakeup_timer;
 	u8 is_hs_configured;
 	struct mwifiex_hs_config_param hs_cfg;
 	u8 hs_activated;

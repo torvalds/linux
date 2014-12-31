@@ -2064,6 +2064,7 @@ static void mwifiex_interrupt_status(struct mwifiex_adapter *adapter)
 				 * state until cookie is set */
 				adapter->ps_state = PS_STATE_AWAKE;
 				adapter->pm_wakeup_fw_try = false;
+				del_timer(&adapter->wakeup_timer);
 		}
 	}
 }

@@ -52,6 +52,18 @@ static int mwifiex_add_bss_prio_tbl(struct mwifiex_private *priv)
 	return 0;
 }
 
+static void wakeup_timer_fn(unsigned long data)
+{
+	struct mwifiex_adapter *adapter = (struct mwifiex_adapter *)data;
+
+	dev_err(adapter->dev, "Firmware wakeup failed\n");
+	adapter->hw_status = MWIFIEX_HW_STATUS_RESET;
+	mwifiex_cancel_all_pending_cmd(adapter);
+
+	if (adapter->if_ops.card_reset)
+		adapter->if_ops.card_reset(adapter);
+}
+
 /*
  * This function initializes the private structure and sets default
  * values to the members.
@@ -285,6 +297,9 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	adapter->ext_scan = true;
 	adapter->key_api_major_ver = 0;
 	adapter->key_api_minor_ver = 0;
+
+	setup_timer(&adapter->wakeup_timer, wakeup_timer_fn,
+		    (unsigned long)adapter);
 }
 
 /*
@@ -391,6 +406,7 @@ mwifiex_adapter_cleanup(struct mwifiex_adapter *adapter)
 		return;
 	}
 
+	del_timer(&adapter->wakeup_timer);
 	mwifiex_cancel_all_pending_cmd(adapter);
 
 	/* Free lock variables */
