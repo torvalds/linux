@@ -151,3 +151,9 @@ config FB_TFT_UPD161704
 	depends on FB_TFT
 	help
 	  Generic Framebuffer support for uPD161704
+
+config FB_TFT_WATTEROTT
+	tristate "FB driver for the WATTEROTT LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for WATTEROTT
