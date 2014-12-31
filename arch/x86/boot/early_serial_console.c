@@ -2,8 +2,6 @@
 
 #define DEFAULT_SERIAL_PORT 0x3f8 /* ttyS0 */
 
-#define XMTRDY          0x20
-
 #define DLAB		0x80
 
 #define TXR             0       /*  Transmit register (WRITE) */
