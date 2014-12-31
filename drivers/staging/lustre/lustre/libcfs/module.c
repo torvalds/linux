@@ -332,8 +332,6 @@ extern struct mutex cfs_trace_thread_mutex;
 extern struct cfs_wi_sched *cfs_sched_rehash;
 
 extern void libcfs_init_nidstrings(void);
-extern int libcfs_arch_init(void);
-extern void libcfs_arch_cleanup(void);
 
 static int init_libcfs_module(void)
 {
