@@ -892,28 +892,34 @@ static void insert_leaf_info(struct hlist_head *head, struct leaf_info *new)
 }
 
 /* rcu_read_lock needs to be hold by caller from readside */
-
 static struct tnode *fib_find_node(struct trie *t, u32 key)
 {
 	struct tnode *n = rcu_dereference_rtnl(t->trie);
-	int pos = 0;
 
-	while (n && IS_TNODE(n)) {
-		if (tkey_sub_equals(n->key, pos, n->pos-pos, key)) {
-			pos = n->pos + n->bits;
-			n = tnode_get_child_rcu(n,
-						tkey_extract_bits(key,
-								  n->pos,
-								  n->bits));
-		} else
+	while (n) {
+		unsigned long index = get_index(key, n);
+
+		/* This bit of code is a bit tricky but it combines multiple
+		 * checks into a single check.  The prefix consists of the
+		 * prefix plus zeros for the bits in the cindex. The index
+		 * is the difference between the key and this value.  From
+		 * this we can actually derive several pieces of data.
+		 *   if !(index >> bits)
+		 *     we know the value is cindex
+		 *   else
+		 *     we have a mismatch in skip bits and failed
+		 */
+		if (index >> n->bits)
+			return NULL;
+
+		/* we have found a leaf. Prefixes have already been compared */
+		if (IS_LEAF(n))
 			break;
+
+		n = rcu_dereference_rtnl(n->child[index]);
 	}
-	/* Case we have found a leaf. Compare prefixes */
 
-	if (n != NULL && IS_LEAF(n) && tkey_equals(key, n->key))
-		return n;
-
-	return NULL;
+	return n;
 }
 
 static void trie_rebalance(struct trie *t, struct tnode *tn)
