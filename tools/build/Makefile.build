@@ -22,6 +22,9 @@ build-dir := $(srctree)/tools/build
 # Generic definitions
 include $(build-dir)/Build.include
 
+# do not force detected configuration
+-include .config-detected
+
 # Init all relevant variables used in build files so
 # 1) they have correct type
 # 2) they do not inherit any value from the environment
