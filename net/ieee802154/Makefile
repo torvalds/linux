@@ -1,4 +1,5 @@
-obj-$(CONFIG_IEEE802154) += ieee802154.o af_802154.o
+obj-$(CONFIG_IEEE802154) += ieee802154.o
+obj-$(CONFIG_IEEE802154_SOCKET) += af_802154.o
 obj-$(CONFIG_IEEE802154_6LOWPAN) += ieee802154_6lowpan.o
 
 ieee802154_6lowpan-y := 6lowpan_rtnl.o reassembly.o

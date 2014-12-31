@@ -10,6 +10,15 @@ config IEEE802154
 	  Say Y here to compile LR-WPAN support into the kernel or say M to
 	  compile it as modules.
 
+config IEEE802154_SOCKET
+	tristate "IEEE 802.15.4 socket interface"
+	depends on IEEE802154
+	default y
+	---help---
+	  Socket interface for IEEE 802.15.4. Contains DGRAM sockets interface
+	  for 802.15.4 dataframes. Also RAW socket interface to build MAC
+	  header from userspace.
+
 config IEEE802154_6LOWPAN
 	tristate "6lowpan support over IEEE 802.15.4"
 	depends on IEEE802154 && 6LOWPAN
