@@ -106,6 +106,27 @@ static u32 uart_read(struct uart_8250_port *up, u32 reg)
 	return readl(up->port.membase + (reg << up->port.regshift));
 }
 
+static void omap8250_set_mctrl(struct uart_port *port, unsigned int mctrl)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+	struct omap8250_priv *priv = up->port.private_data;
+	u8 lcr;
+
+	serial8250_do_set_mctrl(port, mctrl);
+
+	/*
+	 * Turn off autoRTS if RTS is lowered and restore autoRTS setting
+	 * if RTS is raised
+	 */
+	lcr = serial_in(up, UART_LCR);
+	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
+	if (mctrl & TIOCM_RTS)
+		serial_out(up, UART_EFR, priv->efr);
+	else
+		serial_out(up, UART_EFR, priv->efr & ~UART_EFR_RTS);
+	serial_out(up, UART_LCR, lcr);
+}
+
 /*
  * Work Around for Errata i202 (2430, 3430, 3630, 4430 and 4460)
  * The access to uart register after MDR1 Access
@@ -400,9 +421,6 @@ static void omap_8250_set_termios(struct uart_port *port,
 	if (termios->c_cflag & CRTSCTS && up->port.flags & UPF_HARD_FLOW) {
 		/* Enable AUTORTS and AUTOCTS */
 		priv->efr |= UART_EFR_CTS | UART_EFR_RTS;
-
-		/* Ensure MCR RTS is asserted */
-		up->mcr |= UART_MCR_RTS;
 	} else	if (up->port.flags & UPF_SOFT_FLOW) {
 		/*
 		 * IXON Flag:
@@ -1007,6 +1025,7 @@ static int omap8250_probe(struct platform_device *pdev)
 	up.capabilities |= UART_CAP_RPM;
 #endif
 	up.port.set_termios = omap_8250_set_termios;
+	up.port.set_mctrl = omap8250_set_mctrl;
 	up.port.pm = omap_8250_pm;
 	up.port.startup = omap_8250_startup;
 	up.port.shutdown = omap_8250_shutdown;
