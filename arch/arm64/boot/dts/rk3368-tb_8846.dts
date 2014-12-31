@@ -485,6 +485,14 @@
 		status = "okay";
 	};
 
+	rt3261: rt3261@1c {
+		compatible = "rt3261";
+		reg = <0x1c>;
+		spk-num= <2>;
+		modem-input-mode = <1>;
+		lout-to-modem_mode = <1>;
+		spk-amplify = <2>;
+	};
 };
 
 &i2c2 {
@@ -508,18 +516,6 @@
 		bin_ver = <0>;
 		irq_gpio_number = <&gpio0 GPIO_B4 IRQ_TYPE_LEVEL_LOW>;
 		rst_gpio_number = <&gpio0 GPIO_B3 GPIO_ACTIVE_HIGH>;
-	};
-
-	rt3261: rt3261@1c {
-		compatible = "rt3261";
-		reg = <0x1c>;
-	//	codec-en-gpio = <0>;//sdk default high level
-		spk-num= <2>;
-		modem-input-mode = <1>;
-		lout-to-modem_mode = <1>;
-		spk-amplify = <2>;
-		playback-if1-data_control = <0>;
-		playback-if2-data_control = <0>;
 	};
 };
 
