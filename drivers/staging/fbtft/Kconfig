@@ -61,3 +61,9 @@ config FB_TFT_ILI9341
 	depends on FB_TFT
 	help
 	  Generic Framebuffer support for ILI9341
+
+config FB_TFT_ILI9481
+	tristate "FB driver for the ILI9481 LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for ILI9481
