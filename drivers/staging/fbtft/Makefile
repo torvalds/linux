@@ -6,3 +6,4 @@ fbtft-y                          += fbtft-core.o fbtft-sysfs.o fbtft-bus.o fbtft
 obj-$(CONFIG_FB_TFT_AGM1264K_FL) += fb_agm1264k-fl.o
 obj-$(CONFIG_FB_TFT_BD663474)    += fb_bd663474.o
 obj-$(CONFIG_FB_TFT_HX8340BN)    += fb_hx8340bn.o
+obj-$(CONFIG_FB_TFT_HX8347D)     += fb_hx8347d.o
