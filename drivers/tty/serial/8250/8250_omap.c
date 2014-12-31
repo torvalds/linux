@@ -272,7 +272,10 @@ static void omap8250_restore_regs(struct uart_8250_port *up)
 	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
 	serial_dl_write(up, priv->quot);
 
-	serial_out(up, UART_EFR, priv->efr);
+	if (up->port.mctrl & TIOCM_RTS)
+		serial_out(up, UART_EFR, priv->efr);
+	else
+		serial_out(up, UART_EFR, priv->efr & ~UART_EFR_RTS);
 
 	/* Configure flow control */
 	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
@@ -468,18 +471,18 @@ static void omap_8250_set_termios(struct uart_port *port,
 static void omap_8250_pm(struct uart_port *port, unsigned int state,
 			 unsigned int oldstate)
 {
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
-	struct omap8250_priv *priv = up->port.private_data;
+	struct uart_8250_port *up = up_to_u8250p(port);
+	u8 efr;
 
 	pm_runtime_get_sync(port->dev);
 	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
-	serial_out(up, UART_EFR, priv->efr | UART_EFR_ECB);
+	efr = serial_in(up, UART_EFR);
+	serial_out(up, UART_EFR, efr | UART_EFR_ECB);
 	serial_out(up, UART_LCR, 0);
 
 	serial_out(up, UART_IER, (state != 0) ? UART_IERX_SLEEP : 0);
 	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
-	serial_out(up, UART_EFR, priv->efr);
+	serial_out(up, UART_EFR, efr);
 	serial_out(up, UART_LCR, 0);
 
 	pm_runtime_mark_last_busy(port->dev);
