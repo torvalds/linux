@@ -104,6 +104,8 @@ enum dss_pll_id {
 	DSS_PLL_DSI1,
 	DSS_PLL_DSI2,
 	DSS_PLL_HDMI,
+	DSS_PLL_VIDEO1,
+	DSS_PLL_VIDEO2,
 };
 
 struct dss_pll;

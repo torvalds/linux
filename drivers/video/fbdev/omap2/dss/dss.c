@@ -605,6 +605,26 @@ static int dss_dpi_select_source_omap5(int port, enum omap_channel channel)
 	return 0;
 }
 
+static int dss_dpi_select_source_dra7xx(int port, enum omap_channel channel)
+{
+	switch (port) {
+	case 0:
+		return dss_dpi_select_source_omap5(port, channel);
+	case 1:
+		if (channel != OMAP_DSS_CHANNEL_LCD2)
+			return -EINVAL;
+		break;
+	case 2:
+		if (channel != OMAP_DSS_CHANNEL_LCD3)
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int dss_dpi_select_source(int port, enum omap_channel channel)
 {
 	return dss.feat->dpi_select_source(port, channel);
@@ -686,6 +706,12 @@ static const enum omap_display_type omap34xx_ports[] = {
 	OMAP_DISPLAY_TYPE_SDI,
 };
 
+static const enum omap_display_type dra7xx_ports[] = {
+	OMAP_DISPLAY_TYPE_DPI,
+	OMAP_DISPLAY_TYPE_DPI,
+	OMAP_DISPLAY_TYPE_DPI,
+};
+
 static const struct dss_features omap24xx_dss_feats __initconst = {
 	/*
 	 * fck div max is really 16, but the divider range has gaps. The range
@@ -744,6 +770,15 @@ static const struct dss_features am43xx_dss_feats __initconst = {
 	.num_ports		=	ARRAY_SIZE(omap2plus_ports),
 };
 
+static const struct dss_features dra7xx_dss_feats __initconst = {
+	.fck_div_max		=	64,
+	.dss_fck_multiplier	=	1,
+	.parent_clk_name	=	"dpll_per_x2_ck",
+	.dpi_select_source	=	&dss_dpi_select_source_dra7xx,
+	.ports			=	dra7xx_ports,
+	.num_ports		=	ARRAY_SIZE(dra7xx_ports),
+};
+
 static int __init dss_init_features(struct platform_device *pdev)
 {
 	const struct dss_features *src;
@@ -782,6 +817,10 @@ static int __init dss_init_features(struct platform_device *pdev)
 
 	case OMAPDSS_VER_AM43xx:
 		src = &am43xx_dss_feats;
+		break;
+
+	case OMAPDSS_VER_DRA7xx:
+		src = &dra7xx_dss_feats;
 		break;
 
 	default:
@@ -1003,6 +1042,7 @@ static const struct of_device_id dss_of_match[] = {
 	{ .compatible = "ti,omap3-dss", },
 	{ .compatible = "ti,omap4-dss", },
 	{ .compatible = "ti,omap5-dss", },
+	{ .compatible = "ti,dra7-dss", },
 	{},
 };
 
