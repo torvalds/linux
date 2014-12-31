@@ -186,8 +186,6 @@ static inline unsigned long tnode_child_length(const struct tnode *tn)
 static inline struct tnode *tnode_get_child(const struct tnode *tn,
 					    unsigned long i)
 {
-	BUG_ON(i >= tnode_child_length(tn));
-
 	return rtnl_dereference(tn->child[i]);
 }
 
@@ -195,8 +193,6 @@ static inline struct tnode *tnode_get_child(const struct tnode *tn,
 static inline struct tnode *tnode_get_child_rcu(const struct tnode *tn,
 						unsigned long i)
 {
-	BUG_ON(i >= tnode_child_length(tn));
-
 	return rcu_dereference_rtnl(tn->child[i]);
 }
 
@@ -371,7 +367,7 @@ static inline int tnode_full(const struct tnode *tn, const struct tnode *n)
  */
 static void put_child(struct tnode *tn, unsigned long i, struct tnode *n)
 {
-	struct tnode *chi = rtnl_dereference(tn->child[i]);
+	struct tnode *chi = tnode_get_child(tn, i);
 	int isfull, wasfull;
 
 	BUG_ON(i >= tnode_child_length(tn));
@@ -867,7 +863,7 @@ static struct tnode *fib_find_node(struct trie *t, u32 key)
 		if (IS_LEAF(n))
 			break;
 
-		n = rcu_dereference_rtnl(n->child[index]);
+		n = tnode_get_child_rcu(n, index);
 	}
 
 	return n;
@@ -934,7 +930,7 @@ static struct list_head *fib_insert_node(struct trie *t, u32 key, int plen)
 		}
 
 		tp = n;
-		n = rcu_dereference_rtnl(n->child[index]);
+		n = tnode_get_child_rcu(n, index);
 	}
 
 	l = leaf_new(key);
@@ -1215,7 +1211,7 @@ int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
 			cindex = index;
 		}
 
-		n = rcu_dereference(n->child[index]);
+		n = tnode_get_child_rcu(n, index);
 		if (unlikely(!n))
 			goto backtrace;
 	}
@@ -1835,7 +1831,7 @@ static void trie_collect_stats(struct trie *t, struct trie_stat *s)
 			if (n->bits < MAX_STAT_DEPTH)
 				s->nodesizes[n->bits]++;
 
-			for (i = 0; i < tnode_child_length(n); i++) {
+			for (i = tnode_child_length(n); i--;) {
 				if (!rcu_access_pointer(n->child[i]))
 					s->nullpointers++;
 			}
