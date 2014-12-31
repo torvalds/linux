@@ -563,31 +563,22 @@ static int __allocate_data_block(struct dnode_of_data *dn)
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
 	struct f2fs_inode_info *fi = F2FS_I(dn->inode);
 	struct f2fs_summary sum;
-	block_t new_blkaddr;
 	struct node_info ni;
 	pgoff_t fofs;
-	int type;
 
 	if (unlikely(is_inode_flag_set(F2FS_I(dn->inode), FI_NO_ALLOC)))
 		return -EPERM;
 	if (unlikely(!inc_valid_block_count(sbi, dn->inode, 1)))
 		return -ENOSPC;
 
-	dn->data_blkaddr = NEW_ADDR;
-	__set_data_blkaddr(dn);
-
 	get_node_info(sbi, dn->nid, &ni);
 	set_summary(&sum, dn->nid, dn->ofs_in_node, ni.version);
 
-	type = CURSEG_WARM_DATA;
-
-	allocate_data_block(sbi, NULL, NULL_ADDR, &new_blkaddr, &sum, type);
+	allocate_data_block(sbi, NULL, NULL_ADDR, &dn->data_blkaddr, &sum,
+							CURSEG_WARM_DATA);
 
 	/* direct IO doesn't use extent cache to maximize the performance */
-	set_inode_flag(F2FS_I(dn->inode), FI_NO_EXTENT);
-	dn->data_blkaddr = new_blkaddr;
-	update_extent_cache(dn);
-	clear_inode_flag(F2FS_I(dn->inode), FI_NO_EXTENT);
+	__set_data_blkaddr(dn);
 
 	/* update i_size */
 	fofs = start_bidx_of_node(ofs_of_node(dn->node_page), fi) +
@@ -595,7 +586,6 @@ static int __allocate_data_block(struct dnode_of_data *dn)
 	if (i_size_read(dn->inode) < ((fofs + 1) << PAGE_CACHE_SHIFT))
 		i_size_write(dn->inode, ((fofs + 1) << PAGE_CACHE_SHIFT));
 
-	dn->data_blkaddr = new_blkaddr;
 	return 0;
 }
 
