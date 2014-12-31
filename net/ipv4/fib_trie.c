@@ -146,8 +146,8 @@ struct trie {
 #endif
 };
 
-static void tnode_put_child_reorg(struct tnode *tn, int i, struct tnode *n,
-				  int wasfull);
+static void tnode_put_child_reorg(struct tnode *tn, unsigned long i,
+				  struct tnode *n, int wasfull);
 static struct tnode *resize(struct trie *t, struct tnode *tn);
 static struct tnode *inflate(struct trie *t, struct tnode *tn);
 static struct tnode *halve(struct trie *t, struct tnode *tn);
@@ -183,25 +183,23 @@ static inline void node_set_parent(struct tnode *n, struct tnode *tp)
 /* This provides us with the number of children in this node, in the case of a
  * leaf this will return 0 meaning none of the children are accessible.
  */
-static inline int tnode_child_length(const struct tnode *tn)
+static inline unsigned long tnode_child_length(const struct tnode *tn)
 {
 	return (1ul << tn->bits) & ~(1ul);
 }
 
-/*
- * caller must hold RTNL
- */
-static inline struct tnode *tnode_get_child(const struct tnode *tn, unsigned int i)
+/* caller must hold RTNL */
+static inline struct tnode *tnode_get_child(const struct tnode *tn,
+					    unsigned long i)
 {
 	BUG_ON(i >= tnode_child_length(tn));
 
 	return rtnl_dereference(tn->child[i]);
 }
 
-/*
- * caller must hold RCU read lock or RTNL
- */
-static inline struct tnode *tnode_get_child_rcu(const struct tnode *tn, unsigned int i)
+/* caller must hold RCU read lock or RTNL */
+static inline struct tnode *tnode_get_child_rcu(const struct tnode *tn,
+						unsigned long i)
 {
 	BUG_ON(i >= tnode_child_length(tn));
 
@@ -400,7 +398,7 @@ static inline int tnode_full(const struct tnode *tn, const struct tnode *n)
 	return n && ((n->pos + n->bits) == tn->pos) && IS_TNODE(n);
 }
 
-static inline void put_child(struct tnode *tn, int i,
+static inline void put_child(struct tnode *tn, unsigned long i,
 			     struct tnode *n)
 {
 	tnode_put_child_reorg(tn, i, n, -1);
@@ -411,13 +409,13 @@ static inline void put_child(struct tnode *tn, int i,
   * Update the value of full_children and empty_children.
   */
 
-static void tnode_put_child_reorg(struct tnode *tn, int i, struct tnode *n,
-				  int wasfull)
+static void tnode_put_child_reorg(struct tnode *tn, unsigned long i,
+				  struct tnode *n, int wasfull)
 {
 	struct tnode *chi = rtnl_dereference(tn->child[i]);
 	int isfull;
 
-	BUG_ON(i >= 1<<tn->bits);
+	BUG_ON(i >= tnode_child_length(tn));
 
 	/* update emptyChildren */
 	if (n == NULL && chi != NULL)
@@ -607,10 +605,10 @@ no_children:
 static void tnode_clean_free(struct tnode *tn)
 {
 	struct tnode *tofree;
-	int i;
+	unsigned long i;
 
 	for (i = 0; i < tnode_child_length(tn); i++) {
-		tofree = rtnl_dereference(tn->child[i]);
+		tofree = tnode_get_child(tn, i);
 		if (tofree)
 			node_free(tofree);
 	}
@@ -619,10 +617,10 @@ static void tnode_clean_free(struct tnode *tn)
 
 static struct tnode *inflate(struct trie *t, struct tnode *oldtnode)
 {
-	int olen = tnode_child_length(oldtnode);
+	unsigned long olen = tnode_child_length(oldtnode);
 	struct tnode *tn;
+	unsigned long i;
 	t_key m;
-	int i;
 
 	pr_debug("In inflate\n");
 
@@ -664,7 +662,7 @@ static struct tnode *inflate(struct trie *t, struct tnode *oldtnode)
 	for (i = 0; i < olen; i++) {
 		struct tnode *inode = tnode_get_child(oldtnode, i);
 		struct tnode *left, *right;
-		int size, j;
+		unsigned long size, j;
 
 		/* An empty child */
 		if (inode == NULL)
@@ -737,7 +735,7 @@ nomem:
 
 static struct tnode *halve(struct trie *t, struct tnode *oldtnode)
 {
-	int olen = tnode_child_length(oldtnode);
+	unsigned long olen = tnode_child_length(oldtnode);
 	struct tnode *tn, *left, *right;
 	int i;
 
@@ -1532,9 +1530,9 @@ static int trie_flush_leaf(struct tnode *l)
 static struct tnode *leaf_walk_rcu(struct tnode *p, struct tnode *c)
 {
 	do {
-		t_key idx = c ? idx = get_index(c->key, p) + 1 : 0;
+		unsigned long idx = c ? idx = get_index(c->key, p) + 1 : 0;
 
-		while (idx < 1u << p->bits) {
+		while (idx < tnode_child_length(p)) {
 			c = tnode_get_child_rcu(p, idx++);
 			if (!c)
 				continue;
@@ -1786,8 +1784,8 @@ struct fib_trie_iter {
 
 static struct tnode *fib_trie_get_next(struct fib_trie_iter *iter)
 {
+	unsigned long cindex = iter->index;
 	struct tnode *tn = iter->tnode;
-	unsigned int cindex = iter->index;
 	struct tnode *p;
 
 	/* A single entry routing table */
@@ -1797,7 +1795,7 @@ static struct tnode *fib_trie_get_next(struct fib_trie_iter *iter)
 	pr_debug("get_next iter={node=%p index=%d depth=%d}\n",
 		 iter->tnode, iter->index, iter->depth);
 rescan:
-	while (cindex < (1<<tn->bits)) {
+	while (cindex < tnode_child_length(tn)) {
 		struct tnode *n = tnode_get_child_rcu(tn, cindex);
 
 		if (n) {
@@ -1874,15 +1872,16 @@ static void trie_collect_stats(struct trie *t, struct trie_stat *s)
 			hlist_for_each_entry_rcu(li, &n->list, hlist)
 				++s->prefixes;
 		} else {
-			int i;
+			unsigned long i;
 
 			s->tnodes++;
 			if (n->bits < MAX_STAT_DEPTH)
 				s->nodesizes[n->bits]++;
 
-			for (i = 0; i < tnode_child_length(n); i++)
+			for (i = 0; i < tnode_child_length(n); i++) {
 				if (!rcu_access_pointer(n->child[i]))
 					s->nullpointers++;
+			}
 		}
 	}
 	rcu_read_unlock();
