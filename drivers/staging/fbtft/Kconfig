@@ -37,3 +37,9 @@ config FB_TFT_HX8353D
 	depends on FB_TFT
 	help
 	  Generic Framebuffer support for HX8353D
+
+config FB_TFT_ILI9320
+	tristate "FB driver for the ILI9320 LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for ILI9320

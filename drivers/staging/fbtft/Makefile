@@ -8,3 +8,4 @@ obj-$(CONFIG_FB_TFT_BD663474)    += fb_bd663474.o
 obj-$(CONFIG_FB_TFT_HX8340BN)    += fb_hx8340bn.o
 obj-$(CONFIG_FB_TFT_HX8347D)     += fb_hx8347d.o
 obj-$(CONFIG_FB_TFT_HX8353D)     += fb_hx8353d.o
+obj-$(CONFIG_FB_TFT_ILI9320)     += fb_ili9320.o
