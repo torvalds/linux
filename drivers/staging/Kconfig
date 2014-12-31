@@ -106,4 +106,6 @@ source "drivers/staging/unisys/Kconfig"
 
 source "drivers/staging/clocking-wizard/Kconfig"
 
+source "drivers/staging/fbtft/Kconfig"
+
 endif # STAGING
