@@ -299,14 +299,15 @@ void update_extent_cache(struct dnode_of_data *dn)
 	int need_update = true;
 
 	f2fs_bug_on(F2FS_I_SB(dn->inode), dn->data_blkaddr == NEW_ADDR);
-	fofs = start_bidx_of_node(ofs_of_node(dn->node_page), fi) +
-							dn->ofs_in_node;
 
 	/* Update the page address in the parent node */
 	__set_data_blkaddr(dn);
 
 	if (is_inode_flag_set(fi, FI_NO_EXTENT))
 		return;
+
+	fofs = start_bidx_of_node(ofs_of_node(dn->node_page), fi) +
+							dn->ofs_in_node;
 
 	write_lock(&fi->ext.ext_lock);
 
