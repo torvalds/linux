@@ -453,5 +453,6 @@ int dss_pll_write_config_type_a(struct dss_pll *pll,
 		const struct dss_pll_clock_info *cinfo);
 int dss_pll_write_config_type_b(struct dss_pll *pll,
 		const struct dss_pll_clock_info *cinfo);
+int dss_pll_wait_reset_done(struct dss_pll *pll);
 
 #endif
