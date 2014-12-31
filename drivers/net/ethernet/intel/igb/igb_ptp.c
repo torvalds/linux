@@ -19,6 +19,7 @@
 #include <linux/device.h>
 #include <linux/pci.h>
 #include <linux/ptp_classify.h>
+#include <linux/clocksource.h>
 
 #include "igb.h"
 
