@@ -560,7 +560,7 @@ static int dgram_ioctl(struct sock *sk, int cmd, unsigned long arg)
 		amount = 0;
 		spin_lock_bh(&sk->sk_receive_queue.lock);
 		skb = skb_peek(&sk->sk_receive_queue);
-		if (skb != NULL) {
+		if (skb) {
 			/* We will only return the amount
 			 * of this packet since that is all
 			 * that will be read.
