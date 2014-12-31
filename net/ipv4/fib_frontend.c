@@ -67,7 +67,7 @@ static int __net_init fib4_rules_init(struct net *net)
 	return 0;
 
 fail:
-	kfree(local_table);
+	fib_free_table(local_table);
 	return -ENOMEM;
 }
 #else
