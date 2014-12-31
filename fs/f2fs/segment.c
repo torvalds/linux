@@ -1226,6 +1226,7 @@ void write_data_page(struct page *page, struct dnode_of_data *dn,
 	get_node_info(sbi, dn->nid, &ni);
 	set_summary(&sum, dn->nid, dn->ofs_in_node, ni.version);
 	do_write_page(sbi, page, &sum, fio);
+	dn->data_blkaddr = fio->blk_addr;
 }
 
 void rewrite_data_page(struct page *page, struct f2fs_io_info *fio)

@@ -429,7 +429,8 @@ int truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 		if (blkaddr == NULL_ADDR)
 			continue;
 
-		update_extent_cache(NULL_ADDR, dn);
+		dn->data_blkaddr = NULL_ADDR;
+		update_extent_cache(dn);
 		invalidate_blocks(sbi, blkaddr);
 		nr_free++;
 	}

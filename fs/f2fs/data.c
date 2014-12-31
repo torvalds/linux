@@ -197,7 +197,7 @@ alloc_new:
  *  ->node_page
  *    update block addresses in the node page
  */
-static void __set_data_blkaddr(struct dnode_of_data *dn, block_t new_addr)
+static void __set_data_blkaddr(struct dnode_of_data *dn)
 {
 	struct f2fs_node *rn;
 	__le32 *addr_array;
@@ -210,7 +210,7 @@ static void __set_data_blkaddr(struct dnode_of_data *dn, block_t new_addr)
 
 	/* Get physical address of data block */
 	addr_array = blkaddr_in_node(rn);
-	addr_array[ofs_in_node] = cpu_to_le32(new_addr);
+	addr_array[ofs_in_node] = cpu_to_le32(dn->data_blkaddr);
 	set_page_dirty(node_page);
 }
 
@@ -225,8 +225,8 @@ int reserve_new_block(struct dnode_of_data *dn)
 
 	trace_f2fs_reserve_new_block(dn->inode, dn->nid, dn->ofs_in_node);
 
-	__set_data_blkaddr(dn, NEW_ADDR);
 	dn->data_blkaddr = NEW_ADDR;
+	__set_data_blkaddr(dn);
 	mark_inode_dirty(dn->inode);
 	sync_inode_page(dn);
 	return 0;
@@ -291,19 +291,19 @@ static int check_extent_cache(struct inode *inode, pgoff_t pgofs,
 	return 0;
 }
 
-void update_extent_cache(block_t blk_addr, struct dnode_of_data *dn)
+void update_extent_cache(struct dnode_of_data *dn)
 {
 	struct f2fs_inode_info *fi = F2FS_I(dn->inode);
 	pgoff_t fofs, start_fofs, end_fofs;
 	block_t start_blkaddr, end_blkaddr;
 	int need_update = true;
 
-	f2fs_bug_on(F2FS_I_SB(dn->inode), blk_addr == NEW_ADDR);
+	f2fs_bug_on(F2FS_I_SB(dn->inode), dn->data_blkaddr == NEW_ADDR);
 	fofs = start_bidx_of_node(ofs_of_node(dn->node_page), fi) +
 							dn->ofs_in_node;
 
 	/* Update the page address in the parent node */
-	__set_data_blkaddr(dn, blk_addr);
+	__set_data_blkaddr(dn);
 
 	if (is_inode_flag_set(fi, FI_NO_EXTENT))
 		return;
@@ -321,16 +321,16 @@ void update_extent_cache(block_t blk_addr, struct dnode_of_data *dn)
 
 	/* Initial extent */
 	if (fi->ext.len == 0) {
-		if (blk_addr != NULL_ADDR) {
+		if (dn->data_blkaddr != NULL_ADDR) {
 			fi->ext.fofs = fofs;
-			fi->ext.blk_addr = blk_addr;
+			fi->ext.blk_addr = dn->data_blkaddr;
 			fi->ext.len = 1;
 		}
 		goto end_update;
 	}
 
 	/* Front merge */
-	if (fofs == start_fofs - 1 && blk_addr == start_blkaddr - 1) {
+	if (fofs == start_fofs - 1 && dn->data_blkaddr == start_blkaddr - 1) {
 		fi->ext.fofs--;
 		fi->ext.blk_addr--;
 		fi->ext.len++;
@@ -338,7 +338,7 @@ void update_extent_cache(block_t blk_addr, struct dnode_of_data *dn)
 	}
 
 	/* Back merge */
-	if (fofs == end_fofs + 1 && blk_addr == end_blkaddr + 1) {
+	if (fofs == end_fofs + 1 && dn->data_blkaddr == end_blkaddr + 1) {
 		fi->ext.len++;
 		goto end_update;
 	}
@@ -572,8 +572,8 @@ static int __allocate_data_block(struct dnode_of_data *dn)
 	if (unlikely(!inc_valid_block_count(sbi, dn->inode, 1)))
 		return -ENOSPC;
 
-	__set_data_blkaddr(dn, NEW_ADDR);
 	dn->data_blkaddr = NEW_ADDR;
+	__set_data_blkaddr(dn);
 
 	get_node_info(sbi, dn->nid, &ni);
 	set_summary(&sum, dn->nid, dn->ofs_in_node, ni.version);
@@ -584,7 +584,8 @@ static int __allocate_data_block(struct dnode_of_data *dn)
 
 	/* direct IO doesn't use extent cache to maximize the performance */
 	set_inode_flag(F2FS_I(dn->inode), FI_NO_EXTENT);
-	update_extent_cache(new_blkaddr, dn);
+	dn->data_blkaddr = new_blkaddr;
+	update_extent_cache(dn);
 	clear_inode_flag(F2FS_I(dn->inode), FI_NO_EXTENT);
 
 	/* update i_size */
@@ -784,7 +785,7 @@ int do_write_data_page(struct page *page, struct f2fs_io_info *fio)
 		set_inode_flag(F2FS_I(inode), FI_UPDATE_WRITE);
 	} else {
 		write_data_page(page, &dn, fio);
-		update_extent_cache(fio->blk_addr, &dn);
+		update_extent_cache(&dn);
 		set_inode_flag(F2FS_I(inode), FI_APPEND_WRITE);
 	}
 out_writepage:

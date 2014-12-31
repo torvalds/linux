@@ -396,7 +396,8 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 
 			/* write dummy data page */
 			recover_data_page(sbi, NULL, &sum, src, dest);
-			update_extent_cache(dest, &dn);
+			dn.data_blkaddr = dest;
+			update_extent_cache(&dn);
 			recovered++;
 		}
 		dn.ofs_in_node++;
