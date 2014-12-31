@@ -647,12 +647,94 @@ nomem:
 	return ERR_PTR(-ENOMEM);
 }
 
+/* From "Implementing a dynamic compressed trie" by Stefan Nilsson of
+ * the Helsinki University of Technology and Matti Tikkanen of Nokia
+ * Telecommunications, page 6:
+ * "A node is doubled if the ratio of non-empty children to all
+ * children in the *doubled* node is at least 'high'."
+ *
+ * 'high' in this instance is the variable 'inflate_threshold'. It
+ * is expressed as a percentage, so we multiply it with
+ * tnode_child_length() and instead of multiplying by 2 (since the
+ * child array will be doubled by inflate()) and multiplying
+ * the left-hand side by 100 (to handle the percentage thing) we
+ * multiply the left-hand side by 50.
+ *
+ * The left-hand side may look a bit weird: tnode_child_length(tn)
+ * - tn->empty_children is of course the number of non-null children
+ * in the current node. tn->full_children is the number of "full"
+ * children, that is non-null tnodes with a skip value of 0.
+ * All of those will be doubled in the resulting inflated tnode, so
+ * we just count them one extra time here.
+ *
+ * A clearer way to write this would be:
+ *
+ * to_be_doubled = tn->full_children;
+ * not_to_be_doubled = tnode_child_length(tn) - tn->empty_children -
+ *     tn->full_children;
+ *
+ * new_child_length = tnode_child_length(tn) * 2;
+ *
+ * new_fill_factor = 100 * (not_to_be_doubled + 2*to_be_doubled) /
+ *      new_child_length;
+ * if (new_fill_factor >= inflate_threshold)
+ *
+ * ...and so on, tho it would mess up the while () loop.
+ *
+ * anyway,
+ * 100 * (not_to_be_doubled + 2*to_be_doubled) / new_child_length >=
+ *      inflate_threshold
+ *
+ * avoid a division:
+ * 100 * (not_to_be_doubled + 2*to_be_doubled) >=
+ *      inflate_threshold * new_child_length
+ *
+ * expand not_to_be_doubled and to_be_doubled, and shorten:
+ * 100 * (tnode_child_length(tn) - tn->empty_children +
+ *    tn->full_children) >= inflate_threshold * new_child_length
+ *
+ * expand new_child_length:
+ * 100 * (tnode_child_length(tn) - tn->empty_children +
+ *    tn->full_children) >=
+ *      inflate_threshold * tnode_child_length(tn) * 2
+ *
+ * shorten again:
+ * 50 * (tn->full_children + tnode_child_length(tn) -
+ *    tn->empty_children) >= inflate_threshold *
+ *    tnode_child_length(tn)
+ *
+ */
+static bool should_inflate(const struct tnode *tn)
+{
+	unsigned long used = tnode_child_length(tn);
+	unsigned long threshold = used;
+
+	/* Keep root node larger */
+	threshold *= node_parent(tn) ? inflate_threshold :
+				       inflate_threshold_root;
+	used += tn->full_children;
+	used -= tn->empty_children;
+
+	return tn->pos && ((50 * used) >= threshold);
+}
+
+static bool should_halve(const struct tnode *tn)
+{
+	unsigned long used = tnode_child_length(tn);
+	unsigned long threshold = used;
+
+	/* Keep root node larger */
+	threshold *= node_parent(tn) ? halve_threshold :
+				       halve_threshold_root;
+	used -= tn->empty_children;
+
+	return (tn->bits > 1) && ((100 * used) < threshold);
+}
+
 #define MAX_WORK 10
 static struct tnode *resize(struct trie *t, struct tnode *tn)
 {
 	struct tnode *old_tn, *n = NULL;
-	int inflate_threshold_use;
-	int halve_threshold_use;
 	int max_work;
 
 	if (!tn)
@@ -668,86 +750,12 @@ static struct tnode *resize(struct trie *t, struct tnode *tn)
 	/* One child */
 	if (tn->empty_children == (tnode_child_length(tn) - 1))
 		goto one_child;
-	/*
-	 * Double as long as the resulting node has a number of
+
+	/* Double as long as the resulting node has a number of
 	 * nonempty nodes that are above the threshold.
 	 */
-
-	/*
-	 * From "Implementing a dynamic compressed trie" by Stefan Nilsson of
-	 * the Helsinki University of Technology and Matti Tikkanen of Nokia
-	 * Telecommunications, page 6:
-	 * "A node is doubled if the ratio of non-empty children to all
-	 * children in the *doubled* node is at least 'high'."
-	 *
-	 * 'high' in this instance is the variable 'inflate_threshold'. It
-	 * is expressed as a percentage, so we multiply it with
-	 * tnode_child_length() and instead of multiplying by 2 (since the
-	 * child array will be doubled by inflate()) and multiplying
-	 * the left-hand side by 100 (to handle the percentage thing) we
-	 * multiply the left-hand side by 50.
-	 *
-	 * The left-hand side may look a bit weird: tnode_child_length(tn)
-	 * - tn->empty_children is of course the number of non-null children
-	 * in the current node. tn->full_children is the number of "full"
-	 * children, that is non-null tnodes with a skip value of 0.
-	 * All of those will be doubled in the resulting inflated tnode, so
-	 * we just count them one extra time here.
-	 *
-	 * A clearer way to write this would be:
-	 *
-	 * to_be_doubled = tn->full_children;
-	 * not_to_be_doubled = tnode_child_length(tn) - tn->empty_children -
-	 *     tn->full_children;
-	 *
-	 * new_child_length = tnode_child_length(tn) * 2;
-	 *
-	 * new_fill_factor = 100 * (not_to_be_doubled + 2*to_be_doubled) /
-	 *      new_child_length;
-	 * if (new_fill_factor >= inflate_threshold)
-	 *
-	 * ...and so on, tho it would mess up the while () loop.
-	 *
-	 * anyway,
-	 * 100 * (not_to_be_doubled + 2*to_be_doubled) / new_child_length >=
-	 *      inflate_threshold
-	 *
-	 * avoid a division:
-	 * 100 * (not_to_be_doubled + 2*to_be_doubled) >=
-	 *      inflate_threshold * new_child_length
-	 *
-	 * expand not_to_be_doubled and to_be_doubled, and shorten:
-	 * 100 * (tnode_child_length(tn) - tn->empty_children +
-	 *    tn->full_children) >= inflate_threshold * new_child_length
-	 *
-	 * expand new_child_length:
-	 * 100 * (tnode_child_length(tn) - tn->empty_children +
-	 *    tn->full_children) >=
-	 *      inflate_threshold * tnode_child_length(tn) * 2
-	 *
-	 * shorten again:
-	 * 50 * (tn->full_children + tnode_child_length(tn) -
-	 *    tn->empty_children) >= inflate_threshold *
-	 *    tnode_child_length(tn)
-	 *
-	 */
-
-	/* Keep root node larger  */
-
-	if (!node_parent(tn)) {
-		inflate_threshold_use = inflate_threshold_root;
-		halve_threshold_use = halve_threshold_root;
-	} else {
-		inflate_threshold_use = inflate_threshold;
-		halve_threshold_use = halve_threshold;
-	}
-
 	max_work = MAX_WORK;
-	while ((tn->full_children > 0 &&  max_work-- &&
-		50 * (tn->full_children + tnode_child_length(tn)
-		      - tn->empty_children)
-		>= inflate_threshold_use * tnode_child_length(tn))) {
-
+	while (should_inflate(tn) && max_work--) {
 		old_tn = tn;
 		tn = inflate(t, tn);
 
@@ -764,16 +772,11 @@ static struct tnode *resize(struct trie *t, struct tnode *tn)
 	if (max_work != MAX_WORK)
 		return tn;
 
-	/*
-	 * Halve as long as the number of empty children in this
+	/* Halve as long as the number of empty children in this
 	 * node is above threshold.
 	 */
-
 	max_work = MAX_WORK;
-	while (tn->bits > 1 &&  max_work-- &&
-	       100 * (tnode_child_length(tn) - tn->empty_children) <
-	       halve_threshold_use * tnode_child_length(tn)) {
-
+	while (should_halve(tn) && max_work--) {
 		old_tn = tn;
 		tn = halve(t, tn);
 		if (IS_ERR(tn)) {
