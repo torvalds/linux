@@ -3037,10 +3037,16 @@ unsigned long dispc_fclk_rate(void)
 		break;
 	case OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC:
 		pll = dss_pll_find("dsi0");
+		if (!pll)
+			pll = dss_pll_find("video0");
+
 		r = pll->cinfo.clkout[0];
 		break;
 	case OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC:
 		pll = dss_pll_find("dsi1");
+		if (!pll)
+			pll = dss_pll_find("video1");
+
 		r = pll->cinfo.clkout[0];
 		break;
 	default:
@@ -3069,10 +3075,16 @@ unsigned long dispc_mgr_lclk_rate(enum omap_channel channel)
 			break;
 		case OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC:
 			pll = dss_pll_find("dsi0");
+			if (!pll)
+				pll = dss_pll_find("video0");
+
 			r = pll->cinfo.clkout[0];
 			break;
 		case OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC:
 			pll = dss_pll_find("dsi1");
+			if (!pll)
+				pll = dss_pll_find("video1");
+
 			r = pll->cinfo.clkout[0];
 			break;
 		default:
@@ -3668,6 +3680,7 @@ static int __init dispc_init_features(struct platform_device *pdev)
 		break;
 
 	case OMAPDSS_VER_OMAP5:
+	case OMAPDSS_VER_DRA7xx:
 		src = &omap54xx_dispc_feats;
 		break;
 
@@ -3832,6 +3845,7 @@ static const struct of_device_id dispc_of_match[] = {
 	{ .compatible = "ti,omap3-dispc", },
 	{ .compatible = "ti,omap4-dispc", },
 	{ .compatible = "ti,omap5-dispc", },
+	{ .compatible = "ti,dra7-dispc", },
 	{},
 };
 
