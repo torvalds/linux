@@ -408,6 +408,8 @@ mwifiex_adapter_cleanup(struct mwifiex_adapter *adapter)
 
 	del_timer(&adapter->wakeup_timer);
 	mwifiex_cancel_all_pending_cmd(adapter);
+	wake_up_interruptible(&adapter->cmd_wait_q.wait);
+	wake_up_interruptible(&adapter->hs_activate_wait_q);
 
 	/* Free lock variables */
 	mwifiex_free_lock_list(adapter);
