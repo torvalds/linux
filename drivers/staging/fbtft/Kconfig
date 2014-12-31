@@ -91,3 +91,9 @@ config FB_TFT_S6D02A1
 	depends on FB_TFT
 	help
 	  Generic Framebuffer support for S6D02A1
+
+config FB_TFT_S6D1121
+	tristate "FB driver for the S6D1211 LCD Controller"
+	depends on FB_TFT
+	help
+	  Generic Framebuffer support for S6D1121
