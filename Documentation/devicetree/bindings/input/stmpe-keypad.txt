@@ -8,6 +8,8 @@ Optional properties:
  - debounce-interval        : Debouncing interval time in milliseconds
  - st,scan-count            : Scanning cycles elapsed before key data is updated
  - st,no-autorepeat         : If specified device will not autorepeat
+ - keypad,num-rows          : See ./matrix-keymap.txt
+ - keypad,num-columns       : See ./matrix-keymap.txt
 
 Example:
 
