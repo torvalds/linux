@@ -178,6 +178,11 @@ static int btmrvl_send_sync_cmd(struct btmrvl_private *priv, u16 opcode,
 	struct sk_buff *skb;
 	struct hci_command_hdr *hdr;
 
+	if (priv->surprise_removed) {
+		BT_ERR("Card is removed");
+		return -EFAULT;
+	}
+
 	skb = bt_skb_alloc(HCI_COMMAND_HDR_SIZE + len, GFP_ATOMIC);
 	if (skb == NULL) {
 		BT_ERR("No free skb");
@@ -600,7 +605,7 @@ static int btmrvl_service_main_thread(void *data)
 		add_wait_queue(&thread->wait_q, &wait);
 
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (kthread_should_stop()) {
+		if (kthread_should_stop() || priv->surprise_removed) {
 			BT_DBG("main_thread: break from main thread");
 			break;
 		}
@@ -619,7 +624,7 @@ static int btmrvl_service_main_thread(void *data)
 
 		BT_DBG("main_thread woke up");
 
-		if (kthread_should_stop()) {
+		if (kthread_should_stop() || priv->surprise_removed) {
 			BT_DBG("main_thread: break from main thread");
 			break;
 		}

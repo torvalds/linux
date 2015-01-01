@@ -798,6 +798,9 @@ static void btmrvl_sdio_interrupt(struct sdio_func *func)
 
 	priv = card->priv;
 
+	if (priv->surprise_removed)
+		return;
+
 	if (card->reg->int_read_to_clear)
 		ret = btmrvl_sdio_read_to_clear(card, &ireg);
 	else
@@ -1466,6 +1469,7 @@ static void btmrvl_sdio_remove(struct sdio_func *func)
 				btmrvl_sdio_disable_host_int(card);
 			}
 			BT_DBG("unregester dev");
+			card->priv->surprise_removed = true;
 			btmrvl_sdio_unregister_dev(card);
 			btmrvl_remove_card(card->priv);
 		}

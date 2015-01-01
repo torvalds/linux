@@ -104,6 +104,7 @@ struct btmrvl_private {
 #ifdef CONFIG_DEBUG_FS
 	void *debugfs_data;
 #endif
+	bool surprise_removed;
 };
 
 #define MRVL_VENDOR_PKT			0xFE
