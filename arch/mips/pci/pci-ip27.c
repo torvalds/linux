@@ -214,17 +214,6 @@ static inline void pci_disable_swapping(struct pci_dev *dev)
 	bridge->b_widget.w_tflush;	/* Flush */
 }
 
-static inline void pci_enable_swapping(struct pci_dev *dev)
-{
-	struct bridge_controller *bc = BRIDGE_CONTROLLER(dev->bus);
-	bridge_t *bridge = bc->base;
-	int slot = PCI_SLOT(dev->devfn);
-
-	/* Turn on byte swapping */
-	bridge->b_device[slot].reg |= BRIDGE_DEV_SWAP_DIR;
-	bridge->b_widget.w_tflush;	/* Flush */
-}
-
 static void pci_fixup_ioc3(struct pci_dev *d)
 {
 	pci_disable_swapping(d);
