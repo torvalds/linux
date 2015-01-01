@@ -573,7 +573,7 @@ static int btmrvl_sdio_download_fw_w_helper(struct btmrvl_sdio_card *card)
 		offset += txlen;
 	} while (true);
 
-	BT_DBG("FW download over, size %d bytes", offset);
+	BT_INFO("FW download over, size %d bytes", offset);
 
 	ret = 0;
 
