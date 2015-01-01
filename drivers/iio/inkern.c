@@ -116,8 +116,11 @@ static int __of_iio_simple_xlate(struct iio_dev *indio_dev,
 	if (!iiospec->args_count)
 		return 0;
 
-	if (iiospec->args[0] >= indio_dev->num_channels)
+	if (iiospec->args[0] >= indio_dev->num_channels) {
+		dev_err(&indio_dev->dev, "invalid channel index %u\n",
+			iiospec->args[0]);
 		return -EINVAL;
+	}
 
 	return iiospec->args[0];
 }
