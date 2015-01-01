@@ -355,19 +355,6 @@ void kgdb_roundup_cpu(int cpu, unsigned long flags)
 static unsigned long kgdb_arch_imask;
 #endif
 
-void kgdb_post_primary_code(struct pt_regs *regs, int e_vector, int err_code)
-{
-	if (kgdb_single_step)
-		preempt_enable();
-
-#ifdef CONFIG_IPIPE
-	if (kgdb_arch_imask) {
-		cpu_pda[raw_smp_processor_id()].ex_imask = kgdb_arch_imask;
-		kgdb_arch_imask = 0;
-	}
-#endif
-}
-
 int kgdb_arch_handle_exception(int vector, int signo,
 			       int err_code, char *remcom_in_buffer,
 			       char *remcom_out_buffer,
