@@ -1,0 +1,67 @@
+Rockchip SoC RK3288 10/100/1000 Ethernet driver(GMAC)
+
+The device node has following properties.
+
+Required properties:
+ - compatible: Can be "rockchip,rk3288-gmac".
+ - reg: addresses and length of the register sets for the device.
+ - interrupts: Should contain the GMAC interrupts.
+ - interrupt-names: Should contain the interrupt names "macirq".
+ - rockchip,grf: phandle to the syscon grf used to control speed and mode.
+ - clocks: <&cru SCLK_MAC>: clock selector for main clock, from PLL or PHY.
+	   <&cru SCLK_MAC_PLL>: PLL clock for SCLK_MAC
+	   <&cru SCLK_MAC_RX>: clock gate for RX
+	   <&cru SCLK_MAC_TX>: clock gate for TX
+	   <&cru SCLK_MACREF>: clock gate for RMII referce clock
+	   <&cru SCLK_MACREF_OUT> clock gate for RMII reference clock output
+	   <&cru ACLK_GMAC>: AXI clock gate for GMAC
+	   <&cru PCLK_GMAC>: APB clock gate for GMAC
+ - clock-names: One name for each entry in the clocks property.
+ - phy-mode: See ethernet.txt file in the same directory.
+ - pinctrl-names: Names corresponding to the numbered pinctrl states.
+ - pinctrl-0: pin-control mode. can be <&rgmii_pins> or <&rmii_pins>.
+ - clock_in_out: For RGMII, it must be "input", means main clock(125MHz)
+   is not sourced from SoC's PLL, but input from PHY; For RMII, "input" means
+   PHY provides the reference clock(50MHz), "output" means GMAC provides the
+   reference clock.
+ - snps,reset-gpio       gpio number for phy reset.
+ - snps,reset-active-low boolean flag to indicate if phy reset is active low.
+ - assigned-clocks: main clock, should be <&cru SCLK_MAC>;
+ - assigned-clock-parents = parent of main clock.
+   can be <&ext_gmac> or <&cru SCLK_MAC_PLL>.
+
+Optional properties:
+ - tx_delay: Delay value for TXD timing. Range value is 0~0x7F, 0x30 as default.
+ - rx_delay: Delay value for RXD timing. Range value is 0~0x7F, 0x10 as default.
+
+Example:
+
+gmac: ethernet@ff290000 {
+	compatible = "rockchip,rk3288-gmac";
+	reg = <0xff290000 0x10000>;
+	interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+	interrupt-names = "macirq";
+	rockchip,grf = <&grf>;
+	clocks = <&cru SCLK_MAC>,
+		<&cru SCLK_MAC_RX>, <&cru SCLK_MAC_TX>,
+		<&cru SCLK_MACREF>, <&cru SCLK_MACREF_OUT>,
+		<&cru ACLK_GMAC>, <&cru PCLK_GMAC>;
+	clock-names = "stmmaceth",
+		"mac_clk_rx", "mac_clk_tx",
+		"clk_mac_ref", "clk_mac_refout",
+		"aclk_mac", "pclk_mac";
+	phy-mode = "rgmii";
+	pinctrl-names = "default";
+	pinctrl-0 = <&rgmii_pins /*&rmii_pins*/>;
+
+	clock_in_out = "input";
+	snps,reset-gpio = <&gpio4 7 0>;
+	snps,reset-active-low;
+
+	assigned-clocks = <&cru SCLK_MAC>;
+	assigned-clock-parents = <&ext_gmac>;
+	tx_delay = <0x30>;
+	rx_delay = <0x10>;
+
+	status = "ok";
+};
