@@ -818,9 +818,14 @@ static void iwl_mvm_fw_error_dump_wk(struct work_struct *work)
 	struct iwl_mvm *mvm =
 		container_of(work, struct iwl_mvm, fw_error_dump_wk);
 
+	if (iwl_mvm_ref_sync(mvm, IWL_MVM_REF_FW_DBG_COLLECT))
+		return;
+
 	mutex_lock(&mvm->mutex);
 	iwl_mvm_fw_error_dump(mvm);
 	mutex_unlock(&mvm->mutex);
+
+	iwl_mvm_unref(mvm, IWL_MVM_REF_FW_DBG_COLLECT);
 }
 
 void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
