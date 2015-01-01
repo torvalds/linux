@@ -300,7 +300,7 @@ static int smp_f6(struct crypto_hash *tfm_cmac, const u8 w[16],
 	if (err)
 		return err;
 
-	BT_DBG("res %16phN", res);
+	SMP_DBG("res %16phN", res);
 
 	return err;
 }
