@@ -5972,6 +5972,10 @@ static void haswell_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(GEN7_GT_MODE,
 		   GEN6_WIZ_HASHING_MASK | GEN6_WIZ_HASHING_16x4);
 
+	/* WaSampleCChickenBitEnable:hsw */
+	I915_WRITE(HALF_SLICE_CHICKEN3,
+		   _MASKED_BIT_ENABLE(HSW_SAMPLE_C_PERFORMANCE));
+
 	/* WaSwitchSolVfFArbitrationPriority:hsw */
 	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) | HSW_ECOCHK_ARB_PRIO_SOL);
 
