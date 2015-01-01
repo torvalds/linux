@@ -31,6 +31,14 @@
 #define MQD_SIZE_ALIGNED 768
 
 static const struct kfd_device_info kaveri_device_info = {
+	.asic_family = CHIP_KAVERI,
+	.max_pasid_bits = 16,
+	.ih_ring_entry_size = 4 * sizeof(uint32_t),
+	.mqd_size_aligned = MQD_SIZE_ALIGNED
+};
+
+static const struct kfd_device_info carrizo_device_info = {
+	.asic_family = CHIP_CARRIZO,
 	.max_pasid_bits = 16,
 	.ih_ring_entry_size = 4 * sizeof(uint32_t),
 	.num_of_watch_points = 4,
@@ -65,7 +73,7 @@ static const struct kfd_deviceid supported_devices[] = {
 	{ 0x1318, &kaveri_device_info },	/* Kaveri */
 	{ 0x131B, &kaveri_device_info },	/* Kaveri */
 	{ 0x131C, &kaveri_device_info },	/* Kaveri */
-	{ 0x131D, &kaveri_device_info },	/* Kaveri */
+	{ 0x131D, &kaveri_device_info }		/* Kaveri */
 };
 
 static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,

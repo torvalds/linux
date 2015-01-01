@@ -104,7 +104,13 @@ enum cache_policy {
 	cache_policy_noncoherent
 };
 
+enum asic_family_type {
+	CHIP_KAVERI = 0,
+	CHIP_CARRIZO
+};
+
 struct kfd_device_info {
+	unsigned int asic_family;
 	unsigned int max_pasid_bits;
 	size_t ih_ring_entry_size;
 	uint8_t num_of_watch_points;
