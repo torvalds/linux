@@ -426,6 +426,9 @@ static int iio_channel_read(struct iio_channel *chan, int *val, int *val2,
 	if (val2 == NULL)
 		val2 = &unused;
 
+	if(!iio_channel_has_info(chan->channel, info))
+		return -EINVAL;
+
 	if (chan->indio_dev->info->read_raw_multi) {
 		ret = chan->indio_dev->info->read_raw_multi(chan->indio_dev,
 					chan->channel, INDIO_MAX_RAW_ELEMENTS,
