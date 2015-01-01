@@ -658,6 +658,10 @@ struct cx231xx {
 	struct video_device *vbi_dev;
 	struct video_device *radio_dev;
 
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	struct media_device *media_dev;
+#endif
+
 	unsigned char eedata[256];
 
 	struct cx231xx_video_mode video_mode;
