@@ -40,7 +40,7 @@
 struct t4_debugfs_entry {
 	const char *name;
 	const struct file_operations *ops;
-	mode_t mode;
+	umode_t mode;
 	unsigned char data;
 };
 
