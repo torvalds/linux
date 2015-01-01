@@ -171,13 +171,8 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 			return ret;
 	}
 
-	snd_soc_dapm_ignore_suspend(dapm, "HPOL");
-	snd_soc_dapm_ignore_suspend(dapm, "HPOR");
-
-	snd_soc_dapm_ignore_suspend(dapm, "SPOLP");
-	snd_soc_dapm_ignore_suspend(dapm, "SPOLN");
-	snd_soc_dapm_ignore_suspend(dapm, "SPORP");
-	snd_soc_dapm_ignore_suspend(dapm, "SPORN");
+	snd_soc_dapm_ignore_suspend(&card->dapm, "Headphone");
+	snd_soc_dapm_ignore_suspend(&card->dapm, "Speaker");
 
 	return ret;
 }
