@@ -309,7 +309,7 @@ static int snd_gusmax_probe(struct device *pdev, unsigned int dev)
 	if (err < 0)
 		goto _err;
 
-	err = snd_wss_pcm(wss, 0, NULL);
+	err = snd_wss_pcm(wss, 0);
 	if (err < 0)
 		goto _err;
 
@@ -317,7 +317,7 @@ static int snd_gusmax_probe(struct device *pdev, unsigned int dev)
 	if (err < 0)
 		goto _err;
 
-	err = snd_wss_timer(wss, 2, NULL);
+	err = snd_wss_timer(wss, 2);
 	if (err < 0)
 		goto _err;
 

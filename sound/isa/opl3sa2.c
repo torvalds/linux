@@ -684,7 +684,7 @@ static int snd_opl3sa2_probe(struct snd_card *card, int dev)
 		return err;
 	}
 	chip->wss = wss;
-	err = snd_wss_pcm(wss, 0, NULL);
+	err = snd_wss_pcm(wss, 0);
 	if (err < 0)
 		return err;
 	err = snd_wss_mixer(wss);
@@ -693,7 +693,7 @@ static int snd_opl3sa2_probe(struct snd_card *card, int dev)
 	err = snd_opl3sa2_mixer(card);
 	if (err < 0)
 		return err;
-	err = snd_wss_timer(wss, 0, NULL);
+	err = snd_wss_timer(wss, 0);
 	if (err < 0)
 		return err;
 	if (fm_port[dev] >= 0x340 && fm_port[dev] < 0x400) {

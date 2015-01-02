@@ -877,7 +877,6 @@ static int create_ad1845(struct snd_card *card, unsigned port,
 			     codec_type, WSS_HWSHARE_DMA1, &chip);
 	if (!err) {
 		unsigned long flags;
-		struct snd_pcm *pcm;
 
 		if (sscape->type != SSCAPE_VIVO) {
 			/*
@@ -893,7 +892,7 @@ static int create_ad1845(struct snd_card *card, unsigned port,
 
 		}
 
-		err = snd_wss_pcm(chip, 0, &pcm);
+		err = snd_wss_pcm(chip, 0);
 		if (err < 0) {
 			snd_printk(KERN_ERR "sscape: No PCM device "
 					    "for AD1845 chip\n");
@@ -907,7 +906,7 @@ static int create_ad1845(struct snd_card *card, unsigned port,
 			goto _error;
 		}
 		if (chip->hardware != WSS_HW_AD1848) {
-			err = snd_wss_timer(chip, 0, NULL);
+			err = snd_wss_timer(chip, 0);
 			if (err < 0) {
 				snd_printk(KERN_ERR "sscape: No timer device "
 						    "for AD1845 chip\n");
