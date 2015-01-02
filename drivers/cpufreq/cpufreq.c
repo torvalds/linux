@@ -1371,11 +1371,10 @@ static int __cpufreq_remove_dev_prepare(struct device *dev,
 			pr_err("%s: Failed to stop governor\n", __func__);
 			return ret;
 		}
-	}
 
-	if (!cpufreq_driver->setpolicy)
 		strncpy(per_cpu(cpufreq_cpu_governor, cpu),
 			policy->governor->name, CPUFREQ_NAME_LEN);
+	}
 
 	down_read(&policy->rwsem);
 	cpus = cpumask_weight(policy->cpus);
