@@ -1087,6 +1087,15 @@ static void update_pvclock_gtod(struct timekeeper *tk)
 }
 #endif
 
+void kvm_set_pending_timer(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * Note: KVM_REQ_PENDING_TIMER is implicitly checked in
+	 * vcpu_enter_guest.  This function is only called from
+	 * the physical CPU that is running vcpu.
+	 */
+	kvm_make_request(KVM_REQ_PENDING_TIMER, vcpu);
+}
 
 static void kvm_write_wall_clock(struct kvm *kvm, gpa_t wall_clock)
 {

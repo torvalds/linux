@@ -1076,16 +1076,11 @@ static void apic_timer_expired(struct kvm_lapic *apic)
 	wait_queue_head_t *q = &vcpu->wq;
 	struct kvm_timer *ktimer = &apic->lapic_timer;
 
-	/*
-	 * Note: KVM_REQ_PENDING_TIMER is implicitly checked in
-	 * vcpu_enter_guest.
-	 */
 	if (atomic_read(&apic->lapic_timer.pending))
 		return;
 
 	atomic_inc(&apic->lapic_timer.pending);
-	/* FIXME: this code should not know anything about vcpus */
-	kvm_make_request(KVM_REQ_PENDING_TIMER, vcpu);
+	kvm_set_pending_timer(vcpu);
 
 	if (waitqueue_active(q))
 		wake_up_interruptible(q);
