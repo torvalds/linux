@@ -305,11 +305,6 @@ static struct snd_pcm_ops camelot_pcm_ops = {
 	.pointer	= camelot_pos,
 };
 
-static void camelot_pcm_free(struct snd_pcm *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int camelot_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_pcm *pcm = rtd->pcm;
@@ -328,7 +323,6 @@ static int camelot_pcm_new(struct snd_soc_pcm_runtime *rtd)
 static struct snd_soc_platform_driver sh7760_soc_platform = {
 	.ops		= &camelot_pcm_ops,
 	.pcm_new	= camelot_pcm_new,
-	.pcm_free	= camelot_pcm_free,
 };
 
 static int sh7760_soc_platform_probe(struct platform_device *pdev)
