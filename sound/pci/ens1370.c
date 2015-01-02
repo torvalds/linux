@@ -1268,14 +1268,11 @@ static const struct snd_pcm_chmap_elem surround_map[] = {
 	{ }
 };
 
-static int snd_ensoniq_pcm(struct ensoniq *ensoniq, int device,
-			   struct snd_pcm **rpcm)
+static int snd_ensoniq_pcm(struct ensoniq *ensoniq, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
 
-	if (rpcm)
-		*rpcm = NULL;
 	err = snd_pcm_new(ensoniq->card, CHIP_NAME "/1", device, 1, 1, &pcm);
 	if (err < 0)
 		return err;
@@ -1302,22 +1299,14 @@ static int snd_ensoniq_pcm(struct ensoniq *ensoniq, int device,
 	err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
 				     snd_pcm_std_chmaps, 2, 0, NULL);
 #endif
-	if (err < 0)
-		return err;
-
-	if (rpcm)
-		*rpcm = pcm;
-	return 0;
+	return err;
 }
 
-static int snd_ensoniq_pcm2(struct ensoniq *ensoniq, int device,
-			    struct snd_pcm **rpcm)
+static int snd_ensoniq_pcm2(struct ensoniq *ensoniq, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
 
-	if (rpcm)
-		*rpcm = NULL;
 	err = snd_pcm_new(ensoniq->card, CHIP_NAME "/2", device, 1, 0, &pcm);
 	if (err < 0)
 		return err;
@@ -1342,12 +1331,7 @@ static int snd_ensoniq_pcm2(struct ensoniq *ensoniq, int device,
 	err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
 				     surround_map, 2, 0, NULL);
 #endif
-	if (err < 0)
-		return err;
-
-	if (rpcm)
-		*rpcm = pcm;
-	return 0;
+	return err;
 }
 
 /*
@@ -2362,14 +2346,11 @@ static struct snd_rawmidi_ops snd_ensoniq_midi_input =
 	.trigger =	snd_ensoniq_midi_input_trigger,
 };
 
-static int snd_ensoniq_midi(struct ensoniq *ensoniq, int device,
-			    struct snd_rawmidi **rrawmidi)
+static int snd_ensoniq_midi(struct ensoniq *ensoniq, int device)
 {
 	struct snd_rawmidi *rmidi;
 	int err;
 
-	if (rrawmidi)
-		*rrawmidi = NULL;
 	if ((err = snd_rawmidi_new(ensoniq->card, "ES1370/1", device, 1, 1, &rmidi)) < 0)
 		return err;
 	strcpy(rmidi->name, CHIP_NAME);
@@ -2379,8 +2360,6 @@ static int snd_ensoniq_midi(struct ensoniq *ensoniq, int device,
 		SNDRV_RAWMIDI_INFO_DUPLEX;
 	rmidi->private_data = ensoniq;
 	ensoniq->rmidi = rmidi;
-	if (rrawmidi)
-		*rrawmidi = rmidi;
 	return 0;
 }
 
@@ -2462,15 +2441,15 @@ static int snd_audiopci_probe(struct pci_dev *pci,
 		return err;
 	}
 #endif
-	if ((err = snd_ensoniq_pcm(ensoniq, 0, NULL)) < 0) {
+	if ((err = snd_ensoniq_pcm(ensoniq, 0)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
-	if ((err = snd_ensoniq_pcm2(ensoniq, 1, NULL)) < 0) {
+	if ((err = snd_ensoniq_pcm2(ensoniq, 1)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
-	if ((err = snd_ensoniq_midi(ensoniq, 0, NULL)) < 0) {
+	if ((err = snd_ensoniq_midi(ensoniq, 0)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
