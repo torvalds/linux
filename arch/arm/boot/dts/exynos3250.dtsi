@@ -141,26 +141,31 @@
 		pd_cam: cam-power-domain@10023C00 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10023C00 0x20>;
+			#power-domain-cells = <0>;
 		};
 
 		pd_mfc: mfc-power-domain@10023C40 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10023C40 0x20>;
+			#power-domain-cells = <0>;
 		};
 
 		pd_g3d: g3d-power-domain@10023C60 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10023C60 0x20>;
+			#power-domain-cells = <0>;
 		};
 
 		pd_lcd0: lcd0-power-domain@10023C80 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10023C80 0x20>;
+			#power-domain-cells = <0>;
 		};
 
 		pd_isp: isp-power-domain@10023CA0 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10023CA0 0x20>;
+			#power-domain-cells = <0>;
 		};
 
 		cmu: clock-controller@10030000 {
@@ -235,7 +240,7 @@
 			interrupts = <0 84 0>, <0 85 0>, <0 86 0>;
 			clocks = <&cmu CLK_SCLK_FIMD0>, <&cmu CLK_FIMD0>;
 			clock-names = "sclk_fimd", "fimd";
-			samsung,power-domain = <&pd_lcd0>;
+			power-domains = <&pd_lcd0>;
 			samsung,sysreg = <&sys_reg>;
 			status = "disabled";
 		};
@@ -245,7 +250,7 @@
 			reg = <0x11C80000 0x10000>;
 			interrupts = <0 83 0>;
 			samsung,phy-type = <0>;
-			samsung,power-domain = <&pd_lcd0>;
+			power-domains = <&pd_lcd0>;
 			phys = <&mipi_phy 1>;
 			phy-names = "dsim";
 			clocks = <&cmu CLK_DSIM0>, <&cmu CLK_SCLK_MIPI0>;
@@ -327,7 +332,7 @@
 			interrupts = <0 102 0>;
 			clock-names = "mfc", "sclk_mfc";
 			clocks = <&cmu CLK_MFC>, <&cmu CLK_SCLK_MFC>;
-			samsung,power-domain = <&pd_mfc>;
+			power-domains = <&pd_mfc>;
 			status = "disabled";
 		};
 

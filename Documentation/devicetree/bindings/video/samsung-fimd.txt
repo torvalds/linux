@@ -38,7 +38,7 @@ Required properties:
                property. Must contain "sclk_fimd" and "fimd".
 
 Optional Properties:
-- samsung,power-domain: a phandle to FIMD power domain node.
+- power-domains: a phandle to FIMD power domain node.
 - samsung,invert-vden: video enable signal is inverted
 - samsung,invert-vclk: video clock signal is inverted
 - display-timings: timing settings for FIMD, as described in document [1].
@@ -97,7 +97,7 @@ SoC specific DT entry:
 		interrupts = <11 0>, <11 1>, <11 2>;
 		clocks = <&clock 140>, <&clock 283>;
 		clock-names = "sclk_fimd", "fimd";
-		samsung,power-domain = <&pd_lcd0>;
+		power-domains = <&pd_lcd0>;
 		status = "disabled";
 	};
 

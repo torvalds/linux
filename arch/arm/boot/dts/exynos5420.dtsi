@@ -178,7 +178,7 @@
 		interrupts = <0 96 0>;
 		clocks = <&clock CLK_MFC>;
 		clock-names = "mfc";
-		samsung,power-domain = <&mfc_pd>;
+		power-domains = <&mfc_pd>;
 	};
 
 	mmc_0: mmc@12200000 {
@@ -250,11 +250,13 @@
 	gsc_pd: power-domain@10044000 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10044000 0x20>;
+		#power-domain-cells = <0>;
 	};
 
 	isp_pd: power-domain@10044020 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10044020 0x20>;
+		#power-domain-cells = <0>;
 	};
 
 	mfc_pd: power-domain@10044060 {
@@ -263,11 +265,13 @@
 		clocks = <&clock CLK_FIN_PLL>, <&clock CLK_MOUT_SW_ACLK333>,
 			<&clock CLK_MOUT_USER_ACLK333>;
 		clock-names = "oscclk", "pclk0", "clk0";
+		#power-domain-cells = <0>;
 	};
 
 	msc_pd: power-domain@10044120 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10044120 0x20>;
+		#power-domain-cells = <0>;
 	};
 
 	pinctrl_0: pinctrl@13400000 {
@@ -730,7 +734,7 @@
 		interrupts = <0 85 0>;
 		clocks = <&clock CLK_GSCL0>;
 		clock-names = "gscl";
-		samsung,power-domain = <&gsc_pd>;
+		power-domains = <&gsc_pd>;
 	};
 
 	gsc_1: video-scaler@13e10000 {
@@ -739,7 +743,7 @@
 		interrupts = <0 86 0>;
 		clocks = <&clock CLK_GSCL1>;
 		clock-names = "gscl";
-		samsung,power-domain = <&gsc_pd>;
+		power-domains = <&gsc_pd>;
 	};
 
 	pmu_system_controller: system-controller@10040000 {
