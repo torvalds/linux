@@ -1116,11 +1116,9 @@ static int __cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 
 	/* check whether a different CPU already registered this
 	 * CPU because it is in the same boat. */
-	policy = cpufreq_cpu_get(cpu);
-	if (unlikely(policy)) {
-		cpufreq_cpu_put(policy);
+	policy = cpufreq_cpu_get_raw(cpu);
+	if (unlikely(policy))
 		return 0;
-	}
 
 	if (!down_read_trylock(&cpufreq_rwsem))
 		return 0;
