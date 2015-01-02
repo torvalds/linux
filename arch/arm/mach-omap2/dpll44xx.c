@@ -223,7 +223,7 @@ out:
  */
 long omap4_dpll_regm4xen_determine_rate(struct clk_hw *hw, unsigned long rate,
 					unsigned long *best_parent_rate,
-					struct clk **best_parent_clk)
+					struct clk_hw **best_parent_clk)
 {
 	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
 	struct dpll_data *dd;
@@ -237,11 +237,11 @@ long omap4_dpll_regm4xen_determine_rate(struct clk_hw *hw, unsigned long rate,
 
 	if (__clk_get_rate(dd->clk_bypass) == rate &&
 	    (dd->modes & (1 << DPLL_LOW_POWER_BYPASS))) {
-		*best_parent_clk = dd->clk_bypass;
+		*best_parent_clk = __clk_get_hw(dd->clk_bypass);
 	} else {
 		rate = omap4_dpll_regm4xen_round_rate(hw, rate,
 						      best_parent_rate);
-		*best_parent_clk = dd->clk_ref;
+		*best_parent_clk = __clk_get_hw(dd->clk_ref);
 	}
 
 	*best_parent_rate = rate;

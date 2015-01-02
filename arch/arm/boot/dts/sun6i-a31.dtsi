@@ -229,19 +229,11 @@
 					"apb1_daudio1";
 		};
 
-		apb2_mux: apb2_mux@01c20058 {
+		apb2: clk@01c20058 {
 			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-apb1-mux-clk";
+			compatible = "allwinner,sun4i-a10-apb1-clk";
 			reg = <0x01c20058 0x4>;
 			clocks = <&osc32k>, <&osc24M>, <&pll6 0>, <&pll6 0>;
-			clock-output-names = "apb2_mux";
-		};
-
-		apb2: apb2@01c20058 {
-			#clock-cells = <0>;
-			compatible = "allwinner,sun6i-a31-apb2-div-clk";
-			reg = <0x01c20058 0x4>;
-			clocks = <&apb2_mux>;
 			clock-output-names = "apb2";
 		};
 

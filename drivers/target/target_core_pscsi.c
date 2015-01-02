@@ -1095,7 +1095,7 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 	req->retries = PS_RETRY;
 
 	blk_execute_rq_nowait(pdv->pdv_sd->request_queue, NULL, req,
-			(cmd->sam_task_attr == MSG_HEAD_TAG),
+			(cmd->sam_task_attr == TCM_HEAD_TAG),
 			pscsi_req_done);
 
 	return 0;

@@ -77,7 +77,7 @@ static int clk_mux_set_parent(struct clk_hw *hw, u8 index)
 
 	else {
 		if (mux->flags & CLK_MUX_INDEX_BIT)
-			index = (1 << ffs(index));
+			index = 1 << index;
 
 		if (mux->flags & CLK_MUX_INDEX_ONE)
 			index++;

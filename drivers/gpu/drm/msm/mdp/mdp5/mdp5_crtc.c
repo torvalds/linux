@@ -303,11 +303,6 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 
 	DBG("%s: check", mdp5_crtc->name);
 
-	if (mdp5_crtc->event) {
-		dev_err(dev->dev, "already pending flip!\n");
-		return -EBUSY;
-	}
-
 	/* request a free CTL, if none is already allocated for this CRTC */
 	if (state->enable && !mdp5_crtc->ctl) {
 		mdp5_crtc->ctl = mdp5_ctlm_request(mdp5_kms->ctlm, crtc);
@@ -364,7 +359,7 @@ static void mdp5_crtc_atomic_flush(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	unsigned long flags;
 
-	DBG("%s: flush", mdp5_crtc->name);
+	DBG("%s: event: %p", mdp5_crtc->name, crtc->state->event);
 
 	WARN_ON(mdp5_crtc->event);
 
@@ -460,10 +455,7 @@ void mdp5_crtc_set_intf(struct drm_crtc *crtc, int intf,
 	/* now that we know what irq's we want: */
 	mdp5_crtc->err.irqmask = intf2err(intf);
 	mdp5_crtc->vblank.irqmask = intf2vblank(intf);
-
-	/* when called from modeset_init(), skip the rest until later: */
-	if (!mdp5_kms)
-		return;
+	mdp_irq_update(&mdp5_kms->base);
 
 	spin_lock_irqsave(&mdp5_kms->resource_lock, flags);
 	intf_sel = mdp5_read(mdp5_kms, REG_MDP5_DISP_INTF_SEL);
