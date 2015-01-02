@@ -446,6 +446,12 @@ static int cp_tm1217_probe(struct i2c_client *client,
 
 	/* Mask all the interrupts */
 	retval = cp_tm1217_mask_interrupt(ts);
+	if (retval) {
+		dev_err(ts->dev, "failed to mask interrupts, error: %d\n",
+			retval);
+		kfree(ts);
+		return retval;
+	}
 
 	/* Read the controller information */
 	cp_tm1217_init_data(ts);
