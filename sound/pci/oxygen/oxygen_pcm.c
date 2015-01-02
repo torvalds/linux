@@ -676,11 +676,6 @@ static struct snd_pcm_ops oxygen_ac97_ops = {
 	.pointer   = oxygen_pointer,
 };
 
-static void oxygen_pcm_free(struct snd_pcm *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 int oxygen_pcm_init(struct oxygen *chip)
 {
 	struct snd_pcm *pcm;
@@ -705,7 +700,6 @@ int oxygen_pcm_init(struct oxygen *chip)
 			snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,
 					&oxygen_rec_b_ops);
 		pcm->private_data = chip;
-		pcm->private_free = oxygen_pcm_free;
 		strcpy(pcm->name, "Multichannel");
 		if (outs)
 			snd_pcm_lib_preallocate_pages(pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream,
@@ -734,7 +728,6 @@ int oxygen_pcm_init(struct oxygen *chip)
 			snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,
 					&oxygen_rec_c_ops);
 		pcm->private_data = chip;
-		pcm->private_free = oxygen_pcm_free;
 		strcpy(pcm->name, "Digital");
 		snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 						      snd_dma_pci_data(chip->pci),
@@ -765,7 +758,6 @@ int oxygen_pcm_init(struct oxygen *chip)
 			snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,
 					&oxygen_rec_b_ops);
 		pcm->private_data = chip;
-		pcm->private_free = oxygen_pcm_free;
 		strcpy(pcm->name, outs ? "Front Panel" : "Analog 2");
 		snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 						      snd_dma_pci_data(chip->pci),
