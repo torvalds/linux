@@ -591,7 +591,7 @@ int snd_gf1_new_mixer(struct snd_gus_card * gus);
 
 /* gus_pcm.c */
 
-int snd_gf1_pcm_new(struct snd_gus_card * gus, int pcm_dev, int control_index, struct snd_pcm ** rpcm);
+int snd_gf1_pcm_new(struct snd_gus_card *gus, int pcm_dev, int control_index);
 
 #ifdef CONFIG_SND_DEBUG
 extern void snd_gf1_print_voice_registers(struct snd_gus_card * gus);
@@ -620,7 +620,7 @@ void snd_gus_irq_profile_init(struct snd_gus_card *gus);
 
 /* gus_uart.c */
 
-int snd_gf1_rawmidi_new(struct snd_gus_card * gus, int device, struct snd_rawmidi **rrawmidi);
+int snd_gf1_rawmidi_new(struct snd_gus_card *gus, int device);
 
 /* gus_dram.c */
 int snd_gus_dram_write(struct snd_gus_card *gus, char __user *ptr,
