@@ -2618,13 +2618,14 @@ int btrfs_find_item(struct btrfs_root *fs_root, struct btrfs_path *path,
 	struct extent_buffer *eb;
 
 	ASSERT(path);
+	ASSERT(found_key);
 
 	key.type = key_type;
 	key.objectid = iobjectid;
 	key.offset = ioff;
 
 	ret = btrfs_search_slot(NULL, fs_root, &key, path, 0, 0);
-	if ((ret < 0) || (found_key == NULL))
+	if (ret < 0)
 		return ret;
 
 	eb = path->nodes[0];

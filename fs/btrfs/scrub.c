@@ -520,6 +520,7 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root,
 	struct inode_fs_paths *ipath = NULL;
 	struct btrfs_root *local_root;
 	struct btrfs_key root_key;
+	struct btrfs_key key;
 
 	root_key.objectid = root;
 	root_key.type = BTRFS_ROOT_ITEM_KEY;
@@ -533,8 +534,11 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root,
 	/*
 	 * this makes the path point to (inum INODE_ITEM ioff)
 	 */
-	ret = btrfs_find_item(local_root, swarn->path, inum, 0,
-			BTRFS_INODE_ITEM_KEY, NULL);
+	key.objectid = inum;
+	key.type = BTRFS_INODE_ITEM_KEY;
+	key.offset = 0;
+
+	ret = btrfs_search_slot(NULL, local_root, &key, swarn->path, 0, 0);
 	if (ret) {
 		btrfs_release_path(swarn->path);
 		goto err;
