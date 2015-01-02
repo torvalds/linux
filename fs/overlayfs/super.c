@@ -525,10 +525,22 @@ static int ovl_show_options(struct seq_file *m, struct dentry *dentry)
 	return 0;
 }
 
+static int ovl_remount(struct super_block *sb, int *flags, char *data)
+{
+	struct ovl_fs *ufs = sb->s_fs_info;
+
+	if (!(*flags & MS_RDONLY) &&
+	    (!ufs->upper_mnt || (ufs->upper_mnt->mnt_sb->s_flags & MS_RDONLY)))
+		return -EROFS;
+
+	return 0;
+}
+
 static const struct super_operations ovl_super_operations = {
 	.put_super	= ovl_put_super,
 	.statfs		= ovl_statfs,
 	.show_options	= ovl_show_options,
+	.remount_fs	= ovl_remount,
 };
 
 enum {
