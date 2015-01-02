@@ -1706,14 +1706,11 @@ static struct snd_pcm_ops snd_riptide_capture_ops = {
 	.pointer = snd_riptide_pointer,
 };
 
-static int
-snd_riptide_pcm(struct snd_riptide *chip, int device, struct snd_pcm **rpcm)
+static int snd_riptide_pcm(struct snd_riptide *chip, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
 
-	if (rpcm)
-		*rpcm = NULL;
 	if ((err =
 	     snd_pcm_new(chip->card, "RIPTIDE", device, PLAYBACK_SUBSTREAMS, 1,
 			 &pcm)) < 0)
@@ -1729,8 +1726,6 @@ snd_riptide_pcm(struct snd_riptide *chip, int device, struct snd_pcm **rpcm)
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
 					      snd_dma_pci_data(chip->pci),
 					      64 * 1024, 128 * 1024);
-	if (rpcm)
-		*rpcm = pcm;
 	return 0;
 }
 
@@ -2092,7 +2087,7 @@ snd_card_riptide_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	if (err < 0)
 		goto error;
 	card->private_data = chip;
-	err = snd_riptide_pcm(chip, 0, NULL);
+	err = snd_riptide_pcm(chip, 0);
 	if (err < 0)
 		goto error;
 	err = snd_riptide_mixer(chip);
