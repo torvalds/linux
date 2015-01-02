@@ -284,7 +284,7 @@ static int snd_gusextreme_probe(struct device *dev, unsigned int n)
 	}
 	gus->codec_flag = 1;
 
-	error = snd_es1688_pcm(card, es1688, 0, NULL);
+	error = snd_es1688_pcm(card, es1688, 0);
 	if (error < 0)
 		goto out;
 

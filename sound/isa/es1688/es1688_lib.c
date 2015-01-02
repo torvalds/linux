@@ -728,8 +728,7 @@ static struct snd_pcm_ops snd_es1688_capture_ops = {
 	.pointer =		snd_es1688_capture_pointer,
 };
 
-int snd_es1688_pcm(struct snd_card *card, struct snd_es1688 *chip,
-		   int device, struct snd_pcm **rpcm)
+int snd_es1688_pcm(struct snd_card *card, struct snd_es1688 *chip, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -749,9 +748,6 @@ int snd_es1688_pcm(struct snd_card *card, struct snd_es1688 *chip,
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 					      snd_dma_isa_data(),
 					      64*1024, 64*1024);
-
-	if (rpcm)
-		*rpcm = pcm;
 	return 0;
 }
 
