@@ -1238,14 +1238,11 @@ snd_ml403_ac97cr_mixer(struct snd_ml403_ac97cr *ml403_ac97cr)
 }
 
 static int
-snd_ml403_ac97cr_pcm(struct snd_ml403_ac97cr *ml403_ac97cr, int device,
-		     struct snd_pcm **rpcm)
+snd_ml403_ac97cr_pcm(struct snd_ml403_ac97cr *ml403_ac97cr, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
 
-	if (rpcm)
-		*rpcm = NULL;
 	err = snd_pcm_new(ml403_ac97cr->card, "ML403AC97CR/1", device, 1, 1,
 			  &pcm);
 	if (err < 0)
@@ -1263,8 +1260,6 @@ snd_ml403_ac97cr_pcm(struct snd_ml403_ac97cr *ml403_ac97cr, int device,
 					  snd_dma_continuous_data(GFP_KERNEL),
 					  64 * 1024,
 					  128 * 1024);
-	if (rpcm)
-		*rpcm = pcm;
 	return 0;
 }
 
@@ -1298,7 +1293,7 @@ static int snd_ml403_ac97cr_probe(struct platform_device *pfdev)
 		return err;
 	}
 	PDEBUG(INIT_INFO, "probe(): mixer done\n");
-	err = snd_ml403_ac97cr_pcm(ml403_ac97cr, 0, NULL);
+	err = snd_ml403_ac97cr_pcm(ml403_ac97cr, 0);
 	if (err < 0) {
 		snd_card_free(card);
 		return err;
