@@ -704,13 +704,11 @@ static struct snd_pcm_ops snd_fm801_capture_ops = {
 	.pointer =	snd_fm801_capture_pointer,
 };
 
-static int snd_fm801_pcm(struct fm801 *chip, int device, struct snd_pcm **rpcm)
+static int snd_fm801_pcm(struct fm801 *chip, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
 
-	if (rpcm)
-		*rpcm = NULL;
 	if ((err = snd_pcm_new(chip->card, "FM801", device, 1, 1, &pcm)) < 0)
 		return err;
 
@@ -726,16 +724,10 @@ static int snd_fm801_pcm(struct fm801 *chip, int device, struct snd_pcm **rpcm)
 					      snd_dma_pci_data(chip->pci),
 					      chip->multichannel ? 128*1024 : 64*1024, 128*1024);
 
-	err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+	return snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
 				     snd_pcm_alt_chmaps,
 				     chip->multichannel ? 6 : 2, 0,
 				     NULL);
-	if (err < 0)
-		return err;
-
-	if (rpcm)
-		*rpcm = pcm;
-	return 0;
 }
 
 /*
@@ -1340,7 +1332,7 @@ static int snd_card_fm801_probe(struct pci_dev *pci,
 	if (chip->tea575x_tuner & TUNER_ONLY)
 		goto __fm801_tuner_only;
 
-	if ((err = snd_fm801_pcm(chip, 0, NULL)) < 0) {
+	if ((err = snd_fm801_pcm(chip, 0)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
