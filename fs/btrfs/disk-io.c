@@ -54,7 +54,7 @@
 #include <asm/cpufeature.h>
 #endif
 
-static struct extent_io_ops btree_extent_io_ops;
+static const struct extent_io_ops btree_extent_io_ops;
 static void end_workqueue_fn(struct btrfs_work *work);
 static void free_fs_root(struct btrfs_root *root);
 static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info,
@@ -4287,7 +4287,7 @@ static int btrfs_cleanup_transaction(struct btrfs_root *root)
 	return 0;
 }
 
-static struct extent_io_ops btree_extent_io_ops = {
+static const struct extent_io_ops btree_extent_io_ops = {
 	.readpage_end_io_hook = btree_readpage_end_io_hook,
 	.readpage_io_failed_hook = btree_io_failed_hook,
 	.submit_bio_hook = btree_submit_bio_hook,

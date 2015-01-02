@@ -4131,7 +4131,7 @@ static int btrfs_cmp_device_info(const void *a, const void *b)
 	return 0;
 }
 
-static struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
+static const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 	[BTRFS_RAID_RAID10] = {
 		.sub_stripes	= 2,
 		.dev_stripes	= 1,
