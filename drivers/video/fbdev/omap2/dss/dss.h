@@ -100,6 +100,12 @@ enum dss_writeback_channel {
 	DSS_WB_LCD3_MGR =	7,
 };
 
+enum dss_pll_id {
+	DSS_PLL_DSI1,
+	DSS_PLL_DSI2,
+	DSS_PLL_HDMI,
+};
+
 struct dss_pll;
 
 #define DSS_PLL_MAX_HSDIVS 4
@@ -150,6 +156,7 @@ struct dss_pll_hw {
 
 struct dss_pll {
 	const char *name;
+	enum dss_pll_id id;
 
 	struct clk *clkin;
 	struct regulator *regulator;

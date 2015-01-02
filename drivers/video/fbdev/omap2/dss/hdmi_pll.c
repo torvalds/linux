@@ -185,6 +185,7 @@ static int dsi_init_pll_data(struct platform_device *pdev, struct hdmi_pll_data 
 	}
 
 	pll->name = "hdmi";
+	pll->id = DSS_PLL_HDMI;
 	pll->base = hpll->base;
 	pll->clkin = clk;
 
