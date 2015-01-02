@@ -1106,7 +1106,7 @@ static u8 ath_get_rate_txpower(struct ath_softc *sc, struct ath_buf *bf,
 		return MAX_RATE_POWER;
 
 	if (!AR_SREV_9300_20_OR_LATER(ah)) {
-		/* ar9002 is not sipported for the moment */
+		/* ar9002 does not support TPC for the moment */
 		return MAX_RATE_POWER;
 	}
 

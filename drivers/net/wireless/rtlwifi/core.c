@@ -95,7 +95,8 @@ void rtl_bb_delay(struct ieee80211_hw *hw, u32 addr, u32 data)
 }
 EXPORT_SYMBOL(rtl_bb_delay);
 
-void rtl_fw_cb(const struct firmware *firmware, void *context)
+static void rtl_fw_do_work(const struct firmware *firmware, void *context,
+			   bool is_wow)
 {
 	struct ieee80211_hw *hw = context;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -125,11 +126,30 @@ found_alt:
 		release_firmware(firmware);
 		return;
 	}
-	memcpy(rtlpriv->rtlhal.pfirmware, firmware->data, firmware->size);
+	if (!is_wow) {
+		memcpy(rtlpriv->rtlhal.pfirmware, firmware->data,
+		       firmware->size);
+		rtlpriv->rtlhal.fwsize = firmware->size;
+	} else {
+		memcpy(rtlpriv->rtlhal.wowlan_firmware, firmware->data,
+		       firmware->size);
+		rtlpriv->rtlhal.wowlan_fwsize = firmware->size;
+	}
 	rtlpriv->rtlhal.fwsize = firmware->size;
 	release_firmware(firmware);
 }
+
+void rtl_fw_cb(const struct firmware *firmware, void *context)
+{
+	rtl_fw_do_work(firmware, context, false);
+}
 EXPORT_SYMBOL(rtl_fw_cb);
+
+void rtl_wowlan_fw_cb(const struct firmware *firmware, void *context)
+{
+	rtl_fw_do_work(firmware, context, true);
+}
+EXPORT_SYMBOL(rtl_wowlan_fw_cb);
 
 /*mutex for start & stop is must here. */
 static int rtl_op_start(struct ieee80211_hw *hw)

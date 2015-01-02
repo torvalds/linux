@@ -591,10 +591,10 @@ do {								\
 } while (0)
 
 #define RTL92EE_RX_HAL_IS_CCK_RATE(rxmcs)\
-	(rxmcs == DESC92C_RATE1M ||\
-	 rxmcs == DESC92C_RATE2M ||\
-	 rxmcs == DESC92C_RATE5_5M ||\
-	 rxmcs == DESC92C_RATE11M)
+	(rxmcs == DESC_RATE1M ||\
+	 rxmcs == DESC_RATE2M ||\
+	 rxmcs == DESC_RATE5_5M ||\
+	 rxmcs == DESC_RATE11M)
 
 #define IS_LITTLE_ENDIAN	1
 
@@ -829,7 +829,6 @@ void rtl92ee_rx_check_dma_ok(struct ieee80211_hw *hw, u8 *header_desc,
 			     u8 queue_index);
 u16	rtl92ee_rx_desc_buff_remained_cnt(struct ieee80211_hw *hw,
 					  u8 queue_index);
-void rtl92ee_get_available_desc(struct ieee80211_hw *hw, u8 queue_index);
 void rtl92ee_pre_fill_tx_bd_desc(struct ieee80211_hw *hw,
 				 u8 *tx_bd_desc, u8 *desc, u8 queue_index,
 				 struct sk_buff *skb, dma_addr_t addr);

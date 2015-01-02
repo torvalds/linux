@@ -331,10 +331,10 @@ enum hardware_type {
 (IS_HARDWARE_TYPE_8723E(rtlhal) || IS_HARDWARE_TYPE_8723U(rtlhal))
 
 #define RX_HAL_IS_CCK_RATE(rxmcs)			\
-	((rxmcs) == DESC92_RATE1M ||			\
-	 (rxmcs) == DESC92_RATE2M ||			\
-	 (rxmcs) == DESC92_RATE5_5M ||			\
-	 (rxmcs) == DESC92_RATE11M)
+	((rxmcs) == DESC_RATE1M ||			\
+	 (rxmcs) == DESC_RATE2M ||			\
+	 (rxmcs) == DESC_RATE5_5M ||			\
+	 (rxmcs) == DESC_RATE11M)
 
 enum scan_operation_backup_opt {
 	SCAN_OPT_BACKUP = 0,
@@ -579,38 +579,59 @@ enum rtl_hal_state {
 };
 
 enum rtl_desc92_rate {
-	DESC92_RATE1M = 0x00,
-	DESC92_RATE2M = 0x01,
-	DESC92_RATE5_5M = 0x02,
-	DESC92_RATE11M = 0x03,
+	DESC_RATE1M = 0x00,
+	DESC_RATE2M = 0x01,
+	DESC_RATE5_5M = 0x02,
+	DESC_RATE11M = 0x03,
 
-	DESC92_RATE6M = 0x04,
-	DESC92_RATE9M = 0x05,
-	DESC92_RATE12M = 0x06,
-	DESC92_RATE18M = 0x07,
-	DESC92_RATE24M = 0x08,
-	DESC92_RATE36M = 0x09,
-	DESC92_RATE48M = 0x0a,
-	DESC92_RATE54M = 0x0b,
+	DESC_RATE6M = 0x04,
+	DESC_RATE9M = 0x05,
+	DESC_RATE12M = 0x06,
+	DESC_RATE18M = 0x07,
+	DESC_RATE24M = 0x08,
+	DESC_RATE36M = 0x09,
+	DESC_RATE48M = 0x0a,
+	DESC_RATE54M = 0x0b,
 
-	DESC92_RATEMCS0 = 0x0c,
-	DESC92_RATEMCS1 = 0x0d,
-	DESC92_RATEMCS2 = 0x0e,
-	DESC92_RATEMCS3 = 0x0f,
-	DESC92_RATEMCS4 = 0x10,
-	DESC92_RATEMCS5 = 0x11,
-	DESC92_RATEMCS6 = 0x12,
-	DESC92_RATEMCS7 = 0x13,
-	DESC92_RATEMCS8 = 0x14,
-	DESC92_RATEMCS9 = 0x15,
-	DESC92_RATEMCS10 = 0x16,
-	DESC92_RATEMCS11 = 0x17,
-	DESC92_RATEMCS12 = 0x18,
-	DESC92_RATEMCS13 = 0x19,
-	DESC92_RATEMCS14 = 0x1a,
-	DESC92_RATEMCS15 = 0x1b,
-	DESC92_RATEMCS15_SG = 0x1c,
-	DESC92_RATEMCS32 = 0x20,
+	DESC_RATEMCS0 = 0x0c,
+	DESC_RATEMCS1 = 0x0d,
+	DESC_RATEMCS2 = 0x0e,
+	DESC_RATEMCS3 = 0x0f,
+	DESC_RATEMCS4 = 0x10,
+	DESC_RATEMCS5 = 0x11,
+	DESC_RATEMCS6 = 0x12,
+	DESC_RATEMCS7 = 0x13,
+	DESC_RATEMCS8 = 0x14,
+	DESC_RATEMCS9 = 0x15,
+	DESC_RATEMCS10 = 0x16,
+	DESC_RATEMCS11 = 0x17,
+	DESC_RATEMCS12 = 0x18,
+	DESC_RATEMCS13 = 0x19,
+	DESC_RATEMCS14 = 0x1a,
+	DESC_RATEMCS15 = 0x1b,
+	DESC_RATEMCS15_SG = 0x1c,
+	DESC_RATEMCS32 = 0x20,
+
+	DESC_RATEVHT1SS_MCS0 = 0x2c,
+	DESC_RATEVHT1SS_MCS1 = 0x2d,
+	DESC_RATEVHT1SS_MCS2 = 0x2e,
+	DESC_RATEVHT1SS_MCS3 = 0x2f,
+	DESC_RATEVHT1SS_MCS4 = 0x30,
+	DESC_RATEVHT1SS_MCS5 = 0x31,
+	DESC_RATEVHT1SS_MCS6 = 0x32,
+	DESC_RATEVHT1SS_MCS7 = 0x33,
+	DESC_RATEVHT1SS_MCS8 = 0x34,
+	DESC_RATEVHT1SS_MCS9 = 0x35,
+	DESC_RATEVHT2SS_MCS0 = 0x36,
+	DESC_RATEVHT2SS_MCS1 = 0x37,
+	DESC_RATEVHT2SS_MCS2 = 0x38,
+	DESC_RATEVHT2SS_MCS3 = 0x39,
+	DESC_RATEVHT2SS_MCS4 = 0x3a,
+	DESC_RATEVHT2SS_MCS5 = 0x3b,
+	DESC_RATEVHT2SS_MCS6 = 0x3c,
+	DESC_RATEVHT2SS_MCS7 = 0x3d,
+	DESC_RATEVHT2SS_MCS8 = 0x3e,
+	DESC_RATEVHT2SS_MCS9 = 0x3f,
 };
 
 enum rtl_var_map {
@@ -2242,6 +2263,7 @@ struct rtl_hal_cfg {
 	char *name;
 	char *fw_name;
 	char *alt_fw_name;
+	char *wowlan_fw_name;
 	struct rtl_hal_ops *ops;
 	struct rtl_mod_params *mod_params;
 	struct rtl_hal_usbint_cfg *usb_interface_cfg;
@@ -2518,8 +2540,6 @@ struct proxim {
 
 struct rtl_priv {
 	struct ieee80211_hw *hw;
-	/* Used to load a second firmware */
-	void (*rtl_fw_second_cb)(struct rtl_priv *rtlpriv);
 	struct completion firmware_loading_complete;
 	struct list_head list;
 	struct rtl_priv *buddy_priv;
