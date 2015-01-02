@@ -309,7 +309,6 @@ void virtio_pci_legacy_remove(struct pci_dev *pci_dev)
 
 	unregister_virtio_device(&vp_dev->vdev);
 
-	vp_del_vqs(&vp_dev->vdev);
 	pci_iounmap(pci_dev, vp_dev->ioaddr);
 	pci_release_regions(pci_dev);
 	pci_disable_device(pci_dev);
