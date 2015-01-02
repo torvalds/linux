@@ -71,6 +71,9 @@ extern LONG ArcRead(ULONG fd, PVOID buf, ULONG num, PULONG cnt);
 extern LONG ArcWrite(ULONG fd, PVOID buf, ULONG num, PULONG cnt);
 
 /* Misc. routines. */
+extern VOID ArcHalt(VOID) __noreturn;
+extern VOID ArcPowerDown(VOID) __noreturn;
+extern VOID ArcRestart(VOID) __noreturn;
 extern VOID ArcReboot(VOID) __noreturn;
 extern VOID ArcEnterInteractiveMode(VOID) __noreturn;
 extern VOID ArcFlushAllCaches(VOID);
