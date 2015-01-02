@@ -959,6 +959,12 @@ static int aml_is_sdjtag(struct amlsd_platform * pdata)
     return 0;
 }
 
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+static int aml_is_sduart(struct amlsd_platform * pdata)
+{
+        return 0;
+}
+#else
 static int aml_is_sduart(struct amlsd_platform * pdata)
 {
 #ifdef CONFIG_MESON_CPU_EMULATOR
@@ -1005,6 +1011,7 @@ static int aml_is_sduart(struct amlsd_platform * pdata)
     // return 0;
 #endif
 }
+#endif
 
 // int n=0;
 static int aml_uart_switch(struct amlsd_platform* pdata, bool on)
