@@ -582,7 +582,7 @@ void __init init_mem_mapping(void)
  *
  *
  * On x86, access has to be given to the first megabyte of ram because that area
- * contains bios code and data regions used by X and dosemu and similar apps.
+ * contains BIOS code and data regions used by X and dosemu and similar apps.
  * Access has to be given to non-kernel-ram areas as well, these contain the PCI
  * mmio resources as well as potential bios/acpi data regions.
  */
