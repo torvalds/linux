@@ -1105,7 +1105,7 @@ static int __cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 {
 	unsigned int j, cpu = dev->id;
 	int ret = -ENOMEM;
-	struct cpufreq_policy *policy, *tpolicy;
+	struct cpufreq_policy *policy;
 	unsigned long flags;
 	bool recover_policy = cpufreq_suspended;
 
@@ -1127,10 +1127,10 @@ static int __cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 
 	/* Check if this cpu was hot-unplugged earlier and has siblings */
 	read_lock_irqsave(&cpufreq_driver_lock, flags);
-	list_for_each_entry(tpolicy, &cpufreq_policy_list, policy_list) {
-		if (cpumask_test_cpu(cpu, tpolicy->related_cpus)) {
+	list_for_each_entry(policy, &cpufreq_policy_list, policy_list) {
+		if (cpumask_test_cpu(cpu, policy->related_cpus)) {
 			read_unlock_irqrestore(&cpufreq_driver_lock, flags);
-			ret = cpufreq_add_policy_cpu(tpolicy, cpu, dev);
+			ret = cpufreq_add_policy_cpu(policy, cpu, dev);
 			up_read(&cpufreq_rwsem);
 			return ret;
 		}
