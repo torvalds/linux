@@ -1145,13 +1145,11 @@ static struct snd_pcm_ops snd_ymfpci_capture_rec_ops = {
 	.pointer =		snd_ymfpci_capture_pointer,
 };
 
-int snd_ymfpci_pcm(struct snd_ymfpci *chip, int device, struct snd_pcm **rpcm)
+int snd_ymfpci_pcm(struct snd_ymfpci *chip, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
 
-	if (rpcm)
-		*rpcm = NULL;
 	if ((err = snd_pcm_new(chip->card, "YMFPCI", device, 32, 1, &pcm)) < 0)
 		return err;
 	pcm->private_data = chip;
@@ -1167,14 +1165,8 @@ int snd_ymfpci_pcm(struct snd_ymfpci *chip, int device, struct snd_pcm **rpcm)
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 					      snd_dma_pci_data(chip->pci), 64*1024, 256*1024);
 
-	err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+	return snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
 				     snd_pcm_std_chmaps, 2, 0, NULL);
-	if (err < 0)
-		return err;
-
-	if (rpcm)
-		*rpcm = pcm;
-	return 0;
 }
 
 static struct snd_pcm_ops snd_ymfpci_capture_ac97_ops = {
@@ -1188,13 +1180,11 @@ static struct snd_pcm_ops snd_ymfpci_capture_ac97_ops = {
 	.pointer =		snd_ymfpci_capture_pointer,
 };
 
-int snd_ymfpci_pcm2(struct snd_ymfpci *chip, int device, struct snd_pcm **rpcm)
+int snd_ymfpci_pcm2(struct snd_ymfpci *chip, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
 
-	if (rpcm)
-		*rpcm = NULL;
 	if ((err = snd_pcm_new(chip->card, "YMFPCI - PCM2", device, 0, 1, &pcm)) < 0)
 		return err;
 	pcm->private_data = chip;
@@ -1210,8 +1200,6 @@ int snd_ymfpci_pcm2(struct snd_ymfpci *chip, int device, struct snd_pcm **rpcm)
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 					      snd_dma_pci_data(chip->pci), 64*1024, 256*1024);
 
-	if (rpcm)
-		*rpcm = pcm;
 	return 0;
 }
 
@@ -1226,14 +1214,11 @@ static struct snd_pcm_ops snd_ymfpci_playback_spdif_ops = {
 	.pointer =		snd_ymfpci_playback_pointer,
 };
 
-int snd_ymfpci_pcm_spdif(struct snd_ymfpci *chip, int device,
-			 struct snd_pcm **rpcm)
+int snd_ymfpci_pcm_spdif(struct snd_ymfpci *chip, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
 
-	if (rpcm)
-		*rpcm = NULL;
 	if ((err = snd_pcm_new(chip->card, "YMFPCI - IEC958", device, 1, 0, &pcm)) < 0)
 		return err;
 	pcm->private_data = chip;
@@ -1248,8 +1233,6 @@ int snd_ymfpci_pcm_spdif(struct snd_ymfpci *chip, int device,
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 					      snd_dma_pci_data(chip->pci), 64*1024, 256*1024);
 
-	if (rpcm)
-		*rpcm = pcm;
 	return 0;
 }
 
@@ -1272,14 +1255,11 @@ static const struct snd_pcm_chmap_elem surround_map[] = {
 	{ }
 };
 
-int snd_ymfpci_pcm_4ch(struct snd_ymfpci *chip, int device,
-		       struct snd_pcm **rpcm)
+int snd_ymfpci_pcm_4ch(struct snd_ymfpci *chip, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
 
-	if (rpcm)
-		*rpcm = NULL;
 	if ((err = snd_pcm_new(chip->card, "YMFPCI - Rear", device, 1, 0, &pcm)) < 0)
 		return err;
 	pcm->private_data = chip;
@@ -1294,14 +1274,8 @@ int snd_ymfpci_pcm_4ch(struct snd_ymfpci *chip, int device,
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 					      snd_dma_pci_data(chip->pci), 64*1024, 256*1024);
 
-	err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+	return snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
 				     surround_map, 2, 0, NULL);
-	if (err < 0)
-		return err;
-
-	if (rpcm)
-		*rpcm = pcm;
-	return 0;
 }
 
 static int snd_ymfpci_spdif_default_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
