@@ -96,9 +96,6 @@ static inline int lockdep_rht_mutex_is_held(const struct rhashtable *ht)
 
 int rhashtable_init(struct rhashtable *ht, struct rhashtable_params *params);
 
-u32 rhashtable_hashfn(const struct rhashtable *ht, const void *key, u32 len);
-u32 rhashtable_obj_hashfn(const struct rhashtable *ht, void *ptr);
-
 void rhashtable_insert(struct rhashtable *ht, struct rhash_head *node);
 bool rhashtable_remove(struct rhashtable *ht, struct rhash_head *node);
 void rhashtable_remove_pprev(struct rhashtable *ht, struct rhash_head *obj,
@@ -111,7 +108,7 @@ int rhashtable_expand(struct rhashtable *ht);
 int rhashtable_shrink(struct rhashtable *ht);
 
 void *rhashtable_lookup(const struct rhashtable *ht, const void *key);
-void *rhashtable_lookup_compare(const struct rhashtable *ht, u32 hash,
+void *rhashtable_lookup_compare(const struct rhashtable *ht, const void *key,
 				bool (*compare)(void *, void *), void *arg);
 
 void rhashtable_destroy(const struct rhashtable *ht);

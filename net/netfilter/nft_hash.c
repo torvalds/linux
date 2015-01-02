@@ -94,28 +94,40 @@ static void nft_hash_remove(const struct nft_set *set,
 	kfree(he);
 }
 
+struct nft_compare_arg {
+	const struct nft_set *set;
+	struct nft_set_elem *elem;
+};
+
+static bool nft_hash_compare(void *ptr, void *arg)
+{
+	struct nft_hash_elem *he = ptr;
+	struct nft_compare_arg *x = arg;
+
+	if (!nft_data_cmp(&he->key, &x->elem->key, x->set->klen)) {
+		x->elem->cookie = &he->node;
+		x->elem->flags = 0;
+		if (x->set->flags & NFT_SET_MAP)
+			nft_data_copy(&x->elem->data, he->data);
+
+		return true;
+	}
+
+	return false;
+}
+
 static int nft_hash_get(const struct nft_set *set, struct nft_set_elem *elem)
 {
 	const struct rhashtable *priv = nft_set_priv(set);
-	const struct bucket_table *tbl = rht_dereference_rcu(priv->tbl, priv);
-	struct rhash_head __rcu * const *pprev;
-	struct nft_hash_elem *he;
-	u32 h;
+	struct nft_compare_arg arg = {
+		.set = set,
+		.elem = elem,
+	};
 
-	h = rhashtable_hashfn(priv, &elem->key, set->klen);
-	pprev = &tbl->buckets[h];
-	rht_for_each_entry_rcu(he, tbl->buckets[h], node) {
-		if (nft_data_cmp(&he->key, &elem->key, set->klen)) {
-			pprev = &he->node.next;
-			continue;
-		}
-
-		elem->cookie = (void *)pprev;
-		elem->flags = 0;
-		if (set->flags & NFT_SET_MAP)
-			nft_data_copy(&elem->data, he->data);
+	if (rhashtable_lookup_compare(priv, &elem->key,
+				      &nft_hash_compare, &arg))
 		return 0;
-	}
+
 	return -ENOENT;
 }
 
