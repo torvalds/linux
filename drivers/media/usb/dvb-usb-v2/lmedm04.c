@@ -344,9 +344,10 @@ static void lme2510_int_response(struct urb *lme_urb)
 
 	usb_submit_urb(lme_urb, GFP_ATOMIC);
 
-	/* interrupt urb is due every 48 msecs while streaming
-	 *	add 12msecs for system lag */
-	st->int_urb_due = jiffies + msecs_to_jiffies(60);
+	/* Interrupt urb is due every 48 msecs while streaming the buffer
+	 * stores up to 4 periods if missed. Allow 200 msec for next interrupt.
+	 */
+	st->int_urb_due = jiffies + msecs_to_jiffies(200);
 }
 
 static int lme2510_int_read(struct dvb_usb_adapter *adap)
