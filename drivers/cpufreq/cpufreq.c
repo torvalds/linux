@@ -2007,10 +2007,6 @@ int cpufreq_driver_target(struct cpufreq_policy *policy,
 }
 EXPORT_SYMBOL_GPL(cpufreq_driver_target);
 
-/*
- * when "event" is CPUFREQ_GOV_LIMITS
- */
-
 static int __cpufreq_governor(struct cpufreq_policy *policy,
 					unsigned int event)
 {
