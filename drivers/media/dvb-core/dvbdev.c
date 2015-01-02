@@ -180,6 +180,59 @@ skip:
 	return -ENFILE;
 }
 
+static void dvb_register_media_device(struct dvb_device *dvbdev,
+				      int type, int minor)
+{
+#if defined(CONFIG_MEDIA_CONTROLLER_DVB)
+	int ret;
+
+	if (!dvbdev->adapter->mdev)
+		return;
+
+	dvbdev->entity = kzalloc(sizeof(*dvbdev->entity), GFP_KERNEL);
+	if (!dvbdev->entity)
+		return;
+
+	dvbdev->entity->info.dev.major = DVB_MAJOR;
+	dvbdev->entity->info.dev.minor = minor;
+	dvbdev->entity->name = dvbdev->name;
+	switch (type) {
+	case DVB_DEVICE_FRONTEND:
+		dvbdev->entity->type = MEDIA_ENT_T_DEVNODE_DVB_FE;
+		break;
+	case DVB_DEVICE_DEMUX:
+		dvbdev->entity->type = MEDIA_ENT_T_DEVNODE_DVB_DEMUX;
+		break;
+	case DVB_DEVICE_DVR:
+		dvbdev->entity->type = MEDIA_ENT_T_DEVNODE_DVB_DVR;
+		break;
+	case DVB_DEVICE_CA:
+		dvbdev->entity->type = MEDIA_ENT_T_DEVNODE_DVB_CA;
+		break;
+	case DVB_DEVICE_NET:
+		dvbdev->entity->type = MEDIA_ENT_T_DEVNODE_DVB_NET;
+		break;
+	default:
+		kfree(dvbdev->entity);
+		dvbdev->entity = NULL;
+		return;
+	}
+
+	ret = media_device_register_entity(dvbdev->adapter->mdev,
+					   dvbdev->entity);
+	if (ret < 0) {
+		printk(KERN_ERR
+			"%s: media_device_register_entity failed for %s\n",
+			__func__, dvbdev->entity->name);
+		kfree(dvbdev->entity);
+		dvbdev->entity = NULL;
+		return;
+	}
+
+	printk(KERN_DEBUG "%s: media device '%s' registered.\n",
+		__func__, dvbdev->entity->name);
+#endif
+}
 
 int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 			const struct dvb_device *template, void *priv, int type)
@@ -258,9 +311,10 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 		       __func__, adap->num, dnames[type], id, PTR_ERR(clsdev));
 		return PTR_ERR(clsdev);
 	}
-
 	dprintk(KERN_DEBUG "DVB: register adapter%d/%s%d @ minor: %i (0x%02x)\n",
 		adap->num, dnames[type], id, minor, minor);
+
+	dvb_register_media_device(dvbdev, type, minor);
 
 	return 0;
 }
@@ -277,6 +331,13 @@ void dvb_unregister_device(struct dvb_device *dvbdev)
 	up_write(&minor_rwsem);
 
 	device_destroy(dvb_class, MKDEV(DVB_MAJOR, dvbdev->minor));
+
+#if defined(CONFIG_MEDIA_CONTROLLER_DVB)
+	if (dvbdev->entity) {
+		media_device_unregister_entity(dvbdev->entity);
+		kfree(dvbdev->entity);
+	}
+#endif
 
 	list_del (&dvbdev->list_head);
 	kfree (dvbdev->fops);

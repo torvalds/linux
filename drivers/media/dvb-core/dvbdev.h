@@ -27,6 +27,7 @@
 #include <linux/poll.h>
 #include <linux/fs.h>
 #include <linux/list.h>
+#include <media/media-device.h>
 
 #define DVB_MAJOR 212
 
@@ -71,6 +72,10 @@ struct dvb_adapter {
 	int mfe_shared;			/* indicates mutually exclusive frontends */
 	struct dvb_device *mfe_dvbdev;	/* frontend device in use */
 	struct mutex mfe_lock;		/* access lock for thread creation */
+
+#if defined(CONFIG_MEDIA_CONTROLLER_DVB)
+	struct media_device *mdev;
+#endif
 };
 
 
@@ -91,6 +96,14 @@ struct dvb_device {
 	wait_queue_head_t	  wait_queue;
 	/* don't really need those !? -- FIXME: use video_usercopy  */
 	int (*kernel_ioctl)(struct file *file, unsigned int cmd, void *arg);
+
+	/* Needed for media controller register/unregister */
+#if defined(CONFIG_MEDIA_CONTROLLER_DVB)
+	const char *name;
+
+	/* Filled inside dvbdev.c */
+	struct media_entity *entity;
+#endif
 
 	void *priv;
 };
