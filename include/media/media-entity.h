@@ -87,17 +87,7 @@ struct media_entity {
 		struct {
 			u32 major;
 			u32 minor;
-		} v4l;
-		struct {
-			u32 major;
-			u32 minor;
-		} fb;
-		struct {
-			u32 card;
-			u32 device;
-			u32 subdevice;
-		} alsa;
-		int dvb;
+		} dev;
 
 		/* Sub-device specifications */
 		/* Nothing needed yet */

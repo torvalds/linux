@@ -78,6 +78,20 @@ struct media_entity_desc {
 		struct {
 			__u32 major;
 			__u32 minor;
+		} dev;
+
+#if 1
+		/*
+		 * DEPRECATED: previous node specifications. Kept just to
+		 * avoid breaking compilation, but media_entity_desc.dev
+		 * should be used instead. In particular, alsa and dvb
+		 * fields below are wrong: for all devnodes, there should
+		 * be just major/minor inside the struct, as this is enough
+		 * to represent any devnode, no matter what type.
+		 */
+		struct {
+			__u32 major;
+			__u32 minor;
 		} v4l;
 		struct {
 			__u32 major;
@@ -89,6 +103,7 @@ struct media_entity_desc {
 			__u32 subdevice;
 		} alsa;
 		int dvb;
+#endif
 
 		/* Sub-device specifications */
 		/* Nothing needed yet */
