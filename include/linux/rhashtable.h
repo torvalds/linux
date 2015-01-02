@@ -18,14 +18,31 @@
 #ifndef _LINUX_RHASHTABLE_H
 #define _LINUX_RHASHTABLE_H
 
-#include <linux/rculist.h>
+#include <linux/list_nulls.h>
 #include <linux/workqueue.h>
+
+/*
+ * The end of the chain is marked with a special nulls marks which has
+ * the following format:
+ *
+ * +-------+-----------------------------------------------------+-+
+ * | Base  |                      Hash                           |1|
+ * +-------+-----------------------------------------------------+-+
+ *
+ * Base (4 bits) : Reserved to distinguish between multiple tables.
+ *                 Specified via &struct rhashtable_params.nulls_base.
+ * Hash (27 bits): Full hash (unmasked) of first element added to bucket
+ * 1 (1 bit)     : Nulls marker (always set)
+ *
+ * The remaining bits of the next pointer remain unused for now.
+ */
+#define RHT_BASE_BITS		4
+#define RHT_HASH_BITS		27
+#define RHT_BASE_SHIFT		RHT_HASH_BITS
 
 struct rhash_head {
 	struct rhash_head __rcu		*next;
 };
-
-#define INIT_HASH_HEAD(ptr) ((ptr)->next = NULL)
 
 /**
  * struct bucket_table - Table of hash buckets
@@ -55,6 +72,7 @@ struct rhashtable;
  * @hash_rnd: Seed to use while hashing
  * @max_shift: Maximum number of shifts while expanding
  * @min_shift: Minimum number of shifts while shrinking
+ * @nulls_base: Base value to generate nulls marker
  * @locks_mul: Number of bucket locks to allocate per cpu (default: 128)
  * @hashfn: Function to hash key
  * @obj_hashfn: Function to hash object
@@ -69,6 +87,7 @@ struct rhashtable_params {
 	u32			hash_rnd;
 	size_t			max_shift;
 	size_t			min_shift;
+	u32			nulls_base;
 	size_t			locks_mul;
 	rht_hashfn_t		hashfn;
 	rht_obj_hashfn_t	obj_hashfn;
@@ -99,6 +118,24 @@ struct rhashtable {
 	struct mutex                    mutex;
 	bool                            being_destroyed;
 };
+
+static inline unsigned long rht_marker(const struct rhashtable *ht, u32 hash)
+{
+	return NULLS_MARKER(ht->p.nulls_base + hash);
+}
+
+#define INIT_RHT_NULLS_HEAD(ptr, ht, hash) \
+	((ptr) = (typeof(ptr)) rht_marker(ht, hash))
+
+static inline bool rht_is_a_nulls(const struct rhash_head *ptr)
+{
+	return ((unsigned long) ptr & 1);
+}
+
+static inline unsigned long rht_get_nulls_value(const struct rhash_head *ptr)
+{
+	return ((unsigned long) ptr) >> 1;
+}
 
 #ifdef CONFIG_PROVE_LOCKING
 int lockdep_rht_mutex_is_held(struct rhashtable *ht);
@@ -157,7 +194,7 @@ void rhashtable_destroy(struct rhashtable *ht);
  */
 #define rht_for_each_continue(pos, head, tbl, hash) \
 	for (pos = rht_dereference_bucket(head, tbl, hash); \
-	     pos; \
+	     !rht_is_a_nulls(pos); \
 	     pos = rht_dereference_bucket((pos)->next, tbl, hash))
 
 /**
@@ -180,7 +217,7 @@ void rhashtable_destroy(struct rhashtable *ht);
  */
 #define rht_for_each_entry_continue(tpos, pos, head, tbl, hash, member)	\
 	for (pos = rht_dereference_bucket(head, tbl, hash);		\
-	     pos && rht_entry(tpos, pos, member);			\
+	     (!rht_is_a_nulls(pos)) && rht_entry(tpos, pos, member);	\
 	     pos = rht_dereference_bucket((pos)->next, tbl, hash))
 
 /**
@@ -209,9 +246,9 @@ void rhashtable_destroy(struct rhashtable *ht);
  */
 #define rht_for_each_entry_safe(tpos, pos, next, tbl, hash, member)	    \
 	for (pos = rht_dereference_bucket((tbl)->buckets[hash], tbl, hash), \
-	     next = pos ? rht_dereference_bucket(pos->next, tbl, hash)      \
-			: NULL;						    \
-	     pos && rht_entry(tpos, pos, member);			    \
+	     next = !rht_is_a_nulls(pos) ?				    \
+		       rht_dereference_bucket(pos->next, tbl, hash) : NULL; \
+	     (!rht_is_a_nulls(pos)) && rht_entry(tpos, pos, member);	    \
 	     pos = next)
 
 /**
@@ -228,7 +265,7 @@ void rhashtable_destroy(struct rhashtable *ht);
 #define rht_for_each_rcu_continue(pos, head, tbl, hash)			\
 	for (({barrier(); }),						\
 	     pos = rht_dereference_bucket_rcu(head, tbl, hash);		\
-	     pos;							\
+	     !rht_is_a_nulls(pos);					\
 	     pos = rcu_dereference_raw(pos->next))
 
 /**
@@ -260,7 +297,7 @@ void rhashtable_destroy(struct rhashtable *ht);
 #define rht_for_each_entry_rcu_continue(tpos, pos, head, tbl, hash, member) \
 	for (({barrier(); }),						    \
 	     pos = rht_dereference_bucket_rcu(head, tbl, hash);		    \
-	     pos && rht_entry(tpos, pos, member);			    \
+	     (!rht_is_a_nulls(pos)) && rht_entry(tpos, pos, member);	    \
 	     pos = rht_dereference_bucket_rcu(pos->next, tbl, hash))
 
 /**

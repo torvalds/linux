@@ -28,6 +28,9 @@
 #define HASH_MIN_SIZE		4UL
 #define BUCKET_LOCKS_PER_CPU   128UL
 
+/* Base bits plus 1 bit for nulls marker */
+#define HASH_RESERVED_SPACE	(RHT_BASE_BITS + 1)
+
 enum {
 	RHT_LOCK_NORMAL,
 	RHT_LOCK_NESTED,
@@ -86,7 +89,7 @@ static u32 obj_raw_hashfn(const struct rhashtable *ht, const void *ptr)
 		hash = ht->p.hashfn(ptr + ht->p.key_offset, ht->p.key_len,
 				    ht->p.hash_rnd);
 
-	return hash;
+	return hash >> HASH_RESERVED_SPACE;
 }
 
 static u32 key_hashfn(struct rhashtable *ht, const void *key, u32 len)
@@ -95,6 +98,7 @@ static u32 key_hashfn(struct rhashtable *ht, const void *key, u32 len)
 	u32 hash;
 
 	hash = ht->p.hashfn(key, len, ht->p.hash_rnd);
+	hash >>= HASH_RESERVED_SPACE;
 
 	return rht_bucket_index(tbl, hash);
 }
@@ -111,7 +115,7 @@ static struct rhash_head __rcu **bucket_tail(struct bucket_table *tbl, u32 n)
 	struct rhash_head __rcu **pprev;
 
 	for (pprev = &tbl->buckets[n];
-	     rht_dereference_bucket(*pprev, tbl, n);
+	     !rht_is_a_nulls(rht_dereference_bucket(*pprev, tbl, n));
 	     pprev = &rht_dereference_bucket(*pprev, tbl, n)->next)
 		;
 
@@ -164,6 +168,7 @@ static struct bucket_table *bucket_table_alloc(struct rhashtable *ht,
 {
 	struct bucket_table *tbl;
 	size_t size;
+	int i;
 
 	size = sizeof(*tbl) + nbuckets * sizeof(tbl->buckets[0]);
 	tbl = kzalloc(size, GFP_KERNEL | __GFP_NOWARN);
@@ -179,6 +184,9 @@ static struct bucket_table *bucket_table_alloc(struct rhashtable *ht,
 		bucket_table_free(tbl);
 		return NULL;
 	}
+
+	for (i = 0; i < nbuckets; i++)
+		INIT_RHT_NULLS_HEAD(tbl->buckets[i], ht, i);
 
 	return tbl;
 }
@@ -221,7 +229,7 @@ static void hashtable_chain_unzip(const struct rhashtable *ht,
 	/* Old bucket empty, no work needed. */
 	p = rht_dereference_bucket(old_tbl->buckets[old_hash], old_tbl,
 				   old_hash);
-	if (!p)
+	if (rht_is_a_nulls(p))
 		return;
 
 	new_hash = new_hash2 = head_hashfn(ht, new_tbl, p);
@@ -252,8 +260,8 @@ static void hashtable_chain_unzip(const struct rhashtable *ht,
 	/* Find the subsequent node which does hash to the same
 	 * bucket as node P, or NULL if no such node exists.
 	 */
-	next = NULL;
-	if (he) {
+	INIT_RHT_NULLS_HEAD(next, ht, old_hash);
+	if (!rht_is_a_nulls(he)) {
 		rht_for_each_continue(he, he->next, old_tbl, old_hash) {
 			if (head_hashfn(ht, new_tbl, he) == new_hash) {
 				next = he;
@@ -369,11 +377,15 @@ int rhashtable_expand(struct rhashtable *ht)
 		 */
 		complete = true;
 		for (old_hash = 0; old_hash < old_tbl->size; old_hash++) {
+			struct rhash_head *head;
+
 			old_bucket_lock = bucket_lock(old_tbl, old_hash);
 			spin_lock_bh(old_bucket_lock);
 
 			hashtable_chain_unzip(ht, new_tbl, old_tbl, old_hash);
-			if (old_tbl->buckets[old_hash] != NULL)
+			head = rht_dereference_bucket(old_tbl->buckets[old_hash],
+						      old_tbl, old_hash);
+			if (!rht_is_a_nulls(head))
 				complete = false;
 
 			spin_unlock_bh(old_bucket_lock);
@@ -498,6 +510,7 @@ static void rht_deferred_worker(struct work_struct *work)
 void rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj)
 {
 	struct bucket_table *tbl;
+	struct rhash_head *head;
 	spinlock_t *lock;
 	unsigned hash;
 
@@ -508,7 +521,12 @@ void rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj)
 	lock = bucket_lock(tbl, hash);
 
 	spin_lock_bh(lock);
-	RCU_INIT_POINTER(obj->next, tbl->buckets[hash]);
+	head = rht_dereference_bucket(tbl->buckets[hash], tbl, hash);
+	if (rht_is_a_nulls(head))
+		INIT_RHT_NULLS_HEAD(obj->next, ht, hash);
+	else
+		RCU_INIT_POINTER(obj->next, head);
+
 	rcu_assign_pointer(tbl->buckets[hash], obj);
 	spin_unlock_bh(lock);
 
@@ -709,6 +727,7 @@ static size_t rounded_hashtable_size(struct rhashtable_params *params)
  *	.key_offset = offsetof(struct test_obj, key),
  *	.key_len = sizeof(int),
  *	.hashfn = jhash,
+ *	.nulls_base = (1U << RHT_BASE_SHIFT),
  * };
  *
  * Configuration Example 2: Variable length keys
@@ -739,6 +758,9 @@ int rhashtable_init(struct rhashtable *ht, struct rhashtable_params *params)
 
 	if ((params->key_len && !params->hashfn) ||
 	    (!params->key_len && !params->obj_hashfn))
+		return -EINVAL;
+
+	if (params->nulls_base && params->nulls_base < (1U << RHT_BASE_SHIFT))
 		return -EINVAL;
 
 	params->min_shift = max_t(size_t, params->min_shift,
@@ -974,6 +996,7 @@ static int __init test_rht_init(void)
 		.key_offset = offsetof(struct test_obj, value),
 		.key_len = sizeof(int),
 		.hashfn = jhash,
+		.nulls_base = (3U << RHT_BASE_SHIFT),
 		.grow_decision = rht_grow_above_75,
 		.shrink_decision = rht_shrink_below_30,
 	};
