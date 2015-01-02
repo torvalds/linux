@@ -43,6 +43,17 @@ const static struct sd_caps host_caps[] = {
 	SD_CAPS(MMC_PM_KEEP_POWER, "MMC_PM_KEEP_POWER"),
 };
 
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+static int disable_uhs = 0;
+
+static int __init setup_disableuhs(char *line)
+{
+        disable_uhs = 1;
+        return 0;
+}
+early_param("disableuhs", setup_disableuhs);
+#endif
+
 static int amlsd_get_host_caps(struct device_node* of_node,
                 struct amlsd_platform* pdata)
 {
@@ -56,6 +67,15 @@ static int amlsd_get_host_caps(struct device_node* of_node,
                 caps |= host_caps[i].caps;
         }
     };
+
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+    if (disable_uhs) {
+            caps &= ~(MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 |
+                            MMC_CAP_UHS_SDR50 | MMC_CAP_UHS_SDR104 |
+                            MMC_CAP_UHS_DDR50);
+    }
+#endif
+
     pdata->caps = caps;
     printk("pdata->caps %x\n", pdata->caps);
 	return 0;
