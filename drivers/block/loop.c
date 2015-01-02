@@ -75,7 +75,6 @@
 #include <linux/sysfs.h>
 #include <linux/miscdevice.h>
 #include <linux/falloc.h>
-#include <linux/blk-mq.h>
 #include "loop.h"
 
 #include <asm/uaccess.h>
