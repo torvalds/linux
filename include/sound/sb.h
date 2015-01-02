@@ -320,7 +320,7 @@ irqreturn_t snd_sb8dsp_midi_interrupt(struct snd_sb *chip);
 int snd_sb8dsp_midi(struct snd_sb *chip, int device);
 
 /* sb16_init.c */
-int snd_sb16dsp_pcm(struct snd_sb *chip, int device, struct snd_pcm ** rpcm);
+int snd_sb16dsp_pcm(struct snd_sb *chip, int device);
 const struct snd_pcm_ops *snd_sb16dsp_get_pcm_ops(int direction);
 int snd_sb16dsp_configure(struct snd_sb *chip);
 /* sb16.c */
