@@ -297,7 +297,7 @@ static int snd_jazz16_probe(struct device *devptr, unsigned int dev)
 		"Media Vision Jazz16 at 0x%lx, irq %d, dma8 %d, dma16 %d",
 		port[dev], xirq, xdma8, xdma16);
 
-	err = snd_sb8dsp_pcm(chip, 0, NULL);
+	err = snd_sb8dsp_pcm(chip, 0);
 	if (err < 0)
 		goto err_free;
 	err = snd_sbmixer_new(chip);

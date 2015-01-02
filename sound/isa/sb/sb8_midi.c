@@ -263,13 +263,11 @@ static struct snd_rawmidi_ops snd_sb8dsp_midi_input =
 	.trigger =	snd_sb8dsp_midi_input_trigger,
 };
 
-int snd_sb8dsp_midi(struct snd_sb *chip, int device, struct snd_rawmidi ** rrawmidi)
+int snd_sb8dsp_midi(struct snd_sb *chip, int device)
 {
 	struct snd_rawmidi *rmidi;
 	int err;
 
-	if (rrawmidi)
-		*rrawmidi = NULL;
 	if ((err = snd_rawmidi_new(chip->card, "SB8 MIDI", device, 1, 1, &rmidi)) < 0)
 		return err;
 	strcpy(rmidi->name, "SB8 MIDI");
@@ -280,7 +278,5 @@ int snd_sb8dsp_midi(struct snd_sb *chip, int device, struct snd_rawmidi ** rrawm
 		rmidi->info_flags |= SNDRV_RAWMIDI_INFO_DUPLEX;
 	rmidi->private_data = chip;
 	chip->rmidi = rmidi;
-	if (rrawmidi)
-		*rrawmidi = rmidi;
 	return 0;
 }
