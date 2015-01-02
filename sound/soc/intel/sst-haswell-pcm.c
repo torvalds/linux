@@ -735,11 +735,6 @@ static void hsw_pcm_free_modules(struct hsw_priv_data *pdata)
 	}
 }
 
-static void hsw_pcm_free(struct snd_pcm *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int hsw_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_pcm *pcm = rtd->pcm;
@@ -936,7 +931,6 @@ static struct snd_soc_platform_driver hsw_soc_platform = {
 	.remove		= hsw_pcm_remove,
 	.ops		= &hsw_pcm_ops,
 	.pcm_new	= hsw_pcm_new,
-	.pcm_free	= hsw_pcm_free,
 };
 
 static const struct snd_soc_component_driver hsw_dai_component = {
