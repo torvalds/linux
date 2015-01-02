@@ -1257,10 +1257,19 @@ static int insert_orphan_item(struct btrfs_trans_handle *trans,
 			      struct btrfs_root *root, u64 offset)
 {
 	int ret;
-	ret = btrfs_find_item(root, NULL, BTRFS_ORPHAN_OBJECTID,
+	struct btrfs_path *path;
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+
+	ret = btrfs_find_item(root, path, BTRFS_ORPHAN_OBJECTID,
 			offset, BTRFS_ORPHAN_ITEM_KEY, NULL);
 	if (ret > 0)
 		ret = btrfs_insert_orphan_item(trans, root, offset);
+
+	btrfs_free_path(path);
+
 	return ret;
 }
 
