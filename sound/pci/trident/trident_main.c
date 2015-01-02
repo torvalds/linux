@@ -2172,14 +2172,11 @@ static struct snd_pcm_ops snd_trident_spdif_7018_ops = {
   
   ---------------------------------------------------------------------------*/
 
-int snd_trident_pcm(struct snd_trident *trident,
-		    int device, struct snd_pcm **rpcm)
+int snd_trident_pcm(struct snd_trident *trident, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
 
-	if (rpcm)
-		*rpcm = NULL;
 	if ((err = snd_pcm_new(trident->card, "trident_dx_nx", device, trident->ChanPCM, 1, &pcm)) < 0)
 		return err;
 
@@ -2214,8 +2211,6 @@ int snd_trident_pcm(struct snd_trident *trident,
 						      snd_dma_pci_data(trident->pci), 64*1024, 128*1024);
 	}
 
-	if (rpcm)
-		*rpcm = pcm;
 	return 0;
 }
 
@@ -2230,16 +2225,13 @@ int snd_trident_pcm(struct snd_trident *trident,
   
   ---------------------------------------------------------------------------*/
 
-int snd_trident_foldback_pcm(struct snd_trident *trident,
-			     int device, struct snd_pcm **rpcm)
+int snd_trident_foldback_pcm(struct snd_trident *trident, int device)
 {
 	struct snd_pcm *foldback;
 	int err;
 	int num_chan = 3;
 	struct snd_pcm_substream *substream;
 
-	if (rpcm)
-		*rpcm = NULL;
 	if (trident->device == TRIDENT_DEVICE_ID_NX)
 		num_chan = 4;
 	if ((err = snd_pcm_new(trident->card, "trident_dx_nx", device, 0, num_chan, &foldback)) < 0)
@@ -2271,8 +2263,6 @@ int snd_trident_foldback_pcm(struct snd_trident *trident,
 		snd_pcm_lib_preallocate_pages_for_all(foldback, SNDRV_DMA_TYPE_DEV,
 						      snd_dma_pci_data(trident->pci), 64*1024, 128*1024);
 
-	if (rpcm)
-		*rpcm = foldback;
 	return 0;
 }
 
@@ -2287,14 +2277,11 @@ int snd_trident_foldback_pcm(struct snd_trident *trident,
   
   ---------------------------------------------------------------------------*/
 
-int snd_trident_spdif_pcm(struct snd_trident *trident,
-			  int device, struct snd_pcm **rpcm)
+int snd_trident_spdif_pcm(struct snd_trident *trident, int device)
 {
 	struct snd_pcm *spdif;
 	int err;
 
-	if (rpcm)
-		*rpcm = NULL;
 	if ((err = snd_pcm_new(trident->card, "trident_dx_nx IEC958", device, 1, 0, &spdif)) < 0)
 		return err;
 
@@ -2310,8 +2297,6 @@ int snd_trident_spdif_pcm(struct snd_trident *trident,
 
 	snd_pcm_lib_preallocate_pages_for_all(spdif, SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(trident->pci), 64*1024, 128*1024);
 
-	if (rpcm)
-		*rpcm = spdif;
 	return 0;
 }
 
