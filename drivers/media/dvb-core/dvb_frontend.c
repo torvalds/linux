@@ -2612,11 +2612,14 @@ int dvb_register_frontend(struct dvb_adapter* dvb,
 			  struct dvb_frontend* fe)
 {
 	struct dvb_frontend_private *fepriv;
-	static const struct dvb_device dvbdev_template = {
+	const struct dvb_device dvbdev_template = {
 		.users = ~0,
 		.writers = 1,
 		.readers = (~0)-1,
 		.fops = &dvb_frontend_fops,
+#if defined(CONFIG_MEDIA_CONTROLLER_DVB)
+		.name = fe->ops.info.name,
+#endif
 		.kernel_ioctl = dvb_frontend_ioctl
 	};
 
