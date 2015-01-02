@@ -1246,17 +1246,6 @@ int btrfs_check_shared(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-/*
- * this makes the path point to (inum INODE_ITEM ioff)
- */
-int inode_item_info(u64 inum, u64 ioff, struct btrfs_root *fs_root,
-			struct btrfs_path *path)
-{
-	struct btrfs_key key;
-	return btrfs_find_item(fs_root, path, inum, ioff,
-			BTRFS_INODE_ITEM_KEY, &key);
-}
-
 static int inode_ref_info(u64 inum, u64 ioff, struct btrfs_root *fs_root,
 				struct btrfs_path *path,
 				struct btrfs_key *found_key)

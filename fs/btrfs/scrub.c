@@ -530,7 +530,11 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root,
 		goto err;
 	}
 
-	ret = inode_item_info(inum, 0, local_root, swarn->path);
+	/*
+	 * this makes the path point to (inum INODE_ITEM ioff)
+	 */
+	ret = btrfs_find_item(local_root, swarn->path, inum, 0,
+			BTRFS_INODE_ITEM_KEY, NULL);
 	if (ret) {
 		btrfs_release_path(swarn->path);
 		goto err;
