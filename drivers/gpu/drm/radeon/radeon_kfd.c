@@ -63,8 +63,6 @@ static void kgd_program_sh_mem_settings(struct kgd_dev *kgd, uint32_t vmid,
 static int kgd_set_pasid_vmid_mapping(struct kgd_dev *kgd, unsigned int pasid,
 					unsigned int vmid);
 
-static int kgd_init_memory(struct kgd_dev *kgd);
-
 static int kgd_init_pipeline(struct kgd_dev *kgd, uint32_t pipe_id,
 				uint32_t hpd_size, uint64_t hpd_gpu_addr);
 
@@ -89,7 +87,6 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.get_max_engine_clock_in_mhz = get_max_engine_clock_in_mhz,
 	.program_sh_mem_settings = kgd_program_sh_mem_settings,
 	.set_pasid_vmid_mapping = kgd_set_pasid_vmid_mapping,
-	.init_memory = kgd_init_memory,
 	.init_pipeline = kgd_init_pipeline,
 	.hqd_load = kgd_hqd_load,
 	.hqd_sdma_load = kgd_hqd_sdma_load,
@@ -371,42 +368,6 @@ static int kgd_set_pasid_vmid_mapping(struct kgd_dev *kgd, unsigned int pasid,
 								(1U << vmid)))
 		cpu_relax();
 	write_register(kgd, ATC_VMID_PASID_MAPPING_UPDATE_STATUS, 1U << vmid);
-
-	return 0;
-}
-
-static int kgd_init_memory(struct kgd_dev *kgd)
-{
-	/*
-	 * Configure apertures:
-	 * LDS:         0x60000000'00000000 - 0x60000001'00000000 (4GB)
-	 * Scratch:     0x60000001'00000000 - 0x60000002'00000000 (4GB)
-	 * GPUVM:       0x60010000'00000000 - 0x60020000'00000000 (1TB)
-	 */
-	int i;
-	uint32_t sh_mem_bases = PRIVATE_BASE(0x6000) | SHARED_BASE(0x6000);
-
-	for (i = 8; i < 16; i++) {
-		uint32_t sh_mem_config;
-
-		lock_srbm(kgd, 0, 0, 0, i);
-
-		sh_mem_config = ALIGNMENT_MODE(SH_MEM_ALIGNMENT_MODE_UNALIGNED);
-		sh_mem_config |= DEFAULT_MTYPE(MTYPE_NONCACHED);
-
-		write_register(kgd, SH_MEM_CONFIG, sh_mem_config);
-
-		write_register(kgd, SH_MEM_BASES, sh_mem_bases);
-
-		/* Scratch aperture is not supported for now. */
-		write_register(kgd, SH_STATIC_MEM_CONFIG, 0);
-
-		/* APE1 disabled for now. */
-		write_register(kgd, SH_MEM_APE1_BASE, 1);
-		write_register(kgd, SH_MEM_APE1_LIMIT, 0);
-
-		unlock_srbm(kgd);
-	}
 
 	return 0;
 }
