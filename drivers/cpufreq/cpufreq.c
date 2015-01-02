@@ -958,7 +958,6 @@ static void cpufreq_init_policy(struct cpufreq_policy *policy)
 	}
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 static int cpufreq_add_policy_cpu(struct cpufreq_policy *policy,
 				  unsigned int cpu, struct device *dev)
 {
@@ -996,7 +995,6 @@ static int cpufreq_add_policy_cpu(struct cpufreq_policy *policy,
 
 	return sysfs_create_link(&dev->kobj, &policy->kobj, "cpufreq");
 }
-#endif
 
 static struct cpufreq_policy *cpufreq_policy_restore(unsigned int cpu)
 {
@@ -1107,19 +1105,15 @@ static int __cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 {
 	unsigned int j, cpu = dev->id;
 	int ret = -ENOMEM;
-	struct cpufreq_policy *policy;
+	struct cpufreq_policy *policy, *tpolicy;
 	unsigned long flags;
 	bool recover_policy = cpufreq_suspended;
-#ifdef CONFIG_HOTPLUG_CPU
-	struct cpufreq_policy *tpolicy;
-#endif
 
 	if (cpu_is_offline(cpu))
 		return 0;
 
 	pr_debug("adding CPU %u\n", cpu);
 
-#ifdef CONFIG_SMP
 	/* check whether a different CPU already registered this
 	 * CPU because it is in the same boat. */
 	policy = cpufreq_cpu_get(cpu);
@@ -1127,12 +1121,10 @@ static int __cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 		cpufreq_cpu_put(policy);
 		return 0;
 	}
-#endif
 
 	if (!down_read_trylock(&cpufreq_rwsem))
 		return 0;
 
-#ifdef CONFIG_HOTPLUG_CPU
 	/* Check if this cpu was hot-unplugged earlier and has siblings */
 	read_lock_irqsave(&cpufreq_driver_lock, flags);
 	list_for_each_entry(tpolicy, &cpufreq_policy_list, policy_list) {
@@ -1144,7 +1136,6 @@ static int __cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 		}
 	}
 	read_unlock_irqrestore(&cpufreq_driver_lock, flags);
-#endif
 
 	/*
 	 * Restore the saved policy when doing light-weight init and fall back
