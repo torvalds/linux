@@ -1,0 +1,17 @@
+config MESON_PWM
+    tristate "Amlogic PWM support"
+    depends on !MESON_CS_DCDC_REGULATOR
+	help
+	  Generic PWM framework driver for AMLOGIC.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-meson.
+
+config MESON_PWM_CTRL
+    tristate "Amlogic PWM Control driver"
+    depends on MESON_PWM
+	help
+	  Generic PWM framework driver for Hardkernel.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-meson.

@@ -26,6 +26,7 @@ source "drivers/amlogic/smartcard/Kconfig"
 source "drivers/amlogic/thermal/Kconfig"
 source "drivers/amlogic/watchdog/Kconfig"
 source "drivers/amlogic/spi/Kconfig"
+source "drivers/amlogic/pwm/Kconfig"
 
 #
 #	Block devices

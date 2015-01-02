@@ -877,7 +877,23 @@
                                          9 0x00080000>;
                         amlogic,pins = "GPIOX_8","GPIOX_9","GPIOX_10";
                 };
-        };
+
+		odroid_pwm0:odroid_pwm0{
+            amlogic,setmask=<2 0x00000008>;     /*GPIOX_11 PWM_B Reg2[3]*/
+            amlogic,clrmask=<3 0x00100000
+                             7 0x40000000>;     
+            amlogic,pins="GPIOX_11";
+		};
+		odroid_pwm1:odroid_pwm1{
+            amlogic,setmask=<2 0x00000008       /*GPIOX_11 PWM_B Reg2[3]*/
+                             9 0x00080000>;     /*GPIOX_10 PWM_E Reg9[19]*/
+            amlogic,clrmask=<3 0x00500100
+                             4 0x00800000
+                             6 0x00020000
+                             7 0xc0000000>;
+            amlogic,pins="GPIOX_11","GPIOX_10";
+		};
+    };
     meson-eth{
                 compatible = "amlogic,meson-eth";
                 dev_name = "meson-eth";
@@ -902,4 +918,20 @@
             linux,default-trigger = "heartbeat";
         };
     };
+
+    pwm{
+        compatible = "amlogic, odroid-pwm";
+        dev_name = "meson_pwm";
+        status = "ok";
+        pinctrl-names = "odroid_pwm0","odroid_pwm1";
+        pinctrl-0 = <&odroid_pwm0>;
+        pinctrl-1 = <&odroid_pwm1>;
+    };
+
+    pwm-ctrl {
+        compatible = "amlogic, pwm-ctrl";
+        dev_name = "pwm-ctrl";
+        status = "ok";
+    };
+
 }; /* end of / */
