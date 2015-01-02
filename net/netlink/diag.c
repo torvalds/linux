@@ -113,7 +113,9 @@ static int __netlink_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 	req = nlmsg_data(cb->nlh);
 
 	for (i = 0; i < htbl->size; i++) {
-		rht_for_each_entry(nlsk, htbl->buckets[i], ht, node) {
+		struct rhash_head *pos;
+
+		rht_for_each_entry(nlsk, pos, htbl, i, node) {
 			sk = (struct sock *)nlsk;
 
 			if (!net_eq(sock_net(sk), net))

@@ -87,8 +87,15 @@ struct rhashtable {
 
 #ifdef CONFIG_PROVE_LOCKING
 int lockdep_rht_mutex_is_held(const struct rhashtable *ht);
+int lockdep_rht_bucket_is_held(const struct bucket_table *tbl, u32 hash);
 #else
 static inline int lockdep_rht_mutex_is_held(const struct rhashtable *ht)
+{
+	return 1;
+}
+
+static inline int lockdep_rht_bucket_is_held(const struct bucket_table *tbl,
+					     u32 hash)
 {
 	return 1;
 }
@@ -119,92 +126,144 @@ void rhashtable_destroy(const struct rhashtable *ht);
 #define rht_dereference_rcu(p, ht) \
 	rcu_dereference_check(p, lockdep_rht_mutex_is_held(ht))
 
-#define rht_entry(ptr, type, member) container_of(ptr, type, member)
-#define rht_entry_safe(ptr, type, member) \
-({ \
-	typeof(ptr) __ptr = (ptr); \
-	   __ptr ? rht_entry(__ptr, type, member) : NULL; \
-})
+#define rht_dereference_bucket(p, tbl, hash) \
+	rcu_dereference_protected(p, lockdep_rht_bucket_is_held(tbl, hash))
 
-#define rht_next_entry_safe(pos, ht, member) \
-({ \
-	pos ? rht_entry_safe(rht_dereference((pos)->member.next, ht), \
-			     typeof(*(pos)), member) : NULL; \
-})
+#define rht_dereference_bucket_rcu(p, tbl, hash) \
+	rcu_dereference_check(p, lockdep_rht_bucket_is_held(tbl, hash))
+
+#define rht_entry(tpos, pos, member) \
+	({ tpos = container_of(pos, typeof(*tpos), member); 1; })
+
+/**
+ * rht_for_each_continue - continue iterating over hash chain
+ * @pos:	the &struct rhash_head to use as a loop cursor.
+ * @head:	the previous &struct rhash_head to continue from
+ * @tbl:	the &struct bucket_table
+ * @hash:	the hash value / bucket index
+ */
+#define rht_for_each_continue(pos, head, tbl, hash) \
+	for (pos = rht_dereference_bucket(head, tbl, hash); \
+	     pos; \
+	     pos = rht_dereference_bucket((pos)->next, tbl, hash))
 
 /**
  * rht_for_each - iterate over hash chain
- * @pos:	&struct rhash_head to use as a loop cursor.
- * @head:	head of the hash chain (struct rhash_head *)
- * @ht:		pointer to your struct rhashtable
+ * @pos:	the &struct rhash_head to use as a loop cursor.
+ * @tbl:	the &struct bucket_table
+ * @hash:	the hash value / bucket index
  */
-#define rht_for_each(pos, head, ht) \
-	for (pos = rht_dereference(head, ht); \
-	     pos; \
-	     pos = rht_dereference((pos)->next, ht))
+#define rht_for_each(pos, tbl, hash) \
+	rht_for_each_continue(pos, (tbl)->buckets[hash], tbl, hash)
+
+/**
+ * rht_for_each_entry_continue - continue iterating over hash chain
+ * @tpos:	the type * to use as a loop cursor.
+ * @pos:	the &struct rhash_head to use as a loop cursor.
+ * @head:	the previous &struct rhash_head to continue from
+ * @tbl:	the &struct bucket_table
+ * @hash:	the hash value / bucket index
+ * @member:	name of the &struct rhash_head within the hashable struct.
+ */
+#define rht_for_each_entry_continue(tpos, pos, head, tbl, hash, member)	\
+	for (pos = rht_dereference_bucket(head, tbl, hash);		\
+	     pos && rht_entry(tpos, pos, member);			\
+	     pos = rht_dereference_bucket((pos)->next, tbl, hash))
 
 /**
  * rht_for_each_entry - iterate over hash chain of given type
- * @pos:	type * to use as a loop cursor.
- * @head:	head of the hash chain (struct rhash_head *)
- * @ht:		pointer to your struct rhashtable
- * @member:	name of the rhash_head within the hashable struct.
+ * @tpos:	the type * to use as a loop cursor.
+ * @pos:	the &struct rhash_head to use as a loop cursor.
+ * @tbl:	the &struct bucket_table
+ * @hash:	the hash value / bucket index
+ * @member:	name of the &struct rhash_head within the hashable struct.
  */
-#define rht_for_each_entry(pos, head, ht, member) \
-	for (pos = rht_entry_safe(rht_dereference(head, ht), \
-				   typeof(*(pos)), member); \
-	     pos; \
-	     pos = rht_next_entry_safe(pos, ht, member))
+#define rht_for_each_entry(tpos, pos, tbl, hash, member)		\
+	rht_for_each_entry_continue(tpos, pos, (tbl)->buckets[hash],	\
+				    tbl, hash, member)
 
 /**
  * rht_for_each_entry_safe - safely iterate over hash chain of given type
- * @pos:	type * to use as a loop cursor.
- * @n:		type * to use for temporary next object storage
- * @head:	head of the hash chain (struct rhash_head *)
- * @ht:		pointer to your struct rhashtable
- * @member:	name of the rhash_head within the hashable struct.
+ * @tpos:	the type * to use as a loop cursor.
+ * @pos:	the &struct rhash_head to use as a loop cursor.
+ * @next:	the &struct rhash_head to use as next in loop cursor.
+ * @tbl:	the &struct bucket_table
+ * @hash:	the hash value / bucket index
+ * @member:	name of the &struct rhash_head within the hashable struct.
  *
  * This hash chain list-traversal primitive allows for the looped code to
  * remove the loop cursor from the list.
  */
-#define rht_for_each_entry_safe(pos, n, head, ht, member)		\
-	for (pos = rht_entry_safe(rht_dereference(head, ht), \
-				  typeof(*(pos)), member), \
-	     n = rht_next_entry_safe(pos, ht, member); \
-	     pos; \
-	     pos = n, \
-	     n = rht_next_entry_safe(pos, ht, member))
+#define rht_for_each_entry_safe(tpos, pos, next, tbl, hash, member)	    \
+	for (pos = rht_dereference_bucket((tbl)->buckets[hash], tbl, hash), \
+	     next = pos ? rht_dereference_bucket(pos->next, tbl, hash)      \
+			: NULL;						    \
+	     pos && rht_entry(tpos, pos, member);			    \
+	     pos = next)
+
+/**
+ * rht_for_each_rcu_continue - continue iterating over rcu hash chain
+ * @pos:	the &struct rhash_head to use as a loop cursor.
+ * @head:	the previous &struct rhash_head to continue from
+ * @tbl:	the &struct bucket_table
+ * @hash:	the hash value / bucket index
+ *
+ * This hash chain list-traversal primitive may safely run concurrently with
+ * the _rcu mutation primitives such as rhashtable_insert() as long as the
+ * traversal is guarded by rcu_read_lock().
+ */
+#define rht_for_each_rcu_continue(pos, head, tbl, hash)			\
+	for (({barrier(); }),						\
+	     pos = rht_dereference_bucket_rcu(head, tbl, hash);		\
+	     pos;							\
+	     pos = rcu_dereference_raw(pos->next))
 
 /**
  * rht_for_each_rcu - iterate over rcu hash chain
- * @pos:	&struct rhash_head to use as a loop cursor.
- * @head:	head of the hash chain (struct rhash_head *)
- * @ht:		pointer to your struct rhashtable
+ * @pos:	the &struct rhash_head to use as a loop cursor.
+ * @tbl:	the &struct bucket_table
+ * @hash:	the hash value / bucket index
  *
  * This hash chain list-traversal primitive may safely run concurrently with
- * the _rcu fkht mutation primitives such as rht_insert() as long as the
+ * the _rcu mutation primitives such as rhashtable_insert() as long as the
  * traversal is guarded by rcu_read_lock().
  */
-#define rht_for_each_rcu(pos, head, ht) \
-	for (pos = rht_dereference_rcu(head, ht); \
-	     pos; \
-	     pos = rht_dereference_rcu((pos)->next, ht))
+#define rht_for_each_rcu(pos, tbl, hash)				\
+	rht_for_each_rcu_continue(pos, (tbl)->buckets[hash], tbl, hash)
+
+/**
+ * rht_for_each_entry_rcu_continue - continue iterating over rcu hash chain
+ * @tpos:	the type * to use as a loop cursor.
+ * @pos:	the &struct rhash_head to use as a loop cursor.
+ * @head:	the previous &struct rhash_head to continue from
+ * @tbl:	the &struct bucket_table
+ * @hash:	the hash value / bucket index
+ * @member:	name of the &struct rhash_head within the hashable struct.
+ *
+ * This hash chain list-traversal primitive may safely run concurrently with
+ * the _rcu mutation primitives such as rhashtable_insert() as long as the
+ * traversal is guarded by rcu_read_lock().
+ */
+#define rht_for_each_entry_rcu_continue(tpos, pos, head, tbl, hash, member) \
+	for (({barrier(); }),						    \
+	     pos = rht_dereference_bucket_rcu(head, tbl, hash);		    \
+	     pos && rht_entry(tpos, pos, member);			    \
+	     pos = rht_dereference_bucket_rcu(pos->next, tbl, hash))
 
 /**
  * rht_for_each_entry_rcu - iterate over rcu hash chain of given type
- * @pos:	type * to use as a loop cursor.
- * @head:	head of the hash chain (struct rhash_head *)
- * @member:	name of the rhash_head within the hashable struct.
+ * @tpos:	the type * to use as a loop cursor.
+ * @pos:	the &struct rhash_head to use as a loop cursor.
+ * @tbl:	the &struct bucket_table
+ * @hash:	the hash value / bucket index
+ * @member:	name of the &struct rhash_head within the hashable struct.
  *
  * This hash chain list-traversal primitive may safely run concurrently with
- * the _rcu fkht mutation primitives such as rht_insert() as long as the
+ * the _rcu mutation primitives such as rhashtable_insert() as long as the
  * traversal is guarded by rcu_read_lock().
  */
-#define rht_for_each_entry_rcu(pos, head, member) \
-	for (pos = rht_entry_safe(rcu_dereference_raw(head), \
-				  typeof(*(pos)), member); \
-	     pos; \
-	     pos = rht_entry_safe(rcu_dereference_raw((pos)->member.next), \
-				  typeof(*(pos)), member))
+#define rht_for_each_entry_rcu(tpos, pos, tbl, hash, member)		\
+	rht_for_each_entry_rcu_continue(tpos, pos, (tbl)->buckets[hash],\
+					tbl, hash, member)
 
 #endif /* _LINUX_RHASHTABLE_H */

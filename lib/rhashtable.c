@@ -35,6 +35,12 @@ int lockdep_rht_mutex_is_held(const struct rhashtable *ht)
 	return ht->p.mutex_is_held(ht->p.parent);
 }
 EXPORT_SYMBOL_GPL(lockdep_rht_mutex_is_held);
+
+int lockdep_rht_bucket_is_held(const struct bucket_table *tbl, u32 hash)
+{
+	return 1;
+}
+EXPORT_SYMBOL_GPL(lockdep_rht_bucket_is_held);
 #endif
 
 static void *rht_obj(const struct rhashtable *ht, const struct rhash_head *he)
@@ -141,7 +147,7 @@ static void hashtable_chain_unzip(const struct rhashtable *ht,
 	 * previous node p. Call the previous node p;
 	 */
 	h = head_hashfn(ht, new_tbl, p);
-	rht_for_each(he, p->next, ht) {
+	rht_for_each_continue(he, p->next, old_tbl, n) {
 		if (head_hashfn(ht, new_tbl, he) != h)
 			break;
 		p = he;
@@ -153,7 +159,7 @@ static void hashtable_chain_unzip(const struct rhashtable *ht,
 	 */
 	next = NULL;
 	if (he) {
-		rht_for_each(he, he->next, ht) {
+		rht_for_each_continue(he, he->next, old_tbl, n) {
 			if (head_hashfn(ht, new_tbl, he) == h) {
 				next = he;
 				break;
@@ -208,7 +214,7 @@ int rhashtable_expand(struct rhashtable *ht)
 	 */
 	for (i = 0; i < new_tbl->size; i++) {
 		h = rht_bucket_index(old_tbl, i);
-		rht_for_each(he, old_tbl->buckets[h], ht) {
+		rht_for_each(he, old_tbl, h) {
 			if (head_hashfn(ht, new_tbl, he) == i) {
 				RCU_INIT_POINTER(new_tbl->buckets[i], he);
 				break;
@@ -286,7 +292,7 @@ int rhashtable_shrink(struct rhashtable *ht)
 		 * to the new bucket.
 		 */
 		for (pprev = &ntbl->buckets[i]; *pprev != NULL;
-		     pprev = &rht_dereference(*pprev, ht)->next)
+		     pprev = &rht_dereference_bucket(*pprev, ntbl, i)->next)
 			;
 		RCU_INIT_POINTER(*pprev, tbl->buckets[i + ntbl->size]);
 	}
@@ -386,7 +392,7 @@ bool rhashtable_remove(struct rhashtable *ht, struct rhash_head *obj)
 	h = head_hashfn(ht, tbl, obj);
 
 	pprev = &tbl->buckets[h];
-	rht_for_each(he, tbl->buckets[h], ht) {
+	rht_for_each(he, tbl, h) {
 		if (he != obj) {
 			pprev = &he->next;
 			continue;
@@ -423,7 +429,7 @@ void *rhashtable_lookup(const struct rhashtable *ht, const void *key)
 	BUG_ON(!ht->p.key_len);
 
 	h = key_hashfn(ht, key, ht->p.key_len);
-	rht_for_each_rcu(he, tbl->buckets[h], ht) {
+	rht_for_each_rcu(he, tbl, h) {
 		if (memcmp(rht_obj(ht, he) + ht->p.key_offset, key,
 			   ht->p.key_len))
 			continue;
@@ -457,7 +463,7 @@ void *rhashtable_lookup_compare(const struct rhashtable *ht, const void *key,
 	u32 hash;
 
 	hash = key_hashfn(ht, key, ht->p.key_len);
-	rht_for_each_rcu(he, tbl->buckets[hash], ht) {
+	rht_for_each_rcu(he, tbl, hash) {
 		if (!compare(rht_obj(ht, he), arg))
 			continue;
 		return rht_obj(ht, he);
@@ -625,6 +631,7 @@ static int __init test_rht_lookup(struct rhashtable *ht)
 static void test_bucket_stats(struct rhashtable *ht, bool quiet)
 {
 	unsigned int cnt, rcu_cnt, i, total = 0;
+	struct rhash_head *pos;
 	struct test_obj *obj;
 	struct bucket_table *tbl;
 
@@ -635,14 +642,14 @@ static void test_bucket_stats(struct rhashtable *ht, bool quiet)
 		if (!quiet)
 			pr_info(" [%#4x/%zu]", i, tbl->size);
 
-		rht_for_each_entry_rcu(obj, tbl->buckets[i], node) {
+		rht_for_each_entry_rcu(obj, pos, tbl, i, node) {
 			cnt++;
 			total++;
 			if (!quiet)
 				pr_cont(" [%p],", obj);
 		}
 
-		rht_for_each_entry_rcu(obj, tbl->buckets[i], node)
+		rht_for_each_entry_rcu(obj, pos, tbl, i, node)
 			rcu_cnt++;
 
 		if (rcu_cnt != cnt)
@@ -664,7 +671,8 @@ static void test_bucket_stats(struct rhashtable *ht, bool quiet)
 static int __init test_rhashtable(struct rhashtable *ht)
 {
 	struct bucket_table *tbl;
-	struct test_obj *obj, *next;
+	struct test_obj *obj;
+	struct rhash_head *pos, *next;
 	int err;
 	unsigned int i;
 
@@ -733,7 +741,7 @@ static int __init test_rhashtable(struct rhashtable *ht)
 error:
 	tbl = rht_dereference_rcu(ht->tbl, ht);
 	for (i = 0; i < tbl->size; i++)
-		rht_for_each_entry_safe(obj, next, tbl->buckets[i], ht, node)
+		rht_for_each_entry_safe(obj, pos, next, tbl, i, node)
 			kfree(obj);
 
 	return err;

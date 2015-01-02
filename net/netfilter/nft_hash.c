@@ -142,7 +142,9 @@ static void nft_hash_walk(const struct nft_ctx *ctx, const struct nft_set *set,
 
 	tbl = rht_dereference_rcu(priv->tbl, priv);
 	for (i = 0; i < tbl->size; i++) {
-		rht_for_each_entry_rcu(he, tbl->buckets[i], node) {
+		struct rhash_head *pos;
+
+		rht_for_each_entry_rcu(he, pos, tbl, i, node) {
 			if (iter->count < iter->skip)
 				goto cont;
 
@@ -197,15 +199,13 @@ static void nft_hash_destroy(const struct nft_set *set)
 {
 	const struct rhashtable *priv = nft_set_priv(set);
 	const struct bucket_table *tbl = priv->tbl;
-	struct nft_hash_elem *he, *next;
+	struct nft_hash_elem *he;
+	struct rhash_head *pos, *next;
 	unsigned int i;
 
 	for (i = 0; i < tbl->size; i++) {
-		for (he = rht_entry(tbl->buckets[i], struct nft_hash_elem, node);
-		     he != NULL; he = next) {
-			next = rht_entry(he->node.next, struct nft_hash_elem, node);
+		rht_for_each_entry_safe(he, pos, next, tbl, i, node)
 			nft_hash_elem_destroy(set, he);
-		}
 	}
 	rhashtable_destroy(priv);
 }
