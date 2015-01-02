@@ -973,14 +973,11 @@ static struct snd_pcm_ops snd_cs4281_capture_ops = {
 	.pointer =	snd_cs4281_pointer,
 };
 
-static int snd_cs4281_pcm(struct cs4281 *chip, int device,
-			  struct snd_pcm **rpcm)
+static int snd_cs4281_pcm(struct cs4281 *chip, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
 
-	if (rpcm)
-		*rpcm = NULL;
 	err = snd_pcm_new(chip->card, "CS4281", device, 1, 1, &pcm);
 	if (err < 0)
 		return err;
@@ -996,8 +993,6 @@ static int snd_cs4281_pcm(struct cs4281 *chip, int device,
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 					      snd_dma_pci_data(chip->pci), 64*1024, 512*1024);
 
-	if (rpcm)
-		*rpcm = pcm;
 	return 0;
 }
 
@@ -1788,14 +1783,11 @@ static struct snd_rawmidi_ops snd_cs4281_midi_input =
 	.trigger =	snd_cs4281_midi_input_trigger,
 };
 
-static int snd_cs4281_midi(struct cs4281 *chip, int device,
-			   struct snd_rawmidi **rrawmidi)
+static int snd_cs4281_midi(struct cs4281 *chip, int device)
 {
 	struct snd_rawmidi *rmidi;
 	int err;
 
-	if (rrawmidi)
-		*rrawmidi = NULL;
 	if ((err = snd_rawmidi_new(chip->card, "CS4281", device, 1, 1, &rmidi)) < 0)
 		return err;
 	strcpy(rmidi->name, "CS4281");
@@ -1804,8 +1796,6 @@ static int snd_cs4281_midi(struct cs4281 *chip, int device,
 	rmidi->info_flags |= SNDRV_RAWMIDI_INFO_OUTPUT | SNDRV_RAWMIDI_INFO_INPUT | SNDRV_RAWMIDI_INFO_DUPLEX;
 	rmidi->private_data = chip;
 	chip->rmidi = rmidi;
-	if (rrawmidi)
-		*rrawmidi = rmidi;
 	return 0;
 }
 
@@ -1941,11 +1931,11 @@ static int snd_cs4281_probe(struct pci_dev *pci,
 		snd_card_free(card);
 		return err;
 	}
-	if ((err = snd_cs4281_pcm(chip, 0, NULL)) < 0) {
+	if ((err = snd_cs4281_pcm(chip, 0)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
-	if ((err = snd_cs4281_midi(chip, 0, NULL)) < 0) {
+	if ((err = snd_cs4281_midi(chip, 0)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
