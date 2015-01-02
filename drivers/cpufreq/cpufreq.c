@@ -1026,6 +1026,8 @@ static struct cpufreq_policy *cpufreq_policy_alloc(void)
 	init_rwsem(&policy->rwsem);
 	spin_lock_init(&policy->transition_lock);
 	init_waitqueue_head(&policy->transition_wait);
+	init_completion(&policy->kobj_unregister);
+	INIT_WORK(&policy->update, handle_update);
 
 	return policy;
 
@@ -1154,9 +1156,6 @@ static int __cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 		policy->cpu = cpu;
 
 	cpumask_copy(policy->cpus, cpumask_of(cpu));
-
-	init_completion(&policy->kobj_unregister);
-	INIT_WORK(&policy->update, handle_update);
 
 	/* call driver. From then on the cpufreq must be able
 	 * to accept all calls to ->verify and ->setpolicy for this CPU
