@@ -61,6 +61,13 @@
  */
 #define NR_DESCS_PER_CHANNEL	64
 
+/* The set of bus widths supported by the DMA controller */
+#define DW_DMA_BUSWIDTHS			  \
+	BIT(DMA_SLAVE_BUSWIDTH_UNDEFINED)	| \
+	BIT(DMA_SLAVE_BUSWIDTH_1_BYTE)		| \
+	BIT(DMA_SLAVE_BUSWIDTH_2_BYTES)		| \
+	BIT(DMA_SLAVE_BUSWIDTH_4_BYTES)
+
 /*----------------------------------------------------------------------*/
 
 static struct device *chan2dev(struct dma_chan *chan)
@@ -1660,8 +1667,8 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 	dw->dma.device_free_chan_resources = dwc_free_chan_resources;
 
 	dw->dma.device_prep_dma_memcpy = dwc_prep_dma_memcpy;
-
 	dw->dma.device_prep_slave_sg = dwc_prep_slave_sg;
+
 	dw->dma.device_config = dwc_config;
 	dw->dma.device_pause = dwc_pause;
 	dw->dma.device_resume = dwc_resume;
@@ -1669,6 +1676,13 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 
 	dw->dma.device_tx_status = dwc_tx_status;
 	dw->dma.device_issue_pending = dwc_issue_pending;
+
+	/* DMA capabilities */
+	dw->dma.src_addr_widths = DW_DMA_BUSWIDTHS;
+	dw->dma.dst_addr_widths = DW_DMA_BUSWIDTHS;
+	dw->dma.directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV) |
+			     BIT(DMA_MEM_TO_MEM);
+	dw->dma.residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
 
 	err = dma_async_device_register(&dw->dma);
 	if (err)
