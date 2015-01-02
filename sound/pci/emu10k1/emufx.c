@@ -2641,14 +2641,11 @@ static int snd_emu10k1_fx8010_release(struct snd_hwdep * hw, struct file *file)
 	return 0;
 }
 
-int snd_emu10k1_fx8010_new(struct snd_emu10k1 *emu, int device,
-			   struct snd_hwdep **rhwdep)
+int snd_emu10k1_fx8010_new(struct snd_emu10k1 *emu, int device)
 {
 	struct snd_hwdep *hw;
 	int err;
 	
-	if (rhwdep)
-		*rhwdep = NULL;
 	if ((err = snd_hwdep_new(emu->card, "FX8010", device, &hw)) < 0)
 		return err;
 	strcpy(hw->name, "EMU10K1 (FX8010)");
@@ -2657,8 +2654,6 @@ int snd_emu10k1_fx8010_new(struct snd_emu10k1 *emu, int device,
 	hw->ops.ioctl = snd_emu10k1_fx8010_ioctl;
 	hw->ops.release = snd_emu10k1_fx8010_release;
 	hw->private_data = emu;
-	if (rhwdep)
-		*rhwdep = hw;
 	return 0;
 }
 

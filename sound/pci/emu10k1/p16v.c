@@ -640,7 +640,7 @@ int snd_p16v_free(struct snd_emu10k1 *chip)
 	return 0;
 }
 
-int snd_p16v_pcm(struct snd_emu10k1 *emu, int device, struct snd_pcm **rpcm)
+int snd_p16v_pcm(struct snd_emu10k1 *emu, int device)
 {
 	struct snd_pcm *pcm;
 	struct snd_pcm_substream *substream;
@@ -649,8 +649,6 @@ int snd_p16v_pcm(struct snd_emu10k1 *emu, int device, struct snd_pcm **rpcm)
   
 	/* dev_dbg(emu->card->dev, "snd_p16v_pcm called. device=%d\n", device); */
 	emu->p16v_device_offset = device;
-	if (rpcm)
-		*rpcm = NULL;
 
 	if ((err = snd_pcm_new(emu->card, "p16v", device, 1, capture, &pcm)) < 0)
 		return err;
@@ -693,9 +691,6 @@ int snd_p16v_pcm(struct snd_emu10k1 *emu, int device, struct snd_pcm **rpcm)
 			   "preallocate capture substream: err=%d\n", err);
 		*/
 	}
-  
-	if (rpcm)
-		*rpcm = pcm;
   
 	return 0;
 }
