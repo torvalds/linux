@@ -33,7 +33,7 @@ static bool nft_hash_lookup(const struct nft_set *set,
 			    const struct nft_data *key,
 			    struct nft_data *data)
 {
-	const struct rhashtable *priv = nft_set_priv(set);
+	struct rhashtable *priv = nft_set_priv(set);
 	const struct nft_hash_elem *he;
 
 	he = rhashtable_lookup(priv, key);
@@ -113,7 +113,7 @@ static bool nft_hash_compare(void *ptr, void *arg)
 
 static int nft_hash_get(const struct nft_set *set, struct nft_set_elem *elem)
 {
-	const struct rhashtable *priv = nft_set_priv(set);
+	struct rhashtable *priv = nft_set_priv(set);
 	struct nft_compare_arg arg = {
 		.set = set,
 		.elem = elem,
@@ -129,7 +129,7 @@ static int nft_hash_get(const struct nft_set *set, struct nft_set_elem *elem)
 static void nft_hash_walk(const struct nft_ctx *ctx, const struct nft_set *set,
 			  struct nft_set_iter *iter)
 {
-	const struct rhashtable *priv = nft_set_priv(set);
+	struct rhashtable *priv = nft_set_priv(set);
 	const struct bucket_table *tbl;
 	const struct nft_hash_elem *he;
 	struct nft_set_elem elem;
@@ -162,13 +162,6 @@ static unsigned int nft_hash_privsize(const struct nlattr * const nla[])
 	return sizeof(struct rhashtable);
 }
 
-#ifdef CONFIG_PROVE_LOCKING
-static int lockdep_nfnl_lock_is_held(void *parent)
-{
-	return lockdep_nfnl_is_held(NFNL_SUBSYS_NFTABLES);
-}
-#endif
-
 static int nft_hash_init(const struct nft_set *set,
 			 const struct nft_set_desc *desc,
 			 const struct nlattr * const tb[])
@@ -182,9 +175,6 @@ static int nft_hash_init(const struct nft_set *set,
 		.hashfn = jhash,
 		.grow_decision = rht_grow_above_75,
 		.shrink_decision = rht_shrink_below_30,
-#ifdef CONFIG_PROVE_LOCKING
-		.mutex_is_held = lockdep_nfnl_lock_is_held,
-#endif
 	};
 
 	return rhashtable_init(priv, &params);
@@ -192,16 +182,23 @@ static int nft_hash_init(const struct nft_set *set,
 
 static void nft_hash_destroy(const struct nft_set *set)
 {
-	const struct rhashtable *priv = nft_set_priv(set);
-	const struct bucket_table *tbl = priv->tbl;
+	struct rhashtable *priv = nft_set_priv(set);
+	const struct bucket_table *tbl;
 	struct nft_hash_elem *he;
 	struct rhash_head *pos, *next;
 	unsigned int i;
 
+	/* Stop an eventual async resizing */
+	priv->being_destroyed = true;
+	mutex_lock(&priv->mutex);
+
+	tbl = rht_dereference(priv->tbl, priv);
 	for (i = 0; i < tbl->size; i++) {
 		rht_for_each_entry_safe(he, pos, next, tbl, i, node)
 			nft_hash_elem_destroy(set, he);
 	}
+	mutex_unlock(&priv->mutex);
+
 	rhashtable_destroy(priv);
 }
 

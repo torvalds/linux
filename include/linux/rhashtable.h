@@ -19,6 +19,7 @@
 #define _LINUX_RHASHTABLE_H
 
 #include <linux/rculist.h>
+#include <linux/workqueue.h>
 
 struct rhash_head {
 	struct rhash_head __rcu		*next;
@@ -26,8 +27,17 @@ struct rhash_head {
 
 #define INIT_HASH_HEAD(ptr) ((ptr)->next = NULL)
 
+/**
+ * struct bucket_table - Table of hash buckets
+ * @size: Number of hash buckets
+ * @locks_mask: Mask to apply before accessing locks[]
+ * @locks: Array of spinlocks protecting individual buckets
+ * @buckets: size * hash buckets
+ */
 struct bucket_table {
 	size_t				size;
+	unsigned int			locks_mask;
+	spinlock_t			*locks;
 	struct rhash_head __rcu		*buckets[];
 };
 
@@ -45,11 +55,11 @@ struct rhashtable;
  * @hash_rnd: Seed to use while hashing
  * @max_shift: Maximum number of shifts while expanding
  * @min_shift: Minimum number of shifts while shrinking
+ * @locks_mul: Number of bucket locks to allocate per cpu (default: 128)
  * @hashfn: Function to hash key
  * @obj_hashfn: Function to hash object
  * @grow_decision: If defined, may return true if table should expand
  * @shrink_decision: If defined, may return true if table should shrink
- * @mutex_is_held: Must return true if protecting mutex is held
  */
 struct rhashtable_params {
 	size_t			nelem_hint;
@@ -59,37 +69,42 @@ struct rhashtable_params {
 	u32			hash_rnd;
 	size_t			max_shift;
 	size_t			min_shift;
+	size_t			locks_mul;
 	rht_hashfn_t		hashfn;
 	rht_obj_hashfn_t	obj_hashfn;
 	bool			(*grow_decision)(const struct rhashtable *ht,
 						 size_t new_size);
 	bool			(*shrink_decision)(const struct rhashtable *ht,
 						   size_t new_size);
-#ifdef CONFIG_PROVE_LOCKING
-	int			(*mutex_is_held)(void *parent);
-	void			*parent;
-#endif
 };
 
 /**
  * struct rhashtable - Hash table handle
  * @tbl: Bucket table
+ * @future_tbl: Table under construction during expansion/shrinking
  * @nelems: Number of elements in table
  * @shift: Current size (1 << shift)
  * @p: Configuration parameters
+ * @run_work: Deferred worker to expand/shrink asynchronously
+ * @mutex: Mutex to protect current/future table swapping
+ * @being_destroyed: True if table is set up for destruction
  */
 struct rhashtable {
 	struct bucket_table __rcu	*tbl;
-	size_t				nelems;
+	struct bucket_table __rcu       *future_tbl;
+	atomic_t			nelems;
 	size_t				shift;
 	struct rhashtable_params	p;
+	struct delayed_work             run_work;
+	struct mutex                    mutex;
+	bool                            being_destroyed;
 };
 
 #ifdef CONFIG_PROVE_LOCKING
-int lockdep_rht_mutex_is_held(const struct rhashtable *ht);
+int lockdep_rht_mutex_is_held(struct rhashtable *ht);
 int lockdep_rht_bucket_is_held(const struct bucket_table *tbl, u32 hash);
 #else
-static inline int lockdep_rht_mutex_is_held(const struct rhashtable *ht)
+static inline int lockdep_rht_mutex_is_held(struct rhashtable *ht)
 {
 	return 1;
 }
@@ -112,11 +127,11 @@ bool rht_shrink_below_30(const struct rhashtable *ht, size_t new_size);
 int rhashtable_expand(struct rhashtable *ht);
 int rhashtable_shrink(struct rhashtable *ht);
 
-void *rhashtable_lookup(const struct rhashtable *ht, const void *key);
-void *rhashtable_lookup_compare(const struct rhashtable *ht, const void *key,
+void *rhashtable_lookup(struct rhashtable *ht, const void *key);
+void *rhashtable_lookup_compare(struct rhashtable *ht, const void *key,
 				bool (*compare)(void *, void *), void *arg);
 
-void rhashtable_destroy(const struct rhashtable *ht);
+void rhashtable_destroy(struct rhashtable *ht);
 
 #define rht_dereference(p, ht) \
 	rcu_dereference_protected(p, lockdep_rht_mutex_is_held(ht))
