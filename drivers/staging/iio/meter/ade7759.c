@@ -218,9 +218,12 @@ static int ade7759_reset(struct device *dev)
 	int ret;
 	u16 val;
 
-	ade7759_spi_read_reg_16(dev,
+	ret = ade7759_spi_read_reg_16(dev,
 			ADE7759_MODE,
 			&val);
+	if (ret < 0)
+		return ret;
+
 	val |= 1 << 6; /* Software Chip Reset */
 	ret = ade7759_spi_write_reg_16(dev,
 			ADE7759_MODE,
@@ -301,11 +304,18 @@ error_ret:
 /* Power down the device */
 static int ade7759_stop_device(struct device *dev)
 {
+	int ret;
 	u16 val;
 
-	ade7759_spi_read_reg_16(dev,
+	ret = ade7759_spi_read_reg_16(dev,
 			ADE7759_MODE,
 			&val);
+	if (ret < 0) {
+		dev_err(dev, "unable to power down the device, error: %d\n",
+			ret);
+		return ret;
+	}
+
 	val |= 1 << 4;  /* AD converters can be turned off */
 
 	return ade7759_spi_write_reg_16(dev, ADE7759_MODE, val);
