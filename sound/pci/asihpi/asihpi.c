@@ -2832,14 +2832,11 @@ static int snd_asihpi_hpi_ioctl(struct snd_hwdep *hw, struct file *file,
 /* results in /dev/snd/hwC#D0 file for each card with index #
    also /proc/asound/hwdep will contain '#-00: asihpi (HPI) for each card'
 */
-static int snd_asihpi_hpi_new(struct snd_card_asihpi *asihpi,
-			      int device, struct snd_hwdep **rhwdep)
+static int snd_asihpi_hpi_new(struct snd_card_asihpi *asihpi, int device)
 {
 	struct snd_hwdep *hw;
 	int err;
 
-	if (rhwdep)
-		*rhwdep = NULL;
 	err = snd_hwdep_new(asihpi->card, "HPI", device, &hw);
 	if (err < 0)
 		return err;
@@ -2849,8 +2846,6 @@ static int snd_asihpi_hpi_new(struct snd_card_asihpi *asihpi,
 	hw->ops.ioctl = snd_asihpi_hpi_ioctl;
 	hw->ops.release = snd_asihpi_hpi_release;
 	hw->private_data = asihpi;
-	if (rhwdep)
-		*rhwdep = hw;
 	return 0;
 }
 
@@ -2993,7 +2988,7 @@ static int snd_asihpi_probe(struct pci_dev *pci_dev,
 
 	/* always create, can be enabled or disabled dynamically
 	    by enable_hwdep  module param*/
-	snd_asihpi_hpi_new(asihpi, 0, NULL);
+	snd_asihpi_hpi_new(asihpi, 0);
 
 	strcpy(card->driver, "ASIHPI");
 
