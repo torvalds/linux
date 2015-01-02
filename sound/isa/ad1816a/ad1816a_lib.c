@@ -675,7 +675,7 @@ static struct snd_pcm_ops snd_ad1816a_capture_ops = {
 	.pointer =	snd_ad1816a_capture_pointer,
 };
 
-int snd_ad1816a_pcm(struct snd_ad1816a *chip, int device, struct snd_pcm **rpcm)
+int snd_ad1816a_pcm(struct snd_ad1816a *chip, int device)
 {
 	int error;
 	struct snd_pcm *pcm;
@@ -697,13 +697,10 @@ int snd_ad1816a_pcm(struct snd_ad1816a *chip, int device, struct snd_pcm **rpcm)
 					      64*1024, chip->dma1 > 3 || chip->dma2 > 3 ? 128*1024 : 64*1024);
 
 	chip->pcm = pcm;
-	if (rpcm)
-		*rpcm = pcm;
 	return 0;
 }
 
-int snd_ad1816a_timer(struct snd_ad1816a *chip, int device,
-		      struct snd_timer **rtimer)
+int snd_ad1816a_timer(struct snd_ad1816a *chip, int device)
 {
 	struct snd_timer *timer;
 	struct snd_timer_id tid;
@@ -720,8 +717,6 @@ int snd_ad1816a_timer(struct snd_ad1816a *chip, int device,
 	timer->private_data = chip;
 	chip->timer = timer;
 	timer->hw = snd_ad1816a_timer_table;
-	if (rtimer)
-		*rtimer = timer;
 	return 0;
 }
 
