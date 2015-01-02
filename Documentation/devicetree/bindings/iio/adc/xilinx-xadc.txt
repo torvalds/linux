@@ -59,7 +59,7 @@ Optional properties:
 	  Each child node represents one channel and has the following
 	  properties:
 		Required properties:
-			* reg: Pair of pins the the channel is connected to.
+			* reg: Pair of pins the channel is connected to.
 				0: VP/VN
 				1: VAUXP[0]/VAUXN[0]
 				2: VAUXP[1]/VAUXN[1]

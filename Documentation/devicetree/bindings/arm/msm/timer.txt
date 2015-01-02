@@ -8,7 +8,7 @@ Properties:
                "qcom,kpss-timer" - krait subsystem
                "qcom,scss-timer" - scorpion subsystem
 
-- interrupts : Interrupts for the the debug timer, the first general purpose
+- interrupts : Interrupts for the debug timer, the first general purpose
                timer, and optionally a second general purpose timer in that
                order.
 
