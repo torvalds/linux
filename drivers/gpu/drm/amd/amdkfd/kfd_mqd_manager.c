@@ -26,8 +26,7 @@
 #include "kfd_priv.h"
 #include "kfd_mqd_manager.h"
 #include "cik_regs.h"
-#include "../../radeon/cikd.h"
-#include "../../radeon/cik_reg.h"
+#include "cik_structs.h"
 
 inline void busy_wait(unsigned long ms)
 {

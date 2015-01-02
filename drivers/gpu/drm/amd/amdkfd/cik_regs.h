@@ -168,6 +168,8 @@
 #define	IB_ATC_EN					(1U << 23)
 #define	DEFAULT_MIN_IB_AVAIL_SIZE			(3U << 20)
 
+#define	AQL_ENABLE					1
+
 #define CP_HQD_DEQUEUE_REQUEST				0xC974
 #define	DEQUEUE_REQUEST_DRAIN				1
 #define DEQUEUE_REQUEST_RESET				2
@@ -187,6 +189,17 @@
 #define	MQD_VMID(x)					((x) << 0)
 #define	MQD_VMID_MASK					(0xf << 0)
 #define	MQD_CONTROL_PRIV_STATE_EN			(1U << 8)
+
+#define	SDMA_RB_VMID(x)					(x << 24)
+#define	SDMA_RB_ENABLE					(1 << 0)
+#define	SDMA_RB_SIZE(x)					((x) << 1) /* log2 */
+#define	SDMA_RPTR_WRITEBACK_ENABLE			(1 << 12)
+#define	SDMA_RPTR_WRITEBACK_TIMER(x)			((x) << 16) /* log2 */
+#define	SDMA_OFFSET(x)					(x << 0)
+#define	SDMA_DB_ENABLE					(1 << 28)
+#define	SDMA_ATC					(1 << 0)
+#define	SDMA_VA_PTR32					(1 << 4)
+#define	SDMA_VA_SHARED_BASE(x)				(x << 8)
 
 #define GRBM_GFX_INDEX					0x30800
 #define	INSTANCE_INDEX(x)				((x) << 0)

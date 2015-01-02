@@ -31,7 +31,6 @@
 #include "kfd_mqd_manager.h"
 #include "cik_regs.h"
 #include "kfd_kernel_queue.h"
-#include "../../radeon/cik_reg.h"
 
 /* Size of the per-pipe EOP queue */
 #define CIK_HPD_EOP_BYTES_LOG2 11
