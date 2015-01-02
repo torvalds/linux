@@ -471,7 +471,7 @@ static sint xmitframe_swencrypt(struct _adapter *padapter,
 	return _SUCCESS;
 }
 
-static sint make_wlanhdr(struct _adapter *padapter , u8 *hdr,
+static sint make_wlanhdr(struct _adapter *padapter, u8 *hdr,
 			 struct pkt_attrib *pattrib)
 {
 	u16 *qc;

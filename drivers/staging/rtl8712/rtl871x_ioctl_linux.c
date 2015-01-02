@@ -196,7 +196,7 @@ static inline char *translate_scan(struct _adapter *padapter,
 	if (p && ht_ielen > 0) {
 		ht_cap = true;
 		pht_capie = (struct ieee80211_ht_cap *)(p + 2);
-		memcpy(&mcs_rate , pht_capie->supp_mcs_set, 2);
+		memcpy(&mcs_rate, pht_capie->supp_mcs_set, 2);
 	}
 	/* Add the protocol name */
 	iwe.cmd = SIOCGIWNAME;
@@ -1436,7 +1436,7 @@ static int r8711_wx_get_rate(struct net_device *dev,
 		if (p && ht_ielen > 0) {
 			ht_cap = true;
 			pht_capie = (struct ieee80211_ht_cap *)(p + 2);
-			memcpy(&mcs_rate , pht_capie->supp_mcs_set, 2);
+			memcpy(&mcs_rate, pht_capie->supp_mcs_set, 2);
 			bw_40MHz = (pht_capie->cap_info &
 				    IEEE80211_HT_CAP_SUP_WIDTH) ? 1 : 0;
 			short_GI = (pht_capie->cap_info &

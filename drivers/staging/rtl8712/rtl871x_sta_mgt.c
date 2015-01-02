@@ -227,7 +227,7 @@ void r8712_free_all_stainfo(struct _adapter *padapter)
 					      struct sta_info, hash_list);
 			plist = plist->next;
 			if (pbcmc_stainfo != psta)
-				r8712_free_stainfo(padapter , psta);
+				r8712_free_stainfo(padapter, psta);
 		}
 	}
 	spin_unlock_irqrestore(&pstapriv->sta_hash_lock, irqL);
