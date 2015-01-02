@@ -83,15 +83,10 @@ static void nft_hash_remove(const struct nft_set *set,
 			    const struct nft_set_elem *elem)
 {
 	struct rhashtable *priv = nft_set_priv(set);
-	struct rhash_head *he, __rcu **pprev;
 
-	pprev = elem->cookie;
-	he = rht_dereference((*pprev), priv);
-
-	rhashtable_remove_pprev(priv, he, pprev);
-
+	rhashtable_remove(priv, elem->cookie);
 	synchronize_rcu();
-	kfree(he);
+	kfree(elem->cookie);
 }
 
 struct nft_compare_arg {
@@ -105,7 +100,7 @@ static bool nft_hash_compare(void *ptr, void *arg)
 	struct nft_compare_arg *x = arg;
 
 	if (!nft_data_cmp(&he->key, &x->elem->key, x->set->klen)) {
-		x->elem->cookie = &he->node;
+		x->elem->cookie = he;
 		x->elem->flags = 0;
 		if (x->set->flags & NFT_SET_MAP)
 			nft_data_copy(&x->elem->data, he->data);

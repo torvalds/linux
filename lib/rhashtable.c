@@ -345,32 +345,6 @@ void rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj)
 EXPORT_SYMBOL_GPL(rhashtable_insert);
 
 /**
- * rhashtable_remove_pprev - remove object from hash table given previous element
- * @ht:		hash table
- * @obj:	pointer to hash head inside object
- * @pprev:	pointer to previous element
- *
- * Identical to rhashtable_remove() but caller is alreayd aware of the element
- * in front of the element to be deleted. This is in particular useful for
- * deletion when combined with walking or lookup.
- */
-void rhashtable_remove_pprev(struct rhashtable *ht, struct rhash_head *obj,
-			     struct rhash_head __rcu **pprev)
-{
-	struct bucket_table *tbl = rht_dereference(ht->tbl, ht);
-
-	ASSERT_RHT_MUTEX(ht);
-
-	RCU_INIT_POINTER(*pprev, obj->next);
-	ht->nelems--;
-
-	if (ht->p.shrink_decision &&
-	    ht->p.shrink_decision(ht, tbl->size))
-		rhashtable_shrink(ht);
-}
-EXPORT_SYMBOL_GPL(rhashtable_remove_pprev);
-
-/**
  * rhashtable_remove - remove object from hash table
  * @ht:		hash table
  * @obj:	pointer to hash head inside object
@@ -403,7 +377,13 @@ bool rhashtable_remove(struct rhashtable *ht, struct rhash_head *obj)
 			continue;
 		}
 
-		rhashtable_remove_pprev(ht, he, pprev);
+		RCU_INIT_POINTER(*pprev, he->next);
+		ht->nelems--;
+
+		if (ht->p.shrink_decision &&
+		    ht->p.shrink_decision(ht, tbl->size))
+			rhashtable_shrink(ht);
+
 		return true;
 	}
 
