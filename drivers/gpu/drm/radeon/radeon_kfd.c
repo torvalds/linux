@@ -30,6 +30,7 @@
 #include "radeon_kfd.h"
 #include "radeon_ucode.h"
 #include <linux/firmware.h>
+#include "cik_structs.h"
 
 #define CIK_PIPE_PER_MEC	(4)
 
