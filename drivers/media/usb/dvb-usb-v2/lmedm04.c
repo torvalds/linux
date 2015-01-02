@@ -145,6 +145,10 @@ struct lme2510_state {
 	void *usb_buffer;
 	/* Frontend original calls */
 	int (*fe_read_status)(struct dvb_frontend *, fe_status_t *);
+	int (*fe_read_signal_strength)(struct dvb_frontend *, u16 *);
+	int (*fe_read_snr)(struct dvb_frontend *, u16 *);
+	int (*fe_read_ber)(struct dvb_frontend *, u32 *);
+	int (*fe_read_ucblocks)(struct dvb_frontend *, u32 *);
 	int (*fe_set_voltage)(struct dvb_frontend *, fe_sec_voltage_t);
 	u8 dvb_usb_lme2510_firmware;
 };
@@ -877,6 +881,9 @@ static int dm04_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 {
 	struct lme2510_state *st = fe_to_priv(fe);
 
+	if (st->fe_read_signal_strength && !st->stream_on)
+		return st->fe_read_signal_strength(fe, strength);
+
 	switch (st->tuner_config) {
 	case TUNER_LG:
 		*strength = 0xff - st->signal_level;
@@ -898,6 +905,9 @@ static int dm04_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct lme2510_state *st = fe_to_priv(fe);
 
+	if (st->fe_read_snr && !st->stream_on)
+		return st->fe_read_snr(fe, snr);
+
 	switch (st->tuner_config) {
 	case TUNER_LG:
 		*snr = 0xff - st->signal_sn;
@@ -917,6 +927,11 @@ static int dm04_read_snr(struct dvb_frontend *fe, u16 *snr)
 
 static int dm04_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
+	struct lme2510_state *st = fe_to_priv(fe);
+
+	if (st->fe_read_ber && !st->stream_on)
+		return st->fe_read_ber(fe, ber);
+
 	*ber = 0;
 
 	return 0;
@@ -924,6 +939,11 @@ static int dm04_read_ber(struct dvb_frontend *fe, u32 *ber)
 
 static int dm04_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
+	struct lme2510_state *st = fe_to_priv(fe);
+
+	if (st->fe_read_ucblocks && !st->stream_on)
+		return st->fe_read_ucblocks(fe, ucblocks);
+
 	*ucblocks = 0;
 
 	return 0;
@@ -1036,6 +1056,10 @@ static int dm04_lme2510_frontend_attach(struct dvb_usb_adapter *adap)
 	}
 
 	st->fe_read_status = adap->fe[0]->ops.read_status;
+	st->fe_read_signal_strength = adap->fe[0]->ops.read_signal_strength;
+	st->fe_read_snr = adap->fe[0]->ops.read_snr;
+	st->fe_read_ber = adap->fe[0]->ops.read_ber;
+	st->fe_read_ucblocks = adap->fe[0]->ops.read_ucblocks;
 
 	adap->fe[0]->ops.read_status = dm04_read_status;
 	adap->fe[0]->ops.read_signal_strength = dm04_read_signal_strength;
