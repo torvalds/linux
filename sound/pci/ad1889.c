@@ -623,13 +623,10 @@ snd_ad1889_interrupt(int irq, void *dev_id)
 }
 
 static int
-snd_ad1889_pcm_init(struct snd_ad1889 *chip, int device, struct snd_pcm **rpcm)
+snd_ad1889_pcm_init(struct snd_ad1889 *chip, int device)
 {
 	int err;
 	struct snd_pcm *pcm;
-
-	if (rpcm)
-		*rpcm = NULL;
 
 	err = snd_pcm_new(chip->card, chip->card->driver, device, 1, 1, &pcm);
 	if (err < 0)
@@ -657,9 +654,6 @@ snd_ad1889_pcm_init(struct snd_ad1889 *chip, int device, struct snd_pcm **rpcm)
 		dev_err(chip->card->dev, "buffer allocation error: %d\n", err);
 		return err;
 	}
-	
-	if (rpcm)
-		*rpcm = pcm;
 	
 	return 0;
 }
@@ -1016,7 +1010,7 @@ snd_ad1889_probe(struct pci_dev *pci,
 	if (err < 0)
 		goto free_and_ret;
 	
-	err = snd_ad1889_pcm_init(chip, 0, NULL);
+	err = snd_ad1889_pcm_init(chip, 0);
 	if (err < 0)
 		goto free_and_ret;
 
