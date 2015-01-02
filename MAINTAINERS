@@ -7008,11 +7008,12 @@ F:	arch/openrisc/
 
 OPENVSWITCH
 M:	Pravin Shelar <pshelar@nicira.com>
+L:	netdev@vger.kernel.org
 L:	dev@openvswitch.org
 W:	http://openvswitch.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pshelar/openvswitch.git
 S:	Maintained
 F:	net/openvswitch/
+F:	include/uapi/linux/openvswitch.h
 
 OPL4 DRIVER
 M:	Clemens Ladisch <clemens@ladisch.de>
