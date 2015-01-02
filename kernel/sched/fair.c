@@ -4709,12 +4709,21 @@ static unsigned long capacity_curr_of(int cpu)
  * capacity_orig) as it useful for predicting the capacity required after task
  * migrations (scheduler-driven DVFS).
  */
-static unsigned long cpu_util(int cpu)
+static unsigned long __cpu_util(int cpu, int delta)
 {
 	unsigned long util = cpu_rq(cpu)->cfs.avg.util_avg;
 	unsigned long capacity = capacity_orig_of(cpu);
 
-	return (util >= capacity) ? capacity : util;
+	delta += util;
+	if (delta < 0)
+		return 0;
+
+	return (delta >= capacity) ? capacity : delta;
+}
+
+static unsigned long cpu_util(int cpu)
+{
+	return __cpu_util(cpu, 0);
 }
 
 static inline bool energy_aware(void)
@@ -4722,8 +4731,18 @@ static inline bool energy_aware(void)
 	return sched_feat(ENERGY_AWARE);
 }
 
+struct energy_env {
+	struct sched_group	*sg_top;
+	struct sched_group	*sg_cap;
+	int			cap_idx;
+	int			util_delta;
+	int			src_cpu;
+	int			dst_cpu;
+	int			energy;
+};
+
 /*
- * cpu_norm_util() returns the cpu util relative to a specific capacity,
+ * __cpu_norm_util() returns the cpu util relative to a specific capacity,
  * i.e. it's busy ratio, in the range [0..SCHED_LOAD_SCALE] which is useful for
  * energy calculations. Using the scale-invariant util returned by
  * cpu_util() and approximating scale-invariant util by:
@@ -4736,9 +4755,9 @@ static inline bool energy_aware(void)
  *
  *   norm_util = running_time/time ~ util/capacity
  */
-static unsigned long cpu_norm_util(int cpu, unsigned long capacity)
+static unsigned long __cpu_norm_util(int cpu, unsigned long capacity, int delta)
 {
-	int util = cpu_util(cpu);
+	int util = __cpu_util(cpu, delta);
 
 	if (util >= capacity)
 		return SCHED_CAPACITY_SCALE;
@@ -4746,13 +4765,25 @@ static unsigned long cpu_norm_util(int cpu, unsigned long capacity)
 	return (util << SCHED_CAPACITY_SHIFT)/capacity;
 }
 
-static unsigned long group_max_util(struct sched_group *sg)
+static int calc_util_delta(struct energy_env *eenv, int cpu)
 {
-	int i;
+	if (cpu == eenv->src_cpu)
+		return -eenv->util_delta;
+	if (cpu == eenv->dst_cpu)
+		return eenv->util_delta;
+	return 0;
+}
+
+static
+unsigned long group_max_util(struct energy_env *eenv)
+{
+	int i, delta;
 	unsigned long max_util = 0;
 
-	for_each_cpu(i, sched_group_cpus(sg))
-		max_util = max(max_util, cpu_util(i));
+	for_each_cpu(i, sched_group_cpus(eenv->sg_cap)) {
+		delta = calc_util_delta(eenv, i);
+		max_util = max(max_util, __cpu_util(i, delta));
+	}
 
 	return max_util;
 }
@@ -4766,30 +4797,35 @@ static unsigned long group_max_util(struct sched_group *sg)
  * latter is used as the estimate as it leads to a more pessimistic energy
  * estimate (more busy).
  */
-static unsigned long group_norm_util(struct sched_group *sg, int cap_idx)
+static unsigned
+long group_norm_util(struct energy_env *eenv, struct sched_group *sg)
 {
-	int i;
+	int i, delta;
 	unsigned long util_sum = 0;
-	unsigned long capacity = sg->sge->cap_states[cap_idx].cap;
+	unsigned long capacity = sg->sge->cap_states[eenv->cap_idx].cap;
 
-	for_each_cpu(i, sched_group_cpus(sg))
-		util_sum += cpu_norm_util(i, capacity);
+	for_each_cpu(i, sched_group_cpus(sg)) {
+		delta = calc_util_delta(eenv, i);
+		util_sum += __cpu_norm_util(i, capacity, delta);
+	}
 
 	if (util_sum > SCHED_CAPACITY_SCALE)
 		return SCHED_CAPACITY_SCALE;
 	return util_sum;
 }
 
-static int find_new_capacity(struct sched_group *sg,
+static int find_new_capacity(struct energy_env *eenv,
 	const struct sched_group_energy const *sge)
 {
 	int idx;
-	unsigned long util = group_max_util(sg);
+	unsigned long util = group_max_util(eenv);
 
 	for (idx = 0; idx < sge->nr_cap_states; idx++) {
 		if (sge->cap_states[idx].cap >= util)
-			return idx;
+			break;
 	}
+
+	eenv->cap_idx = idx;
 
 	return idx;
 }
@@ -4804,16 +4840,16 @@ static int find_new_capacity(struct sched_group *sg,
  * This can probably be done in a faster but more complex way.
  * Note: sched_group_energy() may fail when racing with sched_domain updates.
  */
-static int sched_group_energy(struct sched_group *sg_top)
+static int sched_group_energy(struct energy_env *eenv)
 {
 	struct sched_domain *sd;
 	int cpu, total_energy = 0;
 	struct cpumask visit_cpus;
 	struct sched_group *sg;
 
-	WARN_ON(!sg_top->sge);
+	WARN_ON(!eenv->sg_top->sge);
 
-	cpumask_copy(&visit_cpus, sched_group_cpus(sg_top));
+	cpumask_copy(&visit_cpus, sched_group_cpus(eenv->sg_top));
 
 	while (!cpumask_empty(&visit_cpus)) {
 		struct sched_group *sg_shared_cap = NULL;
@@ -4845,17 +4881,16 @@ static int sched_group_energy(struct sched_group *sg_top)
 				break;
 
 			do {
-				struct sched_group *sg_cap_util;
 				unsigned long group_util;
 				int sg_busy_energy, sg_idle_energy, cap_idx;
 
 				if (sg_shared_cap && sg_shared_cap->group_weight >= sg->group_weight)
-					sg_cap_util = sg_shared_cap;
+					eenv->sg_cap = sg_shared_cap;
 				else
-					sg_cap_util = sg;
+					eenv->sg_cap = sg;
 
-				cap_idx = find_new_capacity(sg_cap_util, sg->sge);
-				group_util = group_norm_util(sg, cap_idx);
+				cap_idx = find_new_capacity(eenv, sg->sge);
+				group_util = group_norm_util(eenv, sg);
 				sg_busy_energy = (group_util * sg->sge->cap_states[cap_idx].power)
 										>> SCHED_CAPACITY_SHIFT;
 				sg_idle_energy = ((SCHED_LOAD_SCALE-group_util) * sg->sge->idle_states[0].power)
@@ -4866,7 +4901,7 @@ static int sched_group_energy(struct sched_group *sg_top)
 				if (!sd->child)
 					cpumask_xor(&visit_cpus, &visit_cpus, sched_group_cpus(sg));
 
-				if (cpumask_equal(sched_group_cpus(sg), sched_group_cpus(sg_top)))
+				if (cpumask_equal(sched_group_cpus(sg), sched_group_cpus(eenv->sg_top)))
 					goto next_cpu;
 
 			} while (sg = sg->next, sg != sd->groups);
@@ -4875,7 +4910,8 @@ next_cpu:
 		continue;
 	}
 
-	return total_energy;
+	eenv->energy = total_energy;
+	return 0;
 }
 
 /*
