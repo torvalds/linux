@@ -250,12 +250,12 @@ EXPORT_SYMBOL_GPL(cpufreq_cpu_put);
  * systems as each CPU might be scaled differently. So, use the arch
  * per-CPU loops_per_jiffy value wherever possible.
  */
-#ifndef CONFIG_SMP
-static unsigned long l_p_j_ref;
-static unsigned int l_p_j_ref_freq;
-
 static void adjust_jiffies(unsigned long val, struct cpufreq_freqs *ci)
 {
+#ifndef CONFIG_SMP
+	static unsigned long l_p_j_ref;
+	static unsigned int l_p_j_ref_freq;
+
 	if (ci->flags & CPUFREQ_CONST_LOOPS)
 		return;
 
@@ -271,13 +271,8 @@ static void adjust_jiffies(unsigned long val, struct cpufreq_freqs *ci)
 		pr_debug("scaling loops_per_jiffy to %lu for frequency %u kHz\n",
 			 loops_per_jiffy, ci->new);
 	}
-}
-#else
-static inline void adjust_jiffies(unsigned long val, struct cpufreq_freqs *ci)
-{
-	return;
-}
 #endif
+}
 
 static void __cpufreq_notify_transition(struct cpufreq_policy *policy,
 		struct cpufreq_freqs *freqs, unsigned int state)
