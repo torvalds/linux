@@ -220,6 +220,12 @@ struct hci_dev {
 	__u16		le_conn_max_interval;
 	__u16		le_conn_latency;
 	__u16		le_supv_timeout;
+	__u16		le_def_tx_len;
+	__u16		le_def_tx_time;
+	__u16		le_max_tx_len;
+	__u16		le_max_tx_time;
+	__u16		le_max_rx_len;
+	__u16		le_max_rx_time;
 	__u16		discov_interleaved_timeout;
 	__u16		conn_info_min_age;
 	__u16		conn_info_max_age;
@@ -434,6 +440,7 @@ struct hci_conn {
 	struct delayed_work le_conn_timeout;
 
 	struct device	dev;
+	struct dentry	*debugfs;
 
 	struct hci_dev	*hdev;
 	void		*l2cap_data;
@@ -920,8 +927,6 @@ struct hci_conn_params *hci_conn_params_lookup(struct hci_dev *hdev,
 					       bdaddr_t *addr, u8 addr_type);
 struct hci_conn_params *hci_conn_params_add(struct hci_dev *hdev,
 					    bdaddr_t *addr, u8 addr_type);
-int hci_conn_params_set(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type,
-			u8 auto_connect);
 void hci_conn_params_del(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type);
 void hci_conn_params_clear_all(struct hci_dev *hdev);
 void hci_conn_params_clear_disabled(struct hci_dev *hdev);
@@ -929,8 +934,6 @@ void hci_conn_params_clear_disabled(struct hci_dev *hdev);
 struct hci_conn_params *hci_pend_le_action_lookup(struct list_head *list,
 						  bdaddr_t *addr,
 						  u8 addr_type);
-
-void hci_update_background_scan(struct hci_dev *hdev);
 
 void hci_uuids_clear(struct hci_dev *hdev);
 
@@ -1284,29 +1287,7 @@ static inline int hci_check_conn_params(u16 min, u16 max, u16 latency,
 int hci_register_cb(struct hci_cb *hcb);
 int hci_unregister_cb(struct hci_cb *hcb);
 
-struct hci_request {
-	struct hci_dev		*hdev;
-	struct sk_buff_head	cmd_q;
-
-	/* If something goes wrong when building the HCI request, the error
-	 * value is stored in this field.
-	 */
-	int			err;
-};
-
-void hci_req_init(struct hci_request *req, struct hci_dev *hdev);
-int hci_req_run(struct hci_request *req, hci_req_complete_t complete);
-void hci_req_add(struct hci_request *req, u16 opcode, u32 plen,
-		 const void *param);
-void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen,
-		    const void *param, u8 event);
-void hci_req_cmd_complete(struct hci_dev *hdev, u16 opcode, u8 status);
 bool hci_req_pending(struct hci_dev *hdev);
-
-void hci_req_add_le_scan_disable(struct hci_request *req);
-void hci_req_add_le_passive_scan(struct hci_request *req);
-
-void hci_update_page_scan(struct hci_dev *hdev, struct hci_request *req);
 
 struct sk_buff *__hci_cmd_sync(struct hci_dev *hdev, u16 opcode, u32 plen,
 			       const void *param, u32 timeout);
@@ -1417,8 +1398,6 @@ u8 hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max, u16 latency,
 void hci_le_start_enc(struct hci_conn *conn, __le16 ediv, __le64 rand,
 							__u8 ltk[16]);
 
-int hci_update_random_address(struct hci_request *req, bool require_privacy,
-			      u8 *own_addr_type);
 void hci_copy_identity_address(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			       u8 *bdaddr_type);
 

@@ -87,6 +87,26 @@ ieee802154_set_channel(struct wpan_phy *wpan_phy, u8 page, u8 channel)
 }
 
 static int
+ieee802154_set_cca_mode(struct wpan_phy *wpan_phy,
+			const struct wpan_phy_cca *cca)
+{
+	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
+	int ret;
+
+	ASSERT_RTNL();
+
+	/* check if phy support this setting */
+	if (!(local->hw.flags & IEEE802154_HW_CCA_MODE))
+		return -EOPNOTSUPP;
+
+	ret = drv_set_cca_mode(local, cca);
+	if (!ret)
+		wpan_phy->cca = *cca;
+
+	return ret;
+}
+
+static int
 ieee802154_set_pan_id(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
 		      __le16 pan_id)
 {
@@ -201,6 +221,7 @@ const struct cfg802154_ops mac802154_config_ops = {
 	.add_virtual_intf = ieee802154_add_iface,
 	.del_virtual_intf = ieee802154_del_iface,
 	.set_channel = ieee802154_set_channel,
+	.set_cca_mode = ieee802154_set_cca_mode,
 	.set_pan_id = ieee802154_set_pan_id,
 	.set_short_addr = ieee802154_set_short_addr,
 	.set_backoff_exponent = ieee802154_set_backoff_exponent,

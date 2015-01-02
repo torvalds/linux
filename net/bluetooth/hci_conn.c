@@ -25,11 +25,13 @@
 /* Bluetooth HCI connection handling. */
 
 #include <linux/export.h>
+#include <linux/debugfs.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/l2cap.h>
 
+#include "hci_request.h"
 #include "smp.h"
 #include "a2mp.h"
 
@@ -545,6 +547,8 @@ int hci_conn_del(struct hci_conn *conn)
 	skb_queue_purge(&conn->data_q);
 
 	hci_conn_del_sysfs(conn);
+
+	debugfs_remove_recursive(conn->debugfs);
 
 	if (test_bit(HCI_CONN_PARAM_REMOVAL_PEND, &conn->flags))
 		hci_conn_params_del(conn->hdev, &conn->dst, conn->dst_type);

@@ -19,7 +19,6 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/skbuff.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/of_gpio.h>
 #include <linux/ieee802154.h>
 
@@ -513,7 +512,6 @@ err_tx:
 	return rc;
 }
 
-
 static int cc2520_rx(struct cc2520_private *priv)
 {
 	u8 len = 0, lqi = 0, bytes = 1;
@@ -652,6 +650,7 @@ static int cc2520_register(struct cc2520_private *priv)
 	priv->hw->parent = &priv->spi->dev;
 	priv->hw->extra_tx_headroom = 0;
 	priv->hw->vif_data_size = sizeof(*priv);
+	ieee802154_random_extended_addr(&priv->hw->phy->perm_extended_addr);
 
 	/* We do support only 2.4 Ghz */
 	priv->hw->phy->channels_supported[0] = 0x7FFF800;
@@ -842,23 +841,14 @@ done:
 static int cc2520_probe(struct spi_device *spi)
 {
 	struct cc2520_private *priv;
-	struct pinctrl *pinctrl;
 	struct cc2520_platform_data *pdata;
 	int ret;
 
-	priv = devm_kzalloc(&spi->dev,
-			    sizeof(struct cc2520_private), GFP_KERNEL);
-	if (!priv) {
-		ret = -ENOMEM;
-		goto err_ret;
-	}
+	priv = devm_kzalloc(&spi->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
 
 	spi_set_drvdata(spi, priv);
-
-	pinctrl = devm_pinctrl_get_select_default(&spi->dev);
-	if (IS_ERR(pinctrl))
-		dev_warn(&spi->dev,
-			 "pinctrl pins are not configured\n");
 
 	pdata = cc2520_get_platform_data(spi);
 	if (!pdata) {
@@ -870,10 +860,8 @@ static int cc2520_probe(struct spi_device *spi)
 
 	priv->buf = devm_kzalloc(&spi->dev,
 				 SPI_COMMAND_BUFFER, GFP_KERNEL);
-	if (!priv->buf) {
-		ret = -ENOMEM;
-		goto err_ret;
-	}
+	if (!priv->buf)
+		return -ENOMEM;
 
 	mutex_init(&priv->buffer_mutex);
 	INIT_WORK(&priv->fifop_irqwork, cc2520_fifop_irqwork);
@@ -947,7 +935,6 @@ static int cc2520_probe(struct spi_device *spi)
 	if (ret)
 		goto err_hw_init;
 
-
 	gpio_set_value(pdata->vreg, HIGH);
 	usleep_range(100, 150);
 
@@ -991,8 +978,6 @@ static int cc2520_probe(struct spi_device *spi)
 err_hw_init:
 	mutex_destroy(&priv->buffer_mutex);
 	flush_work(&priv->fifop_irqwork);
-
-err_ret:
 	return ret;
 }
 

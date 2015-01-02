@@ -102,6 +102,16 @@ enum {
 	 */
 	HCI_QUIRK_FIXUP_BUFFER_SIZE,
 
+	/* When this quirk is set, then the HCI Read Local Supported
+	 * Commands command is not supported. In general Bluetooth 1.2
+	 * and later controllers should support this command. However
+	 * some controllers indicate Bluetooth 1.2 support, but do
+	 * not support this command.
+	 *
+	 * This quirk must be set before hci_register_dev is called.
+	 */
+	HCI_QUIRK_BROKEN_LOCAL_COMMANDS,
+
 	/* When this quirk is set, then no stored link key handling
 	 * is performed. This is mainly due to the fact that the
 	 * HCI Delete Stored Link Key command is advertised, but
@@ -343,6 +353,7 @@ enum {
 #define HCI_LE_ENCRYPTION		0x01
 #define HCI_LE_CONN_PARAM_REQ_PROC	0x02
 #define HCI_LE_PING			0x10
+#define HCI_LE_DATA_LEN_EXT		0x20
 #define HCI_LE_EXT_SCAN_POLICY		0x80
 
 /* Connection modes */
@@ -1371,6 +1382,39 @@ struct hci_cp_le_conn_param_req_neg_reply {
 	__u8	reason;
 } __packed;
 
+#define HCI_OP_LE_SET_DATA_LEN		0x2022
+struct hci_cp_le_set_data_len {
+	__le16	handle;
+	__le16	tx_len;
+	__le16	tx_time;
+} __packed;
+struct hci_rp_le_set_data_len {
+	__u8	status;
+	__le16	handle;
+} __packed;
+
+#define HCI_OP_LE_READ_DEF_DATA_LEN	0x2023
+struct hci_rp_le_read_def_data_len {
+	__u8	status;
+	__le16	tx_len;
+	__le16	tx_time;
+} __packed;
+
+#define HCI_OP_LE_WRITE_DEF_DATA_LEN	0x2024
+struct hci_cp_le_write_def_data_len {
+	__le16	tx_len;
+	__le16	tx_time;
+} __packed;
+
+#define HCI_OP_LE_READ_MAX_DATA_LEN	0x202f
+struct hci_rp_le_read_max_data_len {
+	__u8	status;
+	__le16	tx_len;
+	__le16	tx_time;
+	__le16	rx_len;
+	__le16	rx_time;
+} __packed;
+
 /* ---- HCI Events ---- */
 #define HCI_EV_INQUIRY_COMPLETE		0x01
 
@@ -1794,6 +1838,15 @@ struct hci_ev_le_remote_conn_param_req {
 	__le16 interval_max;
 	__le16 latency;
 	__le16 timeout;
+} __packed;
+
+#define HCI_EV_LE_DATA_LEN_CHANGE	0x07
+struct hci_ev_le_data_len_change {
+	__le16	handle;
+	__le16	tx_len;
+	__le16	tx_time;
+	__le16	rx_len;
+	__le16	rx_time;
 } __packed;
 
 #define HCI_EV_LE_DIRECT_ADV_REPORT	0x0B
