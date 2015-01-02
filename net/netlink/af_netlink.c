@@ -97,12 +97,12 @@ static int netlink_dump(struct sock *sk);
 static void netlink_skb_destructor(struct sk_buff *skb);
 
 /* nl_table locking explained:
- * Lookup and traversal are protected with nl_sk_hash_lock or nl_table_lock
- * combined with an RCU read-side lock. Insertion and removal are protected
- * with nl_sk_hash_lock while using RCU list modification primitives and may
- * run in parallel to nl_table_lock protected lookups. Destruction of the
- * Netlink socket may only occur *after* nl_table_lock has been acquired
- * either during or after the socket has been removed from the list.
+ * Lookup and traversal are protected with an RCU read-side lock. Insertion
+ * and removal are protected with nl_sk_hash_lock while using RCU list
+ * modification primitives and may run in parallel to RCU protected lookups.
+ * Destruction of the Netlink socket may only occur *after* nl_table_lock has
+ * been acquired * either during or after the socket has been removed from
+ * the list and after an RCU grace period.
  */
 DEFINE_RWLOCK(nl_table_lock);
 EXPORT_SYMBOL_GPL(nl_table_lock);
@@ -1003,13 +1003,11 @@ static struct sock *netlink_lookup(struct net *net, int protocol, u32 portid)
 	struct netlink_table *table = &nl_table[protocol];
 	struct sock *sk;
 
-	read_lock(&nl_table_lock);
 	rcu_read_lock();
 	sk = __netlink_lookup(table, portid, net);
 	if (sk)
 		sock_hold(sk);
 	rcu_read_unlock();
-	read_unlock(&nl_table_lock);
 
 	return sk;
 }
@@ -1183,6 +1181,13 @@ out_module:
 	goto out;
 }
 
+static void deferred_put_nlk_sk(struct rcu_head *head)
+{
+	struct netlink_sock *nlk = container_of(head, struct netlink_sock, rcu);
+
+	sock_put(&nlk->sk);
+}
+
 static int netlink_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
@@ -1248,7 +1253,7 @@ static int netlink_release(struct socket *sock)
 	local_bh_disable();
 	sock_prot_inuse_add(sock_net(sk), &netlink_proto, -1);
 	local_bh_enable();
-	sock_put(sk);
+	call_rcu(&nlk->rcu, deferred_put_nlk_sk);
 	return 0;
 }
 
@@ -1263,7 +1268,6 @@ static int netlink_autobind(struct socket *sock)
 
 retry:
 	cond_resched();
-	netlink_table_grab();
 	rcu_read_lock();
 	if (__netlink_lookup(table, portid, net)) {
 		/* Bind collision, search negative portid values. */
@@ -1271,11 +1275,9 @@ retry:
 		if (rover > -4097)
 			rover = -4097;
 		rcu_read_unlock();
-		netlink_table_ungrab();
 		goto retry;
 	}
 	rcu_read_unlock();
-	netlink_table_ungrab();
 
 	err = netlink_insert(sk, net, portid);
 	if (err == -EADDRINUSE)
@@ -2910,9 +2912,8 @@ static struct sock *netlink_seq_socket_idx(struct seq_file *seq, loff_t pos)
 }
 
 static void *netlink_seq_start(struct seq_file *seq, loff_t *pos)
-	__acquires(nl_table_lock) __acquires(RCU)
+	__acquires(RCU)
 {
-	read_lock(&nl_table_lock);
 	rcu_read_lock();
 	return *pos ? netlink_seq_socket_idx(seq, *pos - 1) : SEQ_START_TOKEN;
 }
@@ -2964,10 +2965,9 @@ static void *netlink_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void netlink_seq_stop(struct seq_file *seq, void *v)
-	__releases(RCU) __releases(nl_table_lock)
+	__releases(RCU)
 {
 	rcu_read_unlock();
-	read_unlock(&nl_table_lock);
 }
 
 
