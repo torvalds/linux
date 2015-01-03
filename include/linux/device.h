@@ -1156,7 +1156,7 @@ do {									\
 #define dev_info_once(dev, fmt, ...)					\
 	dev_level_once(dev_info, dev, fmt, ##__VA_ARGS__)
 #define dev_dbg_once(dev, fmt, ...)					\
-	dev_level_once(dev_info, dev, fmt, ##__VA_ARGS__)
+	dev_level_once(dev_dbg, dev, fmt, ##__VA_ARGS__)
 
 #define dev_level_ratelimited(dev_level, dev, fmt, ...)			\
 do {									\
