@@ -166,11 +166,8 @@ static struct snd_pcm_hardware snd_p16v_capture_hw = {
 static void snd_p16v_pcm_free_substream(struct snd_pcm_runtime *runtime)
 {
 	struct snd_emu10k1_pcm *epcm = runtime->private_data;
-  
-	if (epcm) {
-		/* dev_dbg(emu->card->dev, "epcm free: %p\n", epcm); */
-		kfree(epcm);
-	}
+
+	kfree(epcm);
 }
 
 /* open_playback callback */
