@@ -660,6 +660,7 @@ struct cx231xx {
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	struct media_device *media_dev;
+	struct media_pad video_pad, vbi_pad;
 #endif
 
 	unsigned char eedata[256];
