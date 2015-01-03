@@ -1159,6 +1159,42 @@ static void cx231xx_media_device_register(struct cx231xx *dev,
 #endif
 }
 
+static void cx231xx_create_media_graph(struct cx231xx *dev)
+{
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_device *mdev = dev->media_dev;
+	struct media_entity *entity;
+	struct media_entity *tuner = NULL, *decoder = NULL;
+
+	if (!mdev)
+		return;
+
+	media_device_for_each_entity(entity, mdev) {
+		switch (entity->type) {
+		case MEDIA_ENT_T_V4L2_SUBDEV_TUNER:
+			tuner = entity;
+			break;
+		case MEDIA_ENT_T_V4L2_SUBDEV_DECODER:
+			decoder = entity;
+			break;
+		}
+	}
+
+	/* Analog setup, using tuner as a link */
+
+	if (!decoder)
+		return;
+
+	if (tuner)
+		media_entity_create_link(tuner, 0, decoder, 0,
+					 MEDIA_LNK_FL_ENABLED);
+	media_entity_create_link(decoder, 1, &dev->vdev->entity, 0,
+				 MEDIA_LNK_FL_ENABLED);
+	media_entity_create_link(decoder, 2, &dev->vbi_dev->entity, 0,
+				 MEDIA_LNK_FL_ENABLED);
+#endif
+}
+
 /*
  * cx231xx_init_dev()
  * allocates and inits the device structs, registers i2c bus and v4l device
@@ -1615,6 +1651,8 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 
 	/* load other modules required */
 	request_modules(dev);
+
+	cx231xx_create_media_graph(dev);
 
 	return 0;
 err_video_alt:
