@@ -5137,6 +5137,9 @@ static int cx25840_probe(struct i2c_client *client,
 	int default_volume;
 	u32 id;
 	u16 device_id;
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	int ret;
+#endif
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
@@ -5178,6 +5181,21 @@ static int cx25840_probe(struct i2c_client *client,
 
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &cx25840_ops);
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	/* TODO: need to represent analog inputs too */
+	state->pads[0].flags = MEDIA_PAD_FL_SINK;	/* Tuner or input */
+	state->pads[1].flags = MEDIA_PAD_FL_SOURCE;	/* Video */
+	state->pads[2].flags = MEDIA_PAD_FL_SOURCE;	/* VBI */
+	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_DECODER;
+
+	ret = media_entity_init(&sd->entity, ARRAY_SIZE(state->pads),
+				state->pads, 0);
+	if (ret < 0) {
+		v4l_info(client, "failed to initialize media entity!\n");
+		kfree(state);
+		return -ENODEV;
+	}
+#endif
 
 	switch (id) {
 	case CX23885_AV:

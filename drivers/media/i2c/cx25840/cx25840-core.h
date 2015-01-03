@@ -64,6 +64,9 @@ struct cx25840_state {
 	wait_queue_head_t fw_wait;    /* wake up when the fw load is finished */
 	struct work_struct fw_work;   /* work entry for fw load */
 	struct cx25840_ir_state *ir_state;
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	struct media_pad	pads[3];
+#endif
 };
 
 static inline struct cx25840_state *to_state(struct v4l2_subdev *sd)
