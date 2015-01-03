@@ -889,8 +889,8 @@ static int aaci_probe_ac97(struct aaci *aaci)
 static void aaci_free_card(struct snd_card *card)
 {
 	struct aaci *aaci = card->private_data;
-	if (aaci->base)
-		iounmap(aaci->base);
+
+	iounmap(aaci->base);
 }
 
 static struct aaci *aaci_init_card(struct amba_device *dev)

@@ -1094,8 +1094,7 @@ static int snd_ml403_ac97cr_free(struct snd_ml403_ac97cr *ml403_ac97cr)
 	if (ml403_ac97cr->capture_irq >= 0)
 		free_irq(ml403_ac97cr->capture_irq, ml403_ac97cr);
 	/* give back "port" */
-	if (ml403_ac97cr->port != NULL)
-		iounmap(ml403_ac97cr->port);
+	iounmap(ml403_ac97cr->port);
 	kfree(ml403_ac97cr);
 	PDEBUG(INIT_INFO, "free(): (done)\n");
 	return 0;

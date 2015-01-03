@@ -1316,10 +1316,8 @@ static int snd_cs4281_free(struct cs4281 *chip)
 
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
-	if (chip->ba0)
-		iounmap(chip->ba0);
-	if (chip->ba1)
-		iounmap(chip->ba1);
+	iounmap(chip->ba0);
+	iounmap(chip->ba1);
 	pci_release_regions(chip->pci);
 	pci_disable_device(chip->pci);
 

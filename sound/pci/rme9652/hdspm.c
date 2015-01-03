@@ -6965,9 +6965,7 @@ static int snd_hdspm_free(struct hdspm * hdspm)
 		free_irq(hdspm->irq, (void *) hdspm);
 
 	kfree(hdspm->mixer);
-
-	if (hdspm->iobase)
-		iounmap(hdspm->iobase);
+	iounmap(hdspm->iobase);
 
 	if (hdspm->port)
 		pci_release_regions(hdspm->pci);

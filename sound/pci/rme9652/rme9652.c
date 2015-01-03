@@ -1756,8 +1756,7 @@ static int snd_rme9652_free(struct snd_rme9652 *rme9652)
 
 	if (rme9652->irq >= 0)
 		free_irq(rme9652->irq, (void *)rme9652);
-	if (rme9652->iobase)
-		iounmap(rme9652->iobase);
+	iounmap(rme9652->iobase);
 	if (rme9652->port)
 		pci_release_regions(rme9652->pci);
 

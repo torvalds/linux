@@ -627,8 +627,7 @@ static int snd_msnd_attach(struct snd_card *card)
 	return 0;
 
 err_release_region:
-	if (chip->mappedbase)
-		iounmap(chip->mappedbase);
+	iounmap(chip->mappedbase);
 	release_mem_region(chip->base, BUFFSIZE);
 	release_region(chip->io, DSP_NUMIO);
 	free_irq(chip->irq, chip);

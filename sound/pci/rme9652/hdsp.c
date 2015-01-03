@@ -5309,9 +5309,7 @@ static int snd_hdsp_free(struct hdsp *hdsp)
 
 	release_firmware(hdsp->firmware);
 	vfree(hdsp->fw_uploaded);
-
-	if (hdsp->iobase)
-		iounmap(hdsp->iobase);
+	iounmap(hdsp->iobase);
 
 	if (hdsp->port)
 		pci_release_regions(hdsp->pci);

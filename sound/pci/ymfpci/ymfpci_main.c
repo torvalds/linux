@@ -2246,8 +2246,7 @@ static int snd_ymfpci_free(struct snd_ymfpci *chip)
 	release_and_free_resource(chip->mpu_res);
 	release_and_free_resource(chip->fm_res);
 	snd_ymfpci_free_gameport(chip);
-	if (chip->reg_area_virt)
-		iounmap(chip->reg_area_virt);
+	iounmap(chip->reg_area_virt);
 	if (chip->work_ptr.area)
 		snd_dma_free_pages(&chip->work_ptr);
 	

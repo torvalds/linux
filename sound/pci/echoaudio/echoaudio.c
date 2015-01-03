@@ -1872,12 +1872,8 @@ static int snd_echo_free(struct echoaudio *chip)
 	if (chip->comm_page)
 		snd_dma_free_pages(&chip->commpage_dma_buf);
 
-	if (chip->dsp_registers)
-		iounmap(chip->dsp_registers);
-
+	iounmap(chip->dsp_registers);
 	release_and_free_resource(chip->iores);
-
-
 	pci_disable_device(chip->pci);
 
 	/* release chip data */

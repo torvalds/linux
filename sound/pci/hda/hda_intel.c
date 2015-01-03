@@ -1138,8 +1138,7 @@ static int azx_free(struct azx *chip)
 		free_irq(chip->irq, (void*)chip);
 	if (chip->msi)
 		pci_disable_msi(chip->pci);
-	if (chip->remap_addr)
-		iounmap(chip->remap_addr);
+	iounmap(chip->remap_addr);
 
 	azx_free_stream_pages(chip);
 	if (chip->region_requested)

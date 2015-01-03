@@ -1460,10 +1460,8 @@ static int snd_nm256_free(struct nm256 *chip)
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
 
-	if (chip->cport)
-		iounmap(chip->cport);
-	if (chip->buffer)
-		iounmap(chip->buffer);
+	iounmap(chip->cport);
+	iounmap(chip->buffer);
 	release_and_free_resource(chip->res_cport);
 	release_and_free_resource(chip->res_buffer);
 

@@ -1211,8 +1211,7 @@ static int snd_atiixp_free(struct atiixp_modem *chip)
       __hw_end:
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
-	if (chip->remap_addr)
-		iounmap(chip->remap_addr);
+	iounmap(chip->remap_addr);
 	pci_release_regions(chip->pci);
 	pci_disable_device(chip->pci);
 	kfree(chip);

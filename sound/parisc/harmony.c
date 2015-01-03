@@ -893,9 +893,7 @@ snd_harmony_free(struct snd_harmony *h)
 	if (h->irq >= 0)
 		free_irq(h->irq, h);
 
-	if (h->iobase)
-		iounmap(h->iobase);
-
+	iounmap(h->iobase);
 	kfree(h);
 	return 0;
 }

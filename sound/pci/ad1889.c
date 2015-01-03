@@ -853,12 +853,9 @@ snd_ad1889_free(struct snd_ad1889 *chip)
 		free_irq(chip->irq, chip);
 
 skip_hw:
-	if (chip->iobase)
-		iounmap(chip->iobase);
-
+	iounmap(chip->iobase);
 	pci_release_regions(chip->pci);
 	pci_disable_device(chip->pci);
-
 	kfree(chip);
 	return 0;
 }

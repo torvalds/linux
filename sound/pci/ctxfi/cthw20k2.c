@@ -2110,10 +2110,7 @@ static int hw_card_shutdown(struct hw *hw)
 		free_irq(hw->irq, hw);
 
 	hw->irq	= -1;
-
-	if (hw->mem_base)
-		iounmap(hw->mem_base);
-
+	iounmap(hw->mem_base);
 	hw->mem_base = NULL;
 
 	if (hw->io_base)

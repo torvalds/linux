@@ -2949,8 +2949,8 @@ static int snd_cs46xx_free(struct snd_cs46xx *chip)
 
 	for (idx = 0; idx < 5; idx++) {
 		struct snd_cs46xx_region *region = &chip->region.idx[idx];
-		if (region->remap_addr)
-			iounmap(region->remap_addr);
+
+		iounmap(region->remap_addr);
 		release_and_free_resource(region->resource);
 	}
 

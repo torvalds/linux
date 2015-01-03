@@ -1064,12 +1064,9 @@ static int sis_chip_free(struct sis7019 *sis)
 	if (sis->irq >= 0)
 		free_irq(sis->irq, sis);
 
-	if (sis->ioaddr)
-		iounmap(sis->ioaddr);
-
+	iounmap(sis->ioaddr);
 	pci_release_regions(sis->pci);
 	pci_disable_device(sis->pci);
-
 	sis_free_suspend(sis);
 	return 0;
 }
