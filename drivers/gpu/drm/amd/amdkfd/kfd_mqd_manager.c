@@ -26,6 +26,7 @@
 #include "kfd_priv.h"
 #include "kfd_mqd_manager.h"
 #include "cik_regs.h"
+#include "../../radeon/cikd.h"
 #include "../../radeon/cik_reg.h"
 
 inline void busy_wait(unsigned long ms)
@@ -111,8 +112,46 @@ static int init_mqd(struct mqd_manager *mm, void **mqd,
 	return retval;
 }
 
+static int init_mqd_sdma(struct mqd_manager *mm, void **mqd,
+			struct kfd_mem_obj **mqd_mem_obj, uint64_t *gart_addr,
+			struct queue_properties *q)
+{
+	int retval;
+	struct cik_sdma_rlc_registers *m;
+
+	BUG_ON(!mm || !mqd || !mqd_mem_obj);
+
+	retval = kfd2kgd->allocate_mem(mm->dev->kgd,
+					sizeof(struct cik_sdma_rlc_registers),
+					256,
+					KFD_MEMPOOL_SYSTEM_WRITECOMBINE,
+					(struct kgd_mem **) mqd_mem_obj);
+
+	if (retval != 0)
+		return -ENOMEM;
+
+	m = (struct cik_sdma_rlc_registers *) (*mqd_mem_obj)->cpu_ptr;
+
+	memset(m, 0, sizeof(struct cik_sdma_rlc_registers));
+
+	*mqd = m;
+	if (gart_addr != NULL)
+		*gart_addr = (*mqd_mem_obj)->gpu_addr;
+
+	retval = mm->update_mqd(mm, m, q);
+
+	return retval;
+}
+
 static void uninit_mqd(struct mqd_manager *mm, void *mqd,
 			struct kfd_mem_obj *mqd_mem_obj)
+{
+	BUG_ON(!mm || !mqd);
+	kfd2kgd->free_mem(mm->dev->kgd, (struct kgd_mem *) mqd_mem_obj);
+}
+
+static void uninit_mqd_sdma(struct mqd_manager *mm, void *mqd,
+				struct kfd_mem_obj *mqd_mem_obj)
 {
 	BUG_ON(!mm || !mqd);
 	kfd2kgd->free_mem(mm->dev->kgd, (struct kgd_mem *) mqd_mem_obj);
@@ -122,7 +161,13 @@ static int load_mqd(struct mqd_manager *mm, void *mqd, uint32_t pipe_id,
 			uint32_t queue_id, uint32_t __user *wptr)
 {
 	return kfd2kgd->hqd_load(mm->dev->kgd, mqd, pipe_id, queue_id, wptr);
+}
 
+static int load_mqd_sdma(struct mqd_manager *mm, void *mqd,
+			uint32_t pipe_id, uint32_t queue_id,
+			uint32_t __user *wptr)
+{
+	return kfd2kgd->hqd_sdma_load(mm->dev->kgd, mqd);
 }
 
 static int update_mqd(struct mqd_manager *mm, void *mqd,
@@ -170,6 +215,41 @@ static int update_mqd(struct mqd_manager *mm, void *mqd,
 	return 0;
 }
 
+static int update_mqd_sdma(struct mqd_manager *mm, void *mqd,
+				struct queue_properties *q)
+{
+	struct cik_sdma_rlc_registers *m;
+
+	BUG_ON(!mm || !mqd || !q);
+
+	m = get_sdma_mqd(mqd);
+	m->sdma_rlc_rb_cntl =
+		SDMA_RB_SIZE((ffs(q->queue_size / sizeof(unsigned int)))) |
+		SDMA_RB_VMID(q->vmid) |
+		SDMA_RPTR_WRITEBACK_ENABLE |
+		SDMA_RPTR_WRITEBACK_TIMER(6);
+
+	m->sdma_rlc_rb_base = lower_32_bits(q->queue_address >> 8);
+	m->sdma_rlc_rb_base_hi = upper_32_bits(q->queue_address >> 8);
+	m->sdma_rlc_rb_rptr_addr_lo = lower_32_bits((uint64_t)q->read_ptr);
+	m->sdma_rlc_rb_rptr_addr_hi = upper_32_bits((uint64_t)q->read_ptr);
+	m->sdma_rlc_doorbell = SDMA_OFFSET(q->doorbell_off) | SDMA_DB_ENABLE;
+	m->sdma_rlc_virtual_addr = q->sdma_vm_addr;
+
+	m->sdma_engine_id = q->sdma_engine_id;
+	m->sdma_queue_id = q->sdma_queue_id;
+
+	q->is_active = false;
+	if (q->queue_size > 0 &&
+			q->queue_address != 0 &&
+			q->queue_percent > 0) {
+		m->sdma_rlc_rb_cntl |= SDMA_RB_ENABLE;
+		q->is_active = true;
+	}
+
+	return 0;
+}
+
 static int destroy_mqd(struct mqd_manager *mm, void *mqd,
 			enum kfd_preempt_type type,
 			unsigned int timeout, uint32_t pipe_id,
@@ -177,6 +257,18 @@ static int destroy_mqd(struct mqd_manager *mm, void *mqd,
 {
 	return kfd2kgd->hqd_destroy(mm->dev->kgd, type, timeout,
 					pipe_id, queue_id);
+}
+
+/*
+ * preempt type here is ignored because there is only one way
+ * to preempt sdma queue
+ */
+static int destroy_mqd_sdma(struct mqd_manager *mm, void *mqd,
+				enum kfd_preempt_type type,
+				unsigned int timeout, uint32_t pipe_id,
+				uint32_t queue_id)
+{
+	return kfd2kgd->hqd_sdma_destroy(mm->dev->kgd, mqd, timeout);
 }
 
 static bool is_occupied(struct mqd_manager *mm, void *mqd,
@@ -187,6 +279,13 @@ static bool is_occupied(struct mqd_manager *mm, void *mqd,
 	return kfd2kgd->hqd_is_occupies(mm->dev->kgd, queue_address,
 					pipe_id, queue_id);
 
+}
+
+static bool is_occupied_sdma(struct mqd_manager *mm, void *mqd,
+			uint64_t queue_address,	uint32_t pipe_id,
+			uint32_t queue_id)
+{
+	return kfd2kgd->hqd_sdma_is_occupied(mm->dev->kgd, mqd);
 }
 
 /*
@@ -301,6 +400,21 @@ static int update_mqd_hiq(struct mqd_manager *mm, void *mqd,
 	return 0;
 }
 
+/*
+ * SDMA MQD Implementation
+ */
+
+struct cik_sdma_rlc_registers *get_sdma_mqd(void *mqd)
+{
+	struct cik_sdma_rlc_registers *m;
+
+	BUG_ON(!mqd);
+
+	m = (struct cik_sdma_rlc_registers *)mqd;
+
+	return m;
+}
+
 struct mqd_manager *mqd_manager_init(enum KFD_MQD_TYPE type,
 					struct kfd_dev *dev)
 {
@@ -334,6 +448,14 @@ struct mqd_manager *mqd_manager_init(enum KFD_MQD_TYPE type,
 		mqd->update_mqd = update_mqd_hiq;
 		mqd->destroy_mqd = destroy_mqd;
 		mqd->is_occupied = is_occupied;
+		break;
+	case KFD_MQD_TYPE_CIK_SDMA:
+		mqd->init_mqd = init_mqd_sdma;
+		mqd->uninit_mqd = uninit_mqd_sdma;
+		mqd->load_mqd = load_mqd_sdma;
+		mqd->update_mqd = update_mqd_sdma;
+		mqd->destroy_mqd = destroy_mqd_sdma;
+		mqd->is_occupied = is_occupied_sdma;
 		break;
 	default:
 		kfree(mqd);
