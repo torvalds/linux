@@ -568,6 +568,7 @@ static int kgd_hqd_destroy(struct kgd_dev *kgd, uint32_t reset_type,
 		if (timeout == 0) {
 			pr_err("kfd: cp queue preemption time out (%dms)\n",
 				temp);
+			release_queue(kgd);
 			return -ETIME;
 		}
 		msleep(20);
