@@ -160,12 +160,8 @@ int snd_emux_free(struct snd_emux *emu)
 	snd_emux_detach_seq_oss(emu);
 #endif
 	snd_emux_detach_seq(emu);
-
 	snd_emux_delete_hwdep(emu);
-
-	if (emu->sflist)
-		snd_sf_free(emu->sflist);
-
+	snd_sf_free(emu->sflist);
 	kfree(emu->voices);
 	kfree(emu->name);
 	kfree(emu);
