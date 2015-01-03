@@ -71,13 +71,16 @@ static int kgd_init_pipeline(struct kgd_dev *kgd, uint32_t pipe_id,
 
 static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 			uint32_t queue_id, uint32_t __user *wptr);
-
+static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd);
 static bool kgd_hqd_is_occupies(struct kgd_dev *kgd, uint64_t queue_address,
 				uint32_t pipe_id, uint32_t queue_id);
 
 static int kgd_hqd_destroy(struct kgd_dev *kgd, uint32_t reset_type,
 				unsigned int timeout, uint32_t pipe_id,
 				uint32_t queue_id);
+static bool kgd_hqd_sdma_is_occupied(struct kgd_dev *kgd, void *mqd);
+static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
+				unsigned int timeout);
 
 static const struct kfd2kgd_calls kfd2kgd = {
 	.init_sa_manager = init_sa_manager,
@@ -92,8 +95,11 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.init_memory = kgd_init_memory,
 	.init_pipeline = kgd_init_pipeline,
 	.hqd_load = kgd_hqd_load,
+	.hqd_sdma_load = kgd_hqd_sdma_load,
 	.hqd_is_occupies = kgd_hqd_is_occupies,
+	.hqd_sdma_is_occupied = kgd_hqd_sdma_is_occupied,
 	.hqd_destroy = kgd_hqd_destroy,
+	.hqd_sdma_destroy = kgd_hqd_sdma_destroy,
 	.get_fw_version = get_fw_version
 };
 
@@ -435,9 +441,26 @@ static int kgd_init_pipeline(struct kgd_dev *kgd, uint32_t pipe_id,
 	return 0;
 }
 
+static inline uint32_t get_sdma_base_addr(struct cik_sdma_rlc_registers *m)
+{
+	uint32_t retval;
+
+	retval = m->sdma_engine_id * SDMA1_REGISTER_OFFSET +
+			m->sdma_queue_id * KFD_CIK_SDMA_QUEUE_OFFSET;
+
+	pr_debug("kfd: sdma base address: 0x%x\n", retval);
+
+	return retval;
+}
+
 static inline struct cik_mqd *get_mqd(void *mqd)
 {
 	return (struct cik_mqd *)mqd;
+}
+
+static inline struct cik_sdma_rlc_registers *get_sdma_mqd(void *mqd)
+{
+	return (struct cik_sdma_rlc_registers *)mqd;
 }
 
 static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
@@ -517,6 +540,45 @@ static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 	return 0;
 }
 
+static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd)
+{
+	struct cik_sdma_rlc_registers *m;
+	uint32_t sdma_base_addr;
+
+	m = get_sdma_mqd(mqd);
+	sdma_base_addr = get_sdma_base_addr(m);
+
+	write_register(kgd,
+			sdma_base_addr + SDMA0_RLC0_VIRTUAL_ADDR,
+			m->sdma_rlc_virtual_addr);
+
+	write_register(kgd,
+			sdma_base_addr + SDMA0_RLC0_RB_BASE,
+			m->sdma_rlc_rb_base);
+
+	write_register(kgd,
+			sdma_base_addr + SDMA0_RLC0_RB_BASE_HI,
+			m->sdma_rlc_rb_base_hi);
+
+	write_register(kgd,
+			sdma_base_addr + SDMA0_RLC0_RB_RPTR_ADDR_LO,
+			m->sdma_rlc_rb_rptr_addr_lo);
+
+	write_register(kgd,
+			sdma_base_addr + SDMA0_RLC0_RB_RPTR_ADDR_HI,
+			m->sdma_rlc_rb_rptr_addr_hi);
+
+	write_register(kgd,
+			sdma_base_addr + SDMA0_RLC0_DOORBELL,
+			m->sdma_rlc_doorbell);
+
+	write_register(kgd,
+			sdma_base_addr + SDMA0_RLC0_RB_CNTL,
+			m->sdma_rlc_rb_cntl);
+
+	return 0;
+}
+
 static bool kgd_hqd_is_occupies(struct kgd_dev *kgd, uint64_t queue_address,
 				uint32_t pipe_id, uint32_t queue_id)
 {
@@ -536,6 +598,24 @@ static bool kgd_hqd_is_occupies(struct kgd_dev *kgd, uint64_t queue_address,
 	}
 	release_queue(kgd);
 	return retval;
+}
+
+static bool kgd_hqd_sdma_is_occupied(struct kgd_dev *kgd, void *mqd)
+{
+	struct cik_sdma_rlc_registers *m;
+	uint32_t sdma_base_addr;
+	uint32_t sdma_rlc_rb_cntl;
+
+	m = get_sdma_mqd(mqd);
+	sdma_base_addr = get_sdma_base_addr(m);
+
+	sdma_rlc_rb_cntl = read_register(kgd,
+					sdma_base_addr + SDMA0_RLC0_RB_CNTL);
+
+	if (sdma_rlc_rb_cntl & SDMA_RB_ENABLE)
+		return true;
+
+	return false;
 }
 
 static int kgd_hqd_destroy(struct kgd_dev *kgd, uint32_t reset_type,
@@ -563,6 +643,39 @@ static int kgd_hqd_destroy(struct kgd_dev *kgd, uint32_t reset_type,
 	}
 
 	release_queue(kgd);
+	return 0;
+}
+
+static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
+				unsigned int timeout)
+{
+	struct cik_sdma_rlc_registers *m;
+	uint32_t sdma_base_addr;
+	uint32_t temp;
+
+	m = get_sdma_mqd(mqd);
+	sdma_base_addr = get_sdma_base_addr(m);
+
+	temp = read_register(kgd, sdma_base_addr + SDMA0_RLC0_RB_CNTL);
+	temp = temp & ~SDMA_RB_ENABLE;
+	write_register(kgd, sdma_base_addr + SDMA0_RLC0_RB_CNTL, temp);
+
+	while (true) {
+		temp = read_register(kgd, sdma_base_addr +
+						SDMA0_RLC0_CONTEXT_STATUS);
+		if (temp & SDMA_RLC_IDLE)
+			break;
+		if (timeout == 0)
+			return -ETIME;
+		msleep(20);
+		timeout -= 20;
+	}
+
+	write_register(kgd, sdma_base_addr + SDMA0_RLC0_DOORBELL, 0);
+	write_register(kgd, sdma_base_addr + SDMA0_RLC0_RB_RPTR, 0);
+	write_register(kgd, sdma_base_addr + SDMA0_RLC0_RB_WPTR, 0);
+	write_register(kgd, sdma_base_addr + SDMA0_RLC0_RB_BASE, 0);
+
 	return 0;
 }
 
