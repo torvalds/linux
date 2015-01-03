@@ -144,9 +144,17 @@ struct kgd2kfd_calls {
  * @hqd_load: Loads the mqd structure to a H/W hqd slot. used only for no cp
  * sceduling mode.
  *
+ * @hqd_sdma_load: Loads the SDMA mqd structure to a H/W SDMA hqd slot.
+ * used only for no HWS mode.
+ *
  * @hqd_is_occupies: Checks if a hqd slot is occupied.
  *
  * @hqd_destroy: Destructs and preempts the queue assigned to that hqd slot.
+ *
+ * @hqd_sdma_is_occupied: Checks if an SDMA hqd slot is occupied.
+ *
+ * @hqd_sdma_destroy: Destructs and preempts the SDMA queue assigned to that
+ * SDMA hqd slot.
  *
  * @get_fw_version: Returns FW versions from the header
  *
@@ -183,18 +191,26 @@ struct kfd2kgd_calls {
 	int (*hqd_load)(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 			uint32_t queue_id, uint32_t __user *wptr);
 
+	int (*hqd_sdma_load)(struct kgd_dev *kgd, void *mqd);
+
 	bool (*hqd_is_occupies)(struct kgd_dev *kgd, uint64_t queue_address,
 				uint32_t pipe_id, uint32_t queue_id);
 
 	int (*hqd_destroy)(struct kgd_dev *kgd, uint32_t reset_type,
 				unsigned int timeout, uint32_t pipe_id,
 				uint32_t queue_id);
+
+	bool (*hqd_sdma_is_occupied)(struct kgd_dev *kgd, void *mqd);
+
+	int (*hqd_sdma_destroy)(struct kgd_dev *kgd, void *mqd,
+				unsigned int timeout);
+
 	uint16_t (*get_fw_version)(struct kgd_dev *kgd,
 				enum kgd_engine_type type);
 };
 
 bool kgd2kfd_init(unsigned interface_version,
-		  const struct kfd2kgd_calls *f2g,
-		  const struct kgd2kfd_calls **g2f);
+		const struct kfd2kgd_calls *f2g,
+		const struct kgd2kfd_calls **g2f);
 
-#endif /* KGD_KFD_INTERFACE_H_INCLUDED */
+#endif	/* KGD_KFD_INTERFACE_H_INCLUDED */
