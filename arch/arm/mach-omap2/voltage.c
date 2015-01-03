@@ -224,37 +224,6 @@ int omap_voltage_register_pmic(struct voltagedomain *voltdm,
 }
 
 /**
- * omap_change_voltscale_method() - API to change the voltage scaling method.
- * @voltdm:	pointer to the VDD whose voltage scaling method
- *		has to be changed.
- * @voltscale_method:	the method to be used for voltage scaling.
- *
- * This API can be used by the board files to change the method of voltage
- * scaling between vpforceupdate and vcbypass. The parameter values are
- * defined in voltage.h
- */
-void omap_change_voltscale_method(struct voltagedomain *voltdm,
-				  int voltscale_method)
-{
-	if (!voltdm || IS_ERR(voltdm)) {
-		pr_warn("%s: VDD specified does not exist!\n", __func__);
-		return;
-	}
-
-	switch (voltscale_method) {
-	case VOLTSCALE_VPFORCEUPDATE:
-		voltdm->scale = omap_vp_forceupdate_scale;
-		return;
-	case VOLTSCALE_VCBYPASS:
-		voltdm->scale = omap_vc_bypass_scale;
-		return;
-	default:
-		pr_warn("%s: Trying to change the method of voltage scaling to an unsupported one!\n",
-			__func__);
-	}
-}
-
-/**
  * omap_voltage_late_init() - Init the various voltage parameters
  *
  * This API is to be called in the later stages of the
@@ -316,90 +285,11 @@ static struct voltagedomain *_voltdm_lookup(const char *name)
 	return voltdm;
 }
 
-/**
- * voltdm_add_pwrdm - add a powerdomain to a voltagedomain
- * @voltdm: struct voltagedomain * to add the powerdomain to
- * @pwrdm: struct powerdomain * to associate with a voltagedomain
- *
- * Associate the powerdomain @pwrdm with a voltagedomain @voltdm.  This
- * enables the use of voltdm_for_each_pwrdm().  Returns -EINVAL if
- * presented with invalid pointers; -ENOMEM if memory could not be allocated;
- * or 0 upon success.
- */
-int voltdm_add_pwrdm(struct voltagedomain *voltdm, struct powerdomain *pwrdm)
-{
-	if (!voltdm || !pwrdm)
-		return -EINVAL;
-
-	pr_debug("voltagedomain: %s: associating powerdomain %s\n",
-		 voltdm->name, pwrdm->name);
-
-	list_add(&pwrdm->voltdm_node, &voltdm->pwrdm_list);
-
-	return 0;
-}
-
-/**
- * voltdm_for_each_pwrdm - call function for each pwrdm in a voltdm
- * @voltdm: struct voltagedomain * to iterate over
- * @fn: callback function *
- *
- * Call the supplied function @fn for each powerdomain in the
- * voltagedomain @voltdm.  Returns -EINVAL if presented with invalid
- * pointers; or passes along the last return value of the callback
- * function, which should be 0 for success or anything else to
- * indicate failure.
- */
-int voltdm_for_each_pwrdm(struct voltagedomain *voltdm,
-			  int (*fn)(struct voltagedomain *voltdm,
-				    struct powerdomain *pwrdm))
-{
-	struct powerdomain *pwrdm;
-	int ret = 0;
-
-	if (!fn)
-		return -EINVAL;
-
-	list_for_each_entry(pwrdm, &voltdm->pwrdm_list, voltdm_node)
-		ret = (*fn)(voltdm, pwrdm);
-
-	return ret;
-}
-
-/**
- * voltdm_for_each - call function on each registered voltagedomain
- * @fn: callback function *
- *
- * Call the supplied function @fn for each registered voltagedomain.
- * The callback function @fn can return anything but 0 to bail out
- * early from the iterator.  Returns the last return value of the
- * callback function, which should be 0 for success or anything else
- * to indicate failure; or -EINVAL if the function pointer is null.
- */
-int voltdm_for_each(int (*fn)(struct voltagedomain *voltdm, void *user),
-		    void *user)
-{
-	struct voltagedomain *temp_voltdm;
-	int ret = 0;
-
-	if (!fn)
-		return -EINVAL;
-
-	list_for_each_entry(temp_voltdm, &voltdm_list, node) {
-		ret = (*fn)(temp_voltdm, user);
-		if (ret)
-			break;
-	}
-
-	return ret;
-}
-
 static int _voltdm_register(struct voltagedomain *voltdm)
 {
 	if (!voltdm || !voltdm->name)
 		return -EINVAL;
 
-	INIT_LIST_HEAD(&voltdm->pwrdm_list);
 	list_add(&voltdm->node, &voltdm_list);
 
 	pr_debug("voltagedomain: registered %s\n", voltdm->name);
