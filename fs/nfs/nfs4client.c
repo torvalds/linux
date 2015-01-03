@@ -453,6 +453,14 @@ static void nfs4_swap_callback_idents(struct nfs_client *keep,
 	spin_unlock(&nn->nfs_client_lock);
 }
 
+static bool nfs4_match_client_owner_id(const struct nfs_client *clp1,
+		const struct nfs_client *clp2)
+{
+	if (clp1->cl_owner_id == NULL || clp2->cl_owner_id == NULL)
+		return true;
+	return strcmp(clp1->cl_owner_id, clp2->cl_owner_id) == 0;
+}
+
 /**
  * nfs40_walk_client_list - Find server that recognizes a client ID
  *
@@ -509,6 +517,9 @@ int nfs40_walk_client_list(struct nfs_client *new,
 			continue;
 
 		if (pos->cl_clientid != new->cl_clientid)
+			continue;
+
+		if (!nfs4_match_client_owner_id(pos, new))
 			continue;
 
 		atomic_inc(&pos->cl_count);
@@ -655,6 +666,13 @@ int nfs41_walk_client_list(struct nfs_client *new,
 		 * to using the existing nfs_client.
 		 */
 		if (!nfs4_check_clientid_trunking(pos, new))
+			continue;
+
+		/* Unlike NFSv4.0, we know that NFSv4.1 always uses the
+		 * uniform string, however someone might switch the
+		 * uniquifier string on us.
+		 */
+		if (!nfs4_match_client_owner_id(pos, new))
 			continue;
 
 		atomic_inc(&pos->cl_count);
