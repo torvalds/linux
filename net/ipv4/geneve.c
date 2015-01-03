@@ -65,14 +65,15 @@ static inline struct genevehdr *geneve_hdr(const struct sk_buff *skb)
 	return (struct genevehdr *)(udp_hdr(skb) + 1);
 }
 
-/* Find geneve socket based on network namespace and UDP port */
-static struct geneve_sock *geneve_find_sock(struct net *net, __be16 port)
+static struct geneve_sock *geneve_find_sock(struct net *net,
+					    sa_family_t family, __be16 port)
 {
 	struct geneve_net *gn = net_generic(net, geneve_net_id);
 	struct geneve_sock *gs;
 
 	list_for_each_entry(gs, &gn->sock_list, list) {
-		if (inet_sk(gs->sock->sk)->inet_sport == port)
+		if (inet_sk(gs->sock->sk)->inet_sport == port &&
+		    inet_sk(gs->sock->sk)->sk.sk_family == family)
 			return gs;
 	}
 
@@ -375,7 +376,7 @@ struct geneve_sock *geneve_sock_add(struct net *net, __be16 port,
 
 	mutex_lock(&geneve_mutex);
 
-	gs = geneve_find_sock(net, port);
+	gs = geneve_find_sock(net, ipv6 ? AF_INET6 : AF_INET, port);
 	if (gs) {
 		if (!no_share && gs->rcv == rcv)
 			gs->refcnt++;
