@@ -50,6 +50,7 @@ struct netlink_sock {
 #endif /* CONFIG_NETLINK_MMAP */
 
 	struct rhash_head	node;
+	struct rcu_head		rcu;
 };
 
 static inline struct netlink_sock *nlk_sk(struct sock *sk)
