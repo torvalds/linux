@@ -565,6 +565,15 @@ struct phy_driver {
 	void (*write_mmd_indirect)(struct phy_device *dev, int ptrad,
 				   int devnum, int regnum, u32 val);
 
+	/* Get the size and type of the eeprom contained within a plug-in
+	 * module */
+	int (*module_info)(struct phy_device *dev,
+			   struct ethtool_modinfo *modinfo);
+
+	/* Get the eeprom information from the plug-in module */
+	int (*module_eeprom)(struct phy_device *dev,
+			     struct ethtool_eeprom *ee, u8 *data);
+
 	struct device_driver driver;
 };
 #define to_phy_driver(d) container_of(d, struct phy_driver, driver)
