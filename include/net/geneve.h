@@ -71,7 +71,6 @@ struct geneve_sock {
 	struct hlist_node	hlist;
 	geneve_rcv_t		*rcv;
 	void			*rcv_data;
-	struct work_struct	del_work;
 	struct socket		*sock;
 	struct rcu_head		rcu;
 	atomic_t		refcnt;

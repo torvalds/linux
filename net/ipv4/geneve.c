@@ -61,8 +61,6 @@ struct geneve_net {
 
 static int geneve_net_id;
 
-static struct workqueue_struct *geneve_wq;
-
 static inline struct genevehdr *geneve_hdr(const struct sk_buff *skb)
 {
 	return (struct genevehdr *)(udp_hdr(skb) + 1);
@@ -307,15 +305,6 @@ error:
 	return 1;
 }
 
-static void geneve_del_work(struct work_struct *work)
-{
-	struct geneve_sock *gs = container_of(work, struct geneve_sock,
-					      del_work);
-
-	udp_tunnel_sock_release(gs->sock);
-	kfree_rcu(gs, rcu);
-}
-
 static struct socket *geneve_create_sock(struct net *net, bool ipv6,
 					 __be16 port)
 {
@@ -355,8 +344,6 @@ static struct geneve_sock *geneve_socket_create(struct net *net, __be16 port,
 	gs = kzalloc(sizeof(*gs), GFP_KERNEL);
 	if (!gs)
 		return ERR_PTR(-ENOMEM);
-
-	INIT_WORK(&gs->del_work, geneve_del_work);
 
 	sock = geneve_create_sock(net, ipv6, port);
 	if (IS_ERR(sock)) {
@@ -430,7 +417,8 @@ void geneve_sock_release(struct geneve_sock *gs)
 	geneve_notify_del_rx_port(gs);
 	spin_unlock(&gn->sock_lock);
 
-	queue_work(geneve_wq, &gs->del_work);
+	udp_tunnel_sock_release(gs->sock);
+	kfree_rcu(gs, rcu);
 }
 EXPORT_SYMBOL_GPL(geneve_sock_release);
 
@@ -458,10 +446,6 @@ static int __init geneve_init_module(void)
 {
 	int rc;
 
-	geneve_wq = alloc_workqueue("geneve", 0, 0);
-	if (!geneve_wq)
-		return -ENOMEM;
-
 	rc = register_pernet_subsys(&geneve_net_ops);
 	if (rc)
 		return rc;
@@ -474,7 +458,6 @@ late_initcall(geneve_init_module);
 
 static void __exit geneve_cleanup_module(void)
 {
-	destroy_workqueue(geneve_wq);
 	unregister_pernet_subsys(&geneve_net_ops);
 }
 module_exit(geneve_cleanup_module);
