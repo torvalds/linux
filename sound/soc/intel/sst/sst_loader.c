@@ -324,8 +324,7 @@ void sst_firmware_load_cb(const struct firmware *fw, void *context)
 
 	if (ctx->sst_state != SST_RESET ||
 			ctx->fw_in_mem != NULL) {
-		if (fw != NULL)
-			release_firmware(fw);
+		release_firmware(fw);
 		mutex_unlock(&ctx->sst_lock);
 		return;
 	}
