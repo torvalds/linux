@@ -36,6 +36,9 @@
 #define KFD_VMID_START_OFFSET			(8)
 #define VMID_PER_DEVICE				CIK_VMID_NUM
 #define KFD_DQM_FIRST_PIPE			(0)
+#define CIK_SDMA_QUEUES				(4)
+#define CIK_SDMA_QUEUES_PER_ENGINE		(2)
+#define CIK_SDMA_ENGINE_NUM			(2)
 
 struct device_process_node {
 	struct qcm_process_device *qpd;
@@ -130,8 +133,10 @@ struct device_queue_manager {
 	struct list_head	queues;
 	unsigned int		processes_count;
 	unsigned int		queue_count;
+	unsigned int		sdma_queue_count;
 	unsigned int		next_pipe_to_allocate;
 	unsigned int		*allocated_queues;
+	unsigned int		sdma_bitmap;
 	unsigned int		vmid_bitmap;
 	uint64_t		pipelines_addr;
 	struct kfd_mem_obj	*pipeline_mem;
