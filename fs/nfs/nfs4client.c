@@ -492,9 +492,6 @@ int nfs40_walk_client_list(struct nfs_client *new,
 		if (pos->rpc_ops != new->rpc_ops)
 			continue;
 
-		if (pos->cl_proto != new->cl_proto)
-			continue;
-
 		if (pos->cl_minorversion != new->cl_minorversion)
 			continue;
 
@@ -625,9 +622,6 @@ int nfs41_walk_client_list(struct nfs_client *new,
 	list_for_each_entry(pos, &nn->nfs_client_list, cl_share_link) {
 
 		if (pos->rpc_ops != new->rpc_ops)
-			continue;
-
-		if (pos->cl_proto != new->cl_proto)
 			continue;
 
 		if (pos->cl_minorversion != new->cl_minorversion)
