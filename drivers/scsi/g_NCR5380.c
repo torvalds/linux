@@ -723,7 +723,7 @@ module_param(ncr_53c400a, int, 0);
 module_param(dtc_3181e, int, 0);
 MODULE_LICENSE("GPL");
 
-#ifndef SCSI_G_NCR5380_MEM
+#if !defined(SCSI_G_NCR5380_MEM) && defined(MODULE)
 static struct isapnp_device_id id_table[] = {
 	{
 	 ISAPNP_ANY_ID, ISAPNP_ANY_ID,
