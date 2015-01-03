@@ -200,6 +200,7 @@ static void dvb_register_media_device(struct dvb_device *dvbdev,
 	switch (type) {
 	case DVB_DEVICE_CA:
 	case DVB_DEVICE_DEMUX:
+	case DVB_DEVICE_FRONTEND:
 		npads = 2;
 		break;
 	case DVB_DEVICE_NET:
@@ -221,12 +222,13 @@ static void dvb_register_media_device(struct dvb_device *dvbdev,
 	switch (type) {
 	case DVB_DEVICE_FRONTEND:
 		dvbdev->entity->type = MEDIA_ENT_T_DEVNODE_DVB_FE;
-		dvbdev->pads[0].flags = MEDIA_PAD_FL_SOURCE;
+		dvbdev->pads[0].flags = MEDIA_PAD_FL_SINK;
+		dvbdev->pads[1].flags = MEDIA_PAD_FL_SOURCE;
 		break;
 	case DVB_DEVICE_DEMUX:
 		dvbdev->entity->type = MEDIA_ENT_T_DEVNODE_DVB_DEMUX;
-		dvbdev->pads[0].flags = MEDIA_PAD_FL_SOURCE;
-		dvbdev->pads[1].flags = MEDIA_PAD_FL_SINK;
+		dvbdev->pads[0].flags = MEDIA_PAD_FL_SINK;
+		dvbdev->pads[1].flags = MEDIA_PAD_FL_SOURCE;
 		break;
 	case DVB_DEVICE_DVR:
 		dvbdev->entity->type = MEDIA_ENT_T_DEVNODE_DVB_DVR;
@@ -234,8 +236,8 @@ static void dvb_register_media_device(struct dvb_device *dvbdev,
 		break;
 	case DVB_DEVICE_CA:
 		dvbdev->entity->type = MEDIA_ENT_T_DEVNODE_DVB_CA;
-		dvbdev->pads[0].flags = MEDIA_PAD_FL_SOURCE;
-		dvbdev->pads[1].flags = MEDIA_PAD_FL_SINK;
+		dvbdev->pads[0].flags = MEDIA_PAD_FL_SINK;
+		dvbdev->pads[1].flags = MEDIA_PAD_FL_SOURCE;
 		break;
 	case DVB_DEVICE_NET:
 		dvbdev->entity->type = MEDIA_ENT_T_DEVNODE_DVB_NET;
