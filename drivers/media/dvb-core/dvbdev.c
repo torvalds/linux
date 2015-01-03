@@ -380,6 +380,51 @@ void dvb_unregister_device(struct dvb_device *dvbdev)
 }
 EXPORT_SYMBOL(dvb_unregister_device);
 
+
+void dvb_create_media_graph(struct media_device *mdev)
+{
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	struct media_entity *entity, *tuner = NULL, *fe = NULL;
+	struct media_entity *demux = NULL, *dvr = NULL, *ca = NULL;
+
+	if (!mdev)
+		return;
+
+	media_device_for_each_entity(entity, mdev) {
+		switch (entity->type) {
+		case MEDIA_ENT_T_V4L2_SUBDEV_TUNER:
+			tuner = entity;
+			break;
+		case MEDIA_ENT_T_DEVNODE_DVB_FE:
+			fe = entity;
+			break;
+		case MEDIA_ENT_T_DEVNODE_DVB_DEMUX:
+			demux = entity;
+			break;
+		case MEDIA_ENT_T_DEVNODE_DVB_DVR:
+			dvr = entity;
+			break;
+		case MEDIA_ENT_T_DEVNODE_DVB_CA:
+			ca = entity;
+			break;
+		}
+	}
+
+	if (tuner && fe)
+		media_entity_create_link(tuner, 0, fe, 0, 0);
+
+	if (fe && demux)
+		media_entity_create_link(fe, 1, demux, 0, 0);
+
+	if (demux && dvr)
+		media_entity_create_link(demux, 1, dvr, 0, 0);
+
+	if (demux && ca)
+		media_entity_create_link(demux, 1, ca, 0, 0);
+#endif
+}
+EXPORT_SYMBOL_GPL(dvb_create_media_graph);
+
 static int dvbdev_check_free_adapter_num(int num)
 {
 	struct list_head *entry;
