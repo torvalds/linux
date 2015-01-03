@@ -2084,8 +2084,10 @@ static int btusb_probe(struct usb_interface *intf,
 	if (id->driver_info & BTUSB_MARVELL)
 		hdev->set_bdaddr = btusb_set_bdaddr_marvell;
 
-	if (id->driver_info & BTUSB_SWAVE)
+	if (id->driver_info & BTUSB_SWAVE) {
+		set_bit(HCI_QUIRK_FIXUP_INQUIRY_MODE, &hdev->quirks);
 		set_bit(HCI_QUIRK_BROKEN_LOCAL_COMMANDS, &hdev->quirks);
+	}
 
 	if (id->driver_info & BTUSB_INTEL_BOOT)
 		set_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks);
