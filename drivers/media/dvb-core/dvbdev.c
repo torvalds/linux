@@ -184,7 +184,7 @@ static void dvb_register_media_device(struct dvb_device *dvbdev,
 				      int type, int minor)
 {
 #if defined(CONFIG_MEDIA_CONTROLLER_DVB)
-	int ret;
+	int ret = 0, npads;
 
 	if (!dvbdev->adapter->mdev)
 		return;
@@ -196,18 +196,46 @@ static void dvb_register_media_device(struct dvb_device *dvbdev,
 	dvbdev->entity->info.dev.major = DVB_MAJOR;
 	dvbdev->entity->info.dev.minor = minor;
 	dvbdev->entity->name = dvbdev->name;
+
+	switch (type) {
+	case DVB_DEVICE_CA:
+	case DVB_DEVICE_DEMUX:
+		npads = 2;
+		break;
+	case DVB_DEVICE_NET:
+		npads = 0;
+		break;
+	default:
+		npads = 1;
+	}
+
+	if (npads) {
+		dvbdev->pads = kcalloc(npads, sizeof(*dvbdev->pads),
+				       GFP_KERNEL);
+		if (!dvbdev->pads) {
+			kfree(dvbdev->entity);
+			return;
+		}
+	}
+
 	switch (type) {
 	case DVB_DEVICE_FRONTEND:
 		dvbdev->entity->type = MEDIA_ENT_T_DEVNODE_DVB_FE;
+		dvbdev->pads[0].flags = MEDIA_PAD_FL_SOURCE;
 		break;
 	case DVB_DEVICE_DEMUX:
 		dvbdev->entity->type = MEDIA_ENT_T_DEVNODE_DVB_DEMUX;
+		dvbdev->pads[0].flags = MEDIA_PAD_FL_SOURCE;
+		dvbdev->pads[1].flags = MEDIA_PAD_FL_SINK;
 		break;
 	case DVB_DEVICE_DVR:
 		dvbdev->entity->type = MEDIA_ENT_T_DEVNODE_DVB_DVR;
+		dvbdev->pads[0].flags = MEDIA_PAD_FL_SINK;
 		break;
 	case DVB_DEVICE_CA:
 		dvbdev->entity->type = MEDIA_ENT_T_DEVNODE_DVB_CA;
+		dvbdev->pads[0].flags = MEDIA_PAD_FL_SOURCE;
+		dvbdev->pads[1].flags = MEDIA_PAD_FL_SINK;
 		break;
 	case DVB_DEVICE_NET:
 		dvbdev->entity->type = MEDIA_ENT_T_DEVNODE_DVB_NET;
@@ -218,12 +246,16 @@ static void dvb_register_media_device(struct dvb_device *dvbdev,
 		return;
 	}
 
-	ret = media_device_register_entity(dvbdev->adapter->mdev,
-					   dvbdev->entity);
+	if (npads)
+		ret = media_entity_init(dvbdev->entity, npads, dvbdev->pads, 0);
+	if (!ret)
+		ret = media_device_register_entity(dvbdev->adapter->mdev,
+						   dvbdev->entity);
 	if (ret < 0) {
 		printk(KERN_ERR
 			"%s: media_device_register_entity failed for %s\n",
 			__func__, dvbdev->entity->name);
+		kfree(dvbdev->pads);
 		kfree(dvbdev->entity);
 		dvbdev->entity = NULL;
 		return;
@@ -336,6 +368,7 @@ void dvb_unregister_device(struct dvb_device *dvbdev)
 	if (dvbdev->entity) {
 		media_device_unregister_entity(dvbdev->entity);
 		kfree(dvbdev->entity);
+		kfree(dvbdev->pads);
 	}
 #endif
 
