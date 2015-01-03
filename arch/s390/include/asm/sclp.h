@@ -68,4 +68,6 @@ void sclp_early_detect(void);
 int sclp_has_siif(void);
 unsigned int sclp_get_ibc(void);
 
+long _sclp_print_early(const char *);
+
 #endif /* _ASM_S390_SCLP_H */
