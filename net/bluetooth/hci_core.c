@@ -621,7 +621,8 @@ static void hci_init2_req(struct hci_request *req, unsigned long opt)
 		}
 	}
 
-	if (lmp_inq_rssi_capable(hdev)) {
+	if (lmp_inq_rssi_capable(hdev) ||
+	    test_bit(HCI_QUIRK_FIXUP_INQUIRY_MODE, &hdev->quirks)) {
 		u8 mode;
 
 		/* If Extended Inquiry Result events are supported, then

@@ -102,6 +102,18 @@ enum {
 	 */
 	HCI_QUIRK_FIXUP_BUFFER_SIZE,
 
+	/* When this quirk is set, then a controller that does not
+	 * indicate support for Inquiry Result with RSSI is assumed to
+	 * support it anyway. Some early Bluetooth 1.2 controllers had
+	 * wrongly configured local features that will require forcing
+	 * them to enable this mode. Getting RSSI information with the
+	 * inquiry responses is preferred since it allows for a better
+	 * user expierence.
+	 *
+	 * This quirk must be set before hci_register_dev is called.
+	 */
+	HCI_QUIRK_FIXUP_INQUIRY_MODE,
+
 	/* When this quirk is set, then the HCI Read Local Supported
 	 * Commands command is not supported. In general Bluetooth 1.2
 	 * and later controllers should support this command. However
