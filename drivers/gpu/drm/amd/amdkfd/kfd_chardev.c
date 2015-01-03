@@ -260,8 +260,8 @@ static long kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 			p->pasid,
 			dev->id);
 
-	err = pqm_create_queue(&p->pqm, dev, filep, &q_properties, 0,
-				KFD_QUEUE_TYPE_COMPUTE, &queue_id);
+	err = pqm_create_queue(&p->pqm, dev, filep, &q_properties,
+				0, q_properties.type, &queue_id);
 	if (err != 0)
 		goto err_create_queue;
 
