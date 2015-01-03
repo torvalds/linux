@@ -1333,6 +1333,9 @@ static void umount_tree(struct mount *mnt, enum umount_tree_flags how)
 	LIST_HEAD(tmp_list);
 	struct mount *p;
 
+	if (how & UMOUNT_PROPAGATE)
+		propagate_mount_unlock(mnt);
+
 	/* Gather the mounts to umount */
 	for (p = mnt; p; p = next_mnt(p, mnt)) {
 		p->mnt.mnt_flags |= MNT_UMOUNT;

@@ -362,6 +362,26 @@ int propagate_mount_busy(struct mount *mnt, int refcnt)
 }
 
 /*
+ * Clear MNT_LOCKED when it can be shown to be safe.
+ *
+ * mount_lock lock must be held for write
+ */
+void propagate_mount_unlock(struct mount *mnt)
+{
+	struct mount *parent = mnt->mnt_parent;
+	struct mount *m, *child;
+
+	BUG_ON(parent == mnt);
+
+	for (m = propagation_next(parent, parent); m;
+			m = propagation_next(m, parent)) {
+		child = __lookup_mnt_last(&m->mnt, mnt->mnt_mountpoint);
+		if (child)
+			child->mnt.mnt_flags &= ~MNT_LOCKED;
+	}
+}
+
+/*
  * NOTE: unmounting 'mnt' naturally propagates to all other mounts its
  * parent propagates to.
  */
