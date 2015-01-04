@@ -20,10 +20,6 @@ config IEEE802154_SOCKET
 	  for 802.15.4 dataframes. Also RAW socket interface to build MAC
 	  header from userspace.
 
-config IEEE802154_6LOWPAN
-	tristate "6lowpan support over IEEE 802.15.4"
-	depends on 6LOWPAN
-	---help---
-	  IPv6 compression over IEEE 802.15.4.
+source "net/ieee802154/6lowpan/Kconfig"
 
 endif
