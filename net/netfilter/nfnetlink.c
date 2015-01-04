@@ -470,7 +470,7 @@ static int nfnetlink_bind(int group)
 	int type;
 
 	if (group <= NFNLGRP_NONE || group > NFNLGRP_MAX)
-		return -EINVAL;
+		return 0;
 
 	type = nfnl_group2type[group];
 
