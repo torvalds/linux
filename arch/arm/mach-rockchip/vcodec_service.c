@@ -547,49 +547,48 @@ static void vcodec_exit_mode(struct vpu_service_info *pservice)
 static int vpu_get_clk(struct vpu_service_info *pservice)
 {
 #if VCODEC_CLOCK_ENABLE
-	do {
-		switch (pservice->dev_id) {
-		case VCODEC_DEVICE_ID_HEVC:
-			pservice->clk_cabac = devm_clk_get(pservice->dev, "clk_cabac");
-			if (IS_ERR(pservice->clk_cabac)) {
-				dev_err(pservice->dev, "failed on clk_get clk_cabac\n");
-				break;
-			}
-
-			pservice->pd_video = devm_clk_get(pservice->dev, "pd_hevc");
-			if (IS_ERR(pservice->pd_video)) {
-				dev_err(pservice->dev, "failed on clk_get pd_hevc\n");
-				break;
-			}
-		case VCODEC_DEVICE_ID_COMBO:
-			pservice->clk_core = devm_clk_get(pservice->dev, "clk_core");
-			if (IS_ERR(pservice->clk_core)) {
-				dev_err(pservice->dev, "failed on clk_get clk_core\n");
-				break;
-			}
-		case VCODEC_DEVICE_ID_VPU:
-			pservice->aclk_vcodec = devm_clk_get(pservice->dev, "aclk_vcodec");
-			if (IS_ERR(pservice->aclk_vcodec)) {
-				dev_err(pservice->dev, "failed on clk_get aclk_vcodec\n");
-				break;
-			}
-
-			pservice->hclk_vcodec = devm_clk_get(pservice->dev, "hclk_vcodec");
-			if (IS_ERR(pservice->hclk_vcodec)) {
-				dev_err(pservice->dev, "failed on clk_get hclk_vcodec\n");
-				break;
-			}
-			if (pservice->pd_video == NULL)
-				pservice->pd_video = devm_clk_get(pservice->dev, "pd_video");
-			break;
-		default:
-			;
+	switch (pservice->dev_id) {
+	case VCODEC_DEVICE_ID_HEVC:
+		pservice->clk_cabac = devm_clk_get(pservice->dev, "clk_cabac");
+		if (IS_ERR(pservice->clk_cabac)) {
+			dev_err(pservice->dev, "failed on clk_get clk_cabac\n");
+			return -1;
 		}
 
-		return 0;
-	} while (0);
+		pservice->pd_video = devm_clk_get(pservice->dev, "pd_hevc");
+		if (IS_ERR(pservice->pd_video)) {
+			dev_err(pservice->dev, "failed on clk_get pd_hevc\n");
+			return -1;
+		}
+	case VCODEC_DEVICE_ID_COMBO:
+		pservice->clk_core = devm_clk_get(pservice->dev, "clk_core");
+		if (IS_ERR(pservice->clk_core)) {
+			dev_err(pservice->dev, "failed on clk_get clk_core\n");
+			return -1;
+		}
+	case VCODEC_DEVICE_ID_VPU:
+		pservice->aclk_vcodec = devm_clk_get(pservice->dev, "aclk_vcodec");
+		if (IS_ERR(pservice->aclk_vcodec)) {
+			dev_err(pservice->dev, "failed on clk_get aclk_vcodec\n");
+			return -1;
+		}
 
-	return -1;
+		pservice->hclk_vcodec = devm_clk_get(pservice->dev, "hclk_vcodec");
+		if (IS_ERR(pservice->hclk_vcodec)) {
+			dev_err(pservice->dev, "failed on clk_get hclk_vcodec\n");
+			return -1;
+		}
+		if (pservice->pd_video == NULL) {
+			pservice->pd_video = devm_clk_get(pservice->dev, "pd_video");
+			if (IS_ERR(pservice->pd_video))
+				pservice->pd_video = NULL;
+		}
+		break;
+	default:
+		;
+	}
+
+	return 0;
 #else
 	return 0;
 #endif
