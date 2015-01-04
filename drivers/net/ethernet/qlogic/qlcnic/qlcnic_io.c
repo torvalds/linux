@@ -10,6 +10,7 @@
 #include <net/ip.h>
 #include <linux/ipv6.h>
 #include <net/checksum.h>
+#include <linux/printk.h>
 
 #include "qlcnic.h"
 
@@ -1465,14 +1466,14 @@ void qlcnic_post_rx_buffers(struct qlcnic_adapter *adapter,
 
 static void dump_skb(struct sk_buff *skb, struct qlcnic_adapter *adapter)
 {
-	int i;
-	unsigned char *data = skb->data;
+	if (adapter->ahw->msg_enable & NETIF_MSG_DRV) {
+		char prefix[30];
 
-	pr_info(KERN_INFO "\n");
-	for (i = 0; i < skb->len; i++) {
-		QLCDB(adapter, DRV, "%02x ", data[i]);
-		if ((i & 0x0f) == 8)
-			pr_info(KERN_INFO "\n");
+		scnprintf(prefix, sizeof(prefix), "%s: %s: ",
+			  dev_name(&adapter->pdev->dev), __func__);
+
+		print_hex_dump_debug(prefix, DUMP_PREFIX_NONE, 16, 1,
+				     skb->data, skb->len, true);
 	}
 }
 
