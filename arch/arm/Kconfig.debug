@@ -920,13 +920,6 @@ choice
 		  Say Y here if you want the debug print routines to direct
 		  their output to the uart1 port on SiRFprimaII devices.
 
-	config DEBUG_SIRFMARCO_UART1
-		bool "Kernel low-level debugging messages via SiRFmarco UART1"
-		depends on ARCH_MARCO
-		help
-		  Say Y here if you want the debug print routines to direct
-		  their output to the uart1 port on SiRFmarco devices.
-
 	config STIH41X_DEBUG_ASC2
 		bool "Use StiH415/416 ASC2 UART for low-level debug"
 		depends on ARCH_STI
@@ -1195,7 +1188,7 @@ config DEBUG_LL_INCLUDE
 	default "debug/renesas-scif.S" if DEBUG_RMOBILE_SCIFA4
 	default "debug/s3c24xx.S" if DEBUG_S3C24XX_UART
 	default "debug/s5pv210.S" if DEBUG_S5PV210_UART
-	default "debug/sirf.S" if DEBUG_SIRFPRIMA2_UART1 || DEBUG_SIRFMARCO_UART1
+	default "debug/sirf.S" if DEBUG_SIRFPRIMA2_UART1
 	default "debug/sti.S" if DEBUG_STI_UART
 	default "debug/tegra.S" if DEBUG_TEGRA_UART
 	default "debug/ux500.S" if DEBUG_UX500_UART

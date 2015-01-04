@@ -8,8 +8,6 @@
 
 #if defined(CONFIG_DEBUG_SIRFPRIMA2_UART1)
 #define SIRFSOC_UART1_PA_BASE          0xb0060000
-#elif defined(CONFIG_DEBUG_SIRFMARCO_UART1)
-#define SIRFSOC_UART1_PA_BASE          0xcc060000
 #else
 #define SIRFSOC_UART1_PA_BASE          0
 #endif
