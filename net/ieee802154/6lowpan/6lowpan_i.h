@@ -3,6 +3,7 @@
 
 #include <linux/list.h>
 
+#include <net/ieee802154_netdev.h>
 #include <net/inet_frag.h>
 
 struct lowpan_create_arg {
@@ -62,5 +63,10 @@ int lowpan_net_frag_init(void);
 
 void lowpan_rx_init(void);
 void lowpan_rx_exit(void);
+
+int lowpan_header_create(struct sk_buff *skb, struct net_device *dev,
+			 unsigned short type, const void *_daddr,
+			 const void *_saddr, unsigned int len);
+netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *dev);
 
 #endif /* __IEEE802154_6LOWPAN_I_H__ */
