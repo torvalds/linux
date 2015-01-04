@@ -615,29 +615,6 @@ static void chv_pipe_power_well_disable(struct drm_i915_private *dev_priv,
 		vlv_power_sequencer_reset(dev_priv);
 }
 
-static void check_power_well_state(struct drm_i915_private *dev_priv,
-				   struct i915_power_well *power_well)
-{
-	bool enabled = power_well->ops->is_enabled(dev_priv, power_well);
-
-	if (power_well->always_on || !i915.disable_power_well) {
-		if (!enabled)
-			goto mismatch;
-
-		return;
-	}
-
-	if (enabled != (power_well->count > 0))
-		goto mismatch;
-
-	return;
-
-mismatch:
-	WARN(1, "state mismatch for '%s' (always_on %d hw state %d use-count %d disable_power_well %d\n",
-		  power_well->name, power_well->always_on, enabled,
-		  power_well->count, i915.disable_power_well);
-}
-
 /**
  * intel_display_power_get - grab a power domain reference
  * @dev_priv: i915 device instance
@@ -669,8 +646,6 @@ void intel_display_power_get(struct drm_i915_private *dev_priv,
 			power_well->ops->enable(dev_priv, power_well);
 			power_well->hw_enabled = true;
 		}
-
-		check_power_well_state(dev_priv, power_well);
 	}
 
 	power_domains->domain_use_count[domain]++;
@@ -709,8 +684,6 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 			power_well->hw_enabled = false;
 			power_well->ops->disable(dev_priv, power_well);
 		}
-
-		check_power_well_state(dev_priv, power_well);
 	}
 
 	mutex_unlock(&power_domains->lock);
