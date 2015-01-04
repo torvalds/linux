@@ -282,6 +282,7 @@ void vp_del_vqs(struct virtio_device *vdev)
 
 	vp_free_vectors(vdev);
 	kfree(vp_dev->vqs);
+	vp_dev->vqs = NULL;
 }
 
 static int vp_try_to_find_vqs(struct virtio_device *vdev, unsigned nvqs,
