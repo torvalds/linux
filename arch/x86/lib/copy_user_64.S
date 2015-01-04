@@ -8,9 +8,6 @@
 
 #include <linux/linkage.h>
 #include <asm/dwarf2.h>
-
-#define FIX_ALIGNMENT 1
-
 #include <asm/current.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
@@ -45,7 +42,6 @@
 	.endm
 
 	.macro ALIGN_DESTINATION
-#ifdef FIX_ALIGNMENT
 	/* check for bad alignment of destination */
 	movl %edi,%ecx
 	andl $7,%ecx
@@ -67,7 +63,6 @@
 
 	_ASM_EXTABLE(100b,103b)
 	_ASM_EXTABLE(101b,103b)
-#endif
 	.endm
 
 /* Standard copy_to_user with segment limit checking */
