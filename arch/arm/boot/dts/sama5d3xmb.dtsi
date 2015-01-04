@@ -61,7 +61,7 @@
 
 			isi: isi@f0034000 {
 				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_isi &pinctrl_isi_pck_as_mck &pinctrl_isi_power &pinctrl_isi_reset>;
+				pinctrl-0 = <&pinctrl_isi_data_0_7 &pinctrl_isi_pck_as_mck &pinctrl_isi_power &pinctrl_isi_reset>;
 			};
 
 			mmc1: mmc@f8000000 {
