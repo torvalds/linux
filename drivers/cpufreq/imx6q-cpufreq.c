@@ -241,6 +241,16 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 	}
 
 	/*
+	 * soc_reg sync  with arm_reg if arm shares the same regulator
+	 * with soc. Otherwise, regulator common framework will refuse to update
+	 * this consumer's voltage right now while another consumer voltage
+	 * still keep in old one. For example, imx6sx-sdb with pfuze200 in
+	 * ldo-bypass mode.
+	 */
+	of_property_read_u32(np, "fsl,arm-soc-shared", &i);
+	if (i == 1)
+		soc_reg = arm_reg;
+	/*
 	 * We expect an OPP table supplied by platform.
 	 * Just, incase the platform did not supply the OPP
 	 * table, it will try to get it.
