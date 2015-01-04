@@ -423,8 +423,8 @@ struct mqd_manager *mqd_manager_init(enum KFD_MQD_TYPE type,
 	mqd->dev = dev;
 
 	switch (type) {
-	case KFD_MQD_TYPE_CIK_CP:
-	case KFD_MQD_TYPE_CIK_COMPUTE:
+	case KFD_MQD_TYPE_CP:
+	case KFD_MQD_TYPE_COMPUTE:
 		mqd->init_mqd = init_mqd;
 		mqd->uninit_mqd = uninit_mqd;
 		mqd->load_mqd = load_mqd;
@@ -432,7 +432,7 @@ struct mqd_manager *mqd_manager_init(enum KFD_MQD_TYPE type,
 		mqd->destroy_mqd = destroy_mqd;
 		mqd->is_occupied = is_occupied;
 		break;
-	case KFD_MQD_TYPE_CIK_HIQ:
+	case KFD_MQD_TYPE_HIQ:
 		mqd->init_mqd = init_mqd_hiq;
 		mqd->uninit_mqd = uninit_mqd;
 		mqd->load_mqd = load_mqd;
@@ -440,7 +440,7 @@ struct mqd_manager *mqd_manager_init(enum KFD_MQD_TYPE type,
 		mqd->destroy_mqd = destroy_mqd;
 		mqd->is_occupied = is_occupied;
 		break;
-	case KFD_MQD_TYPE_CIK_SDMA:
+	case KFD_MQD_TYPE_SDMA:
 		mqd->init_mqd = init_mqd_sdma;
 		mqd->uninit_mqd = uninit_mqd_sdma;
 		mqd->load_mqd = load_mqd_sdma;

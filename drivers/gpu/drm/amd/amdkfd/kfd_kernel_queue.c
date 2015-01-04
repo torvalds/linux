@@ -57,7 +57,7 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	case KFD_QUEUE_TYPE_DIQ:
 	case KFD_QUEUE_TYPE_HIQ:
 		kq->mqd = dev->dqm->get_mqd_manager(dev->dqm,
-						KFD_MQD_TYPE_CIK_HIQ);
+						KFD_MQD_TYPE_HIQ);
 		break;
 	default:
 		BUG();

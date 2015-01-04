@@ -57,8 +57,8 @@ static inline
 enum KFD_MQD_TYPE get_mqd_type_from_queue_type(enum kfd_queue_type type)
 {
 	if (type == KFD_QUEUE_TYPE_SDMA)
-		return KFD_MQD_TYPE_CIK_SDMA;
-	return KFD_MQD_TYPE_CIK_CP;
+		return KFD_MQD_TYPE_SDMA;
+	return KFD_MQD_TYPE_CP;
 }
 
 static inline unsigned int get_pipes_num(struct device_queue_manager *dqm)
@@ -271,7 +271,7 @@ static int create_compute_queue_nocpsch(struct device_queue_manager *dqm,
 
 	BUG_ON(!dqm || !q || !qpd);
 
-	mqd = dqm->get_mqd_manager(dqm, KFD_MQD_TYPE_CIK_COMPUTE);
+	mqd = dqm->get_mqd_manager(dqm, KFD_MQD_TYPE_COMPUTE);
 	if (mqd == NULL)
 		return -ENOMEM;
 
@@ -302,13 +302,13 @@ static int destroy_queue_nocpsch(struct device_queue_manager *dqm,
 	pr_debug("kfd: In Func %s\n", __func__);
 
 	mutex_lock(&dqm->lock);
-	mqd = dqm->get_mqd_manager(dqm, KFD_MQD_TYPE_CIK_COMPUTE);
+	mqd = dqm->get_mqd_manager(dqm, KFD_MQD_TYPE_COMPUTE);
 	if (mqd == NULL) {
 		retval = -ENOMEM;
 		goto out;
 	}
 
-	mqd_sdma = dqm->get_mqd_manager(dqm, KFD_MQD_TYPE_CIK_SDMA);
+	mqd_sdma = dqm->get_mqd_manager(dqm, KFD_MQD_TYPE_SDMA);
 	if (mqd_sdma == NULL) {
 		mutex_unlock(&dqm->lock);
 		return -ENOMEM;
@@ -515,7 +515,7 @@ static int init_pipelines(struct device_queue_manager *dqm,
 
 	memset(hpdptr, 0, CIK_HPD_EOP_BYTES * pipes_num);
 
-	mqd = dqm->get_mqd_manager(dqm, KFD_MQD_TYPE_CIK_COMPUTE);
+	mqd = dqm->get_mqd_manager(dqm, KFD_MQD_TYPE_COMPUTE);
 	if (mqd == NULL) {
 		kfd_gtt_sa_free(dqm->dev, dqm->pipeline_mem);
 		return -ENOMEM;
@@ -646,7 +646,7 @@ static int create_sdma_queue_nocpsch(struct device_queue_manager *dqm,
 	struct mqd_manager *mqd;
 	int retval;
 
-	mqd = dqm->get_mqd_manager(dqm, KFD_MQD_TYPE_CIK_SDMA);
+	mqd = dqm->get_mqd_manager(dqm, KFD_MQD_TYPE_SDMA);
 	if (!mqd)
 		return -ENOMEM;
 
