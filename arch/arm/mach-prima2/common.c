@@ -20,11 +20,6 @@ static void __init sirfsoc_init_late(void)
 	sirfsoc_pm_init();
 }
 
-static __init void sirfsoc_map_io(void)
-{
-	sirfsoc_map_lluart();
-}
-
 #ifdef CONFIG_ARCH_ATLAS6
 static const char *atlas6_dt_match[] __initconst = {
 	"sirf,atlas6",
@@ -35,7 +30,6 @@ DT_MACHINE_START(ATLAS6_DT, "Generic ATLAS6 (Flattened Device Tree)")
 	/* Maintainer: Barry Song <baohua.song@csr.com> */
 	.l2c_aux_val	= 0,
 	.l2c_aux_mask	= ~0,
-	.map_io         = sirfsoc_map_io,
 	.init_late	= sirfsoc_init_late,
 	.dt_compat      = atlas6_dt_match,
 MACHINE_END
@@ -51,7 +45,6 @@ DT_MACHINE_START(PRIMA2_DT, "Generic PRIMA2 (Flattened Device Tree)")
 	/* Maintainer: Barry Song <baohua.song@csr.com> */
 	.l2c_aux_val	= 0,
 	.l2c_aux_mask	= ~0,
-	.map_io         = sirfsoc_map_io,
 	.dma_zone_size	= SZ_256M,
 	.init_late	= sirfsoc_init_late,
 	.dt_compat      = prima2_dt_match,
