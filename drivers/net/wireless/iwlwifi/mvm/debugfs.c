@@ -988,9 +988,14 @@ static ssize_t iwl_dbgfs_fw_dbg_collect_write(struct iwl_mvm *mvm,
 					      char *buf, size_t count,
 					      loff_t *ppos)
 {
-	mutex_lock(&mvm->mutex);
+	int ret = iwl_mvm_ref_sync(mvm, IWL_MVM_REF_PRPH_WRITE);
+
+	if (ret)
+		return ret;
+
 	iwl_mvm_fw_dbg_collect(mvm);
-	mutex_unlock(&mvm->mutex);
+
+	iwl_mvm_unref(mvm, IWL_MVM_REF_PRPH_WRITE);
 
 	return count;
 }
