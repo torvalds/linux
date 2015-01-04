@@ -50,3 +50,16 @@ DT_MACHINE_START(PRIMA2_DT, "Generic PRIMA2 (Flattened Device Tree)")
 	.dt_compat      = prima2_dt_match,
 MACHINE_END
 #endif
+
+#ifdef CONFIG_ARCH_ATLAS7
+static const char *atlas7_dt_match[] __initdata = {
+	"sirf,atlas7",
+	NULL
+};
+
+DT_MACHINE_START(ATLAS7_DT, "Generic ATLAS7 (Flattened Device Tree)")
+	/* Maintainer: Barry Song <baohua.song@csr.com> */
+	.smp            = smp_ops(sirfsoc_smp_ops),
+	.dt_compat      = atlas7_dt_match,
+MACHINE_END
+#endif
