@@ -162,6 +162,7 @@ static int nokia_modem_probe(struct device *dev)
 		return -ENOMEM;
 	}
 	dev_set_drvdata(dev, modem);
+	modem->device = dev;
 
 	irq = irq_of_parse_and_map(np, 0);
 	if (!irq) {
