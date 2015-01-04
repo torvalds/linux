@@ -1,5 +1,5 @@
-#ifndef __IEEE802154_6LOWPAN_REASSEMBLY_H__
-#define __IEEE802154_6LOWPAN_REASSEMBLY_H__
+#ifndef __IEEE802154_6LOWPAN_I_H__
+#define __IEEE802154_6LOWPAN_I_H__
 
 #include <net/inet_frag.h>
 
@@ -38,4 +38,4 @@ int lowpan_frag_rcv(struct sk_buff *skb, const u8 frag_type);
 void lowpan_net_frag_exit(void);
 int lowpan_net_frag_init(void);
 
-#endif /* __IEEE802154_6LOWPAN_REASSEMBLY_H__ */
+#endif /* __IEEE802154_6LOWPAN_I_H__ */

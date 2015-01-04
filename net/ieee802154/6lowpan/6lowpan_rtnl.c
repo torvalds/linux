@@ -55,7 +55,7 @@
 #include <net/6lowpan.h>
 #include <net/ipv6.h>
 
-#include "reassembly.h"
+#include "6lowpan_i.h"
 
 static LIST_HEAD(lowpan_devices);
 static int lowpan_open_count;
