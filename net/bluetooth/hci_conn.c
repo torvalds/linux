@@ -1084,21 +1084,6 @@ int hci_conn_check_secure(struct hci_conn *conn, __u8 sec_level)
 }
 EXPORT_SYMBOL(hci_conn_check_secure);
 
-/* Change link key */
-int hci_conn_change_link_key(struct hci_conn *conn)
-{
-	BT_DBG("hcon %p", conn);
-
-	if (!test_and_set_bit(HCI_CONN_AUTH_PEND, &conn->flags)) {
-		struct hci_cp_change_conn_link_key cp;
-		cp.handle = cpu_to_le16(conn->handle);
-		hci_send_cmd(conn->hdev, HCI_OP_CHANGE_CONN_LINK_KEY,
-			     sizeof(cp), &cp);
-	}
-
-	return 0;
-}
-
 /* Switch role */
 int hci_conn_switch_role(struct hci_conn *conn, __u8 role)
 {
