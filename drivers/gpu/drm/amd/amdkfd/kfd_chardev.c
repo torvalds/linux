@@ -145,6 +145,8 @@ static long kfd_ioctl_get_version(struct file *filep, struct kfd_process *p,
 static int set_queue_properties_from_user(struct queue_properties *q_properties,
 				struct kfd_ioctl_create_queue_args *args)
 {
+	void *tmp;
+
 	if (args->queue_percentage > KFD_MAX_QUEUE_PERCENTAGE) {
 		pr_err("kfd: queue percentage must be between 0 to KFD_MAX_QUEUE_PERCENTAGE\n");
 		return -EINVAL;
@@ -182,6 +184,20 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 		return -EFAULT;
 	}
 
+	tmp = (void *)(uintptr_t)args->eop_buffer_address;
+	if (tmp != NULL &&
+		!access_ok(VERIFY_WRITE, tmp, sizeof(uint32_t))) {
+		pr_debug("kfd: can't access eop buffer");
+		return -EFAULT;
+	}
+
+	tmp = (void *)(uintptr_t)args->ctx_save_restore_address;
+	if (tmp != NULL &&
+		!access_ok(VERIFY_WRITE, tmp, sizeof(uint32_t))) {
+		pr_debug("kfd: can't access ctx save restore buffer");
+		return -EFAULT;
+	}
+
 	q_properties->is_interop = false;
 	q_properties->queue_percent = args->queue_percentage;
 	q_properties->priority = args->queue_priority;
@@ -189,6 +205,11 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 	q_properties->queue_size = args->ring_size;
 	q_properties->read_ptr = (uint32_t *) args->read_pointer_address;
 	q_properties->write_ptr = (uint32_t *) args->write_pointer_address;
+	q_properties->eop_ring_buffer_address = args->eop_buffer_address;
+	q_properties->eop_ring_buffer_size = args->eop_buffer_size;
+	q_properties->ctx_save_restore_area_address =
+			args->ctx_save_restore_address;
+	q_properties->ctx_save_restore_area_size = args->ctx_save_restore_size;
 	if (args->queue_type == KFD_IOC_QUEUE_TYPE_COMPUTE ||
 		args->queue_type == KFD_IOC_QUEUE_TYPE_COMPUTE_AQL)
 		q_properties->type = KFD_QUEUE_TYPE_COMPUTE;
@@ -220,6 +241,11 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 
 	pr_debug("Queue Format (%d)\n", q_properties->format);
 
+	pr_debug("Queue EOP (0x%llX)\n", q_properties->eop_ring_buffer_address);
+
+	pr_debug("Queue CTX save arex (0x%llX)\n",
+			q_properties->ctx_save_restore_area_address);
+
 	return 0;
 }
 
@@ -244,9 +270,12 @@ static long kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 	if (err)
 		return err;
 
+	pr_debug("kfd: looking for gpu id 0x%x\n", args.gpu_id);
 	dev = kfd_device_by_id(args.gpu_id);
-	if (dev == NULL)
+	if (dev == NULL) {
+		pr_debug("kfd: gpu id 0x%x was not found\n", args.gpu_id);
 		return -EINVAL;
+	}
 
 	mutex_lock(&p->mutex);
 

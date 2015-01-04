@@ -299,6 +299,11 @@ struct queue_properties {
 	uint32_t sdma_engine_id;
 	uint32_t sdma_queue_id;
 	uint32_t sdma_vm_addr;
+	/* Relevant only for VI */
+	uint64_t eop_ring_buffer_address;
+	uint32_t eop_ring_buffer_size;
+	uint64_t ctx_save_restore_area_address;
+	uint32_t ctx_save_restore_area_size;
 };
 
 /**
