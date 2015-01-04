@@ -573,6 +573,10 @@ void print_queue(struct queue *q);
 
 struct mqd_manager *mqd_manager_init(enum KFD_MQD_TYPE type,
 					struct kfd_dev *dev);
+struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
+		struct kfd_dev *dev);
+struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
+		struct kfd_dev *dev);
 struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev);
 void device_queue_manager_uninit(struct device_queue_manager *dqm);
 struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
