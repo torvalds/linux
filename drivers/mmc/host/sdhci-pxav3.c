@@ -365,10 +365,11 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 		}
 	}
 
-	pm_runtime_enable(&pdev->dev);
-	pm_runtime_get_sync(&pdev->dev);
+	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, PXAV3_RPM_DELAY_MS);
 	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
 	pm_suspend_ignore_children(&pdev->dev, 1);
 
 	ret = sdhci_add_host(host);
@@ -391,8 +392,8 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 	return 0;
 
 err_add_host:
-	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+	pm_runtime_put_noidle(&pdev->dev);
 err_of_parse:
 err_cd_req:
 err_mbus_win:
