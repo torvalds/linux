@@ -320,6 +320,7 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q)
 {
 	int retval;
 	struct mqd_manager *mqd;
+	bool prev_active = false;
 
 	BUG_ON(!dqm || !q || !q->mqd);
 
@@ -330,10 +331,18 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q)
 		return -ENOMEM;
 	}
 
-	retval = mqd->update_mqd(mqd, q->mqd, &q->properties);
 	if (q->properties.is_active == true)
+		prev_active = true;
+
+	/*
+	 *
+	 * check active state vs. the previous state
+	 * and modify counter accordingly
+	 */
+	retval = mqd->update_mqd(mqd, q->mqd, &q->properties);
+	if ((q->properties.is_active == true) && (prev_active == false))
 		dqm->queue_count++;
-	else
+	else if ((q->properties.is_active == false) && (prev_active == true))
 		dqm->queue_count--;
 
 	if (sched_policy != KFD_SCHED_POLICY_NO_HWS)

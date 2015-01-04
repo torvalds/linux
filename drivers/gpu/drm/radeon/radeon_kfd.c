@@ -101,6 +101,7 @@ static const struct kgd2kfd_calls *kgd2kfd;
 
 bool radeon_kfd_init(void)
 {
+#if defined(CONFIG_HSA_AMD_MODULE)
 	bool (*kgd2kfd_init_p)(unsigned, const struct kfd2kgd_calls*,
 				const struct kgd2kfd_calls**);
 
@@ -117,6 +118,17 @@ bool radeon_kfd_init(void)
 	}
 
 	return true;
+#elif defined(CONFIG_HSA_AMD)
+	if (!kgd2kfd_init(KFD_INTERFACE_VERSION, &kfd2kgd, &kgd2kfd)) {
+		kgd2kfd = NULL;
+
+		return false;
+	}
+
+	return true;
+#else
+	return false;
+#endif
 }
 
 void radeon_kfd_fini(void)

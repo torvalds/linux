@@ -31,7 +31,6 @@
 #include <uapi/linux/kfd_ioctl.h>
 #include <linux/time.h>
 #include <linux/mm.h>
-#include <linux/uaccess.h>
 #include <uapi/asm-generic/mman-common.h>
 #include <asm/processor.h>
 #include "kfd_priv.h"
