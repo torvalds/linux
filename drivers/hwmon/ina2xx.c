@@ -115,6 +115,12 @@ static const struct ina2xx_config ina2xx_config[] = {
 	},
 };
 
+static int ina2xx_calibrate(struct ina2xx_data *data)
+{
+	return i2c_smbus_write_word_swapped(data->client, INA2XX_CALIBRATION,
+			data->config->calibration_factor / data->rshunt);
+}
+
 /*
  * Initialize the configuration and calibration registers.
  */
@@ -133,8 +139,7 @@ static int ina2xx_init(struct ina2xx_data *data)
 	 * Set current LSB to 1mA, shunt is in uOhms
 	 * (equation 13 in datasheet).
 	 */
-	return i2c_smbus_write_word_swapped(client, INA2XX_CALIBRATION,
-			data->config->calibration_factor / data->rshunt);
+	return ina2xx_calibrate(data);
 }
 
 static int ina2xx_do_update(struct device *dev)
@@ -231,6 +236,9 @@ static int ina2xx_get_value(struct ina2xx_data *data, u8 reg)
 		/* signed register, LSB=1mA (selected), in mA */
 		val = (s16)data->regs[reg];
 		break;
+	case INA2XX_CALIBRATION:
+		val = data->config->calibration_factor / data->regs[reg];
+		break;
 	default:
 		/* programmer goofed */
 		WARN_ON_ONCE(1);
@@ -254,6 +262,36 @@ static ssize_t ina2xx_show_value(struct device *dev,
 			ina2xx_get_value(data, attr->index));
 }
 
+static ssize_t ina2xx_set_shunt(struct device *dev,
+				struct device_attribute *da,
+				const char *buf, size_t count)
+{
+	struct ina2xx_data *data = ina2xx_update_device(dev);
+	unsigned long val;
+	int status;
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
+	status = kstrtoul(buf, 10, &val);
+	if (status < 0)
+		return status;
+
+	if (val == 0 ||
+	    /* Values greater than the calibration factor make no sense. */
+	    val > data->config->calibration_factor)
+		return -EINVAL;
+
+	mutex_lock(&data->update_lock);
+	data->rshunt = val;
+	status = ina2xx_calibrate(data);
+	mutex_unlock(&data->update_lock);
+	if (status < 0)
+		return status;
+
+	return count;
+}
+
 /* shunt voltage */
 static SENSOR_DEVICE_ATTR(in0_input, S_IRUGO, ina2xx_show_value, NULL,
 			  INA2XX_SHUNT_VOLTAGE);
@@ -270,12 +308,18 @@ static SENSOR_DEVICE_ATTR(curr1_input, S_IRUGO, ina2xx_show_value, NULL,
 static SENSOR_DEVICE_ATTR(power1_input, S_IRUGO, ina2xx_show_value, NULL,
 			  INA2XX_POWER);
 
+/* shunt resistance */
+static SENSOR_DEVICE_ATTR(shunt_resistor, S_IRUGO | S_IWUSR,
+			  ina2xx_show_value, ina2xx_set_shunt,
+			  INA2XX_CALIBRATION);
+
 /* pointers to created device attributes */
 static struct attribute *ina2xx_attrs[] = {
 	&sensor_dev_attr_in0_input.dev_attr.attr,
 	&sensor_dev_attr_in1_input.dev_attr.attr,
 	&sensor_dev_attr_curr1_input.dev_attr.attr,
 	&sensor_dev_attr_power1_input.dev_attr.attr,
+	&sensor_dev_attr_shunt_resistor.dev_attr.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(ina2xx);
