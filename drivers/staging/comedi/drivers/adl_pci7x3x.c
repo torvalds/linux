@@ -22,27 +22,35 @@
  */
 
 /*
-Driver: adl_pci7x3x
-Description: 32/64-Channel Isolated Digital I/O Boards
-Devices: (ADLink) PCI-7230 [adl_pci7230] - 16 input / 16 output
-	 (ADLink) PCI-7233 [adl_pci7233] - 32 input
-	 (ADLink) PCI-7234 [adl_pci7234] - 32 output
-	 (ADLink) PCI-7432 [adl_pci7432] - 32 input / 32 output
-	 (ADLink) PCI-7433 [adl_pci7433] - 64 input
-	 (ADLink) PCI-7434 [adl_pci7434] - 64 output
-Author: H Hartley Sweeten <hsweeten@visionengravers.com>
-Updated: Thu, 02 Aug 2012 14:27:46 -0700
-Status: untested
-
-The PCI-7230, PCI-7432 and PCI-7433 boards also support external
-interrupt signals on digital input channels 0 and 1. The PCI-7233
-has dual-interrupt sources for change-of-state (COS) on any 16
-digital input channels of LSB and for COS on any 16 digital input
-lines of MSB. Interrupts are not currently supported by this
-driver.
-
-Configuration Options: not applicable, uses comedi PCI auto config
-*/
+ * Driver: adl_pci7x3x
+ * Description: 32/64-Channel Isolated Digital I/O Boards
+ * Devices: [ADLink] PCI-7230 (adl_pci7230), PCI-7233 (adl_pci7233),
+ *   PCI-7234 (adl_pci7234), PCI-7432 (adl_pci7432), PCI-7433 (adl_pci7433),
+ *   PCI-7434 (adl_pci7434)
+ * Author: H Hartley Sweeten <hsweeten@visionengravers.com>
+ * Updated: Thu, 02 Aug 2012 14:27:46 -0700
+ * Status: untested
+ *
+ * One or two subdevices are setup by this driver depending on
+ * the number of digital inputs and/or outputs provided by the
+ * board. Each subdevice has a maximum of 32 channels.
+ *
+ *	PCI-7230 - 2 subdevices: 0 - 16 input, 1 - 16 output
+ *	PCI-7233 - 1 subdevice: 0 - 32 input
+ *	PCI-7234 - 1 subdevice: 0 - 32 output
+ *	PCI-7432 - 2 subdevices: 0 - 32 input, 1 - 32 output
+ *	PCI-7433 - 2 subdevices: 0 - 32 input, 1 - 32 input
+ *	PCI-7434 - 2 subdevices: 0 - 32 output, 1 - 32 output
+ *
+ * The PCI-7230, PCI-7432 and PCI-7433 boards also support external
+ * interrupt signals on digital input channels 0 and 1. The PCI-7233
+ * has dual-interrupt sources for change-of-state (COS) on any 16
+ * digital input channels of LSB and for COS on any 16 digital input
+ * lines of MSB. Interrupts are not currently supported by this
+ * driver.
+ *
+ * Configuration Options: not applicable, uses comedi PCI auto config
+ */
 
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -155,18 +163,6 @@ static int adl_pci7x3x_auto_attach(struct comedi_device *dev,
 		return ret;
 	dev->iobase = pci_resource_start(pcidev, 2);
 
-	/*
-	 * One or two subdevices are setup by this driver depending on
-	 * the number of digital inputs and/or outputs provided by the
-	 * board. Each subdevice has a maximum of 32 channels.
-	 *
-	 *	PCI-7230 - 2 subdevices: 0 - 16 input, 1 - 16 output
-	 *	PCI-7233 - 1 subdevice: 0 - 32 input
-	 *	PCI-7234 - 1 subdevice: 0 - 32 output
-	 *	PCI-7432 - 2 subdevices: 0 - 32 input, 1 - 32 output
-	 *	PCI-7433 - 2 subdevices: 0 - 32 input, 1 - 32 input
-	 *	PCI-7434 - 2 subdevices: 0 - 32 output, 1 - 32 output
-	 */
 	ret = comedi_alloc_subdevices(dev, board->nsubdevs);
 	if (ret)
 		return ret;
