@@ -1066,7 +1066,7 @@ static int alc5632_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_device_alc5632 = {
+static const struct snd_soc_codec_driver soc_codec_device_alc5632 = {
 	.probe = alc5632_probe,
 	.resume = alc5632_resume,
 	.set_bias_level = alc5632_set_bias_level,
@@ -1080,7 +1080,7 @@ static struct snd_soc_codec_driver soc_codec_device_alc5632 = {
 	.num_dapm_routes = ARRAY_SIZE(alc5632_dapm_routes),
 };
 
-static struct regmap_config alc5632_regmap = {
+static const struct regmap_config alc5632_regmap = {
 	.reg_bits = 8,
 	.val_bits = 16,
 
