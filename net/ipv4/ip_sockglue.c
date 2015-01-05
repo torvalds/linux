@@ -45,14 +45,6 @@
 #include <linux/errqueue.h>
 #include <asm/uaccess.h>
 
-#define IP_CMSG_PKTINFO		1
-#define IP_CMSG_TTL		2
-#define IP_CMSG_TOS		4
-#define IP_CMSG_RECVOPTS	8
-#define IP_CMSG_RETOPTS		16
-#define IP_CMSG_PASSSEC		32
-#define IP_CMSG_ORIGDSTADDR     64
-
 /*
  *	SOL_IP control messages.
  */
@@ -150,37 +142,55 @@ void ip_cmsg_recv(struct msghdr *msg, struct sk_buff *skb)
 	unsigned int flags = inet->cmsg_flags;
 
 	/* Ordered by supposed usage frequency */
-	if (flags & 1)
+	if (flags & IP_CMSG_PKTINFO) {
 		ip_cmsg_recv_pktinfo(msg, skb);
-	if ((flags >>= 1) == 0)
-		return;
 
-	if (flags & 1)
+		flags &= ~IP_CMSG_PKTINFO;
+		if (!flags)
+			return;
+	}
+
+	if (flags & IP_CMSG_TTL) {
 		ip_cmsg_recv_ttl(msg, skb);
-	if ((flags >>= 1) == 0)
-		return;
 
-	if (flags & 1)
+		flags &= ~IP_CMSG_TTL;
+		if (!flags)
+			return;
+	}
+
+	if (flags & IP_CMSG_TOS) {
 		ip_cmsg_recv_tos(msg, skb);
-	if ((flags >>= 1) == 0)
-		return;
 
-	if (flags & 1)
+		flags &= ~IP_CMSG_TOS;
+		if (!flags)
+			return;
+	}
+
+	if (flags & IP_CMSG_RECVOPTS) {
 		ip_cmsg_recv_opts(msg, skb);
-	if ((flags >>= 1) == 0)
-		return;
 
-	if (flags & 1)
+		flags &= ~IP_CMSG_RECVOPTS;
+		if (!flags)
+			return;
+	}
+
+	if (flags & IP_CMSG_RETOPTS) {
 		ip_cmsg_recv_retopts(msg, skb);
-	if ((flags >>= 1) == 0)
-		return;
 
-	if (flags & 1)
+		flags &= ~IP_CMSG_RETOPTS;
+		if (!flags)
+			return;
+	}
+
+	if (flags & IP_CMSG_PASSSEC) {
 		ip_cmsg_recv_security(msg, skb);
 
-	if ((flags >>= 1) == 0)
-		return;
-	if (flags & 1)
+		flags &= ~IP_CMSG_PASSSEC;
+		if (!flags)
+			return;
+	}
+
+	if (flags & IP_CMSG_ORIGDSTADDR)
 		ip_cmsg_recv_dstaddr(msg, skb);
 
 }

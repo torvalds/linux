@@ -16,7 +16,7 @@
 #ifndef _INET_SOCK_H
 #define _INET_SOCK_H
 
-
+#include <linux/bitops.h>
 #include <linux/kmemcheck.h>
 #include <linux/string.h>
 #include <linux/types.h>
@@ -194,6 +194,15 @@ struct inet_sock {
 
 #define IPCORK_OPT	1	/* ip-options has been held in ipcork.opt */
 #define IPCORK_ALLFRAG	2	/* always fragment (for ipv6 for now) */
+
+/* cmsg flags for inet */
+#define IP_CMSG_PKTINFO		BIT(0)
+#define IP_CMSG_TTL		BIT(1)
+#define IP_CMSG_TOS		BIT(2)
+#define IP_CMSG_RECVOPTS	BIT(3)
+#define IP_CMSG_RETOPTS		BIT(4)
+#define IP_CMSG_PASSSEC		BIT(5)
+#define IP_CMSG_ORIGDSTADDR	BIT(6)
 
 static inline struct inet_sock *inet_sk(const struct sock *sk)
 {
