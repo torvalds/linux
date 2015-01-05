@@ -107,6 +107,18 @@ void tcp_init_congestion_control(struct sock *sk)
 		icsk->icsk_ca_ops->init(sk);
 }
 
+static void tcp_reinit_congestion_control(struct sock *sk,
+					  const struct tcp_congestion_ops *ca)
+{
+	struct inet_connection_sock *icsk = inet_csk(sk);
+
+	tcp_cleanup_congestion_control(sk);
+	icsk->icsk_ca_ops = ca;
+
+	if (sk->sk_state != TCP_CLOSE && icsk->icsk_ca_ops->init)
+		icsk->icsk_ca_ops->init(sk);
+}
+
 /* Manage refcounts on socket close. */
 void tcp_cleanup_congestion_control(struct sock *sk)
 {
@@ -262,21 +274,13 @@ int tcp_set_congestion_control(struct sock *sk, const char *name)
 #endif
 	if (!ca)
 		err = -ENOENT;
-
 	else if (!((ca->flags & TCP_CONG_NON_RESTRICTED) ||
 		   ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN)))
 		err = -EPERM;
-
 	else if (!try_module_get(ca->owner))
 		err = -EBUSY;
-
-	else {
-		tcp_cleanup_congestion_control(sk);
-		icsk->icsk_ca_ops = ca;
-
-		if (sk->sk_state != TCP_CLOSE && icsk->icsk_ca_ops->init)
-			icsk->icsk_ca_ops->init(sk);
-	}
+	else
+		tcp_reinit_congestion_control(sk, ca);
  out:
 	rcu_read_unlock();
 	return err;
