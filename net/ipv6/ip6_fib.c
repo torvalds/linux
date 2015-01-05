@@ -633,18 +633,17 @@ static bool rt6_qualify_for_ecmp(struct rt6_info *rt)
 static int fib6_commit_metrics(struct dst_entry *dst,
 			       struct nlattr *mx, int mx_len)
 {
+	bool dst_host = dst->flags & DST_HOST;
 	struct nlattr *nla;
 	int remaining;
 	u32 *mp;
 
-	if (dst->flags & DST_HOST) {
-		mp = dst_metrics_write_ptr(dst);
-	} else {
-		mp = kzalloc(sizeof(u32) * RTAX_MAX, GFP_ATOMIC);
-		if (!mp)
-			return -ENOMEM;
+	mp = dst_host ? dst_metrics_write_ptr(dst) :
+			kzalloc(sizeof(u32) * RTAX_MAX, GFP_ATOMIC);
+	if (unlikely(!mp))
+		return -ENOMEM;
+	if (!dst_host)
 		dst_init_metrics(dst, mp, 0);
-	}
 
 	nla_for_each_attr(nla, mx, mx_len, remaining) {
 		int type = nla_type(nla);
