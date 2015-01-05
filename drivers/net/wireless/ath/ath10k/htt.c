@@ -53,7 +53,6 @@ int ath10k_htt_init(struct ath10k *ar)
 	struct ath10k_htt *htt = &ar->htt;
 
 	htt->ar = ar;
-	htt->max_throughput_mbps = 800;
 
 	/*
 	 * Prefetch enough data to satisfy target
