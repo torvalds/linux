@@ -32,6 +32,14 @@
 #include "core.h"
 
 /*
+ * See register_usage_flags. If the probed instruction doesn't use PC,
+ * we can copy it into template and have it executed directly without
+ * simulation or emulation.
+ */
+#define ARM_REG_PC	15
+#define can_kprobe_direct_exec(m)	(!test_bit(ARM_REG_PC, &(m)))
+
+/*
  * NOTE: the first sub and add instruction will be modified according
  * to the stack cost of the instruction.
  */
@@ -71,7 +79,15 @@ asm (
 			"	orrne	r2, #1\n"
 			"	strne	r2, [sp, #60] @ set bit0 of PC for thumb\n"
 			"	msr	cpsr_cxsf, r1\n"
+			".global optprobe_template_restore_begin\n"
+			"optprobe_template_restore_begin:\n"
 			"	ldmia	sp, {r0 - r15}\n"
+			".global optprobe_template_restore_orig_insn\n"
+			"optprobe_template_restore_orig_insn:\n"
+			"	nop\n"
+			".global optprobe_template_restore_end\n"
+			"optprobe_template_restore_end:\n"
+			"	nop\n"
 			".global optprobe_template_val\n"
 			"optprobe_template_val:\n"
 			"1:	.long 0\n"
@@ -91,6 +107,12 @@ asm (
 	((unsigned long *)&optprobe_template_add_sp - (unsigned long *)&optprobe_template_entry)
 #define TMPL_SUB_SP \
 	((unsigned long *)&optprobe_template_sub_sp - (unsigned long *)&optprobe_template_entry)
+#define TMPL_RESTORE_BEGIN \
+	((unsigned long *)&optprobe_template_restore_begin - (unsigned long *)&optprobe_template_entry)
+#define TMPL_RESTORE_ORIGN_INSN \
+	((unsigned long *)&optprobe_template_restore_orig_insn - (unsigned long *)&optprobe_template_entry)
+#define TMPL_RESTORE_END \
+	((unsigned long *)&optprobe_template_restore_end - (unsigned long *)&optprobe_template_entry)
 
 /*
  * ARM can always optimize an instruction when using ARM ISA, except
@@ -160,8 +182,12 @@ optimized_callback(struct optimized_kprobe *op, struct pt_regs *regs)
 		__this_cpu_write(current_kprobe, NULL);
 	}
 
-	/* In each case, we must singlestep the replaced instruction. */
-	op->kp.ainsn.insn_singlestep(p->opcode, &p->ainsn, regs);
+	/*
+	 * We singlestep the replaced instruction only when it can't be
+	 * executed directly during restore.
+	 */
+	if (!p->ainsn.kprobe_direct_exec)
+		op->kp.ainsn.insn_singlestep(p->opcode, &p->ainsn, regs);
 
 	local_irq_restore(flags);
 }
@@ -242,6 +268,28 @@ int arch_prepare_optimized_kprobe(struct optimized_kprobe *op, struct kprobe *or
 	/* Set probe function call */
 	val = (unsigned long)optimized_callback;
 	code[TMPL_CALL_IDX] = val;
+
+	/* If possible, copy insn and have it executed during restore */
+	orig->ainsn.kprobe_direct_exec = false;
+	if (can_kprobe_direct_exec(orig->ainsn.register_usage_flags)) {
+		kprobe_opcode_t final_branch = arm_gen_branch(
+				(unsigned long)(&code[TMPL_RESTORE_END]),
+				(unsigned long)(op->kp.addr) + 4);
+		if (final_branch != 0) {
+			/*
+			 * Replace original 'ldmia sp, {r0 - r15}' with
+			 * 'ldmia {r0 - r14}', restore all registers except pc.
+			 */
+			code[TMPL_RESTORE_BEGIN] = __opcode_to_mem_arm(0xe89d7fff);
+
+			/* The original probed instruction */
+			code[TMPL_RESTORE_ORIGN_INSN] = __opcode_to_mem_arm(orig->opcode);
+
+			/* Jump back to next instruction */
+			code[TMPL_RESTORE_END] = __opcode_to_mem_arm(final_branch);
+			orig->ainsn.kprobe_direct_exec = true;
+		}
+	}
 
 	flush_icache_range((unsigned long)code,
 			   (unsigned long)(&code[TMPL_END_IDX]));

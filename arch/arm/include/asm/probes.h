@@ -42,6 +42,7 @@ struct arch_probes_insn {
 	probes_insn_fn_t		*insn_fn;
 	int				stack_space;
 	unsigned long			register_usage_flags;
+	bool				kprobe_direct_exec;
 };
 
 #endif /* __ASSEMBLY__ */

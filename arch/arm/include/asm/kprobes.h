@@ -57,6 +57,9 @@ extern __visible kprobe_opcode_t optprobe_template_call;
 extern __visible kprobe_opcode_t optprobe_template_end;
 extern __visible kprobe_opcode_t optprobe_template_sub_sp;
 extern __visible kprobe_opcode_t optprobe_template_add_sp;
+extern __visible kprobe_opcode_t optprobe_template_restore_begin;
+extern __visible kprobe_opcode_t optprobe_template_restore_orig_insn;
+extern __visible kprobe_opcode_t optprobe_template_restore_end;
 
 #define MAX_OPTIMIZED_LENGTH	4
 #define MAX_OPTINSN_SIZE				\
