@@ -858,9 +858,9 @@ static inline bool iwl_mvm_is_d0i3_supported(struct iwl_mvm *mvm)
 	       (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_D0I3_SUPPORT);
 }
 
-static inline bool iwl_mvm_is_dqa_supported(struct iwl_mvm *mvm)
+static inline bool iwl_mvm_is_scd_cfg_supported(struct iwl_mvm *mvm)
 {
-	return mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_DQA_SUPPORT;
+	return mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_API_SCD_CFG;
 }
 
 extern const u8 iwl_mvm_ac_to_tx_fifo[];
@@ -1298,7 +1298,7 @@ static inline bool iwl_mvm_vif_low_latency(struct iwl_mvm_vif *mvmvif)
 /* hw scheduler queue config */
 void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, u16 ssn,
 			const struct iwl_trans_txq_scd_cfg *cfg);
-void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue);
+void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, u8 flags);
 
 static inline void iwl_mvm_enable_ac_txq(struct iwl_mvm *mvm, int queue,
 					 u8 fifo)

@@ -244,6 +244,8 @@ enum iwl_ucode_tlv_flag {
  * @IWL_UCODE_TLV_API_BASIC_DWELL: use only basic dwell time in scan command,
  *	regardless of the band or the number of the probes. FW will calculate
  *	the actual dwell time.
+ * @IWL_UCODE_TLV_API_SCD_CFG: This firmware can configure the scheduler
+ *	through the dedicated host command.
  */
 enum iwl_ucode_tlv_api {
 	IWL_UCODE_TLV_API_BT_COEX_SPLIT         = BIT(3),
@@ -252,6 +254,7 @@ enum iwl_ucode_tlv_api {
 	IWL_UCODE_TLV_API_SF_NO_DUMMY_NOTIF	= BIT(7),
 	IWL_UCODE_TLV_API_FRAGMENTED_SCAN	= BIT(8),
 	IWL_UCODE_TLV_API_BASIC_DWELL		= BIT(13),
+	IWL_UCODE_TLV_API_SCD_CFG		= BIT(15),
 };
 
 /**

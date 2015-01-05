@@ -496,14 +496,14 @@ void iwl_mvm_mac_ctxt_release(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_P2P_DEVICE:
-		iwl_mvm_disable_txq(mvm, IWL_MVM_OFFCHANNEL_QUEUE);
+		iwl_mvm_disable_txq(mvm, IWL_MVM_OFFCHANNEL_QUEUE, 0);
 		break;
 	case NL80211_IFTYPE_AP:
-		iwl_mvm_disable_txq(mvm, vif->cab_queue);
+		iwl_mvm_disable_txq(mvm, vif->cab_queue, 0);
 		/* fall through */
 	default:
 		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
-			iwl_mvm_disable_txq(mvm, vif->hw_queue[ac]);
+			iwl_mvm_disable_txq(mvm, vif->hw_queue[ac], 0);
 	}
 }
 
