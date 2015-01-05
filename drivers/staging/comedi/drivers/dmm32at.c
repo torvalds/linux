@@ -19,7 +19,7 @@
 /*
  * Driver: dmm32at
  * Description: Diamond Systems Diamond-MM-32-AT
- * Devices: (Diamond Systems) Diamond-MM-32-AT [dmm32at]
+ * Devices: [Diamond Systems] Diamond-MM-32-AT (dmm32at)
  * Author: Perry J. Piplani <perry.j.piplani@nasa.gov>
  * Updated: Fri Jun  4 09:13:24 CDT 2004
  * Status: experimental
