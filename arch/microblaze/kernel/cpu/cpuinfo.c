@@ -65,11 +65,14 @@ const struct family_string_key family_string_lookup[] = {
 	{"spartan3adsp", 0xc},
 	{"spartan6", 0xd},
 	{"virtex6", 0xe},
+	{"virtex7", 0xf},
 	/* FIXME There is no key code defined for spartan2 */
 	{"spartan2", 0xf0},
 	{"kintex7", 0x10},
 	{"artix7", 0x11},
 	{"zynq7000", 0x12},
+	{"UltraScale Virtex", 0x13},
+	{"UltraScale Kintex", 0x14},
 	{NULL, 0},
 };
 
