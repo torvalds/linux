@@ -1488,10 +1488,22 @@ static int ip6_convert_metrics(struct mx6_config *mxc,
 		int type = nla_type(nla);
 
 		if (type) {
+			u32 val;
+
 			if (unlikely(type > RTAX_MAX))
 				goto err;
+			if (type == RTAX_CC_ALGO) {
+				char tmp[TCP_CA_NAME_MAX];
 
-			mp[type - 1] = nla_get_u32(nla);
+				nla_strlcpy(tmp, nla, sizeof(tmp));
+				val = tcp_ca_get_key_by_name(tmp);
+				if (val == TCP_CA_UNSPEC)
+					goto err;
+			} else {
+				val = nla_get_u32(nla);
+			}
+
+			mp[type - 1] = val;
 			__set_bit(type - 1, mxc->mx_valid);
 		}
 	}
@@ -2571,7 +2583,8 @@ static inline size_t rt6_nlmsg_size(void)
 	       + nla_total_size(4) /* RTA_OIF */
 	       + nla_total_size(4) /* RTA_PRIORITY */
 	       + RTAX_MAX * nla_total_size(4) /* RTA_METRICS */
-	       + nla_total_size(sizeof(struct rta_cacheinfo));
+	       + nla_total_size(sizeof(struct rta_cacheinfo))
+	       + nla_total_size(TCP_CA_NAME_MAX); /* RTAX_CC_ALGO */
 }
 
 static int rt6_fill_node(struct net *net,
