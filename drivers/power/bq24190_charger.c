@@ -929,7 +929,7 @@ static void bq24190_charger_init(struct power_supply *charger)
 	charger->properties = bq24190_charger_properties;
 	charger->num_properties = ARRAY_SIZE(bq24190_charger_properties);
 	charger->supplied_to = bq24190_charger_supplied_to;
-	charger->num_supplies = ARRAY_SIZE(bq24190_charger_supplied_to);
+	charger->num_supplicants = ARRAY_SIZE(bq24190_charger_supplied_to);
 	charger->get_property = bq24190_charger_get_property;
 	charger->set_property = bq24190_charger_set_property;
 	charger->property_is_writeable = bq24190_charger_property_is_writeable;
