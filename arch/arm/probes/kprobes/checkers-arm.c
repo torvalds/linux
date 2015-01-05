@@ -97,3 +97,96 @@ const struct decode_checker arm_stack_checker[NUM_PROBES_ARM_ACTIONS] = {
 	[PROBES_STORE] = {.checker = arm_check_stack},
 	[PROBES_LDMSTM] = {.checker = arm_check_stack},
 };
+
+static enum probes_insn __kprobes arm_check_regs_nouse(probes_opcode_t insn,
+		struct arch_probes_insn *asi,
+		const struct decode_header *h)
+{
+	asi->register_usage_flags = 0;
+	return INSN_GOOD;
+}
+
+static enum probes_insn arm_check_regs_normal(probes_opcode_t insn,
+		struct arch_probes_insn *asi,
+		const struct decode_header *h)
+{
+	u32 regs = h->type_regs.bits >> DECODE_TYPE_BITS;
+	int i;
+
+	asi->register_usage_flags = 0;
+	for (i = 0; i < 5; regs >>= 4, insn >>= 4, i++)
+		if (regs & 0xf)
+			asi->register_usage_flags |= 1 << (insn & 0xf);
+
+	return INSN_GOOD;
+}
+
+
+static enum probes_insn arm_check_regs_ldmstm(probes_opcode_t insn,
+		struct arch_probes_insn *asi,
+		const struct decode_header *h)
+{
+	unsigned int reglist = insn & 0xffff;
+	unsigned int rn = (insn >> 16) & 0xf;
+	asi->register_usage_flags = reglist | (1 << rn);
+	return INSN_GOOD;
+}
+
+static enum probes_insn arm_check_regs_mov_ip_sp(probes_opcode_t insn,
+		struct arch_probes_insn *asi,
+		const struct decode_header *h)
+{
+	/* Instruction is 'mov ip, sp' i.e. 'mov r12, r13' */
+	asi->register_usage_flags = (1 << 12) | (1<< 13);
+	return INSN_GOOD;
+}
+
+/*
+ *                                    | Rn |Rt/d|         | Rm |
+ * LDRD (register)      cccc 000x x0x0 xxxx xxxx xxxx 1101 xxxx
+ * STRD (register)      cccc 000x x0x0 xxxx xxxx xxxx 1111 xxxx
+ *                                    | Rn |Rt/d|         |imm4L|
+ * LDRD (immediate)     cccc 000x x1x0 xxxx xxxx xxxx 1101 xxxx
+ * STRD (immediate)     cccc 000x x1x0 xxxx xxxx xxxx 1111 xxxx
+ *
+ * Such instructions access Rt/d and its next register, so different
+ * from others, a specific checker is required to handle this extra
+ * implicit register usage.
+ */
+static enum probes_insn arm_check_regs_ldrdstrd(probes_opcode_t insn,
+		struct arch_probes_insn *asi,
+		const struct decode_header *h)
+{
+	int rdt = (insn >> 12) & 0xf;
+	arm_check_regs_normal(insn, asi, h);
+	asi->register_usage_flags |= 1 << (rdt + 1);
+	return INSN_GOOD;
+}
+
+
+const struct decode_checker arm_regs_checker[NUM_PROBES_ARM_ACTIONS] = {
+	[PROBES_MRS] = {.checker = arm_check_regs_normal},
+	[PROBES_SATURATING_ARITHMETIC] = {.checker = arm_check_regs_normal},
+	[PROBES_MUL1] = {.checker = arm_check_regs_normal},
+	[PROBES_MUL2] = {.checker = arm_check_regs_normal},
+	[PROBES_MUL_ADD_LONG] = {.checker = arm_check_regs_normal},
+	[PROBES_MUL_ADD] = {.checker = arm_check_regs_normal},
+	[PROBES_LOAD] = {.checker = arm_check_regs_normal},
+	[PROBES_LOAD_EXTRA] = {.checker = arm_check_regs_normal},
+	[PROBES_STORE] = {.checker = arm_check_regs_normal},
+	[PROBES_STORE_EXTRA] = {.checker = arm_check_regs_normal},
+	[PROBES_DATA_PROCESSING_REG] = {.checker = arm_check_regs_normal},
+	[PROBES_DATA_PROCESSING_IMM] = {.checker = arm_check_regs_normal},
+	[PROBES_SEV] = {.checker = arm_check_regs_nouse},
+	[PROBES_WFE] = {.checker = arm_check_regs_nouse},
+	[PROBES_SATURATE] = {.checker = arm_check_regs_normal},
+	[PROBES_REV] = {.checker = arm_check_regs_normal},
+	[PROBES_MMI] = {.checker = arm_check_regs_normal},
+	[PROBES_PACK] = {.checker = arm_check_regs_normal},
+	[PROBES_EXTEND] = {.checker = arm_check_regs_normal},
+	[PROBES_EXTEND_ADD] = {.checker = arm_check_regs_normal},
+	[PROBES_BITFIELD] = {.checker = arm_check_regs_normal},
+	[PROBES_LDMSTM] = {.checker = arm_check_regs_ldmstm},
+	[PROBES_MOV_IP_SP] = {.checker = arm_check_regs_mov_ip_sp},
+	[PROBES_LDRSTRD] = {.checker = arm_check_regs_ldrdstrd},
+};

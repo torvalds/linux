@@ -47,6 +47,7 @@ extern const union decode_action stack_check_actions[];
 
 #ifndef CONFIG_THUMB2_KERNEL
 extern const struct decode_checker arm_stack_checker[];
+extern const struct decode_checker arm_regs_checker[];
 #else
 #endif
 extern const struct decode_checker t32_stack_checker[];

@@ -41,6 +41,7 @@ struct arch_probes_insn {
 	probes_insn_singlestep_t	*insn_singlestep;
 	probes_insn_fn_t		*insn_fn;
 	int				stack_space;
+	unsigned long			register_usage_flags;
 };
 
 #endif /* __ASSEMBLY__ */

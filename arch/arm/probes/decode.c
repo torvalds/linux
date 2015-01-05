@@ -435,6 +435,13 @@ probes_decode_insn(probes_opcode_t insn, struct arch_probes_insn *asi,
 	 */
 	asi->stack_space = 0;
 
+	/*
+	 * Similarly to stack_space, register_usage_flags is filled by
+	 * checkers. Its default value is set to ~0, which is 'all
+	 * registers are used', to prevent any potential optimization.
+	 */
+	asi->register_usage_flags = ~0UL;
+
 	if (emulate)
 		insn = prepare_emulated_insn(insn, asi, thumb);
 
