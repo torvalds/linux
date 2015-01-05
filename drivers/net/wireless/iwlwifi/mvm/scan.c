@@ -1863,6 +1863,13 @@ int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	flags |= IWL_UMAC_SCAN_GEN_FLAGS_PASS_ALL;
 
 	cmd->general_flags = cpu_to_le32(flags);
+
+	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_SINGLE_SCAN_EBS &&
+	    mvm->last_ebs_successful)
+		cmd->channel_flags = IWL_SCAN_CHANNEL_FLAG_EBS |
+				     IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE |
+				     IWL_SCAN_CHANNEL_FLAG_CACHE_ADD;
+
 	cmd->n_channels = req->req.n_channels;
 
 	for (i = 0; i < req->req.n_ssids; i++)
