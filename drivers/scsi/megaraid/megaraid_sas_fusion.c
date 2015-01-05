@@ -1725,9 +1725,19 @@ megasas_build_dcdb_fusion(struct megasas_instance *instance,
 		if (scmd->device->channel < MEGASAS_MAX_PD_CHANNELS)
 			goto NonFastPath;
 
+		/*
+		 * For older firmware, Driver should not access ldTgtIdToLd
+		 * beyond index 127 and for Extended VD firmware, ldTgtIdToLd
+		 * should not go beyond 255.
+		 */
+
+		if ((!fusion->fast_path_io) ||
+			(device_id >= instance->fw_supported_vd_count))
+			goto NonFastPath;
+
 		ld = MR_TargetIdToLdGet(device_id, local_map_ptr);
-		if ((ld >= instance->fw_supported_vd_count) ||
-			(!fusion->fast_path_io))
+
+		if (ld >= instance->fw_supported_vd_count)
 			goto NonFastPath;
 
 		raid = MR_LdRaidGet(ld, local_map_ptr);
