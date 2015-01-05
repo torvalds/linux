@@ -68,13 +68,12 @@ struct geneve_sock;
 typedef void (geneve_rcv_t)(struct geneve_sock *gs, struct sk_buff *skb);
 
 struct geneve_sock {
-	struct hlist_node	hlist;
+	struct list_head	list;
 	geneve_rcv_t		*rcv;
 	void			*rcv_data;
-	struct work_struct	del_work;
 	struct socket		*sock;
 	struct rcu_head		rcu;
-	atomic_t		refcnt;
+	int			refcnt;
 	struct udp_offload	udp_offloads;
 };
 
