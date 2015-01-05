@@ -309,9 +309,30 @@ static int map_grant_pages(struct grant_map *map)
 	return err;
 }
 
+struct unmap_grant_pages_callback_data
+{
+	struct completion completion;
+	int result;
+};
+
+static void unmap_grant_callback(int result,
+				 struct gntab_unmap_queue_data *data)
+{
+	struct unmap_grant_pages_callback_data* d = data->data;
+
+	d->result = result;
+	complete(&d->completion);
+}
+
 static int __unmap_grant_pages(struct grant_map *map, int offset, int pages)
 {
 	int i, err = 0;
+	struct gntab_unmap_queue_data unmap_data;
+	struct unmap_grant_pages_callback_data data;
+
+	init_completion(&data.completion);
+	unmap_data.data = &data;
+	unmap_data.done= &unmap_grant_callback;
 
 	if (map->notify.flags & UNMAP_NOTIFY_CLEAR_BYTE) {
 		int pgno = (map->notify.addr >> PAGE_SHIFT);
@@ -323,11 +344,16 @@ static int __unmap_grant_pages(struct grant_map *map, int offset, int pages)
 		}
 	}
 
-	err = gnttab_unmap_refs(map->unmap_ops + offset,
-			use_ptemod ? map->kunmap_ops + offset : NULL, map->pages + offset,
-			pages);
-	if (err)
-		return err;
+	unmap_data.unmap_ops = map->unmap_ops + offset;
+	unmap_data.kunmap_ops = use_ptemod ? map->kunmap_ops + offset : NULL;
+	unmap_data.pages = map->pages + offset;
+	unmap_data.count = pages;
+
+	gnttab_unmap_refs_async(&unmap_data);
+
+	wait_for_completion(&data.completion);
+	if (data.result)
+		return data.result;
 
 	for (i = 0; i < pages; i++) {
 		if (map->unmap_ops[offset+i].status)
