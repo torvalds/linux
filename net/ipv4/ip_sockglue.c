@@ -37,6 +37,7 @@
 #include <net/route.h>
 #include <net/xfrm.h>
 #include <net/compat.h>
+#include <net/checksum.h>
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/transp_v6.h>
 #endif
@@ -94,6 +95,20 @@ static void ip_cmsg_recv_retopts(struct msghdr *msg, struct sk_buff *skb)
 	ip_options_undo(opt);
 
 	put_cmsg(msg, SOL_IP, IP_RETOPTS, opt->optlen, opt->__data);
+}
+
+static void ip_cmsg_recv_checksum(struct msghdr *msg, struct sk_buff *skb,
+				  int offset)
+{
+	__wsum csum = skb->csum;
+
+	if (skb->ip_summed != CHECKSUM_COMPLETE)
+		return;
+
+	if (offset != 0)
+		csum = csum_sub(csum, csum_partial(skb->data, offset, 0));
+
+	put_cmsg(msg, SOL_IP, IP_CHECKSUM, sizeof(__wsum), &csum);
 }
 
 static void ip_cmsg_recv_security(struct msghdr *msg, struct sk_buff *skb)
@@ -191,9 +206,16 @@ void ip_cmsg_recv_offset(struct msghdr *msg, struct sk_buff *skb,
 			return;
 	}
 
-	if (flags & IP_CMSG_ORIGDSTADDR)
+	if (flags & IP_CMSG_ORIGDSTADDR) {
 		ip_cmsg_recv_dstaddr(msg, skb);
 
+		flags &= ~IP_CMSG_ORIGDSTADDR;
+		if (!flags)
+			return;
+	}
+
+	if (flags & IP_CMSG_CHECKSUM)
+		ip_cmsg_recv_checksum(msg, skb, offset);
 }
 EXPORT_SYMBOL(ip_cmsg_recv_offset);
 
@@ -533,6 +555,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 	case IP_MULTICAST_ALL:
 	case IP_MULTICAST_LOOP:
 	case IP_RECVORIGDSTADDR:
+	case IP_CHECKSUM:
 		if (optlen >= sizeof(int)) {
 			if (get_user(val, (int __user *) optval))
 				return -EFAULT;
@@ -629,6 +652,19 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			inet->cmsg_flags |= IP_CMSG_ORIGDSTADDR;
 		else
 			inet->cmsg_flags &= ~IP_CMSG_ORIGDSTADDR;
+		break;
+	case IP_CHECKSUM:
+		if (val) {
+			if (!(inet->cmsg_flags & IP_CMSG_CHECKSUM)) {
+				inet_inc_convert_csum(sk);
+				inet->cmsg_flags |= IP_CMSG_CHECKSUM;
+			}
+		} else {
+			if (inet->cmsg_flags & IP_CMSG_CHECKSUM) {
+				inet_dec_convert_csum(sk);
+				inet->cmsg_flags &= ~IP_CMSG_CHECKSUM;
+			}
+		}
 		break;
 	case IP_TOS:	/* This sets both TOS and Precedence */
 		if (sk->sk_type == SOCK_STREAM) {
@@ -1232,6 +1268,9 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		break;
 	case IP_RECVORIGDSTADDR:
 		val = (inet->cmsg_flags & IP_CMSG_ORIGDSTADDR) != 0;
+		break;
+	case IP_CHECKSUM:
+		val = (inet->cmsg_flags & IP_CMSG_CHECKSUM) != 0;
 		break;
 	case IP_TOS:
 		val = inet->tos;
