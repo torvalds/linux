@@ -68,6 +68,7 @@ extern const union decode_item probes_decode_arm_table[];
 
 enum probes_insn arm_probes_decode_insn(probes_opcode_t,
 		struct arch_probes_insn *, bool emulate,
-		const union decode_action *actions);
+		const union decode_action *actions,
+		const struct decode_checker *checkers[]);
 
 #endif

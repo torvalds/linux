@@ -314,6 +314,14 @@ union decode_action {
 	probes_custom_decode_t	*decoder;
 };
 
+typedef enum probes_insn (probes_check_t)(probes_opcode_t,
+					   struct arch_probes_insn *,
+					   const struct decode_header *);
+
+struct decode_checker {
+	probes_check_t	*checker;
+};
+
 #define DECODE_END			\
 	{.bits = DECODE_TYPE_END}
 
@@ -402,6 +410,7 @@ probes_insn_handler_t probes_emulate_none;
 int __kprobes
 probes_decode_insn(probes_opcode_t insn, struct arch_probes_insn *asi,
 		const union decode_item *table, bool thumb, bool emulate,
-		const union decode_action *actions);
+		const union decode_action *actions,
+		const struct decode_checker **checkers);
 
 #endif

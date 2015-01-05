@@ -339,3 +339,5 @@ const union decode_action kprobes_arm_actions[NUM_PROBES_ARM_ACTIONS] = {
 	[PROBES_BRANCH] = {.handler = simulate_bbl},
 	[PROBES_LDMSTM] = {.decoder = kprobe_decode_ldmstm}
 };
+
+const struct decode_checker *kprobes_arm_checkers[] = {NULL};

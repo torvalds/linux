@@ -664,3 +664,6 @@ const union decode_action kprobes_t32_actions[NUM_PROBES_T32_ACTIONS] = {
 	[PROBES_T32_MUL_ADD_LONG] = {
 		.handler = t32_emulate_rdlo12rdhi8rn16rm0_noflags},
 };
+
+const struct decode_checker *kprobes_t32_checkers[] = {NULL};
+const struct decode_checker *kprobes_t16_checkers[] = {NULL};
