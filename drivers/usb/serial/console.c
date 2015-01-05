@@ -140,6 +140,7 @@ static int usb_console_setup(struct console *co, char *options)
 			tty_port_tty_set(&port->port, tty);
 			tty->driver = usb_serial_tty_driver;
 			tty->index = co->index;
+			init_ldsem(&tty->ldisc_sem);
 			if (tty_init_termios(tty)) {
 				retval = -ENOMEM;
 				goto free_tty;
