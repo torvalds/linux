@@ -91,6 +91,7 @@ struct grant_map {
 	struct gnttab_map_grant_ref   *map_ops;
 	struct gnttab_unmap_grant_ref *unmap_ops;
 	struct gnttab_map_grant_ref   *kmap_ops;
+	struct gnttab_unmap_grant_ref *kunmap_ops;
 	struct page **pages;
 };
 
@@ -124,6 +125,7 @@ static void gntdev_free_map(struct grant_map *map)
 	kfree(map->map_ops);
 	kfree(map->unmap_ops);
 	kfree(map->kmap_ops);
+	kfree(map->kunmap_ops);
 	kfree(map);
 }
 
@@ -140,11 +142,13 @@ static struct grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count)
 	add->map_ops   = kcalloc(count, sizeof(add->map_ops[0]), GFP_KERNEL);
 	add->unmap_ops = kcalloc(count, sizeof(add->unmap_ops[0]), GFP_KERNEL);
 	add->kmap_ops  = kcalloc(count, sizeof(add->kmap_ops[0]), GFP_KERNEL);
+	add->kunmap_ops = kcalloc(count, sizeof(add->kunmap_ops[0]), GFP_KERNEL);
 	add->pages     = kcalloc(count, sizeof(add->pages[0]), GFP_KERNEL);
 	if (NULL == add->grants    ||
 	    NULL == add->map_ops   ||
 	    NULL == add->unmap_ops ||
 	    NULL == add->kmap_ops  ||
+	    NULL == add->kunmap_ops ||
 	    NULL == add->pages)
 		goto err;
 
@@ -155,6 +159,7 @@ static struct grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count)
 		add->map_ops[i].handle = -1;
 		add->unmap_ops[i].handle = -1;
 		add->kmap_ops[i].handle = -1;
+		add->kunmap_ops[i].handle = -1;
 	}
 
 	add->index = 0;
@@ -280,6 +285,8 @@ static int map_grant_pages(struct grant_map *map)
 				map->flags | GNTMAP_host_map,
 				map->grants[i].ref,
 				map->grants[i].domid);
+			gnttab_set_unmap_op(&map->kunmap_ops[i], address,
+				map->flags | GNTMAP_host_map, -1);
 		}
 	}
 
@@ -290,13 +297,14 @@ static int map_grant_pages(struct grant_map *map)
 		return err;
 
 	for (i = 0; i < map->count; i++) {
-		if (map->map_ops[i].status)
+		if (map->map_ops[i].status) {
 			err = -EINVAL;
-		else {
-			BUG_ON(map->map_ops[i].handle == -1);
-			map->unmap_ops[i].handle = map->map_ops[i].handle;
-			pr_debug("map handle=%d\n", map->map_ops[i].handle);
+			continue;
 		}
+
+		map->unmap_ops[i].handle = map->map_ops[i].handle;
+		if (use_ptemod)
+			map->kunmap_ops[i].handle = map->kmap_ops[i].handle;
 	}
 	return err;
 }
@@ -316,7 +324,7 @@ static int __unmap_grant_pages(struct grant_map *map, int offset, int pages)
 	}
 
 	err = gnttab_unmap_refs(map->unmap_ops + offset,
-			use_ptemod ? map->kmap_ops + offset : NULL, map->pages + offset,
+			use_ptemod ? map->kunmap_ops + offset : NULL, map->pages + offset,
 			pages);
 	if (err)
 		return err;

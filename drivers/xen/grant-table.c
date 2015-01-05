@@ -738,7 +738,7 @@ int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 EXPORT_SYMBOL_GPL(gnttab_map_refs);
 
 int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
-		      struct gnttab_map_grant_ref *kmap_ops,
+		      struct gnttab_unmap_grant_ref *kunmap_ops,
 		      struct page **pages, unsigned int count)
 {
 	int ret;
@@ -747,7 +747,7 @@ int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
 	if (ret)
 		return ret;
 
-	return clear_foreign_p2m_mapping(unmap_ops, kmap_ops, pages, count);
+	return clear_foreign_p2m_mapping(unmap_ops, kunmap_ops, pages, count);
 }
 EXPORT_SYMBOL_GPL(gnttab_unmap_refs);
 

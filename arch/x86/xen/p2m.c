@@ -816,7 +816,7 @@ static struct page *m2p_find_override(unsigned long mfn)
 }
 
 static int m2p_remove_override(struct page *page,
-			       struct gnttab_map_grant_ref *kmap_op,
+			       struct gnttab_unmap_grant_ref *kunmap_op,
 			       unsigned long mfn)
 {
 	unsigned long flags;
@@ -840,7 +840,7 @@ static int m2p_remove_override(struct page *page,
 	list_del(&page->lru);
 	spin_unlock_irqrestore(&m2p_override_lock, flags);
 
-	if (kmap_op != NULL) {
+	if (kunmap_op != NULL) {
 		if (!PageHighMem(page)) {
 			struct multicall_space mcs;
 			struct gnttab_unmap_and_replace *unmap_op;
@@ -855,13 +855,13 @@ static int m2p_remove_override(struct page *page,
 			 * issued. In this case handle is going to -1 because
 			 * it hasn't been modified yet.
 			 */
-			if (kmap_op->handle == -1)
+			if (kunmap_op->handle == -1)
 				xen_mc_flush();
 			/*
 			 * Now if kmap_op->handle is negative it means that the
 			 * hypercall actually returned an error.
 			 */
-			if (kmap_op->handle == GNTST_general_error) {
+			if (kunmap_op->handle == GNTST_general_error) {
 				pr_warn("m2p_remove_override: pfn %lx mfn %lx, failed to modify kernel mappings",
 					pfn, mfn);
 				put_balloon_scratch_page();
@@ -873,9 +873,9 @@ static int m2p_remove_override(struct page *page,
 			mcs = __xen_mc_entry(
 				sizeof(struct gnttab_unmap_and_replace));
 			unmap_op = mcs.args;
-			unmap_op->host_addr = kmap_op->host_addr;
+			unmap_op->host_addr = kunmap_op->host_addr;
 			unmap_op->new_addr = scratch_page_address;
-			unmap_op->handle = kmap_op->handle;
+			unmap_op->handle = kunmap_op->handle;
 
 			MULTI_grant_table_op(mcs.mc,
 				GNTTABOP_unmap_and_replace, unmap_op, 1);
@@ -887,7 +887,6 @@ static int m2p_remove_override(struct page *page,
 
 			xen_mc_issue(PARAVIRT_LAZY_MMU);
 
-			kmap_op->host_addr = 0;
 			put_balloon_scratch_page();
 		}
 	}
@@ -912,7 +911,7 @@ static int m2p_remove_override(struct page *page,
 }
 
 int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
-			      struct gnttab_map_grant_ref *kmap_ops,
+			      struct gnttab_unmap_grant_ref *kunmap_ops,
 			      struct page **pages, unsigned int count)
 {
 	int i, ret = 0;
@@ -921,7 +920,7 @@ int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return 0;
 
-	if (kmap_ops &&
+	if (kunmap_ops &&
 	    !in_interrupt() &&
 	    paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE) {
 		arch_enter_lazy_mmu_mode();
@@ -942,8 +941,8 @@ int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
 		ClearPagePrivate(pages[i]);
 		set_phys_to_machine(pfn, pages[i]->index);
 
-		if (kmap_ops)
-			ret = m2p_remove_override(pages[i], &kmap_ops[i], mfn);
+		if (kunmap_ops)
+			ret = m2p_remove_override(pages[i], &kunmap_ops[i], mfn);
 		if (ret)
 			goto out;
 	}
