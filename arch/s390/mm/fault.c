@@ -171,7 +171,7 @@ static void dump_pagetable(unsigned long asce, unsigned long address)
 		table = table + ((address >> 20) & 0x7ff);
 		if (bad_address(table))
 			goto bad;
-		pr_cont(KERN_CONT "S:%016lx ", *table);
+		pr_cont("S:%016lx ", *table);
 		if (*table & (_SEGMENT_ENTRY_INVALID | _SEGMENT_ENTRY_LARGE))
 			goto out;
 		table = (unsigned long *)(*table & _SEGMENT_ENTRY_ORIGIN);
