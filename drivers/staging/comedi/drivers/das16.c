@@ -22,28 +22,17 @@
  * Driver: das16
  * Description: DAS16 compatible boards
  * Author: Sam Moore, Warren Jasper, ds, Chris Baugher, Frank Hess, Roman Fietze
- * Devices: (Keithley Metrabyte) DAS-16 [das-16]
- *	    (Keithley Metrabyte) DAS-16G [das-16g]
- *	    (Keithley Metrabyte) DAS-16F [das-16f]
- *	    (Keithley Metrabyte) DAS-1201 [das-1201]
- *	    (Keithley Metrabyte) DAS-1202 [das-1202]
- *	    (Keithley Metrabyte) DAS-1401 [das-1401]
- *	    (Keithley Metrabyte) DAS-1402 [das-1402]
- *	    (Keithley Metrabyte) DAS-1601 [das-1601]
- *	    (Keithley Metrabyte) DAS-1602 [das-1602]
- *	    (ComputerBoards) PC104-DAS16/JR [pc104-das16jr]
- *	    (ComputerBoards) PC104-DAS16JR/16 [pc104-das16jr/16]
- *	    (ComputerBoards) CIO-DAS16 [cio-das16]
- *	    (ComputerBoards) CIO-DAS16F [cio-das16/f]
- *	    (ComputerBoards) CIO-DAS16/JR [cio-das16/jr]
- *	    (ComputerBoards) CIO-DAS16JR/16 [cio-das16jr/16]
- *	    (ComputerBoards) CIO-DAS1401/12 [cio-das1401/12]
- *	    (ComputerBoards) CIO-DAS1402/12 [cio-das1402/12]
- *	    (ComputerBoards) CIO-DAS1402/16 [cio-das1402/16]
- *	    (ComputerBoards) CIO-DAS1601/12 [cio-das1601/12]
- *	    (ComputerBoards) CIO-DAS1602/12 [cio-das1602/12]
- *	    (ComputerBoards) CIO-DAS1602/16 [cio-das1602/16]
- *	    (ComputerBoards) CIO-DAS16/330 [cio-das16/330]
+ * Devices: [Keithley Metrabyte] DAS-16 (das-16), DAS-16G (das-16g),
+ *   DAS-16F (das-16f), DAS-1201 (das-1201), DAS-1202 (das-1202),
+ *   DAS-1401 (das-1401), DAS-1402 (das-1402), DAS-1601 (das-1601),
+ *   DAS-1602 (das-1602),
+ *   [ComputerBoards] PC104-DAS16/JR (pc104-das16jr),
+ *   PC104-DAS16JR/16 (pc104-das16jr/16), CIO-DAS16 (cio-das16),
+ *   CIO-DAS16F (cio-das16/f), CIO-DAS16/JR (cio-das16/jr),
+ *   CIO-DAS16JR/16 (cio-das16jr/16), CIO-DAS1401/12 (cio-das1401/12),
+ *   CIO-DAS1402/12 (cio-das1402/12), CIO-DAS1402/16 (cio-das1402/16),
+ *   CIO-DAS1601/12 (cio-das1601/12), CIO-DAS1602/12 (cio-das1602/12),
+ *   CIO-DAS1602/16 (cio-das1602/16), CIO-DAS16/330 (cio-das16/330)
  * Status: works
  * Updated: 2003-10-12
  *
