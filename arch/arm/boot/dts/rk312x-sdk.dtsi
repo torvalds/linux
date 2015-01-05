@@ -611,6 +611,9 @@
                 max_charge_currentmA = <1500>;
                 max_charge_voltagemV = <4260>;
                 max_bat_voltagemV = <4200>;
+                sleep_enter_current = <100>;
+                sleep_exit_current = <130>;
+                support_uboot_chrg = <0>;
         };
 
 };
