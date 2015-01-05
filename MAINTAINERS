@@ -624,6 +624,8 @@ L:      dri-devel@lists.freedesktop.org
 T:      git git://people.freedesktop.org/~gabbayo/linux.git
 S:      Supported
 F:      drivers/gpu/drm/amd/amdkfd/
+F:	drivers/gpu/drm/amd/include/cik_structs.h
+F:	drivers/gpu/drm/amd/include/kgd_kfd_interface.h
 F:      drivers/gpu/drm/radeon/radeon_kfd.c
 F:      drivers/gpu/drm/radeon/radeon_kfd.h
 F:      include/uapi/linux/kfd_ioctl.h
