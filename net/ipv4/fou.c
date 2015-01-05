@@ -490,7 +490,7 @@ static int fou_create(struct net *net, struct fou_cfg *cfg,
 	sk->sk_user_data = fou;
 	fou->sock = sock;
 
-	udp_set_convert_csum(sk, true);
+	inet_inc_convert_csum(sk);
 
 	sk->sk_allocation = GFP_ATOMIC;
 

@@ -909,7 +909,7 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 			goto csum_error;
 		}
 
-		if (udp_sk(sk)->convert_csum && uh->check && !IS_UDPLITE(sk))
+		if (inet_get_convert_csum(sk) && uh->check && !IS_UDPLITE(sk))
 			skb_checksum_try_convert(skb, IPPROTO_UDP, uh->check,
 						 ip6_compute_pseudo);
 

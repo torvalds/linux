@@ -184,6 +184,7 @@ struct inet_sock {
 				mc_all:1,
 				nodefrag:1;
 	__u8			rcv_tos;
+	__u8			convert_csum;
 	int			uc_index;
 	int			mc_index;
 	__be32			mc_addr;
@@ -248,6 +249,22 @@ static inline __u8 inet_sk_flowi_flags(const struct sock *sk)
 	if (inet_sk(sk)->transparent || inet_sk(sk)->hdrincl)
 		flags |= FLOWI_FLAG_ANYSRC;
 	return flags;
+}
+
+static inline void inet_inc_convert_csum(struct sock *sk)
+{
+	inet_sk(sk)->convert_csum++;
+}
+
+static inline void inet_dec_convert_csum(struct sock *sk)
+{
+	if (inet_sk(sk)->convert_csum > 0)
+		inet_sk(sk)->convert_csum--;
+}
+
+static inline bool inet_get_convert_csum(struct sock *sk)
+{
+	return !!inet_sk(sk)->convert_csum;
 }
 
 #endif	/* _INET_SOCK_H */
