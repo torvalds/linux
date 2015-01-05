@@ -66,15 +66,15 @@ static inline int csio_is_t5(uint16_t chip)
 	{ PCI_VENDOR_ID_CHELSIO, (devid), PCI_ANY_ID, PCI_ANY_ID, 0, 0, (idx) }
 
 #define CSIO_HW_PIDX(hw, index)						\
-	(csio_is_t4(hw->chip_id) ? (PIDX(index)) :			\
-					(PIDX_T5(index) | DBTYPE(1U)))
+	(csio_is_t4(hw->chip_id) ? (PIDX_V(index)) :			\
+					(PIDX_T5_G(index) | DBTYPE_F))
 
 #define CSIO_HW_LP_INT_THRESH(hw, val)					\
-	(csio_is_t4(hw->chip_id) ? (LP_INT_THRESH(val)) :		\
+	(csio_is_t4(hw->chip_id) ? (LP_INT_THRESH_V(val)) :		\
 					(V_LP_INT_THRESH_T5(val)))
 
 #define CSIO_HW_M_LP_INT_THRESH(hw)					\
-	(csio_is_t4(hw->chip_id) ? (LP_INT_THRESH_MASK) : (M_LP_INT_THRESH_T5))
+	(csio_is_t4(hw->chip_id) ? (LP_INT_THRESH_M) : (M_LP_INT_THRESH_T5))
 
 #define CSIO_MAC_INT_CAUSE_REG(hw, port)				\
 	(csio_is_t4(hw->chip_id) ? (PORT_REG(port, XGMAC_PORT_INT_CAUSE)) : \

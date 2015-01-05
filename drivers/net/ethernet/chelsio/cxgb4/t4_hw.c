@@ -35,6 +35,7 @@
 #include <linux/delay.h>
 #include "cxgb4.h"
 #include "t4_regs.h"
+#include "t4_values.h"
 #include "t4fw_api.h"
 
 /**
@@ -1499,43 +1500,43 @@ static void sge_intr_handler(struct adapter *adapter)
 	u64 v;
 
 	static const struct intr_info sge_intr_info[] = {
-		{ ERR_CPL_EXCEED_IQE_SIZE,
+		{ ERR_CPL_EXCEED_IQE_SIZE_F,
 		  "SGE received CPL exceeding IQE size", -1, 1 },
-		{ ERR_INVALID_CIDX_INC,
+		{ ERR_INVALID_CIDX_INC_F,
 		  "SGE GTS CIDX increment too large", -1, 0 },
-		{ ERR_CPL_OPCODE_0, "SGE received 0-length CPL", -1, 0 },
-		{ DBFIFO_LP_INT, NULL, -1, 0, t4_db_full },
-		{ DBFIFO_HP_INT, NULL, -1, 0, t4_db_full },
-		{ ERR_DROPPED_DB, NULL, -1, 0, t4_db_dropped },
-		{ ERR_DATA_CPL_ON_HIGH_QID1 | ERR_DATA_CPL_ON_HIGH_QID0,
+		{ ERR_CPL_OPCODE_0_F, "SGE received 0-length CPL", -1, 0 },
+		{ DBFIFO_LP_INT_F, NULL, -1, 0, t4_db_full },
+		{ DBFIFO_HP_INT_F, NULL, -1, 0, t4_db_full },
+		{ ERR_DROPPED_DB_F, NULL, -1, 0, t4_db_dropped },
+		{ ERR_DATA_CPL_ON_HIGH_QID1_F | ERR_DATA_CPL_ON_HIGH_QID0_F,
 		  "SGE IQID > 1023 received CPL for FL", -1, 0 },
-		{ ERR_BAD_DB_PIDX3, "SGE DBP 3 pidx increment too large", -1,
+		{ ERR_BAD_DB_PIDX3_F, "SGE DBP 3 pidx increment too large", -1,
 		  0 },
-		{ ERR_BAD_DB_PIDX2, "SGE DBP 2 pidx increment too large", -1,
+		{ ERR_BAD_DB_PIDX2_F, "SGE DBP 2 pidx increment too large", -1,
 		  0 },
-		{ ERR_BAD_DB_PIDX1, "SGE DBP 1 pidx increment too large", -1,
+		{ ERR_BAD_DB_PIDX1_F, "SGE DBP 1 pidx increment too large", -1,
 		  0 },
-		{ ERR_BAD_DB_PIDX0, "SGE DBP 0 pidx increment too large", -1,
+		{ ERR_BAD_DB_PIDX0_F, "SGE DBP 0 pidx increment too large", -1,
 		  0 },
-		{ ERR_ING_CTXT_PRIO,
+		{ ERR_ING_CTXT_PRIO_F,
 		  "SGE too many priority ingress contexts", -1, 0 },
-		{ ERR_EGR_CTXT_PRIO,
+		{ ERR_EGR_CTXT_PRIO_F,
 		  "SGE too many priority egress contexts", -1, 0 },
-		{ INGRESS_SIZE_ERR, "SGE illegal ingress QID", -1, 0 },
-		{ EGRESS_SIZE_ERR, "SGE illegal egress QID", -1, 0 },
+		{ INGRESS_SIZE_ERR_F, "SGE illegal ingress QID", -1, 0 },
+		{ EGRESS_SIZE_ERR_F, "SGE illegal egress QID", -1, 0 },
 		{ 0 }
 	};
 
-	v = (u64)t4_read_reg(adapter, SGE_INT_CAUSE1) |
-		((u64)t4_read_reg(adapter, SGE_INT_CAUSE2) << 32);
+	v = (u64)t4_read_reg(adapter, SGE_INT_CAUSE1_A) |
+		((u64)t4_read_reg(adapter, SGE_INT_CAUSE2_A) << 32);
 	if (v) {
 		dev_alert(adapter->pdev_dev, "SGE parity error (%#llx)\n",
 				(unsigned long long)v);
-		t4_write_reg(adapter, SGE_INT_CAUSE1, v);
-		t4_write_reg(adapter, SGE_INT_CAUSE2, v >> 32);
+		t4_write_reg(adapter, SGE_INT_CAUSE1_A, v);
+		t4_write_reg(adapter, SGE_INT_CAUSE2_A, v >> 32);
 	}
 
-	if (t4_handle_intr_status(adapter, SGE_INT_CAUSE3, sge_intr_info) ||
+	if (t4_handle_intr_status(adapter, SGE_INT_CAUSE3_A, sge_intr_info) ||
 	    v != 0)
 		t4_fatal_err(adapter);
 }
@@ -2025,15 +2026,15 @@ void t4_intr_enable(struct adapter *adapter)
 {
 	u32 pf = SOURCEPF_GET(t4_read_reg(adapter, PL_WHOAMI));
 
-	t4_write_reg(adapter, SGE_INT_ENABLE3, ERR_CPL_EXCEED_IQE_SIZE |
-		     ERR_INVALID_CIDX_INC | ERR_CPL_OPCODE_0 |
-		     ERR_DROPPED_DB | ERR_DATA_CPL_ON_HIGH_QID1 |
-		     ERR_DATA_CPL_ON_HIGH_QID0 | ERR_BAD_DB_PIDX3 |
-		     ERR_BAD_DB_PIDX2 | ERR_BAD_DB_PIDX1 |
-		     ERR_BAD_DB_PIDX0 | ERR_ING_CTXT_PRIO |
-		     ERR_EGR_CTXT_PRIO | INGRESS_SIZE_ERR |
-		     DBFIFO_HP_INT | DBFIFO_LP_INT |
-		     EGRESS_SIZE_ERR);
+	t4_write_reg(adapter, SGE_INT_ENABLE3_A, ERR_CPL_EXCEED_IQE_SIZE_F |
+		     ERR_INVALID_CIDX_INC_F | ERR_CPL_OPCODE_0_F |
+		     ERR_DROPPED_DB_F | ERR_DATA_CPL_ON_HIGH_QID1_F |
+		     ERR_DATA_CPL_ON_HIGH_QID0_F | ERR_BAD_DB_PIDX3_F |
+		     ERR_BAD_DB_PIDX2_F | ERR_BAD_DB_PIDX1_F |
+		     ERR_BAD_DB_PIDX0_F | ERR_ING_CTXT_PRIO_F |
+		     ERR_EGR_CTXT_PRIO_F | INGRESS_SIZE_ERR_F |
+		     DBFIFO_HP_INT_F | DBFIFO_LP_INT_F |
+		     EGRESS_SIZE_ERR_F);
 	t4_write_reg(adapter, MYPF_REG(PL_PF_INT_ENABLE), PF_INTR_MASK);
 	t4_set_reg_field(adapter, PL_INT_MAP0, 0, 1 << pf);
 }
@@ -3148,22 +3149,23 @@ int t4_fixup_host_params(struct adapter *adap, unsigned int page_size,
 	unsigned int fl_align = cache_line_size < 32 ? 32 : cache_line_size;
 	unsigned int fl_align_log = fls(fl_align) - 1;
 
-	t4_write_reg(adap, SGE_HOST_PAGE_SIZE,
-		     HOSTPAGESIZEPF0(sge_hps) |
-		     HOSTPAGESIZEPF1(sge_hps) |
-		     HOSTPAGESIZEPF2(sge_hps) |
-		     HOSTPAGESIZEPF3(sge_hps) |
-		     HOSTPAGESIZEPF4(sge_hps) |
-		     HOSTPAGESIZEPF5(sge_hps) |
-		     HOSTPAGESIZEPF6(sge_hps) |
-		     HOSTPAGESIZEPF7(sge_hps));
+	t4_write_reg(adap, SGE_HOST_PAGE_SIZE_A,
+		     HOSTPAGESIZEPF0_V(sge_hps) |
+		     HOSTPAGESIZEPF1_V(sge_hps) |
+		     HOSTPAGESIZEPF2_V(sge_hps) |
+		     HOSTPAGESIZEPF3_V(sge_hps) |
+		     HOSTPAGESIZEPF4_V(sge_hps) |
+		     HOSTPAGESIZEPF5_V(sge_hps) |
+		     HOSTPAGESIZEPF6_V(sge_hps) |
+		     HOSTPAGESIZEPF7_V(sge_hps));
 
 	if (is_t4(adap->params.chip)) {
-		t4_set_reg_field(adap, SGE_CONTROL,
-				 INGPADBOUNDARY_MASK |
-				 EGRSTATUSPAGESIZE_MASK,
-				 INGPADBOUNDARY(fl_align_log - 5) |
-				 EGRSTATUSPAGESIZE(stat_len != 64));
+		t4_set_reg_field(adap, SGE_CONTROL_A,
+				 INGPADBOUNDARY_V(INGPADBOUNDARY_M) |
+				 EGRSTATUSPAGESIZE_F,
+				 INGPADBOUNDARY_V(fl_align_log -
+						  INGPADBOUNDARY_SHIFT_X) |
+				 EGRSTATUSPAGESIZE_V(stat_len != 64));
 	} else {
 		/* T5 introduced the separation of the Free List Padding and
 		 * Packing Boundaries.  Thus, we can select a smaller Padding
@@ -3193,15 +3195,15 @@ int t4_fixup_host_params(struct adapter *adap, unsigned int page_size,
 			fl_align = 64;
 			fl_align_log = 6;
 		}
-		t4_set_reg_field(adap, SGE_CONTROL,
-				 INGPADBOUNDARY_MASK |
-				 EGRSTATUSPAGESIZE_MASK,
-				 INGPADBOUNDARY(INGPCIEBOUNDARY_32B_X) |
-				 EGRSTATUSPAGESIZE(stat_len != 64));
+		t4_set_reg_field(adap, SGE_CONTROL_A,
+				 INGPADBOUNDARY_V(INGPADBOUNDARY_M) |
+				 EGRSTATUSPAGESIZE_F,
+				 INGPADBOUNDARY_V(INGPCIEBOUNDARY_32B_X) |
+				 EGRSTATUSPAGESIZE_V(stat_len != 64));
 		t4_set_reg_field(adap, SGE_CONTROL2_A,
 				 INGPACKBOUNDARY_V(INGPACKBOUNDARY_M),
 				 INGPACKBOUNDARY_V(fl_align_log -
-						 INGPACKBOUNDARY_SHIFT_X));
+						   INGPACKBOUNDARY_SHIFT_X));
 	}
 	/*
 	 * Adjust various SGE Free List Host Buffer Sizes.
@@ -3224,12 +3226,12 @@ int t4_fixup_host_params(struct adapter *adap, unsigned int page_size,
 	 * Default Firmware Configuration File but we need to adjust it for
 	 * this host's cache line size.
 	 */
-	t4_write_reg(adap, SGE_FL_BUFFER_SIZE0, page_size);
-	t4_write_reg(adap, SGE_FL_BUFFER_SIZE2,
-		     (t4_read_reg(adap, SGE_FL_BUFFER_SIZE2) + fl_align-1)
+	t4_write_reg(adap, SGE_FL_BUFFER_SIZE0_A, page_size);
+	t4_write_reg(adap, SGE_FL_BUFFER_SIZE2_A,
+		     (t4_read_reg(adap, SGE_FL_BUFFER_SIZE2_A) + fl_align-1)
 		     & ~(fl_align-1));
-	t4_write_reg(adap, SGE_FL_BUFFER_SIZE3,
-		     (t4_read_reg(adap, SGE_FL_BUFFER_SIZE3) + fl_align-1)
+	t4_write_reg(adap, SGE_FL_BUFFER_SIZE3_A,
+		     (t4_read_reg(adap, SGE_FL_BUFFER_SIZE3_A) + fl_align-1)
 		     & ~(fl_align-1));
 
 	t4_write_reg(adap, ULP_RX_TDDP_PSZ, HPZ0(page_shift - 12));
@@ -4133,7 +4135,7 @@ int t4_init_sge_params(struct adapter *adapter)
 
 	/* Extract the SGE Page Size for our PF.
 	 */
-	hps = t4_read_reg(adapter, SGE_HOST_PAGE_SIZE);
+	hps = t4_read_reg(adapter, SGE_HOST_PAGE_SIZE_A);
 	s_hps = (HOSTPAGESIZEPF0_S +
 		 (HOSTPAGESIZEPF1_S - HOSTPAGESIZEPF0_S) * adapter->fn);
 	sge_params->hps = ((hps >> s_hps) & HOSTPAGESIZEPF0_M);
@@ -4142,10 +4144,10 @@ int t4_init_sge_params(struct adapter *adapter)
 	 */
 	s_qpp = (QUEUESPERPAGEPF0_S +
 		(QUEUESPERPAGEPF1_S - QUEUESPERPAGEPF0_S) * adapter->fn);
-	qpp = t4_read_reg(adapter, SGE_EGRESS_QUEUES_PER_PAGE_PF);
-	sge_params->eq_qpp = ((qpp >> s_qpp) & QUEUESPERPAGEPF0_MASK);
+	qpp = t4_read_reg(adapter, SGE_EGRESS_QUEUES_PER_PAGE_PF_A);
+	sge_params->eq_qpp = ((qpp >> s_qpp) & QUEUESPERPAGEPF0_M);
 	qpp = t4_read_reg(adapter, SGE_INGRESS_QUEUES_PER_PAGE_PF);
-	sge_params->iq_qpp = ((qpp >> s_qpp) & QUEUESPERPAGEPF0_MASK);
+	sge_params->iq_qpp = ((qpp >> s_qpp) & QUEUESPERPAGEPF0_M);
 
 	return 0;
 }

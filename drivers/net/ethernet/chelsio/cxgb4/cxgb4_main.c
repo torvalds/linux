@@ -66,6 +66,7 @@
 
 #include "cxgb4.h"
 #include "t4_regs.h"
+#include "t4_values.h"
 #include "t4_msg.h"
 #include "t4fw_api.h"
 #include "cxgb4_dcb.h"
@@ -1050,9 +1051,9 @@ static void enable_rx(struct adapter *adap)
 		if (q->handler)
 			napi_enable(&q->napi);
 		/* 0-increment GTS to start the timer and enable interrupts */
-		t4_write_reg(adap, MYPF_REG(SGE_PF_GTS),
-			     SEINTARM(q->intr_params) |
-			     INGRESSQID(q->cntxt_id));
+		t4_write_reg(adap, MYPF_REG(SGE_PF_GTS_A),
+			     SEINTARM_V(q->intr_params) |
+			     INGRESSQID_V(q->cntxt_id));
 	}
 }
 
@@ -3702,14 +3703,20 @@ int cxgb4_sync_txq_pidx(struct net_device *dev, u16 qid, u16 pidx,
 
 	if (pidx != hw_pidx) {
 		u16 delta;
+		u32 val;
 
 		if (pidx >= hw_pidx)
 			delta = pidx - hw_pidx;
 		else
 			delta = size - hw_pidx + pidx;
+
+		if (is_t4(adap->params.chip))
+			val = PIDX_V(delta);
+		else
+			val = PIDX_T5_V(delta);
 		wmb();
-		t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL),
-			     QID(qid) | PIDX(delta));
+		t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL_A),
+			     QID_V(qid) | val);
 	}
 out:
 	return ret;
@@ -3721,8 +3728,8 @@ void cxgb4_disable_db_coalescing(struct net_device *dev)
 	struct adapter *adap;
 
 	adap = netdev2adap(dev);
-	t4_set_reg_field(adap, A_SGE_DOORBELL_CONTROL, F_NOCOALESCE,
-			 F_NOCOALESCE);
+	t4_set_reg_field(adap, A_SGE_DOORBELL_CONTROL, NOCOALESCE_F,
+			 NOCOALESCE_F);
 }
 EXPORT_SYMBOL(cxgb4_disable_db_coalescing);
 
@@ -3731,7 +3738,7 @@ void cxgb4_enable_db_coalescing(struct net_device *dev)
 	struct adapter *adap;
 
 	adap = netdev2adap(dev);
-	t4_set_reg_field(adap, A_SGE_DOORBELL_CONTROL, F_NOCOALESCE, 0);
+	t4_set_reg_field(adap, A_SGE_DOORBELL_CONTROL, NOCOALESCE_F, 0);
 }
 EXPORT_SYMBOL(cxgb4_enable_db_coalescing);
 
@@ -3809,8 +3816,8 @@ u64 cxgb4_read_sge_timestamp(struct net_device *dev)
 	struct adapter *adap;
 
 	adap = netdev2adap(dev);
-	lo = t4_read_reg(adap, SGE_TIMESTAMP_LO);
-	hi = GET_TSVAL(t4_read_reg(adap, SGE_TIMESTAMP_HI));
+	lo = t4_read_reg(adap, SGE_TIMESTAMP_LO_A);
+	hi = TSVAL_G(t4_read_reg(adap, SGE_TIMESTAMP_HI_A));
 
 	return ((u64)hi << 32) | (u64)lo;
 }
@@ -3904,8 +3911,8 @@ static void enable_txq_db(struct adapter *adap, struct sge_txq *q)
 		 * are committed before we tell HW about them.
 		 */
 		wmb();
-		t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL),
-			     QID(q->cntxt_id) | PIDX(q->db_pidx_inc));
+		t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL_A),
+			     QID_V(q->cntxt_id) | PIDX_V(q->db_pidx_inc));
 		q->db_pidx_inc = 0;
 	}
 	q->db_disabled = 0;
@@ -3952,9 +3959,9 @@ static void process_db_full(struct work_struct *work)
 	drain_db_fifo(adap, dbfifo_drain_delay);
 	enable_dbs(adap);
 	notify_rdma_uld(adap, CXGB4_CONTROL_DB_EMPTY);
-	t4_set_reg_field(adap, SGE_INT_ENABLE3,
-			 DBFIFO_HP_INT | DBFIFO_LP_INT,
-			 DBFIFO_HP_INT | DBFIFO_LP_INT);
+	t4_set_reg_field(adap, SGE_INT_ENABLE3_A,
+			 DBFIFO_HP_INT_F | DBFIFO_LP_INT_F,
+			 DBFIFO_HP_INT_F | DBFIFO_LP_INT_F);
 }
 
 static void sync_txq_pidx(struct adapter *adap, struct sge_txq *q)
@@ -3968,14 +3975,20 @@ static void sync_txq_pidx(struct adapter *adap, struct sge_txq *q)
 		goto out;
 	if (q->db_pidx != hw_pidx) {
 		u16 delta;
+		u32 val;
 
 		if (q->db_pidx >= hw_pidx)
 			delta = q->db_pidx - hw_pidx;
 		else
 			delta = q->size - hw_pidx + q->db_pidx;
+
+		if (is_t4(adap->params.chip))
+			val = PIDX_V(delta);
+		else
+			val = PIDX_T5_V(delta);
 		wmb();
-		t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL),
-			     QID(q->cntxt_id) | PIDX(delta));
+		t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL_A),
+			     QID_V(q->cntxt_id) | val);
 	}
 out:
 	q->db_disabled = 0;
@@ -4024,7 +4037,7 @@ static void process_db_drop(struct work_struct *work)
 			dev_err(adap->pdev_dev, "doorbell drop recovery: "
 				"qid=%d, pidx_inc=%d\n", qid, pidx_inc);
 		else
-			writel(PIDX_T5(pidx_inc) | QID(bar2_qid),
+			writel(PIDX_T5_V(pidx_inc) | QID_V(bar2_qid),
 			       adap->bar2 + bar2_qoffset + SGE_UDB_KDOORBELL);
 
 		/* Re-enable BAR2 WC */
@@ -4039,8 +4052,8 @@ void t4_db_full(struct adapter *adap)
 	if (is_t4(adap->params.chip)) {
 		disable_dbs(adap);
 		notify_rdma_uld(adap, CXGB4_CONTROL_DB_FULL);
-		t4_set_reg_field(adap, SGE_INT_ENABLE3,
-				 DBFIFO_HP_INT | DBFIFO_LP_INT, 0);
+		t4_set_reg_field(adap, SGE_INT_ENABLE3_A,
+				 DBFIFO_HP_INT_F | DBFIFO_LP_INT_F, 0);
 		queue_work(adap->workq, &adap->db_full_task);
 	}
 }
@@ -4089,8 +4102,8 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 	/* MODQ_REQ_MAP sets queues 0-3 to chan 0-3 */
 	for (i = 0; i < NCHAN; i++)
 		lli.tx_modq[i] = i;
-	lli.gts_reg = adap->regs + MYPF_REG(SGE_PF_GTS);
-	lli.db_reg = adap->regs + MYPF_REG(SGE_PF_KDOORBELL);
+	lli.gts_reg = adap->regs + MYPF_REG(SGE_PF_GTS_A);
+	lli.db_reg = adap->regs + MYPF_REG(SGE_PF_KDOORBELL_A);
 	lli.fw_vers = adap->params.fw_vers;
 	lli.dbfifo_int_thresh = dbfifo_int_thresh;
 	lli.sge_ingpadboundary = adap->sge.fl_align;
@@ -4783,7 +4796,7 @@ static const struct net_device_ops cxgb4_netdev_ops = {
 
 void t4_fatal_err(struct adapter *adap)
 {
-	t4_set_reg_field(adap, SGE_CONTROL, GLOBALENABLE, 0);
+	t4_set_reg_field(adap, SGE_CONTROL_A, GLOBALENABLE_F, 0);
 	t4_intr_disable(adap);
 	dev_alert(adap->pdev_dev, "encountered fatal error, adapter stopped\n");
 }
@@ -5013,9 +5026,9 @@ static int adap_init0_tweaks(struct adapter *adapter)
 			rx_dma_offset);
 		rx_dma_offset = 2;
 	}
-	t4_set_reg_field(adapter, SGE_CONTROL,
-			 PKTSHIFT_MASK,
-			 PKTSHIFT(rx_dma_offset));
+	t4_set_reg_field(adapter, SGE_CONTROL_A,
+			 PKTSHIFT_V(PKTSHIFT_M),
+			 PKTSHIFT_V(rx_dma_offset));
 
 	/*
 	 * Don't include the "IP Pseudo Header" in CPL_RX_PKT checksums: Linux
@@ -5332,8 +5345,7 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 	s->timer_val[SGE_NTIMERS - 1] = MAX_SGE_TIMERVAL;
 	s->counter_val[0] = 1;
 	for (i = 1; i < SGE_NCOUNTERS; i++)
-		s->counter_val[i] = min(intr_cnt[i - 1],
-					THRESHOLD_0_GET(THRESHOLD_0_MASK));
+		s->counter_val[i] = min(intr_cnt[i - 1], THRESHOLD_0_M);
 	t4_sge_init(adapter);
 
 #ifdef CONFIG_PCI_IOV
@@ -6467,9 +6479,11 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 
 	if (!is_t4(adapter->params.chip)) {
-		s_qpp = QUEUESPERPAGEPF1 * adapter->fn;
-		qpp = 1 << QUEUESPERPAGEPF0_GET(t4_read_reg(adapter,
-		      SGE_EGRESS_QUEUES_PER_PAGE_PF) >> s_qpp);
+		s_qpp = (QUEUESPERPAGEPF0_S +
+			(QUEUESPERPAGEPF1_S - QUEUESPERPAGEPF0_S) *
+			adapter->fn);
+		qpp = 1 << QUEUESPERPAGEPF0_G(t4_read_reg(adapter,
+		      SGE_EGRESS_QUEUES_PER_PAGE_PF_A) >> s_qpp);
 		num_seg = PAGE_SIZE / SEGMENT_SIZE;
 
 		/* Each segment size is 128B. Write coalescing is enabled only

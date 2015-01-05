@@ -465,14 +465,14 @@ static inline void t4_ring_sq_db(struct t4_wq *wq, u16 inc, u8 t5,
 		} else {
 			PDBG("%s: DB wq->sq.pidx = %d\n",
 			     __func__, wq->sq.pidx);
-			writel(PIDX_T5(inc), wq->sq.udb);
+			writel(PIDX_T5_V(inc), wq->sq.udb);
 		}
 
 		/* Flush user doorbell area writes. */
 		wmb();
 		return;
 	}
-	writel(QID(wq->sq.qid) | PIDX(inc), wq->db);
+	writel(QID_V(wq->sq.qid) | PIDX_V(inc), wq->db);
 }
 
 static inline void t4_ring_rq_db(struct t4_wq *wq, u16 inc, u8 t5,
@@ -489,14 +489,14 @@ static inline void t4_ring_rq_db(struct t4_wq *wq, u16 inc, u8 t5,
 		} else {
 			PDBG("%s: DB wq->rq.pidx = %d\n",
 			     __func__, wq->rq.pidx);
-			writel(PIDX_T5(inc), wq->rq.udb);
+			writel(PIDX_T5_V(inc), wq->rq.udb);
 		}
 
 		/* Flush user doorbell area writes. */
 		wmb();
 		return;
 	}
-	writel(QID(wq->rq.qid) | PIDX(inc), wq->db);
+	writel(QID_V(wq->rq.qid) | PIDX_V(inc), wq->db);
 }
 
 static inline int t4_wq_in_error(struct t4_wq *wq)
@@ -561,14 +561,14 @@ static inline int t4_arm_cq(struct t4_cq *cq, int se)
 	u32 val;
 
 	set_bit(CQ_ARMED, &cq->flags);
-	while (cq->cidx_inc > CIDXINC_MASK) {
-		val = SEINTARM(0) | CIDXINC(CIDXINC_MASK) | TIMERREG(7) |
-		      INGRESSQID(cq->cqid);
+	while (cq->cidx_inc > CIDXINC_M) {
+		val = SEINTARM_V(0) | CIDXINC_V(CIDXINC_M) | TIMERREG_V(7) |
+		      INGRESSQID_V(cq->cqid);
 		writel(val, cq->gts);
-		cq->cidx_inc -= CIDXINC_MASK;
+		cq->cidx_inc -= CIDXINC_M;
 	}
-	val = SEINTARM(se) | CIDXINC(cq->cidx_inc) | TIMERREG(6) |
-	      INGRESSQID(cq->cqid);
+	val = SEINTARM_V(se) | CIDXINC_V(cq->cidx_inc) | TIMERREG_V(6) |
+	      INGRESSQID_V(cq->cqid);
 	writel(val, cq->gts);
 	cq->cidx_inc = 0;
 	return 0;
@@ -597,11 +597,11 @@ static inline void t4_swcq_consume(struct t4_cq *cq)
 static inline void t4_hwcq_consume(struct t4_cq *cq)
 {
 	cq->bits_type_ts = cq->queue[cq->cidx].bits_type_ts;
-	if (++cq->cidx_inc == (cq->size >> 4) || cq->cidx_inc == CIDXINC_MASK) {
+	if (++cq->cidx_inc == (cq->size >> 4) || cq->cidx_inc == CIDXINC_M) {
 		u32 val;
 
-		val = SEINTARM(0) | CIDXINC(cq->cidx_inc) | TIMERREG(7) |
-		      INGRESSQID(cq->cqid);
+		val = SEINTARM_V(0) | CIDXINC_V(cq->cidx_inc) | TIMERREG_V(7) |
+		      INGRESSQID_V(cq->cqid);
 		writel(val, cq->gts);
 		cq->cidx_inc = 0;
 	}

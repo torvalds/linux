@@ -63,233 +63,311 @@
 #define MC_BIST_STATUS_REG(reg_addr, idx) ((reg_addr) + (idx) * 4)
 #define EDC_BIST_STATUS_REG(reg_addr, idx) ((reg_addr) + (idx) * 4)
 
-#define SGE_PF_KDOORBELL 0x0
-#define  QID_MASK    0xffff8000U
-#define  QID_SHIFT   15
-#define  QID(x)      ((x) << QID_SHIFT)
-#define  DBPRIO(x)   ((x) << 14)
-#define  DBTYPE(x)   ((x) << 13)
-#define  PIDX_MASK   0x00003fffU
-#define  PIDX_SHIFT  0
-#define  PIDX(x)     ((x) << PIDX_SHIFT)
-#define  PIDX_SHIFT_T5   0
-#define  PIDX_T5(x)  ((x) << PIDX_SHIFT_T5)
+#define SGE_PF_KDOORBELL_A 0x0
 
+#define QID_S    15
+#define QID_V(x) ((x) << QID_S)
 
-#define SGE_TIMERREGS	6
-#define SGE_PF_GTS 0x4
-#define  INGRESSQID_MASK   0xffff0000U
-#define  INGRESSQID_SHIFT  16
-#define  INGRESSQID(x)     ((x) << INGRESSQID_SHIFT)
-#define  TIMERREG_MASK     0x0000e000U
-#define  TIMERREG_SHIFT    13
-#define  TIMERREG(x)       ((x) << TIMERREG_SHIFT)
-#define  SEINTARM_MASK     0x00001000U
-#define  SEINTARM_SHIFT    12
-#define  SEINTARM(x)       ((x) << SEINTARM_SHIFT)
-#define  CIDXINC_MASK      0x00000fffU
-#define  CIDXINC_SHIFT     0
-#define  CIDXINC(x)        ((x) << CIDXINC_SHIFT)
+#define DBPRIO_S    14
+#define DBPRIO_V(x) ((x) << DBPRIO_S)
+#define DBPRIO_F    DBPRIO_V(1U)
 
-#define X_RXPKTCPLMODE_SPLIT     1
-#define X_INGPADBOUNDARY_SHIFT 5
+#define PIDX_S    0
+#define PIDX_V(x) ((x) << PIDX_S)
 
-#define SGE_CONTROL 0x1008
-#define SGE_CONTROL2_A		0x1124
-#define  DCASYSTYPE             0x00080000U
-#define  RXPKTCPLMODE_MASK      0x00040000U
-#define  RXPKTCPLMODE_SHIFT     18
-#define  RXPKTCPLMODE(x)        ((x) << RXPKTCPLMODE_SHIFT)
-#define  EGRSTATUSPAGESIZE_MASK  0x00020000U
-#define  EGRSTATUSPAGESIZE_SHIFT 17
-#define  EGRSTATUSPAGESIZE(x)    ((x) << EGRSTATUSPAGESIZE_SHIFT)
-#define  PKTSHIFT_MASK          0x00001c00U
-#define  PKTSHIFT_SHIFT         10
-#define  PKTSHIFT(x)            ((x) << PKTSHIFT_SHIFT)
-#define  PKTSHIFT_GET(x)	(((x) & PKTSHIFT_MASK) >> PKTSHIFT_SHIFT)
-#define  INGPCIEBOUNDARY_32B_X	0
-#define  INGPCIEBOUNDARY_MASK   0x00000380U
-#define  INGPCIEBOUNDARY_SHIFT  7
-#define  INGPCIEBOUNDARY(x)     ((x) << INGPCIEBOUNDARY_SHIFT)
-#define  INGPADBOUNDARY_MASK    0x00000070U
-#define  INGPADBOUNDARY_SHIFT   4
-#define  INGPADBOUNDARY(x)      ((x) << INGPADBOUNDARY_SHIFT)
-#define  INGPADBOUNDARY_GET(x)	(((x) & INGPADBOUNDARY_MASK) \
-				 >> INGPADBOUNDARY_SHIFT)
-#define  INGPACKBOUNDARY_16B_X	0
-#define  INGPACKBOUNDARY_SHIFT_X 5
+#define SGE_VF_KDOORBELL_A 0x0
+
+#define DBTYPE_S    13
+#define DBTYPE_V(x) ((x) << DBTYPE_S)
+#define DBTYPE_F    DBTYPE_V(1U)
+
+#define PIDX_T5_S    0
+#define PIDX_T5_M    0x1fffU
+#define PIDX_T5_V(x) ((x) << PIDX_T5_S)
+#define PIDX_T5_G(x) (((x) >> PIDX_T5_S) & PIDX_T5_M)
+
+#define SGE_PF_GTS_A 0x4
+
+#define INGRESSQID_S    16
+#define INGRESSQID_V(x) ((x) << INGRESSQID_S)
+
+#define TIMERREG_S    13
+#define TIMERREG_V(x) ((x) << TIMERREG_S)
+
+#define SEINTARM_S    12
+#define SEINTARM_V(x) ((x) << SEINTARM_S)
+
+#define CIDXINC_S    0
+#define CIDXINC_M    0xfffU
+#define CIDXINC_V(x) ((x) << CIDXINC_S)
+
+#define SGE_CONTROL_A	0x1008
+#define SGE_CONTROL2_A	0x1124
+
+#define RXPKTCPLMODE_S    18
+#define RXPKTCPLMODE_V(x) ((x) << RXPKTCPLMODE_S)
+#define RXPKTCPLMODE_F    RXPKTCPLMODE_V(1U)
+
+#define EGRSTATUSPAGESIZE_S    17
+#define EGRSTATUSPAGESIZE_V(x) ((x) << EGRSTATUSPAGESIZE_S)
+#define EGRSTATUSPAGESIZE_F    EGRSTATUSPAGESIZE_V(1U)
+
+#define PKTSHIFT_S    10
+#define PKTSHIFT_M    0x7U
+#define PKTSHIFT_V(x) ((x) << PKTSHIFT_S)
+#define PKTSHIFT_G(x) (((x) >> PKTSHIFT_S) & PKTSHIFT_M)
+
+#define INGPCIEBOUNDARY_S    7
+#define INGPCIEBOUNDARY_V(x) ((x) << INGPCIEBOUNDARY_S)
+
+#define INGPADBOUNDARY_S    4
+#define INGPADBOUNDARY_M    0x7U
+#define INGPADBOUNDARY_V(x) ((x) << INGPADBOUNDARY_S)
+#define INGPADBOUNDARY_G(x) (((x) >> INGPADBOUNDARY_S) & INGPADBOUNDARY_M)
+
+#define EGRPCIEBOUNDARY_S    1
+#define EGRPCIEBOUNDARY_V(x) ((x) << EGRPCIEBOUNDARY_S)
 
 #define  INGPACKBOUNDARY_S	16
 #define  INGPACKBOUNDARY_M	0x7U
 #define  INGPACKBOUNDARY_V(x)	((x) << INGPACKBOUNDARY_S)
 #define  INGPACKBOUNDARY_G(x)	(((x) >> INGPACKBOUNDARY_S) \
 				 & INGPACKBOUNDARY_M)
-#define  EGRPCIEBOUNDARY_MASK   0x0000000eU
-#define  EGRPCIEBOUNDARY_SHIFT  1
-#define  EGRPCIEBOUNDARY(x)     ((x) << EGRPCIEBOUNDARY_SHIFT)
-#define  GLOBALENABLE           0x00000001U
 
-#define SGE_HOST_PAGE_SIZE 0x100c
+#define GLOBALENABLE_S    0
+#define GLOBALENABLE_V(x) ((x) << GLOBALENABLE_S)
+#define GLOBALENABLE_F    GLOBALENABLE_V(1U)
 
-#define  HOSTPAGESIZEPF7_MASK   0x0000000fU
-#define  HOSTPAGESIZEPF7_SHIFT  28
-#define  HOSTPAGESIZEPF7(x)     ((x) << HOSTPAGESIZEPF7_SHIFT)
+#define SGE_HOST_PAGE_SIZE_A 0x100c
 
-#define  HOSTPAGESIZEPF6_MASK   0x0000000fU
-#define  HOSTPAGESIZEPF6_SHIFT  24
-#define  HOSTPAGESIZEPF6(x)     ((x) << HOSTPAGESIZEPF6_SHIFT)
+#define HOSTPAGESIZEPF7_S    28
+#define HOSTPAGESIZEPF7_M    0xfU
+#define HOSTPAGESIZEPF7_V(x) ((x) << HOSTPAGESIZEPF7_S)
+#define HOSTPAGESIZEPF7_G(x) (((x) >> HOSTPAGESIZEPF7_S) & HOSTPAGESIZEPF7_M)
 
-#define  HOSTPAGESIZEPF5_MASK   0x0000000fU
-#define  HOSTPAGESIZEPF5_SHIFT  20
-#define  HOSTPAGESIZEPF5(x)     ((x) << HOSTPAGESIZEPF5_SHIFT)
+#define HOSTPAGESIZEPF6_S    24
+#define HOSTPAGESIZEPF6_M    0xfU
+#define HOSTPAGESIZEPF6_V(x) ((x) << HOSTPAGESIZEPF6_S)
+#define HOSTPAGESIZEPF6_G(x) (((x) >> HOSTPAGESIZEPF6_S) & HOSTPAGESIZEPF6_M)
 
-#define  HOSTPAGESIZEPF4_MASK   0x0000000fU
-#define  HOSTPAGESIZEPF4_SHIFT  16
-#define  HOSTPAGESIZEPF4(x)     ((x) << HOSTPAGESIZEPF4_SHIFT)
+#define HOSTPAGESIZEPF5_S    20
+#define HOSTPAGESIZEPF5_M    0xfU
+#define HOSTPAGESIZEPF5_V(x) ((x) << HOSTPAGESIZEPF5_S)
+#define HOSTPAGESIZEPF5_G(x) (((x) >> HOSTPAGESIZEPF5_S) & HOSTPAGESIZEPF5_M)
 
-#define  HOSTPAGESIZEPF3_MASK   0x0000000fU
-#define  HOSTPAGESIZEPF3_SHIFT  12
-#define  HOSTPAGESIZEPF3(x)     ((x) << HOSTPAGESIZEPF3_SHIFT)
+#define HOSTPAGESIZEPF4_S    16
+#define HOSTPAGESIZEPF4_M    0xfU
+#define HOSTPAGESIZEPF4_V(x) ((x) << HOSTPAGESIZEPF4_S)
+#define HOSTPAGESIZEPF4_G(x) (((x) >> HOSTPAGESIZEPF4_S) & HOSTPAGESIZEPF4_M)
 
-#define  HOSTPAGESIZEPF2_MASK   0x0000000fU
-#define  HOSTPAGESIZEPF2_SHIFT  8
-#define  HOSTPAGESIZEPF2(x)     ((x) << HOSTPAGESIZEPF2_SHIFT)
+#define HOSTPAGESIZEPF3_S    12
+#define HOSTPAGESIZEPF3_M    0xfU
+#define HOSTPAGESIZEPF3_V(x) ((x) << HOSTPAGESIZEPF3_S)
+#define HOSTPAGESIZEPF3_G(x) (((x) >> HOSTPAGESIZEPF3_S) & HOSTPAGESIZEPF3_M)
 
-#define  HOSTPAGESIZEPF1_M	0x0000000fU
-#define  HOSTPAGESIZEPF1_S	4
-#define  HOSTPAGESIZEPF1(x)     ((x) << HOSTPAGESIZEPF1_S)
+#define HOSTPAGESIZEPF2_S    8
+#define HOSTPAGESIZEPF2_M    0xfU
+#define HOSTPAGESIZEPF2_V(x) ((x) << HOSTPAGESIZEPF2_S)
+#define HOSTPAGESIZEPF2_G(x) (((x) >> HOSTPAGESIZEPF2_S) & HOSTPAGESIZEPF2_M)
 
-#define  HOSTPAGESIZEPF0_M	0x0000000fU
-#define  HOSTPAGESIZEPF0_S	0
-#define  HOSTPAGESIZEPF0(x)     ((x) << HOSTPAGESIZEPF0_S)
+#define HOSTPAGESIZEPF1_S    4
+#define HOSTPAGESIZEPF1_M    0xfU
+#define HOSTPAGESIZEPF1_V(x) ((x) << HOSTPAGESIZEPF1_S)
+#define HOSTPAGESIZEPF1_G(x) (((x) >> HOSTPAGESIZEPF1_S) & HOSTPAGESIZEPF1_M)
 
-#define SGE_EGRESS_QUEUES_PER_PAGE_PF 0x1010
+#define HOSTPAGESIZEPF0_S    0
+#define HOSTPAGESIZEPF0_M    0xfU
+#define HOSTPAGESIZEPF0_V(x) ((x) << HOSTPAGESIZEPF0_S)
+#define HOSTPAGESIZEPF0_G(x) (((x) >> HOSTPAGESIZEPF0_S) & HOSTPAGESIZEPF0_M)
+
+#define SGE_EGRESS_QUEUES_PER_PAGE_PF_A 0x1010
 #define SGE_EGRESS_QUEUES_PER_PAGE_VF_A 0x1014
 
 #define QUEUESPERPAGEPF1_S    4
 
 #define QUEUESPERPAGEPF0_S    0
-#define QUEUESPERPAGEPF0_MASK   0x0000000fU
-#define QUEUESPERPAGEPF0_GET(x) ((x) & QUEUESPERPAGEPF0_MASK)
+#define QUEUESPERPAGEPF0_M    0xfU
+#define QUEUESPERPAGEPF0_V(x) ((x) << QUEUESPERPAGEPF0_S)
+#define QUEUESPERPAGEPF0_G(x) (((x) >> QUEUESPERPAGEPF0_S) & QUEUESPERPAGEPF0_M)
 
-#define QUEUESPERPAGEPF0    0
-#define QUEUESPERPAGEPF1    4
+#define SGE_INT_CAUSE1_A	0x1024
+#define SGE_INT_CAUSE2_A	0x1030
+#define SGE_INT_CAUSE3_A	0x103c
 
-/* T5 and later support a new BAR2-based doorbell mechanism for Egress Queues.
- * The User Doorbells are each 128 bytes in length with a Simple Doorbell at
- * offsets 8x and a Write Combining single 64-byte Egress Queue Unit
- * (X_IDXSIZE_UNIT) Gather Buffer interface at offset 64.  For Ingress Queues,
- * we have a Going To Sleep register at offsets 8x+4.
- *
- * As noted above, we have many instances of the Simple Doorbell and Going To
- * Sleep registers at offsets 8x and 8x+4, respectively.  We want to use a
- * non-64-byte aligned offset for the Simple Doorbell in order to attempt to
- * avoid buffering of the writes to the Simple Doorbell and we want to use a
- * non-contiguous offset for the Going To Sleep writes in order to avoid
- * possible combining between them.
- */
-#define SGE_UDB_SIZE            128
-#define SGE_UDB_KDOORBELL       8
-#define SGE_UDB_GTS             20
-#define SGE_UDB_WCDOORBELL      64
+#define ERR_FLM_DBP_S    31
+#define ERR_FLM_DBP_V(x) ((x) << ERR_FLM_DBP_S)
+#define ERR_FLM_DBP_F    ERR_FLM_DBP_V(1U)
 
-#define SGE_INT_CAUSE1 0x1024
-#define SGE_INT_CAUSE2 0x1030
-#define SGE_INT_CAUSE3 0x103c
-#define  ERR_FLM_DBP               0x80000000U
-#define  ERR_FLM_IDMA1             0x40000000U
-#define  ERR_FLM_IDMA0             0x20000000U
-#define  ERR_FLM_HINT              0x10000000U
-#define  ERR_PCIE_ERROR3           0x08000000U
-#define  ERR_PCIE_ERROR2           0x04000000U
-#define  ERR_PCIE_ERROR1           0x02000000U
-#define  ERR_PCIE_ERROR0           0x01000000U
-#define  ERR_TIMER_ABOVE_MAX_QID   0x00800000U
-#define  ERR_CPL_EXCEED_IQE_SIZE   0x00400000U
-#define  ERR_INVALID_CIDX_INC      0x00200000U
-#define  ERR_ITP_TIME_PAUSED       0x00100000U
-#define  ERR_CPL_OPCODE_0          0x00080000U
-#define  ERR_DROPPED_DB            0x00040000U
-#define  ERR_DATA_CPL_ON_HIGH_QID1 0x00020000U
-#define  ERR_DATA_CPL_ON_HIGH_QID0 0x00010000U
-#define  ERR_BAD_DB_PIDX3          0x00008000U
-#define  ERR_BAD_DB_PIDX2          0x00004000U
-#define  ERR_BAD_DB_PIDX1          0x00002000U
-#define  ERR_BAD_DB_PIDX0          0x00001000U
-#define  ERR_ING_PCIE_CHAN         0x00000800U
-#define  ERR_ING_CTXT_PRIO         0x00000400U
-#define  ERR_EGR_CTXT_PRIO         0x00000200U
-#define  DBFIFO_HP_INT             0x00000100U
-#define  DBFIFO_LP_INT             0x00000080U
-#define  REG_ADDRESS_ERR           0x00000040U
-#define  INGRESS_SIZE_ERR          0x00000020U
-#define  EGRESS_SIZE_ERR           0x00000010U
-#define  ERR_INV_CTXT3             0x00000008U
-#define  ERR_INV_CTXT2             0x00000004U
-#define  ERR_INV_CTXT1             0x00000002U
-#define  ERR_INV_CTXT0             0x00000001U
+#define ERR_FLM_IDMA1_S    30
+#define ERR_FLM_IDMA1_V(x) ((x) << ERR_FLM_IDMA1_S)
+#define ERR_FLM_IDMA1_F    ERR_FLM_IDMA1_V(1U)
 
-#define SGE_INT_ENABLE3 0x1040
-#define SGE_FL_BUFFER_SIZE0 0x1044
-#define SGE_FL_BUFFER_SIZE1 0x1048
-#define SGE_FL_BUFFER_SIZE2 0x104c
-#define SGE_FL_BUFFER_SIZE3 0x1050
-#define SGE_FL_BUFFER_SIZE4 0x1054
-#define SGE_FL_BUFFER_SIZE5 0x1058
-#define SGE_FL_BUFFER_SIZE6 0x105c
-#define SGE_FL_BUFFER_SIZE7 0x1060
-#define SGE_FL_BUFFER_SIZE8 0x1064
+#define ERR_FLM_IDMA0_S    29
+#define ERR_FLM_IDMA0_V(x) ((x) << ERR_FLM_IDMA0_S)
+#define ERR_FLM_IDMA0_F    ERR_FLM_IDMA0_V(1U)
 
-#define SGE_INGRESS_RX_THRESHOLD 0x10a0
-#define  THRESHOLD_0_MASK   0x3f000000U
-#define  THRESHOLD_0_SHIFT  24
-#define  THRESHOLD_0(x)     ((x) << THRESHOLD_0_SHIFT)
-#define  THRESHOLD_0_GET(x) (((x) & THRESHOLD_0_MASK) >> THRESHOLD_0_SHIFT)
-#define  THRESHOLD_1_MASK   0x003f0000U
-#define  THRESHOLD_1_SHIFT  16
-#define  THRESHOLD_1(x)     ((x) << THRESHOLD_1_SHIFT)
-#define  THRESHOLD_1_GET(x) (((x) & THRESHOLD_1_MASK) >> THRESHOLD_1_SHIFT)
-#define  THRESHOLD_2_MASK   0x00003f00U
-#define  THRESHOLD_2_SHIFT  8
-#define  THRESHOLD_2(x)     ((x) << THRESHOLD_2_SHIFT)
-#define  THRESHOLD_2_GET(x) (((x) & THRESHOLD_2_MASK) >> THRESHOLD_2_SHIFT)
-#define  THRESHOLD_3_MASK   0x0000003fU
-#define  THRESHOLD_3_SHIFT  0
-#define  THRESHOLD_3(x)     ((x) << THRESHOLD_3_SHIFT)
-#define  THRESHOLD_3_GET(x) (((x) & THRESHOLD_3_MASK) >> THRESHOLD_3_SHIFT)
+#define ERR_FLM_HINT_S    28
+#define ERR_FLM_HINT_V(x) ((x) << ERR_FLM_HINT_S)
+#define ERR_FLM_HINT_F    ERR_FLM_HINT_V(1U)
 
-#define SGE_CONM_CTRL 0x1094
-#define  EGRTHRESHOLD_MASK   0x00003f00U
-#define  EGRTHRESHOLDshift   8
-#define  EGRTHRESHOLD(x)     ((x) << EGRTHRESHOLDshift)
-#define  EGRTHRESHOLD_GET(x) (((x) & EGRTHRESHOLD_MASK) >> EGRTHRESHOLDshift)
+#define ERR_PCIE_ERROR3_S    27
+#define ERR_PCIE_ERROR3_V(x) ((x) << ERR_PCIE_ERROR3_S)
+#define ERR_PCIE_ERROR3_F    ERR_PCIE_ERROR3_V(1U)
 
-#define EGRTHRESHOLDPACKING_MASK	0x3fU
-#define EGRTHRESHOLDPACKING_SHIFT	14
-#define EGRTHRESHOLDPACKING(x)		((x) << EGRTHRESHOLDPACKING_SHIFT)
-#define EGRTHRESHOLDPACKING_GET(x)	(((x) >> EGRTHRESHOLDPACKING_SHIFT) & \
-					  EGRTHRESHOLDPACKING_MASK)
+#define ERR_PCIE_ERROR2_S    26
+#define ERR_PCIE_ERROR2_V(x) ((x) << ERR_PCIE_ERROR2_S)
+#define ERR_PCIE_ERROR2_F    ERR_PCIE_ERROR2_V(1U)
 
-#define SGE_DBFIFO_STATUS 0x10a4
-#define  HP_INT_THRESH_SHIFT 28
-#define  HP_INT_THRESH_MASK  0xfU
-#define  HP_INT_THRESH(x)    ((x) << HP_INT_THRESH_SHIFT)
-#define  LP_INT_THRESH_SHIFT 12
-#define  LP_INT_THRESH_MASK  0xfU
-#define  LP_INT_THRESH(x)    ((x) << LP_INT_THRESH_SHIFT)
+#define ERR_PCIE_ERROR1_S    25
+#define ERR_PCIE_ERROR1_V(x) ((x) << ERR_PCIE_ERROR1_S)
+#define ERR_PCIE_ERROR1_F    ERR_PCIE_ERROR1_V(1U)
 
-#define SGE_DOORBELL_CONTROL 0x10a8
-#define  ENABLE_DROP        (1 << 13)
+#define ERR_PCIE_ERROR0_S    24
+#define ERR_PCIE_ERROR0_V(x) ((x) << ERR_PCIE_ERROR0_S)
+#define ERR_PCIE_ERROR0_F    ERR_PCIE_ERROR0_V(1U)
 
-#define S_NOCOALESCE    26
-#define V_NOCOALESCE(x) ((x) << S_NOCOALESCE)
-#define F_NOCOALESCE    V_NOCOALESCE(1U)
+#define ERR_CPL_EXCEED_IQE_SIZE_S    22
+#define ERR_CPL_EXCEED_IQE_SIZE_V(x) ((x) << ERR_CPL_EXCEED_IQE_SIZE_S)
+#define ERR_CPL_EXCEED_IQE_SIZE_F    ERR_CPL_EXCEED_IQE_SIZE_V(1U)
 
-#define SGE_TIMESTAMP_LO 0x1098
-#define SGE_TIMESTAMP_HI 0x109c
-#define S_TSVAL    0
-#define M_TSVAL    0xfffffffU
-#define GET_TSVAL(x) (((x) >> S_TSVAL) & M_TSVAL)
+#define ERR_INVALID_CIDX_INC_S    21
+#define ERR_INVALID_CIDX_INC_V(x) ((x) << ERR_INVALID_CIDX_INC_S)
+#define ERR_INVALID_CIDX_INC_F    ERR_INVALID_CIDX_INC_V(1U)
+
+#define ERR_CPL_OPCODE_0_S    19
+#define ERR_CPL_OPCODE_0_V(x) ((x) << ERR_CPL_OPCODE_0_S)
+#define ERR_CPL_OPCODE_0_F    ERR_CPL_OPCODE_0_V(1U)
+
+#define ERR_DROPPED_DB_S    18
+#define ERR_DROPPED_DB_V(x) ((x) << ERR_DROPPED_DB_S)
+#define ERR_DROPPED_DB_F    ERR_DROPPED_DB_V(1U)
+
+#define ERR_DATA_CPL_ON_HIGH_QID1_S    17
+#define ERR_DATA_CPL_ON_HIGH_QID1_V(x) ((x) << ERR_DATA_CPL_ON_HIGH_QID1_S)
+#define ERR_DATA_CPL_ON_HIGH_QID1_F    ERR_DATA_CPL_ON_HIGH_QID1_V(1U)
+
+#define ERR_DATA_CPL_ON_HIGH_QID0_S    16
+#define ERR_DATA_CPL_ON_HIGH_QID0_V(x) ((x) << ERR_DATA_CPL_ON_HIGH_QID0_S)
+#define ERR_DATA_CPL_ON_HIGH_QID0_F    ERR_DATA_CPL_ON_HIGH_QID0_V(1U)
+
+#define ERR_BAD_DB_PIDX3_S    15
+#define ERR_BAD_DB_PIDX3_V(x) ((x) << ERR_BAD_DB_PIDX3_S)
+#define ERR_BAD_DB_PIDX3_F    ERR_BAD_DB_PIDX3_V(1U)
+
+#define ERR_BAD_DB_PIDX2_S    14
+#define ERR_BAD_DB_PIDX2_V(x) ((x) << ERR_BAD_DB_PIDX2_S)
+#define ERR_BAD_DB_PIDX2_F    ERR_BAD_DB_PIDX2_V(1U)
+
+#define ERR_BAD_DB_PIDX1_S    13
+#define ERR_BAD_DB_PIDX1_V(x) ((x) << ERR_BAD_DB_PIDX1_S)
+#define ERR_BAD_DB_PIDX1_F    ERR_BAD_DB_PIDX1_V(1U)
+
+#define ERR_BAD_DB_PIDX0_S    12
+#define ERR_BAD_DB_PIDX0_V(x) ((x) << ERR_BAD_DB_PIDX0_S)
+#define ERR_BAD_DB_PIDX0_F    ERR_BAD_DB_PIDX0_V(1U)
+
+#define ERR_ING_CTXT_PRIO_S    10
+#define ERR_ING_CTXT_PRIO_V(x) ((x) << ERR_ING_CTXT_PRIO_S)
+#define ERR_ING_CTXT_PRIO_F    ERR_ING_CTXT_PRIO_V(1U)
+
+#define ERR_EGR_CTXT_PRIO_S    9
+#define ERR_EGR_CTXT_PRIO_V(x) ((x) << ERR_EGR_CTXT_PRIO_S)
+#define ERR_EGR_CTXT_PRIO_F    ERR_EGR_CTXT_PRIO_V(1U)
+
+#define DBFIFO_HP_INT_S    8
+#define DBFIFO_HP_INT_V(x) ((x) << DBFIFO_HP_INT_S)
+#define DBFIFO_HP_INT_F    DBFIFO_HP_INT_V(1U)
+
+#define DBFIFO_LP_INT_S    7
+#define DBFIFO_LP_INT_V(x) ((x) << DBFIFO_LP_INT_S)
+#define DBFIFO_LP_INT_F    DBFIFO_LP_INT_V(1U)
+
+#define INGRESS_SIZE_ERR_S    5
+#define INGRESS_SIZE_ERR_V(x) ((x) << INGRESS_SIZE_ERR_S)
+#define INGRESS_SIZE_ERR_F    INGRESS_SIZE_ERR_V(1U)
+
+#define EGRESS_SIZE_ERR_S    4
+#define EGRESS_SIZE_ERR_V(x) ((x) << EGRESS_SIZE_ERR_S)
+#define EGRESS_SIZE_ERR_F    EGRESS_SIZE_ERR_V(1U)
+
+#define SGE_INT_ENABLE3_A 0x1040
+#define SGE_FL_BUFFER_SIZE0_A 0x1044
+#define SGE_FL_BUFFER_SIZE1_A 0x1048
+#define SGE_FL_BUFFER_SIZE2_A 0x104c
+#define SGE_FL_BUFFER_SIZE3_A 0x1050
+#define SGE_FL_BUFFER_SIZE4_A 0x1054
+#define SGE_FL_BUFFER_SIZE5_A 0x1058
+#define SGE_FL_BUFFER_SIZE6_A 0x105c
+#define SGE_FL_BUFFER_SIZE7_A 0x1060
+#define SGE_FL_BUFFER_SIZE8_A 0x1064
+
+#define SGE_INGRESS_RX_THRESHOLD_A 0x10a0
+
+#define THRESHOLD_0_S    24
+#define THRESHOLD_0_M    0x3fU
+#define THRESHOLD_0_V(x) ((x) << THRESHOLD_0_S)
+#define THRESHOLD_0_G(x) (((x) >> THRESHOLD_0_S) & THRESHOLD_0_M)
+
+#define THRESHOLD_1_S    16
+#define THRESHOLD_1_M    0x3fU
+#define THRESHOLD_1_V(x) ((x) << THRESHOLD_1_S)
+#define THRESHOLD_1_G(x) (((x) >> THRESHOLD_1_S) & THRESHOLD_1_M)
+
+#define THRESHOLD_2_S    8
+#define THRESHOLD_2_M    0x3fU
+#define THRESHOLD_2_V(x) ((x) << THRESHOLD_2_S)
+#define THRESHOLD_2_G(x) (((x) >> THRESHOLD_2_S) & THRESHOLD_2_M)
+
+#define THRESHOLD_3_S    0
+#define THRESHOLD_3_M    0x3fU
+#define THRESHOLD_3_V(x) ((x) << THRESHOLD_3_S)
+#define THRESHOLD_3_G(x) (((x) >> THRESHOLD_3_S) & THRESHOLD_3_M)
+
+#define SGE_CONM_CTRL_A 0x1094
+
+#define EGRTHRESHOLD_S    8
+#define EGRTHRESHOLD_M    0x3fU
+#define EGRTHRESHOLD_V(x) ((x) << EGRTHRESHOLD_S)
+#define EGRTHRESHOLD_G(x) (((x) >> EGRTHRESHOLD_S) & EGRTHRESHOLD_M)
+
+#define EGRTHRESHOLDPACKING_S    14
+#define EGRTHRESHOLDPACKING_M    0x3fU
+#define EGRTHRESHOLDPACKING_V(x) ((x) << EGRTHRESHOLDPACKING_S)
+#define EGRTHRESHOLDPACKING_G(x) \
+	(((x) >> EGRTHRESHOLDPACKING_S) & EGRTHRESHOLDPACKING_M)
+
+#define SGE_TIMESTAMP_LO_A 0x1098
+#define SGE_TIMESTAMP_HI_A 0x109c
+
+#define TSOP_S    28
+#define TSOP_M    0x3U
+#define TSOP_V(x) ((x) << TSOP_S)
+#define TSOP_G(x) (((x) >> TSOP_S) & TSOP_M)
+
+#define TSVAL_S    0
+#define TSVAL_M    0xfffffffU
+#define TSVAL_V(x) ((x) << TSVAL_S)
+#define TSVAL_G(x) (((x) >> TSVAL_S) & TSVAL_M)
+
+#define SGE_DBFIFO_STATUS_A 0x10a4
+
+#define HP_INT_THRESH_S    28
+#define HP_INT_THRESH_M    0xfU
+#define HP_INT_THRESH_V(x) ((x) << HP_INT_THRESH_S)
+
+#define LP_INT_THRESH_S    12
+#define LP_INT_THRESH_M    0xfU
+#define LP_INT_THRESH_V(x) ((x) << LP_INT_THRESH_S)
+
+#define SGE_DOORBELL_CONTROL_A 0x10a8
+
+#define NOCOALESCE_S    26
+#define NOCOALESCE_V(x) ((x) << NOCOALESCE_S)
+#define NOCOALESCE_F    NOCOALESCE_V(1U)
+
+#define ENABLE_DROP_S    13
+#define ENABLE_DROP_V(x) ((x) << ENABLE_DROP_S)
+#define ENABLE_DROP_F    ENABLE_DROP_V(1U)
 
 #define SGE_TIMER_VALUE_0_AND_1 0x10b8
 #define  TIMERVALUE0_MASK   0xffff0000U

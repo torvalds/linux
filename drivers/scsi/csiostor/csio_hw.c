@@ -2256,15 +2256,15 @@ csio_hw_intr_enable(struct csio_hw *hw)
 		pl &= (~SF);
 		csio_wr_reg32(hw, pl, PL_INT_ENABLE);
 
-		csio_wr_reg32(hw, ERR_CPL_EXCEED_IQE_SIZE |
-			      EGRESS_SIZE_ERR | ERR_INVALID_CIDX_INC |
-			      ERR_CPL_OPCODE_0 | ERR_DROPPED_DB |
-			      ERR_DATA_CPL_ON_HIGH_QID1 |
-			      ERR_DATA_CPL_ON_HIGH_QID0 | ERR_BAD_DB_PIDX3 |
-			      ERR_BAD_DB_PIDX2 | ERR_BAD_DB_PIDX1 |
-			      ERR_BAD_DB_PIDX0 | ERR_ING_CTXT_PRIO |
-			      ERR_EGR_CTXT_PRIO | INGRESS_SIZE_ERR,
-			      SGE_INT_ENABLE3);
+		csio_wr_reg32(hw, ERR_CPL_EXCEED_IQE_SIZE_F |
+			      EGRESS_SIZE_ERR_F | ERR_INVALID_CIDX_INC_F |
+			      ERR_CPL_OPCODE_0_F | ERR_DROPPED_DB_F |
+			      ERR_DATA_CPL_ON_HIGH_QID1_F |
+			      ERR_DATA_CPL_ON_HIGH_QID0_F | ERR_BAD_DB_PIDX3_F |
+			      ERR_BAD_DB_PIDX2_F | ERR_BAD_DB_PIDX1_F |
+			      ERR_BAD_DB_PIDX0_F | ERR_ING_CTXT_PRIO_F |
+			      ERR_EGR_CTXT_PRIO_F | INGRESS_SIZE_ERR_F,
+			      SGE_INT_ENABLE3_A);
 		csio_set_reg_field(hw, PL_INT_MAP0, 0, 1 << pf);
 	}
 
@@ -2300,7 +2300,7 @@ csio_hw_intr_disable(struct csio_hw *hw)
 void
 csio_hw_fatal_err(struct csio_hw *hw)
 {
-	csio_set_reg_field(hw, SGE_CONTROL, GLOBALENABLE, 0);
+	csio_set_reg_field(hw, SGE_CONTROL_A, GLOBALENABLE_F, 0);
 	csio_hw_intr_disable(hw);
 
 	/* Do not reset HW, we may need FW state for debugging */
@@ -2698,44 +2698,44 @@ static void csio_sge_intr_handler(struct csio_hw *hw)
 	uint64_t v;
 
 	static struct intr_info sge_intr_info[] = {
-		{ ERR_CPL_EXCEED_IQE_SIZE,
+		{ ERR_CPL_EXCEED_IQE_SIZE_F,
 		  "SGE received CPL exceeding IQE size", -1, 1 },
-		{ ERR_INVALID_CIDX_INC,
+		{ ERR_INVALID_CIDX_INC_F,
 		  "SGE GTS CIDX increment too large", -1, 0 },
-		{ ERR_CPL_OPCODE_0, "SGE received 0-length CPL", -1, 0 },
-		{ ERR_DROPPED_DB, "SGE doorbell dropped", -1, 0 },
-		{ ERR_DATA_CPL_ON_HIGH_QID1 | ERR_DATA_CPL_ON_HIGH_QID0,
+		{ ERR_CPL_OPCODE_0_F, "SGE received 0-length CPL", -1, 0 },
+		{ ERR_DROPPED_DB_F, "SGE doorbell dropped", -1, 0 },
+		{ ERR_DATA_CPL_ON_HIGH_QID1_F | ERR_DATA_CPL_ON_HIGH_QID0_F,
 		  "SGE IQID > 1023 received CPL for FL", -1, 0 },
-		{ ERR_BAD_DB_PIDX3, "SGE DBP 3 pidx increment too large", -1,
+		{ ERR_BAD_DB_PIDX3_F, "SGE DBP 3 pidx increment too large", -1,
 		  0 },
-		{ ERR_BAD_DB_PIDX2, "SGE DBP 2 pidx increment too large", -1,
+		{ ERR_BAD_DB_PIDX2_F, "SGE DBP 2 pidx increment too large", -1,
 		  0 },
-		{ ERR_BAD_DB_PIDX1, "SGE DBP 1 pidx increment too large", -1,
+		{ ERR_BAD_DB_PIDX1_F, "SGE DBP 1 pidx increment too large", -1,
 		  0 },
-		{ ERR_BAD_DB_PIDX0, "SGE DBP 0 pidx increment too large", -1,
+		{ ERR_BAD_DB_PIDX0_F, "SGE DBP 0 pidx increment too large", -1,
 		  0 },
-		{ ERR_ING_CTXT_PRIO,
+		{ ERR_ING_CTXT_PRIO_F,
 		  "SGE too many priority ingress contexts", -1, 0 },
-		{ ERR_EGR_CTXT_PRIO,
+		{ ERR_EGR_CTXT_PRIO_F,
 		  "SGE too many priority egress contexts", -1, 0 },
-		{ INGRESS_SIZE_ERR, "SGE illegal ingress QID", -1, 0 },
-		{ EGRESS_SIZE_ERR, "SGE illegal egress QID", -1, 0 },
+		{ INGRESS_SIZE_ERR_F, "SGE illegal ingress QID", -1, 0 },
+		{ EGRESS_SIZE_ERR_F, "SGE illegal egress QID", -1, 0 },
 		{ 0, NULL, 0, 0 }
 	};
 
-	v = (uint64_t)csio_rd_reg32(hw, SGE_INT_CAUSE1) |
-	    ((uint64_t)csio_rd_reg32(hw, SGE_INT_CAUSE2) << 32);
+	v = (uint64_t)csio_rd_reg32(hw, SGE_INT_CAUSE1_A) |
+	    ((uint64_t)csio_rd_reg32(hw, SGE_INT_CAUSE2_A) << 32);
 	if (v) {
 		csio_fatal(hw, "SGE parity error (%#llx)\n",
 			    (unsigned long long)v);
 		csio_wr_reg32(hw, (uint32_t)(v & 0xFFFFFFFF),
-						SGE_INT_CAUSE1);
-		csio_wr_reg32(hw, (uint32_t)(v >> 32), SGE_INT_CAUSE2);
+						SGE_INT_CAUSE1_A);
+		csio_wr_reg32(hw, (uint32_t)(v >> 32), SGE_INT_CAUSE2_A);
 	}
 
-	v |= csio_handle_intr_status(hw, SGE_INT_CAUSE3, sge_intr_info);
+	v |= csio_handle_intr_status(hw, SGE_INT_CAUSE3_A, sge_intr_info);
 
-	if (csio_handle_intr_status(hw, SGE_INT_CAUSE3, sge_intr_info) ||
+	if (csio_handle_intr_status(hw, SGE_INT_CAUSE3_A, sge_intr_info) ||
 	    v != 0)
 		csio_hw_fatal_err(hw);
 }

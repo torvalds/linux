@@ -39,6 +39,7 @@
 #include "t4vf_defs.h"
 
 #include "../cxgb4/t4_regs.h"
+#include "../cxgb4/t4_values.h"
 #include "../cxgb4/t4fw_api.h"
 
 /*
@@ -528,13 +529,13 @@ int t4vf_get_sge_params(struct adapter *adapter)
 	int v;
 
 	params[0] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
-		     FW_PARAMS_PARAM_XYZ_V(SGE_CONTROL));
+		     FW_PARAMS_PARAM_XYZ_V(SGE_CONTROL_A));
 	params[1] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
-		     FW_PARAMS_PARAM_XYZ_V(SGE_HOST_PAGE_SIZE));
+		     FW_PARAMS_PARAM_XYZ_V(SGE_HOST_PAGE_SIZE_A));
 	params[2] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
-		     FW_PARAMS_PARAM_XYZ_V(SGE_FL_BUFFER_SIZE0));
+		     FW_PARAMS_PARAM_XYZ_V(SGE_FL_BUFFER_SIZE0_A));
 	params[3] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
-		     FW_PARAMS_PARAM_XYZ_V(SGE_FL_BUFFER_SIZE1));
+		     FW_PARAMS_PARAM_XYZ_V(SGE_FL_BUFFER_SIZE1_A));
 	params[4] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
 		     FW_PARAMS_PARAM_XYZ_V(SGE_TIMER_VALUE_0_AND_1));
 	params[5] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
@@ -576,9 +577,9 @@ int t4vf_get_sge_params(struct adapter *adapter)
 	}
 
 	params[0] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
-		     FW_PARAMS_PARAM_XYZ_V(SGE_INGRESS_RX_THRESHOLD));
+		     FW_PARAMS_PARAM_XYZ_V(SGE_INGRESS_RX_THRESHOLD_A));
 	params[1] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
-		     FW_PARAMS_PARAM_XYZ_V(SGE_CONM_CTRL));
+		     FW_PARAMS_PARAM_XYZ_V(SGE_CONM_CTRL_A));
 	v = t4vf_query_params(adapter, 2, params, vals);
 	if (v)
 		return v;
@@ -628,10 +629,10 @@ int t4vf_get_sge_params(struct adapter *adapter)
 			 (QUEUESPERPAGEPF1_S - QUEUESPERPAGEPF0_S) * pf);
 		sge_params->sge_vf_eq_qpp =
 			((sge_params->sge_egress_queues_per_page >> s_qpp)
-			 & QUEUESPERPAGEPF0_MASK);
+			 & QUEUESPERPAGEPF0_M);
 		sge_params->sge_vf_iq_qpp =
 			((sge_params->sge_ingress_queues_per_page >> s_qpp)
-			 & QUEUESPERPAGEPF0_MASK);
+			 & QUEUESPERPAGEPF0_M);
 	}
 
 	return 0;

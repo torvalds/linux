@@ -1,0 +1,81 @@
+/*
+ * This file is part of the Chelsio T4 Ethernet driver for Linux.
+ *
+ * Copyright (c) 2003-2014 Chelsio Communications, Inc. All rights reserved.
+ *
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and/or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+#ifndef __T4_VALUES_H__
+#define __T4_VALUES_H__
+
+/* This file contains definitions for various T4 register value hardware
+ * constants.  The types of values encoded here are predominantly those for
+ * register fields which control "modal" behavior.  For the most part, we do
+ * not include definitions for register fields which are simple numeric
+ * metrics, etc.
+ */
+
+/* SGE register field values.
+ */
+
+/* CONTROL1 register */
+#define RXPKTCPLMODE_SPLIT_X		1
+
+#define INGPCIEBOUNDARY_SHIFT_X		5
+#define INGPCIEBOUNDARY_32B_X		0
+
+#define INGPADBOUNDARY_SHIFT_X		5
+
+/* CONTROL2 register */
+#define INGPACKBOUNDARY_SHIFT_X		5
+#define INGPACKBOUNDARY_16B_X		0
+
+/* GTS register */
+#define SGE_TIMERREGS			6
+
+/* T5 and later support a new BAR2-based doorbell mechanism for Egress Queues.
+ * The User Doorbells are each 128 bytes in length with a Simple Doorbell at
+ * offsets 8x and a Write Combining single 64-byte Egress Queue Unit
+ * (IDXSIZE_UNIT_X) Gather Buffer interface at offset 64.  For Ingress Queues,
+ * we have a Going To Sleep register at offsets 8x+4.
+ *
+ * As noted above, we have many instances of the Simple Doorbell and Going To
+ * Sleep registers at offsets 8x and 8x+4, respectively.  We want to use a
+ * non-64-byte aligned offset for the Simple Doorbell in order to attempt to
+ * avoid buffering of the writes to the Simple Doorbell and we want to use a
+ * non-contiguous offset for the Going To Sleep writes in order to avoid
+ * possible combining between them.
+ */
+#define SGE_UDB_SIZE		128
+#define SGE_UDB_KDOORBELL	8
+#define SGE_UDB_GTS		20
+#define SGE_UDB_WCDOORBELL	64
+
+#endif /* __T4_VALUES_H__ */
