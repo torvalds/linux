@@ -44,7 +44,7 @@ static const char *wm8995_supply_names[WM8995_NUM_SUPPLIES] = {
 	"MICVDD"
 };
 
-static struct reg_default wm8995_reg_defaults[] = {
+static const struct reg_default wm8995_reg_defaults[] = {
 	{ 0, 0x8995 },
 	{ 5, 0x0100 },
 	{ 16, 0x000b },
@@ -2190,7 +2190,7 @@ static struct snd_soc_dai_driver wm8995_dai[] = {
 	}
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8995 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8995 = {
 	.probe = wm8995_probe,
 	.remove = wm8995_remove,
 	.set_bias_level = wm8995_set_bias_level,
@@ -2204,7 +2204,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8995 = {
 	.num_dapm_routes = ARRAY_SIZE(wm8995_intercon),
 };
 
-static struct regmap_config wm8995_regmap = {
+static const struct regmap_config wm8995_regmap = {
 	.reg_bits = 16,
 	.val_bits = 16,
 
