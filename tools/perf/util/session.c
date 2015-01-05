@@ -553,15 +553,67 @@ int perf_session_queue_event(struct perf_session *s, union perf_event *event,
 	return 0;
 }
 
-static void callchain__printf(struct perf_sample *sample)
+static void callchain__lbr_callstack_printf(struct perf_sample *sample)
 {
+	struct ip_callchain *callchain = sample->callchain;
+	struct branch_stack *lbr_stack = sample->branch_stack;
+	u64 kernel_callchain_nr = callchain->nr;
 	unsigned int i;
 
-	printf("... chain: nr:%" PRIu64 "\n", sample->callchain->nr);
+	for (i = 0; i < kernel_callchain_nr; i++) {
+		if (callchain->ips[i] == PERF_CONTEXT_USER)
+			break;
+	}
 
-	for (i = 0; i < sample->callchain->nr; i++)
+	if ((i != kernel_callchain_nr) && lbr_stack->nr) {
+		u64 total_nr;
+		/*
+		 * LBR callstack can only get user call chain,
+		 * i is kernel call chain number,
+		 * 1 is PERF_CONTEXT_USER.
+		 *
+		 * The user call chain is stored in LBR registers.
+		 * LBR are pair registers. The caller is stored
+		 * in "from" register, while the callee is stored
+		 * in "to" register.
+		 * For example, there is a call stack
+		 * "A"->"B"->"C"->"D".
+		 * The LBR registers will recorde like
+		 * "C"->"D", "B"->"C", "A"->"B".
+		 * So only the first "to" register and all "from"
+		 * registers are needed to construct the whole stack.
+		 */
+		total_nr = i + 1 + lbr_stack->nr + 1;
+		kernel_callchain_nr = i + 1;
+
+		printf("... LBR call chain: nr:%" PRIu64 "\n", total_nr);
+
+		for (i = 0; i < kernel_callchain_nr; i++)
+			printf("..... %2d: %016" PRIx64 "\n",
+			       i, callchain->ips[i]);
+
 		printf("..... %2d: %016" PRIx64 "\n",
-		       i, sample->callchain->ips[i]);
+		       (int)(kernel_callchain_nr), lbr_stack->entries[0].to);
+		for (i = 0; i < lbr_stack->nr; i++)
+			printf("..... %2d: %016" PRIx64 "\n",
+			       (int)(i + kernel_callchain_nr + 1), lbr_stack->entries[i].from);
+	}
+}
+
+static void callchain__printf(struct perf_evsel *evsel,
+			      struct perf_sample *sample)
+{
+	unsigned int i;
+	struct ip_callchain *callchain = sample->callchain;
+
+	if (has_branch_callstack(evsel))
+		callchain__lbr_callstack_printf(sample);
+
+	printf("... FP chain: nr:%" PRIu64 "\n", callchain->nr);
+
+	for (i = 0; i < callchain->nr; i++)
+		printf("..... %2d: %016" PRIx64 "\n",
+		       i, callchain->ips[i]);
 }
 
 static void branch_stack__printf(struct perf_sample *sample)
@@ -718,9 +770,9 @@ static void dump_sample(struct perf_evsel *evsel, union perf_event *event,
 	sample_type = evsel->attr.sample_type;
 
 	if (sample_type & PERF_SAMPLE_CALLCHAIN)
-		callchain__printf(sample);
+		callchain__printf(evsel, sample);
 
-	if (sample_type & PERF_SAMPLE_BRANCH_STACK)
+	if ((sample_type & PERF_SAMPLE_BRANCH_STACK) && !has_branch_callstack(evsel))
 		branch_stack__printf(sample);
 
 	if (sample_type & PERF_SAMPLE_REGS_USER)

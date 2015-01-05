@@ -355,4 +355,8 @@ for ((_evsel) = list_entry((_leader)->node.next, struct perf_evsel, node); 	\
      (_evsel) && (_evsel)->leader == (_leader);					\
      (_evsel) = list_entry((_evsel)->node.next, struct perf_evsel, node))
 
+static inline bool has_branch_callstack(struct perf_evsel *evsel)
+{
+	return evsel->attr.branch_sample_type & PERF_SAMPLE_BRANCH_CALL_STACK;
+}
 #endif /* __PERF_EVSEL_H */

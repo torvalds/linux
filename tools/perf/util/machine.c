@@ -1502,17 +1502,99 @@ static int remove_loops(struct branch_entry *l, int nr)
 	return nr;
 }
 
-static int thread__resolve_callchain_sample(struct thread *thread,
-					     struct ip_callchain *chain,
-					     struct branch_stack *branch,
-					     struct symbol **parent,
-					     struct addr_location *root_al,
-					     int max_stack)
+/*
+ * Recolve LBR callstack chain sample
+ * Return:
+ * 1 on success get LBR callchain information
+ * 0 no available LBR callchain information, should try fp
+ * negative error code on other errors.
+ */
+static int resolve_lbr_callchain_sample(struct thread *thread,
+					struct perf_sample *sample,
+					struct symbol **parent,
+					struct addr_location *root_al,
+					int max_stack)
 {
+	struct ip_callchain *chain = sample->callchain;
+	int chain_nr = min(max_stack, (int)chain->nr);
+	int i, j, err;
+	u64 ip;
+
+	for (i = 0; i < chain_nr; i++) {
+		if (chain->ips[i] == PERF_CONTEXT_USER)
+			break;
+	}
+
+	/* LBR only affects the user callchain */
+	if (i != chain_nr) {
+		struct branch_stack *lbr_stack = sample->branch_stack;
+		int lbr_nr = lbr_stack->nr;
+		/*
+		 * LBR callstack can only get user call chain.
+		 * The mix_chain_nr is kernel call chain
+		 * number plus LBR user call chain number.
+		 * i is kernel call chain number,
+		 * 1 is PERF_CONTEXT_USER,
+		 * lbr_nr + 1 is the user call chain number.
+		 * For details, please refer to the comments
+		 * in callchain__printf
+		 */
+		int mix_chain_nr = i + 1 + lbr_nr + 1;
+
+		if (mix_chain_nr > PERF_MAX_STACK_DEPTH + PERF_MAX_BRANCH_DEPTH) {
+			pr_warning("corrupted callchain. skipping...\n");
+			return 0;
+		}
+
+		for (j = 0; j < mix_chain_nr; j++) {
+			if (callchain_param.order == ORDER_CALLEE) {
+				if (j < i + 1)
+					ip = chain->ips[j];
+				else if (j > i + 1)
+					ip = lbr_stack->entries[j - i - 2].from;
+				else
+					ip = lbr_stack->entries[0].to;
+			} else {
+				if (j < lbr_nr)
+					ip = lbr_stack->entries[lbr_nr - j - 1].from;
+				else if (j > lbr_nr)
+					ip = chain->ips[i + 1 - (j - lbr_nr)];
+				else
+					ip = lbr_stack->entries[0].to;
+			}
+
+			err = add_callchain_ip(thread, parent, root_al, false, ip);
+			if (err)
+				return (err < 0) ? err : 0;
+		}
+		return 1;
+	}
+
+	return 0;
+}
+
+static int thread__resolve_callchain_sample(struct thread *thread,
+					    struct perf_evsel *evsel,
+					    struct perf_sample *sample,
+					    struct symbol **parent,
+					    struct addr_location *root_al,
+					    int max_stack)
+{
+	struct branch_stack *branch = sample->branch_stack;
+	struct ip_callchain *chain = sample->callchain;
 	int chain_nr = min(max_stack, (int)chain->nr);
 	int i, j, err;
 	int skip_idx = -1;
 	int first_call = 0;
+
+	callchain_cursor_reset(&callchain_cursor);
+
+	if (has_branch_callstack(evsel)) {
+		err = resolve_lbr_callchain_sample(thread, sample, parent,
+						   root_al, max_stack);
+		if (err)
+			return (err < 0) ? err : 0;
+	}
 
 	/*
 	 * Based on DWARF debug information, some architectures skip
@@ -1520,8 +1602,6 @@ static int thread__resolve_callchain_sample(struct thread *thread,
 	 */
 	if (chain->nr < PERF_MAX_STACK_DEPTH)
 		skip_idx = arch_skip_callchain_idx(thread, chain);
-
-	callchain_cursor_reset(&callchain_cursor);
 
 	/*
 	 * Add branches to call stack for easier browsing. This gives
@@ -1623,9 +1703,9 @@ int thread__resolve_callchain(struct thread *thread,
 			      struct addr_location *root_al,
 			      int max_stack)
 {
-	int ret = thread__resolve_callchain_sample(thread, sample->callchain,
-						   sample->branch_stack,
-						   parent, root_al, max_stack);
+	int ret = thread__resolve_callchain_sample(thread, evsel,
+						   sample, parent,
+						   root_al, max_stack);
 	if (ret)
 		return ret;
 
