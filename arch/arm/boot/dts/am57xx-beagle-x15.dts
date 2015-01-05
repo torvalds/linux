@@ -80,6 +80,14 @@
 			default-state = "off";
 		};
 	};
+
+	gpio_fan: gpio_fan {
+		/* Based on 5v 500mA AFB02505HHB */
+		compatible = "gpio-fan";
+		gpios =  <&tps659038_gpio 1 GPIO_ACTIVE_HIGH>;
+		gpio-fan,speed-map = <0     0>,
+				     <13000 1>;
+	};
 };
 
 &dra7_pmx_core {
@@ -393,6 +401,12 @@
 			interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
 			wakeup-source;
 			ti,palmas-long-press-seconds = <12>;
+		};
+
+		tps659038_gpio: tps659038_gpio {
+			compatible = "ti,palmas-gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
 		};
 	};
 
