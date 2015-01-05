@@ -787,6 +787,8 @@ enum tcp_ca_ack_event_flags {
 #define TCP_CA_MAX	128
 #define TCP_CA_BUF_MAX	(TCP_CA_NAME_MAX*TCP_CA_MAX)
 
+#define TCP_CA_UNSPEC	0
+
 /* Algorithm can be set on socket without CAP_NET_ADMIN privileges */
 #define TCP_CONG_NON_RESTRICTED 0x1
 /* Requires ECN/ECT set on all packets */
@@ -794,7 +796,8 @@ enum tcp_ca_ack_event_flags {
 
 struct tcp_congestion_ops {
 	struct list_head	list;
-	unsigned long flags;
+	u32 key;
+	u32 flags;
 
 	/* initialize private data (optional) */
 	void (*init)(struct sock *sk);
@@ -840,6 +843,10 @@ void tcp_cong_avoid_ai(struct tcp_sock *tp, u32 w);
 u32 tcp_reno_ssthresh(struct sock *sk);
 void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 acked);
 extern struct tcp_congestion_ops tcp_reno;
+
+struct tcp_congestion_ops *tcp_ca_find_key(u32 key);
+u32 tcp_ca_get_key_by_name(const char *name);
+char *tcp_ca_get_name_by_key(u32 key, char *buffer);
 
 static inline bool tcp_ca_needs_ecn(const struct sock *sk)
 {
