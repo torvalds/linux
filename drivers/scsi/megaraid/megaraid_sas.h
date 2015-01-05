@@ -1082,6 +1082,8 @@ enum MR_SCSI_CMD_TYPE {
  */
 #define MEGASAS_INT_CMDS			32
 #define MEGASAS_SKINNY_INT_CMDS			5
+#define MEGASAS_FUSION_INTERNAL_CMDS		5
+#define MEGASAS_FUSION_IOCTL_CMDS		3
 
 #define MEGASAS_MAX_MSIX_QUEUES			128
 /*
@@ -1687,9 +1689,8 @@ struct megasas_instance {
 
 	u16 max_num_sge;
 	u16 max_fw_cmds;
-	/* For Fusion its num IOCTL cmds, for others MFI based its
-	   max_fw_cmds */
 	u16 max_mfi_cmds;
+	u16 max_scsi_cmds;
 	u32 max_sectors_per_req;
 	struct megasas_aen_event *ev;
 
@@ -1765,7 +1766,7 @@ struct megasas_instance {
 	u8 requestorId;
 	char PlasmaFW111;
 	char mpio;
-	int throttlequeuedepth;
+	u16 throttlequeuedepth;
 	u8 mask_interrupts;
 	u8 is_imr;
 };

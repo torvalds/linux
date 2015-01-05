@@ -78,7 +78,7 @@ static int allow_vf_ioctls;
 module_param(allow_vf_ioctls, int, S_IRUGO);
 MODULE_PARM_DESC(allow_vf_ioctls, "Allow ioctls in SR-IOV VF mode. Default: 0");
 
-static int throttlequeuedepth = MEGASAS_THROTTLE_QUEUE_DEPTH;
+static unsigned int throttlequeuedepth = MEGASAS_THROTTLE_QUEUE_DEPTH;
 module_param(throttlequeuedepth, int, S_IRUGO);
 MODULE_PARM_DESC(throttlequeuedepth,
 	"Adapter queue depth when throttled due to I/O timeout. Default: 16");
@@ -1764,6 +1764,7 @@ void
 megasas_check_and_restore_queue_depth(struct megasas_instance *instance)
 {
 	unsigned long flags;
+
 	if (instance->flag & MEGASAS_FW_BUSY
 	    && time_after(jiffies, instance->last_time + 5 * HZ)
 	    && atomic_read(&instance->fw_outstanding) <
@@ -1771,13 +1772,8 @@ megasas_check_and_restore_queue_depth(struct megasas_instance *instance)
 
 		spin_lock_irqsave(instance->host->host_lock, flags);
 		instance->flag &= ~MEGASAS_FW_BUSY;
-		if (instance->is_imr) {
-			instance->host->can_queue =
-				instance->max_fw_cmds - MEGASAS_SKINNY_INT_CMDS;
-		} else
-			instance->host->can_queue =
-				instance->max_fw_cmds - MEGASAS_INT_CMDS;
 
+		instance->host->can_queue = instance->max_scsi_cmds;
 		spin_unlock_irqrestore(instance->host->host_lock, flags);
 	}
 }
@@ -4685,22 +4681,37 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	if (tmp_sectors && (instance->max_sectors_per_req > tmp_sectors))
 		instance->max_sectors_per_req = tmp_sectors;
 
-	/* Check for valid throttlequeuedepth module parameter */
-	if (instance->is_imr) {
-		if (throttlequeuedepth > (instance->max_fw_cmds -
-					  MEGASAS_SKINNY_INT_CMDS))
-			instance->throttlequeuedepth =
-				MEGASAS_THROTTLE_QUEUE_DEPTH;
-		else
-			instance->throttlequeuedepth = throttlequeuedepth;
+	/*
+	 * 1. For fusion adapters, 3 commands for IOCTL and 5 commands
+	 *    for driver's internal DCMDs.
+	 * 2. For MFI skinny adapters, 5 commands for IOCTL + driver's
+	 *    internal DCMDs.
+	 * 3. For rest of MFI adapters, 27 commands reserved for IOCTLs
+	 *    and 5 commands for drivers's internal DCMD.
+	 */
+	if (instance->ctrl_context) {
+		instance->max_scsi_cmds = instance->max_fw_cmds -
+					(MEGASAS_FUSION_INTERNAL_CMDS +
+					MEGASAS_FUSION_IOCTL_CMDS);
+		sema_init(&instance->ioctl_sem, MEGASAS_FUSION_IOCTL_CMDS);
+	} else if ((instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
+		(instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0071SKINNY)) {
+		instance->max_scsi_cmds = instance->max_fw_cmds -
+						MEGASAS_SKINNY_INT_CMDS;
+		sema_init(&instance->ioctl_sem, MEGASAS_SKINNY_INT_CMDS);
 	} else {
-		if (throttlequeuedepth > (instance->max_fw_cmds -
-					  MEGASAS_INT_CMDS))
-			instance->throttlequeuedepth =
-				MEGASAS_THROTTLE_QUEUE_DEPTH;
-		else
-			instance->throttlequeuedepth = throttlequeuedepth;
+		instance->max_scsi_cmds = instance->max_fw_cmds -
+						MEGASAS_INT_CMDS;
+		sema_init(&instance->ioctl_sem, (MEGASAS_INT_CMDS - 5));
 	}
+
+	/* Check for valid throttlequeuedepth module parameter */
+	if (throttlequeuedepth &&
+			throttlequeuedepth <= instance->max_scsi_cmds)
+		instance->throttlequeuedepth = throttlequeuedepth;
+	else
+		instance->throttlequeuedepth =
+				MEGASAS_THROTTLE_QUEUE_DEPTH;
 
         /*
 	* Setup tasklet for cmd completion
@@ -4996,12 +5007,7 @@ static int megasas_io_attach(struct megasas_instance *instance)
 	 */
 	host->irq = instance->pdev->irq;
 	host->unique_id = instance->unique_id;
-	if (instance->is_imr) {
-		host->can_queue =
-			instance->max_fw_cmds - MEGASAS_SKINNY_INT_CMDS;
-	} else
-		host->can_queue =
-			instance->max_fw_cmds - MEGASAS_INT_CMDS;
+	host->can_queue = instance->max_scsi_cmds;
 	host->this_id = instance->init_id;
 	host->sg_tablesize = instance->max_num_sge;
 
@@ -5264,12 +5270,10 @@ static int megasas_probe_one(struct pci_dev *pdev,
 	instance->init_id = MEGASAS_DEFAULT_INIT_ID;
 	instance->ctrl_info = NULL;
 
+
 	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
-		(instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0071SKINNY)) {
+		(instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0071SKINNY))
 		instance->flag_ieee = 1;
-		sema_init(&instance->ioctl_sem, MEGASAS_SKINNY_INT_CMDS);
-	} else
-		sema_init(&instance->ioctl_sem, (MEGASAS_INT_CMDS - 5));
 
 	megasas_dbg_lvl = 0;
 	instance->flag = 0;
@@ -6264,9 +6268,6 @@ static int megasas_mgmt_ioctl_fw(struct file *file, unsigned long arg)
 		goto out_kfree_ioc;
 	}
 
-	/*
-	 * We will allow only MEGASAS_INT_CMDS number of parallel ioctl cmds
-	 */
 	if (down_interruptible(&instance->ioctl_sem)) {
 		error = -ERESTARTSYS;
 		goto out_kfree_ioc;
