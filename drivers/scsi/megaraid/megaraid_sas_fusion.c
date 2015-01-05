@@ -102,6 +102,8 @@ megasas_enable_intr_fusion(struct megasas_instance *instance)
 {
 	struct megasas_register_set __iomem *regs;
 	regs = instance->reg_set;
+
+	instance->mask_interrupts = 0;
 	/* For Thunderbolt/Invader also clear intr on enable */
 	writel(~0, &regs->outbound_intr_status);
 	readl(&regs->outbound_intr_status);
@@ -110,7 +112,6 @@ megasas_enable_intr_fusion(struct megasas_instance *instance)
 
 	/* Dummy readl to force pci flush */
 	readl(&regs->outbound_intr_mask);
-	instance->mask_interrupts = 0;
 }
 
 /**
