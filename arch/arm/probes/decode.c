@@ -425,6 +425,16 @@ probes_decode_insn(probes_opcode_t insn, struct arch_probes_insn *asi,
 	 */
 	probes_opcode_t origin_insn = insn;
 
+	/*
+	 * stack_space is initialized to 0 here. Checker functions
+	 * should update is value if they find this is a stack store
+	 * instruction: positive value means bytes of stack usage,
+	 * negitive value means unable to determine stack usage
+	 * statically. For instruction doesn't store to stack, checker
+	 * do nothing with it.
+	 */
+	asi->stack_space = 0;
+
 	if (emulate)
 		insn = prepare_emulated_insn(insn, asi, thumb);
 

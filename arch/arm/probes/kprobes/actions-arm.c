@@ -64,6 +64,7 @@
 
 #include "../decode-arm.h"
 #include "core.h"
+#include "checkers.h"
 
 #if  __LINUX_ARM_ARCH__ >= 6
 #define BLX(reg)	"blx	"reg"		\n\t"
@@ -340,4 +341,4 @@ const union decode_action kprobes_arm_actions[NUM_PROBES_ARM_ACTIONS] = {
 	[PROBES_LDMSTM] = {.decoder = kprobe_decode_ldmstm}
 };
 
-const struct decode_checker *kprobes_arm_checkers[] = {NULL};
+const struct decode_checker *kprobes_arm_checkers[] = {arm_stack_checker, NULL};

@@ -15,6 +15,7 @@
 
 #include "../decode-thumb.h"
 #include "core.h"
+#include "checkers.h"
 
 /* These emulation encodings are functionally equivalent... */
 #define t32_emulate_rd8rn16rm0ra12_noflags \
@@ -665,5 +666,5 @@ const union decode_action kprobes_t32_actions[NUM_PROBES_T32_ACTIONS] = {
 		.handler = t32_emulate_rdlo12rdhi8rn16rm0_noflags},
 };
 
-const struct decode_checker *kprobes_t32_checkers[] = {NULL};
-const struct decode_checker *kprobes_t16_checkers[] = {NULL};
+const struct decode_checker *kprobes_t32_checkers[] = {t32_stack_checker, NULL};
+const struct decode_checker *kprobes_t16_checkers[] = {t16_stack_checker, NULL};
