@@ -19,10 +19,8 @@
 /*
  * Driver: rtd520
  * Description: Real Time Devices PCI4520/DM7520
- * Devices: (Real Time Devices) DM7520HR-1 [DM7520]
- *	    (Real Time Devices) DM7520HR-8 [DM7520]
- *	    (Real Time Devices) PCI4520 [PCI4520]
- *	    (Real Time Devices) PCI4520-8 [PCI4520]
+ * Devices: [Real Time Devices] DM7520HR-1 (DM7520), DM7520HR-8,
+ *   PCI4520 (PCI4520), PCI4520-8
  * Author: Dan Christian
  * Status: Works. Only tested on DM7520-8. Not SMP safe.
  *
