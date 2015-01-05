@@ -2143,6 +2143,21 @@ again:
 			ret = 1;
 		}
 	} else {
+		int session_readonly = false;
+		if ((need & CEPH_CAP_FILE_WR) && ci->i_auth_cap) {
+			struct ceph_mds_session *s = ci->i_auth_cap->session;
+			spin_lock(&s->s_cap_lock);
+			session_readonly = s->s_readonly;
+			spin_unlock(&s->s_cap_lock);
+		}
+		if (session_readonly) {
+			dout("get_cap_refs %p needed %s but mds%d readonly\n",
+			     inode, ceph_cap_string(need), ci->i_auth_cap->mds);
+			*err = -EROFS;
+			ret = 1;
+			goto out_unlock;
+		}
+
 		dout("get_cap_refs %p have %s needed %s\n", inode,
 		     ceph_cap_string(have), ceph_cap_string(need));
 	}

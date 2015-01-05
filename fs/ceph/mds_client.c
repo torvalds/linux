@@ -2580,6 +2580,14 @@ static void handle_session(struct ceph_mds_session *session,
 		send_flushmsg_ack(mdsc, session, seq);
 		break;
 
+	case CEPH_SESSION_FORCE_RO:
+		dout("force_session_readonly %p\n", session);
+		spin_lock(&session->s_cap_lock);
+		session->s_readonly = true;
+		spin_unlock(&session->s_cap_lock);
+		wake_up_session_caps(session, 0);
+		break;
+
 	default:
 		pr_err("mdsc_handle_session bad op %d mds%d\n", op, mds);
 		WARN_ON(1);
@@ -2791,6 +2799,8 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 	spin_unlock(&session->s_gen_ttl_lock);
 
 	spin_lock(&session->s_cap_lock);
+	/* don't know if session is readonly */
+	session->s_readonly = 0;
 	/*
 	 * notify __ceph_remove_cap() that we are composing cap reconnect.
 	 * If a cap get released before being added to the cap reconnect,
