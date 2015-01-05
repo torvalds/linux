@@ -294,6 +294,7 @@ struct clk *clk_register_gate(struct device *dev, const char *name,
 		const char *parent_name, unsigned long flags,
 		void __iomem *reg, u8 bit_idx,
 		u8 clk_gate_flags, spinlock_t *lock);
+void clk_unregister_gate(struct clk *clk);
 
 struct clk_div_table {
 	unsigned int	val;
@@ -361,6 +362,7 @@ struct clk *clk_register_divider_table(struct device *dev, const char *name,
 		void __iomem *reg, u8 shift, u8 width,
 		u8 clk_divider_flags, const struct clk_div_table *table,
 		spinlock_t *lock);
+void clk_unregister_divider(struct clk *clk);
 
 /**
  * struct clk_mux - multiplexer clock
@@ -410,6 +412,8 @@ struct clk *clk_register_mux_table(struct device *dev, const char *name,
 		const char **parent_names, u8 num_parents, unsigned long flags,
 		void __iomem *reg, u8 shift, u32 mask,
 		u8 clk_mux_flags, u32 *table, spinlock_t *lock);
+
+void clk_unregister_mux(struct clk *clk);
 
 void of_fixed_factor_clk_setup(struct device_node *node);
 
