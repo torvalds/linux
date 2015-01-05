@@ -9,7 +9,7 @@
 /*
  * Driver: ii_pci20kc
  * Description: Intelligent Instruments PCI-20001C carrier board
- * Devices: (Intelligent Instrumentation) PCI-20001C [ii_pci20kc]
+ * Devices: [Intelligent Instrumentation] PCI-20001C (ii_pci20kc)
  * Author: Markus Kempf <kempf@matsci.uni-sb.de>
  * Status: works
  *
