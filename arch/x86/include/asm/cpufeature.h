@@ -486,13 +486,7 @@ static __always_inline __pure bool __static_cpu_has(u16 bit)
 static __always_inline __pure bool _static_cpu_has_safe(u16 bit)
 {
 #ifdef CC_HAVE_ASM_GOTO
-/*
- * We need to spell the jumps to the compiler because, depending on the offset,
- * the replacement jump can be bigger than the original jump, and this we cannot
- * have. Thus, we force the jump to the widest, 4-byte, signed relative
- * offset even though the last would often fit in less bytes.
- */
-		asm_volatile_goto("1: .byte 0xe9\n .long %l[t_dynamic] - 2f\n"
+		asm_volatile_goto("1: jmp %l[t_dynamic]\n"
 			 "2:\n"
 			 ".skip -(((5f-4f) - (2b-1b)) > 0) * "
 			         "((5f-4f) - (2b-1b)),0x90\n"
@@ -506,7 +500,7 @@ static __always_inline __pure bool _static_cpu_has_safe(u16 bit)
 			 " .byte 3b - 2b\n"		/* pad len */
 			 ".previous\n"
 			 ".section .altinstr_replacement,\"ax\"\n"
-			 "4: .byte 0xe9\n .long %l[t_no] - 2b\n"
+			 "4: jmp %l[t_no]\n"
 			 "5:\n"
 			 ".previous\n"
 			 ".section .altinstructions,\"a\"\n"
