@@ -311,6 +311,11 @@ struct amap_eth_hdr_wrb {
 	u8 vlan_tag[16];
 } __packed;
 
+#define TX_HDR_WRB_COMPL		1		/* word 2 */
+#define TX_HDR_WRB_EVT			(1 << 1)	/* word 2 */
+#define TX_HDR_WRB_NUM_SHIFT		13		/* word 2: bits 13:17 */
+#define TX_HDR_WRB_NUM_MASK		0x1F		/* word 2: bits 13:17 */
+
 struct be_eth_hdr_wrb {
 	u32 dw[4];
 };

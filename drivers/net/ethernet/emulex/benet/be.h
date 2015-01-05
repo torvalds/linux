@@ -243,7 +243,6 @@ struct be_tx_stats {
 	u64 tx_bytes;
 	u64 tx_pkts;
 	u64 tx_reqs;
-	u64 tx_wrbs;
 	u64 tx_compl;
 	ulong tx_jiffies;
 	u32 tx_stops;
@@ -266,6 +265,9 @@ struct be_tx_obj {
 	/* Remember the skbs that were transmitted */
 	struct sk_buff *sent_skb_list[TX_Q_LEN];
 	struct be_tx_stats stats;
+	u16 pend_wrb_cnt;	/* Number of WRBs yet to be given to HW */
+	u16 last_req_wrb_cnt;	/* wrb cnt of the last req in the Q */
+	u16 last_req_hdr;	/* index of the last req's hdr-wrb */
 } ____cacheline_aligned_in_smp;
 
 /* Struct to remember the pages posted for rx frags */
