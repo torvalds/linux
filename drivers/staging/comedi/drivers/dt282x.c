@@ -20,22 +20,12 @@
  * Driver: dt282x
  * Description: Data Translation DT2821 series (including DT-EZ)
  * Author: ds
- * Devices: (Data Translation) DT2821 [dt2821]
- *	    (Data Translation) DT2821-F-16SE [dt2821-f]
- *	    (Data Translation) DT2821-F-8DI [dt2821-f]
- *	    (Data Translation) DT2821-G-16SE [dt2821-g]
- *	    (Data Translation) DT2821-G-8DI [dt2821-g]
- *	    (Data Translation) DT2823 [dt2823]
- *	    (Data Translation) DT2824-PGH [dt2824-pgh]
- *	    (Data Translation) DT2824-PGL [dt2824-pgl]
- *	    (Data Translation) DT2825 [dt2825]
- *	    (Data Translation) DT2827 [dt2827]
- *	    (Data Translation) DT2828 [dt2828]
- *	    (Data Translation) DT2928 [dt2829]
- *	    (Data Translation) DT21-EZ [dt21-ez]
- *	    (Data Translation) DT23-EZ [dt23-ez]
- *	    (Data Translation) DT24-EZ [dt24-ez]
- *	    (Data Translation) DT24-EZ-PGL [dt24-ez-pgl]
+ * Devices: [Data Translation] DT2821 (dt2821), DT2821-F-16SE (dt2821-f),
+ *   DT2821-F-8DI (dt2821-f), DT2821-G-16SE (dt2821-g),
+ *   DT2821-G-8DI (dt2821-g), DT2823 (dt2823), DT2824-PGH (dt2824-pgh),
+ *   DT2824-PGL (dt2824-pgl), DT2825 (dt2825), DT2827 (dt2827),
+ *   DT2828 (dt2828), DT2928 (dt2829), DT21-EZ (dt21-ez), DT23-EZ (dt23-ez),
+ *   DT24-EZ (dt24-ez), DT24-EZ-PGL (dt24-ez-pgl)
  * Status: complete
  * Updated: Wed, 22 Aug 2001 17:11:34 -0700
  *
