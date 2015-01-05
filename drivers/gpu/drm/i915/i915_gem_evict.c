@@ -50,11 +50,12 @@ mark_free(struct i915_vma *vma, struct list_head *unwind)
  * i915_gem_evict_something - Evict vmas to make room for binding a new one
  * @dev: drm_device
  * @vm: address space to evict from
- * @size: size of the desired free space
+ * @min_size: size of the desired free space
  * @alignment: alignment constraint of the desired free space
  * @cache_level: cache_level for the desired space
- * @mappable: whether the free space must be mappable
- * @nonblocking: whether evicting active objects is allowed or not
+ * @start: start (inclusive) of the range from which to evict objects
+ * @end: end (exclusive) of the range from which to evict objects
+ * @flags: additional flags to control the eviction algorithm
  *
  * This function will try to evict vmas until a free space satisfying the
  * requirements is found. Callers must check first whether any such hole exists
@@ -196,7 +197,6 @@ found:
 
 /**
  * i915_gem_evict_vm - Evict all idle vmas from a vm
- *
  * @vm: Address space to cleanse
  * @do_idle: Boolean directing whether to idle first.
  *
