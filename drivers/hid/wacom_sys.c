@@ -173,10 +173,8 @@ static void wacom_usage_mapping(struct hid_device *hdev,
 {
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	struct wacom_features *features = &wacom->wacom_wac.features;
-	bool finger = (field->logical == HID_DG_FINGER) ||
-		      (field->physical == HID_DG_FINGER);
-	bool pen = (field->logical == HID_DG_STYLUS) ||
-		   (field->physical == HID_DG_STYLUS);
+	bool finger = WACOM_FINGER_FIELD(field);
+	bool pen = WACOM_PEN_FIELD(field);
 
 	/*
 	* Requiring Stylus Usage will ignore boot mouse

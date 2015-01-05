@@ -10,6 +10,7 @@
 #define WACOM_WAC_H
 
 #include <linux/types.h>
+#include <linux/hid.h>
 
 /* maximum packet length for USB devices */
 #define WACOM_PKGLEN_MAX	68
@@ -70,6 +71,13 @@
 #define WACOM_QUIRK_NO_INPUT		0x0004
 #define WACOM_QUIRK_MONITOR		0x0008
 #define WACOM_QUIRK_BATTERY		0x0010
+
+#define WACOM_PEN_FIELD(f)	(((f)->logical == HID_DG_STYLUS) || \
+				 ((f)->physical == HID_DG_STYLUS) || \
+				 ((f)->application == HID_DG_PEN))
+#define WACOM_FINGER_FIELD(f)	(((f)->logical == HID_DG_FINGER) || \
+				 ((f)->physical == HID_DG_FINGER) || \
+				 ((f)->application == HID_DG_TOUCHSCREEN))
 
 enum {
 	PENPARTNER = 0,

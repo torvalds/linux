@@ -15,7 +15,6 @@
 #include "wacom_wac.h"
 #include "wacom.h"
 #include <linux/input/mt.h>
-#include <linux/hid.h>
 
 /* resolution for penabled devices */
 #define WACOM_PL_RES		20
@@ -1513,13 +1512,6 @@ static void wacom_wac_finger_report(struct hid_device *hdev,
 	/* keep touch state for pen event */
 	wacom_wac->shared->touch_down = wacom_wac_finger_count_touches(hdev);
 }
-
-#define WACOM_PEN_FIELD(f)	(((f)->logical == HID_DG_STYLUS) || \
-				 ((f)->physical == HID_DG_STYLUS) || \
-				 ((f)->application == HID_DG_PEN))
-#define WACOM_FINGER_FIELD(f)	(((f)->logical == HID_DG_FINGER) || \
-				 ((f)->physical == HID_DG_FINGER) || \
-				 ((f)->application == HID_DG_TOUCHSCREEN))
 
 void wacom_wac_usage_mapping(struct hid_device *hdev,
 		struct hid_field *field, struct hid_usage *usage)
