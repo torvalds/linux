@@ -8,14 +8,10 @@
 /*
  * Driver: pcl724
  * Description: Comedi driver for 8255 based ISA DIO boards
- * Devices: (Advantech) PCL-724 [pcl724]
- *	    (Advantech) PCL-722 [pcl722]
- *	    (Advantech) PCL-731 [pcl731]
- *	    (ADLink) ACL-7122 [acl7122]
- *	    (ADLink) ACL-7124 [acl7124]
- *	    (ADLink) PET-48DIO [pet48dio]
- *	    (WinSystems) PCM-IO48 [pcmio48]
- *	    (Diamond Systems) ONYX-MM-DIO [onyx-mm-dio]
+ * Devices: [Advantech] PCL-724 (pcl724), PCL-722 (pcl722), PCL-731 (pcl731),
+ *  [ADLink] ACL-7122 (acl7122), ACL-7124 (acl7124), PET-48DIO (pet48dio),
+ *  [WinSystems] PCM-IO48 (pcmio48),
+ *  [Diamond Systems] ONYX-MM-DIO (onyx-mm-dio)
  * Author: Michal Dobes <dobes@tesnet.cz>
  * Status: untested
  *
