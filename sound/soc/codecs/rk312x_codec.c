@@ -133,6 +133,7 @@ static struct rk312x_codec_priv *rk312x_priv;
 static struct workqueue_struct *rk312x_codec_workq;
 
 static void rk312x_codec_capture_work(struct work_struct *work);
+static void rk312x_codec_unpop(struct work_struct *work);
 static DECLARE_DELAYED_WORK(capture_delayed_work, rk312x_codec_capture_work);
 static int rk312x_codec_work_capture_type = RK312x_CODEC_WORK_NULL;
 /* static bool rk312x_for_mid = 1; */
@@ -1691,6 +1692,11 @@ static int rk312x_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static void rk312x_codec_unpop(struct work_struct *work)
+{
+	rk312x_codec_ctl_gpio(CODEC_SET_SPK, rk312x_priv->spk_active_level);
+}
+
 static int rk312x_digital_mute(struct snd_soc_dai *dai, int mute)
 {
 
@@ -1698,26 +1704,29 @@ static int rk312x_digital_mute(struct snd_soc_dai *dai, int mute)
 		rk312x_codec_ctl_gpio(CODEC_SET_SPK, !rk312x_priv->spk_active_level);
 		rk312x_codec_ctl_gpio(CODEC_SET_HP, !rk312x_priv->hp_active_level);
 	} else {
-		switch (rk312x_priv->playback_path) {
-		case SPK_PATH:
-		case RING_SPK:
-			/* rk312x_codec_ctl_gpio(CODEC_SET_SPK, rk312x_priv->spk_active_level); */
-			/* rk312x_codec_ctl_gpio(CODEC_SET_HP, rk312x_priv->hp_active_level); */
-			/* break; */
-		case HP_PATH:
-		case HP_NO_MIC:
-		case RING_HP:
-		case RING_HP_NO_MIC:
-			/* rk312x_codec_ctl_gpio(CODEC_SET_HP, rk312x_priv->hp_active_level); */
-			/* rk312x_codec_ctl_gpio(CODEC_SET_SPK, rk312x_priv->spk_active_level); */
-			/* break; */
-		case SPK_HP:
-		case RING_SPK_HP:
-			rk312x_codec_ctl_gpio(CODEC_SET_SPK, rk312x_priv->spk_active_level);
-			rk312x_codec_ctl_gpio(CODEC_SET_HP, rk312x_priv->hp_active_level);
-			break;
-		default:
-			break;
+		if (!rk312x_priv->rk312x_for_mid) {
+			INIT_DELAYED_WORK(&rk312x_priv->init_delayed_work,
+					  rk312x_codec_unpop);
+			schedule_delayed_work(&rk312x_priv->init_delayed_work,
+				msecs_to_jiffies(rk312x_priv->spk_mute_delay));
+		} else {
+			switch (rk312x_priv->playback_path) {
+			case SPK_PATH:
+			case RING_SPK:
+			case HP_PATH:
+			case HP_NO_MIC:
+			case RING_HP:
+			case RING_HP_NO_MIC:
+			case SPK_HP:
+			case RING_SPK_HP:
+				rk312x_codec_ctl_gpio(CODEC_SET_SPK,
+					rk312x_priv->spk_active_level);
+				rk312x_codec_ctl_gpio(CODEC_SET_HP,
+					rk312x_priv->hp_active_level);
+				break;
+			default:
+				break;
+			}
 		}
 	}
 	return 0;
@@ -1952,8 +1961,6 @@ static int rk312x_startup(struct snd_pcm_substream *substream,
 				rk312x_codec_power_up(RK312x_CODEC_PLAYBACK);
 				snd_soc_write(rk312x_priv->codec, 0xb4, rk312x_priv->spk_volume);
 				snd_soc_write(rk312x_priv->codec, 0xb8, rk312x_priv->spk_volume);
-				msleep(rk312x_priv->spk_mute_delay);
-				rk312x_codec_ctl_gpio(CODEC_SET_SPK, rk312x_priv->spk_active_level);
 			}
 	} else {
 		if (rk312x->capture_active > 0 && !is_codec_capture_running) {
