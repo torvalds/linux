@@ -217,12 +217,6 @@ static int spi_st_setup(struct spi_device *spi)
 	int cs = spi->cs_gpio;
 	int ret;
 
-	if (spi->mode & ~MODEBITS) {
-		dev_err(&spi->dev, "unsupported mode bits 0x%x\n",
-			spi->mode & ~MODEBITS);
-		return -EINVAL;
-	}
-
 	if (!hz)  {
 		dev_err(&spi->dev, "max_speed_hz unspecified\n");
 		return -EINVAL;
