@@ -2631,7 +2631,6 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int iotimeout)
 				instance->host->host_no);
 			megaraid_sas_kill_hba(instance);
 			instance->skip_heartbeat_timer_del = 1;
-			instance->adprecovery = MEGASAS_HW_CRITICAL_ERROR;
 			retval = FAILED;
 			goto out;
 		}
@@ -2827,8 +2826,6 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int iotimeout)
 				dev_info(&instance->pdev->dev,
 					"Failed from %s %d\n",
 					__func__, __LINE__);
-				instance->adprecovery =
-					MEGASAS_HW_CRITICAL_ERROR;
 				megaraid_sas_kill_hba(instance);
 				retval = FAILED;
 			}
@@ -2877,7 +2874,6 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int iotimeout)
 		       "adapter scsi%d.\n", instance->host->host_no);
 		megaraid_sas_kill_hba(instance);
 		instance->skip_heartbeat_timer_del = 1;
-		instance->adprecovery = MEGASAS_HW_CRITICAL_ERROR;
 		retval = FAILED;
 	} else {
 		/* For VF: Restart HB timer if we didn't OCR */
