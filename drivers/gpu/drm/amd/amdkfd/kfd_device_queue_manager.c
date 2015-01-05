@@ -161,6 +161,9 @@ static void deallocate_vmid(struct device_queue_manager *dqm,
 {
 	int bit = qpd->vmid - KFD_VMID_START_OFFSET;
 
+	/* Release the vmid mapping */
+	set_pasid_vmid_mapping(dqm, 0, qpd->vmid);
+
 	set_bit(bit, (unsigned long *)&dqm->vmid_bitmap);
 	qpd->vmid = 0;
 	q->properties.vmid = 0;
