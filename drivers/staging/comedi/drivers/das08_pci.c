@@ -21,7 +21,7 @@
 /*
  * Driver: das08_pci
  * Description: DAS-08 PCI compatible boards
- * Devices: (ComputerBoards) PCI-DAS08 [pci-das08]
+ * Devices: [ComputerBoards] PCI-DAS08 (pci-das08)
  * Author: Warren Jasper, ds, Frank Hess
  * Updated: Fri, 31 Aug 2012 19:19:06 +0100
  * Status: works
