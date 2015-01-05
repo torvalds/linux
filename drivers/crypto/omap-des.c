@@ -965,9 +965,9 @@ static irqreturn_t omap_des_irq(int irq, void *dev_id)
 			}
 		}
 
-		dd->total -= DES_BLOCK_SIZE;
+		BUG_ON(dd->total < DES_BLOCK_SIZE);
 
-		BUG_ON(dd->total < 0);
+		dd->total -= DES_BLOCK_SIZE;
 
 		/* Clear IRQ status */
 		status &= ~DES_REG_IRQ_DATA_OUT;
