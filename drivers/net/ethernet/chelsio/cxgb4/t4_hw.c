@@ -1486,11 +1486,11 @@ static void tp_intr_handler(struct adapter *adapter)
 {
 	static const struct intr_info tp_intr_info[] = {
 		{ 0x3fffffff, "TP parity error", -1, 1 },
-		{ FLMTXFLSTEMPTY, "TP out of Tx pages", -1, 1 },
+		{ FLMTXFLSTEMPTY_F, "TP out of Tx pages", -1, 1 },
 		{ 0 }
 	};
 
-	if (t4_handle_intr_status(adapter, TP_INT_CAUSE, tp_intr_info))
+	if (t4_handle_intr_status(adapter, TP_INT_CAUSE_A, tp_intr_info))
 		t4_fatal_err(adapter);
 }
 
@@ -1629,19 +1629,19 @@ static void ulprx_intr_handler(struct adapter *adapter)
 static void ulptx_intr_handler(struct adapter *adapter)
 {
 	static const struct intr_info ulptx_intr_info[] = {
-		{ PBL_BOUND_ERR_CH3, "ULPTX channel 3 PBL out of bounds", -1,
+		{ PBL_BOUND_ERR_CH3_F, "ULPTX channel 3 PBL out of bounds", -1,
 		  0 },
-		{ PBL_BOUND_ERR_CH2, "ULPTX channel 2 PBL out of bounds", -1,
+		{ PBL_BOUND_ERR_CH2_F, "ULPTX channel 2 PBL out of bounds", -1,
 		  0 },
-		{ PBL_BOUND_ERR_CH1, "ULPTX channel 1 PBL out of bounds", -1,
+		{ PBL_BOUND_ERR_CH1_F, "ULPTX channel 1 PBL out of bounds", -1,
 		  0 },
-		{ PBL_BOUND_ERR_CH0, "ULPTX channel 0 PBL out of bounds", -1,
+		{ PBL_BOUND_ERR_CH0_F, "ULPTX channel 0 PBL out of bounds", -1,
 		  0 },
 		{ 0xfffffff, "ULPTX parity error", -1, 1 },
 		{ 0 }
 	};
 
-	if (t4_handle_intr_status(adapter, ULP_TX_INT_CAUSE, ulptx_intr_info))
+	if (t4_handle_intr_status(adapter, ULP_TX_INT_CAUSE_A, ulptx_intr_info))
 		t4_fatal_err(adapter);
 }
 
@@ -1651,19 +1651,20 @@ static void ulptx_intr_handler(struct adapter *adapter)
 static void pmtx_intr_handler(struct adapter *adapter)
 {
 	static const struct intr_info pmtx_intr_info[] = {
-		{ PCMD_LEN_OVFL0, "PMTX channel 0 pcmd too large", -1, 1 },
-		{ PCMD_LEN_OVFL1, "PMTX channel 1 pcmd too large", -1, 1 },
-		{ PCMD_LEN_OVFL2, "PMTX channel 2 pcmd too large", -1, 1 },
-		{ ZERO_C_CMD_ERROR, "PMTX 0-length pcmd", -1, 1 },
-		{ PMTX_FRAMING_ERROR, "PMTX framing error", -1, 1 },
-		{ OESPI_PAR_ERROR, "PMTX oespi parity error", -1, 1 },
-		{ DB_OPTIONS_PAR_ERROR, "PMTX db_options parity error", -1, 1 },
-		{ ICSPI_PAR_ERROR, "PMTX icspi parity error", -1, 1 },
-		{ C_PCMD_PAR_ERROR, "PMTX c_pcmd parity error", -1, 1},
+		{ PCMD_LEN_OVFL0_F, "PMTX channel 0 pcmd too large", -1, 1 },
+		{ PCMD_LEN_OVFL1_F, "PMTX channel 1 pcmd too large", -1, 1 },
+		{ PCMD_LEN_OVFL2_F, "PMTX channel 2 pcmd too large", -1, 1 },
+		{ ZERO_C_CMD_ERROR_F, "PMTX 0-length pcmd", -1, 1 },
+		{ PMTX_FRAMING_ERROR_F, "PMTX framing error", -1, 1 },
+		{ OESPI_PAR_ERROR_F, "PMTX oespi parity error", -1, 1 },
+		{ DB_OPTIONS_PAR_ERROR_F, "PMTX db_options parity error",
+		  -1, 1 },
+		{ ICSPI_PAR_ERROR_F, "PMTX icspi parity error", -1, 1 },
+		{ PMTX_C_PCMD_PAR_ERROR_F, "PMTX c_pcmd parity error", -1, 1},
 		{ 0 }
 	};
 
-	if (t4_handle_intr_status(adapter, PM_TX_INT_CAUSE, pmtx_intr_info))
+	if (t4_handle_intr_status(adapter, PM_TX_INT_CAUSE_A, pmtx_intr_info))
 		t4_fatal_err(adapter);
 }
 
@@ -1673,16 +1674,17 @@ static void pmtx_intr_handler(struct adapter *adapter)
 static void pmrx_intr_handler(struct adapter *adapter)
 {
 	static const struct intr_info pmrx_intr_info[] = {
-		{ ZERO_E_CMD_ERROR, "PMRX 0-length pcmd", -1, 1 },
-		{ PMRX_FRAMING_ERROR, "PMRX framing error", -1, 1 },
-		{ OCSPI_PAR_ERROR, "PMRX ocspi parity error", -1, 1 },
-		{ DB_OPTIONS_PAR_ERROR, "PMRX db_options parity error", -1, 1 },
-		{ IESPI_PAR_ERROR, "PMRX iespi parity error", -1, 1 },
-		{ E_PCMD_PAR_ERROR, "PMRX e_pcmd parity error", -1, 1},
+		{ ZERO_E_CMD_ERROR_F, "PMRX 0-length pcmd", -1, 1 },
+		{ PMRX_FRAMING_ERROR_F, "PMRX framing error", -1, 1 },
+		{ OCSPI_PAR_ERROR_F, "PMRX ocspi parity error", -1, 1 },
+		{ DB_OPTIONS_PAR_ERROR_F, "PMRX db_options parity error",
+		  -1, 1 },
+		{ IESPI_PAR_ERROR_F, "PMRX iespi parity error", -1, 1 },
+		{ PMRX_E_PCMD_PAR_ERROR_F, "PMRX e_pcmd parity error", -1, 1},
 		{ 0 }
 	};
 
-	if (t4_handle_intr_status(adapter, PM_RX_INT_CAUSE, pmrx_intr_info))
+	if (t4_handle_intr_status(adapter, PM_RX_INT_CAUSE_A, pmrx_intr_info))
 		t4_fatal_err(adapter);
 }
 
@@ -1733,19 +1735,22 @@ static void mps_intr_handler(struct adapter *adapter)
 		{ 0 }
 	};
 	static const struct intr_info mps_tx_intr_info[] = {
-		{ TPFIFO, "MPS Tx TP FIFO parity error", -1, 1 },
-		{ NCSIFIFO, "MPS Tx NC-SI FIFO parity error", -1, 1 },
-		{ TXDATAFIFO, "MPS Tx data FIFO parity error", -1, 1 },
-		{ TXDESCFIFO, "MPS Tx desc FIFO parity error", -1, 1 },
-		{ BUBBLE, "MPS Tx underflow", -1, 1 },
-		{ SECNTERR, "MPS Tx SOP/EOP error", -1, 1 },
-		{ FRMERR, "MPS Tx framing error", -1, 1 },
+		{ TPFIFO_V(TPFIFO_M), "MPS Tx TP FIFO parity error", -1, 1 },
+		{ NCSIFIFO_F, "MPS Tx NC-SI FIFO parity error", -1, 1 },
+		{ TXDATAFIFO_V(TXDATAFIFO_M), "MPS Tx data FIFO parity error",
+		  -1, 1 },
+		{ TXDESCFIFO_V(TXDESCFIFO_M), "MPS Tx desc FIFO parity error",
+		  -1, 1 },
+		{ BUBBLE_F, "MPS Tx underflow", -1, 1 },
+		{ SECNTERR_F, "MPS Tx SOP/EOP error", -1, 1 },
+		{ FRMERR_F, "MPS Tx framing error", -1, 1 },
 		{ 0 }
 	};
 	static const struct intr_info mps_trc_intr_info[] = {
-		{ FILTMEM, "MPS TRC filter parity error", -1, 1 },
-		{ PKTFIFO, "MPS TRC packet FIFO parity error", -1, 1 },
-		{ MISCPERR, "MPS TRC misc parity error", -1, 1 },
+		{ FILTMEM_V(FILTMEM_M), "MPS TRC filter parity error", -1, 1 },
+		{ PKTFIFO_V(PKTFIFO_M), "MPS TRC packet FIFO parity error",
+		  -1, 1 },
+		{ MISCPERR_F, "MPS TRC misc parity error", -1, 1 },
 		{ 0 }
 	};
 	static const struct intr_info mps_stat_sram_intr_info[] = {
@@ -1761,32 +1766,31 @@ static void mps_intr_handler(struct adapter *adapter)
 		{ 0 }
 	};
 	static const struct intr_info mps_cls_intr_info[] = {
-		{ MATCHSRAM, "MPS match SRAM parity error", -1, 1 },
-		{ MATCHTCAM, "MPS match TCAM parity error", -1, 1 },
-		{ HASHSRAM, "MPS hash SRAM parity error", -1, 1 },
+		{ MATCHSRAM_F, "MPS match SRAM parity error", -1, 1 },
+		{ MATCHTCAM_F, "MPS match TCAM parity error", -1, 1 },
+		{ HASHSRAM_F, "MPS hash SRAM parity error", -1, 1 },
 		{ 0 }
 	};
 
 	int fat;
 
-	fat = t4_handle_intr_status(adapter, MPS_RX_PERR_INT_CAUSE,
+	fat = t4_handle_intr_status(adapter, MPS_RX_PERR_INT_CAUSE_A,
 				    mps_rx_intr_info) +
-	      t4_handle_intr_status(adapter, MPS_TX_INT_CAUSE,
+	      t4_handle_intr_status(adapter, MPS_TX_INT_CAUSE_A,
 				    mps_tx_intr_info) +
-	      t4_handle_intr_status(adapter, MPS_TRC_INT_CAUSE,
+	      t4_handle_intr_status(adapter, MPS_TRC_INT_CAUSE_A,
 				    mps_trc_intr_info) +
-	      t4_handle_intr_status(adapter, MPS_STAT_PERR_INT_CAUSE_SRAM,
+	      t4_handle_intr_status(adapter, MPS_STAT_PERR_INT_CAUSE_SRAM_A,
 				    mps_stat_sram_intr_info) +
-	      t4_handle_intr_status(adapter, MPS_STAT_PERR_INT_CAUSE_TX_FIFO,
+	      t4_handle_intr_status(adapter, MPS_STAT_PERR_INT_CAUSE_TX_FIFO_A,
 				    mps_stat_tx_intr_info) +
-	      t4_handle_intr_status(adapter, MPS_STAT_PERR_INT_CAUSE_RX_FIFO,
+	      t4_handle_intr_status(adapter, MPS_STAT_PERR_INT_CAUSE_RX_FIFO_A,
 				    mps_stat_rx_intr_info) +
-	      t4_handle_intr_status(adapter, MPS_CLS_INT_CAUSE,
+	      t4_handle_intr_status(adapter, MPS_CLS_INT_CAUSE_A,
 				    mps_cls_intr_info);
 
-	t4_write_reg(adapter, MPS_INT_CAUSE, CLSINT | TRCINT |
-		     RXINT | TXINT | STATINT);
-	t4_read_reg(adapter, MPS_INT_CAUSE);                    /* flush */
+	t4_write_reg(adapter, MPS_INT_CAUSE_A, 0);
+	t4_read_reg(adapter, MPS_INT_CAUSE_A);                    /* flush */
 	if (fat)
 		t4_fatal_err(adapter);
 }
@@ -2187,23 +2191,23 @@ int t4_config_glbl_rss(struct adapter *adapter, int mbox, unsigned int mode,
 void t4_tp_get_tcp_stats(struct adapter *adap, struct tp_tcp_stats *v4,
 			 struct tp_tcp_stats *v6)
 {
-	u32 val[TP_MIB_TCP_RXT_SEG_LO - TP_MIB_TCP_OUT_RST + 1];
+	u32 val[TP_MIB_TCP_RXT_SEG_LO_A - TP_MIB_TCP_OUT_RST_A + 1];
 
-#define STAT_IDX(x) ((TP_MIB_TCP_##x) - TP_MIB_TCP_OUT_RST)
+#define STAT_IDX(x) ((TP_MIB_TCP_##x##_A) - TP_MIB_TCP_OUT_RST_A)
 #define STAT(x)     val[STAT_IDX(x)]
 #define STAT64(x)   (((u64)STAT(x##_HI) << 32) | STAT(x##_LO))
 
 	if (v4) {
-		t4_read_indirect(adap, TP_MIB_INDEX, TP_MIB_DATA, val,
-				 ARRAY_SIZE(val), TP_MIB_TCP_OUT_RST);
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, val,
+				 ARRAY_SIZE(val), TP_MIB_TCP_OUT_RST_A);
 		v4->tcpOutRsts = STAT(OUT_RST);
 		v4->tcpInSegs  = STAT64(IN_SEG);
 		v4->tcpOutSegs = STAT64(OUT_SEG);
 		v4->tcpRetransSegs = STAT64(RXT_SEG);
 	}
 	if (v6) {
-		t4_read_indirect(adap, TP_MIB_INDEX, TP_MIB_DATA, val,
-				 ARRAY_SIZE(val), TP_MIB_TCP_V6OUT_RST);
+		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, val,
+				 ARRAY_SIZE(val), TP_MIB_TCP_V6OUT_RST_A);
 		v6->tcpOutRsts = STAT(OUT_RST);
 		v6->tcpInSegs  = STAT64(IN_SEG);
 		v6->tcpOutSegs = STAT64(OUT_SEG);
@@ -2228,12 +2232,12 @@ void t4_read_mtu_tbl(struct adapter *adap, u16 *mtus, u8 *mtu_log)
 	int i;
 
 	for (i = 0; i < NMTUS; ++i) {
-		t4_write_reg(adap, TP_MTU_TABLE,
-			     MTUINDEX(0xff) | MTUVALUE(i));
-		v = t4_read_reg(adap, TP_MTU_TABLE);
-		mtus[i] = MTUVALUE_GET(v);
+		t4_write_reg(adap, TP_MTU_TABLE_A,
+			     MTUINDEX_V(0xff) | MTUVALUE_V(i));
+		v = t4_read_reg(adap, TP_MTU_TABLE_A);
+		mtus[i] = MTUVALUE_G(v);
 		if (mtu_log)
-			mtu_log[i] = MTUWIDTH_GET(v);
+			mtu_log[i] = MTUWIDTH_G(v);
 	}
 }
 
@@ -2249,9 +2253,9 @@ void t4_read_mtu_tbl(struct adapter *adap, u16 *mtus, u8 *mtu_log)
 void t4_tp_wr_bits_indirect(struct adapter *adap, unsigned int addr,
 			    unsigned int mask, unsigned int val)
 {
-	t4_write_reg(adap, TP_PIO_ADDR, addr);
-	val |= t4_read_reg(adap, TP_PIO_DATA) & ~mask;
-	t4_write_reg(adap, TP_PIO_DATA, val);
+	t4_write_reg(adap, TP_PIO_ADDR_A, addr);
+	val |= t4_read_reg(adap, TP_PIO_DATA_A) & ~mask;
+	t4_write_reg(adap, TP_PIO_DATA_A, val);
 }
 
 /**
@@ -2330,8 +2334,8 @@ void t4_load_mtus(struct adapter *adap, const unsigned short *mtus,
 
 		if (!(mtu & ((1 << log2) >> 2)))     /* round */
 			log2--;
-		t4_write_reg(adap, TP_MTU_TABLE, MTUINDEX(i) |
-			     MTUWIDTH(log2) | MTUVALUE(mtu));
+		t4_write_reg(adap, TP_MTU_TABLE_A, MTUINDEX_V(i) |
+			     MTUWIDTH_V(log2) | MTUVALUE_V(mtu));
 
 		for (w = 0; w < NCCTRL_WIN; ++w) {
 			unsigned int inc;
@@ -2339,7 +2343,7 @@ void t4_load_mtus(struct adapter *adap, const unsigned short *mtus,
 			inc = max(((mtu - 40) * alpha[w]) / avg_pkts[w],
 				  CC_MIN_INCR);
 
-			t4_write_reg(adap, TP_CCTRL_TABLE, (i << 21) |
+			t4_write_reg(adap, TP_CCTRL_TABLE_A, (i << 21) |
 				     (w << 16) | (beta[w] << 13) | inc);
 		}
 	}
@@ -2356,7 +2360,7 @@ void t4_load_mtus(struct adapter *adap, const unsigned short *mtus,
  */
 static unsigned int get_mps_bg_map(struct adapter *adap, int idx)
 {
-	u32 n = NUMPORTS_GET(t4_read_reg(adap, MPS_CMN_CTL));
+	u32 n = NUMPORTS_G(t4_read_reg(adap, MPS_CMN_CTL_A));
 
 	if (n == 0)
 		return idx == 0 ? 0xf : 0;
@@ -2498,7 +2502,7 @@ void t4_wol_magic_enable(struct adapter *adap, unsigned int port,
 	} else {
 		mag_id_reg_l = T5_PORT_REG(port, MAC_PORT_MAGIC_MACID_LO);
 		mag_id_reg_h = T5_PORT_REG(port, MAC_PORT_MAGIC_MACID_HI);
-		port_cfg_reg = T5_PORT_REG(port, MAC_PORT_CFG2);
+		port_cfg_reg = T5_PORT_REG(port, MAC_PORT_CFG2_A);
 	}
 
 	if (addr) {
@@ -2536,7 +2540,7 @@ int t4_wol_pat_enable(struct adapter *adap, unsigned int port, unsigned int map,
 	if (is_t4(adap->params.chip))
 		port_cfg_reg = PORT_REG(port, XGMAC_PORT_CFG2);
 	else
-		port_cfg_reg = T5_PORT_REG(port, MAC_PORT_CFG2);
+		port_cfg_reg = T5_PORT_REG(port, MAC_PORT_CFG2_A);
 
 	if (!enable) {
 		t4_set_reg_field(adap, port_cfg_reg, PATEN, 0);
@@ -2547,7 +2551,7 @@ int t4_wol_pat_enable(struct adapter *adap, unsigned int port, unsigned int map,
 
 #define EPIO_REG(name) \
 	(is_t4(adap->params.chip) ? PORT_REG(port, XGMAC_PORT_EPIO_##name) : \
-	T5_PORT_REG(port, MAC_PORT_EPIO_##name))
+	T5_PORT_REG(port, MAC_PORT_EPIO_##name##_A))
 
 	t4_write_reg(adap, EPIO_REG(DATA1), mask0 >> 32);
 	t4_write_reg(adap, EPIO_REG(DATA2), mask1);
@@ -4171,9 +4175,9 @@ int t4_init_tp_params(struct adapter *adap)
 	int chan;
 	u32 v;
 
-	v = t4_read_reg(adap, TP_TIMER_RESOLUTION);
-	adap->params.tp.tre = TIMERRESOLUTION_GET(v);
-	adap->params.tp.dack_re = DELAYEDACKRESOLUTION_GET(v);
+	v = t4_read_reg(adap, TP_TIMER_RESOLUTION_A);
+	adap->params.tp.tre = TIMERRESOLUTION_G(v);
+	adap->params.tp.dack_re = DELAYEDACKRESOLUTION_G(v);
 
 	/* MODQ_REQ_MAP defaults to setting queues 0-3 to chan 0-3 */
 	for (chan = 0; chan < NCHAN; chan++)
@@ -4182,12 +4186,12 @@ int t4_init_tp_params(struct adapter *adap)
 	/* Cache the adapter's Compressed Filter Mode and global Incress
 	 * Configuration.
 	 */
-	t4_read_indirect(adap, TP_PIO_ADDR, TP_PIO_DATA,
+	t4_read_indirect(adap, TP_PIO_ADDR_A, TP_PIO_DATA_A,
 			 &adap->params.tp.vlan_pri_map, 1,
-			 TP_VLAN_PRI_MAP);
-	t4_read_indirect(adap, TP_PIO_ADDR, TP_PIO_DATA,
+			 TP_VLAN_PRI_MAP_A);
+	t4_read_indirect(adap, TP_PIO_ADDR_A, TP_PIO_DATA_A,
 			 &adap->params.tp.ingress_config, 1,
-			 TP_INGRESS_CONFIG);
+			 TP_INGRESS_CONFIG_A);
 
 	/* Now that we have TP_VLAN_PRI_MAP cached, we can calculate the field
 	 * shift positions of several elements of the Compressed Filter Tuple

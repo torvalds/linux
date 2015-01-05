@@ -359,8 +359,8 @@ MODULE_PARM_DESC(select_queue,
  */
 enum {
 	TP_VLAN_PRI_MAP_DEFAULT = HW_TPL_FR_MT_PR_IV_P_FC,
-	TP_VLAN_PRI_MAP_FIRST = FCOE_SHIFT,
-	TP_VLAN_PRI_MAP_LAST = FRAGMENTATION_SHIFT,
+	TP_VLAN_PRI_MAP_FIRST = FCOE_S,
+	TP_VLAN_PRI_MAP_LAST = FRAGMENTATION_S,
 };
 
 static unsigned int tp_vlan_pri_map = TP_VLAN_PRI_MAP_DEFAULT;
@@ -1177,10 +1177,10 @@ freeout:	t4_free_sge_resources(adap);
 	}
 
 	t4_write_reg(adap, is_t4(adap->params.chip) ?
-				MPS_TRC_RSS_CONTROL :
-				MPS_T5_TRC_RSS_CONTROL,
-		     RSSCONTROL(netdev2pinfo(adap->port[0])->tx_chan) |
-		     QUEUENUMBER(s->ethrxq[0].rspq.abs_id));
+				MPS_TRC_RSS_CONTROL_A :
+				MPS_T5_TRC_RSS_CONTROL_A,
+		     RSSCONTROL_V(netdev2pinfo(adap->port[0])->tx_chan) |
+		     QUEUENUMBER_V(s->ethrxq[0].rspq.abs_id));
 	return 0;
 }
 
@@ -4094,7 +4094,7 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 	lli.nports = adap->params.nports;
 	lli.wr_cred = adap->params.ofldq_wr_cred;
 	lli.adapter_type = adap->params.chip;
-	lli.iscsi_iolen = MAXRXDATA_GET(t4_read_reg(adap, TP_PARA_REG2));
+	lli.iscsi_iolen = MAXRXDATA_G(t4_read_reg(adap, TP_PARA_REG2_A));
 	lli.cclk_ps = 1000000000 / adap->params.vpd.cclk;
 	lli.udb_density = 1 << adap->params.sge.eq_qpp;
 	lli.ucq_density = 1 << adap->params.sge.iq_qpp;
@@ -4949,11 +4949,11 @@ static int adap_init1(struct adapter *adap, struct fw_caps_config_cmd *c)
 	t4_sge_init(adap);
 
 	/* tweak some settings */
-	t4_write_reg(adap, TP_SHIFT_CNT, 0x64f8849);
+	t4_write_reg(adap, TP_SHIFT_CNT_A, 0x64f8849);
 	t4_write_reg(adap, ULP_RX_TDDP_PSZ, HPZ0(PAGE_SHIFT - 12));
-	t4_write_reg(adap, TP_PIO_ADDR, TP_INGRESS_CONFIG);
-	v = t4_read_reg(adap, TP_PIO_DATA);
-	t4_write_reg(adap, TP_PIO_DATA, v & ~CSUM_HAS_PSEUDO_HDR);
+	t4_write_reg(adap, TP_PIO_ADDR_A, TP_INGRESS_CONFIG_A);
+	v = t4_read_reg(adap, TP_PIO_DATA_A);
+	t4_write_reg(adap, TP_PIO_DATA_A, v & ~CSUM_HAS_PSEUDO_HDR_F);
 
 	/* first 4 Tx modulation queues point to consecutive Tx channels */
 	adap->params.tp.tx_modq_map = 0xE4;
@@ -4962,11 +4962,11 @@ static int adap_init1(struct adapter *adap, struct fw_caps_config_cmd *c)
 
 	/* associate each Tx modulation queue with consecutive Tx channels */
 	v = 0x84218421;
-	t4_write_indirect(adap, TP_PIO_ADDR, TP_PIO_DATA,
+	t4_write_indirect(adap, TP_PIO_ADDR_A, TP_PIO_DATA_A,
 			  &v, 1, A_TP_TX_SCHED_HDR);
-	t4_write_indirect(adap, TP_PIO_ADDR, TP_PIO_DATA,
+	t4_write_indirect(adap, TP_PIO_ADDR_A, TP_PIO_DATA_A,
 			  &v, 1, A_TP_TX_SCHED_FIFO);
-	t4_write_indirect(adap, TP_PIO_ADDR, TP_PIO_DATA,
+	t4_write_indirect(adap, TP_PIO_ADDR_A, TP_PIO_DATA_A,
 			  &v, 1, A_TP_TX_SCHED_PCMD);
 
 #define T4_TX_MODQ_10G_WEIGHT_DEFAULT 16 /* in KB units */
@@ -5034,8 +5034,8 @@ static int adap_init0_tweaks(struct adapter *adapter)
 	 * Don't include the "IP Pseudo Header" in CPL_RX_PKT checksums: Linux
 	 * adds the pseudo header itself.
 	 */
-	t4_tp_wr_bits_indirect(adapter, TP_INGRESS_CONFIG,
-			       CSUM_HAS_PSEUDO_HDR, 0);
+	t4_tp_wr_bits_indirect(adapter, TP_INGRESS_CONFIG_A,
+			       CSUM_HAS_PSEUDO_HDR_F, 0);
 
 	return 0;
 }
@@ -5401,34 +5401,34 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 			case 0:
 				/* compressed filter field not enabled */
 				break;
-			case FCOE_MASK:
+			case FCOE_F:
 				bits +=  1;
 				break;
-			case PORT_MASK:
+			case PORT_F:
 				bits +=  3;
 				break;
-			case VNIC_ID_MASK:
+			case VNIC_F:
 				bits += 17;
 				break;
-			case VLAN_MASK:
+			case VLAN_F:
 				bits += 17;
 				break;
-			case TOS_MASK:
+			case TOS_F:
 				bits +=  8;
 				break;
-			case PROTOCOL_MASK:
+			case PROTOCOL_F:
 				bits +=  8;
 				break;
-			case ETHERTYPE_MASK:
+			case ETHERTYPE_F:
 				bits += 16;
 				break;
-			case MACMATCH_MASK:
+			case MACMATCH_F:
 				bits +=  9;
 				break;
-			case MPSHITTYPE_MASK:
+			case MPSHITTYPE_F:
 				bits +=  3;
 				break;
-			case FRAGMENTATION_MASK:
+			case FRAGMENTATION_F:
 				bits +=  1;
 				break;
 			}
@@ -5442,8 +5442,8 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 		}
 	}
 	v = tp_vlan_pri_map;
-	t4_write_indirect(adapter, TP_PIO_ADDR, TP_PIO_DATA,
-			  &v, 1, TP_VLAN_PRI_MAP);
+	t4_write_indirect(adapter, TP_PIO_ADDR_A, TP_PIO_DATA_A,
+			  &v, 1, TP_VLAN_PRI_MAP_A);
 
 	/*
 	 * We need Five Tuple Lookup mode to be set in TP_GLOBAL_CONFIG order
@@ -5456,17 +5456,17 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 	 * performance impact).
 	 */
 	if (tp_vlan_pri_map)
-		t4_set_reg_field(adapter, TP_GLOBAL_CONFIG,
-				 FIVETUPLELOOKUP_MASK,
-				 FIVETUPLELOOKUP_MASK);
+		t4_set_reg_field(adapter, TP_GLOBAL_CONFIG_A,
+				 FIVETUPLELOOKUP_V(FIVETUPLELOOKUP_M),
+				 FIVETUPLELOOKUP_V(FIVETUPLELOOKUP_M));
 
 	/*
 	 * Tweak some settings.
 	 */
-	t4_write_reg(adapter, TP_SHIFT_CNT, SYNSHIFTMAX(6) |
-		     RXTSHIFTMAXR1(4) | RXTSHIFTMAXR2(15) |
-		     PERSHIFTBACKOFFMAX(8) | PERSHIFTMAX(8) |
-		     KEEPALIVEMAXR1(4) | KEEPALIVEMAXR2(9));
+	t4_write_reg(adapter, TP_SHIFT_CNT_A, SYNSHIFTMAX_V(6) |
+		     RXTSHIFTMAXR1_V(4) | RXTSHIFTMAXR2_V(15) |
+		     PERSHIFTBACKOFFMAX_V(8) | PERSHIFTMAX_V(8) |
+		     KEEPALIVEMAXR1_V(4) | KEEPALIVEMAXR2_V(9));
 
 	/*
 	 * Get basic stuff going by issuing the Firmware Initialize command.

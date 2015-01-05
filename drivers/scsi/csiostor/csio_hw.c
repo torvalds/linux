@@ -188,9 +188,9 @@ void
 csio_hw_tp_wr_bits_indirect(struct csio_hw *hw, unsigned int addr,
 			unsigned int mask, unsigned int val)
 {
-	csio_wr_reg32(hw, addr, TP_PIO_ADDR);
-	val |= csio_rd_reg32(hw, TP_PIO_DATA) & ~mask;
-	csio_wr_reg32(hw, val, TP_PIO_DATA);
+	csio_wr_reg32(hw, addr, TP_PIO_ADDR_A);
+	val |= csio_rd_reg32(hw, TP_PIO_DATA_A) & ~mask;
+	csio_wr_reg32(hw, val, TP_PIO_DATA_A);
 }
 
 void
@@ -2683,11 +2683,11 @@ static void csio_tp_intr_handler(struct csio_hw *hw)
 {
 	static struct intr_info tp_intr_info[] = {
 		{ 0x3fffffff, "TP parity error", -1, 1 },
-		{ FLMTXFLSTEMPTY, "TP out of Tx pages", -1, 1 },
+		{ FLMTXFLSTEMPTY_F, "TP out of Tx pages", -1, 1 },
 		{ 0, NULL, 0, 0 }
 	};
 
-	if (csio_handle_intr_status(hw, TP_INT_CAUSE, tp_intr_info))
+	if (csio_handle_intr_status(hw, TP_INT_CAUSE_A, tp_intr_info))
 		csio_hw_fatal_err(hw);
 }
 
@@ -2824,19 +2824,19 @@ static void csio_ulprx_intr_handler(struct csio_hw *hw)
 static void csio_ulptx_intr_handler(struct csio_hw *hw)
 {
 	static struct intr_info ulptx_intr_info[] = {
-		{ PBL_BOUND_ERR_CH3, "ULPTX channel 3 PBL out of bounds", -1,
+		{ PBL_BOUND_ERR_CH3_F, "ULPTX channel 3 PBL out of bounds", -1,
 		  0 },
-		{ PBL_BOUND_ERR_CH2, "ULPTX channel 2 PBL out of bounds", -1,
+		{ PBL_BOUND_ERR_CH2_F, "ULPTX channel 2 PBL out of bounds", -1,
 		  0 },
-		{ PBL_BOUND_ERR_CH1, "ULPTX channel 1 PBL out of bounds", -1,
+		{ PBL_BOUND_ERR_CH1_F, "ULPTX channel 1 PBL out of bounds", -1,
 		  0 },
-		{ PBL_BOUND_ERR_CH0, "ULPTX channel 0 PBL out of bounds", -1,
+		{ PBL_BOUND_ERR_CH0_F, "ULPTX channel 0 PBL out of bounds", -1,
 		  0 },
 		{ 0xfffffff, "ULPTX parity error", -1, 1 },
 		{ 0, NULL, 0, 0 }
 	};
 
-	if (csio_handle_intr_status(hw, ULP_TX_INT_CAUSE, ulptx_intr_info))
+	if (csio_handle_intr_status(hw, ULP_TX_INT_CAUSE_A, ulptx_intr_info))
 		csio_hw_fatal_err(hw);
 }
 
@@ -2846,20 +2846,20 @@ static void csio_ulptx_intr_handler(struct csio_hw *hw)
 static void csio_pmtx_intr_handler(struct csio_hw *hw)
 {
 	static struct intr_info pmtx_intr_info[] = {
-		{ PCMD_LEN_OVFL0, "PMTX channel 0 pcmd too large", -1, 1 },
-		{ PCMD_LEN_OVFL1, "PMTX channel 1 pcmd too large", -1, 1 },
-		{ PCMD_LEN_OVFL2, "PMTX channel 2 pcmd too large", -1, 1 },
-		{ ZERO_C_CMD_ERROR, "PMTX 0-length pcmd", -1, 1 },
+		{ PCMD_LEN_OVFL0_F, "PMTX channel 0 pcmd too large", -1, 1 },
+		{ PCMD_LEN_OVFL1_F, "PMTX channel 1 pcmd too large", -1, 1 },
+		{ PCMD_LEN_OVFL2_F, "PMTX channel 2 pcmd too large", -1, 1 },
+		{ ZERO_C_CMD_ERROR_F, "PMTX 0-length pcmd", -1, 1 },
 		{ 0xffffff0, "PMTX framing error", -1, 1 },
-		{ OESPI_PAR_ERROR, "PMTX oespi parity error", -1, 1 },
-		{ DB_OPTIONS_PAR_ERROR, "PMTX db_options parity error", -1,
+		{ OESPI_PAR_ERROR_F, "PMTX oespi parity error", -1, 1 },
+		{ DB_OPTIONS_PAR_ERROR_F, "PMTX db_options parity error", -1,
 		  1 },
-		{ ICSPI_PAR_ERROR, "PMTX icspi parity error", -1, 1 },
-		{ C_PCMD_PAR_ERROR, "PMTX c_pcmd parity error", -1, 1},
+		{ ICSPI_PAR_ERROR_F, "PMTX icspi parity error", -1, 1 },
+		{ PMTX_C_PCMD_PAR_ERROR_F, "PMTX c_pcmd parity error", -1, 1},
 		{ 0, NULL, 0, 0 }
 	};
 
-	if (csio_handle_intr_status(hw, PM_TX_INT_CAUSE, pmtx_intr_info))
+	if (csio_handle_intr_status(hw, PM_TX_INT_CAUSE_A, pmtx_intr_info))
 		csio_hw_fatal_err(hw);
 }
 
@@ -2869,17 +2869,17 @@ static void csio_pmtx_intr_handler(struct csio_hw *hw)
 static void csio_pmrx_intr_handler(struct csio_hw *hw)
 {
 	static struct intr_info pmrx_intr_info[] = {
-		{ ZERO_E_CMD_ERROR, "PMRX 0-length pcmd", -1, 1 },
+		{ ZERO_E_CMD_ERROR_F, "PMRX 0-length pcmd", -1, 1 },
 		{ 0x3ffff0, "PMRX framing error", -1, 1 },
-		{ OCSPI_PAR_ERROR, "PMRX ocspi parity error", -1, 1 },
-		{ DB_OPTIONS_PAR_ERROR, "PMRX db_options parity error", -1,
+		{ OCSPI_PAR_ERROR_F, "PMRX ocspi parity error", -1, 1 },
+		{ DB_OPTIONS_PAR_ERROR_F, "PMRX db_options parity error", -1,
 		  1 },
-		{ IESPI_PAR_ERROR, "PMRX iespi parity error", -1, 1 },
-		{ E_PCMD_PAR_ERROR, "PMRX e_pcmd parity error", -1, 1},
+		{ IESPI_PAR_ERROR_F, "PMRX iespi parity error", -1, 1 },
+		{ PMRX_E_PCMD_PAR_ERROR_F, "PMRX e_pcmd parity error", -1, 1},
 		{ 0, NULL, 0, 0 }
 	};
 
-	if (csio_handle_intr_status(hw, PM_RX_INT_CAUSE, pmrx_intr_info))
+	if (csio_handle_intr_status(hw, PM_RX_INT_CAUSE_A, pmrx_intr_info))
 		csio_hw_fatal_err(hw);
 }
 
@@ -2930,19 +2930,22 @@ static void csio_mps_intr_handler(struct csio_hw *hw)
 		{ 0, NULL, 0, 0 }
 	};
 	static struct intr_info mps_tx_intr_info[] = {
-		{ TPFIFO, "MPS Tx TP FIFO parity error", -1, 1 },
-		{ NCSIFIFO, "MPS Tx NC-SI FIFO parity error", -1, 1 },
-		{ TXDATAFIFO, "MPS Tx data FIFO parity error", -1, 1 },
-		{ TXDESCFIFO, "MPS Tx desc FIFO parity error", -1, 1 },
-		{ BUBBLE, "MPS Tx underflow", -1, 1 },
-		{ SECNTERR, "MPS Tx SOP/EOP error", -1, 1 },
-		{ FRMERR, "MPS Tx framing error", -1, 1 },
+		{ TPFIFO_V(TPFIFO_M), "MPS Tx TP FIFO parity error", -1, 1 },
+		{ NCSIFIFO_F, "MPS Tx NC-SI FIFO parity error", -1, 1 },
+		{ TXDATAFIFO_V(TXDATAFIFO_M), "MPS Tx data FIFO parity error",
+		  -1, 1 },
+		{ TXDESCFIFO_V(TXDESCFIFO_M), "MPS Tx desc FIFO parity error",
+		  -1, 1 },
+		{ BUBBLE_F, "MPS Tx underflow", -1, 1 },
+		{ SECNTERR_F, "MPS Tx SOP/EOP error", -1, 1 },
+		{ FRMERR_F, "MPS Tx framing error", -1, 1 },
 		{ 0, NULL, 0, 0 }
 	};
 	static struct intr_info mps_trc_intr_info[] = {
-		{ FILTMEM, "MPS TRC filter parity error", -1, 1 },
-		{ PKTFIFO, "MPS TRC packet FIFO parity error", -1, 1 },
-		{ MISCPERR, "MPS TRC misc parity error", -1, 1 },
+		{ FILTMEM_V(FILTMEM_M), "MPS TRC filter parity error", -1, 1 },
+		{ PKTFIFO_V(PKTFIFO_M), "MPS TRC packet FIFO parity error",
+		  -1, 1 },
+		{ MISCPERR_F, "MPS TRC misc parity error", -1, 1 },
 		{ 0, NULL, 0, 0 }
 	};
 	static struct intr_info mps_stat_sram_intr_info[] = {
@@ -2958,31 +2961,31 @@ static void csio_mps_intr_handler(struct csio_hw *hw)
 		{ 0, NULL, 0, 0 }
 	};
 	static struct intr_info mps_cls_intr_info[] = {
-		{ MATCHSRAM, "MPS match SRAM parity error", -1, 1 },
-		{ MATCHTCAM, "MPS match TCAM parity error", -1, 1 },
-		{ HASHSRAM, "MPS hash SRAM parity error", -1, 1 },
+		{ MATCHSRAM_F, "MPS match SRAM parity error", -1, 1 },
+		{ MATCHTCAM_F, "MPS match TCAM parity error", -1, 1 },
+		{ HASHSRAM_F, "MPS hash SRAM parity error", -1, 1 },
 		{ 0, NULL, 0, 0 }
 	};
 
 	int fat;
 
-	fat = csio_handle_intr_status(hw, MPS_RX_PERR_INT_CAUSE,
-				    mps_rx_intr_info) +
-	      csio_handle_intr_status(hw, MPS_TX_INT_CAUSE,
-				    mps_tx_intr_info) +
-	      csio_handle_intr_status(hw, MPS_TRC_INT_CAUSE,
-				    mps_trc_intr_info) +
-	      csio_handle_intr_status(hw, MPS_STAT_PERR_INT_CAUSE_SRAM,
-				    mps_stat_sram_intr_info) +
-	      csio_handle_intr_status(hw, MPS_STAT_PERR_INT_CAUSE_TX_FIFO,
-				    mps_stat_tx_intr_info) +
-	      csio_handle_intr_status(hw, MPS_STAT_PERR_INT_CAUSE_RX_FIFO,
-				    mps_stat_rx_intr_info) +
-	      csio_handle_intr_status(hw, MPS_CLS_INT_CAUSE,
-				    mps_cls_intr_info);
+	fat = csio_handle_intr_status(hw, MPS_RX_PERR_INT_CAUSE_A,
+				      mps_rx_intr_info) +
+	      csio_handle_intr_status(hw, MPS_TX_INT_CAUSE_A,
+				      mps_tx_intr_info) +
+	      csio_handle_intr_status(hw, MPS_TRC_INT_CAUSE_A,
+				      mps_trc_intr_info) +
+	      csio_handle_intr_status(hw, MPS_STAT_PERR_INT_CAUSE_SRAM_A,
+				      mps_stat_sram_intr_info) +
+	      csio_handle_intr_status(hw, MPS_STAT_PERR_INT_CAUSE_TX_FIFO_A,
+				      mps_stat_tx_intr_info) +
+	      csio_handle_intr_status(hw, MPS_STAT_PERR_INT_CAUSE_RX_FIFO_A,
+				      mps_stat_rx_intr_info) +
+	      csio_handle_intr_status(hw, MPS_CLS_INT_CAUSE_A,
+				      mps_cls_intr_info);
 
-	csio_wr_reg32(hw, 0, MPS_INT_CAUSE);
-	csio_rd_reg32(hw, MPS_INT_CAUSE);                    /* flush */
+	csio_wr_reg32(hw, 0, MPS_INT_CAUSE_A);
+	csio_rd_reg32(hw, MPS_INT_CAUSE_A);                    /* flush */
 	if (fat)
 		csio_hw_fatal_err(hw);
 }
