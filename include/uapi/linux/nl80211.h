@@ -3265,6 +3265,9 @@ enum nl80211_bss {
 /**
  * enum nl80211_bss_status - BSS "status"
  * @NL80211_BSS_STATUS_AUTHENTICATED: Authenticated with this BSS.
+ *	Note that this is no longer used since cfg80211 no longer
+ *	keeps track of whether or not authentication was done with
+ *	a given BSS.
  * @NL80211_BSS_STATUS_ASSOCIATED: Associated with this BSS.
  * @NL80211_BSS_STATUS_IBSS_JOINED: Joined to this IBSS.
  *
