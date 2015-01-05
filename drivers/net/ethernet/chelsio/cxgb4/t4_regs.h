@@ -369,196 +369,424 @@
 #define ENABLE_DROP_V(x) ((x) << ENABLE_DROP_S)
 #define ENABLE_DROP_F    ENABLE_DROP_V(1U)
 
-#define SGE_TIMER_VALUE_0_AND_1 0x10b8
-#define  TIMERVALUE0_MASK   0xffff0000U
-#define  TIMERVALUE0_SHIFT  16
-#define  TIMERVALUE0(x)     ((x) << TIMERVALUE0_SHIFT)
-#define  TIMERVALUE0_GET(x) (((x) & TIMERVALUE0_MASK) >> TIMERVALUE0_SHIFT)
-#define  TIMERVALUE1_MASK   0x0000ffffU
-#define  TIMERVALUE1_SHIFT  0
-#define  TIMERVALUE1(x)     ((x) << TIMERVALUE1_SHIFT)
-#define  TIMERVALUE1_GET(x) (((x) & TIMERVALUE1_MASK) >> TIMERVALUE1_SHIFT)
+#define SGE_TIMER_VALUE_0_AND_1_A 0x10b8
 
-#define SGE_TIMER_VALUE_2_AND_3 0x10bc
-#define  TIMERVALUE2_MASK   0xffff0000U
-#define  TIMERVALUE2_SHIFT  16
-#define  TIMERVALUE2(x)     ((x) << TIMERVALUE2_SHIFT)
-#define  TIMERVALUE2_GET(x) (((x) & TIMERVALUE2_MASK) >> TIMERVALUE2_SHIFT)
-#define  TIMERVALUE3_MASK   0x0000ffffU
-#define  TIMERVALUE3_SHIFT  0
-#define  TIMERVALUE3(x)     ((x) << TIMERVALUE3_SHIFT)
-#define  TIMERVALUE3_GET(x) (((x) & TIMERVALUE3_MASK) >> TIMERVALUE3_SHIFT)
+#define TIMERVALUE0_S    16
+#define TIMERVALUE0_M    0xffffU
+#define TIMERVALUE0_V(x) ((x) << TIMERVALUE0_S)
+#define TIMERVALUE0_G(x) (((x) >> TIMERVALUE0_S) & TIMERVALUE0_M)
 
-#define SGE_TIMER_VALUE_4_AND_5 0x10c0
-#define  TIMERVALUE4_MASK   0xffff0000U
-#define  TIMERVALUE4_SHIFT  16
-#define  TIMERVALUE4(x)     ((x) << TIMERVALUE4_SHIFT)
-#define  TIMERVALUE4_GET(x) (((x) & TIMERVALUE4_MASK) >> TIMERVALUE4_SHIFT)
-#define  TIMERVALUE5_MASK   0x0000ffffU
-#define  TIMERVALUE5_SHIFT  0
-#define  TIMERVALUE5(x)     ((x) << TIMERVALUE5_SHIFT)
-#define  TIMERVALUE5_GET(x) (((x) & TIMERVALUE5_MASK) >> TIMERVALUE5_SHIFT)
+#define TIMERVALUE1_S    0
+#define TIMERVALUE1_M    0xffffU
+#define TIMERVALUE1_V(x) ((x) << TIMERVALUE1_S)
+#define TIMERVALUE1_G(x) (((x) >> TIMERVALUE1_S) & TIMERVALUE1_M)
 
-#define SGE_DEBUG_INDEX 0x10cc
-#define SGE_DEBUG_DATA_HIGH 0x10d0
-#define SGE_DEBUG_DATA_LOW 0x10d4
-#define SGE_DEBUG_DATA_LOW_INDEX_2	0x12c8
-#define SGE_DEBUG_DATA_LOW_INDEX_3	0x12cc
-#define SGE_DEBUG_DATA_HIGH_INDEX_10	0x12a8
-#define SGE_INGRESS_QUEUES_PER_PAGE_PF 0x10f4
+#define SGE_TIMER_VALUE_2_AND_3_A 0x10bc
+
+#define TIMERVALUE2_S    16
+#define TIMERVALUE2_M    0xffffU
+#define TIMERVALUE2_V(x) ((x) << TIMERVALUE2_S)
+#define TIMERVALUE2_G(x) (((x) >> TIMERVALUE2_S) & TIMERVALUE2_M)
+
+#define TIMERVALUE3_S    0
+#define TIMERVALUE3_M    0xffffU
+#define TIMERVALUE3_V(x) ((x) << TIMERVALUE3_S)
+#define TIMERVALUE3_G(x) (((x) >> TIMERVALUE3_S) & TIMERVALUE3_M)
+
+#define SGE_TIMER_VALUE_4_AND_5_A 0x10c0
+
+#define TIMERVALUE4_S    16
+#define TIMERVALUE4_M    0xffffU
+#define TIMERVALUE4_V(x) ((x) << TIMERVALUE4_S)
+#define TIMERVALUE4_G(x) (((x) >> TIMERVALUE4_S) & TIMERVALUE4_M)
+
+#define TIMERVALUE5_S    0
+#define TIMERVALUE5_M    0xffffU
+#define TIMERVALUE5_V(x) ((x) << TIMERVALUE5_S)
+#define TIMERVALUE5_G(x) (((x) >> TIMERVALUE5_S) & TIMERVALUE5_M)
+
+#define SGE_DEBUG_INDEX_A 0x10cc
+#define SGE_DEBUG_DATA_HIGH_A 0x10d0
+#define SGE_DEBUG_DATA_LOW_A 0x10d4
+
+#define SGE_DEBUG_DATA_LOW_INDEX_2_A	0x12c8
+#define SGE_DEBUG_DATA_LOW_INDEX_3_A	0x12cc
+#define SGE_DEBUG_DATA_HIGH_INDEX_10_A	0x12a8
+
+#define SGE_INGRESS_QUEUES_PER_PAGE_PF_A 0x10f4
 #define SGE_INGRESS_QUEUES_PER_PAGE_VF_A 0x10f8
 
-#define S_HP_INT_THRESH    28
-#define M_HP_INT_THRESH 0xfU
-#define V_HP_INT_THRESH(x) ((x) << S_HP_INT_THRESH)
-#define S_LP_INT_THRESH_T5    18
-#define V_LP_INT_THRESH_T5(x) ((x) << S_LP_INT_THRESH_T5)
-#define M_LP_COUNT_T5    0x3ffffU
-#define G_LP_COUNT_T5(x) (((x) >> S_LP_COUNT) & M_LP_COUNT_T5)
-#define M_HP_COUNT 0x7ffU
-#define S_HP_COUNT 16
-#define G_HP_COUNT(x) (((x) >> S_HP_COUNT) & M_HP_COUNT)
-#define S_LP_INT_THRESH    12
-#define M_LP_INT_THRESH 0xfU
-#define M_LP_INT_THRESH_T5    0xfffU
-#define V_LP_INT_THRESH(x) ((x) << S_LP_INT_THRESH)
-#define M_LP_COUNT 0x7ffU
-#define S_LP_COUNT 0
-#define G_LP_COUNT(x) (((x) >> S_LP_COUNT) & M_LP_COUNT)
-#define A_SGE_DBFIFO_STATUS 0x10a4
+#define HP_INT_THRESH_S    28
+#define HP_INT_THRESH_M    0xfU
+#define HP_INT_THRESH_V(x) ((x) << HP_INT_THRESH_S)
 
-#define SGE_STAT_TOTAL 0x10e4
-#define SGE_STAT_MATCH 0x10e8
+#define HP_COUNT_S    16
+#define HP_COUNT_M    0x7ffU
+#define HP_COUNT_G(x) (((x) >> HP_COUNT_S) & HP_COUNT_M)
 
-#define SGE_STAT_CFG   0x10ec
-#define S_STATSOURCE_T5    9
-#define STATSOURCE_T5(x) ((x) << S_STATSOURCE_T5)
+#define LP_INT_THRESH_S    12
+#define LP_INT_THRESH_M    0xfU
+#define LP_INT_THRESH_V(x) ((x) << LP_INT_THRESH_S)
 
-#define SGE_DBFIFO_STATUS2 0x1118
-#define M_HP_COUNT_T5    0x3ffU
-#define G_HP_COUNT_T5(x) ((x)  & M_HP_COUNT_T5)
-#define S_HP_INT_THRESH_T5    10
-#define M_HP_INT_THRESH_T5    0xfU
-#define V_HP_INT_THRESH_T5(x) ((x) << S_HP_INT_THRESH_T5)
+#define LP_COUNT_S    0
+#define LP_COUNT_M    0x7ffU
+#define LP_COUNT_G(x) (((x) >> LP_COUNT_S) & LP_COUNT_M)
 
-#define S_ENABLE_DROP    13
-#define V_ENABLE_DROP(x) ((x) << S_ENABLE_DROP)
-#define F_ENABLE_DROP    V_ENABLE_DROP(1U)
-#define S_DROPPED_DB 0
-#define V_DROPPED_DB(x) ((x) << S_DROPPED_DB)
-#define F_DROPPED_DB V_DROPPED_DB(1U)
-#define A_SGE_DOORBELL_CONTROL 0x10a8
+#define LP_INT_THRESH_T5_S    18
+#define LP_INT_THRESH_T5_M    0xfffU
+#define LP_INT_THRESH_T5_V(x) ((x) << LP_INT_THRESH_T5_S)
 
-#define A_SGE_CTXT_CMD 0x11fc
-#define A_SGE_DBQ_CTXT_BADDR 0x1084
+#define LP_COUNT_T5_S    0
+#define LP_COUNT_T5_M    0x3ffffU
+#define LP_COUNT_T5_G(x) (((x) >> LP_COUNT_T5_S) & LP_COUNT_T5_M)
 
-#define PCIE_PF_CFG 0x40
-#define  AIVEC(x)	((x) << 4)
-#define  AIVEC_MASK	0x3ffU
+#define SGE_DOORBELL_CONTROL_A 0x10a8
 
-#define PCIE_PF_CLI 0x44
-#define PCIE_INT_CAUSE 0x3004
-#define  UNXSPLCPLERR  0x20000000U
-#define  PCIEPINT      0x10000000U
-#define  PCIESINT      0x08000000U
-#define  RPLPERR       0x04000000U
-#define  RXWRPERR      0x02000000U
-#define  RXCPLPERR     0x01000000U
-#define  PIOTAGPERR    0x00800000U
-#define  MATAGPERR     0x00400000U
-#define  INTXCLRPERR   0x00200000U
-#define  FIDPERR       0x00100000U
-#define  CFGSNPPERR    0x00080000U
-#define  HRSPPERR      0x00040000U
-#define  HREQPERR      0x00020000U
-#define  HCNTPERR      0x00010000U
-#define  DRSPPERR      0x00008000U
-#define  DREQPERR      0x00004000U
-#define  DCNTPERR      0x00002000U
-#define  CRSPPERR      0x00001000U
-#define  CREQPERR      0x00000800U
-#define  CCNTPERR      0x00000400U
-#define  TARTAGPERR    0x00000200U
-#define  PIOREQPERR    0x00000100U
-#define  PIOCPLPERR    0x00000080U
-#define  MSIXDIPERR    0x00000040U
-#define  MSIXDATAPERR  0x00000020U
-#define  MSIXADDRHPERR 0x00000010U
-#define  MSIXADDRLPERR 0x00000008U
-#define  MSIDATAPERR   0x00000004U
-#define  MSIADDRHPERR  0x00000002U
-#define  MSIADDRLPERR  0x00000001U
+#define SGE_STAT_TOTAL_A	0x10e4
+#define SGE_STAT_MATCH_A	0x10e8
+#define SGE_STAT_CFG_A		0x10ec
 
-#define  READRSPERR      0x20000000U
-#define  TRGT1GRPPERR    0x10000000U
-#define  IPSOTPERR       0x08000000U
-#define  IPRXDATAGRPPERR 0x02000000U
-#define  IPRXHDRGRPPERR  0x01000000U
-#define  MAGRPPERR       0x00400000U
-#define  VFIDPERR        0x00200000U
-#define  HREQWRPERR      0x00010000U
-#define  DREQWRPERR      0x00002000U
-#define  MSTTAGQPERR     0x00000400U
-#define  PIOREQGRPPERR   0x00000100U
-#define  PIOCPLGRPPERR   0x00000080U
-#define  MSIXSTIPERR     0x00000004U
-#define  MSTTIMEOUTPERR  0x00000002U
-#define  MSTGRPPERR      0x00000001U
+#define STATSOURCE_T5_S    9
+#define STATSOURCE_T5_V(x) ((x) << STATSOURCE_T5_S)
 
-#define PCIE_NONFAT_ERR 0x3010
-#define PCIE_CFG_SPACE_REQ 0x3060
-#define PCIE_CFG_SPACE_DATA 0x3064
-#define PCIE_MEM_ACCESS_BASE_WIN 0x3068
-#define S_PCIEOFST       10
-#define M_PCIEOFST       0x3fffffU
-#define GET_PCIEOFST(x)  (((x) >> S_PCIEOFST) & M_PCIEOFST)
-#define  PCIEOFST_MASK   0xfffffc00U
-#define  BIR_MASK        0x00000300U
-#define  BIR_SHIFT       8
-#define  BIR(x)          ((x) << BIR_SHIFT)
-#define  WINDOW_MASK     0x000000ffU
-#define  WINDOW_SHIFT    0
-#define  WINDOW(x)       ((x) << WINDOW_SHIFT)
-#define  GET_WINDOW(x)	 (((x) >> WINDOW_SHIFT) & WINDOW_MASK)
-#define PCIE_MEM_ACCESS_OFFSET 0x306c
-#define ENABLE	(1U << 30)
-#define FUNCTION(x) ((x) << 12)
-#define F_LOCALCFG    (1U << 28)
+#define SGE_DBFIFO_STATUS2_A 0x1118
 
-#define S_PFNUM    0
-#define V_PFNUM(x) ((x) << S_PFNUM)
+#define HP_INT_THRESH_T5_S    10
+#define HP_INT_THRESH_T5_M    0xfU
+#define HP_INT_THRESH_T5_V(x) ((x) << HP_INT_THRESH_T5_S)
 
-#define PCIE_FW 0x30b8
-#define  PCIE_FW_ERR		0x80000000U
-#define  PCIE_FW_INIT		0x40000000U
-#define  PCIE_FW_HALT		0x20000000U
-#define  PCIE_FW_MASTER_VLD	0x00008000U
-#define  PCIE_FW_MASTER(x)	((x) << 12)
-#define  PCIE_FW_MASTER_MASK	0x7
-#define  PCIE_FW_MASTER_GET(x)	(((x) >> 12) & PCIE_FW_MASTER_MASK)
+#define HP_COUNT_T5_S    0
+#define HP_COUNT_T5_M    0x3ffU
+#define HP_COUNT_T5_G(x) (((x) >> HP_COUNT_T5_S) & HP_COUNT_T5_M)
 
-#define PCIE_CORE_UTL_SYSTEM_BUS_AGENT_STATUS 0x5908
-#define  RNPP 0x80000000U
-#define  RPCP 0x20000000U
-#define  RCIP 0x08000000U
-#define  RCCP 0x04000000U
-#define  RFTP 0x00800000U
-#define  PTRP 0x00100000U
+#define ENABLE_DROP_S    13
+#define ENABLE_DROP_V(x) ((x) << ENABLE_DROP_S)
+#define ENABLE_DROP_F    ENABLE_DROP_V(1U)
 
-#define PCIE_CORE_UTL_PCI_EXPRESS_PORT_STATUS 0x59a4
-#define  TPCP 0x40000000U
-#define  TNPP 0x20000000U
-#define  TFTP 0x10000000U
-#define  TCAP 0x08000000U
-#define  TCIP 0x04000000U
-#define  RCAP 0x02000000U
-#define  PLUP 0x00800000U
-#define  PLDN 0x00400000U
-#define  OTDD 0x00200000U
-#define  GTRP 0x00100000U
-#define  RDPE 0x00040000U
-#define  TDCE 0x00020000U
-#define  TDUE 0x00010000U
+#define DROPPED_DB_S    0
+#define DROPPED_DB_V(x) ((x) << DROPPED_DB_S)
+#define DROPPED_DB_F    DROPPED_DB_V(1U)
+
+#define SGE_CTXT_CMD_A 0x11fc
+#define SGE_DBQ_CTXT_BADDR_A 0x1084
+
+/* registers for module PCIE */
+#define PCIE_PF_CFG_A	0x40
+
+#define AIVEC_S    4
+#define AIVEC_M    0x3ffU
+#define AIVEC_V(x) ((x) << AIVEC_S)
+
+#define PCIE_PF_CLI_A	0x44
+#define PCIE_INT_CAUSE_A	0x3004
+
+#define UNXSPLCPLERR_S    29
+#define UNXSPLCPLERR_V(x) ((x) << UNXSPLCPLERR_S)
+#define UNXSPLCPLERR_F    UNXSPLCPLERR_V(1U)
+
+#define PCIEPINT_S    28
+#define PCIEPINT_V(x) ((x) << PCIEPINT_S)
+#define PCIEPINT_F    PCIEPINT_V(1U)
+
+#define PCIESINT_S    27
+#define PCIESINT_V(x) ((x) << PCIESINT_S)
+#define PCIESINT_F    PCIESINT_V(1U)
+
+#define RPLPERR_S    26
+#define RPLPERR_V(x) ((x) << RPLPERR_S)
+#define RPLPERR_F    RPLPERR_V(1U)
+
+#define RXWRPERR_S    25
+#define RXWRPERR_V(x) ((x) << RXWRPERR_S)
+#define RXWRPERR_F    RXWRPERR_V(1U)
+
+#define RXCPLPERR_S    24
+#define RXCPLPERR_V(x) ((x) << RXCPLPERR_S)
+#define RXCPLPERR_F    RXCPLPERR_V(1U)
+
+#define PIOTAGPERR_S    23
+#define PIOTAGPERR_V(x) ((x) << PIOTAGPERR_S)
+#define PIOTAGPERR_F    PIOTAGPERR_V(1U)
+
+#define MATAGPERR_S    22
+#define MATAGPERR_V(x) ((x) << MATAGPERR_S)
+#define MATAGPERR_F    MATAGPERR_V(1U)
+
+#define INTXCLRPERR_S    21
+#define INTXCLRPERR_V(x) ((x) << INTXCLRPERR_S)
+#define INTXCLRPERR_F    INTXCLRPERR_V(1U)
+
+#define FIDPERR_S    20
+#define FIDPERR_V(x) ((x) << FIDPERR_S)
+#define FIDPERR_F    FIDPERR_V(1U)
+
+#define CFGSNPPERR_S    19
+#define CFGSNPPERR_V(x) ((x) << CFGSNPPERR_S)
+#define CFGSNPPERR_F    CFGSNPPERR_V(1U)
+
+#define HRSPPERR_S    18
+#define HRSPPERR_V(x) ((x) << HRSPPERR_S)
+#define HRSPPERR_F    HRSPPERR_V(1U)
+
+#define HREQPERR_S    17
+#define HREQPERR_V(x) ((x) << HREQPERR_S)
+#define HREQPERR_F    HREQPERR_V(1U)
+
+#define HCNTPERR_S    16
+#define HCNTPERR_V(x) ((x) << HCNTPERR_S)
+#define HCNTPERR_F    HCNTPERR_V(1U)
+
+#define DRSPPERR_S    15
+#define DRSPPERR_V(x) ((x) << DRSPPERR_S)
+#define DRSPPERR_F    DRSPPERR_V(1U)
+
+#define DREQPERR_S    14
+#define DREQPERR_V(x) ((x) << DREQPERR_S)
+#define DREQPERR_F    DREQPERR_V(1U)
+
+#define DCNTPERR_S    13
+#define DCNTPERR_V(x) ((x) << DCNTPERR_S)
+#define DCNTPERR_F    DCNTPERR_V(1U)
+
+#define CRSPPERR_S    12
+#define CRSPPERR_V(x) ((x) << CRSPPERR_S)
+#define CRSPPERR_F    CRSPPERR_V(1U)
+
+#define CREQPERR_S    11
+#define CREQPERR_V(x) ((x) << CREQPERR_S)
+#define CREQPERR_F    CREQPERR_V(1U)
+
+#define CCNTPERR_S    10
+#define CCNTPERR_V(x) ((x) << CCNTPERR_S)
+#define CCNTPERR_F    CCNTPERR_V(1U)
+
+#define TARTAGPERR_S    9
+#define TARTAGPERR_V(x) ((x) << TARTAGPERR_S)
+#define TARTAGPERR_F    TARTAGPERR_V(1U)
+
+#define PIOREQPERR_S    8
+#define PIOREQPERR_V(x) ((x) << PIOREQPERR_S)
+#define PIOREQPERR_F    PIOREQPERR_V(1U)
+
+#define PIOCPLPERR_S    7
+#define PIOCPLPERR_V(x) ((x) << PIOCPLPERR_S)
+#define PIOCPLPERR_F    PIOCPLPERR_V(1U)
+
+#define MSIXDIPERR_S    6
+#define MSIXDIPERR_V(x) ((x) << MSIXDIPERR_S)
+#define MSIXDIPERR_F    MSIXDIPERR_V(1U)
+
+#define MSIXDATAPERR_S    5
+#define MSIXDATAPERR_V(x) ((x) << MSIXDATAPERR_S)
+#define MSIXDATAPERR_F    MSIXDATAPERR_V(1U)
+
+#define MSIXADDRHPERR_S    4
+#define MSIXADDRHPERR_V(x) ((x) << MSIXADDRHPERR_S)
+#define MSIXADDRHPERR_F    MSIXADDRHPERR_V(1U)
+
+#define MSIXADDRLPERR_S    3
+#define MSIXADDRLPERR_V(x) ((x) << MSIXADDRLPERR_S)
+#define MSIXADDRLPERR_F    MSIXADDRLPERR_V(1U)
+
+#define MSIDATAPERR_S    2
+#define MSIDATAPERR_V(x) ((x) << MSIDATAPERR_S)
+#define MSIDATAPERR_F    MSIDATAPERR_V(1U)
+
+#define MSIADDRHPERR_S    1
+#define MSIADDRHPERR_V(x) ((x) << MSIADDRHPERR_S)
+#define MSIADDRHPERR_F    MSIADDRHPERR_V(1U)
+
+#define MSIADDRLPERR_S    0
+#define MSIADDRLPERR_V(x) ((x) << MSIADDRLPERR_S)
+#define MSIADDRLPERR_F    MSIADDRLPERR_V(1U)
+
+#define READRSPERR_S    29
+#define READRSPERR_V(x) ((x) << READRSPERR_S)
+#define READRSPERR_F    READRSPERR_V(1U)
+
+#define TRGT1GRPPERR_S    28
+#define TRGT1GRPPERR_V(x) ((x) << TRGT1GRPPERR_S)
+#define TRGT1GRPPERR_F    TRGT1GRPPERR_V(1U)
+
+#define IPSOTPERR_S    27
+#define IPSOTPERR_V(x) ((x) << IPSOTPERR_S)
+#define IPSOTPERR_F    IPSOTPERR_V(1U)
+
+#define IPRETRYPERR_S    26
+#define IPRETRYPERR_V(x) ((x) << IPRETRYPERR_S)
+#define IPRETRYPERR_F    IPRETRYPERR_V(1U)
+
+#define IPRXDATAGRPPERR_S    25
+#define IPRXDATAGRPPERR_V(x) ((x) << IPRXDATAGRPPERR_S)
+#define IPRXDATAGRPPERR_F    IPRXDATAGRPPERR_V(1U)
+
+#define IPRXHDRGRPPERR_S    24
+#define IPRXHDRGRPPERR_V(x) ((x) << IPRXHDRGRPPERR_S)
+#define IPRXHDRGRPPERR_F    IPRXHDRGRPPERR_V(1U)
+
+#define MAGRPPERR_S    22
+#define MAGRPPERR_V(x) ((x) << MAGRPPERR_S)
+#define MAGRPPERR_F    MAGRPPERR_V(1U)
+
+#define VFIDPERR_S    21
+#define VFIDPERR_V(x) ((x) << VFIDPERR_S)
+#define VFIDPERR_F    VFIDPERR_V(1U)
+
+#define HREQWRPERR_S    16
+#define HREQWRPERR_V(x) ((x) << HREQWRPERR_S)
+#define HREQWRPERR_F    HREQWRPERR_V(1U)
+
+#define DREQWRPERR_S    13
+#define DREQWRPERR_V(x) ((x) << DREQWRPERR_S)
+#define DREQWRPERR_F    DREQWRPERR_V(1U)
+
+#define CREQRDPERR_S    11
+#define CREQRDPERR_V(x) ((x) << CREQRDPERR_S)
+#define CREQRDPERR_F    CREQRDPERR_V(1U)
+
+#define MSTTAGQPERR_S    10
+#define MSTTAGQPERR_V(x) ((x) << MSTTAGQPERR_S)
+#define MSTTAGQPERR_F    MSTTAGQPERR_V(1U)
+
+#define PIOREQGRPPERR_S    8
+#define PIOREQGRPPERR_V(x) ((x) << PIOREQGRPPERR_S)
+#define PIOREQGRPPERR_F    PIOREQGRPPERR_V(1U)
+
+#define PIOCPLGRPPERR_S    7
+#define PIOCPLGRPPERR_V(x) ((x) << PIOCPLGRPPERR_S)
+#define PIOCPLGRPPERR_F    PIOCPLGRPPERR_V(1U)
+
+#define MSIXSTIPERR_S    2
+#define MSIXSTIPERR_V(x) ((x) << MSIXSTIPERR_S)
+#define MSIXSTIPERR_F    MSIXSTIPERR_V(1U)
+
+#define MSTTIMEOUTPERR_S    1
+#define MSTTIMEOUTPERR_V(x) ((x) << MSTTIMEOUTPERR_S)
+#define MSTTIMEOUTPERR_F    MSTTIMEOUTPERR_V(1U)
+
+#define MSTGRPPERR_S    0
+#define MSTGRPPERR_V(x) ((x) << MSTGRPPERR_S)
+#define MSTGRPPERR_F    MSTGRPPERR_V(1U)
+
+#define PCIE_NONFAT_ERR_A	0x3010
+#define PCIE_CFG_SPACE_REQ_A	0x3060
+#define PCIE_CFG_SPACE_DATA_A	0x3064
+#define PCIE_MEM_ACCESS_BASE_WIN_A 0x3068
+
+#define PCIEOFST_S    10
+#define PCIEOFST_M    0x3fffffU
+#define PCIEOFST_G(x) (((x) >> PCIEOFST_S) & PCIEOFST_M)
+
+#define BIR_S    8
+#define BIR_M    0x3U
+#define BIR_V(x) ((x) << BIR_S)
+#define BIR_G(x) (((x) >> BIR_S) & BIR_M)
+
+#define WINDOW_S    0
+#define WINDOW_M    0xffU
+#define WINDOW_V(x) ((x) << WINDOW_S)
+#define WINDOW_G(x) (((x) >> WINDOW_S) & WINDOW_M)
+
+#define PCIE_MEM_ACCESS_OFFSET_A 0x306c
+
+#define ENABLE_S    30
+#define ENABLE_V(x) ((x) << ENABLE_S)
+#define ENABLE_F    ENABLE_V(1U)
+
+#define LOCALCFG_S    28
+#define LOCALCFG_V(x) ((x) << LOCALCFG_S)
+#define LOCALCFG_F    LOCALCFG_V(1U)
+
+#define FUNCTION_S    12
+#define FUNCTION_V(x) ((x) << FUNCTION_S)
+
+#define REGISTER_S    0
+#define REGISTER_V(x) ((x) << REGISTER_S)
+
+#define PFNUM_S    0
+#define PFNUM_V(x) ((x) << PFNUM_S)
+
+#define PCIE_FW_A 0x30b8
+
+#define PCIE_CORE_UTL_SYSTEM_BUS_AGENT_STATUS_A 0x5908
+
+#define RNPP_S    31
+#define RNPP_V(x) ((x) << RNPP_S)
+#define RNPP_F    RNPP_V(1U)
+
+#define RPCP_S    29
+#define RPCP_V(x) ((x) << RPCP_S)
+#define RPCP_F    RPCP_V(1U)
+
+#define RCIP_S    27
+#define RCIP_V(x) ((x) << RCIP_S)
+#define RCIP_F    RCIP_V(1U)
+
+#define RCCP_S    26
+#define RCCP_V(x) ((x) << RCCP_S)
+#define RCCP_F    RCCP_V(1U)
+
+#define RFTP_S    23
+#define RFTP_V(x) ((x) << RFTP_S)
+#define RFTP_F    RFTP_V(1U)
+
+#define PTRP_S    20
+#define PTRP_V(x) ((x) << PTRP_S)
+#define PTRP_F    PTRP_V(1U)
+
+#define PCIE_CORE_UTL_PCI_EXPRESS_PORT_STATUS_A 0x59a4
+
+#define TPCP_S    30
+#define TPCP_V(x) ((x) << TPCP_S)
+#define TPCP_F    TPCP_V(1U)
+
+#define TNPP_S    29
+#define TNPP_V(x) ((x) << TNPP_S)
+#define TNPP_F    TNPP_V(1U)
+
+#define TFTP_S    28
+#define TFTP_V(x) ((x) << TFTP_S)
+#define TFTP_F    TFTP_V(1U)
+
+#define TCAP_S    27
+#define TCAP_V(x) ((x) << TCAP_S)
+#define TCAP_F    TCAP_V(1U)
+
+#define TCIP_S    26
+#define TCIP_V(x) ((x) << TCIP_S)
+#define TCIP_F    TCIP_V(1U)
+
+#define RCAP_S    25
+#define RCAP_V(x) ((x) << RCAP_S)
+#define RCAP_F    RCAP_V(1U)
+
+#define PLUP_S    23
+#define PLUP_V(x) ((x) << PLUP_S)
+#define PLUP_F    PLUP_V(1U)
+
+#define PLDN_S    22
+#define PLDN_V(x) ((x) << PLDN_S)
+#define PLDN_F    PLDN_V(1U)
+
+#define OTDD_S    21
+#define OTDD_V(x) ((x) << OTDD_S)
+#define OTDD_F    OTDD_V(1U)
+
+#define GTRP_S    20
+#define GTRP_V(x) ((x) << GTRP_S)
+#define GTRP_F    GTRP_V(1U)
+
+#define RDPE_S    18
+#define RDPE_V(x) ((x) << RDPE_S)
+#define RDPE_F    RDPE_V(1U)
+
+#define TDCE_S    17
+#define TDCE_V(x) ((x) << TDCE_S)
+#define TDCE_F    TDCE_V(1U)
+
+#define TDUE_S    16
+#define TDUE_V(x) ((x) << TDUE_S)
+#define TDUE_F    TDUE_V(1U)
 
 #define MC_INT_CAUSE 0x7518
 #define MC_P_INT_CAUSE 0x41318
@@ -663,7 +891,6 @@
 #define  MEM_WRAP_CLIENT_NUM_MASK   0x0000000fU
 #define  MEM_WRAP_CLIENT_NUM_SHIFT  0
 #define  MEM_WRAP_CLIENT_NUM_GET(x) (((x) & MEM_WRAP_CLIENT_NUM_MASK) >> MEM_WRAP_CLIENT_NUM_SHIFT)
-#define MA_PCIE_FW 0x30b8
 #define MA_PARITY_ERROR_STATUS 0x77f4
 #define MA_PARITY_ERROR_STATUS2 0x7804
 

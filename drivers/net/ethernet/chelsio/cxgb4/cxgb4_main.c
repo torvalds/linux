@@ -1590,9 +1590,9 @@ static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
 	collect_sge_port_stats(adapter, pi, (struct queue_port_stats *)data);
 	data += sizeof(struct queue_port_stats) / sizeof(u64);
 	if (!is_t4(adapter->params.chip)) {
-		t4_write_reg(adapter, SGE_STAT_CFG, STATSOURCE_T5(7));
-		val1 = t4_read_reg(adapter, SGE_STAT_TOTAL);
-		val2 = t4_read_reg(adapter, SGE_STAT_MATCH);
+		t4_write_reg(adapter, SGE_STAT_CFG_A, STATSOURCE_T5_V(7));
+		val1 = t4_read_reg(adapter, SGE_STAT_TOTAL_A);
+		val2 = t4_read_reg(adapter, SGE_STAT_MATCH_A);
 		*data = val1 - val2;
 		data++;
 		*data = val2;
@@ -3601,14 +3601,14 @@ unsigned int cxgb4_dbfifo_count(const struct net_device *dev, int lpfifo)
 	struct adapter *adap = netdev2adap(dev);
 	u32 v1, v2, lp_count, hp_count;
 
-	v1 = t4_read_reg(adap, A_SGE_DBFIFO_STATUS);
-	v2 = t4_read_reg(adap, SGE_DBFIFO_STATUS2);
+	v1 = t4_read_reg(adap, SGE_DBFIFO_STATUS_A);
+	v2 = t4_read_reg(adap, SGE_DBFIFO_STATUS2_A);
 	if (is_t4(adap->params.chip)) {
-		lp_count = G_LP_COUNT(v1);
-		hp_count = G_HP_COUNT(v1);
+		lp_count = LP_COUNT_G(v1);
+		hp_count = HP_COUNT_G(v1);
 	} else {
-		lp_count = G_LP_COUNT_T5(v1);
-		hp_count = G_HP_COUNT_T5(v2);
+		lp_count = LP_COUNT_T5_G(v1);
+		hp_count = HP_COUNT_T5_G(v2);
 	}
 	return lpfifo ? lp_count : hp_count;
 }
@@ -3667,14 +3667,14 @@ int cxgb4_flush_eq_cache(struct net_device *dev)
 	int ret;
 
 	ret = t4_fwaddrspace_write(adap, adap->mbox,
-				   0xe1000000 + A_SGE_CTXT_CMD, 0x20000000);
+				   0xe1000000 + SGE_CTXT_CMD_A, 0x20000000);
 	return ret;
 }
 EXPORT_SYMBOL(cxgb4_flush_eq_cache);
 
 static int read_eq_indices(struct adapter *adap, u16 qid, u16 *pidx, u16 *cidx)
 {
-	u32 addr = t4_read_reg(adap, A_SGE_DBQ_CTXT_BADDR) + 24 * qid + 8;
+	u32 addr = t4_read_reg(adap, SGE_DBQ_CTXT_BADDR_A) + 24 * qid + 8;
 	__be64 indices;
 	int ret;
 
@@ -3728,7 +3728,7 @@ void cxgb4_disable_db_coalescing(struct net_device *dev)
 	struct adapter *adap;
 
 	adap = netdev2adap(dev);
-	t4_set_reg_field(adap, A_SGE_DOORBELL_CONTROL, NOCOALESCE_F,
+	t4_set_reg_field(adap, SGE_DOORBELL_CONTROL_A, NOCOALESCE_F,
 			 NOCOALESCE_F);
 }
 EXPORT_SYMBOL(cxgb4_disable_db_coalescing);
@@ -3738,7 +3738,7 @@ void cxgb4_enable_db_coalescing(struct net_device *dev)
 	struct adapter *adap;
 
 	adap = netdev2adap(dev);
-	t4_set_reg_field(adap, A_SGE_DOORBELL_CONTROL, NOCOALESCE_F, 0);
+	t4_set_reg_field(adap, SGE_DOORBELL_CONTROL_A, NOCOALESCE_F, 0);
 }
 EXPORT_SYMBOL(cxgb4_enable_db_coalescing);
 
@@ -3877,14 +3877,14 @@ static void drain_db_fifo(struct adapter *adap, int usecs)
 	u32 v1, v2, lp_count, hp_count;
 
 	do {
-		v1 = t4_read_reg(adap, A_SGE_DBFIFO_STATUS);
-		v2 = t4_read_reg(adap, SGE_DBFIFO_STATUS2);
+		v1 = t4_read_reg(adap, SGE_DBFIFO_STATUS_A);
+		v2 = t4_read_reg(adap, SGE_DBFIFO_STATUS2_A);
 		if (is_t4(adap->params.chip)) {
-			lp_count = G_LP_COUNT(v1);
-			hp_count = G_HP_COUNT(v1);
+			lp_count = LP_COUNT_G(v1);
+			hp_count = HP_COUNT_G(v1);
 		} else {
-			lp_count = G_LP_COUNT_T5(v1);
-			hp_count = G_HP_COUNT_T5(v2);
+			lp_count = LP_COUNT_T5_G(v1);
+			hp_count = HP_COUNT_T5_G(v2);
 		}
 
 		if (lp_count == 0 && hp_count == 0)
@@ -4044,7 +4044,7 @@ static void process_db_drop(struct work_struct *work)
 		t4_set_reg_field(adap, 0x10b0, 1<<15, 1<<15);
 	}
 
-	t4_set_reg_field(adap, A_SGE_DOORBELL_CONTROL, F_DROPPED_DB, 0);
+	t4_set_reg_field(adap, SGE_DOORBELL_CONTROL_A, DROPPED_DB_F, 0);
 }
 
 void t4_db_full(struct adapter *adap)
@@ -4871,16 +4871,16 @@ static void setup_memwin(struct adapter *adap)
 		mem_win2_base = MEMWIN2_BASE_T5;
 		mem_win2_aperture = MEMWIN2_APERTURE_T5;
 	}
-	t4_write_reg(adap, PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN, 0),
-		     mem_win0_base | BIR(0) |
-		     WINDOW(ilog2(MEMWIN0_APERTURE) - 10));
-	t4_write_reg(adap, PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN, 1),
-		     mem_win1_base | BIR(0) |
-		     WINDOW(ilog2(MEMWIN1_APERTURE) - 10));
-	t4_write_reg(adap, PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN, 2),
-		     mem_win2_base | BIR(0) |
-		     WINDOW(ilog2(mem_win2_aperture) - 10));
-	t4_read_reg(adap, PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN, 2));
+	t4_write_reg(adap, PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN_A, 0),
+		     mem_win0_base | BIR_V(0) |
+		     WINDOW_V(ilog2(MEMWIN0_APERTURE) - 10));
+	t4_write_reg(adap, PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN_A, 1),
+		     mem_win1_base | BIR_V(0) |
+		     WINDOW_V(ilog2(MEMWIN1_APERTURE) - 10));
+	t4_write_reg(adap, PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN_A, 2),
+		     mem_win2_base | BIR_V(0) |
+		     WINDOW_V(ilog2(mem_win2_aperture) - 10));
+	t4_read_reg(adap, PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN_A, 2));
 }
 
 static void setup_memwin_rdma(struct adapter *adap)
@@ -4894,13 +4894,13 @@ static void setup_memwin_rdma(struct adapter *adap)
 		start += OCQ_WIN_OFFSET(adap->pdev, &adap->vres);
 		sz_kb = roundup_pow_of_two(adap->vres.ocq.size) >> 10;
 		t4_write_reg(adap,
-			     PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN, 3),
-			     start | BIR(1) | WINDOW(ilog2(sz_kb)));
+			     PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN_A, 3),
+			     start | BIR_V(1) | WINDOW_V(ilog2(sz_kb)));
 		t4_write_reg(adap,
-			     PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET, 3),
+			     PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET_A, 3),
 			     adap->vres.ocq.start);
 		t4_read_reg(adap,
-			    PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET, 3));
+			    PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET_A, 3));
 	}
 }
 

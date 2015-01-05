@@ -78,4 +78,8 @@
 #define SGE_UDB_GTS		20
 #define SGE_UDB_WCDOORBELL	64
 
+/* PCI-E definitions */
+#define WINDOW_SHIFT_X		10
+#define PCIEOFST_SHIFT_X	10
+
 #endif /* __T4_VALUES_H__ */

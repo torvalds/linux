@@ -2098,7 +2098,7 @@ static irqreturn_t t4_intr_intx(int irq, void *cookie)
 {
 	struct adapter *adap = cookie;
 
-	t4_write_reg(adap, MYPF_REG(PCIE_PF_CLI), 0);
+	t4_write_reg(adap, MYPF_REG(PCIE_PF_CLI_A), 0);
 	if (t4_slow_intr_handler(adap) | process_intrq(adap))
 		return IRQ_HANDLED;
 	return IRQ_NONE;             /* probably shared interrupt */
@@ -2145,9 +2145,9 @@ static void sge_rx_timer_cb(unsigned long data)
 			}
 		}
 
-	t4_write_reg(adap, SGE_DEBUG_INDEX, 13);
-	idma_same_state_cnt[0] = t4_read_reg(adap, SGE_DEBUG_DATA_HIGH);
-	idma_same_state_cnt[1] = t4_read_reg(adap, SGE_DEBUG_DATA_LOW);
+	t4_write_reg(adap, SGE_DEBUG_INDEX_A, 13);
+	idma_same_state_cnt[0] = t4_read_reg(adap, SGE_DEBUG_DATA_HIGH_A);
+	idma_same_state_cnt[1] = t4_read_reg(adap, SGE_DEBUG_DATA_LOW_A);
 
 	for (i = 0; i < 2; i++) {
 		u32 debug0, debug11;
@@ -2191,12 +2191,12 @@ static void sge_rx_timer_cb(unsigned long data)
 		/* Read and save the SGE IDMA State and Queue ID information.
 		 * We do this every time in case it changes across time ...
 		 */
-		t4_write_reg(adap, SGE_DEBUG_INDEX, 0);
-		debug0 = t4_read_reg(adap, SGE_DEBUG_DATA_LOW);
+		t4_write_reg(adap, SGE_DEBUG_INDEX_A, 0);
+		debug0 = t4_read_reg(adap, SGE_DEBUG_DATA_LOW_A);
 		s->idma_state[i] = (debug0 >> (i * 9)) & 0x3f;
 
-		t4_write_reg(adap, SGE_DEBUG_INDEX, 11);
-		debug11 = t4_read_reg(adap, SGE_DEBUG_DATA_LOW);
+		t4_write_reg(adap, SGE_DEBUG_INDEX_A, 11);
+		debug11 = t4_read_reg(adap, SGE_DEBUG_DATA_LOW_A);
 		s->idma_qid[i] = (debug11 >> (i * 16)) & 0xffff;
 
 		CH_WARN(adap, "SGE idma%u, queue%u, maybe stuck state%u %dsecs (debug0=%#x, debug11=%#x)\n",
@@ -2826,21 +2826,21 @@ static int t4_sge_init_soft(struct adapter *adap)
 	 * Retrieve our RX interrupt holdoff timer values and counter
 	 * threshold values from the SGE parameters.
 	 */
-	timer_value_0_and_1 = t4_read_reg(adap, SGE_TIMER_VALUE_0_AND_1);
-	timer_value_2_and_3 = t4_read_reg(adap, SGE_TIMER_VALUE_2_AND_3);
-	timer_value_4_and_5 = t4_read_reg(adap, SGE_TIMER_VALUE_4_AND_5);
+	timer_value_0_and_1 = t4_read_reg(adap, SGE_TIMER_VALUE_0_AND_1_A);
+	timer_value_2_and_3 = t4_read_reg(adap, SGE_TIMER_VALUE_2_AND_3_A);
+	timer_value_4_and_5 = t4_read_reg(adap, SGE_TIMER_VALUE_4_AND_5_A);
 	s->timer_val[0] = core_ticks_to_us(adap,
-		TIMERVALUE0_GET(timer_value_0_and_1));
+		TIMERVALUE0_G(timer_value_0_and_1));
 	s->timer_val[1] = core_ticks_to_us(adap,
-		TIMERVALUE1_GET(timer_value_0_and_1));
+		TIMERVALUE1_G(timer_value_0_and_1));
 	s->timer_val[2] = core_ticks_to_us(adap,
-		TIMERVALUE2_GET(timer_value_2_and_3));
+		TIMERVALUE2_G(timer_value_2_and_3));
 	s->timer_val[3] = core_ticks_to_us(adap,
-		TIMERVALUE3_GET(timer_value_2_and_3));
+		TIMERVALUE3_G(timer_value_2_and_3));
 	s->timer_val[4] = core_ticks_to_us(adap,
-		TIMERVALUE4_GET(timer_value_4_and_5));
+		TIMERVALUE4_G(timer_value_4_and_5));
 	s->timer_val[5] = core_ticks_to_us(adap,
-		TIMERVALUE5_GET(timer_value_4_and_5));
+		TIMERVALUE5_G(timer_value_4_and_5));
 
 	ingress_rx_threshold = t4_read_reg(adap, SGE_INGRESS_RX_THRESHOLD_A);
 	s->counter_val[0] = THRESHOLD_0_G(ingress_rx_threshold);
@@ -2866,21 +2866,21 @@ static int t4_sge_init_hard(struct adapter *adap)
 	 * and generate an interrupt when this occurs so we can recover.
 	 */
 	if (is_t4(adap->params.chip)) {
-		t4_set_reg_field(adap, A_SGE_DBFIFO_STATUS,
-				 V_HP_INT_THRESH(M_HP_INT_THRESH) |
-				 V_LP_INT_THRESH(M_LP_INT_THRESH),
-				 V_HP_INT_THRESH(dbfifo_int_thresh) |
-				 V_LP_INT_THRESH(dbfifo_int_thresh));
+		t4_set_reg_field(adap, SGE_DBFIFO_STATUS_A,
+				 HP_INT_THRESH_V(HP_INT_THRESH_M) |
+				 LP_INT_THRESH_V(LP_INT_THRESH_M),
+				 HP_INT_THRESH_V(dbfifo_int_thresh) |
+				 LP_INT_THRESH_V(dbfifo_int_thresh));
 	} else {
-		t4_set_reg_field(adap, A_SGE_DBFIFO_STATUS,
-				 V_LP_INT_THRESH_T5(M_LP_INT_THRESH_T5),
-				 V_LP_INT_THRESH_T5(dbfifo_int_thresh));
-		t4_set_reg_field(adap, SGE_DBFIFO_STATUS2,
-				 V_HP_INT_THRESH_T5(M_HP_INT_THRESH_T5),
-				 V_HP_INT_THRESH_T5(dbfifo_int_thresh));
+		t4_set_reg_field(adap, SGE_DBFIFO_STATUS_A,
+				 LP_INT_THRESH_T5_V(LP_INT_THRESH_T5_M),
+				 LP_INT_THRESH_T5_V(dbfifo_int_thresh));
+		t4_set_reg_field(adap, SGE_DBFIFO_STATUS2_A,
+				 HP_INT_THRESH_T5_V(HP_INT_THRESH_T5_M),
+				 HP_INT_THRESH_T5_V(dbfifo_int_thresh));
 	}
-	t4_set_reg_field(adap, A_SGE_DOORBELL_CONTROL, F_ENABLE_DROP,
-			F_ENABLE_DROP);
+	t4_set_reg_field(adap, SGE_DOORBELL_CONTROL_A, ENABLE_DROP_F,
+			 ENABLE_DROP_F);
 
 	/*
 	 * SGE_FL_BUFFER_SIZE0 (RX_SMALL_PG_BUF) is set up by
@@ -2905,15 +2905,15 @@ static int t4_sge_init_hard(struct adapter *adap)
 		     THRESHOLD_1_V(s->counter_val[1]) |
 		     THRESHOLD_2_V(s->counter_val[2]) |
 		     THRESHOLD_3_V(s->counter_val[3]));
-	t4_write_reg(adap, SGE_TIMER_VALUE_0_AND_1,
-		     TIMERVALUE0(us_to_core_ticks(adap, s->timer_val[0])) |
-		     TIMERVALUE1(us_to_core_ticks(adap, s->timer_val[1])));
-	t4_write_reg(adap, SGE_TIMER_VALUE_2_AND_3,
-		     TIMERVALUE2(us_to_core_ticks(adap, s->timer_val[2])) |
-		     TIMERVALUE3(us_to_core_ticks(adap, s->timer_val[3])));
-	t4_write_reg(adap, SGE_TIMER_VALUE_4_AND_5,
-		     TIMERVALUE4(us_to_core_ticks(adap, s->timer_val[4])) |
-		     TIMERVALUE5(us_to_core_ticks(adap, s->timer_val[5])));
+	t4_write_reg(adap, SGE_TIMER_VALUE_0_AND_1_A,
+		     TIMERVALUE0_V(us_to_core_ticks(adap, s->timer_val[0])) |
+		     TIMERVALUE1_V(us_to_core_ticks(adap, s->timer_val[1])));
+	t4_write_reg(adap, SGE_TIMER_VALUE_2_AND_3_A,
+		     TIMERVALUE2_V(us_to_core_ticks(adap, s->timer_val[2])) |
+		     TIMERVALUE3_V(us_to_core_ticks(adap, s->timer_val[3])));
+	t4_write_reg(adap, SGE_TIMER_VALUE_4_AND_5_A,
+		     TIMERVALUE4_V(us_to_core_ticks(adap, s->timer_val[4])) |
+		     TIMERVALUE5_V(us_to_core_ticks(adap, s->timer_val[5])));
 
 	return 0;
 }

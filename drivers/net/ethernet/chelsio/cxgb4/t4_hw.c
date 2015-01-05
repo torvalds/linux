@@ -150,20 +150,20 @@ void t4_write_indirect(struct adapter *adap, unsigned int addr_reg,
  */
 void t4_hw_pci_read_cfg4(struct adapter *adap, int reg, u32 *val)
 {
-	u32 req = ENABLE | FUNCTION(adap->fn) | reg;
+	u32 req = ENABLE_F | FUNCTION_V(adap->fn) | REGISTER_V(reg);
 
 	if (is_t4(adap->params.chip))
-		req |= F_LOCALCFG;
+		req |= LOCALCFG_F;
 
-	t4_write_reg(adap, PCIE_CFG_SPACE_REQ, req);
-	*val = t4_read_reg(adap, PCIE_CFG_SPACE_DATA);
+	t4_write_reg(adap, PCIE_CFG_SPACE_REQ_A, req);
+	*val = t4_read_reg(adap, PCIE_CFG_SPACE_DATA_A);
 
 	/* Reset ENABLE to 0 so reads of PCIE_CFG_SPACE_DATA won't cause a
 	 * Configuration Space read.  (None of the other fields matter when
 	 * ENABLE is 0 so a simple register write is easier than a
 	 * read-modify-write via t4_set_reg_field().)
 	 */
-	t4_write_reg(adap, PCIE_CFG_SPACE_REQ, 0);
+	t4_write_reg(adap, PCIE_CFG_SPACE_REQ_A, 0);
 }
 
 /*
@@ -188,8 +188,8 @@ static void t4_report_fw_error(struct adapter *adap)
 	};
 	u32 pcie_fw;
 
-	pcie_fw = t4_read_reg(adap, MA_PCIE_FW);
-	if (pcie_fw & PCIE_FW_ERR)
+	pcie_fw = t4_read_reg(adap, PCIE_FW_A);
+	if (pcie_fw & PCIE_FW_ERR_F)
 		dev_err(adap->pdev_dev, "Firmware reports adapter error: %s\n",
 			reason[PCIE_FW_EVAL_G(pcie_fw)]);
 }
@@ -506,13 +506,13 @@ int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr,
 	 * the address is relative to BAR0.
 	 */
 	mem_reg = t4_read_reg(adap,
-			      PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN,
+			      PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN_A,
 						  win));
-	mem_aperture = 1 << (GET_WINDOW(mem_reg) + 10);
-	mem_base = GET_PCIEOFST(mem_reg) << 10;
+	mem_aperture = 1 << (WINDOW_G(mem_reg) + WINDOW_SHIFT_X);
+	mem_base = PCIEOFST_G(mem_reg) << PCIEOFST_SHIFT_X;
 	if (is_t4(adap->params.chip))
 		mem_base -= adap->t4_bar0;
-	win_pf = is_t4(adap->params.chip) ? 0 : V_PFNUM(adap->fn);
+	win_pf = is_t4(adap->params.chip) ? 0 : PFNUM_V(adap->fn);
 
 	/* Calculate our initial PCI-E Memory Window Position and Offset into
 	 * that Window.
@@ -525,10 +525,10 @@ int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr,
 	 * attempt to use the new value.)
 	 */
 	t4_write_reg(adap,
-		     PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET, win),
+		     PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET_A, win),
 		     pos | win_pf);
 	t4_read_reg(adap,
-		    PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET, win));
+		    PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET_A, win));
 
 	/* Transfer data to/from the adapter as long as there's an integral
 	 * number of 32-bit transfers to complete.
@@ -553,11 +553,11 @@ int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr,
 			pos += mem_aperture;
 			offset = 0;
 			t4_write_reg(adap,
-				     PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET,
-							 win), pos | win_pf);
+				PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET_A,
+						    win), pos | win_pf);
 			t4_read_reg(adap,
-				    PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET,
-							win));
+				PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET_A,
+						    win));
 		}
 	}
 
@@ -1366,95 +1366,97 @@ static int t4_handle_intr_status(struct adapter *adapter, unsigned int reg,
 static void pcie_intr_handler(struct adapter *adapter)
 {
 	static const struct intr_info sysbus_intr_info[] = {
-		{ RNPP, "RXNP array parity error", -1, 1 },
-		{ RPCP, "RXPC array parity error", -1, 1 },
-		{ RCIP, "RXCIF array parity error", -1, 1 },
-		{ RCCP, "Rx completions control array parity error", -1, 1 },
-		{ RFTP, "RXFT array parity error", -1, 1 },
+		{ RNPP_F, "RXNP array parity error", -1, 1 },
+		{ RPCP_F, "RXPC array parity error", -1, 1 },
+		{ RCIP_F, "RXCIF array parity error", -1, 1 },
+		{ RCCP_F, "Rx completions control array parity error", -1, 1 },
+		{ RFTP_F, "RXFT array parity error", -1, 1 },
 		{ 0 }
 	};
 	static const struct intr_info pcie_port_intr_info[] = {
-		{ TPCP, "TXPC array parity error", -1, 1 },
-		{ TNPP, "TXNP array parity error", -1, 1 },
-		{ TFTP, "TXFT array parity error", -1, 1 },
-		{ TCAP, "TXCA array parity error", -1, 1 },
-		{ TCIP, "TXCIF array parity error", -1, 1 },
-		{ RCAP, "RXCA array parity error", -1, 1 },
-		{ OTDD, "outbound request TLP discarded", -1, 1 },
-		{ RDPE, "Rx data parity error", -1, 1 },
-		{ TDUE, "Tx uncorrectable data error", -1, 1 },
+		{ TPCP_F, "TXPC array parity error", -1, 1 },
+		{ TNPP_F, "TXNP array parity error", -1, 1 },
+		{ TFTP_F, "TXFT array parity error", -1, 1 },
+		{ TCAP_F, "TXCA array parity error", -1, 1 },
+		{ TCIP_F, "TXCIF array parity error", -1, 1 },
+		{ RCAP_F, "RXCA array parity error", -1, 1 },
+		{ OTDD_F, "outbound request TLP discarded", -1, 1 },
+		{ RDPE_F, "Rx data parity error", -1, 1 },
+		{ TDUE_F, "Tx uncorrectable data error", -1, 1 },
 		{ 0 }
 	};
 	static const struct intr_info pcie_intr_info[] = {
-		{ MSIADDRLPERR, "MSI AddrL parity error", -1, 1 },
-		{ MSIADDRHPERR, "MSI AddrH parity error", -1, 1 },
-		{ MSIDATAPERR, "MSI data parity error", -1, 1 },
-		{ MSIXADDRLPERR, "MSI-X AddrL parity error", -1, 1 },
-		{ MSIXADDRHPERR, "MSI-X AddrH parity error", -1, 1 },
-		{ MSIXDATAPERR, "MSI-X data parity error", -1, 1 },
-		{ MSIXDIPERR, "MSI-X DI parity error", -1, 1 },
-		{ PIOCPLPERR, "PCI PIO completion FIFO parity error", -1, 1 },
-		{ PIOREQPERR, "PCI PIO request FIFO parity error", -1, 1 },
-		{ TARTAGPERR, "PCI PCI target tag FIFO parity error", -1, 1 },
-		{ CCNTPERR, "PCI CMD channel count parity error", -1, 1 },
-		{ CREQPERR, "PCI CMD channel request parity error", -1, 1 },
-		{ CRSPPERR, "PCI CMD channel response parity error", -1, 1 },
-		{ DCNTPERR, "PCI DMA channel count parity error", -1, 1 },
-		{ DREQPERR, "PCI DMA channel request parity error", -1, 1 },
-		{ DRSPPERR, "PCI DMA channel response parity error", -1, 1 },
-		{ HCNTPERR, "PCI HMA channel count parity error", -1, 1 },
-		{ HREQPERR, "PCI HMA channel request parity error", -1, 1 },
-		{ HRSPPERR, "PCI HMA channel response parity error", -1, 1 },
-		{ CFGSNPPERR, "PCI config snoop FIFO parity error", -1, 1 },
-		{ FIDPERR, "PCI FID parity error", -1, 1 },
-		{ INTXCLRPERR, "PCI INTx clear parity error", -1, 1 },
-		{ MATAGPERR, "PCI MA tag parity error", -1, 1 },
-		{ PIOTAGPERR, "PCI PIO tag parity error", -1, 1 },
-		{ RXCPLPERR, "PCI Rx completion parity error", -1, 1 },
-		{ RXWRPERR, "PCI Rx write parity error", -1, 1 },
-		{ RPLPERR, "PCI replay buffer parity error", -1, 1 },
-		{ PCIESINT, "PCI core secondary fault", -1, 1 },
-		{ PCIEPINT, "PCI core primary fault", -1, 1 },
-		{ UNXSPLCPLERR, "PCI unexpected split completion error", -1, 0 },
+		{ MSIADDRLPERR_F, "MSI AddrL parity error", -1, 1 },
+		{ MSIADDRHPERR_F, "MSI AddrH parity error", -1, 1 },
+		{ MSIDATAPERR_F, "MSI data parity error", -1, 1 },
+		{ MSIXADDRLPERR_F, "MSI-X AddrL parity error", -1, 1 },
+		{ MSIXADDRHPERR_F, "MSI-X AddrH parity error", -1, 1 },
+		{ MSIXDATAPERR_F, "MSI-X data parity error", -1, 1 },
+		{ MSIXDIPERR_F, "MSI-X DI parity error", -1, 1 },
+		{ PIOCPLPERR_F, "PCI PIO completion FIFO parity error", -1, 1 },
+		{ PIOREQPERR_F, "PCI PIO request FIFO parity error", -1, 1 },
+		{ TARTAGPERR_F, "PCI PCI target tag FIFO parity error", -1, 1 },
+		{ CCNTPERR_F, "PCI CMD channel count parity error", -1, 1 },
+		{ CREQPERR_F, "PCI CMD channel request parity error", -1, 1 },
+		{ CRSPPERR_F, "PCI CMD channel response parity error", -1, 1 },
+		{ DCNTPERR_F, "PCI DMA channel count parity error", -1, 1 },
+		{ DREQPERR_F, "PCI DMA channel request parity error", -1, 1 },
+		{ DRSPPERR_F, "PCI DMA channel response parity error", -1, 1 },
+		{ HCNTPERR_F, "PCI HMA channel count parity error", -1, 1 },
+		{ HREQPERR_F, "PCI HMA channel request parity error", -1, 1 },
+		{ HRSPPERR_F, "PCI HMA channel response parity error", -1, 1 },
+		{ CFGSNPPERR_F, "PCI config snoop FIFO parity error", -1, 1 },
+		{ FIDPERR_F, "PCI FID parity error", -1, 1 },
+		{ INTXCLRPERR_F, "PCI INTx clear parity error", -1, 1 },
+		{ MATAGPERR_F, "PCI MA tag parity error", -1, 1 },
+		{ PIOTAGPERR_F, "PCI PIO tag parity error", -1, 1 },
+		{ RXCPLPERR_F, "PCI Rx completion parity error", -1, 1 },
+		{ RXWRPERR_F, "PCI Rx write parity error", -1, 1 },
+		{ RPLPERR_F, "PCI replay buffer parity error", -1, 1 },
+		{ PCIESINT_F, "PCI core secondary fault", -1, 1 },
+		{ PCIEPINT_F, "PCI core primary fault", -1, 1 },
+		{ UNXSPLCPLERR_F, "PCI unexpected split completion error",
+		  -1, 0 },
 		{ 0 }
 	};
 
 	static struct intr_info t5_pcie_intr_info[] = {
-		{ MSTGRPPERR, "Master Response Read Queue parity error",
+		{ MSTGRPPERR_F, "Master Response Read Queue parity error",
 		  -1, 1 },
-		{ MSTTIMEOUTPERR, "Master Timeout FIFO parity error", -1, 1 },
-		{ MSIXSTIPERR, "MSI-X STI SRAM parity error", -1, 1 },
-		{ MSIXADDRLPERR, "MSI-X AddrL parity error", -1, 1 },
-		{ MSIXADDRHPERR, "MSI-X AddrH parity error", -1, 1 },
-		{ MSIXDATAPERR, "MSI-X data parity error", -1, 1 },
-		{ MSIXDIPERR, "MSI-X DI parity error", -1, 1 },
-		{ PIOCPLGRPPERR, "PCI PIO completion Group FIFO parity error",
+		{ MSTTIMEOUTPERR_F, "Master Timeout FIFO parity error", -1, 1 },
+		{ MSIXSTIPERR_F, "MSI-X STI SRAM parity error", -1, 1 },
+		{ MSIXADDRLPERR_F, "MSI-X AddrL parity error", -1, 1 },
+		{ MSIXADDRHPERR_F, "MSI-X AddrH parity error", -1, 1 },
+		{ MSIXDATAPERR_F, "MSI-X data parity error", -1, 1 },
+		{ MSIXDIPERR_F, "MSI-X DI parity error", -1, 1 },
+		{ PIOCPLGRPPERR_F, "PCI PIO completion Group FIFO parity error",
 		  -1, 1 },
-		{ PIOREQGRPPERR, "PCI PIO request Group FIFO parity error",
+		{ PIOREQGRPPERR_F, "PCI PIO request Group FIFO parity error",
 		  -1, 1 },
-		{ TARTAGPERR, "PCI PCI target tag FIFO parity error", -1, 1 },
-		{ MSTTAGQPERR, "PCI master tag queue parity error", -1, 1 },
-		{ CREQPERR, "PCI CMD channel request parity error", -1, 1 },
-		{ CRSPPERR, "PCI CMD channel response parity error", -1, 1 },
-		{ DREQWRPERR, "PCI DMA channel write request parity error",
+		{ TARTAGPERR_F, "PCI PCI target tag FIFO parity error", -1, 1 },
+		{ MSTTAGQPERR_F, "PCI master tag queue parity error", -1, 1 },
+		{ CREQPERR_F, "PCI CMD channel request parity error", -1, 1 },
+		{ CRSPPERR_F, "PCI CMD channel response parity error", -1, 1 },
+		{ DREQWRPERR_F, "PCI DMA channel write request parity error",
 		  -1, 1 },
-		{ DREQPERR, "PCI DMA channel request parity error", -1, 1 },
-		{ DRSPPERR, "PCI DMA channel response parity error", -1, 1 },
-		{ HREQWRPERR, "PCI HMA channel count parity error", -1, 1 },
-		{ HREQPERR, "PCI HMA channel request parity error", -1, 1 },
-		{ HRSPPERR, "PCI HMA channel response parity error", -1, 1 },
-		{ CFGSNPPERR, "PCI config snoop FIFO parity error", -1, 1 },
-		{ FIDPERR, "PCI FID parity error", -1, 1 },
-		{ VFIDPERR, "PCI INTx clear parity error", -1, 1 },
-		{ MAGRPPERR, "PCI MA group FIFO parity error", -1, 1 },
-		{ PIOTAGPERR, "PCI PIO tag parity error", -1, 1 },
-		{ IPRXHDRGRPPERR, "PCI IP Rx header group parity error",
+		{ DREQPERR_F, "PCI DMA channel request parity error", -1, 1 },
+		{ DRSPPERR_F, "PCI DMA channel response parity error", -1, 1 },
+		{ HREQWRPERR_F, "PCI HMA channel count parity error", -1, 1 },
+		{ HREQPERR_F, "PCI HMA channel request parity error", -1, 1 },
+		{ HRSPPERR_F, "PCI HMA channel response parity error", -1, 1 },
+		{ CFGSNPPERR_F, "PCI config snoop FIFO parity error", -1, 1 },
+		{ FIDPERR_F, "PCI FID parity error", -1, 1 },
+		{ VFIDPERR_F, "PCI INTx clear parity error", -1, 1 },
+		{ MAGRPPERR_F, "PCI MA group FIFO parity error", -1, 1 },
+		{ PIOTAGPERR_F, "PCI PIO tag parity error", -1, 1 },
+		{ IPRXHDRGRPPERR_F, "PCI IP Rx header group parity error",
 		  -1, 1 },
-		{ IPRXDATAGRPPERR, "PCI IP Rx data group parity error", -1, 1 },
-		{ RPLPERR, "PCI IP replay buffer parity error", -1, 1 },
-		{ IPSOTPERR, "PCI IP SOT buffer parity error", -1, 1 },
-		{ TRGT1GRPPERR, "PCI TRGT1 group FIFOs parity error", -1, 1 },
-		{ READRSPERR, "Outbound read error", -1, 0 },
+		{ IPRXDATAGRPPERR_F, "PCI IP Rx data group parity error",
+		  -1, 1 },
+		{ RPLPERR_F, "PCI IP replay buffer parity error", -1, 1 },
+		{ IPSOTPERR_F, "PCI IP SOT buffer parity error", -1, 1 },
+		{ TRGT1GRPPERR_F, "PCI TRGT1 group FIFOs parity error", -1, 1 },
+		{ READRSPERR_F, "Outbound read error", -1, 0 },
 		{ 0 }
 	};
 
@@ -1462,15 +1464,15 @@ static void pcie_intr_handler(struct adapter *adapter)
 
 	if (is_t4(adapter->params.chip))
 		fat = t4_handle_intr_status(adapter,
-					    PCIE_CORE_UTL_SYSTEM_BUS_AGENT_STATUS,
-					    sysbus_intr_info) +
+				PCIE_CORE_UTL_SYSTEM_BUS_AGENT_STATUS_A,
+				sysbus_intr_info) +
 			t4_handle_intr_status(adapter,
-					      PCIE_CORE_UTL_PCI_EXPRESS_PORT_STATUS,
-					      pcie_port_intr_info) +
-			t4_handle_intr_status(adapter, PCIE_INT_CAUSE,
+					PCIE_CORE_UTL_PCI_EXPRESS_PORT_STATUS_A,
+					pcie_port_intr_info) +
+			t4_handle_intr_status(adapter, PCIE_INT_CAUSE_A,
 					      pcie_intr_info);
 	else
-		fat = t4_handle_intr_status(adapter, PCIE_INT_CAUSE,
+		fat = t4_handle_intr_status(adapter, PCIE_INT_CAUSE_A,
 					    t5_pcie_intr_info);
 
 	if (fat)
@@ -1590,7 +1592,7 @@ static void cim_intr_handler(struct adapter *adapter)
 
 	int fat;
 
-	if (t4_read_reg(adapter, MA_PCIE_FW) & PCIE_FW_ERR)
+	if (t4_read_reg(adapter, PCIE_FW_A) & PCIE_FW_ERR_F)
 		t4_report_fw_error(adapter);
 
 	fat = t4_handle_intr_status(adapter, CIM_HOST_INT_CAUSE,
@@ -2750,9 +2752,9 @@ void t4_sge_decode_idma_state(struct adapter *adapter, int state)
 		"IDMA_FL_SEND_COMPLETION_TO_IMSG",
 	};
 	static const u32 sge_regs[] = {
-		SGE_DEBUG_DATA_LOW_INDEX_2,
-		SGE_DEBUG_DATA_LOW_INDEX_3,
-		SGE_DEBUG_DATA_HIGH_INDEX_10,
+		SGE_DEBUG_DATA_LOW_INDEX_2_A,
+		SGE_DEBUG_DATA_LOW_INDEX_3_A,
+		SGE_DEBUG_DATA_HIGH_INDEX_10_A,
 	};
 	const char **sge_idma_decode;
 	int sge_idma_decode_nstates;
@@ -2819,7 +2821,7 @@ retry:
 	if (ret < 0) {
 		if ((ret == -EBUSY || ret == -ETIMEDOUT) && retries-- > 0)
 			goto retry;
-		if (t4_read_reg(adap, MA_PCIE_FW) & PCIE_FW_ERR)
+		if (t4_read_reg(adap, PCIE_FW_A) & PCIE_FW_ERR_F)
 			t4_report_fw_error(adap);
 		return ret;
 	}
@@ -2869,8 +2871,8 @@ retry:
 			 * timeout ... and then retry if we haven't exhausted
 			 * our retries ...
 			 */
-			pcie_fw = t4_read_reg(adap, MA_PCIE_FW);
-			if (!(pcie_fw & (PCIE_FW_ERR|PCIE_FW_INIT))) {
+			pcie_fw = t4_read_reg(adap, PCIE_FW_A);
+			if (!(pcie_fw & (PCIE_FW_ERR_F|PCIE_FW_INIT_F))) {
 				if (waiting <= 0) {
 					if (retries-- > 0)
 						goto retry;
@@ -2885,9 +2887,9 @@ retry:
 			 * report errors preferentially.
 			 */
 			if (state) {
-				if (pcie_fw & PCIE_FW_ERR)
+				if (pcie_fw & PCIE_FW_ERR_F)
 					*state = DEV_STATE_ERR;
-				else if (pcie_fw & PCIE_FW_INIT)
+				else if (pcie_fw & PCIE_FW_INIT_F)
 					*state = DEV_STATE_INIT;
 			}
 
@@ -2897,7 +2899,7 @@ retry:
 			 * for our caller.
 			 */
 			if (master_mbox == PCIE_FW_MASTER_M &&
-			    (pcie_fw & PCIE_FW_MASTER_VLD))
+			    (pcie_fw & PCIE_FW_MASTER_VLD_F))
 				master_mbox = PCIE_FW_MASTER_G(pcie_fw);
 			break;
 		}
@@ -3006,7 +3008,7 @@ static int t4_fw_halt(struct adapter *adap, unsigned int mbox, int force)
 	 */
 	if (ret == 0 || force) {
 		t4_set_reg_field(adap, CIM_BOOT_CFG, UPCRST, UPCRST);
-		t4_set_reg_field(adap, PCIE_FW, PCIE_FW_HALT_F,
+		t4_set_reg_field(adap, PCIE_FW_A, PCIE_FW_HALT_F,
 				 PCIE_FW_HALT_F);
 	}
 
@@ -3046,7 +3048,7 @@ static int t4_fw_restart(struct adapter *adap, unsigned int mbox, int reset)
 		 * doing it automatically, we need to clear the PCIE_FW.HALT
 		 * bit.
 		 */
-		t4_set_reg_field(adap, PCIE_FW, PCIE_FW_HALT_F, 0);
+		t4_set_reg_field(adap, PCIE_FW_A, PCIE_FW_HALT_F, 0);
 
 		/*
 		 * If we've been given a valid mailbox, first try to get the
@@ -3070,7 +3072,7 @@ static int t4_fw_restart(struct adapter *adap, unsigned int mbox, int reset)
 
 		t4_set_reg_field(adap, CIM_BOOT_CFG, UPCRST, 0);
 		for (ms = 0; ms < FW_CMD_MAX_TIMEOUT; ) {
-			if (!(t4_read_reg(adap, PCIE_FW) & PCIE_FW_HALT_F))
+			if (!(t4_read_reg(adap, PCIE_FW_A) & PCIE_FW_HALT_F))
 				return 0;
 			msleep(100);
 			ms += 100;
@@ -4146,7 +4148,7 @@ int t4_init_sge_params(struct adapter *adapter)
 		(QUEUESPERPAGEPF1_S - QUEUESPERPAGEPF0_S) * adapter->fn);
 	qpp = t4_read_reg(adapter, SGE_EGRESS_QUEUES_PER_PAGE_PF_A);
 	sge_params->eq_qpp = ((qpp >> s_qpp) & QUEUESPERPAGEPF0_M);
-	qpp = t4_read_reg(adapter, SGE_INGRESS_QUEUES_PER_PAGE_PF);
+	qpp = t4_read_reg(adapter, SGE_INGRESS_QUEUES_PER_PAGE_PF_A);
 	sge_params->iq_qpp = ((qpp >> s_qpp) & QUEUESPERPAGEPF0_M);
 
 	return 0;

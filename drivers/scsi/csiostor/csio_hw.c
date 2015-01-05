@@ -959,8 +959,8 @@ retry:
 			 * timeout ... and then retry if we haven't exhausted
 			 * our retries ...
 			 */
-			pcie_fw = csio_rd_reg32(hw, PCIE_FW);
-			if (!(pcie_fw & (PCIE_FW_ERR|PCIE_FW_INIT))) {
+			pcie_fw = csio_rd_reg32(hw, PCIE_FW_A);
+			if (!(pcie_fw & (PCIE_FW_ERR_F|PCIE_FW_INIT_F))) {
 				if (waiting <= 0) {
 					if (retries-- > 0)
 						goto retry;
@@ -976,10 +976,10 @@ retry:
 			 * report errors preferentially.
 			 */
 			if (state) {
-				if (pcie_fw & PCIE_FW_ERR) {
+				if (pcie_fw & PCIE_FW_ERR_F) {
 					*state = CSIO_DEV_STATE_ERR;
 					rv = -ETIMEDOUT;
-				} else if (pcie_fw & PCIE_FW_INIT)
+				} else if (pcie_fw & PCIE_FW_INIT_F)
 					*state = CSIO_DEV_STATE_INIT;
 			}
 
@@ -988,9 +988,9 @@ retry:
 			 * there's not a valid Master PF, grab its identity
 			 * for our caller.
 			 */
-			if (mpfn == PCIE_FW_MASTER_MASK &&
-			    (pcie_fw & PCIE_FW_MASTER_VLD))
-				mpfn = PCIE_FW_MASTER_GET(pcie_fw);
+			if (mpfn == PCIE_FW_MASTER_M &&
+			    (pcie_fw & PCIE_FW_MASTER_VLD_F))
+				mpfn = PCIE_FW_MASTER_G(pcie_fw);
 			break;
 		}
 		hw->flags &= ~CSIO_HWF_MASTER;
@@ -1156,7 +1156,7 @@ csio_hw_fw_halt(struct csio_hw *hw, uint32_t mbox, int32_t force)
 	 * If a legitimate mailbox is provided, issue a RESET command
 	 * with a HALT indication.
 	 */
-	if (mbox <= PCIE_FW_MASTER_MASK) {
+	if (mbox <= PCIE_FW_MASTER_M) {
 		struct csio_mb	*mbp;
 
 		mbp = mempool_alloc(hw->mb_mempool, GFP_ATOMIC);
@@ -1194,7 +1194,8 @@ csio_hw_fw_halt(struct csio_hw *hw, uint32_t mbox, int32_t force)
 	 */
 	if (retval == 0 || force) {
 		csio_set_reg_field(hw, CIM_BOOT_CFG, UPCRST, UPCRST);
-		csio_set_reg_field(hw, PCIE_FW, PCIE_FW_HALT, PCIE_FW_HALT);
+		csio_set_reg_field(hw, PCIE_FW_A, PCIE_FW_HALT_F,
+				   PCIE_FW_HALT_F);
 	}
 
 	/*
@@ -1234,7 +1235,7 @@ csio_hw_fw_restart(struct csio_hw *hw, uint32_t mbox, int32_t reset)
 		 * doing it automatically, we need to clear the PCIE_FW.HALT
 		 * bit.
 		 */
-		csio_set_reg_field(hw, PCIE_FW, PCIE_FW_HALT, 0);
+		csio_set_reg_field(hw, PCIE_FW_A, PCIE_FW_HALT_F, 0);
 
 		/*
 		 * If we've been given a valid mailbox, first try to get the
@@ -1243,7 +1244,7 @@ csio_hw_fw_restart(struct csio_hw *hw, uint32_t mbox, int32_t reset)
 		 * valid mailbox or the RESET command failed, fall back to
 		 * hitting the chip with a hammer.
 		 */
-		if (mbox <= PCIE_FW_MASTER_MASK) {
+		if (mbox <= PCIE_FW_MASTER_M) {
 			csio_set_reg_field(hw, CIM_BOOT_CFG, UPCRST, 0);
 			msleep(100);
 			if (csio_do_reset(hw, true) == 0)
@@ -1257,7 +1258,7 @@ csio_hw_fw_restart(struct csio_hw *hw, uint32_t mbox, int32_t reset)
 
 		csio_set_reg_field(hw, CIM_BOOT_CFG, UPCRST, 0);
 		for (ms = 0; ms < FW_CMD_MAX_TIMEOUT; ) {
-			if (!(csio_rd_reg32(hw, PCIE_FW) & PCIE_FW_HALT))
+			if (!(csio_rd_reg32(hw, PCIE_FW_A) & PCIE_FW_HALT_F))
 				return 0;
 			msleep(100);
 			ms += 100;
@@ -2237,11 +2238,11 @@ csio_hw_intr_enable(struct csio_hw *hw)
 	 * by FW, so do nothing for INTX.
 	 */
 	if (hw->intr_mode == CSIO_IM_MSIX)
-		csio_set_reg_field(hw, MYPF_REG(PCIE_PF_CFG),
-				   AIVEC(AIVEC_MASK), vec);
+		csio_set_reg_field(hw, MYPF_REG(PCIE_PF_CFG_A),
+				   AIVEC_V(AIVEC_M), vec);
 	else if (hw->intr_mode == CSIO_IM_MSI)
-		csio_set_reg_field(hw, MYPF_REG(PCIE_PF_CFG),
-				   AIVEC(AIVEC_MASK), 0);
+		csio_set_reg_field(hw, MYPF_REG(PCIE_PF_CFG_A),
+				   AIVEC_V(AIVEC_M), 0);
 
 	csio_wr_reg32(hw, PF_INTR_MASK, MYPF_REG(PL_PF_INT_ENABLE));
 

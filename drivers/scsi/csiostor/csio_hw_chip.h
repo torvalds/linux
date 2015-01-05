@@ -71,10 +71,10 @@ static inline int csio_is_t5(uint16_t chip)
 
 #define CSIO_HW_LP_INT_THRESH(hw, val)					\
 	(csio_is_t4(hw->chip_id) ? (LP_INT_THRESH_V(val)) :		\
-					(V_LP_INT_THRESH_T5(val)))
+					(LP_INT_THRESH_T5_V(val)))
 
 #define CSIO_HW_M_LP_INT_THRESH(hw)					\
-	(csio_is_t4(hw->chip_id) ? (LP_INT_THRESH_M) : (M_LP_INT_THRESH_T5))
+	(csio_is_t4(hw->chip_id) ? (LP_INT_THRESH_M) : (LP_INT_THRESH_T5_M))
 
 #define CSIO_MAC_INT_CAUSE_REG(hw, port)				\
 	(csio_is_t4(hw->chip_id) ? (PORT_REG(port, XGMAC_PORT_INT_CAUSE)) : \
