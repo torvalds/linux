@@ -5185,8 +5185,6 @@ static int megasas_probe_one(struct pci_dev *pdev,
 			((1 << PAGE_SHIFT) << instance->ctrl_context_pages));
 		INIT_LIST_HEAD(&fusion->cmd_pool);
 		spin_lock_init(&fusion->mpt_pool_lock);
-		memset(fusion->load_balance_info, 0,
-			sizeof(struct LD_LOAD_BALANCE_INFO) * MAX_LOGICAL_DRIVES_EXT);
 	}
 	break;
 	default: /* For all other supported controllers */
