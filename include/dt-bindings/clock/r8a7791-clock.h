@@ -20,6 +20,7 @@
 #define R8A7791_CLK_SDH			6
 #define R8A7791_CLK_SD0			7
 #define R8A7791_CLK_Z			8
+#define R8A7791_CLK_RCAN		9
 
 /* MSTP0 */
 #define R8A7791_CLK_MSIOF0		0
