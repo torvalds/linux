@@ -350,6 +350,9 @@ struct pending_req {
 	struct grant_page	*indirect_pages[MAX_INDIRECT_PAGES];
 	struct seg_buf		seg[MAX_INDIRECT_SEGMENTS];
 	struct bio		*biolist[MAX_INDIRECT_SEGMENTS];
+	struct gnttab_unmap_grant_ref unmap[MAX_INDIRECT_SEGMENTS];
+	struct page                   *unmap_pages[MAX_INDIRECT_SEGMENTS];
+	struct gntab_unmap_queue_data gnttab_unmap_data;
 };
 
 
