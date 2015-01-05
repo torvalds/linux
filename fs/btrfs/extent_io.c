@@ -2817,8 +2817,10 @@ static int submit_extent_page(int rw, struct extent_io_tree *tree,
 		    bio_add_page(bio, page, page_size, offset) < page_size) {
 			ret = submit_one_bio(rw, bio, mirror_num,
 					     prev_bio_flags);
-			if (ret < 0)
+			if (ret < 0) {
+				*bio_ret = NULL;
 				return ret;
+			}
 			bio = NULL;
 		} else {
 			return 0;
