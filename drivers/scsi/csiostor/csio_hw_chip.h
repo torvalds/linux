@@ -66,19 +66,19 @@ static inline int csio_is_t5(uint16_t chip)
 	{ PCI_VENDOR_ID_CHELSIO, (devid), PCI_ANY_ID, PCI_ANY_ID, 0, 0, (idx) }
 
 #define CSIO_HW_PIDX(hw, index)						\
-	(csio_is_t4(hw->chip_id) ? (PIDX(index)) :			\
-					(PIDX_T5(index) | DBTYPE(1U)))
+	(csio_is_t4(hw->chip_id) ? (PIDX_V(index)) :			\
+					(PIDX_T5_G(index) | DBTYPE_F))
 
 #define CSIO_HW_LP_INT_THRESH(hw, val)					\
-	(csio_is_t4(hw->chip_id) ? (LP_INT_THRESH(val)) :		\
-					(V_LP_INT_THRESH_T5(val)))
+	(csio_is_t4(hw->chip_id) ? (LP_INT_THRESH_V(val)) :		\
+					(LP_INT_THRESH_T5_V(val)))
 
 #define CSIO_HW_M_LP_INT_THRESH(hw)					\
-	(csio_is_t4(hw->chip_id) ? (LP_INT_THRESH_MASK) : (M_LP_INT_THRESH_T5))
+	(csio_is_t4(hw->chip_id) ? (LP_INT_THRESH_M) : (LP_INT_THRESH_T5_M))
 
 #define CSIO_MAC_INT_CAUSE_REG(hw, port)				\
-	(csio_is_t4(hw->chip_id) ? (PORT_REG(port, XGMAC_PORT_INT_CAUSE)) : \
-				(T5_PORT_REG(port, MAC_PORT_INT_CAUSE)))
+	(csio_is_t4(hw->chip_id) ? (PORT_REG(port, XGMAC_PORT_INT_CAUSE_A)) : \
+				(T5_PORT_REG(port, MAC_PORT_INT_CAUSE_A)))
 
 #define FW_VERSION_MAJOR(hw) (csio_is_t4(hw->chip_id) ? 1 : 0)
 #define FW_VERSION_MINOR(hw) (csio_is_t4(hw->chip_id) ? 2 : 0)

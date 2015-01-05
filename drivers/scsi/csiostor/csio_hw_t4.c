@@ -96,11 +96,11 @@ csio_t4_set_mem_win(struct csio_hw *hw, uint32_t win)
 	 * back MA register to ensure that changes propagate before we attempt
 	 * to use the new values.)
 	 */
-	csio_wr_reg32(hw, mem_win_base | BIR(0) |
-			  WINDOW(ilog2(MEMWIN_APERTURE) - 10),
-			  PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN, win));
+	csio_wr_reg32(hw, mem_win_base | BIR_V(0) |
+			  WINDOW_V(ilog2(MEMWIN_APERTURE) - 10),
+			  PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN_A, win));
 	csio_rd_reg32(hw,
-		      PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN, win));
+		      PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN_A, win));
 	return 0;
 }
 
@@ -111,69 +111,69 @@ static void
 csio_t4_pcie_intr_handler(struct csio_hw *hw)
 {
 	static struct intr_info sysbus_intr_info[] = {
-		{ RNPP, "RXNP array parity error", -1, 1 },
-		{ RPCP, "RXPC array parity error", -1, 1 },
-		{ RCIP, "RXCIF array parity error", -1, 1 },
-		{ RCCP, "Rx completions control array parity error", -1, 1 },
-		{ RFTP, "RXFT array parity error", -1, 1 },
+		{ RNPP_F, "RXNP array parity error", -1, 1 },
+		{ RPCP_F, "RXPC array parity error", -1, 1 },
+		{ RCIP_F, "RXCIF array parity error", -1, 1 },
+		{ RCCP_F, "Rx completions control array parity error", -1, 1 },
+		{ RFTP_F, "RXFT array parity error", -1, 1 },
 		{ 0, NULL, 0, 0 }
 	};
 	static struct intr_info pcie_port_intr_info[] = {
-		{ TPCP, "TXPC array parity error", -1, 1 },
-		{ TNPP, "TXNP array parity error", -1, 1 },
-		{ TFTP, "TXFT array parity error", -1, 1 },
-		{ TCAP, "TXCA array parity error", -1, 1 },
-		{ TCIP, "TXCIF array parity error", -1, 1 },
-		{ RCAP, "RXCA array parity error", -1, 1 },
-		{ OTDD, "outbound request TLP discarded", -1, 1 },
-		{ RDPE, "Rx data parity error", -1, 1 },
-		{ TDUE, "Tx uncorrectable data error", -1, 1 },
+		{ TPCP_F, "TXPC array parity error", -1, 1 },
+		{ TNPP_F, "TXNP array parity error", -1, 1 },
+		{ TFTP_F, "TXFT array parity error", -1, 1 },
+		{ TCAP_F, "TXCA array parity error", -1, 1 },
+		{ TCIP_F, "TXCIF array parity error", -1, 1 },
+		{ RCAP_F, "RXCA array parity error", -1, 1 },
+		{ OTDD_F, "outbound request TLP discarded", -1, 1 },
+		{ RDPE_F, "Rx data parity error", -1, 1 },
+		{ TDUE_F, "Tx uncorrectable data error", -1, 1 },
 		{ 0, NULL, 0, 0 }
 	};
 
 	static struct intr_info pcie_intr_info[] = {
-		{ MSIADDRLPERR, "MSI AddrL parity error", -1, 1 },
-		{ MSIADDRHPERR, "MSI AddrH parity error", -1, 1 },
-		{ MSIDATAPERR, "MSI data parity error", -1, 1 },
-		{ MSIXADDRLPERR, "MSI-X AddrL parity error", -1, 1 },
-		{ MSIXADDRHPERR, "MSI-X AddrH parity error", -1, 1 },
-		{ MSIXDATAPERR, "MSI-X data parity error", -1, 1 },
-		{ MSIXDIPERR, "MSI-X DI parity error", -1, 1 },
-		{ PIOCPLPERR, "PCI PIO completion FIFO parity error", -1, 1 },
-		{ PIOREQPERR, "PCI PIO request FIFO parity error", -1, 1 },
-		{ TARTAGPERR, "PCI PCI target tag FIFO parity error", -1, 1 },
-		{ CCNTPERR, "PCI CMD channel count parity error", -1, 1 },
-		{ CREQPERR, "PCI CMD channel request parity error", -1, 1 },
-		{ CRSPPERR, "PCI CMD channel response parity error", -1, 1 },
-		{ DCNTPERR, "PCI DMA channel count parity error", -1, 1 },
-		{ DREQPERR, "PCI DMA channel request parity error", -1, 1 },
-		{ DRSPPERR, "PCI DMA channel response parity error", -1, 1 },
-		{ HCNTPERR, "PCI HMA channel count parity error", -1, 1 },
-		{ HREQPERR, "PCI HMA channel request parity error", -1, 1 },
-		{ HRSPPERR, "PCI HMA channel response parity error", -1, 1 },
-		{ CFGSNPPERR, "PCI config snoop FIFO parity error", -1, 1 },
-		{ FIDPERR, "PCI FID parity error", -1, 1 },
-		{ INTXCLRPERR, "PCI INTx clear parity error", -1, 1 },
-		{ MATAGPERR, "PCI MA tag parity error", -1, 1 },
-		{ PIOTAGPERR, "PCI PIO tag parity error", -1, 1 },
-		{ RXCPLPERR, "PCI Rx completion parity error", -1, 1 },
-		{ RXWRPERR, "PCI Rx write parity error", -1, 1 },
-		{ RPLPERR, "PCI replay buffer parity error", -1, 1 },
-		{ PCIESINT, "PCI core secondary fault", -1, 1 },
-		{ PCIEPINT, "PCI core primary fault", -1, 1 },
-		{ UNXSPLCPLERR, "PCI unexpected split completion error", -1,
+		{ MSIADDRLPERR_F, "MSI AddrL parity error", -1, 1 },
+		{ MSIADDRHPERR_F, "MSI AddrH parity error", -1, 1 },
+		{ MSIDATAPERR_F, "MSI data parity error", -1, 1 },
+		{ MSIXADDRLPERR_F, "MSI-X AddrL parity error", -1, 1 },
+		{ MSIXADDRHPERR_F, "MSI-X AddrH parity error", -1, 1 },
+		{ MSIXDATAPERR_F, "MSI-X data parity error", -1, 1 },
+		{ MSIXDIPERR_F, "MSI-X DI parity error", -1, 1 },
+		{ PIOCPLPERR_F, "PCI PIO completion FIFO parity error", -1, 1 },
+		{ PIOREQPERR_F, "PCI PIO request FIFO parity error", -1, 1 },
+		{ TARTAGPERR_F, "PCI PCI target tag FIFO parity error", -1, 1 },
+		{ CCNTPERR_F, "PCI CMD channel count parity error", -1, 1 },
+		{ CREQPERR_F, "PCI CMD channel request parity error", -1, 1 },
+		{ CRSPPERR_F, "PCI CMD channel response parity error", -1, 1 },
+		{ DCNTPERR_F, "PCI DMA channel count parity error", -1, 1 },
+		{ DREQPERR_F, "PCI DMA channel request parity error", -1, 1 },
+		{ DRSPPERR_F, "PCI DMA channel response parity error", -1, 1 },
+		{ HCNTPERR_F, "PCI HMA channel count parity error", -1, 1 },
+		{ HREQPERR_F, "PCI HMA channel request parity error", -1, 1 },
+		{ HRSPPERR_F, "PCI HMA channel response parity error", -1, 1 },
+		{ CFGSNPPERR_F, "PCI config snoop FIFO parity error", -1, 1 },
+		{ FIDPERR_F, "PCI FID parity error", -1, 1 },
+		{ INTXCLRPERR_F, "PCI INTx clear parity error", -1, 1 },
+		{ MATAGPERR_F, "PCI MA tag parity error", -1, 1 },
+		{ PIOTAGPERR_F, "PCI PIO tag parity error", -1, 1 },
+		{ RXCPLPERR_F, "PCI Rx completion parity error", -1, 1 },
+		{ RXWRPERR_F, "PCI Rx write parity error", -1, 1 },
+		{ RPLPERR_F, "PCI replay buffer parity error", -1, 1 },
+		{ PCIESINT_F, "PCI core secondary fault", -1, 1 },
+		{ PCIEPINT_F, "PCI core primary fault", -1, 1 },
+		{ UNXSPLCPLERR_F, "PCI unexpected split completion error", -1,
 		  0 },
 		{ 0, NULL, 0, 0 }
 	};
 
 	int fat;
 	fat = csio_handle_intr_status(hw,
-				      PCIE_CORE_UTL_SYSTEM_BUS_AGENT_STATUS,
+				      PCIE_CORE_UTL_SYSTEM_BUS_AGENT_STATUS_A,
 				      sysbus_intr_info) +
 	      csio_handle_intr_status(hw,
-				      PCIE_CORE_UTL_PCI_EXPRESS_PORT_STATUS,
+				      PCIE_CORE_UTL_PCI_EXPRESS_PORT_STATUS_A,
 				      pcie_port_intr_info) +
-	      csio_handle_intr_status(hw, PCIE_INT_CAUSE, pcie_intr_info);
+	      csio_handle_intr_status(hw, PCIE_INT_CAUSE_A, pcie_intr_info);
 	if (fat)
 		csio_hw_fatal_err(hw);
 }
@@ -209,19 +209,19 @@ csio_t4_mc_read(struct csio_hw *hw, int idx, uint32_t addr, __be32 *data,
 {
 	int i;
 
-	if (csio_rd_reg32(hw, MC_BIST_CMD) & START_BIST)
+	if (csio_rd_reg32(hw, MC_BIST_CMD_A) & START_BIST_F)
 		return -EBUSY;
-	csio_wr_reg32(hw, addr & ~0x3fU, MC_BIST_CMD_ADDR);
-	csio_wr_reg32(hw, 64, MC_BIST_CMD_LEN);
-	csio_wr_reg32(hw, 0xc, MC_BIST_DATA_PATTERN);
-	csio_wr_reg32(hw, BIST_OPCODE(1) | START_BIST | BIST_CMD_GAP(1),
-		      MC_BIST_CMD);
-	i = csio_hw_wait_op_done_val(hw, MC_BIST_CMD, START_BIST,
+	csio_wr_reg32(hw, addr & ~0x3fU, MC_BIST_CMD_ADDR_A);
+	csio_wr_reg32(hw, 64, MC_BIST_CMD_LEN_A);
+	csio_wr_reg32(hw, 0xc, MC_BIST_DATA_PATTERN_A);
+	csio_wr_reg32(hw, BIST_OPCODE_V(1) | START_BIST_F | BIST_CMD_GAP_V(1),
+		      MC_BIST_CMD_A);
+	i = csio_hw_wait_op_done_val(hw, MC_BIST_CMD_A, START_BIST_F,
 				     0, 10, 1, NULL);
 	if (i)
 		return i;
 
-#define MC_DATA(i) MC_BIST_STATUS_REG(MC_BIST_STATUS_RDATA, i)
+#define MC_DATA(i) MC_BIST_STATUS_REG(MC_BIST_STATUS_RDATA_A, i)
 
 	for (i = 15; i >= 0; i--)
 		*data++ = htonl(csio_rd_reg32(hw, MC_DATA(i)));
@@ -250,19 +250,19 @@ csio_t4_edc_read(struct csio_hw *hw, int idx, uint32_t addr, __be32 *data,
 	int i;
 
 	idx *= EDC_STRIDE;
-	if (csio_rd_reg32(hw, EDC_BIST_CMD + idx) & START_BIST)
+	if (csio_rd_reg32(hw, EDC_BIST_CMD_A + idx) & START_BIST_F)
 		return -EBUSY;
-	csio_wr_reg32(hw, addr & ~0x3fU, EDC_BIST_CMD_ADDR + idx);
-	csio_wr_reg32(hw, 64, EDC_BIST_CMD_LEN + idx);
-	csio_wr_reg32(hw, 0xc, EDC_BIST_DATA_PATTERN + idx);
-	csio_wr_reg32(hw, BIST_OPCODE(1) | BIST_CMD_GAP(1) | START_BIST,
-		      EDC_BIST_CMD + idx);
-	i = csio_hw_wait_op_done_val(hw, EDC_BIST_CMD + idx, START_BIST,
+	csio_wr_reg32(hw, addr & ~0x3fU, EDC_BIST_CMD_ADDR_A + idx);
+	csio_wr_reg32(hw, 64, EDC_BIST_CMD_LEN_A + idx);
+	csio_wr_reg32(hw, 0xc, EDC_BIST_DATA_PATTERN_A + idx);
+	csio_wr_reg32(hw, BIST_OPCODE_V(1) | BIST_CMD_GAP_V(1) | START_BIST_F,
+		      EDC_BIST_CMD_A + idx);
+	i = csio_hw_wait_op_done_val(hw, EDC_BIST_CMD_A + idx, START_BIST_F,
 				     0, 10, 1, NULL);
 	if (i)
 		return i;
 
-#define EDC_DATA(i) (EDC_BIST_STATUS_REG(EDC_BIST_STATUS_RDATA, i) + idx)
+#define EDC_DATA(i) (EDC_BIST_STATUS_REG(EDC_BIST_STATUS_RDATA_A, i) + idx)
 
 	for (i = 15; i >= 0; i--)
 		*data++ = htonl(csio_rd_reg32(hw, EDC_DATA(i)));
@@ -329,9 +329,9 @@ csio_t4_memory_rw(struct csio_hw *hw, u32 win, int mtype, u32 addr,
 	 * the address is relative to BAR0.
 	 */
 	mem_reg = csio_rd_reg32(hw,
-			PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN, win));
-	mem_aperture = 1 << (WINDOW(mem_reg) + 10);
-	mem_base = GET_PCIEOFST(mem_reg) << 10;
+			PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN_A, win));
+	mem_aperture = 1 << (WINDOW_V(mem_reg) + 10);
+	mem_base = PCIEOFST_G(mem_reg) << 10;
 
 	bar0 = csio_t4_read_pcie_cfg4(hw, PCI_BASE_ADDRESS_0);
 	bar0 &= PCI_BASE_ADDRESS_MEM_MASK;
@@ -356,9 +356,9 @@ csio_t4_memory_rw(struct csio_hw *hw, u32 win, int mtype, u32 addr,
 		 * before we attempt to use the new value.
 		 */
 		csio_wr_reg32(hw, pos,
-			PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET, win));
+			PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET_A, win));
 		csio_rd_reg32(hw,
-			PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET, win));
+			PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET_A, win));
 
 		while (offset < mem_aperture && len > 0) {
 			if (dir)
