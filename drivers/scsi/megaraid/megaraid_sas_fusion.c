@@ -698,12 +698,11 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 		cpu_to_le32(lower_32_bits(ioc_init_handle));
 	init_frame->data_xfer_len = cpu_to_le32(sizeof(struct MPI2_IOC_INIT_REQUEST));
 
-	req_desc.Words = 0;
+	req_desc.u.low = cpu_to_le32(lower_32_bits(cmd->frame_phys_addr));
+	req_desc.u.high = cpu_to_le32(upper_32_bits(cmd->frame_phys_addr));
 	req_desc.MFAIo.RequestFlags =
 		(MEGASAS_REQ_DESCRIPT_FLAGS_MFA <<
-		 MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
-	cpu_to_le32s((u32 *)&req_desc.MFAIo);
-	req_desc.Words |= cpu_to_le64(cmd->frame_phys_addr);
+		MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 
 	/*
 	 * disable the intr before firing the init frame
