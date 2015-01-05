@@ -1091,8 +1091,10 @@ static void netlink_remove(struct sock *sk)
 	mutex_unlock(&nl_sk_hash_lock);
 
 	netlink_table_grab();
-	if (nlk_sk(sk)->subscriptions)
+	if (nlk_sk(sk)->subscriptions) {
 		__sk_del_bind_node(sk);
+		netlink_update_listeners(sk);
+	}
 	netlink_table_ungrab();
 }
 
@@ -1139,8 +1141,8 @@ static int netlink_create(struct net *net, struct socket *sock, int protocol,
 	struct module *module = NULL;
 	struct mutex *cb_mutex;
 	struct netlink_sock *nlk;
-	int (*bind)(int group);
-	void (*unbind)(int group);
+	int (*bind)(struct net *net, int group);
+	void (*unbind)(struct net *net, int group);
 	int err = 0;
 
 	sock->state = SS_UNCONNECTED;
@@ -1226,8 +1228,8 @@ static int netlink_release(struct socket *sock)
 
 	module_put(nlk->module);
 
-	netlink_table_grab();
 	if (netlink_is_kernel(sk)) {
+		netlink_table_grab();
 		BUG_ON(nl_table[sk->sk_protocol].registered == 0);
 		if (--nl_table[sk->sk_protocol].registered == 0) {
 			struct listeners *old;
@@ -1241,11 +1243,16 @@ static int netlink_release(struct socket *sock)
 			nl_table[sk->sk_protocol].flags = 0;
 			nl_table[sk->sk_protocol].registered = 0;
 		}
-	} else if (nlk->subscriptions) {
-		netlink_update_listeners(sk);
+		netlink_table_ungrab();
 	}
-	netlink_table_ungrab();
 
+	if (nlk->netlink_unbind) {
+		int i;
+
+		for (i = 0; i < nlk->ngroups; i++)
+			if (test_bit(i, nlk->groups))
+				nlk->netlink_unbind(sock_net(sk), i + 1);
+	}
 	kfree(nlk->groups);
 	nlk->groups = NULL;
 
@@ -1410,9 +1417,10 @@ static int netlink_realloc_groups(struct sock *sk)
 	return err;
 }
 
-static void netlink_unbind(int group, long unsigned int groups,
-			   struct netlink_sock *nlk)
+static void netlink_undo_bind(int group, long unsigned int groups,
+			      struct sock *sk)
 {
+	struct netlink_sock *nlk = nlk_sk(sk);
 	int undo;
 
 	if (!nlk->netlink_unbind)
@@ -1420,7 +1428,7 @@ static void netlink_unbind(int group, long unsigned int groups,
 
 	for (undo = 0; undo < group; undo++)
 		if (test_bit(undo, &groups))
-			nlk->netlink_unbind(undo);
+			nlk->netlink_unbind(sock_net(sk), undo);
 }
 
 static int netlink_bind(struct socket *sock, struct sockaddr *addr,
@@ -1458,10 +1466,10 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 		for (group = 0; group < nlk->ngroups; group++) {
 			if (!test_bit(group, &groups))
 				continue;
-			err = nlk->netlink_bind(group);
+			err = nlk->netlink_bind(net, group);
 			if (!err)
 				continue;
-			netlink_unbind(group, groups, nlk);
+			netlink_undo_bind(group, groups, sk);
 			return err;
 		}
 	}
@@ -1471,7 +1479,7 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 			netlink_insert(sk, net, nladdr->nl_pid) :
 			netlink_autobind(sock);
 		if (err) {
-			netlink_unbind(nlk->ngroups, groups, nlk);
+			netlink_undo_bind(nlk->ngroups, groups, sk);
 			return err;
 		}
 	}
@@ -2122,7 +2130,7 @@ static int netlink_setsockopt(struct socket *sock, int level, int optname,
 		if (!val || val - 1 >= nlk->ngroups)
 			return -EINVAL;
 		if (optname == NETLINK_ADD_MEMBERSHIP && nlk->netlink_bind) {
-			err = nlk->netlink_bind(val);
+			err = nlk->netlink_bind(sock_net(sk), val);
 			if (err)
 				return err;
 		}
@@ -2131,7 +2139,7 @@ static int netlink_setsockopt(struct socket *sock, int level, int optname,
 					 optname == NETLINK_ADD_MEMBERSHIP);
 		netlink_table_ungrab();
 		if (optname == NETLINK_DROP_MEMBERSHIP && nlk->netlink_unbind)
-			nlk->netlink_unbind(val);
+			nlk->netlink_unbind(sock_net(sk), val);
 
 		err = 0;
 		break;

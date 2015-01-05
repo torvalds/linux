@@ -335,7 +335,6 @@ static struct platform_driver int3400_thermal_driver = {
 	.remove = int3400_thermal_remove,
 	.driver = {
 		   .name = "int3400 thermal",
-		   .owner = THIS_MODULE,
 		   .acpi_match_table = ACPI_PTR(int3400_thermal_match),
 		   },
 };

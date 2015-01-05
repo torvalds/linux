@@ -362,11 +362,14 @@ gen7_render_ring_flush(struct intel_engine_cs *ring,
 		flags |= PIPE_CONTROL_VF_CACHE_INVALIDATE;
 		flags |= PIPE_CONTROL_CONST_CACHE_INVALIDATE;
 		flags |= PIPE_CONTROL_STATE_CACHE_INVALIDATE;
+		flags |= PIPE_CONTROL_MEDIA_STATE_CLEAR;
 		/*
 		 * TLB invalidate requires a post-sync write.
 		 */
 		flags |= PIPE_CONTROL_QW_WRITE;
 		flags |= PIPE_CONTROL_GLOBAL_GTT_IVB;
+
+		flags |= PIPE_CONTROL_STALL_AT_SCOREBOARD;
 
 		/* Workaround: we must issue a pipe_control with CS-stall bit
 		 * set before a pipe_control command that has the state cache
