@@ -1193,7 +1193,7 @@ csio_hw_fw_halt(struct csio_hw *hw, uint32_t mbox, int32_t force)
 	 * rather than a RESET ... if it's new enough to understand that ...
 	 */
 	if (retval == 0 || force) {
-		csio_set_reg_field(hw, CIM_BOOT_CFG, UPCRST, UPCRST);
+		csio_set_reg_field(hw, CIM_BOOT_CFG_A, UPCRST_F, UPCRST_F);
 		csio_set_reg_field(hw, PCIE_FW_A, PCIE_FW_HALT_F,
 				   PCIE_FW_HALT_F);
 	}
@@ -1245,7 +1245,7 @@ csio_hw_fw_restart(struct csio_hw *hw, uint32_t mbox, int32_t reset)
 		 * hitting the chip with a hammer.
 		 */
 		if (mbox <= PCIE_FW_MASTER_M) {
-			csio_set_reg_field(hw, CIM_BOOT_CFG, UPCRST, 0);
+			csio_set_reg_field(hw, CIM_BOOT_CFG_A, UPCRST_F, 0);
 			msleep(100);
 			if (csio_do_reset(hw, true) == 0)
 				return 0;
@@ -1256,7 +1256,7 @@ csio_hw_fw_restart(struct csio_hw *hw, uint32_t mbox, int32_t reset)
 	} else {
 		int ms;
 
-		csio_set_reg_field(hw, CIM_BOOT_CFG, UPCRST, 0);
+		csio_set_reg_field(hw, CIM_BOOT_CFG_A, UPCRST_F, 0);
 		for (ms = 0; ms < FW_CMD_MAX_TIMEOUT; ) {
 			if (!(csio_rd_reg32(hw, PCIE_FW_A) & PCIE_FW_HALT_F))
 				return 0;
@@ -2741,10 +2741,10 @@ static void csio_sge_intr_handler(struct csio_hw *hw)
 		csio_hw_fatal_err(hw);
 }
 
-#define CIM_OBQ_INTR (OBQULP0PARERR | OBQULP1PARERR | OBQULP2PARERR |\
-		      OBQULP3PARERR | OBQSGEPARERR | OBQNCSIPARERR)
-#define CIM_IBQ_INTR (IBQTP0PARERR | IBQTP1PARERR | IBQULPPARERR |\
-		      IBQSGEHIPARERR | IBQSGELOPARERR | IBQNCSIPARERR)
+#define CIM_OBQ_INTR (OBQULP0PARERR_F | OBQULP1PARERR_F | OBQULP2PARERR_F |\
+		      OBQULP3PARERR_F | OBQSGEPARERR_F | OBQNCSIPARERR_F)
+#define CIM_IBQ_INTR (IBQTP0PARERR_F | IBQTP1PARERR_F | IBQULPPARERR_F |\
+		      IBQSGEHIPARERR_F | IBQSGELOPARERR_F | IBQNCSIPARERR_F)
 
 /*
  * CIM interrupt handler.
@@ -2752,53 +2752,53 @@ static void csio_sge_intr_handler(struct csio_hw *hw)
 static void csio_cim_intr_handler(struct csio_hw *hw)
 {
 	static struct intr_info cim_intr_info[] = {
-		{ PREFDROPINT, "CIM control register prefetch drop", -1, 1 },
+		{ PREFDROPINT_F, "CIM control register prefetch drop", -1, 1 },
 		{ CIM_OBQ_INTR, "CIM OBQ parity error", -1, 1 },
 		{ CIM_IBQ_INTR, "CIM IBQ parity error", -1, 1 },
-		{ MBUPPARERR, "CIM mailbox uP parity error", -1, 1 },
-		{ MBHOSTPARERR, "CIM mailbox host parity error", -1, 1 },
-		{ TIEQINPARERRINT, "CIM TIEQ outgoing parity error", -1, 1 },
-		{ TIEQOUTPARERRINT, "CIM TIEQ incoming parity error", -1, 1 },
+		{ MBUPPARERR_F, "CIM mailbox uP parity error", -1, 1 },
+		{ MBHOSTPARERR_F, "CIM mailbox host parity error", -1, 1 },
+		{ TIEQINPARERRINT_F, "CIM TIEQ outgoing parity error", -1, 1 },
+		{ TIEQOUTPARERRINT_F, "CIM TIEQ incoming parity error", -1, 1 },
 		{ 0, NULL, 0, 0 }
 	};
 	static struct intr_info cim_upintr_info[] = {
-		{ RSVDSPACEINT, "CIM reserved space access", -1, 1 },
-		{ ILLTRANSINT, "CIM illegal transaction", -1, 1 },
-		{ ILLWRINT, "CIM illegal write", -1, 1 },
-		{ ILLRDINT, "CIM illegal read", -1, 1 },
-		{ ILLRDBEINT, "CIM illegal read BE", -1, 1 },
-		{ ILLWRBEINT, "CIM illegal write BE", -1, 1 },
-		{ SGLRDBOOTINT, "CIM single read from boot space", -1, 1 },
-		{ SGLWRBOOTINT, "CIM single write to boot space", -1, 1 },
-		{ BLKWRBOOTINT, "CIM block write to boot space", -1, 1 },
-		{ SGLRDFLASHINT, "CIM single read from flash space", -1, 1 },
-		{ SGLWRFLASHINT, "CIM single write to flash space", -1, 1 },
-		{ BLKWRFLASHINT, "CIM block write to flash space", -1, 1 },
-		{ SGLRDEEPROMINT, "CIM single EEPROM read", -1, 1 },
-		{ SGLWREEPROMINT, "CIM single EEPROM write", -1, 1 },
-		{ BLKRDEEPROMINT, "CIM block EEPROM read", -1, 1 },
-		{ BLKWREEPROMINT, "CIM block EEPROM write", -1, 1 },
-		{ SGLRDCTLINT , "CIM single read from CTL space", -1, 1 },
-		{ SGLWRCTLINT , "CIM single write to CTL space", -1, 1 },
-		{ BLKRDCTLINT , "CIM block read from CTL space", -1, 1 },
-		{ BLKWRCTLINT , "CIM block write to CTL space", -1, 1 },
-		{ SGLRDPLINT , "CIM single read from PL space", -1, 1 },
-		{ SGLWRPLINT , "CIM single write to PL space", -1, 1 },
-		{ BLKRDPLINT , "CIM block read from PL space", -1, 1 },
-		{ BLKWRPLINT , "CIM block write to PL space", -1, 1 },
-		{ REQOVRLOOKUPINT , "CIM request FIFO overwrite", -1, 1 },
-		{ RSPOVRLOOKUPINT , "CIM response FIFO overwrite", -1, 1 },
-		{ TIMEOUTINT , "CIM PIF timeout", -1, 1 },
-		{ TIMEOUTMAINT , "CIM PIF MA timeout", -1, 1 },
+		{ RSVDSPACEINT_F, "CIM reserved space access", -1, 1 },
+		{ ILLTRANSINT_F, "CIM illegal transaction", -1, 1 },
+		{ ILLWRINT_F, "CIM illegal write", -1, 1 },
+		{ ILLRDINT_F, "CIM illegal read", -1, 1 },
+		{ ILLRDBEINT_F, "CIM illegal read BE", -1, 1 },
+		{ ILLWRBEINT_F, "CIM illegal write BE", -1, 1 },
+		{ SGLRDBOOTINT_F, "CIM single read from boot space", -1, 1 },
+		{ SGLWRBOOTINT_F, "CIM single write to boot space", -1, 1 },
+		{ BLKWRBOOTINT_F, "CIM block write to boot space", -1, 1 },
+		{ SGLRDFLASHINT_F, "CIM single read from flash space", -1, 1 },
+		{ SGLWRFLASHINT_F, "CIM single write to flash space", -1, 1 },
+		{ BLKWRFLASHINT_F, "CIM block write to flash space", -1, 1 },
+		{ SGLRDEEPROMINT_F, "CIM single EEPROM read", -1, 1 },
+		{ SGLWREEPROMINT_F, "CIM single EEPROM write", -1, 1 },
+		{ BLKRDEEPROMINT_F, "CIM block EEPROM read", -1, 1 },
+		{ BLKWREEPROMINT_F, "CIM block EEPROM write", -1, 1 },
+		{ SGLRDCTLINT_F, "CIM single read from CTL space", -1, 1 },
+		{ SGLWRCTLINT_F, "CIM single write to CTL space", -1, 1 },
+		{ BLKRDCTLINT_F, "CIM block read from CTL space", -1, 1 },
+		{ BLKWRCTLINT_F, "CIM block write to CTL space", -1, 1 },
+		{ SGLRDPLINT_F, "CIM single read from PL space", -1, 1 },
+		{ SGLWRPLINT_F, "CIM single write to PL space", -1, 1 },
+		{ BLKRDPLINT_F, "CIM block read from PL space", -1, 1 },
+		{ BLKWRPLINT_F, "CIM block write to PL space", -1, 1 },
+		{ REQOVRLOOKUPINT_F, "CIM request FIFO overwrite", -1, 1 },
+		{ RSPOVRLOOKUPINT_F, "CIM response FIFO overwrite", -1, 1 },
+		{ TIMEOUTINT_F, "CIM PIF timeout", -1, 1 },
+		{ TIMEOUTMAINT_F, "CIM PIF MA timeout", -1, 1 },
 		{ 0, NULL, 0, 0 }
 	};
 
 	int fat;
 
-	fat = csio_handle_intr_status(hw, CIM_HOST_INT_CAUSE,
-				    cim_intr_info) +
-	      csio_handle_intr_status(hw, CIM_HOST_UPACC_INT_CAUSE,
-				    cim_upintr_info);
+	fat = csio_handle_intr_status(hw, CIM_HOST_INT_CAUSE_A,
+				      cim_intr_info) +
+	      csio_handle_intr_status(hw, CIM_HOST_UPACC_INT_CAUSE_A,
+				      cim_upintr_info);
 	if (fat)
 		csio_hw_fatal_err(hw);
 }
@@ -2987,7 +2987,8 @@ static void csio_mps_intr_handler(struct csio_hw *hw)
 		csio_hw_fatal_err(hw);
 }
 
-#define MEM_INT_MASK (PERR_INT_CAUSE | ECC_CE_INT_CAUSE | ECC_UE_INT_CAUSE)
+#define MEM_INT_MASK (PERR_INT_CAUSE_F | ECC_CE_INT_CAUSE_F | \
+		      ECC_UE_INT_CAUSE_F)
 
 /*
  * EDC/MC interrupt handler.
@@ -2999,28 +3000,28 @@ static void csio_mem_intr_handler(struct csio_hw *hw, int idx)
 	unsigned int addr, cnt_addr, v;
 
 	if (idx <= MEM_EDC1) {
-		addr = EDC_REG(EDC_INT_CAUSE, idx);
-		cnt_addr = EDC_REG(EDC_ECC_STATUS, idx);
+		addr = EDC_REG(EDC_INT_CAUSE_A, idx);
+		cnt_addr = EDC_REG(EDC_ECC_STATUS_A, idx);
 	} else {
-		addr = MC_INT_CAUSE;
-		cnt_addr = MC_ECC_STATUS;
+		addr = MC_INT_CAUSE_A;
+		cnt_addr = MC_ECC_STATUS_A;
 	}
 
 	v = csio_rd_reg32(hw, addr) & MEM_INT_MASK;
-	if (v & PERR_INT_CAUSE)
+	if (v & PERR_INT_CAUSE_F)
 		csio_fatal(hw, "%s FIFO parity error\n", name[idx]);
-	if (v & ECC_CE_INT_CAUSE) {
-		uint32_t cnt = ECC_CECNT_GET(csio_rd_reg32(hw, cnt_addr));
+	if (v & ECC_CE_INT_CAUSE_F) {
+		uint32_t cnt = ECC_CECNT_G(csio_rd_reg32(hw, cnt_addr));
 
-		csio_wr_reg32(hw, ECC_CECNT_MASK, cnt_addr);
+		csio_wr_reg32(hw, ECC_CECNT_V(ECC_CECNT_M), cnt_addr);
 		csio_warn(hw, "%u %s correctable ECC data error%s\n",
 			    cnt, name[idx], cnt > 1 ? "s" : "");
 	}
-	if (v & ECC_UE_INT_CAUSE)
+	if (v & ECC_UE_INT_CAUSE_F)
 		csio_fatal(hw, "%s uncorrectable ECC data error\n", name[idx]);
 
 	csio_wr_reg32(hw, v, addr);
-	if (v & (PERR_INT_CAUSE | ECC_UE_INT_CAUSE))
+	if (v & (PERR_INT_CAUSE_F | ECC_UE_INT_CAUSE_F))
 		csio_hw_fatal_err(hw);
 }
 
@@ -3029,18 +3030,18 @@ static void csio_mem_intr_handler(struct csio_hw *hw, int idx)
  */
 static void csio_ma_intr_handler(struct csio_hw *hw)
 {
-	uint32_t v, status = csio_rd_reg32(hw, MA_INT_CAUSE);
+	uint32_t v, status = csio_rd_reg32(hw, MA_INT_CAUSE_A);
 
-	if (status & MEM_PERR_INT_CAUSE)
+	if (status & MEM_PERR_INT_CAUSE_F)
 		csio_fatal(hw, "MA parity error, parity status %#x\n",
-			    csio_rd_reg32(hw, MA_PARITY_ERROR_STATUS));
-	if (status & MEM_WRAP_INT_CAUSE) {
-		v = csio_rd_reg32(hw, MA_INT_WRAP_STATUS);
+			    csio_rd_reg32(hw, MA_PARITY_ERROR_STATUS_A));
+	if (status & MEM_WRAP_INT_CAUSE_F) {
+		v = csio_rd_reg32(hw, MA_INT_WRAP_STATUS_A);
 		csio_fatal(hw,
 		   "MA address wrap-around error by client %u to address %#x\n",
-		   MEM_WRAP_CLIENT_NUM_GET(v), MEM_WRAP_ADDRESS_GET(v) << 4);
+		   MEM_WRAP_CLIENT_NUM_G(v), MEM_WRAP_ADDRESS_G(v) << 4);
 	}
-	csio_wr_reg32(hw, status, MA_INT_CAUSE);
+	csio_wr_reg32(hw, status, MA_INT_CAUSE_A);
 	csio_hw_fatal_err(hw);
 }
 

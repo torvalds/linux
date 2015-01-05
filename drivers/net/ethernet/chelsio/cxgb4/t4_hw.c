@@ -265,8 +265,8 @@ int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 	u64 res;
 	int i, ms, delay_idx;
 	const __be64 *p = cmd;
-	u32 data_reg = PF_REG(mbox, CIM_PF_MAILBOX_DATA);
-	u32 ctl_reg = PF_REG(mbox, CIM_PF_MAILBOX_CTRL);
+	u32 data_reg = PF_REG(mbox, CIM_PF_MAILBOX_DATA_A);
+	u32 ctl_reg = PF_REG(mbox, CIM_PF_MAILBOX_CTRL_A);
 
 	if ((size & 15) || size > MBOX_LEN)
 		return -EINVAL;
@@ -278,9 +278,9 @@ int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 	if (adap->pdev->error_state != pci_channel_io_normal)
 		return -EIO;
 
-	v = MBOWNER_GET(t4_read_reg(adap, ctl_reg));
+	v = MBOWNER_G(t4_read_reg(adap, ctl_reg));
 	for (i = 0; v == MBOX_OWNER_NONE && i < 3; i++)
-		v = MBOWNER_GET(t4_read_reg(adap, ctl_reg));
+		v = MBOWNER_G(t4_read_reg(adap, ctl_reg));
 
 	if (v != MBOX_OWNER_DRV)
 		return v ? -EBUSY : -ETIMEDOUT;
@@ -288,7 +288,7 @@ int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 	for (i = 0; i < size; i += 8)
 		t4_write_reg64(adap, data_reg + i, be64_to_cpu(*p++));
 
-	t4_write_reg(adap, ctl_reg, MBMSGVALID | MBOWNER(MBOX_OWNER_FW));
+	t4_write_reg(adap, ctl_reg, MBMSGVALID_F | MBOWNER_V(MBOX_OWNER_FW));
 	t4_read_reg(adap, ctl_reg);          /* flush write */
 
 	delay_idx = 0;
@@ -304,8 +304,8 @@ int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 			mdelay(ms);
 
 		v = t4_read_reg(adap, ctl_reg);
-		if (MBOWNER_GET(v) == MBOX_OWNER_DRV) {
-			if (!(v & MBMSGVALID)) {
+		if (MBOWNER_G(v) == MBOX_OWNER_DRV) {
+			if (!(v & MBMSGVALID_F)) {
 				t4_write_reg(adap, ctl_reg, 0);
 				continue;
 			}
@@ -351,27 +351,27 @@ int t4_mc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *ecc)
 	u32 mc_bist_status_rdata, mc_bist_data_pattern;
 
 	if (is_t4(adap->params.chip)) {
-		mc_bist_cmd = MC_BIST_CMD;
-		mc_bist_cmd_addr = MC_BIST_CMD_ADDR;
-		mc_bist_cmd_len = MC_BIST_CMD_LEN;
-		mc_bist_status_rdata = MC_BIST_STATUS_RDATA;
-		mc_bist_data_pattern = MC_BIST_DATA_PATTERN;
+		mc_bist_cmd = MC_BIST_CMD_A;
+		mc_bist_cmd_addr = MC_BIST_CMD_ADDR_A;
+		mc_bist_cmd_len = MC_BIST_CMD_LEN_A;
+		mc_bist_status_rdata = MC_BIST_STATUS_RDATA_A;
+		mc_bist_data_pattern = MC_BIST_DATA_PATTERN_A;
 	} else {
-		mc_bist_cmd = MC_REG(MC_P_BIST_CMD, idx);
-		mc_bist_cmd_addr = MC_REG(MC_P_BIST_CMD_ADDR, idx);
-		mc_bist_cmd_len = MC_REG(MC_P_BIST_CMD_LEN, idx);
-		mc_bist_status_rdata = MC_REG(MC_P_BIST_STATUS_RDATA, idx);
-		mc_bist_data_pattern = MC_REG(MC_P_BIST_DATA_PATTERN, idx);
+		mc_bist_cmd = MC_REG(MC_P_BIST_CMD_A, idx);
+		mc_bist_cmd_addr = MC_REG(MC_P_BIST_CMD_ADDR_A, idx);
+		mc_bist_cmd_len = MC_REG(MC_P_BIST_CMD_LEN_A, idx);
+		mc_bist_status_rdata = MC_REG(MC_P_BIST_STATUS_RDATA_A, idx);
+		mc_bist_data_pattern = MC_REG(MC_P_BIST_DATA_PATTERN_A, idx);
 	}
 
-	if (t4_read_reg(adap, mc_bist_cmd) & START_BIST)
+	if (t4_read_reg(adap, mc_bist_cmd) & START_BIST_F)
 		return -EBUSY;
 	t4_write_reg(adap, mc_bist_cmd_addr, addr & ~0x3fU);
 	t4_write_reg(adap, mc_bist_cmd_len, 64);
 	t4_write_reg(adap, mc_bist_data_pattern, 0xc);
-	t4_write_reg(adap, mc_bist_cmd, BIST_OPCODE(1) | START_BIST |
-		     BIST_CMD_GAP(1));
-	i = t4_wait_op_done(adap, mc_bist_cmd, START_BIST, 0, 10, 1);
+	t4_write_reg(adap, mc_bist_cmd, BIST_OPCODE_V(1) | START_BIST_F |
+		     BIST_CMD_GAP_V(1));
+	i = t4_wait_op_done(adap, mc_bist_cmd, START_BIST_F, 0, 10, 1);
 	if (i)
 		return i;
 
@@ -404,31 +404,31 @@ int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *ecc)
 	u32 edc_bist_cmd_data_pattern, edc_bist_status_rdata;
 
 	if (is_t4(adap->params.chip)) {
-		edc_bist_cmd = EDC_REG(EDC_BIST_CMD, idx);
-		edc_bist_cmd_addr = EDC_REG(EDC_BIST_CMD_ADDR, idx);
-		edc_bist_cmd_len = EDC_REG(EDC_BIST_CMD_LEN, idx);
-		edc_bist_cmd_data_pattern = EDC_REG(EDC_BIST_DATA_PATTERN,
+		edc_bist_cmd = EDC_REG(EDC_BIST_CMD_A, idx);
+		edc_bist_cmd_addr = EDC_REG(EDC_BIST_CMD_ADDR_A, idx);
+		edc_bist_cmd_len = EDC_REG(EDC_BIST_CMD_LEN_A, idx);
+		edc_bist_cmd_data_pattern = EDC_REG(EDC_BIST_DATA_PATTERN_A,
 						    idx);
-		edc_bist_status_rdata = EDC_REG(EDC_BIST_STATUS_RDATA,
-						    idx);
+		edc_bist_status_rdata = EDC_REG(EDC_BIST_STATUS_RDATA_A,
+						idx);
 	} else {
-		edc_bist_cmd = EDC_REG_T5(EDC_H_BIST_CMD, idx);
-		edc_bist_cmd_addr = EDC_REG_T5(EDC_H_BIST_CMD_ADDR, idx);
-		edc_bist_cmd_len = EDC_REG_T5(EDC_H_BIST_CMD_LEN, idx);
+		edc_bist_cmd = EDC_REG_T5(EDC_H_BIST_CMD_A, idx);
+		edc_bist_cmd_addr = EDC_REG_T5(EDC_H_BIST_CMD_ADDR_A, idx);
+		edc_bist_cmd_len = EDC_REG_T5(EDC_H_BIST_CMD_LEN_A, idx);
 		edc_bist_cmd_data_pattern =
-			EDC_REG_T5(EDC_H_BIST_DATA_PATTERN, idx);
+			EDC_REG_T5(EDC_H_BIST_DATA_PATTERN_A, idx);
 		edc_bist_status_rdata =
-			 EDC_REG_T5(EDC_H_BIST_STATUS_RDATA, idx);
+			 EDC_REG_T5(EDC_H_BIST_STATUS_RDATA_A, idx);
 	}
 
-	if (t4_read_reg(adap, edc_bist_cmd) & START_BIST)
+	if (t4_read_reg(adap, edc_bist_cmd) & START_BIST_F)
 		return -EBUSY;
 	t4_write_reg(adap, edc_bist_cmd_addr, addr & ~0x3fU);
 	t4_write_reg(adap, edc_bist_cmd_len, 64);
 	t4_write_reg(adap, edc_bist_cmd_data_pattern, 0xc);
 	t4_write_reg(adap, edc_bist_cmd,
-		     BIST_OPCODE(1) | BIST_CMD_GAP(1) | START_BIST);
-	i = t4_wait_op_done(adap, edc_bist_cmd, START_BIST, 0, 10, 1);
+		     BIST_OPCODE_V(1) | BIST_CMD_GAP_V(1) | START_BIST_F);
+	i = t4_wait_op_done(adap, edc_bist_cmd, START_BIST_F, 0, 10, 1);
 	if (i)
 		return i;
 
@@ -1543,50 +1543,55 @@ static void sge_intr_handler(struct adapter *adapter)
 		t4_fatal_err(adapter);
 }
 
+#define CIM_OBQ_INTR (OBQULP0PARERR_F | OBQULP1PARERR_F | OBQULP2PARERR_F |\
+		      OBQULP3PARERR_F | OBQSGEPARERR_F | OBQNCSIPARERR_F)
+#define CIM_IBQ_INTR (IBQTP0PARERR_F | IBQTP1PARERR_F | IBQULPPARERR_F |\
+		      IBQSGEHIPARERR_F | IBQSGELOPARERR_F | IBQNCSIPARERR_F)
+
 /*
  * CIM interrupt handler.
  */
 static void cim_intr_handler(struct adapter *adapter)
 {
 	static const struct intr_info cim_intr_info[] = {
-		{ PREFDROPINT, "CIM control register prefetch drop", -1, 1 },
-		{ OBQPARERR, "CIM OBQ parity error", -1, 1 },
-		{ IBQPARERR, "CIM IBQ parity error", -1, 1 },
-		{ MBUPPARERR, "CIM mailbox uP parity error", -1, 1 },
-		{ MBHOSTPARERR, "CIM mailbox host parity error", -1, 1 },
-		{ TIEQINPARERRINT, "CIM TIEQ outgoing parity error", -1, 1 },
-		{ TIEQOUTPARERRINT, "CIM TIEQ incoming parity error", -1, 1 },
+		{ PREFDROPINT_F, "CIM control register prefetch drop", -1, 1 },
+		{ CIM_OBQ_INTR, "CIM OBQ parity error", -1, 1 },
+		{ CIM_IBQ_INTR, "CIM IBQ parity error", -1, 1 },
+		{ MBUPPARERR_F, "CIM mailbox uP parity error", -1, 1 },
+		{ MBHOSTPARERR_F, "CIM mailbox host parity error", -1, 1 },
+		{ TIEQINPARERRINT_F, "CIM TIEQ outgoing parity error", -1, 1 },
+		{ TIEQOUTPARERRINT_F, "CIM TIEQ incoming parity error", -1, 1 },
 		{ 0 }
 	};
 	static const struct intr_info cim_upintr_info[] = {
-		{ RSVDSPACEINT, "CIM reserved space access", -1, 1 },
-		{ ILLTRANSINT, "CIM illegal transaction", -1, 1 },
-		{ ILLWRINT, "CIM illegal write", -1, 1 },
-		{ ILLRDINT, "CIM illegal read", -1, 1 },
-		{ ILLRDBEINT, "CIM illegal read BE", -1, 1 },
-		{ ILLWRBEINT, "CIM illegal write BE", -1, 1 },
-		{ SGLRDBOOTINT, "CIM single read from boot space", -1, 1 },
-		{ SGLWRBOOTINT, "CIM single write to boot space", -1, 1 },
-		{ BLKWRBOOTINT, "CIM block write to boot space", -1, 1 },
-		{ SGLRDFLASHINT, "CIM single read from flash space", -1, 1 },
-		{ SGLWRFLASHINT, "CIM single write to flash space", -1, 1 },
-		{ BLKWRFLASHINT, "CIM block write to flash space", -1, 1 },
-		{ SGLRDEEPROMINT, "CIM single EEPROM read", -1, 1 },
-		{ SGLWREEPROMINT, "CIM single EEPROM write", -1, 1 },
-		{ BLKRDEEPROMINT, "CIM block EEPROM read", -1, 1 },
-		{ BLKWREEPROMINT, "CIM block EEPROM write", -1, 1 },
-		{ SGLRDCTLINT , "CIM single read from CTL space", -1, 1 },
-		{ SGLWRCTLINT , "CIM single write to CTL space", -1, 1 },
-		{ BLKRDCTLINT , "CIM block read from CTL space", -1, 1 },
-		{ BLKWRCTLINT , "CIM block write to CTL space", -1, 1 },
-		{ SGLRDPLINT , "CIM single read from PL space", -1, 1 },
-		{ SGLWRPLINT , "CIM single write to PL space", -1, 1 },
-		{ BLKRDPLINT , "CIM block read from PL space", -1, 1 },
-		{ BLKWRPLINT , "CIM block write to PL space", -1, 1 },
-		{ REQOVRLOOKUPINT , "CIM request FIFO overwrite", -1, 1 },
-		{ RSPOVRLOOKUPINT , "CIM response FIFO overwrite", -1, 1 },
-		{ TIMEOUTINT , "CIM PIF timeout", -1, 1 },
-		{ TIMEOUTMAINT , "CIM PIF MA timeout", -1, 1 },
+		{ RSVDSPACEINT_F, "CIM reserved space access", -1, 1 },
+		{ ILLTRANSINT_F, "CIM illegal transaction", -1, 1 },
+		{ ILLWRINT_F, "CIM illegal write", -1, 1 },
+		{ ILLRDINT_F, "CIM illegal read", -1, 1 },
+		{ ILLRDBEINT_F, "CIM illegal read BE", -1, 1 },
+		{ ILLWRBEINT_F, "CIM illegal write BE", -1, 1 },
+		{ SGLRDBOOTINT_F, "CIM single read from boot space", -1, 1 },
+		{ SGLWRBOOTINT_F, "CIM single write to boot space", -1, 1 },
+		{ BLKWRBOOTINT_F, "CIM block write to boot space", -1, 1 },
+		{ SGLRDFLASHINT_F, "CIM single read from flash space", -1, 1 },
+		{ SGLWRFLASHINT_F, "CIM single write to flash space", -1, 1 },
+		{ BLKWRFLASHINT_F, "CIM block write to flash space", -1, 1 },
+		{ SGLRDEEPROMINT_F, "CIM single EEPROM read", -1, 1 },
+		{ SGLWREEPROMINT_F, "CIM single EEPROM write", -1, 1 },
+		{ BLKRDEEPROMINT_F, "CIM block EEPROM read", -1, 1 },
+		{ BLKWREEPROMINT_F, "CIM block EEPROM write", -1, 1 },
+		{ SGLRDCTLINT_F, "CIM single read from CTL space", -1, 1 },
+		{ SGLWRCTLINT_F, "CIM single write to CTL space", -1, 1 },
+		{ BLKRDCTLINT_F, "CIM block read from CTL space", -1, 1 },
+		{ BLKWRCTLINT_F, "CIM block write to CTL space", -1, 1 },
+		{ SGLRDPLINT_F, "CIM single read from PL space", -1, 1 },
+		{ SGLWRPLINT_F, "CIM single write to PL space", -1, 1 },
+		{ BLKRDPLINT_F, "CIM block read from PL space", -1, 1 },
+		{ BLKWRPLINT_F, "CIM block write to PL space", -1, 1 },
+		{ REQOVRLOOKUPINT_F, "CIM request FIFO overwrite", -1, 1 },
+		{ RSPOVRLOOKUPINT_F, "CIM response FIFO overwrite", -1, 1 },
+		{ TIMEOUTINT_F, "CIM PIF timeout", -1, 1 },
+		{ TIMEOUTMAINT_F, "CIM PIF MA timeout", -1, 1 },
 		{ 0 }
 	};
 
@@ -1595,9 +1600,9 @@ static void cim_intr_handler(struct adapter *adapter)
 	if (t4_read_reg(adapter, PCIE_FW_A) & PCIE_FW_ERR_F)
 		t4_report_fw_error(adapter);
 
-	fat = t4_handle_intr_status(adapter, CIM_HOST_INT_CAUSE,
+	fat = t4_handle_intr_status(adapter, CIM_HOST_INT_CAUSE_A,
 				    cim_intr_info) +
-	      t4_handle_intr_status(adapter, CIM_HOST_UPACC_INT_CAUSE,
+	      t4_handle_intr_status(adapter, CIM_HOST_UPACC_INT_CAUSE_A,
 				    cim_upintr_info);
 	if (fat)
 		t4_fatal_err(adapter);
@@ -1786,7 +1791,8 @@ static void mps_intr_handler(struct adapter *adapter)
 		t4_fatal_err(adapter);
 }
 
-#define MEM_INT_MASK (PERR_INT_CAUSE | ECC_CE_INT_CAUSE | ECC_UE_INT_CAUSE)
+#define MEM_INT_MASK (PERR_INT_CAUSE_F | ECC_CE_INT_CAUSE_F | \
+		      ECC_UE_INT_CAUSE_F)
 
 /*
  * EDC/MC interrupt handler.
@@ -1798,40 +1804,40 @@ static void mem_intr_handler(struct adapter *adapter, int idx)
 	unsigned int addr, cnt_addr, v;
 
 	if (idx <= MEM_EDC1) {
-		addr = EDC_REG(EDC_INT_CAUSE, idx);
-		cnt_addr = EDC_REG(EDC_ECC_STATUS, idx);
+		addr = EDC_REG(EDC_INT_CAUSE_A, idx);
+		cnt_addr = EDC_REG(EDC_ECC_STATUS_A, idx);
 	} else if (idx == MEM_MC) {
 		if (is_t4(adapter->params.chip)) {
-			addr = MC_INT_CAUSE;
-			cnt_addr = MC_ECC_STATUS;
+			addr = MC_INT_CAUSE_A;
+			cnt_addr = MC_ECC_STATUS_A;
 		} else {
-			addr = MC_P_INT_CAUSE;
-			cnt_addr = MC_P_ECC_STATUS;
+			addr = MC_P_INT_CAUSE_A;
+			cnt_addr = MC_P_ECC_STATUS_A;
 		}
 	} else {
-		addr = MC_REG(MC_P_INT_CAUSE, 1);
-		cnt_addr = MC_REG(MC_P_ECC_STATUS, 1);
+		addr = MC_REG(MC_P_INT_CAUSE_A, 1);
+		cnt_addr = MC_REG(MC_P_ECC_STATUS_A, 1);
 	}
 
 	v = t4_read_reg(adapter, addr) & MEM_INT_MASK;
-	if (v & PERR_INT_CAUSE)
+	if (v & PERR_INT_CAUSE_F)
 		dev_alert(adapter->pdev_dev, "%s FIFO parity error\n",
 			  name[idx]);
-	if (v & ECC_CE_INT_CAUSE) {
-		u32 cnt = ECC_CECNT_GET(t4_read_reg(adapter, cnt_addr));
+	if (v & ECC_CE_INT_CAUSE_F) {
+		u32 cnt = ECC_CECNT_G(t4_read_reg(adapter, cnt_addr));
 
-		t4_write_reg(adapter, cnt_addr, ECC_CECNT_MASK);
+		t4_write_reg(adapter, cnt_addr, ECC_CECNT_V(ECC_CECNT_M));
 		if (printk_ratelimit())
 			dev_warn(adapter->pdev_dev,
 				 "%u %s correctable ECC data error%s\n",
 				 cnt, name[idx], cnt > 1 ? "s" : "");
 	}
-	if (v & ECC_UE_INT_CAUSE)
+	if (v & ECC_UE_INT_CAUSE_F)
 		dev_alert(adapter->pdev_dev,
 			  "%s uncorrectable ECC data error\n", name[idx]);
 
 	t4_write_reg(adapter, addr, v);
-	if (v & (PERR_INT_CAUSE | ECC_UE_INT_CAUSE))
+	if (v & (PERR_INT_CAUSE_F | ECC_UE_INT_CAUSE_F))
 		t4_fatal_err(adapter);
 }
 
@@ -1840,26 +1846,26 @@ static void mem_intr_handler(struct adapter *adapter, int idx)
  */
 static void ma_intr_handler(struct adapter *adap)
 {
-	u32 v, status = t4_read_reg(adap, MA_INT_CAUSE);
+	u32 v, status = t4_read_reg(adap, MA_INT_CAUSE_A);
 
-	if (status & MEM_PERR_INT_CAUSE) {
+	if (status & MEM_PERR_INT_CAUSE_F) {
 		dev_alert(adap->pdev_dev,
 			  "MA parity error, parity status %#x\n",
-			  t4_read_reg(adap, MA_PARITY_ERROR_STATUS));
+			  t4_read_reg(adap, MA_PARITY_ERROR_STATUS1_A));
 		if (is_t5(adap->params.chip))
 			dev_alert(adap->pdev_dev,
 				  "MA parity error, parity status %#x\n",
 				  t4_read_reg(adap,
-					      MA_PARITY_ERROR_STATUS2));
+					      MA_PARITY_ERROR_STATUS2_A));
 	}
-	if (status & MEM_WRAP_INT_CAUSE) {
-		v = t4_read_reg(adap, MA_INT_WRAP_STATUS);
+	if (status & MEM_WRAP_INT_CAUSE_F) {
+		v = t4_read_reg(adap, MA_INT_WRAP_STATUS_A);
 		dev_alert(adap->pdev_dev, "MA address wrap-around error by "
 			  "client %u to address %#x\n",
-			  MEM_WRAP_CLIENT_NUM_GET(v),
-			  MEM_WRAP_ADDRESS_GET(v) << 4);
+			  MEM_WRAP_CLIENT_NUM_G(v),
+			  MEM_WRAP_ADDRESS_G(v) << 4);
 	}
-	t4_write_reg(adap, MA_INT_CAUSE, status);
+	t4_write_reg(adap, MA_INT_CAUSE_A, status);
 	t4_fatal_err(adap);
 }
 
@@ -3007,7 +3013,7 @@ static int t4_fw_halt(struct adapter *adap, unsigned int mbox, int force)
 	 * rather than a RESET ... if it's new enough to understand that ...
 	 */
 	if (ret == 0 || force) {
-		t4_set_reg_field(adap, CIM_BOOT_CFG, UPCRST, UPCRST);
+		t4_set_reg_field(adap, CIM_BOOT_CFG_A, UPCRST_F, UPCRST_F);
 		t4_set_reg_field(adap, PCIE_FW_A, PCIE_FW_HALT_F,
 				 PCIE_FW_HALT_F);
 	}
@@ -3058,7 +3064,7 @@ static int t4_fw_restart(struct adapter *adap, unsigned int mbox, int reset)
 		 * hitting the chip with a hammer.
 		 */
 		if (mbox <= PCIE_FW_MASTER_M) {
-			t4_set_reg_field(adap, CIM_BOOT_CFG, UPCRST, 0);
+			t4_set_reg_field(adap, CIM_BOOT_CFG_A, UPCRST_F, 0);
 			msleep(100);
 			if (t4_fw_reset(adap, mbox,
 					PIORST | PIORSTMODE) == 0)
@@ -3070,7 +3076,7 @@ static int t4_fw_restart(struct adapter *adap, unsigned int mbox, int reset)
 	} else {
 		int ms;
 
-		t4_set_reg_field(adap, CIM_BOOT_CFG, UPCRST, 0);
+		t4_set_reg_field(adap, CIM_BOOT_CFG_A, UPCRST_F, 0);
 		for (ms = 0; ms < FW_CMD_MAX_TIMEOUT; ) {
 			if (!(t4_read_reg(adap, PCIE_FW_A) & PCIE_FW_HALT_F))
 				return 0;
@@ -3973,7 +3979,7 @@ static int get_flash_params(struct adapter *adap)
 		return -EINVAL;
 	adap->params.sf_size = 1 << info;
 	adap->params.sf_fw_start =
-		t4_read_reg(adap, CIM_BOOT_CFG) & BOOTADDR_MASK;
+		t4_read_reg(adap, CIM_BOOT_CFG_A) & BOOTADDR_M;
 
 	if (adap->params.sf_size < FLASH_MIN_SIZE)
 		dev_warn(adap->pdev_dev, "WARNING!!! FLASH size %#x < %#x!!!\n",

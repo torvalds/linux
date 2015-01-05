@@ -177,25 +177,25 @@ csio_t5_mc_read(struct csio_hw *hw, int idx, uint32_t addr, __be32 *data,
 	uint32_t mc_bist_cmd_reg, mc_bist_cmd_addr_reg, mc_bist_cmd_len_reg;
 	uint32_t mc_bist_status_rdata_reg, mc_bist_data_pattern_reg;
 
-	mc_bist_cmd_reg = MC_REG(MC_P_BIST_CMD, idx);
-	mc_bist_cmd_addr_reg = MC_REG(MC_P_BIST_CMD_ADDR, idx);
-	mc_bist_cmd_len_reg = MC_REG(MC_P_BIST_CMD_LEN, idx);
-	mc_bist_status_rdata_reg = MC_REG(MC_P_BIST_STATUS_RDATA, idx);
-	mc_bist_data_pattern_reg = MC_REG(MC_P_BIST_DATA_PATTERN, idx);
+	mc_bist_cmd_reg = MC_REG(MC_P_BIST_CMD_A, idx);
+	mc_bist_cmd_addr_reg = MC_REG(MC_P_BIST_CMD_ADDR_A, idx);
+	mc_bist_cmd_len_reg = MC_REG(MC_P_BIST_CMD_LEN_A, idx);
+	mc_bist_status_rdata_reg = MC_REG(MC_P_BIST_STATUS_RDATA_A, idx);
+	mc_bist_data_pattern_reg = MC_REG(MC_P_BIST_DATA_PATTERN_A, idx);
 
-	if (csio_rd_reg32(hw, mc_bist_cmd_reg) & START_BIST)
+	if (csio_rd_reg32(hw, mc_bist_cmd_reg) & START_BIST_F)
 		return -EBUSY;
 	csio_wr_reg32(hw, addr & ~0x3fU, mc_bist_cmd_addr_reg);
 	csio_wr_reg32(hw, 64, mc_bist_cmd_len_reg);
 	csio_wr_reg32(hw, 0xc, mc_bist_data_pattern_reg);
-	csio_wr_reg32(hw, BIST_OPCODE(1) | START_BIST |  BIST_CMD_GAP(1),
+	csio_wr_reg32(hw, BIST_OPCODE_V(1) | START_BIST_F |  BIST_CMD_GAP_V(1),
 		      mc_bist_cmd_reg);
-	i = csio_hw_wait_op_done_val(hw, mc_bist_cmd_reg, START_BIST,
+	i = csio_hw_wait_op_done_val(hw, mc_bist_cmd_reg, START_BIST_F,
 				     0, 10, 1, NULL);
 	if (i)
 		return i;
 
-#define MC_DATA(i) MC_BIST_STATUS_REG(MC_BIST_STATUS_RDATA, i)
+#define MC_DATA(i) MC_BIST_STATUS_REG(MC_BIST_STATUS_RDATA_A, i)
 
 	for (i = 15; i >= 0; i--)
 		*data++ = htonl(csio_rd_reg32(hw, MC_DATA(i)));
@@ -231,27 +231,27 @@ csio_t5_edc_read(struct csio_hw *hw, int idx, uint32_t addr, __be32 *data,
 #define EDC_STRIDE_T5 (EDC_T51_BASE_ADDR - EDC_T50_BASE_ADDR)
 #define EDC_REG_T5(reg, idx) (reg + EDC_STRIDE_T5 * idx)
 
-	edc_bist_cmd_reg = EDC_REG_T5(EDC_H_BIST_CMD, idx);
-	edc_bist_cmd_addr_reg = EDC_REG_T5(EDC_H_BIST_CMD_ADDR, idx);
-	edc_bist_cmd_len_reg = EDC_REG_T5(EDC_H_BIST_CMD_LEN, idx);
-	edc_bist_cmd_data_pattern = EDC_REG_T5(EDC_H_BIST_DATA_PATTERN, idx);
-	edc_bist_status_rdata_reg = EDC_REG_T5(EDC_H_BIST_STATUS_RDATA, idx);
+	edc_bist_cmd_reg = EDC_REG_T5(EDC_H_BIST_CMD_A, idx);
+	edc_bist_cmd_addr_reg = EDC_REG_T5(EDC_H_BIST_CMD_ADDR_A, idx);
+	edc_bist_cmd_len_reg = EDC_REG_T5(EDC_H_BIST_CMD_LEN_A, idx);
+	edc_bist_cmd_data_pattern = EDC_REG_T5(EDC_H_BIST_DATA_PATTERN_A, idx);
+	edc_bist_status_rdata_reg = EDC_REG_T5(EDC_H_BIST_STATUS_RDATA_A, idx);
 #undef EDC_REG_T5
 #undef EDC_STRIDE_T5
 
-	if (csio_rd_reg32(hw, edc_bist_cmd_reg) & START_BIST)
+	if (csio_rd_reg32(hw, edc_bist_cmd_reg) & START_BIST_F)
 		return -EBUSY;
 	csio_wr_reg32(hw, addr & ~0x3fU, edc_bist_cmd_addr_reg);
 	csio_wr_reg32(hw, 64, edc_bist_cmd_len_reg);
 	csio_wr_reg32(hw, 0xc, edc_bist_cmd_data_pattern);
-	csio_wr_reg32(hw, BIST_OPCODE(1) | START_BIST |  BIST_CMD_GAP(1),
+	csio_wr_reg32(hw, BIST_OPCODE_V(1) | START_BIST_F |  BIST_CMD_GAP_V(1),
 		      edc_bist_cmd_reg);
-	i = csio_hw_wait_op_done_val(hw, edc_bist_cmd_reg, START_BIST,
+	i = csio_hw_wait_op_done_val(hw, edc_bist_cmd_reg, START_BIST_F,
 				     0, 10, 1, NULL);
 	if (i)
 		return i;
 
-#define EDC_DATA(i) (EDC_BIST_STATUS_REG(EDC_BIST_STATUS_RDATA, i) + idx)
+#define EDC_DATA(i) (EDC_BIST_STATUS_REG(EDC_BIST_STATUS_RDATA_A, i) + idx)
 
 	for (i = 15; i >= 0; i--)
 		*data++ = htonl(csio_rd_reg32(hw, EDC_DATA(i)));

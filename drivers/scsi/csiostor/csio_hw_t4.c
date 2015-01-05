@@ -209,19 +209,19 @@ csio_t4_mc_read(struct csio_hw *hw, int idx, uint32_t addr, __be32 *data,
 {
 	int i;
 
-	if (csio_rd_reg32(hw, MC_BIST_CMD) & START_BIST)
+	if (csio_rd_reg32(hw, MC_BIST_CMD_A) & START_BIST_F)
 		return -EBUSY;
-	csio_wr_reg32(hw, addr & ~0x3fU, MC_BIST_CMD_ADDR);
-	csio_wr_reg32(hw, 64, MC_BIST_CMD_LEN);
-	csio_wr_reg32(hw, 0xc, MC_BIST_DATA_PATTERN);
-	csio_wr_reg32(hw, BIST_OPCODE(1) | START_BIST | BIST_CMD_GAP(1),
-		      MC_BIST_CMD);
-	i = csio_hw_wait_op_done_val(hw, MC_BIST_CMD, START_BIST,
+	csio_wr_reg32(hw, addr & ~0x3fU, MC_BIST_CMD_ADDR_A);
+	csio_wr_reg32(hw, 64, MC_BIST_CMD_LEN_A);
+	csio_wr_reg32(hw, 0xc, MC_BIST_DATA_PATTERN_A);
+	csio_wr_reg32(hw, BIST_OPCODE_V(1) | START_BIST_F | BIST_CMD_GAP_V(1),
+		      MC_BIST_CMD_A);
+	i = csio_hw_wait_op_done_val(hw, MC_BIST_CMD_A, START_BIST_F,
 				     0, 10, 1, NULL);
 	if (i)
 		return i;
 
-#define MC_DATA(i) MC_BIST_STATUS_REG(MC_BIST_STATUS_RDATA, i)
+#define MC_DATA(i) MC_BIST_STATUS_REG(MC_BIST_STATUS_RDATA_A, i)
 
 	for (i = 15; i >= 0; i--)
 		*data++ = htonl(csio_rd_reg32(hw, MC_DATA(i)));
@@ -250,19 +250,19 @@ csio_t4_edc_read(struct csio_hw *hw, int idx, uint32_t addr, __be32 *data,
 	int i;
 
 	idx *= EDC_STRIDE;
-	if (csio_rd_reg32(hw, EDC_BIST_CMD + idx) & START_BIST)
+	if (csio_rd_reg32(hw, EDC_BIST_CMD_A + idx) & START_BIST_F)
 		return -EBUSY;
-	csio_wr_reg32(hw, addr & ~0x3fU, EDC_BIST_CMD_ADDR + idx);
-	csio_wr_reg32(hw, 64, EDC_BIST_CMD_LEN + idx);
-	csio_wr_reg32(hw, 0xc, EDC_BIST_DATA_PATTERN + idx);
-	csio_wr_reg32(hw, BIST_OPCODE(1) | BIST_CMD_GAP(1) | START_BIST,
-		      EDC_BIST_CMD + idx);
-	i = csio_hw_wait_op_done_val(hw, EDC_BIST_CMD + idx, START_BIST,
+	csio_wr_reg32(hw, addr & ~0x3fU, EDC_BIST_CMD_ADDR_A + idx);
+	csio_wr_reg32(hw, 64, EDC_BIST_CMD_LEN_A + idx);
+	csio_wr_reg32(hw, 0xc, EDC_BIST_DATA_PATTERN_A + idx);
+	csio_wr_reg32(hw, BIST_OPCODE_V(1) | BIST_CMD_GAP_V(1) | START_BIST_F,
+		      EDC_BIST_CMD_A + idx);
+	i = csio_hw_wait_op_done_val(hw, EDC_BIST_CMD_A + idx, START_BIST_F,
 				     0, 10, 1, NULL);
 	if (i)
 		return i;
 
-#define EDC_DATA(i) (EDC_BIST_STATUS_REG(EDC_BIST_STATUS_RDATA, i) + idx)
+#define EDC_DATA(i) (EDC_BIST_STATUS_REG(EDC_BIST_STATUS_RDATA_A, i) + idx)
 
 	for (i = 15; i >= 0; i--)
 		*data++ = htonl(csio_rd_reg32(hw, EDC_DATA(i)));
