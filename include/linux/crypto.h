@@ -1412,6 +1412,9 @@ static inline int crypto_aead_encrypt(struct aead_request *req)
  */
 static inline int crypto_aead_decrypt(struct aead_request *req)
 {
+	if (req->cryptlen < crypto_aead_authsize(crypto_aead_reqtfm(req)))
+		return -EINVAL;
+
 	return crypto_aead_crt(crypto_aead_reqtfm(req))->decrypt(req);
 }
 
