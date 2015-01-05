@@ -17,7 +17,7 @@
 /*
  * Driver: ni_labpc_pci
  * Description: National Instruments Lab-PC PCI-1200
- * Devices: (National Instruments) PCI-1200 [ni_pci-1200]
+ * Devices: [National Instruments] PCI-1200 (ni_pci-1200)
  * Author: Frank Mori Hess <fmhess@users.sourceforge.net>
  * Status: works
  *
