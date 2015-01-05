@@ -2763,7 +2763,7 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			lq_sta->stbc = true;
 	}
 
-	if (IWL_MVM_RS_DISABLE_MIMO)
+	if (IWL_MVM_RS_DISABLE_P2P_MIMO && sta_priv->vif->p2p)
 		lq_sta->active_mimo2_rate = 0;
 
 	lq_sta->max_legacy_rate_idx =
