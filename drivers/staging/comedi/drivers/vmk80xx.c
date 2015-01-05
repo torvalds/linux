@@ -18,21 +18,22 @@
     GNU General Public License for more details.
 */
 /*
-Driver: vmk80xx
-Description: Velleman USB Board Low-Level Driver
-Devices: K8055/K8061 aka VM110/VM140
-Author: Manuel Gebele <forensixs@gmx.de>
-Updated: Sun, 10 May 2009 11:14:59 +0200
-Status: works
-
-Supports:
- - analog input
- - analog output
- - digital input
- - digital output
- - counter
- - pwm
-*/
+ * Driver: vmk80xx
+ * Description: Velleman USB Board Low-Level Driver
+ * Devices: [Velleman] K8055 (K8055/VM110), K8061 (K8061/VM140),
+ *   VM110 (K8055/VM110), VM140 (K8061/VM140)
+ * Author: Manuel Gebele <forensixs@gmx.de>
+ * Updated: Sun, 10 May 2009 11:14:59 +0200
+ * Status: works
+ *
+ * Supports:
+ *  - analog input
+ *  - analog output
+ *  - digital input
+ *  - digital output
+ *  - counter
+ *  - pwm
+ */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
