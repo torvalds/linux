@@ -115,6 +115,15 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 		break;
 	}
 
+	/*
+	 * Never instrument insn like 'str r0, [sp, +/-r1]'. Also, insn likes
+	 * 'str r0, [sp, #-68]' should also be prohibited.
+	 * See __und_svc.
+	 */
+	if ((p->ainsn.stack_space < 0) ||
+			(p->ainsn.stack_space > MAX_STACK_SIZE))
+		return -EINVAL;
+
 	return 0;
 }
 

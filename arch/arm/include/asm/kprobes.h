@@ -22,7 +22,6 @@
 
 #define __ARCH_WANT_KPROBES_INSN_SLOT
 #define MAX_INSN_SIZE			2
-#define MAX_STACK_SIZE			64	/* 32 would probably be OK */
 
 #define flush_insn_slot(p)		do { } while (0)
 #define kretprobe_blacklist_size	0
