@@ -1196,6 +1196,13 @@ static void setup_test_context(struct pt_regs *regs)
 			regs->uregs[arg->reg] =
 				(unsigned long)current_stack + arg->val;
 			memory_needs_checking = true;
+			/*
+			 * Test memory at an address below SP is in danger of
+			 * being altered by an interrupt occurring and pushing
+			 * data onto the stack. Disable interrupts to stop this.
+			 */
+			if (arg->reg == 13)
+				regs->ARM_cpsr |= PSR_I_BIT;
 			break;
 		}
 		case ARG_TYPE_MEM: {
@@ -1272,6 +1279,8 @@ test_after_pre_handler(struct kprobe *p, struct pt_regs *regs)
 
 	/* Undo any changes done to SP by the test case */
 	regs->ARM_sp = (unsigned long)current_stack;
+	/* Enable interrupts in case setup_test_context disabled them */
+	regs->ARM_cpsr &= ~PSR_I_BIT;
 
 	container_of(p, struct test_probe, kprobe)->hit = test_instance;
 	return 0;
