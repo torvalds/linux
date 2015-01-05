@@ -111,17 +111,17 @@ static bool max77802_is_volatile_reg(struct device *dev, unsigned int reg)
 		max77802_rtc_is_volatile_reg(dev, reg));
 }
 
-static struct regmap_config max77686_regmap_config = {
+static const struct regmap_config max77686_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 };
 
-static struct regmap_config max77686_rtc_regmap_config = {
+static const struct regmap_config max77686_rtc_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 };
 
-static struct regmap_config max77802_regmap_config = {
+static const struct regmap_config max77802_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.writeable_reg = max77802_is_accessible_reg,
