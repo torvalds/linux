@@ -21,6 +21,7 @@
 #define R8A7790_CLK_SD0			7
 #define R8A7790_CLK_SD1			8
 #define R8A7790_CLK_Z			9
+#define R8A7790_CLK_RCAN		10
 
 /* MSTP0 */
 #define R8A7790_CLK_MSIOF0		0
