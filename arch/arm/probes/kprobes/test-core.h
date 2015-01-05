@@ -45,10 +45,11 @@ extern int kprobe_test_cc_position;
  *
  */
 
-#define	ARG_TYPE_END	0
-#define	ARG_TYPE_REG	1
-#define	ARG_TYPE_PTR	2
-#define	ARG_TYPE_MEM	3
+#define	ARG_TYPE_END		0
+#define	ARG_TYPE_REG		1
+#define	ARG_TYPE_PTR		2
+#define	ARG_TYPE_MEM		3
+#define	ARG_TYPE_REG_MASKED	4
 
 #define ARG_FLAG_UNSUPPORTED	0x01
 #define ARG_FLAG_SUPPORTED	0x02
@@ -61,7 +62,7 @@ struct test_arg {
 };
 
 struct test_arg_regptr {
-	u8	type;		/* ARG_TYPE_REG or ARG_TYPE_PTR */
+	u8	type;		/* ARG_TYPE_REG or ARG_TYPE_PTR or ARG_TYPE_REG_MASKED */
 	u8	reg;
 	u8	_padding[2];
 	u32	val;
@@ -135,6 +136,12 @@ struct test_arg_end {
 #define	TEST_ARG_MEM(index, val)				\
 	".byte	"__stringify(ARG_TYPE_MEM)"		\n\t"	\
 	".byte	"#index"				\n\t"	\
+	".short	0					\n\t"	\
+	".word	"#val"					\n\t"
+
+#define	TEST_ARG_REG_MASKED(reg, val)				\
+	".byte	"__stringify(ARG_TYPE_REG_MASKED)"	\n\t"	\
+	".byte	"#reg"					\n\t"	\
 	".short	0					\n\t"	\
 	".word	"#val"					\n\t"
 
@@ -394,6 +401,22 @@ struct test_arg_end {
 	"	b	99f		\n\t"					\
 	"	"codex"			\n\t"					\
 	TESTCASE_END
+
+#define TEST_RMASKED(code1, reg, mask, code2)		\
+	TESTCASE_START(code1 #reg code2)		\
+	TEST_ARG_REG_MASKED(reg, mask)			\
+	TEST_ARG_END("")				\
+	TEST_INSTRUCTION(code1 #reg code2)		\
+	TESTCASE_END
+
+/*
+ * We ignore the state of the imprecise abort disable flag (CPSR.A) because this
+ * can change randomly as the kernel doesn't take care to preserve or initialise
+ * this across context switches. Also, with Security Extensions, the flag may
+ * not be under control of the kernel; for this reason we ignore the state of
+ * the FIQ disable flag CPSR.F as well.
+ */
+#define PSR_IGNORE_BITS (PSR_A_BIT | PSR_F_BIT)
 
 
 /*

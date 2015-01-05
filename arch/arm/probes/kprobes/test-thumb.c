@@ -778,8 +778,8 @@ CONDITION_INSTRUCTIONS(22,
 
 	TEST_UNSUPPORTED("subs	pc, lr, #4")
 
-	TEST("mrs	r0, cpsr")
-	TEST("mrs	r14, cpsr")
+	TEST_RMASKED("mrs	r",0,~PSR_IGNORE_BITS,", cpsr")
+	TEST_RMASKED("mrs	r",14,~PSR_IGNORE_BITS,", cpsr")
 	TEST_UNSUPPORTED(__inst_thumb32(0xf3ef8d00) "	@ mrs	sp, spsr")
 	TEST_UNSUPPORTED(__inst_thumb32(0xf3ef8f00) "	@ mrs	pc, spsr")
 	TEST_UNSUPPORTED("mrs	r0, spsr")

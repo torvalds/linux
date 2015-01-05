@@ -204,9 +204,9 @@ void kprobe_arm_test_cases(void)
 #endif
 	TEST_GROUP("Miscellaneous instructions")
 
-	TEST("mrs	r0, cpsr")
-	TEST("mrspl	r7, cpsr")
-	TEST("mrs	r14, cpsr")
+	TEST_RMASKED("mrs	r",0,~PSR_IGNORE_BITS,", cpsr")
+	TEST_RMASKED("mrspl	r",7,~PSR_IGNORE_BITS,", cpsr")
+	TEST_RMASKED("mrs	r",14,~PSR_IGNORE_BITS,", cpsr")
 	TEST_UNSUPPORTED(__inst_arm(0xe10ff000) "	@ mrs r15, cpsr")
 	TEST_UNSUPPORTED("mrs	r0, spsr")
 	TEST_UNSUPPORTED("mrs	lr, spsr")

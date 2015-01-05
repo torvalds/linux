@@ -1056,15 +1056,6 @@ static int test_case_run_count;
 static bool test_case_is_thumb;
 static int test_instance;
 
-/*
- * We ignore the state of the imprecise abort disable flag (CPSR.A) because this
- * can change randomly as the kernel doesn't take care to preserve or initialise
- * this across context switches. Also, with Security Extentions, the flag may
- * not be under control of the kernel; for this reason we ignore the state of
- * the FIQ disable flag CPSR.F as well.
- */
-#define PSR_IGNORE_BITS (PSR_A_BIT | PSR_F_BIT)
-
 static unsigned long test_check_cc(int cc, unsigned long cpsr)
 {
 	int ret = arm_check_condition(cc << 28, cpsr);
@@ -1271,11 +1262,21 @@ test_case_pre_handler(struct kprobe *p, struct pt_regs *regs)
 static int __kprobes
 test_after_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {
+	struct test_arg *args;
+
 	if (container_of(p, struct test_probe, kprobe)->hit == test_instance)
 		return 0; /* Already run for this test instance */
 
 	result_regs = *regs;
+
+	/* Mask out results which are indeterminate */
 	result_regs.ARM_cpsr &= ~PSR_IGNORE_BITS;
+	for (args = current_args; args[0].type != ARG_TYPE_END; ++args)
+		if (args[0].type == ARG_TYPE_REG_MASKED) {
+			struct test_arg_regptr *arg =
+				(struct test_arg_regptr *)args;
+			result_regs.uregs[arg->reg] &= arg->val;
+		}
 
 	/* Undo any changes done to SP by the test case */
 	regs->ARM_sp = (unsigned long)current_stack;
