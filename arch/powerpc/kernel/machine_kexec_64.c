@@ -330,7 +330,7 @@ void default_machine_kexec(struct kimage *image)
         * using debugger IPI.
         */
 
-	if (crashing_cpu == -1)
+	if (!kdump_in_progress())
 		kexec_prepare_cpus();
 
 	pr_debug("kexec: Starting switchover sequence.\n");
