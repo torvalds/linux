@@ -427,7 +427,7 @@ at86rf230_reg_precious(struct device *dev, unsigned int reg)
 	}
 }
 
-static struct regmap_config at86rf230_regmap_spi_config = {
+static const struct regmap_config at86rf230_regmap_spi_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.write_flag_mask = CMD_REG | CMD_WRITE,
