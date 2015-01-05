@@ -370,6 +370,13 @@ static const struct rk3288_vpu_codec_ops mode_ops[] = {
 		.done = rk3288_vpu_vp8e_done,
 		.reset = rk3288_vpu_enc_reset,
 	},
+	[RK_VPU_CODEC_VP8D] = {
+		.init = rk3288_vpu_vp8d_init,
+		.exit = rk3288_vpu_vp8d_exit,
+		.run = rk3288_vpu_vp8d_run,
+		.done = rk3288_vpu_run_done,
+		.reset = rk3288_vpu_dec_reset,
+	},
 	[RK_VPU_CODEC_H264D] = {
 		.init = rk3288_vpu_h264d_init,
 		.exit = rk3288_vpu_h264d_exit,

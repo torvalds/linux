@@ -113,6 +113,16 @@ struct rk3288_vpu_vp8e_hw_ctx {
 };
 
 /**
+ * struct rk3288_vpu_vp8d_hw_ctx - Context private data of VP8 decoder.
+ * @segment_map:	Segment map buffer.
+ * @prob_tbl:		Probability table buffer.
+ */
+struct rk3288_vpu_vp8d_hw_ctx {
+	struct rk3288_vpu_aux_buf segment_map;
+	struct rk3288_vpu_aux_buf prob_tbl;
+};
+
+/**
  * struct rk3288_vpu_h264d_hw_ctx - Per context data specific to H264 decoding.
  * @priv_tbl:		Private auxiliary buffer for hardware.
  */
@@ -130,6 +140,7 @@ struct rk3288_vpu_hw_ctx {
 	/* Specific for particular codec modes. */
 	union {
 		struct rk3288_vpu_vp8e_hw_ctx vp8e;
+		struct rk3288_vpu_vp8d_hw_ctx vp8d;
 		struct rk3288_vpu_h264d_hw_ctx h264d;
 		/* Other modes will need different data. */
 	};
@@ -148,6 +159,11 @@ int rk3288_vpu_h264d_init(struct rk3288_vpu_ctx *ctx);
 void rk3288_vpu_h264d_exit(struct rk3288_vpu_ctx *ctx);
 void rk3288_vpu_h264d_run(struct rk3288_vpu_ctx *ctx);
 void rk3288_vpu_power_on(struct rk3288_vpu_dev *vpu);
+
+/* Run ops for VP8 decoder */
+int rk3288_vpu_vp8d_init(struct rk3288_vpu_ctx *ctx);
+void rk3288_vpu_vp8d_exit(struct rk3288_vpu_ctx *ctx);
+void rk3288_vpu_vp8d_run(struct rk3288_vpu_ctx *ctx);
 
 /* Run ops for VP8 encoder */
 int rk3288_vpu_vp8e_init(struct rk3288_vpu_ctx *ctx);
