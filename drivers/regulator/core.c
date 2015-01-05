@@ -3635,7 +3635,7 @@ regulator_register(const struct regulator_desc *regulator_desc,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	init_data = regulator_of_get_init_data(dev, regulator_desc,
+	init_data = regulator_of_get_init_data(dev, regulator_desc, config,
 					       &rdev->dev.of_node);
 	if (!init_data) {
 		init_data = config->init_data;
