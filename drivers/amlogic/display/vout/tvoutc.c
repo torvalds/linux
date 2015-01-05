@@ -25,6 +25,7 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
+#include <linux/mutex.h>
 #include <mach/am_regs.h>
 
 #include <linux/amlogic/vout/vinfo.h>
@@ -388,6 +389,8 @@ static void cvbs_performance_enhancement(tvmode_t mode)
 
 #endif// end of CVBS_PERFORMANCE_COMPATIBLITY_SUPPORT
 
+static DEFINE_MUTEX(setmode_mutex);
+
 int tvoutc_setmode(tvmode_t mode)
 {
     const  reg_t *s;
@@ -400,7 +403,7 @@ int tvoutc_setmode(tvmode_t mode)
         printk(KERN_ERR "Invalid video output modes.\n");
         return -ENODEV;
     }
-
+    mutex_lock(&setmode_mutex);
 #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6
 //TODO
 //    switch_mod_gate_by_name("venc", 1);
@@ -428,6 +431,7 @@ int tvoutc_setmode(tvmode_t mode)
         uboot_display_flag = 0;
         if(uboot_display_already(mode)) {
             printk("already display in uboot\n");
+            mutex_unlock(&setmode_mutex);
             return 0;
         }
     }
@@ -559,8 +563,7 @@ printk(" clk_util_clk_msr 29 = %d\n", clk_util_clk_msr(29));
     }
 #endif
 //while(1);
-
-
+    mutex_unlock(&setmode_mutex);
     return 0;
 }
 

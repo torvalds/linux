@@ -208,6 +208,38 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
     return IRQ_HANDLED;
 }
 
+/*
+ * mode: 1 means Progressive;  0 means interlaced
+ */
+static void enc_vpu_bridge_reset(int mode)
+{
+    unsigned int wr_clk = 0;
+
+    printk("%s[%d]\n", __func__, __LINE__);
+    wr_clk = (aml_read_reg32(P_VPU_HDMI_SETTING) & 0xf00) >> 8;
+    if(mode) {
+        aml_write_reg32(P_ENCP_VIDEO_EN, 0);
+        aml_set_reg32_bits(P_VPU_HDMI_SETTING, 0, 0, 2);  // [    0] src_sel_enci: Disable ENCP output to HDMI
+        aml_set_reg32_bits(P_VPU_HDMI_SETTING, 0, 8, 4);  // [    0] src_sel_enci: Disable ENCP output to HDMI
+        mdelay(1);
+        aml_write_reg32(P_ENCP_VIDEO_EN, 1);
+        mdelay(1);
+        aml_set_reg32_bits(P_VPU_HDMI_SETTING, wr_clk, 8, 4);
+        mdelay(1);
+        aml_set_reg32_bits(P_VPU_HDMI_SETTING, 2, 0, 2);  // [    0] src_sel_enci: Enable ENCP output to HDMI
+    } else {
+        aml_write_reg32(P_ENCI_VIDEO_EN, 0);
+        aml_set_reg32_bits(P_VPU_HDMI_SETTING, 0, 0, 2);  // [    0] src_sel_enci: Disable ENCI output to HDMI
+        aml_set_reg32_bits(P_VPU_HDMI_SETTING, 0, 8, 4);  // [    0] src_sel_enci: Disable ENCP output to HDMI
+        mdelay(1);
+        aml_write_reg32(P_ENCI_VIDEO_EN, 1);
+        mdelay(1);
+        aml_set_reg32_bits(P_VPU_HDMI_SETTING, wr_clk, 8, 4);
+        mdelay(1);
+        aml_set_reg32_bits(P_VPU_HDMI_SETTING, 1, 0, 2);  // [    0] src_sel_enci: Enable ENCI output to HDMI
+    }
+}
+
 static void hdmi_tvenc1080i_set(Hdmi_tx_video_para_t* param)
 {
     unsigned long VFIFO2VD_TO_HDMI_LATENCY = 2; // Annie 01Sep2011: Change value from 3 to 2, due to video encoder path delay change.
@@ -351,7 +383,6 @@ static void hdmi_tvenc1080i_set(Hdmi_tx_video_para_t* param)
                          (0                                 <<12)   // [15:12] rd_rate. 0=A read every clk2; 1=A read every 2 clk2; ...; 15=A read every 16 clk2.
     );
     aml_set_reg32_bits(P_VPU_HDMI_SETTING, 1, 1, 1);  // [    1] src_sel_encp: Enable ENCP output to HDMI
-
 }    
 
 static void hdmi_tvenc4k2k_set(Hdmi_tx_video_para_t* param)
@@ -707,7 +738,6 @@ static void hdmi_tvenc480i_set(Hdmi_tx_video_para_t* param)
         aml_set_reg32_bits(P_VPU_HDMI_SETTING, 3, 12, 4);
     }
     aml_set_reg32_bits(P_VPU_HDMI_SETTING, 1, 0, 1);  // [    0] src_sel_enci: Enable ENCI output to HDMI
-
 }    
 
 static void hdmi_tvenc_set(Hdmi_tx_video_para_t *param)
@@ -993,7 +1023,7 @@ static void hdmi_tvenc_set(Hdmi_tx_video_para_t *param)
     }
     // Annie 01Sep2011: Register VENC_DVI_SETTING and VENC_DVI_SETTING_MORE are no long valid, use VPU_HDMI_SETTING instead.
     aml_set_reg32_bits(P_VPU_HDMI_SETTING, 1, 1, 1);  // [    1] src_sel_encp: Enable ENCP output to HDMI
-}    
+}
 
 /*
 hdmi on/off
@@ -1941,6 +1971,8 @@ static void hdmitx_set_phy(hdmitx_dev_t* hdmitx_device)
     aml_write_reg32(P_HHI_HDMI_PHY_CNTL1, 2);   \
     msleep(1)
 
+    aml_write_reg32(P_HHI_HDMI_PHY_CNTL1, 0);
+    msleep(1);
     RESET_HDMI_PHY();
     RESET_HDMI_PHY();
     RESET_HDMI_PHY();
@@ -1974,8 +2006,6 @@ static int hdmitx_set_dispmode(hdmitx_dev_t* hdmitx_device, Hdmi_tx_video_para_t
     hdmi_hw_reset(hdmitx_device, param);    
 	// move hdmitx_set_pll() to the end of this function.
     // hdmitx_set_pll(param);
-    hdmitx_device->cur_VIC = param->VIC;
-    hdmitx_set_phy(hdmitx_device);
 
     if((param->VIC==HDMI_720p60)||(param->VIC==HDMI_720p50)||
         (param->VIC==HDMI_1080i60)||(param->VIC==HDMI_1080i50)){
@@ -2011,20 +2041,35 @@ static int hdmitx_set_dispmode(hdmitx_dev_t* hdmitx_device, Hdmi_tx_video_para_t
 
     // reset TX_SYS5_TX_SOFT_RESET_1/2 twice
     hdmi_wr_reg(TX_SYS5_TX_SOFT_RESET_1, 0xff);
-    hdmi_wr_reg(TX_SYS5_TX_SOFT_RESET_2, 0x9f);
+    hdmi_wr_reg(TX_SYS5_TX_SOFT_RESET_2, 0xff);
     mdelay(5);
     hdmi_wr_reg(TX_SYS5_TX_SOFT_RESET_1, 0x00);
-    hdmi_wr_reg(TX_SYS5_TX_SOFT_RESET_2, 0x60);
+    hdmi_wr_reg(TX_SYS5_TX_SOFT_RESET_2, 0x00);
     mdelay(5);
 
     hdmi_wr_reg(TX_SYS5_TX_SOFT_RESET_1, 0xff);
-    hdmi_wr_reg(TX_SYS5_TX_SOFT_RESET_2, 0x9f);
+    hdmi_wr_reg(TX_SYS5_TX_SOFT_RESET_2, 0xff);
     mdelay(5);
     hdmi_wr_reg(TX_SYS5_TX_SOFT_RESET_1, 0x00);
-    hdmi_wr_reg(TX_SYS5_TX_SOFT_RESET_2, 0x60);
+    hdmi_wr_reg(TX_SYS5_TX_SOFT_RESET_2, 0x00);
     mdelay(5);
 
 	hdmitx_set_pll(param);
+    switch(param->VIC) {
+    case HDMI_480i60:
+    case HDMI_480i60_16x9:
+    case HDMI_576i50:
+    case HDMI_576i50_16x9:
+    case HDMI_480i60_16x9_rpt:
+    case HDMI_576i50_16x9_rpt:
+        enc_vpu_bridge_reset(0);
+        break;
+    default:
+        enc_vpu_bridge_reset(1);
+        break;
+    }
+
+    hdmitx_set_phy(hdmitx_device);
 
     return 0;
 }
