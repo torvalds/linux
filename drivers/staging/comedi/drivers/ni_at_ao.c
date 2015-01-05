@@ -19,8 +19,7 @@
 /*
  * Driver: ni_at_ao
  * Description: National Instruments AT-AO-6/10
- * Devices: (National Instruments) AT-AO-6 [at-ao-6]
- *          (National Instruments) AT-AO-10 [at-ao-10]
+ * Devices: [National Instruments] AT-AO-6 (at-ao-6), AT-AO-10 (at-ao-10)
  * Status: should work
  * Author: David A. Schleef <ds@schleef.org>
  * Updated: Sun Dec 26 12:26:28 EST 2004
