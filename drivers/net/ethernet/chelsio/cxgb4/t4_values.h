@@ -82,4 +82,37 @@
 #define WINDOW_SHIFT_X		10
 #define PCIEOFST_SHIFT_X	10
 
+/* TP_VLAN_PRI_MAP controls which subset of fields will be present in the
+ * Compressed Filter Tuple for LE filters.  Each bit set in TP_VLAN_PRI_MAP
+ * selects for a particular field being present.  These fields, when present
+ * in the Compressed Filter Tuple, have the following widths in bits.
+ */
+#define FT_FCOE_W                       1
+#define FT_PORT_W                       3
+#define FT_VNIC_ID_W                    17
+#define FT_VLAN_W                       17
+#define FT_TOS_W                        8
+#define FT_PROTOCOL_W                   8
+#define FT_ETHERTYPE_W                  16
+#define FT_MACMATCH_W                   9
+#define FT_MPSHITTYPE_W                 3
+#define FT_FRAGMENTATION_W              1
+
+/* Some of the Compressed Filter Tuple fields have internal structure.  These
+ * bit shifts/masks describe those structures.  All shifts are relative to the
+ * base position of the fields within the Compressed Filter Tuple
+ */
+#define FT_VLAN_VLD_S                   16
+#define FT_VLAN_VLD_V(x)                ((x) << FT_VLAN_VLD_S)
+#define FT_VLAN_VLD_F                   FT_VLAN_VLD_V(1U)
+
+#define FT_VNID_ID_VF_S                 0
+#define FT_VNID_ID_VF_V(x)              ((x) << FT_VNID_ID_VF_S)
+
+#define FT_VNID_ID_PF_S                 7
+#define FT_VNID_ID_PF_V(x)              ((x) << FT_VNID_ID_PF_S)
+
+#define FT_VNID_ID_VLD_S                16
+#define FT_VNID_ID_VLD_V(x)             ((x) << FT_VNID_ID_VLD_S)
+
 #endif /* __T4_VALUES_H__ */

@@ -834,11 +834,11 @@ static void disable_msi(struct adapter *adapter)
 static irqreturn_t t4_nondata_intr(int irq, void *cookie)
 {
 	struct adapter *adap = cookie;
+	u32 v = t4_read_reg(adap, MYPF_REG(PL_PF_INT_CAUSE_A));
 
-	u32 v = t4_read_reg(adap, MYPF_REG(PL_PF_INT_CAUSE));
-	if (v & PFSW) {
+	if (v & PFSW_F) {
 		adap->swintr = 1;
-		t4_write_reg(adap, MYPF_REG(PL_PF_INT_CAUSE), v);
+		t4_write_reg(adap, MYPF_REG(PL_PF_INT_CAUSE_A), v);
 	}
 	t4_slow_intr_handler(adap);
 	return IRQ_HANDLED;
@@ -3654,10 +3654,10 @@ void cxgb4_iscsi_init(struct net_device *dev, unsigned int tag_mask,
 {
 	struct adapter *adap = netdev2adap(dev);
 
-	t4_write_reg(adap, ULP_RX_ISCSI_TAGMASK, tag_mask);
-	t4_write_reg(adap, ULP_RX_ISCSI_PSZ, HPZ0(pgsz_order[0]) |
-		     HPZ1(pgsz_order[1]) | HPZ2(pgsz_order[2]) |
-		     HPZ3(pgsz_order[3]));
+	t4_write_reg(adap, ULP_RX_ISCSI_TAGMASK_A, tag_mask);
+	t4_write_reg(adap, ULP_RX_ISCSI_PSZ_A, HPZ0_V(pgsz_order[0]) |
+		     HPZ1_V(pgsz_order[1]) | HPZ2_V(pgsz_order[2]) |
+		     HPZ3_V(pgsz_order[3]));
 }
 EXPORT_SYMBOL(cxgb4_iscsi_init);
 
@@ -4580,13 +4580,13 @@ int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
 			f->fs.val.lip[i] = val[i];
 			f->fs.mask.lip[i] = ~0;
 		}
-		if (adap->params.tp.vlan_pri_map & F_PORT) {
+		if (adap->params.tp.vlan_pri_map & PORT_F) {
 			f->fs.val.iport = port;
 			f->fs.mask.iport = mask;
 		}
 	}
 
-	if (adap->params.tp.vlan_pri_map & F_PROTOCOL) {
+	if (adap->params.tp.vlan_pri_map & PROTOCOL_F) {
 		f->fs.val.proto = IPPROTO_TCP;
 		f->fs.mask.proto = ~0;
 	}
@@ -4950,37 +4950,37 @@ static int adap_init1(struct adapter *adap, struct fw_caps_config_cmd *c)
 
 	/* tweak some settings */
 	t4_write_reg(adap, TP_SHIFT_CNT_A, 0x64f8849);
-	t4_write_reg(adap, ULP_RX_TDDP_PSZ, HPZ0(PAGE_SHIFT - 12));
+	t4_write_reg(adap, ULP_RX_TDDP_PSZ_A, HPZ0_V(PAGE_SHIFT - 12));
 	t4_write_reg(adap, TP_PIO_ADDR_A, TP_INGRESS_CONFIG_A);
 	v = t4_read_reg(adap, TP_PIO_DATA_A);
 	t4_write_reg(adap, TP_PIO_DATA_A, v & ~CSUM_HAS_PSEUDO_HDR_F);
 
 	/* first 4 Tx modulation queues point to consecutive Tx channels */
 	adap->params.tp.tx_modq_map = 0xE4;
-	t4_write_reg(adap, A_TP_TX_MOD_QUEUE_REQ_MAP,
-		     V_TX_MOD_QUEUE_REQ_MAP(adap->params.tp.tx_modq_map));
+	t4_write_reg(adap, TP_TX_MOD_QUEUE_REQ_MAP_A,
+		     TX_MOD_QUEUE_REQ_MAP_V(adap->params.tp.tx_modq_map));
 
 	/* associate each Tx modulation queue with consecutive Tx channels */
 	v = 0x84218421;
 	t4_write_indirect(adap, TP_PIO_ADDR_A, TP_PIO_DATA_A,
-			  &v, 1, A_TP_TX_SCHED_HDR);
+			  &v, 1, TP_TX_SCHED_HDR_A);
 	t4_write_indirect(adap, TP_PIO_ADDR_A, TP_PIO_DATA_A,
-			  &v, 1, A_TP_TX_SCHED_FIFO);
+			  &v, 1, TP_TX_SCHED_FIFO_A);
 	t4_write_indirect(adap, TP_PIO_ADDR_A, TP_PIO_DATA_A,
-			  &v, 1, A_TP_TX_SCHED_PCMD);
+			  &v, 1, TP_TX_SCHED_PCMD_A);
 
 #define T4_TX_MODQ_10G_WEIGHT_DEFAULT 16 /* in KB units */
 	if (is_offload(adap)) {
-		t4_write_reg(adap, A_TP_TX_MOD_QUEUE_WEIGHT0,
-			     V_TX_MODQ_WEIGHT0(T4_TX_MODQ_10G_WEIGHT_DEFAULT) |
-			     V_TX_MODQ_WEIGHT1(T4_TX_MODQ_10G_WEIGHT_DEFAULT) |
-			     V_TX_MODQ_WEIGHT2(T4_TX_MODQ_10G_WEIGHT_DEFAULT) |
-			     V_TX_MODQ_WEIGHT3(T4_TX_MODQ_10G_WEIGHT_DEFAULT));
-		t4_write_reg(adap, A_TP_TX_MOD_CHANNEL_WEIGHT,
-			     V_TX_MODQ_WEIGHT0(T4_TX_MODQ_10G_WEIGHT_DEFAULT) |
-			     V_TX_MODQ_WEIGHT1(T4_TX_MODQ_10G_WEIGHT_DEFAULT) |
-			     V_TX_MODQ_WEIGHT2(T4_TX_MODQ_10G_WEIGHT_DEFAULT) |
-			     V_TX_MODQ_WEIGHT3(T4_TX_MODQ_10G_WEIGHT_DEFAULT));
+		t4_write_reg(adap, TP_TX_MOD_QUEUE_WEIGHT0_A,
+			     TX_MODQ_WEIGHT0_V(T4_TX_MODQ_10G_WEIGHT_DEFAULT) |
+			     TX_MODQ_WEIGHT1_V(T4_TX_MODQ_10G_WEIGHT_DEFAULT) |
+			     TX_MODQ_WEIGHT2_V(T4_TX_MODQ_10G_WEIGHT_DEFAULT) |
+			     TX_MODQ_WEIGHT3_V(T4_TX_MODQ_10G_WEIGHT_DEFAULT));
+		t4_write_reg(adap, TP_TX_MOD_CHANNEL_WEIGHT_A,
+			     TX_MODQ_WEIGHT0_V(T4_TX_MODQ_10G_WEIGHT_DEFAULT) |
+			     TX_MODQ_WEIGHT1_V(T4_TX_MODQ_10G_WEIGHT_DEFAULT) |
+			     TX_MODQ_WEIGHT2_V(T4_TX_MODQ_10G_WEIGHT_DEFAULT) |
+			     TX_MODQ_WEIGHT3_V(T4_TX_MODQ_10G_WEIGHT_DEFAULT));
 	}
 
 	/* get basic stuff going */
@@ -5059,7 +5059,7 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 	 */
 	if (reset) {
 		ret = t4_fw_reset(adapter, adapter->mbox,
-				  PIORSTMODE | PIORST);
+				  PIORSTMODE_F | PIORST_F);
 		if (ret < 0)
 			goto bye;
 	}
@@ -5264,7 +5264,7 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 	 */
 	if (reset) {
 		ret = t4_fw_reset(adapter, adapter->mbox,
-				  PIORSTMODE | PIORST);
+				  PIORSTMODE_F | PIORST_F);
 		if (ret < 0)
 			goto bye;
 	}
@@ -6413,7 +6413,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_unmap_bar0;
 
 	/* We control everything through one PF */
-	func = SOURCEPF_GET(readl(regs + PL_WHOAMI));
+	func = SOURCEPF_G(readl(regs + PL_WHOAMI_A));
 	if (func != ent->driver_data) {
 		iounmap(regs);
 		pci_disable_device(pdev);

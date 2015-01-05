@@ -1708,233 +1708,323 @@
 
 #define MPS_RX_PERR_INT_CAUSE_A 0x11074
 
-#define CPL_INTR_CAUSE 0x19054
-#define  CIM_OP_MAP_PERR   0x00000020U
-#define  CIM_OVFL_ERROR    0x00000010U
-#define  TP_FRAMING_ERROR  0x00000008U
-#define  SGE_FRAMING_ERROR 0x00000004U
-#define  CIM_FRAMING_ERROR 0x00000002U
-#define  ZERO_SWITCH_ERROR 0x00000001U
+#define CPL_INTR_CAUSE_A 0x19054
 
-#define SMB_INT_CAUSE 0x19090
-#define  MSTTXFIFOPARINT 0x00200000U
-#define  MSTRXFIFOPARINT 0x00100000U
-#define  SLVFIFOPARINT   0x00080000U
+#define CIM_OP_MAP_PERR_S    5
+#define CIM_OP_MAP_PERR_V(x) ((x) << CIM_OP_MAP_PERR_S)
+#define CIM_OP_MAP_PERR_F    CIM_OP_MAP_PERR_V(1U)
 
-#define ULP_RX_INT_CAUSE 0x19158
-#define ULP_RX_ISCSI_TAGMASK 0x19164
-#define ULP_RX_ISCSI_PSZ 0x19168
-#define  HPZ3_MASK   0x0f000000U
-#define  HPZ3_SHIFT  24
-#define  HPZ3(x)     ((x) << HPZ3_SHIFT)
-#define  HPZ2_MASK   0x000f0000U
-#define  HPZ2_SHIFT  16
-#define  HPZ2(x)     ((x) << HPZ2_SHIFT)
-#define  HPZ1_MASK   0x00000f00U
-#define  HPZ1_SHIFT  8
-#define  HPZ1(x)     ((x) << HPZ1_SHIFT)
-#define  HPZ0_MASK   0x0000000fU
-#define  HPZ0_SHIFT  0
-#define  HPZ0(x)     ((x) << HPZ0_SHIFT)
+#define CIM_OVFL_ERROR_S    4
+#define CIM_OVFL_ERROR_V(x) ((x) << CIM_OVFL_ERROR_S)
+#define CIM_OVFL_ERROR_F    CIM_OVFL_ERROR_V(1U)
 
-#define ULP_RX_TDDP_PSZ 0x19178
+#define TP_FRAMING_ERROR_S    3
+#define TP_FRAMING_ERROR_V(x) ((x) << TP_FRAMING_ERROR_S)
+#define TP_FRAMING_ERROR_F    TP_FRAMING_ERROR_V(1U)
 
-#define SF_DATA 0x193f8
-#define SF_OP 0x193fc
-#define  SF_BUSY       0x80000000U
-#define  SF_LOCK       0x00000010U
-#define  SF_CONT       0x00000008U
-#define  BYTECNT_MASK  0x00000006U
-#define  BYTECNT_SHIFT 1
-#define  BYTECNT(x)    ((x) << BYTECNT_SHIFT)
-#define  OP_WR         0x00000001U
+#define SGE_FRAMING_ERROR_S    2
+#define SGE_FRAMING_ERROR_V(x) ((x) << SGE_FRAMING_ERROR_S)
+#define SGE_FRAMING_ERROR_F    SGE_FRAMING_ERROR_V(1U)
 
-#define PL_PF_INT_CAUSE 0x3c0
-#define  PFSW  0x00000008U
-#define  PFSGE 0x00000004U
-#define  PFCIM 0x00000002U
-#define  PFMPS 0x00000001U
+#define CIM_FRAMING_ERROR_S    1
+#define CIM_FRAMING_ERROR_V(x) ((x) << CIM_FRAMING_ERROR_S)
+#define CIM_FRAMING_ERROR_F    CIM_FRAMING_ERROR_V(1U)
 
-#define PL_PF_INT_ENABLE 0x3c4
-#define PL_PF_CTL 0x3c8
-#define  SWINT 0x00000001U
+#define ZERO_SWITCH_ERROR_S    0
+#define ZERO_SWITCH_ERROR_V(x) ((x) << ZERO_SWITCH_ERROR_S)
+#define ZERO_SWITCH_ERROR_F    ZERO_SWITCH_ERROR_V(1U)
 
-#define PL_WHOAMI 0x19400
-#define  SOURCEPF_MASK   0x00000700U
-#define  SOURCEPF_SHIFT  8
-#define  SOURCEPF(x)     ((x) << SOURCEPF_SHIFT)
-#define  SOURCEPF_GET(x) (((x) & SOURCEPF_MASK) >> SOURCEPF_SHIFT)
-#define  ISVF            0x00000080U
-#define  VFID_MASK       0x0000007fU
-#define  VFID_SHIFT      0
-#define  VFID(x)         ((x) << VFID_SHIFT)
-#define  VFID_GET(x)     (((x) & VFID_MASK) >> VFID_SHIFT)
+#define SMB_INT_CAUSE_A 0x19090
 
-#define PL_INT_CAUSE 0x1940c
-#define  ULP_TX     0x08000000U
-#define  SGE        0x04000000U
-#define  HMA        0x02000000U
-#define  CPL_SWITCH 0x01000000U
-#define  ULP_RX     0x00800000U
-#define  PM_RX      0x00400000U
-#define  PM_TX      0x00200000U
-#define  MA         0x00100000U
-#define  TP         0x00080000U
-#define  LE         0x00040000U
-#define  EDC1       0x00020000U
-#define  EDC0       0x00010000U
-#define  MC         0x00008000U
-#define  PCIE       0x00004000U
-#define  PMU        0x00002000U
-#define  XGMAC_KR1  0x00001000U
-#define  XGMAC_KR0  0x00000800U
-#define  XGMAC1     0x00000400U
-#define  XGMAC0     0x00000200U
-#define  SMB        0x00000100U
-#define  SF         0x00000080U
-#define  PL         0x00000040U
-#define  NCSI       0x00000020U
-#define  MPS        0x00000010U
-#define  MI         0x00000008U
-#define  DBG        0x00000004U
-#define  I2CM       0x00000002U
-#define  CIM        0x00000001U
+#define MSTTXFIFOPARINT_S    21
+#define MSTTXFIFOPARINT_V(x) ((x) << MSTTXFIFOPARINT_S)
+#define MSTTXFIFOPARINT_F    MSTTXFIFOPARINT_V(1U)
 
-#define MC1 0x31
-#define PL_INT_ENABLE 0x19410
-#define PL_INT_MAP0 0x19414
-#define PL_RST 0x19428
-#define  PIORST     0x00000002U
-#define  PIORSTMODE 0x00000001U
+#define MSTRXFIFOPARINT_S    20
+#define MSTRXFIFOPARINT_V(x) ((x) << MSTRXFIFOPARINT_S)
+#define MSTRXFIFOPARINT_F    MSTRXFIFOPARINT_V(1U)
 
-#define PL_PL_INT_CAUSE 0x19430
-#define  FATALPERR 0x00000010U
-#define  PERRVFID  0x00000001U
+#define SLVFIFOPARINT_S    19
+#define SLVFIFOPARINT_V(x) ((x) << SLVFIFOPARINT_S)
+#define SLVFIFOPARINT_F    SLVFIFOPARINT_V(1U)
 
-#define PL_REV 0x1943c
+#define ULP_RX_INT_CAUSE_A 0x19158
+#define ULP_RX_ISCSI_TAGMASK_A 0x19164
+#define ULP_RX_ISCSI_PSZ_A 0x19168
 
-#define S_REV    0
-#define M_REV    0xfU
-#define V_REV(x) ((x) << S_REV)
-#define G_REV(x) (((x) >> S_REV) & M_REV)
+#define HPZ3_S    24
+#define HPZ3_V(x) ((x) << HPZ3_S)
 
-#define LE_DB_CONFIG 0x19c04
-#define  HASHEN 0x00100000U
+#define HPZ2_S    16
+#define HPZ2_V(x) ((x) << HPZ2_S)
 
-#define LE_DB_SERVER_INDEX 0x19c18
-#define LE_DB_ACT_CNT_IPV4 0x19c20
-#define LE_DB_ACT_CNT_IPV6 0x19c24
+#define HPZ1_S    8
+#define HPZ1_V(x) ((x) << HPZ1_S)
 
-#define LE_DB_INT_CAUSE 0x19c3c
-#define  REQQPARERR 0x00010000U
-#define  UNKNOWNCMD 0x00008000U
-#define  PARITYERR  0x00000040U
-#define  LIPMISS    0x00000020U
-#define  LIP0       0x00000010U
+#define HPZ0_S    0
+#define HPZ0_V(x) ((x) << HPZ0_S)
 
-#define LE_DB_TID_HASHBASE 0x19df8
+#define ULP_RX_TDDP_PSZ_A 0x19178
 
-#define NCSI_INT_CAUSE 0x1a0d8
-#define  CIM_DM_PRTY_ERR 0x00000100U
-#define  MPS_DM_PRTY_ERR 0x00000080U
-#define  TXFIFO_PRTY_ERR 0x00000002U
-#define  RXFIFO_PRTY_ERR 0x00000001U
+/* registers for module SF */
+#define SF_DATA_A 0x193f8
+#define SF_OP_A 0x193fc
 
-#define XGMAC_PORT_CFG2 0x1018
-#define  PATEN   0x00040000U
-#define  MAGICEN 0x00020000U
+#define SF_BUSY_S    31
+#define SF_BUSY_V(x) ((x) << SF_BUSY_S)
+#define SF_BUSY_F    SF_BUSY_V(1U)
+
+#define SF_LOCK_S    4
+#define SF_LOCK_V(x) ((x) << SF_LOCK_S)
+#define SF_LOCK_F    SF_LOCK_V(1U)
+
+#define SF_CONT_S    3
+#define SF_CONT_V(x) ((x) << SF_CONT_S)
+#define SF_CONT_F    SF_CONT_V(1U)
+
+#define BYTECNT_S    1
+#define BYTECNT_V(x) ((x) << BYTECNT_S)
+
+#define OP_S    0
+#define OP_V(x) ((x) << OP_S)
+#define OP_F    OP_V(1U)
+
+#define PL_PF_INT_CAUSE_A 0x3c0
+
+#define PFSW_S    3
+#define PFSW_V(x) ((x) << PFSW_S)
+#define PFSW_F    PFSW_V(1U)
+
+#define PFCIM_S    1
+#define PFCIM_V(x) ((x) << PFCIM_S)
+#define PFCIM_F    PFCIM_V(1U)
+
+#define PL_PF_INT_ENABLE_A 0x3c4
+#define PL_PF_CTL_A 0x3c8
+
+#define PL_WHOAMI_A 0x19400
+
+#define SOURCEPF_S    8
+#define SOURCEPF_M    0x7U
+#define SOURCEPF_G(x) (((x) >> SOURCEPF_S) & SOURCEPF_M)
+
+#define PL_INT_CAUSE_A 0x1940c
+
+#define ULP_TX_S    27
+#define ULP_TX_V(x) ((x) << ULP_TX_S)
+#define ULP_TX_F    ULP_TX_V(1U)
+
+#define SGE_S    26
+#define SGE_V(x) ((x) << SGE_S)
+#define SGE_F    SGE_V(1U)
+
+#define CPL_SWITCH_S    24
+#define CPL_SWITCH_V(x) ((x) << CPL_SWITCH_S)
+#define CPL_SWITCH_F    CPL_SWITCH_V(1U)
+
+#define ULP_RX_S    23
+#define ULP_RX_V(x) ((x) << ULP_RX_S)
+#define ULP_RX_F    ULP_RX_V(1U)
+
+#define PM_RX_S    22
+#define PM_RX_V(x) ((x) << PM_RX_S)
+#define PM_RX_F    PM_RX_V(1U)
+
+#define PM_TX_S    21
+#define PM_TX_V(x) ((x) << PM_TX_S)
+#define PM_TX_F    PM_TX_V(1U)
+
+#define MA_S    20
+#define MA_V(x) ((x) << MA_S)
+#define MA_F    MA_V(1U)
+
+#define TP_S    19
+#define TP_V(x) ((x) << TP_S)
+#define TP_F    TP_V(1U)
+
+#define LE_S    18
+#define LE_V(x) ((x) << LE_S)
+#define LE_F    LE_V(1U)
+
+#define EDC1_S    17
+#define EDC1_V(x) ((x) << EDC1_S)
+#define EDC1_F    EDC1_V(1U)
+
+#define EDC0_S    16
+#define EDC0_V(x) ((x) << EDC0_S)
+#define EDC0_F    EDC0_V(1U)
+
+#define MC_S    15
+#define MC_V(x) ((x) << MC_S)
+#define MC_F    MC_V(1U)
+
+#define PCIE_S    14
+#define PCIE_V(x) ((x) << PCIE_S)
+#define PCIE_F    PCIE_V(1U)
+
+#define XGMAC_KR1_S    12
+#define XGMAC_KR1_V(x) ((x) << XGMAC_KR1_S)
+#define XGMAC_KR1_F    XGMAC_KR1_V(1U)
+
+#define XGMAC_KR0_S    11
+#define XGMAC_KR0_V(x) ((x) << XGMAC_KR0_S)
+#define XGMAC_KR0_F    XGMAC_KR0_V(1U)
+
+#define XGMAC1_S    10
+#define XGMAC1_V(x) ((x) << XGMAC1_S)
+#define XGMAC1_F    XGMAC1_V(1U)
+
+#define XGMAC0_S    9
+#define XGMAC0_V(x) ((x) << XGMAC0_S)
+#define XGMAC0_F    XGMAC0_V(1U)
+
+#define SMB_S    8
+#define SMB_V(x) ((x) << SMB_S)
+#define SMB_F    SMB_V(1U)
+
+#define SF_S    7
+#define SF_V(x) ((x) << SF_S)
+#define SF_F    SF_V(1U)
+
+#define PL_S    6
+#define PL_V(x) ((x) << PL_S)
+#define PL_F    PL_V(1U)
+
+#define NCSI_S    5
+#define NCSI_V(x) ((x) << NCSI_S)
+#define NCSI_F    NCSI_V(1U)
+
+#define MPS_S    4
+#define MPS_V(x) ((x) << MPS_S)
+#define MPS_F    MPS_V(1U)
+
+#define CIM_S    0
+#define CIM_V(x) ((x) << CIM_S)
+#define CIM_F    CIM_V(1U)
+
+#define MC1_S    31
+
+#define PL_INT_ENABLE_A 0x19410
+#define PL_INT_MAP0_A 0x19414
+#define PL_RST_A 0x19428
+
+#define PIORST_S    1
+#define PIORST_V(x) ((x) << PIORST_S)
+#define PIORST_F    PIORST_V(1U)
+
+#define PIORSTMODE_S    0
+#define PIORSTMODE_V(x) ((x) << PIORSTMODE_S)
+#define PIORSTMODE_F    PIORSTMODE_V(1U)
+
+#define PL_PL_INT_CAUSE_A 0x19430
+
+#define FATALPERR_S    4
+#define FATALPERR_V(x) ((x) << FATALPERR_S)
+#define FATALPERR_F    FATALPERR_V(1U)
+
+#define PERRVFID_S    0
+#define PERRVFID_V(x) ((x) << PERRVFID_S)
+#define PERRVFID_F    PERRVFID_V(1U)
+
+#define PL_REV_A 0x1943c
+
+#define REV_S    0
+#define REV_M    0xfU
+#define REV_V(x) ((x) << REV_S)
+#define REV_G(x) (((x) >> REV_S) & REV_M)
+
+#define LE_DB_INT_CAUSE_A 0x19c3c
+
+#define REQQPARERR_S    16
+#define REQQPARERR_V(x) ((x) << REQQPARERR_S)
+#define REQQPARERR_F    REQQPARERR_V(1U)
+
+#define UNKNOWNCMD_S    15
+#define UNKNOWNCMD_V(x) ((x) << UNKNOWNCMD_S)
+#define UNKNOWNCMD_F    UNKNOWNCMD_V(1U)
+
+#define PARITYERR_S    6
+#define PARITYERR_V(x) ((x) << PARITYERR_S)
+#define PARITYERR_F    PARITYERR_V(1U)
+
+#define LIPMISS_S    5
+#define LIPMISS_V(x) ((x) << LIPMISS_S)
+#define LIPMISS_F    LIPMISS_V(1U)
+
+#define LIP0_S    4
+#define LIP0_V(x) ((x) << LIP0_S)
+#define LIP0_F    LIP0_V(1U)
+
+#define NCSI_INT_CAUSE_A 0x1a0d8
+
+#define CIM_DM_PRTY_ERR_S    8
+#define CIM_DM_PRTY_ERR_V(x) ((x) << CIM_DM_PRTY_ERR_S)
+#define CIM_DM_PRTY_ERR_F    CIM_DM_PRTY_ERR_V(1U)
+
+#define MPS_DM_PRTY_ERR_S    7
+#define MPS_DM_PRTY_ERR_V(x) ((x) << MPS_DM_PRTY_ERR_S)
+#define MPS_DM_PRTY_ERR_F    MPS_DM_PRTY_ERR_V(1U)
+
+#define TXFIFO_PRTY_ERR_S    1
+#define TXFIFO_PRTY_ERR_V(x) ((x) << TXFIFO_PRTY_ERR_S)
+#define TXFIFO_PRTY_ERR_F    TXFIFO_PRTY_ERR_V(1U)
+
+#define RXFIFO_PRTY_ERR_S    0
+#define RXFIFO_PRTY_ERR_V(x) ((x) << RXFIFO_PRTY_ERR_S)
+#define RXFIFO_PRTY_ERR_F    RXFIFO_PRTY_ERR_V(1U)
+
+#define XGMAC_PORT_CFG2_A 0x1018
+
+#define PATEN_S    18
+#define PATEN_V(x) ((x) << PATEN_S)
+#define PATEN_F    PATEN_V(1U)
+
+#define MAGICEN_S    17
+#define MAGICEN_V(x) ((x) << MAGICEN_S)
+#define MAGICEN_F    MAGICEN_V(1U)
 
 #define XGMAC_PORT_MAGIC_MACID_LO 0x1024
 #define XGMAC_PORT_MAGIC_MACID_HI 0x1028
 
-#define XGMAC_PORT_EPIO_DATA0 0x10c0
-#define XGMAC_PORT_EPIO_DATA1 0x10c4
-#define XGMAC_PORT_EPIO_DATA2 0x10c8
-#define XGMAC_PORT_EPIO_DATA3 0x10cc
-#define XGMAC_PORT_EPIO_OP 0x10d0
-#define  EPIOWR         0x00000100U
-#define  ADDRESS_MASK   0x000000ffU
-#define  ADDRESS_SHIFT  0
-#define  ADDRESS(x)     ((x) << ADDRESS_SHIFT)
+#define XGMAC_PORT_EPIO_DATA0_A 0x10c0
+#define XGMAC_PORT_EPIO_DATA1_A 0x10c4
+#define XGMAC_PORT_EPIO_DATA2_A 0x10c8
+#define XGMAC_PORT_EPIO_DATA3_A 0x10cc
+#define XGMAC_PORT_EPIO_OP_A 0x10d0
 
-#define MAC_PORT_INT_CAUSE 0x8dc
-#define XGMAC_PORT_INT_CAUSE 0x10dc
+#define EPIOWR_S    8
+#define EPIOWR_V(x) ((x) << EPIOWR_S)
+#define EPIOWR_F    EPIOWR_V(1U)
 
-#define A_TP_TX_MOD_QUEUE_REQ_MAP 0x7e28
+#define ADDRESS_S    0
+#define ADDRESS_V(x) ((x) << ADDRESS_S)
 
-#define A_TP_TX_MOD_CHANNEL_WEIGHT 0x7e34
+#define MAC_PORT_INT_CAUSE_A 0x8dc
+#define XGMAC_PORT_INT_CAUSE_A 0x10dc
 
-#define S_TX_MOD_QUEUE_REQ_MAP    0
-#define M_TX_MOD_QUEUE_REQ_MAP    0xffffU
-#define V_TX_MOD_QUEUE_REQ_MAP(x) ((x) << S_TX_MOD_QUEUE_REQ_MAP)
+#define TP_TX_MOD_QUEUE_REQ_MAP_A 0x7e28
 
-#define A_TP_TX_MOD_QUEUE_WEIGHT0 0x7e30
+#define TP_TX_MOD_QUEUE_WEIGHT0_A 0x7e30
+#define TP_TX_MOD_CHANNEL_WEIGHT_A 0x7e34
 
-#define S_TX_MODQ_WEIGHT3    24
-#define M_TX_MODQ_WEIGHT3    0xffU
-#define V_TX_MODQ_WEIGHT3(x) ((x) << S_TX_MODQ_WEIGHT3)
+#define TX_MOD_QUEUE_REQ_MAP_S    0
+#define TX_MOD_QUEUE_REQ_MAP_V(x) ((x) << TX_MOD_QUEUE_REQ_MAP_S)
 
-#define S_TX_MODQ_WEIGHT2    16
-#define M_TX_MODQ_WEIGHT2    0xffU
-#define V_TX_MODQ_WEIGHT2(x) ((x) << S_TX_MODQ_WEIGHT2)
+#define TX_MODQ_WEIGHT3_S    24
+#define TX_MODQ_WEIGHT3_V(x) ((x) << TX_MODQ_WEIGHT3_S)
 
-#define S_TX_MODQ_WEIGHT1    8
-#define M_TX_MODQ_WEIGHT1    0xffU
-#define V_TX_MODQ_WEIGHT1(x) ((x) << S_TX_MODQ_WEIGHT1)
+#define TX_MODQ_WEIGHT2_S    16
+#define TX_MODQ_WEIGHT2_V(x) ((x) << TX_MODQ_WEIGHT2_S)
 
-#define S_TX_MODQ_WEIGHT0    0
-#define M_TX_MODQ_WEIGHT0    0xffU
-#define V_TX_MODQ_WEIGHT0(x) ((x) << S_TX_MODQ_WEIGHT0)
+#define TX_MODQ_WEIGHT1_S    8
+#define TX_MODQ_WEIGHT1_V(x) ((x) << TX_MODQ_WEIGHT1_S)
 
-#define A_TP_TX_SCHED_HDR 0x23
+#define TX_MODQ_WEIGHT0_S    0
+#define TX_MODQ_WEIGHT0_V(x) ((x) << TX_MODQ_WEIGHT0_S)
 
-#define A_TP_TX_SCHED_FIFO 0x24
-
-#define A_TP_TX_SCHED_PCMD 0x25
-
-#define S_VNIC    11
-#define V_VNIC(x) ((x) << S_VNIC)
-#define F_VNIC    V_VNIC(1U)
-
-#define S_FRAGMENTATION    9
-#define V_FRAGMENTATION(x) ((x) << S_FRAGMENTATION)
-#define F_FRAGMENTATION    V_FRAGMENTATION(1U)
-
-#define S_MPSHITTYPE    8
-#define V_MPSHITTYPE(x) ((x) << S_MPSHITTYPE)
-#define F_MPSHITTYPE    V_MPSHITTYPE(1U)
-
-#define S_MACMATCH    7
-#define V_MACMATCH(x) ((x) << S_MACMATCH)
-#define F_MACMATCH    V_MACMATCH(1U)
-
-#define S_ETHERTYPE    6
-#define V_ETHERTYPE(x) ((x) << S_ETHERTYPE)
-#define F_ETHERTYPE    V_ETHERTYPE(1U)
-
-#define S_PROTOCOL    5
-#define V_PROTOCOL(x) ((x) << S_PROTOCOL)
-#define F_PROTOCOL    V_PROTOCOL(1U)
-
-#define S_TOS    4
-#define V_TOS(x) ((x) << S_TOS)
-#define F_TOS    V_TOS(1U)
-
-#define S_VLAN    3
-#define V_VLAN(x) ((x) << S_VLAN)
-#define F_VLAN    V_VLAN(1U)
-
-#define S_VNIC_ID    2
-#define V_VNIC_ID(x) ((x) << S_VNIC_ID)
-#define F_VNIC_ID    V_VNIC_ID(1U)
-
-#define S_PORT    1
-#define V_PORT(x) ((x) << S_PORT)
-#define F_PORT    V_PORT(1U)
-
-#define S_FCOE    0
-#define V_FCOE(x) ((x) << S_FCOE)
-#define F_FCOE    V_FCOE(1U)
+#define TP_TX_SCHED_HDR_A 0x23
+#define TP_TX_SCHED_FIFO_A 0x24
+#define TP_TX_SCHED_PCMD_A 0x25
 
 #define NUM_MPS_CLS_SRAM_L_INSTANCES 336
 #define NUM_MPS_T5_CLS_SRAM_L_INSTANCES 512
@@ -1968,46 +2058,8 @@
 #define EDC_STRIDE_T5 (EDC_T51_BASE_ADDR - EDC_T50_BASE_ADDR)
 #define EDC_REG_T5(reg, idx) (reg + EDC_STRIDE_T5 * idx)
 
-#define A_PL_VF_REV 0x4
-#define A_PL_VF_WHOAMI 0x0
-#define A_PL_VF_REVISION 0x8
-
-#define S_CHIPID    4
-#define M_CHIPID    0xfU
-#define V_CHIPID(x) ((x) << S_CHIPID)
-#define G_CHIPID(x) (((x) >> S_CHIPID) & M_CHIPID)
-
-/* TP_VLAN_PRI_MAP controls which subset of fields will be present in the
- * Compressed Filter Tuple for LE filters.  Each bit set in TP_VLAN_PRI_MAP
- * selects for a particular field being present.  These fields, when present
- * in the Compressed Filter Tuple, have the following widths in bits.
- */
-#define W_FT_FCOE                       1
-#define W_FT_PORT                       3
-#define W_FT_VNIC_ID                    17
-#define W_FT_VLAN                       17
-#define W_FT_TOS                        8
-#define W_FT_PROTOCOL                   8
-#define W_FT_ETHERTYPE                  16
-#define W_FT_MACMATCH                   9
-#define W_FT_MPSHITTYPE                 3
-#define W_FT_FRAGMENTATION              1
-
-/* Some of the Compressed Filter Tuple fields have internal structure.  These
- * bit shifts/masks describe those structures.  All shifts are relative to the
- * base position of the fields within the Compressed Filter Tuple
- */
-#define S_FT_VLAN_VLD                   16
-#define V_FT_VLAN_VLD(x)                ((x) << S_FT_VLAN_VLD)
-#define F_FT_VLAN_VLD                   V_FT_VLAN_VLD(1U)
-
-#define S_FT_VNID_ID_VF                 0
-#define V_FT_VNID_ID_VF(x)              ((x) << S_FT_VNID_ID_VF)
-
-#define S_FT_VNID_ID_PF                 7
-#define V_FT_VNID_ID_PF(x)              ((x) << S_FT_VNID_ID_PF)
-
-#define S_FT_VNID_ID_VLD                16
-#define V_FT_VNID_ID_VLD(x)             ((x) << S_FT_VNID_ID_VLD)
+#define PL_VF_REV_A 0x4
+#define PL_VF_WHOAMI_A 0x0
+#define PL_VF_REVISION_A 0x8
 
 #endif /* __T4_REGS_H */

@@ -77,8 +77,8 @@ static inline int csio_is_t5(uint16_t chip)
 	(csio_is_t4(hw->chip_id) ? (LP_INT_THRESH_M) : (LP_INT_THRESH_T5_M))
 
 #define CSIO_MAC_INT_CAUSE_REG(hw, port)				\
-	(csio_is_t4(hw->chip_id) ? (PORT_REG(port, XGMAC_PORT_INT_CAUSE)) : \
-				(T5_PORT_REG(port, MAC_PORT_INT_CAUSE)))
+	(csio_is_t4(hw->chip_id) ? (PORT_REG(port, XGMAC_PORT_INT_CAUSE_A)) : \
+				(T5_PORT_REG(port, MAC_PORT_INT_CAUSE_A)))
 
 #define FW_VERSION_MAJOR(hw) (csio_is_t4(hw->chip_id) ? 1 : 0)
 #define FW_VERSION_MINOR(hw) (csio_is_t4(hw->chip_id) ? 2 : 0)

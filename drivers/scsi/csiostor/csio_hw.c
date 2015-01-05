@@ -421,17 +421,15 @@ csio_hw_sf1_read(struct csio_hw *hw, uint32_t byte_cnt, int32_t cont,
 
 	if (!byte_cnt || byte_cnt > 4)
 		return -EINVAL;
-	if (csio_rd_reg32(hw, SF_OP) & SF_BUSY)
+	if (csio_rd_reg32(hw, SF_OP_A) & SF_BUSY_F)
 		return -EBUSY;
 
-	cont = cont ? SF_CONT : 0;
-	lock = lock ? SF_LOCK : 0;
-
-	csio_wr_reg32(hw, lock | cont | BYTECNT(byte_cnt - 1), SF_OP);
-	ret = csio_hw_wait_op_done_val(hw, SF_OP, SF_BUSY, 0, SF_ATTEMPTS,
-					 10, NULL);
+	csio_wr_reg32(hw,  SF_LOCK_V(lock) | SF_CONT_V(cont) |
+		      BYTECNT_V(byte_cnt - 1), SF_OP_A);
+	ret = csio_hw_wait_op_done_val(hw, SF_OP_A, SF_BUSY_F, 0, SF_ATTEMPTS,
+				       10, NULL);
 	if (!ret)
-		*valp = csio_rd_reg32(hw, SF_DATA);
+		*valp = csio_rd_reg32(hw, SF_DATA_A);
 	return ret;
 }
 
@@ -453,16 +451,14 @@ csio_hw_sf1_write(struct csio_hw *hw, uint32_t byte_cnt, uint32_t cont,
 {
 	if (!byte_cnt || byte_cnt > 4)
 		return -EINVAL;
-	if (csio_rd_reg32(hw, SF_OP) & SF_BUSY)
+	if (csio_rd_reg32(hw, SF_OP_A) & SF_BUSY_F)
 		return -EBUSY;
 
-	cont = cont ? SF_CONT : 0;
-	lock = lock ? SF_LOCK : 0;
+	csio_wr_reg32(hw, val, SF_DATA_A);
+	csio_wr_reg32(hw, SF_CONT_V(cont) | BYTECNT_V(byte_cnt - 1) |
+		      OP_V(1) | SF_LOCK_V(lock), SF_OP_A);
 
-	csio_wr_reg32(hw, val, SF_DATA);
-	csio_wr_reg32(hw, cont | BYTECNT(byte_cnt - 1) | OP_WR | lock, SF_OP);
-
-	return csio_hw_wait_op_done_val(hw, SF_OP, SF_BUSY, 0, SF_ATTEMPTS,
+	return csio_hw_wait_op_done_val(hw, SF_OP_A, SF_BUSY_F, 0, SF_ATTEMPTS,
 					10, NULL);
 }
 
@@ -533,7 +529,7 @@ csio_hw_read_flash(struct csio_hw *hw, uint32_t addr, uint32_t nwords,
 	for ( ; nwords; nwords--, data++) {
 		ret = csio_hw_sf1_read(hw, 4, nwords > 1, nwords == 1, data);
 		if (nwords == 1)
-			csio_wr_reg32(hw, 0, SF_OP);    /* unlock SF */
+			csio_wr_reg32(hw, 0, SF_OP_A);    /* unlock SF */
 		if (ret)
 			return ret;
 		if (byte_oriented)
@@ -586,7 +582,7 @@ csio_hw_write_flash(struct csio_hw *hw, uint32_t addr,
 	if (ret)
 		goto unlock;
 
-	csio_wr_reg32(hw, 0, SF_OP);    /* unlock SF */
+	csio_wr_reg32(hw, 0, SF_OP_A);    /* unlock SF */
 
 	/* Read the page to verify the write succeeded */
 	ret = csio_hw_read_flash(hw, addr & ~0xff, ARRAY_SIZE(buf), buf, 1);
@@ -603,7 +599,7 @@ csio_hw_write_flash(struct csio_hw *hw, uint32_t addr,
 	return 0;
 
 unlock:
-	csio_wr_reg32(hw, 0, SF_OP);    /* unlock SF */
+	csio_wr_reg32(hw, 0, SF_OP_A);    /* unlock SF */
 	return ret;
 }
 
@@ -641,7 +637,7 @@ out:
 	if (ret)
 		csio_err(hw, "erase of flash sector %d failed, error %d\n",
 			 start, ret);
-	csio_wr_reg32(hw, 0, SF_OP);    /* unlock SF */
+	csio_wr_reg32(hw, 0, SF_OP_A);    /* unlock SF */
 	return 0;
 }
 
@@ -833,7 +829,7 @@ csio_hw_get_flash_params(struct csio_hw *hw)
 	ret = csio_hw_sf1_write(hw, 1, 1, 0, SF_RD_ID);
 	if (!ret)
 		ret = csio_hw_sf1_read(hw, 3, 0, 1, &info);
-	csio_wr_reg32(hw, 0, SF_OP);    /* unlock SF */
+	csio_wr_reg32(hw, 0, SF_OP_A);    /* unlock SF */
 	if (ret != 0)
 		return ret;
 
@@ -861,17 +857,17 @@ csio_hw_dev_ready(struct csio_hw *hw)
 	uint32_t reg;
 	int cnt = 6;
 
-	while (((reg = csio_rd_reg32(hw, PL_WHOAMI)) == 0xFFFFFFFF) &&
-								(--cnt != 0))
+	while (((reg = csio_rd_reg32(hw, PL_WHOAMI_A)) == 0xFFFFFFFF) &&
+	       (--cnt != 0))
 		mdelay(100);
 
-	if ((cnt == 0) && (((int32_t)(SOURCEPF_GET(reg)) < 0) ||
-			    (SOURCEPF_GET(reg) >= CSIO_MAX_PFN))) {
+	if ((cnt == 0) && (((int32_t)(SOURCEPF_G(reg)) < 0) ||
+			   (SOURCEPF_G(reg) >= CSIO_MAX_PFN))) {
 		csio_err(hw, "PL_WHOAMI returned 0x%x, cnt:%d\n", reg, cnt);
 		return -EIO;
 	}
 
-	hw->pfn = SOURCEPF_GET(reg);
+	hw->pfn = SOURCEPF_G(reg);
 
 	return 0;
 }
@@ -1078,7 +1074,7 @@ csio_do_reset(struct csio_hw *hw, bool fw_rst)
 
 	if (!fw_rst) {
 		/* PIO reset */
-		csio_wr_reg32(hw, PIORSTMODE | PIORST, PL_RST);
+		csio_wr_reg32(hw, PIORSTMODE_F | PIORST_F, PL_RST_A);
 		mdelay(2000);
 		return 0;
 	}
@@ -1090,7 +1086,7 @@ csio_do_reset(struct csio_hw *hw, bool fw_rst)
 	}
 
 	csio_mb_reset(hw, mbp, CSIO_MB_DEFAULT_TMO,
-		      PIORSTMODE | PIORST, 0, NULL);
+		      PIORSTMODE_F | PIORST_F, 0, NULL);
 
 	if (csio_mb_issue(hw, mbp)) {
 		csio_err(hw, "Issue of RESET command failed.n");
@@ -1166,7 +1162,7 @@ csio_hw_fw_halt(struct csio_hw *hw, uint32_t mbox, int32_t force)
 		}
 
 		csio_mb_reset(hw, mbp, CSIO_MB_DEFAULT_TMO,
-			      PIORSTMODE | PIORST, FW_RESET_CMD_HALT_F,
+			      PIORSTMODE_F | PIORST_F, FW_RESET_CMD_HALT_F,
 			      NULL);
 
 		if (csio_mb_issue(hw, mbp)) {
@@ -1251,7 +1247,7 @@ csio_hw_fw_restart(struct csio_hw *hw, uint32_t mbox, int32_t reset)
 				return 0;
 		}
 
-		csio_wr_reg32(hw, PIORSTMODE | PIORST, PL_RST);
+		csio_wr_reg32(hw, PIORSTMODE_F | PIORST_F, PL_RST_A);
 		msleep(2000);
 	} else {
 		int ms;
@@ -2040,7 +2036,7 @@ csio_hw_configure(struct csio_hw *hw)
 	}
 
 	/* HW version */
-	hw->chip_ver = (char)csio_rd_reg32(hw, PL_REV);
+	hw->chip_ver = (char)csio_rd_reg32(hw, PL_REV_A);
 
 	/* Needed for FW download */
 	rv = csio_hw_get_flash_params(hw);
@@ -2218,7 +2214,7 @@ out:
 	return;
 }
 
-#define PF_INTR_MASK (PFSW | PFCIM)
+#define PF_INTR_MASK (PFSW_F | PFCIM_F)
 
 /*
  * csio_hw_intr_enable - Enable HW interrupts
@@ -2230,8 +2226,8 @@ static void
 csio_hw_intr_enable(struct csio_hw *hw)
 {
 	uint16_t vec = (uint16_t)csio_get_mb_intr_idx(csio_hw_to_mbm(hw));
-	uint32_t pf = SOURCEPF_GET(csio_rd_reg32(hw, PL_WHOAMI));
-	uint32_t pl = csio_rd_reg32(hw, PL_INT_ENABLE);
+	uint32_t pf = SOURCEPF_G(csio_rd_reg32(hw, PL_WHOAMI_A));
+	uint32_t pl = csio_rd_reg32(hw, PL_INT_ENABLE_A);
 
 	/*
 	 * Set aivec for MSI/MSIX. PCIE_PF_CFG.INTXType is set up
@@ -2244,7 +2240,7 @@ csio_hw_intr_enable(struct csio_hw *hw)
 		csio_set_reg_field(hw, MYPF_REG(PCIE_PF_CFG_A),
 				   AIVEC_V(AIVEC_M), 0);
 
-	csio_wr_reg32(hw, PF_INTR_MASK, MYPF_REG(PL_PF_INT_ENABLE));
+	csio_wr_reg32(hw, PF_INTR_MASK, MYPF_REG(PL_PF_INT_ENABLE_A));
 
 	/* Turn on MB interrupts - this will internally flush PIO as well */
 	csio_mb_intr_enable(hw);
@@ -2254,8 +2250,8 @@ csio_hw_intr_enable(struct csio_hw *hw)
 		/*
 		 * Disable the Serial FLASH interrupt, if enabled!
 		 */
-		pl &= (~SF);
-		csio_wr_reg32(hw, pl, PL_INT_ENABLE);
+		pl &= (~SF_F);
+		csio_wr_reg32(hw, pl, PL_INT_ENABLE_A);
 
 		csio_wr_reg32(hw, ERR_CPL_EXCEED_IQE_SIZE_F |
 			      EGRESS_SIZE_ERR_F | ERR_INVALID_CIDX_INC_F |
@@ -2266,7 +2262,7 @@ csio_hw_intr_enable(struct csio_hw *hw)
 			      ERR_BAD_DB_PIDX0_F | ERR_ING_CTXT_PRIO_F |
 			      ERR_EGR_CTXT_PRIO_F | INGRESS_SIZE_ERR_F,
 			      SGE_INT_ENABLE3_A);
-		csio_set_reg_field(hw, PL_INT_MAP0, 0, 1 << pf);
+		csio_set_reg_field(hw, PL_INT_MAP0_A, 0, 1 << pf);
 	}
 
 	hw->flags |= CSIO_HWF_HW_INTR_ENABLED;
@@ -2282,16 +2278,16 @@ csio_hw_intr_enable(struct csio_hw *hw)
 void
 csio_hw_intr_disable(struct csio_hw *hw)
 {
-	uint32_t pf = SOURCEPF_GET(csio_rd_reg32(hw, PL_WHOAMI));
+	uint32_t pf = SOURCEPF_G(csio_rd_reg32(hw, PL_WHOAMI_A));
 
 	if (!(hw->flags & CSIO_HWF_HW_INTR_ENABLED))
 		return;
 
 	hw->flags &= ~CSIO_HWF_HW_INTR_ENABLED;
 
-	csio_wr_reg32(hw, 0, MYPF_REG(PL_PF_INT_ENABLE));
+	csio_wr_reg32(hw, 0, MYPF_REG(PL_PF_INT_ENABLE_A));
 	if (csio_is_hw_master(hw))
-		csio_set_reg_field(hw, PL_INT_MAP0, 1 << pf, 0);
+		csio_set_reg_field(hw, PL_INT_MAP0_A, 1 << pf, 0);
 
 	/* Turn off MB interrupts */
 	csio_mb_intr_disable(hw);
@@ -2595,7 +2591,7 @@ csio_hws_removing(struct csio_hw *hw, enum csio_hw_ev evt)
 		 * register directly.
 		 */
 		csio_err(hw, "Resetting HW and waiting 2 seconds...\n");
-		csio_wr_reg32(hw, PIORSTMODE | PIORST, PL_RST);
+		csio_wr_reg32(hw, PIORSTMODE_F | PIORST_F, PL_RST_A);
 		mdelay(2000);
 		break;
 
@@ -2814,7 +2810,7 @@ static void csio_ulprx_intr_handler(struct csio_hw *hw)
 		{ 0, NULL, 0, 0 }
 	};
 
-	if (csio_handle_intr_status(hw, ULP_RX_INT_CAUSE, ulprx_intr_info))
+	if (csio_handle_intr_status(hw, ULP_RX_INT_CAUSE_A, ulprx_intr_info))
 		csio_hw_fatal_err(hw);
 }
 
@@ -2889,16 +2885,16 @@ static void csio_pmrx_intr_handler(struct csio_hw *hw)
 static void csio_cplsw_intr_handler(struct csio_hw *hw)
 {
 	static struct intr_info cplsw_intr_info[] = {
-		{ CIM_OP_MAP_PERR, "CPLSW CIM op_map parity error", -1, 1 },
-		{ CIM_OVFL_ERROR, "CPLSW CIM overflow", -1, 1 },
-		{ TP_FRAMING_ERROR, "CPLSW TP framing error", -1, 1 },
-		{ SGE_FRAMING_ERROR, "CPLSW SGE framing error", -1, 1 },
-		{ CIM_FRAMING_ERROR, "CPLSW CIM framing error", -1, 1 },
-		{ ZERO_SWITCH_ERROR, "CPLSW no-switch error", -1, 1 },
+		{ CIM_OP_MAP_PERR_F, "CPLSW CIM op_map parity error", -1, 1 },
+		{ CIM_OVFL_ERROR_F, "CPLSW CIM overflow", -1, 1 },
+		{ TP_FRAMING_ERROR_F, "CPLSW TP framing error", -1, 1 },
+		{ SGE_FRAMING_ERROR_F, "CPLSW SGE framing error", -1, 1 },
+		{ CIM_FRAMING_ERROR_F, "CPLSW CIM framing error", -1, 1 },
+		{ ZERO_SWITCH_ERROR_F, "CPLSW no-switch error", -1, 1 },
 		{ 0, NULL, 0, 0 }
 	};
 
-	if (csio_handle_intr_status(hw, CPL_INTR_CAUSE, cplsw_intr_info))
+	if (csio_handle_intr_status(hw, CPL_INTR_CAUSE_A, cplsw_intr_info))
 		csio_hw_fatal_err(hw);
 }
 
@@ -2908,15 +2904,15 @@ static void csio_cplsw_intr_handler(struct csio_hw *hw)
 static void csio_le_intr_handler(struct csio_hw *hw)
 {
 	static struct intr_info le_intr_info[] = {
-		{ LIPMISS, "LE LIP miss", -1, 0 },
-		{ LIP0, "LE 0 LIP error", -1, 0 },
-		{ PARITYERR, "LE parity error", -1, 1 },
-		{ UNKNOWNCMD, "LE unknown command", -1, 1 },
-		{ REQQPARERR, "LE request queue parity error", -1, 1 },
+		{ LIPMISS_F, "LE LIP miss", -1, 0 },
+		{ LIP0_F, "LE 0 LIP error", -1, 0 },
+		{ PARITYERR_F, "LE parity error", -1, 1 },
+		{ UNKNOWNCMD_F, "LE unknown command", -1, 1 },
+		{ REQQPARERR_F, "LE request queue parity error", -1, 1 },
 		{ 0, NULL, 0, 0 }
 	};
 
-	if (csio_handle_intr_status(hw, LE_DB_INT_CAUSE, le_intr_info))
+	if (csio_handle_intr_status(hw, LE_DB_INT_CAUSE_A, le_intr_info))
 		csio_hw_fatal_err(hw);
 }
 
@@ -3054,13 +3050,13 @@ static void csio_ma_intr_handler(struct csio_hw *hw)
 static void csio_smb_intr_handler(struct csio_hw *hw)
 {
 	static struct intr_info smb_intr_info[] = {
-		{ MSTTXFIFOPARINT, "SMB master Tx FIFO parity error", -1, 1 },
-		{ MSTRXFIFOPARINT, "SMB master Rx FIFO parity error", -1, 1 },
-		{ SLVFIFOPARINT, "SMB slave FIFO parity error", -1, 1 },
+		{ MSTTXFIFOPARINT_F, "SMB master Tx FIFO parity error", -1, 1 },
+		{ MSTRXFIFOPARINT_F, "SMB master Rx FIFO parity error", -1, 1 },
+		{ SLVFIFOPARINT_F, "SMB slave FIFO parity error", -1, 1 },
 		{ 0, NULL, 0, 0 }
 	};
 
-	if (csio_handle_intr_status(hw, SMB_INT_CAUSE, smb_intr_info))
+	if (csio_handle_intr_status(hw, SMB_INT_CAUSE_A, smb_intr_info))
 		csio_hw_fatal_err(hw);
 }
 
@@ -3070,14 +3066,14 @@ static void csio_smb_intr_handler(struct csio_hw *hw)
 static void csio_ncsi_intr_handler(struct csio_hw *hw)
 {
 	static struct intr_info ncsi_intr_info[] = {
-		{ CIM_DM_PRTY_ERR, "NC-SI CIM parity error", -1, 1 },
-		{ MPS_DM_PRTY_ERR, "NC-SI MPS parity error", -1, 1 },
-		{ TXFIFO_PRTY_ERR, "NC-SI Tx FIFO parity error", -1, 1 },
-		{ RXFIFO_PRTY_ERR, "NC-SI Rx FIFO parity error", -1, 1 },
+		{ CIM_DM_PRTY_ERR_F, "NC-SI CIM parity error", -1, 1 },
+		{ MPS_DM_PRTY_ERR_F, "NC-SI MPS parity error", -1, 1 },
+		{ TXFIFO_PRTY_ERR_F, "NC-SI Tx FIFO parity error", -1, 1 },
+		{ RXFIFO_PRTY_ERR_F, "NC-SI Rx FIFO parity error", -1, 1 },
 		{ 0, NULL, 0, 0 }
 	};
 
-	if (csio_handle_intr_status(hw, NCSI_INT_CAUSE, ncsi_intr_info))
+	if (csio_handle_intr_status(hw, NCSI_INT_CAUSE_A, ncsi_intr_info))
 		csio_hw_fatal_err(hw);
 }
 
@@ -3088,13 +3084,13 @@ static void csio_xgmac_intr_handler(struct csio_hw *hw, int port)
 {
 	uint32_t v = csio_rd_reg32(hw, CSIO_MAC_INT_CAUSE_REG(hw, port));
 
-	v &= TXFIFO_PRTY_ERR | RXFIFO_PRTY_ERR;
+	v &= TXFIFO_PRTY_ERR_F | RXFIFO_PRTY_ERR_F;
 	if (!v)
 		return;
 
-	if (v & TXFIFO_PRTY_ERR)
+	if (v & TXFIFO_PRTY_ERR_F)
 		csio_fatal(hw, "XGMAC %d Tx FIFO parity error\n", port);
-	if (v & RXFIFO_PRTY_ERR)
+	if (v & RXFIFO_PRTY_ERR_F)
 		csio_fatal(hw, "XGMAC %d Rx FIFO parity error\n", port);
 	csio_wr_reg32(hw, v, CSIO_MAC_INT_CAUSE_REG(hw, port));
 	csio_hw_fatal_err(hw);
@@ -3106,12 +3102,12 @@ static void csio_xgmac_intr_handler(struct csio_hw *hw, int port)
 static void csio_pl_intr_handler(struct csio_hw *hw)
 {
 	static struct intr_info pl_intr_info[] = {
-		{ FATALPERR, "T4 fatal parity error", -1, 1 },
-		{ PERRVFID, "PL VFID_MAP parity error", -1, 1 },
+		{ FATALPERR_F, "T4 fatal parity error", -1, 1 },
+		{ PERRVFID_F, "PL VFID_MAP parity error", -1, 1 },
 		{ 0, NULL, 0, 0 }
 	};
 
-	if (csio_handle_intr_status(hw, PL_PL_INT_CAUSE, pl_intr_info))
+	if (csio_handle_intr_status(hw, PL_PL_INT_CAUSE_A, pl_intr_info))
 		csio_hw_fatal_err(hw);
 }
 
@@ -3126,7 +3122,7 @@ static void csio_pl_intr_handler(struct csio_hw *hw)
 int
 csio_hw_slow_intr_handler(struct csio_hw *hw)
 {
-	uint32_t cause = csio_rd_reg32(hw, PL_INT_CAUSE);
+	uint32_t cause = csio_rd_reg32(hw, PL_INT_CAUSE_A);
 
 	if (!(cause & CSIO_GLBL_INTR_MASK)) {
 		CSIO_INC_STATS(hw, n_plint_unexp);
@@ -3137,75 +3133,75 @@ csio_hw_slow_intr_handler(struct csio_hw *hw)
 
 	CSIO_INC_STATS(hw, n_plint_cnt);
 
-	if (cause & CIM)
+	if (cause & CIM_F)
 		csio_cim_intr_handler(hw);
 
-	if (cause & MPS)
+	if (cause & MPS_F)
 		csio_mps_intr_handler(hw);
 
-	if (cause & NCSI)
+	if (cause & NCSI_F)
 		csio_ncsi_intr_handler(hw);
 
-	if (cause & PL)
+	if (cause & PL_F)
 		csio_pl_intr_handler(hw);
 
-	if (cause & SMB)
+	if (cause & SMB_F)
 		csio_smb_intr_handler(hw);
 
-	if (cause & XGMAC0)
+	if (cause & XGMAC0_F)
 		csio_xgmac_intr_handler(hw, 0);
 
-	if (cause & XGMAC1)
+	if (cause & XGMAC1_F)
 		csio_xgmac_intr_handler(hw, 1);
 
-	if (cause & XGMAC_KR0)
+	if (cause & XGMAC_KR0_F)
 		csio_xgmac_intr_handler(hw, 2);
 
-	if (cause & XGMAC_KR1)
+	if (cause & XGMAC_KR1_F)
 		csio_xgmac_intr_handler(hw, 3);
 
-	if (cause & PCIE)
+	if (cause & PCIE_F)
 		hw->chip_ops->chip_pcie_intr_handler(hw);
 
-	if (cause & MC)
+	if (cause & MC_F)
 		csio_mem_intr_handler(hw, MEM_MC);
 
-	if (cause & EDC0)
+	if (cause & EDC0_F)
 		csio_mem_intr_handler(hw, MEM_EDC0);
 
-	if (cause & EDC1)
+	if (cause & EDC1_F)
 		csio_mem_intr_handler(hw, MEM_EDC1);
 
-	if (cause & LE)
+	if (cause & LE_F)
 		csio_le_intr_handler(hw);
 
-	if (cause & TP)
+	if (cause & TP_F)
 		csio_tp_intr_handler(hw);
 
-	if (cause & MA)
+	if (cause & MA_F)
 		csio_ma_intr_handler(hw);
 
-	if (cause & PM_TX)
+	if (cause & PM_TX_F)
 		csio_pmtx_intr_handler(hw);
 
-	if (cause & PM_RX)
+	if (cause & PM_RX_F)
 		csio_pmrx_intr_handler(hw);
 
-	if (cause & ULP_RX)
+	if (cause & ULP_RX_F)
 		csio_ulprx_intr_handler(hw);
 
-	if (cause & CPL_SWITCH)
+	if (cause & CPL_SWITCH_F)
 		csio_cplsw_intr_handler(hw);
 
-	if (cause & SGE)
+	if (cause & SGE_F)
 		csio_sge_intr_handler(hw);
 
-	if (cause & ULP_TX)
+	if (cause & ULP_TX_F)
 		csio_ulptx_intr_handler(hw);
 
 	/* Clear the interrupts just processed for which we are the master. */
-	csio_wr_reg32(hw, cause & CSIO_GLBL_INTR_MASK, PL_INT_CAUSE);
-	csio_rd_reg32(hw, PL_INT_CAUSE); /* flush */
+	csio_wr_reg32(hw, cause & CSIO_GLBL_INTR_MASK, PL_INT_CAUSE_A);
+	csio_rd_reg32(hw, PL_INT_CAUSE_A); /* flush */
 
 	return 1;
 }

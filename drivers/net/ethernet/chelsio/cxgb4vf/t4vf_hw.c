@@ -616,8 +616,8 @@ int t4vf_get_sge_params(struct adapter *adapter)
 		 * the driver can just use it.
 		 */
 		whoami = t4_read_reg(adapter,
-				     T4VF_PL_BASE_ADDR + A_PL_VF_WHOAMI);
-		pf = SOURCEPF_GET(whoami);
+				     T4VF_PL_BASE_ADDR + PL_VF_WHOAMI_A);
+		pf = SOURCEPF_G(whoami);
 
 		s_hps = (HOSTPAGESIZEPF0_S +
 			 (HOSTPAGESIZEPF1_S - HOSTPAGESIZEPF0_S) * pf);
@@ -1591,7 +1591,7 @@ int t4vf_prep_adapter(struct adapter *adapter)
 		break;
 
 	case CHELSIO_T5:
-		chipid = G_REV(t4_read_reg(adapter, A_PL_VF_REV));
+		chipid = REV_G(t4_read_reg(adapter, PL_VF_REV_A));
 		adapter->params.chip |= CHELSIO_CHIP_CODE(CHELSIO_T5, chipid);
 		break;
 	}

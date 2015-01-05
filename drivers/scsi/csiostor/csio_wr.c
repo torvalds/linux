@@ -1343,7 +1343,7 @@ csio_wr_fixup_host_params(struct csio_hw *hw)
 			SGE_FL_BUFFER_SIZE3_A);
 	}
 
-	csio_wr_reg32(hw, HPZ0(PAGE_SHIFT - 12), ULP_RX_TDDP_PSZ);
+	csio_wr_reg32(hw, HPZ0_V(PAGE_SHIFT - 12), ULP_RX_TDDP_PSZ_A);
 
 	/* default value of rx_dma_offset of the NIC driver */
 	csio_set_reg_field(hw, SGE_CONTROL_A,

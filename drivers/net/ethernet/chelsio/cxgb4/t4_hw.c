@@ -761,14 +761,13 @@ static int sf1_read(struct adapter *adapter, unsigned int byte_cnt, int cont,
 
 	if (!byte_cnt || byte_cnt > 4)
 		return -EINVAL;
-	if (t4_read_reg(adapter, SF_OP) & SF_BUSY)
+	if (t4_read_reg(adapter, SF_OP_A) & SF_BUSY_F)
 		return -EBUSY;
-	cont = cont ? SF_CONT : 0;
-	lock = lock ? SF_LOCK : 0;
-	t4_write_reg(adapter, SF_OP, lock | cont | BYTECNT(byte_cnt - 1));
-	ret = t4_wait_op_done(adapter, SF_OP, SF_BUSY, 0, SF_ATTEMPTS, 5);
+	t4_write_reg(adapter, SF_OP_A, SF_LOCK_V(lock) |
+		     SF_CONT_V(cont) | BYTECNT_V(byte_cnt - 1));
+	ret = t4_wait_op_done(adapter, SF_OP_A, SF_BUSY_F, 0, SF_ATTEMPTS, 5);
 	if (!ret)
-		*valp = t4_read_reg(adapter, SF_DATA);
+		*valp = t4_read_reg(adapter, SF_DATA_A);
 	return ret;
 }
 
@@ -789,14 +788,12 @@ static int sf1_write(struct adapter *adapter, unsigned int byte_cnt, int cont,
 {
 	if (!byte_cnt || byte_cnt > 4)
 		return -EINVAL;
-	if (t4_read_reg(adapter, SF_OP) & SF_BUSY)
+	if (t4_read_reg(adapter, SF_OP_A) & SF_BUSY_F)
 		return -EBUSY;
-	cont = cont ? SF_CONT : 0;
-	lock = lock ? SF_LOCK : 0;
-	t4_write_reg(adapter, SF_DATA, val);
-	t4_write_reg(adapter, SF_OP, lock |
-		     cont | BYTECNT(byte_cnt - 1) | OP_WR);
-	return t4_wait_op_done(adapter, SF_OP, SF_BUSY, 0, SF_ATTEMPTS, 5);
+	t4_write_reg(adapter, SF_DATA_A, val);
+	t4_write_reg(adapter, SF_OP_A, SF_LOCK_V(lock) |
+		     SF_CONT_V(cont) | BYTECNT_V(byte_cnt - 1) | OP_V(1));
+	return t4_wait_op_done(adapter, SF_OP_A, SF_BUSY_F, 0, SF_ATTEMPTS, 5);
 }
 
 /**
@@ -855,7 +852,7 @@ static int t4_read_flash(struct adapter *adapter, unsigned int addr,
 	for ( ; nwords; nwords--, data++) {
 		ret = sf1_read(adapter, 4, nwords > 1, nwords == 1, data);
 		if (nwords == 1)
-			t4_write_reg(adapter, SF_OP, 0);    /* unlock SF */
+			t4_write_reg(adapter, SF_OP_A, 0);    /* unlock SF */
 		if (ret)
 			return ret;
 		if (byte_oriented)
@@ -903,7 +900,7 @@ static int t4_write_flash(struct adapter *adapter, unsigned int addr,
 	if (ret)
 		goto unlock;
 
-	t4_write_reg(adapter, SF_OP, 0);    /* unlock SF */
+	t4_write_reg(adapter, SF_OP_A, 0);    /* unlock SF */
 
 	/* Read the page to verify the write succeeded */
 	ret = t4_read_flash(adapter, addr & ~0xff, ARRAY_SIZE(buf), buf, 1);
@@ -919,7 +916,7 @@ static int t4_write_flash(struct adapter *adapter, unsigned int addr,
 	return 0;
 
 unlock:
-	t4_write_reg(adapter, SF_OP, 0);    /* unlock SF */
+	t4_write_reg(adapter, SF_OP_A, 0);    /* unlock SF */
 	return ret;
 }
 
@@ -1114,7 +1111,7 @@ static int t4_flash_erase_sectors(struct adapter *adapter, int start, int end)
 		}
 		start++;
 	}
-	t4_write_reg(adapter, SF_OP, 0);    /* unlock SF */
+	t4_write_reg(adapter, SF_OP_A, 0);    /* unlock SF */
 	return ret;
 }
 
@@ -1619,7 +1616,7 @@ static void ulprx_intr_handler(struct adapter *adapter)
 		{ 0 }
 	};
 
-	if (t4_handle_intr_status(adapter, ULP_RX_INT_CAUSE, ulprx_intr_info))
+	if (t4_handle_intr_status(adapter, ULP_RX_INT_CAUSE_A, ulprx_intr_info))
 		t4_fatal_err(adapter);
 }
 
@@ -1694,16 +1691,16 @@ static void pmrx_intr_handler(struct adapter *adapter)
 static void cplsw_intr_handler(struct adapter *adapter)
 {
 	static const struct intr_info cplsw_intr_info[] = {
-		{ CIM_OP_MAP_PERR, "CPLSW CIM op_map parity error", -1, 1 },
-		{ CIM_OVFL_ERROR, "CPLSW CIM overflow", -1, 1 },
-		{ TP_FRAMING_ERROR, "CPLSW TP framing error", -1, 1 },
-		{ SGE_FRAMING_ERROR, "CPLSW SGE framing error", -1, 1 },
-		{ CIM_FRAMING_ERROR, "CPLSW CIM framing error", -1, 1 },
-		{ ZERO_SWITCH_ERROR, "CPLSW no-switch error", -1, 1 },
+		{ CIM_OP_MAP_PERR_F, "CPLSW CIM op_map parity error", -1, 1 },
+		{ CIM_OVFL_ERROR_F, "CPLSW CIM overflow", -1, 1 },
+		{ TP_FRAMING_ERROR_F, "CPLSW TP framing error", -1, 1 },
+		{ SGE_FRAMING_ERROR_F, "CPLSW SGE framing error", -1, 1 },
+		{ CIM_FRAMING_ERROR_F, "CPLSW CIM framing error", -1, 1 },
+		{ ZERO_SWITCH_ERROR_F, "CPLSW no-switch error", -1, 1 },
 		{ 0 }
 	};
 
-	if (t4_handle_intr_status(adapter, CPL_INTR_CAUSE, cplsw_intr_info))
+	if (t4_handle_intr_status(adapter, CPL_INTR_CAUSE_A, cplsw_intr_info))
 		t4_fatal_err(adapter);
 }
 
@@ -1713,15 +1710,15 @@ static void cplsw_intr_handler(struct adapter *adapter)
 static void le_intr_handler(struct adapter *adap)
 {
 	static const struct intr_info le_intr_info[] = {
-		{ LIPMISS, "LE LIP miss", -1, 0 },
-		{ LIP0, "LE 0 LIP error", -1, 0 },
-		{ PARITYERR, "LE parity error", -1, 1 },
-		{ UNKNOWNCMD, "LE unknown command", -1, 1 },
-		{ REQQPARERR, "LE request queue parity error", -1, 1 },
+		{ LIPMISS_F, "LE LIP miss", -1, 0 },
+		{ LIP0_F, "LE 0 LIP error", -1, 0 },
+		{ PARITYERR_F, "LE parity error", -1, 1 },
+		{ UNKNOWNCMD_F, "LE unknown command", -1, 1 },
+		{ REQQPARERR_F, "LE request queue parity error", -1, 1 },
 		{ 0 }
 	};
 
-	if (t4_handle_intr_status(adap, LE_DB_INT_CAUSE, le_intr_info))
+	if (t4_handle_intr_status(adap, LE_DB_INT_CAUSE_A, le_intr_info))
 		t4_fatal_err(adap);
 }
 
@@ -1879,13 +1876,13 @@ static void ma_intr_handler(struct adapter *adap)
 static void smb_intr_handler(struct adapter *adap)
 {
 	static const struct intr_info smb_intr_info[] = {
-		{ MSTTXFIFOPARINT, "SMB master Tx FIFO parity error", -1, 1 },
-		{ MSTRXFIFOPARINT, "SMB master Rx FIFO parity error", -1, 1 },
-		{ SLVFIFOPARINT, "SMB slave FIFO parity error", -1, 1 },
+		{ MSTTXFIFOPARINT_F, "SMB master Tx FIFO parity error", -1, 1 },
+		{ MSTRXFIFOPARINT_F, "SMB master Rx FIFO parity error", -1, 1 },
+		{ SLVFIFOPARINT_F, "SMB slave FIFO parity error", -1, 1 },
 		{ 0 }
 	};
 
-	if (t4_handle_intr_status(adap, SMB_INT_CAUSE, smb_intr_info))
+	if (t4_handle_intr_status(adap, SMB_INT_CAUSE_A, smb_intr_info))
 		t4_fatal_err(adap);
 }
 
@@ -1895,14 +1892,14 @@ static void smb_intr_handler(struct adapter *adap)
 static void ncsi_intr_handler(struct adapter *adap)
 {
 	static const struct intr_info ncsi_intr_info[] = {
-		{ CIM_DM_PRTY_ERR, "NC-SI CIM parity error", -1, 1 },
-		{ MPS_DM_PRTY_ERR, "NC-SI MPS parity error", -1, 1 },
-		{ TXFIFO_PRTY_ERR, "NC-SI Tx FIFO parity error", -1, 1 },
-		{ RXFIFO_PRTY_ERR, "NC-SI Rx FIFO parity error", -1, 1 },
+		{ CIM_DM_PRTY_ERR_F, "NC-SI CIM parity error", -1, 1 },
+		{ MPS_DM_PRTY_ERR_F, "NC-SI MPS parity error", -1, 1 },
+		{ TXFIFO_PRTY_ERR_F, "NC-SI Tx FIFO parity error", -1, 1 },
+		{ RXFIFO_PRTY_ERR_F, "NC-SI Rx FIFO parity error", -1, 1 },
 		{ 0 }
 	};
 
-	if (t4_handle_intr_status(adap, NCSI_INT_CAUSE, ncsi_intr_info))
+	if (t4_handle_intr_status(adap, NCSI_INT_CAUSE_A, ncsi_intr_info))
 		t4_fatal_err(adap);
 }
 
@@ -1914,23 +1911,23 @@ static void xgmac_intr_handler(struct adapter *adap, int port)
 	u32 v, int_cause_reg;
 
 	if (is_t4(adap->params.chip))
-		int_cause_reg = PORT_REG(port, XGMAC_PORT_INT_CAUSE);
+		int_cause_reg = PORT_REG(port, XGMAC_PORT_INT_CAUSE_A);
 	else
-		int_cause_reg = T5_PORT_REG(port, MAC_PORT_INT_CAUSE);
+		int_cause_reg = T5_PORT_REG(port, MAC_PORT_INT_CAUSE_A);
 
 	v = t4_read_reg(adap, int_cause_reg);
 
-	v &= TXFIFO_PRTY_ERR | RXFIFO_PRTY_ERR;
+	v &= TXFIFO_PRTY_ERR_F | RXFIFO_PRTY_ERR_F;
 	if (!v)
 		return;
 
-	if (v & TXFIFO_PRTY_ERR)
+	if (v & TXFIFO_PRTY_ERR_F)
 		dev_alert(adap->pdev_dev, "XGMAC %d Tx FIFO parity error\n",
 			  port);
-	if (v & RXFIFO_PRTY_ERR)
+	if (v & RXFIFO_PRTY_ERR_F)
 		dev_alert(adap->pdev_dev, "XGMAC %d Rx FIFO parity error\n",
 			  port);
-	t4_write_reg(adap, PORT_REG(port, XGMAC_PORT_INT_CAUSE), v);
+	t4_write_reg(adap, PORT_REG(port, XGMAC_PORT_INT_CAUSE_A), v);
 	t4_fatal_err(adap);
 }
 
@@ -1940,19 +1937,19 @@ static void xgmac_intr_handler(struct adapter *adap, int port)
 static void pl_intr_handler(struct adapter *adap)
 {
 	static const struct intr_info pl_intr_info[] = {
-		{ FATALPERR, "T4 fatal parity error", -1, 1 },
-		{ PERRVFID, "PL VFID_MAP parity error", -1, 1 },
+		{ FATALPERR_F, "T4 fatal parity error", -1, 1 },
+		{ PERRVFID_F, "PL VFID_MAP parity error", -1, 1 },
 		{ 0 }
 	};
 
-	if (t4_handle_intr_status(adap, PL_PL_INT_CAUSE, pl_intr_info))
+	if (t4_handle_intr_status(adap, PL_PL_INT_CAUSE_A, pl_intr_info))
 		t4_fatal_err(adap);
 }
 
-#define PF_INTR_MASK (PFSW)
-#define GLBL_INTR_MASK (CIM | MPS | PL | PCIE | MC | EDC0 | \
-		EDC1 | LE | TP | MA | PM_TX | PM_RX | ULP_RX | \
-		CPL_SWITCH | SGE | ULP_TX)
+#define PF_INTR_MASK (PFSW_F)
+#define GLBL_INTR_MASK (CIM_F | MPS_F | PL_F | PCIE_F | MC_F | EDC0_F | \
+		EDC1_F | LE_F | TP_F | MA_F | PM_TX_F | PM_RX_F | ULP_RX_F | \
+		CPL_SWITCH_F | SGE_F | ULP_TX_F)
 
 /**
  *	t4_slow_intr_handler - control path interrupt handler
@@ -1964,60 +1961,60 @@ static void pl_intr_handler(struct adapter *adap)
  */
 int t4_slow_intr_handler(struct adapter *adapter)
 {
-	u32 cause = t4_read_reg(adapter, PL_INT_CAUSE);
+	u32 cause = t4_read_reg(adapter, PL_INT_CAUSE_A);
 
 	if (!(cause & GLBL_INTR_MASK))
 		return 0;
-	if (cause & CIM)
+	if (cause & CIM_F)
 		cim_intr_handler(adapter);
-	if (cause & MPS)
+	if (cause & MPS_F)
 		mps_intr_handler(adapter);
-	if (cause & NCSI)
+	if (cause & NCSI_F)
 		ncsi_intr_handler(adapter);
-	if (cause & PL)
+	if (cause & PL_F)
 		pl_intr_handler(adapter);
-	if (cause & SMB)
+	if (cause & SMB_F)
 		smb_intr_handler(adapter);
-	if (cause & XGMAC0)
+	if (cause & XGMAC0_F)
 		xgmac_intr_handler(adapter, 0);
-	if (cause & XGMAC1)
+	if (cause & XGMAC1_F)
 		xgmac_intr_handler(adapter, 1);
-	if (cause & XGMAC_KR0)
+	if (cause & XGMAC_KR0_F)
 		xgmac_intr_handler(adapter, 2);
-	if (cause & XGMAC_KR1)
+	if (cause & XGMAC_KR1_F)
 		xgmac_intr_handler(adapter, 3);
-	if (cause & PCIE)
+	if (cause & PCIE_F)
 		pcie_intr_handler(adapter);
-	if (cause & MC)
+	if (cause & MC_F)
 		mem_intr_handler(adapter, MEM_MC);
-	if (!is_t4(adapter->params.chip) && (cause & MC1))
+	if (!is_t4(adapter->params.chip) && (cause & MC1_S))
 		mem_intr_handler(adapter, MEM_MC1);
-	if (cause & EDC0)
+	if (cause & EDC0_F)
 		mem_intr_handler(adapter, MEM_EDC0);
-	if (cause & EDC1)
+	if (cause & EDC1_F)
 		mem_intr_handler(adapter, MEM_EDC1);
-	if (cause & LE)
+	if (cause & LE_F)
 		le_intr_handler(adapter);
-	if (cause & TP)
+	if (cause & TP_F)
 		tp_intr_handler(adapter);
-	if (cause & MA)
+	if (cause & MA_F)
 		ma_intr_handler(adapter);
-	if (cause & PM_TX)
+	if (cause & PM_TX_F)
 		pmtx_intr_handler(adapter);
-	if (cause & PM_RX)
+	if (cause & PM_RX_F)
 		pmrx_intr_handler(adapter);
-	if (cause & ULP_RX)
+	if (cause & ULP_RX_F)
 		ulprx_intr_handler(adapter);
-	if (cause & CPL_SWITCH)
+	if (cause & CPL_SWITCH_F)
 		cplsw_intr_handler(adapter);
-	if (cause & SGE)
+	if (cause & SGE_F)
 		sge_intr_handler(adapter);
-	if (cause & ULP_TX)
+	if (cause & ULP_TX_F)
 		ulptx_intr_handler(adapter);
 
 	/* Clear the interrupts just processed for which we are the master. */
-	t4_write_reg(adapter, PL_INT_CAUSE, cause & GLBL_INTR_MASK);
-	(void) t4_read_reg(adapter, PL_INT_CAUSE); /* flush */
+	t4_write_reg(adapter, PL_INT_CAUSE_A, cause & GLBL_INTR_MASK);
+	(void)t4_read_reg(adapter, PL_INT_CAUSE_A); /* flush */
 	return 1;
 }
 
@@ -2036,7 +2033,7 @@ int t4_slow_intr_handler(struct adapter *adapter)
  */
 void t4_intr_enable(struct adapter *adapter)
 {
-	u32 pf = SOURCEPF_GET(t4_read_reg(adapter, PL_WHOAMI));
+	u32 pf = SOURCEPF_G(t4_read_reg(adapter, PL_WHOAMI_A));
 
 	t4_write_reg(adapter, SGE_INT_ENABLE3_A, ERR_CPL_EXCEED_IQE_SIZE_F |
 		     ERR_INVALID_CIDX_INC_F | ERR_CPL_OPCODE_0_F |
@@ -2047,8 +2044,8 @@ void t4_intr_enable(struct adapter *adapter)
 		     ERR_EGR_CTXT_PRIO_F | INGRESS_SIZE_ERR_F |
 		     DBFIFO_HP_INT_F | DBFIFO_LP_INT_F |
 		     EGRESS_SIZE_ERR_F);
-	t4_write_reg(adapter, MYPF_REG(PL_PF_INT_ENABLE), PF_INTR_MASK);
-	t4_set_reg_field(adapter, PL_INT_MAP0, 0, 1 << pf);
+	t4_write_reg(adapter, MYPF_REG(PL_PF_INT_ENABLE_A), PF_INTR_MASK);
+	t4_set_reg_field(adapter, PL_INT_MAP0_A, 0, 1 << pf);
 }
 
 /**
@@ -2061,10 +2058,10 @@ void t4_intr_enable(struct adapter *adapter)
  */
 void t4_intr_disable(struct adapter *adapter)
 {
-	u32 pf = SOURCEPF_GET(t4_read_reg(adapter, PL_WHOAMI));
+	u32 pf = SOURCEPF_G(t4_read_reg(adapter, PL_WHOAMI_A));
 
-	t4_write_reg(adapter, MYPF_REG(PL_PF_INT_ENABLE), 0);
-	t4_set_reg_field(adapter, PL_INT_MAP0, 1 << pf, 0);
+	t4_write_reg(adapter, MYPF_REG(PL_PF_INT_ENABLE_A), 0);
+	t4_set_reg_field(adapter, PL_INT_MAP0_A, 1 << pf, 0);
 }
 
 /**
@@ -2498,7 +2495,7 @@ void t4_wol_magic_enable(struct adapter *adap, unsigned int port,
 	if (is_t4(adap->params.chip)) {
 		mag_id_reg_l = PORT_REG(port, XGMAC_PORT_MAGIC_MACID_LO);
 		mag_id_reg_h = PORT_REG(port, XGMAC_PORT_MAGIC_MACID_HI);
-		port_cfg_reg = PORT_REG(port, XGMAC_PORT_CFG2);
+		port_cfg_reg = PORT_REG(port, XGMAC_PORT_CFG2_A);
 	} else {
 		mag_id_reg_l = T5_PORT_REG(port, MAC_PORT_MAGIC_MACID_LO);
 		mag_id_reg_h = T5_PORT_REG(port, MAC_PORT_MAGIC_MACID_HI);
@@ -2512,8 +2509,8 @@ void t4_wol_magic_enable(struct adapter *adap, unsigned int port,
 		t4_write_reg(adap, mag_id_reg_h,
 			     (addr[0] << 8) | addr[1]);
 	}
-	t4_set_reg_field(adap, port_cfg_reg, MAGICEN,
-			 addr ? MAGICEN : 0);
+	t4_set_reg_field(adap, port_cfg_reg, MAGICEN_F,
+			 addr ? MAGICEN_F : 0);
 }
 
 /**
@@ -2538,20 +2535,21 @@ int t4_wol_pat_enable(struct adapter *adap, unsigned int port, unsigned int map,
 	u32 port_cfg_reg;
 
 	if (is_t4(adap->params.chip))
-		port_cfg_reg = PORT_REG(port, XGMAC_PORT_CFG2);
+		port_cfg_reg = PORT_REG(port, XGMAC_PORT_CFG2_A);
 	else
 		port_cfg_reg = T5_PORT_REG(port, MAC_PORT_CFG2_A);
 
 	if (!enable) {
-		t4_set_reg_field(adap, port_cfg_reg, PATEN, 0);
+		t4_set_reg_field(adap, port_cfg_reg, PATEN_F, 0);
 		return 0;
 	}
 	if (map > 0xff)
 		return -EINVAL;
 
 #define EPIO_REG(name) \
-	(is_t4(adap->params.chip) ? PORT_REG(port, XGMAC_PORT_EPIO_##name) : \
-	T5_PORT_REG(port, MAC_PORT_EPIO_##name##_A))
+	(is_t4(adap->params.chip) ? \
+	 PORT_REG(port, XGMAC_PORT_EPIO_##name##_A) : \
+	 T5_PORT_REG(port, MAC_PORT_EPIO_##name##_A))
 
 	t4_write_reg(adap, EPIO_REG(DATA1), mask0 >> 32);
 	t4_write_reg(adap, EPIO_REG(DATA2), mask1);
@@ -2563,21 +2561,21 @@ int t4_wol_pat_enable(struct adapter *adap, unsigned int port, unsigned int map,
 
 		/* write byte masks */
 		t4_write_reg(adap, EPIO_REG(DATA0), mask0);
-		t4_write_reg(adap, EPIO_REG(OP), ADDRESS(i) | EPIOWR);
+		t4_write_reg(adap, EPIO_REG(OP), ADDRESS_V(i) | EPIOWR_F);
 		t4_read_reg(adap, EPIO_REG(OP));                /* flush */
-		if (t4_read_reg(adap, EPIO_REG(OP)) & SF_BUSY)
+		if (t4_read_reg(adap, EPIO_REG(OP)) & SF_BUSY_F)
 			return -ETIMEDOUT;
 
 		/* write CRC */
 		t4_write_reg(adap, EPIO_REG(DATA0), crc);
-		t4_write_reg(adap, EPIO_REG(OP), ADDRESS(i + 32) | EPIOWR);
+		t4_write_reg(adap, EPIO_REG(OP), ADDRESS_V(i + 32) | EPIOWR_F);
 		t4_read_reg(adap, EPIO_REG(OP));                /* flush */
-		if (t4_read_reg(adap, EPIO_REG(OP)) & SF_BUSY)
+		if (t4_read_reg(adap, EPIO_REG(OP)) & SF_BUSY_F)
 			return -ETIMEDOUT;
 	}
 #undef EPIO_REG
 
-	t4_set_reg_field(adap, PORT_REG(port, XGMAC_PORT_CFG2), 0, PATEN);
+	t4_set_reg_field(adap, PORT_REG(port, XGMAC_PORT_CFG2_A), 0, PATEN_F);
 	return 0;
 }
 
@@ -2998,7 +2996,7 @@ static int t4_fw_halt(struct adapter *adap, unsigned int mbox, int force)
 
 		memset(&c, 0, sizeof(c));
 		INIT_CMD(c, RESET, WRITE);
-		c.val = htonl(PIORST | PIORSTMODE);
+		c.val = htonl(PIORST_F | PIORSTMODE_F);
 		c.halt_pkd = htonl(FW_RESET_CMD_HALT_F);
 		ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 	}
@@ -3071,11 +3069,11 @@ static int t4_fw_restart(struct adapter *adap, unsigned int mbox, int reset)
 			t4_set_reg_field(adap, CIM_BOOT_CFG_A, UPCRST_F, 0);
 			msleep(100);
 			if (t4_fw_reset(adap, mbox,
-					PIORST | PIORSTMODE) == 0)
+					PIORST_F | PIORSTMODE_F) == 0)
 				return 0;
 		}
 
-		t4_write_reg(adap, PL_RST, PIORST | PIORSTMODE);
+		t4_write_reg(adap, PL_RST_A, PIORST_F | PIORSTMODE_F);
 		msleep(2000);
 	} else {
 		int ms;
@@ -3246,7 +3244,7 @@ int t4_fixup_host_params(struct adapter *adap, unsigned int page_size,
 		     (t4_read_reg(adap, SGE_FL_BUFFER_SIZE3_A) + fl_align-1)
 		     & ~(fl_align-1));
 
-	t4_write_reg(adap, ULP_RX_TDDP_PSZ, HPZ0(page_shift - 12));
+	t4_write_reg(adap, ULP_RX_TDDP_PSZ_A, HPZ0_V(page_shift - 12));
 
 	return 0;
 }
@@ -3931,12 +3929,12 @@ int t4_wait_dev_ready(void __iomem *regs)
 {
 	u32 whoami;
 
-	whoami = readl(regs + PL_WHOAMI);
+	whoami = readl(regs + PL_WHOAMI_A);
 	if (whoami != 0xffffffff && whoami != CIM_PF_NOACCESS)
 		return 0;
 
 	msleep(500);
-	whoami = readl(regs + PL_WHOAMI);
+	whoami = readl(regs + PL_WHOAMI_A);
 	return (whoami != 0xffffffff && whoami != CIM_PF_NOACCESS ? 0 : -EIO);
 }
 
@@ -3960,7 +3958,7 @@ static int get_flash_params(struct adapter *adap)
 	ret = sf1_write(adap, 1, 1, 0, SF_RD_ID);
 	if (!ret)
 		ret = sf1_read(adap, 3, 0, 1, &info);
-	t4_write_reg(adap, SF_OP, 0);                    /* unlock SF */
+	t4_write_reg(adap, SF_OP_A, 0);                    /* unlock SF */
 	if (ret)
 		return ret;
 
@@ -4007,7 +4005,7 @@ int t4_prep_adapter(struct adapter *adapter)
 	u32 pl_rev;
 
 	get_pci_mode(adapter, &adapter->params.pci);
-	pl_rev = G_REV(t4_read_reg(adapter, PL_REV));
+	pl_rev = REV_G(t4_read_reg(adapter, PL_REV_A));
 
 	ret = get_flash_params(adapter);
 	if (ret < 0) {
@@ -4197,16 +4195,16 @@ int t4_init_tp_params(struct adapter *adap)
 	 * shift positions of several elements of the Compressed Filter Tuple
 	 * for this adapter which we need frequently ...
 	 */
-	adap->params.tp.vlan_shift = t4_filter_field_shift(adap, F_VLAN);
-	adap->params.tp.vnic_shift = t4_filter_field_shift(adap, F_VNIC_ID);
-	adap->params.tp.port_shift = t4_filter_field_shift(adap, F_PORT);
+	adap->params.tp.vlan_shift = t4_filter_field_shift(adap, VLAN_F);
+	adap->params.tp.vnic_shift = t4_filter_field_shift(adap, VNIC_ID_F);
+	adap->params.tp.port_shift = t4_filter_field_shift(adap, PORT_F);
 	adap->params.tp.protocol_shift = t4_filter_field_shift(adap,
-							       F_PROTOCOL);
+							       PROTOCOL_F);
 
 	/* If TP_INGRESS_CONFIG.VNID == 0, then TP_VLAN_PRI_MAP.VNIC_ID
 	 * represents the presense of an Outer VLAN instead of a VNIC ID.
 	 */
-	if ((adap->params.tp.ingress_config & F_VNIC) == 0)
+	if ((adap->params.tp.ingress_config & VNIC_F) == 0)
 		adap->params.tp.vnic_shift = -1;
 
 	return 0;
@@ -4232,35 +4230,35 @@ int t4_filter_field_shift(const struct adapter *adap, int filter_sel)
 
 	for (sel = 1, field_shift = 0; sel < filter_sel; sel <<= 1) {
 		switch (filter_mode & sel) {
-		case F_FCOE:
-			field_shift += W_FT_FCOE;
+		case FCOE_F:
+			field_shift += FT_FCOE_W;
 			break;
-		case F_PORT:
-			field_shift += W_FT_PORT;
+		case PORT_F:
+			field_shift += FT_PORT_W;
 			break;
-		case F_VNIC_ID:
-			field_shift += W_FT_VNIC_ID;
+		case VNIC_ID_F:
+			field_shift += FT_VNIC_ID_W;
 			break;
-		case F_VLAN:
-			field_shift += W_FT_VLAN;
+		case VLAN_F:
+			field_shift += FT_VLAN_W;
 			break;
-		case F_TOS:
-			field_shift += W_FT_TOS;
+		case TOS_F:
+			field_shift += FT_TOS_W;
 			break;
-		case F_PROTOCOL:
-			field_shift += W_FT_PROTOCOL;
+		case PROTOCOL_F:
+			field_shift += FT_PROTOCOL_W;
 			break;
-		case F_ETHERTYPE:
-			field_shift += W_FT_ETHERTYPE;
+		case ETHERTYPE_F:
+			field_shift += FT_ETHERTYPE_W;
 			break;
-		case F_MACMATCH:
-			field_shift += W_FT_MACMATCH;
+		case MACMATCH_F:
+			field_shift += FT_MACMATCH_W;
 			break;
-		case F_MPSHITTYPE:
-			field_shift += W_FT_MPSHITTYPE;
+		case MPSHITTYPE_F:
+			field_shift += FT_MPSHITTYPE_W;
 			break;
-		case F_FRAGMENTATION:
-			field_shift += W_FT_FRAGMENTATION;
+		case FRAGMENTATION_F:
+			field_shift += FT_FRAGMENTATION_W;
 			break;
 		}
 	}

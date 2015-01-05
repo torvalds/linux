@@ -1464,10 +1464,10 @@ csio_mb_isr_handler(struct csio_hw *hw)
 	__be64			hdr;
 	struct fw_cmd_hdr	*fw_hdr;
 
-	pl_cause = csio_rd_reg32(hw, MYPF_REG(PL_PF_INT_CAUSE));
+	pl_cause = csio_rd_reg32(hw, MYPF_REG(PL_PF_INT_CAUSE_A));
 	cim_cause = csio_rd_reg32(hw, MYPF_REG(CIM_PF_HOST_INT_CAUSE_A));
 
-	if (!(pl_cause & PFCIM) || !(cim_cause & MBMSGRDYINT_F)) {
+	if (!(pl_cause & PFCIM_F) || !(cim_cause & MBMSGRDYINT_F)) {
 		CSIO_INC_STATS(hw, n_mbint_unexp);
 		return -EINVAL;
 	}
@@ -1479,7 +1479,7 @@ csio_mb_isr_handler(struct csio_hw *hw)
 	 * first followed by PL-Cause next.
 	 */
 	csio_wr_reg32(hw, MBMSGRDYINT_F, MYPF_REG(CIM_PF_HOST_INT_CAUSE_A));
-	csio_wr_reg32(hw, PFCIM, MYPF_REG(PL_PF_INT_CAUSE));
+	csio_wr_reg32(hw, PFCIM_F, MYPF_REG(PL_PF_INT_CAUSE_A));
 
 	ctl = csio_rd_reg32(hw, ctl_reg);
 

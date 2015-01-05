@@ -46,6 +46,7 @@
 #include "t4_msg.h"
 #include "t4fw_api.h"
 #include "t4_regs.h"
+#include "t4_values.h"
 
 #define VLAN_NONE 0xfff
 
@@ -425,7 +426,7 @@ u64 cxgb4_select_ntuple(struct net_device *dev,
 	 * in the Compressed Filter Tuple.
 	 */
 	if (tp->vlan_shift >= 0 && l2t->vlan != VLAN_NONE)
-		ntuple |= (u64)(F_FT_VLAN_VLD | l2t->vlan) << tp->vlan_shift;
+		ntuple |= (u64)(FT_VLAN_VLD_F | l2t->vlan) << tp->vlan_shift;
 
 	if (tp->port_shift >= 0)
 		ntuple |= (u64)l2t->lport << tp->port_shift;
@@ -439,9 +440,9 @@ u64 cxgb4_select_ntuple(struct net_device *dev,
 		u32 pf = FW_VIID_PFN_G(viid);
 		u32 vld = FW_VIID_VIVLD_G(viid);
 
-		ntuple |= (u64)(V_FT_VNID_ID_VF(vf) |
-				V_FT_VNID_ID_PF(pf) |
-				V_FT_VNID_ID_VLD(vld)) << tp->vnic_shift;
+		ntuple |= (u64)(FT_VNID_ID_VF_V(vf) |
+				FT_VNID_ID_PF_V(pf) |
+				FT_VNID_ID_VLD_V(vld)) << tp->vnic_shift;
 	}
 
 	return ntuple;
