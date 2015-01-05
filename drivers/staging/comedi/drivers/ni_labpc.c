@@ -17,9 +17,8 @@
 /*
  * Driver: ni_labpc
  * Description: National Instruments Lab-PC (& compatibles)
- * Devices: (National Instruments) Lab-PC-1200 [lab-pc-1200]
- *	    (National Instruments) Lab-PC-1200AI [lab-pc-1200ai]
- *	    (National Instruments) Lab-PC+ [lab-pc+]
+ * Devices: [National Instruments] Lab-PC-1200 (lab-pc-1200),
+ *   Lab-PC-1200AI (lab-pc-1200ai), Lab-PC+ (lab-pc+)
  * Author: Frank Mori Hess <fmhess@users.sourceforge.net>
  * Status: works
  *
