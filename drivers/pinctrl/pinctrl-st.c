@@ -1445,6 +1445,7 @@ static struct gpio_chip st_gpio_template = {
 
 static struct irq_chip st_gpio_irqchip = {
 	.name		= "GPIO",
+	.irq_disable	= st_gpio_irq_mask,
 	.irq_mask	= st_gpio_irq_mask,
 	.irq_unmask	= st_gpio_irq_unmask,
 	.irq_set_type	= st_gpio_irq_set_type,
