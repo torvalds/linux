@@ -1417,16 +1417,15 @@ megasas_build_ldio(struct megasas_instance *instance, struct scsi_cmnd *scp,
 }
 
 /**
- * megasas_is_ldio -		Checks if the cmd is for logical drive
+ * megasas_cmd_type -		Checks if the cmd is for logical drive/sysPD
+ *				and whether it's RW or non RW
  * @scmd:			SCSI command
  *
- * Called by megasas_queue_command to find out if the command to be queued
- * is a logical drive command
  */
-inline int megasas_is_ldio(struct scsi_cmnd *cmd)
+inline int megasas_cmd_type(struct scsi_cmnd *cmd)
 {
-	if (!MEGASAS_IS_LOGICAL(cmd))
-		return 0;
+	int ret;
+
 	switch (cmd->cmnd[0]) {
 	case READ_10:
 	case WRITE_10:
@@ -1436,10 +1435,14 @@ inline int megasas_is_ldio(struct scsi_cmnd *cmd)
 	case WRITE_6:
 	case READ_16:
 	case WRITE_16:
-		return 1;
+		ret = (MEGASAS_IS_LOGICAL(cmd)) ?
+			READ_WRITE_LDIO : READ_WRITE_SYSPDIO;
+		break;
 	default:
-		return 0;
+		ret = (MEGASAS_IS_LOGICAL(cmd)) ?
+			NON_READ_WRITE_LDIO : NON_READ_WRITE_SYSPDIO;
 	}
+	return ret;
 }
 
  /**
@@ -1471,7 +1474,7 @@ megasas_dump_pending_frames(struct megasas_instance *instance)
 		if(!cmd->scmd)
 			continue;
 		printk(KERN_ERR "megasas[%d]: Frame addr :0x%08lx : ",instance->host->host_no,(unsigned long)cmd->frame_phys_addr);
-		if (megasas_is_ldio(cmd->scmd)){
+		if (megasas_cmd_type(cmd->scmd) == READ_WRITE_LDIO) {
 			ldio = (struct megasas_io_frame *)cmd->frame;
 			mfi_sgl = &ldio->sgl;
 			sgcount = ldio->sge_count;
@@ -1531,7 +1534,7 @@ megasas_build_and_issue_cmd(struct megasas_instance *instance,
 	/*
 	 * Logical drive command
 	 */
-	if (megasas_is_ldio(scmd))
+	if (megasas_cmd_type(scmd) == READ_WRITE_LDIO)
 		frame_count = megasas_build_ldio(instance, scmd, cmd);
 	else
 		frame_count = megasas_build_dcdb(instance, scmd, cmd);
@@ -4629,6 +4632,11 @@ static int megasas_init_fw(struct megasas_instance *instance)
 				instance->crash_dump_h);
 		instance->crash_dump_buf = NULL;
 	}
+
+	instance->secure_jbod_support =
+		ctrl_info->adapterOperations3.supportSecurityonJBOD;
+	if (instance->secure_jbod_support)
+		dev_info(&instance->pdev->dev, "Firmware supports Secure JBOD\n");
 	instance->max_sectors_per_req = instance->max_num_sge *
 						PAGE_SIZE / 512;
 	if (tmp_sectors && (instance->max_sectors_per_req > tmp_sectors))
