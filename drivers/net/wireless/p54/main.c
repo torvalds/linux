@@ -575,6 +575,8 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 			key->hw_key_idx = 0xff;
 			goto out_unlock;
 		}
+
+		key->flags |= IEEE80211_KEY_FLAG_RESERVE_TAILROOM;
 	} else {
 		slot = key->hw_key_idx;
 

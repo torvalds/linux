@@ -709,7 +709,8 @@ int cw1200_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 		if (sta)
 			peer_addr = sta->addr;
 
-		key->flags |= IEEE80211_KEY_FLAG_PUT_IV_SPACE;
+		key->flags |= IEEE80211_KEY_FLAG_PUT_IV_SPACE |
+			      IEEE80211_KEY_FLAG_RESERVE_TAILROOM;
 
 		switch (key->cipher) {
 		case WLAN_CIPHER_SUITE_WEP40:
