@@ -27,6 +27,7 @@
 #include "kfd_kernel_queue.h"
 #include "kfd_priv.h"
 #include "kfd_pm4_headers.h"
+#include "kfd_pm4_headers_vi.h"
 #include "kfd_pm4_opcodes.h"
 
 static inline void inc_wptr(unsigned int *wptr, unsigned int increment_bytes,
@@ -55,6 +56,7 @@ static void pm_calc_rlib_size(struct packet_manager *pm,
 				bool *over_subscription)
 {
 	unsigned int process_count, queue_count;
+	unsigned int map_queue_size;
 
 	BUG_ON(!pm || !rlib_size || !over_subscription);
 
@@ -69,9 +71,13 @@ static void pm_calc_rlib_size(struct packet_manager *pm,
 		pr_debug("kfd: over subscribed runlist\n");
 	}
 
+	map_queue_size =
+		(pm->dqm->dev->device_info->asic_family == CHIP_CARRIZO) ?
+		sizeof(struct pm4_mes_map_queues) :
+		sizeof(struct pm4_map_queues);
 	/* calculate run list ib allocation size */
 	*rlib_size = process_count * sizeof(struct pm4_map_process) +
-		     queue_count * sizeof(struct pm4_map_queues);
+		     queue_count * map_queue_size;
 
 	/*
 	 * Increase the allocation size in case we need a chained run list
