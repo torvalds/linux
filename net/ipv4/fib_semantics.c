@@ -360,7 +360,8 @@ static inline size_t fib_nlmsg_size(struct fib_info *fi)
 			 + nla_total_size(4) /* RTA_TABLE */
 			 + nla_total_size(4) /* RTA_DST */
 			 + nla_total_size(4) /* RTA_PRIORITY */
-			 + nla_total_size(4); /* RTA_PREFSRC */
+			 + nla_total_size(4) /* RTA_PREFSRC */
+			 + nla_total_size(TCP_CA_NAME_MAX); /* RTAX_CC_ALGO */
 
 	/* space for nested metrics */
 	payload += nla_total_size((RTAX_MAX * nla_total_size(4)));
@@ -859,7 +860,16 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 
 				if (type > RTAX_MAX)
 					goto err_inval;
-				val = nla_get_u32(nla);
+				if (type == RTAX_CC_ALGO) {
+					char tmp[TCP_CA_NAME_MAX];
+
+					nla_strlcpy(tmp, nla, sizeof(tmp));
+					val = tcp_ca_get_key_by_name(tmp);
+					if (val == TCP_CA_UNSPEC)
+						goto err_inval;
+				} else {
+					val = nla_get_u32(nla);
+				}
 				if (type == RTAX_ADVMSS && val > 65535 - 40)
 					val = 65535 - 40;
 				if (type == RTAX_MTU && val > 65535 - 15)
