@@ -897,7 +897,7 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 		fc->max_write = max_t(unsigned, 4096, fc->max_write);
 		fc->conn_init = 1;
 	}
-	fc->initialized = 1;
+	fuse_set_initialized(fc);
 	wake_up_all(&fc->blocked_waitq);
 }
 

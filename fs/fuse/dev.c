@@ -131,6 +131,13 @@ static void fuse_req_init_context(struct fuse_req *req)
 	req->in.h.pid = current->pid;
 }
 
+void fuse_set_initialized(struct fuse_conn *fc)
+{
+	/* Make sure stores before this are seen on another CPU */
+	smp_wmb();
+	fc->initialized = 1;
+}
+
 static bool fuse_block_alloc(struct fuse_conn *fc, bool for_background)
 {
 	return !fc->initialized || (for_background && fc->blocked);
@@ -155,6 +162,8 @@ static struct fuse_req *__fuse_get_req(struct fuse_conn *fc, unsigned npages,
 		if (intr)
 			goto out;
 	}
+	/* Matches smp_wmb() in fuse_set_initialized() */
+	smp_rmb();
 
 	err = -ENOTCONN;
 	if (!fc->connected)
@@ -253,6 +262,8 @@ struct fuse_req *fuse_get_req_nofail_nopages(struct fuse_conn *fc,
 
 	atomic_inc(&fc->num_waiting);
 	wait_event(fc->blocked_waitq, fc->initialized);
+	/* Matches smp_wmb() in fuse_set_initialized() */
+	smp_rmb();
 	req = fuse_request_alloc(0);
 	if (!req)
 		req = get_reserved_req(fc, file);
@@ -2163,7 +2174,7 @@ void fuse_abort_conn(struct fuse_conn *fc)
 	if (fc->connected) {
 		fc->connected = 0;
 		fc->blocked = 0;
-		fc->initialized = 1;
+		fuse_set_initialized(fc);
 		end_io_requests(fc);
 		end_queued_requests(fc);
 		end_polls(fc);
@@ -2182,7 +2193,7 @@ int fuse_dev_release(struct inode *inode, struct file *file)
 		spin_lock(&fc->lock);
 		fc->connected = 0;
 		fc->blocked = 0;
-		fc->initialized = 1;
+		fuse_set_initialized(fc);
 		end_queued_requests(fc);
 		end_polls(fc);
 		wake_up_all(&fc->blocked_waitq);
