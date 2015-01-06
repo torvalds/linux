@@ -621,6 +621,7 @@ static int rk312x_lcdc_mmu_en(struct rk_lcdc_driver *dev_drv)
 
 	return 0;
 }
+
 static int rk312x_lcdc_set_hwc_lut(struct rk_lcdc_driver *dev_drv,
 				   int *hwc_lut, int mode)
 {
@@ -650,7 +651,9 @@ static int rk312x_lcdc_set_hwc_lut(struct rk_lcdc_driver *dev_drv,
 
 	return 0;
 }
-static int rk312x_lcdc_set_lut(struct rk_lcdc_driver *dev_drv)
+
+static int rk312x_lcdc_set_lut(struct rk_lcdc_driver *dev_drv,
+			       int *dsp_lut)
 {
 	int i = 0;
 	int __iomem *c;
@@ -658,13 +661,16 @@ static int rk312x_lcdc_set_lut(struct rk_lcdc_driver *dev_drv)
 	struct lcdc_device *lcdc_dev =
 		container_of(dev_drv, struct lcdc_device, driver);
 
+	if (!dsp_lut)
+		return 0;
+
 	spin_lock(&lcdc_dev->reg_lock);
 	lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_DSP_LUT_EN, v_DSP_LUT_EN(0));
 	lcdc_cfg_done(lcdc_dev);
 	mdelay(25);
 	for (i = 0; i < 256; i++) {
-		v = dev_drv->cur_screen->dsp_lut[i];
-		c = lcdc_dev->dsp_lut_addr_base + (i<<2);
+		v = dsp_lut[i];
+		c = lcdc_dev->dsp_lut_addr_base + i;
 		writel_relaxed(v, c);
 	}
 	lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_DSP_LUT_EN, v_DSP_LUT_EN(1));
@@ -1446,7 +1452,8 @@ static int rk312x_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 
 		/* set screen lut */
 		if (dev_drv->cur_screen->dsp_lut)
-			rk312x_lcdc_set_lut(dev_drv);
+			rk312x_lcdc_set_lut(dev_drv,
+					    dev_drv->cur_screen->dsp_lut);
 	}
 
 	if (win_id < ARRAY_SIZE(lcdc_win))
@@ -1806,7 +1813,8 @@ static int rk312x_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 
 	/* set screen lut */
 	if (dev_drv->cur_screen && dev_drv->cur_screen->dsp_lut)
-		rk312x_lcdc_set_lut(dev_drv);
+		rk312x_lcdc_set_lut(dev_drv,
+				    dev_drv->cur_screen->dsp_lut);
 	/*set hwc lut*/
 	rk312x_lcdc_set_hwc_lut(dev_drv, dev_drv->hwc_lut, 0);
 
@@ -2467,6 +2475,7 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.get_dsp_bcsh_bcs = rk312x_lcdc_get_bcsh_bcs,
 	.open_bcsh = rk312x_lcdc_open_bcsh,
 	.set_screen_scaler = rk312x_lcdc_set_scaler,
+	.set_dsp_lut = rk312x_lcdc_set_lut,
 	.set_hwc_lut = rk312x_lcdc_set_hwc_lut,
 	.set_irq_to_cpu = rk312x_lcdc_set_irq_to_cpu,
 	.dsp_black = rk312x_lcdc_dsp_black,
