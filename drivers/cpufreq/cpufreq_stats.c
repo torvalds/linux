@@ -164,12 +164,13 @@ static void cpufreq_stats_free_table(unsigned int cpu)
 
 static int __cpufreq_stats_create_table(struct cpufreq_policy *policy)
 {
-	unsigned int i, count = 0, ret = 0;
+	unsigned int i = 0, count = 0, ret = -ENOMEM;
 	struct cpufreq_stats *stats;
 	unsigned int alloc_size;
 	unsigned int cpu = policy->cpu;
 	struct cpufreq_frequency_table *pos, *table;
 
+	/* We need cpufreq table for creating stats table */
 	table = cpufreq_frequency_get_table(cpu);
 	if (unlikely(!table))
 		return 0;
@@ -179,15 +180,10 @@ static int __cpufreq_stats_create_table(struct cpufreq_policy *policy)
 		return -EEXIST;
 
 	stats = kzalloc(sizeof(*stats), GFP_KERNEL);
-	if ((stats) == NULL)
+	if (!stats)
 		return -ENOMEM;
 
-	ret = sysfs_create_group(&policy->kobj, &stats_attr_group);
-	if (ret)
-		goto error_out;
-
-	policy->stats = stats;
-
+	/* Find total allocation size */
 	cpufreq_for_each_valid_entry(pos, table)
 		count++;
 
@@ -196,32 +192,42 @@ static int __cpufreq_stats_create_table(struct cpufreq_policy *policy)
 #ifdef CONFIG_CPU_FREQ_STAT_DETAILS
 	alloc_size += count * count * sizeof(int);
 #endif
-	stats->max_state = count;
+
+	/* Allocate memory for time_in_state/freq_table/trans_table in one go */
 	stats->time_in_state = kzalloc(alloc_size, GFP_KERNEL);
-	if (!stats->time_in_state) {
-		ret = -ENOMEM;
-		goto error_alloc;
-	}
+	if (!stats->time_in_state)
+		goto free_stat;
+
 	stats->freq_table = (unsigned int *)(stats->time_in_state + count);
 
 #ifdef CONFIG_CPU_FREQ_STAT_DETAILS
 	stats->trans_table = stats->freq_table + count;
 #endif
-	i = 0;
+
+	stats->max_state = count;
+
+	/* Find valid-unique entries */
 	cpufreq_for_each_valid_entry(pos, table)
 		if (freq_table_get_index(stats, pos->frequency) == -1)
 			stats->freq_table[i++] = pos->frequency;
 	stats->state_num = i;
+
 	spin_lock(&cpufreq_stats_lock);
 	stats->last_time = get_jiffies_64();
 	stats->last_index = freq_table_get_index(stats, policy->cur);
 	spin_unlock(&cpufreq_stats_lock);
-	return 0;
-error_alloc:
-	sysfs_remove_group(&policy->kobj, &stats_attr_group);
-error_out:
-	kfree(stats);
+
+	policy->stats = stats;
+	ret = sysfs_create_group(&policy->kobj, &stats_attr_group);
+	if (!ret)
+		return 0;
+
+	/* We failed, release resources */
 	policy->stats = NULL;
+	kfree(stats->time_in_state);
+free_stat:
+	kfree(stats);
+
 	return ret;
 }
 
