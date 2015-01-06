@@ -942,6 +942,7 @@
 			compatible = "allwinner,sun4i-a10-ts";
 			reg = <0x01c25000 0x100>;
 			interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
+			#thermal-sensor-cells = <0>;
 		};
 
 		uart0: serial@01c28000 {
