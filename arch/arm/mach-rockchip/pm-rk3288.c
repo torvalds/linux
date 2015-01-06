@@ -1290,6 +1290,14 @@ static void rkpm_save_setting(u32 ctrbits)
 }
 static void rkpm_save_setting_resume(void)
 {
+#ifdef CONFIG_ARM_ERRATA_821420
+	u32 v;
+
+	asm volatile("mrc p15, 0, %0, c15, c0, 2" : "=r" (v));
+	v |= 1 << 1;
+	asm volatile("mcr p15, 0, %0, c15, c0, 2" : : "r" (v));
+	isb();
+#endif
 
         #if 0
         rkpm_ddr_printascii("l2&arm_errata--");   
