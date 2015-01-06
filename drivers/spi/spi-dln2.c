@@ -103,7 +103,6 @@ struct dln2_spi {
  */
 static int dln2_spi_enable(struct dln2_spi *dln2, bool enable)
 {
-	int ret;
 	u16 cmd;
 	struct {
 		u8 port;
@@ -121,11 +120,7 @@ static int dln2_spi_enable(struct dln2_spi *dln2, bool enable)
 		cmd = DLN2_SPI_DISABLE;
 	}
 
-	ret = dln2_transfer_tx(dln2->pdev, cmd, &tx, len);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return dln2_transfer_tx(dln2->pdev, cmd, &tx, len);
 }
 
 /*
@@ -653,11 +648,7 @@ static int dln2_spi_transfer_setup(struct dln2_spi *dln2, u32 speed,
 		dln2->bpw = bpw;
 	}
 
-	ret = dln2_spi_enable(dln2, true);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return dln2_spi_enable(dln2, true);
 }
 
 static int dln2_spi_transfer_one(struct spi_master *master,
@@ -866,7 +857,7 @@ static int dln2_spi_runtime_resume(struct device *dev)
 
 	return  dln2_spi_enable(dln2, true);
 }
-#endif /* CONFIG_PM_RUNTIME */
+#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops dln2_spi_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(dln2_spi_suspend, dln2_spi_resume)
