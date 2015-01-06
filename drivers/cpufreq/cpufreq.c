@@ -1086,10 +1086,7 @@ static int update_policy_cpu(struct cpufreq_policy *policy, unsigned int cpu,
 	}
 
 	down_write(&policy->rwsem);
-
-	policy->last_cpu = policy->cpu;
 	policy->cpu = cpu;
-
 	up_write(&policy->rwsem);
 
 	blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
