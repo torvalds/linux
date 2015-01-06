@@ -18,7 +18,8 @@ Required Properties:
     to the USB_EXTAL clock
   - #clock-cells: Must be 1
   - clock-output-names: The names of the clocks. Supported clocks are "main",
-    "pll0", "pll1", "pll3", "lb", "qspi", "sdh", "sd0", "sd1", "z", and "rcan"
+    "pll0", "pll1", "pll3", "lb", "qspi", "sdh", "sd0", "sd1", "z", "rcan", and
+    "adsp"
 
 
 Example
@@ -32,5 +33,5 @@ Example
 		#clock-cells = <1>;
 		clock-output-names = "main", "pll0, "pll1", "pll3",
 				     "lb", "qspi", "sdh", "sd0", "sd1", "z",
-				     "rcan";
+				     "rcan", "adsp";
 	};
