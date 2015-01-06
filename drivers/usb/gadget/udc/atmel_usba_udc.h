@@ -334,6 +334,8 @@ struct usba_udc {
 	u16 test_mode;
 	int vbus_prev;
 
+	u32 int_enb_cache;
+
 #ifdef CONFIG_USB_GADGET_DEBUG_FS
 	struct dentry *debugfs_root;
 	struct dentry *debugfs_regs;

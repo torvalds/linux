@@ -316,6 +316,17 @@ static inline void usba_cleanup_debugfs(struct usba_udc *udc)
 }
 #endif
 
+static inline u32 usba_int_enb_get(struct usba_udc *udc)
+{
+	return udc->int_enb_cache;
+}
+
+static inline void usba_int_enb_set(struct usba_udc *udc, u32 val)
+{
+	usba_writel(udc, INT_ENB, val);
+	udc->int_enb_cache = val;
+}
+
 static int vbus_is_present(struct usba_udc *udc)
 {
 	if (gpio_is_valid(udc->vbus_pin))
@@ -597,16 +608,14 @@ usba_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	if (ep->can_dma) {
 		u32 ctrl;
 
-		usba_writel(udc, INT_ENB,
-				(usba_readl(udc, INT_ENB)
-					| USBA_BF(EPT_INT, 1 << ep->index)
-					| USBA_BF(DMA_INT, 1 << ep->index)));
+		usba_int_enb_set(udc, usba_int_enb_get(udc) |
+				      USBA_BF(EPT_INT, 1 << ep->index) |
+				      USBA_BF(DMA_INT, 1 << ep->index));
 		ctrl = USBA_AUTO_VALID | USBA_INTDIS_DMA;
 		usba_ep_writel(ep, CTL_ENB, ctrl);
 	} else {
-		usba_writel(udc, INT_ENB,
-				(usba_readl(udc, INT_ENB)
-					| USBA_BF(EPT_INT, 1 << ep->index)));
+		usba_int_enb_set(udc, usba_int_enb_get(udc) |
+				      USBA_BF(EPT_INT, 1 << ep->index));
 	}
 
 	spin_unlock_irqrestore(&udc->lock, flags);
@@ -614,7 +623,7 @@ usba_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	DBG(DBG_HW, "EPT_CFG%d after init: %#08lx\n", ep->index,
 			(unsigned long)usba_ep_readl(ep, CFG));
 	DBG(DBG_HW, "INT_ENB after init: %#08lx\n",
-			(unsigned long)usba_readl(udc, INT_ENB));
+			(unsigned long)usba_int_enb_get(udc));
 
 	return 0;
 }
@@ -650,9 +659,8 @@ static int usba_ep_disable(struct usb_ep *_ep)
 		usba_dma_readl(ep, STATUS);
 	}
 	usba_ep_writel(ep, CTL_DIS, USBA_EPT_ENABLE);
-	usba_writel(udc, INT_ENB,
-			usba_readl(udc, INT_ENB)
-			& ~USBA_BF(EPT_INT, 1 << ep->index));
+	usba_int_enb_set(udc, usba_int_enb_get(udc) &
+			      ~USBA_BF(EPT_INT, 1 << ep->index));
 
 	request_complete_list(ep, &req_list, -ESHUTDOWN);
 
@@ -1606,20 +1614,20 @@ static void usba_dma_irq(struct usba_udc *udc, struct usba_ep *ep)
 static irqreturn_t usba_udc_irq(int irq, void *devid)
 {
 	struct usba_udc *udc = devid;
-	u32 status;
+	u32 status, int_enb;
 	u32 dma_status;
 	u32 ep_status;
 
 	spin_lock(&udc->lock);
 
-	status = usba_readl(udc, INT_STA) & usba_readl(udc, INT_ENB);
+	int_enb = usba_int_enb_get(udc);
+	status = usba_readl(udc, INT_STA) & int_enb;
 	DBG(DBG_INT, "irq, status=%#08x\n", status);
 
 	if (status & USBA_DET_SUSPEND) {
 		toggle_bias(udc, 0);
 		usba_writel(udc, INT_CLR, USBA_DET_SUSPEND);
-		usba_writel(udc, INT_ENB,
-			    usba_readl(udc, INT_ENB) | USBA_WAKE_UP);
+		usba_int_enb_set(udc, int_enb | USBA_WAKE_UP);
 		udc->bias_pulse_needed = true;
 		DBG(DBG_BUS, "Suspend detected\n");
 		if (udc->gadget.speed != USB_SPEED_UNKNOWN
@@ -1633,8 +1641,7 @@ static irqreturn_t usba_udc_irq(int irq, void *devid)
 	if (status & USBA_WAKE_UP) {
 		toggle_bias(udc, 1);
 		usba_writel(udc, INT_CLR, USBA_WAKE_UP);
-		usba_writel(udc, INT_ENB,
-			    usba_readl(udc, INT_ENB) & ~USBA_WAKE_UP);
+		usba_int_enb_set(udc, int_enb & ~USBA_WAKE_UP);
 		DBG(DBG_BUS, "Wake Up CPU detected\n");
 	}
 
@@ -1702,11 +1709,8 @@ static irqreturn_t usba_udc_irq(int irq, void *devid)
 				| USBA_BF(BK_NUMBER, USBA_BK_NUMBER_ONE)));
 		usba_ep_writel(ep0, CTL_ENB,
 				USBA_EPT_ENABLE | USBA_RX_SETUP);
-		usba_writel(udc, INT_ENB,
-				(usba_readl(udc, INT_ENB)
-				| USBA_BF(EPT_INT, 1)
-				| USBA_DET_SUSPEND
-				| USBA_END_OF_RESUME));
+		usba_int_enb_set(udc, int_enb | USBA_BF(EPT_INT, 1) |
+				      USBA_DET_SUSPEND | USBA_END_OF_RESUME);
 
 		/*
 		 * Unclear why we hit this irregularly, e.g. in usbtest,
@@ -1741,7 +1745,7 @@ static irqreturn_t usba_vbus_irq(int irq, void *devid)
 		if (vbus) {
 			toggle_bias(udc, 1);
 			usba_writel(udc, CTRL, USBA_ENABLE_MASK);
-			usba_writel(udc, INT_ENB, USBA_END_OF_RESET);
+			usba_int_enb_set(udc, USBA_END_OF_RESET);
 		} else {
 			udc->gadget.speed = USB_SPEED_UNKNOWN;
 			reset_all_endpoints(udc);
@@ -1793,7 +1797,7 @@ static int atmel_usba_start(struct usb_gadget *gadget,
 	if (vbus_is_present(udc) && udc->vbus_prev == 0) {
 		toggle_bias(udc, 1);
 		usba_writel(udc, CTRL, USBA_ENABLE_MASK);
-		usba_writel(udc, INT_ENB, USBA_END_OF_RESET);
+		usba_int_enb_set(udc, USBA_END_OF_RESET);
 	}
 	spin_unlock_irqrestore(&udc->lock, flags);
 
