@@ -95,13 +95,16 @@ static void __init early_serial8250_write(struct console *console,
 
 	/* Save the IER and disable interrupts */
 	ier = serial8250_early_in(port, UART_IER);
-	serial8250_early_out(port, UART_IER, 0);
+	if (ier)
+		serial8250_early_out(port, UART_IER, 0);
 
 	uart_console_write(port, s, count, serial_putc);
 
 	/* Wait for transmitter to become empty and restore the IER */
 	wait_for_xmitr(port);
-	serial8250_early_out(port, UART_IER, ier);
+
+	if (ier)
+		serial8250_early_out(port, UART_IER, ier);
 }
 
 static unsigned int __init probe_baud(struct uart_port *port)
