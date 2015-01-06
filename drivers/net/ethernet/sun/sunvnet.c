@@ -1201,6 +1201,7 @@ static int vnet_handle_offloads(struct vnet_port *port, struct sk_buff *skb)
 		segs = skb_gso_segment(skb, dev->features & ~NETIF_F_TSO);
 	if (IS_ERR(segs)) {
 		dev->stats.tx_dropped++;
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 

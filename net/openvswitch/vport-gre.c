@@ -73,7 +73,7 @@ static struct sk_buff *__build_header(struct sk_buff *skb,
 
 	skb = gre_handle_offloads(skb, !!(tun_key->tun_flags & TUNNEL_CSUM));
 	if (IS_ERR(skb))
-		return NULL;
+		return skb;
 
 	tpi.flags = filter_tnl_flags(tun_key->tun_flags);
 	tpi.proto = htons(ETH_P_TEB);
@@ -144,7 +144,7 @@ static int gre_tnl_send(struct vport *vport, struct sk_buff *skb)
 
 	if (unlikely(!OVS_CB(skb)->egress_tun_info)) {
 		err = -EINVAL;
-		goto error;
+		goto err_free_skb;
 	}
 
 	tun_key = &OVS_CB(skb)->egress_tun_info->tunnel;
@@ -157,8 +157,10 @@ static int gre_tnl_send(struct vport *vport, struct sk_buff *skb)
 	fl.flowi4_proto = IPPROTO_GRE;
 
 	rt = ip_route_output_key(net, &fl);
-	if (IS_ERR(rt))
-		return PTR_ERR(rt);
+	if (IS_ERR(rt)) {
+		err = PTR_ERR(rt);
+		goto err_free_skb;
+	}
 
 	tunnel_hlen = ip_gre_calc_hlen(tun_key->tun_flags);
 
@@ -183,8 +185,9 @@ static int gre_tnl_send(struct vport *vport, struct sk_buff *skb)
 
 	/* Push Tunnel header. */
 	skb = __build_header(skb, tunnel_hlen);
-	if (unlikely(!skb)) {
-		err = 0;
+	if (IS_ERR(skb)) {
+		err = PTR_ERR(skb);
+		skb = NULL;
 		goto err_free_rt;
 	}
 
@@ -198,7 +201,8 @@ static int gre_tnl_send(struct vport *vport, struct sk_buff *skb)
 			     tun_key->ipv4_tos, tun_key->ipv4_ttl, df, false);
 err_free_rt:
 	ip_rt_put(rt);
-error:
+err_free_skb:
+	kfree_skb(skb);
 	return err;
 }
 
