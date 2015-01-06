@@ -836,6 +836,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		if (err)
 			goto out_put_upperpath;
 
+		err = -EINVAL;
 		if (upperpath.mnt != workpath.mnt) {
 			pr_err("overlayfs: workdir and upperdir must reside under the same mount\n");
 			goto out_put_workpath;
@@ -894,12 +895,14 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		}
 	}
 
+	err = -ENOMEM;
 	ufs->lower_mnt = kcalloc(numlower, sizeof(struct vfsmount *), GFP_KERNEL);
 	if (ufs->lower_mnt == NULL)
 		goto out_put_workdir;
 	for (i = 0; i < numlower; i++) {
 		struct vfsmount *mnt = clone_private_mount(&stack[i]);
 
+		err = PTR_ERR(mnt);
 		if (IS_ERR(mnt)) {
 			pr_err("overlayfs: failed to clone lowerpath\n");
 			goto out_put_lower_mnt;
