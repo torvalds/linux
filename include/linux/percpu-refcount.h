@@ -295,6 +295,20 @@ static inline void percpu_ref_put(struct percpu_ref *ref)
 }
 
 /**
+ * percpu_ref_is_dying - test whether a percpu refcount is dying or dead
+ * @ref: percpu_ref to test
+ *
+ * Returns %true if @ref is dying or dead.
+ *
+ * This function is safe to call as long as @ref is between init and exit
+ * and the caller is responsible for synchronizing against state changes.
+ */
+static inline bool percpu_ref_is_dying(struct percpu_ref *ref)
+{
+	return ref->percpu_count_ptr & __PERCPU_REF_DEAD;
+}
+
+/**
  * percpu_ref_is_zero - test whether a percpu refcount reached zero
  * @ref: percpu_ref to test
  *
