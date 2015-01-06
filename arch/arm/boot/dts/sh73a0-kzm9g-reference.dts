@@ -202,6 +202,14 @@
 		#sound-dai-cells = <0>;
 	};
 
+	accelerometer@1d {
+		compatible = "adi,adxl34x";
+		reg = <0x1d>;
+		interrupt-parent = <&irqpin3>;
+		interrupts = <2 IRQ_TYPE_LEVEL_HIGH>,
+			     <3 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
 	as3711@40 {
 		compatible = "ams,as3711";
 		reg = <0x40>;
