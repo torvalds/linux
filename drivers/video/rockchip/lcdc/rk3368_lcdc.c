@@ -1387,10 +1387,7 @@ static int rk3368_lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 
 static int rk3368_lcdc_reg_restore(struct lcdc_device *lcdc_dev)
 {
-	if (lcdc_dev->driver.iommu_enabled)
-		memcpy((u8 *)lcdc_dev->regs, (u8 *)lcdc_dev->regsbak, 0x330);
-	else
-		memcpy((u8 *)lcdc_dev->regs, (u8 *)lcdc_dev->regsbak, 0x260);
+	memcpy((u8 *)lcdc_dev->regs, (u8 *)lcdc_dev->regsbak, 0x270);
 	return 0;
 }
 
@@ -1399,20 +1396,20 @@ static int __maybe_unused rk3368_lcdc_mmu_en(struct rk_lcdc_driver *dev_drv)
 	u32 mask, val;
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
-	/*spin_lock(&lcdc_dev->reg_lock); */
-	if (likely(lcdc_dev->clk_on)) {
-		mask = m_MMU_EN;
-		val = v_MMU_EN(1);
-		lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
-		mask = m_AXI_MAX_OUTSTANDING_EN | m_AXI_OUTSTANDING_MAX_NUM;
-		val = v_AXI_OUTSTANDING_MAX_NUM(31) |
-		    v_AXI_MAX_OUTSTANDING_EN(1);
-		lcdc_msk_reg(lcdc_dev, SYS_CTRL1, mask, val);
-	}
-	/*spin_unlock(&lcdc_dev->reg_lock); */
+
 #if defined(CONFIG_ROCKCHIP_IOMMU)
 	if (dev_drv->iommu_enabled) {
 		if (!lcdc_dev->iommu_status && dev_drv->mmu_dev) {
+			if (likely(lcdc_dev->clk_on)) {
+				mask = m_MMU_EN;
+				val = v_MMU_EN(1);
+				lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
+				mask = m_AXI_MAX_OUTSTANDING_EN |
+					m_AXI_OUTSTANDING_MAX_NUM;
+				val = v_AXI_OUTSTANDING_MAX_NUM(31) |
+					v_AXI_MAX_OUTSTANDING_EN(1);
+				lcdc_msk_reg(lcdc_dev, SYS_CTRL1, mask, val);
+			}
 			lcdc_dev->iommu_status = 1;
 			rockchip_iovmm_activate(dev_drv->dev);
 		}
@@ -1642,6 +1639,53 @@ static void rk3368_lcdc_bcsh_path_sel(struct rk_lcdc_driver *dev_drv)
 				     v_BCSH_Y2R_EN(0));
 	}
 }
+
+static int rk3368_get_dspbuf_info(struct rk_lcdc_driver *dev_drv, u16 *xact,
+				  u16 *yact, int *format, u32 *dsp_addr)
+{
+	struct lcdc_device *lcdc_dev = container_of(dev_drv,
+						    struct lcdc_device, driver);
+	u32 val;
+
+	spin_lock(&lcdc_dev->reg_lock);
+
+	val = lcdc_readl(lcdc_dev, WIN0_ACT_INFO);
+	*xact = (val & m_WIN0_ACT_WIDTH) + 1;
+	*yact = ((val & m_WIN0_ACT_HEIGHT)>>16) + 1;
+
+	val = lcdc_readl(lcdc_dev, WIN0_CTRL0);
+	*format = (val & m_WIN0_DATA_FMT) >> 1;
+	*dsp_addr = lcdc_readl(lcdc_dev, WIN0_YRGB_MST);
+
+	spin_unlock(&lcdc_dev->reg_lock);
+
+	return 0;
+}
+
+static int rk3368_post_dspbuf(struct rk_lcdc_driver *dev_drv, u32 rgb_mst,
+			      int format, u16 xact, u16 yact, u16 xvir)
+{
+	struct lcdc_device *lcdc_dev = container_of(dev_drv,
+						    struct lcdc_device, driver);
+	u32 val, mask;
+	int swap = (format == RGB888) ? 1 : 0;
+
+	mask = m_WIN0_DATA_FMT | m_WIN0_RB_SWAP;
+	val = v_WIN0_DATA_FMT(format) | v_WIN0_RB_SWAP(swap);
+	lcdc_msk_reg(lcdc_dev, WIN0_CTRL0, mask, val);
+
+	lcdc_msk_reg(lcdc_dev, WIN0_VIR, m_WIN0_VIR_STRIDE,
+			v_WIN0_VIR_STRIDE(xvir));
+	lcdc_writel(lcdc_dev, WIN0_ACT_INFO, v_WIN0_ACT_WIDTH(xact) |
+		    v_WIN0_ACT_HEIGHT(yact));
+
+	lcdc_writel(lcdc_dev, WIN0_YRGB_MST, rgb_mst);
+
+	lcdc_cfg_done(lcdc_dev);
+
+	return 0;
+}
+
 
 static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 {
@@ -2922,7 +2966,6 @@ static int rk3368_lcdc_get_backlight_device(struct rk_lcdc_driver *dev_drv)
 
 static int rk3368_lcdc_early_suspend(struct rk_lcdc_driver *dev_drv)
 {
-	u32 reg;
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
 	if (dev_drv->suspend_flag)
@@ -2937,8 +2980,6 @@ static int rk3368_lcdc_early_suspend(struct rk_lcdc_driver *dev_drv)
 	dev_drv->suspend_flag = 1;
 	flush_kthread_worker(&dev_drv->update_regs_worker);
 
-	for (reg = MMU_DTE_ADDR; reg <= MMU_AUTO_GATING; reg += 4)
-		lcdc_readl_backup(lcdc_dev, reg);
 	if (dev_drv->trsm_ops && dev_drv->trsm_ops->disable)
 		dev_drv->trsm_ops->disable();
 
@@ -4103,6 +4144,8 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.open = rk3368_lcdc_open,
 	.win_direct_en = rk3368_lcdc_win_direct_en,
 	.load_screen = rk3368_load_screen,
+	.get_dspbuf_info = rk3368_get_dspbuf_info,
+	.post_dspbuf = rk3368_post_dspbuf,
 	.set_par = rk3368_lcdc_set_par,
 	.pan_display = rk3368_lcdc_pan_display,
 	.direct_set_addr = rk3368_lcdc_direct_set_win_addr,
