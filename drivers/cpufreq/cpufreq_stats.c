@@ -36,9 +36,8 @@ static DEFINE_PER_CPU(struct cpufreq_stats *, cpufreq_stats_table);
 static int cpufreq_stats_update(unsigned int cpu)
 {
 	struct cpufreq_stats *stat;
-	unsigned long long cur_time;
+	unsigned long long cur_time = get_jiffies_64();
 
-	cur_time = get_jiffies_64();
 	spin_lock(&cpufreq_stats_lock);
 	stat = per_cpu(cpufreq_stats_table, cpu);
 	if (stat->time_in_state)
