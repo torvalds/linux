@@ -1908,8 +1908,8 @@ static int mdc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 
 		/* copy UUID */
 		if (copy_to_user(data->ioc_pbuf2, obd2cli_tgt(obd),
-				     min((int) data->ioc_plen2,
-					 (int) sizeof(struct obd_uuid)))) {
+				 min_t(size_t, data->ioc_plen2,
+					       sizeof(struct obd_uuid)))) {
 			rc = -EFAULT;
 			goto out;
 		}
@@ -1921,8 +1921,8 @@ static int mdc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 			goto out;
 
 		if (copy_to_user(data->ioc_pbuf1, &stat_buf,
-				     min((int) data->ioc_plen1,
-					 (int) sizeof(stat_buf)))) {
+				 min_t(size_t, data->ioc_plen1,
+					       sizeof(stat_buf)))) {
 			rc = -EFAULT;
 			goto out;
 		}
