@@ -424,8 +424,7 @@ static int fuse_statfs(struct dentry *dentry, struct kstatfs *buf)
 	args.in.h.opcode = FUSE_STATFS;
 	args.in.h.nodeid = get_node_id(dentry->d_inode);
 	args.out.numargs = 1;
-	args.out.args[0].size =
-		fc->minor < 4 ? FUSE_COMPAT_STATFS_SIZE : sizeof(outarg);
+	args.out.args[0].size = sizeof(outarg);
 	args.out.args[0].value = &outarg;
 	err = fuse_simple_request(fc, &args);
 	if (!err)
