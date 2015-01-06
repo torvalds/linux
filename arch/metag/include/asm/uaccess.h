@@ -107,18 +107,23 @@ extern long __put_user_asm_w(unsigned int x, void __user *addr);
 extern long __put_user_asm_d(unsigned int x, void __user *addr);
 extern long __put_user_asm_l(unsigned long long x, void __user *addr);
 
-#define __put_user_size(x, ptr, size, retval)			\
-do {                                                            \
-	retval = 0;                                             \
-	switch (size) {                                         \
+#define __put_user_size(x, ptr, size, retval)				\
+do {                                                                    \
+	retval = 0;                                                     \
+	switch (size) {                                                 \
 	case 1:								\
-		retval = __put_user_asm_b((unsigned int)x, ptr); break;	\
+		retval = __put_user_asm_b((__force unsigned int)x, ptr);\
+		break;							\
 	case 2:								\
-		retval = __put_user_asm_w((unsigned int)x, ptr); break;	\
+		retval = __put_user_asm_w((__force unsigned int)x, ptr);\
+		break;							\
 	case 4:								\
-		retval = __put_user_asm_d((unsigned int)x, ptr); break;	\
+		retval = __put_user_asm_d((__force unsigned int)x, ptr);\
+		break;							\
 	case 8:								\
-		retval = __put_user_asm_l((unsigned long long)x, ptr); break; \
+		retval = __put_user_asm_l((__force unsigned long long)x,\
+					  ptr);				\
+		break;							\
 	default:							\
 		__put_user_bad();					\
 	}								\
