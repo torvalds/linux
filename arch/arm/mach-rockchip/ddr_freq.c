@@ -84,6 +84,18 @@ struct video_info {
 
 	struct list_head node;
 };
+struct vop_info {
+	int state;
+	int zone_num;
+	int reserve;
+	int reserve2;
+};
+
+struct bpvopinfo {
+	struct vop_info vopinfo[4];
+	int bp_size;
+	int bp_vop_size;
+};
 
 struct ddr {
 	struct dvfs_node *clk_dvfs_node;
@@ -617,13 +629,13 @@ static struct miscdevice video_state_dev = {
 
 static long ddr_freq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	unsigned long bandwidth = *(int*)arg;
+	struct bpvopinfo *bpvinfo = (struct bpvopinfo *)arg;
 	unsigned long vop_req_freq;
 	int ret = -1;
 
-	vop_bandwidth = bandwidth;
+	vop_bandwidth = bpvinfo->bp_vop_size;
 	vop_bandwidth_update_jiffies = jiffies;
-	vop_req_freq = req_freq_by_vop(bandwidth);
+	vop_req_freq = req_freq_by_vop(vop_bandwidth);
 	if (dvfs_clk_get_rate(ddr.clk_dvfs_node) >= vop_req_freq) {
 		ret = 0;
 	}
