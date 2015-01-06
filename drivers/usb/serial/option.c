@@ -234,6 +234,8 @@ static void option_instat_callback(struct urb *urb);
 
 #define QUALCOMM_VENDOR_ID			0x05C6
 
+#define SIERRA_VENDOR_ID			0x1199
+
 #define CMOTECH_VENDOR_ID			0x16d8
 #define CMOTECH_PRODUCT_6001			0x6001
 #define CMOTECH_PRODUCT_CMU_300			0x6002
@@ -512,7 +514,7 @@ enum option_blacklist_reason {
 		OPTION_BLACKLIST_RESERVED_IF = 2
 };
 
-#define MAX_BL_NUM  8
+#define MAX_BL_NUM  11
 struct option_blacklist_info {
 	/* bitfield of interface numbers for OPTION_BLACKLIST_SENDSETUP */
 	const unsigned long sendsetup;
@@ -599,6 +601,11 @@ static const struct option_blacklist_info telit_le910_blacklist = {
 static const struct option_blacklist_info telit_le920_blacklist = {
 	.sendsetup = BIT(0),
 	.reserved = BIT(1) | BIT(5),
+};
+
+static const struct option_blacklist_info sierra_mc73xx_blacklist = {
+	.sendsetup = BIT(0) | BIT(2),
+	.reserved = BIT(8) | BIT(10) | BIT(11),
 };
 
 static const struct usb_device_id option_ids[] = {
@@ -1098,6 +1105,8 @@ static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(QUALCOMM_VENDOR_ID, 0x6613)}, /* Onda H600/ZTE MF330 */
 	{ USB_DEVICE(QUALCOMM_VENDOR_ID, 0x0023)}, /* ONYX 3G device */
 	{ USB_DEVICE(QUALCOMM_VENDOR_ID, 0x9000)}, /* SIMCom SIM5218 */
+	{ USB_DEVICE_INTERFACE_CLASS(SIERRA_VENDOR_ID, 0x68c0, 0xff),
+	  .driver_info = (kernel_ulong_t)&sierra_mc73xx_blacklist }, /* MC73xx */
 	{ USB_DEVICE(CMOTECH_VENDOR_ID, CMOTECH_PRODUCT_6001) },
 	{ USB_DEVICE(CMOTECH_VENDOR_ID, CMOTECH_PRODUCT_CMU_300) },
 	{ USB_DEVICE(CMOTECH_VENDOR_ID, CMOTECH_PRODUCT_6003),
