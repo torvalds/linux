@@ -94,6 +94,7 @@
 			      0 6 IRQ_TYPE_LEVEL_HIGH
 			      0 7 IRQ_TYPE_LEVEL_HIGH
 			      0 8 IRQ_TYPE_LEVEL_HIGH>;
+		control-parent;
 	};
 
 	irqpin1: irqpin@e6900004 {
@@ -133,6 +134,7 @@
 			      0 22 IRQ_TYPE_LEVEL_HIGH
 			      0 23 IRQ_TYPE_LEVEL_HIGH
 			      0 24 IRQ_TYPE_LEVEL_HIGH>;
+		control-parent;
 	};
 
 	irqpin3: irqpin@e690000c {
@@ -152,6 +154,7 @@
 			      0 30 IRQ_TYPE_LEVEL_HIGH
 			      0 31 IRQ_TYPE_LEVEL_HIGH
 			      0 32 IRQ_TYPE_LEVEL_HIGH>;
+		control-parent;
 	};
 
 	i2c0: i2c@e6820000 {
