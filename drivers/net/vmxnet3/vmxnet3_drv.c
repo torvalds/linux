@@ -2505,6 +2505,9 @@ vmxnet3_adjust_rx_ring_size(struct vmxnet3_adapter *adapter)
 	ring0_size = min_t(u32, ring0_size, VMXNET3_RX_RING_MAX_SIZE /
 			   sz * sz);
 	ring1_size = adapter->rx_queue[0].rx_ring[1].size;
+	ring1_size = (ring1_size + sz - 1) / sz * sz;
+	ring1_size = min_t(u32, ring1_size, VMXNET3_RX_RING2_MAX_SIZE /
+			   sz * sz);
 	comp_size = ring0_size + ring1_size;
 
 	for (i = 0; i < adapter->num_rx_queues; i++) {
@@ -2585,7 +2588,7 @@ vmxnet3_open(struct net_device *netdev)
 
 	err = vmxnet3_create_queues(adapter, adapter->tx_ring_size,
 				    adapter->rx_ring_size,
-				    VMXNET3_DEF_RX_RING_SIZE);
+				    adapter->rx_ring2_size);
 	if (err)
 		goto queue_err;
 
@@ -2964,6 +2967,7 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 
 	adapter->tx_ring_size = VMXNET3_DEF_TX_RING_SIZE;
 	adapter->rx_ring_size = VMXNET3_DEF_RX_RING_SIZE;
+	adapter->rx_ring2_size = VMXNET3_DEF_RX_RING2_SIZE;
 
 	spin_lock_init(&adapter->cmd_lock);
 	adapter->adapter_pa = dma_map_single(&adapter->pdev->dev, adapter,
