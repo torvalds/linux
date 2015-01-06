@@ -2412,8 +2412,6 @@ struct dig_t {
 	u8 pre_ccastate;
 	u8 cur_ccasate;
 	u8 large_fa_hit;
-	u8 dig_dynamic_min;
-	u8 dig_dynamic_min_1;
 	u8 forbidden_igi;
 	u8 dig_state;
 	u8 dig_highpwrstate;

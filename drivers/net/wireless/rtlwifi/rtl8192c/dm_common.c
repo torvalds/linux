@@ -221,7 +221,7 @@ static void rtl92c_dm_diginit(struct ieee80211_hw *hw)
 	dm_digtable->forbidden_igi = DM_DIG_MIN;
 	dm_digtable->large_fa_hit = 0;
 	dm_digtable->recover_cnt = 0;
-	dm_digtable->dig_dynamic_min  = 0x25;
+	dm_digtable->dig_min_0  = 0x25;
 }
 
 static u8 rtl92c_dm_initial_gain_min_pwdb(struct ieee80211_hw *hw)

@@ -539,8 +539,8 @@ static void rtl8821ae_dm_diginit(struct ieee80211_hw *hw)
 	dm_digtable->forbidden_igi = DM_DIG_MIN;
 	dm_digtable->large_fa_hit = 0;
 	dm_digtable->recover_cnt = 0;
-	dm_digtable->dig_dynamic_min = DM_DIG_MIN;
-	dm_digtable->dig_dynamic_min_1 = DM_DIG_MIN;
+	dm_digtable->dig_min_0 = DM_DIG_MIN;
+	dm_digtable->dig_min_1 = DM_DIG_MIN;
 	dm_digtable->media_connect_0 = false;
 	dm_digtable->media_connect_1 = false;
 	rtlpriv->dm.dm_initialgain_enable = true;
@@ -822,7 +822,7 @@ static void rtl8821ae_dm_dig(struct ieee80211_hw *hw)
 	struct dig_t *dm_digtable = &rtlpriv->dm_digtable;
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	u8 dig_dynamic_min;
+	u8 dig_min_0;
 	u8 dig_max_of_min;
 	bool first_connect, first_disconnect;
 	u8 dm_dig_max, dm_dig_min, offset;
@@ -837,7 +837,7 @@ static void rtl8821ae_dm_dig(struct ieee80211_hw *hw)
 	}
 
 	/*add by Neil Chen to avoid PSD is processing*/
-	dig_dynamic_min = dm_digtable->dig_dynamic_min;
+	dig_min_0 = dm_digtable->dig_min_0;
 	first_connect = (mac->link_state >= MAC80211_LINKED) &&
 			(!dm_digtable->media_connect_0);
 	first_disconnect = (mac->link_state < MAC80211_LINKED) &&
@@ -876,23 +876,23 @@ static void rtl8821ae_dm_dig(struct ieee80211_hw *hw)
 			offset = 0;
 
 			if (dm_digtable->rssi_val_min - offset < dm_dig_min)
-				dig_dynamic_min = dm_dig_min;
+				dig_min_0 = dm_dig_min;
 			else if (dm_digtable->rssi_val_min -
 				offset > dig_max_of_min)
-				dig_dynamic_min = dig_max_of_min;
+				dig_min_0 = dig_max_of_min;
 			else
-				dig_dynamic_min =
+				dig_min_0 =
 					dm_digtable->rssi_val_min - offset;
 
 			RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD,
-				 "bOneEntryOnly=TRUE, dig_dynamic_min=0x%x\n",
-				 dig_dynamic_min);
+				 "bOneEntryOnly=TRUE, dig_min_0=0x%x\n",
+				 dig_min_0);
 		} else {
-			dig_dynamic_min = dm_dig_min;
+			dig_min_0 = dm_dig_min;
 		}
 	} else {
 		dm_digtable->rx_gain_max = dm_dig_max;
-		dig_dynamic_min = dm_dig_min;
+		dig_min_0 = dm_dig_min;
 		RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD,
 			 "No Link\n");
 	}
@@ -925,11 +925,11 @@ static void rtl8821ae_dm_dig(struct ieee80211_hw *hw)
 		} else {
 			if (dm_digtable->large_fa_hit < 3) {
 				if ((dm_digtable->forbidden_igi - 1) <
-				    dig_dynamic_min) {
+				    dig_min_0) {
 					dm_digtable->forbidden_igi =
-						dig_dynamic_min;
+						dig_min_0;
 					dm_digtable->rx_gain_min =
-						dig_dynamic_min;
+						dig_min_0;
 					RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD,
 						 "Normal Case: At Lower Bound\n");
 				} else {
@@ -1024,7 +1024,7 @@ static void rtl8821ae_dm_dig(struct ieee80211_hw *hw)
 	rtl8821ae_dm_write_dig(hw, current_igi);
 	dm_digtable->media_connect_0 =
 		((mac->link_state >= MAC80211_LINKED) ? true : false);
-	dm_digtable->dig_dynamic_min = dig_dynamic_min;
+	dm_digtable->dig_min_0 = dig_min_0;
 }
 
 static void rtl8821ae_dm_common_info_self_update(struct ieee80211_hw *hw)

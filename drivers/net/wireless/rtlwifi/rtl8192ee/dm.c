@@ -172,8 +172,8 @@ static void rtl92ee_dm_diginit(struct ieee80211_hw *hw)
 	dm_dig->forbidden_igi = DM_DIG_MIN;
 	dm_dig->large_fa_hit = 0;
 	dm_dig->recover_cnt = 0;
-	dm_dig->dig_dynamic_min = DM_DIG_MIN;
-	dm_dig->dig_dynamic_min_1 = DM_DIG_MIN;
+	dm_dig->dig_min_0 = DM_DIG_MIN;
+	dm_dig->dig_min_1 = DM_DIG_MIN;
 	dm_dig->media_connect_0 = false;
 	dm_dig->media_connect_1 = false;
 	rtlpriv->dm.dm_initialgain_enable = true;
@@ -298,7 +298,7 @@ static void rtl92ee_dm_dig(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct dig_t *dm_dig = &rtlpriv->dm_digtable;
-	u8 dig_dynamic_min , dig_maxofmin;
+	u8 dig_min_0, dig_maxofmin;
 	bool bfirstconnect , bfirstdisconnect;
 	u8 dm_dig_max, dm_dig_min;
 	u8 current_igi = dm_dig->cur_igvalue;
@@ -308,7 +308,7 @@ static void rtl92ee_dm_dig(struct ieee80211_hw *hw)
 	if (mac->act_scanning)
 		return;
 
-	dig_dynamic_min = dm_dig->dig_dynamic_min;
+	dig_min_0 = dm_dig->dig_min_0;
 	bfirstconnect = (mac->link_state >= MAC80211_LINKED) &&
 			!dm_dig->media_connect_0;
 	bfirstdisconnect = (mac->link_state < MAC80211_LINKED) &&
@@ -329,19 +329,19 @@ static void rtl92ee_dm_dig(struct ieee80211_hw *hw)
 		if (rtlpriv->dm.one_entry_only) {
 			offset = 0;
 			if (dm_dig->rssi_val_min - offset < dm_dig_min)
-				dig_dynamic_min = dm_dig_min;
+				dig_min_0 = dm_dig_min;
 			else if (dm_dig->rssi_val_min - offset >
 				 dig_maxofmin)
-				dig_dynamic_min = dig_maxofmin;
+				dig_min_0 = dig_maxofmin;
 			else
-				dig_dynamic_min = dm_dig->rssi_val_min - offset;
+				dig_min_0 = dm_dig->rssi_val_min - offset;
 		} else {
-			dig_dynamic_min = dm_dig_min;
+			dig_min_0 = dm_dig_min;
 		}
 
 	} else {
 		dm_dig->rx_gain_max = dm_dig_max;
-		dig_dynamic_min = dm_dig_min;
+		dig_min_0 = dm_dig_min;
 		RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD, "no link\n");
 	}
 
@@ -368,10 +368,10 @@ static void rtl92ee_dm_dig(struct ieee80211_hw *hw)
 		} else {
 			if (dm_dig->large_fa_hit < 3) {
 				if ((dm_dig->forbidden_igi - 1) <
-				    dig_dynamic_min) {
-					dm_dig->forbidden_igi = dig_dynamic_min;
+				    dig_min_0) {
+					dm_dig->forbidden_igi = dig_min_0;
 					dm_dig->rx_gain_min =
-								dig_dynamic_min;
+								dig_min_0;
 				} else {
 					dm_dig->forbidden_igi--;
 					dm_dig->rx_gain_min =
@@ -430,7 +430,7 @@ static void rtl92ee_dm_dig(struct ieee80211_hw *hw)
 	rtl92ee_dm_write_dig(hw , current_igi);
 	dm_dig->media_connect_0 = ((mac->link_state >= MAC80211_LINKED) ?
 				   true : false);
-	dm_dig->dig_dynamic_min = dig_dynamic_min;
+	dm_dig->dig_min_0 = dig_min_0;
 }
 
 void rtl92ee_dm_write_cck_cca_thres(struct ieee80211_hw *hw, u8 cur_thres)
