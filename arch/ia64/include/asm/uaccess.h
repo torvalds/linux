@@ -169,10 +169,11 @@ do {									\
 	(err) = ia64_getreg(_IA64_REG_R8);				\
 	(val) = ia64_getreg(_IA64_REG_R9);				\
 } while (0)
-# define __put_user_size(val, addr, n, err)							\
-do {												\
-	__st_user("__ex_table", (unsigned long) addr, n, RELOC_TYPE, (unsigned long) (val));	\
-	(err) = ia64_getreg(_IA64_REG_R8);							\
+# define __put_user_size(val, addr, n, err)				\
+do {									\
+	__st_user("__ex_table", (unsigned long) addr, n, RELOC_TYPE,	\
+		  (__force unsigned long) (val));			\
+	(err) = ia64_getreg(_IA64_REG_R8);				\
 } while (0)
 #endif /* !ASM_SUPPORTED */
 
