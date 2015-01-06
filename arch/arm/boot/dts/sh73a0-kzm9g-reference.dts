@@ -189,6 +189,13 @@
 &i2c0 {
 	status = "okay";
 
+	compass@c {
+		compatible = "asahi-kasei,ak8975";
+		reg = <0x0c>;
+		interrupt-parent = <&irqpin3>;
+		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
+	};
+
 	ak4648: codec@12 {
 		compatible = "asahi-kasei,ak4648";
 		reg = <0x12>;
