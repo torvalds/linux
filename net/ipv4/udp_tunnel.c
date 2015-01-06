@@ -63,7 +63,7 @@ void setup_udp_tunnel_sock(struct net *net, struct socket *sock,
 	inet_sk(sk)->mc_loop = 0;
 
 	/* Enable CHECKSUM_UNNECESSARY to CHECKSUM_COMPLETE conversion */
-	udp_set_convert_csum(sk, true);
+	inet_inc_convert_csum(sk);
 
 	rcu_assign_sk_user_data(sk, cfg->sk_user_data);
 

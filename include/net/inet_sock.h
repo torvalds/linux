@@ -16,7 +16,7 @@
 #ifndef _INET_SOCK_H
 #define _INET_SOCK_H
 
-
+#include <linux/bitops.h>
 #include <linux/kmemcheck.h>
 #include <linux/string.h>
 #include <linux/types.h>
@@ -184,6 +184,7 @@ struct inet_sock {
 				mc_all:1,
 				nodefrag:1;
 	__u8			rcv_tos;
+	__u8			convert_csum;
 	int			uc_index;
 	int			mc_index;
 	__be32			mc_addr;
@@ -193,6 +194,16 @@ struct inet_sock {
 
 #define IPCORK_OPT	1	/* ip-options has been held in ipcork.opt */
 #define IPCORK_ALLFRAG	2	/* always fragment (for ipv6 for now) */
+
+/* cmsg flags for inet */
+#define IP_CMSG_PKTINFO		BIT(0)
+#define IP_CMSG_TTL		BIT(1)
+#define IP_CMSG_TOS		BIT(2)
+#define IP_CMSG_RECVOPTS	BIT(3)
+#define IP_CMSG_RETOPTS		BIT(4)
+#define IP_CMSG_PASSSEC		BIT(5)
+#define IP_CMSG_ORIGDSTADDR	BIT(6)
+#define IP_CMSG_CHECKSUM	BIT(7)
 
 static inline struct inet_sock *inet_sk(const struct sock *sk)
 {
@@ -248,6 +259,22 @@ static inline __u8 inet_sk_flowi_flags(const struct sock *sk)
 	if (inet_sk(sk)->transparent || inet_sk(sk)->hdrincl)
 		flags |= FLOWI_FLAG_ANYSRC;
 	return flags;
+}
+
+static inline void inet_inc_convert_csum(struct sock *sk)
+{
+	inet_sk(sk)->convert_csum++;
+}
+
+static inline void inet_dec_convert_csum(struct sock *sk)
+{
+	if (inet_sk(sk)->convert_csum > 0)
+		inet_sk(sk)->convert_csum--;
+}
+
+static inline bool inet_get_convert_csum(struct sock *sk)
+{
+	return !!inet_sk(sk)->convert_csum;
 }
 
 #endif	/* _INET_SOCK_H */
