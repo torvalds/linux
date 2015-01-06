@@ -188,6 +188,13 @@
 
 &i2c0 {
 	status = "okay";
+
+	ak4648: codec@12 {
+		compatible = "asahi-kasei,ak4648";
+		reg = <0x12>;
+		#sound-dai-cells = <0>;
+	};
+
 	as3711@40 {
 		compatible = "ams,as3711";
 		reg = <0x40>;
@@ -257,12 +264,6 @@
 				regulator-boot-on;
 			};
 		};
-	};
-
-	ak4648: ak4648@12 {
-		#sound-dai-cells = <0>;
-		compatible = "asahi-kasei,ak4648";
-		reg = <0x12>;
 	};
 };
 
