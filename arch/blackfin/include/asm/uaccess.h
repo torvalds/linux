@@ -89,10 +89,10 @@ struct exception_table_entry {
 			break;					\
 		case 8: {					\
 			long _xl, _xh;				\
-			_xl = ((long *)&_x)[0];			\
-			_xh = ((long *)&_x)[1];			\
-			__put_user_asm(_xl, ((long __user *)_p)+0, );	\
-			__put_user_asm(_xh, ((long __user *)_p)+1, );	\
+			_xl = ((__force long *)&_x)[0];		\
+			_xh = ((__force long *)&_x)[1];		\
+			__put_user_asm(_xl, ((__force long __user *)_p)+0, );\
+			__put_user_asm(_xh, ((__force long __user *)_p)+1, );\
 		} break;					\
 		default:					\
 			_err = __put_user_bad();		\
