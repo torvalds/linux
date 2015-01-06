@@ -703,6 +703,74 @@ static void free_buffer(struct videobuf_queue *vq, struct cx231xx_buffer *buf)
 	buf->vb.state = VIDEOBUF_NEEDS_INIT;
 }
 
+static int cx231xx_enable_analog_tuner(struct cx231xx *dev)
+{
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_device *mdev = dev->media_dev;
+	struct media_entity  *entity, *decoder = NULL, *source;
+	struct media_link *link, *found_link = NULL;
+	int i, ret, active_links = 0;
+
+	if (!mdev)
+		return 0;
+
+/*
+ * This will find the tuner that it is connected into the decoder.
+ * Technically, this is not 100% correct, as the device may be using an
+ * analog input instead of the tuner. However, we can't use the DVB for dvb
+ * while the DMA engine is being used for V4L2.
+ */
+	media_device_for_each_entity(entity, mdev) {
+		if (entity->type == MEDIA_ENT_T_V4L2_SUBDEV_DECODER) {
+			decoder = entity;
+			break;
+		}
+	}
+	if (!decoder)
+		return 0;
+
+	for (i = 0; i < decoder->num_links; i++) {
+		link = &decoder->links[i];
+		if (link->sink->entity == decoder) {
+			found_link = link;
+			if (link->flags & MEDIA_LNK_FL_ENABLED)
+				active_links++;
+			break;
+		}
+	}
+
+	if (active_links == 1 || !found_link)
+		return 0;
+
+	source = found_link->source->entity;
+	for (i = 0; i < source->num_links; i++) {
+		struct media_entity *sink;
+		int flags = 0;
+
+		link = &source->links[i];
+		sink = link->sink->entity;
+
+		if (sink == entity)
+			flags = MEDIA_LNK_FL_ENABLED;
+
+		ret = media_entity_setup_link(link, flags);
+		if (ret) {
+			dev_err(dev->dev,
+				"Couldn't change link %s->%s to %s. Error %d\n",
+				source->name, sink->name,
+				flags ? "enabled" : "disabled",
+				ret);
+			return ret;
+		} else
+			dev_dbg(dev->dev,
+				"link %s->%s was %s\n",
+				source->name, sink->name,
+				flags ? "ENABLED" : "disabled");
+	}
+#endif
+	return 0;
+}
+
 static int
 buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	       enum v4l2_field field)
@@ -756,6 +824,9 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	}
 
 	buf->vb.state = VIDEOBUF_PREPARED;
+
+	cx231xx_enable_analog_tuner(dev);
+
 	return 0;
 
 fail:
