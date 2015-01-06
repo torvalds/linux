@@ -3001,12 +3001,12 @@ static int mxt_load_fw(struct device *dev)
 		return ret;
 	}
 
-	ret = mxt_enter_bootloader(data);
+	/* Check for incorrect enc file */
+	ret = mxt_check_firmware_format(dev, f.fw);
 	if (ret)
 		goto release_firmware;
 
-	/* Check for incorrect enc file */
-	ret = mxt_check_firmware_format(dev, f.fw);
+	ret = mxt_enter_bootloader(data);
 	if (ret)
 		goto release_firmware;
 
