@@ -126,12 +126,16 @@ atmel_hlcdc_rgb_encoder_mode_set(struct drm_encoder *encoder,
 
 	if (info->num_bus_formats) {
 		switch (info->bus_formats[0]) {
+		case MEDIA_BUS_FMT_RGB565_1X16:
+			cfg |= ATMEL_HLCDC_CONNECTOR_RGB565 << 8;
+			break;
 		case MEDIA_BUS_FMT_RGB666_1X18:
 			cfg |= ATMEL_HLCDC_CONNECTOR_RGB666 << 8;
 			break;
 		case MEDIA_BUS_FMT_RGB888_1X24:
 			cfg |= ATMEL_HLCDC_CONNECTOR_RGB888 << 8;
 			break;
+		case MEDIA_BUS_FMT_RGB444_1X12:
 		default:
 			break;
 		}
