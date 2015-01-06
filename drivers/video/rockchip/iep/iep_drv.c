@@ -41,10 +41,12 @@
 
 #define IEP_MAJOR		255
 #define IEP_CLK_ENABLE
-//#define IEP_TEST_CASE
+/*#define IEP_TEST_CASE*/
 
-//#undef dmac_flush_range
-//#define dmac_flush_range dma_cache_wback_inv
+static int debug;
+module_param(debug, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(debug,
+		 "Debug level - higher value produces more verbose messages");
 
 #define RK_IEP_SIZE		0x1000
 #define IEP_TIMEOUT_DELAY	2*HZ
@@ -219,7 +221,8 @@ static void iep_power_on(void)
 	/* iep_soft_rst(iep_drvdata1->iep_base); */
 
 #ifdef IEP_CLK_ENABLE
-	clk_prepare_enable(iep_drvdata1->pd_iep);
+	if (iep_drvdata1->pd_iep)
+		clk_prepare_enable(iep_drvdata1->pd_iep);
 	clk_prepare_enable(iep_drvdata1->aclk_iep);
 	clk_prepare_enable(iep_drvdata1->hclk_iep);
 #endif
@@ -262,7 +265,8 @@ static void iep_power_off(void)
 #ifdef IEP_CLK_ENABLE
 	clk_disable_unprepare(iep_drvdata1->aclk_iep);
 	clk_disable_unprepare(iep_drvdata1->hclk_iep);
-	clk_disable_unprepare(iep_drvdata1->pd_iep);
+	if (iep_drvdata1->pd_iep)
+		clk_disable_unprepare(iep_drvdata1->pd_iep);
 #endif
 
 	wake_unlock(&iep_drvdata1->wake_lock);
@@ -791,12 +795,88 @@ static long iep_ioctl(struct file *filp, uint32_t cmd, unsigned long arg)
 	return ret;
 }
 
+#ifdef CONFIG_COMPAT
+static long compat_iep_ioctl(struct file *filp, uint32_t cmd,
+			     unsigned long arg)
+{
+	int ret = 0;
+	iep_session *session = (iep_session *)filp->private_data;
+
+	if (NULL == session) {
+		IEP_ERR("%s [%d] iep thread session is null\n",
+			__func__, __LINE__);
+		return -EINVAL;
+	}
+
+	mutex_lock(&iep_service.mutex);
+
+	switch (cmd) {
+	case COMPAT_IEP_SET_PARAMETER:
+		{
+			struct IEP_MSG *msg;
+
+			msg = kzalloc(sizeof(*msg), GFP_KERNEL);
+
+			if (msg) {
+				if (copy_from_user
+				    (msg, compat_ptr((compat_uptr_t)arg),
+				     sizeof(struct IEP_MSG))) {
+					IEP_ERR("copy_from_user failure\n");
+					ret = -EFAULT;
+				}
+			}
+
+			if (ret == 0) {
+				if (atomic_read(&iep_service.waitcnt) < 10) {
+#if defined(CONFIG_IEP_IOMMU)
+					iep_power_on();
+#endif
+					iep_config(session, msg);
+					atomic_inc(&iep_service.waitcnt);
+				} else {
+					IEP_ERR("iep task queue full\n");
+					ret = -EFAULT;
+				}
+			}
+
+			/** REGISTER CONFIG must accord to Timing When DPI mode
+			 *  enable */
+			if (!iep_drvdata1->dpi_mode)
+				iep_try_set_reg();
+			kfree(msg);
+		}
+		break;
+	case COMPAT_IEP_GET_RESULT_SYNC:
+		if (0 > iep_get_result_sync(session))
+			ret = -ETIMEDOUT;
+		break;
+	case COMPAT_IEP_GET_RESULT_ASYNC:
+		iep_get_result_async(session);
+		break;
+	case COMPAT_IEP_RELEASE_CURRENT_TASK:
+		iep_del_running_list_timeout();
+		iep_try_set_reg();
+		iep_try_start_frm();
+		break;
+	default:
+		IEP_ERR("unknown ioctl cmd!\n");
+		ret = -EINVAL;
+	}
+	mutex_unlock(&iep_service.mutex);
+
+	return ret;
+}
+#endif
+
 struct file_operations iep_fops = {
 	.owner		= THIS_MODULE,
 	.open		= iep_open,
 	.release	= iep_release,
 	.poll		= iep_poll,
 	.unlocked_ioctl	= iep_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= compat_iep_ioctl,
+#endif
 };
 
 static struct miscdevice iep_dev = {
@@ -909,7 +989,7 @@ static int iep_drv_probe(struct platform_device *pdev)
 	data->pd_iep = devm_clk_get(&pdev->dev, "pd_iep");
 	if (IS_ERR(data->pd_iep)) {
 		IEP_ERR("failed to find iep power down clock source.\n");
-		goto err_clock;
+		data->pd_iep = NULL;
 	}
 
 	data->aclk_iep = devm_clk_get(&pdev->dev, "aclk_iep");
@@ -1013,7 +1093,9 @@ err_irq:
 	}
 err_ioremap:
 	wake_lock_destroy(&data->wake_lock);
+#ifdef IEP_CLK_ENABLE
 err_clock:
+#endif
 	return ret;
 }
 

@@ -3,19 +3,49 @@
 
 #define IEP_IOC_MAGIC 'i'
 
-#define IEP_SET_PARAMETER_REQ				_IOW(IEP_IOC_MAGIC, 1, unsigned long)
-#define IEP_SET_PARAMETER_DEINTERLACE			_IOW(IEP_IOC_MAGIC, 2, unsigned long)
-#define IEP_SET_PARAMETER_ENHANCE			_IOW(IEP_IOC_MAGIC, 3, unsigned long)
-#define IEP_SET_PARAMETER_CONVERT			_IOW(IEP_IOC_MAGIC, 4, unsigned long)
-#define IEP_SET_PARAMETER_SCALE				_IOW(IEP_IOC_MAGIC, 5, unsigned long)
-#define IEP_GET_RESULT_SYNC				_IOW(IEP_IOC_MAGIC, 6, unsigned long)
-#define IEP_GET_RESULT_ASYNC				_IOW(IEP_IOC_MAGIC, 7, unsigned long)
-#define IEP_SET_PARAMETER				_IOW(IEP_IOC_MAGIC, 8, unsigned long)
-#define IEP_RELEASE_CURRENT_TASK			_IOW(IEP_IOC_MAGIC, 9, unsigned long)
+#define IEP_SET_PARAMETER_REQ		_IOW(IEP_IOC_MAGIC, 1, unsigned long)
+#define IEP_SET_PARAMETER_DEINTERLACE	_IOW(IEP_IOC_MAGIC, 2, unsigned long)
+#define IEP_SET_PARAMETER_ENHANCE	_IOW(IEP_IOC_MAGIC, 3, unsigned long)
+#define IEP_SET_PARAMETER_CONVERT	_IOW(IEP_IOC_MAGIC, 4, unsigned long)
+#define IEP_SET_PARAMETER_SCALE		_IOW(IEP_IOC_MAGIC, 5, unsigned long)
+#define IEP_GET_RESULT_SYNC		_IOW(IEP_IOC_MAGIC, 6, unsigned long)
+#define IEP_GET_RESULT_ASYNC		_IOW(IEP_IOC_MAGIC, 7, unsigned long)
+#define IEP_SET_PARAMETER		_IOW(IEP_IOC_MAGIC, 8, unsigned long)
+#define IEP_RELEASE_CURRENT_TASK	_IOW(IEP_IOC_MAGIC, 9, unsigned long)
+
+#ifdef CONFIG_COMPAT
+#define COMPAT_IEP_SET_PARAMETER_REQ		_IOW(IEP_IOC_MAGIC, 1, u32)
+#define COMPAT_IEP_SET_PARAMETER_DEINTERLACE	_IOW(IEP_IOC_MAGIC, 2, u32)
+#define COMPAT_IEP_SET_PARAMETER_ENHANCE	_IOW(IEP_IOC_MAGIC, 3, u32)
+#define COMPAT_IEP_SET_PARAMETER_CONVERT	_IOW(IEP_IOC_MAGIC, 4, u32)
+#define COMPAT_IEP_SET_PARAMETER_SCALE		_IOW(IEP_IOC_MAGIC, 5, u32)
+#define COMPAT_IEP_GET_RESULT_SYNC		_IOW(IEP_IOC_MAGIC, 6, u32)
+#define COMPAT_IEP_GET_RESULT_ASYNC		_IOW(IEP_IOC_MAGIC, 7, u32)
+#define COMPAT_IEP_SET_PARAMETER		_IOW(IEP_IOC_MAGIC, 8, u32)
+#define COMPAT_IEP_RELEASE_CURRENT_TASK		_IOW(IEP_IOC_MAGIC, 9, u32)
+#endif
 
 /* Driver information */
 #define DRIVER_DESC		"IEP Device Driver"
 #define DRIVER_NAME		"iep"
+
+#define DEBUG
+#ifdef DEBUG
+#define iep_debug(level, fmt, args...)				\
+	do {							\
+		if (debug >= level)				\
+			pr_info("%s:%d: " fmt,	                \
+				 __func__, __LINE__, ##args);	\
+	} while (0)
+#else
+#define iep_debug(level, fmt, args...)
+#endif
+
+#define iep_debug_enter() vpu_debug(4, "enter\n")
+#define iep_debug_leave() vpu_debug(4, "leave\n")
+
+#define iep_err(fmt, args...)				\
+		pr_err("%s:%d: " fmt, __func__, __LINE__, ##args)
 
 /* Logging */
 #define IEP_DEBUG 0
@@ -120,22 +150,22 @@ enum {
 
 struct iep_img
 {
-	unsigned short act_w;         // act_width
-	unsigned short act_h;         // act_height
-	signed short   x_off;         // x offset for the vir,word unit
-	signed short   y_off;         // y offset for the vir,word unit
+	u16 act_w;	/* act_width */
+	u16 act_h;	/* act_height */
+	s16 x_off;	/* x offset for the vir,word unit */
+	s16 y_off;	/* y offset for the vir,word unit */
 
-	unsigned short vir_w;         //unit :pix 
-	unsigned short vir_h;         //unit :pix
-	unsigned int   format;
-	unsigned int  *mem_addr;
-	unsigned int  *uv_addr;
-	unsigned int  *v_addr;
+	u16 vir_w;	/* unit :pix */
+	u16 vir_h;	/* unit :pix */
+	u32 format;
+	u32 mem_addr;
+	u32 uv_addr;
+	u32 v_addr;
 
-	unsigned char   rb_swap;//not be used
-	unsigned char   uv_swap;//not be used
+	u8 rb_swap;	/* not be used */
+	u8 uv_swap;	/* not be used */
 
-	unsigned char   alpha_swap;//not be used
+	u8 alpha_swap;	/* not be used */
 };
 
 
@@ -164,20 +194,20 @@ struct IEP_MSG {
 	u8 yuv2rgb_clip_en;
 
 	u8 lcdc_path_en;
-	int off_x;
-	int off_y;
-	int width;
-	int height;
-	int layer;
+	s32 off_x;
+	s32 off_y;
+	s32 width;
+	s32 height;
+	s32 layer;
 
 	u8 yuv_3D_denoise_en;
 
 	/* yuv color enhance */
 	u8 yuv_enhance_en;
-	int sat_con_int;
-	int contrast_int;
-	int cos_hue_int;
-	int sin_hue_int;
+	s32 sat_con_int;
+	s32 contrast_int;
+	s32 cos_hue_int;
+	s32 sin_hue_int;
 	s8 yuv_enh_brightness;	/*-32<brightness<31*/
 	u8 video_mode;		/*0-3*/
 	u8 color_bar_y;	/*0-127*/
@@ -188,19 +218,19 @@ struct IEP_MSG {
 	u8 rgb_enhance_en;/*i don't konw what is used*/
 
 	u8 rgb_color_enhance_en;/*sw_rgb_color_enh_en*/
-	unsigned int rgb_enh_coe;
+	u32 rgb_enh_coe;
 
 	u8 rgb_enhance_mode;/*sw_rgb_enh_sel,dde sel*/
 
 	u8 rgb_cg_en;/*sw_rgb_con_gam_en*/
-	unsigned int cg_tab[192];
+	u32 cg_tab[192];
 
 	/*sw_con_gam_order;0 cg prior to dde,1 dde prior to cg*/
 	u8 rgb_contrast_enhance_mode;
 
-	int enh_threshold; 
-	int enh_alpha;
-	int enh_radius;
+	s32 enh_threshold;
+	s32 enh_alpha;
+	s32 enh_radius;
 
 	u8 scale_up_mode;
 
