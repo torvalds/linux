@@ -1408,7 +1408,6 @@ struct intel_vbt_data {
 		bool present;
 		bool active_low_pwm;
 		u8 min_brightness;	/* min_brightness/255 of max */
-		u8 controller;		/* brightness controller number */
 	} backlight;
 
 	/* MIPI DSI */
