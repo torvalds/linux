@@ -392,13 +392,14 @@ more:
 	if (ret >= 0) {
 		int didpages;
 		if (was_short && (pos + ret < inode->i_size)) {
-			u64 tmp = min(this_len - ret,
-					inode->i_size - pos - ret);
+			int zlen = min(this_len - ret,
+				       inode->i_size - pos - ret);
+			int zoff = (o_direct ? buf_align : io_align) +
+				    read + ret;
 			dout(" zero gap %llu to %llu\n",
-				pos + ret, pos + ret + tmp);
-			ceph_zero_page_vector_range(page_align + read + ret,
-							tmp, pages);
-			ret += tmp;
+				pos + ret, pos + ret + zlen);
+			ceph_zero_page_vector_range(zoff, zlen, pages);
+			ret += zlen;
 		}
 
 		didpages = (page_align + ret) >> PAGE_CACHE_SHIFT;
