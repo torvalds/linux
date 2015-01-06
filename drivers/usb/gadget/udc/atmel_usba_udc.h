@@ -306,6 +306,7 @@ struct usba_request {
 
 struct usba_udc_errata {
 	void (*toggle_bias)(struct usba_udc *udc, int is_on);
+	void (*pulse_bias)(struct usba_udc *udc);
 };
 
 struct usba_udc {
@@ -326,6 +327,7 @@ struct usba_udc {
 	struct clk *pclk;
 	struct clk *hclk;
 	struct usba_ep *usba_ep;
+	bool bias_pulse_needed;
 
 	u16 devstatus;
 

@@ -331,6 +331,17 @@ static void toggle_bias(struct usba_udc *udc, int is_on)
 		udc->errata->toggle_bias(udc, is_on);
 }
 
+static void generate_bias_pulse(struct usba_udc *udc)
+{
+	if (!udc->bias_pulse_needed)
+		return;
+
+	if (udc->errata && udc->errata->pulse_bias)
+		udc->errata->pulse_bias(udc);
+
+	udc->bias_pulse_needed = false;
+}
+
 static void next_fifo_transaction(struct usba_ep *ep, struct usba_request *req)
 {
 	unsigned int transaction_len;
@@ -1607,6 +1618,7 @@ static irqreturn_t usba_udc_irq(int irq, void *devid)
 	if (status & USBA_DET_SUSPEND) {
 		toggle_bias(udc, 0);
 		usba_writel(udc, INT_CLR, USBA_DET_SUSPEND);
+		udc->bias_pulse_needed = true;
 		DBG(DBG_BUS, "Suspend detected\n");
 		if (udc->gadget.speed != USB_SPEED_UNKNOWN
 				&& udc->driver && udc->driver->suspend) {
@@ -1624,6 +1636,7 @@ static irqreturn_t usba_udc_irq(int irq, void *devid)
 
 	if (status & USBA_END_OF_RESUME) {
 		usba_writel(udc, INT_CLR, USBA_END_OF_RESUME);
+		generate_bias_pulse(udc);
 		DBG(DBG_BUS, "Resume detected\n");
 		if (udc->gadget.speed != USB_SPEED_UNKNOWN
 				&& udc->driver && udc->driver->resume) {
@@ -1659,6 +1672,7 @@ static irqreturn_t usba_udc_irq(int irq, void *devid)
 		struct usba_ep *ep0;
 
 		usba_writel(udc, INT_CLR, USBA_END_OF_RESET);
+		generate_bias_pulse(udc);
 		reset_all_endpoints(udc);
 
 		if (udc->gadget.speed != USB_SPEED_UNKNOWN && udc->driver) {
@@ -1818,13 +1832,25 @@ static void at91sam9rl_toggle_bias(struct usba_udc *udc, int is_on)
 		at91_pmc_write(AT91_CKGR_UCKR, uckr & ~(AT91_PMC_BIASEN));
 }
 
+static void at91sam9g45_pulse_bias(struct usba_udc *udc)
+{
+	unsigned int uckr = at91_pmc_read(AT91_CKGR_UCKR);
+
+	at91_pmc_write(AT91_CKGR_UCKR, uckr & ~(AT91_PMC_BIASEN));
+	at91_pmc_write(AT91_CKGR_UCKR, uckr | AT91_PMC_BIASEN);
+}
+
 static const struct usba_udc_errata at91sam9rl_errata = {
 	.toggle_bias = at91sam9rl_toggle_bias,
 };
 
+static const struct usba_udc_errata at91sam9g45_errata = {
+	.pulse_bias = at91sam9g45_pulse_bias,
+};
+
 static const struct of_device_id atmel_udc_dt_ids[] = {
 	{ .compatible = "atmel,at91sam9rl-udc", .data = &at91sam9rl_errata },
-	{ .compatible = "atmel,at91sam9g45-udc" },
+	{ .compatible = "atmel,at91sam9g45-udc", .data = &at91sam9g45_errata },
 	{ .compatible = "atmel,sama5d3-udc" },
 	{ /* sentinel */ }
 };
