@@ -39,9 +39,8 @@ asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
 /*
  * Wrappers to pass the pt_regs argument.
  */
+asmlinkage long sys_rt_sigreturn_wrapper(void);
 #define sys_rt_sigreturn	sys_rt_sigreturn_wrapper
-
-#include <asm/syscalls.h>
 
 #undef __SYSCALL
 #define __SYSCALL(nr, sym)	[nr] = sym,
