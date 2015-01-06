@@ -59,14 +59,6 @@
 #include <time.h>
 #include <unistd.h>
 
-/* ugly hack to work around netinet/in.h and linux/ipv6.h conflicts */
-#ifndef in6_pktinfo
-struct in6_pktinfo {
-	struct in6_addr	ipi6_addr;
-	int		ipi6_ifindex;
-};
-#endif
-
 /* command line parameters */
 static int cfg_proto = SOCK_STREAM;
 static int cfg_ipproto = IPPROTO_TCP;
