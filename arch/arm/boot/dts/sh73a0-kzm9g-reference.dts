@@ -210,6 +210,11 @@
 			     <3 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
+	rtc@32 {
+		compatible = "ricoh,r2025sd";
+		reg = <0x32>;
+	};
+
 	as3711@40 {
 		compatible = "ams,as3711";
 		reg = <0x40>;
