@@ -62,7 +62,7 @@ static int _check_execveat_fail(int fd, const char *path, int flags,
 }
 
 static int check_execveat_invoked_rc(int fd, const char *path, int flags,
-				     int expected_rc)
+				     int expected_rc, int expected_rc2)
 {
 	int status;
 	int rc;
@@ -98,9 +98,10 @@ static int check_execveat_invoked_rc(int fd, const char *path, int flags,
 			child, status);
 		return 1;
 	}
-	if (WEXITSTATUS(status) != expected_rc) {
-		printf("[FAIL] (child %d exited with %d not %d)\n",
-			child, WEXITSTATUS(status), expected_rc);
+	if ((WEXITSTATUS(status) != expected_rc) &&
+	    (WEXITSTATUS(status) != expected_rc2)) {
+		printf("[FAIL] (child %d exited with %d not %d nor %d)\n",
+			child, WEXITSTATUS(status), expected_rc, expected_rc2);
 		return 1;
 	}
 	printf("[OK]\n");
@@ -109,7 +110,7 @@ static int check_execveat_invoked_rc(int fd, const char *path, int flags,
 
 static int check_execveat(int fd, const char *path, int flags)
 {
-	return check_execveat_invoked_rc(fd, path, flags, 99);
+	return check_execveat_invoked_rc(fd, path, flags, 99, 99);
 }
 
 static char *concat(const char *left, const char *right)
@@ -192,9 +193,15 @@ static int check_execveat_pathmax(int dot_dfd, const char *src, int is_script)
 	 * Execute as a long pathname relative to ".".  If this is a script,
 	 * the interpreter will launch but fail to open the script because its
 	 * name ("/dev/fd/5/xxx....") is bigger than PATH_MAX.
+	 *
+	 * The failure code is usually 127 (POSIX: "If a command is not found,
+	 * the exit status shall be 127."), but some systems give 126 (POSIX:
+	 * "If the command name is found, but it is not an executable utility,
+	 * the exit status shall be 126."), so allow either.
 	 */
 	if (is_script)
-		fail += check_execveat_invoked_rc(dot_dfd, longpath, 0, 127);
+		fail += check_execveat_invoked_rc(dot_dfd, longpath, 0,
+						  127, 126);
 	else
 		fail += check_execveat(dot_dfd, longpath, 0);
 
