@@ -36,7 +36,7 @@ struct iommu_drvdata {
 	int activations;
 	spinlock_t data_lock;
 	struct iommu_domain *domain; /* domain given to iommu_attach_device() */
-	unsigned long pgtable;
+	unsigned int pgtable;
 	struct rk_iovmm vmm;
 };
 
@@ -47,8 +47,8 @@ struct iommu_drvdata {
 
 struct rk_vm_region {
 	struct list_head node;
-	dma_addr_t start;
-	size_t size;
+	unsigned int start;
+	unsigned int size;
 };
 
 static inline struct rk_iovmm *rockchip_get_iovmm(struct device *dev)

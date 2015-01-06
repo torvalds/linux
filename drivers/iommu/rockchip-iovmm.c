@@ -81,6 +81,8 @@ dma_addr_t rockchip_iovmm_map(struct device *dev,
 		goto err_map_noiomem;
 	}
 
+	pr_debug("%s: size = %zx\n", __func__, size);
+
 	addr = start;
 	do {
 		phys_addr_t phys;
@@ -111,7 +113,7 @@ dma_addr_t rockchip_iovmm_map(struct device *dev,
 
 		if (len > (size - mapped_size))
 			len = size - mapped_size;
-
+		pr_debug("addr = %pad, phys = %pa, len = %zx\n", &addr, &phys, len);
 		ret = iommu_map(vmm->domain, addr, phys, len, 0);
 		if (ret)
 			break;
@@ -140,8 +142,8 @@ dma_addr_t rockchip_iovmm_map(struct device *dev,
 	if (ret)
 		goto err_map_map;
 
-	dev_dbg(dev->archdata.iommu, "IOVMM: Allocated VM region @ %#x/%#X bytes.\n",
-	region->start, region->size);
+	dev_dbg(dev->archdata.iommu, "IOVMM: Allocated VM region @ %pad%#zx bytes.\n",
+	&region->start, region->size);
 	
 	return region->start;
 
@@ -151,7 +153,7 @@ err_map_map:
 err_map_noiomem:
 	kfree(region);
 err_map_nomem:
-	dev_err(dev->archdata.iommu, "IOVMM: Failed to allocated VM region for %#x bytes.\n", size);
+	dev_err(dev->archdata.iommu, "IOVMM: Failed to allocated VM region for %zx bytes.\n", size);
 	return (dma_addr_t)ret;
 }
 
@@ -187,8 +189,8 @@ void rockchip_iovmm_unmap(struct device *dev, dma_addr_t iova)
 
 	WARN_ON(unmapped_size != region->size);
 	
-	dev_dbg(dev->archdata.iommu, "IOVMM: Unmapped %#x bytes from %#x.\n",
-		unmapped_size, region->start);
+	dev_dbg(dev->archdata.iommu, "IOVMM: Unmapped %zx bytes from %pad.\n",
+		unmapped_size, &region->start);
 	
 	kfree(region);
 }
@@ -200,8 +202,8 @@ int rockchip_iovmm_map_oto(struct device *dev, phys_addr_t phys, size_t size)
 	int ret;
 
 	if (WARN_ON((phys + size) >= IOVA_START)) {
-		dev_err(dev->archdata.iommu, "Unable to create one to one mapping for %#x @ %#x\n",
-		       size, phys);
+		dev_err(dev->archdata.iommu, "Unable to create one to one mapping for %zx @ %pa\n",
+		       size, &phys);
 		return -EINVAL;
 	}
 
@@ -262,8 +264,8 @@ void rockchip_iovmm_unmap_oto(struct device *dev, phys_addr_t phys)
 
 	unmapped_size = iommu_unmap(vmm->domain, region->start, region->size);
 	WARN_ON(unmapped_size != region->size);
-	dev_dbg(dev->archdata.iommu, "IOVMM: Unmapped %#x bytes from %#x.\n",
-	       unmapped_size, region->start);
+	dev_dbg(dev->archdata.iommu, "IOVMM: Unmapped %zx bytes from %pad.\n",
+	       unmapped_size, &region->start);
 
 	kfree(region);
 }

@@ -170,20 +170,20 @@ enum iommu_status_bits {
 
 static struct kmem_cache *lv2table_kmem_cache;
 
-static unsigned long *rockchip_section_entry(unsigned long *pgtable, unsigned long iova)
+static unsigned int *rockchip_section_entry(unsigned int *pgtable, unsigned int iova)
 {
 	return pgtable + rockchip_lv1ent_offset(iova);
 }
 
-static unsigned long *rockchip_page_entry(unsigned long *sent, unsigned long iova)
+static unsigned int *rockchip_page_entry(unsigned int *sent, unsigned int iova)
 {
-	return (unsigned long *)__va(rockchip_lv2table_base(sent)) +
+	return (unsigned int *)phys_to_virt(rockchip_lv2table_base(sent)) +
 		rockchip_lv2ent_offset(iova);
 }
 
 struct rk_iommu_domain {
 	struct list_head clients; /* list of iommu_drvdata.node */
-	unsigned long *pgtable; /* lv1 page table, 4KB */
+	unsigned int *pgtable; /* lv1 page table, 4KB */
 	short *lv2entcnt; /* free lv2 entry counter for each section */
 	spinlock_t lock; /* lock for this structure */
 	spinlock_t pgtablelock; /* lock for modifying page table @ pgtable */
@@ -456,7 +456,7 @@ static inline bool rockchip_iommu_raw_reset(void __iomem *base)
 	return true;
 }
 
-static void rockchip_iommu_set_ptbase(void __iomem *base, unsigned long pgd)
+static void rockchip_iommu_set_ptbase(void __iomem *base, unsigned int pgd)
 {
 	__raw_writel(pgd, base + IOMMU_REGISTER_DTE_ADDR);
 }
@@ -488,6 +488,7 @@ static inline void rockchip_pgtable_flush(void *vastart, void *vaend)
 	outer_flush_range(virt_to_phys(vastart), virt_to_phys(vaend));
 #elif defined(CONFIG_ARM64)
 	__dma_flush_range(vastart, vaend);
+	//flush_cache_all();
 #endif
 }
 
@@ -684,7 +685,7 @@ static bool rockchip_iommu_disable(struct iommu_drvdata *data)
  * 0 if the System MMU has been just enabled and 1 if System MMU was already
  * enabled before.
  */
-static int rockchip_iommu_enable(struct iommu_drvdata *data, unsigned long pgtable)
+static int rockchip_iommu_enable(struct iommu_drvdata *data, unsigned int pgtable)
 {
 	int i, ret = 0;
 	unsigned long flags;
@@ -803,7 +804,7 @@ static phys_addr_t rockchip_iommu_iova_to_phys(struct iommu_domain *domain,
 	return phys;
 }
 
-static int rockchip_lv2set_page(unsigned long *pent, phys_addr_t paddr,
+static int rockchip_lv2set_page(unsigned int *pent, phys_addr_t paddr,
 		       size_t size, short *pgcnt)
 {
 	if (!rockchip_lv2ent_fault(pent))
@@ -815,18 +816,18 @@ static int rockchip_lv2set_page(unsigned long *pent, phys_addr_t paddr,
 	return 0;
 }
 
-static unsigned long *rockchip_alloc_lv2entry(unsigned long *sent,
-				     unsigned long iova, short *pgcounter)
+static unsigned long *rockchip_alloc_lv2entry(unsigned int *sent,
+				     unsigned int iova, short *pgcounter)
 {
 	if (rockchip_lv1ent_fault(sent)) {
-		unsigned long *pent;
+		unsigned int *pent;
 
 		pent = kmem_cache_zalloc(lv2table_kmem_cache, GFP_ATOMIC);
 		BUG_ON((unsigned long)pent & (LV2TABLE_SIZE - 1));
 		if (!pent)
 			return NULL;
 
-		*sent = rockchip_mk_lv1ent_page(__pa(pent));
+		*sent = rockchip_mk_lv1ent_page(virt_to_phys(pent));
 		kmemleak_ignore(pent);
 		*pgcounter = NUM_LV2ENTRIES;
 		rockchip_pgtable_flush(pent, pent + NUM_LV2ENTRIES);
@@ -836,11 +837,11 @@ static unsigned long *rockchip_alloc_lv2entry(unsigned long *sent,
 }
 
 static size_t rockchip_iommu_unmap(struct iommu_domain *domain,
-				   unsigned long iova, size_t size)
+				   unsigned int iova, size_t size)
 {
 	struct rk_iommu_domain *priv = domain->priv;
 	unsigned long flags;
-	unsigned long *ent;
+	unsigned int *ent;
 
 	BUG_ON(priv->pgtable == NULL);
 
@@ -869,10 +870,8 @@ static size_t rockchip_iommu_unmap(struct iommu_domain *domain,
 	goto done;
 
 done:
-	#if 0
-	pr_info("%s:unmap iova 0x%lx/0x%x bytes\n",
+	pr_debug("%s:unmap iova 0x%lx/0x%x bytes\n",
 		  __func__, iova,size);
-	#endif
 	spin_unlock_irqrestore(&priv->pgtablelock, flags);
 
 	return size;
@@ -882,10 +881,10 @@ static int rockchip_iommu_map(struct iommu_domain *domain, unsigned long iova,
 			      phys_addr_t paddr, size_t size, int prot)
 {
 	struct rk_iommu_domain *priv = domain->priv;
-	unsigned long *entry;
+	unsigned int *entry;
 	unsigned long flags;
 	int ret = -ENOMEM;
-	unsigned long *pent;
+	unsigned int *pent;
 
 	BUG_ON(priv->pgtable == NULL);
 
@@ -902,7 +901,7 @@ static int rockchip_iommu_map(struct iommu_domain *domain, unsigned long iova,
 				&priv->lv2entcnt[rockchip_lv1ent_offset(iova)]);
 
 	if (ret) {
-		pr_info("%s: Failed to map iova 0x%lx/0x%x bytes\n", __func__,
+		pr_info("%s: Failed to map iova 0x%lx/%zx bytes\n", __func__,
 		       iova, size);
 	}
 	spin_unlock_irqrestore(&priv->pgtablelock, flags);
@@ -933,14 +932,14 @@ static void rockchip_iommu_detach_device(struct iommu_domain *domain, struct dev
 	}
 
 	if (rockchip_iommu_disable(data)) {
-		dev_dbg(dev->archdata.iommu,"%s: Detached IOMMU with pgtable %#lx\n",
-			__func__, __pa(priv->pgtable));
+		dev_dbg(dev->archdata.iommu,"%s: Detached IOMMU with pgtable %08lx\n",
+			__func__, (unsigned long)virt_to_phys(priv->pgtable));
 		data->domain = NULL;
 		list_del_init(&data->node);
 
 	} else
-		dev_err(dev->archdata.iommu,"%s: Detaching IOMMU with pgtable %#lx delayed",
-			__func__, __pa(priv->pgtable));
+		dev_err(dev->archdata.iommu,"%s: Detaching IOMMU with pgtable %08lx delayed",
+			__func__, (unsigned long)virt_to_phys(priv->pgtable));
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
@@ -954,7 +953,7 @@ static int rockchip_iommu_attach_device(struct iommu_domain *domain, struct devi
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	ret = rockchip_iommu_enable(data, __pa(priv->pgtable));
+	ret = rockchip_iommu_enable(data, virt_to_phys(priv->pgtable));
 
 	if (ret == 0) {
 		/* 'data->node' must not be appeared in priv->clients */
@@ -966,14 +965,14 @@ static int rockchip_iommu_attach_device(struct iommu_domain *domain, struct devi
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	if (ret < 0) {
-		dev_err(dev->archdata.iommu,"%s: Failed to attach IOMMU with pgtable %#lx\n",
-		       __func__, __pa(priv->pgtable));
+		dev_err(dev->archdata.iommu,"%s: Failed to attach IOMMU with pgtable %x\n",
+		       __func__, (unsigned int)virt_to_phys(priv->pgtable));
 	} else if (ret > 0) {
-		dev_dbg(dev->archdata.iommu,"%s: IOMMU with pgtable 0x%lx already attached\n",
-			__func__, __pa(priv->pgtable));
+		dev_dbg(dev->archdata.iommu,"%s: IOMMU with pgtable 0x%x already attached\n",
+			__func__, (unsigned int)virt_to_phys(priv->pgtable));
 	} else {
-		dev_dbg(dev->archdata.iommu,"%s: Attached new IOMMU with pgtable 0x%lx\n",
-			__func__, __pa(priv->pgtable));
+		dev_info(dev->archdata.iommu,"%s: Attached new IOMMU with pgtable 0x%x\n",
+			__func__, (unsigned int)virt_to_phys(priv->pgtable));
 	}
 
 	return ret;
@@ -989,7 +988,7 @@ static void rockchip_iommu_domain_destroy(struct iommu_domain *domain)
 	for (i = 0; i < NUM_LV1ENTRIES; i++)
 		if (rockchip_lv1ent_page(priv->pgtable + i))
 			kmem_cache_free(lv2table_kmem_cache,
-					__va(rockchip_lv2table_base(priv->pgtable + i)));
+					phys_to_virt(rockchip_lv2table_base(priv->pgtable + i)));
 
 	free_pages((unsigned long)priv->pgtable, 0);
 	free_pages((unsigned long)priv->lv2entcnt, 0);
@@ -1009,7 +1008,7 @@ static int rockchip_iommu_domain_init(struct iommu_domain *domain)
    level1 and leve2 both have 1024 entries,each entry  occupy 4 bytes,
    so alloc a page size for each page table
 */
-	priv->pgtable = (unsigned long *)__get_free_pages(GFP_KERNEL |
+	priv->pgtable = (unsigned int *)__get_free_pages(GFP_KERNEL |
 							  __GFP_ZERO, 0);
 	if (!priv->pgtable)
 		goto err_pgtable;
@@ -1120,13 +1119,13 @@ static int rockchip_iommu_probe(struct platform_device *pdev)
 		data->res_bases[i] = devm_ioremap(dev,res->start,
 						  resource_size(res));
 		if (!data->res_bases[i]) {
-			dev_err(dev, "Unable to map IOMEM @ PA:%#x\n",
-				res->start);
+			dev_err(dev, "Unable to map IOMEM @ PA:%pa\n",
+				&res->start);
 			return -ENOMEM;
 		}
 
-		dev_dbg(dev,"res->start = 0x%08x ioremap to data->res_bases[%d] = 0x%08x\n",
-			res->start, i, (unsigned int)data->res_bases[i]);
+		dev_dbg(dev,"res->start = 0x%pa ioremap to data->res_bases[%d] = 0x%08x\n",
+			&res->start, i, (unsigned int)data->res_bases[i]);
 
 		if (strstr(data->dbgname, "vop") &&
 		    (soc_is_rk3128() || soc_is_rk3126())) {
