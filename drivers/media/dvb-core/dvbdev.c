@@ -414,13 +414,13 @@ void dvb_create_media_graph(struct media_device *mdev)
 		media_entity_create_link(tuner, 0, fe, 0, 0);
 
 	if (fe && demux)
-		media_entity_create_link(fe, 1, demux, 0, 0);
+		media_entity_create_link(fe, 1, demux, 0, MEDIA_LNK_FL_ENABLED);
 
 	if (demux && dvr)
-		media_entity_create_link(demux, 1, dvr, 0, 0);
+		media_entity_create_link(demux, 1, dvr, 0, MEDIA_LNK_FL_ENABLED);
 
 	if (demux && ca)
-		media_entity_create_link(demux, 1, ca, 0, 0);
+		media_entity_create_link(demux, 1, ca, 0, MEDIA_LNK_FL_ENABLED);
 #endif
 }
 EXPORT_SYMBOL_GPL(dvb_create_media_graph);
