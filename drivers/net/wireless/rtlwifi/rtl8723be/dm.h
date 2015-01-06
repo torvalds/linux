@@ -180,15 +180,6 @@
 #define BW_AUTO_SWITCH_HIGH_LOW			25
 #define BW_AUTO_SWITCH_LOW_HIGH			30
 
-#define DM_DIG_THRESH_HIGH			40
-#define DM_DIG_THRESH_LOW			35
-
-#define DM_FALSEALARM_THRESH_LOW		400
-#define DM_FALSEALARM_THRESH_HIGH		1000
-
-#define DM_DIG_MAX				0x3e
-#define DM_DIG_MIN				0x1e
-
 #define DM_DIG_MAX_AP				0x32
 #define DM_DIG_MIN_AP				0x20
 
@@ -197,10 +188,6 @@
 #define DM_DIG_FA_TH0				0x200
 #define DM_DIG_FA_TH1				0x300
 #define DM_DIG_FA_TH2				0x400
-
-#define DM_DIG_BACKOFF_MAX			12
-#define DM_DIG_BACKOFF_MIN			-4
-#define DM_DIG_BACKOFF_DEFAULT			10
 
 #define RXPATHSELECTION_SS_TH_LOW		30
 #define RXPATHSELECTION_DIFF_TH			18
@@ -258,15 +245,6 @@ enum dm_dig_ext_port_alg_e {
 	DIG_EXT_PORT_STAGE_2	= 2,
 	DIG_EXT_PORT_STAGE_3	= 3,
 	DIG_EXT_PORT_STAGE_MAX	= 4,
-};
-
-enum dm_dig_connect_e {
-	DIG_STA_DISCONNECT	= 0,
-	DIG_STA_CONNECT		= 1,
-	DIG_STA_BEFORE_CONNECT	= 2,
-	DIG_MULTISTA_DISCONNECT	= 3,
-	DIG_MULTISTA_CONNECT	= 4,
-	DIG_CONNECT_MAX
 };
 
 enum pwr_track_control_method {

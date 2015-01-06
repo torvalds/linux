@@ -1871,3 +1871,37 @@ bool rtl_btc_status_false(void)
 	return false;
 }
 EXPORT_SYMBOL_GPL(rtl_btc_status_false);
+
+void rtl_dm_diginit(struct ieee80211_hw *hw, u32 cur_igvalue)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct dig_t *dm_digtable = &rtlpriv->dm_digtable;
+
+	dm_digtable->dig_enable_flag = true;
+	dm_digtable->cur_igvalue = cur_igvalue;
+	dm_digtable->pre_igvalue = 0;
+	dm_digtable->cur_sta_cstate = DIG_STA_DISCONNECT;
+	dm_digtable->presta_cstate = DIG_STA_DISCONNECT;
+	dm_digtable->curmultista_cstate = DIG_MULTISTA_DISCONNECT;
+	dm_digtable->rssi_lowthresh = DM_DIG_THRESH_LOW;
+	dm_digtable->rssi_highthresh = DM_DIG_THRESH_HIGH;
+	dm_digtable->fa_lowthresh = DM_FALSEALARM_THRESH_LOW;
+	dm_digtable->fa_highthresh = DM_FALSEALARM_THRESH_HIGH;
+	dm_digtable->rx_gain_max = DM_DIG_MAX;
+	dm_digtable->rx_gain_min = DM_DIG_MIN;
+	dm_digtable->back_val = DM_DIG_BACKOFF_DEFAULT;
+	dm_digtable->back_range_max = DM_DIG_BACKOFF_MAX;
+	dm_digtable->back_range_min = DM_DIG_BACKOFF_MIN;
+	dm_digtable->pre_cck_cca_thres = 0xff;
+	dm_digtable->cur_cck_cca_thres = 0x83;
+	dm_digtable->forbidden_igi = DM_DIG_MIN;
+	dm_digtable->large_fa_hit = 0;
+	dm_digtable->recover_cnt = 0;
+	dm_digtable->dig_min_0 = 0x25;
+	dm_digtable->dig_min_1 = 0x25;
+	dm_digtable->media_connect_0 = false;
+	dm_digtable->media_connect_1 = false;
+	rtlpriv->dm.dm_initialgain_enable = true;
+	dm_digtable->bt30_cur_igi = 0x32;
+}
+EXPORT_SYMBOL(rtl_dm_diginit);

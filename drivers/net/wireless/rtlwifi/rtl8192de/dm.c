@@ -29,6 +29,7 @@
 
 #include "../wifi.h"
 #include "../base.h"
+#include "../core.h"
 #include "reg.h"
 #include "def.h"
 #include "phy.h"

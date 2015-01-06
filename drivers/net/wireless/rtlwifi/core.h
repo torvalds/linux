@@ -35,6 +35,29 @@
 
 #define RTL_SUPPORTED_CTRL_FILTER	0xFF
 
+#define DM_DIG_THRESH_HIGH		40
+#define DM_DIG_THRESH_LOW		35
+#define DM_FALSEALARM_THRESH_LOW	400
+#define DM_FALSEALARM_THRESH_HIGH	1000
+
+#define DM_DIG_MAX			0x3e
+#define DM_DIG_MIN			0x1e
+#define DM_DIG_BACKOFF_MAX		12
+#define DM_DIG_BACKOFF_MIN		-4
+#define DM_DIG_BACKOFF_DEFAULT		10
+
+enum dm_dig_connect_e {
+	DIG_STA_DISCONNECT,
+	DIG_STA_CONNECT,
+	DIG_STA_BEFORE_CONNECT,
+	DIG_MULTISTA_DISCONNECT,
+	DIG_MULTISTA_CONNECT,
+	DIG_AP_DISCONNECT,
+	DIG_AP_CONNECT,
+	DIG_AP_ADD_STATION,
+	DIG_CONNECT_MAX
+};
+
 extern const struct ieee80211_ops rtl_ops;
 void rtl_fw_cb(const struct firmware *firmware, void *context);
 void rtl_wowlan_fw_cb(const struct firmware *firmware, void *context);
@@ -44,5 +67,6 @@ void rtl_rfreg_delay(struct ieee80211_hw *hw, enum radio_path rfpath, u32 addr,
 void rtl_bb_delay(struct ieee80211_hw *hw, u32 addr, u32 data);
 bool rtl_cmd_send_packet(struct ieee80211_hw *hw, struct sk_buff *skb);
 bool rtl_btc_status_false(void);
+void rtl_dm_diginit(struct ieee80211_hw *hw, u32 cur_igval);
 
 #endif

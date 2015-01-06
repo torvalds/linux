@@ -32,6 +32,7 @@
 #include "phy_common.h"
 #include "../pci.h"
 #include "../base.h"
+#include "../core.h"
 
 #define BT_RSSI_STATE_NORMAL_POWER	BIT_OFFSET_LEN_MASK_32(0, 1)
 #define BT_RSSI_STATE_AMDPU_OFF		BIT_OFFSET_LEN_MASK_32(1, 1)
