@@ -142,24 +142,14 @@ struct __large_struct { unsigned long buf[100]; };
 	__pu_ret; \
 })
 
-#define __put_user_nocheck(x, addr, size) ({ \
-	register int __pu_ret; \
-	switch (size) { \
-	case 1: \
-		__put_user_asm(x, b, addr, __pu_ret); \
-		break; \
-	case 2: \
-		__put_user_asm(x, h, addr, __pu_ret); \
-		break; \
-	case 4: \
-		__put_user_asm(x, , addr, __pu_ret); \
-		break; \
-	case 8: \
-		__put_user_asm(x, d, addr, __pu_ret); \
-		break; \
-	default: \
-		__pu_ret = __put_user_bad(); \
-		break; \
+#define __put_user_nocheck(x, addr, size) ({			\
+	register int __pu_ret;					\
+	switch (size) {						\
+	case 1: __put_user_asm(x, b, addr, __pu_ret); break;	\
+	case 2: __put_user_asm(x, h, addr, __pu_ret); break;	\
+	case 4: __put_user_asm(x, , addr, __pu_ret); break;	\
+	case 8: __put_user_asm(x, d, addr, __pu_ret); break;	\
+	default: __pu_ret = __put_user_bad(); break;		\
 	} \
 	__pu_ret; \
 })
@@ -240,51 +230,35 @@ int __put_user_bad(void);
 		return retval; \
 })
 
-#define __get_user_nocheck(x, addr, size, type) ({ \
-	register int __gu_ret; \
-	register unsigned long __gu_val; \
-	switch (size) { \
-	case 1: \
-		__get_user_asm(__gu_val, ub, addr, __gu_ret); \
-		break; \
-	case 2: \
-		__get_user_asm(__gu_val, uh, addr, __gu_ret); \
-		break; \
-	case 4: \
-		__get_user_asm(__gu_val, , addr, __gu_ret); \
-		break; \
-	case 8: \
-		__get_user_asm(__gu_val, d, addr, __gu_ret); \
-		break; \
-	default: \
-		__gu_val = 0; \
-		__gu_ret = __get_user_bad(); \
-		break; \
-	} \
-	x = (__force type) __gu_val; \
-	__gu_ret; \
+#define __get_user_nocheck(x, addr, size, type) ({			\
+	register int __gu_ret;						\
+	register unsigned long __gu_val;				\
+	switch (size) {							\
+	case 1: __get_user_asm(__gu_val, ub, addr, __gu_ret); break;	\
+	case 2: __get_user_asm(__gu_val, uh, addr, __gu_ret); break;	\
+	case 4: __get_user_asm(__gu_val, , addr, __gu_ret); break;	\
+	case 8: __get_user_asm(__gu_val, d, addr, __gu_ret); break;	\
+	default:							\
+		__gu_val = 0;						\
+		__gu_ret = __get_user_bad();				\
+		break;							\
+	}								\
+	x = (__force type) __gu_val;					\
+	__gu_ret;							\
 })
 
-#define __get_user_nocheck_ret(x, addr, size, type, retval) ({ \
-	register unsigned long __gu_val __asm__ ("l1"); \
-	switch (size) { \
-	case 1: \
-		__get_user_asm_ret(__gu_val, ub, addr, retval); \
-		break; \
-	case 2: \
-		__get_user_asm_ret(__gu_val, uh, addr, retval); \
-		break; \
-	case 4: \
-		__get_user_asm_ret(__gu_val, , addr, retval); \
-		break; \
-	case 8: \
-		__get_user_asm_ret(__gu_val, d, addr, retval); \
-		break; \
-	default: \
-		if (__get_user_bad()) \
-			return retval; \
-	} \
-	x = (__force type) __gu_val; \
+#define __get_user_nocheck_ret(x, addr, size, type, retval) ({		\
+	register unsigned long __gu_val __asm__ ("l1");			\
+	switch (size) {							\
+	case 1: __get_user_asm_ret(__gu_val, ub, addr, retval); break;	\
+	case 2: __get_user_asm_ret(__gu_val, uh, addr, retval); break;	\
+	case 4: __get_user_asm_ret(__gu_val, , addr, retval);  break;	\
+	case 8: __get_user_asm_ret(__gu_val, d, addr, retval); break;	\
+	default:							\
+		if (__get_user_bad())					\
+			return retval;					\
+	}								\
+	x = (__force type) __gu_val;					\
 })
 
 #define __get_user_asm(x, size, addr, ret)				\
