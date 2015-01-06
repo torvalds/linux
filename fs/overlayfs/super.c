@@ -372,7 +372,6 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		bool opaque = false;
 		struct path lowerpath = poe->lowerstack[i];
 
-		opaque = false;
 		this = ovl_lookup_real(lowerpath.dentry, &dentry->d_name);
 		err = PTR_ERR(this);
 		if (IS_ERR(this)) {
@@ -395,20 +394,24 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		 */
 		if (i < poe->numlower - 1 && ovl_is_opaquedir(this))
 			opaque = true;
-		/*
-		 * If this is a non-directory then stop here.
-		 *
-		 * FIXME: check for opaqueness maybe better done in remove code.
-		 */
-		if (!S_ISDIR(this->d_inode->i_mode)) {
-			opaque = true;
-		} else if (prev && (!S_ISDIR(prev->d_inode->i_mode) ||
-				    !S_ISDIR(this->d_inode->i_mode))) {
+
+		if (prev && (!S_ISDIR(prev->d_inode->i_mode) ||
+			     !S_ISDIR(this->d_inode->i_mode))) {
+			/*
+			 * FIXME: check for upper-opaqueness maybe better done
+			 * in remove code.
+			 */
 			if (prev == upperdentry)
 				upperopaque = true;
 			dput(this);
 			break;
 		}
+		/*
+		 * If this is a non-directory then stop here.
+		 */
+		if (!S_ISDIR(this->d_inode->i_mode))
+			opaque = true;
+
 		stack[ctr].dentry = this;
 		stack[ctr].mnt = lowerpath.mnt;
 		ctr++;
