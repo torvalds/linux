@@ -382,6 +382,8 @@ enum iwl_trans_status {
  *	are considered stuck and will trigger device restart
  * @command_names: array of command names, must be 256 entries
  *	(one for each command); for debugging only
+ * @sdio_adma_addr: the default address to set for the ADMA in SDIO mode until
+ *	we get the ALIVE from the uCode
  */
 struct iwl_trans_config {
 	struct iwl_op_mode *op_mode;
@@ -396,6 +398,8 @@ struct iwl_trans_config {
 	bool scd_set_active;
 	unsigned int queue_watchdog_timeout;
 	const char *const *command_names;
+
+	u32 sdio_adma_addr;
 };
 
 struct iwl_trans_dump_data {
@@ -552,6 +556,21 @@ enum iwl_trans_state {
 };
 
 /**
+ * enum iwl_d0i3_mode - d0i3 mode
+ *
+ * @IWL_D0I3_MODE_OFF - d0i3 is disabled
+ * @IWL_D0I3_MODE_ON_IDLE - enter d0i3 when device is idle
+ *	(e.g. no active references)
+ * @IWL_D0I3_MODE_ON_SUSPEND - enter d0i3 only on suspend
+ *	(in case of 'any' trigger)
+ */
+enum iwl_d0i3_mode {
+	IWL_D0I3_MODE_OFF = 0,
+	IWL_D0I3_MODE_ON_IDLE,
+	IWL_D0I3_MODE_ON_SUSPEND,
+};
+
+/**
  * struct iwl_trans - transport common data
  *
  * @ops - pointer to iwl_trans_ops
@@ -611,6 +630,8 @@ struct iwl_trans {
 	const struct iwl_fw_dbg_dest_tlv *dbg_dest_tlv;
 	const struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_MAX];
 	u8 dbg_dest_reg_num;
+
+	enum iwl_d0i3_mode d0i3_mode;
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */

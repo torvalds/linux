@@ -933,7 +933,7 @@ iwl_dbgfs_scan_ant_rxchain_write(struct iwl_mvm *mvm, char *buf,
 		return -EINVAL;
 	if (scan_rx_ant > ANT_ABC)
 		return -EINVAL;
-	if (scan_rx_ant & ~mvm->fw->valid_rx_ant)
+	if (scan_rx_ant & ~(iwl_mvm_get_valid_rx_ant(mvm)))
 		return -EINVAL;
 
 	if (mvm->scan_rx_ant != scan_rx_ant) {
@@ -941,6 +941,56 @@ iwl_dbgfs_scan_ant_rxchain_write(struct iwl_mvm *mvm, char *buf,
 		if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)
 			iwl_mvm_config_scan(mvm);
 	}
+
+	return count;
+}
+
+static ssize_t iwl_dbgfs_fw_dbg_conf_read(struct file *file,
+					  char __user *user_buf,
+					  size_t count, loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	enum iwl_fw_dbg_conf conf;
+	char buf[8];
+	const size_t bufsz = sizeof(buf);
+	int pos = 0;
+
+	mutex_lock(&mvm->mutex);
+	conf = mvm->fw_dbg_conf;
+	mutex_unlock(&mvm->mutex);
+
+	pos += scnprintf(buf + pos, bufsz - pos, "%d\n", conf);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
+static ssize_t iwl_dbgfs_fw_dbg_conf_write(struct iwl_mvm *mvm,
+					   char *buf, size_t count,
+					   loff_t *ppos)
+{
+	int ret, conf_id;
+
+	ret = kstrtoint(buf, 0, &conf_id);
+	if (ret)
+		return ret;
+
+	if (WARN_ON(conf_id >= FW_DBG_MAX))
+		return -EINVAL;
+
+	mutex_lock(&mvm->mutex);
+	ret = iwl_mvm_start_fw_dbg_conf(mvm, conf_id);
+	mutex_unlock(&mvm->mutex);
+
+	return ret ?: count;
+}
+
+static ssize_t iwl_dbgfs_fw_dbg_collect_write(struct iwl_mvm *mvm,
+					      char *buf, size_t count,
+					      loff_t *ppos)
+{
+	mutex_lock(&mvm->mutex);
+	iwl_mvm_fw_dbg_collect(mvm);
+	mutex_unlock(&mvm->mutex);
 
 	return count;
 }
@@ -1459,6 +1509,8 @@ MVM_DEBUGFS_WRITE_FILE_OPS(bt_tx_prio, 10);
 MVM_DEBUGFS_WRITE_FILE_OPS(bt_force_ant, 10);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(scan_ant_rxchain, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(d0i3_refs, 8);
+MVM_DEBUGFS_READ_WRITE_FILE_OPS(fw_dbg_conf, 8);
+MVM_DEBUGFS_WRITE_FILE_OPS(fw_dbg_collect, 8);
 
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters, 256);
@@ -1500,6 +1552,8 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 			     S_IWUSR | S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(prph_reg, mvm->debugfs_dir, S_IWUSR | S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(d0i3_refs, mvm->debugfs_dir, S_IRUSR | S_IWUSR);
+	MVM_DEBUGFS_ADD_FILE(fw_dbg_conf, mvm->debugfs_dir, S_IRUSR | S_IWUSR);
+	MVM_DEBUGFS_ADD_FILE(fw_dbg_collect, mvm->debugfs_dir, S_IWUSR);
 
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
 	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BCAST_FILTERING) {

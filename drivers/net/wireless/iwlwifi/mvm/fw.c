@@ -70,6 +70,7 @@
 #include "iwl-debug.h"
 #include "iwl-csr.h" /* for iwl_mvm_rx_card_state_notif */
 #include "iwl-io.h" /* for iwl_mvm_rx_card_state_notif */
+#include "iwl-prph.h"
 #include "iwl-eeprom-parse.h"
 
 #include "mvm.h"
@@ -269,7 +270,7 @@ static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 	enum iwl_ucode_type ucode_type = mvm->cur_ucode;
 
 	/* Set parameters */
-	phy_cfg_cmd.phy_cfg = cpu_to_le32(mvm->fw->phy_config);
+	phy_cfg_cmd.phy_cfg = cpu_to_le32(iwl_mvm_get_phy_config(mvm));
 	phy_cfg_cmd.calib_control.event_trigger =
 		mvm->fw->default_calib[ucode_type].event_trigger;
 	phy_cfg_cmd.calib_control.flow_trigger =
@@ -346,7 +347,7 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	mvm->calibrating = true;
 
 	/* Send TX valid antennas before triggering calibrations */
-	ret = iwl_send_tx_ant_cfg(mvm, mvm->fw->valid_tx_ant);
+	ret = iwl_send_tx_ant_cfg(mvm, iwl_mvm_get_valid_tx_ant(mvm));
 	if (ret)
 		goto error;
 
@@ -399,8 +400,26 @@ out:
 	return ret;
 }
 
-static int iwl_mvm_start_fw_dbg_conf(struct iwl_mvm *mvm,
-				     enum iwl_fw_dbg_conf conf_id)
+void iwl_mvm_fw_dbg_collect(struct iwl_mvm *mvm)
+{
+	lockdep_assert_held(&mvm->mutex);
+
+	/* stop recording */
+	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
+		iwl_set_bits_prph(mvm->trans, MON_BUFF_SAMPLE_CTL, 0x100);
+	} else {
+		iwl_write_prph(mvm->trans, DBGC_IN_SAMPLE, 0);
+		iwl_write_prph(mvm->trans, DBGC_OUT_CTRL, 0);
+	}
+
+	iwl_mvm_fw_error_dump(mvm);
+
+	/* start recording again */
+	WARN_ON_ONCE(mvm->fw->dbg_dest_tlv &&
+		     iwl_mvm_start_fw_dbg_conf(mvm, mvm->fw_dbg_conf));
+}
+
+int iwl_mvm_start_fw_dbg_conf(struct iwl_mvm *mvm, enum iwl_fw_dbg_conf conf_id)
 {
 	u8 *ptr;
 	int ret;
@@ -489,7 +508,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	mvm->fw_dbg_conf = FW_DBG_INVALID;
 	iwl_mvm_start_fw_dbg_conf(mvm, FW_DBG_CUSTOM);
 
-	ret = iwl_send_tx_ant_cfg(mvm, mvm->fw->valid_tx_ant);
+	ret = iwl_send_tx_ant_cfg(mvm, iwl_mvm_get_valid_tx_ant(mvm));
 	if (ret)
 		goto error;
 
@@ -584,7 +603,7 @@ int iwl_mvm_load_d3_fw(struct iwl_mvm *mvm)
 		goto error;
 	}
 
-	ret = iwl_send_tx_ant_cfg(mvm, mvm->fw->valid_tx_ant);
+	ret = iwl_send_tx_ant_cfg(mvm, iwl_mvm_get_valid_tx_ant(mvm));
 	if (ret)
 		goto error;
 

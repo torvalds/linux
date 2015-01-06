@@ -99,6 +99,7 @@
 
 #define APMG_PCIDEV_STT_VAL_PERSIST_DIS	(0x00000200)
 #define APMG_PCIDEV_STT_VAL_L1_ACT_DIS	(0x00000800)
+#define APMG_PCIDEV_STT_VAL_WAKE_ME	(0x00004000)
 
 #define APMG_RTC_INT_STT_RFKILL		(0x10000000)
 
@@ -365,10 +366,14 @@ enum secure_load_status_reg {
 #define RXF_FIFO_RD_FENCE_ADDR		(0xa00c0c)
 
 /* FW monitor */
+#define MON_BUFF_SAMPLE_CTL		(0xa03c00)
 #define MON_BUFF_BASE_ADDR		(0xa03c3c)
 #define MON_BUFF_END_ADDR		(0xa03c40)
 #define MON_BUFF_WRPTR			(0xa03c44)
 #define MON_BUFF_CYCLE_CNT		(0xa03c48)
+
+#define DBGC_IN_SAMPLE			(0xa03c00)
+#define DBGC_OUT_CTRL			(0xa03c0c)
 
 /* FW chicken bits */
 #define LMPM_CHICK			0xA01FF8

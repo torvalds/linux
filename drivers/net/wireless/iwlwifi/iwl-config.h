@@ -261,6 +261,10 @@ struct iwl_pwr_tx_backoff {
  *	station can receive in HT
  * @max_vht_ampdu_exponent: the exponent of the max length of A-MPDU that the
  *	station can receive in VHT
+ * @dccm_offset: offset from which DCCM begins
+ * @dccm_len: length of DCCM (including runtime stack CCM)
+ * @smem_offset: offset from which the SMEM begins
+ * @smem_len: the length of SMEM
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -298,11 +302,16 @@ struct iwl_cfg {
 	const struct iwl_pwr_tx_backoff *pwr_tx_backoffs;
 	bool no_power_up_nic_in_init;
 	const char *default_nvm_file;
+	const char *default_nvm_file_8000A;
 	unsigned int max_rx_agg_size;
 	bool disable_dummy_notification;
 	unsigned int max_tx_agg_size;
 	unsigned int max_ht_ampdu_exponent;
 	unsigned int max_vht_ampdu_exponent;
+	const u32 dccm_offset;
+	const u32 dccm_len;
+	const u32 smem_offset;
+	const u32 smem_len;
 };
 
 /*
@@ -370,7 +379,6 @@ extern const struct iwl_cfg iwl7265d_n_cfg;
 extern const struct iwl_cfg iwl8260_2n_cfg;
 extern const struct iwl_cfg iwl8260_2ac_cfg;
 extern const struct iwl_cfg iwl8260_2ac_sdio_cfg;
-extern const struct iwl_cfg iwl4265_2ac_sdio_cfg;
 extern const struct iwl_cfg iwl4165_2ac_sdio_cfg;
 #endif /* CONFIG_IWLMVM */
 
