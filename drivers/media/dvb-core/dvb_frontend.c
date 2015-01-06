@@ -131,6 +131,11 @@ struct dvb_frontend_private {
 	int quality;
 	unsigned int check_wrapped;
 	enum dvbfe_search algo_status;
+
+#if defined(CONFIG_MEDIA_CONTROLLER_DVB)
+	struct media_pipeline pipe;
+	struct media_entity *pipe_start_entity;
+#endif
 };
 
 static void dvb_frontend_wakeup(struct dvb_frontend *fe);
@@ -608,9 +613,9 @@ static void dvb_frontend_wakeup(struct dvb_frontend *fe)
  * or 0 if everything is OK, if no tuner is linked to the frontend or if the
  * mdev is NULL.
  */
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
 static int dvb_enable_media_tuner(struct dvb_frontend *fe)
 {
-#ifdef CONFIG_MEDIA_CONTROLLER_DVB
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	struct dvb_adapter *adapter = fe->dvb;
 	struct media_device *mdev = adapter->mdev;
@@ -618,10 +623,14 @@ static int dvb_enable_media_tuner(struct dvb_frontend *fe)
 	struct media_link *link, *found_link = NULL;
 	int i, ret, n_links = 0, active_links = 0;
 
+	fepriv->pipe_start_entity = NULL;
+
 	if (!mdev)
 		return 0;
 
 	entity = fepriv->dvbdev->entity;
+	fepriv->pipe_start_entity = entity;
+
 	for (i = 0; i < entity->num_links; i++) {
 		link = &entity->links[i];
 		if (link->sink->entity == entity) {
@@ -648,6 +657,7 @@ static int dvb_enable_media_tuner(struct dvb_frontend *fe)
 	}
 
 	source = found_link->source->entity;
+	fepriv->pipe_start_entity = source;
 	for (i = 0; i < source->num_links; i++) {
 		struct media_entity *sink;
 		int flags = 0;
@@ -672,9 +682,9 @@ static int dvb_enable_media_tuner(struct dvb_frontend *fe)
 				source->name, sink->name,
 				flags ? "ENABLED" : "disabled");
 	}
-#endif
 	return 0;
 }
+#endif
 
 static int dvb_frontend_thread(void *data)
 {
@@ -696,12 +706,19 @@ static int dvb_frontend_thread(void *data)
 	fepriv->wakeup = 0;
 	fepriv->reinitialise = 0;
 
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
 	ret = dvb_enable_media_tuner(fe);
 	if (ret) {
 		/* FIXME: return an error if it fails */
 		dev_info(fe->dvb->device,
 			"proceeding with FE task\n");
+	} else {
+		ret = media_entity_pipeline_start(fepriv->pipe_start_entity,
+						  &fepriv->pipe);
+		if (ret)
+			return ret;
 	}
+#endif
 
 	dvb_frontend_init(fe);
 
@@ -811,6 +828,11 @@ restart:
 			dvb_frontend_swzigzag(fe);
 		}
 	}
+
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	media_entity_pipeline_stop(fepriv->pipe_start_entity);
+	fepriv->pipe_start_entity = NULL;
+#endif
 
 	if (dvb_powerdown_on_sleep) {
 		if (fe->ops.set_voltage)
