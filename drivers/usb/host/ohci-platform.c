@@ -328,6 +328,7 @@ static int ohci_platform_resume(struct device *dev)
 
 static const struct of_device_id ohci_platform_ids[] = {
 	{ .compatible = "generic-ohci", },
+	{ .compatible = "cavium,octeon-6335-ohci", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ohci_platform_ids);

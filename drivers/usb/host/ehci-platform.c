@@ -353,6 +353,7 @@ static const struct of_device_id vt8500_ehci_ids[] = {
 	{ .compatible = "via,vt8500-ehci", },
 	{ .compatible = "wm,prizm-ehci", },
 	{ .compatible = "generic-ehci", },
+	{ .compatible = "cavium,octeon-6335-ehci", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, vt8500_ehci_ids);
