@@ -61,7 +61,7 @@ static __inline__ void atomic_##op(int i, atomic_t * v)			      \
 									      \
 		do {							      \
 			__asm__ __volatile__(				      \
-			"	.set	arch=r4000			\n"   \
+			"	.set	"MIPS_ISA_LEVEL"		\n"   \
 			"	ll	%0, %1		# atomic_" #op "\n"   \
 			"	" #asm_op " %0, %2			\n"   \
 			"	sc	%0, %1				\n"   \
@@ -104,7 +104,7 @@ static __inline__ int atomic_##op##_return(int i, atomic_t * v)		      \
 									      \
 		do {							      \
 			__asm__ __volatile__(				      \
-			"	.set	arch=r4000			\n"   \
+			"	.set	"MIPS_ISA_LEVEL"		\n"   \
 			"	ll	%1, %2	# atomic_" #op "_return	\n"   \
 			"	" #asm_op " %0, %1, %3			\n"   \
 			"	sc	%0, %2				\n"   \
@@ -178,7 +178,7 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 		int temp;
 
 		__asm__ __volatile__(
-		"	.set	arch=r4000				\n"
+		"	.set	"MIPS_ISA_LEVEL"			\n"
 		"1:	ll	%1, %2		# atomic_sub_if_positive\n"
 		"	subu	%0, %1, %3				\n"
 		"	bltz	%0, 1f					\n"
@@ -340,7 +340,7 @@ static __inline__ void atomic64_##op(long i, atomic64_t * v)		      \
 									      \
 		do {							      \
 			__asm__ __volatile__(				      \
-			"	.set	arch=r4000			\n"   \
+			"	.set	"MIPS_ISA_LEVEL"		\n"   \
 			"	lld	%0, %1		# atomic64_" #op "\n" \
 			"	" #asm_op " %0, %2			\n"   \
 			"	scd	%0, %1				\n"   \
@@ -383,7 +383,7 @@ static __inline__ long atomic64_##op##_return(long i, atomic64_t * v)	      \
 									      \
 		do {							      \
 			__asm__ __volatile__(				      \
-			"	.set	arch=r4000			\n"   \
+			"	.set	"MIPS_ISA_LEVEL"		\n"   \
 			"	lld	%1, %2	# atomic64_" #op "_return\n"  \
 			"	" #asm_op " %0, %1, %3			\n"   \
 			"	scd	%0, %2				\n"   \
@@ -459,7 +459,7 @@ static __inline__ long atomic64_sub_if_positive(long i, atomic64_t * v)
 		long temp;
 
 		__asm__ __volatile__(
-		"	.set	arch=r4000				\n"
+		"	.set	"MIPS_ISA_LEVEL"			\n"
 		"1:	lld	%1, %2		# atomic64_sub_if_positive\n"
 		"	dsubu	%0, %1, %3				\n"
 		"	bltz	%0, 1f					\n"
