@@ -46,6 +46,22 @@
 #define DM_DIG_BACKOFF_MIN		-4
 #define DM_DIG_BACKOFF_DEFAULT		10
 
+enum cck_packet_detection_threshold {
+	CCK_PD_STAGE_LOWRSSI = 0,
+	CCK_PD_STAGE_HIGHRSSI = 1,
+	CCK_FA_STAGE_LOW = 2,
+	CCK_FA_STAGE_HIGH = 3,
+	CCK_PD_STAGE_MAX = 4,
+};
+
+enum dm_dig_ext_port_alg_e {
+	DIG_EXT_PORT_STAGE_0 = 0,
+	DIG_EXT_PORT_STAGE_1 = 1,
+	DIG_EXT_PORT_STAGE_2 = 2,
+	DIG_EXT_PORT_STAGE_3 = 3,
+	DIG_EXT_PORT_STAGE_MAX = 4,
+};
+
 enum dm_dig_connect_e {
 	DIG_STA_DISCONNECT,
 	DIG_STA_CONNECT,

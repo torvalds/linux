@@ -110,14 +110,6 @@ enum tag_dynamic_init_gain_operation_type_definition {
 	DIG_OP_TYPE_MAX
 };
 
-enum tag_cck_packet_detection_threshold_type_definition {
-	CCK_PD_STAGE_LowRssi = 0,
-	CCK_PD_STAGE_HighRssi = 1,
-	CCK_FA_STAGE_Low = 2,
-	CCK_FA_STAGE_High = 3,
-	CCK_PD_STAGE_MAX = 4,
-};
-
 enum dm_1r_cca_e {
 	CCA_1R = 0,
 	CCA_2R = 1,
@@ -134,14 +126,6 @@ enum dm_sw_ant_switch_e {
 	ANS_ANTENNA_B = 1,
 	ANS_ANTENNA_A = 2,
 	ANS_ANTENNA_MAX = 3,
-};
-
-enum dm_dig_ext_port_alg_e {
-	DIG_EXT_PORT_STAGE_0 = 0,
-	DIG_EXT_PORT_STAGE_1 = 1,
-	DIG_EXT_PORT_STAGE_2 = 2,
-	DIG_EXT_PORT_STAGE_3 = 3,
-	DIG_EXT_PORT_STAGE_MAX = 4,
 };
 
 void rtl92c_dm_init(struct ieee80211_hw *hw);

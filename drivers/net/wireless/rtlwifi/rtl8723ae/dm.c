@@ -396,30 +396,30 @@ static void rtl8723e_dm_cck_packet_detection_thresh(struct ieee80211_hw *hw)
 	if (dm_digtable->cursta_cstate == DIG_STA_CONNECT) {
 		dm_digtable->rssi_val_min = rtl8723e_dm_initial_gain_min_pwdb(hw);
 
-		if (dm_digtable->pre_cck_pd_state == CCK_PD_STAGE_LowRssi) {
+		if (dm_digtable->pre_cck_pd_state == CCK_PD_STAGE_LOWRSSI) {
 			if (dm_digtable->rssi_val_min <= 25)
 				dm_digtable->cur_cck_pd_state =
-				    CCK_PD_STAGE_LowRssi;
+				    CCK_PD_STAGE_LOWRSSI;
 			else
 				dm_digtable->cur_cck_pd_state =
-				    CCK_PD_STAGE_HighRssi;
+				    CCK_PD_STAGE_HIGHRSSI;
 		} else {
 			if (dm_digtable->rssi_val_min <= 20)
 				dm_digtable->cur_cck_pd_state =
-				    CCK_PD_STAGE_LowRssi;
+				    CCK_PD_STAGE_LOWRSSI;
 			else
 				dm_digtable->cur_cck_pd_state =
-				    CCK_PD_STAGE_HighRssi;
+				    CCK_PD_STAGE_HIGHRSSI;
 		}
 	} else {
 		dm_digtable->cur_cck_pd_state = CCK_PD_STAGE_MAX;
 	}
 
 	if (dm_digtable->pre_cck_pd_state != dm_digtable->cur_cck_pd_state) {
-		if (dm_digtable->cur_cck_pd_state == CCK_PD_STAGE_LowRssi) {
+		if (dm_digtable->cur_cck_pd_state == CCK_PD_STAGE_LOWRSSI) {
 			if (rtlpriv->falsealm_cnt.cnt_cck_fail > 800)
 				dm_digtable->cur_cck_fa_state =
-				    CCK_FA_STAGE_High;
+				    CCK_FA_STAGE_HIGH;
 			else
 				dm_digtable->cur_cck_fa_state =
 				    CCK_FA_STAGE_LOW;

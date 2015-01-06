@@ -1878,6 +1878,7 @@ void rtl_dm_diginit(struct ieee80211_hw *hw, u32 cur_igvalue)
 	struct dig_t *dm_digtable = &rtlpriv->dm_digtable;
 
 	dm_digtable->dig_enable_flag = true;
+	dm_digtable->dig_ext_port_stage = DIG_EXT_PORT_STAGE_MAX;
 	dm_digtable->cur_igvalue = cur_igvalue;
 	dm_digtable->pre_igvalue = 0;
 	dm_digtable->cur_sta_cstate = DIG_STA_DISCONNECT;
@@ -1903,5 +1904,7 @@ void rtl_dm_diginit(struct ieee80211_hw *hw, u32 cur_igvalue)
 	dm_digtable->media_connect_1 = false;
 	rtlpriv->dm.dm_initialgain_enable = true;
 	dm_digtable->bt30_cur_igi = 0x32;
+	dm_digtable->pre_cck_pd_state = CCK_PD_STAGE_MAX;
+	dm_digtable->cur_cck_pd_state = CCK_PD_STAGE_LOWRSSI;
 }
 EXPORT_SYMBOL(rtl_dm_diginit);

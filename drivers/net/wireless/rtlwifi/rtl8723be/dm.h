@@ -239,14 +239,6 @@ enum dm_sw_ant_switch_e {
 	ANS_ANTENNA_MAX	= 3,
 };
 
-enum dm_dig_ext_port_alg_e {
-	DIG_EXT_PORT_STAGE_0	= 0,
-	DIG_EXT_PORT_STAGE_1	= 1,
-	DIG_EXT_PORT_STAGE_2	= 2,
-	DIG_EXT_PORT_STAGE_3	= 3,
-	DIG_EXT_PORT_STAGE_MAX	= 4,
-};
-
 enum pwr_track_control_method {
 	BBSWING,
 	TXAGC
