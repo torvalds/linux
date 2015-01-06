@@ -1,8 +1,6 @@
 #include <linux/percpu.h>
 #include <linux/sched.h>
-#include "mcs_spinlock.h"
-
-#ifdef CONFIG_SMP
+#include <linux/osq_lock.h>
 
 /*
  * An MCS like lock especially tailored for optimistic spinning for sleeping
@@ -203,6 +201,3 @@ void osq_unlock(struct optimistic_spin_queue *lock)
 	if (next)
 		ACCESS_ONCE(next->locked) = 1;
 }
-
-#endif
-
