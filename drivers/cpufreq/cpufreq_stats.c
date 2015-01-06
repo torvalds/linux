@@ -207,12 +207,10 @@ static int __cpufreq_stats_create_table(struct cpufreq_policy *policy)
 	cpufreq_for_each_valid_entry(pos, table)
 		if (freq_table_get_index(stats, pos->frequency) == -1)
 			stats->freq_table[i++] = pos->frequency;
-	stats->state_num = i;
 
-	spin_lock(&cpufreq_stats_lock);
+	stats->state_num = i;
 	stats->last_time = get_jiffies_64();
 	stats->last_index = freq_table_get_index(stats, policy->cur);
-	spin_unlock(&cpufreq_stats_lock);
 
 	policy->stats = stats;
 	ret = sysfs_create_group(&policy->kobj, &stats_attr_group);
@@ -294,13 +292,11 @@ static int cpufreq_stat_notifier_trans(struct notifier_block *nb,
 
 	cpufreq_stats_update(stats);
 
-	spin_lock(&cpufreq_stats_lock);
 	stats->last_index = new_index;
 #ifdef CONFIG_CPU_FREQ_STAT_DETAILS
 	stats->trans_table[old_index * stats->max_state + new_index]++;
 #endif
 	stats->total_trans++;
-	spin_unlock(&cpufreq_stats_lock);
 
 put_policy:
 	cpufreq_cpu_put(policy);
