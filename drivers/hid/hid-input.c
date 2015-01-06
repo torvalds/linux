@@ -1113,6 +1113,7 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 	 */
 	if (!(field->flags & (HID_MAIN_ITEM_RELATIVE |
 	                      HID_MAIN_ITEM_BUFFERED_BYTE)) &&
+			      (field->flags & HID_MAIN_ITEM_VARIABLE) &&
 	    usage->usage_index < field->maxusage &&
 	    value == field->value[usage->usage_index])
 		return;
