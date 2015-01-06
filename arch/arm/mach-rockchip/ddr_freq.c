@@ -67,7 +67,7 @@ enum {
 	DEBUG_SUSPEND = 1U << 2,
 	DEBUG_VERBOSE = 1U << 3,
 };
-static int debug_mask = DEBUG_DDR;
+static int debug_mask;
 
 module_param(debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 #define dprintk(mask, fmt, ...) do { if (mask & debug_mask) pr_debug(fmt, ##__VA_ARGS__); } while (0)
@@ -432,16 +432,14 @@ static int ddrfreq_task(void *data)
 
 	do {
 		status = ddr.sys_status;
+		timeout = ddrfreq_work(status);
+		if (old_status != status)
+			complete(&ddrfreq_completion);
 		if (vop_bandwidth_update_flag) {
 			vop_bandwidth_update_flag = 0;
 #ifdef VOP_REQ_BLOCK
 			complete(&vop_req_completion);
 #endif
-		}
-
-		timeout = ddrfreq_work(status);
-		if (old_status != status) {
-			complete(&ddrfreq_completion);
 		}
 		wait_event_freezable_timeout(ddr.wait, vop_bandwidth_update_flag || (status != ddr.sys_status) || kthread_should_stop(), timeout);
 		old_status = status;
@@ -636,14 +634,15 @@ static long ddr_freq_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 	vop_bandwidth = bpvinfo->bp_vop_size;
 	vop_bandwidth_update_jiffies = jiffies;
 	vop_req_freq = req_freq_by_vop(vop_bandwidth);
-	if (dvfs_clk_get_rate(ddr.clk_dvfs_node) >= vop_req_freq) {
+	if (dvfs_clk_get_rate(ddr.clk_dvfs_node) >= vop_req_freq)
 		ret = 0;
-	}
 
 	vop_bandwidth_update_flag = 1;
 	wake_up(&ddr.wait);
 #ifdef VOP_REQ_BLOCK
 	wait_for_completion(&vop_req_completion);
+	if (dvfs_clk_get_rate(ddr.clk_dvfs_node) >= vop_req_freq)
+		ret = 0;
 #endif
 
 	return ret;
