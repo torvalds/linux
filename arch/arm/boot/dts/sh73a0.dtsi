@@ -94,6 +94,7 @@
 			      0 6 IRQ_TYPE_LEVEL_HIGH
 			      0 7 IRQ_TYPE_LEVEL_HIGH
 			      0 8 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp5_clks SH73A0_CLK_INTCA0>;
 		control-parent;
 	};
 
@@ -114,6 +115,7 @@
 			      0 14 IRQ_TYPE_LEVEL_HIGH
 			      0 15 IRQ_TYPE_LEVEL_HIGH
 			      0 16 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp5_clks SH73A0_CLK_INTCA0>;
 		control-parent;
 	};
 
@@ -134,6 +136,7 @@
 			      0 22 IRQ_TYPE_LEVEL_HIGH
 			      0 23 IRQ_TYPE_LEVEL_HIGH
 			      0 24 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp5_clks SH73A0_CLK_INTCA0>;
 		control-parent;
 	};
 
@@ -154,6 +157,7 @@
 			      0 30 IRQ_TYPE_LEVEL_HIGH
 			      0 31 IRQ_TYPE_LEVEL_HIGH
 			      0 32 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp5_clks SH73A0_CLK_INTCA0>;
 		control-parent;
 	};
 
@@ -697,6 +701,17 @@
 			>;
 			clock-output-names =
 				"iic3", "iic4", "keysc";
+		};
+		mstp5_clks: mstp5_clks@e6150144 {
+			compatible = "renesas,sh73a0-mstp-clocks", "renesas,cpg-mstp-clocks";
+			reg = <0xe6150144 4>, <0xe615003c 4>;
+			clocks = <&cpg_clocks SH73A0_CLK_HP>;
+			#clock-cells = <1>;
+			clock-indices = <
+				SH73A0_CLK_INTCA0
+			>;
+			clock-output-names =
+				"intca0";
 		};
 	};
 };
