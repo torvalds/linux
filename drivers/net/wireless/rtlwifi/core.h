@@ -42,6 +42,7 @@
 
 #define DM_DIG_MAX			0x3e
 #define DM_DIG_MIN			0x1e
+#define DM_DIG_MAX_AP			0x32
 #define DM_DIG_BACKOFF_MAX		12
 #define DM_DIG_BACKOFF_MIN		-4
 #define DM_DIG_BACKOFF_DEFAULT		10

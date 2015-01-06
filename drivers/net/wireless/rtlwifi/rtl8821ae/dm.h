@@ -187,15 +187,6 @@
 #define BW_AUTO_SWITCH_HIGH_LOW		25
 #define BW_AUTO_SWITCH_LOW_HIGH		30
 
-#define DM_FALSEALARM_THRESH_LOW	400
-#define DM_FALSEALARM_THRESH_HIGH	1000
-
-#define DM_DIG_MAX					0x3e
-#define DM_DIG_MIN					0x1e
-
-#define DM_DIG_MAX_AP				0x32
-#define DM_DIG_MIN_AP				0x20
-
 #define DM_DIG_FA_UPPER				0x3e
 #define DM_DIG_FA_LOWER				0x1e
 #define DM_DIG_FA_TH0				200
