@@ -33,6 +33,7 @@ struct amba_device {
 	struct clk		*pclk;
 	unsigned int		periphid;
 	unsigned int		irq[AMBA_NR_IRQS];
+	char			*driver_override;
 };
 
 struct amba_driver {
