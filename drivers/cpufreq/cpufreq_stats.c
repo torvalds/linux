@@ -18,7 +18,6 @@
 static spinlock_t cpufreq_stats_lock;
 
 struct cpufreq_stats {
-	unsigned int cpu;
 	unsigned int total_trans;
 	unsigned long long last_time;
 	unsigned int max_state;
@@ -187,7 +186,6 @@ static int __cpufreq_stats_create_table(struct cpufreq_policy *policy)
 	if (ret)
 		goto error_out;
 
-	stats->cpu = cpu;
 	policy->stats = stats;
 
 	cpufreq_for_each_valid_entry(pos, table)
@@ -244,21 +242,11 @@ static void cpufreq_stats_create_table(unsigned int cpu)
 	cpufreq_cpu_put(policy);
 }
 
-static void cpufreq_stats_update_policy_cpu(struct cpufreq_policy *policy)
-{
-	policy->stats->cpu = policy->cpu;
-}
-
 static int cpufreq_stat_notifier_policy(struct notifier_block *nb,
 		unsigned long val, void *data)
 {
 	int ret = 0;
 	struct cpufreq_policy *policy = data;
-
-	if (val == CPUFREQ_UPDATE_POLICY_CPU) {
-		cpufreq_stats_update_policy_cpu(policy);
-		return 0;
-	}
 
 	if (val == CPUFREQ_CREATE_POLICY)
 		ret = __cpufreq_stats_create_table(policy);
