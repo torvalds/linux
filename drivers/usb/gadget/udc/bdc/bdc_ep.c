@@ -718,9 +718,10 @@ static int ep_queue(struct bdc_ep *ep, struct bdc_req *req)
 	struct bdc *bdc;
 	int ret = 0;
 
-	bdc = ep->bdc;
 	if (!req || !ep || !ep->usb_ep.desc)
 		return -EINVAL;
+
+	bdc = ep->bdc;
 
 	req->usb_req.actual = 0;
 	req->usb_req.status = -EINPROGRESS;
