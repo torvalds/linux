@@ -295,7 +295,6 @@ static void i2c_imx_dma_request(struct imx_i2c_struct *i2c_imx,
 	dma->chan_tx = dma_request_slave_channel(dev, "tx");
 	if (!dma->chan_tx) {
 		dev_dbg(dev, "can't request DMA tx channel\n");
-		ret = -ENODEV;
 		goto fail_al;
 	}
 
@@ -313,7 +312,6 @@ static void i2c_imx_dma_request(struct imx_i2c_struct *i2c_imx,
 	dma->chan_rx = dma_request_slave_channel(dev, "rx");
 	if (!dma->chan_rx) {
 		dev_dbg(dev, "can't request DMA rx channel\n");
-		ret = -ENODEV;
 		goto fail_tx;
 	}
 
