@@ -413,14 +413,14 @@ do {									\
 #ifndef __ARMEB__
 #define __put_user_asm_half(x,__pu_addr,err)			\
 ({								\
-	unsigned long __temp = (unsigned long)(x);		\
+	unsigned long __temp = (__force unsigned long)(x);	\
 	__put_user_asm_byte(__temp, __pu_addr, err);		\
 	__put_user_asm_byte(__temp >> 8, __pu_addr + 1, err);	\
 })
 #else
 #define __put_user_asm_half(x,__pu_addr,err)			\
 ({								\
-	unsigned long __temp = (unsigned long)(x);		\
+	unsigned long __temp = (__force unsigned long)(x);	\
 	__put_user_asm_byte(__temp >> 8, __pu_addr, err);	\
 	__put_user_asm_byte(__temp, __pu_addr + 1, err);	\
 })
