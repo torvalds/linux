@@ -289,10 +289,10 @@ static int cpufreq_stat_notifier_trans(struct notifier_block *nb,
 	if (old_index == -1 || new_index == -1)
 		goto put_policy;
 
-	cpufreq_stats_update(stats);
-
 	if (old_index == new_index)
 		goto put_policy;
+
+	cpufreq_stats_update(stats);
 
 	spin_lock(&cpufreq_stats_lock);
 	stats->last_index = new_index;
