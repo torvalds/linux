@@ -3832,8 +3832,6 @@ static inline void set_cpuX_paused(unsigned int cpu, bool pause) { DATA(cpu_paus
 static inline bool is_cpuX_paused(unsigned int cpu) { smp_rmb(); return DATA(p_cpu_pause)[cpu]; }
 static inline void set_cpu0_paused(bool pause) { DATA(p_cpu_pause)[0] = pause; smp_wmb();}
 
-#define MAX_TIMEOUT (16000000UL << 6) //>0.64s
-
 /* Do not use stack, safe on SMP */
 void PIE_FUNC(_pause_cpu)(void *arg)
 {       
@@ -3859,35 +3857,39 @@ static void wait_cpu(void *info)
 
 static int call_with_single_cpu(u32 (*fn)(void *arg), void *arg)
 {
-    u32 timeout = MAX_TIMEOUT;
-    unsigned int cpu;
-    unsigned int this_cpu = smp_processor_id();
-    int ret = 0;
+	s64 now_ns, timeout_ns;
+	unsigned int cpu;
+	unsigned int this_cpu = smp_processor_id();
+	int ret = 0;
 
-    cpu_maps_update_begin();
-    local_bh_disable();
-    set_cpu0_paused(true);
-    smp_call_function((smp_call_func_t)pause_cpu, NULL, 0);
+	cpu_maps_update_begin();
+	local_bh_disable();
 
-    for_each_online_cpu(cpu) {
-        if (cpu == this_cpu)
-            continue;
-        while (!is_cpuX_paused(cpu) && --timeout);
-        if (timeout == 0) {
-            pr_err("pause cpu %d timeout\n", cpu);
-            goto out;
-        }
-    }
-
-    ret = fn(arg);
-
+	/* It should take much less than 1s to pause the cpus. It typically
+	* takes around 20us. */
+	timeout_ns = ktime_to_ns(ktime_add_ns(ktime_get(), NSEC_PER_SEC));
+	now_ns = ktime_to_ns(ktime_get());
+	set_cpu0_paused(true);
+	smp_call_function((smp_call_func_t)pause_cpu, NULL, 0);
+	for_each_online_cpu(cpu) {
+		if (cpu == this_cpu)
+			continue;
+		while (!is_cpuX_paused(cpu) && (now_ns < timeout_ns))
+			now_ns = ktime_to_ns(ktime_get());
+		if (now_ns >= timeout_ns) {
+			pr_err("pause cpu %d timeout\n", cpu);
+			ret = -EPERM;
+			goto out;
+		}
+	}
+	ret = fn(arg);
 out:
-    set_cpu0_paused(false);
-    local_bh_enable();
-    smp_call_function(wait_cpu, NULL, true);
-    cpu_maps_update_done();
+	set_cpu0_paused(false);
+	local_bh_enable();
+	smp_call_function(wait_cpu, NULL, true);
+	cpu_maps_update_done();
 
-    return ret;
+	return ret;
 }
 
 void PIE_FUNC(ddr_adjust_config)(void *arg)
