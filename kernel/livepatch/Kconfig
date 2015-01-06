@@ -1,10 +1,10 @@
 config ARCH_HAVE_LIVE_PATCHING
-	boolean
+	bool
 	help
 	  Arch supports kernel live patching
 
 config LIVE_PATCHING
-	boolean "Kernel Live Patching"
+	bool "Kernel Live Patching"
 	depends on DYNAMIC_FTRACE_WITH_REGS
 	depends on MODULES
 	depends on SYSFS
