@@ -278,7 +278,7 @@ extern int __put_user_bad(void);
 				       __pu_err);			\
 			break;						\
 		case 8:							\
-			__put_user_asm("d", __pu_addr, __pu_val,		\
+			__put_user_asm("d", __pu_addr, __pu_val,	\
 				       __pu_err);			\
 			break;						\
 		default:						\
