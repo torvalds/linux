@@ -388,7 +388,7 @@ config HID_LOGITECH_HIDPP
 	Say Y if you want support for Logitech devices relying on the HID++
 	specification. Such devices are the various Logitech Touchpads (T650,
 	T651, TK820), some mice (Zone Touch mouse), or even keyboards (Solar
-	Keayboard).
+	Keyboard).
 
 config LOGITECH_FF
 	bool "Logitech force feedback support"
