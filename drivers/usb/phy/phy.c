@@ -34,7 +34,7 @@ static struct usb_phy *__usb_find_phy(struct list_head *list,
 		return phy;
 	}
 
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EPROBE_DEFER);
 }
 
 static struct usb_phy *__usb_find_phy_dev(struct device *dev,
@@ -66,7 +66,7 @@ static struct usb_phy *__of_usb_find_phy(struct device_node *node)
 		return phy;
 	}
 
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(-EPROBE_DEFER);
 }
 
 static void devm_usb_phy_release(struct device *dev, void *res)
@@ -192,7 +192,7 @@ struct usb_phy *devm_usb_get_phy_by_phandle(struct device *dev,
 	phy = __of_usb_find_phy(node);
 	if (IS_ERR(phy) || !try_module_get(phy->dev->driver->owner)) {
 		if (!IS_ERR(phy))
-			phy = ERR_PTR(-EPROBE_DEFER);
+			phy = ERR_PTR(-ENODEV);
 
 		devres_free(ptr);
 		goto err1;
