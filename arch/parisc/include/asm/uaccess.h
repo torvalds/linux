@@ -104,7 +104,7 @@ struct exception_data {
 	    }                                           \
 	}                                               \
 							\
-	(x) = (__typeof__(*(ptr))) __gu_val;            \
+	(x) = (__force __typeof__(*(ptr))) __gu_val;	\
 	__gu_err;                                       \
 })
 
