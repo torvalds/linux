@@ -746,7 +746,7 @@ static int dwc_otg_pcd_pullup(struct usb_gadget *_gadget, int is_on)
 		pcd->conn_status = 0;
 	} else {
 		dwc_otg_pcd_pullup_disable(pcd);
-		pcd->conn_status = 2;
+		pcd->conn_en = 0;
 	}
 
 	return 0;

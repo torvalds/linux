@@ -1,11 +1,11 @@
 /*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2007-2014 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
+ * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #ifndef __MALI_UTGARD_IOCTL_H__
@@ -40,8 +40,9 @@ extern "C" {
 
 #define MALI_IOC_WAIT_FOR_NOTIFICATION      _IOWR(MALI_IOC_CORE_BASE, _MALI_UK_WAIT_FOR_NOTIFICATION, _mali_uk_wait_for_notification_s)
 #define MALI_IOC_GET_API_VERSION            _IOWR(MALI_IOC_CORE_BASE, _MALI_UK_GET_API_VERSION, u32)
-#define MALI_IOC_GET_MALI_VERSION_IN_RK30   _IOWR(MALI_IOC_CORE_BASE,_MALI_UK_GET_MALI_VERSION_IN_RK30,_mali_uk_get_mali_version_in_rk30_s *)
 #define MALI_IOC_GET_API_VERSION_V2         _IOWR(MALI_IOC_CORE_BASE, _MALI_UK_GET_API_VERSION, _mali_uk_get_api_version_v2_s)
+/* rk_ext. */
+#define MALI_IOC_GET_RK_KO_VERSION          _IOWR(MALI_IOC_CORE_BASE, _MALI_GET_RK_KO_VERSION, _mali_rk_ko_version_s)
 #define MALI_IOC_POST_NOTIFICATION          _IOWR(MALI_IOC_CORE_BASE, _MALI_UK_POST_NOTIFICATION, _mali_uk_post_notification_s)
 #define MALI_IOC_GET_USER_SETTING           _IOWR(MALI_IOC_CORE_BASE, _MALI_UK_GET_USER_SETTING, _mali_uk_get_user_setting_s)
 #define MALI_IOC_GET_USER_SETTINGS          _IOWR(MALI_IOC_CORE_BASE, _MALI_UK_GET_USER_SETTINGS, _mali_uk_get_user_settings_s)
@@ -79,6 +80,11 @@ extern "C" {
 #define MALI_IOC_PROFILING_MEMORY_USAGE_GET _IOR(MALI_IOC_PROFILING_BASE, _MALI_UK_PROFILING_MEMORY_USAGE_GET, _mali_uk_profiling_memory_usage_get_s)
 
 #define MALI_IOC_VSYNC_EVENT_REPORT         _IOW (MALI_IOC_VSYNC_BASE, _MALI_UK_VSYNC_EVENT_REPORT, _mali_uk_vsync_event_report_s)
+
+/* rk_ext : 对 r5p0 集成之后, mali_so 不再使用下面的 ioctl, 而使用 MALI_IOC_GET_RK_KO_VERSION. */
+#if 0
+#define MALI_IOC_GET_MALI_VERSION_IN_RK30   _IOWR(MALI_IOC_CORE_BASE,_MALI_UK_GET_MALI_VERSION_IN_RK30,_mali_uk_get_mali_version_in_rk30_s *)
+#endif
 
 #ifdef __cplusplus
 }

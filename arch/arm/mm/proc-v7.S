@@ -338,6 +338,14 @@ __v7_setup:
 	mcreq	p15, 0, r10, c15, c0, 1		@ write diagnostic register
 	isb
 #endif
+#ifdef CONFIG_ARM_ERRATA_821420
+	teq	r6, #0x00			@ present in r0p0
+	teqne	r6, #0x01			@ present in r0p1
+	mrceq	p15, 0, r10, c15, c0, 2
+	orreq	r10, r10, #1 << 1
+	mcreq	p15, 0, r10, c15, c0, 2
+	isb
+#endif
 
 4:	mov	r10, #0
 	mcr	p15, 0, r10, c7, c5, 0		@ I+BTB cache invalidate

@@ -1,11 +1,11 @@
 /*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2008-2014 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
+ * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 /**
@@ -243,38 +243,44 @@ static const char *const lock_order_to_string(_mali_osk_lock_order_t order)
 	case _MALI_OSK_LOCK_ORDER_DESCRIPTOR_MAP:
 		return "_MALI_OSK_LOCK_ORDER_DESCRIPTOR_MAP";
 		break;
-	case _MALI_OSK_LOCK_ORDER_GROUP_VIRTUAL:
-		return "_MALI_OSK_LOCK_ORDER_GROUP_VIRTUAL";
+	case _MALI_OSK_LOCK_ORDER_PM_EXECUTION:
+		return "_MALI_OSK_LOCK_ORDER_PM_EXECUTION";
 		break;
-	case _MALI_OSK_LOCK_ORDER_GROUP:
-		return "_MALI_OSK_LOCK_ORDER_GROUP";
+	case _MALI_OSK_LOCK_ORDER_EXECUTOR:
+		return "_MALI_OSK_LOCK_ORDER_EXECUTOR";
+		break;
+	case _MALI_OSK_LOCK_ORDER_TIMELINE_SYSTEM:
+		return "_MALI_OSK_LOCK_ORDER_TIMELINE_SYSTEM";
 		break;
 	case _MALI_OSK_LOCK_ORDER_SCHEDULER:
 		return "_MALI_OSK_LOCK_ORDER_SCHEDULER";
 		break;
-	case _MALI_OSK_LOCK_ORDER_PM_CORE_STATE:
-		return "_MALI_OSK_LOCK_ORDER_PM_CORE_STATE";
+	case _MALI_OSK_LOCK_ORDER_SCHEDULER_DEFERRED:
+		return "_MALI_OSK_LOCK_ORDER_SCHEDULER_DEFERRED";
 		break;
-	case _MALI_OSK_LOCK_ORDER_L2_COMMAND:
-		return "_MALI_OSK_LOCK_ORDER_L2_COMMAND";
+	case _MALI_OSK_LOCK_ORDER_DMA_COMMAND:
+		return "_MALI_OSK_LOCK_ORDER_DMA_COMMAND";
 		break;
 	case _MALI_OSK_LOCK_ORDER_PROFILING:
 		return "_MALI_OSK_LOCK_ORDER_PROFILING";
 		break;
-	case _MALI_OSK_LOCK_ORDER_L2_COUNTER:
-		return "_MALI_OSK_LOCK_ORDER_L2_COUNTER";
+	case _MALI_OSK_LOCK_ORDER_L2:
+		return "_MALI_OSK_LOCK_ORDER_L2";
+		break;
+	case _MALI_OSK_LOCK_ORDER_L2_COMMAND:
+		return "_MALI_OSK_LOCK_ORDER_L2_COMMAND";
 		break;
 	case _MALI_OSK_LOCK_ORDER_UTILIZATION:
 		return "_MALI_OSK_LOCK_ORDER_UTILIZATION";
 		break;
-	case _MALI_OSK_LOCK_ORDER_PM_EXECUTE:
-		return "_MALI_OSK_LOCK_ORDER_PM_EXECUTE";
-		break;
 	case _MALI_OSK_LOCK_ORDER_SESSION_PENDING_JOBS:
 		return "_MALI_OSK_LOCK_ORDER_SESSION_PENDING_JOBS";
 		break;
+	case _MALI_OSK_LOCK_ORDER_PM_STATE:
+		return "_MALI_OSK_LOCK_ORDER_PM_STATE";
+		break;
 	default:
-		return "";
+		return "<UNKNOWN_LOCK_ORDER>";
 	}
 }
 #endif /* LOCK_ORDER_CHECKING */

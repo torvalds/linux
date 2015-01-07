@@ -339,7 +339,7 @@ int bmpdecoder(void *bmp_addr, void *pdst, int *width, int *height, int *bits)
 	uint16_t linesize;
 	char *src = bmp_addr;
 	char *dst = pdst;
-	int i, j;
+	int i;
 	bool flip = false;
 
 	memcpy(&header, src, sizeof(header));
@@ -379,22 +379,13 @@ int bmpdecoder(void *bmp_addr, void *pdst, int *width, int *height, int *bits)
 		pr_info("unsupport bit=%d now\n", infoheader.bitcount);
 		break;
 	case 24:
-		if (size % 3 != 0) {
-			pr_info("wrong bmp file with unalign size\n");
-
-			return -EINVAL;
-		}
 		if (flip)
 			src += (*width) * (*height - 1) * 3;
 
 		for (i = 0; i < *height; i++) {
-			for (j = 0; j < *width; j++) {
-				dst[0] = src[2];
-				dst[1] = src[1];
-				dst[2] = src[0];
-				dst += 3;
-				src += 3;
-			}
+			memcpy(dst, src, 3 * (*width));
+			dst += *width * 3;
+			src += *width * 3;
 			if (flip)
 				src -= *width * 3 * 2;
 		}

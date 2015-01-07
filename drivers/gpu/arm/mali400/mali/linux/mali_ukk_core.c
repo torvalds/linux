@@ -1,11 +1,11 @@
 /*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2008-2014 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
+ * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 #include <linux/fs.h>       /* file system operations */
 #include <linux/slab.h>     /* memort allocation functions */
@@ -35,16 +35,6 @@ int get_api_version_wrapper(struct mali_session_data *session_data, _mali_uk_get
 
 	return 0;
 }
-#define mali400_in_rk30_version 0x03
-int get_mali_version_in_rk30_wrapper(struct mali_session_data *session_data, _mali_uk_get_mali_version_in_rk30_s __user *uargs)
-{
-	_mali_uk_get_mali_version_in_rk30_s kargs;
-	MALI_CHECK_NON_NULL(uargs, -EINVAL);
-	kargs.ctx = (uintptr_t)session_data;
-	kargs.version = mali400_in_rk30_version;
-	if (0 != put_user(kargs.version, &uargs->version)) return -EFAULT;
-	return 0;
-}
 
 int get_api_version_v2_wrapper(struct mali_session_data *session_data, _mali_uk_get_api_version_v2_s __user *uargs)
 {
@@ -64,6 +54,31 @@ int get_api_version_v2_wrapper(struct mali_session_data *session_data, _mali_uk_
 
 	return 0;
 }
+
+/* rk_ext : 从对 r5p0-01rel0 集成开始, 不再使用. */
+#if 0
+#define mali400_in_rk30_version 0x01
+int get_mali_version_in_rk30_wrapper(struct mali_session_data *session_data, _mali_uk_get_mali_version_in_rk30_s __user *uargs)
+{
+	_mali_uk_get_mali_version_in_rk30_s kargs;
+	MALI_CHECK_NON_NULL(uargs, -EINVAL);
+	kargs.ctx = (uintptr_t)session_data;
+	kargs.version = mali400_in_rk30_version;
+	if (0 != put_user(kargs.version, &uargs->version)) return -EFAULT;
+	return 0;
+}
+#else
+#include "../platform/rk30/rk_ext.h"
+int get_rk_ko_version_wrapper(struct mali_session_data *session_data, _mali_rk_ko_version_s __user *uargs)
+{
+	_mali_rk_ko_version_s kargs;
+	MALI_CHECK_NON_NULL(uargs, -EINVAL);
+	kargs.ctx = (uintptr_t)session_data;
+	kargs.version = RK_KO_VER;
+	if (0 != put_user(kargs.version, &uargs->version)) return -EFAULT;
+	return 0;
+}
+#endif
 
 int wait_for_notification_wrapper(struct mali_session_data *session_data, _mali_uk_wait_for_notification_s __user *uargs)
 {

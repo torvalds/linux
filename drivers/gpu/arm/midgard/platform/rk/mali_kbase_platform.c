@@ -43,6 +43,10 @@
 
 #include <linux/rockchip/dvfs.h> 
 
+#include "custom_log.h"
+
+/* ############################################################################################# */
+
 #define MALI_T7XX_DEFAULT_CLOCK 100000
 
 
@@ -266,6 +270,14 @@ static ssize_t error_count_show(struct device *dev,struct device_attribute *attr
 	struct kbase_device *kbdev = dev_get_drvdata(dev);
 	ssize_t ret;
 
+    D_PTR(dev);
+    if ( NULL == kbdev )
+    {
+        E("fail to get kbase_device instance.");
+        return 0;
+    }
+
+    D_DEC(kbdev->kbase_group_error);
 	ret = scnprintf(buf, PAGE_SIZE, "%d\n", kbdev->kbase_group_error);
 	return ret;
 }
@@ -837,10 +849,12 @@ int kbase_platform_create_sysfs_file(struct device *dev)
 		goto out;
 	}
 
+    /*  rk_ext : device will crash after "cat /sys/devices/ffa30000.gpu/dtlb".
 	if (device_create_file(dev, &dev_attr_dtlb)) {
 		dev_err(dev, "Couldn't create sysfs file [dtlb]\n");
 		goto out;
 	}
+    */
 
 	if (device_create_file(dev, &dev_attr_dvfs)) {
 		dev_err(dev, "Couldn't create sysfs file [dvfs]\n");

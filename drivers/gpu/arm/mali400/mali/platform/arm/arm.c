@@ -1,11 +1,11 @@
 /*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2009-2010, 2012-2014 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
+ * Copyright (C) 2010, 2012-2014 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 /**
@@ -27,27 +27,35 @@
 #include <linux/moduleparam.h>
 
 #include "arm_core_scaling.h"
-#include "mali_pp_scheduler.h"
+#include "mali_executor.h"
 
-static void mali_platform_device_release(struct device *device);
+
+static int mali_core_scaling_enable = 0;
+
+void mali_gpu_utilization_callback(struct mali_gpu_utilization_data *data);
 static u32 mali_read_phys(u32 phys_addr);
 #if defined(CONFIG_ARCH_REALVIEW)
 static void mali_write_phys(u32 phys_addr, u32 value);
 #endif
 
-static int mali_core_scaling_enable = 1;
-
-void mali_gpu_utilization_callback(struct mali_gpu_utilization_data *data);
+#ifndef CONFIG_MALI_DT
+static void mali_platform_device_release(struct device *device);
 
 #if defined(CONFIG_ARCH_VEXPRESS)
 
 #if defined(CONFIG_ARM64)
-static struct resource mali_gpu_resources_m450_mp4[] = {
-	MALI_GPU_RESOURCES_MALI450_MP4_PMU(0x2F040000, -1, 70, 70, 70, 70, 70, 70, 70, 70, 70, 68)
+/* Juno + Mali-450 MP6 in V7 FPGA */
+static struct resource mali_gpu_resources_m450_mp6[] = {
+	MALI_GPU_RESOURCES_MALI450_MP6_PMU(0x6F040000, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200)
 };
+
 #else
 static struct resource mali_gpu_resources_m450_mp8[] = {
 	MALI_GPU_RESOURCES_MALI450_MP8_PMU(0xFC040000, -1, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 68)
+};
+
+static struct resource mali_gpu_resources_m450_mp6[] = {
+	MALI_GPU_RESOURCES_MALI450_MP6_PMU(0xFC040000, -1, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 70, 68)
 };
 
 static struct resource mali_gpu_resources_m450_mp4[] = {
@@ -70,27 +78,36 @@ static struct resource mali_gpu_resources_m400_mp2[] = {
 };
 
 #endif
+#endif
 
 static struct mali_gpu_device_data mali_gpu_data = {
+#ifndef CONFIG_MALI_DT
+	.pmu_switch_delay = 0xFF, /* do not have to be this high on FPGA, but it is good for testing to have a delay */
+	.max_job_runtime = 60000, /* 60 seconds */
 #if defined(CONFIG_ARCH_VEXPRESS)
 	.shared_mem_size = 256 * 1024 * 1024, /* 256MB */
-#elif defined(CONFIG_ARCH_REALVIEW)
+#endif
+#endif
+
+#if defined(CONFIG_ARCH_REALVIEW)
 	.dedicated_mem_start = 0x80000000, /* Physical start address (use 0xD0000000 for old indirect setup) */
 	.dedicated_mem_size = 0x10000000, /* 256MB */
 #endif
 #if defined(CONFIG_ARM64)
 	.fb_start = 0x5f000000,
+	.fb_size = 0x91000000,
 #else
 	.fb_start = 0xe0000000,
-#endif
 	.fb_size = 0x01000000,
-	.max_job_runtime = 60000, /* 60 seconds */
-	.utilization_interval = 1000, /* 1000ms */
+#endif
+	.control_interval = 1000, /* 1000ms */
 	.utilization_callback = mali_gpu_utilization_callback,
-	.pmu_switch_delay = 0xFF, /* do not have to be this high on FPGA, but it is good for testing to have a delay */
-	.pmu_domain_config = {0x1, 0x2, 0x4, 0x4, 0x4, 0x8, 0x8, 0x8, 0x8, 0x1, 0x2, 0x8},
+	.get_clock_info = NULL,
+	.get_freq = NULL,
+	.set_freq = NULL,
 };
 
+#ifndef CONFIG_MALI_DT
 static struct platform_device mali_gpu_device = {
 	.name = MALI_GPU_NAME_UTGARD,
 	.id = 0,
@@ -118,11 +135,11 @@ int mali_platform_device_register(void)
 #if defined(CONFIG_ARCH_VEXPRESS)
 
 #if defined(CONFIG_ARM64)
-	if (mali_read_phys(0x2F000000) == 0x40104450) {
-		MALI_DEBUG_PRINT(4, ("Registering Mali-450 MP4 device\n"));
-		num_pp_cores = 4;
-		mali_gpu_device.num_resources = ARRAY_SIZE(mali_gpu_resources_m450_mp4);
-		mali_gpu_device.resource = mali_gpu_resources_m450_mp4;
+	if (mali_read_phys(0x6F000000) == 0x40601450) {
+		MALI_DEBUG_PRINT(4, ("Registering Mali-450 MP6 device\n"));
+		num_pp_cores = 6;
+		mali_gpu_device.num_resources = ARRAY_SIZE(mali_gpu_resources_m450_mp6);
+		mali_gpu_device.resource = mali_gpu_resources_m450_mp6;
 	}
 #else
 	if (mali_read_phys(0xFC000000) == 0x00000450) {
@@ -130,6 +147,11 @@ int mali_platform_device_register(void)
 		num_pp_cores = 8;
 		mali_gpu_device.num_resources = ARRAY_SIZE(mali_gpu_resources_m450_mp8);
 		mali_gpu_device.resource = mali_gpu_resources_m450_mp8;
+	} else if (mali_read_phys(0xFC000000) == 0x40600450) {
+		MALI_DEBUG_PRINT(4, ("Registering Mali-450 MP6 device\n"));
+		num_pp_cores = 6;
+		mali_gpu_device.num_resources = ARRAY_SIZE(mali_gpu_resources_m450_mp6);
+		mali_gpu_device.resource = mali_gpu_resources_m450_mp6;
 	} else if (mali_read_phys(0xFC000000) == 0x40400450) {
 		MALI_DEBUG_PRINT(4, ("Registering Mali-450 MP4 device\n"));
 		num_pp_cores = 4;
@@ -205,6 +227,90 @@ static void mali_platform_device_release(struct device *device)
 	MALI_DEBUG_PRINT(4, ("mali_platform_device_release() called\n"));
 }
 
+#else /* CONFIG_MALI_DT */
+int mali_platform_device_init(struct platform_device *device)
+{
+	int num_pp_cores;
+	int err = -1;
+#if defined(CONFIG_ARCH_REALVIEW)
+	u32 m400_gp_version;
+#endif
+
+	/* Detect present Mali GPU and connect the correct resources to the device */
+#if defined(CONFIG_ARCH_VEXPRESS)
+
+#if defined(CONFIG_ARM64)
+		if (mali_read_phys(0x6F000000) == 0x40601450) {
+			MALI_DEBUG_PRINT(4, ("Registering Mali-450 MP6 device\n"));
+			num_pp_cores = 6;
+		}
+#else
+		if (mali_read_phys(0xFC000000) == 0x00000450) {
+			MALI_DEBUG_PRINT(4, ("Registering Mali-450 MP8 device\n"));
+			num_pp_cores = 8;
+		} else if (mali_read_phys(0xFC000000) == 0x40400450) {
+			MALI_DEBUG_PRINT(4, ("Registering Mali-450 MP4 device\n"));
+			num_pp_cores = 4;
+		}
+#endif
+
+#elif defined(CONFIG_ARCH_REALVIEW)
+
+		m400_gp_version = mali_read_phys(0xC000006C);
+		if ((m400_gp_version & 0xFFFF0000) == 0x0C070000) {
+			MALI_DEBUG_PRINT(4, ("Registering Mali-300 device\n"));
+			num_pp_cores = 1;
+			mali_write_phys(0xC0010020, 0xA); /* Enable direct memory mapping for FPGA */
+		} else if ((m400_gp_version & 0xFFFF0000) == 0x0B070000) {
+			u32 fpga_fw_version = mali_read_phys(0xC0010000);
+			if (fpga_fw_version == 0x130C008F || fpga_fw_version == 0x110C008F) {
+				/* Mali-400 MP1 r1p0 or r1p1 */
+				MALI_DEBUG_PRINT(4, ("Registering Mali-400 MP1 device\n"));
+				num_pp_cores = 1;
+				mali_write_phys(0xC0010020, 0xA); /* Enable direct memory mapping for FPGA */
+			} else if (fpga_fw_version == 0x130C000F) {
+				/* Mali-400 MP2 r1p1 */
+				MALI_DEBUG_PRINT(4, ("Registering Mali-400 MP2 device\n"));
+				num_pp_cores = 2;
+				mali_write_phys(0xC0010020, 0xA); /* Enable direct memory mapping for FPGA */
+			}
+		}
+#endif
+
+	err = platform_device_add_data(device, &mali_gpu_data, sizeof(mali_gpu_data));
+
+	if (0 == err) {
+#ifdef CONFIG_PM_RUNTIME
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+		pm_runtime_set_autosuspend_delay(&(device->dev), 1000);
+		pm_runtime_use_autosuspend(&(device->dev));
+#endif
+		pm_runtime_enable(&(device->dev));
+#endif
+		MALI_DEBUG_ASSERT(0 < num_pp_cores);
+		mali_core_scaling_init(num_pp_cores);
+	}
+
+	return err;
+}
+
+int mali_platform_device_deinit(struct platform_device *device)
+{
+	MALI_IGNORE(device);
+
+	MALI_DEBUG_PRINT(4, ("mali_platform_device_deinit() called\n"));
+
+	mali_core_scaling_term();
+
+#if defined(CONFIG_ARCH_REALVIEW)
+	mali_write_phys(0xC0010020, 0x9); /* Restore default (legacy) memory mapping */
+#endif
+
+	return 0;
+}
+
+#endif /* CONFIG_MALI_DT */
+
 static u32 mali_read_phys(u32 phys_addr)
 {
 	u32 phys_addr_page = phys_addr & 0xFFFFE000;
@@ -239,7 +345,7 @@ static int param_set_core_scaling(const char *val, const struct kernel_param *kp
 	int ret = param_set_int(val, kp);
 
 	if (1 == mali_core_scaling_enable) {
-		mali_core_scaling_sync(mali_pp_scheduler_get_num_cores_enabled());
+		mali_core_scaling_sync(mali_executor_get_num_cores_enabled());
 	}
 	return ret;
 }

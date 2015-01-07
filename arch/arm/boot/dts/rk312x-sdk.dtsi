@@ -358,13 +358,13 @@
 
 			rt5036_ldo1: regulator_4 {
 				regulator-name = "rt5036-ldo1";
-				regulator-min-microvolt = < 3000000>;
-				regulator-max-microvolt = <3000000>;
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1200000>;
 				qcom,comsumer-supplies = "rt5036-ldo1", "";
 				regulator-always-on;
 				regulator-boot-on;
 				rt,standby_enabled;
-				rt,standby_vol = <3000000>; 
+				rt,standby_vol = <1200000>; 
 			};
 
 			rt5036_ldo2: regulator_5 {
@@ -611,6 +611,9 @@
                 max_charge_currentmA = <1500>;
                 max_charge_voltagemV = <4260>;
                 max_bat_voltagemV = <4200>;
+                sleep_enter_current = <100>;
+                sleep_exit_current = <130>;
+                support_uboot_chrg = <0>;
         };
 
 };

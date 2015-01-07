@@ -263,9 +263,9 @@ int is_current_pgrp_orphaned(void)
 {
 	int retval;
 
-	read_lock(&tasklist_lock);
+	read_lock_irq(&tasklist_lock);
 	retval = will_become_orphaned_pgrp(task_pgrp(current), NULL);
-	read_unlock(&tasklist_lock);
+	read_unlock_irq(&tasklist_lock);
 
 	return retval;
 }
@@ -388,7 +388,7 @@ retry:
 		return;
 	}
 
-	read_lock(&tasklist_lock);
+	read_lock_irq(&tasklist_lock);
 	/*
 	 * Search in the children
 	 */
@@ -414,7 +414,7 @@ retry:
 			goto assign_new_owner;
 	} while_each_thread(g, c);
 
-	read_unlock(&tasklist_lock);
+	read_unlock_irq(&tasklist_lock);
 	/*
 	 * We found no owner yet mm_users > 1: this implies that we are
 	 * most likely racing with swapoff (try_to_unuse()) or /proc or
@@ -435,7 +435,7 @@ assign_new_owner:
 	 * Delay read_unlock() till we have the task_lock()
 	 * to ensure that c does not slip away underneath us
 	 */
-	read_unlock(&tasklist_lock);
+	read_unlock_irq(&tasklist_lock);
 	if (c->mm != mm) {
 		task_unlock(c);
 		put_task_struct(c);
@@ -1043,7 +1043,7 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 		int why;
 
 		get_task_struct(p);
-		read_unlock(&tasklist_lock);
+		read_unlock_irq(&tasklist_lock);
 		if ((exit_code & 0x7f) == 0) {
 			why = CLD_EXITED;
 			status = exit_code >> 8;
@@ -1127,7 +1127,7 @@ static int wait_task_zombie(struct wait_opts *wo, struct task_struct *p)
 	 * Now we are sure this task is interesting, and no other
 	 * thread can reap it because we set its state to EXIT_DEAD.
 	 */
-	read_unlock(&tasklist_lock);
+	read_unlock_irq(&tasklist_lock);
 
 	retval = wo->wo_rusage
 		? getrusage(p, RUSAGE_BOTH, wo->wo_rusage) : 0;
@@ -1261,7 +1261,7 @@ unlock_sig:
 	get_task_struct(p);
 	pid = task_pid_vnr(p);
 	why = ptrace ? CLD_TRAPPED : CLD_STOPPED;
-	read_unlock(&tasklist_lock);
+	read_unlock_irq(&tasklist_lock);
 
 	if (unlikely(wo->wo_flags & WNOWAIT))
 		return wait_noreap_copyout(wo, p, pid, uid, why, exit_code);
@@ -1323,7 +1323,7 @@ static int wait_task_continued(struct wait_opts *wo, struct task_struct *p)
 
 	pid = task_pid_vnr(p);
 	get_task_struct(p);
-	read_unlock(&tasklist_lock);
+	read_unlock_irq(&tasklist_lock);
 
 	if (!wo->wo_info) {
 		retval = wo->wo_rusage
@@ -1539,7 +1539,7 @@ repeat:
 		goto notask;
 
 	set_current_state(TASK_INTERRUPTIBLE);
-	read_lock(&tasklist_lock);
+	read_lock_irq(&tasklist_lock);
 	tsk = current;
 	do {
 		retval = do_wait_thread(wo, tsk);
@@ -1553,7 +1553,7 @@ repeat:
 		if (wo->wo_flags & __WNOTHREAD)
 			break;
 	} while_each_thread(current, tsk);
-	read_unlock(&tasklist_lock);
+	read_unlock_irq(&tasklist_lock);
 
 notask:
 	retval = wo->notask_error;

@@ -1,0 +1,31 @@
+rt3261 audio CODEC
+
+This device supports I2C only.
+
+Required properties:
+
+  - compatible : "rt3261"
+
+  - reg : the I2C address of the device.
+
+  - codec-en-gpio : the enable gpio of codec.
+
+  - spk-num : the number of speaker.
+
+  - modem-input-mode : modem input mode (DIFFERENTIAL/SINGLE_END).
+
+  - lout-to-modem_mode : line out mode.
+
+  - spk-amplify : Gain control for speaker.
+
+Example:
+
+rt3261: rt3261@1c {
+	compatible = "rt3261";
+	reg = <0x1c>;
+	codec-en-gpio = <&gpio3 GPIO_D7 GPIO_ACTIVE_HIGH>;
+	spk-num= <2>;
+	modem-input-mode = <1>;
+	lout-to-modem_mode = <1>;
+	spk-amplify = <2>;
+};

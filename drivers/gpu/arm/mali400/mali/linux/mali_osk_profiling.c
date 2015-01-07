@@ -1,11 +1,11 @@
 /*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2012-2014 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
+ * Copyright (C) 2012-2014 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #include <linux/module.h>
@@ -19,9 +19,9 @@
 #include "mali_linux_trace.h"
 #include "mali_gp.h"
 #include "mali_pp.h"
-#include "mali_pp_scheduler.h"
 #include "mali_l2_cache.h"
 #include "mali_user_settings_db.h"
+#include "mali_executor.h"
 
 _mali_osk_errcode_t _mali_osk_profiling_init(mali_bool auto_start)
 {
@@ -155,11 +155,8 @@ int _mali_profiling_set_event(u32 counter_id, s32 event_id)
 
 		if (NULL != l2_cache_core) {
 			u32 counter_src = (counter_id - COUNTER_L2_0_C0) & 1;
-			if (0 == counter_src) {
-				mali_l2_cache_core_set_counter_src0(l2_cache_core, event_id);
-			} else {
-				mali_l2_cache_core_set_counter_src1(l2_cache_core, event_id);
-			}
+			mali_l2_cache_core_set_counter_src(l2_cache_core,
+							   counter_src, event_id);
 		}
 	} else {
 		return 0; /* Failure, unknown event */
@@ -179,35 +176,26 @@ int _mali_profiling_set_event(u32 counter_id, s32 event_id)
  */
 u32 _mali_profiling_get_l2_counters(_mali_profiling_l2_counter_values *values)
 {
-	struct mali_l2_cache_core *l2_cache;
 	u32 l2_cores_num = mali_l2_cache_core_get_glob_num_l2_cores();
 	u32 i;
-	u32 ret = 0;
 
 	MALI_DEBUG_ASSERT(l2_cores_num <= 3);
 
 	for (i = 0; i < l2_cores_num; i++) {
-		l2_cache = mali_l2_cache_core_get_glob_l2_core(i);
+		struct mali_l2_cache_core *l2_cache = mali_l2_cache_core_get_glob_l2_core(i);
 
 		if (NULL == l2_cache) {
 			continue;
 		}
 
-		if (MALI_TRUE == mali_l2_cache_lock_power_state(l2_cache)) {
-			/* It is now safe to access the L2 cache core in order to retrieve the counters */
-			mali_l2_cache_core_get_counter_values(l2_cache,
-							      &values->cores[i].source0,
-							      &values->cores[i].value0,
-							      &values->cores[i].source1,
-							      &values->cores[i].value1);
-		} else {
-			/* The core was not available, set the right bit in the mask. */
-			ret |= (1 << i);
-		}
-		mali_l2_cache_unlock_power_state(l2_cache);
+		mali_l2_cache_core_get_counter_values(l2_cache,
+						      &values->cores[i].source0,
+						      &values->cores[i].value0,
+						      &values->cores[i].source1,
+						      &values->cores[i].value1);
 	}
 
-	return ret;
+	return 0;
 }
 
 /**
@@ -251,7 +239,7 @@ void _mali_profiling_get_mali_version(struct _mali_profiling_mali_version *value
 	values->mali_version_major = mali_kernel_core_get_gpu_major_version();
 	values->mali_version_minor = mali_kernel_core_get_gpu_minor_version();
 	values->num_of_l2_cores = mali_l2_cache_core_get_glob_num_l2_cores();
-	values->num_of_fp_cores = mali_pp_scheduler_get_num_cores_total();
+	values->num_of_fp_cores = mali_executor_get_num_cores_total();
 	values->num_of_vp_cores = 1;
 }
 

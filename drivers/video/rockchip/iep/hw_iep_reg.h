@@ -1,51 +1,48 @@
 #ifndef IEP_REGS_H
 #define IEP_REGS_H
 #include "hw_iep_config_addr.h"
-#include "iep_api.h"
 #include "iep.h"
 #include "iep_drv.h"
-//#include "typedef.h"
 
 struct iep_status {
-    uint32_t reserved0   : 1; 
-    uint32_t scl_sts     : 1;
-    uint32_t dil_sts     : 1;
-    uint32_t reserved1   : 1;
-    uint32_t wyuv_sts    : 1;
-    uint32_t ryuv_sts    : 1;
-    uint32_t wrgb_sts    : 1;
-    uint32_t rrgb_sts    : 1;
-    uint32_t voi_sts     : 1;
+	uint32_t reserved0   : 1;
+	uint32_t scl_sts     : 1;
+	uint32_t dil_sts     : 1;
+	uint32_t reserved1   : 1;
+	uint32_t wyuv_sts    : 1;
+	uint32_t ryuv_sts    : 1;
+	uint32_t wrgb_sts    : 1;
+	uint32_t rrgb_sts    : 1;
+	uint32_t voi_sts     : 1;
 };
 
 #if defined(CONFIG_IEP_MMU)
 struct iep_mmu_status {
-    uint32_t paging_enabled         : 1;
-    uint32_t page_fault_active      : 1;
-    uint32_t stall_active           : 1;
-    uint32_t idle                   : 1;
-    uint32_t replay_buffer_empty    : 1;
-    uint32_t page_fault_is_write    : 1;
-    uint32_t page_fault_bus_id      : 5;
+	uint32_t paging_enabled         : 1;
+	uint32_t page_fault_active      : 1;
+	uint32_t stall_active           : 1;
+	uint32_t idle                   : 1;
+	uint32_t replay_buffer_empty    : 1;
+	uint32_t page_fault_is_write    : 1;
+	uint32_t page_fault_bus_id      : 5;
 };
 
 struct iep_mmu_int_status {
-    uint32_t page_fault     : 1;
-    uint32_t read_bus_error : 1;
+	uint32_t page_fault     : 1;
+	uint32_t read_bus_error : 1;
 };
 
 enum iep_mmu_cmd {
-    MMU_ENABLE_PAGING,
-    MMU_DISABLE_PAGING,
-    MMU_ENABLE_STALL,
-    MMU_DISABLE_STALL,
-    MMU_ZAP_CACHE,
-    MMU_PAGE_FAULT_DONE,
-    MMU_FORCE_RESET
+	MMU_ENABLE_PAGING,
+	MMU_DISABLE_PAGING,
+	MMU_ENABLE_STALL,
+	MMU_DISABLE_STALL,
+	MMU_ZAP_CACHE,
+	MMU_PAGE_FAULT_DONE,
+	MMU_FORCE_RESET
 };
 #endif
 
-//中间变量，寄存器配置地址
 #define      rIEP_CONFIG0      		         (IEP_BASE+IEP_CONFIG0)
 #define      rIEP_CONFIG1      		         (IEP_BASE+IEP_CONFIG1)
 
@@ -70,7 +67,7 @@ enum iep_mmu_cmd {
 #define      rIEP_ENH_YUV_CNFG_0       	     (IEP_BASE+IEP_ENH_YUV_CNFG_0)
 #define      rIEP_ENH_YUV_CNFG_1       	     (IEP_BASE+IEP_ENH_YUV_CNFG_1)
 #define      rIEP_ENH_YUV_CNFG_2       	     (IEP_BASE+IEP_ENH_YUV_CNFG_2)
-#define      rIEP_ENH_RGB_CNFG        	     (IEP_BASE+IEP_ENH_RGB_CNFG)  
+#define      rIEP_ENH_RGB_CNFG        	     (IEP_BASE+IEP_ENH_RGB_CNFG)
 #define      rIEP_ENH_C_COE            	     (IEP_BASE+IEP_ENH_C_COE)
 
 #define      rIEP_SRC_ADDR_YRGB        	     (IEP_BASE+IEP_SRC_ADDR_YRGB)
@@ -130,7 +127,7 @@ enum iep_mmu_cmd {
 #define      RAW_rIEP_ENH_YUV_CNFG_2         (IEP_BASE+RAW_IEP_ENH_YUV_CNFG_2)
 #define      RAW_rIEP_ENH_RGB_CNFG           (IEP_BASE+RAW_IEP_ENH_RGB_CNFG)
 
-#define      rIEP_CG_TAB_ADDR                 (IEP_BASE+0x0100) 
+#define      rIEP_CG_TAB_ADDR                 (IEP_BASE+0x0100)
 
 #if defined(CONFIG_IEP_MMU)
 #define      rIEP_MMU_BASE                    0x0800
@@ -149,10 +146,7 @@ enum iep_mmu_cmd {
 /*-----------------------------------------------------------------
 //reg bit operation definition
 -----------------------------------------------------------------*/
-/*-----------------------------------------------------------------
-//MaskRegBits32(addr, y, z),get z，中间变量。
------------------------------------------------------------------*/
-//iep_config0
+/*iep_config0*/
 #define     IEP_REGB_V_REVERSE_DISP_Z(x)      (((x)&0x1 ) << 31 )
 #define     IEP_REGB_H_REVERSE_DISP_Z(x)      (((x)&0x1 ) << 30 )
 #define     IEP_REGB_SCL_EN_Z(x)              (((x)&0x1 ) << 28 )
@@ -173,7 +167,7 @@ enum iep_mmu_cmd {
 #define     IEP_REGB_DIL_HF_FCT_Z(x)          (((x)&0x7F) << 1  )
 #define     IEP_REGB_LCDC_PATH_EN_Z(x)        (((x)&0x1 ) << 0  )
 
-//iep_conig1
+/*iep_conig1*/
 #define     IEP_REGB_GLB_ALPHA_Z(x)           (((x)&0xff) << 24 )
 #define     IEP_REGB_RGB2YUV_INPUT_CLIP_Z(x)  (((x)&0x1 ) << 23 )
 #define     IEP_REGB_YUV2RGB_INPUT_CLIP_Z(x)  (((x)&0x1 ) << 22 )
@@ -190,50 +184,50 @@ enum iep_mmu_cmd {
 #define     IEP_REGB_SRC_RGB_SWAP_Z(x)        (((x)&0x3 ) << 2  )
 #define     IEP_REGB_SRC_FMT_Z(x)             (((x)&0x3 ) << 0  )
 
-//iep_int
+/*iep_int*/
 #define     IEP_REGB_FRAME_END_INT_CLR_Z(x)   (((x)&0x1 ) << 16 )
 #define     IEP_REGB_FRAME_END_INT_EN_Z(x)    (((x)&0x1 ) << 8  )
 
-//frm_start
+/*frm_start*/
 #define     IEP_REGB_FRM_START_Z(x)           (((x)&0x01 ) << 0 )
 
-//soft_rst
+/*soft_rst*/
 #define     IEP_REGB_SOFT_RST_Z(x)            (((x)&0x01 ) << 0 )
 
-//iep_vir_img_width
+/*iep_vir_img_width*/
 #define     IEP_REGB_DST_VIR_LINE_WIDTH_Z(x)  (((x)&0xffff) << 16 )
 #define     IEP_REGB_SRC_VIR_LINE_WIDTH_Z(x)  (((x)&0xffff) << 0  )
 
-//iep_img_scl_fct
+/*iep_img_scl_fct*/
 #define     IEP_REGB_SCL_VRT_FCT_Z(x)         (((x)&0xffff) << 16 )
 #define     IEP_REGB_SCL_HRZ_FCT_Z(x)         (((x)&0xffff) << 0  )
 
-//iep_src_img_size
+/*iep_src_img_size*/
 #define     IEP_REGB_SRC_IMG_HEIGHT_Z(x)      (((x)&0x1fff) << 16 )
 #define     IEP_REGB_SRC_IMG_WIDTH_Z(x)       (((x)&0x1fff) << 0  )
-//iep_dst_img_size
+/*iep_dst_img_size*/
 #define     IEP_REGB_DST_IMG_HEIGHT_Z(x)      (((x)&0x1fff) << 16 )
 #define     IEP_REGB_DST_IMG_WIDTH_Z(x)       (((x)&0x1fff) << 0  )
 
-//dst_img_width_tile0/1/2/3
+/*dst_img_width_tile0/1/2/3*/
 #define     IEP_REGB_DST_IMG_WIDTH_TILE0_Z(x) (((x)&0x3ff ) << 0  )
 #define     IEP_REGB_DST_IMG_WIDTH_TILE1_Z(x) (((x)&0x3ff ) << 0  )
 #define     IEP_REGB_DST_IMG_WIDTH_TILE2_Z(x) (((x)&0x3ff ) << 0  )
 #define     IEP_REGB_DST_IMG_WIDTH_TILE3_Z(x) (((x)&0x3ff ) << 0  )
 
-//iep_enh_yuv_cnfg0
+/*iep_enh_yuv_cnfg0*/
 #define     IEP_REGB_SAT_CON_Z(x)             (((x)&0x1ff ) << 16 )
 #define     IEP_REGB_CONTRAST_Z(x)            (((x)&0xff ) <<  8  )
 #define     IEP_REGB_BRIGHTNESS_Z(x)          (((x)&0x3f ) <<  0  )
-//iep_enh_yuv_cnfg1
+/*iep_enh_yuv_cnfg1*/
 #define     IEP_REGB_COS_HUE_Z(x)             (((x)&0xff ) <<  8  )
 #define     IEP_REGB_SIN_HUE_Z(x)             (((x)&0xff ) <<  0  )
-//iep_enh_yuv_cnfg2
+/*iep_enh_yuv_cnfg2*/
 #define     IEP_REGB_VIDEO_MODE_Z(x)          (((x)&0x3  ) <<  24 )
 #define     IEP_REGB_COLOR_BAR_V_Z(x)         (((x)&0xff ) <<  16 )
 #define     IEP_REGB_COLOR_BAR_U_Z(x)         (((x)&0xff ) <<  8  )
 #define     IEP_REGB_COLOR_BAR_Y_Z(x)         (((x)&0xff ) <<  0  )
-//iep_enh_rgb_cnfg
+/*iep_enh_rgb_cnfg*/
 #define     IEP_REGB_YUV_DNS_LUMA_SPAT_SEL_Z(x)   (((x)&0x3  ) <<  30 )
 #define     IEP_REGB_YUV_DNS_LUMA_TEMP_SEL_Z(x)   (((x)&0x3  ) <<  28 )
 #define     IEP_REGB_YUV_DNS_CHROMA_SPAT_SEL_Z(x) (((x)&0x3  ) <<  26 )
@@ -241,9 +235,9 @@ enum iep_mmu_cmd {
 #define     IEP_REGB_ENH_THRESHOLD_Z(x)       (((x)&0xff ) <<  16 )
 #define     IEP_REGB_ENH_ALPHA_Z(x)           (((x)&0x3f ) <<  8  )
 #define     IEP_REGB_ENH_RADIUS_Z(x)          (((x)&0x3  ) <<  0  )
-//iep_enh_c_coe
+/*iep_enh_c_coe*/
 #define     IEP_REGB_ENH_C_COE_Z(x)           (((x)&0x7f ) <<  0  )
-//dil_mtn_tab
+/*dil_mtn_tab*/
 #define     IEP_REGB_DIL_MTN_TAB0_0_Z(x)      (((x)&0x7f ) <<  0  )
 #define     IEP_REGB_DIL_MTN_TAB0_1_Z(x)      (((x)&0x7f ) <<  8  )
 #define     IEP_REGB_DIL_MTN_TAB0_2_Z(x)      (((x)&0x7f ) <<  16 )
@@ -285,19 +279,19 @@ enum iep_mmu_cmd {
 #define     IEP_REGB_DIL_MTN_TAB7_3_Z(x)      (((x)&0x7f ) <<  24 )
 
 #if defined(CONFIG_IEP_MMU)
-// mmu
-#define     IEP_REGB_MMU_STATUS_PAGING_ENABLE_Z(x)              (((x)&0x01) << 0)       
+/*mmu*/
+#define     IEP_REGB_MMU_STATUS_PAGING_ENABLE_Z(x)              (((x)&0x01) << 0)
 #define     IEP_REGB_MMU_STATUS_PAGE_FAULT_ACTIVE_Z(x)          (((x)&0x01) << 1)
 #define     IEP_REGB_MMU_STATUS_STALL_ACTIVE_Z(x)               (((x)&0x01) << 2)
 #define     IEP_REGB_MMU_STATUS_IDLE_Z(x)                       (((x)&0x01) << 3)
 #define     IEP_REGB_MMU_STATUS_REPLAY_BUFFER_EMPTY_Z(x)        (((x)&0x01) << 4)
 #define     IEP_REGB_MMU_STATUS_PAGE_FAULT_IS_WRITE_Z(x)        (((x)&0x01) << 5)
 #define     IEP_REGB_MMU_STATUS_PAGE_FAULT_BUS_ID_Z(x)          (((x)&0x1F) << 6)
-                                                               
+
 #define     IEP_REGB_MMU_CMD_Z(x)                               (((x)&0x07) << 0)
-                                                               
+
 #define     IEP_REGB_MMU_ZAP_ONE_LINE_Z(x)                      (((x)&0x01) << 0)
-                                                               
+
 #define     IEP_REGB_MMU_INT_RAWSTAT_PAGE_FAULT_Z(x)            (((x)&0x01) << 0)
 #define     IEP_REGB_MMU_INT_RAWSTAT_READ_BUS_ERROR_Z(x)        (((x)&0x01) << 1)
 
@@ -313,10 +307,7 @@ enum iep_mmu_cmd {
 #define     IEP_REGB_MMU_AUTO_GATING_Z(x)                       (((x)&0x01) << 0)
 #endif
 
-/*-----------------------------------------------------------------
-//MaskRegBits32(addr, y, z),get y，中间变量
------------------------------------------------------------------*/
-//iep_config0
+/*iep_config0*/
 #define     IEP_REGB_V_REVERSE_DISP_Y      (0x1  << 31 )
 #define     IEP_REGB_H_REVERSE_DISP_Y      (0x1  << 30 )
 #define     IEP_REGB_SCL_EN_Y              (0x1  << 28 )
@@ -337,7 +328,7 @@ enum iep_mmu_cmd {
 #define     IEP_REGB_DIL_HF_FCT_Y          (0x7F << 1  )
 #define     IEP_REGB_LCDC_PATH_EN_Y        (0x1  << 0  )
 
-//iep_conig1
+/*iep_conig1*/
 #define     IEP_REGB_GLB_ALPHA_Y           (0xff << 24 )
 #define     IEP_REGB_RGB2YUV_INPUT_CLIP_Y  (0x1  << 23 )
 #define     IEP_REGB_YUV2RGB_INPUT_CLIP_Y  (0x1  << 22 )
@@ -354,50 +345,50 @@ enum iep_mmu_cmd {
 #define     IEP_REGB_SRC_RGB_SWAP_Y        (0x3  << 2  )
 #define     IEP_REGB_SRC_FMT_Y             (0x3  << 0  )
 
-//iep_int
+/*iep_int*/
 #define     IEP_REGB_FRAME_END_INT_CLR_Y   (0x1  << 16 )
 #define     IEP_REGB_FRAME_END_INT_EN_Y    (0x1  << 8  )
 
-//frm_start
+/*frm_start*/
 #define     IEP_REGB_FRM_START_Y           (0x1  << 0  )
 
-//soft_rst
+/*soft_rst*/
 #define     IEP_REGB_SOFT_RST_Y            (0x1  << 0  )
 
-//iep_vir_img_width
+/*iep_vir_img_width*/
 #define     IEP_REGB_DST_VIR_LINE_WIDTH_Y  (0xffff << 16 )
 #define     IEP_REGB_SRC_VIR_LINE_WIDTH_Y  (0xffff << 0  )
 
-//iep_img_scl_fct
+/*iep_img_scl_fct*/
 #define     IEP_REGB_SCL_VRT_FCT_Y         (0xffff << 16 )
 #define     IEP_REGB_SCL_HRZ_FCT_Y         (0xffff << 0  )
 
-//iep_src_img_size
+/*iep_src_img_size*/
 #define     IEP_REGB_SRC_IMG_HEIGHT_Y      (0x1fff << 16 )
 #define     IEP_REGB_SRC_IMG_WIDTH_Y       (0x1fff << 0  )
-//iep_dst_img_size
+/*iep_dst_img_size*/
 #define     IEP_REGB_DST_IMG_HEIGHT_Y      (0x1fff << 16 )
 #define     IEP_REGB_DST_IMG_WIDTH_Y       (0x1fff << 0  )
 
-//dst_img_width_tile0/1/2/3
+/*dst_img_width_tile0/1/2/3*/
 #define     IEP_REGB_DST_IMG_WIDTH_TILE0_Y (0x3ff  << 0  )
 #define     IEP_REGB_DST_IMG_WIDTH_TILE1_Y (0x3ff  << 0  )
 #define     IEP_REGB_DST_IMG_WIDTH_TILE2_Y (0x3ff  << 0  )
 #define     IEP_REGB_DST_IMG_WIDTH_TILE3_Y (0x3ff  << 0  )
 
-//iep_enh_yuv_cnfg0
+/*iep_enh_yuv_cnfg0*/
 #define     IEP_REGB_SAT_CON_Y             (0x1ff  <<  16)
 #define     IEP_REGB_CONTRAST_Y            (0xff  <<  8 )
 #define     IEP_REGB_BRIGHTNESS_Y          (0x3f  <<  0 )
-//iep_enh_yuv_cnfg1
+/*iep_enh_yuv_cnfg1*/
 #define     IEP_REGB_COS_HUE_Y             (0xff  <<  8 )
 #define     IEP_REGB_SIN_HUE_Y             (0xff  <<  0 )
-//iep_enh_yuv_cnfg2
+/*iep_enh_yuv_cnfg2*/
 #define     IEP_REGB_VIDEO_MODE_Y          (0x3   <<  24)
 #define     IEP_REGB_COLOR_BAR_V_Y         (0xff  <<  16)
 #define     IEP_REGB_COLOR_BAR_U_Y         (0xff  <<  8 )
 #define     IEP_REGB_COLOR_BAR_Y_Y         (0xff  <<  0 )
-//iep_enh_rgb_cnfg
+/*iep_enh_rgb_cnfg*/
 #define     IEP_REGB_YUV_DNS_LUMA_SPAT_SEL_Y (0x3   <<  30)
 #define     IEP_REGB_YUV_DNS_LUMA_TEMP_SEL_Y (0x3   <<  28)
 #define     IEP_REGB_YUV_DNS_CHROMA_SPAT_SEL_Y (0x3  <<  26)
@@ -405,9 +396,9 @@ enum iep_mmu_cmd {
 #define     IEP_REGB_ENH_THRESHOLD_Y       (0xff  <<  16)
 #define     IEP_REGB_ENH_ALPHA_Y           (0x3f  <<  8 )
 #define     IEP_REGB_ENH_RADIUS_Y          (0x3   <<  0 )
-//iep_enh_c_coe
+/*iep_enh_c_coe*/
 #define     IEP_REGB_ENH_C_COE_Y           (0x7f  <<  0 )
-//dil_mtn_tab
+/*dil_mtn_tab*/
 #define     IEP_REGB_DIL_MTN_TAB0_0_Y      (0x7f  <<  0  )
 #define     IEP_REGB_DIL_MTN_TAB0_1_Y      (0x7f  <<  8  )
 #define     IEP_REGB_DIL_MTN_TAB0_2_Y      (0x7f  <<  16 )
@@ -449,19 +440,19 @@ enum iep_mmu_cmd {
 #define     IEP_REGB_DIL_MTN_TAB7_3_Y      (0x7f  <<  24 )
 
 #if defined(CONFIG_IEP_MMU)
-// mmu
-#define     IEP_REGB_MMU_STATUS_PAGING_ENABLE_Y              (0x01 << 0)       
+/*mmu*/
+#define     IEP_REGB_MMU_STATUS_PAGING_ENABLE_Y              (0x01 << 0)
 #define     IEP_REGB_MMU_STATUS_PAGE_FAULT_ACTIVE_Y          (0x01 << 1)
 #define     IEP_REGB_MMU_STATUS_STALL_ACTIVE_Y               (0x01 << 2)
 #define     IEP_REGB_MMU_STATUS_IDLE_Y                       (0x01 << 3)
 #define     IEP_REGB_MMU_STATUS_REPLAY_BUFFER_EMPTY_Y        (0x01 << 4)
 #define     IEP_REGB_MMU_STATUS_PAGE_FAULT_IS_WRITE_Y        (0x01 << 5)
 #define     IEP_REGB_MMU_STATUS_PAGE_FAULT_BUS_ID_Y          (0x1F << 6)
-                                                              
+
 #define     IEP_REGB_MMU_CMD_Y                               (0x07 << 0)
-                                                              
+
 #define     IEP_REGB_MMU_ZAP_ONE_LINE_Y                      (0x01 << 0)
-                                                              
+
 #define     IEP_REGB_MMU_INT_RAWSTAT_PAGE_FAULT_Y            (0x01 << 0)
 #define     IEP_REGB_MMU_INT_RAWSTAT_READ_BUS_ERROR_Y        (0x01 << 1)
 
@@ -476,8 +467,8 @@ enum iep_mmu_cmd {
 
 #define     IEP_REGB_MMU_AUTO_GATING_Y                       (0x01 << 0)
 
-// offset
-#define     IEP_REGB_MMU_STATUS_PAGING_ENABLE_F              (0)       
+/*offset*/
+#define     IEP_REGB_MMU_STATUS_PAGING_ENABLE_F              (0)
 #define     IEP_REGB_MMU_STATUS_PAGE_FAULT_ACTIVE_F          (1)
 #define     IEP_REGB_MMU_STATUS_STALL_ACTIVE_F               (2)
 #define     IEP_REGB_MMU_STATUS_IDLE_F                       (3)
@@ -487,9 +478,9 @@ enum iep_mmu_cmd {
 #endif
 
 /*-----------------------------------------------------------------
-//MaskRegBits32(addr, y, z),寄存器配置
+MaskRegBits32(addr, y, z),Register configure
 -----------------------------------------------------------------*/
-//iep_config0
+/*iep_config0*/
 #define     IEP_REGB_V_REVERSE_DISP(base, x)      ConfRegBits32(base, RAW_rIEP_CONFIG0,rIEP_CONFIG0,IEP_REGB_V_REVERSE_DISP_Y,IEP_REGB_V_REVERSE_DISP_Z(x))
 #define     IEP_REGB_H_REVERSE_DISP(base, x)      ConfRegBits32(base, RAW_rIEP_CONFIG0,rIEP_CONFIG0,IEP_REGB_H_REVERSE_DISP_Y,IEP_REGB_H_REVERSE_DISP_Z(x))
 #define     IEP_REGB_SCL_EN(base, x)              ConfRegBits32(base, RAW_rIEP_CONFIG0,rIEP_CONFIG0,IEP_REGB_SCL_EN_Y,IEP_REGB_SCL_EN_Z(x))
@@ -510,7 +501,7 @@ enum iep_mmu_cmd {
 #define     IEP_REGB_DIL_HF_FCT(base, x)          ConfRegBits32(base, RAW_rIEP_CONFIG0,rIEP_CONFIG0,IEP_REGB_DIL_HF_FCT_Y,IEP_REGB_DIL_HF_FCT_Z(x))
 #define     IEP_REGB_LCDC_PATH_EN(base, x)        ConfRegBits32(base, RAW_rIEP_CONFIG0,rIEP_CONFIG0,IEP_REGB_LCDC_PATH_EN_Y,IEP_REGB_LCDC_PATH_EN_Z(x))
 
-//iep_conig1
+/*iep_conig1*/
 #define     IEP_REGB_GLB_ALPHA(base, x)           ConfRegBits32(base, RAW_rIEP_CONFIG1,rIEP_CONFIG1,IEP_REGB_GLB_ALPHA_Y,IEP_REGB_GLB_ALPHA_Z(x))
 #define     IEP_REGB_RGB2YUV_INPUT_CLIP(base, x)  ConfRegBits32(base, RAW_rIEP_CONFIG1,rIEP_CONFIG1,IEP_REGB_RGB2YUV_INPUT_CLIP_Y,IEP_REGB_RGB2YUV_INPUT_CLIP_Z(x))
 #define     IEP_REGB_YUV2RGB_INPUT_CLIP(base, x)  ConfRegBits32(base, RAW_rIEP_CONFIG1,rIEP_CONFIG1,IEP_REGB_YUV2RGB_INPUT_CLIP_Y,IEP_REGB_YUV2RGB_INPUT_CLIP_Z(x))
@@ -527,50 +518,50 @@ enum iep_mmu_cmd {
 #define     IEP_REGB_SRC_RGB_SWAP(base, x)        ConfRegBits32(base, RAW_rIEP_CONFIG1,rIEP_CONFIG1,IEP_REGB_SRC_RGB_SWAP_Y,IEP_REGB_SRC_RGB_SWAP_Z(x))
 #define     IEP_REGB_SRC_FMT(base, x)             ConfRegBits32(base, RAW_rIEP_CONFIG1,rIEP_CONFIG1,IEP_REGB_SRC_FMT_Y,IEP_REGB_SRC_FMT_Z(x))
 
-//iep_int
+/*iep_int*/
 #define     IEP_REGB_FRAME_END_INT_CLR(base, x)   MaskRegBits32(base, rIEP_INT,IEP_REGB_FRAME_END_INT_CLR_Y,IEP_REGB_FRAME_END_INT_CLR_Z(x))
 #define     IEP_REGB_FRAME_END_INT_EN(base, x)    MaskRegBits32(base, rIEP_INT,IEP_REGB_FRAME_END_INT_EN_Y,IEP_REGB_FRAME_END_INT_EN_Z(x))
 
-//frm_start
+/*frm_start*/
 #define     IEP_REGB_FRM_START(base, x)           WriteReg32(base, rIEP_FRM_START,x)
 
-//soft_rst
+/*soft_rst*/
 #define     IEP_REGB_SOFT_RST(base, x)            WriteReg32(base, rIEP_SOFT_RST,x)
 
-//iep_vir_img_width
+/*iep_vir_img_width*/
 #define     IEP_REGB_DST_VIR_LINE_WIDTH(base, x)  ConfRegBits32(base, RAW_rIEP_VIR_IMG_WIDTH,rIEP_VIR_IMG_WIDTH,IEP_REGB_DST_VIR_LINE_WIDTH_Y,IEP_REGB_DST_VIR_LINE_WIDTH_Z(x))
 #define     IEP_REGB_SRC_VIR_LINE_WIDTH(base, x)  ConfRegBits32(base, RAW_rIEP_VIR_IMG_WIDTH,rIEP_VIR_IMG_WIDTH,IEP_REGB_SRC_VIR_LINE_WIDTH_Y,IEP_REGB_SRC_VIR_LINE_WIDTH_Z(x))
 
-//iep_img_scl_fct
+/*iep_img_scl_fct*/
 #define     IEP_REGB_SCL_VRT_FCT(base, x)         ConfRegBits32(base, RAW_rIEP_IMG_SCL_FCT,rIEP_IMG_SCL_FCT,IEP_REGB_SCL_VRT_FCT_Y,IEP_REGB_SCL_VRT_FCT_Z(x))
 #define     IEP_REGB_SCL_HRZ_FCT(base, x)         ConfRegBits32(base, RAW_rIEP_IMG_SCL_FCT,rIEP_IMG_SCL_FCT,IEP_REGB_SCL_HRZ_FCT_Y,IEP_REGB_SCL_HRZ_FCT_Z(x))
 
-//iep_src_img_size
+/*iep_src_img_size*/
 #define     IEP_REGB_SRC_IMG_HEIGHT(base, x)      ConfRegBits32(base, RAW_rIEP_SRC_IMG_SIZE,rIEP_SRC_IMG_SIZE,IEP_REGB_SRC_IMG_HEIGHT_Y,IEP_REGB_SRC_IMG_HEIGHT_Z(x))
 #define     IEP_REGB_SRC_IMG_WIDTH(base, x)       ConfRegBits32(base, RAW_rIEP_SRC_IMG_SIZE,rIEP_SRC_IMG_SIZE,IEP_REGB_SRC_IMG_WIDTH_Y,IEP_REGB_SRC_IMG_WIDTH_Z(x))
 //iep_dst_img_size
 #define     IEP_REGB_DST_IMG_HEIGHT(base, x)      ConfRegBits32(base, RAW_rIEP_DST_IMG_SIZE,rIEP_DST_IMG_SIZE,IEP_REGB_DST_IMG_HEIGHT_Y,IEP_REGB_DST_IMG_HEIGHT_Z(x))
 #define     IEP_REGB_DST_IMG_WIDTH(base, x)       ConfRegBits32(base, RAW_rIEP_DST_IMG_SIZE,rIEP_DST_IMG_SIZE,IEP_REGB_DST_IMG_WIDTH_Y,IEP_REGB_DST_IMG_WIDTH_Z(x))
 
-//dst_img_width_tile0/1/2/3
+/*dst_img_width_tile0/1/2/3*/
 #define     IEP_REGB_DST_IMG_WIDTH_TILE0(base, x) WriteReg32(base, rIEP_DST_IMG_WIDTH_TILE0,x)
 #define     IEP_REGB_DST_IMG_WIDTH_TILE1(base, x) WriteReg32(base, rIEP_DST_IMG_WIDTH_TILE1,x)
 #define     IEP_REGB_DST_IMG_WIDTH_TILE2(base, x) WriteReg32(base, rIEP_DST_IMG_WIDTH_TILE2,x)
 #define     IEP_REGB_DST_IMG_WIDTH_TILE3(base, x) WriteReg32(base, rIEP_DST_IMG_WIDTH_TILE3,x)
 
-//iep_enh_yuv_cnfg0
+/*iep_enh_yuv_cnfg0*/
 #define     IEP_REGB_SAT_CON(base, x)             ConfRegBits32(base, RAW_rIEP_ENH_YUV_CNFG_0,rIEP_ENH_YUV_CNFG_0,IEP_REGB_SAT_CON_Y,IEP_REGB_SAT_CON_Z(x))
 #define     IEP_REGB_CONTRAST(base, x)            ConfRegBits32(base, RAW_rIEP_ENH_YUV_CNFG_0,rIEP_ENH_YUV_CNFG_0,IEP_REGB_CONTRAST_Y,IEP_REGB_CONTRAST_Z(x))
 #define     IEP_REGB_BRIGHTNESS(base, x)          ConfRegBits32(base, RAW_rIEP_ENH_YUV_CNFG_0,rIEP_ENH_YUV_CNFG_0,IEP_REGB_BRIGHTNESS_Y,IEP_REGB_BRIGHTNESS_Z(x))
-//iep_enh_yuv_cnfg1
+/*iep_enh_yuv_cnfg1*/
 #define     IEP_REGB_COS_HUE(base, x)             ConfRegBits32(base, RAW_rIEP_ENH_YUV_CNFG_1,rIEP_ENH_YUV_CNFG_1,IEP_REGB_COS_HUE_Y,IEP_REGB_COS_HUE_Z(x))
 #define     IEP_REGB_SIN_HUE(base, x)             ConfRegBits32(base, RAW_rIEP_ENH_YUV_CNFG_1,rIEP_ENH_YUV_CNFG_1,IEP_REGB_SIN_HUE_Y,IEP_REGB_SIN_HUE_Z(x))
-//iep_enh_yuv_cnfg2
+/*iep_enh_yuv_cnfg2*/
 #define     IEP_REGB_VIDEO_MODE(base, x)          ConfRegBits32(base, RAW_rIEP_ENH_YUV_CNFG_2,rIEP_ENH_YUV_CNFG_2,IEP_REGB_VIDEO_MODE_Y,IEP_REGB_VIDEO_MODE_Z(x))
 #define     IEP_REGB_COLOR_BAR_V(base, x)         ConfRegBits32(base, RAW_rIEP_ENH_YUV_CNFG_2,rIEP_ENH_YUV_CNFG_2,IEP_REGB_COLOR_BAR_V_Y,IEP_REGB_COLOR_BAR_V_Z(x))
 #define     IEP_REGB_COLOR_BAR_U(base, x)         ConfRegBits32(base, RAW_rIEP_ENH_YUV_CNFG_2,rIEP_ENH_YUV_CNFG_2,IEP_REGB_COLOR_BAR_U_Y,IEP_REGB_COLOR_BAR_U_Z(x))
 #define     IEP_REGB_COLOR_BAR_Y(base, x)         ConfRegBits32(base, RAW_rIEP_ENH_YUV_CNFG_2,rIEP_ENH_YUV_CNFG_2,IEP_REGB_COLOR_BAR_Y_Y,IEP_REGB_COLOR_BAR_Y_Z(x))
-//iep_enh_rgb_cnfg
+/*iep_enh_rgb_cnfg*/
 #define     IEP_REGB_YUV_DNS_LUMA_SPAT_SEL(base, x) ConfRegBits32(base, RAW_rIEP_ENH_RGB_CNFG,rIEP_ENH_RGB_CNFG,IEP_REGB_YUV_DNS_LUMA_SPAT_SEL_Y,IEP_REGB_YUV_DNS_LUMA_SPAT_SEL_Z(x))
 #define     IEP_REGB_YUV_DNS_LUMA_TEMP_SEL(base, x) ConfRegBits32(base, RAW_rIEP_ENH_RGB_CNFG,rIEP_ENH_RGB_CNFG,IEP_REGB_YUV_DNS_LUMA_TEMP_SEL_Y,IEP_REGB_YUV_DNS_LUMA_TEMP_SEL_Z(x))
 #define     IEP_REGB_YUV_DNS_CHROMA_SPAT_SEL(base, x) ConfRegBits32(base, RAW_rIEP_ENH_RGB_CNFG,rIEP_ENH_RGB_CNFG,IEP_REGB_YUV_DNS_CHROMA_SPAT_SEL_Y,IEP_REGB_YUV_DNS_CHROMA_SPAT_SEL_Z(x))
@@ -578,9 +569,9 @@ enum iep_mmu_cmd {
 #define     IEP_REGB_ENH_THRESHOLD(base, x)       ConfRegBits32(base, RAW_rIEP_ENH_RGB_CNFG,rIEP_ENH_RGB_CNFG,IEP_REGB_ENH_THRESHOLD_Y,IEP_REGB_ENH_THRESHOLD_Z(x))
 #define     IEP_REGB_ENH_ALPHA(base, x)           ConfRegBits32(base, RAW_rIEP_ENH_RGB_CNFG,rIEP_ENH_RGB_CNFG,IEP_REGB_ENH_ALPHA_Y,IEP_REGB_ENH_ALPHA_Z(x))
 #define     IEP_REGB_ENH_RADIUS(base, x)          ConfRegBits32(base, RAW_rIEP_ENH_RGB_CNFG,rIEP_ENH_RGB_CNFG,IEP_REGB_ENH_RADIUS_Y,IEP_REGB_ENH_RADIUS_Z(x))
-//iep_enh_c_coe
-#define     IEP_REGB_ENH_C_COE(base, x)           WriteReg32(base, rIEP_ENH_C_COE,x)           
-//src_addr
+/*iep_enh_c_coe*/
+#define     IEP_REGB_ENH_C_COE(base, x)           WriteReg32(base, rIEP_ENH_C_COE,x)
+/*src_addr*/
 #define     IEP_REGB_SRC_ADDR_YRGB(base, x)       WriteReg32(base, rIEP_SRC_ADDR_YRGB, x)
 #define     IEP_REGB_SRC_ADDR_CBCR(base, x)       WriteReg32(base, rIEP_SRC_ADDR_CBCR, x)
 #define     IEP_REGB_SRC_ADDR_CR(base, x)         WriteReg32(base, rIEP_SRC_ADDR_CR, x)
@@ -593,7 +584,7 @@ enum iep_mmu_cmd {
 #define     IEP_REGB_SRC_ADDR_Y_FTEMP(base, x)    WriteReg32(base, rIEP_SRC_ADDR_Y_FTEMP, x)
 #define     IEP_REGB_SRC_ADDR_CBCR_FTEMP(base, x) WriteReg32(base, rIEP_SRC_ADDR_CBCR_FTEMP, x)
 #define     IEP_REGB_SRC_ADDR_CR_FTEMP(base, x)   WriteReg32(base, rIEP_SRC_ADDR_CR_FTEMP, x)
-//dst_addr
+/*dst_addr*/
 #define     IEP_REGB_DST_ADDR_YRGB(base, x)       WriteReg32(base, rIEP_DST_ADDR_YRGB,x)
 #define     IEP_REGB_DST_ADDR_CBCR(base, x)       WriteReg32(base, rIEP_DST_ADDR_CBCR, x)
 #define     IEP_REGB_DST_ADDR_CR(base, x)         WriteReg32(base, rIEP_DST_ADDR_CR, x)
@@ -607,7 +598,7 @@ enum iep_mmu_cmd {
 #define     IEP_REGB_DST_ADDR_CBCR_FTEMP(base, x) WriteReg32(base, rIEP_DST_ADDR_CBCR_FTEMP, x)
 #define     IEP_REGB_DST_ADDR_CR_FTEMP(base, x)   WriteReg32(base, rIEP_DST_ADDR_CR_FTEMP, x)
 
-//dil_mtn_tab
+/*dil_mtn_tab*/
 #define     IEP_REGB_DIL_MTN_TAB0(base, x)      WriteReg32(base, rIEP_DIL_MTN_TAB0,x)
 #define     IEP_REGB_DIL_MTN_TAB1(base, x)      WriteReg32(base, rIEP_DIL_MTN_TAB1,x)
 #define     IEP_REGB_DIL_MTN_TAB2(base, x)      WriteReg32(base, rIEP_DIL_MTN_TAB2,x)
@@ -620,18 +611,18 @@ enum iep_mmu_cmd {
 #define     IEP_REGB_STATUS(base)               ReadReg32(base, rIEP_STATUS)
 
 #if defined(CONFIG_IEP_MMU)
-// mmu
+/*mmu*/
 #define     IEP_REGB_MMU_DTE_ADDR(base, x)                          WriteReg32(base, rIEP_MMU_DTE_ADDR, x)
 #define     IEP_REGB_MMU_STATUS(base)                               ReadReg32(base, rIEP_MMU_STATUS)
-                                                               
+
 #define     IEP_REGB_MMU_CMD(base, x)                               MaskRegBits32(base, rIEP_MMU_CMD, IEP_REGB_MMU_CMD_Y, IEP_REGB_MMU_CMD_Z(x))
-                                                               
+
 #define     IEP_REGB_MMU_PAGE_FAULT_ADDR(base)                      ReadReg32(base, rIEP_MMU_PAGE_FAULT_ADDR)
-                                                               
+
 #define     IEP_REGB_MMU_ZAP_ONE_LINE(base, x)                      MaskRegBits32(base, rIEP_MMU_ZAP_ONE_LINE, \
                                                                     IEP_REGB_MMU_ZAP_ONE_LINE_Y, \
                                                                     IEP_REGB_MMU_ZAP_ONE_LINE_Z(x))
-                                                               
+
 #define     IEP_REGB_MMU_INT_RAWSTAT(base)                          ReadReg32(base, rIEP_MMU_INT_RAWSTAT)
 
 #define     IEP_REGB_MMU_INT_CLEAR_PAGE_FAULT_CLEAR(base, x)        MaskRegBits32(base, rIEP_MMU_INT_CLEAR, \
@@ -655,17 +646,16 @@ enum iep_mmu_cmd {
                                                                     IEP_REGB_MMU_AUTO_GATING_Z(x))
 #endif
 
-///function define
-void iep_config_lcdc_path(IEP_MSG *iep_msg);
+void iep_config_lcdc_path(struct IEP_MSG *iep_msg);
 
-/// system control, directly operating the device registers. 
-/// parameter @base need to be set to device base address.
+/* system control, directly operating the device registers.*/
+/* parameter @base need to be set to device base address. */
 void iep_soft_rst(void *base);
 void iep_config_done(void *base);
 void iep_config_frm_start(void *base);
 int iep_probe_int(void *base);
 void iep_config_frame_end_int_clr(void *base);
-void iep_config_frame_end_int_en(void *base); 
+void iep_config_frame_end_int_en(void *base);
 struct iep_status iep_get_status(void *base);
 #if defined(CONFIG_IEP_MMU)
 struct iep_mmu_int_status iep_probe_mmu_int_status(void *base);
@@ -680,10 +670,8 @@ int iep_get_deinterlace_mode(void *base);
 void iep_set_deinterlace_mode(int mode, void *base);
 void iep_switch_input_address(void *base);
 
-/// generating a series of iep registers copy to the session private buffer
-void iep_config(iep_session *session, IEP_MSG *iep_msg); 
+/* generating a series of iep registers copy to the session private buffer */
+void iep_config(iep_session *session, struct IEP_MSG *iep_msg);
 
-//#define IEP_PRINT_INFO
+/*#define IEP_PRINT_INFO*/
 #endif
-
-

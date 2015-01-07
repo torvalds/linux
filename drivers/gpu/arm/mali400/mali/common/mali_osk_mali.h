@@ -1,11 +1,11 @@
 /*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2008-2014 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
+ * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 /**
@@ -30,6 +30,14 @@ extern "C" {
  */
 typedef struct mali_gpu_device_data _mali_osk_device_data;
 
+#ifdef CONFIG_MALI_DT
+/** @brief Initialize those device resources when we use device tree
+ *
+ * @return _MALI_OSK_ERR_OK on success, otherwise failure.
+ */
+_mali_osk_errcode_t _mali_osk_resource_initialize(void);
+#endif
+
 /** @brief Find Mali GPU HW resource
  *
  * @param addr Address of Mali GPU resource to find
@@ -43,13 +51,32 @@ _mali_osk_errcode_t _mali_osk_resource_find(u32 addr, _mali_osk_resource_t *res)
  *
  * @return 0 if resources are found, otherwise the Mali GPU component with lowest address.
  */
-u32 _mali_osk_resource_base_address(void);
+uintptr_t _mali_osk_resource_base_address(void);
+
+/** @brief Find the number of L2 cache cores.
+ *
+ * @return return the number of l2 cache cores we find in device resources.
+ */
+u32 _mali_osk_l2_resource_count(void);
 
 /** @brief Retrieve the Mali GPU specific data
  *
  * @return _MALI_OSK_ERR_OK on success, otherwise failure.
  */
 _mali_osk_errcode_t _mali_osk_device_data_get(_mali_osk_device_data *data);
+
+/** @brief Find the pmu domain config from device data.
+ *
+ * @param domain_config_array used to store pmu domain config found in device data.
+ * @param array_size is the size of array domain_config_array.
+ */
+void _mali_osk_device_data_pmu_config_get(u16 *domain_config_array, int array_size);
+
+/** @brief Get Mali PMU switch delay
+ *
+ *@return pmu switch delay if it is configured
+ */
+u32 _mali_osk_get_pmu_switch_delay(void);
 
 /** @brief Determines if Mali GPU has been configured with shared interrupts.
  *

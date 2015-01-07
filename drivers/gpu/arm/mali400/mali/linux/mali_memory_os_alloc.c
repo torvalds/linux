@@ -1,11 +1,11 @@
 /*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2013-2014 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
+ * Copyright (C) 2013-2014 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #include <linux/list.h>
@@ -151,7 +151,12 @@ static int mali_mem_os_alloc_pages(mali_mem_allocation *descriptor, u32 size)
 #if defined(CONFIG_ARM) && !defined(CONFIG_ARM_LPAE)
 		flags |= GFP_HIGHUSER;
 #else
+	/* After 3.15.0 kernel use ZONE_DMA replace ZONE_DMA32 */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 15, 0)
 		flags |= GFP_DMA32;
+#else
+		flags |= GFP_DMA;
+#endif
 #endif
 
 		new_page = alloc_page(flags);
@@ -293,11 +298,10 @@ mali_mem_allocation *mali_mem_os_alloc(u32 mali_addr, u32 size, struct vm_area_s
 	err = mali_mem_os_mali_map(descriptor, session); /* Map on Mali */
 	if (0 != err) goto mali_map_failed;
 
-	_mali_osk_mutex_signal(session->memory_lock);
-
 	err = mali_mem_os_cpu_map(descriptor, vma); /* Map on CPU */
 	if (0 != err) goto cpu_map_failed;
 
+	_mali_osk_mutex_signal(session->memory_lock);
 	return descriptor;
 
 cpu_map_failed:
@@ -477,7 +481,7 @@ static void mali_mem_os_trim_page_table_page_pool(void)
 
 static unsigned long mali_mem_os_shrink_count(struct shrinker *shrinker, struct shrink_control *sc)
 {
-	return mali_mem_os_allocator.pool_count + mali_mem_page_table_page_pool.count;
+	return mali_mem_os_allocator.pool_count;
 }
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 0, 0)
@@ -532,16 +536,17 @@ static unsigned long mali_mem_os_shrink(struct shrinker *shrinker, struct shrink
 		mali_mem_os_free_page(page);
 	}
 
-	/* Release some pages from page table page pool */
-	mali_mem_os_trim_page_table_page_pool();
-
 	if (MALI_OS_MEMORY_KERNEL_BUFFER_SIZE_IN_PAGES > mali_mem_os_allocator.pool_count) {
 		/* Pools are empty, stop timer */
 		MALI_DEBUG_PRINT(5, ("Stopping timer, only %u pages on pool\n", mali_mem_os_allocator.pool_count));
 		cancel_delayed_work(&mali_mem_os_allocator.timed_shrinker);
 	}
 
-	return mali_mem_os_allocator.pool_count + mali_mem_page_table_page_pool.count;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 12, 0)
+	return mali_mem_os_shrink_count(shrinker, sc);
+#else
+	return nr;
+#endif
 }
 
 static void mali_mem_os_trim_pool(struct work_struct *data)
@@ -608,7 +613,11 @@ void mali_mem_os_term(void)
 
 	unregister_shrinker(&mali_mem_os_allocator.shrinker);
 	cancel_delayed_work_sync(&mali_mem_os_allocator.timed_shrinker);
-	destroy_workqueue(mali_mem_os_allocator.wq);
+
+	if (NULL != mali_mem_os_allocator.wq) {
+		destroy_workqueue(mali_mem_os_allocator.wq);
+		mali_mem_os_allocator.wq = NULL;
+	}
 
 	spin_lock(&mali_mem_os_allocator.pool_lock);
 	list_for_each_entry_safe(page, tmp, &mali_mem_os_allocator.pool_pages, lru) {

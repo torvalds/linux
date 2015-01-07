@@ -1,11 +1,11 @@
 /*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2011-2014 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
+ * Copyright (C) 2011-2014 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #include "mali_gp.h"
@@ -101,13 +101,13 @@ _mali_osk_errcode_t mali_gp_stop_bus_wait(struct mali_gp_core *core)
 	mali_gp_stop_bus(core);
 
 	/* Wait for bus to be stopped */
-	for (i = 0; i < MALI_REG_POLL_COUNT_FAST; i++) {
+	for (i = 0; i < MALI_REG_POLL_COUNT_SLOW; i++) {
 		if (mali_hw_core_register_read(&core->hw_core, MALIGP2_REG_ADDR_MGMT_STATUS) & MALIGP2_REG_VAL_STATUS_BUS_STOPPED) {
 			break;
 		}
 	}
 
-	if (MALI_REG_POLL_COUNT_FAST == i) {
+	if (MALI_REG_POLL_COUNT_SLOW == i) {
 		MALI_PRINT_ERROR(("Mali GP: Failed to stop bus on %s\n", core->hw_core.description));
 		return _MALI_OSK_ERR_FAULT;
 	}
@@ -327,7 +327,7 @@ u32 mali_gp_dump_state(struct mali_gp_core *core, char *buf, u32 size)
 }
 #endif
 
-void mali_gp_update_performance_counters(struct mali_gp_core *core, struct mali_gp_job *job, mali_bool suspend)
+void mali_gp_update_performance_counters(struct mali_gp_core *core, struct mali_gp_job *job)
 {
 	u32 val0 = 0;
 	u32 val1 = 0;

@@ -249,7 +249,8 @@ enum {
 /*** Begin Power Manager defaults */
 
 /* Milliseconds */
-#define DEFAULT_PM_DVFS_FREQ 500
+#define DEFAULT_PM_DVFS_FREQ 20     /* 动态调频的周期, 为提高 UI 性能, 按照 4.4 的经验值减小. */
+// #define DEFAULT_PM_DVFS_FREQ 500
 
 /**
  * Default poweroff tick granuality, in nanoseconds

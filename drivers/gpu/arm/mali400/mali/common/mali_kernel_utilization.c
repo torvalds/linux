@@ -1,11 +1,11 @@
 /*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2010-2014 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
+ * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #include "mali_kernel_utilization.h"
@@ -15,15 +15,18 @@
 #include "mali_session.h"
 #include "mali_scheduler.h"
 
+#include "mali_executor.h"
+#include "mali_dvfs_policy.h"
+#include "mali_control_timer.h"
+
 /* Thresholds for GP bound detection. */
 #define MALI_GP_BOUND_GP_UTILIZATION_THRESHOLD 240
 #define MALI_GP_BOUND_PP_UTILIZATION_THRESHOLD 250
 
-/* Define how often to calculate and report GPU utilization, in milliseconds */
-static _mali_osk_spinlock_irq_t *time_data_lock;
+static _mali_osk_spinlock_irq_t *utilization_data_lock;
 
-static u32 num_running_gp_cores;
-static u32 num_running_pp_cores;
+static u32 num_running_gp_cores = 0;
+static u32 num_running_pp_cores = 0;
 
 static u64 work_start_time_gpu = 0;
 static u64 work_start_time_gp = 0;
@@ -32,59 +35,19 @@ static u64 accumulated_work_time_gpu = 0;
 static u64 accumulated_work_time_gp = 0;
 static u64 accumulated_work_time_pp = 0;
 
-static u64 period_start_time = 0;
-static _mali_osk_timer_t *utilization_timer = NULL;
-static mali_bool timer_running = MALI_FALSE;
-
 static u32 last_utilization_gpu = 0 ;
 static u32 last_utilization_gp = 0 ;
 static u32 last_utilization_pp = 0 ;
 
-extern u32 mali_utilization_timeout;
 void (*mali_utilization_callback)(struct mali_gpu_utilization_data *data) = NULL;
-#if defined(CONFIG_MALI400_POWER_PERFORMANCE_POLICY)
-extern void mali_power_performance_policy_callback(struct mali_gpu_utilization_data *data);
-#define NUMBER_OF_NANOSECONDS_PER_SECOND  1000000000ULL
 
-static u32 calculate_window_render_fps(u64 time_period)
-{
-	u32 max_window_number;
-	u64 tmp;
-	u64 max = time_period;
-	u32 leading_zeroes;
-	u32 shift_val;
-	u32 time_period_shift;
-	u32 max_window_number_shift;
-	u32 ret_val;
+/* Define the first timer control timer timeout in milliseconds */
+static u32 mali_control_first_timeout = 100;
+static struct mali_gpu_utilization_data mali_util_data = {0, };
 
-	max_window_number = mali_session_max_window_num();
-	/* To avoid float division, extend the dividend to ns unit */
-	tmp = (u64)max_window_number * NUMBER_OF_NANOSECONDS_PER_SECOND;
-	if (tmp > time_period) {
-		max = tmp;
-	}
-
-	/*
-	 * We may have 64-bit values, a dividend or a divisor or both
-	 * To avoid dependencies to a 64-bit divider, we shift down the two values
-	 * equally first.
-	 */
-	leading_zeroes = _mali_osk_clz((u32)(max >> 32));
-	shift_val = 32 - leading_zeroes;
-
-	time_period_shift = (u32)(time_period >> shift_val);
-	max_window_number_shift = (u32)(tmp >> shift_val);
-
-	ret_val = max_window_number_shift / time_period_shift;
-
-	return ret_val;
-}
-#endif  /* defined(CONFIG_MALI400_POWER_PERFORMANCE_POLICY) */
-
-static void calculate_gpu_utilization(void *arg)
+struct mali_gpu_utilization_data *mali_utilization_calculate(u64 *start_time, u64 *time_period)
 {
 	u64 time_now;
-	u64 time_period;
 	u32 leading_zeroes;
 	u32 shift_val;
 	u32 work_normalized_gpu;
@@ -94,11 +57,12 @@ static void calculate_gpu_utilization(void *arg)
 	u32 utilization_gpu;
 	u32 utilization_gp;
 	u32 utilization_pp;
-#if defined(CONFIG_MALI400_POWER_PERFORMANCE_POLICY)
-	u32 window_render_fps;
-#endif
 
-	_mali_osk_spinlock_irq_lock(time_data_lock);
+	mali_utilization_data_lock();
+
+	time_now = _mali_osk_time_get_ns();
+
+	*time_period = time_now - *start_time;
 
 	if (accumulated_work_time_gpu == 0 && work_start_time_gpu == 0) {
 		/*
@@ -106,27 +70,27 @@ static void calculate_gpu_utilization(void *arg)
 		 * - No need to reschedule timer
 		 * - Report zero usage
 		 */
-		timer_running = MALI_FALSE;
-
 		last_utilization_gpu = 0;
 		last_utilization_gp = 0;
 		last_utilization_pp = 0;
 
-		_mali_osk_spinlock_irq_unlock(time_data_lock);
+		mali_util_data.utilization_gpu = last_utilization_gpu;
+		mali_util_data.utilization_gp = last_utilization_gp;
+		mali_util_data.utilization_pp = last_utilization_pp;
 
-		if (NULL != mali_utilization_callback) {
-			struct mali_gpu_utilization_data data = { 0, };
-			mali_utilization_callback(&data);
-		}
+		mali_utilization_data_unlock();
 
-		mali_scheduler_hint_disable(MALI_SCHEDULER_HINT_GP_BOUND);
+		/* Stop add timer until the next job submited */
+		mali_control_timer_suspend(MALI_FALSE);
 
-		return;
+		mali_executor_hint_disable(MALI_EXECUTOR_HINT_GP_BOUND);
+
+		MALI_DEBUG_PRINT(4, ("last_utilization_gpu = %d \n", last_utilization_gpu));
+		MALI_DEBUG_PRINT(4, ("last_utilization_gp = %d \n", last_utilization_gp));
+		MALI_DEBUG_PRINT(4, ("last_utilization_pp = %d \n", last_utilization_pp));
+
+		return &mali_util_data;
 	}
-
-	time_now = _mali_osk_time_get_ns();
-
-	time_period = time_now - period_start_time;
 
 	/* If we are currently busy, update working period up to now */
 	if (work_start_time_gpu != 0) {
@@ -154,12 +118,12 @@ static void calculate_gpu_utilization(void *arg)
 	 */
 
 	/* Shift the 64-bit values down so they fit inside a 32-bit integer */
-	leading_zeroes = _mali_osk_clz((u32)(time_period >> 32));
+	leading_zeroes = _mali_osk_clz((u32)(*time_period >> 32));
 	shift_val = 32 - leading_zeroes;
 	work_normalized_gpu = (u32)(accumulated_work_time_gpu >> shift_val);
 	work_normalized_gp = (u32)(accumulated_work_time_gp >> shift_val);
 	work_normalized_pp = (u32)(accumulated_work_time_pp >> shift_val);
-	period_normalized = (u32)(time_period >> shift_val);
+	period_normalized = (u32)(*time_period >> shift_val);
 
 	/*
 	 * Now, we should report the usage in parts of 256
@@ -184,40 +148,35 @@ static void calculate_gpu_utilization(void *arg)
 	utilization_gp = work_normalized_gp / period_normalized;
 	utilization_pp = work_normalized_pp / period_normalized;
 
-#if defined(CONFIG_MALI400_POWER_PERFORMANCE_POLICY)
-	window_render_fps = calculate_window_render_fps(time_period);
-#endif
-
 	last_utilization_gpu = utilization_gpu;
 	last_utilization_gp = utilization_gp;
 	last_utilization_pp = utilization_pp;
 
 	if ((MALI_GP_BOUND_GP_UTILIZATION_THRESHOLD < last_utilization_gp) &&
 	    (MALI_GP_BOUND_PP_UTILIZATION_THRESHOLD > last_utilization_pp)) {
-		mali_scheduler_hint_enable(MALI_SCHEDULER_HINT_GP_BOUND);
+		mali_executor_hint_enable(MALI_EXECUTOR_HINT_GP_BOUND);
 	} else {
-		mali_scheduler_hint_disable(MALI_SCHEDULER_HINT_GP_BOUND);
+		mali_executor_hint_disable(MALI_EXECUTOR_HINT_GP_BOUND);
 	}
 
 	/* starting a new period */
 	accumulated_work_time_gpu = 0;
 	accumulated_work_time_gp = 0;
 	accumulated_work_time_pp = 0;
-	period_start_time = time_now;
 
-	_mali_osk_spinlock_irq_unlock(time_data_lock);
+	*start_time = time_now;
 
-	_mali_osk_timer_add(utilization_timer, _mali_osk_time_mstoticks(mali_utilization_timeout));
+	mali_util_data.utilization_gp = last_utilization_gp;
+	mali_util_data.utilization_gpu = last_utilization_gpu;
+	mali_util_data.utilization_pp = last_utilization_pp;
 
-	if (NULL != mali_utilization_callback) {
-		struct mali_gpu_utilization_data data = {
-			utilization_gpu, utilization_gp, utilization_pp,
-#if defined(CONFIG_MALI400_POWER_PERFORMANCE_POLICY)
-			window_render_fps, window_render_fps
-#endif
-		};
-		mali_utilization_callback(&data);
-	}
+	mali_utilization_data_unlock();
+
+	MALI_DEBUG_PRINT(4, ("last_utilization_gpu = %d \n", last_utilization_gpu));
+	MALI_DEBUG_PRINT(4, ("last_utilization_gp = %d \n", last_utilization_gp));
+	MALI_DEBUG_PRINT(4, ("last_utilization_pp = %d \n", last_utilization_pp));
+
+	return &mali_util_data;
 }
 
 _mali_osk_errcode_t mali_utilization_init(void)
@@ -226,77 +185,38 @@ _mali_osk_errcode_t mali_utilization_init(void)
 	_mali_osk_device_data data;
 
 	if (_MALI_OSK_ERR_OK == _mali_osk_device_data_get(&data)) {
-		/* Use device specific settings (if defined) */
-		if (0 != data.utilization_interval) {
-			mali_utilization_timeout = data.utilization_interval;
-		}
 		if (NULL != data.utilization_callback) {
 			mali_utilization_callback = data.utilization_callback;
-			MALI_DEBUG_PRINT(2, ("Mali GPU Utilization: Platform has it's own policy \n"));
-			MALI_DEBUG_PRINT(2, ("Mali GPU Utilization: Utilization handler installed with interval %u\n", mali_utilization_timeout));
+			MALI_DEBUG_PRINT(2, ("Mali GPU Utilization: Utilization handler installed \n"));
 		}
 	}
-#endif
-
-#if defined(CONFIG_MALI400_POWER_PERFORMANCE_POLICY)
-	if (mali_utilization_callback == NULL) {
-		MALI_DEBUG_PRINT(2, ("Mali GPU Utilization: MALI Power Performance Policy Algorithm \n"));
-		mali_utilization_callback = mali_power_performance_policy_callback;
-	}
-#endif
+#endif /* defined(USING_GPU_UTILIZATION) */
 
 	if (NULL == mali_utilization_callback) {
-		MALI_DEBUG_PRINT(2, ("Mali GPU Utilization: No utilization handler installed\n"));
+		MALI_DEBUG_PRINT(2, ("Mali GPU Utilization: No platform utilization handler installed\n"));
 	}
 
-	time_data_lock = _mali_osk_spinlock_irq_init(_MALI_OSK_LOCKFLAG_ORDERED, _MALI_OSK_LOCK_ORDER_UTILIZATION);
-
-	if (NULL == time_data_lock) {
+	utilization_data_lock = _mali_osk_spinlock_irq_init(_MALI_OSK_LOCKFLAG_ORDERED, _MALI_OSK_LOCK_ORDER_UTILIZATION);
+	if (NULL == utilization_data_lock) {
 		return _MALI_OSK_ERR_FAULT;
 	}
 
 	num_running_gp_cores = 0;
 	num_running_pp_cores = 0;
 
-	utilization_timer = _mali_osk_timer_init();
-	if (NULL == utilization_timer) {
-		_mali_osk_spinlock_irq_term(time_data_lock);
-		return _MALI_OSK_ERR_FAULT;
-	}
-	_mali_osk_timer_setcallback(utilization_timer, calculate_gpu_utilization, NULL);
-
 	return _MALI_OSK_ERR_OK;
-}
-
-void mali_utilization_suspend(void)
-{
-	_mali_osk_spinlock_irq_lock(time_data_lock);
-
-	if (timer_running == MALI_TRUE) {
-		timer_running = MALI_FALSE;
-		_mali_osk_spinlock_irq_unlock(time_data_lock);
-		_mali_osk_timer_del(utilization_timer);
-		return;
-	}
-
-	_mali_osk_spinlock_irq_unlock(time_data_lock);
 }
 
 void mali_utilization_term(void)
 {
-	if (NULL != utilization_timer) {
-		_mali_osk_timer_del(utilization_timer);
-		timer_running = MALI_FALSE;
-		_mali_osk_timer_term(utilization_timer);
-		utilization_timer = NULL;
+	if (NULL != utilization_data_lock) {
+		_mali_osk_spinlock_irq_term(utilization_data_lock);
 	}
-
-	_mali_osk_spinlock_irq_term(time_data_lock);
 }
 
 void mali_utilization_gp_start(void)
 {
-	_mali_osk_spinlock_irq_lock(time_data_lock);
+	mali_utilization_data_lock();
 
 	++num_running_gp_cores;
 	if (1 == num_running_gp_cores) {
@@ -306,37 +226,55 @@ void mali_utilization_gp_start(void)
 		work_start_time_gp = time_now;
 
 		if (0 == num_running_pp_cores) {
+			mali_bool is_resume = MALI_FALSE;
 			/*
 			 * There are no PP cores running, so this is also the point
 			 * at which we consider the GPU to be busy as well.
 			 */
 			work_start_time_gpu = time_now;
-		}
 
-		/* Start a new period (and timer) if needed */
-		if (timer_running != MALI_TRUE) {
-			timer_running = MALI_TRUE;
-			period_start_time = time_now;
+			is_resume  = mali_control_timer_resume(time_now);
 
-			/* Clear session->number_of_window_jobs */
-#if defined(CONFIG_MALI400_POWER_PERFORMANCE_POLICY)
-			mali_session_max_window_num();
+			mali_utilization_data_unlock();
+
+			if (is_resume) {
+				/* Do some policy in new period for performance consideration */
+#if defined(CONFIG_MALI_DVFS)
+				/* Clear session->number_of_window_jobs, prepare parameter for dvfs */
+				mali_session_max_window_num();
+				if (0 == last_utilization_gpu) {
+					/*
+					 * for mali_dev_pause is called in set clock,
+					 * so each time we change clock, we will set clock to
+					 * highest step even if under down clock case,
+					 * it is not nessesary, so we only set the clock under
+					 * last time utilization equal 0, we stop the timer then
+					 * start the GPU again case
+					 */
+					mali_dvfs_policy_new_period();
+				}
 #endif
-			_mali_osk_spinlock_irq_unlock(time_data_lock);
-
-			_mali_osk_timer_add(utilization_timer, _mali_osk_time_mstoticks(mali_utilization_timeout));
+				/*
+				 * First timeout using short interval for power consideration
+				 * because we give full power in the new period, but if the
+				 * job loading is light, finish in 10ms, the other time all keep
+				 * in high freq it will wast time.
+				 */
+				mali_control_timer_add(mali_control_first_timeout);
+			}
 		} else {
-			_mali_osk_spinlock_irq_unlock(time_data_lock);
+			mali_utilization_data_unlock();
 		}
+
 	} else {
 		/* Nothing to do */
-		_mali_osk_spinlock_irq_unlock(time_data_lock);
+		mali_utilization_data_unlock();
 	}
 }
 
 void mali_utilization_pp_start(void)
 {
-	_mali_osk_spinlock_irq_lock(time_data_lock);
+	mali_utilization_data_lock();
 
 	++num_running_pp_cores;
 	if (1 == num_running_pp_cores) {
@@ -346,37 +284,55 @@ void mali_utilization_pp_start(void)
 		work_start_time_pp = time_now;
 
 		if (0 == num_running_gp_cores) {
+			mali_bool is_resume = MALI_FALSE;
 			/*
 			 * There are no GP cores running, so this is also the point
 			 * at which we consider the GPU to be busy as well.
 			 */
 			work_start_time_gpu = time_now;
-		}
 
-		/* Start a new period (and timer) if needed */
-		if (timer_running != MALI_TRUE) {
-			timer_running = MALI_TRUE;
-			period_start_time = time_now;
+			/* Start a new period if stoped */
+			is_resume = mali_control_timer_resume(time_now);
 
-			/* Clear session->number_of_window_jobs */
-#if defined(CONFIG_MALI400_POWER_PERFORMANCE_POLICY)
-			mali_session_max_window_num();
+			mali_utilization_data_unlock();
+
+			if (is_resume) {
+#if defined(CONFIG_MALI_DVFS)
+				/* Clear session->number_of_window_jobs, prepare parameter for dvfs */
+				mali_session_max_window_num();
+				if (0 == last_utilization_gpu) {
+					/*
+					 * for mali_dev_pause is called in set clock,
+					 * so each time we change clock, we will set clock to
+					 * highest step even if under down clock case,
+					 * it is not nessesary, so we only set the clock under
+					 * last time utilization equal 0, we stop the timer then
+					 * start the GPU again case
+					 */
+					mali_dvfs_policy_new_period();
+				}
 #endif
-			_mali_osk_spinlock_irq_unlock(time_data_lock);
 
-			_mali_osk_timer_add(utilization_timer, _mali_osk_time_mstoticks(mali_utilization_timeout));
+				/*
+				 * First timeout using short interval for power consideration
+				 * because we give full power in the new period, but if the
+				 * job loading is light, finish in 10ms, the other time all keep
+				 * in high freq it will wast time.
+				 */
+				mali_control_timer_add(mali_control_first_timeout);
+			}
 		} else {
-			_mali_osk_spinlock_irq_unlock(time_data_lock);
+			mali_utilization_data_unlock();
 		}
 	} else {
 		/* Nothing to do */
-		_mali_osk_spinlock_irq_unlock(time_data_lock);
+		mali_utilization_data_unlock();
 	}
 }
 
 void mali_utilization_gp_end(void)
 {
-	_mali_osk_spinlock_irq_lock(time_data_lock);
+	mali_utilization_data_lock();
 
 	--num_running_gp_cores;
 	if (0 == num_running_gp_cores) {
@@ -396,12 +352,12 @@ void mali_utilization_gp_end(void)
 		}
 	}
 
-	_mali_osk_spinlock_irq_unlock(time_data_lock);
+	mali_utilization_data_unlock();
 }
 
 void mali_utilization_pp_end(void)
 {
-	_mali_osk_spinlock_irq_lock(time_data_lock);
+	mali_utilization_data_lock();
 
 	--num_running_pp_cores;
 	if (0 == num_running_pp_cores) {
@@ -421,7 +377,44 @@ void mali_utilization_pp_end(void)
 		}
 	}
 
-	_mali_osk_spinlock_irq_unlock(time_data_lock);
+	mali_utilization_data_unlock();
+}
+
+mali_bool mali_utilization_enabled(void)
+{
+#if defined(CONFIG_MALI_DVFS)
+	return mali_dvfs_policy_enabled();
+#else
+	return (NULL != mali_utilization_callback);
+#endif /* defined(CONFIG_MALI_DVFS) */
+}
+
+void mali_utilization_platform_realize(struct mali_gpu_utilization_data *util_data)
+{
+	MALI_DEBUG_ASSERT_POINTER(mali_utilization_callback);
+
+	mali_utilization_callback(util_data);
+}
+
+void mali_utilization_reset(void)
+{
+	accumulated_work_time_gpu = 0;
+	accumulated_work_time_gp = 0;
+	accumulated_work_time_pp = 0;
+
+	last_utilization_gpu = 0;
+	last_utilization_gp = 0;
+	last_utilization_pp = 0;
+}
+
+void mali_utilization_data_lock(void)
+{
+	_mali_osk_spinlock_irq_lock(utilization_data_lock);
+}
+
+void mali_utilization_data_unlock(void)
+{
+	_mali_osk_spinlock_irq_unlock(utilization_data_lock);
 }
 
 u32 _mali_ukk_utilization_gp_pp(void)

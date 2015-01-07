@@ -649,7 +649,7 @@
 		};
 	};
 
-	vpu: vpu_service@10108000 {
+	/*vpu: vpu_service@10108000 {
 		compatible = "vpu_service";
 		iommu_enabled = <1>;
 		reg = <0x10108000 0x800>;
@@ -670,6 +670,37 @@
 		clocks = <&aclk_vcodec_pre>, <&clk_gates3 12>, <&clk_hevc_core>;
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core";
 		name = "hevc_service";
+		status = "okay";
+	};*/
+	vpu: vpu_service {
+		compatible = "rockchip,vpu_sub";
+		iommu_enabled = <1>;
+		reg = <0x10108400 0x400>;
+		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_dec";
+		dev_mode = <0>;
+		name = "vpu_service";
+	};
+
+	hevc: hevc_service {
+		compatible = "rockchip,hevc_sub";
+		iommu_enabled = <1>;
+		reg = <0x1010c000 0x400>;
+		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_dec";
+		dev_mode = <1>;
+		name = "hevc_service";
+	};
+
+	vpu_combo: vpu_combo@ff9a0000 {
+		compatible = "rockchip,vpu_combo";
+		subcnt = <2>;
+		rockchip,sub = <&vpu>, <&hevc>;
+		clocks = <&aclk_vcodec_pre>, <&clk_gates3 12>, <&clk_hevc_core>;
+		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core";
+		mode_bit = <3>;
+		mode_ctrl = <0x144>;
+		name = "vpu_combo";
 		status = "okay";
 	};
 

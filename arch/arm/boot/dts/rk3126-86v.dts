@@ -53,17 +53,15 @@
                         |RKPM_CTR_PWR_DMNS
                         |RKPM_CTR_GTCLKS
                         |RKPM_CTR_PLLS
-                        //|RKPM_CTR_ARMOFF_LPMD
+                        |RKPM_CTR_ARMOFF_LPMD
                         |RKPM_CTR_IDLESRAM_MD
                         |RKPM_CTR_DDR
                         |RKPM_CTR_VOLTS
-    
+						|RKPM_CTR_BUS_IDLE
                         |RKPM_CTR_VOL_PWM1
                         )
                 >;
-                rockchip,pmic-suspend_gpios = <
-                       GPIO1_A0
-                        >;
+                rockchip,pmic-suspend_gpios = <0>;
         };
 	
     chosen {

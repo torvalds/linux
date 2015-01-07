@@ -1,11 +1,11 @@
 /*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2008-2014 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
+ * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 /**
@@ -349,10 +349,8 @@ u32 _mali_osk_atomic_inc_return(_mali_osk_atomic_t *atom);
  *
  * @param atom pointer to an atomic counter
  * @param val the value to initialize the atomic counter.
- * @return _MALI_OSK_ERR_OK on success, otherwise, a suitable
- * _mali_osk_errcode_t on failure.
  */
-_mali_osk_errcode_t _mali_osk_atomic_init(_mali_osk_atomic_t *atom, u32 val);
+void _mali_osk_atomic_init(_mali_osk_atomic_t *atom, u32 val);
 
 /** @brief Read a value from an atomic counter
  *
@@ -568,7 +566,7 @@ void _mali_osk_write_mem_barrier(void);
  * @return On success, a Mali IO address through which the mapped-in
  * memory/registers can be accessed. NULL on failure.
  */
-mali_io_address _mali_osk_mem_mapioregion(u32 phys, u32 size, const char *description);
+mali_io_address _mali_osk_mem_mapioregion(uintptr_t phys, u32 size, const char *description);
 
 /** @brief Unmap a physically contiguous address range from kernel space.
  *
@@ -590,7 +588,7 @@ mali_io_address _mali_osk_mem_mapioregion(u32 phys, u32 size, const char *descri
  * @param mapping The Mali IO address through which the mapping is
  * accessed.
  */
-void _mali_osk_mem_unmapioregion(u32 phys, u32 size, mali_io_address mapping);
+void _mali_osk_mem_unmapioregion(uintptr_t phys, u32 size, mali_io_address mapping);
 
 /** @brief Allocate and Map a physically contiguous region into kernel space
  *
@@ -659,7 +657,7 @@ void _mali_osk_mem_freeioregion(u32 phys, u32 size, mali_io_address mapping);
  * @return _MALI_OSK_ERR_OK on success. Otherwise, a suitable
  * _mali_osk_errcode_t on failure.
  */
-_mali_osk_errcode_t _mali_osk_mem_reqregion(u32 phys, u32 size, const char *description);
+_mali_osk_errcode_t _mali_osk_mem_reqregion(uintptr_t phys, u32 size, const char *description);
 
 /** @brief Un-request a region of physically contiguous memory
  *
@@ -679,7 +677,7 @@ _mali_osk_errcode_t _mali_osk_mem_reqregion(u32 phys, u32 size, const char *desc
  * @param size the number of bytes of physically contiguous address space to
  * un-request.
  */
-void _mali_osk_mem_unreqregion(u32 phys, u32 size);
+void _mali_osk_mem_unreqregion(uintptr_t phys, u32 size);
 
 /** @brief Read from a location currently mapped in through
  * _mali_osk_mem_mapioregion
@@ -971,7 +969,7 @@ _mali_osk_timer_t *_mali_osk_timer_init(void);
  * @param ticks_to_expire the amount of time in ticks for the timer to run
  * before triggering.
  */
-void _mali_osk_timer_add(_mali_osk_timer_t *tim, u32 ticks_to_expire);
+void _mali_osk_timer_add(_mali_osk_timer_t *tim, unsigned long ticks_to_expire);
 
 /** @brief Modify a timer
  *
@@ -990,7 +988,7 @@ void _mali_osk_timer_add(_mali_osk_timer_t *tim, u32 ticks_to_expire);
  * should trigger.
  *
  */
-void _mali_osk_timer_mod(_mali_osk_timer_t *tim, u32 ticks_to_expire);
+void _mali_osk_timer_mod(_mali_osk_timer_t *tim, unsigned long ticks_to_expire);
 
 /** @brief Stop a timer, and block on its completion.
  *
@@ -1083,38 +1081,35 @@ void _mali_osk_timer_term(_mali_osk_timer_t *tim);
  *
  * @{ */
 
-/** @brief Return whether ticka occurs after tickb
+/** @brief Return whether ticka occurs after or at the same time as  tickb
  *
- * Some OSs handle tick 'rollover' specially, and so can be more robust against
- * tick counters rolling-over. This function must therefore be called to
- * determine if a time (in ticks) really occurs after another time (in ticks).
+ * Systems where ticks can wrap must handle that.
  *
  * @param ticka ticka
  * @param tickb tickb
- * @return non-zero if ticka represents a time that occurs after tickb.
- * Zero otherwise.
+ * @return MALI_TRUE if ticka represents a time that occurs at or after tickb.
  */
-int     _mali_osk_time_after(u32 ticka, u32 tickb);
+mali_bool _mali_osk_time_after_eq(unsigned long ticka, unsigned long tickb);
 
 /** @brief Convert milliseconds to OS 'ticks'
  *
  * @param ms time interval in milliseconds
  * @return the corresponding time interval in OS ticks.
  */
-u32     _mali_osk_time_mstoticks(u32 ms);
+unsigned long _mali_osk_time_mstoticks(u32 ms);
 
 /** @brief Convert OS 'ticks' to milliseconds
  *
  * @param ticks time interval in OS ticks.
  * @return the corresponding time interval in milliseconds
  */
-u32     _mali_osk_time_tickstoms(u32 ticks);
+u32 _mali_osk_time_tickstoms(unsigned long ticks);
 
 
 /** @brief Get the current time in OS 'ticks'.
  * @return the current time in OS 'ticks'.
  */
-u32     _mali_osk_time_tickcount(void);
+unsigned long _mali_osk_time_tickcount(void);
 
 /** @brief Cause a microsecond delay
  *
@@ -1136,6 +1131,11 @@ void _mali_osk_time_ubusydelay(u32 usecs);
  */
 u64 _mali_osk_time_get_ns(void);
 
+/** @brief Return time in nano seconds, since boot time.
+ *
+ * @return Time in nano seconds
+ */
+u64 _mali_osk_boot_time_get_ns(void);
 
 /** @} */ /* end group _mali_osk_time */
 
@@ -1277,59 +1277,47 @@ void _mali_osk_break(void);
  */
 u32 _mali_osk_get_pid(void);
 
+/** @brief Return an name for calling process.
+ *
+ * @return name for calling process.
+ */
+char *_mali_osk_get_comm(void);
+
 /** @brief Return an identificator for calling thread.
  *
  * @return Identificator for calling thread.
  */
 u32 _mali_osk_get_tid(void);
 
-/** @brief Enable OS controlled runtime power management
- */
-void _mali_osk_pm_dev_enable(void);
 
-/** @brief Disable OS controlled runtime power management
- */
-void _mali_osk_pm_dev_disable(void);
-
-
-/** @brief Take a reference to the power manager system for the Mali device.
+/** @brief Take a reference to the power manager system for the Mali device (synchronously).
  *
  * When function returns successfully, Mali is ON.
  *
+ * @note Call \a _mali_osk_pm_dev_ref_put() to release this reference.
+ */
+_mali_osk_errcode_t _mali_osk_pm_dev_ref_get_sync(void);
+
+/** @brief Take a reference to the external power manager system for the Mali device (asynchronously).
+ *
+ * Mali might not yet be on after this function as returned.
+ * Please use \a _mali_osk_pm_dev_barrier() or \a _mali_osk_pm_dev_ref_get_sync()
+ * to wait for Mali to be powered on.
+ *
  * @note Call \a _mali_osk_pm_dev_ref_dec() to release this reference.
  */
-_mali_osk_errcode_t _mali_osk_pm_dev_ref_add(void);
+_mali_osk_errcode_t _mali_osk_pm_dev_ref_get_async(void);
 
-
-/** @brief Release the reference to the power manger system for the Mali device.
+/** @brief Release the reference to the external power manger system for the Mali device.
  *
  * When reference count reach zero, the cores can be off.
  *
- * @note This must be used to release references taken with \a _mali_osk_pm_dev_ref_add().
+ * @note This must be used to release references taken with
+ * \a _mali_osk_pm_dev_ref_get_sync() or \a _mali_osk_pm_dev_ref_get_sync().
  */
-void _mali_osk_pm_dev_ref_dec(void);
+void _mali_osk_pm_dev_ref_put(void);
 
-
-/** @brief Take a reference to the power manager system for the Mali device.
- *
- * Will leave the cores powered off if they are already powered off.
- *
- * @note Call \a _mali_osk_pm_dev_ref_dec() to release this reference.
- *
- * @return MALI_TRUE if the Mali GPU is powered on, otherwise MALI_FALSE.
- */
-mali_bool _mali_osk_pm_dev_ref_add_no_power_on(void);
-
-
-/** @brief Releasing the reference to the power manger system for the Mali device.
- *
- * When reference count reach zero, the cores can be off.
- *
- * @note This must be used to release references taken with \a _mali_osk_pm_dev_ref_add_no_power_on().
- */
-void _mali_osk_pm_dev_ref_dec_no_power_on(void);
-
-/** @brief Block untill pending PM operations are done
+/** @brief Block until pending PM operations are done
  */
 void _mali_osk_pm_dev_barrier(void);
 

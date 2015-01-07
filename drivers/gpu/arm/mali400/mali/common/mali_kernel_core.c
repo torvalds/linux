@@ -1,11 +1,11 @@
 /*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2007-2014 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
+ * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #include "mali_kernel_common.h"
@@ -22,8 +22,7 @@
 #include "mali_broadcast.h"
 #include "mali_gp.h"
 #include "mali_pp.h"
-#include "mali_gp_scheduler.h"
-#include "mali_pp_scheduler.h"
+#include "mali_executor.h"
 #include "mali_pp_job.h"
 #include "mali_group.h"
 #include "mali_pm.h"
@@ -31,7 +30,6 @@
 #include "mali_scheduler.h"
 #include "mali_kernel_utilization.h"
 #include "mali_l2_cache.h"
-#include "mali_dma.h"
 #include "mali_timeline.h"
 #include "mali_soft_job.h"
 #include "mali_pm_domain.h"
@@ -41,12 +39,17 @@
 #if defined(CONFIG_MALI400_INTERNAL_PROFILING)
 #include "mali_profiling_internal.h"
 #endif
+#include "mali_control_timer.h"
+#include "mali_dvfs_policy.h"
 
+#define MALI_SHARED_MEMORY_DEFAULT_SIZE 0xffffffff
 
 /* Mali GPU memory. Real values come from module parameter or from device specific data */
 unsigned int mali_dedicated_mem_start = 0;
 unsigned int mali_dedicated_mem_size = 0;
-unsigned long mali_shared_mem_size = 0;
+
+/* Default shared memory size is set to 4G. */
+unsigned int mali_shared_mem_size = MALI_SHARED_MEMORY_DEFAULT_SIZE;
 
 /* Frame buffer memory to be accessible by Mali GPU */
 int mali_fb_start = 0;
@@ -66,7 +69,7 @@ int mali_inited_pp_cores_group_1 = 0;
 int mali_inited_pp_cores_group_2 = 0;
 
 static _mali_product_id_t global_product_id = _MALI_PRODUCT_ID_UNKNOWN;
-static u32 global_gpu_base_address = 0;
+static uintptr_t global_gpu_base_address = 0;
 static u32 global_gpu_major_version = 0;
 static u32 global_gpu_minor_version = 0;
 
@@ -74,12 +77,14 @@ mali_bool mali_gpu_class_is_mali450 = MALI_FALSE;
 
 static _mali_osk_errcode_t mali_set_global_gpu_base_address(void)
 {
+	_mali_osk_errcode_t err = _MALI_OSK_ERR_OK;
+
 	global_gpu_base_address = _mali_osk_resource_base_address();
 	if (0 == global_gpu_base_address) {
-		return _MALI_OSK_ERR_ITEM_NOT_FOUND;
+		err = _MALI_OSK_ERR_ITEM_NOT_FOUND;
 	}
 
-	return _MALI_OSK_ERR_OK;
+	return err;
 }
 
 static u32 mali_get_bcast_id(_mali_osk_resource_t *resource_pp)
@@ -112,31 +117,19 @@ static u32 mali_get_bcast_id(_mali_osk_resource_t *resource_pp)
 
 static _mali_osk_errcode_t mali_parse_product_info(void)
 {
-	/*
-	 * Mali-200 has the PP core first, while Mali-300, Mali-400 and Mali-450 have the GP core first.
-	 * Look at the version register for the first PP core in order to determine the GPU HW revision.
-	 */
-
-	u32 first_pp_offset;
 	_mali_osk_resource_t first_pp_resource;
 
-	/* Find out where the first PP core is located */
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x8000, NULL)) {
-		/* Mali-300/400/450 */
-		first_pp_offset = 0x8000;
-	} else {
-		/* Mali-200 */
-		first_pp_offset = 0x0000;
-	}
-
 	/* Find the first PP core resource (again) */
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + first_pp_offset, &first_pp_resource)) {
+	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(MALI_OFFSET_PP0, &first_pp_resource)) {
 		/* Create a dummy PP object for this core so that we can read the version register */
-		struct mali_group *group = mali_group_create(NULL, NULL, NULL);
+		struct mali_group *group = mali_group_create(NULL, NULL, NULL, MALI_DOMAIN_INDEX_PP0);
 		if (NULL != group) {
 			struct mali_pp_core *pp_core = mali_pp_create(&first_pp_resource, group, MALI_FALSE, mali_get_bcast_id(&first_pp_resource));
 			if (NULL != pp_core) {
-				u32 pp_version = mali_pp_core_get_version(pp_core);
+				u32 pp_version;
+
+				pp_version = mali_pp_core_get_version(pp_core);
+
 				mali_group_delete(group);
 
 				global_gpu_major_version = (pp_version >> 8) & 0xFF;
@@ -180,48 +173,6 @@ static _mali_osk_errcode_t mali_parse_product_info(void)
 	return _MALI_OSK_ERR_FAULT;
 }
 
-
-static void mali_resource_count(u32 *pp_count, u32 *l2_count)
-{
-	*pp_count = 0;
-	*l2_count = 0;
-
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x08000, NULL)) {
-		++(*pp_count);
-	}
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x0A000, NULL)) {
-		++(*pp_count);
-	}
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x0C000, NULL)) {
-		++(*pp_count);
-	}
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x0E000, NULL)) {
-		++(*pp_count);
-	}
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x28000, NULL)) {
-		++(*pp_count);
-	}
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x2A000, NULL)) {
-		++(*pp_count);
-	}
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x2C000, NULL)) {
-		++(*pp_count);
-	}
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x2E000, NULL)) {
-		++(*pp_count);
-	}
-
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x1000, NULL)) {
-		++(*l2_count);
-	}
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x10000, NULL)) {
-		++(*l2_count);
-	}
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x11000, NULL)) {
-		++(*l2_count);
-	}
-}
-
 static void mali_delete_groups(void)
 {
 	struct mali_group *group;
@@ -248,7 +199,7 @@ static void mali_delete_l2_cache_cores(void)
 	MALI_DEBUG_ASSERT(0 == mali_l2_cache_core_get_glob_num_l2_cores());
 }
 
-static struct mali_l2_cache_core *mali_create_l2_cache_core(_mali_osk_resource_t *resource)
+static struct mali_l2_cache_core *mali_create_l2_cache_core(_mali_osk_resource_t *resource, u32 domain_index)
 {
 	struct mali_l2_cache_core *l2_cache = NULL;
 
@@ -256,7 +207,7 @@ static struct mali_l2_cache_core *mali_create_l2_cache_core(_mali_osk_resource_t
 
 		MALI_DEBUG_PRINT(3, ("Found L2 cache %s\n", resource->description));
 
-		l2_cache = mali_l2_cache_create(resource);
+		l2_cache = mali_l2_cache_create(resource, domain_index);
 		if (NULL == l2_cache) {
 			MALI_PRINT_ERROR(("Failed to create L2 cache object\n"));
 			return NULL;
@@ -273,16 +224,15 @@ static _mali_osk_errcode_t mali_parse_config_l2_cache(void)
 
 	if (mali_is_mali400()) {
 		_mali_osk_resource_t l2_resource;
-		if (_MALI_OSK_ERR_OK != _mali_osk_resource_find(global_gpu_base_address + 0x1000, &l2_resource)) {
+		if (_MALI_OSK_ERR_OK != _mali_osk_resource_find(MALI400_OFFSET_L2_CACHE0, &l2_resource)) {
 			MALI_DEBUG_PRINT(3, ("Did not find required Mali L2 cache in config file\n"));
 			return _MALI_OSK_ERR_FAULT;
 		}
 
-		l2_cache = mali_create_l2_cache_core(&l2_resource);
+		l2_cache = mali_create_l2_cache_core(&l2_resource, MALI_DOMAIN_INDEX_L20);
 		if (NULL == l2_cache) {
 			return _MALI_OSK_ERR_FAULT;
 		}
-		mali_pm_domain_add_l2(mali_pmu_get_domain_mask(MALI_L20_DOMAIN_INDEX), l2_cache);
 	} else if (mali_is_mali450()) {
 		/*
 		 * L2 for GP    at 0x10000
@@ -295,39 +245,36 @@ static _mali_osk_errcode_t mali_parse_config_l2_cache(void)
 		_mali_osk_resource_t l2_pp_grp1_resource;
 
 		/* Make cluster for GP's L2 */
-		if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x10000, &l2_gp_resource)) {
+		if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(MALI450_OFFSET_L2_CACHE0, &l2_gp_resource)) {
 			MALI_DEBUG_PRINT(3, ("Creating Mali-450 L2 cache core for GP\n"));
-			l2_cache = mali_create_l2_cache_core(&l2_gp_resource);
+			l2_cache = mali_create_l2_cache_core(&l2_gp_resource, MALI_DOMAIN_INDEX_L20);
 			if (NULL == l2_cache) {
 				return _MALI_OSK_ERR_FAULT;
 			}
-			mali_pm_domain_add_l2(mali_pmu_get_domain_mask(MALI_L20_DOMAIN_INDEX), l2_cache);
 		} else {
 			MALI_DEBUG_PRINT(3, ("Did not find required Mali L2 cache for GP in config file\n"));
 			return _MALI_OSK_ERR_FAULT;
 		}
 
 		/* Find corresponding l2 domain */
-		if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x1000, &l2_pp_grp0_resource)) {
+		if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(MALI450_OFFSET_L2_CACHE1, &l2_pp_grp0_resource)) {
 			MALI_DEBUG_PRINT(3, ("Creating Mali-450 L2 cache core for PP group 0\n"));
-			l2_cache = mali_create_l2_cache_core(&l2_pp_grp0_resource);
+			l2_cache = mali_create_l2_cache_core(&l2_pp_grp0_resource, MALI_DOMAIN_INDEX_L21);
 			if (NULL == l2_cache) {
 				return _MALI_OSK_ERR_FAULT;
 			}
-			mali_pm_domain_add_l2(mali_pmu_get_domain_mask(MALI_L21_DOMAIN_INDEX), l2_cache);
 		} else {
 			MALI_DEBUG_PRINT(3, ("Did not find required Mali L2 cache for PP group 0 in config file\n"));
 			return _MALI_OSK_ERR_FAULT;
 		}
 
 		/* Second PP core group is optional, don't fail if we don't find it */
-		if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x11000, &l2_pp_grp1_resource)) {
+		if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(MALI450_OFFSET_L2_CACHE2, &l2_pp_grp1_resource)) {
 			MALI_DEBUG_PRINT(3, ("Creating Mali-450 L2 cache core for PP group 1\n"));
-			l2_cache = mali_create_l2_cache_core(&l2_pp_grp1_resource);
+			l2_cache = mali_create_l2_cache_core(&l2_pp_grp1_resource, MALI_DOMAIN_INDEX_L22);
 			if (NULL == l2_cache) {
 				return _MALI_OSK_ERR_FAULT;
 			}
-			mali_pm_domain_add_l2(mali_pmu_get_domain_mask(MALI_L22_DOMAIN_INDEX), l2_cache);
 		}
 	}
 
@@ -337,7 +284,8 @@ static _mali_osk_errcode_t mali_parse_config_l2_cache(void)
 static struct mali_group *mali_create_group(struct mali_l2_cache_core *cache,
 		_mali_osk_resource_t *resource_mmu,
 		_mali_osk_resource_t *resource_gp,
-		_mali_osk_resource_t *resource_pp)
+		_mali_osk_resource_t *resource_pp,
+		u32 domain_index)
 {
 	struct mali_mmu_core *mmu;
 	struct mali_group *group;
@@ -345,7 +293,7 @@ static struct mali_group *mali_create_group(struct mali_l2_cache_core *cache,
 	MALI_DEBUG_PRINT(3, ("Starting new group for MMU %s\n", resource_mmu->description));
 
 	/* Create the group object */
-	group = mali_group_create(cache, NULL, NULL);
+	group = mali_group_create(cache, NULL, NULL, domain_index);
 	if (NULL == group) {
 		MALI_PRINT_ERROR(("Failed to create group object for MMU %s\n", resource_mmu->description));
 		return NULL;
@@ -382,11 +330,6 @@ static struct mali_group *mali_create_group(struct mali_l2_cache_core *cache,
 			return NULL;
 		}
 	}
-
-	/* Reset group */
-	mali_group_lock(group);
-	mali_group_reset(group);
-	mali_group_unlock(group);
 
 	return group;
 }
@@ -447,7 +390,7 @@ static _mali_osk_errcode_t mali_create_virtual_group(_mali_osk_resource_t *resou
 		mali_bcast_remove_group(bcast_core, phys_group);
 	}
 #endif /* DEBUG */
-	group = mali_group_create(NULL, dlbu_core, bcast_core);
+	group = mali_group_create(NULL, dlbu_core, bcast_core, MALI_DOMAIN_INDEX_DUMMY);
 	if (NULL == group) {
 		MALI_PRINT_ERROR(("Failed to create group object for MMU PP broadcast core %s\n", resource_mmu_pp_bcast->description));
 		mali_bcast_unit_delete(bcast_core);
@@ -523,31 +466,31 @@ static _mali_osk_errcode_t mali_parse_config_groups(void)
 		cluster_id_pp_grp1 = 2;
 	}
 
-	resource_gp_found = _mali_osk_resource_find(global_gpu_base_address + 0x00000, &resource_gp);
-	resource_gp_mmu_found = _mali_osk_resource_find(global_gpu_base_address + 0x03000, &resource_gp_mmu);
-	resource_pp_found[0] = _mali_osk_resource_find(global_gpu_base_address + 0x08000, &(resource_pp[0]));
-	resource_pp_found[1] = _mali_osk_resource_find(global_gpu_base_address + 0x0A000, &(resource_pp[1]));
-	resource_pp_found[2] = _mali_osk_resource_find(global_gpu_base_address + 0x0C000, &(resource_pp[2]));
-	resource_pp_found[3] = _mali_osk_resource_find(global_gpu_base_address + 0x0E000, &(resource_pp[3]));
-	resource_pp_found[4] = _mali_osk_resource_find(global_gpu_base_address + 0x28000, &(resource_pp[4]));
-	resource_pp_found[5] = _mali_osk_resource_find(global_gpu_base_address + 0x2A000, &(resource_pp[5]));
-	resource_pp_found[6] = _mali_osk_resource_find(global_gpu_base_address + 0x2C000, &(resource_pp[6]));
-	resource_pp_found[7] = _mali_osk_resource_find(global_gpu_base_address + 0x2E000, &(resource_pp[7]));
-	resource_pp_mmu_found[0] = _mali_osk_resource_find(global_gpu_base_address + 0x04000, &(resource_pp_mmu[0]));
-	resource_pp_mmu_found[1] = _mali_osk_resource_find(global_gpu_base_address + 0x05000, &(resource_pp_mmu[1]));
-	resource_pp_mmu_found[2] = _mali_osk_resource_find(global_gpu_base_address + 0x06000, &(resource_pp_mmu[2]));
-	resource_pp_mmu_found[3] = _mali_osk_resource_find(global_gpu_base_address + 0x07000, &(resource_pp_mmu[3]));
-	resource_pp_mmu_found[4] = _mali_osk_resource_find(global_gpu_base_address + 0x1C000, &(resource_pp_mmu[4]));
-	resource_pp_mmu_found[5] = _mali_osk_resource_find(global_gpu_base_address + 0x1D000, &(resource_pp_mmu[5]));
-	resource_pp_mmu_found[6] = _mali_osk_resource_find(global_gpu_base_address + 0x1E000, &(resource_pp_mmu[6]));
-	resource_pp_mmu_found[7] = _mali_osk_resource_find(global_gpu_base_address + 0x1F000, &(resource_pp_mmu[7]));
+	resource_gp_found = _mali_osk_resource_find(MALI_OFFSET_GP, &resource_gp);
+	resource_gp_mmu_found = _mali_osk_resource_find(MALI_OFFSET_GP_MMU, &resource_gp_mmu);
+	resource_pp_found[0] = _mali_osk_resource_find(MALI_OFFSET_PP0, &(resource_pp[0]));
+	resource_pp_found[1] = _mali_osk_resource_find(MALI_OFFSET_PP1, &(resource_pp[1]));
+	resource_pp_found[2] = _mali_osk_resource_find(MALI_OFFSET_PP2, &(resource_pp[2]));
+	resource_pp_found[3] = _mali_osk_resource_find(MALI_OFFSET_PP3, &(resource_pp[3]));
+	resource_pp_found[4] = _mali_osk_resource_find(MALI_OFFSET_PP4, &(resource_pp[4]));
+	resource_pp_found[5] = _mali_osk_resource_find(MALI_OFFSET_PP5, &(resource_pp[5]));
+	resource_pp_found[6] = _mali_osk_resource_find(MALI_OFFSET_PP6, &(resource_pp[6]));
+	resource_pp_found[7] = _mali_osk_resource_find(MALI_OFFSET_PP7, &(resource_pp[7]));
+	resource_pp_mmu_found[0] = _mali_osk_resource_find(MALI_OFFSET_PP0_MMU, &(resource_pp_mmu[0]));
+	resource_pp_mmu_found[1] = _mali_osk_resource_find(MALI_OFFSET_PP1_MMU, &(resource_pp_mmu[1]));
+	resource_pp_mmu_found[2] = _mali_osk_resource_find(MALI_OFFSET_PP2_MMU, &(resource_pp_mmu[2]));
+	resource_pp_mmu_found[3] = _mali_osk_resource_find(MALI_OFFSET_PP3_MMU, &(resource_pp_mmu[3]));
+	resource_pp_mmu_found[4] = _mali_osk_resource_find(MALI_OFFSET_PP4_MMU, &(resource_pp_mmu[4]));
+	resource_pp_mmu_found[5] = _mali_osk_resource_find(MALI_OFFSET_PP5_MMU, &(resource_pp_mmu[5]));
+	resource_pp_mmu_found[6] = _mali_osk_resource_find(MALI_OFFSET_PP6_MMU, &(resource_pp_mmu[6]));
+	resource_pp_mmu_found[7] = _mali_osk_resource_find(MALI_OFFSET_PP7_MMU, &(resource_pp_mmu[7]));
 
 
 	if (mali_is_mali450()) {
-		resource_bcast_found = _mali_osk_resource_find(global_gpu_base_address + 0x13000, &resource_bcast);
-		resource_dlbu_found = _mali_osk_resource_find(global_gpu_base_address + 0x14000, &resource_dlbu);
-		resource_pp_mmu_bcast_found = _mali_osk_resource_find(global_gpu_base_address + 0x15000, &resource_pp_mmu_bcast);
-		resource_pp_bcast_found = _mali_osk_resource_find(global_gpu_base_address + 0x16000, &resource_pp_bcast);
+		resource_bcast_found = _mali_osk_resource_find(MALI_OFFSET_BCAST, &resource_bcast);
+		resource_dlbu_found = _mali_osk_resource_find(MALI_OFFSET_DLBU, &resource_dlbu);
+		resource_pp_mmu_bcast_found = _mali_osk_resource_find(MALI_OFFSET_PP_BCAST_MMU, &resource_pp_mmu_bcast);
+		resource_pp_bcast_found = _mali_osk_resource_find(MALI_OFFSET_PP_BCAST, &resource_pp_bcast);
 
 		if (_MALI_OSK_ERR_OK != resource_bcast_found ||
 		    _MALI_OSK_ERR_OK != resource_dlbu_found ||
@@ -569,23 +512,17 @@ static _mali_osk_errcode_t mali_parse_config_groups(void)
 	}
 
 	MALI_DEBUG_ASSERT(1 <= mali_l2_cache_core_get_glob_num_l2_cores());
-	group = mali_create_group(mali_l2_cache_core_get_glob_l2_core(cluster_id_gp), &resource_gp_mmu, &resource_gp, NULL);
+	group = mali_create_group(mali_l2_cache_core_get_glob_l2_core(cluster_id_gp), &resource_gp_mmu, &resource_gp, NULL, MALI_DOMAIN_INDEX_GP);
 	if (NULL == group) {
 		return _MALI_OSK_ERR_FAULT;
 	}
-
-	/* Add GP in group, for PMU ref count */
-	mali_pm_domain_add_group(mali_pmu_get_domain_mask(MALI_GP_DOMAIN_INDEX), group);
 
 	/* Create group for first (and mandatory) PP core */
 	MALI_DEBUG_ASSERT(mali_l2_cache_core_get_glob_num_l2_cores() >= (cluster_id_pp_grp0 + 1)); /* >= 1 on Mali-300 and Mali-400, >= 2 on Mali-450 */
-	group = mali_create_group(mali_l2_cache_core_get_glob_l2_core(cluster_id_pp_grp0), &resource_pp_mmu[0], NULL, &resource_pp[0]);
+	group = mali_create_group(mali_l2_cache_core_get_glob_l2_core(cluster_id_pp_grp0), &resource_pp_mmu[0], NULL, &resource_pp[0], MALI_DOMAIN_INDEX_PP0);
 	if (NULL == group) {
 		return _MALI_OSK_ERR_FAULT;
 	}
-
-	/* Find corresponding pp domain */
-	mali_pm_domain_add_group(mali_pmu_get_domain_mask(MALI_PP0_DOMAIN_INDEX), group);
 
 	mali_inited_pp_cores_group_1++;
 
@@ -593,12 +530,10 @@ static _mali_osk_errcode_t mali_parse_config_groups(void)
 	for (i = 1; i < 4; i++) { /* First half of the PP cores belong to first core group */
 		if (mali_inited_pp_cores_group_1 < mali_max_pp_cores_group_1) {
 			if (_MALI_OSK_ERR_OK == resource_pp_found[i] && _MALI_OSK_ERR_OK == resource_pp_mmu_found[i]) {
-				group = mali_create_group(mali_l2_cache_core_get_glob_l2_core(cluster_id_pp_grp0), &resource_pp_mmu[i], NULL, &resource_pp[i]);
+				group = mali_create_group(mali_l2_cache_core_get_glob_l2_core(cluster_id_pp_grp0), &resource_pp_mmu[i], NULL, &resource_pp[i], MALI_DOMAIN_INDEX_PP0 + i);
 				if (NULL == group) {
 					return _MALI_OSK_ERR_FAULT;
 				}
-
-				mali_pm_domain_add_group(mali_pmu_get_domain_mask(i + MALI_PP0_DOMAIN_INDEX), group);
 
 				mali_inited_pp_cores_group_1++;
 			}
@@ -610,11 +545,11 @@ static _mali_osk_errcode_t mali_parse_config_groups(void)
 		if (mali_inited_pp_cores_group_2 < mali_max_pp_cores_group_2) {
 			if (_MALI_OSK_ERR_OK == resource_pp_found[i] && _MALI_OSK_ERR_OK == resource_pp_mmu_found[i]) {
 				MALI_DEBUG_ASSERT(mali_l2_cache_core_get_glob_num_l2_cores() >= 2); /* Only Mali-450 have a second core group */
-				group = mali_create_group(mali_l2_cache_core_get_glob_l2_core(cluster_id_pp_grp1), &resource_pp_mmu[i], NULL, &resource_pp[i]);
+				group = mali_create_group(mali_l2_cache_core_get_glob_l2_core(cluster_id_pp_grp1), &resource_pp_mmu[i], NULL, &resource_pp[i], MALI_DOMAIN_INDEX_PP0 + i);
 				if (NULL == group) {
 					return _MALI_OSK_ERR_FAULT;
 				}
-				mali_pm_domain_add_group(mali_pmu_get_domain_mask(i + MALI_PP0_DOMAIN_INDEX), group);
+
 				mali_inited_pp_cores_group_2++;
 			}
 		}
@@ -647,156 +582,14 @@ static _mali_osk_errcode_t mali_check_shared_interrupts(void)
 	return _MALI_OSK_ERR_OK;
 }
 
-static _mali_osk_errcode_t mali_create_pm_domains(void)
-{
-	int i;
-
-	for (i = 0; i < MALI_MAX_NUMBER_OF_DOMAINS; i++) {
-		if (0x0 == mali_pmu_get_domain_mask(i)) continue;
-
-		if (NULL == mali_pm_domain_create(mali_pmu_get_domain_mask(i))) {
-			return _MALI_OSK_ERR_NOMEM;
-		}
-	}
-
-	return _MALI_OSK_ERR_OK;
-}
-
-static void mali_use_default_pm_domain_config(void)
-{
-	u32 pp_count_gr1 = 0;
-	u32 pp_count_gr2 = 0;
-	u32 l2_count = 0;
-
-	MALI_DEBUG_ASSERT(0 != global_gpu_base_address);
-
-	/* GP core */
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x00000, NULL)) {
-		mali_pmu_set_domain_mask(MALI_GP_DOMAIN_INDEX, 0x01);
-	}
-
-	/* PP0 - PP3 core */
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x08000, NULL)) {
-		++pp_count_gr1;
-
-		if (mali_is_mali400()) {
-			mali_pmu_set_domain_mask(MALI_PP0_DOMAIN_INDEX, 0x01 << 2);
-		} else if (mali_is_mali450()) {
-			mali_pmu_set_domain_mask(MALI_PP0_DOMAIN_INDEX, 0x01 << 1);
-		}
-	}
-
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x0A000, NULL)) {
-		++pp_count_gr1;
-
-		if (mali_is_mali400()) {
-			mali_pmu_set_domain_mask(MALI_PP1_DOMAIN_INDEX, 0x01 << 3);
-		} else if (mali_is_mali450()) {
-			mali_pmu_set_domain_mask(MALI_PP1_DOMAIN_INDEX, 0x01 << 2);
-		}
-	}
-
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x0C000, NULL)) {
-		++pp_count_gr1;
-
-		if (mali_is_mali400()) {
-			mali_pmu_set_domain_mask(MALI_PP2_DOMAIN_INDEX, 0x01 << 4);
-		} else if (mali_is_mali450()) {
-			mali_pmu_set_domain_mask(MALI_PP2_DOMAIN_INDEX, 0x01 << 2);
-		}
-	}
-
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x0E000, NULL)) {
-		++pp_count_gr1;
-
-		if (mali_is_mali400()) {
-			mali_pmu_set_domain_mask(MALI_PP3_DOMAIN_INDEX, 0x01 << 5);
-		} else if (mali_is_mali450()) {
-			mali_pmu_set_domain_mask(MALI_PP3_DOMAIN_INDEX, 0x01 << 2);
-		}
-	}
-
-	/* PP4 - PP7 */
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x28000, NULL)) {
-		++pp_count_gr2;
-
-		mali_pmu_set_domain_mask(MALI_PP4_DOMAIN_INDEX, 0x01 << 3);
-	}
-
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x2A000, NULL)) {
-		++pp_count_gr2;
-
-		mali_pmu_set_domain_mask(MALI_PP5_DOMAIN_INDEX, 0x01 << 3);
-	}
-
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x2C000, NULL)) {
-		++pp_count_gr2;
-
-		mali_pmu_set_domain_mask(MALI_PP6_DOMAIN_INDEX, 0x01 << 3);
-	}
-
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x2E000, NULL)) {
-		++pp_count_gr2;
-
-		mali_pmu_set_domain_mask(MALI_PP7_DOMAIN_INDEX, 0x01 << 3);
-	}
-
-	/* L2gp/L2PP0/L2PP4 */
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x10000, NULL)) {
-		++l2_count;
-
-		if (mali_is_mali400()) {
-			mali_pmu_set_domain_mask(MALI_L20_DOMAIN_INDEX, 0x01 << 1);
-		} else if (mali_is_mali450()) {
-			mali_pmu_set_domain_mask(MALI_L20_DOMAIN_INDEX, 0x01 << 0);
-		}
-	}
-
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x1000, NULL)) {
-		++l2_count;
-
-		mali_pmu_set_domain_mask(MALI_L21_DOMAIN_INDEX, 0x01 << 1);
-	}
-
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x11000, NULL)) {
-		++l2_count;
-
-		mali_pmu_set_domain_mask(MALI_L22_DOMAIN_INDEX, 0x01 << 3);
-	}
-
-	MALI_DEBUG_PRINT(2, ("Using default PMU domain config: (%d) gr1_pp_cores, (%d) gr2_pp_cores, (%d) l2_count. \n", pp_count_gr1, pp_count_gr2, l2_count));
-}
-
-static void mali_set_pmu_global_domain_config(void)
-{
-	_mali_osk_device_data data = { 0, };
-	int i = 0;
-
-	if (_MALI_OSK_ERR_OK == _mali_osk_device_data_get(&data)) {
-		/* Check whether has customized pmu domain configure */
-		for (i = 0; i < MALI_MAX_NUMBER_OF_DOMAINS; i++) {
-			if (0 != data.pmu_domain_config[i]) break;
-		}
-
-		if (MALI_MAX_NUMBER_OF_DOMAINS == i) {
-			mali_use_default_pm_domain_config();
-		} else {
-			/* Copy the customer config to global config */
-			mali_pmu_copy_domain_mask(data.pmu_domain_config, sizeof(data.pmu_domain_config));
-		}
-	}
-}
-
 static _mali_osk_errcode_t mali_parse_config_pmu(void)
 {
 	_mali_osk_resource_t resource_pmu;
 
 	MALI_DEBUG_ASSERT(0 != global_gpu_base_address);
 
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x02000, &resource_pmu)) {
+	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(MALI_OFFSET_PMU, &resource_pmu)) {
 		struct mali_pmu_core *pmu;
-
-		mali_set_pmu_global_domain_config();
 
 		pmu = mali_pmu_create(&resource_pmu);
 		if (NULL == pmu) {
@@ -809,48 +602,35 @@ static _mali_osk_errcode_t mali_parse_config_pmu(void)
 	return _MALI_OSK_ERR_OK;
 }
 
-static _mali_osk_errcode_t mali_parse_config_dma(void)
-{
-	_mali_osk_resource_t resource_dma;
-
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x12000, &resource_dma)) {
-		if (NULL == mali_dma_create(&resource_dma)) {
-			return _MALI_OSK_ERR_FAULT;
-		}
-		return _MALI_OSK_ERR_OK;
-	} else {
-		return _MALI_OSK_ERR_ITEM_NOT_FOUND;
-	}
-}
-
 static _mali_osk_errcode_t mali_parse_config_memory(void)
 {
+	_mali_osk_device_data data = { 0, };
 	_mali_osk_errcode_t ret;
 
-	if (0 == mali_dedicated_mem_start && 0 == mali_dedicated_mem_size && 0 == mali_shared_mem_size) {
+	/* The priority of setting the value of mali_shared_mem_size,
+	 * mali_dedicated_mem_start and mali_dedicated_mem_size:
+	 * 1. module parameter;
+	 * 2. platform data;
+	 * 3. default value;
+	 **/
+	if (_MALI_OSK_ERR_OK == _mali_osk_device_data_get(&data)) {
 		/* Memory settings are not overridden by module parameters, so use device settings */
-		_mali_osk_device_data data = { 0, };
-
-		if (_MALI_OSK_ERR_OK == _mali_osk_device_data_get(&data)) {
+		if (0 == mali_dedicated_mem_start && 0 == mali_dedicated_mem_size) {
 			/* Use device specific settings (if defined) */
 			mali_dedicated_mem_start = data.dedicated_mem_start;
 			mali_dedicated_mem_size = data.dedicated_mem_size;
+		}
+
+		if (MALI_SHARED_MEMORY_DEFAULT_SIZE == mali_shared_mem_size &&
+				0 != data.shared_mem_size) {
 			mali_shared_mem_size = data.shared_mem_size;
 		}
-
-		if (0 == mali_dedicated_mem_start && 0 == mali_dedicated_mem_size && 0 == mali_shared_mem_size) {
-			/* No GPU memory specified */
-			return _MALI_OSK_ERR_INVALID_ARGS;
-		}
-
-		MALI_DEBUG_PRINT(2, ("Using device defined memory settings (dedicated: 0x%08X@0x%08X, shared: 0x%08X)\n",
-				     mali_dedicated_mem_size, mali_dedicated_mem_start, mali_shared_mem_size));
-	} else {
-		MALI_DEBUG_PRINT(2, ("Using module defined memory settings (dedicated: 0x%08X@0x%08X, shared: 0x%08X)\n",
-				     mali_dedicated_mem_size, mali_dedicated_mem_start, mali_shared_mem_size));
 	}
 
 	if (0 < mali_dedicated_mem_size && 0 != mali_dedicated_mem_start) {
+		MALI_DEBUG_PRINT(2, ("Mali memory settings (dedicated: 0x%08X@0x%08X)\n",
+				     mali_dedicated_mem_size, mali_dedicated_mem_start));
+
 		/* Dedicated memory */
 		ret = mali_memory_core_resource_dedicated_memory(mali_dedicated_mem_start, mali_dedicated_mem_size);
 		if (_MALI_OSK_ERR_OK != ret) {
@@ -861,6 +641,8 @@ static _mali_osk_errcode_t mali_parse_config_memory(void)
 	}
 
 	if (0 < mali_shared_mem_size) {
+		MALI_DEBUG_PRINT(2, ("Mali memory settings (shared: 0x%08X)\n", mali_shared_mem_size));
+
 		/* Shared OS memory */
 		ret = mali_memory_core_resource_os_memory(mali_shared_mem_size);
 		if (_MALI_OSK_ERR_OK != ret) {
@@ -902,11 +684,7 @@ static _mali_osk_errcode_t mali_parse_config_memory(void)
 
 static void mali_detect_gpu_class(void)
 {
-	u32 number_of_pp_cores = 0;
-	u32 number_of_l2_caches = 0;
-
-	mali_resource_count(&number_of_pp_cores, &number_of_l2_caches);
-	if (number_of_l2_caches > 1) {
+	if (_mali_osk_l2_resource_count() > 1) {
 		mali_gpu_class_is_mali450 = MALI_TRUE;
 	}
 }
@@ -919,7 +697,7 @@ static _mali_osk_errcode_t mali_init_hw_reset(void)
 	/* Ensure broadcast unit is in a good state before we start creating
 	 * groups and cores.
 	 */
-	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(global_gpu_base_address + 0x13000, &resource_bcast)) {
+	if (_MALI_OSK_ERR_OK == _mali_osk_resource_find(MALI_OFFSET_BCAST, &resource_bcast)) {
 		struct mali_bcast_unit *bcast_core;
 
 		bcast_core = mali_bcast_unit_create(&resource_bcast);
@@ -937,12 +715,24 @@ static _mali_osk_errcode_t mali_init_hw_reset(void)
 _mali_osk_errcode_t mali_initialize_subsystems(void)
 {
 	_mali_osk_errcode_t err;
-	struct mali_pmu_core *pmu;
+
+#ifdef CONFIG_MALI_DT
+	err = _mali_osk_resource_initialize();
+	if (_MALI_OSK_ERR_OK != err) {
+		mali_terminate_subsystems();
+		return err;
+	}
+#endif
 
 	mali_pp_job_initialize();
 
+	mali_timeline_initialize();
+
 	err = mali_session_initialize();
-	if (_MALI_OSK_ERR_OK != err) goto session_init_failed;
+	if (_MALI_OSK_ERR_OK != err) {
+		mali_terminate_subsystems();
+		return err;
+	}
 
 #if defined(CONFIG_MALI400_PROFILING)
 	err = _mali_osk_profiling_init(mali_boot_profiling ? MALI_TRUE : MALI_FALSE);
@@ -953,200 +743,187 @@ _mali_osk_errcode_t mali_initialize_subsystems(void)
 #endif
 
 	err = mali_memory_initialize();
-	if (_MALI_OSK_ERR_OK != err) goto memory_init_failed;
+	if (_MALI_OSK_ERR_OK != err) {
+		mali_terminate_subsystems();
+		return err;
+	}
 
-	/* Configure memory early. Memory allocation needed for mali_mmu_initialize. */
+	err = mali_executor_initialize();
+	if (_MALI_OSK_ERR_OK != err) {
+		mali_terminate_subsystems();
+		return err;
+	}
+
+	err = mali_scheduler_initialize();
+	if (_MALI_OSK_ERR_OK != err) {
+		mali_terminate_subsystems();
+		return err;
+	}
+
+	/* Configure memory early, needed by mali_mmu_initialize. */
 	err = mali_parse_config_memory();
-	if (_MALI_OSK_ERR_OK != err) goto parse_memory_config_failed;
+	if (_MALI_OSK_ERR_OK != err) {
+		mali_terminate_subsystems();
+		return err;
+	}
 
 	err = mali_set_global_gpu_base_address();
-	if (_MALI_OSK_ERR_OK != err) goto set_global_gpu_base_address_failed;
+	if (_MALI_OSK_ERR_OK != err) {
+		mali_terminate_subsystems();
+		return err;
+	}
 
-	/* Detect gpu class according to l2 cache number */
+	/* Detect GPU class (uses L2 cache count) */
 	mali_detect_gpu_class();
 
 	err = mali_check_shared_interrupts();
-	if (_MALI_OSK_ERR_OK != err) goto check_shared_interrupts_failed;
+	if (_MALI_OSK_ERR_OK != err) {
+		mali_terminate_subsystems();
+		return err;
+	}
 
-	err = mali_pp_scheduler_initialize();
-	if (_MALI_OSK_ERR_OK != err) goto pp_scheduler_init_failed;
+	/* Initialize the MALI PMU (will not touch HW!) */
+	err = mali_parse_config_pmu();
+	if (_MALI_OSK_ERR_OK != err) {
+		mali_terminate_subsystems();
+		return err;
+	}
 
 	/* Initialize the power management module */
 	err = mali_pm_initialize();
-	if (_MALI_OSK_ERR_OK != err) goto pm_init_failed;
-
-	/* Initialize the MALI PMU */
-	err = mali_parse_config_pmu();
-	if (_MALI_OSK_ERR_OK != err) goto parse_pmu_config_failed;
-
-	/* Make sure the power stays on for the rest of this function */
-	err = _mali_osk_pm_dev_ref_add();
-	if (_MALI_OSK_ERR_OK != err) goto pm_always_on_failed;
-
-	/*
-	 * If run-time PM is used, then the mali_pm module has now already been
-	 * notified that the power now is on (through the resume callback functions).
-	 * However, if run-time PM is not used, then there will probably not be any
-	 * calls to the resume callback functions, so we need to explicitly tell it
-	 * that the power is on.
-	 */
-	mali_pm_set_power_is_on();
-
-	/* Reset PMU HW and ensure all Mali power domains are on */
-	pmu = mali_pmu_get_global_pmu_core();
-	if (NULL != pmu) {
-		err = mali_pmu_reset(pmu);
-		if (_MALI_OSK_ERR_OK != err) goto pmu_reset_failed;
+	if (_MALI_OSK_ERR_OK != err) {
+		mali_terminate_subsystems();
+		return err;
 	}
+
+	/* Make sure the entire GPU stays on for the rest of this function */
+	mali_pm_init_begin();
 
 	/* Ensure HW is in a good state before starting to access cores. */
 	err = mali_init_hw_reset();
-	if (_MALI_OSK_ERR_OK != err) goto init_hw_reset_failed;
+	if (_MALI_OSK_ERR_OK != err) {
+		mali_terminate_subsystems();
+		return err;
+	}
 
 	/* Detect which Mali GPU we are dealing with */
 	err = mali_parse_product_info();
-	if (_MALI_OSK_ERR_OK != err) goto product_info_parsing_failed;
+	if (_MALI_OSK_ERR_OK != err) {
+		mali_pm_init_end();
+		mali_terminate_subsystems();
+		return err;
+	}
 
 	/* The global_product_id is now populated with the correct Mali GPU */
 
-	/* Create PM domains only if PMU exists */
-	if (NULL != pmu) {
-		err = mali_create_pm_domains();
-		if (_MALI_OSK_ERR_OK != err) goto pm_domain_failed;
-	}
+	/* Start configuring the actual Mali hardware. */
 
-	/* Initialize MMU module */
 	err = mali_mmu_initialize();
-	if (_MALI_OSK_ERR_OK != err) goto mmu_init_failed;
+	if (_MALI_OSK_ERR_OK != err) {
+		mali_pm_init_end();
+		mali_terminate_subsystems();
+		return err;
+	}
 
 	if (mali_is_mali450()) {
 		err = mali_dlbu_initialize();
-		if (_MALI_OSK_ERR_OK != err) goto dlbu_init_failed;
-
-		err = mali_parse_config_dma();
-		if (_MALI_OSK_ERR_OK != err) goto dma_parsing_failed;
+		if (_MALI_OSK_ERR_OK != err) {
+			mali_pm_init_end();
+			mali_terminate_subsystems();
+			return err;
+		}
 	}
 
-	/* Start configuring the actual Mali hardware. */
 	err = mali_parse_config_l2_cache();
-	if (_MALI_OSK_ERR_OK != err) goto config_parsing_failed;
+	if (_MALI_OSK_ERR_OK != err) {
+		mali_pm_init_end();
+		mali_terminate_subsystems();
+		return err;
+	}
+
 	err = mali_parse_config_groups();
-	if (_MALI_OSK_ERR_OK != err) goto config_parsing_failed;
+	if (_MALI_OSK_ERR_OK != err) {
+		mali_pm_init_end();
+		mali_terminate_subsystems();
+		return err;
+	}
 
-	/* Initialize the schedulers */
-	err = mali_scheduler_initialize();
-	if (_MALI_OSK_ERR_OK != err) goto scheduler_init_failed;
-	err = mali_gp_scheduler_initialize();
-	if (_MALI_OSK_ERR_OK != err) goto gp_scheduler_init_failed;
+	/* Move groups into executor */
+	mali_executor_populate();
 
-	/* PP scheduler population can't fail */
-	mali_pp_scheduler_populate();
+	/* Need call after all group has assigned a domain */
+	mali_pm_power_cost_setup();
+
+	/* Initialize the GPU timer */
+	err = mali_control_timer_init();
+	if (_MALI_OSK_ERR_OK != err) {
+		mali_pm_init_end();
+		mali_terminate_subsystems();
+		return err;
+	}
 
 	/* Initialize the GPU utilization tracking */
 	err = mali_utilization_init();
-	if (_MALI_OSK_ERR_OK != err) goto utilization_init_failed;
-
-	/* Allowing the system to be turned off */
-	_mali_osk_pm_dev_ref_dec();
-
-	MALI_SUCCESS; /* all ok */
-
-	/* Error handling */
-
-utilization_init_failed:
-	mali_pp_scheduler_depopulate();
-	mali_gp_scheduler_terminate();
-gp_scheduler_init_failed:
-	mali_scheduler_terminate();
-scheduler_init_failed:
-config_parsing_failed:
-	mali_delete_groups(); /* Delete any groups not (yet) owned by a scheduler */
-	mali_delete_l2_cache_cores(); /* Delete L2 cache cores even if config parsing failed. */
-	{
-		struct mali_dma_core *dma = mali_dma_get_global_dma_core();
-		if (NULL != dma) mali_dma_delete(dma);
+	if (_MALI_OSK_ERR_OK != err) {
+		mali_pm_init_end();
+		mali_terminate_subsystems();
+		return err;
 	}
-dma_parsing_failed:
-	mali_dlbu_terminate();
-dlbu_init_failed:
-	mali_mmu_terminate();
-mmu_init_failed:
-	mali_pm_domain_terminate();
-pm_domain_failed:
-	/* Nothing to roll back */
-product_info_parsing_failed:
-	/* Nothing to roll back */
-init_hw_reset_failed:
-	/* Nothing to roll back */
-pmu_reset_failed:
-	/* Allowing the system to be turned off */
-	_mali_osk_pm_dev_ref_dec();
-pm_always_on_failed:
-	pmu = mali_pmu_get_global_pmu_core();
-	if (NULL != pmu) {
-		mali_pmu_delete(pmu);
+
+#if defined(CONFIG_MALI_DVFS)
+	err = mali_dvfs_policy_init();
+	if (_MALI_OSK_ERR_OK != err) {
+		mali_pm_init_end();
+		mali_terminate_subsystems();
+		return err;
 	}
-parse_pmu_config_failed:
-	mali_pm_terminate();
-pm_init_failed:
-	mali_pp_scheduler_terminate();
-pp_scheduler_init_failed:
-check_shared_interrupts_failed:
-	global_gpu_base_address = 0;
-set_global_gpu_base_address_failed:
-	/* undoing mali_parse_config_memory() is done by mali_memory_terminate() */
-parse_memory_config_failed:
-	mali_memory_terminate();
-memory_init_failed:
-#if defined(CONFIG_MALI400_PROFILING)
-	_mali_osk_profiling_term();
 #endif
-	mali_session_terminate();
-session_init_failed:
-	mali_pp_job_terminate();
-	return err;
+
+	/* Allowing the system to be turned off */
+	mali_pm_init_end();
+
+	return _MALI_OSK_ERR_OK; /* all ok */
 }
 
 void mali_terminate_subsystems(void)
 {
 	struct mali_pmu_core *pmu = mali_pmu_get_global_pmu_core();
-	struct mali_dma_core *dma = mali_dma_get_global_dma_core();
 
 	MALI_DEBUG_PRINT(2, ("terminate_subsystems() called\n"));
 
-	/* shut down subsystems in reverse order from startup */
-
-	/* We need the GPU to be powered up for the terminate sequence */
-	_mali_osk_pm_dev_ref_add();
-
 	mali_utilization_term();
-	mali_pp_scheduler_depopulate();
-	mali_gp_scheduler_terminate();
+	mali_control_timer_term();
+
+	mali_executor_depopulate();
+	mali_delete_groups(); /* Delete groups not added to executor */
+	mali_executor_terminate();
+
 	mali_scheduler_terminate();
+	mali_pp_job_terminate();
 	mali_delete_l2_cache_cores();
+	mali_mmu_terminate();
+
 	if (mali_is_mali450()) {
 		mali_dlbu_terminate();
 	}
-	mali_mmu_terminate();
+
+	mali_pm_terminate();
+
 	if (NULL != pmu) {
 		mali_pmu_delete(pmu);
 	}
-	if (NULL != dma) {
-		mali_dma_delete(dma);
-	}
-	mali_pm_terminate();
-	mali_memory_terminate();
+
 #if defined(CONFIG_MALI400_PROFILING)
 	_mali_osk_profiling_term();
 #endif
 
-	/* Allowing the system to be turned off */
-	_mali_osk_pm_dev_ref_dec();
+	mali_memory_terminate();
 
-	mali_pp_scheduler_terminate();
 	mali_session_terminate();
 
-	mali_pp_job_terminate();
+	mali_timeline_terminate();
+
+	global_gpu_base_address = 0;
 }
 
 _mali_product_id_t mali_kernel_core_get_product_id(void)
@@ -1197,7 +974,7 @@ _mali_osk_errcode_t _mali_ukk_get_api_version_v2(_mali_uk_get_api_version_v2_s *
 	args->version = _MALI_UK_API_VERSION; /* report our version */
 
 	/* success regardless of being compatible or not */
-	MALI_SUCCESS;
+	return _MALI_OSK_ERR_OK;;
 }
 
 _mali_osk_errcode_t _mali_ukk_wait_for_notification(_mali_uk_wait_for_notification_s *args)
@@ -1218,7 +995,7 @@ _mali_osk_errcode_t _mali_ukk_wait_for_notification(_mali_uk_wait_for_notificati
 	if (NULL == queue) {
 		MALI_DEBUG_PRINT(1, ("No notification queue registered with the session. Asking userspace to stop querying\n"));
 		args->type = _MALI_NOTIFICATION_CORE_SHUTDOWN_IN_PROGRESS;
-		MALI_SUCCESS;
+		return _MALI_OSK_ERR_OK;;
 	}
 
 	/* receive a notification, might sleep */
@@ -1234,7 +1011,7 @@ _mali_osk_errcode_t _mali_ukk_wait_for_notification(_mali_uk_wait_for_notificati
 	/* finished with the notification */
 	_mali_osk_notification_delete(notification);
 
-	MALI_SUCCESS; /* all ok */
+	return _MALI_OSK_ERR_OK;; /* all ok */
 }
 
 _mali_osk_errcode_t _mali_ukk_post_notification(_mali_uk_post_notification_s *args)
@@ -1253,7 +1030,7 @@ _mali_osk_errcode_t _mali_ukk_post_notification(_mali_uk_post_notification_s *ar
 	/* if the queue does not exist we're currently shutting down */
 	if (NULL == queue) {
 		MALI_DEBUG_PRINT(1, ("No notification queue registered with the session. Asking userspace to stop querying\n"));
-		MALI_SUCCESS;
+		return _MALI_OSK_ERR_OK;;
 	}
 
 	notification = _mali_osk_notification_create(args->type, 0);
@@ -1264,7 +1041,7 @@ _mali_osk_errcode_t _mali_ukk_post_notification(_mali_uk_post_notification_s *ar
 
 	_mali_osk_notification_queue_send(queue, notification);
 
-	MALI_SUCCESS; /* all ok */
+	return _MALI_OSK_ERR_OK;; /* all ok */
 }
 
 _mali_osk_errcode_t _mali_ukk_request_high_priority(_mali_uk_request_high_priority_s *args)
@@ -1281,7 +1058,7 @@ _mali_osk_errcode_t _mali_ukk_request_high_priority(_mali_uk_request_high_priori
 		MALI_DEBUG_PRINT(2, ("Session 0x%08X with pid %d was granted higher priority.\n", session, _mali_osk_get_pid()));
 	}
 
-	MALI_SUCCESS;
+	return _MALI_OSK_ERR_OK;;
 }
 
 _mali_osk_errcode_t _mali_ukk_open(void **context)
@@ -1349,17 +1126,8 @@ _mali_osk_errcode_t _mali_ukk_open(void **context)
 		MALI_ERROR(_MALI_OSK_ERR_NOMEM);
 	}
 
-#if defined(CONFIG_MALI400_POWER_PERFORMANCE_POLICY)
-	if (_MALI_OSK_ERR_OK != _mali_osk_atomic_init(&session->number_of_window_jobs, 0)) {
-		MALI_DEBUG_PRINT_ERROR(("Initialization of atomic number_of_window_jobs failed.\n"));
-		mali_timeline_system_destroy(session->timeline_system);
-		mali_soft_job_system_destroy(session->soft_job_system);
-		mali_memory_session_end(session);
-		mali_mmu_pagedir_free(session->page_directory);
-		_mali_osk_notification_queue_term(session->ioctl_queue);
-		_mali_osk_free(session);
-		return _MALI_OSK_ERR_FAULT;
-	}
+#if defined(CONFIG_MALI_DVFS)
+	_mali_osk_atomic_init(&session->number_of_window_jobs, 0);
 #endif
 
 	session->use_high_priority_job_queue = MALI_FALSE;
@@ -1372,14 +1140,26 @@ _mali_osk_errcode_t _mali_ukk_open(void **context)
 		_MALI_OSK_INIT_LIST_HEAD(&session->pp_job_fb_lookup_list[i]);
 	}
 
+	session->pid = _mali_osk_get_pid();
+	session->comm = _mali_osk_get_comm();
+	session->max_mali_mem_allocated = 0;
+	_mali_osk_memset(session->mali_mem_array, 0, sizeof(size_t) * MALI_MEM_TYPE_MAX);
 	*context = (void *)session;
 
 	/* Add session to the list of all sessions. */
 	mali_session_add(session);
 
-	MALI_DEBUG_PRINT(2, ("Session started\n"));
-	MALI_SUCCESS;
+	MALI_DEBUG_PRINT(3, ("Session started\n"));
+	return _MALI_OSK_ERR_OK;;
 }
+
+#if defined(DEBUG)
+/* parameter used for debug */
+extern u32 num_pm_runtime_resume;
+extern u32 num_pm_updates;
+extern u32 num_pm_updates_up;
+extern u32 num_pm_updates_down;
+#endif
 
 _mali_osk_errcode_t _mali_ukk_close(void **context)
 {
@@ -1401,9 +1181,11 @@ _mali_osk_errcode_t _mali_ukk_close(void **context)
 	/* Stop the soft job timer. */
 	mali_timeline_system_stop_timer(session->timeline_system);
 
-	/* Abort queued and running GP and PP jobs. */
-	mali_gp_scheduler_abort_session(session);
-	mali_pp_scheduler_abort_session(session);
+	/* Abort queued jobs */
+	mali_scheduler_abort_session(session);
+
+	/* Abort executing jobs */
+	mali_executor_abort_session(session);
 
 	/* Abort the soft job system. */
 	mali_soft_job_system_abort(session->soft_job_system);
@@ -1448,7 +1230,7 @@ _mali_osk_errcode_t _mali_ukk_close(void **context)
 	/* Free remaining memory allocated to this session */
 	mali_memory_session_end(session);
 
-#if defined(CONFIG_MALI400_POWER_PERFORMANCE_POLICY)
+#if defined(CONFIG_MALI_DVFS)
 	_mali_osk_atomic_term(&session->number_of_window_jobs);
 #endif
 
@@ -1459,9 +1241,19 @@ _mali_osk_errcode_t _mali_ukk_close(void **context)
 
 	*context = NULL;
 
-	MALI_DEBUG_PRINT(2, ("Session has ended\n"));
+	MALI_DEBUG_PRINT(3, ("Session has ended\n"));
 
-	MALI_SUCCESS;
+#if defined(DEBUG)
+	MALI_DEBUG_PRINT(3, ("Stats: # runtime resumes: %u\n", num_pm_runtime_resume));
+	MALI_DEBUG_PRINT(3, ("       # PM updates: .... %u (up %u, down %u)\n", num_pm_updates, num_pm_updates_up, num_pm_updates_down));
+
+	num_pm_runtime_resume = 0;
+	num_pm_updates = 0;
+	num_pm_updates_up = 0;
+	num_pm_updates_down = 0;
+#endif
+
+	return _MALI_OSK_ERR_OK;;
 }
 
 #if MALI_STATE_TRACKING
@@ -1469,8 +1261,8 @@ u32 _mali_kernel_core_dump_state(char *buf, u32 size)
 {
 	int n = 0; /* Number of bytes written to buf */
 
-	n += mali_gp_scheduler_dump_state(buf + n, size - n);
-	n += mali_pp_scheduler_dump_state(buf + n, size - n);
+	n += mali_scheduler_dump_state(buf + n, size - n);
+	n += mali_executor_dump_state(buf + n, size - n);
 
 	return n;
 }

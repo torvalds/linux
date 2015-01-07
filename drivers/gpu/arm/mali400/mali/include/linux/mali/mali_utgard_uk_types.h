@@ -1,11 +1,11 @@
 /*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2008-2014 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
+ * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 /**
@@ -81,6 +81,7 @@ typedef enum {
 	_MALI_UK_TIMELINE_CREATE_SYNC_FENCE,  /**< _mali_ukk_timeline_create_sync_fence() */
 	_MALI_UK_SOFT_JOB_START,              /**< _mali_ukk_soft_job_start() */
 	_MALI_UK_SOFT_JOB_SIGNAL,             /**< _mali_ukk_soft_job_signal() */
+    _MALI_GET_RK_KO_VERSION,                /* rk_ext */
 	_MALI_UK_GET_MALI_VERSION_IN_RK30,
 	/** Memory functions */
 
@@ -616,7 +617,6 @@ typedef struct {
 
 /** @brief Determine whether two 32-bit encoded version IDs match */
 #define _IS_API_MATCH(x, y) (IS_VERSION_ID((x)) && IS_VERSION_ID((y)) && (GET_VERSION((x)) == GET_VERSION((y))))
-
  /**
   * RK MALI version code
   */
@@ -673,17 +673,23 @@ typedef struct {
  * interface is compatible with the kernel-side interface, since future versions
  * of the interface may be backwards compatible.
  */
-typedef struct
-{
-    u64 ctx;                      /**< [in,out] user-kernel context (trashed on output) */
-    _mali_uk_api_version version;                   /**< [in,out] API version of user-side interface. */
-} _mali_uk_get_mali_version_in_rk30_s;
 typedef struct {
 	u64 ctx;                        /**< [in,out] user-kernel context (trashed on output) */
 	_mali_uk_api_version version;   /**< [in,out] API version of user-side interface. */
 	int compatible;                 /**< [out] @c 1 when @version is compatible, @c 0 otherwise */
 } _mali_uk_get_api_version_v2_s;
 
+typedef struct
+{
+    u64 ctx;                      /**< [in,out] user-kernel context (trashed on output) */
+    _mali_uk_api_version version;                   /**< [in,out] API version of user-side interface. */
+} _mali_uk_get_mali_version_in_rk30_s;
+
+/* rk_ext : rk_ko_ver_t. */
+typedef struct {
+	u64 ctx;                        /**< [in,out] user-kernel context (trashed on output) */
+	_mali_uk_api_version version;   /**< [in,out] API version of user-side interface. */
+} _mali_rk_ko_version_s;
 /** @} */ /* end group _mali_uk_getapiversion_s */
 
 /** @defgroup _mali_uk_get_user_settings_s Get user space settings */

@@ -12,9 +12,6 @@
  * @file mali_platform.c
  * Platform specific Mali driver functions for a default platform
  */
-#include "mali_kernel_common.h"
-#include "mali_osk.h"
-#include "mali_platform.h"
 #include <linux/workqueue.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -22,518 +19,330 @@
 #include <linux/fs.h>
 #include <linux/clk.h>
 #include <linux/device.h>
-#ifdef CONFIG_HAS_EARLYSUSPEND
-#include <linux/earlysuspend.h>
-#endif 
-
+#include <linux/regulator/driver.h>
 #include <linux/miscdevice.h>
 #include <asm/uaccess.h>
-#include <linux/module.h>
 #include <linux/cpufreq.h>
+#include <linux/of.h>
 
-#include <linux/rockchip/cpu.h>
-#include <linux/rockchip/dvfs.h>
-#define GPUCLK_NAME	"clk_gpu"
-#define GPUCLK_PD_NAME				 "pd_gpu"
-#define GPU_MHZ 					 1000000
-static struct dvfs_node *mali_clock = 0;
-static struct clk *mali_clock_pd = 0;
-static struct clk *audis_gpu_clk = 0;
+#include "mali_kernel_common.h"
+#include "mali_osk.h"
+#include "arm_core_scaling.h"
+#include "mali_platform.h"
 
-#define MALI_DVFS_DEFAULT_STEP 0 // 50Mhz default
 
-u32 mali_dvfs[] = {50, 100, 133, 160, 200, 266, 400};
-int num_clock;
-u32 mali_init_clock = 50;
-static int minuend = 0;
+static int mali_core_scaling_enable;
 
-static struct cpufreq_frequency_table *freq_table = NULL; 
+u32 mali_group_error;
 
-module_param_array(mali_dvfs, int, &num_clock,S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(mali_dvfs,"mali clock table");
+struct device *mali_dev;
 
-module_param(mali_init_clock, int,S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(mali_init_clock,"mali init clock value");
-u32 mali_group_error = 0;
-u32 scale_enable = 1;
-u32 gpu_power_state = 0;
-static u32 utilization_global = 0;
-
-u32 mali_utilization_timeout = 10;
-u32 sampling_enable = 1;
-#define mali_freq_workqueue_name	 "mali_freq_workqueue"
-#define mali_freq_work_name 		 "mali_freq_work"
-struct mali_freq_data {
-	struct workqueue_struct *wq;
-	struct work_struct work;
-	u32 freq;
-}*mali_freq_data;
-
-typedef struct mali_dvfs_tableTag{
-	u32 clock;
-	u32 vol;
-}mali_dvfs_table;
-
-typedef struct mali_dvfs_statusTag{
-    int currentStep;
-    mali_dvfs_table * pCurrentDvfs;
-
-}mali_dvfs_status;
-
-mali_dvfs_status maliDvfsStatus;
-
-#define GPU_DVFS_UP_THRESHOLD	((int)((255*50)/100))	
-#define GPU_DVFS_DOWN_THRESHOLD ((int)((255*35)/100))	
-
-_mali_osk_mutex_t *clockSetlock;
-
-struct clk* mali_clk_get(unsigned char *name)
+int mali_set_level(struct device *dev, int level)
 {
-	struct clk *clk;
-	clk = clk_get(NULL,name);
-	return clk;
-}
-unsigned long mali_clk_get_rate(struct dvfs_node *clk)
-{
-	return dvfs_clk_get_rate(clk);
-}
+	struct mali_platform_drv_data *drv_data = dev_get_drvdata(dev);
+	unsigned long freq;
+	int ret;
+	unsigned int current_level;
 
-void mali_clk_set_rate(struct dvfs_node *clk, u32 value)
-{
-	unsigned long rate = (unsigned long)value * GPU_MHZ;
-	dvfs_clk_set_rate(clk, rate);
-	rate = mali_clk_get_rate(clk);
-}
+	_mali_osk_mutex_wait(drv_data->clockSetlock);
 
-static struct kobject *mali400_utility_object;
-static struct kobject *rk_gpu;
+	current_level = drv_data->dvfs.current_level;
+	freq = drv_data->fv_info[level].freq;
 
-static u32 get_mali_dvfs_status(void)
-{
-	return maliDvfsStatus.currentStep;
-}
-static void set_mali_dvfs_step(u32 value)
-{
-	maliDvfsStatus.currentStep = value;
-}
-
-static void scale_enable_set(u32 value)
-{
-	scale_enable = value;
-}
-static u32 mali_dvfs_search(u32 value)
-{
-	u32 i;	
-	u32 clock = value;
-	for (i=0;i<num_clock;i++) {
-		if (clock == mali_dvfs[i]) {
-			_mali_osk_mutex_wait(clockSetlock);
-			mali_clk_set_rate(mali_clock,clock);
-			_mali_osk_mutex_signal(clockSetlock);
-			set_mali_dvfs_step(i);
-			scale_enable_set(0);
-			return 0;
-		}
-		if(i>=7)
-		MALI_DEBUG_PRINT(2,("USER set clock not in the mali_dvfs table\r\n"));
+	if (level == current_level) {
+		_mali_osk_mutex_signal(drv_data->clockSetlock);
+		return 0;
 	}
-	return 1;
+
+	ret = dvfs_clk_set_rate(drv_data->clk, freq);
+	if (ret) {
+		_mali_osk_mutex_signal(drv_data->clockSetlock);
+		return ret;
+	}
+
+	dev_dbg(dev, "set freq %lu\n", freq);
+
+	drv_data->dvfs.current_level = level;
+
+	_mali_osk_mutex_signal(drv_data->clockSetlock);
+
+	return 0;
 }
 
-static int mali400_utility_show(struct device *dev,struct device_attribute *attr, char *buf)
+static int mali_clock_init(struct device *dev)
 {
-	return sprintf(buf, "%d\n", utilization_global);
-}
-static int mali400_clock_set(struct device *dev,struct device_attribute *attr, const char *buf,u32 count)
-{
-	u32 clock;
-	u32 currentStep;
-	u64 timeValue;
-	clock = simple_strtoul(buf, NULL, 10);
-	currentStep = get_mali_dvfs_status();
-	timeValue = _mali_osk_time_get_ns();
-	/*MALI_PRINT(("USER SET CLOCK,%d\r\n",clock));*/
-	if(!clock) {
-		scale_enable_set(1);
-	} else {
-		mali_dvfs_search(clock);
+	int ret;
+
+	struct mali_platform_drv_data *drv_data = dev_get_drvdata(dev);
+
+	drv_data->pd = devm_clk_get(dev, "pd_gpu");
+	if (IS_ERR(drv_data->pd)) {
+		ret = PTR_ERR(drv_data->pd);
+		dev_err(dev, "get pd_clk failed, %d\n", ret);
+		return ret;
 	}
-	return count;
+
+	ret = clk_prepare_enable(drv_data->pd);
+	if (ret) {
+		dev_err(dev, "prepare pd_clk failed, %d\n", ret);
+		return ret;
+	}
+
+	drv_data->clk = clk_get_dvfs_node("clk_gpu");
+	if (IS_ERR(drv_data->clk)) {
+		ret = PTR_ERR(drv_data->clk);
+		dev_err(dev, "prepare clk gpu failed, %d\n", ret);
+		return ret;
+	}
+
+	ret = dvfs_clk_prepare_enable(drv_data->clk);
+	if (ret) {
+		dev_err(dev, "prepare clk failed, %d\n", ret);
+		return ret;
+	}
+
+	drv_data->power_state = true;
+
+	return 0;
 }
-static int clock_show(struct device *dev,struct device_attribute *attr, char *buf)
+
+static void mali_clock_term(struct device *dev)
 {
+	struct mali_platform_drv_data *drv_data = dev_get_drvdata(dev);
+
+	dvfs_clk_disable_unprepare(drv_data->clk);
+	clk_disable_unprepare(drv_data->pd);
+	drv_data->power_state = false;
+}
+
+static ssize_t show_available_frequencies(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf)
+{
+	struct mali_platform_drv_data *drv_data = dev_get_drvdata(dev);
+	ssize_t ret = 0;
 	u32 i;
-	char *pos = buf;
-	pos += snprintf(pos,PAGE_SIZE,"%d,",num_clock);
-	for(i=0;i<(num_clock-1);i++) {
-		pos += snprintf(pos,PAGE_SIZE,"%d,",mali_dvfs[i]);
-	}
-	pos +=snprintf(pos,PAGE_SIZE,"%d\n",mali_dvfs[i]); 
-	return pos - buf;
+
+	for (i = 0; i < drv_data->fv_info_length; i++)
+		ret += scnprintf(buf + ret, PAGE_SIZE - ret, "%lu\n",
+				 drv_data->fv_info[i].freq);
+
+	return ret;
 }
-static int sampling_timeout_show(struct device *dev,struct device_attribute *attr, char *buf)
+
+static ssize_t show_clock(struct device *dev,
+			  struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "mali_utilization_timeout = %d\n", mali_utilization_timeout);
+	struct mali_platform_drv_data *drv_data = dev_get_drvdata(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%lu\n", dvfs_clk_get_rate(drv_data->clk));
 }
-static int sampling_timeout_set(struct device *dev,struct device_attribute *attr,
-				const char *buf,u32 count)
-{
-	u32 sampling;
-	sampling = simple_strtoul(buf, NULL, 10);
-	
-	if (sampling == 0 ) {
-		sampling_enable = 0;
-		MALI_PRINT(("disable mali clock frequency scalling\r\n"));
-	} else {
-		mali_utilization_timeout = sampling;
-		sampling_enable = 1;
-		MALI_PRINT(("enable mali clock frequency scalling ,mali_utilization_timeout : %dms\r\n",
-			    mali_utilization_timeout));
+
+static ssize_t set_clock(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count)
+{	
+	struct mali_platform_drv_data *drv_data = dev_get_drvdata(dev);
+	unsigned long freq;
+	ssize_t ret;
+	u32 level;
+
+	ret = kstrtoul(buf, 10, &freq);
+	if (ret)
+		return ret;
+
+	for (level = drv_data->fv_info_length - 1; level > 0; level--) {
+		unsigned long tmp  = drv_data->fv_info[level].freq;
+		if (tmp <= freq)
+			break;
 	}
+
+	dev_info(dev, "Using fv_info table %d: for %lu Hz\n", level, freq);
+
+	ret = mali_set_level(dev, level);
+	if (ret)
+		return ret;
+
 	return count;
 }
+
+static ssize_t show_dvfs_enable(struct device *dev,
+			   	struct device_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%u\n", mali_dvfs_is_enabled(dev));
+}
+
+static ssize_t set_dvfs_enable(struct device *dev,
+			      	struct device_attribute *attr, const char *buf,
+			        size_t count)
+{
+	unsigned long enable;
+	ssize_t ret;
+
+	ret = kstrtoul(buf, 0, &enable);
+	if (ret)
+		return ret;
+
+	if (enable == 1)
+		mali_dvfs_enable(dev);
+	else if (enable == 0)
+		mali_dvfs_disable(dev);
+	else
+		return -EINVAL;
+
+	return count;
+}
+
+static ssize_t show_utilisation(struct device *dev,
+			   	struct device_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%u\n", mali_dvfs_utilisation(dev));
+}
+
 static int error_count_show(struct device *dev,struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", mali_group_error);
 }
 
-static DEVICE_ATTR(utility, 0644, mali400_utility_show, mali400_clock_set);
-static DEVICE_ATTR(param, 0644, clock_show, NULL);
-static DEVICE_ATTR(sampling_timeout, 0644, sampling_timeout_show,sampling_timeout_set);
-static DEVICE_ATTR(error_count, 0644, error_count_show, NULL);
+DEVICE_ATTR(available_frequencies, S_IRUGO, show_available_frequencies, NULL);
+DEVICE_ATTR(clock, S_IRUGO | S_IWUSR, show_clock, set_clock);
+DEVICE_ATTR(dvfs_enable, S_IRUGO | S_IWUSR, show_dvfs_enable, set_dvfs_enable);
+DEVICE_ATTR(utilisation, S_IRUGO, show_utilisation, NULL);
+DEVICE_ATTR(error_count, 0644, error_count_show, NULL);
 
+static struct attribute *mali_sysfs_entries[] = {
+	&dev_attr_available_frequencies.attr,
+	&dev_attr_clock.attr,
+	&dev_attr_dvfs_enable.attr,
+	&dev_attr_utilisation.attr,
+	&dev_attr_error_count.attr,
+	NULL,
+};
 
-static mali_bool mali400_utility_sysfs_init(void)
+static const struct attribute_group mali_attr_group = {
+	.attrs	= mali_sysfs_entries,
+};
+
+static int mali_create_sysfs(struct device *dev)
 {
-	u32 ret ;
+	int ret;
 
-	mali400_utility_object = kobject_create_and_add("mali400_utility", NULL);
-	if (mali400_utility_object == NULL) {
-		return -1;
-	}
-	rk_gpu = kobject_create_and_add("rk_gpu", NULL);
-	if (!rk_gpu)
-		return -1;
-	ret = sysfs_create_file(mali400_utility_object, &dev_attr_utility.attr);
-	if (ret) {
-		return -1;
-	}
-	ret = sysfs_create_file(mali400_utility_object, &dev_attr_param.attr);
-	if (ret) {
-		return -1;
-	}
-	ret = sysfs_create_file(mali400_utility_object, &dev_attr_sampling_timeout.attr);
-	if(ret){
-		return -1;
-	}
-	ret = sysfs_create_file(rk_gpu, &dev_attr_error_count.attr);
-	if(ret){
-		return -1;
-	}
-	return 0 ;
-}	
-static unsigned int decideNextStatus(unsigned int utilization)
-{
-    u32 level=0;
-
-    if(utilization > GPU_DVFS_UP_THRESHOLD &&
-	     maliDvfsStatus.currentStep == 0 &&
-	     maliDvfsStatus.currentStep < (num_clock-minuend))
-	    level = 1;
-    else if (utilization > GPU_DVFS_UP_THRESHOLD &&
-	     maliDvfsStatus.currentStep == 1 &&
-	     maliDvfsStatus.currentStep < (num_clock-minuend))
-	    level = 2;
-    else if (utilization > GPU_DVFS_UP_THRESHOLD &&
-	     maliDvfsStatus.currentStep == 2 &&
-	     maliDvfsStatus.currentStep < (num_clock-minuend))
-	    level = 3;
-    else if (utilization > GPU_DVFS_UP_THRESHOLD &&
-	     maliDvfsStatus.currentStep == 3 &&
-	     maliDvfsStatus.currentStep < (num_clock-minuend))
-	    level = 4;
-    else if (utilization > GPU_DVFS_UP_THRESHOLD &&
-	     maliDvfsStatus.currentStep == 4 &&
-	     maliDvfsStatus.currentStep < (num_clock-minuend))
-	    level = 5;
-    else if (utilization > GPU_DVFS_UP_THRESHOLD &&
-	     maliDvfsStatus.currentStep == 5 &&
-	     maliDvfsStatus.currentStep < (num_clock-minuend))
-	    level = 6;
-	/*
-	determined by minuend to up to level 6
-	*/
-    else if(utilization < GPU_DVFS_DOWN_THRESHOLD &&
-	    maliDvfsStatus.currentStep == 6)
-	    level = 5;
-    else if(utilization < GPU_DVFS_DOWN_THRESHOLD &&
-	    maliDvfsStatus.currentStep == 5)
-	    level = 4;
-    else if(utilization < GPU_DVFS_DOWN_THRESHOLD &&
-	    maliDvfsStatus.currentStep == 4)
-	    level = 3;
-    else if(utilization < GPU_DVFS_DOWN_THRESHOLD &&
-	    maliDvfsStatus.currentStep == 3)
-	    level = 2;
-    else if(utilization < GPU_DVFS_DOWN_THRESHOLD &&
-	    maliDvfsStatus.currentStep == 2)
-	    level = 1;
-    else if(utilization < GPU_DVFS_DOWN_THRESHOLD &&
-	    maliDvfsStatus.currentStep == 1)
-	    level = 0;
-    else
-	    level = maliDvfsStatus.currentStep;
-    return level;
-}
-
-static mali_bool set_mali_dvfs_status(u32 step)
-{
-	u32 validatedStep=step;	
-
-	_mali_osk_mutex_wait(clockSetlock);
-    	mali_clk_set_rate(mali_clock, mali_dvfs[validatedStep]);
-	_mali_osk_mutex_signal(clockSetlock);
-	set_mali_dvfs_step(validatedStep);
-	
-	return MALI_TRUE;
-}
-
-static mali_bool change_mali_dvfs_status(u32 step)
-{
-	if(!set_mali_dvfs_status(step)) {
-        	MALI_DEBUG_PRINT(2,("error on set_mali_dvfs_status: %d\n",step));
-		return MALI_FALSE;
-    	}
-
-	return MALI_TRUE;
-}
-
-static void  mali_freq_scale_work(struct work_struct *work)
-{	
-
-	u32 nextStatus = 0;
-	u32 curStatus = 0;
-
-	curStatus = get_mali_dvfs_status();
-	nextStatus = decideNextStatus(utilization_global);
-	
-	if (curStatus!=nextStatus) {
-		if (!change_mali_dvfs_status(nextStatus)) {
-			MALI_DEBUG_PRINT(1, ("error on change_mali_dvfs_status \n"));
-		}
-	}		
-}
-static mali_bool init_mali_clock(void)
-{
-	mali_bool ret = MALI_TRUE;
-	int i;
-
-	if (mali_clock != 0 || mali_clock_pd != 0)
-		return ret; 
-#if 1
-	mali_clock_pd = clk_get(NULL,GPUCLK_PD_NAME);
-	if (IS_ERR(mali_clock_pd)) {
-		MALI_PRINT( ("MALI Error : failed to get source mali pd\n"));
-		ret = MALI_FALSE;
-		goto err_gpu_clk;
-	}
-	clk_prepare_enable(mali_clock_pd);
-#endif
-	mali_clock = clk_get_dvfs_node(GPUCLK_NAME);
-	if (IS_ERR(mali_clock)) {
-		MALI_PRINT( ("MALI Error : failed to get source mali clock\n"));
-		ret = MALI_FALSE;
-		goto err_gpu_clk;
-	}
-	dvfs_clk_prepare_enable(mali_clock);
-	freq_table = dvfs_get_freq_volt_table(mali_clock);
-	if (!freq_table) {
-		MALI_PRINT(("Stop,dvfs table should be set in dts\n"));
-		return MALI_FALSE;
-	}
-	for (i = 0; freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
-		mali_dvfs[i] = freq_table[i].frequency/1000;
-	}
-	mali_init_clock = mali_dvfs[0];
-	num_clock = i;
-	minuend = 2;
-	MALI_PRINT(("Mali400 inside of rk3126\r\n"));
-
-	mali_clk_set_rate(mali_clock, mali_init_clock);
-	gpu_power_state = 1;
-
-	return MALI_TRUE;
-
-err_gpu_clk:
-	MALI_PRINT(("::clk_put:: %s mali_clock\n", __FUNCTION__));
-	gpu_power_state = 0;
-#if 1
-	clk_disable_unprepare(mali_clock_pd);
-#endif
-	dvfs_clk_disable_unprepare(mali_clock);
-	mali_clock = 0;
-	mali_clock_pd = 0;
+	ret = sysfs_create_group(&dev->kobj, &mali_attr_group);
+	if (ret)
+		dev_err(dev, "create sysfs group error, %d\n", ret);
 
 	return ret;
 }
 
-static mali_bool deinit_mali_clock(void)
+void mali_remove_sysfs(struct device *dev)
 {
-	if (mali_clock == 0 && mali_clock_pd == 0)
-		return MALI_TRUE;
-	dvfs_clk_disable_unprepare(mali_clock);
-#if 1
-	clk_disable_unprepare(mali_clock_pd);
-#endif
-	mali_clock = 0;
-	mali_clock_pd = 0;
-	if(gpu_power_state)
-		gpu_power_state = 0;
-	return MALI_TRUE;
+	sysfs_remove_group(&dev->kobj, &mali_attr_group);
 }
 
-mali_bool init_mali_dvfs_status(int step)
+_mali_osk_errcode_t mali_platform_init(struct platform_device *pdev)
 {
-	set_mali_dvfs_step(step);
-    return MALI_TRUE;
-}
+	struct device *dev = &pdev->dev;
+	struct mali_platform_drv_data *mali_drv_data;
+	int ret;
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static void mali_pm_early_suspend(struct early_suspend *mali_dev)
-{
-	/*do nothing*/
-}
-static void mali_pm_late_resume(struct early_suspend *mali_dev)
-{
-	/*do nothing*/
-}
-static struct early_suspend mali_dev_early_suspend = {
-	.suspend = mali_pm_early_suspend,
-	.resume = mali_pm_late_resume,
-	.level = EARLY_SUSPEND_LEVEL_DISABLE_FB,
-};
-#endif /* CONFIG_HAS_EARLYSUSPEND */
-
-_mali_osk_errcode_t mali_platform_init(void)
-{
-	if (cpu_is_rk3036()) {
-		audis_gpu_clk = clk_get(NULL,"clk_gpu");	
-
-		if (IS_ERR(audis_gpu_clk)) {
-			 MALI_PRINT( ("MALI Error : failed to get audis mali clk\n"));
-			 return MALI_FALSE;
-			 
-		}
-
-		clk_prepare_enable(audis_gpu_clk);
-
-		MALI_SUCCESS;
-	}
-	MALI_CHECK(init_mali_clock(), _MALI_OSK_ERR_FAULT);
-	
-	clockSetlock = _mali_osk_mutex_init(_MALI_OSK_LOCKFLAG_ORDERED,_MALI_OSK_LOCK_ORDER_UTILIZATION);
-	if(!init_mali_dvfs_status(MALI_DVFS_DEFAULT_STEP))
-		MALI_DEBUG_PRINT(1, ("init_mali_dvfs_status failed\n"));
-	
-	if(mali400_utility_sysfs_init())
-		MALI_PRINT(("mali400_utility_sysfs_init error\r\n"));
-	
-	mali_freq_data = kmalloc(sizeof(struct mali_freq_data), GFP_KERNEL);
-	if(!mali_freq_data) {
-		MALI_PRINT(("kmalloc error\r\n"));
-		MALI_ERROR(-1);
-	}
-	mali_freq_data->wq = create_workqueue(mali_freq_workqueue_name);
-	if(!mali_freq_data->wq)
-		MALI_ERROR(-1);
-	INIT_WORK(&mali_freq_data->work,mali_freq_scale_work);
-	
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	register_early_suspend(&mali_dev_early_suspend);
-#endif
-
-    MALI_SUCCESS;
-}
-
-_mali_osk_errcode_t mali_platform_deinit(void)
-{
-	if (cpu_is_rk3036()) {
-		clk_disable_unprepare(audis_gpu_clk);
-		MALI_SUCCESS;
+	mali_drv_data = devm_kzalloc(dev, sizeof(*mali_drv_data), GFP_KERNEL);
+	if (!mali_drv_data) {
+		dev_err(dev, "no mem\n");
+		return _MALI_OSK_ERR_NOMEM;
 	}
 
-	deinit_mali_clock();
-	_mali_osk_mutex_term(clockSetlock);
+	dev_set_drvdata(dev, mali_drv_data);
 
-    MALI_SUCCESS;
+	mali_drv_data->dev = dev;
+
+	mali_dev = dev;
+
+	ret = mali_clock_init(dev);
+	if (ret)
+		goto err_init;
+
+	ret = mali_dvfs_init(dev);
+	if (ret)
+		goto err_init;
+
+	ret = mali_create_sysfs(dev);
+	if (ret)
+		goto term_clk;
+
+	mali_drv_data->clockSetlock = _mali_osk_mutex_init(_MALI_OSK_LOCKFLAG_ORDERED,
+				_MALI_OSK_LOCK_ORDER_UTILIZATION);
+	mali_core_scaling_enable = 1;
+
+   	return 0;
+term_clk:
+	mali_clock_term(dev);
+err_init:
+ 	return _MALI_OSK_ERR_FAULT;
 }
+
+_mali_osk_errcode_t mali_platform_deinit(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct mali_platform_drv_data *drv_data = dev_get_drvdata(dev);
+
+	mali_core_scaling_term();
+	mali_clock_term(dev);
+	_mali_osk_mutex_term(drv_data->clockSetlock);
+
+	return 0;
+}
+
 _mali_osk_errcode_t mali_power_domain_control(u32 bpower_off)
 {
-	if (!bpower_off) {
-		if (!gpu_power_state) {
-			if (cpu_is_rk3036()) {
-				clk_prepare_enable(audis_gpu_clk);
-			} else {
-		#if 1
-				clk_prepare_enable(mali_clock_pd);
-		#endif
-				dvfs_clk_prepare_enable(mali_clock);
-			}
-			gpu_power_state = 1 ;
-		}		
-	} else if (bpower_off == 2) {
-		;
+	struct mali_platform_drv_data *drv_data = dev_get_drvdata(mali_dev);
+
+	if (bpower_off == 0) {
+		if (!drv_data->power_state) {
+			dvfs_clk_prepare_enable(drv_data->clk);
+			clk_prepare_enable(drv_data->pd);
+			drv_data->power_state = true;
+		}
 	} else if (bpower_off == 1) {
-		if(gpu_power_state) {
-			if (cpu_is_rk3036()) {
-				clk_disable_unprepare(audis_gpu_clk);
-			} else {
-				dvfs_clk_disable_unprepare(mali_clock);
-		#if 1
-				clk_disable_unprepare(mali_clock_pd);	
-		#endif
-			}
-			gpu_power_state = 0;
+		if (drv_data->power_state) {
+			dvfs_clk_disable_unprepare(drv_data->clk);
+			clk_disable_unprepare(drv_data->pd);
+			drv_data->power_state = false;
 		}
 	}
-    MALI_SUCCESS;
+
+	return 0;
 }
 
 _mali_osk_errcode_t mali_platform_power_mode_change(mali_power_mode power_mode)
 {
-#if 1
 	switch(power_mode) {
 		case MALI_POWER_MODE_ON:
-			MALI_DEBUG_PRINT(2,("MALI_POWER_MODE_ON\r\n"));
+			MALI_DEBUG_PRINT(2, ("MALI_POWER_MODE_ON\r\n"));
 			mali_power_domain_control(MALI_POWER_MODE_ON);
 			break;
 		case MALI_POWER_MODE_LIGHT_SLEEP:
-			MALI_DEBUG_PRINT(2,("MALI_POWER_MODE_LIGHT_SLEEP\r\n"));
+			MALI_DEBUG_PRINT(2, ("MALI_POWER_MODE_LIGHT_SLEEP\r\n"));
 			mali_power_domain_control(MALI_POWER_MODE_LIGHT_SLEEP);
 			break;
 		case MALI_POWER_MODE_DEEP_SLEEP:
-			MALI_DEBUG_PRINT(2,("MALI_POWER_MODE_DEEP_SLEEP\r\n"));
+			MALI_DEBUG_PRINT(2, ("MALI_POWER_MODE_DEEP_SLEEP\r\n"));
 			mali_power_domain_control(MALI_POWER_MODE_DEEP_SLEEP);
 			break;
 		default:
-			MALI_DEBUG_PRINT(2,("mali_platform_power_mode_change:power_mode(%d) not support \r\n",power_mode));
+			MALI_DEBUG_PRINT(2, ("mali_platform_power_mode_change:power_mode(%d) not support \r\n",
+					 power_mode));
 	}
-#endif
-    MALI_SUCCESS;
+	
+    return 0;
 }
 void mali_gpu_utilization_handler(struct mali_gpu_utilization_data *data)
 {
-	if (cpu_is_rk3036())
-		return;
-
 	if(data->utilization_pp > 256)
 		return;
-	utilization_global = data->utilization_pp;
-	
-	//MALI_PRINT(("utilization_global = %d\r\n",utilization_global));
 
-	if(scale_enable && sampling_enable)
-		queue_work(mali_freq_data->wq,&mali_freq_data->work);
-	
-	return ;
+	if (mali_core_scaling_enable)
+		mali_core_scaling_update(data);
+
+	// dev_dbg(mali_dev, "utilization:%d\r\n", data->utilization_pp);
+
+	mali_dvfs_event(mali_dev, data->utilization_pp);
 }

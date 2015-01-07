@@ -902,7 +902,7 @@ static int rk32_mipi_dsi_host_init(struct dsi *dsi)
 	rk32_dsi_set_bits(dsi, 0, phy_tx_triggers);
 	
 	/* enable non-continued function */
-	rk32_dsi_set_bits(dsi, 1, auto_clklane_ctrl);
+	/* rk32_dsi_set_bits(dsi, 1, auto_clklane_ctrl); */
 	/*
 	rk32_dsi_set_bits(dsi, 1, phy_txexitulpslan);
 	rk32_dsi_set_bits(dsi, 1, phy_txexitulpsclk);

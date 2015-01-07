@@ -446,8 +446,10 @@ static int rk31xx_lvds_probe(struct platform_device *pdev)
 	if(ret < 0)
 		goto err_clk_init;
 
-        if (support_uboot_display())
+	if (support_uboot_display()) {
 		rk31xx_lvds_clk_enable(lvds);
+		lvds->sys_state = true;
+	}
 
 	rk31xx_lvds = lvds;
 	rk_fb_trsm_ops_register(&trsm_lvds_ops, SCREEN_LVDS);

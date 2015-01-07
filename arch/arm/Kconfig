@@ -1374,6 +1374,16 @@ config ARM_ERRATA_818325
 	  prevents the erratum. This bit disables an optimisation applied to a
 	  sequence of 2 instructions that use opposing condition codes.
 
+config ARM_ERRATA_821420
+	bool "ARM errata: A sequence of VMOV to core registers instruction might lead to a deadlock"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 821420 Cortex-A12 (r0p0,
+	  r0p1) erratum. In very rare timing conditions, a sequence of VMOV to
+	  Core registers instructions, for which the second one is in the
+	  shadow of a branch or abort, can lead to a deadlock when the VMOV
+	  instructions are issued out-of-order.
+
 endmenu
 
 source "arch/arm/common/Kconfig"

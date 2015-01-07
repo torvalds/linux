@@ -21,5 +21,6 @@ config ARCH_ROCKCHIP
 	select PL330_DMA
 	select FIQ_GLUE
 	select ARM_ERRATA_818325
+	select ARM_ERRATA_821420
 
 source "arch/arm/mach-rockchip/Kconfig.common"
