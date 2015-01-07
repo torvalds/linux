@@ -42,12 +42,12 @@ config MALI400_UMP
 	---help---
 	  This enables support for the UMP memory sharing API in the Mali driver.
 
-config MALI400_POWER_PERFORMANCE_POLICY
-	bool "Enable Mali power performance policy"
-	depends on ARM
-	default n
+config MALI_DVFS
+	bool "Enable Mali dynamically frequency change"
+	depends on MALI400
+	default y
 	---help---
-	  This enables support for dynamic performance scaling of Mali with the goal of lowering power consumption.
+	  This enables support for dynamic change frequency of Mali with the goal of lowering power consumption.
 
 config MALI_DMA_BUF_MAP_ON_ATTACH
 	bool "Map dma-buf attachments on attach"
@@ -79,6 +79,16 @@ config MALI_PMU_PARALLEL_POWER_UP
 	  powering up domains one by one, with a slight delay in between. Powering on all power
 	  domains at the same time may cause peak currents higher than what some systems can handle.
 	  These systems must not enable this option.
+
+config MALI_DT
+	bool "Using device tree to initialize module"
+	depends on MALI400 && OF
+	default n
+	---help---
+	  This enable the Mali driver to choose the device tree path to get platform resoures
+	  and disable the old config method. Mali driver could run on the platform which the
+	  device tree is enabled in kernel and corresponding hardware description is implemented
+	  properly in device DTS file.
 
 config MALI_QUIET
 	bool "Make Mali driver very quiet"

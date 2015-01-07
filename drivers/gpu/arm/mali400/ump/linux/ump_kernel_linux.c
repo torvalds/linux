@@ -1,11 +1,11 @@
 /*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2008-2013 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
+ * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #include <linux/module.h>            /* kernel module definitions */
@@ -67,7 +67,7 @@ typedef struct ump_vma_usage_tracker {
 struct ump_device {
 	struct cdev cdev;
 #if UMP_LICENSE_IS_GPL
-	struct class * ump_class;
+	struct class *ump_class;
 #endif
 };
 
@@ -83,7 +83,7 @@ static long ump_file_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 #else
 static int ump_file_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg);
 #endif
-static int ump_file_mmap(struct file * filp, struct vm_area_struct * vma);
+static int ump_file_mmap(struct file *filp, struct vm_area_struct *vma);
 
 
 /* This variable defines the file operations this UMP device driver offer */
@@ -192,7 +192,7 @@ int ump_kernel_device_initialize(void)
 			if (IS_ERR(ump_device.ump_class)) {
 				err = PTR_ERR(ump_device.ump_class);
 			} else {
-				struct device * mdev;
+				struct device *mdev;
 				mdev = device_create(ump_device.ump_class, NULL, dev, NULL, ump_dev_name);
 				if (!IS_ERR(mdev)) {
 					return 0;
@@ -233,7 +233,7 @@ void ump_kernel_device_terminate(void)
 	unregister_chrdev_region(dev, 1);
 
 #if UMP_LICENSE_IS_GPL
-	if(ump_debugfs_dir)
+	if (ump_debugfs_dir)
 		debugfs_remove_recursive(ump_debugfs_dir);
 #endif
 }
@@ -243,7 +243,7 @@ void ump_kernel_device_terminate(void)
  */
 static int ump_file_open(struct inode *inode, struct file *filp)
 {
-	struct ump_session_data * session_data;
+	struct ump_session_data *session_data;
 	_mali_osk_errcode_t err;
 
 	/* input validation */
@@ -253,13 +253,13 @@ static int ump_file_open(struct inode *inode, struct file *filp)
 	}
 
 	/* Call the OS-Independent UMP Open function */
-	err = _ump_ukk_open((void**) &session_data );
-	if( _MALI_OSK_ERR_OK != err ) {
+	err = _ump_ukk_open((void **) &session_data);
+	if (_MALI_OSK_ERR_OK != err) {
 		MSG_ERR(("Ump failed to open a new session\n"));
-		return map_errcode( err );
+		return map_errcode(err);
 	}
 
-	filp->private_data = (void*)session_data;
+	filp->private_data = (void *)session_data;
 	filp->f_pos = 0;
 
 	return 0; /* success */
@@ -274,9 +274,9 @@ static int ump_file_release(struct inode *inode, struct file *filp)
 {
 	_mali_osk_errcode_t err;
 
-	err = _ump_ukk_close((void**) &filp->private_data );
-	if( _MALI_OSK_ERR_OK != err ) {
-		return map_errcode( err );
+	err = _ump_ukk_close((void **) &filp->private_data);
+	if (_MALI_OSK_ERR_OK != err) {
+		return map_errcode(err);
 	}
 
 	return 0;  /* success */
@@ -294,8 +294,8 @@ static int ump_file_ioctl(struct inode *inode, struct file *filp, unsigned int c
 #endif
 {
 	int err = -ENOTTY;
-	void __user * argument;
-	struct ump_session_data * session_data;
+	void __user *argument;
+	struct ump_session_data *session_data;
 
 #ifndef HAVE_UNLOCKED_IOCTL
 	(void)inode; /* inode not used */
@@ -356,9 +356,9 @@ static int ump_file_ioctl(struct inode *inode, struct file *filp, unsigned int c
 	return err;
 }
 
-int map_errcode( _mali_osk_errcode_t err )
+int map_errcode(_mali_osk_errcode_t err)
 {
-	switch(err) {
+	switch (err) {
 	case _MALI_OSK_ERR_OK :
 		return 0;
 	case _MALI_OSK_ERR_FAULT:
@@ -383,11 +383,11 @@ int map_errcode( _mali_osk_errcode_t err )
 /*
  * Handle from OS to map specified virtual memory to specified UMP memory.
  */
-static int ump_file_mmap(struct file * filp, struct vm_area_struct * vma)
+static int ump_file_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	_ump_uk_map_mem_s args;
 	_mali_osk_errcode_t err;
-	struct ump_session_data * session_data;
+	struct ump_session_data *session_data;
 
 	/* Validate the session data */
 	session_data = (struct ump_session_data *)filp->private_data;
@@ -412,13 +412,13 @@ static int ump_file_mmap(struct file * filp, struct vm_area_struct * vma)
 	/* By setting this flag, during a process fork; the child process will not have the parent UMP mappings */
 	vma->vm_flags |= VM_DONTCOPY;
 
-	DBG_MSG(4, ("UMP vma->flags: %x\n", vma->vm_flags ));
+	DBG_MSG(4, ("UMP vma->flags: %x\n", vma->vm_flags));
 
 	/* Call the common mmap handler */
-	err = _ump_ukk_map_mem( &args );
-	if ( _MALI_OSK_ERR_OK != err) {
+	err = _ump_ukk_map_mem(&args);
+	if (_MALI_OSK_ERR_OK != err) {
 		MSG_ERR(("_ump_ukk_map_mem() failed in function ump_file_mmap()"));
-		return map_errcode( err );
+		return map_errcode(err);
 	}
 
 	return 0; /* success */

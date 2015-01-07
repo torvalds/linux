@@ -1,11 +1,11 @@
 /*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2013-2014 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
+ * Copyright (C) 2013-2014 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #include "mali_kernel_common.h"
@@ -42,7 +42,7 @@ _mali_osk_errcode_t _mali_ukk_map_external_mem(_mali_uk_map_external_mem_s *args
 	/* size must be a multiple of the system page size */
 	if (args->size % _MALI_OSK_MALI_PAGE_SIZE) MALI_ERROR(_MALI_OSK_ERR_INVALID_ARGS);
 
-	MALI_DEBUG_PRINT(2,
+	MALI_DEBUG_PRINT(3,
 			 ("Requested to map physical memory 0x%x-0x%x into virtual memory 0x%x\n",
 			  args->phys_addr, (args->phys_addr + args->size - 1),
 			  args->mali_address));

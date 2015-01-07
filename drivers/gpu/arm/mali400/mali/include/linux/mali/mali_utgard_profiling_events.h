@@ -1,11 +1,11 @@
 /*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2010-2014 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
+ * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #ifndef _MALI_UTGARD_PROFILING_EVENTS_H_
@@ -128,6 +128,9 @@ typedef enum {
 	MALI_PROFILING_EVENT_REASON_SUSPEND_RESUME_SW_EGL_MALI_FENCE_DUP       = 43,
 	MALI_PROFILING_EVENT_REASON_SUSPEND_RESUME_SW_EGL_FLUSH_SERVER_WAITS   = 44,
 	MALI_PROFILING_EVENT_REASON_SUSPEND_RESUME_SW_EGL_WAIT_SYNC            = 45, /* USED */
+	MALI_PROFILING_EVENT_REASON_SUSPEND_RESUME_SW_FB_JOBS_WAIT             = 46, /* USED */
+	MALI_PROFILING_EVENT_REASON_SUSPEND_RESUME_SW_FB_NOFRAMES_WAIT         = 47, /* USED */
+	MALI_PROFILING_EVENT_REASON_SUSPEND_RESUME_SW_FB_NOJOBS_WAIT           = 48, /* USED */
 } cinstr_profiling_event_reason_suspend_resume_sw_t;
 
 /**
@@ -165,10 +168,22 @@ typedef enum {
 	MALI_PROFILING_EVENT_DATA_CORE_PP5             = 10,
 	MALI_PROFILING_EVENT_DATA_CORE_PP6             = 11,
 	MALI_PROFILING_EVENT_DATA_CORE_PP7             = 12,
+	MALI_PROFILING_EVENT_DATA_CORE_GP0_MMU         = 22, /* GP0 + 21 */
+	MALI_PROFILING_EVENT_DATA_CORE_PP0_MMU         = 26, /* PP0 + 21 */
+	MALI_PROFILING_EVENT_DATA_CORE_PP1_MMU         = 27, /* PP1 + 21 */
+	MALI_PROFILING_EVENT_DATA_CORE_PP2_MMU         = 28, /* PP2 + 21 */
+	MALI_PROFILING_EVENT_DATA_CORE_PP3_MMU         = 29, /* PP3 + 21 */
+	MALI_PROFILING_EVENT_DATA_CORE_PP4_MMU         = 30, /* PP4 + 21 */
+	MALI_PROFILING_EVENT_DATA_CORE_PP5_MMU         = 31, /* PP5 + 21 */
+	MALI_PROFILING_EVENT_DATA_CORE_PP6_MMU         = 32, /* PP6 + 21 */
+	MALI_PROFILING_EVENT_DATA_CORE_PP7_MMU         = 33, /* PP7 + 21 */
+
 } cinstr_profiling_event_data_core_t;
 
 #define MALI_PROFILING_MAKE_EVENT_DATA_CORE_GP(num) (MALI_PROFILING_EVENT_DATA_CORE_GP0 + (num))
+#define MALI_PROFILING_MAKE_EVENT_DATA_CORE_GP_MMU(num) (MALI_PROFILING_EVENT_DATA_CORE_GP0_MMU + (num))
 #define MALI_PROFILING_MAKE_EVENT_DATA_CORE_PP(num) (MALI_PROFILING_EVENT_DATA_CORE_PP0 + (num))
+#define MALI_PROFILING_MAKE_EVENT_DATA_CORE_PP_MMU(num) (MALI_PROFILING_EVENT_DATA_CORE_PP0_MMU + (num))
 
 
 #endif /*_MALI_UTGARD_PROFILING_EVENTS_H_*/

@@ -1,11 +1,11 @@
 /*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2012-2014 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
+ * Copyright (C) 2012-2014 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 /**
@@ -20,12 +20,45 @@
 
 #define MALI_GPU_NAME_UTGARD "mali-utgard"
 
-/* Mali-200 */
 
-#define MALI_GPU_RESOURCES_MALI200(base_addr, gp_irq, pp_irq, mmu_irq) \
-	MALI_GPU_RESOURCE_PP(base_addr + 0x0000, pp_irq) \
-	MALI_GPU_RESOURCE_GP(base_addr + 0x2000, gp_irq) \
-	MALI_GPU_RESOURCE_MMU(base_addr + 0x3000, mmu_irq)
+#define MALI_OFFSET_GP                    0x00000
+#define MALI_OFFSET_GP_MMU                0x03000
+
+#define MALI_OFFSET_PP0                   0x08000
+#define MALI_OFFSET_PP0_MMU               0x04000
+#define MALI_OFFSET_PP1                   0x0A000
+#define MALI_OFFSET_PP1_MMU               0x05000
+#define MALI_OFFSET_PP2                   0x0C000
+#define MALI_OFFSET_PP2_MMU               0x06000
+#define MALI_OFFSET_PP3                   0x0E000
+#define MALI_OFFSET_PP3_MMU               0x07000
+
+#define MALI_OFFSET_PP4                   0x28000
+#define MALI_OFFSET_PP4_MMU               0x1C000
+#define MALI_OFFSET_PP5                   0x2A000
+#define MALI_OFFSET_PP5_MMU               0x1D000
+#define MALI_OFFSET_PP6                   0x2C000
+#define MALI_OFFSET_PP6_MMU               0x1E000
+#define MALI_OFFSET_PP7                   0x2E000
+#define MALI_OFFSET_PP7_MMU               0x1F000
+
+#define MALI_OFFSET_L2_RESOURCE0          0x01000
+#define MALI_OFFSET_L2_RESOURCE1          0x10000
+#define MALI_OFFSET_L2_RESOURCE2          0x11000
+
+#define MALI400_OFFSET_L2_CACHE0          MALI_OFFSET_L2_RESOURCE0
+#define MALI450_OFFSET_L2_CACHE0          MALI_OFFSET_L2_RESOURCE1
+#define MALI450_OFFSET_L2_CACHE1          MALI_OFFSET_L2_RESOURCE0
+#define MALI450_OFFSET_L2_CACHE2          MALI_OFFSET_L2_RESOURCE2
+
+#define MALI_OFFSET_BCAST                 0x13000
+#define MALI_OFFSET_DLBU                  0x14000
+
+#define MALI_OFFSET_PP_BCAST              0x16000
+#define MALI_OFFSET_PP_BCAST_MMU          0x15000
+
+#define MALI_OFFSET_PMU                   0x02000
+#define MALI_OFFSET_DMA                   0x12000
 
 /* Mali-300 */
 
@@ -38,142 +71,142 @@
 /* Mali-400 */
 
 #define MALI_GPU_RESOURCES_MALI400_MP1(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq) \
-	MALI_GPU_RESOURCE_L2(base_addr + 0x1000) \
-	MALI_GPU_RESOURCE_GP_WITH_MMU(base_addr + 0x0000, gp_irq, base_addr + 0x3000, gp_mmu_irq) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(0, base_addr + 0x8000, pp0_irq, base_addr + 0x4000, pp0_mmu_irq)
+	MALI_GPU_RESOURCE_L2(base_addr + MALI400_OFFSET_L2_CACHE0) \
+	MALI_GPU_RESOURCE_GP_WITH_MMU(base_addr + MALI_OFFSET_GP, gp_irq, base_addr + MALI_OFFSET_GP_MMU, gp_mmu_irq) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(0, base_addr + MALI_OFFSET_PP0, pp0_irq, base_addr + MALI_OFFSET_PP0_MMU, pp0_mmu_irq)
 
 #define MALI_GPU_RESOURCES_MALI400_MP1_PMU(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq) \
 	MALI_GPU_RESOURCES_MALI400_MP1(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq) \
-	MALI_GPU_RESOURCE_PMU(base_addr + 0x2000)
+	MALI_GPU_RESOURCE_PMU(base_addr + MALI_OFFSET_PMU)
 
 #define MALI_GPU_RESOURCES_MALI400_MP2(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq) \
-	MALI_GPU_RESOURCE_L2(base_addr + 0x1000) \
-	MALI_GPU_RESOURCE_GP_WITH_MMU(base_addr + 0x0000, gp_irq, base_addr + 0x3000, gp_mmu_irq) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(0, base_addr + 0x8000, pp0_irq, base_addr + 0x4000, pp0_mmu_irq) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(1, base_addr + 0xA000, pp1_irq, base_addr + 0x5000, pp1_mmu_irq)
+	MALI_GPU_RESOURCE_L2(base_addr + MALI400_OFFSET_L2_CACHE0) \
+	MALI_GPU_RESOURCE_GP_WITH_MMU(base_addr + MALI_OFFSET_GP, gp_irq, base_addr + MALI_OFFSET_GP_MMU, gp_mmu_irq) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(0, base_addr + MALI_OFFSET_PP0, pp0_irq, base_addr + MALI_OFFSET_PP0_MMU, pp0_mmu_irq) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(1, base_addr + MALI_OFFSET_PP1, pp1_irq, base_addr + MALI_OFFSET_PP1_MMU, pp1_mmu_irq)
 
 #define MALI_GPU_RESOURCES_MALI400_MP2_PMU(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq) \
 	MALI_GPU_RESOURCES_MALI400_MP2(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq) \
-	MALI_GPU_RESOURCE_PMU(base_addr + 0x2000)
+	MALI_GPU_RESOURCE_PMU(base_addr + MALI_OFFSET_PMU)
 
 #define MALI_GPU_RESOURCES_MALI400_MP3(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq) \
-	MALI_GPU_RESOURCE_L2(base_addr + 0x1000) \
-	MALI_GPU_RESOURCE_GP_WITH_MMU(base_addr + 0x0000, gp_irq, base_addr + 0x3000, gp_mmu_irq) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(0, base_addr + 0x8000, pp0_irq, base_addr + 0x4000, pp0_mmu_irq) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(1, base_addr + 0xA000, pp1_irq, base_addr + 0x5000, pp1_mmu_irq) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(2, base_addr + 0xC000, pp2_irq, base_addr + 0x6000, pp2_mmu_irq)
+	MALI_GPU_RESOURCE_L2(base_addr + MALI400_OFFSET_L2_CACHE0) \
+	MALI_GPU_RESOURCE_GP_WITH_MMU(base_addr + MALI_OFFSET_GP, gp_irq, base_addr + MALI_OFFSET_GP_MMU, gp_mmu_irq) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(0, base_addr + MALI_OFFSET_PP0, pp0_irq, base_addr + MALI_OFFSET_PP0_MMU, pp0_mmu_irq) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(1, base_addr + MALI_OFFSET_PP1, pp1_irq, base_addr + MALI_OFFSET_PP1_MMU, pp1_mmu_irq) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(2, base_addr + MALI_OFFSET_PP2, pp2_irq, base_addr + MALI_OFFSET_PP2_MMU, pp2_mmu_irq)
 
 #define MALI_GPU_RESOURCES_MALI400_MP3_PMU(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq) \
 	MALI_GPU_RESOURCES_MALI400_MP3(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq) \
-	MALI_GPU_RESOURCE_PMU(base_addr + 0x2000)
+	MALI_GPU_RESOURCE_PMU(base_addr + MALI_OFFSET_PMU)
 
 #define MALI_GPU_RESOURCES_MALI400_MP4(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq, pp3_irq, pp3_mmu_irq) \
-	MALI_GPU_RESOURCE_L2(base_addr + 0x1000) \
-	MALI_GPU_RESOURCE_GP_WITH_MMU(base_addr + 0x0000, gp_irq, base_addr + 0x3000, gp_mmu_irq) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(0, base_addr + 0x8000, pp0_irq, base_addr + 0x4000, pp0_mmu_irq) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(1, base_addr + 0xA000, pp1_irq, base_addr + 0x5000, pp1_mmu_irq) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(2, base_addr + 0xC000, pp2_irq, base_addr + 0x6000, pp2_mmu_irq) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(3, base_addr + 0xE000, pp3_irq, base_addr + 0x7000, pp3_mmu_irq)
+	MALI_GPU_RESOURCE_L2(base_addr + MALI400_OFFSET_L2_CACHE0) \
+	MALI_GPU_RESOURCE_GP_WITH_MMU(base_addr + MALI_OFFSET_GP, gp_irq, base_addr + MALI_OFFSET_GP_MMU, gp_mmu_irq) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(0, base_addr + MALI_OFFSET_PP0, pp0_irq, base_addr + MALI_OFFSET_PP0_MMU, pp0_mmu_irq) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(1, base_addr + MALI_OFFSET_PP1, pp1_irq, base_addr + MALI_OFFSET_PP1_MMU, pp1_mmu_irq) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(2, base_addr + MALI_OFFSET_PP2, pp2_irq, base_addr + MALI_OFFSET_PP2_MMU, pp2_mmu_irq) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(3, base_addr + MALI_OFFSET_PP3, pp3_irq, base_addr + MALI_OFFSET_PP3_MMU, pp3_mmu_irq)
 
 #define MALI_GPU_RESOURCES_MALI400_MP4_PMU(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq, pp3_irq, pp3_mmu_irq) \
 	MALI_GPU_RESOURCES_MALI400_MP4(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq, pp3_irq, pp3_mmu_irq) \
-	MALI_GPU_RESOURCE_PMU(base_addr + 0x2000)
+	MALI_GPU_RESOURCE_PMU(base_addr + MALI_OFFSET_PMU) \
 
 /* Mali-450 */
 #define MALI_GPU_RESOURCES_MALI450_MP2(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp_bcast_irq) \
-	MALI_GPU_RESOURCE_L2(base_addr + 0x10000) \
-	MALI_GPU_RESOURCE_GP_WITH_MMU(base_addr + 0x00000, gp_irq, base_addr + 0x03000, gp_mmu_irq) \
-	MALI_GPU_RESOURCE_L2(base_addr + 0x01000) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(0, base_addr + 0x08000, pp0_irq, base_addr + 0x04000, pp0_mmu_irq) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(1, base_addr + 0x0A000, pp1_irq, base_addr + 0x05000, pp1_mmu_irq) \
-	MALI_GPU_RESOURCE_BCAST(base_addr + 0x13000) \
-	MALI_GPU_RESOURCE_DLBU(base_addr + 0x14000) \
-	MALI_GPU_RESOURCE_PP_BCAST(base_addr + 0x16000, pp_bcast_irq) \
-	MALI_GPU_RESOURCE_PP_MMU_BCAST(base_addr + 0x15000) \
-	MALI_GPU_RESOURCE_DMA(base_addr + 0x12000)
+	MALI_GPU_RESOURCE_L2(base_addr + MALI450_OFFSET_L2_CACHE0) \
+	MALI_GPU_RESOURCE_GP_WITH_MMU(base_addr + MALI_OFFSET_GP, gp_irq, base_addr + MALI_OFFSET_GP_MMU, gp_mmu_irq) \
+	MALI_GPU_RESOURCE_L2(base_addr + MALI450_OFFSET_L2_CACHE1) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(0, base_addr + MALI_OFFSET_PP0, pp0_irq, base_addr + MALI_OFFSET_PP0_MMU, pp0_mmu_irq) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(1, base_addr + MALI_OFFSET_PP1, pp1_irq, base_addr + MALI_OFFSET_PP1_MMU, pp1_mmu_irq) \
+	MALI_GPU_RESOURCE_BCAST(base_addr + MALI_OFFSET_BCAST) \
+	MALI_GPU_RESOURCE_DLBU(base_addr + MALI_OFFSET_DLBU) \
+	MALI_GPU_RESOURCE_PP_BCAST(base_addr + MALI_OFFSET_PP_BCAST, pp_bcast_irq) \
+	MALI_GPU_RESOURCE_PP_MMU_BCAST(base_addr + MALI_OFFSET_PP_BCAST_MMU) \
+	MALI_GPU_RESOURCE_DMA(base_addr + MALI_OFFSET_DMA)
 
 #define MALI_GPU_RESOURCES_MALI450_MP2_PMU(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp_bcast_irq) \
 	MALI_GPU_RESOURCES_MALI450_MP2(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp_bcast_irq) \
-	MALI_GPU_RESOURCE_PMU(base_addr + 0x2000) \
-	 
+	MALI_GPU_RESOURCE_PMU(base_addr + MALI_OFFSET_PMU) \
+
 #define MALI_GPU_RESOURCES_MALI450_MP3(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq, pp_bcast_irq) \
-	MALI_GPU_RESOURCE_L2(base_addr + 0x10000) \
-	MALI_GPU_RESOURCE_GP_WITH_MMU(base_addr + 0x00000, gp_irq, base_addr + 0x03000, gp_mmu_irq) \
-	MALI_GPU_RESOURCE_L2(base_addr + 0x01000) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(0, base_addr + 0x08000, pp0_irq, base_addr + 0x04000, pp0_mmu_irq) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(1, base_addr + 0x0A000, pp1_irq, base_addr + 0x05000, pp1_mmu_irq) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(2, base_addr + 0x0C000, pp2_irq, base_addr + 0x06000, pp2_mmu_irq) \
-	MALI_GPU_RESOURCE_BCAST(base_addr + 0x13000) \
-	MALI_GPU_RESOURCE_DLBU(base_addr + 0x14000) \
-	MALI_GPU_RESOURCE_PP_BCAST(base_addr + 0x16000, pp_bcast_irq) \
-	MALI_GPU_RESOURCE_PP_MMU_BCAST(base_addr + 0x15000)
+	MALI_GPU_RESOURCE_L2(base_addr + MALI450_OFFSET_L2_CACHE0) \
+	MALI_GPU_RESOURCE_GP_WITH_MMU(base_addr + MALI_OFFSET_GP, gp_irq, base_addr + MALI_OFFSET_GP_MMU, gp_mmu_irq) \
+	MALI_GPU_RESOURCE_L2(base_addr + MALI450_OFFSET_L2_CACHE1) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(0, base_addr + MALI_OFFSET_PP0, pp0_irq, base_addr + MALI_OFFSET_PP0_MMU, pp0_mmu_irq) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(1, base_addr + MALI_OFFSET_PP1, pp1_irq, base_addr + MALI_OFFSET_PP1_MMU, pp1_mmu_irq) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(2, base_addr + MALI_OFFSET_PP2, pp2_irq, base_addr + MALI_OFFSET_PP2_MMU, pp2_mmu_irq) \
+	MALI_GPU_RESOURCE_BCAST(base_addr + MALI_OFFSET_BCAST) \
+	MALI_GPU_RESOURCE_DLBU(base_addr + MALI_OFFSET_DLBU) \
+	MALI_GPU_RESOURCE_PP_BCAST(base_addr + MALI_OFFSET_PP_BCAST, pp_bcast_irq) \
+	MALI_GPU_RESOURCE_PP_MMU_BCAST(base_addr + MALI_OFFSET_PP_BCAST_MMU)
 
 #define MALI_GPU_RESOURCES_MALI450_MP3_PMU(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq, pp_bcast_irq) \
 	MALI_GPU_RESOURCES_MALI450_MP3(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq, pp_bcast_irq) \
-	MALI_GPU_RESOURCE_PMU(base_addr + 0x2000) \
-	 
+	MALI_GPU_RESOURCE_PMU(base_addr + MALI_OFFSET_PMU) \
+
 #define MALI_GPU_RESOURCES_MALI450_MP4(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq, pp3_irq, pp3_mmu_irq, pp_bcast_irq) \
-	MALI_GPU_RESOURCE_L2(base_addr + 0x10000) \
-	MALI_GPU_RESOURCE_GP_WITH_MMU(base_addr + 0x00000, gp_irq, base_addr + 0x03000, gp_mmu_irq) \
-	MALI_GPU_RESOURCE_L2(base_addr + 0x01000) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(0, base_addr + 0x08000, pp0_irq, base_addr + 0x04000, pp0_mmu_irq) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(1, base_addr + 0x0A000, pp1_irq, base_addr + 0x05000, pp1_mmu_irq) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(2, base_addr + 0x0C000, pp2_irq, base_addr + 0x06000, pp2_mmu_irq) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(3, base_addr + 0x0E000, pp3_irq, base_addr + 0x07000, pp3_mmu_irq) \
-	MALI_GPU_RESOURCE_BCAST(base_addr + 0x13000) \
-	MALI_GPU_RESOURCE_DLBU(base_addr + 0x14000) \
-	MALI_GPU_RESOURCE_PP_BCAST(base_addr + 0x16000, pp_bcast_irq) \
-	MALI_GPU_RESOURCE_PP_MMU_BCAST(base_addr + 0x15000) \
-	MALI_GPU_RESOURCE_DMA(base_addr + 0x12000)
+	MALI_GPU_RESOURCE_L2(base_addr + MALI450_OFFSET_L2_CACHE0) \
+	MALI_GPU_RESOURCE_GP_WITH_MMU(base_addr + MALI_OFFSET_GP, gp_irq, base_addr + MALI_OFFSET_GP_MMU, gp_mmu_irq) \
+	MALI_GPU_RESOURCE_L2(base_addr + MALI450_OFFSET_L2_CACHE1) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(0, base_addr + MALI_OFFSET_PP0, pp0_irq, base_addr + MALI_OFFSET_PP0_MMU, pp0_mmu_irq) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(1, base_addr + MALI_OFFSET_PP1, pp1_irq, base_addr + MALI_OFFSET_PP1_MMU, pp1_mmu_irq) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(2, base_addr + MALI_OFFSET_PP2, pp2_irq, base_addr + MALI_OFFSET_PP2_MMU, pp2_mmu_irq) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(3, base_addr + MALI_OFFSET_PP3, pp3_irq, base_addr + MALI_OFFSET_PP3_MMU, pp3_mmu_irq) \
+	MALI_GPU_RESOURCE_BCAST(base_addr + MALI_OFFSET_BCAST) \
+	MALI_GPU_RESOURCE_DLBU(base_addr + MALI_OFFSET_DLBU) \
+	MALI_GPU_RESOURCE_PP_BCAST(base_addr + MALI_OFFSET_PP_BCAST, pp_bcast_irq) \
+	MALI_GPU_RESOURCE_PP_MMU_BCAST(base_addr + MALI_OFFSET_PP_BCAST_MMU) \
+	MALI_GPU_RESOURCE_DMA(base_addr + MALI_OFFSET_DMA)
 
 #define MALI_GPU_RESOURCES_MALI450_MP4_PMU(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq, pp3_irq, pp3_mmu_irq, pp_bcast_irq) \
 	MALI_GPU_RESOURCES_MALI450_MP4(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq, pp3_irq, pp3_mmu_irq, pp_bcast_irq) \
-	MALI_GPU_RESOURCE_PMU(base_addr + 0x2000) \
-	 
+	MALI_GPU_RESOURCE_PMU(base_addr + MALI_OFFSET_PMU) \
+
 #define MALI_GPU_RESOURCES_MALI450_MP6(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq, pp3_irq, pp3_mmu_irq, pp4_irq, pp4_mmu_irq, pp5_irq, pp5_mmu_irq, pp_bcast_irq) \
-	MALI_GPU_RESOURCE_L2(base_addr + 0x10000) \
-	MALI_GPU_RESOURCE_GP_WITH_MMU(base_addr + 0x00000, gp_irq, base_addr + 0x03000, gp_mmu_irq) \
-	MALI_GPU_RESOURCE_L2(base_addr + 0x01000) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(0, base_addr + 0x08000, pp0_irq, base_addr + 0x04000, pp0_mmu_irq) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(1, base_addr + 0x0A000, pp1_irq, base_addr + 0x05000, pp1_mmu_irq) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(2, base_addr + 0x0C000, pp2_irq, base_addr + 0x06000, pp2_mmu_irq) \
-	MALI_GPU_RESOURCE_L2(base_addr + 0x11000) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(3, base_addr + 0x28000, pp3_irq, base_addr + 0x1C000, pp3_mmu_irq) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(4, base_addr + 0x2A000, pp4_irq, base_addr + 0x1D000, pp4_mmu_irq) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(5, base_addr + 0x2C000, pp5_irq, base_addr + 0x1E000, pp5_mmu_irq) \
-	MALI_GPU_RESOURCE_BCAST(base_addr + 0x13000) \
-	MALI_GPU_RESOURCE_DLBU(base_addr + 0x14000) \
-	MALI_GPU_RESOURCE_PP_BCAST(base_addr + 0x16000, pp_bcast_irq) \
-	MALI_GPU_RESOURCE_PP_MMU_BCAST(base_addr + 0x15000) \
-	MALI_GPU_RESOURCE_DMA(base_addr + 0x12000)
+	MALI_GPU_RESOURCE_L2(base_addr + MALI450_OFFSET_L2_CACHE0) \
+	MALI_GPU_RESOURCE_GP_WITH_MMU(base_addr + MALI_OFFSET_GP, gp_irq, base_addr + MALI_OFFSET_GP_MMU, gp_mmu_irq) \
+	MALI_GPU_RESOURCE_L2(base_addr + MALI450_OFFSET_L2_CACHE1) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(0, base_addr + MALI_OFFSET_PP0, pp0_irq, base_addr + MALI_OFFSET_PP0_MMU, pp0_mmu_irq) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(1, base_addr + MALI_OFFSET_PP1, pp1_irq, base_addr + MALI_OFFSET_PP1_MMU, pp1_mmu_irq) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(2, base_addr + MALI_OFFSET_PP2, pp2_irq, base_addr + MALI_OFFSET_PP2_MMU, pp2_mmu_irq) \
+	MALI_GPU_RESOURCE_L2(base_addr + MALI450_OFFSET_L2_CACHE2) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(3, base_addr + MALI_OFFSET_PP4, pp3_irq, base_addr + MALI_OFFSET_PP4_MMU, pp3_mmu_irq) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(4, base_addr + MALI_OFFSET_PP5, pp4_irq, base_addr + MALI_OFFSET_PP5_MMU, pp4_mmu_irq) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(5, base_addr + MALI_OFFSET_PP6, pp5_irq, base_addr + MALI_OFFSET_PP6_MMU, pp5_mmu_irq) \
+	MALI_GPU_RESOURCE_BCAST(base_addr + MALI_OFFSET_BCAST) \
+	MALI_GPU_RESOURCE_DLBU(base_addr + MALI_OFFSET_DLBU) \
+	MALI_GPU_RESOURCE_PP_BCAST(base_addr + MALI_OFFSET_PP_BCAST, pp_bcast_irq) \
+	MALI_GPU_RESOURCE_PP_MMU_BCAST(base_addr + MALI_OFFSET_PP_BCAST_MMU) \
+	MALI_GPU_RESOURCE_DMA(base_addr + MALI_OFFSET_DMA)
 
 #define MALI_GPU_RESOURCES_MALI450_MP6_PMU(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq, pp3_irq, pp3_mmu_irq, pp4_irq, pp4_mmu_irq, pp5_irq, pp5_mmu_irq, pp_bcast_irq) \
 	MALI_GPU_RESOURCES_MALI450_MP6(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq, pp3_irq, pp3_mmu_irq, pp4_irq, pp4_mmu_irq, pp5_irq, pp5_mmu_irq, pp_bcast_irq) \
-	MALI_GPU_RESOURCE_PMU(base_addr + 0x2000) \
-	 
+	MALI_GPU_RESOURCE_PMU(base_addr + MALI_OFFSET_PMU) \
+
 #define MALI_GPU_RESOURCES_MALI450_MP8(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq, pp3_irq, pp3_mmu_irq, pp4_irq, pp4_mmu_irq, pp5_irq, pp5_mmu_irq, pp6_irq, pp6_mmu_irq, pp7_irq, pp7_mmu_irq, pp_bcast_irq) \
-	MALI_GPU_RESOURCE_L2(base_addr + 0x10000) \
-	MALI_GPU_RESOURCE_GP_WITH_MMU(base_addr + 0x00000, gp_irq, base_addr + 0x03000, gp_mmu_irq) \
-	MALI_GPU_RESOURCE_L2(base_addr + 0x01000) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(0, base_addr + 0x08000, pp0_irq, base_addr + 0x04000, pp0_mmu_irq) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(1, base_addr + 0x0A000, pp1_irq, base_addr + 0x05000, pp1_mmu_irq) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(2, base_addr + 0x0C000, pp2_irq, base_addr + 0x06000, pp2_mmu_irq) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(3, base_addr + 0x0E000, pp3_irq, base_addr + 0x07000, pp3_mmu_irq) \
-	MALI_GPU_RESOURCE_L2(base_addr + 0x11000) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(4, base_addr + 0x28000, pp4_irq, base_addr + 0x1C000, pp4_mmu_irq) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(5, base_addr + 0x2A000, pp5_irq, base_addr + 0x1D000, pp5_mmu_irq) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(6, base_addr + 0x2C000, pp6_irq, base_addr + 0x1E000, pp6_mmu_irq) \
-	MALI_GPU_RESOURCE_PP_WITH_MMU(7, base_addr + 0x2E000, pp7_irq, base_addr + 0x1F000, pp7_mmu_irq) \
-	MALI_GPU_RESOURCE_BCAST(base_addr + 0x13000) \
-	MALI_GPU_RESOURCE_DLBU(base_addr + 0x14000) \
-	MALI_GPU_RESOURCE_PP_BCAST(base_addr + 0x16000, pp_bcast_irq) \
-	MALI_GPU_RESOURCE_PP_MMU_BCAST(base_addr + 0x15000) \
-	MALI_GPU_RESOURCE_DMA(base_addr + 0x12000)
+	MALI_GPU_RESOURCE_L2(base_addr + MALI450_OFFSET_L2_CACHE0) \
+	MALI_GPU_RESOURCE_GP_WITH_MMU(base_addr + MALI_OFFSET_GP, gp_irq, base_addr + MALI_OFFSET_GP_MMU, gp_mmu_irq) \
+	MALI_GPU_RESOURCE_L2(base_addr + MALI450_OFFSET_L2_CACHE1) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(0, base_addr + MALI_OFFSET_PP0, pp0_irq, base_addr + MALI_OFFSET_PP0_MMU, pp0_mmu_irq) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(1, base_addr + MALI_OFFSET_PP1, pp1_irq, base_addr + MALI_OFFSET_PP1_MMU, pp1_mmu_irq) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(2, base_addr + MALI_OFFSET_PP2, pp2_irq, base_addr + MALI_OFFSET_PP2_MMU, pp2_mmu_irq) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(3, base_addr + MALI_OFFSET_PP3, pp3_irq, base_addr + MALI_OFFSET_PP3_MMU, pp3_mmu_irq) \
+	MALI_GPU_RESOURCE_L2(base_addr + MALI450_OFFSET_L2_CACHE2) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(4, base_addr + MALI_OFFSET_PP4, pp4_irq, base_addr + MALI_OFFSET_PP4_MMU, pp4_mmu_irq) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(5, base_addr + MALI_OFFSET_PP5, pp5_irq, base_addr + MALI_OFFSET_PP5_MMU, pp5_mmu_irq) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(6, base_addr + MALI_OFFSET_PP6, pp6_irq, base_addr + MALI_OFFSET_PP6_MMU, pp6_mmu_irq) \
+	MALI_GPU_RESOURCE_PP_WITH_MMU(7, base_addr + MALI_OFFSET_PP7, pp7_irq, base_addr + MALI_OFFSET_PP7_MMU, pp7_mmu_irq) \
+	MALI_GPU_RESOURCE_BCAST(base_addr + MALI_OFFSET_BCAST) \
+	MALI_GPU_RESOURCE_DLBU(base_addr + MALI_OFFSET_DLBU) \
+	MALI_GPU_RESOURCE_PP_BCAST(base_addr + MALI_OFFSET_PP_BCAST, pp_bcast_irq) \
+	MALI_GPU_RESOURCE_PP_MMU_BCAST(base_addr + MALI_OFFSET_PP_BCAST_MMU) \
+	MALI_GPU_RESOURCE_DMA(base_addr + MALI_OFFSET_DMA)
 
 #define MALI_GPU_RESOURCES_MALI450_MP8_PMU(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq, pp3_irq, pp3_mmu_irq, pp4_irq, pp4_mmu_irq, pp5_irq, pp5_mmu_irq, pp6_irq, pp6_mmu_irq, pp7_irq, pp7_mmu_irq, pp_bcast_irq) \
 	MALI_GPU_RESOURCES_MALI450_MP8(base_addr, gp_irq, gp_mmu_irq, pp0_irq, pp0_mmu_irq, pp1_irq, pp1_mmu_irq, pp2_irq, pp2_mmu_irq, pp3_irq, pp3_mmu_irq, pp4_irq, pp4_mmu_irq, pp5_irq, pp5_mmu_irq, pp6_irq, pp6_mmu_irq, pp7_irq, pp7_mmu_irq, pp_bcast_irq) \
-	MALI_GPU_RESOURCE_PMU(base_addr + 0x2000) \
-	 
+	MALI_GPU_RESOURCE_PMU(base_addr + MALI_OFFSET_PMU) \
+
 #define MALI_GPU_RESOURCE_L2(addr) \
 	{ \
 		.name = "Mali_L2", \
@@ -321,7 +354,7 @@
 				 .start = pp_irq, \
 					  .end =   pp_irq, \
 	}, \
-	 
+
 #define MALI_GPU_RESOURCE_PP_MMU_BCAST(pp_mmu_bcast_addr) \
 	{ \
 		.name = "Mali_PP_MMU_Broadcast", \
@@ -334,32 +367,21 @@ struct mali_gpu_utilization_data {
 	unsigned int utilization_gpu; /* Utilization for GP and all PP cores combined, 0 = no utilization, 256 = full utilization */
 	unsigned int utilization_gp;  /* Utilization for GP core only, 0 = no utilization, 256 = full utilization */
 	unsigned int utilization_pp;  /* Utilization for all PP cores combined, 0 = no utilization, 256 = full utilization */
-#if defined(CONFIG_MALI400_POWER_PERFORMANCE_POLICY)
-	unsigned int number_of_window_jobs;
-	unsigned int number_of_window_jobs_under_pressure;
-#endif
+};
+
+struct mali_gpu_clk_item {
+	unsigned int clock; /* unit(MHz) */
+	unsigned int vol;
+};
+
+struct mali_gpu_clock {
+	struct mali_gpu_clk_item *item;
+	unsigned int num_of_steps;
 };
 
 struct mali_gpu_device_data {
-	/* Dedicated GPU memory range (physical). */
-	unsigned long dedicated_mem_start;
-	unsigned long dedicated_mem_size;
-
 	/* Shared GPU memory */
 	unsigned long shared_mem_size;
-
-	/* Frame buffer memory to be accessible by Mali GPU (physical) */
-	unsigned long fb_start;
-	unsigned long fb_size;
-
-	/* Max runtime [ms] for jobs */
-	int max_job_runtime;
-
-	/* Report GPU utilization in this interval (specified in ms) */
-	unsigned long utilization_interval;
-
-	/* Function that will receive periodic GPU utilization numbers */
-	void (*utilization_callback)(struct mali_gpu_utilization_data *data);
 
 	/*
 	 * Mali PMU switch delay.
@@ -370,28 +392,35 @@ struct mali_gpu_device_data {
 	 */
 	u32 pmu_switch_delay;
 
-
 	/* Mali Dynamic power domain configuration in sequence from 0-11
 	 *  GP  PP0 PP1  PP2  PP3  PP4  PP5  PP6  PP7, L2$0 L2$1 L2$2
 	 */
 	u16 pmu_domain_config[12];
 
-	/* Fuction that platform callback for freq tunning, needed when POWER_PERFORMANCE_POLICY enabled*/
-	int (*set_freq_callback)(unsigned int mhz);
+	/* Dedicated GPU memory range (physical). */
+	unsigned long dedicated_mem_start;
+	unsigned long dedicated_mem_size;
+
+	/* Frame buffer memory to be accessible by Mali GPU (physical) */
+	unsigned long fb_start;
+	unsigned long fb_size;
+
+	/* Max runtime [ms] for jobs */
+	int max_job_runtime;
+
+	/* Report GPU utilization and related control in this interval (specified in ms) */
+	unsigned long control_interval;
+
+	/* Function that will receive periodic GPU utilization numbers */
+	void (*utilization_callback)(struct mali_gpu_utilization_data *data);
+
+	/* Fuction that platform callback for freq setting, needed when CONFIG_MALI_DVFS enabled */
+	int (*set_freq)(int setting_clock_step);
+	/* Function that platfrom report it's clock info which driver can set, needed when CONFIG_MALI_DVFS enabled */
+	void (*get_clock_info)(struct mali_gpu_clock **data);
+	/* Function that get the current clock info, needed when CONFIG_MALI_DVFS enabled */
+	int (*get_freq)(void);
 };
-
-/** @brief MALI GPU power down using MALI in-built PMU
- *
- * called to power down all cores
- */
-int mali_pmu_powerdown(void);
-
-
-/** @brief MALI GPU power up using MALI in-built PMU
- *
- * called to power up all cores
- */
-int mali_pmu_powerup(void);
 
 /**
  * Pause the scheduling and power state changes of Mali device driver.

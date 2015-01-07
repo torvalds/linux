@@ -1,11 +1,11 @@
 /*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2008-2014 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
+ * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 /**
@@ -210,21 +210,17 @@ typedef enum {
 	_MALI_OSK_LOCK_ORDER_MEM_INFO,
 	_MALI_OSK_LOCK_ORDER_MEM_PT_CACHE,
 	_MALI_OSK_LOCK_ORDER_DESCRIPTOR_MAP,
-	_MALI_OSK_LOCK_ORDER_GROUP_VIRTUAL,
-	_MALI_OSK_LOCK_ORDER_GROUP,
+	_MALI_OSK_LOCK_ORDER_PM_EXECUTION,
+	_MALI_OSK_LOCK_ORDER_EXECUTOR,
 	_MALI_OSK_LOCK_ORDER_TIMELINE_SYSTEM,
 	_MALI_OSK_LOCK_ORDER_SCHEDULER,
 	_MALI_OSK_LOCK_ORDER_SCHEDULER_DEFERRED,
-	_MALI_OSK_LOCK_ORDER_PM_CORE_STATE,
-	_MALI_OSK_LOCK_ORDER_L2_COMMAND,
-	_MALI_OSK_LOCK_ORDER_DMA_COMMAND,
 	_MALI_OSK_LOCK_ORDER_PROFILING,
-	_MALI_OSK_LOCK_ORDER_L2_COUNTER,
+	_MALI_OSK_LOCK_ORDER_L2,
+	_MALI_OSK_LOCK_ORDER_L2_COMMAND,
 	_MALI_OSK_LOCK_ORDER_UTILIZATION,
-	_MALI_OSK_LOCK_ORDER_PM_EXECUTE,
 	_MALI_OSK_LOCK_ORDER_SESSION_PENDING_JOBS,
-	_MALI_OSK_LOCK_ORDER_PM_DOMAIN,
-	_MALI_OSK_LOCK_ORDER_PMU,
+	_MALI_OSK_LOCK_ORDER_PM_STATE,
 
 	_MALI_OSK_LOCK_ORDER_LAST,
 } _mali_osk_lock_order_t;
@@ -433,7 +429,8 @@ typedef struct _mali_osk_list_s {
  */
 typedef struct _mali_osk_resource {
 	const char *description;        /**< short description of the resource */
-	u32 base;                       /**< Physical base address of the resource, as seen by Mali resources. */
+	uintptr_t base;                 /**< Physical base address of the resource, as seen by Mali resources. */
+	const char *irq_name;           /**< Name of irq belong to this resource */
 	u32 irq;                        /**< IRQ number delivered to the CPU, or -1 to tell the driver to probe for it (if possible) */
 } _mali_osk_resource_t;
 /** @} */ /* end group _mali_osk_miscellaneous */

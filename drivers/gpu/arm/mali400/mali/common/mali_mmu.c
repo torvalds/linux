@@ -1,11 +1,11 @@
 /*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2007-2014 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
+ * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #include "mali_kernel_common.h"
@@ -190,7 +190,7 @@ static mali_bool mali_mmu_enable_stall(struct mali_mmu_core *mmu)
 	}
 
 	if (mmu_status & MALI_MMU_STATUS_BIT_PAGE_FAULT_ACTIVE) {
-		MALI_DEBUG_PRINT(2, ("Aborting MMU stall request since it is in pagefault state.\n"));
+		MALI_DEBUG_PRINT(3, ("Aborting MMU stall request since it is in pagefault state.\n"));
 		return MALI_FALSE;
 	}
 
@@ -294,7 +294,7 @@ _mali_osk_errcode_t mali_mmu_reset(struct mali_mmu_core *mmu)
 		err = _MALI_OSK_ERR_BUSY;
 	}
 
-	MALI_DEBUG_PRINT(2, ("Mali MMU: mali_kernel_mmu_reset: %s\n", mmu->hw_core.description));
+	MALI_DEBUG_PRINT(3, ("Mali MMU: mali_kernel_mmu_reset: %s\n", mmu->hw_core.description));
 
 	if (_MALI_OSK_ERR_OK == mali_mmu_raw_reset(mmu)) {
 		mali_hw_core_register_write(&mmu->hw_core, MALI_MMU_REGISTER_INT_MASK, MALI_MMU_INTERRUPT_PAGE_FAULT | MALI_MMU_INTERRUPT_READ_BUS_ERROR);
@@ -380,7 +380,7 @@ void mali_mmu_activate_fault_flush_page_directory(struct mali_mmu_core *mmu)
 	mali_bool stall_success;
 	MALI_DEBUG_ASSERT_POINTER(mmu);
 
-	MALI_DEBUG_PRINT(2, ("Activating the page fault flush page directory on MMU %s\n", mmu->hw_core.description));
+	MALI_DEBUG_PRINT(3, ("Activating the page fault flush page directory on MMU %s\n", mmu->hw_core.description));
 	stall_success = mali_mmu_enable_stall(mmu);
 	/* This function is expect to fail the stalling, since it might be in PageFault mode when it is called */
 	mali_mmu_activate_address_space(mmu, mali_page_fault_flush_page_directory);

@@ -1,17 +1,19 @@
 /*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2008-2010, 2012-2014 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
+ * Copyright (C) 2010, 2012-2014 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #include "mali_kernel_common.h"
 #include "mali_kernel_descriptor_mapping.h"
 #include "mali_osk.h"
 #include "mali_osk_bitops.h"
+#include "mali_memory_types.h"
+#include "mali_session.h"
 
 #define MALI_PAD_INT(x) (((x) + (BITS_PER_LONG - 1)) & ~(BITS_PER_LONG - 1))
 
@@ -63,9 +65,12 @@ _mali_osk_errcode_t mali_descriptor_mapping_allocate_mapping(mali_descriptor_map
 {
 	_mali_osk_errcode_t err = _MALI_OSK_ERR_FAULT;
 	int new_descriptor;
+	mali_mem_allocation *descriptor;
+	struct mali_session_data *session;
 
 	MALI_DEBUG_ASSERT_POINTER(map);
 	MALI_DEBUG_ASSERT_POINTER(odescriptor);
+	MALI_DEBUG_ASSERT_POINTER(target);
 
 	_mali_osk_mutex_rw_wait(map->lock, _MALI_OSK_LOCKMODE_RW);
 	new_descriptor = _mali_osk_find_first_zero_bit(map->table->usage, map->current_nr_mappings);
@@ -89,6 +94,18 @@ _mali_osk_errcode_t mali_descriptor_mapping_allocate_mapping(mali_descriptor_map
 	_mali_osk_set_nonatomic_bit(new_descriptor, map->table->usage);
 	map->table->mappings[new_descriptor] = target;
 	*odescriptor = new_descriptor;
+
+	/* To calculate the mali mem usage for the session */
+	descriptor = (mali_mem_allocation *)target;
+	session = descriptor->session;
+
+	MALI_DEBUG_ASSERT_POINTER(session);
+
+	session->mali_mem_array[descriptor->type] += descriptor->size;
+	if ((MALI_MEM_OS == descriptor->type || MALI_MEM_BLOCK == descriptor->type) &&
+	    (session->mali_mem_array[MALI_MEM_OS] + session->mali_mem_array[MALI_MEM_BLOCK] > session->max_mali_mem_allocated)) {
+		session->max_mali_mem_allocated = session->mali_mem_array[MALI_MEM_OS] + session->mali_mem_array[MALI_MEM_BLOCK];
+	}
 	err = _MALI_OSK_ERR_OK;
 
 unlock_and_exit:
@@ -141,12 +158,24 @@ _mali_osk_errcode_t mali_descriptor_mapping_set(mali_descriptor_mapping *map, in
 void *mali_descriptor_mapping_free(mali_descriptor_mapping *map, int descriptor)
 {
 	void *old_value = NULL;
+	mali_mem_allocation *tmp_descriptor;
+	struct mali_session_data *session;
 
 	_mali_osk_mutex_rw_wait(map->lock, _MALI_OSK_LOCKMODE_RW);
 	if ((descriptor >= 0) && (descriptor < map->current_nr_mappings) && _mali_osk_test_bit(descriptor, map->table->usage)) {
 		old_value = map->table->mappings[descriptor];
 		map->table->mappings[descriptor] = NULL;
 		_mali_osk_clear_nonatomic_bit(descriptor, map->table->usage);
+	}
+	if (NULL != old_value) {
+		tmp_descriptor = (mali_mem_allocation *)old_value;
+		session = tmp_descriptor->session;
+
+		MALI_DEBUG_ASSERT_POINTER(session);
+
+		MALI_DEBUG_ASSERT(session->mali_mem_array[tmp_descriptor->type] >= tmp_descriptor->size);
+
+		session->mali_mem_array[tmp_descriptor->type] -= tmp_descriptor->size;
 	}
 	_mali_osk_mutex_rw_signal(map->lock, _MALI_OSK_LOCKMODE_RW);
 

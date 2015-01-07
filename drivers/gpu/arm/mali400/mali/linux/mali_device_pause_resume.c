@@ -1,11 +1,11 @@
 /**
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2010-2014 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
+ * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 /**
@@ -15,24 +15,22 @@
 
 #include <linux/module.h>
 #include <linux/mali/mali_utgard.h>
-#include "mali_gp_scheduler.h"
-#include "mali_pp_scheduler.h"
+#include "mali_pm.h"
 
 void mali_dev_pause(void)
 {
-	mali_gp_scheduler_suspend();
-	mali_pp_scheduler_suspend();
-	mali_group_power_off(MALI_FALSE);
-	mali_l2_cache_pause_all(MALI_TRUE);
+	/*
+	 * Deactive all groups to prevent hardware being touched
+	 * during the period of mali device pausing
+	 */
+	mali_pm_os_suspend(MALI_FALSE);
 }
 
 EXPORT_SYMBOL(mali_dev_pause);
 
 void mali_dev_resume(void)
 {
-	mali_l2_cache_pause_all(MALI_FALSE);
-	mali_gp_scheduler_resume();
-	mali_pp_scheduler_resume();
+	mali_pm_os_resume();
 }
 
 EXPORT_SYMBOL(mali_dev_resume);

@@ -1,11 +1,11 @@
 /*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2012-2014 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
+ * Copyright (C) 2012-2014 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 /**
@@ -31,6 +31,7 @@
 #include "mali_osk.h"
 
 struct mali_sync_flag;
+struct mali_timeline;
 
 /**
  * Create a sync timeline.
@@ -38,7 +39,7 @@ struct mali_sync_flag;
  * @param name Name of the sync timeline.
  * @return The new sync timeline if successful, NULL if not.
  */
-struct sync_timeline *mali_sync_timeline_create(const char *name);
+struct sync_timeline *mali_sync_timeline_create(struct mali_timeline *timeline, const char *name);
 
 /**
  * Check if sync timeline belongs to Mali.

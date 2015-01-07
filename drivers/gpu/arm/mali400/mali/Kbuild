@@ -1,11 +1,11 @@
 #
-# This confidential and proprietary software may be used only as
-# authorised by a licensing agreement from ARM Limited
-# (C) COPYRIGHT 2007-2011 ARM Limited
-# ALL RIGHTS RESERVED
-# The entire notice above must be reproduced on all authorised
-# copies and copies may only be made to the extent permitted
-# by a licensing agreement from ARM Limited.
+# Copyright (C) 2010-2011 ARM Limited. All rights reserved.
+# 
+# This program is free software and is provided to you under the terms of the GNU General Public License version 2
+# as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+# 
+# A copy of the licence is included with the program, and can also be obtained from Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #
 
 # This file is called by the Linux build system.
@@ -15,14 +15,13 @@ TIMESTAMP ?= default
 OS_MEMORY_KERNEL_BUFFER_SIZE_IN_MB ?= 16
 USING_GPU_UTILIZATION ?= 1
 PROFILING_SKIP_PP_JOBS ?= 0
-TARGET_PLATFORM ?= rk30
+PROFILING_SKIP_PP_AND_GP_JOBS ?= 0
 MALI_PP_SCHEDULER_FORCE_NO_JOB_OVERLAP ?= 0
 MALI_PP_SCHEDULER_KEEP_SUB_JOB_STARTS_ALIGNED ?= 0
 MALI_PP_SCHEDULER_FORCE_NO_JOB_OVERLAP_BETWEEN_APPS ?= 0
 MALI_UPPER_HALF_SCHEDULING ?= 1
 MALI_ENABLE_CPU_CYCLES ?= 0
-
-MALI_PLATFORM ?=rk30
+MALI_PLATFORM ?= rk30
 
 # For customer releases the Linux Device Drivers will be provided as ARM proprietary and GPL releases:
 # The ARM proprietary product will only include the license/proprietary directory
@@ -43,16 +42,21 @@ else
     ccflags-y += -I$(src)/linux/license/gpl
 endif
 
-
-
-ifneq ($(MALI_PLATFORM),)
-EXTRA_DEFINES += -DMALI_FAKE_PLATFORM_DEVICE=1
-#MALI_PLATFORM_FILES = $(wildcard platform/$(MALI_PLATFORM)/*.c)
-mali-y += \
-	platform/$(MALI_PLATFORM)/mali_platform.o \
-	platform/$(MALI_PLATFORM)/rk3066.o
+ifeq ($(USING_GPU_UTILIZATION), 1)
+    ifeq ($(USING_DVFS), 1)
+        $(error USING_GPU_UTILIZATION conflict with USING_DVFS you can read the Integration Guide to choose which one do you need)
+    endif
 endif
 
+ifneq ($(MALI_PLATFORM),)
+	EXTRA_DEFINES += -DMALI_FAKE_PLATFORM_DEVICE=1
+	#MALI_PLATFORM_FILES = $(wildcard platform/$(MALI_PLATFORM)/*.c)
+	mali-y += \
+		platform/$(MALI_PLATFORM)/mali_platform.o \
+		platform/$(MALI_PLATFORM)/rk3066.o \
+		platform/$(MALI_PLATFORM)/mali_dvfs.o \
+		platform/$(MALI_PLATFORM)/arm_core_scaling.o
+endif
 
 mali-y += \
 	linux/mali_osk_atomics.o \
@@ -101,8 +105,7 @@ mali-y += \
 	common/mali_gp_job.o \
 	common/mali_soft_job.o \
 	common/mali_scheduler.o \
-	common/mali_gp_scheduler.o \
-	common/mali_pp_scheduler.o \
+	common/mali_executor.o \
 	common/mali_group.o \
 	common/mali_dlbu.o \
 	common/mali_broadcast.o \
@@ -110,8 +113,8 @@ mali-y += \
 	common/mali_pmu.o \
 	common/mali_user_settings_db.o \
 	common/mali_kernel_utilization.o \
+	common/mali_control_timer.o \
 	common/mali_l2_cache.o \
-	common/mali_dma.o \
 	common/mali_timeline.o \
 	common/mali_timeline_fence_wait.o \
 	common/mali_timeline_sync_fence.o \
@@ -137,7 +140,7 @@ ccflags-$(CONFIG_SYNC) += -Idrivers/staging/android
 
 mali-$(CONFIG_MALI400_UMP) += linux/mali_memory_ump.o
 
-mali-$(CONFIG_MALI400_POWER_PERFORMANCE_POLICY) += common/mali_power_performance_policy.o
+mali-$(CONFIG_MALI_DVFS) += common/mali_dvfs_policy.o
 
 # Tell the Linux build system from which .o file to create the kernel module
 obj-$(CONFIG_MALI400) := mali.o
@@ -157,7 +160,7 @@ ifeq ($(MALI_UPPER_HALF_SCHEDULING),1)
 	ccflags-y += -DMALI_UPPER_HALF_SCHEDULING
 endif
 
-ccflags-$(CONFIG_MALI400_UMP) += -I$(src)/../include/ump
+ccflags-$(CONFIG_MALI400_UMP) += -I$(src)/../../ump/include/ump
 ccflags-$(CONFIG_MALI400_DEBUG) += -DDEBUG
 
 # Use our defines when compiling
@@ -215,7 +218,7 @@ VERSION_STRINGS += USING_UMP=$(CONFIG_MALI400_UMP)
 VERSION_STRINGS += USING_PROFILING=$(CONFIG_MALI400_PROFILING)
 VERSION_STRINGS += USING_INTERNAL_PROFILING=$(CONFIG_MALI400_INTERNAL_PROFILING)
 VERSION_STRINGS += USING_GPU_UTILIZATION=$(USING_GPU_UTILIZATION)
-VERSION_STRINGS += USING_POWER_PERFORMANCE_POLICY=$(CONFIG_POWER_PERFORMANCE_POLICY)
+VERSION_STRINGS += USING_DVFS=$(CONFIG_MALI_DVFS)
 VERSION_STRINGS += MALI_UPPER_HALF_SCHEDULING=$(MALI_UPPER_HALF_SCHEDULING)
 
 # Create file with Mali driver configuration

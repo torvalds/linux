@@ -1,11 +1,11 @@
 /*
- * This confidential and proprietary software may be used only as
- * authorised by a licensing agreement from ARM Limited
- * (C) COPYRIGHT 2009-2014 ARM Limited
- * ALL RIGHTS RESERVED
- * The entire notice above must be reproduced on all authorised
- * copies and copies may only be made to the extent permitted
- * by a licensing agreement from ARM Limited.
+ * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
+ * 
+ * This program is free software and is provided to you under the terms of the GNU General Public License version 2
+ * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+ * 
+ * A copy of the licence is included with the program, and can also be obtained from Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 /**
@@ -17,45 +17,33 @@
 #define __MALI_PMU_H__
 
 #include "mali_osk.h"
+#include "mali_kernel_common.h"
+#include "mali_hw_core.h"
 
-#define MALI_GP_DOMAIN_INDEX    0
-#define MALI_PP0_DOMAIN_INDEX   1
-#define MALI_PP1_DOMAIN_INDEX   2
-#define MALI_PP2_DOMAIN_INDEX   3
-#define MALI_PP3_DOMAIN_INDEX   4
-#define MALI_PP4_DOMAIN_INDEX   5
-#define MALI_PP5_DOMAIN_INDEX   6
-#define MALI_PP6_DOMAIN_INDEX   7
-#define MALI_PP7_DOMAIN_INDEX   8
-#define MALI_L20_DOMAIN_INDEX   9
-#define MALI_L21_DOMAIN_INDEX   10
-#define MALI_L22_DOMAIN_INDEX   11
+/** @brief MALI inbuilt PMU hardware info and PMU hardware has knowledge of cores power mask
+ */
+struct mali_pmu_core {
+	struct mali_hw_core hw_core;
+	u32 registered_cores_mask;
+	u32 switch_delay;
+};
 
-#define MALI_MAX_NUMBER_OF_DOMAINS      12
+/** @brief Register layout for hardware PMU
+ */
+typedef enum {
+	PMU_REG_ADDR_MGMT_POWER_UP                  = 0x00,     /*< Power up register */
+	PMU_REG_ADDR_MGMT_POWER_DOWN                = 0x04,     /*< Power down register */
+	PMU_REG_ADDR_MGMT_STATUS                    = 0x08,     /*< Core sleep status register */
+	PMU_REG_ADDR_MGMT_INT_MASK                  = 0x0C,     /*< Interrupt mask register */
+	PMU_REG_ADDR_MGMT_INT_RAWSTAT               = 0x10,     /*< Interrupt raw status register */
+	PMU_REG_ADDR_MGMT_INT_CLEAR                 = 0x18,     /*< Interrupt clear register */
+	PMU_REG_ADDR_MGMT_SW_DELAY                  = 0x1C,     /*< Switch delay register */
+	PMU_REGISTER_ADDRESS_SPACE_SIZE             = 0x28,     /*< Size of register space */
+} pmu_reg_addr_mgmt_addr;
 
-/* Record the domain config from the customer or default config */
-extern u16 mali_pmu_global_domain_config[];
+#define PMU_REG_VAL_IRQ 1
 
-static inline u16 mali_pmu_get_domain_mask(u32 index)
-{
-	MALI_DEBUG_ASSERT(MALI_MAX_NUMBER_OF_DOMAINS > index);
-
-	return mali_pmu_global_domain_config[index];
-}
-
-static inline void mali_pmu_set_domain_mask(u32 index, u16 value)
-{
-	MALI_DEBUG_ASSERT(MALI_MAX_NUMBER_OF_DOMAINS > index);
-
-	mali_pmu_global_domain_config[index] = value;
-}
-
-static inline void mali_pmu_copy_domain_mask(void *src, u32 len)
-{
-	_mali_osk_memcpy(mali_pmu_global_domain_config, src, len);
-}
-
-struct mali_pmu_core;
+extern struct mali_pmu_core *mali_global_pmu_core;
 
 /** @brief Initialisation of MALI PMU
  *
@@ -76,18 +64,45 @@ struct mali_pmu_core *mali_pmu_create(_mali_osk_resource_t *resource);
  */
 void mali_pmu_delete(struct mali_pmu_core *pmu);
 
+/** @brief Set registered cores mask
+ *
+ * @param pmu Pointer to PMU core object
+ * @param mask All available/valid domain bits
+ */
+void mali_pmu_set_registered_cores_mask(struct mali_pmu_core *pmu, u32 mask);
+
+/** @brief Retrieves the Mali PMU core object (if any)
+ *
+ * @return The Mali PMU object, or NULL if no PMU exists.
+ */
+MALI_STATIC_INLINE struct mali_pmu_core *mali_pmu_get_global_pmu_core(void)
+{
+	return mali_global_pmu_core;
+}
+
 /** @brief Reset PMU core
  *
  * @param pmu Pointer to PMU core object to reset
- * @return _MALI_OSK_ERR_OK on success, otherwise failure.
  */
-_mali_osk_errcode_t mali_pmu_reset(struct mali_pmu_core *pmu);
+void mali_pmu_reset(struct mali_pmu_core *pmu);
+
+void mali_pmu_power_up_all(struct mali_pmu_core *pmu);
+
+void mali_pmu_power_down_all(struct mali_pmu_core *pmu);
+
+/** @brief Returns a mask of the currently powered up domains
+ *
+ * @param pmu Pointer to PMU core object
+ */
+MALI_STATIC_INLINE u32 mali_pmu_get_mask(struct mali_pmu_core *pmu)
+{
+	u32 stat = mali_hw_core_register_read(&pmu->hw_core, PMU_REG_ADDR_MGMT_STATUS);
+	return ((~stat) & pmu->registered_cores_mask);
+}
 
 /** @brief MALI GPU power down using MALI in-built PMU
  *
- * Called to power down the specified cores. The mask will be saved so that \a
- * mali_pmu_power_up_all will bring the PMU back to the previous state set with
- * this function or \a mali_pmu_power_up.
+ * Called to power down the specified cores.
  *
  * @param pmu Pointer to PMU core object to power down
  * @param mask Mask specifying which power domains to power down
@@ -97,38 +112,12 @@ _mali_osk_errcode_t mali_pmu_power_down(struct mali_pmu_core *pmu, u32 mask);
 
 /** @brief MALI GPU power up using MALI in-built PMU
  *
- * Called to power up the specified cores. The mask will be saved so that \a
- * mali_pmu_power_up_all will bring the PMU back to the previous state set with
- * this function or \a mali_pmu_power_down.
+ * Called to power up the specified cores.
  *
  * @param pmu Pointer to PMU core object to power up
  * @param mask Mask specifying which power domains to power up
  * @return _MALI_OSK_ERR_OK on success otherwise, a suitable _mali_osk_errcode_t error.
  */
 _mali_osk_errcode_t mali_pmu_power_up(struct mali_pmu_core *pmu, u32 mask);
-
-/** @brief MALI GPU power down using MALI in-built PMU
- *
- * called to power down all cores
- *
- * @param pmu Pointer to PMU core object to power down
- * @return _MALI_OSK_ERR_OK on success otherwise, a suitable _mali_osk_errcode_t error.
- */
-_mali_osk_errcode_t mali_pmu_power_down_all(struct mali_pmu_core *pmu);
-
-/** @brief MALI GPU power up using MALI in-built PMU
- *
- * called to power up all cores
- *
- * @param pmu Pointer to PMU core object to power up
- * @return _MALI_OSK_ERR_OK on success otherwise, a suitable _mali_osk_errcode_t error.
- */
-_mali_osk_errcode_t mali_pmu_power_up_all(struct mali_pmu_core *pmu);
-
-/** @brief Retrieves the Mali PMU core object (if any)
- *
- * @return The Mali PMU object, or NULL if no PMU exists.
- */
-struct mali_pmu_core *mali_pmu_get_global_pmu_core(void);
 
 #endif /* __MALI_PMU_H__ */
