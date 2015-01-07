@@ -32,8 +32,9 @@ struct hpet_scope {
 };
 
 #define IR_X2APIC_MODE(mode) (mode ? (1 << 11) : 0)
-#define IRTE_DEST(dest) ((x2apic_mode) ? dest : dest << 8)
+#define IRTE_DEST(dest) ((eim_mode) ? dest : dest << 8)
 
+static int __read_mostly eim_mode;
 static struct ioapic_scope ir_ioapic[MAX_IO_APICS];
 static struct hpet_scope ir_hpet[MAX_HPET_TBS];
 
@@ -644,8 +645,6 @@ static int __init intel_enable_irq_remapping(void)
 	int eim = 0;
 
 	if (x2apic_supported()) {
-		pr_info("Queued invalidation will be enabled to support x2apic and Intr-remapping.\n");
-
 		eim = !dmar_x2apic_optout();
 		if (!eim)
 			printk(KERN_WARNING
@@ -683,8 +682,11 @@ static int __init intel_enable_irq_remapping(void)
 		if (eim && !ecap_eim_support(iommu->ecap)) {
 			printk(KERN_INFO "DRHD %Lx: EIM not supported by DRHD, "
 			       " ecap %Lx\n", drhd->reg_base_addr, iommu->ecap);
-			goto error;
+			eim = 0;
 		}
+	eim_mode = eim;
+	if (eim)
+		pr_info("Queued invalidation will be enabled to support x2apic and Intr-remapping.\n");
 
 	/*
 	 * Enable queued invalidation for all the DRHD's.
