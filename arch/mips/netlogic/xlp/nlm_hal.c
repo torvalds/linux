@@ -71,6 +71,14 @@ static int xlp9xx_irq_to_irt(int irq)
 	switch (irq) {
 	case PIC_GPIO_IRQ:
 		return 12;
+	case PIC_I2C_0_IRQ:
+		return 125;
+	case PIC_I2C_1_IRQ:
+		return 126;
+	case PIC_I2C_2_IRQ:
+		return 127;
+	case PIC_I2C_3_IRQ:
+		return 128;
 	case PIC_9XX_XHCI_0_IRQ:
 		return 114;
 	case PIC_9XX_XHCI_1_IRQ:
