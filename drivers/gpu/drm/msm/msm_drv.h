@@ -76,6 +76,12 @@ struct msm_drm_private {
 	 */
 	struct hdmi *hdmi;
 
+	/* eDP is for mdp5 only, but kms has not been created
+	 * when edp_bind() and edp_init() are called. Here is the only
+	 * place to keep the edp instance.
+	 */
+	struct msm_edp *edp;
+
 	/* when we have more than one 'msm_gpu' these need to be an array: */
 	struct msm_gpu *gpu;
 	struct msm_file_private *lastctx;
