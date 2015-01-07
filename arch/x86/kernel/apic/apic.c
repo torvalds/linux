@@ -1601,7 +1601,8 @@ static __init void try_to_enable_x2apic(int ir_stat)
 		 * under KVM
 		 */
 		if (max_physical_apicid > 255 ||
-		    !hypervisor_x2apic_available()) {
+		    (IS_ENABLED(CONFIG_HYPERVISOR_GUEST) &&
+		     !hypervisor_x2apic_available())) {
 			pr_info("IRQ remapping doesn't support X2APIC mode, disable x2apic.\n");
 			if (x2apic_preenabled)
 				disable_x2apic();
