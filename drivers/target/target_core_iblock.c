@@ -883,7 +883,6 @@ static struct configfs_attribute *iblock_backend_dev_attrs[] = {
 	&iblock_dev_attrib_hw_block_size.attr,
 	&iblock_dev_attrib_block_size.attr,
 	&iblock_dev_attrib_hw_max_sectors.attr,
-	&iblock_dev_attrib_fabric_max_sectors.attr,
 	&iblock_dev_attrib_optimal_sectors.attr,
 	&iblock_dev_attrib_hw_queue_depth.attr,
 	&iblock_dev_attrib_queue_depth.attr,

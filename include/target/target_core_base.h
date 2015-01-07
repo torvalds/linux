@@ -77,8 +77,6 @@
 #define DA_UNMAP_GRANULARITY_ALIGNMENT_DEFAULT	0
 /* Default max_write_same_len, disabled by default */
 #define DA_MAX_WRITE_SAME_LEN			0
-/* Default max transfer length */
-#define DA_FABRIC_MAX_SECTORS			8192
 /* Use a model alias based on the configfs backend device name */
 #define DA_EMULATE_MODEL_ALIAS			0
 /* Emulation for Direct Page Out */
@@ -694,7 +692,6 @@ struct se_dev_attrib {
 	u32		hw_block_size;
 	u32		block_size;
 	u32		hw_max_sectors;
-	u32		fabric_max_sectors;
 	u32		optimal_sectors;
 	u32		hw_queue_depth;
 	u32		queue_depth;

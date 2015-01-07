@@ -968,7 +968,6 @@ static struct configfs_attribute *fileio_backend_dev_attrs[] = {
 	&fileio_dev_attrib_hw_block_size.attr,
 	&fileio_dev_attrib_block_size.attr,
 	&fileio_dev_attrib_hw_max_sectors.attr,
-	&fileio_dev_attrib_fabric_max_sectors.attr,
 	&fileio_dev_attrib_optimal_sectors.attr,
 	&fileio_dev_attrib_hw_queue_depth.attr,
 	&fileio_dev_attrib_queue_depth.attr,
