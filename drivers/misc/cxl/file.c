@@ -140,15 +140,17 @@ static long afu_ioctl_start_work(struct cxl_context *ctx,
 
 	pr_devel("%s: pe: %i\n", __func__, ctx->pe);
 
-	mutex_lock(&ctx->status_mutex);
-	if (ctx->status != OPENED) {
-		rc = -EIO;
-		goto out;
-	}
-
+	/* Do this outside the status_mutex to avoid a circular dependency with
+	 * the locking in cxl_mmap_fault() */
 	if (copy_from_user(&work, uwork,
 			   sizeof(struct cxl_ioctl_start_work))) {
 		rc = -EFAULT;
+		goto out;
+	}
+
+	mutex_lock(&ctx->status_mutex);
+	if (ctx->status != OPENED) {
+		rc = -EIO;
 		goto out;
 	}
 
