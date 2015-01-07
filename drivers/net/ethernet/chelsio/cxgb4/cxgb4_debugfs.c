@@ -168,6 +168,75 @@ static const struct file_operations cim_la_fops = {
 	.release = seq_release_private
 };
 
+static int cim_qcfg_show(struct seq_file *seq, void *v)
+{
+	static const char * const qname[] = {
+		"TP0", "TP1", "ULP", "SGE0", "SGE1", "NC-SI",
+		"ULP0", "ULP1", "ULP2", "ULP3", "SGE", "NC-SI",
+		"SGE0-RX", "SGE1-RX"
+	};
+
+	int i;
+	struct adapter *adap = seq->private;
+	u16 base[CIM_NUM_IBQ + CIM_NUM_OBQ_T5];
+	u16 size[CIM_NUM_IBQ + CIM_NUM_OBQ_T5];
+	u32 stat[(4 * (CIM_NUM_IBQ + CIM_NUM_OBQ_T5))];
+	u16 thres[CIM_NUM_IBQ];
+	u32 obq_wr_t4[2 * CIM_NUM_OBQ], *wr;
+	u32 obq_wr_t5[2 * CIM_NUM_OBQ_T5];
+	u32 *p = stat;
+	int cim_num_obq = is_t4(adap->params.chip) ?
+				CIM_NUM_OBQ : CIM_NUM_OBQ_T5;
+
+	i = t4_cim_read(adap, is_t4(adap->params.chip) ? UP_IBQ_0_RDADDR_A :
+			UP_IBQ_0_SHADOW_RDADDR_A,
+			ARRAY_SIZE(stat), stat);
+	if (!i) {
+		if (is_t4(adap->params.chip)) {
+			i = t4_cim_read(adap, UP_OBQ_0_REALADDR_A,
+					ARRAY_SIZE(obq_wr_t4), obq_wr_t4);
+				wr = obq_wr_t4;
+		} else {
+			i = t4_cim_read(adap, UP_OBQ_0_SHADOW_REALADDR_A,
+					ARRAY_SIZE(obq_wr_t5), obq_wr_t5);
+				wr = obq_wr_t5;
+		}
+	}
+	if (i)
+		return i;
+
+	t4_read_cimq_cfg(adap, base, size, thres);
+
+	seq_printf(seq,
+		   "  Queue  Base  Size Thres  RdPtr WrPtr  SOP  EOP Avail\n");
+	for (i = 0; i < CIM_NUM_IBQ; i++, p += 4)
+		seq_printf(seq, "%7s %5x %5u %5u %6x  %4x %4u %4u %5u\n",
+			   qname[i], base[i], size[i], thres[i],
+			   IBQRDADDR_G(p[0]), IBQWRADDR_G(p[1]),
+			   QUESOPCNT_G(p[3]), QUEEOPCNT_G(p[3]),
+			   QUEREMFLITS_G(p[2]) * 16);
+	for ( ; i < CIM_NUM_IBQ + cim_num_obq; i++, p += 4, wr += 2)
+		seq_printf(seq, "%7s %5x %5u %12x  %4x %4u %4u %5u\n",
+			   qname[i], base[i], size[i],
+			   QUERDADDR_G(p[0]) & 0x3fff, wr[0] - base[i],
+			   QUESOPCNT_G(p[3]), QUEEOPCNT_G(p[3]),
+			   QUEREMFLITS_G(p[2]) * 16);
+	return 0;
+}
+
+static int cim_qcfg_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, cim_qcfg_show, inode->i_private);
+}
+
+static const struct file_operations cim_qcfg_fops = {
+	.owner   = THIS_MODULE,
+	.open    = cim_qcfg_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = single_release,
+};
+
 /* Firmware Device Log dump. */
 static const char * const devlog_level_strings[] = {
 	[FW_DEVLOG_LEVEL_EMERG]		= "EMERG",
@@ -443,6 +512,7 @@ int t4_setup_debugfs(struct adapter *adap)
 
 	static struct t4_debugfs_entry t4_debugfs_files[] = {
 		{ "cim_la", &cim_la_fops, S_IRUSR, 0 },
+		{ "cim_qcfg", &cim_qcfg_fops, S_IRUSR, 0 },
 		{ "devlog", &devlog_fops, S_IRUSR, 0 },
 		{ "l2t", &t4_l2t_fops, S_IRUSR, 0},
 	};

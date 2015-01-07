@@ -2096,4 +2096,59 @@
 #define UPDBGLACAPTPCONLY_V(x)	((x) << UPDBGLACAPTPCONLY_S)
 #define UPDBGLACAPTPCONLY_F	UPDBGLACAPTPCONLY_V(1U)
 
+#define CIM_QUEUE_CONFIG_REF_A 0x7b48
+#define CIM_QUEUE_CONFIG_CTRL_A 0x7b4c
+
+#define CIMQSIZE_S    24
+#define CIMQSIZE_M    0x3fU
+#define CIMQSIZE_G(x) (((x) >> CIMQSIZE_S) & CIMQSIZE_M)
+
+#define CIMQBASE_S    16
+#define CIMQBASE_M    0x3fU
+#define CIMQBASE_G(x) (((x) >> CIMQBASE_S) & CIMQBASE_M)
+
+#define QUEFULLTHRSH_S    0
+#define QUEFULLTHRSH_M    0x1ffU
+#define QUEFULLTHRSH_G(x) (((x) >> QUEFULLTHRSH_S) & QUEFULLTHRSH_M)
+
+#define UP_IBQ_0_RDADDR_A 0x10
+#define UP_IBQ_0_SHADOW_RDADDR_A 0x280
+#define UP_OBQ_0_REALADDR_A 0x104
+#define UP_OBQ_0_SHADOW_REALADDR_A 0x394
+
+#define IBQRDADDR_S    0
+#define IBQRDADDR_M    0x1fffU
+#define IBQRDADDR_G(x) (((x) >> IBQRDADDR_S) & IBQRDADDR_M)
+
+#define IBQWRADDR_S    0
+#define IBQWRADDR_M    0x1fffU
+#define IBQWRADDR_G(x) (((x) >> IBQWRADDR_S) & IBQWRADDR_M)
+
+#define QUERDADDR_S    0
+#define QUERDADDR_M    0x7fffU
+#define QUERDADDR_G(x) (((x) >> QUERDADDR_S) & QUERDADDR_M)
+
+#define QUEREMFLITS_S    0
+#define QUEREMFLITS_M    0x7ffU
+#define QUEREMFLITS_G(x) (((x) >> QUEREMFLITS_S) & QUEREMFLITS_M)
+
+#define QUEEOPCNT_S    16
+#define QUEEOPCNT_M    0xfffU
+#define QUEEOPCNT_G(x) (((x) >> QUEEOPCNT_S) & QUEEOPCNT_M)
+
+#define QUESOPCNT_S    0
+#define QUESOPCNT_M    0xfffU
+#define QUESOPCNT_G(x) (((x) >> QUESOPCNT_S) & QUESOPCNT_M)
+
+#define OBQSELECT_S    4
+#define OBQSELECT_V(x) ((x) << OBQSELECT_S)
+#define OBQSELECT_F    OBQSELECT_V(1U)
+
+#define IBQSELECT_S    3
+#define IBQSELECT_V(x) ((x) << IBQSELECT_S)
+#define IBQSELECT_F    IBQSELECT_V(1U)
+
+#define QUENUMSELECT_S    0
+#define QUENUMSELECT_V(x) ((x) << QUENUMSELECT_S)
+
 #endif /* __T4_REGS_H */
