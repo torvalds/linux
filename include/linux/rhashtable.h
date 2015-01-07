@@ -113,7 +113,7 @@ struct rhashtable {
 	struct bucket_table __rcu	*tbl;
 	struct bucket_table __rcu       *future_tbl;
 	atomic_t			nelems;
-	size_t				shift;
+	atomic_t			shift;
 	struct rhashtable_params	p;
 	struct delayed_work             run_work;
 	struct mutex                    mutex;

@@ -199,7 +199,8 @@ static struct bucket_table *bucket_table_alloc(struct rhashtable *ht,
 bool rht_grow_above_75(const struct rhashtable *ht, size_t new_size)
 {
 	/* Expand table when exceeding 75% load */
-	return atomic_read(&ht->nelems) > (new_size / 4 * 3);
+	return atomic_read(&ht->nelems) > (new_size / 4 * 3) &&
+	       (ht->p.max_shift && atomic_read(&ht->shift) < ht->p.max_shift);
 }
 EXPORT_SYMBOL_GPL(rht_grow_above_75);
 
@@ -211,7 +212,8 @@ EXPORT_SYMBOL_GPL(rht_grow_above_75);
 bool rht_shrink_below_30(const struct rhashtable *ht, size_t new_size)
 {
 	/* Shrink table beneath 30% load */
-	return atomic_read(&ht->nelems) < (new_size * 3 / 10);
+	return atomic_read(&ht->nelems) < (new_size * 3 / 10) &&
+	       (atomic_read(&ht->shift) > ht->p.min_shift);
 }
 EXPORT_SYMBOL_GPL(rht_shrink_below_30);
 
@@ -318,14 +320,11 @@ int rhashtable_expand(struct rhashtable *ht)
 
 	ASSERT_RHT_MUTEX(ht);
 
-	if (ht->p.max_shift && ht->shift >= ht->p.max_shift)
-		return 0;
-
 	new_tbl = bucket_table_alloc(ht, old_tbl->size * 2);
 	if (new_tbl == NULL)
 		return -ENOMEM;
 
-	ht->shift++;
+	atomic_inc(&ht->shift);
 
 	/* Make insertions go into the new, empty table right away. Deletions
 	 * and lookups will be attempted in both tables until we synchronize.
@@ -421,9 +420,6 @@ int rhashtable_shrink(struct rhashtable *ht)
 
 	ASSERT_RHT_MUTEX(ht);
 
-	if (ht->shift <= ht->p.min_shift)
-		return 0;
-
 	new_tbl = bucket_table_alloc(ht, tbl->size / 2);
 	if (new_tbl == NULL)
 		return -ENOMEM;
@@ -462,7 +458,7 @@ int rhashtable_shrink(struct rhashtable *ht)
 
 	/* Publish the new, valid hash table */
 	rcu_assign_pointer(ht->tbl, new_tbl);
-	ht->shift--;
+	atomic_dec(&ht->shift);
 
 	/* Wait for readers. No new readers will have references to the
 	 * old hash table.
@@ -851,7 +847,7 @@ int rhashtable_init(struct rhashtable *ht, struct rhashtable_params *params)
 	if (tbl == NULL)
 		return -ENOMEM;
 
-	ht->shift = ilog2(tbl->size);
+	atomic_set(&ht->shift, ilog2(tbl->size));
 	RCU_INIT_POINTER(ht->tbl, tbl);
 	RCU_INIT_POINTER(ht->future_tbl, tbl);
 
