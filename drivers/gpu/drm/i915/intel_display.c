@@ -4301,14 +4301,14 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	if (intel_crtc->config.has_pch_encoder)
 		ironlake_pch_enable(crtc);
 
+	assert_vblank_disabled(crtc);
+	drm_crtc_vblank_on(crtc);
+
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		encoder->enable(encoder);
 
 	if (HAS_PCH_CPT(dev))
 		cpt_verify_modeset(dev, intel_crtc->pipe);
-
-	assert_vblank_disabled(crtc);
-	drm_crtc_vblank_on(crtc);
 
 	intel_crtc_enable_planes(crtc);
 }
@@ -4421,13 +4421,13 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	if (intel_crtc->config.dp_encoder_is_mst)
 		intel_ddi_set_vc_payload_alloc(crtc, true);
 
+	assert_vblank_disabled(crtc);
+	drm_crtc_vblank_on(crtc);
+
 	for_each_encoder_on_crtc(dev, crtc, encoder) {
 		encoder->enable(encoder);
 		intel_opregion_notify_encoder(encoder, true);
 	}
-
-	assert_vblank_disabled(crtc);
-	drm_crtc_vblank_on(crtc);
 
 	/* If we change the relative order between pipe/planes enabling, we need
 	 * to change the workaround. */
@@ -4479,11 +4479,11 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 
 	intel_crtc_disable_planes(crtc);
 
-	drm_crtc_vblank_off(crtc);
-	assert_vblank_disabled(crtc);
-
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		encoder->disable(encoder);
+
+	drm_crtc_vblank_off(crtc);
+	assert_vblank_disabled(crtc);
 
 	if (intel_crtc->config.has_pch_encoder)
 		intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, false);
@@ -4544,13 +4544,13 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 
 	intel_crtc_disable_planes(crtc);
 
-	drm_crtc_vblank_off(crtc);
-	assert_vblank_disabled(crtc);
-
 	for_each_encoder_on_crtc(dev, crtc, encoder) {
 		intel_opregion_notify_encoder(encoder, false);
 		encoder->disable(encoder);
 	}
+
+	drm_crtc_vblank_off(crtc);
+	assert_vblank_disabled(crtc);
 
 	if (intel_crtc->config.has_pch_encoder)
 		intel_set_pch_fifo_underrun_reporting(dev_priv, TRANSCODER_A,
@@ -5021,11 +5021,11 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 	intel_update_watermarks(crtc);
 	intel_enable_pipe(intel_crtc);
 
-	for_each_encoder_on_crtc(dev, crtc, encoder)
-		encoder->enable(encoder);
-
 	assert_vblank_disabled(crtc);
 	drm_crtc_vblank_on(crtc);
+
+	for_each_encoder_on_crtc(dev, crtc, encoder)
+		encoder->enable(encoder);
 
 	intel_crtc_enable_planes(crtc);
 
@@ -5082,11 +5082,11 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 	intel_update_watermarks(crtc);
 	intel_enable_pipe(intel_crtc);
 
-	for_each_encoder_on_crtc(dev, crtc, encoder)
-		encoder->enable(encoder);
-
 	assert_vblank_disabled(crtc);
 	drm_crtc_vblank_on(crtc);
+
+	for_each_encoder_on_crtc(dev, crtc, encoder)
+		encoder->enable(encoder);
 
 	intel_crtc_enable_planes(crtc);
 
@@ -5159,11 +5159,11 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	 */
 	intel_wait_for_vblank(dev, pipe);
 
-	drm_crtc_vblank_off(crtc);
-	assert_vblank_disabled(crtc);
-
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		encoder->disable(encoder);
+
+	drm_crtc_vblank_off(crtc);
+	assert_vblank_disabled(crtc);
 
 	intel_disable_pipe(intel_crtc);
 
