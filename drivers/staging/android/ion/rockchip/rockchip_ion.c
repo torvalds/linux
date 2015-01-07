@@ -31,6 +31,8 @@
 #include <linux/of_fdt.h>
 #endif
 
+#include <linux/compat.h>
+
 struct ion_device *rockchip_ion_dev;
 EXPORT_SYMBOL(rockchip_ion_dev);
 
@@ -115,37 +117,116 @@ struct ion_client *rockchip_ion_client_create(const char *name)
 }
 EXPORT_SYMBOL(rockchip_ion_client_create);
 
+struct compat_ion_phys_data {
+	compat_int_t handle;
+	compat_ulong_t phys;
+	compat_ulong_t size;
+};
+
+#define COMPAT_ION_IOC_GET_PHYS	_IOWR(ION_IOC_ROCKCHIP_MAGIC, 0, \
+						struct compat_ion_phys_data)
+
+static int compat_get_ion_phys_data(
+			struct compat_ion_phys_data __user *data32,
+			struct ion_phys_data __user *data)
+{
+	compat_ulong_t l;
+	compat_int_t i;
+	int err;
+
+	err = get_user(i, &data32->handle);
+	err |= put_user(i, &data->handle);
+	err |= get_user(l, &data32->phys);
+	err |= put_user(l, &data->phys);
+	err |= get_user(l, &data32->size);
+	err |= put_user(l, &data->size);
+
+	return err;
+};
+
+static int compat_put_ion_phys_data(
+			struct compat_ion_phys_data __user *data32,
+			struct ion_phys_data __user *data)
+{
+	compat_ulong_t l;
+	compat_int_t i;
+	int err;
+
+	err = get_user(i, &data->handle);
+	err |= put_user(i, &data32->handle);
+	err |= get_user(l, &data->phys);
+	err |= put_user(l, &data32->phys);
+	err |= get_user(l, &data->size);
+	err |= put_user(l, &data32->size);
+
+	return err;
+};
+
+static int rockchip_ion_get_phys(struct ion_client *client, unsigned long arg)
+{
+	struct ion_phys_data data;
+	struct ion_handle *handle;
+	int ret;
+
+	if (copy_from_user(&data, (void __user *)arg,
+			   sizeof(struct ion_phys_data)))
+		return -EFAULT;
+
+	handle = ion_handle_get_by_id(client, data.handle);
+	if (IS_ERR(handle))
+		return PTR_ERR(handle);
+
+	ret = ion_phys(client, handle, &data.phys, (size_t *)&data.size);
+	pr_debug("ret=%d, phys=0x%lX\n", ret, data.phys);
+	ion_handle_put(handle);
+	if (ret < 0)
+		return ret;
+	if (copy_to_user((void __user *)arg, &data,
+			 sizeof(struct ion_phys_data)))
+		return -EFAULT;
+
+	return 0;
+}
+
 static long rockchip_custom_ioctl (struct ion_client *client, unsigned int cmd,
 			      unsigned long arg)
 {
-	pr_debug("[%s %d] cmd=%X\n", __func__, __LINE__, cmd);
+	long ret;
 
-	switch (cmd) {
-	case ION_IOC_GET_PHYS:
-	{
-		struct ion_phys_data data;
-		struct ion_handle *handle;
-		int ret;
-		
-		if (copy_from_user(&data, (void __user *)arg,
-					sizeof(struct ion_phys_data)))
-			return -EFAULT;
+	pr_debug("%s(%d): cmd=%x\n", __func__, __LINE__, cmd);
 
-		handle = ion_handle_get_by_id(client, data.handle);
-		if (IS_ERR(handle))
-			return PTR_ERR(handle);
+	if (is_compat_task()) {
+		switch (cmd) {
+		case COMPAT_ION_IOC_GET_PHYS: {
+			struct compat_ion_phys_data __user *data32;
+			struct ion_phys_data __user *data;
+			int err;
 
-		ret = ion_phys(client, handle, &data.phys, (size_t *)&data.size);
-		pr_debug("ret=%d, phys=0x%lX\n", ret, data.phys);
-		ion_handle_put(handle);
-		if(ret < 0)
-			return ret;
-		if (copy_to_user((void __user *)arg, &data, sizeof(struct ion_phys_data)))
-			return -EFAULT;
-		break;
-	}
-	default:
-		return -ENOTTY;
+			data32 = compat_ptr(arg);
+			data = compat_alloc_user_space(sizeof(*data));
+			if (data == NULL)
+				return -EFAULT;
+
+			err = compat_get_ion_phys_data(data32, data);
+			if (err)
+				return err;
+
+			ret = rockchip_ion_get_phys(client,
+						    (unsigned long)data);
+
+			err = compat_put_ion_phys_data(data32, data);
+			return ret ? ret : err;
+		}
+		default:
+			return -ENOTTY;
+		}
+	} else {
+		switch (cmd) {
+		case ION_IOC_GET_PHYS:
+			return rockchip_ion_get_phys(client, arg);
+		default:
+			return -ENOTTY;
+		}
 	}
 	
 	return 0;
