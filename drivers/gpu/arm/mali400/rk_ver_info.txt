@@ -3,3 +3,5 @@ r5p0-01rel0-1-x@0
 	对 arm_release_ver r5p0-01rel0 的定制集成.
 	r5p0-01rel0 对 gpu 的 dts 有大修改, 但这里出于兼容考虑, 仍旧使用 dts_for_mali_ko_befor_r5p0-01rel0.
 
+r5p0-01rel0-2-x@0
+	支持 mali_so 来获取 rk_ko_ver.
