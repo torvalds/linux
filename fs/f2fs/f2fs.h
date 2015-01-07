@@ -1512,7 +1512,7 @@ struct f2fs_stat_info {
 	int main_area_segs, main_area_sections, main_area_zones;
 	int hit_ext, total_ext;
 	int ndirty_node, ndirty_dent, ndirty_dirs, ndirty_meta;
-	int nats, sits, fnids;
+	int nats, dirty_nats, sits, dirty_sits, fnids;
 	int total_count, utilization;
 	int bg_gc, inline_inode, inline_dir, inmem_pages;
 	unsigned int valid_count, valid_node_count, valid_inode_count;

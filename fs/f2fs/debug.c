@@ -57,7 +57,9 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->node_pages = NODE_MAPPING(sbi)->nrpages;
 	si->meta_pages = META_MAPPING(sbi)->nrpages;
 	si->nats = NM_I(sbi)->nat_cnt;
-	si->sits = SIT_I(sbi)->dirty_sentries;
+	si->dirty_nats = NM_I(sbi)->dirty_nat_cnt;
+	si->sits = MAIN_SEGS(sbi);
+	si->dirty_sits = SIT_I(sbi)->dirty_sentries;
 	si->fnids = NM_I(sbi)->fcnt;
 	si->bg_gc = sbi->bg_gc;
 	si->util_free = (int)(free_user_blocks(sbi) >> sbi->log_blocks_per_seg)
@@ -260,8 +262,8 @@ static int stat_show(struct seq_file *s, void *v)
 			   si->ndirty_dent, si->ndirty_dirs);
 		seq_printf(s, "  - meta: %4d in %4d\n",
 			   si->ndirty_meta, si->meta_pages);
-		seq_printf(s, "  - NATs: %9d\n  - SITs: %9d\n",
-			   si->nats, si->sits);
+		seq_printf(s, "  - NATs: %9d/%9d\n  - SITs: %9d/%9d\n",
+			   si->dirty_nats, si->nats, si->dirty_sits, si->sits);
 		seq_printf(s, "  - free_nids: %9d\n",
 			   si->fnids);
 		seq_puts(s, "\nDistribution of User Blocks:");
