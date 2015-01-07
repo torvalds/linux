@@ -615,14 +615,14 @@ static bool fm10k_clean_rx_irq(struct fm10k_q_vector *q_vector,
 
 		rx_desc = FM10K_RX_DESC(rx_ring, rx_ring->next_to_clean);
 
-		if (!fm10k_test_staterr(rx_desc, FM10K_RXD_STATUS_DD))
+		if (!rx_desc->d.staterr)
 			break;
 
 		/* This memory barrier is needed to keep us from reading
 		 * any other fields out of the rx_desc until we know the
-		 * RXD_STATUS_DD bit is set
+		 * descriptor has been written back
 		 */
-		rmb();
+		dma_rmb();
 
 		/* retrieve a buffer from the ring */
 		skb = fm10k_fetch_rx_buffer(rx_ring, rx_desc, skb);
