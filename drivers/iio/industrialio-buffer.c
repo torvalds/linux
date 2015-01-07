@@ -639,6 +639,8 @@ static int __iio_update_buffers(struct iio_dev *indio_dev,
 		indio_dev->currentmode = INDIO_BUFFER_TRIGGERED;
 	} else if (indio_dev->modes & INDIO_BUFFER_HARDWARE) {
 		indio_dev->currentmode = INDIO_BUFFER_HARDWARE;
+	} else if (indio_dev->modes & INDIO_BUFFER_SOFTWARE) {
+		indio_dev->currentmode = INDIO_BUFFER_SOFTWARE;
 	} else { /* Should never be reached */
 		ret = -EINVAL;
 		goto error_run_postdisable;
