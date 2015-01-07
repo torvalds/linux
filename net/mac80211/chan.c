@@ -388,7 +388,7 @@ ieee80211_find_chanctx(struct ieee80211_local *local,
 	return NULL;
 }
 
-static bool ieee80211_is_radar_required(struct ieee80211_local *local)
+bool ieee80211_is_radar_required(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata;
 
@@ -567,7 +567,7 @@ static void ieee80211_recalc_radar_chanctx(struct ieee80211_local *local,
 	bool radar_enabled;
 
 	lockdep_assert_held(&local->chanctx_mtx);
-	/* for setting local->radar_detect_enabled */
+	/* for ieee80211_is_radar_required */
 	lockdep_assert_held(&local->mtx);
 
 	radar_enabled = ieee80211_is_radar_required(local);
@@ -576,7 +576,6 @@ static void ieee80211_recalc_radar_chanctx(struct ieee80211_local *local,
 		return;
 
 	chanctx->conf.radar_enabled = radar_enabled;
-	local->radar_detect_enabled = chanctx->conf.radar_enabled;
 
 	if (!local->use_chanctx) {
 		local->hw.conf.radar_enabled = chanctx->conf.radar_enabled;
