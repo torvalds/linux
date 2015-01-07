@@ -18,8 +18,6 @@
 #include "decode.h"
 
 enum probes_arm_action {
-	PROBES_EMULATE_NONE,
-	PROBES_SIMULATE_NOP,
 	PROBES_PRELOAD_IMM,
 	PROBES_PRELOAD_REG,
 	PROBES_BRANCH_IMM,

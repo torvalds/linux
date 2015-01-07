@@ -195,8 +195,6 @@ uprobe_decode_ldmstm(probes_opcode_t insn,
 }
 
 const union decode_action uprobes_probes_actions[] = {
-	[PROBES_EMULATE_NONE] = {.handler = probes_simulate_nop},
-	[PROBES_SIMULATE_NOP] = {.handler = probes_simulate_nop},
 	[PROBES_PRELOAD_IMM] = {.handler = probes_simulate_nop},
 	[PROBES_PRELOAD_REG] = {.handler = probes_simulate_nop},
 	[PROBES_BRANCH_IMM] = {.handler = simulate_blx1},

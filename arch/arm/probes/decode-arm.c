@@ -370,17 +370,17 @@ static const union decode_item arm_cccc_001x_table[] = {
 
 	/* MOVW			cccc 0011 0000 xxxx xxxx xxxx xxxx xxxx */
 	/* MOVT			cccc 0011 0100 xxxx xxxx xxxx xxxx xxxx */
-	DECODE_EMULATEX	(0x0fb00000, 0x03000000, PROBES_DATA_PROCESSING_IMM,
+	DECODE_EMULATEX	(0x0fb00000, 0x03000000, PROBES_MOV_HALFWORD,
 						 REGS(0, NOPC, 0, 0, 0)),
 
 	/* YIELD		cccc 0011 0010 0000 xxxx xxxx 0000 0001 */
 	DECODE_OR	(0x0fff00ff, 0x03200001),
 	/* SEV			cccc 0011 0010 0000 xxxx xxxx 0000 0100 */
-	DECODE_EMULATE	(0x0fff00ff, 0x03200004, PROBES_EMULATE_NONE),
+	DECODE_EMULATE	(0x0fff00ff, 0x03200004, PROBES_SEV),
 	/* NOP			cccc 0011 0010 0000 xxxx xxxx 0000 0000 */
 	/* WFE			cccc 0011 0010 0000 xxxx xxxx 0000 0010 */
 	/* WFI			cccc 0011 0010 0000 xxxx xxxx 0000 0011 */
-	DECODE_SIMULATE	(0x0fff00fc, 0x03200000, PROBES_SIMULATE_NOP),
+	DECODE_SIMULATE	(0x0fff00fc, 0x03200000, PROBES_WFE),
 	/* DBG			cccc 0011 0010 0000 xxxx xxxx ffff xxxx */
 	/* unallocated hints	cccc 0011 0010 0000 xxxx xxxx xxxx xxxx */
 	/* MSR (immediate)	cccc 0011 0x10 xxxx xxxx xxxx xxxx xxxx */

@@ -302,8 +302,6 @@ emulate_rdlo12rdhi16rn0rm8_rwflags_nopc(probes_opcode_t insn,
 }
 
 const union decode_action kprobes_arm_actions[NUM_PROBES_ARM_ACTIONS] = {
-	[PROBES_EMULATE_NONE] = {.handler = probes_emulate_none},
-	[PROBES_SIMULATE_NOP] = {.handler = probes_simulate_nop},
 	[PROBES_PRELOAD_IMM] = {.handler = probes_simulate_nop},
 	[PROBES_PRELOAD_REG] = {.handler = probes_simulate_nop},
 	[PROBES_BRANCH_IMM] = {.handler = simulate_blx1},
