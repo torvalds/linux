@@ -1783,7 +1783,6 @@ static int sata_dwc_remove(struct platform_device *ofdev)
 	struct sata_dwc_device *hsdev = host->private_data;
 
 	ata_host_detach(host);
-	dev_set_drvdata(dev, NULL);
 
 	/* Free SATA DMA resources */
 	dma_dwc_exit(hsdev);
