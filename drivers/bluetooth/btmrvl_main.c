@@ -207,9 +207,13 @@ static int btmrvl_send_sync_cmd(struct btmrvl_private *priv, u16 opcode,
 	wake_up_interruptible(&priv->main_thread.wait_q);
 
 	if (!wait_event_interruptible_timeout(priv->adapter->cmd_wait_q,
-					      priv->adapter->cmd_complete,
+					      priv->adapter->cmd_complete ||
+					      priv->surprise_removed,
 					      WAIT_UNTIL_CMD_RESP))
 		return -ETIMEDOUT;
+
+	if (priv->surprise_removed)
+		return -EFAULT;
 
 	return 0;
 }
@@ -292,9 +296,10 @@ int btmrvl_enable_hs(struct btmrvl_private *priv)
 	}
 
 	ret = wait_event_interruptible_timeout(adapter->event_hs_wait_q,
-					       adapter->hs_state,
+					       adapter->hs_state ||
+					       priv->surprise_removed,
 					       WAIT_UNTIL_HS_STATE_CHANGED);
-	if (ret < 0) {
+	if (ret < 0 || priv->surprise_removed) {
 		BT_ERR("event_hs_wait_q terminated (%d): %d,%d,%d",
 		       ret, adapter->hs_state, adapter->ps_state,
 		       adapter->wakeup_tries);
