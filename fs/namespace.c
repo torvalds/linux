@@ -3185,11 +3185,15 @@ bool fs_fully_visible(struct file_system_type *type)
 		if (mnt->mnt.mnt_root != mnt->mnt.mnt_sb->s_root)
 			continue;
 
-		/* This mount is not fully visible if there are any child mounts
-		 * that cover anything except for empty directories.
+		/* This mount is not fully visible if there are any
+		 * locked child mounts that cover anything except for
+		 * empty directories.
 		 */
 		list_for_each_entry(child, &mnt->mnt_mounts, mnt_child) {
 			struct inode *inode = child->mnt_mountpoint->d_inode;
+			/* Only worry about locked mounts */
+			if (!(mnt->mnt.mnt_flags & MNT_LOCKED))
+				continue;
 			if (!S_ISDIR(inode->i_mode))
 				goto next;
 			if (inode->i_nlink > 2)
