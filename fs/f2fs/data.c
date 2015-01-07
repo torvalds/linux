@@ -837,7 +837,6 @@ write:
 	/* we should bypass data pages to proceed the kworkder jobs */
 	if (unlikely(f2fs_cp_error(sbi))) {
 		SetPageError(page);
-		unlock_page(page);
 		goto out;
 	}
 
