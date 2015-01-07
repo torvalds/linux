@@ -36,7 +36,7 @@
 #include <linux/of_irq.h>
 #include <linux/rockchip/cpu.h>
 #include <linux/rockchip/cru.h>
-#ifdef CONFIG_REGMAP
+#ifdef CONFIG_MFD_SYSCON
 #include <linux/regmap.h>
 #endif
 #include <linux/mfd/syscon.h>
@@ -449,7 +449,7 @@ typedef struct vpu_service_info {
 	u32 mode_ctrl;
 	u32 *reg_base;
 	u32 ioaddr;
-#ifdef CONFIG_REGMAP
+#ifdef CONFIG_MFD_SYSCON
 	struct regmap *grf_base;
 #else
 	u32 *grf_base;
@@ -530,7 +530,7 @@ static void vcodec_enter_mode(struct vpu_subdev_data *data)
 	}
 #endif
 	bits = 1 << pservice->mode_bit;
-#ifdef CONFIG_REGMAP
+#ifdef CONFIG_MFD_SYSCON
 	regmap_read(pservice->grf_base, pservice->mode_ctrl, &raw);
 
 	if (data->mode == VCODEC_RUNNING_MODE_HEVC)
@@ -2118,7 +2118,7 @@ static void vcodec_read_property(struct device_node *np,
 		of_property_read_u32(np, "mode_bit", &pservice->mode_bit);
 		of_property_read_u32(np, "mode_ctrl", &pservice->mode_ctrl);
 	}
-#ifdef CONFIG_REGMAP
+#ifdef CONFIG_MFD_SYSCON
 	pservice->grf_base = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
 #else
 	pservice->grf_base = (u32*)RK_GRF_VIRT;
