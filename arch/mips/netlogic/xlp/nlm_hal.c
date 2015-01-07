@@ -332,7 +332,7 @@ static unsigned int nlm_xlp2_get_pic_frequency(int node)
 	/* Find the clock source PLL device for PIC */
 	if (cpu_xlp9xx) {
 		reg_select = nlm_read_sys_reg(clockbase,
-				SYS_9XX_CLK_DEV_SEL) & 0x3;
+				SYS_9XX_CLK_DEV_SEL_REG) & 0x3;
 		switch (reg_select) {
 		case 0:
 			ctrl_val0 = nlm_read_sys_reg(clockbase,
@@ -361,7 +361,7 @@ static unsigned int nlm_xlp2_get_pic_frequency(int node)
 		}
 	} else {
 		reg_select = (nlm_read_sys_reg(sysbase,
-					SYS_CLK_DEV_SEL) >> 22) & 0x3;
+					SYS_CLK_DEV_SEL_REG) >> 22) & 0x3;
 		switch (reg_select) {
 		case 0:
 			ctrl_val0 = nlm_read_sys_reg(sysbase,
@@ -425,10 +425,10 @@ static unsigned int nlm_xlp2_get_pic_frequency(int node)
 	/* PIC post divider, which happens after PLL */
 	if (cpu_xlp9xx)
 		pic_div = nlm_read_sys_reg(clockbase,
-				SYS_9XX_CLK_DEV_DIV) & 0x3;
+				SYS_9XX_CLK_DEV_DIV_REG) & 0x3;
 	else
 		pic_div = (nlm_read_sys_reg(sysbase,
-					SYS_CLK_DEV_DIV) >> 22) & 0x3;
+					SYS_CLK_DEV_DIV_REG) >> 22) & 0x3;
 	do_div(pll_out_freq_num, 1 << pic_div);
 
 	return pll_out_freq_num;
