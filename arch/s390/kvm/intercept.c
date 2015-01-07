@@ -318,17 +318,19 @@ static int handle_mvpg_pei(struct kvm_vcpu *vcpu)
 	kvm_s390_get_regs_rre(vcpu, &reg1, &reg2);
 
 	/* Make sure that the source is paged-in */
-	srcaddr = kvm_s390_real_to_abs(vcpu, vcpu->run->s.regs.gprs[reg2]);
-	if (kvm_is_error_gpa(vcpu->kvm, srcaddr))
-		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+	rc = guest_translate_address(vcpu, vcpu->run->s.regs.gprs[reg2],
+				     &srcaddr, 0);
+	if (rc)
+		return kvm_s390_inject_prog_cond(vcpu, rc);
 	rc = kvm_arch_fault_in_page(vcpu, srcaddr, 0);
 	if (rc != 0)
 		return rc;
 
 	/* Make sure that the destination is paged-in */
-	dstaddr = kvm_s390_real_to_abs(vcpu, vcpu->run->s.regs.gprs[reg1]);
-	if (kvm_is_error_gpa(vcpu->kvm, dstaddr))
-		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+	rc = guest_translate_address(vcpu, vcpu->run->s.regs.gprs[reg1],
+				     &dstaddr, 1);
+	if (rc)
+		return kvm_s390_inject_prog_cond(vcpu, rc);
 	rc = kvm_arch_fault_in_page(vcpu, dstaddr, 1);
 	if (rc != 0)
 		return rc;
