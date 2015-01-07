@@ -167,10 +167,13 @@ static void * __ref alloc_p2m_page(void)
 	return (void *)__get_free_page(GFP_KERNEL | __GFP_REPEAT);
 }
 
-/* Only to be called in case of a race for a page just allocated! */
-static void free_p2m_page(void *p)
+static void __ref free_p2m_page(void *p)
 {
-	BUG_ON(!slab_is_available());
+	if (unlikely(!slab_is_available())) {
+		free_bootmem((unsigned long)p, PAGE_SIZE);
+		return;
+	}
+
 	free_page((unsigned long)p);
 }
 
