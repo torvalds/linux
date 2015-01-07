@@ -20,7 +20,7 @@
 #include <linux/list.h>
 #include <linux/bitmap.h>
 
-#include "iscsi_target_core.h"
+#include <target/iscsi/iscsi_target_core.h>
 #include "iscsi_target_tq.h"
 #include "iscsi_target.h"
 

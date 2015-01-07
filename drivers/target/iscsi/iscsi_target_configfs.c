@@ -28,7 +28,7 @@
 #include <target/configfs_macros.h>
 #include <target/iscsi/iscsi_transport.h>
 
-#include "iscsi_target_core.h"
+#include <target/iscsi/iscsi_target_core.h>
 #include "iscsi_target_parameters.h"
 #include "iscsi_target_device.h"
 #include "iscsi_target_erl0.h"
@@ -36,7 +36,7 @@
 #include "iscsi_target_tpg.h"
 #include "iscsi_target_util.h"
 #include "iscsi_target.h"
-#include "iscsi_target_stat.h"
+#include <target/iscsi/iscsi_target_stat.h>
 #include "iscsi_target_configfs.h"
 
 struct target_fabric_configfs *lio_target_fabric_configfs;

@@ -30,7 +30,7 @@
 #include <target/target_core_fabric.h>
 #include <target/target_core_configfs.h>
 
-#include "iscsi_target_core.h"
+#include <target/iscsi/iscsi_target_core.h>
 #include "iscsi_target_parameters.h"
 #include "iscsi_target_seq_pdu_list.h"
 #include "iscsi_target_tq.h"
@@ -45,7 +45,7 @@
 #include "iscsi_target_util.h"
 #include "iscsi_target.h"
 #include "iscsi_target_device.h"
-#include "iscsi_target_stat.h"
+#include <target/iscsi/iscsi_target_stat.h>
 
 #include <target/iscsi/iscsi_transport.h>
 
