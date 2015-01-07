@@ -409,10 +409,10 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 	/*
 	 * debug prints of the parsed results
 	 */
-	codec_info(codec, "autoconfig: line_outs=%d (0x%x/0x%x/0x%x/0x%x/0x%x) type:%s\n",
-		   cfg->line_outs, cfg->line_out_pins[0], cfg->line_out_pins[1],
-		   cfg->line_out_pins[2], cfg->line_out_pins[3],
-		   cfg->line_out_pins[4],
+	codec_info(codec, "autoconfig for %s: line_outs=%d (0x%x/0x%x/0x%x/0x%x/0x%x) type:%s\n",
+		   codec->chip_name, cfg->line_outs, cfg->line_out_pins[0],
+		   cfg->line_out_pins[1], cfg->line_out_pins[2],
+		   cfg->line_out_pins[3], cfg->line_out_pins[4],
 		   cfg->line_out_type == AUTO_PIN_HP_OUT ? "hp" :
 		   (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT ?
 		    "speaker" : "line"));
