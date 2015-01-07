@@ -744,7 +744,7 @@
 
 /include/ "../../../arm/boot/dts/act8846.dtsi"
 &act8846 {
-	gpios =<&gpio0 GPIO_A0 GPIO_ACTIVE_LOW>,<&gpio0 GPIO_A3 GPIO_ACTIVE_HIGH>;
+	gpios =<&gpio0 GPIO_B0 GPIO_ACTIVE_LOW>,<&gpio0 GPIO_A3 GPIO_ACTIVE_HIGH>;
 	act8846,system-power-controller;
 
 	regulators {
