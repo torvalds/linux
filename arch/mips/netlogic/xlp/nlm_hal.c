@@ -170,16 +170,23 @@ static int xlp_irq_to_irt(int irq)
 	}
 
 	if (devoff != 0) {
+		uint32_t val;
+
 		pcibase = nlm_pcicfg_base(devoff);
-		irt = nlm_read_reg(pcibase, XLP_PCI_IRTINFO_REG) & 0xffff;
-		/* HW weirdness, I2C IRT entry has to be fixed up */
-		switch (irq) {
-		case PIC_I2C_1_IRQ:
-			irt = irt + 1; break;
-		case PIC_I2C_2_IRQ:
-			irt = irt + 2; break;
-		case PIC_I2C_3_IRQ:
-			irt = irt + 3; break;
+		val = nlm_read_reg(pcibase, XLP_PCI_IRTINFO_REG);
+		if (val == 0xffffffff) {
+			irt = -1;
+		} else {
+			irt = val & 0xffff;
+			/* HW weirdness, I2C IRT entry has to be fixed up */
+			switch (irq) {
+			case PIC_I2C_1_IRQ:
+				irt = irt + 1; break;
+			case PIC_I2C_2_IRQ:
+				irt = irt + 2; break;
+			case PIC_I2C_3_IRQ:
+				irt = irt + 3; break;
+			}
 		}
 	} else if (irq >= PIC_PCIE_LINK_LEGACY_IRQ(0) &&
 			irq <= PIC_PCIE_LINK_LEGACY_IRQ(3)) {
