@@ -201,9 +201,8 @@ enum {
 	SF_ERASE_SECTOR = 0xd8,       /* erase sector */
 
 	FW_START_SEC = 8,             /* first flash sector for FW */
-	FW_END_SEC = 15,              /* last flash sector for FW */
 	FW_IMG_START = FW_START_SEC * SF_SEC_SIZE,
-	FW_MAX_SIZE = (FW_END_SEC - FW_START_SEC + 1) * SF_SEC_SIZE,
+	FW_MAX_SIZE = 16 * SF_SEC_SIZE,
 
 	FLASH_CFG_MAX_SIZE    = 0x10000 , /* max size of the flash config file*/
 	FLASH_CFG_OFFSET      = 0x1f0000,
@@ -221,7 +220,7 @@ enum {
 	 * Location of firmware image in FLASH.
 	 */
 	FLASH_FW_START_SEC = 8,
-	FLASH_FW_NSECS = 8,
+	FLASH_FW_NSECS = 16,
 	FLASH_FW_START = FLASH_START(FLASH_FW_START_SEC),
 	FLASH_FW_MAX_SIZE = FLASH_MAX_SIZE(FLASH_FW_NSECS),
 
