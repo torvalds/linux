@@ -510,6 +510,24 @@ static struct sdma_driver_data sdma_imx6sx = {
 	.script_addrs = &sdma_script_imx6sx,
 };
 
+static struct sdma_script_start_addrs sdma_script_imx7d = {
+	.ap_2_ap_addr = 644,
+	.uart_2_mcu_addr = 819,
+	.mcu_2_app_addr = 749,
+	.uartsh_2_mcu_addr = 1034,
+	.mcu_2_shp_addr = 962,
+	.app_2_mcu_addr = 685,
+	.shp_2_mcu_addr = 893,
+	.spdif_2_mcu_addr = 1102,
+	.mcu_2_spdif_addr = 1136,
+};
+
+static struct sdma_driver_data sdma_imx7d = {
+	.chnenbl0 = SDMA_CHNENBL0_IMX35,
+	.num_events = 48,
+	.script_addrs = &sdma_script_imx7d,
+};
+
 static struct platform_device_id sdma_devtypes[] = {
 	{
 		.name = "imx25-sdma",
@@ -533,6 +551,9 @@ static struct platform_device_id sdma_devtypes[] = {
 		.name = "imx6sx-sdma",
 		.driver_data = (unsigned long)&sdma_imx6sx,
 	}, {
+		.name = "imx7d-sdma",
+		.driver_data = (unsigned long)&sdma_imx7d,
+	}, {
 		/* sentinel */
 	}
 };
@@ -540,6 +561,7 @@ MODULE_DEVICE_TABLE(platform, sdma_devtypes);
 
 static const struct of_device_id sdma_dt_ids[] = {
 	{ .compatible = "fsl,imx6sx-sdma", .data = &sdma_imx6sx, },
+	{ .compatible = "fsl,imx7d-sdma", .data = &sdma_imx7d, },
 	{ .compatible = "fsl,imx6q-sdma", .data = &sdma_imx6q, },
 	{ .compatible = "fsl,imx53-sdma", .data = &sdma_imx53, },
 	{ .compatible = "fsl,imx51-sdma", .data = &sdma_imx51, },
@@ -1601,6 +1623,7 @@ static void sdma_issue_pending(struct dma_chan *chan)
 #define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V1	34
 #define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V2	38
 #define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V3	41
+#define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V4	42
 
 static void sdma_add_scripts(struct sdma_engine *sdma,
 		const struct sdma_script_start_addrs *addr)
@@ -1649,6 +1672,9 @@ static void sdma_load_firmware(const struct firmware *fw, void *context)
 		break;
 	case 3:
 		sdma->script_number = SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V3;
+		break;
+	case 4:
+		sdma->script_number = SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V4;
 		break;
 	default:
 		dev_err(sdma->dev, "unknown firmware version\n");
