@@ -619,10 +619,16 @@ static int __init intel_prepare_irq_remapping(void)
 		goto error;
 	}
 
+	/* First make sure all IOMMUs support IRQ remapping */
 	for_each_iommu(iommu, drhd)
-		if (!ecap_ir_support(iommu->ecap) ||
-		    intel_setup_irq_remapping(iommu))
+		if (!ecap_ir_support(iommu->ecap))
 			goto error;
+
+	/* Do the allocations early */
+	for_each_iommu(iommu, drhd)
+		if (intel_setup_irq_remapping(iommu))
+			goto error;
+
 	return 0;
 
 error:
@@ -673,16 +679,12 @@ static int __init intel_enable_irq_remapping(void)
 	/*
 	 * check for the Interrupt-remapping support
 	 */
-	for_each_iommu(iommu, drhd) {
-		if (!ecap_ir_support(iommu->ecap))
-			continue;
-
+	for_each_iommu(iommu, drhd)
 		if (eim && !ecap_eim_support(iommu->ecap)) {
 			printk(KERN_INFO "DRHD %Lx: EIM not supported by DRHD, "
 			       " ecap %Lx\n", drhd->reg_base_addr, iommu->ecap);
 			goto error;
 		}
-	}
 
 	/*
 	 * Enable queued invalidation for all the DRHD's.
@@ -702,9 +704,6 @@ static int __init intel_enable_irq_remapping(void)
 	 * Setup Interrupt-remapping for all the DRHD's now.
 	 */
 	for_each_iommu(iommu, drhd) {
-		if (!ecap_ir_support(iommu->ecap))
-			continue;
-
 		iommu_set_irq_remapping(iommu, eim);
 		setup = 1;
 	}
