@@ -81,8 +81,8 @@ typedef enum {
 	_MALI_UK_TIMELINE_CREATE_SYNC_FENCE,  /**< _mali_ukk_timeline_create_sync_fence() */
 	_MALI_UK_SOFT_JOB_START,              /**< _mali_ukk_soft_job_start() */
 	_MALI_UK_SOFT_JOB_SIGNAL,             /**< _mali_ukk_soft_job_signal() */
+    _MALI_GET_RK_KO_VERSION,                /* rk_ext */
 	_MALI_UK_GET_MALI_VERSION_IN_RK30,
-
 	/** Memory functions */
 
 	_MALI_UK_INIT_MEM                = 0,    /**< _mali_ukk_init_mem() */
@@ -685,6 +685,11 @@ typedef struct
     _mali_uk_api_version version;                   /**< [in,out] API version of user-side interface. */
 } _mali_uk_get_mali_version_in_rk30_s;
 
+/* rk_ext : rk_ko_ver_t. */
+typedef struct {
+	u64 ctx;                        /**< [in,out] user-kernel context (trashed on output) */
+	_mali_uk_api_version version;   /**< [in,out] API version of user-side interface. */
+} _mali_rk_ko_version_s;
 /** @} */ /* end group _mali_uk_getapiversion_s */
 
 /** @defgroup _mali_uk_get_user_settings_s Get user space settings */

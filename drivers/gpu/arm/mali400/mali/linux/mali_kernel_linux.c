@@ -14,6 +14,7 @@
  * Implementation of the Linux device driver entrypoints
  */
 #include "../platform/rk30/custom_log.h"
+#include "../platform/rk30/rk_ext.h"
 
 #include <linux/module.h>   /* kernel module definitions */
 #include <linux/fs.h>       /* file system operations */
@@ -366,9 +367,6 @@ void mali_init_cpu_time_counters_on_all_cpus(int print_only)
 }
 #endif
 
-/** rk_ext : version of rk_ext on mali_ko, aka. rk_ko_ver. */
-#define ROCKCHIP_VERSION    (1)
-
 int mali_module_init(void)
 {
 	int err = 0;
@@ -379,7 +377,7 @@ int mali_module_init(void)
     
     I("arm_release_ver of this mali_ko is '%s', rk_ko_ver is '%d', built at '%s', on '%s'.",
         SVN_REV_STRING,
-        ROCKCHIP_VERSION,
+        RK_KO_VER,
         __TIME__,
         __DATE__);
 
@@ -762,10 +760,17 @@ static int mali_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, 
 		err = post_notification_wrapper(session_data, (_mali_uk_post_notification_s __user *)arg);
 		break;
 
+    /* rk_ext : 从对 r5p0-01rel0 集成开始, 不再使用. */
+#if 0
 	case MALI_IOC_GET_MALI_VERSION_IN_RK30:
 		err = get_mali_version_in_rk30_wrapper(session_data, (_mali_uk_get_mali_version_in_rk30_s __user *)arg);
 		break;
-
+#else
+    case MALI_IOC_GET_RK_KO_VERSION:
+		err = get_rk_ko_version_wrapper(session_data, (_mali_rk_ko_version_s __user *)arg);
+		break;
+#endif
+        
 	case MALI_IOC_GET_USER_SETTINGS:
 		BUILD_BUG_ON(!IS_ALIGNED(sizeof(_mali_uk_get_user_settings_s), sizeof(u64)));
 		err = get_user_settings_wrapper(session_data, (_mali_uk_get_user_settings_s __user *)arg);

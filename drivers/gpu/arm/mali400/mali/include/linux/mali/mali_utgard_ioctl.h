@@ -41,6 +41,8 @@ extern "C" {
 #define MALI_IOC_WAIT_FOR_NOTIFICATION      _IOWR(MALI_IOC_CORE_BASE, _MALI_UK_WAIT_FOR_NOTIFICATION, _mali_uk_wait_for_notification_s)
 #define MALI_IOC_GET_API_VERSION            _IOWR(MALI_IOC_CORE_BASE, _MALI_UK_GET_API_VERSION, u32)
 #define MALI_IOC_GET_API_VERSION_V2         _IOWR(MALI_IOC_CORE_BASE, _MALI_UK_GET_API_VERSION, _mali_uk_get_api_version_v2_s)
+/* rk_ext. */
+#define MALI_IOC_GET_RK_KO_VERSION          _IOWR(MALI_IOC_CORE_BASE, _MALI_GET_RK_KO_VERSION, _mali_rk_ko_version_s)
 #define MALI_IOC_POST_NOTIFICATION          _IOWR(MALI_IOC_CORE_BASE, _MALI_UK_POST_NOTIFICATION, _mali_uk_post_notification_s)
 #define MALI_IOC_GET_USER_SETTING           _IOWR(MALI_IOC_CORE_BASE, _MALI_UK_GET_USER_SETTING, _mali_uk_get_user_setting_s)
 #define MALI_IOC_GET_USER_SETTINGS          _IOWR(MALI_IOC_CORE_BASE, _MALI_UK_GET_USER_SETTINGS, _mali_uk_get_user_settings_s)
@@ -79,7 +81,10 @@ extern "C" {
 
 #define MALI_IOC_VSYNC_EVENT_REPORT         _IOW (MALI_IOC_VSYNC_BASE, _MALI_UK_VSYNC_EVENT_REPORT, _mali_uk_vsync_event_report_s)
 
+/* rk_ext : 对 r5p0 集成之后, mali_so 不再使用下面的 ioctl, 而使用 MALI_IOC_GET_RK_KO_VERSION. */
+#if 0
 #define MALI_IOC_GET_MALI_VERSION_IN_RK30   _IOWR(MALI_IOC_CORE_BASE,_MALI_UK_GET_MALI_VERSION_IN_RK30,_mali_uk_get_mali_version_in_rk30_s *)
+#endif
 
 #ifdef __cplusplus
 }

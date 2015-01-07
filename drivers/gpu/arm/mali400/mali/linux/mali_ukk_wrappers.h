@@ -29,7 +29,13 @@ int get_api_version_v2_wrapper(struct mali_session_data *session_data, _mali_uk_
 int get_user_settings_wrapper(struct mali_session_data *session_data, _mali_uk_get_user_settings_s __user *uargs);
 int post_notification_wrapper(struct mali_session_data *session_data, _mali_uk_post_notification_s __user *uargs);
 int request_high_priority_wrapper(struct mali_session_data *session_data, _mali_uk_request_high_priority_s __user *uargs);
+
+/* rk_ext : 从对 r5p0-01rel0 集成开始, 不再使用. */
+#if 0
 int get_mali_version_in_rk30_wrapper(struct mali_session_data *session_data, _mali_uk_get_mali_version_in_rk30_s __user *uargs);
+#else
+int get_rk_ko_version_wrapper(struct mali_session_data *session_data, _mali_rk_ko_version_s __user *uargs);
+#endif
 
 int mem_write_safe_wrapper(struct mali_session_data *session_data, _mali_uk_mem_write_safe_s __user *uargs);
 int mem_map_ext_wrapper(struct mali_session_data *session_data, _mali_uk_map_external_mem_s __user *argument);
