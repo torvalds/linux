@@ -48,7 +48,7 @@
 #define VI6_DISP_IRQ_STA		0x007c
 #define VI6_DISP_IRQ_STA_DSE		(1 << 8)
 #define VI6_DISP_IRQ_STA_MAE		(1 << 5)
-#define VI6_DISP_IRQ_STA_LNE(n)		(1 << ((n) + 4))
+#define VI6_DISP_IRQ_STA_LNE(n)		(1 << (n))
 
 #define VI6_WPF_LINE_COUNT(n)		(0x0084 + (n) * 4)
 #define VI6_WPF_LINE_COUNT_MASK		(0x1fffff << 0)
