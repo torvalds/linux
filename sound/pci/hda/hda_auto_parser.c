@@ -920,6 +920,8 @@ void snd_hda_pick_pin_fixup(struct hda_codec *codec,
 			codec->fixup_id = pq->value;
 #ifdef CONFIG_SND_DEBUG_VERBOSE
 			codec->fixup_name = pq->name;
+			codec_dbg(codec, "%s: picked fixup %s (pin match)\n",
+				  codec->chip_name, codec->fixup_name);
 #endif
 			codec->fixup_list = fixlist;
 			return;
@@ -960,6 +962,8 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 		codec->fixup_list = NULL;
 		codec->fixup_name = NULL;
 		codec->fixup_id = HDA_FIXUP_ID_NO_FIXUP;
+		codec_dbg(codec, "%s: picked no fixup (nofixup specified)\n",
+			  codec->chip_name);
 		return;
 	}
 
@@ -969,6 +973,8 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 				codec->fixup_id = models->id;
 				codec->fixup_name = models->name;
 				codec->fixup_list = fixlist;
+				codec_dbg(codec, "%s: picked fixup %s (model specified)\n",
+					  codec->chip_name, codec->fixup_name);
 				return;
 			}
 			models++;
@@ -980,6 +986,8 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 			id = q->value;
 #ifdef CONFIG_SND_DEBUG_VERBOSE
 			name = q->name;
+			codec_dbg(codec, "%s: picked fixup %s (PCI SSID%s)\n",
+				  codec->chip_name, name, q->subdevice_mask ? "" : " - vendor generic");
 #endif
 		}
 	}
@@ -992,6 +1000,8 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 				id = q->value;
 #ifdef CONFIG_SND_DEBUG_VERBOSE
 				name = q->name;
+				codec_dbg(codec, "%s: picked fixup %s (codec SSID)\n",
+					  codec->chip_name, name);
 #endif
 				break;
 			}
