@@ -48,6 +48,18 @@
 #define DRV_NAME        "sata-dwc"
 #define DRV_VERSION     "1.3"
 
+#ifndef out_le32
+#define out_le32(a, v)	__raw_writel(__cpu_to_le32(v), (void __iomem *)(a))
+#endif
+
+#ifndef in_le32
+#define in_le32(a)	__le32_to_cpu(__raw_readl((void __iomem *)(a)))
+#endif
+
+#ifndef NO_IRQ
+#define NO_IRQ		0
+#endif
+
 /* SATA DMA driver Globals */
 #define DMA_NUM_CHANS		1
 #define DMA_NUM_CHAN_REGS	8
