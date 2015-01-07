@@ -39,15 +39,6 @@
 #include "i40e_fcoe.h"
 
 /**
- * i40e_rx_is_fip - returns true if the rx packet type is FIP
- * @ptype: the packet type field from rx descriptor write-back
- **/
-static inline bool i40e_rx_is_fip(u16 ptype)
-{
-	return ptype == I40E_RX_PTYPE_L2_FIP_PAY2;
-}
-
-/**
  * i40e_rx_is_fcoe - returns true if the rx packet type is FCoE
  * @ptype: the packet type field from rx descriptor write-back
  **/
