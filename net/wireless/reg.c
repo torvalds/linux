@@ -2108,6 +2108,26 @@ out_free:
 	reg_free_request(reg_request);
 }
 
+static bool reg_only_self_managed_wiphys(void)
+{
+	struct cfg80211_registered_device *rdev;
+	struct wiphy *wiphy;
+	bool self_managed_found = false;
+
+	ASSERT_RTNL();
+
+	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
+		wiphy = &rdev->wiphy;
+		if (wiphy->regulatory_flags & REGULATORY_WIPHY_SELF_MANAGED)
+			self_managed_found = true;
+		else
+			return false;
+	}
+
+	/* make sure at least one self-managed wiphy exists */
+	return self_managed_found;
+}
+
 /*
  * Processes regulatory hints, this is all the NL80211_REGDOM_SET_BY_*
  * Regulatory hints come on a first come first serve basis and we
@@ -2138,6 +2158,11 @@ static void reg_process_pending_hints(void)
 	list_del_init(&reg_request->list);
 
 	spin_unlock(&reg_requests_lock);
+
+	if (reg_only_self_managed_wiphys()) {
+		reg_free_request(reg_request);
+		return;
+	}
 
 	reg_process_hint(reg_request);
 }
