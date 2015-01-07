@@ -612,6 +612,19 @@ restart:
 }
 EXPORT_SYMBOL_GPL(rhashtable_remove);
 
+struct rhashtable_compare_arg {
+	struct rhashtable *ht;
+	const void *key;
+};
+
+static bool rhashtable_compare(void *ptr, void *arg)
+{
+	struct rhashtable_compare_arg *x = arg;
+	struct rhashtable *ht = x->ht;
+
+	return !memcmp(ptr + ht->p.key_offset, x->key, ht->p.key_len);
+}
+
 /**
  * rhashtable_lookup - lookup key in hash table
  * @ht:		hash table
@@ -627,32 +640,14 @@ EXPORT_SYMBOL_GPL(rhashtable_remove);
  */
 void *rhashtable_lookup(struct rhashtable *ht, const void *key)
 {
-	const struct bucket_table *tbl, *old_tbl;
-	struct rhash_head *he;
-	u32 hash;
+	struct rhashtable_compare_arg arg = {
+		.ht = ht,
+		.key = key,
+	};
 
 	BUG_ON(!ht->p.key_len);
 
-	rcu_read_lock();
-	old_tbl = rht_dereference_rcu(ht->tbl, ht);
-	tbl = rht_dereference_rcu(ht->future_tbl, ht);
-	hash = key_hashfn(ht, key, ht->p.key_len);
-restart:
-	rht_for_each_rcu(he, tbl, rht_bucket_index(tbl, hash)) {
-		if (memcmp(rht_obj(ht, he) + ht->p.key_offset, key,
-			   ht->p.key_len))
-			continue;
-		rcu_read_unlock();
-		return rht_obj(ht, he);
-	}
-
-	if (unlikely(tbl != old_tbl)) {
-		tbl = old_tbl;
-		goto restart;
-	}
-
-	rcu_read_unlock();
-	return NULL;
+	return rhashtable_lookup_compare(ht, key, &rhashtable_compare, &arg);
 }
 EXPORT_SYMBOL_GPL(rhashtable_lookup);
 
