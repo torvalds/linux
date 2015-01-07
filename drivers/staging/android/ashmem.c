@@ -549,7 +549,6 @@ static int get_name(struct ashmem_area *asma, void __user *name)
 
 	mutex_lock(&ashmem_mutex);
 	if (asma->name[ASHMEM_NAME_PREFIX_LEN] != '\0') {
-
 		/*
 		 * Copying only `len', instead of ASHMEM_NAME_LEN, bytes
 		 * prevents us from revealing one user's stack to another.
@@ -798,7 +797,6 @@ static long ashmem_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 static long compat_ashmem_ioctl(struct file *file, unsigned int cmd,
 				unsigned long arg)
 {
-
 	switch (cmd) {
 	case COMPAT_ASHMEM_SET_SIZE:
 		cmd = ASHMEM_SET_SIZE;
