@@ -2897,8 +2897,8 @@ int set_regdom(const struct ieee80211_regdomain *rd)
 	return 0;
 }
 
-int regulatory_set_wiphy_regd(struct wiphy *wiphy,
-			      struct ieee80211_regdomain *rd)
+static int __regulatory_set_wiphy_regd(struct wiphy *wiphy,
+				       struct ieee80211_regdomain *rd)
 {
 	const struct ieee80211_regdomain *regd;
 	const struct ieee80211_regdomain *prev_regd;
@@ -2928,11 +2928,38 @@ int regulatory_set_wiphy_regd(struct wiphy *wiphy,
 	spin_unlock(&reg_requests_lock);
 
 	kfree(prev_regd);
+	return 0;
+}
+
+int regulatory_set_wiphy_regd(struct wiphy *wiphy,
+			      struct ieee80211_regdomain *rd)
+{
+	int ret = __regulatory_set_wiphy_regd(wiphy, rd);
+
+	if (ret)
+		return ret;
 
 	schedule_work(&reg_work);
 	return 0;
 }
 EXPORT_SYMBOL(regulatory_set_wiphy_regd);
+
+int regulatory_set_wiphy_regd_sync_rtnl(struct wiphy *wiphy,
+					struct ieee80211_regdomain *rd)
+{
+	int ret;
+
+	ASSERT_RTNL();
+
+	ret = __regulatory_set_wiphy_regd(wiphy, rd);
+	if (ret)
+		return ret;
+
+	/* process the request immediately */
+	reg_process_self_managed_hints();
+	return 0;
+}
+EXPORT_SYMBOL(regulatory_set_wiphy_regd_sync_rtnl);
 
 void wiphy_regulatory_register(struct wiphy *wiphy)
 {
