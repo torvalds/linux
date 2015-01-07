@@ -60,7 +60,7 @@
 	li	t0, LSU_DEFEATURE
 	mfcr	t1, t0
 
-	lui	t2, 0xc080	/* SUE, Enable Unaligned Access, L2HPE */
+	lui	t2, 0x4080	/* Enable Unaligned Access, L2HPE */
 	or	t1, t1, t2
 	mtcr	t1, t0
 
