@@ -188,6 +188,7 @@ int stmpe_remove(struct stmpe *stmpe);
 #define STMPE1601_REG_GPIO_ED_MSB		0x8A
 #define STMPE1601_REG_GPIO_RE_LSB		0x8D
 #define STMPE1601_REG_GPIO_FE_LSB		0x8F
+#define STMPE1601_REG_GPIO_PU_LSB		0x91
 #define STMPE1601_REG_GPIO_AF_U_MSB		0x92
 
 #define STMPE1601_SYS_CTRL_ENABLE_GPIO		(1 << 3)
@@ -276,6 +277,8 @@ int stmpe_remove(struct stmpe *stmpe);
 #define STMPE24XX_REG_GPEDR_MSB		0x8C
 #define STMPE24XX_REG_GPRER_LSB		0x91
 #define STMPE24XX_REG_GPFER_LSB		0x94
+#define STMPE24XX_REG_GPPUR_LSB		0x97
+#define STMPE24XX_REG_GPPDR_LSB		0x9a
 #define STMPE24XX_REG_GPAFR_U_MSB	0x9B
 
 #define STMPE24XX_SYS_CTRL_ENABLE_GPIO		(1 << 3)

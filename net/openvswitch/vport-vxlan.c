@@ -187,7 +187,9 @@ static int vxlan_tnl_send(struct vport *vport, struct sk_buff *skb)
 			     false);
 	if (err < 0)
 		ip_rt_put(rt);
+	return err;
 error:
+	kfree_skb(skb);
 	return err;
 }
 
