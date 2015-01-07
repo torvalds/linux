@@ -301,6 +301,8 @@ static int int3403_sensor_remove(struct int3403_priv *priv)
 {
 	struct int3403_sensor *obj = priv->priv;
 
+	acpi_remove_notify_handler(priv->adev->handle,
+				   ACPI_DEVICE_NOTIFY, int3403_notify);
 	thermal_zone_device_unregister(obj->tzone);
 	return 0;
 }
@@ -369,6 +371,7 @@ static int int3403_cdev_add(struct int3403_priv *priv)
 	p = buf.pointer;
 	if (!p || (p->type != ACPI_TYPE_PACKAGE)) {
 		printk(KERN_WARNING "Invalid PPSS data\n");
+		kfree(buf.pointer);
 		return -EFAULT;
 	}
 
@@ -381,6 +384,7 @@ static int int3403_cdev_add(struct int3403_priv *priv)
 
 	priv->priv = obj;
 
+	kfree(buf.pointer);
 	/* TODO: add ACPI notification support */
 
 	return result;

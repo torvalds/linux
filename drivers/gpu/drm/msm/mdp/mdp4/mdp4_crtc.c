@@ -331,17 +331,8 @@ static int mdp4_crtc_atomic_check(struct drm_crtc *crtc,
 		struct drm_crtc_state *state)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
-	struct drm_device *dev = crtc->dev;
-
 	DBG("%s: check", mdp4_crtc->name);
-
-	if (mdp4_crtc->event) {
-		dev_err(dev->dev, "already pending flip!\n");
-		return -EBUSY;
-	}
-
 	// TODO anything else to check?
-
 	return 0;
 }
 
@@ -357,7 +348,7 @@ static void mdp4_crtc_atomic_flush(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	unsigned long flags;
 
-	DBG("%s: flush", mdp4_crtc->name);
+	DBG("%s: event: %p", mdp4_crtc->name, crtc->state->event);
 
 	WARN_ON(mdp4_crtc->event);
 
