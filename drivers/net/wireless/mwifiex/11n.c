@@ -558,10 +558,10 @@ int mwifiex_send_addba(struct mwifiex_private *priv, int tid, u8 *peer_mac)
 		spin_lock_irqsave(&priv->sta_list_spinlock, flags);
 		sta_ptr = mwifiex_get_sta_entry(priv, peer_mac);
 		if (!sta_ptr) {
+			spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
 			dev_warn(priv->adapter->dev,
 				 "BA setup with unknown TDLS peer %pM!\n",
 				peer_mac);
-			spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
 			return -1;
 		}
 		if (sta_ptr->is_11ac_enabled)
