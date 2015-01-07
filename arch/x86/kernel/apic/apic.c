@@ -1596,7 +1596,7 @@ static __init void try_to_enable_x2apic(int ir_stat)
 	if (!x2apic_supported())
 		return;
 
-	if (ir_stat < 0) {
+	if (ir_stat != IRQ_REMAP_X2APIC_MODE) {
 		/* IR is required if there is APIC ID > 255 even when running
 		 * under KVM
 		 */
@@ -1613,10 +1613,6 @@ static __init void try_to_enable_x2apic(int ir_stat)
 		 * only in physical mode
 		 */
 		x2apic_force_phys();
-
-	} else if (ir_stat == IRQ_REMAP_XAPIC_MODE) {
-		pr_info("x2apic not enabled, IRQ remapping is in xapic mode\n");
-		return;
 	}
 
 	if (!x2apic_mode) {
