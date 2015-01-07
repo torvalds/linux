@@ -329,6 +329,22 @@ static int hdmi_bind(struct device *dev, struct device *master, void *data)
 		config.hpd_clk_cnt   = ARRAY_SIZE(hpd_clk_names);
 		config.pwr_clk_names = pwr_clk_names;
 		config.pwr_clk_cnt   = ARRAY_SIZE(pwr_clk_names);
+	} else if (of_device_is_compatible(of_node, "qcom,hdmi-tx-8084")) {
+		static const char *hpd_reg_names[] = {"hpd-gdsc", "hpd-5v", "hpd-5v-en"};
+		static const char *pwr_reg_names[] = {"core-vdda", "core-vcc"};
+		static const char *hpd_clk_names[] = {"iface_clk", "core_clk", "mdp_core_clk"};
+		static unsigned long hpd_clk_freq[] = {0, 19200000, 0};
+		static const char *pwr_clk_names[] = {"extp_clk", "alt_iface_clk"};
+		config.phy_init      = hdmi_phy_8x74_init;
+		config.hpd_reg_names = hpd_reg_names;
+		config.hpd_reg_cnt   = ARRAY_SIZE(hpd_reg_names);
+		config.pwr_reg_names = pwr_reg_names;
+		config.pwr_reg_cnt   = ARRAY_SIZE(pwr_reg_names);
+		config.hpd_clk_names = hpd_clk_names;
+		config.hpd_freq      = hpd_clk_freq;
+		config.hpd_clk_cnt   = ARRAY_SIZE(hpd_clk_names);
+		config.pwr_clk_names = pwr_clk_names;
+		config.pwr_clk_cnt   = ARRAY_SIZE(pwr_clk_names);
 	} else if (of_device_is_compatible(of_node, "qcom,hdmi-tx-8960")) {
 		static const char *hpd_clk_names[] = {"core_clk", "master_iface_clk", "slave_iface_clk"};
 		static const char *hpd_reg_names[] = {"core-vdda", "hdmi-mux"};
@@ -434,6 +450,7 @@ static int hdmi_dev_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id dt_match[] = {
+	{ .compatible = "qcom,hdmi-tx-8084" },
 	{ .compatible = "qcom,hdmi-tx-8074" },
 	{ .compatible = "qcom,hdmi-tx-8960" },
 	{ .compatible = "qcom,hdmi-tx-8660" },
