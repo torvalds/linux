@@ -588,10 +588,6 @@ static int __init intel_prepare_irq_remapping(void)
 	struct dmar_drhd_unit *drhd;
 	struct intel_iommu *iommu;
 
-	/* First check whether IRQ remapping should be enabled */
-	if (disable_irq_remap)
-		return -ENODEV;
-
 	if (irq_remap_broken) {
 		printk(KERN_WARNING
 			"This system BIOS has enabled interrupt remapping\n"
@@ -600,7 +596,6 @@ static int __init intel_prepare_irq_remapping(void)
 			"interrupt remapping is being disabled.  Please\n"
 			"contact your BIOS vendor for an update\n");
 		add_taint(TAINT_FIRMWARE_WORKAROUND, LOCKDEP_STILL_OK);
-		disable_irq_remap = 1;
 		return -ENODEV;
 	}
 

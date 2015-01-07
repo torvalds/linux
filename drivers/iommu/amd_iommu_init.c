@@ -2014,9 +2014,6 @@ static bool detect_ivrs(void)
 	/* Make sure ACS will be enabled during PCI probe */
 	pci_request_acs();
 
-	if (!disable_irq_remap)
-		amd_iommu_irq_remap = true;
-
 	return true;
 }
 
@@ -2123,8 +2120,7 @@ static int __init iommu_go_to_state(enum iommu_init_state state)
 #ifdef CONFIG_IRQ_REMAP
 int __init amd_iommu_prepare(void)
 {
-	if (!amd_iommu_irq_remap)
-		return -1;
+	amd_iommu_irq_remap = true;
 
 	return iommu_go_to_state(IOMMU_ACPI_FINISHED);
 }
