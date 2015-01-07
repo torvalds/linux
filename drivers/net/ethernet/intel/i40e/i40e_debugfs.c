@@ -829,7 +829,7 @@ static void i40e_dbg_dump_desc(int cnt, int vsi_seid, int ring_id, int desc_n,
 		if (desc_n >= ring->count || desc_n < 0) {
 			dev_info(&pf->pdev->dev,
 				 "descriptor %d not found\n", desc_n);
-			return;
+			goto out;
 		}
 		if (!is_rx_ring) {
 			txd = I40E_TX_DESC(ring, desc_n);
@@ -855,6 +855,8 @@ static void i40e_dbg_dump_desc(int cnt, int vsi_seid, int ring_id, int desc_n,
 	} else {
 		dev_info(&pf->pdev->dev, "dump desc rx/tx <vsi_seid> <ring_id> [<desc_n>]\n");
 	}
+
+out:
 	kfree(ring);
 }
 

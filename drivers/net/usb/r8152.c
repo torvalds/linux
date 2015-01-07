@@ -1897,6 +1897,22 @@ static void _rtl8152_set_rx_mode(struct net_device *netdev)
 	netif_wake_queue(netdev);
 }
 
+static netdev_features_t
+rtl8152_features_check(struct sk_buff *skb, struct net_device *dev,
+		       netdev_features_t features)
+{
+	u32 mss = skb_shinfo(skb)->gso_size;
+	int max_offset = mss ? GTTCPHO_MAX : TCPHO_MAX;
+	int offset = skb_transport_offset(skb);
+
+	if ((mss || skb->ip_summed == CHECKSUM_PARTIAL) && offset > max_offset)
+		features &= ~(NETIF_F_ALL_CSUM | NETIF_F_GSO_MASK);
+	else if ((skb->len + sizeof(struct tx_desc)) > agg_buf_sz)
+		features &= ~NETIF_F_GSO_MASK;
+
+	return features;
+}
+
 static netdev_tx_t rtl8152_start_xmit(struct sk_buff *skb,
 				      struct net_device *netdev)
 {
@@ -3706,6 +3722,7 @@ static const struct net_device_ops rtl8152_netdev_ops = {
 	.ndo_set_mac_address	= rtl8152_set_mac_address,
 	.ndo_change_mtu		= rtl8152_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_features_check	= rtl8152_features_check,
 };
 
 static void r8152b_get_version(struct r8152 *tp)

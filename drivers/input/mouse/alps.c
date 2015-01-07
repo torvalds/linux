@@ -881,6 +881,34 @@ static void alps_get_finger_coordinate_v7(struct input_mt_pos *mt,
 					  unsigned char *pkt,
 					  unsigned char pkt_id)
 {
+	/*
+	 *       packet-fmt    b7   b6    b5   b4   b3   b2   b1   b0
+	 * Byte0 TWO & MULTI    L    1     R    M    1 Y0-2 Y0-1 Y0-0
+	 * Byte0 NEW            L    1  X1-5    1    1 Y0-2 Y0-1 Y0-0
+	 * Byte1            Y0-10 Y0-9  Y0-8 Y0-7 Y0-6 Y0-5 Y0-4 Y0-3
+	 * Byte2            X0-11    1 X0-10 X0-9 X0-8 X0-7 X0-6 X0-5
+	 * Byte3            X1-11    1  X0-4 X0-3    1 X0-2 X0-1 X0-0
+	 * Byte4 TWO        X1-10  TWO  X1-9 X1-8 X1-7 X1-6 X1-5 X1-4
+	 * Byte4 MULTI      X1-10  TWO  X1-9 X1-8 X1-7 X1-6 Y1-5    1
+	 * Byte4 NEW        X1-10  TWO  X1-9 X1-8 X1-7 X1-6    0    0
+	 * Byte5 TWO & NEW  Y1-10    0  Y1-9 Y1-8 Y1-7 Y1-6 Y1-5 Y1-4
+	 * Byte5 MULTI      Y1-10    0  Y1-9 Y1-8 Y1-7 Y1-6  F-1  F-0
+	 * L:         Left button
+	 * R / M:     Non-clickpads: Right / Middle button
+	 *            Clickpads: When > 2 fingers are down, and some fingers
+	 *            are in the button area, then the 2 coordinates reported
+	 *            are for fingers outside the button area and these report
+	 *            extra fingers being present in the right / left button
+	 *            area. Note these fingers are not added to the F field!
+	 *            so if a TWO packet is received and R = 1 then there are
+	 *            3 fingers down, etc.
+	 * TWO:       1: Two touches present, byte 0/4/5 are in TWO fmt
+	 *            0: If byte 4 bit 0 is 1, then byte 0/4/5 are in MULTI fmt
+	 *               otherwise byte 0 bit 4 must be set and byte 0/4/5 are
+	 *               in NEW fmt
+	 * F:         Number of fingers - 3, 0 means 3 fingers, 1 means 4 ...
+	 */
+
 	mt[0].x = ((pkt[2] & 0x80) << 4);
 	mt[0].x |= ((pkt[2] & 0x3F) << 5);
 	mt[0].x |= ((pkt[3] & 0x30) >> 1);
@@ -919,18 +947,21 @@ static void alps_get_finger_coordinate_v7(struct input_mt_pos *mt,
 
 static int alps_get_mt_count(struct input_mt_pos *mt)
 {
-	int i;
+	int i, fingers = 0;
 
-	for (i = 0; i < MAX_TOUCHES && mt[i].x != 0 && mt[i].y != 0; i++)
-		/* empty */;
+	for (i = 0; i < MAX_TOUCHES; i++) {
+		if (mt[i].x != 0 || mt[i].y != 0)
+			fingers++;
+	}
 
-	return i;
+	return fingers;
 }
 
 static int alps_decode_packet_v7(struct alps_fields *f,
 				  unsigned char *p,
 				  struct psmouse *psmouse)
 {
+	struct alps_data *priv = psmouse->private;
 	unsigned char pkt_id;
 
 	pkt_id = alps_get_packet_id_v7(p);
@@ -938,19 +969,52 @@ static int alps_decode_packet_v7(struct alps_fields *f,
 		return 0;
 	if (pkt_id == V7_PACKET_ID_UNKNOWN)
 		return -1;
+	/*
+	 * NEW packets are send to indicate a discontinuity in the finger
+	 * coordinate reporting. Specifically a finger may have moved from
+	 * slot 0 to 1 or vice versa. INPUT_MT_TRACK takes care of this for
+	 * us.
+	 *
+	 * NEW packets have 3 problems:
+	 * 1) They do not contain middle / right button info (on non clickpads)
+	 *    this can be worked around by preserving the old button state
+	 * 2) They do not contain an accurate fingercount, and they are
+	 *    typically send when the number of fingers changes. We cannot use
+	 *    the old finger count as that may mismatch with the amount of
+	 *    touch coordinates we've available in the NEW packet
+	 * 3) Their x data for the second touch is inaccurate leading to
+	 *    a possible jump of the x coordinate by 16 units when the first
+	 *    non NEW packet comes in
+	 * Since problems 2 & 3 cannot be worked around, just ignore them.
+	 */
+	if (pkt_id == V7_PACKET_ID_NEW)
+		return 1;
 
 	alps_get_finger_coordinate_v7(f->mt, p, pkt_id);
 
-	if (pkt_id == V7_PACKET_ID_TWO || pkt_id == V7_PACKET_ID_MULTI) {
-		f->left = (p[0] & 0x80) >> 7;
+	if (pkt_id == V7_PACKET_ID_TWO)
+		f->fingers = alps_get_mt_count(f->mt);
+	else /* pkt_id == V7_PACKET_ID_MULTI */
+		f->fingers = 3 + (p[5] & 0x03);
+
+	f->left = (p[0] & 0x80) >> 7;
+	if (priv->flags & ALPS_BUTTONPAD) {
+		if (p[0] & 0x20)
+			f->fingers++;
+		if (p[0] & 0x10)
+			f->fingers++;
+	} else {
 		f->right = (p[0] & 0x20) >> 5;
 		f->middle = (p[0] & 0x10) >> 4;
 	}
 
-	if (pkt_id == V7_PACKET_ID_TWO)
-		f->fingers = alps_get_mt_count(f->mt);
-	else if (pkt_id == V7_PACKET_ID_MULTI)
-		f->fingers = 3 + (p[5] & 0x03);
+	/* Sometimes a single touch is reported in mt[1] rather then mt[0] */
+	if (f->fingers == 1 && f->mt[0].x == 0 && f->mt[0].y == 0) {
+		f->mt[0].x = f->mt[1].x;
+		f->mt[0].y = f->mt[1].y;
+		f->mt[1].x = 0;
+		f->mt[1].y = 0;
+	}
 
 	return 0;
 }
