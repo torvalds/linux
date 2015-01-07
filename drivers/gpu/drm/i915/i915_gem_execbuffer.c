@@ -1084,6 +1084,7 @@ i915_gem_execbuffer_parse(struct intel_engine_cs *ring,
 {
 	struct drm_i915_private *dev_priv = to_i915(batch_obj->base.dev);
 	struct drm_i915_gem_object *shadow_batch_obj;
+	bool need_reloc = false;
 	int ret;
 
 	shadow_batch_obj = i915_gem_batch_pool_get(&dev_priv->mm.batch_pool,
@@ -1109,6 +1110,7 @@ i915_gem_execbuffer_parse(struct intel_engine_cs *ring,
 		vma->exec_entry = shadow_exec_entry;
 		vma->exec_entry->flags = __EXEC_OBJECT_PURGEABLE;
 		drm_gem_object_reference(&shadow_batch_obj->base);
+		i915_gem_execbuffer_reserve_vma(vma, ring, &need_reloc);
 		list_add_tail(&vma->exec_list, &eb->vmas);
 
 		shadow_batch_obj->base.pending_read_domains =
