@@ -110,6 +110,18 @@ enum {
 	SGE_INGPADBOUNDARY_SHIFT = 5,/* ingress queue pad boundary */
 };
 
+/* PCI-e memory window access */
+enum pcie_memwin {
+	MEMWIN_NIC      = 0,
+	MEMWIN_RSVD1    = 1,
+	MEMWIN_RSVD2    = 2,
+	MEMWIN_RDMA     = 3,
+	MEMWIN_RSVD4    = 4,
+	MEMWIN_FOISCSI  = 5,
+	MEMWIN_CSIOSTOR = 6,
+	MEMWIN_RSVD7    = 7,
+};
+
 struct sge_qstat {                /* data written to SGE queue status entries */
 	__be32 qid;
 	__be16 cidx;

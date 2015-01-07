@@ -290,11 +290,19 @@ enum chip_type {
 	T5_LAST_REV	= T5_A1,
 };
 
+struct devlog_params {
+	u32 memtype;                    /* which memory (EDC0, EDC1, MC) */
+	u32 start;                      /* start of log in firmware memory */
+	u32 size;                       /* size of log */
+};
+
 struct adapter_params {
 	struct sge_params sge;
 	struct tp_params  tp;
 	struct vpd_params vpd;
 	struct pci_params pci;
+	struct devlog_params devlog;
+	enum pcie_memwin drv_memwin;
 
 	unsigned int sf_size;             /* serial flash size in bytes */
 	unsigned int sf_nsec;             /* # of flash sectors */

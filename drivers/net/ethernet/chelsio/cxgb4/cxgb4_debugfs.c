@@ -43,6 +43,203 @@
 #include "cxgb4_debugfs.h"
 #include "l2t.h"
 
+/* Firmware Device Log dump.
+ */
+static const char * const devlog_level_strings[] = {
+	[FW_DEVLOG_LEVEL_EMERG]		= "EMERG",
+	[FW_DEVLOG_LEVEL_CRIT]		= "CRIT",
+	[FW_DEVLOG_LEVEL_ERR]		= "ERR",
+	[FW_DEVLOG_LEVEL_NOTICE]	= "NOTICE",
+	[FW_DEVLOG_LEVEL_INFO]		= "INFO",
+	[FW_DEVLOG_LEVEL_DEBUG]		= "DEBUG"
+};
+
+static const char * const devlog_facility_strings[] = {
+	[FW_DEVLOG_FACILITY_CORE]	= "CORE",
+	[FW_DEVLOG_FACILITY_SCHED]	= "SCHED",
+	[FW_DEVLOG_FACILITY_TIMER]	= "TIMER",
+	[FW_DEVLOG_FACILITY_RES]	= "RES",
+	[FW_DEVLOG_FACILITY_HW]		= "HW",
+	[FW_DEVLOG_FACILITY_FLR]	= "FLR",
+	[FW_DEVLOG_FACILITY_DMAQ]	= "DMAQ",
+	[FW_DEVLOG_FACILITY_PHY]	= "PHY",
+	[FW_DEVLOG_FACILITY_MAC]	= "MAC",
+	[FW_DEVLOG_FACILITY_PORT]	= "PORT",
+	[FW_DEVLOG_FACILITY_VI]		= "VI",
+	[FW_DEVLOG_FACILITY_FILTER]	= "FILTER",
+	[FW_DEVLOG_FACILITY_ACL]	= "ACL",
+	[FW_DEVLOG_FACILITY_TM]		= "TM",
+	[FW_DEVLOG_FACILITY_QFC]	= "QFC",
+	[FW_DEVLOG_FACILITY_DCB]	= "DCB",
+	[FW_DEVLOG_FACILITY_ETH]	= "ETH",
+	[FW_DEVLOG_FACILITY_OFLD]	= "OFLD",
+	[FW_DEVLOG_FACILITY_RI]		= "RI",
+	[FW_DEVLOG_FACILITY_ISCSI]	= "ISCSI",
+	[FW_DEVLOG_FACILITY_FCOE]	= "FCOE",
+	[FW_DEVLOG_FACILITY_FOISCSI]	= "FOISCSI",
+	[FW_DEVLOG_FACILITY_FOFCOE]	= "FOFCOE"
+};
+
+/* Information gathered by Device Log Open routine for the display routine.
+ */
+struct devlog_info {
+	unsigned int nentries;		/* number of entries in log[] */
+	unsigned int first;		/* first [temporal] entry in log[] */
+	struct fw_devlog_e log[0];	/* Firmware Device Log */
+};
+
+/* Dump a Firmaware Device Log entry.
+ */
+static int devlog_show(struct seq_file *seq, void *v)
+{
+	if (v == SEQ_START_TOKEN)
+		seq_printf(seq, "%10s  %15s  %8s  %8s  %s\n",
+			   "Seq#", "Tstamp", "Level", "Facility", "Message");
+	else {
+		struct devlog_info *dinfo = seq->private;
+		int fidx = (uintptr_t)v - 2;
+		unsigned long index;
+		struct fw_devlog_e *e;
+
+		/* Get a pointer to the log entry to display.  Skip unused log
+		 * entries.
+		 */
+		index = dinfo->first + fidx;
+		if (index >= dinfo->nentries)
+			index -= dinfo->nentries;
+		e = &dinfo->log[index];
+		if (e->timestamp == 0)
+			return 0;
+
+		/* Print the message.  This depends on the firmware using
+		 * exactly the same formating strings as the kernel so we may
+		 * eventually have to put a format interpreter in here ...
+		 */
+		seq_printf(seq, "%10d  %15llu  %8s  %8s  ",
+			   e->seqno, e->timestamp,
+			   (e->level < ARRAY_SIZE(devlog_level_strings)
+			    ? devlog_level_strings[e->level]
+			    : "UNKNOWN"),
+			   (e->facility < ARRAY_SIZE(devlog_facility_strings)
+			    ? devlog_facility_strings[e->facility]
+			    : "UNKNOWN"));
+		seq_printf(seq, e->fmt, e->params[0], e->params[1],
+			   e->params[2], e->params[3], e->params[4],
+			   e->params[5], e->params[6], e->params[7]);
+	}
+	return 0;
+}
+
+/* Sequential File Operations for Device Log.
+ */
+static inline void *devlog_get_idx(struct devlog_info *dinfo, loff_t pos)
+{
+	if (pos > dinfo->nentries)
+		return NULL;
+
+	return (void *)(uintptr_t)(pos + 1);
+}
+
+static void *devlog_start(struct seq_file *seq, loff_t *pos)
+{
+	struct devlog_info *dinfo = seq->private;
+
+	return (*pos
+		? devlog_get_idx(dinfo, *pos)
+		: SEQ_START_TOKEN);
+}
+
+static void *devlog_next(struct seq_file *seq, void *v, loff_t *pos)
+{
+	struct devlog_info *dinfo = seq->private;
+
+	(*pos)++;
+	return devlog_get_idx(dinfo, *pos);
+}
+
+static void devlog_stop(struct seq_file *seq, void *v)
+{
+}
+
+static const struct seq_operations devlog_seq_ops = {
+	.start = devlog_start,
+	.next  = devlog_next,
+	.stop  = devlog_stop,
+	.show  = devlog_show
+};
+
+/* Set up for reading the firmware's device log.  We read the entire log here
+ * and then display it incrementally in devlog_show().
+ */
+static int devlog_open(struct inode *inode, struct file *file)
+{
+	struct adapter *adap = inode->i_private;
+	struct devlog_params *dparams = &adap->params.devlog;
+	struct devlog_info *dinfo;
+	unsigned int index;
+	u32 fseqno;
+	int ret;
+
+	/* If we don't know where the log is we can't do anything.
+	 */
+	if (dparams->start == 0)
+		return -ENXIO;
+
+	/* Allocate the space to read in the firmware's device log and set up
+	 * for the iterated call to our display function.
+	 */
+	dinfo = __seq_open_private(file, &devlog_seq_ops,
+				   sizeof(*dinfo) + dparams->size);
+	if (!dinfo)
+		return -ENOMEM;
+
+	/* Record the basic log buffer information and read in the raw log.
+	 */
+	dinfo->nentries = (dparams->size / sizeof(struct fw_devlog_e));
+	dinfo->first = 0;
+	spin_lock(&adap->win0_lock);
+	ret = t4_memory_rw(adap, adap->params.drv_memwin, dparams->memtype,
+			   dparams->start, dparams->size, (__be32 *)dinfo->log,
+			   T4_MEMORY_READ);
+	spin_unlock(&adap->win0_lock);
+	if (ret) {
+		seq_release_private(inode, file);
+		return ret;
+	}
+
+	/* Translate log multi-byte integral elements into host native format
+	 * and determine where the first entry in the log is.
+	 */
+	for (fseqno = ~((u32)0), index = 0; index < dinfo->nentries; index++) {
+		struct fw_devlog_e *e = &dinfo->log[index];
+		int i;
+		__u32 seqno;
+
+		if (e->timestamp == 0)
+			continue;
+
+		e->timestamp = (__force __be64)be64_to_cpu(e->timestamp);
+		seqno = be32_to_cpu(e->seqno);
+		for (i = 0; i < 8; i++)
+			e->params[i] =
+				(__force __be32)be32_to_cpu(e->params[i]);
+
+		if (seqno < fseqno) {
+			fseqno = seqno;
+			dinfo->first = index;
+		}
+	}
+	return 0;
+}
+
+static const struct file_operations devlog_fops = {
+	.owner   = THIS_MODULE,
+	.open    = devlog_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release_private
+};
+
 static ssize_t mem_read(struct file *file, char __user *buf, size_t count,
 			loff_t *ppos)
 {
@@ -121,6 +318,7 @@ int t4_setup_debugfs(struct adapter *adap)
 	u32 size;
 
 	static struct t4_debugfs_entry t4_debugfs_files[] = {
+		{ "devlog", &devlog_fops, S_IRUSR, 0 },
 		{ "l2t", &t4_l2t_fops, S_IRUSR, 0},
 	};
 
