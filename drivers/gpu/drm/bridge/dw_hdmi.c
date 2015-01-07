@@ -1605,12 +1605,6 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 		dev_dbg(hdmi->dev, "no ddc property found\n");
 	}
 
-	ret = devm_request_threaded_irq(dev, irq, dw_hdmi_hardirq,
-					dw_hdmi_irq, IRQF_SHARED,
-					dev_name(dev), hdmi);
-	if (ret)
-		return ret;
-
 	hdmi->regs = devm_ioremap_resource(dev, iores);
 	if (IS_ERR(hdmi->regs))
 		return PTR_ERR(hdmi->regs);
@@ -1650,6 +1644,12 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 		 hdmi_readb(hdmi, HDMI_PRODUCT_ID1));
 
 	initialize_hdmi_ih_mutes(hdmi);
+
+	ret = devm_request_threaded_irq(dev, irq, dw_hdmi_hardirq,
+					dw_hdmi_irq, IRQF_SHARED,
+					dev_name(dev), hdmi);
+	if (ret)
+		return ret;
 
 	/*
 	 * To prevent overflows in HDMI_IH_FC_STAT2, set the clk regenerator
