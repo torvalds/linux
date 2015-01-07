@@ -199,19 +199,11 @@ void set_irq_remapping_broken(void)
 	irq_remap_broken = 1;
 }
 
-int irq_remapping_supported(void)
-{
-	if (disable_irq_remap)
-		return 0;
-
-	if (!remap_ops || !remap_ops->supported)
-		return 0;
-
-	return remap_ops->supported();
-}
-
 int __init irq_remapping_prepare(void)
 {
+	if (disable_irq_remap)
+		return -ENOSYS;
+
 	remap_ops = &intel_irq_remap_ops;
 
 #ifdef CONFIG_AMD_IOMMU
