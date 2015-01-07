@@ -1487,6 +1487,15 @@ reread:
 	}
 	inode->i_generation = iinfo->i_unique;
 
+	/*
+	 * Sanity check length of allocation descriptors and extended attrs to
+	 * avoid integer overflows
+	 */
+	if (iinfo->i_lenEAttr > bs || iinfo->i_lenAlloc > bs)
+		goto out;
+	/* Now do exact checks */
+	if (udf_file_entry_alloc_offset(inode) + iinfo->i_lenAlloc > bs)
+		goto out;
 	/* Sanity checks for files in ICB so that we don't get confused later */
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
 		/*
