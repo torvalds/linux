@@ -56,6 +56,10 @@ enum {
 };
 
 enum {
+	CIMLA_SIZE     = 2048,  /* # of 32-bit words in CIM LA */
+};
+
+enum {
 	SF_PAGE_SIZE = 256,           /* serial flash page size */
 	SF_SEC_SIZE = 64 * 1024,      /* serial flash sector size */
 };

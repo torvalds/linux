@@ -43,8 +43,132 @@
 #include "cxgb4_debugfs.h"
 #include "l2t.h"
 
-/* Firmware Device Log dump.
- */
+/* generic seq_file support for showing a table of size rows x width. */
+static void *seq_tab_get_idx(struct seq_tab *tb, loff_t pos)
+{
+	pos -= tb->skip_first;
+	return pos >= tb->rows ? NULL : &tb->data[pos * tb->width];
+}
+
+static void *seq_tab_start(struct seq_file *seq, loff_t *pos)
+{
+	struct seq_tab *tb = seq->private;
+
+	if (tb->skip_first && *pos == 0)
+		return SEQ_START_TOKEN;
+
+	return seq_tab_get_idx(tb, *pos);
+}
+
+static void *seq_tab_next(struct seq_file *seq, void *v, loff_t *pos)
+{
+	v = seq_tab_get_idx(seq->private, *pos + 1);
+	if (v)
+		++*pos;
+	return v;
+}
+
+static void seq_tab_stop(struct seq_file *seq, void *v)
+{
+}
+
+static int seq_tab_show(struct seq_file *seq, void *v)
+{
+	const struct seq_tab *tb = seq->private;
+
+	return tb->show(seq, v, ((char *)v - tb->data) / tb->width);
+}
+
+static const struct seq_operations seq_tab_ops = {
+	.start = seq_tab_start,
+	.next  = seq_tab_next,
+	.stop  = seq_tab_stop,
+	.show  = seq_tab_show
+};
+
+struct seq_tab *seq_open_tab(struct file *f, unsigned int rows,
+			     unsigned int width, unsigned int have_header,
+			     int (*show)(struct seq_file *seq, void *v, int i))
+{
+	struct seq_tab *p;
+
+	p = __seq_open_private(f, &seq_tab_ops, sizeof(*p) + rows * width);
+	if (p) {
+		p->show = show;
+		p->rows = rows;
+		p->width = width;
+		p->skip_first = have_header != 0;
+	}
+	return p;
+}
+
+static int cim_la_show(struct seq_file *seq, void *v, int idx)
+{
+	if (v == SEQ_START_TOKEN)
+		seq_puts(seq, "Status   Data      PC     LS0Stat  LS0Addr "
+			 "            LS0Data\n");
+	else {
+		const u32 *p = v;
+
+		seq_printf(seq,
+			   "  %02x  %x%07x %x%07x %08x %08x %08x%08x%08x%08x\n",
+			   (p[0] >> 4) & 0xff, p[0] & 0xf, p[1] >> 4,
+			   p[1] & 0xf, p[2] >> 4, p[2] & 0xf, p[3], p[4], p[5],
+			   p[6], p[7]);
+	}
+	return 0;
+}
+
+static int cim_la_show_3in1(struct seq_file *seq, void *v, int idx)
+{
+	if (v == SEQ_START_TOKEN) {
+		seq_puts(seq, "Status   Data      PC\n");
+	} else {
+		const u32 *p = v;
+
+		seq_printf(seq, "  %02x   %08x %08x\n", p[5] & 0xff, p[6],
+			   p[7]);
+		seq_printf(seq, "  %02x   %02x%06x %02x%06x\n",
+			   (p[3] >> 8) & 0xff, p[3] & 0xff, p[4] >> 8,
+			   p[4] & 0xff, p[5] >> 8);
+		seq_printf(seq, "  %02x   %x%07x %x%07x\n", (p[0] >> 4) & 0xff,
+			   p[0] & 0xf, p[1] >> 4, p[1] & 0xf, p[2] >> 4);
+	}
+	return 0;
+}
+
+static int cim_la_open(struct inode *inode, struct file *file)
+{
+	int ret;
+	unsigned int cfg;
+	struct seq_tab *p;
+	struct adapter *adap = inode->i_private;
+
+	ret = t4_cim_read(adap, UP_UP_DBG_LA_CFG_A, 1, &cfg);
+	if (ret)
+		return ret;
+
+	p = seq_open_tab(file, adap->params.cim_la_size / 8, 8 * sizeof(u32), 1,
+			 cfg & UPDBGLACAPTPCONLY_F ?
+			 cim_la_show_3in1 : cim_la_show);
+	if (!p)
+		return -ENOMEM;
+
+	ret = t4_cim_read_la(adap, (u32 *)p->data, NULL);
+	if (ret)
+		seq_release_private(inode, file);
+	return ret;
+}
+
+static const struct file_operations cim_la_fops = {
+	.owner   = THIS_MODULE,
+	.open    = cim_la_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release_private
+};
+
+/* Firmware Device Log dump. */
 static const char * const devlog_level_strings[] = {
 	[FW_DEVLOG_LEVEL_EMERG]		= "EMERG",
 	[FW_DEVLOG_LEVEL_CRIT]		= "CRIT",
@@ -318,6 +442,7 @@ int t4_setup_debugfs(struct adapter *adap)
 	u32 size;
 
 	static struct t4_debugfs_entry t4_debugfs_files[] = {
+		{ "cim_la", &cim_la_fops, S_IRUSR, 0 },
 		{ "devlog", &devlog_fops, S_IRUSR, 0 },
 		{ "l2t", &t4_l2t_fops, S_IRUSR, 0},
 	};

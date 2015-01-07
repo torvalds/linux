@@ -304,6 +304,8 @@ struct adapter_params {
 	struct devlog_params devlog;
 	enum pcie_memwin drv_memwin;
 
+	unsigned int cim_la_size;
+
 	unsigned int sf_size;             /* serial flash size in bytes */
 	unsigned int sf_nsec;             /* # of flash sectors */
 	unsigned int sf_fw_start;         /* start of FW image in flash */
@@ -1034,6 +1036,11 @@ int t4_mc_read(struct adapter *adap, int idx, u32 addr, __be32 *data,
 	       u64 *parity);
 int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data,
 		u64 *parity);
+int t4_cim_read(struct adapter *adap, unsigned int addr, unsigned int n,
+		unsigned int *valp);
+int t4_cim_write(struct adapter *adap, unsigned int addr, unsigned int n,
+		 const unsigned int *valp);
+int t4_cim_read_la(struct adapter *adap, u32 *la_buf, unsigned int *wrptr);
 const char *t4_get_port_type_description(enum fw_port_type port_type);
 void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p);
 void t4_read_mtu_tbl(struct adapter *adap, u16 *mtus, u8 *mtu_log);
