@@ -912,7 +912,7 @@ ieee80211_tdls_mgmt_setup(struct wiphy *wiphy, struct net_device *dev,
 		rcu_read_unlock();
 	}
 
-	ieee80211_flush_queues(local, sdata);
+	ieee80211_flush_queues(local, sdata, false);
 
 	ret = ieee80211_tdls_prep_mgmt_packet(wiphy, dev, peer, action_code,
 					      dialog_token, status_code,
@@ -952,7 +952,7 @@ ieee80211_tdls_mgmt_teardown(struct wiphy *wiphy, struct net_device *dev,
 	 */
 	ieee80211_stop_vif_queues(local, sdata,
 				  IEEE80211_QUEUE_STOP_REASON_TDLS_TEARDOWN);
-	ieee80211_flush_queues(local, sdata);
+	ieee80211_flush_queues(local, sdata, false);
 
 	ret = ieee80211_tdls_prep_mgmt_packet(wiphy, dev, peer, action_code,
 					      dialog_token, status_code,
@@ -1098,7 +1098,7 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 		 */
 		tasklet_kill(&local->tx_pending_tasklet);
 		/* flush a potentially queued teardown packet */
-		ieee80211_flush_queues(local, sdata);
+		ieee80211_flush_queues(local, sdata, false);
 
 		ret = sta_info_destroy_addr(sdata, peer);
 		break;

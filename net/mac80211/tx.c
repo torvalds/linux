@@ -3155,7 +3155,7 @@ int ieee80211_reserve_tid(struct ieee80211_sta *pubsta, u8 tid)
 	}
 
 	queues = BIT(sdata->vif.hw_queue[ieee802_1d_to_ac[tid]]);
-	__ieee80211_flush_queues(local, sdata, queues);
+	__ieee80211_flush_queues(local, sdata, queues, false);
 
 	sta->reserved_tid = tid;
 

@@ -3665,7 +3665,7 @@ static int ieee80211_del_tx_ts(struct wiphy *wiphy, struct net_device *dev,
 		 * queues.
 		 */
 		synchronize_net();
-		ieee80211_flush_queues(local, sdata);
+		ieee80211_flush_queues(local, sdata, false);
 
 		/* restore the normal QoS parameters
 		 * (unconditionally to avoid races)

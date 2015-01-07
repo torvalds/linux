@@ -416,7 +416,7 @@ static int ieee80211_start_sw_scan(struct ieee80211_local *local,
 	ieee80211_offchannel_stop_vifs(local);
 
 	/* ensure nullfunc is transmitted before leaving operating channel */
-	ieee80211_flush_queues(local, NULL);
+	ieee80211_flush_queues(local, NULL, false);
 
 	ieee80211_configure_filter(local);
 
@@ -805,7 +805,7 @@ static void ieee80211_scan_state_resume(struct ieee80211_local *local,
 	ieee80211_offchannel_stop_vifs(local);
 
 	if (local->ops->flush) {
-		ieee80211_flush_queues(local, NULL);
+		ieee80211_flush_queues(local, NULL, false);
 		*next_delay = 0;
 	} else
 		*next_delay = HZ / 10;
