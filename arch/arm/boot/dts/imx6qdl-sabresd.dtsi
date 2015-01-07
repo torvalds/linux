@@ -160,7 +160,6 @@
 	pinctrl-0 = <&pinctrl_enet>;
 	phy-mode = "rgmii";
 	phy-reset-gpios = <&gpio1 25 0>;
-	fsl,magic-packet;
 	status = "okay";
 };
 
