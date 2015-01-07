@@ -492,6 +492,19 @@ static void rht_deferred_worker(struct work_struct *work)
 	mutex_unlock(&ht->mutex);
 }
 
+static void rhashtable_wakeup_worker(struct rhashtable *ht)
+{
+	struct bucket_table *tbl = rht_dereference_rcu(ht->tbl, ht);
+	struct bucket_table *new_tbl = rht_dereference_rcu(ht->future_tbl, ht);
+	size_t size = tbl->size;
+
+	/* Only adjust the table if no resizing is currently in progress. */
+	if (tbl == new_tbl &&
+	    ((ht->p.grow_decision && ht->p.grow_decision(ht, size)) ||
+	     (ht->p.shrink_decision && ht->p.shrink_decision(ht, size))))
+		schedule_delayed_work(&ht->run_work, 0);
+}
+
 /**
  * rhashtable_insert - insert object into hash hash table
  * @ht:		hash table
@@ -532,10 +545,7 @@ void rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj)
 
 	atomic_inc(&ht->nelems);
 
-	/* Only grow the table if no resizing is currently in progress. */
-	if (ht->tbl != ht->future_tbl &&
-	    ht->p.grow_decision && ht->p.grow_decision(ht, tbl->size))
-		schedule_delayed_work(&ht->run_work, 0);
+	rhashtable_wakeup_worker(ht);
 
 	rcu_read_unlock();
 }
@@ -584,10 +594,7 @@ restart:
 
 		spin_unlock_bh(lock);
 
-		if (ht->tbl != ht->future_tbl &&
-		    ht->p.shrink_decision &&
-		    ht->p.shrink_decision(ht, tbl->size))
-			schedule_delayed_work(&ht->run_work, 0);
+		rhashtable_wakeup_worker(ht);
 
 		rcu_read_unlock();
 
