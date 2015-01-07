@@ -1375,7 +1375,6 @@ static unsigned char saved_regs[] = {
 
 static int snd_fm801_suspend(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct fm801 *chip = card->private_data;
 	int i;
@@ -1387,28 +1386,14 @@ static int snd_fm801_suspend(struct device *dev)
 	for (i = 0; i < ARRAY_SIZE(saved_regs); i++)
 		chip->saved_regs[i] = inw(chip->port + saved_regs[i]);
 	/* FIXME: tea575x suspend */
-
-	pci_disable_device(pci);
-	pci_save_state(pci);
-	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
 static int snd_fm801_resume(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct fm801 *chip = card->private_data;
 	int i;
-
-	pci_set_power_state(pci, PCI_D0);
-	pci_restore_state(pci);
-	if (pci_enable_device(pci) < 0) {
-		dev_err(dev, "pci_enable_device failed, disabling device\n");
-		snd_card_disconnect(card);
-		return -EIO;
-	}
-	pci_set_master(pci);
 
 	snd_fm801_chip_init(chip, 1);
 	snd_ac97_resume(chip->ac97);
