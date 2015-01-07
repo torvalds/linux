@@ -3,7 +3,8 @@
 
 #include <asm/io.h>
 
-#define      IEP_BASE                      0x0 //ignore the IEP_BASE when program running in linux kernel //0x10108000
+/*ignore the IEP_BASE when program running in linux kernel */
+#define      IEP_BASE                      0x0
 
 #define      IEP_CONFIG0      		       0x0000
 #define      IEP_CONFIG1      		       0x0004
