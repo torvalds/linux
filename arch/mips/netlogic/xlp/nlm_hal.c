@@ -410,7 +410,7 @@ static unsigned int nlm_xlp2_get_pic_frequency(int node)
 
 	fdiv = fdiv/(1 << 13);
 	pll_out_freq_num = ((ref_clk >> 1) * (6 + mdiv)) + fdiv;
-	pll_out_freq_den = (1 << vco_post_div) * pll_post_div * 3;
+	pll_out_freq_den = (1 << vco_post_div) * pll_post_div * ref_div;
 
 	if (pll_out_freq_den > 0)
 		do_div(pll_out_freq_num, pll_out_freq_den);
