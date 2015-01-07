@@ -52,6 +52,7 @@
 #define PIC_2XX_XHCI_2_IRQ		25
 #define PIC_9XX_XHCI_0_IRQ		23
 #define PIC_9XX_XHCI_1_IRQ		24
+#define PIC_9XX_XHCI_2_IRQ		25
 
 #define PIC_MMC_IRQ			29
 #define PIC_I2C_0_IRQ			30

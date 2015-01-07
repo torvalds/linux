@@ -75,6 +75,8 @@ static int xlp9xx_irq_to_irt(int irq)
 		return 114;
 	case PIC_9XX_XHCI_1_IRQ:
 		return 115;
+	case PIC_9XX_XHCI_2_IRQ:
+		return 116;
 	case PIC_UART_0_IRQ:
 		return 133;
 	case PIC_UART_1_IRQ:
