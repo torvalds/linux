@@ -1573,7 +1573,7 @@ void enable_x2apic(void)
 }
 #endif /* CONFIG_X86_X2APIC */
 
-int __init enable_IR(void)
+static int __init try_to_enable_IR(void)
 {
 #ifdef CONFIG_IRQ_REMAP
 	if (!irq_remapping_supported()) {
@@ -1586,17 +1586,51 @@ int __init enable_IR(void)
 			"io-apic setup\n");
 		return -1;
 	}
-
-	return irq_remapping_enable();
 #endif
-	return -1;
+	return irq_remapping_enable();
+}
+
+static __init void try_to_enable_x2apic(int ir_stat)
+{
+#ifdef CONFIG_X86_X2APIC
+	if (!x2apic_supported())
+		return;
+
+	if (ir_stat < 0) {
+		/* IR is required if there is APIC ID > 255 even when running
+		 * under KVM
+		 */
+		if (max_physical_apicid > 255 ||
+		    !hypervisor_x2apic_available()) {
+			pr_info("IRQ remapping doesn't support X2APIC mode, disable x2apic.\n");
+			if (x2apic_preenabled)
+				disable_x2apic();
+			return;
+		}
+
+		/*
+		 * without IR all CPUs can be addressed by IOAPIC/MSI
+		 * only in physical mode
+		 */
+		x2apic_force_phys();
+
+	} else if (ir_stat == IRQ_REMAP_XAPIC_MODE) {
+		pr_info("x2apic not enabled, IRQ remapping is in xapic mode\n");
+		return;
+	}
+
+	if (!x2apic_mode) {
+		x2apic_mode = 1;
+		enable_x2apic();
+		pr_info("Enabled x2apic\n");
+	}
+#endif
 }
 
 void __init enable_IR_x2apic(void)
 {
 	unsigned long flags;
-	int ret;
-	int hardware_init_ret;
+	int ret, ir_stat;
 
 	if (!IS_ENABLED(CONFIG_X86_X2APIC)) {
 		u64 msr;
@@ -1606,8 +1640,8 @@ void __init enable_IR_x2apic(void)
 			panic("BIOS has enabled x2apic but kernel doesn't support x2apic, please disable x2apic in BIOS.\n");
 	}
 
-	hardware_init_ret = irq_remapping_prepare();
-	if (hardware_init_ret && !x2apic_supported())
+	ir_stat = irq_remapping_prepare();
+	if (ir_stat < 0 && !x2apic_supported())
 		return;
 
 	ret = save_ioapic_entries();
@@ -1622,45 +1656,13 @@ void __init enable_IR_x2apic(void)
 
 	if (x2apic_preenabled && nox2apic)
 		disable_x2apic();
+	/* If irq_remapping_prepare() succeded, try to enable it */
+	if (ir_stat >= 0)
+		ir_stat = try_to_enable_IR();
+	/* ir_stat contains the remap mode or an error code */
+	try_to_enable_x2apic(ir_stat);
 
-	if (hardware_init_ret)
-		ret = -1;
-	else
-		ret = enable_IR();
-
-	if (!x2apic_supported())
-		goto skip_x2apic;
-
-	if (ret < 0) {
-		/* IR is required if there is APIC ID > 255 even when running
-		 * under KVM
-		 */
-		if (max_physical_apicid > 255 ||
-		    !hypervisor_x2apic_available()) {
-			if (x2apic_preenabled)
-				disable_x2apic();
-			goto skip_x2apic;
-		}
-		/*
-		 * without IR all CPUs can be addressed by IOAPIC/MSI
-		 * only in physical mode
-		 */
-		x2apic_force_phys();
-	}
-
-	if (ret == IRQ_REMAP_XAPIC_MODE) {
-		pr_info("x2apic not enabled, IRQ remapping is in xapic mode\n");
-		goto skip_x2apic;
-	}
-
-	if (x2apic_supported() && !x2apic_mode) {
-		x2apic_mode = 1;
-		enable_x2apic();
-		pr_info("Enabled x2apic\n");
-	}
-
-skip_x2apic:
-	if (ret < 0) /* IR enabling failed */
+	if (ir_stat < 0)
 		restore_ioapic_entries();
 	legacy_pic->restore_mask();
 	local_irq_restore(flags);
