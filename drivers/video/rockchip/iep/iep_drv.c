@@ -432,7 +432,7 @@ static void iep_reg_copy_to_hw(struct iep_reg *reg)
     //dmac_flush_range(&pbase[0], &pbase[IEP_REG_LEN]);
     //outer_flush_range(virt_to_phys(&pbase[0]),virt_to_phys(&pbase[IEP_REG_LEN]));
 
-    dsb(sy);
+    dsb();
 }
 
 /** switch fields order before the next lcdc frame start
