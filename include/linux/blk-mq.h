@@ -34,7 +34,6 @@ struct blk_mq_hw_ctx {
 	unsigned long		flags;		/* BLK_MQ_F_* flags */
 
 	struct request_queue	*queue;
-	unsigned int		queue_num;
 	struct blk_flush_queue	*fq;
 
 	void			*driver_data;
@@ -54,7 +53,7 @@ struct blk_mq_hw_ctx {
 	unsigned long		dispatched[BLK_MQ_MAX_DISPATCH_ORDER];
 
 	unsigned int		numa_node;
-	unsigned int		cmd_size;	/* per-request extra data */
+	unsigned int		queue_num;
 
 	atomic_t		nr_active;
 
