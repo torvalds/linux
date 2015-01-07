@@ -1969,6 +1969,21 @@ enum {
 	RT5670_DMIC_DATA_GPIO5,
 };
 
+/* filter mask */
+enum {
+	RT5670_DA_STEREO_FILTER = 0x1,
+	RT5670_DA_MONO_L_FILTER = (0x1 << 1),
+	RT5670_DA_MONO_R_FILTER = (0x1 << 2),
+	RT5670_AD_STEREO_FILTER = (0x1 << 3),
+	RT5670_AD_MONO_L_FILTER = (0x1 << 4),
+	RT5670_AD_MONO_R_FILTER = (0x1 << 5),
+	RT5670_UP_RATE_FILTER   = (0x1 << 6),
+	RT5670_DOWN_RATE_FILTER = (0x1 << 7),
+};
+
+int rt5670_sel_asrc_clk_src(struct snd_soc_codec *codec,
+			    unsigned int filter_mask, unsigned int clk_src);
+
 struct rt5670_priv {
 	struct snd_soc_codec *codec;
 	struct rt5670_platform_data pdata;
