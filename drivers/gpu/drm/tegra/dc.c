@@ -867,7 +867,7 @@ static void tegra_dc_finish_page_flip(struct tegra_dc *dc)
 
 	bo = tegra_fb_get_plane(crtc->primary->fb, 0);
 
-	spin_lock_irqsave(&dc->lock, flags);
+	spin_lock(&dc->lock);
 
 	/* check if new start address has been latched */
 	tegra_dc_writel(dc, WINDOW_A_SELECT, DC_CMD_DISPLAY_WINDOW_HEADER);
@@ -875,7 +875,7 @@ static void tegra_dc_finish_page_flip(struct tegra_dc *dc)
 	base = tegra_dc_readl(dc, DC_WINBUF_START_ADDR);
 	tegra_dc_writel(dc, 0, DC_CMD_STATE_ACCESS);
 
-	spin_unlock_irqrestore(&dc->lock, flags);
+	spin_unlock(&dc->lock);
 
 	if (base == bo->paddr + crtc->primary->fb->offsets[0]) {
 		drm_crtc_send_vblank_event(crtc, dc->event);
