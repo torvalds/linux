@@ -99,7 +99,7 @@ static int wait_for_cpus(int cpu, int bootcpu)
 	do {
 		notready = nlm_threads_per_core;
 		for (i = 0; i < nlm_threads_per_core; i++)
-			if (cpu_ready[cpu + i] || cpu == bootcpu)
+			if (cpu_ready[cpu + i] || (cpu + i) == bootcpu)
 				--notready;
 	} while (notready != 0 && --count > 0);
 
