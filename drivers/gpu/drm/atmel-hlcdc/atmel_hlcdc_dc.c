@@ -29,6 +29,31 @@
 
 #define ATMEL_HLCDC_LAYER_IRQS_OFFSET		8
 
+static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9n12_layers[] = {
+	{
+		.name = "base",
+		.formats = &atmel_hlcdc_plane_rgb_formats,
+		.regs_offset = 0x40,
+		.id = 0,
+		.type = ATMEL_HLCDC_BASE_LAYER,
+		.nconfigs = 5,
+		.layout = {
+			.xstride = { 2 },
+			.default_color = 3,
+			.general_config = 4,
+		},
+	},
+};
+
+static const struct atmel_hlcdc_dc_desc atmel_hlcdc_dc_at91sam9n12 = {
+	.min_width = 0,
+	.min_height = 0,
+	.max_width = 1280,
+	.max_height = 860,
+	.nlayers = ARRAY_SIZE(atmel_hlcdc_at91sam9n12_layers),
+	.layers = atmel_hlcdc_at91sam9n12_layers,
+};
+
 static const struct atmel_hlcdc_layer_desc atmel_hlcdc_at91sam9x5_layers[] = {
 	{
 		.name = "base",
@@ -217,6 +242,10 @@ static const struct atmel_hlcdc_dc_desc atmel_hlcdc_dc_sama5d3 = {
 };
 
 static const struct of_device_id atmel_hlcdc_of_match[] = {
+	{
+		.compatible = "atmel,at91sam9n12-hlcdc",
+		.data = &atmel_hlcdc_dc_at91sam9n12,
+	},
 	{
 		.compatible = "atmel,at91sam9x5-hlcdc",
 		.data = &atmel_hlcdc_dc_at91sam9x5,
