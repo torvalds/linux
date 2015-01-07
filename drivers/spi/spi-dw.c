@@ -673,7 +673,7 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 	if (dws->dma_ops && dws->dma_ops->dma_init) {
 		ret = dws->dma_ops->dma_init(dws);
 		if (ret) {
-			dev_warn(&master->dev, "DMA init failed\n");
+			dev_warn(dev, "DMA init failed\n");
 			dws->dma_inited = 0;
 		}
 	}
