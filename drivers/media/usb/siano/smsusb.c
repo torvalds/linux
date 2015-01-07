@@ -346,6 +346,42 @@ static void smsusb_term_device(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 }
 
+static void siano_media_device_register(struct smsusb_device_t *dev)
+{
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	struct media_device *mdev;
+	struct usb_device *udev = dev->udev;
+	int board_id = smscore_get_board_id(dev->coredev);
+	struct sms_board *board = sms_get_board(board_id);
+	int ret;
+
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
+	if (!mdev)
+		return;
+
+	mdev->dev = &udev->dev;
+	strlcpy(mdev->model, board->name, sizeof(mdev->model));
+	if (udev->serial)
+		strlcpy(mdev->serial, udev->serial, sizeof(mdev->serial));
+	strcpy(mdev->bus_info, udev->devpath);
+	mdev->hw_revision = le16_to_cpu(udev->descriptor.bcdDevice);
+	mdev->driver_version = LINUX_VERSION_CODE;
+
+	ret = media_device_register(mdev);
+	if (ret) {
+		sms_err("Couldn't create a media device. Error: %d\n",
+			ret);
+		kfree(mdev);
+		return;
+	}
+
+	dev->coredev->media_dev = mdev;
+
+	sms_info("media controller created");
+
+#endif
+}
+
 static int smsusb_init_device(struct usb_interface *intf, int board_id)
 {
 	struct smsdevice_params_t params;
@@ -439,6 +475,7 @@ static int smsusb_init_device(struct usb_interface *intf, int board_id)
 	}
 
 	sms_info("device 0x%p created", dev);
+	siano_media_device_register(dev);
 
 	return rc;
 }

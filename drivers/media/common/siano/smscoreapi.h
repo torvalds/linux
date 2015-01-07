@@ -31,6 +31,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <linux/wait.h>
 #include <linux/timer.h>
 
+#include <media/media-device.h>
+
 #include <asm/page.h>
 
 #include "smsir.h"
@@ -215,6 +217,10 @@ struct smscore_device_t {
 	bool is_usb_device;
 
 	int led_state;
+
+#if defined(CONFIG_MEDIA_CONTROLLER_DVB)
+	struct media_device *media_dev;
+#endif
 };
 
 /* GPIO definitions for antenna frequency domain control (SMS8021) */
