@@ -1613,6 +1613,7 @@ config CPU_XLP
 	select WEAK_REORDERING_BEYOND_LLSC
 	select CPU_HAS_PREFETCH
 	select CPU_MIPSR2
+	select CPU_SUPPORTS_HUGEPAGES
 	help
 	  Netlogic Microsystems XLP processors.
 endchoice
