@@ -546,7 +546,7 @@ static int sh_msiof_spi_setup(struct spi_device *spi)
 		gpio_set_value(spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
 
 
-	pm_runtime_put_sync(&p->pdev->dev);
+	pm_runtime_put(&p->pdev->dev);
 
 	return 0;
 }
