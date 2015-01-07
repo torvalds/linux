@@ -37,8 +37,6 @@
 #ifndef _TIPC_CORE_H
 #define _TIPC_CORE_H
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/tipc.h>
 #include <linux/tipc_config.h>
 #include <linux/tipc_netlink.h>
@@ -79,7 +77,6 @@ int tipc_snprintf(char *buf, int len, const char *fmt, ...);
  * Global configuration variables
  */
 extern u32 tipc_own_addr __read_mostly;
-extern int tipc_max_ports __read_mostly;
 extern int tipc_net_id __read_mostly;
 extern int sysctl_tipc_rmem[3] __read_mostly;
 extern int sysctl_tipc_named_timeout __read_mostly;
