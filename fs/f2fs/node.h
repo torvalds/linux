@@ -25,6 +25,7 @@
 
 /* vector size for gang look-up from nat cache that consists of radix tree */
 #define NATVEC_SIZE	64
+#define SETVEC_SIZE	32
 
 /* return value for read_node_page */
 #define LOCKED_PAGE	1
