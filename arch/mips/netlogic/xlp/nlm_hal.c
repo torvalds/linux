@@ -449,19 +449,21 @@ unsigned int nlm_get_cpu_frequency(void)
 
 /*
  * Fills upto 8 pairs of entries containing the DRAM map of a node
- * if n < 0, get dram map for all nodes
+ * if node < 0, get dram map for all nodes
  */
-int xlp_get_dram_map(int n, uint64_t *dram_map)
+int nlm_get_dram_map(int node, uint64_t *dram_map, int nentries)
 {
 	uint64_t bridgebase, base, lim;
 	uint32_t val;
 	unsigned int barreg, limreg, xlatreg;
-	int i, node, rv;
+	int i, n, rv;
 
 	/* Look only at mapping on Node 0, we don't handle crazy configs */
 	bridgebase = nlm_get_bridge_regbase(0);
 	rv = 0;
 	for (i = 0; i < 8; i++) {
+		if (rv + 1 >= nentries)
+			break;
 		if (cpu_is_xlp9xx()) {
 			barreg = BRIDGE_9XX_DRAM_BAR(i);
 			limreg = BRIDGE_9XX_DRAM_LIMIT(i);
@@ -471,10 +473,10 @@ int xlp_get_dram_map(int n, uint64_t *dram_map)
 			limreg = BRIDGE_DRAM_LIMIT(i);
 			xlatreg = BRIDGE_DRAM_NODE_TRANSLN(i);
 		}
-		if (n >= 0) {
+		if (node >= 0) {
 			/* node specified, get node mapping of BAR */
 			val = nlm_read_bridge_reg(bridgebase, xlatreg);
-			node = (val >> 1) & 0x3;
+			n = (val >> 1) & 0x3;
 			if (n != node)
 				continue;
 		}
