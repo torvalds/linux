@@ -59,17 +59,17 @@
 
 void nlm_send_ipi_single(int logical_cpu, unsigned int action)
 {
-	int cpu, node;
+	unsigned int hwtid;
 	uint64_t picbase;
 
-	cpu = cpu_logical_map(logical_cpu);
-	node = nlm_cpuid_to_node(cpu);
-	picbase = nlm_get_node(node)->picbase;
+	/* node id is part of hwtid, and needed for send_ipi */
+	hwtid = cpu_logical_map(logical_cpu);
+	picbase = nlm_get_node(nlm_hwtid_to_node(hwtid))->picbase;
 
 	if (action & SMP_CALL_FUNCTION)
-		nlm_pic_send_ipi(picbase, cpu, IRQ_IPI_SMP_FUNCTION, 0);
+		nlm_pic_send_ipi(picbase, hwtid, IRQ_IPI_SMP_FUNCTION, 0);
 	if (action & SMP_RESCHEDULE_YOURSELF)
-		nlm_pic_send_ipi(picbase, cpu, IRQ_IPI_SMP_RESCHEDULE, 0);
+		nlm_pic_send_ipi(picbase, hwtid, IRQ_IPI_SMP_RESCHEDULE, 0);
 }
 
 void nlm_send_ipi_mask(const struct cpumask *mask, unsigned int action)
@@ -120,7 +120,7 @@ static void nlm_init_secondary(void)
 
 	hwtid = hard_smp_processor_id();
 	current_cpu_data.core = hwtid / NLM_THREADS_PER_CORE;
-	current_cpu_data.package = nlm_cpuid_to_node(hwtid);
+	current_cpu_data.package = nlm_nodeid();
 	nlm_percpu_init(hwtid);
 	nlm_smp_irq_init(hwtid);
 }
@@ -146,16 +146,18 @@ static cpumask_t phys_cpu_present_mask;
 
 void nlm_boot_secondary(int logical_cpu, struct task_struct *idle)
 {
-	int cpu, node;
+	uint64_t picbase;
+	int hwtid;
 
-	cpu = cpu_logical_map(logical_cpu);
-	node = nlm_cpuid_to_node(logical_cpu);
+	hwtid = cpu_logical_map(logical_cpu);
+	picbase = nlm_get_node(nlm_hwtid_to_node(hwtid))->picbase;
+
 	nlm_next_sp = (unsigned long)__KSTK_TOS(idle);
 	nlm_next_gp = (unsigned long)task_thread_info(idle);
 
 	/* barrier for sp/gp store above */
 	__sync();
-	nlm_pic_send_ipi(nlm_get_node(node)->picbase, cpu, 1, 1);  /* NMI */
+	nlm_pic_send_ipi(picbase, hwtid, 1, 1);  /* NMI */
 }
 
 void __init nlm_smp_setup(void)
@@ -183,7 +185,7 @@ void __init nlm_smp_setup(void)
 			__cpu_number_map[i] = num_cpus;
 			__cpu_logical_map[num_cpus] = i;
 			set_cpu_possible(num_cpus, true);
-			node = nlm_cpuid_to_node(i);
+			node = nlm_hwtid_to_node(i);
 			cpumask_set_cpu(num_cpus, &nlm_get_node(node)->cpumask);
 			++num_cpus;
 		}

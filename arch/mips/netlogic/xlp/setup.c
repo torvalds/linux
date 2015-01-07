@@ -51,7 +51,6 @@ uint64_t nlm_io_base;
 struct nlm_soc_info nlm_nodes[NLM_NR_NODES];
 cpumask_t nlm_cpumask = CPU_MASK_CPU0;
 unsigned int nlm_threads_per_core;
-unsigned int xlp_cores_per_node;
 
 static void nlm_linux_exit(void)
 {
@@ -163,10 +162,6 @@ void __init prom_init(void)
 	void *reset_vec;
 
 	nlm_io_base = CKSEG1ADDR(XLP_DEFAULT_IO_BASE);
-	if (cpu_is_xlp9xx())
-		xlp_cores_per_node = 32;
-	else
-		xlp_cores_per_node = 8;
 	nlm_init_boot_cpu();
 	xlp_mmu_init();
 	nlm_node_init(0);
