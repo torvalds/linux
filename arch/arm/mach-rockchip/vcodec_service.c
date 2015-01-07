@@ -334,7 +334,7 @@ typedef struct vpu_reg {
 #if defined(CONFIG_VCODEC_MMU)
 	struct list_head mem_region_list;
 #endif
-	unsigned long *reg;
+	u32 *reg;
 } vpu_reg;
 
 typedef struct vpu_device {
@@ -471,7 +471,7 @@ struct vcodec_combo {
 };
 
 typedef struct vpu_request {
-	unsigned long *req;
+	u64 req;
 	u32 size;
 } vpu_request;
 
@@ -570,18 +570,17 @@ static int vpu_get_clk(struct vpu_service_info *pservice)
 #if VCODEC_CLOCK_ENABLE
 	switch (pservice->dev_id) {
 	case VCODEC_DEVICE_ID_HEVC:
-		pservice->clk_cabac = devm_clk_get(pservice->dev, "clk_cabac");
-		if (IS_ERR(pservice->clk_cabac)) {
-			dev_err(pservice->dev, "failed on clk_get clk_cabac\n");
-			return -1;
-		}
-
 		pservice->pd_video = devm_clk_get(pservice->dev, "pd_hevc");
 		if (IS_ERR(pservice->pd_video)) {
 			dev_err(pservice->dev, "failed on clk_get pd_hevc\n");
 			return -1;
 		}
 	case VCODEC_DEVICE_ID_COMBO:
+		pservice->clk_cabac = devm_clk_get(pservice->dev, "clk_cabac");
+		if (IS_ERR(pservice->clk_cabac)) {
+			dev_err(pservice->dev, "failed on clk_get clk_cabac\n");
+			pservice->clk_cabac = NULL;
+		}
 		pservice->clk_core = devm_clk_get(pservice->dev, "clk_core");
 		if (IS_ERR(pservice->clk_core)) {
 			dev_err(pservice->dev, "failed on clk_get clk_core\n");
@@ -796,13 +795,13 @@ static void vpu_service_power_on(struct vpu_service_info *pservice)
 
 static inline bool reg_check_rmvb_wmv(vpu_reg *reg)
 {
-	unsigned long type = (reg->reg[3] & 0xF0000000) >> 28;
+	u32 type = (reg->reg[3] & 0xF0000000) >> 28;
 	return ((type == 8) || (type == 4));
 }
 
 static inline bool reg_check_interlace(vpu_reg *reg)
 {
-	unsigned long type = (reg->reg[3] & (1 << 23));
+	u32 type = (reg->reg[3] & (1 << 23));
 	return (type > 0);
 }
 
@@ -1055,7 +1054,7 @@ static vpu_reg *reg_init(struct vpu_subdev_data *data,
 	reg->type = session->type;
 	reg->size = size;
 	reg->freq = VPU_FREQ_DEFAULT;
-	reg->reg = (unsigned long *)&reg[1];
+	reg->reg = (u32 *)&reg[1];
 	INIT_LIST_HEAD(&reg->session_link);
 	INIT_LIST_HEAD(&reg->status_link);
 
@@ -1296,7 +1295,7 @@ static void reg_copy_to_hw(struct vpu_subdev_data *data, vpu_reg *reg)
 
 		VEPU_CLEAN_CACHE(dst);
 
-		dsb();
+		dsb(sy);
 
 		dst[VPU_REG_ENC_GATE] = src[VPU_REG_ENC_GATE] | VPU_REG_ENC_GATE_BIT;
 		dst[VPU_REG_EN_ENC]   = src[VPU_REG_EN_ENC];
@@ -1321,7 +1320,7 @@ static void reg_copy_to_hw(struct vpu_subdev_data *data, vpu_reg *reg)
 			HEVC_CLEAN_CACHE(dst);
 		}
 
-		dsb();
+		dsb(sy);
 
 		if (data->hw_info->hw_id != HEVC_ID) {
 			dst[VPU_REG_DEC_GATE] = src[VPU_REG_DEC_GATE] | VPU_REG_DEC_GATE_BIT;
@@ -1329,8 +1328,8 @@ static void reg_copy_to_hw(struct vpu_subdev_data *data, vpu_reg *reg)
 		} else {
 			dst[VPU_REG_EN_DEC] = src[VPU_REG_EN_DEC];
 		}
-		dsb();
-		dmb();
+		dsb(sy);
+		dmb(sy);
 #if VPU_SERVICE_SHOW_TIME
 		do_gettimeofday(&dec_start);
 #endif
@@ -1344,7 +1343,7 @@ static void reg_copy_to_hw(struct vpu_subdev_data *data, vpu_reg *reg)
 		for (i = VPU_REG_PP_GATE + 1; i < REG_NUM_9190_PP; i++)
 			dst[i] = src[i];
 
-		dsb();
+		dsb(sy);
 
 		dst[VPU_REG_EN_PP] = src[VPU_REG_EN_PP];
 #if VPU_SERVICE_SHOW_TIME
@@ -1364,7 +1363,7 @@ static void reg_copy_to_hw(struct vpu_subdev_data *data, vpu_reg *reg)
 			dst[i] = src[i];
 
 		dst[VPU_REG_EN_DEC_PP]   = src[VPU_REG_EN_DEC_PP] | 0x2;
-		dsb();
+		dsb(sy);
 
 		dst[VPU_REG_DEC_PP_GATE] = src[VPU_REG_DEC_PP_GATE] | VPU_REG_PP_GATE_BIT;
 		dst[VPU_REG_DEC_GATE]	 = src[VPU_REG_DEC_GATE]    | VPU_REG_DEC_GATE_BIT;

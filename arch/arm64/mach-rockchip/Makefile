@@ -8,3 +8,4 @@ obj-$(CONFIG_RK_LAST_LOG) += ../../arm/mach-rockchip/last_log.o
 obj-$(CONFIG_DVFS) += ../../arm/mach-rockchip/dvfs.o
 obj-$(CONFIG_BLOCK_RKNAND) += ../../arm/mach-rockchip/rknandbase.o
 obj-$(CONFIG_RK_PL330_DMA_TEST) += ../../arm/mach-rockchip/dma_memcpy_test.o
+obj-$(CONFIG_RK_VCODEC) += ../../arm/mach-rockchip/vcodec_service.o
