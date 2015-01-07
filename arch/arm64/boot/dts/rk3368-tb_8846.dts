@@ -650,11 +650,6 @@
         status = "okay";
 };
 
-&pwm1 {
-	status = "okay";
-};
-
-
 &clk_core_dvfs_table {
 	operating-points = <
 		/* KHz    uV */
