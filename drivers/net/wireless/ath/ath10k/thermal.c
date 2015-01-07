@@ -213,6 +213,11 @@ int ath10k_thermal_register(struct ath10k *ar)
 	if (ar->wmi.op_version != ATH10K_FW_WMI_OP_VERSION_10_2_4)
 		return 0;
 
+	/* Avoid linking error on devm_hwmon_device_register_with_groups, I
+	 * guess linux/hwmon.h is missing proper stubs. */
+	if (!config_enabled(HWMON))
+		return 0;
+
 	hwmon_dev = devm_hwmon_device_register_with_groups(ar->dev,
 							   "ath10k_hwmon", ar,
 							   ath10k_hwmon_groups);
