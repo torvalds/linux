@@ -1595,7 +1595,7 @@ int __init enable_IR(void)
 void __init enable_IR_x2apic(void)
 {
 	unsigned long flags;
-	int ret, x2apic_enabled = 0;
+	int ret;
 	int hardware_init_ret;
 
 	if (!IS_ENABLED(CONFIG_X86_X2APIC)) {
@@ -1652,8 +1652,6 @@ void __init enable_IR_x2apic(void)
 		pr_info("x2apic not enabled, IRQ remapping is in xapic mode\n");
 		goto skip_x2apic;
 	}
-
-	x2apic_enabled = 1;
 
 	if (x2apic_supported() && !x2apic_mode) {
 		x2apic_mode = 1;
