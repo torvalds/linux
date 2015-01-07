@@ -270,8 +270,6 @@ int dw_spi_mid_init(struct dw_spi *dws)
 	dws->max_freq = MRST_SPI_CLK_BASE / (clk_cdiv + 1);
 	iounmap(clk_reg);
 
-	dws->num_cs = 16;
-
 #ifdef CONFIG_SPI_DW_MID_DMA
 	dws->dma_priv = kzalloc(sizeof(struct mid_dma), GFP_KERNEL);
 	if (!dws->dma_priv)
