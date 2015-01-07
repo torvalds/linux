@@ -841,7 +841,9 @@ void fiq_glue_resume(void);
 static inline void  rkpm_peri_resume(u32 power_mode)
 {
 	rkpm_gic_dist_resume(&slp_gic_save[0]);
+#ifndef CONFIG_ARM_TRUSTZONE
 	fiq_glue_resume();
+#endif
 }
 
 static void rkpm_save_setting_resume(void)

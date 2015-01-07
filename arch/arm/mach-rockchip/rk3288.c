@@ -146,7 +146,9 @@ static void __init rk3288_dt_map_io(void)
 	writel_relaxed(0x00010001, RK_GRF_VIRT + RK3288_GRF_SOC_CON2);
 
 	/* disable address remap */
+#ifndef CONFIG_ARM_TRUSTZONE
 	writel_relaxed(0x08000000, RK_SGRF_VIRT + RK3288_SGRF_SOC_CON0);
+#endif
 
 	/* enable timer7 for core */
 	writel_relaxed(0, RK3288_TIMER7_VIRT + 0x10);
@@ -162,7 +164,9 @@ static void __init rk3288_dt_map_io(void)
 	writel_relaxed(24, RK_PMU_VIRT + RK3288_PMU_GPU_PWRUP_CNT);
 
 	rk3288_boot_mode_init();
+#ifndef CONFIG_ARM_TRUSTZONE
 	rockchip_efuse_init();
+#endif
 }
 
 static const u8 pmu_st_map[] = {
@@ -667,7 +671,11 @@ static int  __init rk3288_pm_dbg(void)
 
 static int __init rk3288_ddr_init(void)
 {
-    if (cpu_is_rk3288())
+    if (cpu_is_rk3288()
+#ifdef CONFIG_ARM_TRUSTZONE
+	&& false
+#endif
+	)
     {
 	ddr_change_freq = _ddr_change_freq;
 	ddr_round_rate = _ddr_round_rate;
