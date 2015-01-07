@@ -1581,7 +1581,7 @@ int __init enable_IR(void)
 		return -1;
 	}
 
-	if (!x2apic_preenabled && skip_ioapic_setup) {
+	if (!x2apic_enabled() && skip_ioapic_setup) {
 		pr_info("Skipped enabling intr-remap because of skipping "
 			"io-apic setup\n");
 		return -1;
