@@ -70,7 +70,9 @@ static const struct dw_hdmi_curr_ctrl imx_cur_ctr[] = {
 		118800000, { 0x091c, 0x091c, 0x06dc },
 	}, {
 		216000000, { 0x06dc, 0x0b5c, 0x091c },
-	}
+	}, {
+		~0UL, { 0x0000, 0x0000, 0x0000 },
+	},
 };
 
 static const struct dw_hdmi_sym_term imx_sym_term[] = {
