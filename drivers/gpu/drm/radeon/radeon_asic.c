@@ -1953,6 +1953,10 @@ static struct radeon_asic si_asic = {
 		.debugfs_print_current_performance_level = &si_dpm_debugfs_print_current_performance_level,
 		.force_performance_level = &si_dpm_force_performance_level,
 		.vblank_too_short = &ni_dpm_vblank_too_short,
+		.fan_ctrl_set_mode = &si_fan_ctrl_set_mode,
+		.fan_ctrl_get_mode = &si_fan_ctrl_get_mode,
+		.get_fan_speed_percent = &si_fan_ctrl_get_fan_speed_percent,
+		.set_fan_speed_percent = &si_fan_ctrl_set_fan_speed_percent,
 	},
 	.pflip = {
 		.page_flip = &evergreen_page_flip,

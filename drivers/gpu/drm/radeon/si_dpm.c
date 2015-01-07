@@ -1756,6 +1756,9 @@ static int si_calculate_sclk_params(struct radeon_device *rdev,
 				    u32 engine_clock,
 				    SISLANDS_SMC_SCLK_VALUE *sclk);
 
+static void si_thermal_start_smc_fan_control(struct radeon_device *rdev);
+static void si_fan_ctrl_set_default_mode(struct radeon_device *rdev);
+
 static struct si_power_info *si_get_pi(struct radeon_device *rdev)
 {
         struct si_power_info *pi = rdev->pm.dpm.priv;
@@ -6012,35 +6015,45 @@ static int si_thermal_setup_fan_table(struct radeon_device *rdev)
 
 static int si_fan_ctrl_start_smc_fan_control(struct radeon_device *rdev)
 {
+	struct si_power_info *si_pi = si_get_pi(rdev);
 	PPSMC_Result ret;
 
 	ret = si_send_msg_to_smc(rdev, PPSMC_StartFanControl);
-	if (ret == PPSMC_Result_OK)
+	if (ret == PPSMC_Result_OK) {
+		si_pi->fan_is_controlled_by_smc = true;
 		return 0;
-	else
+	} else {
 		return -EINVAL;
+	}
 }
 
 static int si_fan_ctrl_stop_smc_fan_control(struct radeon_device *rdev)
 {
+	struct si_power_info *si_pi = si_get_pi(rdev);
 	PPSMC_Result ret;
 
 	ret = si_send_msg_to_smc(rdev, PPSMC_StopFanControl);
-	if (ret == PPSMC_Result_OK)
+
+	if (ret == PPSMC_Result_OK) {
+		si_pi->fan_is_controlled_by_smc = false;
 		return 0;
-	else
+	} else {
 		return -EINVAL;
+	}
 }
 
-#if 0
-static int si_fan_ctrl_get_fan_speed_percent(struct radeon_device *rdev,
-					     u32 *speed)
+int si_fan_ctrl_get_fan_speed_percent(struct radeon_device *rdev,
+				      u32 *speed)
 {
+	struct si_power_info *si_pi = si_get_pi(rdev);
 	u32 duty, duty100;
 	u64 tmp64;
 
 	if (rdev->pm.no_fan)
 		return -ENOENT;
+
+	if (si_pi->fan_is_controlled_by_smc)
+ 		return -EINVAL;
 
 	duty100 = (RREG32(CG_FDO_CTRL1) & FMAX_DUTY100_MASK) >> FMAX_DUTY100_SHIFT;
 	duty = (RREG32(CG_THERMAL_STATUS) & FDO_PWM_DUTY_MASK) >> FDO_PWM_DUTY_SHIFT;
@@ -6058,8 +6071,8 @@ static int si_fan_ctrl_get_fan_speed_percent(struct radeon_device *rdev,
 	return 0;
 }
 
-static int si_fan_ctrl_set_fan_speed_percent(struct radeon_device *rdev,
-					     u32 speed)
+int si_fan_ctrl_set_fan_speed_percent(struct radeon_device *rdev,
+				      u32 speed)
 {
 	u32 tmp;
 	u32 duty, duty100;
@@ -6070,9 +6083,6 @@ static int si_fan_ctrl_set_fan_speed_percent(struct radeon_device *rdev,
 
 	if (speed > 100)
 		return -EINVAL;
-
-	if (rdev->pm.dpm.fan.ucode_fan_control)
-		si_fan_ctrl_stop_smc_fan_control(rdev);
 
 	duty100 = (RREG32(CG_FDO_CTRL1) & FMAX_DUTY100_MASK) >> FMAX_DUTY100_SHIFT;
 
@@ -6087,11 +6097,38 @@ static int si_fan_ctrl_set_fan_speed_percent(struct radeon_device *rdev,
 	tmp |= FDO_STATIC_DUTY(duty);
 	WREG32(CG_FDO_CTRL0, tmp);
 
-	si_fan_ctrl_set_static_mode(rdev, FDO_PWM_MODE_STATIC);
-
 	return 0;
 }
 
+void si_fan_ctrl_set_mode(struct radeon_device *rdev, u32 mode)
+{
+	if (mode) {
+		/* stop auto-manage */
+		if (rdev->pm.dpm.fan.ucode_fan_control)
+			si_fan_ctrl_stop_smc_fan_control(rdev);
+		si_fan_ctrl_set_static_mode(rdev, mode);
+	} else {
+		/* restart auto-manage */
+		if (rdev->pm.dpm.fan.ucode_fan_control)
+			si_thermal_start_smc_fan_control(rdev);
+		else
+			si_fan_ctrl_set_default_mode(rdev);
+	}
+}
+
+u32 si_fan_ctrl_get_mode(struct radeon_device *rdev)
+{
+	struct si_power_info *si_pi = si_get_pi(rdev);
+	u32 tmp;
+
+	if (si_pi->fan_is_controlled_by_smc)
+		return 0;
+
+	tmp = RREG32(CG_FDO_CTRL2) & FDO_PWM_MODE_MASK;
+	return (tmp >> FDO_PWM_MODE_SHIFT);
+}
+
+#if 0
 static int si_fan_ctrl_get_fan_speed_rpm(struct radeon_device *rdev,
 					 u32 *speed)
 {
