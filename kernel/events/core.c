@@ -7027,6 +7027,20 @@ void perf_pmu_unregister(struct pmu *pmu)
 }
 EXPORT_SYMBOL_GPL(perf_pmu_unregister);
 
+static int perf_try_init_event(struct pmu *pmu, struct perf_event *event)
+{
+	int ret;
+
+	if (!try_module_get(pmu->module))
+		return -ENODEV;
+	event->pmu = pmu;
+	ret = pmu->event_init(event);
+	if (ret)
+		module_put(pmu->module);
+
+	return ret;
+}
+
 struct pmu *perf_init_event(struct perf_event *event)
 {
 	struct pmu *pmu = NULL;
@@ -7039,24 +7053,14 @@ struct pmu *perf_init_event(struct perf_event *event)
 	pmu = idr_find(&pmu_idr, event->attr.type);
 	rcu_read_unlock();
 	if (pmu) {
-		if (!try_module_get(pmu->module)) {
-			pmu = ERR_PTR(-ENODEV);
-			goto unlock;
-		}
-		event->pmu = pmu;
-		ret = pmu->event_init(event);
+		ret = perf_try_init_event(pmu, event);
 		if (ret)
 			pmu = ERR_PTR(ret);
 		goto unlock;
 	}
 
 	list_for_each_entry_rcu(pmu, &pmus, entry) {
-		if (!try_module_get(pmu->module)) {
-			pmu = ERR_PTR(-ENODEV);
-			goto unlock;
-		}
-		event->pmu = pmu;
-		ret = pmu->event_init(event);
+		ret = perf_try_init_event(pmu, event);
 		if (!ret)
 			goto unlock;
 
