@@ -608,10 +608,10 @@ restart:
 		return true;
 	}
 
-	if (tbl != rht_dereference_rcu(ht->tbl, ht)) {
+	if (tbl != rht_dereference_rcu(ht->future_tbl, ht)) {
 		spin_unlock_bh(lock);
 
-		tbl = rht_dereference_rcu(ht->tbl, ht);
+		tbl = rht_dereference_rcu(ht->future_tbl, ht);
 		hash = head_hashfn(ht, tbl, obj);
 
 		lock = bucket_lock(tbl, hash);
