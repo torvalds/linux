@@ -1708,6 +1708,66 @@
 
 #define MPS_RX_PERR_INT_CAUSE_A 0x11074
 
+#define MPS_CLS_TCAM_Y_L_A 0xf000
+#define MPS_CLS_TCAM_X_L_A 0xf008
+
+#define MPS_CLS_TCAM_Y_L(idx) (MPS_CLS_TCAM_Y_L_A + (idx) * 16)
+#define NUM_MPS_CLS_TCAM_Y_L_INSTANCES 512
+
+#define MPS_CLS_TCAM_X_L(idx) (MPS_CLS_TCAM_X_L_A + (idx) * 16)
+#define NUM_MPS_CLS_TCAM_X_L_INSTANCES 512
+
+#define MPS_CLS_SRAM_L_A 0xe000
+#define MPS_CLS_SRAM_H_A 0xe004
+
+#define MPS_CLS_SRAM_L(idx) (MPS_CLS_SRAM_L_A + (idx) * 8)
+#define NUM_MPS_CLS_SRAM_L_INSTANCES 336
+
+#define MPS_CLS_SRAM_H(idx) (MPS_CLS_SRAM_H_A + (idx) * 8)
+#define NUM_MPS_CLS_SRAM_H_INSTANCES 336
+
+#define MULTILISTEN0_S    25
+
+#define REPLICATE_S    11
+#define REPLICATE_V(x) ((x) << REPLICATE_S)
+#define REPLICATE_F    REPLICATE_V(1U)
+
+#define PF_S    8
+#define PF_M    0x7U
+#define PF_G(x) (((x) >> PF_S) & PF_M)
+
+#define VF_VALID_S    7
+#define VF_VALID_V(x) ((x) << VF_VALID_S)
+#define VF_VALID_F    VF_VALID_V(1U)
+
+#define VF_S    0
+#define VF_M    0x7fU
+#define VF_G(x) (((x) >> VF_S) & VF_M)
+
+#define SRAM_PRIO3_S    22
+#define SRAM_PRIO3_M    0x7U
+#define SRAM_PRIO3_G(x) (((x) >> SRAM_PRIO3_S) & SRAM_PRIO3_M)
+
+#define SRAM_PRIO2_S    19
+#define SRAM_PRIO2_M    0x7U
+#define SRAM_PRIO2_G(x) (((x) >> SRAM_PRIO2_S) & SRAM_PRIO2_M)
+
+#define SRAM_PRIO1_S    16
+#define SRAM_PRIO1_M    0x7U
+#define SRAM_PRIO1_G(x) (((x) >> SRAM_PRIO1_S) & SRAM_PRIO1_M)
+
+#define SRAM_PRIO0_S    13
+#define SRAM_PRIO0_M    0x7U
+#define SRAM_PRIO0_G(x) (((x) >> SRAM_PRIO0_S) & SRAM_PRIO0_M)
+
+#define SRAM_VLD_S    12
+#define SRAM_VLD_V(x) ((x) << SRAM_VLD_S)
+#define SRAM_VLD_F    SRAM_VLD_V(1U)
+
+#define PORTMAP_S    0
+#define PORTMAP_M    0xfU
+#define PORTMAP_G(x) (((x) >> PORTMAP_S) & PORTMAP_M)
+
 #define CPL_INTR_CAUSE_A 0x19054
 
 #define CIM_OP_MAP_PERR_S    5
