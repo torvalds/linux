@@ -619,13 +619,15 @@ void blk_mq_rq_timed_out(struct request *req, bool reserved)
 		break;
 	}
 }
-		
+
 static void blk_mq_check_expired(struct blk_mq_hw_ctx *hctx,
 		struct request *rq, void *priv, bool reserved)
 {
 	struct blk_mq_timeout_data *data = priv;
 
 	if (!test_bit(REQ_ATOM_STARTED, &rq->atomic_flags))
+		return;
+	if (rq->cmd_flags & REQ_NO_TIMEOUT)
 		return;
 
 	if (time_after_eq(jiffies, rq->deadline)) {
