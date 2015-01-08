@@ -34,6 +34,14 @@
 #define AIO_IIRO_16_RELAY_8_15	0x04
 #define AIO_IIRO_16_INPUT_8_15	0x05
 
+static void aio_iiro_enable_irq(struct comedi_device *dev, bool enable)
+{
+	if (enable)
+		inb(dev->iobase + AIO_IIRO_16_IRQ);
+	else
+		outb(0, dev->iobase + AIO_IIRO_16_IRQ);
+}
+
 static int aio_iiro_16_do_insn_bits(struct comedi_device *dev,
 				    struct comedi_subdevice *s,
 				    struct comedi_insn *insn,
@@ -71,6 +79,8 @@ static int aio_iiro_16_attach(struct comedi_device *dev,
 	ret = comedi_request_region(dev, it->options[0], 0x8);
 	if (ret)
 		return ret;
+
+	aio_iiro_enable_irq(dev, false);
 
 	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
