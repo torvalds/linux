@@ -340,6 +340,8 @@ static int acpi_lpss_create_device(struct acpi_device *adev,
 				pdata->mmio_size = resource_size(&rentry->res);
 			pdata->mmio_base = ioremap(rentry->res.start,
 						   pdata->mmio_size);
+			if (!pdata->mmio_base)
+				goto err_out;
 			break;
 		}
 
