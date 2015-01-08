@@ -1781,6 +1781,11 @@ static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 	return dev->dev_private;
 }
 
+static inline struct drm_i915_private *dev_to_i915(struct device *dev)
+{
+	return to_i915(dev_get_drvdata(dev));
+}
+
 /* Iterate over initialised rings */
 #define for_each_ring(ring__, dev_priv__, i__) \
 	for ((i__) = 0; (i__) < I915_NUM_RINGS; (i__)++) \
