@@ -366,8 +366,8 @@ loop_lock:
 		btrfsic_submit_bio(cur->bi_rw, cur);
 		num_run++;
 		batch_run++;
-		if (need_resched())
-			cond_resched();
+
+		cond_resched();
 
 		/*
 		 * we made progress, there is more work to do and the bdi
@@ -400,8 +400,7 @@ loop_lock:
 				 * against it before looping
 				 */
 				last_waited = ioc->last_waited;
-				if (need_resched())
-					cond_resched();
+				cond_resched();
 				continue;
 			}
 			spin_lock(&device->io_lock);
