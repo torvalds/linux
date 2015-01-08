@@ -1691,7 +1691,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	host_pvt.dma_channel = dma_chan;
 
 	/* Ioremap SATA registers */
-	base = of_iomap(ofdev->dev.of_node, 0);
+	base = of_iomap(np, 0);
 	if (!base) {
 		dev_err(&ofdev->dev, "ioremap failed for SATA register"
 			" address\n");
@@ -1727,7 +1727,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 		   idr, ver[0], ver[1], ver[2]);
 
 	/* Get SATA DMA interrupt number */
-	irq = irq_of_parse_and_map(ofdev->dev.of_node, 1);
+	irq = irq_of_parse_and_map(np, 1);
 	if (irq == NO_IRQ) {
 		dev_err(&ofdev->dev, "no SATA DMA irq\n");
 		err = -ENODEV;
@@ -1735,7 +1735,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	}
 
 	/* Get physical SATA DMA register base address */
-	host_pvt.sata_dma_regs = (void *)of_iomap(ofdev->dev.of_node, 1);
+	host_pvt.sata_dma_regs = (void *)of_iomap(np, 1);
 	if (!(host_pvt.sata_dma_regs)) {
 		dev_err(&ofdev->dev, "ioremap failed for AHBDMA register"
 			" address\n");
@@ -1755,7 +1755,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	sata_dwc_enable_interrupts(hsdev);
 
 	/* Get SATA interrupt number */
-	irq = irq_of_parse_and_map(ofdev->dev.of_node, 0);
+	irq = irq_of_parse_and_map(np, 0);
 	if (irq == NO_IRQ) {
 		dev_err(&ofdev->dev, "no SATA DMA irq\n");
 		err = -ENODEV;
