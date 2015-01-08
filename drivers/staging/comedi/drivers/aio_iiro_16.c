@@ -81,21 +81,23 @@ static int aio_iiro_16_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
+	/* Digital Output subdevice */
 	s = &dev->subdevices[0];
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 16;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = aio_iiro_16_do_insn_bits;
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= aio_iiro_16_do_insn_bits;
 
+	/* Digital Input subdevice */
 	s = &dev->subdevices[1];
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = 16;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = aio_iiro_16_di_insn_bits;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= aio_iiro_16_di_insn_bits;
 
 	return 0;
 }
