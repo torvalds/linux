@@ -428,3 +428,62 @@ void scsi_print_sense(const struct scsi_cmnd *cmd)
 			     cmd->sense_buffer, SCSI_SENSE_BUFFERSIZE);
 }
 EXPORT_SYMBOL(scsi_print_sense);
+
+void scsi_print_result(const struct scsi_cmnd *cmd, const char *msg,
+		       int disposition)
+{
+	char *logbuf;
+	size_t off, logbuf_len;
+	const char *mlret_string = scsi_mlreturn_string(disposition);
+	const char *hb_string = scsi_hostbyte_string(cmd->result);
+	const char *db_string = scsi_driverbyte_string(cmd->result);
+
+	logbuf = scsi_log_reserve_buffer(&logbuf_len);
+	if (!logbuf)
+		return;
+
+	off = sdev_format_header(logbuf, logbuf_len,
+				 scmd_name(cmd), cmd->request->tag);
+
+	if (off >= logbuf_len)
+		goto out_printk;
+
+	if (msg) {
+		off += scnprintf(logbuf + off, logbuf_len - off,
+				 "%s: ", msg);
+		if (WARN_ON(off >= logbuf_len))
+			goto out_printk;
+	}
+	if (mlret_string)
+		off += scnprintf(logbuf + off, logbuf_len - off,
+				 "%s ", mlret_string);
+	else
+		off += scnprintf(logbuf + off, logbuf_len - off,
+				 "UNKNOWN(0x%02x) ", disposition);
+	if (WARN_ON(off >= logbuf_len))
+		goto out_printk;
+
+	off += scnprintf(logbuf + off, logbuf_len - off, "Result: ");
+	if (WARN_ON(off >= logbuf_len))
+		goto out_printk;
+
+	if (hb_string)
+		off += scnprintf(logbuf + off, logbuf_len - off,
+				 "hostbyte=%s ", hb_string);
+	else
+		off += scnprintf(logbuf + off, logbuf_len - off,
+				 "hostbyte=0x%02x ", host_byte(cmd->result));
+	if (WARN_ON(off >= logbuf_len))
+		goto out_printk;
+
+	if (db_string)
+		off += scnprintf(logbuf + off, logbuf_len - off,
+				 "driverbyte=%s", db_string);
+	else
+		off += scnprintf(logbuf + off, logbuf_len - off,
+				 "driverbyte=0x%02x", driver_byte(cmd->result));
+out_printk:
+	dev_printk(KERN_INFO, &cmd->device->sdev_gendev, logbuf);
+	scsi_log_release_buffer(logbuf);
+}
+EXPORT_SYMBOL(scsi_print_result);

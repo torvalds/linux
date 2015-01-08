@@ -1316,25 +1316,3 @@ const char *scsi_mlreturn_string(int result)
 	return NULL;
 }
 EXPORT_SYMBOL(scsi_mlreturn_string);
-
-void scsi_print_result(struct scsi_cmnd *cmd, const char *msg, int disposition)
-{
-	const char *mlret_string = scsi_mlreturn_string(disposition);
-	const char *hb_string = scsi_hostbyte_string(cmd->result);
-	const char *db_string = scsi_driverbyte_string(cmd->result);
-
-	if (hb_string || db_string)
-		scmd_printk(KERN_INFO, cmd,
-			    "%s%s Result: hostbyte=%s driverbyte=%s",
-			    msg ? msg : "",
-			    mlret_string ? mlret_string : "UNKNOWN",
-			    hb_string ? hb_string : "invalid",
-			    db_string ? db_string : "invalid");
-	else
-		scmd_printk(KERN_INFO, cmd,
-			    "%s%s Result: hostbyte=0x%02x driverbyte=0x%02x",
-			    msg ? msg : "",
-			    mlret_string ? mlret_string : "UNKNOWN",
-			    host_byte(cmd->result), driver_byte(cmd->result));
-}
-EXPORT_SYMBOL(scsi_print_result);

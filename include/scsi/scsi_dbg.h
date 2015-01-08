@@ -21,7 +21,7 @@ extern void scsi_print_sense(const struct scsi_cmnd *);
 extern void __scsi_print_sense(const struct scsi_device *, const char *name,
 			       const unsigned char *sense_buffer,
 			       int sense_len);
-extern void scsi_print_result(struct scsi_cmnd *, const char *, int);
+extern void scsi_print_result(const struct scsi_cmnd *, const char *, int);
 extern const char *scsi_hostbyte_string(int);
 extern const char *scsi_driverbyte_string(int);
 extern const char *scsi_mlreturn_string(int);
