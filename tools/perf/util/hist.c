@@ -913,7 +913,7 @@ hist_entry__cmp(struct hist_entry *left, struct hist_entry *right)
 		if (perf_hpp__should_skip(fmt))
 			continue;
 
-		cmp = fmt->cmp(left, right);
+		cmp = fmt->cmp(fmt, left, right);
 		if (cmp)
 			break;
 	}
@@ -931,7 +931,7 @@ hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
 		if (perf_hpp__should_skip(fmt))
 			continue;
 
-		cmp = fmt->collapse(left, right);
+		cmp = fmt->collapse(fmt, left, right);
 		if (cmp)
 			break;
 	}
@@ -1061,7 +1061,7 @@ static int hist_entry__sort(struct hist_entry *a, struct hist_entry *b)
 		if (perf_hpp__should_skip(fmt))
 			continue;
 
-		cmp = fmt->sort(a, b);
+		cmp = fmt->sort(fmt, a, b);
 		if (cmp)
 			break;
 	}

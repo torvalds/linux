@@ -554,14 +554,16 @@ hist_entry__cmp_compute(struct hist_entry *left, struct hist_entry *right,
 }
 
 static int64_t
-hist_entry__cmp_nop(struct hist_entry *left __maybe_unused,
+hist_entry__cmp_nop(struct perf_hpp_fmt *fmt __maybe_unused,
+		    struct hist_entry *left __maybe_unused,
 		    struct hist_entry *right __maybe_unused)
 {
 	return 0;
 }
 
 static int64_t
-hist_entry__cmp_baseline(struct hist_entry *left, struct hist_entry *right)
+hist_entry__cmp_baseline(struct perf_hpp_fmt *fmt __maybe_unused,
+			 struct hist_entry *left, struct hist_entry *right)
 {
 	if (sort_compute)
 		return 0;
@@ -572,19 +574,22 @@ hist_entry__cmp_baseline(struct hist_entry *left, struct hist_entry *right)
 }
 
 static int64_t
-hist_entry__cmp_delta(struct hist_entry *left, struct hist_entry *right)
+hist_entry__cmp_delta(struct perf_hpp_fmt *fmt __maybe_unused,
+		      struct hist_entry *left, struct hist_entry *right)
 {
 	return hist_entry__cmp_compute(right, left, COMPUTE_DELTA);
 }
 
 static int64_t
-hist_entry__cmp_ratio(struct hist_entry *left, struct hist_entry *right)
+hist_entry__cmp_ratio(struct perf_hpp_fmt *fmt __maybe_unused,
+		      struct hist_entry *left, struct hist_entry *right)
 {
 	return hist_entry__cmp_compute(right, left, COMPUTE_RATIO);
 }
 
 static int64_t
-hist_entry__cmp_wdiff(struct hist_entry *left, struct hist_entry *right)
+hist_entry__cmp_wdiff(struct perf_hpp_fmt *fmt __maybe_unused,
+		      struct hist_entry *left, struct hist_entry *right)
 {
 	return hist_entry__cmp_compute(right, left, COMPUTE_WEIGHTED_DIFF);
 }
