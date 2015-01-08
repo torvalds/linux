@@ -3804,7 +3804,6 @@ static unsigned int saved_regs[] = {
 
 static int snd_cs46xx_suspend(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_cs46xx *chip = card->private_data;
 	int i, amp_saved;
@@ -3829,16 +3828,11 @@ static int snd_cs46xx_suspend(struct device *dev)
 	/* disable CLKRUN */
 	chip->active_ctrl(chip, -chip->amplifier);
 	chip->amplifier = amp_saved; /* restore the status */
-
-	pci_disable_device(pci);
-	pci_save_state(pci);
-	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
 static int snd_cs46xx_resume(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_cs46xx *chip = card->private_data;
 	int amp_saved;
@@ -3846,15 +3840,6 @@ static int snd_cs46xx_resume(struct device *dev)
 	int i;
 #endif
 	unsigned int tmp;
-
-	pci_set_power_state(pci, PCI_D0);
-	pci_restore_state(pci);
-	if (pci_enable_device(pci) < 0) {
-		dev_err(dev, "pci_enable_device failed, disabling device\n");
-		snd_card_disconnect(card);
-		return -EIO;
-	}
-	pci_set_master(pci);
 
 	amp_saved = chip->amplifier;
 	chip->amplifier = 0;
