@@ -28,8 +28,6 @@ struct xfs_mount;
 struct xfs_trans;
 struct xfs_bmalloca;
 
-int	xfs_bmap_finish(struct xfs_trans **tp, struct xfs_bmap_free *flist,
-			int *committed);
 int	xfs_bmap_rtalloc(struct xfs_bmalloca *ap);
 int	xfs_bmap_eof(struct xfs_inode *ip, xfs_fileoff_t endoff,
 		     int whichfork, int *eof);
