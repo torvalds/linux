@@ -807,6 +807,16 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		/* Compact branch: BEQZC || JIC */
 		regs->cp0_epc += 8;
 		break;
+	case bnezcjialc_op:
+		if (!cpu_has_mips_r6) {
+			ret = -SIGILL;
+			break;
+		}
+		/* Compact branch: BNEZC || JIALC */
+		if (insn.i_format.rs)
+			regs->regs[31] = epc + 4;
+		regs->cp0_epc += 8;
+		break;
 #endif
 	case cbcond0_op:
 	case cbcond1_op:

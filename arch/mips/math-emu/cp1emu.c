@@ -686,6 +686,15 @@ static int isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 			dec_insn.next_pc_inc;
 
 		return 1;
+	case bnezcjialc_op:
+		if (!cpu_has_mips_r6)
+			break;
+		if (!insn.i_format.rs)
+			regs->regs[31] = regs->cp0_epc + 4;
+		*contpc = regs->cp0_epc + dec_insn.pc_inc +
+			dec_insn.next_pc_inc;
+
+		return 1;
 #endif
 	case cop0_op:
 	case cop1_op:

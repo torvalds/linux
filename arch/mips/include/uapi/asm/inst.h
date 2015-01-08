@@ -34,7 +34,7 @@ enum major_op {
 	ll_op, lwc1_op, lwc2_op, bc6_op = lwc2_op, pref_op,
 	lld_op, ldc1_op, ldc2_op, beqzcjic_op = ldc2_op, ld_op,
 	sc_op, swc1_op, swc2_op, balc6_op = swc2_op, major_3b_op,
-	scd_op, sdc1_op, sdc2_op, sd_op
+	scd_op, sdc1_op, sdc2_op, bnezcjialc_op = sdc2_op, sd_op
 };
 
 /*
