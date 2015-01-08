@@ -1007,7 +1007,7 @@ static int rmi_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		goto start;
 	}
 
-	data->input_report_size = (input_report->size >> 3) + 1 /* report id */;
+	data->input_report_size = hid_report_len(input_report);
 
 	if (!rmi_check_valid_report_id(hdev, HID_OUTPUT_REPORT,
 	    RMI_WRITE_REPORT_ID, &output_report)) {
@@ -1016,8 +1016,7 @@ static int rmi_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		goto start;
 	}
 
-	data->output_report_size = (output_report->size >> 3)
-					+ 1 /* report id */;
+	data->output_report_size = hid_report_len(output_report);
 
 	data->device_flags |= RMI_DEVICE;
 	alloc_size = data->output_report_size + data->input_report_size;
