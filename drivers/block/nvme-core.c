@@ -1064,14 +1064,21 @@ static void nvme_cancel_queue_ios(struct blk_mq_hw_ctx *hctx,
 	void *ctx;
 	nvme_completion_fn fn;
 	struct nvme_cmd_info *cmd;
-	static struct nvme_completion cqe = {
-		.status = cpu_to_le16(NVME_SC_ABORT_REQ << 1),
-	};
+	struct nvme_completion cqe;
+
+	if (!blk_mq_request_started(req))
+		return;
 
 	cmd = blk_mq_rq_to_pdu(req);
 
 	if (cmd->ctx == CMD_CTX_CANCELLED)
 		return;
+
+	if (blk_queue_dying(req->q))
+		cqe.status = cpu_to_le16((NVME_SC_ABORT_REQ | NVME_SC_DNR) << 1);
+	else
+		cqe.status = cpu_to_le16(NVME_SC_ABORT_REQ << 1);
+
 
 	dev_warn(nvmeq->q_dmadev, "Cancelling I/O %d QID %d\n",
 						req->tag, nvmeq->qid);
@@ -2429,8 +2436,10 @@ static void nvme_dev_remove(struct nvme_dev *dev)
 	list_for_each_entry(ns, &dev->namespaces, list) {
 		if (ns->disk->flags & GENHD_FL_UP)
 			del_gendisk(ns->disk);
-		if (!blk_queue_dying(ns->queue))
+		if (!blk_queue_dying(ns->queue)) {
+			blk_mq_abort_requeue_list(ns->queue);
 			blk_cleanup_queue(ns->queue);
+		}
 	}
 }
 
