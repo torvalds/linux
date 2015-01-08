@@ -50,6 +50,7 @@
 #include <xen/interface/memory.h>
 #include <xen/hvc-console.h>
 #include <xen/swiotlb-xen.h>
+#include <xen/balloon.h>
 #include <asm/xen/hypercall.h>
 #include <asm/xen/interface.h>
 
@@ -670,6 +671,34 @@ void gnttab_free_auto_xlat_frames(void)
 	xen_auto_xlat_grant_frames.vaddr = NULL;
 }
 EXPORT_SYMBOL_GPL(gnttab_free_auto_xlat_frames);
+
+/**
+ * gnttab_alloc_pages - alloc pages suitable for grant mapping into
+ * @nr_pages: number of pages to alloc
+ * @pages: returns the pages
+ */
+int gnttab_alloc_pages(int nr_pages, struct page **pages)
+{
+	int ret;
+
+	ret = alloc_xenballooned_pages(nr_pages, pages, false);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL(gnttab_alloc_pages);
+
+/**
+ * gnttab_free_pages - free pages allocated by gnttab_alloc_pages()
+ * @nr_pages; number of pages to free
+ * @pages: the pages
+ */
+void gnttab_free_pages(int nr_pages, struct page **pages)
+{
+	free_xenballooned_pages(nr_pages, pages);
+}
+EXPORT_SYMBOL(gnttab_free_pages);
 
 /* Handling of paged out grant targets (GNTST_eagain) */
 #define MAX_DELAY 256

@@ -119,7 +119,7 @@ static void gntdev_free_map(struct grant_map *map)
 		return;
 
 	if (map->pages)
-		free_xenballooned_pages(map->count, map->pages);
+		gnttab_free_pages(map->count, map->pages);
 	kfree(map->pages);
 	kfree(map->grants);
 	kfree(map->map_ops);
@@ -152,7 +152,7 @@ static struct grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count)
 	    NULL == add->pages)
 		goto err;
 
-	if (alloc_xenballooned_pages(count, add->pages, false /* lowmem */))
+	if (gnttab_alloc_pages(count, add->pages))
 		goto err;
 
 	for (i = 0; i < count; i++) {

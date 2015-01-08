@@ -100,7 +100,7 @@ module_param(log_stats, int, 0644);
 
 #define BLKBACK_INVALID_HANDLE (~0)
 
-/* Number of free pages to remove on each call to free_xenballooned_pages */
+/* Number of free pages to remove on each call to gnttab_free_pages */
 #define NUM_BATCH_FREE_PAGES 10
 
 static inline int get_free_page(struct xen_blkif *blkif, struct page **page)
@@ -111,7 +111,7 @@ static inline int get_free_page(struct xen_blkif *blkif, struct page **page)
 	if (list_empty(&blkif->free_pages)) {
 		BUG_ON(blkif->free_pages_num != 0);
 		spin_unlock_irqrestore(&blkif->free_pages_lock, flags);
-		return alloc_xenballooned_pages(1, page, false);
+		return gnttab_alloc_pages(1, page);
 	}
 	BUG_ON(blkif->free_pages_num == 0);
 	page[0] = list_first_entry(&blkif->free_pages, struct page, lru);
@@ -151,14 +151,14 @@ static inline void shrink_free_pagepool(struct xen_blkif *blkif, int num)
 		blkif->free_pages_num--;
 		if (++num_pages == NUM_BATCH_FREE_PAGES) {
 			spin_unlock_irqrestore(&blkif->free_pages_lock, flags);
-			free_xenballooned_pages(num_pages, page);
+			gnttab_free_pages(num_pages, page);
 			spin_lock_irqsave(&blkif->free_pages_lock, flags);
 			num_pages = 0;
 		}
 	}
 	spin_unlock_irqrestore(&blkif->free_pages_lock, flags);
 	if (num_pages != 0)
-		free_xenballooned_pages(num_pages, page);
+		gnttab_free_pages(num_pages, page);
 }
 
 #define vaddr(page) ((unsigned long)pfn_to_kaddr(page_to_pfn(page)))
