@@ -4912,6 +4912,11 @@ static int rt5677_i2c_probe(struct i2c_client *i2c,
 					RT5677_GPIO5_DIR_OUT);
 	}
 
+	if (rt5677->pdata.micbias1_vdd_3v3)
+		regmap_update_bits(rt5677->regmap, RT5677_MICBIAS,
+			RT5677_MICBIAS1_CTRL_VDD_MASK,
+			RT5677_MICBIAS1_CTRL_VDD_3_3V);
+
 	rt5677_init_gpio(i2c);
 	rt5677_init_irq(i2c);
 
