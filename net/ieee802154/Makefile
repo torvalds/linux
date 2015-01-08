@@ -1,6 +1,6 @@
 obj-$(CONFIG_IEEE802154) += ieee802154.o
 obj-$(CONFIG_IEEE802154_SOCKET) += ieee802154_socket.o
-obj-$(CONFIG_IEEE802154_6LOWPAN) += 6lowpan/
+obj-y += 6lowpan/
 
 ieee802154-y := netlink.o nl-mac.o nl-phy.o nl_policy.o core.o \
                 header_ops.o sysfs.o nl802154.o
