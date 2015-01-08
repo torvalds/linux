@@ -436,7 +436,7 @@ int afu_register_irqs(struct cxl_context *ctx, u32 count)
 	 */
 	INIT_LIST_HEAD(&ctx->irq_names);
 	for (r = 1; r < CXL_IRQ_RANGES; r++) {
-		for (i = 0; i < ctx->irqs.range[r]; hwirq++, i++) {
+		for (i = 0; i < ctx->irqs.range[r]; i++) {
 			irq_name = kmalloc(sizeof(struct cxl_irq_name),
 					   GFP_KERNEL);
 			if (!irq_name)
