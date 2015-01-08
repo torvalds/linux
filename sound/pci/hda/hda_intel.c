@@ -63,7 +63,7 @@
 #include "hda_codec.h"
 #include "hda_controller.h"
 #include "hda_priv.h"
-#include "hda_i915.h"
+#include "hda_intel.h"
 
 /* position fix mode */
 enum {
@@ -352,31 +352,6 @@ static char *driver_short_names[] = {
 	[AZX_DRIVER_CTHDA] = "HDA Creative",
 	[AZX_DRIVER_CMEDIA] = "HDA C-Media",
 	[AZX_DRIVER_GENERIC] = "HD-Audio Generic",
-};
-
-struct hda_intel {
-	struct azx chip;
-
-	/* for pending irqs */
-	struct work_struct irq_pending_work;
-
-	/* sync probing */
-	struct completion probe_wait;
-	struct work_struct probe_work;
-
-	/* card list (for power_save trigger) */
-	struct list_head list;
-
-	/* extra flags */
-	unsigned int irq_pending_warned:1;
-
-	/* VGA-switcheroo setup */
-	unsigned int use_vga_switcheroo:1;
-	unsigned int vga_switcheroo_registered:1;
-	unsigned int init_failed:1; /* delayed init failed */
-
-	/* secondary power domain for hdmi audio under vga device */
-	struct dev_pm_domain hdmi_pm_domain;
 };
 
 #ifdef CONFIG_X86

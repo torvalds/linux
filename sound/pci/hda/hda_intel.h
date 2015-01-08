@@ -13,8 +13,35 @@
  *  this program; if not, write to the Free Software Foundation, Inc., 59
  *  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-#ifndef __SOUND_HDA_I915_H
-#define __SOUND_HDA_I915_H
+#ifndef __SOUND_HDA_INTEL_H
+#define __SOUND_HDA_INTEL_H
+
+#include "hda_priv.h"
+
+struct hda_intel {
+	struct azx chip;
+
+	/* for pending irqs */
+	struct work_struct irq_pending_work;
+
+	/* sync probing */
+	struct completion probe_wait;
+	struct work_struct probe_work;
+
+	/* card list (for power_save trigger) */
+	struct list_head list;
+
+	/* extra flags */
+	unsigned int irq_pending_warned:1;
+
+	/* VGA-switcheroo setup */
+	unsigned int use_vga_switcheroo:1;
+	unsigned int vga_switcheroo_registered:1;
+	unsigned int init_failed:1; /* delayed init failed */
+
+	/* secondary power domain for hdmi audio under vga device */
+	struct dev_pm_domain hdmi_pm_domain;
+};
 
 #ifdef CONFIG_SND_HDA_I915
 int hda_display_power(bool enable);

@@ -21,7 +21,7 @@
 #include <sound/core.h>
 #include <drm/i915_powerwell.h>
 #include "hda_priv.h"
-#include "hda_i915.h"
+#include "hda_intel.h"
 
 /* Intel HSW/BDW display HDA controller Extended Mode registers.
  * EM4 (M value) and EM5 (N Value) are used to convert CDClk (Core Display
