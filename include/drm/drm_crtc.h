@@ -63,8 +63,16 @@ struct drm_mode_object {
 
 #define DRM_OBJECT_MAX_PROPERTY 24
 struct drm_object_properties {
-	int count;
-	uint32_t ids[DRM_OBJECT_MAX_PROPERTY];
+	int count, atomic_count;
+	/* NOTE: if we ever start dynamically destroying properties (ie.
+	 * not at drm_mode_config_cleanup() time), then we'd have to do
+	 * a better job of detaching property from mode objects to avoid
+	 * dangling property pointers:
+	 */
+	struct drm_property *properties[DRM_OBJECT_MAX_PROPERTY];
+	/* do not read/write values directly, but use drm_object_property_get_value()
+	 * and drm_object_property_set_value():
+	 */
 	uint64_t values[DRM_OBJECT_MAX_PROPERTY];
 };
 
@@ -237,7 +245,9 @@ struct drm_atomic_state;
 
 /**
  * struct drm_crtc_state - mutable CRTC state
+ * @crtc: backpointer to the CRTC
  * @enable: whether the CRTC should be enabled, gates all other state
+ * @active: whether the CRTC is actively displaying (used for DPMS)
  * @mode_changed: for use by helpers and drivers when computing state updates
  * @plane_mask: bitmask of (1 << drm_plane_index(plane)) of attached planes
  * @last_vblank_count: for helpers and drivers to capture the vblank of the
@@ -248,9 +258,18 @@ struct drm_atomic_state;
  * @event: optional pointer to a DRM event to signal upon completion of the
  * 	state update
  * @state: backpointer to global drm_atomic_state
+ *
+ * Note that the distinction between @enable and @active is rather subtile:
+ * Flipping @active while @enable is set without changing anything else may
+ * never return in a failure from the ->atomic_check callback. Userspace assumes
+ * that a DPMS On will always succeed. In other words: @enable controls resource
+ * assignment, @active controls the actual hardware state.
  */
 struct drm_crtc_state {
+	struct drm_crtc *crtc;
+
 	bool enable;
+	bool active;
 
 	/* computed state bits used by helpers and drivers */
 	bool planes_changed : 1;
@@ -292,6 +311,9 @@ struct drm_crtc_state {
  * @atomic_duplicate_state: duplicate the atomic state for this CRTC
  * @atomic_destroy_state: destroy an atomic state for this CRTC
  * @atomic_set_property: set a property on an atomic state for this CRTC
+ *    (do not call directly, use drm_atomic_crtc_set_property())
+ * @atomic_get_property: get a property on an atomic state for this CRTC
+ *    (do not call directly, use drm_atomic_crtc_get_property())
  *
  * The drm_crtc_funcs structure is the central CRTC management structure
  * in the DRM.  Each CRTC controls one or more connectors (note that the name
@@ -351,6 +373,10 @@ struct drm_crtc_funcs {
 				   struct drm_crtc_state *state,
 				   struct drm_property *property,
 				   uint64_t val);
+	int (*atomic_get_property)(struct drm_crtc *crtc,
+				   const struct drm_crtc_state *state,
+				   struct drm_property *property,
+				   uint64_t *val);
 };
 
 /**
@@ -449,11 +475,14 @@ struct drm_crtc {
 
 /**
  * struct drm_connector_state - mutable connector state
+ * @connector: backpointer to the connector
  * @crtc: CRTC to connect connector to, NULL if disabled
  * @best_encoder: can be used by helpers and drivers to select the encoder
  * @state: backpointer to global drm_atomic_state
  */
 struct drm_connector_state {
+	struct drm_connector *connector;
+
 	struct drm_crtc *crtc;  /* do not write directly, use drm_atomic_set_crtc_for_connector() */
 
 	struct drm_encoder *best_encoder;
@@ -475,6 +504,9 @@ struct drm_connector_state {
  * @atomic_duplicate_state: duplicate the atomic state for this connector
  * @atomic_destroy_state: destroy an atomic state for this connector
  * @atomic_set_property: set a property on an atomic state for this connector
+ *    (do not call directly, use drm_atomic_connector_set_property())
+ * @atomic_get_property: get a property on an atomic state for this connector
+ *    (do not call directly, use drm_atomic_connector_get_property())
  *
  * Each CRTC may have one or more connectors attached to it.  The functions
  * below allow the core DRM code to control connectors, enumerate available modes,
@@ -508,6 +540,10 @@ struct drm_connector_funcs {
 				   struct drm_connector_state *state,
 				   struct drm_property *property,
 				   uint64_t val);
+	int (*atomic_get_property)(struct drm_connector *connector,
+				   const struct drm_connector_state *state,
+				   struct drm_property *property,
+				   uint64_t *val);
 };
 
 /**
@@ -693,6 +729,7 @@ struct drm_connector {
 
 /**
  * struct drm_plane_state - mutable plane state
+ * @plane: backpointer to the plane
  * @crtc: currently bound CRTC, NULL if disabled
  * @fb: currently bound framebuffer
  * @fence: optional fence to wait for before scanning out @fb
@@ -709,6 +746,8 @@ struct drm_connector {
  * @state: backpointer to global drm_atomic_state
  */
 struct drm_plane_state {
+	struct drm_plane *plane;
+
 	struct drm_crtc *crtc;   /* do not write directly, use drm_atomic_set_crtc_for_plane() */
 	struct drm_framebuffer *fb;  /* do not write directly, use drm_atomic_set_fb_for_plane() */
 	struct fence *fence;
@@ -735,6 +774,9 @@ struct drm_plane_state {
  * @atomic_duplicate_state: duplicate the atomic state for this plane
  * @atomic_destroy_state: destroy an atomic state for this plane
  * @atomic_set_property: set a property on an atomic state for this plane
+ *    (do not call directly, use drm_atomic_plane_set_property())
+ * @atomic_get_property: get a property on an atomic state for this plane
+ *    (do not call directly, use drm_atomic_plane_get_property())
  */
 struct drm_plane_funcs {
 	int (*update_plane)(struct drm_plane *plane,
@@ -758,6 +800,10 @@ struct drm_plane_funcs {
 				   struct drm_plane_state *state,
 				   struct drm_property *property,
 				   uint64_t val);
+	int (*atomic_get_property)(struct drm_plane *plane,
+				   const struct drm_plane_state *state,
+				   struct drm_property *property,
+				   uint64_t *val);
 };
 
 enum drm_plane_type {
@@ -856,7 +902,7 @@ struct drm_bridge {
 /**
  * struct struct drm_atomic_state - the global state object for atomic updates
  * @dev: parent DRM device
- * @flags: state flags like async update
+ * @allow_modeset: allow full modeset
  * @planes: pointer to array of plane pointers
  * @plane_states: pointer to array of plane states pointers
  * @crtcs: pointer to array of CRTC pointers
@@ -868,7 +914,7 @@ struct drm_bridge {
  */
 struct drm_atomic_state {
 	struct drm_device *dev;
-	uint32_t flags;
+	bool allow_modeset : 1;
 	struct drm_plane **planes;
 	struct drm_plane_state **plane_states;
 	struct drm_crtc **crtcs;
@@ -1053,6 +1099,16 @@ struct drm_mode_config {
 	struct drm_property *tile_property;
 	struct drm_property *plane_type_property;
 	struct drm_property *rotation_property;
+	struct drm_property *prop_src_x;
+	struct drm_property *prop_src_y;
+	struct drm_property *prop_src_w;
+	struct drm_property *prop_src_h;
+	struct drm_property *prop_crtc_x;
+	struct drm_property *prop_crtc_y;
+	struct drm_property *prop_crtc_w;
+	struct drm_property *prop_crtc_h;
+	struct drm_property *prop_fb_id;
+	struct drm_property *prop_crtc_id;
 
 	/* DVI-I properties */
 	struct drm_property *dvi_i_subconnector_property;
@@ -1290,6 +1346,10 @@ extern int drm_mode_create_scaling_mode_property(struct drm_device *dev);
 extern int drm_mode_create_aspect_ratio_property(struct drm_device *dev);
 extern int drm_mode_create_dirty_info_property(struct drm_device *dev);
 extern int drm_mode_create_suggested_offset_properties(struct drm_device *dev);
+extern bool drm_property_change_valid_get(struct drm_property *property,
+					 uint64_t value, struct drm_mode_object **ref);
+extern void drm_property_change_valid_put(struct drm_property *property,
+		struct drm_mode_object *ref);
 
 extern int drm_mode_connector_attach_encoder(struct drm_connector *connector,
 					     struct drm_encoder *encoder);
@@ -1381,6 +1441,8 @@ extern int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 extern int drm_mode_plane_set_obj_prop(struct drm_plane *plane,
 				       struct drm_property *property,
 				       uint64_t value);
+extern int drm_mode_atomic_ioctl(struct drm_device *dev,
+				 void *data, struct drm_file *file_priv);
 
 extern void drm_fb_get_bpp_depth(uint32_t format, unsigned int *depth,
 				 int *bpp);

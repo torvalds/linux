@@ -330,7 +330,29 @@ mode_fixup(struct drm_atomic_state *state)
 	return 0;
 }
 
-static int
+/**
+ * drm_atomic_helper_check - validate state object for modeset changes
+ * @dev: DRM device
+ * @state: the driver state object
+ *
+ * Check the state object to see if the requested state is physically possible.
+ * This does all the crtc and connector related computations for an atomic
+ * update. It computes and updates crtc_state->mode_changed, adds any additional
+ * connectors needed for full modesets and calls down into ->mode_fixup
+ * functions of the driver backend.
+ *
+ * IMPORTANT:
+ *
+ * Drivers which update ->mode_changed (e.g. in their ->atomic_check hooks if a
+ * plane update can't be done without a full modeset) _must_ call this function
+ * afterwards after that change. It is permitted to call this function multiple
+ * times for the same update, e.g. when the ->atomic_check functions depend upon
+ * the adjusted dotclock for fifo space allocation and watermark computation.
+ *
+ * RETURNS
+ * Zero for success or -errno
+ */
+int
 drm_atomic_helper_check_modeset(struct drm_device *dev,
 				struct drm_atomic_state *state)
 {
@@ -406,23 +428,23 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 
 	return mode_fixup(state);
 }
+EXPORT_SYMBOL(drm_atomic_helper_check_modeset);
 
 /**
- * drm_atomic_helper_check - validate state object
+ * drm_atomic_helper_check - validate state object for modeset changes
  * @dev: DRM device
  * @state: the driver state object
  *
  * Check the state object to see if the requested state is physically possible.
- * Only crtcs and planes have check callbacks, so for any additional (global)
- * checking that a driver needs it can simply wrap that around this function.
- * Drivers without such needs can directly use this as their ->atomic_check()
- * callback.
+ * This does all the plane update related checks using by calling into the
+ * ->atomic_check hooks provided by the driver.
  *
  * RETURNS
  * Zero for success or -errno
  */
-int drm_atomic_helper_check(struct drm_device *dev,
-			    struct drm_atomic_state *state)
+int
+drm_atomic_helper_check_planes(struct drm_device *dev,
+			       struct drm_atomic_state *state)
 {
 	int nplanes = dev->mode_config.num_total_plane;
 	int ncrtcs = dev->mode_config.num_crtc;
@@ -445,7 +467,7 @@ int drm_atomic_helper_check(struct drm_device *dev,
 
 		ret = funcs->atomic_check(plane, plane_state);
 		if (ret) {
-			DRM_DEBUG_KMS("[PLANE:%d] atomic check failed\n",
+			DRM_DEBUG_KMS("[PLANE:%d] atomic driver check failed\n",
 				      plane->base.id);
 			return ret;
 		}
@@ -465,13 +487,46 @@ int drm_atomic_helper_check(struct drm_device *dev,
 
 		ret = funcs->atomic_check(crtc, state->crtc_states[i]);
 		if (ret) {
-			DRM_DEBUG_KMS("[CRTC:%d] atomic check failed\n",
+			DRM_DEBUG_KMS("[CRTC:%d] atomic driver check failed\n",
 				      crtc->base.id);
 			return ret;
 		}
 	}
 
+	return ret;
+}
+EXPORT_SYMBOL(drm_atomic_helper_check_planes);
+
+/**
+ * drm_atomic_helper_check - validate state object
+ * @dev: DRM device
+ * @state: the driver state object
+ *
+ * Check the state object to see if the requested state is physically possible.
+ * Only crtcs and planes have check callbacks, so for any additional (global)
+ * checking that a driver needs it can simply wrap that around this function.
+ * Drivers without such needs can directly use this as their ->atomic_check()
+ * callback.
+ *
+ * This just wraps the two parts of the state checking for planes and modeset
+ * state in the default order: First it calls drm_atomic_helper_check_modeset()
+ * and then drm_atomic_helper_check_planes(). The assumption is that the
+ * ->atomic_check functions depend upon an updated adjusted_mode.clock to
+ * e.g. properly compute watermarks.
+ *
+ * RETURNS
+ * Zero for success or -errno
+ */
+int drm_atomic_helper_check(struct drm_device *dev,
+			    struct drm_atomic_state *state)
+{
+	int ret;
+
 	ret = drm_atomic_helper_check_modeset(dev, state);
+	if (ret)
+		return ret;
+
+	ret = drm_atomic_helper_check_planes(dev, state);
 	if (ret)
 		return ret;
 
@@ -1222,7 +1277,7 @@ retry:
 		goto fail;
 	}
 
-	ret = drm_atomic_set_crtc_for_plane(state, plane, crtc);
+	ret = drm_atomic_set_crtc_for_plane(plane_state, crtc);
 	if (ret != 0)
 		goto fail;
 	drm_atomic_set_fb_for_plane(plane_state, fb);
@@ -1301,7 +1356,7 @@ retry:
 		goto fail;
 	}
 
-	ret = drm_atomic_set_crtc_for_plane(state, plane, NULL);
+	ret = drm_atomic_set_crtc_for_plane(plane_state, NULL);
 	if (ret != 0)
 		goto fail;
 	drm_atomic_set_fb_for_plane(plane_state, NULL);
@@ -1464,7 +1519,7 @@ retry:
 
 		crtc_state->enable = false;
 
-		ret = drm_atomic_set_crtc_for_plane(state, crtc->primary, NULL);
+		ret = drm_atomic_set_crtc_for_plane(primary_state, NULL);
 		if (ret != 0)
 			goto fail;
 
@@ -1479,7 +1534,7 @@ retry:
 	crtc_state->enable = true;
 	drm_mode_copy(&crtc_state->mode, set->mode);
 
-	ret = drm_atomic_set_crtc_for_plane(state, crtc->primary, crtc);
+	ret = drm_atomic_set_crtc_for_plane(primary_state, crtc);
 	if (ret != 0)
 		goto fail;
 	drm_atomic_set_fb_for_plane(primary_state, set->fb);
@@ -1558,8 +1613,8 @@ retry:
 		goto fail;
 	}
 
-	ret = crtc->funcs->atomic_set_property(crtc, crtc_state,
-					       property, val);
+	ret = drm_atomic_crtc_set_property(crtc, crtc_state,
+			property, val);
 	if (ret)
 		goto fail;
 
@@ -1617,8 +1672,8 @@ retry:
 		goto fail;
 	}
 
-	ret = plane->funcs->atomic_set_property(plane, plane_state,
-					       property, val);
+	ret = drm_atomic_plane_set_property(plane, plane_state,
+			property, val);
 	if (ret)
 		goto fail;
 
@@ -1676,8 +1731,8 @@ retry:
 		goto fail;
 	}
 
-	ret = connector->funcs->atomic_set_property(connector, connector_state,
-					       property, val);
+	ret = drm_atomic_connector_set_property(connector, connector_state,
+			property, val);
 	if (ret)
 		goto fail;
 
@@ -1751,7 +1806,7 @@ retry:
 		goto fail;
 	}
 
-	ret = drm_atomic_set_crtc_for_plane(state, plane, crtc);
+	ret = drm_atomic_set_crtc_for_plane(plane_state, crtc);
 	if (ret != 0)
 		goto fail;
 	drm_atomic_set_fb_for_plane(plane_state, fb);
@@ -1814,6 +1869,9 @@ void drm_atomic_helper_crtc_reset(struct drm_crtc *crtc)
 {
 	kfree(crtc->state);
 	crtc->state = kzalloc(sizeof(*crtc->state), GFP_KERNEL);
+
+	if (crtc->state)
+		crtc->state->crtc = crtc;
 }
 EXPORT_SYMBOL(drm_atomic_helper_crtc_reset);
 
@@ -1873,6 +1931,9 @@ void drm_atomic_helper_plane_reset(struct drm_plane *plane)
 
 	kfree(plane->state);
 	plane->state = kzalloc(sizeof(*plane->state), GFP_KERNEL);
+
+	if (plane->state)
+		plane->state->plane = plane;
 }
 EXPORT_SYMBOL(drm_atomic_helper_plane_reset);
 
@@ -1930,6 +1991,9 @@ void drm_atomic_helper_connector_reset(struct drm_connector *connector)
 {
 	kfree(connector->state);
 	connector->state = kzalloc(sizeof(*connector->state), GFP_KERNEL);
+
+	if (connector->state)
+		connector->state->connector = connector;
 }
 EXPORT_SYMBOL(drm_atomic_helper_connector_reset);
 
