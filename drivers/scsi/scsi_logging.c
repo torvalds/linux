@@ -114,6 +114,10 @@ int scmd_printk(const char *level, const struct scsi_cmnd *scmd,
 	if (disk)
 		off += scnprintf(logbuf + off, logbuf_len - off,
 				 "[%s] ", disk->disk_name);
+
+	if (scmd->request->tag >= 0)
+		off += scnprintf(logbuf + off, logbuf_len - off,
+				 "tag#%d ", scmd->request->tag);
 	va_start(args, fmt);
 	off += vscnprintf(logbuf + off, logbuf_len - off, fmt, args);
 	va_end(args);
