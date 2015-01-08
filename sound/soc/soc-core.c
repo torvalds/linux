@@ -1491,6 +1491,7 @@ int snd_soc_runtime_set_dai_fmt(struct snd_soc_pcm_runtime *rtd,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(snd_soc_runtime_set_dai_fmt);
 
 static int snd_soc_instantiate_card(struct snd_soc_card *card)
 {
