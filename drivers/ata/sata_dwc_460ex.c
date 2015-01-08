@@ -797,7 +797,7 @@ static int dma_dwc_init(struct sata_dwc_device *hsdev, int irq)
 	if (err) {
 		dev_err(host_pvt.dwc_dev, "%s: dma_request_interrupts returns"
 			" %d\n", __func__, err);
-		goto error_out;
+		return err;
 	}
 
 	/* Enabe DMA */
@@ -808,11 +808,6 @@ static int dma_dwc_init(struct sata_dwc_device *hsdev, int irq)
 		sata_dma_regs);
 
 	return 0;
-
-error_out:
-	dma_dwc_exit(hsdev);
-
-	return err;
 }
 
 static int sata_dwc_scr_read(struct ata_link *link, unsigned int scr, u32 *val)
@@ -1662,7 +1657,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	char *ver = (char *)&versionr;
 	u8 *base = NULL;
 	int err = 0;
-	int irq, rc;
+	int irq;
 	struct ata_host *host;
 	struct ata_port_info pi = sata_dwc_port_info[0];
 	const struct ata_port_info *ppi[] = { &pi, NULL };
@@ -1725,7 +1720,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	if (irq == NO_IRQ) {
 		dev_err(&ofdev->dev, "no SATA DMA irq\n");
 		err = -ENODEV;
-		goto error_out;
+		goto error_iomap;
 	}
 
 	/* Get physical SATA DMA register base address */
@@ -1734,14 +1729,16 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 		dev_err(&ofdev->dev, "ioremap failed for AHBDMA register"
 			" address\n");
 		err = -ENODEV;
-		goto error_out;
+		goto error_iomap;
 	}
 
 	/* Save dev for later use in dev_xxx() routines */
 	host_pvt.dwc_dev = &ofdev->dev;
 
 	/* Initialize AHB DMAC */
-	dma_dwc_init(hsdev, irq);
+	err = dma_dwc_init(hsdev, irq);
+	if (err)
+		goto error_dma_iomap;
 
 	/* Enable SATA Interrupts */
 	sata_dwc_enable_interrupts(hsdev);
@@ -1759,9 +1756,8 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	 * device discovery process, invoking our port_start() handler &
 	 * error_handler() to execute a dummy Softreset EH session
 	 */
-	rc = ata_host_activate(host, irq, sata_dwc_isr, 0, &sata_dwc_sht);
-
-	if (rc != 0)
+	err = ata_host_activate(host, irq, sata_dwc_isr, 0, &sata_dwc_sht);
+	if (err)
 		dev_err(&ofdev->dev, "failed to activate host");
 
 	dev_set_drvdata(&ofdev->dev, host);
@@ -1770,7 +1766,8 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 error_out:
 	/* Free SATA DMA resources */
 	dma_dwc_exit(hsdev);
-
+error_dma_iomap:
+	iounmap((void __iomem *)host_pvt.sata_dma_regs);
 error_iomap:
 	iounmap(base);
 error_kmalloc:
@@ -1791,6 +1788,7 @@ static int sata_dwc_remove(struct platform_device *ofdev)
 	/* Free SATA DMA resources */
 	dma_dwc_exit(hsdev);
 
+	iounmap((void __iomem *)host_pvt.sata_dma_regs);
 	iounmap(hsdev->reg_base);
 	kfree(hsdev);
 	kfree(host);
