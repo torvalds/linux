@@ -61,12 +61,6 @@
 #define FDB_AGE_DEFAULT 300 /* 5 min */
 #define FDB_AGE_INTERVAL (10 * HZ)	/* rescan interval */
 
-#define VXLAN_N_VID	(1u << 24)
-#define VXLAN_VID_MASK	(VXLAN_N_VID - 1)
-#define VXLAN_HLEN (sizeof(struct udphdr) + sizeof(struct vxlanhdr))
-
-#define VXLAN_FLAGS 0x08000000	/* struct vxlanhdr.vx_flags required value. */
-
 /* UDP port for VXLAN traffic.
  * The IANA assigned port is 4789, but the Linux default is 8472
  * for compatibility with early adopters.
@@ -1095,18 +1089,21 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct vxlan_sock *vs;
 	struct vxlanhdr *vxh;
+	u32 flags, vni;
 
 	/* Need Vxlan and inner Ethernet header to be present */
 	if (!pskb_may_pull(skb, VXLAN_HLEN))
 		goto error;
 
-	/* Return packets with reserved bits set */
 	vxh = (struct vxlanhdr *)(udp_hdr(skb) + 1);
-	if (vxh->vx_flags != htonl(VXLAN_FLAGS) ||
-	    (vxh->vx_vni & htonl(0xff))) {
-		netdev_dbg(skb->dev, "invalid vxlan flags=%#x vni=%#x\n",
-			   ntohl(vxh->vx_flags), ntohl(vxh->vx_vni));
-		goto error;
+	flags = ntohl(vxh->vx_flags);
+	vni = ntohl(vxh->vx_vni);
+
+	if (flags & VXLAN_HF_VNI) {
+		flags &= ~VXLAN_HF_VNI;
+	} else {
+		/* VNI flag always required to be set */
+		goto bad_flags;
 	}
 
 	if (iptunnel_pull_header(skb, VXLAN_HLEN, htons(ETH_P_TEB)))
@@ -1116,6 +1113,19 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	if (!vs)
 		goto drop;
 
+	if (flags || (vni & 0xff)) {
+		/* If there are any unprocessed flags remaining treat
+		 * this as a malformed packet. This behavior diverges from
+		 * VXLAN RFC (RFC7348) which stipulates that bits in reserved
+		 * in reserved fields are to be ignored. The approach here
+		 * maintains compatbility with previous stack code, and also
+		 * is more robust and provides a little more security in
+		 * adding extensions to VXLAN.
+		 */
+
+		goto bad_flags;
+	}
+
 	vs->rcv(vs, skb, vxh->vx_vni);
 	return 0;
 
@@ -1123,6 +1133,10 @@ drop:
 	/* Consume bad packet */
 	kfree_skb(skb);
 	return 0;
+
+bad_flags:
+	netdev_dbg(skb->dev, "invalid vxlan flags=%#x vni=%#x\n",
+		   ntohl(vxh->vx_flags), ntohl(vxh->vx_vni));
 
 error:
 	/* Return non vxlan pkt */
@@ -1563,7 +1577,7 @@ static int vxlan6_xmit_skb(struct vxlan_sock *vs,
 	}
 
 	vxh = (struct vxlanhdr *) __skb_push(skb, sizeof(*vxh));
-	vxh->vx_flags = htonl(VXLAN_FLAGS);
+	vxh->vx_flags = htonl(VXLAN_HF_VNI);
 	vxh->vx_vni = vni;
 
 	skb_set_inner_protocol(skb, htons(ETH_P_TEB));
@@ -1607,7 +1621,7 @@ int vxlan_xmit_skb(struct vxlan_sock *vs,
 		return -ENOMEM;
 
 	vxh = (struct vxlanhdr *) __skb_push(skb, sizeof(*vxh));
-	vxh->vx_flags = htonl(VXLAN_FLAGS);
+	vxh->vx_flags = htonl(VXLAN_HF_VNI);
 	vxh->vx_vni = vni;
 
 	skb_set_inner_protocol(skb, htons(ETH_P_TEB));

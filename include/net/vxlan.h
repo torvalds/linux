@@ -17,6 +17,13 @@ struct vxlanhdr {
 	__be32 vx_vni;
 };
 
+/* VXLAN header flags. */
+#define VXLAN_HF_VNI 0x08000000
+
+#define VXLAN_N_VID     (1u << 24)
+#define VXLAN_VID_MASK  (VXLAN_N_VID - 1)
+#define VXLAN_HLEN (sizeof(struct udphdr) + sizeof(struct vxlanhdr))
+
 struct vxlan_sock;
 typedef void (vxlan_rcv_t)(struct vxlan_sock *vh, struct sk_buff *skb, __be32 key);
 
