@@ -944,7 +944,6 @@ fail:
 static int fsl_dma_device_terminate_all(struct dma_chan *dchan)
 {
 	struct fsldma_chan *chan;
-	int size;
 
 	if (!dchan)
 		return -EINVAL;
