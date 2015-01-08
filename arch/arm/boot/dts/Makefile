@@ -537,6 +537,7 @@ dtb-$(CONFIG_MACH_ARMADA_375) += \
 dtb-$(CONFIG_MACH_ARMADA_38X) += \
 	armada-385-db-ap.dtb \
 	armada-388-db.dtb \
+	armada-388-gp.dtb \
 	armada-388-rd.dtb
 dtb-$(CONFIG_MACH_ARMADA_XP) += \
 	armada-xp-axpwifiap.dtb \
