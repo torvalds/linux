@@ -558,6 +558,37 @@ hist_entry__cmp_compute(struct hist_entry *left, struct hist_entry *right,
 }
 
 static int64_t
+hist_entry__cmp_compute_idx(struct hist_entry *left, struct hist_entry *right,
+			    int c, int sort_idx)
+{
+	struct hist_entry *p_right, *p_left;
+
+	p_left  = get_pair_data(left,  &data__files[sort_idx]);
+	p_right = get_pair_data(right, &data__files[sort_idx]);
+
+	if (!p_left && !p_right)
+		return 0;
+
+	if (!p_left || !p_right)
+		return p_left ? -1 : 1;
+
+	if (c != COMPUTE_DELTA) {
+		/*
+		 * The delta can be computed without the baseline, but
+		 * others are not.  Put those entries which have no
+		 * values below.
+		 */
+		if (left->dummy && right->dummy)
+			return 0;
+
+		if (left->dummy || right->dummy)
+			return left->dummy ? 1 : -1;
+	}
+
+	return __hist_entry__cmp_compute(p_left, p_right, c);
+}
+
+static int64_t
 hist_entry__cmp_nop(struct perf_hpp_fmt *fmt __maybe_unused,
 		    struct hist_entry *left __maybe_unused,
 		    struct hist_entry *right __maybe_unused)
@@ -599,6 +630,30 @@ hist_entry__cmp_wdiff(struct perf_hpp_fmt *fmt,
 	struct data__file *d = fmt_to_data_file(fmt);
 
 	return hist_entry__cmp_compute(right, left, COMPUTE_WEIGHTED_DIFF, d->idx);
+}
+
+static int64_t
+hist_entry__cmp_delta_idx(struct perf_hpp_fmt *fmt __maybe_unused,
+			  struct hist_entry *left, struct hist_entry *right)
+{
+	return hist_entry__cmp_compute_idx(right, left, COMPUTE_DELTA,
+					   sort_compute);
+}
+
+static int64_t
+hist_entry__cmp_ratio_idx(struct perf_hpp_fmt *fmt __maybe_unused,
+			  struct hist_entry *left, struct hist_entry *right)
+{
+	return hist_entry__cmp_compute_idx(right, left, COMPUTE_RATIO,
+					   sort_compute);
+}
+
+static int64_t
+hist_entry__cmp_wdiff_idx(struct perf_hpp_fmt *fmt __maybe_unused,
+			  struct hist_entry *left, struct hist_entry *right)
+{
+	return hist_entry__cmp_compute_idx(right, left, COMPUTE_WEIGHTED_DIFF,
+					   sort_compute);
 }
 
 static void hists__process(struct hists *hists)
@@ -1074,9 +1129,10 @@ static void data__hpp_register(struct data__file *d, int idx)
 	perf_hpp__register_sort_field(fmt);
 }
 
-static void ui_init(void)
+static int ui_init(void)
 {
 	struct data__file *d;
+	struct perf_hpp_fmt *fmt;
 	int i;
 
 	data__for_each_file(i, d) {
@@ -1106,6 +1162,46 @@ static void ui_init(void)
 			data__hpp_register(d, i ? PERF_HPP_DIFF__PERIOD :
 						  PERF_HPP_DIFF__PERIOD_BASELINE);
 	}
+
+	if (!sort_compute)
+		return 0;
+
+	/*
+	 * Prepend an fmt to sort on columns at 'sort_compute' first.
+	 * This fmt is added only to the sort list but not to the
+	 * output fields list.
+	 *
+	 * Note that this column (data) can be compared twice - one
+	 * for this 'sort_compute' fmt and another for the normal
+	 * diff_hpp_fmt.  But it shouldn't a problem as most entries
+	 * will be sorted out by first try or baseline and comparing
+	 * is not a costly operation.
+	 */
+	fmt = zalloc(sizeof(*fmt));
+	if (fmt == NULL) {
+		pr_err("Memory allocation failed\n");
+		return -1;
+	}
+
+	fmt->cmp      = hist_entry__cmp_nop;
+	fmt->collapse = hist_entry__cmp_nop;
+
+	switch (compute) {
+	case COMPUTE_DELTA:
+		fmt->sort = hist_entry__cmp_delta_idx;
+		break;
+	case COMPUTE_RATIO:
+		fmt->sort = hist_entry__cmp_ratio_idx;
+		break;
+	case COMPUTE_WEIGHTED_DIFF:
+		fmt->sort = hist_entry__cmp_wdiff_idx;
+		break;
+	default:
+		BUG_ON(1);
+	}
+
+	list_add(&fmt->sort_list, &perf_hpp__sort_list);
+	return 0;
 }
 
 static int data_init(int argc, const char **argv)
@@ -1171,7 +1267,8 @@ int cmd_diff(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (data_init(argc, argv) < 0)
 		return -1;
 
-	ui_init();
+	if (ui_init() < 0)
+		return -1;
 
 	sort__mode = SORT_MODE__DIFF;
 
