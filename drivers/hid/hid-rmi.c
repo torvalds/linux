@@ -35,6 +35,7 @@
 
 /* device flags */
 #define RMI_DEVICE			BIT(0)
+#define RMI_DEVICE_HAS_PHYS_BUTTONS	BIT(1)
 
 enum rmi_mode_type {
 	RMI_MODE_OFF			= 0,
@@ -472,6 +473,15 @@ static int rmi_event(struct hid_device *hdev, struct hid_field *field,
 	if ((data->device_flags & RMI_DEVICE) &&
 	    (field->application == HID_GD_POINTER ||
 	    field->application == HID_GD_MOUSE)) {
+		if (data->device_flags & RMI_DEVICE_HAS_PHYS_BUTTONS) {
+			if ((usage->hid & HID_USAGE_PAGE) == HID_UP_BUTTON)
+				return 0;
+
+			if ((usage->hid == HID_GD_X || usage->hid == HID_GD_Y)
+			    && !value)
+				return 1;
+		}
+
 		rmi_schedule_reset(hdev);
 		return 1;
 	}
@@ -942,8 +952,13 @@ static int rmi_input_mapping(struct hid_device *hdev,
 	 * we want to make HID ignore the advertised HID collection
 	 * for RMI deivces
 	 */
-	if (data->device_flags & RMI_DEVICE)
+	if (data->device_flags & RMI_DEVICE) {
+		if ((data->device_flags & RMI_DEVICE_HAS_PHYS_BUTTONS) &&
+		    ((usage->hid & HID_USAGE_PAGE) == HID_UP_BUTTON))
+			return 0;
+
 		return -1;
+	}
 
 	return 0;
 }
@@ -990,6 +1005,9 @@ static int rmi_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		hid_err(hdev, "parse failed\n");
 		return ret;
 	}
+
+	if (id->driver_data)
+		data->device_flags = id->driver_data;
 
 	/*
 	 * Check for the RMI specific report ids. If they are misisng
