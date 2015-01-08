@@ -215,6 +215,7 @@ static void nvme_set_info(struct nvme_cmd_info *cmd, void *ctx,
 	cmd->fn = handler;
 	cmd->ctx = ctx;
 	cmd->aborted = 0;
+	blk_mq_start_request(blk_mq_rq_from_pdu(cmd));
 }
 
 /* Special values must be less than 0x1000 */
@@ -664,8 +665,6 @@ static int nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 		}
 	}
 
-	blk_mq_start_request(req);
-
 	nvme_set_info(cmd, iod, req_completion);
 	spin_lock_irq(&nvmeq->q_lock);
 	if (req->cmd_flags & REQ_DISCARD)
@@ -835,6 +834,7 @@ static int nvme_submit_async_admin_req(struct nvme_dev *dev)
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
+	req->cmd_flags |= REQ_NO_TIMEOUT;
 	cmd_info = blk_mq_rq_to_pdu(req);
 	nvme_set_info(cmd_info, req, async_req_completion);
 
@@ -1086,8 +1086,16 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req, bool reserved)
 
 	dev_warn(nvmeq->q_dmadev, "Timeout I/O %d QID %d\n", req->tag,
 							nvmeq->qid);
-	if (nvmeq->dev->initialized)
-		nvme_abort_req(req);
+
+	if (!nvmeq->dev->initialized) {
+		/*
+		 * Force cancelled command frees the request, which requires we
+		 * return BLK_EH_NOT_HANDLED.
+		 */
+		nvme_cancel_queue_ios(nvmeq->hctx, req, nvmeq, reserved);
+		return BLK_EH_NOT_HANDLED;
+	}
+	nvme_abort_req(req);
 
 	/*
 	 * The aborted req will be completed on receiving the abort req.
