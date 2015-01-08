@@ -549,26 +549,22 @@ static struct rcar_dmac_desc *rcar_dmac_desc_get(struct rcar_dmac_chan *chan)
 
 	spin_lock_irq(&chan->lock);
 
-	do {
-		if (list_empty(&chan->desc.free)) {
-			/*
-			 * No free descriptors, allocate a page worth of them
-			 * and try again, as someone else could race us to get
-			 * the newly allocated descriptors. If the allocation
-			 * fails return an error.
-			 */
-			spin_unlock_irq(&chan->lock);
-			ret = rcar_dmac_desc_alloc(chan, GFP_NOWAIT);
-			if (ret < 0)
-				return NULL;
-			spin_lock_irq(&chan->lock);
-			continue;
-		}
+	while (list_empty(&chan->desc.free)) {
+		/*
+		 * No free descriptors, allocate a page worth of them and try
+		 * again, as someone else could race us to get the newly
+		 * allocated descriptors. If the allocation fails return an
+		 * error.
+		 */
+		spin_unlock_irq(&chan->lock);
+		ret = rcar_dmac_desc_alloc(chan, GFP_NOWAIT);
+		if (ret < 0)
+			return NULL;
+		spin_lock_irq(&chan->lock);
+	}
 
-		desc = list_first_entry(&chan->desc.free, struct rcar_dmac_desc,
-					node);
-		list_del(&desc->node);
-	} while (!desc);
+	desc = list_first_entry(&chan->desc.free, struct rcar_dmac_desc, node);
+	list_del(&desc->node);
 
 	spin_unlock_irq(&chan->lock);
 
@@ -621,26 +617,23 @@ rcar_dmac_xfer_chunk_get(struct rcar_dmac_chan *chan)
 
 	spin_lock_irq(&chan->lock);
 
-	do {
-		if (list_empty(&chan->desc.chunks_free)) {
-			/*
-			 * No free descriptors, allocate a page worth of them
-			 * and try again, as someone else could race us to get
-			 * the newly allocated descriptors. If the allocation
-			 * fails return an error.
-			 */
-			spin_unlock_irq(&chan->lock);
-			ret = rcar_dmac_xfer_chunk_alloc(chan, GFP_NOWAIT);
-			if (ret < 0)
-				return NULL;
-			spin_lock_irq(&chan->lock);
-			continue;
-		}
+	while (list_empty(&chan->desc.chunks_free)) {
+		/*
+		 * No free descriptors, allocate a page worth of them and try
+		 * again, as someone else could race us to get the newly
+		 * allocated descriptors. If the allocation fails return an
+		 * error.
+		 */
+		spin_unlock_irq(&chan->lock);
+		ret = rcar_dmac_xfer_chunk_alloc(chan, GFP_NOWAIT);
+		if (ret < 0)
+			return NULL;
+		spin_lock_irq(&chan->lock);
+	}
 
-		chunk = list_first_entry(&chan->desc.chunks_free,
-					  struct rcar_dmac_xfer_chunk, node);
-		list_del(&chunk->node);
-	} while (!chunk);
+	chunk = list_first_entry(&chan->desc.chunks_free,
+				 struct rcar_dmac_xfer_chunk, node);
+	list_del(&chunk->node);
 
 	spin_unlock_irq(&chan->lock);
 
