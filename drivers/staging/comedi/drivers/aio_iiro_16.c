@@ -1,34 +1,29 @@
 /*
-
-    comedi/drivers/aio_iiro_16.c
-
-    Driver for Access I/O Products PC-104 AIO-IIRO-16 Digital I/O board
-    Copyright (C) 2006 C&C Technologies, Inc.
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
+ * aio_iiro_16.c
+ * Comedi driver for Access I/O Products 104-IIRO-16 board
+ * Copyright (C) 2006 C&C Technologies, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
 /*
-
-Driver: aio_iiro_16
-Description: Access I/O Products PC-104 IIRO16 Relay And Isolated Input Board
-Author: Zachary Ware <zach.ware@cctechnol.com>
-Devices:
- [Access I/O] PC-104 AIO12-8
-Status: experimental
-
-Configuration Options:
-  [0] - I/O port base address
-
-*/
+ * Driver: aio_iiro_16
+ * Description: Access I/O Products PC/104 Isolated Input/Relay Output Board
+ * Author: Zachary Ware <zach.ware@cctechnol.com>
+ * Devices: [Access I/O] 104-IIRO-16 (aio_iiro_16)
+ * Status: experimental
+ *
+ * Configuration Options:
+ *   [0] - I/O port base address
+ */
 
 #include <linux/module.h>
 #include "../comedidev.h"
