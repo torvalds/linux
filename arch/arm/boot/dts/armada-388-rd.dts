@@ -1,9 +1,10 @@
 /*
- * Device Tree file for Marvell Armada 385 evaluation board
- * (DB-88F6820)
+ * Device Tree file for Marvell Armada 388 Reference Design board
+ * (RD-88F6820-AP)
  *
  *  Copyright (C) 2014 Marvell
  *
+ * Gregory CLEMENT <gregory.clement@free-electrons.com>
  * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
  *
  * This file is licensed under the terms of the GNU General Public
@@ -12,11 +13,12 @@
  */
 
 /dts-v1/;
-#include "armada-385.dtsi"
+#include "armada-388.dtsi"
 
 / {
-	model = "Marvell Armada 385 Development Board";
-	compatible = "marvell,a385-db", "marvell,armada385", "marvell,armada380";
+	model = "Marvell Armada 385 Reference Design";
+	compatible = "marvell,a385-rd", "marvell,armada388",
+		"marvell,armada385","marvell,armada380";
 
 	chosen {
 		bootargs = "console=ttyS0,115200 earlyprintk";
@@ -38,7 +40,7 @@
 				spi-flash@0 {
 					#address-cells = <1>;
 					#size-cells = <1>;
-					compatible = "w25q32";
+					compatible = "st,m25p128";
 					reg = <0>; /* Chip select 0 */
 					spi-max-frequency = <108000000>;
 				};
@@ -49,30 +51,22 @@
 				clock-frequency = <100000>;
 			};
 
-			i2c@11100 {
-				status = "okay";
-				clock-frequency = <100000>;
-			};
-
 			serial@12000 {
 				status = "okay";
 			};
 
 			ethernet@30000 {
 				status = "okay";
-				phy = <&phy1>;
+				phy = <&phy0>;
 				phy-mode = "rgmii-id";
-			};
-
-			usb@50000 {
-				status = "ok";
 			};
 
 			ethernet@70000 {
 				status = "okay";
-				phy = <&phy0>;
+				phy = <&phy1>;
 				phy-mode = "rgmii-id";
 			};
+
 
 			mdio@72004 {
 				phy0: ethernet-phy@0 {
@@ -84,50 +78,7 @@
 				};
 			};
 
-			sata@a8000 {
-				status = "okay";
-			};
-
-			sata@e0000 {
-				status = "okay";
-			};
-
-			flash@d0000 {
-				status = "okay";
-				num-cs = <1>;
-				marvell,nand-keep-config;
-				marvell,nand-enable-arbiter;
-				nand-on-flash-bbt;
-				nand-ecc-strength = <4>;
-				nand-ecc-step-size = <512>;
-
-				partition@0 {
-					label = "U-Boot";
-					reg = <0 0x800000>;
-				};
-				partition@800000 {
-					label = "Linux";
-					reg = <0x800000 0x800000>;
-				};
-				partition@1000000 {
-					label = "Filesystem";
-					reg = <0x1000000 0x3f000000>;
-				};
-			};
-
-			sdhci@d8000 {
-				broken-cd;
-				wp-inverted;
-				bus-width = <8>;
-				status = "okay";
-				no-1-8-v;
-			};
-
 			usb3@f0000 {
-				status = "okay";
-			};
-
-			usb3@f8000 {
 				status = "okay";
 			};
 		};
@@ -135,15 +86,11 @@
 		pcie-controller {
 			status = "okay";
 			/*
-			 * The two PCIe units are accessible through
-			 * standard PCIe slots on the board.
+			 * One PCIe units is accessible through
+			 * standard PCIe slot on the board.
 			 */
 			pcie@1,0 {
 				/* Port 0, Lane 0 */
-				status = "okay";
-			};
-			pcie@2,0 {
-				/* Port 1, Lane 0 */
 				status = "okay";
 			};
 		};
