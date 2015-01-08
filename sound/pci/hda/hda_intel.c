@@ -1890,11 +1890,8 @@ static int azx_probe_continue(struct azx *chip)
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
 #ifdef CONFIG_SND_HDA_I915
 		err = hda_i915_init(hda);
-		if (err < 0) {
-			dev_err(chip->card->dev,
-				"Error request power-well from i915\n");
+		if (err < 0)
 			goto out_free;
-		}
 		err = hda_display_power(hda, true);
 		if (err < 0) {
 			dev_err(chip->card->dev,

@@ -16,6 +16,7 @@
 #ifndef __SOUND_HDA_INTEL_H
 #define __SOUND_HDA_INTEL_H
 
+#include <drm/i915_component.h>
 #include "hda_priv.h"
 
 struct hda_intel {
@@ -41,6 +42,9 @@ struct hda_intel {
 
 	/* secondary power domain for hdmi audio under vga device */
 	struct dev_pm_domain hdmi_pm_domain;
+
+	/* i915 component interface */
+	struct i915_audio_component audio_component;
 };
 
 #ifdef CONFIG_SND_HDA_I915
