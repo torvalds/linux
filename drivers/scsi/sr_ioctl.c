@@ -188,6 +188,7 @@ int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
 	struct scsi_sense_hdr sshdr;
 	int result, err = 0, retries = 0;
 	struct request_sense *sense = cgc->sense;
+	char logbuf[SCSI_LOG_BUFSIZE];
 
 	SDev = cd->device;
 
@@ -257,14 +258,20 @@ int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
 				/* sense: Invalid command operation code */
 				err = -EDRIVE_CANT_DO_THIS;
 #ifdef DEBUG
-			__scsi_print_command(cgc->cmd, CDROM_PACKET_SIZE);
+			__scsi_format_command(logbuf, sizeof(logbuf),
+					      cgc->cmd, CDROM_PACKET_SIZE);
+			sr_printk(KERN_INFO, cd,
+				  "CDROM (ioctl) invalid command: %s\n",
+				  logbuf);
 			scsi_print_sense_hdr(cd->device, cd->cdi.name, &sshdr);
 #endif
 			break;
 		default:
+			__scsi_format_command(logbuf, sizeof(logbuf),
+					      cgc->cmd, CDROM_PACKET_SIZE);
 			sr_printk(KERN_ERR, cd,
-				  "CDROM (ioctl) error, command: ");
-			__scsi_print_command(cgc->cmd, CDROM_PACKET_SIZE);
+				  "CDROM (ioctl) error, command: %s\n",
+				  logbuf);
 			scsi_print_sense_hdr(cd->device, cd->cdi.name, &sshdr);
 			err = -EIO;
 		}

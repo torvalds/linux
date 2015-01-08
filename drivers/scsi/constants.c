@@ -24,8 +24,6 @@
 #define THIRD_PARTY_COPY_OUT 0x83
 #define THIRD_PARTY_COPY_IN 0x84
 
-#define VENDOR_SPECIFIC_CDB 0xc0
-
 struct sa_name_list {
 	int opcode;
 	const struct value_name_pair *arr;
@@ -281,8 +279,8 @@ static struct sa_name_list sa_names_arr[] = {
 };
 #endif /* CONFIG_SCSI_CONSTANTS */
 
-static bool scsi_opcode_sa_name(int opcode, int service_action,
-				const char **cdb_name, const char **sa_name)
+bool scsi_opcode_sa_name(int opcode, int service_action,
+			 const char **cdb_name, const char **sa_name)
 {
 	struct sa_name_list *sa_name_ptr;
 	const struct value_name_pair *arr = NULL;
@@ -314,74 +312,6 @@ static bool scsi_opcode_sa_name(int opcode, int service_action,
 
 	return true;
 }
-
-static void print_opcode_name(const unsigned char *cdbp, size_t cdb_len)
-{
-	int sa, cdb0;
-	const char *cdb_name = NULL, *sa_name = NULL;
-
-	cdb0 = cdbp[0];
-	if (cdb0 == VARIABLE_LENGTH_CMD) {
-		if (cdb_len < 10) {
-			printk("short variable length command, len=%zu",
-			       cdb_len);
-			return;
-		}
-		sa = (cdbp[8] << 8) + cdbp[9];
-	} else
-		sa = cdbp[1] & 0x1f;
-
-	if (!scsi_opcode_sa_name(cdb0, sa, &cdb_name, &sa_name)) {
-		if (cdb_name)
-			printk("%s", cdb_name);
-		else if (cdb0 >= VENDOR_SPECIFIC_CDB)
-			printk("cdb[0]=0x%x (vendor)", cdb0);
-		else if (cdb0 >= 0x60 && cdb0 < 0x7e)
-			printk("cdb[0]=0x%x (reserved)", cdb0);
-		else
-			printk("cdb[0]=0x%x", cdb0);
-	} else {
-		if (sa_name)
-			printk("%s", sa_name);
-		else if (cdb_name)
-			printk("%s, sa=0x%x", cdb_name, sa);
-		else
-			printk("cdb[0]=0x%x, sa=0x%x", cdb0, sa);
-	}
-}
-
-void __scsi_print_command(const unsigned char *cdb, size_t cdb_len)
-{
-	int k, len;
-
-	print_opcode_name(cdb, cdb_len);
-	len = scsi_command_size(cdb);
-	if (cdb_len < len)
-		len = cdb_len;
-	/* print out all bytes in cdb */
-	for (k = 0; k < len; ++k)
-		printk(" %02x", cdb[k]);
-	printk("\n");
-}
-EXPORT_SYMBOL(__scsi_print_command);
-
-void scsi_print_command(struct scsi_cmnd *cmd)
-{
-	int k;
-
-	if (cmd->cmnd == NULL)
-		return;
-
-	scmd_printk(KERN_INFO, cmd, "CDB: ");
-	print_opcode_name(cmd->cmnd, cmd->cmd_len);
-
-	/* print out all bytes in cdb */
-	printk(":");
-	for (k = 0; k < cmd->cmd_len; ++k)
-		printk(" %02x", cmd->cmnd[k]);
-	printk("\n");
-}
-EXPORT_SYMBOL(scsi_print_command);
 
 #ifdef CONFIG_SCSI_CONSTANTS
 

@@ -195,8 +195,10 @@ ch_do_scsi(scsi_changer *ch, unsigned char *cmd, int cmd_len,
  retry:
 	errno = 0;
 	if (debug) {
-		DPRINTK("command: ");
-		__scsi_print_command(cmd, cmd_len);
+		char logbuf[SCSI_LOG_BUFSIZE];
+
+		__scsi_format_command(logbuf, sizeof(logbuf), cmd, cmd_len);
+		DPRINTK("command: %s", logbuf);
 	}
 
 	result = scsi_execute_req(ch->device, cmd, direction, buffer,

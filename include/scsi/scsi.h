@@ -195,6 +195,9 @@ enum scsi_timeouts {
 #define	ATA_16		      0x85	/* 16-byte pass-thru */
 #define	ATA_12		      0xa1	/* 12-byte pass-thru */
 
+/* Vendor specific CDBs start here */
+#define VENDOR_SPECIFIC_CDB 0xc0
+
 /*
  *	SCSI command lengths
  */
