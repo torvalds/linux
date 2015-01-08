@@ -28,6 +28,7 @@
 
 #include <linux/mfd/arizona/core.h>
 #include <linux/mfd/arizona/registers.h>
+#include <asm/unaligned.h>
 
 #include "arizona.h"
 #include "wm5102.h"
@@ -617,11 +618,10 @@ static int wm5102_out_comp_coeff_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
-	uint16_t data;
 
 	mutex_lock(&arizona->dac_comp_lock);
-	data = cpu_to_be16(arizona->dac_comp_coeff);
-	memcpy(ucontrol->value.bytes.data, &data, sizeof(data));
+	put_unaligned_be16(arizona->dac_comp_coeff,
+			   ucontrol->value.bytes.data);
 	mutex_unlock(&arizona->dac_comp_lock);
 
 	return 0;
