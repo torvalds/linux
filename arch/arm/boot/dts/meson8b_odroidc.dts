@@ -515,14 +515,62 @@
         pinctrl-names="default";
         pinctrl-0=<&aml_spicc_pins>;
         device_id = <0>;
-        num_chipselect = <1>;
-        cs_gpios = "GPIOX_20";
+        num_chipselect = <2>;
+        cs_gpios = "GPIOX_20", "GPIOX_21";
 
         spidev@0 {
             spi-max-frequency = <2000000>;
             compatible = "spidev";
             reg = <0>;
         };
+		/* SPI Touch Screen Define */
+		ads7846@1 {
+			spi-max-frequency = <1000000>;
+
+            /*
+			    Driver Select : "ti,tsc2046", "ti,ads7843", "ti,ads7845", "ti,ads7846", "ti,ads7873"
+			        kernel/drivers/hardkernel/ads7846.c
+			*/
+			compatible = "ti,ads7846";
+
+            /*
+                SPI Chip Select : (0 ~ 1)
+                    Chip Select = GPIOX_21 (CS1)
+            */
+			reg = <1>;
+
+            /* AMLogic Interrupt Define */
+            /*
+                IRQ Source : (GPIO_IRQ0(0) ~ GPIO_IRQ7(7))
+            */
+            irq-source = <0>;
+
+            /*
+                IRQ Filter Select : (0 ~ 7)
+                    Value 0 : No Filtering, Value 1 ~ 7 : value * 3 * 111nS(delay)
+            */
+            irq-filter = <7>;   /* 258.741us Delay */
+
+            /*
+                IRQ Trigger Select : (0 ~ 3)
+                    GPIO_IRQ_HIGH = 0, GPIO_IRQ_LOW = 1, GPIO_IRQ_RISING = 2, GPIO_IRQ_FALLING = 3
+            */
+            irq-trigger = <3>;  /* GPIO_IRQ_FALLING (Trigger Interrupt) */
+
+            /* Used Pen Down GPIO(IRQ GPIO) Select */
+            pendown-gpio = "GPIOY_8";
+
+	    ti,swap-xy = <1>;
+            ti,x-min = <0>;
+            ti,x-max = <8000>;
+            ti,y-min = <0>;
+            ti,y-max = <4800>;
+            ti,x-plate-ohms = <40>;
+            ti,pressure-min = <0>;
+            ti,pressure-max = <255>;
+
+            linux,wakeup;
+		};
     };
 
     efuse{
