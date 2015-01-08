@@ -2402,11 +2402,8 @@ static void __btrfs_remove_free_space_cache_locked(
 		} else {
 			free_bitmap(ctl, info);
 		}
-		if (need_resched()) {
-			spin_unlock(&ctl->tree_lock);
-			cond_resched();
-			spin_lock(&ctl->tree_lock);
-		}
+
+		cond_resched_lock(&ctl->tree_lock);
 	}
 }
 
@@ -2431,11 +2428,8 @@ void btrfs_remove_free_space_cache(struct btrfs_block_group_cache *block_group)
 
 		WARN_ON(cluster->block_group != block_group);
 		__btrfs_return_cluster_to_free_space(block_group, cluster);
-		if (need_resched()) {
-			spin_unlock(&ctl->tree_lock);
-			cond_resched();
-			spin_lock(&ctl->tree_lock);
-		}
+
+		cond_resched_lock(&ctl->tree_lock);
 	}
 	__btrfs_remove_free_space_cache_locked(ctl);
 	spin_unlock(&ctl->tree_lock);

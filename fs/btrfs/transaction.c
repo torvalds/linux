@@ -93,11 +93,8 @@ static void clear_btree_io_tree(struct extent_io_tree *tree)
 		 */
 		ASSERT(!waitqueue_active(&state->wq));
 		free_extent_state(state);
-		if (need_resched()) {
-			spin_unlock(&tree->lock);
-			cond_resched();
-			spin_lock(&tree->lock);
-		}
+
+		cond_resched_lock(&tree->lock);
 	}
 	spin_unlock(&tree->lock);
 }
