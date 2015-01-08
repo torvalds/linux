@@ -173,7 +173,7 @@
 				status = "disabled";
 			};
 
-			serial@12000 {
+			uart0: serial@12000 {
 				compatible = "snps,dw-apb-uart";
 				reg = <0x12000 0x100>;
 				reg-shift = <2>;
@@ -193,7 +193,7 @@
 				status = "disabled";
 			};
 
-			pinctrl@18000 {
+			pinctrl: pinctrl@18000 {
 				reg = <0x18000 0x20>;
 
 				ge0_rgmii_pins: ge-rgmii-pins-0 {
