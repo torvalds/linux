@@ -134,18 +134,18 @@
 	};
 
 	pmu_grf: syscon@ff738000 {
-		compatible = "rockchip,rk3388-pmu-grf", "syscon";
+		compatible = "rockchip,rk3368-pmu-grf", "rockchip,pmu-grf", "syscon";
 		reg = <0x0 0xff738000 0x0 0x100>;
 	};
 
 	sgrf: syscon@ff740000 {
-		compatible = "rockchip,rk3388-sgrf", "syscon";
+		compatible = "rockchip,rk3368-sgrf", "rockchip,sgrf", "syscon";
 		reg = <0x0 0xff740000 0x0 0x1000>;
 
 	};
 
 	grf: syscon@ff770000 {
-		compatible = "rockchip,rk3388-grf", "syscon";
+		compatible = "rockchip,rk3368-grf", "rockchip,grf", "syscon";
 		reg = <0x0 0xff770000 0x0 0x1000>;
 	};
 
