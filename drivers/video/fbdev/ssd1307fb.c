@@ -443,7 +443,7 @@ static int ssd1307fb_probe(struct i2c_client *client,
 		par->width = 96;
 
 	if (of_property_read_u32(node, "solomon,height", &par->height))
-		par->width = 16;
+		par->height = 16;
 
 	if (of_property_read_u32(node, "solomon,page-offset", &par->page_offset))
 		par->page_offset = 1;
