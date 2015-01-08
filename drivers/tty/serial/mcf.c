@@ -198,7 +198,6 @@ static void mcf_shutdown(struct uart_port *port)
 static void mcf_set_termios(struct uart_port *port, struct ktermios *termios,
 	struct ktermios *old)
 {
-	struct mcf_uart *pp = container_of(port, struct mcf_uart, port);
 	unsigned long flags;
 	unsigned int baud, baudclk;
 #if defined(CONFIG_M5272)
@@ -441,7 +440,6 @@ static int mcf_verify_port(struct uart_port *port, struct serial_struct *ser)
 /* Enable or disable the RS485 support */
 static int mcf_config_rs485(struct uart_port *port, struct serial_rs485 *rs485)
 {
-	struct mcf_uart *pp = container_of(port, struct mcf_uart, port);
 	unsigned char mr1, mr2;
 
 	/* Get mode registers */
