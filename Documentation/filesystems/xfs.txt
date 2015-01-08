@@ -348,16 +348,13 @@ The following sysctls are available for the XFS filesystem:
 Deprecated Sysctls
 ==================
 
-  fs.xfs.xfsbufd_centisecs	(Min: 50  Default: 100	Max: 3000)
-	Dirty metadata is now tracked by the log subsystem and
-	flushing is driven by log space and idling demands. The
-	xfsbufd no longer exists, so this syctl does nothing.
+None at present.
 
-	Due for removal in 3.14.
 
-  fs.xfs.age_buffer_centisecs	(Min: 100  Default: 1500  Max: 720000)
-	Dirty metadata is now tracked by the log subsystem and
-	flushing is driven by log space and idling demands. The
-	xfsbufd no longer exists, so this syctl does nothing.
+Removed Sysctls
+===============
 
-	Due for removal in 3.14.
+  Name				Removed
+  ----				-------
+  fs.xfs.xfsbufd_centisec	v3.20
+  fs.xfs.age_buffer_centisecs	v3.20
