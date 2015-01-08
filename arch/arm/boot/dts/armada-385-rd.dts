@@ -67,7 +67,7 @@
 			};
 
 
-			mdio {
+			mdio@72004 {
 				phy0: ethernet-phy@0 {
 					reg = <0>;
 				};

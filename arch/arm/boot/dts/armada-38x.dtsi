@@ -193,7 +193,7 @@
 				status = "disabled";
 			};
 
-			pinctrl {
+			pinctrl@18000 {
 				compatible = "marvell,mv88f6820-pinctrl";
 				reg = <0x18000 0x20>;
 			};
@@ -373,7 +373,7 @@
 				status = "disabled";
 			};
 
-			mdio {
+			mdio@72004 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "marvell,orion-mdio";
