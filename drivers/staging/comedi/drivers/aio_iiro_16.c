@@ -85,6 +85,10 @@ static int aio_iiro_16_attach(struct comedi_device *dev,
 	s->range_table	= &range_digital;
 	s->insn_bits	= aio_iiro_16_do_insn_bits;
 
+	/* get the initial state of the relays */
+	s->state = inb(dev->iobase + AIO_IIRO_16_RELAY_0_7) |
+		   (inb(dev->iobase + AIO_IIRO_16_RELAY_8_15) << 8);
+
 	/* Digital Input subdevice */
 	s = &dev->subdevices[1];
 	s->type		= COMEDI_SUBD_DI;
