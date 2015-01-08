@@ -89,6 +89,7 @@ struct hidpp_device {
 	struct hid_device *hid_dev;
 	struct mutex send_mutex;
 	void *send_receive_buf;
+	char *name;		/* will never be NULL and should not be freed */
 	wait_queue_head_t wait;
 	bool answer_available;
 	u8 protocol_major;
@@ -1080,6 +1081,7 @@ static void hidpp_input_close(struct input_dev *dev)
 static struct input_dev *hidpp_allocate_input(struct hid_device *hdev)
 {
 	struct input_dev *input_dev = devm_input_allocate_device(&hdev->dev);
+	struct hidpp_device *hidpp = hid_get_drvdata(hdev);
 
 	if (!input_dev)
 		return NULL;
@@ -1088,7 +1090,7 @@ static struct input_dev *hidpp_allocate_input(struct hid_device *hdev)
 	input_dev->open = hidpp_input_open;
 	input_dev->close = hidpp_input_close;
 
-	input_dev->name = hdev->name;
+	input_dev->name = hidpp->name;
 	input_dev->phys = hdev->phys;
 	input_dev->uniq = hdev->uniq;
 	input_dev->id.bustype = hdev->bus;
@@ -1130,20 +1132,26 @@ static void hidpp_connect_event(struct hidpp_device *hidpp)
 	hid_info(hdev, "HID++ %u.%u device connected.\n",
 		 hidpp->protocol_major, hidpp->protocol_minor);
 
+	if (!hidpp->name || hidpp->name == hdev->name) {
+		name = hidpp_get_device_name(hidpp);
+		if (!name) {
+			hid_err(hdev,
+				"unable to retrieve the name of the device");
+			return;
+		}
+
+		devm_name = devm_kasprintf(&hdev->dev, GFP_KERNEL, "%s", name);
+		kfree(name);
+		if (!devm_name)
+			return;
+
+		hidpp->name = devm_name;
+	}
+
 	input = hidpp_allocate_input(hdev);
 	if (!input) {
 		hid_err(hdev, "cannot allocate new input device: %d\n", ret);
 		return;
-	}
-
-	name = hidpp_get_device_name(hidpp);
-	if (!name) {
-		hid_err(hdev, "unable to retrieve the name of the device");
-	} else {
-		devm_name = devm_kasprintf(&hdev->dev, GFP_KERNEL, "%s", name);
-		if (devm_name)
-			input->name = devm_name;
-		kfree(name);
 	}
 
 	hidpp_populate_input(hidpp, input, false);
@@ -1168,6 +1176,7 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		return -ENOMEM;
 
 	hidpp->hid_dev = hdev;
+	hidpp->name = hdev->name;
 	hid_set_drvdata(hdev, hidpp);
 
 	hidpp->quirks = id->driver_data;
