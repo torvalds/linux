@@ -167,8 +167,12 @@ separator character between the directory names.  For example:
 
   mount -t overlay overlay -olowerdir=/lower1:/lower2:/lower3 /merged
 
-As the example shows, "upperdir=" and "workdir=" may be omitted.  In that case
-the overlay will be read-only.
+As the example shows, "upperdir=" and "workdir=" may be omitted.  In
+that case the overlay will be read-only.
+
+The specified lower directories will be stacked beginning from the
+rightmost one and going left.  In the above example lower1 will be the
+top, lower2 the middle and lower3 the bottom layer.
 
 
 Non-standard behavior
