@@ -234,7 +234,7 @@
 					status-reg = <0x0480 5>;
 					clocks = <&xin24m>;
 					clock-output-names = "clk_npll";
-					rockchip,pll-type = <CLK_PLL_3188PLUS_AUTO>;
+					rockchip,pll-type = <CLK_PLL_3368_LOW_JITTER>;
 					#clock-cells = <0>;
 					#clock-init-cells = <1>;
 				};

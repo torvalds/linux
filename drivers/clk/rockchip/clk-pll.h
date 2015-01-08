@@ -194,6 +194,15 @@
 	.rst_dly = ((nr*500)/24+1),\
 }
 
+#define _RK3188PLUS_PLL_SET_CLKS_NB(_mhz, nr, nf, no, nb) \
+{ \
+	.rate   = (_mhz) * KHZ, \
+	.pllcon0 = RK3188PLUS_PLL_CLKR_SET(nr)|RK3188PLUS_PLL_CLKOD_SET(no), \
+	.pllcon1 = RK3188PLUS_PLL_CLKF_SET(nf),\
+	.pllcon2 = RK3188PLUS_PLL_CLK_BWADJ_SET(nb-1),\
+	.rst_dly = ((nr*500)/24+1),\
+}
+
 #define _RK3188_APLL_SET_CLKS(_mhz, nr, nf, no, _periph_div, _aclk_div) \
 { \
 	.rate   = _mhz * MHZ, \

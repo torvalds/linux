@@ -45,6 +45,7 @@
 #define CLK_PLL_312XPLUS	BIT(8)
 #define CLK_PLL_3368_APLLB	BIT(9)
 #define CLK_PLL_3368_APLLL	BIT(10)
+#define CLK_PLL_3368_LOW_JITTER	BIT(11)
 
 
 /* rate_ops index */

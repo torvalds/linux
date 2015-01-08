@@ -329,6 +329,12 @@ static const struct apll_clk_set rk3368_aplll_table[] = {
 	_RK3368_APLL_SET_CLKS(0,	1,	32,	16,	2,	1,	1),
 };
 
+static const struct pll_clk_set rk3368_pll_table_low_jitter[] = {
+	/*                             _khz, nr,  nf, no, nb */
+	_RK3188PLUS_PLL_SET_CLKS_NB(1188000,  1,  99,  2,  1),
+	_RK3188PLUS_PLL_SET_CLKS(         0,  0,   0,  0),
+};
+
 static void pll_wait_lock(struct clk_hw *hw)
 {
 	struct clk_pll *pll = to_clk_pll(hw);
@@ -1189,6 +1195,90 @@ static const struct clk_ops clk_pll_ops_3188plus_auto = {
 	.is_enabled = clk_pll_is_enabled_3188plus,
 };
 
+static long clk_pll_round_rate_3368_low_jitter(struct clk_hw *hw,
+					       unsigned long rate,
+					       unsigned long *prate)
+{
+	unsigned long best;
+	struct pll_clk_set *p_clk_set;
+
+	p_clk_set = (struct pll_clk_set *)(rk3368_pll_table_low_jitter);
+
+	while (p_clk_set->rate) {
+		if (p_clk_set->rate == rate)
+			break;
+		p_clk_set++;
+	}
+
+	if (p_clk_set->rate == rate) {
+		clk_debug("get rate from table\n");
+		return rate;
+	}
+
+	for (best = rate; best > 0; best--) {
+		if (!pll_clk_get_best_set(*prate, best, NULL, NULL, NULL))
+			return best;
+	}
+
+	clk_err("%s: can't round rate %lu\n", __func__, rate);
+	return 0;
+}
+
+
+static int clk_pll_set_rate_3368_low_jitter(struct clk_hw *hw,
+					    unsigned long rate,
+					    unsigned long parent_rate)
+{
+	unsigned long best;
+	u32 nr, nf, no;
+	struct pll_clk_set clk_set, *p_clk_set;
+	int ret;
+
+	p_clk_set = (struct pll_clk_set *)(rk3368_pll_table_low_jitter);
+
+	while (p_clk_set->rate) {
+		if (p_clk_set->rate == rate)
+			break;
+		p_clk_set++;
+	}
+
+	if (p_clk_set->rate == rate) {
+		clk_debug("get rate from table\n");
+		goto set_rate;
+	}
+
+	best = clk_pll_round_rate_3188plus_auto(hw, rate, &parent_rate);
+
+	if (!best)
+		return -EINVAL;
+
+	pll_clk_get_best_set(parent_rate, best, &nr, &nf, &no);
+
+	/* prepare clk_set */
+	clk_set.rate = best;
+	clk_set.pllcon0 = RK3188PLUS_PLL_CLKR_SET(nr)|RK3188PLUS_PLL_CLKOD_SET(no);
+	clk_set.pllcon1 = RK3188PLUS_PLL_CLKF_SET(nf);
+	clk_set.pllcon2 = RK3188PLUS_PLL_CLK_BWADJ_SET(nf >> 1);
+	clk_set.rst_dly = ((nr*500)/24+1);
+
+	p_clk_set = &clk_set;
+
+set_rate:
+	ret = _pll_clk_set_rate_3188plus(p_clk_set, hw);
+	clk_debug("pll %s set rate=%lu OK!\n", __clk_get_name(hw->clk),
+		  p_clk_set->rate);
+
+	return ret;
+}
+
+static const struct clk_ops clk_pll_ops_3368_low_jitter = {
+	.recalc_rate = clk_pll_recalc_rate_3188plus_auto,
+	.round_rate = clk_pll_round_rate_3368_low_jitter,
+	.set_rate = clk_pll_set_rate_3368_low_jitter,
+	.enable = clk_pll_enable_3188plus,
+	.disable = clk_pll_disable_3188plus,
+	.is_enabled = clk_pll_is_enabled_3188plus,
+};
 
 /* CLK_PLL_3188PLUS_APLL type ops */
 static unsigned long clk_pll_recalc_rate_3188plus_apll(struct clk_hw *hw,
@@ -2427,6 +2517,9 @@ const struct clk_ops *rk_get_pll_ops(u32 pll_flags)
 
 		case CLK_PLL_3368_APLLL:
 			return &clk_pll_ops_3368_aplll;
+
+		case CLK_PLL_3368_LOW_JITTER:
+			return &clk_pll_ops_3368_low_jitter;
 
 		default:
 			clk_err("%s: unknown pll_flags!\n", __func__);

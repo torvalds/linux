@@ -791,10 +791,26 @@ static long clk_3368_dclk_lcdc_determine_rate(struct clk_hw *hw,
 					      struct clk **best_parent_p)
 {
 	struct clk *npll = clk_get(NULL, "clk_npll");
-	unsigned long div, prate, best;
+	unsigned long div, prate, best, *p_prate;
+	static unsigned long rk3368_pll_rates[] = {1188*MHZ, 0};
 
-	*best_parent_p = npll;
+	if (best_parent_p)
+		*best_parent_p = npll;
 
+	/* first get parent_rate from table */
+	p_prate = rk3368_pll_rates;
+
+	while (*p_prate) {
+		if (!(*p_prate % (rate*2)) || (*p_prate == rate)) {
+			clk_debug("%s: get rate from table\n", __func__);
+			*best_parent_rate = *p_prate;
+			best = rate;
+			return best;
+		}
+		p_prate++;
+	}
+
+	/* if not suitable parent_rate found in table, then auto calc rate */
 	div = RK3368_LIMIT_NPLL/rate;
 	/* div should be even */
 	if (div % 2)
