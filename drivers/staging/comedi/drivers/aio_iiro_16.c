@@ -55,10 +55,10 @@ static int aio_iiro_16_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int aio_iiro_16_dio_insn_bits_read(struct comedi_device *dev,
-					  struct comedi_subdevice *s,
-					  struct comedi_insn *insn,
-					  unsigned int *data)
+static int aio_iiro_16_di_insn_bits(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_insn *insn,
+				    unsigned int *data)
 {
 	data[1] = 0;
 	data[1] |= inb(dev->iobase + AIO_IIRO_16_INPUT_0_7);
@@ -90,12 +90,12 @@ static int aio_iiro_16_attach(struct comedi_device *dev,
 	s->insn_bits = aio_iiro_16_do_insn_bits;
 
 	s = &dev->subdevices[1];
-	s->type = COMEDI_SUBD_DIO;
+	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
 	s->n_chan = 16;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
-	s->insn_bits = aio_iiro_16_dio_insn_bits_read;
+	s->insn_bits = aio_iiro_16_di_insn_bits;
 
 	return 0;
 }
