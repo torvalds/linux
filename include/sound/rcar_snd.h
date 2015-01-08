@@ -55,6 +55,7 @@ struct rsnd_ssi_platform_info {
 struct rsnd_src_platform_info {
 	u32 convert_rate; /* sampling rate convert */
 	int dma_id; /* for Gen2 SCU */
+	int irq;
 };
 
 /*

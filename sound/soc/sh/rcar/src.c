@@ -12,10 +12,18 @@
 
 #define SRC_NAME "src"
 
+/* SRCx_STATUS */
+#define OUF_SRCO	((1 << 12) | (1 << 13))
+#define OUF_SRCI	((1 <<  9) | (1 <<  8))
+
+/* SCU_SYSTEM_STATUS0/1 */
+#define OUF_SRC(id)	((1 << (id + 16)) | (1 << id))
+
 struct rsnd_src {
 	struct rsnd_src_platform_info *info; /* rcar_snd.h */
 	struct rsnd_mod mod;
 	struct clk *clk;
+	int err;
 };
 
 #define RSND_SRC_NAME_SIZE 16
@@ -280,6 +288,8 @@ static int rsnd_src_init(struct rsnd_mod *mod,
 
 	clk_prepare_enable(src->clk);
 
+	src->err = 0;
+
 	/*
 	 * Initialize the operation of the SRC internal circuits
 	 * see rsnd_src_start()
@@ -293,8 +303,13 @@ static int rsnd_src_quit(struct rsnd_mod *mod,
 			 struct rsnd_dai *rdai)
 {
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct device *dev = rsnd_priv_to_dev(priv);
 
 	clk_disable_unprepare(src->clk);
+
+	if (src->err)
+		dev_warn(dev, "src under/over flow err = %d\n", src->err);
 
 	return 0;
 }
@@ -510,6 +525,110 @@ static struct rsnd_mod_ops rsnd_src_gen1_ops = {
 /*
  *		Gen2 functions
  */
+#define rsnd_src_irq_enable_gen2(mod)  rsnd_src_irq_ctrol_gen2(mod, 1)
+#define rsnd_src_irq_disable_gen2(mod) rsnd_src_irq_ctrol_gen2(mod, 0)
+static void rsnd_src_irq_ctrol_gen2(struct rsnd_mod *mod, int enable)
+{
+	struct rsnd_src *src = rsnd_mod_to_src(mod);
+	u32 sys_int_val, int_val, sys_int_mask;
+	int irq = src->info->irq;
+	int id = rsnd_mod_id(mod);
+
+	sys_int_val =
+	sys_int_mask = OUF_SRC(id);
+	int_val = 0x3300;
+
+	/*
+	 * IRQ is not supported on non-DT
+	 * see
+	 *	rsnd_src_probe_gen2()
+	 */
+	if ((irq <= 0) || !enable) {
+		sys_int_val = 0;
+		int_val = 0;
+	}
+
+	rsnd_mod_write(mod, SRC_INT_ENABLE0, int_val);
+	rsnd_mod_bset(mod, SCU_SYS_INT_EN0, sys_int_mask, sys_int_val);
+	rsnd_mod_bset(mod, SCU_SYS_INT_EN1, sys_int_mask, sys_int_val);
+}
+
+static void rsnd_src_error_clear_gen2(struct rsnd_mod *mod)
+{
+	u32 val = OUF_SRC(rsnd_mod_id(mod));
+
+	rsnd_mod_bset(mod, SCU_SYS_STATUS0, val, val);
+	rsnd_mod_bset(mod, SCU_SYS_STATUS1, val, val);
+}
+
+static bool rsnd_src_error_record_gen2(struct rsnd_mod *mod)
+{
+	u32 val = OUF_SRC(rsnd_mod_id(mod));
+	bool ret = false;
+
+	if ((rsnd_mod_read(mod, SCU_SYS_STATUS0) & val) ||
+	    (rsnd_mod_read(mod, SCU_SYS_STATUS1) & val)) {
+		struct rsnd_src *src = rsnd_mod_to_src(mod);
+
+		src->err++;
+		ret = true;
+	}
+
+	/* clear error static */
+	rsnd_src_error_clear_gen2(mod);
+
+	return ret;
+}
+
+static int _rsnd_src_start_gen2(struct rsnd_mod *mod)
+{
+	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
+	u32 val = rsnd_io_to_mod_dvc(io) ? 0x01 : 0x11;
+
+	rsnd_mod_write(mod, SRC_CTRL, val);
+
+	rsnd_src_error_clear_gen2(mod);
+
+	rsnd_src_start(mod);
+
+	rsnd_src_irq_enable_gen2(mod);
+
+	return 0;
+}
+
+static int _rsnd_src_stop_gen2(struct rsnd_mod *mod)
+{
+	rsnd_src_irq_disable_gen2(mod);
+
+	rsnd_mod_write(mod, SRC_CTRL, 0);
+
+	rsnd_src_error_record_gen2(mod);
+
+	return rsnd_src_stop(mod);
+}
+
+static irqreturn_t rsnd_src_interrupt_gen2(int irq, void *data)
+{
+	struct rsnd_mod *mod = data;
+	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
+
+	if (!io)
+		return IRQ_NONE;
+
+	if (rsnd_src_error_record_gen2(mod)) {
+		struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+		struct device *dev = rsnd_priv_to_dev(priv);
+
+		_rsnd_src_stop_gen2(mod);
+		_rsnd_src_start_gen2(mod);
+
+		dev_dbg(dev, "%s[%d] restart\n",
+			rsnd_mod_name(mod), rsnd_mod_id(mod));
+	}
+
+	return IRQ_HANDLED;
+}
+
 static int rsnd_src_set_convert_rate_gen2(struct rsnd_mod *mod,
 					  struct rsnd_dai *rdai)
 {
@@ -588,18 +707,38 @@ static int rsnd_src_probe_gen2(struct rsnd_mod *mod,
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
+	int irq = src->info->irq;
 	int ret;
+
+	if (irq > 0) {
+		/*
+		 * IRQ is not supported on non-DT
+		 * see
+		 *	rsnd_src_irq_enable_gen2()
+		 */
+		ret = devm_request_irq(dev, irq,
+				       rsnd_src_interrupt_gen2,
+				       IRQF_SHARED,
+				       dev_name(dev), mod);
+		if (ret)
+			goto rsnd_src_probe_gen2_fail;
+	}
 
 	ret = rsnd_dma_init(priv,
 			    rsnd_mod_to_dma(mod),
 			    rsnd_info_is_playback(priv, src),
 			    src->info->dma_id);
-	if (ret < 0)
-		dev_err(dev, "%s[%d] (Gen2) failed\n",
-			rsnd_mod_name(mod), rsnd_mod_id(mod));
-	else
-		dev_dbg(dev, "%s[%d] (Gen2) is probed\n",
-			rsnd_mod_name(mod), rsnd_mod_id(mod));
+	if (ret)
+		goto rsnd_src_probe_gen2_fail;
+
+	dev_dbg(dev, "%s[%d] (Gen2) is probed\n",
+		rsnd_mod_name(mod), rsnd_mod_id(mod));
+
+	return ret;
+
+rsnd_src_probe_gen2_fail:
+	dev_err(dev, "%s[%d] (Gen2) failed\n",
+		rsnd_mod_name(mod), rsnd_mod_id(mod));
 
 	return ret;
 }
@@ -635,27 +774,21 @@ static int rsnd_src_init_gen2(struct rsnd_mod *mod,
 static int rsnd_src_start_gen2(struct rsnd_mod *mod,
 			       struct rsnd_dai *rdai)
 {
-	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
-	struct rsnd_src *src = rsnd_mod_to_src(mod);
-	u32 val = rsnd_io_to_mod_dvc(io) ? 0x01 : 0x11;
+	rsnd_dma_start(rsnd_mod_to_dma(mod));
 
-	rsnd_dma_start(rsnd_mod_to_dma(&src->mod));
-
-	rsnd_mod_write(mod, SRC_CTRL, val);
-
-	return rsnd_src_start(mod);
+	return _rsnd_src_start_gen2(mod);
 }
 
 static int rsnd_src_stop_gen2(struct rsnd_mod *mod,
 			      struct rsnd_dai *rdai)
 {
-	struct rsnd_src *src = rsnd_mod_to_src(mod);
+	int ret;
 
-	rsnd_mod_write(mod, SRC_CTRL, 0);
+	ret = _rsnd_src_stop_gen2(mod);
 
-	rsnd_dma_stop(rsnd_mod_to_dma(&src->mod));
+	rsnd_dma_stop(rsnd_mod_to_dma(mod));
 
-	return rsnd_src_stop(mod);
+	return ret;
 }
 
 static struct rsnd_mod_ops rsnd_src_gen2_ops = {
@@ -681,10 +814,11 @@ static void rsnd_of_parse_src(struct platform_device *pdev,
 			      struct rsnd_priv *priv)
 {
 	struct device_node *src_node;
+	struct device_node *np;
 	struct rcar_snd_info *info = rsnd_priv_to_info(priv);
 	struct rsnd_src_platform_info *src_info;
 	struct device *dev = &pdev->dev;
-	int nr;
+	int nr, i;
 
 	if (!of_data)
 		return;
@@ -707,6 +841,13 @@ static void rsnd_of_parse_src(struct platform_device *pdev,
 
 	info->src_info		= src_info;
 	info->src_info_nr	= nr;
+
+	i = 0;
+	for_each_child_of_node(src_node, np) {
+		src_info[i].irq = irq_of_parse_and_map(np, 0);
+
+		i++;
+	}
 
 rsnd_of_parse_src_end:
 	of_node_put(src_node);
