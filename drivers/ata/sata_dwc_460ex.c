@@ -1677,11 +1677,8 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 
 	/* Allocate DWC SATA device */
 	hsdev = kzalloc(sizeof(*hsdev), GFP_KERNEL);
-	if (hsdev == NULL) {
-		dev_err(&ofdev->dev, "kmalloc failed for hsdev\n");
-		err = -ENOMEM;
-		goto error;
-	}
+	if (hsdev == NULL)
+		return -ENOMEM;
 
 	if (of_property_read_u32(np, "dma-channel", &dma_chan)) {
 		dev_warn(&ofdev->dev, "no dma-channel property set."
@@ -1783,7 +1780,6 @@ error_iomap:
 	iounmap(base);
 error_kmalloc:
 	kfree(hsdev);
-error:
 	return err;
 }
 
