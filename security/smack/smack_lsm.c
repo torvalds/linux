@@ -3333,7 +3333,7 @@ static int smack_unix_stream_connect(struct sock *sock,
 		if (rc == 0) {
 			okp = osp->smk_out;
 			skp = ssp->smk_in;
-			rc = smk_access(okp, skp, MAY_WRITE, NULL);
+			rc = smk_access(okp, skp, MAY_WRITE, &ad);
 			rc = smk_bu_note("UDS connect", okp, skp,
 						MAY_WRITE, rc);
 		}
