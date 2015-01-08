@@ -744,8 +744,6 @@ struct drm_device {
 
 	/** \name Context support */
 	/*@{ */
-	bool irq_enabled;		/**< True if irq handler is enabled */
-	int irq;
 
 	__volatile__ long context_flag;	/**< Context swapping flag */
 	int last_context;		/**< Last current context */
@@ -753,6 +751,8 @@ struct drm_device {
 
 	/** \name VBLANK IRQ support */
 	/*@{ */
+	bool irq_enabled;
+	int irq;
 
 	/*
 	 * At load time, disabling the vblank interrupt won't be allowed since

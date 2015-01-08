@@ -275,10 +275,6 @@ static void mdp5_crtc_commit(struct drm_crtc *crtc)
 	mdp5_disable(get_kms(crtc));
 }
 
-static void mdp5_crtc_load_lut(struct drm_crtc *crtc)
-{
-}
-
 struct plane_state {
 	struct drm_plane *plane;
 	struct mdp5_plane_state *state;
@@ -402,7 +398,6 @@ static const struct drm_crtc_helper_funcs mdp5_crtc_helper_funcs = {
 	.mode_set_base = drm_helper_crtc_mode_set_base,
 	.prepare = mdp5_crtc_prepare,
 	.commit = mdp5_crtc_commit,
-	.load_lut = mdp5_crtc_load_lut,
 	.atomic_check = mdp5_crtc_atomic_check,
 	.atomic_begin = mdp5_crtc_atomic_begin,
 	.atomic_flush = mdp5_crtc_atomic_flush,

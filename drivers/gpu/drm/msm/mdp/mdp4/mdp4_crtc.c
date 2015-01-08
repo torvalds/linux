@@ -323,10 +323,6 @@ static void mdp4_crtc_commit(struct drm_crtc *crtc)
 	drm_crtc_vblank_put(crtc);
 }
 
-static void mdp4_crtc_load_lut(struct drm_crtc *crtc)
-{
-}
-
 static int mdp4_crtc_atomic_check(struct drm_crtc *crtc,
 		struct drm_crtc_state *state)
 {
@@ -515,7 +511,6 @@ static const struct drm_crtc_helper_funcs mdp4_crtc_helper_funcs = {
 	.mode_set_base = drm_helper_crtc_mode_set_base,
 	.prepare = mdp4_crtc_prepare,
 	.commit = mdp4_crtc_commit,
-	.load_lut = mdp4_crtc_load_lut,
 	.atomic_check = mdp4_crtc_atomic_check,
 	.atomic_begin = mdp4_crtc_atomic_begin,
 	.atomic_flush = mdp4_crtc_atomic_flush,

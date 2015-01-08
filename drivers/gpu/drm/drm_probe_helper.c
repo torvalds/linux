@@ -58,28 +58,23 @@
 static bool drm_kms_helper_poll = true;
 module_param_named(poll, drm_kms_helper_poll, bool, 0600);
 
-static void drm_mode_validate_flag(struct drm_connector *connector,
-				   int flags)
+static enum drm_mode_status
+drm_mode_validate_flag(const struct drm_display_mode *mode,
+		       int flags)
 {
-	struct drm_display_mode *mode;
+	if ((mode->flags & DRM_MODE_FLAG_INTERLACE) &&
+	    !(flags & DRM_MODE_FLAG_INTERLACE))
+		return MODE_NO_INTERLACE;
 
-	if (flags == (DRM_MODE_FLAG_DBLSCAN | DRM_MODE_FLAG_INTERLACE |
-		      DRM_MODE_FLAG_3D_MASK))
-		return;
+	if ((mode->flags & DRM_MODE_FLAG_DBLSCAN) &&
+	    !(flags & DRM_MODE_FLAG_DBLSCAN))
+		return MODE_NO_DBLESCAN;
 
-	list_for_each_entry(mode, &connector->modes, head) {
-		if ((mode->flags & DRM_MODE_FLAG_INTERLACE) &&
-				!(flags & DRM_MODE_FLAG_INTERLACE))
-			mode->status = MODE_NO_INTERLACE;
-		if ((mode->flags & DRM_MODE_FLAG_DBLSCAN) &&
-				!(flags & DRM_MODE_FLAG_DBLSCAN))
-			mode->status = MODE_NO_DBLESCAN;
-		if ((mode->flags & DRM_MODE_FLAG_3D_MASK) &&
-				!(flags & DRM_MODE_FLAG_3D_MASK))
-			mode->status = MODE_NO_STEREO;
-	}
+	if ((mode->flags & DRM_MODE_FLAG_3D_MASK) &&
+	    !(flags & DRM_MODE_FLAG_3D_MASK))
+		return MODE_NO_STEREO;
 
-	return;
+	return MODE_OK;
 }
 
 static int drm_helper_probe_add_cmdline_mode(struct drm_connector *connector)
@@ -164,18 +159,22 @@ static int drm_helper_probe_single_connector_modes_merge_bits(struct drm_connect
 
 	drm_mode_connector_list_update(connector, merge_type_bits);
 
-	if (maxX && maxY)
-		drm_mode_validate_size(dev, &connector->modes, maxX, maxY);
-
 	if (connector->interlace_allowed)
 		mode_flags |= DRM_MODE_FLAG_INTERLACE;
 	if (connector->doublescan_allowed)
 		mode_flags |= DRM_MODE_FLAG_DBLSCAN;
 	if (connector->stereo_allowed)
 		mode_flags |= DRM_MODE_FLAG_3D_MASK;
-	drm_mode_validate_flag(connector, mode_flags);
 
 	list_for_each_entry(mode, &connector->modes, head) {
+		mode->status = drm_mode_validate_basic(mode);
+
+		if (mode->status == MODE_OK)
+			mode->status = drm_mode_validate_size(mode, maxX, maxY);
+
+		if (mode->status == MODE_OK)
+			mode->status = drm_mode_validate_flag(mode, mode_flags);
+
 		if (mode->status == MODE_OK && connector_funcs->mode_valid)
 			mode->status = connector_funcs->mode_valid(connector,
 								   mode);

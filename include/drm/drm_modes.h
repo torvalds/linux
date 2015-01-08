@@ -217,9 +217,9 @@ bool drm_mode_equal_no_clocks_no_stereo(const struct drm_display_mode *mode1,
 					const struct drm_display_mode *mode2);
 
 /* for use by the crtc helper probe functions */
-void drm_mode_validate_size(struct drm_device *dev,
-			    struct list_head *mode_list,
-			    int maxX, int maxY);
+enum drm_mode_status drm_mode_validate_basic(const struct drm_display_mode *mode);
+enum drm_mode_status drm_mode_validate_size(const struct drm_display_mode *mode,
+					    int maxX, int maxY);
 void drm_mode_prune_invalid(struct drm_device *dev,
 			    struct list_head *mode_list, bool verbose);
 void drm_mode_sort(struct list_head *mode_list);

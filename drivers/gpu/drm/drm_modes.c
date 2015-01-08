@@ -906,9 +906,40 @@ bool drm_mode_equal_no_clocks_no_stereo(const struct drm_display_mode *mode1,
 EXPORT_SYMBOL(drm_mode_equal_no_clocks_no_stereo);
 
 /**
+ * drm_mode_validate_basic - make sure the mode is somewhat sane
+ * @mode: mode to check
+ *
+ * Check that the mode timings are at least somewhat reasonable.
+ * Any hardware specific limits are left up for each driver to check.
+ *
+ * Returns:
+ * The mode status
+ */
+enum drm_mode_status
+drm_mode_validate_basic(const struct drm_display_mode *mode)
+{
+	if (mode->clock == 0)
+		return MODE_CLOCK_LOW;
+
+	if (mode->hdisplay == 0 ||
+	    mode->hsync_start < mode->hdisplay ||
+	    mode->hsync_end < mode->hsync_start ||
+	    mode->htotal < mode->hsync_end)
+		return MODE_H_ILLEGAL;
+
+	if (mode->vdisplay == 0 ||
+	    mode->vsync_start < mode->vdisplay ||
+	    mode->vsync_end < mode->vsync_start ||
+	    mode->vtotal < mode->vsync_end)
+		return MODE_V_ILLEGAL;
+
+	return MODE_OK;
+}
+EXPORT_SYMBOL(drm_mode_validate_basic);
+
+/**
  * drm_mode_validate_size - make sure modes adhere to size constraints
- * @dev: DRM device
- * @mode_list: list of modes to check
+ * @mode: mode to check
  * @maxX: maximum width
  * @maxY: maximum height
  *
@@ -916,20 +947,21 @@ EXPORT_SYMBOL(drm_mode_equal_no_clocks_no_stereo);
  * limitations of the DRM device/connector. If a mode is too big its status
  * member is updated with the appropriate validation failure code. The list
  * itself is not changed.
+ *
+ * Returns:
+ * The mode status
  */
-void drm_mode_validate_size(struct drm_device *dev,
-			    struct list_head *mode_list,
-			    int maxX, int maxY)
+enum drm_mode_status
+drm_mode_validate_size(const struct drm_display_mode *mode,
+		       int maxX, int maxY)
 {
-	struct drm_display_mode *mode;
+	if (maxX > 0 && mode->hdisplay > maxX)
+		return MODE_VIRTUAL_X;
 
-	list_for_each_entry(mode, mode_list, head) {
-		if (maxX > 0 && mode->hdisplay > maxX)
-			mode->status = MODE_VIRTUAL_X;
+	if (maxY > 0 && mode->vdisplay > maxY)
+		return MODE_VIRTUAL_Y;
 
-		if (maxY > 0 && mode->vdisplay > maxY)
-			mode->status = MODE_VIRTUAL_Y;
-	}
+	return MODE_OK;
 }
 EXPORT_SYMBOL(drm_mode_validate_size);
 

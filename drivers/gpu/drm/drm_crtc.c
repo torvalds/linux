@@ -61,8 +61,8 @@ static struct drm_framebuffer *add_framebuffer_internal(struct drm_device *dev,
 /*
  * Global properties
  */
-static const struct drm_prop_enum_list drm_dpms_enum_list[] =
-{	{ DRM_MODE_DPMS_ON, "On" },
+static const struct drm_prop_enum_list drm_dpms_enum_list[] = {
+	{ DRM_MODE_DPMS_ON, "On" },
 	{ DRM_MODE_DPMS_STANDBY, "Standby" },
 	{ DRM_MODE_DPMS_SUSPEND, "Suspend" },
 	{ DRM_MODE_DPMS_OFF, "Off" }
@@ -70,8 +70,7 @@ static const struct drm_prop_enum_list drm_dpms_enum_list[] =
 
 DRM_ENUM_NAME_FN(drm_get_dpms_name, drm_dpms_enum_list)
 
-static const struct drm_prop_enum_list drm_plane_type_enum_list[] =
-{
+static const struct drm_prop_enum_list drm_plane_type_enum_list[] = {
 	{ DRM_PLANE_TYPE_OVERLAY, "Overlay" },
 	{ DRM_PLANE_TYPE_PRIMARY, "Primary" },
 	{ DRM_PLANE_TYPE_CURSOR, "Cursor" },
@@ -80,8 +79,7 @@ static const struct drm_prop_enum_list drm_plane_type_enum_list[] =
 /*
  * Optional properties
  */
-static const struct drm_prop_enum_list drm_scaling_mode_enum_list[] =
-{
+static const struct drm_prop_enum_list drm_scaling_mode_enum_list[] = {
 	{ DRM_MODE_SCALE_NONE, "None" },
 	{ DRM_MODE_SCALE_FULLSCREEN, "Full" },
 	{ DRM_MODE_SCALE_CENTER, "Center" },
@@ -97,8 +95,7 @@ static const struct drm_prop_enum_list drm_aspect_ratio_enum_list[] = {
 /*
  * Non-global properties, but "required" for certain connectors.
  */
-static const struct drm_prop_enum_list drm_dvi_i_select_enum_list[] =
-{
+static const struct drm_prop_enum_list drm_dvi_i_select_enum_list[] = {
 	{ DRM_MODE_SUBCONNECTOR_Automatic, "Automatic" }, /* DVI-I and TV-out */
 	{ DRM_MODE_SUBCONNECTOR_DVID,      "DVI-D"     }, /* DVI-I  */
 	{ DRM_MODE_SUBCONNECTOR_DVIA,      "DVI-A"     }, /* DVI-I  */
@@ -106,8 +103,7 @@ static const struct drm_prop_enum_list drm_dvi_i_select_enum_list[] =
 
 DRM_ENUM_NAME_FN(drm_get_dvi_i_select_name, drm_dvi_i_select_enum_list)
 
-static const struct drm_prop_enum_list drm_dvi_i_subconnector_enum_list[] =
-{
+static const struct drm_prop_enum_list drm_dvi_i_subconnector_enum_list[] = {
 	{ DRM_MODE_SUBCONNECTOR_Unknown,   "Unknown"   }, /* DVI-I and TV-out */
 	{ DRM_MODE_SUBCONNECTOR_DVID,      "DVI-D"     }, /* DVI-I  */
 	{ DRM_MODE_SUBCONNECTOR_DVIA,      "DVI-A"     }, /* DVI-I  */
@@ -116,8 +112,7 @@ static const struct drm_prop_enum_list drm_dvi_i_subconnector_enum_list[] =
 DRM_ENUM_NAME_FN(drm_get_dvi_i_subconnector_name,
 		 drm_dvi_i_subconnector_enum_list)
 
-static const struct drm_prop_enum_list drm_tv_select_enum_list[] =
-{
+static const struct drm_prop_enum_list drm_tv_select_enum_list[] = {
 	{ DRM_MODE_SUBCONNECTOR_Automatic, "Automatic" }, /* DVI-I and TV-out */
 	{ DRM_MODE_SUBCONNECTOR_Composite, "Composite" }, /* TV-out */
 	{ DRM_MODE_SUBCONNECTOR_SVIDEO,    "SVIDEO"    }, /* TV-out */
@@ -127,8 +122,7 @@ static const struct drm_prop_enum_list drm_tv_select_enum_list[] =
 
 DRM_ENUM_NAME_FN(drm_get_tv_select_name, drm_tv_select_enum_list)
 
-static const struct drm_prop_enum_list drm_tv_subconnector_enum_list[] =
-{
+static const struct drm_prop_enum_list drm_tv_subconnector_enum_list[] = {
 	{ DRM_MODE_SUBCONNECTOR_Unknown,   "Unknown"   }, /* DVI-I and TV-out */
 	{ DRM_MODE_SUBCONNECTOR_Composite, "Composite" }, /* TV-out */
 	{ DRM_MODE_SUBCONNECTOR_SVIDEO,    "SVIDEO"    }, /* TV-out */
@@ -154,8 +148,8 @@ struct drm_conn_prop_enum_list {
 /*
  * Connector and encoder types.
  */
-static struct drm_conn_prop_enum_list drm_connector_enum_list[] =
-{	{ DRM_MODE_CONNECTOR_Unknown, "Unknown" },
+static struct drm_conn_prop_enum_list drm_connector_enum_list[] = {
+	{ DRM_MODE_CONNECTOR_Unknown, "Unknown" },
 	{ DRM_MODE_CONNECTOR_VGA, "VGA" },
 	{ DRM_MODE_CONNECTOR_DVII, "DVI-I" },
 	{ DRM_MODE_CONNECTOR_DVID, "DVI-D" },
@@ -174,8 +168,8 @@ static struct drm_conn_prop_enum_list drm_connector_enum_list[] =
 	{ DRM_MODE_CONNECTOR_DSI, "DSI" },
 };
 
-static const struct drm_prop_enum_list drm_encoder_enum_list[] =
-{	{ DRM_MODE_ENCODER_NONE, "None" },
+static const struct drm_prop_enum_list drm_encoder_enum_list[] = {
+	{ DRM_MODE_ENCODER_NONE, "None" },
 	{ DRM_MODE_ENCODER_DAC, "DAC" },
 	{ DRM_MODE_ENCODER_TMDS, "TMDS" },
 	{ DRM_MODE_ENCODER_LVDS, "LVDS" },
@@ -185,8 +179,7 @@ static const struct drm_prop_enum_list drm_encoder_enum_list[] =
 	{ DRM_MODE_ENCODER_DPMST, "DP MST" },
 };
 
-static const struct drm_prop_enum_list drm_subpixel_enum_list[] =
-{
+static const struct drm_prop_enum_list drm_subpixel_enum_list[] = {
 	{ SubPixelUnknown, "Unknown" },
 	{ SubPixelHorizontalRGB, "Horizontal RGB" },
 	{ SubPixelHorizontalBGR, "Horizontal BGR" },
@@ -1142,6 +1135,7 @@ EXPORT_SYMBOL(drm_encoder_init);
 void drm_encoder_cleanup(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
+
 	drm_modeset_lock_all(dev);
 	drm_mode_object_put(dev, &encoder->base);
 	kfree(encoder->name);
@@ -1185,8 +1179,8 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	plane->base.properties = &plane->properties;
 	plane->dev = dev;
 	plane->funcs = funcs;
-	plane->format_types = kmalloc(sizeof(uint32_t) * format_count,
-				      GFP_KERNEL);
+	plane->format_types = kmalloc_array(format_count, sizeof(uint32_t),
+					    GFP_KERNEL);
 	if (!plane->format_types) {
 		DRM_DEBUG_KMS("out of memory when allocating plane\n");
 		drm_mode_object_put(dev, &plane->base);
@@ -1599,7 +1593,7 @@ static int drm_mode_group_init(struct drm_device *dev, struct drm_mode_group *gr
 	total_objects += dev->mode_config.num_encoder;
 	total_objects += dev->mode_config.num_bridge;
 
-	group->id_list = kzalloc(total_objects * sizeof(uint32_t), GFP_KERNEL);
+	group->id_list = kcalloc(total_objects, sizeof(uint32_t), GFP_KERNEL);
 	if (!group->id_list)
 		return -ENOMEM;
 
@@ -1629,7 +1623,8 @@ int drm_mode_group_init_legacy_group(struct drm_device *dev,
 	struct drm_bridge *bridge;
 	int ret;
 
-	if ((ret = drm_mode_group_init(dev, group)))
+	ret = drm_mode_group_init(dev, group);
+	if (ret)
 		return ret;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
@@ -2045,11 +2040,9 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 
 	props_count = connector->properties.count;
 
-	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
-		if (connector->encoder_ids[i] != 0) {
+	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++)
+		if (connector->encoder_ids[i] != 0)
 			encoders_count++;
-		}
-	}
 
 	if (out_resp->count_modes == 0) {
 		connector->funcs->fill_modes(connector,
@@ -2529,7 +2522,7 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
  *
  * This is a little helper to wrap internal calls to the ->set_config driver
  * interface. The only thing it adds is correct refcounting dance.
- * 
+ *
  * Returns:
  * Zero on success, negative errno on failure.
  */
@@ -2690,6 +2683,12 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 			goto out;
 		}
 
+		mode->status = drm_mode_validate_basic(mode);
+		if (mode->status != MODE_OK) {
+			ret = -EINVAL;
+			goto out;
+		}
+
 		drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
 
 		ret = drm_crtc_check_viewport(crtc, crtc_req->x, crtc_req->y,
@@ -2721,9 +2720,9 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 			goto out;
 		}
 
-		connector_set = kmalloc(crtc_req->count_connectors *
-					sizeof(struct drm_connector *),
-					GFP_KERNEL);
+		connector_set = kmalloc_array(crtc_req->count_connectors,
+					      sizeof(struct drm_connector *),
+					      GFP_KERNEL);
 		if (!connector_set) {
 			ret = -ENOMEM;
 			goto out;
@@ -2968,6 +2967,7 @@ int drm_mode_cursor2_ioctl(struct drm_device *dev,
 			   void *data, struct drm_file *file_priv)
 {
 	struct drm_mode_cursor2 *req = data;
+
 	return drm_mode_cursor_common(dev, req, file_priv);
 }
 
@@ -3415,7 +3415,7 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 			ret = -EINVAL;
 			goto out_err1;
 		}
-		clips = kzalloc(num_clips * sizeof(*clips), GFP_KERNEL);
+		clips = kcalloc(num_clips, sizeof(*clips), GFP_KERNEL);
 		if (!clips) {
 			ret = -ENOMEM;
 			goto out_err1;
@@ -3516,7 +3516,8 @@ struct drm_property *drm_property_create(struct drm_device *dev, int flags,
 	property->dev = dev;
 
 	if (num_values) {
-		property->values = kzalloc(sizeof(uint64_t)*num_values, GFP_KERNEL);
+		property->values = kcalloc(num_values, sizeof(uint64_t),
+					   GFP_KERNEL);
 		if (!property->values)
 			goto fail;
 	}
@@ -4057,7 +4058,7 @@ int drm_mode_getblob_ioctl(struct drm_device *dev,
 
 	if (out_resp->length == blob->length) {
 		blob_ptr = (void __user *)(unsigned long)out_resp->data;
-		if (copy_to_user(blob_ptr, blob->data, blob->length)){
+		if (copy_to_user(blob_ptr, blob->data, blob->length)) {
 			ret = -EFAULT;
 			goto done;
 		}
@@ -4196,6 +4197,8 @@ EXPORT_SYMBOL(drm_mode_connector_update_edid_property);
 static bool drm_property_change_is_valid(struct drm_property *property,
 					 uint64_t value)
 {
+	int i;
+
 	if (property->flags & DRM_MODE_PROP_IMMUTABLE)
 		return false;
 
@@ -4205,13 +4208,14 @@ static bool drm_property_change_is_valid(struct drm_property *property,
 		return true;
 	} else if (drm_property_type_is(property, DRM_MODE_PROP_SIGNED_RANGE)) {
 		int64_t svalue = U642I64(value);
+
 		if (svalue < U642I64(property->values[0]) ||
 				svalue > U642I64(property->values[1]))
 			return false;
 		return true;
 	} else if (drm_property_type_is(property, DRM_MODE_PROP_BITMASK)) {
-		int i;
 		uint64_t valid_mask = 0;
+
 		for (i = 0; i < property->num_values; i++)
 			valid_mask |= (1ULL << property->values[i]);
 		return !(value & ~valid_mask);
@@ -4220,6 +4224,7 @@ static bool drm_property_change_is_valid(struct drm_property *property,
 		return true;
 	} else if (drm_property_type_is(property, DRM_MODE_PROP_OBJECT)) {
 		struct drm_mode_object *obj;
+
 		/* a zero value for an object property translates to null: */
 		if (value == 0)
 			return true;
@@ -4232,13 +4237,12 @@ static bool drm_property_change_is_valid(struct drm_property *property,
 		 */
 		obj = _object_find(property->dev, value, property->values[0]);
 		return obj != NULL;
-	} else {
-		int i;
-		for (i = 0; i < property->num_values; i++)
-			if (property->values[i] == value)
-				return true;
-		return false;
 	}
+
+	for (i = 0; i < property->num_values; i++)
+		if (property->values[i] == value)
+			return true;
+	return false;
 }
 
 /**
@@ -4526,7 +4530,8 @@ int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 {
 	crtc->gamma_size = gamma_size;
 
-	crtc->gamma_store = kzalloc(gamma_size * sizeof(uint16_t) * 3, GFP_KERNEL);
+	crtc->gamma_store = kcalloc(gamma_size, sizeof(uint16_t) * 3,
+				    GFP_KERNEL);
 	if (!crtc->gamma_store) {
 		crtc->gamma_size = 0;
 		return -ENOMEM;
@@ -4741,23 +4746,23 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
 		ret = -ENOMEM;
 		spin_lock_irqsave(&dev->event_lock, flags);
-		if (file_priv->event_space < sizeof e->event) {
+		if (file_priv->event_space < sizeof(e->event)) {
 			spin_unlock_irqrestore(&dev->event_lock, flags);
 			goto out;
 		}
-		file_priv->event_space -= sizeof e->event;
+		file_priv->event_space -= sizeof(e->event);
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 
-		e = kzalloc(sizeof *e, GFP_KERNEL);
+		e = kzalloc(sizeof(*e), GFP_KERNEL);
 		if (e == NULL) {
 			spin_lock_irqsave(&dev->event_lock, flags);
-			file_priv->event_space += sizeof e->event;
+			file_priv->event_space += sizeof(e->event);
 			spin_unlock_irqrestore(&dev->event_lock, flags);
 			goto out;
 		}
 
 		e->event.base.type = DRM_EVENT_FLIP_COMPLETE;
-		e->event.base.length = sizeof e->event;
+		e->event.base.length = sizeof(e->event);
 		e->event.user_data = page_flip->user_data;
 		e->base.event = &e->event.base;
 		e->base.file_priv = file_priv;
@@ -4770,7 +4775,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	if (ret) {
 		if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
 			spin_lock_irqsave(&dev->event_lock, flags);
-			file_priv->event_space += sizeof e->event;
+			file_priv->event_space += sizeof(e->event);
 			spin_unlock_irqrestore(&dev->event_lock, flags);
 			kfree(e);
 		}
