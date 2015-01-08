@@ -555,7 +555,7 @@ dtb-$(CONFIG_ARCH_MEDIATEK) += mt6589-aquaris5.dtb \
 	mt6592-evb.dtb \
 	mt8127-moose.dtb \
 	mt8135-evbp1.dtb
-
+dtb-$(CONFIG_MACH_ASM9260) += alphascale-asm9260-devkit.dtb
 endif
 
 always		:= $(dtb-y)
