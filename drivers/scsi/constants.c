@@ -18,8 +18,6 @@
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_dbg.h>
 
-
-
 /* Commands with service actions that change the command name */
 #define THIRD_PARTY_COPY_OUT 0x83
 #define THIRD_PARTY_COPY_IN 0x84
@@ -35,7 +33,6 @@ struct value_name_pair {
 	const char * name;
 };
 
-#ifdef CONFIG_SCSI_CONSTANTS
 static const char * cdb_byte0_names[] = {
 /* 00-03 */ "Test Unit Ready", "Rezero Unit/Rewind", NULL, "Request Sense",
 /* 04-07 */ "Format Unit/Medium", "Read Block Limits", NULL,
@@ -259,26 +256,6 @@ static struct sa_name_list sa_names_arr[] = {
 	{0, NULL, 0},
 };
 
-#else /* ifndef CONFIG_SCSI_CONSTANTS */
-static const char *cdb_byte0_names[0];
-
-static struct sa_name_list sa_names_arr[] = {
-	{VARIABLE_LENGTH_CMD, NULL, 0},
-	{MAINTENANCE_IN, NULL, 0},
-	{MAINTENANCE_OUT, NULL, 0},
-	{PERSISTENT_RESERVE_IN, NULL, 0},
-	{PERSISTENT_RESERVE_OUT, NULL, 0},
-	{SERVICE_ACTION_IN_12, NULL, 0},
-	{SERVICE_ACTION_OUT_12, NULL, 0},
-	{SERVICE_ACTION_BIDIRECTIONAL, NULL, 0},
-	{SERVICE_ACTION_IN_16, NULL, 0},
-	{SERVICE_ACTION_OUT_16, NULL, 0},
-	{THIRD_PARTY_COPY_IN, NULL, 0},
-	{THIRD_PARTY_COPY_OUT, NULL, 0},
-	{0, NULL, 0},
-};
-#endif /* CONFIG_SCSI_CONSTANTS */
-
 bool scsi_opcode_sa_name(int opcode, int service_action,
 			 const char **cdb_name, const char **sa_name)
 {
@@ -312,8 +289,6 @@ bool scsi_opcode_sa_name(int opcode, int service_action,
 
 	return true;
 }
-
-#ifdef CONFIG_SCSI_CONSTANTS
 
 struct error_info {
 	unsigned short code12;	/* 0x0302 looks better than 0x03,0x02 */
@@ -1203,15 +1178,12 @@ static const char * const snstext[] = {
 	"Completed",	    /* F: command completed sense data reported,
 				  may occur for successful command */
 };
-#endif
 
 /* Get sense key string or NULL if not available */
 const char *
 scsi_sense_key_string(unsigned char key) {
-#ifdef CONFIG_SCSI_CONSTANTS
 	if (key <= 0xE)
 		return snstext[key];
-#endif
 	return NULL;
 }
 EXPORT_SYMBOL(scsi_sense_key_string);
@@ -1223,7 +1195,6 @@ EXPORT_SYMBOL(scsi_sense_key_string);
 const char *
 scsi_extd_sense_format(unsigned char asc, unsigned char ascq, const char **fmt)
 {
-#ifdef CONFIG_SCSI_CONSTANTS
 	int i;
 	unsigned short code = ((asc << 8) | ascq);
 
@@ -1239,14 +1210,9 @@ scsi_extd_sense_format(unsigned char asc, unsigned char ascq, const char **fmt)
 			return additional2[i].str;
 		}
 	}
-#else
-	*fmt = NULL;
-#endif
 	return NULL;
 }
 EXPORT_SYMBOL(scsi_extd_sense_format);
-
-#ifdef CONFIG_SCSI_CONSTANTS
 
 static const char * const hostbyte_table[]={
 "DID_OK", "DID_NO_CONNECT", "DID_BUS_BUSY", "DID_TIME_OUT", "DID_BAD_TARGET",
@@ -1259,17 +1225,13 @@ static const char * const driverbyte_table[]={
 "DRIVER_OK", "DRIVER_BUSY", "DRIVER_SOFT",  "DRIVER_MEDIA", "DRIVER_ERROR",
 "DRIVER_INVALID", "DRIVER_TIMEOUT", "DRIVER_HARD", "DRIVER_SENSE"};
 
-#endif
-
 const char *scsi_hostbyte_string(int result)
 {
 	const char *hb_string = NULL;
-#ifdef CONFIG_SCSI_CONSTANTS
 	int hb = host_byte(result);
 
 	if (hb < ARRAY_SIZE(hostbyte_table))
 		hb_string = hostbyte_table[hb];
-#endif
 	return hb_string;
 }
 EXPORT_SYMBOL(scsi_hostbyte_string);
@@ -1277,17 +1239,14 @@ EXPORT_SYMBOL(scsi_hostbyte_string);
 const char *scsi_driverbyte_string(int result)
 {
 	const char *db_string = NULL;
-#ifdef CONFIG_SCSI_CONSTANTS
 	int db = driver_byte(result);
 
 	if (db < ARRAY_SIZE(driverbyte_table))
 		db_string = driverbyte_table[db];
-#endif
 	return db_string;
 }
 EXPORT_SYMBOL(scsi_driverbyte_string);
 
-#ifdef CONFIG_SCSI_CONSTANTS
 #define scsi_mlreturn_name(result)	{ result, #result }
 static const struct value_name_pair scsi_mlreturn_arr[] = {
 	scsi_mlreturn_name(NEEDS_RETRY),
@@ -1300,11 +1259,9 @@ static const struct value_name_pair scsi_mlreturn_arr[] = {
 	scsi_mlreturn_name(SCSI_RETURN_NOT_HANDLED),
 	scsi_mlreturn_name(FAST_IO_FAIL)
 };
-#endif
 
 const char *scsi_mlreturn_string(int result)
 {
-#ifdef CONFIG_SCSI_CONSTANTS
 	const struct value_name_pair *arr = scsi_mlreturn_arr;
 	int k;
 
@@ -1312,7 +1269,6 @@ const char *scsi_mlreturn_string(int result)
 		if (result == arr->value)
 			return arr->name;
 	}
-#endif
 	return NULL;
 }
 EXPORT_SYMBOL(scsi_mlreturn_string);
