@@ -2049,7 +2049,6 @@ static void snd_ensoniq_chip_init(struct ensoniq *ensoniq)
 #ifdef CONFIG_PM_SLEEP
 static int snd_ensoniq_suspend(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct ensoniq *ensoniq = card->private_data;
 	
@@ -2070,27 +2069,13 @@ static int snd_ensoniq_suspend(struct device *dev)
 	udelay(100);
 	snd_ak4531_suspend(ensoniq->u.es1370.ak4531);
 #endif	
-
-	pci_disable_device(pci);
-	pci_save_state(pci);
-	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
 static int snd_ensoniq_resume(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct ensoniq *ensoniq = card->private_data;
-
-	pci_set_power_state(pci, PCI_D0);
-	pci_restore_state(pci);
-	if (pci_enable_device(pci) < 0) {
-		dev_err(dev, "pci_enable_device failed, disabling device\n");
-		snd_card_disconnect(card);
-		return -EIO;
-	}
-	pci_set_master(pci);
 
 	snd_ensoniq_chip_init(ensoniq);
 
