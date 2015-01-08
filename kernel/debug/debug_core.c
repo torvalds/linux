@@ -604,7 +604,7 @@ return_normal:
 		   online_cpus)
 		cpu_relax();
 	if (!time_left)
-		pr_crit("KGDB: Timed out waiting for secondary CPUs.\n");
+		pr_crit("Timed out waiting for secondary CPUs.\n");
 
 	/*
 	 * At this point the primary processor is completely
