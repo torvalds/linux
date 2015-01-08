@@ -629,6 +629,7 @@ static int mcf_probe(struct platform_device *pdev)
 		port->mapbase = platp[i].mapbase;
 		port->membase = (platp[i].membase) ? platp[i].membase :
 			(unsigned char __iomem *) platp[i].mapbase;
+		port->dev = &pdev->dev;
 		port->iotype = SERIAL_IO_MEM;
 		port->irq = platp[i].irq;
 		port->uartclk = MCF_BUSCLK;
