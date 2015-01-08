@@ -803,7 +803,7 @@ static int azx_suspend(struct device *dev)
 	pci_save_state(pci);
 	pci_set_power_state(pci, PCI_D3hot);
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
-		hda_display_power(false);
+		hda_display_power(hda, false);
 	return 0;
 }
 
@@ -823,8 +823,8 @@ static int azx_resume(struct device *dev)
 		return 0;
 
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
-		hda_display_power(true);
-		haswell_set_bclk(chip);
+		hda_display_power(hda, true);
+		haswell_set_bclk(hda);
 	}
 	pci_set_power_state(pci, PCI_D0);
 	pci_restore_state(pci);
@@ -876,7 +876,7 @@ static int azx_runtime_suspend(struct device *dev)
 	azx_enter_link_reset(chip);
 	azx_clear_irq_pending(chip);
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
-		hda_display_power(false);
+		hda_display_power(hda, false);
 
 	return 0;
 }
@@ -902,8 +902,8 @@ static int azx_runtime_resume(struct device *dev)
 		return 0;
 
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
-		hda_display_power(true);
-		haswell_set_bclk(chip);
+		hda_display_power(hda, true);
+		haswell_set_bclk(hda);
 	}
 
 	/* Read STATESTS before controller reset */
@@ -1125,8 +1125,8 @@ static int azx_free(struct azx *chip)
 	release_firmware(chip->fw);
 #endif
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
-		hda_display_power(false);
-		hda_i915_exit();
+		hda_display_power(hda, false);
+		hda_i915_exit(hda);
 	}
 	kfree(hda);
 
@@ -1604,8 +1604,12 @@ static int azx_first_init(struct azx *chip)
 	/* initialize chip */
 	azx_init_pci(chip);
 
-	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
-		haswell_set_bclk(chip);
+	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
+		struct hda_intel *hda;
+
+		hda = container_of(chip, struct hda_intel, chip);
+		haswell_set_bclk(hda);
+	}
 
 	azx_init_chip(chip, (probe_only[dev] & 2) == 0);
 
@@ -1885,13 +1889,13 @@ static int azx_probe_continue(struct azx *chip)
 	/* Request power well for Haswell HDA controller and codec */
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
 #ifdef CONFIG_SND_HDA_I915
-		err = hda_i915_init();
+		err = hda_i915_init(hda);
 		if (err < 0) {
 			dev_err(chip->card->dev,
 				"Error request power-well from i915\n");
 			goto out_free;
 		}
-		err = hda_display_power(true);
+		err = hda_display_power(hda, true);
 		if (err < 0) {
 			dev_err(chip->card->dev,
 				"Cannot turn on display power on i915\n");

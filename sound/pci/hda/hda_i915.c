@@ -35,7 +35,7 @@ static int (*get_power)(void);
 static int (*put_power)(void);
 static int (*get_cdclk)(void);
 
-int hda_display_power(bool enable)
+int hda_display_power(struct hda_intel *hda, bool enable)
 {
 	if (!get_power || !put_power)
 		return -ENODEV;
@@ -48,7 +48,7 @@ int hda_display_power(bool enable)
 		return put_power();
 }
 
-void haswell_set_bclk(struct azx *chip)
+void haswell_set_bclk(struct hda_intel *hda)
 {
 	int cdclk_freq;
 	unsigned int bclk_m, bclk_n;
@@ -80,12 +80,12 @@ void haswell_set_bclk(struct azx *chip)
 		break;
 	}
 
-	azx_writew(chip, EM4, bclk_m);
-	azx_writew(chip, EM5, bclk_n);
+	azx_writew(&hda->chip, EM4, bclk_m);
+	azx_writew(&hda->chip, EM5, bclk_n);
 }
 
 
-int hda_i915_init(void)
+int hda_i915_init(struct hda_intel *hda)
 {
 	int err = 0;
 
@@ -111,7 +111,7 @@ int hda_i915_init(void)
 	return err;
 }
 
-int hda_i915_exit(void)
+int hda_i915_exit(struct hda_intel *hda)
 {
 	if (get_power) {
 		symbol_put(i915_request_power_well);

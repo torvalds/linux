@@ -44,18 +44,21 @@ struct hda_intel {
 };
 
 #ifdef CONFIG_SND_HDA_I915
-int hda_display_power(bool enable);
-void haswell_set_bclk(struct azx *chip);
-int hda_i915_init(void);
-int hda_i915_exit(void);
+int hda_display_power(struct hda_intel *hda, bool enable);
+void haswell_set_bclk(struct hda_intel *hda);
+int hda_i915_init(struct hda_intel *hda);
+int hda_i915_exit(struct hda_intel *hda);
 #else
-static inline int hda_display_power(bool enable) { return 0; }
-static inline void haswell_set_bclk(struct azx *chip) { return; }
-static inline int hda_i915_init(void)
+static inline int hda_display_power(struct hda_intel *hda, bool enable)
+{
+	return 0;
+}
+static inline void haswell_set_bclk(struct hda_intel *hda) { return; }
+static inline int hda_i915_init(struct hda_intel *hda)
 {
 	return -ENODEV;
 }
-static inline int hda_i915_exit(void)
+static inline int hda_i915_exit(struct hda_intel *hda)
 {
 	return 0;
 }
