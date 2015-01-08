@@ -3694,7 +3694,7 @@ static int rbd_dev_refresh(struct rbd_device *rbd_dev)
 
 	ret = rbd_dev_header_info(rbd_dev);
 	if (ret)
-		return ret;
+		goto out;
 
 	/*
 	 * If there is a parent, see if it has disappeared due to the
@@ -3703,23 +3703,22 @@ static int rbd_dev_refresh(struct rbd_device *rbd_dev)
 	if (rbd_dev->parent) {
 		ret = rbd_dev_v2_parent_info(rbd_dev);
 		if (ret)
-			return ret;
+			goto out;
 	}
 
 	if (rbd_dev->spec->snap_id == CEPH_NOSNAP) {
-		if (rbd_dev->mapping.size != rbd_dev->header.image_size)
-			rbd_dev->mapping.size = rbd_dev->header.image_size;
+		rbd_dev->mapping.size = rbd_dev->header.image_size;
 	} else {
 		/* validate mapped snapshot's EXISTS flag */
 		rbd_exists_validate(rbd_dev);
 	}
 
+out:
 	up_write(&rbd_dev->header_rwsem);
-
-	if (mapping_size != rbd_dev->mapping.size)
+	if (!ret && mapping_size != rbd_dev->mapping.size)
 		rbd_dev_update_size(rbd_dev);
 
-	return 0;
+	return ret;
 }
 
 static int rbd_init_disk(struct rbd_device *rbd_dev)
