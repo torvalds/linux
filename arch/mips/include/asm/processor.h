@@ -399,4 +399,15 @@ unsigned long get_wchan(struct task_struct *p);
 
 #endif
 
+/*
+ * Functions & macros implementing the PR_GET_FP_MODE & PR_SET_FP_MODE options
+ * to the prctl syscall.
+ */
+extern int mips_get_process_fp_mode(struct task_struct *task);
+extern int mips_set_process_fp_mode(struct task_struct *task,
+				    unsigned int value);
+
+#define GET_FP_MODE(task)		mips_get_process_fp_mode(task)
+#define SET_FP_MODE(task,value)		mips_set_process_fp_mode(task, value)
+
 #endif /* _ASM_PROCESSOR_H */
