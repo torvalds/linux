@@ -229,4 +229,14 @@ config CLKSRC_MIPS_GIC
 	depends on MIPS_GIC
 	select CLKSRC_OF
 
+config ASM9260_TIMER
+	bool "Alphascale ASM9260 timer driver"
+	depends on GENERIC_CLOCKEVENTS
+	select CLKSRC_MMIO
+	select CLKSRC_OF
+	default y if MACH_ASM9260
+	help
+	  This enables build of a clocksource and clockevent driver for
+	  the 32-bit System Timer hardware available on a Alphascale ASM9260.
+
 endmenu
