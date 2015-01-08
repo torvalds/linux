@@ -724,15 +724,15 @@ F:	include/uapi/linux/apm_bios.h
 F:	drivers/char/apm-emulation.c
 
 APPLE BCM5974 MULTITOUCH DRIVER
-M:	Henrik Rydberg <rydberg@euromail.se>
+M:	Henrik Rydberg <rydberg@bitmath.org>
 L:	linux-input@vger.kernel.org
-S:	Maintained
+S:	Odd fixes
 F:	drivers/input/mouse/bcm5974.c
 
 APPLE SMC DRIVER
-M:	Henrik Rydberg <rydberg@euromail.se>
+M:	Henrik Rydberg <rydberg@bitmath.org>
 L:	lm-sensors@lm-sensors.org
-S:	Maintained
+S:	Odd fixes
 F:	drivers/hwmon/applesmc.c
 
 APPLETALK NETWORK LAYER
@@ -4940,10 +4940,10 @@ F:	include/uapi/linux/input.h
 F:	include/linux/input/
 
 INPUT MULTITOUCH (MT) PROTOCOL
-M:	Henrik Rydberg <rydberg@euromail.se>
+M:	Henrik Rydberg <rydberg@bitmath.org>
 L:	linux-input@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rydberg/input-mt.git
-S:	Maintained
+S:	Odd fixes
 F:	Documentation/input/multi-touch-protocol.txt
 F:	drivers/input/input-mt.c
 K:	\b(ABS|SYN)_MT_
