@@ -217,51 +217,6 @@ ENDPROC(native_usergs_sysret64)
 	CFI_REL_OFFSET r15, R15+\offset
 	.endm
 
-/* save partial stack frame */
-	.macro SAVE_ARGS_IRQ
-	cld
-	/* start from rbp in pt_regs and jump over */
-	movq_cfi rdi, (RDI-RBP)
-	movq_cfi rsi, (RSI-RBP)
-	movq_cfi rdx, (RDX-RBP)
-	movq_cfi rcx, (RCX-RBP)
-	movq_cfi rax, (RAX-RBP)
-	movq_cfi  r8,  (R8-RBP)
-	movq_cfi  r9,  (R9-RBP)
-	movq_cfi r10, (R10-RBP)
-	movq_cfi r11, (R11-RBP)
-
-	/* Save rbp so that we can unwind from get_irq_regs() */
-	movq_cfi rbp, 0
-
-	/* Save previous stack value */
-	movq %rsp, %rsi
-
-	leaq -RBP(%rsp),%rdi	/* arg1 for handler */
-	testl $3, CS-RBP(%rsi)
-	je 1f
-	SWAPGS
-	/*
-	 * irq_count is used to check if a CPU is already on an interrupt stack
-	 * or not. While this is essentially redundant with preempt_count it is
-	 * a little cheaper to use a separate counter in the PDA (short of
-	 * moving irq_enter into assembly, which would be too much work)
-	 */
-1:	incl PER_CPU_VAR(irq_count)
-	cmovzq PER_CPU_VAR(irq_stack_ptr),%rsp
-	CFI_DEF_CFA_REGISTER	rsi
-
-	/* Store previous stack value */
-	pushq %rsi
-	CFI_ESCAPE	0x0f /* DW_CFA_def_cfa_expression */, 6, \
-			0x77 /* DW_OP_breg7 */, 0, \
-			0x06 /* DW_OP_deref */, \
-			0x08 /* DW_OP_const1u */, SS+8-RBP, \
-			0x22 /* DW_OP_plus */
-	/* We entered an interrupt context - irqs are off: */
-	TRACE_IRQS_OFF
-	.endm
-
 ENTRY(save_paranoid)
 	XCPT_FRAME 1 RDI+8
 	cld
@@ -745,7 +700,48 @@ END(interrupt)
 	/* reserve pt_regs for scratch regs and rbp */
 	subq $ORIG_RAX-RBP, %rsp
 	CFI_ADJUST_CFA_OFFSET ORIG_RAX-RBP
-	SAVE_ARGS_IRQ
+	cld
+	/* start from rbp in pt_regs and jump over */
+	movq_cfi rdi, (RDI-RBP)
+	movq_cfi rsi, (RSI-RBP)
+	movq_cfi rdx, (RDX-RBP)
+	movq_cfi rcx, (RCX-RBP)
+	movq_cfi rax, (RAX-RBP)
+	movq_cfi  r8,  (R8-RBP)
+	movq_cfi  r9,  (R9-RBP)
+	movq_cfi r10, (R10-RBP)
+	movq_cfi r11, (R11-RBP)
+
+	/* Save rbp so that we can unwind from get_irq_regs() */
+	movq_cfi rbp, 0
+
+	/* Save previous stack value */
+	movq %rsp, %rsi
+
+	leaq -RBP(%rsp),%rdi	/* arg1 for handler */
+	testl $3, CS-RBP(%rsi)
+	je 1f
+	SWAPGS
+	/*
+	 * irq_count is used to check if a CPU is already on an interrupt stack
+	 * or not. While this is essentially redundant with preempt_count it is
+	 * a little cheaper to use a separate counter in the PDA (short of
+	 * moving irq_enter into assembly, which would be too much work)
+	 */
+1:	incl PER_CPU_VAR(irq_count)
+	cmovzq PER_CPU_VAR(irq_stack_ptr),%rsp
+	CFI_DEF_CFA_REGISTER	rsi
+
+	/* Store previous stack value */
+	pushq %rsi
+	CFI_ESCAPE	0x0f /* DW_CFA_def_cfa_expression */, 6, \
+			0x77 /* DW_OP_breg7 */, 0, \
+			0x06 /* DW_OP_deref */, \
+			0x08 /* DW_OP_const1u */, SS+8-RBP, \
+			0x22 /* DW_OP_plus */
+	/* We entered an interrupt context - irqs are off: */
+	TRACE_IRQS_OFF
+
 	call \func
 	.endm
 
