@@ -1464,19 +1464,33 @@ out_unlocked:
 	return err;
 }
 
+static int check_cap_flush(struct inode *inode, u64 want_flush_seq)
+{
+	struct ceph_inode_info *ci = ceph_inode(inode);
+	int ret;
+	spin_lock(&ci->i_ceph_lock);
+	if (ci->i_flushing_caps)
+		ret = ci->i_cap_flush_seq >= want_flush_seq;
+	else
+		ret = 1;
+	spin_unlock(&ci->i_ceph_lock);
+	return ret;
+}
+
 /*
  * flush all dirty inode data to disk.
  *
  * returns true if we've flushed through want_flush_seq
  */
-static int check_cap_flush(struct ceph_mds_client *mdsc, u64 want_flush_seq)
+static void wait_caps_flush(struct ceph_mds_client *mdsc, u64 want_flush_seq)
 {
-	int mds, ret = 1;
+	int mds;
 
 	dout("check_cap_flush want %lld\n", want_flush_seq);
 	mutex_lock(&mdsc->mutex);
-	for (mds = 0; ret && mds < mdsc->max_sessions; mds++) {
+	for (mds = 0; mds < mdsc->max_sessions; mds++) {
 		struct ceph_mds_session *session = mdsc->sessions[mds];
+		struct inode *inode = NULL;
 
 		if (!session)
 			continue;
@@ -1489,29 +1503,29 @@ static int check_cap_flush(struct ceph_mds_client *mdsc, u64 want_flush_seq)
 				list_entry(session->s_cap_flushing.next,
 					   struct ceph_inode_info,
 					   i_flushing_item);
-			struct inode *inode = &ci->vfs_inode;
 
-			spin_lock(&ci->i_ceph_lock);
-			if (ci->i_cap_flush_seq <= want_flush_seq) {
+			if (!check_cap_flush(&ci->vfs_inode, want_flush_seq)) {
 				dout("check_cap_flush still flushing %p "
-				     "seq %lld <= %lld to mds%d\n", inode,
-				     ci->i_cap_flush_seq, want_flush_seq,
-				     session->s_mds);
-				ret = 0;
+				     "seq %lld <= %lld to mds%d\n",
+				     &ci->vfs_inode, ci->i_cap_flush_seq,
+				     want_flush_seq, session->s_mds);
+				inode = igrab(&ci->vfs_inode);
 			}
-			spin_unlock(&ci->i_ceph_lock);
 		}
 		mutex_unlock(&session->s_mutex);
 		ceph_put_mds_session(session);
 
-		if (!ret)
-			return ret;
+		if (inode) {
+			wait_event(mdsc->cap_flushing_wq,
+				   check_cap_flush(inode, want_flush_seq));
+			iput(inode);
+		}
+
 		mutex_lock(&mdsc->mutex);
 	}
 
 	mutex_unlock(&mdsc->mutex);
 	dout("check_cap_flush ok, flushed thru %lld\n", want_flush_seq);
-	return ret;
 }
 
 /*
@@ -3447,14 +3461,17 @@ void ceph_mdsc_sync(struct ceph_mds_client *mdsc)
 	dout("sync\n");
 	mutex_lock(&mdsc->mutex);
 	want_tid = mdsc->last_tid;
-	want_flush = mdsc->cap_flush_seq;
 	mutex_unlock(&mdsc->mutex);
-	dout("sync want tid %lld flush_seq %lld\n", want_tid, want_flush);
 
 	ceph_flush_dirty_caps(mdsc);
+	spin_lock(&mdsc->cap_dirty_lock);
+	want_flush = mdsc->cap_flush_seq;
+	spin_unlock(&mdsc->cap_dirty_lock);
+
+	dout("sync want tid %lld flush_seq %lld\n", want_tid, want_flush);
 
 	wait_unsafe_requests(mdsc, want_tid);
-	wait_event(mdsc->cap_flushing_wq, check_cap_flush(mdsc, want_flush));
+	wait_caps_flush(mdsc, want_flush);
 }
 
 /*

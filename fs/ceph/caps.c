@@ -1450,8 +1450,8 @@ static int __mark_caps_flushing(struct inode *inode,
 	spin_lock(&mdsc->cap_dirty_lock);
 	list_del_init(&ci->i_dirty_item);
 
-	ci->i_cap_flush_seq = ++mdsc->cap_flush_seq;
 	if (list_empty(&ci->i_flushing_item)) {
+		ci->i_cap_flush_seq = ++mdsc->cap_flush_seq;
 		list_add_tail(&ci->i_flushing_item, &session->s_cap_flushing);
 		mdsc->num_cap_flushing++;
 		dout(" inode %p now flushing seq %lld\n", inode,
