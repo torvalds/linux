@@ -538,6 +538,8 @@ static struct sh_eth_cpu_data sh7724_data = {
 			  EESR_RDE | EESR_RFRMER | EESR_TFE | EESR_TDE |
 			  EESR_ECI,
 
+	.trscer_err_mask = DESC_I_RINT8,
+
 	.apr		= 1,
 	.mpr		= 1,
 	.tpauser	= 1,
@@ -858,6 +860,9 @@ static void sh_eth_set_default_cpu_data(struct sh_eth_cpu_data *cd)
 
 	if (!cd->eesr_err_check)
 		cd->eesr_err_check = DEFAULT_EESR_ERR_CHECK;
+
+	if (!cd->trscer_err_mask)
+		cd->trscer_err_mask = DEFAULT_TRSCER_ERR_MASK;
 }
 
 static int sh_eth_check_reset(struct net_device *ndev)
@@ -1296,7 +1301,7 @@ static int sh_eth_dev_init(struct net_device *ndev, bool start)
 	/* Frame recv control (enable multiple-packets per rx irq) */
 	sh_eth_write(ndev, RMCR_RNC, RMCR);
 
-	sh_eth_write(ndev, DESC_I_RINT8 | DESC_I_RINT5 | DESC_I_TINT2, TRSCER);
+	sh_eth_write(ndev, mdp->cd->trscer_err_mask, TRSCER);
 
 	if (mdp->cd->bculr)
 		sh_eth_write(ndev, 0x800, BCULR);	/* Burst sycle set */

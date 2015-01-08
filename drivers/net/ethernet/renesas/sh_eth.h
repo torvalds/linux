@@ -369,6 +369,8 @@ enum DESC_I_BIT {
 	DESC_I_RINT1 = 0x0001,
 };
 
+#define DEFAULT_TRSCER_ERR_MASK (DESC_I_RINT8 | DESC_I_RINT5 | DESC_I_TINT2)
+
 /* RPADIR */
 enum RPADIR_BIT {
 	RPADIR_PADS1 = 0x20000, RPADIR_PADS0 = 0x10000,
@@ -469,6 +471,9 @@ struct sh_eth_cpu_data {
 	/* interrupt checking mask */
 	unsigned long tx_check;
 	unsigned long eesr_err_check;
+
+	/* Error mask */
+	unsigned long trscer_err_mask;
 
 	/* hardware features */
 	unsigned long irq_flags; /* IRQ configuration flags */
