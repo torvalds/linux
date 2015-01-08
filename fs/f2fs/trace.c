@@ -17,7 +17,7 @@
 #include "trace.h"
 
 RADIX_TREE(pids, GFP_ATOMIC);
-spinlock_t pids_lock;
+static spinlock_t pids_lock;
 struct last_io_info last_io;
 
 static inline void __print_last_io(void)
