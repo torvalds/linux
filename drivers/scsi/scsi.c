@@ -531,7 +531,7 @@ void scsi_log_send(struct scsi_cmnd *cmd)
 	 *
 	 * 3: same as 2
 	 *
-	 * 4: same as 3 plus dump extra junk
+	 * 4: same as 3
 	 */
 	if (unlikely(scsi_logging_level)) {
 		level = SCSI_LOG_LEVEL(SCSI_LOG_MLQUEUE_SHIFT,
@@ -540,13 +540,6 @@ void scsi_log_send(struct scsi_cmnd *cmd)
 			scmd_printk(KERN_INFO, cmd,
 				    "Send: scmd 0x%p\n", cmd);
 			scsi_print_command(cmd);
-			if (level > 3) {
-				printk(KERN_INFO "buffer = 0x%p, bufflen = %d,"
-				       " queuecommand 0x%p\n",
-					scsi_sglist(cmd), scsi_bufflen(cmd),
-					cmd->device->host->hostt->queuecommand);
-
-			}
 		}
 	}
 }
