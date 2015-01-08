@@ -195,6 +195,45 @@
 
 			pinctrl@18000 {
 				reg = <0x18000 0x20>;
+
+				ge0_rgmii_pins: ge-rgmii-pins-0 {
+					marvell,pins = "mpp6", "mpp7", "mpp8",
+						       "mpp9", "mpp10", "mpp11",
+						       "mpp12", "mpp13", "mpp14",
+						       "mpp15", "mpp16", "mpp17";
+					marvell,function = "ge0";
+				};
+
+				i2c0_pins: i2c-pins-0 {
+					marvell,pins = "mpp2", "mpp3";
+					marvell,function = "i2c0";
+				};
+
+				mdio_pins: mdio-pins {
+					marvell,pins = "mpp4", "mpp5";
+					marvell,function = "ge";
+				};
+
+				ref_clk0_pins: ref-clk-pins-0 {
+					marvell,pins = "mpp45";
+					marvell,function = "ref";
+				};
+
+				spi1_pins: spi-pins-1 {
+					marvell,pins = "mpp56", "mpp57", "mpp58",
+						       "mpp59";
+					marvell,function = "spi1";
+				};
+
+				uart0_pins: uart-pins-0 {
+					marvell,pins = "mpp0", "mpp1";
+					marvell,function = "ua0";
+				};
+
+				uart1_pins: uart-pins-1 {
+					marvell,pins = "mpp19", "mpp20";
+					marvell,function = "ua1";
+				};
 			};
 
 			gpio0: gpio@18100 {
