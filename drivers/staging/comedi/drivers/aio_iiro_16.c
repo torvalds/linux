@@ -39,10 +39,10 @@ Configuration Options:
 #define AIO_IIRO_16_RELAY_8_15	0x04
 #define AIO_IIRO_16_INPUT_8_15	0x05
 
-static int aio_iiro_16_dio_insn_bits_write(struct comedi_device *dev,
-					   struct comedi_subdevice *s,
-					   struct comedi_insn *insn,
-					   unsigned int *data)
+static int aio_iiro_16_do_insn_bits(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_insn *insn,
+				    unsigned int *data)
 {
 	if (comedi_dio_update_state(s, data)) {
 		outb(s->state & 0xff, dev->iobase + AIO_IIRO_16_RELAY_0_7);
@@ -82,12 +82,12 @@ static int aio_iiro_16_attach(struct comedi_device *dev,
 		return ret;
 
 	s = &dev->subdevices[0];
-	s->type = COMEDI_SUBD_DIO;
+	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = 16;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
-	s->insn_bits = aio_iiro_16_dio_insn_bits_write;
+	s->insn_bits = aio_iiro_16_do_insn_bits;
 
 	s = &dev->subdevices[1];
 	s->type = COMEDI_SUBD_DIO;
