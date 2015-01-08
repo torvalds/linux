@@ -1676,9 +1676,12 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	u32 dma_chan;
 
 	/* Allocate DWC SATA device */
-	hsdev = kzalloc(sizeof(*hsdev), GFP_KERNEL);
-	if (hsdev == NULL)
+	host = ata_host_alloc_pinfo(&ofdev->dev, ppi, SATA_DWC_MAX_PORTS);
+	hsdev = devm_kzalloc(&ofdev->dev, sizeof(*hsdev), GFP_KERNEL);
+	if (!host || !hsdev)
 		return -ENOMEM;
+
+	host->private_data = hsdev;
 
 	if (of_property_read_u32(np, "dma-channel", &dma_chan)) {
 		dev_warn(&ofdev->dev, "no dma-channel property set."
@@ -1692,24 +1695,13 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	if (!base) {
 		dev_err(&ofdev->dev, "ioremap failed for SATA register"
 			" address\n");
-		err = -ENODEV;
-		goto error_kmalloc;
+		return -ENODEV;
 	}
 	hsdev->reg_base = base;
 	dev_dbg(&ofdev->dev, "ioremap done for SATA register address\n");
 
 	/* Synopsys DWC SATA specific Registers */
 	hsdev->sata_dwc_regs = (void *__iomem)(base + SATA_DWC_REG_OFFSET);
-
-	/* Allocate and fill host */
-	host = ata_host_alloc_pinfo(&ofdev->dev, ppi, SATA_DWC_MAX_PORTS);
-	if (!host) {
-		dev_err(&ofdev->dev, "ata_host_alloc_pinfo failed\n");
-		err = -ENOMEM;
-		goto error_iomap;
-	}
-
-	host->private_data = hsdev;
 
 	/* Setup port */
 	host->ports[0]->ioaddr.cmd_addr = base;
@@ -1778,8 +1770,6 @@ error_dma_iomap:
 	iounmap((void __iomem *)host_pvt.sata_dma_regs);
 error_iomap:
 	iounmap(base);
-error_kmalloc:
-	kfree(hsdev);
 	return err;
 }
 
@@ -1796,8 +1786,6 @@ static int sata_dwc_remove(struct platform_device *ofdev)
 
 	iounmap((void __iomem *)host_pvt.sata_dma_regs);
 	iounmap(hsdev->reg_base);
-	kfree(hsdev);
-	kfree(host);
 	dev_dbg(&ofdev->dev, "done\n");
 	return 0;
 }
