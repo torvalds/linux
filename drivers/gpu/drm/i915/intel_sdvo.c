@@ -1617,6 +1617,9 @@ static uint16_t intel_sdvo_get_hotplug_support(struct intel_sdvo *intel_sdvo)
 	struct drm_device *dev = intel_sdvo->base.base.dev;
 	uint16_t hotplug;
 
+	if (!I915_HAS_HOTPLUG(dev))
+		return 0;
+
 	/* HW Erratum: SDVO Hotplug is broken on all i945G chips, there's noise
 	 * on the line. */
 	if (IS_I945G(dev) || IS_I945GM(dev))
