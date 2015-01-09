@@ -19,6 +19,7 @@ struct font_desc {
     int width, height;
     const void *data;
     int pref;
+    int charcount;
 };
 
 #define VGA8x8_IDX	0

@@ -5143,4 +5143,5 @@ const struct font_desc font_10x18 = {
 #else
 	.pref	= -1,
 #endif
+	.charcount = 255,
 };

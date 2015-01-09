@@ -292,6 +292,20 @@ static inline unsigned short *screenpos(struct vc_data *vc, int offset, int view
 	return p;
 }
 
+static inline unsigned short *screenpos_utf8(struct vc_data *vc, int offset, int viewed)
+{
+	unsigned short *p;
+
+	if (!viewed)
+		p = (unsigned short *)(vc->vc_origin + offset + vc->vc_screenbuf_size);
+	else if (!vc->vc_sw->con_screen_pos)
+		p = (unsigned short *)(vc->vc_visible_origin + offset + vc->vc_screenbuf_size);
+	else
+		p = vc->vc_sw->con_screen_pos(vc, -offset - 1);
+	return p;
+}
+ 
+
 /* Called  from the keyboard irq path.. */
 static inline void scrolldelta(int lines)
 {
@@ -322,6 +336,11 @@ static void scrup(struct vc_data *vc, unsigned int t, unsigned int b, int nr)
 	scr_memmovew(d, s, (b - t - nr) * vc->vc_size_row);
 	scr_memsetw(d + (b - t - nr) * vc->vc_cols, vc->vc_video_erase_char,
 		    vc->vc_size_row * nr);
+	d += (vc->vc_screenbuf_size >> 1);
+	s += (vc->vc_screenbuf_size >> 1);
+	scr_memmovew(d, s, (b - t - nr) * vc->vc_size_row);
+	scr_memsetw(d + (b - t - nr) * vc->vc_cols, 0,
+		    vc->vc_size_row * nr);
 }
 
 static void scrdown(struct vc_data *vc, unsigned int t, unsigned int b, int nr)
@@ -339,6 +358,9 @@ static void scrdown(struct vc_data *vc, unsigned int t, unsigned int b, int nr)
 	step = vc->vc_cols * nr;
 	scr_memmovew(s + step, s, (b - t - nr) * vc->vc_size_row);
 	scr_memsetw(s, vc->vc_video_erase_char, 2 * step);
+  	s += (vc->vc_screenbuf_size >> 1);
+  	scr_memmovew(s + step, s, (b - t - nr) * vc->vc_size_row);
+  	scr_memsetw(s, 0, 2 * step);
 }
 
 static void do_update_region(struct vc_data *vc, unsigned long start, int count)
@@ -506,6 +528,8 @@ void complement_pos(struct vc_data *vc, int offset)
 	static int old_offset = -1;
 	static unsigned short old;
 	static unsigned short oldx, oldy;
+	static unsigned short *p_ext = NULL;
+	static unsigned short old_ext = 0;
 
 	WARN_CONSOLE_UNLOCKED();
 
@@ -513,7 +537,7 @@ void complement_pos(struct vc_data *vc, int offset)
 	    old_offset < vc->vc_screenbuf_size) {
 		scr_writew(old, screenpos(vc, old_offset, 1));
 		if (DO_UPDATE(vc))
-			vc->vc_sw->con_putc(vc, old, oldy, oldx);
+			vc->vc_sw->con_putc(vc, (old_ext << 16)|old, oldy, oldx);
 	}
 
 	old_offset = offset;
@@ -523,13 +547,15 @@ void complement_pos(struct vc_data *vc, int offset)
 		unsigned short new;
 		unsigned short *p;
 		p = screenpos(vc, offset, 1);
+		p_ext = screenpos_utf8(vc, offset, 1);
 		old = scr_readw(p);
+		old_ext = scr_readw(p_ext);
 		new = old ^ vc->vc_complement_mask;
 		scr_writew(new, p);
 		if (DO_UPDATE(vc)) {
 			oldx = (offset >> 1) % vc->vc_cols;
 			oldy = (offset >> 1) / vc->vc_cols;
-			vc->vc_sw->con_putc(vc, new, oldy, oldx);
+			vc->vc_sw->con_putc(vc, (old_ext << 16)|new, oldy, oldx);
 		}
 	}
 
@@ -777,7 +803,7 @@ int vc_allocate(unsigned int currcons)	/* return 0 on success */
 	    visual_init(vc, currcons, 1);
 	    if (!*vc->vc_uni_pagedir_loc)
 		con_set_default_unimap(vc);
-	    vc->vc_screenbuf = kmalloc(vc->vc_screenbuf_size, GFP_KERNEL);
+	    vc->vc_screenbuf = kmalloc(vc->vc_screenbuf_size * 2, GFP_KERNEL);
 	    if (!vc->vc_screenbuf) {
 		kfree(vc);
 		vc_cons[currcons].d = NULL;
@@ -837,7 +863,7 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 {
 	unsigned long old_origin, new_origin, new_scr_end, rlth, rrem, err = 0;
 	unsigned long end;
-	unsigned int old_rows, old_row_size;
+	unsigned int old_rows, old_row_size,old_screen_size;
 	unsigned int new_cols, new_rows, new_row_size, new_screen_size;
 	unsigned int user;
 	unsigned short *newscreen;
@@ -857,11 +883,12 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 	new_rows = (lines ? lines : vc->vc_rows);
 	new_row_size = new_cols << 1;
 	new_screen_size = new_row_size * new_rows;
+	old_screen_size = old_rows * old_row_size;
 
 	if (new_cols == vc->vc_cols && new_rows == vc->vc_rows)
 		return 0;
 
-	newscreen = kmalloc(new_screen_size, GFP_USER);
+	newscreen = kmalloc(new_screen_size * 2, GFP_USER);
 	if (!newscreen)
 		return -ENOMEM;
 
@@ -908,15 +935,23 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 	while (old_origin < end) {
 		scr_memcpyw((unsigned short *) new_origin,
 			    (unsigned short *) old_origin, rlth);
-		if (rrem)
+ 		scr_memcpyw((unsigned short *) new_origin + (new_screen_size >> 1),
+ 			    (unsigned short *) old_origin + (old_screen_size >> 1), rlth);
+		if (rrem){
 			scr_memsetw((void *)(new_origin + rlth),
 				    vc->vc_video_erase_char, rrem);
+ 			scr_memsetw((void *)(new_origin + rlth + (new_screen_size)),
+ 				    vc->vc_video_erase_char, rrem);
+		}
 		old_origin += old_row_size;
 		new_origin += new_row_size;
 	}
-	if (new_scr_end > new_origin)
+	if (new_scr_end > new_origin){
 		scr_memsetw((void *)new_origin, vc->vc_video_erase_char,
 			    new_scr_end - new_origin);
+ 		scr_memsetw((void *)new_origin + (new_screen_size), vc->vc_video_erase_char,
+ 			    new_scr_end - new_origin);
+	}
 	kfree(vc->vc_screenbuf);
 	vc->vc_screenbuf = newscreen;
 	vc->vc_screenbuf_size = new_screen_size;
@@ -2206,6 +2241,8 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 		rescan = 0;
 		inverse = 0;
 		width = 1;
+		vc->vc_utf = 1;
+		vc->vc_disp_ctrl = 0;
 
 		/* Do no translation at all in control states */
 		if (vc->vc_state != ESnormal) {
@@ -2273,7 +2310,7 @@ rescan_last_byte:
 				continue;
 			    }
 			}
-			/* Nothing to do if an ASCII byte was received */
+
 		    }
 		    /* End of UTF-8 decoding. */
 		    /* c is the received character, or U+FFFD for invalid sequences. */
@@ -2359,10 +2396,30 @@ rescan_last_byte:
 				}
 				if (vc->vc_decim)
 					insert_char(vc, 1);
-				scr_writew(himask ?
-					     ((vc_attr << 8) & ~himask) + ((tc & 0x100) ? himask : 0) + (tc & 0xff) :
-					     (vc_attr << 8) + tc,
-					   (u16 *) vc->vc_pos);
+
+				if(is_double_width(c) && width==2)
+				{
+					tc = 0xFF;
+					scr_writew(himask ?
+							 ((vc_attr << 8) & ~himask) + ((tc & 0x100) ? himask : 0) + (tc & 0xff) :
+							 (vc_attr << 8) + tc,
+						   (u16 *) vc->vc_pos);
+					scr_writew(c, (u16 *) vc->vc_pos + (vc->vc_screenbuf_size >> 1));
+				}else if(is_double_width(c) && width==1){
+					tc = 0xFE;
+					scr_writew(himask ?
+							 ((vc_attr << 8) & ~himask) + ((tc & 0x100) ? himask : 0) + (tc & 0xff) :
+							 (vc_attr << 8) + tc,
+						   (u16 *) vc->vc_pos);
+					scr_writew(c, (u16 *) vc->vc_pos + (vc->vc_screenbuf_size >> 1));
+				}else{
+					scr_writew(himask ?
+							 ((vc_attr << 8) & ~himask) + ((tc & 0x100) ? himask : 0) + (tc & 0xff) :
+							 (vc_attr << 8) + tc,
+						   (u16 *) vc->vc_pos);
+					scr_writew(c, (u16 *) vc->vc_pos + (vc->vc_screenbuf_size >> 1));
+				}
+
 				if (DO_UPDATE(vc) && draw_x < 0) {
 					draw_x = vc->vc_x;
 					draw_from = vc->vc_pos;
@@ -2379,11 +2436,12 @@ rescan_last_byte:
 
 				tc = conv_uni_to_pc(vc, ' '); /* A space is printed in the second column */
 				if (tc < 0) tc = ' ';
-			}
-			notify_write(vc, c);
 
-			if (inverse) {
-				FLUSH
+				notify_write(vc, c);
+
+				if (inverse) {
+					FLUSH
+				}
 			}
 
 			if (rescan) {
@@ -2978,7 +3036,7 @@ static int __init con_init(void)
 		INIT_WORK(&vc_cons[currcons].SAK_work, vc_SAK);
 		tty_port_init(&vc->port);
 		visual_init(vc, currcons, 1);
-		vc->vc_screenbuf = kzalloc(vc->vc_screenbuf_size, GFP_NOWAIT);
+		vc->vc_screenbuf = kzalloc(vc->vc_screenbuf_size * 2, GFP_NOWAIT);
 		vc_init(vc, vc->vc_rows, vc->vc_cols,
 			currcons || !vc->vc_sw->con_save_screen);
 	}
@@ -4207,9 +4265,15 @@ u16 screen_glyph(struct vc_data *vc, int offset)
 	u16 w = scr_readw(screenpos(vc, offset, 1));
 	u16 c = w & 0xff;
 
-	if (w & vc->vc_hi_font_mask)
-		c |= 0x100;
-	return c;
+	u16 c_utf8 = scr_readw(screenpos_utf8(vc, offset, 1));
+
+	if ( (c == 0xff || c == 0xfe) && c_utf8 != 0){
+		return c_utf8;
+	}else{
+		if (w & vc->vc_hi_font_mask)
+			c |= 0x100;
+		return c;
+	}
 }
 EXPORT_SYMBOL_GPL(screen_glyph);
 

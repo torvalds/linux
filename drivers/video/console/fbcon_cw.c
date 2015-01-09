@@ -18,6 +18,8 @@
 #include "fbcon.h"
 #include "fbcon_rotate.h"
 
+extern u8 * font_bits(struct vc_data *vc, const u16 *s,u32 cellsize,
+		u16 charmask);
 /*
  * Rotation 90 degrees
  */
@@ -89,14 +91,23 @@ static inline void cw_putcs_aligned(struct vc_data *vc, struct fb_info *info,
 	u16 charmask = vc->vc_hi_font_mask ? 0x1ff : 0xff;
 	u32 idx = (vc->vc_font.height + 7) >> 3;
 	u8 *src;
-
 	while (cnt--) {
-		src = ops->fontbuffer + (scr_readw(s++) & charmask)*cellsize;
 
+		if(((scr_readw(s) & charmask) == 0xff || (scr_readw(s) & charmask) == 0xfe )){
+			char dst[16];
+			src = font_bits(vc,s,cellsize,charmask);
+			memset(dst, 0, 16);
+			rotate_cw(src, dst, vc->vc_font.width,
+				  vc->vc_font.height);
+			src = dst;
+		}else{
+			src = ops->fontbuffer + (scr_readw(s) & charmask)*cellsize;
+		}
 		if (attr) {
 			cw_update_attr(buf, src, attr, vc);
 			src = buf;
 		}
+		s++;
 
 		if (likely(idx == 1))
 			__fb_pad_aligned_buffer(dst, d_pitch, src, idx,
@@ -213,6 +224,7 @@ static void cw_cursor(struct vc_data *vc, struct fb_info *info, int mode,
 	int err = 1, dx, dy;
 	char *src;
 	u32 vxres = GETVXRES(ops->p->scrollmode, info);
+	int cellsize = DIV_ROUND_UP(vc->vc_font.width,8) * vc->vc_font.height;
 
 	if (!ops->fontbuffer)
 		return;
@@ -230,7 +242,16 @@ static void cw_cursor(struct vc_data *vc, struct fb_info *info, int mode,
 
  	c = scr_readw((u16 *) vc->vc_pos);
 	attribute = get_attribute(info, c);
-	src = ops->fontbuffer + ((c & charmask) * (w * vc->vc_font.width));
+	if(((c&charmask) == 0xff || (c & charmask) == 0xfe)){
+		char dst[16];
+		src = font_bits(vc,(const u16*)&c,cellsize,charmask);
+		memset(dst, 0, 16);
+		rotate_cw(src, dst, vc->vc_font.width,
+			  vc->vc_font.height);
+		src = dst;
+	}else{
+		src = ops->fontbuffer + ((c & charmask) * (w * vc->vc_font.width));
+	}
 
 	if (ops->cursor_state.image.data != src ||
 	    ops->cursor_reset) {
