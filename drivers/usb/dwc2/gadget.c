@@ -2337,12 +2337,14 @@ irq_retry:
 
 		dev_dbg(hsotg->dev, "%s: daint=%08x\n", __func__, daint);
 
-		for (ep = 0; ep < 15 && daint_out; ep++, daint_out >>= 1) {
+		for (ep = 0; ep < hsotg->num_of_eps && daint_out;
+						ep++, daint_out >>= 1) {
 			if (daint_out & 1)
 				s3c_hsotg_epint(hsotg, ep, 0);
 		}
 
-		for (ep = 0; ep < 15 && daint_in; ep++, daint_in >>= 1) {
+		for (ep = 0; ep < hsotg->num_of_eps  && daint_in;
+						ep++, daint_in >>= 1) {
 			if (daint_in & 1)
 				s3c_hsotg_epint(hsotg, ep, 1);
 		}
