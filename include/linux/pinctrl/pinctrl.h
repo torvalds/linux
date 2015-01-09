@@ -24,6 +24,7 @@ struct pinctrl_dev;
 struct pinctrl_map;
 struct pinmux_ops;
 struct pinconf_ops;
+struct pin_config_item;
 struct gpio_chip;
 struct device_node;
 
@@ -117,6 +118,9 @@ struct pinctrl_ops {
  * @confops: pin config operations vtable, if you support pin configuration in
  *	your driver
  * @owner: module providing the pin controller, used for refcounting
+ * @num_dt_params: Number of driver-specific DT parameters
+ * @params: List of DT parameters
+ * @conf_items: Information how to print @params in debugfs
  */
 struct pinctrl_desc {
 	const char *name;
@@ -126,6 +130,11 @@ struct pinctrl_desc {
 	const struct pinmux_ops *pmxops;
 	const struct pinconf_ops *confops;
 	struct module *owner;
+#if defined(CONFIG_GENERIC_PINCONF) && defined(CONFIG_OF)
+	unsigned int num_dt_params;
+	const struct pinconf_generic_dt_params *params;
+	const struct pin_config_item *conf_items;
+#endif
 };
 
 /* External interface to pin controller */
