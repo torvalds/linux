@@ -29,20 +29,20 @@ $(obj)/policy/stat.conf:
 $(obj)/builtin-policy.h: $(obj)/policy/profile.conf $(obj)/policy/exception_policy.conf $(obj)/policy/domain_policy.conf $(obj)/policy/manager.conf $(obj)/policy/stat.conf
 	@echo Generating built-in policy for TOMOYO 2.5.x.
 	@echo "static char tomoyo_builtin_profile[] __initdata =" > $@.tmp
-	@sed -e 's/\\/\\\\/g' -e 's/\"/\\"/g' -e 's/\(.*\)/"\1\\n"/' < $(obj)/policy/profile.conf >> $@.tmp
-	@echo "\"\";" >> $@.tmp
+	@$(objtree)/scripts/basic/bin2c < $(obj)/policy/profile.conf >> $@.tmp
+	@echo ";" >> $@.tmp
 	@echo "static char tomoyo_builtin_exception_policy[] __initdata =" >> $@.tmp
-	@sed -e 's/\\/\\\\/g' -e 's/\"/\\"/g' -e 's/\(.*\)/"\1\\n"/' < $(obj)/policy/exception_policy.conf >> $@.tmp
-	@echo "\"\";" >> $@.tmp
+	@$(objtree)/scripts/basic/bin2c < $(obj)/policy/exception_policy.conf >> $@.tmp
+	@echo ";" >> $@.tmp
 	@echo "static char tomoyo_builtin_domain_policy[] __initdata =" >> $@.tmp
-	@sed -e 's/\\/\\\\/g' -e 's/\"/\\"/g' -e 's/\(.*\)/"\1\\n"/' < $(obj)/policy/domain_policy.conf >> $@.tmp
-	@echo "\"\";" >> $@.tmp
+	@$(objtree)/scripts/basic/bin2c < $(obj)/policy/domain_policy.conf >> $@.tmp
+	@echo ";" >> $@.tmp
 	@echo "static char tomoyo_builtin_manager[] __initdata =" >> $@.tmp
-	@sed -e 's/\\/\\\\/g' -e 's/\"/\\"/g' -e 's/\(.*\)/"\1\\n"/' < $(obj)/policy/manager.conf >> $@.tmp
-	@echo "\"\";" >> $@.tmp
+	@$(objtree)/scripts/basic/bin2c < $(obj)/policy/manager.conf >> $@.tmp
+	@echo ";" >> $@.tmp
 	@echo "static char tomoyo_builtin_stat[] __initdata =" >> $@.tmp
-	@sed -e 's/\\/\\\\/g' -e 's/\"/\\"/g' -e 's/\(.*\)/"\1\\n"/' < $(obj)/policy/stat.conf >> $@.tmp
-	@echo "\"\";" >> $@.tmp
+	@$(objtree)/scripts/basic/bin2c < $(obj)/policy/stat.conf >> $@.tmp
+	@echo ";" >> $@.tmp
 	@mv $@.tmp $@
 
 $(obj)/common.o: $(obj)/builtin-policy.h
