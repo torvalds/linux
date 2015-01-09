@@ -475,6 +475,13 @@ static void alps_process_trackstick_packet_v3(struct psmouse *psmouse)
 	struct input_dev *dev = priv->dev2;
 	int x, y, z, left, right, middle;
 
+	/* It should be a DualPoint when received trackstick packet */
+	if (!(priv->flags & ALPS_DUALPOINT)) {
+		psmouse_warn(psmouse,
+			     "Rejected trackstick packet from non DualPoint device");
+		return;
+	}
+
 	/* Sanity check packet */
 	if (!(packet[0] & 0x40)) {
 		psmouse_dbg(psmouse, "Bad trackstick packet, discarding\n");
@@ -699,7 +706,8 @@ static void alps_process_touchpad_packet_v3_v5(struct psmouse *psmouse)
 
 	alps_report_semi_mt_data(psmouse, fingers);
 
-	if (!(priv->quirks & ALPS_QUIRK_TRACKSTICK_BUTTONS)) {
+	if ((priv->flags & ALPS_DUALPOINT) &&
+	    !(priv->quirks & ALPS_QUIRK_TRACKSTICK_BUTTONS)) {
 		input_report_key(dev2, BTN_LEFT, f->ts_left);
 		input_report_key(dev2, BTN_RIGHT, f->ts_right);
 		input_report_key(dev2, BTN_MIDDLE, f->ts_middle);
@@ -743,8 +751,11 @@ static void alps_process_packet_v6(struct psmouse *psmouse)
 	 */
 	if (packet[5] == 0x7F) {
 		/* It should be a DualPoint when received Trackpoint packet */
-		if (!(priv->flags & ALPS_DUALPOINT))
+		if (!(priv->flags & ALPS_DUALPOINT)) {
+			psmouse_warn(psmouse,
+				     "Rejected trackstick packet from non DualPoint device");
 			return;
+		}
 
 		/* Trackpoint packet */
 		x = packet[1] | ((packet[3] & 0x20) << 2);
@@ -1025,6 +1036,13 @@ static void alps_process_trackstick_packet_v7(struct psmouse *psmouse)
 	unsigned char *packet = psmouse->packet;
 	struct input_dev *dev2 = priv->dev2;
 	int x, y, z, left, right, middle;
+
+	/* It should be a DualPoint when received trackstick packet */
+	if (!(priv->flags & ALPS_DUALPOINT)) {
+		psmouse_warn(psmouse,
+			     "Rejected trackstick packet from non DualPoint device");
+		return;
+	}
 
 	/*
 	 *        b7 b6 b5 b4 b3 b2 b1 b0
