@@ -174,7 +174,7 @@ struct coresight_platform_data *of_get_coresight_platform_data(
 				continue;
 
 			rdev = of_coresight_get_endpoint_device(rparent);
-			if (!dev)
+			if (!rdev)
 				continue;
 
 			pdata->child_names[i] = dev_name(rdev);
