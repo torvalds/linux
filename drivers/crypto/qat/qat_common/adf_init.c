@@ -319,7 +319,7 @@ int adf_dev_stop(struct adf_accel_dev *accel_dev)
 	if (wait)
 		msleep(100);
 
-	if (adf_dev_started(accel_dev)) {
+	if (test_bit(ADF_STATUS_AE_STARTED, &accel_dev->status)) {
 		if (adf_ae_stop(accel_dev))
 			pr_err("QAT: failed to stop AE\n");
 		else
