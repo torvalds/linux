@@ -3009,11 +3009,35 @@ static int s3c_hsotg_pullup(struct usb_gadget *gadget, int is_on)
 	return 0;
 }
 
+static int s3c_hsotg_vbus_session(struct usb_gadget *gadget, int is_active)
+{
+	struct dwc2_hsotg *hsotg = to_hsotg(gadget);
+	unsigned long flags;
+
+	dev_dbg(hsotg->dev, "%s: is_active: %d\n", __func__, is_active);
+	spin_lock_irqsave(&hsotg->lock, flags);
+
+	if (is_active) {
+		/* Kill any ep0 requests as controller will be reinitialized */
+		kill_all_requests(hsotg, hsotg->eps_out[0], -ECONNRESET);
+		s3c_hsotg_core_init_disconnected(hsotg);
+		if (hsotg->enabled)
+			s3c_hsotg_core_connect(hsotg);
+	} else {
+		s3c_hsotg_core_disconnect(hsotg);
+		s3c_hsotg_disconnect(hsotg);
+	}
+
+	spin_unlock_irqrestore(&hsotg->lock, flags);
+	return 0;
+}
+
 static const struct usb_gadget_ops s3c_hsotg_gadget_ops = {
 	.get_frame	= s3c_hsotg_gadget_getframe,
 	.udc_start		= s3c_hsotg_udc_start,
 	.udc_stop		= s3c_hsotg_udc_stop,
 	.pullup                 = s3c_hsotg_pullup,
+	.vbus_session		= s3c_hsotg_vbus_session,
 };
 
 /**
