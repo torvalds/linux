@@ -2878,6 +2878,8 @@ static int s3c_hsotg_udc_start(struct usb_gadget *gadget,
 	}
 
 	s3c_hsotg_phy_enable(hsotg);
+	if (!IS_ERR_OR_NULL(hsotg->uphy))
+		otg_set_peripheral(hsotg->uphy->otg, &hsotg->gadget);
 
 	spin_lock_irqsave(&hsotg->lock, flags);
 	s3c_hsotg_init(hsotg);
@@ -2927,6 +2929,8 @@ static int s3c_hsotg_udc_stop(struct usb_gadget *gadget)
 
 	spin_unlock_irqrestore(&hsotg->lock, flags);
 
+	if (!IS_ERR_OR_NULL(hsotg->uphy))
+		otg_set_peripheral(hsotg->uphy->otg, NULL);
 	s3c_hsotg_phy_disable(hsotg);
 
 	regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
