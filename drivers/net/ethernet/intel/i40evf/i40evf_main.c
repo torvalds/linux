@@ -2423,7 +2423,6 @@ static void i40evf_remove(struct pci_dev *pdev)
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 	struct i40evf_mac_filter *f, *ftmp;
 	struct i40e_hw *hw = &adapter->hw;
-	int count = 50;
 
 	cancel_delayed_work_sync(&adapter->init_task);
 	cancel_work_sync(&adapter->reset_task);
@@ -2432,12 +2431,18 @@ static void i40evf_remove(struct pci_dev *pdev)
 		unregister_netdev(netdev);
 		adapter->netdev_registered = false;
 	}
-	while (count-- && adapter->aq_required)
-		msleep(50);
 
-	if (count < 0)
-		dev_err(&pdev->dev, "Timed out waiting for PF driver.\n");
+	/* Shut down all the garbage mashers on the detention level */
 	adapter->state = __I40EVF_REMOVE;
+	adapter->aq_required = 0;
+	adapter->aq_pending = 0;
+	i40evf_request_reset(adapter);
+	msleep(20);
+	/* If the FW isn't responding, kick it once, but only once. */
+	if (!i40evf_asq_done(hw)) {
+		i40evf_request_reset(adapter);
+		msleep(20);
+	}
 
 	if (adapter->msix_entries) {
 		i40evf_misc_irq_disable(adapter);
