@@ -39,6 +39,9 @@
 
 #include "server.h"
 
+#define TIPC_MAX_SUBSCRIPTIONS	65535
+#define TIPC_MAX_PUBLICATIONS	65535
+
 struct tipc_subscription;
 struct tipc_subscriber;
 

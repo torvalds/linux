@@ -41,6 +41,10 @@
 #include "msg.h"
 #include "node.h"
 
+/* TIPC-specific error codes
+*/
+#define ELINKCONG EAGAIN	/* link congestion <=> resource unavailable */
+
 /* Out-of-range value for link sequence numbers
  */
 #define INVALID_LINK_SEQ 0x10000

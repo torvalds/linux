@@ -35,6 +35,7 @@
 
 #include "server.h"
 #include "core.h"
+#include "socket.h"
 #include <net/sock.h>
 
 /* Number of messages to send before rescheduling */

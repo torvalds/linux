@@ -77,9 +77,37 @@
 
 #define TIPC_MEDIA_ADDR_OFFSET	5
 
+/**
+ * TIPC message buffer code
+ *
+ * TIPC message buffer headroom reserves space for the worst-case
+ * link-level device header (in case the message is sent off-node).
+ *
+ * Note: Headroom should be a multiple of 4 to ensure the TIPC header fields
+ *       are word aligned for quicker access
+ */
+#define BUF_HEADROOM LL_MAX_HEADER
+
+struct tipc_skb_cb {
+	void *handle;
+	struct sk_buff *tail;
+	bool deferred;
+	bool wakeup_pending;
+	bool bundling;
+	u16 chain_sz;
+	u16 chain_imp;
+};
+
+#define TIPC_SKB_CB(__skb) ((struct tipc_skb_cb *)&((__skb)->cb[0]))
+
 struct tipc_msg {
 	__be32 hdr[15];
 };
+
+static inline struct tipc_msg *buf_msg(struct sk_buff *skb)
+{
+	return (struct tipc_msg *)skb->data;
+}
 
 static inline u32 msg_word(struct tipc_msg *m, u32 pos)
 {
@@ -719,27 +747,20 @@ static inline u32 msg_tot_origport(struct tipc_msg *m)
 	return msg_origport(m);
 }
 
+struct sk_buff *tipc_buf_acquire(u32 size);
 bool tipc_msg_reverse(struct sk_buff *buf, u32 *dnode, int err);
-
 int tipc_msg_eval(struct sk_buff *buf, u32 *dnode);
-
 void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type, u32 hsize,
 		   u32 destnode);
-
 struct sk_buff *tipc_msg_create(uint user, uint type, uint hdr_sz,
 				uint data_sz, u32 dnode, u32 onode,
 				u32 dport, u32 oport, int errcode);
-
 int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf);
-
 bool tipc_msg_bundle(struct sk_buff_head *list, struct sk_buff *skb, u32 mtu);
-
 bool tipc_msg_make_bundle(struct sk_buff_head *list, struct sk_buff *skb,
 			  u32 mtu, u32 dnode);
-
 int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m, int offset,
 		   int dsz, int mtu, struct sk_buff_head *list);
-
 struct sk_buff *tipc_msg_reassemble(struct sk_buff_head *list);
 
 #endif

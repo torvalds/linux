@@ -60,18 +60,7 @@
 
 #define TIPC_MOD_VER "2.0.0"
 
-#define ULTRA_STRING_MAX_LEN	32768
-#define TIPC_MAX_SUBSCRIPTIONS	65535
-#define TIPC_MAX_PUBLICATIONS	65535
-
-struct tipc_msg;	/* msg.h */
-
 int tipc_snprintf(char *buf, int len, const char *fmt, ...);
-
-/*
- * TIPC-specific error codes
- */
-#define ELINKCONG EAGAIN	/* link congestion <=> resource unavailable */
 
 /*
  * Global configuration variables
@@ -86,18 +75,6 @@ extern int sysctl_tipc_named_timeout __read_mostly;
  */
 extern int tipc_random __read_mostly;
 
-/*
- * Routines available to privileged subsystems
- */
-int tipc_netlink_start(void);
-void tipc_netlink_stop(void);
-int tipc_socket_init(void);
-void tipc_socket_stop(void);
-int tipc_sock_create_local(int type, struct socket **res);
-void tipc_sock_release_local(struct socket *sock);
-int tipc_sock_accept_local(struct socket *sock, struct socket **newsock,
-			   int flags);
-
 #ifdef CONFIG_SYSCTL
 int tipc_register_sysctl(void);
 void tipc_unregister_sysctl(void);
@@ -105,35 +82,5 @@ void tipc_unregister_sysctl(void);
 #define tipc_register_sysctl() 0
 #define tipc_unregister_sysctl()
 #endif
-
-/*
- * TIPC message buffer code
- *
- * TIPC message buffer headroom reserves space for the worst-case
- * link-level device header (in case the message is sent off-node).
- *
- * Note: Headroom should be a multiple of 4 to ensure the TIPC header fields
- *       are word aligned for quicker access
- */
-#define BUF_HEADROOM LL_MAX_HEADER
-
-struct tipc_skb_cb {
-	void *handle;
-	struct sk_buff *tail;
-	bool deferred;
-	bool wakeup_pending;
-	bool bundling;
-	u16 chain_sz;
-	u16 chain_imp;
-};
-
-#define TIPC_SKB_CB(__skb) ((struct tipc_skb_cb *)&((__skb)->cb[0]))
-
-static inline struct tipc_msg *buf_msg(struct sk_buff *skb)
-{
-	return (struct tipc_msg *)skb->data;
-}
-
-struct sk_buff *tipc_buf_acquire(u32 size);
 
 #endif

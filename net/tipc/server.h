@@ -36,7 +36,8 @@
 #ifndef _TIPC_SERVER_H
 #define _TIPC_SERVER_H
 
-#include "core.h"
+#include <linux/idr.h>
+#include <linux/tipc.h>
 
 #define TIPC_SERVER_NAME_LEN	32
 
