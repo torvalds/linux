@@ -1,0 +1,30 @@
+* Qualcomm Atheros ath10k wireless devices
+
+For ath10k devices the calibration data can be provided through Device
+Tree. The node is a child node of the PCI controller.
+
+Required properties:
+-compatible : Should be "qcom,ath10k"
+
+Optional properties:
+- qcom,ath10k-calibration-data : calibration data as an array, the
+				 length can vary between hw versions
+
+
+Example:
+
+pci {
+	pcie@0 {
+		reg = <0 0 0 0 0>;
+		#interrupt-cells = <1>;
+		#size-cells = <2>;
+		#address-cells = <3>;
+		device_type = "pci";
+
+		ath10k@0,0 {
+			reg = <0 0 0 0 0>;
+			device_type = "pci";
+			qcom,ath10k-calibration-data = [ 01 02 03 ... ];
+		};
+	};
+};

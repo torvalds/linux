@@ -34,6 +34,7 @@
 #include "../regd.h"
 #include "../dfs_pattern_detector.h"
 #include "spectral.h"
+#include "thermal.h"
 
 #define MS(_v, _f) (((_v) & _f##_MASK) >> _f##_LSB)
 #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
@@ -120,6 +121,7 @@ struct ath10k_mem_chunk {
 };
 
 struct ath10k_wmi {
+	enum ath10k_fw_wmi_op_version op_version;
 	enum ath10k_htc_ep_id eid;
 	struct completion service_ready;
 	struct completion unified_ready;
@@ -128,6 +130,7 @@ struct ath10k_wmi {
 	struct wmi_cmd_map *cmd;
 	struct wmi_vdev_param_map *vdev_param;
 	struct wmi_pdev_param_map *pdev_param;
+	const struct wmi_ops *ops;
 
 	u32 num_mem_chunks;
 	struct ath10k_mem_chunk mem_chunks[WMI_MAX_MEM_REQS];
@@ -325,6 +328,7 @@ struct ath10k_debug {
 	u32 fw_dbglog_mask;
 	u32 pktlog_filter;
 	u32 reg_addr;
+	u32 nf_cal_period;
 
 	u8 htt_max_amsdu;
 	u8 htt_max_ampdu;
@@ -369,7 +373,7 @@ enum ath10k_fw_features {
 	/* wmi_mgmt_rx_hdr contains extra RSSI information */
 	ATH10K_FW_FEATURE_EXT_WMI_MGMT_RX = 0,
 
-	/* firmware from 10X branch */
+	/* Firmware from 10X branch. Deprecated, don't use in new code. */
 	ATH10K_FW_FEATURE_WMI_10X = 1,
 
 	/* firmware support tx frame management over WMI, otherwise it's HTT */
@@ -378,8 +382,9 @@ enum ath10k_fw_features {
 	/* Firmware does not support P2P */
 	ATH10K_FW_FEATURE_NO_P2P = 3,
 
-	/* Firmware 10.2 feature bit. The ATH10K_FW_FEATURE_WMI_10X feature bit
-	 * is required to be set as well.
+	/* Firmware 10.2 feature bit. The ATH10K_FW_FEATURE_WMI_10X feature
+	 * bit is required to be set as well. Deprecated, don't use in new
+	 * code.
 	 */
 	ATH10K_FW_FEATURE_WMI_10_2 = 4,
 
@@ -401,6 +406,7 @@ enum ath10k_dev_flags {
 enum ath10k_cal_mode {
 	ATH10K_CAL_MODE_FILE,
 	ATH10K_CAL_MODE_OTP,
+	ATH10K_CAL_MODE_DT,
 };
 
 static inline const char *ath10k_cal_mode_str(enum ath10k_cal_mode mode)
@@ -410,6 +416,8 @@ static inline const char *ath10k_cal_mode_str(enum ath10k_cal_mode mode)
 		return "file";
 	case ATH10K_CAL_MODE_OTP:
 		return "otp";
+	case ATH10K_CAL_MODE_DT:
+		return "dt";
 	}
 
 	return "unknown";
@@ -480,12 +488,15 @@ struct ath10k {
 		u32 id;
 		const char *name;
 		u32 patch_load_addr;
+		int uart_pin;
 
 		struct ath10k_hw_params_fw {
 			const char *dir;
 			const char *fw;
 			const char *otp;
 			const char *board;
+			size_t board_size;
+			size_t board_ext_size;
 		} fw;
 	} hw_params;
 
@@ -571,6 +582,7 @@ struct ath10k {
 
 	int max_num_peers;
 	int max_num_stations;
+	int max_num_vdevs;
 
 	struct work_struct offchan_tx_work;
 	struct sk_buff_head offchan_tx_queue;
@@ -610,6 +622,7 @@ struct ath10k {
 		/* protected by conf_mutex */
 		const struct firmware *utf;
 		DECLARE_BITMAP(orig_fw_features, ATH10K_FW_FEATURE_COUNT);
+		enum ath10k_fw_wmi_op_version orig_wmi_op_version;
 
 		/* protected by data_lock */
 		bool utf_monitor;
@@ -621,6 +634,8 @@ struct ath10k {
 		u32 fw_warm_reset_counter;
 		u32 fw_cold_reset_counter;
 	} stats;
+
+	struct ath10k_thermal thermal;
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
