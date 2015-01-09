@@ -2170,8 +2170,8 @@ void s3c_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg)
 	 * interrupts.
 	 */
 
-	writel(((hsotg->dedicated_fifos) ? DIEPMSK_TXFIFOEMPTY |
-		DIEPMSK_INTKNTXFEMPMSK : 0) |
+	writel(((hsotg->dedicated_fifos && !using_dma(hsotg)) ?
+		DIEPMSK_TXFIFOEMPTY | DIEPMSK_INTKNTXFEMPMSK : 0) |
 		DIEPMSK_EPDISBLDMSK | DIEPMSK_XFERCOMPLMSK |
 		DIEPMSK_TIMEOUTMSK | DIEPMSK_AHBERRMSK |
 		DIEPMSK_INTKNEPMISMSK,
