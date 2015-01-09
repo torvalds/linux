@@ -28,6 +28,7 @@
 #include "ci.h"
 #include "bits.h"
 #include "otg.h"
+#include "udc.h"
 #include "otg_fsm.h"
 
 /* Add for otg: interact with user space app */
@@ -534,10 +535,7 @@ static int ci_otg_start_gadget(struct otg_fsm *fsm, int on)
 {
 	struct ci_hdrc	*ci = container_of(fsm, struct ci_hdrc, fsm);
 
-	if (on)
-		usb_gadget_vbus_connect(&ci->gadget);
-	else
-		usb_gadget_vbus_disconnect(&ci->gadget);
+	ci_hdrc_gadget_connect(&ci->gadget, on);
 
 	return 0;
 }

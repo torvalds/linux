@@ -85,6 +85,8 @@ struct ci_hw_req {
 
 int ci_hdrc_gadget_init(struct ci_hdrc *ci);
 void ci_hdrc_gadget_destroy(struct ci_hdrc *ci);
+int ci_usb_charger_connect(struct ci_hdrc *ci, int is_active);
+void ci_hdrc_gadget_connect(struct usb_gadget *gadget, int is_active);
 
 #else
 
@@ -94,6 +96,17 @@ static inline int ci_hdrc_gadget_init(struct ci_hdrc *ci)
 }
 
 static inline void ci_hdrc_gadget_destroy(struct ci_hdrc *ci)
+{
+
+}
+
+static inline int ci_usb_charger_connect(struct ci_hdrc *ci, int is_active)
+{
+	return 0;
+}
+
+static inline void ci_hdrc_gadget_connect(struct usb_gadget *gadget,
+							int is_active)
 {
 
 }
