@@ -3476,7 +3476,7 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 
 	if (ret) {
 		dev_err(dev, "failed to enable supplies: %d\n", ret);
-		goto err_supplies;
+		goto err_clk;
 	}
 
 	/* usb phy enable */
@@ -3510,7 +3510,7 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 		regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies),
 				       hsotg->supplies);
 		dev_err(dev, "cannot claim IRQ for gadget\n");
-		goto err_clk;
+		goto err_supplies;
 	}
 
 	/* hsotg->num_of_eps holds number of EPs other than ep0 */
