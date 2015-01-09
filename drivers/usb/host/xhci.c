@@ -1714,7 +1714,7 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 		struct usb_host_endpoint *ep)
 {
 	struct xhci_hcd *xhci;
-	struct xhci_container_ctx *in_ctx, *out_ctx;
+	struct xhci_container_ctx *in_ctx;
 	unsigned int ep_index;
 	struct xhci_input_control_ctx *ctrl_ctx;
 	u32 added_ctxs;
@@ -1745,7 +1745,6 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 
 	virt_dev = xhci->devs[udev->slot_id];
 	in_ctx = virt_dev->in_ctx;
-	out_ctx = virt_dev->out_ctx;
 	ctrl_ctx = xhci_get_input_control_ctx(xhci, in_ctx);
 	if (!ctrl_ctx) {
 		xhci_warn(xhci, "%s: Could not get input context, bad type.\n",
@@ -1758,8 +1757,7 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	 * to add it again without dropping it, reject the addition.
 	 */
 	if (virt_dev->eps[ep_index].ring &&
-			!(le32_to_cpu(ctrl_ctx->drop_flags) &
-				xhci_get_endpoint_flag(&ep->desc))) {
+			!(le32_to_cpu(ctrl_ctx->drop_flags) & added_ctxs)) {
 		xhci_warn(xhci, "Trying to add endpoint 0x%x "
 				"without dropping it.\n",
 				(unsigned int) ep->desc.bEndpointAddress);
@@ -1769,8 +1767,7 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	/* If the HCD has already noted the endpoint is enabled,
 	 * ignore this request.
 	 */
-	if (le32_to_cpu(ctrl_ctx->add_flags) &
-	    xhci_get_endpoint_flag(&ep->desc)) {
+	if (le32_to_cpu(ctrl_ctx->add_flags) & added_ctxs) {
 		xhci_warn(xhci, "xHCI %s called with enabled ep %p\n",
 				__func__, ep);
 		return 0;
