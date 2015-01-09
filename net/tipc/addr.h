@@ -40,6 +40,8 @@
 #define TIPC_ZONE_MASK		0xff000000u
 #define TIPC_CLUSTER_MASK	0xfffff000u
 
+extern u32 tipc_own_addr __read_mostly;
+
 static inline u32 tipc_zone_mask(u32 addr)
 {
 	return addr & TIPC_ZONE_MASK;

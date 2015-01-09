@@ -162,9 +162,9 @@ void tipc_disc_rcv(struct net *net, struct sk_buff *buf,
 		return;
 
 	/* Locate, or if necessary, create, node: */
-	node = tipc_node_find(onode);
+	node = tipc_node_find(net, onode);
 	if (!node)
-		node = tipc_node_create(onode);
+		node = tipc_node_create(net, onode);
 	if (!node)
 		return;
 

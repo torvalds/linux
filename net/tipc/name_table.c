@@ -650,8 +650,9 @@ exit:
 /*
  * tipc_nametbl_publish - add name publication to network name tables
  */
-struct publication *tipc_nametbl_publish(u32 type, u32 lower, u32 upper,
-					 u32 scope, u32 port_ref, u32 key)
+struct publication *tipc_nametbl_publish(struct net *net, u32 type, u32 lower,
+					 u32 upper, u32 scope, u32 port_ref,
+					 u32 key)
 {
 	struct publication *publ;
 	struct sk_buff *buf = NULL;
@@ -670,19 +671,20 @@ struct publication *tipc_nametbl_publish(u32 type, u32 lower, u32 upper,
 		tipc_nametbl->local_publ_count++;
 		buf = tipc_named_publish(publ);
 		/* Any pending external events? */
-		tipc_named_process_backlog();
+		tipc_named_process_backlog(net);
 	}
 	spin_unlock_bh(&tipc_nametbl_lock);
 
 	if (buf)
-		named_cluster_distribute(buf);
+		named_cluster_distribute(net, buf);
 	return publ;
 }
 
 /**
  * tipc_nametbl_withdraw - withdraw name publication from network name tables
  */
-int tipc_nametbl_withdraw(u32 type, u32 lower, u32 ref, u32 key)
+int tipc_nametbl_withdraw(struct net *net, u32 type, u32 lower, u32 ref,
+			  u32 key)
 {
 	struct publication *publ;
 	struct sk_buff *skb = NULL;
@@ -693,7 +695,7 @@ int tipc_nametbl_withdraw(u32 type, u32 lower, u32 ref, u32 key)
 		tipc_nametbl->local_publ_count--;
 		skb = tipc_named_withdraw(publ);
 		/* Any pending external events? */
-		tipc_named_process_backlog();
+		tipc_named_process_backlog(net);
 		list_del_init(&publ->pport_list);
 		kfree_rcu(publ, rcu);
 	} else {
@@ -704,7 +706,7 @@ int tipc_nametbl_withdraw(u32 type, u32 lower, u32 ref, u32 key)
 	spin_unlock_bh(&tipc_nametbl_lock);
 
 	if (skb) {
-		named_cluster_distribute(skb);
+		named_cluster_distribute(net, skb);
 		return 1;
 	}
 	return 0;

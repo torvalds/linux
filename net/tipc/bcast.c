@@ -232,13 +232,12 @@ static void bclink_retransmit_pkt(u32 after, u32 to)
  *
  * Called with no locks taken
  */
-void tipc_bclink_wakeup_users(void)
+void tipc_bclink_wakeup_users(struct net *net)
 {
 	struct sk_buff *skb;
 
 	while ((skb = skb_dequeue(&bclink->link.waiting_sks)))
-		tipc_sk_rcv(skb);
-
+		tipc_sk_rcv(net, skb);
 }
 
 /**
@@ -385,9 +384,9 @@ void tipc_bclink_update_link_state(struct net *net, struct tipc_node *n_ptr,
  * Delay any upcoming NACK by this node if another node has already
  * requested the first message this node is going to ask for.
  */
-static void bclink_peek_nack(struct tipc_msg *msg)
+static void bclink_peek_nack(struct net *net, struct tipc_msg *msg)
 {
-	struct tipc_node *n_ptr = tipc_node_find(msg_destnode(msg));
+	struct tipc_node *n_ptr = tipc_node_find(net, msg_destnode(msg));
 
 	if (unlikely(!n_ptr))
 		return;
@@ -404,11 +403,12 @@ static void bclink_peek_nack(struct tipc_msg *msg)
 
 /* tipc_bclink_xmit - broadcast buffer chain to all nodes in cluster
  *                    and to identified node local sockets
+ * @net: the applicable net namespace
  * @list: chain of buffers containing message
  * Consumes the buffer chain, except when returning -ELINKCONG
  * Returns 0 if success, otherwise errno: -ELINKCONG,-EHOSTUNREACH,-EMSGSIZE
  */
-int tipc_bclink_xmit(struct sk_buff_head *list)
+int tipc_bclink_xmit(struct net *net, struct sk_buff_head *list)
 {
 	int rc = 0;
 	int bc = 0;
@@ -443,7 +443,7 @@ int tipc_bclink_xmit(struct sk_buff_head *list)
 
 	/* Deliver message clone */
 	if (likely(!rc))
-		tipc_sk_mcast_rcv(skb);
+		tipc_sk_mcast_rcv(net, skb);
 	else
 		kfree_skb(skb);
 
@@ -491,7 +491,7 @@ void tipc_bclink_rcv(struct net *net, struct sk_buff *buf)
 	if (msg_mc_netid(msg) != tn->net_id)
 		goto exit;
 
-	node = tipc_node_find(msg_prevnode(msg));
+	node = tipc_node_find(net, msg_prevnode(msg));
 	if (unlikely(!node))
 		goto exit;
 
@@ -514,7 +514,7 @@ void tipc_bclink_rcv(struct net *net, struct sk_buff *buf)
 			tipc_bclink_unlock();
 		} else {
 			tipc_node_unlock(node);
-			bclink_peek_nack(msg);
+			bclink_peek_nack(net, msg);
 		}
 		goto exit;
 	}
@@ -532,7 +532,7 @@ receive:
 			tipc_bclink_unlock();
 			tipc_node_unlock(node);
 			if (likely(msg_mcast(msg)))
-				tipc_sk_mcast_rcv(buf);
+				tipc_sk_mcast_rcv(net, buf);
 			else
 				kfree_skb(buf);
 		} else if (msg_user(msg) == MSG_BUNDLER) {
@@ -542,7 +542,7 @@ receive:
 			bcl->stats.recv_bundled += msg_msgcnt(msg);
 			tipc_bclink_unlock();
 			tipc_node_unlock(node);
-			tipc_link_bundle_rcv(buf);
+			tipc_link_bundle_rcv(net, buf);
 		} else if (msg_user(msg) == MSG_FRAGMENTER) {
 			tipc_buf_append(&node->bclink.reasm_buf, &buf);
 			if (unlikely(!buf && !node->bclink.reasm_buf))
@@ -563,7 +563,7 @@ receive:
 			bclink_accept_pkt(node, seqno);
 			tipc_bclink_unlock();
 			tipc_node_unlock(node);
-			tipc_named_rcv(buf);
+			tipc_named_rcv(net, buf);
 		} else {
 			tipc_bclink_lock();
 			bclink_accept_pkt(node, seqno);

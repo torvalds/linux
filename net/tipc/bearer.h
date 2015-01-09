@@ -168,7 +168,7 @@ extern struct tipc_bearer __rcu *bearer_list[];
 void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b_ptr);
 int tipc_enable_bearer(struct net *net, const char *bearer_name,
 		       u32 disc_domain, u32 priority);
-int tipc_disable_bearer(const char *name);
+int tipc_disable_bearer(struct net *net, const char *name);
 
 /*
  * Routines made available to TIPC by supported media types
@@ -205,7 +205,7 @@ struct tipc_bearer *tipc_bearer_find(const char *name);
 struct tipc_media *tipc_media_find(const char *name);
 int tipc_bearer_setup(void);
 void tipc_bearer_cleanup(void);
-void tipc_bearer_stop(void);
+void tipc_bearer_stop(struct net *net);
 void tipc_bearer_send(u32 bearer_id, struct sk_buff *buf,
 		      struct tipc_media_addr *dest);
 

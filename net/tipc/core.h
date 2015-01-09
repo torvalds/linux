@@ -59,6 +59,8 @@
 #include <linux/etherdevice.h>
 #include <net/netns/generic.h>
 
+#include "node.h"
+
 #define TIPC_MOD_VER "2.0.0"
 
 int tipc_snprintf(char *buf, int len, const char *fmt, ...);
@@ -78,6 +80,13 @@ extern int tipc_random __read_mostly;
 
 struct tipc_net {
 	int net_id;
+
+	/* Node table and node list */
+	spinlock_t node_list_lock;
+	struct hlist_head node_htable[NODE_HTABLE_SIZE];
+	struct list_head node_list;
+	u32 num_nodes;
+	u32 num_links;
 };
 
 #ifdef CONFIG_SYSCTL

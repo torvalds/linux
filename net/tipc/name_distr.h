@@ -69,11 +69,11 @@ struct distr_item {
 
 struct sk_buff *tipc_named_publish(struct publication *publ);
 struct sk_buff *tipc_named_withdraw(struct publication *publ);
-void named_cluster_distribute(struct sk_buff *buf);
-void tipc_named_node_up(u32 dnode);
-void tipc_named_rcv(struct sk_buff *buf);
+void named_cluster_distribute(struct net *net, struct sk_buff *buf);
+void tipc_named_node_up(struct net *net, u32 dnode);
+void tipc_named_rcv(struct net *net, struct sk_buff *buf);
 void tipc_named_reinit(void);
-void tipc_named_process_backlog(void);
-void tipc_publ_notify(struct list_head *nsub_list, u32 addr);
+void tipc_named_process_backlog(struct net *net);
+void tipc_publ_notify(struct net *net, struct list_head *nsub_list, u32 addr);
 
 #endif

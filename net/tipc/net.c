@@ -121,7 +121,7 @@ int tipc_net_start(struct net *net, u32 addr)
 	if (res)
 		return res;
 
-	tipc_nametbl_publish(TIPC_CFG_SRV, tipc_own_addr, tipc_own_addr,
+	tipc_nametbl_publish(net, TIPC_CFG_SRV, tipc_own_addr, tipc_own_addr,
 			     TIPC_ZONE_SCOPE, 0, tipc_own_addr);
 
 	pr_info("Started in network mode\n");
@@ -131,16 +131,17 @@ int tipc_net_start(struct net *net, u32 addr)
 	return 0;
 }
 
-void tipc_net_stop(void)
+void tipc_net_stop(struct net *net)
 {
 	if (!tipc_own_addr)
 		return;
 
-	tipc_nametbl_withdraw(TIPC_CFG_SRV, tipc_own_addr, 0, tipc_own_addr);
+	tipc_nametbl_withdraw(net, TIPC_CFG_SRV, tipc_own_addr, 0,
+			      tipc_own_addr);
 	rtnl_lock();
-	tipc_bearer_stop();
+	tipc_bearer_stop(net);
 	tipc_bclink_stop();
-	tipc_node_stop();
+	tipc_node_stop(net);
 	rtnl_unlock();
 
 	pr_info("Left network mode\n");

@@ -150,12 +150,12 @@ static struct sk_buff *cfg_enable_bearer(struct net *net)
 	return tipc_cfg_reply_none();
 }
 
-static struct sk_buff *cfg_disable_bearer(void)
+static struct sk_buff *cfg_disable_bearer(struct net *net)
 {
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_BEARER_NAME))
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 
-	if (tipc_disable_bearer((char *)TLV_DATA(req_tlv_area)))
+	if (tipc_disable_bearer(net, (char *)TLV_DATA(req_tlv_area)))
 		return tipc_cfg_reply_error_string("unable to disable bearer");
 
 	return tipc_cfg_reply_none();
@@ -232,16 +232,20 @@ struct sk_buff *tipc_cfg_do_cmd(struct net *net, u32 orig_node, u16 cmd,
 		rep_tlv_buf = tipc_cfg_reply_none();
 		break;
 	case TIPC_CMD_GET_NODES:
-		rep_tlv_buf = tipc_node_get_nodes(req_tlv_area, req_tlv_space);
+		rep_tlv_buf = tipc_node_get_nodes(net, req_tlv_area,
+						  req_tlv_space);
 		break;
 	case TIPC_CMD_GET_LINKS:
-		rep_tlv_buf = tipc_node_get_links(req_tlv_area, req_tlv_space);
+		rep_tlv_buf = tipc_node_get_links(net, req_tlv_area,
+						  req_tlv_space);
 		break;
 	case TIPC_CMD_SHOW_LINK_STATS:
-		rep_tlv_buf = tipc_link_cmd_show_stats(req_tlv_area, req_tlv_space);
+		rep_tlv_buf = tipc_link_cmd_show_stats(net, req_tlv_area,
+						       req_tlv_space);
 		break;
 	case TIPC_CMD_RESET_LINK_STATS:
-		rep_tlv_buf = tipc_link_cmd_reset_stats(req_tlv_area, req_tlv_space);
+		rep_tlv_buf = tipc_link_cmd_reset_stats(net, req_tlv_area,
+							req_tlv_space);
 		break;
 	case TIPC_CMD_SHOW_NAME_TABLE:
 		rep_tlv_buf = tipc_nametbl_get(req_tlv_area, req_tlv_space);
@@ -261,13 +265,14 @@ struct sk_buff *tipc_cfg_do_cmd(struct net *net, u32 orig_node, u16 cmd,
 	case TIPC_CMD_SET_LINK_TOL:
 	case TIPC_CMD_SET_LINK_PRI:
 	case TIPC_CMD_SET_LINK_WINDOW:
-		rep_tlv_buf = tipc_link_cmd_config(req_tlv_area, req_tlv_space, cmd);
+		rep_tlv_buf = tipc_link_cmd_config(net, req_tlv_area,
+						   req_tlv_space, cmd);
 		break;
 	case TIPC_CMD_ENABLE_BEARER:
 		rep_tlv_buf = cfg_enable_bearer(net);
 		break;
 	case TIPC_CMD_DISABLE_BEARER:
-		rep_tlv_buf = cfg_disable_bearer();
+		rep_tlv_buf = cfg_disable_bearer(net);
 		break;
 	case TIPC_CMD_SET_NODE_ADDR:
 		rep_tlv_buf = cfg_set_own_addr(net);

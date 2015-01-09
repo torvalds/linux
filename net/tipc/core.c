@@ -57,12 +57,15 @@ static int __net_init tipc_init_net(struct net *net)
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 
 	tn->net_id = 4711;
+	INIT_LIST_HEAD(&tn->node_list);
+	spin_lock_init(&tn->node_list_lock);
 
 	return 0;
 }
 
 static void __net_exit tipc_exit_net(struct net *net)
 {
+	tipc_net_stop(net);
 }
 
 static struct pernet_operations tipc_net_ops = {
@@ -144,7 +147,6 @@ out_pernet:
 static void __exit tipc_exit(void)
 {
 	unregister_pernet_subsys(&tipc_net_ops);
-	tipc_net_stop();
 	tipc_bearer_cleanup();
 	tipc_netlink_stop();
 	tipc_subscr_stop();

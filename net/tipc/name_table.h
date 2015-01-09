@@ -104,9 +104,11 @@ struct sk_buff *tipc_nametbl_get(const void *req_tlv_area, int req_tlv_space);
 u32 tipc_nametbl_translate(u32 type, u32 instance, u32 *node);
 int tipc_nametbl_mc_translate(u32 type, u32 lower, u32 upper, u32 limit,
 			      struct tipc_port_list *dports);
-struct publication *tipc_nametbl_publish(u32 type, u32 lower, u32 upper,
-					 u32 scope, u32 port_ref, u32 key);
-int tipc_nametbl_withdraw(u32 type, u32 lower, u32 ref, u32 key);
+struct publication *tipc_nametbl_publish(struct net *net, u32 type, u32 lower,
+					 u32 upper, u32 scope, u32 port_ref,
+					 u32 key);
+int tipc_nametbl_withdraw(struct net *net, u32 type, u32 lower, u32 ref,
+			  u32 key);
 struct publication *tipc_nametbl_insert_publ(u32 type, u32 lower, u32 upper,
 					     u32 scope, u32 node, u32 ref,
 					     u32 key);
