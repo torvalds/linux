@@ -198,6 +198,15 @@ struct rk3288_vpu_vp8e_run {
 };
 
 /**
+ * struct rk3288_vpu_vp8d_run - per-run data specific to VP8 decoding.
+ * @frame_hdr: Pointer to a buffer containing per-run frame data which
+ *			is needed by setting vpu register.
+ */
+struct rk3288_vpu_vp8d_run {
+	const struct v4l2_ctrl_vp8_frame_hdr *frame_hdr;
+};
+
+/**
  * struct rk3288_vpu_h264d_run - per-run data specific to H264 decoding.
  * @sps:		Pointer to a buffer containing H264 SPS.
  * @pps:		Pointer to a buffer containing H264 PPS.
@@ -231,6 +240,7 @@ struct rk3288_vpu_run {
 	/* Specific for particular operating modes. */
 	union {
 		struct rk3288_vpu_vp8e_run vp8e;
+		struct rk3288_vpu_vp8d_run vp8d;
 		struct rk3288_vpu_h264d_run h264d;
 		/* Other modes will need different data. */
 	};

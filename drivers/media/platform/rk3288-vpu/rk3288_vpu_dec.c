@@ -54,6 +54,12 @@ static struct rk3288_vpu_fmt formats[] = {
 		.codec_mode = RK_VPU_CODEC_H264D,
 		.num_planes = 1,
 	},
+	{
+		.name = "Frames of VP8 Encoded Stream",
+		.fourcc = V4L2_PIX_FMT_VP8_FRAME,
+		.codec_mode = RK_VPU_CODEC_VP8D,
+		.num_planes = 1,
+	},
 };
 
 static struct rk3288_vpu_fmt *find_format(struct v4l2_format *f, bool bitstream)
@@ -78,6 +84,7 @@ enum {
 	RK3288_VPU_DEC_CTRL_H264_SCALING_MATRIX,
 	RK3288_VPU_DEC_CTRL_H264_SLICE_PARAM,
 	RK3288_VPU_DEC_CTRL_H264_DECODE_PARAM,
+	RK3288_VPU_DEC_CTRL_VP8_FRAME_HDR,
 };
 
 static struct rk3288_vpu_control controls[] = {
@@ -121,6 +128,14 @@ static struct rk3288_vpu_control controls[] = {
 		.name = "H264 Decode Parameters",
 		.max_stores = VIDEO_MAX_FRAME,
 		.elem_size = sizeof(struct v4l2_ctrl_h264_decode_param),
+		.can_store = true,
+	},
+	[RK3288_VPU_DEC_CTRL_VP8_FRAME_HDR] = {
+		.id = V4L2_CID_MPEG_VIDEO_VP8_FRAME_HDR,
+		.type = V4L2_CTRL_TYPE_PRIVATE,
+		.name = "VP8 Frame Header Parameters",
+		.max_stores = VIDEO_MAX_FRAME,
+		.elem_size = sizeof(struct v4l2_ctrl_vp8_frame_hdr),
 		.can_store = true,
 	},
 };
@@ -626,6 +641,7 @@ static int rk3288_vpu_dec_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MPEG_VIDEO_H264_SCALING_MATRIX:
 	case V4L2_CID_MPEG_VIDEO_H264_SLICE_PARAM:
 	case V4L2_CID_MPEG_VIDEO_H264_DECODE_PARAM:
+	case V4L2_CID_MPEG_VIDEO_VP8_FRAME_HDR:
 		/* These controls are used directly. */
 		break;
 
@@ -942,14 +958,21 @@ static void rk3288_vpu_dec_prepare_run(struct rk3288_vpu_ctx *ctx)
 
 	v4l2_ctrl_apply_store(&ctx->ctrl_handler, src->config_store);
 
-	ctx->run.h264d.sps = get_ctrl_ptr(ctx, RK3288_VPU_DEC_CTRL_H264_SPS);
-	ctx->run.h264d.pps = get_ctrl_ptr(ctx, RK3288_VPU_DEC_CTRL_H264_PPS);
-	ctx->run.h264d.scaling_matrix = get_ctrl_ptr(ctx,
+	if (ctx->vpu_src_fmt->fourcc == V4L2_PIX_FMT_H264_SLICE) {
+		ctx->run.h264d.sps = get_ctrl_ptr(ctx,
+				RK3288_VPU_DEC_CTRL_H264_SPS);
+		ctx->run.h264d.pps = get_ctrl_ptr(ctx,
+				RK3288_VPU_DEC_CTRL_H264_PPS);
+		ctx->run.h264d.scaling_matrix = get_ctrl_ptr(ctx,
 				RK3288_VPU_DEC_CTRL_H264_SCALING_MATRIX);
-	ctx->run.h264d.slice_param = get_ctrl_ptr(ctx,
+		ctx->run.h264d.slice_param = get_ctrl_ptr(ctx,
 				RK3288_VPU_DEC_CTRL_H264_SLICE_PARAM);
-	ctx->run.h264d.decode_param = get_ctrl_ptr(ctx,
+		ctx->run.h264d.decode_param = get_ctrl_ptr(ctx,
 				RK3288_VPU_DEC_CTRL_H264_DECODE_PARAM);
+	} else if (ctx->vpu_src_fmt->fourcc == V4L2_PIX_FMT_VP8_FRAME) {
+		ctx->run.vp8d.frame_hdr = get_ctrl_ptr(ctx,
+				RK3288_VPU_DEC_CTRL_VP8_FRAME_HDR);
+	}
 }
 
 static void rk3288_vpu_dec_run_done(struct rk3288_vpu_ctx *ctx,
