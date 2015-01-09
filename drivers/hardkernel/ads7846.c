@@ -108,7 +108,7 @@ struct ads7846 {
 	struct spi_device	*spi;
 #if !defined(CONFIG_MACH_MESON8B_ODROIDC)
 	struct regulator	*reg;
-#endif	
+#endif
 
 #if defined(CONFIG_HWMON) || defined(CONFIG_HWMON_MODULE)
 	struct attribute_group	*attr_group;
@@ -240,7 +240,7 @@ static void __ads7846_disable(struct ads7846 *ts)
 
 #if !defined(CONFIG_MACH_MESON8B_ODROIDC)
 	regulator_disable(ts->reg);
-#endif	
+#endif
 
 	/*
 	 * We know the chip's in low power mode since we always
@@ -1300,16 +1300,16 @@ static const struct ads7846_platform_data *ads7846_probe_dt(struct device *dev)
 #if defined(CONFIG_MACH_MESON8B_ODROIDC)
     {
         const char  *str;
-    	
-    	if(of_property_read_string(node, "pendown-gpio", &str)) {
-    		dev_err(dev, "Unknown pendown-gpio\n");
-    		return ERR_PTR(-EINVAL);
-    	}
+
+	if(of_property_read_string(node, "pendown-gpio", &str)) {
+		dev_err(dev, "Unknown pendown-gpio\n");
+		return ERR_PTR(-EINVAL);
+	}
         pdata->gpio_pendown = amlogic_gpio_name_map_num(str);
     }
-#else    
+#else
 	pdata->gpio_pendown = of_get_named_gpio(dev->of_node, "pendown-gpio", 0);
-#endif	
+#endif
 
 	return pdata;
 }
@@ -1457,40 +1457,40 @@ static int ads7846_probe(struct spi_device *spi)
 #if defined(CONFIG_MACH_MESON8B_ODROIDC)
     // AMLogic
     {
-        int irq_source, irq_filter, irq_trigger;
-        
+	int irq_source, irq_filter, irq_trigger;
+
         /*
             IRQ Source : (0 ~ 7)
         */
-    	if(of_property_read_u32(spi->dev.of_node, "irq-source", &irq_source)) {
-    	    dev_warn(&spi->dev, "Undfined irq-source value in DT! irq-source to assume a GPIO_IRQ0.!\n");
-    	    irq_source = GPIO_IRQ0;
-    	}
-	    spi->irq = INT_GPIO_0 + irq_source;
-        /* 
+	if(of_property_read_u32(spi->dev.of_node, "irq-source", &irq_source)) {
+	dev_warn(&spi->dev, "Undfined irq-source value in DT! irq-source to assume a GPIO_IRQ0.!\n");
+		irq_source = GPIO_IRQ0;
+	}
+	spi->irq = INT_GPIO_0 + irq_source;
+        /*
             IRQ Filter Select : (0 ~ 7)
                 Value 0 : No Filtering, Value 1 ~ 7 : value * 3 * 111nS(delay)
         */
-    	if(of_property_read_u32(spi->dev.of_node, "irq-filter", &irq_filter)) {
-    	    dev_warn(&spi->dev, "Undfined irq-filter value in DT! irq-filter to assume a FILTER_NUM7.!\n");
-    	    irq_filter = FILTER_NUM7;
-    	}
+	if(of_property_read_u32(spi->dev.of_node, "irq-filter", &irq_filter)) {
+		dev_warn(&spi->dev, "Undfined irq-filter value in DT! irq-filter to assume a FILTER_NUM7.!\n");
+		irq_filter = FILTER_NUM7;
+	}
         /*
             IRQ Trigger Select : (0 ~ 3)
                 GPIO_IRQ_HIGH = 0, GPIO_IRQ_LOW = 1, GPIO_IRQ_RISING = 2, GPIO_IRQ_FALLING = 3
         */
-    	if(of_property_read_u32(spi->dev.of_node, "irq-trigger", &irq_trigger)) {
-    	    dev_warn(&spi->dev, "Undfined irq-trigger value in DT! irq-trigger to assume a GPIO_IRQ_FALLING.!\n");
-    	    irq_trigger = GPIO_IRQ_FALLING;
-    	}
+	if(of_property_read_u32(spi->dev.of_node, "irq-trigger", &irq_trigger)) {
+		dev_warn(&spi->dev, "Undfined irq-trigger value in DT! irq-trigger to assume a GPIO_IRQ_FALLING.!\n");
+		irq_trigger = GPIO_IRQ_FALLING;
+	}
 
         /* GPIO IRQ Setup */
-		if(amlogic_gpio_to_irq(pdata->gpio_pendown, "ads7846_pendown",
-		    AML_GPIO_IRQ(irq_source, irq_filter, irq_trigger))) {
-    	    dev_err(&spi->dev, "amlogic_gpio_to_irq fail!\n");
-	    }
+	if(amlogic_gpio_to_irq(pdata->gpio_pendown, "ads7846_pendown",
+	    	AML_GPIO_IRQ(irq_source, irq_filter, irq_trigger))) {
+		dev_err(&spi->dev, "amlogic_gpio_to_irq fail!\n");
+	}
     }
-    irq_flags = IRQF_DISABLED | IRQF_ONESHOT; 
+	irq_flags = IRQF_DISABLED | IRQF_ONESHOT;
 #else
 	irq_flags = pdata->irq_flags ? : IRQF_TRIGGER_FALLING;
 	irq_flags |= IRQF_ONESHOT;
@@ -1589,7 +1589,7 @@ static int ads7846_remove(struct spi_device *spi)
 #if !defined(CONFIG_MACH_MESON8B_ODROIDC)
 	regulator_disable(ts->reg);
 	regulator_put(ts->reg);
-#endif	
+#endif
 
 	if (!ts->get_pendown_state) {
 		/*
