@@ -598,14 +598,15 @@ static void s3c_hsotg_start_req(struct dwc2_hsotg *hsotg,
 	else
 		epsize = 0;
 
-	if (index != 0 && ureq->zero) {
-		/*
-		 * test for the packets being exactly right for the
-		 * transfer
-		 */
-
-		if (length == (packets * hs_ep->ep.maxpacket))
-			packets++;
+	/*
+	 * zero length packet should be programmed on its own and should not
+	 * be counted in DIEPTSIZ.PktCnt with other packets.
+	 */
+	if (dir_in && ureq->zero && !continuing) {
+		/* Test if zlp is actually required. */
+		if ((ureq->length >= hs_ep->ep.maxpacket) &&
+					!(ureq->length % hs_ep->ep.maxpacket))
+			hs_ep->sent_zlp = 1;
 	}
 
 	epsize |= DXEPTSIZ_PKTCNT(packets);
@@ -857,7 +858,11 @@ static int s3c_hsotg_send_reply(struct dwc2_hsotg *hsotg,
 
 	req->buf = hsotg->ep0_buff;
 	req->length = length;
-	req->zero = 1; /* always do zero-length final transfer */
+	/*
+	 * zero flag is for sending zlp in DATA IN stage. It has no impact on
+	 * STATUS stage.
+	 */
+	req->zero = 0;
 	req->complete = s3c_hsotg_complete_oursetup;
 
 	if (length)
@@ -1744,29 +1749,17 @@ static void s3c_hsotg_complete_in(struct dwc2_hsotg *hsotg,
 	dev_dbg(hsotg->dev, "req->length:%d req->actual:%d req->zero:%d\n",
 		hs_req->req.length, hs_req->req.actual, hs_req->req.zero);
 
-	/*
-	 * Check if dealing with Maximum Packet Size(MPS) IN transfer at EP0
-	 * When sent data is a multiple MPS size (e.g. 64B ,128B ,192B
-	 * ,256B ... ), after last MPS sized packet send IN ZLP packet to
-	 * inform the host that no more data is available.
-	 * The state of req.zero member is checked to be sure that the value to
-	 * send is smaller than wValue expected from host.
-	 * Check req.length to NOT send another ZLP when the current one is
-	 * under completion (the one for which this completion has been called).
-	 */
-	if (hs_req->req.length && hs_ep->index == 0 && hs_req->req.zero &&
-	    hs_req->req.length == hs_req->req.actual &&
-	    !(hs_req->req.length % hs_ep->ep.maxpacket)) {
-
-		dev_dbg(hsotg->dev, "ep0 zlp IN packet sent\n");
-		s3c_hsotg_program_zlp(hsotg, hs_ep);
-
-		return;
-	}
-
 	if (!size_left && hs_req->req.actual < hs_req->req.length) {
 		dev_dbg(hsotg->dev, "%s trying more for req...\n", __func__);
 		s3c_hsotg_start_req(hsotg, hs_ep, hs_req, true);
+		return;
+	}
+
+	/* Zlp for all endpoints, for ep0 only in DATA IN stage */
+	if (hs_ep->sent_zlp) {
+		s3c_hsotg_program_zlp(hsotg, hs_ep);
+		hs_ep->sent_zlp = 0;
+		/* transfer will be completed on next complete interrupt */
 		return;
 	}
 
