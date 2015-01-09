@@ -179,6 +179,10 @@ EXPORT_SYMBOL_GPL(led_classdev_suspend);
 void led_classdev_resume(struct led_classdev *led_cdev)
 {
 	led_cdev->brightness_set(led_cdev, led_cdev->brightness);
+
+	if (led_cdev->flash_resume)
+		led_cdev->flash_resume(led_cdev);
+
 	led_cdev->flags &= ~LED_SUSPENDED;
 }
 EXPORT_SYMBOL_GPL(led_classdev_resume);
