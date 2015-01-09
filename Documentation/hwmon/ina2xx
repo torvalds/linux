@@ -48,3 +48,10 @@ The shunt value in micro-ohms can be set via platform data or device tree at
 compile-time or via the shunt_resistor attribute in sysfs at run-time. Please
 refer to the Documentation/devicetree/bindings/i2c/ina2xx.txt for bindings
 if the device tree is used.
+
+Additionally ina226 supports update_interval attribute as described in
+Documentation/hwmon/sysfs-interface. Internally the interval is the sum of
+bus and shunt voltage conversion times multiplied by the averaging rate. We
+don't touch the conversion times and only modify the number of averages. The
+lower limit of the update_interval is 2 ms, the upper limit is 2253 ms.
+The actual programmed interval may vary from the desired value.
