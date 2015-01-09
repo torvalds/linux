@@ -163,19 +163,31 @@ void __kprobes arch_arm_kprobe(struct kprobe *p)
  * memory. It is also needed to atomically set the two half-words of a 32-bit
  * Thumb breakpoint.
  */
-int __kprobes __arch_disarm_kprobe(void *p)
+struct patch {
+	void *addr;
+	unsigned int insn;
+};
+
+static int __kprobes_remove_breakpoint(void *data)
 {
-	struct kprobe *kp = p;
-	void *addr = (void *)((uintptr_t)kp->addr & ~1);
-
-	__patch_text(addr, kp->opcode);
-
+	struct patch *p = data;
+	__patch_text(p->addr, p->insn);
 	return 0;
+}
+
+void __kprobes kprobes_remove_breakpoint(void *addr, unsigned int insn)
+{
+	struct patch p = {
+		.addr = addr,
+		.insn = insn,
+	};
+	stop_machine(__kprobes_remove_breakpoint, &p, cpu_online_mask);
 }
 
 void __kprobes arch_disarm_kprobe(struct kprobe *p)
 {
-	stop_machine(__arch_disarm_kprobe, p, cpu_online_mask);
+	kprobes_remove_breakpoint((void *)((uintptr_t)p->addr & ~1),
+			p->opcode);
 }
 
 void __kprobes arch_remove_kprobe(struct kprobe *p)

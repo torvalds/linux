@@ -30,6 +30,8 @@
 #define KPROBE_THUMB16_BREAKPOINT_INSTRUCTION	0xde18
 #define KPROBE_THUMB32_BREAKPOINT_INSTRUCTION	0xf7f0a018
 
+extern void kprobes_remove_breakpoint(void *addr, unsigned int insn);
+
 enum probes_insn __kprobes
 kprobe_decode_ldmstm(kprobe_opcode_t insn, struct arch_probes_insn *asi,
 		const struct decode_header *h);

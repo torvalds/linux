@@ -7,5 +7,6 @@ obj-$(CONFIG_KPROBES)		+= actions-thumb.o checkers-thumb.o
 test-kprobes-objs		+= test-thumb.o
 else
 obj-$(CONFIG_KPROBES)		+= actions-arm.o checkers-arm.o
+obj-$(CONFIG_OPTPROBES)		+= opt-arm.o
 test-kprobes-objs		+= test-arm.o
 endif
