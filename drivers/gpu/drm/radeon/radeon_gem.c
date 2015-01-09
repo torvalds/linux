@@ -576,7 +576,7 @@ error_unreserve:
 error_free:
 	drm_free_large(vm_bos);
 
-	if (r)
+	if (r && r != -ERESTARTSYS)
 		DRM_ERROR("Couldn't update BO_VA (%d)\n", r);
 }
 
