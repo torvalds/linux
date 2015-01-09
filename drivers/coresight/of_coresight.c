@@ -93,7 +93,7 @@ static int of_coresight_alloc_memory(struct device *dev,
 	if (!pdata->outports)
 		return -ENOMEM;
 
-	/* Children connected to this component via @outport */
+	/* Children connected to this component via @outports */
 	 pdata->child_names = devm_kzalloc(dev, pdata->nr_outport *
 					  sizeof(*pdata->child_names),
 					  GFP_KERNEL);
