@@ -96,7 +96,7 @@
 			uart0_xfer: uart0-xfer {
 				rockchip,pins = <UART0_SIN>,
 						<UART0_SOUT>;
-				rockchip,pull = <VALUE_PULL_DEFAULT>;
+				rockchip,pull = <VALUE_PULL_UPDOWN_DISABLE>;
 				
 				
 			};
