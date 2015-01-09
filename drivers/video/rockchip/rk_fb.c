@@ -1632,11 +1632,9 @@ void rk_fb_free_dma_buf(struct rk_lcdc_driver *dev_drv,
 						area_data->ion_handle);
 		}
 #endif
-		if (area_data->ion_handle != NULL) {
-			ion_unmap_kernel(rk_fb->ion_client,
-					 area_data->ion_handle);
+		if (area_data->ion_handle != NULL)
 			ion_free(rk_fb->ion_client, area_data->ion_handle);
-		}
+
 		if (area_data->acq_fence)
 			sync_fence_put(area_data->acq_fence);
 	}
@@ -2203,8 +2201,6 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 					/*return -EINVAL; */
 					break;
 				}
-				fbi->screen_base =
-				    ion_map_kernel(rk_fb->ion_client, hdl);
 				reg_win_data->area_num++;
 				reg_win_data->reg_area_data[i].ion_handle = hdl;
 #ifndef CONFIG_ROCKCHIP_IOMMU
