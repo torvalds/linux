@@ -4,10 +4,7 @@
  *
  * Released under the terms of the GNU GPL v2.0.
  */
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <errno.h>
+
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
@@ -32,37 +29,6 @@ struct file *file_lookup(const char *name)
 	file->next = file_list;
 	file_list = file;
 	return file;
-}
-
-int file_exist(const char *name)
-{
-	int ret = 1;
-	struct stat buf;
-	const char *file_name = sym_expand_string_value(name);
-	const char * env;
-	char fullname[PATH_MAX + 1];
-	if (stat(file_name, &buf) == -1)
-	{
-		env = getenv(SRCTREE);
-		if (env)
-		{
-			sprintf(fullname, "%s/%s", env, name);
-			if (stat(fullname, &buf) == -1)
-			{
-				ret = 0;
-			}
-		}
-		else
-		{
-			ret = 0;
-		}
-	}
-	if (ret)
-		fprintf(stderr,"%s:%d: note: Open %s\n", zconf_curname(), zconf_lineno(), file_name);
-	else
-		fprintf(stderr,"%s:%d: warning: Skip %s\n", zconf_curname(), zconf_lineno(), file_name);
-	free((void *)file_name);
-	return ret;
 }
 
 /* write a dependency file as used by kbuild to track dependencies */
