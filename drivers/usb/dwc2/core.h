@@ -158,14 +158,10 @@ struct s3c_hsotg_ep {
  * struct s3c_hsotg_req - data transfer request
  * @req: The USB gadget request
  * @queue: The list of requests for the endpoint this is queued for.
- * @in_progress: Has already had size/packets written to core
- * @mapped: DMA buffer for this request has been mapped via dma_map_single().
  */
 struct s3c_hsotg_req {
 	struct usb_request      req;
 	struct list_head        queue;
-	unsigned char           in_progress;
-	unsigned char           mapped;
 };
 
 #if IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) || IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
