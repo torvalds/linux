@@ -126,7 +126,7 @@ struct coresight_platform_data *of_get_coresight_platform_data(
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
-	/* Use device name as debugfs handle */
+	/* Use device name as sysfs handle */
 	pdata->name = dev_name(dev);
 
 	/* Get the number of input and output port for this component */
