@@ -2439,12 +2439,12 @@ static int s3c_hsotg_ep_enable(struct usb_ep *ep,
 	struct s3c_hsotg_ep *hs_ep = our_ep(ep);
 	struct dwc2_hsotg *hsotg = hs_ep->parent;
 	unsigned long flags;
-	int index = hs_ep->index;
+	unsigned int index = hs_ep->index;
 	u32 epctrl_reg;
 	u32 epctrl;
 	u32 mps;
-	int dir_in;
-	int i, val, size;
+	unsigned int dir_in;
+	unsigned int i, val, size;
 	int ret = 0;
 
 	dev_dbg(hsotg->dev,
@@ -2533,6 +2533,8 @@ static int s3c_hsotg_ep_enable(struct usb_ep *ep,
 	 * a unique tx-fifo even if it is non-periodic.
 	 */
 	if (dir_in && hsotg->dedicated_fifos) {
+		u32 fifo_index = 0;
+		u32 fifo_size = UINT_MAX;
 		size = hs_ep->ep.maxpacket*hs_ep->mc;
 		for (i = 1; i < hsotg->num_of_eps; ++i) {
 			if (hsotg->fifo_map & (1<<i))
@@ -2541,19 +2543,22 @@ static int s3c_hsotg_ep_enable(struct usb_ep *ep,
 			val = (val >> FIFOSIZE_DEPTH_SHIFT)*4;
 			if (val < size)
 				continue;
-			hsotg->fifo_map |= 1<<i;
-
-			epctrl |= DXEPCTL_TXFNUM(i);
-			hs_ep->fifo_index = i;
-			hs_ep->fifo_size = val;
-			break;
+			/* Search for smallest acceptable fifo */
+			if (val < fifo_size) {
+				fifo_size = val;
+				fifo_index = i;
+			}
 		}
-		if (i == hsotg->num_of_eps) {
+		if (!fifo_index) {
 			dev_err(hsotg->dev,
 				"%s: No suitable fifo found\n", __func__);
 			ret = -ENOMEM;
 			goto error;
 		}
+		hsotg->fifo_map |= 1 << fifo_index;
+		epctrl |= DXEPCTL_TXFNUM(fifo_index);
+		hs_ep->fifo_index = fifo_index;
+		hs_ep->fifo_size = fifo_size;
 	}
 
 	/* for non control endpoints, set PID to D0 */
