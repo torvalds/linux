@@ -4748,7 +4748,7 @@ S:	Supported
 F:	drivers/scsi/ipr.*
 
 IBM Power Virtual Ethernet Device Driver
-M:	Santiago Leon <santil@linux.vnet.ibm.com>
+M:	Thomas Falcon <tlfalcon@linux.vnet.ibm.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/ibm/ibmveth.*
