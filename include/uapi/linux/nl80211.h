@@ -3734,7 +3734,9 @@ struct nl80211_pattern_support {
  *	same attributes used with @NL80211_CMD_START_SCHED_SCAN.  It
  *	specifies how the scan is performed (e.g. the interval and the
  *	channels to scan) as well as the scan results that will
- *	trigger a wake (i.e. the matchsets).
+ *	trigger a wake (i.e. the matchsets).  This attribute is also
+ *	sent in a response to @NL80211_CMD_GET_WIPHY, indicating the
+ *	number of match sets supported by the driver (u32).
  * @NL80211_WOWLAN_TRIG_NET_DETECT_RESULTS: nested attribute
  *	containing an array with information about what triggered the
  *	wake up.  If no elements are present in the array, it means
