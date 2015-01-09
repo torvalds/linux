@@ -668,13 +668,13 @@ void i40e_reset_vf(struct i40e_vf *vf, bool flr)
 	/* poll VPGEN_VFRSTAT reg to make sure
 	 * that reset is complete
 	 */
-	for (i = 0; i < 100; i++) {
-		/* vf reset requires driver to first reset the
-		 * vf and then poll the status register to make sure
-		 * that the requested op was completed
-		 * successfully
+	for (i = 0; i < 10; i++) {
+		/* VF reset requires driver to first reset the VF and then
+		 * poll the status register to make sure that the reset
+		 * completed successfully. Due to internal HW FIFO flushes,
+		 * we must wait 10ms before the register will be valid.
 		 */
-		usleep_range(10, 20);
+		usleep_range(10000, 20000);
 		reg = rd32(hw, I40E_VPGEN_VFRSTAT(vf->vf_id));
 		if (reg & I40E_VPGEN_VFRSTAT_VFRD_MASK) {
 			rsd = true;
