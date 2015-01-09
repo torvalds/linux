@@ -177,6 +177,10 @@ static void s3c_hsotg_init_fifo(struct dwc2_hsotg *hsotg)
 	int timeout;
 	u32 val;
 
+	/* Reset fifo map if not correctly cleared during previous session */
+	WARN_ON(hsotg->fifo_map);
+	hsotg->fifo_map = 0;
+
 	/* set RX/NPTX FIFO sizes */
 	writel(hsotg->g_rx_fifo_sz, hsotg->regs + GRXFSIZ);
 	writel((hsotg->g_rx_fifo_sz << FIFOSIZE_STARTADDR_SHIFT) |
