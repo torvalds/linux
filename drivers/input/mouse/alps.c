@@ -2422,14 +2422,24 @@ int alps_init(struct psmouse *psmouse)
 		dev1->keybit[BIT_WORD(BTN_MIDDLE)] |= BIT_MASK(BTN_MIDDLE);
 	}
 
+	if (priv->flags & ALPS_DUALPOINT) {
+		/*
+		 * format of input device name is: "protocol vendor name"
+		 * see function psmouse_switch_protocol() in psmouse-base.c
+		 */
+		dev2->name = "AlpsPS/2 ALPS DualPoint Stick";
+		dev2->id.product = PSMOUSE_ALPS;
+		dev2->id.version = priv->proto_version;
+	} else {
+		dev2->name = "PS/2 ALPS Mouse";
+		dev2->id.product = PSMOUSE_PS2;
+		dev2->id.version = 0x0000;
+	}
+
 	snprintf(priv->phys, sizeof(priv->phys), "%s/input1", psmouse->ps2dev.serio->phys);
 	dev2->phys = priv->phys;
-	dev2->name = (priv->flags & ALPS_DUALPOINT) ?
-		     "DualPoint Stick" : "ALPS PS/2 Device";
 	dev2->id.bustype = BUS_I8042;
 	dev2->id.vendor  = 0x0002;
-	dev2->id.product = PSMOUSE_ALPS;
-	dev2->id.version = 0x0000;
 	dev2->dev.parent = &psmouse->ps2dev.serio->dev;
 
 	dev2->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REL);
