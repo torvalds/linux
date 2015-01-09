@@ -613,6 +613,12 @@ EXPORT_SYMBOL_GPL(lowpan_header_compress);
 
 static int __init lowpan_module_init(void)
 {
+	request_module_nowait("nhc_dest");
+	request_module_nowait("nhc_fragment");
+	request_module_nowait("nhc_hop");
+	request_module_nowait("nhc_ipv6");
+	request_module_nowait("nhc_mobility");
+	request_module_nowait("nhc_routing");
 	request_module_nowait("nhc_udp");
 
 	return 0;
