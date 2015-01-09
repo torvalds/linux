@@ -272,4 +272,5 @@ const struct font_desc font_acorn_8x8 = {
 #else
 	.pref	= 0,
 #endif
+	.charcount = 255,
 };

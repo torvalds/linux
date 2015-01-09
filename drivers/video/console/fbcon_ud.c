@@ -18,6 +18,8 @@
 #include "fbcon.h"
 #include "fbcon_rotate.h"
 
+extern u8 * font_bits(struct vc_data *vc, const u16 *s,u32 cellsize,
+		u16 charmask);
 /*
  * Rotation 180 degrees
  */
@@ -93,12 +95,22 @@ static inline void ud_putcs_aligned(struct vc_data *vc, struct fb_info *info,
 	u8 *src;
 
 	while (cnt--) {
-		src = ops->fontbuffer + (scr_readw(s--) & charmask)*cellsize;
 
+		if(((scr_readw(s) & charmask) == 0xff || (scr_readw(s) & charmask) == 0xfe ) ){
+			char dst[16];
+			src = font_bits(vc,s,cellsize,charmask);
+			memset(dst, 0, 16);
+			rotate_ud(src, dst, vc->vc_font.width,
+				  vc->vc_font.height);
+			src = dst;
+		}else{
+			src = ops->fontbuffer + (scr_readw(s) & charmask)*cellsize;
+		}
 		if (attr) {
 			ud_update_attr(buf, src, attr, vc);
 			src = buf;
 		}
+		s--;
 
 		if (likely(idx == 1))
 			__fb_pad_aligned_buffer(dst, d_pitch, src, idx,
@@ -128,12 +140,21 @@ static inline void ud_putcs_unaligned(struct vc_data *vc,
 	u8 *src;
 
 	while (cnt--) {
-		src = ops->fontbuffer + (scr_readw(s--) & charmask)*cellsize;
-
+		if(((scr_readw(s) & charmask) == 0xff || (scr_readw(s) & charmask) == 0xfe )){
+			char dst[16];
+			src = font_bits(vc,s,cellsize,charmask);
+			memset(dst, 0, 16);
+			rotate_ud(src, dst, vc->vc_font.width,
+				  vc->vc_font.height);
+			src = dst;
+		}else{
+			src = ops->fontbuffer + (scr_readw(s) & charmask)*cellsize;
+		}
 		if (attr) {
 			ud_update_attr(buf, src, attr, vc);
 			src = buf;
 		}
+		s--;
 
 		fb_pad_unaligned_buffer(dst, d_pitch, src, idx,
 					image->height, shift_high,
@@ -261,6 +282,7 @@ static void ud_cursor(struct vc_data *vc, struct fb_info *info, int mode,
 	char *src;
 	u32 vyres = GETVYRES(ops->p->scrollmode, info);
 	u32 vxres = GETVXRES(ops->p->scrollmode, info);
+	int cellsize = DIV_ROUND_UP(vc->vc_font.width,8) * vc->vc_font.height;
 
 	if (!ops->fontbuffer)
 		return;
@@ -278,7 +300,18 @@ static void ud_cursor(struct vc_data *vc, struct fb_info *info, int mode,
 
  	c = scr_readw((u16 *) vc->vc_pos);
 	attribute = get_attribute(info, c);
-	src = ops->fontbuffer + ((c & charmask) * (w * vc->vc_font.height));
+	if(((c&charmask) == 0xff || (c & charmask) == 0xfe) ){
+		char dst[16];
+
+		src = font_bits(vc,(u16*)&c,cellsize,charmask);
+
+		memset(dst, 0, 16);
+		rotate_ud(src, dst, vc->vc_font.width,
+			  vc->vc_font.height);
+		src = dst;
+	}else{
+		src = ops->fontbuffer + ((c & charmask) * (w * vc->vc_font.height));
+	}
 
 	if (ops->cursor_state.image.data != src ||
 	    ops->cursor_reset) {
