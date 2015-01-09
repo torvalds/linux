@@ -30,11 +30,11 @@
 #include <asm/cacheflush.h>
 #include <linux/percpu.h>
 #include <linux/bug.h>
+#include <asm/patch.h>
 
-#include "kprobes.h"
-#include "probes-arm.h"
-#include "probes-thumb.h"
-#include "patch.h"
+#include "../decode-arm.h"
+#include "../decode-thumb.h"
+#include "core.h"
 
 #define MIN_STACK_SIZE(addr) 				\
 	min((unsigned long)MAX_STACK_SIZE,		\

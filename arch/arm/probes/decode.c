@@ -1,5 +1,5 @@
 /*
- * arch/arm/kernel/probes.c
+ * arch/arm/probes/decode.c
  *
  * Copyright (C) 2011 Jon Medhurst <tixy@yxit.co.uk>.
  *
@@ -17,7 +17,7 @@
 #include <asm/ptrace.h>
 #include <linux/bug.h>
 
-#include "probes.h"
+#include "decode.h"
 
 
 #ifndef find_str_pc_offset

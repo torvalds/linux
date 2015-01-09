@@ -1,5 +1,5 @@
 /*
- * arch/arm/kernel/probes-arm.h
+ * arch/arm/probes/decode-arm.h
  *
  * Copyright 2013 Linaro Ltd.
  * Written by: David A. Long
@@ -14,6 +14,8 @@
 
 #ifndef _ARM_KERNEL_PROBES_ARM_H
 #define  _ARM_KERNEL_PROBES_ARM_H
+
+#include "decode.h"
 
 enum probes_arm_action {
 	PROBES_EMULATE_NONE,

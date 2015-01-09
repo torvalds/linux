@@ -13,7 +13,7 @@
 #include <asm/system_info.h>
 #include <asm/opcodes.h>
 
-#include "kprobes-test.h"
+#include "test-core.h"
 
 
 #define TEST_ISA "32"

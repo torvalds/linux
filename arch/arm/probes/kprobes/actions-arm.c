@@ -1,5 +1,5 @@
 /*
- * arch/arm/kernel/kprobes-decode.c
+ * arch/arm/probes/kprobes/actions-arm.c
  *
  * Copyright (C) 2006, 2007 Motorola Inc.
  *
@@ -62,8 +62,8 @@
 #include <linux/kprobes.h>
 #include <linux/ptrace.h>
 
-#include "kprobes.h"
-#include "probes-arm.h"
+#include "../decode-arm.h"
+#include "core.h"
 
 #if  __LINUX_ARM_ARCH__ >= 6
 #define BLX(reg)	"blx	"reg"		\n\t"

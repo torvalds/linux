@@ -1,5 +1,6 @@
 /*
- * arch/arm/kernel/probes-arm.c
+ *
+ * arch/arm/probes/decode-arm.c
  *
  * Some code moved here from arch/arm/kernel/kprobes-arm.c
  *
@@ -20,8 +21,8 @@
 #include <linux/stddef.h>
 #include <linux/ptrace.h>
 
-#include "probes.h"
-#include "probes-arm.h"
+#include "decode.h"
+#include "decode-arm.h"
 
 #define sign_extend(x, signbit) ((x) | (0 - ((x) & (1 << (signbit)))))
 

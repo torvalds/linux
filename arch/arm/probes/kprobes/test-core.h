@@ -1,5 +1,5 @@
 /*
- * arch/arm/kernel/kprobes-test.h
+ * arch/arm/probes/kprobes/test-core.h
  *
  * Copyright (C) 2011 Jon Medhurst <tixy@yxit.co.uk>.
  *

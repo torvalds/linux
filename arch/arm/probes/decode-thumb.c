@@ -1,5 +1,5 @@
 /*
- * arch/arm/kernel/probes-thumb.c
+ * arch/arm/probes/decode-thumb.c
  *
  * Copyright (C) 2011 Jon Medhurst <tixy@yxit.co.uk>.
  *
@@ -12,8 +12,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-#include "probes.h"
-#include "probes-thumb.h"
+#include "decode.h"
+#include "decode-thumb.h"
 
 
 static const union decode_item t32_table_1110_100x_x0xx[] = {

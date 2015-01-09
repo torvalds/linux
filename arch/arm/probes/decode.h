@@ -1,5 +1,5 @@
 /*
- * arch/arm/kernel/probes.h
+ * arch/arm/probes/decode.h
  *
  * Copyright (C) 2011 Jon Medhurst <tixy@yxit.co.uk>.
  *

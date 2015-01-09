@@ -209,10 +209,10 @@
 #include <linux/bug.h>
 #include <asm/opcodes.h>
 
-#include "kprobes.h"
-#include "probes-arm.h"
-#include "probes-thumb.h"
-#include "kprobes-test.h"
+#include "core.h"
+#include "test-core.h"
+#include "../decode-arm.h"
+#include "../decode-thumb.h"
 
 
 #define BENCHMARKING	1

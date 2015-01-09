@@ -1,5 +1,5 @@
 /*
- * arch/arm/kernel/kprobes-test-thumb.c
+ * arch/arm/probes/kprobes/test-thumb.c
  *
  * Copyright (C) 2011 Jon Medhurst <tixy@yxit.co.uk>.
  *
@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <asm/opcodes.h>
 
-#include "kprobes-test.h"
+#include "test-core.h"
 
 
 #define TEST_ISA "16"

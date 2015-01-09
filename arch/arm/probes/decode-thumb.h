@@ -1,5 +1,5 @@
 /*
- * arch/arm/kernel/probes-thumb.h
+ * arch/arm/probes/decode-thumb.h
  *
  * Copyright 2013 Linaro Ltd.
  * Written by: David A. Long
@@ -14,6 +14,8 @@
 
 #ifndef _ARM_KERNEL_PROBES_THUMB_H
 #define  _ARM_KERNEL_PROBES_THUMB_H
+
+#include "decode.h"
 
 /*
  * True if current instruction is in an IT block.

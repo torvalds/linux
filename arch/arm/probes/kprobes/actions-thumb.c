@@ -1,5 +1,5 @@
 /*
- * arch/arm/kernel/kprobes-thumb.c
+ * arch/arm/probes/kprobes/actions-thumb.c
  *
  * Copyright (C) 2011 Jon Medhurst <tixy@yxit.co.uk>.
  *
@@ -13,8 +13,8 @@
 #include <linux/ptrace.h>
 #include <linux/kprobes.h>
 
-#include "kprobes.h"
-#include "probes-thumb.h"
+#include "../decode-thumb.h"
+#include "core.h"
 
 /* These emulation encodings are functionally equivalent... */
 #define t32_emulate_rd8rn16rm0ra12_noflags \
