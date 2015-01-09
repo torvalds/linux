@@ -35,7 +35,6 @@ Examining core dumps
 ldd
 Debugging modules
 The proc file system
-Starting points for debugging scripting languages etc.
 SysRq
 References
 Special Thanks
@@ -2094,34 +2093,6 @@ If the device uses the channel device layer you'll be
 able to find what interrupts it uses & the current state 
 of the device.
 See the manpage chandev.8 &type cat /proc/chandev for more info.
-
-
-
-Starting points for debugging scripting languages etc.
-======================================================
-
-bash/sh
-
-bash -x <scriptname>
-e.g. bash -x /usr/bin/bashbug
-displays the following lines as it executes them.
-+ MACHINE=i586
-+ OS=linux-gnu
-+ CC=gcc
-+ CFLAGS= -DPROGRAM='bash' -DHOSTTYPE='i586' -DOSTYPE='linux-gnu' -DMACHTYPE='i586-pc-linux-gnu' -DSHELL -DHAVE_CONFIG_H   -I. -I. -I./lib -O2 -pipe
-+ RELEASE=2.01
-+ PATCHLEVEL=1
-+ RELSTATUS=release
-+ MACHTYPE=i586-pc-linux-gnu   
-
-perl -d <scriptname> runs the perlscript in a fully interactive debugger
-<like gdb>.
-Type 'h' in the debugger for help.
-
-for debugging java type
-jdb <filename> another fully interactive gdb style debugger.
-& type ? in the debugger for help.
-
 
 
 SysRq
