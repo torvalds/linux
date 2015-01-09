@@ -146,6 +146,66 @@ static void set_hpll_clk_out(unsigned clk)
             aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x4001042d);
             WAIT_FOR_PLL_LOCKED(P_HHI_VID_PLL_CNTL);
             break;
+        case 2058:
+            aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x59c80000);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL3, 0x0a563823);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL4, 0x0123b100);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x12385);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x6001042a);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x4001042a);
+            WAIT_FOR_PLL_LOCKED(P_HHI_VID_PLL_CNTL);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c8cdf4);
+            break;
+        case 1600:
+            aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c8c000);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL3, 0x8a7ad023);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL4, 0x4023d100);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x12286);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x60000442);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x40000442);
+            WAIT_FOR_PLL_LOCKED(P_HHI_VID_PLL_CNTL);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c8c506);
+            break;
+        case 1710:
+            aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c8c000);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL3, 0x8a7ad023);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL4, 0x4023d100);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x12286);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x60000447);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x40000447);
+            WAIT_FOR_PLL_LOCKED(P_HHI_VID_PLL_CNTL);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c8c3ac);
+            break;
+        case 2130:
+            aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x59c80000);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL3, 0x0a563823);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL4, 0x0123b100);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x12385);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x6001042c);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x4001042c);
+            WAIT_FOR_PLL_LOCKED(P_HHI_VID_PLL_CNTL);
+			aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c8c74f);
+            break;
+        case 2600:
+            aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x59c80000);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL3, 0x0a563823);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL4, 0x0123b100);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x12385);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x60010436);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x40010436);
+            WAIT_FOR_PLL_LOCKED(P_HHI_VID_PLL_CNTL);
+			aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c8c294);
+            break;
+        case 2925:
+            aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x59c80000);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL3, 0x0a563823);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL4, 0x0123b100);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x12385);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x6001043c);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x4001043c);
+            WAIT_FOR_PLL_LOCKED(P_HHI_VID_PLL_CNTL);
+			aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c8cfb4);
+            break;
         case 2380:
             aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x59c80000);
             aml_write_reg32(P_HHI_VID_PLL_CNTL3, 0x0a563823);
@@ -155,6 +215,16 @@ static void set_hpll_clk_out(unsigned clk)
             aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x40010431);
             WAIT_FOR_PLL_LOCKED(P_HHI_VID_PLL_CNTL);
 			aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c8c994);
+            break;
+        case 1716:
+            aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c8c000);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL4, 0x4023d100);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL3, 0x8a7ad023);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x12286);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x60000447);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x40000447);
+            WAIT_FOR_PLL_LOCKED(P_HHI_VID_PLL_CNTL);
+            aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x69c8c7f8);
             break;
         case 2014:
             aml_write_reg32(P_HHI_VID_PLL_CNTL2, 0x59c8cf55);
@@ -558,7 +628,15 @@ static enc_clk_val_t setting_enc_clk_val[] = {
     {VMODE_576P,       2160, 8, 1, 1, VIU_ENCP,  5, 4, 2, 1, -1, -1, -1,  1,  -1},
     {VMODE_720P,       1488, 2, 1, 1, VIU_ENCP, 10, 1, 2, 1, -1, -1, -1,  1,  -1},
     {VMODE_800P,       1422, 2, 2, 1, VIU_ENCP, 10, 1, 1, 1, -1, -1, -1,  1,  -1}, // MDRJR Verify
-    {VMODE_800X480P_60HZ, 2380, 8, 4, 1, VIU_ENCP,  10, 4, 1, 1, -1, -1, -1,  1,  -1},
+    {VMODE_800X480P_60HZ, 2380, 8, 4, 1, VIU_ENCP,  10, 1, 1, 1, -1, -1, -1,  1,  -1},
+    {VMODE_1366X768P_60HZ, 1716, 2, 2, 1, VIU_ENCP,  10, 1, 1, 1, -1, -1, -1,  1,  -1},
+    {VMODE_1600X900P_60HZ, 2160, 2, 2, 1, VIU_ENCP,  10, 1, 1, 1, -1, -1, -1,  1,  -1},
+    {VMODE_800X600P_60HZ, 1600, 4, 4, 1, VIU_ENCP,  10, 1, 1, 1, -1, -1, -1,  1,  -1},
+    {VMODE_1024X600P_60HZ, 2058, 4, 4, 1, VIU_ENCP,  10, 1, 1, 1, -1, -1, -1,  1,  -1},
+    {VMODE_1024X768P_60HZ, 2600, 4, 4, 1, VIU_ENCP,  10, 1, 1, 1, -1, -1, -1,  1,  -1},
+    {VMODE_1360X768P_60HZ, 1710, 2, 2, 1, VIU_ENCP,  10, 1, 1, 1, -1, -1, -1,  1,  -1},
+    {VMODE_1440X900P_60HZ, 2130, 2, 2, 1, VIU_ENCP,  10, 1, 1, 1, -1, -1, -1,  1,  -1},
+    {VMODE_1680X1050P_60HZ, 2925, 2, 2, 1, VIU_ENCP,  10, 1, 1, 1, -1, -1, -1,  1,  -1},
     {VMODE_1080I,      1488, 2, 1, 1, VIU_ENCP, 10, 1, 2, 1, -1, -1, -1,  1,  -1},
     {VMODE_1080P,      1488, 1, 1, 1, VIU_ENCP, 10, 1, 1, 1, -1, -1, -1,  1,  -1},
     {VMODE_1080P,      1488, 1, 1, 1, VIU_ENCP, 10, 1, 1, 1, -1, -1, -1,  1,  -1},
@@ -650,6 +728,10 @@ void set_vmode_clk(vmode_t mode)
     mutex_unlock(&setclk_mutex);
     
     set_hpll_hdmi_od(p_enc[j].hpll_hdmi_od);
+#if MESON_CPU_TYPE == MESON_CPU_TYPE_MESON8B
+    if((mode == VMODE_800X600P_60HZ) || (mode == VMODE_1024X600P_60HZ) || (mode == VMODE_1024X768P_60HZ))
+        aml_set_reg32_bits(P_HHI_VID_PLL_CNTL, 2, 18, 2);
+#endif
     set_vid_pll_div(p_enc[j].vid_pll_div);
     set_clk_final_div(p_enc[j].clk_final_div);
     set_hdmi_tx_pixel_div(p_enc[j].hdmi_tx_pixel_div);

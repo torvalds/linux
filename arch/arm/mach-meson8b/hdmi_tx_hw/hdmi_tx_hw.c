@@ -764,6 +764,134 @@ static void hdmi_tvenc_set(Hdmi_tx_video_para_t *param)
         SOF_LINES           = 10;
         TOTAL_FRAMES        = 4;
 	}
+    else if(param->VIC == HDMI_800x600p60hz) {
+        INTERLACE_MODE      = 0;
+        PIXEL_REPEAT_VENC   = 0;
+        PIXEL_REPEAT_HDMI   = 0;
+        ACTIVE_PIXELS       = 800;
+        ACTIVE_LINES        = 600;
+        LINES_F0            = 628;
+        LINES_F1            = 628;
+        FRONT_PORCH         = 40;
+        HSYNC_PIXELS        = 128;
+        BACK_PORCH          = 88;
+        EOF_LINES           = 1;
+        VSYNC_LINES         = 4;
+        SOF_LINES           = 23;
+        TOTAL_FRAMES        = 4;
+    }
+    else if(param->VIC == HDMI_1024x600p60hz) {
+        INTERLACE_MODE      = 0;
+        PIXEL_REPEAT_VENC   = 0;
+        PIXEL_REPEAT_HDMI   = 0;
+        ACTIVE_PIXELS       = 1024;
+        ACTIVE_LINES        = 600;
+        LINES_F0            = 638;
+        LINES_F1            = 638;
+        FRONT_PORCH         = 24;
+        HSYNC_PIXELS        = 136;
+        BACK_PORCH          = 160;
+        EOF_LINES           = 3;
+        VSYNC_LINES         = 6;
+        SOF_LINES           = 29;
+        TOTAL_FRAMES        = 4;
+    }
+    else if(param->VIC == HDMI_1024x768p60hz) {
+        INTERLACE_MODE      = 0;
+        PIXEL_REPEAT_VENC   = 0;
+        PIXEL_REPEAT_HDMI   = 0;
+        ACTIVE_PIXELS       = 1024;
+        ACTIVE_LINES        = 768;
+        LINES_F0            = 806;
+        LINES_F1            = 806;
+        FRONT_PORCH         = 24;
+        HSYNC_PIXELS        = 136;
+        BACK_PORCH          = 160;
+        EOF_LINES           = 3;
+        VSYNC_LINES         = 6;
+        SOF_LINES           = 29;
+        TOTAL_FRAMES        = 4;
+    }
+    else if(param->VIC == HDMI_1360x768p60hz) {
+        INTERLACE_MODE      = 0;
+        PIXEL_REPEAT_VENC   = 0;
+        PIXEL_REPEAT_HDMI   = 0;
+        ACTIVE_PIXELS       = 1360;
+        ACTIVE_LINES        = 768;
+        LINES_F0            = 795;
+        LINES_F1            = 795;
+        FRONT_PORCH         = 64;
+        HSYNC_PIXELS        = 112;
+        BACK_PORCH          = 256;
+        EOF_LINES           = 3;
+        VSYNC_LINES         = 6;
+        SOF_LINES           = 18;
+        TOTAL_FRAMES        = 4;
+    }
+    else if(param->VIC == HDMI_1440x900p60hz) {
+        INTERLACE_MODE      = 0;
+        PIXEL_REPEAT_VENC   = 0;
+        PIXEL_REPEAT_HDMI   = 0;
+        ACTIVE_PIXELS       = 1440;
+        ACTIVE_LINES        = 900;
+        LINES_F0            = 934;
+        LINES_F1            = 934;
+        FRONT_PORCH         = 80;
+        HSYNC_PIXELS        = 152;
+        BACK_PORCH          = 232;
+        EOF_LINES           = 3;
+        VSYNC_LINES         = 6;
+        SOF_LINES           = 25;
+        TOTAL_FRAMES        = 4;
+    }
+    else if(param->VIC == HDMI_1680x1050p60hz) {
+        INTERLACE_MODE      = 0;
+        PIXEL_REPEAT_VENC   = 0;
+        PIXEL_REPEAT_HDMI   = 0;
+        ACTIVE_PIXELS       = 1680;
+        ACTIVE_LINES        = 1050;
+        LINES_F0            = 1089;
+        LINES_F1            = 1089;
+        FRONT_PORCH         = 104;
+        HSYNC_PIXELS        = 176;
+        BACK_PORCH          = 280;
+        EOF_LINES           = 3;
+        VSYNC_LINES         = 6;
+        SOF_LINES           = 30;
+        TOTAL_FRAMES        = 4;
+    }
+    else if(param->VIC==HDMI_1366x768p60hz){
+        INTERLACE_MODE      = 0;
+        PIXEL_REPEAT_VENC   = 0; //MDRJR
+        PIXEL_REPEAT_HDMI   = 0;
+        ACTIVE_PIXELS       = 1366;
+        ACTIVE_LINES        = 768;
+        LINES_F0            = 798;
+        LINES_F1            = 798;
+        FRONT_PORCH         = 70;
+        HSYNC_PIXELS        = 143;
+        BACK_PORCH          = 213;
+        EOF_LINES           = 3;
+        VSYNC_LINES         = 3;
+        SOF_LINES           = 24;
+        TOTAL_FRAMES        = 4;
+	}
+    else if(param->VIC==HDMI_1600x900p60hz){
+        INTERLACE_MODE      = 0;
+        PIXEL_REPEAT_VENC   = 0; //MDRJR
+        PIXEL_REPEAT_HDMI   = 0;
+        ACTIVE_PIXELS       = 1600;
+        ACTIVE_LINES        = 900;
+        LINES_F0            = 1800;
+        LINES_F1            = 1800;
+        FRONT_PORCH         = 24;
+        HSYNC_PIXELS        = 80;
+        BACK_PORCH          = 96;
+        EOF_LINES           = 1;
+        VSYNC_LINES         = 3;
+        SOF_LINES           = 96;
+        TOTAL_FRAMES        = 4;
+	}
     else if(param->VIC==HDMI_1280x1024){
          INTERLACE_MODE     = 0;                   
          PIXEL_REPEAT_VENC  = 0;                   
@@ -941,6 +1069,16 @@ static void hdmi_tvenc_set(Hdmi_tx_video_para_t *param)
         case HDMI_640x480p60:
         case HDMI_800x480p60hz:
             aml_write_reg32(P_VPU_HDMI_SETTING, 2);
+            break;
+        case HDMI_1366x768p60hz:
+        case HDMI_1600x900p60hz:
+        case HDMI_800x600p60hz:
+        case HDMI_1024x600p60hz:
+        case HDMI_1024x768p60hz:
+        case HDMI_1360x768p60hz:
+        case HDMI_1440x900p60hz:
+        case HDMI_1680x1050p60hz:
+            aml_write_reg32(P_VPU_HDMI_SETTING, 0xe);
             break;
         case HDMI_720p60:
         case HDMI_720p50:
@@ -1849,6 +1987,30 @@ static void hdmitx_set_pll(Hdmi_tx_video_para_t *param)
         case HDMI_800x480p60hz:
             set_vmode_clk(VMODE_800X480P_60HZ);
             break;
+        case HDMI_1366x768p60hz:
+            set_vmode_clk(VMODE_1366X768P_60HZ);
+            break;
+        case HDMI_800x600p60hz:
+            set_vmode_clk(VMODE_800X600P_60HZ);
+            break;
+        case HDMI_1024x600p60hz:
+            set_vmode_clk(VMODE_1024X600P_60HZ);
+            break;
+        case HDMI_1024x768p60hz:
+            set_vmode_clk(VMODE_1024X768P_60HZ);
+            break;
+        case HDMI_1360x768p60hz:
+            set_vmode_clk(VMODE_1360X768P_60HZ);
+            break;
+        case HDMI_1440x900p60hz:
+            set_vmode_clk(VMODE_1440X900P_60HZ);
+            break;
+        case HDMI_1680x1050p60hz:
+            set_vmode_clk(VMODE_1680X1050P_60HZ);
+            break;
+        case HDMI_1600x900p60hz:
+            set_vmode_clk(VMODE_1600X900P_60HZ);
+            break;
         case HDMI_1080i60:
         case HDMI_1080i50:
             set_vmode_clk(VMODE_1080I);
@@ -1909,6 +2071,9 @@ static int hdmitx_set_dispmode(hdmitx_dev_t* hdmitx_device, Hdmi_tx_video_para_t
         &&(param->VIC!=HDMI_1080p24)
         &&(param->VIC!=HDMI_1080p60)&&(param->VIC!=HDMI_1080p50)
         &&(param->VIC!=HDMI_720p60)&&(param->VIC!=HDMI_720p50) &&(param->VIC!=HDMI_800x480p60hz)
+        &&(param->VIC!=HDMI_1366x768p60hz)&&(param->VIC!=HDMI_1600x900p60hz)
+        &&(param->VIC!=HDMI_800x600p60hz)&&(param->VIC!=HDMI_1024x600p60hz)&&(param->VIC!=HDMI_1024x768p60hz)
+        &&(param->VIC!=HDMI_1360x768p60hz)&&(param->VIC!=HDMI_1440x900p60hz)&&(param->VIC!=HDMI_1680x1050p60hz)
         &&(param->VIC!=HDMI_640x480p60) &&(param->VIC!=HDMI_1280x1024) &&(param->VIC!=HDMI_1920x1200) && (param->VIC!=HDMI_800p)
         &&(param->VIC!=HDMI_4k2k_30)&&(param->VIC!=HDMI_4k2k_25)&&(param->VIC!=HDMI_4k2k_24)&&(param->VIC!=HDMI_4k2k_smpte_24)
         &&(param->VIC!=HDMI_1080i60)&&(param->VIC!=HDMI_1080i50)){
@@ -2208,6 +2373,14 @@ static Vic_attr_map vic_attr_map_table[] = {
     {HDMI_720p60,           74250 },
     {HDMI_800p,				71000 },
     {HDMI_800x480p60hz,     29760 },
+    {HDMI_1366x768p60hz,    85500 },
+    {HDMI_1600x900p60hz,    108000},
+    {HDMI_800x600p60hz,     40000},
+    {HDMI_1024x600p60hz,    51450},
+    {HDMI_1024x768p60hz,    65000},
+    {HDMI_1360x768p60hz,    85500},
+    {HDMI_1440x900p60hz,    106500},
+    {HDMI_1680x1050p60hz,   146250},
     {HDMI_1080i60,          74250 },
     {HDMI_480i60,           27000 },
     {HDMI_480i60_16x9,      27000 },
