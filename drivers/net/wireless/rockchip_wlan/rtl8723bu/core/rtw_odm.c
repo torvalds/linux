@@ -132,7 +132,7 @@ void rtw_odm_dbg_level_msg(void *sel, _adapter *adapter)
 	int i;
 
 	rtw_hal_get_def_var(adapter, HW_DEF_ODM_DBG_LEVEL, &dbg_level);
-	DBG_871X_SEL_NL(sel, "odm.DebugDebugLevel = %u\n", dbg_level);
+	DBG_871X_SEL_NL(sel, "odm.DebugLevel = %u\n", dbg_level);
 	for (i=0;i<RTW_ODM_DBG_LEVEL_NUM;i++) {
 		if (odm_dbg_level_str[i])
 			DBG_871X_SEL_NL(sel, "%u %s\n", i, odm_dbg_level_str[i]);
@@ -166,10 +166,73 @@ inline void rtw_odm_ability_set(_adapter *adapter, u32 ability)
 	rtw_hal_set_hwreg(adapter, HW_VAR_DM_FLAG, (u8*)&ability);
 }
 
+#define RTW_ADAPTIVITY_EN_DISABLE 0
+#define RTW_ADAPTIVITY_EN_ENABLE 1
+#define RTW_ADAPTIVITY_EN_AUTO 2
+
+void rtw_odm_adaptivity_en_msg(void *sel, _adapter *adapter)
+{
+	struct registry_priv *regsty = &adapter->registrypriv;
+	struct mlme_priv *mlme = &adapter->mlmepriv;
+	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
+	DM_ODM_T *odm = &hal_data->odmpriv;
+
+	DBG_871X_SEL_NL(sel, "RTW_ADAPTIVITY_EN_");
+
+	if (regsty->adaptivity_en == RTW_ADAPTIVITY_EN_DISABLE) {
+		DBG_871X_SEL(sel, "DISABLE\n");
+	} else if (regsty->adaptivity_en == RTW_ADAPTIVITY_EN_ENABLE) {
+		DBG_871X_SEL(sel, "ENABLE\n");
+	} else if (regsty->adaptivity_en == RTW_ADAPTIVITY_EN_AUTO) {
+		DBG_871X_SEL(sel, "AUTO, chplan:0x%02x, Regulation:%u,%u\n"
+			, mlme->ChannelPlan, odm->odm_Regulation2_4G, odm->odm_Regulation5G);
+	} else {
+		DBG_871X_SEL(sel, "INVALID\n");
+	}
+}
+
+#define RTW_ADAPTIVITY_MODE_NORMAL 0
+#define RTW_ADAPTIVITY_MODE_CARRIER_SENSE 1
+
+void rtw_odm_adaptivity_mode_msg(void *sel, _adapter *adapter)
+{
+	struct registry_priv *regsty = &adapter->registrypriv;
+
+	DBG_871X_SEL_NL(sel, "RTW_ADAPTIVITY_MODE_");
+
+	if (regsty->adaptivity_mode == RTW_ADAPTIVITY_MODE_NORMAL) {
+		DBG_871X_SEL(sel, "NORMAL\n");
+	} else if (regsty->adaptivity_mode == RTW_ADAPTIVITY_MODE_CARRIER_SENSE) {
+		DBG_871X_SEL(sel, "CARRIER_SENSE\n");
+	} else {
+		DBG_871X_SEL(sel, "INVALID\n");
+	}
+}
+bool rtw_odm_adaptivity_needed(_adapter *adapter)
+{
+	struct registry_priv *regsty = &adapter->registrypriv;
+	struct mlme_priv *mlme = &adapter->mlmepriv;
+	bool ret = _FALSE;
+
+	if (regsty->adaptivity_en == RTW_ADAPTIVITY_EN_ENABLE
+		|| regsty->adaptivity_en == RTW_ADAPTIVITY_EN_AUTO)
+		ret = _TRUE;
+
+	if (ret == _TRUE) {
+		rtw_odm_adaptivity_en_msg(RTW_DBGDUMP, adapter);
+		rtw_odm_adaptivity_mode_msg(RTW_DBGDUMP, adapter);
+	}
+
+	return ret;
+}
+
 void rtw_odm_adaptivity_parm_msg(void *sel, _adapter *adapter)
 {
 	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(adapter);
 	DM_ODM_T *odm = &pHalData->odmpriv;
+
+	rtw_odm_adaptivity_en_msg(sel, adapter);
+	rtw_odm_adaptivity_mode_msg(sel, adapter);
 
 	DBG_871X_SEL_NL(sel, "%10s %16s %8s %10s %11s %14s\n"
 		, "TH_L2H_ini", "TH_EDCCA_HL_diff", "IGI_Base", "ForceEDCCA", "AdapEn_RSSI", "IGI_LowerBound");

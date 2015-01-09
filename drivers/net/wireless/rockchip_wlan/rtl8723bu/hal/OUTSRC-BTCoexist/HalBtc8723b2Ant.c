@@ -1377,7 +1377,7 @@ halbtc8723b2ant_SetAntPath(
 	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_BL_EXT_SWITCH, &bPgExtSwitch);
 	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_U4_WIFI_FW_VER, &fwVer);	// [31:16]=fw ver, [15:0]=fw sub ver
 
-	if((fwVer<0xc0000) || bPgExtSwitch)
+	if((fwVer>0 && fwVer<0xc0000) || bPgExtSwitch)
 		bUseExtSwitch = TRUE;
 
 	if(bInitHwCfg)
@@ -1388,9 +1388,17 @@ halbtc8723b2ant_SetAntPath(
 		pBtCoexist->fBtcWrite1Byte(pBtCoexist, 0x930, 0x77);
 		pBtCoexist->fBtcWrite1ByteBitMask(pBtCoexist, 0x67, 0x20, 0x1);
 
+		if(fwVer >= 0x180000)
+		{
 		/* Use H2C to set GNT_BT to LOW */
 		H2C_Parameter[0] = 0;
 		pBtCoexist->fBtcFillH2c(pBtCoexist, 0x6E, 1, H2C_Parameter);
+		}
+		else
+		{
+			pBtCoexist->fBtcWrite1Byte(pBtCoexist, 0x765, 0x0);
+		}
+		
 		pBtCoexist->fBtcWrite4Byte(pBtCoexist, 0x948, 0x0);
 
 		pBtCoexist->fBtcSetRfReg(pBtCoexist, BTC_RF_A, 0x1, 0xfffff, 0x0); //WiFi TRx Mask off
@@ -1419,7 +1427,6 @@ halbtc8723b2ant_SetAntPath(
 		}
 		pBtCoexist->fBtcFillH2c(pBtCoexist, 0x65, 2, H2C_Parameter);
 	}
-
 
 	// ext switch setting
 	if(bUseExtSwitch)
@@ -3516,20 +3523,27 @@ halbtc8723b2ant_WifiOffHwCfg(
 	)
 {
 	BOOLEAN	bIsInMpMode = FALSE;
-	PADAPTER padapter=pBtCoexist->Adapter;
 	u1Byte H2C_Parameter[2] ={0};
+	u4Byte fwVer=0;
 
 	// set wlan_act to low
 	pBtCoexist->fBtcWrite1Byte(pBtCoexist, 0x76e, 0x4);
 
 	pBtCoexist->fBtcSetRfReg(pBtCoexist, BTC_RF_A, 0x1, 0xfffff, 0x780); //WiFi goto standby while GNT_BT 0-->1
-        
+	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_U4_WIFI_FW_VER, &fwVer);
+	if(fwVer >= 0x180000)
+	{
 	/* Use H2C to set GNT_BT to HIGH */
 	H2C_Parameter[0] = 1;
 	pBtCoexist->fBtcFillH2c(pBtCoexist, 0x6E, 1, H2C_Parameter);
+	}
+	else
+	{
+		pBtCoexist->fBtcWrite1Byte(pBtCoexist, 0x765, 0x18);
+	}
 	
 	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_BL_WIFI_IS_IN_MP_MODE, &bIsInMpMode);
-	if (bIsInMpMode == FALSE)	
+	if(!bIsInMpMode)
 		pBtCoexist->fBtcWrite1ByteBitMask(pBtCoexist, 0x67, 0x20, 0x0); //BT select s0/s1 is controlled by BT
 	else
 		pBtCoexist->fBtcWrite1ByteBitMask(pBtCoexist, 0x67, 0x20, 0x1); //BT select s0/s1 is controlled by WiFi
@@ -3579,6 +3593,71 @@ halbtc8723b2ant_InitHwConfig(
 // extern function start with EXhalbtc8723b2ant_
 //============================================================
 VOID
+EXhalbtc8723b2ant_PowerOnSetting(
+	IN	PBTC_COEXIST		pBtCoexist
+	)
+{
+	PBTC_BOARD_INFO 	pBoardInfo=&pBtCoexist->boardInfo;
+	u1Byte u1Tmp=0x4; /* Set BIT2 by default since it's 2ant case */
+	u2Byte u2Tmp=0x0;
+
+	pBtCoexist->fBtcWrite1Byte(pBtCoexist, 0x67, 0x20);
+
+	// enable BB, REG_SYS_FUNC_EN such that we can write 0x948 correctly.
+	u2Tmp = pBtCoexist->fBtcRead2Byte(pBtCoexist, 0x2);
+	pBtCoexist->fBtcWrite2Byte(pBtCoexist, 0x2, u2Tmp|BIT0|BIT1);
+
+	// set GRAN_BT = 1
+	pBtCoexist->fBtcWrite1Byte(pBtCoexist, 0x765, 0x18);
+	// set WLAN_ACT = 0
+	pBtCoexist->fBtcWrite1Byte(pBtCoexist, 0x76e, 0x4);	
+
+	// 
+	// S0 or S1 setting and Local register setting(By the setting fw can get ant number, S0/S1, ... info)
+	// Local setting bit define
+	//	BIT0: "0" for no antenna inverse; "1" for antenna inverse 
+	//	BIT1: "0" for internal switch; "1" for external switch
+	//	BIT2: "0" for one antenna; "1" for two antenna
+	// NOTE: here default all internal switch and 1-antenna ==> BIT1=0 and BIT2=0
+	if(pBtCoexist->chipInterface == BTC_INTF_USB)
+	{
+		// fixed at S0 for USB interface
+		pBtCoexist->fBtcWrite4Byte(pBtCoexist, 0x948, 0x0);
+
+	 	u1Tmp |= 0x1;	// antenna inverse
+		pBtCoexist->fBtcWriteLocalReg1Byte(pBtCoexist, 0xfe08, u1Tmp);
+
+		pBoardInfo->btdmAntPos = BTC_ANTENNA_AT_AUX_PORT;
+	}
+	else
+	{
+		// for PCIE and SDIO interface, we check efuse 0xc3[6]
+		if(pBoardInfo->singleAntPath == 0)
+		{
+			// set to S1
+			pBtCoexist->fBtcWrite4Byte(pBtCoexist, 0x948, 0x280);
+			pBoardInfo->btdmAntPos = BTC_ANTENNA_AT_MAIN_PORT;
+		}
+		else if(pBoardInfo->singleAntPath == 1)
+		{
+			// set to S0
+			pBtCoexist->fBtcWrite4Byte(pBtCoexist, 0x948, 0x0);
+			u1Tmp |= 0x1;	// antenna inverse
+			pBoardInfo->btdmAntPos = BTC_ANTENNA_AT_AUX_PORT;
+		}
+
+		if(pBtCoexist->chipInterface == BTC_INTF_PCI)
+		{	
+			pBtCoexist->fBtcWriteLocalReg1Byte(pBtCoexist, 0x384, u1Tmp);
+		}
+		else if(pBtCoexist->chipInterface == BTC_INTF_SDIO)
+		{
+			pBtCoexist->fBtcWriteLocalReg1Byte(pBtCoexist, 0x60, u1Tmp);
+		}			
+	}
+}
+
+VOID
 EXhalbtc8723b2ant_InitHwConfig(
 	IN	PBTC_COEXIST		pBtCoexist,
 	IN	BOOLEAN				bWifiOnly
@@ -3625,13 +3704,6 @@ EXhalbtc8723b2ant_DisplayCoexInfo(
 		CL_PRINTF(cliBuf);
 		CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n ==========================================");
 		CL_PRINTF(cliBuf);
-	}
-
-	if(!pBoardInfo->bBtExist)
-	{
-		CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n BT not exists !!!");
-		CL_PRINTF(cliBuf);
-		return;
 	}
 
 	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %d/ %d ", "Ant PG number/ Ant mechanism:", \

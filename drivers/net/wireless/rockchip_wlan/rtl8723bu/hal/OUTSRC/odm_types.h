@@ -34,6 +34,12 @@
 #define	ODM_ENDIAN_BIG	0
 #define	ODM_ENDIAN_LITTLE	1
 
+#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
+#define GET_ODM(__pAdapter)	((PDM_ODM_T)(&((GET_HAL_DATA(__pAdapter))->DM_OutSrc)))
+#elif (DM_ODM_SUPPORT_TYPE == ODM_CE)
+#define GET_ODM(__pAdapter)	((PDM_ODM_T)(&((GET_HAL_DATA(__pAdapter))->odmpriv)))
+#endif
+
 #if (DM_ODM_SUPPORT_TYPE != ODM_WIN)
 #define 	RT_PCI_INTERFACE				1
 #define 	RT_USB_INTERFACE				2
@@ -260,6 +266,9 @@ typedef enum _RT_SPINLOCK_TYPE{
 	#define	RTL8881A_SUPPORT	0
 #endif
 
+#define READ_NEXT_PAIR(v1, v2, i) do { if (i+2 >= ArrayLen) break; i += 2; v1 = Array[i]; v2 = Array[i+1]; } while(0)
+#define COND_ELSE  2
+#define COND_ENDIF 3
 
 #endif // __ODM_TYPES_H__
 

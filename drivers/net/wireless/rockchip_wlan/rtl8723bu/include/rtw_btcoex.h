@@ -29,6 +29,7 @@
 #define	PACKET_EAPOL			3
 
 void rtw_btcoex_Initialize(PADAPTER);
+void rtw_btcoex_PowerOnSetting(PADAPTER padapter);
 void rtw_btcoex_HAL_Initialize(PADAPTER padapter, u8 bWifiOnly);
 void rtw_btcoex_IpsNotify(PADAPTER, u8 type);
 void rtw_btcoex_LpsNotify(PADAPTER, u8 type);
@@ -54,8 +55,9 @@ u8 rtw_btcoex_RpwmVal(PADAPTER);
 u8 rtw_btcoex_LpsVal(PADAPTER);
 void rtw_btcoex_SetBTCoexist(PADAPTER, u8 bBtExist);
 void rtw_btcoex_SetChipType(PADAPTER, u8 chipType);
-void rtw_btcoex_SetPGAntNum(PADAPTER, u8 antNum, u8 antInverse);
+void rtw_btcoex_SetPGAntNum(PADAPTER, u8 antNum);
 u8 rtw_btcoex_GetPGAntNum(PADAPTER);
+void rtw_btcoex_SetSingleAntPath(PADAPTER padapter, u8 singleAntPath);
 u32 rtw_btcoex_GetRaMask(PADAPTER);
 void rtw_btcoex_RecordPwrMode(PADAPTER, u8 *pCmdBuf, u8 cmdLen);
 void rtw_btcoex_DisplayBtCoexInfo(PADAPTER, u8 *pbuf, u32 bufsize);

@@ -251,6 +251,12 @@ s4Byte ODM_CompareMemory(
       IN	PVOID           pBuf2,
       IN	u4Byte          length
        );
+
+void ODM_Memory_Set
+	(IN 	PDM_ODM_T	pDM_Odm,
+		IN  PVOID	pbuf,
+		IN  s1Byte	value,
+		IN  u4Byte	length);
 	
 //
 // ODM MISC-spin lock relative API.

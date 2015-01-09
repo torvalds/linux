@@ -317,6 +317,12 @@ extern void rtl871x_cedbg(const char *fmt, ...);
 #endif /* defined(_dbgdump) */
 #endif /* CONFIG_DEBUG_RTL871X */
 
+#ifdef CONFIG_DBG_COUNTER
+#define DBG_COUNTER(counter) counter++
+#else
+#define DBG_COUNTER(counter) 
+#endif
+
 void dump_drv_version(void *sel);
 void dump_log_level(void *sel);
 
@@ -416,6 +422,17 @@ ssize_t proc_set_odm_dbg_level(struct file *file, const char __user *buffer, siz
 
 int proc_get_odm_adaptivity(struct seq_file *m, void *v);
 ssize_t proc_set_odm_adaptivity(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
+
+#ifdef CONFIG_DBG_COUNTER
+int proc_get_rx_logs(struct seq_file *m, void *v);
+int proc_get_tx_logs(struct seq_file *m, void *v);
+int proc_get_int_logs(struct seq_file *m, void *v);
+#endif
+
+#ifdef CONFIG_PCI_HCI
+int proc_get_rx_ring(struct seq_file *m, void *v);
+int proc_get_tx_ring(struct seq_file *m, void *v);
+#endif
 
 #endif /* CONFIG_PROC_DEBUG */
 

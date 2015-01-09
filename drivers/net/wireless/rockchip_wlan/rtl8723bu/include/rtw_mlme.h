@@ -619,6 +619,8 @@ struct mlme_priv {
 	u8	scanning_via_buddy_intf;
 #endif
 
+	u8 	NumOfBcnInfoChkFail;
+	u32	timeBcnInfoChkStart;
 };
 
 #define rtw_mlme_set_auto_scan_int(adapter, ms) \

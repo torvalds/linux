@@ -1059,7 +1059,14 @@ PHY_SetTxPowerLevel8723B(
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
 	PDM_ODM_T		pDM_Odm = &pHalData->odmpriv;
 	pFAT_T			pDM_FatTable = &pDM_Odm->DM_FatTable;
-	u8				RFPath = ( (pDM_FatTable->RxIdleAnt == MAIN_ANT) ? ODM_RF_PATH_A : ODM_RF_PATH_B);
+	u8				RFPath = ODM_RF_PATH_A; 
+
+	if(pHalData->AntDivCfg){// antenna diversity Enable
+		RFPath = ( (pDM_FatTable->RxIdleAnt == MAIN_ANT) ? ODM_RF_PATH_A : ODM_RF_PATH_B);
+	}
+	else{ // antenna diversity disable
+		RFPath = pHalData->ant_path;
+	}
 
 	RT_TRACE(_module_hal_init_c_, _drv_info_,("==>PHY_SetTxPowerLevel8723B()\n"));
 

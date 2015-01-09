@@ -3509,6 +3509,13 @@ halbtc8821a2ant_RunCoexistMechanism(
 // extern function start with EXhalbtc8821a2ant_
 //============================================================
 VOID
+EXhalbtc8821a2ant_PowerOnSetting(
+	IN	PBTC_COEXIST		pBtCoexist
+	)
+{
+}
+
+VOID
 EXhalbtc8821a2ant_InitHwConfig(
 	IN	PBTC_COEXIST		pBtCoexist,
 	IN	BOOLEAN				bWifiOnly
@@ -3574,13 +3581,6 @@ EXhalbtc8821a2ant_DisplayCoexInfo(
 
 	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n ============[BT Coexist info]============");
 	CL_PRINTF(cliBuf);
-
-	if(!pBoardInfo->bBtExist)
-	{
-		CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n BT not exists !!!");
-		CL_PRINTF(cliBuf);
-		return;
-	}
 
 	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %d/ %d ", "Ant PG number/ Ant mechanism:", \
 		pBoardInfo->pgAntNum, pBoardInfo->btdmAntNum);

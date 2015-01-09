@@ -323,13 +323,14 @@ static void Update_ODM_ComInfo_8723b(PADAPTER	Adapter)
 		| ODM_BB_RSSI_MONITOR
 		| ODM_BB_CCK_PD
 		| ODM_BB_PWR_SAVE
+		| ODM_BB_CFO_TRACKING
 		| ODM_MAC_EDCA_TURBO
 		| ODM_RF_TX_PWR_TRACK
 		| ODM_RF_CALIBRATION
-#ifdef CONFIG_ODM_ADAPTIVITY
-		| ODM_BB_ADAPTIVITY
-#endif
 		;
+
+	if (rtw_odm_adaptivity_needed(Adapter) == _TRUE)
+		pdmpriv->InitODMFlag |= ODM_BB_ADAPTIVITY;
 
 #ifdef CONFIG_ANTENNA_DIVERSITY
 	if(pHalData->AntDivCfg)
@@ -417,7 +418,9 @@ rtl8723b_InitHalDm(
 	pdmpriv->InitDMFlag = pdmpriv->DMFlag;
 
 	Update_ODM_ComInfo_8723b(Adapter);
-	ODM_DMInit(pDM_Odm);
+	
+	if (Adapter->registrypriv.mp_mode == 0)
+		ODM_DMInit(pDM_Odm);
 
 }
 
@@ -572,6 +575,7 @@ if (Adapter->registrypriv.mp_mode == 1 && Adapter->mppriv.mp_dm ==0) // for MP p
 	{
 		u8	bLinked=_FALSE;
 		u8	bsta_state=_FALSE;
+		u8	bBtDisabled = _TRUE;
 
 		if(rtw_linked_check(Adapter)){			
 			bLinked = _TRUE;
@@ -592,6 +596,11 @@ if (Adapter->registrypriv.mp_mode == 1 && Adapter->mppriv.mp_dm ==0) // for MP p
 
 		//FindMinimumRSSI_8723b(Adapter);
 		//ODM_CmnInfoUpdate(&pHalData->odmpriv ,ODM_CMNINFO_RSSI_MIN, pdmpriv->MinUndecoratedPWDBForDM);
+
+#ifdef CONFIG_BT_COEXIST
+		bBtDisabled = rtw_btcoex_IsBtDisabled(Adapter);
+#endif // CONFIG_BT_COEXIST
+		ODM_CmnInfoUpdate(&pHalData->odmpriv, ODM_CMNINFO_BT_ENABLED, ((bBtDisabled == _TRUE)?_FALSE:_TRUE));
 
 		ODM_DMWatchdog(&pHalData->odmpriv);
 	}

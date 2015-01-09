@@ -292,6 +292,7 @@ typedef struct _RSVDPAGE_LOC {
 
 #endif
 void dump_TX_FIFO(PADAPTER padapter, u8 page_num, u16 page_size);
+u8 rtw_check_invalid_mac_address (u8 *mac_addr);
 #if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
 void rtw_get_current_ip_address(PADAPTER padapter, u8 *pcurrentip);
 void rtw_get_sec_iv(PADAPTER padapter, u8*pcur_dot11txpn, u8 *StaAddr);

@@ -204,6 +204,9 @@ typedef enum _FIRMWARE_SOURCE {
 #define PageNum(_Len, _Size)		(u32)(((_Len)/(_Size)) + ((_Len)&((_Size) - 1) ? 1:0))
 
 
+u8 rtw_hal_data_init(_adapter *padapter);
+void rtw_hal_data_deinit(_adapter *padapter);
+
 void dump_chip_info(HAL_VERSION	ChipVersion);
 
 u8	//return the final channel plan decision
@@ -321,5 +324,43 @@ void rtw_get_raw_rssi_info(void *sel, _adapter *padapter);
 void rtw_store_phy_info(_adapter *padapter, union recv_frame *prframe);
 void rtw_dump_raw_rssi_info(_adapter *padapter);
 #endif
+
+#define		HWSET_MAX_SIZE			512
+#ifdef CONFIG_EFUSE_CONFIG_FILE
+#define		EFUSE_FILE_COLUMN_NUM		16
+u32 Hal_readPGDataFromConfigFile(PADAPTER padapter, struct file *fp);
+void Hal_ReadMACAddrFromFile(PADAPTER padapter, struct file *fp);
+void Hal_GetPhyEfuseMACAddr(PADAPTER padapter, u8* mac_addr);
+int check_phy_efuse_tx_power_info_valid(PADAPTER padapter);
+int check_phy_efuse_macaddr_info_valid(PADAPTER padapter);
+#endif //CONFIG_EFUSE_CONFIG_FILE
+
+#ifdef CONFIG_RF_GAIN_OFFSET
+void rtw_bb_rf_gain_offset(_adapter *padapter);
+#endif //CONFIG_RF_GAIN_OFFSET
+
+void dm_DynamicUsbTxAgg(_adapter *padapter, u8 from_timer);
+
+void GetHalODMVar(	
+	PADAPTER				Adapter,
+	HAL_ODM_VARIABLE		eVariable,
+	PVOID					pValue1,
+	PVOID					pValue2);
+void SetHalODMVar(
+	PADAPTER				Adapter,
+	HAL_ODM_VARIABLE		eVariable,
+	PVOID					pValue1,
+	BOOLEAN					bSet);
+
+#ifdef CONFIG_BACKGROUND_NOISE_MONITOR
+struct noise_info
+{
+	u8 		bPauseDIG;
+	u8 		IGIValue;
+	u32 	max_time;//ms	
+	u8		chan;
+};
+#endif
+
 #endif //__HAL_COMMON_H__
 

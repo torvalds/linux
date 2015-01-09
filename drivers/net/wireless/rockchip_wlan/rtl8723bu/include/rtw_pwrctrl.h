@@ -324,6 +324,7 @@ struct pwrctrl_priv
 	u8		wowlan_pno_enable;
 #ifdef CONFIG_PNO_SUPPORT
 	u8		pno_in_resume;
+	u8		pno_inited;
 	pno_nlo_info_t	*pnlo_info;
 	pno_scan_info_t	*pscan_info;
 	pno_ssid_list_t	*pno_ssid_list;
@@ -402,8 +403,6 @@ extern void cpwm_int_hdl(PADAPTER padapter, struct reportpwrstate_parm *preportp
 extern void LPS_Leave_check(PADAPTER padapter);
 #endif
 
-extern void rtw_set_ps_mode(PADAPTER padapter, u8 ps_mode, u8 smart_ps, u8 bcn_ant_mode, const char *msg);
-extern void rtw_set_rpwm(_adapter * padapter, u8 val8);
 extern void LeaveAllPowerSaveMode(PADAPTER Adapter);
 extern void LeaveAllPowerSaveModeDirect(PADAPTER Adapter);
 #ifdef CONFIG_IPS
@@ -429,7 +428,9 @@ int rtw_fw_ps_state(PADAPTER padapter);
 s32 LPS_RF_ON_check(PADAPTER padapter, u32 delay_ms);
 void LPS_Enter(PADAPTER padapter, const char *msg);
 void LPS_Leave(PADAPTER padapter, const char *msg);
-void	traffic_check_for_leave_lps(PADAPTER padapter, u8 tx, u32 tx_packets);
+void traffic_check_for_leave_lps(PADAPTER padapter, u8 tx, u32 tx_packets);
+void rtw_set_ps_mode(PADAPTER padapter, u8 ps_mode, u8 smart_ps, u8 bcn_ant_mode, const char *msg);
+void rtw_set_rpwm(_adapter * padapter, u8 val8);
 #endif
 
 #ifdef CONFIG_RESUME_IN_WORKQUEUE
