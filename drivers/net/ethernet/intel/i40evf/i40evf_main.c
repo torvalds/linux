@@ -2213,11 +2213,17 @@ err:
 static void i40evf_shutdown(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct i40evf_adapter *adapter = netdev_priv(netdev);
 
 	netif_device_detach(netdev);
 
 	if (netif_running(netdev))
 		i40evf_close(netdev);
+
+	/* Prevent the watchdog from running. */
+	adapter->state = __I40EVF_REMOVE;
+	adapter->aq_required = 0;
+	adapter->aq_pending = 0;
 
 #ifdef CONFIG_PM
 	pci_save_state(pdev);
