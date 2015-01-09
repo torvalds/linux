@@ -480,6 +480,8 @@ static void clk_unprepare_unused_subtree(struct clk_core *clk)
 {
 	struct clk_core *child;
 
+	lockdep_assert_held(&prepare_lock);
+
 	hlist_for_each_entry(child, &clk->children, child_node)
 		clk_unprepare_unused_subtree(child);
 
@@ -502,6 +504,8 @@ static void clk_disable_unused_subtree(struct clk_core *clk)
 {
 	struct clk_core *child;
 	unsigned long flags;
+
+	lockdep_assert_held(&prepare_lock);
 
 	hlist_for_each_entry(child, &clk->children, child_node)
 		clk_disable_unused_subtree(child);
@@ -1106,6 +1110,8 @@ static unsigned long clk_core_round_rate_nolock(struct clk_core *clk,
 	struct clk_core *parent;
 	struct clk_hw *parent_hw;
 
+	lockdep_assert_held(&prepare_lock);
+
 	if (!clk)
 		return 0;
 
@@ -1245,6 +1251,8 @@ static void __clk_recalc_accuracies(struct clk_core *clk)
 	unsigned long parent_accuracy = 0;
 	struct clk_core *child;
 
+	lockdep_assert_held(&prepare_lock);
+
 	if (clk->parent)
 		parent_accuracy = clk->parent->accuracy;
 
@@ -1317,6 +1325,8 @@ static void __clk_recalc_rates(struct clk_core *clk, unsigned long msg)
 	unsigned long old_rate;
 	unsigned long parent_rate = 0;
 	struct clk_core *child;
+
+	lockdep_assert_held(&prepare_lock);
 
 	old_rate = clk->rate;
 
@@ -1524,6 +1534,8 @@ static int __clk_speculate_rates(struct clk_core *clk,
 	struct clk_core *child;
 	unsigned long new_rate;
 	int ret = NOTIFY_DONE;
+
+	lockdep_assert_held(&prepare_lock);
 
 	new_rate = clk_recalc(clk, parent_rate);
 
@@ -2487,6 +2499,8 @@ static void __clk_release(struct kref *ref)
 {
 	struct clk_core *clk = container_of(ref, struct clk_core, ref);
 	int i = clk->num_parents;
+
+	lockdep_assert_held(&prepare_lock);
 
 	kfree(clk->parents);
 	while (--i >= 0)
