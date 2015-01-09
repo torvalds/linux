@@ -12393,14 +12393,16 @@ static void intel_setup_outputs(struct drm_device *dev)
 		 * eDP ports. Consult the VBT as well as DP_DETECTED to
 		 * detect eDP ports.
 		 */
-		if (I915_READ(VLV_DISPLAY_BASE + GEN4_HDMIB) & SDVO_DETECTED)
+		if (I915_READ(VLV_DISPLAY_BASE + GEN4_HDMIB) & SDVO_DETECTED &&
+		    !intel_dp_is_edp(dev, PORT_B))
 			intel_hdmi_init(dev, VLV_DISPLAY_BASE + GEN4_HDMIB,
 					PORT_B);
 		if (I915_READ(VLV_DISPLAY_BASE + DP_B) & DP_DETECTED ||
 		    intel_dp_is_edp(dev, PORT_B))
 			intel_dp_init(dev, VLV_DISPLAY_BASE + DP_B, PORT_B);
 
-		if (I915_READ(VLV_DISPLAY_BASE + GEN4_HDMIC) & SDVO_DETECTED)
+		if (I915_READ(VLV_DISPLAY_BASE + GEN4_HDMIC) & SDVO_DETECTED &&
+		    !intel_dp_is_edp(dev, PORT_C))
 			intel_hdmi_init(dev, VLV_DISPLAY_BASE + GEN4_HDMIC,
 					PORT_C);
 		if (I915_READ(VLV_DISPLAY_BASE + DP_C) & DP_DETECTED ||
