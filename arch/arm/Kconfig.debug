@@ -527,6 +527,30 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on TI-NSPIRE CX models.
 
+	config DEBUG_OMAP1UART1
+		bool "Kernel low-level debugging via OMAP1 UART1"
+		depends on ARCH_OMAP1
+		select DEBUG_UART_8250
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on OMAP1 based platforms (except OMAP730) on the UART1.
+
+	config DEBUG_OMAP1UART2
+		bool "Kernel low-level debugging via OMAP1 UART2"
+		depends on ARCH_OMAP1
+		select DEBUG_UART_8250
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on OMAP1 based platforms (except OMAP730) on the UART2.
+
+	config DEBUG_OMAP1UART3
+		bool "Kernel low-level debugging via OMAP1 UART3"
+		depends on ARCH_OMAP1
+		select DEBUG_UART_8250
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on OMAP1 based platforms (except OMAP730) on the UART3.
+
 	config DEBUG_OMAP2UART1
 		bool "OMAP2/3/4 UART1 (omap2/3 sdp boards and some omap3 boards)"
 		depends on ARCH_OMAP2PLUS
@@ -568,6 +592,30 @@ choice
 		bool "Kernel low-level debugging messages via OMAP4/5 UART4"
 		depends on ARCH_OMAP2PLUS
 		select DEBUG_OMAP2PLUS_UART
+
+	config DEBUG_OMAP7XXUART1
+		bool "Kernel low-level debugging via OMAP730 UART1"
+		depends on ARCH_OMAP730
+		select DEBUG_UART_8250
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on OMAP730 based platforms on the UART1.
+
+	config DEBUG_OMAP7XXUART2
+		bool "Kernel low-level debugging via OMAP730 UART2"
+		depends on ARCH_OMAP730
+		select DEBUG_UART_8250
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on OMAP730 based platforms on the UART2.
+
+	config DEBUG_OMAP7XXUART3
+		bool "Kernel low-level debugging via OMAP730 UART3"
+		depends on ARCH_OMAP730
+		select DEBUG_UART_8250
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on OMAP730 based platforms on the UART3.
 
 	config DEBUG_TI81XXUART1
 		bool "Kernel low-level debugging messages via TI81XX UART1 (ti8148evm)"
@@ -1308,6 +1356,9 @@ config DEBUG_UART_PHYS
 	default 0xffe40000 if DEBUG_RCAR_GEN1_SCIF0
 	default 0xffe42000 if DEBUG_RCAR_GEN1_SCIF2
 	default 0xfff36000 if DEBUG_HIGHBANK_UART
+	default 0xfffb0000 if DEBUG_OMAP1UART1 || DEBUG_OMAP7XXUART1
+	default 0xfffb0800 if DEBUG_OMAP1UART2 || DEBUG_OMAP7XXUART2
+	default 0xfffb9800 if DEBUG_OMAP1UART3 || DEBUG_OMAP7XXUART3
 	default 0xfffe8600 if DEBUG_UART_BCM63XX
 	default 0xfffff700 if ARCH_IOP33X
 	depends on DEBUG_LL_UART_8250 || DEBUG_LL_UART_PL01X || \
@@ -1390,6 +1441,9 @@ config DEBUG_UART_VIRT
 	default 0xfef00000 if ARCH_IXP4XX && !CPU_BIG_ENDIAN
 	default 0xfef00003 if ARCH_IXP4XX && CPU_BIG_ENDIAN
 	default 0xfef36000 if DEBUG_HIGHBANK_UART
+	default 0xfefb0000 if DEBUG_OMAP1UART1 || DEBUG_OMAP7XXUART1
+	default 0xfefb0800 if DEBUG_OMAP1UART2 || DEBUG_OMAP7XXUART2
+	default 0xfefb9800 if DEBUG_OMAP1UART3 || DEBUG_OMAP7XXUART3
 	default 0xfefff700 if ARCH_IOP33X
 	default 0xff003000 if DEBUG_U300_UART
 	default DEBUG_UART_PHYS if !MMU
@@ -1401,7 +1455,8 @@ config DEBUG_UART_VIRT
 config DEBUG_UART_8250_SHIFT
 	int "Register offset shift for the 8250 debug UART"
 	depends on DEBUG_LL_UART_8250 || DEBUG_UART_8250
-	default 0 if FOOTBRIDGE || ARCH_IOP32X || DEBUG_BCM_5301X
+	default 0 if FOOTBRIDGE || ARCH_IOP32X || DEBUG_BCM_5301X || \
+		DEBUG_OMAP7XXUART1 || DEBUG_OMAP7XXUART2 || DEBUG_OMAP7XXUART3
 	default 2
 
 config DEBUG_UART_8250_WORD
