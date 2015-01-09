@@ -2540,7 +2540,7 @@ static int s3c_hsotg_ep_enable(struct usb_ep *ep,
 	 */
 	if (dir_in && hsotg->dedicated_fifos) {
 		size = hs_ep->ep.maxpacket*hs_ep->mc;
-		for (i = 1; i <= 8; ++i) {
+		for (i = 1; i < hsotg->num_of_eps; ++i) {
 			if (hsotg->fifo_map & (1<<i))
 				continue;
 			val = readl(hsotg->regs + DPTXFSIZN(i));
@@ -2554,7 +2554,9 @@ static int s3c_hsotg_ep_enable(struct usb_ep *ep,
 			hs_ep->fifo_size = val;
 			break;
 		}
-		if (i == 8) {
+		if (i == hsotg->num_of_eps) {
+			dev_err(hsotg->dev,
+				"%s: No suitable fifo found\n", __func__);
 			ret = -ENOMEM;
 			goto error;
 		}
