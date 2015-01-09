@@ -34,6 +34,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "core.h"
 #include "name_table.h"
 #include "subscr.h"
@@ -47,7 +49,6 @@ int tipc_random __read_mostly;
 
 /* configurable TIPC parameters */
 u32 tipc_own_addr __read_mostly;
-int tipc_max_ports __read_mostly;
 int tipc_net_id __read_mostly;
 int sysctl_tipc_rmem[3] __read_mostly;	/* min/default/max */
 
@@ -84,9 +85,9 @@ static void tipc_core_stop(void)
 	tipc_netlink_stop();
 	tipc_subscr_stop();
 	tipc_nametbl_stop();
-	tipc_sk_ref_table_stop();
 	tipc_socket_stop();
 	tipc_unregister_sysctl();
+	tipc_sk_rht_destroy();
 }
 
 /**
@@ -98,7 +99,7 @@ static int tipc_core_start(void)
 
 	get_random_bytes(&tipc_random, sizeof(tipc_random));
 
-	err = tipc_sk_ref_table_init(tipc_max_ports, tipc_random);
+	err = tipc_sk_rht_init();
 	if (err)
 		goto out_reftbl;
 
@@ -138,7 +139,7 @@ out_socket:
 out_netlink:
 	tipc_nametbl_stop();
 out_nametbl:
-	tipc_sk_ref_table_stop();
+	tipc_sk_rht_destroy();
 out_reftbl:
 	return err;
 }
@@ -150,7 +151,6 @@ static int __init tipc_init(void)
 	pr_info("Activated (version " TIPC_MOD_VER ")\n");
 
 	tipc_own_addr = 0;
-	tipc_max_ports = CONFIG_TIPC_PORTS;
 	tipc_net_id = 4711;
 
 	sysctl_tipc_rmem[0] = TIPC_CONN_OVERLOAD_LIMIT >> 4 <<

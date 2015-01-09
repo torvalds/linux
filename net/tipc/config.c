@@ -183,22 +183,6 @@ static struct sk_buff *cfg_set_own_addr(void)
 	return tipc_cfg_reply_error_string("cannot change to network mode");
 }
 
-static struct sk_buff *cfg_set_max_ports(void)
-{
-	u32 value;
-
-	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
-		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
-	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
-	if (value == tipc_max_ports)
-		return tipc_cfg_reply_none();
-	if (value < 127 || value > 65535)
-		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
-						   " (max ports must be 127-65535)");
-	return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
-		" (cannot change max ports while TIPC is active)");
-}
-
 static struct sk_buff *cfg_set_netid(void)
 {
 	u32 value;
@@ -285,14 +269,8 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 	case TIPC_CMD_SET_NODE_ADDR:
 		rep_tlv_buf = cfg_set_own_addr();
 		break;
-	case TIPC_CMD_SET_MAX_PORTS:
-		rep_tlv_buf = cfg_set_max_ports();
-		break;
 	case TIPC_CMD_SET_NETID:
 		rep_tlv_buf = cfg_set_netid();
-		break;
-	case TIPC_CMD_GET_MAX_PORTS:
-		rep_tlv_buf = tipc_cfg_reply_unsigned(tipc_max_ports);
 		break;
 	case TIPC_CMD_GET_NETID:
 		rep_tlv_buf = tipc_cfg_reply_unsigned(tipc_net_id);
@@ -317,6 +295,8 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 	case TIPC_CMD_SET_REMOTE_MNG:
 	case TIPC_CMD_GET_REMOTE_MNG:
 	case TIPC_CMD_DUMP_LOG:
+	case TIPC_CMD_SET_MAX_PORTS:
+	case TIPC_CMD_GET_MAX_PORTS:
 		rep_tlv_buf = tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 							  " (obsolete command)");
 		break;

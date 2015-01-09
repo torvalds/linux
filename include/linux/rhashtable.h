@@ -113,7 +113,7 @@ struct rhashtable {
 	struct bucket_table __rcu	*tbl;
 	struct bucket_table __rcu       *future_tbl;
 	atomic_t			nelems;
-	size_t				shift;
+	atomic_t			shift;
 	struct rhashtable_params	p;
 	struct delayed_work             run_work;
 	struct mutex                    mutex;
@@ -168,6 +168,7 @@ int rhashtable_shrink(struct rhashtable *ht);
 void *rhashtable_lookup(struct rhashtable *ht, const void *key);
 void *rhashtable_lookup_compare(struct rhashtable *ht, const void *key,
 				bool (*compare)(void *, void *), void *arg);
+bool rhashtable_lookup_insert(struct rhashtable *ht, struct rhash_head *obj);
 
 void rhashtable_destroy(struct rhashtable *ht);
 
