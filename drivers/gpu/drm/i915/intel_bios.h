@@ -80,7 +80,7 @@ struct vbios_data {
 #define BDB_EXT_MMIO_REGS	  6
 #define BDB_SWF_IO		  7
 #define BDB_SWF_MMIO		  8
-#define BDB_DOT_CLOCK_TABLE	  9
+#define BDB_PSR			  9
 #define BDB_MODE_REMOVAL_TABLE	 10
 #define BDB_CHILD_DEVICE_TABLE	 11
 #define BDB_DRIVER_FEATURES	 12
@@ -402,10 +402,21 @@ struct bdb_lfp_backlight_data_entry {
 	u8 obsolete3;
 } __packed;
 
+#define BLC_CONTROL_PIN_PMIC		0
+#define BLC_CONTROL_PIN_LPSS_PWM	1
+#define BLC_CONTROL_PIN_DDI		2
+#define BLC_CONTROL_PIN_CABC		3
+
+struct bdb_lfp_backlight_control_data {
+	u8 controller:4;
+	u8 pin:4;
+} __packed;
+
 struct bdb_lfp_backlight_data {
 	u8 entry_size;
 	struct bdb_lfp_backlight_data_entry data[16];
 	u8 level[16];
+	struct bdb_lfp_backlight_control_data blc_ctl[16];
 } __packed;
 
 struct aimdb_header {
@@ -554,6 +565,26 @@ struct bdb_edp {
 	/* ith bit indicates enabled/disabled for (i+1)th panel */
 	u16 edp_s3d_feature;
 	u16 edp_t3_optimization;
+} __packed;
+
+struct psr_table {
+	/* Feature bits */
+	u8 full_link:1;
+	u8 require_aux_to_wakeup:1;
+	u8 feature_bits_rsvd:6;
+
+	/* Wait times */
+	u8 idle_frames:4;
+	u8 lines_to_wait:3;
+	u8 wait_times_rsvd:1;
+
+	/* TP wake up time in multiple of 100 */
+	u16 tp1_wakeup_time;
+	u16 tp2_tp3_wakeup_time;
+} __packed;
+
+struct bdb_psr {
+	struct psr_table psr_table[16];
 } __packed;
 
 void intel_setup_bios(struct drm_device *dev);
@@ -798,7 +829,8 @@ struct mipi_config {
 #define DUAL_LINK_PIXEL_ALT	2
 	u16 dual_link:2;
 	u16 lane_cnt:2;
-	u16 rsvd3:12;
+	u16 pixel_overlap:3;
+	u16 rsvd3:9;
 
 	u16 rsvd4;
 

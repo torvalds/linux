@@ -28,6 +28,11 @@
 #include <drm/drm_crtc.h>
 #include "intel_drv.h"
 
+/* Dual Link support */
+#define DSI_DUAL_LINK_NONE		0
+#define DSI_DUAL_LINK_FRONT_BACK	1
+#define DSI_DUAL_LINK_PIXEL_ALT		2
+
 struct intel_dsi_device {
 	unsigned int panel_id;
 	const char *name;
@@ -78,6 +83,9 @@ struct intel_dsi {
 
 	struct intel_connector *attached_connector;
 
+	/* bit mask of ports being driven */
+	u16 ports;
+
 	/* if true, use HS mode, otherwise LP */
 	bool hs;
 
@@ -101,6 +109,8 @@ struct intel_dsi {
 	u8 clock_stop;
 
 	u8 escape_clk_div;
+	u8 dual_link;
+	u8 pixel_overlap;
 	u32 port_bits;
 	u32 bw_timer;
 	u32 dphy_reg;
@@ -126,6 +136,22 @@ struct intel_dsi {
 	u16 panel_off_delay;
 	u16 panel_pwr_cycle_delay;
 };
+
+/* XXX: Transitional before dual port configuration */
+static inline enum port intel_dsi_pipe_to_port(enum pipe pipe)
+{
+	if (pipe == PIPE_A)
+		return PORT_A;
+	else if (pipe == PIPE_B)
+		return PORT_C;
+
+	WARN(1, "DSI on pipe %c, assuming port C\n", pipe_name(pipe));
+	return PORT_C;
+}
+
+#define for_each_dsi_port(__port, __ports_mask) \
+	for ((__port) = PORT_A; (__port) < I915_MAX_PORTS; (__port)++)	\
+		if ((__ports_mask) & (1 << (__port)))
 
 static inline struct intel_dsi *enc_to_intel_dsi(struct drm_encoder *encoder)
 {

@@ -94,16 +94,31 @@ static struct gpio_table gtable[] = {
 	{ GPIO_NC_11_PCONF0, GPIO_NC_11_PAD, 0}
 };
 
+static inline enum port intel_dsi_seq_port_to_port(u8 port)
+{
+	return port ? PORT_C : PORT_A;
+}
+
 static u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi, u8 *data)
 {
-	u8 type, byte, mode, vc, port;
+	u8 type, byte, mode, vc, seq_port;
 	u16 len;
+	enum port port;
 
 	byte = *data++;
 	mode = (byte >> MIPI_TRANSFER_MODE_SHIFT) & 0x1;
 	vc = (byte >> MIPI_VIRTUAL_CHANNEL_SHIFT) & 0x3;
-	port = (byte >> MIPI_PORT_SHIFT) & 0x3;
+	seq_port = (byte >> MIPI_PORT_SHIFT) & 0x3;
 
+	/* For DSI single link on Port A & C, the seq_port value which is
+	 * parsed from Sequence Block#53 of VBT has been set to 0
+	 * Now, read/write of packets for the DSI single link on Port A and
+	 * Port C will based on the DVO port from VBT block 2.
+	 */
+	if (intel_dsi->ports == (1 << PORT_C))
+		port = PORT_C;
+	else
+		port = intel_dsi_seq_port_to_port(seq_port);
 	/* LP or HS mode */
 	intel_dsi->hs = mode;
 
@@ -115,13 +130,13 @@ static u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi, u8 *data)
 
 	switch (type) {
 	case MIPI_DSI_GENERIC_SHORT_WRITE_0_PARAM:
-		dsi_vc_generic_write_0(intel_dsi, vc);
+		dsi_vc_generic_write_0(intel_dsi, vc, port);
 		break;
 	case MIPI_DSI_GENERIC_SHORT_WRITE_1_PARAM:
-		dsi_vc_generic_write_1(intel_dsi, vc, *data);
+		dsi_vc_generic_write_1(intel_dsi, vc, *data, port);
 		break;
 	case MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM:
-		dsi_vc_generic_write_2(intel_dsi, vc, *data, *(data + 1));
+		dsi_vc_generic_write_2(intel_dsi, vc, *data, *(data + 1), port);
 		break;
 	case MIPI_DSI_GENERIC_READ_REQUEST_0_PARAM:
 	case MIPI_DSI_GENERIC_READ_REQUEST_1_PARAM:
@@ -129,19 +144,19 @@ static u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi, u8 *data)
 		DRM_DEBUG_DRIVER("Generic Read not yet implemented or used\n");
 		break;
 	case MIPI_DSI_GENERIC_LONG_WRITE:
-		dsi_vc_generic_write(intel_dsi, vc, data, len);
+		dsi_vc_generic_write(intel_dsi, vc, data, len, port);
 		break;
 	case MIPI_DSI_DCS_SHORT_WRITE:
-		dsi_vc_dcs_write_0(intel_dsi, vc, *data);
+		dsi_vc_dcs_write_0(intel_dsi, vc, *data, port);
 		break;
 	case MIPI_DSI_DCS_SHORT_WRITE_PARAM:
-		dsi_vc_dcs_write_1(intel_dsi, vc, *data, *(data + 1));
+		dsi_vc_dcs_write_1(intel_dsi, vc, *data, *(data + 1), port);
 		break;
 	case MIPI_DSI_DCS_READ:
 		DRM_DEBUG_DRIVER("DCS Read not yet implemented or used\n");
 		break;
 	case MIPI_DSI_DCS_LONG_WRITE:
-		dsi_vc_dcs_write(intel_dsi, vc, data, len);
+		dsi_vc_dcs_write(intel_dsi, vc, data, len, port);
 		break;
 	}
 
@@ -280,6 +295,11 @@ static bool generic_init(struct intel_dsi_device *dsi)
 	intel_dsi->clock_stop = mipi_config->enable_clk_stop ? 1 : 0;
 	intel_dsi->lane_count = mipi_config->lane_cnt + 1;
 	intel_dsi->pixel_format = mipi_config->videomode_color_format << 7;
+	intel_dsi->dual_link = mipi_config->dual_link;
+	intel_dsi->pixel_overlap = mipi_config->pixel_overlap;
+
+	if (intel_dsi->dual_link)
+		intel_dsi->ports = ((1 << PORT_A) | (1 << PORT_C));
 
 	if (intel_dsi->pixel_format == VID_MODE_FORMAT_RGB666)
 		bits_per_pixel = 18;
@@ -298,6 +318,20 @@ static bool generic_init(struct intel_dsi_device *dsi)
 		mipi_config->bta_enabled ? DISABLE_VIDEO_BTA : 0;
 
 	pclk = mode->clock;
+
+	/* In dual link mode each port needs half of pixel clock */
+	if (intel_dsi->dual_link) {
+		pclk = pclk / 2;
+
+		/* we can enable pixel_overlap if needed by panel. In this
+		 * case we need to increase the pixelclock for extra pixels
+		 */
+		if (intel_dsi->dual_link == DSI_DUAL_LINK_FRONT_BACK) {
+			pclk += DIV_ROUND_UP(mode->vtotal *
+						intel_dsi->pixel_overlap *
+						60, 1000);
+		}
+	}
 
 	/* Burst Mode Ratio
 	 * Target ddr frequency from VBT / non burst ddr freq
@@ -493,6 +527,12 @@ static bool generic_init(struct intel_dsi_device *dsi)
 	DRM_DEBUG_KMS("Clockstop %s\n", intel_dsi->clock_stop ?
 						"disabled" : "enabled");
 	DRM_DEBUG_KMS("Mode %s\n", intel_dsi->operation_mode ? "command" : "video");
+	if (intel_dsi->dual_link == DSI_DUAL_LINK_FRONT_BACK)
+		DRM_DEBUG_KMS("Dual link: DSI_DUAL_LINK_FRONT_BACK\n");
+	else if (intel_dsi->dual_link == DSI_DUAL_LINK_PIXEL_ALT)
+		DRM_DEBUG_KMS("Dual link: DSI_DUAL_LINK_PIXEL_ALT\n");
+	else
+		DRM_DEBUG_KMS("Dual link: NONE\n");
 	DRM_DEBUG_KMS("Pixel Format %d\n", intel_dsi->pixel_format);
 	DRM_DEBUG_KMS("TLPX %d\n", intel_dsi->escape_clk_div);
 	DRM_DEBUG_KMS("LP RX Timeout 0x%x\n", intel_dsi->lp_rx_timeout);

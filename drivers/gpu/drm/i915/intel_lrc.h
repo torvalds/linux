@@ -112,7 +112,7 @@ struct intel_ctx_submit_request {
 	int elsp_submitted;
 };
 
-void intel_execlists_handle_ctx_events(struct intel_engine_cs *ring);
+void intel_lrc_irq_handler(struct intel_engine_cs *ring);
 void intel_execlists_retire_requests(struct intel_engine_cs *ring);
 
 #endif /* _INTEL_LRC_H_ */

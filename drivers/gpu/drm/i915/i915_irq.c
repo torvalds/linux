@@ -183,6 +183,8 @@ static void ilk_update_gt_irq(struct drm_i915_private *dev_priv,
 {
 	assert_spin_locked(&dev_priv->irq_lock);
 
+	WARN_ON(enabled_irq_mask & ~interrupt_mask);
+
 	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
 		return;
 
@@ -228,6 +230,8 @@ static void snb_update_pm_irq(struct drm_i915_private *dev_priv,
 			      uint32_t enabled_irq_mask)
 {
 	uint32_t new_val;
+
+	WARN_ON(enabled_irq_mask & ~interrupt_mask);
 
 	assert_spin_locked(&dev_priv->irq_lock);
 
@@ -331,6 +335,8 @@ void ibx_display_interrupt_update(struct drm_i915_private *dev_priv,
 	uint32_t sdeimr = I915_READ(SDEIMR);
 	sdeimr &= ~interrupt_mask;
 	sdeimr |= (~enabled_irq_mask & interrupt_mask);
+
+	WARN_ON(enabled_irq_mask & ~interrupt_mask);
 
 	assert_spin_locked(&dev_priv->irq_lock);
 
@@ -1017,7 +1023,7 @@ static void notify_ring(struct drm_device *dev,
 	if (!intel_ring_initialized(ring))
 		return;
 
-	trace_i915_gem_request_complete(ring);
+	trace_i915_gem_request_notify(ring);
 
 	wake_up_all(&ring->irq_queue);
 }
@@ -1383,14 +1389,14 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 			if (rcs & GT_RENDER_USER_INTERRUPT)
 				notify_ring(dev, ring);
 			if (rcs & GT_CONTEXT_SWITCH_INTERRUPT)
-				intel_execlists_handle_ctx_events(ring);
+				intel_lrc_irq_handler(ring);
 
 			bcs = tmp >> GEN8_BCS_IRQ_SHIFT;
 			ring = &dev_priv->ring[BCS];
 			if (bcs & GT_RENDER_USER_INTERRUPT)
 				notify_ring(dev, ring);
 			if (bcs & GT_CONTEXT_SWITCH_INTERRUPT)
-				intel_execlists_handle_ctx_events(ring);
+				intel_lrc_irq_handler(ring);
 		} else
 			DRM_ERROR("The master control interrupt lied (GT0)!\n");
 	}
@@ -1406,14 +1412,14 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 			if (vcs & GT_RENDER_USER_INTERRUPT)
 				notify_ring(dev, ring);
 			if (vcs & GT_CONTEXT_SWITCH_INTERRUPT)
-				intel_execlists_handle_ctx_events(ring);
+				intel_lrc_irq_handler(ring);
 
 			vcs = tmp >> GEN8_VCS2_IRQ_SHIFT;
 			ring = &dev_priv->ring[VCS2];
 			if (vcs & GT_RENDER_USER_INTERRUPT)
 				notify_ring(dev, ring);
 			if (vcs & GT_CONTEXT_SWITCH_INTERRUPT)
-				intel_execlists_handle_ctx_events(ring);
+				intel_lrc_irq_handler(ring);
 		} else
 			DRM_ERROR("The master control interrupt lied (GT1)!\n");
 	}
@@ -1440,7 +1446,7 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 			if (vcs & GT_RENDER_USER_INTERRUPT)
 				notify_ring(dev, ring);
 			if (vcs & GT_CONTEXT_SWITCH_INTERRUPT)
-				intel_execlists_handle_ctx_events(ring);
+				intel_lrc_irq_handler(ring);
 		} else
 			DRM_ERROR("The master control interrupt lied (GT3)!\n");
 	}
@@ -2753,18 +2759,18 @@ static void gen8_disable_vblank(struct drm_device *dev, int pipe)
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
-static u32
-ring_last_seqno(struct intel_engine_cs *ring)
+static struct drm_i915_gem_request *
+ring_last_request(struct intel_engine_cs *ring)
 {
 	return list_entry(ring->request_list.prev,
-			  struct drm_i915_gem_request, list)->seqno;
+			  struct drm_i915_gem_request, list);
 }
 
 static bool
-ring_idle(struct intel_engine_cs *ring, u32 seqno)
+ring_idle(struct intel_engine_cs *ring)
 {
 	return (list_empty(&ring->request_list) ||
-		i915_seqno_passed(seqno, ring_last_seqno(ring)));
+		i915_gem_request_completed(ring_last_request(ring), false));
 }
 
 static bool
@@ -2984,7 +2990,7 @@ static void i915_hangcheck_elapsed(unsigned long data)
 		acthd = intel_ring_get_active_head(ring);
 
 		if (ring->hangcheck.seqno == seqno) {
-			if (ring_idle(ring, seqno)) {
+			if (ring_idle(ring)) {
 				ring->hangcheck.action = HANGCHECK_IDLE;
 
 				if (waitqueue_active(&ring->irq_queue)) {

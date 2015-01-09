@@ -314,6 +314,7 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 {
 	const struct bdb_lfp_backlight_data *backlight_data;
 	const struct bdb_lfp_backlight_data_entry *entry;
+	const struct bdb_lfp_backlight_control_data *bl_ctrl_data;
 
 	backlight_data = find_section(bdb, BDB_LVDS_BACKLIGHT);
 	if (!backlight_data)
@@ -326,6 +327,7 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 	}
 
 	entry = &backlight_data->data[panel_type];
+	bl_ctrl_data = &backlight_data->blc_ctl[panel_type];
 
 	dev_priv->vbt.backlight.present = entry->type == BDB_BACKLIGHT_TYPE_PWM;
 	if (!dev_priv->vbt.backlight.present) {
@@ -337,12 +339,30 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 	dev_priv->vbt.backlight.pwm_freq_hz = entry->pwm_freq_hz;
 	dev_priv->vbt.backlight.active_low_pwm = entry->active_low_pwm;
 	dev_priv->vbt.backlight.min_brightness = entry->min_brightness;
+
+	dev_priv->vbt.backlight.controller = 0;
+	if (bdb->version >= 191) {
+		dev_priv->vbt.backlight.present =
+				bl_ctrl_data->pin == BLC_CONTROL_PIN_DDI;
+		if (!dev_priv->vbt.backlight.present) {
+			DRM_DEBUG_KMS("BL control pin is not DDI (pin %u)\n",
+					bl_ctrl_data->pin);
+			return;
+		}
+		if (bl_ctrl_data->controller == 1)
+			dev_priv->vbt.backlight.controller =
+				bl_ctrl_data->controller;
+	}
+
 	DRM_DEBUG_KMS("VBT backlight PWM modulation frequency %u Hz, "
 		      "active %s, min brightness %u, level %u\n",
 		      dev_priv->vbt.backlight.pwm_freq_hz,
 		      dev_priv->vbt.backlight.active_low_pwm ? "low" : "high",
 		      dev_priv->vbt.backlight.min_brightness,
 		      backlight_data->level[panel_type]);
+
+	DRM_DEBUG_KMS("VBT BL controller %u\n",
+		dev_priv->vbt.backlight.controller);
 }
 
 /* Try to find sdvo panel data */
@@ -662,6 +682,50 @@ parse_edp(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 			      edp_link_params->vswing);
 		break;
 	}
+}
+
+static void
+parse_psr(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
+{
+	struct bdb_psr *psr;
+	struct psr_table *psr_table;
+
+	psr = find_section(bdb, BDB_PSR);
+	if (!psr) {
+		DRM_DEBUG_KMS("No PSR BDB found.\n");
+		return;
+	}
+
+	psr_table = &psr->psr_table[panel_type];
+
+	dev_priv->vbt.psr.full_link = psr_table->full_link;
+	dev_priv->vbt.psr.require_aux_wakeup = psr_table->require_aux_to_wakeup;
+
+	/* Allowed VBT values goes from 0 to 15 */
+	dev_priv->vbt.psr.idle_frames = psr_table->idle_frames < 0 ? 0 :
+		psr_table->idle_frames > 15 ? 15 : psr_table->idle_frames;
+
+	switch (psr_table->lines_to_wait) {
+	case 0:
+		dev_priv->vbt.psr.lines_to_wait = PSR_0_LINES_TO_WAIT;
+		break;
+	case 1:
+		dev_priv->vbt.psr.lines_to_wait = PSR_1_LINE_TO_WAIT;
+		break;
+	case 2:
+		dev_priv->vbt.psr.lines_to_wait = PSR_4_LINES_TO_WAIT;
+		break;
+	case 3:
+		dev_priv->vbt.psr.lines_to_wait = PSR_8_LINES_TO_WAIT;
+		break;
+	default:
+		DRM_DEBUG_KMS("VBT has unknown PSR lines to wait %u\n",
+			      psr_table->lines_to_wait);
+		break;
+	}
+
+	dev_priv->vbt.psr.tp1_wakeup_time = psr_table->tp1_wakeup_time;
+	dev_priv->vbt.psr.tp2_tp3_wakeup_time = psr_table->tp2_tp3_wakeup_time;
 }
 
 static u8 *goto_next_sequence(u8 *data, int *size)
@@ -1241,6 +1305,7 @@ intel_parse_bios(struct drm_device *dev)
 	parse_device_mapping(dev_priv, bdb);
 	parse_driver_features(dev_priv, bdb);
 	parse_edp(dev_priv, bdb);
+	parse_psr(dev_priv, bdb);
 	parse_mipi(dev_priv, bdb);
 	parse_ddi_ports(dev_priv, bdb);
 

@@ -1558,7 +1558,7 @@ void intel_edp_panel_vdd_on(struct intel_dp *intel_dp)
 	vdd = edp_panel_vdd_on(intel_dp);
 	pps_unlock(intel_dp);
 
-	WARN(!vdd, "eDP port %c VDD already requested on\n",
+	I915_STATE_WARN(!vdd, "eDP port %c VDD already requested on\n",
 	     port_name(dp_to_dig_port(intel_dp)->port));
 }
 
@@ -1642,7 +1642,7 @@ static void edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
 	if (!is_edp(intel_dp))
 		return;
 
-	WARN(!intel_dp->want_panel_vdd, "eDP port %c VDD not forced on",
+	I915_STATE_WARN(!intel_dp->want_panel_vdd, "eDP port %c VDD not forced on",
 	     port_name(dp_to_dig_port(intel_dp)->port));
 
 	intel_dp->want_panel_vdd = false;
@@ -2105,6 +2105,9 @@ static void intel_disable_dp(struct intel_encoder *encoder)
 	if (crtc->config.has_audio)
 		intel_audio_codec_disable(encoder);
 
+	if (HAS_PSR(dev) && !HAS_DDI(dev))
+		intel_psr_disable(intel_dp);
+
 	/* Make sure the panel is off before trying to change the mode. But also
 	 * ensure that we have vdd while we switch off the panel. */
 	intel_edp_panel_vdd_on(intel_dp);
@@ -2329,6 +2332,7 @@ static void vlv_enable_dp(struct intel_encoder *encoder)
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 
 	intel_edp_backlight_on(intel_dp);
+	intel_psr_enable(intel_dp);
 }
 
 static void g4x_pre_enable_dp(struct intel_encoder *encoder)
@@ -4306,7 +4310,6 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 
 	drm_dp_aux_unregister(&intel_dp->aux);
 	intel_dp_mst_encoder_cleanup(intel_dig_port);
-	drm_encoder_cleanup(encoder);
 	if (is_edp(intel_dp)) {
 		cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
 		/*
@@ -4322,6 +4325,7 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 			intel_dp->edp_notifier.notifier_call = NULL;
 		}
 	}
+	drm_encoder_cleanup(encoder);
 	kfree(intel_dig_port);
 }
 
@@ -4763,14 +4767,9 @@ void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate)
 	}
 
 	/*
-	 * FIXME: This needs proper synchronization with psr state. But really
-	 * hard to tell without seeing the user of this function of this code.
-	 * Check locking and ordering once that lands.
+	 * FIXME: This needs proper synchronization with psr state for some
+	 * platforms that cannot have PSR and DRRS enabled at the same time.
 	 */
-	if (INTEL_INFO(dev)->gen < 8 && intel_psr_is_enabled(dev)) {
-		DRM_DEBUG_KMS("DRRS is disabled as PSR is enabled\n");
-		return;
-	}
 
 	encoder = intel_attached_encoder(&intel_connector->base);
 	intel_dp = enc_to_intel_dp(&encoder->base);
@@ -5086,7 +5085,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	intel_dp_aux_init(intel_dp, intel_connector);
 
 	/* init MST on ports that can support it */
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev) || INTEL_INFO(dev)->gen >= 9) {
 		if (port == PORT_B || port == PORT_C || port == PORT_D) {
 			intel_dp_mst_encoder_init(intel_dig_port,
 						  intel_connector->base.base.id);

@@ -408,14 +408,25 @@ int i915_gem_context_enable(struct drm_i915_private *dev_priv)
 
 	BUG_ON(!dev_priv->ring[RCS].default_context);
 
-	if (i915.enable_execlists)
-		return 0;
+	if (i915.enable_execlists) {
+		for_each_ring(ring, dev_priv, i) {
+			if (ring->init_context) {
+				ret = ring->init_context(ring,
+						ring->default_context);
+				if (ret) {
+					DRM_ERROR("ring init context: %d\n",
+							ret);
+					return ret;
+				}
+			}
+		}
 
-	for_each_ring(ring, dev_priv, i) {
-		ret = i915_switch_context(ring, ring->default_context);
-		if (ret)
-			return ret;
-	}
+	} else
+		for_each_ring(ring, dev_priv, i) {
+			ret = i915_switch_context(ring, ring->default_context);
+			if (ret)
+				return ret;
+		}
 
 	return 0;
 }
@@ -611,9 +622,14 @@ static int do_switch(struct intel_engine_cs *ring,
 		goto unpin_out;
 
 	vma = i915_gem_obj_to_ggtt(to->legacy_hw_ctx.rcs_state);
-	if (!(vma->bound & GLOBAL_BIND))
-		vma->bind_vma(vma, to->legacy_hw_ctx.rcs_state->cache_level,
-				GLOBAL_BIND);
+	if (!(vma->bound & GLOBAL_BIND)) {
+		ret = i915_vma_bind(vma,
+				    to->legacy_hw_ctx.rcs_state->cache_level,
+				    GLOBAL_BIND);
+		/* This shouldn't ever fail. */
+		if (WARN_ONCE(ret, "GGTT context bind failed!"))
+			goto unpin_out;
+	}
 
 	if (!to->legacy_hw_ctx.initialized || i915_gem_context_is_default(to))
 		hw_flags |= MI_RESTORE_INHIBIT;
@@ -651,7 +667,8 @@ static int do_switch(struct intel_engine_cs *ring,
 		 * swapped, but there is no way to do that yet.
 		 */
 		from->legacy_hw_ctx.rcs_state->dirty = 1;
-		BUG_ON(from->legacy_hw_ctx.rcs_state->ring != ring);
+		BUG_ON(i915_gem_request_get_ring(
+			from->legacy_hw_ctx.rcs_state->last_read_req) != ring);
 
 		/* obj is kept alive until the next request by its active ref */
 		i915_gem_object_ggtt_unpin(from->legacy_hw_ctx.rcs_state);
@@ -671,10 +688,6 @@ done:
 			if (ret)
 				DRM_ERROR("ring init context: %d\n", ret);
 		}
-
-		ret = i915_gem_render_state_init(ring);
-		if (ret)
-			DRM_ERROR("init render state: %d\n", ret);
 	}
 
 	return 0;
