@@ -327,9 +327,11 @@ exit:
  *
  * RCU and node lock set
  */
-void tipc_bclink_update_link_state(struct tipc_node *n_ptr, u32 last_sent)
+void tipc_bclink_update_link_state(struct net *net, struct tipc_node *n_ptr,
+				   u32 last_sent)
 {
 	struct sk_buff *buf;
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 
 	/* Ignore "stale" link state info */
 	if (less_eq(last_sent, n_ptr->bclink.last_in))
@@ -362,7 +364,7 @@ void tipc_bclink_update_link_state(struct tipc_node *n_ptr, u32 last_sent)
 		tipc_msg_init(msg, BCAST_PROTOCOL, STATE_MSG,
 			      INT_H_SIZE, n_ptr->addr);
 		msg_set_non_seq(msg, 1);
-		msg_set_mc_netid(msg, tipc_net_id);
+		msg_set_mc_netid(msg, tn->net_id);
 		msg_set_bcast_ack(msg, n_ptr->bclink.last_in);
 		msg_set_bcgap_after(msg, n_ptr->bclink.last_in);
 		msg_set_bcgap_to(msg, to);
@@ -476,8 +478,9 @@ static void bclink_accept_pkt(struct tipc_node *node, u32 seqno)
  *
  * RCU is locked, no other locks set
  */
-void tipc_bclink_rcv(struct sk_buff *buf)
+void tipc_bclink_rcv(struct net *net, struct sk_buff *buf)
 {
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_msg *msg = buf_msg(buf);
 	struct tipc_node *node;
 	u32 next_in;
@@ -485,7 +488,7 @@ void tipc_bclink_rcv(struct sk_buff *buf)
 	int deferred = 0;
 
 	/* Screen out unwanted broadcast messages */
-	if (msg_mc_netid(msg) != tipc_net_id)
+	if (msg_mc_netid(msg) != tn->net_id)
 		goto exit;
 
 	node = tipc_node_find(msg_prevnode(msg));
@@ -638,6 +641,8 @@ static int tipc_bcbearer_send(struct sk_buff *buf, struct tipc_bearer *unused1,
 {
 	int bp_index;
 	struct tipc_msg *msg = buf_msg(buf);
+	struct net *net = sock_net(buf->sk);
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 
 	/* Prepare broadcast link message for reliable transmission,
 	 * if first time trying to send it;
@@ -647,7 +652,7 @@ static int tipc_bcbearer_send(struct sk_buff *buf, struct tipc_bearer *unused1,
 	if (likely(!msg_non_seq(buf_msg(buf)))) {
 		bcbuf_set_acks(buf, bclink->bcast_nodes.count);
 		msg_set_non_seq(msg, 1);
-		msg_set_mc_netid(msg, tipc_net_id);
+		msg_set_mc_netid(msg, tn->net_id);
 		bcl->stats.sent_info++;
 
 		if (WARN_ON(!bclink->bcast_nodes.count)) {

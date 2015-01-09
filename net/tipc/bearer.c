@@ -260,7 +260,8 @@ void tipc_bearer_remove_dest(u32 bearer_id, u32 dest)
 /**
  * tipc_enable_bearer - enable bearer with the given name
  */
-int tipc_enable_bearer(const char *name, u32 disc_domain, u32 priority)
+int tipc_enable_bearer(struct net *net, const char *name, u32 disc_domain,
+		       u32 priority)
 {
 	struct tipc_bearer *b_ptr;
 	struct tipc_media *m_ptr;
@@ -361,7 +362,7 @@ restart:
 	b_ptr->net_plane = bearer_id + 'A';
 	b_ptr->priority = priority;
 
-	res = tipc_disc_create(b_ptr, &b_ptr->bcast_addr);
+	res = tipc_disc_create(net, b_ptr, &b_ptr->bcast_addr);
 	if (res) {
 		bearer_disable(b_ptr, false);
 		pr_warn("Bearer <%s> rejected, discovery object creation failed\n",
@@ -380,11 +381,11 @@ restart:
 /**
  * tipc_reset_bearer - Reset all links established over this bearer
  */
-static int tipc_reset_bearer(struct tipc_bearer *b_ptr)
+static int tipc_reset_bearer(struct net *net, struct tipc_bearer *b_ptr)
 {
 	pr_info("Resetting bearer <%s>\n", b_ptr->name);
 	tipc_link_reset_list(b_ptr->identity);
-	tipc_disc_reset(b_ptr);
+	tipc_disc_reset(net, b_ptr);
 	return 0;
 }
 
@@ -539,17 +540,12 @@ static int tipc_l2_rcv_msg(struct sk_buff *buf, struct net_device *dev,
 {
 	struct tipc_bearer *b_ptr;
 
-	if (!net_eq(dev_net(dev), &init_net)) {
-		kfree_skb(buf);
-		return NET_RX_DROP;
-	}
-
 	rcu_read_lock();
 	b_ptr = rcu_dereference_rtnl(dev->tipc_ptr);
 	if (likely(b_ptr)) {
 		if (likely(buf->pkt_type <= PACKET_BROADCAST)) {
 			buf->next = NULL;
-			tipc_rcv(buf, b_ptr);
+			tipc_rcv(dev_net(dev), buf, b_ptr);
 			rcu_read_unlock();
 			return NET_RX_SUCCESS;
 		}
@@ -572,11 +568,9 @@ static int tipc_l2_rcv_msg(struct sk_buff *buf, struct net_device *dev,
 static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 				void *ptr)
 {
-	struct tipc_bearer *b_ptr;
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
-
-	if (!net_eq(dev_net(dev), &init_net))
-		return NOTIFY_DONE;
+	struct net *net = dev_net(dev);
+	struct tipc_bearer *b_ptr;
 
 	b_ptr = rtnl_dereference(dev->tipc_ptr);
 	if (!b_ptr)
@@ -590,12 +584,12 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 			break;
 	case NETDEV_DOWN:
 	case NETDEV_CHANGEMTU:
-		tipc_reset_bearer(b_ptr);
+		tipc_reset_bearer(net, b_ptr);
 		break;
 	case NETDEV_CHANGEADDR:
 		b_ptr->media->raw2addr(b_ptr, &b_ptr->addr,
 				       (char *)dev->dev_addr);
-		tipc_reset_bearer(b_ptr);
+		tipc_reset_bearer(net, b_ptr);
 		break;
 	case NETDEV_UNREGISTER:
 	case NETDEV_CHANGENAME:
@@ -808,6 +802,7 @@ int tipc_nl_bearer_disable(struct sk_buff *skb, struct genl_info *info)
 
 int tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info)
 {
+	struct net *net = genl_info_net(info);
 	int err;
 	char *bearer;
 	struct nlattr *attrs[TIPC_NLA_BEARER_MAX + 1];
@@ -847,7 +842,7 @@ int tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	rtnl_lock();
-	err = tipc_enable_bearer(bearer, domain, prio);
+	err = tipc_enable_bearer(net, bearer, domain, prio);
 	if (err) {
 		rtnl_unlock();
 		return err;

@@ -39,7 +39,7 @@
 
 #include <net/genetlink.h>
 
-int tipc_net_start(u32 addr);
+int tipc_net_start(struct net *net, u32 addr);
 
 void tipc_net_stop(void);
 

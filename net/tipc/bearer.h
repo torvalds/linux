@@ -165,8 +165,9 @@ extern struct tipc_bearer __rcu *bearer_list[];
  * TIPC routines available to supported media types
  */
 
-void tipc_rcv(struct sk_buff *skb, struct tipc_bearer *tb_ptr);
-int tipc_enable_bearer(const char *bearer_name, u32 disc_domain, u32 priority);
+void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b_ptr);
+int tipc_enable_bearer(struct net *net, const char *bearer_name,
+		       u32 disc_domain, u32 priority);
 int tipc_disable_bearer(const char *name);
 
 /*

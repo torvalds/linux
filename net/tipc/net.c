@@ -108,8 +108,9 @@ static const struct nla_policy tipc_nl_net_policy[TIPC_NLA_NET_MAX + 1] = {
  *     - A local spin_lock protecting the queue of subscriber events.
 */
 
-int tipc_net_start(u32 addr)
+int tipc_net_start(struct net *net, u32 addr)
 {
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	char addr_string[16];
 	int res;
 
@@ -125,7 +126,8 @@ int tipc_net_start(u32 addr)
 
 	pr_info("Started in network mode\n");
 	pr_info("Own node address %s, network identity %u\n",
-		tipc_addr_string_fill(addr_string, tipc_own_addr), tipc_net_id);
+		tipc_addr_string_fill(addr_string, tipc_own_addr),
+		tn->net_id);
 	return 0;
 }
 
@@ -144,8 +146,9 @@ void tipc_net_stop(void)
 	pr_info("Left network mode\n");
 }
 
-static int __tipc_nl_add_net(struct tipc_nl_msg *msg)
+static int __tipc_nl_add_net(struct net *net, struct tipc_nl_msg *msg)
 {
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	void *hdr;
 	struct nlattr *attrs;
 
@@ -158,7 +161,7 @@ static int __tipc_nl_add_net(struct tipc_nl_msg *msg)
 	if (!attrs)
 		goto msg_full;
 
-	if (nla_put_u32(msg->skb, TIPC_NLA_NET_ID, tipc_net_id))
+	if (nla_put_u32(msg->skb, TIPC_NLA_NET_ID, tn->net_id))
 		goto attr_msg_full;
 
 	nla_nest_end(msg->skb, attrs);
@@ -176,6 +179,7 @@ msg_full:
 
 int tipc_nl_net_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct net *net = sock_net(skb->sk);
 	int err;
 	int done = cb->args[0];
 	struct tipc_nl_msg msg;
@@ -187,7 +191,7 @@ int tipc_nl_net_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	msg.portid = NETLINK_CB(cb->skb).portid;
 	msg.seq = cb->nlh->nlmsg_seq;
 
-	err = __tipc_nl_add_net(&msg);
+	err = __tipc_nl_add_net(net, &msg);
 	if (err)
 		goto out;
 
@@ -200,8 +204,10 @@ out:
 
 int tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info)
 {
-	int err;
+	struct net *net = genl_info_net(info);
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct nlattr *attrs[TIPC_NLA_NET_MAX + 1];
+	int err;
 
 	if (!info->attrs[TIPC_NLA_NET])
 		return -EINVAL;
@@ -223,7 +229,7 @@ int tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info)
 		if (val < 1 || val > 9999)
 			return -EINVAL;
 
-		tipc_net_id = val;
+		tn->net_id = val;
 	}
 
 	if (attrs[TIPC_NLA_NET_ADDR]) {
@@ -238,7 +244,7 @@ int tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info)
 			return -EINVAL;
 
 		rtnl_lock();
-		tipc_net_start(addr);
+		tipc_net_start(net, addr);
 		rtnl_unlock();
 	}
 

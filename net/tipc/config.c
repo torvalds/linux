@@ -134,7 +134,7 @@ static struct sk_buff *tipc_show_stats(void)
 	return buf;
 }
 
-static struct sk_buff *cfg_enable_bearer(void)
+static struct sk_buff *cfg_enable_bearer(struct net *net)
 {
 	struct tipc_bearer_config *args;
 
@@ -142,7 +142,7 @@ static struct sk_buff *cfg_enable_bearer(void)
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 
 	args = (struct tipc_bearer_config *)TLV_DATA(req_tlv_area);
-	if (tipc_enable_bearer(args->name,
+	if (tipc_enable_bearer(net, args->name,
 			       ntohl(args->disc_domain),
 			       ntohl(args->priority)))
 		return tipc_cfg_reply_error_string("unable to enable bearer");
@@ -161,7 +161,7 @@ static struct sk_buff *cfg_disable_bearer(void)
 	return tipc_cfg_reply_none();
 }
 
-static struct sk_buff *cfg_set_own_addr(void)
+static struct sk_buff *cfg_set_own_addr(struct net *net)
 {
 	u32 addr;
 
@@ -177,20 +177,21 @@ static struct sk_buff *cfg_set_own_addr(void)
 	if (tipc_own_addr)
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 						   " (cannot change node address once assigned)");
-	if (!tipc_net_start(addr))
+	if (!tipc_net_start(net, addr))
 		return tipc_cfg_reply_none();
 
 	return tipc_cfg_reply_error_string("cannot change to network mode");
 }
 
-static struct sk_buff *cfg_set_netid(void)
+static struct sk_buff *cfg_set_netid(struct net *net)
 {
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	u32 value;
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
-	if (value == tipc_net_id)
+	if (value == tn->net_id)
 		return tipc_cfg_reply_none();
 	if (value < 1 || value > 9999)
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
@@ -198,14 +199,16 @@ static struct sk_buff *cfg_set_netid(void)
 	if (tipc_own_addr)
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 			" (cannot change network id once TIPC has joined a network)");
-	tipc_net_id = value;
+	tn->net_id = value;
 	return tipc_cfg_reply_none();
 }
 
-struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area,
-				int request_space, int reply_headroom)
+struct sk_buff *tipc_cfg_do_cmd(struct net *net, u32 orig_node, u16 cmd,
+				const void *request_area, int request_space,
+				int reply_headroom)
 {
 	struct sk_buff *rep_tlv_buf;
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 
 	rtnl_lock();
 
@@ -261,19 +264,19 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 		rep_tlv_buf = tipc_link_cmd_config(req_tlv_area, req_tlv_space, cmd);
 		break;
 	case TIPC_CMD_ENABLE_BEARER:
-		rep_tlv_buf = cfg_enable_bearer();
+		rep_tlv_buf = cfg_enable_bearer(net);
 		break;
 	case TIPC_CMD_DISABLE_BEARER:
 		rep_tlv_buf = cfg_disable_bearer();
 		break;
 	case TIPC_CMD_SET_NODE_ADDR:
-		rep_tlv_buf = cfg_set_own_addr();
+		rep_tlv_buf = cfg_set_own_addr(net);
 		break;
 	case TIPC_CMD_SET_NETID:
-		rep_tlv_buf = cfg_set_netid();
+		rep_tlv_buf = cfg_set_netid(net);
 		break;
 	case TIPC_CMD_GET_NETID:
-		rep_tlv_buf = tipc_cfg_reply_unsigned(tipc_net_id);
+		rep_tlv_buf = tipc_cfg_reply_unsigned(tn->net_id);
 		break;
 	case TIPC_CMD_NOT_NET_ADMIN:
 		rep_tlv_buf =

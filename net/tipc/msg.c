@@ -34,6 +34,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <net/sock.h>
 #include "core.h"
 #include "msg.h"
 #include "addr.h"
@@ -214,6 +215,7 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m, int offset,
 		skb = tipc_buf_acquire(msz);
 		if (unlikely(!skb))
 			return -ENOMEM;
+		skb_orphan(skb);
 		__skb_queue_tail(list, skb);
 		skb_copy_to_linear_data(skb, mhdr, mhsz);
 		pktpos = skb->data + mhsz;
@@ -234,6 +236,7 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m, int offset,
 	skb = tipc_buf_acquire(pktmax);
 	if (!skb)
 		return -ENOMEM;
+	skb_orphan(skb);
 	__skb_queue_tail(list, skb);
 	pktpos = skb->data;
 	skb_copy_to_linear_data(skb, &pkthdr, INT_H_SIZE);
@@ -267,6 +270,7 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m, int offset,
 			rc = -ENOMEM;
 			goto error;
 		}
+		skb_orphan(skb);
 		__skb_queue_tail(list, skb);
 		msg_set_type(&pkthdr, FRAGMENT);
 		msg_set_size(&pkthdr, pktsz);

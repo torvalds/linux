@@ -46,6 +46,7 @@
 
 static int handle_cmd(struct sk_buff *skb, struct genl_info *info)
 {
+	struct net *net = genl_info_net(info);
 	struct sk_buff *rep_buf;
 	struct nlmsghdr *rep_nlh;
 	struct nlmsghdr *req_nlh = info->nlhdr;
@@ -58,10 +59,11 @@ static int handle_cmd(struct sk_buff *skb, struct genl_info *info)
 	else
 		cmd = req_userhdr->cmd;
 
-	rep_buf = tipc_cfg_do_cmd(req_userhdr->dest, cmd,
-			nlmsg_data(req_nlh) + GENL_HDRLEN + TIPC_GENL_HDRLEN,
-			nlmsg_attrlen(req_nlh, GENL_HDRLEN + TIPC_GENL_HDRLEN),
-			hdr_space);
+	rep_buf = tipc_cfg_do_cmd(net, req_userhdr->dest, cmd,
+				  nlmsg_data(req_nlh) + GENL_HDRLEN +
+				  TIPC_GENL_HDRLEN,
+				  nlmsg_attrlen(req_nlh, GENL_HDRLEN +
+				  TIPC_GENL_HDRLEN), hdr_space);
 
 	if (rep_buf) {
 		skb_push(rep_buf, hdr_space);

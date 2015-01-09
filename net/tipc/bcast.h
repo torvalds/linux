@@ -91,10 +91,11 @@ void tipc_bclink_add_node(u32 addr);
 void tipc_bclink_remove_node(u32 addr);
 struct tipc_node *tipc_bclink_retransmit_to(void);
 void tipc_bclink_acknowledge(struct tipc_node *n_ptr, u32 acked);
-void tipc_bclink_rcv(struct sk_buff *buf);
+void tipc_bclink_rcv(struct net *net, struct sk_buff *buf);
 u32  tipc_bclink_get_last_sent(void);
 u32  tipc_bclink_acks_missing(struct tipc_node *n_ptr);
-void tipc_bclink_update_link_state(struct tipc_node *n_ptr, u32 last_sent);
+void tipc_bclink_update_link_state(struct net *net, struct tipc_node *n_ptr,
+				   u32 last_sent);
 int  tipc_bclink_stats(char *stats_buf, const u32 buf_size);
 int  tipc_bclink_reset_stats(void);
 int  tipc_bclink_set_queue_limits(u32 limit);

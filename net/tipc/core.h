@@ -57,6 +57,7 @@
 #include <linux/vmalloc.h>
 #include <linux/rtnetlink.h>
 #include <linux/etherdevice.h>
+#include <net/netns/generic.h>
 
 #define TIPC_MOD_VER "2.0.0"
 
@@ -74,6 +75,10 @@ extern int sysctl_tipc_named_timeout __read_mostly;
  * Other global variables
  */
 extern int tipc_random __read_mostly;
+
+struct tipc_net {
+	int net_id;
+};
 
 #ifdef CONFIG_SYSCTL
 int tipc_register_sysctl(void);

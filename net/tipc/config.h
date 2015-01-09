@@ -61,7 +61,7 @@ static inline struct sk_buff *tipc_cfg_reply_ultra_string(char *string)
 	return tipc_cfg_reply_string_type(TIPC_TLV_ULTRA_STRING, string);
 }
 
-struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd,
+struct sk_buff *tipc_cfg_do_cmd(struct net *net, u32 orig_node, u16 cmd,
 				const void *req_tlv_area, int req_tlv_space,
 				int headroom);
 #endif

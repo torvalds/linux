@@ -52,6 +52,26 @@ u32 tipc_own_addr __read_mostly;
 int tipc_net_id __read_mostly;
 int sysctl_tipc_rmem[3] __read_mostly;	/* min/default/max */
 
+static int __net_init tipc_init_net(struct net *net)
+{
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
+
+	tn->net_id = 4711;
+
+	return 0;
+}
+
+static void __net_exit tipc_exit_net(struct net *net)
+{
+}
+
+static struct pernet_operations tipc_net_ops = {
+	.init = tipc_init_net,
+	.exit = tipc_exit_net,
+	.id   = &tipc_net_id,
+	.size = sizeof(struct tipc_net),
+};
+
 static int __init tipc_init(void)
 {
 	int err;
@@ -59,7 +79,6 @@ static int __init tipc_init(void)
 	pr_info("Activated (version " TIPC_MOD_VER ")\n");
 
 	tipc_own_addr = 0;
-	tipc_net_id = 4711;
 
 	sysctl_tipc_rmem[0] = TIPC_CONN_OVERLOAD_LIMIT >> 4 <<
 			      TIPC_LOW_IMPORTANCE;
@@ -68,6 +87,10 @@ static int __init tipc_init(void)
 	sysctl_tipc_rmem[2] = TIPC_CONN_OVERLOAD_LIMIT;
 
 	get_random_bytes(&tipc_random, sizeof(tipc_random));
+
+	err = register_pernet_subsys(&tipc_net_ops);
+	if (err)
+		goto out_pernet;
 
 	err = tipc_sk_rht_init();
 	if (err)
@@ -112,12 +135,15 @@ out_netlink:
 out_nametbl:
 	tipc_sk_rht_destroy();
 out_reftbl:
+	unregister_pernet_subsys(&tipc_net_ops);
+out_pernet:
 	pr_err("Unable to start in single node mode\n");
 	return err;
 }
 
 static void __exit tipc_exit(void)
 {
+	unregister_pernet_subsys(&tipc_net_ops);
 	tipc_net_stop();
 	tipc_bearer_cleanup();
 	tipc_netlink_stop();
