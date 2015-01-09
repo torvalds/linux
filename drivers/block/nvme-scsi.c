@@ -1612,7 +1612,7 @@ static inline void nvme_trans_modesel_get_bd_len(u8 *parm_list, u8 cdb10,
 		/* 10 Byte CDB */
 		*bd_len = (parm_list[MODE_SELECT_10_BD_OFFSET] << 8) +
 			parm_list[MODE_SELECT_10_BD_OFFSET + 1];
-		*llbaa = parm_list[MODE_SELECT_10_LLBAA_OFFSET] &&
+		*llbaa = parm_list[MODE_SELECT_10_LLBAA_OFFSET] &
 				MODE_SELECT_10_LLBAA_MASK;
 	} else {
 		/* 6 Byte CDB */
