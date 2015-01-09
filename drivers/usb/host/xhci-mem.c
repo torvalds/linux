@@ -833,9 +833,8 @@ void xhci_free_stream_info(struct xhci_hcd *xhci,
 static void xhci_init_endpoint_timer(struct xhci_hcd *xhci,
 		struct xhci_virt_ep *ep)
 {
-	init_timer(&ep->stop_cmd_timer);
-	ep->stop_cmd_timer.data = (unsigned long) ep;
-	ep->stop_cmd_timer.function = xhci_stop_endpoint_command_watchdog;
+	setup_timer(&ep->stop_cmd_timer, xhci_stop_endpoint_command_watchdog,
+		    (unsigned long)ep);
 	ep->xhci = xhci;
 }
 
@@ -2509,9 +2508,8 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	xhci_print_ir_set(xhci, 0);
 
 	/* init command timeout timer */
-	init_timer(&xhci->cmd_timer);
-	xhci->cmd_timer.data = (unsigned long) xhci;
-	xhci->cmd_timer.function = xhci_handle_command_timeout;
+	setup_timer(&xhci->cmd_timer, xhci_handle_command_timeout,
+		    (unsigned long)xhci);
 
 	/*
 	 * XXX: Might need to set the Interrupter Moderation Register to
