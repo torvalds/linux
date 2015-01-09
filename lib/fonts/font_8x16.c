@@ -4629,5 +4629,6 @@ const struct font_desc font_vga_8x16 = {
 	.height	= 16,
 	.data	= fontdata_8x16,
 	.pref	= 0,
+	.charcount = 255,
 };
 EXPORT_SYMBOL(font_vga_8x16);
