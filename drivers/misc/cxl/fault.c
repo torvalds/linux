@@ -20,6 +20,7 @@
 #include <asm/mmu.h>
 
 #include "cxl.h"
+#include "trace.h"
 
 static bool sste_matches(struct cxl_sste *sste, struct copro_slb *slb)
 {
@@ -75,6 +76,7 @@ static void cxl_load_segment(struct cxl_context *ctx, struct copro_slb *slb)
 
 	pr_devel("CXL Populating SST[%li]: %#llx %#llx\n",
 			sste - ctx->sstp, slb->vsid, slb->esid);
+	trace_cxl_ste_write(ctx, sste - ctx->sstp, slb->esid, slb->vsid);
 
 	sste->vsid_data = cpu_to_be64(slb->vsid);
 	sste->esid_data = cpu_to_be64(slb->esid);
@@ -116,6 +118,7 @@ static int cxl_handle_segment_miss(struct cxl_context *ctx,
 	int rc;
 
 	pr_devel("CXL interrupt: Segment fault pe: %i ea: %#llx\n", ctx->pe, ea);
+	trace_cxl_ste_miss(ctx, ea);
 
 	if ((rc = cxl_fault_segment(ctx, mm, ea)))
 		cxl_ack_ae(ctx);
@@ -134,6 +137,8 @@ static void cxl_handle_page_fault(struct cxl_context *ctx,
 	unsigned flt = 0;
 	int result;
 	unsigned long access, flags, inv_flags = 0;
+
+	trace_cxl_pte_miss(ctx, dsisr, dar);
 
 	if ((result = copro_handle_mm_fault(mm, dar, dsisr, &flt))) {
 		pr_devel("copro_handle_mm_fault failed: %#x\n", result);

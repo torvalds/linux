@@ -23,6 +23,7 @@
 #include <misc/cxl.h>
 
 #include "cxl.h"
+#include "trace.h"
 
 static DEFINE_SPINLOCK(adapter_idr_lock);
 static DEFINE_IDR(cxl_adapter_idr);
@@ -48,6 +49,7 @@ static inline void _cxl_slbia(struct cxl_context *ctx, struct mm_struct *mm)
 		 ctx->afu->adapter->adapter_num, ctx->afu->slice, ctx->pe);
 
 	spin_lock_irqsave(&ctx->sste_lock, flags);
+	trace_cxl_slbia(ctx);
 	memset(ctx->sstp, 0, ctx->sst_size);
 	spin_unlock_irqrestore(&ctx->sste_lock, flags);
 	mb();

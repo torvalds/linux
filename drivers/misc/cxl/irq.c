@@ -17,6 +17,7 @@
 #include <misc/cxl.h>
 
 #include "cxl.h"
+#include "trace.h"
 
 /* XXX: This is implementation specific */
 static irqreturn_t handle_psl_slice_error(struct cxl_context *ctx, u64 dsisr, u64 errstat)
@@ -99,6 +100,8 @@ static irqreturn_t cxl_irq(int irq, void *data, struct cxl_irq_info *irq_info)
 
 	dsisr = irq_info->dsisr;
 	dar = irq_info->dar;
+
+	trace_cxl_psl_irq(ctx, irq, dsisr, dar);
 
 	pr_devel("CXL interrupt %i for afu pe: %i DSISR: %#llx DAR: %#llx\n", irq, ctx->pe, dsisr, dar);
 
@@ -237,6 +240,7 @@ static irqreturn_t cxl_irq_afu(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
+	trace_cxl_afu_irq(ctx, afu_irq, irq, hwirq);
 	pr_devel("Received AFU interrupt %i for pe: %i (virq %i hwirq %lx)\n",
 	       afu_irq, ctx->pe, irq, hwirq);
 
