@@ -97,6 +97,11 @@ static int __ath10k_htt_rx_ring_fill_n(struct ath10k_htt *htt, int num)
 	}
 
 fail:
+	/*
+	 * Make sure the rx buffer is updated before available buffer
+	 * index to avoid any potential rx ring corruption.
+	 */
+	mb();
 	*htt->rx_ring.alloc_idx.vaddr = __cpu_to_le32(idx);
 	return ret;
 }
