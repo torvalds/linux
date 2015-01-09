@@ -41,8 +41,7 @@ batadv_frag_check_entry(struct batadv_frag_table_entry *frags_entry)
 	if (!hlist_empty(&frags_entry->head) &&
 	    batadv_has_timed_out(frags_entry->timestamp, BATADV_FRAG_TIMEOUT))
 		return true;
-	else
-		return false;
+	return false;
 }
 
 #endif /* _NET_BATMAN_ADV_FRAGMENTATION_H_ */
