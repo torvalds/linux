@@ -1137,6 +1137,7 @@ static int gen8_init_common_ring(struct intel_engine_cs *ring)
 		   _MASKED_BIT_DISABLE(GFX_REPLAY_MODE) |
 		   _MASKED_BIT_ENABLE(GFX_RUN_LIST_ENABLE));
 	POSTING_READ(RING_MODE_GEN7(ring));
+	ring->next_context_status_buffer = 0;
 	DRM_DEBUG_DRIVER("Execlists enabled for %s\n", ring->name);
 
 	memset(&ring->hangcheck, 0, sizeof(ring->hangcheck));
@@ -1394,7 +1395,6 @@ static int logical_ring_init(struct drm_device *dev, struct intel_engine_cs *rin
 	INIT_LIST_HEAD(&ring->execlist_queue);
 	INIT_LIST_HEAD(&ring->execlist_retired_req_list);
 	spin_lock_init(&ring->execlist_lock);
-	ring->next_context_status_buffer = 0;
 
 	ret = i915_cmd_parser_init_ring(ring);
 	if (ret)
