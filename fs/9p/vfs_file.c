@@ -149,7 +149,7 @@ static int v9fs_file_do_lock(struct file *filp, int cmd, struct file_lock *fl)
 {
 	struct p9_flock flock;
 	struct p9_fid *fid;
-	uint8_t status;
+	uint8_t status = P9_LOCK_ERROR;
 	int res = 0;
 	unsigned char fl_type;
 
