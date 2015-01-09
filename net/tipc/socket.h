@@ -45,7 +45,7 @@
 
 int tipc_socket_init(void);
 void tipc_socket_stop(void);
-int tipc_sock_create_local(int type, struct socket **res);
+int tipc_sock_create_local(struct net *net, int type, struct socket **res);
 void tipc_sock_release_local(struct socket *sock);
 int tipc_sock_accept_local(struct socket *sock, struct socket **newsock,
 			   int flags);

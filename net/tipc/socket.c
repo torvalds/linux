@@ -388,7 +388,7 @@ static int tipc_sk_create(struct net *net, struct socket *sock,
  *
  * Returns 0 on success, errno otherwise
  */
-int tipc_sock_create_local(int type, struct socket **res)
+int tipc_sock_create_local(struct net *net, int type, struct socket **res)
 {
 	int rc;
 
@@ -397,7 +397,7 @@ int tipc_sock_create_local(int type, struct socket **res)
 		pr_err("Failed to create kernel socket\n");
 		return rc;
 	}
-	tipc_sk_create(&init_net, *res, 0, 1);
+	tipc_sk_create(net, *res, 0, 1);
 
 	return 0;
 }

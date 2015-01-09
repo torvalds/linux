@@ -106,6 +106,10 @@ struct tipc_net {
 	/* Name table */
 	spinlock_t nametbl_lock;
 	struct name_table *nametbl;
+
+	/* Topology subscription server */
+	struct tipc_server *topsrv;
+	atomic_t subscription_count;
 };
 
 #ifdef CONFIG_SYSCTL

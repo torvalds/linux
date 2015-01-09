@@ -74,13 +74,10 @@ struct tipc_subscription {
 
 int tipc_subscr_overlap(struct tipc_subscription *sub, u32 found_lower,
 			u32 found_upper);
-
 void tipc_subscr_report_overlap(struct tipc_subscription *sub, u32 found_lower,
 				u32 found_upper, u32 event, u32 port_ref,
 				u32 node, int must);
-
-int tipc_subscr_start(void);
-
-void tipc_subscr_stop(void);
+int tipc_subscr_start(struct net *net);
+void tipc_subscr_stop(struct net *net);
 
 #endif

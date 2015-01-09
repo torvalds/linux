@@ -68,8 +68,14 @@ static int __net_init tipc_init_net(struct net *net)
 	err = tipc_nametbl_init(net);
 	if (err)
 		goto out_nametbl;
+
+	err = tipc_subscr_start(net);
+	if (err)
+		goto out_subscr;
 	return 0;
 
+out_subscr:
+	tipc_nametbl_stop(net);
 out_nametbl:
 	tipc_sk_rht_destroy(net);
 out_sk_rht:
@@ -78,6 +84,7 @@ out_sk_rht:
 
 static void __net_exit tipc_exit_net(struct net *net)
 {
+	tipc_subscr_stop(net);
 	tipc_net_stop(net);
 	tipc_nametbl_stop(net);
 	tipc_sk_rht_destroy(net);
@@ -104,10 +111,6 @@ static int __init tipc_init(void)
 
 	get_random_bytes(&tipc_random, sizeof(tipc_random));
 
-	err = register_pernet_subsys(&tipc_net_ops);
-	if (err)
-		goto out_pernet;
-
 	err = tipc_netlink_start();
 	if (err)
 		goto out_netlink;
@@ -120,9 +123,9 @@ static int __init tipc_init(void)
 	if (err)
 		goto out_sysctl;
 
-	err = tipc_subscr_start();
+	err = register_pernet_subsys(&tipc_net_ops);
 	if (err)
-		goto out_subscr;
+		goto out_pernet;
 
 	err = tipc_bearer_setup();
 	if (err)
@@ -131,28 +134,25 @@ static int __init tipc_init(void)
 	pr_info("Started in single node mode\n");
 	return 0;
 out_bearer:
-	tipc_subscr_stop();
-out_subscr:
+	unregister_pernet_subsys(&tipc_net_ops);
+out_pernet:
 	tipc_unregister_sysctl();
 out_sysctl:
 	tipc_socket_stop();
 out_socket:
 	tipc_netlink_stop();
 out_netlink:
-	unregister_pernet_subsys(&tipc_net_ops);
-out_pernet:
 	pr_err("Unable to start in single node mode\n");
 	return err;
 }
 
 static void __exit tipc_exit(void)
 {
-	unregister_pernet_subsys(&tipc_net_ops);
 	tipc_bearer_cleanup();
 	tipc_netlink_stop();
-	tipc_subscr_stop();
 	tipc_socket_stop();
 	tipc_unregister_sysctl();
+	unregister_pernet_subsys(&tipc_net_ops);
 
 	pr_info("Deactivated\n");
 }
