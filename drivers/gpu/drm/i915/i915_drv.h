@@ -777,11 +777,33 @@ struct i915_fbc {
 	} no_fbc_reason;
 };
 
-struct i915_drrs {
-	struct intel_connector *connector;
+/**
+ * HIGH_RR is the highest eDP panel refresh rate read from EDID
+ * LOW_RR is the lowest eDP panel refresh rate found from EDID
+ * parsing for same resolution.
+ */
+enum drrs_refresh_rate_type {
+	DRRS_HIGH_RR,
+	DRRS_LOW_RR,
+	DRRS_MAX_RR, /* RR count */
+};
+
+enum drrs_support_type {
+	DRRS_NOT_SUPPORTED = 0,
+	STATIC_DRRS_SUPPORT = 1,
+	SEAMLESS_DRRS_SUPPORT = 2
 };
 
 struct intel_dp;
+struct i915_drrs {
+	struct mutex mutex;
+	struct delayed_work work;
+	struct intel_dp *dp;
+	unsigned busy_frontbuffer_bits;
+	enum drrs_refresh_rate_type refresh_rate_type;
+	enum drrs_support_type type;
+};
+
 struct i915_psr {
 	struct mutex lock;
 	bool sink_support;
@@ -1359,12 +1381,6 @@ struct ddi_vbt_port_info {
 	uint8_t supports_dvi:1;
 	uint8_t supports_hdmi:1;
 	uint8_t supports_dp:1;
-};
-
-enum drrs_support_type {
-	DRRS_NOT_SUPPORTED = 0,
-	STATIC_DRRS_SUPPORT = 1,
-	SEAMLESS_DRRS_SUPPORT = 2
 };
 
 enum psr_lines_to_wait {
