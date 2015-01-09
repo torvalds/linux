@@ -704,6 +704,7 @@
 				ahb-burst-config = <0x0>;
 				tx-burst-size-dword = <0x10>;
 				rx-burst-size-dword = <0x10>;
+				fsl,anatop = <&anatop>;
 				status = "disabled";
 			};
 
