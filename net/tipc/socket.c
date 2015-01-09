@@ -115,7 +115,7 @@ static int tipc_sk_publish(struct tipc_sock *tsk, uint scope,
 			   struct tipc_name_seq const *seq);
 static int tipc_sk_withdraw(struct tipc_sock *tsk, uint scope,
 			    struct tipc_name_seq const *seq);
-static struct tipc_sock *tipc_sk_lookup(u32 portid);
+static struct tipc_sock *tipc_sk_lookup(struct net *net, u32 portid);
 static int tipc_sk_insert(struct tipc_sock *tsk);
 static void tipc_sk_remove(struct tipc_sock *tsk);
 
@@ -178,9 +178,6 @@ static const struct nla_policy tipc_nl_sock_policy[TIPC_NLA_SOCK_MAX + 1] = {
  *   - pointer to port structure
  *   - port reference
  */
-
-/* Protects tipc socket hash table mutations */
-static struct rhashtable tipc_sk_rht;
 
 static u32 tsk_peer_node(struct tipc_sock *tsk)
 {
@@ -1766,7 +1763,7 @@ int tipc_sk_rcv(struct net *net, struct sk_buff *skb)
 	u32 dnode;
 
 	/* Validate destination and message */
-	tsk = tipc_sk_lookup(dport);
+	tsk = tipc_sk_lookup(net, dport);
 	if (unlikely(!tsk)) {
 		rc = tipc_msg_eval(skb, &dnode);
 		goto exit;
@@ -2245,8 +2242,9 @@ static int tipc_sk_show(struct tipc_sock *tsk, char *buf,
 	return ret;
 }
 
-struct sk_buff *tipc_sk_socks_show(void)
+struct sk_buff *tipc_sk_socks_show(struct net *net)
 {
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	const struct bucket_table *tbl;
 	struct rhash_head *pos;
 	struct sk_buff *buf;
@@ -2265,7 +2263,7 @@ struct sk_buff *tipc_sk_socks_show(void)
 	pb_len = ULTRA_STRING_MAX_LEN;
 
 	rcu_read_lock();
-	tbl = rht_dereference_rcu((&tipc_sk_rht)->tbl, &tipc_sk_rht);
+	tbl = rht_dereference_rcu((&tn->sk_rht)->tbl, &tn->sk_rht);
 	for (i = 0; i < tbl->size; i++) {
 		rht_for_each_entry_rcu(tsk, pos, tbl, i, node) {
 			spin_lock_bh(&tsk->sk.sk_lock.slock);
@@ -2286,8 +2284,9 @@ struct sk_buff *tipc_sk_socks_show(void)
 /* tipc_sk_reinit: set non-zero address in all existing sockets
  *                 when we go from standalone to network mode.
  */
-void tipc_sk_reinit(void)
+void tipc_sk_reinit(struct net *net)
 {
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	const struct bucket_table *tbl;
 	struct rhash_head *pos;
 	struct tipc_sock *tsk;
@@ -2295,7 +2294,7 @@ void tipc_sk_reinit(void)
 	int i;
 
 	rcu_read_lock();
-	tbl = rht_dereference_rcu((&tipc_sk_rht)->tbl, &tipc_sk_rht);
+	tbl = rht_dereference_rcu((&tn->sk_rht)->tbl, &tn->sk_rht);
 	for (i = 0; i < tbl->size; i++) {
 		rht_for_each_entry_rcu(tsk, pos, tbl, i, node) {
 			spin_lock_bh(&tsk->sk.sk_lock.slock);
@@ -2308,12 +2307,13 @@ void tipc_sk_reinit(void)
 	rcu_read_unlock();
 }
 
-static struct tipc_sock *tipc_sk_lookup(u32 portid)
+static struct tipc_sock *tipc_sk_lookup(struct net *net, u32 portid)
 {
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_sock *tsk;
 
 	rcu_read_lock();
-	tsk = rhashtable_lookup(&tipc_sk_rht, &portid);
+	tsk = rhashtable_lookup(&tn->sk_rht, &portid);
 	if (tsk)
 		sock_hold(&tsk->sk);
 	rcu_read_unlock();
@@ -2323,6 +2323,9 @@ static struct tipc_sock *tipc_sk_lookup(u32 portid)
 
 static int tipc_sk_insert(struct tipc_sock *tsk)
 {
+	struct sock *sk = &tsk->sk;
+	struct net *net = sock_net(sk);
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	u32 remaining = (TIPC_MAX_PORT - TIPC_MIN_PORT) + 1;
 	u32 portid = prandom_u32() % remaining + TIPC_MIN_PORT;
 
@@ -2332,7 +2335,7 @@ static int tipc_sk_insert(struct tipc_sock *tsk)
 			portid = TIPC_MIN_PORT;
 		tsk->portid = portid;
 		sock_hold(&tsk->sk);
-		if (rhashtable_lookup_insert(&tipc_sk_rht, &tsk->node))
+		if (rhashtable_lookup_insert(&tn->sk_rht, &tsk->node))
 			return 0;
 		sock_put(&tsk->sk);
 	}
@@ -2343,15 +2346,17 @@ static int tipc_sk_insert(struct tipc_sock *tsk)
 static void tipc_sk_remove(struct tipc_sock *tsk)
 {
 	struct sock *sk = &tsk->sk;
+	struct tipc_net *tn = net_generic(sock_net(sk), tipc_net_id);
 
-	if (rhashtable_remove(&tipc_sk_rht, &tsk->node)) {
+	if (rhashtable_remove(&tn->sk_rht, &tsk->node)) {
 		WARN_ON(atomic_read(&sk->sk_refcnt) == 1);
 		__sock_put(sk);
 	}
 }
 
-int tipc_sk_rht_init(void)
+int tipc_sk_rht_init(struct net *net)
 {
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct rhashtable_params rht_params = {
 		.nelem_hint = 192,
 		.head_offset = offsetof(struct tipc_sock, node),
@@ -2364,15 +2369,17 @@ int tipc_sk_rht_init(void)
 		.shrink_decision = rht_shrink_below_30,
 	};
 
-	return rhashtable_init(&tipc_sk_rht, &rht_params);
+	return rhashtable_init(&tn->sk_rht, &rht_params);
 }
 
-void tipc_sk_rht_destroy(void)
+void tipc_sk_rht_destroy(struct net *net)
 {
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
+
 	/* Wait for socket readers to complete */
 	synchronize_net();
 
-	rhashtable_destroy(&tipc_sk_rht);
+	rhashtable_destroy(&tn->sk_rht);
 }
 
 /**
@@ -2730,10 +2737,12 @@ int tipc_nl_sk_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	struct rhash_head *pos;
 	u32 prev_portid = cb->args[0];
 	u32 portid = prev_portid;
+	struct net *net = sock_net(skb->sk);
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	int i;
 
 	rcu_read_lock();
-	tbl = rht_dereference_rcu((&tipc_sk_rht)->tbl, &tipc_sk_rht);
+	tbl = rht_dereference_rcu((&tn->sk_rht)->tbl, &tn->sk_rht);
 	for (i = 0; i < tbl->size; i++) {
 		rht_for_each_entry_rcu(tsk, pos, tbl, i, node) {
 			spin_lock_bh(&tsk->sk.sk_lock.slock);
@@ -2839,6 +2848,7 @@ int tipc_nl_publ_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	u32 tsk_portid = cb->args[0];
 	u32 last_publ = cb->args[1];
 	u32 done = cb->args[2];
+	struct net *net = sock_net(skb->sk);
 	struct tipc_sock *tsk;
 
 	if (!tsk_portid) {
@@ -2864,7 +2874,7 @@ int tipc_nl_publ_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	if (done)
 		return 0;
 
-	tsk = tipc_sk_lookup(tsk_portid);
+	tsk = tipc_sk_lookup(net, tsk_portid);
 	if (!tsk)
 		return -EINVAL;
 

@@ -58,6 +58,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/etherdevice.h>
 #include <net/netns/generic.h>
+#include <linux/rhashtable.h>
 
 #include "node.h"
 #include "bearer.h"
@@ -101,6 +102,9 @@ struct tipc_net {
 	struct tipc_bcbearer *bcbearer;
 	struct tipc_bclink *bclink;
 	struct tipc_link *bcl;
+
+	/* Socket hash table */
+	struct rhashtable sk_rht;
 };
 
 #ifdef CONFIG_SYSCTL

@@ -50,11 +50,11 @@ void tipc_sock_release_local(struct socket *sock);
 int tipc_sock_accept_local(struct socket *sock, struct socket **newsock,
 			   int flags);
 int tipc_sk_rcv(struct net *net, struct sk_buff *buf);
-struct sk_buff *tipc_sk_socks_show(void);
+struct sk_buff *tipc_sk_socks_show(struct net *net);
 void tipc_sk_mcast_rcv(struct net *net, struct sk_buff *buf);
-void tipc_sk_reinit(void);
-int tipc_sk_rht_init(void);
-void tipc_sk_rht_destroy(void);
+void tipc_sk_reinit(struct net *net);
+int tipc_sk_rht_init(struct net *net);
+void tipc_sk_rht_destroy(struct net *net);
 int tipc_nl_sk_dump(struct sk_buff *skb, struct netlink_callback *cb);
 int tipc_nl_publ_dump(struct sk_buff *skb, struct netlink_callback *cb);
 
