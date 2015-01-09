@@ -813,6 +813,7 @@ static int ak8975_probe(struct i2c_client *client,
 static const struct i2c_device_id ak8975_id[] = {
 	{"ak8975", AK8975},
 	{"ak8963", AK8963},
+	{"AK8963", AK8963},
 	{"ak09911", AK09911},
 	{"ak09912", AK09912},
 	{}
