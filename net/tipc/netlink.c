@@ -54,7 +54,8 @@ static int handle_cmd(struct sk_buff *skb, struct genl_info *info)
 	int hdr_space = nlmsg_total_size(GENL_HDRLEN + TIPC_GENL_HDRLEN);
 	u16 cmd;
 
-	if ((req_userhdr->cmd & 0xC000) && (!netlink_capable(skb, CAP_NET_ADMIN)))
+	if ((req_userhdr->cmd & 0xC000) &&
+	    (!netlink_net_capable(skb, CAP_NET_ADMIN)))
 		cmd = TIPC_CMD_NOT_NET_ADMIN;
 	else
 		cmd = req_userhdr->cmd;
@@ -70,7 +71,7 @@ static int handle_cmd(struct sk_buff *skb, struct genl_info *info)
 		rep_nlh = nlmsg_hdr(rep_buf);
 		memcpy(rep_nlh, req_nlh, hdr_space);
 		rep_nlh->nlmsg_len = rep_buf->len;
-		genlmsg_unicast(&init_net, rep_buf, NETLINK_CB(skb).portid);
+		genlmsg_unicast(net, rep_buf, NETLINK_CB(skb).portid);
 	}
 
 	return 0;
@@ -95,6 +96,7 @@ static struct genl_family tipc_genl_family = {
 	.version	= TIPC_GENL_VERSION,
 	.hdrsize	= TIPC_GENL_HDRLEN,
 	.maxattr	= 0,
+	.netnsok	= true,
 };
 
 /* Legacy ASCII API */
@@ -114,6 +116,7 @@ struct genl_family tipc_genl_v2_family = {
 	.version	= TIPC_GENL_V2_VERSION,
 	.hdrsize	= 0,
 	.maxattr	= TIPC_NLA_MAX,
+	.netnsok	= true,
 };
 
 static const struct genl_ops tipc_genl_v2_ops[] = {
