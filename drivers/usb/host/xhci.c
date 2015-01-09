@@ -472,10 +472,8 @@ static void compliance_mode_recovery(unsigned long arg)
 static void compliance_mode_recovery_timer_init(struct xhci_hcd *xhci)
 {
 	xhci->port_status_u0 = 0;
-	init_timer(&xhci->comp_mode_recovery_timer);
-
-	xhci->comp_mode_recovery_timer.data = (unsigned long) xhci;
-	xhci->comp_mode_recovery_timer.function = compliance_mode_recovery;
+	setup_timer(&xhci->comp_mode_recovery_timer,
+		    compliance_mode_recovery, (unsigned long)xhci);
 	xhci->comp_mode_recovery_timer.expires = jiffies +
 			msecs_to_jiffies(COMP_MODE_RCVRY_MSECS);
 
