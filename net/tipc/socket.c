@@ -110,7 +110,7 @@ static void tipc_write_space(struct sock *sk);
 static int tipc_release(struct socket *sock);
 static int tipc_accept(struct socket *sock, struct socket *new_sock, int flags);
 static int tipc_wait_for_sndmsg(struct socket *sock, long *timeo_p);
-static void tipc_sk_timeout(unsigned long portid);
+static void tipc_sk_timeout(unsigned long data);
 static int tipc_sk_publish(struct tipc_sock *tsk, uint scope,
 			   struct tipc_name_seq const *seq);
 static int tipc_sk_withdraw(struct tipc_sock *tsk, uint scope,
@@ -361,7 +361,7 @@ static int tipc_sk_create(struct net *net, struct socket *sock,
 		return -EINVAL;
 	}
 	msg_set_origport(msg, tsk->portid);
-	setup_timer(&tsk->timer, tipc_sk_timeout, tsk->portid);
+	setup_timer(&tsk->timer, tipc_sk_timeout, (unsigned long)tsk);
 	sk->sk_backlog_rcv = tipc_backlog_rcv;
 	sk->sk_rcvbuf = sysctl_tipc_rmem[1];
 	sk->sk_data_ready = tipc_data_ready;
@@ -475,7 +475,7 @@ static int tipc_release(struct socket *sock)
 	struct sock *sk = sock->sk;
 	struct tipc_sock *tsk;
 	struct sk_buff *skb;
-	u32 dnode;
+	u32 dnode, probing_state;
 
 	/*
 	 * Exit if socket isn't fully initialized (occurs when a failed accept()
@@ -511,7 +511,9 @@ static int tipc_release(struct socket *sock)
 	}
 
 	tipc_sk_withdraw(tsk, 0, NULL);
-	del_timer_sync(&tsk->timer);
+	probing_state = tsk->probing_state;
+	if (del_timer_sync(&tsk->timer) && probing_state != TIPC_CONN_PROBING)
+		sock_put(sk);
 	tipc_sk_remove(tsk);
 	if (tsk->connected) {
 		skb = tipc_msg_create(TIPC_CRITICAL_IMPORTANCE, TIPC_CONN_MSG,
@@ -1141,7 +1143,8 @@ static void tipc_sk_finish_conn(struct tipc_sock *tsk, u32 peer_port,
 	tsk->probing_intv = CONN_PROBING_INTERVAL;
 	tsk->probing_state = TIPC_CONN_OK;
 	tsk->connected = 1;
-	mod_timer(&tsk->timer, jiffies + tsk->probing_intv);
+	if (!mod_timer(&tsk->timer, jiffies + tsk->probing_intv))
+		sock_hold(&tsk->sk);
 	tipc_node_add_conn(peer_node, tsk->portid, peer_port);
 	tsk->max_pkt = tipc_node_get_mtu(peer_node, tsk->portid);
 }
@@ -2096,18 +2099,13 @@ restart:
 	return res;
 }
 
-static void tipc_sk_timeout(unsigned long portid)
+static void tipc_sk_timeout(unsigned long data)
 {
-	struct tipc_sock *tsk;
-	struct sock *sk;
+	struct tipc_sock *tsk = (struct tipc_sock *)data;
+	struct sock *sk = &tsk->sk;
 	struct sk_buff *skb = NULL;
 	u32 peer_port, peer_node;
 
-	tsk = tipc_sk_lookup(portid);
-	if (!tsk)
-		return;
-
-	sk = &tsk->sk;
 	bh_lock_sock(sk);
 	if (!tsk->connected) {
 		bh_unlock_sock(sk);
@@ -2120,18 +2118,19 @@ static void tipc_sk_timeout(unsigned long portid)
 		/* Previous probe not answered -> self abort */
 		skb = tipc_msg_create(TIPC_CRITICAL_IMPORTANCE, TIPC_CONN_MSG,
 				      SHORT_H_SIZE, 0, tipc_own_addr,
-				      peer_node, portid, peer_port,
+				      peer_node, tsk->portid, peer_port,
 				      TIPC_ERR_NO_PORT);
 	} else {
 		skb = tipc_msg_create(CONN_MANAGER, CONN_PROBE, INT_H_SIZE,
 				      0, peer_node, tipc_own_addr,
-				      peer_port, portid, TIPC_OK);
+				      peer_port, tsk->portid, TIPC_OK);
 		tsk->probing_state = TIPC_CONN_PROBING;
-		mod_timer(&tsk->timer, jiffies + tsk->probing_intv);
+		if (!mod_timer(&tsk->timer, jiffies + tsk->probing_intv))
+			sock_hold(sk);
 	}
 	bh_unlock_sock(sk);
 	if (skb)
-		tipc_link_xmit_skb(skb, peer_node, portid);
+		tipc_link_xmit_skb(skb, peer_node, tsk->portid);
 exit:
 	sock_put(sk);
 }
