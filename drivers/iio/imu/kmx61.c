@@ -747,7 +747,7 @@ static int kmx61_setup_any_motion_interrupt(struct kmx61_data *data,
  */
 static int kmx61_set_power_state(struct kmx61_data *data, bool on, u8 device)
 {
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	int ret;
 
 	if (device & KMX61_ACC) {
@@ -1531,7 +1531,7 @@ static int kmx61_resume(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int kmx61_runtime_suspend(struct device *dev)
 {
 	struct kmx61_data *data = i2c_get_clientdata(to_i2c_client(dev));
