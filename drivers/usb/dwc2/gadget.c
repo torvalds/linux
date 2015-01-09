@@ -3675,6 +3675,19 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 	/* usb phy enable */
 	s3c_hsotg_phy_enable(hsotg);
 
+	/*
+	 * Force Device mode before initialization.
+	 * This allows correctly configuring fifo for device mode.
+	 */
+	__bic32(hsotg->regs + GUSBCFG, GUSBCFG_FORCEHOSTMODE);
+	__orr32(hsotg->regs + GUSBCFG, GUSBCFG_FORCEDEVMODE);
+
+	/*
+	 * According to Synopsys databook, this sleep is needed for the force
+	 * device mode to take effect.
+	 */
+	msleep(25);
+
 	s3c_hsotg_corereset(hsotg);
 	ret = s3c_hsotg_hw_cfg(hsotg);
 	if (ret) {
@@ -3683,6 +3696,9 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 	}
 
 	s3c_hsotg_init(hsotg);
+
+	/* Switch back to default configuration */
+	__bic32(hsotg->regs + GUSBCFG, GUSBCFG_FORCEDEVMODE);
 
 	hsotg->ctrl_buff = devm_kzalloc(hsotg->dev,
 			DWC2_CTRL_BUFF_SIZE, GFP_KERNEL);
