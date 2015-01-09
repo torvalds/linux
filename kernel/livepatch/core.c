@@ -739,7 +739,7 @@ static int klp_init_patch(struct klp_patch *patch)
 			goto free;
 	}
 
-	list_add(&patch->list, &klp_patches);
+	list_add_tail(&patch->list, &klp_patches);
 
 	mutex_unlock(&klp_mutex);
 
