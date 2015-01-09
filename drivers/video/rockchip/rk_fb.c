@@ -4234,7 +4234,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 
 			return 0;
 		} else if (dev_drv->uboot_logo && uboot_logo_base) {
-			phys_addr_t start = uboot_logo_base;
+			u32 start = uboot_logo_base;
 			int logo_len, i=0;
 			unsigned int nr_pages;
 			struct page **pages;
@@ -4261,8 +4261,8 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 			vaddr = vmap(pages, nr_pages, VM_MAP,
 					pgprot_writecombine(PAGE_KERNEL));
 			if (!vaddr) {
-				pr_err("failed to vmap phy addr %x\n",
-					uboot_logo_base);
+				pr_err("failed to vmap phy addr 0x%llx\n",
+				       uboot_logo_base);
 				return -1;
 			}
 
