@@ -115,9 +115,10 @@ static void wcn36xx_set_tx_data(struct wcn36xx_tx_bd *bd,
 				struct wcn36xx *wcn,
 				struct wcn36xx_vif **vif_priv,
 				struct wcn36xx_sta *sta_priv,
-				struct ieee80211_hdr *hdr,
+				struct sk_buff *skb,
 				bool bcast)
 {
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_vif *vif = NULL;
 	struct wcn36xx_vif *__vif_priv = NULL;
 	bd->bd_rate = WCN36XX_BD_RATE_DATA;
@@ -158,14 +159,21 @@ static void wcn36xx_set_tx_data(struct wcn36xx_tx_bd *bd,
 		bd->ack_policy = 1;
 	}
 	*vif_priv = __vif_priv;
+
+	wcn36xx_set_tx_pdu(bd,
+			   ieee80211_is_data_qos(hdr->frame_control) ?
+			   sizeof(struct ieee80211_qos_hdr) :
+			   sizeof(struct ieee80211_hdr_3addr),
+			   skb->len, sta_priv ? sta_priv->tid : 0);
 }
 
 static void wcn36xx_set_tx_mgmt(struct wcn36xx_tx_bd *bd,
 				struct wcn36xx *wcn,
 				struct wcn36xx_vif **vif_priv,
-				struct ieee80211_hdr *hdr,
+				struct sk_buff *skb,
 				bool bcast)
 {
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct wcn36xx_vif *__vif_priv =
 		get_vif_by_addr(wcn, hdr->addr2);
 	bd->sta_index = __vif_priv->self_sta_index;
@@ -199,6 +207,12 @@ static void wcn36xx_set_tx_mgmt(struct wcn36xx_tx_bd *bd,
 	} else
 		bd->queue_id = WCN36XX_TX_U_WQ_ID;
 	*vif_priv = __vif_priv;
+
+	wcn36xx_set_tx_pdu(bd,
+			   ieee80211_is_data_qos(hdr->frame_control) ?
+			   sizeof(struct ieee80211_qos_hdr) :
+			   sizeof(struct ieee80211_hdr_3addr),
+			   skb->len, WCN36XX_TID);
 }
 
 int wcn36xx_start_tx(struct wcn36xx *wcn,
@@ -260,22 +274,11 @@ int wcn36xx_start_tx(struct wcn36xx *wcn,
 	}
 
 	/* Data frames served first*/
-	if (is_low) {
-		wcn36xx_set_tx_data(bd, wcn, &vif_priv, sta_priv, hdr, bcast);
-		wcn36xx_set_tx_pdu(bd,
-			   ieee80211_is_data_qos(hdr->frame_control) ?
-			   sizeof(struct ieee80211_qos_hdr) :
-			   sizeof(struct ieee80211_hdr_3addr),
-			   skb->len, sta_priv ? sta_priv->tid : 0);
-	} else {
+	if (is_low)
+		wcn36xx_set_tx_data(bd, wcn, &vif_priv, sta_priv, skb, bcast);
+	else
 		/* MGMT and CTRL frames are handeld here*/
-		wcn36xx_set_tx_mgmt(bd, wcn, &vif_priv, hdr, bcast);
-		wcn36xx_set_tx_pdu(bd,
-			   ieee80211_is_data_qos(hdr->frame_control) ?
-			   sizeof(struct ieee80211_qos_hdr) :
-			   sizeof(struct ieee80211_hdr_3addr),
-			   skb->len, WCN36XX_TID);
-	}
+		wcn36xx_set_tx_mgmt(bd, wcn, &vif_priv, skb, bcast);
 
 	buff_to_be((u32 *)bd, sizeof(*bd)/sizeof(u32));
 	bd->tx_bd_sign = 0xbdbdbdbd;
