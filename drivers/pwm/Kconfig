@@ -131,6 +131,19 @@ config PWM_FSL_FTM
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-fsl-ftm.
 
+config PWM_IMG
+	tristate "Imagination Technologies PWM driver"
+	depends on HAS_IOMEM
+	depends on MFD_SYSCON
+	depends on COMMON_CLK
+	depends on MIPS || COMPILE_TEST
+	help
+	  Generic PWM framework driver for Imagination Technologies
+	  PWM block which supports 4 channels.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-img
+
 config PWM_IMX
 	tristate "i.MX PWM support"
 	depends on ARCH_MXC
