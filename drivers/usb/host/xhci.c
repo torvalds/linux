@@ -3803,6 +3803,15 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 		return -EINVAL;
 	}
 
+	if (setup == SETUP_CONTEXT_ONLY) {
+		slot_ctx = xhci_get_slot_ctx(xhci, virt_dev->out_ctx);
+		if (GET_SLOT_STATE(le32_to_cpu(slot_ctx->dev_state)) ==
+		    SLOT_STATE_DEFAULT) {
+			xhci_dbg(xhci, "Slot already in default state\n");
+			return 0;
+		}
+	}
+
 	command = xhci_alloc_command(xhci, false, false, GFP_KERNEL);
 	if (!command)
 		return -ENOMEM;
