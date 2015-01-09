@@ -1032,6 +1032,9 @@ int intel_disable_plane(struct drm_plane *plane);
 void intel_plane_destroy(struct drm_plane *plane);
 void intel_edp_drrs_enable(struct intel_dp *intel_dp);
 void intel_edp_drrs_disable(struct intel_dp *intel_dp);
+void intel_edp_drrs_invalidate(struct drm_device *dev,
+		unsigned frontbuffer_bits);
+void intel_edp_drrs_flush(struct drm_device *dev, unsigned frontbuffer_bits);
 
 /* intel_dp_mst.c */
 int intel_dp_mst_encoder_init(struct intel_digital_port *intel_dig_port, int conn_id);
