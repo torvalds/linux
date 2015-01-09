@@ -76,14 +76,10 @@ extern int tipc_net_id __read_mostly;
 extern int sysctl_tipc_rmem[3] __read_mostly;
 extern int sysctl_tipc_named_timeout __read_mostly;
 
-/*
- * Other global variables
- */
-extern int tipc_random __read_mostly;
-
 struct tipc_net {
 	u32 own_addr;
 	int net_id;
+	int random;
 
 	/* Node table and node list */
 	spinlock_t node_list_lock;
