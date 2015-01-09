@@ -65,6 +65,15 @@ static inline void __bic32(void __iomem *ptr, u32 val)
 	writel(readl(ptr) & ~val, ptr);
 }
 
+static inline struct s3c_hsotg_ep *index_to_ep(struct dwc2_hsotg *hsotg,
+						u32 ep_index, u32 dir_in)
+{
+	if (dir_in)
+		return hsotg->eps_in[ep_index];
+	else
+		return hsotg->eps_out[ep_index];
+}
+
 /* forward declaration of functions */
 static void s3c_hsotg_dump(struct dwc2_hsotg *hsotg);
 
@@ -819,7 +828,7 @@ static void s3c_hsotg_complete_oursetup(struct usb_ep *ep,
 static struct s3c_hsotg_ep *ep_from_windex(struct dwc2_hsotg *hsotg,
 					   u32 windex)
 {
-	struct s3c_hsotg_ep *ep = &hsotg->eps[windex & 0x7F];
+	struct s3c_hsotg_ep *ep;
 	int dir = (windex & USB_DIR_IN) ? 1 : 0;
 	int idx = windex & 0x7F;
 
@@ -828,6 +837,8 @@ static struct s3c_hsotg_ep *ep_from_windex(struct dwc2_hsotg *hsotg,
 
 	if (idx > hsotg->num_of_eps)
 		return NULL;
+
+	ep = index_to_ep(hsotg, idx, dir);
 
 	if (idx && ep->dir_in != dir)
 		return NULL;
@@ -889,7 +900,7 @@ static int s3c_hsotg_send_reply(struct dwc2_hsotg *hsotg,
 static int s3c_hsotg_process_req_status(struct dwc2_hsotg *hsotg,
 					struct usb_ctrlrequest *ctrl)
 {
-	struct s3c_hsotg_ep *ep0 = &hsotg->eps[0];
+	struct s3c_hsotg_ep *ep0 = hsotg->eps_out[0];
 	struct s3c_hsotg_ep *ep;
 	__le16 reply;
 	int ret;
@@ -960,7 +971,7 @@ static struct s3c_hsotg_req *get_ep_head(struct s3c_hsotg_ep *hs_ep)
 static int s3c_hsotg_process_req_feature(struct dwc2_hsotg *hsotg,
 					 struct usb_ctrlrequest *ctrl)
 {
-	struct s3c_hsotg_ep *ep0 = &hsotg->eps[0];
+	struct s3c_hsotg_ep *ep0 = hsotg->eps_out[0];
 	struct s3c_hsotg_req *hs_req;
 	bool restart;
 	bool set = (ctrl->bRequest == USB_REQ_SET_FEATURE);
@@ -1040,7 +1051,7 @@ static void s3c_hsotg_enqueue_setup(struct dwc2_hsotg *hsotg);
  */
 static void s3c_hsotg_stall_ep0(struct dwc2_hsotg *hsotg)
 {
-	struct s3c_hsotg_ep *ep0 = &hsotg->eps[0];
+	struct s3c_hsotg_ep *ep0 = hsotg->eps_out[0];
 	u32 reg;
 	u32 ctrl;
 
@@ -1080,7 +1091,7 @@ static void s3c_hsotg_stall_ep0(struct dwc2_hsotg *hsotg)
 static void s3c_hsotg_process_control(struct dwc2_hsotg *hsotg,
 				      struct usb_ctrlrequest *ctrl)
 {
-	struct s3c_hsotg_ep *ep0 = &hsotg->eps[0];
+	struct s3c_hsotg_ep *ep0 = hsotg->eps_out[0];
 	int ret = 0;
 	u32 dcfg;
 
@@ -1201,9 +1212,9 @@ static void s3c_hsotg_enqueue_setup(struct dwc2_hsotg *hsotg)
 		return;
 	}
 
-	hsotg->eps[0].dir_in = 0;
+	hsotg->eps_out[0]->dir_in = 0;
 
-	ret = s3c_hsotg_ep_queue(&hsotg->eps[0].ep, req, GFP_ATOMIC);
+	ret = s3c_hsotg_ep_queue(&hsotg->eps_out[0]->ep, req, GFP_ATOMIC);
 	if (ret < 0) {
 		dev_err(hsotg->dev, "%s: failed queue (%d)\n", __func__, ret);
 		/*
@@ -1293,7 +1304,7 @@ static void s3c_hsotg_complete_request(struct dwc2_hsotg *hsotg,
  */
 static void s3c_hsotg_rx_data(struct dwc2_hsotg *hsotg, int ep_idx, int size)
 {
-	struct s3c_hsotg_ep *hs_ep = &hsotg->eps[ep_idx];
+	struct s3c_hsotg_ep *hs_ep = hsotg->eps_out[ep_idx];
 	struct s3c_hsotg_req *hs_req = hs_ep->req;
 	void __iomem *fifo = hsotg->regs + EPFIFO(ep_idx);
 	int to_read;
@@ -1367,13 +1378,14 @@ static void s3c_hsotg_send_zlp(struct dwc2_hsotg *hsotg,
 	}
 
 	if (req->req.length == 0) {
-		hsotg->eps[0].sent_zlp = 1;
+		hsotg->eps_out[0]->sent_zlp = 1;
 		s3c_hsotg_enqueue_setup(hsotg);
 		return;
 	}
 
-	hsotg->eps[0].dir_in = 1;
-	hsotg->eps[0].sent_zlp = 1;
+	/* eps_out[0] is used in both directions */
+	hsotg->eps_out[0]->dir_in = 1;
+	hsotg->eps_out[0]->sent_zlp = 1;
 
 	dev_dbg(hsotg->dev, "sending zero-length packet\n");
 
@@ -1402,7 +1414,7 @@ static void s3c_hsotg_handle_outdone(struct dwc2_hsotg *hsotg,
 				     int epnum, bool was_setup)
 {
 	u32 epsize = readl(hsotg->regs + DOEPTSIZ(epnum));
-	struct s3c_hsotg_ep *hs_ep = &hsotg->eps[epnum];
+	struct s3c_hsotg_ep *hs_ep = hsotg->eps_out[epnum];
 	struct s3c_hsotg_req *hs_req = hs_ep->req;
 	struct usb_request *req = &hs_req->req;
 	unsigned size_left = DXEPTSIZ_XFERSIZE_GET(epsize);
@@ -1591,13 +1603,17 @@ static u32 s3c_hsotg_ep0_mps(unsigned int mps)
  * the hardware control registers to reflect this.
  */
 static void s3c_hsotg_set_ep_maxpacket(struct dwc2_hsotg *hsotg,
-				       unsigned int ep, unsigned int mps)
+			unsigned int ep, unsigned int mps, unsigned int dir_in)
 {
-	struct s3c_hsotg_ep *hs_ep = &hsotg->eps[ep];
+	struct s3c_hsotg_ep *hs_ep;
 	void __iomem *regs = hsotg->regs;
 	u32 mpsval;
 	u32 mcval;
 	u32 reg;
+
+	hs_ep = index_to_ep(hsotg, ep, dir_in);
+	if (!hs_ep)
+		return;
 
 	if (ep == 0) {
 		/* EP0 is a special case */
@@ -1617,17 +1633,12 @@ static void s3c_hsotg_set_ep_maxpacket(struct dwc2_hsotg *hsotg,
 		hs_ep->ep.maxpacket = mpsval;
 	}
 
-	/*
-	 * update both the in and out endpoint controldir_ registers, even
-	 * if one of the directions may not be in use.
-	 */
-
-	reg = readl(regs + DIEPCTL(ep));
-	reg &= ~DXEPCTL_MPS_MASK;
-	reg |= mpsval;
-	writel(reg, regs + DIEPCTL(ep));
-
-	if (ep) {
+	if (dir_in) {
+		reg = readl(regs + DIEPCTL(ep));
+		reg &= ~DXEPCTL_MPS_MASK;
+		reg |= mpsval;
+		writel(reg, regs + DIEPCTL(ep));
+	} else {
 		reg = readl(regs + DOEPCTL(ep));
 		reg &= ~DXEPCTL_MPS_MASK;
 		reg |= mpsval;
@@ -1727,7 +1738,7 @@ static void s3c_hsotg_complete_in(struct dwc2_hsotg *hsotg,
 	}
 
 	/* Finish ZLP handling for IN EP0 transactions */
-	if (hsotg->eps[0].sent_zlp) {
+	if (hsotg->eps_out[0]->sent_zlp) {
 		dev_dbg(hsotg->dev, "zlp packet received\n");
 		s3c_hsotg_complete_request(hsotg, hs_ep, hs_req, 0);
 		return;
@@ -1794,7 +1805,7 @@ static void s3c_hsotg_complete_in(struct dwc2_hsotg *hsotg,
 static void s3c_hsotg_epint(struct dwc2_hsotg *hsotg, unsigned int idx,
 			    int dir_in)
 {
-	struct s3c_hsotg_ep *hs_ep = &hsotg->eps[idx];
+	struct s3c_hsotg_ep *hs_ep = index_to_ep(hsotg, idx, dir_in);
 	u32 epint_reg = dir_in ? DIEPINT(idx) : DOEPINT(idx);
 	u32 epctl_reg = dir_in ? DIEPCTL(idx) : DOEPCTL(idx);
 	u32 epsiz_reg = dir_in ? DIEPTSIZ(idx) : DOEPTSIZ(idx);
@@ -1806,6 +1817,12 @@ static void s3c_hsotg_epint(struct dwc2_hsotg *hsotg, unsigned int idx,
 
 	/* Clear endpoint interrupts */
 	writel(ints, hsotg->regs + epint_reg);
+
+	if (!hs_ep) {
+		dev_err(hsotg->dev, "%s:Interrupt for unconfigured ep%d(%s)\n",
+					__func__, idx, dir_in ? "in" : "out");
+		return;
+	}
 
 	dev_dbg(hsotg->dev, "%s: ep%d(%s) DxEPINT=0x%08x\n",
 		__func__, idx, dir_in ? "in" : "out", ints);
@@ -1973,9 +1990,15 @@ static void s3c_hsotg_irq_enumdone(struct dwc2_hsotg *hsotg)
 
 	if (ep0_mps) {
 		int i;
-		s3c_hsotg_set_ep_maxpacket(hsotg, 0, ep0_mps);
-		for (i = 1; i < hsotg->num_of_eps; i++)
-			s3c_hsotg_set_ep_maxpacket(hsotg, i, ep_mps);
+		/* Initialize ep0 for both in and out directions */
+		s3c_hsotg_set_ep_maxpacket(hsotg, 0, ep0_mps, 1);
+		s3c_hsotg_set_ep_maxpacket(hsotg, 0, ep0_mps, 0);
+		for (i = 1; i < hsotg->num_of_eps; i++) {
+			if (hsotg->eps_in[i])
+				s3c_hsotg_set_ep_maxpacket(hsotg, i, ep_mps, 1);
+			if (hsotg->eps_out[i])
+				s3c_hsotg_set_ep_maxpacket(hsotg, i, ep_mps, 0);
+		}
 	}
 
 	/* ensure after enumeration our EP0 is active */
@@ -2032,8 +2055,15 @@ void s3c_hsotg_disconnect(struct dwc2_hsotg *hsotg)
 		return;
 
 	hsotg->connected = 0;
-	for (ep = 0; ep < hsotg->num_of_eps; ep++)
-		kill_all_requests(hsotg, &hsotg->eps[ep], -ESHUTDOWN);
+
+	for (ep = 0; ep < hsotg->num_of_eps; ep++) {
+		if (hsotg->eps_in[ep])
+			kill_all_requests(hsotg, hsotg->eps_in[ep],
+								-ESHUTDOWN);
+		if (hsotg->eps_out[ep])
+			kill_all_requests(hsotg, hsotg->eps_out[ep],
+								-ESHUTDOWN);
+	}
 
 	call_gadget(hsotg, disconnect);
 }
@@ -2050,9 +2080,11 @@ static void s3c_hsotg_irq_fifoempty(struct dwc2_hsotg *hsotg, bool periodic)
 	int epno, ret;
 
 	/* look through for any more data to transmit */
-
 	for (epno = 0; epno < hsotg->num_of_eps; epno++) {
-		ep = &hsotg->eps[epno];
+		ep = index_to_ep(hsotg, epno, 1);
+
+		if (!ep)
+			continue;
 
 		if (!ep->dir_in)
 			continue;
@@ -2227,13 +2259,13 @@ void s3c_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg)
 	writel(DXEPTSIZ_MC(1) | DXEPTSIZ_PKTCNT(1) |
 	       DXEPTSIZ_XFERSIZE(8), hsotg->regs + DOEPTSIZ0);
 
-	writel(s3c_hsotg_ep0_mps(hsotg->eps[0].ep.maxpacket) |
+	writel(s3c_hsotg_ep0_mps(hsotg->eps_out[0]->ep.maxpacket) |
 	       DXEPCTL_CNAK | DXEPCTL_EPENA |
 	       DXEPCTL_USBACTEP,
 	       hsotg->regs + DOEPCTL0);
 
 	/* enable, but don't activate EP0in */
-	writel(s3c_hsotg_ep0_mps(hsotg->eps[0].ep.maxpacket) |
+	writel(s3c_hsotg_ep0_mps(hsotg->eps_out[0]->ep.maxpacket) |
 	       DXEPCTL_USBACTEP, hsotg->regs + DIEPCTL0);
 
 	s3c_hsotg_enqueue_setup(hsotg);
@@ -2330,7 +2362,7 @@ irq_retry:
 			if (time_after(jiffies, hsotg->last_rst +
 				       msecs_to_jiffies(200))) {
 
-				kill_all_requests(hsotg, &hsotg->eps[0],
+				kill_all_requests(hsotg, hsotg->eps_out[0],
 							  -ECONNRESET);
 
 				s3c_hsotg_core_init_disconnected(hsotg);
@@ -2479,7 +2511,7 @@ static int s3c_hsotg_ep_enable(struct usb_ep *ep,
 	epctrl |= DXEPCTL_SNAK;
 
 	/* update the endpoint state */
-	s3c_hsotg_set_ep_maxpacket(hsotg, hs_ep->index, mps);
+	s3c_hsotg_set_ep_maxpacket(hsotg, hs_ep->index, mps, dir_in);
 
 	/* default, set to non-periodic */
 	hs_ep->isochronous = 0;
@@ -2576,7 +2608,7 @@ static int s3c_hsotg_ep_disable(struct usb_ep *ep)
 
 	dev_dbg(hsotg->dev, "%s(ep %p)\n", __func__, ep);
 
-	if (ep == &hsotg->eps[0].ep) {
+	if (ep == &hsotg->eps_out[0]->ep) {
 		dev_err(hsotg->dev, "%s: called for ep0\n", __func__);
 		return -EINVAL;
 	}
@@ -2675,39 +2707,38 @@ static int s3c_hsotg_ep_sethalt(struct usb_ep *ep, int value)
 		return 0;
 	}
 
-	/* write both IN and OUT control registers */
+	if (hs_ep->dir_in) {
+		epreg = DIEPCTL(index);
+		epctl = readl(hs->regs + epreg);
 
-	epreg = DIEPCTL(index);
-	epctl = readl(hs->regs + epreg);
-
-	if (value) {
-		epctl |= DXEPCTL_STALL + DXEPCTL_SNAK;
-		if (epctl & DXEPCTL_EPENA)
-			epctl |= DXEPCTL_EPDIS;
+		if (value) {
+			epctl |= DXEPCTL_STALL + DXEPCTL_SNAK;
+			if (epctl & DXEPCTL_EPENA)
+				epctl |= DXEPCTL_EPDIS;
+		} else {
+			epctl &= ~DXEPCTL_STALL;
+			xfertype = epctl & DXEPCTL_EPTYPE_MASK;
+			if (xfertype == DXEPCTL_EPTYPE_BULK ||
+				xfertype == DXEPCTL_EPTYPE_INTERRUPT)
+					epctl |= DXEPCTL_SETD0PID;
+		}
+		writel(epctl, hs->regs + epreg);
 	} else {
-		epctl &= ~DXEPCTL_STALL;
-		xfertype = epctl & DXEPCTL_EPTYPE_MASK;
-		if (xfertype == DXEPCTL_EPTYPE_BULK ||
-			xfertype == DXEPCTL_EPTYPE_INTERRUPT)
-				epctl |= DXEPCTL_SETD0PID;
+
+		epreg = DOEPCTL(index);
+		epctl = readl(hs->regs + epreg);
+
+		if (value)
+			epctl |= DXEPCTL_STALL;
+		else {
+			epctl &= ~DXEPCTL_STALL;
+			xfertype = epctl & DXEPCTL_EPTYPE_MASK;
+			if (xfertype == DXEPCTL_EPTYPE_BULK ||
+				xfertype == DXEPCTL_EPTYPE_INTERRUPT)
+					epctl |= DXEPCTL_SETD0PID;
+		}
+		writel(epctl, hs->regs + epreg);
 	}
-
-	writel(epctl, hs->regs + epreg);
-
-	epreg = DOEPCTL(index);
-	epctl = readl(hs->regs + epreg);
-
-	if (value)
-		epctl |= DXEPCTL_STALL;
-	else {
-		epctl &= ~DXEPCTL_STALL;
-		xfertype = epctl & DXEPCTL_EPTYPE_MASK;
-		if (xfertype == DXEPCTL_EPTYPE_BULK ||
-			xfertype == DXEPCTL_EPTYPE_INTERRUPT)
-				epctl |= DXEPCTL_SETD0PID;
-	}
-
-	writel(epctl, hs->regs + epreg);
 
 	hs_ep->halted = value;
 
@@ -2922,8 +2953,12 @@ static int s3c_hsotg_udc_stop(struct usb_gadget *gadget)
 	mutex_lock(&hsotg->init_mutex);
 
 	/* all endpoints should be shutdown */
-	for (ep = 1; ep < hsotg->num_of_eps; ep++)
-		s3c_hsotg_ep_disable(&hsotg->eps[ep].ep);
+	for (ep = 1; ep < hsotg->num_of_eps; ep++) {
+		if (hsotg->eps_in[ep])
+			s3c_hsotg_ep_disable(&hsotg->eps_in[ep]->ep);
+		if (hsotg->eps_out[ep])
+			s3c_hsotg_ep_disable(&hsotg->eps_out[ep]->ep);
+	}
 
 	spin_lock_irqsave(&hsotg->lock, flags);
 
@@ -3009,19 +3044,19 @@ static const struct usb_gadget_ops s3c_hsotg_gadget_ops = {
  */
 static void s3c_hsotg_initep(struct dwc2_hsotg *hsotg,
 				       struct s3c_hsotg_ep *hs_ep,
-				       int epnum)
+				       int epnum,
+				       bool dir_in)
 {
 	char *dir;
 
 	if (epnum == 0)
 		dir = "";
-	else if ((epnum % 2) == 0) {
-		dir = "out";
-	} else {
+	else if (dir_in)
 		dir = "in";
-		hs_ep->dir_in = 1;
-	}
+	else
+		dir = "out";
 
+	hs_ep->dir_in = dir_in;
 	hs_ep->index = epnum;
 
 	snprintf(hs_ep->name, sizeof(hs_ep->name), "ep%d%s", epnum, dir);
@@ -3045,8 +3080,10 @@ static void s3c_hsotg_initep(struct dwc2_hsotg *hsotg,
 
 	if (using_dma(hsotg)) {
 		u32 next = DXEPCTL_NEXTEP((epnum + 1) % 15);
-		writel(next, hsotg->regs + DIEPCTL(epnum));
-		writel(next, hsotg->regs + DOEPCTL(epnum));
+		if (dir_in)
+			writel(next, hsotg->regs + DIEPCTL(epnum));
+		else
+			writel(next, hsotg->regs + DOEPCTL(epnum));
 	}
 }
 
@@ -3056,24 +3093,56 @@ static void s3c_hsotg_initep(struct dwc2_hsotg *hsotg,
  *
  * Read the USB core HW configuration registers
  */
-static void s3c_hsotg_hw_cfg(struct dwc2_hsotg *hsotg)
+static int s3c_hsotg_hw_cfg(struct dwc2_hsotg *hsotg)
 {
-	u32 cfg2, cfg3, cfg4;
+	u32 cfg;
+	u32 ep_type;
+	u32 i;
+
 	/* check hardware configuration */
 
-	cfg2 = readl(hsotg->regs + 0x48);
-	hsotg->num_of_eps = (cfg2 >> 10) & 0xF;
+	cfg = readl(hsotg->regs + GHWCFG2);
+	hsotg->num_of_eps = (cfg >> 10) & 0xF;
+	/* Add ep0 */
+	hsotg->num_of_eps++;
 
-	cfg3 = readl(hsotg->regs + 0x4C);
-	hsotg->fifo_mem = (cfg3 >> 16);
+	hsotg->eps_in[0] = devm_kzalloc(hsotg->dev, sizeof(struct s3c_hsotg_ep),
+								GFP_KERNEL);
+	if (!hsotg->eps_in[0])
+		return -ENOMEM;
+	/* Same s3c_hsotg_ep is used in both directions for ep0 */
+	hsotg->eps_out[0] = hsotg->eps_in[0];
 
-	cfg4 = readl(hsotg->regs + 0x50);
-	hsotg->dedicated_fifos = (cfg4 >> 25) & 1;
+	cfg = readl(hsotg->regs + GHWCFG1);
+	for (i = 1; i < hsotg->num_of_eps; i++, cfg >>= 2) {
+		ep_type = cfg & 3;
+		/* Direction in or both */
+		if (!(ep_type & 2)) {
+			hsotg->eps_in[i] = devm_kzalloc(hsotg->dev,
+				sizeof(struct s3c_hsotg_ep), GFP_KERNEL);
+			if (!hsotg->eps_in[i])
+				return -ENOMEM;
+		}
+		/* Direction out or both */
+		if (!(ep_type & 1)) {
+			hsotg->eps_out[i] = devm_kzalloc(hsotg->dev,
+				sizeof(struct s3c_hsotg_ep), GFP_KERNEL);
+			if (!hsotg->eps_out[i])
+				return -ENOMEM;
+		}
+	}
+
+	cfg = readl(hsotg->regs + GHWCFG3);
+	hsotg->fifo_mem = (cfg >> 16);
+
+	cfg = readl(hsotg->regs + GHWCFG4);
+	hsotg->dedicated_fifos = (cfg >> 25) & 1;
 
 	dev_info(hsotg->dev, "EPs: %d, %s fifos, %d entries in SPRAM\n",
 		 hsotg->num_of_eps,
 		 hsotg->dedicated_fifos ? "dedicated" : "shared",
 		 hsotg->fifo_mem);
+	return 0;
 }
 
 /**
@@ -3368,17 +3437,33 @@ static void s3c_hsotg_create_debug(struct dwc2_hsotg *hsotg)
 	if (IS_ERR(hsotg->debug_fifo))
 		dev_err(hsotg->dev, "%s: failed to create fifo\n", __func__);
 
-	/* create one file for each endpoint */
-
+	/* Create one file for each out endpoint */
 	for (epidx = 0; epidx < hsotg->num_of_eps; epidx++) {
-		struct s3c_hsotg_ep *ep = &hsotg->eps[epidx];
+		struct s3c_hsotg_ep *ep;
 
-		ep->debugfs = debugfs_create_file(ep->name, 0444,
-						  root, ep, &ep_fops);
+		ep = hsotg->eps_out[epidx];
+		if (ep) {
+			ep->debugfs = debugfs_create_file(ep->name, 0444,
+							  root, ep, &ep_fops);
 
-		if (IS_ERR(ep->debugfs))
-			dev_err(hsotg->dev, "failed to create %s debug file\n",
-				ep->name);
+			if (IS_ERR(ep->debugfs))
+				dev_err(hsotg->dev, "failed to create %s debug file\n",
+					ep->name);
+		}
+	}
+	/* Create one file for each in endpoint. EP0 is handled with out eps */
+	for (epidx = 1; epidx < hsotg->num_of_eps; epidx++) {
+		struct s3c_hsotg_ep *ep;
+
+		ep = hsotg->eps_in[epidx];
+		if (ep) {
+			ep->debugfs = debugfs_create_file(ep->name, 0444,
+							  root, ep, &ep_fops);
+
+			if (IS_ERR(ep->debugfs))
+				dev_err(hsotg->dev, "failed to create %s debug file\n",
+					ep->name);
+		}
 	}
 }
 
@@ -3393,8 +3478,10 @@ static void s3c_hsotg_delete_debug(struct dwc2_hsotg *hsotg)
 	unsigned epidx;
 
 	for (epidx = 0; epidx < hsotg->num_of_eps; epidx++) {
-		struct s3c_hsotg_ep *ep = &hsotg->eps[epidx];
-		debugfs_remove(ep->debugfs);
+		if (hsotg->eps_in[epidx])
+			debugfs_remove(hsotg->eps_in[epidx]->debugfs);
+		if (hsotg->eps_out[epidx])
+			debugfs_remove(hsotg->eps_out[epidx]->debugfs);
 	}
 
 	debugfs_remove(hsotg->debug_file);
@@ -3423,7 +3510,6 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 {
 	struct device *dev = hsotg->dev;
 	struct s3c_hsotg_plat *plat = dev->platform_data;
-	struct s3c_hsotg_ep *eps;
 	int epnum;
 	int ret;
 	int i;
@@ -3497,7 +3583,12 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 	s3c_hsotg_phy_enable(hsotg);
 
 	s3c_hsotg_corereset(hsotg);
-	s3c_hsotg_hw_cfg(hsotg);
+	ret = s3c_hsotg_hw_cfg(hsotg);
+	if (ret) {
+		dev_err(hsotg->dev, "Hardware configuration failed: %d\n", ret);
+		goto err_clk;
+	}
+
 	s3c_hsotg_init(hsotg);
 
 	hsotg->ctrl_buff = devm_kzalloc(hsotg->dev,
@@ -3535,33 +3626,30 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 		goto err_supplies;
 	}
 
-	eps = kcalloc(hsotg->num_of_eps + 1, sizeof(struct s3c_hsotg_ep),
-		      GFP_KERNEL);
-	if (!eps) {
-		ret = -ENOMEM;
-		goto err_supplies;
-	}
-
-	hsotg->eps = eps;
-
 	/* setup endpoint information */
 
 	INIT_LIST_HEAD(&hsotg->gadget.ep_list);
-	hsotg->gadget.ep0 = &hsotg->eps[0].ep;
+	hsotg->gadget.ep0 = &hsotg->eps_out[0]->ep;
 
 	/* allocate EP0 request */
 
-	hsotg->ctrl_req = s3c_hsotg_ep_alloc_request(&hsotg->eps[0].ep,
+	hsotg->ctrl_req = s3c_hsotg_ep_alloc_request(&hsotg->eps_out[0]->ep,
 						     GFP_KERNEL);
 	if (!hsotg->ctrl_req) {
 		dev_err(dev, "failed to allocate ctrl req\n");
 		ret = -ENOMEM;
-		goto err_ep_mem;
+		goto err_supplies;
 	}
 
 	/* initialise the endpoints now the core has been initialised */
-	for (epnum = 0; epnum < hsotg->num_of_eps; epnum++)
-		s3c_hsotg_initep(hsotg, &hsotg->eps[epnum], epnum);
+	for (epnum = 0; epnum < hsotg->num_of_eps; epnum++) {
+		if (hsotg->eps_in[epnum])
+			s3c_hsotg_initep(hsotg, hsotg->eps_in[epnum],
+								epnum, 1);
+		if (hsotg->eps_out[epnum])
+			s3c_hsotg_initep(hsotg, hsotg->eps_out[epnum],
+								epnum, 0);
+	}
 
 	/* disable power and clock */
 	s3c_hsotg_phy_disable(hsotg);
@@ -3570,12 +3658,12 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 				    hsotg->supplies);
 	if (ret) {
 		dev_err(dev, "failed to disable supplies: %d\n", ret);
-		goto err_ep_mem;
+		goto err_supplies;
 	}
 
 	ret = usb_add_gadget_udc(dev, &hsotg->gadget);
 	if (ret)
-		goto err_ep_mem;
+		goto err_supplies;
 
 	s3c_hsotg_create_debug(hsotg);
 
@@ -3583,8 +3671,6 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 
 	return 0;
 
-err_ep_mem:
-	kfree(eps);
 err_supplies:
 	s3c_hsotg_phy_disable(hsotg);
 err_clk:
@@ -3630,8 +3716,12 @@ int s3c_hsotg_suspend(struct dwc2_hsotg *hsotg)
 
 		s3c_hsotg_phy_disable(hsotg);
 
-		for (ep = 0; ep < hsotg->num_of_eps; ep++)
-			s3c_hsotg_ep_disable(&hsotg->eps[ep].ep);
+		for (ep = 0; ep < hsotg->num_of_eps; ep++) {
+			if (hsotg->eps_in[ep])
+				s3c_hsotg_ep_disable(&hsotg->eps_in[ep]->ep);
+			if (hsotg->eps_out[ep])
+				s3c_hsotg_ep_disable(&hsotg->eps_out[ep]->ep);
+		}
 
 		ret = regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies),
 					     hsotg->supplies);

@@ -696,7 +696,8 @@ struct dwc2_hsotg {
 	unsigned int connected:1;
 	unsigned int setup:1;
 	unsigned long last_rst;
-	struct s3c_hsotg_ep *eps;
+	struct s3c_hsotg_ep *eps_in[MAX_EPS_CHANNELS];
+	struct s3c_hsotg_ep *eps_out[MAX_EPS_CHANNELS];
 	u32 g_using_dma;
 #endif /* CONFIG_USB_DWC2_PERIPHERAL || CONFIG_USB_DWC2_DUAL_ROLE */
 };
