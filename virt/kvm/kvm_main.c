@@ -675,6 +675,7 @@ static void update_memslots(struct kvm_memslots *slots,
 	if (!new->npages) {
 		WARN_ON(!mslots[i].npages);
 		new->base_gfn = 0;
+		new->flags = 0;
 		if (mslots[i].npages)
 			slots->used_slots--;
 	} else {
