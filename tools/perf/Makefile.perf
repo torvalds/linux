@@ -375,20 +375,12 @@ $(LIBTRACEEVENT)-clean:
 install-traceevent-plugins: $(LIBTRACEEVENT)
 	$(QUIET_SUBDIR0)$(TRACE_EVENT_DIR) $(LIBTRACEEVENT_FLAGS) install_plugins
 
-LIBAPIKFS_SOURCES = $(wildcard $(LIB_PATH)fs/*.[ch] $(LIB_PATH)fd/*.[ch])
-
-# if subdir is set, we've been called from above so target has been built
-# already
-$(LIBAPIKFS): $(LIBAPIKFS_SOURCES)
-ifeq ($(subdir),)
-	$(QUIET_SUBDIR0)$(LIB_DIR) $(QUIET_SUBDIR1) O=$(OUTPUT) libapikfs.a
-endif
+$(LIBAPIKFS): FORCE
+	@$(MAKE) -C $(LIB_DIR) O=$(OUTPUT) $(OUTPUT)libapikfs.a
 
 $(LIBAPIKFS)-clean:
-ifeq ($(subdir),)
 	$(call QUIET_CLEAN, libapikfs)
 	@$(MAKE) -C $(LIB_DIR) O=$(OUTPUT) clean >/dev/null
-endif
 
 help:
 	@echo 'Perf make targets:'

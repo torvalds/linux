@@ -1,0 +1,1 @@
+libapikfs-y += array.o
