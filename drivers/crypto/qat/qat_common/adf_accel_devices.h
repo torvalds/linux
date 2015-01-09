@@ -47,7 +47,6 @@
 #ifndef ADF_ACCEL_DEVICES_H_
 #define ADF_ACCEL_DEVICES_H_
 #include <linux/module.h>
-#include <linux/atomic.h>
 #include <linux/list.h>
 #include <linux/proc_fs.h>
 #include <linux/io.h>
