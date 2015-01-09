@@ -1,6 +1,23 @@
-config 6LOWPAN
+menuconfig 6LOWPAN
 	tristate "6LoWPAN Support"
 	depends on IPV6
 	---help---
 	  This enables IPv6 over Low power Wireless Personal Area Network -
 	  "6LoWPAN" which is supported by IEEE 802.15.4 or Bluetooth stacks.
+
+menuconfig 6LOWPAN_NHC
+	tristate "Next Header Compression Support"
+	depends on 6LOWPAN
+	default y
+	---help---
+	  Support for next header compression.
+
+if 6LOWPAN_NHC
+
+config 6LOWPAN_NHC_UDP
+	tristate "UDP Header Support"
+	default y
+	---help---
+	  6LoWPAN IPv6 UDP Header compression according to RFC6282.
+
+endif
