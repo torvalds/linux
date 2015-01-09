@@ -911,6 +911,12 @@ static int klp_init(void)
 {
 	int ret;
 
+	ret = klp_check_compiler_support();
+	if (ret) {
+		pr_info("Your compiler is too old; turning off.\n");
+		return -EINVAL;
+	}
+
 	ret = register_module_notifier(&klp_module_nb);
 	if (ret)
 		return ret;

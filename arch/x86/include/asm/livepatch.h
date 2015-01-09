@@ -25,9 +25,13 @@
 #include <linux/ftrace.h>
 
 #ifdef CONFIG_LIVE_PATCHING
+static inline int klp_check_compiler_support(void)
+{
 #ifndef CC_USING_FENTRY
-#error Your compiler must support -mfentry for live patching to work
+	return 1;
 #endif
+	return 0;
+}
 extern int klp_write_module_reloc(struct module *mod, unsigned long type,
 				  unsigned long loc, unsigned long value);
 
