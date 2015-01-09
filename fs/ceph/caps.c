@@ -2072,17 +2072,16 @@ static void __take_cap_refs(struct ceph_inode_info *ci, int got)
  * requested from the MDS.
  */
 static int try_get_cap_refs(struct ceph_inode_info *ci, int need, int want,
-			    loff_t endoff, int *got, struct page **pinned_page,
-			    int *check_max, int *err)
+			    loff_t endoff, int *got, int *check_max, int *err)
 {
 	struct inode *inode = &ci->vfs_inode;
 	int ret = 0;
-	int have, implemented, _got = 0;
+	int have, implemented;
 	int file_wanted;
 
 	dout("get_cap_refs %p need %s want %s\n", inode,
 	     ceph_cap_string(need), ceph_cap_string(want));
-again:
+
 	spin_lock(&ci->i_ceph_lock);
 
 	/* make sure file is actually open */
@@ -2137,8 +2136,8 @@ again:
 		     inode, ceph_cap_string(have), ceph_cap_string(not),
 		     ceph_cap_string(revoking));
 		if ((revoking & not) == 0) {
-			_got = need | (have & want);
-			__take_cap_refs(ci, _got);
+			*got = need | (have & want);
+			__take_cap_refs(ci, *got);
 			ret = 1;
 		}
 	} else {
@@ -2163,39 +2162,8 @@ again:
 out_unlock:
 	spin_unlock(&ci->i_ceph_lock);
 
-	if (ci->i_inline_version != CEPH_INLINE_NONE &&
-	    (_got & (CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_LAZYIO)) &&
-	    i_size_read(inode) > 0) {
-		int ret1;
-		struct page *page = find_get_page(inode->i_mapping, 0);
-		if (page) {
-			if (PageUptodate(page)) {
-				*pinned_page = page;
-				goto out;
-			}
-			page_cache_release(page);
-		}
-		/*
-		 * drop cap refs first because getattr while holding
-		 * caps refs can cause deadlock.
-		 */
-		ceph_put_cap_refs(ci, _got);
-		_got = 0;
-
-		/* getattr request will bring inline data into page cache */
-		ret1 = __ceph_do_getattr(inode, NULL,
-					 CEPH_STAT_CAP_INLINE_DATA, true);
-		if (ret1 >= 0) {
-			ret = 0;
-			goto again;
-		}
-		*err = ret1;
-		ret = 1;
-	}
-out:
 	dout("get_cap_refs %p ret %d got %s\n", inode,
-	     ret, ceph_cap_string(_got));
-	*got = _got;
+	     ret, ceph_cap_string(*got));
 	return ret;
 }
 
@@ -2235,22 +2203,52 @@ static void check_max_size(struct inode *inode, loff_t endoff)
 int ceph_get_caps(struct ceph_inode_info *ci, int need, int want,
 		  loff_t endoff, int *got, struct page **pinned_page)
 {
-	int check_max, ret, err;
+	int _got, check_max, ret, err = 0;
 
 retry:
 	if (endoff > 0)
 		check_max_size(&ci->vfs_inode, endoff);
+	_got = 0;
 	check_max = 0;
-	err = 0;
 	ret = wait_event_interruptible(ci->i_cap_wq,
-				       try_get_cap_refs(ci, need, want, endoff,
-							got, pinned_page,
-							&check_max, &err));
+				try_get_cap_refs(ci, need, want, endoff,
+						 &_got, &check_max, &err));
 	if (err)
 		ret = err;
+	if (ret < 0)
+		return ret;
+
 	if (check_max)
 		goto retry;
-	return ret;
+
+	if (ci->i_inline_version != CEPH_INLINE_NONE &&
+	    (_got & (CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_LAZYIO)) &&
+	    i_size_read(&ci->vfs_inode) > 0) {
+		struct page *page = find_get_page(ci->vfs_inode.i_mapping, 0);
+		if (page) {
+			if (PageUptodate(page)) {
+				*pinned_page = page;
+				goto out;
+			}
+			page_cache_release(page);
+		}
+		/*
+		 * drop cap refs first because getattr while holding
+		 * caps refs can cause deadlock.
+		 */
+		ceph_put_cap_refs(ci, _got);
+		_got = 0;
+
+		/* getattr request will bring inline data into page cache */
+		ret = __ceph_do_getattr(&ci->vfs_inode, NULL,
+					CEPH_STAT_CAP_INLINE_DATA, true);
+		if (ret < 0)
+			return ret;
+		goto retry;
+	}
+out:
+	*got = _got;
+	return 0;
 }
 
 /*
