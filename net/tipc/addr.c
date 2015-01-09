@@ -34,7 +34,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "core.h"
+#include <linux/kernel.h>
 #include "addr.h"
 
 /**

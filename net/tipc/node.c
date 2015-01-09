@@ -368,8 +368,8 @@ static void node_established_contact(struct tipc_node *n_ptr)
 {
 	n_ptr->action_flags |= TIPC_NOTIFY_NODE_UP;
 	n_ptr->bclink.oos_state = 0;
-	n_ptr->bclink.acked = tipc_bclink_get_last_sent();
-	tipc_bclink_add_node(n_ptr->addr);
+	n_ptr->bclink.acked = tipc_bclink_get_last_sent(n_ptr->net);
+	tipc_bclink_add_node(n_ptr->net, n_ptr->addr);
 }
 
 static void node_lost_contact(struct tipc_node *n_ptr)
@@ -389,7 +389,7 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 			n_ptr->bclink.reasm_buf = NULL;
 		}
 
-		tipc_bclink_remove_node(n_ptr->addr);
+		tipc_bclink_remove_node(n_ptr->net, n_ptr->addr);
 		tipc_bclink_acknowledge(n_ptr, INVALID_LINK_SEQ);
 
 		n_ptr->bclink.recv_permitted = false;

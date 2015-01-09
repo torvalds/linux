@@ -40,6 +40,7 @@
 #include "bearer.h"
 #include "link.h"
 #include "discover.h"
+#include "bcast.h"
 
 #define MAX_ADDR_STR 60
 
@@ -482,8 +483,8 @@ void tipc_disable_l2_media(struct tipc_bearer *b)
  * @b_ptr: the bearer through which the packet is to be sent
  * @dest: peer destination address
  */
-int tipc_l2_send_msg(struct sk_buff *buf, struct tipc_bearer *b,
-		     struct tipc_media_addr *dest)
+int tipc_l2_send_msg(struct net *net, struct sk_buff *buf,
+		     struct tipc_bearer *b, struct tipc_media_addr *dest)
 {
 	struct sk_buff *clone;
 	struct net_device *dev;
@@ -528,7 +529,7 @@ void tipc_bearer_send(struct net *net, u32 bearer_id, struct sk_buff *buf,
 	rcu_read_lock();
 	b_ptr = rcu_dereference_rtnl(tn->bearer_list[bearer_id]);
 	if (likely(b_ptr))
-		b_ptr->media->send_msg(buf, b_ptr, dest);
+		b_ptr->media->send_msg(net, buf, b_ptr, dest);
 	rcu_read_unlock();
 }
 

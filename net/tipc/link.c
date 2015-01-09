@@ -941,6 +941,7 @@ static void link_retransmit_failure(struct tipc_link *l_ptr,
 				    struct sk_buff *buf)
 {
 	struct tipc_msg *msg = buf_msg(buf);
+	struct net *net = l_ptr->owner->net;
 
 	pr_warn("Retransmission failure on link <%s>\n", l_ptr->name);
 
@@ -958,7 +959,7 @@ static void link_retransmit_failure(struct tipc_link *l_ptr,
 		pr_cont("Outstanding acks: %lu\n",
 			(unsigned long) TIPC_SKB_CB(buf)->handle);
 
-		n_ptr = tipc_bclink_retransmit_to();
+		n_ptr = tipc_bclink_retransmit_to(net);
 		tipc_node_lock(n_ptr);
 
 		tipc_addr_string_fill(addr_string, n_ptr->addr);
@@ -973,7 +974,7 @@ static void link_retransmit_failure(struct tipc_link *l_ptr,
 
 		tipc_node_unlock(n_ptr);
 
-		tipc_bclink_set_flags(TIPC_BCLINK_RESET);
+		tipc_bclink_set_flags(net, TIPC_BCLINK_RESET);
 		l_ptr->stale_count = 0;
 	}
 }
@@ -1404,7 +1405,7 @@ void tipc_link_proto_xmit(struct tipc_link *l_ptr, u32 msg_typ, int probe_msg,
 	msg_set_type(msg, msg_typ);
 	msg_set_net_plane(msg, l_ptr->net_plane);
 	msg_set_bcast_ack(msg, l_ptr->owner->bclink.last_in);
-	msg_set_last_bcast(msg, tipc_bclink_get_last_sent());
+	msg_set_last_bcast(msg, tipc_bclink_get_last_sent(l_ptr->owner->net));
 
 	if (msg_typ == STATE_MSG) {
 		u32 next_sent = mod(l_ptr->next_out_no);
@@ -2105,7 +2106,7 @@ struct sk_buff *tipc_link_cmd_config(struct net *net, const void *req_tlv_area,
 
 	if (!strcmp(args->name, tipc_bclink_name)) {
 		if ((cmd == TIPC_CMD_SET_LINK_WINDOW) &&
-		    (tipc_bclink_set_queue_limits(new_value) == 0))
+		    (tipc_bclink_set_queue_limits(net, new_value) == 0))
 			return tipc_cfg_reply_none();
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 						   " (cannot change setting on broadcast link)");
@@ -2143,7 +2144,7 @@ struct sk_buff *tipc_link_cmd_reset_stats(struct net *net,
 
 	link_name = (char *)TLV_DATA(req_tlv_area);
 	if (!strcmp(link_name, tipc_bclink_name)) {
-		if (tipc_bclink_reset_stats())
+		if (tipc_bclink_reset_stats(net))
 			return tipc_cfg_reply_error_string("link not found");
 		return tipc_cfg_reply_none();
 	}
@@ -2191,7 +2192,7 @@ static int tipc_link_stats(struct net *net, const char *name, char *buf,
 	int ret;
 
 	if (!strcmp(name, tipc_bclink_name))
-		return tipc_bclink_stats(buf, buf_size);
+		return tipc_bclink_stats(net, buf, buf_size);
 
 	node = tipc_link_find_owner(net, name, &bearer_id);
 	if (!node)
@@ -2640,7 +2641,7 @@ int tipc_nl_link_dump(struct sk_buff *skb, struct netlink_callback *cb)
 			prev_node = node->addr;
 		}
 	} else {
-		err = tipc_nl_add_bc_link(&msg);
+		err = tipc_nl_add_bc_link(net, &msg);
 		if (err)
 			goto out;
 
@@ -2739,7 +2740,7 @@ int tipc_nl_link_reset_stats(struct sk_buff *skb, struct genl_info *info)
 	link_name = nla_data(attrs[TIPC_NLA_LINK_NAME]);
 
 	if (strcmp(link_name, tipc_bclink_name) == 0) {
-		err = tipc_bclink_reset_stats();
+		err = tipc_bclink_reset_stats(net);
 		if (err)
 			return err;
 		return 0;

@@ -37,7 +37,7 @@
 #ifndef _TIPC_MSG_H
 #define _TIPC_MSG_H
 
-#include "bearer.h"
+#include <linux/tipc.h>
 
 /*
  * Constants and routines used to read and write TIPC payload message headers

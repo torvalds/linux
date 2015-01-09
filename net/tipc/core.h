@@ -61,6 +61,11 @@
 
 #include "node.h"
 #include "bearer.h"
+#include "bcast.h"
+#include "netlink.h"
+#include "link.h"
+#include "node.h"
+#include "msg.h"
 
 #define TIPC_MOD_VER "2.0.0"
 
@@ -91,6 +96,11 @@ struct tipc_net {
 
 	/* Bearer list */
 	struct tipc_bearer __rcu *bearer_list[MAX_BEARERS + 1];
+
+	/* Broadcast link */
+	struct tipc_bcbearer *bcbearer;
+	struct tipc_bclink *bclink;
+	struct tipc_link *bcl;
 };
 
 #ifdef CONFIG_SYSCTL

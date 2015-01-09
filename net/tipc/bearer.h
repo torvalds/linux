@@ -37,12 +37,13 @@
 #ifndef _TIPC_BEARER_H
 #define _TIPC_BEARER_H
 
-#include "bcast.h"
 #include "netlink.h"
 #include <net/genetlink.h>
 
 #define MAX_BEARERS	2
 #define MAX_MEDIA	2
+#define MAX_NODES	4096
+#define WSIZE		32
 
 /* Identifiers associated with TIPC message header media address info
  * - address info field is 32 bytes long
@@ -57,6 +58,16 @@
  */
 #define TIPC_MEDIA_TYPE_ETH	1
 #define TIPC_MEDIA_TYPE_IB	2
+
+/**
+ * struct tipc_node_map - set of node identifiers
+ * @count: # of nodes in set
+ * @map: bitmap of node identifiers that are in the set
+ */
+struct tipc_node_map {
+	u32 count;
+	u32 map[MAX_NODES / WSIZE];
+};
 
 /**
  * struct tipc_media_addr - destination address used by TIPC bearers
@@ -89,7 +100,7 @@ struct tipc_bearer;
  * @name: media name
  */
 struct tipc_media {
-	int (*send_msg)(struct sk_buff *buf,
+	int (*send_msg)(struct net *net, struct sk_buff *buf,
 			struct tipc_bearer *b_ptr,
 			struct tipc_media_addr *dest);
 	int (*enable_media)(struct net *net, struct tipc_bearer *b_ptr);
@@ -157,8 +168,6 @@ struct tipc_bearer_names {
 	char if_name[TIPC_MAX_IF_NAME];
 };
 
-struct tipc_link;
-
 /*
  * TIPC routines available to supported media types
  */
@@ -193,8 +202,8 @@ void tipc_media_addr_printf(char *buf, int len, struct tipc_media_addr *a);
 struct sk_buff *tipc_media_get_names(void);
 int tipc_enable_l2_media(struct net *net, struct tipc_bearer *b);
 void tipc_disable_l2_media(struct tipc_bearer *b);
-int tipc_l2_send_msg(struct sk_buff *buf, struct tipc_bearer *b,
-		     struct tipc_media_addr *dest);
+int tipc_l2_send_msg(struct net *net, struct sk_buff *buf,
+		     struct tipc_bearer *b, struct tipc_media_addr *dest);
 
 struct sk_buff *tipc_bearer_get_names(struct net *net);
 void tipc_bearer_add_dest(struct net *net, u32 bearer_id, u32 dest);
