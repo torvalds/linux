@@ -354,6 +354,8 @@ static void reap_tx_dxes(struct wcn36xx *wcn, struct wcn36xx_dxe_ch *ch)
 	 * and while-do will not make any cycles.
 	 */
 	do {
+		if (ctl->desc->ctrl & WCN36XX_DXE_CTRL_VALID_MASK)
+			break;
 		if (ctl->skb) {
 			dma_unmap_single(NULL, ctl->desc->src_addr_l,
 					 ctl->skb->len, DMA_TO_DEVICE);
