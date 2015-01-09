@@ -46,6 +46,13 @@
  *	lg	%r14,8(%r15)		# offset 18
  * The jg instruction branches to offset 24 to skip as many instructions
  * as possible.
+ * In case we use gcc's hotpatch feature the original and also the disabled
+ * function prologue contains only a single six byte instruction and looks
+ * like this:
+ * >	brcl	0,0			# offset 0
+ * To enable ftrace the code gets patched like above and afterwards looks
+ * like this:
+ * >	brasl	%r0,ftrace_caller	# offset 0
  */
 
 unsigned long ftrace_plt;
@@ -64,9 +71,15 @@ int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
 	if (probe_kernel_read(&old, (void *) rec->ip, sizeof(old)))
 		return -EFAULT;
 	if (addr == MCOUNT_ADDR) {
-		/* Initial code replacement; we expect to see stg r14,8(r15) */
+		/* Initial code replacement */
+#ifdef CC_USING_HOTPATCH
+		/* We expect to see brcl 0,0 */
+		ftrace_generate_nop_insn(&orig);
+#else
+		/* We expect to see stg r14,8(r15) */
 		orig.opc = 0xe3e0;
 		orig.disp = 0xf0080024;
+#endif
 		ftrace_generate_nop_insn(&new);
 	} else if (old.opc == BREAKPOINT_INSTRUCTION) {
 		/*

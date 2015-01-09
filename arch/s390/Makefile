@@ -87,6 +87,16 @@ ifeq ($(call cc-option-yn,-mwarn-dynamicstack),y)
 cflags-$(CONFIG_WARN_DYNAMIC_STACK) += -mwarn-dynamicstack
 endif
 
+ifdef CONFIG_FUNCTION_TRACER
+# make use of hotpatch feature if the compiler supports it
+cc_hotpatch	:= -mhotpatch=0,3
+ifeq ($(call cc-option-yn,$(cc_hotpatch)),y)
+CC_FLAGS_FTRACE := $(cc_hotpatch)
+KBUILD_AFLAGS	+= -DCC_USING_HOTPATCH
+KBUILD_CFLAGS	+= -DCC_USING_HOTPATCH
+endif
+endif
+
 KBUILD_CFLAGS	+= -mbackchain -msoft-float $(cflags-y)
 KBUILD_CFLAGS	+= -pipe -fno-strength-reduce -Wno-sign-compare
 KBUILD_AFLAGS	+= $(aflags-y)
