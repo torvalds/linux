@@ -607,7 +607,7 @@ static void s3c_hsotg_start_req(struct dwc2_hsotg *hsotg,
 		/* Test if zlp is actually required. */
 		if ((ureq->length >= hs_ep->ep.maxpacket) &&
 					!(ureq->length % hs_ep->ep.maxpacket))
-			hs_ep->sent_zlp = 1;
+			hs_ep->send_zlp = 1;
 	}
 
 	epsize |= DXEPTSIZ_PKTCNT(packets);
@@ -1193,7 +1193,7 @@ static void s3c_hsotg_enqueue_setup(struct dwc2_hsotg *hsotg)
 	}
 
 	hsotg->eps_out[0]->dir_in = 0;
-	hsotg->eps_out[0]->sent_zlp = 0;
+	hsotg->eps_out[0]->send_zlp = 0;
 	hsotg->ep0_state = DWC2_EP0_SETUP;
 
 	ret = s3c_hsotg_ep_queue(&hsotg->eps_out[0]->ep, req, GFP_ATOMIC);
@@ -1757,9 +1757,9 @@ static void s3c_hsotg_complete_in(struct dwc2_hsotg *hsotg,
 	}
 
 	/* Zlp for all endpoints, for ep0 only in DATA IN stage */
-	if (hs_ep->sent_zlp) {
+	if (hs_ep->send_zlp) {
 		s3c_hsotg_program_zlp(hsotg, hs_ep);
-		hs_ep->sent_zlp = 0;
+		hs_ep->send_zlp = 0;
 		/* transfer will be completed on next complete interrupt */
 		return;
 	}

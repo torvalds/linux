@@ -108,7 +108,7 @@ struct s3c_hsotg_req;
  * @halted: Set if the endpoint has been halted.
  * @periodic: Set if this is a periodic ep, such as Interrupt
  * @isochronous: Set if this is a isochronous ep
- * @sent_zlp: Set if we've sent a zero-length packet.
+ * @send_zlp: Set if we need to send a zero-length packet.
  * @total_data: The total number of data bytes done.
  * @fifo_size: The size of the FIFO (for periodic IN endpoints)
  * @fifo_load: The amount of data loaded into the FIFO (periodic IN)
@@ -149,7 +149,7 @@ struct s3c_hsotg_ep {
 	unsigned int            halted:1;
 	unsigned int            periodic:1;
 	unsigned int            isochronous:1;
-	unsigned int            sent_zlp:1;
+	unsigned int            send_zlp:1;
 
 	char                    name[10];
 };
