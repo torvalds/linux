@@ -836,8 +836,7 @@ static int kim_probe(struct platform_device *pdev)
 	kim_debugfs_dir = debugfs_create_dir("ti-st", NULL);
 	if (!kim_debugfs_dir) {
 		pr_err(" debugfs entries creation failed ");
-		err = -EIO;
-		goto err_debugfs_dir;
+		return 0;
 	}
 
 	debugfs_create_file("version", S_IRUGO, kim_debugfs_dir,
@@ -845,9 +844,6 @@ static int kim_probe(struct platform_device *pdev)
 	debugfs_create_file("protocols", S_IRUGO, kim_debugfs_dir,
 				kim_gdata, &list_debugfs_fops);
 	return 0;
-
-err_debugfs_dir:
-	sysfs_remove_group(&pdev->dev.kobj, &uim_attr_grp);
 
 err_sysfs_group:
 	st_core_exit(kim_gdata->core_data);
