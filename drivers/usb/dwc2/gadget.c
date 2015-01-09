@@ -1810,6 +1810,10 @@ static void s3c_hsotg_epint(struct dwc2_hsotg *hsotg, unsigned int idx,
 	dev_dbg(hsotg->dev, "%s: ep%d(%s) DxEPINT=0x%08x\n",
 		__func__, idx, dir_in ? "in" : "out", ints);
 
+	/* Don't process XferCompl interrupt if it is a setup packet */
+	if (idx == 0 && (ints & (DXEPINT_SETUP | DXEPINT_SETUP_RCVD)))
+		ints &= ~DXEPINT_XFERCOMPL;
+
 	if (ints & DXEPINT_XFERCOMPL) {
 		if (hs_ep->isochronous && hs_ep->interval == 1) {
 			if (ctrl & DXEPCTL_EOFRNUM)
