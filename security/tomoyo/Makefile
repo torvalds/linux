@@ -26,23 +26,16 @@ $(obj)/policy/stat.conf:
 	@echo Creating an empty policy/stat.conf
 	@touch $@
 
-$(obj)/builtin-policy.h: $(obj)/policy/profile.conf $(obj)/policy/exception_policy.conf $(obj)/policy/domain_policy.conf $(obj)/policy/manager.conf $(obj)/policy/stat.conf
-	@echo Generating built-in policy for TOMOYO 2.5.x.
-	@echo "static char tomoyo_builtin_profile[] __initdata =" > $@.tmp
-	@$(objtree)/scripts/basic/bin2c < $(obj)/policy/profile.conf >> $@.tmp
-	@echo ";" >> $@.tmp
-	@echo "static char tomoyo_builtin_exception_policy[] __initdata =" >> $@.tmp
-	@$(objtree)/scripts/basic/bin2c < $(obj)/policy/exception_policy.conf >> $@.tmp
-	@echo ";" >> $@.tmp
-	@echo "static char tomoyo_builtin_domain_policy[] __initdata =" >> $@.tmp
-	@$(objtree)/scripts/basic/bin2c < $(obj)/policy/domain_policy.conf >> $@.tmp
-	@echo ";" >> $@.tmp
-	@echo "static char tomoyo_builtin_manager[] __initdata =" >> $@.tmp
-	@$(objtree)/scripts/basic/bin2c < $(obj)/policy/manager.conf >> $@.tmp
-	@echo ";" >> $@.tmp
-	@echo "static char tomoyo_builtin_stat[] __initdata =" >> $@.tmp
-	@$(objtree)/scripts/basic/bin2c < $(obj)/policy/stat.conf >> $@.tmp
-	@echo ";" >> $@.tmp
-	@mv $@.tmp $@
+targets += builtin-policy.h
+define do_policy
+echo "static char tomoyo_builtin_$(1)[] __initdata ="; \
+$(objtree)/scripts/basic/bin2c <$(obj)/policy/$(1).conf; \
+echo ";"
+endef
+quiet_cmd_policy  = POLICY  $@
+      cmd_policy  = ($(call do_policy,profile); $(call do_policy,exception_policy); $(call do_policy,domain_policy); $(call do_policy,manager); $(call do_policy,stat)) >$@
+
+$(obj)/builtin-policy.h: $(obj)/policy/profile.conf $(obj)/policy/exception_policy.conf $(obj)/policy/domain_policy.conf $(obj)/policy/manager.conf $(obj)/policy/stat.conf FORCE
+	$(call if_changed,policy)
 
 $(obj)/common.o: $(obj)/builtin-policy.h
