@@ -434,6 +434,9 @@ struct dwc2_hw_params {
 	u32 snpsid;
 };
 
+/* Size of control and EP0 buffers */
+#define DWC2_CTRL_BUFF_SIZE 8
+
 /**
  * struct dwc2_hsotg - Holds the state of the driver, including the non-periodic
  * and periodic schedules
@@ -684,8 +687,8 @@ struct dwc2_hsotg {
 
 	struct usb_request *ep0_reply;
 	struct usb_request *ctrl_req;
-	u8 ep0_buff[8];
-	u8 ctrl_buff[8];
+	void *ep0_buff;
+	void *ctrl_buff;
 
 	struct usb_gadget gadget;
 	unsigned int enabled:1;

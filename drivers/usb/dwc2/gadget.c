@@ -3486,6 +3486,22 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 	s3c_hsotg_hw_cfg(hsotg);
 	s3c_hsotg_init(hsotg);
 
+	hsotg->ctrl_buff = devm_kzalloc(hsotg->dev,
+			DWC2_CTRL_BUFF_SIZE, GFP_KERNEL);
+	if (!hsotg->ctrl_buff) {
+		dev_err(dev, "failed to allocate ctrl request buff\n");
+		ret = -ENOMEM;
+		goto err_supplies;
+	}
+
+	hsotg->ep0_buff = devm_kzalloc(hsotg->dev,
+			DWC2_CTRL_BUFF_SIZE, GFP_KERNEL);
+	if (!hsotg->ep0_buff) {
+		dev_err(dev, "failed to allocate ctrl reply buff\n");
+		ret = -ENOMEM;
+		goto err_supplies;
+	}
+
 	ret = devm_request_irq(hsotg->dev, irq, s3c_hsotg_irq, IRQF_SHARED,
 				dev_name(hsotg->dev), hsotg);
 	if (ret < 0) {
