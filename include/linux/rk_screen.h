@@ -79,7 +79,8 @@ struct rk_screen {
 	u16 width;
 	u16 height;
 	u8  ft;
-	int *dsp_lut; 
+	int *dsp_lut;
+	int *cabc_lut;
 
 #if defined(CONFIG_MFD_RK616) || defined(CONFIG_LCDC_RK312X)
 	u32 pll_cfg_val;  //bellow are for jettaB
