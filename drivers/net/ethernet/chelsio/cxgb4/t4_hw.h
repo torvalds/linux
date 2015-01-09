@@ -56,6 +56,13 @@ enum {
 };
 
 enum {
+	CIM_NUM_IBQ    = 6,     /* # of CIM IBQs */
+	CIM_NUM_OBQ    = 6,     /* # of CIM OBQs */
+	CIM_NUM_OBQ_T5 = 8,     /* # of CIM OBQs for T5 adapter */
+	CIMLA_SIZE     = 2048,  /* # of 32-bit words in CIM LA */
+};
+
+enum {
 	SF_PAGE_SIZE = 256,           /* serial flash page size */
 	SF_SEC_SIZE = 64 * 1024,      /* serial flash sector size */
 };
@@ -108,6 +115,18 @@ enum {
 	SGE_CIDXFLUSHTHRESH_128 = 7,
 
 	SGE_INGPADBOUNDARY_SHIFT = 5,/* ingress queue pad boundary */
+};
+
+/* PCI-e memory window access */
+enum pcie_memwin {
+	MEMWIN_NIC      = 0,
+	MEMWIN_RSVD1    = 1,
+	MEMWIN_RSVD2    = 2,
+	MEMWIN_RDMA     = 3,
+	MEMWIN_RSVD4    = 4,
+	MEMWIN_FOISCSI  = 5,
+	MEMWIN_CSIOSTOR = 6,
+	MEMWIN_RSVD7    = 7,
 };
 
 struct sge_qstat {                /* data written to SGE queue status entries */

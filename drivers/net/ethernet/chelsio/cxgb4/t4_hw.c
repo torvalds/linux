@@ -4031,6 +4031,7 @@ int t4_prep_adapter(struct adapter *adapter)
 		return -EINVAL;
 	}
 
+	adapter->params.cim_la_size = CIMLA_SIZE;
 	init_cong_ctrl(adapter->params.a_wnd, adapter->params.b_wnd);
 
 	/*
@@ -4322,4 +4323,158 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf)
 		j++;
 	}
 	return 0;
+}
+
+/**
+ *	t4_read_cimq_cfg - read CIM queue configuration
+ *	@adap: the adapter
+ *	@base: holds the queue base addresses in bytes
+ *	@size: holds the queue sizes in bytes
+ *	@thres: holds the queue full thresholds in bytes
+ *
+ *	Returns the current configuration of the CIM queues, starting with
+ *	the IBQs, then the OBQs.
+ */
+void t4_read_cimq_cfg(struct adapter *adap, u16 *base, u16 *size, u16 *thres)
+{
+	unsigned int i, v;
+	int cim_num_obq = is_t4(adap->params.chip) ?
+				CIM_NUM_OBQ : CIM_NUM_OBQ_T5;
+
+	for (i = 0; i < CIM_NUM_IBQ; i++) {
+		t4_write_reg(adap, CIM_QUEUE_CONFIG_REF_A, IBQSELECT_F |
+			     QUENUMSELECT_V(i));
+		v = t4_read_reg(adap, CIM_QUEUE_CONFIG_CTRL_A);
+		/* value is in 256-byte units */
+		*base++ = CIMQBASE_G(v) * 256;
+		*size++ = CIMQSIZE_G(v) * 256;
+		*thres++ = QUEFULLTHRSH_G(v) * 8; /* 8-byte unit */
+	}
+	for (i = 0; i < cim_num_obq; i++) {
+		t4_write_reg(adap, CIM_QUEUE_CONFIG_REF_A, OBQSELECT_F |
+			     QUENUMSELECT_V(i));
+		v = t4_read_reg(adap, CIM_QUEUE_CONFIG_CTRL_A);
+		/* value is in 256-byte units */
+		*base++ = CIMQBASE_G(v) * 256;
+		*size++ = CIMQSIZE_G(v) * 256;
+	}
+}
+
+/**
+ *	t4_cim_read - read a block from CIM internal address space
+ *	@adap: the adapter
+ *	@addr: the start address within the CIM address space
+ *	@n: number of words to read
+ *	@valp: where to store the result
+ *
+ *	Reads a block of 4-byte words from the CIM intenal address space.
+ */
+int t4_cim_read(struct adapter *adap, unsigned int addr, unsigned int n,
+		unsigned int *valp)
+{
+	int ret = 0;
+
+	if (t4_read_reg(adap, CIM_HOST_ACC_CTRL_A) & HOSTBUSY_F)
+		return -EBUSY;
+
+	for ( ; !ret && n--; addr += 4) {
+		t4_write_reg(adap, CIM_HOST_ACC_CTRL_A, addr);
+		ret = t4_wait_op_done(adap, CIM_HOST_ACC_CTRL_A, HOSTBUSY_F,
+				      0, 5, 2);
+		if (!ret)
+			*valp++ = t4_read_reg(adap, CIM_HOST_ACC_DATA_A);
+	}
+	return ret;
+}
+
+/**
+ *	t4_cim_write - write a block into CIM internal address space
+ *	@adap: the adapter
+ *	@addr: the start address within the CIM address space
+ *	@n: number of words to write
+ *	@valp: set of values to write
+ *
+ *	Writes a block of 4-byte words into the CIM intenal address space.
+ */
+int t4_cim_write(struct adapter *adap, unsigned int addr, unsigned int n,
+		 const unsigned int *valp)
+{
+	int ret = 0;
+
+	if (t4_read_reg(adap, CIM_HOST_ACC_CTRL_A) & HOSTBUSY_F)
+		return -EBUSY;
+
+	for ( ; !ret && n--; addr += 4) {
+		t4_write_reg(adap, CIM_HOST_ACC_DATA_A, *valp++);
+		t4_write_reg(adap, CIM_HOST_ACC_CTRL_A, addr | HOSTWRITE_F);
+		ret = t4_wait_op_done(adap, CIM_HOST_ACC_CTRL_A, HOSTBUSY_F,
+				      0, 5, 2);
+	}
+	return ret;
+}
+
+static int t4_cim_write1(struct adapter *adap, unsigned int addr,
+			 unsigned int val)
+{
+	return t4_cim_write(adap, addr, 1, &val);
+}
+
+/**
+ *	t4_cim_read_la - read CIM LA capture buffer
+ *	@adap: the adapter
+ *	@la_buf: where to store the LA data
+ *	@wrptr: the HW write pointer within the capture buffer
+ *
+ *	Reads the contents of the CIM LA buffer with the most recent entry at
+ *	the end	of the returned data and with the entry at @wrptr first.
+ *	We try to leave the LA in the running state we find it in.
+ */
+int t4_cim_read_la(struct adapter *adap, u32 *la_buf, unsigned int *wrptr)
+{
+	int i, ret;
+	unsigned int cfg, val, idx;
+
+	ret = t4_cim_read(adap, UP_UP_DBG_LA_CFG_A, 1, &cfg);
+	if (ret)
+		return ret;
+
+	if (cfg & UPDBGLAEN_F) {	/* LA is running, freeze it */
+		ret = t4_cim_write1(adap, UP_UP_DBG_LA_CFG_A, 0);
+		if (ret)
+			return ret;
+	}
+
+	ret = t4_cim_read(adap, UP_UP_DBG_LA_CFG_A, 1, &val);
+	if (ret)
+		goto restart;
+
+	idx = UPDBGLAWRPTR_G(val);
+	if (wrptr)
+		*wrptr = idx;
+
+	for (i = 0; i < adap->params.cim_la_size; i++) {
+		ret = t4_cim_write1(adap, UP_UP_DBG_LA_CFG_A,
+				    UPDBGLARDPTR_V(idx) | UPDBGLARDEN_F);
+		if (ret)
+			break;
+		ret = t4_cim_read(adap, UP_UP_DBG_LA_CFG_A, 1, &val);
+		if (ret)
+			break;
+		if (val & UPDBGLARDEN_F) {
+			ret = -ETIMEDOUT;
+			break;
+		}
+		ret = t4_cim_read(adap, UP_UP_DBG_LA_DATA_A, 1, &la_buf[i]);
+		if (ret)
+			break;
+		idx = (idx + 1) & UPDBGLARDPTR_M;
+	}
+restart:
+	if (cfg & UPDBGLAEN_F) {
+		int r = t4_cim_write1(adap, UP_UP_DBG_LA_CFG_A,
+				      cfg & ~UPDBGLARDEN_F);
+		if (!ret)
+			ret = r;
+	}
+	return ret;
 }

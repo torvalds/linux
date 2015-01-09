@@ -1708,6 +1708,66 @@
 
 #define MPS_RX_PERR_INT_CAUSE_A 0x11074
 
+#define MPS_CLS_TCAM_Y_L_A 0xf000
+#define MPS_CLS_TCAM_X_L_A 0xf008
+
+#define MPS_CLS_TCAM_Y_L(idx) (MPS_CLS_TCAM_Y_L_A + (idx) * 16)
+#define NUM_MPS_CLS_TCAM_Y_L_INSTANCES 512
+
+#define MPS_CLS_TCAM_X_L(idx) (MPS_CLS_TCAM_X_L_A + (idx) * 16)
+#define NUM_MPS_CLS_TCAM_X_L_INSTANCES 512
+
+#define MPS_CLS_SRAM_L_A 0xe000
+#define MPS_CLS_SRAM_H_A 0xe004
+
+#define MPS_CLS_SRAM_L(idx) (MPS_CLS_SRAM_L_A + (idx) * 8)
+#define NUM_MPS_CLS_SRAM_L_INSTANCES 336
+
+#define MPS_CLS_SRAM_H(idx) (MPS_CLS_SRAM_H_A + (idx) * 8)
+#define NUM_MPS_CLS_SRAM_H_INSTANCES 336
+
+#define MULTILISTEN0_S    25
+
+#define REPLICATE_S    11
+#define REPLICATE_V(x) ((x) << REPLICATE_S)
+#define REPLICATE_F    REPLICATE_V(1U)
+
+#define PF_S    8
+#define PF_M    0x7U
+#define PF_G(x) (((x) >> PF_S) & PF_M)
+
+#define VF_VALID_S    7
+#define VF_VALID_V(x) ((x) << VF_VALID_S)
+#define VF_VALID_F    VF_VALID_V(1U)
+
+#define VF_S    0
+#define VF_M    0x7fU
+#define VF_G(x) (((x) >> VF_S) & VF_M)
+
+#define SRAM_PRIO3_S    22
+#define SRAM_PRIO3_M    0x7U
+#define SRAM_PRIO3_G(x) (((x) >> SRAM_PRIO3_S) & SRAM_PRIO3_M)
+
+#define SRAM_PRIO2_S    19
+#define SRAM_PRIO2_M    0x7U
+#define SRAM_PRIO2_G(x) (((x) >> SRAM_PRIO2_S) & SRAM_PRIO2_M)
+
+#define SRAM_PRIO1_S    16
+#define SRAM_PRIO1_M    0x7U
+#define SRAM_PRIO1_G(x) (((x) >> SRAM_PRIO1_S) & SRAM_PRIO1_M)
+
+#define SRAM_PRIO0_S    13
+#define SRAM_PRIO0_M    0x7U
+#define SRAM_PRIO0_G(x) (((x) >> SRAM_PRIO0_S) & SRAM_PRIO0_M)
+
+#define SRAM_VLD_S    12
+#define SRAM_VLD_V(x) ((x) << SRAM_VLD_S)
+#define SRAM_VLD_F    SRAM_VLD_V(1U)
+
+#define PORTMAP_S    0
+#define PORTMAP_M    0xfU
+#define PORTMAP_G(x) (((x) >> PORTMAP_S) & PORTMAP_M)
+
 #define CPL_INTR_CAUSE_A 0x19054
 
 #define CIM_OP_MAP_PERR_S    5
@@ -2061,5 +2121,94 @@
 #define PL_VF_REV_A 0x4
 #define PL_VF_WHOAMI_A 0x0
 #define PL_VF_REVISION_A 0x8
+
+/* registers for module CIM */
+#define CIM_HOST_ACC_CTRL_A	0x7b50
+#define CIM_HOST_ACC_DATA_A	0x7b54
+#define UP_UP_DBG_LA_CFG_A	0x140
+#define UP_UP_DBG_LA_DATA_A	0x144
+
+#define HOSTBUSY_S	17
+#define HOSTBUSY_V(x)	((x) << HOSTBUSY_S)
+#define HOSTBUSY_F	HOSTBUSY_V(1U)
+
+#define HOSTWRITE_S	16
+#define HOSTWRITE_V(x)	((x) << HOSTWRITE_S)
+#define HOSTWRITE_F	HOSTWRITE_V(1U)
+
+#define UPDBGLARDEN_S		1
+#define UPDBGLARDEN_V(x)	((x) << UPDBGLARDEN_S)
+#define UPDBGLARDEN_F		UPDBGLARDEN_V(1U)
+
+#define UPDBGLAEN_S	0
+#define UPDBGLAEN_V(x)	((x) << UPDBGLAEN_S)
+#define UPDBGLAEN_F	UPDBGLAEN_V(1U)
+
+#define UPDBGLARDPTR_S		2
+#define UPDBGLARDPTR_M		0xfffU
+#define UPDBGLARDPTR_V(x)	((x) << UPDBGLARDPTR_S)
+
+#define UPDBGLAWRPTR_S    16
+#define UPDBGLAWRPTR_M    0xfffU
+#define UPDBGLAWRPTR_G(x) (((x) >> UPDBGLAWRPTR_S) & UPDBGLAWRPTR_M)
+
+#define UPDBGLACAPTPCONLY_S	30
+#define UPDBGLACAPTPCONLY_V(x)	((x) << UPDBGLACAPTPCONLY_S)
+#define UPDBGLACAPTPCONLY_F	UPDBGLACAPTPCONLY_V(1U)
+
+#define CIM_QUEUE_CONFIG_REF_A 0x7b48
+#define CIM_QUEUE_CONFIG_CTRL_A 0x7b4c
+
+#define CIMQSIZE_S    24
+#define CIMQSIZE_M    0x3fU
+#define CIMQSIZE_G(x) (((x) >> CIMQSIZE_S) & CIMQSIZE_M)
+
+#define CIMQBASE_S    16
+#define CIMQBASE_M    0x3fU
+#define CIMQBASE_G(x) (((x) >> CIMQBASE_S) & CIMQBASE_M)
+
+#define QUEFULLTHRSH_S    0
+#define QUEFULLTHRSH_M    0x1ffU
+#define QUEFULLTHRSH_G(x) (((x) >> QUEFULLTHRSH_S) & QUEFULLTHRSH_M)
+
+#define UP_IBQ_0_RDADDR_A 0x10
+#define UP_IBQ_0_SHADOW_RDADDR_A 0x280
+#define UP_OBQ_0_REALADDR_A 0x104
+#define UP_OBQ_0_SHADOW_REALADDR_A 0x394
+
+#define IBQRDADDR_S    0
+#define IBQRDADDR_M    0x1fffU
+#define IBQRDADDR_G(x) (((x) >> IBQRDADDR_S) & IBQRDADDR_M)
+
+#define IBQWRADDR_S    0
+#define IBQWRADDR_M    0x1fffU
+#define IBQWRADDR_G(x) (((x) >> IBQWRADDR_S) & IBQWRADDR_M)
+
+#define QUERDADDR_S    0
+#define QUERDADDR_M    0x7fffU
+#define QUERDADDR_G(x) (((x) >> QUERDADDR_S) & QUERDADDR_M)
+
+#define QUEREMFLITS_S    0
+#define QUEREMFLITS_M    0x7ffU
+#define QUEREMFLITS_G(x) (((x) >> QUEREMFLITS_S) & QUEREMFLITS_M)
+
+#define QUEEOPCNT_S    16
+#define QUEEOPCNT_M    0xfffU
+#define QUEEOPCNT_G(x) (((x) >> QUEEOPCNT_S) & QUEEOPCNT_M)
+
+#define QUESOPCNT_S    0
+#define QUESOPCNT_M    0xfffU
+#define QUESOPCNT_G(x) (((x) >> QUESOPCNT_S) & QUESOPCNT_M)
+
+#define OBQSELECT_S    4
+#define OBQSELECT_V(x) ((x) << OBQSELECT_S)
+#define OBQSELECT_F    OBQSELECT_V(1U)
+
+#define IBQSELECT_S    3
+#define IBQSELECT_V(x) ((x) << IBQSELECT_S)
+#define IBQSELECT_F    IBQSELECT_V(1U)
+
+#define QUENUMSELECT_S    0
+#define QUENUMSELECT_V(x) ((x) << QUENUMSELECT_S)
 
 #endif /* __T4_REGS_H */
