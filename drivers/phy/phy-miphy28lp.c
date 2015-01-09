@@ -1050,7 +1050,8 @@ static int miphy28lp_init(struct phy *phy)
 		ret = miphy28lp_init_usb3(miphy_phy);
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
+		break;
 	}
 
 	mutex_unlock(&miphy_dev->miphy_mutex);

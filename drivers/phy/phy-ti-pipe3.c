@@ -82,7 +82,6 @@ struct ti_pipe3 {
 	struct clk		*refclk;
 	struct clk		*div_clk;
 	struct pipe3_dpll_map	*dpll_map;
-	u8			id;
 };
 
 static struct pipe3_dpll_map dpll_map_usb[] = {
@@ -217,8 +216,13 @@ static int ti_pipe3_init(struct phy *x)
 	u32 val;
 	int ret = 0;
 
+	/*
+	 * Set pcie_pcs register to 0x96 for proper functioning of phy
+	 * as recommended in AM572x TRM SPRUHZ6, section 18.5.2.2, table
+	 * 18-1804.
+	 */
 	if (of_device_is_compatible(phy->dev->of_node, "ti,phy-pipe3-pcie")) {
-		omap_control_pcie_pcs(phy->control_dev, phy->id, 0xF1);
+		omap_control_pcie_pcs(phy->control_dev, 0x96);
 		return 0;
 	}
 
@@ -347,8 +351,6 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 	}
 
 	if (of_device_is_compatible(node, "ti,phy-pipe3-pcie")) {
-		if (of_property_read_u8(node, "id", &phy->id) < 0)
-			phy->id = 1;
 
 		clk = devm_clk_get(phy->dev, "dpll_ref");
 		if (IS_ERR(clk)) {
