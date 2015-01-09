@@ -115,30 +115,32 @@ int tipc_net_start(struct net *net, u32 addr)
 	char addr_string[16];
 	int res;
 
-	tipc_own_addr = addr;
+	tn->own_addr = addr;
 	tipc_named_reinit(net);
 	tipc_sk_reinit(net);
 	res = tipc_bclink_init(net);
 	if (res)
 		return res;
 
-	tipc_nametbl_publish(net, TIPC_CFG_SRV, tipc_own_addr, tipc_own_addr,
-			     TIPC_ZONE_SCOPE, 0, tipc_own_addr);
+	tipc_nametbl_publish(net, TIPC_CFG_SRV, tn->own_addr, tn->own_addr,
+			     TIPC_ZONE_SCOPE, 0, tn->own_addr);
 
 	pr_info("Started in network mode\n");
 	pr_info("Own node address %s, network identity %u\n",
-		tipc_addr_string_fill(addr_string, tipc_own_addr),
+		tipc_addr_string_fill(addr_string, tn->own_addr),
 		tn->net_id);
 	return 0;
 }
 
 void tipc_net_stop(struct net *net)
 {
-	if (!tipc_own_addr)
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
+
+	if (!tn->own_addr)
 		return;
 
-	tipc_nametbl_withdraw(net, TIPC_CFG_SRV, tipc_own_addr, 0,
-			      tipc_own_addr);
+	tipc_nametbl_withdraw(net, TIPC_CFG_SRV, tn->own_addr, 0,
+			      tn->own_addr);
 	rtnl_lock();
 	tipc_bearer_stop(net);
 	tipc_bclink_stop(net);
@@ -224,7 +226,7 @@ int tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info)
 		u32 val;
 
 		/* Can't change net id once TIPC has joined a network */
-		if (tipc_own_addr)
+		if (tn->own_addr)
 			return -EPERM;
 
 		val = nla_get_u32(attrs[TIPC_NLA_NET_ID]);
@@ -238,7 +240,7 @@ int tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info)
 		u32 addr;
 
 		/* Can't change net addr once TIPC has joined a network */
-		if (tipc_own_addr)
+		if (tn->own_addr)
 			return -EPERM;
 
 		addr = nla_get_u32(attrs[TIPC_NLA_NET_ADDR]);

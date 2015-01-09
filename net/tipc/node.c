@@ -75,7 +75,7 @@ struct tipc_node *tipc_node_find(struct net *net, u32 addr)
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_node *node;
 
-	if (unlikely(!in_own_cluster_exact(addr)))
+	if (unlikely(!in_own_cluster_exact(net, addr)))
 		return NULL;
 
 	rcu_read_lock();
@@ -155,7 +155,7 @@ int tipc_node_add_conn(struct net *net, u32 dnode, u32 port, u32 peer_port)
 	struct tipc_node *node;
 	struct tipc_sock_conn *conn;
 
-	if (in_own_node(dnode))
+	if (in_own_node(net, dnode))
 		return 0;
 
 	node = tipc_node_find(net, dnode);
@@ -181,7 +181,7 @@ void tipc_node_remove_conn(struct net *net, u32 dnode, u32 port)
 	struct tipc_node *node;
 	struct tipc_sock_conn *conn, *safe;
 
-	if (in_own_node(dnode))
+	if (in_own_node(net, dnode))
 		return;
 
 	node = tipc_node_find(net, dnode);
@@ -200,14 +200,16 @@ void tipc_node_remove_conn(struct net *net, u32 dnode, u32 port)
 
 void tipc_node_abort_sock_conns(struct net *net, struct list_head *conns)
 {
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_sock_conn *conn, *safe;
 	struct sk_buff *buf;
 
 	list_for_each_entry_safe(conn, safe, conns, list) {
-		buf = tipc_msg_create(TIPC_CRITICAL_IMPORTANCE, TIPC_CONN_MSG,
-				      SHORT_H_SIZE, 0, tipc_own_addr,
-				      conn->peer_node, conn->port,
-				      conn->peer_port, TIPC_ERR_NO_NODE);
+		buf = tipc_msg_create(net, TIPC_CRITICAL_IMPORTANCE,
+				      TIPC_CONN_MSG, SHORT_H_SIZE, 0,
+				      tn->own_addr, conn->peer_node,
+				      conn->port, conn->peer_port,
+				      TIPC_ERR_NO_NODE);
 		if (likely(buf))
 			tipc_sk_rcv(net, buf);
 		list_del(&conn->list);
@@ -287,6 +289,7 @@ static void node_select_active_links(struct tipc_node *n_ptr)
  */
 void tipc_node_link_down(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 {
+	struct tipc_net *tn = net_generic(n_ptr->net, tipc_net_id);
 	struct tipc_link **active;
 
 	n_ptr->working_links--;
@@ -321,7 +324,7 @@ void tipc_node_link_down(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 	}
 
 	/* Loopback link went down? No fragmentation needed from now on. */
-	if (n_ptr->addr == tipc_own_addr) {
+	if (n_ptr->addr == tn->own_addr) {
 		n_ptr->act_mtus[0] = MAX_MSG_SIZE;
 		n_ptr->act_mtus[1] = MAX_MSG_SIZE;
 	}
@@ -483,7 +486,7 @@ struct sk_buff *tipc_node_get_links(struct net *net, const void *req_tlv_area,
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (network address)");
 
-	if (!tipc_own_addr)
+	if (!tn->own_addr)
 		return tipc_cfg_reply_none();
 
 	spin_lock_bh(&tn->node_list_lock);
@@ -501,7 +504,7 @@ struct sk_buff *tipc_node_get_links(struct net *net, const void *req_tlv_area,
 		return NULL;
 
 	/* Add TLV for broadcast link */
-	link_info.dest = htonl(tipc_cluster_mask(tipc_own_addr));
+	link_info.dest = htonl(tipc_cluster_mask(tn->own_addr));
 	link_info.up = htonl(1);
 	strlcpy(link_info.str, tipc_bclink_name, TIPC_MAX_LINK_NAME);
 	tipc_cfg_append_tlv(buf, TIPC_TLV_LINK_INFO, &link_info, sizeof(link_info));

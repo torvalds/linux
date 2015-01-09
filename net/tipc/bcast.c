@@ -317,7 +317,7 @@ void tipc_bclink_update_link_state(struct net *net, struct tipc_node *n_ptr,
 		struct sk_buff *skb = skb_peek(&n_ptr->bclink.deferred_queue);
 		u32 to = skb ? buf_seqno(skb) - 1 : n_ptr->bclink.last_sent;
 
-		tipc_msg_init(msg, BCAST_PROTOCOL, STATE_MSG,
+		tipc_msg_init(net, msg, BCAST_PROTOCOL, STATE_MSG,
 			      INT_H_SIZE, n_ptr->addr);
 		msg_set_non_seq(msg, 1);
 		msg_set_mc_netid(msg, tn->net_id);
@@ -428,7 +428,7 @@ static void bclink_accept_pkt(struct tipc_node *node, u32 seqno)
 	 * Unicast an ACK periodically, ensuring that
 	 * all nodes in the cluster don't ACK at the same time
 	 */
-	if (((seqno - tipc_own_addr) % TIPC_MIN_LINK_WIN) == 0) {
+	if (((seqno - tn->own_addr) % TIPC_MIN_LINK_WIN) == 0) {
 		tipc_link_proto_xmit(node->active_links[node->addr & 1],
 				     STATE_MSG, 0, 0, 0, 0, 0);
 		tn->bcl->stats.sent_acks++;
@@ -466,7 +466,7 @@ void tipc_bclink_rcv(struct net *net, struct sk_buff *buf)
 	if (unlikely(msg_user(msg) == BCAST_PROTOCOL)) {
 		if (msg_type(msg) != STATE_MSG)
 			goto unlock;
-		if (msg_destnode(msg) == tipc_own_addr) {
+		if (msg_destnode(msg) == tn->own_addr) {
 			tipc_bclink_acknowledge(node, msg_bcast_ack(msg));
 			tipc_node_unlock(node);
 			tipc_bclink_lock(net);

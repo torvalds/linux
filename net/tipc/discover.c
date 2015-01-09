@@ -86,7 +86,7 @@ static void tipc_disc_init_msg(struct net *net, struct sk_buff *buf, u32 type,
 	u32 dest_domain = b_ptr->domain;
 
 	msg = buf_msg(buf);
-	tipc_msg_init(msg, LINK_CONFIG, type, INT_H_SIZE, dest_domain);
+	tipc_msg_init(net, msg, LINK_CONFIG, type, INT_H_SIZE, dest_domain);
 	msg_set_non_seq(msg, 1);
 	msg_set_node_sig(msg, tipc_random);
 	msg_set_dest_domain(msg, dest_domain);
@@ -153,12 +153,12 @@ void tipc_disc_rcv(struct net *net, struct sk_buff *buf,
 	if (!tipc_addr_node_valid(onode))
 		return;
 
-	if (in_own_node(onode)) {
+	if (in_own_node(net, onode)) {
 		if (memcmp(&maddr, &bearer->addr, sizeof(maddr)))
-			disc_dupl_alert(bearer, tipc_own_addr, &maddr);
+			disc_dupl_alert(bearer, tn->own_addr, &maddr);
 		return;
 	}
-	if (!tipc_in_scope(ddom, tipc_own_addr))
+	if (!tipc_in_scope(ddom, tn->own_addr))
 		return;
 	if (!tipc_in_scope(bearer->domain, onode))
 		return;

@@ -48,7 +48,6 @@
 int tipc_random __read_mostly;
 
 /* configurable TIPC parameters */
-u32 tipc_own_addr __read_mostly;
 int tipc_net_id __read_mostly;
 int sysctl_tipc_rmem[3] __read_mostly;	/* min/default/max */
 
@@ -58,6 +57,7 @@ static int __net_init tipc_init_net(struct net *net)
 	int err;
 
 	tn->net_id = 4711;
+	tn->own_addr = 0;
 	INIT_LIST_HEAD(&tn->node_list);
 	spin_lock_init(&tn->node_list_lock);
 
@@ -95,8 +95,6 @@ static int __init tipc_init(void)
 	int err;
 
 	pr_info("Activated (version " TIPC_MOD_VER ")\n");
-
-	tipc_own_addr = 0;
 
 	sysctl_tipc_rmem[0] = TIPC_CONN_OVERLOAD_LIMIT >> 4 <<
 			      TIPC_LOW_IMPORTANCE;

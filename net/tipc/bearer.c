@@ -278,7 +278,7 @@ int tipc_enable_bearer(struct net *net, const char *name, u32 disc_domain,
 	u32 i;
 	int res = -EINVAL;
 
-	if (!tipc_own_addr) {
+	if (!tn->own_addr) {
 		pr_warn("Bearer <%s> rejected, not supported in standalone mode\n",
 			name);
 		return -ENOPROTOOPT;
@@ -288,11 +288,11 @@ int tipc_enable_bearer(struct net *net, const char *name, u32 disc_domain,
 		return -EINVAL;
 	}
 	if (tipc_addr_domain_valid(disc_domain) &&
-	    (disc_domain != tipc_own_addr)) {
-		if (tipc_in_scope(disc_domain, tipc_own_addr)) {
-			disc_domain = tipc_own_addr & TIPC_CLUSTER_MASK;
+	    (disc_domain != tn->own_addr)) {
+		if (tipc_in_scope(disc_domain, tn->own_addr)) {
+			disc_domain = tn->own_addr & TIPC_CLUSTER_MASK;
 			res = 0;   /* accept any node in own cluster */
-		} else if (in_own_cluster_exact(disc_domain))
+		} else if (in_own_cluster_exact(net, disc_domain))
 			res = 0;   /* accept specified node in own cluster */
 	}
 	if (res) {
@@ -817,6 +817,7 @@ int tipc_nl_bearer_disable(struct sk_buff *skb, struct genl_info *info)
 int tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info)
 {
 	struct net *net = genl_info_net(info);
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	int err;
 	char *bearer;
 	struct nlattr *attrs[TIPC_NLA_BEARER_MAX + 1];
@@ -824,7 +825,7 @@ int tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info)
 	u32 prio;
 
 	prio = TIPC_MEDIA_LINK_PRI;
-	domain = tipc_own_addr & TIPC_CLUSTER_MASK;
+	domain = tn->own_addr & TIPC_CLUSTER_MASK;
 
 	if (!info->attrs[TIPC_NLA_BEARER])
 		return -EINVAL;

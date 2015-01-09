@@ -163,18 +163,19 @@ static struct sk_buff *cfg_disable_bearer(struct net *net)
 
 static struct sk_buff *cfg_set_own_addr(struct net *net)
 {
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	u32 addr;
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_NET_ADDR))
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 
 	addr = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
-	if (addr == tipc_own_addr)
+	if (addr == tn->own_addr)
 		return tipc_cfg_reply_none();
 	if (!tipc_addr_node_valid(addr))
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (node address)");
-	if (tipc_own_addr)
+	if (tn->own_addr)
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 						   " (cannot change node address once assigned)");
 	if (!tipc_net_start(net, addr))
@@ -196,7 +197,7 @@ static struct sk_buff *cfg_set_netid(struct net *net)
 	if (value < 1 || value > 9999)
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (network id must be 1-9999)");
-	if (tipc_own_addr)
+	if (tn->own_addr)
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 			" (cannot change network id once TIPC has joined a network)");
 	tn->net_id = value;
@@ -218,7 +219,7 @@ struct sk_buff *tipc_cfg_do_cmd(struct net *net, u32 orig_node, u16 cmd,
 	rep_headroom = reply_headroom;
 
 	/* Check command authorization */
-	if (likely(in_own_node(orig_node))) {
+	if (likely(in_own_node(net, orig_node))) {
 		/* command is permitted */
 	} else {
 		rep_tlv_buf = tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED

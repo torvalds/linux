@@ -227,9 +227,11 @@ static u32 nameseq_locate_subseq(struct name_seq *nseq, u32 instance)
 /**
  * tipc_nameseq_insert_publ
  */
-static struct publication *tipc_nameseq_insert_publ(struct name_seq *nseq,
-						    u32 type, u32 lower, u32 upper,
-						    u32 scope, u32 node, u32 port, u32 key)
+static struct publication *tipc_nameseq_insert_publ(struct net *net,
+						    struct name_seq *nseq,
+						    u32 type, u32 lower,
+						    u32 upper, u32 scope,
+						    u32 node, u32 port, u32 key)
 {
 	struct tipc_subscription *s;
 	struct tipc_subscription *st;
@@ -314,12 +316,12 @@ static struct publication *tipc_nameseq_insert_publ(struct name_seq *nseq,
 	list_add(&publ->zone_list, &info->zone_list);
 	info->zone_list_size++;
 
-	if (in_own_cluster(node)) {
+	if (in_own_cluster(net, node)) {
 		list_add(&publ->cluster_list, &info->cluster_list);
 		info->cluster_list_size++;
 	}
 
-	if (in_own_node(node)) {
+	if (in_own_node(net, node)) {
 		list_add(&publ->node_list, &info->node_list);
 		info->node_list_size++;
 	}
@@ -348,8 +350,10 @@ static struct publication *tipc_nameseq_insert_publ(struct name_seq *nseq,
  * A failed withdraw request simply returns a failure indication and lets the
  * caller issue any error or warning messages associated with such a problem.
  */
-static struct publication *tipc_nameseq_remove_publ(struct name_seq *nseq, u32 inst,
-						    u32 node, u32 ref, u32 key)
+static struct publication *tipc_nameseq_remove_publ(struct net *net,
+						    struct name_seq *nseq,
+						    u32 inst, u32 node,
+						    u32 ref, u32 key)
 {
 	struct publication *publ;
 	struct sub_seq *sseq = nameseq_find_subseq(nseq, inst);
@@ -377,13 +381,13 @@ found:
 	info->zone_list_size--;
 
 	/* Remove publication from cluster scope list, if present */
-	if (in_own_cluster(node)) {
+	if (in_own_cluster(net, node)) {
 		list_del(&publ->cluster_list);
 		info->cluster_list_size--;
 	}
 
 	/* Remove publication from node scope list, if present */
-	if (in_own_node(node)) {
+	if (in_own_node(net, node)) {
 		list_del(&publ->node_list);
 		info->node_list_size--;
 	}
@@ -483,7 +487,7 @@ struct publication *tipc_nametbl_insert_publ(struct net *net, u32 type,
 		return NULL;
 
 	spin_lock_bh(&seq->lock);
-	publ = tipc_nameseq_insert_publ(seq, type, lower, upper,
+	publ = tipc_nameseq_insert_publ(net, seq, type, lower, upper,
 					scope, node, port, key);
 	spin_unlock_bh(&seq->lock);
 	return publ;
@@ -500,7 +504,7 @@ struct publication *tipc_nametbl_remove_publ(struct net *net, u32 type,
 		return NULL;
 
 	spin_lock_bh(&seq->lock);
-	publ = tipc_nameseq_remove_publ(seq, lower, node, ref, key);
+	publ = tipc_nameseq_remove_publ(net, seq, lower, node, ref, key);
 	if (!seq->first_free && list_empty(&seq->subscriptions)) {
 		hlist_del_init_rcu(&seq->ns_list);
 		kfree(seq->sseqs);
@@ -528,6 +532,7 @@ struct publication *tipc_nametbl_remove_publ(struct net *net, u32 type,
 u32 tipc_nametbl_translate(struct net *net, u32 type, u32 instance,
 			   u32 *destnode)
 {
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct sub_seq *sseq;
 	struct name_info *info;
 	struct publication *publ;
@@ -535,7 +540,7 @@ u32 tipc_nametbl_translate(struct net *net, u32 type, u32 instance,
 	u32 ref = 0;
 	u32 node = 0;
 
-	if (!tipc_in_scope(*destnode, tipc_own_addr))
+	if (!tipc_in_scope(*destnode, tn->own_addr))
 		return 0;
 
 	rcu_read_lock();
@@ -572,13 +577,13 @@ u32 tipc_nametbl_translate(struct net *net, u32 type, u32 instance,
 	}
 
 	/* Round-Robin Algorithm */
-	else if (*destnode == tipc_own_addr) {
+	else if (*destnode == tn->own_addr) {
 		if (list_empty(&info->node_list))
 			goto no_match;
 		publ = list_first_entry(&info->node_list, struct publication,
 					node_list);
 		list_move_tail(&publ->node_list, &info->node_list);
-	} else if (in_own_cluster_exact(*destnode)) {
+	} else if (in_own_cluster_exact(net, *destnode)) {
 		if (list_empty(&info->cluster_list))
 			goto no_match;
 		publ = list_first_entry(&info->cluster_list, struct publication,
@@ -670,7 +675,7 @@ struct publication *tipc_nametbl_publish(struct net *net, u32 type, u32 lower,
 	}
 
 	publ = tipc_nametbl_insert_publ(net, type, lower, upper, scope,
-					tipc_own_addr, port_ref, key);
+					tn->own_addr, port_ref, key);
 	if (likely(publ)) {
 		tn->nametbl->local_publ_count++;
 		buf = tipc_named_publish(net, publ);
@@ -695,11 +700,11 @@ int tipc_nametbl_withdraw(struct net *net, u32 type, u32 lower, u32 ref,
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 
 	spin_lock_bh(&tn->nametbl_lock);
-	publ = tipc_nametbl_remove_publ(net, type, lower, tipc_own_addr,
+	publ = tipc_nametbl_remove_publ(net, type, lower, tn->own_addr,
 					ref, key);
 	if (likely(publ)) {
 		tn->nametbl->local_publ_count--;
-		skb = tipc_named_withdraw(publ);
+		skb = tipc_named_withdraw(net, publ);
 		/* Any pending external events? */
 		tipc_named_process_backlog(net);
 		list_del_init(&publ->pport_list);

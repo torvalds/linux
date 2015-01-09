@@ -748,19 +748,20 @@ static inline u32 msg_tot_origport(struct tipc_msg *m)
 }
 
 struct sk_buff *tipc_buf_acquire(u32 size);
-bool tipc_msg_reverse(struct sk_buff *buf, u32 *dnode, int err);
+bool tipc_msg_reverse(struct net *net, struct sk_buff *buf, u32 *dnode,
+		      int err);
 int tipc_msg_eval(struct net *net, struct sk_buff *buf, u32 *dnode);
-void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type, u32 hsize,
-		   u32 destnode);
-struct sk_buff *tipc_msg_create(uint user, uint type, uint hdr_sz,
-				uint data_sz, u32 dnode, u32 onode,
-				u32 dport, u32 oport, int errcode);
+void tipc_msg_init(struct net *net, struct tipc_msg *m, u32 user, u32 type,
+		   u32 hsize, u32 destnode);
+struct sk_buff *tipc_msg_create(struct net *net, uint user, uint type,
+				uint hdr_sz, uint data_sz, u32 dnode,
+				u32 onode, u32 dport, u32 oport, int errcode);
 int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf);
 bool tipc_msg_bundle(struct sk_buff_head *list, struct sk_buff *skb, u32 mtu);
-bool tipc_msg_make_bundle(struct sk_buff_head *list, struct sk_buff *skb,
-			  u32 mtu, u32 dnode);
-int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m, int offset,
-		   int dsz, int mtu, struct sk_buff_head *list);
+bool tipc_msg_make_bundle(struct net *net, struct sk_buff_head *list,
+			  struct sk_buff *skb, u32 mtu, u32 dnode);
+int tipc_msg_build(struct net *net, struct tipc_msg *mhdr, struct msghdr *m,
+		   int offset, int dsz, int mtu, struct sk_buff_head *list);
 struct sk_buff *tipc_msg_reassemble(struct sk_buff_head *list);
 
 #endif

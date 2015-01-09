@@ -68,14 +68,16 @@ static void publ_to_item(struct distr_item *i, struct publication *p)
 /**
  * named_prepare_buf - allocate & initialize a publication message
  */
-static struct sk_buff *named_prepare_buf(u32 type, u32 size, u32 dest)
+static struct sk_buff *named_prepare_buf(struct net *net, u32 type, u32 size,
+					 u32 dest)
 {
 	struct sk_buff *buf = tipc_buf_acquire(INT_H_SIZE + size);
 	struct tipc_msg *msg;
 
 	if (buf != NULL) {
 		msg = buf_msg(buf);
-		tipc_msg_init(msg, NAME_DISTRIBUTOR, type, INT_H_SIZE, dest);
+		tipc_msg_init(net, msg, NAME_DISTRIBUTOR, type, INT_H_SIZE,
+			      dest);
 		msg_set_size(msg, INT_H_SIZE + size);
 	}
 	return buf;
@@ -91,7 +93,7 @@ void named_cluster_distribute(struct net *net, struct sk_buff *skb)
 	rcu_read_lock();
 	list_for_each_entry_rcu(node, &tn->node_list, list) {
 		dnode = node->addr;
-		if (in_own_node(dnode))
+		if (in_own_node(net, dnode))
 			continue;
 		if (!tipc_node_active_links(node))
 			continue;
@@ -121,7 +123,7 @@ struct sk_buff *tipc_named_publish(struct net *net, struct publication *publ)
 	if (publ->scope == TIPC_NODE_SCOPE)
 		return NULL;
 
-	buf = named_prepare_buf(PUBLICATION, ITEM_SIZE, 0);
+	buf = named_prepare_buf(net, PUBLICATION, ITEM_SIZE, 0);
 	if (!buf) {
 		pr_warn("Publication distribution failure\n");
 		return NULL;
@@ -135,7 +137,7 @@ struct sk_buff *tipc_named_publish(struct net *net, struct publication *publ)
 /**
  * tipc_named_withdraw - tell other nodes about a withdrawn publication by this node
  */
-struct sk_buff *tipc_named_withdraw(struct publication *publ)
+struct sk_buff *tipc_named_withdraw(struct net *net, struct publication *publ)
 {
 	struct sk_buff *buf;
 	struct distr_item *item;
@@ -145,7 +147,7 @@ struct sk_buff *tipc_named_withdraw(struct publication *publ)
 	if (publ->scope == TIPC_NODE_SCOPE)
 		return NULL;
 
-	buf = named_prepare_buf(WITHDRAWAL, ITEM_SIZE, 0);
+	buf = named_prepare_buf(net, WITHDRAWAL, ITEM_SIZE, 0);
 	if (!buf) {
 		pr_warn("Withdrawal distribution failure\n");
 		return NULL;
@@ -175,7 +177,8 @@ static void named_distribute(struct net *net, struct sk_buff_head *list,
 	list_for_each_entry(publ, pls, local_list) {
 		/* Prepare next buffer: */
 		if (!skb) {
-			skb = named_prepare_buf(PUBLICATION, msg_rem, dnode);
+			skb = named_prepare_buf(net, PUBLICATION, msg_rem,
+						dnode);
 			if (!skb) {
 				pr_warn("Bulk publication failure\n");
 				return;
@@ -227,7 +230,7 @@ static void tipc_publ_subscribe(struct net *net, struct publication *publ,
 {
 	struct tipc_node *node;
 
-	if (in_own_node(addr))
+	if (in_own_node(net, addr))
 		return;
 
 	node = tipc_node_find(net, addr);
@@ -416,7 +419,7 @@ void tipc_named_reinit(struct net *net)
 	for (scope = TIPC_ZONE_SCOPE; scope <= TIPC_NODE_SCOPE; scope++)
 		list_for_each_entry_rcu(publ, &tn->nametbl->publ_list[scope],
 					local_list)
-			publ->node = tipc_own_addr;
+			publ->node = tn->own_addr;
 
 	spin_unlock_bh(&tn->nametbl_lock);
 }
