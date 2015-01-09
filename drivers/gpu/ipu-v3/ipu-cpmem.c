@@ -537,6 +537,43 @@ static const struct ipu_rgb def_bgra_16 = {
 #define UV2_OFFSET(pix, x, y)	((pix->width * pix->height) +	\
 				 (pix->width * y) + (x))
 
+#define NUM_ALPHA_CHANNELS	7
+
+/* See Table 37-12. Alpha channels mapping. */
+static int ipu_channel_albm(int ch_num)
+{
+	switch (ch_num) {
+	case IPUV3_CHANNEL_G_MEM_IC_PRP_VF:	return 0;
+	case IPUV3_CHANNEL_G_MEM_IC_PP:		return 1;
+	case IPUV3_CHANNEL_MEM_FG_SYNC:		return 2;
+	case IPUV3_CHANNEL_MEM_FG_ASYNC:	return 3;
+	case IPUV3_CHANNEL_MEM_BG_SYNC:		return 4;
+	case IPUV3_CHANNEL_MEM_BG_ASYNC:	return 5;
+	case IPUV3_CHANNEL_MEM_VDI_PLANE1_COMB: return 6;
+	default:
+		return -EINVAL;
+	}
+}
+
+static void ipu_cpmem_set_separate_alpha(struct ipuv3_channel *ch)
+{
+	struct ipu_soc *ipu = ch->ipu;
+	int albm;
+	u32 val;
+
+	albm = ipu_channel_albm(ch->num);
+	if (albm < 0)
+		return;
+
+	ipu_ch_param_write_field(ch, IPU_FIELD_ALU, 1);
+	ipu_ch_param_write_field(ch, IPU_FIELD_ALBM, albm);
+	ipu_ch_param_write_field(ch, IPU_FIELD_CRE, 1);
+
+	val = ipu_idmac_read(ipu, IDMAC_SEP_ALPHA);
+	val |= BIT(ch->num);
+	ipu_idmac_write(ipu, val, IDMAC_SEP_ALPHA);
+}
+
 int ipu_cpmem_set_fmt(struct ipuv3_channel *ch, u32 drm_fourcc)
 {
 	switch (drm_fourcc) {
@@ -599,22 +636,28 @@ int ipu_cpmem_set_fmt(struct ipuv3_channel *ch, u32 drm_fourcc)
 		break;
 	case DRM_FORMAT_RGBA8888:
 	case DRM_FORMAT_RGBX8888:
+	case DRM_FORMAT_RGBX8888_A8:
 		ipu_cpmem_set_format_rgb(ch, &def_rgbx_32);
 		break;
 	case DRM_FORMAT_BGRA8888:
 	case DRM_FORMAT_BGRX8888:
+	case DRM_FORMAT_BGRX8888_A8:
 		ipu_cpmem_set_format_rgb(ch, &def_bgrx_32);
 		break;
 	case DRM_FORMAT_BGR888:
+	case DRM_FORMAT_BGR888_A8:
 		ipu_cpmem_set_format_rgb(ch, &def_bgr_24);
 		break;
 	case DRM_FORMAT_RGB888:
+	case DRM_FORMAT_RGB888_A8:
 		ipu_cpmem_set_format_rgb(ch, &def_rgb_24);
 		break;
 	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_RGB565_A8:
 		ipu_cpmem_set_format_rgb(ch, &def_rgb_16);
 		break;
 	case DRM_FORMAT_BGR565:
+	case DRM_FORMAT_BGR565_A8:
 		ipu_cpmem_set_format_rgb(ch, &def_bgr_16);
 		break;
 	case DRM_FORMAT_ARGB1555:
@@ -634,6 +677,20 @@ int ipu_cpmem_set_fmt(struct ipuv3_channel *ch, u32 drm_fourcc)
 		break;
 	default:
 		return -EINVAL;
+	}
+
+	switch (drm_fourcc) {
+	case DRM_FORMAT_RGB565_A8:
+	case DRM_FORMAT_BGR565_A8:
+	case DRM_FORMAT_RGB888_A8:
+	case DRM_FORMAT_BGR888_A8:
+	case DRM_FORMAT_RGBX8888_A8:
+	case DRM_FORMAT_BGRX8888_A8:
+		ipu_ch_param_write_field(ch, IPU_FIELD_WID3, 7);
+		ipu_cpmem_set_separate_alpha(ch);
+		break;
+	default:
+		break;
 	}
 
 	return 0;

@@ -161,6 +161,28 @@ enum ipu_channel_irq {
 #define IPUV3_CHANNEL_MEM_BG_ASYNC_ALPHA	52
 #define IPUV3_NUM_CHANNELS			64
 
+static inline int ipu_channel_alpha_channel(int ch_num)
+{
+	switch (ch_num) {
+	case IPUV3_CHANNEL_G_MEM_IC_PRP_VF:
+		return IPUV3_CHANNEL_G_MEM_IC_PRP_VF_ALPHA;
+	case IPUV3_CHANNEL_G_MEM_IC_PP:
+		return IPUV3_CHANNEL_G_MEM_IC_PP_ALPHA;
+	case IPUV3_CHANNEL_MEM_FG_SYNC:
+		return IPUV3_CHANNEL_MEM_FG_SYNC_ALPHA;
+	case IPUV3_CHANNEL_MEM_FG_ASYNC:
+		return IPUV3_CHANNEL_MEM_FG_ASYNC_ALPHA;
+	case IPUV3_CHANNEL_MEM_BG_SYNC:
+		return IPUV3_CHANNEL_MEM_BG_SYNC_ALPHA;
+	case IPUV3_CHANNEL_MEM_BG_ASYNC:
+		return IPUV3_CHANNEL_MEM_BG_ASYNC_ALPHA;
+	case IPUV3_CHANNEL_MEM_VDI_PLANE1_COMB:
+		return IPUV3_CHANNEL_MEM_VDI_PLANE1_COMB_ALPHA;
+	default:
+		return -EINVAL;
+	}
+}
+
 int ipu_map_irq(struct ipu_soc *ipu, int irq);
 int ipu_idmac_channel_irq(struct ipu_soc *ipu, struct ipuv3_channel *channel,
 		enum ipu_channel_irq irq);
