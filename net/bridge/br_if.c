@@ -424,6 +424,7 @@ netdev_features_t br_features_recompute(struct net_bridge *br,
 		features = netdev_increment_features(features,
 						     p->dev->features, mask);
 	}
+	features = netdev_add_tso_features(features, mask);
 
 	return features;
 }
