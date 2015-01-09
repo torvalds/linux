@@ -230,6 +230,7 @@ static void s3c_hsotg_init_fifo(struct dwc2_hsotg *hsotg)
 			dev_err(hsotg->dev,
 				"%s: timeout flushing fifos (GRSTCTL=%08x)\n",
 				__func__, val);
+			break;
 		}
 
 		udelay(1);
