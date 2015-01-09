@@ -193,6 +193,13 @@ enum dwc2_lx_state {
 	DWC2_L3,	/* Off state */
 };
 
+/*
+ * Gadget periodic tx fifo sizes as used by legacy driver
+ * EP0 is not included
+ */
+#define DWC2_G_P_LEGACY_TX_FIFO_SIZE {256, 256, 256, 256, 768, 768, 768, \
+					   768, 0, 0, 0, 0, 0, 0, 0}
+
 /**
  * struct dwc2_core_params - Parameters for configuring the core
  *
@@ -564,6 +571,9 @@ struct dwc2_hw_params {
  * @last_rst:           Time of last reset
  * @eps:                The endpoints being supplied to the gadget framework
  * @g_using_dma:          Indicate if dma usage is enabled
+ * @g_rx_fifo_sz:         Contains rx fifo size value
+ * @g_np_g_tx_fifo_sz:      Contains Non-Periodic tx fifo size value
+ * @g_tx_fifo_sz:         Contains tx fifo size value per endpoints
  */
 struct dwc2_hsotg {
 	struct device *dev;
@@ -699,6 +709,9 @@ struct dwc2_hsotg {
 	struct s3c_hsotg_ep *eps_in[MAX_EPS_CHANNELS];
 	struct s3c_hsotg_ep *eps_out[MAX_EPS_CHANNELS];
 	u32 g_using_dma;
+	u32 g_rx_fifo_sz;
+	u32 g_np_g_tx_fifo_sz;
+	u32 g_tx_fifo_sz[MAX_EPS_CHANNELS];
 #endif /* CONFIG_USB_DWC2_PERIPHERAL || CONFIG_USB_DWC2_DUAL_ROLE */
 };
 
