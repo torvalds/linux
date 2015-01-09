@@ -5444,16 +5444,6 @@ static void e1000_tx_queue(struct e1000_ring *tx_ring, int tx_flags, int count)
 	wmb();
 
 	tx_ring->next_to_use = i;
-
-	if (adapter->flags2 & FLAG2_PCIM2PCI_ARBITER_WA)
-		e1000e_update_tdt_wa(tx_ring, i);
-	else
-		writel(i, tx_ring->tail);
-
-	/* we need this if more than one processor can write to our tail
-	 * at a time, it synchronizes IO on IA64/Altix systems
-	 */
-	mmiowb();
 }
 
 #define MINIMUM_DHCP_PACKET_SIZE 282
@@ -5655,6 +5645,21 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 				    (MAX_SKB_FRAGS *
 				     DIV_ROUND_UP(PAGE_SIZE,
 						  adapter->tx_fifo_limit) + 2));
+
+		if (!skb->xmit_more ||
+		    netif_xmit_stopped(netdev_get_tx_queue(netdev, 0))) {
+			if (adapter->flags2 & FLAG2_PCIM2PCI_ARBITER_WA)
+				e1000e_update_tdt_wa(tx_ring,
+						     tx_ring->next_to_use);
+			else
+				writel(tx_ring->next_to_use, tx_ring->tail);
+
+			/* we need this if more than one processor can write
+			 * to our tail at a time, it synchronizes IO on
+			 *IA64/Altix systems
+			 */
+			mmiowb();
+		}
 	} else {
 		dev_kfree_skb_any(skb);
 		tx_ring->buffer_info[first].time_stamp = 0;
