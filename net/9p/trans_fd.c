@@ -734,6 +734,7 @@ static int parse_opts(char *params, struct p9_fd_opts *opts)
 	opts->port = P9_PORT;
 	opts->rfd = ~0;
 	opts->wfd = ~0;
+	opts->privport = 0;
 
 	if (!params)
 		return 0;
