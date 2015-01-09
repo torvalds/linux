@@ -3018,6 +3018,7 @@ static int s3c_hsotg_pullup(struct usb_gadget *gadget, int is_on)
 		s3c_hsotg_core_connect(hsotg);
 	} else {
 		s3c_hsotg_core_disconnect(hsotg);
+		s3c_hsotg_disconnect(hsotg);
 		hsotg->enabled = 0;
 		clk_disable(hsotg->clk);
 	}
