@@ -3416,8 +3416,8 @@ int cxgb4_create_server(const struct net_device *dev, unsigned int stid,
 	req->peer_ip = htonl(0);
 	chan = rxq_to_chan(&adap->sge, queue);
 	req->opt0 = cpu_to_be64(TX_CHAN_V(chan));
-	req->opt1 = cpu_to_be64(CONN_POLICY_ASK |
-				SYN_RSS_ENABLE | SYN_RSS_QUEUE(queue));
+	req->opt1 = cpu_to_be64(CONN_POLICY_V(CPL_CONN_POLICY_ASK) |
+				SYN_RSS_ENABLE_F | SYN_RSS_QUEUE_V(queue));
 	ret = t4_mgmt_tx(adap, skb);
 	return net_xmit_eval(ret);
 }
@@ -3459,8 +3459,8 @@ int cxgb4_create_server6(const struct net_device *dev, unsigned int stid,
 	req->peer_ip_lo = cpu_to_be64(0);
 	chan = rxq_to_chan(&adap->sge, queue);
 	req->opt0 = cpu_to_be64(TX_CHAN_V(chan));
-	req->opt1 = cpu_to_be64(CONN_POLICY_ASK |
-				SYN_RSS_ENABLE | SYN_RSS_QUEUE(queue));
+	req->opt1 = cpu_to_be64(CONN_POLICY_V(CPL_CONN_POLICY_ASK) |
+				SYN_RSS_ENABLE_F | SYN_RSS_QUEUE_V(queue));
 	ret = t4_mgmt_tx(adap, skb);
 	return net_xmit_eval(ret);
 }

@@ -151,7 +151,7 @@ static int write_l2e(struct adapter *adap, struct l2t_entry *e, int sync)
 
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_L2T_WRITE_REQ,
 					e->idx | (sync ? F_SYNC_WR : 0) |
-					TID_QID(adap->sge.fw_evtq.abs_id)));
+					TID_QID_V(adap->sge.fw_evtq.abs_id)));
 	req->params = htons(L2T_W_PORT(e->lport) | L2T_W_NOREPLY(!sync));
 	req->l2t_idx = htons(e->idx);
 	req->vlan = htons(e->vlan);

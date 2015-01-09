@@ -124,6 +124,13 @@ enum CPL_error {
 };
 
 enum {
+	CPL_CONN_POLICY_AUTO = 0,
+	CPL_CONN_POLICY_ASK  = 1,
+	CPL_CONN_POLICY_FILTER = 2,
+	CPL_CONN_POLICY_DENY = 3
+};
+
+enum {
 	ULP_MODE_NONE          = 0,
 	ULP_MODE_ISCSI         = 2,
 	ULP_MODE_RDMA          = 4,
@@ -160,16 +167,28 @@ union opcode_tid {
 	u8 opcode;
 };
 
-#define CPL_OPCODE(x) ((x) << 24)
-#define G_CPL_OPCODE(x) (((x) >> 24) & 0xFF)
-#define MK_OPCODE_TID(opcode, tid) (CPL_OPCODE(opcode) | (tid))
+#define CPL_OPCODE_S    24
+#define CPL_OPCODE_V(x) ((x) << CPL_OPCODE_S)
+#define CPL_OPCODE_G(x) (((x) >> CPL_OPCODE_S) & 0xFF)
+#define TID_G(x)    ((x) & 0xFFFFFF)
+
+/* tid is assumed to be 24-bits */
+#define MK_OPCODE_TID(opcode, tid) (CPL_OPCODE_V(opcode) | (tid))
+
 #define OPCODE_TID(cmd) ((cmd)->ot.opcode_tid)
-#define GET_TID(cmd) (ntohl(OPCODE_TID(cmd)) & 0xFFFFFF)
+
+/* extract the TID from a CPL command */
+#define GET_TID(cmd) (TID_G(be32_to_cpu(OPCODE_TID(cmd))))
 
 /* partitioning of TID fields that also carry a queue id */
-#define GET_TID_TID(x) ((x) & 0x3fff)
-#define GET_TID_QID(x) (((x) >> 14) & 0x3ff)
-#define TID_QID(x)     ((x) << 14)
+#define TID_TID_S    0
+#define TID_TID_M    0x3fff
+#define TID_TID_G(x) (((x) >> TID_TID_S) & TID_TID_M)
+
+#define TID_QID_S    14
+#define TID_QID_M    0x3ff
+#define TID_QID_V(x) ((x) << TID_QID_S)
+#define TID_QID_G(x) (((x) >> TID_QID_S) & TID_QID_M)
 
 struct rss_header {
 	u8 opcode;
@@ -199,8 +218,8 @@ struct work_request_hdr {
 };
 
 /* wr_hi fields */
-#define S_WR_OP    24
-#define V_WR_OP(x) ((__u64)(x) << S_WR_OP)
+#define WR_OP_S    24
+#define WR_OP_V(x) ((__u64)(x) << WR_OP_S)
 
 #define WR_HDR struct work_request_hdr wr
 
@@ -270,16 +289,41 @@ struct cpl_pass_open_req {
 	__be32 local_ip;
 	__be32 peer_ip;
 	__be64 opt0;
-#define NO_CONG(x)    ((x) << 4)
-#define DELACK(x)     ((x) << 5)
-#define DSCP(x)       ((x) << 22)
-#define TCAM_BYPASS(x) ((u64)(x) << 48)
-#define NAGLE(x)      ((u64)(x) << 49)
 	__be64 opt1;
-#define SYN_RSS_ENABLE   (1 << 0)
-#define SYN_RSS_QUEUE(x) ((x) << 2)
-#define CONN_POLICY_ASK  (1 << 22)
 };
+
+/* option 0 fields */
+#define NO_CONG_S    4
+#define NO_CONG_V(x) ((x) << NO_CONG_S)
+#define NO_CONG_F    NO_CONG_V(1U)
+
+#define DELACK_S    5
+#define DELACK_V(x) ((x) << DELACK_S)
+#define DELACK_F    DELACK_V(1U)
+
+#define DSCP_S    22
+#define DSCP_M    0x3F
+#define DSCP_V(x) ((x) << DSCP_S)
+#define DSCP_G(x) (((x) >> DSCP_S) & DSCP_M)
+
+#define TCAM_BYPASS_S    48
+#define TCAM_BYPASS_V(x) ((__u64)(x) << TCAM_BYPASS_S)
+#define TCAM_BYPASS_F    TCAM_BYPASS_V(1ULL)
+
+#define NAGLE_S    49
+#define NAGLE_V(x) ((__u64)(x) << NAGLE_S)
+#define NAGLE_F    NAGLE_V(1ULL)
+
+/* option 1 fields */
+#define SYN_RSS_ENABLE_S    0
+#define SYN_RSS_ENABLE_V(x) ((x) << SYN_RSS_ENABLE_S)
+#define SYN_RSS_ENABLE_F    SYN_RSS_ENABLE_V(1U)
+
+#define SYN_RSS_QUEUE_S    2
+#define SYN_RSS_QUEUE_V(x) ((x) << SYN_RSS_QUEUE_S)
+
+#define CONN_POLICY_S    22
+#define CONN_POLICY_V(x) ((x) << CONN_POLICY_S)
 
 struct cpl_pass_open_req6 {
 	WR_HDR;
@@ -304,15 +348,36 @@ struct cpl_pass_accept_rpl {
 	WR_HDR;
 	union opcode_tid ot;
 	__be32 opt2;
-#define RX_COALESCE_VALID(x) ((x) << 11)
-#define RX_COALESCE(x)       ((x) << 12)
-#define PACE(x)	      ((x) << 16)
-#define TX_QUEUE(x)          ((x) << 23)
-#define CCTRL_ECN(x)         ((x) << 27)
-#define TSTAMPS_EN(x)        ((x) << 29)
-#define SACK_EN(x)           ((x) << 30)
 	__be64 opt0;
 };
+
+/* option 2 fields */
+#define RX_COALESCE_VALID_S    11
+#define RX_COALESCE_VALID_V(x) ((x) << RX_COALESCE_VALID_S)
+#define RX_COALESCE_VALID_F    RX_COALESCE_VALID_V(1U)
+
+#define RX_COALESCE_S    12
+#define RX_COALESCE_V(x) ((x) << RX_COALESCE_S)
+
+#define PACE_S    16
+#define PACE_V(x) ((x) << PACE_S)
+
+#define TX_QUEUE_S    23
+#define TX_QUEUE_M    0x7
+#define TX_QUEUE_V(x) ((x) << TX_QUEUE_S)
+#define TX_QUEUE_G(x) (((x) >> TX_QUEUE_S) & TX_QUEUE_M)
+
+#define CCTRL_ECN_S    27
+#define CCTRL_ECN_V(x) ((x) << CCTRL_ECN_S)
+#define CCTRL_ECN_F    CCTRL_ECN_V(1U)
+
+#define TSTAMPS_EN_S    29
+#define TSTAMPS_EN_V(x) ((x) << TSTAMPS_EN_S)
+#define TSTAMPS_EN_F    TSTAMPS_EN_V(1U)
+
+#define SACK_EN_S    30
+#define SACK_EN_V(x) ((x) << SACK_EN_S)
+#define SACK_EN_F    SACK_EN_V(1U)
 
 struct cpl_t5_pass_accept_rpl {
 	WR_HDR;
@@ -384,29 +449,60 @@ struct cpl_t5_act_open_req6 {
 struct cpl_act_open_rpl {
 	union opcode_tid ot;
 	__be32 atid_status;
-#define GET_AOPEN_STATUS(x) ((x) & 0xff)
-#define GET_AOPEN_ATID(x)   (((x) >> 8) & 0xffffff)
 };
+
+/* cpl_act_open_rpl.atid_status fields */
+#define AOPEN_STATUS_S    0
+#define AOPEN_STATUS_M    0xFF
+#define AOPEN_STATUS_G(x) (((x) >> AOPEN_STATUS_S) & AOPEN_STATUS_M)
+
+#define AOPEN_ATID_S    8
+#define AOPEN_ATID_M    0xFFFFFF
+#define AOPEN_ATID_G(x) (((x) >> AOPEN_ATID_S) & AOPEN_ATID_M)
 
 struct cpl_pass_establish {
 	union opcode_tid ot;
 	__be32 rsvd;
 	__be32 tos_stid;
-#define PASS_OPEN_TID(x) ((x) << 0)
-#define PASS_OPEN_TOS(x) ((x) << 24)
-#define GET_PASS_OPEN_TID(x)	(((x) >> 0) & 0xFFFFFF)
-#define GET_POPEN_TID(x) ((x) & 0xffffff)
-#define GET_POPEN_TOS(x) (((x) >> 24) & 0xff)
 	__be16 mac_idx;
 	__be16 tcp_opt;
-#define GET_TCPOPT_WSCALE_OK(x)  (((x) >> 5) & 1)
-#define GET_TCPOPT_SACK(x)       (((x) >> 6) & 1)
-#define GET_TCPOPT_TSTAMP(x)     (((x) >> 7) & 1)
-#define GET_TCPOPT_SND_WSCALE(x) (((x) >> 8) & 0xf)
-#define GET_TCPOPT_MSS(x)        (((x) >> 12) & 0xf)
 	__be32 snd_isn;
 	__be32 rcv_isn;
 };
+
+/* cpl_pass_establish.tos_stid fields */
+#define PASS_OPEN_TID_S    0
+#define PASS_OPEN_TID_M    0xFFFFFF
+#define PASS_OPEN_TID_V(x) ((x) << PASS_OPEN_TID_S)
+#define PASS_OPEN_TID_G(x) (((x) >> PASS_OPEN_TID_S) & PASS_OPEN_TID_M)
+
+#define PASS_OPEN_TOS_S    24
+#define PASS_OPEN_TOS_M    0xFF
+#define PASS_OPEN_TOS_V(x) ((x) << PASS_OPEN_TOS_S)
+#define PASS_OPEN_TOS_G(x) (((x) >> PASS_OPEN_TOS_S) & PASS_OPEN_TOS_M)
+
+/* cpl_pass_establish.tcp_opt fields (also applies to act_open_establish) */
+#define TCPOPT_WSCALE_OK_S	5
+#define TCPOPT_WSCALE_OK_M	0x1
+#define TCPOPT_WSCALE_OK_G(x)	\
+	(((x) >> TCPOPT_WSCALE_OK_S) & TCPOPT_WSCALE_OK_M)
+
+#define TCPOPT_SACK_S		6
+#define TCPOPT_SACK_M		0x1
+#define TCPOPT_SACK_G(x)	(((x) >> TCPOPT_SACK_S) & TCPOPT_SACK_M)
+
+#define TCPOPT_TSTAMP_S		7
+#define TCPOPT_TSTAMP_M		0x1
+#define TCPOPT_TSTAMP_G(x)	(((x) >> TCPOPT_TSTAMP_S) & TCPOPT_TSTAMP_M)
+
+#define TCPOPT_SND_WSCALE_S	8
+#define TCPOPT_SND_WSCALE_M	0xF
+#define TCPOPT_SND_WSCALE_G(x)	\
+	(((x) >> TCPOPT_SND_WSCALE_S) & TCPOPT_SND_WSCALE_M)
+
+#define TCPOPT_MSS_S	12
+#define TCPOPT_MSS_M	0xF
+#define TCPOPT_MSS_G(x)	(((x) >> TCPOPT_MSS_S) & TCPOPT_MSS_M)
 
 struct cpl_act_establish {
 	union opcode_tid ot;
