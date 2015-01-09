@@ -2827,8 +2827,8 @@ static void s3c_hsotg_init(struct dwc2_hsotg *hsotg)
 	writel(GUSBCFG_PHYIF16 | GUSBCFG_TOUTCAL(7) | (0x5 << 10),
 	       hsotg->regs + GUSBCFG);
 
-	writel(using_dma(hsotg) ? GAHBCFG_DMA_EN : 0x0,
-	       hsotg->regs + GAHBCFG);
+	if (using_dma(hsotg))
+		__orr32(hsotg->regs + GAHBCFG, GAHBCFG_DMA_EN);
 }
 
 /**
