@@ -95,6 +95,30 @@ u32 rk3368_get_hard_ware_vskiplines(u32 srch, u32 dsth)
 	return vscalednmult;
 }
 
+
+static int rk3368_set_cabc_lut(struct rk_lcdc_driver *dev_drv, int *cabc_lut)
+{
+	int i;
+	int __iomem *c;
+	u32 v;
+	struct lcdc_device *lcdc_dev =
+	    container_of(dev_drv, struct lcdc_device, driver);
+
+	lcdc_msk_reg(lcdc_dev, CABC_CTRL1, m_CABC_LUT_EN,
+		     v_CABC_LUT_EN(0));
+	lcdc_cfg_done(lcdc_dev);
+	mdelay(25);
+	for (i = 0; i < 256; i++) {
+		v = cabc_lut[i];
+		c = lcdc_dev->cabc_lut_addr_base + i;
+		writel_relaxed(v, c);
+	}
+	lcdc_msk_reg(lcdc_dev, CABC_CTRL1, m_CABC_LUT_EN,
+		     v_CABC_LUT_EN(1));
+	return 0;
+}
+
+
 static int rk3368_lcdc_set_lut(struct rk_lcdc_driver *dev_drv, int *dsp_lut)
 {
 	int i;
@@ -102,7 +126,9 @@ static int rk3368_lcdc_set_lut(struct rk_lcdc_driver *dev_drv, int *dsp_lut)
 	u32 v;
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
-	lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_LUT_EN, v_DSP_LUT_EN(0));
+
+	lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_LUT_EN,
+		     v_DSP_LUT_EN(0));
 	lcdc_cfg_done(lcdc_dev);
 	mdelay(25);
 	for (i = 0; i < 256; i++) {
@@ -110,7 +136,8 @@ static int rk3368_lcdc_set_lut(struct rk_lcdc_driver *dev_drv, int *dsp_lut)
 		c = lcdc_dev->dsp_lut_addr_base + i;
 		writel_relaxed(v, c);
 	}
-	lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_LUT_EN, v_DSP_LUT_EN(1));
+	lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_LUT_EN,
+		     v_DSP_LUT_EN(1));
 
 	return 0;
 }
@@ -427,6 +454,7 @@ static int rk3368_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 
 	mask = m_AUTO_GATING_EN;
 	val = v_AUTO_GATING_EN(0);
+	lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
 	lcdc_cfg_done(lcdc_dev);
 	/*disable win0 to workaround iommu pagefault */
 	/*if (dev_drv->iommu_enabled) */
@@ -1875,6 +1903,13 @@ static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 		else
 			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_LUT_EN,
 				     v_DSP_LUT_EN(1));
+		if (screen->cabc_lut == NULL) {
+			lcdc_msk_reg(lcdc_dev, CABC_CTRL0, m_CABC_EN,
+				     v_CABC_EN(0));
+		} else {
+			lcdc_msk_reg(lcdc_dev, CABC_CTRL1, m_CABC_LUT_EN,
+				     v_CABC_LUT_EN(1));
+		}
 		rk3368_lcdc_bcsh_path_sel(dev_drv);
 		rk3368_config_timing(dev_drv);
 	}
@@ -2006,6 +2041,9 @@ static int rk3368_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 		if (dev_drv->cur_screen->dsp_lut)
 			rk3368_lcdc_set_lut(dev_drv,
 					    dev_drv->cur_screen->dsp_lut);
+		if (dev_drv->cur_screen->cabc_lut)
+			rk3368_set_cabc_lut(dev_drv,
+					    dev_drv->cur_screen->cabc_lut);
 		spin_unlock(&lcdc_dev->reg_lock);
 	}
 
@@ -3028,6 +3066,9 @@ static int rk3368_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 		if (dev_drv->cur_screen->dsp_lut)
 			rk3368_lcdc_set_lut(dev_drv,
 					    dev_drv->cur_screen->dsp_lut);
+		if (dev_drv->cur_screen->cabc_lut)
+			rk3368_set_cabc_lut(dev_drv,
+					    dev_drv->cur_screen->cabc_lut);
 
 		lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_DSP_OUT_ZERO,
 			     v_DSP_OUT_ZERO(0));
@@ -3825,11 +3866,11 @@ static int rk3368_lcdc_get_dsp_addr(struct rk_lcdc_driver *dev_drv,
 }
 
 static struct lcdc_cabc_mode cabc_mode[4] = {
-	/* pixel_num,8 stage_up, stage_down */
-	{5, 282, 171, 300},	/*mode 1 */
-	{10, 282, 171, 300},	/*mode 2 */
-	{15, 282, 171, 300},	/*mode 3 */
-	{20, 282, 171, 300},	/*mode 4 */
+      /* calc,     up,     down,   global_limit   */
+	{5,    256,  256,   256},  /*mode 1   0*/
+	{5,    258,  253,   277},  /*mode 2   15%*/
+	{5,    259,  252,   330},  /*mode 3   40%*/
+	{5,    267,  244,   400},  /*mode 4   60%*/
 };
 
 static int rk3368_lcdc_set_dsp_cabc(struct rk_lcdc_driver *dev_drv, int mode)
@@ -3839,8 +3880,16 @@ static int rk3368_lcdc_set_dsp_cabc(struct rk_lcdc_driver *dev_drv, int mode)
 	struct rk_screen *screen = dev_drv->cur_screen;
 	u32 total_pixel, calc_pixel, stage_up, stage_down;
 	u32 pixel_num, global_su;
-	u32 stage_up_rec, stage_down_rec, global_su_rec;
+	u32 stage_up_rec, stage_down_rec, global_su_rec, gamma_global_su_rec;
 	u32 mask = 0, val = 0, cabc_en = 0;
+	int *cabc_lut = NULL;
+
+	if (!screen->cabc_lut) {
+		pr_err("screen cabc lut not config, so not open cabc\n");
+		return 0;
+	} else {
+		cabc_lut = screen->cabc_lut;
+	}
 
 	dev_drv->cabc_mode = mode;
 	cabc_en = (mode > 0) ? 1 : 0;
@@ -3865,7 +3914,8 @@ static int rk3368_lcdc_set_dsp_cabc(struct rk_lcdc_driver *dev_drv, int mode)
 
 	stage_up_rec = 256 * 256 / stage_up;
 	stage_down_rec = 256 * 256 / stage_down;
-	global_su_rec = 256 * 256 / global_su;
+	global_su_rec = (256 * 256 / global_su) - 1;
+	gamma_global_su_rec = cabc_lut[global_su_rec];
 
 	spin_lock(&lcdc_dev->reg_lock);
 	if (lcdc_dev->clk_on) {
@@ -3875,7 +3925,7 @@ static int rk3368_lcdc_set_dsp_cabc(struct rk_lcdc_driver *dev_drv, int mode)
 		lcdc_msk_reg(lcdc_dev, CABC_CTRL0, mask, val);
 
 		mask = m_CABC_TOTAL_PIXEL_NUM | m_CABC_LUT_EN;
-		val = v_CABC_TOTAL_PIXEL_NUM(total_pixel) | v_CABC_LUT_EN(0);
+		val = v_CABC_TOTAL_PIXEL_NUM(total_pixel) | v_CABC_LUT_EN(1);
 		lcdc_msk_reg(lcdc_dev, CABC_CTRL1, mask, val);
 
 		mask = m_CABC_STAGE_UP | m_CABC_STAGE_UP_REC |
@@ -3883,7 +3933,7 @@ static int rk3368_lcdc_set_dsp_cabc(struct rk_lcdc_driver *dev_drv, int mode)
 		val = v_CABC_STAGE_UP(stage_up) |
 		    v_CABC_STAGE_UP_REC(stage_up_rec) |
 		    v_CABC_GLOBAL_SU_LIMIT_EN(1) |
-		    v_CABC_GLOBAL_SU_REC(global_su_rec);
+		    v_CABC_GLOBAL_SU_REC(gamma_global_su_rec);
 		lcdc_msk_reg(lcdc_dev, CABC_CTRL2, mask, val);
 
 		mask = m_CABC_STAGE_DOWN | m_CABC_STAGE_DOWN_REC |
@@ -4161,6 +4211,7 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.fb_get_win_id = rk3368_lcdc_get_win_id,
 	.fb_win_remap = rk3368_fb_win_remap,
 	.set_dsp_lut = rk3368_lcdc_set_lut,
+	.set_cabc_lut = rk3368_set_cabc_lut,
 	.poll_vblank = rk3368_lcdc_poll_vblank,
 	.dpi_open = rk3368_lcdc_dpi_open,
 	.dpi_win_sel = rk3368_lcdc_dpi_win_sel,
@@ -4392,6 +4443,7 @@ static int rk3368_lcdc_probe(struct platform_device *pdev)
 	if (IS_ERR(lcdc_dev->regsbak))
 		return PTR_ERR(lcdc_dev->regsbak);
 	lcdc_dev->dsp_lut_addr_base = (lcdc_dev->regs + GAMMA_LUT_ADDR);
+	lcdc_dev->cabc_lut_addr_base = (lcdc_dev->regs + CABC_GAMMA_LUT_ADDR);
 	lcdc_dev->grf_base =
 		syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
 	if (IS_ERR(lcdc_dev->grf_base)) {

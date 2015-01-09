@@ -493,6 +493,50 @@ static ssize_t set_hwc_lut(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
+static ssize_t show_cabc_lut(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	return 0;
+}
+
+static ssize_t set_cabc_lut(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	int cabc_lut[256];
+	const char *start = buf;
+	int i = 256, temp;
+	int space_max = 10;
+
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct rk_fb_par *fb_par = (struct rk_fb_par *)fbi->par;
+	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
+
+	for (i = 0; i < 256; i++) {
+		temp = i;
+		/*init by default value*/
+		cabc_lut[i] = temp + (temp << 8) + (temp << 16);
+	}
+	for (i = 0; i < 256; i++) {
+		space_max = 10;	/*max space number 10*/
+		temp = simple_strtoul(start, NULL, 10);
+		cabc_lut[i] = temp;
+		do {
+			start++;
+			space_max--;
+		} while ((*start != ' ') && space_max);
+
+		if (!space_max)
+			break;
+		else
+			start++;
+	}
+	if (dev_drv->ops->set_cabc_lut)
+		dev_drv->ops->set_cabc_lut(dev_drv, cabc_lut);
+
+	return count;
+}
+
+
 static ssize_t show_dsp_lut(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
@@ -773,6 +817,7 @@ static struct device_attribute rkfb_attrs[] = {
 	__ATTR(fps, S_IRUGO | S_IWUSR, show_fps, set_fps),
 	__ATTR(map, S_IRUGO | S_IWUSR, show_fb_win_map, set_fb_win_map),
 	__ATTR(dsp_lut, S_IRUGO | S_IWUSR, show_dsp_lut, set_dsp_lut),
+	__ATTR(cabc_lut, S_IRUGO | S_IWUSR, show_cabc_lut, set_cabc_lut),
 	__ATTR(hwc_lut, S_IRUGO | S_IWUSR, show_hwc_lut, set_hwc_lut),
 	__ATTR(cabc, S_IRUGO | S_IWUSR, show_dsp_cabc, set_dsp_cabc),
 	__ATTR(bcsh, S_IRUGO | S_IWUSR, show_dsp_bcsh, set_dsp_bcsh),

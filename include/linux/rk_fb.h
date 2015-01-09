@@ -445,6 +445,7 @@ struct rk_lcdc_drv_ops {
 	int (*fb_win_remap) (struct rk_lcdc_driver *dev_drv,
 			     u16 fb_win_map_order);
 	int (*set_dsp_lut) (struct rk_lcdc_driver *dev_drv, int *lut);
+	int (*set_cabc_lut)(struct rk_lcdc_driver *dev_drv, int *lut);
 	int (*set_hwc_lut) (struct rk_lcdc_driver *dev_drv, int *hwc_lut, int mode);
 	int (*read_dsp_lut) (struct rk_lcdc_driver *dev_drv, int *lut);
 	int (*lcdc_hdmi_process) (struct rk_lcdc_driver *dev_drv, int mode);	/*some lcdc need to some process in hdmi mode*/

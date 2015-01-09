@@ -1217,6 +1217,7 @@
 #define v_BL_EN(x)				(((x)&1)<<8)
 #define v_CLK_SEL(x)				(((x)&1)<<9)
 #define v_PRESCALE(x)				(((x)&7)<<12)
+#define v_CABC_PWM_OUT_POL(x)			(((x)&1)<<15)
 #define v_SCALE(x)				(((x)&0xff)<<16)
 #define v_RPT(x)				(((x)&0xff)<<24)
 
@@ -1228,6 +1229,8 @@
 #define m_OUTPUT_MODE				(1<<5)
 #define m_BL_EN					(1<<8)
 #define m_CLK_SEL				(1<<9)
+#define m_CABC_PWM_OUT_POL			(1<<15)
+
 #define m_PRESCALE				(7<<12)
 #define m_SCALE					(0xff<<16)
 #define m_RPT					((u32)0xff<<24)
@@ -1746,6 +1749,7 @@ struct lcdc_device {
 	spinlock_t reg_lock;
 
 	int __iomem *dsp_lut_addr_base;
+	int __iomem *cabc_lut_addr_base;
 
 
 	int prop;		/*used for primary or extended display device*/
