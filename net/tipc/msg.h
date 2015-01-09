@@ -77,11 +77,9 @@
 
 #define TIPC_MEDIA_ADDR_OFFSET	5
 
-
 struct tipc_msg {
 	__be32 hdr[15];
 };
-
 
 static inline u32 msg_word(struct tipc_msg *m, u32 pos)
 {

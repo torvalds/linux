@@ -38,10 +38,14 @@
 #include "link.h"
 #include "discover.h"
 
-#define TIPC_LINK_REQ_INIT	125	/* min delay during bearer start up */
-#define TIPC_LINK_REQ_FAST	1000	/* max delay if bearer has no links */
-#define TIPC_LINK_REQ_SLOW	60000	/* max delay if bearer has links */
-#define TIPC_LINK_REQ_INACTIVE	0xffffffff /* indicates no timer in use */
+/* min delay during bearer start up */
+#define TIPC_LINK_REQ_INIT	msecs_to_jiffies(125)
+/* max delay if bearer has no links */
+#define TIPC_LINK_REQ_FAST	msecs_to_jiffies(1000)
+/* max delay if bearer has links */
+#define TIPC_LINK_REQ_SLOW	msecs_to_jiffies(60000)
+/* indicates no timer in use */
+#define TIPC_LINK_REQ_INACTIVE	0xffffffff
 
 
 /**
@@ -63,7 +67,7 @@ struct tipc_link_req {
 	spinlock_t lock;
 	struct sk_buff *buf;
 	struct timer_list timer;
-	unsigned int timer_intv;
+	unsigned long timer_intv;
 };
 
 /**
@@ -265,7 +269,7 @@ static void disc_update(struct tipc_link_req *req)
 		if ((req->timer_intv == TIPC_LINK_REQ_INACTIVE) ||
 		    (req->timer_intv > TIPC_LINK_REQ_FAST)) {
 			req->timer_intv = TIPC_LINK_REQ_INIT;
-			k_start_timer(&req->timer, req->timer_intv);
+			mod_timer(&req->timer, jiffies + req->timer_intv);
 		}
 	}
 }
@@ -295,12 +299,13 @@ void tipc_disc_remove_dest(struct tipc_link_req *req)
 
 /**
  * disc_timeout - send a periodic link setup request
- * @req: ptr to link request structure
+ * @data: ptr to link request structure
  *
  * Called whenever a link setup request timer associated with a bearer expires.
  */
-static void disc_timeout(struct tipc_link_req *req)
+static void disc_timeout(unsigned long data)
 {
+	struct tipc_link_req *req = (struct tipc_link_req *)data;
 	int max_delay;
 
 	spin_lock_bh(&req->lock);
@@ -329,7 +334,7 @@ static void disc_timeout(struct tipc_link_req *req)
 	if (req->timer_intv > max_delay)
 		req->timer_intv = max_delay;
 
-	k_start_timer(&req->timer, req->timer_intv);
+	mod_timer(&req->timer, jiffies + req->timer_intv);
 exit:
 	spin_unlock_bh(&req->lock);
 }
@@ -363,8 +368,8 @@ int tipc_disc_create(struct tipc_bearer *b_ptr, struct tipc_media_addr *dest)
 	req->num_nodes = 0;
 	req->timer_intv = TIPC_LINK_REQ_INIT;
 	spin_lock_init(&req->lock);
-	k_init_timer(&req->timer, (Handler)disc_timeout, (unsigned long)req);
-	k_start_timer(&req->timer, req->timer_intv);
+	setup_timer(&req->timer, disc_timeout, (unsigned long)req);
+	mod_timer(&req->timer, jiffies + req->timer_intv);
 	b_ptr->link_req = req;
 	tipc_bearer_send(req->bearer_id, req->buf, &req->dest);
 	return 0;
@@ -376,8 +381,7 @@ int tipc_disc_create(struct tipc_bearer *b_ptr, struct tipc_media_addr *dest)
  */
 void tipc_disc_delete(struct tipc_link_req *req)
 {
-	k_cancel_timer(&req->timer);
-	k_term_timer(&req->timer);
+	del_timer_sync(&req->timer);
 	kfree_skb(req->buf);
 	kfree(req);
 }
@@ -397,7 +401,7 @@ void tipc_disc_reset(struct tipc_bearer *b_ptr)
 	req->domain = b_ptr->domain;
 	req->num_nodes = 0;
 	req->timer_intv = TIPC_LINK_REQ_INIT;
-	k_start_timer(&req->timer, req->timer_intv);
+	mod_timer(&req->timer, jiffies + req->timer_intv);
 	tipc_bearer_send(req->bearer_id, req->buf, &req->dest);
 	spin_unlock_bh(&req->lock);
 }

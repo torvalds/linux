@@ -106,7 +106,7 @@ static void link_handle_out_of_seq_msg(struct tipc_link *l_ptr,
 static void tipc_link_proto_rcv(struct tipc_link *l_ptr, struct sk_buff *buf);
 static int  tipc_link_tunnel_rcv(struct tipc_node *n_ptr,
 				 struct sk_buff **buf);
-static void link_set_supervision_props(struct tipc_link *l_ptr, u32 tolerance);
+static void link_set_supervision_props(struct tipc_link *l_ptr, u32 tol);
 static void link_state_event(struct tipc_link *l_ptr, u32 event);
 static void link_reset_statistics(struct tipc_link *l_ptr);
 static void link_print(struct tipc_link *l_ptr, const char *str);
@@ -169,8 +169,9 @@ int tipc_link_is_active(struct tipc_link *l_ptr)
  * link_timeout - handle expiration of link timer
  * @l_ptr: pointer to link
  */
-static void link_timeout(struct tipc_link *l_ptr)
+static void link_timeout(unsigned long data)
 {
+	struct tipc_link *l_ptr = (struct tipc_link *)data;
 	struct sk_buff *skb;
 
 	tipc_node_lock(l_ptr->owner);
@@ -217,9 +218,9 @@ static void link_timeout(struct tipc_link *l_ptr)
 	tipc_node_unlock(l_ptr->owner);
 }
 
-static void link_set_timer(struct tipc_link *l_ptr, u32 time)
+static void link_set_timer(struct tipc_link *link, unsigned long time)
 {
-	k_start_timer(&l_ptr->timer, time);
+	mod_timer(&link->timer, jiffies + time);
 }
 
 /**
@@ -299,8 +300,7 @@ struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
 
 	tipc_node_attach_link(n_ptr, l_ptr);
 
-	k_init_timer(&l_ptr->timer, (Handler)link_timeout,
-		     (unsigned long)l_ptr);
+	setup_timer(&l_ptr->timer, link_timeout, (unsigned long)l_ptr);
 
 	link_state_event(l_ptr, STARTING_EVT);
 
@@ -479,7 +479,7 @@ static void link_activate(struct tipc_link *l_ptr)
 static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
 {
 	struct tipc_link *other;
-	u32 cont_intv = l_ptr->continuity_interval;
+	unsigned long cont_intv = l_ptr->cont_intv;
 
 	if (l_ptr->flags & LINK_STOPPED)
 		return;
@@ -1880,15 +1880,16 @@ void tipc_link_bundle_rcv(struct sk_buff *buf)
 	kfree_skb(buf);
 }
 
-static void link_set_supervision_props(struct tipc_link *l_ptr, u32 tolerance)
+static void link_set_supervision_props(struct tipc_link *l_ptr, u32 tol)
 {
-	if ((tolerance < TIPC_MIN_LINK_TOL) || (tolerance > TIPC_MAX_LINK_TOL))
+	unsigned long intv = ((tol / 4) > 500) ? 500 : tol / 4;
+
+	if ((tol < TIPC_MIN_LINK_TOL) || (tol > TIPC_MAX_LINK_TOL))
 		return;
 
-	l_ptr->tolerance = tolerance;
-	l_ptr->continuity_interval =
-		((tolerance / 4) > 500) ? 500 : tolerance / 4;
-	l_ptr->abort_limit = tolerance / (l_ptr->continuity_interval / 4);
+	l_ptr->tolerance = tol;
+	l_ptr->cont_intv = msecs_to_jiffies(intv);
+	l_ptr->abort_limit = tol / (jiffies_to_msecs(l_ptr->cont_intv) / 4);
 }
 
 void tipc_link_set_queue_limits(struct tipc_link *l_ptr, u32 window)

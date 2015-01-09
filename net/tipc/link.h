@@ -105,7 +105,7 @@ struct tipc_stats {
  * @peer_bearer_id: bearer id used by link's peer endpoint
  * @bearer_id: local bearer id used by link
  * @tolerance: minimum link continuity loss needed to reset link [in ms]
- * @continuity_interval: link continuity testing interval [in ms]
+ * @cont_intv: link continuity testing interval
  * @abort_limit: # of unacknowledged continuity probes needed to reset link
  * @state: current state of link FSM
  * @fsm_msg_cnt: # of protocol messages link FSM has sent in current state
@@ -146,7 +146,7 @@ struct tipc_link {
 	u32 peer_bearer_id;
 	u32 bearer_id;
 	u32 tolerance;
-	u32 continuity_interval;
+	unsigned long cont_intv;
 	u32 abort_limit;
 	int state;
 	u32 fsm_msg_cnt;

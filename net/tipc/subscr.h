@@ -58,7 +58,7 @@ struct tipc_subscriber;
 struct tipc_subscription {
 	struct tipc_subscriber *subscriber;
 	struct tipc_name_seq seq;
-	u32 timeout;
+	unsigned long timeout;
 	u32 filter;
 	struct timer_list timer;
 	struct list_head nameseq_list;

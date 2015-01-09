@@ -47,7 +47,7 @@
 #define SS_READY		-2	/* socket is connectionless */
 
 #define CONN_TIMEOUT_DEFAULT	8000	/* default connect timeout = 8s */
-#define CONN_PROBING_INTERVAL	3600000	/* [ms] => 1 h */
+#define CONN_PROBING_INTERVAL	msecs_to_jiffies(3600000)  /* [ms] => 1 h */
 #define TIPC_FWD_MSG		1
 #define TIPC_CONN_OK		0
 #define TIPC_CONN_PROBING	1
@@ -68,7 +68,7 @@
  * @publications: list of publications for port
  * @pub_count: total # of publications port has made during its lifetime
  * @probing_state:
- * @probing_interval:
+ * @probing_intv:
  * @timer:
  * @port: port - interacts with 'sk' and with the rest of the TIPC stack
  * @peer_name: the peer of the connection, if any
@@ -93,7 +93,7 @@ struct tipc_sock {
 	struct list_head publications;
 	u32 pub_count;
 	u32 probing_state;
-	u32 probing_interval;
+	unsigned long probing_intv;
 	struct timer_list timer;
 	uint conn_timeout;
 	atomic_t dupl_rcvcnt;
@@ -361,7 +361,7 @@ static int tipc_sk_create(struct net *net, struct socket *sock,
 		return -EINVAL;
 	}
 	msg_set_origport(msg, tsk->portid);
-	k_init_timer(&tsk->timer, (Handler)tipc_sk_timeout, tsk->portid);
+	setup_timer(&tsk->timer, tipc_sk_timeout, tsk->portid);
 	sk->sk_backlog_rcv = tipc_backlog_rcv;
 	sk->sk_rcvbuf = sysctl_tipc_rmem[1];
 	sk->sk_data_ready = tipc_data_ready;
@@ -511,7 +511,7 @@ static int tipc_release(struct socket *sock)
 	}
 
 	tipc_sk_withdraw(tsk, 0, NULL);
-	k_cancel_timer(&tsk->timer);
+	del_timer_sync(&tsk->timer);
 	tipc_sk_remove(tsk);
 	if (tsk->connected) {
 		skb = tipc_msg_create(TIPC_CRITICAL_IMPORTANCE, TIPC_CONN_MSG,
@@ -522,7 +522,6 @@ static int tipc_release(struct socket *sock)
 			tipc_link_xmit_skb(skb, dnode, tsk->portid);
 		tipc_node_remove_conn(dnode, tsk->portid);
 	}
-	k_term_timer(&tsk->timer);
 
 	/* Discard any remaining (connection-based) messages in receive queue */
 	__skb_queue_purge(&sk->sk_receive_queue);
@@ -1139,10 +1138,10 @@ static void tipc_sk_finish_conn(struct tipc_sock *tsk, u32 peer_port,
 	msg_set_lookup_scope(msg, 0);
 	msg_set_hdr_sz(msg, SHORT_H_SIZE);
 
-	tsk->probing_interval = CONN_PROBING_INTERVAL;
+	tsk->probing_intv = CONN_PROBING_INTERVAL;
 	tsk->probing_state = TIPC_CONN_OK;
 	tsk->connected = 1;
-	k_start_timer(&tsk->timer, tsk->probing_interval);
+	mod_timer(&tsk->timer, jiffies + tsk->probing_intv);
 	tipc_node_add_conn(peer_node, tsk->portid, peer_port);
 	tsk->max_pkt = tipc_node_get_mtu(peer_node, tsk->portid);
 }
@@ -2128,7 +2127,7 @@ static void tipc_sk_timeout(unsigned long portid)
 				      0, peer_node, tipc_own_addr,
 				      peer_port, portid, TIPC_OK);
 		tsk->probing_state = TIPC_CONN_PROBING;
-		k_start_timer(&tsk->timer, tsk->probing_interval);
+		mod_timer(&tsk->timer, jiffies + tsk->probing_intv);
 	}
 	bh_unlock_sock(sk);
 	if (skb)

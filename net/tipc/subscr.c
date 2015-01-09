@@ -141,8 +141,9 @@ void tipc_subscr_report_overlap(struct tipc_subscription *sub, u32 found_lower,
 	subscr_send_event(sub, found_lower, found_upper, event, port_ref, node);
 }
 
-static void subscr_timeout(struct tipc_subscription *sub)
+static void subscr_timeout(unsigned long data)
 {
+	struct tipc_subscription *sub = (struct tipc_subscription *)data;
 	struct tipc_subscriber *subscriber = sub->subscriber;
 
 	/* The spin lock per subscriber is used to protect its members */
@@ -167,7 +168,6 @@ static void subscr_timeout(struct tipc_subscription *sub)
 			  TIPC_SUBSCR_TIMEOUT, 0, 0);
 
 	/* Now destroy subscription */
-	k_term_timer(&sub->timer);
 	kfree(sub);
 	atomic_dec(&subscription_count);
 }
@@ -207,8 +207,7 @@ static void subscr_release(struct tipc_subscriber *subscriber)
 				 subscription_list) {
 		if (sub->timeout != TIPC_WAIT_FOREVER) {
 			spin_unlock_bh(&subscriber->lock);
-			k_cancel_timer(&sub->timer);
-			k_term_timer(&sub->timer);
+			del_timer_sync(&sub->timer);
 			spin_lock_bh(&subscriber->lock);
 		}
 		subscr_del(sub);
@@ -250,8 +249,7 @@ static void subscr_cancel(struct tipc_subscr *s,
 	if (sub->timeout != TIPC_WAIT_FOREVER) {
 		sub->timeout = TIPC_WAIT_FOREVER;
 		spin_unlock_bh(&subscriber->lock);
-		k_cancel_timer(&sub->timer);
-		k_term_timer(&sub->timer);
+		del_timer_sync(&sub->timer);
 		spin_lock_bh(&subscriber->lock);
 	}
 	subscr_del(sub);
@@ -296,7 +294,7 @@ static int subscr_subscribe(struct tipc_subscr *s,
 	sub->seq.type = htohl(s->seq.type, swap);
 	sub->seq.lower = htohl(s->seq.lower, swap);
 	sub->seq.upper = htohl(s->seq.upper, swap);
-	sub->timeout = htohl(s->timeout, swap);
+	sub->timeout = msecs_to_jiffies(htohl(s->timeout, swap));
 	sub->filter = htohl(s->filter, swap);
 	if ((!(sub->filter & TIPC_SUB_PORTS) ==
 	     !(sub->filter & TIPC_SUB_SERVICE)) ||
@@ -311,9 +309,8 @@ static int subscr_subscribe(struct tipc_subscr *s,
 	memcpy(&sub->evt.s, s, sizeof(struct tipc_subscr));
 	atomic_inc(&subscription_count);
 	if (sub->timeout != TIPC_WAIT_FOREVER) {
-		k_init_timer(&sub->timer,
-			     (Handler)subscr_timeout, (unsigned long)sub);
-		k_start_timer(&sub->timer, sub->timeout);
+		setup_timer(&sub->timer, subscr_timeout, (unsigned long)sub);
+		mod_timer(&sub->timer, jiffies + sub->timeout);
 	}
 	*sub_p = sub;
 	return 0;
