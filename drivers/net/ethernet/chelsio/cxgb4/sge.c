@@ -821,7 +821,8 @@ static void write_sgl(const struct sk_buff *skb, struct sge_txq *q,
 		sgl->addr0 = cpu_to_be64(addr[1]);
 	}
 
-	sgl->cmd_nsge = htonl(ULPTX_CMD_V(ULP_TX_SC_DSGL) | ULPTX_NSGE(nfrags));
+	sgl->cmd_nsge = htonl(ULPTX_CMD_V(ULP_TX_SC_DSGL) |
+			      ULPTX_NSGE_V(nfrags));
 	if (likely(--nfrags == 0))
 		return;
 	/*
@@ -1761,7 +1762,7 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 	pkt = (const struct cpl_rx_pkt *)rsp;
 	csum_ok = pkt->csum_calc && !pkt->err_vec &&
 		  (q->netdev->features & NETIF_F_RXCSUM);
-	if ((pkt->l2info & htonl(RXF_TCP)) &&
+	if ((pkt->l2info & htonl(RXF_TCP_F)) &&
 	    (q->netdev->features & NETIF_F_GRO) && csum_ok && !pkt->ip_frag) {
 		do_gro(rxq, si, pkt);
 		return 0;
@@ -1783,11 +1784,11 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 
 	rxq->stats.pkts++;
 
-	if (csum_ok && (pkt->l2info & htonl(RXF_UDP | RXF_TCP))) {
+	if (csum_ok && (pkt->l2info & htonl(RXF_UDP_F | RXF_TCP_F))) {
 		if (!pkt->ip_frag) {
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 			rxq->stats.rx_cso++;
-		} else if (pkt->l2info & htonl(RXF_IP)) {
+		} else if (pkt->l2info & htonl(RXF_IP_F)) {
 			__sum16 c = (__force __sum16)pkt->csum;
 			skb->csum = csum_unfold(c);
 			skb->ip_summed = CHECKSUM_COMPLETE;

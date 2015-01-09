@@ -3501,19 +3501,19 @@ static void build_cpl_pass_accept_req(struct sk_buff *skb, int stid , u8 tos)
 	req = (struct cpl_pass_accept_req *)__skb_push(skb, sizeof(*req));
 	memset(req, 0, sizeof(*req));
 	req->l2info = cpu_to_be16(V_SYN_INTF(intf) |
-			 V_SYN_MAC_IDX(G_RX_MACIDX(
+			 V_SYN_MAC_IDX(RX_MACIDX_G(
 			 (__force int) htonl(l2info))) |
 			 F_SYN_XACT_MATCH);
 	eth_hdr_len = is_t4(dev->rdev.lldi.adapter_type) ?
-			    G_RX_ETHHDR_LEN((__force int) htonl(l2info)) :
-			    G_RX_T5_ETHHDR_LEN((__force int) htonl(l2info));
-	req->hdr_len = cpu_to_be32(V_SYN_RX_CHAN(G_RX_CHAN(
+			    RX_ETHHDR_LEN_G((__force int)htonl(l2info)) :
+			    RX_T5_ETHHDR_LEN_G((__force int)htonl(l2info));
+	req->hdr_len = cpu_to_be32(V_SYN_RX_CHAN(RX_CHAN_G(
 					(__force int) htonl(l2info))) |
-				   V_TCP_HDR_LEN(G_RX_TCPHDR_LEN(
+				   V_TCP_HDR_LEN(RX_TCPHDR_LEN_G(
 					(__force int) htons(hdr_len))) |
-				   V_IP_HDR_LEN(G_RX_IPHDR_LEN(
+				   V_IP_HDR_LEN(RX_IPHDR_LEN_G(
 					(__force int) htons(hdr_len))) |
-				   V_ETH_HDR_LEN(G_RX_ETHHDR_LEN(eth_hdr_len)));
+				   V_ETH_HDR_LEN(RX_ETHHDR_LEN_G(eth_hdr_len)));
 	req->vlan = (__force __be16) vlantag;
 	req->len = (__force __be16) len;
 	req->tos_stid = cpu_to_be32(PASS_OPEN_TID_V(stid) |
@@ -3613,7 +3613,7 @@ static int rx_pkt(struct c4iw_dev *dev, struct sk_buff *skb)
 	struct neighbour *neigh;
 
 	/* Drop all non-SYN packets */
-	if (!(cpl->l2info & cpu_to_be32(F_RXF_SYN)))
+	if (!(cpl->l2info & cpu_to_be32(RXF_SYN_F)))
 		goto reject;
 
 	/*
@@ -3635,8 +3635,8 @@ static int rx_pkt(struct c4iw_dev *dev, struct sk_buff *skb)
 	}
 
 	eth_hdr_len = is_t4(dev->rdev.lldi.adapter_type) ?
-			    G_RX_ETHHDR_LEN(htonl(cpl->l2info)) :
-			    G_RX_T5_ETHHDR_LEN(htonl(cpl->l2info));
+			    RX_ETHHDR_LEN_G(htonl(cpl->l2info)) :
+			    RX_T5_ETHHDR_LEN_G(htonl(cpl->l2info));
 	if (eth_hdr_len == ETH_HLEN) {
 		eh = (struct ethhdr *)(req + 1);
 		iph = (struct iphdr *)(eh + 1);

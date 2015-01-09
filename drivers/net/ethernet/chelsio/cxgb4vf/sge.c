@@ -926,7 +926,7 @@ static void write_sgl(const struct sk_buff *skb, struct sge_txq *tq,
 	}
 
 	sgl->cmd_nsge = htonl(ULPTX_CMD_V(ULP_TX_SC_DSGL) |
-			      ULPTX_NSGE(nfrags));
+			      ULPTX_NSGE_V(nfrags));
 	if (likely(--nfrags == 0))
 		return;
 	/*
@@ -1604,7 +1604,7 @@ int t4vf_ethrx_handler(struct sge_rspq *rspq, const __be64 *rsp,
 	 * If this is a good TCP packet and we have Generic Receive Offload
 	 * enabled, handle the packet in the GRO path.
 	 */
-	if ((pkt->l2info & cpu_to_be32(RXF_TCP)) &&
+	if ((pkt->l2info & cpu_to_be32(RXF_TCP_F)) &&
 	    (rspq->netdev->features & NETIF_F_GRO) && csum_ok &&
 	    !pkt->ip_frag) {
 		do_gro(rxq, gl, pkt);
@@ -1626,7 +1626,7 @@ int t4vf_ethrx_handler(struct sge_rspq *rspq, const __be64 *rsp,
 	rxq->stats.pkts++;
 
 	if (csum_ok && !pkt->err_vec &&
-	    (be32_to_cpu(pkt->l2info) & (RXF_UDP|RXF_TCP))) {
+	    (be32_to_cpu(pkt->l2info) & (RXF_UDP_F | RXF_TCP_F))) {
 		if (!pkt->ip_frag)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		else {

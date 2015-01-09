@@ -471,7 +471,7 @@ static int fwevtq_handler(struct sge_rspq *rspq, const __be64 *rsp,
 		 * free TX Queue Descriptors ...
 		 */
 		const struct cpl_sge_egr_update *p = cpl;
-		unsigned int qid = EGR_QID(be32_to_cpu(p->opcode_qid));
+		unsigned int qid = EGR_QID_G(be32_to_cpu(p->opcode_qid));
 		struct sge *s = &adapter->sge;
 		struct sge_txq *tq;
 		struct sge_eth_txq *txq;
