@@ -148,6 +148,11 @@ struct adf_hw_device_data {
 	int (*alloc_irq)(struct adf_accel_dev *accel_dev);
 	void (*free_irq)(struct adf_accel_dev *accel_dev);
 	void (*enable_error_correction)(struct adf_accel_dev *accel_dev);
+	int (*init_admin_comms)(struct adf_accel_dev *accel_dev);
+	void (*exit_admin_comms)(struct adf_accel_dev *accel_dev);
+	int (*init_arb)(struct adf_accel_dev *accel_dev);
+	void (*exit_arb)(struct adf_accel_dev *accel_dev);
+	void (*enable_ints)(struct adf_accel_dev *accel_dev);
 	const char *fw_name;
 	uint32_t pci_dev_id;
 	uint32_t fuses;
