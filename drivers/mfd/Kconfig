@@ -10,6 +10,18 @@ config MFD_CORE
 	select IRQ_DOMAIN
 	default n
 
+config MFD_A10SYCON
+       bool "Altera Arria10 System Controller with SPI"
+       depends on ARCH_SOCFPGA && SPI_MASTER
+       select REGMAP_SPI
+       select REGMAP_IRQ
+       select MFD_CORE
+       help
+         Support for the Altera Arria10 System Controller using the
+         SPI interface. This driver provides common support for
+         accessing this external gpio extender (LEDs & keys),
+         hw monitor and reset controller.
+
 config MFD_CS5535
 	tristate "AMD CS5535 and CS5536 southbridge core functions"
 	select MFD_CORE
