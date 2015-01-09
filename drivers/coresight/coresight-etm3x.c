@@ -573,7 +573,8 @@ static ssize_t mode_store(struct device *dev,
 	if (drvdata->mode & ETM_MODE_STALL) {
 		if (!(drvdata->etmccr & ETMCCR_FIFOFULL)) {
 			dev_warn(drvdata->dev, "stall mode not supported\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			goto err_unlock;
 		}
 		drvdata->ctrl |= ETMCR_STALL_MODE;
 	 } else
@@ -582,7 +583,8 @@ static ssize_t mode_store(struct device *dev,
 	if (drvdata->mode & ETM_MODE_TIMESTAMP) {
 		if (!(drvdata->etmccer & ETMCCER_TIMESTAMP)) {
 			dev_warn(drvdata->dev, "timestamp not supported\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			goto err_unlock;
 		}
 		drvdata->ctrl |= ETMCR_TIMESTAMP_EN;
 	} else
@@ -595,6 +597,10 @@ static ssize_t mode_store(struct device *dev,
 	spin_unlock(&drvdata->spinlock);
 
 	return size;
+
+err_unlock:
+	spin_unlock(&drvdata->spinlock);
+	return ret;
 }
 static DEVICE_ATTR_RW(mode);
 
