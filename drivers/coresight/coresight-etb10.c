@@ -521,17 +521,7 @@ static struct amba_driver etb_driver = {
 	.id_table	= etb_ids,
 };
 
-static int __init etb_init(void)
-{
-	return amba_driver_register(&etb_driver);
-}
-module_init(etb_init);
-
-static void __exit etb_exit(void)
-{
-	amba_driver_unregister(&etb_driver);
-}
-module_exit(etb_exit);
+module_amba_driver(etb_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("CoreSight Embedded Trace Buffer driver");
