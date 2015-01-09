@@ -60,6 +60,7 @@
 #include <net/netns/generic.h>
 
 #include "node.h"
+#include "bearer.h"
 
 #define TIPC_MOD_VER "2.0.0"
 
@@ -87,6 +88,9 @@ struct tipc_net {
 	struct list_head node_list;
 	u32 num_nodes;
 	u32 num_links;
+
+	/* Bearer list */
+	struct tipc_bearer __rcu *bearer_list[MAX_BEARERS + 1];
 };
 
 #ifdef CONFIG_SYSCTL

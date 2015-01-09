@@ -251,7 +251,7 @@ struct sk_buff *tipc_cfg_do_cmd(struct net *net, u32 orig_node, u16 cmd,
 		rep_tlv_buf = tipc_nametbl_get(req_tlv_area, req_tlv_space);
 		break;
 	case TIPC_CMD_GET_BEARER_NAMES:
-		rep_tlv_buf = tipc_bearer_get_names();
+		rep_tlv_buf = tipc_bearer_get_names(net);
 		break;
 	case TIPC_CMD_GET_MEDIA_NAMES:
 		rep_tlv_buf = tipc_media_get_names();

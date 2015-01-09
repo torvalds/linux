@@ -223,7 +223,8 @@ int tipc_link_xmit_skb(struct net *net, struct sk_buff *skb, u32 dest,
 		       u32 selector);
 int tipc_link_xmit(struct net *net, struct sk_buff_head *list, u32 dest,
 		   u32 selector);
-int __tipc_link_xmit(struct tipc_link *link, struct sk_buff_head *list);
+int __tipc_link_xmit(struct net *net, struct tipc_link *link,
+		     struct sk_buff_head *list);
 void tipc_link_bundle_rcv(struct net *net, struct sk_buff *buf);
 void tipc_link_proto_xmit(struct tipc_link *l_ptr, u32 msg_typ, int prob,
 			  u32 gap, u32 tolerance, u32 priority, u32 acked_mtu);

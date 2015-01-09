@@ -84,8 +84,8 @@ static inline int tipc_nmap_equal(struct tipc_node_map *nm_a,
 void tipc_port_list_add(struct tipc_port_list *pl_ptr, u32 port);
 void tipc_port_list_free(struct tipc_port_list *pl_ptr);
 
-int tipc_bclink_init(void);
-void tipc_bclink_stop(void);
+int tipc_bclink_init(struct net *net);
+void tipc_bclink_stop(struct net *net);
 void tipc_bclink_set_flags(unsigned int flags);
 void tipc_bclink_add_node(u32 addr);
 void tipc_bclink_remove_node(u32 addr);
@@ -99,7 +99,8 @@ void tipc_bclink_update_link_state(struct net *net, struct tipc_node *n_ptr,
 int  tipc_bclink_stats(char *stats_buf, const u32 buf_size);
 int  tipc_bclink_reset_stats(void);
 int  tipc_bclink_set_queue_limits(u32 limit);
-void tipc_bcbearer_sort(struct tipc_node_map *nm_ptr, u32 node, bool action);
+void tipc_bcbearer_sort(struct net *net, struct tipc_node_map *nm_ptr,
+			u32 node, bool action);
 uint  tipc_bclink_get_mtu(void);
 int tipc_bclink_xmit(struct net *net, struct sk_buff_head *list);
 void tipc_bclink_wakeup_users(struct net *net);

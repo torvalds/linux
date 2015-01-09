@@ -369,7 +369,7 @@ void tipc_bclink_update_link_state(struct net *net, struct tipc_node *n_ptr,
 		msg_set_bcgap_to(msg, to);
 
 		tipc_bclink_lock();
-		tipc_bearer_send(MAX_BEARERS, buf, NULL);
+		tipc_bearer_send(net, MAX_BEARERS, buf, NULL);
 		bcl->stats.sent_nacks++;
 		tipc_bclink_unlock();
 		kfree_skb(buf);
@@ -425,7 +425,7 @@ int tipc_bclink_xmit(struct net *net, struct sk_buff_head *list)
 	if (likely(bclink)) {
 		tipc_bclink_lock();
 		if (likely(bclink->bcast_nodes.count)) {
-			rc = __tipc_link_xmit(bcl, list);
+			rc = __tipc_link_xmit(net, bcl, list);
 			if (likely(!rc)) {
 				u32 len = skb_queue_len(&bcl->outqueue);
 
@@ -682,13 +682,14 @@ static int tipc_bcbearer_send(struct sk_buff *buf, struct tipc_bearer *unused1,
 
 		if (bp_index == 0) {
 			/* Use original buffer for first bearer */
-			tipc_bearer_send(b->identity, buf, &b->bcast_addr);
+			tipc_bearer_send(net, b->identity, buf, &b->bcast_addr);
 		} else {
 			/* Avoid concurrent buffer access */
 			tbuf = pskb_copy_for_clone(buf, GFP_ATOMIC);
 			if (!tbuf)
 				break;
-			tipc_bearer_send(b->identity, tbuf, &b->bcast_addr);
+			tipc_bearer_send(net, b->identity, tbuf,
+					 &b->bcast_addr);
 			kfree_skb(tbuf); /* Bearer keeps a clone */
 		}
 		if (bcbearer->remains_new.count == 0)
@@ -703,8 +704,10 @@ static int tipc_bcbearer_send(struct sk_buff *buf, struct tipc_bearer *unused1,
 /**
  * tipc_bcbearer_sort - create sets of bearer pairs used by broadcast bearer
  */
-void tipc_bcbearer_sort(struct tipc_node_map *nm_ptr, u32 node, bool action)
+void tipc_bcbearer_sort(struct net *net, struct tipc_node_map *nm_ptr,
+			u32 node, bool action)
 {
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_bcbearer_pair *bp_temp = bcbearer->bpairs_temp;
 	struct tipc_bcbearer_pair *bp_curr;
 	struct tipc_bearer *b;
@@ -723,7 +726,7 @@ void tipc_bcbearer_sort(struct tipc_node_map *nm_ptr, u32 node, bool action)
 
 	rcu_read_lock();
 	for (b_index = 0; b_index < MAX_BEARERS; b_index++) {
-		b = rcu_dereference_rtnl(bearer_list[b_index]);
+		b = rcu_dereference_rtnl(tn->bearer_list[b_index]);
 		if (!b || !b->nodes.count)
 			continue;
 
@@ -939,8 +942,10 @@ int tipc_bclink_set_queue_limits(u32 limit)
 	return 0;
 }
 
-int tipc_bclink_init(void)
+int tipc_bclink_init(struct net *net)
 {
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
+
 	bcbearer = kzalloc(sizeof(*bcbearer), GFP_ATOMIC);
 	if (!bcbearer)
 		return -ENOMEM;
@@ -967,19 +972,21 @@ int tipc_bclink_init(void)
 	bcl->max_pkt = MAX_PKT_DEFAULT_MCAST;
 	tipc_link_set_queue_limits(bcl, BCLINK_WIN_DEFAULT);
 	bcl->bearer_id = MAX_BEARERS;
-	rcu_assign_pointer(bearer_list[MAX_BEARERS], &bcbearer->bearer);
+	rcu_assign_pointer(tn->bearer_list[MAX_BEARERS], &bcbearer->bearer);
 	bcl->state = WORKING_WORKING;
 	strlcpy(bcl->name, tipc_bclink_name, TIPC_MAX_LINK_NAME);
 	return 0;
 }
 
-void tipc_bclink_stop(void)
+void tipc_bclink_stop(struct net *net)
 {
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
+
 	tipc_bclink_lock();
 	tipc_link_purge_queues(bcl);
 	tipc_bclink_unlock();
 
-	RCU_INIT_POINTER(bearer_list[BCBEARER], NULL);
+	RCU_INIT_POINTER(tn->bearer_list[BCBEARER], NULL);
 	synchronize_net();
 	kfree(bcbearer);
 	kfree(bclink);
