@@ -116,7 +116,7 @@ int tipc_net_start(struct net *net, u32 addr)
 	int res;
 
 	tipc_own_addr = addr;
-	tipc_named_reinit();
+	tipc_named_reinit(net);
 	tipc_sk_reinit(net);
 	res = tipc_bclink_init(net);
 	if (res)

@@ -256,7 +256,8 @@ static int tipc_receive_from_sock(struct tipc_conn *con)
 		goto out_close;
 	}
 
-	s->tipc_conn_recvmsg(con->conid, &addr, con->usr_data, buf, ret);
+	s->tipc_conn_recvmsg(sock_net(con->sock->sk), con->conid, &addr,
+			     con->usr_data, buf, ret);
 
 	kmem_cache_free(s->rcvbuf_cache, buf);
 

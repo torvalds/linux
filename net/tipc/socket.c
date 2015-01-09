@@ -778,11 +778,8 @@ void tipc_sk_mcast_rcv(struct net *net, struct sk_buff *buf)
 		scope = TIPC_NODE_SCOPE;
 
 	/* Create destination port list: */
-	tipc_nametbl_mc_translate(msg_nametype(msg),
-				  msg_namelower(msg),
-				  msg_nameupper(msg),
-				  scope,
-				  &dports);
+	tipc_nametbl_mc_translate(net, msg_nametype(msg), msg_namelower(msg),
+				  msg_nameupper(msg), scope, &dports);
 	last = dports.count;
 	if (!last) {
 		kfree_skb(buf);
@@ -943,7 +940,7 @@ static int tipc_sendmsg(struct kiocb *iocb, struct socket *sock,
 		msg_set_nametype(mhdr, type);
 		msg_set_nameinst(mhdr, inst);
 		msg_set_lookup_scope(mhdr, tipc_addr_scope(domain));
-		dport = tipc_nametbl_translate(type, inst, &dnode);
+		dport = tipc_nametbl_translate(net, type, inst, &dnode);
 		msg_set_destnode(mhdr, dnode);
 		msg_set_destport(mhdr, dport);
 		if (unlikely(!dport && !dnode)) {
@@ -1765,7 +1762,7 @@ int tipc_sk_rcv(struct net *net, struct sk_buff *skb)
 	/* Validate destination and message */
 	tsk = tipc_sk_lookup(net, dport);
 	if (unlikely(!tsk)) {
-		rc = tipc_msg_eval(skb, &dnode);
+		rc = tipc_msg_eval(net, skb, &dnode);
 		goto exit;
 	}
 	sk = &tsk->sk;

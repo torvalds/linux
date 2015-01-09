@@ -50,8 +50,9 @@ struct tipc_subscriber {
 	struct list_head subscription_list;
 };
 
-static void subscr_conn_msg_event(int conid, struct sockaddr_tipc *addr,
-				  void *usr_data, void *buf, size_t len);
+static void subscr_conn_msg_event(struct net *net, int conid,
+				  struct sockaddr_tipc *addr, void *usr_data,
+				  void *buf, size_t len);
 static void *subscr_named_msg_event(int conid);
 static void subscr_conn_shutdown_event(int conid, void *usr_data);
 
@@ -260,7 +261,7 @@ static void subscr_cancel(struct tipc_subscr *s,
  *
  * Called with subscriber lock held.
  */
-static int subscr_subscribe(struct tipc_subscr *s,
+static int subscr_subscribe(struct net *net, struct tipc_subscr *s,
 			    struct tipc_subscriber *subscriber,
 			    struct tipc_subscription **sub_p) {
 	struct tipc_subscription *sub;
@@ -291,6 +292,7 @@ static int subscr_subscribe(struct tipc_subscr *s,
 	}
 
 	/* Initialize subscription object */
+	sub->net = net;
 	sub->seq.type = htohl(s->seq.type, swap);
 	sub->seq.lower = htohl(s->seq.lower, swap);
 	sub->seq.upper = htohl(s->seq.upper, swap);
@@ -323,14 +325,16 @@ static void subscr_conn_shutdown_event(int conid, void *usr_data)
 }
 
 /* Handle one request to create a new subscription for the subscriber */
-static void subscr_conn_msg_event(int conid, struct sockaddr_tipc *addr,
-				  void *usr_data, void *buf, size_t len)
+static void subscr_conn_msg_event(struct net *net, int conid,
+				  struct sockaddr_tipc *addr, void *usr_data,
+				  void *buf, size_t len)
 {
 	struct tipc_subscriber *subscriber = usr_data;
 	struct tipc_subscription *sub = NULL;
 
 	spin_lock_bh(&subscriber->lock);
-	if (subscr_subscribe((struct tipc_subscr *)buf, subscriber, &sub) < 0) {
+	if (subscr_subscribe(net, (struct tipc_subscr *)buf, subscriber,
+			     &sub) < 0) {
 		spin_unlock_bh(&subscriber->lock);
 		subscr_terminate(subscriber);
 		return;

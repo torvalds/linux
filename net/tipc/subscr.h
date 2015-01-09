@@ -49,6 +49,7 @@ struct tipc_subscriber;
  * struct tipc_subscription - TIPC network topology subscription object
  * @subscriber: pointer to its subscriber
  * @seq: name sequence associated with subscription
+ * @net: point to network namespace
  * @timeout: duration of subscription (in ms)
  * @filter: event filtering to be done for subscription
  * @timer: timer governing subscription duration (optional)
@@ -61,6 +62,7 @@ struct tipc_subscriber;
 struct tipc_subscription {
 	struct tipc_subscriber *subscriber;
 	struct tipc_name_seq seq;
+	struct net *net;
 	unsigned long timeout;
 	u32 filter;
 	struct timer_list timer;

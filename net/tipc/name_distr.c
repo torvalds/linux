@@ -109,13 +109,14 @@ void named_cluster_distribute(struct net *net, struct sk_buff *skb)
 /**
  * tipc_named_publish - tell other nodes about a new publication by this node
  */
-struct sk_buff *tipc_named_publish(struct publication *publ)
+struct sk_buff *tipc_named_publish(struct net *net, struct publication *publ)
 {
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct sk_buff *buf;
 	struct distr_item *item;
 
 	list_add_tail_rcu(&publ->local_list,
-			  &tipc_nametbl->publ_list[publ->scope]);
+			  &tn->nametbl->publ_list[publ->scope]);
 
 	if (publ->scope == TIPC_NODE_SCOPE)
 		return NULL;
@@ -206,15 +207,16 @@ static void named_distribute(struct net *net, struct sk_buff_head *list,
  */
 void tipc_named_node_up(struct net *net, u32 dnode)
 {
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct sk_buff_head head;
 
 	__skb_queue_head_init(&head);
 
 	rcu_read_lock();
 	named_distribute(net, &head, dnode,
-			 &tipc_nametbl->publ_list[TIPC_CLUSTER_SCOPE]);
+			 &tn->nametbl->publ_list[TIPC_CLUSTER_SCOPE]);
 	named_distribute(net, &head, dnode,
-			 &tipc_nametbl->publ_list[TIPC_ZONE_SCOPE]);
+			 &tn->nametbl->publ_list[TIPC_ZONE_SCOPE]);
 	rcu_read_unlock();
 
 	tipc_link_xmit(net, &head, dnode, dnode);
@@ -262,14 +264,15 @@ static void tipc_publ_unsubscribe(struct net *net, struct publication *publ,
  */
 static void tipc_publ_purge(struct net *net, struct publication *publ, u32 addr)
 {
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct publication *p;
 
-	spin_lock_bh(&tipc_nametbl_lock);
-	p = tipc_nametbl_remove_publ(publ->type, publ->lower,
+	spin_lock_bh(&tn->nametbl_lock);
+	p = tipc_nametbl_remove_publ(net, publ->type, publ->lower,
 				     publ->node, publ->ref, publ->key);
 	if (p)
 		tipc_publ_unsubscribe(net, p, addr);
-	spin_unlock_bh(&tipc_nametbl_lock);
+	spin_unlock_bh(&tn->nametbl_lock);
 
 	if (p != publ) {
 		pr_err("Unable to remove publication from failed node\n"
@@ -302,7 +305,8 @@ static bool tipc_update_nametbl(struct net *net, struct distr_item *i,
 	struct publication *publ = NULL;
 
 	if (dtype == PUBLICATION) {
-		publ = tipc_nametbl_insert_publ(ntohl(i->type), ntohl(i->lower),
+		publ = tipc_nametbl_insert_publ(net, ntohl(i->type),
+						ntohl(i->lower),
 						ntohl(i->upper),
 						TIPC_CLUSTER_SCOPE, node,
 						ntohl(i->ref), ntohl(i->key));
@@ -311,7 +315,8 @@ static bool tipc_update_nametbl(struct net *net, struct distr_item *i,
 			return true;
 		}
 	} else if (dtype == WITHDRAWAL) {
-		publ = tipc_nametbl_remove_publ(ntohl(i->type), ntohl(i->lower),
+		publ = tipc_nametbl_remove_publ(net, ntohl(i->type),
+						ntohl(i->lower),
 						node, ntohl(i->ref),
 						ntohl(i->key));
 		if (publ) {
@@ -376,19 +381,20 @@ void tipc_named_process_backlog(struct net *net)
  */
 void tipc_named_rcv(struct net *net, struct sk_buff *buf)
 {
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_msg *msg = buf_msg(buf);
 	struct distr_item *item = (struct distr_item *)msg_data(msg);
 	u32 count = msg_data_sz(msg) / ITEM_SIZE;
 	u32 node = msg_orignode(msg);
 
-	spin_lock_bh(&tipc_nametbl_lock);
+	spin_lock_bh(&tn->nametbl_lock);
 	while (count--) {
 		if (!tipc_update_nametbl(net, item, node, msg_type(msg)))
 			tipc_named_add_backlog(item, msg_type(msg), node);
 		item++;
 	}
 	tipc_named_process_backlog(net);
-	spin_unlock_bh(&tipc_nametbl_lock);
+	spin_unlock_bh(&tn->nametbl_lock);
 	kfree_skb(buf);
 }
 
@@ -399,17 +405,18 @@ void tipc_named_rcv(struct net *net, struct sk_buff *buf)
  * All name table entries published by this node are updated to reflect
  * the node's new network address.
  */
-void tipc_named_reinit(void)
+void tipc_named_reinit(struct net *net)
 {
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct publication *publ;
 	int scope;
 
-	spin_lock_bh(&tipc_nametbl_lock);
+	spin_lock_bh(&tn->nametbl_lock);
 
 	for (scope = TIPC_ZONE_SCOPE; scope <= TIPC_NODE_SCOPE; scope++)
-		list_for_each_entry_rcu(publ, &tipc_nametbl->publ_list[scope],
+		list_for_each_entry_rcu(publ, &tn->nametbl->publ_list[scope],
 					local_list)
 			publ->node = tipc_own_addr;
 
-	spin_unlock_bh(&tipc_nametbl_lock);
+	spin_unlock_bh(&tn->nametbl_lock);
 }

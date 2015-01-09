@@ -426,7 +426,7 @@ exit:
  * Returns 0 (TIPC_OK) if message ok and we can try again, -TIPC error
  * code if message to be rejected
  */
-int tipc_msg_eval(struct sk_buff *buf, u32 *dnode)
+int tipc_msg_eval(struct net *net, struct sk_buff *buf, u32 *dnode)
 {
 	struct tipc_msg *msg = buf_msg(buf);
 	u32 dport;
@@ -441,7 +441,7 @@ int tipc_msg_eval(struct sk_buff *buf, u32 *dnode)
 		return -TIPC_ERR_NO_NAME;
 
 	*dnode = addr_domain(msg_lookup_scope(msg));
-	dport = tipc_nametbl_translate(msg_nametype(msg),
+	dport = tipc_nametbl_translate(net, msg_nametype(msg),
 				       msg_nameinst(msg),
 				       dnode);
 	if (!dport)

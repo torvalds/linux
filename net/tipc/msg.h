@@ -749,7 +749,7 @@ static inline u32 msg_tot_origport(struct tipc_msg *m)
 
 struct sk_buff *tipc_buf_acquire(u32 size);
 bool tipc_msg_reverse(struct sk_buff *buf, u32 *dnode, int err);
-int tipc_msg_eval(struct sk_buff *buf, u32 *dnode);
+int tipc_msg_eval(struct net *net, struct sk_buff *buf, u32 *dnode);
 void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type, u32 hsize,
 		   u32 destnode);
 struct sk_buff *tipc_msg_create(uint user, uint type, uint hdr_sz,

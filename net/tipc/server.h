@@ -38,6 +38,7 @@
 
 #include <linux/idr.h>
 #include <linux/tipc.h>
+#include <net/net_namespace.h>
 
 #define TIPC_SERVER_NAME_LEN	32
 
@@ -66,10 +67,11 @@ struct tipc_server {
 	struct workqueue_struct *rcv_wq;
 	struct workqueue_struct *send_wq;
 	int max_rcvbuf_size;
-	void *(*tipc_conn_new) (int conid);
-	void (*tipc_conn_shutdown) (int conid, void *usr_data);
-	void (*tipc_conn_recvmsg) (int conid, struct sockaddr_tipc *addr,
-				   void *usr_data, void *buf, size_t len);
+	void *(*tipc_conn_new)(int conid);
+	void (*tipc_conn_shutdown)(int conid, void *usr_data);
+	void (*tipc_conn_recvmsg)(struct net *net, int conid,
+				  struct sockaddr_tipc *addr, void *usr_data,
+				  void *buf, size_t len);
 	struct sockaddr_tipc *saddr;
 	const char name[TIPC_SERVER_NAME_LEN];
 	int imp;

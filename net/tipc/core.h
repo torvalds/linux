@@ -105,6 +105,10 @@ struct tipc_net {
 
 	/* Socket hash table */
 	struct rhashtable sk_rht;
+
+	/* Name table */
+	spinlock_t nametbl_lock;
+	struct name_table *nametbl;
 };
 
 #ifdef CONFIG_SYSCTL

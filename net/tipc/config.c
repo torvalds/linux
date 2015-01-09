@@ -248,7 +248,8 @@ struct sk_buff *tipc_cfg_do_cmd(struct net *net, u32 orig_node, u16 cmd,
 							req_tlv_space);
 		break;
 	case TIPC_CMD_SHOW_NAME_TABLE:
-		rep_tlv_buf = tipc_nametbl_get(req_tlv_area, req_tlv_space);
+		rep_tlv_buf = tipc_nametbl_get(net, req_tlv_area,
+					       req_tlv_space);
 		break;
 	case TIPC_CMD_GET_BEARER_NAMES:
 		rep_tlv_buf = tipc_bearer_get_names(net);
