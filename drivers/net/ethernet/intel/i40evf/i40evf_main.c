@@ -1631,7 +1631,7 @@ static void i40evf_adminq_task(struct work_struct *work)
 	v_msg = (struct i40e_virtchnl_msg *)&event.desc;
 	do {
 		ret = i40evf_clean_arq_element(hw, &event, &pending);
-		if (ret)
+		if (ret || !v_msg->v_opcode)
 			break; /* No event to process or error cleaning ARQ */
 
 		i40evf_virtchnl_completion(adapter, v_msg->v_opcode,
