@@ -3053,12 +3053,29 @@ static int s3c_hsotg_vbus_session(struct usb_gadget *gadget, int is_active)
 	return 0;
 }
 
+/**
+ * s3c_hsotg_vbus_draw - report bMaxPower field
+ * @gadget: The usb gadget state
+ * @mA: Amount of current
+ *
+ * Report how much power the device may consume to the phy.
+ */
+static int s3c_hsotg_vbus_draw(struct usb_gadget *gadget, unsigned mA)
+{
+	struct dwc2_hsotg *hsotg = to_hsotg(gadget);
+
+	if (IS_ERR_OR_NULL(hsotg->uphy))
+		return -ENOTSUPP;
+	return usb_phy_set_power(hsotg->uphy, mA);
+}
+
 static const struct usb_gadget_ops s3c_hsotg_gadget_ops = {
 	.get_frame	= s3c_hsotg_gadget_getframe,
 	.udc_start		= s3c_hsotg_udc_start,
 	.udc_stop		= s3c_hsotg_udc_stop,
 	.pullup                 = s3c_hsotg_pullup,
 	.vbus_session		= s3c_hsotg_vbus_session,
+	.vbus_draw		= s3c_hsotg_vbus_draw,
 };
 
 /**
