@@ -678,7 +678,7 @@ static void s3c_hsotg_start_req(struct dwc2_hsotg *hsotg,
 
 	/* check ep is enabled */
 	if (!(readl(hsotg->regs + epctrl_reg) & DXEPCTL_EPENA))
-		dev_warn(hsotg->dev,
+		dev_dbg(hsotg->dev,
 			 "ep%d: failed to become enabled (DXEPCTL=0x%08x)?\n",
 			 index, readl(hsotg->regs + epctrl_reg));
 
