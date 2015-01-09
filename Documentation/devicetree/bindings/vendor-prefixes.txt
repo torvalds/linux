@@ -56,6 +56,7 @@ epson	Seiko Epson Corp.
 est	ESTeem Wireless Modems
 eukrea  Eukréa Electromatique
 everest	Everest Semiconductor Co. Ltd.
+everspin	Everspin Technologies, Inc.
 excito	Excito
 fcs	Fairchild Semiconductor
 fsl	Freescale Semiconductor
