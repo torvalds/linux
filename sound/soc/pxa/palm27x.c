@@ -68,7 +68,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Ext. Speaker", NULL, "ROUT2"},
 
 	/* mic connected to MIC1 */
-	{"Ext. Microphone", NULL, "MIC1"},
+	{"MIC1", NULL, "Ext. Microphone"},
 };
 
 static struct snd_soc_card palm27x_asoc;
