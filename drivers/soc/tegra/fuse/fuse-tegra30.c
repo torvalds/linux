@@ -182,6 +182,7 @@ static void __init legacy_fuse_init(void)
 		fuse_info = &tegra114_info;
 		break;
 	case TEGRA124:
+	case TEGRA132:
 		fuse_info = &tegra124_info;
 		break;
 	default:
