@@ -9736,6 +9736,8 @@ static int i40e_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	set_bit(__I40E_SUSPENDED, &pf->state);
 	set_bit(__I40E_DOWN, &pf->state);
+	del_timer_sync(&pf->service_timer);
+	cancel_work_sync(&pf->service_task);
 	rtnl_lock();
 	i40e_prep_for_reset(pf);
 	rtnl_unlock();
