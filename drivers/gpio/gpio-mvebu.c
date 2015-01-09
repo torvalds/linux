@@ -667,6 +667,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	unsigned int ngpios;
 	int soc_variant;
 	int i, cpu, id;
+	int err;
 
 	match = of_match_device(mvebu_gpio_of_match, &pdev->dev);
 	if (match)
@@ -785,14 +786,16 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	mvchip->irqbase = irq_alloc_descs(-1, 0, ngpios, -1);
 	if (mvchip->irqbase < 0) {
 		dev_err(&pdev->dev, "no irqs\n");
-		return mvchip->irqbase;
+		err = mvchip->irqbase;
+		goto err_gpiochip_add;
 	}
 
 	gc = irq_alloc_generic_chip("mvebu_gpio_irq", 2, mvchip->irqbase,
 				    mvchip->membase, handle_level_irq);
 	if (!gc) {
 		dev_err(&pdev->dev, "Cannot allocate generic irq_chip\n");
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto err_gpiochip_add;
 	}
 
 	gc->private = mvchip;
@@ -823,13 +826,21 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	if (!mvchip->domain) {
 		dev_err(&pdev->dev, "couldn't allocate irq domain %s (DT).\n",
 			mvchip->chip.label);
-		irq_remove_generic_chip(gc, IRQ_MSK(ngpios), IRQ_NOREQUEST,
-					IRQ_LEVEL | IRQ_NOPROBE);
-		kfree(gc);
-		return -ENODEV;
+		err = -ENODEV;
+		goto err_generic_chip;
 	}
 
 	return 0;
+
+err_generic_chip:
+	irq_remove_generic_chip(gc, IRQ_MSK(ngpios), IRQ_NOREQUEST,
+				IRQ_LEVEL | IRQ_NOPROBE);
+	kfree(gc);
+
+err_gpiochip_add:
+	gpiochip_remove(&mvchip->chip);
+
+	return err;
 }
 
 static struct platform_driver mvebu_gpio_driver = {
