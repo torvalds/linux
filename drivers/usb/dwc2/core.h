@@ -563,6 +563,7 @@ struct dwc2_hw_params {
  * @setup:              NAK management for EP0 SETUP
  * @last_rst:           Time of last reset
  * @eps:                The endpoints being supplied to the gadget framework
+ * @g_using_dma:          Indicate if dma usage is enabled
  */
 struct dwc2_hsotg {
 	struct device *dev;
@@ -696,6 +697,7 @@ struct dwc2_hsotg {
 	unsigned int setup:1;
 	unsigned long last_rst;
 	struct s3c_hsotg_ep *eps;
+	u32 g_using_dma;
 #endif /* CONFIG_USB_DWC2_PERIPHERAL || CONFIG_USB_DWC2_DUAL_ROLE */
 };
 

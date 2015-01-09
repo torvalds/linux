@@ -85,11 +85,11 @@ static void s3c_hsotg_dump(struct dwc2_hsotg *hsotg);
  * a core reset. This means we either need to fix the gadgets to take
  * account of DMA alignment, or add bounce buffers (yuerk).
  *
- * Until this issue is sorted out, we always return 'false'.
+ * g_using_dma is set depending on dts flag.
  */
 static inline bool using_dma(struct dwc2_hsotg *hsotg)
 {
-	return false;	/* support is not complete */
+	return hsotg->g_using_dma;
 }
 
 /**
@@ -3402,6 +3402,18 @@ static void s3c_hsotg_delete_debug(struct dwc2_hsotg *hsotg)
 	debugfs_remove(hsotg->debug_root);
 }
 
+#ifdef CONFIG_OF
+static void s3c_hsotg_of_probe(struct dwc2_hsotg *hsotg)
+{
+	struct device_node *np = hsotg->dev->of_node;
+
+	/* Enable dma if requested in device tree */
+	hsotg->g_using_dma = of_property_read_bool(np, "g-use-dma");
+}
+#else
+static inline void s3c_hsotg_of_probe(struct dwc2_hsotg *hsotg) { }
+#endif
+
 /**
  * dwc2_gadget_init - init function for gadget
  * @dwc2: The data structure for the DWC2 driver.
@@ -3418,6 +3430,8 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 
 	/* Set default UTMI width */
 	hsotg->phyif = GUSBCFG_PHYIF16;
+
+	s3c_hsotg_of_probe(hsotg);
 
 	/*
 	 * If platform probe couldn't find a generic PHY or an old style
