@@ -237,7 +237,7 @@ int wcn36xx_start_tx(struct wcn36xx *wcn,
 
 	bd->dpu_rf = WCN36XX_BMU_WQ_TX;
 
-	bd->tx_comp = info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS;
+	bd->tx_comp = !!(info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS);
 	if (bd->tx_comp) {
 		wcn36xx_dbg(WCN36XX_DBG_DXE, "TX_ACK status requested\n");
 		spin_lock_irqsave(&wcn->dxe_lock, flags);
