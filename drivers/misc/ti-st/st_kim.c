@@ -691,12 +691,16 @@ void st_kim_ref(struct st_data_s **core_data, int id)
 	struct kim_data_s	*kim_gdata;
 	/* get kim_gdata reference from platform device */
 	pdev = st_get_plat_device(id);
-	if (!pdev) {
-		*core_data = NULL;
-		return;
-	}
+	if (!pdev)
+		goto err;
 	kim_gdata = platform_get_drvdata(pdev);
+	if (!kim_gdata)
+		goto err;
+
 	*core_data = kim_gdata->core_data;
+	return;
+err:
+	*core_data = NULL;
 }
 
 static int kim_version_open(struct inode *i, struct file *f)
