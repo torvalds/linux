@@ -480,6 +480,7 @@ static struct ceph_mds_session *register_session(struct ceph_mds_client *mdsc,
 		mdsc->max_sessions = newmax;
 	}
 	mdsc->sessions[mds] = s;
+	atomic_inc(&mdsc->num_sessions);
 	atomic_inc(&s->s_ref);  /* one ref to sessions[], one to caller */
 
 	ceph_con_open(&s->s_con, CEPH_ENTITY_TYPE_MDS, mds,
@@ -503,6 +504,7 @@ static void __unregister_session(struct ceph_mds_client *mdsc,
 	mdsc->sessions[s->s_mds] = NULL;
 	ceph_con_close(&s->s_con);
 	ceph_put_mds_session(s);
+	atomic_dec(&mdsc->num_sessions);
 }
 
 /*
@@ -3328,6 +3330,7 @@ int ceph_mdsc_init(struct ceph_fs_client *fsc)
 	init_waitqueue_head(&mdsc->session_close_wq);
 	INIT_LIST_HEAD(&mdsc->waiting_for_map);
 	mdsc->sessions = NULL;
+	atomic_set(&mdsc->num_sessions, 0);
 	mdsc->max_sessions = 0;
 	mdsc->stopping = 0;
 	init_rwsem(&mdsc->snap_rwsem);
@@ -3479,17 +3482,9 @@ void ceph_mdsc_sync(struct ceph_mds_client *mdsc)
  */
 static bool done_closing_sessions(struct ceph_mds_client *mdsc)
 {
-	int i, n = 0;
-
 	if (mdsc->fsc->mount_state == CEPH_MOUNT_SHUTDOWN)
 		return true;
-
-	mutex_lock(&mdsc->mutex);
-	for (i = 0; i < mdsc->max_sessions; i++)
-		if (mdsc->sessions[i])
-			n++;
-	mutex_unlock(&mdsc->mutex);
-	return n == 0;
+	return atomic_read(&mdsc->num_sessions) == 0;
 }
 
 /*

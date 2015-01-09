@@ -273,6 +273,7 @@ struct ceph_mds_client {
 	struct list_head        waiting_for_map;
 
 	struct ceph_mds_session **sessions;    /* NULL for mds if no session */
+	atomic_t		num_sessions;
 	int                     max_sessions;  /* len of s_mds_sessions */
 	int                     stopping;      /* true if shutting down */
 
