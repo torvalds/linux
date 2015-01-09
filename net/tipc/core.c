@@ -75,27 +75,20 @@ struct sk_buff *tipc_buf_acquire(u32 size)
 	return skb;
 }
 
-/**
- * tipc_core_stop - switch TIPC from SINGLE NODE to NOT RUNNING mode
- */
-static void tipc_core_stop(void)
-{
-	tipc_net_stop();
-	tipc_bearer_cleanup();
-	tipc_netlink_stop();
-	tipc_subscr_stop();
-	tipc_nametbl_stop();
-	tipc_socket_stop();
-	tipc_unregister_sysctl();
-	tipc_sk_rht_destroy();
-}
-
-/**
- * tipc_core_start - switch TIPC from NOT RUNNING to SINGLE NODE mode
- */
-static int tipc_core_start(void)
+static int __init tipc_init(void)
 {
 	int err;
+
+	pr_info("Activated (version " TIPC_MOD_VER ")\n");
+
+	tipc_own_addr = 0;
+	tipc_net_id = 4711;
+
+	sysctl_tipc_rmem[0] = TIPC_CONN_OVERLOAD_LIMIT >> 4 <<
+			      TIPC_LOW_IMPORTANCE;
+	sysctl_tipc_rmem[1] = TIPC_CONN_OVERLOAD_LIMIT >> 4 <<
+			      TIPC_CRITICAL_IMPORTANCE;
+	sysctl_tipc_rmem[2] = TIPC_CONN_OVERLOAD_LIMIT;
 
 	get_random_bytes(&tipc_random, sizeof(tipc_random));
 
@@ -127,6 +120,7 @@ static int tipc_core_start(void)
 	if (err)
 		goto out_bearer;
 
+	pr_info("Started in single node mode\n");
 	return 0;
 out_bearer:
 	tipc_subscr_stop();
@@ -141,35 +135,21 @@ out_netlink:
 out_nametbl:
 	tipc_sk_rht_destroy();
 out_reftbl:
+	pr_err("Unable to start in single node mode\n");
 	return err;
-}
-
-static int __init tipc_init(void)
-{
-	int res;
-
-	pr_info("Activated (version " TIPC_MOD_VER ")\n");
-
-	tipc_own_addr = 0;
-	tipc_net_id = 4711;
-
-	sysctl_tipc_rmem[0] = TIPC_CONN_OVERLOAD_LIMIT >> 4 <<
-			      TIPC_LOW_IMPORTANCE;
-	sysctl_tipc_rmem[1] = TIPC_CONN_OVERLOAD_LIMIT >> 4 <<
-			      TIPC_CRITICAL_IMPORTANCE;
-	sysctl_tipc_rmem[2] = TIPC_CONN_OVERLOAD_LIMIT;
-
-	res = tipc_core_start();
-	if (res)
-		pr_err("Unable to start in single node mode\n");
-	else
-		pr_info("Started in single node mode\n");
-	return res;
 }
 
 static void __exit tipc_exit(void)
 {
-	tipc_core_stop();
+	tipc_net_stop();
+	tipc_bearer_cleanup();
+	tipc_netlink_stop();
+	tipc_subscr_stop();
+	tipc_nametbl_stop();
+	tipc_socket_stop();
+	tipc_unregister_sysctl();
+	tipc_sk_rht_destroy();
+
 	pr_info("Deactivated\n");
 }
 
