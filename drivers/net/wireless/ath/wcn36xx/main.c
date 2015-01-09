@@ -298,6 +298,8 @@ static int wcn36xx_start(struct ieee80211_hw *hw)
 	wcn36xx_debugfs_init(wcn);
 
 	INIT_LIST_HEAD(&wcn->vif_list);
+	spin_lock_init(&wcn->dxe_lock);
+
 	return 0;
 
 out_smd_stop:
