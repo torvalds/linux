@@ -738,7 +738,7 @@ config CPU_ICACHE_DISABLE
 
 config CPU_DCACHE_DISABLE
 	bool "Disable D-Cache (C-bit)"
-	depends on CPU_CP15
+	depends on CPU_CP15 && !SMP
 	help
 	  Say Y here to disable the processor data cache. Unless
 	  you have a reason not to or are unsure, say N.
