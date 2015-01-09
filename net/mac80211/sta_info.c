@@ -116,7 +116,6 @@ static void __cleanup_single_sta(struct sta_info *sta)
 		clear_sta_flag(sta, WLAN_STA_PS_DELIVER);
 
 		atomic_dec(&ps->num_sta_ps);
-		sta_info_recalc_tim(sta);
 	}
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
@@ -625,7 +624,7 @@ static unsigned long ieee80211_tids_for_ac(int ac)
 	}
 }
 
-void sta_info_recalc_tim(struct sta_info *sta)
+static void __sta_info_recalc_tim(struct sta_info *sta, bool ignore_pending)
 {
 	struct ieee80211_local *local = sta->local;
 	struct ps_data *ps;
@@ -667,6 +666,9 @@ void sta_info_recalc_tim(struct sta_info *sta)
 	if (ignore_for_tim == BIT(IEEE80211_NUM_ACS) - 1)
 		ignore_for_tim = 0;
 
+	if (ignore_pending)
+		ignore_for_tim = BIT(IEEE80211_NUM_ACS) - 1;
+
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		unsigned long tids;
 
@@ -695,7 +697,7 @@ void sta_info_recalc_tim(struct sta_info *sta)
 	else
 		__bss_tim_clear(ps->tim, id);
 
-	if (local->ops->set_tim) {
+	if (local->ops->set_tim && !WARN_ON(sta->dead)) {
 		local->tim_in_locked_section = true;
 		drv_set_tim(local, &sta->sta, indicate_tim);
 		local->tim_in_locked_section = false;
@@ -703,6 +705,11 @@ void sta_info_recalc_tim(struct sta_info *sta)
 
 out_unlock:
 	spin_unlock_bh(&local->tim_lock);
+}
+
+void sta_info_recalc_tim(struct sta_info *sta)
+{
+	__sta_info_recalc_tim(sta, false);
 }
 
 static bool sta_info_buffer_expired(struct sta_info *sta, struct sk_buff *skb)
@@ -887,6 +894,9 @@ static void __sta_info_destroy_part2(struct sta_info *sta)
 
 	/* now keys can no longer be reached */
 	ieee80211_free_sta_keys(local, sta);
+
+	/* disable TIM bit - last chance to tell driver */
+	__sta_info_recalc_tim(sta, true);
 
 	sta->dead = true;
 
