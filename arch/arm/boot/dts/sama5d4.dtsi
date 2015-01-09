@@ -64,6 +64,7 @@
 		gpio2 = &pioC;
 		gpio3 = &pioD;
 		gpio4 = &pioE;
+		pwm0 = &pwm0;
 		ssc0 = &ssc0;
 		ssc1 = &ssc1;
 		tcb0 = &tcb0;
@@ -818,6 +819,15 @@
 				dma-names = "tx", "rx";
 				clocks = <&ssc0_clk>;
 				clock-names = "pclk";
+				status = "disabled";
+			};
+
+			pwm0: pwm@f800c000 {
+				compatible = "atmel,sama5d3-pwm";
+				reg = <0xf800c000 0x300>;
+				interrupts = <43 IRQ_TYPE_LEVEL_HIGH 4>;
+				#pwm-cells = <3>;
+				clocks = <&pwm_clk>;
 				status = "disabled";
 			};
 
