@@ -1,2 +1,2 @@
-libapikfs-y += fd/
-libapikfs-y += fs/
+libapi-y += fd/
+libapi-y += fs/

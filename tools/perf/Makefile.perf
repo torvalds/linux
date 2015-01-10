@@ -161,8 +161,8 @@ endif
 LIBTRACEEVENT = $(TE_PATH)libtraceevent.a
 export LIBTRACEEVENT
 
-LIBAPIKFS = $(LIB_PATH)libapikfs.a
-export LIBAPIKFS
+LIBAPI = $(LIB_PATH)libapi.a
+export LIBAPI
 
 # python extension build directories
 PYTHON_EXTBUILD     := $(OUTPUT)python_ext_build/
@@ -173,7 +173,7 @@ export PYTHON_EXTBUILD_LIB PYTHON_EXTBUILD_TMP
 python-clean := $(call QUIET_CLEAN, python) $(RM) -r $(PYTHON_EXTBUILD) $(OUTPUT)python/perf.so
 
 PYTHON_EXT_SRCS := $(shell grep -v ^\# util/python-ext-sources)
-PYTHON_EXT_DEPS := util/python-ext-sources util/setup.py $(LIBTRACEEVENT) $(LIBAPIKFS)
+PYTHON_EXT_DEPS := util/python-ext-sources util/setup.py $(LIBTRACEEVENT) $(LIBAPI)
 
 $(OUTPUT)python/perf.so: $(PYTHON_EXT_SRCS) $(PYTHON_EXT_DEPS)
 	$(QUIET_GEN)CFLAGS='$(CFLAGS)' $(PYTHON_WORD) util/setup.py \
@@ -214,7 +214,7 @@ export PERL_PATH
 
 LIB_FILE=$(OUTPUT)libperf.a
 
-PERFLIBS = $(LIB_FILE) $(LIBAPIKFS) $(LIBTRACEEVENT)
+PERFLIBS = $(LIB_FILE) $(LIBAPI) $(LIBTRACEEVENT)
 
 # We choose to avoid "if .. else if .. else .. endif endif"
 # because maintaining the nesting to match is a pain.  If
@@ -375,11 +375,11 @@ $(LIBTRACEEVENT)-clean:
 install-traceevent-plugins: $(LIBTRACEEVENT)
 	$(QUIET_SUBDIR0)$(TRACE_EVENT_DIR) $(LIBTRACEEVENT_FLAGS) install_plugins
 
-$(LIBAPIKFS): FORCE
-	@$(MAKE) -C $(LIB_DIR) O=$(OUTPUT) $(OUTPUT)libapikfs.a
+$(LIBAPI): FORCE
+	@$(MAKE) -C $(LIB_DIR) O=$(OUTPUT) $(OUTPUT)libapi.a
 
-$(LIBAPIKFS)-clean:
-	$(call QUIET_CLEAN, libapikfs)
+$(LIBAPI)-clean:
+	$(call QUIET_CLEAN, libapi)
 	@$(MAKE) -C $(LIB_DIR) O=$(OUTPUT) clean >/dev/null
 
 help:
@@ -520,7 +520,7 @@ config-clean:
 	$(call QUIET_CLEAN, config)
 	@$(MAKE) -C config/feature-checks clean >/dev/null
 
-clean: $(LIBTRACEEVENT)-clean $(LIBAPIKFS)-clean config-clean
+clean: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean config-clean
 	$(call QUIET_CLEAN, core-objs)  $(RM) $(LIB_FILE) $(OUTPUT)perf-archive $(OUTPUT)perf-with-kcore $(LANG_BINDINGS)
 	@find . -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
 	@$(RM) .config-detected

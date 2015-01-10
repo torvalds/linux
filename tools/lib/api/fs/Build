@@ -1,4 +1,4 @@
-libapikfs-y += fs.o
-libapikfs-y += findfs.o
-libapikfs-y += debugfs.o
-libapikfs-y += tracefs.o
+libapi-y += fs.o
+libapi-y += debugfs.o
+libapi-y += findfs.o
+libapi-y += tracefs.o

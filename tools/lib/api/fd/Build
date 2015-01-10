@@ -1,1 +1,1 @@
-libapikfs-y += array.o
+libapi-y += array.o
