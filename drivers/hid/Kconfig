@@ -27,7 +27,8 @@ if HID
 
 config HID_BATTERY_STRENGTH
 	bool "Battery level reporting for HID devices"
-	depends on HID && POWER_SUPPLY && HID = POWER_SUPPLY
+	depends on HID
+	select POWER_SUPPLY
 	default n
 	---help---
 	This option adds support of reporting battery strength (for HID devices

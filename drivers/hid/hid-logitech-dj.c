@@ -962,10 +962,24 @@ static int logi_dj_raw_event(struct hid_device *hdev,
 
 	switch (data[0]) {
 	case REPORT_ID_DJ_SHORT:
+		if (size != DJREPORT_SHORT_LENGTH) {
+			dev_err(&hdev->dev, "DJ report of bad size (%d)", size);
+			return false;
+		}
 		return logi_dj_dj_event(hdev, report, data, size);
 	case REPORT_ID_HIDPP_SHORT:
-		/* intentional fallthrough */
+		if (size != HIDPP_REPORT_SHORT_LENGTH) {
+			dev_err(&hdev->dev,
+				"Short HID++ report of bad size (%d)", size);
+			return false;
+		}
+		return logi_dj_hidpp_event(hdev, report, data, size);
 	case REPORT_ID_HIDPP_LONG:
+		if (size != HIDPP_REPORT_LONG_LENGTH) {
+			dev_err(&hdev->dev,
+				"Long HID++ report of bad size (%d)", size);
+			return false;
+		}
 		return logi_dj_hidpp_event(hdev, report, data, size);
 	}
 
