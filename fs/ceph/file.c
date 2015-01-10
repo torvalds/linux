@@ -879,28 +879,34 @@ again:
 
 		i_size = i_size_read(inode);
 		if (retry_op == READ_INLINE) {
-			/* does not support inline data > PAGE_SIZE */
-			if (i_size > PAGE_CACHE_SIZE) {
-				ret = -EIO;
-			} else if (iocb->ki_pos < i_size) {
+			BUG_ON(ret > 0 || read > 0);
+			if (iocb->ki_pos < i_size &&
+			    iocb->ki_pos < PAGE_CACHE_SIZE) {
 				loff_t end = min_t(loff_t, i_size,
 						   iocb->ki_pos + len);
+				end = min_t(loff_t, end, PAGE_CACHE_SIZE);
 				if (statret < end)
 					zero_user_segment(page, statret, end);
 				ret = copy_page_to_iter(page,
 						iocb->ki_pos & ~PAGE_MASK,
 						end - iocb->ki_pos, to);
 				iocb->ki_pos += ret;
-			} else {
-				ret = 0;
+				read += ret;
+			}
+			if (iocb->ki_pos < i_size && read < len) {
+				size_t zlen = min_t(size_t, len - read,
+						    i_size - iocb->ki_pos);
+				ret = iov_iter_zero(zlen, to);
+				iocb->ki_pos += ret;
+				read += ret;
 			}
 			__free_pages(page, 0);
-			return ret;
+			return read;
 		}
 
 		/* hit EOF or hole? */
 		if (retry_op == CHECK_EOF && iocb->ki_pos < i_size &&
-			ret < len) {
+		    ret < len) {
 			dout("sync_read hit hole, ppos %lld < size %lld"
 			     ", reading more\n", iocb->ki_pos,
 			     inode->i_size);
