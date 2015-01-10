@@ -205,7 +205,7 @@ s_uGetRTSCTSRsvTime(
 	unsigned short wCurrentRate
 )
 {
-	unsigned int uRrvTime  , uRTSTime, uCTSTime, uAckTime, uDataTime;
+	unsigned int uRrvTime, uRTSTime, uCTSTime, uAckTime, uDataTime;
 
 	uRrvTime = uRTSTime = uCTSTime = uAckTime = uDataTime = 0;
 
