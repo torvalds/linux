@@ -4,18 +4,7 @@
 #include "internal.h"
 #include "mount.h"
 
-static void pin_free_rcu(struct rcu_head *head)
-{
-	kfree(container_of(head, struct fs_pin, rcu));
-}
-
 static DEFINE_SPINLOCK(pin_lock);
-
-void pin_put(struct fs_pin *p)
-{
-	if (atomic_long_dec_and_test(&p->count))
-		call_rcu(&p->rcu, pin_free_rcu);
-}
 
 void pin_remove(struct fs_pin *pin)
 {

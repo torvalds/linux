@@ -124,6 +124,12 @@ out:
 	return acct->active;
 }
 
+static void acct_put(struct bsd_acct_struct *p)
+{
+	if (atomic_long_dec_and_test(&p->pin.count))
+		kfree_rcu(p, pin.rcu);
+}
+
 static struct bsd_acct_struct *acct_get(struct pid_namespace *ns)
 {
 	struct bsd_acct_struct *res;
@@ -144,7 +150,7 @@ again:
 	mutex_lock(&res->lock);
 	if (!res->ns) {
 		mutex_unlock(&res->lock);
-		pin_put(&res->pin);
+		acct_put(res);
 		goto again;
 	}
 	return res;
@@ -175,7 +181,7 @@ static void acct_kill(struct bsd_acct_struct *acct,
 		acct->ns = NULL;
 		atomic_long_dec(&acct->pin.count);
 		mutex_unlock(&acct->lock);
-		pin_put(&acct->pin);
+		acct_put(acct);
 	}
 }
 
@@ -186,7 +192,7 @@ static void acct_pin_kill(struct fs_pin *pin)
 	mutex_lock(&acct->lock);
 	if (!acct->ns) {
 		mutex_unlock(&acct->lock);
-		pin_put(pin);
+		acct_put(acct);
 		acct = NULL;
 	}
 	acct_kill(acct, NULL);
@@ -576,7 +582,7 @@ static void slow_acct_process(struct pid_namespace *ns)
 		if (acct) {
 			do_acct_process(acct);
 			mutex_unlock(&acct->lock);
-			pin_put(&acct->pin);
+			acct_put(acct);
 		}
 	}
 }

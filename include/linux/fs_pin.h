@@ -12,6 +12,5 @@ struct fs_pin {
 	void (*kill)(struct fs_pin *);
 };
 
-void pin_put(struct fs_pin *);
 void pin_remove(struct fs_pin *);
 void pin_insert(struct fs_pin *, struct vfsmount *);
