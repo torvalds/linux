@@ -54,8 +54,8 @@ static struct cns3xxx_pcie *pbus_to_cnspci(struct pci_bus *bus)
 	return sysdata_to_cnspci(bus->sysdata);
 }
 
-static void __iomem *cns3xxx_pci_cfg_base(struct pci_bus *bus,
-				  unsigned int devfn, int where)
+static void __iomem *cns3xxx_pci_map_bus(struct pci_bus *bus,
+					 unsigned int devfn, int where)
 {
 	struct cns3xxx_pcie *cnspci = pbus_to_cnspci(bus);
 	int busno = bus->number;
@@ -91,55 +91,22 @@ static void __iomem *cns3xxx_pci_cfg_base(struct pci_bus *bus,
 static int cns3xxx_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 				   int where, int size, u32 *val)
 {
-	u32 v;
-	void __iomem *base;
+	int ret;
 	u32 mask = (0x1ull << (size * 8)) - 1;
 	int shift = (where % 4) * 8;
 
-	base = cns3xxx_pci_cfg_base(bus, devfn, where);
-	if (!base) {
-		*val = 0xffffffff;
-		return PCIBIOS_SUCCESSFUL;
-	}
+	ret = pci_generic_config_read32(bus, devfn, where, size, val);
 
-	v = __raw_readl(base);
-
-	if (bus->number == 0 && devfn == 0 &&
-			(where & 0xffc) == PCI_CLASS_REVISION) {
+	if (ret == PCIBIOS_SUCCESSFUL && !bus->number && !devfn &&
+	    (where & 0xffc) == PCI_CLASS_REVISION)
 		/*
 		 * RC's class is 0xb, but Linux PCI driver needs 0x604
 		 * for a PCIe bridge. So we must fixup the class code
 		 * to 0x604 here.
 		 */
-		v &= 0xff;
-		v |= 0x604 << 16;
-	}
+		*val = ((((*val << shift) & 0xff) | (0x604 << 16)) >> shift) & mask;
 
-	*val = (v >> shift) & mask;
-
-	return PCIBIOS_SUCCESSFUL;
-}
-
-static int cns3xxx_pci_write_config(struct pci_bus *bus, unsigned int devfn,
-				    int where, int size, u32 val)
-{
-	u32 v;
-	void __iomem *base;
-	u32 mask = (0x1ull << (size * 8)) - 1;
-	int shift = (where % 4) * 8;
-
-	base = cns3xxx_pci_cfg_base(bus, devfn, where);
-	if (!base)
-		return PCIBIOS_SUCCESSFUL;
-
-	v = __raw_readl(base);
-
-	v &= ~(mask << shift);
-	v |= (val & mask) << shift;
-
-	__raw_writel(v, base);
-
-	return PCIBIOS_SUCCESSFUL;
+	return ret;
 }
 
 static int cns3xxx_pci_setup(int nr, struct pci_sys_data *sys)
@@ -158,8 +125,9 @@ static int cns3xxx_pci_setup(int nr, struct pci_sys_data *sys)
 }
 
 static struct pci_ops cns3xxx_pcie_ops = {
+	.map_bus = cns3xxx_pci_map_bus,
 	.read = cns3xxx_pci_read_config,
-	.write = cns3xxx_pci_write_config,
+	.write = pci_generic_config_write,
 };
 
 static int cns3xxx_pcie_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
