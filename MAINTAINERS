@@ -2259,6 +2259,7 @@ F:	drivers/gpio/gpio-bt8xx.c
 BTRFS FILE SYSTEM
 M:	Chris Mason <clm@fb.com>
 M:	Josef Bacik <jbacik@fb.com>
+M:	David Sterba <dsterba@suse.cz>
 L:	linux-btrfs@vger.kernel.org
 W:	http://btrfs.wiki.kernel.org/
 Q:	http://patchwork.kernel.org/project/linux-btrfs/list/
