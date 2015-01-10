@@ -560,6 +560,7 @@ static inline int pcibios_err_to_errno(int err)
 /* Low-level architecture-dependent routines */
 
 struct pci_ops {
+	void __iomem *(*map_bus)(struct pci_bus *bus, unsigned int devfn, int where);
 	int (*read)(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 *val);
 	int (*write)(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 val);
 };
@@ -857,6 +858,16 @@ int pci_bus_write_config_word(struct pci_bus *bus, unsigned int devfn,
 			      int where, u16 val);
 int pci_bus_write_config_dword(struct pci_bus *bus, unsigned int devfn,
 			       int where, u32 val);
+
+int pci_generic_config_read(struct pci_bus *bus, unsigned int devfn,
+			    int where, int size, u32 *val);
+int pci_generic_config_write(struct pci_bus *bus, unsigned int devfn,
+			    int where, int size, u32 val);
+int pci_generic_config_read32(struct pci_bus *bus, unsigned int devfn,
+			      int where, int size, u32 *val);
+int pci_generic_config_write32(struct pci_bus *bus, unsigned int devfn,
+			       int where, int size, u32 val);
+
 struct pci_ops *pci_bus_set_ops(struct pci_bus *bus, struct pci_ops *ops);
 
 static inline int pci_read_config_byte(const struct pci_dev *dev, int where, u8 *val)
