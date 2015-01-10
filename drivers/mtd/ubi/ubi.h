@@ -795,6 +795,9 @@ int ubi_eba_unmap_leb(struct ubi_device *ubi, struct ubi_volume *vol,
 		      int lnum);
 int ubi_eba_read_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
 		     void *buf, int offset, int len, int check);
+int ubi_eba_read_leb_sg(struct ubi_device *ubi, struct ubi_volume *vol,
+			struct ubi_sgl *sgl, int lnum, int offset, int len,
+			int check);
 int ubi_eba_write_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
 		      const void *buf, int offset, int len);
 int ubi_eba_write_leb_st(struct ubi_device *ubi, struct ubi_volume *vol,

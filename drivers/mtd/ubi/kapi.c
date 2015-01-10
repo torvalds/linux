@@ -366,6 +366,43 @@ void ubi_close_volume(struct ubi_volume_desc *desc)
 EXPORT_SYMBOL_GPL(ubi_close_volume);
 
 /**
+ * leb_read_sanity_check - does sanity checks on read requests.
+ * @desc: volume descriptor
+ * @lnum: logical eraseblock number to read from
+ * @offset: offset within the logical eraseblock to read from
+ * @len: how many bytes to read
+ *
+ * This function is used by ubi_leb_read() and ubi_leb_read_sg()
+ * to perform sanity checks.
+ */
+static int leb_read_sanity_check(struct ubi_volume_desc *desc, int lnum,
+				 int offset, int len)
+{
+	struct ubi_volume *vol = desc->vol;
+	struct ubi_device *ubi = vol->ubi;
+	int vol_id = vol->vol_id;
+
+	if (vol_id < 0 || vol_id >= ubi->vtbl_slots || lnum < 0 ||
+	    lnum >= vol->used_ebs || offset < 0 || len < 0 ||
+	    offset + len > vol->usable_leb_size)
+		return -EINVAL;
+
+	if (vol->vol_type == UBI_STATIC_VOLUME) {
+		if (vol->used_ebs == 0)
+			/* Empty static UBI volume */
+			return 0;
+		if (lnum == vol->used_ebs - 1 &&
+		    offset + len > vol->last_eb_bytes)
+			return -EINVAL;
+	}
+
+	if (vol->upd_marker)
+		return -EBADF;
+
+	return 0;
+}
+
+/**
  * ubi_leb_read - read data.
  * @desc: volume descriptor
  * @lnum: logical eraseblock number to read from
@@ -401,22 +438,10 @@ int ubi_leb_read(struct ubi_volume_desc *desc, int lnum, char *buf, int offset,
 
 	dbg_gen("read %d bytes from LEB %d:%d:%d", len, vol_id, lnum, offset);
 
-	if (vol_id < 0 || vol_id >= ubi->vtbl_slots || lnum < 0 ||
-	    lnum >= vol->used_ebs || offset < 0 || len < 0 ||
-	    offset + len > vol->usable_leb_size)
-		return -EINVAL;
+	err = leb_read_sanity_check(desc, lnum, offset, len);
+	if (err < 0)
+		return err;
 
-	if (vol->vol_type == UBI_STATIC_VOLUME) {
-		if (vol->used_ebs == 0)
-			/* Empty static UBI volume */
-			return 0;
-		if (lnum == vol->used_ebs - 1 &&
-		    offset + len > vol->last_eb_bytes)
-			return -EINVAL;
-	}
-
-	if (vol->upd_marker)
-		return -EBADF;
 	if (len == 0)
 		return 0;
 
@@ -429,6 +454,46 @@ int ubi_leb_read(struct ubi_volume_desc *desc, int lnum, char *buf, int offset,
 	return err;
 }
 EXPORT_SYMBOL_GPL(ubi_leb_read);
+
+
+/**
+ * ubi_leb_read_sg - read data into a scatter gather list.
+ * @desc: volume descriptor
+ * @lnum: logical eraseblock number to read from
+ * @buf: buffer where to store the read data
+ * @offset: offset within the logical eraseblock to read from
+ * @len: how many bytes to read
+ * @check: whether UBI has to check the read data's CRC or not.
+ *
+ * This function works exactly like ubi_leb_read_sg(). But instead of
+ * storing the read data into a buffer it writes to an UBI scatter gather
+ * list.
+ */
+int ubi_leb_read_sg(struct ubi_volume_desc *desc, int lnum, struct ubi_sgl *sgl,
+		    int offset, int len, int check)
+{
+	struct ubi_volume *vol = desc->vol;
+	struct ubi_device *ubi = vol->ubi;
+	int err, vol_id = vol->vol_id;
+
+	dbg_gen("read %d bytes from LEB %d:%d:%d", len, vol_id, lnum, offset);
+
+	err = leb_read_sanity_check(desc, lnum, offset, len);
+	if (err < 0)
+		return err;
+
+	if (len == 0)
+		return 0;
+
+	err = ubi_eba_read_leb_sg(ubi, vol, sgl, lnum, offset, len, check);
+	if (err && mtd_is_eccerr(err) && vol->vol_type == UBI_STATIC_VOLUME) {
+		ubi_warn(ubi, "mark volume %d as corrupted", vol_id);
+		vol->corrupted = 1;
+	}
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(ubi_leb_read_sg);
 
 /**
  * ubi_leb_write - write data.
