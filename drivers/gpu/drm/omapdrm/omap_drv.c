@@ -135,7 +135,7 @@ static int omap_modeset_create_crtc(struct drm_device *dev, int id,
 	struct drm_plane *plane;
 	struct drm_crtc *crtc;
 
-	plane = omap_plane_init(dev, id, true);
+	plane = omap_plane_init(dev, id, DRM_PLANE_TYPE_PRIMARY);
 	if (IS_ERR(plane))
 		return PTR_ERR(plane);
 
@@ -277,7 +277,7 @@ static int omap_modeset_init(struct drm_device *dev)
 	for (; id < num_ovls; id++) {
 		struct drm_plane *plane;
 
-		plane = omap_plane_init(dev, id, false);
+		plane = omap_plane_init(dev, id, DRM_PLANE_TYPE_OVERLAY);
 		if (IS_ERR(plane))
 			return PTR_ERR(plane);
 

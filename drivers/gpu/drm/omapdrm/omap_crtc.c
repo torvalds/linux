@@ -28,7 +28,6 @@
 
 struct omap_crtc {
 	struct drm_crtc base;
-	struct drm_plane *plane;
 
 	const char *name;
 	int pipe;
@@ -217,10 +216,7 @@ static void omap_crtc_dpms(struct drm_crtc *crtc, int mode)
 		omap_crtc->full_update = true;
 		omap_crtc_apply(crtc, &omap_crtc->apply);
 
-		/* also enable our private plane: */
-		WARN_ON(omap_plane_dpms(omap_crtc->plane, mode));
-
-		/* and any attached overlay planes: */
+		/* Enable/disable all planes associated with the CRTC. */
 		for (i = 0; i < priv->num_planes; i++) {
 			struct drm_plane *plane = priv->planes[i];
 			if (plane->crtc == crtc)
@@ -258,7 +254,13 @@ static int omap_crtc_mode_set(struct drm_crtc *crtc,
 	copy_timings_drm_to_omap(&omap_crtc->timings, mode);
 	omap_crtc->full_update = true;
 
-	return omap_plane_mode_set(omap_crtc->plane, crtc, crtc->primary->fb,
+	/*
+	 * The primary plane CRTC can be reset if the plane is disabled directly
+	 * through the universal plane API. Set it again here.
+	 */
+	crtc->primary->crtc = crtc;
+
+	return omap_plane_mode_set(crtc->primary, crtc, crtc->primary->fb,
 			0, 0, mode->hdisplay, mode->vdisplay,
 			x << 16, y << 16,
 			mode->hdisplay << 16, mode->vdisplay << 16,
@@ -282,8 +284,7 @@ static void omap_crtc_commit(struct drm_crtc *crtc)
 static int omap_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 		struct drm_framebuffer *old_fb)
 {
-	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	struct drm_plane *plane = omap_crtc->plane;
+	struct drm_plane *plane = crtc->primary;
 	struct drm_display_mode *mode = &crtc->mode;
 
 	return omap_plane_mode_set(plane, crtc, crtc->primary->fb,
@@ -321,7 +322,7 @@ static void page_flip_worker(struct work_struct *work)
 	struct drm_gem_object *bo;
 
 	drm_modeset_lock(&crtc->mutex, NULL);
-	omap_plane_mode_set(omap_crtc->plane, crtc, crtc->primary->fb,
+	omap_plane_mode_set(crtc->primary, crtc, crtc->primary->fb,
 			0, 0, mode->hdisplay, mode->vdisplay,
 			crtc->x << 16, crtc->y << 16,
 			mode->hdisplay << 16, mode->vdisplay << 16,
@@ -385,7 +386,6 @@ static int omap_crtc_page_flip_locked(struct drm_crtc *crtc,
 static int omap_crtc_set_property(struct drm_crtc *crtc,
 		struct drm_property *property, uint64_t val)
 {
-	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 	struct omap_drm_private *priv = crtc->dev->dev_private;
 
 	if (property == priv->rotation_prop) {
@@ -393,7 +393,7 @@ static int omap_crtc_set_property(struct drm_crtc *crtc,
 				!!(val & ((1LL << DRM_ROTATE_90) | (1LL << DRM_ROTATE_270)));
 	}
 
-	return omap_plane_set_property(omap_crtc->plane, property, val);
+	return omap_plane_set_property(crtc->primary, property, val);
 }
 
 static const struct drm_crtc_funcs omap_crtc_funcs = {
@@ -681,12 +681,13 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 	struct drm_crtc *crtc = NULL;
 	struct omap_crtc *omap_crtc;
 	struct omap_overlay_manager_info *info;
+	int ret;
 
 	DBG("%s", channel_names[channel]);
 
 	omap_crtc = kzalloc(sizeof(*omap_crtc), GFP_KERNEL);
 	if (!omap_crtc)
-		goto fail;
+		return NULL;
 
 	crtc = &omap_crtc->base;
 
@@ -700,8 +701,6 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 	omap_crtc->apply.post_apply = omap_crtc_post_apply;
 
 	omap_crtc->channel = channel;
-	omap_crtc->plane = plane;
-	omap_crtc->plane->crtc = crtc;
 	omap_crtc->name = channel_names[channel];
 	omap_crtc->pipe = id;
 
@@ -723,18 +722,18 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 	info->trans_key_type = OMAP_DSS_COLOR_KEY_GFX_DST;
 	info->trans_enabled = false;
 
-	drm_crtc_init(dev, crtc, &omap_crtc_funcs);
+	ret = drm_crtc_init_with_planes(dev, crtc, plane, NULL,
+					&omap_crtc_funcs);
+	if (ret < 0) {
+		kfree(omap_crtc);
+		return NULL;
+	}
+
 	drm_crtc_helper_add(crtc, &omap_crtc_helper_funcs);
 
-	omap_plane_install_properties(omap_crtc->plane, &crtc->base);
+	omap_plane_install_properties(crtc->primary, &crtc->base);
 
 	omap_crtcs[channel] = omap_crtc;
 
 	return crtc;
-
-fail:
-	if (crtc)
-		omap_crtc_destroy(crtc);
-
-	return NULL;
 }

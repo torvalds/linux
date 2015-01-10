@@ -220,14 +220,6 @@ int omap_plane_mode_set(struct drm_plane *plane,
 		omap_plane->apply_done_cb.arg = arg;
 	}
 
-	if (plane->fb)
-		drm_framebuffer_unreference(plane->fb);
-
-	drm_framebuffer_reference(fb);
-
-	plane->fb = fb;
-	plane->crtc = crtc;
-
 	return apply(plane);
 }
 
@@ -248,6 +240,13 @@ static int omap_plane_update(struct drm_plane *plane,
 		swap(src_w, src_h);
 		break;
 	}
+
+	/*
+	 * We don't need to take a reference to the framebuffer as the DRM core
+	 * has already done so for the purpose of setting plane->fb.
+	 */
+	plane->fb = fb;
+	plane->crtc = crtc;
 
 	return omap_plane_mode_set(plane, crtc, fb,
 			crtc_x, crtc_y, crtc_w, crtc_h,
@@ -377,14 +376,15 @@ static const uint32_t error_irqs[] = {
 
 /* initialize plane */
 struct drm_plane *omap_plane_init(struct drm_device *dev,
-		int id, bool private_plane)
+		int id, enum drm_plane_type type)
 {
 	struct omap_drm_private *priv = dev->dev_private;
-	struct drm_plane *plane = NULL;
+	struct drm_plane *plane;
 	struct omap_plane *omap_plane;
 	struct omap_overlay_info *info;
+	int ret;
 
-	DBG("%s: priv=%d", plane_names[id], private_plane);
+	DBG("%s: type=%d", plane_names[id], type);
 
 	omap_plane = kzalloc(sizeof(*omap_plane), GFP_KERNEL);
 	if (!omap_plane)
@@ -408,8 +408,11 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	omap_plane->error_irq.irq = omap_plane_error_irq;
 	omap_irq_register(dev, &omap_plane->error_irq);
 
-	drm_plane_init(dev, plane, (1 << priv->num_crtcs) - 1, &omap_plane_funcs,
-			omap_plane->formats, omap_plane->nformats, private_plane);
+	ret = drm_universal_plane_init(dev, plane, (1 << priv->num_crtcs) - 1,
+				       &omap_plane_funcs, omap_plane->formats,
+				       omap_plane->nformats, type);
+	if (ret < 0)
+		goto error;
 
 	omap_plane_install_properties(plane, &plane->base);
 
@@ -427,10 +430,15 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	 * TODO add ioctl to give userspace an API to change this.. this
 	 * will come in a subsequent patch.
 	 */
-	if (private_plane)
+	if (type == DRM_PLANE_TYPE_PRIMARY)
 		omap_plane->info.zorder = 0;
 	else
 		omap_plane->info.zorder = id;
 
 	return plane;
+
+error:
+	omap_irq_unregister(plane->dev, &omap_plane->error_irq);
+	kfree(omap_plane);
+	return NULL;
 }
