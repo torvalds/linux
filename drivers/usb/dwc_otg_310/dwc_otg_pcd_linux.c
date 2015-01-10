@@ -1748,7 +1748,7 @@ static void dwc_otg_pcd_work_init(dwc_otg_pcd_t *pcd,
 		/* host mode,enter usb phy mode */
 		pldata->dwc_otg_uart_mode(pldata, PHY_USB_MODE);
 	}
-	schedule_delayed_work(&pcd->check_id_work, HZ);
+	schedule_delayed_work(&pcd->check_id_work, 8 * HZ);
 }
 
 #endif /* DWC_HOST_ONLY */
