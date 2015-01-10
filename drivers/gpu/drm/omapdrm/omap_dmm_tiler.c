@@ -58,19 +58,19 @@ static const struct {
 	uint32_t slot_w;	/* width of each slot (in pixels) */
 	uint32_t slot_h;	/* height of each slot (in pixels) */
 } geom[TILFMT_NFORMATS] = {
-		[TILFMT_8BIT]  = GEOM(0, 0, 1),
-		[TILFMT_16BIT] = GEOM(0, 1, 2),
-		[TILFMT_32BIT] = GEOM(1, 1, 4),
-		[TILFMT_PAGE]  = GEOM(SLOT_WIDTH_BITS, SLOT_HEIGHT_BITS, 1),
+	[TILFMT_8BIT]  = GEOM(0, 0, 1),
+	[TILFMT_16BIT] = GEOM(0, 1, 2),
+	[TILFMT_32BIT] = GEOM(1, 1, 4),
+	[TILFMT_PAGE]  = GEOM(SLOT_WIDTH_BITS, SLOT_HEIGHT_BITS, 1),
 };
 
 
 /* lookup table for registers w/ per-engine instances */
 static const uint32_t reg[][4] = {
-		[PAT_STATUS] = {DMM_PAT_STATUS__0, DMM_PAT_STATUS__1,
-				DMM_PAT_STATUS__2, DMM_PAT_STATUS__3},
-		[PAT_DESCR]  = {DMM_PAT_DESCR__0, DMM_PAT_DESCR__1,
-				DMM_PAT_DESCR__2, DMM_PAT_DESCR__3},
+	[PAT_STATUS] = {DMM_PAT_STATUS__0, DMM_PAT_STATUS__1,
+			DMM_PAT_STATUS__2, DMM_PAT_STATUS__3},
+	[PAT_DESCR]  = {DMM_PAT_DESCR__0, DMM_PAT_DESCR__1,
+			DMM_PAT_DESCR__2, DMM_PAT_DESCR__3},
 };
 
 /* simple allocator to grab next 16 byte aligned memory from txn */

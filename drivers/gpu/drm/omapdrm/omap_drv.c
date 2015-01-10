@@ -610,55 +610,55 @@ static const struct vm_operations_struct omap_gem_vm_ops = {
 };
 
 static const struct file_operations omapdriver_fops = {
-		.owner = THIS_MODULE,
-		.open = drm_open,
-		.unlocked_ioctl = drm_ioctl,
-		.release = drm_release,
-		.mmap = omap_gem_mmap,
-		.poll = drm_poll,
-		.read = drm_read,
-		.llseek = noop_llseek,
+	.owner = THIS_MODULE,
+	.open = drm_open,
+	.unlocked_ioctl = drm_ioctl,
+	.release = drm_release,
+	.mmap = omap_gem_mmap,
+	.poll = drm_poll,
+	.read = drm_read,
+	.llseek = noop_llseek,
 };
 
 static struct drm_driver omap_drm_driver = {
-		.driver_features =
-				DRIVER_HAVE_IRQ | DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME,
-		.load = dev_load,
-		.unload = dev_unload,
-		.open = dev_open,
-		.lastclose = dev_lastclose,
-		.preclose = dev_preclose,
-		.postclose = dev_postclose,
-		.set_busid = drm_platform_set_busid,
-		.get_vblank_counter = drm_vblank_count,
-		.enable_vblank = omap_irq_enable_vblank,
-		.disable_vblank = omap_irq_disable_vblank,
-		.irq_preinstall = omap_irq_preinstall,
-		.irq_postinstall = omap_irq_postinstall,
-		.irq_uninstall = omap_irq_uninstall,
-		.irq_handler = omap_irq_handler,
+	.driver_features = DRIVER_HAVE_IRQ | DRIVER_MODESET | DRIVER_GEM
+			 | DRIVER_PRIME,
+	.load = dev_load,
+	.unload = dev_unload,
+	.open = dev_open,
+	.lastclose = dev_lastclose,
+	.preclose = dev_preclose,
+	.postclose = dev_postclose,
+	.set_busid = drm_platform_set_busid,
+	.get_vblank_counter = drm_vblank_count,
+	.enable_vblank = omap_irq_enable_vblank,
+	.disable_vblank = omap_irq_disable_vblank,
+	.irq_preinstall = omap_irq_preinstall,
+	.irq_postinstall = omap_irq_postinstall,
+	.irq_uninstall = omap_irq_uninstall,
+	.irq_handler = omap_irq_handler,
 #ifdef CONFIG_DEBUG_FS
-		.debugfs_init = omap_debugfs_init,
-		.debugfs_cleanup = omap_debugfs_cleanup,
+	.debugfs_init = omap_debugfs_init,
+	.debugfs_cleanup = omap_debugfs_cleanup,
 #endif
-		.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
-		.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-		.gem_prime_export = omap_gem_prime_export,
-		.gem_prime_import = omap_gem_prime_import,
-		.gem_free_object = omap_gem_free_object,
-		.gem_vm_ops = &omap_gem_vm_ops,
-		.dumb_create = omap_gem_dumb_create,
-		.dumb_map_offset = omap_gem_dumb_map_offset,
-		.dumb_destroy = drm_gem_dumb_destroy,
-		.ioctls = ioctls,
-		.num_ioctls = DRM_OMAP_NUM_IOCTLS,
-		.fops = &omapdriver_fops,
-		.name = DRIVER_NAME,
-		.desc = DRIVER_DESC,
-		.date = DRIVER_DATE,
-		.major = DRIVER_MAJOR,
-		.minor = DRIVER_MINOR,
-		.patchlevel = DRIVER_PATCHLEVEL,
+	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
+	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
+	.gem_prime_export = omap_gem_prime_export,
+	.gem_prime_import = omap_gem_prime_import,
+	.gem_free_object = omap_gem_free_object,
+	.gem_vm_ops = &omap_gem_vm_ops,
+	.dumb_create = omap_gem_dumb_create,
+	.dumb_map_offset = omap_gem_dumb_map_offset,
+	.dumb_destroy = drm_gem_dumb_destroy,
+	.ioctls = ioctls,
+	.num_ioctls = DRM_OMAP_NUM_IOCTLS,
+	.fops = &omapdriver_fops,
+	.name = DRIVER_NAME,
+	.desc = DRIVER_DESC,
+	.date = DRIVER_DATE,
+	.major = DRIVER_MAJOR,
+	.minor = DRIVER_MINOR,
+	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
 static int pdev_suspend(struct platform_device *pDevice, pm_message_t state)
@@ -716,17 +716,17 @@ static const struct dev_pm_ops omapdrm_pm_ops = {
 #endif
 
 static struct platform_driver pdev = {
-		.driver = {
-			.name = DRIVER_NAME,
+	.driver = {
+		.name = DRIVER_NAME,
 #ifdef CONFIG_PM
-			.pm = &omapdrm_pm_ops,
+		.pm = &omapdrm_pm_ops,
 #endif
-		},
-		.probe = pdev_probe,
-		.remove = pdev_remove,
-		.suspend = pdev_suspend,
-		.resume = pdev_resume,
-		.shutdown = pdev_shutdown,
+	},
+	.probe = pdev_probe,
+	.remove = pdev_remove,
+	.suspend = pdev_suspend,
+	.resume = pdev_resume,
+	.shutdown = pdev_shutdown,
 };
 
 static int __init omap_drm_init(void)

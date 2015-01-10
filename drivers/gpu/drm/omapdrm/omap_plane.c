@@ -353,10 +353,10 @@ int omap_plane_set_property(struct drm_plane *plane,
 }
 
 static const struct drm_plane_funcs omap_plane_funcs = {
-		.update_plane = omap_plane_update,
-		.disable_plane = omap_plane_disable,
-		.destroy = omap_plane_destroy,
-		.set_property = omap_plane_set_property,
+	.update_plane = omap_plane_update,
+	.disable_plane = omap_plane_disable,
+	.destroy = omap_plane_destroy,
+	.set_property = omap_plane_set_property,
 };
 
 static void omap_plane_error_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
@@ -367,17 +367,17 @@ static void omap_plane_error_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
 }
 
 static const char *plane_names[] = {
-		[OMAP_DSS_GFX] = "gfx",
-		[OMAP_DSS_VIDEO1] = "vid1",
-		[OMAP_DSS_VIDEO2] = "vid2",
-		[OMAP_DSS_VIDEO3] = "vid3",
+	[OMAP_DSS_GFX] = "gfx",
+	[OMAP_DSS_VIDEO1] = "vid1",
+	[OMAP_DSS_VIDEO2] = "vid2",
+	[OMAP_DSS_VIDEO3] = "vid3",
 };
 
 static const uint32_t error_irqs[] = {
-		[OMAP_DSS_GFX] = DISPC_IRQ_GFX_FIFO_UNDERFLOW,
-		[OMAP_DSS_VIDEO1] = DISPC_IRQ_VID1_FIFO_UNDERFLOW,
-		[OMAP_DSS_VIDEO2] = DISPC_IRQ_VID2_FIFO_UNDERFLOW,
-		[OMAP_DSS_VIDEO3] = DISPC_IRQ_VID3_FIFO_UNDERFLOW,
+	[OMAP_DSS_GFX] = DISPC_IRQ_GFX_FIFO_UNDERFLOW,
+	[OMAP_DSS_VIDEO1] = DISPC_IRQ_VID1_FIFO_UNDERFLOW,
+	[OMAP_DSS_VIDEO2] = DISPC_IRQ_VID2_FIFO_UNDERFLOW,
+	[OMAP_DSS_VIDEO3] = DISPC_IRQ_VID3_FIFO_UNDERFLOW,
 };
 
 /* initialize plane */

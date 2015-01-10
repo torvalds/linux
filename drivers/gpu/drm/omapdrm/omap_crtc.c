@@ -174,15 +174,15 @@ static void omap_crtc_unregister_framedone_handler(
 }
 
 static const struct dss_mgr_ops mgr_ops = {
-		.connect = omap_crtc_connect,
-		.disconnect = omap_crtc_disconnect,
-		.start_update = omap_crtc_start_update,
-		.enable = omap_crtc_enable,
-		.disable = omap_crtc_disable,
-		.set_timings = omap_crtc_set_timings,
-		.set_lcd_config = omap_crtc_set_lcd_config,
-		.register_framedone_handler = omap_crtc_register_framedone_handler,
-		.unregister_framedone_handler = omap_crtc_unregister_framedone_handler,
+	.connect = omap_crtc_connect,
+	.disconnect = omap_crtc_disconnect,
+	.start_update = omap_crtc_start_update,
+	.enable = omap_crtc_enable,
+	.disable = omap_crtc_disable,
+	.set_timings = omap_crtc_set_timings,
+	.set_lcd_config = omap_crtc_set_lcd_config,
+	.register_framedone_handler = omap_crtc_register_framedone_handler,
+	.unregister_framedone_handler = omap_crtc_unregister_framedone_handler,
 };
 
 /*
@@ -658,10 +658,10 @@ void omap_crtc_flush(struct drm_crtc *crtc)
 }
 
 static const char *channel_names[] = {
-		[OMAP_DSS_CHANNEL_LCD] = "lcd",
-		[OMAP_DSS_CHANNEL_DIGIT] = "tv",
-		[OMAP_DSS_CHANNEL_LCD2] = "lcd2",
-		[OMAP_DSS_CHANNEL_LCD3] = "lcd3",
+	[OMAP_DSS_CHANNEL_LCD] = "lcd",
+	[OMAP_DSS_CHANNEL_DIGIT] = "tv",
+	[OMAP_DSS_CHANNEL_LCD2] = "lcd2",
+	[OMAP_DSS_CHANNEL_LCD3] = "lcd3",
 };
 
 void omap_crtc_pre_init(void)
