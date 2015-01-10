@@ -3548,7 +3548,6 @@ static void alc280_fixup_hp_gpio2_mic_hotkey(struct hda_codec *codec,
 		break;
 	case HDA_FIXUP_ACT_FREE:
 		input_unregister_device(spec->kb_dev);
-		input_free_device(spec->kb_dev);
 		spec->kb_dev = NULL;
 	}
 #endif
