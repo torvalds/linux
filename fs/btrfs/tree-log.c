@@ -4273,6 +4273,9 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 	struct dentry *old_parent = NULL;
 	int ret = 0;
 	u64 last_committed = root->fs_info->last_trans_committed;
+	const struct dentry * const first_parent = parent;
+	const bool did_unlink = (BTRFS_I(inode)->last_unlink_trans >
+				 last_committed);
 
 	sb = inode->i_sb;
 
@@ -4328,7 +4331,6 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 		goto end_trans;
 	}
 
-	inode_only = LOG_INODE_EXISTS;
 	while (1) {
 		if (!parent || !parent->d_inode || sb != parent->d_inode->i_sb)
 			break;
@@ -4337,8 +4339,22 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 		if (root != BTRFS_I(inode)->root)
 			break;
 
+		/*
+		 * On unlink we must make sure our immediate parent directory
+		 * inode is fully logged. This is to prevent leaving dangling
+		 * directory index entries and a wrong directory inode's i_size.
+		 * Not doing so can result in a directory being impossible to
+		 * delete after log replay (rmdir will always fail with error
+		 * -ENOTEMPTY).
+		 */
+		if (did_unlink && parent == first_parent)
+			inode_only = LOG_INODE_ALL;
+		else
+			inode_only = LOG_INODE_EXISTS;
+
 		if (BTRFS_I(inode)->generation >
-		    root->fs_info->last_trans_committed) {
+		    root->fs_info->last_trans_committed ||
+		    inode_only == LOG_INODE_ALL) {
 			ret = btrfs_log_inode(trans, root, inode, inode_only,
 					      0, LLONG_MAX, ctx);
 			if (ret)
