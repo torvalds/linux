@@ -1,14 +1,8 @@
 #include <linux/fs.h>
 
 struct fs_pin {
-	atomic_long_t		count;
-	union {
-		struct {
-			struct hlist_node	s_list;
-			struct hlist_node	m_list;
-		};
-		struct rcu_head rcu;
-	};
+	struct hlist_node	s_list;
+	struct hlist_node	m_list;
 	void (*kill)(struct fs_pin *);
 };
 
