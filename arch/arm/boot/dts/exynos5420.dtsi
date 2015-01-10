@@ -120,7 +120,7 @@
 		};
 	};
 
-	cci@10d20000 {
+	cci: cci@10d20000 {
 		compatible = "arm,cci-400";
 		#address-cells = <1>;
 		#size-cells = <1>;
