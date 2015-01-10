@@ -928,9 +928,8 @@ static unsigned long compute_balloon_floor(void)
 	 *     128        72    (1/2)
 	 *     512       168    (1/4)
 	 *    2048       360    (1/8)
-	 *    8192       552    (1/32)
-	 *   32768      1320
-	 *  131072      4392
+	 *    8192       768    (1/16)
+	 *   32768      1536	(1/32)
 	 */
 	if (totalram_pages < MB2PAGES(128))
 		min_pages = MB2PAGES(8) + (totalram_pages >> 1);
@@ -938,8 +937,10 @@ static unsigned long compute_balloon_floor(void)
 		min_pages = MB2PAGES(40) + (totalram_pages >> 2);
 	else if (totalram_pages < MB2PAGES(2048))
 		min_pages = MB2PAGES(104) + (totalram_pages >> 3);
+	else if (totalram_pages < MB2PAGES(8192))
+		min_pages = MB2PAGES(256) + (totalram_pages >> 4);
 	else
-		min_pages = MB2PAGES(296) + (totalram_pages >> 5);
+		min_pages = MB2PAGES(512) + (totalram_pages >> 5);
 #undef MB2PAGES
 	return min_pages;
 }
