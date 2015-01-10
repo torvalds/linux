@@ -189,6 +189,12 @@ static void acct_pin_kill(struct fs_pin *pin)
 {
 	struct bsd_acct_struct *acct;
 	acct = container_of(pin, struct bsd_acct_struct, pin);
+	if (!atomic_long_inc_not_zero(&pin->count)) {
+		rcu_read_unlock();
+		cpu_relax();
+		return;
+	}
+	rcu_read_unlock();
 	mutex_lock(&acct->lock);
 	if (!acct->ns) {
 		mutex_unlock(&acct->lock);

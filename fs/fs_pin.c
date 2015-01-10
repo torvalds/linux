@@ -34,12 +34,6 @@ void mnt_pin_kill(struct mount *m)
 			break;
 		}
 		pin = hlist_entry(p, struct fs_pin, m_list);
-		if (!atomic_long_inc_not_zero(&pin->count)) {
-			rcu_read_unlock();
-			cpu_relax();
-			continue;
-		}
-		rcu_read_unlock();
 		pin->kill(pin);
 	}
 }
@@ -56,12 +50,6 @@ void sb_pin_kill(struct super_block *sb)
 			break;
 		}
 		pin = hlist_entry(p, struct fs_pin, s_list);
-		if (!atomic_long_inc_not_zero(&pin->count)) {
-			rcu_read_unlock();
-			cpu_relax();
-			continue;
-		}
-		rcu_read_unlock();
 		pin->kill(pin);
 	}
 }
