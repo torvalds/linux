@@ -218,57 +218,89 @@ out:
 	return err;
 }
 
-static const struct nla_policy ifla_br_policy[IFLA_MAX+1] = {
-	[IFLA_BRIDGE_FLAGS]	= { .type = NLA_U16 },
-	[IFLA_BRIDGE_MODE]	= { .type = NLA_U16 },
-	[IFLA_BRIDGE_VLAN_INFO]	= { .type = NLA_BINARY,
-				    .len = sizeof(struct bridge_vlan_info), },
-};
+static int br_vlan_info(struct net_bridge *br, struct net_bridge_port *p,
+			int cmd, struct bridge_vlan_info *vinfo)
+{
+	int err = 0;
+
+	switch (cmd) {
+	case RTM_SETLINK:
+		if (p) {
+			err = nbp_vlan_add(p, vinfo->vid, vinfo->flags);
+			if (err)
+				break;
+
+			if (vinfo->flags & BRIDGE_VLAN_INFO_MASTER)
+				err = br_vlan_add(p->br, vinfo->vid,
+						  vinfo->flags);
+		} else {
+			err = br_vlan_add(br, vinfo->vid, vinfo->flags);
+		}
+		break;
+
+	case RTM_DELLINK:
+		if (p) {
+			nbp_vlan_delete(p, vinfo->vid);
+			if (vinfo->flags & BRIDGE_VLAN_INFO_MASTER)
+				br_vlan_delete(p->br, vinfo->vid);
+		} else {
+			br_vlan_delete(br, vinfo->vid);
+		}
+		break;
+	}
+
+	return err;
+}
 
 static int br_afspec(struct net_bridge *br,
 		     struct net_bridge_port *p,
 		     struct nlattr *af_spec,
 		     int cmd)
 {
-	struct nlattr *tb[IFLA_BRIDGE_MAX+1];
+	struct bridge_vlan_info *vinfo_start = NULL;
+	struct bridge_vlan_info *vinfo = NULL;
+	struct nlattr *attr;
 	int err = 0;
+	int rem;
 
-	err = nla_parse_nested(tb, IFLA_BRIDGE_MAX, af_spec, ifla_br_policy);
-	if (err)
-		return err;
-
-	if (tb[IFLA_BRIDGE_VLAN_INFO]) {
-		struct bridge_vlan_info *vinfo;
-
-		vinfo = nla_data(tb[IFLA_BRIDGE_VLAN_INFO]);
-
-		if (!vinfo->vid || vinfo->vid >= VLAN_VID_MASK)
+	nla_for_each_nested(attr, af_spec, rem) {
+		if (nla_type(attr) != IFLA_BRIDGE_VLAN_INFO)
+			continue;
+		if (nla_len(attr) != sizeof(struct bridge_vlan_info))
 			return -EINVAL;
+		vinfo = nla_data(attr);
+		if (vinfo->flags & BRIDGE_VLAN_INFO_RANGE_BEGIN) {
+			if (vinfo_start)
+				return -EINVAL;
+			vinfo_start = vinfo;
+			continue;
+		}
 
-		switch (cmd) {
-		case RTM_SETLINK:
-			if (p) {
-				err = nbp_vlan_add(p, vinfo->vid, vinfo->flags);
+		if (vinfo_start) {
+			struct bridge_vlan_info tmp_vinfo;
+			int v;
+
+			if (!(vinfo->flags & BRIDGE_VLAN_INFO_RANGE_END))
+				return -EINVAL;
+
+			if (vinfo->vid <= vinfo_start->vid)
+				return -EINVAL;
+
+			memcpy(&tmp_vinfo, vinfo_start,
+			       sizeof(struct bridge_vlan_info));
+
+			for (v = vinfo_start->vid; v <= vinfo->vid; v++) {
+				tmp_vinfo.vid = v;
+				err = br_vlan_info(br, p, cmd, &tmp_vinfo);
 				if (err)
 					break;
-
-				if (vinfo->flags & BRIDGE_VLAN_INFO_MASTER)
-					err = br_vlan_add(p->br, vinfo->vid,
-							  vinfo->flags);
-			} else
-				err = br_vlan_add(br, vinfo->vid, vinfo->flags);
-
-			break;
-
-		case RTM_DELLINK:
-			if (p) {
-				nbp_vlan_delete(p, vinfo->vid);
-				if (vinfo->flags & BRIDGE_VLAN_INFO_MASTER)
-					br_vlan_delete(p->br, vinfo->vid);
-			} else
-				br_vlan_delete(br, vinfo->vid);
-			break;
+			}
+			vinfo_start = NULL;
+		} else {
+			err = br_vlan_info(br, p, cmd, vinfo);
 		}
+		if (err)
+			break;
 	}
 
 	return err;
