@@ -1703,7 +1703,7 @@ static int radeon_cp_dispatch_texture(struct drm_device * dev,
 	u32 format;
 	u32 *buffer;
 	const u8 __user *data;
-	int size, dwords, tex_width, blit_width, spitch;
+	unsigned int size, dwords, tex_width, blit_width, spitch;
 	u32 height;
 	int i;
 	u32 texpitch, microtile;

@@ -3725,8 +3725,6 @@ static bool i8xx_handle_vblank(struct drm_device *dev,
 	if ((iir & flip_pending) == 0)
 		goto check_page_flip;
 
-	intel_prepare_page_flip(dev, plane);
-
 	/* We detect FlipDone by looking for the change in PendingFlip from '1'
 	 * to '0' on the following vblank, i.e. IIR has the Pendingflip
 	 * asserted following the MI_DISPLAY_FLIP, but ISR is deasserted, hence
@@ -3736,6 +3734,7 @@ static bool i8xx_handle_vblank(struct drm_device *dev,
 	if (I915_READ16(ISR) & flip_pending)
 		goto check_page_flip;
 
+	intel_prepare_page_flip(dev, plane);
 	intel_finish_page_flip(dev, pipe);
 	return true;
 
@@ -3907,8 +3906,6 @@ static bool i915_handle_vblank(struct drm_device *dev,
 	if ((iir & flip_pending) == 0)
 		goto check_page_flip;
 
-	intel_prepare_page_flip(dev, plane);
-
 	/* We detect FlipDone by looking for the change in PendingFlip from '1'
 	 * to '0' on the following vblank, i.e. IIR has the Pendingflip
 	 * asserted following the MI_DISPLAY_FLIP, but ISR is deasserted, hence
@@ -3918,6 +3915,7 @@ static bool i915_handle_vblank(struct drm_device *dev,
 	if (I915_READ(ISR) & flip_pending)
 		goto check_page_flip;
 
+	intel_prepare_page_flip(dev, plane);
 	intel_finish_page_flip(dev, pipe);
 	return true;
 

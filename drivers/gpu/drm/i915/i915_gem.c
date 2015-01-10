@@ -1048,6 +1048,7 @@ int
 i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 		      struct drm_file *file)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_pwrite *args = data;
 	struct drm_i915_gem_object *obj;
 	int ret;
@@ -1067,9 +1068,11 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 			return -EFAULT;
 	}
 
+	intel_runtime_pm_get(dev_priv);
+
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
-		return ret;
+		goto put_rpm;
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
 	if (&obj->base == NULL) {
@@ -1121,6 +1124,9 @@ out:
 	drm_gem_object_unreference(&obj->base);
 unlock:
 	mutex_unlock(&dev->struct_mutex);
+put_rpm:
+	intel_runtime_pm_put(dev_priv);
+
 	return ret;
 }
 

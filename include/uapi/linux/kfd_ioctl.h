@@ -128,27 +128,34 @@ struct kfd_ioctl_get_process_apertures_args {
 	uint32_t pad;
 };
 
-#define KFD_IOC_MAGIC 'K'
+#define AMDKFD_IOCTL_BASE 'K'
+#define AMDKFD_IO(nr)			_IO(AMDKFD_IOCTL_BASE, nr)
+#define AMDKFD_IOR(nr, type)		_IOR(AMDKFD_IOCTL_BASE, nr, type)
+#define AMDKFD_IOW(nr, type)		_IOW(AMDKFD_IOCTL_BASE, nr, type)
+#define AMDKFD_IOWR(nr, type)		_IOWR(AMDKFD_IOCTL_BASE, nr, type)
 
-#define KFD_IOC_GET_VERSION \
-		_IOR(KFD_IOC_MAGIC, 1, struct kfd_ioctl_get_version_args)
+#define AMDKFD_IOC_GET_VERSION			\
+		AMDKFD_IOR(0x01, struct kfd_ioctl_get_version_args)
 
-#define KFD_IOC_CREATE_QUEUE \
-		_IOWR(KFD_IOC_MAGIC, 2, struct kfd_ioctl_create_queue_args)
+#define AMDKFD_IOC_CREATE_QUEUE			\
+		AMDKFD_IOWR(0x02, struct kfd_ioctl_create_queue_args)
 
-#define KFD_IOC_DESTROY_QUEUE \
-	_IOWR(KFD_IOC_MAGIC, 3, struct kfd_ioctl_destroy_queue_args)
+#define AMDKFD_IOC_DESTROY_QUEUE		\
+		AMDKFD_IOWR(0x03, struct kfd_ioctl_destroy_queue_args)
 
-#define KFD_IOC_SET_MEMORY_POLICY \
-	_IOW(KFD_IOC_MAGIC, 4, struct kfd_ioctl_set_memory_policy_args)
+#define AMDKFD_IOC_SET_MEMORY_POLICY		\
+		AMDKFD_IOW(0x04, struct kfd_ioctl_set_memory_policy_args)
 
-#define KFD_IOC_GET_CLOCK_COUNTERS \
-	_IOWR(KFD_IOC_MAGIC, 5, struct kfd_ioctl_get_clock_counters_args)
+#define AMDKFD_IOC_GET_CLOCK_COUNTERS		\
+		AMDKFD_IOWR(0x05, struct kfd_ioctl_get_clock_counters_args)
 
-#define KFD_IOC_GET_PROCESS_APERTURES \
-	_IOR(KFD_IOC_MAGIC, 6, struct kfd_ioctl_get_process_apertures_args)
+#define AMDKFD_IOC_GET_PROCESS_APERTURES	\
+		AMDKFD_IOR(0x06, struct kfd_ioctl_get_process_apertures_args)
 
-#define KFD_IOC_UPDATE_QUEUE \
-	_IOW(KFD_IOC_MAGIC, 7, struct kfd_ioctl_update_queue_args)
+#define AMDKFD_IOC_UPDATE_QUEUE			\
+		AMDKFD_IOW(0x07, struct kfd_ioctl_update_queue_args)
+
+#define AMDKFD_COMMAND_START		0x01
+#define AMDKFD_COMMAND_END		0x08
 
 #endif
