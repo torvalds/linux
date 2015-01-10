@@ -48,6 +48,7 @@ epcos	EPCOS AG
 epfl	Ecole Polytechnique Fédérale de Lausanne
 epson	Seiko Epson Corp.
 est	ESTeem Wireless Modems
+ettus	NI Ettus Research
 eukrea  Eukréa Electromatique
 excito	Excito
 fsl	Freescale Semiconductor

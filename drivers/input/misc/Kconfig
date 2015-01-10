@@ -93,6 +93,16 @@ config INPUT_BMA150
 	  To compile this driver as a module, choose M here: the
 	  module will be called bma150.
 
+config INPUT_E3X0_BUTTON
+	tristate "NI Ettus Research USRP E3x0 Button support."
+	default n
+	help
+	  Say Y here to enable support for the NI Ettus Research
+	  USRP E3x0 Button.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called e3x0_button.
+
 config INPUT_PCSPKR
 	tristate "PC Speaker support"
 	depends on PCSPKR_PLATFORM
