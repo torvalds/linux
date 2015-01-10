@@ -67,6 +67,118 @@ static int br_port_fill_attrs(struct sk_buff *skb,
 	return 0;
 }
 
+static int br_fill_ifvlaninfo_range(struct sk_buff *skb, u16 vid_start,
+				    u16 vid_end, u16 flags)
+{
+	struct  bridge_vlan_info vinfo;
+
+	if ((vid_end - vid_start) > 0) {
+		/* add range to skb */
+		vinfo.vid = vid_start;
+		vinfo.flags = flags | BRIDGE_VLAN_INFO_RANGE_BEGIN;
+		if (nla_put(skb, IFLA_BRIDGE_VLAN_INFO,
+			    sizeof(vinfo), &vinfo))
+			goto nla_put_failure;
+
+		vinfo.flags &= ~BRIDGE_VLAN_INFO_RANGE_BEGIN;
+
+		vinfo.vid = vid_end;
+		vinfo.flags = flags | BRIDGE_VLAN_INFO_RANGE_END;
+		if (nla_put(skb, IFLA_BRIDGE_VLAN_INFO,
+			    sizeof(vinfo), &vinfo))
+			goto nla_put_failure;
+	} else {
+		vinfo.vid = vid_start;
+		vinfo.flags = flags;
+		if (nla_put(skb, IFLA_BRIDGE_VLAN_INFO,
+			    sizeof(vinfo), &vinfo))
+			goto nla_put_failure;
+	}
+
+	return 0;
+
+nla_put_failure:
+	return -EMSGSIZE;
+}
+
+static int br_fill_ifvlaninfo_compressed(struct sk_buff *skb,
+					 const struct net_port_vlans *pv)
+{
+	u16 vid_range_start = 0, vid_range_end = 0;
+	u16 vid_range_flags;
+	u16 pvid, vid, flags;
+	int err = 0;
+
+	/* Pack IFLA_BRIDGE_VLAN_INFO's for every vlan
+	 * and mark vlan info with begin and end flags
+	 * if vlaninfo represents a range
+	 */
+	pvid = br_get_pvid(pv);
+	for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID) {
+		flags = 0;
+		if (vid == pvid)
+			flags |= BRIDGE_VLAN_INFO_PVID;
+
+		if (test_bit(vid, pv->untagged_bitmap))
+			flags |= BRIDGE_VLAN_INFO_UNTAGGED;
+
+		if (vid_range_start == 0) {
+			goto initvars;
+		} else if ((vid - vid_range_end) == 1 &&
+			flags == vid_range_flags) {
+			vid_range_end = vid;
+			continue;
+		} else {
+			err = br_fill_ifvlaninfo_range(skb, vid_range_start,
+						       vid_range_end,
+						       vid_range_flags);
+			if (err)
+				return err;
+		}
+
+initvars:
+		vid_range_start = vid;
+		vid_range_end = vid;
+		vid_range_flags = flags;
+	}
+
+	/* Call it once more to send any left over vlans */
+	err = br_fill_ifvlaninfo_range(skb, vid_range_start,
+				       vid_range_end,
+				       vid_range_flags);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+static int br_fill_ifvlaninfo(struct sk_buff *skb,
+			      const struct net_port_vlans *pv)
+{
+	struct bridge_vlan_info vinfo;
+	u16 pvid, vid;
+
+	pvid = br_get_pvid(pv);
+	for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID) {
+		vinfo.vid = vid;
+		vinfo.flags = 0;
+		if (vid == pvid)
+			vinfo.flags |= BRIDGE_VLAN_INFO_PVID;
+
+		if (test_bit(vid, pv->untagged_bitmap))
+			vinfo.flags |= BRIDGE_VLAN_INFO_UNTAGGED;
+
+		if (nla_put(skb, IFLA_BRIDGE_VLAN_INFO,
+			    sizeof(vinfo), &vinfo))
+			goto nla_put_failure;
+	}
+
+	return 0;
+
+nla_put_failure:
+	return -EMSGSIZE;
+}
+
 /*
  * Create one netlink message for one interface
  * Contains port and master info as well as carrier and bridge state.
@@ -121,12 +233,11 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 	}
 
 	/* Check if  the VID information is requested */
-	if (filter_mask & RTEXT_FILTER_BRVLAN) {
-		struct nlattr *af;
+	if ((filter_mask & RTEXT_FILTER_BRVLAN) ||
+	    (filter_mask & RTEXT_FILTER_BRVLAN_COMPRESSED)) {
 		const struct net_port_vlans *pv;
-		struct bridge_vlan_info vinfo;
-		u16 vid;
-		u16 pvid;
+		struct nlattr *af;
+		int err;
 
 		if (port)
 			pv = nbp_get_vlan_info(port);
@@ -140,21 +251,12 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 		if (!af)
 			goto nla_put_failure;
 
-		pvid = br_get_pvid(pv);
-		for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID) {
-			vinfo.vid = vid;
-			vinfo.flags = 0;
-			if (vid == pvid)
-				vinfo.flags |= BRIDGE_VLAN_INFO_PVID;
-
-			if (test_bit(vid, pv->untagged_bitmap))
-				vinfo.flags |= BRIDGE_VLAN_INFO_UNTAGGED;
-
-			if (nla_put(skb, IFLA_BRIDGE_VLAN_INFO,
-				    sizeof(vinfo), &vinfo))
-				goto nla_put_failure;
-		}
-
+		if (filter_mask & RTEXT_FILTER_BRVLAN_COMPRESSED)
+			err = br_fill_ifvlaninfo_compressed(skb, pv);
+		else
+			err = br_fill_ifvlaninfo(skb, pv);
+		if (err)
+			goto nla_put_failure;
 		nla_nest_end(skb, af);
 	}
 
@@ -209,7 +311,8 @@ int br_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 	int err = 0;
 	struct net_bridge_port *port = br_port_get_rtnl(dev);
 
-	if (!port && !(filter_mask & RTEXT_FILTER_BRVLAN))
+	if (!port && !(filter_mask & RTEXT_FILTER_BRVLAN) &&
+	    !(filter_mask & RTEXT_FILTER_BRVLAN_COMPRESSED))
 		goto out;
 
 	err = br_fill_ifinfo(skb, port, pid, seq, RTM_NEWLINK, NLM_F_MULTI,
