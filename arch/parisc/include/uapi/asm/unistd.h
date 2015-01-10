@@ -834,8 +834,9 @@
 #define __NR_getrandom		(__NR_Linux + 339)
 #define __NR_memfd_create	(__NR_Linux + 340)
 #define __NR_bpf		(__NR_Linux + 341)
+#define __NR_execveat		(__NR_Linux + 342)
 
-#define __NR_Linux_syscalls	(__NR_bpf + 1)
+#define __NR_Linux_syscalls	(__NR_execveat + 1)
 
 
 #define __IGNORE_select		/* newselect */
