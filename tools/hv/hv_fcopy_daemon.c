@@ -43,12 +43,6 @@ static int hv_start_fcopy(struct hv_start_fcopy *smsg)
 	int error = HV_E_FAIL;
 	char *q, *p;
 
-	/*
-	 * If possile append a path seperator to the path.
-	 */
-	if (strlen((char *)smsg->path_name) < (W_MAX_PATH - 2))
-		strcat((char *)smsg->path_name, "/");
-
 	p = (char *)smsg->path_name;
 	snprintf(target_fname, sizeof(target_fname), "%s/%s",
 		 (char *)smsg->path_name, (char *)smsg->file_name);
