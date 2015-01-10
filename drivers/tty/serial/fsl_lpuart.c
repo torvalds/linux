@@ -506,9 +506,6 @@ static inline void lpuart_prepare_rx(struct lpuart_port *sport)
 
 	spin_lock_irqsave(&sport->port.lock, flags);
 
-	init_timer(&sport->lpuart_timer);
-	sport->lpuart_timer.function = lpuart_timer_func;
-	sport->lpuart_timer.data = (unsigned long)sport;
 	sport->lpuart_timer.expires = jiffies + sport->dma_rx_timeout;
 	add_timer(&sport->lpuart_timer);
 
@@ -1106,6 +1103,8 @@ static int lpuart_startup(struct uart_port *port)
 		sport->lpuart_dma_use = false;
 	} else {
 		sport->lpuart_dma_use = true;
+		setup_timer(&sport->lpuart_timer, lpuart_timer_func,
+			    (unsigned long)sport);
 		temp = readb(port->membase + UARTCR5);
 		writeb(temp | UARTCR5_TDMAS, port->membase + UARTCR5);
 	}
@@ -1180,6 +1179,8 @@ static void lpuart_shutdown(struct uart_port *port)
 	devm_free_irq(port->dev, port->irq, sport);
 
 	if (sport->lpuart_dma_use) {
+		del_timer_sync(&sport->lpuart_timer);
+
 		lpuart_dma_tx_free(port);
 		lpuart_dma_rx_free(port);
 	}
