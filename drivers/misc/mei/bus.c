@@ -228,8 +228,8 @@ static ssize_t ___mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 			bool blocking)
 {
 	struct mei_device *dev;
-	struct mei_me_client *me_cl;
-	struct mei_cl_cb *cb;
+	struct mei_me_client *me_cl = NULL;
+	struct mei_cl_cb *cb = NULL;
 	ssize_t rets;
 
 	if (WARN_ON(!cl || !cl->dev))
@@ -237,33 +237,40 @@ static ssize_t ___mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 
 	dev = cl->dev;
 
-	if (cl->state != MEI_FILE_CONNECTED)
-		return -ENODEV;
+	mutex_lock(&dev->device_lock);
+	if (cl->state != MEI_FILE_CONNECTED) {
+		rets = -ENODEV;
+		goto out;
+	}
 
 	/* Check if we have an ME client device */
 	me_cl = mei_me_cl_by_uuid_id(dev, &cl->cl_uuid, cl->me_client_id);
-	if (!me_cl)
-		return -ENOTTY;
+	if (!me_cl) {
+		rets = -ENOTTY;
+		goto out;
+	}
 
-	if (length > me_cl->props.max_msg_length)
-		return -EFBIG;
+	if (length > me_cl->props.max_msg_length) {
+		rets = -EFBIG;
+		goto out;
+	}
 
 	cb = mei_io_cb_init(cl, NULL);
-	if (!cb)
-		return -ENOMEM;
+	if (!cb) {
+		rets = -ENOMEM;
+		goto out;
+	}
 
 	rets = mei_io_cb_alloc_req_buf(cb, length);
-	if (rets < 0) {
-		mei_io_cb_free(cb);
-		return rets;
-	}
+	if (rets < 0)
+		goto out;
 
 	memcpy(cb->request_buffer.data, buf, length);
 
-	mutex_lock(&dev->device_lock);
-
 	rets = mei_cl_write(cl, cb, blocking);
 
+out:
+	mei_me_cl_put(me_cl);
 	mutex_unlock(&dev->device_lock);
 	if (rets < 0)
 		mei_io_cb_free(cb);

@@ -105,21 +105,6 @@ void mei_hbm_idle(struct mei_device *dev)
 }
 
 /**
- * mei_me_cl_remove_all - remove all me clients
- *
- * @dev: the device structure
- */
-static void mei_me_cl_remove_all(struct mei_device *dev)
-{
-	struct mei_me_client *me_cl, *next;
-
-	list_for_each_entry_safe(me_cl, next, &dev->me_clients, list) {
-			list_del(&me_cl->list);
-			kfree(me_cl);
-	}
-}
-
-/**
  * mei_hbm_reset - reset hbm counters and book keeping data structurs
  *
  * @dev: the device structure
@@ -128,7 +113,7 @@ void mei_hbm_reset(struct mei_device *dev)
 {
 	dev->me_client_index = 0;
 
-	mei_me_cl_remove_all(dev);
+	mei_me_cl_rm_all(dev);
 
 	mei_hbm_idle(dev);
 }
@@ -339,10 +324,15 @@ static int mei_hbm_me_cl_add(struct mei_device *dev,
 			     struct hbm_props_response *res)
 {
 	struct mei_me_client *me_cl;
+	const uuid_le *uuid = &res->client_properties.protocol_name;
+
+	mei_me_cl_rm_by_uuid(dev, uuid);
 
 	me_cl = kzalloc(sizeof(struct mei_me_client), GFP_KERNEL);
 	if (!me_cl)
 		return -ENOMEM;
+
+	mei_me_cl_init(me_cl);
 
 	me_cl->props = res->client_properties;
 	me_cl->client_id = res->me_addr;
@@ -484,6 +474,7 @@ static int mei_hbm_add_single_flow_creds(struct mei_device *dev,
 				  struct hbm_flow_control *flow)
 {
 	struct mei_me_client *me_cl;
+	int rets;
 
 	me_cl = mei_me_cl_by_id(dev, flow->me_addr);
 	if (!me_cl) {
@@ -492,14 +483,19 @@ static int mei_hbm_add_single_flow_creds(struct mei_device *dev,
 		return -ENOENT;
 	}
 
-	if (WARN_ON(me_cl->props.single_recv_buf == 0))
-		return -EINVAL;
+	if (WARN_ON(me_cl->props.single_recv_buf == 0)) {
+		rets = -EINVAL;
+		goto out;
+	}
 
 	me_cl->mei_flow_ctrl_creds++;
 	dev_dbg(dev->dev, "recv flow ctrl msg ME %d (single) creds = %d.\n",
 	    flow->me_addr, me_cl->mei_flow_ctrl_creds);
 
-	return 0;
+	rets = 0;
+out:
+	mei_me_cl_put(me_cl);
+	return rets;
 }
 
 /**

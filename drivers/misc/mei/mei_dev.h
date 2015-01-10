@@ -172,12 +172,14 @@ struct mei_fw_status {
  * struct mei_me_client - representation of me (fw) client
  *
  * @list: link in me client list
+ * @refcnt: struct reference count
  * @props: client properties
  * @client_id: me client id
  * @mei_flow_ctrl_creds: flow control credits
  */
 struct mei_me_client {
 	struct list_head list;
+	struct kref refcnt;
 	struct mei_client_properties props;
 	u8 client_id;
 	u8 mei_flow_ctrl_creds;
