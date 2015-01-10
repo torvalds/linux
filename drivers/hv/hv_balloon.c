@@ -1226,7 +1226,7 @@ static void balloon_down(struct hv_dynmem_device *dm,
 
 	for (i = 0; i < range_count; i++) {
 		free_balloon_pages(dm, &range_array[i]);
-		post_status(&dm_device);
+		complete(&dm_device.config_event);
 	}
 
 	if (req->more_pages == 1)
@@ -1250,19 +1250,16 @@ static void balloon_onchannelcallback(void *context);
 static int dm_thread_func(void *dm_dev)
 {
 	struct hv_dynmem_device *dm = dm_dev;
-	int t;
 
 	while (!kthread_should_stop()) {
-		t = wait_for_completion_interruptible_timeout(
+		wait_for_completion_interruptible_timeout(
 						&dm_device.config_event, 1*HZ);
 		/*
 		 * The host expects us to post information on the memory
 		 * pressure every second.
 		 */
-
-		if (t == 0)
-			post_status(dm);
-
+		reinit_completion(&dm_device.config_event);
+		post_status(dm);
 	}
 
 	return 0;
