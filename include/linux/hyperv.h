@@ -57,6 +57,18 @@ struct hv_multipage_buffer {
 	u64 pfn_array[MAX_MULTIPAGE_BUFFER_COUNT];
 };
 
+/*
+ * Multiple-page buffer array; the pfn array is variable size:
+ * The number of entries in the PFN array is determined by
+ * "len" and "offset".
+ */
+struct hv_mpb_array {
+	/* Length and Offset determines the # of pfns in the array */
+	u32 len;
+	u32 offset;
+	u64 pfn_array[];
+};
+
 /* 0x18 includes the proprietary packet header */
 #define MAX_PAGE_BUFFER_PACKET		(0x18 +			\
 					(sizeof(struct hv_page_buffer) * \
@@ -814,6 +826,18 @@ struct vmbus_channel_packet_multipage_buffer {
 	struct hv_multipage_buffer range;
 } __packed;
 
+/* The format must be the same as struct vmdata_gpa_direct */
+struct vmbus_packet_mpb_array {
+	u16 type;
+	u16 dataoffset8;
+	u16 length8;
+	u16 flags;
+	u64 transactionid;
+	u32 reserved;
+	u32 rangecount;         /* Always 1 in this case */
+	struct hv_mpb_array range;
+} __packed;
+
 
 extern int vmbus_open(struct vmbus_channel *channel,
 			    u32 send_ringbuffersize,
@@ -844,6 +868,13 @@ extern int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
 					void *buffer,
 					u32 bufferlen,
 					u64 requestid);
+
+extern int vmbus_sendpacket_mpb_desc(struct vmbus_channel *channel,
+				     struct vmbus_packet_mpb_array *mpb,
+				     u32 desc_size,
+				     void *buffer,
+				     u32 bufferlen,
+				     u64 requestid);
 
 extern int vmbus_establish_gpadl(struct vmbus_channel *channel,
 				      void *kbuffer,

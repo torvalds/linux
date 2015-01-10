@@ -686,6 +686,50 @@ EXPORT_SYMBOL_GPL(vmbus_sendpacket_pagebuffer);
 /*
  * vmbus_sendpacket_multipagebuffer - Send a multi-page buffer packet
  * using a GPADL Direct packet type.
+ * The buffer includes the vmbus descriptor.
+ */
+int vmbus_sendpacket_mpb_desc(struct vmbus_channel *channel,
+			      struct vmbus_packet_mpb_array *desc,
+			      u32 desc_size,
+			      void *buffer, u32 bufferlen, u64 requestid)
+{
+	int ret;
+	u32 packetlen;
+	u32 packetlen_aligned;
+	struct kvec bufferlist[3];
+	u64 aligned_data = 0;
+	bool signal = false;
+
+	packetlen = desc_size + bufferlen;
+	packetlen_aligned = ALIGN(packetlen, sizeof(u64));
+
+	/* Setup the descriptor */
+	desc->type = VM_PKT_DATA_USING_GPA_DIRECT;
+	desc->flags = VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED;
+	desc->dataoffset8 = desc_size >> 3; /* in 8-bytes grandularity */
+	desc->length8 = (u16)(packetlen_aligned >> 3);
+	desc->transactionid = requestid;
+	desc->rangecount = 1;
+
+	bufferlist[0].iov_base = desc;
+	bufferlist[0].iov_len = desc_size;
+	bufferlist[1].iov_base = buffer;
+	bufferlist[1].iov_len = bufferlen;
+	bufferlist[2].iov_base = &aligned_data;
+	bufferlist[2].iov_len = (packetlen_aligned - packetlen);
+
+	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3, &signal);
+
+	if (ret == 0 && signal)
+		vmbus_setevent(channel);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(vmbus_sendpacket_mpb_desc);
+
+/*
+ * vmbus_sendpacket_multipagebuffer - Send a multi-page buffer packet
+ * using a GPADL Direct packet type.
  */
 int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
 				struct hv_multipage_buffer *multi_pagebuffer,
