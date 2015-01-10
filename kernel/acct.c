@@ -168,8 +168,7 @@ static void close_work(struct work_struct *work)
 	complete(&acct->done);
 }
 
-static void acct_kill(struct bsd_acct_struct *acct,
-		      struct bsd_acct_struct *new)
+static void acct_kill(struct bsd_acct_struct *acct)
 {
 	if (acct) {
 		struct pid_namespace *ns = acct->ns;
@@ -179,7 +178,7 @@ static void acct_kill(struct bsd_acct_struct *acct,
 		schedule_work(&acct->work);
 		wait_for_completion(&acct->done);
 		pin_remove(&acct->pin);
-		ns->bacct = new;
+		cmpxchg(&ns->bacct, acct, NULL);
 		acct->ns = NULL;
 		atomic_long_dec(&acct->count);
 		mutex_unlock(&acct->lock);
@@ -203,7 +202,7 @@ static void acct_pin_kill(struct fs_pin *pin)
 		acct_put(acct);
 		acct = NULL;
 	}
-	acct_kill(acct, NULL);
+	acct_kill(acct);
 }
 
 static int acct_on(struct filename *pathname)
@@ -262,10 +261,8 @@ static int acct_on(struct filename *pathname)
 	pin_insert(&acct->pin, mnt);
 
 	old = acct_get(ns);
-	if (old)
-		acct_kill(old, acct);
-	else
-		ns->bacct = acct;
+	ns->bacct = acct;
+	acct_kill(old);
 	mutex_unlock(&acct->lock);
 	mnt_drop_write(mnt);
 	mntput(mnt);
@@ -302,7 +299,7 @@ SYSCALL_DEFINE1(acct, const char __user *, name)
 		mutex_unlock(&acct_on_mutex);
 		putname(tmp);
 	} else {
-		acct_kill(acct_get(task_active_pid_ns(current)), NULL);
+		acct_kill(acct_get(task_active_pid_ns(current)));
 	}
 
 	return error;
@@ -310,7 +307,7 @@ SYSCALL_DEFINE1(acct, const char __user *, name)
 
 void acct_exit_ns(struct pid_namespace *ns)
 {
-	acct_kill(acct_get(ns), NULL);
+	acct_kill(acct_get(ns));
 }
 
 /*
