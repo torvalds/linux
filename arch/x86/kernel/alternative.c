@@ -323,6 +323,14 @@ done:
 		n_dspl, (unsigned long)orig_insn + n_dspl + repl_len);
 }
 
+static void __init_or_module optimize_nops(struct alt_instr *a, u8 *instr)
+{
+	add_nops(instr + (a->instrlen - a->padlen), a->padlen);
+
+	DUMP_BYTES(instr, a->instrlen, "%p: [%d:%d) optimized NOPs: ",
+		   instr, a->instrlen - a->padlen, a->padlen);
+}
+
 /*
  * Replace instructions with better alternatives for this CPU type. This runs
  * before SMP is initialized to avoid SMP problems with self modifying code.
@@ -354,8 +362,12 @@ void __init_or_module apply_alternatives(struct alt_instr *start,
 		replacement = (u8 *)&a->repl_offset + a->repl_offset;
 		BUG_ON(a->instrlen > sizeof(insnbuf));
 		BUG_ON(a->cpuid >= (NCAPINTS + NBUGINTS) * 32);
-		if (!boot_cpu_has(a->cpuid))
+		if (!boot_cpu_has(a->cpuid)) {
+			if (a->padlen > 1)
+				optimize_nops(a, instr);
+
 			continue;
+		}
 
 		DPRINTK("feat: %d*32+%d, old: (%p, len: %d), repl: (%p, len: %d)",
 			a->cpuid >> 5,
