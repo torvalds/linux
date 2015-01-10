@@ -192,6 +192,8 @@ static inline u32 i40e_get_head(struct i40e_ring *tx_ring)
 	return le32_to_cpu(*(volatile __le32 *)head);
 }
 
+#define WB_STRIDE 0x3
+
 /**
  * i40e_clean_tx_irq - Reclaim resources after transmit completes
  * @tx_ring:  tx ring to clean
@@ -293,6 +295,14 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 	tx_ring->q_vector->tx.total_bytes += total_bytes;
 	tx_ring->q_vector->tx.total_packets += total_packets;
 
+	if (budget &&
+	    !((i & WB_STRIDE) == WB_STRIDE) &&
+	    !test_bit(__I40E_DOWN, &tx_ring->vsi->state) &&
+	    (I40E_DESC_UNUSED(tx_ring) != tx_ring->count))
+		tx_ring->arm_wb = true;
+	else
+		tx_ring->arm_wb = false;
+
 	if (check_for_tx_hang(tx_ring) && i40e_check_tx_hang(tx_ring)) {
 		/* schedule immediate reset if we believe we hung */
 		dev_info(tx_ring->dev, "Detected Tx Unit Hang\n"
@@ -341,6 +351,24 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 	}
 
 	return budget > 0;
+}
+
+/**
+ * i40e_force_wb -Arm hardware to do a wb on noncache aligned descriptors
+ * @vsi: the VSI we care about
+ * @q_vector: the vector  on which to force writeback
+ *
+ **/
+static void i40e_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector)
+{
+	u32 val = I40E_VFINT_DYN_CTLN_INTENA_MASK |
+		  I40E_VFINT_DYN_CTLN_SWINT_TRIG_MASK |
+		  I40E_VFINT_DYN_CTLN_SW_ITR_INDX_ENA_MASK;
+		  /* allow 00 to be written to the index */
+
+	wr32(&vsi->back->hw,
+	     I40E_VFINT_DYN_CTLN1(q_vector->v_idx + vsi->base_vector - 1),
+	     val);
 }
 
 /**
@@ -1065,6 +1093,7 @@ int i40evf_napi_poll(struct napi_struct *napi, int budget)
 	struct i40e_vsi *vsi = q_vector->vsi;
 	struct i40e_ring *ring;
 	bool clean_complete = true;
+	bool arm_wb = false;
 	int budget_per_ring;
 
 	if (test_bit(__I40E_DOWN, &vsi->state)) {
@@ -1075,8 +1104,10 @@ int i40evf_napi_poll(struct napi_struct *napi, int budget)
 	/* Since the actual Tx work is minimal, we can give the Tx a larger
 	 * budget and be more aggressive about cleaning up the Tx descriptors.
 	 */
-	i40e_for_each_ring(ring, q_vector->tx)
+	i40e_for_each_ring(ring, q_vector->tx) {
 		clean_complete &= i40e_clean_tx_irq(ring, vsi->work_limit);
+		arm_wb |= ring->arm_wb;
+	}
 
 	/* We attempt to distribute budget to each Rx queue fairly, but don't
 	 * allow the budget to go below 1 because that would exit polling early.
@@ -1087,8 +1118,11 @@ int i40evf_napi_poll(struct napi_struct *napi, int budget)
 		clean_complete &= i40e_clean_rx_irq(ring, budget_per_ring);
 
 	/* If work not completed, return budget and polling will return */
-	if (!clean_complete)
+	if (!clean_complete) {
+		if (arm_wb)
+			i40e_force_wb(vsi, q_vector);
 		return budget;
+	}
 
 	/* Work is done so exit the polling mode and re-enable the interrupt */
 	napi_complete(napi);
