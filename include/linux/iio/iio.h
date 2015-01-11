@@ -40,6 +40,7 @@ enum iio_chan_info_enum {
 	IIO_CHAN_INFO_INT_TIME,
 	IIO_CHAN_INFO_ENABLE,
 	IIO_CHAN_INFO_CALIBHEIGHT,
+	IIO_CHAN_INFO_CALIBWEIGHT,
 };
 
 enum iio_shared_by {
