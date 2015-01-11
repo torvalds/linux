@@ -5,10 +5,7 @@ host controllers (when controlling usb2/1.1 devices) available on STiH407 SoC fa
 
 Required properties:
 - compatible		: should be "st,stih407-usb2-phy"
-- reg			: contain the offset and length of the system configuration registers
-			  used as glue logic to control & parameter phy
-- reg-names		: the names of the system configuration registers in "reg", should be "param" and "reg"
-- st,syscfg		: sysconfig register to manage phy parameter at driver level
+- st,syscfg		: phandle of sysconfig bank plus integer array containing phyparam and phyctrl register offsets
 - resets		: list of phandle and reset specifier pairs. There should be two entries, one
 			  for the whole phy and one for the port
 - reset-names		: list of reset signal names. Should be "global" and "port"
@@ -19,11 +16,8 @@ Example:
 
 usb2_picophy0: usbpicophy@f8 {
 	compatible	= "st,stih407-usb2-phy";
-	reg		= <0xf8 0x04>,	/* syscfg 5062 */
-			  <0xf4 0x04>;	/* syscfg 5061 */
-	reg-names	= "param", "ctrl";
 	#phy-cells	= <0>;
-	st,syscfg	= <&syscfg_core>;
+	st,syscfg	= <&syscfg_core 0x100 0xf4>;
 	resets		= <&softreset STIH407_PICOPHY_SOFTRESET>,
 			  <&picophyreset STIH407_PICOPHY0_RESET>;
 	reset-names	= "global", "port";
