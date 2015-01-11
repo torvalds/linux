@@ -253,13 +253,11 @@ static int lockd_up_net(struct svc_serv *serv, struct net *net)
 
 	error = make_socks(serv, net);
 	if (error < 0)
-		goto err_socks;
+		goto err_bind;
 	set_grace_period(net);
 	dprintk("lockd_up_net: per-net data created; net=%p\n", net);
 	return 0;
 
-err_socks:
-	svc_rpcb_cleanup(serv, net);
 err_bind:
 	ln->nlmsvc_users--;
 	return error;

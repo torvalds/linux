@@ -582,7 +582,7 @@ find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon,
 		/* close and restart search */
 		cifs_dbg(FYI, "search backing up - close and restart search\n");
 		spin_lock(&cifs_file_list_lock);
-		if (!cfile->srch_inf.endOfSearch && !cfile->invalidHandle) {
+		if (server->ops->dir_needs_close(cfile)) {
 			cfile->invalidHandle = true;
 			spin_unlock(&cifs_file_list_lock);
 			if (server->ops->close_dir)
