@@ -520,10 +520,10 @@ static void kvaser_usb_tx_acknowledge(const struct kvaser_usb *dev,
 		skb = alloc_can_err_skb(priv->netdev, &cf);
 		if (skb) {
 			cf->can_id |= CAN_ERR_RESTARTED;
-			netif_rx(skb);
 
 			stats->rx_packets++;
 			stats->rx_bytes += cf->can_dlc;
+			netif_rx(skb);
 		} else {
 			netdev_err(priv->netdev,
 				   "No memory left for err_skb\n");
@@ -770,10 +770,9 @@ static void kvaser_usb_rx_error(const struct kvaser_usb *dev,
 
 	priv->can.state = new_state;
 
-	netif_rx(skb);
-
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
+	netif_rx(skb);
 }
 
 static void kvaser_usb_rx_can_err(const struct kvaser_usb_net_priv *priv,
@@ -805,10 +804,9 @@ static void kvaser_usb_rx_can_err(const struct kvaser_usb_net_priv *priv,
 		stats->rx_over_errors++;
 		stats->rx_errors++;
 
-		netif_rx(skb);
-
 		stats->rx_packets++;
 		stats->rx_bytes += cf->can_dlc;
+		netif_rx(skb);
 	}
 }
 
@@ -887,10 +885,9 @@ static void kvaser_usb_rx_can_msg(const struct kvaser_usb *dev,
 			       cf->can_dlc);
 	}
 
-	netif_rx(skb);
-
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
+	netif_rx(skb);
 }
 
 static void kvaser_usb_start_chip_reply(const struct kvaser_usb *dev,
