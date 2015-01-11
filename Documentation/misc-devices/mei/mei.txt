@@ -19,7 +19,7 @@ each client has its own protocol. The protocol is message-based with a
 header and payload up to 512 bytes.
 
 Prominent usage of the Intel ME Interface is to communicate with Intel(R)
-Active Management Technology (Intel AMT)implemented in firmware running on
+Active Management Technology (Intel AMT) implemented in firmware running on
 the Intel ME.
 
 Intel AMT provides the ability to manage a host remotely out-of-band (OOB)
@@ -150,15 +150,15 @@ Intel ME Applications
 
 	The Intel LMS opens a connection using the Intel MEI driver to the Intel LMS
 	firmware feature using a defined UUID and then communicates with the feature
-	using a protocol called Intel AMT Port Forwarding Protocol(Intel APF protocol).
+	using a protocol called Intel AMT Port Forwarding Protocol (Intel APF protocol).
 	The protocol is used to maintain multiple sessions with Intel AMT from a
 	single application.
 
-	See the protocol specification in the Intel AMT Software Development Kit(SDK)
+	See the protocol specification in the Intel AMT Software Development Kit (SDK)
 	http://software.intel.com/sites/manageability/AMT_Implementation_and_Reference_Guide
-	Under "SDK Resources" => "Intel(R) vPro(TM) Gateway(MPS)"
+	Under "SDK Resources" => "Intel(R) vPro(TM) Gateway (MPS)"
 	=> "Information for Intel(R) vPro(TM) Gateway Developers"
-	=> "Description of the Intel AMT Port Forwarding (APF)Protocol"
+	=> "Description of the Intel AMT Port Forwarding (APF) Protocol"
 
   2) Intel AMT Remote configuration using a Local Agent
 	A Local Agent enables IT personnel to configure Intel AMT out-of-the-box
