@@ -119,11 +119,13 @@ extern const struct ieee80211_ops iwl_mvm_hw_ops;
  *	We will register to mac80211 to have testmode working. The NIC must not
  *	be up'ed after the INIT fw asserted. This is useful to be able to use
  *	proprietary tools over testmode to debug the INIT fw.
+ * @tfd_q_hang_detect: enabled the detection of hung transmit queues
  * @power_scheme: CAM(Continuous Active Mode)-1, BPS(Balanced Power
  *	Save)-2(default), LP(Low Power)-3
  */
 struct iwl_mvm_mod_params {
 	bool init_dbg;
+	bool tfd_q_hang_detect;
 	int power_scheme;
 };
 extern struct iwl_mvm_mod_params iwlmvm_mod_params;

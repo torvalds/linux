@@ -93,6 +93,7 @@ static const struct iwl_op_mode_ops iwl_mvm_ops;
 
 struct iwl_mvm_mod_params iwlmvm_mod_params = {
 	.power_scheme = IWL_POWER_SCHEME_BPS,
+	.tfd_q_hang_detect = true
 	/* rest of fields are 0 by default */
 };
 
@@ -102,6 +103,10 @@ MODULE_PARM_DESC(init_dbg,
 module_param_named(power_scheme, iwlmvm_mod_params.power_scheme, int, S_IRUGO);
 MODULE_PARM_DESC(power_scheme,
 		 "power management scheme: 1-active, 2-balanced, 3-low power, default: 2");
+module_param_named(tfd_q_hang_detect, iwlmvm_mod_params.tfd_q_hang_detect,
+		   bool, S_IRUGO);
+MODULE_PARM_DESC(tfd_q_hang_detect,
+		 "TFD queues hang detection (default: true");
 
 /*
  * module init and exit functions
@@ -473,10 +478,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_DW_BC_TABLE)
 		trans_cfg.bc_table_dword = true;
 
-	if (!iwlwifi_mod_params.wd_disable)
+	if (iwlmvm_mod_params.tfd_q_hang_detect)
 		trans_cfg.queue_watchdog_timeout = cfg->base_params->wd_timeout;
-	else
-		trans_cfg.queue_watchdog_timeout = IWL_WATCHDOG_DISABLED;
 
 	trans_cfg.command_names = iwl_mvm_cmd_strings;
 

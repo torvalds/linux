@@ -1849,7 +1849,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 
 	/* start timer if queue currently empty */
 	if (q->read_ptr == q->write_ptr) {
-		if (txq->need_update && trans_pcie->wd_timeout)
+		if (trans_pcie->wd_timeout)
 			mod_timer(&txq->stuck_timer,
 				  jiffies + trans_pcie->wd_timeout);
 		IWL_DEBUG_RPM(trans, "Q: %d first tx - take ref\n", q->id);
