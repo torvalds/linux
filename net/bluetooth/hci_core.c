@@ -141,7 +141,7 @@ static const struct file_operations dut_mode_fops = {
 
 /* ---- HCI requests ---- */
 
-static void hci_req_sync_complete(struct hci_dev *hdev, u8 result)
+static void hci_req_sync_complete(struct hci_dev *hdev, u8 result, u16 opcode)
 {
 	BT_DBG("%s result 0x%2.2x", hdev->name, result);
 
@@ -2754,7 +2754,7 @@ void hci_conn_params_clear_all(struct hci_dev *hdev)
 	BT_DBG("All LE connection parameters were removed");
 }
 
-static void inquiry_complete(struct hci_dev *hdev, u8 status)
+static void inquiry_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 {
 	if (status) {
 		BT_ERR("Failed to start inquiry: status %d", status);
@@ -2766,7 +2766,8 @@ static void inquiry_complete(struct hci_dev *hdev, u8 status)
 	}
 }
 
-static void le_scan_disable_work_complete(struct hci_dev *hdev, u8 status)
+static void le_scan_disable_work_complete(struct hci_dev *hdev, u8 status,
+					  u16 opcode)
 {
 	/* General inquiry access code (GIAC) */
 	u8 lap[3] = { 0x33, 0x8b, 0x9e };
@@ -4159,7 +4160,7 @@ void hci_req_cmd_complete(struct hci_dev *hdev, u16 opcode, u8 status)
 
 call_complete:
 	if (req_complete)
-		req_complete(hdev, status);
+		req_complete(hdev, status, status ? opcode : HCI_OP_NOP);
 }
 
 static void hci_rx_work(struct work_struct *work)

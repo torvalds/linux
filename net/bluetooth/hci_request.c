@@ -533,7 +533,8 @@ void __hci_update_background_scan(struct hci_request *req)
 	}
 }
 
-static void update_background_scan_complete(struct hci_dev *hdev, u8 status)
+static void update_background_scan_complete(struct hci_dev *hdev, u8 status,
+					    u16 opcode)
 {
 	if (status)
 		BT_DBG("HCI request failed to update background scanning: "

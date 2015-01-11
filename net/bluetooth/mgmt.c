@@ -1251,7 +1251,7 @@ static int send_settings_rsp(struct sock *sk, u16 opcode, struct hci_dev *hdev)
 			    sizeof(settings));
 }
 
-static void clean_up_hci_complete(struct hci_dev *hdev, u8 status)
+static void clean_up_hci_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 {
 	BT_DBG("%s status 0x%02x", hdev->name, status);
 
@@ -1518,7 +1518,8 @@ static u8 mgmt_le_support(struct hci_dev *hdev)
 		return MGMT_STATUS_SUCCESS;
 }
 
-static void set_discoverable_complete(struct hci_dev *hdev, u8 status)
+static void set_discoverable_complete(struct hci_dev *hdev, u8 status,
+				      u16 opcode)
 {
 	struct pending_cmd *cmd;
 	struct mgmt_mode *cp;
@@ -1777,7 +1778,8 @@ static void write_fast_connectable(struct hci_request *req, bool enable)
 		hci_req_add(req, HCI_OP_WRITE_PAGE_SCAN_TYPE, 1, &type);
 }
 
-static void set_connectable_complete(struct hci_dev *hdev, u8 status)
+static void set_connectable_complete(struct hci_dev *hdev, u8 status,
+				     u16 opcode)
 {
 	struct pending_cmd *cmd;
 	struct mgmt_mode *cp;
@@ -2195,7 +2197,7 @@ unlock:
 	return err;
 }
 
-static void le_enable_complete(struct hci_dev *hdev, u8 status)
+static void le_enable_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 {
 	struct cmd_lookup match = { NULL, hdev };
 
@@ -2385,7 +2387,7 @@ unlock:
 	hci_dev_unlock(hdev);
 }
 
-static void add_uuid_complete(struct hci_dev *hdev, u8 status)
+static void add_uuid_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 {
 	BT_DBG("status 0x%02x", status);
 
@@ -2464,7 +2466,7 @@ static bool enable_service_cache(struct hci_dev *hdev)
 	return false;
 }
 
-static void remove_uuid_complete(struct hci_dev *hdev, u8 status)
+static void remove_uuid_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 {
 	BT_DBG("status 0x%02x", status);
 
@@ -2549,7 +2551,7 @@ unlock:
 	return err;
 }
 
-static void set_class_complete(struct hci_dev *hdev, u8 status)
+static void set_class_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 {
 	BT_DBG("status 0x%02x", status);
 
@@ -3483,7 +3485,7 @@ static void update_name(struct hci_request *req)
 	hci_req_add(req, HCI_OP_WRITE_LOCAL_NAME, sizeof(cp), &cp);
 }
 
-static void set_name_complete(struct hci_dev *hdev, u8 status)
+static void set_name_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 {
 	struct mgmt_cp_set_local_name *cp;
 	struct pending_cmd *cmd;
@@ -3834,7 +3836,8 @@ static bool trigger_discovery(struct hci_request *req, u8 *status)
 	return true;
 }
 
-static void start_discovery_complete(struct hci_dev *hdev, u8 status)
+static void start_discovery_complete(struct hci_dev *hdev, u8 status,
+				     u16 opcode)
 {
 	struct pending_cmd *cmd;
 	unsigned long timeout;
@@ -4063,7 +4066,7 @@ failed:
 	return err;
 }
 
-static void stop_discovery_complete(struct hci_dev *hdev, u8 status)
+static void stop_discovery_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 {
 	struct pending_cmd *cmd;
 
@@ -4289,7 +4292,8 @@ static int set_device_id(struct sock *sk, struct hci_dev *hdev, void *data,
 	return err;
 }
 
-static void set_advertising_complete(struct hci_dev *hdev, u8 status)
+static void set_advertising_complete(struct hci_dev *hdev, u8 status,
+				     u16 opcode)
 {
 	struct cmd_lookup match = { NULL, hdev };
 
@@ -4496,7 +4500,8 @@ static int set_scan_params(struct sock *sk, struct hci_dev *hdev,
 	return err;
 }
 
-static void fast_connectable_complete(struct hci_dev *hdev, u8 status)
+static void fast_connectable_complete(struct hci_dev *hdev, u8 status,
+				      u16 opcode)
 {
 	struct pending_cmd *cmd;
 
@@ -4594,7 +4599,7 @@ unlock:
 	return err;
 }
 
-static void set_bredr_complete(struct hci_dev *hdev, u8 status)
+static void set_bredr_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 {
 	struct pending_cmd *cmd;
 
@@ -5119,7 +5124,8 @@ static int conn_info_cmd_complete(struct pending_cmd *cmd, u8 status)
 	return err;
 }
 
-static void conn_info_refresh_complete(struct hci_dev *hdev, u8 hci_status)
+static void conn_info_refresh_complete(struct hci_dev *hdev, u8 hci_status,
+				       u16 opcode)
 {
 	struct hci_cp_read_rssi *cp;
 	struct pending_cmd *cmd;
@@ -5326,7 +5332,7 @@ complete:
 	return err;
 }
 
-static void get_clock_info_complete(struct hci_dev *hdev, u8 status)
+static void get_clock_info_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 {
 	struct hci_cp_read_clock *hci_cp;
 	struct pending_cmd *cmd;
@@ -5504,7 +5510,7 @@ static void device_added(struct sock *sk, struct hci_dev *hdev,
 	mgmt_event(MGMT_EV_DEVICE_ADDED, hdev, &ev, sizeof(ev), sk);
 }
 
-static void add_device_complete(struct hci_dev *hdev, u8 status)
+static void add_device_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 {
 	struct pending_cmd *cmd;
 
@@ -5627,7 +5633,7 @@ static void device_removed(struct sock *sk, struct hci_dev *hdev,
 	mgmt_event(MGMT_EV_DEVICE_REMOVED, hdev, &ev, sizeof(ev), sk);
 }
 
-static void remove_device_complete(struct hci_dev *hdev, u8 status)
+static void remove_device_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 {
 	struct pending_cmd *cmd;
 
@@ -6205,7 +6211,7 @@ static void restart_le_actions(struct hci_request *req)
 	__hci_update_background_scan(req);
 }
 
-static void powered_complete(struct hci_dev *hdev, u8 status)
+static void powered_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 {
 	struct cmd_lookup match = { NULL, hdev };
 
@@ -7316,7 +7322,7 @@ void mgmt_discovering(struct hci_dev *hdev, u8 discovering)
 	mgmt_event(MGMT_EV_DISCOVERING, hdev, &ev, sizeof(ev), NULL);
 }
 
-static void adv_enable_complete(struct hci_dev *hdev, u8 status)
+static void adv_enable_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 {
 	BT_DBG("%s status %u", hdev->name, status);
 }

@@ -633,7 +633,7 @@ void hci_le_conn_failed(struct hci_conn *conn, u8 status)
 	mgmt_reenable_advertising(hdev);
 }
 
-static void create_le_conn_complete(struct hci_dev *hdev, u8 status)
+static void create_le_conn_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 {
 	struct hci_conn *conn;
 
