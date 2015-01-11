@@ -822,6 +822,7 @@ static void update_node_properties(struct device_node *np,
 static int attach_node_and_children(struct device_node *np)
 {
 	struct device_node *next, *dup, *child;
+	unsigned long flags;
 
 	dup = of_find_node_by_path(np->full_name);
 	if (dup) {
@@ -838,8 +839,17 @@ static int attach_node_and_children(struct device_node *np)
 
 	child = np->child;
 	np->child = NULL;
-	np->sibling = NULL;
-	of_attach_node(np);
+
+	mutex_lock(&of_mutex);
+	raw_spin_lock_irqsave(&devtree_lock, flags);
+	np->sibling = np->parent->child;
+	np->parent->child = np;
+	of_node_clear_flag(np, OF_DETACHED);
+	raw_spin_unlock_irqrestore(&devtree_lock, flags);
+
+	__of_attach_node_sysfs(np);
+	mutex_unlock(&of_mutex);
+
 	while (child) {
 		next = child->sibling;
 		attach_node_and_children(child);
@@ -909,59 +919,6 @@ static int __init selftest_data_add(void)
 		np = next;
 	}
 	return 0;
-}
-
-/**
- *	detach_node_and_children - detaches node
- *	and its children from live tree
- *
- *	@np:	Node to detach from live tree
- */
-static void detach_node_and_children(struct device_node *np)
-{
-	while (np->child)
-		detach_node_and_children(np->child);
-	of_detach_node(np);
-}
-
-/**
- *	selftest_data_remove - removes the selftest data
- *	nodes from the live tree
- */
-static void selftest_data_remove(void)
-{
-	struct device_node *np;
-	struct property *prop;
-
-	if (selftest_live_tree) {
-		of_node_put(of_aliases);
-		of_node_put(of_chosen);
-		of_aliases = NULL;
-		of_chosen = NULL;
-		for_each_child_of_node(of_root, np)
-			detach_node_and_children(np);
-		__of_detach_node_sysfs(of_root);
-		of_root = NULL;
-		return;
-	}
-
-	while (last_node_index-- > 0) {
-		if (nodes[last_node_index]) {
-			np = of_find_node_by_path(nodes[last_node_index]->full_name);
-			if (np == nodes[last_node_index]) {
-				if (of_aliases == np) {
-					of_node_put(of_aliases);
-					of_aliases = NULL;
-				}
-				detach_node_and_children(np);
-			} else {
-				for_each_property_of_node(np, prop) {
-					if (strcmp(prop->name, "testcase-alias") == 0)
-						of_remove_property(np, prop);
-				}
-			}
-		}
-	}
 }
 
 #ifdef CONFIG_OF_OVERLAY
@@ -1474,9 +1431,6 @@ static int __init of_selftest(void)
 	of_selftest_match_node();
 	of_selftest_platform_populate();
 	of_selftest_overlay();
-
-	/* removing selftest data from live tree */
-	selftest_data_remove();
 
 	/* Double check linkage after removing testcase data */
 	of_selftest_check_tree_linkage();
