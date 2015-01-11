@@ -177,13 +177,18 @@ get_cache:
 	/* free nids */
 	si->cache_mem += NM_I(sbi)->fcnt * sizeof(struct free_nid);
 	si->cache_mem += NM_I(sbi)->nat_cnt * sizeof(struct nat_entry);
-	npages = NODE_MAPPING(sbi)->nrpages;
-	si->cache_mem += npages << PAGE_CACHE_SHIFT;
-	npages = META_MAPPING(sbi)->nrpages;
-	si->cache_mem += npages << PAGE_CACHE_SHIFT;
+	si->cache_mem += NM_I(sbi)->dirty_nat_cnt *
+					sizeof(struct nat_entry_set);
+	si->cache_mem += si->inmem_pages * sizeof(struct inmem_pages);
 	si->cache_mem += sbi->n_dirty_dirs * sizeof(struct inode_entry);
 	for (i = 0; i <= UPDATE_INO; i++)
 		si->cache_mem += sbi->im[i].ino_num * sizeof(struct ino_entry);
+
+	si->page_mem = 0;
+	npages = NODE_MAPPING(sbi)->nrpages;
+	si->page_mem += npages << PAGE_CACHE_SHIFT;
+	npages = META_MAPPING(sbi)->nrpages;
+	si->page_mem += npages << PAGE_CACHE_SHIFT;
 }
 
 static int stat_show(struct seq_file *s, void *v)
@@ -301,9 +306,14 @@ static int stat_show(struct seq_file *s, void *v)
 
 		/* memory footprint */
 		update_mem_info(si->sbi);
-		seq_printf(s, "\nMemory: %u KB = static: %u + cached: %u\n",
-				(si->base_mem + si->cache_mem) >> 10,
-				si->base_mem >> 10, si->cache_mem >> 10);
+		seq_printf(s, "\nMemory: %u KB\n",
+			(si->base_mem + si->cache_mem + si->page_mem) >> 10);
+		seq_printf(s, "  - static: %u KB\n",
+				si->base_mem >> 10);
+		seq_printf(s, "  - cached: %u KB\n",
+				si->cache_mem >> 10);
+		seq_printf(s, "  - paged : %u KB\n",
+				si->page_mem >> 10);
 	}
 	mutex_unlock(&f2fs_stat_mutex);
 	return 0;
