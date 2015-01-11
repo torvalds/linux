@@ -1,8 +1,8 @@
 Intel(R) Management Engine Interface (Intel(R) MEI)
-=======================
+===================================================
 
 Introduction
-=======================
+============
 
 The Intel Management Engine (Intel ME) is an isolated and protected computing
 resource (Co-processor) residing inside certain Intel chipsets. The Intel ME
@@ -44,8 +44,9 @@ HTTP/S that are received from a remote management console application.
 For more information about Intel AMT:
 http://software.intel.com/sites/manageability/AMT_Implementation_and_Reference_Guide
 
+
 Intel MEI Driver
-=======================
+================
 
 The driver exposes a misc device called /dev/mei.
 
@@ -91,8 +92,10 @@ A code snippet for an application communicating with Intel AMTHI client:
 	[...]
 	close(fd);
 
-IOCTL:
-======
+
+IOCTL
+=====
+
 The Intel MEI Driver supports the following IOCTL command:
 	IOCTL_MEI_CONNECT_CLIENT	Connect to firmware Feature (client).
 
@@ -122,8 +125,9 @@ The Intel MEI Driver supports the following IOCTL command:
         data that can be sent or received. (e.g. if MTU=2K, can send
         requests up to bytes 2k and received responses up to 2k bytes).
 
-Intel ME Applications:
-==============
+
+Intel ME Applications
+=====================
 
 1) Intel Local Management Service (Intel LMS)
 
@@ -172,8 +176,9 @@ Intel ME Applications:
 	http://software.intel.com/en-us/articles/download-the-latest-intel-amt-open-source-drivers/
 
 
-Intel AMT OS Health Watchdog:
-=============================
+Intel AMT OS Health Watchdog
+============================
+
 The Intel AMT Watchdog is an OS Health (Hang/Crash) watchdog.
 Whenever the OS hangs or crashes, Intel AMT will send an event
 to any subscriber to this event. This mechanism means that
@@ -192,8 +197,10 @@ watchdog is 120 seconds.
 If the Intel AMT Watchdog feature does not exist (i.e. the connection failed),
 the Intel MEI driver will disable the sending of heartbeats.
 
-Supported Chipsets:
+
+Supported Chipsets
 ==================
+
 7 Series Chipset Family
 6 Series Chipset Family
 5 Series Chipset Family

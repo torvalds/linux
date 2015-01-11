@@ -1,9 +1,10 @@
 Intel(R) Management Engine (ME) Client bus API
-===============================================
+==============================================
 
 
 Rationale
 =========
+
 MEI misc character device is useful for dedicated applications to send and receive
 data to the many FW appliance found in Intel's ME from the user space.
 However for some of the ME functionalities it make sense to leverage existing software
@@ -17,7 +18,8 @@ the existing code.
 
 
 MEI CL bus API
-===========
+==============
+
 A driver implementation for an MEI Client is very similar to existing bus
 based device drivers. The driver registers itself as an MEI CL bus driver through
 the mei_cl_driver structure:
@@ -55,6 +57,7 @@ received buffers.
 
 Example
 =======
+
 As a theoretical example let's pretend the ME comes with a "contact" NFC IP.
 The driver init and exit routines for this device would look like:
 
