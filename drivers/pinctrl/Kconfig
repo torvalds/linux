@@ -113,7 +113,7 @@ config PINCTRL_SINGLE
 	  This selects the device tree based generic pinctrl driver.
 
 config PINCTRL_SIRF
-	bool "CSR SiRFprimaII/SiRFmarco pin controller driver"
+	bool "CSR SiRFprimaII pin controller driver"
 	depends on ARCH_SIRF
 	select PINMUX
 	select GPIOLIB_IRQCHIP
