@@ -5202,6 +5202,9 @@ enum punit_power_well {
 #define COMMON_SLICE_CHICKEN2			0x7014
 # define GEN8_CSC2_SBE_VUE_CACHE_CONSERVATIVE	(1<<0)
 
+#define HIZ_CHICKEN				0x7018
+# define CHV_HZ_8X8_MODE_IN_1X			(1<<15)
+
 #define GEN7_L3SQCREG1				0xB010
 #define  VLV_B0_WA_L3SQCREG1_VALUE		0x00D30000
 

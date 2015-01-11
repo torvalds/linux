@@ -836,6 +836,9 @@ static int chv_init_workarounds(struct intel_engine_cs *ring)
 			  HDC_FORCE_NON_COHERENT |
 			  HDC_DONOT_FETCH_MEM_WHEN_MASKED);
 
+	/* Improve HiZ throughput on CHV. */
+	WA_SET_BIT_MASKED(HIZ_CHICKEN, CHV_HZ_8X8_MODE_IN_1X);
+
 	return 0;
 }
 
