@@ -78,7 +78,6 @@ struct isert_device;
 
 struct isert_conn {
 	enum iser_conn_state	state;
-	bool			logout_posted;
 	int			post_recv_buf_count;
 	atomic_t		post_send_buf_count;
 	u32			responder_resources;
@@ -106,6 +105,7 @@ struct isert_conn {
 	struct completion	conn_wait;
 	struct completion	conn_wait_comp_err;
 	struct kref		conn_kref;
+	bool			disconnect;
 };
 
 #define ISERT_MAX_CQ 64
