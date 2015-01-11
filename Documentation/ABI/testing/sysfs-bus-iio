@@ -282,6 +282,7 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_current_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_peak_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_energy_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_magn_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_magn_x_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_magn_y_scale
@@ -1048,6 +1049,15 @@ Description:
 		low_power: enable low current consumption.
 		For a list of available output power modes read
 		in_accel_power_mode_available.
+
+What:		/sys/.../iio:deviceX/in_energy_input
+What:		/sys/.../iio:deviceX/in_energy_raw
+KernelVersion:	3.20
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This attribute is used to read the energy value reported by the
+		device (e.g.: human activity sensors report energy burnt by the
+		user). Units after application of scale are Joules.
 
 What:		/sys/bus/iio/devices/iio:deviceX/store_eeprom
 KernelVersion:	3.4.0
