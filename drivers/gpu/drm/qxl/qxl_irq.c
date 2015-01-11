@@ -33,6 +33,9 @@ irqreturn_t qxl_irq_handler(DRM_IRQ_ARGS)
 
 	pending = xchg(&qdev->ram_header->int_pending, 0);
 
+	if (!pending)
+		return IRQ_NONE;
+
 	atomic_inc(&qdev->irq_received);
 
 	if (pending & QXL_INTERRUPT_DISPLAY) {
