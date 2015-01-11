@@ -4029,11 +4029,6 @@ int pvr2_hdw_cmd_powerup(struct pvr2_hdw *hdw)
 }
 
 
-int pvr2_hdw_cmd_powerdown(struct pvr2_hdw *hdw)
-{
-	return pvr2_issue_simple_cmd(hdw,FX2CMD_POWER_OFF);
-}
-
 
 int pvr2_hdw_cmd_decoder_reset(struct pvr2_hdw *hdw)
 {
