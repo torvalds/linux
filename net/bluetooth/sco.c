@@ -1184,6 +1184,8 @@ int __init sco_init(void)
 {
 	int err;
 
+	BUILD_BUG_ON(sizeof(struct sockaddr_sco) > sizeof(struct sockaddr));
+
 	err = proto_register(&sco_proto, 0);
 	if (err < 0)
 		return err;
