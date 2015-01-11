@@ -7,4 +7,5 @@ struct fs_pin {
 };
 
 void pin_remove(struct fs_pin *);
+void pin_insert_group(struct fs_pin *, struct vfsmount *, struct hlist_head *);
 void pin_insert(struct fs_pin *, struct vfsmount *);
