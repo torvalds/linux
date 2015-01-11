@@ -1138,12 +1138,8 @@ struct bnx2x_port {
 	u32			link_config[LINK_CONFIG_SIZE];
 
 	u32			supported[LINK_CONFIG_SIZE];
-/* link settings - missing defines */
-#define SUPPORTED_2500baseX_Full	(1 << 15)
 
 	u32			advertising[LINK_CONFIG_SIZE];
-/* link settings - missing defines */
-#define ADVERTISED_2500baseX_Full	(1 << 15)
 
 	u32			phy_addr;
 
