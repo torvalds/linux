@@ -74,6 +74,7 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_STEPS] = "steps",
 	[IIO_ENERGY] = "energy",
 	[IIO_DISTANCE] = "distance",
+	[IIO_VELOCITY] = "velocity",
 };
 
 static const char * const iio_modifier_names[] = {
@@ -99,6 +100,7 @@ static const char * const iio_modifier_names[] = {
 	[IIO_MOD_JOGGING] = "jogging",
 	[IIO_MOD_WALKING] = "walking",
 	[IIO_MOD_STILL] = "still",
+	[IIO_MOD_ROOT_SUM_SQUARED_X_Y_Z] = "sqrt(x^2+y^2+z^2)",
 };
 
 /* relies on pairs of these shared then separate */

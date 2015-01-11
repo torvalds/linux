@@ -295,6 +295,7 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_rot_from_north_true_tilt_comp_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_pressure_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_humidityrelative_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_velocity_sqrt(x^2+y^2+z^2)_scale
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -1164,3 +1165,12 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		This attribute is used to read the number of steps taken by the user
 		since the last reboot while activated.
+
+What:		/sys/.../iio:deviceX/in_velocity_sqrt(x^2+y^2+z^2)_input
+What:		/sys/.../iio:deviceX/in_velocity_sqrt(x^2+y^2+z^2)_raw
+KernelVersion:	3.19
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This attribute is used to read the current speed value of the
+		user (which is the norm or magnitude of the velocity vector).
+		Units after application of scale are m/s.
