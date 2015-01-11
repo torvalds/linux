@@ -1167,6 +1167,7 @@ static void __exit wp512_mod_fini(void)
 	crypto_unregister_shashes(wp_algs, ARRAY_SIZE(wp_algs));
 }
 
+MODULE_ALIAS_CRYPTO("wp512");
 MODULE_ALIAS_CRYPTO("wp384");
 MODULE_ALIAS_CRYPTO("wp256");
 
