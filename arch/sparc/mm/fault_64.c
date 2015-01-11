@@ -323,7 +323,8 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 			bad_kernel_pc(regs, address);
 			return;
 		}
-	}
+	} else
+		flags |= FAULT_FLAG_USER;
 
 	/*
 	 * If we're in an interrupt or have no user
@@ -426,13 +427,14 @@ good_area:
 		    vma->vm_file != NULL)
 			set_thread_fault_code(fault_code |
 					      FAULT_CODE_BLKCOMMIT);
+
+		flags |= FAULT_FLAG_WRITE;
 	} else {
 		/* Allow reads even for write-only mappings */
 		if (!(vma->vm_flags & (VM_READ | VM_EXEC)))
 			goto bad_area;
 	}
 
-	flags |= ((fault_code & FAULT_CODE_WRITE) ? FAULT_FLAG_WRITE : 0);
 	fault = handle_mm_fault(mm, vma, address, flags);
 
 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))

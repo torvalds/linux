@@ -778,6 +778,7 @@ config NEED_KUSER_HELPERS
 
 config KUSER_HELPERS
 	bool "Enable kuser helpers in vector page" if !NEED_KUSER_HELPERS
+	depends on MMU
 	default y
 	help
 	  Warning: disabling this option may break user programs.

@@ -138,6 +138,7 @@ enum {
 
 	/* Power */
 	POWER_TABLE_CMD = 0x77,
+	LTR_CONFIG = 0xee,
 
 	/* Scanning */
 	SCAN_REQUEST_CMD = 0x80,
