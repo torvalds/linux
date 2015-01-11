@@ -891,12 +891,24 @@ Description:
 		number or direction is not specified, applies to all channels of
 		this type.
 
-What:		/sys/.../events/in_steps_instance_en
-KernelVersion:	3.19
+What:		/sys/.../events/in_steps_change_en
+KernelVersion:	3.20
 Contact:	linux-iio@vger.kernel.org
 Description:
-		Enables or disables step detection. Each time the user takes a step an
-		event of this type will be generated.
+		Event generated when channel passes a threshold on the absolute
+		change in value. E.g. for steps: a step change event is
+		generated each time the user takes N steps, where N is set using
+		in_steps_change_value.
+
+What:		/sys/.../events/in_steps_change_value
+KernelVersion:	3.20
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Specifies the value of change threshold that the
+		device is comparing against for the events enabled by
+		<type>[Y][_name]_roc[_rising|falling|]_en. E.g. for steps:
+		if set to 3, a step change event will be generated every 3
+		steps.
 
 What:		/sys/bus/iio/devices/iio:deviceX/trigger/current_trigger
 KernelVersion:	2.6.35

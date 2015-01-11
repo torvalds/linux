@@ -79,6 +79,7 @@ enum iio_event_type {
 	IIO_EV_TYPE_THRESH_ADAPTIVE,
 	IIO_EV_TYPE_MAG_ADAPTIVE,
 	IIO_EV_TYPE_INSTANCE,
+	IIO_EV_TYPE_CHANGE,
 };
 
 enum iio_event_info {
