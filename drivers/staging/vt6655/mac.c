@@ -337,7 +337,7 @@ bool MACbSafeSoftwareReset(void __iomem *dwIoBase)
 
 /*
  * Description:
- *      Trun Off MAC Rx
+ *      Turn Off MAC Rx
  *
  * Parameters:
  *  In:
@@ -398,7 +398,7 @@ bool MACbSafeRxOff(void __iomem *dwIoBase)
 
 /*
  * Description:
- *      Trun Off MAC Tx
+ *      Turn Off MAC Tx
  *
  * Parameters:
  *  In:
