@@ -113,10 +113,11 @@ void pinconf_generic_dump_pins(struct pinctrl_dev *pctldev, struct seq_file *s,
 	pinconf_generic_dump_one(pctldev, s, gname, pin, conf_items,
 				 ARRAY_SIZE(conf_items));
 	/* driver-specific parameters */
-	if (pctldev->desc->num_dt_params && pctldev->desc->conf_items)
+	if (pctldev->desc->num_custom_params &&
+	    pctldev->desc->custom_conf_items)
 		pinconf_generic_dump_one(pctldev, s, gname, pin,
-					 pctldev->desc->conf_items,
-					 pctldev->desc->num_dt_params);
+					 pctldev->desc->custom_conf_items,
+					 pctldev->desc->num_custom_params);
 }
 
 void pinconf_generic_dump_config(struct pinctrl_dev *pctldev,
@@ -131,21 +132,24 @@ void pinconf_generic_dump_config(struct pinctrl_dev *pctldev,
 			   pinconf_to_config_argument(config));
 	}
 
-	if (!pctldev->desc->num_dt_params || !pctldev->desc->conf_items)
+	if (!pctldev->desc->num_custom_params ||
+	    !pctldev->desc->custom_conf_items)
 		return;
 
-	for (i = 0; i < pctldev->desc->num_dt_params; i++) {
-		if (pinconf_to_config_param(config) != pctldev->desc->conf_items[i].param)
+	for (i = 0; i < pctldev->desc->num_custom_params; i++) {
+		if (pinconf_to_config_param(config) !=
+		    pctldev->desc->custom_conf_items[i].param)
 			continue;
-		seq_printf(s, "%s: 0x%x", pctldev->desc->conf_items[i].display,
-			   pinconf_to_config_argument(config));
+		seq_printf(s, "%s: 0x%x",
+				pctldev->desc->custom_conf_items[i].display,
+				pinconf_to_config_argument(config));
 	}
 }
 EXPORT_SYMBOL_GPL(pinconf_generic_dump_config);
 #endif
 
 #ifdef CONFIG_OF
-static const struct pinconf_generic_dt_params dt_params[] = {
+static const struct pinconf_generic_params dt_params[] = {
 	{ "bias-disable", PIN_CONFIG_BIAS_DISABLE, 0 },
 	{ "bias-high-impedance", PIN_CONFIG_BIAS_HIGH_IMPEDANCE, 0 },
 	{ "bias-bus-hold", PIN_CONFIG_BIAS_BUS_HOLD, 0 },
@@ -170,9 +174,9 @@ static const struct pinconf_generic_dt_params dt_params[] = {
 };
 
 /**
- * parse_dt_cfg - Parse DT pinconf parameters
+ * parse_dt_cfg() - Parse DT pinconf parameters
  * @np:	DT node
- * @params:	Array of describing DT parameters
+ * @params:	Array of describing generic parameters
  * @count:	Number of entries in @params
  * @cfg:	Array of parsed config options
  * @ncfg:	Number of entries in @cfg
@@ -183,7 +187,7 @@ static const struct pinconf_generic_dt_params dt_params[] = {
  * needs to have enough memory allocated to hold all possible entries.
  */
 static void parse_dt_cfg(struct device_node *np,
-			 const struct pinconf_generic_dt_params *params,
+			 const struct pinconf_generic_params *params,
 			 unsigned int count, unsigned long *cfg,
 			 unsigned int *ncfg)
 {
@@ -192,7 +196,7 @@ static void parse_dt_cfg(struct device_node *np,
 	for (i = 0; i < count; i++) {
 		u32 val;
 		int ret;
-		const struct pinconf_generic_dt_params *par = &params[i];
+		const struct pinconf_generic_params *par = &params[i];
 
 		ret = of_property_read_u32(np, par->property, &val);
 
@@ -232,15 +236,16 @@ int pinconf_generic_parse_dt_config(struct device_node *np,
 	/* allocate a temporary array big enough to hold one of each option */
 	max_cfg = ARRAY_SIZE(dt_params);
 	if (pctldev)
-		max_cfg += pctldev->desc->num_dt_params;
+		max_cfg += pctldev->desc->num_custom_params;
 	cfg = kcalloc(max_cfg, sizeof(*cfg), GFP_KERNEL);
 	if (!cfg)
 		return -ENOMEM;
 
 	parse_dt_cfg(np, dt_params, ARRAY_SIZE(dt_params), cfg, &ncfg);
-	if (pctldev && pctldev->desc->num_dt_params && pctldev->desc->params)
-		parse_dt_cfg(np, pctldev->desc->params,
-			      pctldev->desc->num_dt_params, cfg, &ncfg);
+	if (pctldev && pctldev->desc->num_custom_params &&
+		pctldev->desc->custom_params)
+		parse_dt_cfg(np, pctldev->desc->custom_params,
+			     pctldev->desc->num_custom_params, cfg, &ncfg);
 
 	ret = 0;
 

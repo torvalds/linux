@@ -162,7 +162,7 @@ static inline unsigned long pinconf_to_config_packed(enum pin_config_param param
 struct pinctrl_dev;
 struct pinctrl_map;
 
-struct pinconf_generic_dt_params {
+struct pinconf_generic_params {
 	const char * const property;
 	enum pin_config_param param;
 	u32 default_value;

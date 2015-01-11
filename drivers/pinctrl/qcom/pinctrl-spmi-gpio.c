@@ -131,7 +131,7 @@ struct pmic_gpio_state {
 	struct gpio_chip chip;
 };
 
-static const struct pinconf_generic_dt_params pmic_gpio_bindings[] = {
+static const struct pinconf_generic_params pmic_gpio_bindings[] = {
 	{"qcom,pull-up-strength",	PMIC_GPIO_CONF_PULL_UP,		0},
 	{"qcom,drive-strength",		PMIC_GPIO_CONF_STRENGTH,	0},
 };
@@ -742,9 +742,9 @@ static int pmic_gpio_probe(struct platform_device *pdev)
 	pctrldesc->name = dev_name(dev);
 	pctrldesc->pins = pindesc;
 	pctrldesc->npins = npins;
-	pctrldesc->num_dt_params = ARRAY_SIZE(pmic_gpio_bindings);
-	pctrldesc->params = pmic_gpio_bindings;
-	pctrldesc->conf_items = pmic_conf_items;
+	pctrldesc->num_custom_params = ARRAY_SIZE(pmic_gpio_bindings);
+	pctrldesc->custom_params = pmic_gpio_bindings;
+	pctrldesc->custom_conf_items = pmic_conf_items;
 
 	for (i = 0; i < npins; i++, pindesc++) {
 		pad = &pads[i];
