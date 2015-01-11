@@ -1,7 +1,6 @@
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/fs_pin.h>
 #include "internal.h"
 #include "mount.h"
 
