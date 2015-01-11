@@ -104,8 +104,6 @@ static ssize_t virtpci_driver_attr_store(struct kobject *kobj,
 					 const char *buf, size_t count);
 static int virtpci_bus_match(struct device *dev, struct device_driver *drv);
 static int virtpci_uevent(struct device *dev, struct kobj_uevent_env *env);
-static int virtpci_device_suspend(struct device *dev, pm_message_t state);
-static int virtpci_device_resume(struct device *dev);
 static int virtpci_device_probe(struct device *dev);
 static int virtpci_device_remove(struct device *dev);
 
@@ -128,8 +126,6 @@ static struct bus_type virtpci_bus_type = {
 	.name = "uisvirtpci",
 	.match = virtpci_bus_match,
 	.uevent = virtpci_uevent,
-	.suspend = virtpci_device_suspend,
-	.resume = virtpci_device_resume,
 };
 
 static struct device virtpci_rootbus_device = {
@@ -754,18 +750,6 @@ static int virtpci_uevent(struct device *dev, struct kobj_uevent_env *env)
 	 */
 	if (add_uevent_var(env, "VIRTPCI_VERSION=%s", VIRTPCI_VERSION))
 		return -ENOMEM;
-	return 0;
-}
-
-static int virtpci_device_suspend(struct device *dev, pm_message_t state)
-{
-	DBGINF("In virtpci_device_suspend -NYI ****\n");
-	return 0;
-}
-
-static int virtpci_device_resume(struct device *dev)
-{
-	DBGINF("In virtpci_device_resume -NYI ****\n");
 	return 0;
 }
 
