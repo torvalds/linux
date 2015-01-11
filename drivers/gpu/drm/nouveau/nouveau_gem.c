@@ -850,19 +850,6 @@ out_next:
 	return nouveau_abi16_put(abi16, ret);
 }
 
-static inline uint32_t
-domain_to_ttm(struct nouveau_bo *nvbo, uint32_t domain)
-{
-	uint32_t flags = 0;
-
-	if (domain & NOUVEAU_GEM_DOMAIN_VRAM)
-		flags |= TTM_PL_FLAG_VRAM;
-	if (domain & NOUVEAU_GEM_DOMAIN_GART)
-		flags |= TTM_PL_FLAG_TT;
-
-	return flags;
-}
-
 int
 nouveau_gem_ioctl_cpu_prep(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv)
