@@ -2158,7 +2158,6 @@ ctl_error:
 
 static int snd_echo_suspend(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct echoaudio *chip = dev_get_drvdata(dev);
 
 	snd_pcm_suspend_all(chip->analog_pcm);
@@ -2184,9 +2183,6 @@ static int snd_echo_suspend(struct device *dev)
 	chip->dsp_code = NULL;
 	free_irq(chip->irq, chip);
 	chip->irq = -1;
-	pci_save_state(pci);
-	pci_disable_device(pci);
-
 	return 0;
 }
 
@@ -2200,7 +2196,6 @@ static int snd_echo_resume(struct device *dev)
 	u32 pipe_alloc_mask;
 	int err;
 
-	pci_restore_state(pci);
 	commpage_bak = kmalloc(sizeof(struct echoaudio), GFP_KERNEL);
 	if (commpage_bak == NULL)
 		return -ENOMEM;

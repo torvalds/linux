@@ -259,32 +259,17 @@ static void snd_vx222_remove(struct pci_dev *pci)
 #ifdef CONFIG_PM_SLEEP
 static int snd_vx222_suspend(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_vx222 *vx = card->private_data;
-	int err;
 
-	err = snd_vx_suspend(&vx->core);
-	pci_disable_device(pci);
-	pci_save_state(pci);
-	pci_set_power_state(pci, PCI_D3hot);
-	return err;
+	return snd_vx_suspend(&vx->core);
 }
 
 static int snd_vx222_resume(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_vx222 *vx = card->private_data;
 
-	pci_set_power_state(pci, PCI_D0);
-	pci_restore_state(pci);
-	if (pci_enable_device(pci) < 0) {
-		dev_err(dev, "pci_enable_device failed, disabling device\n");
-		snd_card_disconnect(card);
-		return -EIO;
-	}
-	pci_set_master(pci);
 	return snd_vx_resume(&vx->core);
 }
 

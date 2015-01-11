@@ -2096,20 +2096,11 @@ static int hw_suspend(struct hw *hw)
 		pci_write_config_dword(pci, UAA_CFG_SPACE_FLAG, 0x0);
 	}
 
-	pci_disable_device(pci);
-	pci_save_state(pci);
-	pci_set_power_state(pci, PCI_D3hot);
-
 	return 0;
 }
 
 static int hw_resume(struct hw *hw, struct card_conf *info)
 {
-	struct pci_dev *pci = hw->pci;
-
-	pci_set_power_state(pci, PCI_D0);
-	pci_restore_state(pci);
-
 	/* Re-initialize card hardware. */
 	return hw_card_init(hw, info);
 }

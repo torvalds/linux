@@ -210,7 +210,6 @@ static void snd_card_emu10k1_remove(struct pci_dev *pci)
 #ifdef CONFIG_PM_SLEEP
 static int snd_emu10k1_suspend(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_emu10k1 *emu = card->private_data;
 
@@ -232,27 +231,13 @@ static int snd_emu10k1_suspend(struct device *dev)
 		snd_p16v_suspend(emu);
 
 	snd_emu10k1_done(emu);
-
-	pci_disable_device(pci);
-	pci_save_state(pci);
-	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
 static int snd_emu10k1_resume(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_emu10k1 *emu = card->private_data;
-
-	pci_set_power_state(pci, PCI_D0);
-	pci_restore_state(pci);
-	if (pci_enable_device(pci) < 0) {
-		dev_err(dev, "pci_enable_device failed, disabling device\n");
-		snd_card_disconnect(card);
-		return -EIO;
-	}
-	pci_set_master(pci);
 
 	snd_emu10k1_resume_init(emu);
 	snd_emu10k1_efx_resume(emu);
