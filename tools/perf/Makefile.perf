@@ -89,13 +89,19 @@ VPATH += $(OUTPUT)
 export VPATH
 endif
 
+ifeq ($(V),1)
+  Q =
+else
+  Q = @
+endif
+
 # Do not use make's built-in rules
 # (this improves performance and avoids hard-to-debug behaviour);
 MAKEFLAGS += -r
 
 $(OUTPUT)PERF-VERSION-FILE: ../../.git/HEAD
-	@$(SHELL_PATH) util/PERF-VERSION-GEN $(OUTPUT)
-	@touch $(OUTPUT)PERF-VERSION-FILE
+	$(Q)$(SHELL_PATH) util/PERF-VERSION-GEN $(OUTPUT)
+	$(Q)touch $(OUTPUT)PERF-VERSION-FILE
 
 CC = $(CROSS_COMPILE)gcc
 LD = $(CROSS_COMPILE)ld
@@ -251,7 +257,7 @@ SHELL = $(SHELL_PATH)
 all: shell_compatibility_test $(ALL_PROGRAMS) $(LANG_BINDINGS) $(OTHER_PROGRAMS)
 
 please_set_SHELL_PATH_to_a_more_modern_shell:
-	@$$(:)
+	$(Q)$$(:)
 
 shell_compatibility_test: please_set_SHELL_PATH_to_a_more_modern_shell
 
@@ -264,13 +270,13 @@ export srctree OUTPUT RM CC LD AR CFLAGS V BISON FLEX
 build := -f $(srctree)/tools/build/Makefile.build dir=. obj
 
 $(PERF_IN): $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h FORCE
-	@$(MAKE) $(build)=perf
+	$(Q)$(MAKE) $(build)=perf
 
 $(OUTPUT)perf: $(PERFLIBS) $(PERF_IN)
 	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) $(PERF_IN) $(LIBS) -o $@
 
 $(GTK_IN): FORCE
-	@$(MAKE) $(build)=gtk
+	$(Q)$(MAKE) $(build)=gtk
 
 $(OUTPUT)libperf-gtk.so: $(GTK_IN) $(PERFLIBS)
 	$(QUIET_LINK)$(CC) -o $@ -shared $(LDFLAGS) $(filter %.o,$^) $(GTK_LIBS)
@@ -315,25 +321,25 @@ build-dir   = $(if $(__build-dir),$(__build-dir),.)
 single_dep: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h
 
 $(OUTPUT)%.o: %.c single_dep FORCE
-	@$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
+	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
 
 $(OUTPUT)%.i: %.c single_dep FORCE
-	@$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
+	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
 
 $(OUTPUT)%.s: %.c single_dep FORCE
-	@$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
+	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
 
 $(OUTPUT)%-bison.o: %.c single_dep FORCE
-	@$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
+	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
 
 $(OUTPUT)%-flex.o: %.c single_dep FORCE
-	@$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
+	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
 
 $(OUTPUT)%.o: %.S single_dep FORCE
-	@$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
+	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
 
 $(OUTPUT)%.i: %.S single_dep FORCE
-	@$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
+	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
 
 $(OUTPUT)perf-%: %.o $(PERFLIBS)
 	$(QUIET_LINK)$(CC) $(CFLAGS) -o $@ $(LDFLAGS) $(filter %.o,$^) $(LIBS)
@@ -353,7 +359,7 @@ $(patsubst perf-%,%.o,$(PROGRAMS)): $(wildcard */*.h)
 LIBPERF_IN := $(OUTPUT)libperf-in.o
 
 $(LIBPERF_IN): FORCE
-	@$(MAKE) $(build)=libperf
+	$(Q)$(MAKE) $(build)=libperf
 
 $(LIB_FILE): $(LIBPERF_IN)
 	$(QUIET_AR)$(RM) $@ && $(AR) rcs $@ $(LIBPERF_IN) $(LIB_OBJS)
@@ -361,21 +367,21 @@ $(LIB_FILE): $(LIBPERF_IN)
 LIBTRACEEVENT_FLAGS += plugin_dir=$(plugindir_SQ)
 
 $(LIBTRACEEVENT): FORCE
-	@$(MAKE) -C $(TRACE_EVENT_DIR) $(LIBTRACEEVENT_FLAGS) O=$(OUTPUT) $(OUTPUT)libtraceevent.a plugins
+	$(Q)$(MAKE) -C $(TRACE_EVENT_DIR) $(LIBTRACEEVENT_FLAGS) O=$(OUTPUT) $(OUTPUT)libtraceevent.a plugins
 
 $(LIBTRACEEVENT)-clean:
 	$(call QUIET_CLEAN, libtraceevent)
-	@$(MAKE) -C $(TRACE_EVENT_DIR) O=$(OUTPUT) clean >/dev/null
+	$(Q)$(MAKE) -C $(TRACE_EVENT_DIR) O=$(OUTPUT) clean >/dev/null
 
 install-traceevent-plugins: $(LIBTRACEEVENT)
-	@$(MAKE) -C $(TRACE_EVENT_DIR) $(LIBTRACEEVENT_FLAGS) O=$(OUTPUT) install_plugins
+	$(Q)$(MAKE) -C $(TRACE_EVENT_DIR) $(LIBTRACEEVENT_FLAGS) O=$(OUTPUT) install_plugins
 
 $(LIBAPI): FORCE
-	@$(MAKE) -C $(LIB_DIR) O=$(OUTPUT) $(OUTPUT)libapi.a
+	$(Q)$(MAKE) -C $(LIB_DIR) O=$(OUTPUT) $(OUTPUT)libapi.a
 
 $(LIBAPI)-clean:
 	$(call QUIET_CLEAN, libapi)
-	@$(MAKE) -C $(LIB_DIR) O=$(OUTPUT) clean >/dev/null
+	$(Q)$(MAKE) -C $(LIB_DIR) O=$(OUTPUT) clean >/dev/null
 
 help:
 	@echo 'Perf make targets:'
@@ -513,12 +519,12 @@ $(INSTALL_DOC_TARGETS):
 #
 config-clean:
 	$(call QUIET_CLEAN, config)
-	@$(MAKE) -C config/feature-checks clean >/dev/null
+	$(Q)$(MAKE) -C config/feature-checks clean >/dev/null
 
 clean: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean config-clean
 	$(call QUIET_CLEAN, core-objs)  $(RM) $(LIB_FILE) $(OUTPUT)perf-archive $(OUTPUT)perf-with-kcore $(LANG_BINDINGS)
-	@find . -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
-	@$(RM) .config-detected
+	$(Q)find . -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
+	$(Q)$(RM) .config-detected
 	$(call QUIET_CLEAN, core-progs) $(RM) $(ALL_PROGRAMS) perf perf-read-vdso32 perf-read-vdsox32
 	$(call QUIET_CLEAN, core-gen)   $(RM)  *.spec *.pyc *.pyo */*.pyc */*.pyo $(OUTPUT)common-cmds.h TAGS tags cscope* $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)PERF-FEATURES $(OUTPUT)util/*-bison* $(OUTPUT)util/*-flex*
 	$(QUIET_SUBDIR0)Documentation $(QUIET_SUBDIR1) clean

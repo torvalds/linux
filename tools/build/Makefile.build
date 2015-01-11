@@ -13,8 +13,10 @@ __build:
 
 ifeq ($(V),1)
   quiet =
+  Q =
 else
   quiet=quiet_
+  Q=@
 endif
 
 build-dir := $(srctree)/tools/build
@@ -102,7 +104,7 @@ in-target := $(prefix)$(obj)-in.o
 PHONY += $(subdir-y)
 
 $(subdir-y):
-	@$(MAKE) -f $(build-dir)/Makefile.build dir=$(dir)/$@ obj=$(obj)
+	$(Q)$(MAKE) -f $(build-dir)/Makefile.build dir=$(dir)/$@ obj=$(obj)
 
 $(sort $(subdir-obj-y)): $(subdir-y) ;
 
