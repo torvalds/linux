@@ -128,6 +128,29 @@ cleanup:
 	return r;
 }
 
+static int omap_modeset_create_crtc(struct drm_device *dev, int id,
+				    enum omap_channel channel)
+{
+	struct omap_drm_private *priv = dev->dev_private;
+	struct drm_plane *plane;
+	struct drm_crtc *crtc;
+
+	plane = omap_plane_init(dev, id, true);
+	if (IS_ERR(plane))
+		return PTR_ERR(plane);
+
+	crtc = omap_crtc_init(dev, plane, channel, id);
+
+	BUG_ON(priv->num_crtcs >= ARRAY_SIZE(priv->crtcs));
+	priv->crtcs[id] = crtc;
+	priv->num_crtcs++;
+
+	priv->planes[id] = plane;
+	priv->num_planes++;
+
+	return 0;
+}
+
 static int omap_modeset_init(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
@@ -136,6 +159,7 @@ static int omap_modeset_init(struct drm_device *dev)
 	int num_mgrs = dss_feat_get_num_mgrs();
 	int num_crtcs;
 	int i, id = 0;
+	int ret;
 
 	drm_mode_config_init(dev);
 
@@ -209,18 +233,13 @@ static int omap_modeset_init(struct drm_device *dev)
 		 * allocated crtc, we create a new crtc for it
 		 */
 		if (!channel_used(dev, channel)) {
-			struct drm_plane *plane;
-			struct drm_crtc *crtc;
-
-			plane = omap_plane_init(dev, id, true);
-			crtc = omap_crtc_init(dev, plane, channel, id);
-
-			BUG_ON(priv->num_crtcs >= ARRAY_SIZE(priv->crtcs));
-			priv->crtcs[id] = crtc;
-			priv->num_crtcs++;
-
-			priv->planes[id] = plane;
-			priv->num_planes++;
+			ret = omap_modeset_create_crtc(dev, id, channel);
+			if (ret < 0) {
+				dev_err(dev->dev,
+					"could not create CRTC (channel %u)\n",
+					channel);
+				return ret;
+			}
 
 			id++;
 		}
@@ -234,26 +253,8 @@ static int omap_modeset_init(struct drm_device *dev)
 
 		/* find a free manager for this crtc */
 		for (i = 0; i < num_mgrs; i++) {
-			if (!channel_used(dev, i)) {
-				struct drm_plane *plane;
-				struct drm_crtc *crtc;
-
-				plane = omap_plane_init(dev, id, true);
-				crtc = omap_crtc_init(dev, plane, i, id);
-
-				BUG_ON(priv->num_crtcs >=
-					ARRAY_SIZE(priv->crtcs));
-
-				priv->crtcs[id] = crtc;
-				priv->num_crtcs++;
-
-				priv->planes[id] = plane;
-				priv->num_planes++;
-
+			if (!channel_used(dev, i))
 				break;
-			} else {
-				continue;
-			}
 		}
 
 		if (i == num_mgrs) {
@@ -261,13 +262,24 @@ static int omap_modeset_init(struct drm_device *dev)
 			dev_err(dev->dev, "no managers left for crtc\n");
 			return -ENOMEM;
 		}
+
+		ret = omap_modeset_create_crtc(dev, id, i);
+		if (ret < 0) {
+			dev_err(dev->dev,
+				"could not create CRTC (channel %u)\n", i);
+			return ret;
+		}
 	}
 
 	/*
 	 * Create normal planes for the remaining overlays:
 	 */
 	for (; id < num_ovls; id++) {
-		struct drm_plane *plane = omap_plane_init(dev, id, false);
+		struct drm_plane *plane;
+
+		plane = omap_plane_init(dev, id, false);
+		if (IS_ERR(plane))
+			return PTR_ERR(plane);
 
 		BUG_ON(priv->num_planes >= ARRAY_SIZE(priv->planes));
 		priv->planes[priv->num_planes++] = plane;

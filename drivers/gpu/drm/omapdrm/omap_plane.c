@@ -393,7 +393,7 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 
 	omap_plane = kzalloc(sizeof(*omap_plane), GFP_KERNEL);
 	if (!omap_plane)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	drm_flip_work_init(&omap_plane->unpin_work,
 			"unpin", unpin_worker);
