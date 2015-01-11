@@ -373,7 +373,7 @@ void usb_serial_generic_read_bulk_callback(struct urb *urb)
 							__func__, urb->status);
 		return;
 	default:
-		dev_err(&port->dev, "%s - nonzero urb status: %d\n",
+		dev_dbg(&port->dev, "%s - nonzero urb status: %d\n",
 							__func__, urb->status);
 		goto resubmit;
 	}
