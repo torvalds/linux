@@ -208,7 +208,6 @@ int fhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 {
 	struct fhci_hcd *fhci = hcd_to_fhci(hcd);
 	int retval = 0;
-	int len = 0;
 	struct usb_hub_status *hub_status;
 	struct usb_port_status *port_status;
 	unsigned long flags;
@@ -272,7 +271,6 @@ int fhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		break;
 	case GetHubDescriptor:
 		memcpy(buf, root_hub_des, sizeof(root_hub_des));
-		len = (buf[0] < wLength) ? buf[0] : wLength;
 		break;
 	case GetHubStatus:
 		hub_status = (struct usb_hub_status *)buf;
@@ -280,7 +278,6 @@ int fhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		    cpu_to_le16(fhci->vroot_hub->hub.wHubStatus);
 		hub_status->wHubChange =
 		    cpu_to_le16(fhci->vroot_hub->hub.wHubChange);
-		len = 4;
 		break;
 	case GetPortStatus:
 		port_status = (struct usb_port_status *)buf;
@@ -288,7 +285,6 @@ int fhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		    cpu_to_le16(fhci->vroot_hub->port.wPortStatus);
 		port_status->wPortChange =
 		    cpu_to_le16(fhci->vroot_hub->port.wPortChange);
-		len = 4;
 		break;
 	case SetHubFeature:
 		switch (wValue) {
