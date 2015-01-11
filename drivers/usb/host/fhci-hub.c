@@ -32,8 +32,8 @@ static u8 root_hub_des[] = {
 	0x09, /* blength */
 	0x29, /* bDescriptorType;hub-descriptor */
 	0x01, /* bNbrPorts */
-	0x00, /* wHubCharacteristics */
-	0x00,
+	0x11, /* wHubCharacteristics */
+	0x00, /* per-port power, no overcurrent */
 	0x01, /* bPwrOn2pwrGood;2ms */
 	0x00, /* bHubContrCurrent;0mA */
 	0x00, /* DeviceRemoveable */
@@ -272,7 +272,6 @@ int fhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		break;
 	case GetHubDescriptor:
 		memcpy(buf, root_hub_des, sizeof(root_hub_des));
-		buf[3] = 0x11; /* per-port power, no ovrcrnt */
 		len = (buf[0] < wLength) ? buf[0] : wLength;
 		break;
 	case GetHubStatus:
