@@ -73,6 +73,7 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_ACTIVITY] = "activity",
 	[IIO_STEPS] = "steps",
 	[IIO_ENERGY] = "energy",
+	[IIO_DISTANCE] = "distance",
 };
 
 static const char * const iio_modifier_names[] = {
