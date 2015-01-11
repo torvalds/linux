@@ -183,7 +183,7 @@ static int ams_delta_init(struct platform_device *pdev)
 		return -ENXIO;
 
 	/* Allocate memory for MTD device structure and private data */
-	ams_delta_mtd = kmalloc(sizeof(struct mtd_info) +
+	ams_delta_mtd = kzalloc(sizeof(struct mtd_info) +
 				sizeof(struct nand_chip), GFP_KERNEL);
 	if (!ams_delta_mtd) {
 		printk (KERN_WARNING "Unable to allocate E3 NAND MTD device structure.\n");
@@ -195,10 +195,6 @@ static int ams_delta_init(struct platform_device *pdev)
 
 	/* Get pointer to private data */
 	this = (struct nand_chip *) (&ams_delta_mtd[1]);
-
-	/* Initialize structures */
-	memset(ams_delta_mtd, 0, sizeof(struct mtd_info));
-	memset(this, 0, sizeof(struct nand_chip));
 
 	/* Link the private data with the MTD structure */
 	ams_delta_mtd->priv = this;
