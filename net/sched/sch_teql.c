@@ -122,13 +122,6 @@ teql_peek(struct Qdisc *sch)
 	return NULL;
 }
 
-static inline void
-teql_neigh_release(struct neighbour *n)
-{
-	if (n)
-		neigh_release(n);
-}
-
 static void
 teql_reset(struct Qdisc *sch)
 {
