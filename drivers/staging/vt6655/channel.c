@@ -202,6 +202,10 @@ bool set_channel(void *pDeviceHandler, unsigned int uConnectionChannel)
 	BBvSoftwareReset(pDevice);
 
 	if (pDevice->byLocalID > REV_ID_VT3253_B1) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&pDevice->lock, flags);
+
 		/* set HW default power register */
 		MACvSelectPage1(pDevice->PortOffset);
 		RFbSetPower(pDevice, RATE_1M, pDevice->byCurrentCh);
@@ -209,6 +213,8 @@ bool set_channel(void *pDeviceHandler, unsigned int uConnectionChannel)
 		RFbSetPower(pDevice, RATE_6M, pDevice->byCurrentCh);
 		VNSvOutPortB(pDevice->PortOffset + MAC_REG_PWROFDM, pDevice->byCurPwr);
 		MACvSelectPage0(pDevice->PortOffset);
+
+		spin_unlock_irqrestore(&pDevice->lock, flags);
 	}
 
 	if (pDevice->byBBType == BB_TYPE_11B)
