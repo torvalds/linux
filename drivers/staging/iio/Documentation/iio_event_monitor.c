@@ -59,7 +59,6 @@ static const char * const iio_ev_type_text[] = {
 	[IIO_EV_TYPE_ROC] = "roc",
 	[IIO_EV_TYPE_THRESH_ADAPTIVE] = "thresh_adaptive",
 	[IIO_EV_TYPE_MAG_ADAPTIVE] = "mag_adaptive",
-	[IIO_EV_TYPE_INSTANCE] = "instance",
 	[IIO_EV_TYPE_CHANGE] = "change",
 };
 
@@ -179,7 +178,6 @@ static bool event_is_known(struct iio_event_data *event)
 	case IIO_EV_TYPE_ROC:
 	case IIO_EV_TYPE_THRESH_ADAPTIVE:
 	case IIO_EV_TYPE_MAG_ADAPTIVE:
-	case IIO_EV_TYPE_INSTANCE:
 	case IIO_EV_TYPE_CHANGE:
 		break;
 	default:

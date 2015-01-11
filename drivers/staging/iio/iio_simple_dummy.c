@@ -73,7 +73,7 @@ static const struct iio_event_spec iio_dummy_event = {
  * simple step detect event - triggered when a step is detected
  */
 static const struct iio_event_spec step_detect_event = {
-	.type = IIO_EV_TYPE_INSTANCE,
+	.type = IIO_EV_TYPE_CHANGE,
 	.dir = IIO_EV_DIR_NONE,
 	.mask_separate = BIT(IIO_EV_INFO_ENABLE),
 };

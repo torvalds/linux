@@ -86,7 +86,7 @@ int iio_simple_dummy_write_event_config(struct iio_dev *indio_dev,
 		}
 	case IIO_STEPS:
 		switch (type) {
-		case IIO_EV_TYPE_INSTANCE:
+		case IIO_EV_TYPE_CHANGE:
 			st->event_en = state;
 			break;
 		default:
@@ -201,7 +201,7 @@ static irqreturn_t iio_simple_dummy_event_handler(int irq, void *private)
 		iio_push_event(indio_dev,
 			       IIO_EVENT_CODE(IIO_STEPS, 0, IIO_NO_MOD,
 					      IIO_EV_DIR_NONE,
-					      IIO_EV_TYPE_INSTANCE, 0, 0, 0),
+					      IIO_EV_TYPE_CHANGE, 0, 0, 0),
 			       iio_get_time_ns());
 		break;
 	default:
