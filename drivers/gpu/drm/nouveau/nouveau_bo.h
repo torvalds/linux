@@ -78,7 +78,6 @@ int  nouveau_bo_unpin(struct nouveau_bo *);
 int  nouveau_bo_map(struct nouveau_bo *);
 void nouveau_bo_unmap(struct nouveau_bo *);
 void nouveau_bo_placement_set(struct nouveau_bo *, u32 type, u32 busy);
-u16  nouveau_bo_rd16(struct nouveau_bo *, unsigned index);
 void nouveau_bo_wr16(struct nouveau_bo *, unsigned index, u16 val);
 u32  nouveau_bo_rd32(struct nouveau_bo *, unsigned index);
 void nouveau_bo_wr32(struct nouveau_bo *, unsigned index, u32 val);
