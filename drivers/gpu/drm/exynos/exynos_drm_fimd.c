@@ -296,12 +296,19 @@ static int fimd_ctx_initialize(struct fimd_context *ctx,
 
 	/* attach this sub driver to iommu mapping if supported. */
 	if (is_drm_iommu_supported(ctx->drm_dev)) {
+		int ret;
+
 		/*
 		 * If any channel is already active, iommu will throw
 		 * a PAGE FAULT when enabled. So clear any channel if enabled.
 		 */
 		fimd_clear_channel(ctx->crtc);
-		drm_iommu_attach_device(ctx->drm_dev, ctx->dev);
+		ret = drm_iommu_attach_device(ctx->drm_dev, ctx->dev);
+		if (ret) {
+			DRM_ERROR("drm_iommu_attach failed.\n");
+			return ret;
+		}
+
 	}
 
 	return 0;
@@ -1056,6 +1063,7 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 {
 	struct fimd_context *ctx = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
+	int ret;
 
 	ctx->crtc = exynos_drm_crtc_create(drm_dev, ctx->pipe,
 					   EXYNOS_DISPLAY_TYPE_LCD,
@@ -1063,7 +1071,12 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	if (IS_ERR(ctx->crtc))
 		return PTR_ERR(ctx->crtc);
 
-	fimd_ctx_initialize(ctx, drm_dev);
+	ret = fimd_ctx_initialize(ctx, drm_dev);
+	if (ret) {
+		DRM_ERROR("fimd_ctx_initialize failed.\n");
+		return ret;
+	}
+
 
 	if (ctx->display)
 		exynos_drm_create_enc_conn(drm_dev, ctx->display);
