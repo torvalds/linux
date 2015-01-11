@@ -43,13 +43,6 @@ static inline void uwb_mac_addr_init(struct uwb_mac_addr *addr)
 	memset(&addr->data, 0xff, sizeof(addr->data));
 }
 
-/* @returns !0 if a device @addr is a broadcast address */
-static inline int uwb_dev_addr_bcast(const struct uwb_dev_addr *addr)
-{
-	static const struct uwb_dev_addr bcast = { .data = { 0xff, 0xff } };
-	return !uwb_dev_addr_cmp(addr, &bcast);
-}
-
 /*
  * Add callback @new to be called when an event occurs in @rc.
  */
