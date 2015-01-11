@@ -24,6 +24,36 @@
 
 static struct crypto_shash *ima_shash_tfm;
 
+/**
+ * ima_kernel_read - read file content
+ *
+ * This is a function for reading file content instead of kernel_read().
+ * It does not perform locking checks to ensure it cannot be blocked.
+ * It does not perform security checks because it is irrelevant for IMA.
+ *
+ */
+static int ima_kernel_read(struct file *file, loff_t offset,
+			   char *addr, unsigned long count)
+{
+	mm_segment_t old_fs;
+	char __user *buf = addr;
+	ssize_t ret;
+
+	if (!(file->f_mode & FMODE_READ))
+		return -EBADF;
+	if (!file->f_op->read && !file->f_op->aio_read)
+		return -EINVAL;
+
+	old_fs = get_fs();
+	set_fs(get_ds());
+	if (file->f_op->read)
+		ret = file->f_op->read(file, buf, count, &offset);
+	else
+		ret = do_sync_read(file, buf, count, &offset);
+	set_fs(old_fs);
+	return ret;
+}
+
 int ima_init_crypto(void)
 {
 	long rc;
@@ -70,7 +100,7 @@ int ima_calc_file_hash(struct file *file, char *digest)
 	while (offset < i_size) {
 		int rbuf_len;
 
-		rbuf_len = kernel_read(file, offset, rbuf, PAGE_SIZE);
+		rbuf_len = ima_kernel_read(file, offset, rbuf, PAGE_SIZE);
 		if (rbuf_len < 0) {
 			rc = rbuf_len;
 			break;
