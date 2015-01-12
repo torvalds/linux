@@ -1053,26 +1053,49 @@ static const struct comedi_lrange *opt_ai_range_lkup(int ispgl, int x)
 	return ai_range_table[x];
 }
 
-static int dt282x_grab_dma(struct comedi_device *dev, int dma1, int dma2)
+static int dt282x_alloc_dma(struct comedi_device *dev,
+			    struct comedi_devconfig *it)
 {
 	struct dt282x_private *devpriv = dev->private;
-	int ret;
+	unsigned int irq_num = it->options[1];
+	unsigned int dma_chan[2];
+	int i;
 
-	ret = request_dma(dma1, "dt282x A");
-	if (ret)
-		return -EBUSY;
-	devpriv->dma[0].chan = dma1;
+	if (it->options[2] < it->options[3]) {
+		dma_chan[0] = it->options[2];
+		dma_chan[1] = it->options[3];
+	} else {
+		dma_chan[0] = it->options[3];
+		dma_chan[1] = it->options[2];
+	}
 
-	ret = request_dma(dma2, "dt282x B");
-	if (ret)
-		return -EBUSY;
-	devpriv->dma[1].chan = dma2;
+	if (!irq_num || dma_chan[0] == dma_chan[1] ||
+	    dma_chan[0] < 5 || dma_chan[0] > 7 ||
+	    dma_chan[1] < 5 || dma_chan[1] > 7)
+		return 0;
+
+	if (request_irq(irq_num, dt282x_interrupt, 0, dev->board_name, dev))
+		return 0;
+	if (request_dma(dma_chan[0], dev->board_name)) {
+		free_irq(irq_num, dev);
+		return 0;
+	}
+	if (request_dma(dma_chan[1], dev->board_name)) {
+		free_dma(dma_chan[0]);
+		free_irq(irq_num, dev);
+		return 0;
+	}
+
+	dev->irq = irq_num;
 
 	devpriv->dma_maxsize = PAGE_SIZE;
-	devpriv->dma[0].buf = (void *)__get_free_page(GFP_KERNEL | GFP_DMA);
-	devpriv->dma[1].buf = (void *)__get_free_page(GFP_KERNEL | GFP_DMA);
-	if (!devpriv->dma[0].buf || !devpriv->dma[1].buf)
-		return -ENOMEM;
+	for (i = 0; i < 2; i++) {
+		devpriv->dma[i].chan = dma_chan[i];
+		devpriv->dma[i].buf =
+			(void *)__get_free_page(GFP_KERNEL | GFP_DMA);
+		if (!devpriv->dma[i].buf)
+			return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -1150,36 +1173,9 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 
 	/* an IRQ and 2 DMA channels are required for async command support */
-	if (it->options[1] && it->options[2] && it->options[3]) {
-		unsigned int irq = it->options[1];
-		unsigned int dma1 = it->options[2];
-		unsigned int dma2 = it->options[3];
-
-		if (dma2 < dma1) {
-			unsigned int swap;
-
-			swap = dma1;
-			dma1 = dma2;
-			dma2 = swap;
-		}
-
-		if (dma1 != dma2 &&
-		    dma1 >= 5 && dma1 <= 7 &&
-		    dma2 >= 5 && dma2 <= 7) {
-			ret = request_irq(irq, dt282x_interrupt, 0,
-					  dev->board_name, dev);
-			if (ret == 0) {
-				dev->irq = irq;
-
-				ret = dt282x_grab_dma(dev, dma1, dma2);
-				if (ret < 0) {
-					dt282x_free_dma(dev);
-					free_irq(dev->irq, dev);
-					dev->irq = 0;
-				}
-			}
-		}
-	}
+	ret = dt282x_alloc_dma(dev, it);
+	if (ret)
+		return ret;
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
