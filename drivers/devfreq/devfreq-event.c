@@ -389,6 +389,69 @@ int devfreq_event_remove_edev(struct devfreq_event_dev *edev)
 }
 EXPORT_SYMBOL_GPL(devfreq_event_remove_edev);
 
+static int devm_devfreq_event_match(struct device *dev, void *res, void *data)
+{
+	struct devfreq_event_dev **r = res;
+
+	if (WARN_ON(!r || !*r))
+		return 0;
+
+	return *r == data;
+}
+
+static void devm_devfreq_event_release(struct device *dev, void *res)
+{
+	devfreq_event_remove_edev(*(struct devfreq_event_dev **)res);
+}
+
+/**
+ * devm_devfreq_event_add_edev() - Resource-managed devfreq_event_add_edev()
+ * @dev		: the device owning the devfreq-event device being created
+ * @desc	: the devfreq-event device's decriptor which include essential
+ *		  data for devfreq-event device.
+ *
+ * Note that this function manages automatically the memory of devfreq-event
+ * device using device resource management and simplify the free operation
+ * for memory of devfreq-event device.
+ */
+struct devfreq_event_dev *devm_devfreq_event_add_edev(struct device *dev,
+						struct devfreq_event_desc *desc)
+{
+	struct devfreq_event_dev **ptr, *edev;
+
+	ptr = devres_alloc(devm_devfreq_event_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	edev = devfreq_event_add_edev(dev, desc);
+	if (IS_ERR(edev)) {
+		devres_free(ptr);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	*ptr = edev;
+	devres_add(dev, ptr);
+
+	return edev;
+}
+EXPORT_SYMBOL_GPL(devm_devfreq_event_add_edev);
+
+/**
+ * devm_devfreq_event_remove_edev()- Resource-managed devfreq_event_remove_edev()
+ * @dev		: the device owning the devfreq-event device being created
+ * @edev	: the devfreq-event device
+ *
+ * Note that this function manages automatically the memory of devfreq-event
+ * device using device resource management.
+ */
+void devm_devfreq_event_remove_edev(struct device *dev,
+				struct devfreq_event_dev *edev)
+{
+	WARN_ON(devres_release(dev, devm_devfreq_event_release,
+			       devm_devfreq_event_match, edev));
+}
+EXPORT_SYMBOL_GPL(devm_devfreq_event_remove_edev);
+
 /*
  * Device attributes for devfreq-event class.
  */
