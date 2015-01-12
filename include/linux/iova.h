@@ -39,6 +39,9 @@ static inline unsigned long iova_size(struct iova *iova)
 	return iova->pfn_hi - iova->pfn_lo + 1;
 }
 
+int iommu_iova_cache_init(void);
+void iommu_iova_cache_destroy(void);
+
 struct iova *alloc_iova_mem(void);
 void free_iova_mem(struct iova *iova);
 void free_iova(struct iova_domain *iovad, unsigned long pfn);

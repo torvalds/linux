@@ -18,6 +18,41 @@
  */
 
 #include <linux/iova.h>
+#include <linux/slab.h>
+
+static struct kmem_cache *iommu_iova_cache;
+
+int iommu_iova_cache_init(void)
+{
+	int ret = 0;
+
+	iommu_iova_cache = kmem_cache_create("iommu_iova",
+					 sizeof(struct iova),
+					 0,
+					 SLAB_HWCACHE_ALIGN,
+					 NULL);
+	if (!iommu_iova_cache) {
+		pr_err("Couldn't create iova cache\n");
+		ret = -ENOMEM;
+	}
+
+	return ret;
+}
+
+void iommu_iova_cache_destroy(void)
+{
+	kmem_cache_destroy(iommu_iova_cache);
+}
+
+struct iova *alloc_iova_mem(void)
+{
+	return kmem_cache_alloc(iommu_iova_cache, GFP_ATOMIC);
+}
+
+void free_iova_mem(struct iova *iova)
+{
+	kmem_cache_free(iommu_iova_cache, iova);
+}
 
 void
 init_iova_domain(struct iova_domain *iovad, unsigned long pfn_32bit)
