@@ -575,8 +575,6 @@ static u16 vnt_fill_cts_head(struct vnt_usb_send_context *tx_context,
 
 		return vnt_rxtx_datahead_g(tx_context, &buf->data_head);
 	}
-
-	return 0;
 }
 
 static u16 vnt_rxtx_rts(struct vnt_usb_send_context *tx_context,
