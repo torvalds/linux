@@ -1802,18 +1802,10 @@ out:
 static bool rs_stbc_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			  struct iwl_lq_sta *lq_sta)
 {
-	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
-	struct ieee80211_vif *vif = mvmsta->vif;
-	bool sta_ps_disabled = (vif->type == NL80211_IFTYPE_STATION &&
-				!vif->bss_conf.ps);
-
 	/* Our chip supports Tx STBC and the peer is an HT/VHT STA which
 	 * supports STBC of at least 1*SS
 	 */
 	if (!lq_sta->stbc)
-		return false;
-
-	if (!mvm->ps_disabled && !sta_ps_disabled)
 		return false;
 
 	if (!iwl_mvm_bt_coex_is_mimo_allowed(mvm, sta))
