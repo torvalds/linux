@@ -146,8 +146,7 @@ static const struct a2150_board a2150_boards[] = {
 };
 
 struct a2150_private {
-
-	volatile unsigned int count;	/* number of data points left to be taken */
+	unsigned int count;	/* number of data points left to be taken */
 	unsigned int dma;	/*  dma channel */
 	uint16_t *dma_buffer;	/*  dma buffer */
 	unsigned int dma_transfer_size;	/*  size in bytes of dma transfers */
