@@ -97,11 +97,11 @@ static const struct {
 	{"Inst & Mic", 0x0901}
 };
 
-static bool toneport_has_led(short product)
+static bool toneport_has_led(enum line6_device_type type)
 {
 	return
-	    (product == LINE6_DEVID_GUITARPORT) ||
-	    (product == LINE6_DEVID_TONEPORT_GX);
+	    (type == LINE6_GUITARPORT) ||
+	    (type == LINE6_TONEPORT_GX);
 	/* add your device here if you are missing support for the LEDs */
 }
 
@@ -310,7 +310,6 @@ static void toneport_setup(struct usb_line6_toneport *toneport)
 	int ticks;
 	struct usb_line6 *line6 = &toneport->line6;
 	struct usb_device *usbdev = line6->usbdev;
-	u16 idProduct = le16_to_cpu(usbdev->descriptor.idProduct);
 
 	/* sync time on device with host: */
 	ticks = (int)get_seconds();
@@ -320,117 +319,26 @@ static void toneport_setup(struct usb_line6_toneport *toneport)
 	toneport_send_cmd(usbdev, 0x0301, 0x0000);
 
 	/* initialize source select: */
-	switch (le16_to_cpu(usbdev->descriptor.idProduct)) {
-	case LINE6_DEVID_TONEPORT_UX1:
-	case LINE6_DEVID_TONEPORT_UX2:
-	case LINE6_DEVID_PODSTUDIO_UX1:
-	case LINE6_DEVID_PODSTUDIO_UX2:
+	switch (line6->type) {
+	case LINE6_TONEPORT_UX1:
+	case LINE6_TONEPORT_UX2:
+	case LINE6_PODSTUDIO_UX1:
+	case LINE6_PODSTUDIO_UX2:
 		toneport_send_cmd(usbdev,
 				  toneport_source_info[toneport->source].code,
 				  0x0000);
+	default:
+		break;
 	}
 
-	if (toneport_has_led(idProduct))
+	if (toneport_has_led(line6->type))
 		toneport_update_led(&usbdev->dev);
-}
-
-/*
-	 Try to init Toneport device.
-*/
-static int toneport_try_init(struct usb_interface *interface,
-			     struct usb_line6_toneport *toneport)
-{
-	int err;
-	struct usb_line6 *line6 = &toneport->line6;
-	struct usb_device *usbdev = line6->usbdev;
-	u16 idProduct = le16_to_cpu(usbdev->descriptor.idProduct);
-
-	if ((interface == NULL) || (toneport == NULL))
-		return -ENODEV;
-
-	/* initialize audio system: */
-	err = line6_init_audio(line6);
-	if (err < 0)
-		return err;
-
-	/* initialize PCM subsystem: */
-	err = line6_init_pcm(line6, &toneport_pcm_properties);
-	if (err < 0)
-		return err;
-
-	/* register monitor control: */
-	err = snd_ctl_add(line6->card,
-			  snd_ctl_new1(&toneport_control_monitor,
-				       line6->line6pcm));
-	if (err < 0)
-		return err;
-
-	/* register source select control: */
-	switch (le16_to_cpu(usbdev->descriptor.idProduct)) {
-	case LINE6_DEVID_TONEPORT_UX1:
-	case LINE6_DEVID_TONEPORT_UX2:
-	case LINE6_DEVID_PODSTUDIO_UX1:
-	case LINE6_DEVID_PODSTUDIO_UX2:
-		err =
-		    snd_ctl_add(line6->card,
-				snd_ctl_new1(&toneport_control_source,
-					     line6->line6pcm));
-		if (err < 0)
-			return err;
-	}
-
-	/* register audio system: */
-	err = line6_register_audio(line6);
-	if (err < 0)
-		return err;
-
-	line6_read_serial_number(line6, &toneport->serial_number);
-	line6_read_data(line6, 0x80c2, &toneport->firmware_version, 1);
-
-	if (toneport_has_led(idProduct)) {
-		CHECK_RETURN(device_create_file
-			     (&interface->dev, &dev_attr_led_red));
-		CHECK_RETURN(device_create_file
-			     (&interface->dev, &dev_attr_led_green));
-	}
-
-	toneport_setup(toneport);
-
-	init_timer(&toneport->timer);
-	toneport->timer.expires = jiffies + TONEPORT_PCM_DELAY * HZ;
-	toneport->timer.function = toneport_start_pcm;
-	toneport->timer.data = (unsigned long)toneport;
-	add_timer(&toneport->timer);
-
-	return 0;
-}
-
-/*
-	 Init Toneport device (and clean up in case of failure).
-*/
-int line6_toneport_init(struct usb_interface *interface,
-			struct usb_line6_toneport *toneport)
-{
-	int err = toneport_try_init(interface, toneport);
-
-	if (err < 0)
-		toneport_destruct(interface);
-
-	return err;
-}
-
-/*
-	Resume Toneport device after reset.
-*/
-void line6_toneport_reset_resume(struct usb_line6_toneport *toneport)
-{
-	toneport_setup(toneport);
 }
 
 /*
 	Toneport device disconnected.
 */
-void line6_toneport_disconnect(struct usb_interface *interface)
+static void line6_toneport_disconnect(struct usb_interface *interface)
 {
 	struct usb_line6_toneport *toneport;
 	u16 idProduct;
@@ -457,4 +365,101 @@ void line6_toneport_disconnect(struct usb_interface *interface)
 	}
 
 	toneport_destruct(interface);
+}
+
+
+/*
+	 Try to init Toneport device.
+*/
+static int toneport_try_init(struct usb_interface *interface,
+			     struct usb_line6 *line6)
+{
+	int err;
+	struct usb_line6_toneport *toneport =  (struct usb_line6_toneport *) line6;
+
+	if ((interface == NULL) || (toneport == NULL))
+		return -ENODEV;
+
+	line6->disconnect = line6_toneport_disconnect;
+
+	/* initialize audio system: */
+	err = line6_init_audio(line6);
+	if (err < 0)
+		return err;
+
+	/* initialize PCM subsystem: */
+	err = line6_init_pcm(line6, &toneport_pcm_properties);
+	if (err < 0)
+		return err;
+
+	/* register monitor control: */
+	err = snd_ctl_add(line6->card,
+			  snd_ctl_new1(&toneport_control_monitor,
+				       line6->line6pcm));
+	if (err < 0)
+		return err;
+
+	/* register source select control: */
+	switch (line6->type) {
+	case LINE6_TONEPORT_UX1:
+	case LINE6_TONEPORT_UX2:
+	case LINE6_PODSTUDIO_UX1:
+	case LINE6_PODSTUDIO_UX2:
+		err =
+		    snd_ctl_add(line6->card,
+				snd_ctl_new1(&toneport_control_source,
+					     line6->line6pcm));
+		if (err < 0)
+			return err;
+
+	default:
+		break;
+	}
+
+	/* register audio system: */
+	err = line6_register_audio(line6);
+	if (err < 0)
+		return err;
+
+	line6_read_serial_number(line6, &toneport->serial_number);
+	line6_read_data(line6, 0x80c2, &toneport->firmware_version, 1);
+
+	if (toneport_has_led(line6->type)) {
+		CHECK_RETURN(device_create_file
+			     (&interface->dev, &dev_attr_led_red));
+		CHECK_RETURN(device_create_file
+			     (&interface->dev, &dev_attr_led_green));
+	}
+
+	toneport_setup(toneport);
+
+	init_timer(&toneport->timer);
+	toneport->timer.expires = jiffies + TONEPORT_PCM_DELAY * HZ;
+	toneport->timer.function = toneport_start_pcm;
+	toneport->timer.data = (unsigned long)toneport;
+	add_timer(&toneport->timer);
+
+	return 0;
+}
+
+/*
+	 Init Toneport device (and clean up in case of failure).
+*/
+int line6_toneport_init(struct usb_interface *interface,
+			struct usb_line6 *line6)
+{
+	int err = toneport_try_init(interface, line6);
+
+	if (err < 0)
+		toneport_destruct(interface);
+
+	return err;
+}
+
+/*
+	Resume Toneport device after reset.
+*/
+void line6_toneport_reset_resume(struct usb_line6_toneport *toneport)
+{
+	toneport_setup(toneport);
 }

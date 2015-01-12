@@ -421,59 +421,12 @@ int line6_init_pcm(struct usb_line6 *line6,
 	};
 
 	int err;
-	int ep_read = 0, ep_write = 0;
+	unsigned ep_read = line6->properties->ep_audio_r;
+	unsigned ep_write = line6->properties->ep_audio_w;
 	struct snd_line6_pcm *line6pcm;
 
-	if (!(line6->properties->capabilities & LINE6_BIT_PCM))
+	if (!(line6->properties->capabilities & LINE6_CAP_PCM))
 		return 0;	/* skip PCM initialization and report success */
-
-	/* initialize PCM subsystem based on product id: */
-	switch (line6->product) {
-	case LINE6_DEVID_BASSPODXT:
-	case LINE6_DEVID_BASSPODXTLIVE:
-	case LINE6_DEVID_BASSPODXTPRO:
-	case LINE6_DEVID_PODXT:
-	case LINE6_DEVID_PODXTLIVE:
-	case LINE6_DEVID_PODXTPRO:
-	case LINE6_DEVID_PODHD300:
-	case LINE6_DEVID_PODHD400:
-		ep_read = 0x82;
-		ep_write = 0x01;
-		break;
-
-	case LINE6_DEVID_PODHD500:
-	case LINE6_DEVID_PODX3:
-	case LINE6_DEVID_PODX3LIVE:
-		ep_read = 0x86;
-		ep_write = 0x02;
-		break;
-
-	case LINE6_DEVID_POCKETPOD:
-		ep_read = 0x82;
-		ep_write = 0x02;
-		break;
-
-	case LINE6_DEVID_GUITARPORT:
-	case LINE6_DEVID_PODSTUDIO_GX:
-	case LINE6_DEVID_PODSTUDIO_UX1:
-	case LINE6_DEVID_PODSTUDIO_UX2:
-	case LINE6_DEVID_TONEPORT_GX:
-	case LINE6_DEVID_TONEPORT_UX1:
-	case LINE6_DEVID_TONEPORT_UX2:
-		ep_read = 0x82;
-		ep_write = 0x01;
-		break;
-
-	/* this is for interface_number == 1:
-	case LINE6_DEVID_TONEPORT_UX2:
-	case LINE6_DEVID_PODSTUDIO_UX2:
-		ep_read  = 0x87;
-		ep_write = 0x00;
-		break; */
-
-	default:
-		MISSING_CASE;
-	}
 
 	line6pcm = kzalloc(sizeof(*line6pcm), GFP_KERNEL);
 
@@ -483,8 +436,6 @@ int line6_init_pcm(struct usb_line6 *line6,
 	line6pcm->volume_playback[0] = line6pcm->volume_playback[1] = 255;
 	line6pcm->volume_monitor = 255;
 	line6pcm->line6 = line6;
-	line6pcm->ep_audio_read = ep_read;
-	line6pcm->ep_audio_write = ep_write;
 
 	/* Read and write buffers are sized identically, so choose minimum */
 	line6pcm->max_packet_size = min(

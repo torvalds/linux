@@ -21,12 +21,6 @@
 #include "driver.h"
 
 /*
-	PODxt Live interfaces
-*/
-#define PODXTLIVE_INTERFACE_POD    0
-#define PODXTLIVE_INTERFACE_VARIAX 1
-
-/*
 	Locate name in binary program dump
 */
 #define	POD_NAME_OFFSET 0
@@ -92,11 +86,7 @@ struct usb_line6_pod {
 	int device_id;
 };
 
-extern void line6_pod_disconnect(struct usb_interface *interface);
 extern int line6_pod_init(struct usb_interface *interface,
-			  struct usb_line6_pod *pod);
-extern void line6_pod_process_message(struct usb_line6_pod *pod);
-extern void line6_pod_transmit_parameter(struct usb_line6_pod *pod, int param,
-					 u8 value);
+			  struct usb_line6 *line6);
 
 #endif

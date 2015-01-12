@@ -584,6 +584,7 @@ EXPORT_SYMBOL_GPL(mlx4_mr_free);
 void mlx4_mr_rereg_mem_cleanup(struct mlx4_dev *dev, struct mlx4_mr *mr)
 {
 	mlx4_mtt_cleanup(dev, &mr->mtt);
+	mr->mtt.order = -1;
 }
 EXPORT_SYMBOL_GPL(mlx4_mr_rereg_mem_cleanup);
 
@@ -593,13 +594,13 @@ int mlx4_mr_rereg_mem_write(struct mlx4_dev *dev, struct mlx4_mr *mr,
 {
 	int err;
 
-	mpt_entry->start       = cpu_to_be64(iova);
-	mpt_entry->length      = cpu_to_be64(size);
-	mpt_entry->entity_size = cpu_to_be32(page_shift);
-
 	err = mlx4_mtt_init(dev, npages, page_shift, &mr->mtt);
 	if (err)
 		return err;
+
+	mpt_entry->start       = cpu_to_be64(mr->iova);
+	mpt_entry->length      = cpu_to_be64(mr->size);
+	mpt_entry->entity_size = cpu_to_be32(mr->mtt.page_shift);
 
 	mpt_entry->pd_flags &= cpu_to_be32(MLX4_MPT_PD_MASK |
 					   MLX4_MPT_PD_FLAG_EN_INV);

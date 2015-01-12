@@ -147,6 +147,7 @@ static void cpuinfo_sanity_check(struct cpuinfo_arm64 *cur)
 	 * If we have AArch32, we care about 32-bit features for compat. These
 	 * registers should be RES0 otherwise.
 	 */
+	diff |= CHECK(id_dfr0, boot, cur, cpu);
 	diff |= CHECK(id_isar0, boot, cur, cpu);
 	diff |= CHECK(id_isar1, boot, cur, cpu);
 	diff |= CHECK(id_isar2, boot, cur, cpu);
@@ -164,6 +165,10 @@ static void cpuinfo_sanity_check(struct cpuinfo_arm64 *cur)
 	diff |= CHECK(id_mmfr3, boot, cur, cpu);
 	diff |= CHECK(id_pfr0, boot, cur, cpu);
 	diff |= CHECK(id_pfr1, boot, cur, cpu);
+
+	diff |= CHECK(mvfr0, boot, cur, cpu);
+	diff |= CHECK(mvfr1, boot, cur, cpu);
+	diff |= CHECK(mvfr2, boot, cur, cpu);
 
 	/*
 	 * Mismatched CPU features are a recipe for disaster. Don't even
@@ -189,6 +194,7 @@ static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
 	info->reg_id_aa64pfr0 = read_cpuid(ID_AA64PFR0_EL1);
 	info->reg_id_aa64pfr1 = read_cpuid(ID_AA64PFR1_EL1);
 
+	info->reg_id_dfr0 = read_cpuid(ID_DFR0_EL1);
 	info->reg_id_isar0 = read_cpuid(ID_ISAR0_EL1);
 	info->reg_id_isar1 = read_cpuid(ID_ISAR1_EL1);
 	info->reg_id_isar2 = read_cpuid(ID_ISAR2_EL1);
@@ -201,6 +207,10 @@ static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
 	info->reg_id_mmfr3 = read_cpuid(ID_MMFR3_EL1);
 	info->reg_id_pfr0 = read_cpuid(ID_PFR0_EL1);
 	info->reg_id_pfr1 = read_cpuid(ID_PFR1_EL1);
+
+	info->reg_mvfr0 = read_cpuid(MVFR0_EL1);
+	info->reg_mvfr1 = read_cpuid(MVFR1_EL1);
+	info->reg_mvfr2 = read_cpuid(MVFR2_EL1);
 
 	cpuinfo_detect_icache_policy(info);
 

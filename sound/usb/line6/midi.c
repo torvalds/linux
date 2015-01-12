@@ -136,7 +136,7 @@ static int send_midi_async(struct usb_line6 *line6, unsigned char *data,
 
 	usb_fill_int_urb(urb, line6->usbdev,
 			 usb_sndbulkpipe(line6->usbdev,
-					 line6->ep_control_write),
+					 line6->properties->ep_ctrl_w),
 			 transfer_buffer, length, midi_sent, line6,
 			 line6->interval);
 	urb->actual_length = 0;
@@ -279,7 +279,7 @@ int line6_init_midi(struct usb_line6 *line6)
 	int err;
 	struct snd_line6_midi *line6midi;
 
-	if (!(line6->properties->capabilities & LINE6_BIT_CONTROL)) {
+	if (!(line6->properties->capabilities & LINE6_CAP_CONTROL)) {
 		/* skip MIDI initialization and report success */
 		return 0;
 	}

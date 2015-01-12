@@ -130,8 +130,9 @@ static void variax_startup6(struct work_struct *work)
 /*
 	Process a completely received message.
 */
-void line6_variax_process_message(struct usb_line6_variax *variax)
+static void line6_variax_process_message(struct usb_line6 *line6)
 {
+	struct usb_line6_variax *variax = (struct usb_line6_variax *) line6;
 	const unsigned char *buf = variax->line6.buffer_message;
 
 	switch (buf[0]) {
@@ -171,12 +172,27 @@ static void variax_destruct(struct usb_interface *interface)
 }
 
 /*
+	Workbench device disconnected.
+*/
+static void line6_variax_disconnect(struct usb_interface *interface)
+{
+	if (interface == NULL)
+		return;
+
+	variax_destruct(interface);
+}
+
+/*
 	 Try to init workbench device.
 */
 static int variax_try_init(struct usb_interface *interface,
-			   struct usb_line6_variax *variax)
+			   struct usb_line6 *line6)
 {
+	struct usb_line6_variax *variax = (struct usb_line6_variax *) line6;
 	int err;
+
+	line6->process_message = line6_variax_process_message;
+	line6->disconnect = line6_variax_disconnect;
 
 	init_timer(&variax->startup_timer1);
 	init_timer(&variax->startup_timer2);
@@ -212,24 +228,12 @@ static int variax_try_init(struct usb_interface *interface,
 /*
 	 Init workbench device (and clean up in case of failure).
 */
-int line6_variax_init(struct usb_interface *interface,
-		      struct usb_line6_variax *variax)
+int line6_variax_init(struct usb_interface *interface, struct usb_line6 *line6)
 {
-	int err = variax_try_init(interface, variax);
+	int err = variax_try_init(interface, line6);
 
 	if (err < 0)
 		variax_destruct(interface);
 
 	return err;
-}
-
-/*
-	Workbench device disconnected.
-*/
-void line6_variax_disconnect(struct usb_interface *interface)
-{
-	if (interface == NULL)
-		return;
-
-	variax_destruct(interface);
 }

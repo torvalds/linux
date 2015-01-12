@@ -23,8 +23,7 @@ struct usb_line6_podhd {
 	struct usb_line6 line6;
 };
 
-extern void line6_podhd_disconnect(struct usb_interface *interface);
 extern int line6_podhd_init(struct usb_interface *interface,
-			    struct usb_line6_podhd *podhd);
+			    struct usb_line6 *line6);
 
 #endif /* PODHD_H */

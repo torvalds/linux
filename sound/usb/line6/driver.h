@@ -20,6 +20,29 @@
 
 #define DRIVER_NAME "line6usb"
 
+enum line6_device_type {
+	LINE6_BASSPODXT,
+	LINE6_BASSPODXTLIVE,
+	LINE6_BASSPODXTPRO,
+	LINE6_GUITARPORT,
+	LINE6_POCKETPOD,
+	LINE6_PODHD300,
+	LINE6_PODHD400,
+	LINE6_PODHD500_0,
+	LINE6_PODHD500_1,
+	LINE6_PODSTUDIO_GX,
+	LINE6_PODSTUDIO_UX1,
+	LINE6_PODSTUDIO_UX2,
+	LINE6_PODXT,
+	LINE6_PODXTLIVE_POD,
+	LINE6_PODXTLIVE_VARIAX,
+	LINE6_PODXTPRO,
+	LINE6_TONEPORT_GX,
+	LINE6_TONEPORT_UX1,
+	LINE6_TONEPORT_UX2,
+	LINE6_VARIAX
+};
+
 #define LINE6_TIMEOUT 1
 #define LINE6_BUFSIZE_LISTEN 32
 #define LINE6_MESSAGE_MAXLEN 256
@@ -76,11 +99,6 @@ static const int SYSEX_EXTRA_SIZE = sizeof(line6_midi_id) + 4;
 */
 struct line6_properties {
 	/**
-		 Bit identifying this device in the line6usb driver.
-	*/
-	int device_bit;
-
-	/**
 		 Card id string (maximum 16 characters).
 		 This can be used to address the device in ALSA programs as
 		 "default:CARD=<id>"
@@ -97,6 +115,13 @@ struct line6_properties {
 		 line6usb driver.
 	*/
 	int capabilities;
+
+	int altsetting;
+
+	unsigned ep_ctrl_r;
+	unsigned ep_ctrl_w;
+	unsigned ep_audio_r;
+	unsigned ep_audio_w;
 };
 
 /**
@@ -110,19 +135,14 @@ struct usb_line6 {
 	struct usb_device *usbdev;
 
 	/**
-		 Product id.
+		 Device type.
 	*/
-	int product;
+	enum line6_device_type type;
 
 	/**
 		 Properties.
 	*/
 	const struct line6_properties *properties;
-
-	/**
-		 Interface number.
-	*/
-	int interface_number;
 
 	/**
 		 Interval (ms).
@@ -156,16 +176,6 @@ struct usb_line6 {
 	struct snd_line6_midi *line6midi;
 
 	/**
-		 USB endpoint for listening to control commands.
-	*/
-	int ep_control_read;
-
-	/**
-		 USB endpoint for writing control commands.
-	*/
-	int ep_control_write;
-
-	/**
 		 URB for listening to PODxt Pro control endpoint.
 	*/
 	struct urb *urb_listen;
@@ -184,6 +194,9 @@ struct usb_line6 {
 		 Length of message to be processed.
 	*/
 	int message_length;
+
+	void (*process_message)(struct usb_line6 *);
+	void (*disconnect)(struct usb_interface *);
 };
 
 extern char *line6_alloc_sysex_buffer(struct usb_line6 *line6, int code1,
