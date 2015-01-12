@@ -183,6 +183,9 @@ struct ath10k_pktlog_hdr {
 #define TARGET_10X_NUM_MSDU_DESC		(1024 + 400)
 #define TARGET_10X_MAX_FRAG_ENTRIES		0
 
+/* 10.2 parameters */
+#define TARGET_10_2_DMA_BURST_SIZE		1
+
 /* Target specific defines for WMI-TLV firmware */
 #define TARGET_TLV_NUM_VDEVS			3
 #define TARGET_TLV_NUM_STATIONS			32
