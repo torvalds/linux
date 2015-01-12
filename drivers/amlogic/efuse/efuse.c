@@ -239,34 +239,55 @@ static const struct file_operations efuse_fops = {
 	.unlocked_ioctl      = efuse_unlocked_ioctl,
 };
 
+#define MACCHAR(x)	(('A' <= (x) && (x) <= 'F') \
+				? (x) - 'A' + 'a' : (x))
+
+static char *aml_efuse_mac(void)
+{
+	char hwmac[20];
+	char buf[80];
+	efuseinfo_item_t info;
+
+	if (efuse_getinfo_byID(EFUSE_MAC_ID, &info) < 0)
+		return 0;
+
+	if (efuse_read_item(buf, info.data_len,
+				(loff_t*)&info.offset) < 0)
+		return 0;
+
+	sprintf(hwmac, "%02x:%02x:%02x:%02x:%02x:%02x",
+			buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
+
+	info.data_len = 16;
+	info.offset = 4;
+	efuse_read_item(buf, info.data_len,
+			(loff_t*)&info.offset);
+
+	sprintf(hwmac + 10, "%c:%c%c:%c%c",
+			MACCHAR(buf[11]), MACCHAR(buf[12]), MACCHAR(buf[13]),
+			MACCHAR(buf[14]), MACCHAR(buf[15]));
+
+	return hwmac;
+}
+
 unsigned char *aml_efuse_get_item(unsigned char* key_name)
 {
-        char dec_mac[50] = {0};
-        efuseinfo_item_t info;
-        unsigned id=0;
-        unsigned char *ret;
-		
+        unsigned char *ret = 0;
+	int id;
+
         if(strcmp(key_name,"mac")==0)           id = EFUSE_MAC_ID;
         else if(strcmp(key_name,"mac_bt")==0)   id = EFUSE_MAC_BT_ID;
         else if(strcmp(key_name,"mac_wifi")==0) id = EFUSE_MAC_WIFI_ID;
         else if(strcmp(key_name,"usid")==0)     id = EFUSE_USID_ID;
         else {
                 pr_info("%s: UNKNOWN key_name\n",	__func__);
-                return -EFAULT;
+		return 0;
         }
 
-        if(efuse_getinfo_byID(id, &info) < 0){
-                pr_emerg("mac: ID is not found\n");
-                return -EFAULT;
-        }
-			
-		if (efuse_read_item(dec_mac, info.data_len, (loff_t*)&info.offset) < 0) {
-				pr_emerg("mac: couldn't read efuse now\n");
-				return -EFAULT;
-		}
+	if (id == EFUSE_MAC_ID) {
+		return aml_efuse_mac();
+	}
 
-		ret = kzalloc(info.data_len + 6, GFP_KERNEL);
-		sprintf(ret, "%02x:%02x:%02x:%02x:%02x:%02x", dec_mac[0],dec_mac[1],dec_mac[2],dec_mac[3],dec_mac[4],dec_mac[5]);
         return ret;
 }
 EXPORT_SYMBOL(aml_efuse_get_item);
@@ -274,18 +295,7 @@ EXPORT_SYMBOL(aml_efuse_get_item);
 /* Sysfs Files */
 static ssize_t mac_show(struct class *cla, struct class_attribute *attr, char *buf)
 {
-	char dec_mac[6] = {0};
-	efuseinfo_item_t info;
-	if(efuse_getinfo_byID(EFUSE_MAC_ID, &info) < 0){
-		printk(KERN_INFO"ID is not found\n");
-		return -EFAULT;
-	}
-
-	if (efuse_read_item(dec_mac, info.data_len, (loff_t*)&info.offset) < 0)
-		return -EFAULT;
-
-	return sprintf(buf, "%02x:%02x:%02x:%02x:%02x:%02x\n",
-			dec_mac[0],dec_mac[1],dec_mac[2],dec_mac[3],dec_mac[4],dec_mac[5]);
+	return sprintf(buf, "%s\n", aml_efuse_mac());
 }
 
 static ssize_t mac_wifi_show(struct class *cla, struct class_attribute *attr, char *buf)
