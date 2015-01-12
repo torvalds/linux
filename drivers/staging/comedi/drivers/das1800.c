@@ -422,7 +422,8 @@ static const struct das1800_board das1800_boards[] = {
 
 struct das1800_dma_desc {
 	unsigned int chan;	/* DMA channel */
-	uint16_t *virt_addr;	/* virtual address of DMA buffer */
+	void *virt_addr;	/* virtual address of DMA buffer */
+	dma_addr_t hw_addr;	/* hardware (bus) address of DMA buffer */
 };
 
 struct das1800_private {
@@ -572,7 +573,7 @@ static void das1800_handle_dma(struct comedi_device *dev,
 	flags = claim_dma_lock();
 	das1800_flush_dma_channel(dev, s, dma->chan, dma->virt_addr);
 	/*  re-enable  dma channel */
-	set_dma_addr(dma->chan, virt_to_bus(dma->virt_addr));
+	set_dma_addr(dma->chan, dma->hw_addr);
 	set_dma_count(dma->chan, devpriv->dma_transfer_size);
 	enable_dma(dma->chan);
 	release_dma_lock(flags);
@@ -1013,7 +1014,7 @@ static void setup_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
 	/* clear flip-flop to make sure 2-byte registers for
 	 * count and address get set correctly */
 	clear_dma_ff(dma->chan);
-	set_dma_addr(dma->chan, virt_to_bus(dma->virt_addr));
+	set_dma_addr(dma->chan, dma->hw_addr);
 	/*  set appropriate size of transfer */
 	set_dma_count(dma->chan, devpriv->dma_transfer_size);
 	enable_dma(dma->chan);
@@ -1024,7 +1025,7 @@ static void setup_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
 		/* clear flip-flop to make sure 2-byte registers for
 		 * count and address get set correctly */
 		clear_dma_ff(dma->chan);
-		set_dma_addr(dma->chan, virt_to_bus(dma->virt_addr));
+		set_dma_addr(dma->chan, dma->hw_addr);
 		/*  set appropriate size of transfer */
 		set_dma_count(dma->chan, devpriv->dma_transfer_size);
 		enable_dma(dma->chan);
@@ -1288,7 +1289,8 @@ static int das1800_init_dma(struct comedi_device *dev,
 		}
 		dma->chan = dma_chan[i];
 
-		dma->virt_addr = kmalloc(DMA_BUF_SIZE, GFP_KERNEL | GFP_DMA);
+		dma->virt_addr = dma_alloc_coherent(NULL, DMA_BUF_SIZE,
+						    &dma->hw_addr, GFP_KERNEL);
 		if (!dma->virt_addr)
 			return -ENOMEM;
 
@@ -1520,7 +1522,9 @@ static void das1800_detach(struct comedi_device *dev)
 			dma = &devpriv->dma_desc[i];
 			if (dma->chan)
 				free_dma(dma->chan);
-			kfree(dma->virt_addr);
+			if (dma->virt_addr)
+				dma_free_coherent(NULL, DMA_BUF_SIZE,
+						  dma->virt_addr, dma->hw_addr);
 		}
 		kfree(devpriv->fifo_buf);
 		if (devpriv->iobase2)
