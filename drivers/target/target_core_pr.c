@@ -76,7 +76,7 @@ enum preempt_type {
 };
 
 static void __core_scsi3_complete_pro_release(struct se_device *, struct se_node_acl *,
-			struct t10_pr_registration *, int);
+					      struct t10_pr_registration *, int, int);
 
 static sense_reason_t
 target_scsi2_reservation_check(struct se_cmd *cmd)
@@ -1177,7 +1177,7 @@ static int core_scsi3_check_implicit_release(
 		 *    service action with the SERVICE ACTION RESERVATION KEY
 		 *    field set to zero (see 5.7.11.3).
 		 */
-		__core_scsi3_complete_pro_release(dev, nacl, pr_reg, 0);
+		__core_scsi3_complete_pro_release(dev, nacl, pr_reg, 0, 1);
 		ret = 1;
 		/*
 		 * For 'All Registrants' reservation types, all existing
@@ -1219,7 +1219,8 @@ static void __core_scsi3_free_registration(
 
 	pr_reg->pr_reg_deve->def_pr_registered = 0;
 	pr_reg->pr_reg_deve->pr_res_key = 0;
-	list_del(&pr_reg->pr_reg_list);
+	if (!list_empty(&pr_reg->pr_reg_list))
+		list_del(&pr_reg->pr_reg_list);
 	/*
 	 * Caller accessing *pr_reg using core_scsi3_locate_pr_reg(),
 	 * so call core_scsi3_put_pr_reg() to decrement our reference.
@@ -1271,6 +1272,7 @@ void core_scsi3_free_pr_reg_from_nacl(
 {
 	struct t10_reservation *pr_tmpl = &dev->t10_pr;
 	struct t10_pr_registration *pr_reg, *pr_reg_tmp, *pr_res_holder;
+	bool free_reg = false;
 	/*
 	 * If the passed se_node_acl matches the reservation holder,
 	 * release the reservation.
@@ -1278,13 +1280,18 @@ void core_scsi3_free_pr_reg_from_nacl(
 	spin_lock(&dev->dev_reservation_lock);
 	pr_res_holder = dev->dev_pr_res_holder;
 	if ((pr_res_holder != NULL) &&
-	    (pr_res_holder->pr_reg_nacl == nacl))
-		__core_scsi3_complete_pro_release(dev, nacl, pr_res_holder, 0);
+	    (pr_res_holder->pr_reg_nacl == nacl)) {
+		__core_scsi3_complete_pro_release(dev, nacl, pr_res_holder, 0, 1);
+		free_reg = true;
+	}
 	spin_unlock(&dev->dev_reservation_lock);
 	/*
 	 * Release any registration associated with the struct se_node_acl.
 	 */
 	spin_lock(&pr_tmpl->registration_lock);
+	if (pr_res_holder && free_reg)
+		__core_scsi3_free_registration(dev, pr_res_holder, NULL, 0);
+
 	list_for_each_entry_safe(pr_reg, pr_reg_tmp,
 			&pr_tmpl->registration_list, pr_reg_list) {
 
@@ -1307,7 +1314,7 @@ void core_scsi3_free_all_registrations(
 	if (pr_res_holder != NULL) {
 		struct se_node_acl *pr_res_nacl = pr_res_holder->pr_reg_nacl;
 		__core_scsi3_complete_pro_release(dev, pr_res_nacl,
-				pr_res_holder, 0);
+						  pr_res_holder, 0, 0);
 	}
 	spin_unlock(&dev->dev_reservation_lock);
 
@@ -1429,13 +1436,11 @@ core_scsi3_decode_spec_i_port(
 	struct target_core_fabric_ops *tmp_tf_ops;
 	unsigned char *buf;
 	unsigned char *ptr, *i_str = NULL, proto_ident, tmp_proto_ident;
-	char *iport_ptr = NULL, dest_iport[64], i_buf[PR_REG_ISID_ID_LEN];
+	char *iport_ptr = NULL, i_buf[PR_REG_ISID_ID_LEN];
 	sense_reason_t ret;
 	u32 tpdl, tid_len = 0;
 	int dest_local_nexus;
 	u32 dest_rtpi = 0;
-
-	memset(dest_iport, 0, 64);
 
 	local_se_deve = se_sess->se_node_acl->device_list[cmd->orig_fe_lun];
 	/*
@@ -2105,13 +2110,13 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 		/*
 		 * sa_res_key=0 Unregister Reservation Key for registered I_T Nexus.
 		 */
-		pr_holder = core_scsi3_check_implicit_release(
-				cmd->se_dev, pr_reg);
+		type = pr_reg->pr_res_type;
+		pr_holder = core_scsi3_check_implicit_release(cmd->se_dev,
+							      pr_reg);
 		if (pr_holder < 0) {
 			ret = TCM_RESERVATION_CONFLICT;
 			goto out;
 		}
-		type = pr_reg->pr_res_type;
 
 		spin_lock(&pr_tmpl->registration_lock);
 		/*
@@ -2269,6 +2274,7 @@ core_scsi3_pro_reserve(struct se_cmd *cmd, int type, int scope, u64 res_key)
 	spin_lock(&dev->dev_reservation_lock);
 	pr_res_holder = dev->dev_pr_res_holder;
 	if (pr_res_holder) {
+		int pr_res_type = pr_res_holder->pr_res_type;
 		/*
 		 * From spc4r17 Section 5.7.9: Reserving:
 		 *
@@ -2279,7 +2285,9 @@ core_scsi3_pro_reserve(struct se_cmd *cmd, int type, int scope, u64 res_key)
 		 * the logical unit, then the command shall be completed with
 		 * RESERVATION CONFLICT status.
 		 */
-		if (pr_res_holder != pr_reg) {
+		if ((pr_res_holder != pr_reg) &&
+		    (pr_res_type != PR_TYPE_WRITE_EXCLUSIVE_ALLREG) &&
+		    (pr_res_type != PR_TYPE_EXCLUSIVE_ACCESS_ALLREG)) {
 			struct se_node_acl *pr_res_nacl = pr_res_holder->pr_reg_nacl;
 			pr_err("SPC-3 PR: Attempted RESERVE from"
 				" [%s]: %s while reservation already held by"
@@ -2385,23 +2393,59 @@ static void __core_scsi3_complete_pro_release(
 	struct se_device *dev,
 	struct se_node_acl *se_nacl,
 	struct t10_pr_registration *pr_reg,
-	int explicit)
+	int explicit,
+	int unreg)
 {
 	struct target_core_fabric_ops *tfo = se_nacl->se_tpg->se_tpg_tfo;
 	char i_buf[PR_REG_ISID_ID_LEN];
+	int pr_res_type = 0, pr_res_scope = 0;
 
 	memset(i_buf, 0, PR_REG_ISID_ID_LEN);
 	core_pr_dump_initiator_port(pr_reg, i_buf, PR_REG_ISID_ID_LEN);
 	/*
 	 * Go ahead and release the current PR reservation holder.
+	 * If an All Registrants reservation is currently active and
+	 * a unregister operation is requested, replace the current
+	 * dev_pr_res_holder with another active registration.
 	 */
-	dev->dev_pr_res_holder = NULL;
+	if (dev->dev_pr_res_holder) {
+		pr_res_type = dev->dev_pr_res_holder->pr_res_type;
+		pr_res_scope = dev->dev_pr_res_holder->pr_res_scope;
+		dev->dev_pr_res_holder->pr_res_type = 0;
+		dev->dev_pr_res_holder->pr_res_scope = 0;
+		dev->dev_pr_res_holder->pr_res_holder = 0;
+		dev->dev_pr_res_holder = NULL;
+	}
+	if (!unreg)
+		goto out;
 
-	pr_debug("SPC-3 PR [%s] Service Action: %s RELEASE cleared"
-		" reservation holder TYPE: %s ALL_TG_PT: %d\n",
-		tfo->get_fabric_name(), (explicit) ? "explicit" : "implicit",
-		core_scsi3_pr_dump_type(pr_reg->pr_res_type),
-		(pr_reg->pr_reg_all_tg_pt) ? 1 : 0);
+	spin_lock(&dev->t10_pr.registration_lock);
+	list_del_init(&pr_reg->pr_reg_list);
+	/*
+	 * If the I_T nexus is a reservation holder, the persistent reservation
+	 * is of an all registrants type, and the I_T nexus is the last remaining
+	 * registered I_T nexus, then the device server shall also release the
+	 * persistent reservation.
+	 */
+	if (!list_empty(&dev->t10_pr.registration_list) &&
+	    ((pr_res_type == PR_TYPE_WRITE_EXCLUSIVE_ALLREG) ||
+	     (pr_res_type == PR_TYPE_EXCLUSIVE_ACCESS_ALLREG))) {
+		dev->dev_pr_res_holder =
+			list_entry(dev->t10_pr.registration_list.next,
+				   struct t10_pr_registration, pr_reg_list);
+		dev->dev_pr_res_holder->pr_res_type = pr_res_type;
+		dev->dev_pr_res_holder->pr_res_scope = pr_res_scope;
+		dev->dev_pr_res_holder->pr_res_holder = 1;
+	}
+	spin_unlock(&dev->t10_pr.registration_lock);
+out:
+	if (!dev->dev_pr_res_holder) {
+		pr_debug("SPC-3 PR [%s] Service Action: %s RELEASE cleared"
+			" reservation holder TYPE: %s ALL_TG_PT: %d\n",
+			tfo->get_fabric_name(), (explicit) ? "explicit" :
+			"implicit", core_scsi3_pr_dump_type(pr_res_type),
+			(pr_reg->pr_reg_all_tg_pt) ? 1 : 0);
+	}
 	pr_debug("SPC-3 PR [%s] RELEASE Node: %s%s\n",
 		tfo->get_fabric_name(), se_nacl->initiatorname,
 		i_buf);
@@ -2532,7 +2576,7 @@ core_scsi3_emulate_pro_release(struct se_cmd *cmd, int type, int scope,
 	 *    server shall not establish a unit attention condition.
 	 */
 	__core_scsi3_complete_pro_release(dev, se_sess->se_node_acl,
-			pr_reg, 1);
+					  pr_reg, 1, 0);
 
 	spin_unlock(&dev->dev_reservation_lock);
 
@@ -2620,7 +2664,7 @@ core_scsi3_emulate_pro_clear(struct se_cmd *cmd, u64 res_key)
 	if (pr_res_holder) {
 		struct se_node_acl *pr_res_nacl = pr_res_holder->pr_reg_nacl;
 		__core_scsi3_complete_pro_release(dev, pr_res_nacl,
-			pr_res_holder, 0);
+						  pr_res_holder, 0, 0);
 	}
 	spin_unlock(&dev->dev_reservation_lock);
 	/*
@@ -2679,7 +2723,7 @@ static void __core_scsi3_complete_pro_preempt(
 	 */
 	if (dev->dev_pr_res_holder)
 		__core_scsi3_complete_pro_release(dev, nacl,
-				dev->dev_pr_res_holder, 0);
+						  dev->dev_pr_res_holder, 0, 0);
 
 	dev->dev_pr_res_holder = pr_reg;
 	pr_reg->pr_res_holder = 1;
@@ -2924,8 +2968,8 @@ core_scsi3_pro_preempt(struct se_cmd *cmd, int type, int scope, u64 res_key,
 	 */
 	if (pr_reg_n != pr_res_holder)
 		__core_scsi3_complete_pro_release(dev,
-				pr_res_holder->pr_reg_nacl,
-				dev->dev_pr_res_holder, 0);
+						  pr_res_holder->pr_reg_nacl,
+						  dev->dev_pr_res_holder, 0, 0);
 	/*
 	 * b) Remove the registrations for all I_T nexuses identified
 	 *    by the SERVICE ACTION RESERVATION KEY field, except the
@@ -3059,7 +3103,7 @@ core_scsi3_emulate_pro_register_and_move(struct se_cmd *cmd, u64 res_key,
 	struct t10_reservation *pr_tmpl = &dev->t10_pr;
 	unsigned char *buf;
 	unsigned char *initiator_str;
-	char *iport_ptr = NULL, dest_iport[64], i_buf[PR_REG_ISID_ID_LEN];
+	char *iport_ptr = NULL, i_buf[PR_REG_ISID_ID_LEN];
 	u32 tid_len, tmp_tid_len;
 	int new_reg = 0, type, scope, matching_iname;
 	sense_reason_t ret;
@@ -3071,7 +3115,6 @@ core_scsi3_emulate_pro_register_and_move(struct se_cmd *cmd, u64 res_key,
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
 
-	memset(dest_iport, 0, 64);
 	memset(i_buf, 0, PR_REG_ISID_ID_LEN);
 	se_tpg = se_sess->se_tpg;
 	tf_ops = se_tpg->se_tpg_tfo;
@@ -3389,7 +3432,7 @@ after_iport_check:
 	 *    holder (i.e., the I_T nexus on which the
 	 */
 	__core_scsi3_complete_pro_release(dev, pr_res_nacl,
-			dev->dev_pr_res_holder, 0);
+					  dev->dev_pr_res_holder, 0, 0);
 	/*
 	 * g) Move the persistent reservation to the specified I_T nexus using
 	 *    the same scope and type as the persistent reservation released in
@@ -3837,7 +3880,8 @@ core_scsi3_pri_read_full_status(struct se_cmd *cmd)
 	unsigned char *buf;
 	u32 add_desc_len = 0, add_len = 0, desc_len, exp_desc_len;
 	u32 off = 8; /* off into first Full Status descriptor */
-	int format_code = 0;
+	int format_code = 0, pr_res_type = 0, pr_res_scope = 0;
+	bool all_reg = false;
 
 	if (cmd->data_length < 8) {
 		pr_err("PRIN SA READ_FULL_STATUS SCSI Data Length: %u"
@@ -3853,6 +3897,19 @@ core_scsi3_pri_read_full_status(struct se_cmd *cmd)
 	buf[1] = ((dev->t10_pr.pr_generation >> 16) & 0xff);
 	buf[2] = ((dev->t10_pr.pr_generation >> 8) & 0xff);
 	buf[3] = (dev->t10_pr.pr_generation & 0xff);
+
+	spin_lock(&dev->dev_reservation_lock);
+	if (dev->dev_pr_res_holder) {
+		struct t10_pr_registration *pr_holder = dev->dev_pr_res_holder;
+
+		if (pr_holder->pr_res_type == PR_TYPE_WRITE_EXCLUSIVE_ALLREG ||
+		    pr_holder->pr_res_type == PR_TYPE_EXCLUSIVE_ACCESS_ALLREG) {
+			all_reg = true;
+			pr_res_type = pr_holder->pr_res_type;
+			pr_res_scope = pr_holder->pr_res_scope;
+		}
+	}
+	spin_unlock(&dev->dev_reservation_lock);
 
 	spin_lock(&pr_tmpl->registration_lock);
 	list_for_each_entry_safe(pr_reg, pr_reg_tmp,
@@ -3901,14 +3958,20 @@ core_scsi3_pri_read_full_status(struct se_cmd *cmd)
 		 * reservation holder for PR_HOLDER bit.
 		 *
 		 * Also, if this registration is the reservation
-		 * holder, fill in SCOPE and TYPE in the next byte.
+		 * holder or there is an All Registrants reservation
+		 * active, fill in SCOPE and TYPE in the next byte.
 		 */
 		if (pr_reg->pr_res_holder) {
 			buf[off++] |= 0x01;
 			buf[off++] = (pr_reg->pr_res_scope & 0xf0) |
 				     (pr_reg->pr_res_type & 0x0f);
-		} else
+		} else if (all_reg) {
+			buf[off++] |= 0x01;
+			buf[off++] = (pr_res_scope & 0xf0) |
+				     (pr_res_type & 0x0f);
+		} else {
 			off += 2;
+		}
 
 		off += 4; /* Skip over reserved area */
 		/*

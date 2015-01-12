@@ -38,7 +38,7 @@
 #define THERMAL_CSTATE_INVALID -1UL
 
 /* No upper/lower limit requirement */
-#define THERMAL_NO_LIMIT	THERMAL_CSTATE_INVALID
+#define THERMAL_NO_LIMIT	((u32)~0)
 
 /* Unit conversion macros */
 #define KELVIN_TO_CELSIUS(t)	(long)(((long)t-2732 >= 0) ?	\

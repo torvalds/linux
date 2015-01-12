@@ -341,7 +341,7 @@ static int img_spfi_start_dma(struct spi_master *master,
 		default:
 			rxconf.src_addr = spfi->phys + SPFI_RX_8BIT_VALID_DATA;
 			rxconf.src_addr_width = 1;
-			rxconf.src_maxburst = 1;
+			rxconf.src_maxburst = 4;
 		}
 		dmaengine_slave_config(spfi->rx_ch, &rxconf);
 
@@ -368,7 +368,7 @@ static int img_spfi_start_dma(struct spi_master *master,
 		default:
 			txconf.dst_addr = spfi->phys + SPFI_TX_8BIT_VALID_DATA;
 			txconf.dst_addr_width = 1;
-			txconf.dst_maxburst = 1;
+			txconf.dst_maxburst = 4;
 			break;
 		}
 		dmaengine_slave_config(spfi->tx_ch, &txconf);
@@ -390,13 +390,13 @@ static int img_spfi_start_dma(struct spi_master *master,
 		dma_async_issue_pending(spfi->rx_ch);
 	}
 
+	spfi_start(spfi);
+
 	if (xfer->tx_buf) {
 		spfi->tx_dma_busy = true;
 		dmaengine_submit(txdesc);
 		dma_async_issue_pending(spfi->tx_ch);
 	}
-
-	spfi_start(spfi);
 
 	return 1;
 
@@ -663,7 +663,7 @@ static int img_spfi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int img_spfi_runtime_suspend(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
@@ -692,7 +692,7 @@ static int img_spfi_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_RUNTIME */
+#endif /* CONFIG_PM */
 
 #ifdef CONFIG_PM_SLEEP
 static int img_spfi_suspend(struct device *dev)

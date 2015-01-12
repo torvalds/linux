@@ -73,6 +73,31 @@ config KGDB_KDB
 	help
 	  KDB frontend for kernel
 
+config KDB_DEFAULT_ENABLE
+	hex "KDB: Select kdb command functions to be enabled by default"
+	depends on KGDB_KDB
+	default 0x1
+	help
+	  Specifiers which kdb commands are enabled by default. This may
+	  be set to 1 or 0 to enable all commands or disable almost all
+	  commands.
+
+	  Alternatively the following bitmask applies:
+
+	    0x0002 - allow arbitrary reads from memory and symbol lookup
+	    0x0004 - allow arbitrary writes to memory
+	    0x0008 - allow current register state to be inspected
+	    0x0010 - allow current register state to be modified
+	    0x0020 - allow passive inspection (backtrace, process list, lsmod)
+	    0x0040 - allow flow control management (breakpoint, single step)
+	    0x0080 - enable signalling of processes
+	    0x0100 - allow machine to be rebooted
+
+	  The config option merely sets the default at boot time. Both
+	  issuing 'echo X > /sys/module/kdb/parameters/cmd_enable' or
+          setting with kdb.cmd_enable=X kernel command line option will
+	  override the default settings.
+
 config KDB_KEYBOARD
 	bool "KGDB_KDB: keyboard as input device"
 	depends on VT && KGDB_KDB

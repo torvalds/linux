@@ -677,7 +677,6 @@ static SIMPLE_DEV_PM_OPS(rockchip_thermal_pm_ops,
 static struct platform_driver rockchip_thermal_driver = {
 	.driver = {
 		.name = "rockchip-thermal",
-		.owner = THIS_MODULE,
 		.pm = &rockchip_thermal_pm_ops,
 		.of_match_table = of_rockchip_thermal_match,
 	},

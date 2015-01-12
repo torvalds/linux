@@ -285,12 +285,11 @@ int cmd_buildid_cache(int argc, const char **argv,
 	struct str_node *pos;
 	int ret = 0;
 	bool force = false;
-	char debugdir[PATH_MAX];
 	char const *add_name_list_str = NULL,
 		   *remove_name_list_str = NULL,
 		   *missing_filename = NULL,
 		   *update_name_list_str = NULL,
-		   *kcore_filename;
+		   *kcore_filename = NULL;
 	char sbuf[STRERR_BUFSIZE];
 
 	struct perf_data_file file = {
@@ -335,13 +334,11 @@ int cmd_buildid_cache(int argc, const char **argv,
 
 	setup_pager();
 
-	snprintf(debugdir, sizeof(debugdir), "%s", buildid_dir);
-
 	if (add_name_list_str) {
 		list = strlist__new(true, add_name_list_str);
 		if (list) {
 			strlist__for_each(pos, list)
-				if (build_id_cache__add_file(pos->s, debugdir)) {
+				if (build_id_cache__add_file(pos->s, buildid_dir)) {
 					if (errno == EEXIST) {
 						pr_debug("%s already in the cache\n",
 							 pos->s);
@@ -359,7 +356,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 		list = strlist__new(true, remove_name_list_str);
 		if (list) {
 			strlist__for_each(pos, list)
-				if (build_id_cache__remove_file(pos->s, debugdir)) {
+				if (build_id_cache__remove_file(pos->s, buildid_dir)) {
 					if (errno == ENOENT) {
 						pr_debug("%s wasn't in the cache\n",
 							 pos->s);
@@ -380,7 +377,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 		list = strlist__new(true, update_name_list_str);
 		if (list) {
 			strlist__for_each(pos, list)
-				if (build_id_cache__update_file(pos->s, debugdir)) {
+				if (build_id_cache__update_file(pos->s, buildid_dir)) {
 					if (errno == ENOENT) {
 						pr_debug("%s wasn't in the cache\n",
 							 pos->s);
@@ -395,7 +392,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 	}
 
 	if (kcore_filename &&
-	    build_id_cache__add_kcore(kcore_filename, debugdir, force))
+	    build_id_cache__add_kcore(kcore_filename, buildid_dir, force))
 		pr_warning("Couldn't add %s\n", kcore_filename);
 
 out:

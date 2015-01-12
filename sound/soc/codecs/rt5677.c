@@ -784,8 +784,8 @@ static unsigned int bst_tlv[] = {
 static int rt5677_dsp_vad_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct rt5677_priv *rt5677 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct rt5677_priv *rt5677 = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = rt5677->dsp_vad_en;
 
@@ -795,8 +795,9 @@ static int rt5677_dsp_vad_get(struct snd_kcontrol *kcontrol,
 static int rt5677_dsp_vad_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct rt5677_priv *rt5677 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct rt5677_priv *rt5677 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
 
 	rt5677->dsp_vad_en = !!ucontrol->value.integer.value[0];
 

@@ -1060,10 +1060,14 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 				     PKT_HASH_TYPE_L4 : PKT_HASH_TYPE_L3);
 		}
 
-		if ((netdev->features & NETIF_F_RXCSUM) && !csum_not_calc) {
-			skb->csum = htons(checksum);
-			skb->ip_summed = CHECKSUM_COMPLETE;
-		}
+		/* Hardware does not provide whole packet checksum. It only
+		 * provides pseudo checksum. Since hw validates the packet
+		 * checksum but not provide us the checksum value. use
+		 * CHECSUM_UNNECESSARY.
+		 */
+		if ((netdev->features & NETIF_F_RXCSUM) && tcp_udp_csum_ok &&
+		    ipv4_csum_ok)
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 		if (vlan_stripped)
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tci);
@@ -1612,7 +1616,7 @@ static int enic_open(struct net_device *netdev)
 		if (vnic_rq_desc_used(&enic->rq[i]) == 0) {
 			netdev_err(netdev, "Unable to alloc receive buffers\n");
 			err = -ENOMEM;
-			goto err_out_notify_unset;
+			goto err_out_free_rq;
 		}
 	}
 
@@ -1645,7 +1649,9 @@ static int enic_open(struct net_device *netdev)
 
 	return 0;
 
-err_out_notify_unset:
+err_out_free_rq:
+	for (i = 0; i < enic->rq_count; i++)
+		vnic_rq_clean(&enic->rq[i], enic_free_rq_buf);
 	enic_dev_notify_unset(enic);
 err_out_free_intr:
 	enic_free_intr(enic);

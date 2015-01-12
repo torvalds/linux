@@ -28,6 +28,8 @@
 #include "cikd.h"
 #include "cik_reg.h"
 #include "radeon_kfd.h"
+#include "radeon_ucode.h"
+#include <linux/firmware.h>
 
 #define CIK_PIPE_PER_MEC	(4)
 
@@ -49,6 +51,7 @@ static uint64_t get_vmem_size(struct kgd_dev *kgd);
 static uint64_t get_gpu_clock_counter(struct kgd_dev *kgd);
 
 static uint32_t get_max_engine_clock_in_mhz(struct kgd_dev *kgd);
+static uint16_t get_fw_version(struct kgd_dev *kgd, enum kgd_engine_type type);
 
 /*
  * Register access functions
@@ -69,7 +72,7 @@ static int kgd_init_pipeline(struct kgd_dev *kgd, uint32_t pipe_id,
 static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 			uint32_t queue_id, uint32_t __user *wptr);
 
-static bool kgd_hqd_is_occupies(struct kgd_dev *kgd, uint64_t queue_address,
+static bool kgd_hqd_is_occupied(struct kgd_dev *kgd, uint64_t queue_address,
 				uint32_t pipe_id, uint32_t queue_id);
 
 static int kgd_hqd_destroy(struct kgd_dev *kgd, uint32_t reset_type,
@@ -89,14 +92,16 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.init_memory = kgd_init_memory,
 	.init_pipeline = kgd_init_pipeline,
 	.hqd_load = kgd_hqd_load,
-	.hqd_is_occupies = kgd_hqd_is_occupies,
+	.hqd_is_occupied = kgd_hqd_is_occupied,
 	.hqd_destroy = kgd_hqd_destroy,
+	.get_fw_version = get_fw_version
 };
 
 static const struct kgd2kfd_calls *kgd2kfd;
 
 bool radeon_kfd_init(void)
 {
+#if defined(CONFIG_HSA_AMD_MODULE)
 	bool (*kgd2kfd_init_p)(unsigned, const struct kfd2kgd_calls*,
 				const struct kgd2kfd_calls**);
 
@@ -113,6 +118,17 @@ bool radeon_kfd_init(void)
 	}
 
 	return true;
+#elif defined(CONFIG_HSA_AMD)
+	if (!kgd2kfd_init(KFD_INTERFACE_VERSION, &kfd2kgd, &kgd2kfd)) {
+		kgd2kfd = NULL;
+
+		return false;
+	}
+
+	return true;
+#else
+	return false;
+#endif
 }
 
 void radeon_kfd_fini(void)
@@ -374,6 +390,10 @@ static int kgd_set_pasid_vmid_mapping(struct kgd_dev *kgd, unsigned int pasid,
 		cpu_relax();
 	write_register(kgd, ATC_VMID_PASID_MAPPING_UPDATE_STATUS, 1U << vmid);
 
+	/* Mapping vmid to pasid also for IH block */
+	write_register(kgd, IH_VMID_0_LUT + vmid * sizeof(uint32_t),
+			pasid_mapping);
+
 	return 0;
 }
 
@@ -513,7 +533,7 @@ static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 	return 0;
 }
 
-static bool kgd_hqd_is_occupies(struct kgd_dev *kgd, uint64_t queue_address,
+static bool kgd_hqd_is_occupied(struct kgd_dev *kgd, uint64_t queue_address,
 				uint32_t pipe_id, uint32_t queue_id)
 {
 	uint32_t act;
@@ -552,6 +572,7 @@ static int kgd_hqd_destroy(struct kgd_dev *kgd, uint32_t reset_type,
 		if (timeout == 0) {
 			pr_err("kfd: cp queue preemption time out (%dms)\n",
 				temp);
+			release_queue(kgd);
 			return -ETIME;
 		}
 		msleep(20);
@@ -560,4 +581,53 @@ static int kgd_hqd_destroy(struct kgd_dev *kgd, uint32_t reset_type,
 
 	release_queue(kgd);
 	return 0;
+}
+
+static uint16_t get_fw_version(struct kgd_dev *kgd, enum kgd_engine_type type)
+{
+	struct radeon_device *rdev = (struct radeon_device *) kgd;
+	const union radeon_firmware_header *hdr;
+
+	BUG_ON(kgd == NULL || rdev->mec_fw == NULL);
+
+	switch (type) {
+	case KGD_ENGINE_PFP:
+		hdr = (const union radeon_firmware_header *) rdev->pfp_fw->data;
+		break;
+
+	case KGD_ENGINE_ME:
+		hdr = (const union radeon_firmware_header *) rdev->me_fw->data;
+		break;
+
+	case KGD_ENGINE_CE:
+		hdr = (const union radeon_firmware_header *) rdev->ce_fw->data;
+		break;
+
+	case KGD_ENGINE_MEC1:
+		hdr = (const union radeon_firmware_header *) rdev->mec_fw->data;
+		break;
+
+	case KGD_ENGINE_MEC2:
+		hdr = (const union radeon_firmware_header *)
+							rdev->mec2_fw->data;
+		break;
+
+	case KGD_ENGINE_RLC:
+		hdr = (const union radeon_firmware_header *) rdev->rlc_fw->data;
+		break;
+
+	case KGD_ENGINE_SDMA:
+		hdr = (const union radeon_firmware_header *)
+							rdev->sdma_fw->data;
+		break;
+
+	default:
+		return 0;
+	}
+
+	if (hdr == NULL)
+		return 0;
+
+	/* Only 12 bit in use*/
+	return hdr->common.ucode_version;
 }

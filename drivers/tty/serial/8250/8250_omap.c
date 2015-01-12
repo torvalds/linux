@@ -561,7 +561,7 @@ static int omap_8250_startup(struct uart_port *port)
 	if (ret)
 		goto err;
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	up->capabilities |= UART_CAP_RPM;
 #endif
 
@@ -997,12 +997,12 @@ static int omap8250_probe(struct platform_device *pdev)
 	up.port.fifosize = 64;
 	up.tx_loadsz = 64;
 	up.capabilities = UART_CAP_FIFO;
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	/*
-	 * PM_RUNTIME is mostly transparent. However to do it right we need to a
+	 * Runtime PM is mostly transparent. However to do it right we need to a
 	 * TX empty interrupt before we can put the device to auto idle. So if
-	 * PM_RUNTIME is not enabled we don't add that flag and can spare that
-	 * one extra interrupt in the TX path.
+	 * PM is not enabled we don't add that flag and can spare that one extra
+	 * interrupt in the TX path.
 	 */
 	up.capabilities |= UART_CAP_RPM;
 #endif
@@ -1105,7 +1105,7 @@ static int omap8250_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#if defined(CONFIG_PM_SLEEP) || defined(CONFIG_PM_RUNTIME)
+#ifdef CONFIG_PM
 
 static inline void omap8250_enable_wakeirq(struct omap8250_priv *priv,
 					   bool enable)
@@ -1179,7 +1179,7 @@ static int omap8250_resume(struct device *dev)
 #define omap8250_complete NULL
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int omap8250_lost_context(struct uart_8250_port *up)
 {
 	u32 val;

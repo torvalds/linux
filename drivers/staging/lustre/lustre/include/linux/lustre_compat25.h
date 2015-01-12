@@ -42,28 +42,6 @@
 
 #include "lustre_patchless_compat.h"
 
-# define LOCK_FS_STRUCT(fs)	spin_lock(&(fs)->lock)
-# define UNLOCK_FS_STRUCT(fs)	spin_unlock(&(fs)->lock)
-
-static inline void ll_set_fs_pwd(struct fs_struct *fs, struct vfsmount *mnt,
-				 struct dentry *dentry)
-{
-	struct path path;
-	struct path old_pwd;
-
-	path.mnt = mnt;
-	path.dentry = dentry;
-	LOCK_FS_STRUCT(fs);
-	old_pwd = fs->pwd;
-	path_get(&path);
-	fs->pwd = path;
-	UNLOCK_FS_STRUCT(fs);
-
-	if (old_pwd.dentry)
-		path_put(&old_pwd);
-}
-
-
 /*
  * set ATTR_BLOCKS to a high value to avoid any risk of collision with other
  * ATTR_* attributes (see bug 13828)
@@ -110,8 +88,6 @@ static inline void ll_set_fs_pwd(struct fs_struct *fs, struct vfsmount *mnt,
 #define cfs_bio_io_error(a, b)   bio_io_error((a))
 #define cfs_bio_endio(a, b, c)    bio_endio((a), (c))
 
-#define cfs_fs_pwd(fs)       ((fs)->pwd.dentry)
-#define cfs_fs_mnt(fs)       ((fs)->pwd.mnt)
 #define cfs_path_put(nd)     path_put(&(nd)->path)
 
 

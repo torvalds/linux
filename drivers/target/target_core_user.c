@@ -28,6 +28,8 @@
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
 #include <target/target_core_backend.h>
+#include <target/target_core_backend_configfs.h>
+
 #include <linux/target_core_user.h>
 
 /*
@@ -1092,6 +1094,42 @@ tcmu_parse_cdb(struct se_cmd *cmd)
 	return ret;
 }
 
+DEF_TB_DEFAULT_ATTRIBS(tcmu);
+
+static struct configfs_attribute *tcmu_backend_dev_attrs[] = {
+	&tcmu_dev_attrib_emulate_model_alias.attr,
+	&tcmu_dev_attrib_emulate_dpo.attr,
+	&tcmu_dev_attrib_emulate_fua_write.attr,
+	&tcmu_dev_attrib_emulate_fua_read.attr,
+	&tcmu_dev_attrib_emulate_write_cache.attr,
+	&tcmu_dev_attrib_emulate_ua_intlck_ctrl.attr,
+	&tcmu_dev_attrib_emulate_tas.attr,
+	&tcmu_dev_attrib_emulate_tpu.attr,
+	&tcmu_dev_attrib_emulate_tpws.attr,
+	&tcmu_dev_attrib_emulate_caw.attr,
+	&tcmu_dev_attrib_emulate_3pc.attr,
+	&tcmu_dev_attrib_pi_prot_type.attr,
+	&tcmu_dev_attrib_hw_pi_prot_type.attr,
+	&tcmu_dev_attrib_pi_prot_format.attr,
+	&tcmu_dev_attrib_enforce_pr_isids.attr,
+	&tcmu_dev_attrib_is_nonrot.attr,
+	&tcmu_dev_attrib_emulate_rest_reord.attr,
+	&tcmu_dev_attrib_force_pr_aptpl.attr,
+	&tcmu_dev_attrib_hw_block_size.attr,
+	&tcmu_dev_attrib_block_size.attr,
+	&tcmu_dev_attrib_hw_max_sectors.attr,
+	&tcmu_dev_attrib_fabric_max_sectors.attr,
+	&tcmu_dev_attrib_optimal_sectors.attr,
+	&tcmu_dev_attrib_hw_queue_depth.attr,
+	&tcmu_dev_attrib_queue_depth.attr,
+	&tcmu_dev_attrib_max_unmap_lba_count.attr,
+	&tcmu_dev_attrib_max_unmap_block_desc_count.attr,
+	&tcmu_dev_attrib_unmap_granularity.attr,
+	&tcmu_dev_attrib_unmap_granularity_alignment.attr,
+	&tcmu_dev_attrib_max_write_same_len.attr,
+	NULL,
+};
+
 static struct se_subsystem_api tcmu_template = {
 	.name			= "user",
 	.inquiry_prod		= "USER",
@@ -1112,6 +1150,7 @@ static struct se_subsystem_api tcmu_template = {
 
 static int __init tcmu_module_init(void)
 {
+	struct target_backend_cits *tbc = &tcmu_template.tb_cits;
 	int ret;
 
 	BUILD_BUG_ON((sizeof(struct tcmu_cmd_entry) % TCMU_OP_ALIGN_SIZE) != 0);
@@ -1133,6 +1172,9 @@ static int __init tcmu_module_init(void)
 	if (ret < 0) {
 		goto out_unreg_device;
 	}
+
+	target_core_setup_sub_cits(&tcmu_template);
+	tbc->tb_dev_attrib_cit.ct_attrs = tcmu_backend_dev_attrs;
 
 	ret = transport_subsystem_register(&tcmu_template);
 	if (ret)

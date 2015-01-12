@@ -374,7 +374,7 @@ static long alchemy_calc_div(unsigned long rate, unsigned long prate,
 
 static long alchemy_clk_fgcs_detr(struct clk_hw *hw, unsigned long rate,
 					unsigned long *best_parent_rate,
-					struct clk **best_parent_clk,
+					struct clk_hw **best_parent_clk,
 					int scale, int maxdiv)
 {
 	struct clk *pc, *bpc, *free;
@@ -453,7 +453,7 @@ static long alchemy_clk_fgcs_detr(struct clk_hw *hw, unsigned long rate,
 	}
 
 	*best_parent_rate = bpr;
-	*best_parent_clk = bpc;
+	*best_parent_clk = __clk_get_hw(bpc);
 	return br;
 }
 
@@ -547,7 +547,7 @@ static unsigned long alchemy_clk_fgv1_recalc(struct clk_hw *hw,
 
 static long alchemy_clk_fgv1_detr(struct clk_hw *hw, unsigned long rate,
 					unsigned long *best_parent_rate,
-					struct clk **best_parent_clk)
+					struct clk_hw **best_parent_clk)
 {
 	return alchemy_clk_fgcs_detr(hw, rate, best_parent_rate,
 				     best_parent_clk, 2, 512);
@@ -679,7 +679,7 @@ static unsigned long alchemy_clk_fgv2_recalc(struct clk_hw *hw,
 
 static long alchemy_clk_fgv2_detr(struct clk_hw *hw, unsigned long rate,
 					unsigned long *best_parent_rate,
-					struct clk **best_parent_clk)
+					struct clk_hw **best_parent_clk)
 {
 	struct alchemy_fgcs_clk *c = to_fgcs_clk(hw);
 	int scale, maxdiv;
@@ -898,7 +898,7 @@ static int alchemy_clk_csrc_setr(struct clk_hw *hw, unsigned long rate,
 
 static long alchemy_clk_csrc_detr(struct clk_hw *hw, unsigned long rate,
 					unsigned long *best_parent_rate,
-					struct clk **best_parent_clk)
+					struct clk_hw **best_parent_clk)
 {
 	struct alchemy_fgcs_clk *c = to_fgcs_clk(hw);
 	int scale = c->dt[2] == 3 ? 1 : 2; /* au1300 check */

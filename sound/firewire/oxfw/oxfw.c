@@ -43,7 +43,7 @@ static bool detect_loud_models(struct fw_unit *unit)
 	err = fw_csr_string(unit->directory, CSR_MODEL,
 			    model, sizeof(model));
 	if (err < 0)
-		return err;
+		return false;
 
 	for (i = 0; i < ARRAY_SIZE(models); i++) {
 		if (strcmp(models[i], model) == 0)

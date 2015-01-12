@@ -26,7 +26,7 @@
 void
 nvkm_event_put(struct nvkm_event *event, u32 types, int index)
 {
-	BUG_ON(!spin_is_locked(&event->refs_lock));
+	assert_spin_locked(&event->refs_lock);
 	while (types) {
 		int type = __ffs(types); types &= ~(1 << type);
 		if (--event->refs[index * event->types_nr + type] == 0) {
@@ -39,7 +39,7 @@ nvkm_event_put(struct nvkm_event *event, u32 types, int index)
 void
 nvkm_event_get(struct nvkm_event *event, u32 types, int index)
 {
-	BUG_ON(!spin_is_locked(&event->refs_lock));
+	assert_spin_locked(&event->refs_lock);
 	while (types) {
 		int type = __ffs(types); types &= ~(1 << type);
 		if (++event->refs[index * event->types_nr + type] == 1) {

@@ -480,7 +480,7 @@ void ovs_vport_receive(struct vport *vport, struct sk_buff *skb,
 	stats = this_cpu_ptr(vport->percpu_stats);
 	u64_stats_update_begin(&stats->syncp);
 	stats->rx_packets++;
-	stats->rx_bytes += skb->len;
+	stats->rx_bytes += skb->len + (vlan_tx_tag_present(skb) ? VLAN_HLEN : 0);
 	u64_stats_update_end(&stats->syncp);
 
 	OVS_CB(skb)->input_vport = vport;
@@ -519,10 +519,9 @@ int ovs_vport_send(struct vport *vport, struct sk_buff *skb)
 		u64_stats_update_end(&stats->syncp);
 	} else if (sent < 0) {
 		ovs_vport_record_error(vport, VPORT_E_TX_ERROR);
-		kfree_skb(skb);
-	} else
+	} else {
 		ovs_vport_record_error(vport, VPORT_E_TX_DROPPED);
-
+	}
 	return sent;
 }
 

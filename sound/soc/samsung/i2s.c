@@ -1261,6 +1261,8 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 			ret = -ENOMEM;
 			goto err;
 		}
+
+		sec_dai->variant_regs = pri_dai->variant_regs;
 		sec_dai->dma_playback.dma_addr = regs_base + I2STXDS;
 		sec_dai->dma_playback.ch_name = "tx-sec";
 

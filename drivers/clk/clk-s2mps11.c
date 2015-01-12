@@ -218,7 +218,7 @@ static int s2mps11_clk_probe(struct platform_device *pdev)
 	default:
 		dev_err(&pdev->dev, "Invalid device type\n");
 		return -EINVAL;
-	};
+	}
 
 	/* Store clocks of_node in first element of s2mps11_clks array */
 	s2mps11_clks->clk_np = s2mps11_clk_parse_dt(pdev, clks_init);
