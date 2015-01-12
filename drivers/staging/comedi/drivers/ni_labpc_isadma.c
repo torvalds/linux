@@ -163,28 +163,24 @@ void labpc_handle_dma_status(struct comedi_device *dev)
 }
 EXPORT_SYMBOL_GPL(labpc_handle_dma_status);
 
-int labpc_init_dma_chan(struct comedi_device *dev, unsigned int dma_chan)
+void labpc_init_dma_chan(struct comedi_device *dev, unsigned int dma_chan)
 {
 	struct labpc_private *devpriv = dev->private;
 	struct labpc_dma_desc *dma = &devpriv->dma_desc;
-	void *dma_buffer;
 	unsigned long dma_flags;
-	int ret;
 
 	if (dma_chan != 1 && dma_chan != 3)
-		return -EINVAL;
+		return;
 
-	dma_buffer = kmalloc(dma_buffer_size, GFP_KERNEL | GFP_DMA);
-	if (!dma_buffer)
-		return -ENOMEM;
+	if (request_dma(dma_chan, dev->board_name))
+		return;
 
-	ret = request_dma(dma_chan, dev->board_name);
-	if (ret) {
-		kfree(dma_buffer);
-		return ret;
+	dma->virt_addr = kmalloc(dma_buffer_size, GFP_KERNEL | GFP_DMA);
+	if (!dma->virt_addr) {
+		free_dma(dma_chan);
+		return;
 	}
 
-	dma->virt_addr = dma_buffer;
 	dma->chan = dma_chan;
 	dma->hw_addr = virt_to_bus(dma->virt_addr);
 
@@ -192,8 +188,6 @@ int labpc_init_dma_chan(struct comedi_device *dev, unsigned int dma_chan)
 	disable_dma(dma->chan);
 	set_dma_mode(dma->chan, DMA_MODE_READ);
 	release_dma_lock(dma_flags);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(labpc_init_dma_chan);
 

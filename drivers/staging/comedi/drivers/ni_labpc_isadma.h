@@ -16,7 +16,7 @@ static inline bool labpc_have_dma_chan(struct comedi_device *dev)
 	return (bool)devpriv->dma_desc.chan;
 }
 
-int labpc_init_dma_chan(struct comedi_device *dev, unsigned int dma_chan);
+void labpc_init_dma_chan(struct comedi_device *dev, unsigned int dma_chan);
 void labpc_free_dma_chan(struct comedi_device *dev);
 void labpc_setup_dma(struct comedi_device *dev, struct comedi_subdevice *s);
 void labpc_drain_dma(struct comedi_device *dev);
@@ -29,10 +29,9 @@ static inline bool labpc_have_dma_chan(struct comedi_device *dev)
 	return false;
 }
 
-static inline int labpc_init_dma_chan(struct comedi_device *dev,
-				      unsigned int dma_chan)
+static inline void labpc_init_dma_chan(struct comedi_device *dev,
+				       unsigned int dma_chan)
 {
-	return -ENOTSUPP;
 }
 
 static inline void labpc_free_dma_chan(struct comedi_device *dev)
