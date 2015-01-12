@@ -1758,7 +1758,7 @@ csio_ln_mgmt_submit_wr(struct csio_mgmtm *mgmtm, struct csio_ioreq *io_req,
 	else {
 		/* Program DSGL to dma payload */
 		dsgl.cmd_nsge = htonl(ULPTX_CMD_V(ULP_TX_SC_DSGL) |
-					ULPTX_MORE | ULPTX_NSGE(1));
+					ULPTX_MORE_F | ULPTX_NSGE_V(1));
 		dsgl.len0 = cpu_to_be32(pld_len);
 		dsgl.addr0 = cpu_to_be64(pld->paddr);
 		csio_wr_copy_to_wrp(&dsgl, &wrp, ALIGN(wr_off, 8),
