@@ -39,7 +39,7 @@ static const struct usb_device_id line6_id_table[] = {
 	{ LINE6_DEVICE(0x4642),    .driver_info = LINE6_BASSPODXTLIVE },
 	{ LINE6_DEVICE(0x4252),    .driver_info = LINE6_BASSPODXTPRO },
 	{ LINE6_DEVICE(0x4750),    .driver_info = LINE6_GUITARPORT },
-	{ LINE6_DEVICE(0x5051),    .driver_info = LINE6_POCKETPOD },
+	{ LINE6_IF_NUM(0x5051, 1), .driver_info = LINE6_POCKETPOD },
 	{ LINE6_DEVICE(0x5057),    .driver_info = LINE6_PODHD300 },
 	{ LINE6_DEVICE(0x5058),    .driver_info = LINE6_PODHD400 },
 	{ LINE6_IF_NUM(0x414D, 0), .driver_info = LINE6_PODHD500_0 },
@@ -738,15 +738,7 @@ static int line6_probe(struct usb_interface *interface,
 		break;
 
 	case LINE6_POCKETPOD:
-		switch (interface_number) {
-		case 0:
-			return -ENODEV;	/* this interface has no endpoints */
-		case 1:
-			alternate = 0;
-			break;
-		default:
-			MISSING_CASE;
-		}
+		alternate = 0;
 		break;
 
 	case LINE6_PODHD500_0:
