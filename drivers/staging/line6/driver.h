@@ -126,9 +126,9 @@ struct usb_line6 {
 	struct usb_device *usbdev;
 
 	/**
-		 Product id.
+		 Device type.
 	*/
-	int product;
+	enum line6_device_type type;
 
 	/**
 		 Properties.

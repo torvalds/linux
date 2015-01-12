@@ -97,11 +97,11 @@ static const struct {
 	{"Inst & Mic", 0x0901}
 };
 
-static bool toneport_has_led(short product)
+static bool toneport_has_led(enum line6_device_type type)
 {
 	return
-	    (product == LINE6_DEVID_GUITARPORT) ||
-	    (product == LINE6_DEVID_TONEPORT_GX);
+	    (type == LINE6_GUITARPORT) ||
+	    (type == LINE6_TONEPORT_GX);
 	/* add your device here if you are missing support for the LEDs */
 }
 
@@ -310,7 +310,6 @@ static void toneport_setup(struct usb_line6_toneport *toneport)
 	int ticks;
 	struct usb_line6 *line6 = &toneport->line6;
 	struct usb_device *usbdev = line6->usbdev;
-	u16 idProduct = le16_to_cpu(usbdev->descriptor.idProduct);
 
 	/* sync time on device with host: */
 	ticks = (int)get_seconds();
@@ -320,17 +319,19 @@ static void toneport_setup(struct usb_line6_toneport *toneport)
 	toneport_send_cmd(usbdev, 0x0301, 0x0000);
 
 	/* initialize source select: */
-	switch (le16_to_cpu(usbdev->descriptor.idProduct)) {
-	case LINE6_DEVID_TONEPORT_UX1:
-	case LINE6_DEVID_TONEPORT_UX2:
-	case LINE6_DEVID_PODSTUDIO_UX1:
-	case LINE6_DEVID_PODSTUDIO_UX2:
+	switch (line6->type) {
+	case LINE6_TONEPORT_UX1:
+	case LINE6_TONEPORT_UX2:
+	case LINE6_PODSTUDIO_UX1:
+	case LINE6_PODSTUDIO_UX2:
 		toneport_send_cmd(usbdev,
 				  toneport_source_info[toneport->source].code,
 				  0x0000);
+	default:
+		break;
 	}
 
-	if (toneport_has_led(idProduct))
+	if (toneport_has_led(line6->type))
 		toneport_update_led(&usbdev->dev);
 }
 
@@ -342,8 +343,6 @@ static int toneport_try_init(struct usb_interface *interface,
 {
 	int err;
 	struct usb_line6 *line6 = &toneport->line6;
-	struct usb_device *usbdev = line6->usbdev;
-	u16 idProduct = le16_to_cpu(usbdev->descriptor.idProduct);
 
 	if ((interface == NULL) || (toneport == NULL))
 		return -ENODEV;
@@ -366,17 +365,20 @@ static int toneport_try_init(struct usb_interface *interface,
 		return err;
 
 	/* register source select control: */
-	switch (le16_to_cpu(usbdev->descriptor.idProduct)) {
-	case LINE6_DEVID_TONEPORT_UX1:
-	case LINE6_DEVID_TONEPORT_UX2:
-	case LINE6_DEVID_PODSTUDIO_UX1:
-	case LINE6_DEVID_PODSTUDIO_UX2:
+	switch (line6->type) {
+	case LINE6_TONEPORT_UX1:
+	case LINE6_TONEPORT_UX2:
+	case LINE6_PODSTUDIO_UX1:
+	case LINE6_PODSTUDIO_UX2:
 		err =
 		    snd_ctl_add(line6->card,
 				snd_ctl_new1(&toneport_control_source,
 					     line6->line6pcm));
 		if (err < 0)
 			return err;
+
+	default:
+		break;
 	}
 
 	/* register audio system: */
@@ -387,7 +389,7 @@ static int toneport_try_init(struct usb_interface *interface,
 	line6_read_serial_number(line6, &toneport->serial_number);
 	line6_read_data(line6, 0x80c2, &toneport->firmware_version, 1);
 
-	if (toneport_has_led(idProduct)) {
+	if (toneport_has_led(line6->type)) {
 		CHECK_RETURN(device_create_file
 			     (&interface->dev, &dev_attr_led_red));
 		CHECK_RETURN(device_create_file
@@ -434,7 +436,6 @@ void line6_toneport_disconnect(struct usb_interface *interface)
 {
 	struct usb_line6_toneport *toneport;
 	struct snd_line6_pcm *line6pcm;
-	u16 idProduct;
 
 	if (interface == NULL)
 		return;
@@ -444,9 +445,8 @@ void line6_toneport_disconnect(struct usb_interface *interface)
 		return;
 
 	del_timer_sync(&toneport->timer);
-	idProduct = le16_to_cpu(toneport->line6.usbdev->descriptor.idProduct);
 
-	if (toneport_has_led(idProduct)) {
+	if (toneport_has_led(toneport->line6.type)) {
 		device_remove_file(&interface->dev, &dev_attr_led_red);
 		device_remove_file(&interface->dev, &dev_attr_led_green);
 	}

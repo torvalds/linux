@@ -427,37 +427,37 @@ int line6_init_pcm(struct usb_line6 *line6,
 	if (!(line6->properties->capabilities & LINE6_BIT_PCM))
 		return 0;	/* skip PCM initialization and report success */
 
-	/* initialize PCM subsystem based on product id: */
-	switch (line6->product) {
-	case LINE6_DEVID_BASSPODXT:
-	case LINE6_DEVID_BASSPODXTLIVE:
-	case LINE6_DEVID_BASSPODXTPRO:
-	case LINE6_DEVID_PODXT:
-	case LINE6_DEVID_PODXTLIVE:
-	case LINE6_DEVID_PODXTPRO:
-	case LINE6_DEVID_PODHD300:
-	case LINE6_DEVID_PODHD400:
+	/* initialize PCM subsystem based on device: */
+	switch (line6->type) {
+	case LINE6_BASSPODXT:
+	case LINE6_BASSPODXTLIVE:
+	case LINE6_BASSPODXTPRO:
+	case LINE6_PODXT:
+	case LINE6_PODXTLIVE:
+	case LINE6_PODXTPRO:
+	case LINE6_PODHD300:
+	case LINE6_PODHD400:
 		ep_read = 0x82;
 		ep_write = 0x01;
 		break;
 
-	case LINE6_DEVID_PODHD500:
+	case LINE6_PODHD500:
 		ep_read = 0x86;
 		ep_write = 0x02;
 		break;
 
-	case LINE6_DEVID_POCKETPOD:
+	case LINE6_POCKETPOD:
 		ep_read = 0x82;
 		ep_write = 0x02;
 		break;
 
-	case LINE6_DEVID_GUITARPORT:
-	case LINE6_DEVID_PODSTUDIO_GX:
-	case LINE6_DEVID_PODSTUDIO_UX1:
-	case LINE6_DEVID_PODSTUDIO_UX2:
-	case LINE6_DEVID_TONEPORT_GX:
-	case LINE6_DEVID_TONEPORT_UX1:
-	case LINE6_DEVID_TONEPORT_UX2:
+	case LINE6_GUITARPORT:
+	case LINE6_PODSTUDIO_GX:
+	case LINE6_PODSTUDIO_UX1:
+	case LINE6_PODSTUDIO_UX2:
+	case LINE6_TONEPORT_GX:
+	case LINE6_TONEPORT_UX1:
+	case LINE6_TONEPORT_UX2:
 		ep_read = 0x82;
 		ep_write = 0x01;
 		break;

@@ -363,23 +363,23 @@ static void line6_data_received(struct urb *urb)
 		line6->message_length = done;
 		line6_midi_receive(line6, line6->buffer_message, done);
 
-		switch (le16_to_cpu(line6->usbdev->descriptor.idProduct)) {
-		case LINE6_DEVID_BASSPODXT:
-		case LINE6_DEVID_BASSPODXTLIVE:
-		case LINE6_DEVID_BASSPODXTPRO:
-		case LINE6_DEVID_PODXT:
-		case LINE6_DEVID_PODXTPRO:
-		case LINE6_DEVID_POCKETPOD:
+		switch (line6->type) {
+		case LINE6_BASSPODXT:
+		case LINE6_BASSPODXTLIVE:
+		case LINE6_BASSPODXTPRO:
+		case LINE6_PODXT:
+		case LINE6_PODXTPRO:
+		case LINE6_POCKETPOD:
 			line6_pod_process_message((struct usb_line6_pod *)
 						  line6);
 			break;
 
-		case LINE6_DEVID_PODHD300:
-		case LINE6_DEVID_PODHD400:
-		case LINE6_DEVID_PODHD500:
+		case LINE6_PODHD300:
+		case LINE6_PODHD400:
+		case LINE6_PODHD500:
 			break; /* let userspace handle MIDI */
 
-		case LINE6_DEVID_PODXTLIVE:
+		case LINE6_PODXTLIVE:
 			switch (line6->interface_number) {
 			case PODXTLIVE_INTERFACE_POD:
 				line6_pod_process_message((struct usb_line6_pod
@@ -399,7 +399,7 @@ static void line6_data_received(struct urb *urb)
 			}
 			break;
 
-		case LINE6_DEVID_VARIAX:
+		case LINE6_VARIAX:
 			line6_variax_process_message((struct usb_line6_variax *)
 						     line6);
 			break;
@@ -629,7 +629,6 @@ static int line6_probe(struct usb_interface *interface,
 	struct usb_line6 *line6;
 	const struct line6_properties *properties;
 	int interface_number, alternate = 0;
-	int product;
 	int size = 0;
 	int ep_read = 0, ep_write = 0;
 	int ret;
@@ -651,19 +650,18 @@ static int line6_probe(struct usb_interface *interface,
 	/* initialize device info: */
 	properties = &line6_properties_table[devtype];
 	dev_info(&interface->dev, "Line6 %s found\n", properties->name);
-	product = le16_to_cpu(usbdev->descriptor.idProduct);
 
 	/* query interface number */
 	interface_number = interface->cur_altsetting->desc.bInterfaceNumber;
 
-	switch (product) {
-	case LINE6_DEVID_BASSPODXTLIVE:
-	case LINE6_DEVID_PODXTLIVE:
-	case LINE6_DEVID_VARIAX:
+	switch (devtype) {
+	case LINE6_BASSPODXTLIVE:
+	case LINE6_PODXTLIVE:
+	case LINE6_VARIAX:
 		alternate = 1;
 		break;
 
-	case LINE6_DEVID_POCKETPOD:
+	case LINE6_POCKETPOD:
 		switch (interface_number) {
 		case 0:
 			return -ENODEV;	/* this interface has no endpoints */
@@ -675,7 +673,7 @@ static int line6_probe(struct usb_interface *interface,
 		}
 		break;
 
-	case LINE6_DEVID_PODHD500:
+	case LINE6_PODHD500:
 		switch (interface_number) {
 		case 0:
 			alternate = 1;
@@ -688,25 +686,25 @@ static int line6_probe(struct usb_interface *interface,
 		}
 		break;
 
-	case LINE6_DEVID_BASSPODXT:
-	case LINE6_DEVID_BASSPODXTPRO:
-	case LINE6_DEVID_PODXT:
-	case LINE6_DEVID_PODXTPRO:
-	case LINE6_DEVID_PODHD300:
-	case LINE6_DEVID_PODHD400:
+	case LINE6_BASSPODXT:
+	case LINE6_BASSPODXTPRO:
+	case LINE6_PODXT:
+	case LINE6_PODXTPRO:
+	case LINE6_PODHD300:
+	case LINE6_PODHD400:
 		alternate = 5;
 		break;
 
-	case LINE6_DEVID_GUITARPORT:
-	case LINE6_DEVID_PODSTUDIO_GX:
-	case LINE6_DEVID_PODSTUDIO_UX1:
-	case LINE6_DEVID_TONEPORT_GX:
-	case LINE6_DEVID_TONEPORT_UX1:
+	case LINE6_GUITARPORT:
+	case LINE6_PODSTUDIO_GX:
+	case LINE6_PODSTUDIO_UX1:
+	case LINE6_TONEPORT_GX:
+	case LINE6_TONEPORT_UX1:
 		alternate = 2;	/* 1..4 seem to be ok */
 		break;
 
-	case LINE6_DEVID_TONEPORT_UX2:
-	case LINE6_DEVID_PODSTUDIO_UX2:
+	case LINE6_TONEPORT_UX2:
+	case LINE6_PODSTUDIO_UX2:
 		switch (interface_number) {
 		case 0:
 			/* defaults to 44.1kHz, 16-bit */
@@ -735,49 +733,49 @@ static int line6_probe(struct usb_interface *interface,
 		goto err_put;
 	}
 
-	/* initialize device data based on product id: */
-	switch (product) {
-	case LINE6_DEVID_BASSPODXT:
-	case LINE6_DEVID_BASSPODXTLIVE:
-	case LINE6_DEVID_BASSPODXTPRO:
-	case LINE6_DEVID_PODXT:
-	case LINE6_DEVID_PODXTPRO:
+	/* initialize device data based on device: */
+	switch (devtype) {
+	case LINE6_BASSPODXT:
+	case LINE6_BASSPODXTLIVE:
+	case LINE6_BASSPODXTPRO:
+	case LINE6_PODXT:
+	case LINE6_PODXTPRO:
 		size = sizeof(struct usb_line6_pod);
 		ep_read = 0x84;
 		ep_write = 0x03;
 		break;
 
-	case LINE6_DEVID_PODHD300:
-	case LINE6_DEVID_PODHD400:
+	case LINE6_PODHD300:
+	case LINE6_PODHD400:
 		size = sizeof(struct usb_line6_podhd);
 		ep_read = 0x84;
 		ep_write = 0x03;
 		break;
 
-	case LINE6_DEVID_PODHD500:
+	case LINE6_PODHD500:
 		size = sizeof(struct usb_line6_podhd);
 		ep_read = 0x81;
 		ep_write = 0x01;
 		break;
 
-	case LINE6_DEVID_POCKETPOD:
+	case LINE6_POCKETPOD:
 		size = sizeof(struct usb_line6_pod);
 		ep_read = 0x82;
 		ep_write = 0x02;
 		break;
 
-	case LINE6_DEVID_PODSTUDIO_GX:
-	case LINE6_DEVID_PODSTUDIO_UX1:
-	case LINE6_DEVID_PODSTUDIO_UX2:
-	case LINE6_DEVID_TONEPORT_GX:
-	case LINE6_DEVID_TONEPORT_UX1:
-	case LINE6_DEVID_TONEPORT_UX2:
-	case LINE6_DEVID_GUITARPORT:
+	case LINE6_PODSTUDIO_GX:
+	case LINE6_PODSTUDIO_UX1:
+	case LINE6_PODSTUDIO_UX2:
+	case LINE6_TONEPORT_GX:
+	case LINE6_TONEPORT_UX1:
+	case LINE6_TONEPORT_UX2:
+	case LINE6_GUITARPORT:
 		size = sizeof(struct usb_line6_toneport);
 		/* these don't have a control channel */
 		break;
 
-	case LINE6_DEVID_PODXTLIVE:
+	case LINE6_PODXTLIVE:
 		switch (interface_number) {
 		case PODXTLIVE_INTERFACE_POD:
 			size = sizeof(struct usb_line6_pod);
@@ -797,7 +795,7 @@ static int line6_probe(struct usb_interface *interface,
 		}
 		break;
 
-	case LINE6_DEVID_VARIAX:
+	case LINE6_VARIAX:
 		size = sizeof(struct usb_line6_variax);
 		ep_read = 0x82;
 		ep_write = 0x01;
@@ -829,7 +827,7 @@ static int line6_probe(struct usb_interface *interface,
 	line6->ifcdev = &interface->dev;
 	line6->ep_control_read = ep_read;
 	line6->ep_control_write = ep_write;
-	line6->product = product;
+	line6->type = devtype;
 
 	/* get data from endpoint descriptor (see usb_maxpacket): */
 	{
@@ -885,25 +883,25 @@ static int line6_probe(struct usb_interface *interface,
 		}
 	}
 
-	/* initialize device data based on product id: */
-	switch (product) {
-	case LINE6_DEVID_BASSPODXT:
-	case LINE6_DEVID_BASSPODXTLIVE:
-	case LINE6_DEVID_BASSPODXTPRO:
-	case LINE6_DEVID_POCKETPOD:
-	case LINE6_DEVID_PODXT:
-	case LINE6_DEVID_PODXTPRO:
+	/* initialize device data based on device: */
+	switch (devtype) {
+	case LINE6_BASSPODXT:
+	case LINE6_BASSPODXTLIVE:
+	case LINE6_BASSPODXTPRO:
+	case LINE6_POCKETPOD:
+	case LINE6_PODXT:
+	case LINE6_PODXTPRO:
 		ret = line6_pod_init(interface, (struct usb_line6_pod *)line6);
 		break;
 
-	case LINE6_DEVID_PODHD300:
-	case LINE6_DEVID_PODHD400:
-	case LINE6_DEVID_PODHD500:
+	case LINE6_PODHD300:
+	case LINE6_PODHD400:
+	case LINE6_PODHD500:
 		ret = line6_podhd_init(interface,
 				       (struct usb_line6_podhd *)line6);
 		break;
 
-	case LINE6_DEVID_PODXTLIVE:
+	case LINE6_PODXTLIVE:
 		switch (interface_number) {
 		case PODXTLIVE_INTERFACE_POD:
 			ret =
@@ -926,19 +924,19 @@ static int line6_probe(struct usb_interface *interface,
 
 		break;
 
-	case LINE6_DEVID_VARIAX:
+	case LINE6_VARIAX:
 		ret =
 		    line6_variax_init(interface,
 				      (struct usb_line6_variax *)line6);
 		break;
 
-	case LINE6_DEVID_PODSTUDIO_GX:
-	case LINE6_DEVID_PODSTUDIO_UX1:
-	case LINE6_DEVID_PODSTUDIO_UX2:
-	case LINE6_DEVID_TONEPORT_GX:
-	case LINE6_DEVID_TONEPORT_UX1:
-	case LINE6_DEVID_TONEPORT_UX2:
-	case LINE6_DEVID_GUITARPORT:
+	case LINE6_PODSTUDIO_GX:
+	case LINE6_PODSTUDIO_UX1:
+	case LINE6_PODSTUDIO_UX2:
+	case LINE6_TONEPORT_GX:
+	case LINE6_TONEPORT_UX1:
+	case LINE6_TONEPORT_UX2:
+	case LINE6_GUITARPORT:
 		ret =
 		    line6_toneport_init(interface,
 					(struct usb_line6_toneport *)line6);
@@ -1004,23 +1002,23 @@ static void line6_disconnect(struct usb_interface *interface)
 			dev_err(line6->ifcdev,
 				"driver bug: inconsistent usb device\n");
 
-		switch (le16_to_cpu(line6->usbdev->descriptor.idProduct)) {
-		case LINE6_DEVID_BASSPODXT:
-		case LINE6_DEVID_BASSPODXTLIVE:
-		case LINE6_DEVID_BASSPODXTPRO:
-		case LINE6_DEVID_POCKETPOD:
-		case LINE6_DEVID_PODXT:
-		case LINE6_DEVID_PODXTPRO:
+		switch (line6->type) {
+		case LINE6_BASSPODXT:
+		case LINE6_BASSPODXTLIVE:
+		case LINE6_BASSPODXTPRO:
+		case LINE6_POCKETPOD:
+		case LINE6_PODXT:
+		case LINE6_PODXTPRO:
 			line6_pod_disconnect(interface);
 			break;
 
-		case LINE6_DEVID_PODHD300:
-		case LINE6_DEVID_PODHD400:
-		case LINE6_DEVID_PODHD500:
+		case LINE6_PODHD300:
+		case LINE6_PODHD400:
+		case LINE6_PODHD500:
 			line6_podhd_disconnect(interface);
 			break;
 
-		case LINE6_DEVID_PODXTLIVE:
+		case LINE6_PODXTLIVE:
 			switch (interface_number) {
 			case PODXTLIVE_INTERFACE_POD:
 				line6_pod_disconnect(interface);
@@ -1033,17 +1031,17 @@ static void line6_disconnect(struct usb_interface *interface)
 
 			break;
 
-		case LINE6_DEVID_VARIAX:
+		case LINE6_VARIAX:
 			line6_variax_disconnect(interface);
 			break;
 
-		case LINE6_DEVID_PODSTUDIO_GX:
-		case LINE6_DEVID_PODSTUDIO_UX1:
-		case LINE6_DEVID_PODSTUDIO_UX2:
-		case LINE6_DEVID_TONEPORT_GX:
-		case LINE6_DEVID_TONEPORT_UX1:
-		case LINE6_DEVID_TONEPORT_UX2:
-		case LINE6_DEVID_GUITARPORT:
+		case LINE6_PODSTUDIO_GX:
+		case LINE6_PODSTUDIO_UX1:
+		case LINE6_PODSTUDIO_UX2:
+		case LINE6_TONEPORT_GX:
+		case LINE6_TONEPORT_UX1:
+		case LINE6_TONEPORT_UX2:
+		case LINE6_GUITARPORT:
 			line6_toneport_disconnect(interface);
 			break;
 
@@ -1107,15 +1105,18 @@ static int line6_reset_resume(struct usb_interface *interface)
 {
 	struct usb_line6 *line6 = usb_get_intfdata(interface);
 
-	switch (le16_to_cpu(line6->usbdev->descriptor.idProduct)) {
-	case LINE6_DEVID_PODSTUDIO_GX:
-	case LINE6_DEVID_PODSTUDIO_UX1:
-	case LINE6_DEVID_PODSTUDIO_UX2:
-	case LINE6_DEVID_TONEPORT_GX:
-	case LINE6_DEVID_TONEPORT_UX1:
-	case LINE6_DEVID_TONEPORT_UX2:
-	case LINE6_DEVID_GUITARPORT:
+	switch (line6->type) {
+	case LINE6_PODSTUDIO_GX:
+	case LINE6_PODSTUDIO_UX1:
+	case LINE6_PODSTUDIO_UX2:
+	case LINE6_TONEPORT_GX:
+	case LINE6_TONEPORT_UX1:
+	case LINE6_TONEPORT_UX2:
+	case LINE6_GUITARPORT:
 		line6_toneport_reset_resume((struct usb_line6_toneport *)line6);
+
+	default:
+		break;
 	}
 
 	return line6_resume(interface);
