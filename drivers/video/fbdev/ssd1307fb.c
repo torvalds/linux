@@ -122,23 +122,6 @@ static inline int ssd1307fb_write_cmd(struct i2c_client *client, u8 cmd)
 	return ret;
 }
 
-static inline int ssd1307fb_write_data(struct i2c_client *client, u8 data)
-{
-	struct ssd1307fb_array *array;
-	int ret;
-
-	array = ssd1307fb_alloc_array(1, SSD1307FB_DATA);
-	if (!array)
-		return -ENOMEM;
-
-	array->data[0] = data;
-
-	ret = ssd1307fb_write_array(client, array, 1);
-	kfree(array);
-
-	return ret;
-}
-
 static void ssd1307fb_update_display(struct ssd1307fb_par *par)
 {
 	struct ssd1307fb_array *array;
