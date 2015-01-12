@@ -163,10 +163,10 @@ static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
 	/* Enable PSR in sink */
 	if (intel_dp->psr_dpcd[1] & DP_PSR_NO_TRAIN_ON_EXIT || only_standby)
 		drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG,
-				   DP_PSR_ENABLE & ~DP_PSR_MAIN_LINK_ACTIVE);
+				   DP_PSR_ENABLE | DP_PSR_MAIN_LINK_ACTIVE);
 	else
 		drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG,
-				   DP_PSR_ENABLE | DP_PSR_MAIN_LINK_ACTIVE);
+				   DP_PSR_ENABLE & ~DP_PSR_MAIN_LINK_ACTIVE);
 
 	/* Setup AUX registers */
 	for (i = 0; i < sizeof(aux_msg); i += 4)
