@@ -1275,12 +1275,10 @@ static void __setup_root(u32 nodesize, u32 sectorsize, u32 stripesize,
 	memset(&root->root_key, 0, sizeof(root->root_key));
 	memset(&root->root_item, 0, sizeof(root->root_item));
 	memset(&root->defrag_progress, 0, sizeof(root->defrag_progress));
-	memset(&root->root_kobj, 0, sizeof(root->root_kobj));
 	if (fs_info)
 		root->defrag_trans_start = fs_info->generation;
 	else
 		root->defrag_trans_start = 0;
-	init_completion(&root->kobj_unregister);
 	root->root_key.objectid = objectid;
 	root->anon_dev = 0;
 
