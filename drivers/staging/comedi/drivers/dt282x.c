@@ -300,6 +300,12 @@ static const struct dt282x_board boardtypes[] = {
 	},
 };
 
+struct dt282x_dma_desc {
+	unsigned int chan;	/* DMA channel */
+	unsigned short *virt_addr;	/* virtual address of DMA buffer */
+	unsigned int size;	/* transfer size (in bytes) */
+};
+
 struct dt282x_private {
 	unsigned int ad_2scomp:1;
 
@@ -312,21 +318,16 @@ struct dt282x_private {
 	int ntrig;
 	int nread;
 
-	struct {
-		int chan;
-		unsigned short *buf;	/* DMA buffer */
-		int size;	/* size of current transfer */
-	} dma[2];
+	struct dt282x_dma_desc dma_desc[2];
 	int dma_maxsize;	/* max size of DMA transfer (in bytes) */
-	int current_dma_index;
+	int cur_dma;
 	int dma_dir;
 };
 
 static int dt282x_prep_ai_dma(struct comedi_device *dev, int dma_index, int n)
 {
 	struct dt282x_private *devpriv = dev->private;
-	int dma_chan;
-	unsigned long dma_ptr;
+	struct dt282x_dma_desc *dma = &devpriv->dma_desc[dma_index];
 	unsigned long flags;
 
 	if (!devpriv->ntrig)
@@ -338,18 +339,16 @@ static int dt282x_prep_ai_dma(struct comedi_device *dev, int dma_index, int n)
 		n = devpriv->ntrig * 2;
 	devpriv->ntrig -= n / 2;
 
-	devpriv->dma[dma_index].size = n;
-	dma_chan = devpriv->dma[dma_index].chan;
-	dma_ptr = virt_to_bus(devpriv->dma[dma_index].buf);
+	dma->size = n;
 
-	set_dma_mode(dma_chan, DMA_MODE_READ);
+	set_dma_mode(dma->chan, DMA_MODE_READ);
 	flags = claim_dma_lock();
-	clear_dma_ff(dma_chan);
-	set_dma_addr(dma_chan, dma_ptr);
-	set_dma_count(dma_chan, n);
+	clear_dma_ff(dma->chan);
+	set_dma_addr(dma->chan, virt_to_bus(dma->virt_addr));
+	set_dma_count(dma->chan, dma->size);
 	release_dma_lock(flags);
 
-	enable_dma(dma_chan);
+	enable_dma(dma->chan);
 
 	return n;
 }
@@ -357,22 +356,19 @@ static int dt282x_prep_ai_dma(struct comedi_device *dev, int dma_index, int n)
 static int dt282x_prep_ao_dma(struct comedi_device *dev, int dma_index, int n)
 {
 	struct dt282x_private *devpriv = dev->private;
-	int dma_chan;
-	unsigned long dma_ptr;
+	struct dt282x_dma_desc *dma = &devpriv->dma_desc[dma_index];
 	unsigned long flags;
 
-	devpriv->dma[dma_index].size = n;
-	dma_chan = devpriv->dma[dma_index].chan;
-	dma_ptr = virt_to_bus(devpriv->dma[dma_index].buf);
+	dma->size = n;
 
-	set_dma_mode(dma_chan, DMA_MODE_WRITE);
+	set_dma_mode(dma->chan, DMA_MODE_WRITE);
 	flags = claim_dma_lock();
-	clear_dma_ff(dma_chan);
-	set_dma_addr(dma_chan, dma_ptr);
-	set_dma_count(dma_chan, n);
+	clear_dma_ff(dma->chan);
+	set_dma_addr(dma->chan, virt_to_bus(dma->virt_addr));
+	set_dma_count(dma->chan, dma->size);
 	release_dma_lock(flags);
 
-	enable_dma(dma_chan);
+	enable_dma(dma->chan);
 
 	return n;
 }
@@ -381,8 +377,8 @@ static void dt282x_disable_dma(struct comedi_device *dev)
 {
 	struct dt282x_private *devpriv = dev->private;
 
-	disable_dma(devpriv->dma[0].chan);
-	disable_dma(devpriv->dma[1].chan);
+	disable_dma(devpriv->dma_desc[0].chan);
+	disable_dma(devpriv->dma_desc[1].chan);
 }
 
 static unsigned int dt282x_ns_to_timer(unsigned int *ns, unsigned int flags)
@@ -444,11 +440,11 @@ static unsigned int dt282x_ao_setup_dma(struct comedi_device *dev,
 					int cur_dma)
 {
 	struct dt282x_private *devpriv = dev->private;
-	void *ptr = devpriv->dma[cur_dma].buf;
+	struct dt282x_dma_desc *dma = &devpriv->dma_desc[cur_dma];
 	unsigned int nsamples = comedi_bytes_to_samples(s, devpriv->dma_maxsize);
 	unsigned int nbytes;
 
-	nbytes = comedi_buf_read_samples(s, ptr, nsamples);
+	nbytes = comedi_buf_read_samples(s, dma->virt_addr, nsamples);
 	if (nbytes)
 		dt282x_prep_ao_dma(dev, cur_dma, nbytes);
 	else
@@ -461,39 +457,35 @@ static void dt282x_ao_dma_interrupt(struct comedi_device *dev,
 				    struct comedi_subdevice *s)
 {
 	struct dt282x_private *devpriv = dev->private;
-	int cur_dma = devpriv->current_dma_index;
+	struct dt282x_dma_desc *dma = &devpriv->dma_desc[devpriv->cur_dma];
 
 	outw(devpriv->supcsr | DT2821_SUPCSR_CLRDMADNE,
 	     dev->iobase + DT2821_SUPCSR_REG);
 
-	disable_dma(devpriv->dma[cur_dma].chan);
+	disable_dma(dma->chan);
 
-	devpriv->current_dma_index = 1 - cur_dma;
-
-	if (!dt282x_ao_setup_dma(dev, s, cur_dma))
+	if (!dt282x_ao_setup_dma(dev, s, devpriv->cur_dma))
 		s->async->events |= COMEDI_CB_OVERFLOW;
+
+	devpriv->cur_dma = 1 - devpriv->cur_dma;
 }
 
 static void dt282x_ai_dma_interrupt(struct comedi_device *dev,
 				    struct comedi_subdevice *s)
 {
 	struct dt282x_private *devpriv = dev->private;
-	int cur_dma = devpriv->current_dma_index;
-	void *ptr = devpriv->dma[cur_dma].buf;
-	int size = devpriv->dma[cur_dma].size;
-	unsigned int nsamples = comedi_bytes_to_samples(s, size);
+	struct dt282x_dma_desc *dma = &devpriv->dma_desc[devpriv->cur_dma];
+	unsigned int nsamples = comedi_bytes_to_samples(s, dma->size);
 	int ret;
 
 	outw(devpriv->supcsr | DT2821_SUPCSR_CLRDMADNE,
 	     dev->iobase + DT2821_SUPCSR_REG);
 
-	disable_dma(devpriv->dma[cur_dma].chan);
+	disable_dma(dma->chan);
 
-	devpriv->current_dma_index = 1 - cur_dma;
-
-	dt282x_munge(dev, s, ptr, size);
-	ret = comedi_buf_write_samples(s, ptr, nsamples);
-	if (ret != size)
+	dt282x_munge(dev, s, dma->virt_addr, dma->size);
+	ret = comedi_buf_write_samples(s, dma->virt_addr, nsamples);
+	if (ret != dma->size)
 		return;
 
 	devpriv->nread -= nsamples;
@@ -514,7 +506,9 @@ static void dt282x_ai_dma_interrupt(struct comedi_device *dev,
 	}
 #endif
 	/* restart the channel */
-	dt282x_prep_ai_dma(dev, cur_dma, 0);
+	dt282x_prep_ai_dma(dev, devpriv->cur_dma, 0);
+
+	devpriv->cur_dma = 1 - devpriv->cur_dma;
 }
 
 static irqreturn_t dt282x_interrupt(int irq, void *d)
@@ -769,7 +763,7 @@ static int dt282x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->nread = devpriv->ntrig;
 
 	devpriv->dma_dir = DMA_MODE_READ;
-	devpriv->current_dma_index = 0;
+	devpriv->cur_dma = 0;
 	dt282x_prep_ai_dma(dev, 0, 0);
 	if (devpriv->ntrig) {
 		dt282x_prep_ai_dma(dev, 1, 0);
@@ -949,7 +943,7 @@ static int dt282x_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->nread = devpriv->ntrig;
 
 	devpriv->dma_dir = DMA_MODE_WRITE;
-	devpriv->current_dma_index = 0;
+	devpriv->cur_dma = 0;
 
 	outw(devpriv->divisor, dev->iobase + DT2821_TMRCTR_REG);
 
@@ -1090,10 +1084,11 @@ static int dt282x_alloc_dma(struct comedi_device *dev,
 
 	devpriv->dma_maxsize = PAGE_SIZE;
 	for (i = 0; i < 2; i++) {
-		devpriv->dma[i].chan = dma_chan[i];
-		devpriv->dma[i].buf =
-			(void *)__get_free_page(GFP_KERNEL | GFP_DMA);
-		if (!devpriv->dma[i].buf)
+		struct dt282x_dma_desc *dma = &devpriv->dma_desc[i];
+
+		dma->chan = dma_chan[i];
+		dma->virt_addr = (void *)__get_free_page(GFP_KERNEL | GFP_DMA);
+		if (!dma->virt_addr)
 			return -ENOMEM;
 	}
 
@@ -1103,18 +1098,18 @@ static int dt282x_alloc_dma(struct comedi_device *dev,
 static void dt282x_free_dma(struct comedi_device *dev)
 {
 	struct dt282x_private *devpriv = dev->private;
+	struct dt282x_dma_desc *dma;
 	int i;
 
 	if (!devpriv)
 		return;
 
 	for (i = 0; i < 2; i++) {
-		if (devpriv->dma[i].chan)
-			free_dma(devpriv->dma[i].chan);
-		if (devpriv->dma[i].buf)
-			free_page((unsigned long)devpriv->dma[i].buf);
-		devpriv->dma[i].chan = 0;
-		devpriv->dma[i].buf = NULL;
+		dma = &devpriv->dma_desc[i];
+		if (dma->chan)
+			free_dma(dma->chan);
+		if (dma->virt_addr)
+			free_page((unsigned long)dma->virt_addr);
 	}
 }
 
