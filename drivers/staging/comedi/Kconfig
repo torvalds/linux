@@ -188,7 +188,7 @@ config COMEDI_PCL816
 
 config COMEDI_PCL818
 	tristate "Advantech PCL-718 and PCL-818 ISA card support"
-	depends on VIRT_TO_BUS && ISA_DMA_API
+	depends on ISA_DMA_API
 	---help---
 	  Enable support for Advantech PCL-818 ISA cards
 	  PCL-818L, PCL-818H, PCL-818HD, PCL-818HG, PCL-818 and PCL-718
