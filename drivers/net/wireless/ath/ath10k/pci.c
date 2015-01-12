@@ -1910,6 +1910,12 @@ static int ath10k_pci_hif_power_up(struct ath10k *ar)
 	 */
 	ret = ath10k_pci_chip_reset(ar);
 	if (ret) {
+		if (ath10k_pci_has_fw_crashed(ar)) {
+			ath10k_warn(ar, "firmware crashed during chip reset\n");
+			ath10k_pci_fw_crashed_clear(ar);
+			ath10k_pci_fw_crashed_dump(ar);
+		}
+
 		ath10k_err(ar, "failed to reset chip: %d\n", ret);
 		goto err_sleep;
 	}
@@ -2352,8 +2358,6 @@ static int ath10k_pci_wait_for_target_init(struct ath10k *ar)
 
 	if (val & FW_IND_EVENT_PENDING) {
 		ath10k_warn(ar, "device has crashed during init\n");
-		ath10k_pci_fw_crashed_clear(ar);
-		ath10k_pci_fw_crashed_dump(ar);
 		return -ECOMM;
 	}
 
