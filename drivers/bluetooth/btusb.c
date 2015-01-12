@@ -309,6 +309,7 @@ struct btusb_data {
 	int isoc_altsetting;
 	int suspend_count;
 
+	int (*recv_event)(struct hci_dev *hdev, struct sk_buff *skb);
 	int (*recv_bulk)(struct btusb_data *data, void *buffer, int count);
 };
 
@@ -374,7 +375,7 @@ static int btusb_recv_intr(struct btusb_data *data, void *buffer, int count)
 
 		if (bt_cb(skb)->expect == 0) {
 			/* Complete frame */
-			hci_recv_frame(data->hdev, skb);
+			data->recv_event(data->hdev, skb);
 			skb = NULL;
 		}
 	}
@@ -2048,6 +2049,7 @@ static int btusb_probe(struct usb_interface *intf,
 	init_usb_anchor(&data->isoc_anchor);
 	spin_lock_init(&data->rxlock);
 
+	data->recv_event = hci_recv_frame;
 	data->recv_bulk = btusb_recv_bulk;
 
 	hdev = hci_alloc_dev();
