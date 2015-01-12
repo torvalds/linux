@@ -305,6 +305,7 @@ static const struct pcl818_board boardtypes[] = {
 struct pcl818_dma_desc {
 	void *virt_addr;	/* virtual address of DMA buffer */
 	dma_addr_t hw_addr;	/* hardware (bus) address of DMA buffer */
+	unsigned int size;	/* transfer size (in bytes) */
 };
 
 struct pcl818_private {
@@ -349,17 +350,17 @@ static void pcl818_ai_setup_dma(struct comedi_device *dev,
 	struct pcl818_dma_desc *dma = &devpriv->dma_desc[0];
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int flags;
-	unsigned int bytes;
 
 	disable_dma(devpriv->dma);	/*  disable dma */
-	bytes = devpriv->hwdmasize;
 	if (cmd->stop_src == TRIG_COUNT) {
-		bytes = cmd->stop_arg * comedi_bytes_per_scan(s);
-		devpriv->dma_runs_to_end = bytes / devpriv->hwdmasize;
-		devpriv->last_dma_run = bytes % devpriv->hwdmasize;
+		dma->size = cmd->stop_arg * comedi_bytes_per_scan(s);
+		devpriv->dma_runs_to_end = dma->size / devpriv->hwdmasize;
+		devpriv->last_dma_run = dma->size % devpriv->hwdmasize;
 		devpriv->dma_runs_to_end--;
 		if (devpriv->dma_runs_to_end >= 0)
-			bytes = devpriv->hwdmasize;
+			dma->size = devpriv->hwdmasize;
+	} else {
+		dma->size = devpriv->hwdmasize;
 	}
 
 	devpriv->cur_dma = 0;
@@ -367,7 +368,7 @@ static void pcl818_ai_setup_dma(struct comedi_device *dev,
 	flags = claim_dma_lock();
 	clear_dma_ff(devpriv->dma);
 	set_dma_addr(devpriv->dma, dma->hw_addr);
-	set_dma_count(devpriv->dma, bytes);
+	set_dma_count(devpriv->dma, dma->size);
 	release_dma_lock(flags);
 	enable_dma(devpriv->dma);
 }
@@ -385,13 +386,14 @@ static void pcl818_ai_setup_next_dma(struct comedi_device *dev,
 	if (devpriv->dma_runs_to_end > -1 || cmd->stop_src == TRIG_NONE) {
 		/* switch dma bufs */
 		dma = &devpriv->dma_desc[devpriv->cur_dma];
+		if (devpriv->dma_runs_to_end || cmd->stop_src == TRIG_NONE)
+			dma->size = devpriv->hwdmasize;
+		else
+			dma->size = devpriv->last_dma_run;
 		set_dma_mode(devpriv->dma, DMA_MODE_READ);
 		flags = claim_dma_lock();
 		set_dma_addr(devpriv->dma, dma->hw_addr);
-		if (devpriv->dma_runs_to_end || cmd->stop_src == TRIG_NONE)
-			set_dma_count(devpriv->dma, devpriv->hwdmasize);
-		else
-			set_dma_count(devpriv->dma, devpriv->last_dma_run);
+		set_dma_count(devpriv->dma, dma->size);
 		release_dma_lock(flags);
 		enable_dma(devpriv->dma);
 	}
@@ -565,17 +567,15 @@ static void pcl818_handle_dma(struct comedi_device *dev,
 	struct pcl818_private *devpriv = dev->private;
 	struct pcl818_dma_desc *dma = &devpriv->dma_desc[devpriv->cur_dma];
 	unsigned short *ptr = dma->virt_addr;
+	unsigned int nsamples = comedi_bytes_to_samples(s, dma->size);
 	unsigned int chan;
 	unsigned int val;
-	int i, len, bufptr;
+	int i;
 
 	pcl818_ai_setup_next_dma(dev, s);
 
-	len = devpriv->hwdmasize >> 1;
-	bufptr = 0;
-
-	for (i = 0; i < len; i++) {
-		val = ptr[bufptr++];
+	for (i = 0; i < nsamples; i++) {
+		val = ptr[i];
 		chan = val & 0xf;
 		val = (val >> 4) & s->maxdata;
 
