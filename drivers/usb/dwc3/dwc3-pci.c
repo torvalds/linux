@@ -31,28 +31,50 @@
 #define PCI_DEVICE_ID_INTEL_MRFLD	0x119e
 #define PCI_DEVICE_ID_INTEL_BSW		0x22B7
 
-struct dwc3_pci {
-	struct device		*dev;
-	struct platform_device	*dwc3;
-};
+static int dwc3_pci_quirks(struct pci_dev *pdev)
+{
+	if (pdev->vendor == PCI_VENDOR_ID_AMD &&
+	    pdev->device == PCI_DEVICE_ID_AMD_NL_USB) {
+		struct dwc3_platform_data pdata;
+
+		memset(&pdata, 0, sizeof(pdata));
+
+		pdata.has_lpm_erratum = true;
+		pdata.lpm_nyet_threshold = 0xf;
+
+		pdata.u2exit_lfps_quirk = true;
+		pdata.u2ss_inp3_quirk = true;
+		pdata.req_p1p2p3_quirk = true;
+		pdata.del_p1p2p3_quirk = true;
+		pdata.del_phy_power_chg_quirk = true;
+		pdata.lfps_filter_quirk = true;
+		pdata.rx_detect_poll_quirk = true;
+
+		pdata.tx_de_emphasis_quirk = true;
+		pdata.tx_de_emphasis = 1;
+
+		/*
+		 * FIXME these quirks should be removed when AMD NL
+		 * taps out
+		 */
+		pdata.disable_scramble_quirk = true;
+		pdata.dis_u3_susphy_quirk = true;
+		pdata.dis_u2_susphy_quirk = true;
+
+		return platform_device_add_data(pci_get_drvdata(pdev), &pdata,
+						sizeof(pdata));
+	}
+
+	return 0;
+}
 
 static int dwc3_pci_probe(struct pci_dev *pci,
 		const struct pci_device_id *id)
 {
 	struct resource		res[2];
 	struct platform_device	*dwc3;
-	struct dwc3_pci		*glue;
 	int			ret;
 	struct device		*dev = &pci->dev;
-	struct dwc3_platform_data dwc3_pdata;
-
-	memset(&dwc3_pdata, 0x00, sizeof(dwc3_pdata));
-
-	glue = devm_kzalloc(dev, sizeof(*glue), GFP_KERNEL);
-	if (!glue)
-		return -ENOMEM;
-
-	glue->dev = dev;
 
 	ret = pcim_enable_device(pci);
 	if (ret) {
@@ -79,68 +101,34 @@ static int dwc3_pci_probe(struct pci_dev *pci,
 	res[1].name	= "dwc_usb3";
 	res[1].flags	= IORESOURCE_IRQ;
 
-	if (pci->vendor == PCI_VENDOR_ID_AMD &&
-			pci->device == PCI_DEVICE_ID_AMD_NL_USB) {
-		dwc3_pdata.has_lpm_erratum = true;
-		dwc3_pdata.lpm_nyet_threshold = 0xf;
-
-		dwc3_pdata.u2exit_lfps_quirk = true;
-		dwc3_pdata.u2ss_inp3_quirk = true;
-		dwc3_pdata.req_p1p2p3_quirk = true;
-		dwc3_pdata.del_p1p2p3_quirk = true;
-		dwc3_pdata.del_phy_power_chg_quirk = true;
-		dwc3_pdata.lfps_filter_quirk = true;
-		dwc3_pdata.rx_detect_poll_quirk = true;
-
-		dwc3_pdata.tx_de_emphasis_quirk = true;
-		dwc3_pdata.tx_de_emphasis = 1;
-
-		/*
-		 * FIXME these quirks should be removed when AMD NL
-		 * taps out
-		 */
-		dwc3_pdata.disable_scramble_quirk = true;
-		dwc3_pdata.dis_u3_susphy_quirk = true;
-		dwc3_pdata.dis_u2_susphy_quirk = true;
-	}
-
 	ret = platform_device_add_resources(dwc3, res, ARRAY_SIZE(res));
 	if (ret) {
 		dev_err(dev, "couldn't add resources to dwc3 device\n");
 		return ret;
 	}
 
-	pci_set_drvdata(pci, glue);
-
-	ret = platform_device_add_data(dwc3, &dwc3_pdata, sizeof(dwc3_pdata));
+	pci_set_drvdata(pci, dwc3);
+	ret = dwc3_pci_quirks(pci);
 	if (ret)
-		goto err3;
+		goto err;
 
-	dma_set_coherent_mask(&dwc3->dev, dev->coherent_dma_mask);
-
-	dwc3->dev.dma_mask = dev->dma_mask;
-	dwc3->dev.dma_parms = dev->dma_parms;
 	dwc3->dev.parent = dev;
-	glue->dwc3 = dwc3;
 
 	ret = platform_device_add(dwc3);
 	if (ret) {
 		dev_err(dev, "failed to register dwc3 device\n");
-		goto err3;
+		goto err;
 	}
 
 	return 0;
-
-err3:
+err:
 	platform_device_put(dwc3);
 	return ret;
 }
 
 static void dwc3_pci_remove(struct pci_dev *pci)
 {
-	struct dwc3_pci	*glue = pci_get_drvdata(pci);
-
-	platform_device_unregister(glue->dwc3);
+	platform_device_unregister(pci_get_drvdata(pci));
 }
 
 static const struct pci_device_id dwc3_pci_id_table[] = {
