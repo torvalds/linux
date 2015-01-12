@@ -993,6 +993,41 @@ static void das16_reset(struct comedi_device *dev)
 	outb(0, dev->iobase + DAS16_TIMER_BASE_REG + i8254_control_reg);
 }
 
+static int das16_alloc_dma(struct comedi_device *dev, unsigned int dma_chan)
+{
+	struct das16_private_struct *devpriv = dev->private;
+	struct das16_dma_desc *dma;
+	unsigned long flags;
+	int i;
+
+	if (!(dma_chan == 1 || dma_chan == 3))
+		return 0;
+
+	if (request_dma(dma_chan, dev->board_name))
+		return 0;
+	devpriv->dma_chan = dma_chan;
+
+	for (i = 0; i < 2; i++) {
+		dma = &devpriv->dma_desc[i];
+
+		dma->virt_addr = pci_alloc_consistent(NULL, DAS16_DMA_SIZE,
+						      &dma->hw_addr);
+		if (!dma->virt_addr)
+			return -ENOMEM;
+	}
+
+	flags = claim_dma_lock();
+	disable_dma(devpriv->dma_chan);
+	set_dma_mode(devpriv->dma_chan, DMA_MODE_READ);
+	release_dma_lock(flags);
+
+	init_timer(&devpriv->timer);
+	devpriv->timer.function = das16_timer_interrupt;
+	devpriv->timer.data = (unsigned long)dev;
+
+	return 0;
+}
+
 static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct das16_board *board = dev->board_ptr;
@@ -1000,7 +1035,6 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	struct comedi_lrange *lrange;
 	struct comedi_krange *krange;
-	unsigned int dma_chan = it->options[2];
 	unsigned int status;
 	int ret;
 
@@ -1055,39 +1089,9 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			devpriv->clockbase = I8254_OSC_BASE_1MHZ;
 	}
 
-	/* initialize dma */
-	if (dma_chan == 1 || dma_chan == 3) {
-		unsigned long flags;
-		int i;
-
-		if (request_dma(dma_chan, dev->board_name)) {
-			dev_err(dev->class_dev,
-				"failed to request dma channel %i\n",
-				dma_chan);
-			return -EINVAL;
-		}
-		devpriv->dma_chan = dma_chan;
-
-		/* allocate dma buffers */
-		for (i = 0; i < 2; i++) {
-			struct das16_dma_desc *dma = &devpriv->dma_desc[i];
-
-			dma->virt_addr = pci_alloc_consistent(NULL,
-							      DAS16_DMA_SIZE,
-							      &dma->hw_addr);
-			if (!dma->virt_addr)
-				return -ENOMEM;
-		}
-
-		flags = claim_dma_lock();
-		disable_dma(devpriv->dma_chan);
-		set_dma_mode(devpriv->dma_chan, DMA_MODE_READ);
-		release_dma_lock(flags);
-
-		init_timer(&devpriv->timer);
-		devpriv->timer.function = das16_timer_interrupt;
-		devpriv->timer.data = (unsigned long)dev;
-	}
+	ret = das16_alloc_dma(dev, it->options[2]);
+	if (ret)
+		return ret;
 
 	/* get any user-defined input range */
 	if (board->ai_pg == das16_pg_none &&
