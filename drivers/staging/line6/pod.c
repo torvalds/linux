@@ -159,15 +159,6 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 }
 
 /*
-	Transmit PODxt Pro control parameter.
-*/
-void line6_pod_transmit_parameter(struct usb_line6_pod *pod, int param,
-				  u8 value)
-{
-	line6_transmit_parameter(&pod->line6, param, value);
-}
-
-/*
 	Send system parameter (from integer).
 */
 static int pod_set_system_param_int(struct usb_line6_pod *pod, int value,
