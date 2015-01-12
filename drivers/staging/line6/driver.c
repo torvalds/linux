@@ -42,7 +42,8 @@ static const struct usb_device_id line6_id_table[] = {
 	{ LINE6_DEVICE(0x5051),    .driver_info = LINE6_POCKETPOD },
 	{ LINE6_DEVICE(0x5057),    .driver_info = LINE6_PODHD300 },
 	{ LINE6_DEVICE(0x5058),    .driver_info = LINE6_PODHD400 },
-	{ LINE6_DEVICE(0x414D),    .driver_info = LINE6_PODHD500 },
+	{ LINE6_IF_NUM(0x414D, 0), .driver_info = LINE6_PODHD500_0 },
+	{ LINE6_IF_NUM(0x414D, 1), .driver_info = LINE6_PODHD500_1 },
 	{ LINE6_DEVICE(0x4153),    .driver_info = LINE6_PODSTUDIO_GX },
 	{ LINE6_DEVICE(0x4150),    .driver_info = LINE6_PODSTUDIO_UX1 },
 	{ LINE6_DEVICE(0x4151),    .driver_info = LINE6_PODSTUDIO_UX2 },
@@ -105,7 +106,14 @@ static const struct line6_properties line6_properties_table[] = {
 				| LINE6_CAP_PCM
 				| LINE6_CAP_HWMON,
 	},
-	[LINE6_PODHD500] = {
+	[LINE6_PODHD500_0] = {
+		.id = "PODHD500",
+		.name = "POD HD500",
+		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_PCM
+				| LINE6_CAP_HWMON,
+	},
+	[LINE6_PODHD500_1] = {
 		.id = "PODHD500",
 		.name = "POD HD500",
 		.capabilities	= LINE6_CAP_CONTROL
@@ -451,7 +459,8 @@ static void line6_data_received(struct urb *urb)
 
 		case LINE6_PODHD300:
 		case LINE6_PODHD400:
-		case LINE6_PODHD500:
+		case LINE6_PODHD500_0:
+		case LINE6_PODHD500_1:
 			break; /* let userspace handle MIDI */
 
 		case LINE6_PODXTLIVE_POD:
@@ -740,17 +749,12 @@ static int line6_probe(struct usb_interface *interface,
 		}
 		break;
 
-	case LINE6_PODHD500:
-		switch (interface_number) {
-		case 0:
-			alternate = 1;
-			break;
-		case 1:
-			alternate = 0;
-			break;
-		default:
-			MISSING_CASE;
-		}
+	case LINE6_PODHD500_0:
+		alternate = 1;
+		break;
+
+	case LINE6_PODHD500_1:
+		alternate = 0;
 		break;
 
 	case LINE6_BASSPODXT:
@@ -819,7 +823,8 @@ static int line6_probe(struct usb_interface *interface,
 		ep_write = 0x03;
 		break;
 
-	case LINE6_PODHD500:
+	case LINE6_PODHD500_0:
+	case LINE6_PODHD500_1:
 		size = sizeof(struct usb_line6_podhd);
 		ep_read = 0x81;
 		ep_write = 0x01;
@@ -954,7 +959,8 @@ static int line6_probe(struct usb_interface *interface,
 
 	case LINE6_PODHD300:
 	case LINE6_PODHD400:
-	case LINE6_PODHD500:
+	case LINE6_PODHD500_0:
+	case LINE6_PODHD500_1:
 		ret = line6_podhd_init(interface,
 				       (struct usb_line6_podhd *)line6);
 		break;
@@ -1061,7 +1067,8 @@ static void line6_disconnect(struct usb_interface *interface)
 
 		case LINE6_PODHD300:
 		case LINE6_PODHD400:
-		case LINE6_PODHD500:
+		case LINE6_PODHD500_0:
+		case LINE6_PODHD500_1:
 			line6_podhd_disconnect(interface);
 			break;
 
