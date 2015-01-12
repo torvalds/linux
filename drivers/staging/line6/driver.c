@@ -61,7 +61,6 @@ MODULE_DEVICE_TABLE(usb, line6_id_table);
 	{.id = dev_id,\
 	 .name = dev_name, .capabilities = LINE6_BIT_##dev_cap}
 
-/* *INDENT-OFF* */
 static const struct line6_properties line6_properties_table[] = {
 	L6PROP("BassPODxt",     "BassPODxt",        CTRL_PCM_HW),
 	L6PROP("BassPODxtLive", "BassPODxt Live",   CTRL_PCM_HW),
@@ -82,7 +81,6 @@ static const struct line6_properties line6_properties_table[] = {
 	L6PROP("TonePortUX2",   "TonePort UX2",     PCM),
 	L6PROP("Variax",        "Variax Workbench", CONTROL),
 };
-/* *INDENT-ON* */
 
 /*
 	This is Line6's MIDI manufacturer ID.
