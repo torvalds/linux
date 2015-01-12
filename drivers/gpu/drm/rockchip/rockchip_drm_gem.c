@@ -22,7 +22,8 @@
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_gem.h"
 
-static int rockchip_gem_alloc_buf(struct rockchip_gem_object *rk_obj)
+static int rockchip_gem_alloc_buf(struct rockchip_gem_object *rk_obj,
+				  bool alloc_kmap)
 {
 	struct drm_gem_object *obj = &rk_obj->base;
 	struct drm_device *drm = obj->dev;
@@ -30,7 +31,9 @@ static int rockchip_gem_alloc_buf(struct rockchip_gem_object *rk_obj)
 	init_dma_attrs(&rk_obj->dma_attrs);
 	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &rk_obj->dma_attrs);
 
-	/* TODO(djkurtz): Use DMA_ATTR_NO_KERNEL_MAPPING except for fbdev */
+	if (!alloc_kmap)
+		dma_set_attr(DMA_ATTR_NO_KERNEL_MAPPING, &rk_obj->dma_attrs);
+
 	rk_obj->kvaddr = dma_alloc_attrs(drm->dev, obj->size,
 					 &rk_obj->dma_addr, GFP_KERNEL,
 					 &rk_obj->dma_attrs);
@@ -103,7 +106,8 @@ int rockchip_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 }
 
 struct rockchip_gem_object *
-	rockchip_gem_create_object(struct drm_device *drm, unsigned int size)
+	rockchip_gem_create_object(struct drm_device *drm, unsigned int size,
+				   bool alloc_kmap)
 {
 	struct rockchip_gem_object *rk_obj;
 	struct drm_gem_object *obj;
@@ -119,7 +123,7 @@ struct rockchip_gem_object *
 
 	drm_gem_private_object_init(drm, obj, size);
 
-	ret = rockchip_gem_alloc_buf(rk_obj);
+	ret = rockchip_gem_alloc_buf(rk_obj, alloc_kmap);
 	if (ret)
 		goto err_free_rk_obj;
 
@@ -163,7 +167,7 @@ rockchip_gem_create_with_handle(struct drm_file *file_priv,
 	struct drm_gem_object *obj;
 	int ret;
 
-	rk_obj = rockchip_gem_create_object(drm, size);
+	rk_obj = rockchip_gem_create_object(drm, size, false);
 	if (IS_ERR(rk_obj))
 		return ERR_CAST(rk_obj);
 
@@ -281,6 +285,9 @@ struct sg_table *rockchip_gem_prime_get_sg_table(struct drm_gem_object *obj)
 void *rockchip_gem_prime_vmap(struct drm_gem_object *obj)
 {
 	struct rockchip_gem_object *rk_obj = to_rockchip_obj(obj);
+
+	if (dma_get_attr(DMA_ATTR_NO_KERNEL_MAPPING, &rk_obj->dma_attrs))
+		return NULL;
 
 	return rk_obj->kvaddr;
 }
