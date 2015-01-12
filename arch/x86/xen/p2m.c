@@ -378,7 +378,7 @@ static void __init xen_rebuild_p2m_list(unsigned long *p2m)
 			p2m_missing_pte : p2m_identity_pte;
 		for (i = 0; i < PMDS_PER_MID_PAGE; i++) {
 			pmdp = populate_extra_pmd(
-				(unsigned long)(p2m + pfn + i * PTRS_PER_PTE));
+				(unsigned long)(p2m + pfn) + i * PMD_SIZE);
 			set_pmd(pmdp, __pmd(__pa(ptep) | _KERNPG_TABLE));
 		}
 	}
