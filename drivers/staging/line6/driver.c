@@ -70,6 +70,8 @@ static const struct line6_properties line6_properties_table[] = {
 		.altsetting = 5,
 		.ep_ctrl_r = 0x84,
 		.ep_ctrl_w = 0x03,
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
 	},
 	[LINE6_BASSPODXTLIVE] = {
 		.id = "BassPODxtLive",
@@ -80,6 +82,8 @@ static const struct line6_properties line6_properties_table[] = {
 		.altsetting = 1,
 		.ep_ctrl_r = 0x84,
 		.ep_ctrl_w = 0x03,
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
 	},
 	[LINE6_BASSPODXTPRO] = {
 		.id = "BassPODxtPro",
@@ -90,6 +94,8 @@ static const struct line6_properties line6_properties_table[] = {
 		.altsetting = 5,
 		.ep_ctrl_r = 0x84,
 		.ep_ctrl_w = 0x03,
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
 	},
 	[LINE6_GUITARPORT] = {
 		.id = "GuitarPort",
@@ -97,6 +103,8 @@ static const struct line6_properties line6_properties_table[] = {
 		.capabilities	= LINE6_CAP_PCM,
 		.altsetting = 2,  /* 1..4 seem to be ok */
 		/* no control channel */
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
 	},
 	[LINE6_POCKETPOD] = {
 		.id = "PocketPOD",
@@ -105,6 +113,7 @@ static const struct line6_properties line6_properties_table[] = {
 		.altsetting = 0,
 		.ep_ctrl_r = 0x82,
 		.ep_ctrl_w = 0x02,
+		/* no audio channel */
 	},
 	[LINE6_PODHD300] = {
 		.id = "PODHD300",
@@ -115,6 +124,8 @@ static const struct line6_properties line6_properties_table[] = {
 		.altsetting = 5,
 		.ep_ctrl_r = 0x84,
 		.ep_ctrl_w = 0x03,
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
 	},
 	[LINE6_PODHD400] = {
 		.id = "PODHD400",
@@ -125,6 +136,8 @@ static const struct line6_properties line6_properties_table[] = {
 		.altsetting = 5,
 		.ep_ctrl_r = 0x84,
 		.ep_ctrl_w = 0x03,
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
 	},
 	[LINE6_PODHD500_0] = {
 		.id = "PODHD500",
@@ -135,6 +148,8 @@ static const struct line6_properties line6_properties_table[] = {
 		.altsetting = 1,
 		.ep_ctrl_r = 0x81,
 		.ep_ctrl_w = 0x01,
+		.ep_audio_r = 0x86,
+		.ep_audio_w = 0x02,
 	},
 	[LINE6_PODHD500_1] = {
 		.id = "PODHD500",
@@ -145,6 +160,8 @@ static const struct line6_properties line6_properties_table[] = {
 		.altsetting = 1,
 		.ep_ctrl_r = 0x81,
 		.ep_ctrl_w = 0x01,
+		.ep_audio_r = 0x86,
+		.ep_audio_w = 0x02,
 	},
 	[LINE6_PODSTUDIO_GX] = {
 		.id = "PODStudioGX",
@@ -152,6 +169,8 @@ static const struct line6_properties line6_properties_table[] = {
 		.capabilities	= LINE6_CAP_PCM,
 		.altsetting = 2,  /* 1..4 seem to be ok */
 		/* no control channel */
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
 	},
 	[LINE6_PODSTUDIO_UX1] = {
 		.id = "PODStudioUX1",
@@ -159,6 +178,8 @@ static const struct line6_properties line6_properties_table[] = {
 		.capabilities	= LINE6_CAP_PCM,
 		.altsetting = 2,  /* 1..4 seem to be ok */
 		/* no control channel */
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
 	},
 	[LINE6_PODSTUDIO_UX2] = {
 		.id = "PODStudioUX2",
@@ -166,6 +187,8 @@ static const struct line6_properties line6_properties_table[] = {
 		.capabilities	= LINE6_CAP_PCM,
 		.altsetting = 2,  /* defaults to 44.1kHz, 16-bit */
 		/* no control channel */
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
 	},
 	[LINE6_PODXT] = {
 		.id = "PODxt",
@@ -176,6 +199,8 @@ static const struct line6_properties line6_properties_table[] = {
 		.altsetting = 5,
 		.ep_ctrl_r = 0x84,
 		.ep_ctrl_w = 0x03,
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
 	},
 	[LINE6_PODXTLIVE_POD] = {
 		.id = "PODxtLive",
@@ -186,6 +211,8 @@ static const struct line6_properties line6_properties_table[] = {
 		.altsetting = 1,
 		.ep_ctrl_r = 0x84,
 		.ep_ctrl_w = 0x03,
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
 	},
 	[LINE6_PODXTLIVE_VARIAX] = {
 		.id = "PODxtLive",
@@ -196,6 +223,8 @@ static const struct line6_properties line6_properties_table[] = {
 		.altsetting = 1,
 		.ep_ctrl_r = 0x86,
 		.ep_ctrl_w = 0x05,
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
 	},
 	[LINE6_PODXTPRO] = {
 		.id = "PODxtPro",
@@ -206,6 +235,8 @@ static const struct line6_properties line6_properties_table[] = {
 		.altsetting = 5,
 		.ep_ctrl_r = 0x84,
 		.ep_ctrl_w = 0x03,
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
 	},
 	[LINE6_TONEPORT_GX] = {
 		.id = "TonePortGX",
@@ -213,6 +244,8 @@ static const struct line6_properties line6_properties_table[] = {
 		.capabilities	= LINE6_CAP_PCM,
 		.altsetting = 2,  /* 1..4 seem to be ok */
 		/* no control channel */
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
 	},
 	[LINE6_TONEPORT_UX1] = {
 		.id = "TonePortUX1",
@@ -220,6 +253,8 @@ static const struct line6_properties line6_properties_table[] = {
 		.capabilities	= LINE6_CAP_PCM,
 		.altsetting = 2,  /* 1..4 seem to be ok */
 		/* no control channel */
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
 	},
 	[LINE6_TONEPORT_UX2] = {
 		.id = "TonePortUX2",
@@ -227,6 +262,8 @@ static const struct line6_properties line6_properties_table[] = {
 		.capabilities	= LINE6_CAP_PCM,
 		.altsetting = 2,  /* defaults to 44.1kHz, 16-bit */
 		/* no control channel */
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
 	},
 	[LINE6_VARIAX] = {
 		.id = "Variax",
@@ -235,6 +272,7 @@ static const struct line6_properties line6_properties_table[] = {
 		.altsetting = 1,
 		.ep_ctrl_r = 0x82,
 		.ep_ctrl_w = 0x01,
+		/* no audio channel */
 	}
 };
 

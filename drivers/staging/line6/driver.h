@@ -120,6 +120,8 @@ struct line6_properties {
 
 	unsigned ep_ctrl_r;
 	unsigned ep_ctrl_w;
+	unsigned ep_audio_r;
+	unsigned ep_audio_w;
 };
 
 /**

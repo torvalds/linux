@@ -400,6 +400,7 @@ struct snd_pcm_ops snd_line6_capture_ops = {
 
 int line6_create_audio_in_urbs(struct snd_line6_pcm *line6pcm)
 {
+	struct usb_line6 *line6 = line6pcm->line6;
 	int i;
 
 	/* create audio URBs and fill in constant values: */
@@ -411,14 +412,14 @@ int line6_create_audio_in_urbs(struct snd_line6_pcm *line6pcm)
 		    usb_alloc_urb(LINE6_ISO_PACKETS, GFP_KERNEL);
 
 		if (urb == NULL) {
-			dev_err(line6pcm->line6->ifcdev, "Out of memory\n");
+			dev_err(line6->ifcdev, "Out of memory\n");
 			return -ENOMEM;
 		}
 
-		urb->dev = line6pcm->line6->usbdev;
+		urb->dev = line6->usbdev;
 		urb->pipe =
-		    usb_rcvisocpipe(line6pcm->line6->usbdev,
-				    line6pcm->ep_audio_read &
+		    usb_rcvisocpipe(line6->usbdev,
+				    line6->properties->ep_audio_r &
 				    USB_ENDPOINT_NUMBER_MASK);
 		urb->transfer_flags = URB_ISO_ASAP;
 		urb->start_frame = -1;

@@ -297,16 +297,6 @@ struct snd_line6_pcm {
 	int max_packet_size;
 
 	/**
-		 USB endpoint for listening to audio data.
-	*/
-	int ep_audio_read;
-
-	/**
-		 USB endpoint for writing audio data.
-	*/
-	int ep_audio_write;
-
-	/**
 		 Bit mask of active capture URBs.
 	*/
 	unsigned long active_urb_in;
