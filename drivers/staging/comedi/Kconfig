@@ -372,7 +372,7 @@ config COMEDI_DT2817
 
 config COMEDI_DT282X
 	tristate "Data Translation DT2821 series and DT-EZ ISA card support"
-	depends on VIRT_TO_BUS && ISA_DMA_API
+	depends on ISA_DMA_API
 	---help---
 	  Enable support for Data Translation DT2821 series including DT-EZ
 	  DT2821, DT2821-F-16SE, DT2821-F-8DI, DT2821-G-16SE, DT2821-G-8DI,

@@ -302,7 +302,8 @@ static const struct dt282x_board boardtypes[] = {
 
 struct dt282x_dma_desc {
 	unsigned int chan;	/* DMA channel */
-	unsigned short *virt_addr;	/* virtual address of DMA buffer */
+	void *virt_addr;	/* virtual address of DMA buffer */
+	dma_addr_t hw_addr;	/* hardware (bus) address of DMA buffer */
 	unsigned int size;	/* transfer size (in bytes) */
 };
 
@@ -344,7 +345,7 @@ static int dt282x_prep_ai_dma(struct comedi_device *dev, int dma_index, int n)
 	set_dma_mode(dma->chan, DMA_MODE_READ);
 	flags = claim_dma_lock();
 	clear_dma_ff(dma->chan);
-	set_dma_addr(dma->chan, virt_to_bus(dma->virt_addr));
+	set_dma_addr(dma->chan, dma->hw_addr);
 	set_dma_count(dma->chan, dma->size);
 	release_dma_lock(flags);
 
@@ -364,7 +365,7 @@ static int dt282x_prep_ao_dma(struct comedi_device *dev, int dma_index, int n)
 	set_dma_mode(dma->chan, DMA_MODE_WRITE);
 	flags = claim_dma_lock();
 	clear_dma_ff(dma->chan);
-	set_dma_addr(dma->chan, virt_to_bus(dma->virt_addr));
+	set_dma_addr(dma->chan, dma->hw_addr);
 	set_dma_count(dma->chan, dma->size);
 	release_dma_lock(flags);
 
@@ -1087,7 +1088,8 @@ static int dt282x_alloc_dma(struct comedi_device *dev,
 		struct dt282x_dma_desc *dma = &devpriv->dma_desc[i];
 
 		dma->chan = dma_chan[i];
-		dma->virt_addr = (void *)__get_free_page(GFP_KERNEL | GFP_DMA);
+		dma->virt_addr = dma_alloc_coherent(NULL, devpriv->dma_maxsize,
+						    &dma->hw_addr, GFP_KERNEL);
 		if (!dma->virt_addr)
 			return -ENOMEM;
 	}
@@ -1109,7 +1111,8 @@ static void dt282x_free_dma(struct comedi_device *dev)
 		if (dma->chan)
 			free_dma(dma->chan);
 		if (dma->virt_addr)
-			free_page((unsigned long)dma->virt_addr);
+			dma_free_coherent(NULL, devpriv->dma_maxsize,
+					  dma->virt_addr, dma->hw_addr);
 	}
 }
 
