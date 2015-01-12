@@ -439,6 +439,11 @@ static inline int timer_period(void)
 	return HZ / 20;
 }
 
+struct das16_dma_desc {
+	uint16_t *virt_addr;	/* virtual address of DMA buffer */
+	dma_addr_t hw_addr;	/* hardware (bus) address of DMA buffer */
+};
+
 struct das16_private_struct {
 	unsigned int		clockbase;
 	unsigned int		ctrl_reg;
@@ -446,9 +451,8 @@ struct das16_private_struct {
 	unsigned int		divisor1;
 	unsigned int		divisor2;
 	unsigned int		dma_chan;
-	uint16_t		*dma_buffer[2];
-	dma_addr_t		dma_buffer_addr[2];
-	unsigned int		current_buffer;
+	struct das16_dma_desc	dma_desc[2];
+	unsigned int		cur_dma;
 	unsigned int		dma_transfer_size;
 	struct comedi_lrange	*user_ai_range_table;
 	struct comedi_lrange	*user_ao_range_table;
@@ -528,11 +532,12 @@ static void das16_interrupt(struct comedi_device *dev)
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
+	struct das16_dma_desc *dma = &devpriv->dma_desc[devpriv->cur_dma];
+	struct das16_dma_desc *nxt_dma;
 	unsigned long spin_flags;
 	unsigned long dma_flags;
 	unsigned int nsamples;
 	int num_bytes, residue;
-	int buffer_index;
 
 	spin_lock_irqsave(&dev->spinlock, spin_flags);
 	if (!(devpriv->ctrl_reg & DAS16_CTRL_DMAE)) {
@@ -558,14 +563,13 @@ static void das16_interrupt(struct comedi_device *dev)
 		async->events |= COMEDI_CB_EOA;
 	}
 
-	buffer_index = devpriv->current_buffer;
-	devpriv->current_buffer = (devpriv->current_buffer + 1) % 2;
+	devpriv->cur_dma = 1 - devpriv->cur_dma;
 	devpriv->adc_byte_count -= num_bytes;
 
 	/*  re-enable  dma */
 	if ((async->events & COMEDI_CB_EOA) == 0) {
-		set_dma_addr(devpriv->dma_chan,
-			     devpriv->dma_buffer_addr[devpriv->current_buffer]);
+		nxt_dma = &devpriv->dma_desc[devpriv->cur_dma];
+		set_dma_addr(devpriv->dma_chan, nxt_dma->hw_addr);
 		set_dma_count(devpriv->dma_chan, devpriv->dma_transfer_size);
 		enable_dma(devpriv->dma_chan);
 	}
@@ -574,8 +578,7 @@ static void das16_interrupt(struct comedi_device *dev)
 	spin_unlock_irqrestore(&dev->spinlock, spin_flags);
 
 	nsamples = comedi_bytes_to_samples(s, num_bytes);
-	comedi_buf_write_samples(s, devpriv->dma_buffer[buffer_index],
-				 nsamples);
+	comedi_buf_write_samples(s, dma->virt_addr, nsamples);
 
 	comedi_handle_events(dev, s);
 }
@@ -746,6 +749,7 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	const struct das16_board *board = dev->board_ptr;
 	struct das16_private_struct *devpriv = dev->private;
+	struct das16_dma_desc *dma = &devpriv->dma_desc[0];
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int byte;
@@ -800,9 +804,8 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* clear flip-flop to make sure 2-byte registers for
 	 * count and address get set correctly */
 	clear_dma_ff(devpriv->dma_chan);
-	devpriv->current_buffer = 0;
-	set_dma_addr(devpriv->dma_chan,
-		     devpriv->dma_buffer_addr[devpriv->current_buffer]);
+	devpriv->cur_dma = 0;
+	set_dma_addr(devpriv->dma_chan, dma->hw_addr);
 	devpriv->dma_transfer_size = DAS16_DMA_SIZE;
 	set_dma_count(devpriv->dma_chan, devpriv->dma_transfer_size);
 	enable_dma(devpriv->dma_chan);
@@ -1067,13 +1070,13 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 		/* allocate dma buffers */
 		for (i = 0; i < 2; i++) {
-			void *p;
+			struct das16_dma_desc *dma = &devpriv->dma_desc[i];
 
-			p = pci_alloc_consistent(NULL, DAS16_DMA_SIZE,
-						 &devpriv->dma_buffer_addr[i]);
-			if (!p)
+			dma->virt_addr = pci_alloc_consistent(NULL,
+							      DAS16_DMA_SIZE,
+							      &dma->hw_addr);
+			if (!dma->virt_addr)
 				return -ENOMEM;
-			devpriv->dma_buffer[i] = p;
 		}
 
 		flags = claim_dma_lock();
@@ -1219,6 +1222,7 @@ static void das16_detach(struct comedi_device *dev)
 {
 	const struct das16_board *board = dev->board_ptr;
 	struct das16_private_struct *devpriv = dev->private;
+	struct das16_dma_desc *dma;
 	int i;
 
 	if (devpriv) {
@@ -1228,11 +1232,11 @@ static void das16_detach(struct comedi_device *dev)
 			das16_reset(dev);
 
 		for (i = 0; i < 2; i++) {
-			if (devpriv->dma_buffer[i])
+			dma = &devpriv->dma_desc[i];
+			if (dma->virt_addr)
 				pci_free_consistent(NULL, DAS16_DMA_SIZE,
-						    devpriv->dma_buffer[i],
-						    devpriv->
-						    dma_buffer_addr[i]);
+						    dma->virt_addr,
+						    dma->hw_addr);
 		}
 		if (devpriv->dma_chan)
 			free_dma(devpriv->dma_chan);
