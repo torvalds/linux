@@ -328,16 +328,16 @@ static int mc13783_set_tdm_slot_dac(struct snd_soc_dai *dai,
 	}
 
 	switch (rx_mask) {
-	case 0xfffffffc:
+	case 0x03:
 		val |= SSI_NETWORK_DAC_RXSLOT_0_1;
 		break;
-	case 0xfffffff3:
+	case 0x0c:
 		val |= SSI_NETWORK_DAC_RXSLOT_2_3;
 		break;
-	case 0xffffffcf:
+	case 0x30:
 		val |= SSI_NETWORK_DAC_RXSLOT_4_5;
 		break;
-	case 0xffffff3f:
+	case 0xc0:
 		val |= SSI_NETWORK_DAC_RXSLOT_6_7;
 		break;
 	default:
@@ -360,7 +360,7 @@ static int mc13783_set_tdm_slot_codec(struct snd_soc_dai *dai,
 	if (slots != 4)
 		return -EINVAL;
 
-	if (tx_mask != 0xfffffffc)
+	if (tx_mask != 0x3)
 		return -EINVAL;
 
 	val |= (0x00 << 2);	/* primary timeslot RX/TX(?) is 0 */
