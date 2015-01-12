@@ -87,4 +87,6 @@ config ARM_EXYNOS5_BUS_DEVFREQ
 	  It reads PPMU counters of memory controllers and adjusts the
 	  operating frequencies and voltages with OPP support.
 
+source "drivers/devfreq/event/Kconfig"
+
 endif # PM_DEVFREQ
