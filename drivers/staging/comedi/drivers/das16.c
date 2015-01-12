@@ -1028,6 +1028,24 @@ static int das16_alloc_dma(struct comedi_device *dev, unsigned int dma_chan)
 	return 0;
 }
 
+static void das16_free_dma(struct comedi_device *dev)
+{
+	struct das16_private_struct *devpriv = dev->private;
+	struct das16_dma_desc *dma;
+	int i;
+
+	if (devpriv->timer.data)
+		del_timer_sync(&devpriv->timer);
+	for (i = 0; i < 2; i++) {
+		dma = &devpriv->dma_desc[i];
+		if (dma->virt_addr)
+			pci_free_consistent(NULL, DAS16_DMA_SIZE,
+					    dma->virt_addr, dma->hw_addr);
+	}
+	if (devpriv->dma_chan)
+		free_dma(devpriv->dma_chan);
+}
+
 static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct das16_board *board = dev->board_ptr;
@@ -1226,24 +1244,11 @@ static void das16_detach(struct comedi_device *dev)
 {
 	const struct das16_board *board = dev->board_ptr;
 	struct das16_private_struct *devpriv = dev->private;
-	struct das16_dma_desc *dma;
-	int i;
 
 	if (devpriv) {
-		if (devpriv->timer.data)
-			del_timer_sync(&devpriv->timer);
 		if (dev->iobase)
 			das16_reset(dev);
-
-		for (i = 0; i < 2; i++) {
-			dma = &devpriv->dma_desc[i];
-			if (dma->virt_addr)
-				pci_free_consistent(NULL, DAS16_DMA_SIZE,
-						    dma->virt_addr,
-						    dma->hw_addr);
-		}
-		if (devpriv->dma_chan)
-			free_dma(devpriv->dma_chan);
+		das16_free_dma(dev);
 		kfree(devpriv->user_ai_range_table);
 		kfree(devpriv->user_ao_range_table);
 
