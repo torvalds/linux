@@ -31,6 +31,7 @@
 #define DRIVER_VERSION "0.9.1beta" DRIVER_REVISION
 
 #define LINE6_DEVICE(prod) USB_DEVICE(0x0e41, prod)
+#define LINE6_IF_NUM(prod, n) USB_DEVICE_INTERFACE_NUMBER(0x0e41, prod, n)
 
 /* table of devices that work with this driver */
 static const struct usb_device_id line6_id_table[] = {
@@ -46,7 +47,8 @@ static const struct usb_device_id line6_id_table[] = {
 	{ LINE6_DEVICE(0x4150),    .driver_info = LINE6_PODSTUDIO_UX1 },
 	{ LINE6_DEVICE(0x4151),    .driver_info = LINE6_PODSTUDIO_UX2 },
 	{ LINE6_DEVICE(0x5044),    .driver_info = LINE6_PODXT },
-	{ LINE6_DEVICE(0x4650),    .driver_info = LINE6_PODXTLIVE },
+	{ LINE6_IF_NUM(0x4650, 0), .driver_info = LINE6_PODXTLIVE_POD },
+	{ LINE6_IF_NUM(0x4650, 1), .driver_info = LINE6_PODXTLIVE_VARIAX },
 	{ LINE6_DEVICE(0x5050),    .driver_info = LINE6_PODXTPRO },
 	{ LINE6_DEVICE(0x4147),    .driver_info = LINE6_TONEPORT_GX },
 	{ LINE6_DEVICE(0x4141),    .driver_info = LINE6_TONEPORT_UX1 },
@@ -132,7 +134,14 @@ static const struct line6_properties line6_properties_table[] = {
 				| LINE6_CAP_PCM
 				| LINE6_CAP_HWMON,
 	},
-	[LINE6_PODXTLIVE] = {
+	[LINE6_PODXTLIVE_POD] = {
+		.id = "PODxtLive",
+		.name = "PODxt Live",
+		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_PCM
+				| LINE6_CAP_HWMON,
+	},
+	[LINE6_PODXTLIVE_VARIAX] = {
 		.id = "PODxtLive",
 		.name = "PODxt Live",
 		.capabilities	= LINE6_CAP_CONTROL
@@ -445,24 +454,15 @@ static void line6_data_received(struct urb *urb)
 		case LINE6_PODHD500:
 			break; /* let userspace handle MIDI */
 
-		case LINE6_PODXTLIVE:
-			switch (line6->interface_number) {
-			case PODXTLIVE_INTERFACE_POD:
-				line6_pod_process_message((struct usb_line6_pod
+		case LINE6_PODXTLIVE_POD:
+			line6_pod_process_message((struct usb_line6_pod
 							   *)line6);
-				break;
+			break;
 
-			case PODXTLIVE_INTERFACE_VARIAX:
-				line6_variax_process_message((struct
-							      usb_line6_variax
-							      *)line6);
-				break;
-
-			default:
-				dev_err(line6->ifcdev,
-					"PODxt Live interface %d not supported\n",
-					line6->interface_number);
-			}
+		case LINE6_PODXTLIVE_VARIAX:
+			line6_variax_process_message((struct
+						      usb_line6_variax
+						      *)line6);
 			break;
 
 		case LINE6_VARIAX:
@@ -722,7 +722,8 @@ static int line6_probe(struct usb_interface *interface,
 
 	switch (devtype) {
 	case LINE6_BASSPODXTLIVE:
-	case LINE6_PODXTLIVE:
+	case LINE6_PODXTLIVE_POD:
+	case LINE6_PODXTLIVE_VARIAX:
 	case LINE6_VARIAX:
 		alternate = 1;
 		break;
@@ -841,24 +842,16 @@ static int line6_probe(struct usb_interface *interface,
 		/* these don't have a control channel */
 		break;
 
-	case LINE6_PODXTLIVE:
-		switch (interface_number) {
-		case PODXTLIVE_INTERFACE_POD:
-			size = sizeof(struct usb_line6_pod);
-			ep_read = 0x84;
-			ep_write = 0x03;
-			break;
+	case LINE6_PODXTLIVE_POD:
+		size = sizeof(struct usb_line6_pod);
+		ep_read = 0x84;
+		ep_write = 0x03;
+		break;
 
-		case PODXTLIVE_INTERFACE_VARIAX:
-			size = sizeof(struct usb_line6_variax);
-			ep_read = 0x86;
-			ep_write = 0x05;
-			break;
-
-		default:
-			ret = -ENODEV;
-			goto err_put;
-		}
+	case LINE6_PODXTLIVE_VARIAX:
+		size = sizeof(struct usb_line6_variax);
+		ep_read = 0x86;
+		ep_write = 0x05;
 		break;
 
 	case LINE6_VARIAX:
@@ -887,7 +880,6 @@ static int line6_probe(struct usb_interface *interface,
 	}
 
 	/* store basic data: */
-	line6->interface_number = interface_number;
 	line6->properties = properties;
 	line6->usbdev = usbdev;
 	line6->ifcdev = &interface->dev;
@@ -967,27 +959,16 @@ static int line6_probe(struct usb_interface *interface,
 				       (struct usb_line6_podhd *)line6);
 		break;
 
-	case LINE6_PODXTLIVE:
-		switch (interface_number) {
-		case PODXTLIVE_INTERFACE_POD:
-			ret =
-			    line6_pod_init(interface,
-					   (struct usb_line6_pod *)line6);
-			break;
+	case LINE6_PODXTLIVE_POD:
+		ret =
+		    line6_pod_init(interface,
+				   (struct usb_line6_pod *)line6);
+		break;
 
-		case PODXTLIVE_INTERFACE_VARIAX:
-			ret =
-			    line6_variax_init(interface,
-					      (struct usb_line6_variax *)line6);
-			break;
-
-		default:
-			dev_err(&interface->dev,
-				"PODxt Live interface %d not supported\n",
-				interface_number);
-			ret = -ENODEV;
-		}
-
+	case LINE6_PODXTLIVE_VARIAX:
+		ret =
+		    line6_variax_init(interface,
+				      (struct usb_line6_variax *)line6);
 		break;
 
 	case LINE6_VARIAX:
@@ -1084,17 +1065,12 @@ static void line6_disconnect(struct usb_interface *interface)
 			line6_podhd_disconnect(interface);
 			break;
 
-		case LINE6_PODXTLIVE:
-			switch (interface_number) {
-			case PODXTLIVE_INTERFACE_POD:
-				line6_pod_disconnect(interface);
-				break;
+		case LINE6_PODXTLIVE_POD:
+			line6_pod_disconnect(interface);
+			break;
 
-			case PODXTLIVE_INTERFACE_VARIAX:
-				line6_variax_disconnect(interface);
-				break;
-			}
-
+		case LINE6_PODXTLIVE_VARIAX:
+			line6_variax_disconnect(interface);
 			break;
 
 		case LINE6_VARIAX:

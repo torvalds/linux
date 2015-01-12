@@ -21,12 +21,6 @@
 #include "driver.h"
 
 /*
-	PODxt Live interfaces
-*/
-#define PODXTLIVE_INTERFACE_POD    0
-#define PODXTLIVE_INTERFACE_VARIAX 1
-
-/*
 	Locate name in binary program dump
 */
 #define	POD_NAME_OFFSET 0

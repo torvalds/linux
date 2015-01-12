@@ -33,7 +33,8 @@ enum line6_device_type {
 	LINE6_PODSTUDIO_UX1,
 	LINE6_PODSTUDIO_UX2,
 	LINE6_PODXT,
-	LINE6_PODXTLIVE,
+	LINE6_PODXTLIVE_POD,
+	LINE6_PODXTLIVE_VARIAX,
 	LINE6_PODXTPRO,
 	LINE6_TONEPORT_GX,
 	LINE6_TONEPORT_UX1,
@@ -134,11 +135,6 @@ struct usb_line6 {
 		 Properties.
 	*/
 	const struct line6_properties *properties;
-
-	/**
-		 Interface number.
-	*/
-	int interface_number;
 
 	/**
 		 Interval (ms).
