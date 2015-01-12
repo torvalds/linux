@@ -5,7 +5,7 @@
  *
  * Hwmon integration:
  * Copyright (C) 2011  Jean Delvare <jdelvare@suse.de>
- * Copyright (C) 2013  Guenter Roeck <linux@roeck-us.net>
+ * Copyright (C) 2013, 2014  Guenter Roeck <linux@roeck-us.net>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,6 +20,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/init.h>
@@ -58,8 +59,6 @@
 
 #define I8K_POWER_AC		0x05
 #define I8K_POWER_BATTERY	0x01
-
-#define I8K_TEMPERATURE_BUG	1
 
 static DEFINE_MUTEX(i8k_mutex);
 static char bios_version[4];
@@ -300,39 +299,41 @@ static int i8k_get_temp_type(int sensor)
 /*
  * Read the cpu temperature.
  */
+static int _i8k_get_temp(int sensor)
+{
+	struct smm_regs regs = {
+		.eax = I8K_SMM_GET_TEMP,
+		.ebx = sensor & 0xff,
+	};
+
+	return i8k_smm(&regs) ? : regs.eax & 0xff;
+}
+
 static int i8k_get_temp(int sensor)
 {
-	struct smm_regs regs = { .eax = I8K_SMM_GET_TEMP, };
-	int rc;
-	int temp;
+	int temp = _i8k_get_temp(sensor);
 
-#ifdef I8K_TEMPERATURE_BUG
-	static int prev[4] = { I8K_MAX_TEMP+1, I8K_MAX_TEMP+1, I8K_MAX_TEMP+1, I8K_MAX_TEMP+1 };
-#endif
-	regs.ebx = sensor & 0xff;
-	rc = i8k_smm(&regs);
-	if (rc < 0)
-		return rc;
-
-	temp = regs.eax & 0xff;
-
-#ifdef I8K_TEMPERATURE_BUG
 	/*
 	 * Sometimes the temperature sensor returns 0x99, which is out of range.
-	 * In this case we return (once) the previous cached value. For example:
+	 * In this case we retry (once) before returning an error.
 	 # 1003655137 00000058 00005a4b
 	 # 1003655138 00000099 00003a80 <--- 0x99 = 153 degrees
 	 # 1003655139 00000054 00005c52
 	 */
-	if (temp > I8K_MAX_TEMP) {
-		temp = prev[sensor];
-		prev[sensor] = I8K_MAX_TEMP+1;
-	} else {
-		prev[sensor] = temp;
+	if (temp == 0x99) {
+		msleep(100);
+		temp = _i8k_get_temp(sensor);
 	}
+	/*
+	 * Return -ENODATA for all invalid temperatures.
+	 *
+	 * Known instances are the 0x99 value as seen above as well as
+	 * 0xc1 (193), which may be returned when trying to read the GPU
+	 * temperature if the system supports a GPU and it is currently
+	 * turned off.
+	 */
 	if (temp > I8K_MAX_TEMP)
 		return -ENODATA;
-#endif
 
 	return temp;
 }
