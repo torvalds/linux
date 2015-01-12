@@ -370,9 +370,6 @@ static ssize_t ina226_set_interval(struct device *dev,
 	unsigned long val;
 	int status;
 
-	if (IS_ERR(data))
-		return PTR_ERR(data);
-
 	status = kstrtoul(buf, 10, &val);
 	if (status < 0)
 		return status;
