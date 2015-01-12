@@ -2392,9 +2392,17 @@ _scsih_host_reset(struct scsi_cmnd *scmd)
 	    ioc->name, scmd);
 	scsi_print_command(scmd);
 
+	if (ioc->is_driver_loading) {
+		pr_info(MPT3SAS_FMT "Blocking the host reset\n",
+		    ioc->name);
+		r = FAILED;
+		goto out;
+	}
+
 	retval = mpt3sas_base_hard_reset_handler(ioc, CAN_SLEEP,
 	    FORCE_BIG_HAMMER);
 	r = (retval < 0) ? FAILED : SUCCESS;
+out:
 	pr_info(MPT3SAS_FMT "host reset: %s scmd(%p)\n",
 	    ioc->name, ((r == SUCCESS) ? "SUCCESS" : "FAILED"), scmd);
 
