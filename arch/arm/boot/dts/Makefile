@@ -98,6 +98,7 @@ dtb-$(CONFIG_ARCH_EXYNOS) += exynos3250-monk.dtb \
 	exynos5420-arndale-octa.dtb \
 	exynos5420-peach-pit.dtb \
 	exynos5420-smdk5420.dtb \
+	exynos5422-odroidxu3.dtb \
 	exynos5440-sd5v1.dtb \
 	exynos5440-ssdk5440.dtb \
 	exynos5800-peach-pi.dtb
