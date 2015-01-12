@@ -131,8 +131,9 @@ static char *pod_alloc_sysex_buffer(struct usb_line6_pod *pod, int code,
 /*
 	Process a completely received message.
 */
-void line6_pod_process_message(struct usb_line6_pod *pod)
+void line6_pod_process_message(struct usb_line6 *line6)
 {
+	struct usb_line6_pod *pod = (struct usb_line6_pod *) line6;
 	const unsigned char *buf = pod->line6.buffer_message;
 
 	if (memcmp(buf, pod_version_header, sizeof(pod_version_header)) == 0) {

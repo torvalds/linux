@@ -544,8 +544,7 @@ static void line6_data_received(struct urb *urb)
 		case LINE6_PODXT:
 		case LINE6_PODXTPRO:
 		case LINE6_POCKETPOD:
-			line6_pod_process_message((struct usb_line6_pod *)
-						  line6);
+			line6_pod_process_message(line6);
 			break;
 
 		case LINE6_PODHD300:
@@ -555,19 +554,15 @@ static void line6_data_received(struct urb *urb)
 			break; /* let userspace handle MIDI */
 
 		case LINE6_PODXTLIVE_POD:
-			line6_pod_process_message((struct usb_line6_pod
-							   *)line6);
+			line6_pod_process_message(line6);
 			break;
 
 		case LINE6_PODXTLIVE_VARIAX:
-			line6_variax_process_message((struct
-						      usb_line6_variax
-						      *)line6);
+			line6_variax_process_message(line6);
 			break;
 
 		case LINE6_VARIAX:
-			line6_variax_process_message((struct usb_line6_variax *)
-						     line6);
+			line6_variax_process_message(line6);
 			break;
 
 		default:

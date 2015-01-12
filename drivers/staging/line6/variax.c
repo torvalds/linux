@@ -130,8 +130,9 @@ static void variax_startup6(struct work_struct *work)
 /*
 	Process a completely received message.
 */
-void line6_variax_process_message(struct usb_line6_variax *variax)
+void line6_variax_process_message(struct usb_line6 *line6)
 {
+	struct usb_line6_variax *variax = (struct usb_line6_variax *) line6;
 	const unsigned char *buf = variax->line6.buffer_message;
 
 	switch (buf[0]) {
