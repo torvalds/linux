@@ -270,22 +270,19 @@ static bool intel_psr_match_conditions(struct intel_dp *intel_dp)
 		return false;
 	}
 
-	/* Below limitations aren't valid for Broadwell */
-	if (IS_BROADWELL(dev))
-		goto out;
-
-	if (I915_READ(HSW_STEREO_3D_CTL(intel_crtc->config.cpu_transcoder)) &
-	    S3D_ENABLE) {
+	if (IS_HASWELL(dev) &&
+	    I915_READ(HSW_STEREO_3D_CTL(intel_crtc->config.cpu_transcoder)) &
+		      S3D_ENABLE) {
 		DRM_DEBUG_KMS("PSR condition failed: Stereo 3D is Enabled\n");
 		return false;
 	}
 
-	if (intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE) {
+	if (IS_HASWELL(dev) &&
+	    intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE) {
 		DRM_DEBUG_KMS("PSR condition failed: Interlaced is Enabled\n");
 		return false;
 	}
 
- out:
 	dev_priv->psr.source_ok = true;
 	return true;
 }
