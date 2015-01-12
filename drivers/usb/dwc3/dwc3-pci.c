@@ -156,45 +156,11 @@ static const struct pci_device_id dwc3_pci_id_table[] = {
 };
 MODULE_DEVICE_TABLE(pci, dwc3_pci_id_table);
 
-#ifdef CONFIG_PM_SLEEP
-static int dwc3_pci_suspend(struct device *dev)
-{
-	struct pci_dev	*pci = to_pci_dev(dev);
-
-	pci_disable_device(pci);
-
-	return 0;
-}
-
-static int dwc3_pci_resume(struct device *dev)
-{
-	struct pci_dev	*pci = to_pci_dev(dev);
-	int		ret;
-
-	ret = pci_enable_device(pci);
-	if (ret) {
-		dev_err(dev, "can't re-enable device --> %d\n", ret);
-		return ret;
-	}
-
-	pci_set_master(pci);
-
-	return 0;
-}
-#endif /* CONFIG_PM_SLEEP */
-
-static const struct dev_pm_ops dwc3_pci_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(dwc3_pci_suspend, dwc3_pci_resume)
-};
-
 static struct pci_driver dwc3_pci_driver = {
 	.name		= "dwc3-pci",
 	.id_table	= dwc3_pci_id_table,
 	.probe		= dwc3_pci_probe,
 	.remove		= dwc3_pci_remove,
-	.driver		= {
-		.pm	= &dwc3_pci_dev_pm_ops,
-	},
 };
 
 MODULE_AUTHOR("Felipe Balbi <balbi@ti.com>");
