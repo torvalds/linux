@@ -797,9 +797,10 @@ static int __maybe_unused
 	return 0;
 }
 
-static int rk3368_win_area_check_var(int win_id, int area_num,
-				     struct rk_lcdc_win_area *area_pre,
-				     struct rk_lcdc_win_area *area_now)
+static int __maybe_unused
+rk3368_win_area_check_var(int win_id, int area_num,
+			  struct rk_lcdc_win_area *area_pre,
+			  struct rk_lcdc_win_area *area_now)
 {
 	if ((area_pre->xpos > area_now->xpos) ||
 	    ((area_pre->xpos + area_pre->xsize > area_now->xpos) &&
@@ -1182,14 +1183,15 @@ static int rk3368_win_2_3_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 		}
 		/*area 1 */
 		if (win->area[1].state == 1) {
-			rk3368_win_area_check_var(win_id, 1,
+			/*rk3368_win_area_check_var(win_id, 1,
 						  &win->area[0], &win->area[1]);
+			*/
 
 			mask = m_WIN2_MST1_EN | m_WIN2_DATA_FMT1 |
 			    m_WIN2_RB_SWAP1;
 			val = v_WIN2_MST1_EN(win->area[1].state) |
-			    v_WIN2_DATA_FMT0(win->area[1].fmt_cfg) |
-			    v_WIN2_RB_SWAP0(win->area[1].swap_rb);
+			    v_WIN2_DATA_FMT1(win->area[1].fmt_cfg) |
+			    v_WIN2_RB_SWAP1(win->area[1].swap_rb);
 			lcdc_msk_reg(lcdc_dev, WIN2_CTRL0 + off, mask, val);
 
 			mask = m_WIN2_VIR_STRIDE1;
@@ -1211,14 +1213,15 @@ static int rk3368_win_2_3_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 		}
 		/*area 2 */
 		if (win->area[2].state == 1) {
-			rk3368_win_area_check_var(win_id, 2,
+			/*rk3368_win_area_check_var(win_id, 2,
 						  &win->area[1], &win->area[2]);
+			*/
 
 			mask = m_WIN2_MST2_EN | m_WIN2_DATA_FMT2 |
 			    m_WIN2_RB_SWAP2;
 			val = v_WIN2_MST2_EN(win->area[2].state) |
-			    v_WIN2_DATA_FMT0(win->area[2].fmt_cfg) |
-			    v_WIN2_RB_SWAP0(win->area[2].swap_rb);
+			    v_WIN2_DATA_FMT2(win->area[2].fmt_cfg) |
+			    v_WIN2_RB_SWAP2(win->area[2].swap_rb);
 			lcdc_msk_reg(lcdc_dev, WIN2_CTRL0 + off, mask, val);
 
 			mask = m_WIN2_VIR_STRIDE2;
@@ -1240,14 +1243,15 @@ static int rk3368_win_2_3_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 		}
 		/*area 3 */
 		if (win->area[3].state == 1) {
-			rk3368_win_area_check_var(win_id, 3,
+			/*rk3368_win_area_check_var(win_id, 3,
 						  &win->area[2], &win->area[3]);
+			*/
 
 			mask = m_WIN2_MST3_EN | m_WIN2_DATA_FMT3 |
 			    m_WIN2_RB_SWAP3;
 			val = v_WIN2_MST3_EN(win->area[3].state) |
-			    v_WIN2_DATA_FMT0(win->area[3].fmt_cfg) |
-			    v_WIN2_RB_SWAP0(win->area[3].swap_rb);
+			    v_WIN2_DATA_FMT3(win->area[3].fmt_cfg) |
+			    v_WIN2_RB_SWAP3(win->area[3].swap_rb);
 			lcdc_msk_reg(lcdc_dev, WIN2_CTRL0 + off, mask, val);
 
 			mask = m_WIN2_VIR_STRIDE3;
@@ -3256,10 +3260,10 @@ static ssize_t rk3368_lcdc_get_disp_info(struct rk_lcdc_driver *dev_drv,
 		/*WIN2 */
 		win_ctrl = lcdc_readl(lcdc_dev, WIN2_CTRL0);
 		w2_state = win_ctrl & m_WIN2_EN;
-		w2_0_state = (win_ctrl & m_WIN2_MST0_EN) >> 4;
-		w2_1_state = (win_ctrl & m_WIN2_MST1_EN) >> 5;
-		w2_2_state = (win_ctrl & m_WIN2_MST2_EN) >> 6;
-		w2_3_state = (win_ctrl & m_WIN2_MST3_EN) >> 7;
+		w2_0_state = (win_ctrl & 0x10) >> 4;
+		w2_1_state = (win_ctrl & 0x100) >> 8;
+		w2_2_state = (win_ctrl & 0x1000) >> 12;
+		w2_3_state = (win_ctrl & 0x10000) >> 16;
 		vir_info = lcdc_readl(lcdc_dev, WIN2_VIR0_1);
 		w2_0_vir_y = vir_info & m_WIN2_VIR_STRIDE0;
 		w2_1_vir_y = (vir_info & m_WIN2_VIR_STRIDE1) >> 16;
@@ -3313,9 +3317,9 @@ static ssize_t rk3368_lcdc_get_disp_info(struct rk_lcdc_driver *dev_drv,
 		win_ctrl = lcdc_readl(lcdc_dev, WIN3_CTRL0);
 		w3_state = win_ctrl & m_WIN3_EN;
 		w3_0_state = (win_ctrl & m_WIN3_MST0_EN) >> 4;
-		w3_1_state = (win_ctrl & m_WIN3_MST1_EN) >> 5;
-		w3_2_state = (win_ctrl & m_WIN3_MST2_EN) >> 6;
-		w3_3_state = (win_ctrl & m_WIN3_MST3_EN) >> 7;
+		w3_1_state = (win_ctrl & m_WIN3_MST1_EN) >> 8;
+		w3_2_state = (win_ctrl & m_WIN3_MST2_EN) >> 12;
+		w3_3_state = (win_ctrl & m_WIN3_MST3_EN) >> 16;
 		vir_info = lcdc_readl(lcdc_dev, WIN3_VIR0_1);
 		w3_0_vir_y = vir_info & m_WIN3_VIR_STRIDE0;
 		w3_1_vir_y = (vir_info & m_WIN3_VIR_STRIDE1) >> 16;
