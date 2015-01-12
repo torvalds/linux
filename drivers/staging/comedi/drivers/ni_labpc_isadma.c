@@ -60,22 +60,23 @@ static unsigned int labpc_suggest_transfer_size(const struct comedi_cmd *cmd)
 void labpc_setup_dma(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct labpc_private *devpriv = dev->private;
+	struct labpc_dma_desc *dma = &devpriv->dma_desc;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned long irq_flags;
 
 	irq_flags = claim_dma_lock();
-	disable_dma(devpriv->dma_chan);
+	disable_dma(dma->chan);
 	/* clear flip-flop to make sure 2-byte registers for
 	 * count and address get set correctly */
-	clear_dma_ff(devpriv->dma_chan);
-	set_dma_addr(devpriv->dma_chan, devpriv->dma_addr);
+	clear_dma_ff(dma->chan);
+	set_dma_addr(dma->chan, dma->hw_addr);
 	/* set appropriate size of transfer */
-	devpriv->dma_transfer_size = labpc_suggest_transfer_size(cmd);
+	dma->size = labpc_suggest_transfer_size(cmd);
 	if (cmd->stop_src == TRIG_COUNT &&
-	    devpriv->count * sample_size < devpriv->dma_transfer_size)
-		devpriv->dma_transfer_size = devpriv->count * sample_size;
-	set_dma_count(devpriv->dma_chan, devpriv->dma_transfer_size);
-	enable_dma(devpriv->dma_chan);
+	    devpriv->count * sample_size < dma->size)
+		dma->size = devpriv->count * sample_size;
+	set_dma_count(dma->chan, dma->size);
+	enable_dma(dma->chan);
 	release_dma_lock(irq_flags);
 	/* set CMD3 bits for caller to enable DMA and interrupt */
 	devpriv->cmd3 |= (CMD3_DMAEN | CMD3_DMATCINTEN);
@@ -85,6 +86,7 @@ EXPORT_SYMBOL_GPL(labpc_setup_dma);
 void labpc_drain_dma(struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
+	struct labpc_dma_desc *dma = &devpriv->dma_desc;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
@@ -95,18 +97,18 @@ void labpc_drain_dma(struct comedi_device *dev)
 	status = devpriv->stat1;
 
 	flags = claim_dma_lock();
-	disable_dma(devpriv->dma_chan);
+	disable_dma(dma->chan);
 	/* clear flip-flop to make sure 2-byte registers for
 	 * count and address get set correctly */
-	clear_dma_ff(devpriv->dma_chan);
+	clear_dma_ff(dma->chan);
 
 	/* figure out how many points to read */
-	max_points = devpriv->dma_transfer_size / sample_size;
+	max_points = dma->size / sample_size;
 	/* residue is the number of points left to be done on the dma
 	 * transfer.  It should always be zero at this point unless
 	 * the stop_src is set to external triggering.
 	 */
-	residue = get_dma_residue(devpriv->dma_chan) / sample_size;
+	residue = get_dma_residue(dma->chan) / sample_size;
 	num_points = max_points - residue;
 	if (cmd->stop_src == TRIG_COUNT && devpriv->count < num_points)
 		num_points = devpriv->count;
@@ -114,21 +116,21 @@ void labpc_drain_dma(struct comedi_device *dev)
 	/* figure out how many points will be stored next time */
 	leftover = 0;
 	if (cmd->stop_src != TRIG_COUNT) {
-		leftover = devpriv->dma_transfer_size / sample_size;
+		leftover = dma->size / sample_size;
 	} else if (devpriv->count > num_points) {
 		leftover = devpriv->count - num_points;
 		if (leftover > max_points)
 			leftover = max_points;
 	}
 
-	comedi_buf_write_samples(s, devpriv->dma_buffer, num_points);
+	comedi_buf_write_samples(s, dma->virt_addr, num_points);
 
 	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->count -= num_points;
 
 	/* set address and count for next transfer */
-	set_dma_addr(devpriv->dma_chan, devpriv->dma_addr);
-	set_dma_count(devpriv->dma_chan, leftover * sample_size);
+	set_dma_addr(dma->chan, dma->hw_addr);
+	set_dma_count(dma->chan, leftover * sample_size);
 	release_dma_lock(flags);
 }
 EXPORT_SYMBOL_GPL(labpc_drain_dma);
@@ -136,10 +138,11 @@ EXPORT_SYMBOL_GPL(labpc_drain_dma);
 static void handle_isa_dma(struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
+	struct labpc_dma_desc *dma = &devpriv->dma_desc;
 
 	labpc_drain_dma(dev);
 
-	enable_dma(devpriv->dma_chan);
+	enable_dma(dma->chan);
 
 	/* clear dma tc interrupt */
 	devpriv->write_byte(dev, 0x1, DMATC_CLEAR_REG);
@@ -163,6 +166,7 @@ EXPORT_SYMBOL_GPL(labpc_handle_dma_status);
 int labpc_init_dma_chan(struct comedi_device *dev, unsigned int dma_chan)
 {
 	struct labpc_private *devpriv = dev->private;
+	struct labpc_dma_desc *dma = &devpriv->dma_desc;
 	void *dma_buffer;
 	unsigned long dma_flags;
 	int ret;
@@ -180,13 +184,13 @@ int labpc_init_dma_chan(struct comedi_device *dev, unsigned int dma_chan)
 		return ret;
 	}
 
-	devpriv->dma_buffer = dma_buffer;
-	devpriv->dma_chan = dma_chan;
-	devpriv->dma_addr = virt_to_bus(devpriv->dma_buffer);
+	dma->virt_addr = dma_buffer;
+	dma->chan = dma_chan;
+	dma->hw_addr = virt_to_bus(dma->virt_addr);
 
 	dma_flags = claim_dma_lock();
-	disable_dma(devpriv->dma_chan);
-	set_dma_mode(devpriv->dma_chan, DMA_MODE_READ);
+	disable_dma(dma->chan);
+	set_dma_mode(dma->chan, DMA_MODE_READ);
 	release_dma_lock(dma_flags);
 
 	return 0;
@@ -196,13 +200,11 @@ EXPORT_SYMBOL_GPL(labpc_init_dma_chan);
 void labpc_free_dma_chan(struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
+	struct labpc_dma_desc *dma = &devpriv->dma_desc;
 
-	kfree(devpriv->dma_buffer);
-	devpriv->dma_buffer = NULL;
-	if (devpriv->dma_chan) {
-		free_dma(devpriv->dma_chan);
-		devpriv->dma_chan = 0;
-	}
+	kfree(dma->virt_addr);
+	if (dma->chan)
+		free_dma(dma->chan);
 }
 EXPORT_SYMBOL_GPL(labpc_free_dma_chan);
 

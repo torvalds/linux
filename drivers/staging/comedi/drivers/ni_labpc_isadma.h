@@ -13,7 +13,7 @@ static inline bool labpc_have_dma_chan(struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
 
-	return (bool)devpriv->dma_chan;
+	return (bool)devpriv->dma_desc.chan;
 }
 
 int labpc_init_dma_chan(struct comedi_device *dev, unsigned int dma_chan);
