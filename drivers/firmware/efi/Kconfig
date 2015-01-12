@@ -12,11 +12,11 @@ config EFI_VARS
 
 	  Note that using this driver in concert with efibootmgr requires
 	  at least test release version 0.5.0-test3 or later, which is
-	  available from Matt Domsch's website located at:
+	  available from:
 	  <http://linux.dell.com/efibootmgr/testing/efibootmgr-0.5.0-test3.tar.gz>
 
 	  Subsequent efibootmgr releases may be found at:
-	  <http://linux.dell.com/efibootmgr>
+	  <http://github.com/vathpela/efibootmgr>
 
 config EFI_VARS_PSTORE
 	tristate "Register efivars backend for pstore"
