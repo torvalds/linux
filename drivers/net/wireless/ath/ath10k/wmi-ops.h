@@ -119,6 +119,8 @@ struct wmi_ops {
 						   u32 next_offset,
 						   u32 enabled);
 	struct sk_buff *(*gen_pdev_get_temperature)(struct ath10k *ar);
+	struct sk_buff *(*gen_addba_clear_resp)(struct ath10k *ar, u32 vdev_id,
+						const u8 *mac);
 };
 
 int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id);
@@ -855,6 +857,22 @@ ath10k_wmi_pdev_get_temperature(struct ath10k *ar)
 
 	return ath10k_wmi_cmd_send(ar, skb,
 				   ar->wmi.cmd->pdev_get_temperature_cmdid);
+}
+
+static inline int
+ath10k_wmi_addba_clear_resp(struct ath10k *ar, u32 vdev_id, const u8 *mac)
+{
+	struct sk_buff *skb;
+
+	if (!ar->wmi.ops->gen_addba_clear_resp)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_addba_clear_resp(ar, vdev_id, mac);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	return ath10k_wmi_cmd_send(ar, skb,
+				   ar->wmi.cmd->addba_clear_resp_cmdid);
 }
 
 #endif
