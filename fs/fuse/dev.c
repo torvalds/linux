@@ -1353,6 +1353,17 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 	return err;
 }
 
+static int fuse_dev_open(struct inode *inode, struct file *file)
+{
+	/*
+	 * The fuse device's file's private_data is used to hold
+	 * the fuse_conn(ection) when it is mounted, and is used to
+	 * keep track of whether the file has been mounted already.
+	 */
+	file->private_data = NULL;
+	return 0;
+}
+
 static ssize_t fuse_dev_read(struct kiocb *iocb, const struct iovec *iov,
 			      unsigned long nr_segs, loff_t pos)
 {
@@ -2220,6 +2231,7 @@ static int fuse_dev_fasync(int fd, struct file *file, int on)
 
 const struct file_operations fuse_dev_operations = {
 	.owner		= THIS_MODULE,
+	.open		= fuse_dev_open,
 	.llseek		= no_llseek,
 	.read		= do_sync_read,
 	.aio_read	= fuse_dev_read,
