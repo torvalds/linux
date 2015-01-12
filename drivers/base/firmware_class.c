@@ -927,6 +927,13 @@ static int _request_firmware_load(struct firmware_priv *fw_priv,
 	retval = wait_for_completion_interruptible(&buf->completion);
 
 	cancel_delayed_work_sync(&fw_priv->timeout_work);
+
+	if (retval == -ERESTARTSYS) {
+		mutex_lock(&fw_lock);
+		fw_load_abort(fw_priv);
+		mutex_unlock(&fw_lock);
+	}
+
 	if (is_fw_load_aborted(buf))
 		retval = -EAGAIN;
 	else if (!buf->data)
