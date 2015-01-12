@@ -55,11 +55,13 @@ void free_iova_mem(struct iova *iova)
 }
 
 void
-init_iova_domain(struct iova_domain *iovad, unsigned long pfn_32bit)
+init_iova_domain(struct iova_domain *iovad, unsigned long start_pfn,
+	unsigned long pfn_32bit)
 {
 	spin_lock_init(&iovad->iova_rbtree_lock);
 	iovad->rbroot = RB_ROOT;
 	iovad->cached32_node = NULL;
+	iovad->start_pfn = start_pfn;
 	iovad->dma_32bit_pfn = pfn_32bit;
 }
 
@@ -162,7 +164,7 @@ move_left:
 	if (!curr) {
 		if (size_aligned)
 			pad_size = iova_get_pad_size(size, limit_pfn);
-		if ((IOVA_START_PFN + size + pad_size) > limit_pfn) {
+		if ((iovad->start_pfn + size + pad_size) > limit_pfn) {
 			spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
 			return -ENOMEM;
 		}
@@ -237,8 +239,8 @@ iova_insert_rbtree(struct rb_root *root, struct iova *iova)
  * @size: - size of page frames to allocate
  * @limit_pfn: - max limit address
  * @size_aligned: - set if size_aligned address range is required
- * This function allocates an iova in the range limit_pfn to IOVA_START_PFN
- * looking from limit_pfn instead from IOVA_START_PFN. If the size_aligned
+ * This function allocates an iova in the range iovad->start_pfn to limit_pfn,
+ * searching top-down from limit_pfn to iovad->start_pfn. If the size_aligned
  * flag is set then the allocated address iova->pfn_lo will be naturally
  * aligned on roundup_power_of_two(size).
  */
