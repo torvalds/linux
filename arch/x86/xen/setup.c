@@ -140,7 +140,7 @@ static void __init xen_del_extra_mem(u64 start, u64 size)
 unsigned long __ref xen_chk_extra_mem(unsigned long pfn)
 {
 	int i;
-	unsigned long addr = PFN_PHYS(pfn);
+	phys_addr_t addr = PFN_PHYS(pfn);
 
 	for (i = 0; i < XEN_EXTRA_MEM_MAX_REGIONS; i++) {
 		if (addr >= xen_extra_mem[i].start &&
@@ -284,7 +284,7 @@ static void __init xen_update_mem_tables(unsigned long pfn, unsigned long mfn)
 	}
 
 	/* Update kernel mapping, but not for highmem. */
-	if ((pfn << PAGE_SHIFT) >= __pa(high_memory))
+	if (pfn >= PFN_UP(__pa(high_memory - 1)))
 		return;
 
 	if (HYPERVISOR_update_va_mapping((unsigned long)__va(pfn << PAGE_SHIFT),
