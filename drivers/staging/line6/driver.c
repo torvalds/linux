@@ -1017,48 +1017,7 @@ static void line6_disconnect(struct usb_interface *interface)
 			dev_err(line6->ifcdev,
 				"driver bug: inconsistent usb device\n");
 
-		switch (line6->type) {
-		case LINE6_BASSPODXT:
-		case LINE6_BASSPODXTLIVE:
-		case LINE6_BASSPODXTPRO:
-		case LINE6_POCKETPOD:
-		case LINE6_PODXT:
-		case LINE6_PODXTPRO:
-			line6_pod_disconnect(interface);
-			break;
-
-		case LINE6_PODHD300:
-		case LINE6_PODHD400:
-		case LINE6_PODHD500_0:
-		case LINE6_PODHD500_1:
-			line6_podhd_disconnect(interface);
-			break;
-
-		case LINE6_PODXTLIVE_POD:
-			line6_pod_disconnect(interface);
-			break;
-
-		case LINE6_PODXTLIVE_VARIAX:
-			line6_variax_disconnect(interface);
-			break;
-
-		case LINE6_VARIAX:
-			line6_variax_disconnect(interface);
-			break;
-
-		case LINE6_PODSTUDIO_GX:
-		case LINE6_PODSTUDIO_UX1:
-		case LINE6_PODSTUDIO_UX2:
-		case LINE6_TONEPORT_GX:
-		case LINE6_TONEPORT_UX1:
-		case LINE6_TONEPORT_UX2:
-		case LINE6_GUITARPORT:
-			line6_toneport_disconnect(interface);
-			break;
-
-		default:
-			MISSING_CASE;
-		}
+		line6->disconnect(interface);
 
 		dev_info(&interface->dev, "Line6 %s now disconnected\n",
 			 line6->properties->name);

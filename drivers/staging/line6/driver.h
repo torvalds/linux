@@ -196,6 +196,7 @@ struct usb_line6 {
 	int message_length;
 
 	void (*process_message)(struct usb_line6 *);
+	void (*disconnect)(struct usb_interface *);
 };
 
 extern char *line6_alloc_sysex_buffer(struct usb_line6 *line6, int code1,

@@ -98,6 +98,8 @@ static int podhd_try_init(struct usb_interface *interface,
 	if ((interface == NULL) || (podhd == NULL))
 		return -ENODEV;
 
+	line6->disconnect = line6_podhd_disconnect;
+
 	/* initialize audio system: */
 	err = line6_init_audio(line6);
 	if (err < 0)

@@ -181,6 +181,7 @@ static int variax_try_init(struct usb_interface *interface,
 	int err;
 
 	line6->process_message = line6_variax_process_message;
+	line6->disconnect = line6_variax_disconnect;
 
 	init_timer(&variax->startup_timer1);
 	init_timer(&variax->startup_timer2);

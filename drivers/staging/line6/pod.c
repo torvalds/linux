@@ -360,6 +360,7 @@ static int pod_try_init(struct usb_interface *interface,
 	struct usb_line6_pod *pod = (struct usb_line6_pod *) line6;
 
 	line6->process_message = line6_pod_process_message;
+	line6->disconnect = line6_pod_disconnect;
 
 	init_timer(&pod->startup_timer);
 	INIT_WORK(&pod->startup_work, pod_startup4);
