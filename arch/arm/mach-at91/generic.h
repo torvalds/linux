@@ -22,7 +22,6 @@ extern void __init at91_init_sram(int bank, unsigned long base,
 
  /* Processors */
 extern void __init at91rm9200_set_type(int type);
-extern void __init at91rm9200_dt_initialize(void);
 extern void __init at91_dt_initialize(void);
 
  /* Timer */

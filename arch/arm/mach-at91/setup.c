@@ -429,13 +429,6 @@ static void at91_dt_ramc(void)
 	at91_pm_set_standby(standby);
 }
 
-void __init at91rm9200_dt_initialize(void)
-{
-	at91_dt_ramc();
-
-	at91_boot_soc.init();
-}
-
 void __init at91_dt_initialize(void)
 {
 	at91_dt_ramc();
