@@ -160,6 +160,8 @@ void __init xen_inv_extra_mem(void)
 	int i;
 
 	for (i = 0; i < XEN_EXTRA_MEM_MAX_REGIONS; i++) {
+		if (!xen_extra_mem[i].size)
+			continue;
 		pfn_s = PFN_DOWN(xen_extra_mem[i].start);
 		pfn_e = PFN_UP(xen_extra_mem[i].start + xen_extra_mem[i].size);
 		for (pfn = pfn_s; pfn < pfn_e; pfn++)
