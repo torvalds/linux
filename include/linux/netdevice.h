@@ -852,11 +852,11 @@ typedef u16 (*select_queue_fallback_t)(struct net_device *dev,
  *	3. Update dev->stats asynchronously and atomically, and define
  *	   neither operation.
  *
- * int (*ndo_vlan_rx_add_vid)(struct net_device *dev, __be16 proto, u16t vid);
+ * int (*ndo_vlan_rx_add_vid)(struct net_device *dev, __be16 proto, u16 vid);
  *	If device support VLAN filtering this function is called when a
  *	VLAN id is registered.
  *
- * int (*ndo_vlan_rx_kill_vid)(struct net_device *dev, unsigned short vid);
+ * int (*ndo_vlan_rx_kill_vid)(struct net_device *dev, __be16 proto, u16 vid);
  *	If device support VLAN filtering this function is called when a
  *	VLAN id is unregistered.
  *
