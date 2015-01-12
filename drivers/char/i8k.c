@@ -64,9 +64,9 @@ static DEFINE_MUTEX(i8k_mutex);
 static char bios_version[4];
 static struct device *i8k_hwmon_dev;
 static u32 i8k_hwmon_flags;
-static int i8k_fan_mult;
-static int i8k_pwm_mult;
-static int i8k_fan_max = I8K_FAN_HIGH;
+static uint i8k_fan_mult;
+static uint i8k_pwm_mult;
+static uint i8k_fan_max = I8K_FAN_HIGH;
 
 #define I8K_HWMON_HAVE_TEMP1	(1 << 0)
 #define I8K_HWMON_HAVE_TEMP2	(1 << 1)
@@ -95,12 +95,12 @@ static bool power_status;
 module_param(power_status, bool, 0600);
 MODULE_PARM_DESC(power_status, "Report power status in /proc/i8k");
 
-static int fan_mult = I8K_FAN_MULT;
-module_param(fan_mult, int, 0);
+static uint fan_mult = I8K_FAN_MULT;
+module_param(fan_mult, uint, 0);
 MODULE_PARM_DESC(fan_mult, "Factor to multiply fan speed with");
 
-static int fan_max = I8K_FAN_HIGH;
-module_param(fan_max, int, 0);
+static uint fan_max = I8K_FAN_HIGH;
+module_param(fan_max, uint, 0);
 MODULE_PARM_DESC(fan_max, "Maximum configurable fan speed");
 
 static int i8k_open_fs(struct inode *inode, struct file *file);
@@ -696,8 +696,8 @@ static int __init i8k_init_hwmon(void)
 }
 
 struct i8k_config_data {
-	int fan_mult;
-	int fan_max;
+	uint fan_mult;
+	uint fan_max;
 };
 
 enum i8k_configs {
