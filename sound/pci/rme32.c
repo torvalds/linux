@@ -632,7 +632,7 @@ snd_rme32_setframelog(struct rme32 * rme32, int n_channels, int is_playback)
 	}
 }
 
-static int snd_rme32_setformat(struct rme32 * rme32, int format)
+static int snd_rme32_setformat(struct rme32 *rme32, snd_pcm_format_t format)
 {
 	switch (format) {
 	case SNDRV_PCM_FORMAT_S16_LE:

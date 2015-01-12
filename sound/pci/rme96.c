@@ -922,8 +922,7 @@ snd_rme96_setframelog(struct rme96 *rme96,
 }
 
 static int
-snd_rme96_playback_setformat(struct rme96 *rme96,
-			     int format)
+snd_rme96_playback_setformat(struct rme96 *rme96, snd_pcm_format_t format)
 {
 	switch (format) {
 	case SNDRV_PCM_FORMAT_S16_LE:
@@ -940,8 +939,7 @@ snd_rme96_playback_setformat(struct rme96 *rme96,
 }
 
 static int
-snd_rme96_capture_setformat(struct rme96 *rme96,
-			    int format)
+snd_rme96_capture_setformat(struct rme96 *rme96, snd_pcm_format_t format)
 {
 	switch (format) {
 	case SNDRV_PCM_FORMAT_S16_LE:
