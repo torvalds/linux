@@ -72,7 +72,6 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include <linux/pci.h>
 #include <linux/interrupt.h>
 
 #include <asm/dma.h>
@@ -1010,8 +1009,8 @@ static int das16_alloc_dma(struct comedi_device *dev, unsigned int dma_chan)
 	for (i = 0; i < 2; i++) {
 		dma = &devpriv->dma_desc[i];
 
-		dma->virt_addr = pci_alloc_consistent(NULL, DAS16_DMA_SIZE,
-						      &dma->hw_addr);
+		dma->virt_addr = dma_alloc_coherent(NULL, DAS16_DMA_SIZE,
+						    &dma->hw_addr, GFP_KERNEL);
 		if (!dma->virt_addr)
 			return -ENOMEM;
 	}
@@ -1039,8 +1038,8 @@ static void das16_free_dma(struct comedi_device *dev)
 	for (i = 0; i < 2; i++) {
 		dma = &devpriv->dma_desc[i];
 		if (dma->virt_addr)
-			pci_free_consistent(NULL, DAS16_DMA_SIZE,
-					    dma->virt_addr, dma->hw_addr);
+			dma_free_coherent(NULL, DAS16_DMA_SIZE,
+					  dma->virt_addr, dma->hw_addr);
 	}
 	if (devpriv->dma_chan)
 		free_dma(devpriv->dma_chan);
