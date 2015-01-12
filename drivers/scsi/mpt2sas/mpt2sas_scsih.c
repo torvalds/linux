@@ -3647,6 +3647,31 @@ _scsih_check_volume_delete_events(struct MPT2SAS_ADAPTER *ioc,
 }
 
 /**
+ * _scsih_temp_threshold_events - display temperature threshold exceeded events
+ * @ioc: per adapter object
+ * @event_data: the temp threshold event data
+ * Context: interrupt time.
+ *
+ * Return nothing.
+ */
+static void
+_scsih_temp_threshold_events(struct MPT2SAS_ADAPTER *ioc,
+	Mpi2EventDataTemperature_t *event_data)
+{
+	if (ioc->temp_sensors_count >= event_data->SensorNum) {
+		printk(MPT2SAS_ERR_FMT "Temperature Threshold flags %s%s%s%s"
+		  " exceeded for Sensor: %d !!!\n", ioc->name,
+		  ((le16_to_cpu(event_data->Status) & 0x1) == 1) ? "0 " : " ",
+		  ((le16_to_cpu(event_data->Status) & 0x2) == 2) ? "1 " : " ",
+		  ((le16_to_cpu(event_data->Status) & 0x4) == 4) ? "2 " : " ",
+		  ((le16_to_cpu(event_data->Status) & 0x8) == 8) ? "3 " : " ",
+		  event_data->SensorNum);
+		printk(MPT2SAS_ERR_FMT "Current Temp In Celsius: %d\n",
+			ioc->name, event_data->CurrentTemperature);
+	}
+}
+
+/**
  * _scsih_flush_running_cmds - completing outstanding commands.
  * @ioc: per adapter object
  *
@@ -7555,6 +7580,12 @@ mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
 	case MPI2_EVENT_SAS_DISCOVERY:
 	case MPI2_EVENT_SAS_ENCL_DEVICE_STATUS_CHANGE:
 	case MPI2_EVENT_IR_PHYSICAL_DISK:
+		break;
+
+	case MPI2_EVENT_TEMP_THRESHOLD:
+		_scsih_temp_threshold_events(ioc,
+			(Mpi2EventDataTemperature_t *)
+			mpi_reply->EventData);
 		break;
 
 	default: /* ignore the rest */

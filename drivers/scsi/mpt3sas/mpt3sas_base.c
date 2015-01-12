@@ -619,6 +619,9 @@ _base_display_event_data(struct MPT3SAS_ADAPTER *ioc,
 	case MPI2_EVENT_LOG_ENTRY_ADDED:
 		desc = "Log Entry Added";
 		break;
+	case MPI2_EVENT_TEMP_THRESHOLD:
+		desc = "Temperature Threshold";
+		break;
 	}
 
 	if (!desc)
@@ -2500,6 +2503,7 @@ _base_static_config_pages(struct MPT3SAS_ADAPTER *ioc)
 	mpt3sas_config_get_ioc_pg8(ioc, &mpi_reply, &ioc->ioc_pg8);
 	mpt3sas_config_get_iounit_pg0(ioc, &mpi_reply, &ioc->iounit_pg0);
 	mpt3sas_config_get_iounit_pg1(ioc, &mpi_reply, &ioc->iounit_pg1);
+	mpt3sas_config_get_iounit_pg8(ioc, &mpi_reply, &ioc->iounit_pg8);
 	_base_display_ioc_capabilities(ioc);
 
 	/*
@@ -2516,6 +2520,9 @@ _base_static_config_pages(struct MPT3SAS_ADAPTER *ioc)
 		    MPI2_IOUNITPAGE1_DISABLE_TASK_SET_FULL_HANDLING;
 	ioc->iounit_pg1.Flags = cpu_to_le32(iounit_pg1_flags);
 	mpt3sas_config_set_iounit_pg1(ioc, &mpi_reply, &ioc->iounit_pg1);
+
+	if (ioc->iounit_pg8.NumSensors)
+		ioc->temp_sensors_count = ioc->iounit_pg8.NumSensors;
 }
 
 /**
@@ -4720,6 +4727,7 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 	_base_unmask_events(ioc, MPI2_EVENT_IR_PHYSICAL_DISK);
 	_base_unmask_events(ioc, MPI2_EVENT_IR_OPERATION_STATUS);
 	_base_unmask_events(ioc, MPI2_EVENT_LOG_ENTRY_ADDED);
+	_base_unmask_events(ioc, MPI2_EVENT_TEMP_THRESHOLD);
 
 	r = _base_make_ioc_operational(ioc, CAN_SLEEP);
 	if (r)
