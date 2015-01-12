@@ -311,6 +311,7 @@ static void unlink_empty_async_suspended(struct ehci_hcd *ehci);
 static void ehci_work(struct ehci_hcd *ehci);
 static void start_unlink_intr(struct ehci_hcd *ehci, struct ehci_qh *qh);
 static void end_unlink_intr(struct ehci_hcd *ehci, struct ehci_qh *qh);
+static int ehci_port_power(struct ehci_hcd *ehci, int portnum, bool enable);
 
 #include "ehci-timer.c"
 #include "ehci-hub.c"
@@ -329,9 +330,13 @@ static void ehci_turn_off_all_ports(struct ehci_hcd *ehci)
 {
 	int	port = HCS_N_PORTS(ehci->hcs_params);
 
-	while (port--)
+	while (port--) {
 		ehci_writel(ehci, PORT_RWC_BITS,
 				&ehci->regs->port_status[port]);
+		spin_unlock_irq(&ehci->lock);
+		ehci_port_power(ehci, port, false);
+		spin_lock_irq(&ehci->lock);
+	}
 }
 
 /*
@@ -1233,6 +1238,8 @@ void ehci_init_driver(struct hc_driver *drv,
 		drv->hcd_priv_size += over->extra_priv_size;
 		if (over->reset)
 			drv->reset = over->reset;
+		if (over->port_power)
+			drv->port_power = over->port_power;
 	}
 }
 EXPORT_SYMBOL_GPL(ehci_init_driver);
@@ -1266,11 +1273,6 @@ MODULE_LICENSE ("GPL");
 #ifdef CONFIG_XPS_USB_HCD_XILINX
 #include "ehci-xilinx-of.c"
 #define XILINX_OF_PLATFORM_DRIVER	ehci_hcd_xilinx_of_driver
-#endif
-
-#ifdef CONFIG_USB_OCTEON_EHCI
-#include "ehci-octeon.c"
-#define PLATFORM_DRIVER		ehci_octeon_driver
 #endif
 
 #ifdef CONFIG_TILE_USB

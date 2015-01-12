@@ -749,8 +749,6 @@ static int rockchip_spi_remove(struct platform_device *pdev)
 	if (rs->dma_rx.ch)
 		dma_release_channel(rs->dma_rx.ch);
 
-	spi_master_put(master);
-
 	return 0;
 }
 
@@ -801,7 +799,7 @@ static int rockchip_spi_resume(struct device *dev)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int rockchip_spi_runtime_suspend(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
@@ -829,7 +827,7 @@ static int rockchip_spi_runtime_resume(struct device *dev)
 
 	return ret;
 }
-#endif /* CONFIG_PM_RUNTIME */
+#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops rockchip_spi_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(rockchip_spi_suspend, rockchip_spi_resume)
@@ -848,7 +846,6 @@ MODULE_DEVICE_TABLE(of, rockchip_spi_dt_match);
 static struct platform_driver rockchip_spi_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.pm = &rockchip_spi_pm,
 		.of_match_table = of_match_ptr(rockchip_spi_dt_match),
 	},

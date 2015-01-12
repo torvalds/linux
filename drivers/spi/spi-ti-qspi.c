@@ -567,7 +567,6 @@ static struct platform_driver ti_qspi_driver = {
 	.remove = ti_qspi_remove,
 	.driver = {
 		.name	= "ti-qspi",
-		.owner	= THIS_MODULE,
 		.pm =   &ti_qspi_pm_ops,
 		.of_match_table = ti_qspi_match,
 	}

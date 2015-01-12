@@ -45,6 +45,7 @@
 #include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/tcp.h>
+#include <net/vxlan.h>
 #include <net/checksum.h>
 #include <net/ip6_checksum.h>
 #include <linux/workqueue.h>
@@ -1931,7 +1932,7 @@ irqreturn_t bnx2x_interrupt(int irq, void *dev_instance)
 			for_each_cos_in_tx_queue(fp, cos)
 				prefetch(fp->txdata_ptr[cos]->tx_cons_sb);
 			prefetch(&fp->sb_running_index[SM_RX_ID]);
-			napi_schedule(&bnx2x_fp(bp, fp->index, napi));
+			napi_schedule_irqoff(&bnx2x_fp(bp, fp->index, napi));
 			status &= ~mask;
 		}
 	}
@@ -3163,6 +3164,8 @@ static void bnx2x_pf_q_prep_general(struct bnx2x *bp,
 		gen_init->mtu = bp->dev->mtu;
 
 	gen_init->cos = cos;
+
+	gen_init->fp_hsi = ETH_FP_HSI_VERSION;
 }
 
 static void bnx2x_pf_rx_q_prep(struct bnx2x *bp,
@@ -12537,7 +12540,7 @@ static int bnx2x_validate_addr(struct net_device *dev)
 }
 
 static int bnx2x_get_phys_port_id(struct net_device *netdev,
-				  struct netdev_phys_port_id *ppid)
+				  struct netdev_phys_item_id *ppid)
 {
 	struct bnx2x *bp = netdev_priv(netdev);
 
@@ -12548,6 +12551,11 @@ static int bnx2x_get_phys_port_id(struct net_device *netdev,
 	memcpy(ppid->id, bp->phys_port_id, ppid->id_len);
 
 	return 0;
+}
+
+static bool bnx2x_gso_check(struct sk_buff *skb, struct net_device *dev)
+{
+	return vxlan_gso_check(skb);
 }
 
 static const struct net_device_ops bnx2x_netdev_ops = {
@@ -12581,6 +12589,7 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 #endif
 	.ndo_get_phys_port_id	= bnx2x_get_phys_port_id,
 	.ndo_set_vf_link_state	= bnx2x_set_vf_link_state,
+	.ndo_gso_check		= bnx2x_gso_check,
 };
 
 static int bnx2x_set_coherency_mask(struct bnx2x *bp)
@@ -13247,7 +13256,7 @@ static int bnx2x_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 		return -EFAULT;
 	}
 
-	DP(BNX2X_MSG_PTP, "Configrued val = %d, period = %d\n", best_val,
+	DP(BNX2X_MSG_PTP, "Configured val = %d, period = %d\n", best_val,
 	   best_period);
 
 	return 0;
@@ -14775,7 +14784,7 @@ static int bnx2x_hwtstamp_ioctl(struct bnx2x *bp, struct ifreq *ifr)
 		-EFAULT : 0;
 }
 
-/* Configrues HW for PTP */
+/* Configures HW for PTP */
 static int bnx2x_configure_ptp(struct bnx2x *bp)
 {
 	int rc, port = BP_PORT(bp);

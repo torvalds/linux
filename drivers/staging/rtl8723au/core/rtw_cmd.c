@@ -36,25 +36,25 @@ static struct cmd_hdl wlancmds[] = {
 	GEN_MLME_EXT_HANDLER(0, NULL)
 	GEN_MLME_EXT_HANDLER(0, NULL)
 	GEN_MLME_EXT_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct wlan_bssid_ex), join_cmd_hdl23a) /*14*/
-	GEN_MLME_EXT_HANDLER(sizeof (struct disconnect_parm), disconnect_hdl23a)
-	GEN_MLME_EXT_HANDLER(sizeof (struct wlan_bssid_ex), createbss_hdl23a)
-	GEN_MLME_EXT_HANDLER(sizeof (struct setopmode_parm), setopmode_hdl23a)
-	GEN_MLME_EXT_HANDLER(sizeof (struct sitesurvey_parm), sitesurvey_cmd_hdl23a) /*18*/
-	GEN_MLME_EXT_HANDLER(sizeof (struct setauth_parm), setauth_hdl23a)
-	GEN_MLME_EXT_HANDLER(sizeof (struct setkey_parm), setkey_hdl23a) /*20*/
-	GEN_MLME_EXT_HANDLER(sizeof (struct set_stakey_parm), set_stakey_hdl23a)
-	GEN_MLME_EXT_HANDLER(sizeof (struct set_assocsta_parm), NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct del_assocsta_parm), NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct setstapwrstate_parm), NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct setbasicrate_parm), NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct getbasicrate_parm), NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct setdatarate_parm), NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct getdatarate_parm), NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct setphyinfo_parm), NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct getphyinfo_parm), NULL)  /*30*/
-	GEN_MLME_EXT_HANDLER(sizeof (struct setphy_parm), NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct getphy_parm), NULL)
+	GEN_MLME_EXT_HANDLER(sizeof(struct wlan_bssid_ex), join_cmd_hdl23a) /*14*/
+	GEN_MLME_EXT_HANDLER(sizeof(struct disconnect_parm), disconnect_hdl23a)
+	GEN_MLME_EXT_HANDLER(sizeof(struct wlan_bssid_ex), createbss_hdl23a)
+	GEN_MLME_EXT_HANDLER(sizeof(struct setopmode_parm), setopmode_hdl23a)
+	GEN_MLME_EXT_HANDLER(sizeof(struct sitesurvey_parm), sitesurvey_cmd_hdl23a) /*18*/
+	GEN_MLME_EXT_HANDLER(sizeof(struct setauth_parm), setauth_hdl23a)
+	GEN_MLME_EXT_HANDLER(sizeof(struct setkey_parm), setkey_hdl23a) /*20*/
+	GEN_MLME_EXT_HANDLER(sizeof(struct set_stakey_parm), set_stakey_hdl23a)
+	GEN_MLME_EXT_HANDLER(sizeof(struct set_assocsta_parm), NULL)
+	GEN_MLME_EXT_HANDLER(sizeof(struct del_assocsta_parm), NULL)
+	GEN_MLME_EXT_HANDLER(sizeof(struct setstapwrstate_parm), NULL)
+	GEN_MLME_EXT_HANDLER(sizeof(struct setbasicrate_parm), NULL)
+	GEN_MLME_EXT_HANDLER(sizeof(struct getbasicrate_parm), NULL)
+	GEN_MLME_EXT_HANDLER(sizeof(struct setdatarate_parm), NULL)
+	GEN_MLME_EXT_HANDLER(sizeof(struct getdatarate_parm), NULL)
+	GEN_MLME_EXT_HANDLER(sizeof(struct setphyinfo_parm), NULL)
+	GEN_MLME_EXT_HANDLER(sizeof(struct getphyinfo_parm), NULL)  /*30*/
+	GEN_MLME_EXT_HANDLER(sizeof(struct setphy_parm), NULL)
+	GEN_MLME_EXT_HANDLER(sizeof(struct getphy_parm), NULL)
 	GEN_MLME_EXT_HANDLER(0, NULL)
 	GEN_MLME_EXT_HANDLER(0, NULL)
 	GEN_MLME_EXT_HANDLER(0, NULL)
@@ -359,6 +359,7 @@ int rtw_sitesurvey_cmd23a(struct rtw_adapter *padapter,
 	/* prepare ssid list */
 	if (ssid) {
 		int i;
+
 		for (i = 0; i < ssid_num && i < RTW_SSID_SCAN_AMOUNT; i++) {
 			if (ssid[i].ssid_len) {
 				memcpy(&psurveyPara->ssid[i], &ssid[i],
@@ -371,6 +372,7 @@ int rtw_sitesurvey_cmd23a(struct rtw_adapter *padapter,
 	/* prepare channel list */
 	if (ch) {
 		int i;
+
 		for (i = 0; i < ch_num && i < RTW_CHANNEL_SCAN_AMOUNT; i++) {
 			if (ch[i].hw_value &&
 			    !(ch[i].flags & IEEE80211_CHAN_DISABLED)) {
@@ -388,8 +390,6 @@ int rtw_sitesurvey_cmd23a(struct rtw_adapter *padapter,
 	if (res == _SUCCESS) {
 		mod_timer(&pmlmepriv->scan_to_timer, jiffies +
 			  msecs_to_jiffies(SCANNING_TIMEOUT));
-
-		rtw_led_control(padapter, LED_CTL_SITE_SURVEY);
 
 		pmlmepriv->scan_interval = SCAN_INTERVAL;/*  30*2 sec = 60sec */
 	} else
@@ -414,8 +414,6 @@ int rtw_createbss_cmd23a(struct rtw_adapter  *padapter)
 	u8 res = _SUCCESS;
 
 	pdev_network = &padapter->registrypriv.dev_network;
-
-	rtw_led_control(padapter, LED_CTL_START_TO_LINK);
 
 	if (pmlmepriv->assoc_ssid.ssid_len == 0) {
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_,
@@ -464,8 +462,6 @@ int rtw_joinbss_cmd23a(struct rtw_adapter *padapter,
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
 	ifmode = pnetwork->network.ifmode;
-
-	rtw_led_control(padapter, LED_CTL_START_TO_LINK);
 
 	if (pmlmepriv->assoc_ssid.ssid_len == 0) {
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_,
@@ -599,7 +595,7 @@ exit:
 	return res;
 }
 
-int rtw_disassoc_cmd23a(struct rtw_adapter*padapter, u32 deauth_timeout_ms,
+int rtw_disassoc_cmd23a(struct rtw_adapter *padapter, u32 deauth_timeout_ms,
 			bool enqueue)
 {
 	struct cmd_obj *cmdobj = NULL;
@@ -719,6 +715,7 @@ int rtw_setstakey_cmd23a(struct rtw_adapter *padapter, u8 *psta, u8 unicast_key)
 		memcpy(&psetstakey_para->key, &sta->dot118021x_UncstKey, 16);
 	} else {
 		int idx = psecuritypriv->dot118021XGrpKeyid;
+
 		memcpy(&psetstakey_para->key,
 		       &psecuritypriv->dot118021XGrpKey[idx].skey, 16);
 	}
@@ -786,7 +783,7 @@ exit:
 	return res;
 }
 
-int rtw_addbareq_cmd23a(struct rtw_adapter*padapter, u8 tid, u8 *addr)
+int rtw_addbareq_cmd23a(struct rtw_adapter *padapter, u8 tid, u8 *addr)
 {
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 	struct cmd_obj *ph2c;
@@ -822,7 +819,7 @@ exit:
 	return res;
 }
 
-int rtw_dynamic_chk_wk_cmd23a(struct rtw_adapter*padapter)
+int rtw_dynamic_chk_wk_cmd23a(struct rtw_adapter *padapter)
 {
 	struct cmd_obj *ph2c;
 	struct drvextra_cmd_parm *pdrvextra_cmd_parm;
@@ -859,7 +856,7 @@ exit:
  * This is only ever called from on_action_spct23a_ch_switch () which isn't
  * called from anywhere itself
  */
-int rtw_set_ch_cmd23a(struct rtw_adapter*padapter, u8 ch, u8 bw, u8 ch_offset,
+int rtw_set_ch_cmd23a(struct rtw_adapter *padapter, u8 ch, u8 bw, u8 ch_offset,
 		      u8 enqueue)
 {
 	struct cmd_obj *pcmdobj;
@@ -919,34 +916,34 @@ static void traffic_status_watchdog(struct rtw_adapter *padapter)
 	u8 bHigherBusyTxTraffic = false;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	int BusyThreshold = 100;
+	struct rt_link_detect *ldi = &pmlmepriv->LinkDetectInfo;
+
 	/*  */
 	/*  Determine if our traffic is busy now */
 	/*  */
 	if (check_fwstate(pmlmepriv, _FW_LINKED)) {
 		if (rtl8723a_BT_coexist(padapter))
 			BusyThreshold = 50;
-		else if (pmlmepriv->LinkDetectInfo.bBusyTraffic)
+		else if (ldi->bBusyTraffic)
 			BusyThreshold = 75;
 		/*  if we raise bBusyTraffic in last watchdog, using
 		    lower threshold. */
-		if (pmlmepriv->LinkDetectInfo.NumRxOkInPeriod > BusyThreshold ||
-		    pmlmepriv->LinkDetectInfo.NumTxOkInPeriod > BusyThreshold) {
+		if (ldi->NumRxOkInPeriod > BusyThreshold ||
+		    ldi->NumTxOkInPeriod > BusyThreshold) {
 			bBusyTraffic = true;
 
-			if (pmlmepriv->LinkDetectInfo.NumRxOkInPeriod >
-			    pmlmepriv->LinkDetectInfo.NumTxOkInPeriod)
+			if (ldi->NumRxOkInPeriod > ldi->NumTxOkInPeriod)
 				bRxBusyTraffic = true;
 			else
 				bTxBusyTraffic = true;
 		}
 
 		/*  Higher Tx/Rx data. */
-		if (pmlmepriv->LinkDetectInfo.NumRxOkInPeriod > 4000 ||
-		    pmlmepriv->LinkDetectInfo.NumTxOkInPeriod > 4000) {
+		if (ldi->NumRxOkInPeriod > 4000 ||
+		    ldi->NumTxOkInPeriod > 4000) {
 			bHigherBusyTraffic = true;
 
-			if (pmlmepriv->LinkDetectInfo.NumRxOkInPeriod >
-			    pmlmepriv->LinkDetectInfo.NumTxOkInPeriod)
+			if (ldi->NumRxOkInPeriod > ldi->NumTxOkInPeriod)
 				bHigherBusyRxTraffic = true;
 			else
 				bHigherBusyTxTraffic = true;
@@ -955,9 +952,9 @@ static void traffic_status_watchdog(struct rtw_adapter *padapter)
 		if (!rtl8723a_BT_coexist(padapter) ||
 		    !rtl8723a_BT_using_antenna_1(padapter)) {
 		/*  check traffic for  powersaving. */
-			if (((pmlmepriv->LinkDetectInfo.NumRxUnicastOkInPeriod +
-			      pmlmepriv->LinkDetectInfo.NumTxOkInPeriod) > 8) ||
-			    pmlmepriv->LinkDetectInfo.NumRxUnicastOkInPeriod >2)
+			if (((ldi->NumRxUnicastOkInPeriod +
+			      ldi->NumTxOkInPeriod) > 8) ||
+			    ldi->NumRxUnicastOkInPeriod > 2)
 				bEnterPS = false;
 			else
 				bEnterPS = true;
@@ -971,15 +968,15 @@ static void traffic_status_watchdog(struct rtw_adapter *padapter)
 	} else
 		LPS_Leave23a(padapter);
 
-	pmlmepriv->LinkDetectInfo.NumRxOkInPeriod = 0;
-	pmlmepriv->LinkDetectInfo.NumTxOkInPeriod = 0;
-	pmlmepriv->LinkDetectInfo.NumRxUnicastOkInPeriod = 0;
-	pmlmepriv->LinkDetectInfo.bBusyTraffic = bBusyTraffic;
-	pmlmepriv->LinkDetectInfo.bTxBusyTraffic = bTxBusyTraffic;
-	pmlmepriv->LinkDetectInfo.bRxBusyTraffic = bRxBusyTraffic;
-	pmlmepriv->LinkDetectInfo.bHigherBusyTraffic = bHigherBusyTraffic;
-	pmlmepriv->LinkDetectInfo.bHigherBusyRxTraffic = bHigherBusyRxTraffic;
-	pmlmepriv->LinkDetectInfo.bHigherBusyTxTraffic = bHigherBusyTxTraffic;
+	ldi->NumRxOkInPeriod = 0;
+	ldi->NumTxOkInPeriod = 0;
+	ldi->NumRxUnicastOkInPeriod = 0;
+	ldi->bBusyTraffic = bBusyTraffic;
+	ldi->bTxBusyTraffic = bTxBusyTraffic;
+	ldi->bRxBusyTraffic = bRxBusyTraffic;
+	ldi->bHigherBusyTraffic = bHigherBusyTraffic;
+	ldi->bHigherBusyRxTraffic = bHigherBusyRxTraffic;
+	ldi->bHigherBusyTxTraffic = bHigherBusyTxTraffic;
 }
 
 static void dynamic_chk_wk_hdl(struct rtw_adapter *padapter, u8 *pbuf, int sz)
@@ -1017,46 +1014,45 @@ static void lps_ctrl_wk_hdl(struct rtw_adapter *padapter, u8 lps_ctrl_type)
 	    check_fwstate(pmlmepriv, WIFI_ADHOC_STATE))
 		return;
 
-	switch (lps_ctrl_type)
-	{
-		case LPS_CTRL_SCAN:
-			rtl8723a_BT_wifiscan_notify(padapter, true);
-			if (!rtl8723a_BT_using_antenna_1(padapter)) {
-				if (check_fwstate(pmlmepriv, _FW_LINKED))
-					LPS_Leave23a(padapter);
+	switch (lps_ctrl_type) {
+	case LPS_CTRL_SCAN:
+		rtl8723a_BT_wifiscan_notify(padapter, true);
+		if (!rtl8723a_BT_using_antenna_1(padapter)) {
+			if (check_fwstate(pmlmepriv, _FW_LINKED))
+				LPS_Leave23a(padapter);
 			}
-			break;
-		case LPS_CTRL_JOINBSS:
+		break;
+	case LPS_CTRL_JOINBSS:
+		LPS_Leave23a(padapter);
+		break;
+	case LPS_CTRL_CONNECT:
+		mstatus = 1;/* connect */
+		/*  Reset LPS Setting */
+		padapter->pwrctrlpriv.LpsIdleCount = 0;
+		rtl8723a_set_FwJoinBssReport_cmd(padapter, 1);
+		rtl8723a_BT_mediastatus_notify(padapter, mstatus);
+		break;
+	case LPS_CTRL_DISCONNECT:
+		mstatus = 0;/* disconnect */
+		rtl8723a_BT_mediastatus_notify(padapter, mstatus);
+		if (!rtl8723a_BT_using_antenna_1(padapter))
 			LPS_Leave23a(padapter);
-			break;
-		case LPS_CTRL_CONNECT:
-			mstatus = 1;/* connect */
-			/*  Reset LPS Setting */
-			padapter->pwrctrlpriv.LpsIdleCount = 0;
-			rtl8723a_set_FwJoinBssReport_cmd(padapter, 1);
-			rtl8723a_BT_mediastatus_notify(padapter, mstatus);
-			break;
-		case LPS_CTRL_DISCONNECT:
-			mstatus = 0;/* disconnect */
-			rtl8723a_BT_mediastatus_notify(padapter, mstatus);
-			if (!rtl8723a_BT_using_antenna_1(padapter))
-				LPS_Leave23a(padapter);
-			rtl8723a_set_FwJoinBssReport_cmd(padapter, 0);
-			break;
-		case LPS_CTRL_SPECIAL_PACKET:
-			pwrpriv->DelayLPSLastTimeStamp = jiffies;
-			rtl8723a_BT_specialpacket_notify(padapter);
-			if (!rtl8723a_BT_using_antenna_1(padapter))
-				LPS_Leave23a(padapter);
-			break;
-		case LPS_CTRL_LEAVE:
-			rtl8723a_BT_lps_leave(padapter);
-			if (!rtl8723a_BT_using_antenna_1(padapter))
-				LPS_Leave23a(padapter);
-			break;
+		rtl8723a_set_FwJoinBssReport_cmd(padapter, 0);
+		break;
+	case LPS_CTRL_SPECIAL_PACKET:
+		pwrpriv->DelayLPSLastTimeStamp = jiffies;
+		rtl8723a_BT_specialpacket_notify(padapter);
+		if (!rtl8723a_BT_using_antenna_1(padapter))
+			LPS_Leave23a(padapter);
+		break;
+	case LPS_CTRL_LEAVE:
+		rtl8723a_BT_lps_leave(padapter);
+		if (!rtl8723a_BT_using_antenna_1(padapter))
+			LPS_Leave23a(padapter);
+		break;
 
-		default:
-			break;
+	default:
+		break;
 	}
 }
 
@@ -1098,7 +1094,7 @@ exit:
 	return res;
 }
 
-int rtw_ps_cmd23a(struct rtw_adapter*padapter)
+int rtw_ps_cmd23a(struct rtw_adapter *padapter)
 {
 	struct cmd_obj *ppscmd;
 	struct drvextra_cmd_parm *pdrvextra_cmd_parm;
@@ -1147,12 +1143,12 @@ static void rtw_chk_hi_queue_hdl(struct rtw_adapter *padapter)
 
 		val = rtl8723a_chk_hi_queue_empty(padapter);
 
-		while (val == false) {
+		while (!val) {
 			msleep(100);
 
 			cnt++;
 
-			if (cnt>10)
+			if (cnt > 10)
 				break;
 
 			val = rtl8723a_chk_hi_queue_empty(padapter);
@@ -1168,7 +1164,7 @@ static void rtw_chk_hi_queue_hdl(struct rtw_adapter *padapter)
 	}
 }
 
-int rtw_chk_hi_queue_cmd23a(struct rtw_adapter*padapter)
+int rtw_chk_hi_queue_cmd23a(struct rtw_adapter *padapter)
 {
 	struct cmd_obj *ph2c;
 	struct drvextra_cmd_parm *pdrvextra_cmd_parm;
@@ -1305,8 +1301,7 @@ int rtw_drvextra_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 
 	pdrvextra_cmd = (struct drvextra_cmd_parm *)pbuf;
 
-	switch (pdrvextra_cmd->ec_id)
-	{
+	switch (pdrvextra_cmd->ec_id) {
 	case DYNAMIC_CHK_WK_CID:
 		dynamic_chk_wk_hdl(padapter, pdrvextra_cmd->pbuf,
 				   pdrvextra_cmd->type_size);

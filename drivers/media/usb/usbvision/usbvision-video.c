@@ -509,11 +509,12 @@ static int vidioc_querycap(struct file *file, void  *priv,
 		usbvision_device_data[usbvision->dev_model].model_string,
 		sizeof(vc->card));
 	usb_make_path(usbvision->dev, vc->bus_info, sizeof(vc->bus_info));
-	vc->capabilities = V4L2_CAP_VIDEO_CAPTURE |
+	vc->device_caps = V4L2_CAP_VIDEO_CAPTURE |
 		V4L2_CAP_AUDIO |
 		V4L2_CAP_READWRITE |
 		V4L2_CAP_STREAMING |
 		(usbvision->have_tuner ? V4L2_CAP_TUNER : 0);
+	vc->capabilities = vc->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 

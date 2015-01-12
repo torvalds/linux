@@ -511,7 +511,6 @@ static int tps65090_regulator_probe(struct platform_device *pdev)
 static struct platform_driver tps65090_regulator_driver = {
 	.driver	= {
 		.name	= "tps65090-pmic",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= tps65090_regulator_probe,
 };

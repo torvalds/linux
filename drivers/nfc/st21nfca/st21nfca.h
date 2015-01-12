@@ -85,6 +85,4 @@ struct st21nfca_hci_info {
 
 #define ST21NFCA_RF_CARD_F_GATE 0x24
 
-#define ST21NFCA_EVT_SEND_DATA 0x10
-
 #endif /* __LOCAL_ST21NFCA_H_ */

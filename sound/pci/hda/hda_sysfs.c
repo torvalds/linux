@@ -417,8 +417,13 @@ static DEVICE_ATTR_RW(user_pin_configs);
 static DEVICE_ATTR_WO(reconfig);
 static DEVICE_ATTR_WO(clear);
 
-/*
- * Look for hint string
+/**
+ * snd_hda_get_hint - Look for hint string
+ * @codec: the HDA codec
+ * @key: the hint key string
+ *
+ * Look for a hint key/value pair matching with the given key string
+ * and returns the value string.  If nothing found, returns NULL.
  */
 const char *snd_hda_get_hint(struct hda_codec *codec, const char *key)
 {
@@ -427,6 +432,15 @@ const char *snd_hda_get_hint(struct hda_codec *codec, const char *key)
 }
 EXPORT_SYMBOL_GPL(snd_hda_get_hint);
 
+/**
+ * snd_hda_get_bool_hint - Get a boolean hint value
+ * @codec: the HDA codec
+ * @key: the hint key string
+ *
+ * Look for a hint key/value pair matching with the given key string
+ * and returns a boolean value parsed from the value.  If no matching
+ * key is found, return a negative value.
+ */
 int snd_hda_get_bool_hint(struct hda_codec *codec, const char *key)
 {
 	const char *p;
@@ -453,6 +467,16 @@ int snd_hda_get_bool_hint(struct hda_codec *codec, const char *key)
 }
 EXPORT_SYMBOL_GPL(snd_hda_get_bool_hint);
 
+/**
+ * snd_hda_get_int_hint - Get an integer hint value
+ * @codec: the HDA codec
+ * @key: the hint key string
+ * @valp: pointer to store a value
+ *
+ * Look for a hint key/value pair matching with the given key string
+ * and stores the integer value to @valp.  If no matching key is found,
+ * return a negative error code.  Otherwise it returns zero.
+ */
 int snd_hda_get_int_hint(struct hda_codec *codec, const char *key, int *valp)
 {
 	const char *p;
@@ -690,8 +714,11 @@ static int get_line_from_fw(char *buf, int size, size_t *fw_size_p,
 	return 1;
 }
 
-/*
- * load a "patch" firmware file and parse it
+/**
+ * snd_hda_load_patch - load a "patch" firmware file and parse it
+ * @bus: HD-audio bus
+ * @fw_size: the firmware byte size
+ * @fw_buf: the firmware data
  */
 int snd_hda_load_patch(struct hda_bus *bus, size_t fw_size, const void *fw_buf)
 {

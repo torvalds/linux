@@ -527,14 +527,16 @@ static inline void ring_fl_db(struct adapter *adap, struct sge_fl *q)
 		val |= DBPRIO(1);
 		wmb();
 
-		/* If we're on T4, use the old doorbell mechanism; otherwise
-		 * use the new BAR2 mechanism.
+		/* If we don't have access to the new User Doorbell (T5+), use
+		 * the old doorbell mechanism; otherwise use the new BAR2
+		 * mechanism.
 		 */
-		if (is_t4(adap->params.chip)) {
+		if (unlikely(q->bar2_addr == NULL)) {
 			t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL),
 				     val | QID(q->cntxt_id));
 		} else {
-			writel(val,  adap->bar2 + q->udb + SGE_UDB_KDOORBELL);
+			writel(val | QID(q->bar2_qid),
+			       q->bar2_addr + SGE_UDB_KDOORBELL);
 
 			/* This Write memory Barrier will force the write to
 			 * the User Doorbell area to be flushed.
@@ -576,7 +578,7 @@ static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
 	__be64 *d = &q->desc[q->pidx];
 	struct rx_sw_desc *sd = &q->sdesc[q->pidx];
 
-	gfp |= __GFP_NOWARN | __GFP_COLD;
+	gfp |= __GFP_NOWARN;
 
 	if (s->fl_pg_order == 0)
 		goto alloc_small_pages;
@@ -585,7 +587,7 @@ static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
 	 * Prefer large buffers
 	 */
 	while (n) {
-		pg = alloc_pages(gfp | __GFP_COMP, s->fl_pg_order);
+		pg = __dev_alloc_pages(gfp, s->fl_pg_order);
 		if (unlikely(!pg)) {
 			q->large_alloc_failed++;
 			break;       /* fall back to single pages */
@@ -615,7 +617,7 @@ static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
 
 alloc_small_pages:
 	while (n--) {
-		pg = __skb_alloc_page(gfp, NULL);
+		pg = __dev_alloc_page(gfp);
 		if (unlikely(!pg)) {
 			q->alloc_failed++;
 			break;
@@ -816,7 +818,7 @@ static void write_sgl(const struct sk_buff *skb, struct sge_txq *q,
 		sgl->addr0 = cpu_to_be64(addr[1]);
 	}
 
-	sgl->cmd_nsge = htonl(ULPTX_CMD(ULP_TX_SC_DSGL) | ULPTX_NSGE(nfrags));
+	sgl->cmd_nsge = htonl(ULPTX_CMD_V(ULP_TX_SC_DSGL) | ULPTX_NSGE(nfrags));
 	if (likely(--nfrags == 0))
 		return;
 	/*
@@ -850,14 +852,13 @@ static void write_sgl(const struct sk_buff *skb, struct sge_txq *q,
 		*end = 0;
 }
 
-/* This function copies a tx_desc struct to memory mapped BAR2 space(user space
- * writes). For coalesced WR SGE, fetches data from the FIFO instead of from
- * Host.
+/* This function copies 64 byte coalesced work request to
+ * memory mapped BAR2 space. For coalesced WR SGE fetches
+ * data from the FIFO instead of from Host.
  */
-static void cxgb_pio_copy(u64 __iomem *dst, struct tx_desc *desc)
+static void cxgb_pio_copy(u64 __iomem *dst, u64 *src)
 {
-	int count = sizeof(*desc) / sizeof(u64);
-	u64 *src = (u64 *)desc;
+	int count = 8;
 
 	while (count) {
 		writeq(*src, dst);
@@ -879,7 +880,10 @@ static inline void ring_tx_db(struct adapter *adap, struct sge_txq *q, int n)
 {
 	wmb();            /* write descriptors before telling HW */
 
-	if (is_t4(adap->params.chip)) {
+	/* If we don't have access to the new User Doorbell (T5+), use the old
+	 * doorbell mechanism; otherwise use the new BAR2 mechanism.
+	 */
+	if (unlikely(q->bar2_addr == NULL)) {
 		u32 val = PIDX(n);
 		unsigned long flags;
 
@@ -905,21 +909,22 @@ static inline void ring_tx_db(struct adapter *adap, struct sge_txq *q, int n)
 		 */
 		WARN_ON(val & DBPRIO(1));
 
-		/* For T5 and later we use the Write-Combine mapped BAR2 User
-		 * Doorbell mechanism.  If we're only writing a single TX
-		 * Descriptor and TX Write Combining hasn't been disabled, we
-		 * can use the Write Combining Gather Buffer; otherwise we use
-		 * the simple doorbell.
+		/* If we're only writing a single TX Descriptor and we can use
+		 * Inferred QID registers, we can use the Write Combining
+		 * Gather Buffer; otherwise we use the simple doorbell.
 		 */
-		if (n == 1) {
+		if (n == 1 && q->bar2_qid == 0) {
 			int index = (q->pidx
 				     ? (q->pidx - 1)
 				     : (q->size - 1));
+			u64 *wr = (u64 *)&q->desc[index];
 
-			cxgb_pio_copy(adap->bar2 + q->udb + SGE_UDB_WCDOORBELL,
-				      q->desc + index);
+			cxgb_pio_copy((u64 __iomem *)
+				      (q->bar2_addr + SGE_UDB_WCDOORBELL),
+				      wr);
 		} else {
-			writel(val,  adap->bar2 + q->udb + SGE_UDB_KDOORBELL);
+			writel(val | QID(q->bar2_qid),
+			       q->bar2_addr + SGE_UDB_KDOORBELL);
 		}
 
 		/* This Write Memory Barrier will force the write to the User
@@ -1092,10 +1097,10 @@ out_free:	dev_kfree_skb_any(skb);
 		goto out_free;
 	}
 
-	wr_mid = FW_WR_LEN16(DIV_ROUND_UP(flits, 2));
+	wr_mid = FW_WR_LEN16_V(DIV_ROUND_UP(flits, 2));
 	if (unlikely(credits < ETHTXQ_STOP_THRES)) {
 		eth_txq_stop(q);
-		wr_mid |= FW_WR_EQUEQ | FW_WR_EQUIQ;
+		wr_mid |= FW_WR_EQUEQ_F | FW_WR_EQUIQ_F;
 	}
 
 	wr = (void *)&q->q.desc[q->q.pidx];
@@ -1112,8 +1117,8 @@ out_free:	dev_kfree_skb_any(skb);
 		int eth_xtra_len = skb_network_offset(skb) - ETH_HLEN;
 
 		len += sizeof(*lso);
-		wr->op_immdlen = htonl(FW_WR_OP(FW_ETH_TX_PKT_WR) |
-				       FW_WR_IMMDLEN(len));
+		wr->op_immdlen = htonl(FW_WR_OP_V(FW_ETH_TX_PKT_WR) |
+				       FW_WR_IMMDLEN_V(len));
 		lso->c.lso_ctrl = htonl(LSO_OPCODE(CPL_TX_PKT_LSO) |
 					LSO_FIRST_SLICE | LSO_LAST_SLICE |
 					LSO_IPV6(v6) |
@@ -1135,8 +1140,8 @@ out_free:	dev_kfree_skb_any(skb);
 		q->tx_cso += ssi->gso_segs;
 	} else {
 		len += sizeof(*cpl);
-		wr->op_immdlen = htonl(FW_WR_OP(FW_ETH_TX_PKT_WR) |
-				       FW_WR_IMMDLEN(len));
+		wr->op_immdlen = htonl(FW_WR_OP_V(FW_ETH_TX_PKT_WR) |
+				       FW_WR_IMMDLEN_V(len));
 		cpl = (void *)(wr + 1);
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
 			cntrl = hwcsum(skb) | TXPKT_IPCSUM_DIS;
@@ -1224,7 +1229,7 @@ static void ctrlq_check_stop(struct sge_ctrl_txq *q, struct fw_wr_hdr *wr)
 {
 	reclaim_completed_tx_imm(&q->q);
 	if (unlikely(txq_avail(&q->q) < TXQ_STOP_THRES)) {
-		wr->lo |= htonl(FW_WR_EQUEQ | FW_WR_EQUIQ);
+		wr->lo |= htonl(FW_WR_EQUEQ_F | FW_WR_EQUIQ_F);
 		q->q.stops++;
 		q->full = 1;
 	}
@@ -1406,7 +1411,7 @@ static void ofldtxq_stop(struct sge_ofld_txq *q, struct sk_buff *skb)
 {
 	struct fw_wr_hdr *wr = (struct fw_wr_hdr *)skb->data;
 
-	wr->lo |= htonl(FW_WR_EQUEQ | FW_WR_EQUIQ);
+	wr->lo |= htonl(FW_WR_EQUEQ_F | FW_WR_EQUIQ_F);
 	q->q.stops++;
 	q->full = 1;
 }
@@ -1997,11 +2002,16 @@ static int napi_rx_handler(struct napi_struct *napi, int budget)
 		params = QINTR_TIMER_IDX(7);
 
 	val = CIDXINC(work_done) | SEINTARM(params);
-	if (is_t4(q->adap->params.chip)) {
+
+	/* If we don't have access to the new User GTS (T5+), use the old
+	 * doorbell mechanism; otherwise use the new BAR2 mechanism.
+	 */
+	if (unlikely(q->bar2_addr == NULL)) {
 		t4_write_reg(q->adap, MYPF_REG(SGE_PF_GTS),
 			     val | INGRESSQID((u32)q->cntxt_id));
 	} else {
-		writel(val, q->adap->bar2 + q->udb + SGE_UDB_GTS);
+		writel(val | INGRESSQID(q->bar2_qid),
+		       q->bar2_addr + SGE_UDB_GTS);
 		wmb();
 	}
 	return work_done;
@@ -2047,11 +2057,16 @@ static unsigned int process_intrq(struct adapter *adap)
 	}
 
 	val =  CIDXINC(credits) | SEINTARM(q->intr_params);
-	if (is_t4(adap->params.chip)) {
+
+	/* If we don't have access to the new User GTS (T5+), use the old
+	 * doorbell mechanism; otherwise use the new BAR2 mechanism.
+	 */
+	if (unlikely(q->bar2_addr == NULL)) {
 		t4_write_reg(adap, MYPF_REG(SGE_PF_GTS),
 			     val | INGRESSQID(q->cntxt_id));
 	} else {
-		writel(val, adap->bar2 + q->udb + SGE_UDB_GTS);
+		writel(val | INGRESSQID(q->bar2_qid),
+		       q->bar2_addr + SGE_UDB_GTS);
 		wmb();
 	}
 	spin_unlock(&adap->sge.intrq_lock);
@@ -2235,48 +2250,32 @@ static void sge_tx_timer_cb(unsigned long data)
 }
 
 /**
- *      udb_address - return the BAR2 User Doorbell address for a Queue
- *      @adap: the adapter
- *      @cntxt_id: the Queue Context ID
- *      @qpp: Queues Per Page (for all PFs)
+ *	bar2_address - return the BAR2 address for an SGE Queue's Registers
+ *	@adapter: the adapter
+ *	@qid: the SGE Queue ID
+ *	@qtype: the SGE Queue Type (Egress or Ingress)
+ *	@pbar2_qid: BAR2 Queue ID or 0 for Queue ID inferred SGE Queues
  *
- *      Returns the BAR2 address of the user Doorbell associated with the
- *      indicated Queue Context ID.  Note that this is only applicable
- *      for T5 and later.
+ *	Returns the BAR2 address for the SGE Queue Registers associated with
+ *	@qid.  If BAR2 SGE Registers aren't available, returns NULL.  Also
+ *	returns the BAR2 Queue ID to be used with writes to the BAR2 SGE
+ *	Queue Registers.  If the BAR2 Queue ID is 0, then "Inferred Queue ID"
+ *	Registers are supported (e.g. the Write Combining Doorbell Buffer).
  */
-static u64 udb_address(struct adapter *adap, unsigned int cntxt_id,
-		       unsigned int qpp)
+static void __iomem *bar2_address(struct adapter *adapter,
+				  unsigned int qid,
+				  enum t4_bar2_qtype qtype,
+				  unsigned int *pbar2_qid)
 {
-	u64 udb;
-	unsigned int s_qpp;
-	unsigned short udb_density;
-	unsigned long qpshift;
-	int page;
+	u64 bar2_qoffset;
+	int ret;
 
-	BUG_ON(is_t4(adap->params.chip));
+	ret = cxgb4_t4_bar2_sge_qregs(adapter, qid, qtype,
+				&bar2_qoffset, pbar2_qid);
+	if (ret)
+		return NULL;
 
-	s_qpp = (QUEUESPERPAGEPF0 +
-		(QUEUESPERPAGEPF1 - QUEUESPERPAGEPF0) * adap->fn);
-	udb_density = 1 << ((qpp >> s_qpp) & QUEUESPERPAGEPF0_MASK);
-	qpshift = PAGE_SHIFT - ilog2(udb_density);
-	udb = (u64)cntxt_id << qpshift;
-	udb &= PAGE_MASK;
-	page = udb / PAGE_SIZE;
-	udb += (cntxt_id - (page * udb_density)) * SGE_UDB_SIZE;
-
-	return udb;
-}
-
-static u64 udb_address_eq(struct adapter *adap, unsigned int cntxt_id)
-{
-	return udb_address(adap, cntxt_id,
-			   t4_read_reg(adap, SGE_EGRESS_QUEUES_PER_PAGE_PF));
-}
-
-static u64 udb_address_iq(struct adapter *adap, unsigned int cntxt_id)
-{
-	return udb_address(adap, cntxt_id,
-			   t4_read_reg(adap, SGE_INGRESS_QUEUES_PER_PAGE_PF));
+	return adapter->bar2 + bar2_qoffset;
 }
 
 int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
@@ -2297,20 +2296,20 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 		return -ENOMEM;
 
 	memset(&c, 0, sizeof(c));
-	c.op_to_vfn = htonl(FW_CMD_OP(FW_IQ_CMD) | FW_CMD_REQUEST |
-			    FW_CMD_WRITE | FW_CMD_EXEC |
-			    FW_IQ_CMD_PFN(adap->fn) | FW_IQ_CMD_VFN(0));
-	c.alloc_to_len16 = htonl(FW_IQ_CMD_ALLOC | FW_IQ_CMD_IQSTART(1) |
+	c.op_to_vfn = htonl(FW_CMD_OP_V(FW_IQ_CMD) | FW_CMD_REQUEST_F |
+			    FW_CMD_WRITE_F | FW_CMD_EXEC_F |
+			    FW_IQ_CMD_PFN_V(adap->fn) | FW_IQ_CMD_VFN_V(0));
+	c.alloc_to_len16 = htonl(FW_IQ_CMD_ALLOC_F | FW_IQ_CMD_IQSTART_F |
 				 FW_LEN16(c));
-	c.type_to_iqandstindex = htonl(FW_IQ_CMD_TYPE(FW_IQ_TYPE_FL_INT_CAP) |
-		FW_IQ_CMD_IQASYNCH(fwevtq) | FW_IQ_CMD_VIID(pi->viid) |
-		FW_IQ_CMD_IQANDST(intr_idx < 0) | FW_IQ_CMD_IQANUD(1) |
-		FW_IQ_CMD_IQANDSTINDEX(intr_idx >= 0 ? intr_idx :
+	c.type_to_iqandstindex = htonl(FW_IQ_CMD_TYPE_V(FW_IQ_TYPE_FL_INT_CAP) |
+		FW_IQ_CMD_IQASYNCH_V(fwevtq) | FW_IQ_CMD_VIID_V(pi->viid) |
+		FW_IQ_CMD_IQANDST_V(intr_idx < 0) | FW_IQ_CMD_IQANUD_V(1) |
+		FW_IQ_CMD_IQANDSTINDEX_V(intr_idx >= 0 ? intr_idx :
 							-intr_idx - 1));
-	c.iqdroprss_to_iqesize = htons(FW_IQ_CMD_IQPCIECH(pi->tx_chan) |
-		FW_IQ_CMD_IQGTSMODE |
-		FW_IQ_CMD_IQINTCNTTHRESH(iq->pktcnt_idx) |
-		FW_IQ_CMD_IQESIZE(ilog2(iq->iqe_len) - 4));
+	c.iqdroprss_to_iqesize = htons(FW_IQ_CMD_IQPCIECH_V(pi->tx_chan) |
+		FW_IQ_CMD_IQGTSMODE_F |
+		FW_IQ_CMD_IQINTCNTTHRESH_V(iq->pktcnt_idx) |
+		FW_IQ_CMD_IQESIZE_V(ilog2(iq->iqe_len) - 4));
 	c.iqsize = htons(iq->size);
 	c.iqaddr = cpu_to_be64(iq->phys_addr);
 
@@ -2323,12 +2322,12 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 			goto fl_nomem;
 
 		flsz = fl->size / 8 + s->stat_len / sizeof(struct tx_desc);
-		c.iqns_to_fl0congen = htonl(FW_IQ_CMD_FL0PACKEN(1) |
-					    FW_IQ_CMD_FL0FETCHRO(1) |
-					    FW_IQ_CMD_FL0DATARO(1) |
-					    FW_IQ_CMD_FL0PADEN(1));
-		c.fl0dcaen_to_fl0cidxfthresh = htons(FW_IQ_CMD_FL0FBMIN(2) |
-				FW_IQ_CMD_FL0FBMAX(3));
+		c.iqns_to_fl0congen = htonl(FW_IQ_CMD_FL0PACKEN_F |
+					    FW_IQ_CMD_FL0FETCHRO_F |
+					    FW_IQ_CMD_FL0DATARO_F |
+					    FW_IQ_CMD_FL0PADEN_F);
+		c.fl0dcaen_to_fl0cidxfthresh = htons(FW_IQ_CMD_FL0FBMIN_V(2) |
+				FW_IQ_CMD_FL0FBMAX_V(3));
 		c.fl0size = htons(flsz);
 		c.fl0addr = cpu_to_be64(fl->addr);
 	}
@@ -2344,8 +2343,10 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 	iq->next_intr_params = iq->intr_params;
 	iq->cntxt_id = ntohs(c.iqid);
 	iq->abs_id = ntohs(c.physiqid);
-	if (!is_t4(adap->params.chip))
-		iq->udb = udb_address_iq(adap, iq->cntxt_id);
+	iq->bar2_addr = bar2_address(adap,
+				     iq->cntxt_id,
+				     T4_BAR2_QTYPE_INGRESS,
+				     &iq->bar2_qid);
 	iq->size--;                           /* subtract status entry */
 	iq->netdev = dev;
 	iq->handler = hnd;
@@ -2362,11 +2363,13 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 		fl->alloc_failed = fl->large_alloc_failed = fl->starving = 0;
 		adap->sge.egr_map[fl->cntxt_id - adap->sge.egr_start] = fl;
 
-		/* Note, we must initialize the Free List User Doorbell
-		 * address before refilling the Free List!
+		/* Note, we must initialize the BAR2 Free List User Doorbell
+		 * information before refilling the Free List!
 		 */
-		if (!is_t4(adap->params.chip))
-			fl->udb = udb_address_eq(adap, fl->cntxt_id);
+		fl->bar2_addr = bar2_address(adap,
+					     fl->cntxt_id,
+					     T4_BAR2_QTYPE_EGRESS,
+					     &fl->bar2_qid);
 		refill_fl(adap, fl, fl_cap(fl), GFP_KERNEL);
 	}
 	return 0;
@@ -2392,9 +2395,10 @@ err:
 static void init_txq(struct adapter *adap, struct sge_txq *q, unsigned int id)
 {
 	q->cntxt_id = id;
-	if (!is_t4(adap->params.chip))
-		q->udb = udb_address_eq(adap, q->cntxt_id);
-
+	q->bar2_addr = bar2_address(adap,
+				    q->cntxt_id,
+				    T4_BAR2_QTYPE_EGRESS,
+				    &q->bar2_qid);
 	q->in_use = 0;
 	q->cidx = q->pidx = 0;
 	q->stops = q->restarts = 0;
@@ -2423,21 +2427,22 @@ int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
 		return -ENOMEM;
 
 	memset(&c, 0, sizeof(c));
-	c.op_to_vfn = htonl(FW_CMD_OP(FW_EQ_ETH_CMD) | FW_CMD_REQUEST |
-			    FW_CMD_WRITE | FW_CMD_EXEC |
-			    FW_EQ_ETH_CMD_PFN(adap->fn) | FW_EQ_ETH_CMD_VFN(0));
-	c.alloc_to_len16 = htonl(FW_EQ_ETH_CMD_ALLOC |
-				 FW_EQ_ETH_CMD_EQSTART | FW_LEN16(c));
-	c.viid_pkd = htonl(FW_EQ_ETH_CMD_AUTOEQUEQE |
-			   FW_EQ_ETH_CMD_VIID(pi->viid));
-	c.fetchszm_to_iqid = htonl(FW_EQ_ETH_CMD_HOSTFCMODE(2) |
-				   FW_EQ_ETH_CMD_PCIECHN(pi->tx_chan) |
-				   FW_EQ_ETH_CMD_FETCHRO(1) |
-				   FW_EQ_ETH_CMD_IQID(iqid));
-	c.dcaen_to_eqsize = htonl(FW_EQ_ETH_CMD_FBMIN(2) |
-				  FW_EQ_ETH_CMD_FBMAX(3) |
-				  FW_EQ_ETH_CMD_CIDXFTHRESH(5) |
-				  FW_EQ_ETH_CMD_EQSIZE(nentries));
+	c.op_to_vfn = htonl(FW_CMD_OP_V(FW_EQ_ETH_CMD) | FW_CMD_REQUEST_F |
+			    FW_CMD_WRITE_F | FW_CMD_EXEC_F |
+			    FW_EQ_ETH_CMD_PFN_V(adap->fn) |
+			    FW_EQ_ETH_CMD_VFN_V(0));
+	c.alloc_to_len16 = htonl(FW_EQ_ETH_CMD_ALLOC_F |
+				 FW_EQ_ETH_CMD_EQSTART_F | FW_LEN16(c));
+	c.viid_pkd = htonl(FW_EQ_ETH_CMD_AUTOEQUEQE_F |
+			   FW_EQ_ETH_CMD_VIID_V(pi->viid));
+	c.fetchszm_to_iqid = htonl(FW_EQ_ETH_CMD_HOSTFCMODE_V(2) |
+				   FW_EQ_ETH_CMD_PCIECHN_V(pi->tx_chan) |
+				   FW_EQ_ETH_CMD_FETCHRO_V(1) |
+				   FW_EQ_ETH_CMD_IQID_V(iqid));
+	c.dcaen_to_eqsize = htonl(FW_EQ_ETH_CMD_FBMIN_V(2) |
+				  FW_EQ_ETH_CMD_FBMAX_V(3) |
+				  FW_EQ_ETH_CMD_CIDXFTHRESH_V(5) |
+				  FW_EQ_ETH_CMD_EQSIZE_V(nentries));
 	c.eqaddr = cpu_to_be64(txq->q.phys_addr);
 
 	ret = t4_wr_mbox(adap, adap->fn, &c, sizeof(c), &c);
@@ -2451,7 +2456,7 @@ int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
 		return ret;
 	}
 
-	init_txq(adap, &txq->q, FW_EQ_ETH_CMD_EQID_GET(ntohl(c.eqid_pkd)));
+	init_txq(adap, &txq->q, FW_EQ_ETH_CMD_EQID_G(ntohl(c.eqid_pkd)));
 	txq->txq = netdevq;
 	txq->tso = txq->tx_cso = txq->vlan_ins = 0;
 	txq->mapping_err = 0;
@@ -2476,22 +2481,22 @@ int t4_sge_alloc_ctrl_txq(struct adapter *adap, struct sge_ctrl_txq *txq,
 	if (!txq->q.desc)
 		return -ENOMEM;
 
-	c.op_to_vfn = htonl(FW_CMD_OP(FW_EQ_CTRL_CMD) | FW_CMD_REQUEST |
-			    FW_CMD_WRITE | FW_CMD_EXEC |
-			    FW_EQ_CTRL_CMD_PFN(adap->fn) |
-			    FW_EQ_CTRL_CMD_VFN(0));
-	c.alloc_to_len16 = htonl(FW_EQ_CTRL_CMD_ALLOC |
-				 FW_EQ_CTRL_CMD_EQSTART | FW_LEN16(c));
-	c.cmpliqid_eqid = htonl(FW_EQ_CTRL_CMD_CMPLIQID(cmplqid));
+	c.op_to_vfn = htonl(FW_CMD_OP_V(FW_EQ_CTRL_CMD) | FW_CMD_REQUEST_F |
+			    FW_CMD_WRITE_F | FW_CMD_EXEC_F |
+			    FW_EQ_CTRL_CMD_PFN_V(adap->fn) |
+			    FW_EQ_CTRL_CMD_VFN_V(0));
+	c.alloc_to_len16 = htonl(FW_EQ_CTRL_CMD_ALLOC_F |
+				 FW_EQ_CTRL_CMD_EQSTART_F | FW_LEN16(c));
+	c.cmpliqid_eqid = htonl(FW_EQ_CTRL_CMD_CMPLIQID_V(cmplqid));
 	c.physeqid_pkd = htonl(0);
-	c.fetchszm_to_iqid = htonl(FW_EQ_CTRL_CMD_HOSTFCMODE(2) |
-				   FW_EQ_CTRL_CMD_PCIECHN(pi->tx_chan) |
-				   FW_EQ_CTRL_CMD_FETCHRO |
-				   FW_EQ_CTRL_CMD_IQID(iqid));
-	c.dcaen_to_eqsize = htonl(FW_EQ_CTRL_CMD_FBMIN(2) |
-				  FW_EQ_CTRL_CMD_FBMAX(3) |
-				  FW_EQ_CTRL_CMD_CIDXFTHRESH(5) |
-				  FW_EQ_CTRL_CMD_EQSIZE(nentries));
+	c.fetchszm_to_iqid = htonl(FW_EQ_CTRL_CMD_HOSTFCMODE_V(2) |
+				   FW_EQ_CTRL_CMD_PCIECHN_V(pi->tx_chan) |
+				   FW_EQ_CTRL_CMD_FETCHRO_F |
+				   FW_EQ_CTRL_CMD_IQID_V(iqid));
+	c.dcaen_to_eqsize = htonl(FW_EQ_CTRL_CMD_FBMIN_V(2) |
+				  FW_EQ_CTRL_CMD_FBMAX_V(3) |
+				  FW_EQ_CTRL_CMD_CIDXFTHRESH_V(5) |
+				  FW_EQ_CTRL_CMD_EQSIZE_V(nentries));
 	c.eqaddr = cpu_to_be64(txq->q.phys_addr);
 
 	ret = t4_wr_mbox(adap, adap->fn, &c, sizeof(c), &c);
@@ -2503,7 +2508,7 @@ int t4_sge_alloc_ctrl_txq(struct adapter *adap, struct sge_ctrl_txq *txq,
 		return ret;
 	}
 
-	init_txq(adap, &txq->q, FW_EQ_CTRL_CMD_EQID_GET(ntohl(c.cmpliqid_eqid)));
+	init_txq(adap, &txq->q, FW_EQ_CTRL_CMD_EQID_G(ntohl(c.cmpliqid_eqid)));
 	txq->adap = adap;
 	skb_queue_head_init(&txq->sendq);
 	tasklet_init(&txq->qresume_tsk, restart_ctrlq, (unsigned long)txq);
@@ -2530,20 +2535,20 @@ int t4_sge_alloc_ofld_txq(struct adapter *adap, struct sge_ofld_txq *txq,
 		return -ENOMEM;
 
 	memset(&c, 0, sizeof(c));
-	c.op_to_vfn = htonl(FW_CMD_OP(FW_EQ_OFLD_CMD) | FW_CMD_REQUEST |
-			    FW_CMD_WRITE | FW_CMD_EXEC |
-			    FW_EQ_OFLD_CMD_PFN(adap->fn) |
-			    FW_EQ_OFLD_CMD_VFN(0));
-	c.alloc_to_len16 = htonl(FW_EQ_OFLD_CMD_ALLOC |
-				 FW_EQ_OFLD_CMD_EQSTART | FW_LEN16(c));
-	c.fetchszm_to_iqid = htonl(FW_EQ_OFLD_CMD_HOSTFCMODE(2) |
-				   FW_EQ_OFLD_CMD_PCIECHN(pi->tx_chan) |
-				   FW_EQ_OFLD_CMD_FETCHRO(1) |
-				   FW_EQ_OFLD_CMD_IQID(iqid));
-	c.dcaen_to_eqsize = htonl(FW_EQ_OFLD_CMD_FBMIN(2) |
-				  FW_EQ_OFLD_CMD_FBMAX(3) |
-				  FW_EQ_OFLD_CMD_CIDXFTHRESH(5) |
-				  FW_EQ_OFLD_CMD_EQSIZE(nentries));
+	c.op_to_vfn = htonl(FW_CMD_OP_V(FW_EQ_OFLD_CMD) | FW_CMD_REQUEST_F |
+			    FW_CMD_WRITE_F | FW_CMD_EXEC_F |
+			    FW_EQ_OFLD_CMD_PFN_V(adap->fn) |
+			    FW_EQ_OFLD_CMD_VFN_V(0));
+	c.alloc_to_len16 = htonl(FW_EQ_OFLD_CMD_ALLOC_F |
+				 FW_EQ_OFLD_CMD_EQSTART_F | FW_LEN16(c));
+	c.fetchszm_to_iqid = htonl(FW_EQ_OFLD_CMD_HOSTFCMODE_V(2) |
+				   FW_EQ_OFLD_CMD_PCIECHN_V(pi->tx_chan) |
+				   FW_EQ_OFLD_CMD_FETCHRO_F |
+				   FW_EQ_OFLD_CMD_IQID_V(iqid));
+	c.dcaen_to_eqsize = htonl(FW_EQ_OFLD_CMD_FBMIN_V(2) |
+				  FW_EQ_OFLD_CMD_FBMAX_V(3) |
+				  FW_EQ_OFLD_CMD_CIDXFTHRESH_V(5) |
+				  FW_EQ_OFLD_CMD_EQSIZE_V(nentries));
 	c.eqaddr = cpu_to_be64(txq->q.phys_addr);
 
 	ret = t4_wr_mbox(adap, adap->fn, &c, sizeof(c), &c);
@@ -2557,7 +2562,7 @@ int t4_sge_alloc_ofld_txq(struct adapter *adap, struct sge_ofld_txq *txq,
 		return ret;
 	}
 
-	init_txq(adap, &txq->q, FW_EQ_OFLD_CMD_EQID_GET(ntohl(c.eqid_pkd)));
+	init_txq(adap, &txq->q, FW_EQ_OFLD_CMD_EQID_G(ntohl(c.eqid_pkd)));
 	txq->adap = adap;
 	skb_queue_head_init(&txq->sendq);
 	tasklet_init(&txq->qresume_tsk, restart_ofldq, (unsigned long)txq);

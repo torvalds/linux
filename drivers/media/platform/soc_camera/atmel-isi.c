@@ -105,25 +105,25 @@ static u32 isi_readl(struct atmel_isi *isi, u32 reg)
 }
 
 static int configure_geometry(struct atmel_isi *isi, u32 width,
-			u32 height, enum v4l2_mbus_pixelcode code)
+			u32 height, u32 code)
 {
 	u32 cfg2, cr;
 
 	switch (code) {
 	/* YUV, including grey */
-	case V4L2_MBUS_FMT_Y8_1X8:
+	case MEDIA_BUS_FMT_Y8_1X8:
 		cr = ISI_CFG2_GRAYSCALE;
 		break;
-	case V4L2_MBUS_FMT_VYUY8_2X8:
+	case MEDIA_BUS_FMT_VYUY8_2X8:
 		cr = ISI_CFG2_YCC_SWAP_MODE_3;
 		break;
-	case V4L2_MBUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
 		cr = ISI_CFG2_YCC_SWAP_MODE_2;
 		break;
-	case V4L2_MBUS_FMT_YVYU8_2X8:
+	case MEDIA_BUS_FMT_YVYU8_2X8:
 		cr = ISI_CFG2_YCC_SWAP_MODE_1;
 		break;
-	case V4L2_MBUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
 		cr = ISI_CFG2_YCC_SWAP_DEFAULT;
 		break;
 	/* RGB, TODO */
@@ -645,7 +645,7 @@ static int isi_camera_get_formats(struct soc_camera_device *icd,
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	int formats = 0, ret;
 	/* sensor format */
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	/* soc camera host format */
 	const struct soc_mbus_pixelfmt *fmt;
 
@@ -670,10 +670,10 @@ static int isi_camera_get_formats(struct soc_camera_device *icd,
 	}
 
 	switch (code) {
-	case V4L2_MBUS_FMT_UYVY8_2X8:
-	case V4L2_MBUS_FMT_VYUY8_2X8:
-	case V4L2_MBUS_FMT_YUYV8_2X8:
-	case V4L2_MBUS_FMT_YVYU8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_VYUY8_2X8:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YVYU8_2X8:
 		formats++;
 		if (xlate) {
 			xlate->host_fmt	= &isi_camera_formats[0];
@@ -1068,7 +1068,6 @@ static struct platform_driver atmel_isi_driver = {
 	.remove		= atmel_isi_remove,
 	.driver		= {
 		.name = "atmel_isi",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(atmel_isi_of_match),
 	},
 };

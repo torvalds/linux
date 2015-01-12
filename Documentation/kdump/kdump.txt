@@ -471,6 +471,13 @@ format. Crash is available on Dave Anderson's site at the following URL:
 
    http://people.redhat.com/~anderson/
 
+Trigger Kdump on WARN()
+=======================
+
+The kernel parameter, panic_on_warn, calls panic() in all WARN() paths.  This
+will cause a kdump to occur at the panic() call.  In cases where a user wants
+to specify this during runtime, /proc/sys/kernel/panic_on_warn can be set to 1
+to achieve the same behaviour.
 
 Contact
 =======

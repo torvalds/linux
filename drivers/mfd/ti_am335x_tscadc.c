@@ -368,7 +368,6 @@ MODULE_DEVICE_TABLE(of, ti_tscadc_dt_ids);
 static struct platform_driver ti_tscadc_driver = {
 	.driver = {
 		.name   = "ti_am3359-tscadc",
-		.owner	= THIS_MODULE,
 		.pm	= TSCADC_PM_OPS,
 		.of_match_table = ti_tscadc_dt_ids,
 	},

@@ -255,9 +255,6 @@ static struct drv_priv drvpriv = {
 static uint r8712_usb_dvobj_init(struct _adapter *padapter)
 {
 	uint	status = _SUCCESS;
-	struct	usb_device_descriptor		*pdev_desc;
-	struct	usb_host_config			*phost_conf;
-	struct	usb_config_descriptor		*pconf_desc;
 	struct	usb_host_interface		*phost_iface;
 	struct	usb_interface_descriptor	*piface_desc;
 	struct dvobj_priv *pdvobjpriv = &padapter->dvobjpriv;
@@ -265,9 +262,6 @@ static uint r8712_usb_dvobj_init(struct _adapter *padapter)
 
 	pdvobjpriv->padapter = padapter;
 	padapter->EepromAddressSize = 6;
-	pdev_desc = &pusbd->descriptor;
-	phost_conf = pusbd->actconfig;
-	pconf_desc = &phost_conf->desc;
 	phost_iface = &pintf->altsetting[0];
 	piface_desc = &phost_iface->desc;
 	pdvobjpriv->nr_endpoint = piface_desc->bNumEndpoints;
@@ -292,13 +286,13 @@ static void r8712_usb_dvobj_deinit(struct _adapter *padapter)
 void rtl871x_intf_stop(struct _adapter *padapter)
 {
 	/*disable_hw_interrupt*/
-	if (padapter->bSurpriseRemoved == false) {
+	if (!padapter->bSurpriseRemoved) {
 		/*device still exists, so driver can do i/o operation
 		 * TODO: */
 	}
 
 	/* cancel in irp */
-	if (padapter->dvobjpriv.inirp_deinit != NULL)
+	if (padapter->dvobjpriv.inirp_deinit)
 		padapter->dvobjpriv.inirp_deinit(padapter);
 	/* cancel out irp */
 	r8712_usb_write_port_cancel(padapter);
@@ -318,7 +312,7 @@ void r871x_dev_unload(struct _adapter *padapter)
 		r8712_stop_drv_threads(padapter);
 
 		/*s5.*/
-		if (padapter->bSurpriseRemoved == false) {
+		if (!padapter->bSurpriseRemoved) {
 			padapter->hw_init_completed = false;
 			rtl8712_hal_deinit(padapter);
 		}
@@ -402,7 +396,7 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 	/* step 3.
 	 * initialize the dvobj_priv
 	 */
-	if (padapter->dvobj_init == NULL)
+	if (!padapter->dvobj_init)
 			goto error;
 	else {
 		status = padapter->dvobj_init(padapter);
@@ -568,7 +562,7 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 		    ((mac[0] == 0x00) && (mac[1] == 0x00) &&
 		     (mac[2] == 0x00) && (mac[3] == 0x00) &&
 		     (mac[4] == 0x00) && (mac[5] == 0x00)) ||
-		     (AutoloadFail == false)) {
+		     (!AutoloadFail)) {
 			mac[0] = 0x00;
 			mac[1] = 0xe0;
 			mac[2] = 0x4c;

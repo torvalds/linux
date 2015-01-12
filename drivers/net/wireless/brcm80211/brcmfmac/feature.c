@@ -17,16 +17,11 @@
 #include <linux/netdevice.h>
 
 #include <brcm_hw_ids.h>
-#include "dhd.h"
-#include "dhd_bus.h"
-#include "dhd_dbg.h"
+#include "core.h"
+#include "bus.h"
+#include "debug.h"
 #include "fwil.h"
 #include "feature.h"
-
-/*
- * firmware error code received if iovar is unsupported.
- */
-#define EBRCMF_FEAT_UNSUPPORTED		23
 
 /*
  * expand feature list to array of feature strings.
@@ -102,6 +97,28 @@ static void brcmf_feat_iovar_int_get(struct brcmf_if *ifp,
 	}
 }
 
+/**
+ * brcmf_feat_iovar_int_set() - determine feature through iovar set.
+ *
+ * @ifp: interface to query.
+ * @id: feature id.
+ * @name: iovar name.
+ */
+static void brcmf_feat_iovar_int_set(struct brcmf_if *ifp,
+				     enum brcmf_feat_id id, char *name, u32 val)
+{
+	int err;
+
+	err = brcmf_fil_iovar_int_set(ifp, name, val);
+	if (err == 0) {
+		brcmf_dbg(INFO, "enabling feature: %s\n", brcmf_feat_names[id]);
+		ifp->drvr->feat_flags |= BIT(id);
+	} else {
+		brcmf_dbg(TRACE, "%s feature check failed: %d\n",
+			  brcmf_feat_names[id], err);
+	}
+}
+
 void brcmf_feat_attach(struct brcmf_pub *drvr)
 {
 	struct brcmf_if *ifp = drvr->iflist[0];
@@ -109,6 +126,7 @@ void brcmf_feat_attach(struct brcmf_pub *drvr)
 	brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_MCHAN, "mchan");
 	if (drvr->bus_if->wowl_supported)
 		brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_WOWL, "wowl");
+	brcmf_feat_iovar_int_set(ifp, BRCMF_FEAT_MBSS, "mbss", 0);
 
 	/* set chip related quirks */
 	switch (drvr->bus_if->chip) {

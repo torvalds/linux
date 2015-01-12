@@ -98,8 +98,8 @@ void __init calibrate_delay(void)
 {
 	loops_per_jiffy = get_clock_rate() / HZ;
 	pr_info("Clock rate yields %lu.%02lu BogoMIPS (lpj=%lu)\n",
-		loops_per_jiffy/(500000/HZ),
-		(loops_per_jiffy/(5000/HZ)) % 100, loops_per_jiffy);
+		loops_per_jiffy / (500000 / HZ),
+		(loops_per_jiffy / (5000 / HZ)) % 100, loops_per_jiffy);
 }
 
 /* Called fairly late in init/main.c, but before we go smp. */

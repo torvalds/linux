@@ -259,7 +259,6 @@ static int mf6x4_auto_attach(struct comedi_device *dev, unsigned long context)
 	s->maxdata = 0x3fff; /* 14 bits DAC */
 	s->range_table = &range_bipolar10;
 	s->insn_write = mf6x4_ao_insn_write;
-	s->insn_read = comedi_readback_insn_read;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)

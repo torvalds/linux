@@ -71,4 +71,5 @@ nv20_devinit_oclass = &(struct nouveau_devinit_impl) {
 	},
 	.meminit = nv20_devinit_meminit,
 	.pll_set = nv04_devinit_pll_set,
+	.post = nvbios_init,
 }.base;

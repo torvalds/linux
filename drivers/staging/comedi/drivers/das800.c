@@ -219,7 +219,6 @@ static const struct das800_board das800_boards[] = {
 };
 
 struct das800_private {
-	unsigned int count;	/* number of data points left to be taken */
 	unsigned int divisor1;	/* counter 1 value for timed conversions */
 	unsigned int divisor2;	/* counter 2 value for timed conversions */
 	unsigned int do_bits;	/* digital output bits */
@@ -286,9 +285,6 @@ static void das800_set_frequency(struct comedi_device *dev)
 
 static int das800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct das800_private *devpriv = dev->private;
-
-	devpriv->count = 0;
 	das800_disable(dev);
 	return 0;
 }
@@ -399,7 +395,6 @@ static int das800_ai_do_cmd(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
 	const struct das800_board *thisboard = dev->board_ptr;
-	struct das800_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int gain = CR_RANGE(cmd->chanlist[0]);
@@ -421,11 +416,6 @@ static int das800_ai_do_cmd(struct comedi_device *dev,
 		gain += 0x7;
 	gain &= 0xf;
 	outb(gain, dev->iobase + DAS800_GAIN);
-
-	if (cmd->stop_src == TRIG_COUNT)
-		devpriv->count = cmd->stop_arg * cmd->chanlist_len;
-	else	/* TRIG_NONE */
-		devpriv->count = 0;
 
 	/* enable auto channel scan, send interrupts on end of conversion
 	 * and set clock source to internal or external
@@ -509,25 +499,28 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 		if (s->maxdata == 0x0fff)
 			val >>= 4;	/* 12-bit sample */
 
-		/* if there are more data points to collect */
-		if (cmd->stop_src == TRIG_NONE || devpriv->count > 0) {
-			/* write data point to buffer */
-			cfc_write_to_buffer(s, val & s->maxdata);
-			devpriv->count--;
+		val &= s->maxdata;
+		comedi_buf_write_samples(s, &val, 1);
+
+		if (cmd->stop_src == TRIG_COUNT &&
+		    async->scans_done >= cmd->stop_arg) {
+			async->events |= COMEDI_CB_EOA;
+			break;
 		}
 	}
-	async->events |= COMEDI_CB_BLOCK;
 
 	if (fifo_overflow) {
 		spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		cfc_handle_events(dev, s);
+		comedi_handle_events(dev, s);
 		return IRQ_HANDLED;
 	}
 
-	if (cmd->stop_src == TRIG_NONE || devpriv->count > 0) {
-		/* Re-enable card's interrupt.
-		 * We already have spinlock, so indirect addressing is safe */
+	if (!(async->events & COMEDI_CB_CANCEL_MASK)) {
+		/*
+		 * Re-enable card's interrupt.
+		 * We already have spinlock, so indirect addressing is safe
+		 */
 		das800_ind_write(dev, CONTROL1_INTE | devpriv->do_bits,
 				 CONTROL1);
 		spin_unlock_irqrestore(&dev->spinlock, irq_flags);
@@ -535,9 +528,8 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 		/* otherwise, stop taking data */
 		spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 		das800_disable(dev);
-		async->events |= COMEDI_CB_EOA;
 	}
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 	return IRQ_HANDLED;
 }
 
@@ -738,7 +730,7 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* Digital Output subdevice */
 	s = &dev->subdevices[2];
 	s->type		= COMEDI_SUBD_DO;
-	s->subdev_flags	= SDF_WRITABLE | SDF_READABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 4;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;

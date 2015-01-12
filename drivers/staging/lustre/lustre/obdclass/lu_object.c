@@ -866,8 +866,7 @@ static int lu_htable_order(void)
 
 	/* clear off unreasonable cache setting. */
 	if (lu_cache_percent == 0 || lu_cache_percent > LU_CACHE_PERCENT_MAX) {
-		CWARN("obdclass: invalid lu_cache_percent: %u, it must be in"
-		      " the range of (0, %u]. Will use default value: %u.\n",
+		CWARN("obdclass: invalid lu_cache_percent: %u, it must be in the range of (0, %u]. Will use default value: %u.\n",
 		      lu_cache_percent, LU_CACHE_PERCENT_MAX,
 		      LU_CACHE_PERCENT_DEFAULT);
 

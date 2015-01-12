@@ -1,0 +1,46 @@
+Qualcomm's SPMI PMIC current ADC
+
+QPNP PMIC current ADC (IADC) provides interface to clients to read current.
+A 16 bit ADC is used for current measurements. IADC can measure the current
+through an external resistor (channel 1) or internal (built-in) resistor
+(channel 0). When using an external resistor it is to be described by
+qcom,external-resistor-micro-ohms property.
+
+IADC node:
+
+- compatible:
+    Usage: required
+    Value type: <string>
+    Definition: Should contain "qcom,spmi-iadc".
+
+- reg:
+    Usage: required
+    Value type: <prop-encoded-array>
+    Definition: IADC base address and length in the SPMI PMIC register map
+
+- interrupts:
+    Usage: optional
+    Value type: <prop-encoded-array>
+    Definition: End of ADC conversion.
+
+- qcom,external-resistor-micro-ohms:
+    Usage: optional
+    Value type: <u32>
+    Definition: Sense resister value in micro Ohm.
+                If not defined value of 10000 micro Ohms will be used.
+
+Example:
+	/* IADC node */
+	pmic_iadc: iadc@3600 {
+		compatible = "qcom,spmi-iadc";
+		reg = <0x3600 0x100>;
+		interrupts = <0x0 0x36 0x0 IRQ_TYPE_EDGE_RISING>;
+		qcom,external-resistor-micro-ohms = <10000>;
+		#io-channel-cells  = <1>;
+	};
+
+	/* IIO client node */
+	bat {
+		io-channels = <&pmic_iadc  0>;
+		io-channel-names = "iadc";
+	};

@@ -1015,7 +1015,7 @@ static int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 		 */
 		if ((bp->dev->mtu > ETH_MAX_PACKET_SIZE) &&
 		    (len <= RX_COPY_THRESH)) {
-			skb = netdev_alloc_skb_ip_align(bp->dev, len);
+			skb = napi_alloc_skb(&fp->napi, len);
 			if (skb == NULL) {
 				DP(NETIF_MSG_RX_ERR | NETIF_MSG_RX_STATUS,
 				   "ERROR  packet dropped because of alloc failure\n");
@@ -1139,7 +1139,7 @@ static irqreturn_t bnx2x_msix_fp_int(int irq, void *fp_cookie)
 		prefetch(fp->txdata_ptr[cos]->tx_cons_sb);
 
 	prefetch(&fp->sb_running_index[SM_RX_ID]);
-	napi_schedule(&bnx2x_fp(bp, fp->index, napi));
+	napi_schedule_irqoff(&bnx2x_fp(bp, fp->index, napi));
 
 	return IRQ_HANDLED;
 }
@@ -2099,7 +2099,7 @@ int bnx2x_rss(struct bnx2x *bp, struct bnx2x_rss_config_obj *rss_obj,
 
 	if (config_hash) {
 		/* RSS keys */
-		prandom_bytes(params.rss_key, T_ETH_RSS_KEY * 4);
+		netdev_rss_key_fill(params.rss_key, T_ETH_RSS_KEY * 4);
 		__set_bit(BNX2X_RSS_SET_SRCH, &params.rss_flags);
 	}
 

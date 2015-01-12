@@ -60,14 +60,12 @@ module_param(separate_tx_rx_irq, bool, 0644);
  */
 unsigned int rx_drain_timeout_msecs = 10000;
 module_param(rx_drain_timeout_msecs, uint, 0444);
-unsigned int rx_drain_timeout_jiffies;
 
 /* The length of time before the frontend is considered unresponsive
  * because it isn't providing Rx slots.
  */
-static unsigned int rx_stall_timeout_msecs = 60000;
+unsigned int rx_stall_timeout_msecs = 60000;
 module_param(rx_stall_timeout_msecs, uint, 0444);
-static unsigned int rx_stall_timeout_jiffies;
 
 unsigned int xenvif_max_queues;
 module_param_named(max_queues, xenvif_max_queues, uint, 0644);
@@ -81,6 +79,16 @@ MODULE_PARM_DESC(max_queues,
 #define FATAL_SKB_SLOTS_DEFAULT 20
 static unsigned int fatal_skb_slots = FATAL_SKB_SLOTS_DEFAULT;
 module_param(fatal_skb_slots, uint, 0444);
+
+/* The amount to copy out of the first guest Tx slot into the skb's
+ * linear area.  If the first slot has more data, it will be mapped
+ * and put into the first frag.
+ *
+ * This is sized to avoid pulling headers from the frags for most
+ * TCP/IP packets.
+ */
+#define XEN_NETBACK_TX_COPY_LEN 128
+
 
 static void xenvif_idx_release(struct xenvif_queue *queue, u16 pending_idx,
 			       u8 status);
@@ -124,13 +132,6 @@ static inline struct xenvif_queue *ubuf_to_queue(const struct ubuf_info *ubuf)
 			    struct xenvif_queue,
 			    pending_tx_info[0]);
 }
-
-/* This is a miniumum size for the linear area to avoid lots of
- * calls to __pskb_pull_tail() as we set up checksum offsets. The
- * value 128 was chosen as it covers all IPv4 and most likely
- * IPv6 headers.
- */
-#define PKT_PROT_LEN 128
 
 static u16 frag_get_pending_idx(skb_frag_t *frag)
 {
@@ -1446,9 +1447,9 @@ static void xenvif_tx_build_gops(struct xenvif_queue *queue,
 		index = pending_index(queue->pending_cons);
 		pending_idx = queue->pending_ring[index];
 
-		data_len = (txreq.size > PKT_PROT_LEN &&
+		data_len = (txreq.size > XEN_NETBACK_TX_COPY_LEN &&
 			    ret < XEN_NETBK_LEGACY_SLOTS_MAX) ?
-			PKT_PROT_LEN : txreq.size;
+			XEN_NETBACK_TX_COPY_LEN : txreq.size;
 
 		skb = xenvif_alloc_skb(data_len);
 		if (unlikely(skb == NULL)) {
@@ -1550,7 +1551,7 @@ static int xenvif_handle_frag_list(struct xenvif_queue *queue, struct sk_buff *s
 		unsigned int len;
 
 		BUG_ON(i >= MAX_SKB_FRAGS);
-		page = alloc_page(GFP_ATOMIC|__GFP_COLD);
+		page = alloc_page(GFP_ATOMIC);
 		if (!page) {
 			int j;
 			skb->truesize += skb->data_len;
@@ -1651,11 +1652,6 @@ static int xenvif_tx_submit(struct xenvif_queue *queue)
 				kfree_skb(skb);
 				continue;
 			}
-		}
-
-		if (skb_is_nonlinear(skb) && skb_headlen(skb) < PKT_PROT_LEN) {
-			int target = min_t(int, skb->len, PKT_PROT_LEN);
-			__pskb_pull_tail(skb, target - skb_headlen(skb));
 		}
 
 		skb->dev      = queue->vif->dev;
@@ -2022,7 +2018,7 @@ static bool xenvif_rx_queue_stalled(struct xenvif_queue *queue)
 	return !queue->stalled
 		&& prod - cons < XEN_NETBK_RX_SLOTS_MAX
 		&& time_after(jiffies,
-			      queue->last_rx_time + rx_stall_timeout_jiffies);
+			      queue->last_rx_time + queue->vif->stall_timeout);
 }
 
 static bool xenvif_rx_queue_ready(struct xenvif_queue *queue)
@@ -2040,8 +2036,9 @@ static bool xenvif_have_rx_work(struct xenvif_queue *queue)
 {
 	return (!skb_queue_empty(&queue->rx_queue)
 		&& xenvif_rx_ring_slots_available(queue, XEN_NETBK_RX_SLOTS_MAX))
-		|| xenvif_rx_queue_stalled(queue)
-		|| xenvif_rx_queue_ready(queue)
+		|| (queue->vif->stall_timeout &&
+		    (xenvif_rx_queue_stalled(queue)
+		     || xenvif_rx_queue_ready(queue)))
 		|| kthread_should_stop()
 		|| queue->vif->disabled;
 }
@@ -2094,6 +2091,9 @@ int xenvif_kthread_guest_rx(void *data)
 	struct xenvif_queue *queue = data;
 	struct xenvif *vif = queue->vif;
 
+	if (!vif->stall_timeout)
+		xenvif_queue_carrier_on(queue);
+
 	for (;;) {
 		xenvif_wait_for_rx_work(queue);
 
@@ -2120,10 +2120,12 @@ int xenvif_kthread_guest_rx(void *data)
 		 * while it's probably not responsive, drop the
 		 * carrier so packets are dropped earlier.
 		 */
-		if (xenvif_rx_queue_stalled(queue))
-			xenvif_queue_carrier_off(queue);
-		else if (xenvif_rx_queue_ready(queue))
-			xenvif_queue_carrier_on(queue);
+		if (vif->stall_timeout) {
+			if (xenvif_rx_queue_stalled(queue))
+				xenvif_queue_carrier_off(queue);
+			else if (xenvif_rx_queue_ready(queue))
+				xenvif_queue_carrier_on(queue);
+		}
 
 		/* Queued packets may have foreign pages from other
 		 * domains.  These cannot be queued indefinitely as
@@ -2193,9 +2195,6 @@ static int __init netback_init(void)
 	rc = xenvif_xenbus_init();
 	if (rc)
 		goto failed_init;
-
-	rx_drain_timeout_jiffies = msecs_to_jiffies(rx_drain_timeout_msecs);
-	rx_stall_timeout_jiffies = msecs_to_jiffies(rx_stall_timeout_msecs);
 
 #ifdef CONFIG_DEBUG_FS
 	xen_netback_dbg_root = debugfs_create_dir("xen-netback", NULL);

@@ -138,6 +138,8 @@ struct sge_fl {
 	struct rx_sw_desc *sdesc;	/* address of SW RX descriptor ring */
 	__be64 *desc;			/* address of HW RX descriptor ring */
 	dma_addr_t addr;		/* PCI bus address of hardware ring */
+	void __iomem *bar2_addr;	/* address of BAR2 Queue registers */
+	unsigned int bar2_qid;		/* Queue ID for BAR2 Queue registers */
 };
 
 /*
@@ -178,6 +180,8 @@ struct sge_rspq {
 	u16 abs_id;			/* SGE abs QID for the response Q */
 	__be64 *desc;			/* address of hardware response ring */
 	dma_addr_t phys_addr;		/* PCI bus address of ring */
+	void __iomem *bar2_addr;	/* address of BAR2 Queue registers */
+	unsigned int bar2_qid;		/* Queue ID for BAR2 Queue registers */
 	unsigned int iqe_len;		/* entry size */
 	unsigned int size;		/* capcity of response Q */
 	struct adapter *adapter;	/* our adapter */
@@ -240,6 +244,8 @@ struct sge_txq {
 	struct tx_sw_desc *sdesc;	/* address of SW TX descriptor ring */
 	struct sge_qstat *stat;		/* queue status entry */
 	dma_addr_t phys_addr;		/* PCI bus address of hardware ring */
+	void __iomem *bar2_addr;	/* address of BAR2 Queue registers */
+	unsigned int bar2_qid;		/* Queue ID for BAR2 Queue registers */
 };
 
 /*
@@ -345,6 +351,7 @@ struct sge {
 struct adapter {
 	/* PCI resources */
 	void __iomem *regs;
+	void __iomem *bar2;
 	struct pci_dev *pdev;
 	struct device *pdev_dev;
 

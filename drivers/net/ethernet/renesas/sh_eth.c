@@ -1,5 +1,6 @@
 /*  SuperH Ethernet device driver
  *
+ *  Copyright (C) 2014  Renesas Electronics Corporation
  *  Copyright (C) 2006-2012 Nobuhiro Iwamatsu
  *  Copyright (C) 2008-2014 Renesas Solutions Corp.
  *  Copyright (C) 2013-2014 Cogent Embedded, Inc.
@@ -1136,7 +1137,7 @@ static void sh_eth_ring_format(struct net_device *ndev)
 		rxdesc->buffer_length = ALIGN(mdp->rx_buf_sz, 16);
 		dma_map_single(&ndev->dev, skb->data, rxdesc->buffer_length,
 			       DMA_FROM_DEVICE);
-		rxdesc->addr = virt_to_phys(PTR_ALIGN(skb->data, 4));
+		rxdesc->addr = virt_to_phys(skb->data);
 		rxdesc->status = cpu_to_edmac(mdp, RD_RACT | RD_RFP);
 
 		/* Rx descriptor address set */
@@ -1387,11 +1388,14 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 
 	int entry = mdp->cur_rx % mdp->num_rx_ring;
 	int boguscnt = (mdp->dirty_rx + mdp->num_rx_ring) - mdp->cur_rx;
+	int limit;
 	struct sk_buff *skb;
 	u16 pkt_len = 0;
 	u32 desc_status;
 	int skbuff_size = mdp->rx_buf_sz + SH_ETH_RX_ALIGN - 1;
 
+	boguscnt = min(boguscnt, *quota);
+	limit = boguscnt;
 	rxdesc = &mdp->rx_ring[entry];
 	while (!(rxdesc->status & cpu_to_edmac(mdp, RD_RACT))) {
 		desc_status = edmac_to_cpu(mdp, rxdesc->status);
@@ -1399,11 +1403,6 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 
 		if (--boguscnt < 0)
 			break;
-
-		if (*quota <= 0)
-			break;
-
-		(*quota)--;
 
 		if (!(desc_status & RDFEND))
 			ndev->stats.rx_length_errors++;
@@ -1471,7 +1470,7 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 				       rxdesc->buffer_length, DMA_FROM_DEVICE);
 
 			skb_checksum_none_assert(skb);
-			rxdesc->addr = virt_to_phys(PTR_ALIGN(skb->data, 4));
+			rxdesc->addr = virt_to_phys(skb->data);
 		}
 		if (entry >= mdp->num_rx_ring - 1)
 			rxdesc->status |=
@@ -1494,6 +1493,8 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 		}
 		sh_eth_write(ndev, EDRRR_R, EDRRR);
 	}
+
+	*quota -= limit - boguscnt - 1;
 
 	return *quota <= 0;
 }
@@ -2746,6 +2747,7 @@ static const struct of_device_id sh_eth_match_table[] = {
 	{ .compatible = "renesas,ether-r8a7779", .data = &r8a777x_data },
 	{ .compatible = "renesas,ether-r8a7790", .data = &r8a779x_data },
 	{ .compatible = "renesas,ether-r8a7791", .data = &r8a779x_data },
+	{ .compatible = "renesas,ether-r8a7793", .data = &r8a779x_data },
 	{ .compatible = "renesas,ether-r8a7794", .data = &r8a779x_data },
 	{ .compatible = "renesas,ether-r7s72100", .data = &r7s72100_data },
 	{ }
@@ -2769,10 +2771,6 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 
 	/* get base addr */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (unlikely(res == NULL)) {
-		dev_err(&pdev->dev, "invalid resource\n");
-		return -EINVAL;
-	}
 
 	ndev = alloc_etherdev(sizeof(struct sh_eth_private));
 	if (!ndev)
@@ -2781,8 +2779,6 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 
-	/* The sh Ether-specific entries in the device structure. */
-	ndev->base_addr = res->start;
 	devno = pdev->id;
 	if (devno < 0)
 		devno = 0;
@@ -2805,6 +2801,8 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 		ret = PTR_ERR(mdp->addr);
 		goto out_release;
 	}
+
+	ndev->base_addr = res->start;
 
 	spin_lock_init(&mdp->lock);
 	mdp->pdev = pdev;
@@ -2886,6 +2884,9 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 			sh_eth_tsu_init(mdp);
 		}
 	}
+
+	if (mdp->cd->rmiimode)
+		sh_eth_write(ndev, 0x1, RMIIMODE);
 
 	/* MDIO bus init */
 	ret = sh_mdio_init(mdp, pd);
@@ -2973,6 +2974,7 @@ static struct platform_device_id sh_eth_id_table[] = {
 	{ "r8a777x-ether", (kernel_ulong_t)&r8a777x_data },
 	{ "r8a7790-ether", (kernel_ulong_t)&r8a779x_data },
 	{ "r8a7791-ether", (kernel_ulong_t)&r8a779x_data },
+	{ "r8a7793-ether", (kernel_ulong_t)&r8a779x_data },
 	{ "r8a7794-ether", (kernel_ulong_t)&r8a779x_data },
 	{ }
 };

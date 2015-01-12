@@ -53,6 +53,7 @@
 #define SMK_SENDING	2
 
 LIST_HEAD(smk_ipv6_port_list);
+static struct kmem_cache *smack_inode_cache;
 
 #ifdef CONFIG_SECURITY_SMACK_BRINGUP
 static void smk_bu_mode(int mode, char *s)
@@ -166,9 +167,9 @@ static int smk_bu_file(struct file *file, int mode, int rc)
 		return rc;
 
 	smk_bu_mode(mode, acc);
-	pr_info("Smack Bringup: (%s %s %s) file=(%s %ld %s) %s\n",
+	pr_info("Smack Bringup: (%s %s %s) file=(%s %ld %pD) %s\n",
 		sskp->smk_known, (char *)file->f_security, acc,
-		inode->i_sb->s_id, inode->i_ino, file->f_dentry->d_name.name,
+		inode->i_sb->s_id, inode->i_ino, file,
 		current->comm);
 	return 0;
 }
@@ -189,9 +190,9 @@ static int smk_bu_credfile(const struct cred *cred, struct file *file,
 		return rc;
 
 	smk_bu_mode(mode, acc);
-	pr_info("Smack Bringup: (%s %s %s) file=(%s %ld %s) %s\n",
+	pr_info("Smack Bringup: (%s %s %s) file=(%s %ld %pD) %s\n",
 		sskp->smk_known, smk_of_inode(inode)->smk_known, acc,
-		inode->i_sb->s_id, inode->i_ino, file->f_dentry->d_name.name,
+		inode->i_sb->s_id, inode->i_ino, file,
 		current->comm);
 	return 0;
 }
@@ -240,7 +241,7 @@ struct inode_smack *new_inode_smack(struct smack_known *skp)
 {
 	struct inode_smack *isp;
 
-	isp = kzalloc(sizeof(struct inode_smack), GFP_NOFS);
+	isp = kmem_cache_zalloc(smack_inode_cache, GFP_NOFS);
 	if (isp == NULL)
 		return NULL;
 
@@ -767,7 +768,7 @@ static int smack_inode_alloc_security(struct inode *inode)
  */
 static void smack_inode_free_security(struct inode *inode)
 {
-	kfree(inode->i_security);
+	kmem_cache_free(smack_inode_cache, inode->i_security);
 	inode->i_security = NULL;
 }
 
@@ -4264,10 +4265,16 @@ static __init int smack_init(void)
 	if (!security_module_enable(&smack_ops))
 		return 0;
 
+	smack_inode_cache = KMEM_CACHE(inode_smack, 0);
+	if (!smack_inode_cache)
+		return -ENOMEM;
+
 	tsp = new_task_smack(&smack_known_floor, &smack_known_floor,
 				GFP_KERNEL);
-	if (tsp == NULL)
+	if (tsp == NULL) {
+		kmem_cache_destroy(smack_inode_cache);
 		return -ENOMEM;
+	}
 
 	printk(KERN_INFO "Smack:  Initializing.\n");
 

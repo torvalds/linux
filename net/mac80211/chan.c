@@ -270,6 +270,7 @@ ieee80211_get_chanctx_max_required_bw(struct ieee80211_local *local,
 		case NL80211_IFTYPE_ADHOC:
 		case NL80211_IFTYPE_WDS:
 		case NL80211_IFTYPE_MESH_POINT:
+		case NL80211_IFTYPE_OCB:
 			width = vif->bss_conf.chandef.width;
 			break;
 		case NL80211_IFTYPE_UNSPECIFIED:
@@ -674,6 +675,7 @@ void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
 		case NL80211_IFTYPE_ADHOC:
 		case NL80211_IFTYPE_WDS:
 		case NL80211_IFTYPE_MESH_POINT:
+		case NL80211_IFTYPE_OCB:
 			break;
 		default:
 			WARN_ON_ONCE(1);
@@ -909,6 +911,7 @@ ieee80211_vif_chanctx_reservation_complete(struct ieee80211_sub_if_data *sdata)
 	case NL80211_IFTYPE_ADHOC:
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_MESH_POINT:
+	case NL80211_IFTYPE_OCB:
 		ieee80211_queue_work(&sdata->local->hw,
 				     &sdata->csa_finalize_work);
 		break;
@@ -927,6 +930,21 @@ ieee80211_vif_chanctx_reservation_complete(struct ieee80211_sub_if_data *sdata)
 		WARN_ON(1);
 		break;
 	}
+}
+
+static void
+ieee80211_vif_update_chandef(struct ieee80211_sub_if_data *sdata,
+			     const struct cfg80211_chan_def *chandef)
+{
+	struct ieee80211_sub_if_data *vlan;
+
+	sdata->vif.bss_conf.chandef = *chandef;
+
+	if (sdata->vif.type != NL80211_IFTYPE_AP)
+		return;
+
+	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
+		vlan->vif.bss_conf.chandef = *chandef;
 }
 
 static int
@@ -991,7 +1009,11 @@ ieee80211_vif_use_reserved_reassign(struct ieee80211_sub_if_data *sdata)
 	if (sdata->vif.bss_conf.chandef.width != sdata->reserved_chandef.width)
 		changed = BSS_CHANGED_BANDWIDTH;
 
-	sdata->vif.bss_conf.chandef = sdata->reserved_chandef;
+	ieee80211_vif_update_chandef(sdata, &sdata->reserved_chandef);
+
+	ieee80211_recalc_smps_chanctx(local, new_ctx);
+	ieee80211_recalc_radar_chanctx(local, new_ctx);
+	ieee80211_recalc_chanctx_min_def(local, new_ctx);
 
 	if (changed)
 		ieee80211_bss_info_change_notify(sdata, changed);
@@ -1333,7 +1355,7 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 			    sdata->reserved_chandef.width)
 				changed = BSS_CHANGED_BANDWIDTH;
 
-			sdata->vif.bss_conf.chandef = sdata->reserved_chandef;
+			ieee80211_vif_update_chandef(sdata, &sdata->reserved_chandef);
 			if (changed)
 				ieee80211_bss_info_change_notify(sdata,
 								 changed);
@@ -1504,7 +1526,7 @@ int ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
 		goto out;
 	}
 
-	sdata->vif.bss_conf.chandef = *chandef;
+	ieee80211_vif_update_chandef(sdata, chandef);
 
 	ret = ieee80211_assign_vif_chanctx(sdata, ctx);
 	if (ret) {
@@ -1634,7 +1656,7 @@ int ieee80211_vif_change_bandwidth(struct ieee80211_sub_if_data *sdata,
 		}
 		break;
 	case IEEE80211_CHANCTX_WILL_BE_REPLACED:
-		/* TODO: Perhaps the bandwith change could be treated as a
+		/* TODO: Perhaps the bandwidth change could be treated as a
 		 * reservation itself? */
 		ret = -EBUSY;
 		goto out;
@@ -1646,7 +1668,7 @@ int ieee80211_vif_change_bandwidth(struct ieee80211_sub_if_data *sdata,
 		break;
 	}
 
-	sdata->vif.bss_conf.chandef = *chandef;
+	ieee80211_vif_update_chandef(sdata, chandef);
 
 	ieee80211_recalc_chanctx_chantype(local, ctx);
 

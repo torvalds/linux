@@ -327,7 +327,6 @@ static int corgi_remove(struct platform_device *pdev)
 static struct platform_driver corgi_driver = {
 	.driver		= {
 		.name	= "corgi-audio",
-		.owner	= THIS_MODULE,
 		.pm     = &snd_soc_pm_ops,
 	},
 	.probe		= corgi_probe,

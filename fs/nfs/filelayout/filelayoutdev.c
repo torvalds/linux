@@ -204,8 +204,7 @@ destroy_ds(struct nfs4_pnfs_ds *ds)
 	ifdebug(FACILITY)
 		print_ds(ds);
 
-	if (ds->ds_clp)
-		nfs_put_client(ds->ds_clp);
+	nfs_put_client(ds->ds_clp);
 
 	while (!list_empty(&ds->ds_addrs)) {
 		da = list_first_entry(&ds->ds_addrs,

@@ -313,13 +313,13 @@ struct saa7164_buffer {
 
 	/* A block of page align PCI memory */
 	u32 pci_size;	/* PCI allocation size in bytes */
-	u64 __iomem *cpu;	/* Virtual address */
+	u64 *cpu;	/* Virtual address */
 	dma_addr_t dma;	/* Physical address */
 	u32 crc;	/* Checksum for the entire buffer data */
 
 	/* A page table that splits the block into a number of entries */
 	u32 pt_size;		/* PCI allocation size in bytes */
-	u64 __iomem *pt_cpu;		/* Virtual address */
+	u64 *pt_cpu;		/* Virtual address */
 	dma_addr_t pt_dma;	/* Physical address */
 
 	/* Encoder fops */

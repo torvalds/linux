@@ -59,7 +59,7 @@ i40e_status i40e_get_dcbx_status(struct i40e_hw *hw, u16 *status)
 static void i40e_parse_ieee_etscfg_tlv(struct i40e_lldp_org_tlv *tlv,
 				       struct i40e_dcbx_config *dcbcfg)
 {
-	struct i40e_ieee_ets_config *etscfg;
+	struct i40e_dcb_ets_config *etscfg;
 	u8 *buf = tlv->tlvinfo;
 	u16 offset = 0;
 	u8 priority;
@@ -407,6 +407,166 @@ free_mem:
 }
 
 /**
+ * i40e_cee_to_dcb_v1_config
+ * @cee_cfg: pointer to CEE v1 response configuration struct
+ * @dcbcfg: DCB configuration struct
+ *
+ * Convert CEE v1 configuration from firmware to DCB configuration
+ **/
+static void i40e_cee_to_dcb_v1_config(
+			struct i40e_aqc_get_cee_dcb_cfg_v1_resp *cee_cfg,
+			struct i40e_dcbx_config *dcbcfg)
+{
+	u16 status, tlv_status = le16_to_cpu(cee_cfg->tlv_status);
+	u16 app_prio = le16_to_cpu(cee_cfg->oper_app_prio);
+	u8 i, tc, err, sync, oper;
+
+	/* CEE PG data to ETS config */
+	dcbcfg->etscfg.maxtcs = cee_cfg->oper_num_tc;
+
+	for (i = 0; i < 4; i++) {
+		tc = (u8)((cee_cfg->oper_prio_tc[i] &
+			 I40E_CEE_PGID_PRIO_1_MASK) >>
+			 I40E_CEE_PGID_PRIO_1_SHIFT);
+		dcbcfg->etscfg.prioritytable[i*2] =  tc;
+		tc = (u8)((cee_cfg->oper_prio_tc[i] &
+			 I40E_CEE_PGID_PRIO_0_MASK) >>
+			 I40E_CEE_PGID_PRIO_0_SHIFT);
+		dcbcfg->etscfg.prioritytable[i*2 + 1] = tc;
+	}
+
+	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++)
+		dcbcfg->etscfg.tcbwtable[i] = cee_cfg->oper_tc_bw[i];
+
+	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
+		if (dcbcfg->etscfg.prioritytable[i] == I40E_CEE_PGID_STRICT) {
+			/* Map it to next empty TC */
+			dcbcfg->etscfg.prioritytable[i] =
+						cee_cfg->oper_num_tc - 1;
+			dcbcfg->etscfg.tsatable[i] = I40E_IEEE_TSA_STRICT;
+		} else {
+			dcbcfg->etscfg.tsatable[i] = I40E_IEEE_TSA_ETS;
+		}
+	}
+
+	/* CEE PFC data to ETS config */
+	dcbcfg->pfc.pfcenable = cee_cfg->oper_pfc_en;
+	dcbcfg->pfc.pfccap = I40E_MAX_TRAFFIC_CLASS;
+
+	status = (tlv_status & I40E_AQC_CEE_APP_STATUS_MASK) >>
+		  I40E_AQC_CEE_APP_STATUS_SHIFT;
+	err = (status & I40E_TLV_STATUS_ERR) ? 1 : 0;
+	sync = (status & I40E_TLV_STATUS_SYNC) ? 1 : 0;
+	oper = (status & I40E_TLV_STATUS_OPER) ? 1 : 0;
+	/* Add APPs if Error is False and Oper/Sync is True */
+	if (!err && sync && oper) {
+		/* CEE operating configuration supports FCoE/iSCSI/FIP only */
+		dcbcfg->numapps = I40E_CEE_OPER_MAX_APPS;
+
+		/* FCoE APP */
+		dcbcfg->app[0].priority =
+			(app_prio & I40E_AQC_CEE_APP_FCOE_MASK) >>
+			 I40E_AQC_CEE_APP_FCOE_SHIFT;
+		dcbcfg->app[0].selector = I40E_APP_SEL_ETHTYPE;
+		dcbcfg->app[0].protocolid = I40E_APP_PROTOID_FCOE;
+
+		/* iSCSI APP */
+		dcbcfg->app[1].priority =
+			(app_prio & I40E_AQC_CEE_APP_ISCSI_MASK) >>
+			 I40E_AQC_CEE_APP_ISCSI_SHIFT;
+		dcbcfg->app[1].selector = I40E_APP_SEL_TCPIP;
+		dcbcfg->app[1].protocolid = I40E_APP_PROTOID_ISCSI;
+
+		/* FIP APP */
+		dcbcfg->app[2].priority =
+			(app_prio & I40E_AQC_CEE_APP_FIP_MASK) >>
+			 I40E_AQC_CEE_APP_FIP_SHIFT;
+		dcbcfg->app[2].selector = I40E_APP_SEL_ETHTYPE;
+		dcbcfg->app[2].protocolid = I40E_APP_PROTOID_FIP;
+	}
+}
+
+/**
+ * i40e_cee_to_dcb_config
+ * @cee_cfg: pointer to CEE configuration struct
+ * @dcbcfg: DCB configuration struct
+ *
+ * Convert CEE configuration from firmware to DCB configuration
+ **/
+static void i40e_cee_to_dcb_config(
+				struct i40e_aqc_get_cee_dcb_cfg_resp *cee_cfg,
+				struct i40e_dcbx_config *dcbcfg)
+{
+	u32 status, tlv_status = le32_to_cpu(cee_cfg->tlv_status);
+	u16 app_prio = le16_to_cpu(cee_cfg->oper_app_prio);
+	u8 i, tc, err, sync, oper;
+
+	/* CEE PG data to ETS config */
+	dcbcfg->etscfg.maxtcs = cee_cfg->oper_num_tc;
+
+	for (i = 0; i < 4; i++) {
+		tc = (u8)((cee_cfg->oper_prio_tc[i] &
+			 I40E_CEE_PGID_PRIO_1_MASK) >>
+			 I40E_CEE_PGID_PRIO_1_SHIFT);
+		dcbcfg->etscfg.prioritytable[i*2] =  tc;
+		tc = (u8)((cee_cfg->oper_prio_tc[i] &
+			 I40E_CEE_PGID_PRIO_0_MASK) >>
+			 I40E_CEE_PGID_PRIO_0_SHIFT);
+		dcbcfg->etscfg.prioritytable[i*2 + 1] = tc;
+	}
+
+	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++)
+		dcbcfg->etscfg.tcbwtable[i] = cee_cfg->oper_tc_bw[i];
+
+	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
+		if (dcbcfg->etscfg.prioritytable[i] == I40E_CEE_PGID_STRICT) {
+			/* Map it to next empty TC */
+			dcbcfg->etscfg.prioritytable[i] =
+						cee_cfg->oper_num_tc - 1;
+			dcbcfg->etscfg.tsatable[i] = I40E_IEEE_TSA_STRICT;
+		} else {
+			dcbcfg->etscfg.tsatable[i] = I40E_IEEE_TSA_ETS;
+		}
+	}
+
+	/* CEE PFC data to ETS config */
+	dcbcfg->pfc.pfcenable = cee_cfg->oper_pfc_en;
+	dcbcfg->pfc.pfccap = I40E_MAX_TRAFFIC_CLASS;
+
+	status = (tlv_status & I40E_AQC_CEE_APP_STATUS_MASK) >>
+		  I40E_AQC_CEE_APP_STATUS_SHIFT;
+	err = (status & I40E_TLV_STATUS_ERR) ? 1 : 0;
+	sync = (status & I40E_TLV_STATUS_SYNC) ? 1 : 0;
+	oper = (status & I40E_TLV_STATUS_OPER) ? 1 : 0;
+	/* Add APPs if Error is False and Oper/Sync is True */
+	if (!err && sync && oper) {
+		/* CEE operating configuration supports FCoE/iSCSI/FIP only */
+		dcbcfg->numapps = I40E_CEE_OPER_MAX_APPS;
+
+		/* FCoE APP */
+		dcbcfg->app[0].priority =
+			(app_prio & I40E_AQC_CEE_APP_FCOE_MASK) >>
+			 I40E_AQC_CEE_APP_FCOE_SHIFT;
+		dcbcfg->app[0].selector = I40E_APP_SEL_ETHTYPE;
+		dcbcfg->app[0].protocolid = I40E_APP_PROTOID_FCOE;
+
+		/* iSCSI APP */
+		dcbcfg->app[1].priority =
+			(app_prio & I40E_AQC_CEE_APP_ISCSI_MASK) >>
+			 I40E_AQC_CEE_APP_ISCSI_SHIFT;
+		dcbcfg->app[1].selector = I40E_APP_SEL_TCPIP;
+		dcbcfg->app[1].protocolid = I40E_APP_PROTOID_ISCSI;
+
+		/* FIP APP */
+		dcbcfg->app[2].priority =
+			(app_prio & I40E_AQC_CEE_APP_FIP_MASK) >>
+			 I40E_AQC_CEE_APP_FIP_SHIFT;
+		dcbcfg->app[2].selector = I40E_APP_SEL_ETHTYPE;
+		dcbcfg->app[2].protocolid = I40E_APP_PROTOID_FIP;
+	}
+}
+
+/**
  * i40e_get_dcb_config
  * @hw: pointer to the hw struct
  *
@@ -415,7 +575,44 @@ free_mem:
 i40e_status i40e_get_dcb_config(struct i40e_hw *hw)
 {
 	i40e_status ret = 0;
+	struct i40e_aqc_get_cee_dcb_cfg_resp cee_cfg;
+	struct i40e_aqc_get_cee_dcb_cfg_v1_resp cee_v1_cfg;
 
+	/* If Firmware version < v4.33 IEEE only */
+	if (((hw->aq.fw_maj_ver == 4) && (hw->aq.fw_min_ver < 33)) ||
+	    (hw->aq.fw_maj_ver < 4))
+		goto ieee;
+
+	/* If Firmware version == v4.33 use old CEE struct */
+	if ((hw->aq.fw_maj_ver == 4) && (hw->aq.fw_min_ver == 33)) {
+		ret = i40e_aq_get_cee_dcb_config(hw, &cee_v1_cfg,
+						 sizeof(cee_v1_cfg), NULL);
+		if (!ret) {
+			/* CEE mode */
+			hw->local_dcbx_config.dcbx_mode = I40E_DCBX_MODE_CEE;
+			i40e_cee_to_dcb_v1_config(&cee_v1_cfg,
+						  &hw->local_dcbx_config);
+		}
+	} else {
+		ret = i40e_aq_get_cee_dcb_config(hw, &cee_cfg,
+						 sizeof(cee_cfg), NULL);
+		if (!ret) {
+			/* CEE mode */
+			hw->local_dcbx_config.dcbx_mode = I40E_DCBX_MODE_CEE;
+			i40e_cee_to_dcb_config(&cee_cfg,
+					       &hw->local_dcbx_config);
+		}
+	}
+
+	/* CEE mode not enabled try querying IEEE data */
+	if (hw->aq.asq_last_status == I40E_AQ_RC_ENOENT)
+		goto ieee;
+	else
+		goto out;
+
+ieee:
+	/* IEEE mode */
+	hw->local_dcbx_config.dcbx_mode = I40E_DCBX_MODE_IEEE;
 	/* Get Local DCB Config */
 	ret = i40e_aq_get_dcb_config(hw, I40E_AQ_LLDP_MIB_LOCAL, 0,
 				     &hw->local_dcbx_config);
@@ -426,6 +623,10 @@ i40e_status i40e_get_dcb_config(struct i40e_hw *hw)
 	ret = i40e_aq_get_dcb_config(hw, I40E_AQ_LLDP_MIB_REMOTE,
 				     I40E_AQ_LLDP_BRIDGE_TYPE_NEAREST_BRIDGE,
 				     &hw->remote_dcbx_config);
+	/* Don't treat ENOENT as an error for Remote MIBs */
+	if (hw->aq.asq_last_status == I40E_AQ_RC_ENOENT)
+		ret = 0;
+
 out:
 	return ret;
 }
@@ -439,9 +640,26 @@ out:
 i40e_status i40e_init_dcb(struct i40e_hw *hw)
 {
 	i40e_status ret = 0;
+	struct i40e_lldp_variables lldp_cfg;
+	u8 adminstatus = 0;
 
 	if (!hw->func_caps.dcb)
 		return ret;
+
+	/* Read LLDP NVM area */
+	ret = i40e_read_lldp_cfg(hw, &lldp_cfg);
+	if (ret)
+		return ret;
+
+	/* Get the LLDP AdminStatus for the current port */
+	adminstatus = lldp_cfg.adminstatus >> (hw->port * 4);
+	adminstatus &= 0xF;
+
+	/* LLDP agent disabled */
+	if (!adminstatus) {
+		hw->dcbx_status = I40E_DCBX_STATUS_DISABLED;
+		return ret;
+	}
 
 	/* Get DCBX status */
 	ret = i40e_get_dcbx_status(hw, &hw->dcbx_status);
@@ -454,6 +672,8 @@ i40e_status i40e_init_dcb(struct i40e_hw *hw)
 	case I40E_DCBX_STATUS_IN_PROGRESS:
 		/* Get current DCBX configuration */
 		ret = i40e_get_dcb_config(hw);
+		if (ret)
+			return ret;
 		break;
 	case I40E_DCBX_STATUS_DISABLED:
 		return ret;
@@ -468,5 +688,35 @@ i40e_status i40e_init_dcb(struct i40e_hw *hw)
 	if (ret)
 		return ret;
 
+	return ret;
+}
+
+/**
+ * i40e_read_lldp_cfg - read LLDP Configuration data from NVM
+ * @hw: pointer to the HW structure
+ * @lldp_cfg: pointer to hold lldp configuration variables
+ *
+ * Reads the LLDP configuration data from NVM
+ **/
+i40e_status i40e_read_lldp_cfg(struct i40e_hw *hw,
+			       struct i40e_lldp_variables *lldp_cfg)
+{
+	i40e_status ret = 0;
+	u32 offset = (2 * I40E_NVM_LLDP_CFG_PTR);
+
+	if (!lldp_cfg)
+		return I40E_ERR_PARAM;
+
+	ret = i40e_acquire_nvm(hw, I40E_RESOURCE_READ);
+	if (ret)
+		goto err_lldp_cfg;
+
+	ret = i40e_aq_read_nvm(hw, I40E_SR_EMP_MODULE_PTR, offset,
+			       sizeof(struct i40e_lldp_variables),
+			       (u8 *)lldp_cfg,
+			       true, NULL);
+	i40e_release_nvm(hw);
+
+err_lldp_cfg:
 	return ret;
 }

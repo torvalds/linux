@@ -729,8 +729,7 @@ static int ideapad_backlight_init(struct ideapad_private *priv)
 
 static void ideapad_backlight_exit(struct ideapad_private *priv)
 {
-	if (priv->blightdev)
-		backlight_device_unregister(priv->blightdev);
+	backlight_device_unregister(priv->blightdev);
 	priv->blightdev = NULL;
 }
 
@@ -966,7 +965,6 @@ static struct platform_driver ideapad_acpi_driver = {
 	.remove = ideapad_acpi_remove,
 	.driver = {
 		.name   = "ideapad_acpi",
-		.owner  = THIS_MODULE,
 		.pm     = &ideapad_pm,
 		.acpi_match_table = ACPI_PTR(ideapad_device_ids),
 	},

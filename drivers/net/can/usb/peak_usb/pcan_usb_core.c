@@ -735,7 +735,7 @@ static int peak_usb_create_dev(struct peak_usb_adapter *peak_usb_adapter,
 	dev->cmd_buf = kmalloc(PCAN_USB_MAX_CMD_LEN, GFP_KERNEL);
 	if (!dev->cmd_buf) {
 		err = -ENOMEM;
-		goto lbl_set_intf_data;
+		goto lbl_free_candev;
 	}
 
 	dev->udev = usb_dev;
@@ -775,7 +775,7 @@ static int peak_usb_create_dev(struct peak_usb_adapter *peak_usb_adapter,
 	err = register_candev(netdev);
 	if (err) {
 		dev_err(&intf->dev, "couldn't register CAN device: %d\n", err);
-		goto lbl_free_cmd_buf;
+		goto lbl_restore_intf_data;
 	}
 
 	if (dev->prev_siblings)
@@ -788,14 +788,14 @@ static int peak_usb_create_dev(struct peak_usb_adapter *peak_usb_adapter,
 	if (dev->adapter->dev_init) {
 		err = dev->adapter->dev_init(dev);
 		if (err)
-			goto lbl_free_cmd_buf;
+			goto lbl_unregister_candev;
 	}
 
 	/* set bus off */
 	if (dev->adapter->dev_set_bus) {
 		err = dev->adapter->dev_set_bus(dev, 0);
 		if (err)
-			goto lbl_free_cmd_buf;
+			goto lbl_unregister_candev;
 	}
 
 	/* get device number early */
@@ -807,11 +807,14 @@ static int peak_usb_create_dev(struct peak_usb_adapter *peak_usb_adapter,
 
 	return 0;
 
-lbl_free_cmd_buf:
+lbl_unregister_candev:
+	unregister_candev(netdev);
+
+lbl_restore_intf_data:
+	usb_set_intfdata(intf, dev->prev_siblings);
 	kfree(dev->cmd_buf);
 
-lbl_set_intf_data:
-	usb_set_intfdata(intf, dev->prev_siblings);
+lbl_free_candev:
 	free_candev(netdev);
 
 	return err;
@@ -853,6 +856,7 @@ static int peak_usb_probe(struct usb_interface *intf,
 			  const struct usb_device_id *id)
 {
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
+	const u16 usb_id_product = le16_to_cpu(usb_dev->descriptor.idProduct);
 	struct peak_usb_adapter *peak_usb_adapter, **pp;
 	int i, err = -ENOMEM;
 
@@ -860,7 +864,7 @@ static int peak_usb_probe(struct usb_interface *intf,
 
 	/* get corresponding PCAN-USB adapter */
 	for (pp = peak_usb_adapters_list; *pp; pp++)
-		if ((*pp)->device_id == usb_dev->descriptor.idProduct)
+		if ((*pp)->device_id == usb_id_product)
 			break;
 
 	peak_usb_adapter = *pp;

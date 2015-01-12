@@ -80,6 +80,7 @@ enum {
 	PL,
 	DTU,
 	DTUS,
+	DTUSX,
 	INTUOS,
 	INTUOS3S,
 	INTUOS3,
@@ -144,6 +145,7 @@ struct wacom_features {
 	int pktlen;
 	bool check_for_hid_type;
 	int hid_type;
+	int last_slot_field;
 };
 
 struct wacom_shared {
@@ -183,6 +185,7 @@ struct wacom_wac {
 	struct input_dev *input;
 	struct input_dev *pad_input;
 	bool input_registered;
+	bool pad_registered;
 	int pid;
 	int battery_capacity;
 	int num_contacts_left;

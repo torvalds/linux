@@ -2408,7 +2408,7 @@ config FB_JZ4740
 
 config FB_MXS
 	tristate "MXS LCD framebuffer support"
-	depends on FB && ARCH_MXS
+	depends on FB && (ARCH_MXS || ARCH_MXC)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT

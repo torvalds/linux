@@ -94,6 +94,7 @@ config PM_STD_PARTITION
 config PM_SLEEP
 	def_bool y
 	depends on SUSPEND || HIBERNATE_CALLBACKS
+	select PM
 
 config PM_SLEEP_SMP
 	def_bool y
@@ -129,23 +130,18 @@ config PM_WAKELOCKS_GC
 	depends on PM_WAKELOCKS
 	default y
 
-config PM_RUNTIME
-	bool "Run-time PM core functionality"
-	depends on !IA64_HP_SIM
+config PM
+	bool "Device power management core functionality"
 	---help---
 	  Enable functionality allowing I/O devices to be put into energy-saving
-	  (low power) states at run time (or autosuspended) after a specified
-	  period of inactivity and woken up in response to a hardware-generated
+	  (low power) states, for example after a specified period of inactivity
+	  (autosuspended), and woken up in response to a hardware-generated
 	  wake-up event or a driver's request.
 
 	  Hardware support is generally required for this functionality to work
 	  and the bus type drivers of the buses the devices are on are
-	  responsible for the actual handling of the autosuspend requests and
+	  responsible for the actual handling of device suspend requests and
 	  wake-up events.
-
-config PM
-	def_bool y
-	depends on PM_SLEEP || PM_RUNTIME
 
 config PM_DEBUG
 	bool "Power Management Debug Support"
@@ -298,14 +294,9 @@ config PM_GENERIC_DOMAINS_SLEEP
 	def_bool y
 	depends on PM_SLEEP && PM_GENERIC_DOMAINS
 
-config PM_GENERIC_DOMAINS_RUNTIME
-	def_bool y
-	depends on PM_RUNTIME && PM_GENERIC_DOMAINS
-
 config PM_GENERIC_DOMAINS_OF
 	def_bool y
 	depends on PM_GENERIC_DOMAINS && OF
 
 config CPU_PM
 	bool
-	depends on SUSPEND || CPU_IDLE

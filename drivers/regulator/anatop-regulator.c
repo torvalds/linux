@@ -322,7 +322,6 @@ static const struct of_device_id of_anatop_regulator_match_tbl[] = {
 static struct platform_driver anatop_regulator_driver = {
 	.driver = {
 		.name	= "anatop_regulator",
-		.owner  = THIS_MODULE,
 		.of_match_table = of_anatop_regulator_match_tbl,
 	},
 	.probe	= anatop_regulator_probe,

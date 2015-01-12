@@ -148,7 +148,8 @@ struct  intel_engine_cs {
 
 	int		(*init)(struct intel_engine_cs *ring);
 
-	int		(*init_context)(struct intel_engine_cs *ring);
+	int		(*init_context)(struct intel_engine_cs *ring,
+					struct intel_context *ctx);
 
 	void		(*write_tail)(struct intel_engine_cs *ring,
 				      u32 value);
@@ -235,6 +236,7 @@ struct  intel_engine_cs {
 	/* Execlists */
 	spinlock_t execlist_lock;
 	struct list_head execlist_queue;
+	struct list_head execlist_retired_req_list;
 	u8 next_context_status_buffer;
 	u32             irq_keep_mask; /* bitmask for interrupts that should not be masked */
 	int		(*emit_request)(struct intel_ringbuffer *ringbuf);
@@ -381,6 +383,9 @@ intel_write_status_page(struct intel_engine_cs *ring,
 #define I915_GEM_HWS_SCRATCH_INDEX	0x30
 #define I915_GEM_HWS_SCRATCH_ADDR (I915_GEM_HWS_SCRATCH_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
 
+void intel_unpin_ringbuffer_obj(struct intel_ringbuffer *ringbuf);
+int intel_pin_and_map_ringbuffer_obj(struct drm_device *dev,
+				     struct intel_ringbuffer *ringbuf);
 void intel_destroy_ringbuffer_obj(struct intel_ringbuffer *ringbuf);
 int intel_alloc_ringbuffer_obj(struct drm_device *dev,
 			       struct intel_ringbuffer *ringbuf);
@@ -424,6 +429,8 @@ int intel_init_vebox_ring_buffer(struct drm_device *dev);
 u64 intel_ring_get_active_head(struct intel_engine_cs *ring);
 void intel_ring_setup_status_page(struct intel_engine_cs *ring);
 
+int init_workarounds_ring(struct intel_engine_cs *ring);
+
 static inline u32 intel_ring_get_tail(struct intel_ringbuffer *ringbuf)
 {
 	return ringbuf->tail;
@@ -440,8 +447,5 @@ static inline void i915_trace_irq_get(struct intel_engine_cs *ring, u32 seqno)
 	if (ring->trace_irq_seqno == 0 && ring->irq_get(ring))
 		ring->trace_irq_seqno = seqno;
 }
-
-/* DRI warts */
-int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size);
 
 #endif /* _INTEL_RINGBUFFER_H_ */

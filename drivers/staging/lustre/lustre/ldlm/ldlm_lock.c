@@ -226,6 +226,7 @@ EXPORT_SYMBOL(ldlm_lock_put);
 int ldlm_lock_remove_from_lru_nolock(struct ldlm_lock *lock)
 {
 	int rc = 0;
+
 	if (!list_empty(&lock->l_lru)) {
 		struct ldlm_namespace *ns = ldlm_lock_to_ns(lock);
 
@@ -575,7 +576,7 @@ struct ldlm_lock *__ldlm_handle2lock(const struct lustre_handle *handle,
 
 	/* It's unlikely but possible that someone marked the lock as
 	 * destroyed after we did handle2object on it */
-	if (flags == 0 && ((lock->l_flags & LDLM_FL_DESTROYED)== 0)) {
+	if (flags == 0 && ((lock->l_flags & LDLM_FL_DESTROYED) == 0)) {
 		lu_ref_add(&lock->l_reference, "handle", current);
 		return lock;
 	}
@@ -811,8 +812,7 @@ void ldlm_lock_decref_internal(struct ldlm_lock *lock, __u32 mode)
 		/* If we received a blocked AST and this was the last reference,
 		 * run the callback. */
 		if ((lock->l_flags & LDLM_FL_NS_SRV) && lock->l_export)
-			CERROR("FL_CBPENDING set on non-local lock--just a "
-			       "warning\n");
+			CERROR("FL_CBPENDING set on non-local lock--just a warning\n");
 
 		LDLM_DEBUG(lock, "final decref done on cbpending lock");
 
@@ -859,6 +859,7 @@ void ldlm_lock_decref_internal(struct ldlm_lock *lock, __u32 mode)
 void ldlm_lock_decref(struct lustre_handle *lockh, __u32 mode)
 {
 	struct ldlm_lock *lock = __ldlm_handle2lock(lockh, 0);
+
 	LASSERTF(lock != NULL, "Non-existing lock: %#llx\n", lockh->cookie);
 	ldlm_lock_decref_internal(lock, mode);
 	LDLM_LOCK_PUT(lock);
@@ -981,7 +982,6 @@ static void search_granted_lock(struct list_head *queue,
 	prev->res_link = queue->prev;
 	prev->mode_link = &req->l_sl_mode;
 	prev->policy_link = &req->l_sl_policy;
-	return;
 }
 
 /**
@@ -1287,6 +1287,7 @@ ldlm_mode_t ldlm_lock_match(struct ldlm_namespace *ns, __u64 flags,
 			__u64 wait_flags = LDLM_FL_LVB_READY |
 				LDLM_FL_DESTROYED | LDLM_FL_FAIL_NOTIFIED;
 			struct l_wait_info lwi;
+
 			if (lock->l_completion_ast) {
 				int err = lock->l_completion_ast(lock,
 							  LDLM_FL_WAIT_NOREPROC,
@@ -1340,9 +1341,10 @@ ldlm_mode_t ldlm_lock_match(struct ldlm_namespace *ns, __u64 flags,
 
 	} else if (!(flags & LDLM_FL_TEST_LOCK)) {/*less verbose for test-only*/
 		LDLM_DEBUG_NOLOCK("not matched ns %p type %u mode %u res %llu/%llu (%llu %llu)",
-				  ns, type, mode, res_id->name[0], res_id->name[1],
+				  ns, type, mode, res_id->name[0],
+				  res_id->name[1],
 				  (type == LDLM_PLAIN || type == LDLM_IBITS) ?
-					res_id->name[2] :policy->l_extent.start,
+					res_id->name[2] : policy->l_extent.start,
 				  (type == LDLM_PLAIN || type == LDLM_IBITS) ?
 					res_id->name[3] : policy->l_extent.end);
 	}
@@ -1453,7 +1455,8 @@ int ldlm_fill_lvb(struct ldlm_lock *lock, struct req_capsule *pill,
 
 			memcpy(data, lvb, size);
 		} else {
-			LDLM_ERROR(lock, "Replied unexpected lquota LVB size %d",
+			LDLM_ERROR(lock,
+				   "Replied unexpected lquota LVB size %d",
 				   size);
 			return -EINVAL;
 		}
@@ -1641,8 +1644,7 @@ ldlm_error_t ldlm_lock_enqueue(struct ldlm_namespace *ns,
 			ldlm_grant_lock(lock, NULL);
 		goto out;
 	} else {
-		CERROR("This is client-side-only module, cannot handle "
-		       "LDLM_NAMESPACE_SERVER resource type lock.\n");
+		CERROR("This is client-side-only module, cannot handle LDLM_NAMESPACE_SERVER resource type lock.\n");
 		LBUG();
 	}
 
@@ -1820,24 +1822,24 @@ int ldlm_run_ast_work(struct ldlm_namespace *ns, struct list_head *rpc_list,
 	arg->list = rpc_list;
 
 	switch (ast_type) {
-		case LDLM_WORK_BL_AST:
-			arg->type = LDLM_BL_CALLBACK;
-			work_ast_lock = ldlm_work_bl_ast_lock;
-			break;
-		case LDLM_WORK_CP_AST:
-			arg->type = LDLM_CP_CALLBACK;
-			work_ast_lock = ldlm_work_cp_ast_lock;
-			break;
-		case LDLM_WORK_REVOKE_AST:
-			arg->type = LDLM_BL_CALLBACK;
-			work_ast_lock = ldlm_work_revoke_ast_lock;
-			break;
-		case LDLM_WORK_GL_AST:
-			arg->type = LDLM_GL_CALLBACK;
-			work_ast_lock = ldlm_work_gl_ast_lock;
-			break;
-		default:
-			LBUG();
+	case LDLM_WORK_BL_AST:
+		arg->type = LDLM_BL_CALLBACK;
+		work_ast_lock = ldlm_work_bl_ast_lock;
+		break;
+	case LDLM_WORK_CP_AST:
+		arg->type = LDLM_CP_CALLBACK;
+		work_ast_lock = ldlm_work_cp_ast_lock;
+		break;
+	case LDLM_WORK_REVOKE_AST:
+		arg->type = LDLM_BL_CALLBACK;
+		work_ast_lock = ldlm_work_revoke_ast_lock;
+		break;
+	case LDLM_WORK_GL_AST:
+		arg->type = LDLM_GL_CALLBACK;
+		work_ast_lock = ldlm_work_gl_ast_lock;
+		break;
+	default:
+		LBUG();
 	}
 
 	/* We create a ptlrpc request set with flow control extension.
@@ -1904,8 +1906,7 @@ void ldlm_reprocess_all(struct ldlm_resource *res)
 	LIST_HEAD(rpc_list);
 
 	if (!ns_is_client(ldlm_res_to_ns(res))) {
-		CERROR("This is client-side-only module, cannot handle "
-		       "LDLM_NAMESPACE_SERVER resource type lock.\n");
+		CERROR("This is client-side-only module, cannot handle LDLM_NAMESPACE_SERVER resource type lock.\n");
 		LBUG();
 	}
 }
@@ -2038,8 +2039,7 @@ int ldlm_cancel_locks_for_export_cb(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 	ecl->ecl_loop++;
 	if ((ecl->ecl_loop & -ecl->ecl_loop) == ecl->ecl_loop) {
 		CDEBUG(D_INFO,
-		       "Cancel lock %p for export %p (loop %d), still have "
-		       "%d locks left on hash table.\n",
+		       "Cancel lock %p for export %p (loop %d), still have %d locks left on hash table.\n",
 		       lock, exp, ecl->ecl_loop,
 		       atomic_read(&hs->hs_count));
 	}
@@ -2169,8 +2169,7 @@ struct ldlm_resource *ldlm_lock_convert(struct ldlm_lock *lock, int new_mode,
 				lock->l_completion_ast(lock, 0, NULL);
 		}
 	} else {
-		CERROR("This is client-side-only module, cannot handle "
-		       "LDLM_NAMESPACE_SERVER resource type lock.\n");
+		CERROR("This is client-side-only module, cannot handle LDLM_NAMESPACE_SERVER resource type lock.\n");
 		LBUG();
 	}
 	unlock_res_and_lock(lock);
@@ -2224,23 +2223,21 @@ void _ldlm_lock_debug(struct ldlm_lock *lock,
 		nid = libcfs_nid2str(exp->exp_connection->c_peer.nid);
 	} else if (exp && exp->exp_obd != NULL) {
 		struct obd_import *imp = exp->exp_obd->u.cli.cl_import;
+
 		nid = libcfs_nid2str(imp->imp_connection->c_peer.nid);
 	}
 
 	if (resource == NULL) {
 		libcfs_debug_vmsg2(msgdata, fmt, args,
-		       " ns: \?\? lock: %p/%#llx lrc: %d/%d,%d mode: %s/%s "
-		       "res: \?\? rrc=\?\? type: \?\?\? flags: %#llx nid: %s "
-		       "remote: %#llx expref: %d pid: %u timeout: %lu "
-		       "lvb_type: %d\n",
-		       lock,
-		       lock->l_handle.h_cookie, atomic_read(&lock->l_refc),
-		       lock->l_readers, lock->l_writers,
-		       ldlm_lockname[lock->l_granted_mode],
-		       ldlm_lockname[lock->l_req_mode],
-		       lock->l_flags, nid, lock->l_remote_handle.cookie,
-		       exp ? atomic_read(&exp->exp_refcount) : -99,
-		       lock->l_pid, lock->l_callback_timeout, lock->l_lvb_type);
+				   " ns: \?\? lock: %p/%#llx lrc: %d/%d,%d mode: %s/%s res: \?\? rrc=\?\? type: \?\?\? flags: %#llx nid: %s remote: %#llx expref: %d pid: %u timeout: %lu lvb_type: %d\n",
+				   lock,
+				   lock->l_handle.h_cookie, atomic_read(&lock->l_refc),
+				   lock->l_readers, lock->l_writers,
+				   ldlm_lockname[lock->l_granted_mode],
+				   ldlm_lockname[lock->l_req_mode],
+				   lock->l_flags, nid, lock->l_remote_handle.cookie,
+				   exp ? atomic_read(&exp->exp_refcount) : -99,
+				   lock->l_pid, lock->l_callback_timeout, lock->l_lvb_type);
 		va_end(args);
 		return;
 	}
@@ -2248,90 +2245,78 @@ void _ldlm_lock_debug(struct ldlm_lock *lock,
 	switch (resource->lr_type) {
 	case LDLM_EXTENT:
 		libcfs_debug_vmsg2(msgdata, fmt, args,
-			" ns: %s lock: %p/%#llx lrc: %d/%d,%d mode: %s/%s "
-			"res: "DLDLMRES" rrc: %d type: %s [%llu->%llu] "
-			"(req %llu->%llu) flags: %#llx nid: %s remote: "
-			"%#llx expref: %d pid: %u timeout: %lu lvb_type: %d\n",
-			ldlm_lock_to_ns_name(lock), lock,
-			lock->l_handle.h_cookie, atomic_read(&lock->l_refc),
-			lock->l_readers, lock->l_writers,
-			ldlm_lockname[lock->l_granted_mode],
-			ldlm_lockname[lock->l_req_mode],
-			PLDLMRES(resource),
-			atomic_read(&resource->lr_refcount),
-			ldlm_typename[resource->lr_type],
-			lock->l_policy_data.l_extent.start,
-			lock->l_policy_data.l_extent.end,
-			lock->l_req_extent.start, lock->l_req_extent.end,
-			lock->l_flags, nid, lock->l_remote_handle.cookie,
-			exp ? atomic_read(&exp->exp_refcount) : -99,
-			lock->l_pid, lock->l_callback_timeout,
-			lock->l_lvb_type);
+				   " ns: %s lock: %p/%#llx lrc: %d/%d,%d mode: %s/%s res: " DLDLMRES " rrc: %d type: %s [%llu->%llu] (req %llu->%llu) flags: %#llx nid: %s remote: %#llx expref: %d pid: %u timeout: %lu lvb_type: %d\n",
+				   ldlm_lock_to_ns_name(lock), lock,
+				   lock->l_handle.h_cookie, atomic_read(&lock->l_refc),
+				   lock->l_readers, lock->l_writers,
+				   ldlm_lockname[lock->l_granted_mode],
+				   ldlm_lockname[lock->l_req_mode],
+				   PLDLMRES(resource),
+				   atomic_read(&resource->lr_refcount),
+				   ldlm_typename[resource->lr_type],
+				   lock->l_policy_data.l_extent.start,
+				   lock->l_policy_data.l_extent.end,
+				   lock->l_req_extent.start, lock->l_req_extent.end,
+				   lock->l_flags, nid, lock->l_remote_handle.cookie,
+				   exp ? atomic_read(&exp->exp_refcount) : -99,
+				   lock->l_pid, lock->l_callback_timeout,
+				   lock->l_lvb_type);
 		break;
 
 	case LDLM_FLOCK:
 		libcfs_debug_vmsg2(msgdata, fmt, args,
-			" ns: %s lock: %p/%#llx lrc: %d/%d,%d mode: %s/%s "
-			"res: "DLDLMRES" rrc: %d type: %s pid: %d "
-			"[%llu->%llu] flags: %#llx nid: %s "
-			"remote: %#llx expref: %d pid: %u timeout: %lu\n",
-			ldlm_lock_to_ns_name(lock), lock,
-			lock->l_handle.h_cookie, atomic_read(&lock->l_refc),
-			lock->l_readers, lock->l_writers,
-			ldlm_lockname[lock->l_granted_mode],
-			ldlm_lockname[lock->l_req_mode],
-			PLDLMRES(resource),
-			atomic_read(&resource->lr_refcount),
-			ldlm_typename[resource->lr_type],
-			lock->l_policy_data.l_flock.pid,
-			lock->l_policy_data.l_flock.start,
-			lock->l_policy_data.l_flock.end,
-			lock->l_flags, nid, lock->l_remote_handle.cookie,
-			exp ? atomic_read(&exp->exp_refcount) : -99,
-			lock->l_pid, lock->l_callback_timeout);
+				   " ns: %s lock: %p/%#llx lrc: %d/%d,%d mode: %s/%s res: " DLDLMRES " rrc: %d type: %s pid: %d [%llu->%llu] flags: %#llx nid: %s remote: %#llx expref: %d pid: %u timeout: %lu\n",
+				   ldlm_lock_to_ns_name(lock), lock,
+				   lock->l_handle.h_cookie, atomic_read(&lock->l_refc),
+				   lock->l_readers, lock->l_writers,
+				   ldlm_lockname[lock->l_granted_mode],
+				   ldlm_lockname[lock->l_req_mode],
+				   PLDLMRES(resource),
+				   atomic_read(&resource->lr_refcount),
+				   ldlm_typename[resource->lr_type],
+				   lock->l_policy_data.l_flock.pid,
+				   lock->l_policy_data.l_flock.start,
+				   lock->l_policy_data.l_flock.end,
+				   lock->l_flags, nid, lock->l_remote_handle.cookie,
+				   exp ? atomic_read(&exp->exp_refcount) : -99,
+				   lock->l_pid, lock->l_callback_timeout);
 		break;
 
 	case LDLM_IBITS:
 		libcfs_debug_vmsg2(msgdata, fmt, args,
-			" ns: %s lock: %p/%#llx lrc: %d/%d,%d mode: %s/%s "
-			"res: "DLDLMRES" bits %#llx rrc: %d type: %s "
-			"flags: %#llx nid: %s remote: %#llx expref: %d "
-			"pid: %u timeout: %lu lvb_type: %d\n",
-			ldlm_lock_to_ns_name(lock),
-			lock, lock->l_handle.h_cookie,
-			atomic_read(&lock->l_refc),
-			lock->l_readers, lock->l_writers,
-			ldlm_lockname[lock->l_granted_mode],
-			ldlm_lockname[lock->l_req_mode],
-			PLDLMRES(resource),
-			lock->l_policy_data.l_inodebits.bits,
-			atomic_read(&resource->lr_refcount),
-			ldlm_typename[resource->lr_type],
-			lock->l_flags, nid, lock->l_remote_handle.cookie,
-			exp ? atomic_read(&exp->exp_refcount) : -99,
-			lock->l_pid, lock->l_callback_timeout,
-			lock->l_lvb_type);
+				   " ns: %s lock: %p/%#llx lrc: %d/%d,%d mode: %s/%s res: " DLDLMRES " bits %#llx rrc: %d type: %s flags: %#llx nid: %s remote: %#llx expref: %d pid: %u timeout: %lu lvb_type: %d\n",
+				   ldlm_lock_to_ns_name(lock),
+				   lock, lock->l_handle.h_cookie,
+				   atomic_read(&lock->l_refc),
+				   lock->l_readers, lock->l_writers,
+				   ldlm_lockname[lock->l_granted_mode],
+				   ldlm_lockname[lock->l_req_mode],
+				   PLDLMRES(resource),
+				   lock->l_policy_data.l_inodebits.bits,
+				   atomic_read(&resource->lr_refcount),
+				   ldlm_typename[resource->lr_type],
+				   lock->l_flags, nid, lock->l_remote_handle.cookie,
+				   exp ? atomic_read(&exp->exp_refcount) : -99,
+				   lock->l_pid, lock->l_callback_timeout,
+				   lock->l_lvb_type);
 		break;
 
 	default:
 		libcfs_debug_vmsg2(msgdata, fmt, args,
-			" ns: %s lock: %p/%#llx lrc: %d/%d,%d mode: %s/%s "
-			"res: "DLDLMRES" rrc: %d type: %s flags: %#llx "
-			"nid: %s remote: %#llx expref: %d pid: %u "
-			"timeout: %lu lvb_type: %d\n",
-			ldlm_lock_to_ns_name(lock),
-			lock, lock->l_handle.h_cookie,
-			atomic_read(&lock->l_refc),
-			lock->l_readers, lock->l_writers,
-			ldlm_lockname[lock->l_granted_mode],
-			ldlm_lockname[lock->l_req_mode],
-			PLDLMRES(resource),
-			atomic_read(&resource->lr_refcount),
-			ldlm_typename[resource->lr_type],
-			lock->l_flags, nid, lock->l_remote_handle.cookie,
-			exp ? atomic_read(&exp->exp_refcount) : -99,
-			lock->l_pid, lock->l_callback_timeout,
-			lock->l_lvb_type);
+				   " ns: %s lock: %p/%#llx lrc: %d/%d,%d mode: %s/%s res: " DLDLMRES " rrc: %d type: %s flags: %#llx nid: %s remote: %#llx expref: %d pid: %u timeout: %lu lvb_type: %d\n",
+				   ldlm_lock_to_ns_name(lock),
+				   lock, lock->l_handle.h_cookie,
+				   atomic_read(&lock->l_refc),
+				   lock->l_readers, lock->l_writers,
+				   ldlm_lockname[lock->l_granted_mode],
+				   ldlm_lockname[lock->l_req_mode],
+				   PLDLMRES(resource),
+				   atomic_read(&resource->lr_refcount),
+				   ldlm_typename[resource->lr_type],
+				   lock->l_flags, nid, lock->l_remote_handle.cookie,
+				   exp ? atomic_read(&exp->exp_refcount) : -99,
+				   lock->l_pid, lock->l_callback_timeout,
+				   lock->l_lvb_type);
 		break;
 	}
 	va_end(args);

@@ -306,7 +306,6 @@ static struct platform_driver sunxi_ir_driver = {
 	.remove         = sunxi_ir_remove,
 	.driver = {
 		.name = SUNXI_IR_DEV,
-		.owner = THIS_MODULE,
 		.of_match_table = sunxi_ir_match,
 	},
 };

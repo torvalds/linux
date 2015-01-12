@@ -588,7 +588,7 @@ int isci_task_abort_task(struct sas_task *task)
 
 		ret = TMF_RESP_FUNC_COMPLETE;
 	} else {
-		/* Fill in the tmf stucture */
+		/* Fill in the tmf structure */
 		isci_task_build_abort_task_tmf(&tmf, isci_tmf_ssp_task_abort,
 					       old_request);
 

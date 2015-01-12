@@ -27,6 +27,7 @@
 #define PI_BASE	256
 #define PL_BASE	352
 #define PM_BASE	384
+#define PN_BASE	416
 
 #define SUNXI_PINCTRL_PIN(bank, pin)		\
 	PINCTRL_PIN(P ## bank ## _BASE + (pin), "P" #bank #pin)

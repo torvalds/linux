@@ -117,10 +117,9 @@ static int usbmisc_imx25_post(struct imx_usbmisc_data *data)
 	if (data->index > 2)
 		return -EINVAL;
 
-	reg = usbmisc->base + MX25_USB_PHY_CTRL_OFFSET;
-
 	if (data->evdo) {
 		spin_lock_irqsave(&usbmisc->lock, flags);
+		reg = usbmisc->base + MX25_USB_PHY_CTRL_OFFSET;
 		val = readl(reg);
 		writel(val | MX25_BM_EXTERNAL_VBUS_DIVIDER, reg);
 		spin_unlock_irqrestore(&usbmisc->lock, flags);
@@ -172,8 +171,7 @@ static int usbmisc_imx53_init(struct imx_usbmisc_data *data)
 		return -EINVAL;
 
 	/* Select a 24 MHz reference clock for the PHY  */
-	reg = usbmisc->base + MX53_USB_OTG_PHY_CTRL_1_OFFSET;
-	val = readl(reg);
+	val = readl(usbmisc->base + MX53_USB_OTG_PHY_CTRL_1_OFFSET);
 	val &= ~MX53_USB_PHYCTRL1_PLLDIV_MASK;
 	val |= MX53_USB_PLL_DIV_24_MHZ;
 	writel(val, usbmisc->base + MX53_USB_OTG_PHY_CTRL_1_OFFSET);
@@ -372,7 +370,6 @@ static struct platform_driver usbmisc_imx_driver = {
 	.remove = usbmisc_imx_remove,
 	.driver = {
 		.name = "usbmisc_imx",
-		.owner = THIS_MODULE,
 		.of_match_table = usbmisc_imx_dt_ids,
 	 },
 };

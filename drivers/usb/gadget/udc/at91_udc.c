@@ -840,6 +840,31 @@ static void udc_reinit(struct at91_udc *udc)
 	}
 }
 
+static void reset_gadget(struct at91_udc *udc)
+{
+	struct usb_gadget_driver *driver = udc->driver;
+	int i;
+
+	if (udc->gadget.speed == USB_SPEED_UNKNOWN)
+		driver = NULL;
+	udc->gadget.speed = USB_SPEED_UNKNOWN;
+	udc->suspended = 0;
+
+	for (i = 0; i < NUM_ENDPOINTS; i++) {
+		struct at91_ep *ep = &udc->ep[i];
+
+		ep->stopped = 1;
+		nuke(ep, -ESHUTDOWN);
+	}
+	if (driver) {
+		spin_unlock(&udc->lock);
+		usb_gadget_udc_reset(&udc->gadget, driver);
+		spin_lock(&udc->lock);
+	}
+
+	udc_reinit(udc);
+}
+
 static void stop_activity(struct at91_udc *udc)
 {
 	struct usb_gadget_driver *driver = udc->driver;
@@ -870,12 +895,10 @@ static void clk_on(struct at91_udc *udc)
 		return;
 	udc->clocked = 1;
 
-	if (IS_ENABLED(CONFIG_COMMON_CLK)) {
-		clk_set_rate(udc->uclk, 48000000);
-		clk_prepare_enable(udc->uclk);
-	}
-	clk_prepare_enable(udc->iclk);
-	clk_prepare_enable(udc->fclk);
+	if (IS_ENABLED(CONFIG_COMMON_CLK))
+		clk_enable(udc->uclk);
+	clk_enable(udc->iclk);
+	clk_enable(udc->fclk);
 }
 
 static void clk_off(struct at91_udc *udc)
@@ -884,10 +907,10 @@ static void clk_off(struct at91_udc *udc)
 		return;
 	udc->clocked = 0;
 	udc->gadget.speed = USB_SPEED_UNKNOWN;
-	clk_disable_unprepare(udc->fclk);
-	clk_disable_unprepare(udc->iclk);
+	clk_disable(udc->fclk);
+	clk_disable(udc->iclk);
 	if (IS_ENABLED(CONFIG_COMMON_CLK))
-		clk_disable_unprepare(udc->uclk);
+		clk_disable(udc->uclk);
 }
 
 /*
@@ -984,8 +1007,8 @@ static int at91_set_selfpowered(struct usb_gadget *gadget, int is_on)
 
 static int at91_start(struct usb_gadget *gadget,
 		struct usb_gadget_driver *driver);
-static int at91_stop(struct usb_gadget *gadget,
-		struct usb_gadget_driver *driver);
+static int at91_stop(struct usb_gadget *gadget);
+
 static const struct usb_gadget_ops at91_udc_ops = {
 	.get_frame		= at91_get_frame,
 	.wakeup			= at91_wakeup,
@@ -1426,7 +1449,7 @@ static irqreturn_t at91_udc_irq (int irq, void *_udc)
 			at91_udp_write(udc, AT91_UDP_ICR, AT91_UDP_ENDBUSRES);
 			VDBG("end bus reset\n");
 			udc->addr = 0;
-			stop_activity(udc);
+			reset_gadget(udc);
 
 			/* enable ep0 */
 			at91_udp_write(udc, AT91_UDP_CSR(0),
@@ -1512,20 +1535,11 @@ static irqreturn_t at91_udc_irq (int irq, void *_udc)
 
 /*-------------------------------------------------------------------------*/
 
-static void nop_release(struct device *dev)
-{
-	/* nothing to free */
-}
-
 static struct at91_udc controller = {
 	.gadget = {
 		.ops	= &at91_udc_ops,
 		.ep0	= &controller.ep[0].ep,
 		.name	= driver_name,
-		.dev	= {
-			.init_name = "gadget",
-			.release = nop_release,
-		}
 	},
 	.ep[0] = {
 		.ep = {
@@ -1641,12 +1655,10 @@ static int at91_start(struct usb_gadget *gadget,
 	udc->enabled = 1;
 	udc->selfpowered = 1;
 
-	DBG("bound to %s\n", driver->driver.name);
 	return 0;
 }
 
-static int at91_stop(struct usb_gadget *gadget,
-		struct usb_gadget_driver *driver)
+static int at91_stop(struct usb_gadget *gadget)
 {
 	struct at91_udc *udc;
 	unsigned long	flags;
@@ -1659,7 +1671,6 @@ static int at91_stop(struct usb_gadget *gadget,
 
 	udc->driver = NULL;
 
-	DBG("unbound from %s\n", driver->driver.name);
 	return 0;
 }
 
@@ -1780,14 +1791,24 @@ static int at91udc_probe(struct platform_device *pdev)
 	}
 
 	/* don't do anything until we have both gadget driver and VBUS */
+	if (IS_ENABLED(CONFIG_COMMON_CLK)) {
+		clk_set_rate(udc->uclk, 48000000);
+		retval = clk_prepare(udc->uclk);
+		if (retval)
+			goto fail1;
+	}
+	retval = clk_prepare(udc->fclk);
+	if (retval)
+		goto fail1a;
+
 	retval = clk_prepare_enable(udc->iclk);
 	if (retval)
-		goto fail1;
+		goto fail1b;
 	at91_udp_write(udc, AT91_UDP_TXVC, AT91_UDP_TXVC_TXVDIS);
 	at91_udp_write(udc, AT91_UDP_IDR, 0xffffffff);
 	/* Clear all pending interrupts - UDP may be used by bootloader. */
 	at91_udp_write(udc, AT91_UDP_ICR, 0xffffffff);
-	clk_disable_unprepare(udc->iclk);
+	clk_disable(udc->iclk);
 
 	/* request UDC and maybe VBUS irqs */
 	udc->udp_irq = platform_get_irq(pdev, 0);
@@ -1795,7 +1816,7 @@ static int at91udc_probe(struct platform_device *pdev)
 			0, driver_name, udc);
 	if (retval < 0) {
 		DBG("request irq %d failed\n", udc->udp_irq);
-		goto fail1;
+		goto fail1c;
 	}
 	if (gpio_is_valid(udc->board.vbus_pin)) {
 		retval = gpio_request(udc->board.vbus_pin, "udc_vbus");
@@ -1848,6 +1869,13 @@ fail3:
 		gpio_free(udc->board.vbus_pin);
 fail2:
 	free_irq(udc->udp_irq, udc);
+fail1c:
+	clk_unprepare(udc->iclk);
+fail1b:
+	clk_unprepare(udc->fclk);
+fail1a:
+	if (IS_ENABLED(CONFIG_COMMON_CLK))
+		clk_unprepare(udc->uclk);
 fail1:
 	if (IS_ENABLED(CONFIG_COMMON_CLK) && !IS_ERR(udc->uclk))
 		clk_put(udc->uclk);
@@ -1895,6 +1923,11 @@ static int __exit at91udc_remove(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(res->start, resource_size(res));
+
+	if (IS_ENABLED(CONFIG_COMMON_CLK))
+		clk_unprepare(udc->uclk);
+	clk_unprepare(udc->fclk);
+	clk_unprepare(udc->iclk);
 
 	clk_put(udc->iclk);
 	clk_put(udc->fclk);
@@ -1972,7 +2005,6 @@ static struct platform_driver at91_udc_driver = {
 	.resume		= at91udc_resume,
 	.driver		= {
 		.name	= (char *) driver_name,
-		.owner	= THIS_MODULE,
 		.of_match_table	= of_match_ptr(at91_udc_dt_ids),
 	},
 };

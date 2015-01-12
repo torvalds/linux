@@ -186,10 +186,8 @@ static int adf_isr_alloc_msix_entry_table(struct adf_accel_dev *accel_dev)
 	accel_dev->accel_pci_dev.msix_entries.names = names;
 	return 0;
 err:
-	for (i = 0; i < msix_num_entries; i++) {
-		if (*(names + i))
-			kfree(*(names + i));
-	}
+	for (i = 0; i < msix_num_entries; i++)
+		kfree(*(names + i));
 	kfree(entries);
 	kfree(names);
 	return -ENOMEM;
@@ -203,10 +201,8 @@ static void adf_isr_free_msix_entry_table(struct adf_accel_dev *accel_dev)
 	int i;
 
 	kfree(accel_dev->accel_pci_dev.msix_entries.entries);
-	for (i = 0; i < msix_num_entries; i++) {
-		if (*(names + i))
-			kfree(*(names + i));
-	}
+	for (i = 0; i < msix_num_entries; i++)
+		kfree(*(names + i));
 	kfree(names);
 }
 

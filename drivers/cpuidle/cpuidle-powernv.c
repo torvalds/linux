@@ -16,13 +16,10 @@
 
 #include <asm/machdep.h>
 #include <asm/firmware.h>
+#include <asm/opal.h>
 #include <asm/runlatch.h>
 
-/* Flags and constants used in PowerNV platform */
-
 #define MAX_POWERNV_IDLE_STATES	8
-#define IDLE_USE_INST_NAP	0x00010000 /* Use nap instruction */
-#define IDLE_USE_INST_SLEEP	0x00020000 /* Use sleep instruction */
 
 struct cpuidle_driver powernv_idle_driver = {
 	.name             = "powernv_idle",
@@ -93,7 +90,6 @@ static struct cpuidle_state powernv_states[MAX_POWERNV_IDLE_STATES] = {
 	{ /* Snooze */
 		.name = "snooze",
 		.desc = "snooze",
-		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 0,
 		.target_residency = 0,
 		.enter = &snooze_loop },
@@ -198,11 +194,11 @@ static int powernv_add_idle_states(void)
 		 * target residency to be 10x exit_latency
 		 */
 		latency_ns = be32_to_cpu(idle_state_latency[i]);
-		if (flags & IDLE_USE_INST_NAP) {
+		if (flags & OPAL_PM_NAP_ENABLED) {
 			/* Add NAP state */
 			strcpy(powernv_states[nr_idle_states].name, "Nap");
 			strcpy(powernv_states[nr_idle_states].desc, "Nap");
-			powernv_states[nr_idle_states].flags = CPUIDLE_FLAG_TIME_VALID;
+			powernv_states[nr_idle_states].flags = 0;
 			powernv_states[nr_idle_states].exit_latency =
 					((unsigned int)latency_ns) / 1000;
 			powernv_states[nr_idle_states].target_residency =
@@ -211,12 +207,12 @@ static int powernv_add_idle_states(void)
 			nr_idle_states++;
 		}
 
-		if (flags & IDLE_USE_INST_SLEEP) {
+		if (flags & OPAL_PM_SLEEP_ENABLED ||
+			flags & OPAL_PM_SLEEP_ENABLED_ER1) {
 			/* Add FASTSLEEP state */
 			strcpy(powernv_states[nr_idle_states].name, "FastSleep");
 			strcpy(powernv_states[nr_idle_states].desc, "FastSleep");
-			powernv_states[nr_idle_states].flags =
-				CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TIMER_STOP;
+			powernv_states[nr_idle_states].flags = CPUIDLE_FLAG_TIMER_STOP;
 			powernv_states[nr_idle_states].exit_latency =
 					((unsigned int)latency_ns) / 1000;
 			powernv_states[nr_idle_states].target_residency =

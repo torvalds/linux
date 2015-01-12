@@ -418,7 +418,6 @@ PHY_SetRFReg(struct rtw_adapter *Adapter, enum RF_RADIO_PATH eRFPath,
  *---------------------------------------------------------------------------*/
 int PHY_MACConfig8723A(struct rtw_adapter *Adapter)
 {
-	int rtStatus = _SUCCESS;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 	bool is92C = IS_92C_SERIAL(pHalData->VersionID);
 
@@ -433,7 +432,7 @@ int PHY_MACConfig8723A(struct rtw_adapter *Adapter)
 	if (is92C && (BOARD_USB_DONGLE == pHalData->BoardType))
 		rtl8723au_write8(Adapter, 0x40, 0x04);
 
-	return rtStatus;
+	return _SUCCESS;
 }
 
 /**

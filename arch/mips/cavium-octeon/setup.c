@@ -1092,7 +1092,7 @@ static int __init edac_devinit(void)
 		name = edac_device_names[i];
 		dev = platform_device_register_simple(name, -1, NULL, 0);
 		if (IS_ERR(dev)) {
-			pr_err("Registation of %s failed!\n", name);
+			pr_err("Registration of %s failed!\n", name);
 			err = PTR_ERR(dev);
 		}
 	}
@@ -1103,7 +1103,7 @@ static int __init edac_devinit(void)
 		dev = platform_device_register_simple("octeon_lmc_edac",
 						      i, NULL, 0);
 		if (IS_ERR(dev)) {
-			pr_err("Registation of octeon_lmc_edac %d failed!\n", i);
+			pr_err("Registration of octeon_lmc_edac %d failed!\n", i);
 			err = PTR_ERR(dev);
 		}
 	}

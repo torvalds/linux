@@ -224,8 +224,8 @@ int ptlrpc_register_bulk(struct ptlrpc_request *req)
 		      total_md - desc->bd_md_count);
 	spin_unlock(&desc->bd_lock);
 
-	CDEBUG(D_NET, "Setup %u bulk %s buffers: %u pages %u bytes, "
-	       "xid x%#llx-%#llx, portal %u\n", desc->bd_md_count,
+	CDEBUG(D_NET, "Setup %u bulk %s buffers: %u pages %u bytes, xid x%#llx-%#llx, portal %u\n",
+	       desc->bd_md_count,
 	       desc->bd_type == BULK_GET_SOURCE ? "get-source" : "put-sink",
 	       desc->bd_iov_count, desc->bd_nob,
 	       desc->bd_last_xid, req->rq_xid, desc->bd_portal);
@@ -337,8 +337,7 @@ static void ptlrpc_at_set_reply(struct ptlrpc_request *req, int flags)
 
 	if (req->rq_reqmsg &&
 	    !(lustre_msghdr_get_flags(req->rq_reqmsg) & MSGHDR_AT_SUPPORT)) {
-		CDEBUG(D_ADAPTTO, "No early reply support: flags=%#x "
-		       "req_flags=%#x magic=%d:%x/%x len=%d\n",
+		CDEBUG(D_ADAPTTO, "No early reply support: flags=%#x req_flags=%#x magic=%d:%x/%x len=%d\n",
 		       flags, lustre_msg_get_flags(req->rq_reqmsg),
 		       lustre_msg_is_v1(req->rq_reqmsg),
 		       lustre_msg_get_magic(req->rq_reqmsg),

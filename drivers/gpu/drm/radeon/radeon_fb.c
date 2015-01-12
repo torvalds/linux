@@ -48,10 +48,40 @@ struct radeon_fbdev {
 	struct radeon_device *rdev;
 };
 
+/**
+ * radeon_fb_helper_set_par - Hide cursor on CRTCs used by fbdev.
+ *
+ * @info: fbdev info
+ *
+ * This function hides the cursor on all CRTCs used by fbdev.
+ */
+static int radeon_fb_helper_set_par(struct fb_info *info)
+{
+	int ret;
+
+	ret = drm_fb_helper_set_par(info);
+
+	/* XXX: with universal plane support fbdev will automatically disable
+	 * all non-primary planes (including the cursor)
+	 */
+	if (ret == 0) {
+		struct drm_fb_helper *fb_helper = info->par;
+		int i;
+
+		for (i = 0; i < fb_helper->crtc_count; i++) {
+			struct drm_crtc *crtc = fb_helper->crtc_info[i].mode_set.crtc;
+
+			radeon_crtc_cursor_set2(crtc, NULL, 0, 0, 0, 0, 0);
+		}
+	}
+
+	return ret;
+}
+
 static struct fb_ops radeonfb_ops = {
 	.owner = THIS_MODULE,
 	.fb_check_var = drm_fb_helper_check_var,
-	.fb_set_par = drm_fb_helper_set_par,
+	.fb_set_par = radeon_fb_helper_set_par,
 	.fb_fillrect = cfb_fillrect,
 	.fb_copyarea = cfb_copyarea,
 	.fb_imageblit = cfb_imageblit,

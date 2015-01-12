@@ -20,7 +20,6 @@
 
 #include "xfs_inode_buf.h"
 #include "xfs_inode_fork.h"
-#include "xfs_dinode.h"
 
 /*
  * Kernel only inode definitions
@@ -323,7 +322,6 @@ static inline int xfs_isiflocked(struct xfs_inode *ip)
 #define XFS_INHERIT_GID(pip)	\
 	(((pip)->i_mount->m_flags & XFS_MOUNT_GRPID) || \
 	 ((pip)->i_d.di_mode & S_ISGID))
-
 
 int		xfs_release(struct xfs_inode *ip);
 void		xfs_inactive(struct xfs_inode *ip);

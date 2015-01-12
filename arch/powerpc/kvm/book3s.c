@@ -64,14 +64,6 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ NULL }
 };
 
-void kvmppc_core_load_host_debugstate(struct kvm_vcpu *vcpu)
-{
-}
-
-void kvmppc_core_load_guest_debugstate(struct kvm_vcpu *vcpu)
-{
-}
-
 void kvmppc_unfixup_split_real(struct kvm_vcpu *vcpu)
 {
 	if (vcpu->arch.hflags & BOOK3S_HFLAG_SPLIT_HACK) {

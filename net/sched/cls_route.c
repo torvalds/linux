@@ -256,10 +256,6 @@ static unsigned long route4_get(struct tcf_proto *tp, u32 handle)
 	return 0;
 }
 
-static void route4_put(struct tcf_proto *tp, unsigned long f)
-{
-}
-
 static int route4_init(struct tcf_proto *tp)
 {
 	return 0;
@@ -597,7 +593,6 @@ static int route4_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 		       struct sk_buff *skb, struct tcmsg *t)
 {
 	struct route4_filter *f = (struct route4_filter *)fh;
-	unsigned char *b = skb_tail_pointer(skb);
 	struct nlattr *nest;
 	u32 id;
 
@@ -639,7 +634,7 @@ static int route4_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 	return skb->len;
 
 nla_put_failure:
-	nlmsg_trim(skb, b);
+	nla_nest_cancel(skb, nest);
 	return -1;
 }
 
@@ -649,7 +644,6 @@ static struct tcf_proto_ops cls_route4_ops __read_mostly = {
 	.init		=	route4_init,
 	.destroy	=	route4_destroy,
 	.get		=	route4_get,
-	.put		=	route4_put,
 	.change		=	route4_change,
 	.delete		=	route4_delete,
 	.walk		=	route4_walk,

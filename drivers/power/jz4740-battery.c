@@ -406,7 +406,6 @@ static struct platform_driver jz_battery_driver = {
 	.remove		= jz_battery_remove,
 	.driver = {
 		.name = "jz4740-battery",
-		.owner = THIS_MODULE,
 		.pm = JZ_BATTERY_PM_OPS,
 	},
 };

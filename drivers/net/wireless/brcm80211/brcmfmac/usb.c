@@ -23,12 +23,11 @@
 #include <brcmu_utils.h>
 #include <brcm_hw_ids.h>
 #include <brcmu_wifi.h>
-#include <dhd_bus.h>
-#include <dhd_dbg.h>
-
+#include "bus.h"
+#include "debug.h"
 #include "firmware.h"
-#include "usb_rdl.h"
 #include "usb.h"
+
 
 #define IOCTL_RESP_TIMEOUT		2000
 
@@ -48,6 +47,71 @@
 #define BRCMF_USB_43236_FW_NAME		"brcm/brcmfmac43236b.bin"
 #define BRCMF_USB_43242_FW_NAME		"brcm/brcmfmac43242a.bin"
 #define BRCMF_USB_43569_FW_NAME		"brcm/brcmfmac43569.bin"
+
+#define TRX_MAGIC		0x30524448	/* "HDR0" */
+#define TRX_MAX_OFFSET		3		/* Max number of file offsets */
+#define TRX_UNCOMP_IMAGE	0x20		/* Trx holds uncompressed img */
+#define TRX_RDL_CHUNK		1500		/* size of each dl transfer */
+#define TRX_OFFSETS_DLFWLEN_IDX	0
+
+/* Control messages: bRequest values */
+#define DL_GETSTATE	0	/* returns the rdl_state_t struct */
+#define DL_CHECK_CRC	1	/* currently unused */
+#define DL_GO		2	/* execute downloaded image */
+#define DL_START	3	/* initialize dl state */
+#define DL_REBOOT	4	/* reboot the device in 2 seconds */
+#define DL_GETVER	5	/* returns the bootrom_id_t struct */
+#define DL_GO_PROTECTED	6	/* execute the downloaded code and set reset
+				 * event to occur in 2 seconds.  It is the
+				 * responsibility of the downloaded code to
+				 * clear this event
+				 */
+#define DL_EXEC		7	/* jump to a supplied address */
+#define DL_RESETCFG	8	/* To support single enum on dongle
+				 * - Not used by bootloader
+				 */
+#define DL_DEFER_RESP_OK 9	/* Potentially defer the response to setup
+				 * if resp unavailable
+				 */
+
+/* states */
+#define DL_WAITING	0	/* waiting to rx first pkt */
+#define DL_READY	1	/* hdr was good, waiting for more of the
+				 * compressed image
+				 */
+#define DL_BAD_HDR	2	/* hdr was corrupted */
+#define DL_BAD_CRC	3	/* compressed image was corrupted */
+#define DL_RUNNABLE	4	/* download was successful,waiting for go cmd */
+#define DL_START_FAIL	5	/* failed to initialize correctly */
+#define DL_NVRAM_TOOBIG	6	/* host specified nvram data exceeds DL_NVRAM
+				 * value
+				 */
+#define DL_IMAGE_TOOBIG	7	/* firmware image too big */
+
+
+struct trx_header_le {
+	__le32 magic;		/* "HDR0" */
+	__le32 len;		/* Length of file including header */
+	__le32 crc32;		/* CRC from flag_version to end of file */
+	__le32 flag_version;	/* 0:15 flags, 16:31 version */
+	__le32 offsets[TRX_MAX_OFFSET];	/* Offsets of partitions from start of
+					 * header
+					 */
+};
+
+struct rdl_state_le {
+	__le32 state;
+	__le32 bytes;
+};
+
+struct bootrom_id_le {
+	__le32 chip;		/* Chip id */
+	__le32 chiprev;		/* Chip rev */
+	__le32 ramsize;		/* Size of  RAM */
+	__le32 remapbase;	/* Current remap base address */
+	__le32 boardtype;	/* Type of board */
+	__le32 boardrev;	/* Board revision */
+};
 
 struct brcmf_usb_image {
 	struct list_head list;
@@ -93,6 +157,8 @@ struct brcmf_usbdev_info {
 	u8 ifnum;
 
 	struct urb *bulk_urb; /* used for FW download */
+
+	bool wowl_enabled;
 };
 
 static void brcmf_usb_rx_refill(struct brcmf_usbdev_info *devinfo,
@@ -600,6 +666,16 @@ static int brcmf_usb_up(struct device *dev)
 	return 0;
 }
 
+static void brcmf_cancel_all_urbs(struct brcmf_usbdev_info *devinfo)
+{
+	if (devinfo->ctl_urb)
+		usb_kill_urb(devinfo->ctl_urb);
+	if (devinfo->bulk_urb)
+		usb_kill_urb(devinfo->bulk_urb);
+	brcmf_usb_free_q(&devinfo->tx_postq, true);
+	brcmf_usb_free_q(&devinfo->rx_postq, true);
+}
+
 static void brcmf_usb_down(struct device *dev)
 {
 	struct brcmf_usbdev_info *devinfo = brcmf_usb_get_businfo(dev);
@@ -613,14 +689,7 @@ static void brcmf_usb_down(struct device *dev)
 
 	brcmf_usb_state_change(devinfo, BRCMFMAC_USB_STATE_DOWN);
 
-	if (devinfo->ctl_urb)
-		usb_kill_urb(devinfo->ctl_urb);
-
-	if (devinfo->bulk_urb)
-		usb_kill_urb(devinfo->bulk_urb);
-	brcmf_usb_free_q(&devinfo->tx_postq, true);
-
-	brcmf_usb_free_q(&devinfo->rx_postq, true);
+	brcmf_cancel_all_urbs(devinfo);
 }
 
 static void
@@ -785,7 +854,7 @@ brcmf_usb_dl_writeimage(struct brcmf_usbdev_info *devinfo, u8 *fw, int fwlen)
 
 	brcmf_dbg(USB, "Enter, fw %p, len %d\n", fw, fwlen);
 
-	bulkchunk = kmalloc(RDL_CHUNK, GFP_ATOMIC);
+	bulkchunk = kmalloc(TRX_RDL_CHUNK, GFP_ATOMIC);
 	if (bulkchunk == NULL) {
 		err = -ENOMEM;
 		goto fail;
@@ -812,10 +881,10 @@ brcmf_usb_dl_writeimage(struct brcmf_usbdev_info *devinfo, u8 *fw, int fwlen)
 		/* Wait until the usb device reports it received all
 		 * the bytes we sent */
 		if ((rdlbytes == sent) && (rdlbytes != dllen)) {
-			if ((dllen-sent) < RDL_CHUNK)
+			if ((dllen-sent) < TRX_RDL_CHUNK)
 				sendlen = dllen-sent;
 			else
-				sendlen = RDL_CHUNK;
+				sendlen = TRX_RDL_CHUNK;
 
 			/* simply avoid having to send a ZLP by ensuring we
 			 * never have an even
@@ -980,21 +1049,6 @@ static void brcmf_usb_detach(struct brcmf_usbdev_info *devinfo)
 	kfree(devinfo->rx_reqs);
 }
 
-#define TRX_MAGIC       0x30524448      /* "HDR0" */
-#define TRX_VERSION     1               /* Version 1 */
-#define TRX_MAX_LEN     0x3B0000        /* Max length */
-#define TRX_NO_HEADER   1               /* Do not write TRX header */
-#define TRX_MAX_OFFSET  3               /* Max number of individual files */
-#define TRX_UNCOMP_IMAGE        0x20    /* Trx contains uncompressed image */
-
-struct trx_header_le {
-	__le32 magic;		/* "HDR0" */
-	__le32 len;		/* Length of file including header */
-	__le32 crc32;		/* CRC from flag_version to end of file */
-	__le32 flag_version;	/* 0:15 flags, 16:31 version */
-	__le32 offsets[TRX_MAX_OFFSET]; /* Offsets of partitions from start of
-					 * header */
-};
 
 static int check_file(const u8 *headers)
 {
@@ -1096,11 +1150,24 @@ error:
 	return NULL;
 }
 
+static void brcmf_usb_wowl_config(struct device *dev, bool enabled)
+{
+	struct brcmf_usbdev_info *devinfo = brcmf_usb_get_businfo(dev);
+
+	brcmf_dbg(USB, "Configuring WOWL, enabled=%d\n", enabled);
+	devinfo->wowl_enabled = enabled;
+	if (enabled)
+		device_set_wakeup_enable(devinfo->dev, true);
+	else
+		device_set_wakeup_enable(devinfo->dev, false);
+}
+
 static struct brcmf_bus_ops brcmf_usb_bus_ops = {
 	.txdata = brcmf_usb_tx,
 	.stop = brcmf_usb_down,
 	.txctl = brcmf_usb_tx_ctlpkt,
 	.rxctl = brcmf_usb_rx_ctlpkt,
+	.wowl_config = brcmf_usb_wowl_config,
 };
 
 static int brcmf_usb_bus_setup(struct brcmf_usbdev_info *devinfo)
@@ -1188,6 +1255,9 @@ static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo)
 	bus->ops = &brcmf_usb_bus_ops;
 	bus->proto_type = BRCMF_PROTO_BCDC;
 	bus->always_use_fws_queue = true;
+#ifdef CONFIG_PM
+	bus->wowl_supported = true;
+#endif
 
 	if (!brcmf_usb_dlneeded(devinfo)) {
 		ret = brcmf_usb_bus_setup(devinfo);
@@ -1341,7 +1411,10 @@ static int brcmf_usb_suspend(struct usb_interface *intf, pm_message_t state)
 
 	brcmf_dbg(USB, "Enter\n");
 	devinfo->bus_pub.state = BRCMFMAC_USB_STATE_SLEEP;
-	brcmf_detach(&usb->dev);
+	if (devinfo->wowl_enabled)
+		brcmf_cancel_all_urbs(devinfo);
+	else
+		brcmf_detach(&usb->dev);
 	return 0;
 }
 
@@ -1354,7 +1427,12 @@ static int brcmf_usb_resume(struct usb_interface *intf)
 	struct brcmf_usbdev_info *devinfo = brcmf_usb_get_businfo(&usb->dev);
 
 	brcmf_dbg(USB, "Enter\n");
-	return brcmf_usb_bus_setup(devinfo);
+	if (!devinfo->wowl_enabled)
+		return brcmf_usb_bus_setup(devinfo);
+
+	devinfo->bus_pub.state = BRCMFMAC_USB_STATE_UP;
+	brcmf_usb_rx_fill_all(devinfo);
+	return 0;
 }
 
 static int brcmf_usb_reset_resume(struct usb_interface *intf)

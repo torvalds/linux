@@ -102,7 +102,6 @@ static struct platform_driver twl4030_pwrbutton_driver = {
 	.probe		= twl4030_pwrbutton_probe,
 	.driver		= {
 		.name	= "twl4030_pwrbutton",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(twl4030_pwrbutton_dt_match_table),
 	},
 };

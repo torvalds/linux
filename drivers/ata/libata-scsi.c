@@ -235,7 +235,8 @@ static ssize_t ata_scsi_park_store(struct device *device,
 		rc = -ENODEV;
 		goto unlock;
 	}
-	if (dev->class != ATA_DEV_ATA) {
+	if (dev->class != ATA_DEV_ATA &&
+	    dev->class != ATA_DEV_ZAC) {
 		rc = -EOPNOTSUPP;
 		goto unlock;
 	}
@@ -1961,6 +1962,7 @@ static void ata_scsi_rbuf_fill(struct ata_scsi_args *args,
 static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf)
 {
 	const u8 versions[] = {
+		0x00,
 		0x60,	/* SAM-3 (no version claimed) */
 
 		0x03,
@@ -1969,6 +1971,20 @@ static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf)
 		0x02,
 		0x60	/* SPC-3 (no version claimed) */
 	};
+	const u8 versions_zbc[] = {
+		0x00,
+		0xA0,	/* SAM-5 (no version claimed) */
+
+		0x04,
+		0xC0,	/* SBC-3 (no version claimed) */
+
+		0x04,
+		0x60,	/* SPC-4 (no version claimed) */
+
+		0x60,
+		0x20,   /* ZBC (no version claimed) */
+	};
+
 	u8 hdr[] = {
 		TYPE_DISK,
 		0,
@@ -1983,6 +1999,11 @@ static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf)
 	if (ata_id_removeable(args->id))
 		hdr[1] |= (1 << 7);
 
+	if (args->dev->class == ATA_DEV_ZAC) {
+		hdr[0] = TYPE_ZBC;
+		hdr[2] = 0x6; /* ZBC is defined in SPC-4 */
+	}
+
 	memcpy(rbuf, hdr, sizeof(hdr));
 	memcpy(&rbuf[8], "ATA     ", 8);
 	ata_id_string(args->id, &rbuf[16], ATA_ID_PROD, 16);
@@ -1995,7 +2016,10 @@ static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf)
 	if (rbuf[32] == 0 || rbuf[32] == ' ')
 		memcpy(&rbuf[32], "n/a ", 4);
 
-	memcpy(rbuf + 59, versions, sizeof(versions));
+	if (args->dev->class == ATA_DEV_ZAC)
+		memcpy(rbuf + 58, versions_zbc, sizeof(versions_zbc));
+	else
+		memcpy(rbuf + 58, versions, sizeof(versions));
 
 	return 0;
 }
@@ -2564,7 +2588,6 @@ static void atapi_request_sense(struct ata_queued_cmd *qc)
 
 	DPRINTK("ATAPI request sense\n");
 
-	/* FIXME: is this needed? */
 	memset(cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
 
 #ifdef CONFIG_ATA_SFF
@@ -3405,7 +3428,7 @@ static inline int __ata_scsi_queuecmd(struct scsi_cmnd *scmd,
 	ata_xlat_func_t xlat_func;
 	int rc = 0;
 
-	if (dev->class == ATA_DEV_ATA) {
+	if (dev->class == ATA_DEV_ATA || dev->class == ATA_DEV_ZAC) {
 		if (unlikely(!scmd->cmd_len || scmd->cmd_len > dev->cdb_len))
 			goto bad_cdb_len;
 

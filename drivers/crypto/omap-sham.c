@@ -2029,7 +2029,6 @@ static struct platform_driver omap_sham_driver = {
 	.remove	= omap_sham_remove,
 	.driver	= {
 		.name	= "omap-sham",
-		.owner	= THIS_MODULE,
 		.pm	= &omap_sham_pm_ops,
 		.of_match_table	= omap_sham_of_match,
 	},

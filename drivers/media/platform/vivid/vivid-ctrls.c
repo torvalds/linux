@@ -40,6 +40,9 @@
 #define VIVID_CID_STRING		(VIVID_CID_CUSTOM_BASE + 5)
 #define VIVID_CID_BITMASK		(VIVID_CID_CUSTOM_BASE + 6)
 #define VIVID_CID_INTMENU		(VIVID_CID_CUSTOM_BASE + 7)
+#define VIVID_CID_U32_ARRAY		(VIVID_CID_CUSTOM_BASE + 8)
+#define VIVID_CID_U16_MATRIX		(VIVID_CID_CUSTOM_BASE + 9)
+#define VIVID_CID_U8_4D_ARRAY		(VIVID_CID_CUSTOM_BASE + 10)
 
 #define VIVID_CID_VIVID_BASE		(0x00f00000 | 0xf000)
 #define VIVID_CID_VIVID_CLASS		(0x00f00000 | 1)
@@ -59,19 +62,21 @@
 #define VIVID_CID_DV_TIMINGS_ASPECT_RATIO	(VIVID_CID_VIVID_BASE + 23)
 #define VIVID_CID_TSTAMP_SRC		(VIVID_CID_VIVID_BASE + 24)
 #define VIVID_CID_COLORSPACE		(VIVID_CID_VIVID_BASE + 25)
-#define VIVID_CID_LIMITED_RGB_RANGE	(VIVID_CID_VIVID_BASE + 26)
-#define VIVID_CID_ALPHA_MODE		(VIVID_CID_VIVID_BASE + 27)
-#define VIVID_CID_HAS_CROP_CAP		(VIVID_CID_VIVID_BASE + 28)
-#define VIVID_CID_HAS_COMPOSE_CAP	(VIVID_CID_VIVID_BASE + 29)
-#define VIVID_CID_HAS_SCALER_CAP	(VIVID_CID_VIVID_BASE + 30)
-#define VIVID_CID_HAS_CROP_OUT		(VIVID_CID_VIVID_BASE + 31)
-#define VIVID_CID_HAS_COMPOSE_OUT	(VIVID_CID_VIVID_BASE + 32)
-#define VIVID_CID_HAS_SCALER_OUT	(VIVID_CID_VIVID_BASE + 33)
-#define VIVID_CID_LOOP_VIDEO		(VIVID_CID_VIVID_BASE + 34)
-#define VIVID_CID_SEQ_WRAP		(VIVID_CID_VIVID_BASE + 35)
-#define VIVID_CID_TIME_WRAP		(VIVID_CID_VIVID_BASE + 36)
-#define VIVID_CID_MAX_EDID_BLOCKS	(VIVID_CID_VIVID_BASE + 37)
-#define VIVID_CID_PERCENTAGE_FILL	(VIVID_CID_VIVID_BASE + 38)
+#define VIVID_CID_YCBCR_ENC		(VIVID_CID_VIVID_BASE + 26)
+#define VIVID_CID_QUANTIZATION		(VIVID_CID_VIVID_BASE + 27)
+#define VIVID_CID_LIMITED_RGB_RANGE	(VIVID_CID_VIVID_BASE + 28)
+#define VIVID_CID_ALPHA_MODE		(VIVID_CID_VIVID_BASE + 29)
+#define VIVID_CID_HAS_CROP_CAP		(VIVID_CID_VIVID_BASE + 30)
+#define VIVID_CID_HAS_COMPOSE_CAP	(VIVID_CID_VIVID_BASE + 31)
+#define VIVID_CID_HAS_SCALER_CAP	(VIVID_CID_VIVID_BASE + 32)
+#define VIVID_CID_HAS_CROP_OUT		(VIVID_CID_VIVID_BASE + 33)
+#define VIVID_CID_HAS_COMPOSE_OUT	(VIVID_CID_VIVID_BASE + 34)
+#define VIVID_CID_HAS_SCALER_OUT	(VIVID_CID_VIVID_BASE + 35)
+#define VIVID_CID_LOOP_VIDEO		(VIVID_CID_VIVID_BASE + 36)
+#define VIVID_CID_SEQ_WRAP		(VIVID_CID_VIVID_BASE + 37)
+#define VIVID_CID_TIME_WRAP		(VIVID_CID_VIVID_BASE + 38)
+#define VIVID_CID_MAX_EDID_BLOCKS	(VIVID_CID_VIVID_BASE + 39)
+#define VIVID_CID_PERCENTAGE_FILL	(VIVID_CID_VIVID_BASE + 40)
 
 #define VIVID_CID_STD_SIGNAL_MODE	(VIVID_CID_VIVID_BASE + 60)
 #define VIVID_CID_STANDARD		(VIVID_CID_VIVID_BASE + 61)
@@ -161,6 +166,42 @@ static const struct v4l2_ctrl_config vivid_ctrl_int64 = {
 	.min = 0x8000000000000000ULL,
 	.max = 0x7fffffffffffffffLL,
 	.step = 1,
+};
+
+static const struct v4l2_ctrl_config vivid_ctrl_u32_array = {
+	.ops = &vivid_user_gen_ctrl_ops,
+	.id = VIVID_CID_U32_ARRAY,
+	.name = "U32 1 Element Array",
+	.type = V4L2_CTRL_TYPE_U32,
+	.def = 0x18,
+	.min = 0x10,
+	.max = 0x20000,
+	.step = 1,
+	.dims = { 1 },
+};
+
+static const struct v4l2_ctrl_config vivid_ctrl_u16_matrix = {
+	.ops = &vivid_user_gen_ctrl_ops,
+	.id = VIVID_CID_U16_MATRIX,
+	.name = "U16 8x16 Matrix",
+	.type = V4L2_CTRL_TYPE_U16,
+	.def = 0x18,
+	.min = 0x10,
+	.max = 0x2000,
+	.step = 1,
+	.dims = { 8, 16 },
+};
+
+static const struct v4l2_ctrl_config vivid_ctrl_u8_4d_array = {
+	.ops = &vivid_user_gen_ctrl_ops,
+	.id = VIVID_CID_U8_4D_ARRAY,
+	.name = "U8 2x3x4x5 Array",
+	.type = V4L2_CTRL_TYPE_U8,
+	.def = 0x18,
+	.min = 0x10,
+	.max = 0x20,
+	.step = 1,
+	.dims = { 2, 3, 4, 5 },
 };
 
 static const char * const vivid_ctrl_menu_strings[] = {
@@ -294,6 +335,16 @@ static const struct v4l2_ctrl_ops vivid_user_vid_ctrl_ops = {
 
 static int vivid_vid_cap_s_ctrl(struct v4l2_ctrl *ctrl)
 {
+	static const u32 colorspaces[] = {
+		V4L2_COLORSPACE_SMPTE170M,
+		V4L2_COLORSPACE_REC709,
+		V4L2_COLORSPACE_SRGB,
+		V4L2_COLORSPACE_ADOBERGB,
+		V4L2_COLORSPACE_BT2020,
+		V4L2_COLORSPACE_SMPTE240M,
+		V4L2_COLORSPACE_470_SYSTEM_M,
+		V4L2_COLORSPACE_470_SYSTEM_BG,
+	};
 	struct vivid_dev *dev = container_of(ctrl->handler, struct vivid_dev, ctrl_hdl_vid_cap);
 	unsigned i;
 
@@ -303,7 +354,21 @@ static int vivid_vid_cap_s_ctrl(struct v4l2_ctrl *ctrl)
 		tpg_s_pattern(&dev->tpg, ctrl->val);
 		break;
 	case VIVID_CID_COLORSPACE:
-		tpg_s_colorspace(&dev->tpg, ctrl->val);
+		tpg_s_colorspace(&dev->tpg, colorspaces[ctrl->val]);
+		vivid_send_source_change(dev, TV);
+		vivid_send_source_change(dev, SVID);
+		vivid_send_source_change(dev, HDMI);
+		vivid_send_source_change(dev, WEBCAM);
+		break;
+	case VIVID_CID_YCBCR_ENC:
+		tpg_s_ycbcr_enc(&dev->tpg, ctrl->val);
+		vivid_send_source_change(dev, TV);
+		vivid_send_source_change(dev, SVID);
+		vivid_send_source_change(dev, HDMI);
+		vivid_send_source_change(dev, WEBCAM);
+		break;
+	case VIVID_CID_QUANTIZATION:
+		tpg_s_quantization(&dev->tpg, ctrl->val);
 		vivid_send_source_change(dev, TV);
 		vivid_send_source_change(dev, SVID);
 		vivid_send_source_change(dev, HDMI);
@@ -623,15 +688,14 @@ static const struct v4l2_ctrl_config vivid_ctrl_max_edid_blocks = {
 };
 
 static const char * const vivid_ctrl_colorspace_strings[] = {
-	"",
 	"SMPTE 170M",
-	"SMPTE 240M",
 	"REC 709",
-	"", /* Skip Bt878 entry */
+	"sRGB",
+	"AdobeRGB",
+	"BT.2020",
+	"SMPTE 240M",
 	"470 System M",
 	"470 System BG",
-	"", /* Skip JPEG entry */
-	"sRGB",
 	NULL,
 };
 
@@ -640,11 +704,47 @@ static const struct v4l2_ctrl_config vivid_ctrl_colorspace = {
 	.id = VIVID_CID_COLORSPACE,
 	.name = "Colorspace",
 	.type = V4L2_CTRL_TYPE_MENU,
-	.min = 1,
-	.max = 8,
-	.menu_skip_mask = (1 << 4) | (1 << 7),
-	.def = 8,
+	.max = 7,
+	.def = 2,
 	.qmenu = vivid_ctrl_colorspace_strings,
+};
+
+static const char * const vivid_ctrl_ycbcr_enc_strings[] = {
+	"Default",
+	"ITU-R 601",
+	"Rec. 709",
+	"xvYCC 601",
+	"xvYCC 709",
+	"sYCC",
+	"BT.2020 Non-Constant Luminance",
+	"BT.2020 Constant Luminance",
+	"SMPTE 240M",
+	NULL,
+};
+
+static const struct v4l2_ctrl_config vivid_ctrl_ycbcr_enc = {
+	.ops = &vivid_vid_cap_ctrl_ops,
+	.id = VIVID_CID_YCBCR_ENC,
+	.name = "Y'CbCr Encoding",
+	.type = V4L2_CTRL_TYPE_MENU,
+	.max = 8,
+	.qmenu = vivid_ctrl_ycbcr_enc_strings,
+};
+
+static const char * const vivid_ctrl_quantization_strings[] = {
+	"Default",
+	"Full Range",
+	"Limited Range",
+	NULL,
+};
+
+static const struct v4l2_ctrl_config vivid_ctrl_quantization = {
+	.ops = &vivid_vid_cap_ctrl_ops,
+	.id = VIVID_CID_QUANTIZATION,
+	.name = "Quantization",
+	.type = V4L2_CTRL_TYPE_MENU,
+	.max = 2,
+	.qmenu = vivid_ctrl_quantization_strings,
 };
 
 static const struct v4l2_ctrl_config vivid_ctrl_alpha_mode = {
@@ -723,8 +823,12 @@ static int vivid_vid_out_s_ctrl(struct v4l2_ctrl *ctrl)
 				dev->colorspace_out = V4L2_COLORSPACE_SMPTE170M;
 			else
 				dev->colorspace_out = V4L2_COLORSPACE_REC709;
+			dev->quantization_out = V4L2_QUANTIZATION_DEFAULT;
 		} else {
 			dev->colorspace_out = V4L2_COLORSPACE_SRGB;
+			dev->quantization_out = dev->dvi_d_out ?
+					V4L2_QUANTIZATION_LIM_RANGE :
+					V4L2_QUANTIZATION_DEFAULT;
 		}
 		if (dev->loop_video)
 			vivid_send_source_change(dev, HDMI);
@@ -792,15 +896,15 @@ static int vivid_streaming_s_ctrl(struct v4l2_ctrl *ctrl)
 		dev->start_streaming_error = true;
 		break;
 	case VIVID_CID_QUEUE_ERROR:
-		if (dev->vb_vid_cap_q.start_streaming_called)
+		if (vb2_start_streaming_called(&dev->vb_vid_cap_q))
 			vb2_queue_error(&dev->vb_vid_cap_q);
-		if (dev->vb_vbi_cap_q.start_streaming_called)
+		if (vb2_start_streaming_called(&dev->vb_vbi_cap_q))
 			vb2_queue_error(&dev->vb_vbi_cap_q);
-		if (dev->vb_vid_out_q.start_streaming_called)
+		if (vb2_start_streaming_called(&dev->vb_vid_out_q))
 			vb2_queue_error(&dev->vb_vid_out_q);
-		if (dev->vb_vbi_out_q.start_streaming_called)
+		if (vb2_start_streaming_called(&dev->vb_vbi_out_q))
 			vb2_queue_error(&dev->vb_vbi_out_q);
-		if (dev->vb_sdr_cap_q.start_streaming_called)
+		if (vb2_start_streaming_called(&dev->vb_sdr_cap_q))
 			vb2_queue_error(&dev->vb_sdr_cap_q);
 		break;
 	case VIVID_CID_SEQ_WRAP:
@@ -1222,6 +1326,9 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 	dev->string = v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_string, NULL);
 	dev->bitmask = v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_bitmask, NULL);
 	dev->int_menu = v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_int_menu, NULL);
+	v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_u32_array, NULL);
+	v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_u16_matrix, NULL);
+	v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_u8_4d_array, NULL);
 
 	if (dev->has_vid_cap) {
 		/* Image Processing Controls */
@@ -1258,6 +1365,8 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 		v4l2_ctrl_new_custom(hdl_vid_cap, &vivid_ctrl_tstamp_src, NULL);
 		dev->colorspace = v4l2_ctrl_new_custom(hdl_vid_cap,
 			&vivid_ctrl_colorspace, NULL);
+		v4l2_ctrl_new_custom(hdl_vid_cap, &vivid_ctrl_ycbcr_enc, NULL);
+		v4l2_ctrl_new_custom(hdl_vid_cap, &vivid_ctrl_quantization, NULL);
 		v4l2_ctrl_new_custom(hdl_vid_cap, &vivid_ctrl_alpha_mode, NULL);
 	}
 

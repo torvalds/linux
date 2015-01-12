@@ -68,9 +68,12 @@ description:
 
   Capability: which KVM extension provides this ioctl.  Can be 'basic',
       which means that is will be provided by any kernel that supports
-      API version 12 (see section 4.1), or a KVM_CAP_xyz constant, which
+      API version 12 (see section 4.1), a KVM_CAP_xyz constant, which
       means availability needs to be checked with KVM_CHECK_EXTENSION
-      (see section 4.4).
+      (see section 4.4), or 'none' which means that while not all kernels
+      support this ioctl, there's no capability bit to check its
+      availability: for kernels that don't support the ioctl,
+      the ioctl returns -ENOTTY.
 
   Architectures: which instruction set architectures provide this ioctl.
       x86 includes both i386 and x86_64.
@@ -604,7 +607,7 @@ struct kvm_fpu {
 4.24 KVM_CREATE_IRQCHIP
 
 Capability: KVM_CAP_IRQCHIP, KVM_CAP_S390_IRQCHIP (s390)
-Architectures: x86, ia64, ARM, arm64, s390
+Architectures: x86, ARM, arm64, s390
 Type: vm ioctl
 Parameters: none
 Returns: 0 on success, -1 on error
@@ -612,7 +615,7 @@ Returns: 0 on success, -1 on error
 Creates an interrupt controller model in the kernel.  On x86, creates a virtual
 ioapic, a virtual PIC (two PICs, nested), and sets up future vcpus to have a
 local APIC.  IRQ routing for GSIs 0-15 is set to both PIC and IOAPIC; GSI 16-23
-only go to the IOAPIC.  On ia64, a IOSAPIC is created. On ARM/arm64, a GIC is
+only go to the IOAPIC.  On ARM/arm64, a GIC is
 created. On s390, a dummy irq routing table is created.
 
 Note that on s390 the KVM_CAP_S390_IRQCHIP vm capability needs to be enabled
@@ -622,7 +625,7 @@ before KVM_CREATE_IRQCHIP can be used.
 4.25 KVM_IRQ_LINE
 
 Capability: KVM_CAP_IRQCHIP
-Architectures: x86, ia64, arm, arm64
+Architectures: x86, arm, arm64
 Type: vm ioctl
 Parameters: struct kvm_irq_level
 Returns: 0 on success, -1 on error
@@ -676,7 +679,7 @@ struct kvm_irq_level {
 4.26 KVM_GET_IRQCHIP
 
 Capability: KVM_CAP_IRQCHIP
-Architectures: x86, ia64
+Architectures: x86
 Type: vm ioctl
 Parameters: struct kvm_irqchip (in/out)
 Returns: 0 on success, -1 on error
@@ -698,7 +701,7 @@ struct kvm_irqchip {
 4.27 KVM_SET_IRQCHIP
 
 Capability: KVM_CAP_IRQCHIP
-Architectures: x86, ia64
+Architectures: x86
 Type: vm ioctl
 Parameters: struct kvm_irqchip (in)
 Returns: 0 on success, -1 on error
@@ -991,7 +994,7 @@ for vm-wide capabilities.
 4.38 KVM_GET_MP_STATE
 
 Capability: KVM_CAP_MP_STATE
-Architectures: x86, ia64, s390
+Architectures: x86, s390
 Type: vcpu ioctl
 Parameters: struct kvm_mp_state (out)
 Returns: 0 on success; -1 on error
@@ -1005,16 +1008,15 @@ uniprocessor guests).
 
 Possible values are:
 
- - KVM_MP_STATE_RUNNABLE:        the vcpu is currently running [x86, ia64]
+ - KVM_MP_STATE_RUNNABLE:        the vcpu is currently running [x86]
  - KVM_MP_STATE_UNINITIALIZED:   the vcpu is an application processor (AP)
-                                 which has not yet received an INIT signal [x86,
-                                 ia64]
+                                 which has not yet received an INIT signal [x86]
  - KVM_MP_STATE_INIT_RECEIVED:   the vcpu has received an INIT signal, and is
-                                 now ready for a SIPI [x86, ia64]
+                                 now ready for a SIPI [x86]
  - KVM_MP_STATE_HALTED:          the vcpu has executed a HLT instruction and
-                                 is waiting for an interrupt [x86, ia64]
+                                 is waiting for an interrupt [x86]
  - KVM_MP_STATE_SIPI_RECEIVED:   the vcpu has just received a SIPI (vector
-                                 accessible via KVM_GET_VCPU_EVENTS) [x86, ia64]
+                                 accessible via KVM_GET_VCPU_EVENTS) [x86]
  - KVM_MP_STATE_STOPPED:         the vcpu is stopped [s390]
  - KVM_MP_STATE_CHECK_STOP:      the vcpu is in a special error state [s390]
  - KVM_MP_STATE_OPERATING:       the vcpu is operating (running or halted)
@@ -1022,7 +1024,7 @@ Possible values are:
  - KVM_MP_STATE_LOAD:            the vcpu is in a special load/startup state
                                  [s390]
 
-On x86 and ia64, this ioctl is only useful after KVM_CREATE_IRQCHIP. Without an
+On x86, this ioctl is only useful after KVM_CREATE_IRQCHIP. Without an
 in-kernel irqchip, the multiprocessing state must be maintained by userspace on
 these architectures.
 
@@ -1030,7 +1032,7 @@ these architectures.
 4.39 KVM_SET_MP_STATE
 
 Capability: KVM_CAP_MP_STATE
-Architectures: x86, ia64, s390
+Architectures: x86, s390
 Type: vcpu ioctl
 Parameters: struct kvm_mp_state (in)
 Returns: 0 on success; -1 on error
@@ -1038,7 +1040,7 @@ Returns: 0 on success; -1 on error
 Sets the vcpu's current "multiprocessing state"; see KVM_GET_MP_STATE for
 arguments.
 
-On x86 and ia64, this ioctl is only useful after KVM_CREATE_IRQCHIP. Without an
+On x86, this ioctl is only useful after KVM_CREATE_IRQCHIP. Without an
 in-kernel irqchip, the multiprocessing state must be maintained by userspace on
 these architectures.
 
@@ -1065,7 +1067,7 @@ documentation when it pops into existence).
 4.41 KVM_SET_BOOT_CPU_ID
 
 Capability: KVM_CAP_SET_BOOT_CPU_ID
-Architectures: x86, ia64
+Architectures: x86
 Type: vm ioctl
 Parameters: unsigned long vcpu_id
 Returns: 0 on success, -1 on error
@@ -1257,8 +1259,8 @@ The flags bitmap is defined as:
 
 4.48 KVM_ASSIGN_PCI_DEVICE
 
-Capability: KVM_CAP_DEVICE_ASSIGNMENT
-Architectures: x86 ia64
+Capability: none
+Architectures: x86
 Type: vm ioctl
 Parameters: struct kvm_assigned_pci_dev (in)
 Returns: 0 on success, -1 on error
@@ -1298,25 +1300,36 @@ Only PCI header type 0 devices with PCI BAR resources are supported by
 device assignment.  The user requesting this ioctl must have read/write
 access to the PCI sysfs resource files associated with the device.
 
+Errors:
+  ENOTTY: kernel does not support this ioctl
+
+  Other error conditions may be defined by individual device types or
+  have their standard meanings.
+
 
 4.49 KVM_DEASSIGN_PCI_DEVICE
 
-Capability: KVM_CAP_DEVICE_DEASSIGNMENT
-Architectures: x86 ia64
+Capability: none
+Architectures: x86
 Type: vm ioctl
 Parameters: struct kvm_assigned_pci_dev (in)
 Returns: 0 on success, -1 on error
 
 Ends PCI device assignment, releasing all associated resources.
 
-See KVM_CAP_DEVICE_ASSIGNMENT for the data structure. Only assigned_dev_id is
+See KVM_ASSIGN_PCI_DEVICE for the data structure. Only assigned_dev_id is
 used in kvm_assigned_pci_dev to identify the device.
 
+Errors:
+  ENOTTY: kernel does not support this ioctl
+
+  Other error conditions may be defined by individual device types or
+  have their standard meanings.
 
 4.50 KVM_ASSIGN_DEV_IRQ
 
 Capability: KVM_CAP_ASSIGN_DEV_IRQ
-Architectures: x86 ia64
+Architectures: x86
 Type: vm ioctl
 Parameters: struct kvm_assigned_irq (in)
 Returns: 0 on success, -1 on error
@@ -1346,11 +1359,17 @@ The following flags are defined:
 It is not valid to specify multiple types per host or guest IRQ. However, the
 IRQ type of host and guest can differ or can even be null.
 
+Errors:
+  ENOTTY: kernel does not support this ioctl
+
+  Other error conditions may be defined by individual device types or
+  have their standard meanings.
+
 
 4.51 KVM_DEASSIGN_DEV_IRQ
 
 Capability: KVM_CAP_ASSIGN_DEV_IRQ
-Architectures: x86 ia64
+Architectures: x86
 Type: vm ioctl
 Parameters: struct kvm_assigned_irq (in)
 Returns: 0 on success, -1 on error
@@ -1365,7 +1384,7 @@ KVM_ASSIGN_DEV_IRQ. Partial deassignment of host or guest IRQ is allowed.
 4.52 KVM_SET_GSI_ROUTING
 
 Capability: KVM_CAP_IRQ_ROUTING
-Architectures: x86 ia64 s390
+Architectures: x86 s390
 Type: vm ioctl
 Parameters: struct kvm_irq_routing (in)
 Returns: 0 on success, -1 on error
@@ -1423,8 +1442,8 @@ struct kvm_irq_routing_s390_adapter {
 
 4.53 KVM_ASSIGN_SET_MSIX_NR
 
-Capability: KVM_CAP_DEVICE_MSIX
-Architectures: x86 ia64
+Capability: none
+Architectures: x86
 Type: vm ioctl
 Parameters: struct kvm_assigned_msix_nr (in)
 Returns: 0 on success, -1 on error
@@ -1445,8 +1464,8 @@ struct kvm_assigned_msix_nr {
 
 4.54 KVM_ASSIGN_SET_MSIX_ENTRY
 
-Capability: KVM_CAP_DEVICE_MSIX
-Architectures: x86 ia64
+Capability: none
+Architectures: x86
 Type: vm ioctl
 Parameters: struct kvm_assigned_msix_entry (in)
 Returns: 0 on success, -1 on error
@@ -1460,6 +1479,12 @@ struct kvm_assigned_msix_entry {
 	__u16 entry; /* The index of entry in the MSI-X table */
 	__u16 padding[3];
 };
+
+Errors:
+  ENOTTY: kernel does not support this ioctl
+
+  Other error conditions may be defined by individual device types or
+  have their standard meanings.
 
 
 4.55 KVM_SET_TSC_KHZ
@@ -2453,9 +2478,15 @@ return ENOEXEC for that vcpu.
 Note that because some registers reflect machine topology, all vcpus
 should be created before this ioctl is invoked.
 
+Userspace can call this function multiple times for a given vcpu, including
+after the vcpu has been run. This will reset the vcpu to its initial
+state. All calls to this function after the initial call must use the same
+target and same set of feature flags, otherwise EINVAL will be returned.
+
 Possible features:
 	- KVM_ARM_VCPU_POWER_OFF: Starts the CPU in a power-off state.
-	  Depends on KVM_CAP_ARM_PSCI.
+	  Depends on KVM_CAP_ARM_PSCI.  If not set, the CPU will be powered on
+	  and execute guest code when KVM_RUN is called.
 	- KVM_ARM_VCPU_EL1_32BIT: Starts the CPU in a 32bit mode.
 	  Depends on KVM_CAP_ARM_EL1_32BIT (arm64 only).
 	- KVM_ARM_VCPU_PSCI_0_2: Emulate PSCI v0.2 for the CPU.
@@ -2950,6 +2981,15 @@ or some special instruction). In case of ARM/ARM64, this is triggered using
 HVC instruction based PSCI call from the vcpu. The 'type' field describes
 the system-level event type. The 'flags' field describes architecture
 specific flags for the system-level event.
+
+Valid values for 'type' are:
+  KVM_SYSTEM_EVENT_SHUTDOWN -- the guest has requested a shutdown of the
+   VM. Userspace is not obliged to honour this, and if it does honour
+   this does not need to destroy the VM synchronously (ie it may call
+   KVM_RUN again before shutdown finally occurs).
+  KVM_SYSTEM_EVENT_RESET -- the guest has requested a reset of the VM.
+   As with SHUTDOWN, userspace can choose to ignore the request, or
+   to schedule the reset to occur in the future and may call KVM_RUN again.
 
 		/* Fix the size of the union. */
 		char padding[256];

@@ -91,6 +91,15 @@ config NFT_MASQ_IPV6
 	  This is the expression that provides IPv4 masquerading support for
 	  nf_tables.
 
+config NFT_REDIR_IPV6
+	tristate "IPv6 redirect support for nf_tables"
+	depends on NF_TABLES_IPV6
+	depends on NFT_REDIR
+	select NF_NAT_REDIRECT
+	help
+	  This is the expression that provides IPv4 redirect support for
+	  nf_tables.
+
 endif # NF_NAT_IPV6
 
 config IP6_NF_IPTABLES

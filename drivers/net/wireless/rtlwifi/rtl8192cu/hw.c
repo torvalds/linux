@@ -1592,7 +1592,7 @@ void rtl92cu_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	}
 }
 
-bool usb_cmd_send_packet(struct ieee80211_hw *hw, struct sk_buff *skb)
+static bool usb_cmd_send_packet(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
   /* Currently nothing happens here.
    * Traffic stops after some seconds in WPA2 802.11n mode.

@@ -426,10 +426,7 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 			goto err2;
 
 		/* Copy fold into fnew */
-		fnew->handle = fold->handle;
-		fnew->keymask = fold->keymask;
 		fnew->tp = fold->tp;
-
 		fnew->handle = fold->handle;
 		fnew->nkeys = fold->nkeys;
 		fnew->keymask = fold->keymask;
@@ -578,14 +575,10 @@ static unsigned long flow_get(struct tcf_proto *tp, u32 handle)
 	struct flow_head *head = rtnl_dereference(tp->root);
 	struct flow_filter *f;
 
-	list_for_each_entry_rcu(f, &head->filters, list)
+	list_for_each_entry(f, &head->filters, list)
 		if (f->handle == handle)
 			return (unsigned long)f;
 	return 0;
-}
-
-static void flow_put(struct tcf_proto *tp, unsigned long f)
-{
 }
 
 static int flow_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
@@ -645,7 +638,7 @@ static int flow_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 	return skb->len;
 
 nla_put_failure:
-	nlmsg_trim(skb, nest);
+	nla_nest_cancel(skb, nest);
 	return -1;
 }
 
@@ -654,7 +647,7 @@ static void flow_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 	struct flow_head *head = rtnl_dereference(tp->root);
 	struct flow_filter *f;
 
-	list_for_each_entry_rcu(f, &head->filters, list) {
+	list_for_each_entry(f, &head->filters, list) {
 		if (arg->count < arg->skip)
 			goto skip;
 		if (arg->fn(tp, (unsigned long)f, arg) < 0) {
@@ -674,7 +667,6 @@ static struct tcf_proto_ops cls_flow_ops __read_mostly = {
 	.change		= flow_change,
 	.delete		= flow_delete,
 	.get		= flow_get,
-	.put		= flow_put,
 	.dump		= flow_dump,
 	.walk		= flow_walk,
 	.owner		= THIS_MODULE,

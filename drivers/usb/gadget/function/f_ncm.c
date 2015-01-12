@@ -1441,6 +1441,9 @@ static int ncm_bind(struct usb_configuration *c, struct usb_function *f)
 
 	status = usb_assign_descriptors(f, ncm_fs_function, ncm_hs_function,
 			NULL);
+	if (status)
+		goto fail;
+
 	/*
 	 * NOTE:  all that is done without knowing or caring about
 	 * the network link ... which is unavailable to this code

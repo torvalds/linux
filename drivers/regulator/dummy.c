@@ -63,7 +63,6 @@ static struct platform_driver dummy_regulator_driver = {
 	.probe		= dummy_regulator_probe,
 	.driver		= {
 		.name		= "reg-dummy",
-		.owner		= THIS_MODULE,
 	},
 };
 

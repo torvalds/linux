@@ -397,7 +397,6 @@ MODULE_DEVICE_TABLE(of, imx28_pinctrl_of_match);
 static struct platform_driver imx28_pinctrl_driver = {
 	.driver = {
 		.name = "imx28-pinctrl",
-		.owner = THIS_MODULE,
 		.of_match_table = imx28_pinctrl_of_match,
 	},
 	.probe = imx28_pinctrl_probe,

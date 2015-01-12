@@ -354,6 +354,9 @@ static struct mfd_cell axp288_cells[] = {
 		.num_resources = ARRAY_SIZE(axp288_battery_resources),
 		.resources = axp288_battery_resources,
 	},
+	{
+		.name = "axp288_pmic_acpi",
+	},
 };
 
 static struct axp20x_dev *axp20x_pm_power_off;

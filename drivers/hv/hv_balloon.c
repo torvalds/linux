@@ -1087,10 +1087,12 @@ static void balloon_up(struct work_struct *dummy)
 	struct dm_balloon_response *bl_resp;
 	int alloc_unit;
 	int ret;
-	bool alloc_error = false;
+	bool alloc_error;
 	bool done = false;
 	int i;
 
+	/* The host balloons pages in 2M granularity. */
+	WARN_ON_ONCE(num_pages % PAGES_IN_2M != 0);
 
 	/*
 	 * We will attempt 2M allocations. However, if we fail to
@@ -1107,16 +1109,18 @@ static void balloon_up(struct work_struct *dummy)
 
 
 		num_pages -= num_ballooned;
+		alloc_error = false;
 		num_ballooned = alloc_balloon_pages(&dm_device, num_pages,
 						bl_resp, alloc_unit,
 						 &alloc_error);
 
-		if ((alloc_error) && (alloc_unit != 1)) {
+		if (alloc_unit != 1 && num_ballooned == 0) {
 			alloc_unit = 1;
 			continue;
 		}
 
-		if ((alloc_error) || (num_ballooned == num_pages)) {
+		if ((alloc_unit == 1 && alloc_error) ||
+			(num_ballooned == num_pages)) {
 			bl_resp->more_pages = 0;
 			done = true;
 			dm_device.state = DM_INITIALIZED;

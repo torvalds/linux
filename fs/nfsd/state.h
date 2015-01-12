@@ -463,17 +463,24 @@ static inline struct nfs4_lockowner * lockowner(struct nfs4_stateowner *so)
 /*
  * nfs4_file: a file opened by some number of (open) nfs4_stateowners.
  *
- * These objects are global. nfsd only keeps one instance of a nfs4_file per
- * inode (though it may keep multiple file descriptors open per inode). These
- * are tracked in the file_hashtbl which is protected by the state_lock
- * spinlock.
+ * These objects are global. nfsd keeps one instance of a nfs4_file per
+ * filehandle (though it may keep multiple file descriptors for each). Each
+ * inode can have multiple filehandles associated with it, so there is
+ * (potentially) a many to one relationship between this struct and struct
+ * inode.
+ *
+ * These are hashed by filehandle in the file_hashtbl, which is protected by
+ * the global state_lock spinlock.
  */
 struct nfs4_file {
 	atomic_t		fi_ref;
 	spinlock_t		fi_lock;
-	struct hlist_node       fi_hash;    /* hash by "struct inode *" */
+	struct hlist_node       fi_hash;	/* hash on fi_fhandle */
 	struct list_head        fi_stateids;
-	struct list_head	fi_delegations;
+	union {
+		struct list_head	fi_delegations;
+		struct rcu_head		fi_rcu;
+	};
 	/* One each for O_RDONLY, O_WRONLY, O_RDWR: */
 	struct file *		fi_fds[3];
 	/*

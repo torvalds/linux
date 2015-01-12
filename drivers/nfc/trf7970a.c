@@ -2154,7 +2154,7 @@ static int trf7970a_resume(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int trf7970a_pm_runtime_suspend(struct device *dev)
 {
 	struct spi_device *spi = container_of(dev, struct spi_device, dev);

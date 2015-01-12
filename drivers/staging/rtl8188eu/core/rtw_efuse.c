@@ -106,13 +106,13 @@ efuse_phymap_to_logical(u8 *phymap, u16 _offset, u16 _size_byte, u8  *pbuf)
 	efuseTbl = kzalloc(EFUSE_MAP_LEN_88E, GFP_KERNEL);
 	if (efuseTbl == NULL) {
 		DBG_88E("%s: alloc efuseTbl fail!\n", __func__);
-		goto exit;
+		return;
 	}
 
 	eFuseWord = (u16 **)rtw_malloc2d(EFUSE_MAX_SECTION_88E, EFUSE_MAX_WORD_UNIT, sizeof(u16));
 	if (eFuseWord == NULL) {
 		DBG_88E("%s: alloc eFuseWord fail!\n", __func__);
-		goto exit;
+		goto eFuseWord_failed;
 	}
 
 	/*  0. Refresh efuse init map as all oxFF. */
@@ -210,10 +210,10 @@ efuse_phymap_to_logical(u8 *phymap, u16 _offset, u16 _size_byte, u8  *pbuf)
 	/*  */
 
 exit:
-	kfree(efuseTbl);
+	kfree(eFuseWord);
 
-	if (eFuseWord)
-		kfree(eFuseWord);
+eFuseWord_failed:
+	kfree(efuseTbl);
 }
 
 static void efuse_read_phymap_from_txpktbuf(
@@ -250,7 +250,7 @@ static void efuse_read_phymap_from_txpktbuf(
 		while (!(reg_0x143 = usb_read8(adapter, REG_TXPKTBUF_DBG)) &&
 		       (passing_time = rtw_get_passing_time_ms(start)) < 1000) {
 			DBG_88E("%s polling reg_0x143:0x%02x, reg_0x106:0x%02x\n", __func__, reg_0x143, usb_read8(adapter, 0x106));
-			msleep(1);
+			usleep_range(1000, 2000);
 		}
 
 		lo32 = usb_read32(adapter, REG_PKTBUF_DBG_DATA_L);
@@ -322,7 +322,6 @@ void efuse_ReadEFuse(struct adapter *Adapter, u8 efuseType, u16 _offset, u16 _si
 		iol_read_efuse(Adapter, 0, _offset, _size_byte, pbuf);
 		iol_mode_enable(Adapter, 0);
 	}
-	return;
 }
 
 /* Do not support BT */
@@ -332,56 +331,56 @@ void EFUSE_GetEfuseDefinition(struct adapter *pAdapter, u8 efuseType, u8 type, v
 	case TYPE_EFUSE_MAX_SECTION:
 		{
 			u8 *pMax_section;
-			pMax_section = (u8 *)pOut;
+			pMax_section = pOut;
 			*pMax_section = EFUSE_MAX_SECTION_88E;
 		}
 		break;
 	case TYPE_EFUSE_REAL_CONTENT_LEN:
 		{
 			u16 *pu2Tmp;
-			pu2Tmp = (u16 *)pOut;
+			pu2Tmp = pOut;
 			*pu2Tmp = EFUSE_REAL_CONTENT_LEN_88E;
 		}
 		break;
 	case TYPE_EFUSE_CONTENT_LEN_BANK:
 		{
 			u16 *pu2Tmp;
-			pu2Tmp = (u16 *)pOut;
+			pu2Tmp = pOut;
 			*pu2Tmp = EFUSE_REAL_CONTENT_LEN_88E;
 		}
 		break;
 	case TYPE_AVAILABLE_EFUSE_BYTES_BANK:
 		{
 			u16 *pu2Tmp;
-			pu2Tmp = (u16 *)pOut;
+			pu2Tmp = pOut;
 			*pu2Tmp = (u16)(EFUSE_REAL_CONTENT_LEN_88E-EFUSE_OOB_PROTECT_BYTES_88E);
 		}
 		break;
 	case TYPE_AVAILABLE_EFUSE_BYTES_TOTAL:
 		{
 			u16 *pu2Tmp;
-			pu2Tmp = (u16 *)pOut;
+			pu2Tmp = pOut;
 			*pu2Tmp = (u16)(EFUSE_REAL_CONTENT_LEN_88E-EFUSE_OOB_PROTECT_BYTES_88E);
 		}
 		break;
 	case TYPE_EFUSE_MAP_LEN:
 		{
 			u16 *pu2Tmp;
-			pu2Tmp = (u16 *)pOut;
+			pu2Tmp = pOut;
 			*pu2Tmp = (u16)EFUSE_MAP_LEN_88E;
 		}
 		break;
 	case TYPE_EFUSE_PROTECT_BYTES_BANK:
 		{
 			u8 *pu1Tmp;
-			pu1Tmp = (u8 *)pOut;
+			pu1Tmp = pOut;
 			*pu1Tmp = (u8)(EFUSE_OOB_PROTECT_BYTES_88E);
 		}
 		break;
 	default:
 		{
 			u8 *pu1Tmp;
-			pu1Tmp = (u8 *)pOut;
+			pu1Tmp = pOut;
 			*pu1Tmp = 0;
 		}
 		break;
@@ -638,10 +637,9 @@ static bool hal_EfusePgPacketWrite2ByteHeader(struct adapter *pAdapter, u8 efuse
 			if ((tmp_header & 0x0F) == 0x0F) {	/* word_en PG fail */
 				if (repeatcnt++ > EFUSE_REPEAT_THRESHOLD_) {
 					return false;
-				} else {
-					efuse_addr++;
-					continue;
 				}
+				efuse_addr++;
+				continue;
 			} else if (pg_header != tmp_header) {	/* offset PG fail */
 				struct pgpkt	fixPkt;
 				fixPkt.offset = ((pg_header_temp & 0xE0) >> 5) | ((tmp_header & 0xF0) >> 1);
@@ -708,14 +706,13 @@ static bool hal_EfusePgPacketWriteData(struct adapter *pAdapter, u8 efuseType, u
 	if (badworden == 0x0F) {
 		/*  write ok */
 		return true;
-	} else {
-		/* reorganize other pg packet */
-		PgWriteSuccess = Efuse_PgPacketWrite(pAdapter, pTargetPkt->offset, badworden, pTargetPkt->data);
-		if (!PgWriteSuccess)
-			return false;
-		else
-			return true;
 	}
+	/* reorganize other pg packet */
+	PgWriteSuccess = Efuse_PgPacketWrite(pAdapter, pTargetPkt->offset, badworden, pTargetPkt->data);
+	if (!PgWriteSuccess)
+		return false;
+	else
+		return true;
 }
 
 static bool

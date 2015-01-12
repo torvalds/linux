@@ -334,8 +334,7 @@ static void mx3fb_init_backlight(struct mx3fb_data *fbd)
 
 static void mx3fb_exit_backlight(struct mx3fb_data *fbd)
 {
-	if (fbd->bl)
-		backlight_device_unregister(fbd->bl);
+	backlight_device_unregister(fbd->bl);
 }
 
 static void mx3fb_dma_done(void *);
@@ -1646,7 +1645,6 @@ static int mx3fb_remove(struct platform_device *dev)
 static struct platform_driver mx3fb_driver = {
 	.driver = {
 		.name = MX3FB_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe = mx3fb_probe,
 	.remove = mx3fb_remove,

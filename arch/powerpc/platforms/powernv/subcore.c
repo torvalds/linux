@@ -160,6 +160,18 @@ static void wait_for_sync_step(int step)
 	mb();
 }
 
+static void update_hid_in_slw(u64 hid0)
+{
+	u64 idle_states = pnv_get_supported_cpuidle_states();
+
+	if (idle_states & OPAL_PM_WINKLE_ENABLED) {
+		/* OPAL call to patch slw with the new HID0 value */
+		u64 cpu_pir = hard_smp_processor_id();
+
+		opal_slw_set_reg(cpu_pir, SPRN_HID0, hid0);
+	}
+}
+
 static void unsplit_core(void)
 {
 	u64 hid0, mask;
@@ -179,6 +191,7 @@ static void unsplit_core(void)
 	hid0 = mfspr(SPRN_HID0);
 	hid0 &= ~HID0_POWER8_DYNLPARDIS;
 	mtspr(SPRN_HID0, hid0);
+	update_hid_in_slw(hid0);
 
 	while (mfspr(SPRN_HID0) & mask)
 		cpu_relax();
@@ -215,6 +228,7 @@ static void split_core(int new_mode)
 	hid0  = mfspr(SPRN_HID0);
 	hid0 |= HID0_POWER8_DYNLPARDIS | split_parms[i].value;
 	mtspr(SPRN_HID0, hid0);
+	update_hid_in_slw(hid0);
 
 	/* Wait for it to happen */
 	while (!(mfspr(SPRN_HID0) & split_parms[i].mask))
@@ -251,6 +265,25 @@ bool cpu_core_split_required(void)
 	return true;
 }
 
+void update_subcore_sibling_mask(void)
+{
+	int cpu;
+	/*
+	 * sibling mask for the first cpu. Left shift this by required bits
+	 * to get sibling mask for the rest of the cpus.
+	 */
+	int sibling_mask_first_cpu =  (1 << threads_per_subcore) - 1;
+
+	for_each_possible_cpu(cpu) {
+		int tid = cpu_thread_in_core(cpu);
+		int offset = (tid / threads_per_subcore) * threads_per_subcore;
+		int mask = sibling_mask_first_cpu << offset;
+
+		paca[cpu].subcore_sibling_mask = mask;
+
+	}
+}
+
 static int cpu_update_split_mode(void *data)
 {
 	int cpu, new_mode = *(int *)data;
@@ -284,6 +317,7 @@ static int cpu_update_split_mode(void *data)
 		/* Make the new mode public */
 		subcores_per_core = new_mode;
 		threads_per_subcore = threads_per_core / subcores_per_core;
+		update_subcore_sibling_mask();
 
 		/* Make sure the new mode is written before we exit */
 		mb();

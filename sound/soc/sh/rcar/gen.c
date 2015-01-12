@@ -8,6 +8,17 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+
+/*
+ * #define DEBUG
+ *
+ * you can also add below in
+ * ${LINUX}/drivers/base/regmap/regmap.c
+ * for regmap debug
+ *
+ * #define LOG_DEVICE "xxxx.rcar_sound"
+ */
+
 #include "rsnd.h"
 
 struct rsnd_gen {
@@ -67,9 +78,10 @@ u32 rsnd_read(struct rsnd_priv *priv,
 	if (!rsnd_is_accessible_reg(priv, gen, reg))
 		return 0;
 
-	regmap_fields_read(gen->regs[reg], rsnd_mod_id(mod), &val);
+	dev_dbg(dev, "r %s[%d] - %4d : %08x\n",
+		rsnd_mod_name(mod), rsnd_mod_id(mod), reg, val);
 
-	dev_dbg(dev, "r %s - 0x%04d : %08x\n", rsnd_mod_name(mod), reg, val);
+	regmap_fields_read(gen->regs[reg], rsnd_mod_id(mod), &val);
 
 	return val;
 }
@@ -84,9 +96,10 @@ void rsnd_write(struct rsnd_priv *priv,
 	if (!rsnd_is_accessible_reg(priv, gen, reg))
 		return;
 
-	regmap_fields_write(gen->regs[reg], rsnd_mod_id(mod), data);
+	dev_dbg(dev, "w %s[%d] - %4d : %08x\n",
+		rsnd_mod_name(mod), rsnd_mod_id(mod), reg, data);
 
-	dev_dbg(dev, "w %s - 0x%04d : %08x\n", rsnd_mod_name(mod), reg, data);
+	regmap_fields_write(gen->regs[reg], rsnd_mod_id(mod), data);
 }
 
 void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod,
@@ -98,11 +111,11 @@ void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod,
 	if (!rsnd_is_accessible_reg(priv, gen, reg))
 		return;
 
+	dev_dbg(dev, "b %s[%d] - %4d : %08x/%08x\n",
+		rsnd_mod_name(mod), rsnd_mod_id(mod), reg, data, mask);
+
 	regmap_fields_update_bits(gen->regs[reg], rsnd_mod_id(mod),
 				  mask, data);
-
-	dev_dbg(dev, "b %s - 0x%04d : %08x/%08x\n",
-		rsnd_mod_name(mod), reg, data, mask);
 }
 
 #define rsnd_gen_regmap_init(priv, id_size, reg_id, conf)		\
@@ -311,6 +324,9 @@ static int rsnd_gen2_probe(struct platform_device *pdev,
 		RSND_GEN_M_REG(DVC_ADINR,	0xe08,	0x100),
 		RSND_GEN_M_REG(DVC_DVUCR,	0xe10,	0x100),
 		RSND_GEN_M_REG(DVC_ZCMCR,	0xe14,	0x100),
+		RSND_GEN_M_REG(DVC_VRCTR,	0xe18,	0x100),
+		RSND_GEN_M_REG(DVC_VRPDR,	0xe1c,	0x100),
+		RSND_GEN_M_REG(DVC_VRDBR,	0xe20,	0x100),
 		RSND_GEN_M_REG(DVC_VOL0R,	0xe28,	0x100),
 		RSND_GEN_M_REG(DVC_VOL1R,	0xe2c,	0x100),
 		RSND_GEN_M_REG(DVC_DVUER,	0xe48,	0x100),

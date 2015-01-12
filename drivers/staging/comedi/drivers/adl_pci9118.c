@@ -221,7 +221,6 @@ struct pci9118_private {
 	unsigned char int_ctrl;
 	unsigned char ai_cfg;
 	unsigned int ai_do;		/* what do AI? 0=nothing, 1 to 4 mode */
-	unsigned int ai_act_scan;	/* how many scans we finished */
 	unsigned int ai_n_realscanlen;	/*
 					 * what we must transfer for one
 					 * outgoing scan include front/back adds
@@ -447,51 +446,112 @@ static void interrupt_pci9118_ai_mode4_switch(struct comedi_device *dev,
 	outl(devpriv->ai_cfg, dev->iobase + PCI9118_AI_CFG_REG);
 }
 
-static unsigned int defragment_dma_buffer(struct comedi_device *dev,
-					  struct comedi_subdevice *s,
-					  unsigned short *dma_buffer,
-					  unsigned int num_samples)
+static unsigned int valid_samples_in_act_dma_buf(struct comedi_device *dev,
+						 struct comedi_subdevice *s,
+						 unsigned int n_raw_samples)
 {
 	struct pci9118_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int i = 0, j = 0;
-	unsigned int start_pos = devpriv->ai_add_front,
-	    stop_pos = devpriv->ai_add_front + cmd->chanlist_len;
-	unsigned int raw_scanlen = devpriv->ai_add_front + cmd->chanlist_len +
-	    devpriv->ai_add_back;
+	unsigned int start_pos = devpriv->ai_add_front;
+	unsigned int stop_pos = start_pos + cmd->chanlist_len;
+	unsigned int span_len = stop_pos + devpriv->ai_add_back;
+	unsigned int dma_pos = devpriv->ai_act_dmapos;
+	unsigned int whole_spans, n_samples, x;
 
-	for (i = 0; i < num_samples; i++) {
-		if (devpriv->ai_act_dmapos >= start_pos &&
-		    devpriv->ai_act_dmapos < stop_pos) {
-			dma_buffer[j++] = dma_buffer[i];
+	if (span_len == cmd->chanlist_len)
+		return n_raw_samples;	/* use all samples */
+
+	/*
+	 * Not all samples are to be used.  Buffer contents consist of a
+	 * possibly non-whole number of spans and a region of each span
+	 * is to be used.
+	 *
+	 * Account for samples in whole number of spans.
+	 */
+	whole_spans = n_raw_samples / span_len;
+	n_samples = whole_spans * cmd->chanlist_len;
+	n_raw_samples -= whole_spans * span_len;
+
+	/*
+	 * Deal with remaining samples which could overlap up to two spans.
+	 */
+	while (n_raw_samples) {
+		if (dma_pos < start_pos) {
+			/* Skip samples before start position. */
+			x = start_pos - dma_pos;
+			if (x > n_raw_samples)
+				x = n_raw_samples;
+			dma_pos += x;
+			n_raw_samples -= x;
+			if (!n_raw_samples)
+				break;
 		}
-		devpriv->ai_act_dmapos++;
-		devpriv->ai_act_dmapos %= raw_scanlen;
+		if (dma_pos < stop_pos) {
+			/* Include samples before stop position. */
+			x = stop_pos - dma_pos;
+			if (x > n_raw_samples)
+				x = n_raw_samples;
+			n_samples += x;
+			dma_pos += x;
+			n_raw_samples -= x;
+		}
+		/* Advance to next span. */
+		start_pos += span_len;
+		stop_pos += span_len;
 	}
-
-	return j;
+	return n_samples;
 }
 
-static int move_block_from_dma(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       unsigned short *dma_buffer,
-			       unsigned int num_samples)
+static void move_block_from_dma(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				unsigned short *dma_buffer,
+				unsigned int n_raw_samples)
 {
 	struct pci9118_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int num_bytes;
+	unsigned int start_pos = devpriv->ai_add_front;
+	unsigned int stop_pos = start_pos + cmd->chanlist_len;
+	unsigned int span_len = stop_pos + devpriv->ai_add_back;
+	unsigned int dma_pos = devpriv->ai_act_dmapos;
+	unsigned int x;
 
-	num_samples = defragment_dma_buffer(dev, s, dma_buffer, num_samples);
-	devpriv->ai_act_scan +=
-	    (s->async->cur_chan + num_samples) / cmd->scan_end_arg;
-	s->async->cur_chan += num_samples;
-	s->async->cur_chan %= cmd->scan_end_arg;
-	num_bytes =
-	    cfc_write_array_to_buffer(s, dma_buffer,
-				      num_samples * sizeof(short));
-	if (num_bytes < num_samples * sizeof(short))
-		return -1;
-	return 0;
+	if (span_len == cmd->chanlist_len) {
+		/* All samples are to be copied. */
+		comedi_buf_write_samples(s, dma_buffer, n_raw_samples);
+		dma_pos += n_raw_samples;
+	} else {
+		/*
+		 * Not all samples are to be copied.  Buffer contents consist
+		 * of a possibly non-whole number of spans and a region of
+		 * each span is to be copied.
+		 */
+		while (n_raw_samples) {
+			if (dma_pos < start_pos) {
+				/* Skip samples before start position. */
+				x = start_pos - dma_pos;
+				if (x > n_raw_samples)
+					x = n_raw_samples;
+				dma_pos += x;
+				n_raw_samples -= x;
+				if (!n_raw_samples)
+					break;
+			}
+			if (dma_pos < stop_pos) {
+				/* Copy samples before stop position. */
+				x = stop_pos - dma_pos;
+				if (x > n_raw_samples)
+					x = n_raw_samples;
+				comedi_buf_write_samples(s, dma_buffer, x);
+				dma_pos += x;
+				n_raw_samples -= x;
+			}
+			/* Advance to next span. */
+			start_pos += span_len;
+			stop_pos += span_len;
+		}
+	}
+	/* Update position in span for next time. */
+	devpriv->ai_act_dmapos = dma_pos % span_len;
 }
 
 static void pci9118_exttrg_enable(struct comedi_device *dev, bool enable)
@@ -578,9 +638,7 @@ static int pci9118_ai_cancel(struct comedi_device *dev,
 	devpriv->ai_do = 0;
 	devpriv->usedma = 0;
 
-	devpriv->ai_act_scan = 0;
 	devpriv->ai_act_dmapos = 0;
-	s->async->cur_chan = 0;
 	s->async->inttrig = NULL;
 	devpriv->ai_neverending = 0;
 	devpriv->dma_actbuf = 0;
@@ -594,8 +652,9 @@ static void pci9118_ai_munge(struct comedi_device *dev,
 			     unsigned int start_chan_index)
 {
 	struct pci9118_private *devpriv = dev->private;
-	unsigned int i, num_samples = num_bytes / sizeof(short);
 	unsigned short *array = data;
+	unsigned int num_samples = comedi_bytes_to_samples(s, num_bytes);
+	unsigned int i;
 
 	for (i = 0; i < num_samples; i++) {
 		if (devpriv->usedma)
@@ -617,17 +676,11 @@ static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
 
 	sampl = inl(dev->iobase + PCI9118_AI_FIFO_REG);
 
-	cfc_write_to_buffer(s, sampl);
-	s->async->cur_chan++;
-	if (s->async->cur_chan >= cmd->scan_end_arg) {
-							/* one scan done */
-		s->async->cur_chan %= cmd->scan_end_arg;
-		devpriv->ai_act_scan++;
-		if (!devpriv->ai_neverending) {
-			/* all data sampled? */
-			if (devpriv->ai_act_scan >= cmd->stop_arg)
-				s->async->events |= COMEDI_CB_EOA;
-		}
+	comedi_buf_write_samples(s, &sampl, 1);
+
+	if (!devpriv->ai_neverending) {
+		if (s->async->scans_done >= cmd->stop_arg)
+			s->async->events |= COMEDI_CB_EOA;
 	}
 }
 
@@ -637,39 +690,37 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 	struct pci9118_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	struct pci9118_dmabuf *dmabuf = &devpriv->dmabuf[devpriv->dma_actbuf];
-	unsigned int next_dma_buf, samplesinbuf, sampls, m;
+	unsigned int n_all = comedi_bytes_to_samples(s, dmabuf->use_size);
+	unsigned int n_valid;
+	bool more_dma;
 
-	samplesinbuf = dmabuf->use_size >> 1;	/* number of received samples */
+	/* determine whether more DMA buffers to do after this one */
+	n_valid = valid_samples_in_act_dma_buf(dev, s, n_all);
+	more_dma = n_valid < comedi_nsamples_left(s, n_valid + 1);
 
-	if (devpriv->dma_doublebuf) {	/*
-					 * switch DMA buffers if is used
-					 * double buffering
-					 */
-		next_dma_buf = 1 - devpriv->dma_actbuf;
-		pci9118_amcc_setup_dma(dev, next_dma_buf);
-		if (devpriv->ai_do == 4)
-			interrupt_pci9118_ai_mode4_switch(dev, next_dma_buf);
+	/* switch DMA buffers and restart DMA if double buffering */
+	if (more_dma && devpriv->dma_doublebuf) {
+		devpriv->dma_actbuf = 1 - devpriv->dma_actbuf;
+		pci9118_amcc_setup_dma(dev, devpriv->dma_actbuf);
+		if (devpriv->ai_do == 4) {
+			interrupt_pci9118_ai_mode4_switch(dev,
+							  devpriv->dma_actbuf);
+		}
 	}
 
-	if (samplesinbuf) {
-		/* how many samples is to end of buffer */
-		m = s->async->prealloc_bufsz >> 1;
-		sampls = m;
-		move_block_from_dma(dev, s, dmabuf->virt, samplesinbuf);
-		m = m - sampls;		/* m=how many samples was transferred */
-	}
+	if (n_all)
+		move_block_from_dma(dev, s, dmabuf->virt, n_all);
 
 	if (!devpriv->ai_neverending) {
-		/* all data sampled? */
-		if (devpriv->ai_act_scan >= cmd->stop_arg)
+		if (s->async->scans_done >= cmd->stop_arg)
 			s->async->events |= COMEDI_CB_EOA;
 	}
 
-	if (devpriv->dma_doublebuf) {
-		/* switch dma buffers */
-		devpriv->dma_actbuf = 1 - devpriv->dma_actbuf;
-	} else {
-		/* restart DMA if is not used double buffering */
+	if (s->async->events & COMEDI_CB_CANCEL_MASK)
+		more_dma = false;
+
+	/* restart DMA if not double buffering */
+	if (more_dma && !devpriv->dma_doublebuf) {
 		pci9118_amcc_setup_dma(dev, 0);
 		if (devpriv->ai_do == 4)
 			interrupt_pci9118_ai_mode4_switch(dev, 0);
@@ -766,7 +817,7 @@ static irqreturn_t pci9118_interrupt(int irq, void *d)
 		interrupt_pci9118_ai_onesample(dev, s);
 
 interrupt_exit:
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 	return IRQ_HANDLED;
 }
 
@@ -1123,9 +1174,7 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	inl(dev->iobase + PCI9118_AI_STATUS_REG);
 	inl(dev->iobase + PCI9118_INT_CTRL_REG);
 
-	devpriv->ai_act_scan = 0;
 	devpriv->ai_act_dmapos = 0;
-	s->async->cur_chan = 0;
 
 	if (devpriv->usedma) {
 		Compute_and_setup_dma(dev, s);
@@ -1624,7 +1673,6 @@ static int pci9118_common_attach(struct comedi_device *dev,
 	s->maxdata	= 0x0fff;
 	s->range_table	= &range_bipolar10;
 	s->insn_write	= pci9118_ao_insn_write;
-	s->insn_read	= comedi_readback_insn_read;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)

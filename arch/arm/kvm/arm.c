@@ -213,6 +213,11 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 	int err;
 	struct kvm_vcpu *vcpu;
 
+	if (irqchip_in_kernel(kvm) && vgic_initialized(kvm)) {
+		err = -EBUSY;
+		goto out;
+	}
+
 	vcpu = kmem_cache_zalloc(kvm_vcpu_cache, GFP_KERNEL);
 	if (!vcpu) {
 		err = -ENOMEM;
@@ -263,6 +268,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 {
 	/* Force users to call KVM_ARM_VCPU_INIT */
 	vcpu->arch.target = -1;
+	bitmap_zero(vcpu->arch.features, KVM_VCPU_MAX_FEATURES);
 
 	/* Set up the timer */
 	kvm_timer_vcpu_init(vcpu);
@@ -419,6 +425,7 @@ static void update_vttbr(struct kvm *kvm)
 
 static int kvm_vcpu_first_run_init(struct kvm_vcpu *vcpu)
 {
+	struct kvm *kvm = vcpu->kvm;
 	int ret;
 
 	if (likely(vcpu->arch.has_run_once))
@@ -427,14 +434,22 @@ static int kvm_vcpu_first_run_init(struct kvm_vcpu *vcpu)
 	vcpu->arch.has_run_once = true;
 
 	/*
-	 * Initialize the VGIC before running a vcpu the first time on
-	 * this VM.
+	 * Map the VGIC hardware resources before running a vcpu the first
+	 * time on this VM.
 	 */
-	if (unlikely(!vgic_initialized(vcpu->kvm))) {
-		ret = kvm_vgic_init(vcpu->kvm);
+	if (unlikely(!vgic_ready(kvm))) {
+		ret = kvm_vgic_map_resources(kvm);
 		if (ret)
 			return ret;
 	}
+
+	/*
+	 * Enable the arch timers only if we have an in-kernel VGIC
+	 * and it has been properly initialized, since we cannot handle
+	 * interrupts from the virtual timer with a userspace gic.
+	 */
+	if (irqchip_in_kernel(kvm) && vgic_initialized(kvm))
+		kvm_timer_enable(kvm);
 
 	return 0;
 }
@@ -649,6 +664,48 @@ int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irq_level,
 	return -EINVAL;
 }
 
+static int kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
+			       const struct kvm_vcpu_init *init)
+{
+	unsigned int i;
+	int phys_target = kvm_target_cpu();
+
+	if (init->target != phys_target)
+		return -EINVAL;
+
+	/*
+	 * Secondary and subsequent calls to KVM_ARM_VCPU_INIT must
+	 * use the same target.
+	 */
+	if (vcpu->arch.target != -1 && vcpu->arch.target != init->target)
+		return -EINVAL;
+
+	/* -ENOENT for unknown features, -EINVAL for invalid combinations. */
+	for (i = 0; i < sizeof(init->features) * 8; i++) {
+		bool set = (init->features[i / 32] & (1 << (i % 32)));
+
+		if (set && i >= KVM_VCPU_MAX_FEATURES)
+			return -ENOENT;
+
+		/*
+		 * Secondary and subsequent calls to KVM_ARM_VCPU_INIT must
+		 * use the same feature set.
+		 */
+		if (vcpu->arch.target != -1 && i < KVM_VCPU_MAX_FEATURES &&
+		    test_bit(i, vcpu->arch.features) != set)
+			return -EINVAL;
+
+		if (set)
+			set_bit(i, vcpu->arch.features);
+	}
+
+	vcpu->arch.target = phys_target;
+
+	/* Now we know what it is, we can reset it. */
+	return kvm_reset_vcpu(vcpu);
+}
+
+
 static int kvm_arch_vcpu_ioctl_vcpu_init(struct kvm_vcpu *vcpu,
 					 struct kvm_vcpu_init *init)
 {
@@ -659,10 +716,21 @@ static int kvm_arch_vcpu_ioctl_vcpu_init(struct kvm_vcpu *vcpu,
 		return ret;
 
 	/*
+	 * Ensure a rebooted VM will fault in RAM pages and detect if the
+	 * guest MMU is turned off and flush the caches as needed.
+	 */
+	if (vcpu->arch.has_run_once)
+		stage2_unmap_vm(vcpu->kvm);
+
+	vcpu_reset_hcr(vcpu);
+
+	/*
 	 * Handle the "start in power-off" case by marking the VCPU as paused.
 	 */
-	if (__test_and_clear_bit(KVM_ARM_VCPU_POWER_OFF, vcpu->arch.features))
+	if (test_bit(KVM_ARM_VCPU_POWER_OFF, vcpu->arch.features))
 		vcpu->arch.pause = true;
+	else
+		vcpu->arch.pause = false;
 
 	return 0;
 }

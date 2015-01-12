@@ -149,6 +149,8 @@ static int pnv_smp_cpu_disable(void)
 static void pnv_smp_cpu_kill_self(void)
 {
 	unsigned int cpu;
+	unsigned long srr1;
+	u32 idle_states;
 
 	/* Standard hot unplug procedure */
 	local_irq_disable();
@@ -159,19 +161,41 @@ static void pnv_smp_cpu_kill_self(void)
 	generic_set_cpu_dead(cpu);
 	smp_wmb();
 
+	idle_states = pnv_get_supported_cpuidle_states();
 	/* We don't want to take decrementer interrupts while we are offline,
 	 * so clear LPCR:PECE1. We keep PECE2 enabled.
 	 */
 	mtspr(SPRN_LPCR, mfspr(SPRN_LPCR) & ~(u64)LPCR_PECE1);
 	while (!generic_check_cpu_restart(cpu)) {
+
 		ppc64_runlatch_off();
-		power7_nap(1);
+
+		if (idle_states & OPAL_PM_WINKLE_ENABLED)
+			srr1 = power7_winkle();
+		else if ((idle_states & OPAL_PM_SLEEP_ENABLED) ||
+				(idle_states & OPAL_PM_SLEEP_ENABLED_ER1))
+			srr1 = power7_sleep();
+		else
+			srr1 = power7_nap(1);
+
 		ppc64_runlatch_on();
 
-		/* Clear the IPI that woke us up */
-		icp_native_flush_interrupt();
-		local_paca->irq_happened &= PACA_IRQ_HARD_DIS;
-		mb();
+		/*
+		 * If the SRR1 value indicates that we woke up due to
+		 * an external interrupt, then clear the interrupt.
+		 * We clear the interrupt before checking for the
+		 * reason, so as to avoid a race where we wake up for
+		 * some other reason, find nothing and clear the interrupt
+		 * just as some other cpu is sending us an interrupt.
+		 * If we returned from power7_nap as a result of
+		 * having finished executing in a KVM guest, then srr1
+		 * contains 0.
+		 */
+		if ((srr1 & SRR1_WAKEMASK) == SRR1_WAKEEE) {
+			icp_native_flush_interrupt();
+			local_paca->irq_happened &= PACA_IRQ_HARD_DIS;
+			smp_mb();
+		}
 
 		if (cpu_core_split_required())
 			continue;
@@ -185,13 +209,27 @@ static void pnv_smp_cpu_kill_self(void)
 
 #endif /* CONFIG_HOTPLUG_CPU */
 
+static int pnv_cpu_bootable(unsigned int nr)
+{
+	/*
+	 * Starting with POWER8, the subcore logic relies on all threads of a
+	 * core being booted so that they can participate in split mode
+	 * switches. So on those machines we ignore the smt_enabled_at_boot
+	 * setting (smt-enabled on the kernel command line).
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_207S))
+		return 1;
+
+	return smp_generic_cpu_bootable(nr);
+}
+
 static struct smp_ops_t pnv_smp_ops = {
 	.message_pass	= smp_muxed_ipi_message_pass,
 	.cause_ipi	= NULL,	/* Filled at runtime by xics_smp_probe() */
 	.probe		= xics_smp_probe,
 	.kick_cpu	= pnv_smp_kick_cpu,
 	.setup_cpu	= pnv_smp_setup_cpu,
-	.cpu_bootable	= smp_generic_cpu_bootable,
+	.cpu_bootable	= pnv_cpu_bootable,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_disable	= pnv_smp_cpu_disable,
 	.cpu_die	= generic_cpu_die,

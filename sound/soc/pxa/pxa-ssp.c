@@ -97,7 +97,7 @@ static int pxa_ssp_startup(struct snd_pcm_substream *substream,
 	int ret = 0;
 
 	if (!cpu_dai->active) {
-		clk_enable(ssp->clk);
+		clk_prepare_enable(ssp->clk);
 		pxa_ssp_disable(ssp);
 	}
 
@@ -121,7 +121,7 @@ static void pxa_ssp_shutdown(struct snd_pcm_substream *substream,
 
 	if (!cpu_dai->active) {
 		pxa_ssp_disable(ssp);
-		clk_disable(ssp->clk);
+		clk_disable_unprepare(ssp->clk);
 	}
 
 	kfree(snd_soc_dai_get_dma_data(cpu_dai, substream));
@@ -136,7 +136,7 @@ static int pxa_ssp_suspend(struct snd_soc_dai *cpu_dai)
 	struct ssp_device *ssp = priv->ssp;
 
 	if (!cpu_dai->active)
-		clk_enable(ssp->clk);
+		clk_prepare_enable(ssp->clk);
 
 	priv->cr0 = __raw_readl(ssp->mmio_base + SSCR0);
 	priv->cr1 = __raw_readl(ssp->mmio_base + SSCR1);
@@ -144,7 +144,7 @@ static int pxa_ssp_suspend(struct snd_soc_dai *cpu_dai)
 	priv->psp = __raw_readl(ssp->mmio_base + SSPSP);
 
 	pxa_ssp_disable(ssp);
-	clk_disable(ssp->clk);
+	clk_disable_unprepare(ssp->clk);
 	return 0;
 }
 
@@ -154,7 +154,7 @@ static int pxa_ssp_resume(struct snd_soc_dai *cpu_dai)
 	struct ssp_device *ssp = priv->ssp;
 	uint32_t sssr = SSSR_ROR | SSSR_TUR | SSSR_BCE;
 
-	clk_enable(ssp->clk);
+	clk_prepare_enable(ssp->clk);
 
 	__raw_writel(sssr, ssp->mmio_base + SSSR);
 	__raw_writel(priv->cr0 & ~SSCR0_SSE, ssp->mmio_base + SSCR0);
@@ -165,7 +165,7 @@ static int pxa_ssp_resume(struct snd_soc_dai *cpu_dai)
 	if (cpu_dai->active)
 		pxa_ssp_enable(ssp);
 	else
-		clk_disable(ssp->clk);
+		clk_disable_unprepare(ssp->clk);
 
 	return 0;
 }
@@ -256,11 +256,11 @@ static int pxa_ssp_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 	/* The SSP clock must be disabled when changing SSP clock mode
 	 * on PXA2xx.  On PXA3xx it must be enabled when doing so. */
 	if (ssp->type != PXA3xx_SSP)
-		clk_disable(ssp->clk);
+		clk_disable_unprepare(ssp->clk);
 	val = pxa_ssp_read_reg(ssp, SSCR0) | sscr0;
 	pxa_ssp_write_reg(ssp, SSCR0, val);
 	if (ssp->type != PXA3xx_SSP)
-		clk_enable(ssp->clk);
+		clk_prepare_enable(ssp->clk);
 
 	return 0;
 }
@@ -826,7 +826,6 @@ static int asoc_ssp_remove(struct platform_device *pdev)
 static struct platform_driver asoc_ssp_driver = {
 	.driver = {
 		.name = "pxa-ssp-dai",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(pxa_ssp_of_ids),
 	},
 

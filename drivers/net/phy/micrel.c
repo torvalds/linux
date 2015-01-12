@@ -6,6 +6,7 @@
  * Author: David J. Choi
  *
  * Copyright (c) 2010-2013 Micrel, Inc.
+ * Copyright (c) 2014 Johan Hovold <johan@kernel.org>
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -30,30 +31,32 @@
 
 /* Operation Mode Strap Override */
 #define MII_KSZPHY_OMSO				0x16
-#define KSZPHY_OMSO_B_CAST_OFF			(1 << 9)
-#define KSZPHY_OMSO_RMII_OVERRIDE		(1 << 1)
-#define KSZPHY_OMSO_MII_OVERRIDE		(1 << 0)
+#define KSZPHY_OMSO_B_CAST_OFF			BIT(9)
+#define KSZPHY_OMSO_RMII_OVERRIDE		BIT(1)
+#define KSZPHY_OMSO_MII_OVERRIDE		BIT(0)
 
 /* general Interrupt control/status reg in vendor specific block. */
 #define MII_KSZPHY_INTCS			0x1B
-#define	KSZPHY_INTCS_JABBER			(1 << 15)
-#define	KSZPHY_INTCS_RECEIVE_ERR		(1 << 14)
-#define	KSZPHY_INTCS_PAGE_RECEIVE		(1 << 13)
-#define	KSZPHY_INTCS_PARELLEL			(1 << 12)
-#define	KSZPHY_INTCS_LINK_PARTNER_ACK		(1 << 11)
-#define	KSZPHY_INTCS_LINK_DOWN			(1 << 10)
-#define	KSZPHY_INTCS_REMOTE_FAULT		(1 << 9)
-#define	KSZPHY_INTCS_LINK_UP			(1 << 8)
+#define	KSZPHY_INTCS_JABBER			BIT(15)
+#define	KSZPHY_INTCS_RECEIVE_ERR		BIT(14)
+#define	KSZPHY_INTCS_PAGE_RECEIVE		BIT(13)
+#define	KSZPHY_INTCS_PARELLEL			BIT(12)
+#define	KSZPHY_INTCS_LINK_PARTNER_ACK		BIT(11)
+#define	KSZPHY_INTCS_LINK_DOWN			BIT(10)
+#define	KSZPHY_INTCS_REMOTE_FAULT		BIT(9)
+#define	KSZPHY_INTCS_LINK_UP			BIT(8)
 #define	KSZPHY_INTCS_ALL			(KSZPHY_INTCS_LINK_UP |\
 						KSZPHY_INTCS_LINK_DOWN)
 
-/* general PHY control reg in vendor specific block. */
-#define	MII_KSZPHY_CTRL			0x1F
+/* PHY Control 1 */
+#define	MII_KSZPHY_CTRL_1			0x1e
+
+/* PHY Control 2 / PHY Control (if no PHY Control 1) */
+#define	MII_KSZPHY_CTRL_2			0x1f
+#define	MII_KSZPHY_CTRL				MII_KSZPHY_CTRL_2
 /* bitmap of PHY register to set interrupt mode */
-#define KSZPHY_CTRL_INT_ACTIVE_HIGH		(1 << 9)
-#define KSZ9021_CTRL_INT_ACTIVE_HIGH		(1 << 14)
-#define KS8737_CTRL_INT_ACTIVE_HIGH		(1 << 14)
-#define KSZ8051_RMII_50MHZ_CLK			(1 << 7)
+#define KSZPHY_CTRL_INT_ACTIVE_HIGH		BIT(9)
+#define KSZPHY_RMII_REF_CLK_SEL			BIT(7)
 
 /* Write/read to/from extended registers */
 #define MII_KSZPHY_EXTREG                       0x0b
@@ -69,20 +72,46 @@
 
 #define PS_TO_REG				200
 
-static int ksz_config_flags(struct phy_device *phydev)
-{
-	int regval;
+struct kszphy_type {
+	u32 led_mode_reg;
+	u16 interrupt_level_mask;
+	bool has_broadcast_disable;
+	bool has_rmii_ref_clk_sel;
+};
 
-	if (phydev->dev_flags & (MICREL_PHY_50MHZ_CLK | MICREL_PHY_25MHZ_CLK)) {
-		regval = phy_read(phydev, MII_KSZPHY_CTRL);
-		if (phydev->dev_flags & MICREL_PHY_50MHZ_CLK)
-			regval |= KSZ8051_RMII_50MHZ_CLK;
-		else
-			regval &= ~KSZ8051_RMII_50MHZ_CLK;
-		return phy_write(phydev, MII_KSZPHY_CTRL, regval);
-	}
-	return 0;
-}
+struct kszphy_priv {
+	const struct kszphy_type *type;
+	int led_mode;
+	bool rmii_ref_clk_sel;
+	bool rmii_ref_clk_sel_val;
+};
+
+static const struct kszphy_type ksz8021_type = {
+	.led_mode_reg		= MII_KSZPHY_CTRL_2,
+	.has_rmii_ref_clk_sel	= true,
+};
+
+static const struct kszphy_type ksz8041_type = {
+	.led_mode_reg		= MII_KSZPHY_CTRL_1,
+};
+
+static const struct kszphy_type ksz8051_type = {
+	.led_mode_reg		= MII_KSZPHY_CTRL_2,
+};
+
+static const struct kszphy_type ksz8081_type = {
+	.led_mode_reg		= MII_KSZPHY_CTRL_2,
+	.has_broadcast_disable	= true,
+	.has_rmii_ref_clk_sel	= true,
+};
+
+static const struct kszphy_type ks8737_type = {
+	.interrupt_level_mask	= BIT(14),
+};
+
+static const struct kszphy_type ksz9021_type = {
+	.interrupt_level_mask	= BIT(14),
+};
 
 static int kszphy_extended_write(struct phy_device *phydev,
 				u32 regnum, u16 val)
@@ -108,112 +137,137 @@ static int kszphy_ack_interrupt(struct phy_device *phydev)
 	return (rc < 0) ? rc : 0;
 }
 
-static int kszphy_set_interrupt(struct phy_device *phydev)
+static int kszphy_config_intr(struct phy_device *phydev)
 {
+	const struct kszphy_type *type = phydev->drv->driver_data;
 	int temp;
-	temp = (PHY_INTERRUPT_ENABLED == phydev->interrupts) ?
-		KSZPHY_INTCS_ALL : 0;
+	u16 mask;
+
+	if (type && type->interrupt_level_mask)
+		mask = type->interrupt_level_mask;
+	else
+		mask = KSZPHY_CTRL_INT_ACTIVE_HIGH;
+
+	/* set the interrupt pin active low */
+	temp = phy_read(phydev, MII_KSZPHY_CTRL);
+	if (temp < 0)
+		return temp;
+	temp &= ~mask;
+	phy_write(phydev, MII_KSZPHY_CTRL, temp);
+
+	/* enable / disable interrupts */
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
+		temp = KSZPHY_INTCS_ALL;
+	else
+		temp = 0;
+
 	return phy_write(phydev, MII_KSZPHY_INTCS, temp);
 }
 
-static int kszphy_config_intr(struct phy_device *phydev)
+static int kszphy_rmii_clk_sel(struct phy_device *phydev, bool val)
 {
-	int temp, rc;
+	int ctrl;
 
-	/* set the interrupt pin active low */
-	temp = phy_read(phydev, MII_KSZPHY_CTRL);
-	temp &= ~KSZPHY_CTRL_INT_ACTIVE_HIGH;
-	phy_write(phydev, MII_KSZPHY_CTRL, temp);
-	rc = kszphy_set_interrupt(phydev);
-	return rc < 0 ? rc : 0;
+	ctrl = phy_read(phydev, MII_KSZPHY_CTRL);
+	if (ctrl < 0)
+		return ctrl;
+
+	if (val)
+		ctrl |= KSZPHY_RMII_REF_CLK_SEL;
+	else
+		ctrl &= ~KSZPHY_RMII_REF_CLK_SEL;
+
+	return phy_write(phydev, MII_KSZPHY_CTRL, ctrl);
 }
 
-static int ksz9021_config_intr(struct phy_device *phydev)
+static int kszphy_setup_led(struct phy_device *phydev, u32 reg, int val)
 {
-	int temp, rc;
+	int rc, temp, shift;
 
-	/* set the interrupt pin active low */
-	temp = phy_read(phydev, MII_KSZPHY_CTRL);
-	temp &= ~KSZ9021_CTRL_INT_ACTIVE_HIGH;
-	phy_write(phydev, MII_KSZPHY_CTRL, temp);
-	rc = kszphy_set_interrupt(phydev);
-	return rc < 0 ? rc : 0;
-}
-
-static int ks8737_config_intr(struct phy_device *phydev)
-{
-	int temp, rc;
-
-	/* set the interrupt pin active low */
-	temp = phy_read(phydev, MII_KSZPHY_CTRL);
-	temp &= ~KS8737_CTRL_INT_ACTIVE_HIGH;
-	phy_write(phydev, MII_KSZPHY_CTRL, temp);
-	rc = kszphy_set_interrupt(phydev);
-	return rc < 0 ? rc : 0;
-}
-
-static int kszphy_setup_led(struct phy_device *phydev,
-			    unsigned int reg, unsigned int shift)
-{
-
-	struct device *dev = &phydev->dev;
-	struct device_node *of_node = dev->of_node;
-	int rc, temp;
-	u32 val;
-
-	if (!of_node && dev->parent->of_node)
-		of_node = dev->parent->of_node;
-
-	if (of_property_read_u32(of_node, "micrel,led-mode", &val))
-		return 0;
+	switch (reg) {
+	case MII_KSZPHY_CTRL_1:
+		shift = 14;
+		break;
+	case MII_KSZPHY_CTRL_2:
+		shift = 4;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	temp = phy_read(phydev, reg);
-	if (temp < 0)
-		return temp;
+	if (temp < 0) {
+		rc = temp;
+		goto out;
+	}
 
 	temp &= ~(3 << shift);
 	temp |= val << shift;
 	rc = phy_write(phydev, reg, temp);
+out:
+	if (rc < 0)
+		dev_err(&phydev->dev, "failed to set led mode\n");
 
-	return rc < 0 ? rc : 0;
+	return rc;
+}
+
+/* Disable PHY address 0 as the broadcast address, so that it can be used as a
+ * unique (non-broadcast) address on a shared bus.
+ */
+static int kszphy_broadcast_disable(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = phy_read(phydev, MII_KSZPHY_OMSO);
+	if (ret < 0)
+		goto out;
+
+	ret = phy_write(phydev, MII_KSZPHY_OMSO, ret | KSZPHY_OMSO_B_CAST_OFF);
+out:
+	if (ret)
+		dev_err(&phydev->dev, "failed to disable broadcast address\n");
+
+	return ret;
 }
 
 static int kszphy_config_init(struct phy_device *phydev)
 {
-	return 0;
-}
+	struct kszphy_priv *priv = phydev->priv;
+	const struct kszphy_type *type;
+	int ret;
 
-static int kszphy_config_init_led8041(struct phy_device *phydev)
-{
-	/* single led control, register 0x1e bits 15..14 */
-	return kszphy_setup_led(phydev, 0x1e, 14);
+	if (!priv)
+		return 0;
+
+	type = priv->type;
+
+	if (type->has_broadcast_disable)
+		kszphy_broadcast_disable(phydev);
+
+	if (priv->rmii_ref_clk_sel) {
+		ret = kszphy_rmii_clk_sel(phydev, priv->rmii_ref_clk_sel_val);
+		if (ret) {
+			dev_err(&phydev->dev, "failed to set rmii reference clock\n");
+			return ret;
+		}
+	}
+
+	if (priv->led_mode >= 0)
+		kszphy_setup_led(phydev, type->led_mode_reg, priv->led_mode);
+
+	return 0;
 }
 
 static int ksz8021_config_init(struct phy_device *phydev)
 {
-	const u16 val = KSZPHY_OMSO_B_CAST_OFF | KSZPHY_OMSO_RMII_OVERRIDE;
 	int rc;
 
-	rc = kszphy_setup_led(phydev, 0x1f, 4);
+	rc = kszphy_config_init(phydev);
 	if (rc)
-		dev_err(&phydev->dev, "failed to set led mode\n");
-
-	rc = ksz_config_flags(phydev);
-	if (rc < 0)
 		return rc;
-	rc = phy_write(phydev, MII_KSZPHY_OMSO, val);
-	return rc < 0 ? rc : 0;
-}
 
-static int ks8051_config_init(struct phy_device *phydev)
-{
-	int rc;
+	rc = kszphy_broadcast_disable(phydev);
 
-	rc = kszphy_setup_led(phydev, 0x1f, 4);
-	if (rc)
-		dev_err(&phydev->dev, "failed to set led mode\n");
-
-	rc = ksz_config_flags(phydev);
 	return rc < 0 ? rc : 0;
 }
 
@@ -394,8 +448,8 @@ static int ksz9031_config_init(struct phy_device *phydev)
 }
 
 #define KSZ8873MLL_GLOBAL_CONTROL_4	0x06
-#define KSZ8873MLL_GLOBAL_CONTROL_4_DUPLEX	(1 << 6)
-#define KSZ8873MLL_GLOBAL_CONTROL_4_SPEED	(1 << 4)
+#define KSZ8873MLL_GLOBAL_CONTROL_4_DUPLEX	BIT(6)
+#define KSZ8873MLL_GLOBAL_CONTROL_4_SPEED	BIT(4)
 static int ksz8873mll_read_status(struct phy_device *phydev)
 {
 	int regval;
@@ -446,22 +500,60 @@ ksz9021_wr_mmd_phyreg(struct phy_device *phydev, int ptrad, int devnum,
 {
 }
 
-static int ksz8021_probe(struct phy_device *phydev)
+static int kszphy_probe(struct phy_device *phydev)
 {
+	const struct kszphy_type *type = phydev->drv->driver_data;
+	struct device_node *np = phydev->dev.of_node;
+	struct kszphy_priv *priv;
 	struct clk *clk;
+	int ret;
+
+	priv = devm_kzalloc(&phydev->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	phydev->priv = priv;
+
+	priv->type = type;
+
+	if (type->led_mode_reg) {
+		ret = of_property_read_u32(np, "micrel,led-mode",
+				&priv->led_mode);
+		if (ret)
+			priv->led_mode = -1;
+
+		if (priv->led_mode > 3) {
+			dev_err(&phydev->dev, "invalid led mode: 0x%02x\n",
+					priv->led_mode);
+			priv->led_mode = -1;
+		}
+	} else {
+		priv->led_mode = -1;
+	}
 
 	clk = devm_clk_get(&phydev->dev, "rmii-ref");
 	if (!IS_ERR(clk)) {
 		unsigned long rate = clk_get_rate(clk);
+		bool rmii_ref_clk_sel_25_mhz;
+
+		priv->rmii_ref_clk_sel = type->has_rmii_ref_clk_sel;
+		rmii_ref_clk_sel_25_mhz = of_property_read_bool(np,
+				"micrel,rmii-reference-clock-select-25-mhz");
 
 		if (rate > 24500000 && rate < 25500000) {
-			phydev->dev_flags |= MICREL_PHY_25MHZ_CLK;
+			priv->rmii_ref_clk_sel_val = rmii_ref_clk_sel_25_mhz;
 		} else if (rate > 49500000 && rate < 50500000) {
-			phydev->dev_flags |= MICREL_PHY_50MHZ_CLK;
+			priv->rmii_ref_clk_sel_val = !rmii_ref_clk_sel_25_mhz;
 		} else {
 			dev_err(&phydev->dev, "Clock rate out of range: %ld\n", rate);
 			return -EINVAL;
 		}
+	}
+
+	/* Support legacy board-file configuration */
+	if (phydev->dev_flags & MICREL_PHY_50MHZ_CLK) {
+		priv->rmii_ref_clk_sel = true;
+		priv->rmii_ref_clk_sel_val = true;
 	}
 
 	return 0;
@@ -474,11 +566,12 @@ static struct phy_driver ksphy_driver[] = {
 	.name		= "Micrel KS8737",
 	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause),
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
+	.driver_data	= &ks8737_type,
 	.config_init	= kszphy_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= kszphy_ack_interrupt,
-	.config_intr	= ks8737_config_intr,
+	.config_intr	= kszphy_config_intr,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 	.driver		= { .owner = THIS_MODULE,},
@@ -489,7 +582,8 @@ static struct phy_driver ksphy_driver[] = {
 	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause |
 			   SUPPORTED_Asym_Pause),
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
-	.probe		= ksz8021_probe,
+	.driver_data	= &ksz8021_type,
+	.probe		= kszphy_probe,
 	.config_init	= ksz8021_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
@@ -505,7 +599,8 @@ static struct phy_driver ksphy_driver[] = {
 	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause |
 			   SUPPORTED_Asym_Pause),
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
-	.probe		= ksz8021_probe,
+	.driver_data	= &ksz8021_type,
+	.probe		= kszphy_probe,
 	.config_init	= ksz8021_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
@@ -521,7 +616,9 @@ static struct phy_driver ksphy_driver[] = {
 	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause
 				| SUPPORTED_Asym_Pause),
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
-	.config_init	= kszphy_config_init_led8041,
+	.driver_data	= &ksz8041_type,
+	.probe		= kszphy_probe,
+	.config_init	= kszphy_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= kszphy_ack_interrupt,
@@ -536,7 +633,9 @@ static struct phy_driver ksphy_driver[] = {
 	.features	= PHY_BASIC_FEATURES |
 			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
-	.config_init	= kszphy_config_init_led8041,
+	.driver_data	= &ksz8041_type,
+	.probe		= kszphy_probe,
+	.config_init	= kszphy_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= kszphy_ack_interrupt,
@@ -551,7 +650,9 @@ static struct phy_driver ksphy_driver[] = {
 	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause
 				| SUPPORTED_Asym_Pause),
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
-	.config_init	= ks8051_config_init,
+	.driver_data	= &ksz8051_type,
+	.probe		= kszphy_probe,
+	.config_init	= kszphy_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= kszphy_ack_interrupt,
@@ -565,7 +666,9 @@ static struct phy_driver ksphy_driver[] = {
 	.phy_id_mask	= 0x00ffffff,
 	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause),
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
-	.config_init	= kszphy_config_init_led8041,
+	.driver_data	= &ksz8041_type,
+	.probe		= kszphy_probe,
+	.config_init	= kszphy_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= kszphy_ack_interrupt,
@@ -579,6 +682,8 @@ static struct phy_driver ksphy_driver[] = {
 	.phy_id_mask	= 0x00fffff0,
 	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause),
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
+	.driver_data	= &ksz8081_type,
+	.probe		= kszphy_probe,
 	.config_init	= kszphy_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
@@ -607,11 +712,12 @@ static struct phy_driver ksphy_driver[] = {
 	.name		= "Micrel KSZ9021 Gigabit PHY",
 	.features	= (PHY_GBIT_FEATURES | SUPPORTED_Pause),
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
+	.driver_data	= &ksz9021_type,
 	.config_init	= ksz9021_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= kszphy_ack_interrupt,
-	.config_intr	= ksz9021_config_intr,
+	.config_intr	= kszphy_config_intr,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 	.read_mmd_indirect = ksz9021_rd_mmd_phyreg,
@@ -623,11 +729,12 @@ static struct phy_driver ksphy_driver[] = {
 	.name		= "Micrel KSZ9031 Gigabit PHY",
 	.features	= (PHY_GBIT_FEATURES | SUPPORTED_Pause),
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
+	.driver_data	= &ksz9021_type,
 	.config_init	= ksz9031_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= kszphy_ack_interrupt,
-	.config_intr	= ksz9021_config_intr,
+	.config_intr	= kszphy_config_intr,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 	.driver		= { .owner = THIS_MODULE, },
@@ -657,20 +764,7 @@ static struct phy_driver ksphy_driver[] = {
 	.driver		= { .owner = THIS_MODULE, },
 } };
 
-static int __init ksphy_init(void)
-{
-	return phy_drivers_register(ksphy_driver,
-		ARRAY_SIZE(ksphy_driver));
-}
-
-static void __exit ksphy_exit(void)
-{
-	phy_drivers_unregister(ksphy_driver,
-		ARRAY_SIZE(ksphy_driver));
-}
-
-module_init(ksphy_init);
-module_exit(ksphy_exit);
+module_phy_driver(ksphy_driver);
 
 MODULE_DESCRIPTION("Micrel PHY driver");
 MODULE_AUTHOR("David J. Choi");

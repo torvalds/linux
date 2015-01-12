@@ -24,6 +24,7 @@
 #include "wil_platform.h"
 
 extern bool no_fw_recovery;
+extern unsigned int mtu_max;
 
 #define WIL_NAME "wil6210"
 #define WIL_FW_NAME "wil6210.fw"
@@ -48,8 +49,11 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 
 #define WIL6210_MEM_SIZE (2*1024*1024UL)
 
-#define WIL6210_RX_RING_SIZE	(128)
-#define WIL6210_TX_RING_SIZE	(512)
+#define WIL_RX_RING_SIZE_ORDER_DEFAULT	(9)
+#define WIL_TX_RING_SIZE_ORDER_DEFAULT	(9)
+/* limit ring size in range [32..32k] */
+#define WIL_RING_SIZE_ORDER_MIN	(5)
+#define WIL_RING_SIZE_ORDER_MAX	(15)
 #define WIL6210_MAX_TX_RINGS	(24) /* HW limit */
 #define WIL6210_MAX_CID		(8) /* HW limit */
 #define WIL6210_NAPI_BUDGET	(16) /* arbitrary */
@@ -117,12 +121,15 @@ struct RGF_ICR {
 	#define BIT_USER_USER_ICR_SW_INT_2	BIT(18)
 #define RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_0	(0x880c18)
 #define RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_1	(0x880c2c)
+#define RGF_USER_SPARROW_M_4			(0x880c50) /* Sparrow */
+	#define BIT_SPARROW_M_4_SEL_SLEEP_OR_REF	BIT(2)
 
 #define RGF_DMA_EP_TX_ICR		(0x881bb4) /* struct RGF_ICR */
 	#define BIT_DMA_EP_TX_ICR_TX_DONE	BIT(0)
 	#define BIT_DMA_EP_TX_ICR_TX_DONE_N(n)	BIT(n+1) /* n = [0..23] */
 #define RGF_DMA_EP_RX_ICR		(0x881bd0) /* struct RGF_ICR */
 	#define BIT_DMA_EP_RX_ICR_RX_DONE	BIT(0)
+	#define BIT_DMA_EP_RX_ICR_RX_HTRSH	BIT(1)
 #define RGF_DMA_EP_MISC_ICR		(0x881bec) /* struct RGF_ICR */
 	#define BIT_DMA_EP_MISC_ICR_RX_HTRSH	BIT(0)
 	#define BIT_DMA_EP_MISC_ICR_TX_NO_ACT	BIT(1)
@@ -152,6 +159,10 @@ struct RGF_ICR {
 #define RGF_MAC_MTRL_COUNTER_0		(0x886aa8)
 
 #define RGF_CAF_ICR			(0x88946c) /* struct RGF_ICR */
+#define RGF_CAF_OSC_CONTROL		(0x88afa4)
+	#define BIT_CAF_OSC_XTAL_EN		BIT(0)
+#define RGF_CAF_PLL_LOCK_STATUS		(0x88afec)
+	#define BIT_CAF_OSC_DIG_XTAL_STABLE	BIT(0)
 
 /* popular locations */
 #define HOST_MBOX   HOSTADDR(RGF_USER_USER_SCRATCH_PAD)
@@ -461,10 +472,14 @@ struct wil6210_priv {
 #define wdev_to_wil(w) (struct wil6210_priv *)(wdev_priv(w))
 #define wil_to_ndev(i) (wil_to_wdev(i)->netdev)
 #define ndev_to_wil(n) (wdev_to_wil(n->ieee80211_ptr))
-#define wil_to_pcie_dev(i) (&i->pdev->dev)
 
+__printf(2, 3)
 void wil_dbg_trace(struct wil6210_priv *wil, const char *fmt, ...);
+__printf(2, 3)
 void wil_err(struct wil6210_priv *wil, const char *fmt, ...);
+__printf(2, 3)
+void wil_err_ratelimited(struct wil6210_priv *wil, const char *fmt, ...);
+__printf(2, 3)
 void wil_info(struct wil6210_priv *wil, const char *fmt, ...);
 #define wil_dbg(wil, fmt, arg...) do { \
 	netdev_dbg(wil_to_ndev(wil), fmt, ##arg); \
@@ -575,9 +590,10 @@ void wil_wdev_free(struct wil6210_priv *wil);
 int wmi_set_mac_address(struct wil6210_priv *wil, void *addr);
 int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype, u8 chan);
 int wmi_pcp_stop(struct wil6210_priv *wil);
-void wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid);
+void wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
+			u16 reason_code, bool from_event);
 
-int wil_rx_init(struct wil6210_priv *wil);
+int wil_rx_init(struct wil6210_priv *wil, u16 size);
 void wil_rx_fini(struct wil6210_priv *wil);
 
 /* TX API */

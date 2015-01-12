@@ -561,7 +561,6 @@ static struct platform_driver lp8788_dldo_driver = {
 	.probe = lp8788_dldo_probe,
 	.driver = {
 		.name = LP8788_DEV_DLDO,
-		.owner = THIS_MODULE,
 	},
 };
 
@@ -611,7 +610,6 @@ static struct platform_driver lp8788_aldo_driver = {
 	.probe = lp8788_aldo_probe,
 	.driver = {
 		.name = LP8788_DEV_ALDO,
-		.owner = THIS_MODULE,
 	},
 };
 

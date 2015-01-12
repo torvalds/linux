@@ -182,9 +182,6 @@ static void note_page(struct pg_state *st, unsigned long addr, unsigned level,
 	static const char units[] = "KMGTPE";
 	u64 prot = val & pg_level[level].mask;
 
-	if (addr < LOWEST_ADDR)
-		return;
-
 	if (!st->level) {
 		st->level = level;
 		st->current_prot = prot;
@@ -272,7 +269,7 @@ static void walk_pud(struct pg_state *st, pgd_t *pgd, unsigned long start)
 
 static void walk_pgd(struct pg_state *st, struct mm_struct *mm, unsigned long start)
 {
-	pgd_t *pgd = pgd_offset(mm, 0);
+	pgd_t *pgd = pgd_offset(mm, 0UL);
 	unsigned i;
 	unsigned long addr;
 

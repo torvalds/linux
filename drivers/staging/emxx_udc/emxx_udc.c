@@ -2622,7 +2622,7 @@ static int nbu2ss_ep_enable(
 		return -EINVAL;
 	}
 
-	ep_type = desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
+	ep_type = usb_endpoint_type(desc);
 	if ((ep_type == USB_ENDPOINT_XFER_CONTROL)
 		|| (ep_type == USB_ENDPOINT_XFER_ISOC)) {
 
@@ -2644,7 +2644,7 @@ static int nbu2ss_ep_enable(
 	spin_lock_irqsave(&udc->lock, flags);
 
 	ep->desc = desc;
-	ep->epnum = desc->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK;
+	ep->epnum = usb_endpoint_num(desc);
 	ep->direct = desc->bEndpointAddress & USB_ENDPOINT_DIR_MASK;
 	ep->ep_type = ep_type;
 	ep->wedged = 0;
@@ -2722,8 +2722,7 @@ static void nbu2ss_ep_free_request(
 	if (_req != NULL) {
 		req = container_of(_req, struct nbu2ss_req, req);
 
-		if (req != NULL)
-			kfree(req);
+		kfree(req);
 	}
 }
 
@@ -3491,7 +3490,6 @@ static struct platform_driver udc_driver = {
 	.suspend	= nbu2ss_drv_suspend,
 	.resume		= nbu2ss_drv_resume,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= driver_name,
 	},
 };

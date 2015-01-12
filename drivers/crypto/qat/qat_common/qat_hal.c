@@ -679,7 +679,8 @@ int qat_hal_init(struct adf_accel_dev *accel_dev)
 	struct icp_qat_fw_loader_handle *handle;
 	struct adf_accel_pci *pci_info = &accel_dev->accel_pci_dev;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	struct adf_bar *bar = &pci_info->pci_bars[ADF_DH895XCC_PMISC_BAR];
+	struct adf_bar *bar =
+			&pci_info->pci_bars[hw_data->get_misc_bar_id(hw_data)];
 
 	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
 	if (!handle)

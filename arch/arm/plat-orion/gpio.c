@@ -306,9 +306,10 @@ EXPORT_SYMBOL(orion_gpio_set_blink);
 
 #define ORION_BLINK_HALF_PERIOD 100 /* ms */
 
-int orion_gpio_led_blink_set(unsigned gpio, int state,
+int orion_gpio_led_blink_set(struct gpio_desc *desc, int state,
 	unsigned long *delay_on, unsigned long *delay_off)
 {
+	unsigned gpio = desc_to_gpio(desc);
 
 	if (delay_on && delay_off && !*delay_on && !*delay_off)
 		*delay_on = *delay_off = ORION_BLINK_HALF_PERIOD;

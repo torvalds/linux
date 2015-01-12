@@ -2230,11 +2230,8 @@ balance-rr: This mode is the only mode that will permit a single
 
 	It is possible to adjust TCP/IP's congestion limits by
 	altering the net.ipv4.tcp_reordering sysctl parameter.  The
-	usual default value is 3, and the maximum useful value is 127.
-	For a four interface balance-rr bond, expect that a single
-	TCP/IP stream will utilize no more than approximately 2.3
-	interface's worth of throughput, even after adjusting
-	tcp_reordering.
+	usual default value is 3. But keep in mind TCP stack is able
+	to automatically increase this when it detects reorders.
 
 	Note that the fraction of packets that will be delivered out of
 	order is highly variable, and is unlikely to be zero.  The level

@@ -190,7 +190,7 @@ EXPORT_SYMBOL(icmp_err_convert);
  */
 
 struct icmp_control {
-	void (*handler)(struct sk_buff *skb);
+	bool (*handler)(struct sk_buff *skb);
 	short   error;		/* This ICMP is classed as an error message */
 };
 
@@ -746,7 +746,7 @@ static bool icmp_tag_validation(int proto)
  *	ICMP_PARAMETERPROB.
  */
 
-static void icmp_unreach(struct sk_buff *skb)
+static bool icmp_unreach(struct sk_buff *skb)
 {
 	const struct iphdr *iph;
 	struct icmphdr *icmph;
@@ -784,8 +784,8 @@ static void icmp_unreach(struct sk_buff *skb)
 			 */
 			switch (net->ipv4.sysctl_ip_no_pmtu_disc) {
 			default:
-				LIMIT_NETDEBUG(KERN_INFO pr_fmt("%pI4: fragmentation needed and DF set\n"),
-					       &iph->daddr);
+				net_dbg_ratelimited("%pI4: fragmentation needed and DF set\n",
+						    &iph->daddr);
 				break;
 			case 2:
 				goto out;
@@ -798,8 +798,8 @@ static void icmp_unreach(struct sk_buff *skb)
 			}
 			break;
 		case ICMP_SR_FAILED:
-			LIMIT_NETDEBUG(KERN_INFO pr_fmt("%pI4: Source Route Failed\n"),
-				       &iph->daddr);
+			net_dbg_ratelimited("%pI4: Source Route Failed\n",
+					    &iph->daddr);
 			break;
 		default:
 			break;
@@ -839,10 +839,10 @@ static void icmp_unreach(struct sk_buff *skb)
 	icmp_socket_deliver(skb, info);
 
 out:
-	return;
+	return true;
 out_err:
 	ICMP_INC_STATS_BH(net, ICMP_MIB_INERRORS);
-	goto out;
+	return false;
 }
 
 
@@ -850,17 +850,20 @@ out_err:
  *	Handle ICMP_REDIRECT.
  */
 
-static void icmp_redirect(struct sk_buff *skb)
+static bool icmp_redirect(struct sk_buff *skb)
 {
 	if (skb->len < sizeof(struct iphdr)) {
 		ICMP_INC_STATS_BH(dev_net(skb->dev), ICMP_MIB_INERRORS);
-		return;
+		return false;
 	}
 
-	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
-		return;
+	if (!pskb_may_pull(skb, sizeof(struct iphdr))) {
+		/* there aught to be a stat */
+		return false;
+	}
 
 	icmp_socket_deliver(skb, icmp_hdr(skb)->un.gateway);
+	return true;
 }
 
 /*
@@ -875,7 +878,7 @@ static void icmp_redirect(struct sk_buff *skb)
  *	See also WRT handling of options once they are done and working.
  */
 
-static void icmp_echo(struct sk_buff *skb)
+static bool icmp_echo(struct sk_buff *skb)
 {
 	struct net *net;
 
@@ -891,6 +894,8 @@ static void icmp_echo(struct sk_buff *skb)
 		icmp_param.head_len	   = sizeof(struct icmphdr);
 		icmp_reply(&icmp_param, skb);
 	}
+	/* should there be an ICMP stat for ignored echos? */
+	return true;
 }
 
 /*
@@ -900,7 +905,7 @@ static void icmp_echo(struct sk_buff *skb)
  *		  MUST be accurate to a few minutes.
  *		  MUST be updated at least at 15Hz.
  */
-static void icmp_timestamp(struct sk_buff *skb)
+static bool icmp_timestamp(struct sk_buff *skb)
 {
 	struct timespec tv;
 	struct icmp_bxm icmp_param;
@@ -927,15 +932,17 @@ static void icmp_timestamp(struct sk_buff *skb)
 	icmp_param.data_len	   = 0;
 	icmp_param.head_len	   = sizeof(struct icmphdr) + 12;
 	icmp_reply(&icmp_param, skb);
-out:
-	return;
+	return true;
+
 out_err:
 	ICMP_INC_STATS_BH(dev_net(skb_dst(skb)->dev), ICMP_MIB_INERRORS);
-	goto out;
+	return false;
 }
 
-static void icmp_discard(struct sk_buff *skb)
+static bool icmp_discard(struct sk_buff *skb)
 {
+	/* pretend it was a success */
+	return true;
 }
 
 /*
@@ -946,6 +953,7 @@ int icmp_rcv(struct sk_buff *skb)
 	struct icmphdr *icmph;
 	struct rtable *rt = skb_rtable(skb);
 	struct net *net = dev_net(rt->dst.dev);
+	bool success;
 
 	if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
 		struct sec_path *sp = skb_sec_path(skb);
@@ -1012,7 +1020,12 @@ int icmp_rcv(struct sk_buff *skb)
 		}
 	}
 
-	icmp_pointers[icmph->type].handler(skb);
+	success = icmp_pointers[icmph->type].handler(skb);
+
+	if (success)  {
+		consume_skb(skb);
+		return 0;
+	}
 
 drop:
 	kfree_skb(skb);

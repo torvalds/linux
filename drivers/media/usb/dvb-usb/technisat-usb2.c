@@ -449,6 +449,8 @@ static int technisat_usb2_read_mac_address(struct dvb_usb_device *d,
 	return 0;
 }
 
+static struct stv090x_config technisat_usb2_stv090x_config;
+
 /* frontend attach */
 static int technisat_usb2_set_voltage(struct dvb_frontend *fe,
 		fe_sec_voltage_t voltage)
@@ -472,7 +474,8 @@ static int technisat_usb2_set_voltage(struct dvb_frontend *fe,
 	}
 
 	for (i = 0; i < 3; i++)
-		if (stv090x_set_gpio(fe, i+2, 0, gpio[i], 0) != 0)
+		if (technisat_usb2_stv090x_config.set_gpio(fe, i+2, 0,
+							   gpio[i], 0) != 0)
 			return -EREMOTEIO;
 	return 0;
 }

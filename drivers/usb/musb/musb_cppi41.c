@@ -253,6 +253,7 @@ static void cppi41_dma_callback(void *private_data)
 		cppi41_trans_done(cppi41_channel);
 	} else {
 		struct cppi41_dma_controller *controller;
+		int is_hs = 0;
 		/*
 		 * On AM335x it has been observed that the TX interrupt fires
 		 * too early that means the TXFIFO is not yet empty but the DMA
@@ -265,7 +266,14 @@ static void cppi41_dma_callback(void *private_data)
 		 */
 		controller = cppi41_channel->controller;
 
-		if (musb->g.speed == USB_SPEED_HIGH) {
+		if (is_host_active(musb)) {
+			if (musb->port1_status & USB_PORT_STAT_HIGH_SPEED)
+				is_hs = 1;
+		} else {
+			if (musb->g.speed == USB_SPEED_HIGH)
+				is_hs = 1;
+		}
+		if (is_hs) {
 			unsigned wait = 25;
 
 			do {

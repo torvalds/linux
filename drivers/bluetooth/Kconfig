@@ -210,6 +210,7 @@ config BT_MRVL_SDIO
 	tristate "Marvell BT-over-SDIO driver"
 	depends on BT_MRVL && MMC
 	select FW_LOADER
+	select WANT_DEV_COREDUMP
 	help
 	  The driver for Marvell Bluetooth chipsets with SDIO interface.
 

@@ -224,7 +224,6 @@ static struct platform_driver pata_platform_driver = {
 	.remove		= ata_platform_remove_one,
 	.driver = {
 		.name		= DRV_NAME,
-		.owner		= THIS_MODULE,
 	},
 };
 

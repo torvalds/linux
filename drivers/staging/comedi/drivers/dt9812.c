@@ -804,7 +804,7 @@ static int dt9812_auto_attach(struct comedi_device *dev,
 	/* Digital Output subdevice */
 	s = &dev->subdevices[1];
 	s->type		= COMEDI_SUBD_DO;
-	s->subdev_flags	= SDF_WRITEABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 8;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
@@ -822,7 +822,7 @@ static int dt9812_auto_attach(struct comedi_device *dev,
 	/* Analog Output subdevice */
 	s = &dev->subdevices[3];
 	s->type		= COMEDI_SUBD_AO;
-	s->subdev_flags	= SDF_WRITEABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 2;
 	s->maxdata	= 0x0fff;
 	s->range_table	= is_unipolar ? &range_unipolar2_5 : &range_bipolar10;

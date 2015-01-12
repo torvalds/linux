@@ -167,7 +167,7 @@ mwifiex_set_ht_params(struct mwifiex_private *priv,
 	ht_ie = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, params->beacon.tail,
 				 params->beacon.tail_len);
 	if (ht_ie) {
-		memcpy(&bss_cfg->ht_cap, ht_ie + 2,
+		memcpy(&bss_cfg->ht_cap, ht_ie,
 		       sizeof(struct ieee80211_ht_cap));
 		cap_info = le16_to_cpu(bss_cfg->ht_cap.cap_info);
 		memset(&bss_cfg->ht_cap.mcs, 0,

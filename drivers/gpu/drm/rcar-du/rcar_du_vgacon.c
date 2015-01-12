@@ -52,6 +52,7 @@ static const struct drm_connector_funcs connector_funcs = {
 int rcar_du_vga_connector_init(struct rcar_du_device *rcdu,
 			       struct rcar_du_encoder *renc)
 {
+	struct drm_encoder *encoder = rcar_encoder_to_drm_encoder(renc);
 	struct rcar_du_connector *rcon;
 	struct drm_connector *connector;
 	int ret;
@@ -78,11 +79,11 @@ int rcar_du_vga_connector_init(struct rcar_du_device *rcdu,
 	drm_object_property_set_value(&connector->base,
 		rcdu->ddev->mode_config.dpms_property, DRM_MODE_DPMS_OFF);
 
-	ret = drm_mode_connector_attach_encoder(connector, &renc->encoder);
+	ret = drm_mode_connector_attach_encoder(connector, encoder);
 	if (ret < 0)
 		return ret;
 
-	connector->encoder = &renc->encoder;
+	connector->encoder = encoder;
 	rcon->encoder = renc;
 
 	return 0;

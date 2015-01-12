@@ -107,6 +107,13 @@ config AT_HDMAC
 	help
 	  Support the Atmel AHB DMA controller.
 
+config AT_XDMAC
+	tristate "Atmel XDMA support"
+	depends on ARCH_AT91
+	select DMA_ENGINE
+	help
+	  Support the Atmel XDMA controller.
+
 config FSL_DMA
 	tristate "Freescale Elo series DMA support"
 	depends on FSL_SOC
@@ -395,12 +402,12 @@ config XILINX_VDMA
 
 config DMA_SUN6I
 	tristate "Allwinner A31 SoCs DMA support"
-	depends on MACH_SUN6I || COMPILE_TEST
+	depends on MACH_SUN6I || MACH_SUN8I || COMPILE_TEST
 	depends on RESET_CONTROLLER
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
-	  Support for the DMA engine for Allwinner A31 SoCs.
+	  Support for the DMA engine first found in Allwinner A31 SoCs.
 
 config NBPFAXI_DMA
 	tristate "Renesas Type-AXI NBPF DMA support"

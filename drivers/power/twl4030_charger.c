@@ -716,7 +716,6 @@ MODULE_DEVICE_TABLE(of, twl_bci_of_match);
 static struct platform_driver twl4030_bci_driver = {
 	.driver	= {
 		.name	= "twl4030_bci",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(twl_bci_of_match),
 	},
 	.remove	= __exit_p(twl4030_bci_remove),

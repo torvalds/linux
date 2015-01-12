@@ -378,9 +378,9 @@ static void swap_packet_bitfield_to_le(unsigned char *data)
 	/*
 	 * transform bits from aa.bbb.ccc to ccc.bbb.aa
 	 */
-	ret |= tmp & 0xc0 >> 6;
-	ret |= tmp & 0x38 >> 1;
-	ret |= tmp & 0x07 << 5;
+	ret |= (tmp & 0xc0) >> 6;
+	ret |= (tmp & 0x38) >> 1;
+	ret |= (tmp & 0x07) << 5;
 	*data = ret & 0xff;
 #endif
 }
@@ -393,9 +393,9 @@ static void swap_packet_bitfield_from_le(unsigned char *data)
 	/*
 	 * transform bits from ccc.bbb.aa to aa.bbb.ccc
 	 */
-	ret |= tmp & 0xe0 >> 5;
-	ret |= tmp & 0x1c << 1;
-	ret |= tmp & 0x03 << 6;
+	ret |= (tmp & 0xe0) >> 5;
+	ret |= (tmp & 0x1c) << 1;
+	ret |= (tmp & 0x03) << 6;
 	*data = ret & 0xff;
 #endif
 }

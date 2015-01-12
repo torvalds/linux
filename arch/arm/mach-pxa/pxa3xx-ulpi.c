@@ -379,7 +379,6 @@ static int pxa3xx_u2d_remove(struct platform_device *pdev)
 static struct platform_driver pxa3xx_u2d_ulpi_driver = {
         .driver		= {
                 .name   = "pxa3xx-u2d",
-		.owner	= THIS_MODULE,
         },
         .probe          = pxa3xx_u2d_probe,
         .remove         = pxa3xx_u2d_remove,

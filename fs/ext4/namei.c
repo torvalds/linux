@@ -2814,7 +2814,6 @@ static int ext4_unlink(struct inode *dir, struct dentry *dentry)
 		ext4_orphan_add(handle, inode);
 	inode->i_ctime = ext4_current_time(inode);
 	ext4_mark_inode_dirty(handle, inode);
-	retval = 0;
 
 end_unlink:
 	brelse(bh);

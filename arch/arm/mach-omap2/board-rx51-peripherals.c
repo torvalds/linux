@@ -23,6 +23,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
+#include <linux/gpio/machine.h>
 #include <linux/omap-gpmc.h>
 #include <linux/mmc/host.h>
 #include <linux/power/isp1704_charger.h>
@@ -38,7 +39,6 @@
 
 #include <sound/tlv320aic3x.h>
 #include <sound/tpa6130a2-plat.h>
-#include <media/radio-si4713.h>
 #include <media/si4713.h>
 #include <linux/platform_data/leds-lp55xx.h>
 
@@ -756,46 +756,17 @@ static struct regulator_init_data rx51_vintdig = {
 	},
 };
 
-static const char * const si4713_supply_names[] = {
-	"vio",
-	"vdd",
-};
-
-static struct si4713_platform_data rx51_si4713_i2c_data __initdata_or_module = {
-	.supplies	= ARRAY_SIZE(si4713_supply_names),
-	.supply_names	= si4713_supply_names,
-	.gpio_reset	= RX51_FMTX_RESET_GPIO,
-};
-
-static struct i2c_board_info rx51_si4713_board_info __initdata_or_module = {
-	I2C_BOARD_INFO("si4713", SI4713_I2C_ADDR_BUSEN_HIGH),
-	.platform_data	= &rx51_si4713_i2c_data,
-};
-
-static struct radio_si4713_platform_data rx51_si4713_data __initdata_or_module = {
-	.i2c_bus	= 2,
-	.subdev_board_info = &rx51_si4713_board_info,
-};
-
-static struct platform_device rx51_si4713_dev __initdata_or_module = {
-	.name	= "radio-si4713",
-	.id	= -1,
-	.dev	= {
-		.platform_data	= &rx51_si4713_data,
+static struct gpiod_lookup_table rx51_fmtx_gpios_table = {
+	.dev_id = "2-0063",
+	.table = {
+		GPIO_LOOKUP("gpio.6", 3, "reset", GPIO_ACTIVE_HIGH), /* 163 */
+		{ },
 	},
 };
 
-static __init void rx51_init_si4713(void)
+static __init void rx51_gpio_init(void)
 {
-	int err;
-
-	err = gpio_request_one(RX51_FMTX_IRQ, GPIOF_DIR_IN, "si4713 irq");
-	if (err) {
-		printk(KERN_ERR "Cannot request si4713 irq gpio. %d\n", err);
-		return;
-	}
-	rx51_si4713_board_info.irq = gpio_to_irq(RX51_FMTX_IRQ);
-	platform_device_register(&rx51_si4713_dev);
+	gpiod_add_lookup_table(&rx51_fmtx_gpios_table);
 }
 
 static int rx51_twlgpio_setup(struct device *dev, unsigned gpio, unsigned n)
@@ -1025,7 +996,19 @@ static struct aic3x_pdata rx51_aic3x_data2 = {
 	.gpio_reset = 60,
 };
 
+#if IS_ENABLED(CONFIG_I2C_SI4713) && IS_ENABLED(CONFIG_PLATFORM_SI4713)
+static struct si4713_platform_data rx51_si4713_platform_data = {
+	.is_platform_device = true
+};
+#endif
+
 static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_2[] = {
+#if IS_ENABLED(CONFIG_I2C_SI4713) && IS_ENABLED(CONFIG_PLATFORM_SI4713)
+	{
+		I2C_BOARD_INFO("si4713", 0x63),
+		.platform_data = &rx51_si4713_platform_data,
+	},
+#endif
 	{
 		I2C_BOARD_INFO("tlv320aic3x", 0x18),
 		.platform_data = &rx51_aic3x_data,
@@ -1066,6 +1049,10 @@ static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_3[] = {
 
 static int __init rx51_i2c_init(void)
 {
+#if IS_ENABLED(CONFIG_I2C_SI4713) && IS_ENABLED(CONFIG_PLATFORM_SI4713)
+	int err;
+#endif
+
 	if ((system_rev >= SYSTEM_REV_S_USES_VAUX3 && system_rev < 0x100) ||
 	    system_rev >= SYSTEM_REV_B_USES_VAUX3) {
 		rx51_twldata.vaux3 = &rx51_vaux3_mmc;
@@ -1083,6 +1070,14 @@ static int __init rx51_i2c_init(void)
 	rx51_twldata.vdac->constraints.name = "VDAC";
 
 	omap_pmic_init(1, 2200, "twl5030", 7 + OMAP_INTC_START, &rx51_twldata);
+#if IS_ENABLED(CONFIG_I2C_SI4713) && IS_ENABLED(CONFIG_PLATFORM_SI4713)
+	err = gpio_request_one(RX51_FMTX_IRQ, GPIOF_DIR_IN, "si4713 irq");
+	if (err) {
+		printk(KERN_ERR "Cannot request si4713 irq gpio. %d\n", err);
+		return err;
+	}
+	rx51_peripherals_i2c_board_info_2[0].irq = gpio_to_irq(RX51_FMTX_IRQ);
+#endif
 	omap_register_i2c_bus(2, 100, rx51_peripherals_i2c_board_info_2,
 			      ARRAY_SIZE(rx51_peripherals_i2c_board_info_2));
 #if defined(CONFIG_SENSORS_LIS3_I2C) || defined(CONFIG_SENSORS_LIS3_I2C_MODULE)
@@ -1269,13 +1264,13 @@ static void __init rx51_init_omap3_rom_rng(void)
 
 void __init rx51_peripherals_init(void)
 {
+	rx51_gpio_init();
 	rx51_i2c_init();
 	regulator_has_full_constraints();
 	gpmc_onenand_init(board_onenand_data);
 	rx51_add_gpio_keys();
 	rx51_init_wl1251();
 	rx51_init_tsc2005();
-	rx51_init_si4713();
 	rx51_init_lirc();
 	spi_register_board_info(rx51_peripherals_spi_board_info,
 				ARRAY_SIZE(rx51_peripherals_spi_board_info));

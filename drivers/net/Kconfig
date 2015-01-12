@@ -145,6 +145,26 @@ config MACVTAP
 	  To compile this driver as a module, choose M here: the module
 	  will be called macvtap.
 
+
+config IPVLAN
+    tristate "IP-VLAN support"
+    depends on INET
+    depends on IPV6
+    ---help---
+      This allows one to create virtual devices off of a main interface
+      and packets will be delivered based on the dest L3 (IPv6/IPv4 addr)
+      on packets. All interfaces (including the main interface) share L2
+      making it transparent to the connected L2 switch.
+
+      Ipvlan devices can be added using the "ip" command from the
+      iproute2 package starting with the iproute2-X.Y.ZZ release:
+
+      "ip link add link <main-dev> [ NAME ] type ipvlan"
+
+      To compile this driver as a module, choose M here: the module
+      will be called ipvlan.
+
+
 config VXLAN
        tristate "Virtual eXtensible Local Area Network (VXLAN)"
        depends on INET

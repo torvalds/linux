@@ -19,9 +19,9 @@
 #include <net/netfilter/nft_reject.h>
 #include <net/netfilter/ipv6/nf_reject.h>
 
-void nft_reject_ipv6_eval(const struct nft_expr *expr,
-			  struct nft_data data[NFT_REG_MAX + 1],
-			  const struct nft_pktinfo *pkt)
+static void nft_reject_ipv6_eval(const struct nft_expr *expr,
+				 struct nft_data data[NFT_REG_MAX + 1],
+				 const struct nft_pktinfo *pkt)
 {
 	struct nft_reject *priv = nft_expr_priv(expr);
 	struct net *net = dev_net((pkt->in != NULL) ? pkt->in : pkt->out);
@@ -38,7 +38,6 @@ void nft_reject_ipv6_eval(const struct nft_expr *expr,
 
 	data[NFT_REG_VERDICT].verdict = NF_DROP;
 }
-EXPORT_SYMBOL_GPL(nft_reject_ipv6_eval);
 
 static struct nft_expr_type nft_reject_ipv6_type;
 static const struct nft_expr_ops nft_reject_ipv6_ops = {

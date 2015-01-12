@@ -100,7 +100,7 @@
 	};
 
 	lcd0: display {
-		compatible = "osddisplays,osd057T0559-34ts", "panel-dpi";
+		compatible = "newhaven,nhd-4.3-480272ef-atxl", "panel-dpi";
 		label = "lcd";
 
 		pinctrl-names = "default";
@@ -112,11 +112,11 @@
 			clock-frequency = <9000000>;
 			hactive = <480>;
 			vactive = <272>;
-			hfront-porch = <8>;
-			hback-porch = <43>;
-			hsync-len = <4>;
-			vback-porch = <12>;
-			vfront-porch = <4>;
+			hfront-porch = <2>;
+			hback-porch = <2>;
+			hsync-len = <41>;
+			vfront-porch = <2>;
+			vback-porch = <2>;
 			vsync-len = <10>;
 			hsync-active = <0>;
 			vsync-active = <0>;
@@ -320,8 +320,7 @@
 
 	lcd_pins: lcd_pins {
 		pinctrl-single,pins = <
-			/* GPIO 5_8 to select LCD / HDMI */
-			0x238 (PIN_OUTPUT_PULLUP | MUX_MODE7)
+			0x1c (PIN_OUTPUT_PULLDOWN | MUX_MODE7) /* gpcm_ad7.gpio1_7 */
 		>;
 	};
 };

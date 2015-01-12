@@ -25,6 +25,7 @@
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
 #include <loongson.h>
+#include <workarounds.h>
 
 #include "smp.h"
 
@@ -239,7 +240,7 @@ static void ipi_mailbox_buf_init(void)
  */
 static void loongson3_send_ipi_single(int cpu, unsigned int action)
 {
-	loongson3_ipi_write32((u32)action, ipi_set0_regs[cpu]);
+	loongson3_ipi_write32((u32)action, ipi_set0_regs[cpu_logical_map(cpu)]);
 }
 
 static void
@@ -248,7 +249,7 @@ loongson3_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 	unsigned int i;
 
 	for_each_cpu(i, mask)
-		loongson3_ipi_write32((u32)action, ipi_set0_regs[i]);
+		loongson3_ipi_write32((u32)action, ipi_set0_regs[cpu_logical_map(i)]);
 }
 
 void loongson3_ipi_interrupt(struct pt_regs *regs)
@@ -257,10 +258,10 @@ void loongson3_ipi_interrupt(struct pt_regs *regs)
 	unsigned int action, c0count;
 
 	/* Load the ipi register to figure out what we're supposed to do */
-	action = loongson3_ipi_read32(ipi_status0_regs[cpu]);
+	action = loongson3_ipi_read32(ipi_status0_regs[cpu_logical_map(cpu)]);
 
 	/* Clear the ipi register to clear the interrupt */
-	loongson3_ipi_write32((u32)action, ipi_clear0_regs[cpu]);
+	loongson3_ipi_write32((u32)action, ipi_clear0_regs[cpu_logical_map(cpu)]);
 
 	if (action & SMP_RESCHEDULE_YOURSELF)
 		scheduler_ipi();
@@ -291,12 +292,14 @@ static void loongson3_init_secondary(void)
 	/* Set interrupt mask, but don't enable */
 	change_c0_status(ST0_IM, imask);
 
-	for (i = 0; i < loongson_sysconf.nr_cpus; i++)
-		loongson3_ipi_write32(0xffffffff, ipi_en0_regs[i]);
+	for (i = 0; i < num_possible_cpus(); i++)
+		loongson3_ipi_write32(0xffffffff, ipi_en0_regs[cpu_logical_map(i)]);
 
-	cpu_data[cpu].package = cpu / loongson_sysconf.cores_per_package;
-	cpu_data[cpu].core = cpu % loongson_sysconf.cores_per_package;
 	per_cpu(cpu_state, cpu) = CPU_ONLINE;
+	cpu_data[cpu].core =
+		cpu_logical_map(cpu) % loongson_sysconf.cores_per_package;
+	cpu_data[cpu].package =
+		cpu_logical_map(cpu) / loongson_sysconf.cores_per_package;
 
 	i = 0;
 	__this_cpu_write(core0_c0count, 0);
@@ -314,37 +317,50 @@ static void loongson3_init_secondary(void)
 
 static void loongson3_smp_finish(void)
 {
+	int cpu = smp_processor_id();
+
 	write_c0_compare(read_c0_count() + mips_hpt_frequency/HZ);
 	local_irq_enable();
 	loongson3_ipi_write64(0,
-			(void *)(ipi_mailbox_buf[smp_processor_id()]+0x0));
+			(void *)(ipi_mailbox_buf[cpu_logical_map(cpu)]+0x0));
 	pr_info("CPU#%d finished, CP0_ST=%x\n",
 			smp_processor_id(), read_c0_status());
 }
 
 static void __init loongson3_smp_setup(void)
 {
-	int i, num;
+	int i = 0, num = 0; /* i: physical id, num: logical id */
 
 	init_cpu_possible(cpu_none_mask);
-	set_cpu_possible(0, true);
-
-	__cpu_number_map[0] = 0;
-	__cpu_logical_map[0] = 0;
 
 	/* For unified kernel, NR_CPUS is the maximum possible value,
 	 * loongson_sysconf.nr_cpus is the really present value */
-	for (i = 1, num = 0; i < loongson_sysconf.nr_cpus; i++) {
-		set_cpu_possible(i, true);
-		__cpu_number_map[i] = ++num;
-		__cpu_logical_map[num] = i;
+	while (i < loongson_sysconf.nr_cpus) {
+		if (loongson_sysconf.reserved_cpus_mask & (1<<i)) {
+			/* Reserved physical CPU cores */
+			__cpu_number_map[i] = -1;
+		} else {
+			__cpu_number_map[i] = num;
+			__cpu_logical_map[num] = i;
+			set_cpu_possible(num, true);
+			num++;
+		}
+		i++;
 	}
+	pr_info("Detected %i available CPU(s)\n", num);
+
+	while (num < loongson_sysconf.nr_cpus) {
+		__cpu_logical_map[num] = -1;
+		num++;
+	}
+
 	ipi_set0_regs_init();
 	ipi_clear0_regs_init();
 	ipi_status0_regs_init();
 	ipi_en0_regs_init();
 	ipi_mailbox_buf_init();
-	pr_info("Detected %i available secondary CPU(s)\n", num);
+	cpu_data[0].core = cpu_logical_map(0) % loongson_sysconf.cores_per_package;
+	cpu_data[0].package = cpu_logical_map(0) / loongson_sysconf.cores_per_package;
 }
 
 static void __init loongson3_prepare_cpus(unsigned int max_cpus)
@@ -371,10 +387,14 @@ static void loongson3_boot_secondary(int cpu, struct task_struct *idle)
 	pr_debug("CPU#%d, func_pc=%lx, sp=%lx, gp=%lx\n",
 			cpu, startargs[0], startargs[1], startargs[2]);
 
-	loongson3_ipi_write64(startargs[3], (void *)(ipi_mailbox_buf[cpu]+0x18));
-	loongson3_ipi_write64(startargs[2], (void *)(ipi_mailbox_buf[cpu]+0x10));
-	loongson3_ipi_write64(startargs[1], (void *)(ipi_mailbox_buf[cpu]+0x8));
-	loongson3_ipi_write64(startargs[0], (void *)(ipi_mailbox_buf[cpu]+0x0));
+	loongson3_ipi_write64(startargs[3],
+			(void *)(ipi_mailbox_buf[cpu_logical_map(cpu)]+0x18));
+	loongson3_ipi_write64(startargs[2],
+			(void *)(ipi_mailbox_buf[cpu_logical_map(cpu)]+0x10));
+	loongson3_ipi_write64(startargs[1],
+			(void *)(ipi_mailbox_buf[cpu_logical_map(cpu)]+0x8));
+	loongson3_ipi_write64(startargs[0],
+			(void *)(ipi_mailbox_buf[cpu_logical_map(cpu)]+0x0));
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -568,7 +588,7 @@ void loongson3_disable_clock(int cpu)
 	if (loongson_sysconf.cputype == Loongson_3A) {
 		LOONGSON_CHIPCFG(package_id) &= ~(1 << (12 + core_id));
 	} else if (loongson_sysconf.cputype == Loongson_3B) {
-		if (!cpuhotplug_workaround)
+		if (!(loongson_sysconf.workarounds & WORKAROUND_CPUHOTPLUG))
 			LOONGSON_FREQCTRL(package_id) &= ~(1 << (core_id * 4 + 3));
 	}
 }
@@ -581,7 +601,7 @@ void loongson3_enable_clock(int cpu)
 	if (loongson_sysconf.cputype == Loongson_3A) {
 		LOONGSON_CHIPCFG(package_id) |= 1 << (12 + core_id);
 	} else if (loongson_sysconf.cputype == Loongson_3B) {
-		if (!cpuhotplug_workaround)
+		if (!(loongson_sysconf.workarounds & WORKAROUND_CPUHOTPLUG))
 			LOONGSON_FREQCTRL(package_id) |= 1 << (core_id * 4 + 3);
 	}
 }

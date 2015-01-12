@@ -22,6 +22,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/pm_runtime.h>
 
 #include "../dmaengine.h"
 #include "internal.h"
@@ -1504,6 +1505,9 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 	dw->regs = chip->regs;
 	chip->dw = dw;
 
+	pm_runtime_enable(chip->dev);
+	pm_runtime_get_sync(chip->dev);
+
 	dw_params = dma_read_byaddr(chip->regs, DW_PARAMS);
 	autocfg = dw_params >> DW_PARAMS_EN & 0x1;
 
@@ -1667,11 +1671,14 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 	dev_info(chip->dev, "DesignWare DMA Controller, %d channels\n",
 		 nr_channels);
 
+	pm_runtime_put_sync_suspend(chip->dev);
+
 	return 0;
 
 err_dma_register:
 	free_irq(chip->irq, dw);
 err_pdata:
+	pm_runtime_put_sync_suspend(chip->dev);
 	return err;
 }
 EXPORT_SYMBOL_GPL(dw_dma_probe);
@@ -1680,6 +1687,8 @@ int dw_dma_remove(struct dw_dma_chip *chip)
 {
 	struct dw_dma		*dw = chip->dw;
 	struct dw_dma_chan	*dwc, *_dwc;
+
+	pm_runtime_get_sync(chip->dev);
 
 	dw_dma_off(dw);
 	dma_async_device_unregister(&dw->dma);
@@ -1693,6 +1702,8 @@ int dw_dma_remove(struct dw_dma_chip *chip)
 		channel_clear_bit(dw, CH_EN, dwc->mask);
 	}
 
+	pm_runtime_put_sync_suspend(chip->dev);
+	pm_runtime_disable(chip->dev);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dw_dma_remove);

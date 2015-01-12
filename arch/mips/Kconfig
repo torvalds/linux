@@ -53,6 +53,7 @@ config MIPS
 	select HAVE_CC_STACKPROTECTOR
 	select CPU_PM if CPU_IDLE
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
+	select ARCH_BINFMT_ELF_STATE
 
 menu "Machine selection"
 
@@ -62,7 +63,7 @@ choice
 
 config MIPS_ALCHEMY
 	bool "Alchemy processor based machines"
-	select 64BIT_PHYS_ADDR
+	select ARCH_PHYS_ADDR_T_64BIT
 	select CEVT_R4K
 	select CSRC_R4K
 	select IRQ_CPU
@@ -96,6 +97,20 @@ config AR7
 	  Support for the Texas Instruments AR7 System-on-a-Chip
 	  family: TNETD7100, 7200 and 7300.
 
+config ATH25
+	bool "Atheros AR231x/AR531x SoC support"
+	select CEVT_R4K
+	select CSRC_R4K
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select IRQ_DOMAIN
+	select SYS_HAS_CPU_MIPS32_R1
+	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_HAS_EARLY_PRINTK
+	help
+	  Support for Atheros AR231x and Atheros AR531x based boards
+
 config ATH79
 	bool "Atheros AR71XX/AR724X/AR913X based boards"
 	select ARCH_REQUIRE_GPIOLIB
@@ -114,6 +129,32 @@ config ATH79
 	select SYS_SUPPORTS_MIPS16
 	help
 	  Support for the Atheros AR71XX/AR724X/AR913X SoCs.
+
+config BCM3384
+	bool "Broadcom BCM3384 based boards"
+	select BOOT_RAW
+	select NO_EXCEPT_FILL
+	select USE_OF
+	select CEVT_R4K
+	select CSRC_R4K
+	select SYNC_R4K
+	select COMMON_CLK
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_HIGHMEM
+	select SYS_HAS_CPU_BMIPS5000
+	select SWAP_IO_SPACE
+	select USB_EHCI_BIG_ENDIAN_DESC
+	select USB_EHCI_BIG_ENDIAN_MMIO
+	select USB_OHCI_BIG_ENDIAN_DESC
+	select USB_OHCI_BIG_ENDIAN_MMIO
+	help
+	  Support for BCM3384 based boards.  BCM3384/BCM33843 is a cable modem
+	  chipset with a Linux application processor that is often used to
+	  provide Samba services, a CUPS print server, and/or advanced routing
+	  features.
 
 config BCM47XX
 	bool "Broadcom BCM47XX based boards"
@@ -269,6 +310,8 @@ config LANTIQ
 	select USE_OF
 	select PINCTRL
 	select PINCTRL_LANTIQ
+	select ARCH_HAS_RESET_CONTROLLER
+	select RESET_CONTROLLER
 
 config LASAT
 	bool "LASAT Networks platforms"
@@ -315,17 +358,18 @@ config MIPS_MALTA
 	select BOOT_RAW
 	select CEVT_R4K
 	select CSRC_R4K
-	select CSRC_GIC
+	select CLKSRC_MIPS_GIC
 	select DMA_MAYBE_COHERENT
 	select GENERIC_ISA_DMA
 	select HAVE_PCSPKR_PLATFORM
 	select IRQ_CPU
-	select IRQ_GIC
+	select MIPS_GIC
 	select HW_HAS_PCI
 	select I8253
 	select I8259
 	select MIPS_BONITO64
 	select MIPS_CPU_SCACHE
+	select MIPS_L1_CACHE_SHIFT_6
 	select PCI_GT64XXX_PCI0
 	select MIPS_MSC
 	select SWAP_IO_SPACE
@@ -340,6 +384,7 @@ config MIPS_MALTA
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_SUPPORTS_MICROMIPS
 	select SYS_SUPPORTS_MIPS_CMP
 	select SYS_SUPPORTS_MIPS_CPS
 	select SYS_SUPPORTS_MIPS16
@@ -357,12 +402,12 @@ config MIPS_SEAD3
 	select BUILTIN_DTB
 	select CEVT_R4K
 	select CSRC_R4K
-	select CSRC_GIC
+	select CLKSRC_MIPS_GIC
 	select CPU_MIPSR2_IRQ_VI
 	select CPU_MIPSR2_IRQ_EI
 	select DMA_NONCOHERENT
 	select IRQ_CPU
-	select IRQ_GIC
+	select MIPS_GIC
 	select LIBFDT
 	select MIPS_MSC
 	select SYS_HAS_CPU_MIPS32_R1
@@ -726,7 +771,7 @@ config MIKROTIK_RB532
 config CAVIUM_OCTEON_SOC
 	bool "Cavium Networks Octeon SoC based boards"
 	select CEVT_R4K
-	select 64BIT_PHYS_ADDR
+	select ARCH_PHYS_ADDR_T_64BIT
 	select DMA_COHERENT
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
@@ -768,7 +813,7 @@ config NLM_XLR_BOARD
 	select SWAP_IO_SPACE
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
-	select 64BIT_PHYS_ADDR
+	select ARCH_PHYS_ADDR_T_64BIT
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
 	select DMA_COHERENT
@@ -794,7 +839,7 @@ config NLM_XLP_BOARD
 	select HW_HAS_PCI
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
-	select 64BIT_PHYS_ADDR
+	select ARCH_PHYS_ADDR_T_64BIT
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
@@ -835,6 +880,7 @@ config MIPS_PARAVIRT
 endchoice
 
 source "arch/mips/alchemy/Kconfig"
+source "arch/mips/ath25/Kconfig"
 source "arch/mips/ath79/Kconfig"
 source "arch/mips/bcm47xx/Kconfig"
 source "arch/mips/bcm63xx/Kconfig"
@@ -907,10 +953,6 @@ config CEVT_GT641XX
 config CEVT_R4K
 	bool
 
-config CEVT_GIC
-	select MIPS_CM
-	bool
-
 config CEVT_SB1250
 	bool
 
@@ -926,10 +968,6 @@ config CSRC_IOASIC
 config CSRC_R4K
 	bool
 
-config CSRC_GIC
-	select MIPS_CM
-	bool
-
 config CSRC_SB1250
 	bool
 
@@ -941,7 +979,7 @@ config FW_CFE
 	bool
 
 config ARCH_DMA_ADDR_T_64BIT
-	def_bool (HIGHMEM && 64BIT_PHYS_ADDR) || 64BIT
+	def_bool (HIGHMEM && ARCH_PHYS_ADDR_T_64BIT) || 64BIT
 
 config DMA_MAYBE_COHERENT
 	select DMA_NONCOHERENT
@@ -975,6 +1013,7 @@ config SYS_SUPPORTS_HOTPLUG_CPU
 
 config I8259
 	bool
+	select IRQ_DOMAIN
 
 config MIPS_BONITO64
 	bool
@@ -1055,6 +1094,7 @@ config MIPS_HUGE_TLB_SUPPORT
 
 config IRQ_CPU
 	bool
+	select IRQ_DOMAIN
 
 config IRQ_CPU_RM7K
 	bool
@@ -1069,10 +1109,6 @@ config IRQ_TXX9
 	bool
 
 config IRQ_GT641XX
-	bool
-
-config IRQ_GIC
-	select MIPS_CM
 	bool
 
 config PCI_GT64XXX_PCI0
@@ -1574,6 +1610,7 @@ config CPU_LOONGSON1
 	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
+	select CPU_SUPPORTS_CPUFREQ
 
 config CPU_BMIPS32_3300
 	select SMP_UP if SMP
@@ -1586,12 +1623,14 @@ config CPU_BMIPS4350
 
 config CPU_BMIPS4380
 	bool
+	select MIPS_L1_CACHE_SHIFT_6
 	select SYS_SUPPORTS_SMP
 	select SYS_SUPPORTS_HOTPLUG_CPU
 
 config CPU_BMIPS5000
 	bool
 	select MIPS_CPU_SCACHE
+	select MIPS_L1_CACHE_SHIFT_7
 	select SYS_SUPPORTS_SMP
 	select SYS_SUPPORTS_HOTPLUG_CPU
 
@@ -1886,15 +1925,6 @@ config FORCE_MAX_ZONEORDER
 	  The page size is not necessarily 4KB.  Keep this in mind
 	  when choosing a value for this option.
 
-config CEVT_GIC
-	bool "Use GIC global counter for clock events"
-	depends on IRQ_GIC && !MIPS_SEAD3
-	help
-	  Use the GIC global counter for the clock events. The R4K clock
-	  event driver is always present, so if the platform ends up not
-	  detecting a GIC, it will fall back to the R4K timer for the
-	  generation of clock events.
-
 config BOARD_SCACHE
 	bool
 
@@ -1908,7 +1938,6 @@ config IP22_CPU_SCACHE
 config MIPS_CPU_SCACHE
 	bool
 	select BOARD_SCACHE
-	select MIPS_L1_CACHE_SHIFT_6
 
 config R5000_CPU_SCACHE
 	bool
@@ -2095,11 +2124,8 @@ config SB1_PASS_2_1_WORKAROUNDS
 	default y
 
 
-config 64BIT_PHYS_ADDR
-	bool
-
 config ARCH_PHYS_ADDR_T_64BIT
-       def_bool 64BIT_PHYS_ADDR
+       bool
 
 choice
 	prompt "SmartMIPS or microMIPS ASE support"
@@ -2122,7 +2148,7 @@ config CPU_HAS_SMARTMIPS
 	  here.
 
 config CPU_MICROMIPS
-	depends on SYS_SUPPORTS_MICROMIPS
+	depends on 32BIT && SYS_SUPPORTS_MICROMIPS
 	bool "microMIPS"
 	help
 	  When this option is enabled the kernel will be built using the

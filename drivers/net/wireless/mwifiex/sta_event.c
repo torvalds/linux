@@ -55,8 +55,12 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code)
 	priv->scan_block = false;
 
 	if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) &&
-	    ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info))
+	    ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info)) {
 		mwifiex_disable_all_tdls_links(priv);
+
+		if (priv->adapter->auto_tdls)
+			mwifiex_clean_auto_tdls(priv);
+	}
 
 	/* Free Tx and Rx packets, report disconnect to upper layer */
 	mwifiex_clean_txrx(priv);
@@ -163,9 +167,6 @@ static int mwifiex_parse_tdls_event(struct mwifiex_private *priv,
 					   NL80211_TDLS_TEARDOWN,
 					   le16_to_cpu(tdls_evt->u.reason_code),
 					   GFP_KERNEL);
-		ret = mwifiex_tdls_oper(priv, tdls_evt->peer_mac,
-					MWIFIEX_TDLS_DISABLE_LINK);
-		queue_work(adapter->workqueue, &adapter->main_work);
 		break;
 	default:
 		break;
@@ -501,6 +502,11 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_TDLS_GENERIC_EVENT:
 		ret = mwifiex_parse_tdls_event(priv, adapter->event_skb);
+		break;
+
+	case EVENT_TX_STATUS_REPORT:
+		dev_dbg(adapter->dev, "event: TX_STATUS Report\n");
+		mwifiex_parse_tx_status_event(priv, adapter->event_body);
 		break;
 
 	default:

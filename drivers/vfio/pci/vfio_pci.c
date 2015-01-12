@@ -215,7 +215,7 @@ static int vfio_pci_get_irq_count(struct vfio_pci_device *vdev, int irq_type)
 	if (irq_type == VFIO_PCI_INTX_IRQ_INDEX) {
 		u8 pin;
 		pci_read_config_byte(vdev->pdev, PCI_INTERRUPT_PIN, &pin);
-		if (pin)
+		if (IS_ENABLED(CONFIG_VFIO_PCI_INTX) && pin)
 			return 1;
 
 	} else if (irq_type == VFIO_PCI_MSI_IRQ_INDEX) {
@@ -406,7 +406,8 @@ static long vfio_pci_ioctl(void *device_data,
 
 			info.flags = VFIO_REGION_INFO_FLAG_READ |
 				     VFIO_REGION_INFO_FLAG_WRITE;
-			if (pci_resource_flags(pdev, info.index) &
+			if (IS_ENABLED(CONFIG_VFIO_PCI_MMAP) &&
+			    pci_resource_flags(pdev, info.index) &
 			    IORESOURCE_MEM && info.size >= PAGE_SIZE)
 				info.flags |= VFIO_REGION_INFO_FLAG_MMAP;
 			break;

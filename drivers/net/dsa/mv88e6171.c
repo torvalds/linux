@@ -1,4 +1,4 @@
-/* net/dsa/mv88e6171.c - Marvell 88e6171 switch chip support
+/* net/dsa/mv88e6171.c - Marvell 88e6171/8826172 switch chip support
  * Copyright (c) 2008-2009 Marvell Semiconductor
  * Copyright (c) 2014 Claudio Leite <leitec@staticky.com>
  *
@@ -29,6 +29,8 @@ static char *mv88e6171_probe(struct device *host_dev, int sw_addr)
 	if (ret >= 0) {
 		if ((ret & 0xfff0) == 0x1710)
 			return "Marvell 88E6171";
+		if ((ret & 0xfff0) == 0x1720)
+			return "Marvell 88E6172";
 	}
 
 	return NULL;
@@ -314,6 +316,8 @@ static int mv88e6171_setup(struct dsa_switch *ds)
 			return ret;
 	}
 
+	mutex_init(&ps->phy_mutex);
+
 	return 0;
 }
 
@@ -327,18 +331,28 @@ static int mv88e6171_port_to_phy_addr(int port)
 static int
 mv88e6171_phy_read(struct dsa_switch *ds, int port, int regnum)
 {
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int addr = mv88e6171_port_to_phy_addr(port);
+	int ret;
 
-	return mv88e6xxx_phy_read(ds, addr, regnum);
+	mutex_lock(&ps->phy_mutex);
+	ret = mv88e6xxx_phy_read(ds, addr, regnum);
+	mutex_unlock(&ps->phy_mutex);
+	return ret;
 }
 
 static int
 mv88e6171_phy_write(struct dsa_switch *ds,
 		    int port, int regnum, u16 val)
 {
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int addr = mv88e6171_port_to_phy_addr(port);
+	int ret;
 
-	return mv88e6xxx_phy_write(ds, addr, regnum, val);
+	mutex_lock(&ps->phy_mutex);
+	ret = mv88e6xxx_phy_write(ds, addr, regnum, val);
+	mutex_unlock(&ps->phy_mutex);
+	return ret;
 }
 
 static struct mv88e6xxx_hw_stat mv88e6171_hw_stats[] = {
@@ -406,6 +420,12 @@ struct dsa_switch_driver mv88e6171_switch_driver = {
 	.get_strings		= mv88e6171_get_strings,
 	.get_ethtool_stats	= mv88e6171_get_ethtool_stats,
 	.get_sset_count		= mv88e6171_get_sset_count,
+#ifdef CONFIG_NET_DSA_HWMON
+	.get_temp               = mv88e6xxx_get_temp,
+#endif
+	.get_regs_len		= mv88e6xxx_get_regs_len,
+	.get_regs		= mv88e6xxx_get_regs,
 };
 
 MODULE_ALIAS("platform:mv88e6171");
+MODULE_ALIAS("platform:mv88e6172");

@@ -29,8 +29,6 @@
 
 #include <linux/types.h>
 
-#include "ttype.h"
-
 typedef
 struct _version {
 	unsigned char   major;

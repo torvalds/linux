@@ -62,7 +62,7 @@ static struct v4l2_subdev_core_ops platform_subdev_core_ops = {
 };
 
 static int soc_camera_platform_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
-					enum v4l2_mbus_pixelcode *code)
+					u32 *code)
 {
 	struct soc_camera_platform_info *p = v4l2_get_subdevdata(sd);
 
@@ -180,7 +180,6 @@ static int soc_camera_platform_remove(struct platform_device *pdev)
 static struct platform_driver soc_camera_platform_driver = {
 	.driver		= {
 		.name	= "soc_camera_platform",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= soc_camera_platform_probe,
 	.remove		= soc_camera_platform_remove,

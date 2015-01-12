@@ -181,7 +181,8 @@ static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 	return 0;
 }
 
-extern int hash_page(unsigned long ea, unsigned long access, unsigned long trap); //XXX
+extern int hash_page(unsigned long ea, unsigned long access,
+		     unsigned long trap, unsigned long dsisr); //XXX
 static int __spu_trap_data_map(struct spu *spu, unsigned long ea, u64 dsisr)
 {
 	int ret;
@@ -196,7 +197,7 @@ static int __spu_trap_data_map(struct spu *spu, unsigned long ea, u64 dsisr)
 	    (REGION_ID(ea) != USER_REGION_ID)) {
 
 		spin_unlock(&spu->register_lock);
-		ret = hash_page(ea, _PAGE_PRESENT, 0x300);
+		ret = hash_page(ea, _PAGE_PRESENT, 0x300, dsisr);
 		spin_lock(&spu->register_lock);
 
 		if (!ret) {

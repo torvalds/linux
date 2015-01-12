@@ -337,7 +337,6 @@ static struct platform_driver tb0219_device_driver = {
 	.remove		= tb0219_remove,
 	.driver		= {
 		.name	= "TB0219",
-		.owner	= THIS_MODULE,
 	},
 };
 

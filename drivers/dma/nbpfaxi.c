@@ -1479,7 +1479,7 @@ static struct platform_device_id nbpf_ids[] = {
 };
 MODULE_DEVICE_TABLE(platform, nbpf_ids);
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int nbpf_runtime_suspend(struct device *dev)
 {
 	struct nbpf_device *nbpf = platform_get_drvdata(to_platform_device(dev));
@@ -1500,7 +1500,6 @@ static const struct dev_pm_ops nbpf_pm_ops = {
 
 static struct platform_driver nbpf_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "dma-nbpf",
 		.of_match_table = nbpf_match,
 		.pm = &nbpf_pm_ops,

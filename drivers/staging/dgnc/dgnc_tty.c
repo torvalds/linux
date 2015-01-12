@@ -49,7 +49,6 @@
 #include <linux/delay.h>	/* For udelay */
 #include <linux/uaccess.h>	/* For copy_from_user/copy_to_user */
 #include <linux/pci.h>
-
 #include "dgnc_driver.h"
 #include "dgnc_tty.h"
 #include "dgnc_types.h"
@@ -233,7 +232,8 @@ int dgnc_tty_register(struct dgnc_board *brd)
 		/* Register tty devices */
 		rc = tty_register_driver(&brd->SerialDriver);
 		if (rc < 0) {
-			APR(("Can't register tty device (%d)\n", rc));
+			dev_dbg(&brd->pdev->dev,
+				"Can't register tty device (%d)\n", rc);
 			return rc;
 		}
 		brd->dgnc_Major_Serial_Registered = TRUE;
@@ -281,7 +281,9 @@ int dgnc_tty_register(struct dgnc_board *brd)
 		/* Register Transparent Print devices */
 		rc = tty_register_driver(&brd->PrintDriver);
 		if (rc < 0) {
-			APR(("Can't register Transparent Print device (%d)\n", rc));
+			dev_dbg(&brd->pdev->dev,
+				"Can't register Transparent Print device(%d)\n",
+				rc);
 			return rc;
 		}
 		brd->dgnc_Major_TransparentPrint_Registered = TRUE;
@@ -371,7 +373,6 @@ int dgnc_tty_init(struct dgnc_board *brd)
 		init_waitqueue_head(&ch->ch_flags_wait);
 		init_waitqueue_head(&ch->ch_tun.un_flags_wait);
 		init_waitqueue_head(&ch->ch_pun.un_flags_wait);
-		init_waitqueue_head(&ch->ch_sniff_wait);
 
 		{
 			struct device *classp;
@@ -445,127 +446,6 @@ void dgnc_tty_uninit(struct dgnc_board *brd)
 
 
 #define TMPBUFLEN (1024)
-
-/*
- * dgnc_sniff - Dump data out to the "sniff" buffer if the
- * proc sniff file is opened...
- */
-void dgnc_sniff_nowait_nolock(struct channel_t *ch, unsigned char *text, unsigned char *buf, int len)
-{
-	struct timeval tv;
-	int n;
-	int r;
-	int nbuf;
-	int i;
-	int tmpbuflen;
-	char *tmpbuf;
-	char *p;
-	int too_much_data;
-
-	tmpbuf = kzalloc(TMPBUFLEN, GFP_ATOMIC);
-	if (!tmpbuf)
-		return;
-	p = tmpbuf;
-
-	/* Leave if sniff not open */
-	if (!(ch->ch_sniff_flags & SNIFF_OPEN))
-		goto exit;
-
-	do_gettimeofday(&tv);
-
-	/* Create our header for data dump */
-	p += sprintf(p, "<%ld %ld><%s><", tv.tv_sec, tv.tv_usec, text);
-	tmpbuflen = p - tmpbuf;
-
-	do {
-		too_much_data = 0;
-
-		for (i = 0; i < len && tmpbuflen < (TMPBUFLEN - 4); i++) {
-			p += sprintf(p, "%02x ", *buf);
-			buf++;
-			tmpbuflen = p - tmpbuf;
-		}
-
-		if (tmpbuflen < (TMPBUFLEN - 4)) {
-			if (i > 0)
-				p += sprintf(p - 1, "%s\n", ">");
-			else
-				p += sprintf(p, "%s\n", ">");
-		} else {
-			too_much_data = 1;
-			len -= i;
-		}
-
-		nbuf = strlen(tmpbuf);
-		p = tmpbuf;
-
-		/*
-		 *  Loop while data remains.
-		 */
-		while (nbuf > 0 && ch->ch_sniff_buf) {
-			/*
-			 *  Determine the amount of available space left in the
-			 *  buffer.  If there's none, wait until some appears.
-			 */
-			n = (ch->ch_sniff_out - ch->ch_sniff_in - 1) & SNIFF_MASK;
-
-			/*
-			 * If there is no space left to write to in our sniff buffer,
-			 * we have no choice but to drop the data.
-			 * We *cannot* sleep here waiting for space, because this
-			 * function was probably called by the interrupt/timer routines!
-			 */
-			if (n == 0)
-				goto exit;
-
-			/*
-			 * Copy as much data as will fit.
-			 */
-
-			if (n > nbuf)
-				n = nbuf;
-
-			r = SNIFF_MAX - ch->ch_sniff_in;
-
-			if (r <= n) {
-				memcpy(ch->ch_sniff_buf + ch->ch_sniff_in, p, r);
-
-				n -= r;
-				ch->ch_sniff_in = 0;
-				p += r;
-				nbuf -= r;
-			}
-
-			memcpy(ch->ch_sniff_buf + ch->ch_sniff_in, p, n);
-
-			ch->ch_sniff_in += n;
-			p += n;
-			nbuf -= n;
-
-			/*
-			 *  Wakeup any thread waiting for data
-			 */
-			if (ch->ch_sniff_flags & SNIFF_WAIT_DATA) {
-				ch->ch_sniff_flags &= ~SNIFF_WAIT_DATA;
-				wake_up_interruptible(&ch->ch_sniff_wait);
-			}
-		}
-
-		/*
-		 * If the user sent us too much data to push into our tmpbuf,
-		 * we need to keep looping around on all the data.
-		 */
-		if (too_much_data) {
-			p = tmpbuf;
-			tmpbuflen = 0;
-		}
-
-	} while (too_much_data);
-
-exit:
-	kfree(tmpbuf);
-}
-
 
 /*=======================================================================
  *
@@ -780,8 +660,6 @@ void dgnc_input(struct channel_t *ch)
 		} else {
 			tty_insert_flip_string(tp->port, ch->ch_rqueue + tail, s);
 		}
-
-		dgnc_sniff_nowait_nolock(ch, "USER READ", ch->ch_rqueue + tail, s);
 
 		tail += s;
 		n -= s;
@@ -1546,14 +1424,18 @@ static void dgnc_tty_close(struct tty_struct *tty, struct file *file)
 		 * one, we've got real problems, since it means the
 		 * serial port won't be shutdown.
 		 */
-		APR(("tty->count is 1, un open count is %d\n", un->un_open_count));
+		dev_dbg(tty->dev,
+			"tty->count is 1, un open count is %d\n",
+			un->un_open_count);
 		un->un_open_count = 1;
 	}
 
 	if (un->un_open_count)
 		un->un_open_count--;
 	else
-		APR(("bad serial port open count of %d\n", un->un_open_count));
+		dev_dbg(tty->dev,
+			"bad serial port open count of %d\n",
+			un->un_open_count);
 
 	ch->ch_open_count--;
 
@@ -1974,7 +1856,6 @@ static int dgnc_tty_write(struct tty_struct *tty,
 	if (n >= remain) {
 		n -= remain;
 		memcpy(ch->ch_wqueue + head, buf, remain);
-		dgnc_sniff_nowait_nolock(ch, "USER WRITE", ch->ch_wqueue + head, remain);
 		head = 0;
 		buf += remain;
 	}
@@ -1985,7 +1866,6 @@ static int dgnc_tty_write(struct tty_struct *tty,
 		 */
 		remain = n;
 		memcpy(ch->ch_wqueue + head, buf, remain);
-		dgnc_sniff_nowait_nolock(ch, "USER WRITE", ch->ch_wqueue + head, remain);
 		head += remain;
 	}
 
@@ -2324,8 +2204,6 @@ static int dgnc_set_modem_info(struct tty_struct *tty, unsigned int command, uns
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
 		return ret;
-
-	ret = 0;
 
 	ret = get_user(arg, value);
 	if (ret)
@@ -3089,7 +2967,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		struct digi_getcounter buf;
 
 		buf.norun = ch->ch_err_overrun;
-		buf.noflow = 0;  	/* The driver doesn't keep this stat */
+		buf.noflow = 0;		/* The driver doesn't keep this stat */
 		buf.nframe = ch->ch_err_frame;
 		buf.nparity = ch->ch_err_parity;
 		buf.nbreak = ch->ch_err_break;

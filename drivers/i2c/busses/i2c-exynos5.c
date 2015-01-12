@@ -457,7 +457,7 @@ static irqreturn_t exynos5_i2c_irq(int irqno, void *dev_id)
 			goto stop;
 		} else if (int_status & HSI2C_INT_TIMEOUT) {
 			dev_dbg(i2c->dev, "Accessing device timed out\n");
-			i2c->state = -EAGAIN;
+			i2c->state = -ETIMEDOUT;
 			goto stop;
 		}
 	} else if (int_status & HSI2C_INT_I2C) {
@@ -476,7 +476,7 @@ static irqreturn_t exynos5_i2c_irq(int irqno, void *dev_id)
 			goto stop;
 		} else if (trans_status & HSI2C_TIMEOUT_AUTO) {
 			dev_dbg(i2c->dev, "Accessing device timed out\n");
-			i2c->state = -EAGAIN;
+			i2c->state = -ETIMEDOUT;
 			goto stop;
 		} else if (trans_status & HSI2C_TRANS_DONE) {
 			i2c->trans_done = 1;
@@ -861,7 +861,6 @@ static struct platform_driver exynos5_i2c_driver = {
 	.probe		= exynos5_i2c_probe,
 	.remove		= exynos5_i2c_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "exynos5-hsi2c",
 		.pm	= &exynos5_i2c_dev_pm_ops,
 		.of_match_table = exynos5_i2c_match,

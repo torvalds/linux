@@ -450,7 +450,6 @@ static struct platform_driver msm_gpio_driver = {
 	.remove = msm_gpio_remove,
 	.driver = {
 		.name = "msmgpio",
-		.owner = THIS_MODULE,
 		.of_match_table = msm_gpio_of_match,
 	},
 };

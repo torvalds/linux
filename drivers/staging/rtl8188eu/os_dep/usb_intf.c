@@ -63,7 +63,6 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 	struct usb_config_descriptor	*pconf_desc;
 	struct usb_host_interface	*phost_iface;
 	struct usb_interface_descriptor	*piface_desc;
-	struct usb_host_endpoint	*phost_endp;
 	struct usb_endpoint_descriptor	*pendp_desc;
 	struct usb_device	*pusbd;
 
@@ -92,24 +91,22 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 
 	for (i = 0; i < pdvobjpriv->nr_endpoint; i++) {
 		int ep_num;
-		phost_endp = phost_iface->endpoint + i;
+		pendp_desc = &phost_iface->endpoint[i].desc;
 
-		if (phost_endp) {
-			pendp_desc = &phost_endp->desc;
-			ep_num = usb_endpoint_num(pendp_desc);
+		ep_num = usb_endpoint_num(pendp_desc);
 
-			if (usb_endpoint_is_bulk_in(pendp_desc)) {
-				pdvobjpriv->RtInPipe[pdvobjpriv->RtNumInPipes] = ep_num;
-				pdvobjpriv->RtNumInPipes++;
-			} else if (usb_endpoint_is_int_in(pendp_desc)) {
-				pdvobjpriv->RtInPipe[pdvobjpriv->RtNumInPipes] = ep_num;
-				pdvobjpriv->RtNumInPipes++;
-			} else if (usb_endpoint_is_bulk_out(pendp_desc)) {
-				pdvobjpriv->RtOutPipe[pdvobjpriv->RtNumOutPipes] = ep_num;
-				pdvobjpriv->RtNumOutPipes++;
-			}
-			pdvobjpriv->ep_num[i] = ep_num;
+		if (usb_endpoint_is_bulk_in(pendp_desc)) {
+			pdvobjpriv->RtInPipe[pdvobjpriv->RtNumInPipes] = ep_num;
+			pdvobjpriv->RtNumInPipes++;
+		} else if (usb_endpoint_is_int_in(pendp_desc)) {
+			pdvobjpriv->RtInPipe[pdvobjpriv->RtNumInPipes] = ep_num;
+			pdvobjpriv->RtNumInPipes++;
+		} else if (usb_endpoint_is_bulk_out(pendp_desc)) {
+			pdvobjpriv->RtOutPipe[pdvobjpriv->RtNumOutPipes] =
+				ep_num;
+			pdvobjpriv->RtNumOutPipes++;
 		}
+		pdvobjpriv->ep_num[i] = ep_num;
 	}
 
 	if (pusbd->speed == USB_SPEED_HIGH)
@@ -557,8 +554,6 @@ static void rtw_dev_remove(struct usb_interface *pusb_intf)
 
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("-dev_remove()\n"));
 	DBG_88E("-r871xu_dev_remove, done\n");
-
-	return;
 }
 
 static struct usb_driver rtl8188e_usb_drv = {

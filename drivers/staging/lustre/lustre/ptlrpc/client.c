@@ -265,8 +265,7 @@ static void ptlrpc_at_adj_service(struct ptlrpc_request *req,
 	   so just keep minimal history here */
 	oldse = at_measured(&at->iat_service_estimate[idx], serv_est);
 	if (oldse != 0)
-		CDEBUG(D_ADAPTTO, "The RPC service estimate for %s ptl %d "
-		       "has changed from %d to %d\n",
+		CDEBUG(D_ADAPTTO, "The RPC service estimate for %s ptl %d has changed from %d to %d\n",
 		       req->rq_import->imp_obd->obd_name, req->rq_request_portal,
 		       oldse, at_get(&at->iat_service_estimate[idx]));
 }
@@ -297,8 +296,7 @@ static void ptlrpc_at_adj_net_latency(struct ptlrpc_request *req,
 
 	oldnl = at_measured(&at->iat_net_latency, nl);
 	if (oldnl != 0)
-		CDEBUG(D_ADAPTTO, "The network latency for %s (nid %s) "
-		       "has changed from %d to %d\n",
+		CDEBUG(D_ADAPTTO, "The network latency for %s (nid %s) has changed from %d to %d\n",
 		       req->rq_import->imp_obd->obd_name,
 		       obd_uuid2str(
 			       &req->rq_import->imp_connection->c_remote_uuid),
@@ -371,8 +369,8 @@ static int ptlrpc_at_recv_early_reply(struct ptlrpc_request *req)
 			   ptlrpc_at_get_net_latency(req);
 
 	DEBUG_REQ(D_ADAPTTO, req,
-		  "Early reply #%d, new deadline in "CFS_DURATION_T"s "
-		  "("CFS_DURATION_T"s)", req->rq_early_count,
+		  "Early reply #%d, new deadline in " CFS_DURATION_T "s (" CFS_DURATION_T "s)",
+		  req->rq_early_count,
 		  cfs_time_sub(req->rq_deadline, get_seconds()),
 		  cfs_time_sub(req->rq_deadline, olddl));
 
@@ -445,8 +443,8 @@ void ptlrpc_add_rqs_to_pool(struct ptlrpc_request_pool *pool, int num_rq)
 
 	LASSERTF(list_empty(&pool->prp_req_list) ||
 		 size == pool->prp_rq_size,
-		 "Trying to change pool size with nonempty pool "
-		 "from %d to %d bytes\n", pool->prp_rq_size, size);
+		 "Trying to change pool size with nonempty pool from %d to %d bytes\n",
+		 pool->prp_rq_size, size);
 
 	spin_lock(&pool->prp_lock);
 	pool->prp_rq_size = size;
@@ -1146,11 +1144,10 @@ static int ptlrpc_check_status(struct ptlrpc_request *req)
 		struct obd_import *imp = req->rq_import;
 		__u32 opc = lustre_msg_get_opc(req->rq_reqmsg);
 		if (ptlrpc_console_allow(req))
-			LCONSOLE_ERROR_MSG(0x011, "%s: Communicating with %s,"
-					   " operation %s failed with %d.\n",
+			LCONSOLE_ERROR_MSG(0x011, "%s: Communicating with %s, operation %s failed with %d.\n",
 					   imp->imp_obd->obd_name,
 					   libcfs_nid2str(
-					   imp->imp_connection->c_peer.nid),
+						   imp->imp_connection->c_peer.nid),
 					   ll_opcode2str(opc), err);
 		return err < 0 ? err : -EINVAL;
 	}
@@ -1206,8 +1203,7 @@ static int after_reply(struct ptlrpc_request *req)
 
 	if (req->rq_reply_truncate) {
 		if (ptlrpc_no_resend(req)) {
-			DEBUG_REQ(D_ERROR, req, "reply buffer overflow,"
-				  " expected: %d, actual size: %d",
+			DEBUG_REQ(D_ERROR, req, "reply buffer overflow, expected: %d, actual size: %d",
 				  req->rq_nob_received, req->rq_repbuf_len);
 			return -EOVERFLOW;
 		}
@@ -1259,8 +1255,7 @@ static int after_reply(struct ptlrpc_request *req)
 			/* new xid is already allocated for bulk in
 			 * ptlrpc_check_set() */
 			req->rq_xid = ptlrpc_next_xid();
-			DEBUG_REQ(D_RPCTRACE, req, "Allocating new xid for "
-				  "resend on EINPROGRESS");
+			DEBUG_REQ(D_RPCTRACE, req, "Allocating new xid for resend on EINPROGRESS");
 		}
 
 		/* Readjust the timeout for current conditions */
@@ -1412,8 +1407,8 @@ static int ptlrpc_send_new_req(struct ptlrpc_request *req)
 		req->rq_waiting = 1;
 		spin_unlock(&req->rq_lock);
 
-		DEBUG_REQ(D_HA, req, "req from PID %d waiting for recovery: "
-			  "(%s != %s)", lustre_msg_get_status(req->rq_reqmsg),
+		DEBUG_REQ(D_HA, req, "req from PID %d waiting for recovery: (%s != %s)",
+			  lustre_msg_get_status(req->rq_reqmsg),
 			  ptlrpc_import_state_name(req->rq_send_state),
 			  ptlrpc_import_state_name(imp->imp_state));
 		LASSERT(list_empty(&req->rq_list));
@@ -1450,8 +1445,8 @@ static int ptlrpc_send_new_req(struct ptlrpc_request *req)
 		}
 	}
 
-	CDEBUG(D_RPCTRACE, "Sending RPC pname:cluuid:pid:xid:nid:opc"
-	       " %s:%s:%d:%llu:%s:%d\n", current_comm(),
+	CDEBUG(D_RPCTRACE, "Sending RPC pname:cluuid:pid:xid:nid:opc %s:%s:%d:%llu:%s:%d\n",
+	       current_comm(),
 	       imp->imp_obd->obd_uuid.uuid,
 	       lustre_msg_get_status(req->rq_reqmsg), req->rq_xid,
 	       libcfs_nid2str(imp->imp_connection->c_peer.nid),
@@ -1828,12 +1823,11 @@ interpret:
 		ptlrpc_rqphase_move(req, RQ_PHASE_COMPLETE);
 
 		CDEBUG(req->rq_reqmsg != NULL ? D_RPCTRACE : 0,
-			"Completed RPC pname:cluuid:pid:xid:nid:"
-			"opc %s:%s:%d:%llu:%s:%d\n",
-			current_comm(), imp->imp_obd->obd_uuid.uuid,
-			lustre_msg_get_status(req->rq_reqmsg), req->rq_xid,
-			libcfs_nid2str(imp->imp_connection->c_peer.nid),
-			lustre_msg_get_opc(req->rq_reqmsg));
+		       "Completed RPC pname:cluuid:pid:xid:nid:opc %s:%s:%d:%llu:%s:%d\n",
+		       current_comm(), imp->imp_obd->obd_uuid.uuid,
+		       lustre_msg_get_status(req->rq_reqmsg), req->rq_xid,
+		       libcfs_nid2str(imp->imp_connection->c_peer.nid),
+		       lustre_msg_get_opc(req->rq_reqmsg));
 
 		spin_lock(&imp->imp_lock);
 		/* Request already may be not on sending or delaying list. This
@@ -2215,10 +2209,8 @@ EXPORT_SYMBOL(ptlrpc_set_wait);
  */
 static void __ptlrpc_free_req(struct ptlrpc_request *request, int locked)
 {
-	if (request == NULL) {
+	if (request == NULL)
 		return;
-	}
-
 	LASSERTF(!request->rq_receiving_reply, "req %p\n", request);
 	LASSERTF(request->rq_rqbd == NULL, "req %p\n", request);/* client-side */
 	LASSERTF(list_empty(&request->rq_list), "req %p\n", request);

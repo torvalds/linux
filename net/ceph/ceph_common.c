@@ -184,14 +184,6 @@ void *ceph_kvmalloc(size_t size, gfp_t flags)
 	return __vmalloc(size, flags | __GFP_HIGHMEM, PAGE_KERNEL);
 }
 
-void ceph_kvfree(const void *ptr)
-{
-	if (is_vmalloc_addr(ptr))
-		vfree(ptr);
-	else
-		kfree(ptr);
-}
-
 
 static int parse_fsid(const char *str, struct ceph_fsid *fsid)
 {
@@ -245,6 +237,8 @@ enum {
 	Opt_noshare,
 	Opt_crc,
 	Opt_nocrc,
+	Opt_cephx_require_signatures,
+	Opt_nocephx_require_signatures,
 };
 
 static match_table_t opt_tokens = {
@@ -263,6 +257,8 @@ static match_table_t opt_tokens = {
 	{Opt_noshare, "noshare"},
 	{Opt_crc, "crc"},
 	{Opt_nocrc, "nocrc"},
+	{Opt_cephx_require_signatures, "cephx_require_signatures"},
+	{Opt_nocephx_require_signatures, "nocephx_require_signatures"},
 	{-1, NULL}
 };
 
@@ -461,6 +457,12 @@ ceph_parse_options(char *options, const char *dev_name,
 		case Opt_nocrc:
 			opt->flags |= CEPH_OPT_NOCRC;
 			break;
+		case Opt_cephx_require_signatures:
+			opt->flags &= ~CEPH_OPT_NOMSGAUTH;
+			break;
+		case Opt_nocephx_require_signatures:
+			opt->flags |= CEPH_OPT_NOMSGAUTH;
+			break;
 
 		default:
 			BUG_ON(token);
@@ -503,6 +505,9 @@ struct ceph_client *ceph_create_client(struct ceph_options *opt, void *private,
 	mutex_init(&client->mount_mutex);
 	init_waitqueue_head(&client->auth_wq);
 	client->auth_err = 0;
+
+	if (!ceph_test_opt(client, NOMSGAUTH))
+		required_features |= CEPH_FEATURE_MSG_AUTH;
 
 	client->extra_mon_dispatch = NULL;
 	client->supported_features = CEPH_FEATURES_SUPPORTED_DEFAULT |

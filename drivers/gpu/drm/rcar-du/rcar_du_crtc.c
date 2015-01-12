@@ -19,6 +19,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_plane_helper.h>
 
 #include "rcar_du_crtc.h"
 #include "rcar_du_drv.h"
@@ -585,7 +586,7 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 
 	if (irq < 0) {
 		dev_err(rcdu->dev, "no IRQ for CRTC %u\n", index);
-		return ret;
+		return irq;
 	}
 
 	ret = devm_request_irq(rcdu->dev, irq, rcar_du_crtc_irq, irqflags,

@@ -185,6 +185,18 @@ modbuiltin := -f $(srctree)/scripts/Makefile.modbuiltin obj
 # $(Q)$(MAKE) $(dtbinst)=dir
 dtbinst := -f $(if $(KBUILD_SRC),$(srctree)/)scripts/Makefile.dtbinst obj
 
+###
+# Shorthand for $(Q)$(MAKE) -f scripts/Makefile.clean obj=
+# Usage:
+# $(Q)$(MAKE) $(clean)=dir
+clean := -f $(srctree)/scripts/Makefile.clean obj
+
+###
+# Shorthand for $(Q)$(MAKE) -f scripts/Makefile.headersinst obj=
+# Usage:
+# $(Q)$(MAKE) $(hdr-inst)=dir
+hdr-inst := -f $(srctree)/scripts/Makefile.headersinst obj
+
 # Prefix -I with $(srctree) if it is not an absolute path.
 # skip if -I has no parameter
 addtree = $(if $(patsubst -I%,%,$(1)), \

@@ -1335,7 +1335,6 @@ static struct platform_driver snd_ml403_ac97cr_driver = {
 	.remove = snd_ml403_ac97cr_remove,
 	.driver = {
 		.name = SND_ML403_AC97CR_DRIVER,
-		.owner = THIS_MODULE,
 	},
 };
 

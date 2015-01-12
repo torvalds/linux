@@ -277,6 +277,7 @@ static int do_process_element_cmd(struct cxl_context *ctx,
 				  u64 cmd, u64 pe_state)
 {
 	u64 state;
+	unsigned long timeout = jiffies + (HZ * CXL_TIMEOUT);
 
 	WARN_ON(!ctx->afu->enabled);
 
@@ -286,6 +287,10 @@ static int do_process_element_cmd(struct cxl_context *ctx,
 	smp_mb();
 	cxl_p1n_write(ctx->afu, CXL_PSL_LLCMD_An, cmd | ctx->pe);
 	while (1) {
+		if (time_after_eq(jiffies, timeout)) {
+			dev_warn(&ctx->afu->dev, "WARNING: Process Element Command timed out!\n");
+			return -EBUSY;
+		}
 		state = be64_to_cpup(ctx->afu->sw_command_status);
 		if (state == ~0ULL) {
 			pr_err("cxl: Error adding process element to AFU\n");
@@ -610,13 +615,6 @@ static inline int detach_process_native_dedicated(struct cxl_context *ctx)
 	return 0;
 }
 
-/*
- * TODO: handle case when this is called inside a rcu_read_lock() which may
- * happen when we unbind the driver (ie. cxl_context_detach_all()) .  Terminate
- * & remove use a mutex lock and schedule which will not good with lock held.
- * May need to write do_process_element_cmd() that handles outstanding page
- * faults synchronously.
- */
 static inline int detach_process_native_afu_directed(struct cxl_context *ctx)
 {
 	if (!ctx->pe_inserted)
@@ -637,18 +635,18 @@ int cxl_detach_process(struct cxl_context *ctx)
 	return detach_process_native_afu_directed(ctx);
 }
 
-int cxl_get_irq(struct cxl_context *ctx, struct cxl_irq_info *info)
+int cxl_get_irq(struct cxl_afu *afu, struct cxl_irq_info *info)
 {
 	u64 pidtid;
 
-	info->dsisr = cxl_p2n_read(ctx->afu, CXL_PSL_DSISR_An);
-	info->dar = cxl_p2n_read(ctx->afu, CXL_PSL_DAR_An);
-	info->dsr = cxl_p2n_read(ctx->afu, CXL_PSL_DSR_An);
-	pidtid = cxl_p2n_read(ctx->afu, CXL_PSL_PID_TID_An);
+	info->dsisr = cxl_p2n_read(afu, CXL_PSL_DSISR_An);
+	info->dar = cxl_p2n_read(afu, CXL_PSL_DAR_An);
+	info->dsr = cxl_p2n_read(afu, CXL_PSL_DSR_An);
+	pidtid = cxl_p2n_read(afu, CXL_PSL_PID_TID_An);
 	info->pid = pidtid >> 32;
 	info->tid = pidtid & 0xffffffff;
-	info->afu_err = cxl_p2n_read(ctx->afu, CXL_AFU_ERR_An);
-	info->errstat = cxl_p2n_read(ctx->afu, CXL_PSL_ErrStat_An);
+	info->afu_err = cxl_p2n_read(afu, CXL_AFU_ERR_An);
+	info->errstat = cxl_p2n_read(afu, CXL_PSL_ErrStat_An);
 
 	return 0;
 }

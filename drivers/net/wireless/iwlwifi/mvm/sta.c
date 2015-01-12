@@ -204,6 +204,56 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	return ret;
 }
 
+static int iwl_mvm_tdls_sta_init(struct iwl_mvm *mvm,
+				 struct ieee80211_sta *sta)
+{
+	unsigned long used_hw_queues;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	u32 ac;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	used_hw_queues = iwl_mvm_get_used_hw_queues(mvm, NULL);
+
+	/* Find available queues, and allocate them to the ACs */
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+		u8 queue = find_first_zero_bit(&used_hw_queues,
+					       mvm->first_agg_queue);
+
+		if (queue >= mvm->first_agg_queue) {
+			IWL_ERR(mvm, "Failed to allocate STA queue\n");
+			return -EBUSY;
+		}
+
+		__set_bit(queue, &used_hw_queues);
+		mvmsta->hw_queue[ac] = queue;
+	}
+
+	/* Found a place for all queues - enable them */
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+		iwl_mvm_enable_ac_txq(mvm, mvmsta->hw_queue[ac],
+				      iwl_mvm_ac_to_tx_fifo[ac]);
+		mvmsta->tfd_queue_msk |= BIT(mvmsta->hw_queue[ac]);
+	}
+
+	return 0;
+}
+
+static void iwl_mvm_tdls_sta_deinit(struct iwl_mvm *mvm,
+				    struct ieee80211_sta *sta)
+{
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	unsigned long sta_msk;
+	int i;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	/* disable the TDLS STA-specific queues */
+	sta_msk = mvmsta->tfd_queue_msk;
+	for_each_set_bit(i, &sta_msk, sizeof(sta_msk))
+		iwl_mvm_disable_txq(mvm, i);
+}
+
 int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 		    struct ieee80211_vif *vif,
 		    struct ieee80211_sta *sta)
@@ -237,9 +287,17 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 	atomic_set(&mvm->pending_frames[sta_id], 0);
 	mvm_sta->tid_disable_agg = 0;
 	mvm_sta->tfd_queue_msk = 0;
-	for (i = 0; i < IEEE80211_NUM_ACS; i++)
-		if (vif->hw_queue[i] != IEEE80211_INVAL_HW_QUEUE)
-			mvm_sta->tfd_queue_msk |= BIT(vif->hw_queue[i]);
+
+	/* allocate new queues for a TDLS station */
+	if (sta->tdls) {
+		ret = iwl_mvm_tdls_sta_init(mvm, sta);
+		if (ret)
+			return ret;
+	} else {
+		for (i = 0; i < IEEE80211_NUM_ACS; i++)
+			if (vif->hw_queue[i] != IEEE80211_INVAL_HW_QUEUE)
+				mvm_sta->tfd_queue_msk |= BIT(vif->hw_queue[i]);
+	}
 
 	/* for HW restart - reset everything but the sequence number */
 	for (i = 0; i < IWL_MAX_TID_COUNT; i++) {
@@ -251,7 +309,7 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 
 	ret = iwl_mvm_sta_send_to_fw(mvm, sta, false);
 	if (ret)
-		return ret;
+		goto err;
 
 	if (vif->type == NL80211_IFTYPE_STATION) {
 		if (!sta->tdls) {
@@ -265,6 +323,10 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 	rcu_assign_pointer(mvm->fw_id_to_mac_id[sta_id], sta);
 
 	return 0;
+
+err:
+	iwl_mvm_tdls_sta_deinit(mvm, sta);
+	return ret;
 }
 
 int iwl_mvm_update_sta(struct iwl_mvm *mvm,
@@ -398,6 +460,17 @@ void iwl_mvm_sta_drained_wk(struct work_struct *wk)
 		}
 		RCU_INIT_POINTER(mvm->fw_id_to_mac_id[sta_id], NULL);
 		clear_bit(sta_id, mvm->sta_drained);
+
+		if (mvm->tfd_drained[sta_id]) {
+			unsigned long i, msk = mvm->tfd_drained[sta_id];
+
+			for_each_set_bit(i, &msk, sizeof(msk))
+				iwl_mvm_disable_txq(mvm, i);
+
+			mvm->tfd_drained[sta_id] = 0;
+			IWL_DEBUG_TDLS(mvm, "Drained sta %d, with queues %ld\n",
+				       sta_id, msk);
+		}
 	}
 
 	mutex_unlock(&mvm->mutex);
@@ -431,6 +504,15 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 	}
 
 	/*
+	 * This shouldn't happen - the TDLS channel switch should be canceled
+	 * before the STA is removed.
+	 */
+	if (WARN_ON_ONCE(mvm->tdls_cs.peer.sta_id == mvm_sta->sta_id)) {
+		mvm->tdls_cs.peer.sta_id = IWL_MVM_STATION_COUNT;
+		cancel_delayed_work(&mvm->tdls_cs.dwork);
+	}
+
+	/*
 	 * Make sure that the tx response code sees the station as -EBUSY and
 	 * calls the drain worker.
 	 */
@@ -443,9 +525,22 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		rcu_assign_pointer(mvm->fw_id_to_mac_id[mvm_sta->sta_id],
 				   ERR_PTR(-EBUSY));
 		spin_unlock_bh(&mvm_sta->lock);
+
+		/* disable TDLS sta queues on drain complete */
+		if (sta->tdls) {
+			mvm->tfd_drained[mvm_sta->sta_id] =
+							mvm_sta->tfd_queue_msk;
+			IWL_DEBUG_TDLS(mvm, "Draining TDLS sta %d\n",
+				       mvm_sta->sta_id);
+		}
+
 		ret = iwl_mvm_drain_sta(mvm, mvm_sta, true);
 	} else {
 		spin_unlock_bh(&mvm_sta->lock);
+
+		if (sta->tdls)
+			iwl_mvm_tdls_sta_deinit(mvm, sta);
+
 		ret = iwl_mvm_rm_sta_common(mvm, mvm_sta->sta_id);
 		RCU_INIT_POINTER(mvm->fw_id_to_mac_id[mvm_sta->sta_id], NULL);
 	}
@@ -609,7 +704,7 @@ int iwl_mvm_alloc_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	lockdep_assert_held(&mvm->mutex);
 
-	qmask = iwl_mvm_mac_get_queues_mask(mvm, vif);
+	qmask = iwl_mvm_mac_get_queues_mask(vif);
 
 	/*
 	 * The firmware defines the TFD queue mask to only be relevant
@@ -1071,15 +1166,16 @@ static u8 iwl_mvm_get_key_sta_id(struct ieee80211_vif *vif,
 
 static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
 				struct iwl_mvm_sta *mvm_sta,
-				struct ieee80211_key_conf *keyconf,
-				u8 sta_id, u32 tkip_iv32, u16 *tkip_p1k,
-				u32 cmd_flags)
+				struct ieee80211_key_conf *keyconf, bool mcast,
+				u32 tkip_iv32, u16 *tkip_p1k, u32 cmd_flags)
 {
 	struct iwl_mvm_add_sta_key_cmd cmd = {};
 	__le16 key_flags;
-	int ret, status;
+	int ret;
+	u32 status;
 	u16 keyidx;
 	int i;
+	u8 sta_id = mvm_sta->sta_id;
 
 	keyidx = (keyconf->keyidx << STA_KEY_FLG_KEYID_POS) &
 		 STA_KEY_FLG_KEYID_MSK;
@@ -1098,12 +1194,18 @@ static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
 		key_flags |= cpu_to_le16(STA_KEY_FLG_CCM);
 		memcpy(cmd.key, keyconf->key, keyconf->keylen);
 		break;
+	case WLAN_CIPHER_SUITE_WEP104:
+		key_flags |= cpu_to_le16(STA_KEY_FLG_WEP_13BYTES);
+	case WLAN_CIPHER_SUITE_WEP40:
+		key_flags |= cpu_to_le16(STA_KEY_FLG_WEP);
+		memcpy(cmd.key + 3, keyconf->key, keyconf->keylen);
+		break;
 	default:
 		key_flags |= cpu_to_le16(STA_KEY_FLG_EXT);
 		memcpy(cmd.key, keyconf->key, keyconf->keylen);
 	}
 
-	if (!(keyconf->flags & IEEE80211_KEY_FLAG_PAIRWISE))
+	if (mcast)
 		key_flags |= cpu_to_le16(STA_KEY_MULTICAST);
 
 	cmd.key_offset = keyconf->hw_key_idx;
@@ -1195,17 +1297,88 @@ static inline u8 *iwl_mvm_get_mac_addr(struct iwl_mvm *mvm,
 	return NULL;
 }
 
+static int __iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_sta *sta,
+				 struct ieee80211_key_conf *keyconf,
+				 bool mcast)
+{
+	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+	int ret;
+	const u8 *addr;
+	struct ieee80211_key_seq seq;
+	u16 p1k[5];
+
+	switch (keyconf->cipher) {
+	case WLAN_CIPHER_SUITE_TKIP:
+		addr = iwl_mvm_get_mac_addr(mvm, vif, sta);
+		/* get phase 1 key from mac80211 */
+		ieee80211_get_key_rx_seq(keyconf, 0, &seq);
+		ieee80211_get_tkip_rx_p1k(keyconf, addr, seq.tkip.iv32, p1k);
+		ret = iwl_mvm_send_sta_key(mvm, mvm_sta, keyconf, mcast,
+					   seq.tkip.iv32, p1k, 0);
+		break;
+	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
+		ret = iwl_mvm_send_sta_key(mvm, mvm_sta, keyconf, mcast,
+					   0, NULL, 0);
+		break;
+	default:
+		ret = iwl_mvm_send_sta_key(mvm, mvm_sta, keyconf, mcast,
+					   0, NULL, 0);
+	}
+
+	return ret;
+}
+
+static int __iwl_mvm_remove_sta_key(struct iwl_mvm *mvm, u8 sta_id,
+				    struct ieee80211_key_conf *keyconf,
+				    bool mcast)
+{
+	struct iwl_mvm_add_sta_key_cmd cmd = {};
+	__le16 key_flags;
+	int ret;
+	u32 status;
+
+	key_flags = cpu_to_le16((keyconf->keyidx << STA_KEY_FLG_KEYID_POS) &
+				 STA_KEY_FLG_KEYID_MSK);
+	key_flags |= cpu_to_le16(STA_KEY_FLG_NO_ENC | STA_KEY_FLG_WEP_KEY_MAP);
+	key_flags |= cpu_to_le16(STA_KEY_NOT_VALID);
+
+	if (mcast)
+		key_flags |= cpu_to_le16(STA_KEY_MULTICAST);
+
+	cmd.key_flags = key_flags;
+	cmd.key_offset = keyconf->hw_key_idx;
+	cmd.sta_id = sta_id;
+
+	status = ADD_STA_SUCCESS;
+	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA_KEY, sizeof(cmd),
+					  &cmd, &status);
+
+	switch (status) {
+	case ADD_STA_SUCCESS:
+		IWL_DEBUG_WEP(mvm, "MODIFY_STA: remove sta key passed\n");
+		break;
+	default:
+		ret = -EIO;
+		IWL_ERR(mvm, "MODIFY_STA: remove sta key failed\n");
+		break;
+	}
+
+	return ret;
+}
+
 int iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 			struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta,
 			struct ieee80211_key_conf *keyconf,
 			bool have_key_offset)
 {
-	struct iwl_mvm_sta *mvm_sta;
+	bool mcast = !(keyconf->flags & IEEE80211_KEY_FLAG_PAIRWISE);
+	u8 sta_id;
 	int ret;
-	u8 *addr, sta_id;
-	struct ieee80211_key_seq seq;
-	u16 p1k[5];
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -1234,8 +1407,7 @@ int iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 		}
 	}
 
-	mvm_sta = (struct iwl_mvm_sta *)sta->drv_priv;
-	if (WARN_ON_ONCE(mvm_sta->vif != vif))
+	if (WARN_ON_ONCE(iwl_mvm_sta_from_mac80211(sta)->vif != vif))
 		return -EINVAL;
 
 	if (!have_key_offset) {
@@ -1249,26 +1421,26 @@ int iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 			return -ENOSPC;
 	}
 
-	switch (keyconf->cipher) {
-	case WLAN_CIPHER_SUITE_TKIP:
-		addr = iwl_mvm_get_mac_addr(mvm, vif, sta);
-		/* get phase 1 key from mac80211 */
-		ieee80211_get_key_rx_seq(keyconf, 0, &seq);
-		ieee80211_get_tkip_rx_p1k(keyconf, addr, seq.tkip.iv32, p1k);
-		ret = iwl_mvm_send_sta_key(mvm, mvm_sta, keyconf, sta_id,
-					   seq.tkip.iv32, p1k, 0);
-		break;
-	case WLAN_CIPHER_SUITE_CCMP:
-		ret = iwl_mvm_send_sta_key(mvm, mvm_sta, keyconf, sta_id,
-					   0, NULL, 0);
-		break;
-	default:
-		ret = iwl_mvm_send_sta_key(mvm, mvm_sta, keyconf,
-					   sta_id, 0, NULL, 0);
+	ret = __iwl_mvm_set_sta_key(mvm, vif, sta, keyconf, mcast);
+	if (ret) {
+		__clear_bit(keyconf->hw_key_idx, mvm->fw_key_table);
+		goto end;
 	}
 
-	if (ret)
-		__clear_bit(keyconf->hw_key_idx, mvm->fw_key_table);
+	/*
+	 * For WEP, the same key is used for multicast and unicast. Upload it
+	 * again, using the same key offset, and now pointing the other one
+	 * to the same key slot (offset).
+	 * If this fails, remove the original as well.
+	 */
+	if (keyconf->cipher == WLAN_CIPHER_SUITE_WEP40 ||
+	    keyconf->cipher == WLAN_CIPHER_SUITE_WEP104) {
+		ret = __iwl_mvm_set_sta_key(mvm, vif, sta, keyconf, !mcast);
+		if (ret) {
+			__clear_bit(keyconf->hw_key_idx, mvm->fw_key_table);
+			__iwl_mvm_remove_sta_key(mvm, sta_id, keyconf, mcast);
+		}
+	}
 
 end:
 	IWL_DEBUG_WEP(mvm, "key: cipher=%x len=%d idx=%d sta=%pM ret=%d\n",
@@ -1282,11 +1454,9 @@ int iwl_mvm_remove_sta_key(struct iwl_mvm *mvm,
 			   struct ieee80211_sta *sta,
 			   struct ieee80211_key_conf *keyconf)
 {
-	struct iwl_mvm_sta *mvm_sta;
-	struct iwl_mvm_add_sta_key_cmd cmd = {};
-	__le16 key_flags;
-	int ret, status;
+	bool mcast = !(keyconf->flags & IEEE80211_KEY_FLAG_PAIRWISE);
 	u8 sta_id;
+	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -1299,8 +1469,7 @@ int iwl_mvm_remove_sta_key(struct iwl_mvm *mvm,
 	if (keyconf->cipher == WLAN_CIPHER_SUITE_AES_CMAC)
 		return iwl_mvm_send_sta_igtk(mvm, keyconf, sta_id, true);
 
-	ret = __test_and_clear_bit(keyconf->hw_key_idx, mvm->fw_key_table);
-	if (!ret) {
+	if (!__test_and_clear_bit(keyconf->hw_key_idx, mvm->fw_key_table)) {
 		IWL_ERR(mvm, "offset %d not used in fw key table.\n",
 			keyconf->hw_key_idx);
 		return -ENOENT;
@@ -1326,35 +1495,17 @@ int iwl_mvm_remove_sta_key(struct iwl_mvm *mvm,
 		}
 	}
 
-	mvm_sta = (struct iwl_mvm_sta *)sta->drv_priv;
-	if (WARN_ON_ONCE(mvm_sta->vif != vif))
+	if (WARN_ON_ONCE(iwl_mvm_sta_from_mac80211(sta)->vif != vif))
 		return -EINVAL;
 
-	key_flags = cpu_to_le16((keyconf->keyidx << STA_KEY_FLG_KEYID_POS) &
-				 STA_KEY_FLG_KEYID_MSK);
-	key_flags |= cpu_to_le16(STA_KEY_FLG_NO_ENC | STA_KEY_FLG_WEP_KEY_MAP);
-	key_flags |= cpu_to_le16(STA_KEY_NOT_VALID);
+	ret = __iwl_mvm_remove_sta_key(mvm, sta_id, keyconf, mcast);
+	if (ret)
+		return ret;
 
-	if (!(keyconf->flags & IEEE80211_KEY_FLAG_PAIRWISE))
-		key_flags |= cpu_to_le16(STA_KEY_MULTICAST);
-
-	cmd.key_flags = key_flags;
-	cmd.key_offset = keyconf->hw_key_idx;
-	cmd.sta_id = sta_id;
-
-	status = ADD_STA_SUCCESS;
-	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA_KEY, sizeof(cmd),
-					  &cmd, &status);
-
-	switch (status) {
-	case ADD_STA_SUCCESS:
-		IWL_DEBUG_WEP(mvm, "MODIFY_STA: remove sta key passed\n");
-		break;
-	default:
-		ret = -EIO;
-		IWL_ERR(mvm, "MODIFY_STA: remove sta key failed\n");
-		break;
-	}
+	/* delete WEP key twice to get rid of (now useless) offset */
+	if (keyconf->cipher == WLAN_CIPHER_SUITE_WEP40 ||
+	    keyconf->cipher == WLAN_CIPHER_SUITE_WEP104)
+		ret = __iwl_mvm_remove_sta_key(mvm, sta_id, keyconf, !mcast);
 
 	return ret;
 }
@@ -1367,6 +1518,7 @@ void iwl_mvm_update_tkip_key(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_sta *mvm_sta;
 	u8 sta_id = iwl_mvm_get_key_sta_id(vif, sta);
+	bool mcast = !(keyconf->flags & IEEE80211_KEY_FLAG_PAIRWISE);
 
 	if (WARN_ON_ONCE(sta_id == IWL_MVM_STATION_COUNT))
 		return;
@@ -1381,8 +1533,8 @@ void iwl_mvm_update_tkip_key(struct iwl_mvm *mvm,
 		}
 	}
 
-	mvm_sta = (void *)sta->drv_priv;
-	iwl_mvm_send_sta_key(mvm, mvm_sta, keyconf, sta_id,
+	mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+	iwl_mvm_send_sta_key(mvm, mvm_sta, keyconf, mcast,
 			     iv32, phase1key, CMD_ASYNC);
 	rcu_read_unlock();
 }
@@ -1579,4 +1731,19 @@ void iwl_mvm_modify_all_sta_disable_tx(struct iwl_mvm *mvm,
 
 		iwl_mvm_sta_modify_disable_tx_ap(mvm, sta, disable);
 	}
+}
+
+void iwl_mvm_csa_client_absent(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_sta *mvmsta;
+
+	rcu_read_lock();
+
+	mvmsta = iwl_mvm_sta_from_staid_rcu(mvm, mvmvif->ap_sta_id);
+
+	if (!WARN_ON(!mvmsta))
+		iwl_mvm_sta_modify_disable_tx(mvm, mvmsta, true);
+
+	rcu_read_unlock();
 }

@@ -234,7 +234,7 @@ nv84_fence_create(struct nouveau_drm *drm)
 	ret = nouveau_bo_new(drm->dev, 16 * priv->base.contexts, 0,
 			     TTM_PL_FLAG_VRAM, 0, 0, NULL, NULL, &priv->bo);
 	if (ret == 0) {
-		ret = nouveau_bo_pin(priv->bo, TTM_PL_FLAG_VRAM);
+		ret = nouveau_bo_pin(priv->bo, TTM_PL_FLAG_VRAM, false);
 		if (ret == 0) {
 			ret = nouveau_bo_map(priv->bo);
 			if (ret)
@@ -246,10 +246,10 @@ nv84_fence_create(struct nouveau_drm *drm)
 
 	if (ret == 0)
 		ret = nouveau_bo_new(drm->dev, 16 * priv->base.contexts, 0,
-				     TTM_PL_FLAG_TT, 0, 0, NULL, NULL,
-				     &priv->bo_gart);
+				     TTM_PL_FLAG_TT | TTM_PL_FLAG_UNCACHED, 0,
+				     0, NULL, NULL, &priv->bo_gart);
 	if (ret == 0) {
-		ret = nouveau_bo_pin(priv->bo_gart, TTM_PL_FLAG_TT);
+		ret = nouveau_bo_pin(priv->bo_gart, TTM_PL_FLAG_TT, false);
 		if (ret == 0) {
 			ret = nouveau_bo_map(priv->bo_gart);
 			if (ret)

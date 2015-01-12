@@ -430,7 +430,7 @@ static int sdhci_acpi_resume(struct device *dev)
 
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 
 static int sdhci_acpi_runtime_suspend(struct device *dev)
 {
@@ -463,7 +463,6 @@ static const struct dev_pm_ops sdhci_acpi_pm_ops = {
 static struct platform_driver sdhci_acpi_driver = {
 	.driver = {
 		.name			= "sdhci-acpi",
-		.owner			= THIS_MODULE,
 		.acpi_match_table	= sdhci_acpi_ids,
 		.pm			= &sdhci_acpi_pm_ops,
 	},

@@ -42,7 +42,7 @@ dcb_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 
 	*ver = nv_ro08(bios, dcb);
 
-	if (*ver >= 0x41) {
+	if (*ver >= 0x42) {
 		nv_warn(bios, "DCB version 0x%02x unknown\n", *ver);
 		return 0x0000;
 	} else
@@ -157,17 +157,20 @@ dcb_outp_parse(struct nouveau_bios *bios, u8 idx, u8 *ver, u8 *len,
 					break;
 				}
 
-				switch (conf & 0x0f000000) {
-				case 0x0f000000:
-					outp->dpconf.link_nr = 4;
-					break;
-				case 0x03000000:
-					outp->dpconf.link_nr = 2;
-					break;
-				case 0x01000000:
-				default:
-					outp->dpconf.link_nr = 1;
-					break;
+				outp->dpconf.link_nr = (conf & 0x0f000000) >> 24;
+				if (*ver < 0x41) {
+					switch (outp->dpconf.link_nr) {
+					case 0x0f:
+						outp->dpconf.link_nr = 4;
+						break;
+					case 0x03:
+						outp->dpconf.link_nr = 2;
+						break;
+					case 0x01:
+					default:
+						outp->dpconf.link_nr = 1;
+						break;
+					}
 				}
 
 				/* fall-through... */

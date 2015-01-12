@@ -173,7 +173,7 @@ static bool set_baseband_agc_config(struct adapter *adapt)
 		u32 v1 = array[i];
 		u32 v2 = array[i+1];
 
-		if (v1 < 0xCDCDCDCD){
+		if (v1 < 0xCDCDCDCD) {
 			phy_set_bb_reg(adapt, v1, bMaskDWord, v2);
 			udelay(1);
 		}
@@ -552,7 +552,7 @@ static void store_pwrindex_offset(struct adapter *Adapter, u32 regaddr, u32 bitm
 	}
 }
 
-static void rtl_addr_delay(struct adapter *adapt, u32 addr, u32 bit_mask ,u32 data)
+static void rtl_addr_delay(struct adapter *adapt, u32 addr, u32 bit_mask, u32 data)
 {
 	if (addr == 0xfe) {
 		msleep(50);

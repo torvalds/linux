@@ -23,6 +23,8 @@
 #include <xen/features.h>
 #include <xen/events.h>
 #include <asm/xen/pci.h>
+#include <asm/xen/cpuid.h>
+#include <asm/apic.h>
 #include <asm/i8259.h>
 
 static int xen_pcifront_enable_irq(struct pci_dev *dev)
@@ -423,6 +425,28 @@ int __init pci_xen_init(void)
 	return 0;
 }
 
+#ifdef CONFIG_PCI_MSI
+void __init xen_msi_init(void)
+{
+	if (!disable_apic) {
+		/*
+		 * If hardware supports (x2)APIC virtualization (as indicated
+		 * by hypervisor's leaf 4) then we don't need to use pirqs/
+		 * event channels for MSI handling and instead use regular
+		 * APIC processing
+		 */
+		uint32_t eax = cpuid_eax(xen_cpuid_base() + 4);
+
+		if (((eax & XEN_HVM_CPUID_X2APIC_VIRT) && x2apic_mode) ||
+		    ((eax & XEN_HVM_CPUID_APIC_ACCESS_VIRT) && cpu_has_apic))
+			return;
+	}
+
+	x86_msi.setup_msi_irqs = xen_hvm_setup_msi_irqs;
+	x86_msi.teardown_msi_irq = xen_teardown_msi_irq;
+}
+#endif
+
 int __init pci_xen_hvm_init(void)
 {
 	if (!xen_have_vector_callback || !xen_feature(XENFEAT_hvm_pirqs))
@@ -437,8 +461,11 @@ int __init pci_xen_hvm_init(void)
 #endif
 
 #ifdef CONFIG_PCI_MSI
-	x86_msi.setup_msi_irqs = xen_hvm_setup_msi_irqs;
-	x86_msi.teardown_msi_irq = xen_teardown_msi_irq;
+	/*
+	 * We need to wait until after x2apic is initialized
+	 * before we can set MSI IRQ ops.
+	 */
+	x86_platform.apic_post_init = xen_msi_init;
 #endif
 	return 0;
 }

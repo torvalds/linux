@@ -1222,11 +1222,12 @@ out_err:
 }
 EXPORT_SYMBOL(ldc_alloc);
 
-void ldc_free(struct ldc_channel *lp)
+void ldc_unbind(struct ldc_channel *lp)
 {
 	if (lp->flags & LDC_FLAG_REGISTERED_IRQS) {
 		free_irq(lp->cfg.rx_irq, lp);
 		free_irq(lp->cfg.tx_irq, lp);
+		lp->flags &= ~LDC_FLAG_REGISTERED_IRQS;
 	}
 
 	if (lp->flags & LDC_FLAG_REGISTERED_QUEUES) {
@@ -1240,10 +1241,15 @@ void ldc_free(struct ldc_channel *lp)
 		lp->flags &= ~LDC_FLAG_ALLOCED_QUEUES;
 	}
 
+	ldc_set_state(lp, LDC_STATE_INIT);
+}
+EXPORT_SYMBOL(ldc_unbind);
+
+void ldc_free(struct ldc_channel *lp)
+{
+	ldc_unbind(lp);
 	hlist_del(&lp->list);
-
 	kfree(lp->mssbuf);
-
 	ldc_iommu_release(lp);
 
 	kfree(lp);

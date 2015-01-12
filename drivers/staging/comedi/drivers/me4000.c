@@ -44,8 +44,6 @@ broken.
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/list.h>
-#include <linux/spinlock.h>
 
 #include "../comedidev.h"
 
@@ -53,10 +51,7 @@ broken.
 #include "8253.h"
 #include "plx9052.h"
 
-#if 0
-/* file removed due to GPL incompatibility */
-#include "me4000_fw.h"
-#endif
+#define ME4000_FIRMWARE		"me4000_firmware.bin"
 
 /*
  * ME4000 Register map and bit defines
@@ -333,26 +328,19 @@ static const struct comedi_lrange me4000_ai_range = {
 	}
 };
 
-#define FIRMWARE_NOT_AVAILABLE 1
-#if FIRMWARE_NOT_AVAILABLE
-extern unsigned char *xilinx_firm;
-#endif
-
-static int xilinx_download(struct comedi_device *dev)
+static int me4000_xilinx_download(struct comedi_device *dev,
+				  const u8 *data, size_t size,
+				  unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct me4000_info *info = dev->private;
 	unsigned long xilinx_iobase = pci_resource_start(pcidev, 5);
-	u32 value = 0;
-	wait_queue_head_t queue;
-	int idx = 0;
-	int size = 0;
-	unsigned int intcsr;
+	unsigned int file_length;
+	unsigned int val;
+	unsigned int i;
 
 	if (!xilinx_iobase)
 		return -ENODEV;
-
-	init_waitqueue_head(&queue);
 
 	/*
 	 * Set PLX local interrupt 2 polarity to high.
@@ -361,61 +349,58 @@ static int xilinx_download(struct comedi_device *dev)
 	outl(PLX9052_INTCSR_LI2POL, info->plx_regbase + PLX9052_INTCSR);
 
 	/* Set /CS and /WRITE of the Xilinx */
-	value = inl(info->plx_regbase + PLX9052_CNTRL);
-	value |= PLX9052_CNTRL_UIO2_DATA;
-	outl(value, info->plx_regbase + PLX9052_CNTRL);
+	val = inl(info->plx_regbase + PLX9052_CNTRL);
+	val |= PLX9052_CNTRL_UIO2_DATA;
+	outl(val, info->plx_regbase + PLX9052_CNTRL);
 
 	/* Init Xilinx with CS1 */
 	inb(xilinx_iobase + 0xC8);
 
 	/* Wait until /INIT pin is set */
 	udelay(20);
-	intcsr = inl(info->plx_regbase + PLX9052_INTCSR);
-	if (!(intcsr & PLX9052_INTCSR_LI2STAT)) {
+	val = inl(info->plx_regbase + PLX9052_INTCSR);
+	if (!(val & PLX9052_INTCSR_LI2STAT)) {
 		dev_err(dev->class_dev, "Can't init Xilinx\n");
 		return -EIO;
 	}
 
 	/* Reset /CS and /WRITE of the Xilinx */
-	value = inl(info->plx_regbase + PLX9052_CNTRL);
-	value &= ~PLX9052_CNTRL_UIO2_DATA;
-	outl(value, info->plx_regbase + PLX9052_CNTRL);
-	if (FIRMWARE_NOT_AVAILABLE) {
-		dev_err(dev->class_dev,
-			"xilinx firmware unavailable due to licensing, aborting");
-		return -EIO;
-	} else {
-		/* Download Xilinx firmware */
-		size = (xilinx_firm[0] << 24) + (xilinx_firm[1] << 16) +
-		    (xilinx_firm[2] << 8) + xilinx_firm[3];
+	val = inl(info->plx_regbase + PLX9052_CNTRL);
+	val &= ~PLX9052_CNTRL_UIO2_DATA;
+	outl(val, info->plx_regbase + PLX9052_CNTRL);
+
+	/* Download Xilinx firmware */
+	file_length = (((unsigned int)data[0] & 0xff) << 24) +
+		      (((unsigned int)data[1] & 0xff) << 16) +
+		      (((unsigned int)data[2] & 0xff) << 8) +
+		      ((unsigned int)data[3] & 0xff);
+	udelay(10);
+
+	for (i = 0; i < file_length; i++) {
+		outb(data[16 + i], xilinx_iobase);
 		udelay(10);
 
-		for (idx = 0; idx < size; idx++) {
-			outb(xilinx_firm[16 + idx], xilinx_iobase);
-			udelay(10);
-
-			/* Check if BUSY flag is low */
-			if (inl(info->plx_regbase + PLX9052_CNTRL) & PLX9052_CNTRL_UIO1_DATA) {
-				dev_err(dev->class_dev,
-					"Xilinx is still busy (idx = %d)\n",
-					idx);
-				return -EIO;
-			}
+		/* Check if BUSY flag is low */
+		val = inl(info->plx_regbase + PLX9052_CNTRL);
+		if (val & PLX9052_CNTRL_UIO1_DATA) {
+			dev_err(dev->class_dev,
+				"Xilinx is still busy (i = %d)\n", i);
+			return -EIO;
 		}
 	}
 
 	/* If done flag is high download was successful */
-	if (inl(info->plx_regbase + PLX9052_CNTRL) & PLX9052_CNTRL_UIO0_DATA) {
-	} else {
+	val = inl(info->plx_regbase + PLX9052_CNTRL);
+	if (!(val & PLX9052_CNTRL_UIO0_DATA)) {
 		dev_err(dev->class_dev, "DONE flag is not set\n");
 		dev_err(dev->class_dev, "Download not successful\n");
 		return -EIO;
 	}
 
 	/* Set /CS and /WRITE */
-	value = inl(info->plx_regbase + PLX9052_CNTRL);
-	value |= PLX9052_CNTRL_UIO2_DATA;
-	outl(value, info->plx_regbase + PLX9052_CNTRL);
+	val = inl(info->plx_regbase + PLX9052_CNTRL);
+	val |= PLX9052_CNTRL_UIO2_DATA;
+	outl(val, info->plx_regbase + PLX9052_CNTRL);
 
 	return 0;
 }
@@ -431,7 +416,7 @@ static void me4000_reset(struct comedi_device *dev)
 	val |= PLX9052_CNTRL_PCI_RESET;
 	outl(val, info->plx_regbase + PLX9052_CNTRL);
 	val &= ~PLX9052_CNTRL_PCI_RESET;
-	outl(val , info->plx_regbase + PLX9052_CNTRL);
+	outl(val, info->plx_regbase + PLX9052_CNTRL);
 
 	/* 0x8000 to the DACs means an output voltage of 0V */
 	for (chan = 0; chan < 4; chan++)
@@ -848,9 +833,6 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	unsigned int scan_ticks;
 	int err = 0;
 
-	/* Only rounding flags are implemented */
-	cmd->flags &= CMDF_ROUND_NEAREST | CMDF_ROUND_UP | CMDF_ROUND_DOWN;
-
 	/* Round the timer arguments */
 	ai_round_cmd_args(dev, s, cmd, &init_ticks, &scan_ticks, &chan_ticks);
 
@@ -1092,8 +1074,6 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 		} else if ((tmp & ME4000_AI_STATUS_BIT_FF_DATA)
 			   && !(tmp & ME4000_AI_STATUS_BIT_HF_DATA)
 			   && (tmp & ME4000_AI_STATUS_BIT_EF_DATA)) {
-			s->async->events |= COMEDI_CB_BLOCK;
-
 			c = ME4000_AI_FIFO_COUNT / 2;
 		} else {
 			dev_err(dev->class_dev,
@@ -1119,7 +1099,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 			lval = inl(dev->iobase + ME4000_AI_DATA_REG) & 0xFFFF;
 			lval ^= 0x8000;
 
-			if (!comedi_buf_put(s, lval)) {
+			if (!comedi_buf_write_samples(s, &lval, 1)) {
 				/*
 				 * Buffer overflow, so stop conversion
 				 * and disable all interrupts
@@ -1128,11 +1108,6 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 				tmp &= ~(ME4000_AI_CTRL_BIT_HF_IRQ |
 					 ME4000_AI_CTRL_BIT_SC_IRQ);
 				outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
-
-				s->async->events |= COMEDI_CB_OVERFLOW;
-
-				dev_err(dev->class_dev, "Buffer overflow\n");
-
 				break;
 			}
 		}
@@ -1146,7 +1121,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 
 	if (inl(dev->iobase + ME4000_IRQ_STATUS_REG) &
 	    ME4000_IRQ_STATUS_BIT_SC) {
-		s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOA;
+		s->async->events |= COMEDI_CB_EOA;
 
 		/*
 		 * Acquisition is complete, so stop
@@ -1164,11 +1139,8 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 			lval = inl(dev->iobase + ME4000_AI_DATA_REG) & 0xFFFF;
 			lval ^= 0x8000;
 
-			if (!comedi_buf_put(s, lval)) {
-				dev_err(dev->class_dev, "Buffer overflow\n");
-				s->async->events |= COMEDI_CB_OVERFLOW;
+			if (!comedi_buf_write_samples(s, &lval, 1))
 				break;
-			}
 		}
 
 		/* Work is done, so reset the interrupt */
@@ -1178,8 +1150,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 		outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
 	}
 
-	if (s->async->events)
-		comedi_event(dev, s);
+	comedi_handle_events(dev, s);
 
 	return IRQ_HANDLED;
 }
@@ -1397,8 +1368,9 @@ static int me4000_auto_attach(struct comedi_device *dev,
 	if (!info->plx_regbase || !dev->iobase || !info->timer_regbase)
 		return -ENODEV;
 
-	result = xilinx_download(dev);
-	if (result)
+	result = comedi_load_firmware(dev, &pcidev->dev, ME4000_FIRMWARE,
+				      me4000_xilinx_download, 0);
+	if (result < 0)
 		return result;
 
 	me4000_reset(dev);
@@ -1449,12 +1421,11 @@ static int me4000_auto_attach(struct comedi_device *dev,
 
 	if (thisboard->ao_nchan) {
 		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITEABLE | SDF_COMMON | SDF_GROUND;
+		s->subdev_flags = SDF_WRITABLE | SDF_COMMON | SDF_GROUND;
 		s->n_chan = thisboard->ao_nchan;
 		s->maxdata = 0xFFFF;	/*  16 bit DAC */
 		s->range_table = &range_bipolar10;
 		s->insn_write = me4000_ao_insn_write;
-		s->insn_read = comedi_readback_insn_read;
 
 		result = comedi_alloc_subdev_readback(s);
 		if (result)
@@ -1561,3 +1532,4 @@ module_comedi_pci_driver(me4000_driver, me4000_pci_driver);
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(ME4000_FIRMWARE);

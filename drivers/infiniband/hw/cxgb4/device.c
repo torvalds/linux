@@ -670,7 +670,7 @@ static int ep_open(struct inode *inode, struct file *file)
 	idr_for_each(&epd->devp->stid_idr, count_idrs, &count);
 	spin_unlock_irq(&epd->devp->lock);
 
-	epd->bufsize = count * 160;
+	epd->bufsize = count * 240;
 	epd->buf = vmalloc(epd->bufsize);
 	if (!epd->buf) {
 		ret = -ENOMEM;

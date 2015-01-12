@@ -214,6 +214,20 @@ config NAU7802
 	  To compile this driver as a module, choose M here: the
 	  module will be called nau7802.
 
+config QCOM_SPMI_IADC
+	tristate "Qualcomm SPMI PMIC current ADC"
+	depends on SPMI
+	select REGMAP_SPMI
+	help
+	  This is the IIO Current ADC driver for Qualcomm QPNP IADC Chip.
+
+	  The driver supports single mode operation to read from one of two
+	  channels (external or internal). Hardware have additional
+	  channels internally used for gain and offset calibration.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called qcom-spmi-iadc.
+
 config ROCKCHIP_SARADC
 	tristate "Rockchip SARADC driver"
 	depends on ARCH_ROCKCHIP || (ARM && COMPILE_TEST)

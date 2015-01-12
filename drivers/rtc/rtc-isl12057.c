@@ -41,6 +41,7 @@
 #define ISL12057_REG_RTC_DW	0x03	/* Day of the Week */
 #define ISL12057_REG_RTC_DT	0x04	/* Date */
 #define ISL12057_REG_RTC_MO	0x05	/* Month */
+#define ISL12057_REG_RTC_MO_CEN	BIT(7)	/* Century bit */
 #define ISL12057_REG_RTC_YR	0x06	/* Year */
 #define ISL12057_RTC_SEC_LEN	7
 
@@ -88,7 +89,7 @@ static void isl12057_rtc_regs_to_tm(struct rtc_time *tm, u8 *regs)
 	tm->tm_min = bcd2bin(regs[ISL12057_REG_RTC_MN]);
 
 	if (regs[ISL12057_REG_RTC_HR] & ISL12057_REG_RTC_HR_MIL) { /* AM/PM */
-		tm->tm_hour = bcd2bin(regs[ISL12057_REG_RTC_HR] & 0x0f);
+		tm->tm_hour = bcd2bin(regs[ISL12057_REG_RTC_HR] & 0x1f);
 		if (regs[ISL12057_REG_RTC_HR] & ISL12057_REG_RTC_HR_PM)
 			tm->tm_hour += 12;
 	} else {					    /* 24 hour mode */
@@ -97,26 +98,37 @@ static void isl12057_rtc_regs_to_tm(struct rtc_time *tm, u8 *regs)
 
 	tm->tm_mday = bcd2bin(regs[ISL12057_REG_RTC_DT]);
 	tm->tm_wday = bcd2bin(regs[ISL12057_REG_RTC_DW]) - 1; /* starts at 1 */
-	tm->tm_mon  = bcd2bin(regs[ISL12057_REG_RTC_MO]) - 1; /* starts at 1 */
+	tm->tm_mon  = bcd2bin(regs[ISL12057_REG_RTC_MO] & 0x1f) - 1; /* ditto */
 	tm->tm_year = bcd2bin(regs[ISL12057_REG_RTC_YR]) + 100;
+
+	/* Check if years register has overflown from 99 to 00 */
+	if (regs[ISL12057_REG_RTC_MO] & ISL12057_REG_RTC_MO_CEN)
+		tm->tm_year += 100;
 }
 
 static int isl12057_rtc_tm_to_regs(u8 *regs, struct rtc_time *tm)
 {
+	u8 century_bit;
+
 	/*
 	 * The clock has an 8 bit wide bcd-coded register for the year.
+	 * It also has a century bit encoded in MO flag which provides
+	 * information about overflow of year register from 99 to 00.
 	 * tm_year is an offset from 1900 and we are interested in the
-	 * 2000-2099 range, so any value less than 100 is invalid.
+	 * 2000-2199 range, so any value less than 100 or larger than
+	 * 299 is invalid.
 	 */
-	if (tm->tm_year < 100)
+	if (tm->tm_year < 100 || tm->tm_year > 299)
 		return -EINVAL;
+
+	century_bit = (tm->tm_year > 199) ? ISL12057_REG_RTC_MO_CEN : 0;
 
 	regs[ISL12057_REG_RTC_SC] = bin2bcd(tm->tm_sec);
 	regs[ISL12057_REG_RTC_MN] = bin2bcd(tm->tm_min);
 	regs[ISL12057_REG_RTC_HR] = bin2bcd(tm->tm_hour); /* 24-hour format */
 	regs[ISL12057_REG_RTC_DT] = bin2bcd(tm->tm_mday);
-	regs[ISL12057_REG_RTC_MO] = bin2bcd(tm->tm_mon + 1);
-	regs[ISL12057_REG_RTC_YR] = bin2bcd(tm->tm_year - 100);
+	regs[ISL12057_REG_RTC_MO] = bin2bcd(tm->tm_mon + 1) | century_bit;
+	regs[ISL12057_REG_RTC_YR] = bin2bcd(tm->tm_year % 100);
 	regs[ISL12057_REG_RTC_DW] = bin2bcd(tm->tm_wday + 1);
 
 	return 0;
@@ -152,17 +164,33 @@ static int isl12057_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct isl12057_rtc_data *data = dev_get_drvdata(dev);
 	u8 regs[ISL12057_RTC_SEC_LEN];
+	unsigned int sr;
 	int ret;
 
 	mutex_lock(&data->lock);
+	ret = regmap_read(data->regmap, ISL12057_REG_SR, &sr);
+	if (ret) {
+		dev_err(dev, "%s: unable to read oscillator status flag (%d)\n",
+			__func__, ret);
+		goto out;
+	} else {
+		if (sr & ISL12057_REG_SR_OSF) {
+			ret = -ENODATA;
+			goto out;
+		}
+	}
+
 	ret = regmap_bulk_read(data->regmap, ISL12057_REG_RTC_SC, regs,
 			       ISL12057_RTC_SEC_LEN);
+	if (ret)
+		dev_err(dev, "%s: unable to read RTC time section (%d)\n",
+			__func__, ret);
+
+out:
 	mutex_unlock(&data->lock);
 
-	if (ret) {
-		dev_err(dev, "%s: RTC read failed\n", __func__);
+	if (ret)
 		return ret;
-	}
 
 	isl12057_rtc_regs_to_tm(tm, regs);
 
@@ -182,10 +210,24 @@ static int isl12057_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	mutex_lock(&data->lock);
 	ret = regmap_bulk_write(data->regmap, ISL12057_REG_RTC_SC, regs,
 				ISL12057_RTC_SEC_LEN);
-	mutex_unlock(&data->lock);
+	if (ret) {
+		dev_err(dev, "%s: unable to write RTC time section (%d)\n",
+			__func__, ret);
+		goto out;
+	}
 
-	if (ret)
-		dev_err(dev, "%s: RTC write failed\n", __func__);
+	/*
+	 * Now that RTC time has been updated, let's clear oscillator
+	 * failure flag, if needed.
+	 */
+	ret = regmap_update_bits(data->regmap, ISL12057_REG_SR,
+				 ISL12057_REG_SR_OSF, 0);
+	if (ret < 0)
+		dev_err(dev, "%s: unable to clear osc. failure bit (%d)\n",
+			__func__, ret);
+
+out:
+	mutex_unlock(&data->lock);
 
 	return ret;
 }
@@ -203,15 +245,8 @@ static int isl12057_check_rtc_status(struct device *dev, struct regmap *regmap)
 	ret = regmap_update_bits(regmap, ISL12057_REG_INT,
 				 ISL12057_REG_INT_EOSC, 0);
 	if (ret < 0) {
-		dev_err(dev, "Unable to enable oscillator\n");
-		return ret;
-	}
-
-	/* Clear oscillator failure bit if needed */
-	ret = regmap_update_bits(regmap, ISL12057_REG_SR,
-				 ISL12057_REG_SR_OSF, 0);
-	if (ret < 0) {
-		dev_err(dev, "Unable to clear oscillator failure bit\n");
+		dev_err(dev, "%s: unable to enable oscillator (%d)\n",
+			__func__, ret);
 		return ret;
 	}
 
@@ -219,7 +254,8 @@ static int isl12057_check_rtc_status(struct device *dev, struct regmap *regmap)
 	ret = regmap_update_bits(regmap, ISL12057_REG_SR,
 				 ISL12057_REG_SR_A1F, 0);
 	if (ret < 0) {
-		dev_err(dev, "Unable to clear alarm bit\n");
+		dev_err(dev, "%s: unable to clear alarm bit (%d)\n",
+			__func__, ret);
 		return ret;
 	}
 
@@ -253,7 +289,8 @@ static int isl12057_probe(struct i2c_client *client,
 	regmap = devm_regmap_init_i2c(client, &isl12057_rtc_regmap_config);
 	if (IS_ERR(regmap)) {
 		ret = PTR_ERR(regmap);
-		dev_err(dev, "regmap allocation failed: %d\n", ret);
+		dev_err(dev, "%s: regmap allocation failed (%d)\n",
+			__func__, ret);
 		return ret;
 	}
 

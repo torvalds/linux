@@ -716,7 +716,6 @@ static struct platform_driver cpm_i2c_driver = {
 	.remove		= cpm_i2c_remove,
 	.driver = {
 		.name = "fsl-i2c-cpm",
-		.owner = THIS_MODULE,
 		.of_match_table = cpm_i2c_match,
 	},
 };

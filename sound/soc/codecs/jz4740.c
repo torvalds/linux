@@ -364,7 +364,6 @@ static struct platform_driver jz4740_codec_driver = {
 	.remove = jz4740_codec_remove,
 	.driver = {
 		.name = "jz4740-codec",
-		.owner = THIS_MODULE,
 	},
 };
 

@@ -3,6 +3,7 @@ sticompositor-y := \
 	sti_mixer.o \
 	sti_gdp.o \
 	sti_vid.o \
+	sti_cursor.o \
 	sti_compositor.o \
 	sti_drm_crtc.o \
 	sti_drm_plane.o
@@ -18,4 +19,5 @@ obj-$(CONFIG_DRM_STI) = \
 	sti_hda.o \
 	sti_tvout.o \
 	sticompositor.o \
+	sti_hqvdp.o \
 	sti_drm_drv.o

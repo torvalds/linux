@@ -1783,7 +1783,6 @@ static int ipu_remove(struct platform_device *pdev)
 static struct platform_driver ipu_platform_driver = {
 	.driver = {
 		.name	= "ipu-core",
-		.owner	= THIS_MODULE,
 	},
 	.remove		= ipu_remove,
 };

@@ -137,7 +137,11 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 		r = devm_request_mem_region(dev->dev, base + 1,
 					    dev_priv->gtt.stolen_size - 1,
 					    "Graphics Stolen Memory");
-		if (r == NULL) {
+		/*
+		 * GEN3 firmware likes to smash pci bridges into the stolen
+		 * range. Apparently this works.
+		 */
+		if (r == NULL && !IS_GEN3(dev)) {
 			DRM_ERROR("conflict detected with stolen region: [0x%08x - 0x%08x]\n",
 				  base, base + (uint32_t)dev_priv->gtt.stolen_size);
 			base = 0;
@@ -533,7 +537,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 		}
 	}
 
-	obj->has_global_gtt_mapping = 1;
+	vma->bound |= GLOBAL_BIND;
 
 	list_add_tail(&obj->global_list, &dev_priv->mm.bound_list);
 	list_add_tail(&vma->mm_list, &ggtt->inactive_list);

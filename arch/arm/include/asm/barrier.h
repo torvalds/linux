@@ -43,10 +43,14 @@
 #define mb()		do { dsb(); outer_sync(); } while (0)
 #define rmb()		dsb()
 #define wmb()		do { dsb(st); outer_sync(); } while (0)
+#define dma_rmb()	dmb(osh)
+#define dma_wmb()	dmb(oshst)
 #else
 #define mb()		barrier()
 #define rmb()		barrier()
 #define wmb()		barrier()
+#define dma_rmb()	barrier()
+#define dma_wmb()	barrier()
 #endif
 
 #ifndef CONFIG_SMP

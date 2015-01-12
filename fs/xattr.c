@@ -405,16 +405,14 @@ SYSCALL_DEFINE5(fsetxattr, int, fd, const char __user *, name,
 		const void __user *,value, size_t, size, int, flags)
 {
 	struct fd f = fdget(fd);
-	struct dentry *dentry;
 	int error = -EBADF;
 
 	if (!f.file)
 		return error;
-	dentry = f.file->f_path.dentry;
-	audit_inode(NULL, dentry, 0);
+	audit_file(f.file);
 	error = mnt_want_write_file(f.file);
 	if (!error) {
-		error = setxattr(dentry, name, value, size, flags);
+		error = setxattr(f.file->f_path.dentry, name, value, size, flags);
 		mnt_drop_write_file(f.file);
 	}
 	fdput(f);
@@ -509,7 +507,7 @@ SYSCALL_DEFINE4(fgetxattr, int, fd, const char __user *, name,
 
 	if (!f.file)
 		return error;
-	audit_inode(NULL, f.file->f_path.dentry, 0);
+	audit_file(f.file);
 	error = getxattr(f.file->f_path.dentry, name, value, size);
 	fdput(f);
 	return error;
@@ -590,7 +588,7 @@ SYSCALL_DEFINE3(flistxattr, int, fd, char __user *, list, size_t, size)
 
 	if (!f.file)
 		return error;
-	audit_inode(NULL, f.file->f_path.dentry, 0);
+	audit_file(f.file);
 	error = listxattr(f.file->f_path.dentry, list, size);
 	fdput(f);
 	return error;
@@ -651,16 +649,14 @@ SYSCALL_DEFINE2(lremovexattr, const char __user *, pathname,
 SYSCALL_DEFINE2(fremovexattr, int, fd, const char __user *, name)
 {
 	struct fd f = fdget(fd);
-	struct dentry *dentry;
 	int error = -EBADF;
 
 	if (!f.file)
 		return error;
-	dentry = f.file->f_path.dentry;
-	audit_inode(NULL, dentry, 0);
+	audit_file(f.file);
 	error = mnt_want_write_file(f.file);
 	if (!error) {
-		error = removexattr(dentry, name);
+		error = removexattr(f.file->f_path.dentry, name);
 		mnt_drop_write_file(f.file);
 	}
 	fdput(f);

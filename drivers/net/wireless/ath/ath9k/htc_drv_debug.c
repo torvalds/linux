@@ -490,6 +490,10 @@ void ath9k_htc_get_et_stats(struct ieee80211_hw *hw,
 	WARN_ON(i != ATH9K_HTC_SSTATS_LEN);
 }
 
+void ath9k_htc_deinit_debug(struct ath9k_htc_priv *priv)
+{
+	ath9k_cmn_spectral_deinit_debug(&priv->spec_priv);
+}
 
 int ath9k_htc_init_debug(struct ath_hw *ah)
 {
@@ -500,6 +504,8 @@ int ath9k_htc_init_debug(struct ath_hw *ah)
 					     priv->hw->wiphy->debugfsdir);
 	if (!priv->debug.debugfs_phy)
 		return -ENOMEM;
+
+	ath9k_cmn_spectral_init_debug(&priv->spec_priv, priv->debug.debugfs_phy);
 
 	debugfs_create_file("tgt_int_stats", S_IRUSR, priv->debug.debugfs_phy,
 			    priv, &fops_tgt_int_stats);

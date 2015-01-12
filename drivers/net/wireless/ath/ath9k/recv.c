@@ -870,7 +870,7 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	 */
 	if (rx_stats->rs_status & ATH9K_RXERR_PHY) {
 		ath9k_dfs_process_phyerr(sc, hdr, rx_stats, rx_status->mactime);
-		if (ath_process_fft(sc, hdr, rx_stats, rx_status->mactime))
+		if (ath_cmn_process_fft(&sc->spec_priv, hdr, rx_stats, rx_status->mactime))
 			RX_STAT_INC(rx_spectral);
 
 		return -EINVAL;

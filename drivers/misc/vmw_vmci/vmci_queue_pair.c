@@ -27,6 +27,7 @@
 #include <linux/uio.h>
 #include <linux/wait.h>
 #include <linux/vmalloc.h>
+#include <linux/skbuff.h>
 
 #include "vmci_handle_array.h"
 #include "vmci_queue_pair.h"
@@ -429,11 +430,11 @@ static int __qp_memcpy_from_queue(void *dest,
 			to_copy = size - bytes_copied;
 
 		if (is_iovec) {
-			struct iovec *iov = (struct iovec *)dest;
+			struct msghdr *msg = dest;
 			int err;
 
 			/* The iovec will track bytes_copied internally. */
-			err = memcpy_toiovec(iov, (u8 *)va + page_offset,
+			err = memcpy_to_msg(msg, (u8 *)va + page_offset,
 					     to_copy);
 			if (err != 0) {
 				if (kernel_if->host)
@@ -3264,13 +3265,13 @@ EXPORT_SYMBOL_GPL(vmci_qpair_enquev);
  * of bytes dequeued or < 0 on error.
  */
 ssize_t vmci_qpair_dequev(struct vmci_qp *qpair,
-			  void *iov,
+			  struct msghdr *msg,
 			  size_t iov_size,
 			  int buf_type)
 {
 	ssize_t result;
 
-	if (!qpair || !iov)
+	if (!qpair)
 		return VMCI_ERROR_INVALID_ARGS;
 
 	qp_lock(qpair);
@@ -3279,7 +3280,7 @@ ssize_t vmci_qpair_dequev(struct vmci_qp *qpair,
 		result = qp_dequeue_locked(qpair->produce_q,
 					   qpair->consume_q,
 					   qpair->consume_q_size,
-					   iov, iov_size,
+					   msg, iov_size,
 					   qp_memcpy_from_queue_iov,
 					   true);
 
@@ -3308,13 +3309,13 @@ EXPORT_SYMBOL_GPL(vmci_qpair_dequev);
  * of bytes peeked or < 0 on error.
  */
 ssize_t vmci_qpair_peekv(struct vmci_qp *qpair,
-			 void *iov,
+			 struct msghdr *msg,
 			 size_t iov_size,
 			 int buf_type)
 {
 	ssize_t result;
 
-	if (!qpair || !iov)
+	if (!qpair)
 		return VMCI_ERROR_INVALID_ARGS;
 
 	qp_lock(qpair);
@@ -3323,7 +3324,7 @@ ssize_t vmci_qpair_peekv(struct vmci_qp *qpair,
 		result = qp_dequeue_locked(qpair->produce_q,
 					   qpair->consume_q,
 					   qpair->consume_q_size,
-					   iov, iov_size,
+					   msg, iov_size,
 					   qp_memcpy_from_queue_iov,
 					   false);
 

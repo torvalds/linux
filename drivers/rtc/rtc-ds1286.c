@@ -356,7 +356,6 @@ static int ds1286_probe(struct platform_device *pdev)
 static struct platform_driver ds1286_platform_driver = {
 	.driver		= {
 		.name	= "rtc-ds1286",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ds1286_probe,
 };

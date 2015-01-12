@@ -334,8 +334,7 @@ static void ll_sa_entry_put(struct ll_statahead_info *sai,
 		LASSERT(ll_sa_entry_unhashed(entry));
 
 		ll_sa_entry_cleanup(sai, entry);
-		if (entry->se_inode)
-			iput(entry->se_inode);
+		iput(entry->se_inode);
 
 		OBD_FREE(entry, entry->se_size);
 		atomic_dec(&sai->sai_cache_count);
@@ -915,7 +914,7 @@ static int do_sa_revalidate(struct inode *dir, struct ll_sa_entry *entry,
 	return rc;
 }
 
-static void ll_statahead_one(struct dentry *parent, const char* entry_name,
+static void ll_statahead_one(struct dentry *parent, const char *entry_name,
 			     int entry_name_len)
 {
 	struct inode	     *dir    = parent->d_inode;
@@ -969,8 +968,8 @@ static int ll_agl_thread(void *arg)
 	struct l_wait_info	lwi    = { 0 };
 
 	thread->t_pid = current_pid();
-	CDEBUG(D_READA, "agl thread started: sai %p, parent %.*s\n",
-	       sai, parent->d_name.len, parent->d_name.name);
+	CDEBUG(D_READA, "agl thread started: sai %p, parent %pd\n",
+	       sai, parent);
 
 	atomic_inc(&sbi->ll_agl_total);
 	spin_lock(&plli->lli_agl_lock);
@@ -1019,8 +1018,8 @@ static int ll_agl_thread(void *arg)
 	spin_unlock(&plli->lli_agl_lock);
 	wake_up(&thread->t_ctl_waitq);
 	ll_sai_put(sai);
-	CDEBUG(D_READA, "agl thread stopped: sai %p, parent %.*s\n",
-	       sai, parent->d_name.len, parent->d_name.name);
+	CDEBUG(D_READA, "agl thread stopped: sai %p, parent %pd\n",
+	       sai, parent);
 	return 0;
 }
 
@@ -1031,8 +1030,8 @@ static void ll_start_agl(struct dentry *parent, struct ll_statahead_info *sai)
 	struct ll_inode_info  *plli;
 	struct task_struct *task;
 
-	CDEBUG(D_READA, "start agl thread: sai %p, parent %.*s\n",
-	       sai, parent->d_name.len, parent->d_name.name);
+	CDEBUG(D_READA, "start agl thread: sai %p, parent %pd\n",
+	       sai, parent);
 
 	plli = ll_i2info(parent->d_inode);
 	task = kthread_run(ll_agl_thread, parent,
@@ -1066,8 +1065,8 @@ static int ll_statahead_thread(void *arg)
 	struct l_wait_info	lwi    = { 0 };
 
 	thread->t_pid = current_pid();
-	CDEBUG(D_READA, "statahead thread starting: sai %p, parent %.*s\n",
-	       sai, parent->d_name.len, parent->d_name.name);
+	CDEBUG(D_READA, "statahead thread starting: sai %p, parent %pd\n",
+	       sai, parent);
 
 	if (sbi->ll_flags & LL_SBI_AGL_ENABLED)
 		ll_start_agl(parent, sai);
@@ -1288,8 +1287,8 @@ out:
 	wake_up(&thread->t_ctl_waitq);
 	ll_sai_put(sai);
 	dput(parent);
-	CDEBUG(D_READA, "statahead thread stopped: sai %p, parent %.*s\n",
-	       sai, parent->d_name.len, parent->d_name.name);
+	CDEBUG(D_READA, "statahead thread stopped: sai %p, parent %pd\n",
+	       sai, parent);
 	return rc;
 }
 
@@ -1491,10 +1490,7 @@ ll_sai_unplug(struct ll_statahead_info *sai, struct ll_sa_entry *entry)
 		sai->sai_consecutive_miss++;
 		if (sa_low_hit(sai) && thread_is_running(thread)) {
 			atomic_inc(&sbi->ll_sa_wrong);
-			CDEBUG(D_READA, "Statahead for dir "DFID" hit "
-			       "ratio too low: hit/miss %llu/%llu"
-			       ", sent/replied %llu/%llu, stopping "
-			       "statahead thread\n",
+			CDEBUG(D_READA, "Statahead for dir " DFID " hit ratio too low: hit/miss %llu/%llu, sent/replied %llu/%llu, stopping statahead thread\n",
 			       PFID(&lli->lli_fid), sai->sai_hit,
 			       sai->sai_miss, sai->sai_sent,
 			       sai->sai_replied);
@@ -1612,10 +1608,8 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 				} else if ((*dentryp)->d_inode != inode) {
 					/* revalidate, but inode is recreated */
 					CDEBUG(D_READA,
-					      "stale dentry %.*s inode %lu/%u, "
-					      "statahead inode %lu/%u\n",
-					      (*dentryp)->d_name.len,
-					      (*dentryp)->d_name.name,
+					      "stale dentry %pd inode %lu/%u, statahead inode %lu/%u\n",
+					      *dentryp,
 					      (*dentryp)->d_inode->i_ino,
 					      (*dentryp)->d_inode->i_generation,
 					      inode->i_ino,
@@ -1666,9 +1660,8 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 	if (unlikely(sai->sai_inode != parent->d_inode)) {
 		struct ll_inode_info *nlli = ll_i2info(parent->d_inode);
 
-		CWARN("Race condition, someone changed %.*s just now: "
-		      "old parent "DFID", new parent "DFID"\n",
-		      (*dentryp)->d_name.len, (*dentryp)->d_name.name,
+		CWARN("Race condition, someone changed %pd just now: old parent "DFID", new parent "DFID"\n",
+		      *dentryp,
 		      PFID(&lli->lli_fid), PFID(&nlli->lli_fid));
 		dput(parent);
 		iput(sai->sai_inode);
@@ -1676,8 +1669,8 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 		goto out;
 	}
 
-	CDEBUG(D_READA, "start statahead thread: sai %p, parent %.*s\n",
-	       sai, parent->d_name.len, parent->d_name.name);
+	CDEBUG(D_READA, "start statahead thread: sai %p, parent %pd\n",
+	       sai, parent);
 
 	/* The sai buffer already has one reference taken at allocation time,
 	 * but as soon as we expose the sai by attaching it to the lli that

@@ -65,14 +65,6 @@ config VIDEO_TIMBERDALE
 	---help---
 	  Add support for the Video In peripherial of the timberdale FPGA.
 
-config VIDEO_VINO
-	tristate "SGI Vino Video For Linux"
-	depends on I2C && SGI_IP22 && VIDEO_V4L2
-	select VIDEO_SAA7191 if MEDIA_SUBDRV_AUTOSELECT
-	help
-	  Say Y here to build in support for the Vino video input system found
-	  on SGI Indy machines.
-
 config VIDEO_M32R_AR
 	tristate "AR devices"
 	depends on VIDEO_V4L2
@@ -112,7 +104,7 @@ config VIDEO_OMAP3_DEBUG
 config VIDEO_S3C_CAMIF
 	tristate "Samsung S3C24XX/S3C64XX SoC Camera Interface driver"
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
-	depends on PM_RUNTIME
+	depends on PM
 	depends on ARCH_S3C64XX || PLAT_S3C24XX || COMPILE_TEST
 	depends on HAS_DMA
 	select VIDEOBUF2_DMA_CONTIG
@@ -267,8 +259,8 @@ if V4L_TEST_DRIVERS
 
 source "drivers/media/platform/vivid/Kconfig"
 
-config VIDEO_MEM2MEM_TESTDEV
-	tristate "Virtual test device for mem2mem framework"
+config VIDEO_VIM2M
+	tristate "Virtual Memory-to-Memory Driver"
 	depends on VIDEO_DEV && VIDEO_V4L2
 	select VIDEOBUF2_VMALLOC
 	select V4L2_MEM2MEM_DEV

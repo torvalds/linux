@@ -382,7 +382,6 @@ static struct platform_driver dw_wdt_driver = {
 	.remove		= dw_wdt_drv_remove,
 	.driver		= {
 		.name	= "dw_wdt",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(dw_wdt_of_match),
 		.pm	= &dw_wdt_pm_ops,
 	},

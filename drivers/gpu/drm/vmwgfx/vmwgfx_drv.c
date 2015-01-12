@@ -889,8 +889,7 @@ static int vmw_driver_unload(struct drm_device *dev)
 
 	if (dev_priv->ctx.res_ht_initialized)
 		drm_ht_remove(&dev_priv->ctx.res_ht);
-	if (dev_priv->ctx.cmd_bounce)
-		vfree(dev_priv->ctx.cmd_bounce);
+	vfree(dev_priv->ctx.cmd_bounce);
 	if (dev_priv->enable_fb) {
 		vmw_fb_close(dev_priv);
 		vmw_kms_restore_vga(dev_priv);
@@ -1063,8 +1062,12 @@ static long vmw_generic_ioctl(struct file *filp, unsigned int cmd,
 
 	vmaster = vmw_master_check(dev, file_priv, flags);
 	if (unlikely(IS_ERR(vmaster))) {
-		DRM_INFO("IOCTL ERROR %d\n", nr);
-		return PTR_ERR(vmaster);
+		ret = PTR_ERR(vmaster);
+
+		if (ret != -ERESTARTSYS)
+			DRM_INFO("IOCTL ERROR Command %d, Error %ld.\n",
+				 nr, ret);
+		return ret;
 	}
 
 	ret = ioctl_func(filp, cmd, arg);

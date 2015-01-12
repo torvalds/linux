@@ -22,6 +22,7 @@
 #include "exynos_drm_drv.h"
 
 struct exynos_dpi {
+	struct exynos_drm_display display;
 	struct device *dev;
 	struct device_node *panel_node;
 
@@ -34,6 +35,11 @@ struct exynos_dpi {
 };
 
 #define connector_to_dpi(c) container_of(c, struct exynos_dpi, connector)
+
+static inline struct exynos_dpi *display_to_dpi(struct exynos_drm_display *d)
+{
+	return container_of(d, struct exynos_dpi, display);
+}
 
 static enum drm_connector_status
 exynos_dpi_detect(struct drm_connector *connector, bool force)
@@ -100,7 +106,7 @@ static struct drm_connector_helper_funcs exynos_dpi_connector_helper_funcs = {
 static int exynos_dpi_create_connector(struct exynos_drm_display *display,
 				       struct drm_encoder *encoder)
 {
-	struct exynos_dpi *ctx = display->ctx;
+	struct exynos_dpi *ctx = display_to_dpi(display);
 	struct drm_connector *connector = &ctx->connector;
 	int ret;
 
@@ -141,7 +147,7 @@ static void exynos_dpi_poweroff(struct exynos_dpi *ctx)
 
 static void exynos_dpi_dpms(struct exynos_drm_display *display, int mode)
 {
-	struct exynos_dpi *ctx = display->ctx;
+	struct exynos_dpi *ctx = display_to_dpi(display);
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
@@ -163,11 +169,6 @@ static void exynos_dpi_dpms(struct exynos_drm_display *display, int mode)
 static struct exynos_drm_display_ops exynos_dpi_display_ops = {
 	.create_connector = exynos_dpi_create_connector,
 	.dpms = exynos_dpi_dpms
-};
-
-static struct exynos_drm_display exynos_dpi_display = {
-	.type = EXYNOS_DISPLAY_TYPE_LCD,
-	.ops = &exynos_dpi_display_ops,
 };
 
 /* of_* functions will be removed after merge of of_graph patches */
@@ -299,19 +300,20 @@ struct exynos_drm_display *exynos_dpi_probe(struct device *dev)
 	struct exynos_dpi *ctx;
 	int ret;
 
-	ret = exynos_drm_component_add(dev,
-					EXYNOS_DEVICE_TYPE_CONNECTOR,
-					exynos_dpi_display.type);
-	if (ret)
-		return ERR_PTR(ret);
-
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		goto err_del_component;
+		return ERR_PTR(-ENOMEM);
 
+	ctx->display.type = EXYNOS_DISPLAY_TYPE_LCD;
+	ctx->display.ops = &exynos_dpi_display_ops;
 	ctx->dev = dev;
-	exynos_dpi_display.ctx = ctx;
 	ctx->dpms_mode = DRM_MODE_DPMS_OFF;
+
+	ret = exynos_drm_component_add(dev,
+					EXYNOS_DEVICE_TYPE_CONNECTOR,
+					ctx->display.type);
+	if (ret)
+		return ERR_PTR(ret);
 
 	ret = exynos_dpi_parse_dt(ctx);
 	if (ret < 0) {
@@ -328,7 +330,7 @@ struct exynos_drm_display *exynos_dpi_probe(struct device *dev)
 		}
 	}
 
-	return &exynos_dpi_display;
+	return &ctx->display;
 
 err_del_component:
 	exynos_drm_component_del(dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
@@ -336,16 +338,16 @@ err_del_component:
 	return NULL;
 }
 
-int exynos_dpi_remove(struct device *dev)
+int exynos_dpi_remove(struct exynos_drm_display *display)
 {
-	struct exynos_dpi *ctx = exynos_dpi_display.ctx;
+	struct exynos_dpi *ctx = display_to_dpi(display);
 
-	exynos_dpi_dpms(&exynos_dpi_display, DRM_MODE_DPMS_OFF);
+	exynos_dpi_dpms(&ctx->display, DRM_MODE_DPMS_OFF);
 
 	if (ctx->panel)
 		drm_panel_detach(ctx->panel);
 
-	exynos_drm_component_del(dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
+	exynos_drm_component_del(ctx->dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
 
 	return 0;
 }

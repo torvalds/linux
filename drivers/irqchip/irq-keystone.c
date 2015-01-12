@@ -218,7 +218,6 @@ static struct platform_driver keystone_irq_device_driver = {
 	.remove		= keystone_irq_remove,
 	.driver		= {
 		.name	= "keystone_irq",
-		.owner	= THIS_MODULE,
 		.of_match_table	= of_match_ptr(keystone_irq_dt_ids),
 	}
 };

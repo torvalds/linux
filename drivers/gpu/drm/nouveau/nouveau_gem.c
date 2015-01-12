@@ -444,6 +444,9 @@ validate_list(struct nouveau_channel *chan, struct nouveau_cli *cli,
 	list_for_each_entry(nvbo, list, entry) {
 		struct drm_nouveau_gem_pushbuf_bo *b = &pbbo[nvbo->pbbo_index];
 
+		WARN_ONCE(nvbo->gem.dumb,
+			  "GPU use of dumb buffer is illegal.\n");
+
 		ret = nouveau_gem_set_domain(&nvbo->gem, b->read_domains,
 					     b->write_domains,
 					     b->valid_domains);
@@ -867,6 +870,7 @@ nouveau_gem_ioctl_cpu_prep(struct drm_device *dev, void *data,
 		else
 			ret = lret;
 	}
+	nouveau_bo_sync_for_cpu(nvbo);
 	drm_gem_object_unreference_unlocked(gem);
 
 	return ret;
@@ -876,6 +880,17 @@ int
 nouveau_gem_ioctl_cpu_fini(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv)
 {
+	struct drm_nouveau_gem_cpu_fini *req = data;
+	struct drm_gem_object *gem;
+	struct nouveau_bo *nvbo;
+
+	gem = drm_gem_object_lookup(dev, file_priv, req->handle);
+	if (!gem)
+		return -ENOENT;
+	nvbo = nouveau_gem_object(gem);
+
+	nouveau_bo_sync_for_device(nvbo);
+	drm_gem_object_unreference_unlocked(gem);
 	return 0;
 }
 

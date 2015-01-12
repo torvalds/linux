@@ -196,8 +196,8 @@ void radeon_atombios_i2c_init(struct radeon_device *rdev)
 	}
 }
 
-static struct radeon_gpio_rec radeon_lookup_gpio(struct radeon_device *rdev,
-						 u8 id)
+struct radeon_gpio_rec radeon_atombios_lookup_gpio(struct radeon_device *rdev,
+						   u8 id)
 {
 	struct atom_context *ctx = rdev->mode_info.atom_context;
 	struct radeon_gpio_rec gpio;
@@ -221,6 +221,7 @@ static struct radeon_gpio_rec radeon_lookup_gpio(struct radeon_device *rdev,
 			if (id == pin->ucGPIO_ID) {
 				gpio.id = pin->ucGPIO_ID;
 				gpio.reg = le16_to_cpu(pin->usGpioPin_AIndex) * 4;
+				gpio.shift = pin->ucGpioPinBitShift;
 				gpio.mask = (1 << pin->ucGpioPinBitShift);
 				gpio.valid = true;
 				break;
@@ -801,7 +802,7 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 								hpd_record =
 									(ATOM_HPD_INT_RECORD *)
 									record;
-								gpio = radeon_lookup_gpio(rdev,
+								gpio = radeon_atombios_lookup_gpio(rdev,
 											  hpd_record->ucHPDIntGPIOID);
 								hpd = radeon_atom_get_hpd_info_from_gpio(rdev, &gpio);
 								hpd.plugged_state = hpd_record->ucPlugged_PinState;
@@ -2128,7 +2129,7 @@ static int radeon_atombios_parse_power_table_1_3(struct radeon_device *rdev)
 				rdev->pm.power_state[state_index].clock_info[0].voltage.type =
 					VOLTAGE_GPIO;
 				rdev->pm.power_state[state_index].clock_info[0].voltage.gpio =
-					radeon_lookup_gpio(rdev,
+					radeon_atombios_lookup_gpio(rdev,
 							   power_info->info.asPowerPlayInfo[i].ucVoltageDropIndex);
 				if (misc & ATOM_PM_MISCINFO_VOLTAGE_DROP_ACTIVE_HIGH)
 					rdev->pm.power_state[state_index].clock_info[0].voltage.active_high =
@@ -2164,7 +2165,7 @@ static int radeon_atombios_parse_power_table_1_3(struct radeon_device *rdev)
 				rdev->pm.power_state[state_index].clock_info[0].voltage.type =
 					VOLTAGE_GPIO;
 				rdev->pm.power_state[state_index].clock_info[0].voltage.gpio =
-					radeon_lookup_gpio(rdev,
+					radeon_atombios_lookup_gpio(rdev,
 							   power_info->info_2.asPowerPlayInfo[i].ucVoltageDropIndex);
 				if (misc & ATOM_PM_MISCINFO_VOLTAGE_DROP_ACTIVE_HIGH)
 					rdev->pm.power_state[state_index].clock_info[0].voltage.active_high =
@@ -2200,7 +2201,7 @@ static int radeon_atombios_parse_power_table_1_3(struct radeon_device *rdev)
 				rdev->pm.power_state[state_index].clock_info[0].voltage.type =
 					VOLTAGE_GPIO;
 				rdev->pm.power_state[state_index].clock_info[0].voltage.gpio =
-					radeon_lookup_gpio(rdev,
+					radeon_atombios_lookup_gpio(rdev,
 							   power_info->info_3.asPowerPlayInfo[i].ucVoltageDropIndex);
 				if (misc & ATOM_PM_MISCINFO_VOLTAGE_DROP_ACTIVE_HIGH)
 					rdev->pm.power_state[state_index].clock_info[0].voltage.active_high =
@@ -2248,6 +2249,14 @@ static void radeon_atombios_add_pplib_thermal_controller(struct radeon_device *r
 
 	/* add the i2c bus for thermal/fan chip */
 	if (controller->ucType > 0) {
+		if (controller->ucFanParameters & ATOM_PP_FANPARAMETERS_NOFAN)
+			rdev->pm.no_fan = true;
+		rdev->pm.fan_pulses_per_revolution =
+			controller->ucFanParameters & ATOM_PP_FANPARAMETERS_TACHOMETER_PULSES_PER_REVOLUTION_MASK;
+		if (rdev->pm.fan_pulses_per_revolution) {
+			rdev->pm.fan_min_rpm = controller->ucFanMinRPM;
+			rdev->pm.fan_max_rpm = controller->ucFanMaxRPM;
+		}
 		if (controller->ucType == ATOM_PP_THERMALCONTROLLER_RV6xx) {
 			DRM_INFO("Internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &

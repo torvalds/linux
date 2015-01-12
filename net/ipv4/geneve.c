@@ -104,7 +104,7 @@ static void geneve_build_header(struct genevehdr *geneveh,
 	memcpy(geneveh->options, options, options_len);
 }
 
-/* Transmit a fully formated Geneve frame.
+/* Transmit a fully formatted Geneve frame.
  *
  * When calling this function. The skb->data should point
  * to the geneve header which is fully formed.
@@ -131,15 +131,9 @@ int geneve_xmit_skb(struct geneve_sock *gs, struct rtable *rt,
 	if (unlikely(err))
 		return err;
 
-	if (vlan_tx_tag_present(skb)) {
-		if (unlikely(!__vlan_put_tag(skb,
-					     skb->vlan_proto,
-					     vlan_tx_tag_get(skb)))) {
-			err = -ENOMEM;
-			return err;
-		}
-		skb->vlan_tci = 0;
-	}
+	skb = vlan_hwaccel_push_inside(skb);
+	if (unlikely(!skb))
+		return -ENOMEM;
 
 	gnvh = (struct genevehdr *)__skb_push(skb, sizeof(*gnvh) + opt_len);
 	geneve_build_header(gnvh, tun_flags, vni, opt_len, opt);
@@ -163,6 +157,15 @@ static void geneve_notify_add_rx_port(struct geneve_sock *gs)
 			pr_warn("geneve: udp_add_offload failed with status %d\n",
 				err);
 	}
+}
+
+static void geneve_notify_del_rx_port(struct geneve_sock *gs)
+{
+	struct sock *sk = gs->sock->sk;
+	sa_family_t sa_family = sk->sk_family;
+
+	if (sa_family == AF_INET)
+		udp_del_offload(&gs->udp_offloads);
 }
 
 /* Callback from net/ipv4/udp.c to receive packets */
@@ -293,6 +296,7 @@ struct geneve_sock *geneve_sock_add(struct net *net, __be16 port,
 				    geneve_rcv_t *rcv, void *data,
 				    bool no_share, bool ipv6)
 {
+	struct geneve_net *gn = net_generic(net, geneve_net_id);
 	struct geneve_sock *gs;
 
 	gs = geneve_socket_create(net, port, rcv, data, ipv6);
@@ -302,15 +306,15 @@ struct geneve_sock *geneve_sock_add(struct net *net, __be16 port,
 	if (no_share)	/* Return error if sharing is not allowed. */
 		return ERR_PTR(-EINVAL);
 
+	spin_lock(&gn->sock_lock);
 	gs = geneve_find_sock(net, port);
-	if (gs) {
-		if (gs->rcv == rcv)
-			atomic_inc(&gs->refcnt);
-		else
+	if (gs && ((gs->rcv != rcv) ||
+		   !atomic_add_unless(&gs->refcnt, 1, 0)))
 			gs = ERR_PTR(-EBUSY);
-	} else {
+	spin_unlock(&gn->sock_lock);
+
+	if (!gs)
 		gs = ERR_PTR(-EINVAL);
-	}
 
 	return gs;
 }
@@ -318,8 +322,16 @@ EXPORT_SYMBOL_GPL(geneve_sock_add);
 
 void geneve_sock_release(struct geneve_sock *gs)
 {
+	struct net *net = sock_net(gs->sock->sk);
+	struct geneve_net *gn = net_generic(net, geneve_net_id);
+
 	if (!atomic_dec_and_test(&gs->refcnt))
 		return;
+
+	spin_lock(&gn->sock_lock);
+	hlist_del_rcu(&gs->hlist);
+	geneve_notify_del_rx_port(gs);
+	spin_unlock(&gn->sock_lock);
 
 	queue_work(geneve_wq, &gs->del_work);
 }

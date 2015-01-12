@@ -20,9 +20,7 @@
 
 struct hdmi_phy_features {
 	bool bist_ctrl;
-	bool calc_freqout;
 	bool ldo_voltage;
-	unsigned long dcofreq_min;
 	unsigned long max_phy;
 };
 
@@ -132,7 +130,8 @@ static void hdmi_phy_configure_lanes(struct hdmi_phy_data *phy)
 	REG_FLD_MOD(phy->base, HDMI_TXPHY_PAD_CFG_CTRL, pol_val, 30, 27);
 }
 
-int hdmi_phy_configure(struct hdmi_phy_data *phy, struct hdmi_config *cfg)
+int hdmi_phy_configure(struct hdmi_phy_data *phy, unsigned long hfbitclk,
+	unsigned long lfbitclk)
 {
 	u8 freqout;
 
@@ -149,20 +148,16 @@ int hdmi_phy_configure(struct hdmi_phy_data *phy, struct hdmi_config *cfg)
 	if (phy_feat->bist_ctrl)
 		REG_FLD_MOD(phy->base, HDMI_TXPHY_BIST_CONTROL, 1, 11, 11);
 
-	if (phy_feat->calc_freqout) {
-		/* DCOCLK/10 is pixel clock, compare pclk with DCOCLK_MIN/10 */
-		u32 dco_min = phy_feat->dcofreq_min / 10;
-		u32 pclk = cfg->timings.pixelclock;
-
-		if (pclk < dco_min)
-			freqout = 0;
-		else if ((pclk >= dco_min) && (pclk < phy_feat->max_phy))
-			freqout = 1;
-		else
-			freqout = 2;
-	} else {
+	/*
+	 * If the hfbitclk != lfbitclk, it means the lfbitclk was configured
+	 * to be used for TMDS.
+	 */
+	if (hfbitclk != lfbitclk)
+		freqout = 0;
+	else if (hfbitclk / 10 < phy_feat->max_phy)
 		freqout = 1;
-	}
+	else
+		freqout = 2;
 
 	/*
 	 * Write to phy address 0 to configure the clock
@@ -184,17 +179,13 @@ int hdmi_phy_configure(struct hdmi_phy_data *phy, struct hdmi_config *cfg)
 
 static const struct hdmi_phy_features omap44xx_phy_feats = {
 	.bist_ctrl	=	false,
-	.calc_freqout	=	false,
 	.ldo_voltage	=	true,
-	.dcofreq_min	=	500000000,
 	.max_phy	=	185675000,
 };
 
 static const struct hdmi_phy_features omap54xx_phy_feats = {
 	.bist_ctrl	=	true,
-	.calc_freqout	=	true,
 	.ldo_voltage	=	false,
-	.dcofreq_min	=	750000000,
 	.max_phy	=	186000000,
 };
 

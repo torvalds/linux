@@ -122,7 +122,7 @@ SOF_TIMESTAMPING_RAW_HARDWARE:
 
 1.3.3 Timestamp Options
 
-The interface supports one option
+The interface supports the options
 
 SOF_TIMESTAMPING_OPT_ID:
 
@@ -130,19 +130,36 @@ SOF_TIMESTAMPING_OPT_ID:
   have multiple concurrent timestamping requests outstanding. Packets
   can be reordered in the transmit path, for instance in the packet
   scheduler. In that case timestamps will be queued onto the error
-  queue out of order from the original send() calls. This option
-  embeds a counter that is incremented at send() time, to order
-  timestamps within a flow.
+  queue out of order from the original send() calls. It is not always
+  possible to uniquely match timestamps to the original send() calls
+  based on timestamp order or payload inspection alone, then.
+
+  This option associates each packet at send() with a unique
+  identifier and returns that along with the timestamp. The identifier
+  is derived from a per-socket u32 counter (that wraps). For datagram
+  sockets, the counter increments with each sent packet. For stream
+  sockets, it increments with every byte.
+
+  The counter starts at zero. It is initialized the first time that
+  the socket option is enabled. It is reset each time the option is
+  enabled after having been disabled. Resetting the counter does not
+  change the identifiers of existing packets in the system.
 
   This option is implemented only for transmit timestamps. There, the
   timestamp is always looped along with a struct sock_extended_err.
   The option modifies field ee_data to pass an id that is unique
   among all possibly concurrently outstanding timestamp requests for
-  that socket. In practice, it is a monotonically increasing u32
-  (that wraps).
+  that socket.
 
-  In datagram sockets, the counter increments on each send call. In
-  stream sockets, it increments with every byte.
+
+SOF_TIMESTAMPING_OPT_CMSG:
+
+  Support recv() cmsg for all timestamped packets. Control messages
+  are already supported unconditionally on all packets with receive
+  timestamps and on IPv6 packets with transmit timestamp. This option
+  extends them to IPv4 packets with transmit timestamp. One use case
+  is to correlate packets with their egress device, by enabling socket
+  option IP_PKTINFO simultaneously.
 
 
 1.4 Bytestream Timestamps

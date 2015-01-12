@@ -238,7 +238,6 @@ static int multiq3_attach(struct comedi_device *dev,
 	s->maxdata = 0xfff;
 	s->range_table = &range_bipolar5;
 	s->insn_write = multiq3_ao_insn_write;
-	s->insn_read = comedi_readback_insn_read;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)

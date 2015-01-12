@@ -1380,7 +1380,6 @@ static int __exit cleanup_docg4(struct platform_device *pdev)
 static struct platform_driver docg4_driver = {
 	.driver		= {
 		.name	= "docg4",
-		.owner	= THIS_MODULE,
 	},
 	.suspend	= docg4_suspend,
 	.resume		= docg4_resume,

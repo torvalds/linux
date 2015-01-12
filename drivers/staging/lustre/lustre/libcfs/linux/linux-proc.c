@@ -365,8 +365,8 @@ static int __proc_cpt_table(void *data, int write,
 		if (rc >= 0)
 			break;
 
-		LIBCFS_FREE(buf, len);
 		if (rc == -EFBIG) {
+			LIBCFS_FREE(buf, len);
 			len <<= 1;
 			continue;
 		}

@@ -75,10 +75,12 @@ config MTD_NAND_DENALI_SCRATCH_REG_ADDR
           boards, the scratch register is at 0xFF108018.
 
 config MTD_NAND_GPIO
-	tristate "GPIO NAND Flash driver"
+	tristate "GPIO assisted NAND Flash driver"
 	depends on GPIOLIB
 	help
-	  This enables a GPIO based NAND flash driver.
+	  This enables a NAND flash driver where control signals are
+	  connected to GPIO pins, and commands and data are communicated
+	  via a memory mapped interface.
 
 config MTD_NAND_AMS_DELTA
 	tristate "NAND Flash device on Amstrad E3"
@@ -515,5 +517,11 @@ config MTD_NAND_XWAY
 	help
 	  Enables support for NAND Flash chips on Lantiq XWAY SoCs. NAND is attached
 	  to the External Bus Unit (EBU).
+
+config MTD_NAND_SUNXI
+	tristate "Support for NAND on Allwinner SoCs"
+	depends on ARCH_SUNXI
+	help
+	  Enables support for NAND Flash chips on Allwinner SoCs.
 
 endif # MTD_NAND

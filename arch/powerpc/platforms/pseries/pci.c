@@ -134,7 +134,7 @@ int pseries_root_bridge_prepare(struct pci_host_bridge *bridge)
 	of_node_put(pdn);
 
 	if (rc) {
-		pr_err("no ibm,pcie-link-speed-stats property\n");
+		pr_debug("no ibm,pcie-link-speed-stats property\n");
 		return 0;
 	}
 

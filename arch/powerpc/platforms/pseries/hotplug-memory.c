@@ -12,7 +12,6 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/memblock.h>
-#include <linux/vmalloc.h>
 #include <linux/memory.h>
 #include <linux/memory_hotplug.h>
 
@@ -66,22 +65,6 @@ unsigned long pseries_memory_block_size(void)
 }
 
 #ifdef CONFIG_MEMORY_HOTREMOVE
-static int pseries_remove_memory(u64 start, u64 size)
-{
-	int ret;
-
-	/* Remove htab bolted mappings for this section of memory */
-	start = (unsigned long)__va(start);
-	ret = remove_section_mapping(start, start + size);
-
-	/* Ensure all vmalloc mappings are flushed in case they also
-	 * hit that section of memory
-	 */
-	vm_unmap_aliases();
-
-	return ret;
-}
-
 static int pseries_remove_memblock(unsigned long base, unsigned int memblock_size)
 {
 	unsigned long block_sz, start_pfn;
@@ -183,7 +166,7 @@ static int pseries_add_mem_node(struct device_node *np)
 	return (ret < 0) ? -EINVAL : 0;
 }
 
-static int pseries_update_drconf_memory(struct of_prop_reconfig *pr)
+static int pseries_update_drconf_memory(struct of_reconfig_data *pr)
 {
 	struct of_drconf_cell *new_drmem, *old_drmem;
 	unsigned long memblock_size;
@@ -232,22 +215,21 @@ static int pseries_update_drconf_memory(struct of_prop_reconfig *pr)
 }
 
 static int pseries_memory_notifier(struct notifier_block *nb,
-				   unsigned long action, void *node)
+				   unsigned long action, void *data)
 {
-	struct of_prop_reconfig *pr;
+	struct of_reconfig_data *rd = data;
 	int err = 0;
 
 	switch (action) {
 	case OF_RECONFIG_ATTACH_NODE:
-		err = pseries_add_mem_node(node);
+		err = pseries_add_mem_node(rd->dn);
 		break;
 	case OF_RECONFIG_DETACH_NODE:
-		err = pseries_remove_mem_node(node);
+		err = pseries_remove_mem_node(rd->dn);
 		break;
 	case OF_RECONFIG_UPDATE_PROPERTY:
-		pr = (struct of_prop_reconfig *)node;
-		if (!strcmp(pr->prop->name, "ibm,dynamic-memory"))
-			err = pseries_update_drconf_memory(pr);
+		if (!strcmp(rd->prop->name, "ibm,dynamic-memory"))
+			err = pseries_update_drconf_memory(rd);
 		break;
 	}
 	return notifier_from_errno(err);
@@ -261,10 +243,6 @@ static int __init pseries_memory_hotplug_init(void)
 {
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		of_reconfig_notifier_register(&pseries_mem_nb);
-
-#ifdef CONFIG_MEMORY_HOTREMOVE
-	ppc_md.remove_memory = pseries_remove_memory;
-#endif
 
 	return 0;
 }

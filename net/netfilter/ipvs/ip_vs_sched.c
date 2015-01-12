@@ -104,8 +104,7 @@ static struct ip_vs_scheduler *ip_vs_sched_getbyname(const char *sched_name)
 			mutex_unlock(&ip_vs_sched_mutex);
 			return sched;
 		}
-		if (sched->module)
-			module_put(sched->module);
+		module_put(sched->module);
 	}
 
 	mutex_unlock(&ip_vs_sched_mutex);

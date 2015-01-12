@@ -165,7 +165,6 @@ int st_syscfg_remove(struct platform_device *pdev)
 static struct platform_driver st_syscfg_thermal_driver = {
 	.driver = {
 		.name	= "st_syscfg_thermal",
-		.owner  = THIS_MODULE,
 		.pm     = &st_thermal_pm_ops,
 		.of_match_table =  st_syscfg_thermal_of_match,
 	},
