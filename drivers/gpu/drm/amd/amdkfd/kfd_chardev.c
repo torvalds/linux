@@ -439,7 +439,7 @@ static long kfd_ioctl_set_memory_policy(struct file *filep,
 		(args.alternate_policy == KFD_IOC_CACHE_POLICY_COHERENT)
 		   ? cache_policy_coherent : cache_policy_noncoherent;
 
-	if (!dev->dqm->set_cache_memory_policy(dev->dqm,
+	if (!dev->dqm->ops.set_cache_memory_policy(dev->dqm,
 				&pdd->qpd,
 				default_policy,
 				alternate_policy,

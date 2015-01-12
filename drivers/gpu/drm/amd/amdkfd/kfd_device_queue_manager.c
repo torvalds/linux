@@ -271,7 +271,7 @@ static int create_compute_queue_nocpsch(struct device_queue_manager *dqm,
 
 	BUG_ON(!dqm || !q || !qpd);
 
-	mqd = dqm->get_mqd_manager(dqm, KFD_MQD_TYPE_COMPUTE);
+	mqd = dqm->ops.get_mqd_manager(dqm, KFD_MQD_TYPE_COMPUTE);
 	if (mqd == NULL)
 		return -ENOMEM;
 
@@ -305,14 +305,14 @@ static int destroy_queue_nocpsch(struct device_queue_manager *dqm,
 	mutex_lock(&dqm->lock);
 
 	if (q->properties.type == KFD_QUEUE_TYPE_COMPUTE) {
-		mqd = dqm->get_mqd_manager(dqm, KFD_MQD_TYPE_COMPUTE);
+		mqd = dqm->ops.get_mqd_manager(dqm, KFD_MQD_TYPE_COMPUTE);
 		if (mqd == NULL) {
 			retval = -ENOMEM;
 			goto out;
 		}
 		deallocate_hqd(dqm, q);
 	} else if (q->properties.type == KFD_QUEUE_TYPE_SDMA) {
-		mqd = dqm->get_mqd_manager(dqm, KFD_MQD_TYPE_SDMA);
+		mqd = dqm->ops.get_mqd_manager(dqm, KFD_MQD_TYPE_SDMA);
 		if (mqd == NULL) {
 			retval = -ENOMEM;
 			goto out;
@@ -348,7 +348,7 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q)
 	BUG_ON(!dqm || !q || !q->mqd);
 
 	mutex_lock(&dqm->lock);
-	mqd = dqm->get_mqd_manager(dqm, q->properties.type);
+	mqd = dqm->ops.get_mqd_manager(dqm, q->properties.type);
 	if (mqd == NULL) {
 		mutex_unlock(&dqm->lock);
 		return -ENOMEM;
@@ -515,7 +515,7 @@ static int init_pipelines(struct device_queue_manager *dqm,
 
 	memset(hpdptr, 0, CIK_HPD_EOP_BYTES * pipes_num);
 
-	mqd = dqm->get_mqd_manager(dqm, KFD_MQD_TYPE_COMPUTE);
+	mqd = dqm->ops.get_mqd_manager(dqm, KFD_MQD_TYPE_COMPUTE);
 	if (mqd == NULL) {
 		kfd_gtt_sa_free(dqm->dev, dqm->pipeline_mem);
 		return -ENOMEM;
@@ -646,7 +646,7 @@ static int create_sdma_queue_nocpsch(struct device_queue_manager *dqm,
 	struct mqd_manager *mqd;
 	int retval;
 
-	mqd = dqm->get_mqd_manager(dqm, KFD_MQD_TYPE_SDMA);
+	mqd = dqm->ops.get_mqd_manager(dqm, KFD_MQD_TYPE_SDMA);
 	if (!mqd)
 		return -ENOMEM;
 
@@ -849,7 +849,7 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 	if (q->properties.type == KFD_QUEUE_TYPE_SDMA)
 		select_sdma_engine_id(q);
 
-	mqd = dqm->get_mqd_manager(dqm,
+	mqd = dqm->ops.get_mqd_manager(dqm,
 			get_mqd_type_from_queue_type(q->properties.type));
 
 	if (mqd == NULL) {
@@ -994,7 +994,7 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 
 	/* remove queue from list to prevent rescheduling after preemption */
 	mutex_lock(&dqm->lock);
-	mqd = dqm->get_mqd_manager(dqm,
+	mqd = dqm->ops.get_mqd_manager(dqm,
 			get_mqd_type_from_queue_type(q->properties.type));
 	if (!mqd) {
 		retval = -ENOMEM;
@@ -1116,40 +1116,40 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 	case KFD_SCHED_POLICY_HWS:
 	case KFD_SCHED_POLICY_HWS_NO_OVERSUBSCRIPTION:
 		/* initialize dqm for cp scheduling */
-		dqm->create_queue = create_queue_cpsch;
-		dqm->initialize = initialize_cpsch;
-		dqm->start = start_cpsch;
-		dqm->stop = stop_cpsch;
-		dqm->destroy_queue = destroy_queue_cpsch;
-		dqm->update_queue = update_queue;
-		dqm->get_mqd_manager = get_mqd_manager_nocpsch;
-		dqm->register_process = register_process_nocpsch;
-		dqm->unregister_process = unregister_process_nocpsch;
-		dqm->uninitialize = uninitialize_nocpsch;
-		dqm->create_kernel_queue = create_kernel_queue_cpsch;
-		dqm->destroy_kernel_queue = destroy_kernel_queue_cpsch;
-		dqm->set_cache_memory_policy = set_cache_memory_policy;
+		dqm->ops.create_queue = create_queue_cpsch;
+		dqm->ops.initialize = initialize_cpsch;
+		dqm->ops.start = start_cpsch;
+		dqm->ops.stop = stop_cpsch;
+		dqm->ops.destroy_queue = destroy_queue_cpsch;
+		dqm->ops.update_queue = update_queue;
+		dqm->ops.get_mqd_manager = get_mqd_manager_nocpsch;
+		dqm->ops.register_process = register_process_nocpsch;
+		dqm->ops.unregister_process = unregister_process_nocpsch;
+		dqm->ops.uninitialize = uninitialize_nocpsch;
+		dqm->ops.create_kernel_queue = create_kernel_queue_cpsch;
+		dqm->ops.destroy_kernel_queue = destroy_kernel_queue_cpsch;
+		dqm->ops.set_cache_memory_policy = set_cache_memory_policy;
 		break;
 	case KFD_SCHED_POLICY_NO_HWS:
 		/* initialize dqm for no cp scheduling */
-		dqm->start = start_nocpsch;
-		dqm->stop = stop_nocpsch;
-		dqm->create_queue = create_queue_nocpsch;
-		dqm->destroy_queue = destroy_queue_nocpsch;
-		dqm->update_queue = update_queue;
-		dqm->get_mqd_manager = get_mqd_manager_nocpsch;
-		dqm->register_process = register_process_nocpsch;
-		dqm->unregister_process = unregister_process_nocpsch;
-		dqm->initialize = initialize_nocpsch;
-		dqm->uninitialize = uninitialize_nocpsch;
-		dqm->set_cache_memory_policy = set_cache_memory_policy;
+		dqm->ops.start = start_nocpsch;
+		dqm->ops.stop = stop_nocpsch;
+		dqm->ops.create_queue = create_queue_nocpsch;
+		dqm->ops.destroy_queue = destroy_queue_nocpsch;
+		dqm->ops.update_queue = update_queue;
+		dqm->ops.get_mqd_manager = get_mqd_manager_nocpsch;
+		dqm->ops.register_process = register_process_nocpsch;
+		dqm->ops.unregister_process = unregister_process_nocpsch;
+		dqm->ops.initialize = initialize_nocpsch;
+		dqm->ops.uninitialize = uninitialize_nocpsch;
+		dqm->ops.set_cache_memory_policy = set_cache_memory_policy;
 		break;
 	default:
 		BUG();
 		break;
 	}
 
-	if (dqm->initialize(dqm) != 0) {
+	if (dqm->ops.initialize(dqm) != 0) {
 		kfree(dqm);
 		return NULL;
 	}
@@ -1161,7 +1161,7 @@ void device_queue_manager_uninit(struct device_queue_manager *dqm)
 {
 	BUG_ON(!dqm);
 
-	dqm->uninitialize(dqm);
+	dqm->ops.uninitialize(dqm);
 	kfree(dqm);
 }
 

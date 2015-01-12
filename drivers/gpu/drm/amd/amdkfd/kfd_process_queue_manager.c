@@ -178,7 +178,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 
 	if (list_empty(&pqm->queues)) {
 		pdd->qpd.pqm = pqm;
-		dev->dqm->register_process(dev->dqm, &pdd->qpd);
+		dev->dqm->ops.register_process(dev->dqm, &pdd->qpd);
 	}
 
 	pqn = kzalloc(sizeof(struct process_queue_node), GFP_KERNEL);
@@ -204,7 +204,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			goto err_create_queue;
 		pqn->q = q;
 		pqn->kq = NULL;
-		retval = dev->dqm->create_queue(dev->dqm, q, &pdd->qpd,
+		retval = dev->dqm->ops.create_queue(dev->dqm, q, &pdd->qpd,
 						&q->properties.vmid);
 		print_queue(q);
 		break;
@@ -217,7 +217,8 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 		kq->queue->properties.queue_id = *qid;
 		pqn->kq = kq;
 		pqn->q = NULL;
-		retval = dev->dqm->create_kernel_queue(dev->dqm, kq, &pdd->qpd);
+		retval = dev->dqm->ops.create_kernel_queue(dev->dqm,
+							kq, &pdd->qpd);
 		break;
 	default:
 		BUG();
@@ -285,13 +286,13 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 	if (pqn->kq) {
 		/* destroy kernel queue (DIQ) */
 		dqm = pqn->kq->dev->dqm;
-		dqm->destroy_kernel_queue(dqm, pqn->kq, &pdd->qpd);
+		dqm->ops.destroy_kernel_queue(dqm, pqn->kq, &pdd->qpd);
 		kernel_queue_uninit(pqn->kq);
 	}
 
 	if (pqn->q) {
 		dqm = pqn->q->device->dqm;
-		retval = dqm->destroy_queue(dqm, &pdd->qpd, pqn->q);
+		retval = dqm->ops.destroy_queue(dqm, &pdd->qpd, pqn->q);
 		if (retval != 0)
 			return retval;
 
@@ -303,7 +304,7 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 	clear_bit(qid, pqm->queue_slot_bitmap);
 
 	if (list_empty(&pqm->queues))
-		dqm->unregister_process(dqm, &pdd->qpd);
+		dqm->ops.unregister_process(dqm, &pdd->qpd);
 
 	return retval;
 }
@@ -324,7 +325,8 @@ int pqm_update_queue(struct process_queue_manager *pqm, unsigned int qid,
 	pqn->q->properties.queue_percent = p->queue_percent;
 	pqn->q->properties.priority = p->priority;
 
-	retval = pqn->q->device->dqm->update_queue(pqn->q->device->dqm, pqn->q);
+	retval = pqn->q->device->dqm->ops.update_queue(pqn->q->device->dqm,
+							pqn->q);
 	if (retval != 0)
 		return retval;
 
