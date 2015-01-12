@@ -74,8 +74,8 @@ static int imx_ssi_set_dai_tdm_slot(struct snd_soc_dai *cpu_dai,
 	sccr |= SSI_STCCR_DC(slots - 1);
 	writel(sccr, ssi->base + SSI_SRCCR);
 
-	writel(tx_mask, ssi->base + SSI_STMSK);
-	writel(rx_mask, ssi->base + SSI_SRMSK);
+	writel(~tx_mask, ssi->base + SSI_STMSK);
+	writel(~rx_mask, ssi->base + SSI_SRMSK);
 
 	return 0;
 }

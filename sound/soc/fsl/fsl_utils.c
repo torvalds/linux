@@ -94,7 +94,7 @@ EXPORT_SYMBOL(fsl_asoc_get_dma_channel);
  * @rx_mask: bitmask representing active RX slots.
  *
  * This function used to generate the TDM slot TX/RX mask. And the TX/RX
- * mask will use a 0 bit for an active slot as default, and the default
+ * mask will use a 1 bit for an active slot as default, and the default
  * active bits are at the LSB of the mask value.
  */
 int fsl_asoc_xlate_tdm_slot_mask(unsigned int slots,
@@ -105,9 +105,9 @@ int fsl_asoc_xlate_tdm_slot_mask(unsigned int slots,
 		return -EINVAL;
 
 	if (tx_mask)
-		*tx_mask = ~((1 << slots) - 1);
+		*tx_mask = ((1 << slots) - 1);
 	if (rx_mask)
-		*rx_mask = ~((1 << slots) - 1);
+		*rx_mask = ((1 << slots) - 1);
 
 	return 0;
 }

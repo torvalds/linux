@@ -116,10 +116,10 @@ static int wm1133_ev1_hw_params(struct snd_pcm_substream *substream,
 	/* TODO: The SSI driver should figure this out for us */
 	switch (channels) {
 	case 2:
-		snd_soc_dai_set_tdm_slot(cpu_dai, 0xffffffc, 0xffffffc, 2, 0);
+		snd_soc_dai_set_tdm_slot(cpu_dai, 0x3, 0x3, 2, 0);
 		break;
 	case 1:
-		snd_soc_dai_set_tdm_slot(cpu_dai, 0xffffffe, 0xffffffe, 1, 0);
+		snd_soc_dai_set_tdm_slot(cpu_dai, 0x1, 0x1, 1, 0);
 		break;
 	default:
 		return -EINVAL;
