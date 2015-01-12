@@ -226,7 +226,7 @@ static void hsw_psr_enable_source(struct intel_dp *intel_dp)
 			       dev_priv->vbt.psr.idle_frames + 1 : 2;
 	uint32_t val = 0x0;
 	const uint32_t link_entry_time = EDP_PSR_MIN_LINK_ENTRY_TIME_8_LINES;
-	bool only_standby = false;
+	bool only_standby = dev_priv->vbt.psr.full_link;
 
 	if (IS_BROADWELL(dev) && dig_port->port != PORT_A)
 		only_standby = true;
