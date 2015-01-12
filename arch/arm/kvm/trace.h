@@ -140,19 +140,22 @@ TRACE_EVENT(kvm_emulate_cp15_imp,
 			__entry->CRm, __entry->Op2)
 );
 
-TRACE_EVENT(kvm_wfi,
-	TP_PROTO(unsigned long vcpu_pc),
-	TP_ARGS(vcpu_pc),
+TRACE_EVENT(kvm_wfx,
+	TP_PROTO(unsigned long vcpu_pc, bool is_wfe),
+	TP_ARGS(vcpu_pc, is_wfe),
 
 	TP_STRUCT__entry(
 		__field(	unsigned long,	vcpu_pc		)
+		__field(		 bool,	is_wfe		)
 	),
 
 	TP_fast_assign(
 		__entry->vcpu_pc		= vcpu_pc;
+		__entry->is_wfe			= is_wfe;
 	),
 
-	TP_printk("guest executed wfi at: 0x%08lx", __entry->vcpu_pc)
+	TP_printk("guest executed wf%c at: 0x%08lx",
+		__entry->is_wfe ? 'e' : 'i', __entry->vcpu_pc)
 );
 
 TRACE_EVENT(kvm_unmap_hva,
