@@ -372,10 +372,8 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	int ret;
 
 	p = devm_kzalloc(dev, sizeof(*p), GFP_KERNEL);
-	if (!p) {
-		ret = -ENOMEM;
-		goto err0;
-	}
+	if (!p)
+		return -ENOMEM;
 
 	p->pdev = pdev;
 	spin_lock_init(&p->lock);
