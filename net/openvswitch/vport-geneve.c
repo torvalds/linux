@@ -9,8 +9,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/version.h>
-
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/net.h>
