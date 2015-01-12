@@ -970,7 +970,7 @@ static int r820t_set_tv_standard(struct r820t_priv *priv,
 		ext_enable = 0x40;	/* r30[6], ext enable; r30[5]:0 ext at lna max */
 		loop_through = 0x00;	/* r5[7], lt on */
 		lt_att = 0x00;		/* r31[7], lt att enable */
-		flt_ext_widest = 0x00;	/* r15[7]: flt_ext_wide off */
+		flt_ext_widest = 0x80;	/* r15[7]: flt_ext_wide on */
 		polyfil_cur = 0x60;	/* r25[6:5]:min */
 	} else if (delsys == SYS_DVBC_ANNEX_A) {
 		if_khz = 5070;
