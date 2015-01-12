@@ -136,7 +136,7 @@ static int send_midi_async(struct usb_line6 *line6, unsigned char *data,
 
 	usb_fill_int_urb(urb, line6->usbdev,
 			 usb_sndbulkpipe(line6->usbdev,
-					 line6->ep_control_write),
+					 line6->properties->ep_ctrl_w),
 			 transfer_buffer, length, midi_sent, line6,
 			 line6->interval);
 	urb->actual_length = 0;

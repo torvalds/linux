@@ -117,6 +117,9 @@ struct line6_properties {
 	int capabilities;
 
 	int altsetting;
+
+	unsigned ep_ctrl_r;
+	unsigned ep_ctrl_w;
 };
 
 /**
@@ -169,16 +172,6 @@ struct usb_line6 {
 		 Line6 MIDI device data structure.
 	*/
 	struct snd_line6_midi *line6midi;
-
-	/**
-		 USB endpoint for listening to control commands.
-	*/
-	int ep_control_read;
-
-	/**
-		 USB endpoint for writing control commands.
-	*/
-	int ep_control_write;
 
 	/**
 		 URB for listening to PODxt Pro control endpoint.
