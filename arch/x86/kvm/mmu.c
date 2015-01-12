@@ -4302,6 +4302,7 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot)
 	struct kvm_memory_slot *memslot;
 	gfn_t last_gfn;
 	int i;
+	bool flush = false;
 
 	memslot = id_to_memslot(kvm->memslots, slot);
 	last_gfn = memslot->base_gfn + memslot->npages - 1;
@@ -4318,7 +4319,8 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot)
 
 		for (index = 0; index <= last_index; ++index, ++rmapp) {
 			if (*rmapp)
-				__rmap_write_protect(kvm, rmapp, false);
+				flush |= __rmap_write_protect(kvm, rmapp,
+						false);
 
 			if (need_resched() || spin_needbreak(&kvm->mmu_lock))
 				cond_resched_lock(&kvm->mmu_lock);
@@ -4345,7 +4347,8 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot)
 	 * instead of PT_WRITABLE_MASK, that means it does not depend
 	 * on PT_WRITABLE_MASK anymore.
 	 */
-	kvm_flush_remote_tlbs(kvm);
+	if (flush)
+		kvm_flush_remote_tlbs(kvm);
 }
 
 #define BATCH_ZAP_PAGES	10
