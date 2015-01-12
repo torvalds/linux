@@ -147,7 +147,8 @@ static const struct a2150_board a2150_boards[] = {
 
 struct a2150_dma_desc {
 	unsigned int chan;	/* DMA channel */
-	uint16_t *virt_addr;	/* virtual address of DMA buffer */
+	void *virt_addr;	/* virtual address of DMA buffer */
+	dma_addr_t hw_addr;	/* hardware (bus) address of DMA buffer */
 	unsigned int size;	/* size of DMA transfer (in bytes) */
 };
 
@@ -170,6 +171,7 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async;
 	struct comedi_cmd *cmd;
+	unsigned short *buf = dma->virt_addr;
 	unsigned int max_points, num_points, residue, leftover;
 	unsigned short dpnt;
 
@@ -237,7 +239,7 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 
 	for (i = 0; i < num_points; i++) {
 		/* write data point to comedi buffer */
-		dpnt = dma->virt_addr[i];
+		dpnt = buf[i];
 		/*  convert from 2's complement to unsigned coding */
 		dpnt ^= 0x8000;
 		comedi_buf_write_samples(s, &dpnt, 1);
@@ -250,7 +252,7 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	}
 	/*  re-enable  dma */
 	if (leftover) {
-		set_dma_addr(dma->chan, virt_to_bus(dma->virt_addr));
+		set_dma_addr(dma->chan, dma->hw_addr);
 		set_dma_count(dma->chan,
 			      comedi_samples_to_bytes(s, leftover));
 		enable_dma(dma->chan);
@@ -553,7 +555,7 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* clear flip-flop to make sure 2-byte registers for
 	 * count and address get set correctly */
 	clear_dma_ff(dma->chan);
-	set_dma_addr(dma->chan, virt_to_bus(dma->virt_addr));
+	set_dma_addr(dma->chan, dma->hw_addr);
 	/*  set size of transfer to fill in 1/3 second */
 #define ONE_THIRD_SECOND 333333333
 	dma->size = comedi_bytes_per_sample(s) * cmd->chanlist_len *
@@ -709,7 +711,8 @@ static void a2150_alloc_irq_dma(struct comedi_device *dev,
 		free_irq(irq_num, dev);
 		return;
 	}
-	dma->virt_addr = kmalloc(A2150_DMA_BUFFER_SIZE, GFP_KERNEL | GFP_DMA);
+	dma->virt_addr = dma_alloc_coherent(NULL, A2150_DMA_BUFFER_SIZE,
+					    &dma->hw_addr, GFP_KERNEL);
 	if (!dma->virt_addr) {
 		free_dma(dma_chan);
 		free_irq(irq_num, dev);
@@ -735,7 +738,9 @@ static void a2150_free_dma(struct comedi_device *dev)
 	dma = &devpriv->dma_desc;
 	if (dma->chan)
 		free_dma(dma->chan);
-	kfree(dma->virt_addr);
+	if (dma->virt_addr)
+		dma_free_coherent(NULL, A2150_DMA_BUFFER_SIZE,
+				  dma->virt_addr, dma->hw_addr);
 }
 
 /* probes board type, returns offset */
