@@ -2492,9 +2492,13 @@ _base_allocate_memory_pools(struct MPT2SAS_ADAPTER *ioc,  int sleep_flag)
 
 	/* command line tunables  for max sgl entries */
 	if (max_sgl_entries != -1) {
-		ioc->shost->sg_tablesize = (max_sgl_entries <
-		    MPT2SAS_SG_DEPTH) ? max_sgl_entries :
-		    MPT2SAS_SG_DEPTH;
+		ioc->shost->sg_tablesize =  min_t(unsigned short,
+			     max_sgl_entries, SCSI_MAX_SG_CHAIN_SEGMENTS);
+		if (ioc->shost->sg_tablesize > MPT2SAS_SG_DEPTH)
+			printk(MPT2SAS_WARN_FMT
+			 "sg_tablesize(%u) is bigger than kernel defined"
+			 " SCSI_MAX_SG_SEGMENTS(%u)\n", ioc->name,
+			  ioc->shost->sg_tablesize, MPT2SAS_SG_DEPTH);
 	} else {
 		ioc->shost->sg_tablesize = MPT2SAS_SG_DEPTH;
 	}
