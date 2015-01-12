@@ -855,6 +855,17 @@ struct hci_cp_set_event_flt {
 #define HCI_CONN_SETUP_AUTO_OFF	0x01
 #define HCI_CONN_SETUP_AUTO_ON	0x02
 
+#define HCI_OP_READ_STORED_LINK_KEY	0x0c0d
+struct hci_cp_read_stored_link_key {
+	bdaddr_t bdaddr;
+	__u8     read_all;
+} __packed;
+struct hci_rp_read_stored_link_key {
+	__u8     status;
+	__u8     max_keys;
+	__u8     num_keys;
+} __packed;
+
 #define HCI_OP_DELETE_STORED_LINK_KEY	0x0c12
 struct hci_cp_delete_stored_link_key {
 	bdaddr_t bdaddr;
