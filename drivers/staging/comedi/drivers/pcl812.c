@@ -1220,6 +1220,22 @@ static int pcl812_alloc_dma(struct comedi_device *dev, unsigned int dma_chan)
 	return 0;
 }
 
+static void pcl812_free_dma(struct comedi_device *dev)
+{
+	struct pcl812_private *devpriv = dev->private;
+	int i;
+
+	if (!devpriv)
+		return;
+
+	for (i = 0; i < 2; i++) {
+		if (devpriv->dmabuf[i])
+			free_pages(devpriv->dmabuf[i], devpriv->dmapages);
+	}
+	if (devpriv->dma)
+		free_dma(devpriv->dma);
+}
+
 static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcl812_board *board = dev->board_ptr;
@@ -1391,16 +1407,7 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void pcl812_detach(struct comedi_device *dev)
 {
-	struct pcl812_private *devpriv = dev->private;
-
-	if (devpriv) {
-		if (devpriv->dmabuf[0])
-			free_pages(devpriv->dmabuf[0], devpriv->dmapages);
-		if (devpriv->dmabuf[1])
-			free_pages(devpriv->dmabuf[1], devpriv->dmapages);
-		if (devpriv->dma)
-			free_dma(devpriv->dma);
-	}
+	pcl812_free_dma(dev);
 	comedi_legacy_detach(dev);
 }
 
