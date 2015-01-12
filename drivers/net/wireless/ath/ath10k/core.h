@@ -239,6 +239,11 @@ struct ath10k_sta {
 	u32 smps;
 
 	struct work_struct update_wk;
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	/* protected by conf_mutex */
+	bool aggr_mode;
+#endif
 };
 
 #define ATH10K_VDEV_SETUP_TIMEOUT_HZ (5*HZ)

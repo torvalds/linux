@@ -4746,6 +4746,9 @@ static const struct ieee80211_ops ath10k_ops = {
 	.suspend			= ath10k_suspend,
 	.resume				= ath10k_resume,
 #endif
+#ifdef CONFIG_MAC80211_DEBUGFS
+	.sta_add_debugfs		= ath10k_sta_add_debugfs,
+#endif
 };
 
 #define RATETAB_ENT(_rate, _rateid, _flags) { \
