@@ -136,13 +136,13 @@ void adf_modeinfo_to_fb_videomode(const struct drm_mode_modeinfo *mode,
 	vmode->vsync_len = mode->vsync_end - mode->vsync_start;
 
 	vmode->sync = 0;
-	if (mode->flags | DRM_MODE_FLAG_PHSYNC)
+	if (mode->flags & DRM_MODE_FLAG_PHSYNC)
 		vmode->sync |= FB_SYNC_HOR_HIGH_ACT;
-	if (mode->flags | DRM_MODE_FLAG_PVSYNC)
+	if (mode->flags & DRM_MODE_FLAG_PVSYNC)
 		vmode->sync |= FB_SYNC_VERT_HIGH_ACT;
-	if (mode->flags | DRM_MODE_FLAG_PCSYNC)
+	if (mode->flags & DRM_MODE_FLAG_PCSYNC)
 		vmode->sync |= FB_SYNC_COMP_HIGH_ACT;
-	if (mode->flags | DRM_MODE_FLAG_BCAST)
+	if (mode->flags & DRM_MODE_FLAG_BCAST)
 		vmode->sync |= FB_SYNC_BROADCAST;
 
 	vmode->vmode = 0;
