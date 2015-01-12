@@ -176,17 +176,10 @@ static int __team_option_inst_add(struct team *team, struct team_option *option,
 static int __team_option_inst_add_option(struct team *team,
 					 struct team_option *option)
 {
-	struct team_port *port;
 	int err;
 
 	if (!option->per_port) {
 		err = __team_option_inst_add(team, option, NULL);
-		if (err)
-			goto inst_del_option;
-	}
-
-	list_for_each_entry(port, &team->port_list, list) {
-		err = __team_option_inst_add(team, option, port);
 		if (err)
 			goto inst_del_option;
 	}
