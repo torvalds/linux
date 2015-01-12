@@ -789,6 +789,7 @@ struct i915_psr {
 	bool active;
 	struct delayed_work work;
 	unsigned busy_frontbuffer_bits;
+	bool link_standby;
 };
 
 enum intel_pch {
