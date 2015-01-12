@@ -2210,6 +2210,7 @@ static const struct wmi_ops wmi_tlv_ops = {
 	/* .gen_addba_clear_resp not implemented */
 	/* .gen_addba_send not implemented */
 	/* .gen_addba_set_resp not implemented */
+	/* .gen_delba_send not implemented */
 };
 
 /************/

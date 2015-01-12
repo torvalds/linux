@@ -126,6 +126,9 @@ struct wmi_ops {
 	struct sk_buff *(*gen_addba_set_resp)(struct ath10k *ar, u32 vdev_id,
 					      const u8 *mac, u32 tid,
 					      u32 status);
+	struct sk_buff *(*gen_delba_send)(struct ath10k *ar, u32 vdev_id,
+					  const u8 *mac, u32 tid, u32 initiator,
+					  u32 reason);
 };
 
 int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id);
@@ -912,6 +915,24 @@ ath10k_wmi_addba_set_resp(struct ath10k *ar, u32 vdev_id, const u8 *mac,
 
 	return ath10k_wmi_cmd_send(ar, skb,
 				   ar->wmi.cmd->addba_set_resp_cmdid);
+}
+
+static inline int
+ath10k_wmi_delba_send(struct ath10k *ar, u32 vdev_id, const u8 *mac,
+		      u32 tid, u32 initiator, u32 reason)
+{
+	struct sk_buff *skb;
+
+	if (!ar->wmi.ops->gen_delba_send)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_delba_send(ar, vdev_id, mac, tid, initiator,
+					  reason);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	return ath10k_wmi_cmd_send(ar, skb,
+				   ar->wmi.cmd->delba_send_cmdid);
 }
 
 #endif
