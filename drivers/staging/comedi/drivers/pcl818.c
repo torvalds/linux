@@ -1054,13 +1054,40 @@ static void pcl818_set_ai_range_table(struct comedi_device *dev,
 	}
 }
 
+static int pcl818_alloc_dma(struct comedi_device *dev, unsigned int dma_chan)
+{
+	struct pcl818_private *devpriv = dev->private;
+	int i;
+
+	if (!(dma_chan == 3 || dma_chan == 1))
+		return 0;
+
+	if (request_dma(dma_chan, dev->board_name))
+		return 0;
+	devpriv->dma = dma_chan;
+
+	devpriv->dmapages = 2;	/* we need 16KB */
+	devpriv->hwdmasize = (1 << devpriv->dmapages) * PAGE_SIZE;
+
+	for (i = 0; i < 2; i++) {
+		unsigned long dmabuf;
+
+		dmabuf = __get_dma_pages(GFP_KERNEL, devpriv->dmapages);
+		if (!dmabuf)
+			return -ENOMEM;
+
+		devpriv->dmabuf[i] = dmabuf;
+		devpriv->hwdmaptr[i] = virt_to_bus((void *)dmabuf);
+	}
+	return 0;
+}
+
 static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcl818_board *board = dev->board_ptr;
 	struct pcl818_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
-	int i;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
@@ -1084,30 +1111,10 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->usefifo = 1;
 
 	/* we need an IRQ to do DMA on channel 3 or 1 */
-	if (dev->irq && board->has_dma &&
-	    (it->options[2] == 3 || it->options[2] == 1)) {
-		ret = request_dma(it->options[2], dev->board_name);
-		if (ret) {
-			dev_err(dev->class_dev,
-				"unable to request DMA channel %d\n",
-				it->options[2]);
-			return -EBUSY;
-		}
-		devpriv->dma = it->options[2];
-
-		devpriv->dmapages = 2;	/* we need 16KB */
-		devpriv->hwdmasize = (1 << devpriv->dmapages) * PAGE_SIZE;
-
-		for (i = 0; i < 2; i++) {
-			unsigned long dmabuf;
-
-			dmabuf = __get_dma_pages(GFP_KERNEL, devpriv->dmapages);
-			if (!dmabuf)
-				return -ENOMEM;
-
-			devpriv->dmabuf[i] = dmabuf;
-			devpriv->hwdmaptr[i] = virt_to_bus((void *)dmabuf);
-		}
+	if (dev->irq && board->has_dma) {
+		ret = pcl818_alloc_dma(dev, it->options[2]);
+		if (ret)
+			return ret;
 	}
 
 	ret = comedi_alloc_subdevices(dev, 4);
