@@ -1126,9 +1126,6 @@ static int __init msm_serial_init(void)
 
 static void __exit msm_serial_exit(void)
 {
-#ifdef CONFIG_SERIAL_MSM_CONSOLE
-	unregister_console(&msm_console);
-#endif
 	platform_driver_unregister(&msm_platform_driver);
 	uart_unregister_driver(&msm_uart_driver);
 }
