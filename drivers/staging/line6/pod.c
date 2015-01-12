@@ -353,10 +353,10 @@ static int pod_create_files2(struct device *dev)
 	 Try to init POD device.
 */
 static int pod_try_init(struct usb_interface *interface,
-			struct usb_line6_pod *pod)
+			struct usb_line6 *line6)
 {
 	int err;
-	struct usb_line6 *line6 = &pod->line6;
+	struct usb_line6_pod *pod = (struct usb_line6_pod *) line6;
 
 	init_timer(&pod->startup_timer);
 	INIT_WORK(&pod->startup_work, pod_startup4);
@@ -409,9 +409,9 @@ static int pod_try_init(struct usb_interface *interface,
 /*
 	 Init POD device (and clean up in case of failure).
 */
-int line6_pod_init(struct usb_interface *interface, struct usb_line6_pod *pod)
+int line6_pod_init(struct usb_interface *interface, struct usb_line6 *line6)
 {
-	int err = pod_try_init(interface, pod);
+	int err = pod_try_init(interface, line6);
 
 	if (err < 0)
 		pod_destruct(interface);

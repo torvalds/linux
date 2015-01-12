@@ -339,10 +339,10 @@ static void toneport_setup(struct usb_line6_toneport *toneport)
 	 Try to init Toneport device.
 */
 static int toneport_try_init(struct usb_interface *interface,
-			     struct usb_line6_toneport *toneport)
+			     struct usb_line6 *line6)
 {
 	int err;
-	struct usb_line6 *line6 = &toneport->line6;
+	struct usb_line6_toneport *toneport =  (struct usb_line6_toneport *) line6;
 
 	if ((interface == NULL) || (toneport == NULL))
 		return -ENODEV;
@@ -411,9 +411,9 @@ static int toneport_try_init(struct usb_interface *interface,
 	 Init Toneport device (and clean up in case of failure).
 */
 int line6_toneport_init(struct usb_interface *interface,
-			struct usb_line6_toneport *toneport)
+			struct usb_line6 *line6)
 {
-	int err = toneport_try_init(interface, toneport);
+	int err = toneport_try_init(interface, line6);
 
 	if (err < 0)
 		toneport_destruct(interface);

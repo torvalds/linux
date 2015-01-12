@@ -959,33 +959,26 @@ static int line6_probe(struct usb_interface *interface,
 	case LINE6_POCKETPOD:
 	case LINE6_PODXT:
 	case LINE6_PODXTPRO:
-		ret = line6_pod_init(interface, (struct usb_line6_pod *)line6);
+		ret = line6_pod_init(interface, line6);
 		break;
 
 	case LINE6_PODHD300:
 	case LINE6_PODHD400:
 	case LINE6_PODHD500_0:
 	case LINE6_PODHD500_1:
-		ret = line6_podhd_init(interface,
-				       (struct usb_line6_podhd *)line6);
+		ret = line6_podhd_init(interface, line6);
 		break;
 
 	case LINE6_PODXTLIVE_POD:
-		ret =
-		    line6_pod_init(interface,
-				   (struct usb_line6_pod *)line6);
+		ret = line6_pod_init(interface, line6);
 		break;
 
 	case LINE6_PODXTLIVE_VARIAX:
-		ret =
-		    line6_variax_init(interface,
-				      (struct usb_line6_variax *)line6);
+		ret = line6_variax_init(interface, line6);
 		break;
 
 	case LINE6_VARIAX:
-		ret =
-		    line6_variax_init(interface,
-				      (struct usb_line6_variax *)line6);
+		ret = line6_variax_init(interface, line6);
 		break;
 
 	case LINE6_PODSTUDIO_GX:
@@ -995,9 +988,7 @@ static int line6_probe(struct usb_interface *interface,
 	case LINE6_TONEPORT_UX1:
 	case LINE6_TONEPORT_UX2:
 	case LINE6_GUITARPORT:
-		ret =
-		    line6_toneport_init(interface,
-					(struct usb_line6_toneport *)line6);
+		ret = line6_toneport_init(interface, line6);
 		break;
 
 	default:

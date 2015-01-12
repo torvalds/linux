@@ -66,7 +66,7 @@ struct usb_line6_variax {
 
 extern void line6_variax_disconnect(struct usb_interface *interface);
 extern int line6_variax_init(struct usb_interface *interface,
-			     struct usb_line6_variax *variax);
+			     struct usb_line6 *line6);
 extern void line6_variax_process_message(struct usb_line6_variax *variax);
 
 #endif

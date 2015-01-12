@@ -174,8 +174,9 @@ static void variax_destruct(struct usb_interface *interface)
 	 Try to init workbench device.
 */
 static int variax_try_init(struct usb_interface *interface,
-			   struct usb_line6_variax *variax)
+			   struct usb_line6 *line6)
 {
+	struct usb_line6_variax *variax = (struct usb_line6_variax *) line6;
 	int err;
 
 	init_timer(&variax->startup_timer1);
@@ -212,10 +213,9 @@ static int variax_try_init(struct usb_interface *interface,
 /*
 	 Init workbench device (and clean up in case of failure).
 */
-int line6_variax_init(struct usb_interface *interface,
-		      struct usb_line6_variax *variax)
+int line6_variax_init(struct usb_interface *interface, struct usb_line6 *line6)
 {
-	int err = variax_try_init(interface, variax);
+	int err = variax_try_init(interface, line6);
 
 	if (err < 0)
 		variax_destruct(interface);

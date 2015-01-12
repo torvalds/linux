@@ -121,9 +121,9 @@ static int podhd_try_init(struct usb_interface *interface,
 /*
 	Init POD HD device (and clean up in case of failure).
 */
-int line6_podhd_init(struct usb_interface *interface,
-		     struct usb_line6_podhd *podhd)
+int line6_podhd_init(struct usb_interface *interface, struct usb_line6 *line6)
 {
+	struct usb_line6_podhd *podhd = (struct usb_line6_podhd *) line6;
 	int err = podhd_try_init(interface, podhd);
 
 	if (err < 0)
