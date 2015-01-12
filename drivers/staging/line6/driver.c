@@ -57,29 +57,97 @@ static const struct usb_device_id line6_id_table[] = {
 
 MODULE_DEVICE_TABLE(usb, line6_id_table);
 
-#define L6PROP(dev_id, dev_name, dev_cap)\
-	{.id = dev_id,\
-	 .name = dev_name, .capabilities = LINE6_CAP_##dev_cap}
-
 static const struct line6_properties line6_properties_table[] = {
-	L6PROP("BassPODxt",     "BassPODxt",        CTRL_PCM_HW),
-	L6PROP("BassPODxtLive", "BassPODxt Live",   CTRL_PCM_HW),
-	L6PROP("BassPODxtPro",  "BassPODxt Pro",    CTRL_PCM_HW),
-	L6PROP("GuitarPort",    "GuitarPort",       PCM),
-	L6PROP("PocketPOD",     "Pocket POD",       CONTROL),
-	L6PROP("PODHD300",      "POD HD300",        CTRL_PCM_HW),
-	L6PROP("PODHD400",      "POD HD400",        CTRL_PCM_HW),
-	L6PROP("PODHD500",      "POD HD500",        CTRL_PCM_HW),
-	L6PROP("PODStudioGX",   "POD Studio GX",    PCM),
-	L6PROP("PODStudioUX1",  "POD Studio UX1",   PCM),
-	L6PROP("PODStudioUX2",  "POD Studio UX2",   PCM),
-	L6PROP("PODxt",         "PODxt",            CTRL_PCM_HW),
-	L6PROP("PODxtLive",     "PODxt Live",       CTRL_PCM_HW),
-	L6PROP("PODxtPro",      "PODxt Pro",        CTRL_PCM_HW),
-	L6PROP("TonePortGX",    "TonePort GX",      PCM),
-	L6PROP("TonePortUX1",   "TonePort UX1",     PCM),
-	L6PROP("TonePortUX2",   "TonePort UX2",     PCM),
-	L6PROP("Variax",        "Variax Workbench", CONTROL),
+	[LINE6_BASSPODXT] = {
+		.id = "BassPODxt",
+		.name = "BassPODxt",
+		.capabilities = LINE6_CAP_CTRL_PCM_HW,
+	},
+	[LINE6_BASSPODXTLIVE] = {
+		.id = "BassPODxtLive",
+		.name = "BassPODxt Live",
+		.capabilities = LINE6_CAP_CTRL_PCM_HW,
+	},
+	[LINE6_BASSPODXTPRO] = {
+		.id = "BassPODxtPro",
+		.name = "BassPODxt Pro",
+		.capabilities = LINE6_CAP_CTRL_PCM_HW,
+	},
+	[LINE6_GUITARPORT] = {
+		.id = "GuitarPort",
+		.name = "GuitarPort",
+		.capabilities = LINE6_CAP_PCM,
+	},
+	[LINE6_POCKETPOD] = {
+		.id = "PocketPOD",
+		.name = "Pocket POD",
+		.capabilities = LINE6_CAP_CONTROL,
+	},
+	[LINE6_PODHD300] = {
+		.id = "PODHD300",
+		.name = "POD HD300",
+		.capabilities = LINE6_CAP_CTRL_PCM_HW,
+	},
+	[LINE6_PODHD400] = {
+		.id = "PODHD400",
+		.name = "POD HD400",
+		.capabilities = LINE6_CAP_CTRL_PCM_HW,
+	},
+	[LINE6_PODHD500] = {
+		.id = "PODHD500",
+		.name = "POD HD500",
+		.capabilities = LINE6_CAP_CTRL_PCM_HW,
+	},
+	[LINE6_PODSTUDIO_GX] = {
+		.id = "PODStudioGX",
+		.name = "POD Studio GX",
+		.capabilities = LINE6_CAP_PCM,
+	},
+	[LINE6_PODSTUDIO_UX1] = {
+		.id = "PODStudioUX1",
+		.name = "POD Studio UX1",
+		.capabilities = LINE6_CAP_PCM,
+	},
+	[LINE6_PODSTUDIO_UX2] = {
+		.id = "PODStudioUX2",
+		.name = "POD Studio UX2",
+		.capabilities = LINE6_CAP_PCM,
+	},
+	[LINE6_PODXT] = {
+		.id = "PODxt",
+		.name = "PODxt",
+		.capabilities = LINE6_CAP_CTRL_PCM_HW,
+	},
+	[LINE6_PODXTLIVE] = {
+		.id = "PODxtLive",
+		.name = "PODxt Live",
+		.capabilities = LINE6_CAP_CTRL_PCM_HW,
+	},
+	[LINE6_PODXTPRO] = {
+		.id = "PODxtPro",
+		.name = "PODxt Pro",
+		.capabilities = LINE6_CAP_CTRL_PCM_HW,
+	},
+	[LINE6_TONEPORT_GX] = {
+		.id = "TonePortGX",
+		.name = "TonePort GX",
+		.capabilities = LINE6_CAP_PCM,
+	},
+	[LINE6_TONEPORT_UX1] = {
+		.id = "TonePortUX1",
+		.name = "TonePort UX1",
+		.capabilities = LINE6_CAP_PCM,
+	},
+	[LINE6_TONEPORT_UX2] = {
+		.id = "TonePortUX2",
+		.name = "TonePort UX2",
+		.capabilities = LINE6_CAP_PCM,
+	},
+	[LINE6_VARIAX] = {
+		.id = "Variax",
+		.name = "Variax Workbench",
+		.capabilities = LINE6_CAP_CONTROL,
+	}
 };
 
 /*
