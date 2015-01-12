@@ -620,13 +620,11 @@ void intel_psr_flush(struct drm_device *dev,
 
 	/*
 	 * On Valleyview and Cherryview we don't use hardware tracking so
-	 * sprite plane updates or cursor moves don't result in a PSR
+	 * any plane updates or cursor moves don't result in a PSR
 	 * invalidating. Which means we need to manually fake this in
 	 * software for all flushes, not just when we've seen a preceding
 	 * invalidation through frontbuffer rendering. */
-	if (!HAS_DDI(dev) &&
-	    ((frontbuffer_bits & INTEL_FRONTBUFFER_SPRITE(pipe)) ||
-	     (frontbuffer_bits & INTEL_FRONTBUFFER_CURSOR(pipe))))
+	if (!HAS_DDI(dev))
 		intel_psr_exit(dev);
 
 	if (!dev_priv->psr.active && !dev_priv->psr.busy_frontbuffer_bits)
