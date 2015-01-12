@@ -255,31 +255,28 @@ int gpiochip_add(struct gpio_chip *chip)
 	}
 
 	status = gpiochip_add_to_list(chip);
+	if (status) {
+		spin_unlock_irqrestore(&gpio_lock, flags);
+		goto err_free_descs;
+	}
 
-	if (status == 0) {
-		for (id = 0; id < chip->ngpio; id++) {
-			struct gpio_desc *desc = &descs[id];
-			desc->chip = chip;
+	for (id = 0; id < chip->ngpio; id++) {
+		struct gpio_desc *desc = &descs[id];
 
-			/* REVISIT:  most hardware initializes GPIOs as
-			 * inputs (often with pullups enabled) so power
-			 * usage is minimized.  Linux code should set the
-			 * gpio direction first thing; but until it does,
-			 * and in case chip->get_direction is not set,
-			 * we may expose the wrong direction in sysfs.
-			 */
-			desc->flags = !chip->direction_input
-				? (1 << FLAG_IS_OUT)
-				: 0;
-		}
+		desc->chip = chip;
+
+		/* REVISIT: most hardware initializes GPIOs as inputs (often
+		 * with pullups enabled) so power usage is minimized. Linux
+		 * code should set the gpio direction first thing; but until
+		 * it does, and in case chip->get_direction is not set, we may
+		 * expose the wrong direction in sysfs.
+		 */
+		desc->flags = !chip->direction_input ? (1 << FLAG_IS_OUT) : 0;
 	}
 
 	chip->desc = descs;
 
 	spin_unlock_irqrestore(&gpio_lock, flags);
-
-	if (status)
-		goto fail;
 
 #ifdef CONFIG_PINCTRL
 	INIT_LIST_HEAD(&chip->pin_ranges);
@@ -304,10 +301,9 @@ err_remove_chip:
 	spin_lock_irqsave(&gpio_lock, flags);
 	list_del(&chip->list);
 	spin_unlock_irqrestore(&gpio_lock, flags);
-fail:
+	chip->desc = NULL;
 err_free_descs:
 	kfree(descs);
-	chip->desc = NULL;
 
 	/* failures here can mean systems won't boot... */
 	pr_err("%s: GPIOs %d..%d (%s) failed to register\n", __func__,
