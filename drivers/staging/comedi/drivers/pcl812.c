@@ -507,8 +507,8 @@ static const struct pcl812_board boardtypes[] = {
 };
 
 struct pcl812_dma_desc {
-	unsigned long virt_addr;	/* virtual address of DMA buffer */
-	unsigned int hw_addr;	/* hardware (bus) address of DMA buffer */
+	void *virt_addr;	/* virtual address of DMA buffer */
+	dma_addr_t hw_addr;	/* hardware (bus) address of DMA buffer */
 	unsigned int size;	/* transfer size (in bytes) */
 };
 
@@ -518,7 +518,6 @@ struct pcl812_private {
 	unsigned int last_ai_chanspec;
 	unsigned char mode_reg_int;	/*  there is stored INT number for some card */
 	unsigned int ai_poll_ptr;	/*  how many sampes transfer poll */
-	unsigned int dmapages;
 	unsigned int hwdmasize;
 	struct pcl812_dma_desc dma_desc[2];
 	int cur_dma;
@@ -905,7 +904,7 @@ static void pcl812_handle_dma(struct comedi_device *dev,
 	bufptr = devpriv->ai_poll_ptr;
 	devpriv->ai_poll_ptr = 0;
 
-	transfer_from_dma_buf(dev, s, (void *)dma->virt_addr, bufptr, nsamples);
+	transfer_from_dma_buf(dev, s, dma->virt_addr, bufptr, nsamples);
 }
 
 static irqreturn_t pcl812_interrupt(int irq, void *d)
@@ -964,7 +963,7 @@ static int pcl812_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 		return 0;
 	}
 
-	transfer_from_dma_buf(dev, s, (void *)dma->virt_addr,
+	transfer_from_dma_buf(dev, s, dma->virt_addr,
 			      devpriv->ai_poll_ptr, top2);
 
 	devpriv->ai_poll_ptr = top1;	/*  new buffer position */
@@ -1203,17 +1202,15 @@ static int pcl812_alloc_dma(struct comedi_device *dev, unsigned int dma_chan)
 		return 0;
 	devpriv->dma = dma_chan;
 
-	devpriv->dmapages = 1;	/* we want 8KB */
-	devpriv->hwdmasize = (1 << devpriv->dmapages) * PAGE_SIZE;
+	devpriv->hwdmasize = PAGE_SIZE * 2;	/* we want 8KB */
 
 	for (i = 0; i < 2; i++) {
 		dma = &devpriv->dma_desc[i];
 
-		dma->virt_addr =  __get_dma_pages(GFP_KERNEL, devpriv->dmapages);
+		dma->virt_addr = dma_alloc_coherent(NULL, devpriv->hwdmasize,
+						    &dma->hw_addr, GFP_KERNEL);
 		if (!dma->virt_addr)
 			return -ENOMEM;
-
-		dma->hw_addr = virt_to_bus((void *)dma->virt_addr);
 	}
 	return 0;
 }
@@ -1230,7 +1227,8 @@ static void pcl812_free_dma(struct comedi_device *dev)
 	for (i = 0; i < 2; i++) {
 		dma = &devpriv->dma_desc[i];
 		if (dma->virt_addr)
-			free_pages(dma->virt_addr, devpriv->dmapages);
+			dma_free_coherent(NULL, devpriv->hwdmasize,
+					  dma->virt_addr, dma->hw_addr);
 	}
 	if (devpriv->dma)
 		free_dma(devpriv->dma);
