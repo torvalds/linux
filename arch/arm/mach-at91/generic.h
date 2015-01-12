@@ -25,10 +25,6 @@ extern void __init at91rm9200_set_type(int type);
 extern void __init at91rm9200_dt_initialize(void);
 extern void __init at91_dt_initialize(void);
 
- /* Interrupts */
-extern void __init at91_sysirq_mask_rtc(u32 rtc_base);
-extern void __init at91_sysirq_mask_rtt(u32 rtt_base);
-
  /* Timer */
 extern void at91rm9200_timer_init(void);
 
