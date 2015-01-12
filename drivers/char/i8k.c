@@ -660,19 +660,19 @@ static int __init i8k_init_hwmon(void)
 
 	i8k_hwmon_flags = 0;
 
-	/* CPU temperature attributes, if temperature reading is OK */
-	err = i8k_get_temp(0);
-	if (err >= 0 || err == -ERANGE)
+	/* CPU temperature attributes, if temperature type is OK */
+	err = i8k_get_temp_type(0);
+	if (err >= 0)
 		i8k_hwmon_flags |= I8K_HWMON_HAVE_TEMP1;
 	/* check for additional temperature sensors */
-	err = i8k_get_temp(1);
-	if (err >= 0 || err == -ERANGE)
+	err = i8k_get_temp_type(1);
+	if (err >= 0)
 		i8k_hwmon_flags |= I8K_HWMON_HAVE_TEMP2;
-	err = i8k_get_temp(2);
-	if (err >= 0 || err == -ERANGE)
+	err = i8k_get_temp_type(2);
+	if (err >= 0)
 		i8k_hwmon_flags |= I8K_HWMON_HAVE_TEMP3;
-	err = i8k_get_temp(3);
-	if (err >= 0 || err == -ERANGE)
+	err = i8k_get_temp_type(3);
+	if (err >= 0)
 		i8k_hwmon_flags |= I8K_HWMON_HAVE_TEMP4;
 
 	/* Left fan attributes, if left fan is present */
