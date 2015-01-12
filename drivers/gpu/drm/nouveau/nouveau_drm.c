@@ -124,7 +124,7 @@ nouveau_cli_create(u64 name, const char *sname,
 static void
 nouveau_cli_destroy(struct nouveau_cli *cli)
 {
-	nouveau_vm_ref(NULL, &nvkm_client(&cli->base)->vm, NULL);
+	nouveau_vm_ref(NULL, &nvxx_client(&cli->base)->vm, NULL);
 	nvif_client_fini(&cli->base);
 	usif_client_fini(cli);
 }
@@ -243,7 +243,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 				OUT_RING  (drm->channel, 0x001f0000);
 			}
 		}
-		swch = (void *)nvkm_object(&drm->nvsw)->parent;
+		swch = (void *)nvxx_object(&drm->nvsw)->parent;
 		swch->flip = nouveau_flip_complete;
 		swch->flip_data = drm->channel;
 	}
@@ -255,7 +255,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	}
 
 	if (device->info.family < NV_DEVICE_INFO_V0_FERMI) {
-		ret = nouveau_gpuobj_new(nvkm_object(&drm->device), NULL, 32,
+		ret = nouveau_gpuobj_new(nvxx_object(&drm->device), NULL, 32,
 					 0, 0, &drm->notify);
 		if (ret) {
 			NV_ERROR(drm, "failed to allocate notifier, %d\n", ret);
@@ -379,7 +379,7 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 
 	dev->dev_private = drm;
 	drm->dev = dev;
-	nvkm_client(&drm->client.base)->debug =
+	nvxx_client(&drm->client.base)->debug =
 		nouveau_dbgopt(nouveau_debug, "DRM");
 
 	INIT_LIST_HEAD(&drm->clients);
@@ -435,12 +435,12 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 	nouveau_agp_init(drm);
 
 	if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		ret = nouveau_vm_new(nvkm_device(&drm->device), 0, (1ULL << 40),
+		ret = nouveau_vm_new(nvxx_device(&drm->device), 0, (1ULL << 40),
 				     0x1000, &drm->client.vm);
 		if (ret)
 			goto fail_device;
 
-		nvkm_client(&drm->client.base)->vm = drm->client.vm;
+		nvxx_client(&drm->client.base)->vm = drm->client.vm;
 	}
 
 	ret = nouveau_ttm_init(drm);
@@ -527,7 +527,7 @@ nouveau_drm_device_remove(struct drm_device *dev)
 	struct nouveau_object *device;
 
 	dev->irq_enabled = false;
-	client = nvkm_client(&drm->client.base);
+	client = nvxx_client(&drm->client.base);
 	device = client->device;
 	drm_put_dev(dev);
 
@@ -831,14 +831,14 @@ nouveau_drm_open(struct drm_device *dev, struct drm_file *fpriv)
 	cli->base.super = false;
 
 	if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		ret = nouveau_vm_new(nvkm_device(&drm->device), 0, (1ULL << 40),
+		ret = nouveau_vm_new(nvxx_device(&drm->device), 0, (1ULL << 40),
 				     0x1000, &cli->vm);
 		if (ret) {
 			nouveau_cli_destroy(cli);
 			goto out_suspend;
 		}
 
-		nvkm_client(&cli->base)->vm = cli->vm;
+		nvxx_client(&cli->base)->vm = cli->vm;
 	}
 
 	fpriv->driver_priv = cli;

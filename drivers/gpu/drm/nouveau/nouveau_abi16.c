@@ -164,8 +164,8 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvif_device *device = &drm->device;
-	struct nouveau_timer *ptimer = nvkm_timer(device);
-	struct nouveau_gr *gr = nvkm_gr(device);
+	struct nouveau_timer *ptimer = nvxx_timer(device);
+	struct nouveau_gr *gr = nvxx_gr(device);
 	struct drm_nouveau_getparam *getparam = data;
 
 	switch (getparam->param) {
@@ -173,19 +173,19 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 		getparam->value = device->info.chipset;
 		break;
 	case NOUVEAU_GETPARAM_PCI_VENDOR:
-		if (nv_device_is_pci(nvkm_device(device)))
+		if (nv_device_is_pci(nvxx_device(device)))
 			getparam->value = dev->pdev->vendor;
 		else
 			getparam->value = 0;
 		break;
 	case NOUVEAU_GETPARAM_PCI_DEVICE:
-		if (nv_device_is_pci(nvkm_device(device)))
+		if (nv_device_is_pci(nvxx_device(device)))
 			getparam->value = dev->pdev->device;
 		else
 			getparam->value = 0;
 		break;
 	case NOUVEAU_GETPARAM_BUS_TYPE:
-		if (!nv_device_is_pci(nvkm_device(device)))
+		if (!nv_device_is_pci(nvxx_device(device)))
 			getparam->value = 3;
 		else
 		if (drm_pci_device_is_agp(dev))

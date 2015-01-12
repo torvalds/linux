@@ -112,8 +112,8 @@ static void nv_crtc_calc_state_ext(struct drm_crtc *crtc, struct drm_display_mod
 {
 	struct drm_device *dev = crtc->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_bios *bios = nvkm_bios(&drm->device);
-	struct nouveau_clk *clk = nvkm_clk(&drm->device);
+	struct nouveau_bios *bios = nvxx_bios(&drm->device);
+	struct nouveau_clk *clk = nvxx_clk(&drm->device);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nv04_mode_state *state = &nv04_display(dev)->mode_reg;
 	struct nv04_crtc_reg *regp = &state->crtc_reg[nv_crtc->index];

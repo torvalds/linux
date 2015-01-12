@@ -48,7 +48,7 @@ nv10_bo_update_tile_region(struct drm_device *dev, struct nouveau_drm_tile *reg,
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	int i = reg - drm->tile.reg;
-	struct nouveau_fb *pfb = nvkm_fb(&drm->device);
+	struct nouveau_fb *pfb = nvxx_fb(&drm->device);
 	struct nouveau_fb_tile *tile = &pfb->tile.region[i];
 	struct nouveau_engine *engine;
 
@@ -105,7 +105,7 @@ nv10_bo_set_tiling(struct drm_device *dev, u32 addr,
 		   u32 size, u32 pitch, u32 flags)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_fb *pfb = nvkm_fb(&drm->device);
+	struct nouveau_fb *pfb = nvxx_fb(&drm->device);
 	struct nouveau_drm_tile *tile, *found = NULL;
 	int i;
 
@@ -214,7 +214,7 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 	nvbo->tile_flags = tile_flags;
 	nvbo->bo.bdev = &drm->ttm.bdev;
 
-	if (!nv_device_is_cpu_coherent(nvkm_device(&drm->device)))
+	if (!nv_device_is_cpu_coherent(nvxx_device(&drm->device)))
 		nvbo->force_coherent = flags & TTM_PL_FLAG_UNCACHED;
 
 	nvbo->page_shift = 12;
@@ -459,7 +459,7 @@ void
 nouveau_bo_sync_for_device(struct nouveau_bo *nvbo)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
-	struct nouveau_device *device = nvkm_device(&drm->device);
+	struct nouveau_device *device = nvxx_device(&drm->device);
 	struct ttm_dma_tt *ttm_dma = (struct ttm_dma_tt *)nvbo->bo.ttm;
 	int i;
 
@@ -479,7 +479,7 @@ void
 nouveau_bo_sync_for_cpu(struct nouveau_bo *nvbo)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
-	struct nouveau_device *device = nvkm_device(&drm->device);
+	struct nouveau_device *device = nvxx_device(&drm->device);
 	struct ttm_dma_tt *ttm_dma = (struct ttm_dma_tt *)nvbo->bo.ttm;
 	int i;
 
@@ -620,7 +620,7 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 
 		if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
 			/* Some BARs do not support being ioremapped WC */
-			if (nvkm_bar(&drm->device)->iomap_uncached) {
+			if (nvxx_bar(&drm->device)->iomap_uncached) {
 				man->available_caching = TTM_PL_FLAG_UNCACHED;
 				man->default_caching = TTM_PL_FLAG_UNCACHED;
 			}
@@ -1382,10 +1382,10 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 		/* fallthrough, tiled memory */
 	case TTM_PL_VRAM:
 		mem->bus.offset = mem->start << PAGE_SHIFT;
-		mem->bus.base = nv_device_resource_start(nvkm_device(&drm->device), 1);
+		mem->bus.base = nv_device_resource_start(nvxx_device(&drm->device), 1);
 		mem->bus.is_iomem = true;
 		if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
-			struct nouveau_bar *bar = nvkm_bar(&drm->device);
+			struct nouveau_bar *bar = nvxx_bar(&drm->device);
 
 			ret = bar->umap(bar, node, NV_MEM_ACCESS_RW,
 					&node->bar_vma);
@@ -1405,7 +1405,7 @@ static void
 nouveau_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bdev);
-	struct nouveau_bar *bar = nvkm_bar(&drm->device);
+	struct nouveau_bar *bar = nvxx_bar(&drm->device);
 	struct nouveau_mem *node = mem->mm_node;
 
 	if (!node->bar_vma.node)
@@ -1420,7 +1420,7 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nvif_device *device = &drm->device;
-	u32 mappable = nv_device_resource_len(nvkm_device(device), 1) >> PAGE_SHIFT;
+	u32 mappable = nv_device_resource_len(nvxx_device(device), 1) >> PAGE_SHIFT;
 	int i, ret;
 
 	/* as long as the bo isn't in vram, and isn't tiled, we've got
@@ -1484,7 +1484,7 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm)
 	}
 
 	drm = nouveau_bdev(ttm->bdev);
-	device = nvkm_device(&drm->device);
+	device = nvxx_device(&drm->device);
 	dev = drm->dev;
 	pdev = nv_device_base(device);
 
@@ -1549,7 +1549,7 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 		return;
 
 	drm = nouveau_bdev(ttm->bdev);
-	device = nvkm_device(&drm->device);
+	device = nvxx_device(&drm->device);
 	dev = drm->dev;
 	pdev = nv_device_base(device);
 

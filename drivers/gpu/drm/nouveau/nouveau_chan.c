@@ -54,7 +54,7 @@ nouveau_channel_idle(struct nouveau_channel *chan)
 
 	if (ret)
 		NV_PRINTK(error, cli, "failed to idle channel 0x%08x [%s]\n",
-			  chan->object->handle, nvkm_client(&cli->base)->name);
+			  chan->object->handle, nvxx_client(&cli->base)->name);
 	return ret;
 }
 
@@ -88,7 +88,7 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 		     u32 handle, u32 size, struct nouveau_channel **pchan)
 {
 	struct nouveau_cli *cli = (void *)nvif_client(&device->base);
-	struct nouveau_mmu *mmu = nvkm_mmu(device);
+	struct nouveau_mmu *mmu = nvxx_mmu(device);
 	struct nv_dma_v0 args = {};
 	struct nouveau_channel *chan;
 	u32 target;
@@ -146,7 +146,7 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 			 */
 			args.target = NV_DMA_V0_TARGET_PCI;
 			args.access = NV_DMA_V0_ACCESS_RDWR;
-			args.start = nv_device_resource_start(nvkm_device(device), 1);
+			args.start = nv_device_resource_start(nvxx_device(device), 1);
 			args.limit = args.start + device->info.ram_user - 1;
 		} else {
 			args.target = NV_DMA_V0_TARGET_VRAM;
@@ -281,7 +281,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 {
 	struct nvif_device *device = chan->device;
 	struct nouveau_cli *cli = (void *)nvif_client(&device->base);
-	struct nouveau_mmu *mmu = nvkm_mmu(device);
+	struct nouveau_mmu *mmu = nvxx_mmu(device);
 	struct nouveau_sw_chan *swch;
 	struct nv_dma_v0 args = {};
 	int ret, i;
@@ -372,7 +372,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 		if (ret)
 			return ret;
 
-		swch = (void *)nvkm_object(&chan->nvsw)->parent;
+		swch = (void *)nvxx_object(&chan->nvsw)->parent;
 		swch->flip = nouveau_flip_complete;
 		swch->flip_data = chan;
 

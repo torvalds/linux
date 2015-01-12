@@ -115,7 +115,7 @@ nouveau_connector_ddc_detect(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_gpio *gpio = nvkm_gpio(&drm->device);
+	struct nouveau_gpio *gpio = nvxx_gpio(&drm->device);
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
 	int i, panel = -ENODEV;

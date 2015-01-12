@@ -33,7 +33,7 @@ static int
 nouveau_vram_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
 {
 	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
-	struct nouveau_fb *pfb = nvkm_fb(&drm->device);
+	struct nouveau_fb *pfb = nvxx_fb(&drm->device);
 	man->priv = pfb;
 	return 0;
 }
@@ -64,7 +64,7 @@ nouveau_vram_manager_del(struct ttm_mem_type_manager *man,
 			 struct ttm_mem_reg *mem)
 {
 	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
-	struct nouveau_fb *pfb = nvkm_fb(&drm->device);
+	struct nouveau_fb *pfb = nvxx_fb(&drm->device);
 	nouveau_mem_node_cleanup(mem->mm_node);
 	pfb->ram->put(pfb, (struct nouveau_mem **)&mem->mm_node);
 }
@@ -76,7 +76,7 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 			 struct ttm_mem_reg *mem)
 {
 	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
-	struct nouveau_fb *pfb = nvkm_fb(&drm->device);
+	struct nouveau_fb *pfb = nvxx_fb(&drm->device);
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_mem *node;
 	u32 size_nc = 0;
@@ -208,7 +208,7 @@ static int
 nv04_gart_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
 {
 	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
-	struct nouveau_mmu *mmu = nvkm_mmu(&drm->device);
+	struct nouveau_mmu *mmu = nvxx_mmu(&drm->device);
 	struct nv04_mmu_priv *priv = (void *)mmu;
 	struct nouveau_vm *vm = NULL;
 	nouveau_vm_ref(priv->vm, &vm, NULL);
@@ -354,8 +354,8 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	u32 bits;
 	int ret;
 
-	bits = nvkm_mmu(&drm->device)->dma_bits;
-	if (nv_device_is_pci(nvkm_device(&drm->device))) {
+	bits = nvxx_mmu(&drm->device)->dma_bits;
+	if (nv_device_is_pci(nvxx_device(&drm->device))) {
 		if (drm->agp.stat == ENABLED ||
 		     !pci_dma_supported(dev->pdev, DMA_BIT_MASK(bits)))
 			bits = 32;
@@ -396,12 +396,12 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 		return ret;
 	}
 
-	drm->ttm.mtrr = arch_phys_wc_add(nv_device_resource_start(nvkm_device(&drm->device), 1),
-					 nv_device_resource_len(nvkm_device(&drm->device), 1));
+	drm->ttm.mtrr = arch_phys_wc_add(nv_device_resource_start(nvxx_device(&drm->device), 1),
+					 nv_device_resource_len(nvxx_device(&drm->device), 1));
 
 	/* GART init */
 	if (drm->agp.stat != ENABLED) {
-		drm->gem.gart_available = nvkm_mmu(&drm->device)->limit;
+		drm->gem.gart_available = nvxx_mmu(&drm->device)->limit;
 	} else {
 		drm->gem.gart_available = drm->agp.size;
 	}

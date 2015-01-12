@@ -200,7 +200,7 @@ nv50_dmac_destroy(struct nv50_dmac *dmac, struct nvif_object *disp)
 	nv50_chan_destroy(&dmac->base);
 
 	if (dmac->ptr) {
-		struct pci_dev *pdev = nvkm_device(nvif_device(disp))->pdev;
+		struct pci_dev *pdev = nvxx_device(nvif_device(disp))->pdev;
 		pci_free_consistent(pdev, PAGE_SIZE, dmac->ptr, dmac->handle);
 	}
 }
@@ -217,7 +217,7 @@ nv50_dmac_create(struct nvif_object *disp, const u32 *oclass, u8 head,
 
 	mutex_init(&dmac->lock);
 
-	dmac->ptr = pci_alloc_consistent(nvkm_device(device)->pdev,
+	dmac->ptr = pci_alloc_consistent(nvxx_device(device)->pdev,
 					 PAGE_SIZE, &dmac->handle);
 	if (!dmac->ptr)
 		return -ENOMEM;
@@ -420,9 +420,9 @@ evo_wait(void *evoc, int nr)
 		dmac->ptr[put] = 0x20000000;
 
 		nvif_wr32(&dmac->base.user, 0x0000, 0x00000000);
-		if (!nvkm_wait(&dmac->base.user, 0x0004, ~0, 0x00000000)) {
+		if (!nvxx_wait(&dmac->base.user, 0x0004, ~0, 0x00000000)) {
 			mutex_unlock(&dmac->lock);
-			nv_error(nvkm_object(&dmac->base.user), "channel stalled\n");
+			nv_error(nvxx_object(&dmac->base.user), "channel stalled\n");
 			return NULL;
 		}
 
@@ -480,7 +480,7 @@ evo_sync(struct drm_device *dev)
 		evo_data(push, 0x00000000);
 		evo_data(push, 0x00000000);
 		evo_kick(push, mast);
-		if (nv_wait_cb(nvkm_device(device), evo_sync_wait, disp->sync))
+		if (nv_wait_cb(nvxx_device(device), evo_sync_wait, disp->sync))
 			return 0;
 	}
 
@@ -535,7 +535,7 @@ nv50_display_flip_stop(struct drm_crtc *crtc)
 		evo_kick(push, flip.chan);
 	}
 
-	nv_wait_cb(nvkm_device(device), nv50_display_flip_wait, &flip);
+	nv_wait_cb(nvxx_device(device), nv50_display_flip_wait, &flip);
 }
 
 int
@@ -1677,7 +1677,7 @@ static int
 nv50_dac_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
-	struct nouveau_i2c *i2c = nvkm_i2c(&drm->device);
+	struct nouveau_i2c *i2c = nvxx_i2c(&drm->device);
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
 	int type = DRM_MODE_ENCODER_DAC;
@@ -2062,7 +2062,7 @@ static int
 nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
-	struct nouveau_i2c *i2c = nvkm_i2c(&drm->device);
+	struct nouveau_i2c *i2c = nvxx_i2c(&drm->device);
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
 	int type;
@@ -2233,7 +2233,7 @@ static int
 nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
-	struct nouveau_i2c *i2c = nvkm_i2c(&drm->device);
+	struct nouveau_i2c *i2c = nvxx_i2c(&drm->device);
 	struct nouveau_i2c_port *ddc = NULL;
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;

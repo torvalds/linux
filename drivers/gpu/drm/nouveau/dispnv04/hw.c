@@ -166,7 +166,7 @@ nouveau_hw_get_pllvals(struct drm_device *dev, enum nvbios_pll_type plltype,
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvif_device *device = &drm->device;
-	struct nouveau_bios *bios = nvkm_bios(device);
+	struct nouveau_bios *bios = nvxx_bios(device);
 	uint32_t reg1, pll1, pll2 = 0;
 	struct nvbios_pll pll_lim;
 	int ret;
@@ -253,8 +253,8 @@ nouveau_hw_fix_bad_vpll(struct drm_device *dev, int head)
 
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvif_device *device = &drm->device;
-	struct nouveau_clk *clk = nvkm_clk(device);
-	struct nouveau_bios *bios = nvkm_bios(device);
+	struct nouveau_clk *clk = nvxx_clk(device);
+	struct nouveau_bios *bios = nvxx_bios(device);
 	struct nvbios_pll pll_lim;
 	struct nouveau_pll_vals pv;
 	enum nvbios_pll_type pll = head ? PLL_VPLL1 : PLL_VPLL0;
@@ -463,7 +463,7 @@ nv_load_state_ramdac(struct drm_device *dev, int head,
 		     struct nv04_mode_state *state)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_clk *clk = nvkm_clk(&drm->device);
+	struct nouveau_clk *clk = nvxx_clk(&drm->device);
 	struct nv04_crtc_reg *regp = &state->crtc_reg[head];
 	uint32_t pllreg = head ? NV_RAMDAC_VPLL2 : NV_PRAMDAC_VPLL_COEFF;
 	int i;
@@ -661,7 +661,7 @@ nv_load_state_ext(struct drm_device *dev, int head,
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvif_device *device = &drm->device;
-	struct nouveau_timer *ptimer = nvkm_timer(device);
+	struct nouveau_timer *ptimer = nvxx_timer(device);
 	struct nv04_crtc_reg *regp = &state->crtc_reg[head];
 	uint32_t reg900;
 	int i;
