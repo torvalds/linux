@@ -720,6 +720,18 @@ static void a2150_alloc_irq_dma(struct comedi_device *dev,
 	set_dma_mode(dma_chan, DMA_MODE_READ);
 }
 
+static void a2150_free_dma(struct comedi_device *dev)
+{
+	struct a2150_private *devpriv = dev->private;
+
+	if (!devpriv)
+		return;
+
+	if (devpriv->dma)
+		free_dma(devpriv->dma);
+	kfree(devpriv->dma_buffer);
+}
+
 /* probes board type, returns offset */
 static int a2150_probe(struct comedi_device *dev)
 {
@@ -808,15 +820,9 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void a2150_detach(struct comedi_device *dev)
 {
-	struct a2150_private *devpriv = dev->private;
-
 	if (dev->iobase)
 		outw(APD_BIT | DPD_BIT, dev->iobase + CONFIG_REG);
-	if (devpriv) {
-		if (devpriv->dma)
-			free_dma(devpriv->dma);
-		kfree(devpriv->dma_buffer);
-	}
+	a2150_free_dma(dev);
 	comedi_legacy_detach(dev);
 };
 
