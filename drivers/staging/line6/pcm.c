@@ -448,11 +448,6 @@ int line6_init_pcm(struct usb_line6 *line6,
 		ep_write = 0x02;
 		break;
 
-	case LINE6_POCKETPOD:
-		ep_read = 0x82;
-		ep_write = 0x02;
-		break;
-
 	case LINE6_GUITARPORT:
 	case LINE6_PODSTUDIO_GX:
 	case LINE6_PODSTUDIO_UX1:
