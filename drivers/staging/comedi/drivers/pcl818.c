@@ -302,13 +302,17 @@ static const struct pcl818_board boardtypes[] = {
 	},
 };
 
+struct pcl818_dma_desc {
+	unsigned long dmabuf;	/*  pointers to begin of DMA buffers */
+	unsigned int hwdmaptr;	/*  hardware address of DMA buffers */
+};
+
 struct pcl818_private {
 	unsigned int dma;	/*  used DMA, 0=don't use DMA */
 	unsigned int dmapages;
 	unsigned int hwdmasize;
-	unsigned long dmabuf[2];	/*  pointers to begin of DMA buffers */
-	unsigned int hwdmaptr[2];	/*  hardware address of DMA buffers */
-	int next_dma_buf;	/*  which DMA buffer will be used next round */
+	struct pcl818_dma_desc dma_desc[2];
+	int cur_dma;
 	long dma_runs_to_end;	/*  how many we must permorm DMA transfer to end of record */
 	unsigned long last_dma_run;	/*  how many bytes we must transfer on last DMA page */
 	unsigned int ns_min;	/*  manimal allowed delay between samples (in us) for actual card */
@@ -343,6 +347,7 @@ static void pcl818_ai_setup_dma(struct comedi_device *dev,
 				struct comedi_subdevice *s)
 {
 	struct pcl818_private *devpriv = dev->private;
+	struct pcl818_dma_desc *dma = &devpriv->dma_desc[0];
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int flags;
 	unsigned int bytes;
@@ -358,11 +363,11 @@ static void pcl818_ai_setup_dma(struct comedi_device *dev,
 			bytes = devpriv->hwdmasize;
 	}
 
-	devpriv->next_dma_buf = 0;
+	devpriv->cur_dma = 0;
 	set_dma_mode(devpriv->dma, DMA_MODE_READ);
 	flags = claim_dma_lock();
 	clear_dma_ff(devpriv->dma);
-	set_dma_addr(devpriv->dma, devpriv->hwdmaptr[0]);
+	set_dma_addr(devpriv->dma, dma->hwdmaptr);
 	set_dma_count(devpriv->dma, bytes);
 	release_dma_lock(flags);
 	enable_dma(devpriv->dma);
@@ -373,16 +378,17 @@ static void pcl818_ai_setup_next_dma(struct comedi_device *dev,
 {
 	struct pcl818_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
+	struct pcl818_dma_desc *dma;
 	unsigned long flags;
 
 	disable_dma(devpriv->dma);
-	devpriv->next_dma_buf = 1 - devpriv->next_dma_buf;
+	devpriv->cur_dma = 1 - devpriv->cur_dma;
 	if (devpriv->dma_runs_to_end > -1 || cmd->stop_src == TRIG_NONE) {
 		/* switch dma bufs */
+		dma = &devpriv->dma_desc[devpriv->cur_dma];
 		set_dma_mode(devpriv->dma, DMA_MODE_READ);
 		flags = claim_dma_lock();
-		set_dma_addr(devpriv->dma,
-			     devpriv->hwdmaptr[devpriv->next_dma_buf]);
+		set_dma_addr(devpriv->dma, dma->hwdmaptr);
 		if (devpriv->dma_runs_to_end || cmd->stop_src == TRIG_NONE)
 			set_dma_count(devpriv->dma, devpriv->hwdmasize);
 		else
@@ -558,14 +564,13 @@ static void pcl818_handle_dma(struct comedi_device *dev,
 			      struct comedi_subdevice *s)
 {
 	struct pcl818_private *devpriv = dev->private;
-	unsigned short *ptr;
+	struct pcl818_dma_desc *dma = &devpriv->dma_desc[devpriv->cur_dma];
+	unsigned short *ptr = (unsigned short *)dma->dmabuf;
 	unsigned int chan;
 	unsigned int val;
 	int i, len, bufptr;
 
 	pcl818_ai_setup_next_dma(dev, s);
-
-	ptr = (unsigned short *)devpriv->dmabuf[1 - devpriv->next_dma_buf];
 
 	len = devpriv->hwdmasize >> 1;
 	bufptr = 0;
@@ -1057,6 +1062,7 @@ static void pcl818_set_ai_range_table(struct comedi_device *dev,
 static int pcl818_alloc_dma(struct comedi_device *dev, unsigned int dma_chan)
 {
 	struct pcl818_private *devpriv = dev->private;
+	struct pcl818_dma_desc *dma;
 	int i;
 
 	if (!(dma_chan == 3 || dma_chan == 1))
@@ -1070,14 +1076,12 @@ static int pcl818_alloc_dma(struct comedi_device *dev, unsigned int dma_chan)
 	devpriv->hwdmasize = (1 << devpriv->dmapages) * PAGE_SIZE;
 
 	for (i = 0; i < 2; i++) {
-		unsigned long dmabuf;
+		dma = &devpriv->dma_desc[i];
 
-		dmabuf = __get_dma_pages(GFP_KERNEL, devpriv->dmapages);
-		if (!dmabuf)
+		dma->dmabuf = __get_dma_pages(GFP_KERNEL, devpriv->dmapages);
+		if (!dma->dmabuf)
 			return -ENOMEM;
-
-		devpriv->dmabuf[i] = dmabuf;
-		devpriv->hwdmaptr[i] = virt_to_bus((void *)dmabuf);
+		dma->hwdmaptr = virt_to_bus((void *)dma->dmabuf);
 	}
 	return 0;
 }
@@ -1085,6 +1089,7 @@ static int pcl818_alloc_dma(struct comedi_device *dev, unsigned int dma_chan)
 static void pcl818_free_dma(struct comedi_device *dev)
 {
 	struct pcl818_private *devpriv = dev->private;
+	struct pcl818_dma_desc *dma;
 	int i;
 
 	if (!devpriv)
@@ -1093,8 +1098,9 @@ static void pcl818_free_dma(struct comedi_device *dev)
 	if (devpriv->dma)
 		free_dma(devpriv->dma);
 	for (i = 0; i < 2; i++) {
-		if (devpriv->dmabuf[i])
-			free_pages(devpriv->dmabuf[i], devpriv->dmapages);
+		dma = &devpriv->dma_desc[i];
+		if (dma->dmabuf)
+			free_pages(dma->dmabuf, devpriv->dmapages);
 	}
 }
 
