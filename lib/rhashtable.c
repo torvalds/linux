@@ -443,8 +443,16 @@ int rhashtable_shrink(struct rhashtable *ht)
 		new_bucket_lock = bucket_lock(new_tbl, new_hash);
 
 		spin_lock_bh(old_bucket_lock1);
-		spin_lock_bh_nested(old_bucket_lock2, RHT_LOCK_NESTED);
-		spin_lock_bh_nested(new_bucket_lock, RHT_LOCK_NESTED2);
+
+		/* Depending on the lock per buckets mapping, the bucket in
+		 * the lower and upper region may map to the same lock.
+		 */
+		if (old_bucket_lock1 != old_bucket_lock2) {
+			spin_lock_bh_nested(old_bucket_lock2, RHT_LOCK_NESTED);
+			spin_lock_bh_nested(new_bucket_lock, RHT_LOCK_NESTED2);
+		} else {
+			spin_lock_bh_nested(new_bucket_lock, RHT_LOCK_NESTED);
+		}
 
 		rcu_assign_pointer(*bucket_tail(new_tbl, new_hash),
 				   tbl->buckets[new_hash]);
@@ -452,7 +460,8 @@ int rhashtable_shrink(struct rhashtable *ht)
 				   tbl->buckets[new_hash + new_tbl->size]);
 
 		spin_unlock_bh(new_bucket_lock);
-		spin_unlock_bh(old_bucket_lock2);
+		if (old_bucket_lock1 != old_bucket_lock2)
+			spin_unlock_bh(old_bucket_lock2);
 		spin_unlock_bh(old_bucket_lock1);
 	}
 
