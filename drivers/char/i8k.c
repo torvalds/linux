@@ -331,7 +331,7 @@ static int i8k_get_temp(int sensor)
 		prev[sensor] = temp;
 	}
 	if (temp > I8K_MAX_TEMP)
-		return -ERANGE;
+		return -ENODATA;
 #endif
 
 	return temp;
@@ -533,8 +533,6 @@ static ssize_t i8k_hwmon_show_temp(struct device *dev,
 	int temp;
 
 	temp = i8k_get_temp(index);
-	if (temp == -ERANGE)
-		return -EINVAL;
 	if (temp < 0)
 		return temp;
 	return sprintf(buf, "%d\n", temp * 1000);
