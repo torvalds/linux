@@ -313,12 +313,8 @@ static ssize_t state_show(struct kobject *kobj, struct kobj_attribute *attr,
 static suspend_state_t decode_state(const char *buf, size_t n)
 {
 #ifdef CONFIG_SUSPEND
-#ifdef CONFIG_EARLYSUSPEND
-	suspend_state_t state = PM_SUSPEND_ON;
-#else
-	suspend_state_t state = PM_SUSPEND_STANDBY;
-#endif
-	const char * const *s;
+	suspend_state_t state = PM_SUSPEND_MIN;
+	struct pm_sleep_state *s;
 #endif
 	char *p;
 	int len;
@@ -357,16 +353,7 @@ static ssize_t state_store(struct kobject *kobj, struct kobj_attribute *attr,
 
 	state = decode_state(buf, n);
 	if (state < PM_SUSPEND_MAX)
-	{
-#ifdef CONFIG_EARLYSUSPEND
-		if (state == PM_SUSPEND_ON || valid_state(state)) {
-			error = 0;
-			request_suspend_state(state);
-		}
-#else
 		error = pm_suspend(state);
-#endif
-	}
 	else if (state == PM_SUSPEND_MAX)
 		error = hibernate();
 	else
@@ -566,10 +553,7 @@ pm_trace_dev_match_store(struct kobject *kobj, struct kobj_attribute *attr,
 power_attr(pm_trace_dev_match);
 
 #endif /* CONFIG_PM_TRACE */
-#ifdef CONFIG_USER_WAKELOCK
-power_attr(wake_lock);
-power_attr(wake_unlock);
-#endif
+
 #ifdef CONFIG_FREEZER
 static ssize_t pm_freeze_timeout_show(struct kobject *kobj,
 				      struct kobj_attribute *attr, char *buf)
@@ -603,10 +587,6 @@ static struct attribute * g[] = {
 #ifdef CONFIG_PM_SLEEP
 	&pm_async_attr.attr,
 	&wakeup_count_attr.attr,
-#ifdef CONFIG_USER_WAKELOCK
-	&wake_lock_attr.attr,
-	&wake_unlock_attr.attr,
-#endif
 #ifdef CONFIG_PM_AUTOSLEEP
 	&autosleep_attr.attr,
 #endif
