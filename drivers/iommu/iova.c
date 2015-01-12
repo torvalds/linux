@@ -55,12 +55,20 @@ void free_iova_mem(struct iova *iova)
 }
 
 void
-init_iova_domain(struct iova_domain *iovad, unsigned long start_pfn,
-	unsigned long pfn_32bit)
+init_iova_domain(struct iova_domain *iovad, unsigned long granule,
+	unsigned long start_pfn, unsigned long pfn_32bit)
 {
+	/*
+	 * IOVA granularity will normally be equal to the smallest
+	 * supported IOMMU page size; both *must* be capable of
+	 * representing individual CPU pages exactly.
+	 */
+	BUG_ON((granule > PAGE_SIZE) || !is_power_of_2(granule));
+
 	spin_lock_init(&iovad->iova_rbtree_lock);
 	iovad->rbroot = RB_ROOT;
 	iovad->cached32_node = NULL;
+	iovad->granule = granule;
 	iovad->start_pfn = start_pfn;
 	iovad->dma_32bit_pfn = pfn_32bit;
 }
