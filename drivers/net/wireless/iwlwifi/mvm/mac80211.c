@@ -3343,18 +3343,16 @@ static void iwl_mvm_mac_flush(struct ieee80211_hw *hw,
 		msk |= mvmsta->tfd_queue_msk;
 	}
 
-	if (drop) {
-		if (iwl_mvm_flush_tx_path(mvm, msk, true))
-			IWL_ERR(mvm, "flush request fail\n");
-		mutex_unlock(&mvm->mutex);
-	} else {
-		mutex_unlock(&mvm->mutex);
+	msk &= ~BIT(vif->hw_queue[IEEE80211_AC_VO]);
 
-		/* this can take a while, and we may need/want other operations
-		 * to succeed while doing this, so do it without the mutex held
-		 */
-		iwl_trans_wait_tx_queue_empty(mvm->trans, msk);
-	}
+	if (iwl_mvm_flush_tx_path(mvm, msk, true))
+		IWL_ERR(mvm, "flush request fail\n");
+	mutex_unlock(&mvm->mutex);
+
+	/* this can take a while, and we may need/want other operations
+	 * to succeed while doing this, so do it without the mutex held
+	 */
+	iwl_trans_wait_tx_queue_empty(mvm->trans, msk);
 }
 
 const struct ieee80211_ops iwl_mvm_hw_ops = {
