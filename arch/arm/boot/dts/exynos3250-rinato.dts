@@ -37,8 +37,6 @@
 		compatible = "gpio-keys";
 
 		power_key {
-			interrupt-parent = <&gpx2>;
-			interrupts = <7 0>;
 			gpios = <&gpx2 7 1>;
 			linux,code = <KEY_POWER>;
 			label = "power key";
