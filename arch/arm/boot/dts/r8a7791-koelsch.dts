@@ -444,6 +444,8 @@
 		spi-max-frequency = <30000000>;
 		spi-tx-bus-width = <4>;
 		spi-rx-bus-width = <4>;
+		spi-cpha;
+		spi-cpol;
 		m25p,fast-read;
 
 		partition@0 {
@@ -452,13 +454,13 @@
 			read-only;
 		};
 		partition@80000 {
-			label = "bootenv";
-			reg = <0x00080000 0x00080000>;
+			label = "user";
+			reg = <0x00080000 0x00580000>;
 			read-only;
 		};
-		partition@100000 {
-			label = "data";
-			reg = <0x00100000 0x03f00000>;
+		partition@600000 {
+			label = "flash";
+			reg = <0x00600000 0x03a00000>;
 		};
 	};
 };
