@@ -420,6 +420,11 @@ static const struct das1800_board das1800_boards[] = {
 	 },
 };
 
+struct das1800_dma_desc {
+	unsigned int chan;	/* DMA channel */
+	uint16_t *virt_addr;	/* virtual address of DMA buffer */
+};
+
 struct das1800_private {
 	unsigned int divisor1;	/* value to load into board's counter 1 for timed conversions */
 	unsigned int divisor2;	/* value to load into board's counter 2 for timed conversions */
@@ -427,12 +432,8 @@ struct das1800_private {
 	/* dma bits for control register b, stored so that dma can be
 	 * turned on and off */
 	int dma_bits;
-	unsigned int dma0;	/* dma channels used */
-	unsigned int dma1;
-	unsigned int dma_current;	/* dma channel currently in use */
-	uint16_t *ai_buf0;	/* pointers to dma buffers */
-	uint16_t *ai_buf1;
-	uint16_t *dma_current_buf;	/* pointer to dma buffer currently being used */
+	struct das1800_dma_desc dma_desc[2];
+	int cur_dma;
 	uint16_t *fifo_buf;	/* bounce buffer for analog input FIFO */
 	unsigned int dma_transfer_size;	/* size of transfer currently used, in bytes */
 	unsigned long iobase2;	/* secondary io address used for analog out on 'ao' boards */
@@ -540,24 +541,18 @@ static void das1800_flush_dma(struct comedi_device *dev,
 			      struct comedi_subdevice *s)
 {
 	struct das1800_private *devpriv = dev->private;
+	struct das1800_dma_desc *dma = &devpriv->dma_desc[devpriv->cur_dma];
 	unsigned long flags;
 	const int dual_dma = devpriv->irq_dma_bits & DMA_DUAL;
 
 	flags = claim_dma_lock();
-	das1800_flush_dma_channel(dev, s, devpriv->dma_current,
-				  devpriv->dma_current_buf);
+	das1800_flush_dma_channel(dev, s, dma->chan, dma->virt_addr);
 
 	if (dual_dma) {
 		/*  switch to other channel and flush it */
-		if (devpriv->dma_current == devpriv->dma0) {
-			devpriv->dma_current = devpriv->dma1;
-			devpriv->dma_current_buf = devpriv->ai_buf1;
-		} else {
-			devpriv->dma_current = devpriv->dma0;
-			devpriv->dma_current_buf = devpriv->ai_buf0;
-		}
-		das1800_flush_dma_channel(dev, s, devpriv->dma_current,
-					  devpriv->dma_current_buf);
+		devpriv->cur_dma = 1 - devpriv->cur_dma;
+		dma = &devpriv->dma_desc[devpriv->cur_dma];
+		das1800_flush_dma_channel(dev, s, dma->chan, dma->virt_addr);
 	}
 
 	release_dma_lock(flags);
@@ -570,47 +565,43 @@ static void das1800_handle_dma(struct comedi_device *dev,
 			       struct comedi_subdevice *s, unsigned int status)
 {
 	struct das1800_private *devpriv = dev->private;
+	struct das1800_dma_desc *dma = &devpriv->dma_desc[devpriv->cur_dma];
 	unsigned long flags;
 	const int dual_dma = devpriv->irq_dma_bits & DMA_DUAL;
 
 	flags = claim_dma_lock();
-	das1800_flush_dma_channel(dev, s, devpriv->dma_current,
-				  devpriv->dma_current_buf);
+	das1800_flush_dma_channel(dev, s, dma->chan, dma->virt_addr);
 	/*  re-enable  dma channel */
-	set_dma_addr(devpriv->dma_current,
-		     virt_to_bus(devpriv->dma_current_buf));
-	set_dma_count(devpriv->dma_current, devpriv->dma_transfer_size);
-	enable_dma(devpriv->dma_current);
+	set_dma_addr(dma->chan, virt_to_bus(dma->virt_addr));
+	set_dma_count(dma->chan, devpriv->dma_transfer_size);
+	enable_dma(dma->chan);
 	release_dma_lock(flags);
 
 	if (status & DMATC) {
 		/*  clear DMATC interrupt bit */
 		outb(CLEAR_INTR_MASK & ~DMATC, dev->iobase + DAS1800_STATUS);
 		/*  switch dma channels for next time, if appropriate */
-		if (dual_dma) {
-			/*  read data from the other channel next time */
-			if (devpriv->dma_current == devpriv->dma0) {
-				devpriv->dma_current = devpriv->dma1;
-				devpriv->dma_current_buf = devpriv->ai_buf1;
-			} else {
-				devpriv->dma_current = devpriv->dma0;
-				devpriv->dma_current_buf = devpriv->ai_buf0;
-			}
-		}
+		if (dual_dma)
+			devpriv->cur_dma = 1 - devpriv->cur_dma;
 	}
 }
 
 static int das1800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct das1800_private *devpriv = dev->private;
+	struct das1800_dma_desc *dma;
+	int i;
 
 	outb(0x0, dev->iobase + DAS1800_STATUS);	/* disable conversions */
 	outb(0x0, dev->iobase + DAS1800_CONTROL_B);	/* disable interrupts and dma */
 	outb(0x0, dev->iobase + DAS1800_CONTROL_A);	/* disable and clear fifo and stop triggering */
-	if (devpriv->dma0)
-		disable_dma(devpriv->dma0);
-	if (devpriv->dma1)
-		disable_dma(devpriv->dma1);
+
+	for (i = 0; i < 2; i++) {
+		dma = &devpriv->dma_desc[i];
+		if (dma->chan)
+			disable_dma(dma->chan);
+	}
+
 	return 0;
 }
 
@@ -1006,35 +997,37 @@ static unsigned int suggest_transfer_size(const struct comedi_cmd *cmd)
 static void setup_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
 {
 	struct das1800_private *devpriv = dev->private;
+	struct das1800_dma_desc *dma = &devpriv->dma_desc[0];
 	unsigned long lock_flags;
 	const int dual_dma = devpriv->irq_dma_bits & DMA_DUAL;
 
 	if ((devpriv->irq_dma_bits & DMA_ENABLED) == 0)
 		return;
 
+	devpriv->cur_dma = 0;
+
 	/* determine a reasonable dma transfer size */
 	devpriv->dma_transfer_size = suggest_transfer_size(cmd);
 	lock_flags = claim_dma_lock();
-	disable_dma(devpriv->dma0);
+	disable_dma(dma->chan);
 	/* clear flip-flop to make sure 2-byte registers for
 	 * count and address get set correctly */
-	clear_dma_ff(devpriv->dma0);
-	set_dma_addr(devpriv->dma0, virt_to_bus(devpriv->ai_buf0));
+	clear_dma_ff(dma->chan);
+	set_dma_addr(dma->chan, virt_to_bus(dma->virt_addr));
 	/*  set appropriate size of transfer */
-	set_dma_count(devpriv->dma0, devpriv->dma_transfer_size);
-	devpriv->dma_current = devpriv->dma0;
-	devpriv->dma_current_buf = devpriv->ai_buf0;
-	enable_dma(devpriv->dma0);
+	set_dma_count(dma->chan, devpriv->dma_transfer_size);
+	enable_dma(dma->chan);
 	/*  set up dual dma if appropriate */
 	if (dual_dma) {
-		disable_dma(devpriv->dma1);
+		dma = &devpriv->dma_desc[1];
+		disable_dma(dma->chan);
 		/* clear flip-flop to make sure 2-byte registers for
 		 * count and address get set correctly */
-		clear_dma_ff(devpriv->dma1);
-		set_dma_addr(devpriv->dma1, virt_to_bus(devpriv->ai_buf1));
+		clear_dma_ff(dma->chan);
+		set_dma_addr(dma->chan, virt_to_bus(dma->virt_addr));
 		/*  set appropriate size of transfer */
-		set_dma_count(devpriv->dma1, devpriv->dma_transfer_size);
-		enable_dma(devpriv->dma1);
+		set_dma_count(dma->chan, devpriv->dma_transfer_size);
+		enable_dma(dma->chan);
 	}
 	release_dma_lock(lock_flags);
 }
@@ -1239,6 +1232,7 @@ static int das1800_init_dma(struct comedi_device *dev, unsigned int dma0,
 			    unsigned int dma1)
 {
 	struct das1800_private *devpriv = dev->private;
+	struct das1800_dma_desc *dma;
 	unsigned long flags;
 
 	/* encode dma0 and dma1 into 2 digit hexadecimal for switch */
@@ -1270,40 +1264,39 @@ static int das1800_init_dma(struct comedi_device *dev, unsigned int dma0,
 			"dma 5,6 / 6,7 / or 7,5\n");
 		return -EINVAL;
 	}
+
+	dma = &devpriv->dma_desc[0];
 	if (request_dma(dma0, dev->driver->driver_name)) {
 		dev_err(dev->class_dev,
 			"failed to allocate dma channel %i\n", dma0);
 		return -EINVAL;
 	}
-	devpriv->dma0 = dma0;
-	devpriv->dma_current = dma0;
+	dma->chan = dma0;
+	dma->virt_addr = kmalloc(DMA_BUF_SIZE, GFP_KERNEL | GFP_DMA);
+	if (!dma->virt_addr)
+		return -ENOMEM;
+	flags = claim_dma_lock();
+	disable_dma(dma->chan);
+	set_dma_mode(dma->chan, DMA_MODE_READ);
+	release_dma_lock(flags);
+
 	if (dma1) {
+		dma = &devpriv->dma_desc[1];
 		if (request_dma(dma1, dev->driver->driver_name)) {
 			dev_err(dev->class_dev,
 				"failed to allocate dma channel %i\n",
 				dma1);
 			return -EINVAL;
 		}
-		devpriv->dma1 = dma1;
-	}
-	devpriv->ai_buf0 = kmalloc(DMA_BUF_SIZE, GFP_KERNEL | GFP_DMA);
-	if (devpriv->ai_buf0 == NULL)
-		return -ENOMEM;
-	devpriv->dma_current_buf = devpriv->ai_buf0;
-	if (dma1) {
-		devpriv->ai_buf1 =
-			kmalloc(DMA_BUF_SIZE, GFP_KERNEL | GFP_DMA);
-		if (devpriv->ai_buf1 == NULL)
+		dma->chan = dma1;
+		dma->virt_addr = kmalloc(DMA_BUF_SIZE, GFP_KERNEL | GFP_DMA);
+		if (!dma->virt_addr)
 			return -ENOMEM;
+		flags = claim_dma_lock();
+		disable_dma(dma->chan);
+		set_dma_mode(dma->chan, DMA_MODE_READ);
+		release_dma_lock(flags);
 	}
-	flags = claim_dma_lock();
-	disable_dma(devpriv->dma0);
-	set_dma_mode(devpriv->dma0, DMA_MODE_READ);
-	if (dma1) {
-		disable_dma(devpriv->dma1);
-		set_dma_mode(devpriv->dma1, DMA_MODE_READ);
-	}
-	release_dma_lock(flags);
 
 	return 0;
 }
@@ -1521,14 +1514,16 @@ static int das1800_attach(struct comedi_device *dev,
 static void das1800_detach(struct comedi_device *dev)
 {
 	struct das1800_private *devpriv = dev->private;
+	struct das1800_dma_desc *dma;
+	int i;
 
 	if (devpriv) {
-		if (devpriv->dma0)
-			free_dma(devpriv->dma0);
-		if (devpriv->dma1)
-			free_dma(devpriv->dma1);
-		kfree(devpriv->ai_buf0);
-		kfree(devpriv->ai_buf1);
+		for (i = 0; i < 2; i++) {
+			dma = &devpriv->dma_desc[i];
+			if (dma->chan)
+				free_dma(dma->chan);
+			kfree(dma->virt_addr);
+		}
 		kfree(devpriv->fifo_buf);
 		if (devpriv->iobase2)
 			release_region(devpriv->iobase2, DAS1800_SIZE);
