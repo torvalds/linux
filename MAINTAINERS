@@ -9536,6 +9536,11 @@ L:	linux-pm@vger.kernel.org
 S:	Supported
 F:	drivers/thermal/ti-soc-thermal/
 
+TI CDCE706 CLOCK DRIVER
+M:	Max Filippov <jcmvbkbc@gmail.com>
+S:	Maintained
+F:	drivers/clk/clk-cdce706.c
+
 TI CLOCK DRIVER
 M:	Tero Kristo <t-kristo@ti.com>
 L:	linux-omap@vger.kernel.org

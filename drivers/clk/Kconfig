@@ -134,6 +134,14 @@ config COMMON_CLK_PXA
 	---help---
 	  Sypport for the Marvell PXA SoC.
 
+config COMMON_CLK_CDCE706
+	tristate "Clock driver for TI CDCE706 clock synthesizer"
+	depends on I2C
+	select REGMAP_I2C
+	select RATIONAL
+	---help---
+	  This driver supports TI CDCE706 programmable 3-PLL clock synthesizer.
+
 source "drivers/clk/qcom/Kconfig"
 
 endmenu
