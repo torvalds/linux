@@ -877,6 +877,7 @@ F:	arch/arm/boot/dts/at91*.dts
 F:	arch/arm/boot/dts/at91*.dtsi
 F:	arch/arm/boot/dts/sama*.dts
 F:	arch/arm/boot/dts/sama*.dtsi
+F:	arch/arm/include/debug/at91.S
 
 ARM/ATMEL AT91 Clock Support
 M:	Boris Brezillon <boris.brezillon@free-electrons.com>

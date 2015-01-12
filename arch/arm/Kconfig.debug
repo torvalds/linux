@@ -115,15 +115,18 @@ choice
 		    0x80024000      | 0xf0024000     | UART9
 
 	config AT91_DEBUG_LL_DBGU0
-		bool "Kernel low-level debugging on rm9200, 9260/9g20, 9261/9g10 and 9rl"
+		bool "Kernel low-level debugging on rm9200, 9260/9g20, 9261/9g10, 9rl, 9x5, 9n12"
+		select DEBUG_AT91_UART
 		depends on HAVE_AT91_DBGU0
 
 	config AT91_DEBUG_LL_DBGU1
-		bool "Kernel low-level debugging on 9263 and 9g45"
+		bool "Kernel low-level debugging on 9263, 9g45 and sama5d3"
+		select DEBUG_AT91_UART
 		depends on HAVE_AT91_DBGU1
 
 	config AT91_DEBUG_LL_DBGU2
 		bool "Kernel low-level debugging on sama5d4"
+		select DEBUG_AT91_UART
 		depends on HAVE_AT91_DBGU2
 
 	config DEBUG_BCM2835
@@ -1165,6 +1168,8 @@ config DEBUG_LL_INCLUDE
 	string
 	default "debug/sa1100.S" if DEBUG_SA1100
 	default "debug/8250.S" if DEBUG_LL_UART_8250 || DEBUG_UART_8250
+	default "debug/at91.S" if AT91_DEBUG_LL_DBGU0 || AT91_DEBUG_LL_DBGU1 || \
+				AT91_DEBUG_LL_DBGU2
 	default "debug/asm9260.S" if DEBUG_ASM9260_UART
 	default "debug/clps711x.S" if DEBUG_CLPS711X_UART1 || DEBUG_CLPS711X_UART2
 	default "debug/meson.S" if DEBUG_MESON_UARTAO
