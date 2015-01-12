@@ -181,6 +181,57 @@ static const struct file_operations fops_addba_resp = {
 	.llseek = default_llseek,
 };
 
+static ssize_t ath10k_dbg_sta_write_delba(struct file *file,
+					  const char __user *user_buf,
+					  size_t count, loff_t *ppos)
+{
+	struct ieee80211_sta *sta = file->private_data;
+	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
+	struct ath10k *ar = arsta->arvif->ar;
+	u32 tid, initiator, reason;
+	int ret;
+	char buf[64];
+
+	simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+
+	/* make sure that buf is null terminated */
+	buf[sizeof(buf) - 1] = '\0';
+
+	ret = sscanf(buf, "%u %u %u", &tid, &initiator, &reason);
+	if (ret != 3)
+		return -EINVAL;
+
+	/* Valid TID values are 0 through 15 */
+	if (tid > HTT_DATA_TX_EXT_TID_MGMT - 2)
+		return -EINVAL;
+
+	mutex_lock(&ar->conf_mutex);
+	if ((ar->state != ATH10K_STATE_ON) ||
+	    (arsta->aggr_mode != ATH10K_DBG_AGGR_MODE_MANUAL)) {
+		ret = count;
+		goto out;
+	}
+
+	ret = ath10k_wmi_delba_send(ar, arsta->arvif->vdev_id, sta->addr,
+				    tid, initiator, reason);
+	if (ret) {
+		ath10k_warn(ar, "failed to send delba: vdev_id %u peer %pM tid %u initiator %u reason %u\n",
+			    arsta->arvif->vdev_id, sta->addr, tid, initiator,
+			    reason);
+	}
+	ret = count;
+out:
+	mutex_unlock(&ar->conf_mutex);
+	return ret;
+}
+
+static const struct file_operations fops_delba = {
+	.write = ath10k_dbg_sta_write_delba,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 void ath10k_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, struct dentry *dir)
 {
@@ -188,4 +239,5 @@ void ath10k_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    &fops_aggr_mode);
 	debugfs_create_file("addba", S_IWUSR, dir, sta, &fops_addba);
 	debugfs_create_file("addba_resp", S_IWUSR, dir, sta, &fops_addba_resp);
+	debugfs_create_file("delba", S_IWUSR, dir, sta, &fops_delba);
 }
