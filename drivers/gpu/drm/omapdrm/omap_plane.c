@@ -121,7 +121,6 @@ static void omap_plane_pre_apply(struct omap_drm_apply *apply)
 	struct drm_crtc *crtc = plane->crtc;
 	enum omap_channel channel;
 	bool enabled = omap_plane->enabled && crtc;
-	bool ilace, replication;
 	int ret;
 
 	DBG("%s, enabled=%d", omap_plane->name, enabled);
@@ -145,13 +144,9 @@ static void omap_plane_pre_apply(struct omap_drm_apply *apply)
 	DBG("%d,%d %pad %pad", info->pos_x, info->pos_y,
 			&info->paddr, &info->p_uv_addr);
 
-	/* TODO: */
-	ilace = false;
-	replication = false;
-
 	/* and finally, update omapdss: */
-	ret = dispc_ovl_setup(omap_plane->id, info,
-			replication, omap_crtc_timings(crtc), false);
+	ret = dispc_ovl_setup(omap_plane->id, info, false,
+			      omap_crtc_timings(crtc), false);
 	if (ret) {
 		dev_err(dev->dev, "dispc_ovl_setup failed: %d\n", ret);
 		return;
