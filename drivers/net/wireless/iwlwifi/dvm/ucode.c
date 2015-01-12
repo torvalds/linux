@@ -267,7 +267,7 @@ static int iwl_alive_notify(struct iwl_priv *priv)
 	for (i = 0; i < n_queues; i++)
 		if (queue_to_txf[i] != IWL_TX_FIFO_UNUSED)
 			iwl_trans_ac_txq_enable(priv->trans, i,
-						queue_to_txf[i]);
+						queue_to_txf[i], 0);
 
 	priv->passive_no_rx = false;
 	priv->transport_queue_stop = 0;

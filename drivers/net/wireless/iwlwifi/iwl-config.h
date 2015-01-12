@@ -126,7 +126,7 @@ enum iwl_led_mode {
 
 /* TX queue watchdog timeouts in mSecs */
 #define IWL_WATCHDOG_DISABLED	0
-#define IWL_DEF_WD_TIMEOUT	2000
+#define IWL_DEF_WD_TIMEOUT	2500
 #define IWL_LONG_WD_TIMEOUT	10000
 #define IWL_MAX_WD_TIMEOUT	120000
 

@@ -531,7 +531,8 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 }
 
 void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, u16 ssn,
-			const struct iwl_trans_txq_scd_cfg *cfg)
+			const struct iwl_trans_txq_scd_cfg *cfg,
+			unsigned int wdg_timeout)
 {
 	struct iwl_scd_txq_cfg_cmd cmd = {
 		.scd_queue = queue,
@@ -545,11 +546,12 @@ void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, u16 ssn,
 	};
 
 	if (!iwl_mvm_is_scd_cfg_supported(mvm)) {
-		iwl_trans_txq_enable_cfg(mvm->trans, queue, ssn, cfg);
+		iwl_trans_txq_enable_cfg(mvm->trans, queue, ssn, cfg,
+					 wdg_timeout);
 		return;
 	}
 
-	iwl_trans_txq_enable_cfg(mvm->trans, queue, ssn, NULL);
+	iwl_trans_txq_enable_cfg(mvm->trans, queue, ssn, NULL, wdg_timeout);
 	WARN(iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, 0, sizeof(cmd), &cmd),
 	     "Failed to configure queue %d on FIFO %d\n", queue, cfg->fifo);
 }

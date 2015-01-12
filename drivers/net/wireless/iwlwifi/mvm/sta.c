@@ -209,6 +209,9 @@ static int iwl_mvm_tdls_sta_init(struct iwl_mvm *mvm,
 {
 	unsigned long used_hw_queues;
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	unsigned int wdg_timeout = iwlmvm_mod_params.tfd_q_hang_detect ?
+					mvm->cfg->base_params->wd_timeout :
+					IWL_WATCHDOG_DISABLED;
 	u32 ac;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -232,7 +235,7 @@ static int iwl_mvm_tdls_sta_init(struct iwl_mvm *mvm,
 	/* Found a place for all queues - enable them */
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		iwl_mvm_enable_ac_txq(mvm, mvmsta->hw_queue[ac],
-				      iwl_mvm_ac_to_tx_fifo[ac]);
+				      iwl_mvm_ac_to_tx_fifo[ac], wdg_timeout);
 		mvmsta->tfd_queue_msk |= BIT(mvmsta->hw_queue[ac]);
 	}
 
@@ -626,13 +629,16 @@ static int iwl_mvm_add_int_sta_common(struct iwl_mvm *mvm,
 
 int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm)
 {
+	unsigned int wdg_timeout = iwlmvm_mod_params.tfd_q_hang_detect ?
+					mvm->cfg->base_params->wd_timeout :
+					IWL_WATCHDOG_DISABLED;
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
 
 	/* Map Aux queue to fifo - needs to happen before adding Aux station */
 	iwl_mvm_enable_ac_txq(mvm, mvm->aux_queue,
-			      IWL_MVM_TX_FIFO_MCAST);
+			      IWL_MVM_TX_FIFO_MCAST, wdg_timeout);
 
 	/* Allocate aux station and assign to it the aux queue */
 	ret = iwl_mvm_allocate_int_sta(mvm, &mvm->aux_sta, BIT(mvm->aux_queue),
@@ -965,6 +971,9 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
+	unsigned int wdg_timeout = iwlmvm_mod_params.tfd_q_hang_detect ?
+					mvm->cfg->base_params->wd_timeout :
+					IWL_WATCHDOG_DISABLED;
 	int queue, fifo, ret;
 	u16 ssn;
 
@@ -988,7 +997,7 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return -EIO;
 
 	iwl_mvm_enable_agg_txq(mvm, queue, fifo, mvmsta->sta_id, tid,
-			       buf_size, ssn);
+			       buf_size, ssn, wdg_timeout);
 
 	/*
 	 * Even though in theory the peer could have different

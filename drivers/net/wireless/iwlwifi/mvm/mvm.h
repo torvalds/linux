@@ -1318,11 +1318,13 @@ static inline bool iwl_mvm_vif_low_latency(struct iwl_mvm_vif *mvmvif)
 
 /* hw scheduler queue config */
 void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, u16 ssn,
-			const struct iwl_trans_txq_scd_cfg *cfg);
+			const struct iwl_trans_txq_scd_cfg *cfg,
+			unsigned int wdg_timeout);
 void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, u8 flags);
 
-static inline void iwl_mvm_enable_ac_txq(struct iwl_mvm *mvm, int queue,
-					 u8 fifo)
+static inline
+void iwl_mvm_enable_ac_txq(struct iwl_mvm *mvm, int queue,
+			   u8 fifo, unsigned int wdg_timeout)
 {
 	struct iwl_trans_txq_scd_cfg cfg = {
 		.fifo = fifo,
@@ -1331,12 +1333,13 @@ static inline void iwl_mvm_enable_ac_txq(struct iwl_mvm *mvm, int queue,
 		.frame_limit = IWL_FRAME_LIMIT,
 	};
 
-	iwl_mvm_enable_txq(mvm, queue, 0, &cfg);
+	iwl_mvm_enable_txq(mvm, queue, 0, &cfg, wdg_timeout);
 }
 
 static inline void iwl_mvm_enable_agg_txq(struct iwl_mvm *mvm, int queue,
 					  int fifo, int sta_id, int tid,
-					  int frame_limit, u16 ssn)
+					  int frame_limit, u16 ssn,
+					  unsigned int wdg_timeout)
 {
 	struct iwl_trans_txq_scd_cfg cfg = {
 		.fifo = fifo,
@@ -1346,7 +1349,7 @@ static inline void iwl_mvm_enable_agg_txq(struct iwl_mvm *mvm, int queue,
 		.aggregate = true,
 	};
 
-	iwl_mvm_enable_txq(mvm, queue, ssn, &cfg);
+	iwl_mvm_enable_txq(mvm, queue, ssn, &cfg, wdg_timeout);
 }
 
 /* Assoc status */
