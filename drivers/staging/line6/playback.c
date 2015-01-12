@@ -261,7 +261,7 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 #endif
 			if (!
 			    (line6pcm->line6->
-			     properties->capabilities & LINE6_BIT_HWMON)
+			     properties->capabilities & LINE6_CAP_HWMON)
 			    && (line6pcm->flags & LINE6_BITS_PLAYBACK_STREAM)
 			    && (line6pcm->flags & LINE6_BITS_CAPTURE_STREAM))
 				add_monitor_signal(urb_out, line6pcm->prev_fbuf,

@@ -424,7 +424,7 @@ int line6_init_pcm(struct usb_line6 *line6,
 	int ep_read = 0, ep_write = 0;
 	struct snd_line6_pcm *line6pcm;
 
-	if (!(line6->properties->capabilities & LINE6_BIT_PCM))
+	if (!(line6->properties->capabilities & LINE6_CAP_PCM))
 		return 0;	/* skip PCM initialization and report success */
 
 	/* initialize PCM subsystem based on device: */

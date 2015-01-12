@@ -396,7 +396,7 @@ static int pod_try_init(struct usb_interface *interface,
 	   handler.
 	 */
 
-	if (pod->line6.properties->capabilities & LINE6_BIT_CONTROL) {
+	if (pod->line6.properties->capabilities & LINE6_CAP_CONTROL) {
 		pod->monitor_level = POD_SYSTEM_INVALID;
 
 		/* initiate startup procedure: */

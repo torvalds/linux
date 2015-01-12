@@ -15,15 +15,15 @@
 #define USB_INTERVALS_PER_SECOND 1000
 
 /* device supports settings parameter via USB */
-#define LINE6_BIT_CONTROL (1 << 0)
+#define LINE6_CAP_CONTROL (1 << 0)
 /* device supports PCM input/output via USB */
-#define LINE6_BIT_PCM (1 << 1)
+#define LINE6_CAP_PCM (1 << 1)
 /* device support hardware monitoring */
-#define LINE6_BIT_HWMON (1 << 2)
+#define LINE6_CAP_HWMON (1 << 2)
 
-#define LINE6_BIT_CTRL_PCM_HW	(LINE6_BIT_CONTROL |	\
-					 LINE6_BIT_PCM |	\
-					 LINE6_BIT_HWMON)
+#define LINE6_CAP_CTRL_PCM_HW	(LINE6_CAP_CONTROL |	\
+					 LINE6_CAP_PCM |	\
+					 LINE6_CAP_HWMON)
 
 #define LINE6_FALLBACK_INTERVAL 10
 #define LINE6_FALLBACK_MAXPACKETSIZE 16

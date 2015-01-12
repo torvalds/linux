@@ -59,7 +59,7 @@ MODULE_DEVICE_TABLE(usb, line6_id_table);
 
 #define L6PROP(dev_id, dev_name, dev_cap)\
 	{.id = dev_id,\
-	 .name = dev_name, .capabilities = LINE6_BIT_##dev_cap}
+	 .name = dev_name, .capabilities = LINE6_CAP_##dev_cap}
 
 static const struct line6_properties line6_properties_table[] = {
 	L6PROP("BassPODxt",     "BassPODxt",        CTRL_PCM_HW),
@@ -830,7 +830,7 @@ static int line6_probe(struct usb_interface *interface,
 
 	usb_set_intfdata(interface, line6);
 
-	if (properties->capabilities & LINE6_BIT_CONTROL) {
+	if (properties->capabilities & LINE6_CAP_CONTROL) {
 		/* initialize USB buffers: */
 		line6->buffer_listen =
 		    kmalloc(LINE6_BUFSIZE_LISTEN, GFP_KERNEL);
@@ -1052,7 +1052,7 @@ static int line6_suspend(struct usb_interface *interface, pm_message_t message)
 
 	snd_power_change_state(line6->card, SNDRV_CTL_POWER_D3hot);
 
-	if (line6->properties->capabilities & LINE6_BIT_CONTROL)
+	if (line6->properties->capabilities & LINE6_CAP_CONTROL)
 		line6_stop_listen(line6);
 
 	if (line6pcm != NULL) {
@@ -1071,7 +1071,7 @@ static int line6_resume(struct usb_interface *interface)
 {
 	struct usb_line6 *line6 = usb_get_intfdata(interface);
 
-	if (line6->properties->capabilities & LINE6_BIT_CONTROL)
+	if (line6->properties->capabilities & LINE6_CAP_CONTROL)
 		line6_start_listen(line6);
 
 	snd_power_change_state(line6->card, SNDRV_CTL_POWER_D0);
