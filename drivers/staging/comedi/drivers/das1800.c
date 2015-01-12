@@ -1303,6 +1303,25 @@ static int das1800_init_dma(struct comedi_device *dev,
 	return 0;
 }
 
+static void das1800_free_dma(struct comedi_device *dev)
+{
+	struct das1800_private *devpriv = dev->private;
+	struct das1800_dma_desc *dma;
+	int i;
+
+	if (!devpriv)
+		return;
+
+	for (i = 0; i < 2; i++) {
+		dma = &devpriv->dma_desc[i];
+		if (dma->chan)
+			free_dma(dma->chan);
+		if (dma->virt_addr)
+			dma_free_coherent(NULL, DMA_BUF_SIZE,
+					  dma->virt_addr, dma->hw_addr);
+	}
+}
+
 static int das1800_probe(struct comedi_device *dev)
 {
 	const struct das1800_board *board = dev->board_ptr;
@@ -1514,18 +1533,9 @@ static int das1800_attach(struct comedi_device *dev,
 static void das1800_detach(struct comedi_device *dev)
 {
 	struct das1800_private *devpriv = dev->private;
-	struct das1800_dma_desc *dma;
-	int i;
 
+	das1800_free_dma(dev);
 	if (devpriv) {
-		for (i = 0; i < 2; i++) {
-			dma = &devpriv->dma_desc[i];
-			if (dma->chan)
-				free_dma(dma->chan);
-			if (dma->virt_addr)
-				dma_free_coherent(NULL, DMA_BUF_SIZE,
-						  dma->virt_addr, dma->hw_addr);
-		}
 		kfree(devpriv->fifo_buf);
 		if (devpriv->iobase2)
 			release_region(devpriv->iobase2, DAS1800_SIZE);
