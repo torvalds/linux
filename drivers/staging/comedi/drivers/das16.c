@@ -541,6 +541,7 @@ static void das16_interrupt(struct comedi_device *dev)
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned long spin_flags;
 	unsigned long dma_flags;
+	unsigned int nsamples;
 	int num_bytes, residue;
 	int buffer_index;
 
@@ -583,21 +584,25 @@ static void das16_interrupt(struct comedi_device *dev)
 
 	spin_unlock_irqrestore(&dev->spinlock, spin_flags);
 
-	cfc_write_array_to_buffer(s,
-				  devpriv->dma_buffer[buffer_index], num_bytes);
+	nsamples = comedi_bytes_to_samples(s, num_bytes);
+	comedi_buf_write_samples(s, devpriv->dma_buffer[buffer_index],
+				 nsamples);
 
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 }
 
 static void das16_timer_interrupt(unsigned long arg)
 {
 	struct comedi_device *dev = (struct comedi_device *)arg;
 	struct das16_private_struct *devpriv = dev->private;
+	unsigned long flags;
 
 	das16_interrupt(dev);
 
+	spin_lock_irqsave(&dev->spinlock, flags);
 	if (devpriv->timer_running)
 		mod_timer(&devpriv->timer, jiffies + timer_period());
+	spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
 static int das16_ai_check_chanlist(struct comedi_device *dev,
@@ -764,7 +769,7 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 		return -1;
 	}
 
-	devpriv->adc_byte_count = cmd->stop_arg * cfc_bytes_per_scan(s);
+	devpriv->adc_byte_count = cmd->stop_arg * comedi_bytes_per_scan(s);
 
 	if (devpriv->can_burst)
 		outb(DAS1600_CONV_DISABLE, dev->iobase + DAS1600_CONV_REG);
@@ -814,7 +819,8 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 	enable_dma(devpriv->dma_chan);
 	release_dma_lock(flags);
 
-	/*  set up interrupt */
+	/*  set up timer */
+	spin_lock_irqsave(&dev->spinlock, flags);
 	devpriv->timer_running = 1;
 	devpriv->timer.expires = jiffies + timer_period();
 	add_timer(&devpriv->timer);
@@ -823,6 +829,7 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (devpriv->can_burst)
 		outb(0, dev->iobase + DAS1600_CONV_REG);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	return 0;
 }
@@ -856,8 +863,9 @@ static void das16_ai_munge(struct comedi_device *dev,
 			   unsigned int num_bytes,
 			   unsigned int start_chan_index)
 {
-	unsigned int i, num_samples = num_bytes / sizeof(short);
 	unsigned short *data = array;
+	unsigned int num_samples = comedi_bytes_to_samples(s, num_bytes);
+	unsigned int i;
 
 	for (i = 0; i < num_samples; i++) {
 		data[i] = le16_to_cpu(data[i]);
@@ -1167,7 +1175,6 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->maxdata	= 0x0fff;
 		s->range_table	= devpriv->user_ao_range_table;
 		s->insn_write	= das16_ao_insn_write;
-		s->insn_read	= comedi_readback_insn_read;
 
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)
@@ -1226,6 +1233,8 @@ static void das16_detach(struct comedi_device *dev)
 	int i;
 
 	if (devpriv) {
+		if (devpriv->timer.data)
+			del_timer_sync(&devpriv->timer);
 		if (dev->iobase)
 			das16_reset(dev);
 

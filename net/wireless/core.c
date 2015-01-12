@@ -86,11 +86,11 @@ struct wiphy *wiphy_idx_to_wiphy(int wiphy_idx)
 	return &rdev->wiphy;
 }
 
-int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
-			char *newname)
+static int cfg80211_dev_check_name(struct cfg80211_registered_device *rdev,
+				   const char *newname)
 {
 	struct cfg80211_registered_device *rdev2;
-	int wiphy_idx, taken = -1, result, digits;
+	int wiphy_idx, taken = -1, digits;
 
 	ASSERT_RTNL();
 
@@ -109,15 +109,28 @@ int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 			return -EINVAL;
 	}
 
-
-	/* Ignore nop renames */
-	if (strcmp(newname, dev_name(&rdev->wiphy.dev)) == 0)
-		return 0;
-
 	/* Ensure another device does not already have this name. */
 	list_for_each_entry(rdev2, &cfg80211_rdev_list, list)
-		if (strcmp(newname, dev_name(&rdev2->wiphy.dev)) == 0)
+		if (strcmp(newname, wiphy_name(&rdev2->wiphy)) == 0)
 			return -EINVAL;
+
+	return 0;
+}
+
+int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
+			char *newname)
+{
+	int result;
+
+	ASSERT_RTNL();
+
+	/* Ignore nop renames */
+	if (strcmp(newname, wiphy_name(&rdev->wiphy)) == 0)
+		return 0;
+
+	result = cfg80211_dev_check_name(rdev, newname);
+	if (result < 0)
+		return result;
 
 	result = device_rename(&rdev->wiphy.dev, newname);
 	if (result)
@@ -309,7 +322,8 @@ static void cfg80211_destroy_iface_wk(struct work_struct *work)
 
 /* exported functions */
 
-struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
+struct wiphy *wiphy_new_nm(const struct cfg80211_ops *ops, int sizeof_priv,
+			   const char *requested_name)
 {
 	static atomic_t wiphy_counter = ATOMIC_INIT(0);
 
@@ -346,7 +360,31 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 	rdev->wiphy_idx--;
 
 	/* give it a proper name */
-	dev_set_name(&rdev->wiphy.dev, PHY_NAME "%d", rdev->wiphy_idx);
+	if (requested_name && requested_name[0]) {
+		int rv;
+
+		rtnl_lock();
+		rv = cfg80211_dev_check_name(rdev, requested_name);
+
+		if (rv < 0) {
+			rtnl_unlock();
+			goto use_default_name;
+		}
+
+		rv = dev_set_name(&rdev->wiphy.dev, "%s", requested_name);
+		rtnl_unlock();
+		if (rv)
+			goto use_default_name;
+	} else {
+use_default_name:
+		/* NOTE:  This is *probably* safe w/out holding rtnl because of
+		 * the restrictions on phy names.  Probably this call could
+		 * fail if some other part of the kernel (re)named a device
+		 * phyX.  But, might should add some locking and check return
+		 * value, and use a different name if this one exists?
+		 */
+		dev_set_name(&rdev->wiphy.dev, PHY_NAME "%d", rdev->wiphy_idx);
+	}
 
 	INIT_LIST_HEAD(&rdev->wdev_list);
 	INIT_LIST_HEAD(&rdev->beacon_registrations);
@@ -406,7 +444,7 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 
 	return &rdev->wiphy;
 }
-EXPORT_SYMBOL(wiphy_new);
+EXPORT_SYMBOL(wiphy_new_nm);
 
 static int wiphy_verify_combinations(struct wiphy *wiphy)
 {
@@ -503,6 +541,24 @@ int wiphy_register(struct wiphy *wiphy)
 		    !wiphy->wowlan->tcp))
 		return -EINVAL;
 #endif
+	if (WARN_ON((wiphy->features & NL80211_FEATURE_TDLS_CHANNEL_SWITCH) &&
+		    (!rdev->ops->tdls_channel_switch ||
+		     !rdev->ops->tdls_cancel_channel_switch)))
+		return -EINVAL;
+
+	/*
+	 * if a wiphy has unsupported modes for regulatory channel enforcement,
+	 * opt-out of enforcement checking
+	 */
+	if (wiphy->interface_modes & ~(BIT(NL80211_IFTYPE_STATION) |
+				       BIT(NL80211_IFTYPE_P2P_CLIENT) |
+				       BIT(NL80211_IFTYPE_AP) |
+				       BIT(NL80211_IFTYPE_P2P_GO) |
+				       BIT(NL80211_IFTYPE_ADHOC) |
+				       BIT(NL80211_IFTYPE_P2P_DEVICE) |
+				       BIT(NL80211_IFTYPE_AP_VLAN) |
+				       BIT(NL80211_IFTYPE_MONITOR)))
+		wiphy->regulatory_flags |= REGULATORY_IGNORE_STALE_KICKOFF;
 
 	if (WARN_ON(wiphy->coalesce &&
 		    (!wiphy->coalesce->n_rules ||
@@ -831,7 +887,22 @@ void __cfg80211_leave(struct cfg80211_registered_device *rdev,
 	case NL80211_IFTYPE_P2P_GO:
 		__cfg80211_stop_ap(rdev, dev, true);
 		break;
-	default:
+	case NL80211_IFTYPE_OCB:
+		__cfg80211_leave_ocb(rdev, dev);
+		break;
+	case NL80211_IFTYPE_WDS:
+		/* must be handled by mac80211/driver, has no APIs */
+		break;
+	case NL80211_IFTYPE_P2P_DEVICE:
+		/* cannot happen, has no netdev */
+		break;
+	case NL80211_IFTYPE_AP_VLAN:
+	case NL80211_IFTYPE_MONITOR:
+		/* nothing to do */
+		break;
+	case NL80211_IFTYPE_UNSPECIFIED:
+	case NUM_NL80211_IFTYPES:
+		/* invalid */
 		break;
 	}
 }

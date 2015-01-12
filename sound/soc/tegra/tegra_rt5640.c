@@ -44,6 +44,7 @@
 struct tegra_rt5640 {
 	struct tegra_asoc_utils_data util_data;
 	int gpio_hp_det;
+	enum of_gpio_flags gpio_hp_det_flags;
 };
 
 static int tegra_rt5640_asoc_hw_params(struct snd_pcm_substream *substream,
@@ -119,6 +120,8 @@ static int tegra_rt5640_asoc_init(struct snd_soc_pcm_runtime *rtd)
 
 	if (gpio_is_valid(machine->gpio_hp_det)) {
 		tegra_rt5640_hp_jack_gpio.gpio = machine->gpio_hp_det;
+		tegra_rt5640_hp_jack_gpio.invert =
+			!!(machine->gpio_hp_det_flags & OF_GPIO_ACTIVE_LOW);
 		snd_soc_jack_add_gpios(&tegra_rt5640_hp_jack,
 						1,
 						&tegra_rt5640_hp_jack_gpio);
@@ -180,7 +183,8 @@ static int tegra_rt5640_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, machine);
 
-	machine->gpio_hp_det = of_get_named_gpio(np, "nvidia,hp-det-gpios", 0);
+	machine->gpio_hp_det = of_get_named_gpio_flags(
+		np, "nvidia,hp-det-gpios", 0, &machine->gpio_hp_det_flags);
 	if (machine->gpio_hp_det == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
@@ -251,7 +255,6 @@ static const struct of_device_id tegra_rt5640_of_match[] = {
 static struct platform_driver tegra_rt5640_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 		.of_match_table = tegra_rt5640_of_match,
 	},

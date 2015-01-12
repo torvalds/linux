@@ -597,18 +597,6 @@ static struct snd_soc_dai_driver aic32x4_dai = {
 	.symmetric_rates = 1,
 };
 
-static int aic32x4_suspend(struct snd_soc_codec *codec)
-{
-	aic32x4_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int aic32x4_resume(struct snd_soc_codec *codec)
-{
-	aic32x4_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-
 static int aic32x4_probe(struct snd_soc_codec *codec)
 {
 	struct aic32x4_priv *aic32x4 = snd_soc_codec_get_drvdata(codec);
@@ -654,8 +642,6 @@ static int aic32x4_probe(struct snd_soc_codec *codec)
 		snd_soc_write(codec, AIC32X4_RMICPGANIN,
 				AIC32X4_RMICPGANIN_CM1R_10K);
 
-	aic32x4_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	/*
 	 * Workaround: for an unknown reason, the ADC needs to be powered up
 	 * and down for the first capture to work properly. It seems related to
@@ -669,18 +655,10 @@ static int aic32x4_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int aic32x4_remove(struct snd_soc_codec *codec)
-{
-	aic32x4_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_aic32x4 = {
 	.probe = aic32x4_probe,
-	.remove = aic32x4_remove,
-	.suspend = aic32x4_suspend,
-	.resume = aic32x4_resume,
 	.set_bias_level = aic32x4_set_bias_level,
+	.suspend_bias_off = true,
 
 	.controls = aic32x4_snd_controls,
 	.num_controls = ARRAY_SIZE(aic32x4_snd_controls),

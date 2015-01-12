@@ -121,22 +121,22 @@ For example, consider the following sequence of events:
 The set of accesses as seen by the memory system in the middle can be arranged
 in 24 different combinations:
 
-	STORE A=3,	STORE B=4,	x=LOAD A->3,	y=LOAD B->4
-	STORE A=3,	STORE B=4,	y=LOAD B->4,	x=LOAD A->3
-	STORE A=3,	x=LOAD A->3,	STORE B=4,	y=LOAD B->4
-	STORE A=3,	x=LOAD A->3,	y=LOAD B->2,	STORE B=4
-	STORE A=3,	y=LOAD B->2,	STORE B=4,	x=LOAD A->3
-	STORE A=3,	y=LOAD B->2,	x=LOAD A->3,	STORE B=4
-	STORE B=4,	STORE A=3,	x=LOAD A->3,	y=LOAD B->4
+	STORE A=3,	STORE B=4,	y=LOAD A->3,	x=LOAD B->4
+	STORE A=3,	STORE B=4,	x=LOAD B->4,	y=LOAD A->3
+	STORE A=3,	y=LOAD A->3,	STORE B=4,	x=LOAD B->4
+	STORE A=3,	y=LOAD A->3,	x=LOAD B->2,	STORE B=4
+	STORE A=3,	x=LOAD B->2,	STORE B=4,	y=LOAD A->3
+	STORE A=3,	x=LOAD B->2,	y=LOAD A->3,	STORE B=4
+	STORE B=4,	STORE A=3,	y=LOAD A->3,	x=LOAD B->4
 	STORE B=4, ...
 	...
 
 and can thus result in four different combinations of values:
 
-	x == 1, y == 2
-	x == 1, y == 4
-	x == 3, y == 2
-	x == 3, y == 4
+	x == 2, y == 1
+	x == 2, y == 3
+	x == 4, y == 1
+	x == 4, y == 3
 
 
 Furthermore, the stores committed by a CPU to the memory system may not be
@@ -693,6 +693,24 @@ one, perhaps as follows:
 Please note once again that the stores to 'b' differ.  If they were
 identical, as noted earlier, the compiler could pull this store outside
 of the 'if' statement.
+
+You must also be careful not to rely too much on boolean short-circuit
+evaluation.  Consider this example:
+
+	q = ACCESS_ONCE(a);
+	if (a || 1 > 0)
+		ACCESS_ONCE(b) = 1;
+
+Because the second condition is always true, the compiler can transform
+this example as following, defeating control dependency:
+
+	q = ACCESS_ONCE(a);
+	ACCESS_ONCE(b) = 1;
+
+This example underscores the need to ensure that the compiler cannot
+out-guess your code.  More generally, although ACCESS_ONCE() does force
+the compiler to actually emit code for a given load, it does not force
+the compiler to use the results.
 
 Finally, control dependencies do -not- provide transitivity.  This is
 demonstrated by two related examples, with the initial values of
@@ -1615,6 +1633,48 @@ There are some more advanced barrier functions:
      operations" subsection for information on where to use these.
 
 
+ (*) dma_wmb();
+ (*) dma_rmb();
+
+     These are for use with consistent memory to guarantee the ordering
+     of writes or reads of shared memory accessible to both the CPU and a
+     DMA capable device.
+
+     For example, consider a device driver that shares memory with a device
+     and uses a descriptor status value to indicate if the descriptor belongs
+     to the device or the CPU, and a doorbell to notify it when new
+     descriptors are available:
+
+	if (desc->status != DEVICE_OWN) {
+		/* do not read data until we own descriptor */
+		dma_rmb();
+
+		/* read/modify data */
+		read_data = desc->data;
+		desc->data = write_data;
+
+		/* flush modifications before status update */
+		dma_wmb();
+
+		/* assign ownership */
+		desc->status = DEVICE_OWN;
+
+		/* force memory to sync before notifying device via MMIO */
+		wmb();
+
+		/* notify device of new descriptors */
+		writel(DESC_NOTIFY, doorbell);
+	}
+
+     The dma_rmb() allows us guarantee the device has released ownership
+     before we read the data from the descriptor, and he dma_wmb() allows
+     us to guarantee the data is written to the descriptor before the device
+     can see it now has ownership.  The wmb() is needed to guarantee that the
+     cache coherent memory writes have completed before attempting a write to
+     the cache incoherent MMIO region.
+
+     See Documentation/DMA-API.txt for more information on consistent memory.
+
 MMIO WRITE BARRIER
 ------------------
 
@@ -2465,10 +2525,15 @@ functions:
      Please refer to the PCI specification for more information on interactions
      between PCI transactions.
 
- (*) readX_relaxed()
+ (*) readX_relaxed(), writeX_relaxed()
 
-     These are similar to readX(), but are not guaranteed to be ordered in any
-     way. Be aware that there is no I/O read barrier available.
+     These are similar to readX() and writeX(), but provide weaker memory
+     ordering guarantees. Specifically, they do not guarantee ordering with
+     respect to normal memory accesses (e.g. DMA buffers) nor do they guarantee
+     ordering with respect to LOCK or UNLOCK operations. If the latter is
+     required, an mmiowb() barrier can be used. Note that relaxed accesses to
+     the same peripheral are guaranteed to be ordered with respect to each
+     other.
 
  (*) ioreadX(), iowriteX()
 

@@ -35,6 +35,7 @@
 #include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/route.h>
+#include <net/netfilter/br_netfilter.h>
 
 #include <asm/uaccess.h>
 #include "br_private.h"

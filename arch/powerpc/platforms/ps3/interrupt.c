@@ -711,7 +711,7 @@ void __init ps3_register_ipi_irq(unsigned int cpu, unsigned int virq)
 
 static unsigned int ps3_get_irq(void)
 {
-	struct ps3_private *pd = &__get_cpu_var(ps3_private);
+	struct ps3_private *pd = this_cpu_ptr(&ps3_private);
 	u64 x = (pd->bmp.status & pd->bmp.mask);
 	unsigned int plug;
 

@@ -644,7 +644,6 @@ static struct platform_driver tilcdc_platform_driver = {
 	.probe      = tilcdc_pdev_probe,
 	.remove     = tilcdc_pdev_remove,
 	.driver     = {
-		.owner  = THIS_MODULE,
 		.name   = "tilcdc",
 		.pm     = &tilcdc_pm_ops,
 		.of_match_table = tilcdc_of_match,

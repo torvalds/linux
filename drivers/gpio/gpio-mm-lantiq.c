@@ -145,7 +145,6 @@ static struct platform_driver ltq_mm_driver = {
 	.probe = ltq_mm_probe,
 	.driver = {
 		.name = "gpio-mm-ltq",
-		.owner = THIS_MODULE,
 		.of_match_table = ltq_mm_match,
 	},
 };

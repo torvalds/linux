@@ -128,13 +128,10 @@ static int m25p80_read(struct spi_nor *nor, loff_t from, size_t len,
 	struct spi_device *spi = flash->spi;
 	struct spi_transfer t[2];
 	struct spi_message m;
-	int dummy = nor->read_dummy;
-	int ret;
+	unsigned int dummy = nor->read_dummy;
 
-	/* Wait till previous write/erase is done. */
-	ret = nor->wait_till_ready(nor);
-	if (ret)
-		return ret;
+	/* convert the dummy cycles to the number of bytes */
+	dummy /= 8;
 
 	spi_message_init(&m);
 	memset(t, 0, (sizeof t));
@@ -160,20 +157,9 @@ static int m25p80_read(struct spi_nor *nor, loff_t from, size_t len,
 static int m25p80_erase(struct spi_nor *nor, loff_t offset)
 {
 	struct m25p *flash = nor->priv;
-	int ret;
 
 	dev_dbg(nor->dev, "%dKiB at 0x%08x\n",
 		flash->mtd.erasesize / 1024, (u32)offset);
-
-	/* Wait until finished previous write command. */
-	ret = nor->wait_till_ready(nor);
-	if (ret)
-		return ret;
-
-	/* Send write enable, then erase commands. */
-	ret = nor->write_reg(nor, SPINOR_OP_WREN, NULL, 0, 0);
-	if (ret)
-		return ret;
 
 	/* Set up command buffer. */
 	flash->command[0] = nor->erase_opcode;
@@ -260,7 +246,6 @@ static int m25p_remove(struct spi_device *spi)
 	return mtd_device_unregister(&flash->mtd);
 }
 
-
 /*
  * XXX This needs to be kept in sync with spi_nor_ids.  We can't share
  * it with spi-nor, because if this is built as a module then modpost
@@ -287,7 +272,7 @@ static const struct spi_device_id m25p_ids[] = {
 	{"s25fl512s"},	{"s70fl01gs"},	{"s25sl12800"},	{"s25sl12801"},
 	{"s25fl129p0"},	{"s25fl129p1"},	{"s25sl004a"},	{"s25sl008a"},
 	{"s25sl016a"},	{"s25sl032a"},	{"s25sl064a"},	{"s25fl008k"},
-	{"s25fl016k"},	{"s25fl064k"},
+	{"s25fl016k"},	{"s25fl064k"},	{"s25fl132k"},
 	{"sst25vf040b"},{"sst25vf080b"},{"sst25vf016b"},{"sst25vf032b"},
 	{"sst25vf064c"},{"sst25wf512"},	{"sst25wf010"},	{"sst25wf020"},
 	{"sst25wf040"},
@@ -300,16 +285,15 @@ static const struct spi_device_id m25p_ids[] = {
 	{"m45pe10"},	{"m45pe80"},	{"m45pe16"},
 	{"m25pe20"},	{"m25pe80"},	{"m25pe16"},
 	{"m25px16"},	{"m25px32"},	{"m25px32-s0"},	{"m25px32-s1"},
-	{"m25px64"},
+	{"m25px64"},	{"m25px80"},
 	{"w25x10"},	{"w25x20"},	{"w25x40"},	{"w25x80"},
 	{"w25x16"},	{"w25x32"},	{"w25q32"},	{"w25q32dw"},
-	{"w25x64"},	{"w25q64"},	{"w25q128"},	{"w25q80"},
-	{"w25q80bl"},	{"w25q128"},	{"w25q256"},	{"cat25c11"},
+	{"w25x64"},	{"w25q64"},	{"w25q80"},	{"w25q80bl"},
+	{"w25q128"},	{"w25q256"},	{"cat25c11"},
 	{"cat25c03"},	{"cat25c09"},	{"cat25c17"},	{"cat25128"},
 	{ },
 };
 MODULE_DEVICE_TABLE(spi, m25p_ids);
-
 
 static struct spi_driver m25p80_driver = {
 	.driver = {

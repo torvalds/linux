@@ -193,7 +193,7 @@ MgntQuery_TxRateExcludeCCKRates(struct rtllib_device *ieee)
 	return QueryRate;
 }
 
-u8 MgntQuery_MgntFrameTxRate(struct rtllib_device *ieee)
+static u8 MgntQuery_MgntFrameTxRate(struct rtllib_device *ieee)
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 	u8 rate;
@@ -343,7 +343,7 @@ inline void softmac_ps_mgmt_xmit(struct sk_buff *skb,
 	}
 }
 
-inline struct sk_buff *rtllib_probe_req(struct rtllib_device *ieee)
+static inline struct sk_buff *rtllib_probe_req(struct rtllib_device *ieee)
 {
 	unsigned int len, rate_len;
 	u8 *tag;
@@ -1311,7 +1311,7 @@ inline struct sk_buff *rtllib_association_req(struct rtllib_network *beacon,
 	}
 
 	if (beacon->bCkipSupported) {
-		static u8	AironetIeOui[] = {0x00, 0x01, 0x66};
+		static const u8 AironetIeOui[] = {0x00, 0x01, 0x66};
 		u8	CcxAironetBuf[30];
 		struct octet_string osCcxAironetIE;
 
@@ -1331,10 +1331,11 @@ inline struct sk_buff *rtllib_association_req(struct rtllib_network *beacon,
 	}
 
 	if (beacon->bCcxRmEnable) {
-		static u8 CcxRmCapBuf[] = {0x00, 0x40, 0x96, 0x01, 0x01, 0x00};
+		static const u8 CcxRmCapBuf[] = {0x00, 0x40, 0x96, 0x01, 0x01,
+			0x00};
 		struct octet_string osCcxRmCap;
 
-		osCcxRmCap.Octet = CcxRmCapBuf;
+		osCcxRmCap.Octet = (u8 *) CcxRmCapBuf;
 		osCcxRmCap.Length = sizeof(CcxRmCapBuf);
 		tag = skb_put(skb, ccxrm_ie_len);
 		*tag++ = MFIE_TYPE_GENERIC;
@@ -3167,6 +3168,7 @@ void rtllib_softmac_free(struct rtllib_device *ieee)
 	cancel_delayed_work(&ieee->associate_retry_wq);
 	destroy_workqueue(ieee->wq);
 	up(&ieee->wx_sem);
+	tasklet_kill(&ieee->ps_task);
 }
 
 /********************************************************

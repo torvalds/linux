@@ -16,7 +16,6 @@
 #include <linux/delay.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/msi.h>
@@ -90,7 +89,7 @@ static int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 			return rc;
 		}
 		irq_set_msi_desc(virq, entry);
-		write_msi_msg(virq, &msg);
+		pci_write_msi_msg(virq, &msg);
 	}
 	return 0;
 }

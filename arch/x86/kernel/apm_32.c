@@ -378,7 +378,6 @@ static struct cpuidle_driver apm_idle_driver = {
 		{ /* entry 1 is for APM idle */
 			.name = "APM",
 			.desc = "APM idle",
-			.flags = CPUIDLE_FLAG_TIME_VALID,
 			.exit_latency = 250,	/* WAG */
 			.target_residency = 500,	/* WAG */
 			.enter = &apm_cpu_idle

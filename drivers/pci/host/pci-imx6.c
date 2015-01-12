@@ -533,8 +533,8 @@ static int __init imx6_add_pcie_port(struct pcie_port *pp,
 		}
 
 		ret = devm_request_irq(&pdev->dev, pp->msi_irq,
-		                       imx6_pcie_msi_handler,
-		                       IRQF_SHARED, "mx6-pcie-msi", pp);
+				       imx6_pcie_msi_handler,
+				       IRQF_SHARED, "mx6-pcie-msi", pp);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to request MSI irq\n");
 			return -ENODEV;
@@ -643,7 +643,6 @@ MODULE_DEVICE_TABLE(of, imx6_pcie_of_match);
 static struct platform_driver imx6_pcie_driver = {
 	.driver = {
 		.name	= "imx6q-pcie",
-		.owner	= THIS_MODULE,
 		.of_match_table = imx6_pcie_of_match,
 	},
 	.shutdown = imx6_pcie_shutdown,

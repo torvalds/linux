@@ -238,7 +238,7 @@
 	)
 
 struct tegra_msi {
-	struct msi_chip chip;
+	struct msi_controller chip;
 	DECLARE_BITMAP(used, INT_PCI_MSI_NR);
 	struct irq_domain *domain;
 	unsigned long pages;
@@ -259,7 +259,7 @@ struct tegra_pcie_soc_data {
 	bool has_gen2;
 };
 
-static inline struct tegra_msi *to_tegra_msi(struct msi_chip *chip)
+static inline struct tegra_msi *to_tegra_msi(struct msi_controller *chip)
 {
 	return container_of(chip, struct tegra_msi, chip);
 }
@@ -276,6 +276,7 @@ struct tegra_pcie {
 
 	struct resource all;
 	struct resource io;
+	struct resource pio;
 	struct resource mem;
 	struct resource prefetch;
 	struct resource busn;
@@ -658,7 +659,6 @@ static int tegra_pcie_setup(int nr, struct pci_sys_data *sys)
 {
 	struct tegra_pcie *pcie = sys_to_pcie(sys);
 	int err;
-	phys_addr_t io_start;
 
 	err = devm_request_resource(pcie->dev, &pcie->all, &pcie->mem);
 	if (err < 0)
@@ -668,14 +668,12 @@ static int tegra_pcie_setup(int nr, struct pci_sys_data *sys)
 	if (err)
 		return err;
 
-	io_start = pci_pio_to_address(pcie->io.start);
-
 	pci_add_resource_offset(&sys->resources, &pcie->mem, sys->mem_offset);
 	pci_add_resource_offset(&sys->resources, &pcie->prefetch,
 				sys->mem_offset);
 	pci_add_resource(&sys->resources, &pcie->busn);
 
-	pci_ioremap_io(nr * SZ_64K, io_start);
+	pci_ioremap_io(pcie->pio.start, pcie->io.start);
 
 	return 1;
 }
@@ -692,15 +690,6 @@ static int tegra_pcie_map_irq(const struct pci_dev *pdev, u8 slot, u8 pin)
 		irq = pcie->irq;
 
 	return irq;
-}
-
-static void tegra_pcie_add_bus(struct pci_bus *bus)
-{
-	if (IS_ENABLED(CONFIG_PCI_MSI)) {
-		struct tegra_pcie *pcie = sys_to_pcie(bus->sysdata);
-
-		bus->msi = &pcie->msi.chip;
-	}
 }
 
 static struct pci_bus *tegra_pcie_scan_bus(int nr, struct pci_sys_data *sys)
@@ -786,7 +775,6 @@ static irqreturn_t tegra_pcie_isr(int irq, void *arg)
 static void tegra_pcie_setup_translations(struct tegra_pcie *pcie)
 {
 	u32 fpci_bar, size, axi_address;
-	phys_addr_t io_start = pci_pio_to_address(pcie->io.start);
 
 	/* Bar 0: type 1 extended configuration space */
 	fpci_bar = 0xfe100000;
@@ -799,7 +787,7 @@ static void tegra_pcie_setup_translations(struct tegra_pcie *pcie)
 	/* Bar 1: downstream IO bar */
 	fpci_bar = 0xfdfc0000;
 	size = resource_size(&pcie->io);
-	axi_address = io_start;
+	axi_address = pcie->io.start;
 	afi_writel(pcie, axi_address, AFI_AXI_BAR1_START);
 	afi_writel(pcie, size >> 12, AFI_AXI_BAR1_SZ);
 	afi_writel(pcie, fpci_bar, AFI_FPCI_BAR1);
@@ -1283,8 +1271,8 @@ static irqreturn_t tegra_pcie_msi_irq(int irq, void *data)
 	return processed > 0 ? IRQ_HANDLED : IRQ_NONE;
 }
 
-static int tegra_msi_setup_irq(struct msi_chip *chip, struct pci_dev *pdev,
-			       struct msi_desc *desc)
+static int tegra_msi_setup_irq(struct msi_controller *chip,
+			       struct pci_dev *pdev, struct msi_desc *desc)
 {
 	struct tegra_msi *msi = to_tegra_msi(chip);
 	struct msi_msg msg;
@@ -1308,12 +1296,13 @@ static int tegra_msi_setup_irq(struct msi_chip *chip, struct pci_dev *pdev,
 	msg.address_hi = 0;
 	msg.data = hwirq;
 
-	write_msi_msg(irq, &msg);
+	pci_write_msi_msg(irq, &msg);
 
 	return 0;
 }
 
-static void tegra_msi_teardown_irq(struct msi_chip *chip, unsigned int irq)
+static void tegra_msi_teardown_irq(struct msi_controller *chip,
+				   unsigned int irq)
 {
 	struct tegra_msi *msi = to_tegra_msi(chip);
 	struct irq_data *d = irq_get_irq_data(irq);
@@ -1325,10 +1314,10 @@ static void tegra_msi_teardown_irq(struct msi_chip *chip, unsigned int irq)
 
 static struct irq_chip tegra_msi_irq_chip = {
 	.name = "Tegra PCIe MSI",
-	.irq_enable = unmask_msi_irq,
-	.irq_disable = mask_msi_irq,
-	.irq_mask = mask_msi_irq,
-	.irq_unmask = unmask_msi_irq,
+	.irq_enable = pci_msi_unmask_irq,
+	.irq_disable = pci_msi_mask_irq,
+	.irq_mask = pci_msi_mask_irq,
+	.irq_unmask = pci_msi_unmask_irq,
 };
 
 static int tegra_msi_map(struct irq_domain *domain, unsigned int irq,
@@ -1690,8 +1679,23 @@ static int tegra_pcie_parse_dt(struct tegra_pcie *pcie)
 
 		switch (res.flags & IORESOURCE_TYPE_BITS) {
 		case IORESOURCE_IO:
-			memcpy(&pcie->io, &res, sizeof(res));
-			pcie->io.name = np->full_name;
+			memcpy(&pcie->pio, &res, sizeof(res));
+			pcie->pio.name = np->full_name;
+
+			/*
+			 * The Tegra PCIe host bridge uses this to program the
+			 * mapping of the I/O space to the physical address,
+			 * so we override the .start and .end fields here that
+			 * of_pci_range_to_resource() converted to I/O space.
+			 * We also set the IORESOURCE_MEM type to clarify that
+			 * the resource is in the physical memory space.
+			 */
+			pcie->io.start = range.cpu_addr;
+			pcie->io.end = range.cpu_addr + range.size - 1;
+			pcie->io.flags = IORESOURCE_MEM;
+			pcie->io.name = "I/O";
+
+			memcpy(&res, &pcie->io, sizeof(res));
 			break;
 
 		case IORESOURCE_MEM:
@@ -1881,11 +1885,14 @@ static int tegra_pcie_enable(struct tegra_pcie *pcie)
 
 	memset(&hw, 0, sizeof(hw));
 
+#ifdef CONFIG_PCI_MSI
+	hw.msi_ctrl = &pcie->msi.chip;
+#endif
+
 	hw.nr_controllers = 1;
 	hw.private_data = (void **)&pcie;
 	hw.setup = tegra_pcie_setup;
 	hw.map_irq = tegra_pcie_map_irq;
-	hw.add_bus = tegra_pcie_add_bus;
 	hw.scan = tegra_pcie_scan_bus;
 	hw.ops = &tegra_pcie_ops;
 
@@ -2122,7 +2129,6 @@ put_resources:
 static struct platform_driver tegra_pcie_driver = {
 	.driver = {
 		.name = "tegra-pcie",
-		.owner = THIS_MODULE,
 		.of_match_table = tegra_pcie_of_match,
 		.suppress_bind_attrs = true,
 	},

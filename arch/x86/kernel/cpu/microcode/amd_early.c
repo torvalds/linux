@@ -389,7 +389,7 @@ int __init save_microcode_in_initrd_amd(void)
 	eax   = cpuid_eax(0x00000001);
 	eax   = ((eax >> 8) & 0xf) + ((eax >> 20) & 0xff);
 
-	ret = load_microcode_amd(eax, container, container_size);
+	ret = load_microcode_amd(smp_processor_id(), eax, container, container_size);
 	if (ret != UCODE_OK)
 		retval = -EINVAL;
 
@@ -401,4 +401,22 @@ int __init save_microcode_in_initrd_amd(void)
 	container_size = 0;
 
 	return retval;
+}
+
+void reload_ucode_amd(void)
+{
+	struct microcode_amd *mc;
+	u32 rev, eax;
+
+	rdmsr(MSR_AMD64_PATCH_LEVEL, rev, eax);
+
+	mc = (struct microcode_amd *)amd_ucode_patch;
+
+	if (mc && rev < mc->hdr.patch_id) {
+		if (!__apply_microcode_amd(mc)) {
+			ucode_new_rev = mc->hdr.patch_id;
+			pr_info("microcode: reload patch_level=0x%08x\n",
+				ucode_new_rev);
+		}
+	}
 }

@@ -706,10 +706,11 @@ static int i915_drm_resume(struct drm_device *dev)
 			dev_priv->display.hpd_irq_setup(dev);
 		spin_unlock_irq(&dev_priv->irq_lock);
 
-		intel_dp_mst_resume(dev);
 		drm_modeset_lock_all(dev);
 		intel_modeset_setup_hw_state(dev, true);
 		drm_modeset_unlock_all(dev);
+
+		intel_dp_mst_resume(dev);
 
 		/*
 		 * ... but also need to make sure that hotplug processing
@@ -810,6 +811,8 @@ int i915_reset(struct drm_device *dev)
 	if (!i915.reset)
 		return 0;
 
+	intel_reset_gt_powersave(dev);
+
 	mutex_lock(&dev->struct_mutex);
 
 	i915_gem_reset(dev);
@@ -881,7 +884,7 @@ int i915_reset(struct drm_device *dev)
 		 * of re-init after reset.
 		 */
 		if (INTEL_INFO(dev)->gen > 5)
-			intel_reset_gt_powersave(dev);
+			intel_enable_gt_powersave(dev);
 	} else {
 		mutex_unlock(&dev->struct_mutex);
 	}
@@ -939,8 +942,7 @@ static int i915_pm_suspend(struct device *dev)
 
 static int i915_pm_suspend_late(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct drm_device *drm_dev = dev_to_i915(dev)->dev;
 
 	/*
 	 * We have a suspedn ordering issue with the snd-hda driver also
@@ -959,8 +961,7 @@ static int i915_pm_suspend_late(struct device *dev)
 
 static int i915_pm_resume_early(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct drm_device *drm_dev = dev_to_i915(dev)->dev;
 
 	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
@@ -970,8 +971,7 @@ static int i915_pm_resume_early(struct device *dev)
 
 static int i915_pm_resume(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct drm_device *drm_dev = dev_to_i915(dev)->dev;
 
 	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
@@ -1588,7 +1588,7 @@ static struct drm_driver driver = {
 	.gem_prime_import = i915_gem_prime_import,
 
 	.dumb_create = i915_gem_dumb_create,
-	.dumb_map_offset = i915_gem_dumb_map_offset,
+	.dumb_map_offset = i915_gem_mmap_gtt,
 	.dumb_destroy = drm_gem_dumb_destroy,
 	.ioctls = i915_ioctls,
 	.fops = &i915_driver_fops,

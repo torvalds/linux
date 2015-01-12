@@ -256,7 +256,7 @@ static int bmg160_chip_init(struct bmg160_data *data)
 
 static int bmg160_set_power_state(struct bmg160_data *data, bool on)
 {
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	int ret;
 
 	if (on)
@@ -1202,7 +1202,7 @@ static int bmg160_resume(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int bmg160_runtime_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));

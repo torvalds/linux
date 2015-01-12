@@ -143,6 +143,8 @@ static int __init eeh_setup(char *str)
 {
 	if (!strcmp(str, "off"))
 		eeh_add_flag(EEH_FORCE_DISABLED);
+	else if (!strcmp(str, "early_log"))
+		eeh_add_flag(EEH_EARLY_DUMP_LOG);
 
 	return 1;
 }
@@ -758,30 +760,41 @@ static void eeh_reset_pe_once(struct eeh_pe *pe)
 int eeh_reset_pe(struct eeh_pe *pe)
 {
 	int flags = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
-	int i, rc;
+	int i, state, ret;
+
+	/* Mark as reset and block config space */
+	eeh_pe_state_mark(pe, EEH_PE_RESET | EEH_PE_CFG_BLOCKED);
 
 	/* Take three shots at resetting the bus */
-	for (i=0; i<3; i++) {
+	for (i = 0; i < 3; i++) {
 		eeh_reset_pe_once(pe);
 
 		/*
 		 * EEH_PE_ISOLATED is expected to be removed after
 		 * BAR restore.
 		 */
-		rc = eeh_ops->wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
-		if ((rc & flags) == flags)
-			return 0;
-
-		if (rc < 0) {
-			pr_err("%s: Unrecoverable slot failure on PHB#%d-PE#%x",
-				__func__, pe->phb->global_number, pe->addr);
-			return -1;
+		state = eeh_ops->wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
+		if ((state & flags) == flags) {
+			ret = 0;
+			goto out;
 		}
-		pr_err("EEH: bus reset %d failed on PHB#%d-PE#%x, rc=%d\n",
-			i+1, pe->phb->global_number, pe->addr, rc);
+
+		if (state < 0) {
+			pr_warn("%s: Unrecoverable slot failure on PHB#%d-PE#%x",
+				__func__, pe->phb->global_number, pe->addr);
+			ret = -ENOTRECOVERABLE;
+			goto out;
+		}
+
+		/* We might run out of credits */
+		ret = -EIO;
+		pr_warn("%s: Failure %d resetting PHB#%x-PE#%x\n (%d)\n",
+			__func__, state, pe->phb->global_number, pe->addr, (i + 1));
 	}
 
-	return -1;
+out:
+	eeh_pe_state_clear(pe, EEH_PE_RESET | EEH_PE_CFG_BLOCKED);
+	return ret;
 }
 
 /**
@@ -920,11 +933,8 @@ int eeh_init(void)
 		pr_warn("%s: Platform EEH operation not found\n",
 			__func__);
 		return -EEXIST;
-	} else if ((ret = eeh_ops->init())) {
-		pr_warn("%s: Failed to call platform init function (%d)\n",
-			__func__, ret);
+	} else if ((ret = eeh_ops->init()))
 		return ret;
-	}
 
 	/* Initialize EEH event */
 	ret = eeh_event_init();
@@ -1209,6 +1219,7 @@ int eeh_unfreeze_pe(struct eeh_pe *pe, bool sw_state)
 static struct pci_device_id eeh_reset_ids[] = {
 	{ PCI_DEVICE(0x19a2, 0x0710) },	/* Emulex, BE     */
 	{ PCI_DEVICE(0x10df, 0xe220) },	/* Emulex, Lancer */
+	{ PCI_DEVICE(0x14e4, 0x1657) }, /* Broadcom BCM5719 */
 	{ 0 }
 };
 

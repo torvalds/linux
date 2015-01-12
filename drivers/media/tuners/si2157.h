@@ -1,5 +1,5 @@
 /*
- * Silicon Labs Si2147/2157/2158 silicon tuner driver
+ * Silicon Labs Si2146/2147/2148/2157/2158 silicon tuner driver
  *
  * Copyright (C) 2014 Antti Palosaari <crope@iki.fi>
  *

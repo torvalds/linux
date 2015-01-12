@@ -162,12 +162,6 @@ static const struct mempolicy_operations {
 			enum mpol_rebind_step step);
 } mpol_ops[MPOL_MAX];
 
-/* Check that the nodemask contains at least one populated zone */
-static int is_valid_nodemask(const nodemask_t *nodemask)
-{
-	return nodes_intersects(*nodemask, node_states[N_MEMORY]);
-}
-
 static inline int mpol_store_user_nodemask(const struct mempolicy *pol)
 {
 	return pol->flags & MPOL_MODE_FLAGS;
@@ -202,7 +196,7 @@ static int mpol_new_preferred(struct mempolicy *pol, const nodemask_t *nodes)
 
 static int mpol_new_bind(struct mempolicy *pol, const nodemask_t *nodes)
 {
-	if (!is_valid_nodemask(nodes))
+	if (nodes_empty(*nodes))
 		return -EINVAL;
 	pol->v.nodes = *nodes;
 	return 0;
@@ -234,7 +228,7 @@ static int mpol_set_nodemask(struct mempolicy *pol,
 		nodes = NULL;	/* explicit local allocation */
 	else {
 		if (pol->flags & MPOL_F_RELATIVE_NODES)
-			mpol_relative_nodemask(&nsc->mask2, nodes,&nsc->mask1);
+			mpol_relative_nodemask(&nsc->mask2, nodes, &nsc->mask1);
 		else
 			nodes_and(nsc->mask2, *nodes, nsc->mask1);
 
@@ -1047,10 +1041,6 @@ int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
 
 	down_read(&mm->mmap_sem);
 
-	err = migrate_vmas(mm, from, to, flags);
-	if (err)
-		goto out;
-
 	/*
 	 * Find a 'source' bit set in 'tmp' whose corresponding 'dest'
 	 * bit in 'to' is not also set in 'tmp'.  Clear the found 'source'
@@ -1130,7 +1120,6 @@ int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
 		if (err < 0)
 			break;
 	}
-out:
 	up_read(&mm->mmap_sem);
 	if (err < 0)
 		return err;

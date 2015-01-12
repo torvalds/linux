@@ -99,7 +99,6 @@ extern struct workqueue_struct *cvm_oct_poll_queue;
 extern atomic_t cvm_oct_poll_queue_stopping;
 extern u64 cvm_oct_tx_poll_interval;
 
-extern int max_rx_cpus;
 extern int rx_napi_weight;
 
 #endif

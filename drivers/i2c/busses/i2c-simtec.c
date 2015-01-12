@@ -154,7 +154,6 @@ static int simtec_i2c_remove(struct platform_device *dev)
 static struct platform_driver simtec_i2c_driver = {
 	.driver		= {
 		.name		= "simtec-i2c",
-		.owner		= THIS_MODULE,
 	},
 	.probe		= simtec_i2c_probe,
 	.remove		= simtec_i2c_remove,

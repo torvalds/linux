@@ -328,6 +328,7 @@
 319	common	memfd_create		sys_memfd_create
 320	common	kexec_file_load		sys_kexec_file_load
 321	common	bpf			sys_bpf
+322	64	execveat		stub_execveat
 
 #
 # x32-specific system call numbers start at 512 to avoid cache impact
@@ -366,3 +367,4 @@
 542	x32	getsockopt		compat_sys_getsockopt
 543	x32	io_setup		compat_sys_io_setup
 544	x32	io_submit		compat_sys_io_submit
+545	x32	execveat		stub_x32_execveat

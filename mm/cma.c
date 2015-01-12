@@ -33,6 +33,7 @@
 #include <linux/log2.h>
 #include <linux/cma.h>
 #include <linux/highmem.h>
+#include <linux/io.h>
 
 struct cma {
 	unsigned long	base_pfn;
@@ -61,6 +62,17 @@ static unsigned long cma_bitmap_aligned_mask(struct cma *cma, int align_order)
 	if (align_order <= cma->order_per_bit)
 		return 0;
 	return (1UL << (align_order - cma->order_per_bit)) - 1;
+}
+
+static unsigned long cma_bitmap_aligned_offset(struct cma *cma, int align_order)
+{
+	unsigned int alignment;
+
+	if (align_order <= cma->order_per_bit)
+		return 0;
+	alignment = 1UL << (align_order - cma->order_per_bit);
+	return ALIGN(cma->base_pfn, alignment) -
+		(cma->base_pfn >> cma->order_per_bit);
 }
 
 static unsigned long cma_bitmap_maxno(struct cma *cma)
@@ -215,9 +227,21 @@ int __init cma_declare_contiguous(phys_addr_t base,
 			bool fixed, struct cma **res_cma)
 {
 	phys_addr_t memblock_end = memblock_end_of_DRAM();
-	phys_addr_t highmem_start = __pa(high_memory);
+	phys_addr_t highmem_start;
 	int ret = 0;
 
+#ifdef CONFIG_X86
+	/*
+	 * high_memory isn't direct mapped memory so retrieving its physical
+	 * address isn't appropriate.  But it would be useful to check the
+	 * physical address of the highmem boundary so it's justfiable to get
+	 * the physical address from it.  On x86 there is a validation check for
+	 * this case, so the following workaround is needed to avoid it.
+	 */
+	highmem_start = __pa_nodebug(high_memory);
+#else
+	highmem_start = __pa(high_memory);
+#endif
 	pr_debug("%s(size %pa, base %pa, limit %pa alignment %pa)\n",
 		__func__, &size, &base, &limit, &alignment);
 
@@ -301,6 +325,11 @@ int __init cma_declare_contiguous(phys_addr_t base,
 			}
 		}
 
+		/*
+		 * kmemleak scans/reads tracked objects for pointers to other
+		 * objects but this address isn't mapped and accessible
+		 */
+		kmemleak_ignore(phys_to_virt(addr));
 		base = addr;
 	}
 
@@ -308,6 +337,7 @@ int __init cma_declare_contiguous(phys_addr_t base,
 	if (ret)
 		goto err;
 
+	totalcma_pages += (size / PAGE_SIZE);
 	pr_info("Reserved %ld MiB at %pa\n", (unsigned long)size / SZ_1M,
 		&base);
 	return 0;
@@ -328,7 +358,7 @@ err:
  */
 struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
 {
-	unsigned long mask, pfn, start = 0;
+	unsigned long mask, offset, pfn, start = 0;
 	unsigned long bitmap_maxno, bitmap_no, bitmap_count;
 	struct page *page = NULL;
 	int ret;
@@ -343,13 +373,15 @@ struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
 		return NULL;
 
 	mask = cma_bitmap_aligned_mask(cma, align);
+	offset = cma_bitmap_aligned_offset(cma, align);
 	bitmap_maxno = cma_bitmap_maxno(cma);
 	bitmap_count = cma_bitmap_pages_to_bits(cma, count);
 
 	for (;;) {
 		mutex_lock(&cma->lock);
-		bitmap_no = bitmap_find_next_zero_area(cma->bitmap,
-				bitmap_maxno, start, bitmap_count, mask);
+		bitmap_no = bitmap_find_next_zero_area_off(cma->bitmap,
+				bitmap_maxno, start, bitmap_count, mask,
+				offset);
 		if (bitmap_no >= bitmap_maxno) {
 			mutex_unlock(&cma->lock);
 			break;

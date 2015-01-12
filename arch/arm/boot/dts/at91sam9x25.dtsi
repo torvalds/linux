@@ -10,6 +10,7 @@
 #include "at91sam9x5_usart3.dtsi"
 #include "at91sam9x5_macb0.dtsi"
 #include "at91sam9x5_macb1.dtsi"
+#include "at91sam9x5_can.dtsi"
 
 / {
 	model = "Atmel AT91SAM9X25 SoC";

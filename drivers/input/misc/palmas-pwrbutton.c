@@ -260,7 +260,6 @@ static int palmas_pwron_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 /**
  * palmas_pwron_suspend() - suspend handler
  * @dev:	power button device
@@ -269,7 +268,7 @@ static int palmas_pwron_remove(struct platform_device *pdev)
  *
  * Return: 0
  */
-static int palmas_pwron_suspend(struct device *dev)
+static int __maybe_unused palmas_pwron_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct palmas_pwron *pwron = platform_get_drvdata(pdev);
@@ -290,7 +289,7 @@ static int palmas_pwron_suspend(struct device *dev)
  *
  * Return: 0
  */
-static int palmas_pwron_resume(struct device *dev)
+static int __maybe_unused palmas_pwron_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct palmas_pwron *pwron = platform_get_drvdata(pdev);
@@ -300,7 +299,6 @@ static int palmas_pwron_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(palmas_pwron_pm,
 			 palmas_pwron_suspend, palmas_pwron_resume);
@@ -319,7 +317,6 @@ static struct platform_driver palmas_pwron_driver = {
 	.remove	= palmas_pwron_remove,
 	.driver	= {
 		.name	= "palmas_pwrbutton",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(of_palmas_pwr_match),
 		.pm	= &palmas_pwron_pm,
 	},

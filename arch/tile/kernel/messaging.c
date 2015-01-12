@@ -59,9 +59,8 @@ void hv_message_intr(struct pt_regs *regs, int intnum)
 	{
 		long sp = stack_pointer - (long) current_thread_info();
 		if (unlikely(sp < (sizeof(struct thread_info) + STACK_WARN))) {
-			pr_emerg("hv_message_intr: "
-			       "stack overflow: %ld\n",
-			       sp - sizeof(struct thread_info));
+			pr_emerg("%s: stack overflow: %ld\n",
+				 __func__, sp - sizeof(struct thread_info));
 			dump_stack();
 		}
 	}

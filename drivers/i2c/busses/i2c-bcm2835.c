@@ -313,7 +313,6 @@ static struct platform_driver bcm2835_i2c_driver = {
 	.remove		= bcm2835_i2c_remove,
 	.driver		= {
 		.name	= "i2c-bcm2835",
-		.owner	= THIS_MODULE,
 		.of_match_table = bcm2835_i2c_of_match,
 	},
 };

@@ -132,7 +132,7 @@ static struct zbud_ops zbud_zpool_ops = {
 
 static void *zbud_zpool_create(gfp_t gfp, struct zpool_ops *zpool_ops)
 {
-	return zbud_create_pool(gfp, &zbud_zpool_ops);
+	return zbud_create_pool(gfp, zpool_ops ? &zbud_zpool_ops : NULL);
 }
 
 static void zbud_zpool_destroy(void *pool)
@@ -619,5 +619,5 @@ module_init(init_zbud);
 module_exit(exit_zbud);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Seth Jennings <sjenning@linux.vnet.ibm.com>");
+MODULE_AUTHOR("Seth Jennings <sjennings@variantweb.net>");
 MODULE_DESCRIPTION("Buddy Allocator for Compressed Pages");

@@ -724,6 +724,50 @@ int process_fpemu_return(int sig, void __user *fault_addr)
 	}
 }
 
+static int simulate_fp(struct pt_regs *regs, unsigned int opcode,
+		       unsigned long old_epc, unsigned long old_ra)
+{
+	union mips_instruction inst = { .word = opcode };
+	void __user *fault_addr = NULL;
+	int sig;
+
+	/* If it's obviously not an FP instruction, skip it */
+	switch (inst.i_format.opcode) {
+	case cop1_op:
+	case cop1x_op:
+	case lwc1_op:
+	case ldc1_op:
+	case swc1_op:
+	case sdc1_op:
+		break;
+
+	default:
+		return -1;
+	}
+
+	/*
+	 * do_ri skipped over the instruction via compute_return_epc, undo
+	 * that for the FPU emulator.
+	 */
+	regs->cp0_epc = old_epc;
+	regs->regs[31] = old_ra;
+
+	/* Save the FP context to struct thread_struct */
+	lose_fpu(1);
+
+	/* Run the emulator */
+	sig = fpu_emulator_cop1Handler(regs, &current->thread.fpu, 1,
+				       &fault_addr);
+
+	/* If something went wrong, signal */
+	process_fpemu_return(sig, fault_addr);
+
+	/* Restore the hardware register state */
+	own_fpu(1);
+
+	return 0;
+}
+
 /*
  * XXX Delayed fp exceptions when doing a lazy ctx switch XXX
  */
@@ -1016,6 +1060,9 @@ asmlinkage void do_ri(struct pt_regs *regs)
 
 		if (status < 0)
 			status = simulate_sync(regs, opcode);
+
+		if (status < 0)
+			status = simulate_fp(regs, opcode, old_epc, old31);
 	}
 
 	if (status < 0)
@@ -1380,12 +1427,19 @@ asmlinkage void do_mcheck(struct pt_regs *regs)
 	show_regs(regs);
 
 	if (multi_match) {
-		printk("Index	: %0x\n", read_c0_index());
-		printk("Pagemask: %0x\n", read_c0_pagemask());
-		printk("EntryHi : %0*lx\n", field, read_c0_entryhi());
-		printk("EntryLo0: %0*lx\n", field, read_c0_entrylo0());
-		printk("EntryLo1: %0*lx\n", field, read_c0_entrylo1());
-		printk("\n");
+		pr_err("Index	: %0x\n", read_c0_index());
+		pr_err("Pagemask: %0x\n", read_c0_pagemask());
+		pr_err("EntryHi : %0*lx\n", field, read_c0_entryhi());
+		pr_err("EntryLo0: %0*lx\n", field, read_c0_entrylo0());
+		pr_err("EntryLo1: %0*lx\n", field, read_c0_entrylo1());
+		pr_err("Wired   : %0x\n", read_c0_wired());
+		pr_err("Pagegrain: %0x\n", read_c0_pagegrain());
+		if (cpu_has_htw) {
+			pr_err("PWField : %0*lx\n", field, read_c0_pwfield());
+			pr_err("PWSize  : %0*lx\n", field, read_c0_pwsize());
+			pr_err("PWCtl   : %0x\n", read_c0_pwctl());
+		}
+		pr_err("\n");
 		dump_tlb_all();
 	}
 

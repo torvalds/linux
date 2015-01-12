@@ -47,16 +47,25 @@ struct linger {
 struct msghdr {
 	void		*msg_name;	/* ptr to socket address structure */
 	int		msg_namelen;	/* size of socket address structure */
-	struct iovec	*msg_iov;	/* scatter/gather array */
-	__kernel_size_t	msg_iovlen;	/* # elements in msg_iov */
+	struct iov_iter	msg_iter;	/* data */
 	void		*msg_control;	/* ancillary data */
 	__kernel_size_t	msg_controllen;	/* ancillary data buffer length */
 	unsigned int	msg_flags;	/* flags on received message */
 };
+ 
+struct user_msghdr {
+	void		__user *msg_name;	/* ptr to socket address structure */
+	int		msg_namelen;		/* size of socket address structure */
+	struct iovec	__user *msg_iov;	/* scatter/gather array */
+	__kernel_size_t	msg_iovlen;		/* # elements in msg_iov */
+	void		__user *msg_control;	/* ancillary data */
+	__kernel_size_t	msg_controllen;		/* ancillary data buffer length */
+	unsigned int	msg_flags;		/* flags on received message */
+};
 
 /* For recvmmsg/sendmmsg */
 struct mmsghdr {
-	struct msghdr   msg_hdr;
+	struct user_msghdr  msg_hdr;
 	unsigned int        msg_len;
 };
 
@@ -94,6 +103,10 @@ struct cmsghdr {
 			     (cmsg)->cmsg_len <= (unsigned long) \
 			     ((mhdr)->msg_controllen - \
 			      ((char *)(cmsg) - (char *)(mhdr)->msg_control)))
+#define for_each_cmsghdr(cmsg, msg) \
+	for (cmsg = CMSG_FIRSTHDR(msg); \
+	     cmsg; \
+	     cmsg = CMSG_NXTHDR(msg, cmsg))
 
 /*
  *	Get the next cmsg header
@@ -312,15 +325,14 @@ extern int csum_partial_copy_fromiovecend(unsigned char *kdata,
 extern unsigned long iov_pages(const struct iovec *iov, int offset,
 			       unsigned long nr_segs);
 
-extern int verify_iovec(struct msghdr *m, struct iovec *iov, struct sockaddr_storage *address, int mode);
 extern int move_addr_to_kernel(void __user *uaddr, int ulen, struct sockaddr_storage *kaddr);
 extern int put_cmsg(struct msghdr*, int level, int type, int len, void *data);
 
 struct timespec;
 
 /* The __sys_...msg variants allow MSG_CMSG_COMPAT */
-extern long __sys_recvmsg(int fd, struct msghdr __user *msg, unsigned flags);
-extern long __sys_sendmsg(int fd, struct msghdr __user *msg, unsigned flags);
+extern long __sys_recvmsg(int fd, struct user_msghdr __user *msg, unsigned flags);
+extern long __sys_sendmsg(int fd, struct user_msghdr __user *msg, unsigned flags);
 extern int __sys_recvmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
 			  unsigned int flags, struct timespec *timeout);
 extern int __sys_sendmmsg(int fd, struct mmsghdr __user *mmsg,

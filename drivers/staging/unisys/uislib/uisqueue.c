@@ -81,13 +81,13 @@ do_locked_client_insert(struct uisqueue_info *queueinfo,
 	u8 rc = 0;
 
 	spin_lock_irqsave(lock, flags);
-	if (!ULTRA_CHANNEL_CLIENT_ACQUIRE_OS(queueinfo->chan, channelId, NULL))
+	if (!spar_channel_client_acquire_os(queueinfo->chan, channelId))
 		goto unlock;
-	if (visor_signal_insert(queueinfo->chan, whichqueue, pSignal)) {
+	if (spar_signal_insert(queueinfo->chan, whichqueue, pSignal)) {
 		queueinfo->packets_sent++;
 		rc = 1;
 	}
-	ULTRA_CHANNEL_CLIENT_RELEASE_OS(queueinfo->chan, channelId, NULL);
+	spar_channel_client_release_os(queueinfo->chan, channelId);
 unlock:
 	spin_unlock_irqrestore((spinlock_t *)lock, flags);
 	return rc;
@@ -125,7 +125,7 @@ int
 uisqueue_get_cmdrsp(struct uisqueue_info *queueinfo,
 		    void *cmdrsp, unsigned int whichqueue)
 {
-	if (!visor_signal_remove(queueinfo->chan, whichqueue, cmdrsp))
+	if (!spar_signal_remove(queueinfo->chan, whichqueue, cmdrsp))
 		return 0;
 
 	queueinfo->packets_received++;

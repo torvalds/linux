@@ -159,7 +159,7 @@ OPTIONS
 --dump-raw-trace::
         Dump raw trace in ASCII.
 
--g [type,min[,limit],order[,key]]::
+-g [type,min[,limit],order[,key][,branch]]::
 --call-graph::
         Display call chains using type, min percent threshold, optional print
 	limit and order.
@@ -176,6 +176,11 @@ OPTIONS
 	key can be:
 	- function: compare on functions
 	- address: compare on individual code addresses
+
+	branch can be:
+	- branch: include last branch information in callgraph
+	when available. Usually more convenient to use --branch-history
+	for this.
 
 	Default: fractal,0.5,callee,function.
 
@@ -265,6 +270,11 @@ OPTIONS
 	perf report is able to auto-detect whether a perf.data file contains
 	branch stacks and it will automatically switch to the branch view mode,
 	unless --no-branch-stack is used.
+
+--branch-history::
+	Add the addresses of sampled taken branches to the callstack.
+	This allows to examine the path the program took to each sample.
+	The data collection must have used -b (or -j) and -g.
 
 --objdump=<path>::
         Path to objdump binary.

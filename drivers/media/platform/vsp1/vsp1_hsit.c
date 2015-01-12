@@ -70,9 +70,9 @@ static int hsit_enum_mbus_code(struct v4l2_subdev *subdev,
 
 	if ((code->pad == HSIT_PAD_SINK && !hsit->inverse) |
 	    (code->pad == HSIT_PAD_SOURCE && hsit->inverse))
-		code->code = V4L2_MBUS_FMT_ARGB8888_1X32;
+		code->code = MEDIA_BUS_FMT_ARGB8888_1X32;
 	else
-		code->code = V4L2_MBUS_FMT_AHSV8888_1X32;
+		code->code = MEDIA_BUS_FMT_AHSV8888_1X32;
 
 	return 0;
 }
@@ -136,8 +136,8 @@ static int hsit_set_format(struct v4l2_subdev *subdev,
 		return 0;
 	}
 
-	format->code = hsit->inverse ? V4L2_MBUS_FMT_AHSV8888_1X32
-		     : V4L2_MBUS_FMT_ARGB8888_1X32;
+	format->code = hsit->inverse ? MEDIA_BUS_FMT_AHSV8888_1X32
+		     : MEDIA_BUS_FMT_ARGB8888_1X32;
 	format->width = clamp_t(unsigned int, fmt->format.width,
 				HSIT_MIN_SIZE, HSIT_MAX_SIZE);
 	format->height = clamp_t(unsigned int, fmt->format.height,
@@ -151,8 +151,8 @@ static int hsit_set_format(struct v4l2_subdev *subdev,
 	format = vsp1_entity_get_pad_format(&hsit->entity, fh, HSIT_PAD_SOURCE,
 					    fmt->which);
 	*format = fmt->format;
-	format->code = hsit->inverse ? V4L2_MBUS_FMT_ARGB8888_1X32
-		     : V4L2_MBUS_FMT_AHSV8888_1X32;
+	format->code = hsit->inverse ? MEDIA_BUS_FMT_ARGB8888_1X32
+		     : MEDIA_BUS_FMT_AHSV8888_1X32;
 
 	return 0;
 }

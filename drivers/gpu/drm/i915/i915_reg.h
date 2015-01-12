@@ -34,8 +34,19 @@
 #define _PORT3(port, a, b, c) ((port) == PORT_A ? (a) : \
 			       (port) == PORT_B ? (b) : (c))
 
-#define _MASKED_BIT_ENABLE(a) (((a) << 16) | (a))
-#define _MASKED_BIT_DISABLE(a) ((a) << 16)
+#define _MASKED_FIELD(mask, value) ({					   \
+	if (__builtin_constant_p(mask))					   \
+		BUILD_BUG_ON_MSG(((mask) & 0xffff0000), "Incorrect mask"); \
+	if (__builtin_constant_p(value))				   \
+		BUILD_BUG_ON_MSG((value) & 0xffff0000, "Incorrect value"); \
+	if (__builtin_constant_p(mask) && __builtin_constant_p(value))	   \
+		BUILD_BUG_ON_MSG((value) & ~(mask),			   \
+				 "Incorrect value for mask");		   \
+	(mask) << 16 | (value); })
+#define _MASKED_BIT_ENABLE(a)	({ typeof(a) _a = (a); _MASKED_FIELD(_a, _a); })
+#define _MASKED_BIT_DISABLE(a)	(_MASKED_FIELD((a), 0))
+
+
 
 /* PCI config space */
 
@@ -76,6 +87,7 @@
 #define   I915_GC_RENDER_CLOCK_166_MHZ	(0 << 0)
 #define   I915_GC_RENDER_CLOCK_200_MHZ	(1 << 0)
 #define   I915_GC_RENDER_CLOCK_333_MHZ	(4 << 0)
+#define GCDGMBUS 0xcc
 #define PCI_LBPC 0xf4 /* legacy/combination backlight modes, also called LBB */
 
 
@@ -389,6 +401,7 @@
 #define   PIPE_CONTROL_STORE_DATA_INDEX			(1<<21)
 #define   PIPE_CONTROL_CS_STALL				(1<<20)
 #define   PIPE_CONTROL_TLB_INVALIDATE			(1<<18)
+#define   PIPE_CONTROL_MEDIA_STATE_CLEAR		(1<<16)
 #define   PIPE_CONTROL_QW_WRITE				(1<<14)
 #define   PIPE_CONTROL_POST_SYNC_OP_MASK                (3<<14)
 #define   PIPE_CONTROL_DEPTH_STALL			(1<<13)
@@ -1123,6 +1136,7 @@ enum punit_power_well {
 #define GEN6_VERSYNC	(RING_SYNC_1(VEBOX_RING_BASE))
 #define GEN6_VEVSYNC	(RING_SYNC_2(VEBOX_RING_BASE))
 #define GEN6_NOSYNC 0
+#define RING_PSMI_CTL(base)	((base)+0x50)
 #define RING_MAX_IDLE(base)	((base)+0x54)
 #define RING_HWS_PGA(base)	((base)+0x80)
 #define RING_HWS_PGA_GEN6(base)	((base)+0x2080)
@@ -1289,7 +1303,7 @@ enum punit_power_well {
 #define   GEN6_WIZ_HASHING_8x8				GEN6_WIZ_HASHING(0, 0)
 #define   GEN6_WIZ_HASHING_8x4				GEN6_WIZ_HASHING(0, 1)
 #define   GEN6_WIZ_HASHING_16x4				GEN6_WIZ_HASHING(1, 0)
-#define   GEN6_WIZ_HASHING_MASK				(GEN6_WIZ_HASHING(1, 1) << 16)
+#define   GEN6_WIZ_HASHING_MASK				GEN6_WIZ_HASHING(1, 1)
 #define   GEN6_TD_FOUR_ROW_DISPATCH_DISABLE		(1 << 5)
 
 #define GFX_MODE	0x02520
@@ -1453,6 +1467,7 @@ enum punit_power_well {
 #define   GEN6_BLITTER_FBC_NOTIFY			(1<<3)
 
 #define GEN6_RC_SLEEP_PSMI_CONTROL	0x2050
+#define   GEN6_PSMI_SLEEP_MSG_DISABLE	(1 << 0)
 #define   GEN8_RC_SEMA_IDLE_MSG_DISABLE	(1 << 12)
 #define   GEN8_FF_DOP_CLOCK_GATE_DISABLE	(1<<10)
 

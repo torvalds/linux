@@ -24,8 +24,6 @@ typedef int (*intercept_handler_t)(struct kvm_vcpu *vcpu);
 /* declare vfacilities extern */
 extern unsigned long *vfacilities;
 
-int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu);
-
 /* Transactional Memory Execution related macros */
 #define IS_TE_ENABLED(vcpu)	((vcpu->arch.sie_block->ecb & 0x10))
 #define TDB_FORMAT1		1
@@ -144,13 +142,17 @@ void kvm_s390_clear_float_irqs(struct kvm *kvm);
 int __must_check kvm_s390_inject_vm(struct kvm *kvm,
 				    struct kvm_s390_interrupt *s390int);
 int __must_check kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
-				      struct kvm_s390_interrupt *s390int);
+				      struct kvm_s390_irq *irq);
 int __must_check kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code);
 struct kvm_s390_interrupt_info *kvm_s390_get_io_int(struct kvm *kvm,
 						    u64 cr6, u64 schid);
 void kvm_s390_reinject_io_int(struct kvm *kvm,
 			      struct kvm_s390_interrupt_info *inti);
 int kvm_s390_mask_adapter(struct kvm *kvm, unsigned int id, bool masked);
+
+/* implemented in intercept.c */
+void kvm_s390_rewind_psw(struct kvm_vcpu *vcpu, int ilc);
+int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu);
 
 /* implemented in priv.c */
 int is_valid_psw(psw_t *psw);
@@ -221,6 +223,9 @@ static inline int kvm_s390_inject_prog_cond(struct kvm_vcpu *vcpu, int rc)
 		return rc;
 	return kvm_s390_inject_prog_irq(vcpu, &vcpu->arch.pgm);
 }
+
+int s390int_to_s390irq(struct kvm_s390_interrupt *s390int,
+			struct kvm_s390_irq *s390irq);
 
 /* implemented in interrupt.c */
 int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu);

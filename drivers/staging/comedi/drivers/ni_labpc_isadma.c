@@ -91,7 +91,6 @@ void labpc_drain_dma(struct comedi_device *dev)
 	int status;
 	unsigned long flags;
 	unsigned int max_points, num_points, residue, leftover;
-	int i;
 
 	status = devpriv->stat1;
 
@@ -122,9 +121,7 @@ void labpc_drain_dma(struct comedi_device *dev)
 			leftover = max_points;
 	}
 
-	/* write data to comedi buffer */
-	for (i = 0; i < num_points; i++)
-		cfc_write_to_buffer(s, devpriv->dma_buffer[i]);
+	comedi_buf_write_samples(s, devpriv->dma_buffer, num_points);
 
 	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->count -= num_points;
@@ -133,8 +130,6 @@ void labpc_drain_dma(struct comedi_device *dev)
 	set_dma_addr(devpriv->dma_chan, devpriv->dma_addr);
 	set_dma_count(devpriv->dma_chan, leftover * sample_size);
 	release_dma_lock(flags);
-
-	async->events |= COMEDI_CB_BLOCK;
 }
 EXPORT_SYMBOL_GPL(labpc_drain_dma);
 

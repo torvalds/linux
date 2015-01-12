@@ -1521,18 +1521,32 @@ fmode_t dm_table_get_mode(struct dm_table *t)
 }
 EXPORT_SYMBOL(dm_table_get_mode);
 
-static void suspend_targets(struct dm_table *t, unsigned postsuspend)
+enum suspend_mode {
+	PRESUSPEND,
+	PRESUSPEND_UNDO,
+	POSTSUSPEND,
+};
+
+static void suspend_targets(struct dm_table *t, enum suspend_mode mode)
 {
 	int i = t->num_targets;
 	struct dm_target *ti = t->targets;
 
 	while (i--) {
-		if (postsuspend) {
+		switch (mode) {
+		case PRESUSPEND:
+			if (ti->type->presuspend)
+				ti->type->presuspend(ti);
+			break;
+		case PRESUSPEND_UNDO:
+			if (ti->type->presuspend_undo)
+				ti->type->presuspend_undo(ti);
+			break;
+		case POSTSUSPEND:
 			if (ti->type->postsuspend)
 				ti->type->postsuspend(ti);
-		} else if (ti->type->presuspend)
-			ti->type->presuspend(ti);
-
+			break;
+		}
 		ti++;
 	}
 }
@@ -1542,7 +1556,15 @@ void dm_table_presuspend_targets(struct dm_table *t)
 	if (!t)
 		return;
 
-	suspend_targets(t, 0);
+	suspend_targets(t, PRESUSPEND);
+}
+
+void dm_table_presuspend_undo_targets(struct dm_table *t)
+{
+	if (!t)
+		return;
+
+	suspend_targets(t, PRESUSPEND_UNDO);
 }
 
 void dm_table_postsuspend_targets(struct dm_table *t)
@@ -1550,7 +1572,7 @@ void dm_table_postsuspend_targets(struct dm_table *t)
 	if (!t)
 		return;
 
-	suspend_targets(t, 1);
+	suspend_targets(t, POSTSUSPEND);
 }
 
 int dm_table_resume_targets(struct dm_table *t)

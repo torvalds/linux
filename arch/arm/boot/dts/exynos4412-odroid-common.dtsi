@@ -45,6 +45,16 @@
 		compatible = "samsung,odroidx2-audio";
 		samsung,i2s-controller = <&i2s0>;
 		samsung,audio-codec = <&max98090>;
+		assigned-clocks = <&clock_audss EXYNOS_MOUT_AUDSS>,
+				<&clock_audss EXYNOS_MOUT_I2S>,
+				<&clock_audss EXYNOS_DOUT_SRP>,
+				<&clock_audss EXYNOS_DOUT_AUD_BUS>;
+		assigned-clock-parents = <&clock CLK_FOUT_EPLL>,
+				<&clock_audss EXYNOS_MOUT_AUDSS>;
+		assigned-clock-rates = <0>,
+				<0>,
+				<192000000>,
+				<19200000>;
 	};
 
 	mmc@12550000 {
@@ -82,18 +92,34 @@
 
 		fimc_0: fimc@11800000 {
 			status = "okay";
+			assigned-clocks = <&clock CLK_MOUT_FIMC0>,
+					<&clock CLK_SCLK_FIMC0>;
+			assigned-clock-parents = <&clock CLK_MOUT_MPLL_USER_T>;
+			assigned-clock-rates = <0>, <176000000>;
 		};
 
 		fimc_1: fimc@11810000 {
 			status = "okay";
+			assigned-clocks = <&clock CLK_MOUT_FIMC1>,
+					<&clock CLK_SCLK_FIMC1>;
+			assigned-clock-parents = <&clock CLK_MOUT_MPLL_USER_T>;
+			assigned-clock-rates = <0>, <176000000>;
 		};
 
 		fimc_2: fimc@11820000 {
 			status = "okay";
+			assigned-clocks = <&clock CLK_MOUT_FIMC2>,
+					<&clock CLK_SCLK_FIMC2>;
+			assigned-clock-parents = <&clock CLK_MOUT_MPLL_USER_T>;
+			assigned-clock-rates = <0>, <176000000>;
 		};
 
 		fimc_3: fimc@11830000 {
 			status = "okay";
+			assigned-clocks = <&clock CLK_MOUT_FIMC3>,
+					<&clock CLK_SCLK_FIMC3>;
+			assigned-clock-parents = <&clock CLK_MOUT_MPLL_USER_T>;
+			assigned-clock-rates = <0>, <176000000>;
 		};
 	};
 

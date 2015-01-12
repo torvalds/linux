@@ -49,16 +49,6 @@ MODULE_AUTHOR("Digi International, http://www.digi.com");
 MODULE_DESCRIPTION("Driver for the Digi International Neo and Classic PCI based product line");
 MODULE_SUPPORTED_DEVICE("dgnc");
 
-/*
- * insmod command line overrideable parameters
- *
- * NOTE: we use a set of macros to create the variables, which allows
- * us to specify the variable type, name, initial value, and description.
- */
-PARM_INT(debug,		0x00,		0644,	"Driver debugging level");
-PARM_INT(rawreadok,	1,		0644,	"Bypass flip buffers on input");
-PARM_INT(trcbuf_size,	0x100000,	0644,	"Debugging trace buffer size.");
-
 /**************************************************************************
  *
  * protos for this file
@@ -207,8 +197,6 @@ static int __init dgnc_init_module(void)
 {
 	int rc = 0;
 
-	APR(("%s, Digi International Part Number %s\n", DG_NAME, DG_PART));
-
 	/*
 	 * Initialize global stuff
 	 */
@@ -254,8 +242,6 @@ static int dgnc_start(void)
 	/* make sure that the globals are init'd before we do anything else */
 	dgnc_init_globals();
 
-	APR(("For the tools package or updated drivers please visit http://www.digi.com\n"));
-
 	/*
 	 * Register our base character device into the kernel.
 	 * This allows the download daemon to connect to the downld device
@@ -265,7 +251,7 @@ static int dgnc_start(void)
 	 */
 	rc = register_chrdev(0, "dgnc", &dgnc_BoardFops);
 	if (rc <= 0) {
-		APR(("Can't register dgnc driver device (%d)\n", rc));
+		pr_err(DRVSTR ": Can't register dgnc driver device (%d)\n", rc);
 		return -ENXIO;
 	}
 	dgnc_Major = rc;
@@ -281,7 +267,7 @@ static int dgnc_start(void)
 	rc = dgnc_tty_preinit();
 
 	if (rc < 0) {
-		APR(("tty preinit - not enough memory (%d)\n", rc));
+		pr_err(DRVSTR ": tty preinit - not enough memory (%d)\n", rc);
 		return rc;
 	}
 
@@ -468,7 +454,8 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 		brd->membase = pci_resource_start(pdev, 4);
 
 		if (!brd->membase) {
-			APR(("card has no PCI IO resources, failing board.\n"));
+			dev_err(&brd->pdev->dev,
+				"Card has no PCI IO resources, failing.\n");
 			return -ENODEV;
 		}
 
@@ -555,7 +542,8 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 		break;
 
 	default:
-		APR(("Did not find any compatible Neo or Classic PCI boards in system.\n"));
+		dev_err(&brd->pdev->dev,
+			"Didn't find any compatible Neo/Classic PCI boards.\n");
 		return -ENXIO;
 
 	}
@@ -567,7 +555,7 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	rc = dgnc_tty_register(brd);
 	if (rc < 0) {
 		dgnc_tty_uninit(brd);
-		APR(("Can't register tty devices (%d)\n", rc));
+		pr_err(DRVSTR ": Can't register tty devices (%d)\n", rc);
 		brd->state = BOARD_FAILED;
 		brd->dpastatus = BD_NOFEP;
 		goto failed;
@@ -575,7 +563,7 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 
 	rc = dgnc_finalize_board_init(brd);
 	if (rc < 0) {
-		APR(("Can't finalize board init (%d)\n", rc));
+		pr_err(DRVSTR ": Can't finalize board init (%d)\n", rc);
 		brd->state = BOARD_FAILED;
 		brd->dpastatus = BD_NOFEP;
 
@@ -585,7 +573,7 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	rc = dgnc_tty_init(brd);
 	if (rc < 0) {
 		dgnc_tty_uninit(brd);
-		APR(("Can't init tty devices (%d)\n", rc));
+		pr_err(DRVSTR ": Can't init tty devices (%d)\n", rc);
 		brd->state = BOARD_FAILED;
 		brd->dpastatus = BD_NOFEP;
 
@@ -744,9 +732,6 @@ static void dgnc_init_globals(void)
 {
 	int i = 0;
 
-	dgnc_rawreadok		= rawreadok;
-	dgnc_trcbuf_size	= trcbuf_size;
-	dgnc_debug		= debug;
 	dgnc_NumBoards		= 0;
 
 	for (i = 0; i < MAXBOARDS; i++)

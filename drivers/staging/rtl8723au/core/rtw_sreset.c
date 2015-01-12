@@ -107,7 +107,7 @@ static void sreset_restore_network_station(struct rtw_adapter *padapter)
 
 	mlmeext_joinbss_event_callback23a(padapter, 1);
 	/* restore Sequence No. */
-	rtl8723au_write8(padapter, 0x4dc, padapter->xmitpriv.nqos_ssn);
+	rtl8723au_write8(padapter, REG_NQOS_SEQ, padapter->xmitpriv.nqos_ssn);
 
 	sreset_restore_security_station(padapter);
 }

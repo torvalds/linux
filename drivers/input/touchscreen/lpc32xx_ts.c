@@ -396,7 +396,6 @@ static struct platform_driver lpc32xx_ts_driver = {
 	.remove		= lpc32xx_ts_remove,
 	.driver		= {
 		.name	= MOD_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= LPC32XX_TS_PM_OPS,
 		.of_match_table = of_match_ptr(lpc32xx_tsc_of_match),
 	},

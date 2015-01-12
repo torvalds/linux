@@ -15,7 +15,7 @@ config ARCH_OMAP3
 	select ARM_CPU_SUSPEND if PM
 	select OMAP_INTERCONNECT
 	select PM_OPP if PM
-	select PM_RUNTIME if CPU_IDLE
+	select PM if CPU_IDLE
 	select SOC_HAS_OMAP2_SDRC
 
 config ARCH_OMAP4
@@ -32,7 +32,7 @@ config ARCH_OMAP4
 	select PL310_ERRATA_588369 if CACHE_L2X0
 	select PL310_ERRATA_727915 if CACHE_L2X0
 	select PM_OPP if PM
-	select PM_RUNTIME if CPU_IDLE
+	select PM if CPU_IDLE
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_775420
 
@@ -79,7 +79,9 @@ config ARCH_OMAP2PLUS
 	select CLKSRC_MMIO
 	select GENERIC_IRQ_CHIP
 	select MACH_OMAP_GENERIC
+	select MEMORY
 	select OMAP_DM_TIMER
+	select OMAP_GPMC
 	select PINCTRL
 	select SOC_BUS
 	select TI_PRIV_EDMA
@@ -101,7 +103,7 @@ config ARCH_OMAP2PLUS_TYPICAL
 	select I2C_OMAP
 	select MENELAUS if ARCH_OMAP2
 	select NEON if CPU_V7
-	select PM_RUNTIME
+	select PM
 	select REGULATOR
 	select TWL4030_CORE if ARCH_OMAP3 || ARCH_OMAP4
 	select TWL4030_POWER if ARCH_OMAP3 || ARCH_OMAP4
@@ -235,12 +237,6 @@ config MACH_TOUCHBOOK
 	default y
 	select OMAP_PACKAGE_CBB
 
-config MACH_OMAP_3430SDP
-	bool "OMAP 3430 SDP board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBB
-
 config MACH_NOKIA_N810
        bool
 
@@ -281,24 +277,6 @@ config MACH_SBC3530
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CUS
-
-config MACH_TI8168EVM
-	bool "TI8168 Evaluation Module"
-	depends on SOC_TI81XX
-	default y
-
-config MACH_TI8148EVM
-	bool "TI8148 Evaluation Module"
-	depends on SOC_TI81XX
-	default y
-
-config OMAP3_EMU
-	bool "OMAP3 debugging peripherals"
-	depends on ARCH_OMAP3
-	select ARM_AMBA
-	select OC_ETM
-	help
-	  Say Y here to enable debugging hardware of omap3
 
 config OMAP3_SDRC_AC_TIMING
 	bool "Enable SDRC AC timing register changes"

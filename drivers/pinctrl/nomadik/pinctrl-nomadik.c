@@ -1520,12 +1520,13 @@ static int nmk_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	unsigned long configs = 0;
 	bool has_config = 0;
 	struct property *prop;
-	const char *group, *gpio_name;
 	struct device_node *np_config;
 
-	ret = of_property_read_string(np, "ste,function", &function);
+	ret = of_property_read_string(np, "function", &function);
 	if (ret >= 0) {
-		ret = of_property_count_strings(np, "ste,pins");
+		const char *group;
+
+		ret = of_property_count_strings(np, "groups");
 		if (ret < 0)
 			goto exit;
 
@@ -1535,7 +1536,7 @@ static int nmk_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		if (ret < 0)
 			goto exit;
 
-		of_property_for_each_string(np, "ste,pins", prop, group) {
+		of_property_for_each_string(np, "groups", prop, group) {
 			ret = nmk_dt_add_map_mux(map, reserved_maps, num_maps,
 					  group, function);
 			if (ret < 0)
@@ -1548,7 +1549,10 @@ static int nmk_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	if (np_config)
 		has_config |= nmk_pinctrl_dt_get_config(np_config, &configs);
 	if (has_config) {
-		ret = of_property_count_strings(np, "ste,pins");
+		const char *gpio_name;
+		const char *pin;
+
+		ret = of_property_count_strings(np, "pins");
 		if (ret < 0)
 			goto exit;
 		ret = pinctrl_utils_reserve_map(pctldev, map,
@@ -1557,8 +1561,8 @@ static int nmk_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		if (ret < 0)
 			goto exit;
 
-		of_property_for_each_string(np, "ste,pins", prop, group) {
-			gpio_name = nmk_find_pin_name(pctldev, group);
+		of_property_for_each_string(np, "pins", prop, pin) {
+			gpio_name = nmk_find_pin_name(pctldev, pin);
 
 			ret = nmk_dt_add_map_configs(map, reserved_maps,
 						     num_maps,
@@ -2047,7 +2051,6 @@ static const struct of_device_id nmk_gpio_match[] = {
 
 static struct platform_driver nmk_gpio_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "gpio",
 		.of_match_table = nmk_gpio_match,
 	},
@@ -2060,7 +2063,6 @@ static SIMPLE_DEV_PM_OPS(nmk_pinctrl_pm_ops,
 
 static struct platform_driver nmk_pinctrl_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "pinctrl-nomadik",
 		.of_match_table = nmk_pinctrl_match,
 		.pm = &nmk_pinctrl_pm_ops,

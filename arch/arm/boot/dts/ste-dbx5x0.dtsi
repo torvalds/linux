@@ -11,6 +11,7 @@
 
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/mfd/dbx500-prcmu.h>
+#include <dt-bindings/arm/ux500_pm_domains.h>
 #include "skeleton.dtsi"
 
 / {
@@ -43,6 +44,10 @@
 			interrupts = <0 7 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
+		pm_domains: pm_domains0 {
+			compatible = "stericsson,ux500-pm-domains";
+			#power-domain-cells = <1>;
+		};
 
 		clocks {
 			compatible = "stericsson,u8500-clks";
@@ -636,6 +641,7 @@
 			clock-frequency = <400000>;
 			clocks = <&prcc_kclk 3 3>, <&prcc_pclk 3 3>;
 			clock-names = "i2cclk", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		i2c@80122000 {
@@ -651,6 +657,7 @@
 
 			clocks = <&prcc_kclk 1 2>, <&prcc_pclk 1 2>;
 			clock-names = "i2cclk", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		i2c@80128000 {
@@ -666,6 +673,7 @@
 
 			clocks = <&prcc_kclk 1 6>, <&prcc_pclk 1 6>;
 			clock-names = "i2cclk", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		i2c@80110000 {
@@ -681,6 +689,7 @@
 
 			clocks = <&prcc_kclk 2 0>, <&prcc_pclk 2 0>;
 			clock-names = "i2cclk", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		i2c@8012a000 {
@@ -696,6 +705,7 @@
 
 			clocks = <&prcc_kclk 1 9>, <&prcc_pclk 1 10>;
 			clock-names = "i2cclk", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		ssp@80002000 {
@@ -709,6 +719,7 @@
 			dmas = <&dma 8 0 0x2>, /* Logical - DevToMem */
 			       <&dma 8 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		ssp@80003000 {
@@ -722,6 +733,7 @@
 			dmas = <&dma 9 0 0x2>, /* Logical - DevToMem */
 			       <&dma 9 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		spi@8011a000 {
@@ -736,6 +748,7 @@
 			dmas = <&dma 0 0 0x2>, /* Logical - DevToMem */
 			       <&dma 0 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		spi@80112000 {
@@ -750,6 +763,7 @@
 			dmas = <&dma 35 0 0x2>, /* Logical - DevToMem */
 			       <&dma 35 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		spi@80111000 {
@@ -764,6 +778,7 @@
 			dmas = <&dma 33 0 0x2>, /* Logical - DevToMem */
 			       <&dma 33 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		spi@80129000 {
@@ -778,6 +793,7 @@
 			dmas = <&dma 40 0 0x2>, /* Logical - DevToMem */
 			       <&dma 40 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		uart@80120000 {
@@ -836,6 +852,7 @@
 
 			clocks = <&prcc_kclk 1 5>, <&prcc_pclk 1 5>;
 			clock-names = "sdi", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 
 			status = "disabled";
 		};
@@ -851,6 +868,7 @@
 
 			clocks = <&prcc_kclk 2 4>, <&prcc_pclk 2 6>;
 			clock-names = "sdi", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 
 			status = "disabled";
 		};
@@ -866,6 +884,7 @@
 
 			clocks = <&prcc_kclk 3 4>, <&prcc_pclk 3 4>;
 			clock-names = "sdi", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 
 			status = "disabled";
 		};
@@ -881,6 +900,7 @@
 
 			clocks = <&prcc_kclk 2 5>, <&prcc_pclk 2 7>;
 			clock-names = "sdi", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 
 			status = "disabled";
 		};
@@ -896,6 +916,7 @@
 
 			clocks = <&prcc_kclk 2 2>, <&prcc_pclk 2 4>;
 			clock-names = "sdi", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 
 			status = "disabled";
 		};
@@ -911,6 +932,7 @@
 
 			clocks = <&prcc_kclk 3 7>, <&prcc_pclk 3 7>;
 			clock-names = "sdi", "apb_pclk";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 
 			status = "disabled";
 		};

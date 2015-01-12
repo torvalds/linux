@@ -1775,7 +1775,7 @@ EXPORT_SYMBOL_GPL(input_class);
  */
 struct input_dev *input_allocate_device(void)
 {
-	static atomic_t input_no = ATOMIC_INIT(0);
+	static atomic_t input_no = ATOMIC_INIT(-1);
 	struct input_dev *dev;
 
 	dev = kzalloc(sizeof(struct input_dev), GFP_KERNEL);
@@ -1790,7 +1790,7 @@ struct input_dev *input_allocate_device(void)
 		INIT_LIST_HEAD(&dev->node);
 
 		dev_set_name(&dev->dev, "input%lu",
-			     (unsigned long) atomic_inc_return(&input_no) - 1);
+			     (unsigned long)atomic_inc_return(&input_no));
 
 		__module_get(THIS_MODULE);
 	}
@@ -1974,18 +1974,22 @@ static unsigned int input_estimate_events_per_packet(struct input_dev *dev)
 
 	events = mt_slots + 1; /* count SYN_MT_REPORT and SYN_REPORT */
 
-	for (i = 0; i < ABS_CNT; i++) {
-		if (test_bit(i, dev->absbit)) {
-			if (input_is_mt_axis(i))
-				events += mt_slots;
-			else
-				events++;
+	if (test_bit(EV_ABS, dev->evbit)) {
+		for (i = 0; i < ABS_CNT; i++) {
+			if (test_bit(i, dev->absbit)) {
+				if (input_is_mt_axis(i))
+					events += mt_slots;
+				else
+					events++;
+			}
 		}
 	}
 
-	for (i = 0; i < REL_CNT; i++)
-		if (test_bit(i, dev->relbit))
-			events++;
+	if (test_bit(EV_REL, dev->evbit)) {
+		for (i = 0; i < REL_CNT; i++)
+			if (test_bit(i, dev->relbit))
+				events++;
+	}
 
 	/* Make room for KEY and MSC events */
 	events += 7;

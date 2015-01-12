@@ -94,8 +94,17 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 
 	might_sleep();
 
-	if (key->flags & KEY_FLAG_TAINTED)
+	if (key->flags & KEY_FLAG_TAINTED) {
+		/* If we get here, it's during resume and the key is
+		 * tainted so shouldn't be used/programmed any more.
+		 * However, its flags may still indicate that it was
+		 * programmed into the device (since we're in resume)
+		 * so clear that flag now to avoid trying to remove
+		 * it again later.
+		 */
+		key->flags &= ~KEY_FLAG_UPLOADED_TO_HARDWARE;
 		return -EINVAL;
+	}
 
 	if (!key->local->ops->set_key)
 		goto out_unsupported;
@@ -131,7 +140,9 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 	if (!ret) {
 		key->flags |= KEY_FLAG_UPLOADED_TO_HARDWARE;
 
-		if (!(key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIC))
+		if (!((key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIC) ||
+		      (key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV) ||
+		      (key->conf.flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE)))
 			sdata->crypto_tx_tailroom_needed_cnt--;
 
 		WARN_ON((key->conf.flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE) &&
@@ -179,7 +190,9 @@ static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
 	sta = key->sta;
 	sdata = key->sdata;
 
-	if (!(key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIC))
+	if (!((key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIC) ||
+	      (key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV) ||
+	      (key->conf.flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE)))
 		increment_tailroom_need_count(sdata);
 
 	ret = drv_set_key(key->local, DISABLE_KEY, sdata,
@@ -647,7 +660,7 @@ void ieee80211_free_sta_keys(struct ieee80211_local *local,
 	int i;
 
 	mutex_lock(&local->key_mtx);
-	for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
+	for (i = 0; i < ARRAY_SIZE(sta->gtk); i++) {
 		key = key_mtx_dereference(local, sta->gtk[i]);
 		if (!key)
 			continue;
@@ -875,7 +888,9 @@ void ieee80211_remove_key(struct ieee80211_key_conf *keyconf)
 	if (key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) {
 		key->flags &= ~KEY_FLAG_UPLOADED_TO_HARDWARE;
 
-		if (!(key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIC))
+		if (!((key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIC) ||
+		      (key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV) ||
+		      (key->conf.flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE)))
 			increment_tailroom_need_count(key->sdata);
 	}
 

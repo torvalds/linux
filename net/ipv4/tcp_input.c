@@ -81,6 +81,7 @@ int sysctl_tcp_window_scaling __read_mostly = 1;
 int sysctl_tcp_sack __read_mostly = 1;
 int sysctl_tcp_fack __read_mostly = 1;
 int sysctl_tcp_reordering __read_mostly = TCP_FASTRETRANS_THRESH;
+int sysctl_tcp_max_reordering __read_mostly = 300;
 EXPORT_SYMBOL(sysctl_tcp_reordering);
 int sysctl_tcp_dsack __read_mostly = 1;
 int sysctl_tcp_app_win __read_mostly = 31;
@@ -833,7 +834,7 @@ static void tcp_update_reordering(struct sock *sk, const int metric,
 	if (metric > tp->reordering) {
 		int mib_idx;
 
-		tp->reordering = min(TCP_MAX_REORDERING, metric);
+		tp->reordering = min(sysctl_tcp_max_reordering, metric);
 
 		/* This exciting event is worth to be remembered. 8) */
 		if (ts)
@@ -4367,7 +4368,7 @@ int tcp_send_rcvq(struct sock *sk, struct msghdr *msg, size_t size)
 	if (tcp_try_rmem_schedule(sk, skb, skb->truesize))
 		goto err_free;
 
-	if (memcpy_fromiovec(skb_put(skb, size), msg->msg_iov, size))
+	if (memcpy_from_msg(skb_put(skb, size), msg, size))
 		goto err_free;
 
 	TCP_SKB_CB(skb)->seq = tcp_sk(sk)->rcv_nxt;
@@ -4420,7 +4421,7 @@ static void tcp_data_queue(struct sock *sk, struct sk_buff *skb)
 			__set_current_state(TASK_RUNNING);
 
 			local_bh_enable();
-			if (!skb_copy_datagram_iovec(skb, 0, tp->ucopy.iov, chunk)) {
+			if (!skb_copy_datagram_msg(skb, 0, tp->ucopy.msg, chunk)) {
 				tp->ucopy.len -= chunk;
 				tp->copied_seq += chunk;
 				eaten = (chunk == skb->len);
@@ -4940,10 +4941,9 @@ static int tcp_copy_to_iovec(struct sock *sk, struct sk_buff *skb, int hlen)
 
 	local_bh_enable();
 	if (skb_csum_unnecessary(skb))
-		err = skb_copy_datagram_iovec(skb, hlen, tp->ucopy.iov, chunk);
+		err = skb_copy_datagram_msg(skb, hlen, tp->ucopy.msg, chunk);
 	else
-		err = skb_copy_and_csum_datagram_iovec(skb, hlen,
-						       tp->ucopy.iov);
+		err = skb_copy_and_csum_datagram_msg(skb, hlen, tp->ucopy.msg);
 
 	if (!err) {
 		tp->ucopy.len -= chunk;
@@ -5030,7 +5030,7 @@ static bool tcp_validate_incoming(struct sock *sk, struct sk_buff *skb,
 	/* step 3: check security and precedence [ignored] */
 
 	/* step 4: Check for a SYN
-	 * RFC 5691 4.2 : Send a challenge ack
+	 * RFC 5961 4.2 : Send a challenge ack
 	 */
 	if (th->syn) {
 syn_challenge:
@@ -5853,12 +5853,12 @@ static inline void pr_drop_req(struct request_sock *req, __u16 port, int family)
 	struct inet_request_sock *ireq = inet_rsk(req);
 
 	if (family == AF_INET)
-		LIMIT_NETDEBUG(KERN_DEBUG pr_fmt("drop open request from %pI4/%u\n"),
-			       &ireq->ir_rmt_addr, port);
+		net_dbg_ratelimited("drop open request from %pI4/%u\n",
+				    &ireq->ir_rmt_addr, port);
 #if IS_ENABLED(CONFIG_IPV6)
 	else if (family == AF_INET6)
-		LIMIT_NETDEBUG(KERN_DEBUG pr_fmt("drop open request from %pI6/%u\n"),
-			       &ireq->ir_v6_rmt_addr, port);
+		net_dbg_ratelimited("drop open request from %pI6/%u\n",
+				    &ireq->ir_v6_rmt_addr, port);
 #endif
 }
 
@@ -5867,7 +5867,7 @@ static inline void pr_drop_req(struct request_sock *req, __u16 port, int family)
  * If we receive a SYN packet with these bits set, it means a
  * network is playing bad games with TOS bits. In order to
  * avoid possible false congestion notifications, we disable
- * TCP ECN negociation.
+ * TCP ECN negotiation.
  *
  * Exception: tcp_ca wants ECN. This is required for DCTCP
  * congestion control; it requires setting ECT on all packets,
@@ -5877,20 +5877,22 @@ static inline void pr_drop_req(struct request_sock *req, __u16 port, int family)
  */
 static void tcp_ecn_create_request(struct request_sock *req,
 				   const struct sk_buff *skb,
-				   const struct sock *listen_sk)
+				   const struct sock *listen_sk,
+				   const struct dst_entry *dst)
 {
 	const struct tcphdr *th = tcp_hdr(skb);
 	const struct net *net = sock_net(listen_sk);
 	bool th_ecn = th->ece && th->cwr;
-	bool ect, need_ecn;
+	bool ect, need_ecn, ecn_ok;
 
 	if (!th_ecn)
 		return;
 
 	ect = !INET_ECN_is_not_ect(TCP_SKB_CB(skb)->ip_dsfield);
 	need_ecn = tcp_ca_needs_ecn(listen_sk);
+	ecn_ok = net->ipv4.sysctl_tcp_ecn || dst_feature(dst, RTAX_FEATURE_ECN);
 
-	if (!ect && !need_ecn && net->ipv4.sysctl_tcp_ecn)
+	if (!ect && !need_ecn && ecn_ok)
 		inet_rsk(req)->ecn_ok = 1;
 	else if (ect && need_ecn)
 		inet_rsk(req)->ecn_ok = 1;
@@ -5955,13 +5957,7 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 	if (security_inet_conn_request(sk, skb, req))
 		goto drop_and_free;
 
-	if (!want_cookie || tmp_opt.tstamp_ok)
-		tcp_ecn_create_request(req, skb, sk);
-
-	if (want_cookie) {
-		isn = cookie_init_sequence(af_ops, sk, skb, &req->mss);
-		req->cookie_ts = tmp_opt.tstamp_ok;
-	} else if (!isn) {
+	if (!want_cookie && !isn) {
 		/* VJ's idea. We save last timestamp seen
 		 * from the destination in peer table, when entering
 		 * state TIME-WAIT, and check against it before
@@ -6007,6 +6003,15 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 		dst = af_ops->route_req(sk, &fl, req, NULL);
 		if (!dst)
 			goto drop_and_free;
+	}
+
+	tcp_ecn_create_request(req, skb, sk, dst);
+
+	if (want_cookie) {
+		isn = cookie_init_sequence(af_ops, sk, skb, &req->mss);
+		req->cookie_ts = tmp_opt.tstamp_ok;
+		if (!tmp_opt.tstamp_ok)
+			inet_rsk(req)->ecn_ok = 0;
 	}
 
 	tcp_rsk(req)->snt_isn = isn;

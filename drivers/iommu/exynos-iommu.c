@@ -684,7 +684,6 @@ static const struct of_device_id sysmmu_of_match[] __initconst = {
 static struct platform_driver exynos_sysmmu_driver __refdata = {
 	.probe	= exynos_sysmmu_probe,
 	.driver	= {
-		.owner		= THIS_MODULE,
 		.name		= "exynos-sysmmu",
 		.of_match_table	= sysmmu_of_match,
 	}
@@ -1178,6 +1177,7 @@ static const struct iommu_ops exynos_iommu_ops = {
 	.detach_dev = exynos_iommu_detach_device,
 	.map = exynos_iommu_map,
 	.unmap = exynos_iommu_unmap,
+	.map_sg = default_iommu_map_sg,
 	.iova_to_phys = exynos_iommu_iova_to_phys,
 	.add_device = exynos_iommu_add_device,
 	.remove_device = exynos_iommu_remove_device,

@@ -2745,13 +2745,11 @@ int kv_dpm_init(struct radeon_device *rdev)
 	pi->enable_auto_thermal_throttling = true;
 	pi->disable_nb_ps3_in_battery = false;
 	if (radeon_bapm == -1) {
-		/* There are stability issues reported on with
-		 * bapm enabled on an asrock system.
-		 */
-		if (rdev->pdev->subsystem_vendor == 0x1849)
-			pi->bapm_enable = false;
-		else
+		/* only enable bapm on KB, ML by default */
+		if (rdev->family == CHIP_KABINI || rdev->family == CHIP_MULLINS)
 			pi->bapm_enable = true;
+		else
+			pi->bapm_enable = false;
 	} else if (radeon_bapm == 0) {
 		pi->bapm_enable = false;
 	} else {

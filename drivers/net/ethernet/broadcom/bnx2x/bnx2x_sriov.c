@@ -193,6 +193,7 @@ void bnx2x_vfop_qctor_prep(struct bnx2x *bp,
 	/* Setup-op general parameters */
 	setup_p->gen_params.spcl_id = vf->sp_cl_id;
 	setup_p->gen_params.stat_id = vfq_stat_id(vf, q);
+	setup_p->gen_params.fp_hsi = vf->fp_hsi;
 
 	/* Setup-op pause params:
 	 * Nothing to do, the pause thresholds are set by default to 0 which

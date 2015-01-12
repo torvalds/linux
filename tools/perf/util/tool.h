@@ -39,7 +39,8 @@ struct perf_tool {
 	event_attr_op	attr;
 	event_op2	tracing_data;
 	event_op2	finished_round,
-			build_id;
+			build_id,
+			id_index;
 	bool		ordered_events;
 	bool		ordering_requires_timestamps;
 };

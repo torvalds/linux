@@ -50,7 +50,6 @@ static void rtw_init_mlme_timer(struct rtw_adapter *padapter)
 int rtw_init_mlme_priv23a(struct rtw_adapter *padapter)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	int res = _SUCCESS;
 
 	pmlmepriv->nic_hdl = padapter;
 
@@ -68,7 +67,7 @@ int rtw_init_mlme_priv23a(struct rtw_adapter *padapter)
 	rtw_clear_scan_deny(padapter);
 
 	rtw_init_mlme_timer(padapter);
-	return res;
+	return _SUCCESS;
 }
 
 #ifdef CONFIG_8723AU_AP_MODE
@@ -110,7 +109,6 @@ struct wlan_network *rtw_alloc_network(struct mlme_priv *pmlmepriv, gfp_t gfp)
 		pnetwork->network_type = 0;
 		pnetwork->fixed = false;
 		pnetwork->last_scanned = jiffies;
-		pnetwork->aid = 0;
 		pnetwork->join_res = 0;
 	}
 
@@ -218,8 +216,6 @@ void rtw_generate_random_ibss23a(u8 *pibss)
 	pibss[3] = curtime & 0xff;/* p[0]; */
 	pibss[4] = (curtime >> 8) & 0xff;/* p[1]; */
 	pibss[5] = (curtime >> 16) & 0xff;/* p[2]; */
-
-	return;
 }
 
 void rtw_set_roaming(struct rtw_adapter *adapter, u8 to_roaming)
@@ -356,12 +352,12 @@ rtw_get_oldest_wlan_network23a(struct rtw_queue *scanned_queue)
 void update_network23a(struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src,
 		       struct rtw_adapter *padapter, bool update_ie)
 {
-	u8 ss_ori = dst->PhyInfo.SignalStrength;
-	u8 sq_ori = dst->PhyInfo.SignalQuality;
+	u8 ss_ori = dst->SignalStrength;
+	u8 sq_ori = dst->SignalQuality;
 	long rssi_ori = dst->Rssi;
 
-	u8 ss_smp = src->PhyInfo.SignalStrength;
-	u8 sq_smp = src->PhyInfo.SignalQuality;
+	u8 ss_smp = src->SignalStrength;
+	u8 sq_smp = src->SignalQuality;
 	long rssi_smp = src->Rssi;
 
 	u8 ss_final;
@@ -389,16 +385,16 @@ void update_network23a(struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src,
 			rssi_final = rssi_ori;
 	} else {
 		if (sq_smp != 101) { /* from the right channel */
-			ss_final = ((u32)src->PhyInfo.SignalStrength +
-				    (u32)dst->PhyInfo.SignalStrength * 4) / 5;
-			sq_final = ((u32)src->PhyInfo.SignalQuality +
-				    (u32)dst->PhyInfo.SignalQuality * 4) / 5;
+			ss_final = ((u32)src->SignalStrength +
+				    (u32)dst->SignalStrength * 4) / 5;
+			sq_final = ((u32)src->SignalQuality +
+				    (u32)dst->SignalQuality * 4) / 5;
 			rssi_final = src->Rssi+dst->Rssi * 4 / 5;
 		} else {
 			/* bss info not receiving from the right channel, use
 			   the original RX signal infos */
-			ss_final = dst->PhyInfo.SignalStrength;
-			sq_final = dst->PhyInfo.SignalQuality;
+			ss_final = dst->SignalStrength;
+			sq_final = dst->SignalQuality;
 			rssi_final = dst->Rssi;
 		}
 
@@ -407,14 +403,13 @@ void update_network23a(struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src,
 	if (update_ie)
 		memcpy(dst, src, get_wlan_bssid_ex_sz(src));
 
-	dst->PhyInfo.SignalStrength = ss_final;
-	dst->PhyInfo.SignalQuality = sq_final;
+	dst->SignalStrength = ss_final;
+	dst->SignalQuality = sq_final;
 	dst->Rssi = rssi_final;
 
 	DBG_8723A("%s %s(%pM), SignalStrength:%u, SignalQuality:%u, "
 		  "RawRSSI:%ld\n",  __func__, dst->Ssid.ssid, dst->MacAddress,
-		  dst->PhyInfo.SignalStrength,
-		  dst->PhyInfo.SignalQuality, dst->Rssi);
+		  dst->SignalStrength, dst->SignalQuality, dst->Rssi);
 }
 
 static void update_current_network(struct rtw_adapter *adapter,
@@ -487,12 +482,11 @@ static void rtw_update_scanned_network(struct rtw_adapter *adapter,
 		pnetwork->last_scanned = jiffies;
 
 		pnetwork->network_type = 0;
-		pnetwork->aid = 0;
 		pnetwork->join_res = 0;
 
 		/* bss info not receiving from the right channel */
-		if (pnetwork->network.PhyInfo.SignalQuality == 101)
-			pnetwork->network.PhyInfo.SignalQuality = 0;
+		if (pnetwork->network.SignalQuality == 101)
+			pnetwork->network.SignalQuality = 0;
 	} else {
 		/*
 		 * we have an entry and we are going to update it. But
@@ -579,8 +573,6 @@ void rtw_atimdone_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 {
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
 		 ("receive atimdone_evet\n"));
-
-	return;
 }
 
 void rtw_survey_event_cb23a(struct rtw_adapter *adapter, const u8 *pbuf)
@@ -650,8 +642,6 @@ exit:
 
 	kfree(survey->bss);
 	survey->bss = NULL;
-
-	return;
 }
 
 void
@@ -825,8 +815,6 @@ void rtw_indicate_connect23a(struct rtw_adapter *padapter)
 	if (!check_fwstate(&padapter->mlmepriv, _FW_LINKED)) {
 		set_fwstate(pmlmepriv, _FW_LINKED);
 
-		rtw_led_control(padapter, LED_CTL_LINK);
-
 		rtw_cfg80211_indicate_connect(padapter);
 
 		netif_carrier_on(padapter->pnetdev);
@@ -871,10 +859,7 @@ void rtw_indicate_disconnect23a(struct rtw_adapter *padapter)
 
 		_clr_fwstate_(pmlmepriv, _FW_LINKED);
 
-		rtw_led_control(padapter, LED_CTL_NO_LINK);
-
 		rtw_clear_scan_deny(padapter);
-
 	}
 
 	rtw_lps_ctrl_wk_cmd23a(padapter, LPS_CTRL_DISCONNECT, 1);
@@ -1028,22 +1013,18 @@ rtw_joinbss_update_network23a(struct rtw_adapter *padapter,
 	cur_network->network.beacon_interval =
 		ptarget_wlan->network.beacon_interval;
 	cur_network->network.tsf = ptarget_wlan->network.tsf;
-	cur_network->aid = pnetwork->join_res;
 
 	rtw_set_signal_stat_timer(&padapter->recvpriv);
 	padapter->recvpriv.signal_strength =
-		ptarget_wlan->network.PhyInfo.SignalStrength;
-	padapter->recvpriv.signal_qual =
-		ptarget_wlan->network.PhyInfo.SignalQuality;
+		ptarget_wlan->network.SignalStrength;
+	padapter->recvpriv.signal_qual = ptarget_wlan->network.SignalQuality;
 	/*
 	 * the ptarget_wlan->network.Rssi is raw data, we use
-	 * ptarget_wlan->network.PhyInfo.SignalStrength instead (has scaled)
+	 * ptarget_wlan->network.SignalStrength instead (has scaled)
 	 */
-	padapter->recvpriv.rssi = translate_percentage_to_dbm(
-		ptarget_wlan->network.PhyInfo.SignalStrength);
-	DBG_8723A("%s signal_strength:%3u, rssi:%3d, signal_qual:%3u\n",
+	DBG_8723A("%s signal_strength:%3u, signal_qual:%3u\n",
 		  __func__, padapter->recvpriv.signal_strength,
-		  padapter->recvpriv.rssi, padapter->recvpriv.signal_qual);
+		  padapter->recvpriv.signal_qual);
 	rtw_set_signal_stat_timer(&padapter->recvpriv);
 
 	/* update fw_state will clr _FW_UNDER_LINKING here indirectly */
@@ -1132,7 +1113,7 @@ void rtw_joinbss_event_prehandle23a(struct rtw_adapter *adapter, u8 *pbuf)
 		if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING)) {
 			/* s1. find ptarget_wlan */
 			if (check_fwstate(pmlmepriv, _FW_LINKED)) {
-				if (the_same_macaddr == true) {
+				if (the_same_macaddr) {
 					ptarget_wlan = rtw_find_network23a(&pmlmepriv->scanned_queue, cur_network->network.MacAddress);
 				} else {
 					pcur_wlan = rtw_find_network23a(&pmlmepriv->scanned_queue, cur_network->network.MacAddress);
@@ -1515,18 +1496,21 @@ out:
 inline bool rtw_is_scan_deny(struct rtw_adapter *adapter)
 {
 	struct mlme_priv *mlmepriv = &adapter->mlmepriv;
+
 	return (atomic_read(&mlmepriv->set_scan_deny) != 0) ? true : false;
 }
 
 void rtw_clear_scan_deny(struct rtw_adapter *adapter)
 {
 	struct mlme_priv *mlmepriv = &adapter->mlmepriv;
+
 	atomic_set(&mlmepriv->set_scan_deny, 0);
 }
 
 void rtw_set_scan_deny_timer_hdl(unsigned long data)
 {
 	struct rtw_adapter *adapter = (struct rtw_adapter *)data;
+
 	rtw_clear_scan_deny(adapter);
 }
 
@@ -1540,7 +1524,8 @@ void rtw_set_scan_deny(struct rtw_adapter *adapter, u32 ms)
 }
 
 #if defined(IEEE80211_SCAN_RESULT_EXPIRE)
-#define RTW_SCAN_RESULT_EXPIRE IEEE80211_SCAN_RESULT_EXPIRE/HZ*1000 -1000 /* 3000 -1000 */
+#define RTW_SCAN_RESULT_EXPIRE  \
+	((IEEE80211_SCAN_RESULT_EXPIRE / (HZ*1000)) - 1000) /* 3000 -1000 */
 #else
 #define RTW_SCAN_RESULT_EXPIRE 2000
 #endif
@@ -1766,7 +1751,7 @@ exit:
 	return ret;
 }
 
-int rtw_set_auth23a(struct rtw_adapter * adapter,
+int rtw_set_auth23a(struct rtw_adapter *adapter,
 		    struct security_priv *psecuritypriv)
 {
 	struct cmd_obj *pcmd;
@@ -2151,6 +2136,7 @@ bool rtw_restructure_ht_ie23a(struct rtw_adapter *padapter, u8 *in_ie,
 
 	if (p && p[1] > 0) {
 		u32 rx_packet_offset, max_recvbuf_sz;
+
 		if (pmlmepriv->qos_option == 0) {
 			out_len = *pout_len;
 			pframe = rtw_set_ie23a(out_ie + out_len,
@@ -2165,9 +2151,9 @@ bool rtw_restructure_ht_ie23a(struct rtw_adapter *padapter, u8 *in_ie,
 
 		memset(&ht_capie, 0, sizeof(struct ieee80211_ht_cap));
 
-		ht_capie.cap_info = IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
+		ht_capie.cap_info = cpu_to_le16(IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
 			IEEE80211_HT_CAP_SGI_20 | IEEE80211_HT_CAP_SGI_40 |
-			IEEE80211_HT_CAP_TX_STBC | IEEE80211_HT_CAP_DSSSCCK40;
+			IEEE80211_HT_CAP_TX_STBC | IEEE80211_HT_CAP_DSSSCCK40);
 
 		GetHalDefVar8192CUsb(padapter, HAL_DEF_RX_PACKET_OFFSET,
 				     &rx_packet_offset);

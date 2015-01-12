@@ -142,6 +142,7 @@
 #define PRID_IMP_BMIPS3300_BUG	0x0000
 #define PRID_IMP_BMIPS43XX	0xa000
 #define PRID_IMP_BMIPS5000	0x5a00
+#define PRID_IMP_BMIPS5200	0x5b00
 
 #define PRID_REV_BMIPS4380_LO	0x0040
 #define PRID_REV_BMIPS4380_HI	0x006f
@@ -368,6 +369,7 @@ enum cpu_type_enum {
 #define MIPS_CPU_HTW		0x100000000ull /* CPU support Hardware Page Table Walker */
 #define MIPS_CPU_RIXIEX		0x200000000ull /* CPU has unique exception codes for {Read, Execute}-Inhibit exceptions */
 #define MIPS_CPU_MAAR		0x400000000ull /* MAAR(I) registers are present */
+#define MIPS_CPU_FRE		0x800000000ull /* FRE & UFE bits implemented */
 
 /*
  * CPU ASE encodings

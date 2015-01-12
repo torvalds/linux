@@ -227,8 +227,9 @@ static int ll_max_readahead_mb_seq_show(struct seq_file *m, void *v)
 	return lprocfs_seq_read_frac_helper(m, pages_number, mult);
 }
 
-static ssize_t ll_max_readahead_mb_seq_write(struct file *file, const char *buffer,
-					 size_t count, loff_t *off)
+static ssize_t ll_max_readahead_mb_seq_write(struct file *file,
+					     const char __user *buffer,
+					     size_t count, loff_t *off)
 {
 	struct super_block *sb = ((struct seq_file *)file->private_data)->private;
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
@@ -269,7 +270,7 @@ static int ll_max_readahead_per_file_mb_seq_show(struct seq_file *m, void *v)
 }
 
 static ssize_t ll_max_readahead_per_file_mb_seq_write(struct file *file,
-						  const char *buffer,
+						  const char __user *buffer,
 						  size_t count, loff_t *off)
 {
 	struct super_block *sb = ((struct seq_file *)file->private_data)->private;
@@ -283,8 +284,7 @@ static ssize_t ll_max_readahead_per_file_mb_seq_write(struct file *file,
 
 	if (pages_number < 0 ||
 		pages_number > sbi->ll_ra_info.ra_max_pages) {
-		CERROR("can't set file readahead more than"
-		       "max_read_ahead_mb %lu MB\n",
+		CERROR("can't set file readahead more than max_read_ahead_mb %lu MB\n",
 		       sbi->ll_ra_info.ra_max_pages);
 		return -ERANGE;
 	}
@@ -313,7 +313,7 @@ static int ll_max_read_ahead_whole_mb_seq_show(struct seq_file *m, void *unused)
 }
 
 static ssize_t ll_max_read_ahead_whole_mb_seq_write(struct file *file,
-						const char *buffer,
+						const char __user *buffer,
 						size_t count, loff_t *off)
 {
 	struct super_block *sb = ((struct seq_file *)file->private_data)->private;
@@ -329,9 +329,8 @@ static ssize_t ll_max_read_ahead_whole_mb_seq_write(struct file *file,
 	 * algorithm does this anyway so it's pointless to set it larger. */
 	if (pages_number < 0 ||
 	    pages_number > sbi->ll_ra_info.ra_max_pages_per_file) {
-		CERROR("can't set max_read_ahead_whole_mb more than "
-		       "max_read_ahead_per_file_mb: %lu\n",
-			sbi->ll_ra_info.ra_max_pages_per_file >> (20 - PAGE_CACHE_SHIFT));
+		CERROR("can't set max_read_ahead_whole_mb more than max_read_ahead_per_file_mb: %lu\n",
+		       sbi->ll_ra_info.ra_max_pages_per_file >> (20 - PAGE_CACHE_SHIFT));
 		return -ERANGE;
 	}
 
@@ -469,8 +468,9 @@ static int ll_checksum_seq_show(struct seq_file *m, void *v)
 	return seq_printf(m, "%u\n", (sbi->ll_flags & LL_SBI_CHECKSUM) ? 1 : 0);
 }
 
-static ssize_t ll_checksum_seq_write(struct file *file, const char *buffer,
-				 size_t count, loff_t *off)
+static ssize_t ll_checksum_seq_write(struct file *file,
+				     const char __user *buffer,
+				     size_t count, loff_t *off)
 {
 	struct super_block *sb = ((struct seq_file *)file->private_data)->private;
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
@@ -504,8 +504,9 @@ static int ll_max_rw_chunk_seq_show(struct seq_file *m, void *v)
 	return seq_printf(m, "%lu\n", ll_s2sbi(sb)->ll_max_rw_chunk);
 }
 
-static ssize_t ll_max_rw_chunk_seq_write(struct file *file, const char *buffer,
-				     size_t count, loff_t *off)
+static ssize_t ll_max_rw_chunk_seq_write(struct file *file,
+					 const char __user *buffer,
+					 size_t count, loff_t *off)
 {
 	struct super_block *sb = ((struct seq_file *)file->private_data)->private;
 	int rc, val;
@@ -533,8 +534,8 @@ static int ll_rd_track_id(struct seq_file *m, enum stats_track_type type)
 	}
 }
 
-static int ll_wr_track_id(const char *buffer, unsigned long count, void *data,
-			  enum stats_track_type type)
+static int ll_wr_track_id(const char __user *buffer, unsigned long count,
+			  void *data, enum stats_track_type type)
 {
 	struct super_block *sb = data;
 	int rc, pid;
@@ -556,8 +557,9 @@ static int ll_track_pid_seq_show(struct seq_file *m, void *v)
 	return ll_rd_track_id(m, STATS_TRACK_PID);
 }
 
-static ssize_t ll_track_pid_seq_write(struct file *file, const char *buffer,
-				  size_t count, loff_t *off)
+static ssize_t ll_track_pid_seq_write(struct file *file,
+				      const char __user *buffer,
+				      size_t count, loff_t *off)
 {
 	struct seq_file *seq = file->private_data;
 	return ll_wr_track_id(buffer, count, seq->private, STATS_TRACK_PID);
@@ -569,8 +571,9 @@ static int ll_track_ppid_seq_show(struct seq_file *m, void *v)
 	return ll_rd_track_id(m, STATS_TRACK_PPID);
 }
 
-static ssize_t ll_track_ppid_seq_write(struct file *file, const char *buffer,
-				   size_t count, loff_t *off)
+static ssize_t ll_track_ppid_seq_write(struct file *file,
+				       const char __user *buffer,
+				       size_t count, loff_t *off)
 {
 	struct seq_file *seq = file->private_data;
 	return ll_wr_track_id(buffer, count, seq->private, STATS_TRACK_PPID);
@@ -582,8 +585,9 @@ static int ll_track_gid_seq_show(struct seq_file *m, void *v)
 	return ll_rd_track_id(m, STATS_TRACK_GID);
 }
 
-static ssize_t ll_track_gid_seq_write(struct file *file, const char *buffer,
-				  size_t count, loff_t *off)
+static ssize_t ll_track_gid_seq_write(struct file *file,
+				      const char __user *buffer,
+				      size_t count, loff_t *off)
 {
 	struct seq_file *seq = file->private_data;
 	return ll_wr_track_id(buffer, count, seq->private, STATS_TRACK_GID);
@@ -598,8 +602,9 @@ static int ll_statahead_max_seq_show(struct seq_file *m, void *v)
 	return seq_printf(m, "%u\n", sbi->ll_sa_max);
 }
 
-static ssize_t ll_statahead_max_seq_write(struct file *file, const char *buffer,
-				      size_t count, loff_t *off)
+static ssize_t ll_statahead_max_seq_write(struct file *file,
+					  const char __user *buffer,
+					  size_t count, loff_t *off)
 {
 	struct super_block *sb = ((struct seq_file *)file->private_data)->private;
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
@@ -612,8 +617,8 @@ static ssize_t ll_statahead_max_seq_write(struct file *file, const char *buffer,
 	if (val >= 0 && val <= LL_SA_RPC_MAX)
 		sbi->ll_sa_max = val;
 	else
-		CERROR("Bad statahead_max value %d. Valid values are in the "
-		       "range [0, %d]\n", val, LL_SA_RPC_MAX);
+		CERROR("Bad statahead_max value %d. Valid values are in the range [0, %d]\n",
+		       val, LL_SA_RPC_MAX);
 
 	return count;
 }
@@ -628,8 +633,9 @@ static int ll_statahead_agl_seq_show(struct seq_file *m, void *v)
 			sbi->ll_flags & LL_SBI_AGL_ENABLED ? 1 : 0);
 }
 
-static ssize_t ll_statahead_agl_seq_write(struct file *file, const char *buffer,
-				      size_t count, loff_t *off)
+static ssize_t ll_statahead_agl_seq_write(struct file *file,
+					  const char __user *buffer,
+					  size_t count, loff_t *off)
 {
 	struct super_block *sb = ((struct seq_file *)file->private_data)->private;
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
@@ -672,8 +678,9 @@ static int ll_lazystatfs_seq_show(struct seq_file *m, void *v)
 			(sbi->ll_flags & LL_SBI_LAZYSTATFS) ? 1 : 0);
 }
 
-static ssize_t ll_lazystatfs_seq_write(struct file *file, const char *buffer,
-				   size_t count, loff_t *off)
+static ssize_t ll_lazystatfs_seq_write(struct file *file,
+				       const char __user *buffer,
+				       size_t count, loff_t *off)
 {
 	struct super_block *sb = ((struct seq_file *)file->private_data)->private;
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
@@ -761,8 +768,8 @@ static int ll_sbi_flags_seq_show(struct seq_file *m, void *v)
 
 	while (flags != 0) {
 		if (ARRAY_SIZE(str) <= i) {
-			CERROR("%s: Revise array LL_SBI_FLAGS to match sbi "
-				"flags please.\n", ll_get_fsname(sb, NULL, 0));
+			CERROR("%s: Revise array LL_SBI_FLAGS to match sbi flags please.\n",
+			       ll_get_fsname(sb, NULL, 0));
 			return -EINVAL;
 		}
 
@@ -787,7 +794,8 @@ static int ll_xattr_cache_seq_show(struct seq_file *m, void *v)
 	return rc;
 }
 
-static ssize_t ll_xattr_cache_seq_write(struct file *file, const char *buffer,
+static ssize_t ll_xattr_cache_seq_write(struct file *file,
+					const char __user *buffer,
 					size_t count, loff_t *off)
 {
 	struct seq_file *seq = file->private_data;
@@ -813,7 +821,7 @@ LPROC_SEQ_FOPS(ll_xattr_cache);
 
 static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	{ "uuid",	  &ll_sb_uuid_fops,	  NULL, 0 },
-	//{ "mntpt_path",   ll_rd_path,	     0, 0 },
+	/* { "mntpt_path",   ll_rd_path,	     0, 0 }, */
 	{ "fstype",       &ll_fstype_fops,	  NULL, 0 },
 	{ "site",	  &ll_site_stats_fops,    NULL, 0 },
 	{ "blocksize",    &ll_blksize_fops,	  NULL, 0 },
@@ -823,7 +831,7 @@ static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	{ "filestotal",   &ll_filestotal_fops,    NULL, 0 },
 	{ "filesfree",    &ll_filesfree_fops,	  NULL, 0 },
 	{ "client_type",  &ll_client_type_fops,   NULL, 0 },
-	//{ "filegroups",   lprocfs_rd_filegroups,  0, 0 },
+	/* { "filegroups",   lprocfs_rd_filegroups,  0, 0 }, */
 	{ "max_read_ahead_mb", &ll_max_readahead_mb_fops, NULL },
 	{ "max_read_ahead_per_file_mb", &ll_max_readahead_per_file_mb_fops,
 		NULL },
@@ -1133,8 +1141,8 @@ static void ll_display_extents_info(struct ll_rw_extents_info *io_extents,
 		read_cum += r;
 		write_cum += w;
 		end = 1 << (i + LL_HIST_START - units);
-		seq_printf(seq, "%4lu%c - %4lu%c%c: %14lu %4lu %4lu  | "
-			   "%14lu %4lu %4lu\n", start, *unitp, end, *unitp,
+		seq_printf(seq, "%4lu%c - %4lu%c%c: %14lu %4lu %4lu  | %14lu %4lu %4lu\n",
+			   start, *unitp, end, *unitp,
 			   (i == LL_HIST_MAX - 1) ? '+' : ' ',
 			   r, pct(r, read_tot), pct(read_cum, read_tot),
 			   w, pct(w, write_tot), pct(write_cum, write_tot));
@@ -1160,8 +1168,7 @@ static int ll_rw_extents_stats_pp_seq_show(struct seq_file *seq, void *v)
 
 	if (!sbi->ll_rw_stats_on) {
 		seq_printf(seq, "disabled\n"
-				"write anything in this file to activate, "
-				"then 0 or \"[D/d]isabled\" to deactivate\n");
+			   "write anything in this file to activate, then 0 or \"[D/d]isabled\" to deactivate\n");
 		return 0;
 	}
 	seq_printf(seq, "snapshot_time:	 %lu.%lu (secs.usecs)\n",
@@ -1239,8 +1246,7 @@ static int ll_rw_extents_stats_seq_show(struct seq_file *seq, void *v)
 
 	if (!sbi->ll_rw_stats_on) {
 		seq_printf(seq, "disabled\n"
-				"write anything in this file to activate, "
-				"then 0 or \"[D/d]isabled\" to deactivate\n");
+			   "write anything in this file to activate, then 0 or \"[D/d]isabled\" to deactivate\n");
 		return 0;
 	}
 	seq_printf(seq, "snapshot_time:	 %lu.%lu (secs.usecs)\n",
@@ -1418,8 +1424,7 @@ static int ll_rw_offset_stats_seq_show(struct seq_file *seq, void *v)
 
 	if (!sbi->ll_rw_stats_on) {
 		seq_printf(seq, "disabled\n"
-				"write anything in this file to activate, "
-				"then 0 or \"[D/d]isabled\" to deactivate\n");
+			   "write anything in this file to activate, then 0 or \"[D/d]isabled\" to deactivate\n");
 		return 0;
 	}
 	spin_lock(&sbi->ll_process_lock);

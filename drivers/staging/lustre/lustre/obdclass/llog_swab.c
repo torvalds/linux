@@ -400,8 +400,7 @@ void lustre_swab_cfg_marker(struct cfg_marker *marker, int swab, int size)
 		}
 		marker->cm_createtime = createtime;
 		marker->cm_canceltime = canceltime;
-		CDEBUG(D_CONFIG, "Find old cfg_marker(Srv32b,Clt64b) "
-		       "for target %s, converting\n",
+		CDEBUG(D_CONFIG, "Find old cfg_marker(Srv32b,Clt64b) for target %s, converting\n",
 		       marker->cm_tgtname);
 	} else if (swab) {
 		__swab64s(&marker->cm_createtime);

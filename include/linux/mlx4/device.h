@@ -95,7 +95,7 @@ enum {
 
 enum {
 	MLX4_MAX_NUM_PF		= 16,
-	MLX4_MAX_NUM_VF		= 64,
+	MLX4_MAX_NUM_VF		= 126,
 	MLX4_MAX_NUM_VF_P_PORT  = 64,
 	MLX4_MFUNC_MAX		= 80,
 	MLX4_MAX_EQ_NUM		= 1024,
@@ -115,6 +115,14 @@ enum {
 	MLX4_STEERING_MODE_A0,
 	MLX4_STEERING_MODE_B0,
 	MLX4_STEERING_MODE_DEVICE_MANAGED
+};
+
+enum {
+	MLX4_STEERING_DMFS_A0_DEFAULT,
+	MLX4_STEERING_DMFS_A0_DYNAMIC,
+	MLX4_STEERING_DMFS_A0_STATIC,
+	MLX4_STEERING_DMFS_A0_DISABLE,
+	MLX4_STEERING_DMFS_A0_NOT_SUPPORTED
 };
 
 static inline const char *mlx4_steering_mode_str(int steering_mode)
@@ -186,7 +194,31 @@ enum {
 	MLX4_DEV_CAP_FLAG2_VXLAN_OFFLOADS	= 1LL <<  10,
 	MLX4_DEV_CAP_FLAG2_MAD_DEMUX		= 1LL <<  11,
 	MLX4_DEV_CAP_FLAG2_CQE_STRIDE		= 1LL <<  12,
-	MLX4_DEV_CAP_FLAG2_EQE_STRIDE		= 1LL <<  13
+	MLX4_DEV_CAP_FLAG2_EQE_STRIDE		= 1LL <<  13,
+	MLX4_DEV_CAP_FLAG2_ETH_PROT_CTRL        = 1LL <<  14,
+	MLX4_DEV_CAP_FLAG2_ETH_BACKPL_AN_REP	= 1LL <<  15,
+	MLX4_DEV_CAP_FLAG2_CONFIG_DEV		= 1LL <<  16,
+	MLX4_DEV_CAP_FLAG2_SYS_EQS		= 1LL <<  17,
+	MLX4_DEV_CAP_FLAG2_80_VFS		= 1LL <<  18,
+	MLX4_DEV_CAP_FLAG2_FS_A0		= 1LL <<  19
+};
+
+enum {
+	MLX4_QUERY_FUNC_FLAGS_BF_RES_QP		= 1LL << 0,
+	MLX4_QUERY_FUNC_FLAGS_A0_RES_QP		= 1LL << 1
+};
+
+/* bit enums for an 8-bit flags field indicating special use
+ * QPs which require special handling in qp_reserve_range.
+ * Currently, this only includes QPs used by the ETH interface,
+ * where we expect to use blueflame.  These QPs must not have
+ * bits 6 and 7 set in their qp number.
+ *
+ * This enum may use only bits 0..7.
+ */
+enum {
+	MLX4_RESERVE_A0_QP	= 1 << 6,
+	MLX4_RESERVE_ETH_BF_QP	= 1 << 7,
 };
 
 enum {
@@ -202,7 +234,8 @@ enum {
 
 enum {
 	MLX4_FUNC_CAP_64B_EQE_CQE	= 1L << 0,
-	MLX4_FUNC_CAP_EQE_CQE_STRIDE	= 1L << 1
+	MLX4_FUNC_CAP_EQE_CQE_STRIDE	= 1L << 1,
+	MLX4_FUNC_CAP_DMFS_A0_STATIC	= 1L << 2
 };
 
 
@@ -328,6 +361,8 @@ enum {
 
 enum mlx4_qp_region {
 	MLX4_QP_REGION_FW = 0,
+	MLX4_QP_REGION_RSS_RAW_ETH,
+	MLX4_QP_REGION_BOTTOM = MLX4_QP_REGION_RSS_RAW_ETH,
 	MLX4_QP_REGION_ETH_ADDR,
 	MLX4_QP_REGION_FC_ADDR,
 	MLX4_QP_REGION_FC_EXCH,
@@ -378,6 +413,13 @@ enum {
 
 #define MSTR_SM_CHANGE_MASK (MLX4_EQ_PORT_INFO_MSTR_SM_SL_CHANGE_MASK | \
 			     MLX4_EQ_PORT_INFO_MSTR_SM_LID_CHANGE_MASK)
+
+enum mlx4_module_id {
+	MLX4_MODULE_ID_SFP              = 0x3,
+	MLX4_MODULE_ID_QSFP             = 0xC,
+	MLX4_MODULE_ID_QSFP_PLUS        = 0xD,
+	MLX4_MODULE_ID_QSFP28           = 0x11,
+};
 
 static inline u64 mlx4_fw_ver(u64 major, u64 minor, u64 subminor)
 {
@@ -433,6 +475,7 @@ struct mlx4_caps {
 	int			num_cqs;
 	int			max_cqes;
 	int			reserved_cqs;
+	int			num_sys_eqs;
 	int			num_eqs;
 	int			reserved_eqs;
 	int			num_comp_vectors;
@@ -449,6 +492,7 @@ struct mlx4_caps {
 	int			reserved_mcgs;
 	int			num_qp_per_mgm;
 	int			steering_mode;
+	int			dmfs_high_steer_mode;
 	int			fs_log_max_ucast_qp_range_size;
 	int			num_pds;
 	int			reserved_pds;
@@ -487,6 +531,10 @@ struct mlx4_caps {
 	u16			hca_core_clock;
 	u64			phys_port_id[MLX4_MAX_PORTS + 1];
 	int			tunnel_offload_mode;
+	u8			rx_checksum_flags_port[MLX4_MAX_PORTS + 1];
+	u8			alloc_res_qp_mask;
+	u32			dmfs_high_rate_qpn_base;
+	u32			dmfs_high_rate_qpn_range;
 };
 
 struct mlx4_buf_list {
@@ -607,6 +655,11 @@ struct mlx4_cq {
 
 	atomic_t		refcount;
 	struct completion	free;
+	struct {
+		struct list_head list;
+		void (*comp)(struct mlx4_cq *);
+		void		*priv;
+	} tasklet_ctx;
 };
 
 struct mlx4_qp {
@@ -799,6 +852,26 @@ struct mlx4_init_port_param {
 	u64			si_guid;
 };
 
+#define MAD_IFC_DATA_SZ 192
+/* MAD IFC Mailbox */
+struct mlx4_mad_ifc {
+	u8	base_version;
+	u8	mgmt_class;
+	u8	class_version;
+	u8	method;
+	__be16	status;
+	__be16	class_specific;
+	__be64	tid;
+	__be16	attr_id;
+	__be16	resv;
+	__be32	attr_mod;
+	__be64	mkey;
+	__be16	dr_slid;
+	__be16	dr_dlid;
+	u8	reserved[28];
+	u8	data[MAD_IFC_DATA_SZ];
+} __packed;
+
 #define mlx4_foreach_port(port, dev, type)				\
 	for ((port) = 1; (port) <= (dev)->caps.num_ports; (port)++)	\
 		if ((type) == (dev)->caps.port_mask[(port)])
@@ -835,7 +908,9 @@ static inline int mlx4_num_reserved_sqps(struct mlx4_dev *dev)
 static inline int mlx4_is_qp_reserved(struct mlx4_dev *dev, u32 qpn)
 {
 	return (qpn < dev->phys_caps.base_sqpn + 8 +
-		16 * MLX4_MFUNC_MAX * !!mlx4_is_master(dev));
+		16 * MLX4_MFUNC_MAX * !!mlx4_is_master(dev) &&
+		qpn >= dev->phys_caps.base_sqpn) ||
+	       (qpn < dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW]);
 }
 
 static inline int mlx4_is_guest_proxy(struct mlx4_dev *dev, int slave, u32 qpn)
@@ -911,8 +986,8 @@ int mlx4_cq_alloc(struct mlx4_dev *dev, int nent, struct mlx4_mtt *mtt,
 		  struct mlx4_uar *uar, u64 db_rec, struct mlx4_cq *cq,
 		  unsigned vector, int collapsed, int timestamp_en);
 void mlx4_cq_free(struct mlx4_dev *dev, struct mlx4_cq *cq);
-
-int mlx4_qp_reserve_range(struct mlx4_dev *dev, int cnt, int align, int *base);
+int mlx4_qp_reserve_range(struct mlx4_dev *dev, int cnt, int align,
+			  int *base, u8 flags);
 void mlx4_qp_release_range(struct mlx4_dev *dev, int base_qpn, int cnt);
 
 int mlx4_qp_alloc(struct mlx4_dev *dev, int qpn, struct mlx4_qp *qp,
@@ -1283,10 +1358,50 @@ int mlx4_mr_rereg_mem_write(struct mlx4_dev *dev, struct mlx4_mr *mr,
 			    u64 iova, u64 size, int npages,
 			    int page_shift, struct mlx4_mpt_entry *mpt_entry);
 
+int mlx4_get_module_info(struct mlx4_dev *dev, u8 port,
+			 u16 offset, u16 size, u8 *data);
+
 /* Returns true if running in low memory profile (kdump kernel) */
 static inline bool mlx4_low_memory_profile(void)
 {
 	return is_kdump_kernel();
 }
+
+/* ACCESS REG commands */
+enum mlx4_access_reg_method {
+	MLX4_ACCESS_REG_QUERY = 0x1,
+	MLX4_ACCESS_REG_WRITE = 0x2,
+};
+
+/* ACCESS PTYS Reg command */
+enum mlx4_ptys_proto {
+	MLX4_PTYS_IB = 1<<0,
+	MLX4_PTYS_EN = 1<<2,
+};
+
+struct mlx4_ptys_reg {
+	u8 resrvd1;
+	u8 local_port;
+	u8 resrvd2;
+	u8 proto_mask;
+	__be32 resrvd3[2];
+	__be32 eth_proto_cap;
+	__be16 ib_width_cap;
+	__be16 ib_speed_cap;
+	__be32 resrvd4;
+	__be32 eth_proto_admin;
+	__be16 ib_width_admin;
+	__be16 ib_speed_admin;
+	__be32 resrvd5;
+	__be32 eth_proto_oper;
+	__be16 ib_width_oper;
+	__be16 ib_speed_oper;
+	__be32 resrvd6;
+	__be32 eth_proto_lp_adv;
+} __packed;
+
+int mlx4_ACCESS_PTYS_REG(struct mlx4_dev *dev,
+			 enum mlx4_access_reg_method method,
+			 struct mlx4_ptys_reg *ptys_reg);
 
 #endif /* MLX4_DEVICE_H */

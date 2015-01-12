@@ -849,7 +849,7 @@ static int vxlan_fdb_parse(struct nlattr *tb[], struct vxlan_dev *vxlan,
 /* Add static entry (via netlink) */
 static int vxlan_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 			 struct net_device *dev,
-			 const unsigned char *addr, u16 flags)
+			 const unsigned char *addr, u16 vid, u16 flags)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	/* struct net *net = dev_net(vxlan->dev); */
@@ -885,7 +885,7 @@ static int vxlan_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 /* Delete entry (via netlink) */
 static int vxlan_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 			    struct net_device *dev,
-			    const unsigned char *addr)
+			    const unsigned char *addr, u16 vid)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct vxlan_fdb *f;
@@ -1579,8 +1579,10 @@ static int vxlan6_xmit_skb(struct vxlan_sock *vs,
 	bool udp_sum = !udp_get_no_check6_tx(vs->sock->sk);
 
 	skb = udp_tunnel_handle_offloads(skb, udp_sum);
-	if (IS_ERR(skb))
-		return -EINVAL;
+	if (IS_ERR(skb)) {
+		err = -EINVAL;
+		goto err;
+	}
 
 	skb_scrub_packet(skb, xnet);
 
@@ -1590,16 +1592,15 @@ static int vxlan6_xmit_skb(struct vxlan_sock *vs,
 
 	/* Need space for new headers (invalidates iph ptr) */
 	err = skb_cow_head(skb, min_headroom);
-	if (unlikely(err))
-		return err;
+	if (unlikely(err)) {
+		kfree_skb(skb);
+		goto err;
+	}
 
-	if (vlan_tx_tag_present(skb)) {
-		if (WARN_ON(!__vlan_put_tag(skb,
-					    skb->vlan_proto,
-					    vlan_tx_tag_get(skb))))
-			return -ENOMEM;
-
-		skb->vlan_tci = 0;
+	skb = vlan_hwaccel_push_inside(skb);
+	if (WARN_ON(!skb)) {
+		err = -ENOMEM;
+		goto err;
 	}
 
 	vxh = (struct vxlanhdr *) __skb_push(skb, sizeof(*vxh));
@@ -1611,6 +1612,9 @@ static int vxlan6_xmit_skb(struct vxlan_sock *vs,
 	udp_tunnel6_xmit_skb(vs->sock, dst, skb, dev, saddr, daddr, prio,
 			     ttl, src_port, dst_port);
 	return 0;
+err:
+	dst_release(dst);
+	return err;
 }
 #endif
 
@@ -1626,7 +1630,7 @@ int vxlan_xmit_skb(struct vxlan_sock *vs,
 
 	skb = udp_tunnel_handle_offloads(skb, udp_sum);
 	if (IS_ERR(skb))
-		return -EINVAL;
+		return PTR_ERR(skb);
 
 	min_headroom = LL_RESERVED_SPACE(rt->dst.dev) + rt->dst.header_len
 			+ VXLAN_HLEN + sizeof(struct iphdr)
@@ -1634,17 +1638,14 @@ int vxlan_xmit_skb(struct vxlan_sock *vs,
 
 	/* Need space for new headers (invalidates iph ptr) */
 	err = skb_cow_head(skb, min_headroom);
-	if (unlikely(err))
+	if (unlikely(err)) {
+		kfree_skb(skb);
 		return err;
-
-	if (vlan_tx_tag_present(skb)) {
-		if (WARN_ON(!__vlan_put_tag(skb,
-					    skb->vlan_proto,
-					    vlan_tx_tag_get(skb))))
-			return -ENOMEM;
-
-		skb->vlan_tci = 0;
 	}
+
+	skb = vlan_hwaccel_push_inside(skb);
+	if (WARN_ON(!skb))
+		return -ENOMEM;
 
 	vxh = (struct vxlanhdr *) __skb_push(skb, sizeof(*vxh));
 	vxh->vx_flags = htonl(VXLAN_FLAGS);
@@ -1786,9 +1787,12 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 				     tos, ttl, df, src_port, dst_port,
 				     htonl(vni << 8),
 				     !net_eq(vxlan->net, dev_net(vxlan->dev)));
-
-		if (err < 0)
+		if (err < 0) {
+			/* skb is already freed. */
+			skb = NULL;
 			goto rt_tx_error;
+		}
+
 		iptunnel_xmit_stats(err, &dev->stats, dev->tstats);
 #if IS_ENABLED(CONFIG_IPV6)
 	} else {
@@ -1995,9 +1999,8 @@ static int vxlan_init(struct net_device *dev)
 	spin_lock(&vn->sock_lock);
 	vs = vxlan_find_sock(vxlan->net, ipv6 ? AF_INET6 : AF_INET,
 			     vxlan->dst_port);
-	if (vs) {
+	if (vs && atomic_add_unless(&vs->refcnt, 1, 0)) {
 		/* If we have a socket with same port already, reuse it */
-		atomic_inc(&vs->refcnt);
 		vxlan_vs_add_dev(vs, vxlan);
 	} else {
 		/* otherwise make new socket outside of RTNL */
@@ -2236,6 +2239,9 @@ static const struct nla_policy vxlan_policy[IFLA_VXLAN_MAX + 1] = {
 	[IFLA_VXLAN_L2MISS]	= { .type = NLA_U8 },
 	[IFLA_VXLAN_L3MISS]	= { .type = NLA_U8 },
 	[IFLA_VXLAN_PORT]	= { .type = NLA_U16 },
+	[IFLA_VXLAN_UDP_CSUM]	= { .type = NLA_U8 },
+	[IFLA_VXLAN_UDP_ZERO_CSUM6_TX]	= { .type = NLA_U8 },
+	[IFLA_VXLAN_UDP_ZERO_CSUM6_RX]	= { .type = NLA_U8 },
 };
 
 static int vxlan_validate(struct nlattr *tb[], struct nlattr *data[])
@@ -2396,12 +2402,9 @@ struct vxlan_sock *vxlan_sock_add(struct net *net, __be16 port,
 
 	spin_lock(&vn->sock_lock);
 	vs = vxlan_find_sock(net, ipv6 ? AF_INET6 : AF_INET, port);
-	if (vs) {
-		if (vs->rcv == rcv)
-			atomic_inc(&vs->refcnt);
-		else
+	if (vs && ((vs->rcv != rcv) ||
+		   !atomic_add_unless(&vs->refcnt, 1, 0)))
 			vs = ERR_PTR(-EBUSY);
-	}
 	spin_unlock(&vn->sock_lock);
 
 	if (!vs)

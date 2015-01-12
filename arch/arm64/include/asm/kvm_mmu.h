@@ -83,6 +83,7 @@ int create_hyp_io_mappings(void *from, void *to, phys_addr_t);
 void free_boot_hyp_pgd(void);
 void free_hyp_pgds(void);
 
+void stage2_unmap_vm(struct kvm *kvm);
 int kvm_alloc_stage2_pgd(struct kvm *kvm);
 void kvm_free_stage2_pgd(struct kvm *kvm);
 int kvm_phys_addr_ioremap(struct kvm *kvm, phys_addr_t guest_ipa,
@@ -243,9 +244,10 @@ static inline bool vcpu_has_cache_enabled(struct kvm_vcpu *vcpu)
 }
 
 static inline void coherent_cache_guest_page(struct kvm_vcpu *vcpu, hva_t hva,
-					     unsigned long size)
+					     unsigned long size,
+					     bool ipa_uncached)
 {
-	if (!vcpu_has_cache_enabled(vcpu))
+	if (!vcpu_has_cache_enabled(vcpu) || ipa_uncached)
 		kvm_flush_dcache_to_poc((void *)hva, size);
 
 	if (!icache_is_aliasing()) {		/* PIPT */

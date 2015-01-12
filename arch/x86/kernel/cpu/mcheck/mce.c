@@ -292,10 +292,10 @@ static void print_mce(struct mce *m)
 
 #define PANIC_TIMEOUT 5 /* 5 seconds */
 
-static atomic_t mce_paniced;
+static atomic_t mce_panicked;
 
 static int fake_panic;
-static atomic_t mce_fake_paniced;
+static atomic_t mce_fake_panicked;
 
 /* Panic in progress. Enable interrupts and wait for final IPI */
 static void wait_for_panic(void)
@@ -319,7 +319,7 @@ static void mce_panic(char *msg, struct mce *final, char *exp)
 		/*
 		 * Make sure only one CPU runs in machine check panic
 		 */
-		if (atomic_inc_return(&mce_paniced) > 1)
+		if (atomic_inc_return(&mce_panicked) > 1)
 			wait_for_panic();
 		barrier();
 
@@ -327,7 +327,7 @@ static void mce_panic(char *msg, struct mce *final, char *exp)
 		console_verbose();
 	} else {
 		/* Don't log too much for fake panic */
-		if (atomic_inc_return(&mce_fake_paniced) > 1)
+		if (atomic_inc_return(&mce_fake_panicked) > 1)
 			return;
 	}
 	/* First print corrected ones that are still unlogged */
@@ -575,6 +575,37 @@ static void mce_read_aux(struct mce *m, int i)
 	}
 }
 
+static bool memory_error(struct mce *m)
+{
+	struct cpuinfo_x86 *c = &boot_cpu_data;
+
+	if (c->x86_vendor == X86_VENDOR_AMD) {
+		/*
+		 * coming soon
+		 */
+		return false;
+	} else if (c->x86_vendor == X86_VENDOR_INTEL) {
+		/*
+		 * Intel SDM Volume 3B - 15.9.2 Compound Error Codes
+		 *
+		 * Bit 7 of the MCACOD field of IA32_MCi_STATUS is used for
+		 * indicating a memory error. Bit 8 is used for indicating a
+		 * cache hierarchy error. The combination of bit 2 and bit 3
+		 * is used for indicating a `generic' cache hierarchy error
+		 * But we can't just blindly check the above bits, because if
+		 * bit 11 is set, then it is a bus/interconnect error - and
+		 * either way the above bits just gives more detail on what
+		 * bus/interconnect error happened. Note that bit 12 can be
+		 * ignored, as it's the "filter" bit.
+		 */
+		return (m->status & 0xef80) == BIT(7) ||
+		       (m->status & 0xef00) == BIT(8) ||
+		       (m->status & 0xeffc) == 0xc;
+	}
+
+	return false;
+}
+
 DEFINE_PER_CPU(unsigned, mce_poll_count);
 
 /*
@@ -595,6 +626,7 @@ DEFINE_PER_CPU(unsigned, mce_poll_count);
 void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 {
 	struct mce m;
+	int severity;
 	int i;
 
 	this_cpu_inc(mce_poll_count);
@@ -630,6 +662,20 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 
 		if (!(flags & MCP_TIMESTAMP))
 			m.tsc = 0;
+
+		severity = mce_severity(&m, mca_cfg.tolerant, NULL, false);
+
+		/*
+		 * In the cases where we don't have a valid address after all,
+		 * do not add it into the ring buffer.
+		 */
+		if (severity == MCE_DEFERRED_SEVERITY && memory_error(&m)) {
+			if (m.status & MCI_STATUS_ADDRV) {
+				mce_ring_add(m.addr >> PAGE_SHIFT);
+				mce_schedule_work();
+			}
+		}
+
 		/*
 		 * Don't get the IP here because it's unlikely to
 		 * have anything to do with the actual error location.
@@ -668,7 +714,8 @@ static int mce_no_way_out(struct mce *m, char **msg, unsigned long *validp,
 			if (quirk_no_way_out)
 				quirk_no_way_out(i, m, regs);
 		}
-		if (mce_severity(m, mca_cfg.tolerant, msg) >= MCE_PANIC_SEVERITY)
+		if (mce_severity(m, mca_cfg.tolerant, msg, true) >=
+		    MCE_PANIC_SEVERITY)
 			ret = 1;
 	}
 	return ret;
@@ -697,7 +744,7 @@ static int mce_timed_out(u64 *t)
 	 * might have been modified by someone else.
 	 */
 	rmb();
-	if (atomic_read(&mce_paniced))
+	if (atomic_read(&mce_panicked))
 		wait_for_panic();
 	if (!mca_cfg.monarch_timeout)
 		goto out;
@@ -754,7 +801,7 @@ static void mce_reign(void)
 	for_each_possible_cpu(cpu) {
 		int severity = mce_severity(&per_cpu(mces_seen, cpu),
 					    mca_cfg.tolerant,
-					    &nmsg);
+					    &nmsg, true);
 		if (severity > global_worst) {
 			msg = nmsg;
 			global_worst = severity;
@@ -1095,13 +1142,14 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 		 */
 		add_taint(TAINT_MACHINE_CHECK, LOCKDEP_NOW_UNRELIABLE);
 
-		severity = mce_severity(&m, cfg->tolerant, NULL);
+		severity = mce_severity(&m, cfg->tolerant, NULL, true);
 
 		/*
-		 * When machine check was for corrected handler don't touch,
-		 * unless we're panicing.
+		 * When machine check was for corrected/deferred handler don't
+		 * touch, unless we're panicing.
 		 */
-		if (severity == MCE_KEEP_SEVERITY && !no_way_out)
+		if ((severity == MCE_KEEP_SEVERITY ||
+		     severity == MCE_UCNA_SEVERITY) && !no_way_out)
 			continue;
 		__set_bit(i, toclear);
 		if (severity == MCE_NO_SEVERITY) {
@@ -2520,7 +2568,7 @@ struct dentry *mce_get_debugfs_dir(void)
 static void mce_reset(void)
 {
 	cpu_missing = 0;
-	atomic_set(&mce_fake_paniced, 0);
+	atomic_set(&mce_fake_panicked, 0);
 	atomic_set(&mce_executing, 0);
 	atomic_set(&mce_callin, 0);
 	atomic_set(&global_nwo, 0);

@@ -1,30 +1,30 @@
 /*---------------------------------------------------------------------------
-   FT1000 driver for Flarion Flash OFDM NIC Device
+  FT1000 driver for Flarion Flash OFDM NIC Device
 
-   Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
-   Copyright (C) 2002 Flarion Technologies, All rights reserved.
-   Copyright (C) 2006 Patrik Ostrihon, All rights reserved.
-   Copyright (C) 2006 ProWeb Consulting, a.s, All rights reserved.
+  Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
+  Copyright (C) 2002 Flarion Technologies, All rights reserved.
+  Copyright (C) 2006 Patrik Ostrihon, All rights reserved.
+  Copyright (C) 2006 ProWeb Consulting, a.s, All rights reserved.
 
-   The initial developer of the original code is David A. Hinds
-   <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds.
+  The initial developer of the original code is David A. Hinds
+  <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds.
 
-   This file was modified to support the Flarion Flash OFDM NIC Device
-   by Wai Chan (w.chan@flarion.com).
+  This file was modified to support the Flarion Flash OFDM NIC Device
+  by Wai Chan (w.chan@flarion.com).
 
-   Port for kernel 2.6 created by Patrik Ostrihon (patrik.ostrihon@pwc.sk)
+  Port for kernel 2.6 created by Patrik Ostrihon (patrik.ostrihon@pwc.sk)
 
-   This program is free software; you can redistribute it and/or modify it
-   under the terms of the GNU General Public License as published by the Free
-   Software Foundation; either version 2 of the License, or (at your option) any
-   later version. This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-   more details. You should have received a copy of the GNU General Public
-   License along with this program; if not, write to the
-   Free Software Foundation, Inc., 59 Temple Place -
-   Suite 330, Boston, MA 02111-1307, USA.
------------------------------------------------------------------------------*/
+  This program is free software; you can redistribute it and/or modify it
+  under the terms of the GNU General Public License as published by the Free
+  Software Foundation; either version 2 of the License, or (at your option) any
+  later version. This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+  or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+  more details. You should have received a copy of the GNU General Public
+  License along with this program; if not, write to the
+  Free Software Foundation, Inc., 59 Temple Place -
+  Suite 330, Boston, MA 02111-1307, USA.
+  -----------------------------------------------------------------------------*/
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -80,11 +80,11 @@ static int ft1000_confcheck(struct pcmcia_device *link, void *priv_data)
 
 /*======================================================================
 
-    ft1000_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    device available to the system.
+  ft1000_config() is scheduled to run after a CARD_INSERTION event
+  is received, to configure the PCMCIA socket, and to make the
+  device available to the system.
 
-======================================================================*/
+  ======================================================================*/
 
 static int ft1000_config(struct pcmcia_device *link)
 {

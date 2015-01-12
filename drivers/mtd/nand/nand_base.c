@@ -485,11 +485,11 @@ static int nand_check_wp(struct mtd_info *mtd)
 }
 
 /**
- * nand_block_checkbad - [GENERIC] Check if a block is marked bad
+ * nand_block_isreserved - [GENERIC] Check if a block is marked reserved.
  * @mtd: MTD device structure
  * @ofs: offset from device start
  *
- * Check if the block is mark as reserved.
+ * Check if the block is marked as reserved.
  */
 static int nand_block_isreserved(struct mtd_info *mtd, loff_t ofs)
 {
@@ -720,7 +720,7 @@ static void nand_command_lp(struct mtd_info *mtd, unsigned int command,
 
 	/*
 	 * Program and erase have their own busy handlers status, sequential
-	 * in, and deplete1 need no delay.
+	 * in and status need no delay.
 	 */
 	switch (command) {
 
@@ -3765,9 +3765,9 @@ ident_done:
 		pr_info("%s %s\n", nand_manuf_ids[maf_idx].name,
 				type->name);
 
-	pr_info("%dMiB, %s, page size: %d, OOB size: %d\n",
+	pr_info("%d MiB, %s, erase size: %d KiB, page size: %d, OOB size: %d\n",
 		(int)(chip->chipsize >> 20), nand_is_slc(chip) ? "SLC" : "MLC",
-		mtd->writesize, mtd->oobsize);
+		mtd->erasesize >> 10, mtd->writesize, mtd->oobsize);
 	return type;
 }
 
@@ -4035,7 +4035,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 		 */
 		if (!ecc->size && (mtd->oobsize >= 64)) {
 			ecc->size = 512;
-			ecc->bytes = 7;
+			ecc->bytes = DIV_ROUND_UP(13 * ecc->strength, 8);
 		}
 		ecc->priv = nand_bch_init(mtd, ecc->size, ecc->bytes,
 					       &ecc->layout);

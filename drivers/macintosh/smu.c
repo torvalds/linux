@@ -667,7 +667,6 @@ static struct platform_driver smu_of_platform_driver =
 {
 	.driver = {
 		.name = "smu",
-		.owner = THIS_MODULE,
 		.of_match_table = smu_platform_match,
 	},
 	.probe		= smu_platform_probe,

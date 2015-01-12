@@ -725,6 +725,8 @@ void drm_crtc_cleanup(struct drm_crtc *crtc)
 	WARN_ON(crtc->state && !crtc->funcs->atomic_destroy_state);
 	if (crtc->state && crtc->funcs->atomic_destroy_state)
 		crtc->funcs->atomic_destroy_state(crtc, crtc->state);
+
+	memset(crtc, 0, sizeof(*crtc));
 }
 EXPORT_SYMBOL(drm_crtc_cleanup);
 
@@ -908,6 +910,11 @@ void drm_connector_cleanup(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *mode, *t;
 
+	if (connector->tile_group) {
+		drm_mode_put_tile_group(dev, connector->tile_group);
+		connector->tile_group = NULL;
+	}
+
 	list_for_each_entry_safe(mode, t, &connector->probed_modes, head)
 		drm_mode_remove(connector, mode);
 
@@ -927,6 +934,8 @@ void drm_connector_cleanup(struct drm_connector *connector)
 	if (connector->state && connector->funcs->atomic_destroy_state)
 		connector->funcs->atomic_destroy_state(connector,
 						       connector->state);
+
+	memset(connector, 0, sizeof(*connector));
 }
 EXPORT_SYMBOL(drm_connector_cleanup);
 
@@ -1068,6 +1077,8 @@ void drm_bridge_cleanup(struct drm_bridge *bridge)
 	list_del(&bridge->head);
 	dev->mode_config.num_bridge--;
 	drm_modeset_unlock_all(dev);
+
+	memset(bridge, 0, sizeof(*bridge));
 }
 EXPORT_SYMBOL(drm_bridge_cleanup);
 
@@ -1134,10 +1145,11 @@ void drm_encoder_cleanup(struct drm_encoder *encoder)
 	drm_modeset_lock_all(dev);
 	drm_mode_object_put(dev, &encoder->base);
 	kfree(encoder->name);
-	encoder->name = NULL;
 	list_del(&encoder->head);
 	dev->mode_config.num_encoder--;
 	drm_modeset_unlock_all(dev);
+
+	memset(encoder, 0, sizeof(*encoder));
 }
 EXPORT_SYMBOL(drm_encoder_cleanup);
 
@@ -1257,6 +1269,8 @@ void drm_plane_cleanup(struct drm_plane *plane)
 	WARN_ON(plane->state && !plane->funcs->atomic_destroy_state);
 	if (plane->state && plane->funcs->atomic_destroy_state)
 		plane->funcs->atomic_destroy_state(plane, plane->state);
+
+	memset(plane, 0, sizeof(*plane));
 }
 EXPORT_SYMBOL(drm_plane_cleanup);
 
@@ -1338,6 +1352,11 @@ static int drm_mode_create_standard_connector_properties(struct drm_device *dev)
 				       DRM_MODE_PROP_IMMUTABLE,
 				       "PATH", 0);
 	dev->mode_config.path_property = dev_path;
+
+	dev->mode_config.tile_property = drm_property_create(dev,
+							     DRM_MODE_PROP_BLOB |
+							     DRM_MODE_PROP_IMMUTABLE,
+							     "TILE", 0);
 
 	return 0;
 }
@@ -3456,7 +3475,7 @@ void drm_fb_release(struct drm_file *priv)
 
 	/*
 	 * When the file gets released that means no one else can access the fb
-	 * list any more, so no need to grab fpriv->fbs_lock. And we need to to
+	 * list any more, so no need to grab fpriv->fbs_lock. And we need to
 	 * avoid upsetting lockdep since the universal cursor code adds a
 	 * framebuffer while holding mutex locks.
 	 *
@@ -4093,6 +4112,52 @@ int drm_mode_connector_set_path_property(struct drm_connector *connector,
 	return ret;
 }
 EXPORT_SYMBOL(drm_mode_connector_set_path_property);
+
+/**
+ * drm_mode_connector_set_tile_property - set tile property on connector
+ * @connector: connector to set property on.
+ *
+ * This looks up the tile information for a connector, and creates a
+ * property for userspace to parse if it exists. The property is of
+ * the form of 8 integers using ':' as a separator.
+ *
+ * Returns:
+ * Zero on success, errno on failure.
+ */
+int drm_mode_connector_set_tile_property(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	int ret, size;
+	char tile[256];
+
+	if (connector->tile_blob_ptr)
+		drm_property_destroy_blob(dev, connector->tile_blob_ptr);
+
+	if (!connector->has_tile) {
+		connector->tile_blob_ptr = NULL;
+		ret = drm_object_property_set_value(&connector->base,
+						    dev->mode_config.tile_property, 0);
+		return ret;
+	}
+
+	snprintf(tile, 256, "%d:%d:%d:%d:%d:%d:%d:%d",
+		 connector->tile_group->id, connector->tile_is_single_monitor,
+		 connector->num_h_tile, connector->num_v_tile,
+		 connector->tile_h_loc, connector->tile_v_loc,
+		 connector->tile_h_size, connector->tile_v_size);
+	size = strlen(tile) + 1;
+
+	connector->tile_blob_ptr = drm_property_create_blob(connector->dev,
+							    size, tile);
+	if (!connector->tile_blob_ptr)
+		return -EINVAL;
+
+	ret = drm_object_property_set_value(&connector->base,
+					    dev->mode_config.tile_property,
+					    connector->tile_blob_ptr->base.id);
+	return ret;
+}
+EXPORT_SYMBOL(drm_mode_connector_set_tile_property);
 
 /**
  * drm_mode_connector_update_edid_property - update the edid property of a connector
@@ -5164,6 +5229,7 @@ void drm_mode_config_init(struct drm_device *dev)
 	INIT_LIST_HEAD(&dev->mode_config.property_blob_list);
 	INIT_LIST_HEAD(&dev->mode_config.plane_list);
 	idr_init(&dev->mode_config.crtc_idr);
+	idr_init(&dev->mode_config.tile_idr);
 
 	drm_modeset_lock_all(dev);
 	drm_mode_create_standard_connector_properties(dev);
@@ -5251,6 +5317,7 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 		crtc->funcs->destroy(crtc);
 	}
 
+	idr_destroy(&dev->mode_config.tile_idr);
 	idr_destroy(&dev->mode_config.crtc_idr);
 	drm_modeset_lock_fini(&dev->mode_config.connection_mutex);
 }
@@ -5273,3 +5340,100 @@ struct drm_property *drm_mode_create_rotation_property(struct drm_device *dev,
 					   supported_rotations);
 }
 EXPORT_SYMBOL(drm_mode_create_rotation_property);
+
+/**
+ * DOC: Tile group
+ *
+ * Tile groups are used to represent tiled monitors with a unique
+ * integer identifier. Tiled monitors using DisplayID v1.3 have
+ * a unique 8-byte handle, we store this in a tile group, so we
+ * have a common identifier for all tiles in a monitor group.
+ */
+static void drm_tile_group_free(struct kref *kref)
+{
+	struct drm_tile_group *tg = container_of(kref, struct drm_tile_group, refcount);
+	struct drm_device *dev = tg->dev;
+	mutex_lock(&dev->mode_config.idr_mutex);
+	idr_remove(&dev->mode_config.tile_idr, tg->id);
+	mutex_unlock(&dev->mode_config.idr_mutex);
+	kfree(tg);
+}
+
+/**
+ * drm_mode_put_tile_group - drop a reference to a tile group.
+ * @dev: DRM device
+ * @tg: tile group to drop reference to.
+ *
+ * drop reference to tile group and free if 0.
+ */
+void drm_mode_put_tile_group(struct drm_device *dev,
+			     struct drm_tile_group *tg)
+{
+	kref_put(&tg->refcount, drm_tile_group_free);
+}
+
+/**
+ * drm_mode_get_tile_group - get a reference to an existing tile group
+ * @dev: DRM device
+ * @topology: 8-bytes unique per monitor.
+ *
+ * Use the unique bytes to get a reference to an existing tile group.
+ *
+ * RETURNS:
+ * tile group or NULL if not found.
+ */
+struct drm_tile_group *drm_mode_get_tile_group(struct drm_device *dev,
+					       char topology[8])
+{
+	struct drm_tile_group *tg;
+	int id;
+	mutex_lock(&dev->mode_config.idr_mutex);
+	idr_for_each_entry(&dev->mode_config.tile_idr, tg, id) {
+		if (!memcmp(tg->group_data, topology, 8)) {
+			if (!kref_get_unless_zero(&tg->refcount))
+				tg = NULL;
+			mutex_unlock(&dev->mode_config.idr_mutex);
+			return tg;
+		}
+	}
+	mutex_unlock(&dev->mode_config.idr_mutex);
+	return NULL;
+}
+
+/**
+ * drm_mode_create_tile_group - create a tile group from a displayid description
+ * @dev: DRM device
+ * @topology: 8-bytes unique per monitor.
+ *
+ * Create a tile group for the unique monitor, and get a unique
+ * identifier for the tile group.
+ *
+ * RETURNS:
+ * new tile group or error.
+ */
+struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
+						  char topology[8])
+{
+	struct drm_tile_group *tg;
+	int ret;
+
+	tg = kzalloc(sizeof(*tg), GFP_KERNEL);
+	if (!tg)
+		return ERR_PTR(-ENOMEM);
+
+	kref_init(&tg->refcount);
+	memcpy(tg->group_data, topology, 8);
+	tg->dev = dev;
+
+	mutex_lock(&dev->mode_config.idr_mutex);
+	ret = idr_alloc(&dev->mode_config.tile_idr, tg, 1, 0, GFP_KERNEL);
+	if (ret >= 0) {
+		tg->id = ret;
+	} else {
+		kfree(tg);
+		tg = ERR_PTR(ret);
+	}
+
+	mutex_unlock(&dev->mode_config.idr_mutex);
+	return tg;
+}

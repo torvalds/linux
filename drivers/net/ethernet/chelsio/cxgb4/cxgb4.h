@@ -50,13 +50,13 @@
 #include "cxgb4_uld.h"
 
 #define T4FW_VERSION_MAJOR 0x01
-#define T4FW_VERSION_MINOR 0x0B
-#define T4FW_VERSION_MICRO 0x1B
+#define T4FW_VERSION_MINOR 0x0C
+#define T4FW_VERSION_MICRO 0x19
 #define T4FW_VERSION_BUILD 0x00
 
 #define T5FW_VERSION_MAJOR 0x01
-#define T5FW_VERSION_MINOR 0x0B
-#define T5FW_VERSION_MICRO 0x1B
+#define T5FW_VERSION_MINOR 0x0C
+#define T5FW_VERSION_MICRO 0x19
 #define T5FW_VERSION_BUILD 0x00
 
 #define CH_WARN(adap, fmt, ...) dev_warn(adap->pdev_dev, fmt, ## __VA_ARGS__)
@@ -222,6 +222,12 @@ struct tp_err_stats {
 	u32 ofldCongDefer;
 };
 
+struct sge_params {
+	u32 hps;			/* host page size for our PF/VF */
+	u32 eq_qpp;			/* egress queues/page for our PF/VF */
+	u32 iq_qpp;			/* egress queues/page for our PF/VF */
+};
+
 struct tp_params {
 	unsigned int ntxchan;        /* # of Tx channels */
 	unsigned int tre;            /* log2 of core clocks per TP tick */
@@ -285,6 +291,7 @@ enum chip_type {
 };
 
 struct adapter_params {
+	struct sge_params sge;
 	struct tp_params  tp;
 	struct vpd_params vpd;
 	struct pci_params pci;
@@ -318,10 +325,10 @@ struct adapter_params {
 #include "t4fw_api.h"
 
 #define FW_VERSION(chip) ( \
-		FW_HDR_FW_VER_MAJOR_GET(chip##FW_VERSION_MAJOR) | \
-		FW_HDR_FW_VER_MINOR_GET(chip##FW_VERSION_MINOR) | \
-		FW_HDR_FW_VER_MICRO_GET(chip##FW_VERSION_MICRO) | \
-		FW_HDR_FW_VER_BUILD_GET(chip##FW_VERSION_BUILD))
+		FW_HDR_FW_VER_MAJOR_G(chip##FW_VERSION_MAJOR) | \
+		FW_HDR_FW_VER_MINOR_G(chip##FW_VERSION_MINOR) | \
+		FW_HDR_FW_VER_MICRO_G(chip##FW_VERSION_MICRO) | \
+		FW_HDR_FW_VER_BUILD_G(chip##FW_VERSION_BUILD))
 #define FW_INTFVER(chip, intf) (FW_HDR_INTFVER_##intf)
 
 struct fw_info {
@@ -354,7 +361,7 @@ struct link_config {
 	unsigned char  link_ok;          /* link up? */
 };
 
-#define FW_LEN16(fw_struct) FW_CMD_LEN16(sizeof(fw_struct) / 16)
+#define FW_LEN16(fw_struct) FW_CMD_LEN16_V(sizeof(fw_struct) / 16)
 
 enum {
 	MAX_ETH_QSETS = 32,           /* # of Ethernet Tx/Rx queue sets */
@@ -385,7 +392,7 @@ struct port_info {
 	s16    xact_addr_filt;        /* index of exact MAC address filter */
 	u16    rss_size;              /* size of VI's RSS table slice */
 	s8     mdio_addr;
-	u8     port_type;
+	enum fw_port_type port_type;
 	u8     mod_type;
 	u8     port_id;
 	u8     tx_chan;
@@ -431,7 +438,8 @@ struct sge_fl {                     /* SGE free-buffer queue state */
 	struct rx_sw_desc *sdesc;   /* address of SW Rx descriptor ring */
 	__be64 *desc;               /* address of HW Rx descriptor ring */
 	dma_addr_t addr;            /* bus address of HW ring start */
-	u64 udb;                    /* BAR2 offset of User Doorbell area */
+	void __iomem *bar2_addr;    /* address of BAR2 Queue registers */
+	unsigned int bar2_qid;      /* Queue ID for BAR2 Queue registers */
 };
 
 /* A packet gather list */
@@ -461,7 +469,8 @@ struct sge_rspq {                   /* state for an SGE response queue */
 	u16 abs_id;                 /* absolute SGE id for the response q */
 	__be64 *desc;               /* address of HW response ring */
 	dma_addr_t phys_addr;       /* physical address of the ring */
-	u64 udb;                    /* BAR2 offset of User Doorbell area */
+	void __iomem *bar2_addr;    /* address of BAR2 Queue registers */
+	unsigned int bar2_qid;      /* Queue ID for BAR2 Queue registers */
 	unsigned int iqe_len;       /* entry size */
 	unsigned int size;          /* capacity of response queue */
 	struct adapter *adap;
@@ -519,7 +528,8 @@ struct sge_txq {
 	int db_disabled;
 	unsigned short db_pidx;
 	unsigned short db_pidx_inc;
-	u64 udb;                    /* BAR2 offset of User Doorbell area */
+	void __iomem *bar2_addr;    /* address of BAR2 Queue registers */
+	unsigned int bar2_qid;      /* Queue ID for BAR2 Queue registers */
 };
 
 struct sge_eth_txq {                /* state for an SGE Ethernet Tx queue */
@@ -995,6 +1005,15 @@ int t4_prep_fw(struct adapter *adap, struct fw_info *fw_info,
 	       const u8 *fw_data, unsigned int fw_size,
 	       struct fw_hdr *card_fw, enum dev_state state, int *reset);
 int t4_prep_adapter(struct adapter *adapter);
+
+enum t4_bar2_qtype { T4_BAR2_QTYPE_EGRESS, T4_BAR2_QTYPE_INGRESS };
+int cxgb4_t4_bar2_sge_qregs(struct adapter *adapter,
+		      unsigned int qid,
+		      enum t4_bar2_qtype qtype,
+		      u64 *pbar2_qoffset,
+		      unsigned int *pbar2_qid);
+
+int t4_init_sge_params(struct adapter *adapter);
 int t4_init_tp_params(struct adapter *adap);
 int t4_filter_field_shift(const struct adapter *adap, int filter_sel);
 int t4_port_init(struct adapter *adap, int mbox, int pf, int vf);
@@ -1085,4 +1104,5 @@ void t4_db_dropped(struct adapter *adapter);
 int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox,
 			 u32 addr, u32 val);
 void t4_sge_decode_idma_state(struct adapter *adapter, int state);
+void t4_free_mem(void *addr);
 #endif /* __CXGB4_H__ */

@@ -162,8 +162,8 @@ static int __hpp__sort(struct hist_entry *a, struct hist_entry *b,
 		return ret;
 
 	nr_members = evsel->nr_members;
-	fields_a = calloc(sizeof(*fields_a), nr_members);
-	fields_b = calloc(sizeof(*fields_b), nr_members);
+	fields_a = calloc(nr_members, sizeof(*fields_a));
+	fields_b = calloc(nr_members, sizeof(*fields_b));
 
 	if (!fields_a || !fields_b)
 		goto out;
@@ -203,6 +203,9 @@ static int __hpp__sort_acc(struct hist_entry *a, struct hist_entry *b,
 		ret = field_cmp(get_field(a), get_field(b));
 		if (ret)
 			return ret;
+
+		if (a->thread != b->thread || !symbol_conf.use_callchain)
+			return 0;
 
 		ret = b->callchain->max_depth - a->callchain->max_depth;
 	}

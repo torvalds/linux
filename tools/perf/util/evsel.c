@@ -658,8 +658,21 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts)
 		attr->mmap_data = track;
 	}
 
+	/*
+	 * We don't allow user space callchains for  function trace
+	 * event, due to issues with page faults while tracing page
+	 * fault handler and its overall trickiness nature.
+	 */
+	if (perf_evsel__is_function_event(evsel))
+		evsel->attr.exclude_callchain_user = 1;
+
 	if (callchain_param.enabled && !evsel->no_aux_samples)
 		perf_evsel__config_callgraph(evsel);
+
+	if (opts->sample_intr_regs) {
+		attr->sample_regs_intr = PERF_REGS_MASK;
+		perf_evsel__set_sample_bit(evsel, REGS_INTR);
+	}
 
 	if (target__has_cpu(&opts->target))
 		perf_evsel__set_sample_bit(evsel, CPU);
@@ -853,8 +866,6 @@ void perf_evsel__exit(struct perf_evsel *evsel)
 	perf_evsel__free_id(evsel);
 	close_cgroup(evsel->cgrp);
 	zfree(&evsel->group_name);
-	if (evsel->tp_format)
-		pevent_free_format(evsel->tp_format);
 	zfree(&evsel->name);
 	perf_evsel__object.fini(evsel);
 }
@@ -865,9 +876,8 @@ void perf_evsel__delete(struct perf_evsel *evsel)
 	free(evsel);
 }
 
-static inline void compute_deltas(struct perf_evsel *evsel,
-				  int cpu,
-				  struct perf_counts_values *count)
+void perf_evsel__compute_deltas(struct perf_evsel *evsel, int cpu,
+				struct perf_counts_values *count)
 {
 	struct perf_counts_values tmp;
 
@@ -887,6 +897,42 @@ static inline void compute_deltas(struct perf_evsel *evsel,
 	count->run = count->run - tmp.run;
 }
 
+void perf_counts_values__scale(struct perf_counts_values *count,
+			       bool scale, s8 *pscaled)
+{
+	s8 scaled = 0;
+
+	if (scale) {
+		if (count->run == 0) {
+			scaled = -1;
+			count->val = 0;
+		} else if (count->run < count->ena) {
+			scaled = 1;
+			count->val = (u64)((double) count->val * count->ena / count->run + 0.5);
+		}
+	} else
+		count->ena = count->run = 0;
+
+	if (pscaled)
+		*pscaled = scaled;
+}
+
+int perf_evsel__read_cb(struct perf_evsel *evsel, int cpu, int thread,
+			perf_evsel__read_cb_t cb)
+{
+	struct perf_counts_values count;
+
+	memset(&count, 0, sizeof(count));
+
+	if (FD(evsel, cpu, thread) < 0)
+		return -EINVAL;
+
+	if (readn(FD(evsel, cpu, thread), &count, sizeof(count)) < 0)
+		return -errno;
+
+	return cb(evsel, cpu, thread, &count);
+}
+
 int __perf_evsel__read_on_cpu(struct perf_evsel *evsel,
 			      int cpu, int thread, bool scale)
 {
@@ -902,66 +948,9 @@ int __perf_evsel__read_on_cpu(struct perf_evsel *evsel,
 	if (readn(FD(evsel, cpu, thread), &count, nv * sizeof(u64)) < 0)
 		return -errno;
 
-	compute_deltas(evsel, cpu, &count);
-
-	if (scale) {
-		if (count.run == 0)
-			count.val = 0;
-		else if (count.run < count.ena)
-			count.val = (u64)((double)count.val * count.ena / count.run + 0.5);
-	} else
-		count.ena = count.run = 0;
-
+	perf_evsel__compute_deltas(evsel, cpu, &count);
+	perf_counts_values__scale(&count, scale, NULL);
 	evsel->counts->cpu[cpu] = count;
-	return 0;
-}
-
-int __perf_evsel__read(struct perf_evsel *evsel,
-		       int ncpus, int nthreads, bool scale)
-{
-	size_t nv = scale ? 3 : 1;
-	int cpu, thread;
-	struct perf_counts_values *aggr = &evsel->counts->aggr, count;
-
-	if (evsel->system_wide)
-		nthreads = 1;
-
-	aggr->val = aggr->ena = aggr->run = 0;
-
-	for (cpu = 0; cpu < ncpus; cpu++) {
-		for (thread = 0; thread < nthreads; thread++) {
-			if (FD(evsel, cpu, thread) < 0)
-				continue;
-
-			if (readn(FD(evsel, cpu, thread),
-				  &count, nv * sizeof(u64)) < 0)
-				return -errno;
-
-			aggr->val += count.val;
-			if (scale) {
-				aggr->ena += count.ena;
-				aggr->run += count.run;
-			}
-		}
-	}
-
-	compute_deltas(evsel, -1, aggr);
-
-	evsel->counts->scaled = 0;
-	if (scale) {
-		if (aggr->run == 0) {
-			evsel->counts->scaled = -1;
-			aggr->val = 0;
-			return 0;
-		}
-
-		if (aggr->run < aggr->ena) {
-			evsel->counts->scaled = 1;
-			aggr->val = (u64)((double)aggr->val * aggr->ena / aggr->run + 0.5);
-		}
-	} else
-		aggr->ena = aggr->run = 0;
-
 	return 0;
 }
 
@@ -1039,6 +1028,7 @@ static size_t perf_event_attr__fprintf(struct perf_event_attr *attr, FILE *fp)
 	ret += PRINT_ATTR_X64(branch_sample_type);
 	ret += PRINT_ATTR_X64(sample_regs_user);
 	ret += PRINT_ATTR_U32(sample_stack_user);
+	ret += PRINT_ATTR_X64(sample_regs_intr);
 
 	ret += fprintf(fp, "%.60s\n", graph_dotted_line);
 
@@ -1538,6 +1528,23 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 		array++;
 	}
 
+	data->intr_regs.abi = PERF_SAMPLE_REGS_ABI_NONE;
+	if (type & PERF_SAMPLE_REGS_INTR) {
+		OVERFLOW_CHECK_u64(array);
+		data->intr_regs.abi = *array;
+		array++;
+
+		if (data->intr_regs.abi != PERF_SAMPLE_REGS_ABI_NONE) {
+			u64 mask = evsel->attr.sample_regs_intr;
+
+			sz = hweight_long(mask) * sizeof(u64);
+			OVERFLOW_CHECK(array, sz, max_size);
+			data->intr_regs.mask = mask;
+			data->intr_regs.regs = (u64 *)array;
+			array = (void *)array + sz;
+		}
+	}
+
 	return 0;
 }
 
@@ -1632,6 +1639,16 @@ size_t perf_event__sample_event_size(const struct perf_sample *sample, u64 type,
 
 	if (type & PERF_SAMPLE_TRANSACTION)
 		result += sizeof(u64);
+
+	if (type & PERF_SAMPLE_REGS_INTR) {
+		if (sample->intr_regs.abi) {
+			result += sizeof(u64);
+			sz = hweight_long(sample->intr_regs.mask) * sizeof(u64);
+			result += sz;
+		} else {
+			result += sizeof(u64);
+		}
+	}
 
 	return result;
 }
@@ -1811,6 +1828,17 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type,
 		array++;
 	}
 
+	if (type & PERF_SAMPLE_REGS_INTR) {
+		if (sample->intr_regs.abi) {
+			*array++ = sample->intr_regs.abi;
+			sz = hweight_long(sample->intr_regs.mask) * sizeof(u64);
+			memcpy(array, sample->intr_regs.regs, sz);
+			array = (void *)array + sz;
+		} else {
+			*array++ = 0;
+		}
+	}
+
 	return 0;
 }
 
@@ -1940,7 +1968,7 @@ static int sample_type__fprintf(FILE *fp, bool *first, u64 value)
 		bit_name(READ), bit_name(CALLCHAIN), bit_name(ID), bit_name(CPU),
 		bit_name(PERIOD), bit_name(STREAM_ID), bit_name(RAW),
 		bit_name(BRANCH_STACK), bit_name(REGS_USER), bit_name(STACK_USER),
-		bit_name(IDENTIFIER),
+		bit_name(IDENTIFIER), bit_name(REGS_INTR),
 		{ .name = NULL, }
 	};
 #undef bit_name

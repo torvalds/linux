@@ -5,7 +5,9 @@ Required properties:
 - reg : should specify localbus address and size used for the chip,
 	and hardware ECC controller if available.
 	If the hardware ECC is PMECC, it should contain address and size for
-	PMECC, PMECC Error Location controller and ROM which has lookup tables.
+	PMECC and PMECC Error Location controller.
+	The PMECC lookup table address and size in ROM is optional. If not
+	specified, driver will build it in runtime.
 - atmel,nand-addr-offset : offset for the address latch.
 - atmel,nand-cmd-offset : offset for the command latch.
 - #address-cells, #size-cells : Must be present if the device has sub-nodes
@@ -27,7 +29,7 @@ Optional properties:
   are: 512, 1024.
 - atmel,pmecc-lookup-table-offset : includes two offsets of lookup table in ROM
   for different sector size. First one is for sector size 512, the next is for
-  sector size 1024.
+  sector size 1024. If not specified, driver will build the table in runtime.
 - nand-bus-width : 8 or 16 bus width if not present 8
 - nand-on-flash-bbt: boolean to enable on flash bbt option if not present false
 - Nand Flash Controller(NFC) is a slave driver under Atmel nand flash

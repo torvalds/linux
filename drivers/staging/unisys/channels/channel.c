@@ -43,45 +43,45 @@
  * Return value:
  * 1 if the insertion succeeds, 0 if the queue was full.
  */
-unsigned char
-visor_signal_insert(CHANNEL_HEADER __iomem *pChannel, u32 Queue, void *pSignal)
+unsigned char spar_signal_insert(struct channel_header __iomem *ch, u32 queue,
+				 void *sig)
 {
 	void __iomem *psignal;
 	unsigned int head, tail, nof;
 
-	SIGNAL_QUEUE_HEADER __iomem *pqhdr =
-	    (SIGNAL_QUEUE_HEADER __iomem *)
-		((char __iomem *) pChannel + readq(&pChannel->oChannelSpace))
-		+ Queue;
+	struct signal_queue_header __iomem *pqhdr =
+	    (struct signal_queue_header __iomem *)
+		((char __iomem *)ch + readq(&ch->ch_space_offset))
+		+ queue;
 
 	/* capture current head and tail */
-	head = readl(&pqhdr->Head);
-	tail = readl(&pqhdr->Tail);
+	head = readl(&pqhdr->head);
+	tail = readl(&pqhdr->tail);
 
 	/* queue is full if (head + 1) % n equals tail */
-	if (((head + 1) % readl(&pqhdr->MaxSignalSlots)) == tail) {
-		nof = readq(&pqhdr->NumOverflows) + 1;
-		writeq(nof, &pqhdr->NumOverflows);
+	if (((head + 1) % readl(&pqhdr->max_slots)) == tail) {
+		nof = readq(&pqhdr->num_overflows) + 1;
+		writeq(nof, &pqhdr->num_overflows);
 		return 0;
 	}
 
 	/* increment the head index */
-	head = (head + 1) % readl(&pqhdr->MaxSignalSlots);
+	head = (head + 1) % readl(&pqhdr->max_slots);
 
 	/* copy signal to the head location from the area pointed to
 	 * by pSignal
 	 */
-	psignal = (char __iomem *)pqhdr + readq(&pqhdr->oSignalBase) +
-		(head * readl(&pqhdr->SignalSize));
-	memcpy_toio(psignal, pSignal, readl(&pqhdr->SignalSize));
+	psignal = (char __iomem *)pqhdr + readq(&pqhdr->sig_base_offset) +
+		(head * readl(&pqhdr->signal_size));
+	memcpy_toio(psignal, sig, readl(&pqhdr->signal_size));
 
 	mb(); /* channel synch */
-	writel(head, &pqhdr->Head);
+	writel(head, &pqhdr->head);
 
-	writeq(readq(&pqhdr->NumSignalsSent) + 1, &pqhdr->NumSignalsSent);
+	writeq(readq(&pqhdr->num_sent) + 1, &pqhdr->num_sent);
 	return 1;
 }
-EXPORT_SYMBOL_GPL(visor_signal_insert);
+EXPORT_SYMBOL_GPL(spar_signal_insert);
 
 /*
  * Routine Description:
@@ -102,40 +102,40 @@ EXPORT_SYMBOL_GPL(visor_signal_insert);
  * 1 if the removal succeeds, 0 if the queue was empty.
  */
 unsigned char
-visor_signal_remove(CHANNEL_HEADER __iomem *pChannel, u32 Queue, void *pSignal)
+spar_signal_remove(struct channel_header __iomem *ch, u32 queue, void *sig)
 {
 	void __iomem *psource;
 	unsigned int head, tail;
-	SIGNAL_QUEUE_HEADER __iomem *pqhdr =
-	    (SIGNAL_QUEUE_HEADER __iomem *) ((char __iomem *) pChannel +
-				    readq(&pChannel->oChannelSpace)) + Queue;
+	struct signal_queue_header __iomem *pqhdr =
+	    (struct signal_queue_header __iomem *)((char __iomem *)ch +
+				    readq(&ch->ch_space_offset)) + queue;
 
 	/* capture current head and tail */
-	head = readl(&pqhdr->Head);
-	tail = readl(&pqhdr->Tail);
+	head = readl(&pqhdr->head);
+	tail = readl(&pqhdr->tail);
 
 	/* queue is empty if the head index equals the tail index */
 	if (head == tail) {
-		writeq(readq(&pqhdr->NumEmptyCnt) + 1, &pqhdr->NumEmptyCnt);
+		writeq(readq(&pqhdr->num_empty) + 1, &pqhdr->num_empty);
 		return 0;
 	}
 
 	/* advance past the 'empty' front slot */
-	tail = (tail + 1) % readl(&pqhdr->MaxSignalSlots);
+	tail = (tail + 1) % readl(&pqhdr->max_slots);
 
 	/* copy signal from tail location to the area pointed to by pSignal */
-	psource = (char __iomem *) pqhdr + readq(&pqhdr->oSignalBase) +
-		(tail * readl(&pqhdr->SignalSize));
-	memcpy_fromio(pSignal, psource, readl(&pqhdr->SignalSize));
+	psource = (char __iomem *)pqhdr + readq(&pqhdr->sig_base_offset) +
+		(tail * readl(&pqhdr->signal_size));
+	memcpy_fromio(sig, psource, readl(&pqhdr->signal_size));
 
 	mb(); /* channel synch */
-	writel(tail, &pqhdr->Tail);
+	writel(tail, &pqhdr->tail);
 
-	writeq(readq(&pqhdr->NumSignalsReceived) + 1,
-	       &pqhdr->NumSignalsReceived);
+	writeq(readq(&pqhdr->num_received) + 1,
+	       &pqhdr->num_received);
 	return 1;
 }
-EXPORT_SYMBOL_GPL(visor_signal_remove);
+EXPORT_SYMBOL_GPL(spar_signal_remove);
 
 /*
  * Routine Description:
@@ -156,18 +156,18 @@ EXPORT_SYMBOL_GPL(visor_signal_remove);
  * Return value:
  * # of signals copied.
  */
-unsigned int
-SignalRemoveAll(pCHANNEL_HEADER pChannel, u32 Queue, void *pSignal)
+unsigned int spar_signal_remove_all(struct channel_header *ch, u32 queue,
+				    void *sig)
 {
 	void *psource;
-	unsigned int head, tail, signalCount = 0;
-	pSIGNAL_QUEUE_HEADER pqhdr =
-	    (pSIGNAL_QUEUE_HEADER) ((char *) pChannel +
-				    pChannel->oChannelSpace) + Queue;
+	unsigned int head, tail, count = 0;
+	struct signal_queue_header *pqhdr =
+	    (struct signal_queue_header *)((char *)ch +
+				    ch->ch_space_offset) + queue;
 
 	/* capture current head and tail */
-	head = pqhdr->Head;
-	tail = pqhdr->Tail;
+	head = pqhdr->head;
+	tail = pqhdr->tail;
 
 	/* queue is empty if the head index equals the tail index */
 	if (head == tail)
@@ -175,25 +175,25 @@ SignalRemoveAll(pCHANNEL_HEADER pChannel, u32 Queue, void *pSignal)
 
 	while (head != tail) {
 		/* advance past the 'empty' front slot */
-		tail = (tail + 1) % pqhdr->MaxSignalSlots;
+		tail = (tail + 1) % pqhdr->max_slots;
 
 		/* copy signal from tail location to the area pointed
 		 * to by pSignal
 		 */
 		psource =
-		    (char *) pqhdr + pqhdr->oSignalBase +
-		    (tail * pqhdr->SignalSize);
-		memcpy((char *) pSignal + (pqhdr->SignalSize * signalCount),
-		       psource, pqhdr->SignalSize);
+		    (char *)pqhdr + pqhdr->sig_base_offset +
+		    (tail * pqhdr->signal_size);
+		memcpy((char *)sig + (pqhdr->signal_size * count),
+		       psource, pqhdr->signal_size);
 
 		mb(); /* channel synch */
-		pqhdr->Tail = tail;
+		pqhdr->tail = tail;
 
-		signalCount++;
-		pqhdr->NumSignalsReceived++;
+		count++;
+		pqhdr->num_received++;
 	}
 
-	return signalCount;
+	return count;
 }
 
 /*
@@ -207,13 +207,13 @@ SignalRemoveAll(pCHANNEL_HEADER pChannel, u32 Queue, void *pSignal)
  * Return value:
  * 1 if the signal queue is empty, 0 otherwise.
  */
-unsigned char
-visor_signalqueue_empty(CHANNEL_HEADER __iomem *pChannel, u32 Queue)
+unsigned char spar_signalqueue_empty(struct channel_header __iomem *ch,
+				     u32 queue)
 {
-	SIGNAL_QUEUE_HEADER __iomem *pqhdr =
-	    (SIGNAL_QUEUE_HEADER __iomem *) ((char __iomem *) pChannel +
-				    readq(&pChannel->oChannelSpace)) + Queue;
-	return readl(&pqhdr->Head) == readl(&pqhdr->Tail);
+	struct signal_queue_header __iomem *pqhdr =
+	    (struct signal_queue_header __iomem *)((char __iomem *)ch +
+				    readq(&ch->ch_space_offset)) + queue;
+	return readl(&pqhdr->head) == readl(&pqhdr->tail);
 }
-EXPORT_SYMBOL_GPL(visor_signalqueue_empty);
+EXPORT_SYMBOL_GPL(spar_signalqueue_empty);
 

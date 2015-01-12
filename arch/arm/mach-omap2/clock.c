@@ -171,7 +171,8 @@ static void _omap2_module_wait_ready(struct clk_hw_omap *clk)
 		_wait_idlest_generic(clk, idlest_reg, (1 << idlest_bit),
 				     idlest_val, __clk_get_name(clk->hw.clk));
 	} else {
-		cm_wait_module_ready(prcm_mod, idlest_reg_id, idlest_bit);
+		omap_cm_wait_module_ready(0, prcm_mod, idlest_reg_id,
+					  idlest_bit);
 	};
 }
 
@@ -771,4 +772,8 @@ void __init ti_clk_init_features(void)
 		ti_clk_features.cm_idlest_val = OMAP24XX_CM_IDLEST_VAL;
 	else if (cpu_is_omap34xx())
 		ti_clk_features.cm_idlest_val = OMAP34XX_CM_IDLEST_VAL;
+
+	/* On OMAP3430 ES1.0, DPLL4 can't be re-programmed */
+	if (omap_rev() == OMAP3430_REV_ES1_0)
+		ti_clk_features.flags |= TI_CLK_DPLL4_DENY_REPROGRAM;
 }

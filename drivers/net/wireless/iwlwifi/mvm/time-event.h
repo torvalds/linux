@@ -182,14 +182,14 @@ int iwl_mvm_start_p2p_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			  int duration, enum ieee80211_roc_type type);
 
 /**
- * iwl_mvm_stop_p2p_roc - stop remain on channel for p2p device functionlity
+ * iwl_mvm_stop_roc - stop remain on channel functionality
  * @mvm: the mvm component
  *
  * This function can be used to cancel an ongoing ROC session.
  * The function is async, it will instruct the FW to stop serving the ROC
  * session, but will not wait for the actual stopping of the session.
  */
-void iwl_mvm_stop_p2p_roc(struct iwl_mvm *mvm);
+void iwl_mvm_stop_roc(struct iwl_mvm *mvm);
 
 /**
  * iwl_mvm_remove_time_event - general function to clean up of time event

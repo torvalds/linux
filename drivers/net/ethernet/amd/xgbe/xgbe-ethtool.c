@@ -452,9 +452,9 @@ static int xgbe_set_coalesce(struct net_device *netdev,
 			     rx_usecs);
 		return -EINVAL;
 	}
-	if (rx_frames > pdata->channel->rx_ring->rdesc_count) {
+	if (rx_frames > pdata->rx_desc_count) {
 		netdev_alert(netdev, "rx-frames is limited to %d frames\n",
-			     pdata->channel->rx_ring->rdesc_count);
+			     pdata->rx_desc_count);
 		return -EINVAL;
 	}
 
@@ -462,9 +462,9 @@ static int xgbe_set_coalesce(struct net_device *netdev,
 	tx_frames = ec->tx_max_coalesced_frames;
 
 	/* Check the bounds of values for Tx */
-	if (tx_frames > pdata->channel->tx_ring->rdesc_count) {
+	if (tx_frames > pdata->tx_desc_count) {
 		netdev_alert(netdev, "tx-frames is limited to %d frames\n",
-			     pdata->channel->tx_ring->rdesc_count);
+			     pdata->tx_desc_count);
 		return -EINVAL;
 	}
 
@@ -477,6 +477,82 @@ static int xgbe_set_coalesce(struct net_device *netdev,
 	hw_if->config_tx_coalesce(pdata);
 
 	DBGPR("<--xgbe_set_coalesce\n");
+
+	return 0;
+}
+
+static int xgbe_get_rxnfc(struct net_device *netdev,
+			  struct ethtool_rxnfc *rxnfc, u32 *rule_locs)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+
+	switch (rxnfc->cmd) {
+	case ETHTOOL_GRXRINGS:
+		rxnfc->data = pdata->rx_ring_count;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static u32 xgbe_get_rxfh_key_size(struct net_device *netdev)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+
+	return sizeof(pdata->rss_key);
+}
+
+static u32 xgbe_get_rxfh_indir_size(struct net_device *netdev)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+
+	return ARRAY_SIZE(pdata->rss_table);
+}
+
+static int xgbe_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
+			 u8 *hfunc)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	unsigned int i;
+
+	if (indir) {
+		for (i = 0; i < ARRAY_SIZE(pdata->rss_table); i++)
+			indir[i] = XGMAC_GET_BITS(pdata->rss_table[i],
+						  MAC_RSSDR, DMCH);
+	}
+
+	if (key)
+		memcpy(key, pdata->rss_key, sizeof(pdata->rss_key));
+
+	if (hfunc)
+		*hfunc = ETH_RSS_HASH_TOP;
+
+	return 0;
+}
+
+static int xgbe_set_rxfh(struct net_device *netdev, const u32 *indir,
+			 const u8 *key, const u8 hfunc)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	struct xgbe_hw_if *hw_if = &pdata->hw_if;
+	unsigned int ret;
+
+	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
+		return -EOPNOTSUPP;
+
+	if (indir) {
+		ret = hw_if->set_rss_lookup_table(pdata, indir);
+		if (ret)
+			return ret;
+	}
+
+	if (key) {
+		ret = hw_if->set_rss_hash_key(pdata, key);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
@@ -526,6 +602,11 @@ static const struct ethtool_ops xgbe_ethtool_ops = {
 	.get_strings = xgbe_get_strings,
 	.get_ethtool_stats = xgbe_get_ethtool_stats,
 	.get_sset_count = xgbe_get_sset_count,
+	.get_rxnfc = xgbe_get_rxnfc,
+	.get_rxfh_key_size = xgbe_get_rxfh_key_size,
+	.get_rxfh_indir_size = xgbe_get_rxfh_indir_size,
+	.get_rxfh = xgbe_get_rxfh,
+	.set_rxfh = xgbe_set_rxfh,
 	.get_ts_info = xgbe_get_ts_info,
 };
 

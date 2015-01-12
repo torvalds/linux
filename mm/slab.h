@@ -209,15 +209,15 @@ cache_from_memcg_idx(struct kmem_cache *s, int idx)
 
 	rcu_read_lock();
 	params = rcu_dereference(s->memcg_params);
-	cachep = params->memcg_caches[idx];
-	rcu_read_unlock();
 
 	/*
 	 * Make sure we will access the up-to-date value. The code updating
 	 * memcg_caches issues a write barrier to match this (see
 	 * memcg_register_cache()).
 	 */
-	smp_read_barrier_depends();
+	cachep = lockless_dereference(params->memcg_caches[idx]);
+	rcu_read_unlock();
+
 	return cachep;
 }
 
@@ -357,7 +357,9 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
 
 #endif
 
+void *slab_start(struct seq_file *m, loff_t *pos);
 void *slab_next(struct seq_file *m, void *p, loff_t *pos);
 void slab_stop(struct seq_file *m, void *p);
+int memcg_slab_show(struct seq_file *m, void *p);
 
 #endif /* MM_SLAB_H */

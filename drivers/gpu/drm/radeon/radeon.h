@@ -450,6 +450,15 @@ struct radeon_mman {
 #endif
 };
 
+struct radeon_bo_list {
+	struct radeon_bo		*robj;
+	struct ttm_validate_buffer	tv;
+	uint64_t			gpu_offset;
+	unsigned			prefered_domains;
+	unsigned			allowed_domains;
+	uint32_t			tiling_flags;
+};
+
 /* bo virtual address in a specific vm */
 struct radeon_bo_va {
 	/* protected by bo being reserved */
@@ -920,6 +929,9 @@ struct radeon_vm {
 
 	struct rb_root		va;
 
+	/* protecting invalidated and freed */
+	spinlock_t		status_lock;
+
 	/* BOs moved, but not yet updated in the PT */
 	struct list_head	invalidated;
 
@@ -1044,19 +1056,7 @@ void cayman_dma_fini(struct radeon_device *rdev);
 /*
  * CS.
  */
-struct radeon_cs_reloc {
-	struct drm_gem_object		*gobj;
-	struct radeon_bo		*robj;
-	struct ttm_validate_buffer	tv;
-	uint64_t			gpu_offset;
-	unsigned			prefered_domains;
-	unsigned			allowed_domains;
-	uint32_t			tiling_flags;
-	uint32_t			handle;
-};
-
 struct radeon_cs_chunk {
-	uint32_t		chunk_id;
 	uint32_t		length_dw;
 	uint32_t		*kdata;
 	void __user		*user_ptr;
@@ -1074,16 +1074,15 @@ struct radeon_cs_parser {
 	unsigned		idx;
 	/* relocations */
 	unsigned		nrelocs;
-	struct radeon_cs_reloc	*relocs;
-	struct radeon_cs_reloc	**relocs_ptr;
-	struct radeon_cs_reloc	*vm_bos;
+	struct radeon_bo_list	*relocs;
+	struct radeon_bo_list	*vm_bos;
 	struct list_head	validated;
 	unsigned		dma_reloc_idx;
 	/* indices of various chunks */
-	int			chunk_ib_idx;
-	int			chunk_relocs_idx;
-	int			chunk_flags_idx;
-	int			chunk_const_ib_idx;
+	struct radeon_cs_chunk  *chunk_ib;
+	struct radeon_cs_chunk  *chunk_relocs;
+	struct radeon_cs_chunk  *chunk_flags;
+	struct radeon_cs_chunk  *chunk_const_ib;
 	struct radeon_ib	ib;
 	struct radeon_ib	const_ib;
 	void			*track;
@@ -1097,7 +1096,7 @@ struct radeon_cs_parser {
 
 static inline u32 radeon_get_ib_value(struct radeon_cs_parser *p, int idx)
 {
-	struct radeon_cs_chunk *ibc = &p->chunks[p->chunk_ib_idx];
+	struct radeon_cs_chunk *ibc = p->chunk_ib;
 
 	if (ibc->kdata)
 		return ibc->kdata[idx];
@@ -2975,7 +2974,7 @@ int radeon_vm_manager_init(struct radeon_device *rdev);
 void radeon_vm_manager_fini(struct radeon_device *rdev);
 int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm);
 void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm);
-struct radeon_cs_reloc *radeon_vm_get_bos(struct radeon_device *rdev,
+struct radeon_bo_list *radeon_vm_get_bos(struct radeon_device *rdev,
 					  struct radeon_vm *vm,
                                           struct list_head *head);
 struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
@@ -3089,7 +3088,7 @@ bool radeon_cs_packet_next_is_pkt3_nop(struct radeon_cs_parser *p);
 void radeon_cs_dump_packet(struct radeon_cs_parser *p,
 			   struct radeon_cs_packet *pkt);
 int radeon_cs_packet_next_reloc(struct radeon_cs_parser *p,
-				struct radeon_cs_reloc **cs_reloc,
+				struct radeon_bo_list **cs_reloc,
 				int nomm);
 int r600_cs_common_vline_parse(struct radeon_cs_parser *p,
 			       uint32_t *vline_start_end,

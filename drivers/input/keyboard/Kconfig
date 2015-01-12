@@ -559,6 +559,7 @@ config KEYBOARD_SH_KEYSC
 config KEYBOARD_STMPE
 	tristate "STMPE keypad support"
 	depends on MFD_STMPE
+	depends on OF
 	select INPUT_MATRIXKMAP
 	help
 	  Say Y here if you want to use the keypad controller on STMPE I/O
@@ -665,14 +666,14 @@ config KEYBOARD_CROS_EC
 	  To compile this driver as a module, choose M here: the
 	  module will be called cros_ec_keyb.
 
-config KEYBOARD_CAP1106
-	tristate "Microchip CAP1106 touch sensor"
+config KEYBOARD_CAP11XX
+	tristate "Microchip CAP11XX based touch sensors"
 	depends on OF && I2C
 	select REGMAP_I2C
 	help
-	  Say Y here to enable the CAP1106 touch sensor driver.
+	  Say Y here to enable the CAP11XX touch sensor driver.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called cap1106.
+	  module will be called cap11xx.
 
 endif

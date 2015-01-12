@@ -411,6 +411,13 @@ config NF_NAT_TFTP
 	depends on NF_CONNTRACK && NF_NAT
 	default NF_NAT && NF_CONNTRACK_TFTP
 
+config NF_NAT_REDIRECT
+        tristate "IPv4/IPv6 redirect support"
+	depends on NF_NAT
+        help
+          This is the kernel functionality to redirect packets to local
+          machine through NAT.
+
 config NETFILTER_SYNPROXY
 	tristate
 
@@ -504,6 +511,15 @@ config NFT_MASQ
 	help
 	  This option adds the "masquerade" expression that you can use
 	  to perform NAT in the masquerade flavour.
+
+config NFT_REDIR
+	depends on NF_TABLES
+	depends on NF_CONNTRACK
+	depends on NF_NAT
+	tristate "Netfilter nf_tables redirect support"
+	help
+	  This options adds the "redirect" expression that you can use
+	  to perform NAT in the redirect flavour.
 
 config NFT_NAT
 	depends on NF_TABLES
@@ -835,6 +851,7 @@ config NETFILTER_XT_TARGET_RATEEST
 config NETFILTER_XT_TARGET_REDIRECT
 	tristate "REDIRECT target support"
 	depends on NF_NAT
+	select NF_NAT_REDIRECT
 	---help---
 	REDIRECT is a special case of NAT: all incoming connections are
 	mapped onto the incoming interface's address, causing the packets to

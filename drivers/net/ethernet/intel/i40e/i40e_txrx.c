@@ -2399,12 +2399,8 @@ netdev_tx_t i40e_lan_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	/* hardware can't handle really short frames, hardware padding works
 	 * beyond this point
 	 */
-	if (unlikely(skb->len < I40E_MIN_TX_LEN)) {
-		if (skb_pad(skb, I40E_MIN_TX_LEN - skb->len))
-			return NETDEV_TX_OK;
-		skb->len = I40E_MIN_TX_LEN;
-		skb_set_tail_pointer(skb, I40E_MIN_TX_LEN);
-	}
+	if (skb_put_padto(skb, I40E_MIN_TX_LEN))
+		return NETDEV_TX_OK;
 
 	return i40e_xmit_frame_ring(skb, tx_ring);
 }

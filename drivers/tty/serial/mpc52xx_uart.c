@@ -1889,7 +1889,6 @@ static struct platform_driver mpc52xx_uart_of_driver = {
 #endif
 	.driver = {
 		.name = "mpc52xx-psc-uart",
-		.owner = THIS_MODULE,
 		.of_match_table = mpc52xx_uart_of_match,
 	},
 };

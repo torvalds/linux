@@ -38,6 +38,7 @@
 #define HP_SW_PATH_PASSIVE		1
 
 struct hp_sw_dh_data {
+	struct scsi_dh_data dh_data;
 	unsigned char sense[SCSI_SENSE_BUFFERSIZE];
 	int path_state;
 	int retries;
@@ -51,9 +52,7 @@ static int hp_sw_start_stop(struct hp_sw_dh_data *);
 
 static inline struct hp_sw_dh_data *get_hp_sw_data(struct scsi_device *sdev)
 {
-	struct scsi_dh_data *scsi_dh_data = sdev->scsi_dh_data;
-	BUG_ON(scsi_dh_data == NULL);
-	return ((struct hp_sw_dh_data *) scsi_dh_data->buf);
+	return container_of(sdev->scsi_dh_data, struct hp_sw_dh_data, dh_data);
 }
 
 /*
@@ -312,7 +311,10 @@ static int hp_sw_activate(struct scsi_device *sdev,
 	return 0;
 }
 
-static const struct scsi_dh_devlist hp_sw_dh_data_list[] = {
+static const struct {
+	char *vendor;
+	char *model;
+} hp_sw_dh_data_list[] = {
 	{"COMPAQ", "MSA1000 VOLUME"},
 	{"COMPAQ", "HSV110"},
 	{"HP", "HSV100"},
@@ -338,37 +340,14 @@ static bool hp_sw_match(struct scsi_device *sdev)
 	return false;
 }
 
-static int hp_sw_bus_attach(struct scsi_device *sdev);
-static void hp_sw_bus_detach(struct scsi_device *sdev);
-
-static struct scsi_device_handler hp_sw_dh = {
-	.name		= HP_SW_NAME,
-	.module		= THIS_MODULE,
-	.devlist	= hp_sw_dh_data_list,
-	.attach		= hp_sw_bus_attach,
-	.detach		= hp_sw_bus_detach,
-	.activate	= hp_sw_activate,
-	.prep_fn	= hp_sw_prep_fn,
-	.match		= hp_sw_match,
-};
-
-static int hp_sw_bus_attach(struct scsi_device *sdev)
+static struct scsi_dh_data *hp_sw_bus_attach(struct scsi_device *sdev)
 {
-	struct scsi_dh_data *scsi_dh_data;
 	struct hp_sw_dh_data *h;
-	unsigned long flags;
 	int ret;
 
-	scsi_dh_data = kzalloc(sizeof(*scsi_dh_data)
-			       + sizeof(*h) , GFP_KERNEL);
-	if (!scsi_dh_data) {
-		sdev_printk(KERN_ERR, sdev, "%s: Attach Failed\n",
-			    HP_SW_NAME);
-		return 0;
-	}
-
-	scsi_dh_data->scsi_dh = &hp_sw_dh;
-	h = (struct hp_sw_dh_data *) scsi_dh_data->buf;
+	h = kzalloc(sizeof(*h), GFP_KERNEL);
+	if (!h)
+		return ERR_PTR(-ENOMEM);
 	h->path_state = HP_SW_PATH_UNINITIALIZED;
 	h->retries = HP_SW_RETRIES;
 	h->sdev = sdev;
@@ -377,41 +356,31 @@ static int hp_sw_bus_attach(struct scsi_device *sdev)
 	if (ret != SCSI_DH_OK || h->path_state == HP_SW_PATH_UNINITIALIZED)
 		goto failed;
 
-	if (!try_module_get(THIS_MODULE))
-		goto failed;
-
-	spin_lock_irqsave(sdev->request_queue->queue_lock, flags);
-	sdev->scsi_dh_data = scsi_dh_data;
-	spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
-
 	sdev_printk(KERN_INFO, sdev, "%s: attached to %s path\n",
 		    HP_SW_NAME, h->path_state == HP_SW_PATH_ACTIVE?
 		    "active":"passive");
-
-	return 0;
-
+	return &h->dh_data;
 failed:
-	kfree(scsi_dh_data);
-	sdev_printk(KERN_ERR, sdev, "%s: not attached\n",
-		    HP_SW_NAME);
-	return -EINVAL;
+	kfree(h);
+	return ERR_PTR(-EINVAL);
 }
 
 static void hp_sw_bus_detach( struct scsi_device *sdev )
 {
-	struct scsi_dh_data *scsi_dh_data;
-	unsigned long flags;
+	struct hp_sw_dh_data *h = get_hp_sw_data(sdev);
 
-	spin_lock_irqsave(sdev->request_queue->queue_lock, flags);
-	scsi_dh_data = sdev->scsi_dh_data;
-	sdev->scsi_dh_data = NULL;
-	spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
-	module_put(THIS_MODULE);
-
-	sdev_printk(KERN_NOTICE, sdev, "%s: Detached\n", HP_SW_NAME);
-
-	kfree(scsi_dh_data);
+	kfree(h);
 }
+
+static struct scsi_device_handler hp_sw_dh = {
+	.name		= HP_SW_NAME,
+	.module		= THIS_MODULE,
+	.attach		= hp_sw_bus_attach,
+	.detach		= hp_sw_bus_detach,
+	.activate	= hp_sw_activate,
+	.prep_fn	= hp_sw_prep_fn,
+	.match		= hp_sw_match,
+};
 
 static int __init hp_sw_init(void)
 {

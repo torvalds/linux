@@ -653,6 +653,9 @@
 #define MIPS_CONF5_NF		(_ULCAST_(1) << 0)
 #define MIPS_CONF5_UFR		(_ULCAST_(1) << 2)
 #define MIPS_CONF5_MRP		(_ULCAST_(1) << 3)
+#define MIPS_CONF5_MVH		(_ULCAST_(1) << 5)
+#define MIPS_CONF5_FRE		(_ULCAST_(1) << 8)
+#define MIPS_CONF5_UFE		(_ULCAST_(1) << 9)
 #define MIPS_CONF5_MSAEN	(_ULCAST_(1) << 27)
 #define MIPS_CONF5_EVA		(_ULCAST_(1) << 28)
 #define MIPS_CONF5_CV		(_ULCAST_(1) << 29)
@@ -694,6 +697,7 @@
 #define MIPS_FPIR_W		(_ULCAST_(1) << 20)
 #define MIPS_FPIR_L		(_ULCAST_(1) << 21)
 #define MIPS_FPIR_F64		(_ULCAST_(1) << 22)
+#define MIPS_FPIR_FREP		(_ULCAST_(1) << 29)
 
 /*
  * Bits in the MIPS32 Memory Segmentation registers.
@@ -994,6 +998,39 @@ do {									\
 	local_irq_restore(__flags);					\
 } while (0)
 
+#define __readx_32bit_c0_register(source)				\
+({									\
+	unsigned int __res;						\
+									\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	noat					\n"	\
+	"	.set	mips32r2				\n"	\
+	"	.insn						\n"	\
+	"	# mfhc0 $1, %1					\n"	\
+	"	.word	(0x40410000 | ((%1 & 0x1f) << 11))	\n"	\
+	"	move	%0, $1					\n"	\
+	"	.set	pop					\n"	\
+	: "=r" (__res)							\
+	: "i" (source));						\
+	__res;								\
+})
+
+#define __writex_32bit_c0_register(register, value)			\
+do {									\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	noat					\n"	\
+	"	.set	mips32r2				\n"	\
+	"	move	$1, %0					\n"	\
+	"	# mthc0 $1, %1					\n"	\
+	"	.insn						\n"	\
+	"	.word	(0x40c10000 | ((%1 & 0x1f) << 11))	\n"	\
+	"	.set	pop					\n"	\
+	:								\
+	: "r" (value), "i" (register));					\
+} while (0)
+
 #define read_c0_index()		__read_32bit_c0_register($0, 0)
 #define write_c0_index(val)	__write_32bit_c0_register($0, 0, val)
 
@@ -1003,8 +1040,14 @@ do {									\
 #define read_c0_entrylo0()	__read_ulong_c0_register($2, 0)
 #define write_c0_entrylo0(val)	__write_ulong_c0_register($2, 0, val)
 
+#define readx_c0_entrylo0()	__readx_32bit_c0_register(2)
+#define writex_c0_entrylo0(val)	__writex_32bit_c0_register(2, val)
+
 #define read_c0_entrylo1()	__read_ulong_c0_register($3, 0)
 #define write_c0_entrylo1(val)	__write_ulong_c0_register($3, 0, val)
+
+#define readx_c0_entrylo1()	__readx_32bit_c0_register(3)
+#define writex_c0_entrylo1(val)	__writex_32bit_c0_register(3, val)
 
 #define read_c0_conf()		__read_32bit_c0_register($3, 0)
 #define write_c0_conf(val)	__write_32bit_c0_register($3, 0, val)

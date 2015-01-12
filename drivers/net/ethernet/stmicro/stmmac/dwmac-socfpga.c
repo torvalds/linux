@@ -23,7 +23,9 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/stmmac.h>
+
 #include "stmmac.h"
+#include "stmmac_platform.h"
 
 #define SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_GMII_MII 0x0
 #define SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_RGMII 0x1

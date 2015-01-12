@@ -449,7 +449,7 @@ void ftrace_replace_code(int enable)
 		rec = ftrace_rec_iter_record(iter);
 		ret = __ftrace_replace_code(rec, enable);
 		if (ret) {
-			ftrace_bug(ret, rec->ip);
+			ftrace_bug(ret, rec);
 			return;
 		}
 	}
@@ -510,79 +510,36 @@ int ftrace_disable_ftrace_graph_caller(void)
 }
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
-#ifdef CONFIG_PPC64
-extern void mod_return_to_handler(void);
-#endif
-
 /*
  * Hook the return address and push it in the stack of return addrs
- * in current thread info.
+ * in current thread info. Return the address we want to divert to.
  */
-void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
+unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip)
 {
-	unsigned long old;
-	int faulted;
 	struct ftrace_graph_ent trace;
-	unsigned long return_hooker = (unsigned long)&return_to_handler;
+	unsigned long return_hooker;
 
 	if (unlikely(ftrace_graph_is_dead()))
-		return;
+		goto out;
 
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
-		return;
+		goto out;
 
-#ifdef CONFIG_PPC64
-	/* non core kernel code needs to save and restore the TOC */
-	if (REGION_ID(self_addr) != KERNEL_REGION_ID)
-		return_hooker = (unsigned long)&mod_return_to_handler;
-#endif
+	return_hooker = ppc_function_entry(return_to_handler);
 
-	return_hooker = ppc_function_entry((void *)return_hooker);
-
-	/*
-	 * Protect against fault, even if it shouldn't
-	 * happen. This tool is too much intrusive to
-	 * ignore such a protection.
-	 */
-	asm volatile(
-		"1: " PPC_LL "%[old], 0(%[parent])\n"
-		"2: " PPC_STL "%[return_hooker], 0(%[parent])\n"
-		"   li %[faulted], 0\n"
-		"3:\n"
-
-		".section .fixup, \"ax\"\n"
-		"4: li %[faulted], 1\n"
-		"   b 3b\n"
-		".previous\n"
-
-		".section __ex_table,\"a\"\n"
-			PPC_LONG_ALIGN "\n"
-			PPC_LONG "1b,4b\n"
-			PPC_LONG "2b,4b\n"
-		".previous"
-
-		: [old] "=&r" (old), [faulted] "=r" (faulted)
-		: [parent] "r" (parent), [return_hooker] "r" (return_hooker)
-		: "memory"
-	);
-
-	if (unlikely(faulted)) {
-		ftrace_graph_stop();
-		WARN_ON(1);
-		return;
-	}
-
-	trace.func = self_addr;
+	trace.func = ip;
 	trace.depth = current->curr_ret_stack + 1;
 
 	/* Only trace if the calling function expects to */
-	if (!ftrace_graph_entry(&trace)) {
-		*parent = old;
-		return;
-	}
+	if (!ftrace_graph_entry(&trace))
+		goto out;
 
-	if (ftrace_push_return_trace(old, self_addr, &trace.depth, 0) == -EBUSY)
-		*parent = old;
+	if (ftrace_push_return_trace(parent, ip, &trace.depth, 0) == -EBUSY)
+		goto out;
+
+	parent = return_hooker;
+out:
+	return parent;
 }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 

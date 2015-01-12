@@ -307,7 +307,6 @@ static struct platform_driver wm831x_gp_ldo_driver = {
 	.probe = wm831x_gp_ldo_probe,
 	.driver		= {
 		.name	= "wm831x-ldo",
-		.owner	= THIS_MODULE,
 	},
 };
 
@@ -516,7 +515,6 @@ static struct platform_driver wm831x_aldo_driver = {
 	.probe = wm831x_aldo_probe,
 	.driver		= {
 		.name	= "wm831x-aldo",
-		.owner	= THIS_MODULE,
 	},
 };
 
@@ -650,7 +648,6 @@ static struct platform_driver wm831x_alive_ldo_driver = {
 	.probe = wm831x_alive_ldo_probe,
 	.driver		= {
 		.name	= "wm831x-alive-ldo",
-		.owner	= THIS_MODULE,
 	},
 };
 

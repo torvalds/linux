@@ -298,7 +298,7 @@ static struct regulator_ops s2mpa01_buck_ops = {
 	.enable_mask	= S2MPA01_ENABLE_MASK			\
 }
 
-static struct regulator_desc regulators[] = {
+static const struct regulator_desc regulators[] = {
 	regulator_desc_ldo(1, STEP_25_MV),
 	regulator_desc_ldo(2, STEP_50_MV),
 	regulator_desc_ldo(3, STEP_50_MV),
@@ -405,7 +405,6 @@ MODULE_DEVICE_TABLE(platform, s2mpa01_pmic_id);
 static struct platform_driver s2mpa01_pmic_driver = {
 	.driver = {
 		.name = "s2mpa01-pmic",
-		.owner = THIS_MODULE,
 	},
 	.probe = s2mpa01_pmic_probe,
 	.id_table = s2mpa01_pmic_id,

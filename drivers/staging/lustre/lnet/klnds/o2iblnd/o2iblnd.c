@@ -930,8 +930,7 @@ kiblnd_close_peer_conns_locked (kib_peer_t *peer, int why)
 	list_for_each_safe (ctmp, cnxt, &peer->ibp_conns) {
 		conn = list_entry(ctmp, kib_conn_t, ibc_list);
 
-		CDEBUG(D_NET, "Closing conn -> %s, "
-			      "version: %x, reason: %d\n",
+		CDEBUG(D_NET, "Closing conn -> %s, version: %x, reason: %d\n",
 		       libcfs_nid2str(peer->ibp_nid),
 		       conn->ibc_version, why);
 
@@ -958,8 +957,7 @@ kiblnd_close_stale_conns_locked (kib_peer_t *peer,
 		    conn->ibc_incarnation == incarnation)
 			continue;
 
-		CDEBUG(D_NET, "Closing stale conn -> %s version: %x, "
-			      "incarnation:%#llx(%x, %#llx)\n",
+		CDEBUG(D_NET, "Closing stale conn -> %s version: %x, incarnation:%#llx(%x, %#llx)\n",
 		       libcfs_nid2str(peer->ibp_nid),
 		       conn->ibc_version, conn->ibc_incarnation,
 		       version, incarnation);
@@ -1599,8 +1597,7 @@ kiblnd_fmr_pool_map(kib_fmr_poolset_t *fps, __u64 *pages, int npages,
 
 	if (fps->fps_increasing) {
 		spin_unlock(&fps->fps_lock);
-		CDEBUG(D_NET, "Another thread is allocating new "
-		       "FMR pool, waiting for her to complete\n");
+		CDEBUG(D_NET, "Another thread is allocating new FMR pool, waiting for her to complete\n");
 		schedule();
 		goto again;
 
@@ -1801,8 +1798,7 @@ kiblnd_pool_alloc_node(kib_poolset_t *ps)
 	if (ps->ps_increasing) {
 		/* another thread is allocating a new pool */
 		spin_unlock(&ps->ps_lock);
-		CDEBUG(D_NET, "Another thread is allocating new "
-		       "%s pool, waiting for her to complete\n",
+		CDEBUG(D_NET, "Another thread is allocating new %s pool, waiting for her to complete\n",
 		       ps->ps_name);
 		schedule();
 		goto again;
@@ -2411,7 +2407,7 @@ kiblnd_hdev_setup_mrs(kib_hca_dev_t *hdev)
 		goto out;
 	}
 
-	mr_size = (1ULL << hdev->ibh_mr_shift);
+	mr_size = 1ULL << hdev->ibh_mr_shift;
 	mm_size = (unsigned long)high_memory - PAGE_OFFSET;
 
 	hdev->ibh_nmrs = (int)((mm_size + mr_size - 1) >> hdev->ibh_mr_shift);
@@ -3081,7 +3077,7 @@ kiblnd_startup (lnet_ni_t *ni)
 	LIBCFS_ALLOC(net, sizeof(*net));
 	ni->ni_data = net;
 	if (net == NULL)
-		goto failed;
+		goto net_failed;
 
 	do_gettimeofday(&tv);
 	net->ibn_incarnation = (((__u64)tv.tv_sec) * 1000000) + tv.tv_usec;
@@ -3147,6 +3143,7 @@ failed:
 	if (net->ibn_dev == NULL && ibdev != NULL)
 		kiblnd_destroy_dev(ibdev);
 
+net_failed:
 	kiblnd_shutdown(ni);
 
 	CDEBUG(D_NET, "kiblnd_startup failed\n");

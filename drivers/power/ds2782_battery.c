@@ -351,13 +351,9 @@ static int ds278x_resume(struct device *dev)
 	schedule_delayed_work(&info->bat_work, DS278x_DELAY);
 	return 0;
 }
+#endif /* CONFIG_PM_SLEEP */
 
 static SIMPLE_DEV_PM_OPS(ds278x_battery_pm_ops, ds278x_suspend, ds278x_resume);
-#define DS278X_BATTERY_PM_OPS (&ds278x_battery_pm_ops)
-
-#else
-#define DS278X_BATTERY_PM_OPS NULL
-#endif /* CONFIG_PM_SLEEP */
 
 enum ds278x_num_id {
 	DS2782 = 0,
@@ -460,7 +456,7 @@ MODULE_DEVICE_TABLE(i2c, ds278x_id);
 static struct i2c_driver ds278x_battery_driver = {
 	.driver 	= {
 		.name	= "ds2782-battery",
-		.pm	= DS278X_BATTERY_PM_OPS,
+		.pm	= &ds278x_battery_pm_ops,
 	},
 	.probe		= ds278x_battery_probe,
 	.remove		= ds278x_battery_remove,

@@ -1116,8 +1116,7 @@ kiblnd_init_rdma (kib_conn_t *conn, kib_tx_t *tx, int type,
 		}
 
 		if (tx->tx_nwrq == IBLND_RDMA_FRAGS(conn->ibc_version)) {
-			CERROR("RDMA too fragmented for %s (%d): "
-			       "%d/%d src %d/%d dst frags\n",
+			CERROR("RDMA too fragmented for %s (%d): %d/%d src %d/%d dst frags\n",
 			       libcfs_nid2str(conn->ibc_peer->ibp_nid),
 			       IBLND_RDMA_FRAGS(conn->ibc_version),
 			       srcidx, srcrd->rd_nfrags,
@@ -2254,8 +2253,8 @@ kiblnd_passive_connect (struct rdma_cm_id *cmid, void *priv, int priv_nob)
 	if (ni == NULL ||			 /* no matching net */
 	    ni->ni_nid != reqmsg->ibm_dstnid ||   /* right NET, wrong NID! */
 	    net->ibn_dev != ibdev) {	      /* wrong device */
-		CERROR("Can't accept %s on %s (%s:%d:%pI4h): "
-		       "bad dst nid %s\n", libcfs_nid2str(nid),
+		CERROR("Can't accept %s on %s (%s:%d:%pI4h): bad dst nid %s\n",
+		       libcfs_nid2str(nid),
 		       ni == NULL ? "NA" : libcfs_nid2str(ni->ni_nid),
 		       ibdev->ibd_ifname, ibdev->ibd_nnets,
 		       &ibdev->ibd_ifip,
@@ -2295,8 +2294,7 @@ kiblnd_passive_connect (struct rdma_cm_id *cmid, void *priv, int priv_nob)
 
 	if (reqmsg->ibm_u.connparams.ibcp_max_frags !=
 	    IBLND_RDMA_FRAGS(version)) {
-		CERROR("Can't accept %s(version %x): "
-		       "incompatible max_frags %d (%d wanted)\n",
+		CERROR("Can't accept %s(version %x): incompatible max_frags %d (%d wanted)\n",
 		       libcfs_nid2str(nid), version,
 		       reqmsg->ibm_u.connparams.ibcp_max_frags,
 		       IBLND_RDMA_FRAGS(version));
@@ -2502,8 +2500,7 @@ kiblnd_reconnect (kib_conn_t *conn, int version,
 		break;
 	}
 
-	CNETERR("%s: retrying (%s), %x, %x, "
-		"queue_dep: %d, max_frag: %d, msg_size: %d\n",
+	CNETERR("%s: retrying (%s), %x, %x, queue_dep: %d, max_frag: %d, msg_size: %d\n",
 		libcfs_nid2str(peer->ibp_nid),
 		reason, IBLND_MSG_VERSION, version,
 		cp != NULL? cp->ibcp_queue_depth :IBLND_MSG_QUEUE_SIZE(version),
@@ -2679,8 +2676,7 @@ kiblnd_check_connreply (kib_conn_t *conn, void *priv, int priv_nob)
 	}
 
 	if (ver != msg->ibm_version) {
-		CERROR("%s replied version %x is different with "
-		       "requested version %x\n",
+		CERROR("%s replied version %x is different with requested version %x\n",
 		       libcfs_nid2str(peer->ibp_nid), msg->ibm_version, ver);
 		rc = -EPROTO;
 		goto failed;
@@ -2724,8 +2720,7 @@ kiblnd_check_connreply (kib_conn_t *conn, void *priv, int priv_nob)
 	read_unlock_irqrestore(&kiblnd_data.kib_global_lock, flags);
 
 	if (rc != 0) {
-		CERROR("Bad connection reply from %s, rc = %d, "
-		       "version: %x max_frags: %d\n",
+		CERROR("Bad connection reply from %s, rc = %d, version: %x max_frags: %d\n",
 		       libcfs_nid2str(peer->ibp_nid), rc,
 		       msg->ibm_version, msg->ibm_u.connparams.ibcp_max_frags);
 		goto failed;
@@ -3060,8 +3055,7 @@ kiblnd_check_conns (int idx)
 			}
 
 			if (timedout) {
-				CERROR("Timed out RDMA with %s (%lu): "
-				       "c: %u, oc: %u, rc: %u\n",
+				CERROR("Timed out RDMA with %s (%lu): c: %u, oc: %u, rc: %u\n",
 				       libcfs_nid2str(peer->ibp_nid),
 				       cfs_duration_sec(cfs_time_current() -
 							peer->ibp_last_alive),
@@ -3334,10 +3328,8 @@ kiblnd_scheduler(void *arg)
 
 	rc = cfs_cpt_bind(lnet_cpt_table(), sched->ibs_cpt);
 	if (rc != 0) {
-		CWARN("Failed to bind on CPT %d, please verify whether "
-		      "all CPUs are healthy and reload modules if necessary, "
-		      "otherwise your system might under risk of low "
-		      "performance\n", sched->ibs_cpt);
+		CWARN("Failed to bind on CPT %d, please verify whether all CPUs are healthy and reload modules if necessary, otherwise your system might under risk of low performance\n",
+		      sched->ibs_cpt);
 	}
 
 	spin_lock_irqsave(&sched->ibs_lock, flags);
@@ -3369,8 +3361,7 @@ kiblnd_scheduler(void *arg)
 				rc = ib_req_notify_cq(conn->ibc_cq,
 						      IB_CQ_NEXT_COMP);
 				if (rc < 0) {
-					CWARN("%s: ib_req_notify_cq failed: %d, "
-					      "closing connection\n",
+					CWARN("%s: ib_req_notify_cq failed: %d, closing connection\n",
 					      libcfs_nid2str(conn->ibc_peer->ibp_nid), rc);
 					kiblnd_close_conn(conn, -EIO);
 					kiblnd_conn_decref(conn);
@@ -3383,8 +3374,7 @@ kiblnd_scheduler(void *arg)
 			}
 
 			if (rc < 0) {
-				CWARN("%s: ib_poll_cq failed: %d, "
-				      "closing connection\n",
+				CWARN("%s: ib_poll_cq failed: %d, closing connection\n",
 				      libcfs_nid2str(conn->ibc_peer->ibp_nid),
 				      rc);
 				kiblnd_close_conn(conn, -EIO);

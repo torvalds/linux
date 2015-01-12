@@ -722,8 +722,8 @@ typedef struct pglist_data {
 	int nr_zones;
 #ifdef CONFIG_FLAT_NODE_MEM_MAP	/* means !SPARSEMEM */
 	struct page *node_mem_map;
-#ifdef CONFIG_MEMCG
-	struct page_cgroup *node_page_cgroup;
+#ifdef CONFIG_PAGE_EXTENSION
+	struct page_ext *node_page_ext;
 #endif
 #endif
 #ifndef CONFIG_NO_BOOTMEM
@@ -1078,7 +1078,7 @@ static inline unsigned long early_pfn_to_nid(unsigned long pfn)
 #define SECTION_ALIGN_DOWN(pfn)	((pfn) & PAGE_SECTION_MASK)
 
 struct page;
-struct page_cgroup;
+struct page_ext;
 struct mem_section {
 	/*
 	 * This is, logically, a pointer to an array of struct
@@ -1096,12 +1096,12 @@ struct mem_section {
 
 	/* See declaration of similar field in struct zone */
 	unsigned long *pageblock_flags;
-#ifdef CONFIG_MEMCG
+#ifdef CONFIG_PAGE_EXTENSION
 	/*
-	 * If !SPARSEMEM, pgdat doesn't have page_cgroup pointer. We use
-	 * section. (see memcontrol.h/page_cgroup.h about this.)
+	 * If !SPARSEMEM, pgdat doesn't have page_ext pointer. We use
+	 * section. (see page_ext.h about this.)
 	 */
-	struct page_cgroup *page_cgroup;
+	struct page_ext *page_ext;
 	unsigned long pad;
 #endif
 	/*

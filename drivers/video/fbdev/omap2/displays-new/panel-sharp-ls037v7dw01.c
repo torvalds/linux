@@ -408,7 +408,6 @@ static struct platform_driver sharp_ls_driver = {
 	.remove = __exit_p(sharp_ls_remove),
 	.driver = {
 		.name = "panel-sharp-ls037v7dw01",
-		.owner = THIS_MODULE,
 		.of_match_table = sharp_ls_of_match,
 		.suppress_bind_attrs = true,
 	},

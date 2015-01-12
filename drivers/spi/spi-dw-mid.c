@@ -26,6 +26,9 @@
 #include <linux/intel_mid_dma.h>
 #include <linux/pci.h>
 
+#define RX_BUSY		0
+#define TX_BUSY		1
+
 struct mid_dma {
 	struct intel_mid_dma_slave	dmas_tx;
 	struct intel_mid_dma_slave	dmas_rx;
@@ -98,41 +101,26 @@ static void mid_spi_dma_exit(struct dw_spi *dws)
 }
 
 /*
- * dws->dma_chan_done is cleared before the dma transfer starts,
- * callback for rx/tx channel will each increment it by 1.
- * Reaching 2 means the whole spi transaction is done.
+ * dws->dma_chan_busy is set before the dma transfer starts, callback for tx
+ * channel will clear a corresponding bit.
  */
-static void dw_spi_dma_done(void *arg)
+static void dw_spi_dma_tx_done(void *arg)
 {
 	struct dw_spi *dws = arg;
 
-	if (++dws->dma_chan_done != 2)
+	if (test_and_clear_bit(TX_BUSY, &dws->dma_chan_busy) & BIT(RX_BUSY))
 		return;
 	dw_spi_xfer_done(dws);
 }
 
-static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
+static struct dma_async_tx_descriptor *dw_spi_dma_prepare_tx(struct dw_spi *dws)
 {
-	struct dma_async_tx_descriptor *txdesc, *rxdesc;
-	struct dma_slave_config txconf, rxconf;
-	u16 dma_ctrl = 0;
+	struct dma_slave_config txconf;
+	struct dma_async_tx_descriptor *txdesc;
 
-	/* 1. setup DMA related registers */
-	if (cs_change) {
-		spi_enable_chip(dws, 0);
-		dw_writew(dws, DW_SPI_DMARDLR, 0xf);
-		dw_writew(dws, DW_SPI_DMATDLR, 0x10);
-		if (dws->tx_dma)
-			dma_ctrl |= SPI_DMA_TDMAE;
-		if (dws->rx_dma)
-			dma_ctrl |= SPI_DMA_RDMAE;
-		dw_writew(dws, DW_SPI_DMACR, dma_ctrl);
-		spi_enable_chip(dws, 1);
-	}
+	if (!dws->tx_dma)
+		return NULL;
 
-	dws->dma_chan_done = 0;
-
-	/* 2. Prepare the TX dma transfer */
 	txconf.direction = DMA_MEM_TO_DEV;
 	txconf.dst_addr = dws->dma_addr;
 	txconf.dst_maxburst = LNW_DMA_MSIZE_16;
@@ -151,10 +139,33 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
 				1,
 				DMA_MEM_TO_DEV,
 				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-	txdesc->callback = dw_spi_dma_done;
+	txdesc->callback = dw_spi_dma_tx_done;
 	txdesc->callback_param = dws;
 
-	/* 3. Prepare the RX dma transfer */
+	return txdesc;
+}
+
+/*
+ * dws->dma_chan_busy is set before the dma transfer starts, callback for rx
+ * channel will clear a corresponding bit.
+ */
+static void dw_spi_dma_rx_done(void *arg)
+{
+	struct dw_spi *dws = arg;
+
+	if (test_and_clear_bit(RX_BUSY, &dws->dma_chan_busy) & BIT(TX_BUSY))
+		return;
+	dw_spi_xfer_done(dws);
+}
+
+static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws)
+{
+	struct dma_slave_config rxconf;
+	struct dma_async_tx_descriptor *rxdesc;
+
+	if (!dws->rx_dma)
+		return NULL;
+
 	rxconf.direction = DMA_DEV_TO_MEM;
 	rxconf.src_addr = dws->dma_addr;
 	rxconf.src_maxburst = LNW_DMA_MSIZE_16;
@@ -173,15 +184,56 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
 				1,
 				DMA_DEV_TO_MEM,
 				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-	rxdesc->callback = dw_spi_dma_done;
+	rxdesc->callback = dw_spi_dma_rx_done;
 	rxdesc->callback_param = dws;
 
-	/* rx must be started before tx due to spi instinct */
-	dmaengine_submit(rxdesc);
-	dma_async_issue_pending(dws->rxchan);
+	return rxdesc;
+}
 
-	dmaengine_submit(txdesc);
-	dma_async_issue_pending(dws->txchan);
+static void dw_spi_dma_setup(struct dw_spi *dws)
+{
+	u16 dma_ctrl = 0;
+
+	spi_enable_chip(dws, 0);
+
+	dw_writew(dws, DW_SPI_DMARDLR, 0xf);
+	dw_writew(dws, DW_SPI_DMATDLR, 0x10);
+
+	if (dws->tx_dma)
+		dma_ctrl |= SPI_DMA_TDMAE;
+	if (dws->rx_dma)
+		dma_ctrl |= SPI_DMA_RDMAE;
+	dw_writew(dws, DW_SPI_DMACR, dma_ctrl);
+
+	spi_enable_chip(dws, 1);
+}
+
+static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
+{
+	struct dma_async_tx_descriptor *txdesc, *rxdesc;
+
+	/* 1. setup DMA related registers */
+	if (cs_change)
+		dw_spi_dma_setup(dws);
+
+	/* 2. Prepare the TX dma transfer */
+	txdesc = dw_spi_dma_prepare_tx(dws);
+
+	/* 3. Prepare the RX dma transfer */
+	rxdesc = dw_spi_dma_prepare_rx(dws);
+
+	/* rx must be started before tx due to spi instinct */
+	if (rxdesc) {
+		set_bit(RX_BUSY, &dws->dma_chan_busy);
+		dmaengine_submit(rxdesc);
+		dma_async_issue_pending(dws->rxchan);
+	}
+
+	if (txdesc) {
+		set_bit(TX_BUSY, &dws->dma_chan_busy);
+		dmaengine_submit(txdesc);
+		dma_async_issue_pending(dws->txchan);
+	}
 
 	return 0;
 }

@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
+#include <linux/irqdomain.h>
 
 #include <trace/events/irq.h>
 
@@ -178,6 +179,7 @@ int irq_startup(struct irq_desc *desc, bool resend)
 	irq_state_clr_disabled(desc);
 	desc->depth = 0;
 
+	irq_domain_activate_irq(&desc->irq_data);
 	if (desc->irq_data.chip->irq_startup) {
 		ret = desc->irq_data.chip->irq_startup(&desc->irq_data);
 		irq_state_clr_masked(desc);
@@ -199,6 +201,7 @@ void irq_shutdown(struct irq_desc *desc)
 		desc->irq_data.chip->irq_disable(&desc->irq_data);
 	else
 		desc->irq_data.chip->irq_mask(&desc->irq_data);
+	irq_domain_deactivate_irq(&desc->irq_data);
 	irq_state_set_masked(desc);
 }
 
@@ -728,7 +731,30 @@ __irq_set_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 	if (!handle) {
 		handle = handle_bad_irq;
 	} else {
-		if (WARN_ON(desc->irq_data.chip == &no_irq_chip))
+		struct irq_data *irq_data = &desc->irq_data;
+#ifdef CONFIG_IRQ_DOMAIN_HIERARCHY
+		/*
+		 * With hierarchical domains we might run into a
+		 * situation where the outermost chip is not yet set
+		 * up, but the inner chips are there.  Instead of
+		 * bailing we install the handler, but obviously we
+		 * cannot enable/startup the interrupt at this point.
+		 */
+		while (irq_data) {
+			if (irq_data->chip != &no_irq_chip)
+				break;
+			/*
+			 * Bail out if the outer chip is not set up
+			 * and the interrrupt supposed to be started
+			 * right away.
+			 */
+			if (WARN_ON(is_chained))
+				goto out;
+			/* Try the parent */
+			irq_data = irq_data->parent_data;
+		}
+#endif
+		if (WARN_ON(!irq_data || irq_data->chip == &no_irq_chip))
 			goto out;
 	}
 
@@ -846,4 +872,106 @@ void irq_cpu_offline(void)
 
 		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
+}
+
+#ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
+/**
+ * irq_chip_ack_parent - Acknowledge the parent interrupt
+ * @data:	Pointer to interrupt specific data
+ */
+void irq_chip_ack_parent(struct irq_data *data)
+{
+	data = data->parent_data;
+	data->chip->irq_ack(data);
+}
+
+/**
+ * irq_chip_mask_parent - Mask the parent interrupt
+ * @data:	Pointer to interrupt specific data
+ */
+void irq_chip_mask_parent(struct irq_data *data)
+{
+	data = data->parent_data;
+	data->chip->irq_mask(data);
+}
+
+/**
+ * irq_chip_unmask_parent - Unmask the parent interrupt
+ * @data:	Pointer to interrupt specific data
+ */
+void irq_chip_unmask_parent(struct irq_data *data)
+{
+	data = data->parent_data;
+	data->chip->irq_unmask(data);
+}
+
+/**
+ * irq_chip_eoi_parent - Invoke EOI on the parent interrupt
+ * @data:	Pointer to interrupt specific data
+ */
+void irq_chip_eoi_parent(struct irq_data *data)
+{
+	data = data->parent_data;
+	data->chip->irq_eoi(data);
+}
+
+/**
+ * irq_chip_set_affinity_parent - Set affinity on the parent interrupt
+ * @data:	Pointer to interrupt specific data
+ * @dest:	The affinity mask to set
+ * @force:	Flag to enforce setting (disable online checks)
+ *
+ * Conditinal, as the underlying parent chip might not implement it.
+ */
+int irq_chip_set_affinity_parent(struct irq_data *data,
+				 const struct cpumask *dest, bool force)
+{
+	data = data->parent_data;
+	if (data->chip->irq_set_affinity)
+		return data->chip->irq_set_affinity(data, dest, force);
+
+	return -ENOSYS;
+}
+
+/**
+ * irq_chip_retrigger_hierarchy - Retrigger an interrupt in hardware
+ * @data:	Pointer to interrupt specific data
+ *
+ * Iterate through the domain hierarchy of the interrupt and check
+ * whether a hw retrigger function exists. If yes, invoke it.
+ */
+int irq_chip_retrigger_hierarchy(struct irq_data *data)
+{
+	for (data = data->parent_data; data; data = data->parent_data)
+		if (data->chip && data->chip->irq_retrigger)
+			return data->chip->irq_retrigger(data);
+
+	return -ENOSYS;
+}
+#endif
+
+/**
+ * irq_chip_compose_msi_msg - Componse msi message for a irq chip
+ * @data:	Pointer to interrupt specific data
+ * @msg:	Pointer to the MSI message
+ *
+ * For hierarchical domains we find the first chip in the hierarchy
+ * which implements the irq_compose_msi_msg callback. For non
+ * hierarchical we use the top level chip.
+ */
+int irq_chip_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
+{
+	struct irq_data *pos = NULL;
+
+#ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
+	for (; data; data = data->parent_data)
+#endif
+		if (data->chip && data->chip->irq_compose_msi_msg)
+			pos = data;
+	if (!pos)
+		return -ENOSYS;
+
+	pos->chip->irq_compose_msi_msg(pos, msg);
+
+	return 0;
 }

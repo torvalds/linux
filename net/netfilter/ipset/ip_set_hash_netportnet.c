@@ -53,6 +53,7 @@ struct hash_netportnet4_elem {
 		u8 cidr[2];
 		u16 ccmp;
 	};
+	u16 padding;
 	u8 nomatch:1;
 	u8 proto;
 };
@@ -324,6 +325,7 @@ struct hash_netportnet6_elem {
 		u8 cidr[2];
 		u16 ccmp;
 	};
+	u16 padding;
 	u8 nomatch:1;
 	u8 proto;
 };

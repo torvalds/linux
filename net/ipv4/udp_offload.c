@@ -29,7 +29,7 @@ static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 	netdev_features_t features,
 	struct sk_buff *(*gso_inner_segment)(struct sk_buff *skb,
 					     netdev_features_t features),
-	__be16 new_protocol)
+	__be16 new_protocol, bool is_ipv6)
 {
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
 	u16 mac_offset = skb->mac_header;
@@ -39,7 +39,10 @@ static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 	netdev_features_t enc_features;
 	int udp_offset, outer_hlen;
 	unsigned int oldlen;
-	bool need_csum;
+	bool need_csum = !!(skb_shinfo(skb)->gso_type &
+			    SKB_GSO_UDP_TUNNEL_CSUM);
+	bool remcsum = !!(skb_shinfo(skb)->gso_type & SKB_GSO_TUNNEL_REMCSUM);
+	bool offload_csum = false, dont_encap = (need_csum || remcsum);
 
 	oldlen = (u16)~skb->len;
 
@@ -52,10 +55,13 @@ static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 	skb_set_network_header(skb, skb_inner_network_offset(skb));
 	skb->mac_len = skb_inner_network_offset(skb);
 	skb->protocol = new_protocol;
+	skb->encap_hdr_csum = need_csum;
+	skb->remcsum_offload = remcsum;
 
-	need_csum = !!(skb_shinfo(skb)->gso_type & SKB_GSO_UDP_TUNNEL_CSUM);
-	if (need_csum)
-		skb->encap_hdr_csum = 1;
+	/* Try to offload checksum if possible */
+	offload_csum = !!(need_csum &&
+			  (skb->dev->features &
+			   (is_ipv6 ? NETIF_F_V6_CSUM : NETIF_F_V4_CSUM)));
 
 	/* segment inner packet. */
 	enc_features = skb->dev->hw_enc_features & features;
@@ -72,11 +78,21 @@ static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 	do {
 		struct udphdr *uh;
 		int len;
+		__be32 delta;
 
-		skb_reset_inner_headers(skb);
-		skb->encapsulation = 1;
+		if (dont_encap) {
+			skb->encapsulation = 0;
+			skb->ip_summed = CHECKSUM_NONE;
+		} else {
+			/* Only set up inner headers if we might be offloading
+			 * inner checksum.
+			 */
+			skb_reset_inner_headers(skb);
+			skb->encapsulation = 1;
+		}
 
 		skb->mac_len = mac_len;
+		skb->protocol = protocol;
 
 		skb_push(skb, outer_hlen);
 		skb_reset_mac_header(skb);
@@ -86,19 +102,36 @@ static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 		uh = udp_hdr(skb);
 		uh->len = htons(len);
 
-		if (need_csum) {
-			__be32 delta = htonl(oldlen + len);
+		if (!need_csum)
+			continue;
 
-			uh->check = ~csum_fold((__force __wsum)
-					       ((__force u32)uh->check +
-						(__force u32)delta));
+		delta = htonl(oldlen + len);
+
+		uh->check = ~csum_fold((__force __wsum)
+				       ((__force u32)uh->check +
+					(__force u32)delta));
+		if (offload_csum) {
+			skb->ip_summed = CHECKSUM_PARTIAL;
+			skb->csum_start = skb_transport_header(skb) - skb->head;
+			skb->csum_offset = offsetof(struct udphdr, check);
+		} else if (remcsum) {
+			/* Need to calculate checksum from scratch,
+			 * inner checksums are never when doing
+			 * remote_checksum_offload.
+			 */
+
+			skb->csum = skb_checksum(skb, udp_offset,
+						 skb->len - udp_offset,
+						 0);
+			uh->check = csum_fold(skb->csum);
+			if (uh->check == 0)
+				uh->check = CSUM_MANGLED_0;
+		} else {
 			uh->check = gso_make_checksum(skb, ~uh->check);
 
 			if (uh->check == 0)
 				uh->check = CSUM_MANGLED_0;
 		}
-
-		skb->protocol = protocol;
 	} while ((skb = skb->next));
 out:
 	return segs;
@@ -134,7 +167,7 @@ struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb,
 	}
 
 	segs = __skb_udp_tunnel_segment(skb, features, gso_inner_segment,
-					protocol);
+					protocol, is_ipv6);
 
 out_unlock:
 	rcu_read_unlock();
@@ -172,9 +205,9 @@ static struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
 		if (unlikely(type & ~(SKB_GSO_UDP | SKB_GSO_DODGY |
 				      SKB_GSO_UDP_TUNNEL |
 				      SKB_GSO_UDP_TUNNEL_CSUM |
+				      SKB_GSO_TUNNEL_REMCSUM |
 				      SKB_GSO_IPIP |
-				      SKB_GSO_GRE | SKB_GSO_GRE_CSUM |
-				      SKB_GSO_MPLS) ||
+				      SKB_GSO_GRE | SKB_GSO_GRE_CSUM) ||
 			     !(type & (SKB_GSO_UDP))))
 			goto out;
 

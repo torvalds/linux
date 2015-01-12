@@ -193,11 +193,7 @@ static int lpc_sch_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		return -ENODEV;
 	}
 
-	ret = mfd_add_devices(&dev->dev, 0, lpc_sch_cells, cells, NULL, 0, NULL);
-	if (ret)
-		mfd_remove_devices(&dev->dev);
-
-	return ret;
+	return mfd_add_devices(&dev->dev, 0, lpc_sch_cells, cells, NULL, 0, NULL);
 }
 
 static void lpc_sch_remove(struct pci_dev *dev)

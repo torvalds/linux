@@ -475,7 +475,6 @@ static struct platform_driver altera_jtaguart_platform_driver = {
 	.remove	= altera_jtaguart_remove,
 	.driver	= {
 		.name		= DRV_NAME,
-		.owner		= THIS_MODULE,
 		.of_match_table	= of_match_ptr(altera_jtaguart_match),
 	},
 };

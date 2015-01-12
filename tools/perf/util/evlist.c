@@ -8,6 +8,7 @@
  */
 #include "util.h"
 #include <api/fs/debugfs.h>
+#include <api/fs/fs.h>
 #include <poll.h>
 #include "cpumap.h"
 #include "thread_map.h"
@@ -24,6 +25,7 @@
 
 #include <linux/bitops.h>
 #include <linux/hash.h>
+#include <linux/log2.h>
 
 static void perf_evlist__mmap_put(struct perf_evlist *evlist, int idx);
 static void __perf_evlist__munmap(struct perf_evlist *evlist, int idx);
@@ -413,7 +415,7 @@ int perf_evlist__alloc_pollfd(struct perf_evlist *evlist)
 	int nfds = 0;
 	struct perf_evsel *evsel;
 
-	list_for_each_entry(evsel, &evlist->entries, node) {
+	evlist__for_each(evlist, evsel) {
 		if (evsel->system_wide)
 			nfds += nr_cpus;
 		else
@@ -525,6 +527,22 @@ static int perf_evlist__id_add_fd(struct perf_evlist *evlist,
  add:
 	perf_evlist__id_add(evlist, evsel, cpu, thread, id);
 	return 0;
+}
+
+static void perf_evlist__set_sid_idx(struct perf_evlist *evlist,
+				     struct perf_evsel *evsel, int idx, int cpu,
+				     int thread)
+{
+	struct perf_sample_id *sid = SID(evsel, cpu, thread);
+	sid->idx = idx;
+	if (evlist->cpus && cpu >= 0)
+		sid->cpu = evlist->cpus->map[cpu];
+	else
+		sid->cpu = -1;
+	if (!evsel->system_wide && evlist->threads && thread >= 0)
+		sid->tid = evlist->threads->map[thread];
+	else
+		sid->tid = -1;
 }
 
 struct perf_sample_id *perf_evlist__id2sid(struct perf_evlist *evlist, u64 id)
@@ -800,14 +818,26 @@ static int perf_evlist__mmap_per_evsel(struct perf_evlist *evlist, int idx,
 			perf_evlist__mmap_get(evlist, idx);
 		}
 
-		if (__perf_evlist__add_pollfd(evlist, fd, idx) < 0) {
+		/*
+		 * The system_wide flag causes a selected event to be opened
+		 * always without a pid.  Consequently it will never get a
+		 * POLLHUP, but it is used for tracking in combination with
+		 * other events, so it should not need to be polled anyway.
+		 * Therefore don't add it for polling.
+		 */
+		if (!evsel->system_wide &&
+		    __perf_evlist__add_pollfd(evlist, fd, idx) < 0) {
 			perf_evlist__mmap_put(evlist, idx);
 			return -1;
 		}
 
-		if ((evsel->attr.read_format & PERF_FORMAT_ID) &&
-		    perf_evlist__id_add_fd(evlist, evsel, cpu, thread, fd) < 0)
-			return -1;
+		if (evsel->attr.read_format & PERF_FORMAT_ID) {
+			if (perf_evlist__id_add_fd(evlist, evsel, cpu, thread,
+						   fd) < 0)
+				return -1;
+			perf_evlist__set_sid_idx(evlist, evsel, idx, cpu,
+						 thread);
+		}
 	}
 
 	return 0;
@@ -864,10 +894,24 @@ out_unmap:
 
 static size_t perf_evlist__mmap_size(unsigned long pages)
 {
-	/* 512 kiB: default amount of unprivileged mlocked memory */
-	if (pages == UINT_MAX)
-		pages = (512 * 1024) / page_size;
-	else if (!is_power_of_2(pages))
+	if (pages == UINT_MAX) {
+		int max;
+
+		if (sysctl__read_int("kernel/perf_event_mlock_kb", &max) < 0) {
+			/*
+			 * Pick a once upon a time good value, i.e. things look
+			 * strange since we can't read a sysctl value, but lets not
+			 * die yet...
+			 */
+			max = 512;
+		} else {
+			max -= (page_size / 1024);
+		}
+
+		pages = (max * 1024) / page_size;
+		if (!is_power_of_2(pages))
+			pages = rounddown_pow_of_two(pages);
+	} else if (!is_power_of_2(pages))
 		return 0;
 
 	return (pages + 1) * page_size;
@@ -904,7 +948,7 @@ static long parse_pages_arg(const char *str, unsigned long min,
 		/* leave number of pages at 0 */
 	} else if (!is_power_of_2(pages)) {
 		/* round pages up to next power of 2 */
-		pages = next_pow2_l(pages);
+		pages = roundup_pow_of_two(pages);
 		if (!pages)
 			return -EINVAL;
 		pr_info("rounding mmap pages size to %lu bytes (%lu pages)\n",
@@ -1446,6 +1490,37 @@ int perf_evlist__strerror_open(struct perf_evlist *evlist __maybe_unused,
 		printed += scnprintf(buf + printed, size - printed,
 				    "Hint:\tTry: 'sudo sh -c \"echo -1 > /proc/sys/kernel/perf_event_paranoid\"'\n"
 				    "Hint:\tThe current value is %d.", value);
+		break;
+	default:
+		scnprintf(buf, size, "%s", emsg);
+		break;
+	}
+
+	return 0;
+}
+
+int perf_evlist__strerror_mmap(struct perf_evlist *evlist, int err, char *buf, size_t size)
+{
+	char sbuf[STRERR_BUFSIZE], *emsg = strerror_r(err, sbuf, sizeof(sbuf));
+	int pages_attempted = evlist->mmap_len / 1024, pages_max_per_user, printed = 0;
+
+	switch (err) {
+	case EPERM:
+		sysctl__read_int("kernel/perf_event_mlock_kb", &pages_max_per_user);
+		printed += scnprintf(buf + printed, size - printed,
+				     "Error:\t%s.\n"
+				     "Hint:\tCheck /proc/sys/kernel/perf_event_mlock_kb (%d kB) setting.\n"
+				     "Hint:\tTried using %zd kB.\n",
+				     emsg, pages_max_per_user, pages_attempted);
+
+		if (pages_attempted >= pages_max_per_user) {
+			printed += scnprintf(buf + printed, size - printed,
+					     "Hint:\tTry 'sudo sh -c \"echo %d > /proc/sys/kernel/perf_event_mlock_kb\"', or\n",
+					     pages_max_per_user + pages_attempted);
+		}
+
+		printed += scnprintf(buf + printed, size - printed,
+				     "Hint:\tTry using a smaller -m/--mmap-pages value.");
 		break;
 	default:
 		scnprintf(buf, size, "%s", emsg);

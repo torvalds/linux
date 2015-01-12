@@ -95,7 +95,22 @@
 				compatible = "marvell,aurora-outer-cache";
 				reg = <0x08000 0x1000>;
 				cache-id-part = <0x100>;
+				cache-unified;
 				wt-override;
+			};
+
+			/*
+			 * Default SPI pinctrl setting, can be overwritten on
+			 * board level if a different configuration is used.
+			 */
+			spi0: spi@10600 {
+				pinctrl-0 = <&spi0_pins1>;
+				pinctrl-names = "default";
+			};
+
+			spi1: spi@10680 {
+				pinctrl-0 = <&spi1_pins>;
+				pinctrl-names = "default";
 			};
 
 			i2c0: i2c@11000 {
@@ -104,72 +119,6 @@
 
 			i2c1: i2c@11100 {
 				reg = <0x11100 0x20>;
-			};
-
-			system-controller@18200 {
-				compatible = "marvell,armada-370-xp-system-controller";
-				reg = <0x18200 0x100>;
-			};
-
-			pinctrl {
-				compatible = "marvell,mv88f6710-pinctrl";
-				reg = <0x18000 0x38>;
-
-				sdio_pins1: sdio-pins1 {
-					marvell,pins = "mpp9",  "mpp11", "mpp12",
-							"mpp13", "mpp14", "mpp15";
-					marvell,function = "sd0";
-				};
-
-				sdio_pins2: sdio-pins2 {
-					marvell,pins = "mpp47", "mpp48", "mpp49",
-							"mpp50", "mpp51", "mpp52";
-					marvell,function = "sd0";
-				};
-
-				sdio_pins3: sdio-pins3 {
-					marvell,pins = "mpp48", "mpp49", "mpp50",
-							"mpp51", "mpp52", "mpp53";
-					marvell,function = "sd0";
-				};
-
-				i2c0_pins: i2c0-pins {
-					marvell,pins = "mpp2", "mpp3";
-					marvell,function = "i2c0";
-				};
-
-				i2s_pins1: i2s-pins1 {
-					marvell,pins = "mpp5", "mpp6", "mpp7",
-						       "mpp8", "mpp9", "mpp10",
-						       "mpp12", "mpp13";
-					marvell,function = "audio";
-				};
-
-				i2s_pins2: i2s-pins2 {
-					marvell,pins = "mpp49", "mpp47", "mpp50",
-						       "mpp59", "mpp57", "mpp61",
-						       "mpp62", "mpp60", "mpp58";
-					marvell,function = "audio";
-				};
-
-				mdio_pins: mdio-pins {
-					marvell,pins = "mpp17", "mpp18";
-					marvell,function = "ge";
-				};
-
-				ge0_rgmii_pins: ge0-rgmii-pins {
-					marvell,pins = "mpp5", "mpp6", "mpp7", "mpp8",
-						       "mpp9", "mpp10", "mpp11", "mpp12",
-						       "mpp13", "mpp14", "mpp15", "mpp16";
-					marvell,function = "ge0";
-				};
-
-				ge1_rgmii_pins: ge1-rgmii-pins {
-					marvell,pins = "mpp19", "mpp20", "mpp21", "mpp22",
-						       "mpp23", "mpp24", "mpp25", "mpp26",
-						       "mpp27", "mpp28", "mpp29", "mpp30";
-					marvell,function = "ge1";
-				};
 			};
 
 			gpio0: gpio@18100 {
@@ -203,6 +152,26 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				interrupts = <91>;
+			};
+
+			/*
+			 * Default UART pinctrl setting without RTS/CTS, can
+			 * be overwritten on board level if a different
+			 * configuration is used.
+			 */
+			uart0: serial@12000 {
+				pinctrl-0 = <&uart0_pins>;
+				pinctrl-names = "default";
+			};
+
+			uart1: serial@12100 {
+				pinctrl-0 = <&uart1_pins>;
+				pinctrl-names = "default";
+			};
+
+			system-controller@18200 {
+				compatible = "marvell,armada-370-xp-system-controller";
+				reg = <0x18200 0x100>;
 			};
 
 			gateclk: clock-gating-control@18220 {
@@ -249,6 +218,7 @@
 			};
 
 			audio_controller: audio-controller@30000 {
+				#sound-dai-cells = <1>;
 				compatible = "marvell,armada370-audio";
 				reg = <0x30000 0x4000>;
 				interrupts = <93>;
@@ -303,5 +273,93 @@
 				};
 			};
 		};
+	};
+};
+
+&pinctrl {
+	compatible = "marvell,mv88f6710-pinctrl";
+
+	spi0_pins1: spi0-pins1 {
+		marvell,pins = "mpp33", "mpp34",
+			       "mpp35", "mpp36";
+		marvell,function = "spi0";
+	};
+
+	spi0_pins2: spi0_pins2 {
+		marvell,pins = "mpp32", "mpp63",
+			       "mpp64", "mpp65";
+		marvell,function = "spi0";
+	};
+
+	spi1_pins: spi1-pins {
+		marvell,pins = "mpp49", "mpp50",
+			       "mpp51", "mpp52";
+		marvell,function = "spi1";
+	};
+
+	uart0_pins: uart0-pins {
+		marvell,pins = "mpp0", "mpp1";
+		marvell,function = "uart0";
+	};
+
+	uart1_pins: uart1-pins {
+		marvell,pins = "mpp41", "mpp42";
+		marvell,function = "uart1";
+	};
+
+	sdio_pins1: sdio-pins1 {
+		marvell,pins = "mpp9",  "mpp11", "mpp12",
+				"mpp13", "mpp14", "mpp15";
+		marvell,function = "sd0";
+	};
+
+	sdio_pins2: sdio-pins2 {
+		marvell,pins = "mpp47", "mpp48", "mpp49",
+				"mpp50", "mpp51", "mpp52";
+		marvell,function = "sd0";
+	};
+
+	sdio_pins3: sdio-pins3 {
+		marvell,pins = "mpp48", "mpp49", "mpp50",
+				"mpp51", "mpp52", "mpp53";
+		marvell,function = "sd0";
+	};
+
+	i2c0_pins: i2c0-pins {
+		marvell,pins = "mpp2", "mpp3";
+		marvell,function = "i2c0";
+	};
+
+	i2s_pins1: i2s-pins1 {
+		marvell,pins = "mpp5", "mpp6", "mpp7",
+			       "mpp8", "mpp9", "mpp10",
+			       "mpp12", "mpp13";
+		marvell,function = "audio";
+	};
+
+	i2s_pins2: i2s-pins2 {
+		marvell,pins = "mpp49", "mpp47", "mpp50",
+			       "mpp59", "mpp57", "mpp61",
+			       "mpp62", "mpp60", "mpp58";
+		marvell,function = "audio";
+	};
+
+	mdio_pins: mdio-pins {
+		marvell,pins = "mpp17", "mpp18";
+		marvell,function = "ge";
+	};
+
+	ge0_rgmii_pins: ge0-rgmii-pins {
+		marvell,pins = "mpp5", "mpp6", "mpp7", "mpp8",
+			       "mpp9", "mpp10", "mpp11", "mpp12",
+			       "mpp13", "mpp14", "mpp15", "mpp16";
+		marvell,function = "ge0";
+	};
+
+	ge1_rgmii_pins: ge1-rgmii-pins {
+		marvell,pins = "mpp19", "mpp20", "mpp21", "mpp22",
+			       "mpp23", "mpp24", "mpp25", "mpp26",
+			       "mpp27", "mpp28", "mpp29", "mpp30";
+		marvell,function = "ge1";
 	};
 };

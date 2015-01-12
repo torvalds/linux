@@ -51,12 +51,11 @@ static int st_magn_i2c_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	mdata = iio_priv(indio_dev);
-	mdata->dev = &client->dev;
 	st_sensors_of_i2c_probe(client, st_magn_of_match);
 
 	st_sensors_i2c_configure(indio_dev, client, mdata);
 
-	err = st_magn_common_probe(indio_dev, NULL);
+	err = st_magn_common_probe(indio_dev);
 	if (err < 0)
 		return err;
 

@@ -130,7 +130,7 @@ static int __init setup_maxmem(char *str)
 
 	maxmem_pfn = (maxmem >> HPAGE_SHIFT) << (HPAGE_SHIFT - PAGE_SHIFT);
 	pr_info("Forcing RAM used to no more than %dMB\n",
-	       maxmem_pfn >> (20 - PAGE_SHIFT));
+		maxmem_pfn >> (20 - PAGE_SHIFT));
 	return 0;
 }
 early_param("maxmem", setup_maxmem);
@@ -149,7 +149,7 @@ static int __init setup_maxnodemem(char *str)
 	maxnodemem_pfn[node] = (maxnodemem >> HPAGE_SHIFT) <<
 		(HPAGE_SHIFT - PAGE_SHIFT);
 	pr_info("Forcing RAM used on node %ld to no more than %dMB\n",
-	       node, maxnodemem_pfn[node] >> (20 - PAGE_SHIFT));
+		node, maxnodemem_pfn[node] >> (20 - PAGE_SHIFT));
 	return 0;
 }
 early_param("maxnodemem", setup_maxnodemem);
@@ -417,8 +417,7 @@ static void __init setup_memory(void)
 			range.start = (start_pa + HPAGE_SIZE - 1) & HPAGE_MASK;
 			range.size -= (range.start - start_pa);
 			range.size &= HPAGE_MASK;
-			pr_err("Range not hugepage-aligned: %#llx..%#llx:"
-			       " now %#llx-%#llx\n",
+			pr_err("Range not hugepage-aligned: %#llx..%#llx: now %#llx-%#llx\n",
 			       start_pa, start_pa + orig_size,
 			       range.start, range.start + range.size);
 		}
@@ -437,8 +436,8 @@ static void __init setup_memory(void)
 		if (PFN_DOWN(range.size) > maxnodemem_pfn[i]) {
 			int max_size = maxnodemem_pfn[i];
 			if (max_size > 0) {
-				pr_err("Maxnodemem reduced node %d to"
-				       " %d pages\n", i, max_size);
+				pr_err("Maxnodemem reduced node %d to %d pages\n",
+				       i, max_size);
 				range.size = PFN_PHYS(max_size);
 			} else {
 				pr_err("Maxnodemem disabled node %d\n", i);
@@ -490,8 +489,8 @@ static void __init setup_memory(void)
 				NR_CPUS * (PFN_UP(per_cpu_size) >> PAGE_SHIFT);
 			if (end < pci_reserve_end_pfn + percpu_pages) {
 				end = pci_reserve_start_pfn;
-				pr_err("PCI mapping region reduced node %d to"
-				       " %ld pages\n", i, end - start);
+				pr_err("PCI mapping region reduced node %d to %ld pages\n",
+				       i, end - start);
 			}
 		}
 #endif
@@ -534,11 +533,10 @@ static void __init setup_memory(void)
 			}
 		}
 		physpages -= dropped_pages;
-		pr_warning("Only using %ldMB memory;"
-		       " ignoring %ldMB.\n",
-		       physpages >> (20 - PAGE_SHIFT),
-		       dropped_pages >> (20 - PAGE_SHIFT));
-		pr_warning("Consider using a larger page size.\n");
+		pr_warn("Only using %ldMB memory - ignoring %ldMB\n",
+			physpages >> (20 - PAGE_SHIFT),
+			dropped_pages >> (20 - PAGE_SHIFT));
+		pr_warn("Consider using a larger page size\n");
 	}
 #endif
 
@@ -556,25 +554,23 @@ static void __init setup_memory(void)
 		MAXMEM_PFN : mappable_physpages;
 	highmem_pages = (long) (physpages - lowmem_pages);
 
-	pr_notice("%ldMB HIGHMEM available.\n",
-	       pages_to_mb(highmem_pages > 0 ? highmem_pages : 0));
-	pr_notice("%ldMB LOWMEM available.\n",
-			pages_to_mb(lowmem_pages));
+	pr_notice("%ldMB HIGHMEM available\n",
+		  pages_to_mb(highmem_pages > 0 ? highmem_pages : 0));
+	pr_notice("%ldMB LOWMEM available\n", pages_to_mb(lowmem_pages));
 #else
 	/* Set max_low_pfn based on what node 0 can directly address. */
 	max_low_pfn = node_end_pfn[0];
 
 #ifndef __tilegx__
 	if (node_end_pfn[0] > MAXMEM_PFN) {
-		pr_warning("Only using %ldMB LOWMEM.\n",
-		       MAXMEM>>20);
-		pr_warning("Use a HIGHMEM enabled kernel.\n");
+		pr_warn("Only using %ldMB LOWMEM\n", MAXMEM >> 20);
+		pr_warn("Use a HIGHMEM enabled kernel\n");
 		max_low_pfn = MAXMEM_PFN;
 		max_pfn = MAXMEM_PFN;
 		node_end_pfn[0] = MAXMEM_PFN;
 	} else {
-		pr_notice("%ldMB memory available.\n",
-		       pages_to_mb(node_end_pfn[0]));
+		pr_notice("%ldMB memory available\n",
+			  pages_to_mb(node_end_pfn[0]));
 	}
 	for (i = 1; i < MAX_NUMNODES; ++i) {
 		node_start_pfn[i] = 0;
@@ -589,8 +585,7 @@ static void __init setup_memory(void)
 		if (pages)
 			high_memory = pfn_to_kaddr(node_end_pfn[i]);
 	}
-	pr_notice("%ldMB memory available.\n",
-	       pages_to_mb(lowmem_pages));
+	pr_notice("%ldMB memory available\n", pages_to_mb(lowmem_pages));
 #endif
 #endif
 }
@@ -1112,8 +1107,8 @@ static void __init load_hv_initrd(void)
 	fd = hv_fs_findfile((HV_VirtAddr) initramfs_file);
 	if (fd == HV_ENOENT) {
 		if (set_initramfs_file) {
-			pr_warning("No such hvfs initramfs file '%s'\n",
-				   initramfs_file);
+			pr_warn("No such hvfs initramfs file '%s'\n",
+				initramfs_file);
 			return;
 		} else {
 			/* Try old backwards-compatible name. */
@@ -1126,8 +1121,8 @@ static void __init load_hv_initrd(void)
 	stat = hv_fs_fstat(fd);
 	BUG_ON(stat.size < 0);
 	if (stat.flags & HV_FS_ISDIR) {
-		pr_warning("Ignoring hvfs file '%s': it's a directory.\n",
-			   initramfs_file);
+		pr_warn("Ignoring hvfs file '%s': it's a directory\n",
+			initramfs_file);
 		return;
 	}
 	initrd = alloc_bootmem_pages(stat.size);
@@ -1185,9 +1180,8 @@ static void __init validate_hv(void)
 	HV_Topology topology = hv_inquire_topology();
 	BUG_ON(topology.coord.x != 0 || topology.coord.y != 0);
 	if (topology.width != 1 || topology.height != 1) {
-		pr_warning("Warning: booting UP kernel on %dx%d grid;"
-			   " will ignore all but first tile.\n",
-			   topology.width, topology.height);
+		pr_warn("Warning: booting UP kernel on %dx%d grid; will ignore all but first tile\n",
+			topology.width, topology.height);
 	}
 #endif
 
@@ -1208,9 +1202,8 @@ static void __init validate_hv(void)
 	 * We use a struct cpumask for this, so it must be big enough.
 	 */
 	if ((smp_height * smp_width) > nr_cpu_ids)
-		early_panic("Hypervisor %d x %d grid too big for Linux"
-			    " NR_CPUS %d\n", smp_height, smp_width,
-			    nr_cpu_ids);
+		early_panic("Hypervisor %d x %d grid too big for Linux NR_CPUS %d\n",
+			    smp_height, smp_width, nr_cpu_ids);
 #endif
 
 	/*
@@ -1265,10 +1258,9 @@ static void __init validate_va(void)
 
 	/* Kernel PCs must have their high bit set; see intvec.S. */
 	if ((long)VMALLOC_START >= 0)
-		early_panic(
-			"Linux VMALLOC region below the 2GB line (%#lx)!\n"
-			"Reconfigure the kernel with smaller VMALLOC_RESERVE.\n",
-			VMALLOC_START);
+		early_panic("Linux VMALLOC region below the 2GB line (%#lx)!\n"
+			    "Reconfigure the kernel with smaller VMALLOC_RESERVE\n",
+			    VMALLOC_START);
 #endif
 }
 
@@ -1395,7 +1387,7 @@ static void __init setup_cpu_maps(void)
 
 static int __init dataplane(char *str)
 {
-	pr_warning("WARNING: dataplane support disabled in this kernel\n");
+	pr_warn("WARNING: dataplane support disabled in this kernel\n");
 	return 0;
 }
 
@@ -1413,8 +1405,8 @@ void __init setup_arch(char **cmdline_p)
 	len = hv_get_command_line((HV_VirtAddr) boot_command_line,
 				  COMMAND_LINE_SIZE);
 	if (boot_command_line[0])
-		pr_warning("WARNING: ignoring dynamic command line \"%s\"\n",
-			   boot_command_line);
+		pr_warn("WARNING: ignoring dynamic command line \"%s\"\n",
+			boot_command_line);
 	strlcpy(boot_command_line, builtin_cmdline, COMMAND_LINE_SIZE);
 #else
 	char *hv_cmdline;
@@ -1540,8 +1532,7 @@ static void __init pcpu_fc_populate_pte(unsigned long addr)
 
 	BUG_ON(pgd_addr_invalid(addr));
 	if (addr < VMALLOC_START || addr >= VMALLOC_END)
-		panic("PCPU addr %#lx outside vmalloc range %#lx..%#lx;"
-		      " try increasing CONFIG_VMALLOC_RESERVE\n",
+		panic("PCPU addr %#lx outside vmalloc range %#lx..%#lx; try increasing CONFIG_VMALLOC_RESERVE\n",
 		      addr, VMALLOC_START, VMALLOC_END);
 
 	pgd = swapper_pg_dir + pgd_index(addr);
@@ -1596,8 +1587,8 @@ void __init setup_per_cpu_areas(void)
 			lowmem_va = (unsigned long)pfn_to_kaddr(pfn);
 			ptep = virt_to_kpte(lowmem_va);
 			if (pte_huge(*ptep)) {
-				printk(KERN_DEBUG "early shatter of huge page"
-				       " at %#lx\n", lowmem_va);
+				printk(KERN_DEBUG "early shatter of huge page at %#lx\n",
+				       lowmem_va);
 				shatter_pmd((pmd_t *)ptep);
 				ptep = virt_to_kpte(lowmem_va);
 				BUG_ON(pte_huge(*ptep));

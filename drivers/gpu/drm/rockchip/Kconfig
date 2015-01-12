@@ -1,0 +1,17 @@
+config DRM_ROCKCHIP
+	tristate "DRM Support for Rockchip"
+	depends on DRM && ROCKCHIP_IOMMU
+	select DRM_KMS_HELPER
+	select DRM_KMS_FB_HELPER
+	select DRM_PANEL
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select VT_HW_CONSOLE_BINDING if FRAMEBUFFER_CONSOLE
+	select VIDEOMODE_HELPERS
+	help
+	  Choose this option if you have a Rockchip soc chipset.
+	  This driver provides kernel mode setting and buffer
+	  management to userspace. This driver does not provide
+	  2D or 3D acceleration; acceleration is performed by other
+	  IP found on the SoC.

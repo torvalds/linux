@@ -11,7 +11,6 @@
  * (at your option) any later version.
  */
 
-#include <linux/bootmem.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -354,6 +353,9 @@ static int ioda_eeh_get_phb_state(struct eeh_pe *pe)
 	} else if (!(pe->state & EEH_PE_ISOLATED)) {
 		eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
 		ioda_eeh_phb_diag(pe);
+
+		if (eeh_has_flag(EEH_EARLY_DUMP_LOG))
+			pnv_pci_dump_phb_diag_data(pe->phb, pe->data);
 	}
 
 	return result;
@@ -373,7 +375,7 @@ static int ioda_eeh_get_pe_state(struct eeh_pe *pe)
 	 * moving forward, we have to return operational
 	 * state during PE reset.
 	 */
-	if (pe->state & EEH_PE_CFG_BLOCKED) {
+	if (pe->state & EEH_PE_RESET) {
 		result = (EEH_STATE_MMIO_ACTIVE  |
 			  EEH_STATE_DMA_ACTIVE   |
 			  EEH_STATE_MMIO_ENABLED |
@@ -452,6 +454,9 @@ static int ioda_eeh_get_pe_state(struct eeh_pe *pe)
 
 		eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
 		ioda_eeh_phb_diag(pe);
+
+		if (eeh_has_flag(EEH_EARLY_DUMP_LOG))
+			pnv_pci_dump_phb_diag_data(pe->phb, pe->data);
 	}
 
 	return result;
@@ -731,7 +736,8 @@ static int ioda_eeh_reset(struct eeh_pe *pe, int option)
 static int ioda_eeh_get_log(struct eeh_pe *pe, int severity,
 			    char *drv_log, unsigned long len)
 {
-	pnv_pci_dump_phb_diag_data(pe->phb, pe->data);
+	if (!eeh_has_flag(EEH_EARLY_DUMP_LOG))
+		pnv_pci_dump_phb_diag_data(pe->phb, pe->data);
 
 	return 0;
 }
@@ -1087,6 +1093,10 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 		    !((*pe)->state & EEH_PE_ISOLATED)) {
 			eeh_pe_state_mark(*pe, EEH_PE_ISOLATED);
 			ioda_eeh_phb_diag(*pe);
+
+			if (eeh_has_flag(EEH_EARLY_DUMP_LOG))
+				pnv_pci_dump_phb_diag_data((*pe)->phb,
+							   (*pe)->data);
 		}
 
 		/*

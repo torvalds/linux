@@ -127,6 +127,14 @@ config AT91_ADC
 	help
 	  Say yes here to build support for Atmel AT91 ADC.
 
+config AXP288_ADC
+	tristate "X-Powers AXP288 ADC driver"
+	depends on MFD_AXP20X
+	help
+	  Say yes here to have support for X-Powers power management IC (PMIC) ADC
+	  device. Depending on platform configuration, this general purpose ADC can
+	  be used for sampling sensors such as thermal resistors.
+
 config EXYNOS_ADC
 	tristate "Exynos ADC driver support"
 	depends on ARCH_EXYNOS || ARCH_S3C24XX || ARCH_S3C64XX || (OF && COMPILE_TEST)
@@ -205,6 +213,20 @@ config NAU7802
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called nau7802.
+
+config QCOM_SPMI_IADC
+	tristate "Qualcomm SPMI PMIC current ADC"
+	depends on SPMI
+	select REGMAP_SPMI
+	help
+	  This is the IIO Current ADC driver for Qualcomm QPNP IADC Chip.
+
+	  The driver supports single mode operation to read from one of two
+	  channels (external or internal). Hardware have additional
+	  channels internally used for gain and offset calibration.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called qcom-spmi-iadc.
 
 config ROCKCHIP_SARADC
 	tristate "Rockchip SARADC driver"

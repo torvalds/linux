@@ -122,7 +122,6 @@ struct pcl816_private {
 	int next_dma_buf;	/*  which DMA buffer will be used next round */
 	long dma_runs_to_end;	/*  how many we must permorm DMA transfer to end of record */
 	unsigned long last_dma_run;	/*  how many bytes we must transfer on last DMA page */
-	int ai_act_scan;	/*  how many scans we finished */
 	unsigned int ai_poll_ptr;	/*  how many sampes transfer poll */
 	unsigned int divisor1;
 	unsigned int divisor2;
@@ -160,7 +159,7 @@ static void pcl816_ai_setup_dma(struct comedi_device *dev,
 	bytes = devpriv->hwdmasize;
 	if (cmd->stop_src == TRIG_COUNT) {
 		/*  how many */
-		bytes = cmd->stop_arg * cfc_bytes_per_scan(s);
+		bytes = cmd->stop_arg * comedi_bytes_per_scan(s);
 
 		/*  how many DMA pages we must fill */
 		devpriv->dma_runs_to_end = bytes / devpriv->hwdmasize;
@@ -286,21 +285,10 @@ static int pcl816_ai_eoc(struct comedi_device *dev,
 static bool pcl816_ai_next_chan(struct comedi_device *dev,
 				struct comedi_subdevice *s)
 {
-	struct pcl816_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	s->async->events |= COMEDI_CB_BLOCK;
-
-	s->async->cur_chan++;
-	if (s->async->cur_chan >= cmd->chanlist_len) {
-		s->async->cur_chan = 0;
-		devpriv->ai_act_scan++;
-		s->async->events |= COMEDI_CB_EOS;
-	}
-
 	if (cmd->stop_src == TRIG_COUNT &&
-	    devpriv->ai_act_scan >= cmd->stop_arg) {
-		/* all data sampled */
+	    s->async->scans_done >= cmd->stop_arg) {
 		s->async->events |= COMEDI_CB_EOA;
 		return false;
 	}
@@ -313,10 +301,12 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 				  unsigned short *ptr,
 				  unsigned int bufptr, unsigned int len)
 {
+	unsigned short val;
 	int i;
 
 	for (i = 0; i < len; i++) {
-		comedi_buf_put(s, ptr[bufptr++]);
+		val = ptr[bufptr++];
+		comedi_buf_write_samples(s, &val, 1);
 
 		if (!pcl816_ai_next_chan(dev, s))
 			return;
@@ -355,7 +345,7 @@ static irqreturn_t pcl816_interrupt(int irq, void *d)
 
 	pcl816_ai_clear_eoc(dev);
 
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 	return IRQ_HANDLED;
 }
 
@@ -508,8 +498,6 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	pcl816_ai_setup_chanlist(dev, cmd->chanlist, seglen);
 	udelay(1);
 
-	devpriv->ai_act_scan = 0;
-	s->async->cur_chan = 0;
 	devpriv->ai_cmd_running = 1;
 	devpriv->ai_poll_ptr = 0;
 	devpriv->ai_cmd_canceled = 0;
@@ -566,7 +554,7 @@ static int pcl816_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ai_poll_ptr = top1;	/*  new buffer position */
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 
 	return comedi_buf_n_bytes_ready(s);
 }

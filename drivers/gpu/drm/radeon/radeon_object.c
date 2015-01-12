@@ -233,6 +233,13 @@ int radeon_bo_create(struct radeon_device *rdev,
 	if (!(rdev->flags & RADEON_IS_PCIE))
 		bo->flags &= ~(RADEON_GEM_GTT_WC | RADEON_GEM_GTT_UC);
 
+#ifdef CONFIG_X86_32
+	/* XXX: Write-combined CPU mappings of GTT seem broken on 32-bit
+	 * See https://bugs.freedesktop.org/show_bug.cgi?id=84627
+	 */
+	bo->flags &= ~RADEON_GEM_GTT_WC;
+#endif
+
 	radeon_ttm_placement_from_domain(bo, domain);
 	/* Kernel allocation are uninterruptible */
 	down_read(&rdev->pm.mclk_lock);
@@ -502,27 +509,25 @@ int radeon_bo_list_validate(struct radeon_device *rdev,
 			    struct ww_acquire_ctx *ticket,
 			    struct list_head *head, int ring)
 {
-	struct radeon_cs_reloc *lobj;
-	struct radeon_bo *bo;
+	struct radeon_bo_list *lobj;
+	struct list_head duplicates;
 	int r;
 	u64 bytes_moved = 0, initial_bytes_moved;
 	u64 bytes_moved_threshold = radeon_bo_get_threshold_for_moves(rdev);
 
-	r = ttm_eu_reserve_buffers(ticket, head, true);
+	INIT_LIST_HEAD(&duplicates);
+	r = ttm_eu_reserve_buffers(ticket, head, true, &duplicates);
 	if (unlikely(r != 0)) {
 		return r;
 	}
 
 	list_for_each_entry(lobj, head, tv.head) {
-		bo = lobj->robj;
+		struct radeon_bo *bo = lobj->robj;
 		if (!bo->pin_count) {
 			u32 domain = lobj->prefered_domains;
 			u32 allowed = lobj->allowed_domains;
 			u32 current_domain =
 				radeon_mem_type_to_domain(bo->tbo.mem.mem_type);
-
-			WARN_ONCE(bo->gem_base.dumb,
-				  "GPU use of dumb buffer is illegal.\n");
 
 			/* Check if this buffer will be moved and don't move it
 			 * if we have moved too many buffers for this IB already.
@@ -562,6 +567,12 @@ int radeon_bo_list_validate(struct radeon_device *rdev,
 		lobj->gpu_offset = radeon_bo_gpu_offset(bo);
 		lobj->tiling_flags = bo->tiling_flags;
 	}
+
+	list_for_each_entry(lobj, &duplicates, tv.head) {
+		lobj->gpu_offset = radeon_bo_gpu_offset(lobj->robj);
+		lobj->tiling_flags = lobj->robj->tiling_flags;
+	}
+
 	return 0;
 }
 

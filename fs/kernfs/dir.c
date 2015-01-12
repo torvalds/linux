@@ -807,7 +807,7 @@ static struct dentry *kernfs_iop_lookup(struct inode *dir,
 	}
 
 	/* instantiate and hash dentry */
-	ret = d_materialise_unique(dentry, inode);
+	ret = d_splice_alias(inode, dentry);
  out_unlock:
 	mutex_unlock(&kernfs_mutex);
 	return ret;

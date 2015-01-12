@@ -8,7 +8,7 @@
 
 #include "./bebob.h"
 
-static char *const phase88_rack_clk_src_labels[] = {
+static const char *const phase88_rack_clk_src_labels[] = {
 	SND_BEBOB_CLOCK_INTERNAL, "Digital In", "Word Clock"
 };
 static int
@@ -34,7 +34,7 @@ end:
 	return err;
 }
 
-static char *const phase24_series_clk_src_labels[] = {
+static const char *const phase24_series_clk_src_labels[] = {
 	SND_BEBOB_CLOCK_INTERNAL, "Digital In"
 };
 static int

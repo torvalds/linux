@@ -111,6 +111,7 @@ void st_sensors_spi_configure(struct iio_dev *indio_dev,
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi->modalias;
 
+	sdata->dev = &spi->dev;
 	sdata->tf = &st_sensors_tf_spi;
 	sdata->get_irq_data_ready = st_sensors_spi_get_irq;
 }

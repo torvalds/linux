@@ -970,6 +970,7 @@ struct i915_suspend_saved_registers {
 	u32 savePIPEB_LINK_N1;
 	u32 saveMCHBAR_RENDER_STANDBY;
 	u32 savePCH_PORT_HOTPLUG;
+	u16 saveGCDGMBUS;
 };
 
 struct vlv_s0ix_state {
@@ -1771,6 +1772,9 @@ struct drm_i915_private {
 	struct drm_property *broadcast_rgb_property;
 	struct drm_property *force_audio_property;
 
+	/* hda/i915 audio component */
+	bool audio_component_registered;
+
 	uint32_t hw_context_size;
 	struct list_head context_list;
 
@@ -1829,8 +1833,6 @@ struct drm_i915_private {
 	 */
 	struct workqueue_struct *dp_wq;
 
-	uint32_t bios_vgacntr;
-
 	/* Abstract the submission mechanism (legacy ringbuffer or execlists) away */
 	struct {
 		int (*do_execbuf)(struct drm_device *dev, struct drm_file *file,
@@ -1856,6 +1858,11 @@ struct drm_i915_private {
 static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 {
 	return dev->dev_private;
+}
+
+static inline struct drm_i915_private *dev_to_i915(struct device *dev)
+{
+	return to_i915(dev_get_drvdata(dev));
 }
 
 /* Iterate over initialised rings */
@@ -2633,9 +2640,8 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 int i915_gem_dumb_create(struct drm_file *file_priv,
 			 struct drm_device *dev,
 			 struct drm_mode_create_dumb *args);
-int i915_gem_dumb_map_offset(struct drm_file *file_priv,
-			     struct drm_device *dev, uint32_t handle,
-			     uint64_t *offset);
+int i915_gem_mmap_gtt(struct drm_file *file_priv, struct drm_device *dev,
+		      uint32_t handle, uint64_t *offset);
 /**
  * Returns true if seq1 is later than seq2.
  */
@@ -3216,6 +3222,11 @@ static inline unsigned long msecs_to_jiffies_timeout(const unsigned int m)
 	unsigned long j = msecs_to_jiffies(m);
 
 	return min_t(unsigned long, MAX_JIFFY_OFFSET, j + 1);
+}
+
+static inline unsigned long nsecs_to_jiffies_timeout(const u64 n)
+{
+        return min_t(u64, MAX_JIFFY_OFFSET, nsecs_to_jiffies64(n) + 1);
 }
 
 static inline unsigned long

@@ -1243,6 +1243,20 @@ nfs_free_pnfs_ds_cinfo(struct pnfs_ds_commit_info *cinfo)
 #endif /* CONFIG_NFS_V4_1 */
 
 #ifdef CONFIG_NFS_V4_2
+struct nfs42_falloc_args {
+	struct nfs4_sequence_args	seq_args;
+
+	struct nfs_fh			*falloc_fh;
+	nfs4_stateid			 falloc_stateid;
+	u64				 falloc_offset;
+	u64				 falloc_length;
+};
+
+struct nfs42_falloc_res {
+	struct nfs4_sequence_res	seq_res;
+	unsigned int			status;
+};
+
 struct nfs42_seek_args {
 	struct nfs4_sequence_args	seq_args;
 

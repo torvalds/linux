@@ -19,8 +19,8 @@
 
 #include <asm/system_misc.h>
 
-#include <mach/at91sam9_ddrsdr.h>
-#include <mach/at91sam9_sdramc.h>
+#include <soc/at91/at91sam9_ddrsdr.h>
+#include <soc/at91/at91sam9_sdramc.h>
 
 #define AT91_RSTC_CR	0x00		/* Reset Controller Control Register */
 #define AT91_RSTC_PROCRST	BIT(0)		/* Processor Reset */

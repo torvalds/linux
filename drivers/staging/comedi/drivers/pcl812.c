@@ -512,7 +512,6 @@ struct pcl812_private {
 	unsigned int last_ai_chanspec;
 	unsigned char mode_reg_int;	/*  there is stored INT number for some card */
 	unsigned int ai_poll_ptr;	/*  how many sampes transfer poll */
-	unsigned int ai_act_scan;	/*  how many scans we finished */
 	unsigned int dmapages;
 	unsigned int hwdmasize;
 	unsigned long dmabuf[2];	/*  PTR to DMA buf */
@@ -556,8 +555,8 @@ static void pcl812_ai_setup_dma(struct comedi_device *dev,
 
 	/*  we use EOS, so adapt DMA buffer to one scan */
 	if (devpriv->ai_eos) {
-		devpriv->dmabytestomove[0] = cfc_bytes_per_scan(s);
-		devpriv->dmabytestomove[1] = cfc_bytes_per_scan(s);
+		devpriv->dmabytestomove[0] = comedi_bytes_per_scan(s);
+		devpriv->dmabytestomove[1] = comedi_bytes_per_scan(s);
 		devpriv->dma_runs_to_end = 1;
 	} else {
 		devpriv->dmabytestomove[0] = devpriv->hwdmasize;
@@ -572,7 +571,7 @@ static void pcl812_ai_setup_dma(struct comedi_device *dev,
 			devpriv->dma_runs_to_end = 1;
 		} else {
 			/*  how many samples we must transfer? */
-			bytes = cmd->stop_arg * cfc_bytes_per_scan(s);
+			bytes = cmd->stop_arg * comedi_bytes_per_scan(s);
 
 			/*  how many DMA pages we must fill */
 			devpriv->dma_runs_to_end =
@@ -807,9 +806,7 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		devpriv->ai_dma = 0;
 	}
 
-	devpriv->ai_act_scan = 0;
 	devpriv->ai_poll_ptr = 0;
-	s->async->cur_chan = 0;
 
 	/*  don't we want wake up every scan? */
 	if (cmd->flags & CMDF_WAKE_EOS) {
@@ -841,21 +838,10 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 static bool pcl812_ai_next_chan(struct comedi_device *dev,
 				struct comedi_subdevice *s)
 {
-	struct pcl812_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	s->async->events |= COMEDI_CB_BLOCK;
-
-	s->async->cur_chan++;
-	if (s->async->cur_chan >= cmd->chanlist_len) {
-		s->async->cur_chan = 0;
-		devpriv->ai_act_scan++;
-		s->async->events |= COMEDI_CB_EOS;
-	}
-
 	if (cmd->stop_src == TRIG_COUNT &&
-	    devpriv->ai_act_scan >= cmd->stop_arg) {
-		/* all data sampled */
+	    s->async->scans_done >= cmd->stop_arg) {
 		s->async->events |= COMEDI_CB_EOA;
 		return false;
 	}
@@ -867,7 +853,9 @@ static void pcl812_handle_eoc(struct comedi_device *dev,
 			      struct comedi_subdevice *s)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int chan = s->async->cur_chan;
 	unsigned int next_chan;
+	unsigned short val;
 
 	if (pcl812_ai_eoc(dev, s, NULL, 0)) {
 		dev_dbg(dev->class_dev, "A/D cmd IRQ without DRDY!\n");
@@ -875,13 +863,12 @@ static void pcl812_handle_eoc(struct comedi_device *dev,
 		return;
 	}
 
-	comedi_buf_put(s, pcl812_ai_get_sample(dev, s));
+	val = pcl812_ai_get_sample(dev, s);
+	comedi_buf_write_samples(s, &val, 1);
 
 	/* Set up next channel. Added by abbotti 2010-01-20, but untested. */
-	next_chan = s->async->cur_chan + 1;
-	if (next_chan >= cmd->chanlist_len)
-		next_chan = 0;
-	if (cmd->chanlist[s->async->cur_chan] != cmd->chanlist[next_chan])
+	next_chan = s->async->cur_chan;
+	if (cmd->chanlist[chan] != cmd->chanlist[next_chan])
 		pcl812_ai_set_chan_range(dev, cmd->chanlist[next_chan], 0);
 
 	pcl812_ai_next_chan(dev, s);
@@ -893,9 +880,11 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 				  unsigned int bufptr, unsigned int len)
 {
 	unsigned int i;
+	unsigned short val;
 
 	for (i = len; i; i--) {
-		comedi_buf_put(s, ptr[bufptr++]);
+		val = ptr[bufptr++];
+		comedi_buf_write_samples(s, &val, 1);
 
 		if (!pcl812_ai_next_chan(dev, s))
 			break;
@@ -939,7 +928,7 @@ static irqreturn_t pcl812_interrupt(int irq, void *d)
 
 	pcl812_ai_clear_eoc(dev);
 
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 	return IRQ_HANDLED;
 }
 
@@ -1335,7 +1324,6 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			break;
 		}
 		s->insn_write	= pcl812_ao_insn_write;
-		s->insn_read	= comedi_readback_insn_read;
 
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)

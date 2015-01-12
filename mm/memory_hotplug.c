@@ -1725,7 +1725,7 @@ repeat:
 	if (drain) {
 		lru_add_drain_all();
 		cond_resched();
-		drain_all_pages();
+		drain_all_pages(zone);
 	}
 
 	pfn = scan_movable_pages(start_pfn, end_pfn);
@@ -1747,7 +1747,7 @@ repeat:
 	lru_add_drain_all();
 	yield();
 	/* drain pcp pages, this is synchronous. */
-	drain_all_pages();
+	drain_all_pages(zone);
 	/*
 	 * dissolve free hugepages in the memory block before doing offlining
 	 * actually in order to make hugetlbfs's object counting consistent.

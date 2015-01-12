@@ -1992,7 +1992,6 @@ static struct of_device_id tz1090_pinctrl_of_match[] = {
 static struct platform_driver tz1090_pinctrl_driver = {
 	.driver = {
 		.name		= "tz1090-pinctrl",
-		.owner		= THIS_MODULE,
 		.of_match_table	= tz1090_pinctrl_of_match,
 	},
 	.probe	= tz1090_pinctrl_probe,

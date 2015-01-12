@@ -1514,6 +1514,23 @@ static __be32 nfsd4_decode_reclaim_complete(struct nfsd4_compoundargs *argp, str
 }
 
 static __be32
+nfsd4_decode_fallocate(struct nfsd4_compoundargs *argp,
+		       struct nfsd4_fallocate *fallocate)
+{
+	DECODE_HEAD;
+
+	status = nfsd4_decode_stateid(argp, &fallocate->falloc_stateid);
+	if (status)
+		return status;
+
+	READ_BUF(16);
+	p = xdr_decode_hyper(p, &fallocate->falloc_offset);
+	xdr_decode_hyper(p, &fallocate->falloc_length);
+
+	DECODE_TAIL;
+}
+
+static __be32
 nfsd4_decode_seek(struct nfsd4_compoundargs *argp, struct nfsd4_seek *seek)
 {
 	DECODE_HEAD;
@@ -1604,10 +1621,10 @@ static nfsd4_dec nfsd4_dec_ops[] = {
 	[OP_RECLAIM_COMPLETE]	= (nfsd4_dec)nfsd4_decode_reclaim_complete,
 
 	/* new operations for NFSv4.2 */
-	[OP_ALLOCATE]		= (nfsd4_dec)nfsd4_decode_notsupp,
+	[OP_ALLOCATE]		= (nfsd4_dec)nfsd4_decode_fallocate,
 	[OP_COPY]		= (nfsd4_dec)nfsd4_decode_notsupp,
 	[OP_COPY_NOTIFY]	= (nfsd4_dec)nfsd4_decode_notsupp,
-	[OP_DEALLOCATE]		= (nfsd4_dec)nfsd4_decode_notsupp,
+	[OP_DEALLOCATE]		= (nfsd4_dec)nfsd4_decode_fallocate,
 	[OP_IO_ADVISE]		= (nfsd4_dec)nfsd4_decode_notsupp,
 	[OP_LAYOUTERROR]	= (nfsd4_dec)nfsd4_decode_notsupp,
 	[OP_LAYOUTSTATS]	= (nfsd4_dec)nfsd4_decode_notsupp,
@@ -1714,7 +1731,7 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 	argp->rqstp->rq_cachetype = cachethis ? RC_REPLBUFF : RC_NOCACHE;
 
 	if (readcount > 1 || max_reply > PAGE_SIZE - auth_slack)
-		argp->rqstp->rq_splice_ok = false;
+		clear_bit(RQ_SPLICE_OK, &argp->rqstp->rq_flags);
 
 	DECODE_TAIL;
 }
@@ -1795,9 +1812,12 @@ static __be32 nfsd4_encode_components_esc(struct xdr_stream *xdr, char sep,
 		}
 		else
 			end++;
+		if (found_esc)
+			end = next;
+
 		str = end;
 	}
-	pathlen = htonl(xdr->buf->len - pathlen_offset);
+	pathlen = htonl(count);
 	write_bytes_to_xdr_buf(xdr->buf, pathlen_offset, &pathlen, 4);
 	return 0;
 }
@@ -1886,7 +1906,7 @@ static __be32 nfsd4_encode_path(struct xdr_stream *xdr,
 			goto out_free;
 		}
 		p = xdr_encode_opaque(p, dentry->d_name.name, len);
-		dprintk("/%s", dentry->d_name.name);
+		dprintk("/%pd", dentry);
 		spin_unlock(&dentry->d_lock);
 		dput(dentry);
 		ncomponents--;
@@ -3236,10 +3256,10 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 
 	p = xdr_reserve_space(xdr, 8); /* eof flag and byte count */
 	if (!p) {
-		WARN_ON_ONCE(resp->rqstp->rq_splice_ok);
+		WARN_ON_ONCE(test_bit(RQ_SPLICE_OK, &resp->rqstp->rq_flags));
 		return nfserr_resource;
 	}
-	if (resp->xdr.buf->page_len && resp->rqstp->rq_splice_ok) {
+	if (resp->xdr.buf->page_len && test_bit(RQ_SPLICE_OK, &resp->rqstp->rq_flags)) {
 		WARN_ON_ONCE(1);
 		return nfserr_resource;
 	}
@@ -3256,7 +3276,7 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 			goto err_truncate;
 	}
 
-	if (file->f_op->splice_read && resp->rqstp->rq_splice_ok)
+	if (file->f_op->splice_read && test_bit(RQ_SPLICE_OK, &resp->rqstp->rq_flags))
 		err = nfsd4_encode_splice_read(resp, read, file, maxcount);
 	else
 		err = nfsd4_encode_readv(resp, read, file, maxcount);

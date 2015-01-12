@@ -474,7 +474,6 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 		s->maxdata = (1 << thisboard->ao_nbits) - 1;
 		s->range_table = &range_bipolar5;
 		s->insn_write = das08_ao_insn_write;
-		s->insn_read = comedi_readback_insn_read;
 
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)
@@ -507,7 +506,7 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 	/* do */
 	if (thisboard->do_nchan) {
 		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
+		s->subdev_flags = SDF_WRITABLE;
 		s->n_chan = thisboard->do_nchan;
 		s->maxdata = 1;
 		s->range_table = &range_digital;

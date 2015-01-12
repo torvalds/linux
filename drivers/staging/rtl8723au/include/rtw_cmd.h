@@ -17,7 +17,6 @@
 
 #include <wlan_bssdef.h>
 #include <rtw_rf.h>
-#include <rtw_led.h>
 
 #define C2H_MEM_SZ (16*1024)
 
@@ -450,8 +449,7 @@ struct getrfintfs_parm {
 	u8	rfintfs;
 };
 
-struct Tx_Beacon_param
-{
+struct Tx_Beacon_param {
 	struct wlan_bssid_ex network;
 };
 

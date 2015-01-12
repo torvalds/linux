@@ -46,12 +46,6 @@ struct blk_queue_tags;
 #define DISABLE_CLUSTERING 0
 #define ENABLE_CLUSTERING 1
 
-enum {
-	SCSI_QDEPTH_DEFAULT,	/* default requested change, e.g. from sysfs */
-	SCSI_QDEPTH_QFULL,	/* scsi-ml requested due to queue full */
-	SCSI_QDEPTH_RAMP_UP,	/* scsi-ml requested due to threshold event */
-};
-
 struct scsi_host_template {
 	struct module *module;
 	const char *name;
@@ -195,7 +189,7 @@ struct scsi_host_template {
 	 * Things currently recommended to be handled at this time include:
 	 *
 	 * 1.  Setting the device queue depth.  Proper setting of this is
-	 *     described in the comments for scsi_adjust_queue_depth.
+	 *     described in the comments for scsi_change_queue_depth.
 	 * 2.  Determining if the device supports the various synchronous
 	 *     negotiation protocols.  The device struct will already have
 	 *     responded to INQUIRY and the results of the standard items
@@ -281,20 +275,7 @@ struct scsi_host_template {
 	 *
 	 * Status: OPTIONAL
 	 */
-	int (* change_queue_depth)(struct scsi_device *, int, int);
-
-	/*
-	 * Fill in this function to allow the changing of tag types
-	 * (this also allows the enabling/disabling of tag command
-	 * queueing).  An error should only be returned if something
-	 * went wrong in the driver while trying to set the tag type.
-	 * If the driver doesn't support the requested tag type, then
-	 * it should set the closest type it does support without
-	 * returning an error.  Returns the actual tag type set.
-	 *
-	 * Status: OPTIONAL
-	 */
-	int (* change_queue_type)(struct scsi_device *, int);
+	int (* change_queue_depth)(struct scsi_device *, int);
 
 	/*
 	 * This function determines the BIOS parameters for a given
@@ -422,6 +403,16 @@ struct scsi_host_template {
 	unsigned char present;
 
 	/*
+	 * Let the block layer assigns tags to all commands.
+	 */
+	unsigned use_blk_tags:1;
+
+	/*
+	 * Track QUEUE_FULL events and reduce queue depth on demand.
+	 */
+	unsigned track_queue_depth:1;
+
+	/*
 	 * This specifies the mode that a LLD supports.
 	 */
 	unsigned supported_mode:2;
@@ -450,11 +441,6 @@ struct scsi_host_template {
 	 * True if the low-level driver performs its own reset-settle delays.
 	 */
 	unsigned skip_settle_delay:1;
-
-	/*
-	 * True if we are using ordered write support.
-	 */
-	unsigned ordered_tag:1;
 
 	/* True if the controller does not support WRITE SAME */
 	unsigned no_write_same:1;
@@ -555,7 +541,7 @@ struct Scsi_Host {
 	 * __devices is protected by the host_lock, but you should
 	 * usually use scsi_device_lookup / shost_for_each_device
 	 * to access it and don't care about locking yourself.
-	 * In the rare case of beeing in irq context you can use
+	 * In the rare case of being in irq context you can use
 	 * their __ prefixed variants with the lock held. NEVER
 	 * access this list directly from a driver.
 	 */
@@ -638,6 +624,14 @@ struct Scsi_Host {
 	short unsigned int sg_prot_tablesize;
 	unsigned int max_sectors;
 	unsigned long dma_boundary;
+	/*
+	 * In scsi-mq mode, the number of hardware queues supported by the LLD.
+	 *
+	 * Note: it is assumed that each hardware queue has a queue depth of
+	 * can_queue. In other words, the total queue depth per host
+	 * is nr_hw_queues * can_queue.
+	 */
+	unsigned nr_hw_queues;
 	/* 
 	 * Used to assign serial numbers to the cmds.
 	 * Protected by the host lock.
@@ -647,7 +641,6 @@ struct Scsi_Host {
 	unsigned active_mode:2;
 	unsigned unchecked_isa_dma:1;
 	unsigned use_clustering:1;
-	unsigned use_blk_tcq:1;
 
 	/*
 	 * Host has requested that no further requests come through for the
@@ -661,11 +654,6 @@ struct Scsi_Host {
 	 * the spec ;).
 	 */
 	unsigned reverse_ordering:1;
-
-	/*
-	 * Ordered write support
-	 */
-	unsigned ordered_tag:1;
 
 	/* Task mgmt function in progress */
 	unsigned tmf_in_progress:1;

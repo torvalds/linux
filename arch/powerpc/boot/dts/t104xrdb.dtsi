@@ -83,6 +83,13 @@
 			};
 		};
 
+		i2c@118000 {
+			adt7461@4c {
+				compatible = "adi,adt7461";
+				reg = <0x4c>;
+			};
+		};
+
 		i2c@118100 {
 			pca9546@77 {
 				compatible = "nxp,pca9546";

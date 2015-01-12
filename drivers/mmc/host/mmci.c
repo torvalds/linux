@@ -736,8 +736,15 @@ static void mmci_post_request(struct mmc_host *mmc, struct mmc_request *mrq,
 			chan = host->dma_tx_channel;
 		dmaengine_terminate_all(chan);
 
+		if (host->dma_desc_current == next->dma_desc)
+			host->dma_desc_current = NULL;
+
+		if (host->dma_current == next->dma_chan)
+			host->dma_current = NULL;
+
 		next->dma_desc = NULL;
 		next->dma_chan = NULL;
+		data->host_cookie = 0;
 	}
 }
 
@@ -1843,7 +1850,7 @@ static int mmci_runtime_resume(struct device *dev)
 static const struct dev_pm_ops mmci_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				pm_runtime_force_resume)
-	SET_PM_RUNTIME_PM_OPS(mmci_runtime_suspend, mmci_runtime_resume, NULL)
+	SET_RUNTIME_PM_OPS(mmci_runtime_suspend, mmci_runtime_resume, NULL)
 };
 
 static struct amba_id mmci_ids[] = {

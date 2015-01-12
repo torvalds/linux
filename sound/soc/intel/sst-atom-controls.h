@@ -23,6 +23,9 @@
 #ifndef __SST_ATOM_CONTROLS_H__
 #define __SST_ATOM_CONTROLS_H__
 
+#include <sound/soc.h>
+#include <sound/tlv.h>
+
 enum {
 	MERR_DPCM_AUDIO = 0,
 	MERR_DPCM_COMPR,
@@ -360,16 +363,416 @@ struct sst_dsp_header {
 struct sst_cmd_generic {
 	struct sst_dsp_header header;
 } __packed;
+
+struct swm_input_ids {
+	struct sst_destination_id input_id;
+} __packed;
+
+struct sst_cmd_set_swm {
+	struct sst_dsp_header header;
+	struct sst_destination_id output_id;
+	u16    switch_state;
+	u16    nb_inputs;
+	struct swm_input_ids input[SST_CMD_SWM_MAX_INPUTS];
+} __packed;
+
+struct sst_cmd_set_media_path {
+	struct sst_dsp_header header;
+	u16    switch_state;
+} __packed;
+
+struct pcm_cfg {
+		u8 s_length:2;
+		u8 rate:3;
+		u8 format:3;
+} __packed;
+
+struct sst_cmd_set_speech_path {
+	struct sst_dsp_header header;
+	u16    switch_state;
+	struct {
+		u16 rsvd:8;
+		struct pcm_cfg cfg;
+	} config;
+} __packed;
+
+struct gain_cell {
+	struct sst_destination_id dest;
+	s16 cell_gain_left;
+	s16 cell_gain_right;
+	u16 gain_time_constant;
+} __packed;
+
+#define NUM_GAIN_CELLS 1
+struct sst_cmd_set_gain_dual {
+	struct sst_dsp_header header;
+	u16    gain_cell_num;
+	struct gain_cell cell_gains[NUM_GAIN_CELLS];
+} __packed;
 struct sst_cmd_set_params {
 	struct sst_destination_id dst;
 	u16 command_id;
 	char params[0];
 } __packed;
+
+
+struct sst_cmd_sba_vb_start {
+	struct sst_dsp_header header;
+} __packed;
+
+union sba_media_loop_params {
+	struct {
+		u16 rsvd:8;
+		struct pcm_cfg cfg;
+	} part;
+	u16 full;
+} __packed;
+
+struct sst_cmd_sba_set_media_loop_map {
+	struct	sst_dsp_header header;
+	u16	switch_state;
+	union	sba_media_loop_params param;
+	u16	map;
+} __packed;
+
+struct sst_cmd_tone_stop {
+	struct	sst_dsp_header header;
+	u16	switch_state;
+} __packed;
+
+enum sst_ssp_mode {
+	SSP_MODE_MASTER = 0,
+	SSP_MODE_SLAVE = 1,
+};
+
+enum sst_ssp_pcm_mode {
+	SSP_PCM_MODE_NORMAL = 0,
+	SSP_PCM_MODE_NETWORK = 1,
+};
+
+enum sst_ssp_duplex {
+	SSP_DUPLEX = 0,
+	SSP_RX = 1,
+	SSP_TX = 2,
+};
+
+enum sst_ssp_fs_frequency {
+	SSP_FS_8_KHZ = 0,
+	SSP_FS_16_KHZ = 1,
+	SSP_FS_44_1_KHZ = 2,
+	SSP_FS_48_KHZ = 3,
+};
+
+enum sst_ssp_fs_polarity {
+	SSP_FS_ACTIVE_LOW = 0,
+	SSP_FS_ACTIVE_HIGH = 1,
+};
+
+enum sst_ssp_protocol {
+	SSP_MODE_PCM = 0,
+	SSP_MODE_I2S = 1,
+};
+
+enum sst_ssp_port_id {
+	SSP_MODEM = 0,
+	SSP_BT = 1,
+	SSP_FM = 2,
+	SSP_CODEC = 3,
+};
+
+struct sst_cmd_sba_hw_set_ssp {
+	struct sst_dsp_header header;
+	u16 selection;			/* 0:SSP0(def), 1:SSP1, 2:SSP2 */
+
+	u16 switch_state;
+
+	u16 nb_bits_per_slots:6;        /* 0-32 bits, 24 (def) */
+	u16 nb_slots:4;			/* 0-8: slots per frame  */
+	u16 mode:3;			/* 0:Master, 1: Slave  */
+	u16 duplex:3;
+
+	u16 active_tx_slot_map:8;       /* Bit map, 0:off, 1:on */
+	u16 reserved1:8;
+
+	u16 active_rx_slot_map:8;       /* Bit map 0: Off, 1:On */
+	u16 reserved2:8;
+
+	u16 frame_sync_frequency;
+
+	u16 frame_sync_polarity:8;
+	u16 data_polarity:8;
+
+	u16 frame_sync_width;           /* 1 to N clocks */
+	u16 ssp_protocol:8;
+	u16 start_delay:8;		/* Start delay in terms of clock ticks */
+} __packed;
+
+#define SST_MAX_TDM_SLOTS 8
+
+struct sst_param_sba_ssp_slot_map {
+	struct sst_dsp_header header;
+
+	u16 param_id;
+	u16 param_len;
+	u16 ssp_index;
+
+	u8 rx_slot_map[SST_MAX_TDM_SLOTS];
+	u8 tx_slot_map[SST_MAX_TDM_SLOTS];
+} __packed;
+
+enum {
+	SST_PROBE_EXTRACTOR = 0,
+	SST_PROBE_INJECTOR = 1,
+};
+
+/**** widget defines *****/
+
+#define SST_MODULE_GAIN 1
+#define SST_MODULE_ALGO 2
+
+#define SST_FMT_MONO 0
+#define SST_FMT_STEREO 3
+
+/* physical SSP numbers */
+enum {
+	SST_SSP0 = 0,
+	SST_SSP1,
+	SST_SSP2,
+	SST_SSP_LAST = SST_SSP2,
+};
+
+#define SST_NUM_SSPS		(SST_SSP_LAST + 1)	/* physical SSPs */
+#define SST_MAX_SSP_MUX		2			/* single SSP muxed between pipes */
+#define SST_MAX_SSP_DOMAINS	2			/* domains present in each pipe */
+
+struct sst_module {
+	struct snd_kcontrol *kctl;
+	struct list_head node;
+};
+
+struct sst_ssp_config {
+	u8 ssp_id;
+	u8 bits_per_slot;
+	u8 slots;
+	u8 ssp_mode;
+	u8 pcm_mode;
+	u8 duplex;
+	u8 ssp_protocol;
+	u8 fs_frequency;
+	u8 active_slot_map;
+	u8 start_delay;
+	u16 fs_width;
+};
+
+struct sst_ssp_cfg {
+	const u8 ssp_number;
+	const int *mux_shift;
+	const int (*domain_shift)[SST_MAX_SSP_MUX];
+	const struct sst_ssp_config (*ssp_config)[SST_MAX_SSP_MUX][SST_MAX_SSP_DOMAINS];
+};
+
+struct sst_ids {
+	u16 location_id;
+	u16 module_id;
+	u8  task_id;
+	u8  format;
+	u8  reg;
+	const char *parent_wname;
+	struct snd_soc_dapm_widget *parent_w;
+	struct list_head algo_list;
+	struct list_head gain_list;
+	const struct sst_pcm_format *pcm_fmt;
+};
+
+
+#define SST_AIF_IN(wname, wevent)							\
+{	.id = snd_soc_dapm_aif_in, .name = wname, .sname = NULL,			\
+	.reg = SND_SOC_NOPM, .shift = 0,					\
+	.on_val = 1, .off_val = 0,							\
+	.event = wevent, .event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD,	\
+	.priv = (void *)&(struct sst_ids) { .task_id = 0, .location_id = 0 }		\
+}
+
+#define SST_AIF_OUT(wname, wevent)							\
+{	.id = snd_soc_dapm_aif_out, .name = wname, .sname = NULL,			\
+	.reg = SND_SOC_NOPM, .shift = 0,						\
+	.on_val = 1, .off_val = 0,							\
+	.event = wevent, .event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD,	\
+	.priv = (void *)&(struct sst_ids) { .task_id = 0, .location_id = 0 }		\
+}
+
+#define SST_INPUT(wname, wevent)							\
+{	.id = snd_soc_dapm_input, .name = wname, .sname = NULL,				\
+	.reg = SND_SOC_NOPM, .shift = 0,						\
+	.on_val = 1, .off_val = 0,							\
+	.event = wevent, .event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD,	\
+	.priv = (void *)&(struct sst_ids) { .task_id = 0, .location_id = 0 }		\
+}
+
+#define SST_OUTPUT(wname, wevent)							\
+{	.id = snd_soc_dapm_output, .name = wname, .sname = NULL,			\
+	.reg = SND_SOC_NOPM, .shift = 0,						\
+	.on_val = 1, .off_val = 0,							\
+	.event = wevent, .event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD,	\
+	.priv = (void *)&(struct sst_ids) { .task_id = 0, .location_id = 0 }		\
+}
+
+#define SST_DAPM_OUTPUT(wname, wloc_id, wtask_id, wformat, wevent)                      \
+{	.id = snd_soc_dapm_output, .name = wname, .sname = NULL,                        \
+	.reg = SND_SOC_NOPM, .shift = 0,						\
+	.on_val = 1, .off_val = 0,							\
+	.event = wevent, .event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD,   \
+	.priv = (void *)&(struct sst_ids) { .location_id = wloc_id, .task_id = wtask_id,\
+						.pcm_fmt = wformat, }			\
+}
+
+#define SST_PATH(wname, wtask, wloc_id, wevent, wflags)					\
+{	.id = snd_soc_dapm_pga, .name = wname, .reg = SND_SOC_NOPM, .shift = 0,		\
+	.kcontrol_news = NULL, .num_kcontrols = 0,				\
+	.on_val = 1, .off_val = 0,							\
+	.event = wevent, .event_flags = wflags,						\
+	.priv = (void *)&(struct sst_ids) { .task_id = wtask, .location_id = wloc_id, }	\
+}
+
+#define SST_LINKED_PATH(wname, wtask, wloc_id, linked_wname, wevent, wflags)		\
+{	.id = snd_soc_dapm_pga, .name = wname, .reg = SND_SOC_NOPM, .shift = 0,		\
+	.kcontrol_news = NULL, .num_kcontrols = 0,				\
+	.on_val = 1, .off_val = 0,							\
+	.event = wevent, .event_flags = wflags,						\
+	.priv = (void *)&(struct sst_ids) { .task_id = wtask, .location_id = wloc_id,	\
+					.parent_wname = linked_wname}			\
+}
+
+#define SST_PATH_MEDIA_LOOP(wname, wtask, wloc_id, wformat, wevent, wflags)             \
+{	.id = snd_soc_dapm_pga, .name = wname, .reg = SND_SOC_NOPM, .shift = 0,         \
+	.kcontrol_news = NULL, .num_kcontrols = 0,                         \
+	.event = wevent, .event_flags = wflags,                                         \
+	.priv = (void *)&(struct sst_ids) { .task_id = wtask, .location_id = wloc_id,	\
+					    .format = wformat,}				\
+}
+
+/* output is triggered before input */
+#define SST_PATH_INPUT(name, task_id, loc_id, event)					\
+	SST_PATH(name, task_id, loc_id, event, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD)
+
+#define SST_PATH_LINKED_INPUT(name, task_id, loc_id, linked_wname, event)		\
+	SST_LINKED_PATH(name, task_id, loc_id, linked_wname, event,			\
+					SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD)
+
+#define SST_PATH_OUTPUT(name, task_id, loc_id, event)					\
+	SST_PATH(name, task_id, loc_id, event, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD)
+
+#define SST_PATH_LINKED_OUTPUT(name, task_id, loc_id, linked_wname, event)		\
+	SST_LINKED_PATH(name, task_id, loc_id, linked_wname, event,			\
+					SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD)
+
+#define SST_PATH_MEDIA_LOOP_OUTPUT(name, task_id, loc_id, format, event)		\
+	SST_PATH_MEDIA_LOOP(name, task_id, loc_id, format, event, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD)
+
+
+#define SST_SWM_MIXER(wname, wreg, wtask, wloc_id, wcontrols, wevent)			\
+{	.id = snd_soc_dapm_mixer, .name = wname, .reg = SND_SOC_NOPM, .shift = 0,	\
+	.kcontrol_news = wcontrols, .num_kcontrols = ARRAY_SIZE(wcontrols),\
+	.event = wevent, .event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD |	\
+					SND_SOC_DAPM_POST_REG,				\
+	.priv = (void *)&(struct sst_ids) { .task_id = wtask, .location_id = wloc_id,	\
+					    .reg = wreg }				\
+}
+
+enum sst_gain_kcontrol_type {
+	SST_GAIN_TLV,
+	SST_GAIN_MUTE,
+	SST_GAIN_RAMP_DURATION,
+};
+
+struct sst_gain_mixer_control {
+	bool stereo;
+	enum sst_gain_kcontrol_type type;
+	struct sst_gain_value *gain_val;
+	int max;
+	int min;
+	u16 instance_id;
+	u16 module_id;
+	u16 pipe_id;
+	u16 task_id;
+	char pname[44];
+	struct snd_soc_dapm_widget *w;
+};
+
+struct sst_gain_value {
+	u16 ramp_duration;
+	s16 l_gain;
+	s16 r_gain;
+	bool mute;
+};
+#define SST_GAIN_VOLUME_DEFAULT		(-1440)
+#define SST_GAIN_RAMP_DURATION_DEFAULT	5 /* timeconstant */
+#define SST_GAIN_MUTE_DEFAULT		true
+
+#define SST_GAIN_KCONTROL_TLV(xname, xhandler_get, xhandler_put, \
+			      xmod, xpipe, xinstance, xtask, tlv_array, xgain_val, \
+			      xmin, xmax, xpname) \
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ | \
+		  SNDRV_CTL_ELEM_ACCESS_READWRITE, \
+	.tlv.p = (tlv_array), \
+	.info = sst_gain_ctl_info,\
+	.get = xhandler_get, .put = xhandler_put, \
+	.private_value = (unsigned long)&(struct sst_gain_mixer_control) \
+	{ .stereo = true, .max = xmax, .min = xmin, .type = SST_GAIN_TLV, \
+	  .module_id = xmod, .pipe_id = xpipe, .task_id = xtask,\
+	  .instance_id = xinstance, .gain_val = xgain_val, .pname = xpname}
+
+#define SST_GAIN_KCONTROL_INT(xname, xhandler_get, xhandler_put, \
+			      xmod, xpipe, xinstance, xtask, xtype, xgain_val, \
+			      xmin, xmax, xpname) \
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.info = sst_gain_ctl_info, \
+	.get = xhandler_get, .put = xhandler_put, \
+	.private_value = (unsigned long)&(struct sst_gain_mixer_control) \
+	{ .stereo = false, .max = xmax, .min = xmin, .type = xtype, \
+	  .module_id = xmod, .pipe_id = xpipe, .task_id = xtask,\
+	  .instance_id = xinstance, .gain_val = xgain_val, .pname =  xpname}
+
+#define SST_GAIN_KCONTROL_BOOL(xname, xhandler_get, xhandler_put,\
+			       xmod, xpipe, xinstance, xtask, xgain_val, xpname) \
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.info = snd_soc_info_bool_ext, \
+	.get = xhandler_get, .put = xhandler_put, \
+	.private_value = (unsigned long)&(struct sst_gain_mixer_control) \
+	{ .stereo = false, .type = SST_GAIN_MUTE, \
+	  .module_id = xmod, .pipe_id = xpipe, .task_id = xtask,\
+	  .instance_id = xinstance, .gain_val = xgain_val, .pname = xpname}
 #define SST_CONTROL_NAME(xpname, xmname, xinstance, xtype) \
 	xpname " " xmname " " #xinstance " " xtype
 
 #define SST_COMBO_CONTROL_NAME(xpname, xmname, xinstance, xtype, xsubmodule) \
 	xpname " " xmname " " #xinstance " " xtype " " xsubmodule
+
+/*
+ * 3 Controls for each Gain module
+ * e.g.	- pcm0_in Gain 0 Volume
+ *	- pcm0_in Gain 0 Ramp Delay
+ *	- pcm0_in Gain 0 Switch
+ */
+#define SST_GAIN_KCONTROLS(xpname, xmname, xmin_gain, xmax_gain, xmin_tc, xmax_tc, \
+			   xhandler_get, xhandler_put, \
+			   xmod, xpipe, xinstance, xtask, tlv_array, xgain_val) \
+	{ SST_GAIN_KCONTROL_INT(SST_CONTROL_NAME(xpname, xmname, xinstance, "Ramp Delay"), \
+		xhandler_get, xhandler_put, xmod, xpipe, xinstance, xtask, SST_GAIN_RAMP_DURATION, \
+		xgain_val, xmin_tc, xmax_tc, xpname) }, \
+	{ SST_GAIN_KCONTROL_BOOL(SST_CONTROL_NAME(xpname, xmname, xinstance, "Switch"), \
+		xhandler_get, xhandler_put, xmod, xpipe, xinstance, xtask, \
+		xgain_val, xpname) } ,\
+	{ SST_GAIN_KCONTROL_TLV(SST_CONTROL_NAME(xpname, xmname, xinstance, "Volume"), \
+		xhandler_get, xhandler_put, xmod, xpipe, xinstance, xtask, tlv_array, \
+		xgain_val, xmin_gain, xmax_gain, xpname) }
+
+#define SST_GAIN_TC_MIN		5
+#define SST_GAIN_TC_MAX		5000
+#define SST_GAIN_MIN_VALUE	-1440 /* in 0.1 DB units */
+#define SST_GAIN_MAX_VALUE	360
+
 enum sst_algo_kcontrol_type {
 	SST_ALGO_PARAMS,
 	SST_ALGO_BYPASS,
@@ -438,5 +841,30 @@ struct sst_enum {
 	const char * const *texts;
 	struct snd_soc_dapm_widget *w;
 };
+
+/* only 4 slots/channels supported atm */
+#define SST_SSP_SLOT_ENUM(s_ch_no, is_tx, xtexts) \
+	(struct sst_enum){ .reg = s_ch_no, .tx = is_tx, .max = 4+1, .texts = xtexts, }
+
+#define SST_SLOT_CTL_NAME(xpname, xmname, s_ch_name) \
+	xpname " " xmname " " s_ch_name
+
+#define SST_SSP_SLOT_CTL(xpname, xmname, s_ch_name, s_ch_no, is_tx, xtexts, xget, xput) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+	.name = SST_SLOT_CTL_NAME(xpname, xmname, s_ch_name), \
+	.info = sst_slot_enum_info, \
+	.get = xget, .put = xput, \
+	.private_value = (unsigned long)&SST_SSP_SLOT_ENUM(s_ch_no, is_tx, xtexts), \
+}
+
+#define SST_MUX_CTL_NAME(xpname, xinstance) \
+	xpname " " #xinstance
+
+#define SST_SSP_MUX_ENUM(xreg, xshift, xtexts) \
+	(struct soc_enum) SOC_ENUM_DOUBLE(xreg, xshift, xshift, ARRAY_SIZE(xtexts), xtexts)
+
+#define SST_SSP_MUX_CTL(xpname, xinstance, xreg, xshift, xtexts) \
+	SOC_DAPM_ENUM(SST_MUX_CTL_NAME(xpname, xinstance), \
+			  SST_SSP_MUX_ENUM(xreg, xshift, xtexts))
 
 #endif

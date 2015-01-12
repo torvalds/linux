@@ -287,7 +287,6 @@ static struct platform_driver tx4939_rtc_driver = {
 	.remove		= __exit_p(tx4939_rtc_remove),
 	.driver		= {
 		.name	= "tx4939rtc",
-		.owner	= THIS_MODULE,
 	},
 };
 

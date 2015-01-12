@@ -944,12 +944,13 @@ bfin_serial_verify_port(struct uart_port *port, struct serial_struct *ser)
  * Enable the IrDA function if tty->ldisc.num is N_IRDA.
  * In other cases, disable IrDA function.
  */
-static void bfin_serial_set_ldisc(struct uart_port *port, int ld)
+static void bfin_serial_set_ldisc(struct uart_port *port,
+				  struct ktermios *termios)
 {
 	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
 	unsigned int val;
 
-	switch (ld) {
+	switch (termios->c_line) {
 	case N_IRDA:
 		val = UART_GET_GCTL(uart);
 		val |= (UMOD_IRDA | RPOLC);
@@ -1386,7 +1387,6 @@ static struct platform_driver bfin_serial_driver = {
 	.resume		= bfin_serial_resume,
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 

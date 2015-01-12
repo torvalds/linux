@@ -75,7 +75,7 @@ MODULE_PARM_DESC(reg_debug, "enable debug messages [URB reg]");
  * reads data from the usb device specifying bRequest
  */
 int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
-				   char *buf, int len)
+			    char *buf, int len)
 {
 	int ret;
 	int pipe = usb_rcvctrlpipe(dev->udev, 0);
@@ -151,7 +151,7 @@ EXPORT_SYMBOL_GPL(em28xx_read_reg);
  * sends data to the usb device, specifying bRequest
  */
 int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
-				 int len)
+			  int len)
 {
 	int ret;
 	int pipe = usb_sndctrlpipe(dev->udev, 0);
@@ -213,7 +213,7 @@ EXPORT_SYMBOL_GPL(em28xx_write_reg);
  * the actual value
  */
 int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
-				 u8 bitmask)
+			  u8 bitmask)
 {
 	int oldval;
 	u8 newval;
@@ -222,7 +222,7 @@ int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
 	if (oldval < 0)
 		return oldval;
 
-	newval = (((u8) oldval) & ~bitmask) | (val & bitmask);
+	newval = (((u8)oldval) & ~bitmask) | (val & bitmask);
 
 	return em28xx_write_regs(dev, reg, &newval, 1);
 }
@@ -314,7 +314,7 @@ int em28xx_write_ac97(struct em28xx *dev, u8 reg, u16 val)
 	if (ret < 0)
 		return ret;
 
-	ret = em28xx_write_regs(dev, EM28XX_R40_AC97LSB, (u8 *) &value, 2);
+	ret = em28xx_write_regs(dev, EM28XX_R40_AC97LSB, (u8 *)&value, 2);
 	if (ret < 0)
 		return ret;
 
@@ -361,7 +361,7 @@ static int set_ac97_input(struct em28xx *dev)
 
 		if (ret < 0)
 			em28xx_warn("couldn't setup AC97 register %d\n",
-				     inputs[i].reg);
+				    inputs[i].reg);
 	}
 	return 0;
 }
@@ -445,7 +445,7 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 			ret = em28xx_write_ac97(dev, outputs[i].reg, 0x8000);
 			if (ret < 0)
 				em28xx_warn("couldn't setup AC97 register %d\n",
-				     outputs[i].reg);
+					    outputs[i].reg);
 		}
 	}
 
@@ -483,7 +483,7 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 							vol);
 			if (ret < 0)
 				em28xx_warn("couldn't setup AC97 register %d\n",
-				     outputs[i].reg);
+					    outputs[i].reg);
 		}
 
 		if (dev->ctl_aoutput & EM28XX_AOUT_PCM_IN) {
@@ -531,7 +531,7 @@ int em28xx_audio_setup(struct em28xx *dev)
 	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) != EM28XX_CHIPCFG_AC97) {
 		dev->int_audio_type = EM28XX_INT_AUDIO_I2S;
 		if (dev->chip_id < CHIP_ID_EM2860 &&
-	            (cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
+		    (cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
 		    EM2820_CHIPCFG_I2S_1_SAMPRATE)
 			i2s_samplerates = 1;
 		else if (dev->chip_id >= CHIP_ID_EM2860 &&
@@ -541,7 +541,7 @@ int em28xx_audio_setup(struct em28xx *dev)
 		else
 			i2s_samplerates = 3;
 		em28xx_info("I2S Audio (%d sample rate(s))\n",
-					       i2s_samplerates);
+			    i2s_samplerates);
 		/* Skip the code that does AC97 vendor detection */
 		dev->audio_mode.ac97 = EM28XX_NO_AC97;
 		goto init_audio;
@@ -614,8 +614,9 @@ const struct em28xx_led *em28xx_find_led(struct em28xx *dev,
 {
 	if (dev->board.leds) {
 		u8 k = 0;
+
 		while (dev->board.leds[k].role >= 0 &&
-			       dev->board.leds[k].role < EM28XX_NUM_LED_ROLES) {
+		       dev->board.leds[k].role < EM28XX_NUM_LED_ROLES) {
 			if (dev->board.leds[k].role == role)
 				return &dev->board.leds[k];
 			k++;
@@ -658,10 +659,12 @@ int em28xx_capture_start(struct em28xx *dev, int start)
 
 			if (dev->mode == EM28XX_ANALOG_MODE)
 				rc = em28xx_write_reg(dev,
-						    EM28XX_R12_VINENABLE, 0x67);
+						      EM28XX_R12_VINENABLE,
+						      0x67);
 			else
 				rc = em28xx_write_reg(dev,
-						    EM28XX_R12_VINENABLE, 0x37);
+						      EM28XX_R12_VINENABLE,
+						      0x37);
 			if (rc < 0)
 				return rc;
 
@@ -815,9 +818,9 @@ void em28xx_uninit_usb_xfer(struct em28xx *dev, enum em28xx_mode mode)
 
 			if (usb_bufs->transfer_buffer[i]) {
 				usb_free_coherent(dev->udev,
-					urb->transfer_buffer_length,
-					usb_bufs->transfer_buffer[i],
-					urb->transfer_dma);
+						  urb->transfer_buffer_length,
+						  usb_bufs->transfer_buffer[i],
+						  urb->transfer_dma);
 			}
 			usb_free_urb(urb);
 			usb_bufs->urb[i] = NULL;
@@ -889,7 +892,7 @@ int em28xx_alloc_urbs(struct em28xx *dev, enum em28xx_mode mode, int xfer_bulk,
 		if ((xfer_bulk && !dev->analog_ep_bulk) ||
 		    (!xfer_bulk && !dev->analog_ep_isoc)) {
 			em28xx_errdev("no endpoint for analog mode and transfer type %d\n",
-				       xfer_bulk > 0);
+				      xfer_bulk > 0);
 			return -EINVAL;
 		}
 		usb_bufs = &dev->usb_ctl.analog_bufs;
@@ -988,9 +991,9 @@ EXPORT_SYMBOL_GPL(em28xx_alloc_urbs);
  * Allocate URBs and start IRQ
  */
 int em28xx_init_usb_xfer(struct em28xx *dev, enum em28xx_mode mode,
-		    int xfer_bulk, int num_bufs, int max_pkt_size,
+			 int xfer_bulk, int num_bufs, int max_pkt_size,
 		    int packet_multiplier,
-		    int (*urb_data_copy) (struct em28xx *dev, struct urb *urb))
+		    int (*urb_data_copy)(struct em28xx *dev, struct urb *urb))
 {
 	struct em28xx_dmaqueue *dma_q = &dev->vidq;
 	struct em28xx_dmaqueue *vbi_dma_q = &dev->vbiq;

@@ -157,13 +157,11 @@
 
 #define IPR_MAX_NUM_TARGETS_PER_BUS			256
 #define IPR_MAX_NUM_LUNS_PER_TARGET			256
-#define IPR_MAX_NUM_VSET_LUNS_PER_TARGET	8
 #define IPR_VSET_BUS					0xff
 #define IPR_IOA_BUS						0xff
 #define IPR_IOA_TARGET					0xff
 #define IPR_IOA_LUN						0xff
 #define IPR_MAX_NUM_BUSES				16
-#define IPR_MAX_BUS_TO_SCAN				IPR_MAX_NUM_BUSES
 
 #define IPR_NUM_RESET_RELOAD_RETRIES		3
 
@@ -1453,7 +1451,7 @@ struct ipr_ioa_cfg {
 	u8 in_ioa_bringdown:1;
 	u8 ioa_unit_checked:1;
 	u8 dump_taken:1;
-	u8 allow_ml_add_del:1;
+	u8 scan_done:1;
 	u8 needs_hard_reset:1;
 	u8 dual_raid:1;
 	u8 needs_warm_reset:1;
@@ -1549,7 +1547,7 @@ struct ipr_ioa_cfg {
 	struct ipr_misc_cbs *vpd_cbs;
 	dma_addr_t vpd_cbs_dma;
 
-	struct pci_pool *ipr_cmd_pool;
+	struct dma_pool *ipr_cmd_pool;
 
 	struct ipr_cmnd *reset_cmd;
 	int (*reset) (struct ipr_cmnd *);

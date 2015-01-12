@@ -115,7 +115,7 @@ static const struct snd_soc_dapm_route tas2552_audio_map[] = {
 	{"ClassD", NULL, "PLL"},
 };
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static void tas2552_sw_shutdown(struct tas2552_data *tas_data, int sw_shutdown)
 {
 	u8 cfg1_reg;
@@ -264,7 +264,7 @@ static int tas2552_mute(struct snd_soc_dai *dai, int mute)
 	return 0;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int tas2552_runtime_suspend(struct device *dev)
 {
 	struct tas2552_data *tas2552 = dev_get_drvdata(dev);
@@ -345,7 +345,6 @@ static const struct reg_default tas2552_init_regs[] = {
 static int tas2552_codec_probe(struct snd_soc_codec *codec)
 {
 	struct tas2552_data *tas2552 = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 
 	tas2552->codec = codec;
@@ -389,11 +388,6 @@ static int tas2552_codec_probe(struct snd_soc_codec *codec)
 
 	snd_soc_write(codec, TAS2552_CFG_2, TAS2552_BOOST_EN |
 				  TAS2552_APT_EN | TAS2552_LIM_EN);
-
-	snd_soc_dapm_new_controls(dapm, tas2552_dapm_widgets,
-				ARRAY_SIZE(tas2552_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, tas2552_audio_map,
-				ARRAY_SIZE(tas2552_audio_map));
 
 	return 0;
 
@@ -462,6 +456,10 @@ static struct snd_soc_codec_driver soc_codec_dev_tas2552 = {
 	.resume = tas2552_resume,
 	.controls = tas2552_snd_controls,
 	.num_controls = ARRAY_SIZE(tas2552_snd_controls),
+	.dapm_widgets = tas2552_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(tas2552_dapm_widgets),
+	.dapm_routes = tas2552_audio_map,
+	.num_dapm_routes = ARRAY_SIZE(tas2552_audio_map),
 };
 
 static const struct regmap_config tas2552_regmap_config = {

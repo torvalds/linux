@@ -278,7 +278,7 @@ static void rtl88eu_dm_hw_ant_div(struct odm_dm_struct *dm_odm)
 	struct rtw_dig *dig_table = &dm_odm->DM_DigTable;
 	struct sta_info *entry;
 	u32 i, min_rssi = 0xFF, ant_div_max_rssi = 0, max_rssi = 0;
-	u32 local_min_rssi,local_max_rssi;
+	u32 local_min_rssi, local_max_rssi;
 	u32 main_rssi, aux_rssi;
 	u8 RxIdleAnt = 0, target_ant = 7;
 

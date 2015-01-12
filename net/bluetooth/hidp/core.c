@@ -736,14 +736,10 @@ static int hidp_setup_hid(struct hidp_session *session,
 	struct hid_device *hid;
 	int err;
 
-	session->rd_data = kzalloc(req->rd_size, GFP_KERNEL);
-	if (!session->rd_data)
-		return -ENOMEM;
+	session->rd_data = memdup_user(req->rd_data, req->rd_size);
+	if (IS_ERR(session->rd_data))
+		return PTR_ERR(session->rd_data);
 
-	if (copy_from_user(session->rd_data, req->rd_data, req->rd_size)) {
-		err = -EFAULT;
-		goto fault;
-	}
 	session->rd_size = req->rd_size;
 
 	hid = hid_allocate_device();
@@ -1318,13 +1314,14 @@ int hidp_connection_add(struct hidp_connadd_req *req,
 {
 	struct hidp_session *session;
 	struct l2cap_conn *conn;
-	struct l2cap_chan *chan = l2cap_pi(ctrl_sock->sk)->chan;
+	struct l2cap_chan *chan;
 	int ret;
 
 	ret = hidp_verify_sockets(ctrl_sock, intr_sock);
 	if (ret)
 		return ret;
 
+	chan = l2cap_pi(ctrl_sock->sk)->chan;
 	conn = NULL;
 	l2cap_chan_lock(chan);
 	if (chan->conn)

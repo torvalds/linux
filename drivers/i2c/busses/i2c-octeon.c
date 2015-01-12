@@ -623,7 +623,6 @@ static struct platform_driver octeon_i2c_driver = {
 	.probe		= octeon_i2c_probe,
 	.remove		= octeon_i2c_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= DRV_NAME,
 		.of_match_table = octeon_i2c_match,
 	},

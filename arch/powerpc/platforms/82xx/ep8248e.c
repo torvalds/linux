@@ -169,7 +169,6 @@ static const struct of_device_id ep8248e_mdio_match[] = {
 static struct platform_driver ep8248e_mdio_driver = {
 	.driver = {
 		.name = "ep8248e-mdio-bitbang",
-		.owner = THIS_MODULE,
 		.of_match_table = ep8248e_mdio_match,
 	},
 	.probe = ep8248e_mdio_probe,

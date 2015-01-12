@@ -937,7 +937,7 @@ static void ci_fan_ctrl_set_static_mode(struct radeon_device *rdev, u32 mode)
 	tmp |= TMIN(0);
 	WREG32_SMC(CG_FDO_CTRL2, tmp);
 
-	tmp = RREG32_SMC(CG_FDO_CTRL2) & FDO_PWM_MODE_MASK;
+	tmp = RREG32_SMC(CG_FDO_CTRL2) & ~FDO_PWM_MODE_MASK;
 	tmp |= FDO_PWM_MODE(mode);
 	WREG32_SMC(CG_FDO_CTRL2, tmp);
 }
@@ -1162,7 +1162,7 @@ static int ci_fan_ctrl_set_fan_speed_rpm(struct radeon_device *rdev,
 	tmp |= TARGET_PERIOD(tach_period);
 	WREG32_SMC(CG_TACH_CTRL, tmp);
 
-	ci_fan_ctrl_set_static_mode(rdev, FDO_PWM_MODE_STATIC);
+	ci_fan_ctrl_set_static_mode(rdev, FDO_PWM_MODE_STATIC_RPM);
 
 	return 0;
 }
@@ -1178,7 +1178,7 @@ static void ci_fan_ctrl_set_default_mode(struct radeon_device *rdev)
 		tmp |= FDO_PWM_MODE(pi->fan_ctrl_default_mode);
 		WREG32_SMC(CG_FDO_CTRL2, tmp);
 
-		tmp = RREG32_SMC(CG_FDO_CTRL2) & TMIN_MASK;
+		tmp = RREG32_SMC(CG_FDO_CTRL2) & ~TMIN_MASK;
 		tmp |= TMIN(pi->t_min);
 		WREG32_SMC(CG_FDO_CTRL2, tmp);
 		pi->fan_ctrl_is_in_default_mode = true;
@@ -5849,7 +5849,6 @@ int ci_dpm_init(struct radeon_device *rdev)
 			rdev->pm.dpm.dyn_state.max_clock_voltage_on_ac;
 
 	pi->fan_ctrl_is_in_default_mode = true;
-	rdev->pm.dpm.fan.ucode_fan_control = false;
 
 	return 0;
 }

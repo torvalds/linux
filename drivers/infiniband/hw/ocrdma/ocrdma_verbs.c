@@ -805,7 +805,7 @@ struct ib_mr *ocrdma_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 		goto umem_err;
 
 	mr->hwmr.pbe_size = mr->umem->page_size;
-	mr->hwmr.fbo = mr->umem->offset;
+	mr->hwmr.fbo = ib_umem_offset(mr->umem);
 	mr->hwmr.va = usr_addr;
 	mr->hwmr.len = len;
 	mr->hwmr.remote_wr = (acc & IB_ACCESS_REMOTE_WRITE) ? 1 : 0;
@@ -1410,6 +1410,8 @@ int ocrdma_query_qp(struct ib_qp *ibqp,
 	mutex_unlock(&dev->dev_lock);
 	if (status)
 		goto mbx_err;
+	if (qp->qp_type == IB_QPT_UD)
+		qp_attr->qkey = params.qkey;
 	qp_attr->qp_state = get_ibqp_state(IB_QPS_INIT);
 	qp_attr->cur_qp_state = get_ibqp_state(IB_QPS_INIT);
 	qp_attr->path_mtu =

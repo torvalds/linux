@@ -674,7 +674,7 @@ void i40e_reset_vf(struct i40e_vf *vf, bool flr)
 		 * that the requested op was completed
 		 * successfully
 		 */
-		udelay(10);
+		usleep_range(10, 20);
 		reg = rd32(hw, I40E_VPGEN_VFRSTAT(vf->vf_id));
 		if (reg & I40E_VPGEN_VFRSTAT_VFRD_MASK) {
 			rsd = true;
@@ -707,7 +707,6 @@ complete_reset:
 	wr32(hw, I40E_VFGEN_RSTAT1(vf->vf_id), I40E_VFR_VFACTIVE);
 	i40e_flush(hw);
 }
-#ifdef CONFIG_PCI_IOV
 
 /**
  * i40e_enable_pf_switch_lb
@@ -715,7 +714,7 @@ complete_reset:
  *
  * enable switch loop back or die - no point in a return value
  **/
-static void i40e_enable_pf_switch_lb(struct i40e_pf *pf)
+void i40e_enable_pf_switch_lb(struct i40e_pf *pf)
 {
 	struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
 	struct i40e_vsi_context ctxt;
@@ -742,7 +741,6 @@ static void i40e_enable_pf_switch_lb(struct i40e_pf *pf)
 			 __func__, vsi->back->hw.aq.asq_last_status);
 	}
 }
-#endif
 
 /**
  * i40e_disable_pf_switch_lb
@@ -1869,6 +1867,12 @@ int i40e_vc_process_vflr_event(struct i40e_pf *pf)
 	if (!test_bit(__I40E_VFLR_EVENT_PENDING, &pf->state))
 		return 0;
 
+	/* re-enable vflr interrupt cause */
+	reg = rd32(hw, I40E_PFINT_ICR0_ENA);
+	reg |= I40E_PFINT_ICR0_ENA_VFLR_MASK;
+	wr32(hw, I40E_PFINT_ICR0_ENA, reg);
+	i40e_flush(hw);
+
 	clear_bit(__I40E_VFLR_EVENT_PENDING, &pf->state);
 	for (vf_id = 0; vf_id < pf->num_alloc_vfs; vf_id++) {
 		reg_idx = (hw->func_caps.vf_base_id + vf_id) / 32;
@@ -1884,12 +1888,6 @@ int i40e_vc_process_vflr_event(struct i40e_pf *pf)
 				i40e_reset_vf(vf, true);
 		}
 	}
-
-	/* re-enable vflr interrupt cause */
-	reg = rd32(hw, I40E_PFINT_ICR0_ENA);
-	reg |= I40E_PFINT_ICR0_ENA_VFLR_MASK;
-	wr32(hw, I40E_PFINT_ICR0_ENA, reg);
-	i40e_flush(hw);
 
 	return 0;
 }

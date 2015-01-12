@@ -78,8 +78,6 @@
 		     (CAN_SFF_MASK | CAN_EFF_FLAG | CAN_RTR_FLAG))
 
 #define CAN_BCM_VERSION CAN_VERSION
-static __initconst const char banner[] = KERN_INFO
-	"can: broadcast manager protocol (rev " CAN_BCM_VERSION " t)\n";
 
 MODULE_DESCRIPTION("PF_CAN broadcast manager protocol");
 MODULE_LICENSE("Dual BSD/GPL");
@@ -441,7 +439,7 @@ static void bcm_rx_update_and_send(struct bcm_op *op,
 	/* mark as used and throttled by default */
 	lastdata->can_dlc |= (RX_RECV|RX_THR);
 
-	/* throtteling mode inactive ? */
+	/* throttling mode inactive ? */
 	if (!op->kt_ival2.tv64) {
 		/* send RX_CHANGED to the user immediately */
 		bcm_rx_changed(op, lastdata);
@@ -452,7 +450,7 @@ static void bcm_rx_update_and_send(struct bcm_op *op,
 	if (hrtimer_active(&op->thrtimer))
 		return;
 
-	/* first receiption with enabled throttling mode */
+	/* first reception with enabled throttling mode */
 	if (!op->kt_lastmsg.tv64)
 		goto rx_changed_settime;
 
@@ -480,7 +478,7 @@ static void bcm_rx_cmp_to_index(struct bcm_op *op, unsigned int index,
 				const struct can_frame *rxdata)
 {
 	/*
-	 * no one uses the MSBs of can_dlc for comparation,
+	 * no one uses the MSBs of can_dlc for comparison,
 	 * so we use it here to detect the first time of reception
 	 */
 
@@ -510,7 +508,7 @@ static void bcm_rx_cmp_to_index(struct bcm_op *op, unsigned int index,
 }
 
 /*
- * bcm_rx_starttimer - enable timeout monitoring for CAN frame receiption
+ * bcm_rx_starttimer - enable timeout monitoring for CAN frame reception
  */
 static void bcm_rx_starttimer(struct bcm_op *op)
 {
@@ -539,7 +537,7 @@ static void bcm_rx_timeout_tsklet(unsigned long data)
 }
 
 /*
- * bcm_rx_timeout_handler - when the (cyclic) CAN frame receiption timed out
+ * bcm_rx_timeout_handler - when the (cyclic) CAN frame reception timed out
  */
 static enum hrtimer_restart bcm_rx_timeout_handler(struct hrtimer *hrtimer)
 {
@@ -627,7 +625,7 @@ static enum hrtimer_restart bcm_rx_thr_handler(struct hrtimer *hrtimer)
 }
 
 /*
- * bcm_rx_handler - handle a CAN frame receiption
+ * bcm_rx_handler - handle a CAN frame reception
  */
 static void bcm_rx_handler(struct sk_buff *skb, void *data)
 {
@@ -858,8 +856,7 @@ static int bcm_tx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
 
 		/* update can_frames content */
 		for (i = 0; i < msg_head->nframes; i++) {
-			err = memcpy_fromiovec((u8 *)&op->frames[i],
-					       msg->msg_iov, CFSIZ);
+			err = memcpy_from_msg((u8 *)&op->frames[i], msg, CFSIZ);
 
 			if (op->frames[i].can_dlc > 8)
 				err = -EINVAL;
@@ -894,8 +891,7 @@ static int bcm_tx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
 			op->frames = &op->sframe;
 
 		for (i = 0; i < msg_head->nframes; i++) {
-			err = memcpy_fromiovec((u8 *)&op->frames[i],
-					       msg->msg_iov, CFSIZ);
+			err = memcpy_from_msg((u8 *)&op->frames[i], msg, CFSIZ);
 
 			if (op->frames[i].can_dlc > 8)
 				err = -EINVAL;
@@ -1024,9 +1020,8 @@ static int bcm_rx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
 
 		if (msg_head->nframes) {
 			/* update can_frames content */
-			err = memcpy_fromiovec((u8 *)op->frames,
-					       msg->msg_iov,
-					       msg_head->nframes * CFSIZ);
+			err = memcpy_from_msg((u8 *)op->frames, msg,
+					      msg_head->nframes * CFSIZ);
 			if (err < 0)
 				return err;
 
@@ -1072,8 +1067,8 @@ static int bcm_rx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
 		}
 
 		if (msg_head->nframes) {
-			err = memcpy_fromiovec((u8 *)op->frames, msg->msg_iov,
-					       msg_head->nframes * CFSIZ);
+			err = memcpy_from_msg((u8 *)op->frames, msg,
+					      msg_head->nframes * CFSIZ);
 			if (err < 0) {
 				if (op->frames != &op->sframe)
 					kfree(op->frames);
@@ -1209,7 +1204,7 @@ static int bcm_tx_send(struct msghdr *msg, int ifindex, struct sock *sk)
 
 	can_skb_reserve(skb);
 
-	err = memcpy_fromiovec(skb_put(skb, CFSIZ), msg->msg_iov, CFSIZ);
+	err = memcpy_from_msg(skb_put(skb, CFSIZ), msg, CFSIZ);
 	if (err < 0) {
 		kfree_skb(skb);
 		return err;
@@ -1285,7 +1280,7 @@ static int bcm_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 	/* read message head information */
 
-	ret = memcpy_fromiovec((u8 *)&msg_head, msg->msg_iov, MHSIZ);
+	ret = memcpy_from_msg((u8 *)&msg_head, msg, MHSIZ);
 	if (ret < 0)
 		return ret;
 
@@ -1558,7 +1553,7 @@ static int bcm_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (skb->len < size)
 		size = skb->len;
 
-	err = memcpy_toiovec(msg->msg_iov, skb->data, size);
+	err = memcpy_to_msg(msg, skb->data, size);
 	if (err < 0) {
 		skb_free_datagram(sk, skb);
 		return err;
@@ -1615,7 +1610,7 @@ static int __init bcm_module_init(void)
 {
 	int err;
 
-	printk(banner);
+	pr_info("can: broadcast manager protocol (rev " CAN_BCM_VERSION " t)\n");
 
 	err = can_proto_register(&bcm_can_proto);
 	if (err < 0) {

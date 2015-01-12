@@ -64,7 +64,7 @@ s32 ixgbe_read_eeprom_bit_bang_generic(struct ixgbe_hw *hw, u16 offset,
 				       u16 *data);
 s32 ixgbe_read_eeprom_buffer_bit_bang_generic(struct ixgbe_hw *hw, u16 offset,
 					      u16 words, u16 *data);
-u16 ixgbe_calc_eeprom_checksum_generic(struct ixgbe_hw *hw);
+s32 ixgbe_calc_eeprom_checksum_generic(struct ixgbe_hw *hw);
 s32 ixgbe_validate_eeprom_checksum_generic(struct ixgbe_hw *hw,
 					   u16 *checksum_val);
 s32 ixgbe_update_eeprom_checksum_generic(struct ixgbe_hw *hw);
@@ -84,8 +84,8 @@ s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw);
 bool ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw);
 void ixgbe_fc_autoneg(struct ixgbe_hw *hw);
 
-s32 ixgbe_acquire_swfw_sync(struct ixgbe_hw *hw, u16 mask);
-void ixgbe_release_swfw_sync(struct ixgbe_hw *hw, u16 mask);
+s32 ixgbe_acquire_swfw_sync(struct ixgbe_hw *hw, u32 mask);
+void ixgbe_release_swfw_sync(struct ixgbe_hw *hw, u32 mask);
 s32 ixgbe_get_san_mac_addr_generic(struct ixgbe_hw *hw, u8 *san_mac_addr);
 s32 ixgbe_set_vmdq_generic(struct ixgbe_hw *hw, u32 rar, u32 vmdq);
 s32 ixgbe_set_vmdq_san_mac_generic(struct ixgbe_hw *hw, u32 vmdq);
@@ -110,6 +110,8 @@ void ixgbe_set_vlan_anti_spoofing(struct ixgbe_hw *hw, bool enable, int vf);
 s32 ixgbe_get_device_caps_generic(struct ixgbe_hw *hw, u16 *device_caps);
 s32 ixgbe_set_fw_drv_ver_generic(struct ixgbe_hw *hw, u8 maj, u8 min,
 				 u8 build, u8 ver);
+s32 ixgbe_host_interface_command(struct ixgbe_hw *hw, u32 *buffer,
+				 u32 length, u32 timeout, bool return_data);
 void ixgbe_clear_tx_pending(struct ixgbe_hw *hw);
 bool ixgbe_mng_enabled(struct ixgbe_hw *hw);
 

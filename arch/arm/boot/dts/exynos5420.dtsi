@@ -541,12 +541,13 @@
 
 	adc: adc@12D10000 {
 		compatible = "samsung,exynos-adc-v2";
-		reg = <0x12D10000 0x100>, <0x10040720 0x4>;
+		reg = <0x12D10000 0x100>;
 		interrupts = <0 106 0>;
 		clocks = <&clock CLK_TSADC>;
 		clock-names = "adc";
 		#io-channel-cells = <1>;
 		io-channel-ranges;
+		samsung,syscon-phandle = <&pmu_system_controller>;
 		status = "disabled";
 	};
 
@@ -560,6 +561,7 @@
 		clock-names = "i2c";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c0_bus>;
+		samsung,sysreg-phandle = <&sysreg_system_controller>;
 		status = "disabled";
 	};
 
@@ -573,6 +575,7 @@
 		clock-names = "i2c";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c1_bus>;
+		samsung,sysreg-phandle = <&sysreg_system_controller>;
 		status = "disabled";
 	};
 
@@ -586,6 +589,7 @@
 		clock-names = "i2c";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c2_bus>;
+		samsung,sysreg-phandle = <&sysreg_system_controller>;
 		status = "disabled";
 	};
 
@@ -599,6 +603,7 @@
 		clock-names = "i2c";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c3_bus>;
+		samsung,sysreg-phandle = <&sysreg_system_controller>;
 		status = "disabled";
 	};
 

@@ -1056,9 +1056,11 @@ static void svm_adjust_tsc_offset(struct kvm_vcpu *vcpu, s64 adjustment, bool ho
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	WARN_ON(adjustment < 0);
-	if (host)
-		adjustment = svm_scale_tsc(vcpu, adjustment);
+	if (host) {
+		if (svm->tsc_ratio != TSC_RATIO_DEFAULT)
+			WARN_ON(adjustment < 0);
+		adjustment = svm_scale_tsc(vcpu, (u64)adjustment);
+	}
 
 	svm->vmcb->control.tsc_offset += adjustment;
 	if (is_guest_mode(vcpu))
@@ -2999,7 +3001,6 @@ static int dr_interception(struct vcpu_svm *svm)
 {
 	int reg, dr;
 	unsigned long val;
-	int err;
 
 	if (svm->vcpu.guest_debug == 0) {
 		/*
@@ -3019,12 +3020,15 @@ static int dr_interception(struct vcpu_svm *svm)
 	dr = svm->vmcb->control.exit_code - SVM_EXIT_READ_DR0;
 
 	if (dr >= 16) { /* mov to DRn */
+		if (!kvm_require_dr(&svm->vcpu, dr - 16))
+			return 1;
 		val = kvm_register_read(&svm->vcpu, reg);
 		kvm_set_dr(&svm->vcpu, dr - 16, val);
 	} else {
-		err = kvm_get_dr(&svm->vcpu, dr, &val);
-		if (!err)
-			kvm_register_write(&svm->vcpu, reg, val);
+		if (!kvm_require_dr(&svm->vcpu, dr))
+			return 1;
+		kvm_get_dr(&svm->vcpu, dr, &val);
+		kvm_register_write(&svm->vcpu, reg, val);
 	}
 
 	skip_emulated_instruction(&svm->vcpu);
@@ -4123,6 +4127,11 @@ static bool svm_mpx_supported(void)
 	return false;
 }
 
+static bool svm_xsaves_supported(void)
+{
+	return false;
+}
+
 static bool svm_has_wbinvd_exit(void)
 {
 	return true;
@@ -4410,6 +4419,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.rdtscp_supported = svm_rdtscp_supported,
 	.invpcid_supported = svm_invpcid_supported,
 	.mpx_supported = svm_mpx_supported,
+	.xsaves_supported = svm_xsaves_supported,
 
 	.set_supported_cpuid = svm_set_supported_cpuid,
 

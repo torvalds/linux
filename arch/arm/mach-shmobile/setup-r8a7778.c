@@ -288,8 +288,6 @@ void __init r8a7778_add_dt_devices(void)
 		l2x0_init(base, 0x00400000, 0xc20f0fff);
 	}
 #endif
-
-	r8a7778_register_tmu(0);
 }
 
 /* HPB-DMA */
@@ -497,6 +495,7 @@ static void __init r8a7778_register_hpb_dmae(void)
 void __init r8a7778_add_standard_devices(void)
 {
 	r8a7778_add_dt_devices();
+	r8a7778_register_tmu(0);
 	r8a7778_register_scif(0);
 	r8a7778_register_scif(1);
 	r8a7778_register_scif(2);
@@ -568,11 +567,6 @@ void __init r8a7778_init_irq_extpin(int irlm)
 			&irqpin_platform_data, sizeof(irqpin_platform_data));
 }
 
-void __init r8a7778_init_delay(void)
-{
-	shmobile_init_delay();
-}
-
 #ifdef CONFIG_USE_OF
 #define INT2SMSKCR0	0x82288 /* 0xfe782288 */
 #define INT2SMSKCR1	0x8228c /* 0xfe78228c */
@@ -604,7 +598,7 @@ static const char *r8a7778_compat_dt[] __initdata = {
 };
 
 DT_MACHINE_START(R8A7778_DT, "Generic R8A7778 (Flattened Device Tree)")
-	.init_early	= r8a7778_init_delay,
+	.init_early	= shmobile_init_delay,
 	.init_irq	= r8a7778_init_irq_dt,
 	.init_late	= shmobile_init_late,
 	.dt_compat	= r8a7778_compat_dt,

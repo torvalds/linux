@@ -96,7 +96,7 @@ static int smp_execute_task(struct domain_device *dev, void *req, int req_size,
 		task->slow_task->timer.expires = jiffies + SMP_TIMEOUT*HZ;
 		add_timer(&task->slow_task->timer);
 
-		res = i->dft->lldd_execute_task(task, 1, GFP_KERNEL);
+		res = i->dft->lldd_execute_task(task, GFP_KERNEL);
 
 		if (res) {
 			del_timer(&task->slow_task->timer);

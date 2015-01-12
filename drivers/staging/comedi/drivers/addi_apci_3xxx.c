@@ -371,10 +371,10 @@ static irqreturn_t apci3xxx_irq_handler(int irq, void *d)
 		writel(status, dev->mmio + 16);
 
 		val = readl(dev->mmio + 28);
-		comedi_buf_put(s, val);
+		comedi_buf_write_samples(s, &val, 1);
 
 		s->async->events |= COMEDI_CB_EOA;
-		comedi_event(dev, s);
+		comedi_handle_events(dev, s);
 
 		return IRQ_HANDLED;
 	}
@@ -849,12 +849,11 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 	if (board->has_ao) {
 		s = &dev->subdevices[subdev];
 		s->type		= COMEDI_SUBD_AO;
-		s->subdev_flags	= SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
+		s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
 		s->n_chan	= 4;
 		s->maxdata	= 0x0fff;
 		s->range_table	= &apci3xxx_ao_range;
 		s->insn_write	= apci3xxx_ao_insn_write;
-		s->insn_read	= comedi_readback_insn_read;
 
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)
@@ -880,7 +879,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 	if (board->has_dig_out) {
 		s = &dev->subdevices[subdev];
 		s->type		= COMEDI_SUBD_DO;
-		s->subdev_flags	= SDF_WRITEABLE;
+		s->subdev_flags	= SDF_WRITABLE;
 		s->n_chan	= 4;
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
@@ -893,7 +892,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 	if (board->has_ttl_io) {
 		s = &dev->subdevices[subdev];
 		s->type		= COMEDI_SUBD_DIO;
-		s->subdev_flags	= SDF_READABLE | SDF_WRITEABLE;
+		s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
 		s->n_chan	= 24;
 		s->maxdata	= 1;
 		s->io_bits	= 0xff;	/* channels 0-7 are always outputs */

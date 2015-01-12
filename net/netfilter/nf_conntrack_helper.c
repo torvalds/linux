@@ -250,7 +250,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(__nf_ct_try_assign_helper);
 
-/* appropiate ct lock protecting must be taken by caller */
+/* appropriate ct lock protecting must be taken by caller */
 static inline int unhelp(struct nf_conntrack_tuple_hash *i,
 			 const struct nf_conntrack_helper *me)
 {

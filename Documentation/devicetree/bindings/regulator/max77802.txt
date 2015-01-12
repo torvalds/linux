@@ -25,6 +25,29 @@ with their hardware counterparts as follow. The valid names are:
 			example: LDO1, LDO2, LDO35.
 	-BUCKn 	:	for BUCKs, where n can lie in range 1 to 10.
 			example: BUCK1, BUCK5, BUCK10.
+
+The max77802 regulator supports two different operating modes: Normal and Low
+Power Mode. Some regulators support the modes to be changed at startup or by
+the consumers during normal operation while others only support to change the
+mode during system suspend. The standard regulator suspend states binding can
+be used to configure the regulator operating mode.
+
+The regulators that support the standard "regulator-initial-mode" property,
+changing their mode during normal operation are: LDOs 1, 3, 20 and 21.
+
+The possible values for "regulator-initial-mode" and "regulator-mode" are:
+	1: Normal regulator voltage output mode.
+	3: Low Power which reduces the quiescent current down to only 1uA
+
+The list of valid modes are defined in the dt-bindings/clock/maxim,max77802.h
+header and can be included by device tree source files.
+
+The standard "regulator-mode" property can only be used for regulators that
+support changing their mode to Low Power Mode during suspend. These regulators
+are: BUCKs 2-4 and LDOs 1-35. Also, it only takes effect if the regulator has
+been enabled for the given suspend state using "regulator-on-in-suspend" and
+has not been disabled for that state using "regulator-off-in-suspend".
+
 Example:
 
 	max77802@09 {
@@ -36,11 +59,23 @@ Example:
 		#size-cells = <0>;
 
 		regulators {
+			ldo1_reg: LDO1 {
+				regulator-name = "vdd_1v0";
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <1000000>;
+				regulator-always-on;
+				regulator-initial-mode = <MAX77802_OPMODE_LP>;
+			};
+
 			ldo11_reg: LDO11 {
 				regulator-name = "vdd_ldo11";
 				regulator-min-microvolt = <1900000>;
 				regulator-max-microvolt = <1900000>;
 				regulator-always-on;
+				regulator-state-mem {
+					regulator-on-in-suspend;
+					regulator-mode = <MAX77802_OPMODE_LP>;
+				};
 			};
 
 			buck1_reg: BUCK1 {

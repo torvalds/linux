@@ -26,6 +26,8 @@
 #include <linux/slab.h>
 #include <linux/amd-iommu.h>
 #include <linux/notifier.h>
+#include <linux/compat.h>
+
 struct mm_struct;
 
 #include "kfd_priv.h"
@@ -196,7 +198,7 @@ static void kfd_process_destroy_delayed(struct rcu_head *rcu)
 	mmdrop(p->mm);
 
 	work = (struct kfd_process_release_work *)
-		kmalloc(sizeof(struct kfd_process_release_work), GFP_KERNEL);
+		kmalloc(sizeof(struct kfd_process_release_work), GFP_ATOMIC);
 
 	if (work) {
 		INIT_WORK((struct work_struct *) work, kfd_process_wq_release);
@@ -285,8 +287,15 @@ static struct kfd_process *create_process(const struct task_struct *thread)
 	if (err != 0)
 		goto err_process_pqm_init;
 
+	/* init process apertures*/
+	process->is_32bit_user_mode = is_compat_task();
+	if (kfd_init_apertures(process) != 0)
+		goto err_init_apretures;
+
 	return process;
 
+err_init_apretures:
+	pqm_uninit(&process->pqm);
 err_process_pqm_init:
 	hash_del_rcu(&process->kfd_processes);
 	synchronize_rcu();

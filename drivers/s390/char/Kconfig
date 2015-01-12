@@ -102,6 +102,16 @@ config SCLP_ASYNC
 	  want for inform other people about your kernel panics,
 	  need this feature and intend to run your kernel in LPAR.
 
+config SCLP_ASYNC_ID
+       string "Component ID for Call Home"
+       depends on SCLP_ASYNC
+       default "000000000"
+       help
+	 The Component ID for Call Home is used to identify the correct
+	 problem reporting queue the call home records should be sent to.
+
+	 If your are unsure, please use the default value "000000000".
+
 config HMC_DRV
 	def_tristate m
 	prompt "Support for file transfers from HMC drive CD/DVD-ROM"

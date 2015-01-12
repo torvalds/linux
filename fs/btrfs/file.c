@@ -1428,7 +1428,7 @@ static noinline int check_can_nocow(struct inode *inode, loff_t pos,
 	u64 num_bytes;
 	int ret;
 
-	ret = btrfs_start_nocow_write(root);
+	ret = btrfs_start_write_no_snapshoting(root);
 	if (!ret)
 		return -ENOSPC;
 
@@ -1451,7 +1451,7 @@ static noinline int check_can_nocow(struct inode *inode, loff_t pos,
 	ret = can_nocow_extent(inode, lockstart, &num_bytes, NULL, NULL, NULL);
 	if (ret <= 0) {
 		ret = 0;
-		btrfs_end_nocow_write(root);
+		btrfs_end_write_no_snapshoting(root);
 	} else {
 		*write_bytes = min_t(size_t, *write_bytes ,
 				     num_bytes - pos + lockstart);
@@ -1543,7 +1543,7 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 				btrfs_free_reserved_data_space(inode,
 							       reserve_bytes);
 			else
-				btrfs_end_nocow_write(root);
+				btrfs_end_write_no_snapshoting(root);
 			break;
 		}
 
@@ -1632,7 +1632,7 @@ again:
 
 		release_bytes = 0;
 		if (only_release_metadata)
-			btrfs_end_nocow_write(root);
+			btrfs_end_write_no_snapshoting(root);
 
 		if (only_release_metadata && copied > 0) {
 			u64 lockstart = round_down(pos, root->sectorsize);
@@ -1661,7 +1661,7 @@ again:
 
 	if (release_bytes) {
 		if (only_release_metadata) {
-			btrfs_end_nocow_write(root);
+			btrfs_end_write_no_snapshoting(root);
 			btrfs_delalloc_release_metadata(inode, release_bytes);
 		} else {
 			btrfs_delalloc_release_space(inode, release_bytes);
@@ -1676,6 +1676,7 @@ static ssize_t __btrfs_direct_write(struct kiocb *iocb,
 				    loff_t pos)
 {
 	struct file *file = iocb->ki_filp;
+	struct inode *inode = file_inode(file);
 	ssize_t written;
 	ssize_t written_buffered;
 	loff_t endbyte;
@@ -1692,8 +1693,15 @@ static ssize_t __btrfs_direct_write(struct kiocb *iocb,
 		err = written_buffered;
 		goto out;
 	}
+	/*
+	 * Ensure all data is persisted. We want the next direct IO read to be
+	 * able to read what was just written.
+	 */
 	endbyte = pos + written_buffered - 1;
-	err = filemap_write_and_wait_range(file->f_mapping, pos, endbyte);
+	err = btrfs_fdatawrite_range(inode, pos, endbyte);
+	if (err)
+		goto out;
+	err = filemap_fdatawait_range(inode->i_mapping, pos, endbyte);
 	if (err)
 		goto out;
 	written += written_buffered;
@@ -1854,10 +1862,7 @@ static int start_ordered_ops(struct inode *inode, loff_t start, loff_t end)
 	int ret;
 
 	atomic_inc(&BTRFS_I(inode)->sync_writers);
-	ret = filemap_fdatawrite_range(inode->i_mapping, start, end);
-	if (!ret && test_bit(BTRFS_INODE_HAS_ASYNC_EXTENT,
-			     &BTRFS_I(inode)->runtime_flags))
-		ret = filemap_fdatawrite_range(inode->i_mapping, start, end);
+	ret = btrfs_fdatawrite_range(inode, start, end);
 	atomic_dec(&BTRFS_I(inode)->sync_writers);
 
 	return ret;
@@ -2809,4 +2814,30 @@ int btrfs_auto_defrag_init(void)
 		return -ENOMEM;
 
 	return 0;
+}
+
+int btrfs_fdatawrite_range(struct inode *inode, loff_t start, loff_t end)
+{
+	int ret;
+
+	/*
+	 * So with compression we will find and lock a dirty page and clear the
+	 * first one as dirty, setup an async extent, and immediately return
+	 * with the entire range locked but with nobody actually marked with
+	 * writeback.  So we can't just filemap_write_and_wait_range() and
+	 * expect it to work since it will just kick off a thread to do the
+	 * actual work.  So we need to call filemap_fdatawrite_range _again_
+	 * since it will wait on the page lock, which won't be unlocked until
+	 * after the pages have been marked as writeback and so we're good to go
+	 * from there.  We have to do this otherwise we'll miss the ordered
+	 * extents and that results in badness.  Please Josef, do not think you
+	 * know better and pull this out at some point in the future, it is
+	 * right and you are wrong.
+	 */
+	ret = filemap_fdatawrite_range(inode->i_mapping, start, end);
+	if (!ret && test_bit(BTRFS_INODE_HAS_ASYNC_EXTENT,
+			     &BTRFS_I(inode)->runtime_flags))
+		ret = filemap_fdatawrite_range(inode->i_mapping, start, end);
+
+	return ret;
 }

@@ -4079,27 +4079,28 @@ static int ar9003_hw_get_thermometer(struct ath_hw *ah)
 
 static void ar9003_hw_thermometer_apply(struct ath_hw *ah)
 {
+	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	int thermometer = ar9003_hw_get_thermometer(ah);
 	u8 therm_on = (thermometer < 0) ? 0 : 1;
 
 	REG_RMW_FIELD(ah, AR_PHY_65NM_CH0_RXTX4,
 		      AR_PHY_65NM_CH0_RXTX4_THERM_ON_OVR, therm_on);
-	if (ah->caps.tx_chainmask & BIT(1))
+	if (pCap->chip_chainmask & BIT(1))
 		REG_RMW_FIELD(ah, AR_PHY_65NM_CH1_RXTX4,
 			      AR_PHY_65NM_CH0_RXTX4_THERM_ON_OVR, therm_on);
-	if (ah->caps.tx_chainmask & BIT(2))
+	if (pCap->chip_chainmask & BIT(2))
 		REG_RMW_FIELD(ah, AR_PHY_65NM_CH2_RXTX4,
 			      AR_PHY_65NM_CH0_RXTX4_THERM_ON_OVR, therm_on);
 
 	therm_on = (thermometer < 0) ? 0 : (thermometer == 0);
 	REG_RMW_FIELD(ah, AR_PHY_65NM_CH0_RXTX4,
 		      AR_PHY_65NM_CH0_RXTX4_THERM_ON, therm_on);
-	if (ah->caps.tx_chainmask & BIT(1)) {
+	if (pCap->chip_chainmask & BIT(1)) {
 		therm_on = (thermometer < 0) ? 0 : (thermometer == 1);
 		REG_RMW_FIELD(ah, AR_PHY_65NM_CH1_RXTX4,
 			      AR_PHY_65NM_CH0_RXTX4_THERM_ON, therm_on);
 	}
-	if (ah->caps.tx_chainmask & BIT(2)) {
+	if (pCap->chip_chainmask & BIT(2)) {
 		therm_on = (thermometer < 0) ? 0 : (thermometer == 2);
 		REG_RMW_FIELD(ah, AR_PHY_65NM_CH2_RXTX4,
 			      AR_PHY_65NM_CH0_RXTX4_THERM_ON, therm_on);
@@ -4374,6 +4375,25 @@ static u8 ar9003_hw_eeprom_get_cck_tgt_pwr(struct ath_hw *ah,
 	return (u8) ar9003_hw_power_interpolate((s32) freq,
 						 freqArray,
 						 targetPowerArray, numPiers);
+}
+
+static void ar9003_hw_selfgen_tpc_txpower(struct ath_hw *ah,
+					  struct ath9k_channel *chan,
+					  u8 *pwr_array)
+{
+	u32 val;
+
+	/* target power values for self generated frames (ACK,RTS/CTS) */
+	if (IS_CHAN_2GHZ(chan)) {
+		val = SM(pwr_array[ALL_TARGET_LEGACY_1L_5L], AR_TPC_ACK) |
+		      SM(pwr_array[ALL_TARGET_LEGACY_1L_5L], AR_TPC_CTS) |
+		      SM(0x3f, AR_TPC_CHIRP) | SM(0x3f, AR_TPC_RPT);
+	} else {
+		val = SM(pwr_array[ALL_TARGET_LEGACY_6_24], AR_TPC_ACK) |
+		      SM(pwr_array[ALL_TARGET_LEGACY_6_24], AR_TPC_CTS) |
+		      SM(0x3f, AR_TPC_CHIRP) | SM(0x3f, AR_TPC_RPT);
+	}
+	REG_WRITE(ah, AR_TPC, val);
 }
 
 /* Set tx power registers to array of values passed in */
@@ -5311,6 +5331,7 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 	struct ar9300_modal_eep_header *modal_hdr;
 	u8 targetPowerValT2[ar9300RateSize];
 	u8 target_power_val_t2_eep[ar9300RateSize];
+	u8 targetPowerValT2_tpc[ar9300RateSize];
 	unsigned int i = 0, paprd_scale_factor = 0;
 	u8 pwr_idx, min_pwridx = 0;
 
@@ -5362,6 +5383,9 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 					   twiceAntennaReduction,
 					   powerLimit);
 
+	memcpy(targetPowerValT2_tpc, targetPowerValT2,
+	       sizeof(targetPowerValT2));
+
 	if (ar9003_is_paprd_enabled(ah)) {
 		for (i = 0; i < ar9300RateSize; i++) {
 			if ((ah->paprd_ratemask & (1 << i)) &&
@@ -5395,6 +5419,30 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 	ar9003_hw_tx_power_regwrite(ah, targetPowerValT2);
 	ar9003_hw_calibration_apply(ah, chan->channel);
 	ar9003_paprd_set_txpower(ah, chan, targetPowerValT2);
+
+	ar9003_hw_selfgen_tpc_txpower(ah, chan, targetPowerValT2);
+
+	/* TPC initializations */
+	if (ah->tpc_enabled) {
+		u32 val;
+
+		ar9003_hw_init_rate_txpower(ah, targetPowerValT2_tpc, chan);
+
+		/* Enable TPC */
+		REG_WRITE(ah, AR_PHY_PWRTX_MAX,
+			  AR_PHY_POWER_TX_RATE_MAX_TPC_ENABLE);
+		/* Disable per chain power reduction */
+		val = REG_READ(ah, AR_PHY_POWER_TX_SUB);
+		if (AR_SREV_9340(ah))
+			REG_WRITE(ah, AR_PHY_POWER_TX_SUB,
+				  val & 0xFFFFFFC0);
+		else
+			REG_WRITE(ah, AR_PHY_POWER_TX_SUB,
+				  val & 0xFFFFF000);
+	} else {
+		/* Disable TPC */
+		REG_WRITE(ah, AR_PHY_PWRTX_MAX, 0);
+	}
 }
 
 static u16 ath9k_hw_ar9300_get_spur_channel(struct ath_hw *ah,

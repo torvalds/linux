@@ -38,6 +38,19 @@ static const intercept_handler_t instruction_handlers[256] = {
 	[0xeb] = kvm_s390_handle_eb,
 };
 
+void kvm_s390_rewind_psw(struct kvm_vcpu *vcpu, int ilc)
+{
+	struct kvm_s390_sie_block *sie_block = vcpu->arch.sie_block;
+
+	/* Use the length of the EXECUTE instruction if necessary */
+	if (sie_block->icptstatus & 1) {
+		ilc = (sie_block->icptstatus >> 4) & 0x6;
+		if (!ilc)
+			ilc = 4;
+	}
+	sie_block->gpsw.addr = __rewind_psw(sie_block->gpsw, ilc);
+}
+
 static int handle_noop(struct kvm_vcpu *vcpu)
 {
 	switch (vcpu->arch.sie_block->icptcode) {
@@ -244,7 +257,7 @@ static int handle_instruction_and_prog(struct kvm_vcpu *vcpu)
 static int handle_external_interrupt(struct kvm_vcpu *vcpu)
 {
 	u16 eic = vcpu->arch.sie_block->eic;
-	struct kvm_s390_interrupt irq;
+	struct kvm_s390_irq irq;
 	psw_t newpsw;
 	int rc;
 
@@ -269,7 +282,7 @@ static int handle_external_interrupt(struct kvm_vcpu *vcpu)
 		if (kvm_s390_si_ext_call_pending(vcpu))
 			return 0;
 		irq.type = KVM_S390_INT_EXTERNAL_CALL;
-		irq.parm = vcpu->arch.sie_block->extcpuaddr;
+		irq.u.extcall.code = vcpu->arch.sie_block->extcpuaddr;
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -288,7 +301,6 @@ static int handle_external_interrupt(struct kvm_vcpu *vcpu)
  */
 static int handle_mvpg_pei(struct kvm_vcpu *vcpu)
 {
-	psw_t *psw = &vcpu->arch.sie_block->gpsw;
 	unsigned long srcaddr, dstaddr;
 	int reg1, reg2, rc;
 
@@ -310,7 +322,7 @@ static int handle_mvpg_pei(struct kvm_vcpu *vcpu)
 	if (rc != 0)
 		return rc;
 
-	psw->addr = __rewind_psw(*psw, 4);
+	kvm_s390_rewind_psw(vcpu, 4);
 
 	return 0;
 }

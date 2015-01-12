@@ -357,12 +357,11 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 	s = &dev->subdevices[0];
 	if (ao_n_chan) {
 		s->type		= COMEDI_SUBD_AO;
-		s->subdev_flags	= SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
+		s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
 		s->n_chan	= ao_n_chan;
 		s->maxdata	= 0x3fff;
 		s->range_table	= &apci3501_ao_range;
 		s->insn_write	= apci3501_ao_insn_write;
-		s->insn_read	= comedi_readback_insn_read;
 
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)
@@ -383,7 +382,7 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 	/* Initialize the digital output subdevice */
 	s = &dev->subdevices[2];
 	s->type		= COMEDI_SUBD_DO;
-	s->subdev_flags	= SDF_WRITEABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 2;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
@@ -392,7 +391,7 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 	/* Initialize the timer/watchdog subdevice */
 	s = &dev->subdevices[3];
 	s->type = COMEDI_SUBD_TIMER;
-	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
+	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = 1;
 	s->maxdata = 0;
 	s->len_chanlist = 1;

@@ -60,6 +60,7 @@ typedef u16 kprobe_opcode_t;
 struct arch_specific_insn {
 	/* copy of original instruction */
 	kprobe_opcode_t *insn;
+	unsigned int is_ftrace_insn : 1;
 };
 
 struct prev_kprobe {

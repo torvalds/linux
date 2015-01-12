@@ -1054,6 +1054,7 @@ static int radeon_crtc_mode_set(struct drm_crtc *crtc,
 			DRM_ERROR("Mode need scaling but only first crtc can do that.\n");
 		}
 	}
+	radeon_cursor_reset(crtc);
 	return 0;
 }
 

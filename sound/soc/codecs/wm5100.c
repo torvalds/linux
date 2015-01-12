@@ -2664,7 +2664,7 @@ static int wm5100_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int wm5100_runtime_suspend(struct device *dev)
 {
 	struct wm5100_priv *wm5100 = dev_get_drvdata(dev);

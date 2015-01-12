@@ -501,7 +501,6 @@ struct iscsi_tpg_np *iscsit_tpg_add_network_portal(
 	init_completion(&tpg_np->tpg_np_comp);
 	kref_init(&tpg_np->tpg_np_kref);
 	tpg_np->tpg_np		= np;
-	np->tpg_np		= tpg_np;
 	tpg_np->tpg		= tpg;
 
 	spin_lock(&tpg->tpg_np_lock);

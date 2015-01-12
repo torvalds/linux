@@ -376,13 +376,14 @@ static int qlcnic_set_mac(struct net_device *netdev, void *p)
 }
 
 static int qlcnic_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
-			struct net_device *netdev, const unsigned char *addr)
+			struct net_device *netdev,
+			const unsigned char *addr, u16 vid)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	int err = -EOPNOTSUPP;
 
 	if (!adapter->fdb_mac_learn)
-		return ndo_dflt_fdb_del(ndm, tb, netdev, addr);
+		return ndo_dflt_fdb_del(ndm, tb, netdev, addr, vid);
 
 	if ((adapter->flags & QLCNIC_ESWITCH_ENABLED) ||
 	    qlcnic_sriov_check(adapter)) {
@@ -401,13 +402,13 @@ static int qlcnic_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 
 static int qlcnic_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 			struct net_device *netdev,
-			const unsigned char *addr, u16 flags)
+			const unsigned char *addr, u16 vid, u16 flags)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	int err = 0;
 
 	if (!adapter->fdb_mac_learn)
-		return ndo_dflt_fdb_add(ndm, tb, netdev, addr, flags);
+		return ndo_dflt_fdb_add(ndm, tb, netdev, addr, vid, flags);
 
 	if (!(adapter->flags & QLCNIC_ESWITCH_ENABLED) &&
 	    !qlcnic_sriov_check(adapter)) {
@@ -460,7 +461,7 @@ static void qlcnic_82xx_cancel_idc_work(struct qlcnic_adapter *adapter)
 }
 
 static int qlcnic_get_phys_port_id(struct net_device *netdev,
-				   struct netdev_phys_port_id *ppid)
+				   struct netdev_phys_item_id *ppid)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
@@ -504,9 +505,11 @@ static void qlcnic_del_vxlan_port(struct net_device *netdev,
 	adapter->flags |= QLCNIC_DEL_VXLAN_PORT;
 }
 
-static bool qlcnic_gso_check(struct sk_buff *skb, struct net_device *dev)
+static netdev_features_t qlcnic_features_check(struct sk_buff *skb,
+					       struct net_device *dev,
+					       netdev_features_t features)
 {
-	return vxlan_gso_check(skb);
+	return vxlan_features_check(skb, features);
 }
 #endif
 
@@ -531,7 +534,7 @@ static const struct net_device_ops qlcnic_netdev_ops = {
 #ifdef CONFIG_QLCNIC_VXLAN
 	.ndo_add_vxlan_port	= qlcnic_add_vxlan_port,
 	.ndo_del_vxlan_port	= qlcnic_del_vxlan_port,
-	.ndo_gso_check		= qlcnic_gso_check,
+	.ndo_features_check	= qlcnic_features_check,
 #endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = qlcnic_poll_controller,
@@ -2602,6 +2605,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	} else {
 		dev_err(&pdev->dev,
 			"%s: failed. Please Reboot\n", __func__);
+		err = -ENODEV;
 		goto err_out_free_hw;
 	}
 

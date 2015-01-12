@@ -430,7 +430,7 @@ int rsnd_adg_probe(struct platform_device *pdev,
 	adg->clk[CLKI]	= devm_clk_get(dev, "clk_i");
 
 	for_each_rsnd_clk(clk, adg, i)
-		dev_dbg(dev, "clk %d : %p\n", i, clk);
+		dev_dbg(dev, "clk %d : %p : %ld\n", i, clk, clk_get_rate(clk));
 
 	rsnd_adg_ssi_clk_init(priv, adg);
 

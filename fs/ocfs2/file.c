@@ -1803,7 +1803,7 @@ static int ocfs2_remove_inode_range(struct inode *inode,
 
 		ret = ocfs2_remove_btree_range(inode, &et, trunc_cpos,
 					       phys_cpos, trunc_len, flags,
-					       &dealloc, refcount_loc);
+					       &dealloc, refcount_loc, false);
 		if (ret < 0) {
 			mlog_errno(ret);
 			goto out;
@@ -2381,9 +2381,7 @@ out_dio:
 		if (ret < 0)
 			written = ret;
 
-		if (!ret && ((old_size != i_size_read(inode)) ||
-			     (old_clusters != OCFS2_I(inode)->ip_clusters) ||
-			     has_refcount)) {
+		if (!ret) {
 			ret = jbd2_journal_force_commit(osb->journal->j_journal);
 			if (ret < 0)
 				written = ret;

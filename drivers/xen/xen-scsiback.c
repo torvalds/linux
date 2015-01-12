@@ -274,10 +274,6 @@ static void scsiback_print_status(char *sense_buffer, int errors,
 	       tpg->tport->tport_name, pending_req->v2p->lun,
 	       pending_req->cmnd[0], status_byte(errors), msg_byte(errors),
 	       host_byte(errors), driver_byte(errors));
-
-	if (CHECK_CONDITION & status_byte(errors))
-		__scsi_print_sense("xen-pvscsi", sense_buffer,
-				   SCSI_SENSE_BUFFERSIZE);
 }
 
 static void scsiback_fast_flush_area(struct vscsibk_pend *req)
@@ -610,7 +606,7 @@ static void scsiback_device_action(struct vscsibk_pend *pending_req,
 	init_waitqueue_head(&tmr->tmr_wait);
 
 	transport_init_se_cmd(se_cmd, tpg->se_tpg.se_tpg_tfo,
-		tpg->tpg_nexus->tvn_se_sess, 0, DMA_NONE, MSG_SIMPLE_TAG,
+		tpg->tpg_nexus->tvn_se_sess, 0, DMA_NONE, TCM_SIMPLE_TAG,
 		&pending_req->sense_buffer[0]);
 
 	rc = core_tmr_alloc_req(se_cmd, tmr, act, GFP_KERNEL);

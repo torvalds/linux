@@ -172,6 +172,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_TDLS_IDLE_TIMEOUT  (PROPRIETARY_TLV_BASE_ID + 194)
 #define TLV_TYPE_SCAN_CHANNEL_GAP   (PROPRIETARY_TLV_BASE_ID + 197)
 #define TLV_TYPE_API_REV            (PROPRIETARY_TLV_BASE_ID + 199)
+#define TLV_TYPE_CHANNEL_STATS      (PROPRIETARY_TLV_BASE_ID + 198)
 
 #define MWIFIEX_TX_DATA_BUF_SIZE_2K        2048
 
@@ -493,6 +494,7 @@ enum P2P_MODES {
 #define EVENT_TDLS_GENERIC_EVENT        0x00000052
 #define EVENT_EXT_SCAN_REPORT           0x00000058
 #define EVENT_REMAIN_ON_CHAN_EXPIRED    0x0000005f
+#define EVENT_TX_STATUS_REPORT		0x00000074
 
 #define EVENT_ID_MASK                   0xffff
 #define BSS_NUM_MASK                    0xf
@@ -541,6 +543,7 @@ struct mwifiex_ie_types_data {
 #define MWIFIEX_TxPD_POWER_MGMT_LAST_PACKET 0x08
 #define MWIFIEX_TXPD_FLAGS_TDLS_PACKET      0x10
 #define MWIFIEX_RXPD_FLAGS_TDLS_PACKET      0x01
+#define MWIFIEX_TXPD_FLAGS_REQ_TX_STATUS    0x20
 
 struct txpd {
 	u8 bss_type;
@@ -552,7 +555,9 @@ struct txpd {
 	u8 priority;
 	u8 flags;
 	u8 pkt_delay_2ms;
-	u8 reserved1;
+	u8 reserved1[2];
+	u8 tx_token_id;
+	u8 reserved[2];
 } __packed;
 
 struct rxpd {
@@ -583,6 +588,7 @@ struct rxpd {
 	 * [Bit 7] Reserved
 	 */
 	u8 ht_info;
+	u8 reserved[3];
 	u8 flags;
 } __packed;
 
@@ -596,8 +602,9 @@ struct uap_txpd {
 	u8 priority;
 	u8 flags;
 	u8 pkt_delay_2ms;
-	u8 reserved1;
-	__le32 reserved2;
+	u8 reserved1[2];
+	u8 tx_token_id;
+	u8 reserved[2];
 };
 
 struct uap_rxpd {
@@ -610,6 +617,16 @@ struct uap_rxpd {
 	u8 priority;
 	u8 reserved1;
 };
+
+struct mwifiex_fw_chan_stats {
+	u8 chan_num;
+	u8 bandcfg;
+	u8 flags;
+	s8 noise;
+	__le16 total_bss;
+	__le16 cca_scan_dur;
+	__le16 cca_busy_dur;
+} __packed;
 
 enum mwifiex_chan_scan_mode_bitmasks {
 	MWIFIEX_PASSIVE_SCAN = BIT(0),
@@ -658,6 +675,11 @@ struct mwifiex_ie_types_scan_chan_gap {
 	struct mwifiex_ie_types_header header;
 	/* time gap in TUs to be used between two consecutive channels scan */
 	__le16 chan_gap;
+} __packed;
+
+struct mwifiex_ietypes_chanstats {
+	struct mwifiex_ie_types_header header;
+	struct mwifiex_fw_chan_stats chanstats[0];
 } __packed;
 
 struct mwifiex_ie_types_wildcard_ssid_params {
@@ -1205,6 +1227,12 @@ struct mwifiex_event_scan_result {
 	u8 reserved[3];
 	__le16 buf_size;
 	u8 num_of_set;
+} __packed;
+
+struct tx_status_event {
+	u8 packet_type;
+	u8 tx_token_id;
+	u8 status;
 } __packed;
 
 #define MWIFIEX_USER_SCAN_CHAN_MAX             50

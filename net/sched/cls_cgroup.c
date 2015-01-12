@@ -67,10 +67,6 @@ static unsigned long cls_cgroup_get(struct tcf_proto *tp, u32 handle)
 	return 0UL;
 }
 
-static void cls_cgroup_put(struct tcf_proto *tp, unsigned long f)
-{
-}
-
 static int cls_cgroup_init(struct tcf_proto *tp)
 {
 	return 0;
@@ -117,11 +113,7 @@ static int cls_cgroup_change(struct net *net, struct sk_buff *in_skb,
 		return -ENOBUFS;
 
 	tcf_exts_init(&new->exts, TCA_CGROUP_ACT, TCA_CGROUP_POLICE);
-	if (head)
-		new->handle = head->handle;
-	else
-		new->handle = handle;
-
+	new->handle = handle;
 	new->tp = tp;
 	err = nla_parse_nested(tb, TCA_CGROUP_MAX, tca[TCA_OPTIONS],
 			       cgroup_policy);
@@ -185,7 +177,6 @@ static int cls_cgroup_dump(struct net *net, struct tcf_proto *tp, unsigned long 
 			   struct sk_buff *skb, struct tcmsg *t)
 {
 	struct cls_cgroup_head *head = rtnl_dereference(tp->root);
-	unsigned char *b = skb_tail_pointer(skb);
 	struct nlattr *nest;
 
 	t->tcm_handle = head->handle;
@@ -206,7 +197,7 @@ static int cls_cgroup_dump(struct net *net, struct tcf_proto *tp, unsigned long 
 	return skb->len;
 
 nla_put_failure:
-	nlmsg_trim(skb, b);
+	nla_nest_cancel(skb, nest);
 	return -1;
 }
 
@@ -217,7 +208,6 @@ static struct tcf_proto_ops cls_cgroup_ops __read_mostly = {
 	.classify	=	cls_cgroup_classify,
 	.destroy	=	cls_cgroup_destroy,
 	.get		=	cls_cgroup_get,
-	.put		=	cls_cgroup_put,
 	.delete		=	cls_cgroup_delete,
 	.walk		=	cls_cgroup_walk,
 	.dump		=	cls_cgroup_dump,

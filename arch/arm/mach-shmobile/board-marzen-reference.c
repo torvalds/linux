@@ -22,7 +22,6 @@
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
 
-#include "clock.h"
 #include "common.h"
 #include "irqs.h"
 #include "r8a7779.h"

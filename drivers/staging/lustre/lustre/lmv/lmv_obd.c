@@ -325,8 +325,8 @@ static int lmv_init_ea_size(struct obd_export *exp, int easize,
 		rc = md_init_ea_size(lmv->tgts[i]->ltd_exp, easize, def_easize,
 				     cookiesize, def_cookiesize);
 		if (rc) {
-			CERROR("%s: obd_init_ea_size() failed on MDT target %d:"
-			       " rc = %d.\n", obd->obd_name, i, rc);
+			CERROR("%s: obd_init_ea_size() failed on MDT target %d: rc = %d.\n",
+			       obd->obd_name, i, rc);
 			break;
 		}
 	}
@@ -427,8 +427,7 @@ int lmv_connect_mdc(struct obd_device *obd, struct lmv_tgt_desc *tgt)
 						  mdc_obd->obd_type->typ_name,
 						  mdc_obd->obd_name);
 		if (mdc_symlink == NULL) {
-			CERROR("Could not register LMV target "
-			       "/proc/fs/lustre/%s/%s/target_obds/%s.",
+			CERROR("Could not register LMV target /proc/fs/lustre/%s/%s/target_obds/%s.",
 			       obd->obd_type->typ_name, obd->obd_name,
 			       mdc_obd->obd_name);
 			lprocfs_remove(&lmv_proc_dir);
@@ -474,8 +473,8 @@ static int lmv_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 
 	if ((index < lmv->tgts_size) && (lmv->tgts[index] != NULL)) {
 		tgt = lmv->tgts[index];
-		CERROR("%s: UUID %s already assigned at LOV target index %d:"
-		       " rc = %d\n", obd->obd_name,
+		CERROR("%s: UUID %s already assigned at LOV target index %d: rc = %d\n",
+		       obd->obd_name,
 		       obd_uuid2str(&tgt->ltd_uuid), index, -EEXIST);
 		lmv_init_unlock(lmv);
 		return -EEXIST;
@@ -600,8 +599,7 @@ int lmv_check_connect(struct obd_device *obd)
 			--lmv->desc.ld_active_tgt_count;
 			rc2 = obd_disconnect(tgt->ltd_exp);
 			if (rc2) {
-				CERROR("LMV target %s disconnect on "
-				       "MDC idx %d: error %d\n",
+				CERROR("LMV target %s disconnect on MDC idx %d: error %d\n",
 				       tgt->ltd_uuid.uuid, i, rc2);
 			}
 		}
@@ -865,10 +863,9 @@ static int lmv_hsm_ct_register(struct lmv_obd *lmv, unsigned int cmd, int len,
 		if (err) {
 			if (lmv->tgts[i]->ltd_active) {
 				/* permanent error */
-				CERROR("error: iocontrol MDC %s on MDT"
-				       "idx %d cmd %x: err = %d\n",
-					lmv->tgts[i]->ltd_uuid.uuid,
-					i, cmd, err);
+				CERROR("error: iocontrol MDC %s on MDTidx %d cmd %x: err = %d\n",
+				       lmv->tgts[i]->ltd_uuid.uuid,
+				       i, cmd, err);
 				rc = err;
 				lk->lk_flags |= LK_FLG_STOP;
 				/* unregister from previous MDS */
@@ -925,7 +922,7 @@ static int lmv_iocontrol(unsigned int cmd, struct obd_export *exp,
 		__u32 index;
 
 		memcpy(&index, data->ioc_inlbuf2, sizeof(__u32));
-		if ((index >= count))
+		if (index >= count)
 			return -ENODEV;
 
 		if (lmv->tgts[index] == NULL ||
@@ -1147,10 +1144,9 @@ static int lmv_iocontrol(unsigned int cmd, struct obd_export *exp,
 				return err;
 			} else if (err) {
 				if (lmv->tgts[i]->ltd_active) {
-					CERROR("error: iocontrol MDC %s on MDT"
-					       "idx %d cmd %x: err = %d\n",
-						lmv->tgts[i]->ltd_uuid.uuid,
-						i, cmd, err);
+					CERROR("error: iocontrol MDC %s on MDTidx %d cmd %x: err = %d\n",
+					       lmv->tgts[i]->ltd_uuid.uuid,
+					       i, cmd, err);
 					if (!rc)
 						rc = err;
 				}
@@ -1234,8 +1230,8 @@ static int lmv_placement_policy(struct obd_device *obd,
 		if (lum->lum_type == LMV_STRIPE_TYPE &&
 		    lum->lum_stripe_offset != -1) {
 			if (lum->lum_stripe_offset >= lmv->desc.ld_tgt_count) {
-				CERROR("%s: Stripe_offset %d > MDT count %d:"
-				       " rc = %d\n", obd->obd_name,
+				CERROR("%s: Stripe_offset %d > MDT count %d: rc = %d\n",
+				       obd->obd_name,
 				       lum->lum_stripe_offset,
 				       lmv->desc.ld_tgt_count, -ERANGE);
 				return -ERANGE;
@@ -1298,8 +1294,8 @@ int lmv_fid_alloc(struct obd_export *exp, struct lu_fid *fid,
 
 	rc = lmv_placement_policy(obd, op_data, &mds);
 	if (rc) {
-		CERROR("Can't get target for allocating fid, "
-		       "rc %d\n", rc);
+		CERROR("Can't get target for allocating fid, rc %d\n",
+		       rc);
 		return rc;
 	}
 
@@ -2310,7 +2306,6 @@ retry:
 static int lmv_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 {
 	struct lmv_obd *lmv = &obd->u.lmv;
-	int rc = 0;
 
 	switch (stage) {
 	case OBD_CLEANUP_EARLY:
@@ -2324,7 +2319,7 @@ static int lmv_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 	default:
 		break;
 	}
-	return rc;
+	return 0;
 }
 
 static int lmv_get_info(const struct lu_env *env, struct obd_export *exp,

@@ -233,10 +233,8 @@ commit:
 
 		spin_unlock_irqrestore(&amd_lock, flags);
 
-		if (info.nb_dev)
-			pci_dev_put(info.nb_dev);
-		if (info.smbus_dev)
-			pci_dev_put(info.smbus_dev);
+		pci_dev_put(info.nb_dev);
+		pci_dev_put(info.smbus_dev);
 
 	} else {
 		/* no race - commit the result */
@@ -447,10 +445,8 @@ void usb_amd_dev_put(void)
 
 	spin_unlock_irqrestore(&amd_lock, flags);
 
-	if (nb)
-		pci_dev_put(nb);
-	if (smbus)
-		pci_dev_put(smbus);
+	pci_dev_put(nb);
+	pci_dev_put(smbus);
 }
 EXPORT_SYMBOL_GPL(usb_amd_dev_put);
 

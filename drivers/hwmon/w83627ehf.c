@@ -2705,7 +2705,6 @@ static const struct dev_pm_ops w83627ehf_dev_pm_ops = {
 
 static struct platform_driver w83627ehf_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= DRVNAME,
 		.pm	= W83627EHF_DEV_PM_OPS,
 	},

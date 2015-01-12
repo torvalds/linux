@@ -9,8 +9,9 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#undef DEBUG
+#define pr_fmt(fmt)	"opal: " fmt
 
+#include <linux/printk.h>
 #include <linux/types.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
@@ -50,7 +51,6 @@ static int mc_recoverable_range_len;
 
 struct device_node *opal_node;
 static DEFINE_SPINLOCK(opal_write_lock);
-extern u64 opal_mc_secondary_handler[];
 static unsigned int *opal_irqs;
 static unsigned int opal_irq_count;
 static ATOMIC_NOTIFIER_HEAD(opal_notifier_head);
@@ -626,6 +626,39 @@ static int opal_sysfs_init(void)
 	return 0;
 }
 
+static ssize_t symbol_map_read(struct file *fp, struct kobject *kobj,
+			       struct bin_attribute *bin_attr,
+			       char *buf, loff_t off, size_t count)
+{
+	return memory_read_from_buffer(buf, count, &off, bin_attr->private,
+				       bin_attr->size);
+}
+
+static BIN_ATTR_RO(symbol_map, 0);
+
+static void opal_export_symmap(void)
+{
+	const __be64 *syms;
+	unsigned int size;
+	struct device_node *fw;
+	int rc;
+
+	fw = of_find_node_by_path("/ibm,opal/firmware");
+	if (!fw)
+		return;
+	syms = of_get_property(fw, "symbol-map", &size);
+	if (!syms || size != 2 * sizeof(__be64))
+		return;
+
+	/* Setup attributes */
+	bin_attr_symbol_map.private = __va(be64_to_cpu(syms[0]));
+	bin_attr_symbol_map.size = be64_to_cpu(syms[1]);
+
+	rc = sysfs_create_bin_file(opal_kobj, &bin_attr_symbol_map);
+	if (rc)
+		pr_warn("Error %d creating OPAL symbols file\n", rc);
+}
+
 static void __init opal_dump_region_init(void)
 {
 	void *addr;
@@ -644,6 +677,24 @@ static void __init opal_dump_region_init(void)
 		pr_warn("DUMP: Failed to register kernel log buffer. "
 			"rc = %d\n", rc);
 }
+
+static void opal_ipmi_init(struct device_node *opal_node)
+{
+	struct device_node *np;
+
+	for_each_child_of_node(opal_node, np)
+		if (of_device_is_compatible(np, "ibm,opal-ipmi"))
+			of_platform_device_create(np, NULL, NULL);
+}
+
+static void opal_i2c_create_devs(void)
+{
+	struct device_node *np;
+
+	for_each_compatible_node(np, NULL, "ibm,opal-i2c")
+		of_platform_device_create(np, NULL, NULL);
+}
+
 static int __init opal_init(void)
 {
 	struct device_node *np, *consoles;
@@ -670,6 +721,9 @@ static int __init opal_init(void)
 		of_node_put(consoles);
 	}
 
+	/* Create i2c platform devices */
+	opal_i2c_create_devs();
+
 	/* Find all OPAL interrupts and request them */
 	irqs = of_get_property(opal_node, "opal-interrupts", &irqlen);
 	pr_debug("opal: Found %d interrupts reserved for OPAL\n",
@@ -693,6 +747,8 @@ static int __init opal_init(void)
 	/* Create "opal" kobject under /sys/firmware */
 	rc = opal_sysfs_init();
 	if (rc == 0) {
+		/* Export symbol map to userspace */
+		opal_export_symmap();
 		/* Setup dump region interface */
 		opal_dump_region_init();
 		/* Setup error log interface */
@@ -706,6 +762,8 @@ static int __init opal_init(void)
 		/* Setup message log interface. */
 		opal_msglog_init();
 	}
+
+	opal_ipmi_init(opal_node);
 
 	return 0;
 }
@@ -742,6 +800,8 @@ void opal_shutdown(void)
 
 /* Export this so that test modules can use it */
 EXPORT_SYMBOL_GPL(opal_invalid_call);
+EXPORT_SYMBOL_GPL(opal_ipmi_send);
+EXPORT_SYMBOL_GPL(opal_ipmi_recv);
 
 /* Convert a region of vmalloc memory to an opal sg list */
 struct opal_sg_list *opal_vmalloc_to_sg_list(void *vmalloc_addr,
@@ -805,3 +865,10 @@ void opal_free_sg_list(struct opal_sg_list *sg)
 			sg = NULL;
 	}
 }
+
+EXPORT_SYMBOL_GPL(opal_poll_events);
+EXPORT_SYMBOL_GPL(opal_rtc_read);
+EXPORT_SYMBOL_GPL(opal_rtc_write);
+EXPORT_SYMBOL_GPL(opal_tpo_read);
+EXPORT_SYMBOL_GPL(opal_tpo_write);
+EXPORT_SYMBOL_GPL(opal_i2c_request);

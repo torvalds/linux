@@ -3775,9 +3775,10 @@ static bool mtip_check_unal_depth(struct blk_mq_hw_ctx *hctx,
 	return false;
 }
 
-static int mtip_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *rq,
-		bool last)
+static int mtip_queue_rq(struct blk_mq_hw_ctx *hctx,
+			 const struct blk_mq_queue_data *bd)
 {
+	struct request *rq = bd->rq;
 	int ret;
 
 	if (unlikely(mtip_check_unal_depth(hctx, rq)))

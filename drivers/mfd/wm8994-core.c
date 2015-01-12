@@ -116,7 +116,7 @@ static const char *wm8958_main_supplies[] = {
 	"SPKVDD2",
 };
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int wm8994_suspend(struct device *dev)
 {
 	struct wm8994 *wm8994 = dev_get_drvdata(dev);

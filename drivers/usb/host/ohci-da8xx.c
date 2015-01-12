@@ -313,16 +313,13 @@ static int usb_hcd_da8xx_probe(const struct hc_driver *driver,
 		return -ENOMEM;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem)
-		return -ENODEV;
-	hcd->rsrc_start = mem->start;
-	hcd->rsrc_len = resource_size(mem);
-
 	hcd->regs = devm_ioremap_resource(&pdev->dev, mem);
 	if (IS_ERR(hcd->regs)) {
 		error = PTR_ERR(hcd->regs);
 		goto err;
 	}
+	hcd->rsrc_start = mem->start;
+	hcd->rsrc_len = resource_size(mem);
 
 	ohci_hcd_init(hcd_to_ohci(hcd));
 

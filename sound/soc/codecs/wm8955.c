@@ -866,29 +866,6 @@ static struct snd_soc_dai_driver wm8955_dai = {
 	.ops = &wm8955_dai_ops,
 };
 
-#ifdef CONFIG_PM
-static int wm8955_suspend(struct snd_soc_codec *codec)
-{
-	struct wm8955_priv *wm8955 = snd_soc_codec_get_drvdata(codec);
-
-	wm8955_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	regcache_mark_dirty(wm8955->regmap);
-
-	return 0;
-}
-
-static int wm8955_resume(struct snd_soc_codec *codec)
-{
-	wm8955_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
-#else
-#define wm8955_suspend NULL
-#define wm8955_resume NULL
-#endif
-
 static int wm8955_probe(struct snd_soc_codec *codec)
 {
 	struct wm8955_priv *wm8955 = snd_soc_codec_get_drvdata(codec);
@@ -964,18 +941,10 @@ err_enable:
 	return ret;
 }
 
-static int wm8955_remove(struct snd_soc_codec *codec)
-{
-	wm8955_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_wm8955 = {
 	.probe =	wm8955_probe,
-	.remove =	wm8955_remove,
-	.suspend =	wm8955_suspend,
-	.resume =	wm8955_resume,
 	.set_bias_level = wm8955_set_bias_level,
+	.suspend_bias_off = true,
 
 	.controls =	wm8955_snd_controls,
 	.num_controls = ARRAY_SIZE(wm8955_snd_controls),

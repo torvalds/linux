@@ -191,7 +191,8 @@ enum {
 	ATA_DEV_PMP_UNSUP	= 6,	/* SATA port multiplier (unsupported) */
 	ATA_DEV_SEMB		= 7,	/* SEMB */
 	ATA_DEV_SEMB_UNSUP	= 8,	/* SEMB (unsupported) */
-	ATA_DEV_NONE		= 9,	/* no device */
+	ATA_DEV_ZAC		= 9,	/* ZAC device */
+	ATA_DEV_NONE		= 10,	/* no device */
 
 	/* struct ata_link flags */
 	ATA_LFLAG_NO_HRST	= (1 << 1), /* avoid hardreset */
@@ -1191,9 +1192,9 @@ extern void ata_scsi_unlock_native_capacity(struct scsi_device *sdev);
 extern int ata_scsi_slave_config(struct scsi_device *sdev);
 extern void ata_scsi_slave_destroy(struct scsi_device *sdev);
 extern int ata_scsi_change_queue_depth(struct scsi_device *sdev,
-				       int queue_depth, int reason);
+				       int queue_depth);
 extern int __ata_change_queue_depth(struct ata_port *ap, struct scsi_device *sdev,
-				    int queue_depth, int reason);
+				    int queue_depth);
 extern struct ata_device *ata_dev_pair(struct ata_device *adev);
 extern int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev);
 extern void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap);
@@ -1491,7 +1492,8 @@ static inline unsigned int ata_tag_internal(unsigned int tag)
 static inline unsigned int ata_class_enabled(unsigned int class)
 {
 	return class == ATA_DEV_ATA || class == ATA_DEV_ATAPI ||
-		class == ATA_DEV_PMP || class == ATA_DEV_SEMB;
+		class == ATA_DEV_PMP || class == ATA_DEV_SEMB ||
+		class == ATA_DEV_ZAC;
 }
 
 static inline unsigned int ata_class_disabled(unsigned int class)

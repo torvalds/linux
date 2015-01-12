@@ -198,7 +198,7 @@ static int vmw_gb_shader_bind(struct vmw_resource *res,
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.shid = res->id;
 	cmd->body.mobid = bo->mem.start;
-	cmd->body.offsetInBytes = 0;
+	cmd->body.offsetInBytes = res->backup_offset;
 	res->backup_dirty = false;
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
 

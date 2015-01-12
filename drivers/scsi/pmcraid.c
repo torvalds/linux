@@ -249,15 +249,11 @@ static int pmcraid_slave_configure(struct scsi_device *scsi_dev)
 				      PMCRAID_VSET_MAX_SECTORS);
 	}
 
-	if (scsi_dev->tagged_supported &&
-	    (RES_IS_GSCSI(res->cfg_entry) || RES_IS_VSET(res->cfg_entry))) {
-		scsi_activate_tcq(scsi_dev, scsi_dev->queue_depth);
-		scsi_adjust_queue_depth(scsi_dev, MSG_SIMPLE_TAG,
-					scsi_dev->host->cmd_per_lun);
-	} else {
-		scsi_adjust_queue_depth(scsi_dev, 0,
-					scsi_dev->host->cmd_per_lun);
-	}
+	/*
+	 * We never want to report TCQ support for these types of devices.
+	 */
+	if (!RES_IS_GSCSI(res->cfg_entry) && !RES_IS_VSET(res->cfg_entry))
+		scsi_dev->tagged_supported = 0;
 
 	return 0;
 }
@@ -289,53 +285,16 @@ static void pmcraid_slave_destroy(struct scsi_device *scsi_dev)
  * pmcraid_change_queue_depth - Change the device's queue depth
  * @scsi_dev: scsi device struct
  * @depth: depth to set
- * @reason: calling context
  *
  * Return value
  *	actual depth set
  */
-static int pmcraid_change_queue_depth(struct scsi_device *scsi_dev, int depth,
-				      int reason)
+static int pmcraid_change_queue_depth(struct scsi_device *scsi_dev, int depth)
 {
-	if (reason != SCSI_QDEPTH_DEFAULT)
-		return -EOPNOTSUPP;
-
 	if (depth > PMCRAID_MAX_CMD_PER_LUN)
 		depth = PMCRAID_MAX_CMD_PER_LUN;
-
-	scsi_adjust_queue_depth(scsi_dev, scsi_get_tag_type(scsi_dev), depth);
-
-	return scsi_dev->queue_depth;
+	return scsi_change_queue_depth(scsi_dev, depth);
 }
-
-/**
- * pmcraid_change_queue_type - Change the device's queue type
- * @scsi_dev: scsi device struct
- * @tag: type of tags to use
- *
- * Return value:
- *	actual queue type set
- */
-static int pmcraid_change_queue_type(struct scsi_device *scsi_dev, int tag)
-{
-	struct pmcraid_resource_entry *res;
-
-	res = (struct pmcraid_resource_entry *)scsi_dev->hostdata;
-
-	if ((res) && scsi_dev->tagged_supported &&
-	    (RES_IS_GSCSI(res->cfg_entry) || RES_IS_VSET(res->cfg_entry))) {
-		scsi_set_tag_type(scsi_dev, tag);
-
-		if (tag)
-			scsi_activate_tcq(scsi_dev, scsi_dev->queue_depth);
-		else
-			scsi_deactivate_tcq(scsi_dev, scsi_dev->queue_depth);
-	} else
-		tag = 0;
-
-	return tag;
-}
-
 
 /**
  * pmcraid_init_cmdblk - initializes a command block
@@ -3175,36 +3134,6 @@ static int pmcraid_eh_host_reset_handler(struct scsi_cmnd *scmd)
 }
 
 /**
- * pmcraid_task_attributes - Translate SPI Q-Tags to task attributes
- * @scsi_cmd:   scsi command struct
- *
- * Return value
- *	  number of tags or 0 if the task is not tagged
- */
-static u8 pmcraid_task_attributes(struct scsi_cmnd *scsi_cmd)
-{
-	char tag[2];
-	u8 rc = 0;
-
-	if (scsi_populate_tag_msg(scsi_cmd, tag)) {
-		switch (tag[0]) {
-		case MSG_SIMPLE_TAG:
-			rc = TASK_TAG_SIMPLE;
-			break;
-		case MSG_HEAD_TAG:
-			rc = TASK_TAG_QUEUE_HEAD;
-			break;
-		case MSG_ORDERED_TAG:
-			rc = TASK_TAG_ORDERED;
-			break;
-		};
-	}
-
-	return rc;
-}
-
-
-/**
  * pmcraid_init_ioadls - initializes IOADL related fields in IOARCB
  * @cmd: pmcraid command struct
  * @sgcount: count of scatter-gather elements
@@ -3559,7 +3488,9 @@ static int pmcraid_queuecommand_lck(
 		}
 
 		ioarcb->request_flags0 |= NO_LINK_DESCS;
-		ioarcb->request_flags1 |= pmcraid_task_attributes(scsi_cmd);
+
+		if (scsi_cmd->flags & SCMD_TAGGED)
+			ioarcb->request_flags1 |= TASK_TAG_SIMPLE;
 
 		if (RES_IS_GSCSI(res->cfg_entry))
 			ioarcb->request_flags1 |= DELAY_AFTER_RESET;
@@ -4320,7 +4251,6 @@ static struct scsi_host_template pmcraid_host_template = {
 	.slave_configure = pmcraid_slave_configure,
 	.slave_destroy = pmcraid_slave_destroy,
 	.change_queue_depth = pmcraid_change_queue_depth,
-	.change_queue_type  = pmcraid_change_queue_type,
 	.can_queue = PMCRAID_MAX_IO_CMD,
 	.this_id = -1,
 	.sg_tablesize = PMCRAID_MAX_IOADLS,
@@ -4329,7 +4259,8 @@ static struct scsi_host_template pmcraid_host_template = {
 	.cmd_per_lun = PMCRAID_MAX_CMD_PER_LUN,
 	.use_clustering = ENABLE_CLUSTERING,
 	.shost_attrs = pmcraid_host_attrs,
-	.proc_name = PMCRAID_DRIVER_NAME
+	.proc_name = PMCRAID_DRIVER_NAME,
+	.use_blk_tags = 1,
 };
 
 /*

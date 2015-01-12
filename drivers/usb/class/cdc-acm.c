@@ -1157,8 +1157,6 @@ static int acm_probe(struct usb_interface *intf,
 		case USB_CDC_CALL_MANAGEMENT_TYPE:
 			call_management_function = buffer[3];
 			call_interface_num = buffer[4];
-			if ((quirks & NOT_A_MODEM) == 0 && (call_management_function & 3) != 3)
-				dev_err(&intf->dev, "This device cannot do calls on its own. It is not a modem.\n");
 			break;
 		default:
 			/* there are LOTS more CDC descriptors that
@@ -1197,10 +1195,11 @@ next_desc:
 	} else {
 		control_interface = usb_ifnum_to_if(usb_dev, union_header->bMasterInterface0);
 		data_interface = usb_ifnum_to_if(usb_dev, (data_interface_num = union_header->bSlaveInterface0));
-		if (!control_interface || !data_interface) {
-			dev_dbg(&intf->dev, "no interfaces\n");
-			return -ENODEV;
-		}
+	}
+
+	if (!control_interface || !data_interface) {
+		dev_dbg(&intf->dev, "no interfaces\n");
+		return -ENODEV;
 	}
 
 	if (data_interface_num != call_interface_num)
@@ -1475,6 +1474,7 @@ alloc_fail8:
 				&dev_attr_wCountryCodes);
 		device_remove_file(&acm->control->dev,
 				&dev_attr_iCountryCodeRelDate);
+		kfree(acm->country_codes);
 	}
 	device_remove_file(&acm->control->dev, &dev_attr_bmCapabilities);
 alloc_fail7:
@@ -1812,11 +1812,6 @@ static const struct usb_device_id acm_ids[] = {
 	{ USB_DEVICE(0x03eb, 0x0030), }, /* Owen SI30 */
 
 	/* NOTE: non-Nokia COMM/ACM/0xff is likely MSFT RNDIS... NOT a modem! */
-
-	/* Support Lego NXT using pbLua firmware */
-	{ USB_DEVICE(0x0694, 0xff00),
-	.driver_info = NOT_A_MODEM,
-	},
 
 	/* Support for Droids MuIn LCD */
 	{ USB_DEVICE(0x04d8, 0x000b),

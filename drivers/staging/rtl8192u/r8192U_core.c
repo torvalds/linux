@@ -1791,8 +1791,8 @@ static void rtl8192_link_change(struct net_device *dev)
 }
 
 static struct ieee80211_qos_parameters def_qos_parameters = {
-	{3, 3, 3, 3},/* cw_min */
-	{7, 7, 7, 7},/* cw_max */
+	{cpu_to_le16(3), cpu_to_le16(3), cpu_to_le16(3), cpu_to_le16(3)},
+	{cpu_to_le16(7), cpu_to_le16(7), cpu_to_le16(7), cpu_to_le16(7)},
 	{2, 2, 2, 2},/* aifs */
 	{0, 0, 0, 0},/* flags */
 	{0, 0, 0, 0} /* tx_op_limit */
@@ -1821,8 +1821,11 @@ static void rtl8192_qos_activate(struct work_struct *work)
 	struct net_device *dev = priv->ieee80211->dev;
 	struct ieee80211_qos_parameters *qos_parameters = &priv->ieee80211->current_network.qos_data.parameters;
 	u8 mode = priv->ieee80211->current_network.mode;
-	u8  u1bAIFS;
+	u32  u1bAIFS;
 	u32 u4bAcParam;
+	u32 op_limit;
+	u32 cw_max;
+	u32 cw_min;
 	int i;
 
 	mutex_lock(&priv->mutex);
@@ -1835,11 +1838,14 @@ static void rtl8192_qos_activate(struct work_struct *work)
 	for (i = 0; i <  QOS_QUEUE_NUM; i++) {
 		//Mode G/A: slotTimeTimer = 9; Mode B: 20
 		u1bAIFS = qos_parameters->aifs[i] * ((mode&(IEEE_G|IEEE_N_24G)) ? 9 : 20) + aSifsTime;
-		u4bAcParam = ((((u32)(qos_parameters->tx_op_limit[i]))<< AC_PARAM_TXOP_LIMIT_OFFSET)|
-			      (((u32)(qos_parameters->cw_max[i]))<< AC_PARAM_ECW_MAX_OFFSET)|
-			      (((u32)(qos_parameters->cw_min[i]))<< AC_PARAM_ECW_MIN_OFFSET)|
-			      ((u32)u1bAIFS << AC_PARAM_AIFS_OFFSET));
-
+		u1bAIFS <<= AC_PARAM_AIFS_OFFSET;
+		op_limit = (u32)le16_to_cpu(qos_parameters->tx_op_limit[i]);
+		op_limit <<= AC_PARAM_TXOP_LIMIT_OFFSET;
+		cw_max = (u32)le16_to_cpu(qos_parameters->cw_max[i]);
+		cw_max <<= AC_PARAM_ECW_MAX_OFFSET;
+		cw_min = (u32)le16_to_cpu(qos_parameters->cw_min[i]);
+		cw_min <<= AC_PARAM_ECW_MIN_OFFSET;
+		u4bAcParam = op_limit | cw_max | cw_min | u1bAIFS;
 		write_nic_dword(dev, WDCAPARA_ADD[i], u4bAcParam);
 	}
 

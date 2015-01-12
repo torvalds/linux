@@ -994,7 +994,6 @@ static struct platform_driver snd_serial_driver = {
 	.remove		=  snd_serial_remove,
 	.driver		= {
 		.name	= SND_SERIAL_DRIVER,
-		.owner	= THIS_MODULE,
 	},
 };
 

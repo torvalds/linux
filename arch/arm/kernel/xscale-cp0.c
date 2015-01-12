@@ -157,15 +157,14 @@ static int __init xscale_cp0_init(void)
 
 	if (cpu_has_iwmmxt()) {
 #ifndef CONFIG_IWMMXT
-		printk(KERN_WARNING "CAUTION: XScale iWMMXt coprocessor "
-			"detected, but kernel support is missing.\n");
+		pr_warn("CAUTION: XScale iWMMXt coprocessor detected, but kernel support is missing.\n");
 #else
-		printk(KERN_INFO "XScale iWMMXt coprocessor detected.\n");
+		pr_info("XScale iWMMXt coprocessor detected.\n");
 		elf_hwcap |= HWCAP_IWMMXT;
 		thread_register_notifier(&iwmmxt_notifier_block);
 #endif
 	} else {
-		printk(KERN_INFO "XScale DSP coprocessor detected.\n");
+		pr_info("XScale DSP coprocessor detected.\n");
 		thread_register_notifier(&dsp_notifier_block);
 		cp_access |= 1;
 	}

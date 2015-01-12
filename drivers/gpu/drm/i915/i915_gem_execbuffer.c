@@ -122,9 +122,6 @@ eb_lookup_vmas(struct eb_vmas *eb,
 			goto err;
 		}
 
-		WARN_ONCE(obj->base.dumb,
-			  "GPU use of dumb buffer is illegal.\n");
-
 		drm_gem_object_reference(&obj->base);
 		list_add_tail(&obj->obj_exec_link, &objects);
 	}

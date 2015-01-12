@@ -608,8 +608,6 @@ void WMMOnAssocRsp23a(struct rtw_adapter *padapter)
 		DBG_8723A("wmm_para_seq(%d): %d\n", i,
 			  pxmitpriv->wmm_para_seq[i]);
 	}
-
-	return;
 }
 
 static void bwmode_update_check(struct rtw_adapter *padapter, const u8 *p)
@@ -750,7 +748,6 @@ void HT_caps_handler23a(struct rtw_adapter *padapter, const u8 *p)
 		else
 			cap->mcs.rx_mask[i] &= MCS_rate_2R23A[i];
 	}
-	return;
 }
 
 void HT_info_handler23a(struct rtw_adapter *padapter, const u8 *p)
@@ -771,7 +768,6 @@ void HT_info_handler23a(struct rtw_adapter *padapter, const u8 *p)
 
 	pmlmeinfo->HT_info_enable = 1;
 	memcpy(&pmlmeinfo->HT_info, p + 2, p[1]);
-	return;
 }
 
 void HTOnAssocRsp23a(struct rtw_adapter *padapter)
@@ -833,7 +829,7 @@ void VCS_update23a(struct rtw_adapter *padapter, struct sta_info *psta)
 		psta->cts2self = 0;
 		break;
 	case 1: /* on */
-		if (pregpriv->vcs_type == 1) { /* 1:RTS/CTS 2:CTS to self */
+		if (pregpriv->vcs_type == RTS_CTS) {
 			psta->rtsen = 1;
 			psta->cts2self = 0;
 		} else {
@@ -844,7 +840,7 @@ void VCS_update23a(struct rtw_adapter *padapter, struct sta_info *psta)
 	case 2: /* auto */
 	default:
 		if (pmlmeinfo->ERP_enable && pmlmeinfo->ERP_IE & BIT(1)) {
-			if (pregpriv->vcs_type == 1) {
+			if (pregpriv->vcs_type == RTS_CTS) {
 				psta->rtsen = 1;
 				psta->cts2self = 0;
 			} else {
@@ -870,7 +866,7 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 	int pie_len, ssid_len, privacy;
 	const u8 *p, *ssid;
 
-	if (is_client_associated_to_ap23a(Adapter) == false)
+	if (!is_client_associated_to_ap23a(Adapter))
 		return _SUCCESS;
 
 	if (unlikely(!ieee80211_is_beacon(mgmt->frame_control))) {
@@ -1080,7 +1076,7 @@ bool is_ap_in_tkip23a(struct rtw_adapter *padapter)
 		return false;
 }
 
-bool should_forbid_n_rate23a(struct rtw_adapter * padapter)
+bool should_forbid_n_rate23a(struct rtw_adapter *padapter)
 {
 	u32 i;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -1153,6 +1149,7 @@ bool is_ap_in_wep23a(struct rtw_adapter *padapter)
 static int wifirate2_ratetbl_inx23a(unsigned char rate)
 {
 	int inx = 0;
+
 	rate = rate & 0x7f;
 
 	switch (rate) {
@@ -1311,6 +1308,7 @@ unsigned char check_assoc_AP23a(u8 *pframe, uint len)
 	u8 epigram_vendor_flag;
 	u8 ralink_vendor_flag;
 	const u8 *p;
+
 	epigram_vendor_flag = 0;
 	ralink_vendor_flag = 0;
 
@@ -1324,7 +1322,6 @@ unsigned char check_assoc_AP23a(u8 *pframe, uint len)
 				DBG_8723A("link to Artheros AP\n");
 				return HT_IOT_PEER_ATHEROS;
 			} else if (!memcmp(p + 2, BROADCOM_OUI1, 3) ||
-				   !memcmp(p + 2, BROADCOM_OUI2, 3) ||
 				   !memcmp(p + 2, BROADCOM_OUI2, 3)) {
 				DBG_8723A("link to Broadcom AP\n");
 				return HT_IOT_PEER_BROADCOM;

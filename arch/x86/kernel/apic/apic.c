@@ -196,7 +196,7 @@ static int disable_apic_timer __initdata;
 int local_apic_timer_c2_ok;
 EXPORT_SYMBOL_GPL(local_apic_timer_c2_ok);
 
-int first_system_vector = 0xfe;
+int first_system_vector = FIRST_SYSTEM_VECTOR;
 
 /*
  * Debug level, exported for io_apic.c
@@ -1930,7 +1930,7 @@ int __init APIC_init_uniprocessor(void)
 /*
  * This interrupt should _never_ happen with our APIC/SMP architecture
  */
-static inline void __smp_spurious_interrupt(void)
+static inline void __smp_spurious_interrupt(u8 vector)
 {
 	u32 v;
 
@@ -1939,30 +1939,32 @@ static inline void __smp_spurious_interrupt(void)
 	 * if it is a vectored one.  Just in case...
 	 * Spurious interrupts should not be ACKed.
 	 */
-	v = apic_read(APIC_ISR + ((SPURIOUS_APIC_VECTOR & ~0x1f) >> 1));
-	if (v & (1 << (SPURIOUS_APIC_VECTOR & 0x1f)))
+	v = apic_read(APIC_ISR + ((vector & ~0x1f) >> 1));
+	if (v & (1 << (vector & 0x1f)))
 		ack_APIC_irq();
 
 	inc_irq_stat(irq_spurious_count);
 
 	/* see sw-dev-man vol 3, chapter 7.4.13.5 */
-	pr_info("spurious APIC interrupt on CPU#%d, "
-		"should never happen.\n", smp_processor_id());
+	pr_info("spurious APIC interrupt through vector %02x on CPU#%d, "
+		"should never happen.\n", vector, smp_processor_id());
 }
 
 __visible void smp_spurious_interrupt(struct pt_regs *regs)
 {
 	entering_irq();
-	__smp_spurious_interrupt();
+	__smp_spurious_interrupt(~regs->orig_ax);
 	exiting_irq();
 }
 
 __visible void smp_trace_spurious_interrupt(struct pt_regs *regs)
 {
+	u8 vector = ~regs->orig_ax;
+
 	entering_irq();
-	trace_spurious_apic_entry(SPURIOUS_APIC_VECTOR);
-	__smp_spurious_interrupt();
-	trace_spurious_apic_exit(SPURIOUS_APIC_VECTOR);
+	trace_spurious_apic_entry(vector);
+	__smp_spurious_interrupt(vector);
+	trace_spurious_apic_exit(vector);
 	exiting_irq();
 }
 

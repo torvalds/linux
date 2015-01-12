@@ -1846,7 +1846,7 @@ static int trace__pgfault(struct trace *trace,
 	if (trace->summary_only)
 		return 0;
 
-	thread__find_addr_location(thread, trace->host, cpumode, MAP__FUNCTION,
+	thread__find_addr_location(thread, cpumode, MAP__FUNCTION,
 			      sample->ip, &al);
 
 	trace__fprintf_entry_head(trace, thread, 0, sample->time, trace->output);
@@ -1859,11 +1859,11 @@ static int trace__pgfault(struct trace *trace,
 
 	fprintf(trace->output, "] => ");
 
-	thread__find_addr_location(thread, trace->host, cpumode, MAP__VARIABLE,
+	thread__find_addr_location(thread, cpumode, MAP__VARIABLE,
 				   sample->addr, &al);
 
 	if (!al.map) {
-		thread__find_addr_location(thread, trace->host, cpumode,
+		thread__find_addr_location(thread, cpumode,
 					   MAP__FUNCTION, sample->addr, &al);
 
 		if (al.map)
@@ -2045,7 +2045,6 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	unsigned long before;
 	const bool forks = argc > 0;
 	bool draining = false;
-	char sbuf[STRERR_BUFSIZE];
 
 	trace->live = true;
 
@@ -2106,11 +2105,8 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		goto out_error_open;
 
 	err = perf_evlist__mmap(evlist, trace->opts.mmap_pages, false);
-	if (err < 0) {
-		fprintf(trace->output, "Couldn't mmap the events: %s\n",
-			strerror_r(errno, sbuf, sizeof(sbuf)));
-		goto out_delete_evlist;
-	}
+	if (err < 0)
+		goto out_error_mmap;
 
 	perf_evlist__enable(evlist);
 
@@ -2208,6 +2204,10 @@ out:
 
 out_error_tp:
 	perf_evlist__strerror_tp(evlist, errno, errbuf, sizeof(errbuf));
+	goto out_error;
+
+out_error_mmap:
+	perf_evlist__strerror_mmap(evlist, errno, errbuf, sizeof(errbuf));
 	goto out_error;
 
 out_error_open:
@@ -2485,7 +2485,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 			.user_freq     = UINT_MAX,
 			.user_interval = ULLONG_MAX,
 			.no_buffering  = true,
-			.mmap_pages    = 1024,
+			.mmap_pages    = UINT_MAX,
 		},
 		.output = stdout,
 		.show_comm = true,

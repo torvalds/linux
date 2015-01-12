@@ -175,8 +175,7 @@ STATIC void NCR_700_chip_reset(struct Scsi_Host *host);
 STATIC int NCR_700_slave_alloc(struct scsi_device *SDpnt);
 STATIC int NCR_700_slave_configure(struct scsi_device *SDpnt);
 STATIC void NCR_700_slave_destroy(struct scsi_device *SDpnt);
-static int NCR_700_change_queue_depth(struct scsi_device *SDpnt, int depth, int reason);
-static int NCR_700_change_queue_type(struct scsi_device *SDpnt, int depth);
+static int NCR_700_change_queue_depth(struct scsi_device *SDpnt, int depth);
 
 STATIC struct device_attribute *NCR_700_dev_attrs[];
 
@@ -326,7 +325,7 @@ NCR_700_detect(struct scsi_host_template *tpnt,
 	tpnt->slave_destroy = NCR_700_slave_destroy;
 	tpnt->slave_alloc = NCR_700_slave_alloc;
 	tpnt->change_queue_depth = NCR_700_change_queue_depth;
-	tpnt->change_queue_type = NCR_700_change_queue_type;
+	tpnt->use_blk_tags = 1;
 
 	if(tpnt->name == NULL)
 		tpnt->name = "53c700";
@@ -592,19 +591,14 @@ NCR_700_scsi_done(struct NCR_700_Host_Parameters *hostdata,
 	hostdata->cmd = NULL;
 
 	if(SCp != NULL) {
-		struct NCR_700_command_slot *slot = 
+		struct NCR_700_command_slot *slot =
 			(struct NCR_700_command_slot *)SCp->host_scribble;
-		
+
 		dma_unmap_single(hostdata->dev, slot->pCmd,
 				 MAX_COMMAND_SIZE, DMA_TO_DEVICE);
 		if (slot->flags == NCR_700_FLAG_AUTOSENSE) {
 			char *cmnd = NCR_700_get_sense_cmnd(SCp->device);
-#ifdef NCR_700_DEBUG
-			printk(" ORIGINAL CMD %p RETURNED %d, new return is %d sense is\n",
-			       SCp, SCp->cmnd[7], result);
-			scsi_print_sense("53c700", SCp);
 
-#endif
 			dma_unmap_single(hostdata->dev, slot->dma_handle,
 					 SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
 			/* restore the old result if the request sense was
@@ -906,8 +900,10 @@ process_message(struct Scsi_Host *host,	struct NCR_700_Host_Parameters *hostdata
 			/* we're done negotiating */
 			NCR_700_set_tag_neg_state(SCp->device, NCR_700_FINISHED_TAG_NEGOTIATION);
 			hostdata->tag_negotiated &= ~(1<<scmd_id(SCp));
+
 			SCp->device->tagged_supported = 0;
-			scsi_deactivate_tcq(SCp->device, host->cmd_per_lun);
+			SCp->device->simple_tags = 0;
+			scsi_change_queue_depth(SCp->device, host->cmd_per_lun);
 		} else {
 			shost_printk(KERN_WARNING, host,
 				"(%d:%d) Unexpected REJECT Message %s\n",
@@ -1432,7 +1428,7 @@ NCR_700_start_command(struct scsi_cmnd *SCp)
 	if((hostdata->tag_negotiated & (1<<scmd_id(SCp)))
 	   && (slot->tag != SCSI_NO_TAG && SCp->cmnd[0] != REQUEST_SENSE &&
 	       slot->flags != NCR_700_FLAG_AUTOSENSE)) {
-		count += scsi_populate_tag_msg(SCp, &hostdata->msgout[count]);
+		count += spi_populate_tag_msg(&hostdata->msgout[count], SCp);
 	}
 
 	if(hostdata->fast &&
@@ -1772,7 +1768,7 @@ NCR_700_queuecommand_lck(struct scsi_cmnd *SCp, void (*done)(struct scsi_cmnd *)
 	 */
 	if(NCR_700_get_depth(SCp->device) != 0
 	   && (!(hostdata->tag_negotiated & (1<<scmd_id(SCp)))
-	       || !blk_rq_tagged(SCp->request))) {
+	       || !(SCp->flags & SCMD_TAGGED))) {
 		CDEBUG(KERN_ERR, SCp, "has non zero depth %d\n",
 		       NCR_700_get_depth(SCp->device));
 		return SCSI_MLQUEUE_DEVICE_BUSY;
@@ -1800,7 +1796,7 @@ NCR_700_queuecommand_lck(struct scsi_cmnd *SCp, void (*done)(struct scsi_cmnd *)
 	printk("53c700: scsi%d, command ", SCp->device->host->host_no);
 	scsi_print_command(SCp);
 #endif
-	if(blk_rq_tagged(SCp->request)
+	if ((SCp->flags & SCMD_TAGGED)
 	   && (hostdata->tag_negotiated &(1<<scmd_id(SCp))) == 0
 	   && NCR_700_get_tag_neg_state(SCp->device) == NCR_700_START_TAG_NEGOTIATION) {
 		scmd_printk(KERN_ERR, SCp, "Enabling Tag Command Queuing\n");
@@ -1814,14 +1810,14 @@ NCR_700_queuecommand_lck(struct scsi_cmnd *SCp, void (*done)(struct scsi_cmnd *)
 	 *
 	 * FIXME: This will royally screw up on multiple LUN devices
 	 * */
-	if(!blk_rq_tagged(SCp->request)
+	if (!(SCp->flags & SCMD_TAGGED)
 	   && (hostdata->tag_negotiated &(1<<scmd_id(SCp)))) {
 		scmd_printk(KERN_INFO, SCp, "Disabling Tag Command Queuing\n");
 		hostdata->tag_negotiated &= ~(1<<scmd_id(SCp));
 	}
 
-	if((hostdata->tag_negotiated &(1<<scmd_id(SCp)))
-	   && scsi_get_tag_type(SCp->device)) {
+	if ((hostdata->tag_negotiated & (1<<scmd_id(SCp))) &&
+	    SCp->device->simple_tags) {
 		slot->tag = SCp->request->tag;
 		CDEBUG(KERN_DEBUG, SCp, "sending out tag %d, slot %p\n",
 		       slot->tag, slot);
@@ -1911,9 +1907,7 @@ NCR_700_abort(struct scsi_cmnd * SCp)
 {
 	struct NCR_700_command_slot *slot;
 
-	scmd_printk(KERN_INFO, SCp,
-		"New error handler wants to abort command\n\t");
-	scsi_print_command(SCp);
+	scmd_printk(KERN_INFO, SCp, "abort command\n");
 
 	slot = (struct NCR_700_command_slot *)SCp->host_scribble;
 
@@ -2056,13 +2050,10 @@ NCR_700_slave_configure(struct scsi_device *SDp)
 
 	/* to do here: allocate memory; build a queue_full list */
 	if(SDp->tagged_supported) {
-		scsi_set_tag_type(SDp, MSG_ORDERED_TAG);
-		scsi_activate_tcq(SDp, NCR_700_DEFAULT_TAGS);
+		scsi_change_queue_depth(SDp, NCR_700_DEFAULT_TAGS);
 		NCR_700_set_tag_neg_state(SDp, NCR_700_START_TAG_NEGOTIATION);
-	} else {
-		/* initialise to default depth */
-		scsi_adjust_queue_depth(SDp, 0, SDp->host->cmd_per_lun);
 	}
+
 	if(hostdata->fast) {
 		/* Find the correct offset and period via domain validation */
 		if (!spi_initial_dv(SDp->sdev_target))
@@ -2082,50 +2073,11 @@ NCR_700_slave_destroy(struct scsi_device *SDp)
 }
 
 static int
-NCR_700_change_queue_depth(struct scsi_device *SDp, int depth, int reason)
+NCR_700_change_queue_depth(struct scsi_device *SDp, int depth)
 {
-	if (reason != SCSI_QDEPTH_DEFAULT)
-		return -EOPNOTSUPP;
-
 	if (depth > NCR_700_MAX_TAGS)
 		depth = NCR_700_MAX_TAGS;
-
-	scsi_adjust_queue_depth(SDp, scsi_get_tag_type(SDp), depth);
-	return depth;
-}
-
-static int NCR_700_change_queue_type(struct scsi_device *SDp, int tag_type)
-{
-	int change_tag = ((tag_type ==0 &&  scsi_get_tag_type(SDp) != 0)
-			  || (tag_type != 0 && scsi_get_tag_type(SDp) == 0));
-	struct NCR_700_Host_Parameters *hostdata = 
-		(struct NCR_700_Host_Parameters *)SDp->host->hostdata[0];
-
-	scsi_set_tag_type(SDp, tag_type);
-
-	/* We have a global (per target) flag to track whether TCQ is
-	 * enabled, so we'll be turning it off for the entire target here.
-	 * our tag algorithm will fail if we mix tagged and untagged commands,
-	 * so quiesce the device before doing this */
-	if (change_tag)
-		scsi_target_quiesce(SDp->sdev_target);
-
-	if (!tag_type) {
-		/* shift back to the default unqueued number of commands
-		 * (the user can still raise this) */
-		scsi_deactivate_tcq(SDp, SDp->host->cmd_per_lun);
-		hostdata->tag_negotiated &= ~(1 << sdev_id(SDp));
-	} else {
-		/* Here, we cleared the negotiation flag above, so this
-		 * will force the driver to renegotiate */
-		scsi_activate_tcq(SDp, SDp->queue_depth);
-		if (change_tag)
-			NCR_700_set_tag_neg_state(SDp, NCR_700_START_TAG_NEGOTIATION);
-	}
-	if (change_tag)
-		scsi_target_resume(SDp->sdev_target);
-
-	return tag_type;
+	return scsi_change_queue_depth(SDp, depth);
 }
 
 static ssize_t

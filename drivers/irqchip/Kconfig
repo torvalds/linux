@@ -5,7 +5,14 @@ config IRQCHIP
 config ARM_GIC
 	bool
 	select IRQ_DOMAIN
+	select IRQ_DOMAIN_HIERARCHY
 	select MULTI_IRQ_HANDLER
+
+config ARM_GIC_V2M
+	bool
+	depends on ARM_GIC
+	depends on PCI && PCI_MSI
+	select PCI_MSI_IRQ_DOMAIN
 
 config GIC_NON_BANKED
 	bool
@@ -14,6 +21,11 @@ config ARM_GIC_V3
 	bool
 	select IRQ_DOMAIN
 	select MULTI_IRQ_HANDLER
+	select IRQ_DOMAIN_HIERARCHY
+
+config ARM_GIC_V3_ITS
+	bool
+	select PCI_MSI_IRQ_DOMAIN
 
 config ARM_NVIC
 	bool
@@ -48,14 +60,19 @@ config ATMEL_AIC5_IRQ
 	select MULTI_IRQ_HANDLER
 	select SPARSE_IRQ
 
+config BCM7120_L2_IRQ
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
 config BRCMSTB_L2_IRQ
 	bool
-	depends on ARM
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
 
 config DW_APB_ICTL
 	bool
+	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
 
 config IMGPDC_IRQ
@@ -125,3 +142,7 @@ config KEYSTONE_IRQ
 	help
 		Support for Texas Instruments Keystone 2 IRQ controller IP which
 		is part of the Keystone 2 IPC mechanism
+
+config MIPS_GIC
+	bool
+	select MIPS_CM

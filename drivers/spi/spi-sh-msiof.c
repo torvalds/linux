@@ -480,6 +480,8 @@ static int sh_msiof_spi_setup(struct spi_device *spi)
 	struct device_node	*np = spi->master->dev.of_node;
 	struct sh_msiof_spi_priv *p = spi_master_get_devdata(spi->master);
 
+	pm_runtime_get_sync(&p->pdev->dev);
+
 	if (!np) {
 		/*
 		 * Use spi->controller_data for CS (same strategy as spi_gpio),
@@ -497,6 +499,9 @@ static int sh_msiof_spi_setup(struct spi_device *spi)
 
 	if (spi->cs_gpio >= 0)
 		gpio_set_value(spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
+
+
+	pm_runtime_put_sync(&p->pdev->dev);
 
 	return 0;
 }
@@ -1235,7 +1240,6 @@ static struct platform_driver sh_msiof_spi_drv = {
 	.id_table	= spi_driver_ids,
 	.driver		= {
 		.name		= "spi_sh_msiof",
-		.owner		= THIS_MODULE,
 		.of_match_table = of_match_ptr(sh_msiof_match),
 	},
 };

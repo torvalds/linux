@@ -153,8 +153,7 @@ extern void warning(const char *err, ...) __attribute__((format (printf, 1, 2)))
 extern void set_die_routine(void (*routine)(const char *err, va_list params) NORETURN);
 
 extern int prefixcmp(const char *str, const char *prefix);
-extern void set_buildid_dir(void);
-extern void disable_buildid_cache(void);
+extern void set_buildid_dir(const char *dir);
 
 static inline const char *skip_prefix(const char *str, const char *prefix)
 {
@@ -270,35 +269,6 @@ void event_attr_init(struct perf_event_attr *attr);
 #define _STR(x) #x
 #define STR(x) _STR(x)
 
-/*
- *  Determine whether some value is a power of two, where zero is
- * *not* considered a power of two.
- */
-
-static inline __attribute__((const))
-bool is_power_of_2(unsigned long n)
-{
-	return (n != 0 && ((n & (n - 1)) == 0));
-}
-
-static inline unsigned next_pow2(unsigned x)
-{
-	if (!x)
-		return 1;
-	return 1ULL << (32 - __builtin_clz(x - 1));
-}
-
-static inline unsigned long next_pow2_l(unsigned long x)
-{
-#if BITS_PER_LONG == 64
-	if (x <= (1UL << 31))
-		return next_pow2(x);
-	return (unsigned long)next_pow2(x >> 32) << 32;
-#else
-	return next_pow2(x);
-#endif
-}
-
 size_t hex_width(u64 v);
 int hex2u64(const char *ptr, u64 *val);
 
@@ -338,11 +308,12 @@ static inline int path__join3(char *bf, size_t size,
 }
 
 struct dso;
+struct symbol;
 
-char *get_srcline(struct dso *dso, unsigned long addr);
+char *get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
+		  bool show_sym);
 void free_srcline(char *srcline);
 
-int filename__read_int(const char *filename, int *value);
 int filename__read_str(const char *filename, char **buf, size_t *sizep);
 int perf_event_paranoid(void);
 
@@ -351,4 +322,9 @@ void mem_bswap_32(void *src, int byte_size);
 
 const char *get_filename_for_perf_kvm(void);
 bool find_process(const char *name);
+
+#ifdef HAVE_ZLIB_SUPPORT
+int gzip_decompress_to_file(const char *input, int output_fd);
+#endif
+
 #endif /* GIT_COMPAT_UTIL_H */

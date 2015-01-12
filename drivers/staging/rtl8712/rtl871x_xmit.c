@@ -184,7 +184,6 @@ void _free_xmit_priv(struct xmit_priv *pxmitpriv)
 sint r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 		   struct pkt_attrib *pattrib)
 {
-	uint i;
 	struct pkt_file pktfile;
 	struct sta_info *psta = NULL;
 	struct ethhdr etherhdr;
@@ -199,7 +198,7 @@ sint r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 
 	_r8712_open_pktfile(pkt, &pktfile);
 
-	i = _r8712_pktfile_read(&pktfile, (unsigned char *)&etherhdr, ETH_HLEN);
+	_r8712_pktfile_read(&pktfile, (unsigned char *)&etherhdr, ETH_HLEN);
 
 	pattrib->ether_type = ntohs(etherhdr.h_proto);
 
@@ -236,7 +235,7 @@ sint r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 		/* for mp storing the txcmd per packet,
 		 * according to the info of txcmd to update pattrib */
 		/*get MP_TXDESC_SIZE bytes txcmd per packet*/
-		i = _r8712_pktfile_read(&pktfile, (u8 *)&txdesc, TXDESC_SIZE);
+		_r8712_pktfile_read(&pktfile, (u8 *)&txdesc, TXDESC_SIZE);
 		memcpy(pattrib->ra, pattrib->dst, ETH_ALEN);
 		memcpy(pattrib->ta, pattrib->src, ETH_ALEN);
 		pattrib->pctrl = 1;
@@ -347,7 +346,7 @@ sint r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 static sint xmitframe_addmic(struct _adapter *padapter,
 			     struct xmit_frame *pxmitframe)
 {
-	u32	curfragnum, length, datalen;
+	u32	curfragnum, length;
 	u8	*pframe, *payload, mic[8];
 	struct	mic_data micdata;
 	struct	sta_info *stainfo;
@@ -369,7 +368,6 @@ static sint xmitframe_addmic(struct _adapter *padapter,
 			u8 null_key[16] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
 					   0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
 					   0x0, 0x0};
-			datalen = pattrib->pktlen - pattrib->hdrlen;
 			pframe = pxmitframe->buf_addr + TXDESC_OFFSET;
 			if (bmcst) {
 				if (!memcmp(psecuritypriv->XGrptxmickey
@@ -486,7 +484,7 @@ static sint make_wlanhdr(struct _adapter *padapter , u8 *hdr,
 	memset(hdr, 0, WLANHDR_OFFSET);
 	SetFrameSubType(fctrl, pattrib->subtype);
 	if (pattrib->subtype & WIFI_DATA_TYPE) {
-		if ((check_fwstate(pmlmepriv,  WIFI_STATION_STATE) == true)) {
+		if (check_fwstate(pmlmepriv,  WIFI_STATION_STATE) == true) {
 			/* to_ds = 1, fr_ds = 0; */
 			SetToDs(fctrl);
 			memcpy(pwlanhdr->addr1, get_bssid(pmlmepriv),
@@ -825,16 +823,13 @@ void r8712_free_xmitframe(struct xmit_priv *pxmitpriv,
 	unsigned long irqL;
 	struct  __queue *pfree_xmit_queue = &pxmitpriv->free_xmit_queue;
 	struct _adapter *padapter = pxmitpriv->adapter;
-	struct sk_buff *pndis_pkt = NULL;
 
 	if (pxmitframe == NULL)
 		return;
 	spin_lock_irqsave(&pfree_xmit_queue->lock, irqL);
 	list_del_init(&pxmitframe->list);
-	if (pxmitframe->pkt) {
-		pndis_pkt = pxmitframe->pkt;
+	if (pxmitframe->pkt)
 		pxmitframe->pkt = NULL;
-	}
 	list_add_tail(&pxmitframe->list, &pfree_xmit_queue->queue);
 	pxmitpriv->free_xmitframe_cnt++;
 	spin_unlock_irqrestore(&pfree_xmit_queue->lock, irqL);

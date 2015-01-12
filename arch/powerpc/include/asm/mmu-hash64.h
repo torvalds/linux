@@ -316,27 +316,33 @@ static inline unsigned long hpt_hash(unsigned long vpn,
 	return hash & 0x7fffffffffUL;
 }
 
+#define HPTE_LOCAL_UPDATE	0x1
+#define HPTE_NOHPTE_UPDATE	0x2
+
 extern int __hash_page_4K(unsigned long ea, unsigned long access,
 			  unsigned long vsid, pte_t *ptep, unsigned long trap,
-			  unsigned int local, int ssize, int subpage_prot);
+			  unsigned long flags, int ssize, int subpage_prot);
 extern int __hash_page_64K(unsigned long ea, unsigned long access,
 			   unsigned long vsid, pte_t *ptep, unsigned long trap,
-			   unsigned int local, int ssize);
+			   unsigned long flags, int ssize);
 struct mm_struct;
 unsigned int hash_page_do_lazy_icache(unsigned int pp, pte_t pte, int trap);
-extern int hash_page_mm(struct mm_struct *mm, unsigned long ea, unsigned long access, unsigned long trap);
-extern int hash_page(unsigned long ea, unsigned long access, unsigned long trap);
+extern int hash_page_mm(struct mm_struct *mm, unsigned long ea,
+			unsigned long access, unsigned long trap,
+			unsigned long flags);
+extern int hash_page(unsigned long ea, unsigned long access, unsigned long trap,
+		     unsigned long dsisr);
 int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
-		     pte_t *ptep, unsigned long trap, int local, int ssize,
-		     unsigned int shift, unsigned int mmu_psize);
+		     pte_t *ptep, unsigned long trap, unsigned long flags,
+		     int ssize, unsigned int shift, unsigned int mmu_psize);
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 extern int __hash_page_thp(unsigned long ea, unsigned long access,
 			   unsigned long vsid, pmd_t *pmdp, unsigned long trap,
-			   int local, int ssize, unsigned int psize);
+			   unsigned long flags, int ssize, unsigned int psize);
 #else
 static inline int __hash_page_thp(unsigned long ea, unsigned long access,
 				  unsigned long vsid, pmd_t *pmdp,
-				  unsigned long trap, int local,
+				  unsigned long trap, unsigned long flags,
 				  int ssize, unsigned int psize)
 {
 	BUG();

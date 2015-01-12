@@ -136,6 +136,17 @@ struct regulatory_request {
  *      otherwise initiating radiation is not allowed. This will enable the
  *      relaxations enabled under the CFG80211_REG_RELAX_NO_IR configuration
  *      option
+ * @REGULATORY_IGNORE_STALE_KICKOFF: the regulatory core will _not_ make sure
+ *	all interfaces on this wiphy reside on allowed channels. If this flag
+ *	is not set, upon a regdomain change, the interfaces are given a grace
+ *	period (currently 60 seconds) to disconnect or move to an allowed
+ *	channel. Interfaces on forbidden channels are forcibly disconnected.
+ *	Currently these types of interfaces are supported for enforcement:
+ *	NL80211_IFTYPE_ADHOC, NL80211_IFTYPE_STATION, NL80211_IFTYPE_AP,
+ *	NL80211_IFTYPE_AP_VLAN, NL80211_IFTYPE_MONITOR,
+ *	NL80211_IFTYPE_P2P_CLIENT, NL80211_IFTYPE_P2P_GO,
+ *	NL80211_IFTYPE_P2P_DEVICE. The flag will be set by default if a device
+ *	includes any modes unsupported for enforcement checking.
  */
 enum ieee80211_regulatory_flags {
 	REGULATORY_CUSTOM_REG			= BIT(0),
@@ -144,6 +155,7 @@ enum ieee80211_regulatory_flags {
 	REGULATORY_COUNTRY_IE_FOLLOW_POWER	= BIT(3),
 	REGULATORY_COUNTRY_IE_IGNORE		= BIT(4),
 	REGULATORY_ENABLE_RELAX_NO_IR           = BIT(5),
+	REGULATORY_IGNORE_STALE_KICKOFF         = BIT(6),
 };
 
 struct ieee80211_freq_range {

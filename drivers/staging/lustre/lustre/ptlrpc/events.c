@@ -128,8 +128,8 @@ void reply_in_callback(lnet_event_t *ev)
 	    ((lustre_msghdr_get_flags(req->rq_reqmsg) & MSGHDR_AT_SUPPORT))) {
 		/* Early reply */
 		DEBUG_REQ(D_ADAPTTO, req,
-			  "Early reply received: mlen=%u offset=%d replen=%d "
-			  "replied=%d unlinked=%d", ev->mlength, ev->offset,
+			  "Early reply received: mlen=%u offset=%d replen=%d replied=%d unlinked=%d",
+			  ev->mlength, ev->offset,
 			  req->rq_replen, req->rq_replied, ev->unlinked);
 
 		req->rq_early_count++; /* number received, client side */
@@ -313,8 +313,7 @@ void request_in_callback(lnet_event_t *ev)
 		}
 		req = ptlrpc_request_cache_alloc(GFP_ATOMIC);
 		if (req == NULL) {
-			CERROR("Can't allocate incoming request descriptor: "
-			       "Dropping %s RPC from %s\n",
+			CERROR("Can't allocate incoming request descriptor: Dropping %s RPC from %s\n",
 			       service->srv_name,
 			       libcfs_id2str(ev->initiator));
 			return;

@@ -1114,7 +1114,6 @@ static struct platform_driver sa1100ir_driver = {
 	.resume		= sa1100_irda_resume,
 	.driver		= {
 		.name	= "sa11x0-ir",
-		.owner	= THIS_MODULE,
 	},
 };
 

@@ -431,11 +431,8 @@ static bool vnt_alloc_bufs(struct vnt_private *priv)
 	for (ii = 0; ii < priv->num_tx_context; ii++) {
 		tx_context = kmalloc(sizeof(struct vnt_usb_send_context),
 								GFP_KERNEL);
-		if (tx_context == NULL) {
-			dev_err(&priv->usb->dev,
-					"allocate tx usb context failed\n");
+		if (tx_context == NULL)
 			goto free_tx;
-		}
 
 		priv->tx_context[ii] = tx_context;
 		tx_context->priv = priv;
@@ -471,10 +468,8 @@ static bool vnt_alloc_bufs(struct vnt_private *priv)
 		}
 
 		rcb->skb = dev_alloc_skb(priv->rx_buf_sz);
-		if (rcb->skb == NULL) {
-			dev_err(&priv->usb->dev, "Failed to alloc rx skb\n");
+		if (rcb->skb == NULL)
 			goto free_rx_tx;
-		}
 
 		rcb->in_use = false;
 
@@ -491,7 +486,6 @@ static bool vnt_alloc_bufs(struct vnt_private *priv)
 
 	priv->int_buf.data_buf = kmalloc(MAX_INTERRUPT_SIZE, GFP_KERNEL);
 	if (priv->int_buf.data_buf == NULL) {
-		dev_err(&priv->usb->dev, "Failed to alloc int buf\n");
 		usb_free_urb(priv->interrupt_urb);
 		goto free_rx_tx;
 	}
@@ -856,7 +850,9 @@ static int vnt_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	return 0;
 }
 
-static void vnt_sw_scan_start(struct ieee80211_hw *hw)
+static void vnt_sw_scan_start(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
+			      const u8 *addr)
 {
 	struct vnt_private *priv = hw->priv;
 
@@ -865,7 +861,8 @@ static void vnt_sw_scan_start(struct ieee80211_hw *hw)
 	vnt_update_pre_ed_threshold(priv, true);
 }
 
-static void vnt_sw_scan_complete(struct ieee80211_hw *hw)
+static void vnt_sw_scan_complete(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif)
 {
 	struct vnt_private *priv = hw->priv;
 

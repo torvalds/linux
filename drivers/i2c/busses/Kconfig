@@ -123,6 +123,7 @@ config I2C_I801
 	    Wildcat Point-LP (PCH)
 	    BayTrail (SOC)
 	    Sunrise Point-H (PCH)
+	    Sunrise Point-LP (PCH)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -523,6 +524,16 @@ config I2C_IBM_IIC
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-ibm_iic.
 
+config I2C_IMG
+	tristate "Imagination Technologies I2C SCB Controller"
+	depends on MIPS || METAG || COMPILE_TEST
+	help
+	  Say Y here if you want to use the IMG I2C SCB controller,
+	  available on the TZ1090 and other IMG SoCs.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-img-scb.
+
 config I2C_IMX
 	tristate "IMX I2C interface"
 	depends on ARCH_MXC
@@ -552,6 +563,13 @@ config I2C_KEMPLD
 
 	  This driver can also be built as a module. If so, the module
 	  will be called i2c-kempld.
+
+config I2C_MESON
+	tristate "Amlogic Meson I2C controller"
+	depends on ARCH_MESON
+	help
+	  If you say yes to this option, support will be included for the
+	  I2C interface on the Amlogic Meson family of SoCs.
 
 config I2C_MPC
 	tristate "MPC107/824x/85xx/512x/52xx/83xx/86xx"
@@ -702,7 +720,7 @@ config I2C_RIIC
 
 config I2C_RK3X
 	tristate "Rockchip RK3xxx I2C adapter"
-	depends on OF
+	depends on OF && COMMON_CLK
 	help
 	  Say Y here to include support for the I2C adapter in Rockchip RK3xxx
 	  SoCs.
@@ -735,6 +753,7 @@ config I2C_SH7760
 
 config I2C_SH_MOBILE
 	tristate "SuperH Mobile I2C Controller"
+	depends on HAS_DMA
 	depends on SUPERH || ARCH_SHMOBILE || COMPILE_TEST
 	help
 	  If you say yes to this option, support will be included for the
@@ -880,6 +899,16 @@ config I2C_DIOLAN_U2C
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-diolan-u2c.
+
+config I2C_DLN2
+       tristate "Diolan DLN-2 USB I2C adapter"
+       depends on MFD_DLN2
+       help
+	 If you say yes to this option, support will be included for Diolan
+	 DLN2, a USB to I2C interface.
+
+	 This driver can also be built as a module.  If so, the module
+	 will be called i2c-dln2.
 
 config I2C_PARPORT
 	tristate "Parallel port adapter"
@@ -1043,5 +1072,16 @@ config SCx200_ACB
 
 	  This support is also available as a module.  If so, the module
 	  will be called scx200_acb.
+
+config I2C_OPAL
+	tristate "IBM OPAL I2C driver"
+	depends on PPC_POWERNV
+	default y
+	help
+	  This exposes the PowerNV platform i2c busses to the linux i2c layer,
+	  the driver is based on the OPAL interfaces.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called as i2c-opal.
 
 endmenu

@@ -395,7 +395,6 @@ static int
 i915_gem_create(struct drm_file *file,
 		struct drm_device *dev,
 		uint64_t size,
-		bool dumb,
 		uint32_t *handle_p)
 {
 	struct drm_i915_gem_object *obj;
@@ -411,7 +410,6 @@ i915_gem_create(struct drm_file *file,
 	if (obj == NULL)
 		return -ENOMEM;
 
-	obj->base.dumb = dumb;
 	ret = drm_gem_handle_create(file, &obj->base, &handle);
 	/* drop reference from allocate - handle holds it now */
 	drm_gem_object_unreference_unlocked(&obj->base);
@@ -431,7 +429,7 @@ i915_gem_dumb_create(struct drm_file *file,
 	args->pitch = ALIGN(args->width * DIV_ROUND_UP(args->bpp, 8), 64);
 	args->size = args->pitch * args->height;
 	return i915_gem_create(file, dev,
-			       args->size, true, &args->handle);
+			       args->size, &args->handle);
 }
 
 /**
@@ -444,7 +442,7 @@ i915_gem_create_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_create *args = data;
 
 	return i915_gem_create(file, dev,
-			       args->size, false, &args->handle);
+			       args->size, &args->handle);
 }
 
 static inline int
@@ -1044,6 +1042,7 @@ int
 i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 		      struct drm_file *file)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_pwrite *args = data;
 	struct drm_i915_gem_object *obj;
 	int ret;
@@ -1063,9 +1062,11 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 			return -EFAULT;
 	}
 
+	intel_runtime_pm_get(dev_priv);
+
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
-		return ret;
+		goto put_rpm;
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
 	if (&obj->base == NULL) {
@@ -1117,6 +1118,9 @@ out:
 	drm_gem_object_unreference(&obj->base);
 unlock:
 	mutex_unlock(&dev->struct_mutex);
+put_rpm:
+	intel_runtime_pm_put(dev_priv);
+
 	return ret;
 }
 
@@ -1220,7 +1224,8 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 	if (i915_gem_request_completed(req, true))
 		return 0;
 
-	timeout_expire = timeout ? jiffies + nsecs_to_jiffies((u64)*timeout) : 0;
+	timeout_expire = timeout ?
+		jiffies + nsecs_to_jiffies_timeout((u64)*timeout) : 0;
 
 	if (INTEL_INFO(dev)->gen >= 6 && ring->id == RCS && can_wait_boost(file_priv)) {
 		gen6_rps_boost(dev_priv);
@@ -1296,6 +1301,16 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 		s64 tres = *timeout - (now - before);
 
 		*timeout = tres < 0 ? 0 : tres;
+
+		/*
+		 * Apparently ktime isn't accurate enough and occasionally has a
+		 * bit of mismatch in the jiffies<->nsecs<->ktime loop. So patch
+		 * things up to make the test happy. We allow up to 1 jiffy.
+		 *
+		 * This is a regrssion from the timespec->ktime conversion.
+		 */
+		if (ret == -ETIME && *timeout < jiffies_to_usecs(1)*1000)
+			*timeout = 0;
 	}
 
 	return ret;
@@ -1840,10 +1855,10 @@ static void i915_gem_object_free_mmap_offset(struct drm_i915_gem_object *obj)
 	drm_gem_free_mmap_offset(&obj->base);
 }
 
-static int
+int
 i915_gem_mmap_gtt(struct drm_file *file,
 		  struct drm_device *dev,
-		  uint32_t handle, bool dumb,
+		  uint32_t handle,
 		  uint64_t *offset)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1859,13 +1874,6 @@ i915_gem_mmap_gtt(struct drm_file *file,
 		ret = -ENOENT;
 		goto unlock;
 	}
-
-	/*
-	 * We don't allow dumb mmaps on objects created using another
-	 * interface.
-	 */
-	WARN_ONCE(dumb && !(obj->base.dumb || obj->base.import_attach),
-		  "Illegal dumb map of accelerated buffer.\n");
 
 	if (obj->base.size > dev_priv->gtt.mappable_end) {
 		ret = -E2BIG;
@@ -1891,15 +1899,6 @@ unlock:
 	return ret;
 }
 
-int
-i915_gem_dumb_map_offset(struct drm_file *file,
-			 struct drm_device *dev,
-			 uint32_t handle,
-			 uint64_t *offset)
-{
-	return i915_gem_mmap_gtt(file, dev, handle, true, offset);
-}
-
 /**
  * i915_gem_mmap_gtt_ioctl - prepare an object for GTT mmap'ing
  * @dev: DRM device
@@ -1921,7 +1920,7 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_gem_mmap_gtt *args = data;
 
-	return i915_gem_mmap_gtt(file, dev, args->handle, false, &args->offset);
+	return i915_gem_mmap_gtt(file, dev, args->handle, &args->offset);
 }
 
 static inline int

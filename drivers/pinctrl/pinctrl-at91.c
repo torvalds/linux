@@ -25,9 +25,7 @@
 /* Since we request GPIOs from ourself */
 #include <linux/pinctrl/consumer.h>
 
-#include <mach/hardware.h>
-#include <mach/at91_pio.h>
-
+#include "pinctrl-at91.h"
 #include "core.h"
 
 #define MAX_GPIO_BANKS		5
@@ -1344,7 +1342,6 @@ static void at91_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 	for (i = 0; i < chip->ngpio; i++) {
 		unsigned mask = pin_to_mask(i);
 		const char *gpio_label;
-		u32 pdsr;
 
 		gpio_label = gpiochip_is_requested(chip, i);
 		if (!gpio_label)
@@ -1353,11 +1350,13 @@ static void at91_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 		seq_printf(s, "[%s] GPIO%s%d: ",
 			   gpio_label, chip->label, i);
 		if (mode == AT91_MUX_GPIO) {
-			pdsr = readl_relaxed(pio + PIO_PDSR);
-
-			seq_printf(s, "[gpio] %s\n",
-				   pdsr & mask ?
-				   "set" : "clear");
+			seq_printf(s, "[gpio] ");
+			seq_printf(s, "%s ",
+				      readl_relaxed(pio + PIO_OSR) & mask ?
+				      "output" : "input");
+			seq_printf(s, "%s\n",
+				      readl_relaxed(pio + PIO_PDSR) & mask ?
+				      "set" : "clear");
 		} else {
 			seq_printf(s, "[periph %c]\n",
 				   mode + 'A' - 1);
@@ -1472,7 +1471,7 @@ static unsigned int gpio_irq_startup(struct irq_data *d)
 	unsigned	pin = d->hwirq;
 	int ret;
 
-	ret = gpio_lock_as_irq(&at91_gpio->chip, pin);
+	ret = gpiochip_lock_as_irq(&at91_gpio->chip, pin);
 	if (ret) {
 		dev_err(at91_gpio->chip.dev, "unable to lock pind %lu IRQ\n",
 			d->hwirq);
@@ -1488,7 +1487,7 @@ static void gpio_irq_shutdown(struct irq_data *d)
 	unsigned	pin = d->hwirq;
 
 	gpio_irq_mask(d);
-	gpio_unlock_as_irq(&at91_gpio->chip, pin);
+	gpiochip_unlock_as_irq(&at91_gpio->chip, pin);
 }
 
 #ifdef CONFIG_PM
@@ -1832,7 +1831,6 @@ err:
 static struct platform_driver at91_gpio_driver = {
 	.driver = {
 		.name = "gpio-at91",
-		.owner = THIS_MODULE,
 		.of_match_table = at91_gpio_of_match,
 	},
 	.probe = at91_gpio_probe,
@@ -1841,7 +1839,6 @@ static struct platform_driver at91_gpio_driver = {
 static struct platform_driver at91_pinctrl_driver = {
 	.driver = {
 		.name = "pinctrl-at91",
-		.owner = THIS_MODULE,
 		.of_match_table = at91_pinctrl_of_match,
 	},
 	.probe = at91_pinctrl_probe,

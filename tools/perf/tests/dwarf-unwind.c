@@ -59,7 +59,7 @@ static int unwind_entry(struct unwind_entry *entry, void *arg)
 }
 
 __attribute__ ((noinline))
-static int unwind_thread(struct thread *thread, struct machine *machine)
+static int unwind_thread(struct thread *thread)
 {
 	struct perf_sample sample;
 	unsigned long cnt = 0;
@@ -72,7 +72,7 @@ static int unwind_thread(struct thread *thread, struct machine *machine)
 		goto out;
 	}
 
-	err = unwind__get_entries(unwind_entry, &cnt, machine, thread,
+	err = unwind__get_entries(unwind_entry, &cnt, thread,
 				  &sample, MAX_STACK);
 	if (err)
 		pr_debug("unwind failed\n");
@@ -89,21 +89,21 @@ static int unwind_thread(struct thread *thread, struct machine *machine)
 }
 
 __attribute__ ((noinline))
-static int krava_3(struct thread *thread, struct machine *machine)
+static int krava_3(struct thread *thread)
 {
-	return unwind_thread(thread, machine);
+	return unwind_thread(thread);
 }
 
 __attribute__ ((noinline))
-static int krava_2(struct thread *thread, struct machine *machine)
+static int krava_2(struct thread *thread)
 {
-	return krava_3(thread, machine);
+	return krava_3(thread);
 }
 
 __attribute__ ((noinline))
-static int krava_1(struct thread *thread, struct machine *machine)
+static int krava_1(struct thread *thread)
 {
-	return krava_2(thread, machine);
+	return krava_2(thread);
 }
 
 int test__dwarf_unwind(void)
@@ -137,7 +137,7 @@ int test__dwarf_unwind(void)
 		goto out;
 	}
 
-	err = krava_1(thread, machine);
+	err = krava_1(thread);
 
  out:
 	machine__delete_threads(machine);

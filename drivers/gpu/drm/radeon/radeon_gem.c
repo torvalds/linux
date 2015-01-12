@@ -394,10 +394,9 @@ int radeon_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	return r;
 }
 
-static int radeon_mode_mmap(struct drm_file *filp,
-			    struct drm_device *dev,
-			    uint32_t handle, bool dumb,
-			    uint64_t *offset_p)
+int radeon_mode_dumb_mmap(struct drm_file *filp,
+			  struct drm_device *dev,
+			  uint32_t handle, uint64_t *offset_p)
 {
 	struct drm_gem_object *gobj;
 	struct radeon_bo *robj;
@@ -406,14 +405,6 @@ static int radeon_mode_mmap(struct drm_file *filp,
 	if (gobj == NULL) {
 		return -ENOENT;
 	}
-
-	/*
-	 * We don't allow dumb mmaps on objects created using another
-	 * interface.
-	 */
-	WARN_ONCE(dumb && !(gobj->dumb || gobj->import_attach),
-		"Illegal dumb map of GPU buffer.\n");
-
 	robj = gem_to_radeon_bo(gobj);
 	if (radeon_ttm_tt_has_userptr(robj->tbo.ttm)) {
 		drm_gem_object_unreference_unlocked(gobj);
@@ -424,20 +415,12 @@ static int radeon_mode_mmap(struct drm_file *filp,
 	return 0;
 }
 
-int radeon_mode_dumb_mmap(struct drm_file *filp,
-			  struct drm_device *dev,
-			  uint32_t handle, uint64_t *offset_p)
-{
-	return radeon_mode_mmap(filp, dev, handle, true, offset_p);
-}
-
 int radeon_gem_mmap_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *filp)
 {
 	struct drm_radeon_gem_mmap *args = data;
 
-	return radeon_mode_mmap(filp, dev, args->handle, false,
-				&args->addr_ptr);
+	return radeon_mode_dumb_mmap(filp, dev, args->handle, &args->addr_ptr);
 }
 
 int radeon_gem_busy_ioctl(struct drm_device *dev, void *data,
@@ -548,7 +531,7 @@ static void radeon_gem_va_update_vm(struct radeon_device *rdev,
 				    struct radeon_bo_va *bo_va)
 {
 	struct ttm_validate_buffer tv, *entry;
-	struct radeon_cs_reloc *vm_bos;
+	struct radeon_bo_list *vm_bos;
 	struct ww_acquire_ctx ticket;
 	struct list_head list;
 	unsigned domain;
@@ -564,7 +547,7 @@ static void radeon_gem_va_update_vm(struct radeon_device *rdev,
 	if (!vm_bos)
 		return;
 
-	r = ttm_eu_reserve_buffers(&ticket, &list, true);
+	r = ttm_eu_reserve_buffers(&ticket, &list, true, NULL);
 	if (r)
 		goto error_free;
 
@@ -763,7 +746,6 @@ int radeon_mode_dumb_create(struct drm_file *file_priv,
 		return -ENOMEM;
 
 	r = drm_gem_handle_create(file_priv, gobj, &handle);
-	gobj->dumb = true;
 	/* drop reference from allocate - handle holds it now */
 	drm_gem_object_unreference_unlocked(gobj);
 	if (r) {

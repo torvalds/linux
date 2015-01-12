@@ -671,6 +671,12 @@
 					reg = <0x34 0x58>;
 					interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 				};
+
+				snvs_poweroff: snvs-poweroff@38 {
+					compatible = "fsl,sec-v4.0-poweroff";
+					reg = <0x38 0x4>;
+					status = "disabled";
+				};
 			};
 
 			epit1: epit@020d0000 {
@@ -877,7 +883,7 @@
 			};
 
 			fec2: ethernet@021b4000 {
-				compatible = "fsl,imx6sx-fec";
+				compatible = "fsl,imx6sx-fec", "fsl,imx6q-fec";
 				reg = <0x021b4000 0x4000>;
 				interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;

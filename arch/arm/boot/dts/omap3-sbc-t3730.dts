@@ -8,6 +8,11 @@
 / {
 	model = "CompuLab SBC-T3730 with CM-T3730";
 	compatible = "compulab,omap3-sbc-t3730", "compulab,omap3-cm-t3730", "ti,omap36xx", "ti,omap3";
+
+	aliases {
+		display0 = &dvi0;
+		display1 = &tv0;
+	};
 };
 
 &omap3_pmx_core {
@@ -25,3 +30,13 @@
 	ranges = <5 0 0x2c000000 0x01000000>,
 		 <4 0 0x2d000000 0x01000000>;
 };
+
+&dss {
+	port {
+		dpi_out: endpoint {
+			remote-endpoint = <&tfp410_in>;
+			data-lines = <24>;
+		};
+	};
+};
+

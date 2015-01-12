@@ -1,5 +1,5 @@
 # List of programs to build
-hostprogs-y := mpssd
+hostprogs-$(CONFIG_X86_64) := mpssd
 
 mpssd-objs := mpssd.o sysfs.o
 

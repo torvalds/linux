@@ -1,7 +1,7 @@
 /*
  * net/tipc/node.h: Include file for TIPC node management routines
  *
- * Copyright (c) 2000-2006, Ericsson AB
+ * Copyright (c) 2000-2006, 2014, Ericsson AB
  * Copyright (c) 2005, 2010-2014, Wind River Systems
  * All rights reserved.
  *
@@ -37,7 +37,6 @@
 #ifndef _TIPC_NODE_H
 #define _TIPC_NODE_H
 
-#include "node_subscr.h"
 #include "addr.h"
 #include "net.h"
 #include "bearer.h"
@@ -72,9 +71,7 @@ enum {
  * @last_in: sequence # of last in-sequence b'cast message received from node
  * @last_sent: sequence # of last b'cast message sent by node
  * @oos_state: state tracker for handling OOS b'cast messages
- * @deferred_size: number of OOS b'cast messages in deferred queue
- * @deferred_head: oldest OOS b'cast message received from node
- * @deferred_tail: newest OOS b'cast message received from node
+ * @deferred_queue: deferred queue saved OOS b'cast message received from node
  * @reasm_buf: broadcast reassembly queue head from node
  * @recv_permitted: true if node is allowed to receive b'cast messages
  */
@@ -84,8 +81,7 @@ struct tipc_node_bclink {
 	u32 last_sent;
 	u32 oos_state;
 	u32 deferred_size;
-	struct sk_buff *deferred_head;
-	struct sk_buff *deferred_tail;
+	struct sk_buff_head deferred_queue;
 	struct sk_buff *reasm_buf;
 	bool recv_permitted;
 };
@@ -104,7 +100,7 @@ struct tipc_node_bclink {
  * @link_cnt: number of links to node
  * @signature: node instance identifier
  * @link_id: local and remote bearer ids of changing link, if any
- * @nsub: list of "node down" subscriptions monitoring node
+ * @publ_list: list of publications
  * @rcu: rcu struct for tipc_node
  */
 struct tipc_node {
@@ -121,7 +117,7 @@ struct tipc_node {
 	int working_links;
 	u32 signature;
 	u32 link_id;
-	struct list_head nsub;
+	struct list_head publ_list;
 	struct sk_buff_head waiting_sks;
 	struct list_head conn_sks;
 	struct rcu_head rcu;
@@ -144,6 +140,8 @@ int tipc_node_get_linkname(u32 bearer_id, u32 node, char *linkname, size_t len);
 void tipc_node_unlock(struct tipc_node *node);
 int tipc_node_add_conn(u32 dnode, u32 port, u32 peer_port);
 void tipc_node_remove_conn(u32 dnode, u32 port);
+
+int tipc_nl_node_dump(struct sk_buff *skb, struct netlink_callback *cb);
 
 static inline void tipc_node_lock(struct tipc_node *node)
 {

@@ -58,6 +58,12 @@
 #define SDCE_MISC_INT		(1<<2)
 #define SDCE_MISC_INT_EN	(1<<1)
 
+struct sdhci_pxa {
+	struct clk *clk_core;
+	struct clk *clk_io;
+	u8	power_mode;
+};
+
 /*
  * These registers are relative to the second register region, for the
  * MBus bridge.
@@ -211,6 +217,7 @@ static void pxav3_set_uhs_signaling(struct sdhci_host *host, unsigned int uhs)
 	case MMC_TIMING_UHS_SDR104:
 		ctrl_2 |= SDHCI_CTRL_UHS_SDR104 | SDHCI_CTRL_VDD_180;
 		break;
+	case MMC_TIMING_MMC_DDR52:
 	case MMC_TIMING_UHS_DDR50:
 		ctrl_2 |= SDHCI_CTRL_UHS_DDR50 | SDHCI_CTRL_VDD_180;
 		break;
@@ -283,9 +290,7 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 	struct sdhci_host *host = NULL;
 	struct sdhci_pxa *pxa = NULL;
 	const struct of_device_id *match;
-
 	int ret;
-	struct clk *clk;
 
 	pxa = devm_kzalloc(&pdev->dev, sizeof(struct sdhci_pxa), GFP_KERNEL);
 	if (!pxa)
@@ -305,14 +310,20 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 	pltfm_host = sdhci_priv(host);
 	pltfm_host->priv = pxa;
 
-	clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(clk)) {
+	pxa->clk_io = devm_clk_get(dev, "io");
+	if (IS_ERR(pxa->clk_io))
+		pxa->clk_io = devm_clk_get(dev, NULL);
+	if (IS_ERR(pxa->clk_io)) {
 		dev_err(dev, "failed to get io clock\n");
-		ret = PTR_ERR(clk);
+		ret = PTR_ERR(pxa->clk_io);
 		goto err_clk_get;
 	}
-	pltfm_host->clk = clk;
-	clk_prepare_enable(clk);
+	pltfm_host->clk = pxa->clk_io;
+	clk_prepare_enable(pxa->clk_io);
+
+	pxa->clk_core = devm_clk_get(dev, "core");
+	if (!IS_ERR(pxa->clk_core))
+		clk_prepare_enable(pxa->clk_core);
 
 	/* enable 1/8V DDR capable */
 	host->mmc->caps |= MMC_CAP_1_8V_DDR;
@@ -385,7 +396,9 @@ err_add_host:
 	pm_runtime_disable(&pdev->dev);
 err_of_parse:
 err_cd_req:
-	clk_disable_unprepare(clk);
+	clk_disable_unprepare(pxa->clk_io);
+	if (!IS_ERR(pxa->clk_core))
+		clk_disable_unprepare(pxa->clk_core);
 err_clk_get:
 err_mbus_win:
 	sdhci_pltfm_free(pdev);
@@ -396,12 +409,15 @@ static int sdhci_pxav3_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_pxa *pxa = pltfm_host->priv;
 
 	pm_runtime_get_sync(&pdev->dev);
 	sdhci_remove_host(host, 1);
 	pm_runtime_disable(&pdev->dev);
 
-	clk_disable_unprepare(pltfm_host->clk);
+	clk_disable_unprepare(pxa->clk_io);
+	if (!IS_ERR(pxa->clk_core))
+		clk_disable_unprepare(pxa->clk_core);
 
 	sdhci_pltfm_free(pdev);
 
@@ -436,20 +452,21 @@ static int sdhci_pxav3_resume(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int sdhci_pxav3_runtime_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_pxa *pxa = pltfm_host->priv;
 	unsigned long flags;
 
-	if (pltfm_host->clk) {
-		spin_lock_irqsave(&host->lock, flags);
-		host->runtime_suspended = true;
-		spin_unlock_irqrestore(&host->lock, flags);
+	spin_lock_irqsave(&host->lock, flags);
+	host->runtime_suspended = true;
+	spin_unlock_irqrestore(&host->lock, flags);
 
-		clk_disable_unprepare(pltfm_host->clk);
-	}
+	clk_disable_unprepare(pxa->clk_io);
+	if (!IS_ERR(pxa->clk_core))
+		clk_disable_unprepare(pxa->clk_core);
 
 	return 0;
 }
@@ -458,15 +475,16 @@ static int sdhci_pxav3_runtime_resume(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_pxa *pxa = pltfm_host->priv;
 	unsigned long flags;
 
-	if (pltfm_host->clk) {
-		clk_prepare_enable(pltfm_host->clk);
+	clk_prepare_enable(pxa->clk_io);
+	if (!IS_ERR(pxa->clk_core))
+		clk_prepare_enable(pxa->clk_core);
 
-		spin_lock_irqsave(&host->lock, flags);
-		host->runtime_suspended = false;
-		spin_unlock_irqrestore(&host->lock, flags);
-	}
+	spin_lock_irqsave(&host->lock, flags);
+	host->runtime_suspended = false;
+	spin_unlock_irqrestore(&host->lock, flags);
 
 	return 0;
 }

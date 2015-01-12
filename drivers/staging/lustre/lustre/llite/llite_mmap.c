@@ -100,7 +100,7 @@ ll_fault_io_init(struct vm_area_struct *vma, struct lu_env **env_ret,
 		 unsigned long *ra_flags)
 {
 	struct file	       *file = vma->vm_file;
-	struct inode	       *inode = file->f_dentry->d_inode;
+	struct inode	       *inode = file_inode(file);
 	struct cl_io	       *io;
 	struct cl_fault_io     *fio;
 	struct lu_env	       *env;
@@ -213,7 +213,7 @@ static int ll_page_mkwrite0(struct vm_area_struct *vma, struct page *vmpage,
 	cfs_restore_sigs(set);
 
 	if (result == 0) {
-		struct inode *inode = vma->vm_file->f_dentry->d_inode;
+		struct inode *inode = file_inode(vma->vm_file);
 		struct ll_inode_info *lli = ll_i2info(inode);
 
 		lock_page(vmpage);
@@ -234,8 +234,7 @@ static int ll_page_mkwrite0(struct vm_area_struct *vma, struct page *vmpage,
 			 */
 			unlock_page(vmpage);
 
-			CDEBUG(D_MMAP, "Race on page_mkwrite %p/%lu, page has "
-			       "been written out, retry.\n",
+			CDEBUG(D_MMAP, "Race on page_mkwrite %p/%lu, page has been written out, retry.\n",
 			       vmpage, vmpage->index);
 
 			*retry = true;
@@ -366,8 +365,7 @@ restart:
 			vmf->page = NULL;
 
 			if (!printed && ++count > 16) {
-				CWARN("the page is under heavy contention,"
-				      "maybe your app(%s) needs revising :-)\n",
+				CWARN("the page is under heavy contention, maybe your app(%s) needs revising :-)\n",
 				      current->comm);
 				printed = true;
 			}
@@ -393,10 +391,9 @@ static int ll_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 		result = ll_page_mkwrite0(vma, vmf->page, &retry);
 
 		if (!printed && ++count > 16) {
-			CWARN("app(%s): the page %lu of file %lu is under heavy"
-			      " contention.\n",
+			CWARN("app(%s): the page %lu of file %lu is under heavy contention.\n",
 			      current->comm, vmf->pgoff,
-			      vma->vm_file->f_dentry->d_inode->i_ino);
+			      file_inode(vma->vm_file)->i_ino);
 			printed = true;
 		}
 	} while (retry);
@@ -430,7 +427,7 @@ static int ll_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
  */
 static void ll_vm_open(struct vm_area_struct *vma)
 {
-	struct inode *inode    = vma->vm_file->f_dentry->d_inode;
+	struct inode *inode    = file_inode(vma->vm_file);
 	struct ccc_object *vob = cl_inode2ccc(inode);
 
 	LASSERT(vma->vm_file);
@@ -443,7 +440,7 @@ static void ll_vm_open(struct vm_area_struct *vma)
  */
 static void ll_vm_close(struct vm_area_struct *vma)
 {
-	struct inode      *inode = vma->vm_file->f_dentry->d_inode;
+	struct inode      *inode = file_inode(vma->vm_file);
 	struct ccc_object *vob   = cl_inode2ccc(inode);
 
 	LASSERT(vma->vm_file);
@@ -476,7 +473,7 @@ static const struct vm_operations_struct ll_file_vm_ops = {
 
 int ll_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	int rc;
 
 	if (ll_file_nolock(file))

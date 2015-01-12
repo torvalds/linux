@@ -8,6 +8,8 @@
  * any kind, whether express or implied.
  */
 
+#define pr_fmt(fmt) "MityOMAPL138: " fmt
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/console.h>
@@ -107,7 +109,7 @@ static void mityomapl138_cpufreq_init(const char *partnum)
 
 	ret = da850_register_cpufreq("pll0_sysclk3");
 	if (ret)
-		pr_warning("cpufreq registration failed: %d\n", ret);
+		pr_warn("cpufreq registration failed: %d\n", ret);
 }
 #else
 static void mityomapl138_cpufreq_init(const char *partnum) { }
@@ -121,33 +123,31 @@ static void read_factory_config(struct memory_accessor *a, void *context)
 
 	ret = a->read(a, (char *)&factory_config, 0, sizeof(factory_config));
 	if (ret != sizeof(struct factory_config)) {
-		pr_warning("MityOMAPL138: Read Factory Config Failed: %d\n",
-				ret);
+		pr_warn("Read Factory Config Failed: %d\n", ret);
 		goto bad_config;
 	}
 
 	if (factory_config.magic != FACTORY_CONFIG_MAGIC) {
-		pr_warning("MityOMAPL138: Factory Config Magic Wrong (%X)\n",
-				factory_config.magic);
+		pr_warn("Factory Config Magic Wrong (%X)\n",
+			factory_config.magic);
 		goto bad_config;
 	}
 
 	if (factory_config.version != FACTORY_CONFIG_VERSION) {
-		pr_warning("MityOMAPL138: Factory Config Version Wrong (%X)\n",
-				factory_config.version);
+		pr_warn("Factory Config Version Wrong (%X)\n",
+			factory_config.version);
 		goto bad_config;
 	}
 
-	pr_info("MityOMAPL138: Found MAC = %pM\n", factory_config.mac);
+	pr_info("Found MAC = %pM\n", factory_config.mac);
 	if (is_valid_ether_addr(factory_config.mac))
 		memcpy(soc_info->emac_pdata->mac_addr,
 			factory_config.mac, ETH_ALEN);
 	else
-		pr_warning("MityOMAPL138: Invalid MAC found "
-				"in factory config block\n");
+		pr_warn("Invalid MAC found in factory config block\n");
 
 	partnum = factory_config.partnum;
-	pr_info("MityOMAPL138: Part Number = %s\n", partnum);
+	pr_info("Part Number = %s\n", partnum);
 
 bad_config:
 	/* default maximum speed is valid for all platforms */
@@ -435,7 +435,7 @@ static void __init mityomapl138_setup_nand(void)
 				 ARRAY_SIZE(mityomapl138_devices));
 
 	if (davinci_aemif_setup(&mityomapl138_nandflash_device))
-		pr_warn("%s: Cannot configure AEMIF.\n", __func__);
+		pr_warn("%s: Cannot configure AEMIF\n", __func__);
 }
 
 static const short mityomap_mii_pins[] = {
@@ -478,7 +478,7 @@ static void __init mityomapl138_config_emac(void)
 	}
 
 	if (ret) {
-		pr_warning("mii/rmii mux setup failed: %d\n", ret);
+		pr_warn("mii/rmii mux setup failed: %d\n", ret);
 		return;
 	}
 
@@ -489,7 +489,7 @@ static void __init mityomapl138_config_emac(void)
 
 	ret = da8xx_register_emac();
 	if (ret)
-		pr_warning("emac registration failed: %d\n", ret);
+		pr_warn("emac registration failed: %d\n", ret);
 }
 
 static struct davinci_pm_config da850_pm_pdata = {
@@ -511,21 +511,21 @@ static void __init mityomapl138_init(void)
 	/* for now, no special EDMA channels are reserved */
 	ret = da850_register_edma(NULL);
 	if (ret)
-		pr_warning("edma registration failed: %d\n", ret);
+		pr_warn("edma registration failed: %d\n", ret);
 
 	ret = da8xx_register_watchdog();
 	if (ret)
-		pr_warning("watchdog registration failed: %d\n", ret);
+		pr_warn("watchdog registration failed: %d\n", ret);
 
 	davinci_serial_init(da8xx_serial_device);
 
 	ret = da8xx_register_i2c(0, &mityomap_i2c_0_pdata);
 	if (ret)
-		pr_warning("i2c0 registration failed: %d\n", ret);
+		pr_warn("i2c0 registration failed: %d\n", ret);
 
 	ret = pmic_tps65023_init();
 	if (ret)
-		pr_warning("TPS65023 PMIC init failed: %d\n", ret);
+		pr_warn("TPS65023 PMIC init failed: %d\n", ret);
 
 	mityomapl138_setup_nand();
 
@@ -537,22 +537,21 @@ static void __init mityomapl138_init(void)
 	ret = da8xx_register_spi_bus(1,
 				     ARRAY_SIZE(mityomapl138_spi_flash_info));
 	if (ret)
-		pr_warning("spi 1 registration failed: %d\n", ret);
+		pr_warn("spi 1 registration failed: %d\n", ret);
 
 	mityomapl138_config_emac();
 
 	ret = da8xx_register_rtc();
 	if (ret)
-		pr_warning("rtc setup failed: %d\n", ret);
+		pr_warn("rtc setup failed: %d\n", ret);
 
 	ret = da8xx_register_cpuidle();
 	if (ret)
-		pr_warning("cpuidle registration failed: %d\n", ret);
+		pr_warn("cpuidle registration failed: %d\n", ret);
 
 	ret = da850_register_pm(&da850_pm_device);
 	if (ret)
-		pr_warning("da850_evm_init: suspend registration failed: %d\n",
-				ret);
+		pr_warn("suspend registration failed: %d\n", ret);
 }
 
 #ifdef CONFIG_SERIAL_8250_CONSOLE

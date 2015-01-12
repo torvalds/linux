@@ -221,8 +221,14 @@ static int acquire_packet_buffer(struct kernel_queue *kq,
 							queue_size_dwords;
 
 	if (packet_size_in_dwords >= queue_size_dwords ||
-			packet_size_in_dwords >= available_size)
+			packet_size_in_dwords >= available_size) {
+		/*
+		 * make sure calling functions know
+		 * acquire_packet_buffer() failed
+		 */
+		*buffer_ptr = NULL;
 		return -ENOMEM;
+	}
 
 	if (wptr + packet_size_in_dwords >= queue_size_dwords) {
 		while (wptr > 0) {

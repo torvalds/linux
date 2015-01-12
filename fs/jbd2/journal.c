@@ -1714,8 +1714,7 @@ int jbd2_journal_destroy(journal_t *journal)
 
 	if (journal->j_proc_entry)
 		jbd2_stats_proc_exit(journal);
-	if (journal->j_inode)
-		iput(journal->j_inode);
+	iput(journal->j_inode);
 	if (journal->j_revoke)
 		jbd2_journal_destroy_revoke(journal);
 	if (journal->j_chksum_driver)
@@ -1853,13 +1852,12 @@ int jbd2_journal_set_features (journal_t *journal, unsigned long compat,
 				journal->j_chksum_driver = NULL;
 				return 0;
 			}
-		}
 
-		/* Precompute checksum seed for all metadata */
-		if (jbd2_journal_has_csum_v2or3(journal))
+			/* Precompute checksum seed for all metadata */
 			journal->j_csum_seed = jbd2_chksum(journal, ~0,
 							   sb->s_uuid,
 							   sizeof(sb->s_uuid));
+		}
 	}
 
 	/* If enabling v1 checksums, downgrade superblock */

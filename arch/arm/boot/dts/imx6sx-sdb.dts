@@ -105,6 +105,30 @@
 			gpio = <&gpio3 27 0>;
 			enable-active-high;
 		};
+
+		reg_peri_3v3: regulator@5 {
+			compatible = "regulator-fixed";
+			reg = <5>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_peri_3v3>;
+			regulator-name = "peri_3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpios = <&gpio4 16 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			regulator-always-on;
+		};
+
+		reg_enet_3v3: regulator@6 {
+			compatible = "regulator-fixed";
+			reg = <6>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_enet_3v3>;
+			regulator-name = "enet_3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpios = <&gpio2 6 GPIO_ACTIVE_LOW>;
+		};
 	};
 
 	sound {
@@ -133,6 +157,14 @@
 &fec1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet1>;
+	phy-supply = <&reg_enet_3v3>;
+	phy-mode = "rgmii";
+	status = "okay";
+};
+
+&fec2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_enet2>;
 	phy-mode = "rgmii";
 	status = "okay";
 };
@@ -304,6 +336,10 @@
 	status = "okay";
 };
 
+&snvs_poweroff {
+	status = "okay";
+};
+
 &ssi2 {
 	status = "okay";
 };
@@ -394,6 +430,30 @@
 				MX6SX_PAD_RGMII1_RD2__ENET1_RX_DATA_2	0x3081
 				MX6SX_PAD_RGMII1_RD3__ENET1_RX_DATA_3	0x3081
 				MX6SX_PAD_RGMII1_RX_CTL__ENET1_RX_EN	0x3081
+				MX6SX_PAD_ENET2_RX_CLK__ENET2_REF_CLK_25M	0x91
+			>;
+		};
+
+		pinctrl_enet_3v3: enet3v3grp {
+			fsl,pins = <
+				MX6SX_PAD_ENET2_COL__GPIO2_IO_6		0x80000000
+			>;
+		};
+
+		pinctrl_enet2: enet2grp {
+			fsl,pins = <
+				MX6SX_PAD_RGMII2_TXC__ENET2_RGMII_TXC	0xa0b9
+				MX6SX_PAD_RGMII2_TD0__ENET2_TX_DATA_0	0xa0b1
+				MX6SX_PAD_RGMII2_TD1__ENET2_TX_DATA_1	0xa0b1
+				MX6SX_PAD_RGMII2_TD2__ENET2_TX_DATA_2	0xa0b1
+				MX6SX_PAD_RGMII2_TD3__ENET2_TX_DATA_3	0xa0b1
+				MX6SX_PAD_RGMII2_TX_CTL__ENET2_TX_EN	0xa0b1
+				MX6SX_PAD_RGMII2_RXC__ENET2_RX_CLK	0x3081
+				MX6SX_PAD_RGMII2_RD0__ENET2_RX_DATA_0	0x3081
+				MX6SX_PAD_RGMII2_RD1__ENET2_RX_DATA_1	0x3081
+				MX6SX_PAD_RGMII2_RD2__ENET2_RX_DATA_2	0x3081
+				MX6SX_PAD_RGMII2_RD3__ENET2_RX_DATA_3	0x3081
+				MX6SX_PAD_RGMII2_RX_CTL__ENET2_RX_EN	0x3081
 			>;
 		};
 
@@ -449,6 +509,12 @@
 				MX6SX_PAD_LCD1_VSYNC__LCDIF1_VSYNC 0x4001b0b0
 				MX6SX_PAD_LCD1_HSYNC__LCDIF1_HSYNC 0x4001b0b0
 				MX6SX_PAD_LCD1_RESET__GPIO3_IO_27 0x4001b0b0
+			>;
+		};
+
+		pinctrl_peri_3v3: peri3v3grp {
+			fsl,pins = <
+				MX6SX_PAD_QSPI1A_DATA0__GPIO4_IO_16	0x80000000
 			>;
 		};
 

@@ -10,7 +10,7 @@ Required properties:
 - dsa,ethernet		: Should be a phandle to a valid Ethernet device node
 - dsa,mii-bus		: Should be a phandle to a valid MDIO bus device node
 
-Optionnal properties:
+Optional properties:
 - interrupts		: property with a value describing the switch
 			  interrupt number (not supported by the driver)
 
@@ -22,6 +22,13 @@ Each of these switch child nodes should have the following required properties:
 - reg			: Describes the switch address on the MII bus
 - #address-cells	: Must be 1
 - #size-cells		: Must be 0
+
+A switch child node has the following optional property:
+
+- eeprom-length		: Set to the length of an EEPROM connected to the
+			  switch. Must be set if the switch can not detect
+			  the presence and/or size of a connected EEPROM,
+			  otherwise optional.
 
 A switch may have multiple "port" children nodes
 

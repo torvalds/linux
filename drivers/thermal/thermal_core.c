@@ -368,7 +368,7 @@ static void handle_critical_trips(struct thermal_zone_device *tz,
 	tz->ops->get_trip_temp(tz, trip, &trip_temp);
 
 	/* If we have not crossed the trip_temp, we do not care. */
-	if (tz->temperature < trip_temp)
+	if (trip_temp <= 0 || tz->temperature < trip_temp)
 		return;
 
 	trace_thermal_zone_trip(tz, trip, trip_type);
@@ -757,6 +757,7 @@ policy_store(struct device *dev, struct device_attribute *attr,
 	snprintf(name, sizeof(name), "%s", buf);
 
 	mutex_lock(&thermal_governor_lock);
+	mutex_lock(&tz->lock);
 
 	gov = __find_governor(strim(name));
 	if (!gov)
@@ -766,6 +767,7 @@ policy_store(struct device *dev, struct device_attribute *attr,
 	ret = count;
 
 exit:
+	mutex_unlock(&tz->lock);
 	mutex_unlock(&thermal_governor_lock);
 	return ret;
 }
@@ -928,7 +930,7 @@ int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
 	struct thermal_zone_device *pos1;
 	struct thermal_cooling_device *pos2;
 	unsigned long max_state;
-	int result;
+	int result, ret;
 
 	if (trip >= tz->trips || (trip < 0 && trip != THERMAL_TRIPS_NONE))
 		return -EINVAL;
@@ -945,7 +947,9 @@ int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
 	if (tz != pos1 || cdev != pos2)
 		return -EINVAL;
 
-	cdev->ops->get_max_state(cdev, &max_state);
+	ret = cdev->ops->get_max_state(cdev, &max_state);
+	if (ret)
+		return ret;
 
 	/* lower default 0, upper default max_state */
 	lower = lower == THERMAL_NO_LIMIT ? 0 : lower;
@@ -1835,10 +1839,10 @@ static int __init thermal_init(void)
 
 exit_netlink:
 	genetlink_exit();
-unregister_governors:
-	thermal_unregister_governors();
 unregister_class:
 	class_unregister(&thermal_class);
+unregister_governors:
+	thermal_unregister_governors();
 error:
 	idr_destroy(&thermal_tz_idr);
 	idr_destroy(&thermal_cdev_idr);

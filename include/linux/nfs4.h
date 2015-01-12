@@ -490,6 +490,8 @@ enum {
 
 	/* nfs42 */
 	NFSPROC4_CLNT_SEEK,
+	NFSPROC4_CLNT_ALLOCATE,
+	NFSPROC4_CLNT_DEALLOCATE,
 };
 
 /* nfs41 types */

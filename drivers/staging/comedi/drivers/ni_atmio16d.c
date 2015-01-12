@@ -217,10 +217,12 @@ static irqreturn_t atmio16d_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->read_subdev;
+	unsigned short val;
 
-	comedi_buf_put(s, inw(dev->iobase + AD_FIFO_REG));
+	val = inw(dev->iobase + AD_FIFO_REG);
+	comedi_buf_write_samples(s, &val, 1);
+	comedi_handle_events(dev, s);
 
-	comedi_event(dev, s);
 	return IRQ_HANDLED;
 }
 
@@ -298,7 +300,6 @@ static int atmio16d_ai_cmd(struct comedi_device *dev,
 	 * It is still uber-experimental */
 
 	reset_counters(dev);
-	s->async->cur_chan = 0;
 
 	/* check if scanning multiple channels */
 	if (cmd->chanlist_len < 2) {
@@ -691,7 +692,6 @@ static int atmio16d_attach(struct comedi_device *dev,
 		break;
 	}
 	s->insn_write = atmio16d_ao_insn_write;
-	s->insn_read = comedi_readback_insn_read;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)

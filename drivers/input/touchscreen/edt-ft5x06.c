@@ -850,9 +850,11 @@ static int edt_ft5x06_ts_identify(struct i2c_client *client,
 }
 
 #define EDT_ATTR_CHECKSET(name, reg) \
+do {								\
 	if (pdata->name >= edt_ft5x06_attr_##name.limit_low &&		\
 	    pdata->name <= edt_ft5x06_attr_##name.limit_high)		\
-		edt_ft5x06_register_write(tsdata, reg, pdata->name)
+		edt_ft5x06_register_write(tsdata, reg, pdata->name);	\
+} while (0)
 
 #define EDT_GET_PROP(name, reg) {				\
 	u32 val;						\
@@ -1092,8 +1094,7 @@ static int edt_ft5x06_ts_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int edt_ft5x06_ts_suspend(struct device *dev)
+static int __maybe_unused edt_ft5x06_ts_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
@@ -1103,7 +1104,7 @@ static int edt_ft5x06_ts_suspend(struct device *dev)
 	return 0;
 }
 
-static int edt_ft5x06_ts_resume(struct device *dev)
+static int __maybe_unused edt_ft5x06_ts_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
@@ -1112,7 +1113,6 @@ static int edt_ft5x06_ts_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(edt_ft5x06_ts_pm_ops,
 			 edt_ft5x06_ts_suspend, edt_ft5x06_ts_resume);

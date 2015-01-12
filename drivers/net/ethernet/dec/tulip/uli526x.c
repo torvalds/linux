@@ -1837,7 +1837,7 @@ static int __init uli526x_init_module(void)
 
 static void __exit uli526x_cleanup_module(void)
 {
-	ULI526X_DBUG(0, "uli526x_clean_module() ", debug);
+	ULI526X_DBUG(0, "uli526x_cleanup_module() ", debug);
 	pci_unregister_driver(&uli526x_driver);
 }
 

@@ -617,10 +617,14 @@ static inline void name at					\
 /*
  * We don't do relaxed operations yet, at least not with this semantic
  */
-#define readb_relaxed(addr) readb(addr)
-#define readw_relaxed(addr) readw(addr)
-#define readl_relaxed(addr) readl(addr)
-#define readq_relaxed(addr) readq(addr)
+#define readb_relaxed(addr)	readb(addr)
+#define readw_relaxed(addr)	readw(addr)
+#define readl_relaxed(addr)	readl(addr)
+#define readq_relaxed(addr)	readq(addr)
+#define writeb_relaxed(v, addr)	writeb(v, addr)
+#define writew_relaxed(v, addr)	writew(v, addr)
+#define writel_relaxed(v, addr)	writel(v, addr)
+#define writeq_relaxed(v, addr)	writeq(v, addr)
 
 #ifdef CONFIG_PPC32
 #define mmiowb()
@@ -850,9 +854,6 @@ static inline void * bus_to_virt(unsigned long address)
 #define clrsetbits_le16(addr, clear, set) clrsetbits(le16, addr, clear, set)
 
 #define clrsetbits_8(addr, clear, set) clrsetbits(8, addr, clear, set)
-
-void __iomem *devm_ioremap_prot(struct device *dev, resource_size_t offset,
-				size_t size, unsigned long flags);
 
 #endif /* __KERNEL__ */
 

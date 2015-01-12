@@ -135,6 +135,11 @@ void fnic_handle_link(struct work_struct *work)
 			fnic->lport->host->host_no, FNIC_FC_LE,
 			"Link Status: UP_DOWN",
 			strlen("Link Status: UP_DOWN"));
+		if (fnic->config.flags & VFCF_FIP_CAPABLE) {
+			FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host,
+				"deleting fip-timer during link-down\n");
+			del_timer_sync(&fnic->fip_timer);
+		}
 		fcoe_ctlr_link_down(&fnic->ctlr);
 	}
 

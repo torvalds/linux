@@ -387,7 +387,7 @@ static pteval_t pte_pfn_to_mfn(pteval_t val)
 		unsigned long mfn;
 
 		if (!xen_feature(XENFEAT_auto_translated_physmap))
-			mfn = get_phys_to_machine(pfn);
+			mfn = __pfn_to_mfn(pfn);
 		else
 			mfn = pfn;
 		/*
@@ -410,13 +410,7 @@ static pteval_t pte_pfn_to_mfn(pteval_t val)
 __visible pteval_t xen_pte_val(pte_t pte)
 {
 	pteval_t pteval = pte.pte;
-#if 0
-	/* If this is a WC pte, convert back from Xen WC to Linux WC */
-	if ((pteval & (_PAGE_PAT | _PAGE_PCD | _PAGE_PWT)) == _PAGE_PAT) {
-		WARN_ON(!pat_enabled);
-		pteval = (pteval & ~_PAGE_PAT) | _PAGE_PWT;
-	}
-#endif
+
 	return pte_mfn_to_pfn(pteval);
 }
 PV_CALLEE_SAVE_REGS_THUNK(xen_pte_val);
@@ -427,47 +421,8 @@ __visible pgdval_t xen_pgd_val(pgd_t pgd)
 }
 PV_CALLEE_SAVE_REGS_THUNK(xen_pgd_val);
 
-/*
- * Xen's PAT setup is part of its ABI, though I assume entries 6 & 7
- * are reserved for now, to correspond to the Intel-reserved PAT
- * types.
- *
- * We expect Linux's PAT set as follows:
- *
- * Idx  PTE flags        Linux    Xen    Default
- * 0                     WB       WB     WB
- * 1            PWT      WC       WT     WT
- * 2        PCD          UC-      UC-    UC-
- * 3        PCD PWT      UC       UC     UC
- * 4    PAT              WB       WC     WB
- * 5    PAT     PWT      WC       WP     WT
- * 6    PAT PCD          UC-      rsv    UC-
- * 7    PAT PCD PWT      UC       rsv    UC
- */
-
-void xen_set_pat(u64 pat)
-{
-	/* We expect Linux to use a PAT setting of
-	 * UC UC- WC WB (ignoring the PAT flag) */
-	WARN_ON(pat != 0x0007010600070106ull);
-}
-
 __visible pte_t xen_make_pte(pteval_t pte)
 {
-#if 0
-	/* If Linux is trying to set a WC pte, then map to the Xen WC.
-	 * If _PAGE_PAT is set, then it probably means it is really
-	 * _PAGE_PSE, so avoid fiddling with the PAT mapping and hope
-	 * things work out OK...
-	 *
-	 * (We should never see kernel mappings with _PAGE_PSE set,
-	 * but we could see hugetlbfs mappings, I think.).
-	 */
-	if (pat_enabled && !WARN_ON(pte & _PAGE_PAT)) {
-		if ((pte & (_PAGE_PCD | _PAGE_PWT)) == _PAGE_PWT)
-			pte = (pte & ~(_PAGE_PCD | _PAGE_PWT)) | _PAGE_PAT;
-	}
-#endif
 	pte = pte_pfn_to_mfn(pte);
 
 	return native_make_pte(pte);
@@ -1158,20 +1113,16 @@ static void __init xen_cleanhighmap(unsigned long vaddr,
 	 * instead of somewhere later and be confusing. */
 	xen_mc_flush();
 }
-static void __init xen_pagetable_p2m_copy(void)
+
+static void __init xen_pagetable_p2m_free(void)
 {
 	unsigned long size;
 	unsigned long addr;
-	unsigned long new_mfn_list;
-
-	if (xen_feature(XENFEAT_auto_translated_physmap))
-		return;
 
 	size = PAGE_ALIGN(xen_start_info->nr_pages * sizeof(unsigned long));
 
-	new_mfn_list = xen_revector_p2m_tree();
 	/* No memory or already called. */
-	if (!new_mfn_list || new_mfn_list == xen_start_info->mfn_list)
+	if ((unsigned long)xen_p2m_addr == xen_start_info->mfn_list)
 		return;
 
 	/* using __ka address and sticking INVALID_P2M_ENTRY! */
@@ -1189,8 +1140,6 @@ static void __init xen_pagetable_p2m_copy(void)
 
 	size = PAGE_ALIGN(xen_start_info->nr_pages * sizeof(unsigned long));
 	memblock_free(__pa(xen_start_info->mfn_list), size);
-	/* And revector! Bye bye old array */
-	xen_start_info->mfn_list = new_mfn_list;
 
 	/* At this stage, cleanup_highmap has already cleaned __ka space
 	 * from _brk_limit way up to the max_pfn_mapped (which is the end of
@@ -1214,17 +1163,35 @@ static void __init xen_pagetable_p2m_copy(void)
 }
 #endif
 
+static void __init xen_pagetable_p2m_setup(void)
+{
+	if (xen_feature(XENFEAT_auto_translated_physmap))
+		return;
+
+	xen_vmalloc_p2m_tree();
+
+#ifdef CONFIG_X86_64
+	xen_pagetable_p2m_free();
+#endif
+	/* And revector! Bye bye old array */
+	xen_start_info->mfn_list = (unsigned long)xen_p2m_addr;
+}
+
 static void __init xen_pagetable_init(void)
 {
 	paging_init();
-#ifdef CONFIG_X86_64
-	xen_pagetable_p2m_copy();
-#endif
+	xen_post_allocator_init();
+
+	xen_pagetable_p2m_setup();
+
 	/* Allocate and initialize top and mid mfn levels for p2m structure */
 	xen_build_mfn_list_list();
 
+	/* Remap memory freed due to conflicts with E820 map */
+	if (!xen_feature(XENFEAT_auto_translated_physmap))
+		xen_remap_memory();
+
 	xen_setup_shared_info();
-	xen_post_allocator_init();
 }
 static void xen_write_cr2(unsigned long cr2)
 {
@@ -1457,8 +1424,10 @@ static int xen_pgd_alloc(struct mm_struct *mm)
 		page->private = (unsigned long)user_pgd;
 
 		if (user_pgd != NULL) {
+#ifdef CONFIG_X86_VSYSCALL_EMULATION
 			user_pgd[pgd_index(VSYSCALL_ADDR)] =
 				__pgd(__pa(level3_user_vsyscall) | _PAGE_TABLE);
+#endif
 			ret = 0;
 		}
 
@@ -2021,7 +1990,7 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 # ifdef CONFIG_HIGHMEM
 	case FIX_KMAP_BEGIN ... FIX_KMAP_END:
 # endif
-#else
+#elif defined(CONFIG_X86_VSYSCALL_EMULATION)
 	case VSYSCALL_PAGE:
 #endif
 	case FIX_TEXT_POKE0:
@@ -2060,7 +2029,7 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 
 	__native_set_fixmap(idx, pte);
 
-#ifdef CONFIG_X86_64
+#ifdef CONFIG_X86_VSYSCALL_EMULATION
 	/* Replicate changes to map the vsyscall page into the user
 	   pagetable vsyscall mapping. */
 	if (idx == VSYSCALL_PAGE) {

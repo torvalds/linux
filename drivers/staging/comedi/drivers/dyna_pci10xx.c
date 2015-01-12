@@ -218,7 +218,7 @@ static int dyna_pci10xx_auto_attach(struct comedi_device *dev,
 	/* digital input */
 	s = &dev->subdevices[2];
 	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND;
+	s->subdev_flags = SDF_READABLE;
 	s->n_chan = 16;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
@@ -228,7 +228,7 @@ static int dyna_pci10xx_auto_attach(struct comedi_device *dev,
 	/* digital output */
 	s = &dev->subdevices[3];
 	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
+	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = 16;
 	s->maxdata = 1;
 	s->range_table = &range_digital;

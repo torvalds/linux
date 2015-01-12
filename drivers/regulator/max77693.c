@@ -139,7 +139,7 @@ static struct regulator_ops max77693_charger_ops = {
 	.enable_mask	= SAFEOUT_CTRL_ENSAFEOUT##_num##_MASK ,	\
 }
 
-static struct regulator_desc regulators[] = {
+static const struct regulator_desc regulators[] = {
 	regulator_desc_esafeout(1),
 	regulator_desc_esafeout(2),
 	{
@@ -267,7 +267,6 @@ MODULE_DEVICE_TABLE(platform, max77693_pmic_id);
 static struct platform_driver max77693_pmic_driver = {
 	.driver = {
 		   .name = "max77693-pmic",
-		   .owner = THIS_MODULE,
 		   },
 	.probe = max77693_pmic_probe,
 	.id_table = max77693_pmic_id,

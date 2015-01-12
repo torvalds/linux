@@ -224,6 +224,7 @@ int bnx2x_vfpf_acquire(struct bnx2x *bp, u8 tx_count, u8 rx_count)
 	struct vfpf_acquire_tlv *req = &bp->vf2pf_mbox->req.acquire;
 	struct pfvf_acquire_resp_tlv *resp = &bp->vf2pf_mbox->resp.acquire_resp;
 	struct vfpf_port_phys_id_resp_tlv *phys_port_resp;
+	struct vfpf_fp_hsi_resp_tlv *fp_hsi_resp;
 	u32 vf_id;
 	bool resources_acquired = false;
 
@@ -237,6 +238,7 @@ int bnx2x_vfpf_acquire(struct bnx2x *bp, u8 tx_count, u8 rx_count)
 
 	req->vfdev_info.vf_id = vf_id;
 	req->vfdev_info.vf_os = 0;
+	req->vfdev_info.fp_hsi_ver = ETH_FP_HSI_VERSION;
 
 	req->resc_request.num_rxqs = rx_count;
 	req->resc_request.num_txqs = tx_count;
@@ -316,9 +318,14 @@ int bnx2x_vfpf_acquire(struct bnx2x *bp, u8 tx_count, u8 rx_count)
 			memset(&bp->vf2pf_mbox->resp, 0,
 			       sizeof(union pfvf_tlvs));
 		} else {
-			/* PF reports error */
-			BNX2X_ERR("Failed to get the requested amount of resources: %d. Breaking...\n",
-				  bp->acquire_resp.hdr.status);
+			/* Determine reason of PF failure of acquire process */
+			fp_hsi_resp = bnx2x_search_tlv_list(bp, resp,
+							    CHANNEL_TLV_FP_HSI_SUPPORT);
+			if (fp_hsi_resp && !fp_hsi_resp->is_supported)
+				BNX2X_ERR("Old hypervisor - doesn't support current fastpath HSI version; Need to downgrade VF driver [or upgrade hypervisor]\n");
+			else
+				BNX2X_ERR("Failed to get the requested amount of resources: %d. Breaking...\n",
+					  bp->acquire_resp.hdr.status);
 			rc = -EAGAIN;
 			goto out;
 		}
@@ -331,6 +338,25 @@ int bnx2x_vfpf_acquire(struct bnx2x *bp, u8 tx_count, u8 rx_count)
 	if (phys_port_resp) {
 		memcpy(bp->phys_port_id, phys_port_resp->id, ETH_ALEN);
 		bp->flags |= HAS_PHYS_PORT_ID;
+	}
+
+	/* Old Hypevisors might not even support the FP_HSI_SUPPORT TLV.
+	 * If that's the case, we need to make certain required FW was
+	 * supported by such a hypervisor [i.e., v0-v2].
+	 */
+	fp_hsi_resp = bnx2x_search_tlv_list(bp, resp,
+					    CHANNEL_TLV_FP_HSI_SUPPORT);
+	if (!fp_hsi_resp && (ETH_FP_HSI_VERSION > ETH_FP_HSI_VER_2)) {
+		BNX2X_ERR("Old hypervisor - need to downgrade VF's driver\n");
+
+		/* Since acquire succeeded on the PF side, we need to send a
+		 * release message in order to allow future probes.
+		 */
+		bnx2x_vfpf_finalize(bp, &req->first_tlv);
+		bnx2x_vfpf_release(bp);
+
+		rc = -EINVAL;
+		goto out;
 	}
 
 	/* get HW info */
@@ -1125,6 +1151,26 @@ static void bnx2x_vf_mbx_resp_phys_port(struct bnx2x *bp,
 	*offset += sizeof(struct vfpf_port_phys_id_resp_tlv);
 }
 
+static void bnx2x_vf_mbx_resp_fp_hsi_ver(struct bnx2x *bp,
+					 struct bnx2x_virtf *vf,
+					 void *buffer,
+					 u16 *offset)
+{
+	struct vfpf_fp_hsi_resp_tlv *fp_hsi;
+
+	bnx2x_add_tlv(bp, buffer, *offset, CHANNEL_TLV_FP_HSI_SUPPORT,
+		      sizeof(struct vfpf_fp_hsi_resp_tlv));
+
+	fp_hsi = (struct vfpf_fp_hsi_resp_tlv *)
+		 (((u8 *)buffer) + *offset);
+	fp_hsi->is_supported = (vf->fp_hsi > ETH_FP_HSI_VERSION) ? 0 : 1;
+
+	/* Offset should continue representing the offset to the tail
+	 * of TLV data (outside this function scope)
+	 */
+	*offset += sizeof(struct vfpf_fp_hsi_resp_tlv);
+}
+
 static void bnx2x_vf_mbx_acquire_resp(struct bnx2x *bp, struct bnx2x_virtf *vf,
 				      struct bnx2x_vf_mbx *mbx, int vfop_status)
 {
@@ -1219,6 +1265,12 @@ static void bnx2x_vf_mbx_acquire_resp(struct bnx2x *bp, struct bnx2x_virtf *vf,
 				  CHANNEL_TLV_PHYS_PORT_ID))
 		bnx2x_vf_mbx_resp_phys_port(bp, vf, &mbx->msg->resp, &length);
 
+	/* `New' vfs will want to know if fastpath HSI is supported, since
+	 * if that's not the case they could print into system log the fact
+	 * the driver version must be updated.
+	 */
+	bnx2x_vf_mbx_resp_fp_hsi_ver(bp, vf, &mbx->msg->resp, &length);
+
 	bnx2x_add_tlv(bp, &mbx->msg->resp, length, CHANNEL_TLV_LIST_END,
 		      sizeof(struct channel_list_end_tlv));
 
@@ -1285,6 +1337,23 @@ static void bnx2x_vf_mbx_acquire(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		DP(BNX2X_MSG_IOV,
 		   "VF [%d] - Can't support acquire request due to doorbell mismatch. Please update VM driver\n",
 		   vf->abs_vfid);
+		goto out;
+	}
+
+	/* Verify the VF fastpath HSI can be supported by the loaded FW.
+	 * Linux vfs should be oblivious to changes between v0 and v2.
+	 */
+	if (bnx2x_vf_mbx_is_windows_vm(bp, &mbx->msg->req.acquire))
+		vf->fp_hsi = acquire->vfdev_info.fp_hsi_ver;
+	else
+		vf->fp_hsi = max_t(u8, acquire->vfdev_info.fp_hsi_ver,
+				   ETH_FP_HSI_VER_2);
+	if (vf->fp_hsi > ETH_FP_HSI_VERSION) {
+		DP(BNX2X_MSG_IOV,
+		   "VF [%d] - Can't support acquire request since VF requests a FW version which is too new [%02x > %02x]\n",
+		   vf->abs_vfid, acquire->vfdev_info.fp_hsi_ver,
+		   ETH_FP_HSI_VERSION);
+		rc = -EINVAL;
 		goto out;
 	}
 

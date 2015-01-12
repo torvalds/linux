@@ -418,7 +418,7 @@ out:
 }
 
 /*
- * ashmem_shrink - our cache shrinker, called from mm/vmscan.c :: shrink_slab
+ * ashmem_shrink - our cache shrinker, called from mm/vmscan.c
  *
  * 'nr_to_scan' is the number of objects to scan for freeing.
  *
@@ -446,7 +446,7 @@ ashmem_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 		loff_t start = range->pgstart * PAGE_SIZE;
 		loff_t end = (range->pgend + 1) * PAGE_SIZE;
 
-		do_fallocate(range->asma->file,
+		vfs_fallocate(range->asma->file,
 				FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
 				start, end - start);
 		range->purged = ASHMEM_WAS_PURGED;
@@ -785,7 +785,6 @@ static long ashmem_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				.nr_to_scan = LONG_MAX,
 			};
 			ret = ashmem_shrink_count(&ashmem_shrinker, &sc);
-			nodes_setall(sc.nodes_to_scan);
 			ashmem_shrink_scan(&ashmem_shrinker, &sc);
 		}
 		break;

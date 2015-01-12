@@ -389,7 +389,6 @@ static struct platform_driver mpc8610_hpcd_driver = {
 		 * in lowercase letters.
 		 */
 		.name = "snd-soc-mpc8610hpcd",
-		.owner = THIS_MODULE,
 	},
 };
 

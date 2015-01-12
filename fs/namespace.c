@@ -963,7 +963,8 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 	}
 
 	/* Don't allow unprivileged users to reveal what is under a mount */
-	if ((flag & CL_UNPRIVILEGED) && list_empty(&old->mnt_expire))
+	if ((flag & CL_UNPRIVILEGED) &&
+	    (!(flag & CL_EXPIRE) || list_empty(&old->mnt_expire)))
 		mnt->mnt.mnt_flags |= MNT_LOCKED;
 
 	atomic_inc(&sb->s_active);
@@ -1369,6 +1370,8 @@ void umount_tree(struct mount *mnt, int how)
 	}
 	if (last) {
 		last->mnt_hash.next = unmounted.first;
+		if (unmounted.first)
+			unmounted.first->pprev = &last->mnt_hash.next;
 		unmounted.first = tmp_list.first;
 		unmounted.first->pprev = &unmounted.first;
 	}
@@ -1544,6 +1547,9 @@ SYSCALL_DEFINE2(umount, char __user *, name, int, flags)
 		goto dput_and_out;
 	if (mnt->mnt.mnt_flags & MNT_LOCKED)
 		goto dput_and_out;
+	retval = -EPERM;
+	if (flags & MNT_FORCE && !capable(CAP_SYS_ADMIN))
+		goto dput_and_out;
 
 	retval = do_umount(mnt, flags);
 dput_and_out:
@@ -1569,17 +1575,13 @@ SYSCALL_DEFINE1(oldumount, char __user *, name)
 static bool is_mnt_ns_file(struct dentry *dentry)
 {
 	/* Is this a proxy for a mount namespace? */
-	struct inode *inode = dentry->d_inode;
-	struct proc_ns *ei;
+	return dentry->d_op == &ns_dentry_operations &&
+	       dentry->d_fsdata == &mntns_operations;
+}
 
-	if (!proc_ns_inode(inode))
-		return false;
-
-	ei = get_proc_ns(inode);
-	if (ei->ns_ops != &mntns_operations)
-		return false;
-
-	return true;
+struct mnt_namespace *to_mnt_ns(struct ns_common *ns)
+{
+	return container_of(ns, struct mnt_namespace, ns);
 }
 
 static bool mnt_ns_loop(struct dentry *dentry)
@@ -1591,7 +1593,7 @@ static bool mnt_ns_loop(struct dentry *dentry)
 	if (!is_mnt_ns_file(dentry))
 		return false;
 
-	mnt_ns = get_proc_ns(dentry->d_inode)->ns;
+	mnt_ns = to_mnt_ns(get_proc_ns(dentry->d_inode));
 	return current->nsproxy->mnt_ns->seq >= mnt_ns->seq;
 }
 
@@ -1610,7 +1612,6 @@ struct mount *copy_tree(struct mount *mnt, struct dentry *dentry,
 	if (IS_ERR(q))
 		return q;
 
-	q->mnt.mnt_flags &= ~MNT_LOCKED;
 	q->mnt_mountpoint = mnt->mnt_mountpoint;
 
 	p = mnt;
@@ -2020,7 +2021,10 @@ static int do_loopback(struct path *path, const char *old_name,
 	if (IS_MNT_UNBINDABLE(old))
 		goto out2;
 
-	if (!check_mnt(parent) || !check_mnt(old))
+	if (!check_mnt(parent))
+		goto out2;
+
+	if (!check_mnt(old) && old_path.dentry->d_op != &ns_dentry_operations)
 		goto out2;
 
 	if (!recurse && has_locked_children(old, old_path.dentry))
@@ -2098,7 +2102,13 @@ static int do_remount(struct path *path, int flags, int mnt_flags,
 	}
 	if ((mnt->mnt.mnt_flags & MNT_LOCK_NODEV) &&
 	    !(mnt_flags & MNT_NODEV)) {
-		return -EPERM;
+		/* Was the nodev implicitly added in mount? */
+		if ((mnt->mnt_ns->user_ns != &init_user_ns) &&
+		    !(sb->s_type->fs_flags & FS_USERNS_DEV_MOUNT)) {
+			mnt_flags |= MNT_NODEV;
+		} else {
+			return -EPERM;
+		}
 	}
 	if ((mnt->mnt.mnt_flags & MNT_LOCK_NOSUID) &&
 	    !(mnt_flags & MNT_NOSUID)) {
@@ -2640,7 +2650,7 @@ dput_out:
 
 static void free_mnt_ns(struct mnt_namespace *ns)
 {
-	proc_free_inum(ns->proc_inum);
+	ns_free_inum(&ns->ns);
 	put_user_ns(ns->user_ns);
 	kfree(ns);
 }
@@ -2662,11 +2672,12 @@ static struct mnt_namespace *alloc_mnt_ns(struct user_namespace *user_ns)
 	new_ns = kmalloc(sizeof(struct mnt_namespace), GFP_KERNEL);
 	if (!new_ns)
 		return ERR_PTR(-ENOMEM);
-	ret = proc_alloc_inum(&new_ns->proc_inum);
+	ret = ns_alloc_inum(&new_ns->ns);
 	if (ret) {
 		kfree(new_ns);
 		return ERR_PTR(ret);
 	}
+	new_ns->ns.ops = &mntns_operations;
 	new_ns->seq = atomic64_add_return(1, &mnt_ns_seq);
 	atomic_set(&new_ns->count, 1);
 	new_ns->root = NULL;
@@ -2958,6 +2969,8 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 	/* mount new_root on / */
 	attach_mnt(new_mnt, real_mount(root_parent.mnt), root_mp);
 	touch_mnt_namespace(current->nsproxy->mnt_ns);
+	/* A moved mount should not expire automatically */
+	list_del_init(&new_mnt->mnt_expire);
 	unlock_mount_hash();
 	chroot_fs_refs(&root, &new);
 	put_mountpoint(root_mp);
@@ -3002,6 +3015,7 @@ static void __init init_mount_tree(void)
 
 	root.mnt = mnt;
 	root.dentry = mnt->mnt_root;
+	mnt->mnt_flags |= MNT_LOCKED;
 
 	set_fs_pwd(current->fs, &root);
 	set_fs_root(current->fs, &root);
@@ -3144,31 +3158,31 @@ found:
 	return visible;
 }
 
-static void *mntns_get(struct task_struct *task)
+static struct ns_common *mntns_get(struct task_struct *task)
 {
-	struct mnt_namespace *ns = NULL;
+	struct ns_common *ns = NULL;
 	struct nsproxy *nsproxy;
 
 	task_lock(task);
 	nsproxy = task->nsproxy;
 	if (nsproxy) {
-		ns = nsproxy->mnt_ns;
-		get_mnt_ns(ns);
+		ns = &nsproxy->mnt_ns->ns;
+		get_mnt_ns(to_mnt_ns(ns));
 	}
 	task_unlock(task);
 
 	return ns;
 }
 
-static void mntns_put(void *ns)
+static void mntns_put(struct ns_common *ns)
 {
-	put_mnt_ns(ns);
+	put_mnt_ns(to_mnt_ns(ns));
 }
 
-static int mntns_install(struct nsproxy *nsproxy, void *ns)
+static int mntns_install(struct nsproxy *nsproxy, struct ns_common *ns)
 {
 	struct fs_struct *fs = current->fs;
-	struct mnt_namespace *mnt_ns = ns;
+	struct mnt_namespace *mnt_ns = to_mnt_ns(ns);
 	struct path root;
 
 	if (!ns_capable(mnt_ns->user_ns, CAP_SYS_ADMIN) ||
@@ -3198,17 +3212,10 @@ static int mntns_install(struct nsproxy *nsproxy, void *ns)
 	return 0;
 }
 
-static unsigned int mntns_inum(void *ns)
-{
-	struct mnt_namespace *mnt_ns = ns;
-	return mnt_ns->proc_inum;
-}
-
 const struct proc_ns_operations mntns_operations = {
 	.name		= "mnt",
 	.type		= CLONE_NEWNS,
 	.get		= mntns_get,
 	.put		= mntns_put,
 	.install	= mntns_install,
-	.inum		= mntns_inum,
 };

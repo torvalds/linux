@@ -599,7 +599,6 @@ int dev_pm_qos_add_ancestor_request(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(dev_pm_qos_add_ancestor_request);
 
-#ifdef CONFIG_PM_RUNTIME
 static void __dev_pm_qos_drop_user_request(struct device *dev,
 					   enum dev_pm_qos_req_type type)
 {
@@ -880,7 +879,3 @@ int dev_pm_qos_update_user_latency_tolerance(struct device *dev, s32 val)
 	mutex_unlock(&dev_pm_qos_mtx);
 	return ret;
 }
-#else /* !CONFIG_PM_RUNTIME */
-static void __dev_pm_qos_hide_latency_limit(struct device *dev) {}
-static void __dev_pm_qos_hide_flags(struct device *dev) {}
-#endif /* CONFIG_PM_RUNTIME */

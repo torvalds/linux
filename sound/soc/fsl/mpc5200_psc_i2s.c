@@ -229,7 +229,6 @@ static struct platform_driver psc_i2s_driver = {
 	.remove = psc_i2s_of_remove,
 	.driver = {
 		.name = "mpc5200-psc-i2s",
-		.owner = THIS_MODULE,
 		.of_match_table = psc_i2s_match,
 	},
 };

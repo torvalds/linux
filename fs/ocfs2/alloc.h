@@ -142,7 +142,7 @@ int ocfs2_remove_btree_range(struct inode *inode,
 			     struct ocfs2_extent_tree *et,
 			     u32 cpos, u32 phys_cpos, u32 len, int flags,
 			     struct ocfs2_cached_dealloc_ctxt *dealloc,
-			     u64 refcount_loc);
+			     u64 refcount_loc, bool refcount_tree_locked);
 
 int ocfs2_num_free_extents(struct ocfs2_super *osb,
 			   struct ocfs2_extent_tree *et);

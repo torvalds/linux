@@ -952,7 +952,7 @@ static struct scsi_host_template iscsi_sw_tcp_sht = {
 	.module			= THIS_MODULE,
 	.name			= "iSCSI Initiator over TCP/IP",
 	.queuecommand           = iscsi_queuecommand,
-	.change_queue_depth	= iscsi_change_queue_depth,
+	.change_queue_depth	= scsi_change_queue_depth,
 	.can_queue		= ISCSI_DEF_XMIT_CMDS_MAX - 1,
 	.sg_tablesize		= 4096,
 	.max_sectors		= 0xFFFF,
@@ -966,6 +966,7 @@ static struct scsi_host_template iscsi_sw_tcp_sht = {
 	.target_alloc		= iscsi_target_alloc,
 	.proc_name		= "iscsi_tcp",
 	.this_id		= -1,
+	.track_queue_depth	= 1,
 };
 
 static struct iscsi_transport iscsi_sw_tcp_transport = {

@@ -824,13 +824,15 @@ static int copy_to_user_state_extra(struct xfrm_state *x,
 	ret = xfrm_mark_put(skb, &x->mark);
 	if (ret)
 		goto out;
-	if (x->replay_esn) {
+	if (x->replay_esn)
 		ret = nla_put(skb, XFRMA_REPLAY_ESN_VAL,
 			      xfrm_replay_state_esn_len(x->replay_esn),
 			      x->replay_esn);
-		if (ret)
-			goto out;
-	}
+	else
+		ret = nla_put(skb, XFRMA_REPLAY_VAL, sizeof(x->replay),
+			      &x->replay);
+	if (ret)
+		goto out;
 	if (x->security)
 		ret = copy_sec_ctx(x->security, skb);
 out:
@@ -2569,6 +2571,8 @@ static inline size_t xfrm_sa_len(struct xfrm_state *x)
 		l += nla_total_size(sizeof(x->tfcpad));
 	if (x->replay_esn)
 		l += nla_total_size(xfrm_replay_state_esn_len(x->replay_esn));
+	else
+		l += nla_total_size(sizeof(struct xfrm_replay_state));
 	if (x->security)
 		l += nla_total_size(sizeof(struct xfrm_user_sec_ctx) +
 				    x->security->ctx_len);

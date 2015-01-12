@@ -322,9 +322,15 @@ enum {
 #define AUDIT_STATUS_BACKLOG_LIMIT	0x0010
 #define AUDIT_STATUS_BACKLOG_WAIT_TIME	0x0020
 
-#define AUDIT_VERSION_BACKLOG_LIMIT	1
-#define AUDIT_VERSION_BACKLOG_WAIT_TIME	2
-#define AUDIT_VERSION_LATEST AUDIT_VERSION_BACKLOG_WAIT_TIME
+#define AUDIT_FEATURE_BITMAP_BACKLOG_LIMIT	0x00000001
+#define AUDIT_FEATURE_BITMAP_BACKLOG_WAIT_TIME	0x00000002
+#define AUDIT_FEATURE_BITMAP_ALL (AUDIT_FEATURE_BITMAP_BACKLOG_LIMIT | \
+				  AUDIT_FEATURE_BITMAP_BACKLOG_WAIT_TIME)
+
+/* deprecated: AUDIT_VERSION_* */
+#define AUDIT_VERSION_LATEST 		AUDIT_FEATURE_BITMAP_ALL
+#define AUDIT_VERSION_BACKLOG_LIMIT	AUDIT_FEATURE_BITMAP_BACKLOG_LIMIT
+#define AUDIT_VERSION_BACKLOG_WAIT_TIME	AUDIT_FEATURE_BITMAP_BACKLOG_WAIT_TIME
 
 				/* Failure-to-log actions */
 #define AUDIT_FAIL_SILENT	0
@@ -365,7 +371,9 @@ enum {
 #define AUDIT_ARCH_PARISC	(EM_PARISC)
 #define AUDIT_ARCH_PARISC64	(EM_PARISC|__AUDIT_ARCH_64BIT)
 #define AUDIT_ARCH_PPC		(EM_PPC)
+/* do not define AUDIT_ARCH_PPCLE since it is not supported by audit */
 #define AUDIT_ARCH_PPC64	(EM_PPC64|__AUDIT_ARCH_64BIT)
+#define AUDIT_ARCH_PPC64LE	(EM_PPC64|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)
 #define AUDIT_ARCH_S390		(EM_S390)
 #define AUDIT_ARCH_S390X	(EM_S390|__AUDIT_ARCH_64BIT)
 #define AUDIT_ARCH_SH		(EM_SH)
@@ -404,7 +412,10 @@ struct audit_status {
 	__u32		backlog_limit;	/* waiting messages limit */
 	__u32		lost;		/* messages lost */
 	__u32		backlog;	/* messages waiting in queue */
-	__u32		version;	/* audit api version number */
+	union {
+		__u32	version;	/* deprecated: audit api version num */
+		__u32	feature_bitmap;	/* bitmap of kernel audit features */
+	};
 	__u32		backlog_wait_time;/* message queue wait timeout */
 };
 

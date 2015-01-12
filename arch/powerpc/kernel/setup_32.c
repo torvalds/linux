@@ -11,7 +11,6 @@
 #include <linux/delay.h>
 #include <linux/initrd.h>
 #include <linux/tty.h>
-#include <linux/bootmem.h>
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
 #include <linux/cpu.h>
@@ -52,11 +51,6 @@ int smp_hw_index[NR_CPUS];
 unsigned long ISA_DMA_THRESHOLD;
 unsigned int DMA_MODE_READ;
 unsigned int DMA_MODE_WRITE;
-
-#ifdef CONFIG_VGA_CONSOLE
-unsigned long vgacon_remap_base;
-EXPORT_SYMBOL(vgacon_remap_base);
-#endif
 
 /*
  * These are used in binfmt_elf.c to put aux entries on the stack
@@ -311,9 +305,8 @@ void __init setup_arch(char **cmdline_p)
 
 	irqstack_early_init();
 
-	/* set up the bootmem stuff with available memory */
-	do_init_bootmem();
-	if ( ppc_md.progress ) ppc_md.progress("setup_arch: bootmem", 0x3eab);
+	initmem_init();
+	if ( ppc_md.progress ) ppc_md.progress("setup_arch: initmem", 0x3eab);
 
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;

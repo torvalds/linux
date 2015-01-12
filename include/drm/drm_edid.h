@@ -27,12 +27,14 @@
 
 #define EDID_LENGTH 128
 #define DDC_ADDR 0x50
+#define DDC_ADDR2 0x52 /* E-DDC 1.2 - where DisplayID can hide */
 
 #define CEA_EXT	    0x02
 #define VTB_EXT	    0x10
 #define DI_EXT	    0x40
 #define LS_EXT	    0x50
 #define MI_EXT	    0x60
+#define DISPLAYID_EXT 0x70
 
 struct est_timings {
 	u8 t1;

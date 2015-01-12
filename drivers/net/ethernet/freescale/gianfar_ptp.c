@@ -563,7 +563,6 @@ static struct platform_driver gianfar_ptp_driver = {
 	.driver = {
 		.name		= "gianfar_ptp",
 		.of_match_table	= match_table,
-		.owner		= THIS_MODULE,
 	},
 	.probe       = gianfar_ptp_probe,
 	.remove      = gianfar_ptp_remove,

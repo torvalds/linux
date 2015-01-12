@@ -595,9 +595,14 @@ int clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		clear = 1;
 again:
 	if (!prealloc && (mask & __GFP_WAIT)) {
+		/*
+		 * Don't care for allocation failure here because we might end
+		 * up not needing the pre-allocated extent state at all, which
+		 * is the case if we only have in the tree extent states that
+		 * cover our input range and don't cover too any other range.
+		 * If we end up needing a new extent state we allocate it later.
+		 */
 		prealloc = alloc_extent_state(mask);
-		if (!prealloc)
-			return -ENOMEM;
 	}
 
 	spin_lock(&tree->lock);
@@ -796,15 +801,23 @@ static void set_state_bits(struct extent_io_tree *tree,
 	state->state |= bits_to_set;
 }
 
-static void cache_state(struct extent_state *state,
-			struct extent_state **cached_ptr)
+static void cache_state_if_flags(struct extent_state *state,
+				 struct extent_state **cached_ptr,
+				 const u64 flags)
 {
 	if (cached_ptr && !(*cached_ptr)) {
-		if (state->state & (EXTENT_IOBITS | EXTENT_BOUNDARY)) {
+		if (!flags || (state->state & flags)) {
 			*cached_ptr = state;
 			atomic_inc(&state->refs);
 		}
 	}
+}
+
+static void cache_state(struct extent_state *state,
+			struct extent_state **cached_ptr)
+{
+	return cache_state_if_flags(state, cached_ptr,
+				    EXTENT_IOBITS | EXTENT_BOUNDARY);
 }
 
 /*
@@ -1058,13 +1071,21 @@ int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	int err = 0;
 	u64 last_start;
 	u64 last_end;
+	bool first_iteration = true;
 
 	btrfs_debug_check_extent_io_range(tree, start, end);
 
 again:
 	if (!prealloc && (mask & __GFP_WAIT)) {
+		/*
+		 * Best effort, don't worry if extent state allocation fails
+		 * here for the first iteration. We might have a cached state
+		 * that matches exactly the target range, in which case no
+		 * extent state allocations are needed. We'll only know this
+		 * after locking the tree.
+		 */
 		prealloc = alloc_extent_state(mask);
-		if (!prealloc)
+		if (!prealloc && !first_iteration)
 			return -ENOMEM;
 	}
 
@@ -1234,6 +1255,7 @@ search_again:
 	spin_unlock(&tree->lock);
 	if (mask & __GFP_WAIT)
 		cond_resched();
+	first_iteration = false;
 	goto again;
 }
 
@@ -1482,7 +1504,7 @@ int find_first_extent_bit(struct extent_io_tree *tree, u64 start,
 	state = find_first_extent_bit_state(tree, start, bits);
 got_it:
 	if (state) {
-		cache_state(state, cached_state);
+		cache_state_if_flags(state, cached_state, 0);
 		*start_ret = state->start;
 		*end_ret = state->end;
 		ret = 0;
@@ -1746,6 +1768,9 @@ int extent_clear_unlock_delalloc(struct inode *inode, u64 start, u64 end,
 	if (page_ops == 0)
 		return 0;
 
+	if ((page_ops & PAGE_SET_ERROR) && nr_pages > 0)
+		mapping_set_error(inode->i_mapping, -EIO);
+
 	while (nr_pages > 0) {
 		ret = find_get_pages_contig(inode->i_mapping, index,
 				     min_t(unsigned long,
@@ -1763,6 +1788,8 @@ int extent_clear_unlock_delalloc(struct inode *inode, u64 start, u64 end,
 				clear_page_dirty_for_io(pages[i]);
 			if (page_ops & PAGE_SET_WRITEBACK)
 				set_page_writeback(pages[i]);
+			if (page_ops & PAGE_SET_ERROR)
+				SetPageError(pages[i]);
 			if (page_ops & PAGE_END_WRITEBACK)
 				end_page_writeback(pages[i]);
 			if (page_ops & PAGE_UNLOCK)

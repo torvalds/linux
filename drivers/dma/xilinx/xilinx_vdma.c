@@ -942,6 +942,9 @@ xilinx_vdma_dma_prep_interleaved(struct dma_chan *dchan,
 	if (!xt->numf || !xt->sgl[0].size)
 		return NULL;
 
+	if (xt->frame_size != 1)
+		return NULL;
+
 	/* Allocate a transaction descriptor. */
 	desc = xilinx_vdma_alloc_tx_descriptor(chan);
 	if (!desc)
@@ -960,7 +963,7 @@ xilinx_vdma_dma_prep_interleaved(struct dma_chan *dchan,
 	hw = &segment->hw;
 	hw->vsize = xt->numf;
 	hw->hsize = xt->sgl[0].size;
-	hw->stride = xt->sgl[0].icg <<
+	hw->stride = (xt->sgl[0].icg + xt->sgl[0].size) <<
 			XILINX_VDMA_FRMDLY_STRIDE_STRIDE_SHIFT;
 	hw->stride |= chan->config.frm_dly <<
 			XILINX_VDMA_FRMDLY_STRIDE_FRMDLY_SHIFT;
@@ -971,9 +974,11 @@ xilinx_vdma_dma_prep_interleaved(struct dma_chan *dchan,
 		hw->buf_addr = xt->src_start;
 
 	/* Link the previous next descriptor to current */
-	prev = list_last_entry(&desc->segments,
-				struct xilinx_vdma_tx_segment, node);
-	prev->hw.next_desc = segment->phys;
+	if (!list_empty(&desc->segments)) {
+		prev = list_last_entry(&desc->segments,
+				       struct xilinx_vdma_tx_segment, node);
+		prev->hw.next_desc = segment->phys;
+	}
 
 	/* Insert the segment into the descriptor segments list. */
 	list_add_tail(&segment->node, &desc->segments);

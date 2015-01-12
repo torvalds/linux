@@ -158,7 +158,7 @@ static void virtscsi_complete_cmd(struct virtio_scsi *vscsi, void *buf)
 		sc, resp->response, resp->status, resp->sense_len);
 
 	sc->result = resp->status;
-	virtscsi_compute_resid(sc, resp->resid);
+	virtscsi_compute_resid(sc, virtio32_to_cpu(vscsi->vdev, resp->resid));
 	switch (resp->response) {
 	case VIRTIO_SCSI_S_OK:
 		set_host_byte(sc, DID_OK);
@@ -196,10 +196,13 @@ static void virtscsi_complete_cmd(struct virtio_scsi *vscsi, void *buf)
 		break;
 	}
 
-	WARN_ON(resp->sense_len > VIRTIO_SCSI_SENSE_SIZE);
+	WARN_ON(virtio32_to_cpu(vscsi->vdev, resp->sense_len) >
+		VIRTIO_SCSI_SENSE_SIZE);
 	if (sc->sense_buffer) {
 		memcpy(sc->sense_buffer, resp->sense,
-		       min_t(u32, resp->sense_len, VIRTIO_SCSI_SENSE_SIZE));
+		       min_t(u32,
+			     virtio32_to_cpu(vscsi->vdev, resp->sense_len),
+			     VIRTIO_SCSI_SENSE_SIZE));
 		if (resp->sense_len)
 			set_driver_byte(sc, DRIVER_SENSE);
 	}
@@ -323,7 +326,7 @@ static void virtscsi_handle_transport_reset(struct virtio_scsi *vscsi,
 	unsigned int target = event->lun[1];
 	unsigned int lun = (event->lun[2] << 8) | event->lun[3];
 
-	switch (event->reason) {
+	switch (virtio32_to_cpu(vscsi->vdev, event->reason)) {
 	case VIRTIO_SCSI_EVT_RESET_RESCAN:
 		scsi_add_device(shost, 0, target, lun);
 		break;
@@ -349,8 +352,8 @@ static void virtscsi_handle_param_change(struct virtio_scsi *vscsi,
 	struct Scsi_Host *shost = virtio_scsi_host(vscsi->vdev);
 	unsigned int target = event->lun[1];
 	unsigned int lun = (event->lun[2] << 8) | event->lun[3];
-	u8 asc = event->reason & 255;
-	u8 ascq = event->reason >> 8;
+	u8 asc = virtio32_to_cpu(vscsi->vdev, event->reason) & 255;
+	u8 ascq = virtio32_to_cpu(vscsi->vdev, event->reason) >> 8;
 
 	sdev = scsi_device_lookup(shost, 0, target, lun);
 	if (!sdev) {
@@ -374,12 +377,14 @@ static void virtscsi_handle_event(struct work_struct *work)
 	struct virtio_scsi *vscsi = event_node->vscsi;
 	struct virtio_scsi_event *event = &event_node->event;
 
-	if (event->event & VIRTIO_SCSI_T_EVENTS_MISSED) {
-		event->event &= ~VIRTIO_SCSI_T_EVENTS_MISSED;
+	if (event->event &
+	    cpu_to_virtio32(vscsi->vdev, VIRTIO_SCSI_T_EVENTS_MISSED)) {
+		event->event &= ~cpu_to_virtio32(vscsi->vdev,
+						   VIRTIO_SCSI_T_EVENTS_MISSED);
 		scsi_scan_host(virtio_scsi_host(vscsi->vdev));
 	}
 
-	switch (event->event) {
+	switch (virtio32_to_cpu(vscsi->vdev, event->event)) {
 	case VIRTIO_SCSI_T_NO_EVENT:
 		break;
 	case VIRTIO_SCSI_T_TRANSPORT_RESET:
@@ -482,26 +487,28 @@ static int virtscsi_kick_cmd(struct virtio_scsi_vq *vq,
 	return err;
 }
 
-static void virtio_scsi_init_hdr(struct virtio_scsi_cmd_req *cmd,
+static void virtio_scsi_init_hdr(struct virtio_device *vdev,
+				 struct virtio_scsi_cmd_req *cmd,
 				 struct scsi_cmnd *sc)
 {
 	cmd->lun[0] = 1;
 	cmd->lun[1] = sc->device->id;
 	cmd->lun[2] = (sc->device->lun >> 8) | 0x40;
 	cmd->lun[3] = sc->device->lun & 0xff;
-	cmd->tag = (unsigned long)sc;
+	cmd->tag = cpu_to_virtio64(vdev, (unsigned long)sc);
 	cmd->task_attr = VIRTIO_SCSI_S_SIMPLE;
 	cmd->prio = 0;
 	cmd->crn = 0;
 }
 
-static void virtio_scsi_init_hdr_pi(struct virtio_scsi_cmd_req_pi *cmd_pi,
+static void virtio_scsi_init_hdr_pi(struct virtio_device *vdev,
+				    struct virtio_scsi_cmd_req_pi *cmd_pi,
 				    struct scsi_cmnd *sc)
 {
 	struct request *rq = sc->request;
 	struct blk_integrity *bi;
 
-	virtio_scsi_init_hdr((struct virtio_scsi_cmd_req *)cmd_pi, sc);
+	virtio_scsi_init_hdr(vdev, (struct virtio_scsi_cmd_req *)cmd_pi, sc);
 
 	if (!rq || !scsi_prot_sg_count(sc))
 		return;
@@ -509,9 +516,13 @@ static void virtio_scsi_init_hdr_pi(struct virtio_scsi_cmd_req_pi *cmd_pi,
 	bi = blk_get_integrity(rq->rq_disk);
 
 	if (sc->sc_data_direction == DMA_TO_DEVICE)
-		cmd_pi->pi_bytesout = blk_rq_sectors(rq) * bi->tuple_size;
+		cmd_pi->pi_bytesout = cpu_to_virtio32(vdev,
+							blk_rq_sectors(rq) *
+							bi->tuple_size);
 	else if (sc->sc_data_direction == DMA_FROM_DEVICE)
-		cmd_pi->pi_bytesin = blk_rq_sectors(rq) * bi->tuple_size;
+		cmd_pi->pi_bytesin = cpu_to_virtio32(vdev,
+						       blk_rq_sectors(rq) *
+						       bi->tuple_size);
 }
 
 static int virtscsi_queuecommand(struct virtio_scsi *vscsi,
@@ -536,11 +547,11 @@ static int virtscsi_queuecommand(struct virtio_scsi *vscsi,
 	BUG_ON(sc->cmd_len > VIRTIO_SCSI_CDB_SIZE);
 
 	if (virtio_has_feature(vscsi->vdev, VIRTIO_SCSI_F_T10_PI)) {
-		virtio_scsi_init_hdr_pi(&cmd->req.cmd_pi, sc);
+		virtio_scsi_init_hdr_pi(vscsi->vdev, &cmd->req.cmd_pi, sc);
 		memcpy(cmd->req.cmd_pi.cdb, sc->cmnd, sc->cmd_len);
 		req_size = sizeof(cmd->req.cmd_pi);
 	} else {
-		virtio_scsi_init_hdr(&cmd->req.cmd, sc);
+		virtio_scsi_init_hdr(vscsi->vdev, &cmd->req.cmd, sc);
 		memcpy(cmd->req.cmd.cdb, sc->cmnd, sc->cmd_len);
 		req_size = sizeof(cmd->req.cmd);
 	}
@@ -559,6 +570,15 @@ static int virtscsi_queuecommand_single(struct Scsi_Host *sh,
 
 	atomic_inc(&tgt->reqs);
 	return virtscsi_queuecommand(vscsi, &vscsi->req_vqs[0], sc);
+}
+
+static struct virtio_scsi_vq *virtscsi_pick_vq_mq(struct virtio_scsi *vscsi,
+						  struct scsi_cmnd *sc)
+{
+	u32 tag = blk_mq_unique_tag(sc->request);
+	u16 hwq = blk_mq_unique_tag_to_hwq(tag);
+
+	return &vscsi->req_vqs[hwq];
 }
 
 static struct virtio_scsi_vq *virtscsi_pick_vq(struct virtio_scsi *vscsi,
@@ -604,7 +624,12 @@ static int virtscsi_queuecommand_multi(struct Scsi_Host *sh,
 	struct virtio_scsi *vscsi = shost_priv(sh);
 	struct virtio_scsi_target_state *tgt =
 				scsi_target(sc->device)->hostdata;
-	struct virtio_scsi_vq *req_vq = virtscsi_pick_vq(vscsi, tgt);
+	struct virtio_scsi_vq *req_vq;
+
+	if (shost_use_blk_mq(sh))
+		req_vq = virtscsi_pick_vq_mq(vscsi, sc);
+	else
+		req_vq = virtscsi_pick_vq(vscsi, tgt);
 
 	return virtscsi_queuecommand(vscsi, req_vq, sc);
 }
@@ -655,7 +680,8 @@ static int virtscsi_device_reset(struct scsi_cmnd *sc)
 	cmd->sc = sc;
 	cmd->req.tmf = (struct virtio_scsi_ctrl_tmf_req){
 		.type = VIRTIO_SCSI_T_TMF,
-		.subtype = VIRTIO_SCSI_T_TMF_LOGICAL_UNIT_RESET,
+		.subtype = cpu_to_virtio32(vscsi->vdev,
+					     VIRTIO_SCSI_T_TMF_LOGICAL_UNIT_RESET),
 		.lun[0] = 1,
 		.lun[1] = sc->device->id,
 		.lun[2] = (sc->device->lun >> 8) | 0x40,
@@ -668,30 +694,13 @@ static int virtscsi_device_reset(struct scsi_cmnd *sc)
  * virtscsi_change_queue_depth() - Change a virtscsi target's queue depth
  * @sdev:	Virtscsi target whose queue depth to change
  * @qdepth:	New queue depth
- * @reason:	Reason for the queue depth change.
  */
-static int virtscsi_change_queue_depth(struct scsi_device *sdev,
-				       int qdepth,
-				       int reason)
+static int virtscsi_change_queue_depth(struct scsi_device *sdev, int qdepth)
 {
 	struct Scsi_Host *shost = sdev->host;
 	int max_depth = shost->cmd_per_lun;
 
-	switch (reason) {
-	case SCSI_QDEPTH_QFULL: /* Drop qdepth in response to BUSY state */
-		scsi_track_queue_full(sdev, qdepth);
-		break;
-	case SCSI_QDEPTH_RAMP_UP: /* Raise qdepth after BUSY state resolved */
-	case SCSI_QDEPTH_DEFAULT: /* Manual change via sysfs */
-		scsi_adjust_queue_depth(sdev,
-					scsi_get_tag_type(sdev),
-					min(max_depth, qdepth));
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
-
-	return sdev->queue_depth;
+	return scsi_change_queue_depth(sdev, min(max_depth, qdepth));
 }
 
 static int virtscsi_abort(struct scsi_cmnd *sc)
@@ -713,7 +722,7 @@ static int virtscsi_abort(struct scsi_cmnd *sc)
 		.lun[1] = sc->device->id,
 		.lun[2] = (sc->device->lun >> 8) | 0x40,
 		.lun[3] = sc->device->lun & 0xff,
-		.tag = (unsigned long)sc,
+		.tag = cpu_to_virtio64(vscsi->vdev, (unsigned long)sc),
 	};
 	return virtscsi_tmf(vscsi, cmd);
 }
@@ -758,6 +767,7 @@ static struct scsi_host_template virtscsi_host_template_single = {
 	.use_clustering = ENABLE_CLUSTERING,
 	.target_alloc = virtscsi_target_alloc,
 	.target_destroy = virtscsi_target_destroy,
+	.track_queue_depth = 1,
 };
 
 static struct scsi_host_template virtscsi_host_template_multi = {
@@ -776,6 +786,7 @@ static struct scsi_host_template virtscsi_host_template_multi = {
 	.use_clustering = ENABLE_CLUSTERING,
 	.target_alloc = virtscsi_target_alloc,
 	.target_destroy = virtscsi_target_destroy,
+	.track_queue_depth = 1,
 };
 
 #define virtscsi_config_get(vdev, fld) \
@@ -983,6 +994,7 @@ static int virtscsi_probe(struct virtio_device *vdev)
 	shost->max_id = num_targets;
 	shost->max_channel = 0;
 	shost->max_cmd_len = VIRTIO_SCSI_CDB_SIZE;
+	shost->nr_hw_queues = num_queues;
 
 	if (virtio_has_feature(vdev, VIRTIO_SCSI_F_T10_PI)) {
 		host_prot = SHOST_DIF_TYPE1_PROTECTION | SHOST_DIF_TYPE2_PROTECTION |

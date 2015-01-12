@@ -141,6 +141,38 @@ int mwifiex_get_debug_info(struct mwifiex_private *priv,
 	return 0;
 }
 
+static int
+mwifiex_parse_mgmt_packet(struct mwifiex_private *priv, u8 *payload, u16 len,
+			  struct rxpd *rx_pd)
+{
+	u16 stype;
+	u8 category, action_code;
+	struct ieee80211_hdr *ieee_hdr = (void *)payload;
+
+	stype = (le16_to_cpu(ieee_hdr->frame_control) & IEEE80211_FCTL_STYPE);
+
+	switch (stype) {
+	case IEEE80211_STYPE_ACTION:
+		category = *(payload + sizeof(struct ieee80211_hdr));
+		action_code = *(payload + sizeof(struct ieee80211_hdr) + 1);
+		if (category == WLAN_CATEGORY_PUBLIC &&
+		    action_code == WLAN_PUB_ACTION_TDLS_DISCOVER_RES) {
+			dev_dbg(priv->adapter->dev,
+				"TDLS discovery response %pM nf=%d, snr=%d\n",
+				ieee_hdr->addr2, rx_pd->nf, rx_pd->snr);
+			mwifiex_auto_tdls_update_peer_signal(priv,
+							     ieee_hdr->addr2,
+							     rx_pd->snr,
+							     rx_pd->nf);
+		}
+		break;
+	default:
+		dev_dbg(priv->adapter->dev,
+			"unknown mgmt frame subytpe %#x\n", stype);
+	}
+
+	return 0;
+}
 /*
  * This function processes the received management packet and send it
  * to the kernel.
@@ -151,6 +183,7 @@ mwifiex_process_mgmt_packet(struct mwifiex_private *priv,
 {
 	struct rxpd *rx_pd;
 	u16 pkt_len;
+	struct ieee80211_hdr *ieee_hdr;
 
 	if (!skb)
 		return -1;
@@ -162,6 +195,11 @@ mwifiex_process_mgmt_packet(struct mwifiex_private *priv,
 
 	pkt_len = le16_to_cpu(rx_pd->rx_pkt_length);
 
+	ieee_hdr = (void *)skb->data;
+	if (ieee80211_is_mgmt(ieee_hdr->frame_control)) {
+		mwifiex_parse_mgmt_packet(priv, (u8 *)ieee_hdr,
+					  pkt_len, rx_pd);
+	}
 	/* Remove address4 */
 	memmove(skb->data + sizeof(struct ieee80211_hdr_3addr),
 		skb->data + sizeof(struct ieee80211_hdr),

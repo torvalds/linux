@@ -807,7 +807,6 @@ static void panel_simple_platform_shutdown(struct platform_device *pdev)
 static struct platform_driver panel_simple_platform_driver = {
 	.driver = {
 		.name = "panel-simple",
-		.owner = THIS_MODULE,
 		.of_match_table = platform_of_match,
 	},
 	.probe = panel_simple_platform_probe,

@@ -111,10 +111,15 @@ static int mvsd_setup_data(struct mvsd_host *host, struct mmc_data *data)
 	mvsd_write(MVSD_BLK_COUNT, data->blocks);
 	mvsd_write(MVSD_BLK_SIZE, data->blksz);
 
-	if (nodma || (data->blksz | data->sg->offset) & 3) {
+	if (nodma || (data->blksz | data->sg->offset) & 3 ||
+	    ((!(data->flags & MMC_DATA_READ) && data->sg->offset & 0x3f))) {
 		/*
 		 * We cannot do DMA on a buffer which offset or size
 		 * is not aligned on a 4-byte boundary.
+		 *
+		 * It also appears the host to card DMA can corrupt
+		 * data when the buffer is not aligned on a 64 byte
+		 * boundary.
 		 */
 		host->pio_size = data->blocks * data->blksz;
 		host->pio_ptr = sg_virt(data->sg);

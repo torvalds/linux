@@ -110,7 +110,6 @@ struct csio_scsi_cpu_info {
 };
 
 extern int csio_dbg_level;
-extern int csio_force_master;
 extern unsigned int csio_port_mask;
 extern int csio_msi;
 

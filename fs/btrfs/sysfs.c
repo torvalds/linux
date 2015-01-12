@@ -111,7 +111,6 @@ static ssize_t btrfs_feature_attr_store(struct kobject *kobj,
 {
 	struct btrfs_fs_info *fs_info;
 	struct btrfs_feature_attr *fa = to_btrfs_feature_attr(a);
-	struct btrfs_trans_handle *trans;
 	u64 features, set, clear;
 	unsigned long val;
 	int ret;
@@ -153,10 +152,6 @@ static ssize_t btrfs_feature_attr_store(struct kobject *kobj,
 	btrfs_info(fs_info, "%s %s feature flag",
 		   val ? "Setting" : "Clearing", fa->kobj_attr.attr.name);
 
-	trans = btrfs_start_transaction(fs_info->fs_root, 0);
-	if (IS_ERR(trans))
-		return PTR_ERR(trans);
-
 	spin_lock(&fs_info->super_lock);
 	features = get_features(fs_info, fa->feature_set);
 	if (val)
@@ -166,9 +161,11 @@ static ssize_t btrfs_feature_attr_store(struct kobject *kobj,
 	set_features(fs_info, fa->feature_set, features);
 	spin_unlock(&fs_info->super_lock);
 
-	ret = btrfs_commit_transaction(trans, fs_info->fs_root);
-	if (ret)
-		return ret;
+	/*
+	 * We don't want to do full transaction commit from inside sysfs
+	 */
+	btrfs_set_pending(fs_info, COMMIT);
+	wake_up_process(fs_info->transaction_kthread);
 
 	return count;
 }
@@ -372,9 +369,6 @@ static ssize_t btrfs_label_store(struct kobject *kobj,
 				 const char *buf, size_t len)
 {
 	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
-	struct btrfs_trans_handle *trans;
-	struct btrfs_root *root = fs_info->fs_root;
-	int ret;
 	size_t p_len;
 
 	if (fs_info->sb->s_flags & MS_RDONLY)
@@ -389,20 +383,18 @@ static ssize_t btrfs_label_store(struct kobject *kobj,
 	if (p_len >= BTRFS_LABEL_SIZE)
 		return -EINVAL;
 
-	trans = btrfs_start_transaction(root, 0);
-	if (IS_ERR(trans))
-		return PTR_ERR(trans);
-
-	spin_lock(&root->fs_info->super_lock);
+	spin_lock(&fs_info->super_lock);
 	memset(fs_info->super_copy->label, 0, BTRFS_LABEL_SIZE);
 	memcpy(fs_info->super_copy->label, buf, p_len);
-	spin_unlock(&root->fs_info->super_lock);
-	ret = btrfs_commit_transaction(trans, root);
+	spin_unlock(&fs_info->super_lock);
 
-	if (!ret)
-		return len;
+	/*
+	 * We don't want to do full transaction commit from inside sysfs
+	 */
+	btrfs_set_pending(fs_info, COMMIT);
+	wake_up_process(fs_info->transaction_kthread);
 
-	return ret;
+	return len;
 }
 BTRFS_ATTR_RW(label, btrfs_label_show, btrfs_label_store);
 

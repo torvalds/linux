@@ -2912,10 +2912,11 @@ static void xhci_setup_input_ctx_for_quirk(struct xhci_hcd *xhci,
 }
 
 void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
-		struct usb_device *udev, unsigned int ep_index)
+			unsigned int ep_index, struct xhci_td *td)
 {
 	struct xhci_dequeue_state deq_state;
 	struct xhci_virt_ep *ep;
+	struct usb_device *udev = td->urb->dev;
 
 	xhci_dbg_trace(xhci, trace_xhci_dbg_reset_ep,
 			"Cleaning up stalled endpoint ring");
@@ -2924,8 +2925,7 @@ void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
 	 * or it will attempt to resend it on the next doorbell ring.
 	 */
 	xhci_find_new_dequeue_state(xhci, udev->slot_id,
-			ep_index, ep->stopped_stream, ep->stopped_td,
-			&deq_state);
+			ep_index, ep->stopped_stream, td, &deq_state);
 
 	if (!deq_state.new_deq_ptr || !deq_state.new_deq_seg)
 		return;
@@ -4009,6 +4009,7 @@ static int __maybe_unused xhci_change_max_exit_latency(struct xhci_hcd *xhci,
 	slot_ctx = xhci_get_slot_ctx(xhci, command->in_ctx);
 	slot_ctx->dev_info2 &= cpu_to_le32(~((u32) MAX_EXIT));
 	slot_ctx->dev_info2 |= cpu_to_le32(max_exit_latency);
+	slot_ctx->dev_state = 0;
 
 	xhci_dbg_trace(xhci, trace_xhci_dbg_context_change,
 			"Set up evaluate context for LPM MEL change.");
@@ -4029,7 +4030,7 @@ static int __maybe_unused xhci_change_max_exit_latency(struct xhci_hcd *xhci,
 	return ret;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 
 /* BESL to HIRD Encoding array for USB2 LPM */
 static int xhci_besl_encoding[16] = {125, 150, 200, 300, 400, 500, 1000, 2000,
@@ -4244,24 +4245,8 @@ int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
 	return 0;
 }
 
-#else
-
-int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
-				struct usb_device *udev, int enable)
-{
-	return 0;
-}
-
-int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
-{
-	return 0;
-}
-
-#endif /* CONFIG_PM_RUNTIME */
-
 /*---------------------- USB 3.0 Link PM functions ------------------------*/
 
-#ifdef CONFIG_PM
 /* Service interval in nanoseconds = 2^(bInterval - 1) * 125us * 1000ns / 1us */
 static unsigned long long xhci_service_interval_to_ns(
 		struct usb_endpoint_descriptor *desc)
@@ -4691,6 +4676,17 @@ int xhci_disable_usb3_lpm_timeout(struct usb_hcd *hcd,
 	return 0;
 }
 #else /* CONFIG_PM */
+
+int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
+				struct usb_device *udev, int enable)
+{
+	return 0;
+}
+
+int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
+{
+	return 0;
+}
 
 int xhci_enable_usb3_lpm_timeout(struct usb_hcd *hcd,
 			struct usb_device *udev, enum usb3_link_state state)

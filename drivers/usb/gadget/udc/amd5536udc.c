@@ -1401,9 +1401,8 @@ static int udc_wakeup(struct usb_gadget *gadget)
 
 static int amd5536_udc_start(struct usb_gadget *g,
 		struct usb_gadget_driver *driver);
-static int amd5536_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver);
-/* gadget operations */
+static int amd5536_udc_stop(struct usb_gadget *g);
+
 static const struct usb_gadget_ops udc_ops = {
 	.wakeup		= udc_wakeup,
 	.get_frame	= udc_get_frame,
@@ -1962,8 +1961,7 @@ __acquires(dev->lock)
 }
 
 /* Called by gadget driver to unregister itself */
-static int amd5536_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver)
+static int amd5536_udc_stop(struct usb_gadget *g)
 {
 	struct udc *dev = to_amd5536_udc(g);
 	unsigned long flags;
@@ -1971,7 +1969,7 @@ static int amd5536_udc_stop(struct usb_gadget *g,
 
 	spin_lock_irqsave(&dev->lock, flags);
 	udc_mask_unused_interrupts(dev);
-	shutdown(dev, driver);
+	shutdown(dev, NULL);
 	spin_unlock_irqrestore(&dev->lock, flags);
 
 	dev->driver = NULL;
@@ -2873,7 +2871,7 @@ __acquires(dev->lock)
 			dev->driver->resume(&dev->gadget);
 			dev->sys_suspended = 0;
 		}
-		dev->driver->disconnect(&dev->gadget);
+		usb_gadget_udc_reset(&dev->gadget, dev->driver);
 		spin_lock(&dev->lock);
 
 		/* disable ep0 to empty req queue */

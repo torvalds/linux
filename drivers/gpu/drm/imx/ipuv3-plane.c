@@ -64,6 +64,7 @@ int ipu_plane_set_base(struct ipu_plane *ipu_plane, struct drm_framebuffer *fb,
 {
 	struct drm_gem_cma_object *cma_obj;
 	unsigned long eba;
+	int active;
 
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
 	if (!cma_obj) {
@@ -74,12 +75,17 @@ int ipu_plane_set_base(struct ipu_plane *ipu_plane, struct drm_framebuffer *fb,
 	dev_dbg(ipu_plane->base.dev->dev, "phys = %pad, x = %d, y = %d",
 		&cma_obj->paddr, x, y);
 
-	ipu_cpmem_set_stride(ipu_plane->ipu_ch, fb->pitches[0]);
-
 	eba = cma_obj->paddr + fb->offsets[0] +
 	      fb->pitches[0] * y + (fb->bits_per_pixel >> 3) * x;
-	ipu_cpmem_set_buffer(ipu_plane->ipu_ch, 0, eba);
-	ipu_cpmem_set_buffer(ipu_plane->ipu_ch, 1, eba);
+
+	if (ipu_plane->enabled) {
+		active = ipu_idmac_get_current_buffer(ipu_plane->ipu_ch);
+		ipu_cpmem_set_buffer(ipu_plane->ipu_ch, !active, eba);
+		ipu_idmac_select_buffer(ipu_plane->ipu_ch, !active);
+	} else {
+		ipu_cpmem_set_buffer(ipu_plane->ipu_ch, 0, eba);
+		ipu_cpmem_set_buffer(ipu_plane->ipu_ch, 1, eba);
+	}
 
 	/* cache offsets for subsequent pageflips */
 	ipu_plane->x = x;
@@ -137,6 +143,18 @@ int ipu_plane_mode_set(struct ipu_plane *ipu_plane, struct drm_crtc *crtc,
 	if (crtc_h < 2)
 		return -EINVAL;
 
+	/*
+	 * since we cannot touch active IDMAC channels, we do not support
+	 * resizing the enabled plane or changing its format
+	 */
+	if (ipu_plane->enabled) {
+		if (src_w != ipu_plane->w || src_h != ipu_plane->h ||
+		    fb->pixel_format != ipu_plane->base.fb->pixel_format)
+			return -EINVAL;
+
+		return ipu_plane_set_base(ipu_plane, fb, src_x, src_y);
+	}
+
 	switch (ipu_plane->dp_flow) {
 	case IPU_DP_FLOW_SYNC_BG:
 		ret = ipu_dp_setup_channel(ipu_plane->dp,
@@ -148,14 +166,22 @@ int ipu_plane_mode_set(struct ipu_plane *ipu_plane, struct drm_crtc *crtc,
 				ret);
 			return ret;
 		}
-		ipu_dp_set_global_alpha(ipu_plane->dp, 1, 0, 1);
+		ipu_dp_set_global_alpha(ipu_plane->dp, true, 0, true);
 		break;
 	case IPU_DP_FLOW_SYNC_FG:
 		ipu_dp_setup_channel(ipu_plane->dp,
 				ipu_drm_fourcc_to_colorspace(fb->pixel_format),
 				IPUV3_COLORSPACE_UNKNOWN);
 		ipu_dp_set_window_pos(ipu_plane->dp, crtc_x, crtc_y);
-		break;
+		/* Enable local alpha on partial plane */
+		switch (fb->pixel_format) {
+		case DRM_FORMAT_ARGB8888:
+		case DRM_FORMAT_ABGR8888:
+			ipu_dp_set_global_alpha(ipu_plane->dp, false, 0, false);
+			break;
+		default:
+			break;
+		}
 	}
 
 	ret = ipu_dmfc_init_channel(ipu_plane->dmfc, crtc_w);
@@ -181,10 +207,15 @@ int ipu_plane_mode_set(struct ipu_plane *ipu_plane, struct drm_crtc *crtc,
 		return ret;
 	}
 	ipu_cpmem_set_high_priority(ipu_plane->ipu_ch);
+	ipu_idmac_set_double_buffer(ipu_plane->ipu_ch, 1);
+	ipu_cpmem_set_stride(ipu_plane->ipu_ch, fb->pitches[0]);
 
 	ret = ipu_plane_set_base(ipu_plane, fb, src_x, src_y);
 	if (ret < 0)
 		return ret;
+
+	ipu_plane->w = src_w;
+	ipu_plane->h = src_h;
 
 	return 0;
 }

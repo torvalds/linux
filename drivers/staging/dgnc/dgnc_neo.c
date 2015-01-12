@@ -530,10 +530,11 @@ static inline void neo_parse_lsr(struct dgnc_board *brd, uint port)
 	int linestatus;
 	unsigned long flags;
 
-	if (!brd)
-		return;
-
-	if (brd->magic != DGNC_BOARD_MAGIC)
+	/*
+	 * Check to make sure it didn't receive interrupt with a null board
+	 * associated or a board pointer that wasn't ours.
+	 */
+	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
 		return;
 
 	if (port > brd->maxports)
@@ -869,10 +870,8 @@ static void neo_tasklet(unsigned long data)
 	int state = 0;
 	int ports = 0;
 
-	if (!bd || bd->magic != DGNC_BOARD_MAGIC) {
-		APR(("poll_tasklet() - NULL or bad bd.\n"));
+	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
 		return;
-	}
 
 	/* Cache a couple board values */
 	spin_lock_irqsave(&bd->bd_lock, flags);
@@ -945,7 +944,7 @@ static void neo_tasklet(unsigned long data)
  */
 static irqreturn_t neo_intr(int irq, void *voidbrd)
 {
-	struct dgnc_board *brd = (struct dgnc_board *) voidbrd;
+	struct dgnc_board *brd = voidbrd;
 	struct channel_t *ch;
 	int port = 0;
 	int type = 0;
@@ -955,18 +954,12 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 	unsigned long flags;
 	unsigned long flags2;
 
-	if (!brd) {
-		APR(("Received interrupt (%d) with null board associated\n", irq));
-		return IRQ_NONE;
-	}
-
 	/*
-	 * Check to make sure its for us.
+	 * Check to make sure it didn't receive interrupt with a null board
+	 * associated or a board pointer that wasn't ours.
 	 */
-	if (brd->magic != DGNC_BOARD_MAGIC) {
-		APR(("Received interrupt (%d) with a board pointer that wasn't ours!\n", irq));
+	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
 		return IRQ_NONE;
-	}
 
 	brd->intr_count++;
 
@@ -1224,7 +1217,6 @@ static void neo_copy_data_from_uart_to_queue(struct channel_t *ch)
 
 		/* Copy data from uart to the queue */
 		memcpy_fromio(ch->ch_rqueue + head, &ch->ch_neo_uart->txrxburst, n);
-		dgnc_sniff_nowait_nolock(ch, "UART READ", ch->ch_rqueue + head, n);
 
 		/*
 		 * Since RX_FIFO_DATA_ERROR was 0, we are guarenteed
@@ -1310,7 +1302,6 @@ static void neo_copy_data_from_uart_to_queue(struct channel_t *ch)
 
 		memcpy_fromio(ch->ch_rqueue + head, &ch->ch_neo_uart->txrxburst, 1);
 		ch->ch_equeue[head] = (unsigned char) linestatus;
-		dgnc_sniff_nowait_nolock(ch, "UART READ", ch->ch_rqueue + head, 1);
 
 		/* Ditch any remaining linestatus value. */
 		linestatus = 0;
@@ -1563,7 +1554,6 @@ static void neo_copy_data_from_queue_to_uart(struct channel_t *ch)
 		}
 
 		memcpy_toio(&ch->ch_neo_uart->txrxburst, ch->ch_wqueue + tail, s);
-		dgnc_sniff_nowait_nolock(ch, "UART WRITE", ch->ch_wqueue + tail, s);
 
 		/* Add and flip queue if needed */
 		tail = (tail + s) & WQUEUEMASK;

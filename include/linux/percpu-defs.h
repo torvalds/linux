@@ -254,8 +254,6 @@ do {									\
 #endif	/* CONFIG_SMP */
 
 #define per_cpu(var, cpu)	(*per_cpu_ptr(&(var), cpu))
-#define __raw_get_cpu_var(var)	(*raw_cpu_ptr(&(var)))
-#define __get_cpu_var(var)	(*this_cpu_ptr(&(var)))
 
 /*
  * Must be an lvalue. Since @var must be a simple identifier,

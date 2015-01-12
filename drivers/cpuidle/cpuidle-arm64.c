@@ -73,7 +73,6 @@ static struct cpuidle_driver arm64_idle_driver = {
 		.exit_latency           = 1,
 		.target_residency       = 1,
 		.power_usage		= UINT_MAX,
-		.flags                  = CPUIDLE_FLAG_TIME_VALID,
 		.name                   = "WFI",
 		.desc                   = "ARM64 WFI",
 	}
@@ -104,11 +103,8 @@ static int __init arm64_idle_init(void)
 	 * reason to initialize the idle driver if only wfi is supported.
 	 */
 	ret = dt_init_idle_driver(drv, arm64_idle_state_match, 1);
-	if (ret <= 0) {
-		if (ret)
-			pr_err("failed to initialize idle states\n");
+	if (ret <= 0)
 		return ret ? : -ENODEV;
-	}
 
 	/*
 	 * Call arch CPU operations in order to initialize
@@ -122,12 +118,6 @@ static int __init arm64_idle_init(void)
 		}
 	}
 
-	ret = cpuidle_register(drv, NULL);
-	if (ret) {
-		pr_err("failed to register cpuidle driver\n");
-		return ret;
-	}
-
-	return 0;
+	return cpuidle_register(drv, NULL);
 }
 device_initcall(arm64_idle_init);

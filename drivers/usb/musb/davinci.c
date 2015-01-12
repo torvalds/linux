@@ -214,10 +214,10 @@ static void otg_timer(unsigned long _musb)
 	 */
 	devctl = musb_readb(mregs, MUSB_DEVCTL);
 	dev_dbg(musb->controller, "poll devctl %02x (%s)\n", devctl,
-		usb_otg_state_string(musb->xceiv->state));
+		usb_otg_state_string(musb->xceiv->otg->state));
 
 	spin_lock_irqsave(&musb->lock, flags);
-	switch (musb->xceiv->state) {
+	switch (musb->xceiv->otg->state) {
 	case OTG_STATE_A_WAIT_VFALL:
 		/* Wait till VBUS falls below SessionEnd (~0.2V); the 1.3 RTL
 		 * seems to mis-handle session "start" otherwise (or in our
@@ -228,7 +228,7 @@ static void otg_timer(unsigned long _musb)
 			mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
 			break;
 		}
-		musb->xceiv->state = OTG_STATE_A_WAIT_VRISE;
+		musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
 		musb_writel(musb->ctrl_base, DAVINCI_USB_INT_SET_REG,
 			MUSB_INTR_VBUSERROR << DAVINCI_USB_USBINT_SHIFT);
 		break;
@@ -251,7 +251,7 @@ static void otg_timer(unsigned long _musb)
 		if (devctl & MUSB_DEVCTL_BDEVICE)
 			mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
 		else
-			musb->xceiv->state = OTG_STATE_A_IDLE;
+			musb->xceiv->otg->state = OTG_STATE_A_IDLE;
 		break;
 	default:
 		break;
@@ -325,20 +325,20 @@ static irqreturn_t davinci_musb_interrupt(int irq, void *__hci)
 			 * to stop registering in devctl.
 			 */
 			musb->int_usb &= ~MUSB_INTR_VBUSERROR;
-			musb->xceiv->state = OTG_STATE_A_WAIT_VFALL;
+			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VFALL;
 			mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
 			WARNING("VBUS error workaround (delay coming)\n");
 		} else if (drvvbus) {
 			MUSB_HST_MODE(musb);
 			otg->default_a = 1;
-			musb->xceiv->state = OTG_STATE_A_WAIT_VRISE;
+			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
 			portstate(musb->port1_status |= USB_PORT_STAT_POWER);
 			del_timer(&otg_workaround);
 		} else {
 			musb->is_active = 0;
 			MUSB_DEV_MODE(musb);
 			otg->default_a = 0;
-			musb->xceiv->state = OTG_STATE_B_IDLE;
+			musb->xceiv->otg->state = OTG_STATE_B_IDLE;
 			portstate(musb->port1_status &= ~USB_PORT_STAT_POWER);
 		}
 
@@ -348,7 +348,7 @@ static irqreturn_t davinci_musb_interrupt(int irq, void *__hci)
 		davinci_musb_source_power(musb, drvvbus, 0);
 		dev_dbg(musb->controller, "VBUS %s (%s)%s, devctl %02x\n",
 				drvvbus ? "on" : "off",
-				usb_otg_state_string(musb->xceiv->state),
+				usb_otg_state_string(musb->xceiv->otg->state),
 				err ? " ERROR" : "",
 				devctl);
 		retval = IRQ_HANDLED;
@@ -361,7 +361,7 @@ static irqreturn_t davinci_musb_interrupt(int irq, void *__hci)
 	musb_writel(tibase, DAVINCI_USB_EOI_REG, 0);
 
 	/* poll for ID change */
-	if (musb->xceiv->state == OTG_STATE_B_IDLE)
+	if (musb->xceiv->otg->state == OTG_STATE_B_IDLE)
 		mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
 
 	spin_unlock_irqrestore(&musb->lock, flags);
@@ -520,10 +520,8 @@ static int davinci_probe(struct platform_device *pdev)
 	int				ret = -ENOMEM;
 
 	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
-	if (!glue) {
-		dev_err(&pdev->dev, "failed to allocate glue context\n");
+	if (!glue)
 		goto err0;
-	}
 
 	clk = devm_clk_get(&pdev->dev, "usb");
 	if (IS_ERR(clk)) {

@@ -228,7 +228,6 @@ static int ni_670x_auto_attach(struct comedi_device *dev,
 		s->range_table = &range_bipolar10;
 	}
 	s->insn_write = ni_670x_ao_insn_write;
-	s->insn_read = comedi_readback_insn_read;
 
 	ret = comedi_alloc_subdev_readback(s);
 	if (ret)

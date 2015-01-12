@@ -45,13 +45,15 @@
 #include "sram.h"
 #include "cm2xxx.h"
 #include "cm3xxx.h"
+#include "cm33xx.h"
+#include "cm44xx.h"
 #include "prm.h"
 #include "cm.h"
 #include "prcm_mpu44xx.h"
 #include "prminst44xx.h"
-#include "cminst44xx.h"
 #include "prm2xxx.h"
 #include "prm3xxx.h"
+#include "prm33xx.h"
 #include "prm44xx.h"
 #include "opp2xxx.h"
 
@@ -359,7 +361,7 @@ static void __init omap_hwmod_init_postsetup(void)
 	u8 postsetup_state;
 
 	/* Set the default postsetup state for all hwmods */
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	postsetup_state = _HWMOD_STATE_IDLE;
 #else
 	postsetup_state = _HWMOD_STATE_ENABLED;
@@ -565,6 +567,8 @@ void __init am33xx_init_early(void)
 	omap2_set_globals_cm(AM33XX_L4_WK_IO_ADDRESS(AM33XX_PRCM_BASE), NULL);
 	omap3xxx_check_revision();
 	am33xx_check_features();
+	am33xx_prm_init();
+	am33xx_cm_init();
 	am33xx_powerdomains_init();
 	am33xx_clockdomains_init();
 	am33xx_hwmod_init();
@@ -591,6 +595,8 @@ void __init am43xx_init_early(void)
 	omap_cm_base_init();
 	omap3xxx_check_revision();
 	am33xx_check_features();
+	omap44xx_prm_init();
+	omap4_cm_init();
 	am43xx_powerdomains_init();
 	am43xx_clockdomains_init();
 	am43xx_hwmod_init();
@@ -620,6 +626,7 @@ void __init omap4430_init_early(void)
 	omap_cm_base_init();
 	omap4xxx_check_revision();
 	omap4xxx_check_features();
+	omap4_cm_init();
 	omap4_pm_init_early();
 	omap44xx_prm_init();
 	omap44xx_voltagedomains_init();
@@ -655,6 +662,7 @@ void __init omap5_init_early(void)
 	omap_cm_base_init();
 	omap44xx_prm_init();
 	omap5xxx_check_revision();
+	omap4_cm_init();
 	omap54xx_voltagedomains_init();
 	omap54xx_powerdomains_init();
 	omap54xx_clockdomains_init();
@@ -686,6 +694,7 @@ void __init dra7xx_init_early(void)
 	omap_cm_base_init();
 	omap44xx_prm_init();
 	dra7xxx_check_revision();
+	omap4_cm_init();
 	dra7xx_powerdomains_init();
 	dra7xx_clockdomains_init();
 	dra7xx_hwmod_init();

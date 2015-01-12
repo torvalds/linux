@@ -5455,6 +5455,20 @@ void intel_cleanup_gt_powersave(struct drm_device *dev)
 		valleyview_cleanup_gt_powersave(dev);
 }
 
+static void gen6_suspend_rps(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
+
+	/*
+	 * TODO: disable RPS interrupts on GEN9+ too once RPS support
+	 * is added for it.
+	 */
+	if (INTEL_INFO(dev)->gen < 9)
+		gen6_disable_rps_interrupts(dev);
+}
+
 /**
  * intel_suspend_gt_powersave - suspend PM work and helper threads
  * @dev: drm device
@@ -5470,14 +5484,7 @@ void intel_suspend_gt_powersave(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen < 6)
 		return;
 
-	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
-
-	/*
-	 * TODO: disable RPS interrupts on GEN9+ too once RPS support
-	 * is added for it.
-	 */
-	if (INTEL_INFO(dev)->gen < 9)
-		gen6_disable_rps_interrupts(dev);
+	gen6_suspend_rps(dev);
 
 	/* Force GPU to min freq during suspend */
 	gen6_rps_idle(dev_priv);
@@ -5580,8 +5587,11 @@ void intel_reset_gt_powersave(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	if (INTEL_INFO(dev)->gen < 6)
+		return;
+
+	gen6_suspend_rps(dev);
 	dev_priv->rps.enabled = false;
-	intel_enable_gt_powersave(dev);
 }
 
 static void ibx_init_clock_gating(struct drm_device *dev)
@@ -5772,7 +5782,7 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 	 * to keep in mind (see 3DSTATE_PS and 3DSTATE_WM).
 	 */
 	I915_WRITE(GEN6_GT_MODE,
-		   GEN6_WIZ_HASHING_MASK | GEN6_WIZ_HASHING_16x4);
+		   _MASKED_FIELD(GEN6_WIZ_HASHING_MASK, GEN6_WIZ_HASHING_16x4));
 
 	ilk_init_lp_watermarks(dev);
 
@@ -5970,7 +5980,7 @@ static void haswell_init_clock_gating(struct drm_device *dev)
 	 * to keep in mind (see 3DSTATE_PS and 3DSTATE_WM).
 	 */
 	I915_WRITE(GEN7_GT_MODE,
-		   GEN6_WIZ_HASHING_MASK | GEN6_WIZ_HASHING_16x4);
+		   _MASKED_FIELD(GEN6_WIZ_HASHING_MASK, GEN6_WIZ_HASHING_16x4));
 
 	/* WaSampleCChickenBitEnable:hsw */
 	I915_WRITE(HALF_SLICE_CHICKEN3,
@@ -6071,7 +6081,7 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 	 * to keep in mind (see 3DSTATE_PS and 3DSTATE_WM).
 	 */
 	I915_WRITE(GEN7_GT_MODE,
-		   GEN6_WIZ_HASHING_MASK | GEN6_WIZ_HASHING_16x4);
+		   _MASKED_FIELD(GEN6_WIZ_HASHING_MASK, GEN6_WIZ_HASHING_16x4));
 
 	snpcr = I915_READ(GEN6_MBCUNIT_SNPCR);
 	snpcr &= ~GEN6_MBC_SNPCR_MASK;

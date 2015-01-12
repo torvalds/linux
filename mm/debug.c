@@ -95,7 +95,10 @@ void dump_page_badflags(struct page *page, const char *reason,
 		dump_flags(page->flags & badflags,
 				pageflag_names, ARRAY_SIZE(pageflag_names));
 	}
-	mem_cgroup_print_bad_page(page);
+#ifdef CONFIG_MEMCG
+	if (page->mem_cgroup)
+		pr_alert("page->mem_cgroup:%p\n", page->mem_cgroup);
+#endif
 }
 
 void dump_page(struct page *page, const char *reason)

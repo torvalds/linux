@@ -62,8 +62,6 @@ source "drivers/staging/xgifb/Kconfig"
 
 source "drivers/staging/emxx_udc/Kconfig"
 
-source "drivers/staging/bcm/Kconfig"
-
 source "drivers/staging/ft1000/Kconfig"
 
 source "drivers/staging/speakup/Kconfig"
@@ -105,5 +103,7 @@ source "drivers/staging/gs_fpgaboot/Kconfig"
 source "drivers/staging/skein/Kconfig"
 
 source "drivers/staging/unisys/Kconfig"
+
+source "drivers/staging/clocking-wizard/Kconfig"
 
 endif # STAGING

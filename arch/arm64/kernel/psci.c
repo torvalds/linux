@@ -511,7 +511,7 @@ static int cpu_psci_cpu_kill(unsigned int cpu)
 
 static int psci_suspend_finisher(unsigned long index)
 {
-	struct psci_power_state *state = __get_cpu_var(psci_power_state);
+	struct psci_power_state *state = __this_cpu_read(psci_power_state);
 
 	return psci_ops.cpu_suspend(state[index - 1],
 				    virt_to_phys(cpu_resume));
@@ -520,7 +520,7 @@ static int psci_suspend_finisher(unsigned long index)
 static int __maybe_unused cpu_psci_cpu_suspend(unsigned long index)
 {
 	int ret;
-	struct psci_power_state *state = __get_cpu_var(psci_power_state);
+	struct psci_power_state *state = __this_cpu_read(psci_power_state);
 	/*
 	 * idle state index 0 corresponds to wfi, should never be called
 	 * from the cpu_suspend operations
@@ -540,6 +540,8 @@ const struct cpu_operations cpu_psci_ops = {
 	.name		= "psci",
 #ifdef CONFIG_CPU_IDLE
 	.cpu_init_idle	= cpu_psci_cpu_init_idle,
+#endif
+#ifdef CONFIG_ARM64_CPU_SUSPEND
 	.cpu_suspend	= cpu_psci_cpu_suspend,
 #endif
 #ifdef CONFIG_SMP

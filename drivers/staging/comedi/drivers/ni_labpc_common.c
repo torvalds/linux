@@ -818,7 +818,7 @@ static int labpc_drain_fifo(struct comedi_device *dev)
 			devpriv->count--;
 		}
 		data = labpc_read_adc_fifo(dev);
-		cfc_write_to_buffer(dev->read_subdev, data);
+		comedi_buf_write_samples(dev->read_subdev, &data, 1);
 		devpriv->stat1 = devpriv->read_byte(dev, STAT1_REG);
 	}
 	if (i == timeout) {
@@ -876,7 +876,7 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 		/* clear error interrupt */
 		devpriv->write_byte(dev, 0x1, ADC_FIFO_CLEAR_REG);
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		cfc_handle_events(dev, s);
+		comedi_handle_events(dev, s);
 		dev_err(dev->class_dev, "overrun\n");
 		return IRQ_HANDLED;
 	}
@@ -896,7 +896,7 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 		/*  clear error interrupt */
 		devpriv->write_byte(dev, 0x1, ADC_FIFO_CLEAR_REG);
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		cfc_handle_events(dev, s);
+		comedi_handle_events(dev, s);
 		dev_err(dev->class_dev, "overflow\n");
 		return IRQ_HANDLED;
 	}
@@ -914,8 +914,20 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 			async->events |= COMEDI_CB_EOA;
 	}
 
-	cfc_handle_events(dev, s);
+	comedi_handle_events(dev, s);
 	return IRQ_HANDLED;
+}
+
+static void labpc_ao_write(struct comedi_device *dev,
+			   struct comedi_subdevice *s,
+			   unsigned int chan, unsigned int val)
+{
+	struct labpc_private *devpriv = dev->private;
+
+	devpriv->write_byte(dev, val & 0xff, DAC_LSB_REG(chan));
+	devpriv->write_byte(dev, (val >> 8) & 0xff, DAC_MSB_REG(chan));
+
+	s->readback[chan] = val;
 }
 
 static int labpc_ao_insn_write(struct comedi_device *dev,
@@ -927,7 +939,6 @@ static int labpc_ao_insn_write(struct comedi_device *dev,
 	struct labpc_private *devpriv = dev->private;
 	int channel, range;
 	unsigned long flags;
-	int lsb, msb;
 
 	channel = CR_CHAN(insn->chanspec);
 
@@ -950,25 +961,7 @@ static int labpc_ao_insn_write(struct comedi_device *dev,
 		devpriv->write_byte(dev, devpriv->cmd6, CMD6_REG);
 	}
 	/* send data */
-	lsb = data[0] & 0xff;
-	msb = (data[0] >> 8) & 0xff;
-	devpriv->write_byte(dev, lsb, DAC_LSB_REG(channel));
-	devpriv->write_byte(dev, msb, DAC_MSB_REG(channel));
-
-	/* remember value for readback */
-	devpriv->ao_value[channel] = data[0];
-
-	return 1;
-}
-
-static int labpc_ao_insn_read(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn,
-			      unsigned int *data)
-{
-	struct labpc_private *devpriv = dev->private;
-
-	data[0] = devpriv->ao_value[CR_CHAN(insn->chanspec)];
+	labpc_ao_write(dev, s, channel, data[0]);
 
 	return 1;
 }
@@ -1085,29 +1078,13 @@ static unsigned int labpc_eeprom_read_status(struct comedi_device *dev)
 	return value;
 }
 
-static int labpc_eeprom_write(struct comedi_device *dev,
-			      unsigned int address, unsigned int value)
+static void labpc_eeprom_write(struct comedi_device *dev,
+			       unsigned int address, unsigned int value)
 {
 	struct labpc_private *devpriv = dev->private;
 	const int write_enable_instruction = 0x6;
 	const int write_instruction = 0x2;
 	const int write_length = 8;	/*  8 bit write lengths to eeprom */
-	const int write_in_progress_bit = 0x1;
-	const int timeout = 10000;
-	int i;
-
-	/*  make sure there isn't already a write in progress */
-	for (i = 0; i < timeout; i++) {
-		if ((labpc_eeprom_read_status(dev) & write_in_progress_bit) ==
-		    0)
-			break;
-	}
-	if (i == timeout) {
-		dev_err(dev->class_dev, "eeprom write timed out\n");
-		return -ETIME;
-	}
-	/*  update software copy of eeprom */
-	devpriv->eeprom_data[address] = value;
 
 	/*  enable read/write to eeprom */
 	devpriv->cmd5 &= ~CMD5_EEPROMCS;
@@ -1140,8 +1117,6 @@ static int labpc_eeprom_write(struct comedi_device *dev,
 	devpriv->cmd5 &= ~(CMD5_EEPROMCS | CMD5_WRTPRT);
 	udelay(1);
 	devpriv->write_byte(dev, devpriv->cmd5, CMD5_REG);
-
-	return 0;
 }
 
 /* writes to 8 bit calibration dacs */
@@ -1149,10 +1124,6 @@ static void write_caldac(struct comedi_device *dev, unsigned int channel,
 			 unsigned int value)
 {
 	struct labpc_private *devpriv = dev->private;
-
-	if (value == devpriv->caldac[channel])
-		return;
-	devpriv->caldac[channel] = value;
 
 	/*  clear caldac load bit and make sure we don't write to eeprom */
 	devpriv->cmd5 &= ~(CMD5_CALDACLD | CMD5_EEPROMCS | CMD5_WRTPRT);
@@ -1184,25 +1155,30 @@ static int labpc_calib_insn_write(struct comedi_device *dev,
 	 * Only write the last data value to the caldac. Preceding
 	 * data would be overwritten anyway.
 	 */
-	if (insn->n > 0)
-		write_caldac(dev, chan, data[insn->n - 1]);
+	if (insn->n > 0) {
+		unsigned int val = data[insn->n - 1];
+
+		if (s->readback[chan] != val) {
+			write_caldac(dev, chan, val);
+			s->readback[chan] = val;
+		}
+	}
 
 	return insn->n;
 }
 
-static int labpc_calib_insn_read(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn,
-				 unsigned int *data)
+static int labpc_eeprom_ready(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned long context)
 {
-	struct labpc_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
+	unsigned int status;
 
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->caldac[chan];
-
-	return insn->n;
+	/* make sure there isn't already a write in progress */
+	status = labpc_eeprom_read_status(dev);
+	if ((status & 0x1) == 0)
+		return 0;
+	return -EBUSY;
 }
 
 static int labpc_eeprom_insn_write(struct comedi_device *dev,
@@ -1222,25 +1198,15 @@ static int labpc_eeprom_insn_write(struct comedi_device *dev,
 	 * data would be overwritten anyway.
 	 */
 	if (insn->n > 0) {
-		ret = labpc_eeprom_write(dev, chan, data[insn->n - 1]);
+		unsigned int val = data[insn->n - 1];
+
+		ret = comedi_timeout(dev, s, insn, labpc_eeprom_ready, 0);
 		if (ret)
 			return ret;
+
+		labpc_eeprom_write(dev, chan, val);
+		s->readback[chan] = val;
 	}
-
-	return insn->n;
-}
-
-static int labpc_eeprom_insn_read(struct comedi_device *dev,
-				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn,
-				  unsigned int *data)
-{
-	struct labpc_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->eeprom_data[chan];
 
 	return insn->n;
 }
@@ -1309,19 +1275,15 @@ int labpc_common_attach(struct comedi_device *dev,
 		s->n_chan	= NUM_AO_CHAN;
 		s->maxdata	= 0x0fff;
 		s->range_table	= &range_labpc_ao;
-		s->insn_read	= labpc_ao_insn_read;
 		s->insn_write	= labpc_ao_insn_write;
 
-		/* initialize analog outputs to a known value */
-		for (i = 0; i < s->n_chan; i++) {
-			short lsb, msb;
+		ret = comedi_alloc_subdev_readback(s);
+		if (ret)
+			return ret;
 
-			devpriv->ao_value[i] = s->maxdata / 2;
-			lsb = devpriv->ao_value[i] & 0xff;
-			msb = (devpriv->ao_value[i] >> 8) & 0xff;
-			devpriv->write_byte(dev, lsb, DAC_LSB_REG(i));
-			devpriv->write_byte(dev, msb, DAC_MSB_REG(i));
-		}
+		/* initialize analog outputs to a known value */
+		for (i = 0; i < s->n_chan; i++)
+			labpc_ao_write(dev, s, i, s->maxdata / 2);
 	} else {
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
@@ -1342,11 +1304,16 @@ int labpc_common_attach(struct comedi_device *dev,
 		s->subdev_flags	= SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 		s->n_chan	= 16;
 		s->maxdata	= 0xff;
-		s->insn_read	= labpc_calib_insn_read;
 		s->insn_write	= labpc_calib_insn_write;
 
-		for (i = 0; i < s->n_chan; i++)
+		ret = comedi_alloc_subdev_readback(s);
+		if (ret)
+			return ret;
+
+		for (i = 0; i < s->n_chan; i++) {
 			write_caldac(dev, i, s->maxdata / 2);
+			s->readback[i] = s->maxdata / 2;
+		}
 	} else {
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
@@ -1358,11 +1325,14 @@ int labpc_common_attach(struct comedi_device *dev,
 		s->subdev_flags	= SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 		s->n_chan	= EEPROM_SIZE;
 		s->maxdata	= 0xff;
-		s->insn_read	= labpc_eeprom_insn_read;
 		s->insn_write	= labpc_eeprom_insn_write;
 
+		ret = comedi_alloc_subdev_readback(s);
+		if (ret)
+			return ret;
+
 		for (i = 0; i < s->n_chan; i++)
-			devpriv->eeprom_data[i] = labpc_eeprom_read(dev, i);
+			s->readback[i] = labpc_eeprom_read(dev, i);
 	} else {
 		s->type		= COMEDI_SUBD_UNUSED;
 	}

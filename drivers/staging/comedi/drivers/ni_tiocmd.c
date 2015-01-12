@@ -371,9 +371,8 @@ static void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter,
 			  of gate interrupt via dma read/write
 			   and report bogus gate errors */
 			if (counter->counter_dev->variant !=
-			    ni_gpct_variant_660x) {
+			    ni_gpct_variant_660x)
 				*gate_error = 1;
-			}
 		}
 	}
 	if (gxx_status & GI_TC_ERROR(cidx)) {
@@ -450,11 +449,10 @@ void ni_tio_handle_interrupt(struct ni_gpct *counter,
 		return;
 	}
 	gpct_mite_status = mite_get_status(counter->mite_chan);
-	if (gpct_mite_status & CHSR_LINKC) {
+	if (gpct_mite_status & CHSR_LINKC)
 		writel(CHOR_CLRLC,
 		       counter->mite_chan->mite->mite_io_addr +
 		       MITE_CHOR(counter->mite_chan->channel));
-	}
 	mite_sync_input_dma(counter->mite_chan, s);
 	spin_unlock_irqrestore(&counter->lock, flags);
 }

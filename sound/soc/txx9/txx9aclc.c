@@ -292,7 +292,7 @@ static int txx9aclc_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	struct snd_card *card = rtd->card->snd_card;
 	struct snd_soc_dai *dai = rtd->cpu_dai;
 	struct snd_pcm *pcm = rtd->pcm;
-	struct platform_device *pdev = to_platform_device(dai->platform->dev);
+	struct platform_device *pdev = to_platform_device(rtd->platform->dev);
 	struct txx9aclc_soc_device *dev;
 	struct resource *r;
 	int i;
@@ -429,7 +429,6 @@ static int txx9aclc_soc_platform_remove(struct platform_device *pdev)
 static struct platform_driver txx9aclc_pcm_driver = {
 	.driver = {
 			.name = "txx9aclc-pcm-audio",
-			.owner = THIS_MODULE,
 	},
 
 	.probe = txx9aclc_soc_platform_probe,

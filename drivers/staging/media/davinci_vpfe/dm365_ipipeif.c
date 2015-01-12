@@ -23,42 +23,42 @@
 #include "vpfe_mc_capture.h"
 
 static const unsigned int ipipeif_input_fmts[] = {
-	V4L2_MBUS_FMT_UYVY8_2X8,
-	V4L2_MBUS_FMT_SGRBG12_1X12,
-	V4L2_MBUS_FMT_Y8_1X8,
-	V4L2_MBUS_FMT_UV8_1X8,
-	V4L2_MBUS_FMT_YDYUYDYV8_1X16,
-	V4L2_MBUS_FMT_SBGGR8_1X8,
+	MEDIA_BUS_FMT_UYVY8_2X8,
+	MEDIA_BUS_FMT_SGRBG12_1X12,
+	MEDIA_BUS_FMT_Y8_1X8,
+	MEDIA_BUS_FMT_UV8_1X8,
+	MEDIA_BUS_FMT_YDYUYDYV8_1X16,
+	MEDIA_BUS_FMT_SBGGR8_1X8,
 };
 
 static const unsigned int ipipeif_output_fmts[] = {
-	V4L2_MBUS_FMT_UYVY8_2X8,
-	V4L2_MBUS_FMT_SGRBG12_1X12,
-	V4L2_MBUS_FMT_Y8_1X8,
-	V4L2_MBUS_FMT_UV8_1X8,
-	V4L2_MBUS_FMT_YDYUYDYV8_1X16,
-	V4L2_MBUS_FMT_SBGGR8_1X8,
-	V4L2_MBUS_FMT_SGRBG10_DPCM8_1X8,
-	V4L2_MBUS_FMT_SGRBG10_ALAW8_1X8,
+	MEDIA_BUS_FMT_UYVY8_2X8,
+	MEDIA_BUS_FMT_SGRBG12_1X12,
+	MEDIA_BUS_FMT_Y8_1X8,
+	MEDIA_BUS_FMT_UV8_1X8,
+	MEDIA_BUS_FMT_YDYUYDYV8_1X16,
+	MEDIA_BUS_FMT_SBGGR8_1X8,
+	MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8,
+	MEDIA_BUS_FMT_SGRBG10_ALAW8_1X8,
 };
 
 static int
-ipipeif_get_pack_mode(enum v4l2_mbus_pixelcode in_pix_fmt)
+ipipeif_get_pack_mode(u32 in_pix_fmt)
 {
 	switch (in_pix_fmt) {
-	case V4L2_MBUS_FMT_SBGGR8_1X8:
-	case V4L2_MBUS_FMT_Y8_1X8:
-	case V4L2_MBUS_FMT_SGRBG10_DPCM8_1X8:
-	case V4L2_MBUS_FMT_UV8_1X8:
+	case MEDIA_BUS_FMT_SBGGR8_1X8:
+	case MEDIA_BUS_FMT_Y8_1X8:
+	case MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8:
+	case MEDIA_BUS_FMT_UV8_1X8:
 		return IPIPEIF_5_1_PACK_8_BIT;
 
-	case V4L2_MBUS_FMT_SGRBG10_ALAW8_1X8:
+	case MEDIA_BUS_FMT_SGRBG10_ALAW8_1X8:
 		return IPIPEIF_5_1_PACK_8_BIT_A_LAW;
 
-	case V4L2_MBUS_FMT_SGRBG12_1X12:
+	case MEDIA_BUS_FMT_SGRBG12_1X12:
 		return IPIPEIF_5_1_PACK_16_BIT;
 
-	case V4L2_MBUS_FMT_SBGGR12_1X12:
+	case MEDIA_BUS_FMT_SBGGR12_1X12:
 		return IPIPEIF_5_1_PACK_12_BIT;
 
 	default:
@@ -107,8 +107,8 @@ ipipeif_get_cfg_src1(struct vpfe_ipipeif_device *ipipeif)
 
 	informat = &ipipeif->formats[IPIPEIF_PAD_SINK];
 	if (ipipeif->input == IPIPEIF_INPUT_MEMORY &&
-	   (informat->code == V4L2_MBUS_FMT_Y8_1X8 ||
-	    informat->code == V4L2_MBUS_FMT_UV8_1X8))
+	   (informat->code == MEDIA_BUS_FMT_Y8_1X8 ||
+	    informat->code == MEDIA_BUS_FMT_UV8_1X8))
 		return IPIPEIF_CCDC;
 
 	return IPIPEIF_SRC1_PARALLEL_PORT;
@@ -122,11 +122,11 @@ ipipeif_get_data_shift(struct vpfe_ipipeif_device *ipipeif)
 	informat = &ipipeif->formats[IPIPEIF_PAD_SINK];
 
 	switch (informat->code) {
-	case V4L2_MBUS_FMT_SGRBG12_1X12:
+	case MEDIA_BUS_FMT_SGRBG12_1X12:
 		return IPIPEIF_5_1_BITS11_0;
 
-	case V4L2_MBUS_FMT_Y8_1X8:
-	case V4L2_MBUS_FMT_UV8_1X8:
+	case MEDIA_BUS_FMT_Y8_1X8:
+	case MEDIA_BUS_FMT_UV8_1X8:
 		return IPIPEIF_5_1_BITS11_0;
 
 	default:
@@ -143,7 +143,7 @@ ipipeif_get_source(struct vpfe_ipipeif_device *ipipeif)
 	if (ipipeif->input == IPIPEIF_INPUT_ISIF)
 		return IPIPEIF_CCDC;
 
-	if (informat->code == V4L2_MBUS_FMT_UYVY8_2X8)
+	if (informat->code == MEDIA_BUS_FMT_UYVY8_2X8)
 		return IPIPEIF_SDRAM_YUV;
 
 	return IPIPEIF_SDRAM_RAW;
@@ -190,7 +190,7 @@ static int ipipeif_hw_setup(struct v4l2_subdev *sd)
 	struct v4l2_mbus_framefmt *informat, *outformat;
 	struct ipipeif_params params = ipipeif->config;
 	enum ipipeif_input_source ipipeif_source;
-	enum v4l2_mbus_pixelcode isif_port_if;
+	u32 isif_port_if;
 	void *ipipeif_base_addr;
 	unsigned int val;
 	int data_shift;
@@ -268,16 +268,16 @@ static int ipipeif_hw_setup(struct v4l2_subdev *sd)
 	ipipeif_write(val, ipipeif_base_addr, IPIPEIF_INIRSZ);
 	isif_port_if = informat->code;
 
-	if (isif_port_if == V4L2_MBUS_FMT_Y8_1X8)
-		isif_port_if = V4L2_MBUS_FMT_YUYV8_1X16;
-	else if (isif_port_if == V4L2_MBUS_FMT_UV8_1X8)
-		isif_port_if = V4L2_MBUS_FMT_SGRBG12_1X12;
+	if (isif_port_if == MEDIA_BUS_FMT_Y8_1X8)
+		isif_port_if = MEDIA_BUS_FMT_YUYV8_1X16;
+	else if (isif_port_if == MEDIA_BUS_FMT_UV8_1X8)
+		isif_port_if = MEDIA_BUS_FMT_SGRBG12_1X12;
 
 	/* Enable DPCM decompression */
 	switch (ipipeif_source) {
 	case IPIPEIF_SDRAM_RAW:
 		val = 0;
-		if (outformat->code == V4L2_MBUS_FMT_SGRBG10_DPCM8_1X8) {
+		if (outformat->code == MEDIA_BUS_FMT_SGRBG10_DPCM8_1X8) {
 			val = 1;
 			val |= (IPIPEIF_DPCM_8BIT_10BIT & 1) <<
 				IPIPEIF_DPCM_BITS_SHIFT;
@@ -296,9 +296,9 @@ static int ipipeif_hw_setup(struct v4l2_subdev *sd)
 		/* configure CFG2 */
 		val = ipipeif_read(ipipeif_base_addr, IPIPEIF_CFG2);
 		switch (isif_port_if) {
-		case V4L2_MBUS_FMT_YUYV8_1X16:
-		case V4L2_MBUS_FMT_UYVY8_2X8:
-		case V4L2_MBUS_FMT_Y8_1X8:
+		case MEDIA_BUS_FMT_YUYV8_1X16:
+		case MEDIA_BUS_FMT_UYVY8_2X8:
+		case MEDIA_BUS_FMT_Y8_1X8:
 			RESETBIT(val, IPIPEIF_CFG2_YUV8_SHIFT);
 			SETBIT(val, IPIPEIF_CFG2_YUV16_SHIFT);
 			ipipeif_write(val, ipipeif_base_addr, IPIPEIF_CFG2);
@@ -344,16 +344,16 @@ static int ipipeif_hw_setup(struct v4l2_subdev *sd)
 		val |= VPFE_PINPOL_POSITIVE << IPIPEIF_CFG2_VDPOL_SHIFT;
 
 		switch (isif_port_if) {
-		case V4L2_MBUS_FMT_YUYV8_1X16:
-		case V4L2_MBUS_FMT_YUYV10_1X20:
+		case MEDIA_BUS_FMT_YUYV8_1X16:
+		case MEDIA_BUS_FMT_YUYV10_1X20:
 			RESETBIT(val, IPIPEIF_CFG2_YUV8_SHIFT);
 			SETBIT(val, IPIPEIF_CFG2_YUV16_SHIFT);
 			break;
 
-		case V4L2_MBUS_FMT_YUYV8_2X8:
-		case V4L2_MBUS_FMT_UYVY8_2X8:
-		case V4L2_MBUS_FMT_Y8_1X8:
-		case V4L2_MBUS_FMT_YUYV10_2X10:
+		case MEDIA_BUS_FMT_YUYV8_2X8:
+		case MEDIA_BUS_FMT_UYVY8_2X8:
+		case MEDIA_BUS_FMT_Y8_1X8:
+		case MEDIA_BUS_FMT_YUYV10_2X10:
 			SETBIT(val, IPIPEIF_CFG2_YUV8_SHIFT);
 			SETBIT(val, IPIPEIF_CFG2_YUV16_SHIFT);
 			val |= IPIPEIF_CBCR_Y << IPIPEIF_CFG2_YUV8P_SHIFT;
@@ -421,7 +421,7 @@ static int
 ipipeif_get_config(struct v4l2_subdev *sd, void __user *arg)
 {
 	struct vpfe_ipipeif_device *ipipeif = v4l2_get_subdevdata(sd);
-	struct ipipeif_params *config = (struct ipipeif_params *)arg;
+	struct ipipeif_params *config = arg;
 	struct device *dev = ipipeif->subdev.v4l2_dev->dev;
 
 	if (!arg) {
@@ -462,7 +462,7 @@ ipipeif_get_config(struct v4l2_subdev *sd, void __user *arg)
 static long ipipeif_ioctl(struct v4l2_subdev *sd,
 			  unsigned int cmd, void *arg)
 {
-	struct ipipeif_params *config = (struct ipipeif_params *)arg;
+	struct ipipeif_params *config = arg;
 	int ret = -ENOIOCTLCMD;
 
 	switch (cmd) {
@@ -625,7 +625,7 @@ ipipeif_try_format(struct vpfe_ipipeif_device *ipipeif,
 
 		/* If not found, use SBGGR10 as default */
 		if (i >= ARRAY_SIZE(ipipeif_input_fmts))
-			fmt->code = V4L2_MBUS_FMT_SGRBG12_1X12;
+			fmt->code = MEDIA_BUS_FMT_SGRBG12_1X12;
 	} else if (pad == IPIPEIF_PAD_SOURCE) {
 		for (i = 0; i < ARRAY_SIZE(ipipeif_output_fmts); i++)
 			if (fmt->code == ipipeif_output_fmts[i])
@@ -633,7 +633,7 @@ ipipeif_try_format(struct vpfe_ipipeif_device *ipipeif,
 
 		/* If not found, use UYVY as default */
 		if (i >= ARRAY_SIZE(ipipeif_output_fmts))
-			fmt->code = V4L2_MBUS_FMT_UYVY8_2X8;
+			fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
 	}
 
 	fmt->width = clamp_t(u32, fmt->width, MIN_OUT_HEIGHT, max_out_width);
@@ -770,7 +770,7 @@ ipipeif_init_formats(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	memset(&format, 0, sizeof(format));
 	format.pad = IPIPEIF_PAD_SINK;
 	format.which = fh ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
-	format.format.code = V4L2_MBUS_FMT_SGRBG12_1X12;
+	format.format.code = MEDIA_BUS_FMT_SGRBG12_1X12;
 	format.format.width = IPIPE_MAX_OUTPUT_WIDTH_A;
 	format.format.height = IPIPE_MAX_OUTPUT_HEIGHT_A;
 	ipipeif_set_format(sd, fh, &format);
@@ -778,7 +778,7 @@ ipipeif_init_formats(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	memset(&format, 0, sizeof(format));
 	format.pad = IPIPEIF_PAD_SOURCE;
 	format.which = fh ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
-	format.format.code = V4L2_MBUS_FMT_UYVY8_2X8;
+	format.format.code = MEDIA_BUS_FMT_UYVY8_2X8;
 	format.format.width = IPIPE_MAX_OUTPUT_WIDTH_A;
 	format.format.height = IPIPE_MAX_OUTPUT_HEIGHT_A;
 	ipipeif_set_format(sd, fh, &format);
@@ -805,9 +805,9 @@ ipipeif_video_in_queue(struct vpfe_device *vpfe_dev, unsigned long addr)
 		return -EINVAL;
 
 	switch (ipipeif->formats[IPIPEIF_PAD_SINK].code) {
-	case V4L2_MBUS_FMT_Y8_1X8:
-	case V4L2_MBUS_FMT_UV8_1X8:
-	case V4L2_MBUS_FMT_YDYUYDYV8_1X16:
+	case MEDIA_BUS_FMT_Y8_1X8:
+	case MEDIA_BUS_FMT_UV8_1X8:
+	case MEDIA_BUS_FMT_YDYUYDYV8_1X16:
 		adofs = ipipeif->formats[IPIPEIF_PAD_SINK].width;
 		break;
 

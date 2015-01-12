@@ -69,34 +69,31 @@
 
 #define DRV_NAME	"iser"
 #define PFX		DRV_NAME ": "
-#define DRV_VER		"1.4.8"
+#define DRV_VER		"1.5"
 
 #define iser_dbg(fmt, arg...)				 \
 	do {						 \
-		if (iser_debug_level > 2)		 \
+		if (unlikely(iser_debug_level > 2))	 \
 			printk(KERN_DEBUG PFX "%s: " fmt,\
 				__func__ , ## arg);	 \
 	} while (0)
 
 #define iser_warn(fmt, arg...)				\
 	do {						\
-		if (iser_debug_level > 0)		\
+		if (unlikely(iser_debug_level > 0))	\
 			pr_warn(PFX "%s: " fmt,		\
 				__func__ , ## arg);	\
 	} while (0)
 
 #define iser_info(fmt, arg...)				\
 	do {						\
-		if (iser_debug_level > 1)		\
+		if (unlikely(iser_debug_level > 1))	\
 			pr_info(PFX "%s: " fmt,		\
 				__func__ , ## arg);	\
 	} while (0)
 
-#define iser_err(fmt, arg...)				\
-	do {						\
-		printk(KERN_ERR PFX "%s: " fmt,		\
-		       __func__ , ## arg);		\
-	} while (0)
+#define iser_err(fmt, arg...) \
+	pr_err(PFX "%s: " fmt, __func__ , ## arg)
 
 #define SHIFT_4K	12
 #define SIZE_4K	(1ULL << SHIFT_4K)
@@ -143,6 +140,11 @@
 					(1 + ISER_MAX_REG_WR_PER_CMD) + \
 					ISER_MAX_TX_MISC_PDUS         + \
 					ISER_MAX_RX_MISC_PDUS)
+
+#define ISER_GET_MAX_XMIT_CMDS(send_wr) ((send_wr			\
+					 - ISER_MAX_TX_MISC_PDUS	\
+					 - ISER_MAX_RX_MISC_PDUS) /	\
+					 (1 + ISER_INFLIGHT_DATAOUTS))
 
 #define ISER_WC_BATCH_COUNT   16
 #define ISER_SIGNAL_CMD_COUNT 32
@@ -247,7 +249,6 @@ struct iscsi_endpoint;
  * @va:           MR start address (buffer va)
  * @len:          MR length
  * @mem_h:        pointer to registration context (FMR/Fastreg)
- * @is_mr:        indicates weather we registered the buffer
  */
 struct iser_mem_reg {
 	u32  lkey;
@@ -255,7 +256,6 @@ struct iser_mem_reg {
 	u64  va;
 	u64  len;
 	void *mem_h;
-	int  is_mr;
 };
 
 /**
@@ -323,8 +323,6 @@ struct iser_rx_desc {
 	char		             pad[ISER_RX_PAD_SIZE];
 } __attribute__((packed));
 
-#define ISER_MAX_CQ 4
-
 struct iser_conn;
 struct ib_conn;
 struct iscsi_iser_task;
@@ -375,7 +373,7 @@ struct iser_device {
 	struct list_head             ig_list;
 	int                          refcount;
 	int			     comps_used;
-	struct iser_comp	     comps[ISER_MAX_CQ];
+	struct iser_comp	     *comps;
 	int                          (*iser_alloc_rdma_reg_res)(struct ib_conn *ib_conn,
 								unsigned cmds_max);
 	void                         (*iser_free_rdma_reg_res)(struct ib_conn *ib_conn);
@@ -432,6 +430,7 @@ struct fast_reg_descriptor {
  * @cma_id:              rdma_cm connection maneger handle
  * @qp:                  Connection Queue-pair
  * @post_recv_buf_count: post receive counter
+ * @sig_count:           send work request signal count
  * @rx_wr:               receive work request for batch posts
  * @device:              reference to iser device
  * @comp:                iser completion context
@@ -452,6 +451,7 @@ struct ib_conn {
 	struct rdma_cm_id           *cma_id;
 	struct ib_qp	            *qp;
 	int                          post_recv_buf_count;
+	u8                           sig_count;
 	struct ib_recv_wr	     rx_wr[ISER_MIN_POSTED_RX];
 	struct iser_device          *device;
 	struct iser_comp	    *comp;
@@ -482,6 +482,7 @@ struct ib_conn {
  *                    to max number of post recvs
  * @qp_max_recv_dtos_mask: (qp_max_recv_dtos - 1)
  * @min_posted_rx:    (qp_max_recv_dtos >> 2)
+ * @max_cmds:         maximum cmds allowed for this connection
  * @name:             connection peer portal
  * @release_work:     deffered work for release job
  * @state_mutex:      protects iser onnection state
@@ -507,6 +508,7 @@ struct iser_conn {
 	unsigned		     qp_max_recv_dtos;
 	unsigned		     qp_max_recv_dtos_mask;
 	unsigned		     min_posted_rx;
+	u16                          max_cmds;
 	char 			     name[ISER_OBJECT_NAME_SIZE];
 	struct work_struct	     release_work;
 	struct mutex		     state_mutex;
