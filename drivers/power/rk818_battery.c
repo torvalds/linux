@@ -158,7 +158,6 @@ struct battery_info {
 	int	debug_finish_temp_soc;
 };
 
-struct battery_info *data;
 struct battery_info *g_battery;
 u32 support_uboot_chrg;
 
@@ -169,7 +168,7 @@ extern void kernel_power_off(void);
 extern int rk818_set_bits(struct rk818 *rk818, u8 reg, u8 mask, u8 val);
 extern unsigned int irq_create_mapping(struct irq_domain *domain,
 											irq_hw_number_t hwirq);
-
+extern void rk_send_wakeup_key(void);
 static void update_battery_info(struct battery_info *di);
 
 #define	SUPPORT_USB_CHARGE
@@ -409,36 +408,12 @@ static struct device_attribute rk818_bat_attr[] = {
 
 #endif
 
-#define BATT_NUM  11
-
-static int batt_table[22];
-
-static ssize_t bat_param_read(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	int i;
-
-	for (i = 0; i < BATT_NUM; i++)
-		printk(KERN_INFO"i = %d batt_table = %d\n", i, batt_table[i]);
-
-	for (i = 0; i < BATT_NUM; i++)
-		printk(KERN_INFO"i = %d batt_table = %d\n", i + BATT_NUM , batt_table[i+BATT_NUM]);
-	return 0;
-}
-
-static ssize_t bat_param_write(struct device *dev,
-				struct device_attribute *attr, const char *buf, size_t size)
-{
-	return size;
-}
-
-
-DEVICE_ATTR(rk818batparam, 0664, bat_param_read, bat_param_write);
 static uint16_t get_relax_voltage(struct battery_info *di);
 
 static ssize_t show_state_attrs(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	printk(KERN_INFO"get_relax_voltage relax voltage = %d\n", get_relax_voltage(data));
+	struct battery_info *data = g_battery;
 
 	if (0 == get_relax_voltage(data)) {
 		return sprintf(buf,
@@ -1163,24 +1138,6 @@ batt_failed:
 	return ret;
 }
 
-#if 1
-/*calc battery resister*/
-static void res_mode_init(struct battery_info *di)
-{
-	u8 ggcon;/*  chrg_ctrl_reg2; */
-	u8 ggsts;
-
-	battery_read(di->rk818, GGCON, &ggcon, 1);
-	battery_read(di->rk818, GGSTS, &ggsts, 1);
-
-	ggcon |= 0x01;
-	ggsts  &= ~0x01;
-	ggsts |= 0x60;
-	battery_write(di->rk818, GGCON, &ggcon, 1);
-	battery_write(di->rk818, GGSTS, &ggsts, 1);
-}
-#endif
-
 static void  _capacity_init(struct battery_info *di, u32 capacity)
 {
 	u8 buf;
@@ -1555,9 +1512,9 @@ static void rk_battery_charger_init(struct  battery_info *di)
 	DBG("old usb_ctrl_reg = 0x%2x, CHRG_CTRL_REG1 = 0x%2x\n ", usb_ctrl_reg, chrg_ctrl_reg1);
 	usb_ctrl_reg &= (~0x0f);
 #ifdef SUPPORT_USB_CHARGE
-	usb_ctrl_reg |= (VLIM_4400MV | ILIM_45MA | CHRG_CT_EN);
+	usb_ctrl_reg |= (ILIM_450MA | CHRG_CT_EN);
 #else
-	usb_ctrl_reg |= (VLIM_4400MV | ILIM_3000MA) | CHRG_CT_EN);
+	usb_ctrl_reg |= (ILIM_3000MA | CHRG_CT_EN);
 #endif
 	chrg_ctrl_reg1 &= (0x00);
 	chrg_ctrl_reg1 |= (CHRG_EN) | (CHRG_VOL4200 | CHRG_CUR1400mA);
@@ -1628,7 +1585,7 @@ static void  fg_init(struct battery_info *di)
 	_set_cal_offset(di, di->current_offset+42);
 	_rsoc_init(di);
 	_capacity_init(di, di->nac);
-	res_mode_init(di);
+
 	di->remain_capacity = _get_realtime_capacity(di);
 	di->current_avg = _get_average_current(di);
 
@@ -1799,6 +1756,8 @@ static void voltage_to_soc_discharge_smooth(struct battery_info *di)
 
 	voltage = di->voltage;
 	now_current = di->current_avg;
+	if (now_current == 0)
+		now_current = 1;
 	soc_time = di->fcc*3600/100/(abs_int(now_current));
 	_voltage_to_capacity(di, 3800);
 	volt_to_soc = di->temp_soc;
@@ -1952,6 +1911,8 @@ static void voltage_to_soc_charge_smooth(struct battery_info *di)
 	int now_current, soc_time;
 
 	now_current = _get_average_current(di);
+	if (now_current == 0)
+		now_current = 1;
 	soc_time = di->fcc*3600/100/(abs_int(now_current));   /* 1%  time; */
 	di->temp_soc = _get_soc(di);
 
@@ -2082,7 +2043,7 @@ static int estimate_battery_resister(struct battery_info *di)
 	if (delta_time >= 20) {/*20s*/
 
 		/*first sample*/
-		set_charge_current(di, ILIM_45MA);/*450mA*/
+		set_charge_current(di, ILIM_450MA);/*450mA*/
 		msleep(1000);
 		for (i = 0; i < 10 ; i++) {
 			msleep(100);
@@ -2339,7 +2300,7 @@ static int  get_charging_status_type(struct battery_info *di)
 	if (di->ac_online == 1)
 		set_charge_current(di, ILIM_3000MA);
 	else
-		set_charge_current(di, ILIM_45MA);
+		set_charge_current(di, ILIM_450MA);
 	return otg_status;
 }
 
@@ -2359,9 +2320,9 @@ static void battery_poweron_status_init(struct battery_info *di)
 	if (otg_status == 1) {
 		di->usb_online = 1;
 		di->ac_online = 0;
-		set_charge_current(di, ILIM_45MA);
+		set_charge_current(di, ILIM_450MA);
 		di->status = POWER_SUPPLY_STATUS_CHARGING;
-		DBG("++++++++ILIM_45MA++++++\n");
+		DBG("++++++++ILIM_450MA++++++\n");
 
 	} else if (otg_status == 2) {
 		di->usb_online = 0;
@@ -2648,13 +2609,6 @@ static int rk818_battery_sysfs_init(struct battery_info *di, struct device *dev)
 	int i;
 	struct kobject *rk818_fg_kobj;
 
-	ret = device_create_file(dev, &dev_attr_rk818batparam);
-	if (ret) {
-		ret = -EINVAL;
-		dev_err(dev, "failed to create bat param file\n");
-		goto err_sysfs;
-	}
-
 	ret = create_sysfs_interfaces(dev);
 	if (ret < 0) {
 		ret = -EINVAL;
@@ -2796,7 +2750,6 @@ static int rk_battery_parse_dt(struct rk818 *rk818, struct device *dev)
 		dev_err(dev, "kzalloc for battery_platform_data failed!\n");
 		return -ENOMEM;
 	}
-	memset(data, 0, sizeof(*data));
 
 	cell_cfg = devm_kzalloc(rk818->dev, sizeof(*cell_cfg), GFP_KERNEL);
 	if (!cell_cfg) {
@@ -2980,7 +2933,8 @@ static int battery_resume(struct platform_device *dev)
 	queue_delayed_work(di->wq, &di->battery_monitor_work,
 					msecs_to_jiffies(TIMER_MS_COUNTS/2));
 
-	if (di->sleep_status == POWER_SUPPLY_STATUS_CHARGING || di->real_soc <= 5)
+	if (di->sleep_status == POWER_SUPPLY_STATUS_CHARGING ||
+			di->real_soc <= 5)
 		wake_lock_timeout(&di->resume_wake_lock, 5*HZ);
 
 	return 0;

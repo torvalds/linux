@@ -168,6 +168,7 @@ bit  0: disable 1: enable
 /* auto sleep mode 0:disable 1:enable*/
 #define FRAME_SMP_INTERV_TIME		0x1F
 
+/*VB_MOD_REG*/
 #define PLUG_IN_STS					(1<<6)
 
 /*SUP_STS_REG*/
@@ -188,6 +189,7 @@ bit  0: disable 1: enable
 /*USB_CTRL_REG*/
 #define CHRG_CT_EN					(1<<7)
 /* USB_VLIM_SEL*/
+/*
 #define VLIM_4000MV					(0x00<<4)
 #define VLIM_4100MV					(0x01<<4)
 #define VLIM_4200MV					(0x02<<4)
@@ -196,22 +198,22 @@ bit  0: disable 1: enable
 #define VLIM_4500MV					(0x05<<4)
 #define VLIM_4600MV					(0x06<<4)
 #define VLIM_4700MV					(0x07<<4)
+*/
+
 /*USB_ILIM_SEL*/
-#define ILIM_45MA					(0x00)
-#define ILIM_300MA					(0x01)
-#define ILIM_80MA					(0x02)
-#define ILIM_820MA					(0x03)
-#define ILIM_1000MA					(0x04)
-#define ILIM_1200MA					(0x05)
-#define ILIM_1400MA					(0x06)
-#define ILIM_1600MA					(0x07)
-#define ILIM_1800MA					(0x08)
-#define ILIM_2000MA					(0x09)
-#define ILIM_2200MA					(0x0A)
-#define ILIM_2400MA					(0x0B)
-#define ILIM_2600MA					(0x0C)
-#define ILIM_2800MA					(0x0D)
-#define ILIM_3000MA					(0x0E)
+#define ILIM_450MA					(0x00)
+#define ILIM_800MA					(0x01)
+#define ILIM_850MA					(0x02)
+#define ILIM_1000MA					(0x03)
+#define ILIM_1250MA					(0x04)
+#define ILIM_1500MA					(0x05)
+#define ILIM_1750MA					(0x06)
+#define ILIM_2000MA					(0x07)
+#define ILIM_2250MA					(0x08)
+#define ILIM_2500MA					(0x09)
+#define ILIM_2750MA					(0x0A)
+#define ILIM_3000MA					(0x0B)
+
 
 /*CHRG_CTRL_REG*/
 #define CHRG_EN						(0x01<<7)
@@ -238,10 +240,10 @@ bit  0: disable 1: enable
 #define CHRG_CUR3000mA			(0x0A)
 
 /*CHRG_CTRL_REG2*/
-#define FINISH_100MA	(0X00 << 6)
-#define FINISH_150MA	(0X01 << 6)
-#define FINISH_200MA	(0X10 << 6)
-#define FINISH_250MA	(0X11 << 6)
+#define FINISH_100MA				(0x00<<6)
+#define FINISH_150MA				(0x01<<6)
+#define FINISH_200MA				(0x02<<6)
+#define FINISH_250MA				(0x03<<6)
 
 /* CHRG_CTRL_REG2*/
 #define CHRG_TERM_ANA_SIGNAL (0 << 5)
@@ -602,6 +604,6 @@ struct battery_platform_data {
 	struct cell_config *cell_cfg;
 };
 
-extern void rk_send_wakeup_key(void);
+
 
 #endif
