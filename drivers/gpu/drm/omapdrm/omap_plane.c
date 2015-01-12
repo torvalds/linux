@@ -259,6 +259,9 @@ static int omap_plane_disable(struct drm_plane *plane)
 	struct omap_plane *omap_plane = to_omap_plane(plane);
 
 	omap_plane->win.rotation = BIT(DRM_ROTATE_0);
+	omap_plane->info.zorder = plane->type == DRM_PLANE_TYPE_PRIMARY
+				? 0 : omap_plane->id;
+
 	return omap_plane_set_enable(plane, false);
 }
 
