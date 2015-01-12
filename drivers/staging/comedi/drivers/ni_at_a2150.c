@@ -676,6 +676,50 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return n;
 }
 
+static void a2150_alloc_irq_dma(struct comedi_device *dev,
+				struct comedi_devconfig *it)
+{
+	struct a2150_private *devpriv = dev->private;
+	unsigned int irq_num = it->options[1];
+	unsigned int dma_chan = it->options[2];
+
+	/*
+	 * Only IRQs 15, 14, 12-9, and 7-3 are valid.
+	 * Only DMA channels 7-5 and 3-0 are valid.
+	 *
+	 * Both must be valid for async command support.
+	 */
+	if (irq_num > 15 || dma_chan > 7 ||
+	    !((1 << irq_num) & 0xdef8) || !((1 << dma_chan) & 0xef))
+		return;
+
+	/*
+	 * Request the IRQ and DMA channels and allocate the DMA buffer.
+	 * If the requests or allocation fail async command supprt will
+	 * not be available.
+	 */
+	if (request_irq(irq_num, a2150_interrupt, 0, dev->board_name, dev))
+		return;
+	if (request_dma(dma_chan, dev->board_name)) {
+		free_irq(irq_num, dev);
+		return;
+	}
+	devpriv->dma_buffer = kmalloc(A2150_DMA_BUFFER_SIZE,
+				      GFP_KERNEL | GFP_DMA);
+	if (!devpriv->dma_buffer) {
+		free_dma(dma_chan);
+		free_irq(irq_num, dev);
+		return;
+	}
+
+	dev->irq = irq_num;
+	devpriv->dma = dma_chan;
+	devpriv->irq_dma_bits = IRQ_LVL_BITS(irq_num) | DMA_CHAN_BITS(dma_chan);
+
+	disable_dma(dma_chan);
+	set_dma_mode(dma_chan, DMA_MODE_READ);
+}
+
 /* probes board type, returns offset */
 static int a2150_probe(struct comedi_device *dev)
 {
@@ -689,8 +733,6 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct a2150_board *thisboard;
 	struct a2150_private *devpriv;
 	struct comedi_subdevice *s;
-	unsigned int irq = it->options[1];
-	unsigned int dma = it->options[2];
 	static const int timeout = 2000;
 	int i;
 	int ret;
@@ -711,31 +753,7 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	thisboard = dev->board_ptr;
 	dev->board_name = thisboard->name;
 
-	if ((irq >= 3 && irq <= 7) || (irq >= 9 && irq <= 12) ||
-	    irq == 14 || irq == 15) {
-		ret = request_irq(irq, a2150_interrupt, 0,
-				  dev->board_name, dev);
-		if (ret == 0) {
-			devpriv->irq_dma_bits |= IRQ_LVL_BITS(irq);
-			dev->irq = irq;
-		}
-	}
-
-	if (dev->irq && dma <= 7 && dma != 4) {
-		ret = request_dma(dma, dev->board_name);
-		if (ret == 0) {
-			devpriv->dma = dma;
-			devpriv->dma_buffer = kmalloc(A2150_DMA_BUFFER_SIZE,
-						      GFP_KERNEL | GFP_DMA);
-			if (!devpriv->dma_buffer)
-				return -ENOMEM;
-
-			disable_dma(dma);
-			set_dma_mode(dma, DMA_MODE_READ);
-
-			devpriv->irq_dma_bits |= DMA_CHAN_BITS(dma);
-		}
-	}
+	a2150_alloc_irq_dma(dev, it);
 
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)
@@ -749,7 +767,7 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata = 0xffff;
 	s->range_table = &range_a2150;
 	s->insn_read = a2150_ai_rinsn;
-	if (dev->irq && devpriv->dma) {
+	if (dev->irq) {
 		dev->read_subdev = s;
 		s->subdev_flags |= SDF_CMD_READ;
 		s->len_chanlist = s->n_chan;
