@@ -94,6 +94,8 @@
 /* Mailbox */
 #define IPC_MAX_MAILBOX_BYTES	256
 
+#define INVALID_STREAM_HW_ID	0xffffffff
+
 /* Global Message - Types and Replies */
 enum ipc_glb_type {
 	IPC_GLB_GET_FW_VERSION = 0,		/* Retrieves firmware version */
@@ -1208,6 +1210,7 @@ struct sst_hsw_stream *sst_hsw_stream_new(struct sst_hsw *hsw, int id,
 		return NULL;
 
 	spin_lock_irqsave(&sst->spinlock, flags);
+	stream->reply.stream_hw_id = INVALID_STREAM_HW_ID;
 	list_add(&stream->node, &hsw->stream_list);
 	stream->notify_position = notify_position;
 	stream->pdata = data;
