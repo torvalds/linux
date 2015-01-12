@@ -511,7 +511,10 @@ int kfd_gtt_sa_free(struct kfd_dev *kfd, struct kfd_mem_obj *mem_obj)
 	unsigned int bit;
 
 	BUG_ON(!kfd);
-	BUG_ON(!mem_obj);
+
+	/* Act like kfree when trying to free a NULL object */
+	if (!mem_obj)
+		return 0;
 
 	pr_debug("kfd: free mem_obj = %p, range_start = %d, range_end = %d\n",
 			mem_obj, mem_obj->range_start, mem_obj->range_end);
