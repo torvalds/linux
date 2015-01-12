@@ -1789,6 +1789,11 @@ int r8152_submit_rx(struct r8152 *tp, struct rx_agg *agg, gfp_t mem_flags)
 {
 	int ret;
 
+	/* The rx would be stopped, so skip submitting */
+	if (test_bit(RTL8152_UNPLUG, &tp->flags) ||
+	    !test_bit(WORK_ENABLE, &tp->flags) || !netif_carrier_ok(tp->netdev))
+		return 0;
+
 	usb_fill_bulk_urb(agg->urb, tp->udev, usb_rcvbulkpipe(tp->udev, 1),
 			  agg->head, agg_buf_sz,
 			  (usb_complete_t)read_bulk_callback, agg);
@@ -2059,7 +2064,7 @@ static int rtl_enable(struct r8152 *tp)
 
 	rxdy_gated_en(tp, false);
 
-	return rtl_start_rx(tp);
+	return 0;
 }
 
 static int rtl8152_enable(struct r8152 *tp)
@@ -2874,6 +2879,7 @@ static void set_carrier(struct r8152 *tp)
 			tp->rtl_ops.enable(tp);
 			set_bit(RTL8152_SET_RX_MODE, &tp->flags);
 			netif_carrier_on(netdev);
+			rtl_start_rx(tp);
 		}
 	} else {
 		if (tp->speed & LINK_STATUS) {
