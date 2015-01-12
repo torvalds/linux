@@ -145,6 +145,7 @@ schindler	Schindler
 seagate	Seagate Technology PLC
 sil	Silicon Image
 silabs	Silicon Laboratories
+siliconmitus	Silicon Mitus, Inc.
 simtek
 sii	Seiko Instruments, Inc.
 silergy	Silergy Corp.
