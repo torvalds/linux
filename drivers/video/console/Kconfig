@@ -77,18 +77,22 @@ config DUMMY_CONSOLE
 
 config DUMMY_CONSOLE_COLUMNS
         int "Initial number of console screen columns"
-        depends on PARISC && DUMMY_CONSOLE
-        default "160"
+        depends on DUMMY_CONSOLE && !ARM
+        default 160 if PARISC
+        default 80
         help
-          The default value is 160, which should fit a 1280x1024 monitor.
+          On PA-RISC, the default value is 160, which should fit a 1280x1024
+          monitor.
           Select 80 if you use a 640x480 resolution by default.
 
 config DUMMY_CONSOLE_ROWS
         int "Initial number of console screen rows"
-        depends on PARISC && DUMMY_CONSOLE
-        default "64"
+        depends on DUMMY_CONSOLE && !ARM
+        default 64 if PARISC
+        default 25
         help
-          The default value is 64, which should fit a 1280x1024 monitor.
+          On PA-RISC, the default value is 64, which should fit a 1280x1024
+          monitor.
           Select 25 if you use a 640x480 resolution by default.
 
 config FRAMEBUFFER_CONSOLE
