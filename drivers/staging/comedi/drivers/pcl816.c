@@ -114,13 +114,12 @@ static const struct pcl816_board boardtypes[] = {
 };
 
 struct pcl816_dma_desc {
-	unsigned long virt_addr;	/* virtual address of DMA buffer */
-	unsigned int hw_addr;	/* hardware (bus) address of DMA buffer */
+	void *virt_addr;	/* virtual address of DMA buffer */
+	dma_addr_t hw_addr;	/* hardware (bus) address of DMA buffer */
 };
 
 struct pcl816_private {
 	unsigned int dma;	/*  used DMA, 0=don't use DMA */
-	unsigned int dmapages;
 	unsigned int hwdmasize;
 	struct pcl816_dma_desc dma_desc[2];
 	int cur_dma;
@@ -345,8 +344,7 @@ static irqreturn_t pcl816_interrupt(int irq, void *d)
 	bufptr = devpriv->ai_poll_ptr;
 	devpriv->ai_poll_ptr = 0;
 
-	transfer_from_dma_buf(dev, s, (unsigned short *)dma->virt_addr,
-			      bufptr, len);
+	transfer_from_dma_buf(dev, s, dma->virt_addr, bufptr, len);
 
 	pcl816_ai_clear_eoc(dev);
 
@@ -552,7 +550,7 @@ static int pcl816_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 		return 0;
 	}
 
-	transfer_from_dma_buf(dev, s, (unsigned short *)dma->virt_addr,
+	transfer_from_dma_buf(dev, s, dma->virt_addr,
 			      devpriv->ai_poll_ptr, top2);
 
 	devpriv->ai_poll_ptr = top1;	/*  new buffer position */
@@ -693,16 +691,15 @@ static int pcl816_alloc_dma(struct comedi_device *dev,
 	dev->irq = irq_num;
 	devpriv->dma = dma_chan;
 
-	devpriv->dmapages = 2;	/* we need 16KB */
-	devpriv->hwdmasize = (1 << devpriv->dmapages) * PAGE_SIZE;
+	devpriv->hwdmasize = PAGE_SIZE * 4;	/* we need 16KB */
 
 	for (i = 0; i < 2; i++) {
 		dma = &devpriv->dma_desc[i];
 
-		dma->virt_addr = __get_dma_pages(GFP_KERNEL, devpriv->dmapages);
+		dma->virt_addr = dma_alloc_coherent(NULL, devpriv->hwdmasize,
+						    &dma->hw_addr, GFP_KERNEL);
 		if (!dma->virt_addr)
 			return -ENOMEM;
-		dma->hw_addr = virt_to_bus((void *)dma->virt_addr);
 	}
 	return 0;
 }
@@ -721,7 +718,8 @@ static void pcl816_free_dma(struct comedi_device *dev)
 	for (i = 0; i < 2; i++) {
 		dma = &devpriv->dma_desc[i];
 		if (dma->virt_addr)
-			free_pages(dma->virt_addr, devpriv->dmapages);
+			dma_free_coherent(NULL, devpriv->hwdmasize,
+					  dma->virt_addr, dma->hw_addr);
 	}
 }
 
