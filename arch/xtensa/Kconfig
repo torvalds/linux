@@ -385,6 +385,54 @@ config FAST_SYSCALL_SPILL_REGISTERS
 
 	  If unsure, say N.
 
+config USER_ABI_CALL0
+	bool
+
+choice
+	prompt "Userspace ABI"
+	default USER_ABI_DEFAULT
+	help
+	  Select supported userspace ABI.
+
+	  If unsure, choose the default ABI.
+
+config USER_ABI_DEFAULT
+	bool "Default ABI only"
+	help
+	  Assume default userspace ABI. For XEA2 cores it is windowed ABI.
+	  call0 ABI binaries may be run on such kernel, but signal delivery
+	  will not work correctly for them.
+
+config USER_ABI_CALL0_ONLY
+	bool "Call0 ABI only"
+	select USER_ABI_CALL0
+	help
+	  Select this option to support only call0 ABI in userspace.
+	  Windowed ABI binaries will crash with a segfault caused by
+	  an illegal instruction exception on the first 'entry' opcode.
+
+	  Choose this option if you're planning to run only user code
+	  built with call0 ABI.
+
+config USER_ABI_CALL0_PROBE
+	bool "Support both windowed and call0 ABI by probing"
+	select USER_ABI_CALL0
+	help
+	  Select this option to support both windowed and call0 userspace
+	  ABIs. When enabled all processes are started with PS.WOE disabled
+	  and a fast user exception handler for an illegal instruction is
+	  used to turn on PS.WOE bit on the first 'entry' opcode executed by
+	  the userspace.
+
+	  This option should be enabled for the kernel that must support
+	  both call0 and windowed ABIs in userspace at the same time.
+
+	  Note that Xtensa ISA does not guarantee that entry opcode will
+	  raise an illegal instruction exception on cores with XEA2 when
+	  PS.WOE is disabled, check whether the target core supports it.
+
+endchoice
+
 endmenu
 
 config XTENSA_CALIBRATE_CCOUNT
