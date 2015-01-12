@@ -293,14 +293,14 @@ struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 	if (!kq)
 		return NULL;
 
-	kq->initialize = initialize;
-	kq->uninitialize = uninitialize;
-	kq->acquire_packet_buffer = acquire_packet_buffer;
-	kq->submit_packet = submit_packet;
-	kq->sync_with_hw = sync_with_hw;
-	kq->rollback_packet = rollback_packet;
+	kq->ops.initialize = initialize;
+	kq->ops.uninitialize = uninitialize;
+	kq->ops.acquire_packet_buffer = acquire_packet_buffer;
+	kq->ops.submit_packet = submit_packet;
+	kq->ops.sync_with_hw = sync_with_hw;
+	kq->ops.rollback_packet = rollback_packet;
 
-	if (kq->initialize(kq, dev, type, KFD_KERNEL_QUEUE_SIZE) == false) {
+	if (kq->ops.initialize(kq, dev, type, KFD_KERNEL_QUEUE_SIZE) == false) {
 		pr_err("kfd: failed to init kernel queue\n");
 		kfree(kq);
 		return NULL;
@@ -312,7 +312,7 @@ void kernel_queue_uninit(struct kernel_queue *kq)
 {
 	BUG_ON(!kq);
 
-	kq->uninitialize(kq);
+	kq->ops.uninitialize(kq);
 	kfree(kq);
 }
 
@@ -329,12 +329,12 @@ static __attribute__((unused)) void test_kq(struct kfd_dev *dev)
 	kq = kernel_queue_init(dev, KFD_QUEUE_TYPE_HIQ);
 	BUG_ON(!kq);
 
-	retval = kq->acquire_packet_buffer(kq, 5, &buffer);
+	retval = kq->ops.acquire_packet_buffer(kq, 5, &buffer);
 	BUG_ON(retval != 0);
 	for (i = 0; i < 5; i++)
 		buffer[i] = kq->nop_packet;
-	kq->submit_packet(kq);
-	kq->sync_with_hw(kq, 1000);
+	kq->ops.submit_packet(kq);
+	kq->ops.sync_with_hw(kq, 1000);
 
 	pr_debug("kfd: ending kernel queue test\n");
 }
