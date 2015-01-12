@@ -174,9 +174,6 @@ config SOC_AT91SAM9N12
 # ----------------------------------------------------------
 endif # SOC_SAM_V4_V5
 
-config MACH_AT91RM9200_DT
-	def_bool SOC_AT91RM9200
-
 config MACH_AT91SAM9_DT
 	def_bool SOC_AT91SAM9
 

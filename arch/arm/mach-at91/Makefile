@@ -19,7 +19,7 @@ obj-$(CONFIG_SOC_SAMA5D3)	+= sama5d3.o
 obj-$(CONFIG_SOC_SAMA5D4)	+= sama5d4.o
 
 # AT91SAM board with device-tree
-obj-$(CONFIG_MACH_AT91RM9200_DT) += board-dt-rm9200.o
+obj-$(CONFIG_SOC_AT91RM9200) += board-dt-rm9200.o
 obj-$(CONFIG_MACH_AT91SAM9_DT) += board-dt-sam9.o
 
 # SAMA5 board with device-tree
