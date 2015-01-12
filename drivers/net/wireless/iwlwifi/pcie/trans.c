@@ -982,7 +982,7 @@ static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 
 	/* Load the given image to the HW */
 	if ((trans->cfg->device_family == IWL_DEVICE_FAMILY_8000) &&
-	    (CSR_HW_REV_STEP(trans->hw_rev) == SILICON_B_STEP))
+	    (CSR_HW_REV_STEP(trans->hw_rev) != SILICON_A_STEP))
 		return iwl_pcie_load_given_ucode_8000b(trans, fw);
 	else
 		return iwl_pcie_load_given_ucode(trans, fw);

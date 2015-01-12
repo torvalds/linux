@@ -356,7 +356,7 @@ static int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
 		max_section_size = IWL_MAX_NVM_SECTION_SIZE;
 	else if (CSR_HW_REV_STEP(mvm->trans->hw_rev) == SILICON_A_STEP)
 		max_section_size = IWL_MAX_NVM_8000A_SECTION_SIZE;
-	else /* Family 8000 B-step */
+	else /* Family 8000 B-step or C-step */
 		max_section_size = IWL_MAX_NVM_8000B_SECTION_SIZE;
 
 	/*
