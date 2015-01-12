@@ -39,6 +39,10 @@
 #include <linux/dma-mapping.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
+#include <ump/ump_kernel_interface_ref_drv.h>
+
+#define GET_UMP_SECURE_ID_BUF1   _IOWR('m', 311, unsigned int)
+#define GET_UMP_SECURE_ID_BUF2   _IOWR('m', 312, unsigned int)
 
 #include "fbtft.h"
 
@@ -622,6 +626,52 @@ int fbtft_fb_blank(int blank, struct fb_info *info)
 	}
 	return ret;
 }
+/* Mali Integration */
+static int disp_get_ump_secure_id(struct fb_info *info, unsigned long arg, int buf)
+{
+
+	int buf_len = info->fix.smem_len;
+	u32 __user *psecureid = (u32 __user *) arg;
+	ump_secure_id secure_id;
+	ump_dd_physical_block ump_memory_description;
+	ump_dd_handle ump_wrapped_buffer;
+
+	ump_memory_description.addr = info->fix.smem_start + (buf_len * buf);
+	ump_memory_description.size = info->fix.smem_len;
+
+	if(buf > 0) {
+		ump_memory_description.addr += (buf_len * (buf - 1));
+		ump_memory_description.size = buf_len;
+	}
+
+	ump_wrapped_buffer = ump_dd_handle_create_from_phys_blocks(&ump_memory_description, 1);
+	secure_id = ump_dd_secure_id_get(ump_wrapped_buffer);
+
+	return put_user((unsigned int)secure_id, psecureid);
+}
+
+static int do_fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
+{
+
+	int ret = 0;
+
+	switch(cmd) {
+	case GET_UMP_SECURE_ID_BUF1:
+		pr_info("UMP: SecureID Buf1 Called\n");
+		ret =  disp_get_ump_secure_id(info, arg, 0);
+		break;
+	case GET_UMP_SECURE_ID_BUF2:
+		pr_info("UMP: SecureID Buf2 Called\n");
+		ret = disp_get_ump_secure_id(info, arg, 1);
+		break;
+	default:
+		pr_err("fbtft: unknown ioctl command: %x\n", cmd);
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
 
 void fbtft_merge_fbtftops(struct fbtft_ops *dst, struct fbtft_ops *src)
 {
@@ -755,7 +805,7 @@ struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
 		height = display->height;
 	}
 
-	vmem_size = display->width * display->height * bpp / 8;
+	vmem_size = PAGE_ALIGN(display->width * display->height * bpp / 8);
 	vmem = vzalloc(vmem_size);
 	if (!vmem)
 		goto alloc_fail;
@@ -795,6 +845,7 @@ struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
 	fbops->fb_imageblit =      fbtft_fb_imageblit;
 	fbops->fb_setcolreg =      fbtft_fb_setcolreg;
 	fbops->fb_blank     =      fbtft_fb_blank;
+	fbops->fb_ioctl		= 	   do_fb_ioctl;
 
 	fbdefio->delay =           HZ/fps;
 	fbdefio->deferred_io =     fbtft_deferred_io;
@@ -808,7 +859,7 @@ struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
 	info->fix.ywrapstep =	   0;
 	info->fix.line_length =    width*bpp/8;
 	info->fix.accel =          FB_ACCEL_NONE;
-	info->fix.smem_len =       vmem_size;
+	info->fix.smem_len =       PAGE_ALIGN(vmem_size);
 
 	info->var.rotate =         pdata->rotate;
 	info->var.xres =           width;
