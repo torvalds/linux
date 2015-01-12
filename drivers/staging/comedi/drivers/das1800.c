@@ -433,6 +433,7 @@ struct das1800_private {
 	uint16_t *ai_buf0;	/* pointers to dma buffers */
 	uint16_t *ai_buf1;
 	uint16_t *dma_current_buf;	/* pointer to dma buffer currently being used */
+	uint16_t *fifo_buf;	/* bounce buffer for analog input FIFO */
 	unsigned int dma_transfer_size;	/* size of transfer currently used, in bytes */
 	unsigned long iobase2;	/* secondary io address used for analog out on 'ao' boards */
 	unsigned short ao_update_bits;	/* remembers the last write to the
@@ -480,9 +481,9 @@ static void das1800_handle_fifo_half_full(struct comedi_device *dev,
 	struct das1800_private *devpriv = dev->private;
 	unsigned int nsamples = comedi_nsamples_left(s, FIFO_SIZE / 2);
 
-	insw(dev->iobase + DAS1800_FIFO, devpriv->ai_buf0, nsamples);
-	munge_data(dev, devpriv->ai_buf0, nsamples);
-	comedi_buf_write_samples(s, devpriv->ai_buf0, nsamples);
+	insw(dev->iobase + DAS1800_FIFO, devpriv->fifo_buf, nsamples);
+	munge_data(dev, devpriv->fifo_buf, nsamples);
+	comedi_buf_write_samples(s, devpriv->fifo_buf, nsamples);
 }
 
 static void das1800_handle_fifo_not_empty(struct comedi_device *dev,
@@ -1442,12 +1443,9 @@ static int das1800_attach(struct comedi_device *dev,
 			return ret;
 	}
 
-	if (devpriv->ai_buf0 == NULL) {
-		devpriv->ai_buf0 =
-		    kmalloc(FIFO_SIZE * sizeof(uint16_t), GFP_KERNEL);
-		if (devpriv->ai_buf0 == NULL)
-			return -ENOMEM;
-	}
+	devpriv->fifo_buf = kmalloc(FIFO_SIZE * sizeof(uint16_t), GFP_KERNEL);
+	if (!devpriv->fifo_buf)
+		return -ENOMEM;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
@@ -1531,6 +1529,7 @@ static void das1800_detach(struct comedi_device *dev)
 			free_dma(devpriv->dma1);
 		kfree(devpriv->ai_buf0);
 		kfree(devpriv->ai_buf1);
+		kfree(devpriv->fifo_buf);
 		if (devpriv->iobase2)
 			release_region(devpriv->iobase2, DAS1800_SIZE);
 	}
