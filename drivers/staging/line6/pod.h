@@ -86,7 +86,6 @@ struct usb_line6_pod {
 	int device_id;
 };
 
-extern void line6_pod_disconnect(struct usb_interface *interface);
 extern int line6_pod_init(struct usb_interface *interface,
 			  struct usb_line6 *line6);
 

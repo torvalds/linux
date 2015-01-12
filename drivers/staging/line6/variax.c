@@ -172,6 +172,17 @@ static void variax_destruct(struct usb_interface *interface)
 }
 
 /*
+	Workbench device disconnected.
+*/
+static void line6_variax_disconnect(struct usb_interface *interface)
+{
+	if (interface == NULL)
+		return;
+
+	variax_destruct(interface);
+}
+
+/*
 	 Try to init workbench device.
 */
 static int variax_try_init(struct usb_interface *interface,
@@ -225,15 +236,4 @@ int line6_variax_init(struct usb_interface *interface, struct usb_line6 *line6)
 		variax_destruct(interface);
 
 	return err;
-}
-
-/*
-	Workbench device disconnected.
-*/
-void line6_variax_disconnect(struct usb_interface *interface)
-{
-	if (interface == NULL)
-		return;
-
-	variax_destruct(interface);
 }

@@ -87,6 +87,27 @@ static void podhd_destruct(struct usb_interface *interface)
 }
 
 /*
+	POD HD device disconnected.
+*/
+static void line6_podhd_disconnect(struct usb_interface *interface)
+{
+	struct usb_line6_podhd *podhd;
+
+	if (interface == NULL)
+		return;
+	podhd = usb_get_intfdata(interface);
+
+	if (podhd != NULL) {
+		struct snd_line6_pcm *line6pcm = podhd->line6.line6pcm;
+
+		if (line6pcm != NULL)
+			line6_pcm_disconnect(line6pcm);
+	}
+
+	podhd_destruct(interface);
+}
+
+/*
 	Try to init POD HD device.
 */
 static int podhd_try_init(struct usb_interface *interface,
@@ -132,25 +153,4 @@ int line6_podhd_init(struct usb_interface *interface, struct usb_line6 *line6)
 		podhd_destruct(interface);
 
 	return err;
-}
-
-/*
-	POD HD device disconnected.
-*/
-void line6_podhd_disconnect(struct usb_interface *interface)
-{
-	struct usb_line6_podhd *podhd;
-
-	if (interface == NULL)
-		return;
-	podhd = usb_get_intfdata(interface);
-
-	if (podhd != NULL) {
-		struct snd_line6_pcm *line6pcm = podhd->line6.line6pcm;
-
-		if (line6pcm != NULL)
-			line6_pcm_disconnect(line6pcm);
-	}
-
-	podhd_destruct(interface);
 }

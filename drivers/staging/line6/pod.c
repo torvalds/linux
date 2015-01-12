@@ -338,6 +338,35 @@ static void pod_destruct(struct usb_interface *interface)
 }
 
 /*
+	POD device disconnected.
+*/
+static void line6_pod_disconnect(struct usb_interface *interface)
+{
+	struct usb_line6_pod *pod;
+
+	if (interface == NULL)
+		return;
+	pod = usb_get_intfdata(interface);
+
+	if (pod != NULL) {
+		struct snd_line6_pcm *line6pcm = pod->line6.line6pcm;
+		struct device *dev = &interface->dev;
+
+		if (line6pcm != NULL)
+			line6_pcm_disconnect(line6pcm);
+
+		if (dev != NULL) {
+			/* remove sysfs entries: */
+			device_remove_file(dev, &dev_attr_device_id);
+			device_remove_file(dev, &dev_attr_firmware_version);
+			device_remove_file(dev, &dev_attr_serial_number);
+		}
+	}
+
+	pod_destruct(interface);
+}
+
+/*
 	Create sysfs entries.
 */
 static int pod_create_files2(struct device *dev)
@@ -421,33 +450,4 @@ int line6_pod_init(struct usb_interface *interface, struct usb_line6 *line6)
 		pod_destruct(interface);
 
 	return err;
-}
-
-/*
-	POD device disconnected.
-*/
-void line6_pod_disconnect(struct usb_interface *interface)
-{
-	struct usb_line6_pod *pod;
-
-	if (interface == NULL)
-		return;
-	pod = usb_get_intfdata(interface);
-
-	if (pod != NULL) {
-		struct snd_line6_pcm *line6pcm = pod->line6.line6pcm;
-		struct device *dev = &interface->dev;
-
-		if (line6pcm != NULL)
-			line6_pcm_disconnect(line6pcm);
-
-		if (dev != NULL) {
-			/* remove sysfs entries: */
-			device_remove_file(dev, &dev_attr_device_id);
-			device_remove_file(dev, &dev_attr_firmware_version);
-			device_remove_file(dev, &dev_attr_serial_number);
-		}
-	}
-
-	pod_destruct(interface);
 }

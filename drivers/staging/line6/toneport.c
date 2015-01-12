@@ -336,6 +336,39 @@ static void toneport_setup(struct usb_line6_toneport *toneport)
 }
 
 /*
+	Toneport device disconnected.
+*/
+static void line6_toneport_disconnect(struct usb_interface *interface)
+{
+	struct usb_line6_toneport *toneport;
+	u16 idProduct;
+
+	if (interface == NULL)
+		return;
+
+	toneport = usb_get_intfdata(interface);
+	del_timer_sync(&toneport->timer);
+	idProduct = le16_to_cpu(toneport->line6.usbdev->descriptor.idProduct);
+
+	if (toneport_has_led(idProduct)) {
+		device_remove_file(&interface->dev, &dev_attr_led_red);
+		device_remove_file(&interface->dev, &dev_attr_led_green);
+	}
+
+	if (toneport != NULL) {
+		struct snd_line6_pcm *line6pcm = toneport->line6.line6pcm;
+
+		if (line6pcm != NULL) {
+			line6_pcm_release(line6pcm, LINE6_BITS_PCM_MONITOR);
+			line6_pcm_disconnect(line6pcm);
+		}
+	}
+
+	toneport_destruct(interface);
+}
+
+
+/*
 	 Try to init Toneport device.
 */
 static int toneport_try_init(struct usb_interface *interface,
@@ -429,35 +462,4 @@ int line6_toneport_init(struct usb_interface *interface,
 void line6_toneport_reset_resume(struct usb_line6_toneport *toneport)
 {
 	toneport_setup(toneport);
-}
-
-/*
-	Toneport device disconnected.
-*/
-void line6_toneport_disconnect(struct usb_interface *interface)
-{
-	struct usb_line6_toneport *toneport;
-	struct snd_line6_pcm *line6pcm;
-
-	if (interface == NULL)
-		return;
-
-	toneport = usb_get_intfdata(interface);
-	if (NULL == toneport)
-		return;
-
-	del_timer_sync(&toneport->timer);
-
-	if (toneport_has_led(toneport->line6.type)) {
-		device_remove_file(&interface->dev, &dev_attr_led_red);
-		device_remove_file(&interface->dev, &dev_attr_led_green);
-	}
-
-	line6pcm = toneport->line6.line6pcm;
-	if (line6pcm != NULL) {
-		line6_pcm_release(line6pcm, LINE6_BITS_PCM_MONITOR);
-		line6_pcm_disconnect(line6pcm);
-	}
-
-	toneport_destruct(interface);
 }
