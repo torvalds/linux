@@ -61,7 +61,7 @@ enum KFD_MQD_TYPE get_mqd_type_from_queue_type(enum kfd_queue_type type)
 	return KFD_MQD_TYPE_CP;
 }
 
-static inline unsigned int get_pipes_num(struct device_queue_manager *dqm)
+inline unsigned int get_pipes_num(struct device_queue_manager *dqm)
 {
 	BUG_ON(!dqm || !dqm->dev);
 	return dqm->dev->shared_resources.compute_pipe_count;
@@ -78,7 +78,7 @@ static inline unsigned int get_pipes_num_cpsch(void)
 	return PIPE_PER_ME_CP_SCHEDULING;
 }
 
-static inline unsigned int
+inline unsigned int
 get_sh_mem_bases_nybble_64(struct kfd_process_device *pdd)
 {
 	uint32_t nybble;
@@ -88,7 +88,7 @@ get_sh_mem_bases_nybble_64(struct kfd_process_device *pdd)
 	return nybble;
 }
 
-static inline unsigned int get_sh_mem_bases_32(struct kfd_process_device *pdd)
+inline unsigned int get_sh_mem_bases_32(struct kfd_process_device *pdd)
 {
 	unsigned int shared_base;
 
@@ -97,41 +97,7 @@ static inline unsigned int get_sh_mem_bases_32(struct kfd_process_device *pdd)
 	return shared_base;
 }
 
-static uint32_t compute_sh_mem_bases_64bit(unsigned int top_address_nybble);
-static void init_process_memory(struct device_queue_manager *dqm,
-				struct qcm_process_device *qpd)
-{
-	struct kfd_process_device *pdd;
-	unsigned int temp;
-
-	BUG_ON(!dqm || !qpd);
-
-	pdd = qpd_to_pdd(qpd);
-
-	/* check if sh_mem_config register already configured */
-	if (qpd->sh_mem_config == 0) {
-		qpd->sh_mem_config =
-			ALIGNMENT_MODE(SH_MEM_ALIGNMENT_MODE_UNALIGNED) |
-			DEFAULT_MTYPE(MTYPE_NONCACHED) |
-			APE1_MTYPE(MTYPE_NONCACHED);
-		qpd->sh_mem_ape1_limit = 0;
-		qpd->sh_mem_ape1_base = 0;
-	}
-
-	if (qpd->pqm->process->is_32bit_user_mode) {
-		temp = get_sh_mem_bases_32(pdd);
-		qpd->sh_mem_bases = SHARED_BASE(temp);
-		qpd->sh_mem_config |= PTR32;
-	} else {
-		temp = get_sh_mem_bases_nybble_64(pdd);
-		qpd->sh_mem_bases = compute_sh_mem_bases_64bit(temp);
-	}
-
-	pr_debug("kfd: is32bit process: %d sh_mem_bases nybble: 0x%X and register 0x%X\n",
-		qpd->pqm->process->is_32bit_user_mode, temp, qpd->sh_mem_bases);
-}
-
-static void program_sh_mem_settings(struct device_queue_manager *dqm,
+void program_sh_mem_settings(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd)
 {
 	return kfd2kgd->program_sh_mem_settings(dqm->dev->kgd, qpd->vmid,
@@ -391,6 +357,7 @@ static int register_process_nocpsch(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd)
 {
 	struct device_process_node *n;
+	int retval;
 
 	BUG_ON(!dqm || !qpd);
 
@@ -405,12 +372,13 @@ static int register_process_nocpsch(struct device_queue_manager *dqm,
 	mutex_lock(&dqm->lock);
 	list_add(&n->list, &dqm->queues);
 
-	init_process_memory(dqm, qpd);
+	retval = dqm->ops_asic_specific.register_process(dqm, qpd);
+
 	dqm->processes_count++;
 
 	mutex_unlock(&dqm->lock);
 
-	return 0;
+	return retval;
 }
 
 static int unregister_process_nocpsch(struct device_queue_manager *dqm,
@@ -455,34 +423,7 @@ set_pasid_vmid_mapping(struct device_queue_manager *dqm, unsigned int pasid,
 						vmid);
 }
 
-static uint32_t compute_sh_mem_bases_64bit(unsigned int top_address_nybble)
-{
-	/* In 64-bit mode, we can only control the top 3 bits of the LDS,
-	 * scratch and GPUVM apertures.
-	 * The hardware fills in the remaining 59 bits according to the
-	 * following pattern:
-	 * LDS:		X0000000'00000000 - X0000001'00000000 (4GB)
-	 * Scratch:	X0000001'00000000 - X0000002'00000000 (4GB)
-	 * GPUVM:	Y0010000'00000000 - Y0020000'00000000 (1TB)
-	 *
-	 * (where X/Y is the configurable nybble with the low-bit 0)
-	 *
-	 * LDS and scratch will have the same top nybble programmed in the
-	 * top 3 bits of SH_MEM_BASES.PRIVATE_BASE.
-	 * GPUVM can have a different top nybble programmed in the
-	 * top 3 bits of SH_MEM_BASES.SHARED_BASE.
-	 * We don't bother to support different top nybbles
-	 * for LDS/Scratch and GPUVM.
-	 */
-
-	BUG_ON((top_address_nybble & 1) || top_address_nybble > 0xE ||
-		top_address_nybble == 0);
-
-	return PRIVATE_BASE(top_address_nybble << 12) |
-			SHARED_BASE(top_address_nybble << 12);
-}
-
-static int init_pipelines(struct device_queue_manager *dqm,
+int init_pipelines(struct device_queue_manager *dqm,
 			unsigned int pipes_num, unsigned int first_pipe)
 {
 	void *hpdptr;
@@ -715,7 +656,7 @@ static int initialize_cpsch(struct device_queue_manager *dqm)
 	dqm->queue_count = dqm->processes_count = 0;
 	dqm->sdma_queue_count = 0;
 	dqm->active_runlist = false;
-	retval = init_pipelines(dqm, get_pipes_num(dqm), 0);
+	retval = dqm->ops_asic_specific.initialize(dqm);
 	if (retval != 0)
 		goto fail_init_pipelines;
 
@@ -1035,8 +976,7 @@ static bool set_cache_memory_policy(struct device_queue_manager *dqm,
 				   void __user *alternate_aperture_base,
 				   uint64_t alternate_aperture_size)
 {
-	uint32_t default_mtype;
-	uint32_t ape1_mtype;
+	bool retval;
 
 	pr_debug("kfd: In func %s\n", __func__);
 
@@ -1073,18 +1013,13 @@ static bool set_cache_memory_policy(struct device_queue_manager *dqm,
 		qpd->sh_mem_ape1_limit = limit >> 16;
 	}
 
-	default_mtype = (default_policy == cache_policy_coherent) ?
-			MTYPE_NONCACHED :
-			MTYPE_CACHED;
-
-	ape1_mtype = (alternate_policy == cache_policy_coherent) ?
-			MTYPE_NONCACHED :
-			MTYPE_CACHED;
-
-	qpd->sh_mem_config = (qpd->sh_mem_config & PTR32)
-			| ALIGNMENT_MODE(SH_MEM_ALIGNMENT_MODE_UNALIGNED)
-			| DEFAULT_MTYPE(default_mtype)
-			| APE1_MTYPE(ape1_mtype);
+	retval = dqm->ops_asic_specific.set_cache_memory_policy(
+			dqm,
+			qpd,
+			default_policy,
+			alternate_policy,
+			alternate_aperture_base,
+			alternate_aperture_size);
 
 	if ((sched_policy == KFD_SCHED_POLICY_NO_HWS) && (qpd->vmid != 0))
 		program_sh_mem_settings(dqm, qpd);
@@ -1094,7 +1029,7 @@ static bool set_cache_memory_policy(struct device_queue_manager *dqm,
 		qpd->sh_mem_ape1_limit);
 
 	mutex_unlock(&dqm->lock);
-	return true;
+	return retval;
 
 out:
 	mutex_unlock(&dqm->lock);
@@ -1106,6 +1041,8 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 	struct device_queue_manager *dqm;
 
 	BUG_ON(!dev);
+
+	pr_debug("kfd: loading device queue manager\n");
 
 	dqm = kzalloc(sizeof(struct device_queue_manager), GFP_KERNEL);
 	if (!dqm)
@@ -1149,6 +1086,13 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 		break;
 	}
 
+	switch (dev->device_info->asic_family) {
+	case CHIP_CARRIZO:
+		device_queue_manager_init_vi(&dqm->ops_asic_specific);
+	case CHIP_KAVERI:
+		device_queue_manager_init_cik(&dqm->ops_asic_specific);
+	}
+
 	if (dqm->ops.initialize(dqm) != 0) {
 		kfree(dqm);
 		return NULL;
@@ -1164,4 +1108,3 @@ void device_queue_manager_uninit(struct device_queue_manager *dqm)
 	dqm->ops.uninitialize(dqm);
 	kfree(dqm);
 }
-
