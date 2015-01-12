@@ -391,7 +391,7 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 
 		/*
 		 * platform has IRQ support.
-		 * Then, drier use common register
+		 * Then, driver uses common registers
 		 */
 
 		ret = devm_request_irq(dev, irq->start, rcar_thermal_irq, 0,
