@@ -870,6 +870,14 @@ static int  _get_average_current(struct battery_info *di)
 
 }
 
+static bool is_bat_exist(struct  battery_info *di)
+{
+	u8 buf;
+
+	battery_read(di->rk818, SUP_STS_REG, &buf, 1);
+	return (buf & 0x80) ? true : false;
+}
+
 static bool _is_first_poweron(struct  battery_info *di)
 {
 	u8 buf;
@@ -993,6 +1001,7 @@ static int rk_battery_get_property(struct power_supply *psy,
 	enum power_supply_property psp,
 	union power_supply_propval *val)
 {
+	u8 buf;
 	struct battery_info *di = to_device_info(psy);
 
 	switch (psp) {
@@ -1005,8 +1014,11 @@ static int rk_battery_get_property(struct power_supply *psy,
 		break;
 
 	case POWER_SUPPLY_PROP_PRESENT:
-		val->intval = val->intval <= 0 ? 0 : 1;
+		/*val->intval = val->intval <= 0 ? 0 : 1;*/
+		battery_read(di->rk818, SUP_STS_REG, &buf, 1);
+		val->intval = (buf >> 7); /*bit7:BAT_EX*/
 		break;
+
 
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = di->real_soc;
@@ -2870,6 +2882,10 @@ static int battery_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, di);
 	battery_info_init(di, chip);
+	if (!is_bat_exist(di)) {
+		dev_err(&pdev->dev, "could not find Li-ion battery!\n");
+		return -ENODEV;
+	}
 	fg_init(di);
 
 	wake_lock_init(&di->resume_wake_lock, WAKE_LOCK_SUSPEND, "resume_charging");
