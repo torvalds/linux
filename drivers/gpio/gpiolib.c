@@ -248,7 +248,8 @@ int gpiochip_add(struct gpio_chip *chip)
 		base = gpiochip_find_base(chip->ngpio);
 		if (base < 0) {
 			status = base;
-			goto unlock;
+			spin_unlock_irqrestore(&gpio_lock, flags);
+			goto err_free_descs;
 		}
 		chip->base = base;
 	}
@@ -288,11 +289,8 @@ int gpiochip_add(struct gpio_chip *chip)
 	acpi_gpiochip_add(chip);
 
 	status = gpiochip_export(chip);
-	if (status) {
-		acpi_gpiochip_remove(chip);
-		of_gpiochip_remove(chip);
-		goto fail;
-	}
+	if (status)
+		goto err_remove_chip;
 
 	pr_debug("%s: registered GPIOs %d to %d on device: %s\n", __func__,
 		chip->base, chip->base + chip->ngpio - 1,
@@ -300,9 +298,14 @@ int gpiochip_add(struct gpio_chip *chip)
 
 	return 0;
 
-unlock:
+err_remove_chip:
+	acpi_gpiochip_remove(chip);
+	of_gpiochip_remove(chip);
+	spin_lock_irqsave(&gpio_lock, flags);
+	list_del(&chip->list);
 	spin_unlock_irqrestore(&gpio_lock, flags);
 fail:
+err_free_descs:
 	kfree(descs);
 	chip->desc = NULL;
 
