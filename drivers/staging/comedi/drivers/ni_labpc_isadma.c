@@ -175,14 +175,14 @@ void labpc_init_dma_chan(struct comedi_device *dev, unsigned int dma_chan)
 	if (request_dma(dma_chan, dev->board_name))
 		return;
 
-	dma->virt_addr = kmalloc(dma_buffer_size, GFP_KERNEL | GFP_DMA);
+	dma->virt_addr = dma_alloc_coherent(NULL, dma_buffer_size,
+					    &dma->hw_addr, GFP_KERNEL);
 	if (!dma->virt_addr) {
 		free_dma(dma_chan);
 		return;
 	}
 
 	dma->chan = dma_chan;
-	dma->hw_addr = virt_to_bus(dma->virt_addr);
 
 	dma_flags = claim_dma_lock();
 	disable_dma(dma->chan);
@@ -196,7 +196,9 @@ void labpc_free_dma_chan(struct comedi_device *dev)
 	struct labpc_private *devpriv = dev->private;
 	struct labpc_dma_desc *dma = &devpriv->dma_desc;
 
-	kfree(dma->virt_addr);
+	if (dma->virt_addr)
+		dma_free_coherent(NULL, dma_buffer_size,
+				  dma->virt_addr, dma->hw_addr);
 	if (dma->chan)
 		free_dma(dma->chan);
 }

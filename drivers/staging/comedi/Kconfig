@@ -502,7 +502,7 @@ config COMEDI_NI_ATMIO16D
 config COMEDI_NI_LABPC_ISA
 	tristate "NI Lab-PC and compatibles ISA support"
 	select COMEDI_NI_LABPC
-	select COMEDI_NI_LABPC_ISADMA if ISA_DMA_API && VIRT_TO_BUS
+	select COMEDI_NI_LABPC_ISADMA if ISA_DMA_API
 	---help---
 	  Enable support for National Instruments Lab-PC and compatibles
 	  Lab-PC-1200, Lab-PC-1200AI, Lab-PC+.

@@ -36,8 +36,8 @@ struct labpc_boardinfo {
 
 struct labpc_dma_desc {
 	unsigned int chan;	/* DMA channel */
-	u16 *virt_addr;		/* virtual address of DMA buffer */
-	phys_addr_t hw_addr;	/* hardware (bus) address of DMA buffer */
+	void *virt_addr;	/* virtual address of DMA buffer */
+	dma_addr_t hw_addr;	/* hardware (bus) address of DMA buffer */
 	unsigned int size;	/* size of DMA transfer (in bytes) */
 };
 
