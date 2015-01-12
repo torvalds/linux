@@ -43,8 +43,6 @@ static const struct usb_device_id line6_id_table[] = {
 	{USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_PODSTUDIO_GX)},
 	{USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_PODSTUDIO_UX1)},
 	{USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_PODSTUDIO_UX2)},
-	{USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_PODX3)},
-	{USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_PODX3LIVE)},
 	{USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_PODXT)},
 	{USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_PODXTLIVE)},
 	{USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_PODXTPRO)},
@@ -74,8 +72,6 @@ static const struct line6_properties line6_properties_table[] = {
 	L6PROP("PODStudioGX",   "POD Studio GX",    PCM),
 	L6PROP("PODStudioUX1",  "POD Studio UX1",   PCM),
 	L6PROP("PODStudioUX2",  "POD Studio UX2",   PCM),
-	L6PROP("PODX3",         "POD X3",           PCM),
-	L6PROP("PODX3Live",     "POD X3 Live",      PCM),
 	L6PROP("PODxt",         "PODxt",            CTRL_PCM_HW),
 	L6PROP("PODxtLive",     "PODxt Live",       CTRL_PCM_HW),
 	L6PROP("PODxtPro",      "PODxt Pro",        CTRL_PCM_HW),
@@ -673,8 +669,6 @@ static int line6_probe(struct usb_interface *interface,
 		break;
 
 	case LINE6_DEVID_PODHD500:
-	case LINE6_DEVID_PODX3:
-	case LINE6_DEVID_PODX3LIVE:
 		switch (interface_number) {
 		case 0:
 			alternate = 1;
@@ -763,14 +757,6 @@ static int line6_probe(struct usb_interface *interface,
 		size = sizeof(struct usb_line6_pod);
 		ep_read = 0x82;
 		ep_write = 0x02;
-		break;
-
-	case LINE6_DEVID_PODX3:
-	case LINE6_DEVID_PODX3LIVE:
-		/* currently unused! */
-		size = sizeof(struct usb_line6_pod);
-		ep_read = 0x81;
-		ep_write = 0x01;
 		break;
 
 	case LINE6_DEVID_PODSTUDIO_GX:
@@ -898,8 +884,6 @@ static int line6_probe(struct usb_interface *interface,
 	case LINE6_DEVID_BASSPODXTLIVE:
 	case LINE6_DEVID_BASSPODXTPRO:
 	case LINE6_DEVID_POCKETPOD:
-	case LINE6_DEVID_PODX3:
-	case LINE6_DEVID_PODX3LIVE:
 	case LINE6_DEVID_PODXT:
 	case LINE6_DEVID_PODXTPRO:
 		ret = line6_pod_init(interface, (struct usb_line6_pod *)line6);
@@ -971,14 +955,6 @@ static int line6_probe(struct usb_interface *interface,
 	dev_info(&interface->dev, "Line6 %s now attached\n",
 		 line6->properties->name);
 
-	switch (product) {
-	case LINE6_DEVID_PODX3:
-	case LINE6_DEVID_PODX3LIVE:
-		dev_info(&interface->dev,
-			 "NOTE: the Line6 %s is detected, but not yet supported\n",
-			 line6->properties->name);
-	}
-
 	/* increment reference counters: */
 	usb_get_intf(interface);
 	usb_get_dev(usbdev);
@@ -1026,8 +1002,6 @@ static void line6_disconnect(struct usb_interface *interface)
 		case LINE6_DEVID_BASSPODXTLIVE:
 		case LINE6_DEVID_BASSPODXTPRO:
 		case LINE6_DEVID_POCKETPOD:
-		case LINE6_DEVID_PODX3:
-		case LINE6_DEVID_PODX3LIVE:
 		case LINE6_DEVID_PODXT:
 		case LINE6_DEVID_PODXTPRO:
 			line6_pod_disconnect(interface);
