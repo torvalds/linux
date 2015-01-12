@@ -6,7 +6,7 @@
  *          Title:  MPI Configuration messages and pages
  *  Creation Date:  November 10, 2006
  *
- *    mpi2_cnfg.h Version:  02.00.28
+ *    mpi2_cnfg.h Version:  02.00.29
  *
  *  Version History
  *  ---------------
@@ -169,6 +169,8 @@
  *			MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0.
  *  01-08-14  02.00.28  Added more defines for the BiosOptions field of
  *			MPI2_CONFIG_PAGE_BIOS_1.
+ *  06-13-14  02.00.29  Added SSUTimeout field to MPI2_CONFIG_PAGE_BIOS_1, and
+ *			more defines for the BiosOptions field.
  *  --------------------------------------------------------------------------
  */
 
@@ -1237,7 +1239,9 @@ typedef struct _MPI2_CONFIG_PAGE_BIOS_1
 	MPI2_CONFIG_PAGE_HEADER Header;                     /* 0x00 */
 	U32                     BiosOptions;                /* 0x04 */
 	U32                     IOCSettings;                /* 0x08 */
-	U32                     Reserved1;                  /* 0x0C */
+	U8			SSUTimeout;		    /* 0x0C */
+	U8			Reserved1;		    /* 0x0D */
+	U16			Reserved2;		    /* 0x0E */
 	U32                     DeviceSettings;             /* 0x10 */
 	U16                     NumberOfDevices;            /* 0x14 */
 	U16                     UEFIVersion;                /* 0x16 */
@@ -1248,9 +1252,16 @@ typedef struct _MPI2_CONFIG_PAGE_BIOS_1
 } MPI2_CONFIG_PAGE_BIOS_1, MPI2_POINTER PTR_MPI2_CONFIG_PAGE_BIOS_1,
   Mpi2BiosPage1_t, MPI2_POINTER pMpi2BiosPage1_t;
 
-#define MPI2_BIOSPAGE1_PAGEVERSION                      (0x06)
+#define MPI2_BIOSPAGE1_PAGEVERSION                      (0x07)
 
 /* values for BIOS Page 1 BiosOptions field */
+#define MPI2_BIOSPAGE1_OPTIONS_PNS_MASK			(0x00003800)
+#define MPI2_BIOSPAGE1_OPTIONS_PNS_PBDHL			(0x00000000)
+#define MPI2_BIOSPAGE1_OPTIONS_PNS_ENCSLOSURE			(0x00000800)
+#define MPI2_BIOSPAGE1_OPTIONS_PNS_LWWID			(0x00001000)
+#define MPI2_BIOSPAGE1_OPTIONS_PNS_PSENS			(0x00001800)
+#define MPI2_BIOSPAGE1_OPTIONS_PNS_ESPHY			(0x00002000)
+
 #define MPI2_BIOSPAGE1_OPTIONS_X86_DISABLE_BIOS                 (0x00000400)
 
 #define MPI2_BIOSPAGE1_OPTIONS_MASK_REGISTRATION_UEFI_BSD       (0x00000300)
