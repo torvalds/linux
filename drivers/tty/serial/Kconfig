@@ -482,16 +482,6 @@ config SERIAL_SA1100_CONSOLE
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
 
-config SERIAL_MRST_MAX3110
-	tristate "SPI UART driver for Max3110"
-	depends on SPI_DW_PCI
-	select SERIAL_CORE
-	select SERIAL_CORE_CONSOLE
-	help
-	  This is the UART protocol driver for the MAX3110 device on
-	  the Intel Moorestown platform. On other systems use the max3100
-	  driver.
-
 config SERIAL_MFD_HSU
 	tristate "Medfield High Speed UART support"
 	depends on PCI
