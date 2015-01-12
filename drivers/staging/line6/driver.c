@@ -46,14 +46,14 @@ static const struct usb_device_id line6_id_table[] = {
 	{ LINE6_IF_NUM(0x414D, 1), .driver_info = LINE6_PODHD500_1 },
 	{ LINE6_DEVICE(0x4153),    .driver_info = LINE6_PODSTUDIO_GX },
 	{ LINE6_DEVICE(0x4150),    .driver_info = LINE6_PODSTUDIO_UX1 },
-	{ LINE6_DEVICE(0x4151),    .driver_info = LINE6_PODSTUDIO_UX2 },
+	{ LINE6_IF_NUM(0x4151, 0), .driver_info = LINE6_PODSTUDIO_UX2 },
 	{ LINE6_DEVICE(0x5044),    .driver_info = LINE6_PODXT },
 	{ LINE6_IF_NUM(0x4650, 0), .driver_info = LINE6_PODXTLIVE_POD },
 	{ LINE6_IF_NUM(0x4650, 1), .driver_info = LINE6_PODXTLIVE_VARIAX },
 	{ LINE6_DEVICE(0x5050),    .driver_info = LINE6_PODXTPRO },
 	{ LINE6_DEVICE(0x4147),    .driver_info = LINE6_TONEPORT_GX },
 	{ LINE6_DEVICE(0x4141),    .driver_info = LINE6_TONEPORT_UX1 },
-	{ LINE6_DEVICE(0x4142),    .driver_info = LINE6_TONEPORT_UX2 },
+	{ LINE6_IF_NUM(0x4142, 0), .driver_info = LINE6_TONEPORT_UX2 },
 	{ LINE6_DEVICE(0x534d),    .driver_info = LINE6_VARIAX },
 	{}
 };
@@ -768,20 +768,8 @@ static int line6_probe(struct usb_interface *interface,
 
 	case LINE6_TONEPORT_UX2:
 	case LINE6_PODSTUDIO_UX2:
-		switch (interface_number) {
-		case 0:
-			/* defaults to 44.1kHz, 16-bit */
-			alternate = 2;
-			break;
-		case 1:
-			/* don't know yet what this is ...
-			   alternate = 1;
-			   break;
-			 */
-			return -ENODEV;
-		default:
-			MISSING_CASE;
-		}
+		/* defaults to 44.1kHz, 16-bit */
+		alternate = 2;
 		break;
 
 	default:
