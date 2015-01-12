@@ -148,6 +148,25 @@
 					clocks = <&pck2>;
 					clock-names = "mclk";
 				};
+
+				qt1070:keyboard@1b {
+					compatible = "qt1070";
+					reg = <0x1b>;
+					interrupt-parent = <&pioE>;
+					interrupts = <25 0x0>;
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_qt1070_irq>;
+					wakeup-source;
+				};
+
+				atmel_mxt_ts@4c {
+					compatible = "atmel,atmel_mxt_ts";
+					reg = <0x4c>;
+					interrupt-parent = <&pioE>;
+					interrupts = <24 0x0>;
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_mxt_ts>;
+				};
 			};
 
 			macb0: ethernet@f8020000 {
@@ -203,6 +222,14 @@
 					pinctrl_key_gpio: key_gpio_0 {
 						atmel,pins =
 							<AT91_PIOE 13 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>; /* PE13 gpio */
+					};
+					pinctrl_qt1070_irq: qt1070_irq {
+						atmel,pins =
+							<AT91_PIOE 25 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;
+					};
+					pinctrl_mxt_ts: mxt_irq {
+						atmel,pins =
+							<AT91_PIOE 24 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;
 					};
 				};
 			};
