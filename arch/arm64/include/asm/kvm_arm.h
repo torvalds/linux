@@ -257,4 +257,6 @@
 
 #define ESR_EL2_EC_WFI_ISS_WFE	(1 << 0)
 
+#define ESR_EL2_HVC_IMM_MASK	((1UL << 16) - 1)
+
 #endif /* __ARM64_KVM_ARM_H__ */
