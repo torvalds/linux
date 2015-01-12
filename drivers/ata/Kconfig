@@ -269,7 +269,7 @@ config ATA_PIIX
 
 config SATA_DWC
 	tristate "DesignWare Cores SATA support"
-	depends on 460EX || COMPILE_TEST
+	depends on 460EX || (COMPILE_TEST && !(ARM || ARM64))
 	help
 	  This option enables support for the on-chip SATA controller of the
 	  AppliedMicro processor 460EX.
