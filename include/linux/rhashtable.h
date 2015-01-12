@@ -168,7 +168,12 @@ int rhashtable_shrink(struct rhashtable *ht);
 void *rhashtable_lookup(struct rhashtable *ht, const void *key);
 void *rhashtable_lookup_compare(struct rhashtable *ht, const void *key,
 				bool (*compare)(void *, void *), void *arg);
+
 bool rhashtable_lookup_insert(struct rhashtable *ht, struct rhash_head *obj);
+bool rhashtable_lookup_compare_insert(struct rhashtable *ht,
+				      struct rhash_head *obj,
+				      bool (*compare)(void *, void *),
+				      void *arg);
 
 void rhashtable_destroy(struct rhashtable *ht);
 
