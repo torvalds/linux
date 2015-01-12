@@ -45,4 +45,7 @@ struct tipc_nl_msg {
 	u32 seq;
 };
 
+int tipc_netlink_start(void);
+void tipc_netlink_stop(void);
+
 #endif

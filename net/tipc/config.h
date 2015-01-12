@@ -37,9 +37,9 @@
 #ifndef _TIPC_CONFIG_H
 #define _TIPC_CONFIG_H
 
-/* ---------------------------------------------------------------------- */
-
 #include "link.h"
+
+#define ULTRA_STRING_MAX_LEN	32768
 
 struct sk_buff *tipc_cfg_reply_alloc(int payload_size);
 int tipc_cfg_append_tlv(struct sk_buff *buf, int tlv_type,
@@ -61,7 +61,7 @@ static inline struct sk_buff *tipc_cfg_reply_ultra_string(char *string)
 	return tipc_cfg_reply_string_type(TIPC_TLV_ULTRA_STRING, string);
 }
 
-struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd,
+struct sk_buff *tipc_cfg_do_cmd(struct net *net, u32 orig_node, u16 cmd,
 				const void *req_tlv_area, int req_tlv_space,
 				int headroom);
 #endif

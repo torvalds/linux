@@ -42,12 +42,19 @@
 #define TIPC_FLOWCTRL_WIN        (TIPC_CONNACK_INTV * 2)
 #define TIPC_CONN_OVERLOAD_LIMIT ((TIPC_FLOWCTRL_WIN * 2 + 1) * \
 				  SKB_TRUESIZE(TIPC_MAX_USER_MSG_SIZE))
-int tipc_sk_rcv(struct sk_buff *buf);
-struct sk_buff *tipc_sk_socks_show(void);
-void tipc_sk_mcast_rcv(struct sk_buff *buf);
-void tipc_sk_reinit(void);
-int tipc_sk_rht_init(void);
-void tipc_sk_rht_destroy(void);
+
+int tipc_socket_init(void);
+void tipc_socket_stop(void);
+int tipc_sock_create_local(struct net *net, int type, struct socket **res);
+void tipc_sock_release_local(struct socket *sock);
+int tipc_sock_accept_local(struct socket *sock, struct socket **newsock,
+			   int flags);
+int tipc_sk_rcv(struct net *net, struct sk_buff *buf);
+struct sk_buff *tipc_sk_socks_show(struct net *net);
+void tipc_sk_mcast_rcv(struct net *net, struct sk_buff *buf);
+void tipc_sk_reinit(struct net *net);
+int tipc_sk_rht_init(struct net *net);
+void tipc_sk_rht_destroy(struct net *net);
 int tipc_nl_sk_dump(struct sk_buff *skb, struct netlink_callback *cb);
 int tipc_nl_publ_dump(struct sk_buff *skb, struct netlink_callback *cb);
 
