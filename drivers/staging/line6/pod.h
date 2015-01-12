@@ -89,6 +89,5 @@ struct usb_line6_pod {
 extern void line6_pod_disconnect(struct usb_interface *interface);
 extern int line6_pod_init(struct usb_interface *interface,
 			  struct usb_line6 *line6);
-extern void line6_pod_process_message(struct usb_line6 *line6);
 
 #endif

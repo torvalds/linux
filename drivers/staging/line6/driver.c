@@ -537,37 +537,8 @@ static void line6_data_received(struct urb *urb)
 		line6->message_length = done;
 		line6_midi_receive(line6, line6->buffer_message, done);
 
-		switch (line6->type) {
-		case LINE6_BASSPODXT:
-		case LINE6_BASSPODXTLIVE:
-		case LINE6_BASSPODXTPRO:
-		case LINE6_PODXT:
-		case LINE6_PODXTPRO:
-		case LINE6_POCKETPOD:
-			line6_pod_process_message(line6);
-			break;
-
-		case LINE6_PODHD300:
-		case LINE6_PODHD400:
-		case LINE6_PODHD500_0:
-		case LINE6_PODHD500_1:
-			break; /* let userspace handle MIDI */
-
-		case LINE6_PODXTLIVE_POD:
-			line6_pod_process_message(line6);
-			break;
-
-		case LINE6_PODXTLIVE_VARIAX:
-			line6_variax_process_message(line6);
-			break;
-
-		case LINE6_VARIAX:
-			line6_variax_process_message(line6);
-			break;
-
-		default:
-			MISSING_CASE;
-		}
+		if (line6->process_message)
+			line6->process_message(line6);
 	}
 
 	line6_start_listen(line6);

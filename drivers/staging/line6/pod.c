@@ -131,7 +131,7 @@ static char *pod_alloc_sysex_buffer(struct usb_line6_pod *pod, int code,
 /*
 	Process a completely received message.
 */
-void line6_pod_process_message(struct usb_line6 *line6)
+static void line6_pod_process_message(struct usb_line6 *line6)
 {
 	struct usb_line6_pod *pod = (struct usb_line6_pod *) line6;
 	const unsigned char *buf = pod->line6.buffer_message;
@@ -358,6 +358,8 @@ static int pod_try_init(struct usb_interface *interface,
 {
 	int err;
 	struct usb_line6_pod *pod = (struct usb_line6_pod *) line6;
+
+	line6->process_message = line6_pod_process_message;
 
 	init_timer(&pod->startup_timer);
 	INIT_WORK(&pod->startup_work, pod_startup4);
