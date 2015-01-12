@@ -551,14 +551,14 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/*  set size of transfer to fill in 1/3 second */
 #define ONE_THIRD_SECOND 333333333
 	devpriv->dma_transfer_size =
-	    sizeof(devpriv->dma_buffer[0]) * cmd->chanlist_len *
+	    comedi_bytes_per_sample(s) * cmd->chanlist_len *
 	    ONE_THIRD_SECOND / cmd->scan_begin_arg;
 	if (devpriv->dma_transfer_size > A2150_DMA_BUFFER_SIZE)
 		devpriv->dma_transfer_size = A2150_DMA_BUFFER_SIZE;
-	if (devpriv->dma_transfer_size < sizeof(devpriv->dma_buffer[0]))
-		devpriv->dma_transfer_size = sizeof(devpriv->dma_buffer[0]);
+	if (devpriv->dma_transfer_size < comedi_bytes_per_sample(s))
+		devpriv->dma_transfer_size = comedi_bytes_per_sample(s);
 	devpriv->dma_transfer_size -=
-	    devpriv->dma_transfer_size % sizeof(devpriv->dma_buffer[0]);
+	    devpriv->dma_transfer_size % comedi_bytes_per_sample(s);
 	set_dma_count(devpriv->dma, devpriv->dma_transfer_size);
 	enable_dma(devpriv->dma);
 	release_dma_lock(lock_flags);
