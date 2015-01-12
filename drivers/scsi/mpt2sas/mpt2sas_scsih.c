@@ -4543,6 +4543,10 @@ _scsih_io_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 			scmd->result = DID_TRANSPORT_DISRUPTED << 16;
 			goto out;
 		}
+		if (log_info == 0x32010081) {
+			scmd->result = DID_RESET << 16;
+			break;
+		}
 		scmd->result = DID_SOFT_ERROR << 16;
 		break;
 	case MPI2_IOCSTATUS_SCSI_TASK_TERMINATED:
