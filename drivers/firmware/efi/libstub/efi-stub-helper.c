@@ -101,7 +101,7 @@ fail:
 }
 
 
-unsigned long __init get_dram_base(efi_system_table_t *sys_table_arg)
+unsigned long get_dram_base(efi_system_table_t *sys_table_arg)
 {
 	efi_status_t status;
 	unsigned long map_size;
