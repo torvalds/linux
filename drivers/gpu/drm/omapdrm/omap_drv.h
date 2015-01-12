@@ -161,7 +161,7 @@ void omap_crtc_flush(struct drm_crtc *crtc);
 
 struct drm_plane *omap_plane_init(struct drm_device *dev,
 		int id, enum drm_plane_type type);
-int omap_plane_dpms(struct drm_plane *plane, int mode);
+int omap_plane_set_enable(struct drm_plane *plane, bool enable);
 int omap_plane_mode_set(struct drm_plane *plane,
 		struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		int crtc_x, int crtc_y,

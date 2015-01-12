@@ -220,7 +220,7 @@ static void omap_crtc_dpms(struct drm_crtc *crtc, int mode)
 		for (i = 0; i < priv->num_planes; i++) {
 			struct drm_plane *plane = priv->planes[i];
 			if (plane->crtc == crtc)
-				WARN_ON(omap_plane_dpms(plane, mode));
+				WARN_ON(omap_plane_set_enable(plane, enabled));
 		}
 	}
 }

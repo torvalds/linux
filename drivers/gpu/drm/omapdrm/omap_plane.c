@@ -257,8 +257,9 @@ static int omap_plane_update(struct drm_plane *plane,
 static int omap_plane_disable(struct drm_plane *plane)
 {
 	struct omap_plane *omap_plane = to_omap_plane(plane);
+
 	omap_plane->win.rotation = BIT(DRM_ROTATE_0);
-	return omap_plane_dpms(plane, DRM_MODE_DPMS_OFF);
+	return omap_plane_set_enable(plane, false);
 }
 
 static void omap_plane_destroy(struct drm_plane *plane)
@@ -277,18 +278,15 @@ static void omap_plane_destroy(struct drm_plane *plane)
 	kfree(omap_plane);
 }
 
-int omap_plane_dpms(struct drm_plane *plane, int mode)
+int omap_plane_set_enable(struct drm_plane *plane, bool enable)
 {
 	struct omap_plane *omap_plane = to_omap_plane(plane);
-	bool enabled = (mode == DRM_MODE_DPMS_ON);
-	int ret = 0;
 
-	if (enabled != omap_plane->enabled) {
-		omap_plane->enabled = enabled;
-		ret = apply(plane);
-	}
+	if (enable == omap_plane->enabled)
+		return 0;
 
-	return ret;
+	omap_plane->enabled = enable;
+	return apply(plane);
 }
 
 /* helper to install properties which are common to planes and crtcs */
