@@ -83,7 +83,7 @@
 	int __ret_warn_on = !!(condition);				\
 	if (unlikely(__ret_warn_on)) {					\
 		if (i915.verbose_state_checks)				\
-			__WARN_printf(format);				\
+			WARN(1, format);				\
 		else 							\
 			DRM_ERROR(format);				\
 	}								\
@@ -94,7 +94,7 @@
 	int __ret_warn_on = !!(condition);				\
 	if (unlikely(__ret_warn_on)) {					\
 		if (i915.verbose_state_checks)				\
-			__WARN_printf("WARN_ON(" #condition ")\n");	\
+			WARN(1, "WARN_ON(" #condition ")\n");		\
 		else 							\
 			DRM_ERROR("WARN_ON(" #condition ")\n");		\
 	}								\
