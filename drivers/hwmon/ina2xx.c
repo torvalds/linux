@@ -186,8 +186,11 @@ static void ina226_set_update_interval(struct ina2xx_data *data)
 
 static int ina2xx_calibrate(struct ina2xx_data *data)
 {
-	return i2c_smbus_write_word_swapped(data->client, INA2XX_CALIBRATION,
-			data->config->calibration_factor / data->rshunt);
+	u16 val = DIV_ROUND_CLOSEST(data->config->calibration_factor,
+				    data->rshunt);
+
+	return i2c_smbus_write_word_swapped(data->client,
+					    INA2XX_CALIBRATION, val);
 }
 
 /*
@@ -307,7 +310,8 @@ static int ina2xx_get_value(struct ina2xx_data *data, u8 reg)
 		val = (s16)data->regs[reg];
 		break;
 	case INA2XX_CALIBRATION:
-		val = data->config->calibration_factor / data->regs[reg];
+		val = DIV_ROUND_CLOSEST(data->config->calibration_factor,
+					data->regs[reg]);
 		break;
 	default:
 		/* programmer goofed */
