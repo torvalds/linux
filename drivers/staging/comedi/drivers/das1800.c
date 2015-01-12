@@ -1228,15 +1228,24 @@ static int das1800_do_wbits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int das1800_init_dma(struct comedi_device *dev, unsigned int dma0,
-			    unsigned int dma1)
+static int das1800_init_dma(struct comedi_device *dev,
+			    struct comedi_devconfig *it)
 {
 	struct das1800_private *devpriv = dev->private;
 	struct das1800_dma_desc *dma;
+	unsigned int *dma_chan;
 	unsigned long flags;
+	int i;
 
-	/* encode dma0 and dma1 into 2 digit hexadecimal for switch */
-	switch ((dma0 & 0x7) | (dma1 << 4)) {
+	/*
+	 * it->options[2] is DMA channel 0
+	 * it->options[3] is DMA channel 1
+	 *
+	 * Encode the DMA channels into 2 digit hexadecimal for switch.
+	 */
+	dma_chan = &it->options[2];
+
+	switch ((dma_chan[0] & 0x7) | (dma_chan[1] << 4)) {
 	case 0x5:	/*  dma0 == 5 */
 		devpriv->dma_bits |= DMA_CH5;
 		break;
@@ -1265,33 +1274,24 @@ static int das1800_init_dma(struct comedi_device *dev, unsigned int dma0,
 		return -EINVAL;
 	}
 
-	dma = &devpriv->dma_desc[0];
-	if (request_dma(dma0, dev->driver->driver_name)) {
-		dev_err(dev->class_dev,
-			"failed to allocate dma channel %i\n", dma0);
-		return -EINVAL;
-	}
-	dma->chan = dma0;
-	dma->virt_addr = kmalloc(DMA_BUF_SIZE, GFP_KERNEL | GFP_DMA);
-	if (!dma->virt_addr)
-		return -ENOMEM;
-	flags = claim_dma_lock();
-	disable_dma(dma->chan);
-	set_dma_mode(dma->chan, DMA_MODE_READ);
-	release_dma_lock(flags);
+	for (i = 0; i < 2; i++) {
+		dma = &devpriv->dma_desc[i];
 
-	if (dma1) {
-		dma = &devpriv->dma_desc[1];
-		if (request_dma(dma1, dev->driver->driver_name)) {
+		if (dma_chan[i] == 0)
+			break;
+
+		if (request_dma(dma_chan[i], dev->board_name)) {
 			dev_err(dev->class_dev,
 				"failed to allocate dma channel %i\n",
-				dma1);
+				dma_chan[i]);
 			return -EINVAL;
 		}
-		dma->chan = dma1;
+		dma->chan = dma_chan[i];
+
 		dma->virt_addr = kmalloc(DMA_BUF_SIZE, GFP_KERNEL | GFP_DMA);
 		if (!dma->virt_addr)
 			return -ENOMEM;
+
 		flags = claim_dma_lock();
 		disable_dma(dma->chan);
 		set_dma_mode(dma->chan, DMA_MODE_READ);
@@ -1366,8 +1366,6 @@ static int das1800_attach(struct comedi_device *dev,
 	struct das1800_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned int irq = it->options[1];
-	unsigned int dma0 = it->options[2];
-	unsigned int dma1 = it->options[3];
 	int board;
 	int ret;
 
@@ -1430,8 +1428,8 @@ static int das1800_attach(struct comedi_device *dev,
 	}
 
 	/* an irq and one dma channel is required to use dma */
-	if (dev->irq & dma0) {
-		ret = das1800_init_dma(dev, dma0, dma1);
+	if (dev->irq & it->options[2]) {
+		ret = das1800_init_dma(dev, it);
 		if (ret < 0)
 			return ret;
 	}
