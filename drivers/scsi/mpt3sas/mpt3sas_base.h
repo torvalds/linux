@@ -507,6 +507,7 @@ struct adapter_reply_queue {
 	Mpi2ReplyDescriptorsUnion_t *reply_post_free;
 	char			name[MPT_NAME_LENGTH];
 	atomic_t		busy;
+	cpumask_var_t		affinity_hint;
 	struct list_head	list;
 };
 

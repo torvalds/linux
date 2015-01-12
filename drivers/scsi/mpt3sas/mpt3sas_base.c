@@ -1584,6 +1584,8 @@ _base_free_irq(struct MPT3SAS_ADAPTER *ioc)
 
 	list_for_each_entry_safe(reply_q, next, &ioc->reply_queue_list, list) {
 		list_del(&reply_q->list);
+		irq_set_affinity_hint(reply_q->vector, NULL);
+		free_cpumask_var(reply_q->affinity_hint);
 		synchronize_irq(reply_q->vector);
 		free_irq(reply_q->vector, reply_q);
 		kfree(reply_q);
@@ -1613,6 +1615,11 @@ _base_request_irq(struct MPT3SAS_ADAPTER *ioc, u8 index, u32 vector)
 	reply_q->ioc = ioc;
 	reply_q->msix_index = index;
 	reply_q->vector = vector;
+
+	if (!alloc_cpumask_var(&reply_q->affinity_hint, GFP_KERNEL))
+		return -ENOMEM;
+	cpumask_clear(reply_q->affinity_hint);
+
 	atomic_set(&reply_q->busy, 0);
 	if (ioc->msix_enable)
 		snprintf(reply_q->name, MPT_NAME_LENGTH, "%s%d-msix%d",
@@ -1647,6 +1654,7 @@ static void
 _base_assign_reply_queues(struct MPT3SAS_ADAPTER *ioc)
 {
 	unsigned int cpu, nr_cpus, nr_msix, index = 0;
+	struct adapter_reply_queue *reply_q;
 
 	if (!_base_is_controller_msix_enabled(ioc))
 		return;
@@ -1661,20 +1669,30 @@ _base_assign_reply_queues(struct MPT3SAS_ADAPTER *ioc)
 
 	cpu = cpumask_first(cpu_online_mask);
 
-	do {
+	list_for_each_entry(reply_q, &ioc->reply_queue_list, list) {
+
 		unsigned int i, group = nr_cpus / nr_msix;
+
+		if (cpu >= nr_cpus)
+			break;
 
 		if (index < nr_cpus % nr_msix)
 			group++;
 
 		for (i = 0 ; i < group ; i++) {
 			ioc->cpu_msix_table[cpu] = index;
+			cpumask_or(reply_q->affinity_hint,
+				   reply_q->affinity_hint, get_cpu_mask(cpu));
 			cpu = cpumask_next(cpu, cpu_online_mask);
 		}
 
+		if (irq_set_affinity_hint(reply_q->vector,
+					   reply_q->affinity_hint))
+			dinitprintk(ioc, pr_info(MPT3SAS_FMT
+			    "error setting affinity hint for irq vector %d\n",
+			    ioc->name, reply_q->vector));
 		index++;
-
-	} while (cpu < nr_cpus);
+	}
 }
 
 /**
