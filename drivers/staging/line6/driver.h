@@ -115,6 +115,8 @@ struct line6_properties {
 		 line6usb driver.
 	*/
 	int capabilities;
+
+	int altsetting;
 };
 
 /**
