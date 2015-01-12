@@ -57,32 +57,32 @@ static const struct usb_device_id line6_id_table[] = {
 
 MODULE_DEVICE_TABLE(usb, line6_id_table);
 
-#define L6PROP(dev_bit, dev_id, dev_name, dev_cap)\
-	{.device_bit = LINE6_BIT_##dev_bit, .id = dev_id,\
+#define L6PROP(dev_id, dev_name, dev_cap)\
+	{.id = dev_id,\
 	 .name = dev_name, .capabilities = LINE6_BIT_##dev_cap}
 
 /* *INDENT-OFF* */
 static const struct line6_properties line6_properties_table[] = {
-	L6PROP(BASSPODXT,     "BassPODxt",     "BassPODxt",        CTRL_PCM_HW),
-	L6PROP(BASSPODXTLIVE, "BassPODxtLive", "BassPODxt Live",   CTRL_PCM_HW),
-	L6PROP(BASSPODXTPRO,  "BassPODxtPro",  "BassPODxt Pro",    CTRL_PCM_HW),
-	L6PROP(GUITARPORT,    "GuitarPort",    "GuitarPort",       PCM),
-	L6PROP(POCKETPOD,     "PocketPOD",     "Pocket POD",       CONTROL),
-	L6PROP(PODHD300,      "PODHD300",      "POD HD300",        CTRL_PCM_HW),
-	L6PROP(PODHD400,      "PODHD400",      "POD HD400",        CTRL_PCM_HW),
-	L6PROP(PODHD500,      "PODHD500",      "POD HD500",        CTRL_PCM_HW),
-	L6PROP(PODSTUDIO_GX,  "PODStudioGX",   "POD Studio GX",    PCM),
-	L6PROP(PODSTUDIO_UX1, "PODStudioUX1",  "POD Studio UX1",   PCM),
-	L6PROP(PODSTUDIO_UX2, "PODStudioUX2",  "POD Studio UX2",   PCM),
-	L6PROP(PODX3,         "PODX3",         "POD X3",           PCM),
-	L6PROP(PODX3LIVE,     "PODX3Live",     "POD X3 Live",      PCM),
-	L6PROP(PODXT,         "PODxt",         "PODxt",            CTRL_PCM_HW),
-	L6PROP(PODXTLIVE,     "PODxtLive",     "PODxt Live",       CTRL_PCM_HW),
-	L6PROP(PODXTPRO,      "PODxtPro",      "PODxt Pro",        CTRL_PCM_HW),
-	L6PROP(TONEPORT_GX,   "TonePortGX",    "TonePort GX",      PCM),
-	L6PROP(TONEPORT_UX1,  "TonePortUX1",   "TonePort UX1",     PCM),
-	L6PROP(TONEPORT_UX2,  "TonePortUX2",   "TonePort UX2",     PCM),
-	L6PROP(VARIAX,        "Variax",        "Variax Workbench", CONTROL),
+	L6PROP("BassPODxt",     "BassPODxt",        CTRL_PCM_HW),
+	L6PROP("BassPODxtLive", "BassPODxt Live",   CTRL_PCM_HW),
+	L6PROP("BassPODxtPro",  "BassPODxt Pro",    CTRL_PCM_HW),
+	L6PROP("GuitarPort",    "GuitarPort",       PCM),
+	L6PROP("PocketPOD",     "Pocket POD",       CONTROL),
+	L6PROP("PODHD300",      "POD HD300",        CTRL_PCM_HW),
+	L6PROP("PODHD400",      "POD HD400",        CTRL_PCM_HW),
+	L6PROP("PODHD500",      "POD HD500",        CTRL_PCM_HW),
+	L6PROP("PODStudioGX",   "POD Studio GX",    PCM),
+	L6PROP("PODStudioUX1",  "POD Studio UX1",   PCM),
+	L6PROP("PODStudioUX2",  "POD Studio UX2",   PCM),
+	L6PROP("PODX3",         "POD X3",           PCM),
+	L6PROP("PODX3Live",     "POD X3 Live",      PCM),
+	L6PROP("PODxt",         "PODxt",            CTRL_PCM_HW),
+	L6PROP("PODxtLive",     "PODxt Live",       CTRL_PCM_HW),
+	L6PROP("PODxtPro",      "PODxt Pro",        CTRL_PCM_HW),
+	L6PROP("TonePortGX",    "TonePort GX",      PCM),
+	L6PROP("TonePortUX1",   "TonePort UX1",     PCM),
+	L6PROP("TonePortUX2",   "TonePort UX2",     PCM),
+	L6PROP("Variax",        "Variax Workbench", CONTROL),
 };
 /* *INDENT-ON* */
 
