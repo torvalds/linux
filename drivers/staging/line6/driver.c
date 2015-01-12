@@ -624,7 +624,7 @@ static void line6_destruct(struct usb_interface *interface)
 static int line6_probe(struct usb_interface *interface,
 		       const struct usb_device_id *id)
 {
-	int devtype;
+	enum line6_device_type devtype;
 	struct usb_device *usbdev;
 	struct usb_line6 *line6;
 	const struct line6_properties *properties;
@@ -646,20 +646,7 @@ static int line6_probe(struct usb_interface *interface,
 		goto err_put;
 	}
 
-	/* check vendor and product id */
-	for (devtype = ARRAY_SIZE(line6_id_table) - 1; devtype--;) {
-		u16 idVendor = le16_to_cpu(usbdev->descriptor.idVendor);
-		u16 idProduct = le16_to_cpu(usbdev->descriptor.idProduct);
-
-		if (idVendor == line6_id_table[devtype].idVendor &&
-		    idProduct == line6_id_table[devtype].idProduct)
-			break;
-	}
-
-	if (devtype < 0) {
-		ret = -ENODEV;
-		goto err_put;
-	}
+	devtype = id->driver_info;
 
 	/* initialize device info: */
 	properties = &line6_properties_table[devtype];
