@@ -657,13 +657,59 @@ static void pcl816_reset(struct comedi_device *dev)
 	outb(0, dev->iobase + PCL816_DO_DI_MSB_REG);
 }
 
+static int pcl816_alloc_dma(struct comedi_device *dev,
+			    unsigned int irq_num, unsigned int dma_chan)
+{
+	struct pcl816_private *devpriv = dev->private;
+	int i;
+
+	/*
+	 * Only IRQs 2-7 are valid.
+	 * Only DMA channels 3 and 1 are valid.
+	 *
+	 * Both must be valid for async command support.
+	 */
+	if (!(irq_num >= 2 && irq_num <= 7) ||
+	    !(dma_chan == 3 || dma_chan == 1))
+		return 0;
+
+	/*
+	 * Request the IRQ and DMA channels and allocate the DMA buffers.
+	 * If the requests or allocations fail async command supprt will
+	 * not be available.
+	 */
+	if (request_irq(irq_num, pcl816_interrupt, 0, dev->board_name, dev))
+		return 0;
+	if (request_dma(dma_chan, dev->board_name)) {
+		free_irq(irq_num, dev);
+		return 0;
+	}
+
+	dev->irq = irq_num;
+	devpriv->dma = dma_chan;
+
+	devpriv->dmapages = 2;	/* we need 16KB */
+	devpriv->hwdmasize = (1 << devpriv->dmapages) * PAGE_SIZE;
+
+	for (i = 0; i < 2; i++) {
+		unsigned long dmabuf;
+
+		dmabuf = __get_dma_pages(GFP_KERNEL, devpriv->dmapages);
+		if (!dmabuf)
+			return -ENOMEM;
+
+		devpriv->dmabuf[i] = dmabuf;
+		devpriv->hwdmaptr[i] = virt_to_bus((void *)dmabuf);
+	}
+	return 0;
+}
+
 static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcl816_board *board = dev->board_ptr;
 	struct pcl816_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
-	int i;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
@@ -673,39 +719,14 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	/* we can use IRQ 2-7 for async command support */
-	if (it->options[1] >= 2 && it->options[1] <= 7) {
-		ret = request_irq(it->options[1], pcl816_interrupt, 0,
-				  dev->board_name, dev);
-		if (ret == 0)
-			dev->irq = it->options[1];
-	}
-
-	/* we need an IRQ to do DMA on channel 3 or 1 */
-	if (dev->irq && (it->options[2] == 3 || it->options[2] == 1)) {
-		ret = request_dma(it->options[2], dev->board_name);
-		if (ret) {
-			dev_err(dev->class_dev,
-				"unable to request DMA channel %d\n",
-				it->options[2]);
-			return -EBUSY;
-		}
-		devpriv->dma = it->options[2];
-
-		devpriv->dmapages = 2;	/* we need 16KB */
-		devpriv->hwdmasize = (1 << devpriv->dmapages) * PAGE_SIZE;
-
-		for (i = 0; i < 2; i++) {
-			unsigned long dmabuf;
-
-			dmabuf = __get_dma_pages(GFP_KERNEL, devpriv->dmapages);
-			if (!dmabuf)
-				return -ENOMEM;
-
-			devpriv->dmabuf[i] = dmabuf;
-			devpriv->hwdmaptr[i] = virt_to_bus((void *)dmabuf);
-		}
-	}
+	/*
+	 * An IRQ and DMA are required to support async commands.
+	 * pcl816_alloc_dma() will only fail if the DMA buffers
+	 * cannot be allocated.
+	 */
+	ret = pcl816_alloc_dma(dev, it->options[1], it->options[2]);
+	if (ret)
+		return ret;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
@@ -718,7 +739,7 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata	= board->ai_maxdata;
 	s->range_table	= &range_pcl816;
 	s->insn_read	= pcl816_ai_insn_read;
-	if (devpriv->dma) {
+	if (dev->irq) {
 		dev->read_subdev = s;
 		s->subdev_flags	|= SDF_CMD_READ;
 		s->len_chanlist	= board->ai_chanlist;
