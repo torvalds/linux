@@ -61,92 +61,110 @@ static const struct line6_properties line6_properties_table[] = {
 	[LINE6_BASSPODXT] = {
 		.id = "BassPODxt",
 		.name = "BassPODxt",
-		.capabilities = LINE6_CAP_CTRL_PCM_HW,
+		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_PCM
+				| LINE6_CAP_HWMON,
 	},
 	[LINE6_BASSPODXTLIVE] = {
 		.id = "BassPODxtLive",
 		.name = "BassPODxt Live",
-		.capabilities = LINE6_CAP_CTRL_PCM_HW,
+		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_PCM
+				| LINE6_CAP_HWMON,
 	},
 	[LINE6_BASSPODXTPRO] = {
 		.id = "BassPODxtPro",
 		.name = "BassPODxt Pro",
-		.capabilities = LINE6_CAP_CTRL_PCM_HW,
+		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_PCM
+				| LINE6_CAP_HWMON,
 	},
 	[LINE6_GUITARPORT] = {
 		.id = "GuitarPort",
 		.name = "GuitarPort",
-		.capabilities = LINE6_CAP_PCM,
+		.capabilities	= LINE6_CAP_PCM,
 	},
 	[LINE6_POCKETPOD] = {
 		.id = "PocketPOD",
 		.name = "Pocket POD",
-		.capabilities = LINE6_CAP_CONTROL,
+		.capabilities	= LINE6_CAP_CONTROL,
 	},
 	[LINE6_PODHD300] = {
 		.id = "PODHD300",
 		.name = "POD HD300",
-		.capabilities = LINE6_CAP_CTRL_PCM_HW,
+		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_PCM
+				| LINE6_CAP_HWMON,
 	},
 	[LINE6_PODHD400] = {
 		.id = "PODHD400",
 		.name = "POD HD400",
-		.capabilities = LINE6_CAP_CTRL_PCM_HW,
+		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_PCM
+				| LINE6_CAP_HWMON,
 	},
 	[LINE6_PODHD500] = {
 		.id = "PODHD500",
 		.name = "POD HD500",
-		.capabilities = LINE6_CAP_CTRL_PCM_HW,
+		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_PCM
+				| LINE6_CAP_HWMON,
 	},
 	[LINE6_PODSTUDIO_GX] = {
 		.id = "PODStudioGX",
 		.name = "POD Studio GX",
-		.capabilities = LINE6_CAP_PCM,
+		.capabilities	= LINE6_CAP_PCM,
 	},
 	[LINE6_PODSTUDIO_UX1] = {
 		.id = "PODStudioUX1",
 		.name = "POD Studio UX1",
-		.capabilities = LINE6_CAP_PCM,
+		.capabilities	= LINE6_CAP_PCM,
 	},
 	[LINE6_PODSTUDIO_UX2] = {
 		.id = "PODStudioUX2",
 		.name = "POD Studio UX2",
-		.capabilities = LINE6_CAP_PCM,
+		.capabilities	= LINE6_CAP_PCM,
 	},
 	[LINE6_PODXT] = {
 		.id = "PODxt",
 		.name = "PODxt",
-		.capabilities = LINE6_CAP_CTRL_PCM_HW,
+		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_PCM
+				| LINE6_CAP_HWMON,
 	},
 	[LINE6_PODXTLIVE] = {
 		.id = "PODxtLive",
 		.name = "PODxt Live",
-		.capabilities = LINE6_CAP_CTRL_PCM_HW,
+		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_PCM
+				| LINE6_CAP_HWMON,
 	},
 	[LINE6_PODXTPRO] = {
 		.id = "PODxtPro",
 		.name = "PODxt Pro",
-		.capabilities = LINE6_CAP_CTRL_PCM_HW,
+		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_PCM
+				| LINE6_CAP_HWMON,
 	},
 	[LINE6_TONEPORT_GX] = {
 		.id = "TonePortGX",
 		.name = "TonePort GX",
-		.capabilities = LINE6_CAP_PCM,
+		.capabilities	= LINE6_CAP_PCM,
 	},
 	[LINE6_TONEPORT_UX1] = {
 		.id = "TonePortUX1",
 		.name = "TonePort UX1",
-		.capabilities = LINE6_CAP_PCM,
+		.capabilities	= LINE6_CAP_PCM,
 	},
 	[LINE6_TONEPORT_UX2] = {
 		.id = "TonePortUX2",
 		.name = "TonePort UX2",
-		.capabilities = LINE6_CAP_PCM,
+		.capabilities	= LINE6_CAP_PCM,
 	},
 	[LINE6_VARIAX] = {
 		.id = "Variax",
 		.name = "Variax Workbench",
-		.capabilities = LINE6_CAP_CONTROL,
+		.capabilities	= LINE6_CAP_CONTROL,
 	}
 };
 

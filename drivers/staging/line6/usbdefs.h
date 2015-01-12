@@ -21,10 +21,6 @@
 /* device support hardware monitoring */
 #define LINE6_CAP_HWMON (1 << 2)
 
-#define LINE6_CAP_CTRL_PCM_HW	(LINE6_CAP_CONTROL |	\
-					 LINE6_CAP_PCM |	\
-					 LINE6_CAP_HWMON)
-
 #define LINE6_FALLBACK_INTERVAL 10
 #define LINE6_FALLBACK_MAXPACKETSIZE 16
 
