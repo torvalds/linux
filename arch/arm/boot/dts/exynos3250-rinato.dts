@@ -134,6 +134,17 @@
 	status = "okay";
 };
 
+&fimd {
+	status = "okay";
+
+	i80-if-timings {
+		cs-setup = <0>;
+		wr-setup = <0>;
+		wr-act = <1>;
+		wr-hold = <0>;
+	};
+};
+
 &i2c_0 {
 	#address-cells = <1>;
 	#size-cells = <0>;
