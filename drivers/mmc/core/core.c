@@ -2273,50 +2273,25 @@ static void mmc_hw_reset_for_init(struct mmc_host *host)
 	mmc_host_clk_release(host);
 }
 
-int mmc_can_reset(struct mmc_card *card)
-{
-	u8 rst_n_function;
-
-	if (!mmc_card_mmc(card))
-		return 0;
-	rst_n_function = card->ext_csd.rst_n_function;
-	if ((rst_n_function & EXT_CSD_RST_N_EN_MASK) != EXT_CSD_RST_N_ENABLED)
-		return 0;
-	return 1;
-}
-EXPORT_SYMBOL(mmc_can_reset);
-
 int mmc_hw_reset(struct mmc_host *host)
 {
-	struct mmc_card *card = host->card;
-	u32 status;
+	int ret;
 
-	if (!(host->caps & MMC_CAP_HW_RESET) || !host->ops->hw_reset)
-		return -EOPNOTSUPP;
-
-	if (!card)
+	if (!host->card)
 		return -EINVAL;
 
-	if (!mmc_can_reset(card))
+	mmc_bus_get(host);
+	if (!host->bus_ops || host->bus_dead || !host->bus_ops->reset) {
+		mmc_bus_put(host);
 		return -EOPNOTSUPP;
-
-	mmc_host_clk_hold(host);
-	mmc_set_clock(host, host->f_init);
-
-	host->ops->hw_reset(host);
-
-	/* If the reset has happened, then a status command will fail */
-	if (!mmc_send_status(card, &status)) {
-		mmc_host_clk_release(host);
-		return -ENOSYS;
 	}
 
-	/* Set initial state and call mmc_set_ios */
-	mmc_set_initial_state(host);
+	ret = host->bus_ops->reset(host);
+	mmc_bus_put(host);
 
-	mmc_host_clk_release(host);
+	pr_warn("%s: tried to reset card\n", mmc_hostname(host));
 
-	return host->bus_ops->power_restore(host);
+	return ret;
 }
 EXPORT_SYMBOL(mmc_hw_reset);
 
