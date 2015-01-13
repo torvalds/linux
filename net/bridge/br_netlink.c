@@ -105,7 +105,7 @@ static int br_fill_ifvlaninfo_compressed(struct sk_buff *skb,
 					 const struct net_port_vlans *pv)
 {
 	u16 vid_range_start = 0, vid_range_end = 0;
-	u16 vid_range_flags;
+	u16 vid_range_flags = 0;
 	u16 pvid, vid, flags;
 	int err = 0;
 
@@ -142,12 +142,14 @@ initvars:
 		vid_range_flags = flags;
 	}
 
-	/* Call it once more to send any left over vlans */
-	err = br_fill_ifvlaninfo_range(skb, vid_range_start,
-				       vid_range_end,
-				       vid_range_flags);
-	if (err)
-		return err;
+	if (vid_range_start != 0) {
+		/* Call it once more to send any left over vlans */
+		err = br_fill_ifvlaninfo_range(skb, vid_range_start,
+					       vid_range_end,
+					       vid_range_flags);
+		if (err)
+			return err;
+	}
 
 	return 0;
 }
