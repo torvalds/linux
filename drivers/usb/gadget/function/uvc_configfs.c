@@ -43,7 +43,7 @@ struct uvcg_control_header {
 	unsigned			linked;
 };
 
-struct uvcg_control_header *to_uvcg_control_header(struct config_item *item)
+static struct uvcg_control_header *to_uvcg_control_header(struct config_item *item)
 {
 	return container_of(item, struct uvcg_control_header, item);
 }
@@ -135,7 +135,7 @@ static struct configfs_attribute *uvcg_control_header_attrs[] = {
 	NULL,
 };
 
-struct config_item_type uvcg_control_header_type = {
+static struct config_item_type uvcg_control_header_type = {
 	.ct_item_ops	= &uvcg_control_header_item_ops,
 	.ct_attrs	= uvcg_control_header_attrs,
 	.ct_owner	= THIS_MODULE,
@@ -161,7 +161,7 @@ static struct config_item *uvcg_control_header_make(struct config_group *group,
 	return &h->item;
 }
 
-void uvcg_control_header_drop(struct config_group *group,
+static void uvcg_control_header_drop(struct config_group *group,
 			      struct config_item *item)
 {
 	struct uvcg_control_header *h = to_uvcg_control_header(item);
@@ -718,7 +718,7 @@ struct uvcg_format {
 	__u8			bmaControls[UVCG_STREAMING_CONTROL_SIZE];
 };
 
-struct uvcg_format *to_uvcg_format(struct config_item *item)
+static struct uvcg_format *to_uvcg_format(struct config_item *item)
 {
 	return container_of(to_config_group(item), struct uvcg_format, group);
 }
@@ -795,7 +795,7 @@ struct uvcg_streaming_header {
 	unsigned					num_fmt;
 };
 
-struct uvcg_streaming_header *to_uvcg_streaming_header(struct config_item *item)
+static struct uvcg_streaming_header *to_uvcg_streaming_header(struct config_item *item)
 {
 	return container_of(item, struct uvcg_streaming_header, item);
 }
@@ -947,7 +947,7 @@ static struct configfs_attribute *uvcg_streaming_header_attrs[] = {
 	NULL,
 };
 
-struct config_item_type uvcg_streaming_header_type = {
+static struct config_item_type uvcg_streaming_header_type = {
 	.ct_item_ops	= &uvcg_streaming_header_item_ops,
 	.ct_attrs	= uvcg_streaming_header_attrs,
 	.ct_owner	= THIS_MODULE,
@@ -973,7 +973,7 @@ static struct config_item
 	return &h->item;
 }
 
-void uvcg_streaming_header_drop(struct config_group *group,
+static void uvcg_streaming_header_drop(struct config_group *group,
 			      struct config_item *item)
 {
 	struct uvcg_streaming_header *h = to_uvcg_streaming_header(item);
@@ -1017,7 +1017,7 @@ struct uvcg_frame {
 	struct config_item	item;
 };
 
-struct uvcg_frame *to_uvcg_frame(struct config_item *item)
+static struct uvcg_frame *to_uvcg_frame(struct config_item *item)
 {
 	return container_of(item, struct uvcg_frame, item);
 }
@@ -1262,7 +1262,7 @@ static struct configfs_attribute *uvcg_frame_attrs[] = {
 	NULL,
 };
 
-struct config_item_type uvcg_frame_type = {
+static struct config_item_type uvcg_frame_type = {
 	.ct_item_ops	= &uvcg_frame_item_ops,
 	.ct_attrs	= uvcg_frame_attrs,
 	.ct_owner	= THIS_MODULE,
@@ -1312,7 +1312,7 @@ static struct config_item *uvcg_frame_make(struct config_group *group,
 	return &h->item;
 }
 
-void uvcg_frame_drop(struct config_group *group, struct config_item *item)
+static void uvcg_frame_drop(struct config_group *group, struct config_item *item)
 {
 	struct uvcg_frame *h = to_uvcg_frame(item);
 	struct uvcg_format *fmt;
@@ -1335,7 +1335,7 @@ struct uvcg_uncompressed {
 	struct uvc_format_uncompressed	desc;
 };
 
-struct uvcg_uncompressed *to_uvcg_uncompressed(struct config_item *item)
+static struct uvcg_uncompressed *to_uvcg_uncompressed(struct config_item *item)
 {
 	return container_of(
 		container_of(to_config_group(item), struct uvcg_format, group),
@@ -1545,7 +1545,7 @@ static struct configfs_attribute *uvcg_uncompressed_attrs[] = {
 	NULL,
 };
 
-struct config_item_type uvcg_uncompressed_type = {
+static struct config_item_type uvcg_uncompressed_type = {
 	.ct_item_ops	= &uvcg_uncompressed_item_ops,
 	.ct_group_ops	= &uvcg_uncompressed_group_ops,
 	.ct_attrs	= uvcg_uncompressed_attrs,
@@ -1583,7 +1583,7 @@ static struct config_group *uvcg_uncompressed_make(struct config_group *group,
 	return &h->fmt.group;
 }
 
-void uvcg_uncompressed_drop(struct config_group *group,
+static void uvcg_uncompressed_drop(struct config_group *group,
 			    struct config_item *item)
 {
 	struct uvcg_uncompressed *h = to_uvcg_uncompressed(item);
@@ -1607,7 +1607,7 @@ struct uvcg_mjpeg {
 	struct uvc_format_mjpeg		desc;
 };
 
-struct uvcg_mjpeg *to_uvcg_mjpeg(struct config_item *item)
+static struct uvcg_mjpeg *to_uvcg_mjpeg(struct config_item *item)
 {
 	return container_of(
 		container_of(to_config_group(item), struct uvcg_format, group),
@@ -1758,7 +1758,7 @@ static struct configfs_attribute *uvcg_mjpeg_attrs[] = {
 	NULL,
 };
 
-struct config_item_type uvcg_mjpeg_type = {
+static struct config_item_type uvcg_mjpeg_type = {
 	.ct_item_ops	= &uvcg_mjpeg_item_ops,
 	.ct_group_ops	= &uvcg_mjpeg_group_ops,
 	.ct_attrs	= uvcg_mjpeg_attrs,
@@ -1790,7 +1790,7 @@ static struct config_group *uvcg_mjpeg_make(struct config_group *group,
 	return &h->fmt.group;
 }
 
-void uvcg_mjpeg_drop(struct config_group *group,
+static void uvcg_mjpeg_drop(struct config_group *group,
 			    struct config_item *item)
 {
 	struct uvcg_mjpeg *h = to_uvcg_mjpeg(item);
