@@ -422,6 +422,21 @@ static void del_vq(struct virtio_pci_vq_info *info)
 	free_pages_exact(info->queue, vring_pci_size(info->num));
 }
 
+static const struct virtio_config_ops virtio_pci_config_nodev_ops = {
+	.get		= NULL,
+	.set		= NULL,
+	.generation	= vp_generation,
+	.get_status	= vp_get_status,
+	.set_status	= vp_set_status,
+	.reset		= vp_reset,
+	.find_vqs	= vp_modern_find_vqs,
+	.del_vqs	= vp_del_vqs,
+	.get_features	= vp_get_features,
+	.finalize_features = vp_finalize_features,
+	.bus_name	= vp_bus_name,
+	.set_vq_affinity = vp_set_vq_affinity,
+};
+
 static const struct virtio_config_ops virtio_pci_config_ops = {
 	.get		= vp_get,
 	.set		= vp_set,
@@ -652,9 +667,11 @@ int virtio_pci_modern_probe(struct virtio_pci_device *vp_dev)
 						&vp_dev->device_len);
 		if (!vp_dev->device)
 			goto err_map_device;
-	}
 
-	vp_dev->vdev.config = &virtio_pci_config_ops;
+		vp_dev->vdev.config = &virtio_pci_config_ops;
+	} else {
+		vp_dev->vdev.config = &virtio_pci_config_nodev_ops;
+	}
 
 	vp_dev->config_vector = vp_config_vector;
 	vp_dev->setup_vq = setup_vq;
