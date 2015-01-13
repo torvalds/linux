@@ -156,15 +156,6 @@ static int sh_mobile_sdhi_multi_io_quirk(struct mmc_card *card,
 	return blk_size;
 }
 
-static void sh_mobile_sdhi_cd_wakeup(const struct platform_device *pdev)
-{
-	mmc_detect_change(platform_get_drvdata(pdev), msecs_to_jiffies(100));
-}
-
-static const struct sh_mobile_sdhi_ops sdhi_ops = {
-	.cd_wakeup = sh_mobile_sdhi_cd_wakeup,
-};
-
 static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
@@ -192,19 +183,11 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	mmc_data = &priv->mmc_data;
 	dma_priv = &priv->dma_priv;
 
-	if (p) {
-		if (p->init) {
-			ret = p->init(pdev, &sdhi_ops);
-			if (ret)
-				return ret;
-		}
-	}
-
 	priv->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk)) {
 		ret = PTR_ERR(priv->clk);
 		dev_err(&pdev->dev, "cannot get clock: %d\n", ret);
-		goto eclkget;
+		goto eprobe;
 	}
 
 	host = tmio_mmc_host_alloc(pdev);
@@ -359,9 +342,6 @@ eirq:
 efree:
 	tmio_mmc_host_free(host);
 eprobe:
-eclkget:
-	if (p && p->cleanup)
-		p->cleanup(pdev);
 	return ret;
 }
 
@@ -369,12 +349,8 @@ static int sh_mobile_sdhi_remove(struct platform_device *pdev)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	struct tmio_mmc_host *host = mmc_priv(mmc);
-	struct sh_mobile_sdhi_info *p = pdev->dev.platform_data;
 
 	tmio_mmc_host_remove(host);
-
-	if (p && p->cleanup)
-		p->cleanup(pdev);
 
 	return 0;
 }
