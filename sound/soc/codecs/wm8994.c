@@ -249,7 +249,8 @@ static int configure_clock(struct snd_soc_codec *codec)
 static int check_clk_sys(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink)
 {
-	int reg = snd_soc_read(source->codec, WM8994_CLOCKING_1);
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(source->dapm);
+	int reg = snd_soc_read(codec, WM8994_CLOCKING_1);
 	const char *clk;
 
 	/* Check what we're currently using for CLK_SYS */
@@ -806,7 +807,7 @@ static void active_dereference(struct snd_soc_codec *codec)
 static int clk_sys_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 
 	switch (event) {
@@ -981,7 +982,7 @@ static void vmid_dereference(struct snd_soc_codec *codec)
 static int vmid_event(struct snd_soc_dapm_widget *w,
 		      struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -1037,7 +1038,7 @@ static bool wm8994_check_class_w_digital(struct snd_soc_codec *codec)
 static int aif1clk_ev(struct snd_soc_dapm_widget *w,
 		      struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	struct wm8994 *control = wm8994->wm8994;
 	int mask = WM8994_AIF1DAC1L_ENA | WM8994_AIF1DAC1R_ENA;
@@ -1135,7 +1136,7 @@ static int aif1clk_ev(struct snd_soc_dapm_widget *w,
 static int aif2clk_ev(struct snd_soc_dapm_widget *w,
 		      struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	int i;
 	int dac;
 	int adc;
@@ -1220,7 +1221,7 @@ static int aif2clk_ev(struct snd_soc_dapm_widget *w,
 static int aif1clk_late_ev(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 
 	switch (event) {
@@ -1238,7 +1239,7 @@ static int aif1clk_late_ev(struct snd_soc_dapm_widget *w,
 static int aif2clk_late_ev(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 
 	switch (event) {
@@ -1256,7 +1257,7 @@ static int aif2clk_late_ev(struct snd_soc_dapm_widget *w,
 static int late_enable_ev(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 
 	switch (event) {
@@ -1289,7 +1290,7 @@ static int late_enable_ev(struct snd_soc_dapm_widget *w,
 static int late_disable_ev(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 
 	switch (event) {
@@ -1331,7 +1332,7 @@ static int micbias_ev(struct snd_soc_dapm_widget *w,
 static int dac_ev(struct snd_soc_dapm_widget *w,
 		  struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	unsigned int mask = 1 << w->shift;
 
 	snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_5,
@@ -1372,7 +1373,7 @@ SOC_DAPM_SINGLE("DAC1 Switch", WM8994_SPEAKER_MIXER, 0, 1, 0),
 static int post_ev(struct snd_soc_dapm_widget *w,
 	    struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	dev_dbg(codec->dev, "SRC status: %x\n",
 		snd_soc_read(codec,
 			     WM8994_RATE_STATUS));
