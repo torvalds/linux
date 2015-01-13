@@ -452,6 +452,19 @@ static const struct comedi_lrange range_ao_2 = {
 };
 */
 
+static void das1800_isadma_program(struct das1800_dma_desc *dma)
+{
+	unsigned long flags;
+
+	flags = claim_dma_lock();
+	clear_dma_ff(dma->chan);
+	set_dma_mode(dma->chan, DMA_MODE_READ);
+	set_dma_addr(dma->chan, dma->hw_addr);
+	set_dma_count(dma->chan, dma->size);
+	enable_dma(dma->chan);
+	release_dma_lock(flags);
+}
+
 static inline uint16_t munge_bipolar_sample(const struct comedi_device *dev,
 					    uint16_t sample)
 {
@@ -571,11 +584,10 @@ static void das1800_handle_dma(struct comedi_device *dev,
 
 	flags = claim_dma_lock();
 	das1800_flush_dma_channel(dev, s, dma);
-	/*  re-enable  dma channel */
-	set_dma_addr(dma->chan, dma->hw_addr);
-	set_dma_count(dma->chan, dma->size);
-	enable_dma(dma->chan);
 	release_dma_lock(flags);
+
+	/* re-enable dma channel */
+	das1800_isadma_program(dma);
 
 	if (status & DMATC) {
 		/*  clear DMATC interrupt bit */
@@ -998,8 +1010,6 @@ static void setup_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
 {
 	struct das1800_private *devpriv = dev->private;
 	struct das1800_dma_desc *dma = &devpriv->dma_desc[0];
-	unsigned long lock_flags;
-	const int dual_dma = devpriv->irq_dma_bits & DMA_DUAL;
 	unsigned int bytes;
 
 	if ((devpriv->irq_dma_bits & DMA_ENABLED) == 0)
@@ -1011,29 +1021,14 @@ static void setup_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
 	bytes = suggest_transfer_size(cmd);
 
 	dma->size = bytes;
-	lock_flags = claim_dma_lock();
-	disable_dma(dma->chan);
-	/* clear flip-flop to make sure 2-byte registers for
-	 * count and address get set correctly */
-	clear_dma_ff(dma->chan);
-	set_dma_addr(dma->chan, dma->hw_addr);
-	/*  set appropriate size of transfer */
-	set_dma_count(dma->chan, dma->size);
-	enable_dma(dma->chan);
-	/*  set up dual dma if appropriate */
-	if (dual_dma) {
+	das1800_isadma_program(dma);
+
+	/* set up dual dma if appropriate */
+	if (devpriv->irq_dma_bits & DMA_DUAL) {
 		dma = &devpriv->dma_desc[1];
 		dma->size = bytes;
-		disable_dma(dma->chan);
-		/* clear flip-flop to make sure 2-byte registers for
-		 * count and address get set correctly */
-		clear_dma_ff(dma->chan);
-		set_dma_addr(dma->chan, dma->hw_addr);
-		/*  set appropriate size of transfer */
-		set_dma_count(dma->chan, dma->size);
-		enable_dma(dma->chan);
+		das1800_isadma_program(dma);
 	}
-	release_dma_lock(lock_flags);
 }
 
 /* programs channel/gain list into card */
@@ -1299,7 +1294,6 @@ static int das1800_init_dma(struct comedi_device *dev,
 
 		flags = claim_dma_lock();
 		disable_dma(dma->chan);
-		set_dma_mode(dma->chan, DMA_MODE_READ);
 		release_dma_lock(flags);
 	}
 
