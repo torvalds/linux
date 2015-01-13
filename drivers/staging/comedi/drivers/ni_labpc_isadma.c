@@ -31,6 +31,19 @@
 /* size in bytes of dma buffer */
 #define LABPC_ISADMA_BUFFER_SIZE	0xff00
 
+static void labpc_isadma_program(struct labpc_dma_desc *dma)
+{
+	unsigned long flags;
+
+	flags = claim_dma_lock();
+	clear_dma_ff(dma->chan);
+	set_dma_mode(dma->chan, DMA_MODE_READ);
+	set_dma_addr(dma->chan, dma->hw_addr);
+	set_dma_count(dma->chan, dma->size);
+	enable_dma(dma->chan);
+	release_dma_lock(flags);
+}
+
 static unsigned int labpc_isadma_disable(struct labpc_dma_desc *dma)
 {
 	unsigned long flags;
@@ -77,22 +90,15 @@ void labpc_setup_dma(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct labpc_dma_desc *dma = &devpriv->dma_desc;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int sample_size = comedi_bytes_per_sample(s);
-	unsigned long irq_flags;
 
-	irq_flags = claim_dma_lock();
-	/* clear flip-flop to make sure 2-byte registers for
-	 * count and address get set correctly */
-	clear_dma_ff(dma->chan);
-	set_dma_mode(dma->chan, DMA_MODE_READ);
-	set_dma_addr(dma->chan, dma->hw_addr);
 	/* set appropriate size of transfer */
 	dma->size = labpc_suggest_transfer_size(dev, s);
 	if (cmd->stop_src == TRIG_COUNT &&
 	    devpriv->count * sample_size < dma->size)
 		dma->size = devpriv->count * sample_size;
-	set_dma_count(dma->chan, dma->size);
-	enable_dma(dma->chan);
-	release_dma_lock(irq_flags);
+
+	labpc_isadma_program(dma);
+
 	/* set CMD3 bits for caller to enable DMA and interrupt */
 	devpriv->cmd3 |= (CMD3_DMAEN | CMD3_DMATCINTEN);
 }
@@ -145,18 +151,11 @@ static void handle_isa_dma(struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
 	struct labpc_dma_desc *dma = &devpriv->dma_desc;
-	unsigned long flags;
 
 	labpc_drain_dma(dev);
 
-	if (dma->size) {
-		flags = claim_dma_lock();
-		set_dma_mode(dma->chan, DMA_MODE_READ);
-		set_dma_addr(dma->chan, dma->hw_addr);
-		set_dma_count(dma->chan, dma->size);
-		enable_dma(dma->chan);
-		release_dma_lock(flags);
-	}
+	if (dma->size)
+		labpc_isadma_program(dma);
 
 	/* clear dma tc interrupt */
 	devpriv->write_byte(dev, 0x1, DMATC_CLEAR_REG);
