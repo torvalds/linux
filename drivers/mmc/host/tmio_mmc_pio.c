@@ -1004,10 +1004,9 @@ static int tmio_multi_io_quirk(struct mmc_card *card,
 			       unsigned int direction, int blk_size)
 {
 	struct tmio_mmc_host *host = mmc_priv(card->host);
-	struct tmio_mmc_data *pdata = host->pdata;
 
-	if (pdata->multi_io_quirk)
-		return pdata->multi_io_quirk(card, direction, blk_size);
+	if (host->multi_io_quirk)
+		return host->multi_io_quirk(card, direction, blk_size);
 
 	return blk_size;
 }

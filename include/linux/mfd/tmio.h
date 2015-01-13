@@ -125,9 +125,6 @@ struct tmio_mmc_data {
 	unsigned int			cd_gpio;
 	void (*set_pwr)(struct platform_device *host, int state);
 	void (*set_clk_div)(struct platform_device *host, int state);
-
-	int (*multi_io_quirk)(struct mmc_card *card,
-			      unsigned int direction, int blk_size);
 };
 
 /*

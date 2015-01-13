@@ -217,9 +217,9 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	host->write16_hook	= sh_mobile_sdhi_write16_hook;
 	host->clk_enable	= sh_mobile_sdhi_clk_enable;
 	host->clk_disable	= sh_mobile_sdhi_clk_disable;
+	host->multi_io_quirk	= sh_mobile_sdhi_multi_io_quirk;
 
 	mmc_data->capabilities = MMC_CAP_MMC_HIGHSPEED;
-	mmc_data->multi_io_quirk = sh_mobile_sdhi_multi_io_quirk;
 	if (p) {
 		mmc_data->flags = p->tmio_flags;
 		mmc_data->ocr_mask = p->tmio_ocr_mask;
