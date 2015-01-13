@@ -77,6 +77,11 @@ Input clocks for peric1 clock controller:
 	- sclk_uart1
 	- sclk_uart2
 	- sclk_uart3
+	- sclk_spi0
+	- sclk_spi1
+	- sclk_spi2
+	- sclk_spi3
+	- sclk_spi4
 
 Input clocks for peris clock controller:
 	- fin_pll

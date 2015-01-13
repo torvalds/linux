@@ -28,7 +28,12 @@
 #define CLK_SCLK_UART1			4
 #define CLK_SCLK_UART2			5
 #define CLK_SCLK_UART3			6
-#define TOP0_NR_CLK			7
+#define CLK_SCLK_SPI0			7
+#define CLK_SCLK_SPI1			8
+#define CLK_SCLK_SPI2			9
+#define CLK_SCLK_SPI3			10
+#define CLK_SCLK_SPI4			11
+#define TOP0_NR_CLK			12
 
 /* TOP1 */
 #define DOUT_ACLK_FSYS1_200		1
@@ -72,7 +77,17 @@
 #define PCLK_HSI2C6			9
 #define PCLK_HSI2C7			10
 #define PCLK_HSI2C8			11
-#define PERIC1_NR_CLK			12
+#define PCLK_SPI0			12
+#define PCLK_SPI1			13
+#define PCLK_SPI2			14
+#define PCLK_SPI3			15
+#define PCLK_SPI4			16
+#define SCLK_SPI0			17
+#define SCLK_SPI1			18
+#define SCLK_SPI2			19
+#define SCLK_SPI3			20
+#define SCLK_SPI4			21
+#define PERIC1_NR_CLK			22
 
 /* PERIS */
 #define PCLK_CHIPID			1
