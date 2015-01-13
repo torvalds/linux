@@ -125,7 +125,6 @@ nv50_pioc_create(struct nvif_object *disp, const u32 *oclass, u8 head,
 
 struct nv50_curs {
 	struct nv50_pioc base;
-	struct nouveau_bo *image;
 };
 
 static int
@@ -924,29 +923,29 @@ static void
 nv50_crtc_cursor_show(struct nouveau_crtc *nv_crtc)
 {
 	struct nv50_mast *mast = nv50_mast(nv_crtc->base.dev);
-	struct nv50_curs *curs = nv50_curs(&nv_crtc->base);
 	u32 *push = evo_wait(mast, 16);
 	if (push) {
 		if (nv50_vers(mast) < G82_DISP_CORE_CHANNEL_DMA) {
 			evo_mthd(push, 0x0880 + (nv_crtc->index * 0x400), 2);
 			evo_data(push, 0x85000000);
-			evo_data(push, curs->image->bo.offset >> 8);
+			evo_data(push, nv_crtc->cursor.nvbo->bo.offset >> 8);
 		} else
 		if (nv50_vers(mast) < GF110_DISP_CORE_CHANNEL_DMA) {
 			evo_mthd(push, 0x0880 + (nv_crtc->index * 0x400), 2);
 			evo_data(push, 0x85000000);
-			evo_data(push, curs->image->bo.offset >> 8);
+			evo_data(push, nv_crtc->cursor.nvbo->bo.offset >> 8);
 			evo_mthd(push, 0x089c + (nv_crtc->index * 0x400), 1);
 			evo_data(push, mast->base.vram.handle);
 		} else {
 			evo_mthd(push, 0x0480 + (nv_crtc->index * 0x300), 2);
 			evo_data(push, 0x85000000);
-			evo_data(push, curs->image->bo.offset >> 8);
+			evo_data(push, nv_crtc->cursor.nvbo->bo.offset >> 8);
 			evo_mthd(push, 0x048c + (nv_crtc->index * 0x300), 1);
 			evo_data(push, mast->base.vram.handle);
 		}
 		evo_kick(push, mast);
 	}
+	nv_crtc->cursor.visible = true;
 }
 
 static void
@@ -972,15 +971,15 @@ nv50_crtc_cursor_hide(struct nouveau_crtc *nv_crtc)
 		}
 		evo_kick(push, mast);
 	}
+	nv_crtc->cursor.visible = false;
 }
 
 static void
 nv50_crtc_cursor_show_hide(struct nouveau_crtc *nv_crtc, bool show, bool update)
 {
 	struct nv50_mast *mast = nv50_mast(nv_crtc->base.dev);
-	struct nv50_curs *curs = nv50_curs(&nv_crtc->base);
 
-	if (show && curs->image)
+	if (show && nv_crtc->cursor.nvbo)
 		nv50_crtc_cursor_show(nv_crtc);
 	else
 		nv50_crtc_cursor_hide(nv_crtc);
@@ -1280,7 +1279,6 @@ nv50_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 		     uint32_t handle, uint32_t width, uint32_t height)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	struct nv50_curs *curs = nv50_curs(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct drm_gem_object *gem = NULL;
 	struct nouveau_bo *nvbo = NULL;
@@ -1299,9 +1297,9 @@ nv50_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 	}
 
 	if (ret == 0) {
-		if (curs->image)
-			nouveau_bo_unpin(curs->image);
-		nouveau_bo_ref(nvbo, &curs->image);
+		if (nv_crtc->cursor.nvbo)
+			nouveau_bo_unpin(nv_crtc->cursor.nvbo);
+		nouveau_bo_ref(nvbo, &nv_crtc->cursor.nvbo);
 	}
 	drm_gem_object_unreference_unlocked(gem);
 
@@ -1312,10 +1310,14 @@ nv50_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 static int
 nv50_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 {
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nv50_curs *curs = nv50_curs(crtc);
 	struct nv50_chan *chan = nv50_chan(curs);
 	nvif_wr32(&chan->user, 0x0084, (y << 16) | (x & 0xffff));
 	nvif_wr32(&chan->user, 0x0080, 0x00000000);
+
+	nv_crtc->cursor_saved_x = x;
+	nv_crtc->cursor_saved_y = y;
 	return 0;
 }
 
@@ -1334,6 +1336,14 @@ nv50_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
 	}
 
 	nv50_crtc_lut_load(crtc);
+}
+
+static void
+nv50_crtc_cursor_restore(struct nouveau_crtc *nv_crtc, int x, int y)
+{
+	nv50_crtc_cursor_move(&nv_crtc->base, x, y);
+
+	nv50_crtc_cursor_show_hide(nv_crtc, true, true);
 }
 
 static void
@@ -1361,9 +1371,9 @@ nv50_crtc_destroy(struct drm_crtc *crtc)
 	nouveau_bo_ref(NULL, &head->image);
 
 	/*XXX: ditto */
-	if (head->curs.image)
-		nouveau_bo_unpin(head->curs.image);
-	nouveau_bo_ref(NULL, &head->curs.image);
+	if (nv_crtc->cursor.nvbo)
+		nouveau_bo_unpin(nv_crtc->cursor.nvbo);
+	nouveau_bo_ref(NULL, &nv_crtc->cursor.nvbo);
 
 	nouveau_bo_unmap(nv_crtc->lut.nvbo);
 	if (nv_crtc->lut.nvbo)
@@ -1413,6 +1423,7 @@ nv50_crtc_create(struct drm_device *dev, int index)
 	head->base.set_color_vibrance = nv50_crtc_set_color_vibrance;
 	head->base.color_vibrance = 50;
 	head->base.vibrant_hue = 0;
+	head->base.cursor.set_pos = nv50_crtc_cursor_restore;
 	for (i = 0; i < 256; i++) {
 		head->base.lut.r[i] = i << 8;
 		head->base.lut.g[i] = i << 8;
@@ -1439,8 +1450,6 @@ nv50_crtc_create(struct drm_device *dev, int index)
 
 	if (ret)
 		goto out;
-
-	nv50_crtc_lut_load(crtc);
 
 	/* allocate cursor resources */
 	ret = nv50_curs_create(disp->disp, index, &head->curs);
@@ -2419,6 +2428,8 @@ nv50_display_init(struct drm_device *dev)
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nv50_sync *sync = nv50_sync(crtc);
+
+		nv50_crtc_lut_load(crtc);
 		nouveau_bo_wr32(disp->sync, sync->addr / 4, sync->data);
 	}
 
