@@ -1288,6 +1288,7 @@ static int count_inode_extrefs(struct btrfs_root *root,
 		leaf = path->nodes[0];
 		item_size = btrfs_item_size_nr(leaf, path->slots[0]);
 		ptr = btrfs_item_ptr_offset(leaf, path->slots[0]);
+		cur_offset = 0;
 
 		while (cur_offset < item_size) {
 			extref = (struct btrfs_inode_extref *) (ptr + cur_offset);
@@ -1303,7 +1304,7 @@ static int count_inode_extrefs(struct btrfs_root *root,
 	}
 	btrfs_release_path(path);
 
-	if (ret < 0)
+	if (ret < 0 && ret != -ENOENT)
 		return ret;
 	return nlink;
 }
@@ -1395,9 +1396,6 @@ static noinline int fixup_inode_link_count(struct btrfs_trans_handle *trans,
 	nlink = ret;
 
 	ret = count_inode_extrefs(root, inode, path);
-	if (ret == -ENOENT)
-		ret = 0;
-
 	if (ret < 0)
 		goto out;
 
@@ -3966,15 +3964,22 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 		max_key.type = (u8)-1;
 	max_key.offset = (u64)-1;
 
-	/* Only run delayed items if we are a dir or a new file */
+	/*
+	 * Only run delayed items if we are a dir or a new file.
+	 * Otherwise commit the delayed inode only, which is needed in
+	 * order for the log replay code to mark inodes for link count
+	 * fixup (create temporary BTRFS_TREE_LOG_FIXUP_OBJECTID items).
+	 */
 	if (S_ISDIR(inode->i_mode) ||
-	    BTRFS_I(inode)->generation > root->fs_info->last_trans_committed) {
+	    BTRFS_I(inode)->generation > root->fs_info->last_trans_committed)
 		ret = btrfs_commit_inode_delayed_items(trans, inode);
-		if (ret) {
-			btrfs_free_path(path);
-			btrfs_free_path(dst_path);
-			return ret;
-		}
+	else
+		ret = btrfs_commit_inode_delayed_inode(inode);
+
+	if (ret) {
+		btrfs_free_path(path);
+		btrfs_free_path(dst_path);
+		return ret;
 	}
 
 	mutex_lock(&BTRFS_I(inode)->log_mutex);
