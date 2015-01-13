@@ -3637,11 +3637,14 @@ i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 	 * snooping behaviour occurs naturally as the result of our domain
 	 * tracking.
 	 */
-	if (!force && cpu_cache_is_coherent(obj->base.dev, obj->cache_level))
+	if (!force && cpu_cache_is_coherent(obj->base.dev, obj->cache_level)) {
+		obj->cache_dirty = true;
 		return false;
+	}
 
 	trace_i915_gem_object_clflush(obj);
 	drm_clflush_sg(obj->pages);
+	obj->cache_dirty = false;
 
 	return true;
 }
@@ -3824,27 +3827,11 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 		vma->node.color = cache_level;
 	obj->cache_level = cache_level;
 
-	if (cpu_write_needs_clflush(obj)) {
-		u32 old_read_domains, old_write_domain;
-
-		/* If we're coming from LLC cached, then we haven't
-		 * actually been tracking whether the data is in the
-		 * CPU cache or not, since we only allow one bit set
-		 * in obj->write_domain and have been skipping the clflushes.
-		 * Just set it to the CPU cache for now.
-		 */
-		i915_gem_object_retire(obj);
-		WARN_ON(obj->base.write_domain & ~I915_GEM_DOMAIN_CPU);
-
-		old_read_domains = obj->base.read_domains;
-		old_write_domain = obj->base.write_domain;
-
-		obj->base.read_domains = I915_GEM_DOMAIN_CPU;
-		obj->base.write_domain = I915_GEM_DOMAIN_CPU;
-
-		trace_i915_gem_object_change_domain(obj,
-						    old_read_domains,
-						    old_write_domain);
+	if (obj->cache_dirty &&
+	    obj->base.write_domain != I915_GEM_DOMAIN_CPU &&
+	    cpu_write_needs_clflush(obj)) {
+		if (i915_gem_clflush_object(obj, true))
+			i915_gem_chipset_flush(obj->base.dev);
 	}
 
 	return 0;
