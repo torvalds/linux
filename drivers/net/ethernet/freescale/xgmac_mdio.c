@@ -34,17 +34,17 @@ struct tgec_mdio_controller {
 
 #define MDIO_STAT_ENC		BIT(6)
 #define MDIO_STAT_CLKDIV(x)	(((x>>1) & 0xff) << 8)
-#define MDIO_STAT_BSY		(1 << 0)
-#define MDIO_STAT_RD_ER		(1 << 1)
+#define MDIO_STAT_BSY		BIT(0)
+#define MDIO_STAT_RD_ER		BIT(1)
 #define MDIO_CTL_DEV_ADDR(x) 	(x & 0x1f)
 #define MDIO_CTL_PORT_ADDR(x)	((x & 0x1f) << 5)
-#define MDIO_CTL_PRE_DIS	(1 << 10)
-#define MDIO_CTL_SCAN_EN	(1 << 11)
-#define MDIO_CTL_POST_INC	(1 << 14)
-#define MDIO_CTL_READ		(1 << 15)
+#define MDIO_CTL_PRE_DIS	BIT(10)
+#define MDIO_CTL_SCAN_EN	BIT(11)
+#define MDIO_CTL_POST_INC	BIT(14)
+#define MDIO_CTL_READ		BIT(15)
 
 #define MDIO_DATA(x)		(x & 0xffff)
-#define MDIO_DATA_BSY		(1 << 31)
+#define MDIO_DATA_BSY		BIT(31)
 
 /*
  * Wait until the MDIO bus is free
