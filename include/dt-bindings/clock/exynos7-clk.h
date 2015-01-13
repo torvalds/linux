@@ -19,7 +19,9 @@
 #define DOUT_ACLK_CCORE_133		6
 #define DOUT_ACLK_MSCL_532		7
 #define ACLK_MSCL_532			8
-#define TOPC_NR_CLK			9
+#define DOUT_SCLK_AUD_PLL		9
+#define FOUT_AUD_PLL			10
+#define TOPC_NR_CLK			11
 
 /* TOP0 */
 #define DOUT_ACLK_PERIC1		1
@@ -33,7 +35,10 @@
 #define CLK_SCLK_SPI2			9
 #define CLK_SCLK_SPI3			10
 #define CLK_SCLK_SPI4			11
-#define TOP0_NR_CLK			12
+#define CLK_SCLK_SPDIF			12
+#define CLK_SCLK_PCM1			13
+#define CLK_SCLK_I2S1			14
+#define TOP0_NR_CLK			15
 
 /* TOP1 */
 #define DOUT_ACLK_FSYS1_200		1
@@ -87,7 +92,13 @@
 #define SCLK_SPI2			19
 #define SCLK_SPI3			20
 #define SCLK_SPI4			21
-#define PERIC1_NR_CLK			22
+#define PCLK_I2S1			22
+#define PCLK_PCM1			23
+#define PCLK_SPDIF			24
+#define SCLK_I2S1			25
+#define SCLK_PCM1			26
+#define SCLK_SPDIF			27
+#define PERIC1_NR_CLK			28
 
 /* PERIS */
 #define PCLK_CHIPID			1
@@ -151,4 +162,11 @@
 #define PCLK_PMU_MSCL			32
 #define MSCL_NR_CLK			33
 
+/* AUD */
+#define SCLK_I2S			1
+#define SCLK_PCM			2
+#define PCLK_I2S			3
+#define PCLK_PCM			4
+#define ACLK_ADMA			5
+#define AUD_NR_CLK			6
 #endif /* _DT_BINDINGS_CLOCK_EXYNOS7_H */
