@@ -202,7 +202,10 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	host->clk_disable	= sh_mobile_sdhi_clk_disable;
 	host->multi_io_quirk	= sh_mobile_sdhi_multi_io_quirk;
 	/* SD control register space size is 0x100, 0x200 for bus_shift=1 */
-	host->bus_shift		= resource_size(res) >> 9;
+	if (resource_size(res) > 0x100)
+		host->bus_shift = 1;
+	else
+		host->bus_shift = 0;
 
 	mmc_data->capabilities = MMC_CAP_MMC_HIGHSPEED;
 	if (p) {
