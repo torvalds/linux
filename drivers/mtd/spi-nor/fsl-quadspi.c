@@ -57,7 +57,9 @@
 
 #define QUADSPI_BUF3CR			0x1c
 #define QUADSPI_BUF3CR_ALLMST_SHIFT	31
-#define QUADSPI_BUF3CR_ALLMST		(1 << QUADSPI_BUF3CR_ALLMST_SHIFT)
+#define QUADSPI_BUF3CR_ALLMST_MASK	(1 << QUADSPI_BUF3CR_ALLMST_SHIFT)
+#define QUADSPI_BUF3CR_ADATSZ_SHIFT		8
+#define QUADSPI_BUF3CR_ADATSZ_MASK	(0xFF << QUADSPI_BUF3CR_ADATSZ_SHIFT)
 
 #define QUADSPI_BFGENCR			0x20
 #define QUADSPI_BFGENCR_PAR_EN_SHIFT	16
@@ -198,18 +200,21 @@ struct fsl_qspi_devtype_data {
 	enum fsl_qspi_devtype devtype;
 	int rxfifo;
 	int txfifo;
+	int ahb_buf_size;
 };
 
 static struct fsl_qspi_devtype_data vybrid_data = {
 	.devtype = FSL_QUADSPI_VYBRID,
 	.rxfifo = 128,
-	.txfifo = 64
+	.txfifo = 64,
+	.ahb_buf_size = 1024
 };
 
 static struct fsl_qspi_devtype_data imx6sx_data = {
 	.devtype = FSL_QUADSPI_IMX6SX,
 	.rxfifo = 128,
-	.txfifo = 512
+	.txfifo = 512,
+	.ahb_buf_size = 1024
 };
 
 #define FSL_QSPI_MAX_CHIP	4
@@ -584,7 +589,12 @@ static void fsl_qspi_init_abh_read(struct fsl_qspi *q)
 	writel(QUADSPI_BUFXCR_INVALID_MSTRID, base + QUADSPI_BUF0CR);
 	writel(QUADSPI_BUFXCR_INVALID_MSTRID, base + QUADSPI_BUF1CR);
 	writel(QUADSPI_BUFXCR_INVALID_MSTRID, base + QUADSPI_BUF2CR);
-	writel(QUADSPI_BUF3CR_ALLMST, base + QUADSPI_BUF3CR);
+	/*
+	 * Set ADATSZ with the maximum AHB buffer size to improve the
+	 * read performance.
+	 */
+	writel(QUADSPI_BUF3CR_ALLMST_MASK | ((q->devtype_data->ahb_buf_size / 8)
+			<< QUADSPI_BUF3CR_ADATSZ_SHIFT), base + QUADSPI_BUF3CR);
 
 	/* We only use the buffer3 */
 	writel(0, base + QUADSPI_BUF0IND);
