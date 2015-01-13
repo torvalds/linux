@@ -60,8 +60,11 @@ static int map_xdr(struct svcxprt_rdma *xprt,
 	u32 page_off;
 	int page_no;
 
-	BUG_ON(xdr->len !=
-	       (xdr->head[0].iov_len + xdr->page_len + xdr->tail[0].iov_len));
+	if (xdr->len !=
+	    (xdr->head[0].iov_len + xdr->page_len + xdr->tail[0].iov_len)) {
+		pr_err("svcrdma: map_xdr: XDR buffer length error\n");
+		return -EIO;
+	}
 
 	/* Skip the first sge, this is for the RPCRDMA header */
 	sge_no = 1;
@@ -150,7 +153,11 @@ static int send_write(struct svcxprt_rdma *xprt, struct svc_rqst *rqstp,
 	int bc;
 	struct svc_rdma_op_ctxt *ctxt;
 
-	BUG_ON(vec->count > RPCSVC_MAXPAGES);
+	if (vec->count > RPCSVC_MAXPAGES) {
+		pr_err("svcrdma: Too many pages (%lu)\n", vec->count);
+		return -EIO;
+	}
+
 	dprintk("svcrdma: RDMA_WRITE rmr=%x, to=%llx, xdr_off=%d, "
 		"write_len=%d, vec->sge=%p, vec->count=%lu\n",
 		rmr, (unsigned long long)to, xdr_off,
@@ -190,7 +197,10 @@ static int send_write(struct svcxprt_rdma *xprt, struct svc_rqst *rqstp,
 		sge_off = 0;
 		sge_no++;
 		xdr_sge_no++;
-		BUG_ON(xdr_sge_no > vec->count);
+		if (xdr_sge_no > vec->count) {
+			pr_err("svcrdma: Too many sges (%d)\n", xdr_sge_no);
+			goto err;
+		}
 		bc -= sge_bytes;
 		if (sge_no == xprt->sc_max_sge)
 			break;
@@ -421,7 +431,10 @@ static int send_reply(struct svcxprt_rdma *rdma,
 		ctxt->sge[sge_no].lkey = rdma->sc_dma_lkey;
 		ctxt->sge[sge_no].length = sge_bytes;
 	}
-	BUG_ON(byte_count != 0);
+	if (byte_count != 0) {
+		pr_err("svcrdma: Could not map %d bytes\n", byte_count);
+		goto err;
+	}
 
 	/* Save all respages in the ctxt and remove them from the
 	 * respages array. They are our pages until the I/O
@@ -442,7 +455,10 @@ static int send_reply(struct svcxprt_rdma *rdma,
 	}
 	rqstp->rq_next_page = rqstp->rq_respages + 1;
 
-	BUG_ON(sge_no > rdma->sc_max_sge);
+	if (sge_no > rdma->sc_max_sge) {
+		pr_err("svcrdma: Too many sges (%d)\n", sge_no);
+		goto err;
+	}
 	memset(&send_wr, 0, sizeof send_wr);
 	ctxt->wr_op = IB_WR_SEND;
 	send_wr.wr_id = (unsigned long)ctxt;

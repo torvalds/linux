@@ -95,14 +95,6 @@ static void rdma_build_arg_xdr(struct svc_rqst *rqstp,
 	rqstp->rq_respages = &rqstp->rq_pages[sge_no];
 	rqstp->rq_next_page = rqstp->rq_respages + 1;
 
-	/* We should never run out of SGE because the limit is defined to
-	 * support the max allowed RPC data length
-	 */
-	BUG_ON(bc && (sge_no == ctxt->count));
-	BUG_ON((rqstp->rq_arg.head[0].iov_len + rqstp->rq_arg.page_len)
-	       != byte_count);
-	BUG_ON(rqstp->rq_arg.len != byte_count);
-
 	/* If not all pages were used from the SGL, free the remaining ones */
 	bc = sge_no;
 	while (sge_no < ctxt->count) {
@@ -477,8 +469,6 @@ static int rdma_read_complete(struct svc_rqst *rqstp,
 	int page_no;
 	int ret;
 
-	BUG_ON(!head);
-
 	/* Copy RPC pages */
 	for (page_no = 0; page_no < head->count; page_no++) {
 		put_page(rqstp->rq_pages[page_no]);
@@ -567,7 +557,6 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	}
 	dprintk("svcrdma: processing ctxt=%p on xprt=%p, rqstp=%p, status=%d\n",
 		ctxt, rdma_xprt, rqstp, ctxt->wc_status);
-	BUG_ON(ctxt->wc_status != IB_WC_SUCCESS);
 	atomic_inc(&rdma_stat_recv);
 
 	/* Build up the XDR from the receive buffers. */
