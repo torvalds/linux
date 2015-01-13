@@ -199,5 +199,13 @@ int snd_ak4114_build(struct ak4114 *ak4114,
 int snd_ak4114_external_rate(struct ak4114 *ak4114);
 int snd_ak4114_check_rate_and_errors(struct ak4114 *ak4114, unsigned int flags);
 
+#ifdef CONFIG_PM
+void snd_ak4114_suspend(struct ak4114 *chip);
+void snd_ak4114_resume(struct ak4114 *chip);
+#else
+static inline void snd_ak4114_suspend(struct ak4114 *chip) {}
+static inline void snd_ak4114_resume(struct ak4114 *chip) {}
+#endif
+
 #endif /* __SOUND_AK4114_H */
 
