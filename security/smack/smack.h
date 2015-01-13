@@ -298,6 +298,16 @@ static inline struct smack_known *smk_of_task(const struct task_smack *tsp)
 	return tsp->smk_task;
 }
 
+static inline struct smack_known *smk_of_task_struct(const struct task_struct *t)
+{
+	struct smack_known *skp;
+
+	rcu_read_lock();
+	skp = smk_of_task(__task_cred(t)->security);
+	rcu_read_unlock();
+	return skp;
+}
+
 /*
  * Present a pointer to the forked smack label entry in an task blob.
  */
