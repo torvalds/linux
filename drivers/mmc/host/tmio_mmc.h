@@ -66,6 +66,7 @@ struct tmio_mmc_host {
 	struct scatterlist      *sg_orig;
 	unsigned int            sg_len;
 	unsigned int            sg_off;
+	unsigned long		bus_shift;
 
 	struct platform_device *pdev;
 	struct tmio_mmc_data *pdata;
@@ -169,19 +170,19 @@ int tmio_mmc_host_runtime_resume(struct device *dev);
 
 static inline u16 sd_ctrl_read16(struct tmio_mmc_host *host, int addr)
 {
-	return readw(host->ctl + (addr << host->pdata->bus_shift));
+	return readw(host->ctl + (addr << host->bus_shift));
 }
 
 static inline void sd_ctrl_read16_rep(struct tmio_mmc_host *host, int addr,
 		u16 *buf, int count)
 {
-	readsw(host->ctl + (addr << host->pdata->bus_shift), buf, count);
+	readsw(host->ctl + (addr << host->bus_shift), buf, count);
 }
 
 static inline u32 sd_ctrl_read32(struct tmio_mmc_host *host, int addr)
 {
-	return readw(host->ctl + (addr << host->pdata->bus_shift)) |
-	       readw(host->ctl + ((addr + 2) << host->pdata->bus_shift)) << 16;
+	return readw(host->ctl + (addr << host->bus_shift)) |
+	       readw(host->ctl + ((addr + 2) << host->bus_shift)) << 16;
 }
 
 static inline void sd_ctrl_write16(struct tmio_mmc_host *host, int addr, u16 val)
@@ -191,19 +192,19 @@ static inline void sd_ctrl_write16(struct tmio_mmc_host *host, int addr, u16 val
 	 */
 	if (host->write16_hook && host->write16_hook(host, addr))
 		return;
-	writew(val, host->ctl + (addr << host->pdata->bus_shift));
+	writew(val, host->ctl + (addr << host->bus_shift));
 }
 
 static inline void sd_ctrl_write16_rep(struct tmio_mmc_host *host, int addr,
 		u16 *buf, int count)
 {
-	writesw(host->ctl + (addr << host->pdata->bus_shift), buf, count);
+	writesw(host->ctl + (addr << host->bus_shift), buf, count);
 }
 
 static inline void sd_ctrl_write32(struct tmio_mmc_host *host, int addr, u32 val)
 {
-	writew(val, host->ctl + (addr << host->pdata->bus_shift));
-	writew(val >> 16, host->ctl + ((addr + 2) << host->pdata->bus_shift));
+	writew(val, host->ctl + (addr << host->bus_shift));
+	writew(val >> 16, host->ctl + ((addr + 2) << host->bus_shift));
 }
 
 

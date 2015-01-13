@@ -120,7 +120,6 @@ struct tmio_mmc_data {
 	unsigned long			capabilities;
 	unsigned long			capabilities2;
 	unsigned long			flags;
-	unsigned long			bus_shift;
 	u32				ocr_mask;	/* available voltages */
 	unsigned int			cd_gpio;
 	void (*set_pwr)(struct platform_device *host, int state);

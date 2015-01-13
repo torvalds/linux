@@ -218,6 +218,8 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	host->clk_enable	= sh_mobile_sdhi_clk_enable;
 	host->clk_disable	= sh_mobile_sdhi_clk_disable;
 	host->multi_io_quirk	= sh_mobile_sdhi_multi_io_quirk;
+	/* SD control register space size is 0x100, 0x200 for bus_shift=1 */
+	host->bus_shift		= resource_size(res) >> 9;
 
 	mmc_data->capabilities = MMC_CAP_MMC_HIGHSPEED;
 	if (p) {
@@ -276,9 +278,6 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		mmc_data->capabilities2 |= of_data->capabilities2;
 		dma_priv->dma_rx_offset = of_data->dma_rx_offset;
 	}
-
-	/* SD control register space size is 0x100, 0x200 for bus_shift=1 */
-	mmc_data->bus_shift = resource_size(res) >> 9;
 
 	ret = tmio_mmc_host_probe(host, mmc_data);
 	if (ret < 0)
