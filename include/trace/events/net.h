@@ -40,9 +40,9 @@ TRACE_EVENT(net_dev_start_xmit,
 		__assign_str(name, dev->name);
 		__entry->queue_mapping = skb->queue_mapping;
 		__entry->skbaddr = skb;
-		__entry->vlan_tagged = vlan_tx_tag_present(skb);
+		__entry->vlan_tagged = skb_vlan_tag_present(skb);
 		__entry->vlan_proto = ntohs(skb->vlan_proto);
-		__entry->vlan_tci = vlan_tx_tag_get(skb);
+		__entry->vlan_tci = skb_vlan_tag_get(skb);
 		__entry->protocol = ntohs(skb->protocol);
 		__entry->ip_summed = skb->ip_summed;
 		__entry->len = skb->len;
@@ -174,9 +174,9 @@ DECLARE_EVENT_CLASS(net_dev_rx_verbose_template,
 #endif
 		__entry->queue_mapping = skb->queue_mapping;
 		__entry->skbaddr = skb;
-		__entry->vlan_tagged = vlan_tx_tag_present(skb);
+		__entry->vlan_tagged = skb_vlan_tag_present(skb);
 		__entry->vlan_proto = ntohs(skb->vlan_proto);
-		__entry->vlan_tci = vlan_tx_tag_get(skb);
+		__entry->vlan_tci = skb_vlan_tag_get(skb);
 		__entry->protocol = ntohs(skb->protocol);
 		__entry->ip_summed = skb->ip_summed;
 		__entry->hash = skb->hash;

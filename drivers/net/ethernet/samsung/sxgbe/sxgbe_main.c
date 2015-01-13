@@ -1272,7 +1272,7 @@ static netdev_tx_t sxgbe_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(skb_is_gso(skb) && tqueue->prev_mss != cur_mss))
 		ctxt_desc_req = 1;
 
-	if (unlikely(vlan_tx_tag_present(skb) ||
+	if (unlikely(skb_vlan_tag_present(skb) ||
 		     ((skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
 		      tqueue->hwts_tx_en)))
 		ctxt_desc_req = 1;

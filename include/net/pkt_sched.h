@@ -121,7 +121,7 @@ static inline __be16 tc_skb_protocol(const struct sk_buff *skb)
 	 * vlan accelerated path. In that case, use skb->vlan_proto
 	 * as the original vlan header was already stripped.
 	 */
-	if (vlan_tx_tag_present(skb))
+	if (skb_vlan_tag_present(skb))
 		return skb->vlan_proto;
 	return skb->protocol;
 }

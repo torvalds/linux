@@ -708,8 +708,8 @@ unsigned int cfg80211_classify8021d(struct sk_buff *skb,
 	if (skb->priority >= 256 && skb->priority <= 263)
 		return skb->priority - 256;
 
-	if (vlan_tx_tag_present(skb)) {
-		vlan_priority = (vlan_tx_tag_get(skb) & VLAN_PRIO_MASK)
+	if (skb_vlan_tag_present(skb)) {
+		vlan_priority = (skb_vlan_tag_get(skb) & VLAN_PRIO_MASK)
 			>> VLAN_PRIO_SHIFT;
 		if (vlan_priority > 0)
 			return vlan_priority;

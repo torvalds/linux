@@ -609,7 +609,7 @@ static netdev_tx_t fm10k_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	int err;
 
 	if ((skb->protocol ==  htons(ETH_P_8021Q)) &&
-	    !vlan_tx_tag_present(skb)) {
+	    !skb_vlan_tag_present(skb)) {
 		/* FM10K only supports hardware tagging, any tags in frame
 		 * are considered 2nd level or "outer" tags
 		 */

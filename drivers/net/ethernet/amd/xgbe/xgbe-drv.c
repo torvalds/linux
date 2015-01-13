@@ -1165,8 +1165,8 @@ static void xgbe_prep_tx_tstamp(struct xgbe_prv_data *pdata,
 
 static void xgbe_prep_vlan(struct sk_buff *skb, struct xgbe_packet_data *packet)
 {
-	if (vlan_tx_tag_present(skb))
-		packet->vlan_ctag = vlan_tx_tag_get(skb);
+	if (skb_vlan_tag_present(skb))
+		packet->vlan_ctag = skb_vlan_tag_get(skb);
 }
 
 static int xgbe_prep_tso(struct sk_buff *skb, struct xgbe_packet_data *packet)
@@ -1247,9 +1247,9 @@ static void xgbe_packet_info(struct xgbe_prv_data *pdata,
 		XGMAC_SET_BITS(packet->attributes, TX_PACKET_ATTRIBUTES,
 			       CSUM_ENABLE, 1);
 
-	if (vlan_tx_tag_present(skb)) {
+	if (skb_vlan_tag_present(skb)) {
 		/* VLAN requires an extra descriptor if tag is different */
-		if (vlan_tx_tag_get(skb) != ring->tx.cur_vlan_ctag)
+		if (skb_vlan_tag_get(skb) != ring->tx.cur_vlan_ctag)
 			/* We can share with the TSO context descriptor */
 			if (!context_desc) {
 				context_desc = 1;

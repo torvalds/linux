@@ -965,8 +965,8 @@ static void fm10k_tx_map(struct fm10k_ring *tx_ring,
 	tx_desc = FM10K_TX_DESC(tx_ring, i);
 
 	/* add HW VLAN tag */
-	if (vlan_tx_tag_present(skb))
-		tx_desc->vlan = cpu_to_le16(vlan_tx_tag_get(skb));
+	if (skb_vlan_tag_present(skb))
+		tx_desc->vlan = cpu_to_le16(skb_vlan_tag_get(skb));
 	else
 		tx_desc->vlan = 0;
 

@@ -1860,9 +1860,9 @@ netdev_tx_t t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	cpl->iff = dev->if_port;
 
-	if (vlan_tx_tag_present(skb)) {
+	if (skb_vlan_tag_present(skb)) {
 		cpl->vlan_valid = 1;
-		cpl->vlan = htons(vlan_tx_tag_get(skb));
+		cpl->vlan = htons(skb_vlan_tag_get(skb));
 		st->vlan_insert++;
 	} else
 		cpl->vlan_valid = 0;

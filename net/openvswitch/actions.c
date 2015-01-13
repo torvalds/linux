@@ -212,7 +212,7 @@ static int pop_vlan(struct sk_buff *skb, struct sw_flow_key *key)
 	int err;
 
 	err = skb_vlan_pop(skb);
-	if (vlan_tx_tag_present(skb))
+	if (skb_vlan_tag_present(skb))
 		invalidate_flow_key(key);
 	else
 		key->eth.tci = 0;
@@ -222,7 +222,7 @@ static int pop_vlan(struct sk_buff *skb, struct sw_flow_key *key)
 static int push_vlan(struct sk_buff *skb, struct sw_flow_key *key,
 		     const struct ovs_action_push_vlan *vlan)
 {
-	if (vlan_tx_tag_present(skb))
+	if (skb_vlan_tag_present(skb))
 		invalidate_flow_key(key);
 	else
 		key->eth.tci = vlan->vlan_tci;
