@@ -669,8 +669,8 @@ static struct dma_async_tx_descriptor *sa11x0_dma_prep_dma_cyclic(
 	return vchan_tx_prep(&c->vc, &txd->vd, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 }
 
-static int sa11x0_dma_slave_config(struct dma_chan *chan,
-				   struct dma_slave_config *cfg)
+static int sa11x0_dma_device_config(struct dma_chan *chan,
+				    struct dma_slave_config *cfg)
 {
 	struct sa11x0_dma_chan *c = to_sa11x0_dma_chan(chan);
 	u32 ddar = c->ddar & ((0xf << 4) | DDAR_RW);
@@ -706,14 +706,13 @@ static int sa11x0_dma_slave_config(struct dma_chan *chan,
 	return 0;
 }
 
-static int sa11x0_dma_pause(struct dma_chan *chan)
+static int sa11x0_dma_device_pause(struct dma_chan *chan)
 {
 	struct sa11x0_dma_chan *c = to_sa11x0_dma_chan(chan);
 	struct sa11x0_dma_dev *d = to_sa11x0_dma(chan->device);
 	struct sa11x0_dma_phy *p;
 	LIST_HEAD(head);
 	unsigned long flags;
-	int ret;
 
 	dev_dbg(d->slave.dev, "vchan %p: pause\n", &c->vc);
 	spin_lock_irqsave(&c->vc.lock, flags);
@@ -734,14 +733,13 @@ static int sa11x0_dma_pause(struct dma_chan *chan)
 	return 0;
 }
 
-static int sa11x0_dma_resume(struct dma_chan *chan)
+static int sa11x0_dma_device_resume(struct dma_chan *chan)
 {
 	struct sa11x0_dma_chan *c = to_sa11x0_dma_chan(chan);
 	struct sa11x0_dma_dev *d = to_sa11x0_dma(chan->device);
 	struct sa11x0_dma_phy *p;
 	LIST_HEAD(head);
 	unsigned long flags;
-	int ret;
 
 	dev_dbg(d->slave.dev, "vchan %p: resume\n", &c->vc);
 	spin_lock_irqsave(&c->vc.lock, flags);
@@ -762,14 +760,13 @@ static int sa11x0_dma_resume(struct dma_chan *chan)
 	return 0;
 }
 
-static int sa11x0_dma_terminate_all(struct dma_chan *chan)
+static int sa11x0_dma_device_terminate_all(struct dma_chan *chan)
 {
 	struct sa11x0_dma_chan *c = to_sa11x0_dma_chan(chan);
 	struct sa11x0_dma_dev *d = to_sa11x0_dma(chan->device);
 	struct sa11x0_dma_phy *p;
 	LIST_HEAD(head);
 	unsigned long flags;
-	int ret;
 
 	dev_dbg(d->slave.dev, "vchan %p: terminate all\n", &c->vc);
 	/* Clear the tx descriptor lists */
@@ -840,10 +837,10 @@ static int sa11x0_dma_init_dmadev(struct dma_device *dmadev,
 	dmadev->dev = dev;
 	dmadev->device_alloc_chan_resources = sa11x0_dma_alloc_chan_resources;
 	dmadev->device_free_chan_resources = sa11x0_dma_free_chan_resources;
-	dmadev->device_config = sa11x0_dma_slave_config;
-	dmadev->device_pause = sa11x0_dma_pause;
-	dmadev->device_resume = sa11x0_dma_resume;
-	dmadev->device_terminate_all = sa11x0_dma_terminate_all;
+	dmadev->device_config = sa11x0_dma_device_config;
+	dmadev->device_pause = sa11x0_dma_device_pause;
+	dmadev->device_resume = sa11x0_dma_device_resume;
+	dmadev->device_terminate_all = sa11x0_dma_device_terminate_all;
 	dmadev->device_tx_status = sa11x0_dma_tx_status;
 	dmadev->device_issue_pending = sa11x0_dma_issue_pending;
 
