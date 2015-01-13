@@ -978,6 +978,11 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		ion_drm: rockchip,ion-heap@5 {
+			compatible = "rockchip,ion-heap";
+			rockchip,ion_heap = <5>;
+			reg = <0x00000000 0x00000000>;
+		};
 		ion_cma: rockchip,ion-heap@4 { /* CMA HEAP */
 			compatible = "rockchip,ion-heap";
 			rockchip,ion_heap = <4>;
