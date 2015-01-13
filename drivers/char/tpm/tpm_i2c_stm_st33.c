@@ -814,8 +814,7 @@ _tpm_clean_answer:
 
 /*
  * tpm_stm_i2c_remove remove the TPM device
- * @param: client, the i2c_client drescription (TPM I2C description).
- *		clear_bit(0, &chip->is_open);
+ * @param: client, the i2c_client description (TPM I2C description).
  * @return: 0 in case of success.
  */
 static int tpm_stm_i2c_remove(struct i2c_client *client)
@@ -890,7 +889,8 @@ MODULE_DEVICE_TABLE(of, of_st33zp24_i2c_match);
 #endif
 
 static SIMPLE_DEV_PM_OPS(tpm_stm_i2c_ops, tpm_stm_i2c_pm_suspend,
-	tpm_stm_i2c_pm_resume);
+			 tpm_stm_i2c_pm_resume);
+
 static struct i2c_driver tpm_stm_i2c_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
