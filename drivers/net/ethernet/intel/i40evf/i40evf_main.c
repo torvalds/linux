@@ -313,10 +313,6 @@ static irqreturn_t i40evf_msix_aq(int irq, void *data)
 	val = val | I40E_PFINT_DYN_CTL0_CLEARPBA_MASK;
 	wr32(hw, I40E_VFINT_DYN_CTL01, val);
 
-	/* re-enable interrupt causes */
-	wr32(hw, I40E_VFINT_ICR0_ENA1, ena_mask);
-	wr32(hw, I40E_VFINT_DYN_CTL01, I40E_VFINT_DYN_CTL01_INTENA_MASK);
-
 	/* schedule work on the private workqueue */
 	schedule_work(&adapter->adminq_task);
 
@@ -947,30 +943,6 @@ static int i40evf_up_complete(struct i40evf_adapter *adapter)
 }
 
 /**
- * i40evf_clean_all_rx_rings - Free Rx Buffers for all queues
- * @adapter: board private structure
- **/
-static void i40evf_clean_all_rx_rings(struct i40evf_adapter *adapter)
-{
-	int i;
-
-	for (i = 0; i < adapter->num_active_queues; i++)
-		i40evf_clean_rx_ring(adapter->rx_rings[i]);
-}
-
-/**
- * i40evf_clean_all_tx_rings - Free Tx Buffers for all queues
- * @adapter: board private structure
- **/
-static void i40evf_clean_all_tx_rings(struct i40evf_adapter *adapter)
-{
-	int i;
-
-	for (i = 0; i < adapter->num_active_queues; i++)
-		i40evf_clean_tx_ring(adapter->tx_rings[i]);
-}
-
-/**
  * i40e_down - Shutdown the connection processing
  * @adapter: board private structure
  **/
@@ -982,6 +954,12 @@ void i40evf_down(struct i40evf_adapter *adapter)
 	if (adapter->state == __I40EVF_DOWN)
 		return;
 
+	while (test_and_set_bit(__I40EVF_IN_CRITICAL_TASK,
+				&adapter->crit_section))
+		usleep_range(500, 1000);
+
+	i40evf_irq_disable(adapter);
+
 	/* remove all MAC filters */
 	list_for_each_entry(f, &adapter->mac_filter_list, list) {
 		f->remove = true;
@@ -992,25 +970,27 @@ void i40evf_down(struct i40evf_adapter *adapter)
 	}
 	if (!(adapter->flags & I40EVF_FLAG_PF_COMMS_FAILED) &&
 	    adapter->state != __I40EVF_RESETTING) {
-		adapter->aq_required |= I40EVF_FLAG_AQ_DEL_MAC_FILTER;
+		/* cancel any current operation */
+		adapter->current_op = I40E_VIRTCHNL_OP_UNKNOWN;
+		adapter->aq_pending = 0;
+		/* Schedule operations to close down the HW. Don't wait
+		 * here for this to complete. The watchdog is still running
+		 * and it will take care of this.
+		 */
+		adapter->aq_required = I40EVF_FLAG_AQ_DEL_MAC_FILTER;
 		adapter->aq_required |= I40EVF_FLAG_AQ_DEL_VLAN_FILTER;
-		/* disable receives */
 		adapter->aq_required |= I40EVF_FLAG_AQ_DISABLE_QUEUES;
-		mod_timer_pending(&adapter->watchdog_timer, jiffies + 1);
-		msleep(20);
 	}
 	netif_tx_disable(netdev);
 
 	netif_tx_stop_all_queues(netdev);
 
-	i40evf_irq_disable(adapter);
-
 	i40evf_napi_disable_all(adapter);
 
-	netif_carrier_off(netdev);
+	msleep(20);
 
-	i40evf_clean_all_tx_rings(adapter);
-	i40evf_clean_all_rx_rings(adapter);
+	netif_carrier_off(netdev);
+	clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
 }
 
 /**
@@ -1356,8 +1336,13 @@ static void i40evf_watchdog_task(struct work_struct *work)
 	/* Process admin queue tasks. After init, everything gets done
 	 * here so we don't race on the admin queue.
 	 */
-	if (adapter->aq_pending)
+	if (adapter->aq_pending) {
+		if (!i40evf_asq_done(hw)) {
+			dev_dbg(&adapter->pdev->dev, "Admin queue timeout\n");
+			i40evf_send_api_ver(adapter);
+		}
 		goto watchdog_done;
+	}
 
 	if (adapter->aq_required & I40EVF_FLAG_AQ_MAP_VECTORS) {
 		i40evf_map_queues(adapter);
@@ -1401,11 +1386,14 @@ static void i40evf_watchdog_task(struct work_struct *work)
 
 	if (adapter->state == __I40EVF_RUNNING)
 		i40evf_request_stats(adapter);
-
-	i40evf_irq_enable(adapter, true);
-	i40evf_fire_sw_int(adapter, 0xFF);
-
 watchdog_done:
+	if (adapter->state == __I40EVF_RUNNING) {
+		i40evf_irq_enable_queues(adapter, ~0);
+		i40evf_fire_sw_int(adapter, 0xFF);
+	} else {
+		i40evf_fire_sw_int(adapter, 0x1);
+	}
+
 	clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
 restart_watchdog:
 	if (adapter->state == __I40EVF_REMOVE)
@@ -1633,12 +1621,12 @@ static void i40evf_adminq_task(struct work_struct *work)
 	u16 pending;
 
 	if (adapter->flags & I40EVF_FLAG_PF_COMMS_FAILED)
-		return;
+		goto out;
 
 	event.buf_len = I40EVF_MAX_AQ_BUF_SIZE;
 	event.msg_buf = kzalloc(event.buf_len, GFP_KERNEL);
 	if (!event.msg_buf)
-		return;
+		goto out;
 
 	v_msg = (struct i40e_virtchnl_msg *)&event.desc;
 	do {
@@ -1688,10 +1676,10 @@ static void i40evf_adminq_task(struct work_struct *work)
 	if (oldval != val)
 		wr32(hw, hw->aq.asq.len, val);
 
+	kfree(event.msg_buf);
+out:
 	/* re-enable Admin queue interrupt cause */
 	i40evf_misc_irq_enable(adapter);
-
-	kfree(event.msg_buf);
 }
 
 /**
@@ -2053,12 +2041,8 @@ static void i40evf_init_task(struct work_struct *work)
 		/* aq msg sent, awaiting reply */
 		err = i40evf_verify_api_ver(adapter);
 		if (err) {
-			dev_info(&pdev->dev, "Unable to verify API version (%d), retrying\n",
-				 err);
-			if (err == I40E_ERR_ADMIN_QUEUE_NO_WORK) {
-				dev_info(&pdev->dev, "Resending request\n");
+			if (err == I40E_ERR_ADMIN_QUEUE_NO_WORK)
 				err = i40evf_send_api_ver(adapter);
-			}
 			goto err;
 		}
 		err = i40evf_send_vf_config_msg(adapter);
@@ -2081,7 +2065,6 @@ static void i40evf_init_task(struct work_struct *work)
 		}
 		err = i40evf_get_vf_config(adapter);
 		if (err == I40E_ERR_ADMIN_QUEUE_NO_WORK) {
-			dev_info(&pdev->dev, "Resending VF config request\n");
 			err = i40evf_send_vf_config_msg(adapter);
 			goto err;
 		}
@@ -2440,6 +2423,7 @@ static void i40evf_remove(struct pci_dev *pdev)
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 	struct i40evf_mac_filter *f, *ftmp;
 	struct i40e_hw *hw = &adapter->hw;
+	int count = 50;
 
 	cancel_delayed_work_sync(&adapter->init_task);
 	cancel_work_sync(&adapter->reset_task);
@@ -2448,6 +2432,11 @@ static void i40evf_remove(struct pci_dev *pdev)
 		unregister_netdev(netdev);
 		adapter->netdev_registered = false;
 	}
+	while (count-- && adapter->aq_required)
+		msleep(50);
+
+	if (count < 0)
+		dev_err(&pdev->dev, "Timed out waiting for PF driver.\n");
 	adapter->state = __I40EVF_REMOVE;
 
 	if (adapter->msix_entries) {
@@ -2474,6 +2463,10 @@ static void i40evf_remove(struct pci_dev *pdev)
 	 * hanging out there that we need to get rid of.
 	 */
 	list_for_each_entry_safe(f, ftmp, &adapter->mac_filter_list, list) {
+		list_del(&f->list);
+		kfree(f);
+	}
+	list_for_each_entry_safe(f, ftmp, &adapter->vlan_filter_list, list) {
 		list_del(&f->list);
 		kfree(f);
 	}

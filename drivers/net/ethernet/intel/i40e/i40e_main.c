@@ -4557,6 +4557,15 @@ static void i40e_print_link_message(struct i40e_vsi *vsi, bool isup)
 		return;
 	}
 
+	/* Warn user if link speed on NPAR enabled partition is not at
+	 * least 10GB
+	 */
+	if (vsi->back->hw.func_caps.npar_enable &&
+	    (vsi->back->hw.phy.link_info.link_speed == I40E_LINK_SPEED_1GB ||
+	     vsi->back->hw.phy.link_info.link_speed == I40E_LINK_SPEED_100MB))
+		netdev_warn(vsi->netdev,
+			    "The partition detected link speed that is less than 10Gbps\n");
+
 	switch (vsi->back->hw.phy.link_info.link_speed) {
 	case I40E_LINK_SPEED_40GB:
 		strlcpy(speed, "40 Gbps", SPEED_SIZE);
@@ -5494,14 +5503,18 @@ static void i40e_link_event(struct i40e_pf *pf)
 {
 	bool new_link, old_link;
 	struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
+	u8 new_link_speed, old_link_speed;
 
 	/* set this to force the get_link_status call to refresh state */
 	pf->hw.phy.get_link_info = true;
 
 	old_link = (pf->hw.phy.link_info_old.link_info & I40E_AQ_LINK_UP);
 	new_link = i40e_get_link_status(&pf->hw);
+	old_link_speed = pf->hw.phy.link_info_old.link_speed;
+	new_link_speed = pf->hw.phy.link_info.link_speed;
 
 	if (new_link == old_link &&
+	    new_link_speed == old_link_speed &&
 	    (test_bit(__I40E_DOWN, &vsi->state) ||
 	     new_link == netif_carrier_ok(vsi->netdev)))
 		return;
@@ -7306,7 +7319,7 @@ static int i40e_sw_init(struct i40e_pf *pf)
 
 #endif /* I40E_FCOE */
 #ifdef CONFIG_PCI_IOV
-	if (pf->hw.func_caps.num_vfs) {
+	if (pf->hw.func_caps.num_vfs && pf->hw.partition_id == 1) {
 		pf->num_vf_qps = I40E_DEFAULT_QUEUES_PER_VF;
 		pf->flags |= I40E_FLAG_SRIOV_ENABLED;
 		pf->num_req_vfs = min_t(int,

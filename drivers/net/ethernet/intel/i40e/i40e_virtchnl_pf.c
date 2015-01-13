@@ -791,10 +791,18 @@ void i40e_free_vfs(struct i40e_pf *pf)
 	if (!pf->vf)
 		return;
 
+	/* Disable IOV before freeing resources. This lets any VF drivers
+	 * running in the host get themselves cleaned up before we yank
+	 * the carpet out from underneath their feet.
+	 */
+	if (!pci_vfs_assigned(pf->pdev))
+		pci_disable_sriov(pf->pdev);
+
+	msleep(20); /* let any messages in transit get finished up */
+
 	/* Disable interrupt 0 so we don't try to handle the VFLR. */
 	i40e_irq_dynamic_disable_icr0(pf);
 
-	mdelay(10); /* let any messages in transit get finished up */
 	/* free up vf resources */
 	tmp = pf->num_alloc_vfs;
 	pf->num_alloc_vfs = 0;
@@ -813,7 +821,6 @@ void i40e_free_vfs(struct i40e_pf *pf)
 	 * before this function ever gets called.
 	 */
 	if (!pci_vfs_assigned(pf->pdev)) {
-		pci_disable_sriov(pf->pdev);
 		/* Acknowledge VFLR for all VFS. Without this, VFs will fail to
 		 * work correctly when SR-IOV gets re-enabled.
 		 */
