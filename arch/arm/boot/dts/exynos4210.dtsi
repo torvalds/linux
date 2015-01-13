@@ -202,4 +202,12 @@
 			samsung,lcd-wb;
 		};
 	};
+
+	mixer: mixer@12C10000 {
+		clock-names = "mixer", "sclk_hdmi", "vp", "mout_mixer",
+			"sclk_mixer";
+		clocks = <&clock CLK_MIXER>, <&clock CLK_SCLK_HDMI>,
+			<&clock CLK_VP>, <&clock CLK_MOUT_MIXER>,
+			<&clock CLK_SCLK_MIXER>;
+	};
 };
