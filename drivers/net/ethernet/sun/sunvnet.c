@@ -351,10 +351,15 @@ static int vnet_rx_one(struct vnet_port *port, struct vio_net_desc *desc)
 	unsigned int len = desc->size;
 	unsigned int copy_len;
 	struct sk_buff *skb;
+	int maxlen;
 	int err;
 
 	err = -EMSGSIZE;
-	if (unlikely(len < ETH_ZLEN || len > port->rmtu)) {
+	if (port->tso && port->tsolen > port->rmtu)
+		maxlen = port->tsolen;
+	else
+		maxlen = port->rmtu;
+	if (unlikely(len < ETH_ZLEN || len > maxlen)) {
 		dev->stats.rx_length_errors++;
 		goto out_dropped;
 	}
