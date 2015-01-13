@@ -113,6 +113,9 @@ struct cpufreq_policy {
 	wait_queue_head_t	transition_wait;
 	struct task_struct	*transition_task; /* Task which is doing the transition */
 
+	/* cpufreq-stats */
+	struct cpufreq_stats	*stats;
+
 	/* For cpufreq driver's internal use */
 	void			*driver_data;
 };
