@@ -159,6 +159,19 @@ struct a2150_private {
 	int config_bits;	/*  config register bits */
 };
 
+static void a2150_isadma_program(struct a2150_dma_desc *dma)
+{
+	unsigned long flags;
+
+	flags = claim_dma_lock();
+	clear_dma_ff(dma->chan);
+	set_dma_mode(dma->chan, DMA_MODE_READ);
+	set_dma_addr(dma->chan, dma->hw_addr);
+	set_dma_count(dma->chan, dma->size);
+	enable_dma(dma->chan);
+	release_dma_lock(flags);
+}
+
 /* interrupt service routine */
 static irqreturn_t a2150_interrupt(int irq, void *d)
 {
@@ -217,6 +230,7 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	 * the stop_src is set to external triggering.
 	 */
 	residue = comedi_bytes_to_samples(s, get_dma_residue(dma->chan));
+	release_dma_lock(flags);
 	num_points = max_points - residue;
 	if (devpriv->count < num_points && cmd->stop_src == TRIG_COUNT)
 		num_points = devpriv->count;
@@ -250,14 +264,11 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 			}
 		}
 	}
-	/*  re-enable  dma */
+	/* re-enable dma */
 	if (leftover) {
-		set_dma_addr(dma->chan, dma->hw_addr);
-		set_dma_count(dma->chan,
-			      comedi_samples_to_bytes(s, leftover));
-		enable_dma(dma->chan);
+		dma->size = comedi_samples_to_bytes(s, leftover);
+		a2150_isadma_program(dma);
 	}
-	release_dma_lock(flags);
 
 	comedi_handle_events(dev, s);
 
@@ -549,13 +560,10 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/*  initialize number of samples remaining */
 	devpriv->count = cmd->stop_arg * cmd->chanlist_len;
 
-	/*  enable computer's dma */
 	lock_flags = claim_dma_lock();
 	disable_dma(dma->chan);
-	/* clear flip-flop to make sure 2-byte registers for
-	 * count and address get set correctly */
-	clear_dma_ff(dma->chan);
-	set_dma_addr(dma->chan, dma->hw_addr);
+	release_dma_lock(lock_flags);
+
 	/*  set size of transfer to fill in 1/3 second */
 #define ONE_THIRD_SECOND 333333333
 	dma->size = comedi_bytes_per_sample(s) * cmd->chanlist_len *
@@ -565,9 +573,8 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (dma->size < comedi_bytes_per_sample(s))
 		dma->size = comedi_bytes_per_sample(s);
 	dma->size -= dma->size % comedi_bytes_per_sample(s);
-	set_dma_count(dma->chan, dma->size);
-	enable_dma(dma->chan);
-	release_dma_lock(lock_flags);
+
+	a2150_isadma_program(dma);
 
 	/* clear dma interrupt before enabling it, to try and get rid of that
 	 * one spurious interrupt that has been happening */
@@ -724,7 +731,6 @@ static void a2150_alloc_irq_dma(struct comedi_device *dev,
 	devpriv->irq_dma_bits = IRQ_LVL_BITS(irq_num) | DMA_CHAN_BITS(dma_chan);
 
 	disable_dma(dma_chan);
-	set_dma_mode(dma_chan, DMA_MODE_READ);
 }
 
 static void a2150_free_dma(struct comedi_device *dev)
