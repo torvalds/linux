@@ -441,6 +441,7 @@ static inline int timer_period(void)
 struct das16_dma_desc {
 	uint16_t *virt_addr;	/* virtual address of DMA buffer */
 	dma_addr_t hw_addr;	/* hardware (bus) address of DMA buffer */
+	unsigned int size;	/* transfer size (in bytes) */
 };
 
 struct das16_private_struct {
@@ -452,7 +453,6 @@ struct das16_private_struct {
 	unsigned int		dma_chan;
 	struct das16_dma_desc	dma_desc[2];
 	unsigned int		cur_dma;
-	unsigned int		dma_transfer_size;
 	struct comedi_lrange	*user_ai_range_table;
 	struct comedi_lrange	*user_ao_range_table;
 	struct timer_list	timer;
@@ -549,12 +549,12 @@ static void das16_interrupt(struct comedi_device *dev)
 	residue = disable_dma_on_even(dev);
 
 	/*  figure out how many points to read */
-	if (residue > devpriv->dma_transfer_size) {
+	if (residue > dma->size) {
 		dev_err(dev->class_dev, "residue > transfer size!\n");
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		num_bytes = 0;
 	} else
-		num_bytes = devpriv->dma_transfer_size - residue;
+		num_bytes = dma->size - residue;
 
 	if (cmd->stop_src == TRIG_COUNT &&
 					num_bytes >= devpriv->adc_byte_count) {
@@ -569,7 +569,8 @@ static void das16_interrupt(struct comedi_device *dev)
 	if ((async->events & COMEDI_CB_EOA) == 0) {
 		nxt_dma = &devpriv->dma_desc[devpriv->cur_dma];
 		set_dma_addr(devpriv->dma_chan, nxt_dma->hw_addr);
-		set_dma_count(devpriv->dma_chan, devpriv->dma_transfer_size);
+		nxt_dma->size = DAS16_DMA_SIZE;
+		set_dma_count(devpriv->dma_chan, nxt_dma->size);
 		enable_dma(devpriv->dma_chan);
 	}
 	release_dma_lock(dma_flags);
@@ -805,8 +806,8 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 	clear_dma_ff(devpriv->dma_chan);
 	devpriv->cur_dma = 0;
 	set_dma_addr(devpriv->dma_chan, dma->hw_addr);
-	devpriv->dma_transfer_size = DAS16_DMA_SIZE;
-	set_dma_count(devpriv->dma_chan, devpriv->dma_transfer_size);
+	dma->size = DAS16_DMA_SIZE;
+	set_dma_count(devpriv->dma_chan, dma->size);
 	enable_dma(devpriv->dma_chan);
 	release_dma_lock(flags);
 
