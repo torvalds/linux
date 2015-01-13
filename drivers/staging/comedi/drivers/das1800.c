@@ -967,42 +967,35 @@ static void das1800_setup_counters(struct comedi_device *dev,
 }
 
 static unsigned int das1800_ai_transfer_size(struct comedi_device *dev,
-					     struct comedi_subdevice *s)
+					     struct comedi_subdevice *s,
+					     unsigned int ns)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int size = DMA_BUF_SIZE;
-	unsigned int sample_size = comedi_bytes_per_sample(s);
-	unsigned int fill_time = 300000000;	/*  target time in nanoseconds for filling dma buffer */
-	unsigned int max_size;	/*  maximum size we will allow for a transfer */
+	unsigned int max_samples = comedi_bytes_to_samples(s, DMA_BUF_SIZE);
+	unsigned int samples;
 
-	/*  make dma buffer fill in 0.3 seconds for timed modes */
+	samples = max_samples;
+
+	/* for timed modes, make dma buffer fill in 'ns' time */
 	switch (cmd->scan_begin_src) {
-	case TRIG_FOLLOW:	/*  not in burst mode */
+	case TRIG_FOLLOW:	/* not in burst mode */
 		if (cmd->convert_src == TRIG_TIMER)
-			size = (fill_time / cmd->convert_arg) * sample_size;
+			samples = ns / cmd->convert_arg;
 		break;
 	case TRIG_TIMER:
-		size = (fill_time / (cmd->scan_begin_arg * cmd->chanlist_len)) *
-		    sample_size;
-		break;
-	default:
-		size = DMA_BUF_SIZE;
+		samples = ns / (cmd->scan_begin_arg * cmd->chanlist_len);
 		break;
 	}
 
-	/*  set a minimum and maximum size allowed */
-	max_size = DMA_BUF_SIZE;
-	/*  if we are taking limited number of conversions, limit transfer size to that */
-	if (cmd->stop_src == TRIG_COUNT &&
-	    cmd->stop_arg * cmd->chanlist_len * sample_size < max_size)
-		max_size = cmd->stop_arg * cmd->chanlist_len * sample_size;
+	/* limit samples to what is remaining in the command */
+	samples = comedi_nsamples_left(s, samples);
 
-	if (size > max_size)
-		size = max_size;
-	if (size < sample_size)
-		size = sample_size;
+	if (samples > max_samples)
+		samples = max_samples;
+	if (samples < 1)
+		samples = 1;
 
-	return size;
+	return comedi_samples_to_bytes(s, samples);
 }
 
 static void das1800_ai_setup_dma(struct comedi_device *dev,
@@ -1017,8 +1010,8 @@ static void das1800_ai_setup_dma(struct comedi_device *dev,
 
 	devpriv->cur_dma = 0;
 
-	/* determine a reasonable dma transfer size */
-	bytes = das1800_ai_transfer_size(dev, s);
+	/* determine a dma transfer size to fill buffer in 0.3 sec */
+	bytes = das1800_ai_transfer_size(dev, s, 300000000);
 
 	dma->size = bytes;
 	das1800_isadma_program(dma);
