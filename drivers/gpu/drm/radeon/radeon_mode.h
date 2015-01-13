@@ -745,8 +745,6 @@ extern void radeon_router_select_ddc_port(struct radeon_connector *radeon_connec
 extern void radeon_router_select_cd_port(struct radeon_connector *radeon_connector);
 extern bool radeon_ddc_probe(struct radeon_connector *radeon_connector, bool use_aux);
 
-extern struct drm_encoder *radeon_best_encoder(struct drm_connector *connector);
-
 extern bool radeon_atombios_get_ppll_ss_info(struct radeon_device *rdev,
 					     struct radeon_atom_ss *ss,
 					     int id);
