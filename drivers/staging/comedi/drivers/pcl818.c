@@ -342,6 +342,15 @@ static void pcl818_isadma_program(unsigned int dma_chan,
 	release_dma_lock(flags);
 }
 
+static void pcl818_isadma_disable(unsigned int dma_chan)
+{
+	unsigned long flags;
+
+	flags = claim_dma_lock();
+	disable_dma(dma_chan);
+	release_dma_lock(flags);
+}
+
 static void pcl818_start_pacer(struct comedi_device *dev, bool load_counters)
 {
 	struct pcl818_private *devpriv = dev->private;
@@ -364,7 +373,7 @@ static void pcl818_ai_setup_dma(struct comedi_device *dev,
 	struct pcl818_dma_desc *dma = &devpriv->dma_desc[0];
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	disable_dma(devpriv->dma);	/*  disable dma */
+	pcl818_isadma_disable(devpriv->dma);
 	if (cmd->stop_src == TRIG_COUNT) {
 		dma->size = cmd->stop_arg * comedi_bytes_per_scan(s);
 		devpriv->dma_runs_to_end = dma->size / devpriv->hwdmasize;
@@ -388,7 +397,7 @@ static void pcl818_ai_setup_next_dma(struct comedi_device *dev,
 	struct comedi_cmd *cmd = &s->async->cmd;
 	struct pcl818_dma_desc *dma;
 
-	disable_dma(devpriv->dma);
+	pcl818_isadma_disable(devpriv->dma);
 	devpriv->cur_dma = 1 - devpriv->cur_dma;
 	if (devpriv->dma_runs_to_end > -1 || cmd->stop_src == TRIG_NONE) {
 		/* switch dma bufs */
@@ -879,7 +888,7 @@ static int pcl818_ai_cancel(struct comedi_device *dev,
 				return 0;
 			}
 		}
-		disable_dma(devpriv->dma);
+		pcl818_isadma_disable(devpriv->dma);
 	}
 
 	outb(PCL818_CTRL_DISABLE_TRIG, dev->iobase + PCL818_CTRL_REG);
