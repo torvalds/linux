@@ -1249,8 +1249,8 @@ int tmio_mmc_host_runtime_suspend(struct device *dev)
 	if (host->clk_cache)
 		tmio_mmc_clk_stop(host);
 
-	if (host->pdata->clk_disable)
-		host->pdata->clk_disable(host->pdev);
+	if (host->clk_disable)
+		host->clk_disable(host->pdev);
 
 	return 0;
 }
