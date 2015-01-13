@@ -25,7 +25,7 @@ Example (for ARM-based BeagleBoard xM with ST33ZP24 on I2C2):
 
                 compatible = "st,st33zp24-i2c";
 
-                reg = <0x013>;
+                reg = <0x13>;
                 clock-frequency = <400000>;
 
                 interrupt-parent = <&gpio5>;
