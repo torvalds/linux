@@ -238,7 +238,6 @@ static int check_locality(struct tpm_chip *chip)
 		return chip->vendor.locality;
 
 	return -EACCES;
-
 } /* check_locality() */
 
 /*
@@ -352,7 +351,7 @@ static u8 interrupt_to_status(u8 irq_mask)
 {
 	u8 status = 0;
 
-	if ((irq_mask & TPM_INTF_STS_VALID_INT) ==  TPM_INTF_STS_VALID_INT)
+	if ((irq_mask & TPM_INTF_STS_VALID_INT) == TPM_INTF_STS_VALID_INT)
 		status |= TPM_STS_VALID;
 	if ((irq_mask & TPM_INTF_DATA_AVAIL_INT) == TPM_INTF_DATA_AVAIL_INT)
 		status |= TPM_STS_DATA_AVAIL;
@@ -573,7 +572,7 @@ out_err:
  * @param: buf,	the buffer to store datas.
  * @param: count, the number of bytes to send.
  * @return: In case of success the number of bytes received.
- *		In other case, a < 0 value describing the issue.
+ *	    In other case, a < 0 value describing the issue.
  */
 static int tpm_stm_i2c_recv(struct tpm_chip *chip, unsigned char *buf,
 			    size_t count)
@@ -636,7 +635,6 @@ static int tpm_stm_i2c_of_request_resources(struct tpm_chip *chip)
 	struct device_node *pp;
 	struct tpm_stm_dev *tpm_dev = (struct tpm_stm_dev *)TPM_VPRIV(chip);
 	struct i2c_client *client = tpm_dev->client;
-
 	int gpio;
 	int ret;
 
@@ -849,7 +847,7 @@ static int tpm_stm_i2c_pm_suspend(struct device *dev)
 		ret = tpm_pm_suspend(dev);
 
 	return ret;
-}				/* tpm_stm_i2c_suspend() */
+} /* tpm_stm_i2c_suspend() */
 
 /*
  * tpm_stm_i2c_pm_resume resume the TPM device
