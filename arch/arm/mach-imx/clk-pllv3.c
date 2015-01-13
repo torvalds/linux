@@ -31,6 +31,7 @@
  * @base:	 base address of PLL registers
  * @powerup_set: set POWER bit to power up the PLL
  * @div_mask:	 mask of divider bits
+ * @div_shift:	 shift of divider bits
  *
  * IMX PLL clock version 3, found on i.MX6 series.  Divider for pllv3
  * is actually a multiplier, and always sits at bit 0.
@@ -40,6 +41,7 @@ struct clk_pllv3 {
 	void __iomem	*base;
 	bool		powerup_set;
 	u32		div_mask;
+	u32		div_shift;
 };
 
 #define to_clk_pllv3(_hw) container_of(_hw, struct clk_pllv3, hw)
@@ -97,7 +99,7 @@ static unsigned long clk_pllv3_recalc_rate(struct clk_hw *hw,
 					   unsigned long parent_rate)
 {
 	struct clk_pllv3 *pll = to_clk_pllv3(hw);
-	u32 div = readl_relaxed(pll->base)  & pll->div_mask;
+	u32 div = (readl_relaxed(pll->base) >> pll->div_shift)  & pll->div_mask;
 
 	return (div == 1) ? parent_rate * 22 : parent_rate * 20;
 }
@@ -125,8 +127,8 @@ static int clk_pllv3_set_rate(struct clk_hw *hw, unsigned long rate,
 		return -EINVAL;
 
 	val = readl_relaxed(pll->base);
-	val &= ~pll->div_mask;
-	val |= div;
+	val &= ~(pll->div_mask << pll->div_shift);
+	val |= (div << pll->div_shift);
 	writel_relaxed(val, pll->base);
 
 	return clk_pllv3_wait_lock(pll);
@@ -295,6 +297,8 @@ struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
 	case IMX_PLLV3_SYS:
 		ops = &clk_pllv3_sys_ops;
 		break;
+	case IMX_PLLV3_USB_VF610:
+		pll->div_shift = 1;
 	case IMX_PLLV3_USB:
 		ops = &clk_pllv3_ops;
 		pll->powerup_set = true;
