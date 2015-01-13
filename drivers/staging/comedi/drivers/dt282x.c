@@ -305,6 +305,7 @@ struct dt282x_dma_desc {
 	void *virt_addr;	/* virtual address of DMA buffer */
 	dma_addr_t hw_addr;	/* hardware (bus) address of DMA buffer */
 	unsigned int size;	/* transfer size (in bytes) */
+	char mode;		/* DMA_MODE_* */
 };
 
 struct dt282x_private {
@@ -325,11 +326,23 @@ struct dt282x_private {
 	int dma_dir;
 };
 
+static void dt282x_isadma_program(struct dt282x_dma_desc *dma)
+{
+	unsigned long flags;
+
+	flags = claim_dma_lock();
+	clear_dma_ff(dma->chan);
+	set_dma_mode(dma->chan, dma->mode);
+	set_dma_addr(dma->chan, dma->hw_addr);
+	set_dma_count(dma->chan, dma->size);
+	enable_dma(dma->chan);
+	release_dma_lock(flags);
+}
+
 static int dt282x_prep_ai_dma(struct comedi_device *dev, int dma_index, int n)
 {
 	struct dt282x_private *devpriv = dev->private;
 	struct dt282x_dma_desc *dma = &devpriv->dma_desc[dma_index];
-	unsigned long flags;
 
 	if (!devpriv->ntrig)
 		return 0;
@@ -341,15 +354,9 @@ static int dt282x_prep_ai_dma(struct comedi_device *dev, int dma_index, int n)
 	devpriv->ntrig -= n / 2;
 
 	dma->size = n;
+	dma->mode = DMA_MODE_READ;
 
-	set_dma_mode(dma->chan, DMA_MODE_READ);
-	flags = claim_dma_lock();
-	clear_dma_ff(dma->chan);
-	set_dma_addr(dma->chan, dma->hw_addr);
-	set_dma_count(dma->chan, dma->size);
-	release_dma_lock(flags);
-
-	enable_dma(dma->chan);
+	dt282x_isadma_program(dma);
 
 	return n;
 }
@@ -358,18 +365,11 @@ static int dt282x_prep_ao_dma(struct comedi_device *dev, int dma_index, int n)
 {
 	struct dt282x_private *devpriv = dev->private;
 	struct dt282x_dma_desc *dma = &devpriv->dma_desc[dma_index];
-	unsigned long flags;
 
 	dma->size = n;
+	dma->mode = DMA_MODE_WRITE;
 
-	set_dma_mode(dma->chan, DMA_MODE_WRITE);
-	flags = claim_dma_lock();
-	clear_dma_ff(dma->chan);
-	set_dma_addr(dma->chan, dma->hw_addr);
-	set_dma_count(dma->chan, dma->size);
-	release_dma_lock(flags);
-
-	enable_dma(dma->chan);
+	dt282x_isadma_program(dma);
 
 	return n;
 }
