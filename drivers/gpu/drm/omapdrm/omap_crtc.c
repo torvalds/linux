@@ -501,8 +501,8 @@ static void apply_worker(struct work_struct *work)
 		DBG("%s: GO", omap_crtc->name);
 
 		if (dispc_mgr_is_enabled(channel)) {
-			omap_irq_register(dev, &omap_crtc->apply_irq);
 			dispc_mgr_go(channel);
+			omap_irq_register(dev, &omap_crtc->apply_irq);
 		} else {
 			struct omap_drm_private *priv = dev->dev_private;
 			queue_work(priv->wq, &omap_crtc->apply_work);
