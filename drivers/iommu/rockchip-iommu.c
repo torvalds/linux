@@ -393,16 +393,14 @@ static void rockchip_iommu_page_fault_done(void __iomem *base, const char *dbgna
 	__raw_writel(IOMMU_COMMAND_PAGE_FAULT_DONE,
 		     base + IOMMU_REGISTER_COMMAND);
 }
-#if 1
+
 static int rockchip_iommu_zap_tlb_without_stall (void __iomem *base)
 {
 	__raw_writel(IOMMU_COMMAND_ZAP_CACHE, base + IOMMU_REGISTER_COMMAND);
 
 	return 0;
 }
-#endif
 
-#if 0
 static int rockchip_iommu_zap_tlb(void __iomem *base)
 {
 	if (!rockchip_iommu_enable_stall(base)) {
@@ -416,7 +414,6 @@ static int rockchip_iommu_zap_tlb(void __iomem *base)
 
 	return 0;
 }
-#endif
 
 static inline bool rockchip_iommu_raw_reset(void __iomem *base)
 {
@@ -760,7 +757,7 @@ int rockchip_iommu_tlb_invalidate(struct device *dev)
 		int ret;
 
 		for (i = 0; i < data->num_res_mem; i++) {
-			ret = rockchip_iommu_zap_tlb_without_stall(data->res_bases[i]);
+			ret = rockchip_iommu_zap_tlb(data->res_bases[i]);
 			if (ret) {
 				dev_err(dev->archdata.iommu, "(%s) %s failed\n",
 					data->dbgname, __func__);
