@@ -112,16 +112,6 @@ void tmio_core_mmc_clk_div(void __iomem *cnf, int shift, int state);
 
 struct dma_chan;
 
-struct tmio_mmc_dma {
-	void *chan_priv_tx;
-	void *chan_priv_rx;
-	int slave_id_tx;
-	int slave_id_rx;
-	int alignment_shift;
-	dma_addr_t dma_rx_offset;
-	bool (*filter)(struct dma_chan *chan, void *arg);
-};
-
 struct tmio_mmc_host;
 
 /*
@@ -134,7 +124,6 @@ struct tmio_mmc_data {
 	unsigned long			flags;
 	unsigned long			bus_shift;
 	u32				ocr_mask;	/* available voltages */
-	struct tmio_mmc_dma		*dma;
 	unsigned int			cd_gpio;
 	void (*set_pwr)(struct platform_device *host, int state);
 	void (*set_clk_div)(struct platform_device *host, int state);

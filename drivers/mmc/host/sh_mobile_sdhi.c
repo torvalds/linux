@@ -213,6 +213,8 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		goto eprobe;
 	}
 
+	host->dma		= dma_priv;
+
 	mmc_data->clk_enable = sh_mobile_sdhi_clk_enable;
 	mmc_data->clk_disable = sh_mobile_sdhi_clk_disable;
 	mmc_data->capabilities = MMC_CAP_MMC_HIGHSPEED;
@@ -240,8 +242,6 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 
 	dma_priv->alignment_shift = 1; /* 2-byte alignment */
 	dma_priv->filter = shdma_chan_filter;
-
-	mmc_data->dma = dma_priv;
 
 	/*
 	 * All SDHI blocks support 2-byte and larger block sizes in 4-bit

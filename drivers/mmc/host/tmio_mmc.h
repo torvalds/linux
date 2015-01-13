@@ -40,6 +40,16 @@
 
 struct tmio_mmc_data;
 
+struct tmio_mmc_dma {
+	void *chan_priv_tx;
+	void *chan_priv_rx;
+	int slave_id_tx;
+	int slave_id_rx;
+	int alignment_shift;
+	dma_addr_t dma_rx_offset;
+	bool (*filter)(struct dma_chan *chan, void *arg);
+};
+
 struct tmio_mmc_host {
 	void __iomem *ctl;
 	struct mmc_command      *cmd;
@@ -59,6 +69,7 @@ struct tmio_mmc_host {
 
 	struct platform_device *pdev;
 	struct tmio_mmc_data *pdata;
+	struct tmio_mmc_dma	*dma;
 
 	/* DMA support */
 	bool			force_pio;
