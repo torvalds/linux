@@ -3387,7 +3387,7 @@ static int __init run_selftests(struct crypto_blkcipher *tfm_aes,
 	delta = ktime_sub(rettime, calltime);
 	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
 
-	BT_INFO("SMP test passed in %lld usecs", duration);
+	BT_INFO("SMP test passed in %llu usecs", duration);
 
 	return 0;
 }

@@ -184,7 +184,7 @@ static int __init test_ecdh(void)
 	delta = ktime_sub(rettime, calltime);
 	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
 
-	BT_INFO("ECDH test passed in %lld usecs", duration);
+	BT_INFO("ECDH test passed in %llu usecs", duration);
 
 	return 0;
 }
