@@ -545,6 +545,20 @@ static int cdns_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	 * processed with a repeated start.
 	 */
 	if (num > 1) {
+		/*
+		 * This controller does not give completion interrupt after a
+		 * master receive message if HOLD bit is set (repeated start),
+		 * resulting in SW timeout. Hence, if a receive message is
+		 * followed by any other message, an error is returned
+		 * indicating that this sequence is not supported.
+		 */
+		for (count = 0; count < num - 1; count++) {
+			if (msgs[count].flags & I2C_M_RD) {
+				dev_warn(adap->dev.parent,
+					 "Can't do repeated start after a receive message\n");
+				return -EOPNOTSUPP;
+			}
+		}
 		id->bus_hold_flag = 1;
 		reg = cdns_i2c_readreg(CDNS_I2C_CR_OFFSET);
 		reg |= CDNS_I2C_CR_HOLD;
