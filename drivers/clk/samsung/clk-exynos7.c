@@ -722,6 +722,10 @@ static struct samsung_gate_clock fsys0_gate_clks[] __initdata = {
 	GATE(ACLK_AXIUS_USBDRD30X_FSYS0X, "aclk_axius_usbdrd30x_fsys0x",
 		"mout_aclk_fsys0_200_user",
 		ENABLE_ACLK_FSYS00, 19, 0, 0),
+	GATE(ACLK_PDMA1, "aclk_pdma1", "mout_aclk_fsys0_200_user",
+			ENABLE_ACLK_FSYS00, 3, 0, 0),
+	GATE(ACLK_PDMA0, "aclk_pdma0", "mout_aclk_fsys0_200_user",
+			ENABLE_ACLK_FSYS00, 4, 0, 0),
 
 	GATE(ACLK_USBDRD300, "aclk_usbdrd300", "mout_aclk_fsys0_200_user",
 		ENABLE_ACLK_FSYS01, 29, 0, 0),
