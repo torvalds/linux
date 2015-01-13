@@ -58,6 +58,8 @@ static const struct wmi_tlv_policy wmi_tlv_policies[] = {
 		= { .min_len = sizeof(struct wlan_host_mem_req) },
 	[WMI_TLV_TAG_STRUCT_READY_EVENT]
 		= { .min_len = sizeof(struct wmi_tlv_rdy_ev) },
+	[WMI_TLV_TAG_STRUCT_OFFLOAD_BCN_TX_STATUS_EVENT]
+		= { .min_len = sizeof(struct wmi_tlv_bcn_tx_status_ev) },
 };
 
 static int
@@ -154,6 +156,51 @@ ath10k_wmi_tlv_parse_alloc(struct ath10k *ar, const void *ptr,
 static u16 ath10k_wmi_tlv_len(const void *ptr)
 {
 	return __le16_to_cpu((((const struct wmi_tlv *)ptr) - 1)->len);
+}
+
+/**************/
+/* TLV events */
+/**************/
+static int ath10k_wmi_tlv_event_bcn_tx_status(struct ath10k *ar,
+					      struct sk_buff *skb)
+{
+	const void **tb;
+	const struct wmi_tlv_bcn_tx_status_ev *ev;
+	u32 vdev_id, tx_status;
+	int ret;
+
+	tb = ath10k_wmi_tlv_parse_alloc(ar, skb->data, skb->len, GFP_ATOMIC);
+	if (IS_ERR(tb)) {
+		ret = PTR_ERR(tb);
+		ath10k_warn(ar, "failed to parse tlv: %d\n", ret);
+		return ret;
+	}
+
+	ev = tb[WMI_TLV_TAG_STRUCT_OFFLOAD_BCN_TX_STATUS_EVENT];
+	if (!ev) {
+		kfree(tb);
+		return -EPROTO;
+	}
+
+	tx_status = __le32_to_cpu(ev->tx_status);
+	vdev_id = __le32_to_cpu(ev->vdev_id);
+
+	switch (tx_status) {
+	case WMI_TLV_BCN_TX_STATUS_OK:
+		break;
+	case WMI_TLV_BCN_TX_STATUS_XRETRY:
+	case WMI_TLV_BCN_TX_STATUS_DROP:
+	case WMI_TLV_BCN_TX_STATUS_FILTERED:
+		/* FIXME: It's probably worth telling mac80211 to stop the
+		 * interface as it is crippled.
+		 */
+		ath10k_warn(ar, "received bcn tmpl tx status on vdev %i: %d",
+			    vdev_id, tx_status);
+		break;
+	}
+
+	kfree(tb);
+	return 0;
 }
 
 /***********/
@@ -267,6 +314,9 @@ static void ath10k_wmi_tlv_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case WMI_TLV_READY_EVENTID:
 		ath10k_wmi_event_ready(ar, skb);
+		break;
+	case WMI_TLV_OFFLOAD_BCN_TX_STATUS_EVENTID:
+		ath10k_wmi_tlv_event_bcn_tx_status(ar, skb);
 		break;
 	default:
 		ath10k_warn(ar, "Unknown eventid: %d\n", id);

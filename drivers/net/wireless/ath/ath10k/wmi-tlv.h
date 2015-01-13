@@ -1375,6 +1375,18 @@ struct wmi_tlv_pktlog_disable {
 	__le32 reserved;
 } __packed;
 
+enum wmi_tlv_bcn_tx_status {
+	WMI_TLV_BCN_TX_STATUS_OK,
+	WMI_TLV_BCN_TX_STATUS_XRETRY,
+	WMI_TLV_BCN_TX_STATUS_DROP,
+	WMI_TLV_BCN_TX_STATUS_FILTERED,
+};
+
+struct wmi_tlv_bcn_tx_status_ev {
+	__le32 vdev_id;
+	__le32 tx_status;
+} __packed;
+
 void ath10k_wmi_tlv_attach(struct ath10k *ar);
 
 #endif
