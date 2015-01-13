@@ -475,6 +475,19 @@ static void das16_isadma_program(unsigned int dma_chan,
 	release_dma_lock(flags);
 }
 
+static unsigned int das16_isadma_disable(unsigned int dma_chan)
+{
+	unsigned long flags;
+	unsigned int residue;
+
+	flags = claim_dma_lock();
+	disable_dma(dma_chan);
+	residue = get_dma_residue(dma_chan);
+	release_dma_lock(flags);
+
+	return residue;
+}
+
 static void das16_ai_enable(struct comedi_device *dev,
 			    unsigned int mode, unsigned int src)
 {
@@ -514,23 +527,24 @@ static int disable_dma_on_even(struct comedi_device *dev)
 	struct das16_private_struct *devpriv = dev->private;
 	static const int disable_limit = 100;
 	static const int enable_timeout = 100;
-	int residue;
+	unsigned long flags;
+	unsigned int residue;
 	int new_residue;
 	int i;
 	int j;
 
-	disable_dma(devpriv->dma_chan);
-	residue = get_dma_residue(devpriv->dma_chan);
+	residue = das16_isadma_disable(devpriv->dma_chan);
 	for (i = 0; i < disable_limit && (residue % 2); ++i) {
+		flags = claim_dma_lock();
 		enable_dma(devpriv->dma_chan);
 		for (j = 0; j < enable_timeout; ++j) {
 			udelay(2);
 			new_residue = get_dma_residue(devpriv->dma_chan);
+			release_dma_lock(flags);
 			if (new_residue != residue)
 				break;
 		}
-		disable_dma(devpriv->dma_chan);
-		residue = get_dma_residue(devpriv->dma_chan);
+		residue = das16_isadma_disable(devpriv->dma_chan);
 	}
 	if (i == disable_limit) {
 		dev_err(dev->class_dev,
@@ -548,7 +562,6 @@ static void das16_interrupt(struct comedi_device *dev)
 	struct das16_dma_desc *dma = &devpriv->dma_desc[devpriv->cur_dma];
 	struct das16_dma_desc *nxt_dma;
 	unsigned long spin_flags;
-	unsigned long dma_flags;
 	unsigned int nsamples;
 	int num_bytes, residue;
 
@@ -558,10 +571,7 @@ static void das16_interrupt(struct comedi_device *dev)
 		return;
 	}
 
-	dma_flags = claim_dma_lock();
-	clear_dma_ff(devpriv->dma_chan);
 	residue = disable_dma_on_even(dev);
-	release_dma_lock(dma_flags);
 
 	/*  figure out how many points to read */
 	if (residue > dma->size) {
@@ -1001,7 +1011,6 @@ static int das16_alloc_dma(struct comedi_device *dev, unsigned int dma_chan)
 {
 	struct das16_private_struct *devpriv = dev->private;
 	struct das16_dma_desc *dma;
-	unsigned long flags;
 	int i;
 
 	if (!(dma_chan == 1 || dma_chan == 3))
@@ -1020,9 +1029,7 @@ static int das16_alloc_dma(struct comedi_device *dev, unsigned int dma_chan)
 			return -ENOMEM;
 	}
 
-	flags = claim_dma_lock();
-	disable_dma(devpriv->dma_chan);
-	release_dma_lock(flags);
+	das16_isadma_disable(devpriv->dma_chan);
 
 	init_timer(&devpriv->timer);
 	devpriv->timer.function = das16_timer_interrupt;
