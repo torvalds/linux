@@ -409,6 +409,14 @@
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
+			mmc0_pins: mmc0 {
+				allwinner,pins = "PF0", "PF1" ,"PF2", "PF3",
+						 "PF4", "PF5";
+				allwinner,function = "mmc0";
+				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
 			uart0_pins_a: uart0@0 {
 				allwinner,pins = "PH12", "PH13";
 				allwinner,function = "uart0";
