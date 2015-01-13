@@ -1690,7 +1690,7 @@ static u32 coh901318_get_bytes_left(struct dma_chan *chan)
  * Pauses a transfer without losing data. Enables power save.
  * Use this function in conjunction with coh901318_resume.
  */
-static void coh901318_pause(struct dma_chan *chan)
+static int coh901318_pause(struct dma_chan *chan)
 {
 	u32 val;
 	unsigned long flags;
@@ -1730,12 +1730,13 @@ static void coh901318_pause(struct dma_chan *chan)
 	enable_powersave(cohc);
 
 	spin_unlock_irqrestore(&cohc->lock, flags);
+	return 0;
 }
 
 /* Resumes a transfer that has been stopped via 300_dma_stop(..).
    Power save is handled.
 */
-static void coh901318_resume(struct dma_chan *chan)
+static int coh901318_resume(struct dma_chan *chan)
 {
 	u32 val;
 	unsigned long flags;
@@ -1760,6 +1761,7 @@ static void coh901318_resume(struct dma_chan *chan)
 	}
 
 	spin_unlock_irqrestore(&cohc->lock, flags);
+	return 0;
 }
 
 bool coh901318_filter_id(struct dma_chan *chan, void *chan_id)
@@ -2512,8 +2514,8 @@ static const struct burst_table burst_sizes[] = {
 	},
 };
 
-static void coh901318_dma_set_runtimeconfig(struct dma_chan *chan,
-			struct dma_slave_config *config)
+static int coh901318_dma_set_runtimeconfig(struct dma_chan *chan,
+					   struct dma_slave_config *config)
 {
 	struct coh901318_chan *cohc = to_coh901318_chan(chan);
 	dma_addr_t addr;
@@ -2533,7 +2535,7 @@ static void coh901318_dma_set_runtimeconfig(struct dma_chan *chan,
 		maxburst = config->dst_maxburst;
 	} else {
 		dev_err(COHC_2_DEV(cohc), "illegal channel mode\n");
-		return;
+		return -EINVAL;
 	}
 
 	dev_dbg(COHC_2_DEV(cohc), "configure channel for %d byte transfers\n",
@@ -2579,7 +2581,7 @@ static void coh901318_dma_set_runtimeconfig(struct dma_chan *chan,
 	default:
 		dev_err(COHC_2_DEV(cohc),
 			"bad runtimeconfig: alien address width\n");
-		return;
+		return -EINVAL;
 	}
 
 	ctrl |= burst_sizes[i].reg;
@@ -2589,10 +2591,12 @@ static void coh901318_dma_set_runtimeconfig(struct dma_chan *chan,
 
 	cohc->addr = addr;
 	cohc->ctrl = ctrl;
+
+	return 0;
 }
 
-void coh901318_base_init(struct dma_device *dma, const int *pick_chans,
-			 struct coh901318_base *base)
+static void coh901318_base_init(struct dma_device *dma, const int *pick_chans,
+				struct coh901318_base *base)
 {
 	int chans_i;
 	int i = 0;
