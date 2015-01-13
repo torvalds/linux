@@ -515,25 +515,25 @@ static void das1800_handle_fifo_not_empty(struct comedi_device *dev,
  * Assumes dma lock is held */
 static void das1800_flush_dma_channel(struct comedi_device *dev,
 				      struct comedi_subdevice *s,
-				      unsigned int channel, uint16_t *buffer)
+				      struct das1800_dma_desc *dma)
 {
 	struct das1800_private *devpriv = dev->private;
 	unsigned int nbytes;
 	unsigned int nsamples;
 
-	disable_dma(channel);
+	disable_dma(dma->chan);
 
 	/* clear flip-flop to make sure 2-byte registers
 	 * get set correctly */
-	clear_dma_ff(channel);
+	clear_dma_ff(dma->chan);
 
 	/*  figure out how many points to read */
-	nbytes = devpriv->dma_transfer_size - get_dma_residue(channel);
+	nbytes = devpriv->dma_transfer_size - get_dma_residue(dma->chan);
 	nsamples = comedi_bytes_to_samples(s, nbytes);
 	nsamples = comedi_nsamples_left(s, nsamples);
 
-	munge_data(dev, buffer, nsamples);
-	comedi_buf_write_samples(s, buffer, nsamples);
+	munge_data(dev, dma->virt_addr, nsamples);
+	comedi_buf_write_samples(s, dma->virt_addr, nsamples);
 }
 
 /* flushes remaining data from board when external trigger has stopped acquisition
@@ -547,13 +547,13 @@ static void das1800_flush_dma(struct comedi_device *dev,
 	const int dual_dma = devpriv->irq_dma_bits & DMA_DUAL;
 
 	flags = claim_dma_lock();
-	das1800_flush_dma_channel(dev, s, dma->chan, dma->virt_addr);
+	das1800_flush_dma_channel(dev, s, dma);
 
 	if (dual_dma) {
 		/*  switch to other channel and flush it */
 		devpriv->cur_dma = 1 - devpriv->cur_dma;
 		dma = &devpriv->dma_desc[devpriv->cur_dma];
-		das1800_flush_dma_channel(dev, s, dma->chan, dma->virt_addr);
+		das1800_flush_dma_channel(dev, s, dma);
 	}
 
 	release_dma_lock(flags);
@@ -571,7 +571,7 @@ static void das1800_handle_dma(struct comedi_device *dev,
 	const int dual_dma = devpriv->irq_dma_bits & DMA_DUAL;
 
 	flags = claim_dma_lock();
-	das1800_flush_dma_channel(dev, s, dma->chan, dma->virt_addr);
+	das1800_flush_dma_channel(dev, s, dma);
 	/*  re-enable  dma channel */
 	set_dma_addr(dma->chan, dma->hw_addr);
 	set_dma_count(dma->chan, devpriv->dma_transfer_size);
