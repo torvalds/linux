@@ -681,15 +681,6 @@ static inline int aal5_size(int size)
 	return cells * 48;
 }
 
-/* How many bytes can we send if we have "space" space, assuming we have
- * to send full cells
- */
-static inline int aal5_spacefor(int space)
-{
-	int cells = space / 48;
-	return cells * 48;
-}
-
 /* -------------------- FREE AN ATM SKB: */
 
 static inline void lanai_free_skb(struct atm_vcc *atmvcc, struct sk_buff *skb)
