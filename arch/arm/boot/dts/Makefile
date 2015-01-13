@@ -3,56 +3,46 @@ ifeq ($(CONFIG_OF),y)
 dtb-$(CONFIG_MACH_ASM9260) += \
 	alphascale-asm9260-devkit.dtb
 # Keep at91 dtb files sorted alphabetically for each SoC
-# rm9200
-dtb-$(CONFIG_ARCH_AT91) += at91rm9200ek.dtb
-dtb-$(CONFIG_ARCH_AT91) += mpa1600.dtb
-# sam9260
-dtb-$(CONFIG_ARCH_AT91) += animeo_ip.dtb
-dtb-$(CONFIG_ARCH_AT91) += at91-qil_a9260.dtb
-dtb-$(CONFIG_ARCH_AT91) += aks-cdu.dtb
-dtb-$(CONFIG_ARCH_AT91) += ethernut5.dtb
-dtb-$(CONFIG_ARCH_AT91) += evk-pro3.dtb
-dtb-$(CONFIG_ARCH_AT91) += tny_a9260.dtb
-dtb-$(CONFIG_ARCH_AT91) += usb_a9260.dtb
-# sam9261
-dtb-$(CONFIG_ARCH_AT91) += at91sam9261ek.dtb
-# sam9263
-dtb-$(CONFIG_ARCH_AT91) += at91sam9263ek.dtb
-dtb-$(CONFIG_ARCH_AT91) += tny_a9263.dtb
-dtb-$(CONFIG_ARCH_AT91) += usb_a9263.dtb
-# sam9g20
-dtb-$(CONFIG_ARCH_AT91) += at91-foxg20.dtb
-dtb-$(CONFIG_ARCH_AT91) += at91sam9g20ek.dtb
-dtb-$(CONFIG_ARCH_AT91) += at91sam9g20ek_2mmc.dtb
-dtb-$(CONFIG_ARCH_AT91) += kizbox.dtb
-dtb-$(CONFIG_ARCH_AT91) += tny_a9g20.dtb
-dtb-$(CONFIG_ARCH_AT91) += usb_a9g20.dtb
-dtb-$(CONFIG_ARCH_AT91) += usb_a9g20_lpw.dtb
-# sam9g45
-dtb-$(CONFIG_ARCH_AT91) += at91sam9m10g45ek.dtb
-dtb-$(CONFIG_ARCH_AT91) += pm9g45.dtb
-# sam9n12
-dtb-$(CONFIG_ARCH_AT91) += at91sam9n12ek.dtb
-# sam9rl
-dtb-$(CONFIG_ARCH_AT91) += at91sam9rlek.dtb
-# sam9x5
-dtb-$(CONFIG_ARCH_AT91) += at91-ariag25.dtb
-dtb-$(CONFIG_ARCH_AT91) += at91-cosino_mega2560.dtb
-dtb-$(CONFIG_ARCH_AT91) += at91sam9g15ek.dtb
-dtb-$(CONFIG_ARCH_AT91) += at91sam9g25ek.dtb
-dtb-$(CONFIG_ARCH_AT91) += at91sam9g35ek.dtb
-dtb-$(CONFIG_ARCH_AT91) += at91sam9x25ek.dtb
-dtb-$(CONFIG_ARCH_AT91) += at91sam9x35ek.dtb
-# sama5d3
-dtb-$(CONFIG_ARCH_AT91)	+= at91-sama5d3_xplained.dtb
-dtb-$(CONFIG_ARCH_AT91)	+= sama5d31ek.dtb
-dtb-$(CONFIG_ARCH_AT91)	+= sama5d33ek.dtb
-dtb-$(CONFIG_ARCH_AT91)	+= sama5d34ek.dtb
-dtb-$(CONFIG_ARCH_AT91)	+= sama5d35ek.dtb
-dtb-$(CONFIG_ARCH_AT91)	+= sama5d36ek.dtb
-# sama5d4
-dtb-$(CONFIG_ARCH_AT91)	+= at91-sama5d4ek.dtb
-
+dtb-$(CONFIG_SOC_SAM_V4_V5) += \
+	at91rm9200ek.dtb \
+	mpa1600.dtb \
+	animeo_ip.dtb \
+	at91-qil_a9260.dtb \
+	aks-cdu.dtb \
+	ethernut5.dtb \
+	evk-pro3.dtb \
+	tny_a9260.dtb \
+	usb_a9260.dtb \
+	at91sam9261ek.dtb \
+	at91sam9263ek.dtb \
+	tny_a9263.dtb \
+	usb_a9263.dtb \
+	at91-foxg20.dtb \
+	at91sam9g20ek.dtb \
+	at91sam9g20ek_2mmc.dtb \
+	kizbox.dtb \
+	tny_a9g20.dtb \
+	usb_a9g20.dtb \
+	usb_a9g20_lpw.dtb \
+	at91sam9m10g45ek.dtb \
+	pm9g45.dtb \
+	at91sam9n12ek.dtb \
+	at91sam9rlek.dtb \
+	at91-ariag25.dtb \
+	at91-cosino_mega2560.dtb \
+	at91sam9g15ek.dtb \
+	at91sam9g25ek.dtb \
+	at91sam9g35ek.dtb \
+	at91sam9x25ek.dtb \
+	at91sam9x35ek.dtb
+dtb-$(CONFIG_SOC_SAM_V7) += \
+	at91-sama5d3_xplained.dtb \
+	sama5d31ek.dtb \
+	sama5d33ek.dtb \
+	sama5d34ek.dtb \
+	sama5d35ek.dtb \
+	sama5d36ek.dtb \
+	at91-sama5d4ek.dtb
 dtb-$(CONFIG_ARCH_ATLAS6) += \
 	atlas6-evb.dtb
 dtb-$(CONFIG_ARCH_ATLAS7) += \
