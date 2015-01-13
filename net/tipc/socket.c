@@ -470,8 +470,8 @@ static void tipc_sk_callback(struct rcu_head *head)
 static int tipc_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
-	struct net *net = sock_net(sk);
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
+	struct net *net;
+	struct tipc_net *tn;
 	struct tipc_sock *tsk;
 	struct sk_buff *skb;
 	u32 dnode, probing_state;
@@ -482,6 +482,9 @@ static int tipc_release(struct socket *sock)
 	 */
 	if (sk == NULL)
 		return 0;
+
+	net = sock_net(sk);
+	tn = net_generic(net, tipc_net_id);
 
 	tsk = tipc_sk(sk);
 	lock_sock(sk);
