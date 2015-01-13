@@ -210,14 +210,16 @@ extern int __get_user_bad(void)
 #define __get_user(x, ptr)						\
 	({								\
 		int __ret;						\
+		typeof(x) _x;						\
 		__chk_user_ptr(ptr);					\
 		switch (sizeof(*(ptr))) {				\
-		case 1: __get_user_1(x, ptr, __ret); break;		\
-		case 2: __get_user_2(x, ptr, __ret); break;		\
-		case 4: __get_user_4(x, ptr, __ret); break;		\
-		case 8: __get_user_8(x, ptr, __ret); break;		\
+		case 1: __get_user_1(_x, ptr, __ret); break;		\
+		case 2: __get_user_2(_x, ptr, __ret); break;		\
+		case 4: __get_user_4(_x, ptr, __ret); break;		\
+		case 8: __get_user_8(_x, ptr, __ret); break;		\
 		default: __ret = __get_user_bad(); break;		\
 		}							\
+		(x) = (typeof(*(ptr))) _x;				\
 		__ret;							\
 	})
 
@@ -289,12 +291,13 @@ extern int __put_user_bad(void)
 #define __put_user(x, ptr)						\
 ({									\
 	int __ret;							\
+	typeof(*(ptr)) _x = (x);					\
 	__chk_user_ptr(ptr);						\
 	switch (sizeof(*(ptr))) {					\
-	case 1: __put_user_1(x, ptr, __ret); break;			\
-	case 2: __put_user_2(x, ptr, __ret); break;			\
-	case 4: __put_user_4(x, ptr, __ret); break;			\
-	case 8: __put_user_8(x, ptr, __ret); break;			\
+	case 1: __put_user_1(_x, ptr, __ret); break;			\
+	case 2: __put_user_2(_x, ptr, __ret); break;			\
+	case 4: __put_user_4(_x, ptr, __ret); break;			\
+	case 8: __put_user_8(_x, ptr, __ret); break;			\
 	default: __ret = __put_user_bad(); break;			\
 	}								\
 	__ret;								\
