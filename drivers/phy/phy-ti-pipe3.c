@@ -28,6 +28,7 @@
 #include <linux/delay.h>
 #include <linux/phy/omap_control_phy.h>
 #include <linux/of_platform.h>
+#include <linux/spinlock.h>
 
 #define	PLL_STATUS		0x00000004
 #define	PLL_GO			0x00000008
@@ -82,6 +83,8 @@ struct ti_pipe3 {
 	struct clk		*refclk;
 	struct clk		*div_clk;
 	struct pipe3_dpll_map	*dpll_map;
+	bool			enabled;
+	spinlock_t		lock;	/* serialize clock enable/disable */
 };
 
 static struct pipe3_dpll_map dpll_map_usb[] = {
@@ -307,6 +310,7 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	phy->dev		= &pdev->dev;
+	spin_lock_init(&phy->lock);
 
 	if (!of_device_is_compatible(node, "ti,phy-pipe3-pcie")) {
 		match = of_match_device(of_match_ptr(ti_pipe3_id_table),
@@ -427,24 +431,14 @@ static int ti_pipe3_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_PM
 
-static int ti_pipe3_runtime_suspend(struct device *dev)
+static int ti_pipe3_enable_clocks(struct ti_pipe3 *phy)
 {
-	struct ti_pipe3	*phy = dev_get_drvdata(dev);
+	int ret = 0;
+	unsigned long flags;
 
-	if (!IS_ERR(phy->wkupclk))
-		clk_disable_unprepare(phy->wkupclk);
-	if (!IS_ERR(phy->refclk))
-		clk_disable_unprepare(phy->refclk);
-	if (!IS_ERR(phy->div_clk))
-		clk_disable_unprepare(phy->div_clk);
-
-	return 0;
-}
-
-static int ti_pipe3_runtime_resume(struct device *dev)
-{
-	u32 ret = 0;
-	struct ti_pipe3	*phy = dev_get_drvdata(dev);
+	spin_lock_irqsave(&phy->lock, flags);
+	if (phy->enabled)
+		goto err1;
 
 	if (!IS_ERR(phy->refclk)) {
 		ret = clk_prepare_enable(phy->refclk);
@@ -469,6 +463,9 @@ static int ti_pipe3_runtime_resume(struct device *dev)
 			goto err3;
 		}
 	}
+
+	phy->enabled = true;
+	spin_unlock_irqrestore(&phy->lock, flags);
 	return 0;
 
 err3:
@@ -480,18 +477,76 @@ err2:
 		clk_disable_unprepare(phy->refclk);
 
 err1:
+	spin_unlock_irqrestore(&phy->lock, flags);
 	return ret;
 }
+
+static void ti_pipe3_disable_clocks(struct ti_pipe3 *phy)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&phy->lock, flags);
+	if (!phy->enabled) {
+		spin_unlock_irqrestore(&phy->lock, flags);
+		return;
+	}
+
+	if (!IS_ERR(phy->wkupclk))
+		clk_disable_unprepare(phy->wkupclk);
+	if (!IS_ERR(phy->refclk))
+		clk_disable_unprepare(phy->refclk);
+	if (!IS_ERR(phy->div_clk))
+		clk_disable_unprepare(phy->div_clk);
+	phy->enabled = false;
+	spin_unlock_irqrestore(&phy->lock, flags);
+}
+
+static int ti_pipe3_runtime_suspend(struct device *dev)
+{
+	struct ti_pipe3	*phy = dev_get_drvdata(dev);
+
+	ti_pipe3_disable_clocks(phy);
+	return 0;
+}
+
+static int ti_pipe3_runtime_resume(struct device *dev)
+{
+	struct ti_pipe3	*phy = dev_get_drvdata(dev);
+	int ret = 0;
+
+	ret = ti_pipe3_enable_clocks(phy);
+	return ret;
+}
+
+static int ti_pipe3_suspend(struct device *dev)
+{
+	struct ti_pipe3	*phy = dev_get_drvdata(dev);
+
+	ti_pipe3_disable_clocks(phy);
+	return 0;
+}
+
+static int ti_pipe3_resume(struct device *dev)
+{
+	struct ti_pipe3	*phy = dev_get_drvdata(dev);
+	int ret;
+
+	ret = ti_pipe3_enable_clocks(phy);
+	if (ret)
+		return ret;
+
+	pm_runtime_disable(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+	return 0;
+}
+#endif
 
 static const struct dev_pm_ops ti_pipe3_pm_ops = {
 	SET_RUNTIME_PM_OPS(ti_pipe3_runtime_suspend,
 			   ti_pipe3_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(ti_pipe3_suspend, ti_pipe3_resume)
 };
-
-#define DEV_PM_OPS     (&ti_pipe3_pm_ops)
-#else
-#define DEV_PM_OPS     NULL
-#endif
 
 #ifdef CONFIG_OF
 static const struct of_device_id ti_pipe3_id_table[] = {
@@ -520,7 +575,7 @@ static struct platform_driver ti_pipe3_driver = {
 	.remove		= ti_pipe3_remove,
 	.driver		= {
 		.name	= "ti-pipe3",
-		.pm	= DEV_PM_OPS,
+		.pm	= &ti_pipe3_pm_ops,
 		.of_match_table = of_match_ptr(ti_pipe3_id_table),
 	},
 };
