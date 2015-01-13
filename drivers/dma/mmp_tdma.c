@@ -471,6 +471,8 @@ static int mmp_tdma_terminate_all(struct dma_chan *chan)
 	mmp_tdma_disable_chan(chan);
 	/* disable interrupt */
 	mmp_tdma_enable_irq(tdmac, false);
+
+	return 0;
 }
 
 static int mmp_tdma_config(struct dma_chan *chan,
