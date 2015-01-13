@@ -377,8 +377,18 @@ static void max732x_irq_bus_lock(struct irq_data *d)
 static void max732x_irq_bus_sync_unlock(struct irq_data *d)
 {
 	struct max732x_chip *chip = irq_data_get_irq_chip_data(d);
+	uint16_t new_irqs;
+	uint16_t level;
 
 	max732x_irq_update_mask(chip);
+
+	new_irqs = chip->irq_trig_fall | chip->irq_trig_raise;
+	while (new_irqs) {
+		level = __ffs(new_irqs);
+		max732x_gpio_direction_input(&chip->gpio_chip, level);
+		new_irqs &= ~(1 << level);
+	}
+
 	mutex_unlock(&chip->irq_lock);
 }
 
@@ -410,7 +420,7 @@ static int max732x_irq_set_type(struct irq_data *d, unsigned int type)
 	else
 		chip->irq_trig_raise &= ~mask;
 
-	return max732x_gpio_direction_input(&chip->gpio_chip, off);
+	return 0;
 }
 
 static struct irq_chip max732x_irq_chip = {
