@@ -3563,6 +3563,44 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_JMICRON,
 			 quirk_dma_func1_alias);
 
 /*
+ * Some devices DMA with the wrong devfn, not just the wrong function.
+ * quirk_fixed_dma_alias() uses this table to create fixed aliases, where
+ * the alias is "fixed" and independent of the device devfn.
+ *
+ * For example, the Adaptec 3405 is a PCIe card with an Intel 80333 I/O
+ * processor.  To software, this appears as a PCIe-to-PCI/X bridge with a
+ * single device on the secondary bus.  In reality, the single exposed
+ * device at 0e.0 is the Address Translation Unit (ATU) of the controller
+ * that provides a bridge to the internal bus of the I/O processor.  The
+ * controller supports private devices, which can be hidden from PCI config
+ * space.  In the case of the Adaptec 3405, a private device at 01.0
+ * appears to be the DMA engine, which therefore needs to become a DMA
+ * alias for the device.
+ */
+static const struct pci_device_id fixed_dma_alias_tbl[] = {
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ADAPTEC2, 0x0285,
+			 PCI_VENDOR_ID_ADAPTEC2, 0x02bb), /* Adaptec 3405 */
+	  .driver_data = PCI_DEVFN(1, 0) },
+	{ 0 }
+};
+
+static void quirk_fixed_dma_alias(struct pci_dev *dev)
+{
+	const struct pci_device_id *id;
+
+	id = pci_match_id(fixed_dma_alias_tbl, dev);
+	if (id) {
+		dev->dma_alias_devfn = id->driver_data;
+		dev->dev_flags |= PCI_DEV_FLAGS_DMA_ALIAS_DEVFN;
+		dev_info(&dev->dev, "Enabling fixed DMA alias to %02x.%d\n",
+			 PCI_SLOT(dev->dma_alias_devfn),
+			 PCI_FUNC(dev->dma_alias_devfn));
+	}
+}
+
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ADAPTEC2, 0x0285, quirk_fixed_dma_alias);
+
+/*
  * A few PCIe-to-PCI bridges fail to expose a PCIe capability, resulting in
  * using the wrong DMA alias for the device.  Some of these devices can be
  * used as either forward or reverse bridges, so we need to test whether the
