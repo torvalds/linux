@@ -52,7 +52,7 @@ static void tmio_mmc_start_dma_rx(struct tmio_mmc_host *host)
 	dma_cookie_t cookie;
 	int ret, i;
 	bool aligned = true, multiple = true;
-	unsigned int align = (1 << host->dma->alignment_shift) - 1;
+	unsigned int align = (1 << host->pdata->alignment_shift) - 1;
 
 	for_each_sg(sg, sg_tmp, host->sg_len, i) {
 		if (sg_tmp->offset & align)
@@ -128,7 +128,7 @@ static void tmio_mmc_start_dma_tx(struct tmio_mmc_host *host)
 	dma_cookie_t cookie;
 	int ret, i;
 	bool aligned = true, multiple = true;
-	unsigned int align = (1 << host->dma->alignment_shift) - 1;
+	unsigned int align = (1 << host->pdata->alignment_shift) - 1;
 
 	for_each_sg(sg, sg_tmp, host->sg_len, i) {
 		if (sg_tmp->offset & align)

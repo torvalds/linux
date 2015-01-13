@@ -241,9 +241,9 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 			dma_priv->slave_id_rx = p->dma_slave_rx;
 		}
 	}
-
-	dma_priv->alignment_shift = 1; /* 2-byte alignment */
 	dma_priv->filter = shdma_chan_filter;
+
+	mmc_data->alignment_shift = 1; /* 2-byte alignment */
 
 	/*
 	 * All SDHI blocks support 2-byte and larger block sizes in 4-bit
