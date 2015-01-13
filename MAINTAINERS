@@ -8014,6 +8014,13 @@ S:	Maintained
 F:	Documentation/rfkill.txt
 F:	net/rfkill/
 
+RHASHTABLE
+M:	Thomas Graf <tgraf@suug.ch>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	lib/rhashtable.c
+F:	include/linux/rhashtable.h
+
 RICOH SMARTMEDIA/XD DRIVER
 M:	Maxim Levitsky <maximlevitsky@gmail.com>
 S:	Maintained
