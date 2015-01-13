@@ -147,6 +147,15 @@ static void pcl816_isadma_program(unsigned int dma_chan,
 	release_dma_lock(flags);
 }
 
+static void pcl816_isadma_disable(unsigned int dma_chan)
+{
+	unsigned long flags;
+
+	flags = claim_dma_lock();
+	disable_dma(dma_chan);
+	release_dma_lock(flags);
+}
+
 static void pcl816_start_pacer(struct comedi_device *dev, bool load_counters)
 {
 	struct pcl816_private *devpriv = dev->private;
@@ -202,7 +211,7 @@ static void pcl816_ai_setup_next_dma(struct comedi_device *dev,
 	struct comedi_cmd *cmd = &s->async->cmd;
 	struct pcl816_dma_desc *dma;
 
-	disable_dma(devpriv->dma);
+	pcl816_isadma_disable(devpriv->dma);
 	if (devpriv->dma_runs_to_end > -1 || cmd->stop_src == TRIG_NONE) {
 		/* switch dma bufs */
 		devpriv->cur_dma = 1 - devpriv->cur_dma;
