@@ -539,7 +539,9 @@ static int vxlan_fdb_append(struct vxlan_fdb *f,
 	return 1;
 }
 
-static struct sk_buff **vxlan_gro_receive(struct sk_buff **head, struct sk_buff *skb)
+static struct sk_buff **vxlan_gro_receive(struct sk_buff **head,
+					  struct sk_buff *skb,
+					  struct udp_offload *uoff)
 {
 	struct sk_buff *p, **pp = NULL;
 	struct vxlanhdr *vh, *vh2;
@@ -578,7 +580,8 @@ out:
 	return pp;
 }
 
-static int vxlan_gro_complete(struct sk_buff *skb, int nhoff)
+static int vxlan_gro_complete(struct sk_buff *skb, int nhoff,
+			      struct udp_offload *uoff)
 {
 	udp_tunnel_gro_complete(skb, nhoff);
 
