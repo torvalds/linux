@@ -397,7 +397,7 @@ static int wait_for_stat(struct tpm_chip *chip, u8 mask, unsigned long timeout,
  */
 static int recv_data(struct tpm_chip *chip, u8 *buf, size_t count)
 {
-	int size = 0, burstcnt, len;
+	int size = 0, burstcnt, len, ret;
 	struct i2c_client *client;
 
 	client = (struct i2c_client *)TPM_VPRIV(chip);
@@ -406,13 +406,15 @@ static int recv_data(struct tpm_chip *chip, u8 *buf, size_t count)
 	       wait_for_stat(chip,
 			     TPM_STS_DATA_AVAIL | TPM_STS_VALID,
 			     chip->vendor.timeout_c,
-			     &chip->vendor.read_queue)
-	       == 0) {
+			     &chip->vendor.read_queue) == 0) {
 		burstcnt = get_burstcount(chip);
 		if (burstcnt < 0)
 			return burstcnt;
 		len = min_t(int, burstcnt, count - size);
-		I2C_READ_DATA(client, TPM_DATA_FIFO, buf + size, len);
+		ret = I2C_READ_DATA(client, TPM_DATA_FIFO, buf + size, len);
+		if (ret < 0)
+			return ret;
+
 		size += len;
 	}
 	return size;
