@@ -365,6 +365,7 @@ static int rdma_read_chunks(struct svcxprt_rdma *xprt,
 	int page_no, ret;
 	struct rpcrdma_read_chunk *ch;
 	u32 handle, page_offset, byte_count;
+	u32 position;
 	u64 rs_offset;
 	bool last;
 
@@ -389,10 +390,17 @@ static int rdma_read_chunks(struct svcxprt_rdma *xprt,
 	head->arg.len = rqstp->rq_arg.len;
 	head->arg.buflen = rqstp->rq_arg.buflen;
 
-	page_no = 0; page_offset = 0;
-	for (ch = (struct rpcrdma_read_chunk *)&rmsgp->rm_body.rm_chunks[0];
-	     ch->rc_discrim != 0; ch++) {
-		handle = be32_to_cpu(ch->rc_target.rs_handle);
+	ch = (struct rpcrdma_read_chunk *)&rmsgp->rm_body.rm_chunks[0];
+	position = be32_to_cpu(ch->rc_position);
+
+	ret = 0;
+	page_no = 0;
+	page_offset = 0;
+	for (; ch->rc_discrim != xdr_zero; ch++) {
+		if (be32_to_cpu(ch->rc_position) != position)
+			goto err;
+
+		handle = be32_to_cpu(ch->rc_target.rs_handle),
 		byte_count = be32_to_cpu(ch->rc_target.rs_length);
 		xdr_decode_hyper((__be32 *)&ch->rc_target.rs_offset,
 				 &rs_offset);
