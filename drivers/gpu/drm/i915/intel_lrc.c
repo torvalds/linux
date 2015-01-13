@@ -1751,6 +1751,7 @@ void intel_lr_context_free(struct intel_context *ctx)
 				intel_unpin_ringbuffer_obj(ringbuf);
 				i915_gem_object_ggtt_unpin(ctx_obj);
 			}
+			WARN_ON(ctx->engine[ring->id].unpin_count);
 			intel_destroy_ringbuffer_obj(ringbuf);
 			kfree(ringbuf);
 			drm_gem_object_unreference(&ctx_obj->base);
