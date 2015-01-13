@@ -29,7 +29,7 @@
 #include "ni_labpc_isadma.h"
 
 /* size in bytes of dma buffer */
-static const int dma_buffer_size = 0xff00;
+#define LABPC_ISADMA_BUFFER_SIZE	0xff00
 
 /* utility function that suggests a dma transfer size in bytes */
 static unsigned int labpc_suggest_transfer_size(struct comedi_device *dev,
@@ -50,8 +50,8 @@ static unsigned int labpc_suggest_transfer_size(struct comedi_device *dev,
 	size = (freq / 3) * sample_size;
 
 	/* set a minimum and maximum size allowed */
-	if (size > dma_buffer_size)
-		size = dma_buffer_size - dma_buffer_size % sample_size;
+	if (size > LABPC_ISADMA_BUFFER_SIZE)
+		size = LABPC_ISADMA_BUFFER_SIZE;
 	else if (size < sample_size)
 		size = sample_size;
 
@@ -178,7 +178,7 @@ void labpc_init_dma_chan(struct comedi_device *dev, unsigned int dma_chan)
 	if (request_dma(dma_chan, dev->board_name))
 		return;
 
-	dma->virt_addr = dma_alloc_coherent(NULL, dma_buffer_size,
+	dma->virt_addr = dma_alloc_coherent(NULL, LABPC_ISADMA_BUFFER_SIZE,
 					    &dma->hw_addr, GFP_KERNEL);
 	if (!dma->virt_addr) {
 		free_dma(dma_chan);
@@ -200,7 +200,7 @@ void labpc_free_dma_chan(struct comedi_device *dev)
 	struct labpc_dma_desc *dma = &devpriv->dma_desc;
 
 	if (dma->virt_addr)
-		dma_free_coherent(NULL, dma_buffer_size,
+		dma_free_coherent(NULL, LABPC_ISADMA_BUFFER_SIZE,
 				  dma->virt_addr, dma->hw_addr);
 	if (dma->chan)
 		free_dma(dma->chan);
