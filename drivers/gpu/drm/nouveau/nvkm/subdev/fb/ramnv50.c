@@ -27,7 +27,7 @@
 #include <subdev/bios/pll.h>
 #include <subdev/bios/perf.h>
 #include <subdev/bios/timing.h>
-#include <subdev/clock/pll.h>
+#include <subdev/clk/pll.h>
 #include <subdev/fb.h>
 
 #include <core/option.h>

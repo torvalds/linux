@@ -30,8 +30,8 @@
 #include <subdev/bios/M0205.h>
 #include <subdev/bios/timing.h>
 
-#include <subdev/clock/nva3.h>
-#include <subdev/clock/pll.h>
+#include <subdev/clk/nva3.h>
+#include <subdev/clk/pll.h>
 
 #include <subdev/gpio.h>
 
@@ -168,7 +168,7 @@ nva3_link_train(struct nouveau_fb *pfb)
 {
 	struct nouveau_bios *bios = nouveau_bios(pfb);
 	struct nva3_ram *ram = (void *)pfb->ram;
-	struct nouveau_clock *clk = nouveau_clock(pfb);
+	struct nouveau_clk *clk = nouveau_clk(pfb);
 	struct nva3_ltrain *train = &ram->ltrain;
 	struct nouveau_device *device = nv_device(pfb);
 	struct nva3_ramfuc *fuc = &ram->fuc;
@@ -197,7 +197,7 @@ nva3_link_train(struct nouveau_fb *pfb)
 
 	clk_current = clk->read(clk, nv_clk_src_mem);
 
-	ret = nva3_clock_pre(clk, f);
+	ret = nva3_clk_pre(clk, f);
 	if (ret)
 		goto out;
 
@@ -252,7 +252,7 @@ nva3_link_train(struct nouveau_fb *pfb)
 	nv_mask(pfb, 0x616308, 0x10, 0x10);
 	nv_mask(pfb, 0x616b08, 0x10, 0x10);
 
-	nva3_clock_post(clk, f);
+	nva3_clk_post(clk, f);
 
 	ram_train_result(pfb, result, 64);
 	for (i = 0; i < 64; i++)
@@ -274,7 +274,7 @@ out:
 
 	train->state = NVA3_TRAIN_UNSUPPORTED;
 
-	nva3_clock_post(clk, f);
+	nva3_clk_post(clk, f);
 	return ret;
 }
 
@@ -465,7 +465,7 @@ nouveau_gddr3_dll_disable(struct nva3_ramfuc *fuc, u32 *mr)
 }
 
 static void
-nva3_ram_lock_pll(struct nva3_ramfuc *fuc, struct nva3_clock_info *mclk)
+nva3_ram_lock_pll(struct nva3_ramfuc *fuc, struct nva3_clk_info *mclk)
 {
 	ram_wr32(fuc, 0x004004, mclk->pll);
 	ram_mask(fuc, 0x004000, 0x00000001, 0x00000001);
@@ -504,7 +504,7 @@ nva3_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	struct nva3_ram *ram = (void *)pfb->ram;
 	struct nva3_ramfuc *fuc = &ram->fuc;
 	struct nva3_ltrain *train = &ram->ltrain;
-	struct nva3_clock_info mclk;
+	struct nva3_clk_info mclk;
 	struct nouveau_ram_data *next;
 	u8  ver, hdr, cnt, len, strap;
 	u32 data;
@@ -555,7 +555,7 @@ nva3_ram_calc(struct nouveau_fb *pfb, u32 freq)
 		}
 	}
 
-	ret = nva3_pll_info(nouveau_clock(pfb), 0x12, 0x4000, freq, &mclk);
+	ret = nva3_pll_info(nouveau_clk(pfb), 0x12, 0x4000, freq, &mclk);
 	if (ret < 0) {
 		nv_error(pfb, "failed mclk calculation\n");
 		return ret;

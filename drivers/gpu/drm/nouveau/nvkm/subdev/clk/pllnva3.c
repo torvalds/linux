@@ -22,7 +22,7 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/clock.h>
+#include <subdev/clk.h>
 #include <subdev/bios.h>
 #include <subdev/bios/pll.h>
 

@@ -32,8 +32,8 @@
 #include <subdev/bios/M0205.h>
 #include <subdev/bios/M0209.h>
 
-#include <subdev/clock.h>
-#include <subdev/clock/pll.h>
+#include <subdev/clk.h>
+#include <subdev/clk/pll.h>
 
 #include <subdev/timer.h>
 
@@ -1033,7 +1033,7 @@ nve0_ram_calc_xits(struct nouveau_fb *pfb, struct nouveau_ram_data *next)
 static int
 nve0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 {
-	struct nouveau_clock *clk = nouveau_clock(pfb);
+	struct nouveau_clk *clk = nouveau_clk(pfb);
 	struct nve0_ram *ram = (void *)pfb->ram;
 	struct nouveau_ram_data *xits = &ram->base.xition;
 	struct nouveau_ram_data *copy;

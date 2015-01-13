@@ -24,7 +24,7 @@
 
 #include "nv50.h"
 
-static struct nouveau_clocks
+static struct nouveau_domain
 nv84_domains[] = {
 	{ nv_clk_src_crystal, 0xff },
 	{ nv_clk_src_href   , 0xff },
@@ -36,13 +36,13 @@ nv84_domains[] = {
 };
 
 struct nouveau_oclass *
-nv84_clock_oclass = &(struct nv50_clock_oclass) {
-	.base.handle = NV_SUBDEV(CLOCK, 0x84),
+nv84_clk_oclass = &(struct nv50_clk_oclass) {
+	.base.handle = NV_SUBDEV(CLK, 0x84),
 	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv50_clock_ctor,
-		.dtor = _nouveau_clock_dtor,
-		.init = _nouveau_clock_init,
-		.fini = _nouveau_clock_fini,
+		.ctor = nv50_clk_ctor,
+		.dtor = _nouveau_clk_dtor,
+		.init = _nouveau_clk_init,
+		.fini = _nouveau_clk_fini,
 	},
 	.domains = nv84_domains,
 }.base;

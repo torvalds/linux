@@ -32,16 +32,16 @@
 
 #include "nva3.h"
 
-struct nva3_clock_priv {
-	struct nouveau_clock base;
-	struct nva3_clock_info eng[nv_clk_src_max];
+struct nva3_clk_priv {
+	struct nouveau_clk base;
+	struct nva3_clk_info eng[nv_clk_src_max];
 };
 
-static u32 read_clk(struct nva3_clock_priv *, int, bool);
-static u32 read_pll(struct nva3_clock_priv *, int, u32);
+static u32 read_clk(struct nva3_clk_priv *, int, bool);
+static u32 read_pll(struct nva3_clk_priv *, int, u32);
 
 static u32
-read_vco(struct nva3_clock_priv *priv, int clk)
+read_vco(struct nva3_clk_priv *priv, int clk)
 {
 	u32 sctl = nv_rd32(priv, 0x4120 + (clk * 4));
 
@@ -58,7 +58,7 @@ read_vco(struct nva3_clock_priv *priv, int clk)
 }
 
 static u32
-read_clk(struct nva3_clock_priv *priv, int clk, bool ignore_en)
+read_clk(struct nva3_clk_priv *priv, int clk, bool ignore_en)
 {
 	u32 sctl, sdiv, sclk;
 
@@ -104,7 +104,7 @@ read_clk(struct nva3_clock_priv *priv, int clk, bool ignore_en)
 }
 
 static u32
-read_pll(struct nva3_clock_priv *priv, int clk, u32 pll)
+read_pll(struct nva3_clk_priv *priv, int clk, u32 pll)
 {
 	u32 ctrl = nv_rd32(priv, pll + 0);
 	u32 sclk = 0, P = 1, N = 1, M = 1;
@@ -134,9 +134,9 @@ read_pll(struct nva3_clock_priv *priv, int clk, u32 pll)
 }
 
 static int
-nva3_clock_read(struct nouveau_clock *clk, enum nv_clk_src src)
+nva3_clk_read(struct nouveau_clk *clk, enum nv_clk_src src)
 {
-	struct nva3_clock_priv *priv = (void *)clk;
+	struct nva3_clk_priv *priv = (void *)clk;
 	u32 hsrc;
 
 	switch (src) {
@@ -176,10 +176,10 @@ nva3_clock_read(struct nouveau_clock *clk, enum nv_clk_src src)
 }
 
 int
-nva3_clk_info(struct nouveau_clock *clock, int clk, u32 khz,
-		struct nva3_clock_info *info)
+nva3_clk_info(struct nouveau_clk *clock, int clk, u32 khz,
+		struct nva3_clk_info *info)
 {
-	struct nva3_clock_priv *priv = (void *)clock;
+	struct nva3_clk_priv *priv = (void *)clock;
 	u32 oclk, sclk, sdiv, diff;
 
 	info->clk = 0;
@@ -223,11 +223,11 @@ nva3_clk_info(struct nouveau_clock *clock, int clk, u32 khz,
 }
 
 int
-nva3_pll_info(struct nouveau_clock *clock, int clk, u32 pll, u32 khz,
-		struct nva3_clock_info *info)
+nva3_pll_info(struct nouveau_clk *clock, int clk, u32 pll, u32 khz,
+		struct nva3_clk_info *info)
 {
 	struct nouveau_bios *bios = nouveau_bios(clock);
-	struct nva3_clock_priv *priv = (void *)clock;
+	struct nva3_clk_priv *priv = (void *)clock;
 	struct nvbios_pll limits;
 	int P, N, M, diff;
 	int ret;
@@ -263,7 +263,7 @@ out:
 }
 
 static int
-calc_clk(struct nva3_clock_priv *priv, struct nouveau_cstate *cstate,
+calc_clk(struct nva3_clk_priv *priv, struct nouveau_cstate *cstate,
 	 int clk, u32 pll, int idx)
 {
 	int ret = nva3_pll_info(&priv->base, clk, pll, cstate->domain[idx],
@@ -274,11 +274,11 @@ calc_clk(struct nva3_clock_priv *priv, struct nouveau_cstate *cstate,
 }
 
 static int
-calc_host(struct nva3_clock_priv *priv, struct nouveau_cstate *cstate)
+calc_host(struct nva3_clk_priv *priv, struct nouveau_cstate *cstate)
 {
 	int ret = 0;
 	u32 kHz = cstate->domain[nv_clk_src_host];
-	struct nva3_clock_info *info = &priv->eng[nv_clk_src_host];
+	struct nva3_clk_info *info = &priv->eng[nv_clk_src_host];
 
 	if (kHz == 277000) {
 		info->clk = 0;
@@ -295,7 +295,7 @@ calc_host(struct nva3_clock_priv *priv, struct nouveau_cstate *cstate)
 }
 
 int
-nva3_clock_pre(struct nouveau_clock *clk, unsigned long *flags)
+nva3_clk_pre(struct nouveau_clk *clk, unsigned long *flags)
 {
 	struct nouveau_fifo *pfifo = nouveau_fifo(clk);
 
@@ -318,7 +318,7 @@ nva3_clock_pre(struct nouveau_clock *clk, unsigned long *flags)
 }
 
 void
-nva3_clock_post(struct nouveau_clock *clk, unsigned long *flags)
+nva3_clk_post(struct nouveau_clk *clk, unsigned long *flags)
 {
 	struct nouveau_fifo *pfifo = nouveau_fifo(clk);
 
@@ -330,16 +330,16 @@ nva3_clock_post(struct nouveau_clock *clk, unsigned long *flags)
 }
 
 static void
-disable_clk_src(struct nva3_clock_priv *priv, u32 src)
+disable_clk_src(struct nva3_clk_priv *priv, u32 src)
 {
 	nv_mask(priv, src, 0x00000100, 0x00000000);
 	nv_mask(priv, src, 0x00000001, 0x00000000);
 }
 
 static void
-prog_pll(struct nva3_clock_priv *priv, int clk, u32 pll, int idx)
+prog_pll(struct nva3_clk_priv *priv, int clk, u32 pll, int idx)
 {
-	struct nva3_clock_info *info = &priv->eng[idx];
+	struct nva3_clk_info *info = &priv->eng[idx];
 	const u32 src0 = 0x004120 + (clk * 4);
 	const u32 src1 = 0x004160 + (clk * 4);
 	const u32 ctrl = pll + 0;
@@ -377,16 +377,16 @@ prog_pll(struct nva3_clock_priv *priv, int clk, u32 pll, int idx)
 }
 
 static void
-prog_clk(struct nva3_clock_priv *priv, int clk, int idx)
+prog_clk(struct nva3_clk_priv *priv, int clk, int idx)
 {
-	struct nva3_clock_info *info = &priv->eng[idx];
+	struct nva3_clk_info *info = &priv->eng[idx];
 	nv_mask(priv, 0x004120 + (clk * 4), 0x003f3141, 0x00000101 | info->clk);
 }
 
 static void
-prog_host(struct nva3_clock_priv *priv)
+prog_host(struct nva3_clk_priv *priv)
 {
-	struct nva3_clock_info *info = &priv->eng[nv_clk_src_host];
+	struct nva3_clk_info *info = &priv->eng[nv_clk_src_host];
 	u32 hsrc = (nv_rd32(priv, 0xc040));
 
 	switch (info->host_out) {
@@ -411,9 +411,9 @@ prog_host(struct nva3_clock_priv *priv)
 }
 
 static void
-prog_core(struct nva3_clock_priv *priv, int idx)
+prog_core(struct nva3_clk_priv *priv, int idx)
 {
-	struct nva3_clock_info *info = &priv->eng[idx];
+	struct nva3_clk_info *info = &priv->eng[idx];
 	u32 fb_delay = nv_rd32(priv, 0x10002c);
 
 	if (fb_delay < info->fb_delay)
@@ -426,10 +426,10 @@ prog_core(struct nva3_clock_priv *priv, int idx)
 }
 
 static int
-nva3_clock_calc(struct nouveau_clock *clk, struct nouveau_cstate *cstate)
+nva3_clk_calc(struct nouveau_clk *clk, struct nouveau_cstate *cstate)
 {
-	struct nva3_clock_priv *priv = (void *)clk;
-	struct nva3_clock_info *core = &priv->eng[nv_clk_src_core];
+	struct nva3_clk_priv *priv = (void *)clk;
+	struct nva3_clk_info *core = &priv->eng[nv_clk_src_core];
 	int ret;
 
 	if ((ret = calc_clk(priv, cstate, 0x10, 0x4200, nv_clk_src_core)) ||
@@ -453,15 +453,15 @@ nva3_clock_calc(struct nouveau_clock *clk, struct nouveau_cstate *cstate)
 }
 
 static int
-nva3_clock_prog(struct nouveau_clock *clk)
+nva3_clk_prog(struct nouveau_clk *clk)
 {
-	struct nva3_clock_priv *priv = (void *)clk;
-	struct nva3_clock_info *core = &priv->eng[nv_clk_src_core];
+	struct nva3_clk_priv *priv = (void *)clk;
+	struct nva3_clk_info *core = &priv->eng[nv_clk_src_core];
 	int ret = 0;
 	unsigned long flags;
 	unsigned long *f = &flags;
 
-	ret = nva3_clock_pre(clk, f);
+	ret = nva3_clk_pre(clk, f);
 	if (ret)
 		goto out;
 
@@ -478,17 +478,17 @@ out:
 	if (ret == -EBUSY)
 		f = NULL;
 
-	nva3_clock_post(clk, f);
+	nva3_clk_post(clk, f);
 
 	return ret;
 }
 
 static void
-nva3_clock_tidy(struct nouveau_clock *clk)
+nva3_clk_tidy(struct nouveau_clk *clk)
 {
 }
 
-static struct nouveau_clocks
+static struct nouveau_domain
 nva3_domain[] = {
 	{ nv_clk_src_crystal  , 0xff },
 	{ nv_clk_src_core     , 0x00, 0, "core", 1000 },
@@ -502,33 +502,33 @@ nva3_domain[] = {
 };
 
 static int
-nva3_clock_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+nva3_clk_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		struct nouveau_oclass *oclass, void *data, u32 size,
 		struct nouveau_object **pobject)
 {
-	struct nva3_clock_priv *priv;
+	struct nva3_clk_priv *priv;
 	int ret;
 
-	ret = nouveau_clock_create(parent, engine, oclass, nva3_domain, NULL, 0,
+	ret = nouveau_clk_create(parent, engine, oclass, nva3_domain, NULL, 0,
 				   true, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
-	priv->base.read = nva3_clock_read;
-	priv->base.calc = nva3_clock_calc;
-	priv->base.prog = nva3_clock_prog;
-	priv->base.tidy = nva3_clock_tidy;
+	priv->base.read = nva3_clk_read;
+	priv->base.calc = nva3_clk_calc;
+	priv->base.prog = nva3_clk_prog;
+	priv->base.tidy = nva3_clk_tidy;
 	return 0;
 }
 
 struct nouveau_oclass
-nva3_clock_oclass = {
-	.handle = NV_SUBDEV(CLOCK, 0xa3),
+nva3_clk_oclass = {
+	.handle = NV_SUBDEV(CLK, 0xa3),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nva3_clock_ctor,
-		.dtor = _nouveau_clock_dtor,
-		.init = _nouveau_clock_init,
-		.fini = _nouveau_clock_fini,
+		.ctor = nva3_clk_ctor,
+		.dtor = _nouveau_clk_dtor,
+		.init = _nouveau_clk_init,
+		.fini = _nouveau_clk_fini,
 	},
 };

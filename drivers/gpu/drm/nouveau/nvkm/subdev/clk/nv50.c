@@ -30,7 +30,7 @@
 #include "seq.h"
 
 static u32
-read_div(struct nv50_clock_priv *priv)
+read_div(struct nv50_clk_priv *priv)
 {
 	switch (nv_device(priv)->chipset) {
 	case 0x50: /* it exists, but only has bit 31, not the dividers.. */
@@ -49,9 +49,9 @@ read_div(struct nv50_clock_priv *priv)
 }
 
 static u32
-read_pll_src(struct nv50_clock_priv *priv, u32 base)
+read_pll_src(struct nv50_clk_priv *priv, u32 base)
 {
-	struct nouveau_clock *clk = &priv->base;
+	struct nouveau_clk *clk = &priv->base;
 	u32 coef, ref = clk->read(clk, nv_clk_src_crystal);
 	u32 rsel = nv_rd32(priv, 0x00e18c);
 	int P, N, M, id;
@@ -120,9 +120,9 @@ read_pll_src(struct nv50_clock_priv *priv, u32 base)
 }
 
 static u32
-read_pll_ref(struct nv50_clock_priv *priv, u32 base)
+read_pll_ref(struct nv50_clk_priv *priv, u32 base)
 {
-	struct nouveau_clock *clk = &priv->base;
+	struct nouveau_clk *clk = &priv->base;
 	u32 src, mast = nv_rd32(priv, 0x00c040);
 
 	switch (base) {
@@ -151,9 +151,9 @@ read_pll_ref(struct nv50_clock_priv *priv, u32 base)
 }
 
 static u32
-read_pll(struct nv50_clock_priv *priv, u32 base)
+read_pll(struct nv50_clk_priv *priv, u32 base)
 {
-	struct nouveau_clock *clk = &priv->base;
+	struct nouveau_clk *clk = &priv->base;
 	u32 mast = nv_rd32(priv, 0x00c040);
 	u32 ctrl = nv_rd32(priv, base + 0);
 	u32 coef = nv_rd32(priv, base + 4);
@@ -185,9 +185,9 @@ read_pll(struct nv50_clock_priv *priv, u32 base)
 }
 
 static int
-nv50_clock_read(struct nouveau_clock *clk, enum nv_clk_src src)
+nv50_clk_read(struct nouveau_clk *clk, enum nv_clk_src src)
 {
-	struct nv50_clock_priv *priv = (void *)clk;
+	struct nv50_clk_priv *priv = (void *)clk;
 	u32 mast = nv_rd32(priv, 0x00c040);
 	u32 P = 0;
 
@@ -316,7 +316,7 @@ nv50_clock_read(struct nouveau_clock *clk, enum nv_clk_src src)
 }
 
 static u32
-calc_pll(struct nv50_clock_priv *priv, u32 reg, u32 clk, int *N, int *M, int *P)
+calc_pll(struct nv50_clk_priv *priv, u32 reg, u32 clk, int *N, int *M, int *P)
 {
 	struct nouveau_bios *bios = nouveau_bios(priv);
 	struct nvbios_pll pll;
@@ -359,10 +359,10 @@ clk_same(u32 a, u32 b)
 }
 
 static int
-nv50_clock_calc(struct nouveau_clock *clk, struct nouveau_cstate *cstate)
+nv50_clk_calc(struct nouveau_clk *clk, struct nouveau_cstate *cstate)
 {
-	struct nv50_clock_priv *priv = (void *)clk;
-	struct nv50_clock_hwsq *hwsq = &priv->hwsq;
+	struct nv50_clk_priv *priv = (void *)clk;
+	struct nv50_clk_hwsq *hwsq = &priv->hwsq;
 	const int shader = cstate->domain[nv_clk_src_shader];
 	const int core = cstate->domain[nv_clk_src_core];
 	const int vdec = cstate->domain[nv_clk_src_vdec];
@@ -484,29 +484,29 @@ nv50_clock_calc(struct nouveau_clock *clk, struct nouveau_cstate *cstate)
 }
 
 static int
-nv50_clock_prog(struct nouveau_clock *clk)
+nv50_clk_prog(struct nouveau_clk *clk)
 {
-	struct nv50_clock_priv *priv = (void *)clk;
+	struct nv50_clk_priv *priv = (void *)clk;
 	return clk_exec(&priv->hwsq, true);
 }
 
 static void
-nv50_clock_tidy(struct nouveau_clock *clk)
+nv50_clk_tidy(struct nouveau_clk *clk)
 {
-	struct nv50_clock_priv *priv = (void *)clk;
+	struct nv50_clk_priv *priv = (void *)clk;
 	clk_exec(&priv->hwsq, false);
 }
 
 int
-nv50_clock_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+nv50_clk_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		struct nouveau_oclass *oclass, void *data, u32 size,
 		struct nouveau_object **pobject)
 {
-	struct nv50_clock_oclass *pclass = (void *)oclass;
-	struct nv50_clock_priv *priv;
+	struct nv50_clk_oclass *pclass = (void *)oclass;
+	struct nv50_clk_priv *priv;
 	int ret;
 
-	ret = nouveau_clock_create(parent, engine, oclass, pclass->domains,
+	ret = nouveau_clk_create(parent, engine, oclass, pclass->domains,
 				   NULL, 0, false, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
@@ -529,14 +529,14 @@ nv50_clock_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	}
 	priv->hwsq.r_mast = hwsq_reg(0x00c040);
 
-	priv->base.read = nv50_clock_read;
-	priv->base.calc = nv50_clock_calc;
-	priv->base.prog = nv50_clock_prog;
-	priv->base.tidy = nv50_clock_tidy;
+	priv->base.read = nv50_clk_read;
+	priv->base.calc = nv50_clk_calc;
+	priv->base.prog = nv50_clk_prog;
+	priv->base.tidy = nv50_clk_tidy;
 	return 0;
 }
 
-static struct nouveau_clocks
+static struct nouveau_domain
 nv50_domains[] = {
 	{ nv_clk_src_crystal, 0xff },
 	{ nv_clk_src_href   , 0xff },
@@ -547,13 +547,13 @@ nv50_domains[] = {
 };
 
 struct nouveau_oclass *
-nv50_clock_oclass = &(struct nv50_clock_oclass) {
-	.base.handle = NV_SUBDEV(CLOCK, 0x50),
+nv50_clk_oclass = &(struct nv50_clk_oclass) {
+	.base.handle = NV_SUBDEV(CLK, 0x50),
 	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv50_clock_ctor,
-		.dtor = _nouveau_clock_dtor,
-		.init = _nouveau_clock_init,
-		.fini = _nouveau_clock_fini,
+		.ctor = nv50_clk_ctor,
+		.dtor = _nouveau_clk_dtor,
+		.init = _nouveau_clk_init,
+		.fini = _nouveau_clk_fini,
 	},
 	.domains = nv50_domains,
 }.base;

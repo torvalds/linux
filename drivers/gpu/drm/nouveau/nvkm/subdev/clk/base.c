@@ -24,7 +24,7 @@
 
 #include <core/option.h>
 
-#include <subdev/clock.h>
+#include <subdev/clk.h>
 #include <subdev/therm.h>
 #include <subdev/volt.h>
 #include <subdev/fb.h>
@@ -38,7 +38,7 @@
  * misc
  *****************************************************************************/
 static u32
-nouveau_clock_adjust(struct nouveau_clock *clk, bool adjust,
+nouveau_clk_adjust(struct nouveau_clk *clk, bool adjust,
 		     u8 pstate, u8 domain, u32 input)
 {
 	struct nouveau_bios *bios = nouveau_bios(clk);
@@ -76,7 +76,7 @@ nouveau_clock_adjust(struct nouveau_clock *clk, bool adjust,
  * C-States
  *****************************************************************************/
 static int
-nouveau_cstate_prog(struct nouveau_clock *clk,
+nouveau_cstate_prog(struct nouveau_clk *clk,
 		    struct nouveau_pstate *pstate, int cstatei)
 {
 	struct nouveau_therm *ptherm = nouveau_therm(clk);
@@ -135,11 +135,11 @@ nouveau_cstate_del(struct nouveau_cstate *cstate)
 }
 
 static int
-nouveau_cstate_new(struct nouveau_clock *clk, int idx,
+nouveau_cstate_new(struct nouveau_clk *clk, int idx,
 		   struct nouveau_pstate *pstate)
 {
 	struct nouveau_bios *bios = nouveau_bios(clk);
-	struct nouveau_clocks *domain = clk->domains;
+	struct nouveau_domain *domain = clk->domains;
 	struct nouveau_cstate *cstate = NULL;
 	struct nvbios_cstepX cstepX;
 	u8  ver, hdr;
@@ -158,7 +158,7 @@ nouveau_cstate_new(struct nouveau_clock *clk, int idx,
 
 	while (domain && domain->name != nv_clk_src_max) {
 		if (domain->flags & NVKM_CLK_DOM_FLAG_CORE) {
-			u32 freq = nouveau_clock_adjust(clk, true,
+			u32 freq = nouveau_clk_adjust(clk, true,
 							pstate->pstate,
 							domain->bios,
 							cstepX.freq);
@@ -175,7 +175,7 @@ nouveau_cstate_new(struct nouveau_clock *clk, int idx,
  * P-States
  *****************************************************************************/
 static int
-nouveau_pstate_prog(struct nouveau_clock *clk, int pstatei)
+nouveau_pstate_prog(struct nouveau_clk *clk, int pstatei)
 {
 	struct nouveau_fb *pfb = nouveau_fb(clk);
 	struct nouveau_pstate *pstate;
@@ -205,7 +205,7 @@ nouveau_pstate_prog(struct nouveau_clock *clk, int pstatei)
 static void
 nouveau_pstate_work(struct work_struct *work)
 {
-	struct nouveau_clock *clk = container_of(work, typeof(*clk), work);
+	struct nouveau_clk *clk = container_of(work, typeof(*clk), work);
 	int pstate;
 
 	if (!atomic_xchg(&clk->waiting, 0))
@@ -239,7 +239,7 @@ nouveau_pstate_work(struct work_struct *work)
 }
 
 static int
-nouveau_pstate_calc(struct nouveau_clock *clk, bool wait)
+nouveau_pstate_calc(struct nouveau_clk *clk, bool wait)
 {
 	atomic_set(&clk->waiting, 1);
 	schedule_work(&clk->work);
@@ -249,9 +249,9 @@ nouveau_pstate_calc(struct nouveau_clock *clk, bool wait)
 }
 
 static void
-nouveau_pstate_info(struct nouveau_clock *clk, struct nouveau_pstate *pstate)
+nouveau_pstate_info(struct nouveau_clk *clk, struct nouveau_pstate *pstate)
 {
-	struct nouveau_clocks *clock = clk->domains - 1;
+	struct nouveau_domain *clock = clk->domains - 1;
 	struct nouveau_cstate *cstate;
 	char info[3][32] = { "", "", "" };
 	char name[4] = "--";
@@ -304,10 +304,10 @@ nouveau_pstate_del(struct nouveau_pstate *pstate)
 }
 
 static int
-nouveau_pstate_new(struct nouveau_clock *clk, int idx)
+nouveau_pstate_new(struct nouveau_clk *clk, int idx)
 {
 	struct nouveau_bios *bios = nouveau_bios(clk);
-	struct nouveau_clocks *domain = clk->domains - 1;
+	struct nouveau_domain *domain = clk->domains - 1;
 	struct nouveau_pstate *pstate;
 	struct nouveau_cstate *cstate;
 	struct nvbios_cstepE cstepE;
@@ -346,7 +346,7 @@ nouveau_pstate_new(struct nouveau_clock *clk, int idx)
 			continue;
 
 		if (domain->flags & NVKM_CLK_DOM_FLAG_CORE) {
-			perfS.v40.freq = nouveau_clock_adjust(clk, false,
+			perfS.v40.freq = nouveau_clk_adjust(clk, false,
 							      pstate->pstate,
 							      domain->bios,
 							      perfS.v40.freq);
@@ -373,7 +373,7 @@ nouveau_pstate_new(struct nouveau_clock *clk, int idx)
  * Adjustment triggers
  *****************************************************************************/
 static int
-nouveau_clock_ustate_update(struct nouveau_clock *clk, int req)
+nouveau_clk_ustate_update(struct nouveau_clk *clk, int req)
 {
 	struct nouveau_pstate *pstate;
 	int i = 0;
@@ -397,7 +397,7 @@ nouveau_clock_ustate_update(struct nouveau_clock *clk, int req)
 }
 
 static int
-nouveau_clock_nstate(struct nouveau_clock *clk, const char *mode, int arglen)
+nouveau_clk_nstate(struct nouveau_clk *clk, const char *mode, int arglen)
 {
 	int ret = 1;
 
@@ -410,7 +410,7 @@ nouveau_clock_nstate(struct nouveau_clock *clk, const char *mode, int arglen)
 
 		((char *)mode)[arglen] = '\0';
 		if (!kstrtol(mode, 0, &v)) {
-			ret = nouveau_clock_ustate_update(clk, v);
+			ret = nouveau_clk_ustate_update(clk, v);
 			if (ret < 0)
 				ret = 1;
 		}
@@ -421,9 +421,9 @@ nouveau_clock_nstate(struct nouveau_clock *clk, const char *mode, int arglen)
 }
 
 int
-nouveau_clock_ustate(struct nouveau_clock *clk, int req, int pwr)
+nouveau_clk_ustate(struct nouveau_clk *clk, int req, int pwr)
 {
-	int ret = nouveau_clock_ustate_update(clk, req);
+	int ret = nouveau_clk_ustate_update(clk, req);
 	if (ret >= 0) {
 		if (ret -= 2, pwr) clk->ustate_ac = ret;
 		else		   clk->ustate_dc = ret;
@@ -433,7 +433,7 @@ nouveau_clock_ustate(struct nouveau_clock *clk, int req, int pwr)
 }
 
 int
-nouveau_clock_astate(struct nouveau_clock *clk, int req, int rel, bool wait)
+nouveau_clk_astate(struct nouveau_clk *clk, int req, int rel, bool wait)
 {
 	if (!rel) clk->astate  = req;
 	if ( rel) clk->astate += rel;
@@ -443,7 +443,7 @@ nouveau_clock_astate(struct nouveau_clock *clk, int req, int rel, bool wait)
 }
 
 int
-nouveau_clock_tstate(struct nouveau_clock *clk, int req, int rel)
+nouveau_clk_tstate(struct nouveau_clk *clk, int req, int rel)
 {
 	if (!rel) clk->tstate  = req;
 	if ( rel) clk->tstate += rel;
@@ -453,7 +453,7 @@ nouveau_clock_tstate(struct nouveau_clock *clk, int req, int rel)
 }
 
 int
-nouveau_clock_dstate(struct nouveau_clock *clk, int req, int rel)
+nouveau_clk_dstate(struct nouveau_clk *clk, int req, int rel)
 {
 	if (!rel) clk->dstate  = req;
 	if ( rel) clk->dstate += rel;
@@ -463,9 +463,9 @@ nouveau_clock_dstate(struct nouveau_clock *clk, int req, int rel)
 }
 
 static int
-nouveau_clock_pwrsrc(struct nvkm_notify *notify)
+nouveau_clk_pwrsrc(struct nvkm_notify *notify)
 {
-	struct nouveau_clock *clk =
+	struct nouveau_clk *clk =
 		container_of(notify, typeof(*clk), pwrsrc_ntfy);
 	nouveau_pstate_calc(clk, false);
 	return NVKM_NOTIFY_DROP;
@@ -476,18 +476,18 @@ nouveau_clock_pwrsrc(struct nvkm_notify *notify)
  *****************************************************************************/
 
 int
-_nouveau_clock_fini(struct nouveau_object *object, bool suspend)
+_nouveau_clk_fini(struct nouveau_object *object, bool suspend)
 {
-	struct nouveau_clock *clk = (void *)object;
+	struct nouveau_clk *clk = (void *)object;
 	nvkm_notify_put(&clk->pwrsrc_ntfy);
 	return nouveau_subdev_fini(&clk->base, suspend);
 }
 
 int
-_nouveau_clock_init(struct nouveau_object *object)
+_nouveau_clk_init(struct nouveau_object *object)
 {
-	struct nouveau_clock *clk = (void *)object;
-	struct nouveau_clocks *clock = clk->domains;
+	struct nouveau_clk *clk = (void *)object;
+	struct nouveau_domain *clock = clk->domains;
 	int ret;
 
 	ret = nouveau_subdev_init(&clk->base);
@@ -519,9 +519,9 @@ _nouveau_clock_init(struct nouveau_object *object)
 }
 
 void
-_nouveau_clock_dtor(struct nouveau_object *object)
+_nouveau_clk_dtor(struct nouveau_object *object)
 {
-	struct nouveau_clock *clk = (void *)object;
+	struct nouveau_clk *clk = (void *)object;
 	struct nouveau_pstate *pstate, *temp;
 
 	nvkm_notify_fini(&clk->pwrsrc_ntfy);
@@ -534,16 +534,16 @@ _nouveau_clock_dtor(struct nouveau_object *object)
 }
 
 int
-nouveau_clock_create_(struct nouveau_object *parent,
+nouveau_clk_create_(struct nouveau_object *parent,
 		      struct nouveau_object *engine,
 		      struct nouveau_oclass *oclass,
-		      struct nouveau_clocks *clocks,
+		      struct nouveau_domain *clocks,
 		      struct nouveau_pstate *pstates, int nb_pstates,
 		      bool allow_reclock,
 		      int length, void **object)
 {
 	struct nouveau_device *device = nv_device(parent);
-	struct nouveau_clock *clk;
+	struct nouveau_clk *clk;
 	int ret, idx, arglen;
 	const char *mode;
 
@@ -576,24 +576,24 @@ nouveau_clock_create_(struct nouveau_object *parent,
 
 	clk->allow_reclock = allow_reclock;
 
-	ret = nvkm_notify_init(NULL, &device->event, nouveau_clock_pwrsrc, true,
+	ret = nvkm_notify_init(NULL, &device->event, nouveau_clk_pwrsrc, true,
 			       NULL, 0, 0, &clk->pwrsrc_ntfy);
 	if (ret)
 		return ret;
 
 	mode = nouveau_stropt(device->cfgopt, "NvClkMode", &arglen);
 	if (mode) {
-		clk->ustate_ac = nouveau_clock_nstate(clk, mode, arglen);
-		clk->ustate_dc = nouveau_clock_nstate(clk, mode, arglen);
+		clk->ustate_ac = nouveau_clk_nstate(clk, mode, arglen);
+		clk->ustate_dc = nouveau_clk_nstate(clk, mode, arglen);
 	}
 
 	mode = nouveau_stropt(device->cfgopt, "NvClkModeAC", &arglen);
 	if (mode)
-		clk->ustate_ac = nouveau_clock_nstate(clk, mode, arglen);
+		clk->ustate_ac = nouveau_clk_nstate(clk, mode, arglen);
 
 	mode = nouveau_stropt(device->cfgopt, "NvClkModeDC", &arglen);
 	if (mode)
-		clk->ustate_dc = nouveau_clock_nstate(clk, mode, arglen);
+		clk->ustate_dc = nouveau_clk_nstate(clk, mode, arglen);
 
 
 	return 0;

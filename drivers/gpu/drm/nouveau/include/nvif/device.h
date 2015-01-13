@@ -32,7 +32,7 @@ void nvif_device_ref(struct nvif_device *, struct nvif_device **);
 #include <subdev/vm.h>
 #include <subdev/bar.h>
 #include <subdev/gpio.h>
-#include <subdev/clock.h>
+#include <subdev/clk.h>
 #include <subdev/i2c.h>
 #include <subdev/timer.h>
 #include <subdev/therm.h>
@@ -43,7 +43,7 @@ void nvif_device_ref(struct nvif_device *, struct nvif_device **);
 #define nvkm_vmmgr(a) nouveau_vmmgr(nvkm_device(a))
 #define nvkm_bar(a) nouveau_bar(nvkm_device(a))
 #define nvkm_gpio(a) nouveau_gpio(nvkm_device(a))
-#define nvkm_clock(a) nouveau_clock(nvkm_device(a))
+#define nvkm_clk(a) nouveau_clk(nvkm_device(a))
 #define nvkm_i2c(a) nouveau_i2c(nvkm_device(a))
 #define nvkm_timer(a) nouveau_timer(nvkm_device(a))
 #define nvkm_wait(a,b,c,d) nv_wait(nvkm_timer(a), (b), (c), (d))

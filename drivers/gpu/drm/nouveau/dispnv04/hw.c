@@ -253,7 +253,7 @@ nouveau_hw_fix_bad_vpll(struct drm_device *dev, int head)
 
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvif_device *device = &drm->device;
-	struct nouveau_clock *clk = nvkm_clock(device);
+	struct nouveau_clk *clk = nvkm_clk(device);
 	struct nouveau_bios *bios = nvkm_bios(device);
 	struct nvbios_pll pll_lim;
 	struct nouveau_pll_vals pv;
@@ -463,7 +463,7 @@ nv_load_state_ramdac(struct drm_device *dev, int head,
 		     struct nv04_mode_state *state)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_clock *clk = nvkm_clock(&drm->device);
+	struct nouveau_clk *clk = nvkm_clk(&drm->device);
 	struct nv04_crtc_reg *regp = &state->crtc_reg[head];
 	uint32_t pllreg = head ? NV_RAMDAC_VPLL2 : NV_PRAMDAC_VPLL_COEFF;
 	int i;

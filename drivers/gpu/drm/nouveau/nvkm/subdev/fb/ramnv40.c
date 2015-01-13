@@ -26,8 +26,8 @@
 #include <subdev/bios/bit.h>
 #include <subdev/bios/pll.h>
 #include <subdev/bios/init.h>
-#include <subdev/clock.h>
-#include <subdev/clock/pll.h>
+#include <subdev/clk.h>
+#include <subdev/clk/pll.h>
 #include <subdev/timer.h>
 
 #include <engine/fifo.h>

@@ -3,9 +3,9 @@
 
 #include <subdev/bus.h>
 #include <subdev/bus/hwsq.h>
-#include <subdev/clock.h>
+#include <subdev/clk.h>
 
-struct nv50_clock_hwsq {
+struct nv50_clk_hwsq {
 	struct hwsq base;
 	struct hwsq_reg r_fifo;
 	struct hwsq_reg r_spll[2];
@@ -14,18 +14,18 @@ struct nv50_clock_hwsq {
 	struct hwsq_reg r_mast;
 };
 
-struct nv50_clock_priv {
-	struct nouveau_clock base;
-	struct nv50_clock_hwsq hwsq;
+struct nv50_clk_priv {
+	struct nouveau_clk base;
+	struct nv50_clk_hwsq hwsq;
 };
 
-int  nv50_clock_ctor(struct nouveau_object *, struct nouveau_object *,
+int  nv50_clk_ctor(struct nouveau_object *, struct nouveau_object *,
 		     struct nouveau_oclass *, void *, u32,
 		     struct nouveau_object **);
 
-struct nv50_clock_oclass {
+struct nv50_clk_oclass {
 	struct nouveau_oclass base;
-	struct nouveau_clocks *domains;
+	struct nouveau_domain *domains;
 };
 
 #endif

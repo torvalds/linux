@@ -22,21 +22,21 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/clock.h>
+#include <subdev/clk.h>
 #include <subdev/bios.h>
 #include <subdev/bios/pll.h>
 
 #include "pll.h"
 
-struct nv40_clock_priv {
-	struct nouveau_clock base;
+struct nv40_clk_priv {
+	struct nouveau_clk base;
 	u32 ctrl;
 	u32 npll_ctrl;
 	u32 npll_coef;
 	u32 spll;
 };
 
-static struct nouveau_clocks
+static struct nouveau_domain
 nv40_domain[] = {
 	{ nv_clk_src_crystal, 0xff },
 	{ nv_clk_src_href   , 0xff },
@@ -47,7 +47,7 @@ nv40_domain[] = {
 };
 
 static u32
-read_pll_1(struct nv40_clock_priv *priv, u32 reg)
+read_pll_1(struct nv40_clk_priv *priv, u32 reg)
 {
 	u32 ctrl = nv_rd32(priv, reg + 0x00);
 	int P = (ctrl & 0x00070000) >> 16;
@@ -62,7 +62,7 @@ read_pll_1(struct nv40_clock_priv *priv, u32 reg)
 }
 
 static u32
-read_pll_2(struct nv40_clock_priv *priv, u32 reg)
+read_pll_2(struct nv40_clk_priv *priv, u32 reg)
 {
 	u32 ctrl = nv_rd32(priv, reg + 0x00);
 	u32 coef = nv_rd32(priv, reg + 0x04);
@@ -87,7 +87,7 @@ read_pll_2(struct nv40_clock_priv *priv, u32 reg)
 }
 
 static u32
-read_clk(struct nv40_clock_priv *priv, u32 src)
+read_clk(struct nv40_clk_priv *priv, u32 src)
 {
 	switch (src) {
 	case 3:
@@ -102,9 +102,9 @@ read_clk(struct nv40_clock_priv *priv, u32 src)
 }
 
 static int
-nv40_clock_read(struct nouveau_clock *clk, enum nv_clk_src src)
+nv40_clk_read(struct nouveau_clk *clk, enum nv_clk_src src)
 {
-	struct nv40_clock_priv *priv = (void *)clk;
+	struct nv40_clk_priv *priv = (void *)clk;
 	u32 mast = nv_rd32(priv, 0x00c040);
 
 	switch (src) {
@@ -127,7 +127,7 @@ nv40_clock_read(struct nouveau_clock *clk, enum nv_clk_src src)
 }
 
 static int
-nv40_clock_calc_pll(struct nv40_clock_priv *priv, u32 reg, u32 clk,
+nv40_clk_calc_pll(struct nv40_clk_priv *priv, u32 reg, u32 clk,
 		    int *N1, int *M1, int *N2, int *M2, int *log2P)
 {
 	struct nouveau_bios *bios = nouveau_bios(priv);
@@ -148,16 +148,16 @@ nv40_clock_calc_pll(struct nv40_clock_priv *priv, u32 reg, u32 clk,
 }
 
 static int
-nv40_clock_calc(struct nouveau_clock *clk, struct nouveau_cstate *cstate)
+nv40_clk_calc(struct nouveau_clk *clk, struct nouveau_cstate *cstate)
 {
-	struct nv40_clock_priv *priv = (void *)clk;
+	struct nv40_clk_priv *priv = (void *)clk;
 	int gclk = cstate->domain[nv_clk_src_core];
 	int sclk = cstate->domain[nv_clk_src_shader];
 	int N1, M1, N2, M2, log2P;
 	int ret;
 
 	/* core/geometric clock */
-	ret = nv40_clock_calc_pll(priv, 0x004000, gclk,
+	ret = nv40_clk_calc_pll(priv, 0x004000, gclk,
 				 &N1, &M1, &N2, &M2, &log2P);
 	if (ret < 0)
 		return ret;
@@ -172,7 +172,7 @@ nv40_clock_calc(struct nouveau_clock *clk, struct nouveau_cstate *cstate)
 
 	/* use the second pll for shader/rop clock, if it differs from core */
 	if (sclk && sclk != gclk) {
-		ret = nv40_clock_calc_pll(priv, 0x004008, sclk,
+		ret = nv40_clk_calc_pll(priv, 0x004008, sclk,
 					 &N1, &M1, NULL, NULL, &log2P);
 		if (ret < 0)
 			return ret;
@@ -188,9 +188,9 @@ nv40_clock_calc(struct nouveau_clock *clk, struct nouveau_cstate *cstate)
 }
 
 static int
-nv40_clock_prog(struct nouveau_clock *clk)
+nv40_clk_prog(struct nouveau_clk *clk)
 {
-	struct nv40_clock_priv *priv = (void *)clk;
+	struct nv40_clk_priv *priv = (void *)clk;
 	nv_mask(priv, 0x00c040, 0x00000333, 0x00000000);
 	nv_wr32(priv, 0x004004, priv->npll_coef);
 	nv_mask(priv, 0x004000, 0xc0070100, priv->npll_ctrl);
@@ -201,40 +201,40 @@ nv40_clock_prog(struct nouveau_clock *clk)
 }
 
 static void
-nv40_clock_tidy(struct nouveau_clock *clk)
+nv40_clk_tidy(struct nouveau_clk *clk)
 {
 }
 
 static int
-nv40_clock_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+nv40_clk_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		struct nouveau_oclass *oclass, void *data, u32 size,
 		struct nouveau_object **pobject)
 {
-	struct nv40_clock_priv *priv;
+	struct nv40_clk_priv *priv;
 	int ret;
 
-	ret = nouveau_clock_create(parent, engine, oclass, nv40_domain, NULL, 0,
+	ret = nouveau_clk_create(parent, engine, oclass, nv40_domain, NULL, 0,
 				   true, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
-	priv->base.pll_calc = nv04_clock_pll_calc;
-	priv->base.pll_prog = nv04_clock_pll_prog;
-	priv->base.read = nv40_clock_read;
-	priv->base.calc = nv40_clock_calc;
-	priv->base.prog = nv40_clock_prog;
-	priv->base.tidy = nv40_clock_tidy;
+	priv->base.pll_calc = nv04_clk_pll_calc;
+	priv->base.pll_prog = nv04_clk_pll_prog;
+	priv->base.read = nv40_clk_read;
+	priv->base.calc = nv40_clk_calc;
+	priv->base.prog = nv40_clk_prog;
+	priv->base.tidy = nv40_clk_tidy;
 	return 0;
 }
 
 struct nouveau_oclass
-nv40_clock_oclass = {
-	.handle = NV_SUBDEV(CLOCK, 0x40),
+nv40_clk_oclass = {
+	.handle = NV_SUBDEV(CLK, 0x40),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv40_clock_ctor,
-		.dtor = _nouveau_clock_dtor,
-		.init = _nouveau_clock_init,
-		.fini = _nouveau_clock_fini,
+		.ctor = nv40_clk_ctor,
+		.dtor = _nouveau_clk_dtor,
+		.init = _nouveau_clk_init,
+		.fini = _nouveau_clk_fini,
 	},
 };

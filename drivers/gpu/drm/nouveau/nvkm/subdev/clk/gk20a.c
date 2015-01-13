@@ -87,7 +87,7 @@
 #define GPC_BCAST_NDIV_SLOWDOWN_DEBUG_PLL_DYNRAMP_DONE_SYNCED_MASK \
 	    (0x1 << GPC_BCAST_NDIV_SLOWDOWN_DEBUG_PLL_DYNRAMP_DONE_SYNCED_SHIFT)
 
-#include <subdev/clock.h>
+#include <subdev/clk.h>
 #include <subdev/timer.h>
 
 #ifdef __KERNEL__
@@ -116,16 +116,16 @@ static const struct gk20a_clk_pllg_params gk20a_pllg_params = {
 	.min_pl = 1, .max_pl = 32,
 };
 
-struct gk20a_clock_priv {
-	struct nouveau_clock base;
+struct gk20a_clk_priv {
+	struct nouveau_clk base;
 	const struct gk20a_clk_pllg_params *params;
 	u32 m, n, pl;
 	u32 parent_rate;
 };
-#define to_gk20a_clock(base) container_of(base, struct gk20a_clock_priv, base)
+#define to_gk20a_clk(base) container_of(base, struct gk20a_clk_priv, base)
 
 static void
-gk20a_pllg_read_mnp(struct gk20a_clock_priv *priv)
+gk20a_pllg_read_mnp(struct gk20a_clk_priv *priv)
 {
 	u32 val;
 
@@ -136,7 +136,7 @@ gk20a_pllg_read_mnp(struct gk20a_clock_priv *priv)
 }
 
 static u32
-gk20a_pllg_calc_rate(struct gk20a_clock_priv *priv)
+gk20a_pllg_calc_rate(struct gk20a_clk_priv *priv)
 {
 	u32 rate;
 	u32 divider;
@@ -149,7 +149,7 @@ gk20a_pllg_calc_rate(struct gk20a_clock_priv *priv)
 }
 
 static int
-gk20a_pllg_calc_mnp(struct gk20a_clock_priv *priv, unsigned long rate)
+gk20a_pllg_calc_mnp(struct gk20a_clk_priv *priv, unsigned long rate)
 {
 	u32 target_clk_f, ref_clk_f, target_freq;
 	u32 min_vco_f, max_vco_f;
@@ -265,7 +265,7 @@ found_match:
 }
 
 static int
-gk20a_pllg_slide(struct gk20a_clock_priv *priv, u32 n)
+gk20a_pllg_slide(struct gk20a_clk_priv *priv, u32 n)
 {
 	u32 val;
 	int ramp_timeout;
@@ -322,21 +322,21 @@ gk20a_pllg_slide(struct gk20a_clock_priv *priv, u32 n)
 }
 
 static void
-_gk20a_pllg_enable(struct gk20a_clock_priv *priv)
+_gk20a_pllg_enable(struct gk20a_clk_priv *priv)
 {
 	nv_mask(priv, GPCPLL_CFG, GPCPLL_CFG_ENABLE, GPCPLL_CFG_ENABLE);
 	nv_rd32(priv, GPCPLL_CFG);
 }
 
 static void
-_gk20a_pllg_disable(struct gk20a_clock_priv *priv)
+_gk20a_pllg_disable(struct gk20a_clk_priv *priv)
 {
 	nv_mask(priv, GPCPLL_CFG, GPCPLL_CFG_ENABLE, 0);
 	nv_rd32(priv, GPCPLL_CFG);
 }
 
 static int
-_gk20a_pllg_program_mnp(struct gk20a_clock_priv *priv, bool allow_slide)
+_gk20a_pllg_program_mnp(struct gk20a_clk_priv *priv, bool allow_slide)
 {
 	u32 val, cfg;
 	u32 m_old, pl_old, n_lo;
@@ -422,7 +422,7 @@ _gk20a_pllg_program_mnp(struct gk20a_clock_priv *priv, bool allow_slide)
 }
 
 static int
-gk20a_pllg_program_mnp(struct gk20a_clock_priv *priv)
+gk20a_pllg_program_mnp(struct gk20a_clk_priv *priv)
 {
 	int err;
 
@@ -434,7 +434,7 @@ gk20a_pllg_program_mnp(struct gk20a_clock_priv *priv)
 }
 
 static void
-gk20a_pllg_disable(struct gk20a_clock_priv *priv)
+gk20a_pllg_disable(struct gk20a_clk_priv *priv)
 {
 	u32 val;
 
@@ -458,7 +458,7 @@ gk20a_pllg_disable(struct gk20a_clock_priv *priv)
 
 #define GK20A_CLK_GPC_MDIV 1000
 
-static struct nouveau_clocks
+static struct nouveau_domain
 gk20a_domains[] = {
 	{ nv_clk_src_crystal, 0xff },
 	{ nv_clk_src_gpc, 0xff, 0, "core", GK20A_CLK_GPC_MDIV },
@@ -560,9 +560,9 @@ gk20a_pstates[] = {
 };
 
 static int
-gk20a_clock_read(struct nouveau_clock *clk, enum nv_clk_src src)
+gk20a_clk_read(struct nouveau_clk *clk, enum nv_clk_src src)
 {
-	struct gk20a_clock_priv *priv = (void *)clk;
+	struct gk20a_clk_priv *priv = (void *)clk;
 
 	switch (src) {
 	case nv_clk_src_crystal:
@@ -577,34 +577,34 @@ gk20a_clock_read(struct nouveau_clock *clk, enum nv_clk_src src)
 }
 
 static int
-gk20a_clock_calc(struct nouveau_clock *clk, struct nouveau_cstate *cstate)
+gk20a_clk_calc(struct nouveau_clk *clk, struct nouveau_cstate *cstate)
 {
-	struct gk20a_clock_priv *priv = (void *)clk;
+	struct gk20a_clk_priv *priv = (void *)clk;
 
 	return gk20a_pllg_calc_mnp(priv, cstate->domain[nv_clk_src_gpc] *
 					 GK20A_CLK_GPC_MDIV);
 }
 
 static int
-gk20a_clock_prog(struct nouveau_clock *clk)
+gk20a_clk_prog(struct nouveau_clk *clk)
 {
-	struct gk20a_clock_priv *priv = (void *)clk;
+	struct gk20a_clk_priv *priv = (void *)clk;
 
 	return gk20a_pllg_program_mnp(priv);
 }
 
 static void
-gk20a_clock_tidy(struct nouveau_clock *clk)
+gk20a_clk_tidy(struct nouveau_clk *clk)
 {
 }
 
 static int
-gk20a_clock_fini(struct nouveau_object *object, bool suspend)
+gk20a_clk_fini(struct nouveau_object *object, bool suspend)
 {
-	struct gk20a_clock_priv *priv = (void *)object;
+	struct gk20a_clk_priv *priv = (void *)object;
 	int ret;
 
-	ret = nouveau_clock_fini(&priv->base, false);
+	ret = nouveau_clk_fini(&priv->base, false);
 
 	gk20a_pllg_disable(priv);
 
@@ -612,18 +612,18 @@ gk20a_clock_fini(struct nouveau_object *object, bool suspend)
 }
 
 static int
-gk20a_clock_init(struct nouveau_object *object)
+gk20a_clk_init(struct nouveau_object *object)
 {
-	struct gk20a_clock_priv *priv = (void *)object;
+	struct gk20a_clk_priv *priv = (void *)object;
 	int ret;
 
 	nv_mask(priv, GPC2CLK_OUT, GPC2CLK_OUT_INIT_MASK, GPC2CLK_OUT_INIT_VAL);
 
-	ret = nouveau_clock_init(&priv->base);
+	ret = nouveau_clk_init(&priv->base);
 	if (ret)
 		return ret;
 
-	ret = gk20a_clock_prog(&priv->base);
+	ret = gk20a_clk_prog(&priv->base);
 	if (ret) {
 		nv_error(priv, "cannot initialize clock\n");
 		return ret;
@@ -633,11 +633,11 @@ gk20a_clock_init(struct nouveau_object *object)
 }
 
 static int
-gk20a_clock_ctor(struct nouveau_object *parent,  struct nouveau_object *engine,
+gk20a_clk_ctor(struct nouveau_object *parent,  struct nouveau_object *engine,
 		 struct nouveau_oclass *oclass, void *data, u32 size,
 		 struct nouveau_object **pobject)
 {
-	struct gk20a_clock_priv *priv;
+	struct gk20a_clk_priv *priv;
 	struct nouveau_platform_device *plat;
 	int ret;
 	int i;
@@ -648,7 +648,7 @@ gk20a_clock_ctor(struct nouveau_object *parent,  struct nouveau_object *engine,
 		gk20a_pstates[i].pstate = i + 1;
 	}
 
-	ret = nouveau_clock_create(parent, engine, oclass, gk20a_domains,
+	ret = nouveau_clk_create(parent, engine, oclass, gk20a_domains,
 			gk20a_pstates, ARRAY_SIZE(gk20a_pstates), true, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
@@ -660,21 +660,21 @@ gk20a_clock_ctor(struct nouveau_object *parent,  struct nouveau_object *engine,
 	priv->parent_rate = clk_get_rate(plat->gpu->clk);
 	nv_info(priv, "parent clock rate: %d Mhz\n", priv->parent_rate / MHZ);
 
-	priv->base.read = gk20a_clock_read;
-	priv->base.calc = gk20a_clock_calc;
-	priv->base.prog = gk20a_clock_prog;
-	priv->base.tidy = gk20a_clock_tidy;
+	priv->base.read = gk20a_clk_read;
+	priv->base.calc = gk20a_clk_calc;
+	priv->base.prog = gk20a_clk_prog;
+	priv->base.tidy = gk20a_clk_tidy;
 
 	return 0;
 }
 
 struct nouveau_oclass
-gk20a_clock_oclass = {
-	.handle = NV_SUBDEV(CLOCK, 0xea),
+gk20a_clk_oclass = {
+	.handle = NV_SUBDEV(CLK, 0xea),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = gk20a_clock_ctor,
+		.ctor = gk20a_clk_ctor,
 		.dtor = _nouveau_subdev_dtor,
-		.init = gk20a_clock_init,
-		.fini = gk20a_clock_fini,
+		.init = gk20a_clk_init,
+		.fini = gk20a_clk_fini,
 	},
 };

@@ -28,8 +28,8 @@
 #include <subdev/bios/timing.h>
 #include <subdev/ltc.h>
 
-#include <subdev/clock.h>
-#include <subdev/clock/pll.h>
+#include <subdev/clk.h>
+#include <subdev/clk/pll.h>
 
 #include <core/option.h>
 
@@ -129,7 +129,7 @@ nvc0_ram_train(struct nvc0_ramfuc *fuc, u32 magic)
 static int
 nvc0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 {
-	struct nouveau_clock *clk = nouveau_clock(pfb);
+	struct nouveau_clk *clk = nouveau_clk(pfb);
 	struct nouveau_bios *bios = nouveau_bios(pfb);
 	struct nvc0_ram *ram = (void *)pfb->ram;
 	struct nvc0_ramfuc *fuc = &ram->fuc;

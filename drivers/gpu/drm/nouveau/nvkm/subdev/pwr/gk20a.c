@@ -21,7 +21,7 @@
  */
 #include "priv.h"
 
-#include <subdev/clock.h>
+#include <subdev/clk.h>
 #include <subdev/timer.h>
 #include <subdev/volt.h>
 
@@ -50,15 +50,15 @@ struct gk20a_pwr_dvfs_dev_status {
 static int
 gk20a_pwr_dvfs_target(struct gk20a_pwr_priv *priv, int *state)
 {
-	struct nouveau_clock *clk = nouveau_clock(priv);
+	struct nouveau_clk *clk = nouveau_clk(priv);
 
-	return nouveau_clock_astate(clk, *state, 0, false);
+	return nouveau_clk_astate(clk, *state, 0, false);
 }
 
 static int
 gk20a_pwr_dvfs_get_cur_state(struct gk20a_pwr_priv *priv, int *state)
 {
-	struct nouveau_clock *clk = nouveau_clock(priv);
+	struct nouveau_clk *clk = nouveau_clk(priv);
 
 	*state = clk->pstate;
 	return 0;
@@ -69,7 +69,7 @@ gk20a_pwr_dvfs_get_target_state(struct gk20a_pwr_priv *priv,
 		int *state, int load)
 {
 	struct gk20a_pwr_dvfs_data *data = priv->data;
-	struct nouveau_clock *clk = nouveau_clock(priv);
+	struct nouveau_clk *clk = nouveau_clk(priv);
 	int cur_level, level;
 
 	/* For GK20A, the performance level is directly mapped to pstate */
@@ -117,7 +117,7 @@ gk20a_pwr_dvfs_work(struct nouveau_alarm *alarm)
 					struct gk20a_pwr_priv, alarm);
 	struct gk20a_pwr_dvfs_data *data = priv->data;
 	struct gk20a_pwr_dvfs_dev_status status;
-	struct nouveau_clock *clk = nouveau_clock(priv);
+	struct nouveau_clk *clk = nouveau_clk(priv);
 	struct nouveau_volt *volt = nouveau_volt(priv);
 	u32 utilization = 0;
 	int state, ret;

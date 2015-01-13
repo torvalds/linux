@@ -25,7 +25,7 @@
 #include <subdev/bios.h>
 #include <subdev/bus.h>
 #include <subdev/i2c.h>
-#include <subdev/clock.h>
+#include <subdev/clk.h>
 #include <subdev/devinit.h>
 #include <subdev/mc.h>
 #include <subdev/timer.h>
@@ -48,7 +48,7 @@ nv04_identify(struct nouveau_device *device)
 		device->cname = "NV04";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
+		device->oclass[NVDEV_SUBDEV_CLK    ] = &nv04_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv04_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv04_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] =  nv04_bus_oclass;
@@ -66,7 +66,7 @@ nv04_identify(struct nouveau_device *device)
 		device->cname = "NV05";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
-		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nv04_clock_oclass;
+		device->oclass[NVDEV_SUBDEV_CLK    ] = &nv04_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv05_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv04_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] =  nv04_bus_oclass;

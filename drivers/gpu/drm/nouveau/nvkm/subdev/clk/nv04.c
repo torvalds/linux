@@ -24,17 +24,17 @@
 
 #include <subdev/bios.h>
 #include <subdev/bios/pll.h>
-#include <subdev/clock.h>
+#include <subdev/clk.h>
 #include <subdev/devinit/nv04.h>
 
 #include "pll.h"
 
-struct nv04_clock_priv {
-	struct nouveau_clock base;
+struct nv04_clk_priv {
+	struct nouveau_clk base;
 };
 
 int
-nv04_clock_pll_calc(struct nouveau_clock *clock, struct nvbios_pll *info,
+nv04_clk_pll_calc(struct nouveau_clk *clock, struct nvbios_pll *info,
 		    int clk, struct nouveau_pll_vals *pv)
 {
 	int N1, M1, N2, M2, P;
@@ -51,7 +51,7 @@ nv04_clock_pll_calc(struct nouveau_clock *clock, struct nvbios_pll *info,
 }
 
 int
-nv04_clock_pll_prog(struct nouveau_clock *clk, u32 reg1,
+nv04_clk_pll_prog(struct nouveau_clk *clk, u32 reg1,
 		    struct nouveau_pll_vals *pv)
 {
 	struct nouveau_devinit *devinit = nouveau_devinit(clk);
@@ -69,37 +69,37 @@ nv04_clock_pll_prog(struct nouveau_clock *clk, u32 reg1,
 	return 0;
 }
 
-static struct nouveau_clocks
+static struct nouveau_domain
 nv04_domain[] = {
 	{ nv_clk_src_max }
 };
 
 static int
-nv04_clock_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+nv04_clk_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		struct nouveau_oclass *oclass, void *data, u32 size,
 		struct nouveau_object **pobject)
 {
-	struct nv04_clock_priv *priv;
+	struct nv04_clk_priv *priv;
 	int ret;
 
-	ret = nouveau_clock_create(parent, engine, oclass, nv04_domain, NULL, 0,
+	ret = nouveau_clk_create(parent, engine, oclass, nv04_domain, NULL, 0,
 				   false, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
-	priv->base.pll_calc = nv04_clock_pll_calc;
-	priv->base.pll_prog = nv04_clock_pll_prog;
+	priv->base.pll_calc = nv04_clk_pll_calc;
+	priv->base.pll_prog = nv04_clk_pll_prog;
 	return 0;
 }
 
 struct nouveau_oclass
-nv04_clock_oclass = {
-	.handle = NV_SUBDEV(CLOCK, 0x04),
+nv04_clk_oclass = {
+	.handle = NV_SUBDEV(CLK, 0x04),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv04_clock_ctor,
-		.dtor = _nouveau_clock_dtor,
-		.init = _nouveau_clock_init,
-		.fini = _nouveau_clock_fini,
+		.ctor = nv04_clk_ctor,
+		.dtor = _nouveau_clk_dtor,
+		.init = _nouveau_clk_init,
+		.fini = _nouveau_clk_fini,
 	},
 };

@@ -26,13 +26,13 @@
 #include <subdev/bios.h>
 #include <subdev/bios/pll.h>
 #include <subdev/timer.h>
-#include <subdev/clock.h>
+#include <subdev/clk.h>
 
 #include "nva3.h"
 #include "pll.h"
 
-struct nvaa_clock_priv {
-	struct nouveau_clock base;
+struct nvaa_clk_priv {
+	struct nouveau_clk base;
 	enum nv_clk_src csrc, ssrc, vsrc;
 	u32 cctrl, sctrl;
 	u32 ccoef, scoef;
@@ -41,13 +41,13 @@ struct nvaa_clock_priv {
 };
 
 static u32
-read_div(struct nouveau_clock *clk)
+read_div(struct nouveau_clk *clk)
 {
 	return nv_rd32(clk, 0x004600);
 }
 
 static u32
-read_pll(struct nouveau_clock *clk, u32 base)
+read_pll(struct nouveau_clk *clk, u32 base)
 {
 	u32 ctrl = nv_rd32(clk, base + 0);
 	u32 coef = nv_rd32(clk, base + 4);
@@ -78,9 +78,9 @@ read_pll(struct nouveau_clock *clk, u32 base)
 }
 
 static int
-nvaa_clock_read(struct nouveau_clock *clk, enum nv_clk_src src)
+nvaa_clk_read(struct nouveau_clk *clk, enum nv_clk_src src)
 {
-	struct nvaa_clock_priv *priv = (void *)clk;
+	struct nvaa_clk_priv *priv = (void *)clk;
 	u32 mast = nv_rd32(clk, 0x00c054);
 	u32 P = 0;
 
@@ -160,12 +160,12 @@ nvaa_clock_read(struct nouveau_clock *clk, enum nv_clk_src src)
 }
 
 static u32
-calc_pll(struct nvaa_clock_priv *priv, u32 reg,
+calc_pll(struct nvaa_clk_priv *priv, u32 reg,
 	 u32 clock, int *N, int *M, int *P)
 {
 	struct nouveau_bios *bios = nouveau_bios(priv);
 	struct nvbios_pll pll;
-	struct nouveau_clock *clk = &priv->base;
+	struct nouveau_clk *clk = &priv->base;
 	int ret;
 
 	ret = nvbios_pll_parse(bios, reg, &pll);
@@ -199,9 +199,9 @@ calc_P(u32 src, u32 target, int *div)
 }
 
 static int
-nvaa_clock_calc(struct nouveau_clock *clk, struct nouveau_cstate *cstate)
+nvaa_clk_calc(struct nouveau_clk *clk, struct nouveau_cstate *cstate)
 {
-	struct nvaa_clock_priv *priv = (void *)clk;
+	struct nvaa_clk_priv *priv = (void *)clk;
 	const int shader = cstate->domain[nv_clk_src_shader];
 	const int core = cstate->domain[nv_clk_src_core];
 	const int vdec = cstate->domain[nv_clk_src_vdec];
@@ -297,15 +297,15 @@ nvaa_clock_calc(struct nouveau_clock *clk, struct nouveau_cstate *cstate)
 }
 
 static int
-nvaa_clock_prog(struct nouveau_clock *clk)
+nvaa_clk_prog(struct nouveau_clk *clk)
 {
-	struct nvaa_clock_priv *priv = (void *)clk;
+	struct nvaa_clk_priv *priv = (void *)clk;
 	u32 pllmask = 0, mast;
 	unsigned long flags;
 	unsigned long *f = &flags;
 	int ret = 0;
 
-	ret = nva3_clock_pre(clk, f);
+	ret = nva3_clk_pre(clk, f);
 	if (ret)
 		goto out;
 
@@ -382,17 +382,17 @@ out:
 	if (ret == -EBUSY)
 		f = NULL;
 
-	nva3_clock_post(clk, f);
+	nva3_clk_post(clk, f);
 
 	return ret;
 }
 
 static void
-nvaa_clock_tidy(struct nouveau_clock *clk)
+nvaa_clk_tidy(struct nouveau_clk *clk)
 {
 }
 
-static struct nouveau_clocks
+static struct nouveau_domain
 nvaa_domains[] = {
 	{ nv_clk_src_crystal, 0xff },
 	{ nv_clk_src_href   , 0xff },
@@ -403,33 +403,33 @@ nvaa_domains[] = {
 };
 
 static int
-nvaa_clock_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+nvaa_clk_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		struct nouveau_oclass *oclass, void *data, u32 size,
 		struct nouveau_object **pobject)
 {
-	struct nvaa_clock_priv *priv;
+	struct nvaa_clk_priv *priv;
 	int ret;
 
-	ret = nouveau_clock_create(parent, engine, oclass, nvaa_domains, NULL,
+	ret = nouveau_clk_create(parent, engine, oclass, nvaa_domains, NULL,
 				   0, true, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
-	priv->base.read = nvaa_clock_read;
-	priv->base.calc = nvaa_clock_calc;
-	priv->base.prog = nvaa_clock_prog;
-	priv->base.tidy = nvaa_clock_tidy;
+	priv->base.read = nvaa_clk_read;
+	priv->base.calc = nvaa_clk_calc;
+	priv->base.prog = nvaa_clk_prog;
+	priv->base.tidy = nvaa_clk_tidy;
 	return 0;
 }
 
 struct nouveau_oclass *
-nvaa_clock_oclass = &(struct nouveau_oclass) {
-	.handle = NV_SUBDEV(CLOCK, 0xaa),
+nvaa_clk_oclass = &(struct nouveau_oclass) {
+	.handle = NV_SUBDEV(CLK, 0xaa),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvaa_clock_ctor,
-		.dtor = _nouveau_clock_dtor,
-		.init = _nouveau_clock_init,
-		.fini = _nouveau_clock_fini,
+		.ctor = nvaa_clk_ctor,
+		.dtor = _nouveau_clk_dtor,
+		.init = _nouveau_clk_init,
+		.fini = _nouveau_clk_fini,
 	},
 };

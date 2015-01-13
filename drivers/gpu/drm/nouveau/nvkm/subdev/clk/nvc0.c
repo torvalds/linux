@@ -22,14 +22,14 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/clock.h>
+#include <subdev/clk.h>
 #include <subdev/bios.h>
 #include <subdev/bios/pll.h>
 #include <subdev/timer.h>
 
 #include "pll.h"
 
-struct nvc0_clock_info {
+struct nvc0_clk_info {
 	u32 freq;
 	u32 ssel;
 	u32 mdiv;
@@ -38,17 +38,17 @@ struct nvc0_clock_info {
 	u32 coef;
 };
 
-struct nvc0_clock_priv {
-	struct nouveau_clock base;
-	struct nvc0_clock_info eng[16];
+struct nvc0_clk_priv {
+	struct nouveau_clk base;
+	struct nvc0_clk_info eng[16];
 };
 
-static u32 read_div(struct nvc0_clock_priv *, int, u32, u32);
+static u32 read_div(struct nvc0_clk_priv *, int, u32, u32);
 
 static u32
-read_vco(struct nvc0_clock_priv *priv, u32 dsrc)
+read_vco(struct nvc0_clk_priv *priv, u32 dsrc)
 {
-	struct nouveau_clock *clk = &priv->base;
+	struct nouveau_clk *clk = &priv->base;
 	u32 ssrc = nv_rd32(priv, dsrc);
 	if (!(ssrc & 0x00000100))
 		return clk->read(clk, nv_clk_src_sppll0);
@@ -56,9 +56,9 @@ read_vco(struct nvc0_clock_priv *priv, u32 dsrc)
 }
 
 static u32
-read_pll(struct nvc0_clock_priv *priv, u32 pll)
+read_pll(struct nvc0_clk_priv *priv, u32 pll)
 {
-	struct nouveau_clock *clk = &priv->base;
+	struct nouveau_clk *clk = &priv->base;
 	u32 ctrl = nv_rd32(priv, pll + 0x00);
 	u32 coef = nv_rd32(priv, pll + 0x04);
 	u32 P = (coef & 0x003f0000) >> 16;
@@ -95,7 +95,7 @@ read_pll(struct nvc0_clock_priv *priv, u32 pll)
 }
 
 static u32
-read_div(struct nvc0_clock_priv *priv, int doff, u32 dsrc, u32 dctl)
+read_div(struct nvc0_clk_priv *priv, int doff, u32 dsrc, u32 dctl)
 {
 	u32 ssrc = nv_rd32(priv, dsrc + (doff * 4));
 	u32 sctl = nv_rd32(priv, dctl + (doff * 4));
@@ -121,7 +121,7 @@ read_div(struct nvc0_clock_priv *priv, int doff, u32 dsrc, u32 dctl)
 }
 
 static u32
-read_clk(struct nvc0_clock_priv *priv, int clk)
+read_clk(struct nvc0_clk_priv *priv, int clk)
 {
 	u32 sctl = nv_rd32(priv, 0x137250 + (clk * 4));
 	u32 ssel = nv_rd32(priv, 0x137100);
@@ -145,10 +145,10 @@ read_clk(struct nvc0_clock_priv *priv, int clk)
 }
 
 static int
-nvc0_clock_read(struct nouveau_clock *clk, enum nv_clk_src src)
+nvc0_clk_read(struct nouveau_clk *clk, enum nv_clk_src src)
 {
 	struct nouveau_device *device = nv_device(clk);
-	struct nvc0_clock_priv *priv = (void *)clk;
+	struct nvc0_clk_priv *priv = (void *)clk;
 
 	switch (src) {
 	case nv_clk_src_crystal:
@@ -196,7 +196,7 @@ nvc0_clock_read(struct nouveau_clock *clk, enum nv_clk_src src)
 }
 
 static u32
-calc_div(struct nvc0_clock_priv *priv, int clk, u32 ref, u32 freq, u32 *ddiv)
+calc_div(struct nvc0_clk_priv *priv, int clk, u32 ref, u32 freq, u32 *ddiv)
 {
 	u32 div = min((ref * 2) / freq, (u32)65);
 	if (div < 2)
@@ -207,7 +207,7 @@ calc_div(struct nvc0_clock_priv *priv, int clk, u32 ref, u32 freq, u32 *ddiv)
 }
 
 static u32
-calc_src(struct nvc0_clock_priv *priv, int clk, u32 freq, u32 *dsrc, u32 *ddiv)
+calc_src(struct nvc0_clk_priv *priv, int clk, u32 freq, u32 *dsrc, u32 *ddiv)
 {
 	u32 sclk;
 
@@ -236,7 +236,7 @@ calc_src(struct nvc0_clock_priv *priv, int clk, u32 freq, u32 *dsrc, u32 *ddiv)
 }
 
 static u32
-calc_pll(struct nvc0_clock_priv *priv, int clk, u32 freq, u32 *coef)
+calc_pll(struct nvc0_clk_priv *priv, int clk, u32 freq, u32 *coef)
 {
 	struct nouveau_bios *bios = nouveau_bios(priv);
 	struct nvbios_pll limits;
@@ -259,10 +259,10 @@ calc_pll(struct nvc0_clock_priv *priv, int clk, u32 freq, u32 *coef)
 }
 
 static int
-calc_clk(struct nvc0_clock_priv *priv,
+calc_clk(struct nvc0_clk_priv *priv,
 	 struct nouveau_cstate *cstate, int clk, int dom)
 {
-	struct nvc0_clock_info *info = &priv->eng[clk];
+	struct nvc0_clk_info *info = &priv->eng[clk];
 	u32 freq = cstate->domain[dom];
 	u32 src0, div0, div1D, div1P = 0;
 	u32 clk0, clk1 = 0;
@@ -311,9 +311,9 @@ calc_clk(struct nvc0_clock_priv *priv,
 }
 
 static int
-nvc0_clock_calc(struct nouveau_clock *clk, struct nouveau_cstate *cstate)
+nvc0_clk_calc(struct nouveau_clk *clk, struct nouveau_cstate *cstate)
 {
-	struct nvc0_clock_priv *priv = (void *)clk;
+	struct nvc0_clk_priv *priv = (void *)clk;
 	int ret;
 
 	if ((ret = calc_clk(priv, cstate, 0x00, nv_clk_src_gpc)) ||
@@ -330,9 +330,9 @@ nvc0_clock_calc(struct nouveau_clock *clk, struct nouveau_cstate *cstate)
 }
 
 static void
-nvc0_clock_prog_0(struct nvc0_clock_priv *priv, int clk)
+nvc0_clk_prog_0(struct nvc0_clk_priv *priv, int clk)
 {
-	struct nvc0_clock_info *info = &priv->eng[clk];
+	struct nvc0_clk_info *info = &priv->eng[clk];
 	if (clk < 7 && !info->ssel) {
 		nv_mask(priv, 0x1371d0 + (clk * 0x04), 0x80003f3f, info->ddiv);
 		nv_wr32(priv, 0x137160 + (clk * 0x04), info->dsrc);
@@ -340,16 +340,16 @@ nvc0_clock_prog_0(struct nvc0_clock_priv *priv, int clk)
 }
 
 static void
-nvc0_clock_prog_1(struct nvc0_clock_priv *priv, int clk)
+nvc0_clk_prog_1(struct nvc0_clk_priv *priv, int clk)
 {
 	nv_mask(priv, 0x137100, (1 << clk), 0x00000000);
 	nv_wait(priv, 0x137100, (1 << clk), 0x00000000);
 }
 
 static void
-nvc0_clock_prog_2(struct nvc0_clock_priv *priv, int clk)
+nvc0_clk_prog_2(struct nvc0_clk_priv *priv, int clk)
 {
-	struct nvc0_clock_info *info = &priv->eng[clk];
+	struct nvc0_clk_info *info = &priv->eng[clk];
 	const u32 addr = 0x137000 + (clk * 0x20);
 	if (clk <= 7) {
 		nv_mask(priv, addr + 0x00, 0x00000004, 0x00000000);
@@ -364,9 +364,9 @@ nvc0_clock_prog_2(struct nvc0_clock_priv *priv, int clk)
 }
 
 static void
-nvc0_clock_prog_3(struct nvc0_clock_priv *priv, int clk)
+nvc0_clk_prog_3(struct nvc0_clk_priv *priv, int clk)
 {
-	struct nvc0_clock_info *info = &priv->eng[clk];
+	struct nvc0_clk_info *info = &priv->eng[clk];
 	if (info->ssel) {
 		nv_mask(priv, 0x137100, (1 << clk), info->ssel);
 		nv_wait(priv, 0x137100, (1 << clk), info->ssel);
@@ -374,24 +374,24 @@ nvc0_clock_prog_3(struct nvc0_clock_priv *priv, int clk)
 }
 
 static void
-nvc0_clock_prog_4(struct nvc0_clock_priv *priv, int clk)
+nvc0_clk_prog_4(struct nvc0_clk_priv *priv, int clk)
 {
-	struct nvc0_clock_info *info = &priv->eng[clk];
+	struct nvc0_clk_info *info = &priv->eng[clk];
 	nv_mask(priv, 0x137250 + (clk * 0x04), 0x00003f3f, info->mdiv);
 }
 
 static int
-nvc0_clock_prog(struct nouveau_clock *clk)
+nvc0_clk_prog(struct nouveau_clk *clk)
 {
-	struct nvc0_clock_priv *priv = (void *)clk;
+	struct nvc0_clk_priv *priv = (void *)clk;
 	struct {
-		void (*exec)(struct nvc0_clock_priv *, int);
+		void (*exec)(struct nvc0_clk_priv *, int);
 	} stage[] = {
-		{ nvc0_clock_prog_0 }, /* div programming */
-		{ nvc0_clock_prog_1 }, /* select div mode */
-		{ nvc0_clock_prog_2 }, /* (maybe) program pll */
-		{ nvc0_clock_prog_3 }, /* (maybe) select pll mode */
-		{ nvc0_clock_prog_4 }, /* final divider */
+		{ nvc0_clk_prog_0 }, /* div programming */
+		{ nvc0_clk_prog_1 }, /* select div mode */
+		{ nvc0_clk_prog_2 }, /* (maybe) program pll */
+		{ nvc0_clk_prog_3 }, /* (maybe) select pll mode */
+		{ nvc0_clk_prog_4 }, /* final divider */
 	};
 	int i, j;
 
@@ -407,13 +407,13 @@ nvc0_clock_prog(struct nouveau_clock *clk)
 }
 
 static void
-nvc0_clock_tidy(struct nouveau_clock *clk)
+nvc0_clk_tidy(struct nouveau_clk *clk)
 {
-	struct nvc0_clock_priv *priv = (void *)clk;
+	struct nvc0_clk_priv *priv = (void *)clk;
 	memset(priv->eng, 0x00, sizeof(priv->eng));
 }
 
-static struct nouveau_clocks
+static struct nouveau_domain
 nvc0_domain[] = {
 	{ nv_clk_src_crystal, 0xff },
 	{ nv_clk_src_href   , 0xff },
@@ -430,33 +430,33 @@ nvc0_domain[] = {
 };
 
 static int
-nvc0_clock_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+nvc0_clk_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		struct nouveau_oclass *oclass, void *data, u32 size,
 		struct nouveau_object **pobject)
 {
-	struct nvc0_clock_priv *priv;
+	struct nvc0_clk_priv *priv;
 	int ret;
 
-	ret = nouveau_clock_create(parent, engine, oclass, nvc0_domain, NULL, 0,
+	ret = nouveau_clk_create(parent, engine, oclass, nvc0_domain, NULL, 0,
 				   false, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
-	priv->base.read = nvc0_clock_read;
-	priv->base.calc = nvc0_clock_calc;
-	priv->base.prog = nvc0_clock_prog;
-	priv->base.tidy = nvc0_clock_tidy;
+	priv->base.read = nvc0_clk_read;
+	priv->base.calc = nvc0_clk_calc;
+	priv->base.prog = nvc0_clk_prog;
+	priv->base.tidy = nvc0_clk_tidy;
 	return 0;
 }
 
 struct nouveau_oclass
-nvc0_clock_oclass = {
-	.handle = NV_SUBDEV(CLOCK, 0xc0),
+nvc0_clk_oclass = {
+	.handle = NV_SUBDEV(CLK, 0xc0),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_clock_ctor,
-		.dtor = _nouveau_clock_dtor,
-		.init = _nouveau_clock_init,
-		.fini = _nouveau_clock_fini,
+		.ctor = nvc0_clk_ctor,
+		.dtor = _nouveau_clk_dtor,
+		.init = _nouveau_clk_init,
+		.fini = _nouveau_clk_fini,
 	},
 };

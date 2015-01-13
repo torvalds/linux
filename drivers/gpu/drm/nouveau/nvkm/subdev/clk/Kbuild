@@ -1,0 +1,12 @@
+nvkm-y += nvkm/subdev/clk/base.o
+nvkm-y += nvkm/subdev/clk/nv04.o
+nvkm-y += nvkm/subdev/clk/nv40.o
+nvkm-y += nvkm/subdev/clk/nv50.o
+nvkm-y += nvkm/subdev/clk/nv84.o
+nvkm-y += nvkm/subdev/clk/nva3.o
+nvkm-y += nvkm/subdev/clk/nvaa.o
+nvkm-y += nvkm/subdev/clk/nvc0.o
+nvkm-y += nvkm/subdev/clk/nve0.o
+nvkm-y += nvkm/subdev/clk/gk20a.o
+nvkm-y += nvkm/subdev/clk/pllnv04.o
+nvkm-y += nvkm/subdev/clk/pllnva3.o

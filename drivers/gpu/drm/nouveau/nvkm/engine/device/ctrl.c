@@ -28,7 +28,7 @@
 #include <nvif/class.h>
 #include <nvif/ioctl.h>
 
-#include <subdev/clock.h>
+#include <subdev/clk.h>
 
 #include "priv.h"
 
@@ -39,7 +39,7 @@ nouveau_control_mthd_pstate_info(struct nouveau_object *object,
 	union {
 		struct nvif_control_pstate_info_v0 v0;
 	} *args = data;
-	struct nouveau_clock *clk = nouveau_clock(object);
+	struct nouveau_clk *clk = nouveau_clk(object);
 	int ret;
 
 	nv_ioctl(object, "control pstate info size %d\n", size);
@@ -73,8 +73,8 @@ nouveau_control_mthd_pstate_attr(struct nouveau_object *object,
 	union {
 		struct nvif_control_pstate_attr_v0 v0;
 	} *args = data;
-	struct nouveau_clock *clk = nouveau_clock(object);
-	struct nouveau_clocks *domain;
+	struct nouveau_clk *clk = nouveau_clk(object);
+	struct nouveau_domain *domain;
 	struct nouveau_pstate *pstate;
 	struct nouveau_cstate *cstate;
 	int i = 0, j = -1;
@@ -147,7 +147,7 @@ nouveau_control_mthd_pstate_user(struct nouveau_object *object,
 	union {
 		struct nvif_control_pstate_user_v0 v0;
 	} *args = data;
-	struct nouveau_clock *clk = nouveau_clock(object);
+	struct nouveau_clk *clk = nouveau_clk(object);
 	int ret;
 
 	nv_ioctl(object, "control pstate user size %d\n", size);
@@ -161,10 +161,10 @@ nouveau_control_mthd_pstate_user(struct nouveau_object *object,
 		return ret;
 
 	if (args->v0.pwrsrc >= 0) {
-		ret |= nouveau_clock_ustate(clk, args->v0.ustate, args->v0.pwrsrc);
+		ret |= nouveau_clk_ustate(clk, args->v0.ustate, args->v0.pwrsrc);
 	} else {
-		ret |= nouveau_clock_ustate(clk, args->v0.ustate, 0);
-		ret |= nouveau_clock_ustate(clk, args->v0.ustate, 1);
+		ret |= nouveau_clk_ustate(clk, args->v0.ustate, 0);
+		ret |= nouveau_clk_ustate(clk, args->v0.ustate, 1);
 	}
 
 	return ret;

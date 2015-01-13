@@ -28,7 +28,7 @@
 #include <nvif/class.h>
 #include <nvif/ioctl.h>
 
-#include <subdev/clock.h>
+#include <subdev/clk.h>
 
 #include "priv.h"
 

@@ -27,7 +27,7 @@
 #include <subdev/gpio.h>
 #include <subdev/i2c.h>
 #include <subdev/fuse.h>
-#include <subdev/clock.h>
+#include <subdev/clk.h>
 #include <subdev/therm.h>
 #include <subdev/mxm.h>
 #include <subdev/devinit.h>
@@ -64,7 +64,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv50_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv50_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] =  &g80_fuse_oclass;
-		device->oclass[NVDEV_SUBDEV_CLOCK  ] =  nv50_clock_oclass;
+		device->oclass[NVDEV_SUBDEV_CLK    ] =  nv50_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nv50_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv50_devinit_oclass;
@@ -90,7 +90,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv50_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv50_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] =  &g80_fuse_oclass;
-		device->oclass[NVDEV_SUBDEV_CLOCK  ] =  nv84_clock_oclass;
+		device->oclass[NVDEV_SUBDEV_CLK    ] =  nv84_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nv84_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv84_devinit_oclass;
@@ -119,7 +119,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv50_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv50_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] =  &g80_fuse_oclass;
-		device->oclass[NVDEV_SUBDEV_CLOCK  ] =  nv84_clock_oclass;
+		device->oclass[NVDEV_SUBDEV_CLK    ] =  nv84_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nv84_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv84_devinit_oclass;
@@ -148,7 +148,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv50_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv50_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] =  &g80_fuse_oclass;
-		device->oclass[NVDEV_SUBDEV_CLOCK  ] =  nv84_clock_oclass;
+		device->oclass[NVDEV_SUBDEV_CLK    ] =  nv84_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nv84_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv84_devinit_oclass;
@@ -177,7 +177,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv94_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] =  &g80_fuse_oclass;
-		device->oclass[NVDEV_SUBDEV_CLOCK  ] =  nv84_clock_oclass;
+		device->oclass[NVDEV_SUBDEV_CLK    ] =  nv84_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nv84_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv84_devinit_oclass;
@@ -206,7 +206,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv94_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] =  &g80_fuse_oclass;
-		device->oclass[NVDEV_SUBDEV_CLOCK  ] =  nv84_clock_oclass;
+		device->oclass[NVDEV_SUBDEV_CLK    ] =  nv84_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nv84_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv84_devinit_oclass;
@@ -235,7 +235,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv94_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] =  &g80_fuse_oclass;
-		device->oclass[NVDEV_SUBDEV_CLOCK  ] =  nv84_clock_oclass;
+		device->oclass[NVDEV_SUBDEV_CLK    ] =  nv84_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nv84_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv98_devinit_oclass;
@@ -264,7 +264,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv50_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] =  &g80_fuse_oclass;
-		device->oclass[NVDEV_SUBDEV_CLOCK  ] =  nv84_clock_oclass;
+		device->oclass[NVDEV_SUBDEV_CLK    ] =  nv84_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nv84_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv84_devinit_oclass;
@@ -293,7 +293,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv94_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] =  &g80_fuse_oclass;
-		device->oclass[NVDEV_SUBDEV_CLOCK  ] =  nvaa_clock_oclass;
+		device->oclass[NVDEV_SUBDEV_CLK    ] =  nvaa_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nv84_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv98_devinit_oclass;
@@ -322,7 +322,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv94_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] =  &g80_fuse_oclass;
-		device->oclass[NVDEV_SUBDEV_CLOCK  ] =  nvaa_clock_oclass;
+		device->oclass[NVDEV_SUBDEV_CLK    ] =  nvaa_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nv84_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv98_devinit_oclass;
@@ -351,7 +351,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv94_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] =  &g80_fuse_oclass;
-		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nva3_clock_oclass;
+		device->oclass[NVDEV_SUBDEV_CLK    ] = &nva3_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nva3_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nva3_devinit_oclass;
@@ -382,7 +382,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv94_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] =  &g80_fuse_oclass;
-		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nva3_clock_oclass;
+		device->oclass[NVDEV_SUBDEV_CLK    ] = &nva3_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nva3_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nva3_devinit_oclass;
@@ -412,7 +412,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv94_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] =  &g80_fuse_oclass;
-		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nva3_clock_oclass;
+		device->oclass[NVDEV_SUBDEV_CLK    ] = &nva3_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nva3_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nva3_devinit_oclass;
@@ -442,7 +442,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv94_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] =  &g80_fuse_oclass;
-		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nva3_clock_oclass;
+		device->oclass[NVDEV_SUBDEV_CLK    ] = &nva3_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nva3_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nvaf_devinit_oclass;
