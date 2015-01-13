@@ -328,6 +328,20 @@ struct pcl818_private {
 	unsigned int ai_cmd_canceled:1;
 };
 
+static void pcl818_isadma_program(unsigned int dma_chan,
+				  struct pcl818_dma_desc *dma)
+{
+	unsigned long flags;
+
+	flags = claim_dma_lock();
+	clear_dma_ff(dma_chan);
+	set_dma_mode(dma_chan, DMA_MODE_READ);
+	set_dma_addr(dma_chan, dma->hw_addr);
+	set_dma_count(dma_chan, dma->size);
+	enable_dma(dma_chan);
+	release_dma_lock(flags);
+}
+
 static void pcl818_start_pacer(struct comedi_device *dev, bool load_counters)
 {
 	struct pcl818_private *devpriv = dev->private;
@@ -349,7 +363,6 @@ static void pcl818_ai_setup_dma(struct comedi_device *dev,
 	struct pcl818_private *devpriv = dev->private;
 	struct pcl818_dma_desc *dma = &devpriv->dma_desc[0];
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int flags;
 
 	disable_dma(devpriv->dma);	/*  disable dma */
 	if (cmd->stop_src == TRIG_COUNT) {
@@ -364,13 +377,8 @@ static void pcl818_ai_setup_dma(struct comedi_device *dev,
 	}
 
 	devpriv->cur_dma = 0;
-	set_dma_mode(devpriv->dma, DMA_MODE_READ);
-	flags = claim_dma_lock();
-	clear_dma_ff(devpriv->dma);
-	set_dma_addr(devpriv->dma, dma->hw_addr);
-	set_dma_count(devpriv->dma, dma->size);
-	release_dma_lock(flags);
-	enable_dma(devpriv->dma);
+
+	pcl818_isadma_program(devpriv->dma, dma);
 }
 
 static void pcl818_ai_setup_next_dma(struct comedi_device *dev,
@@ -379,7 +387,6 @@ static void pcl818_ai_setup_next_dma(struct comedi_device *dev,
 	struct pcl818_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	struct pcl818_dma_desc *dma;
-	unsigned long flags;
 
 	disable_dma(devpriv->dma);
 	devpriv->cur_dma = 1 - devpriv->cur_dma;
@@ -390,12 +397,8 @@ static void pcl818_ai_setup_next_dma(struct comedi_device *dev,
 			dma->size = devpriv->hwdmasize;
 		else
 			dma->size = devpriv->last_dma_run;
-		set_dma_mode(devpriv->dma, DMA_MODE_READ);
-		flags = claim_dma_lock();
-		set_dma_addr(devpriv->dma, dma->hw_addr);
-		set_dma_count(devpriv->dma, dma->size);
-		release_dma_lock(flags);
-		enable_dma(devpriv->dma);
+
+		pcl818_isadma_program(devpriv->dma, dma);
 	}
 
 	devpriv->dma_runs_to_end--;
