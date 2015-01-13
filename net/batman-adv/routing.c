@@ -443,11 +443,13 @@ batadv_find_router(struct batadv_priv *bat_priv,
 
 	router = batadv_orig_router_get(orig_node, recv_if);
 
+	if (!router)
+		return router;
+
 	/* only consider bonding for recv_if == BATADV_IF_DEFAULT (first hop)
 	 * and if activated.
 	 */
-	if (recv_if == BATADV_IF_DEFAULT || !atomic_read(&bat_priv->bonding) ||
-	    !router)
+	if (!(recv_if == BATADV_IF_DEFAULT && atomic_read(&bat_priv->bonding)))
 		return router;
 
 	/* bonding: loop through the list of possible routers found
