@@ -2377,26 +2377,6 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 			else
 				return -EINVAL;
 			break;
-		case PR_SET_TIMERSLACK_PID:
-			if (current->pid != (pid_t)arg3 &&
-					!capable(CAP_SYS_NICE))
-				return -EPERM;
-			rcu_read_lock();
-			tsk = find_task_by_pid_ns((pid_t)arg3, &init_pid_ns);
-			if (tsk == NULL) {
-				rcu_read_unlock();
-				return -EINVAL;
-			}
-			get_task_struct(tsk);
-			rcu_read_unlock();
-			if (arg2 <= 0)
-				tsk->timer_slack_ns =
-					tsk->default_timer_slack_ns;
-			else
-				tsk->timer_slack_ns = arg2;
-			put_task_struct(tsk);
-			error = 0;
-			break;
 		default:
 			return -EINVAL;
 		}
@@ -2415,6 +2395,26 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 		break;
 	case PR_GET_TID_ADDRESS:
 		error = prctl_get_tid_address(me, (int __user **)arg2);
+		break;
+	case PR_SET_TIMERSLACK_PID:
+		if (current->pid != (pid_t)arg3 &&
+				!capable(CAP_SYS_NICE))
+			return -EPERM;
+		rcu_read_lock();
+		tsk = find_task_by_pid_ns((pid_t)arg3, &init_pid_ns);
+		if (tsk == NULL) {
+			rcu_read_unlock();
+			return -EINVAL;
+		}
+		get_task_struct(tsk);
+		rcu_read_unlock();
+		if (arg2 <= 0)
+			tsk->timer_slack_ns =
+				tsk->default_timer_slack_ns;
+		else
+			tsk->timer_slack_ns = arg2;
+		put_task_struct(tsk);
+		error = 0;
 		break;
 	case PR_SET_CHILD_SUBREAPER:
 		me->signal->is_child_subreaper = !!arg2;
