@@ -20,20 +20,24 @@ Groups:
     KVM_VGIC_V2_ADDR_TYPE_DIST (rw, 64-bit)
       Base address in the guest physical address space of the GIC distributor
       register mappings. Only valid for KVM_DEV_TYPE_ARM_VGIC_V2.
+      This address needs to be 4K aligned and the region covers 4 KByte.
 
     KVM_VGIC_V2_ADDR_TYPE_CPU (rw, 64-bit)
       Base address in the guest physical address space of the GIC virtual cpu
       interface register mappings. Only valid for KVM_DEV_TYPE_ARM_VGIC_V2.
+      This address needs to be 4K aligned and the region covers 4 KByte.
 
     KVM_VGIC_V3_ADDR_TYPE_DIST (rw, 64-bit)
       Base address in the guest physical address space of the GICv3 distributor
       register mappings. Only valid for KVM_DEV_TYPE_ARM_VGIC_V3.
+      This address needs to be 64K aligned and the region covers 64 KByte.
 
     KVM_VGIC_V3_ADDR_TYPE_REDIST (rw, 64-bit)
       Base address in the guest physical address space of the GICv3
       redistributor register mappings. There are two 64K pages for each
       VCPU and all of the redistributor pages are contiguous.
       Only valid for KVM_DEV_TYPE_ARM_VGIC_V3.
+      This address needs to be 64K aligned.
 
 
   KVM_DEV_ARM_VGIC_GRP_DIST_REGS

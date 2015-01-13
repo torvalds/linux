@@ -1683,6 +1683,7 @@ int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write)
 	struct vgic_dist *vgic = &kvm->arch.vgic;
 	int type_needed;
 	phys_addr_t *addr_ptr, block_size;
+	phys_addr_t alignment;
 
 	mutex_lock(&kvm->lock);
 	switch (type) {
@@ -1690,22 +1691,26 @@ int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write)
 		type_needed = KVM_DEV_TYPE_ARM_VGIC_V2;
 		addr_ptr = &vgic->vgic_dist_base;
 		block_size = KVM_VGIC_V2_DIST_SIZE;
+		alignment = SZ_4K;
 		break;
 	case KVM_VGIC_V2_ADDR_TYPE_CPU:
 		type_needed = KVM_DEV_TYPE_ARM_VGIC_V2;
 		addr_ptr = &vgic->vgic_cpu_base;
 		block_size = KVM_VGIC_V2_CPU_SIZE;
+		alignment = SZ_4K;
 		break;
 #ifdef CONFIG_ARM_GIC_V3
 	case KVM_VGIC_V3_ADDR_TYPE_DIST:
 		type_needed = KVM_DEV_TYPE_ARM_VGIC_V3;
 		addr_ptr = &vgic->vgic_dist_base;
 		block_size = KVM_VGIC_V3_DIST_SIZE;
+		alignment = SZ_64K;
 		break;
 	case KVM_VGIC_V3_ADDR_TYPE_REDIST:
 		type_needed = KVM_DEV_TYPE_ARM_VGIC_V3;
 		addr_ptr = &vgic->vgic_redist_base;
 		block_size = KVM_VGIC_V3_REDIST_SIZE;
+		alignment = SZ_64K;
 		break;
 #endif
 	default:
@@ -1718,10 +1723,15 @@ int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write)
 		goto out;
 	}
 
-	if (write)
-		r = vgic_ioaddr_assign(kvm, addr_ptr, *addr, block_size);
-	else
+	if (write) {
+		if (!IS_ALIGNED(*addr, alignment))
+			r = -EINVAL;
+		else
+			r = vgic_ioaddr_assign(kvm, addr_ptr, *addr,
+					       block_size);
+	} else {
 		*addr = *addr_ptr;
+	}
 
 out:
 	mutex_unlock(&kvm->lock);
