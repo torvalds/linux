@@ -30,12 +30,13 @@
 
 /* size in bytes of dma buffer */
 static const int dma_buffer_size = 0xff00;
-/* 2 bytes per sample */
-static const int sample_size = 2;
 
 /* utility function that suggests a dma transfer size in bytes */
-static unsigned int labpc_suggest_transfer_size(const struct comedi_cmd *cmd)
+static unsigned int labpc_suggest_transfer_size(struct comedi_device *dev,
+						struct comedi_subdevice *s)
 {
+	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int sample_size = comedi_bytes_per_sample(s);
 	unsigned int size;
 	unsigned int freq;
 
@@ -62,6 +63,7 @@ void labpc_setup_dma(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct labpc_private *devpriv = dev->private;
 	struct labpc_dma_desc *dma = &devpriv->dma_desc;
 	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int sample_size = comedi_bytes_per_sample(s);
 	unsigned long irq_flags;
 
 	irq_flags = claim_dma_lock();
@@ -71,7 +73,7 @@ void labpc_setup_dma(struct comedi_device *dev, struct comedi_subdevice *s)
 	clear_dma_ff(dma->chan);
 	set_dma_addr(dma->chan, dma->hw_addr);
 	/* set appropriate size of transfer */
-	dma->size = labpc_suggest_transfer_size(cmd);
+	dma->size = labpc_suggest_transfer_size(dev, s);
 	if (cmd->stop_src == TRIG_COUNT &&
 	    devpriv->count * sample_size < dma->size)
 		dma->size = devpriv->count * sample_size;
@@ -90,6 +92,7 @@ void labpc_drain_dma(struct comedi_device *dev)
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
+	unsigned int sample_size = comedi_bytes_per_sample(s);
 	int status;
 	unsigned long flags;
 	unsigned int max_points, num_points, residue, leftover;
