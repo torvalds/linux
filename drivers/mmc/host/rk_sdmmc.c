@@ -612,71 +612,77 @@ static void dw_mci_edmac_complete_dma(void *arg)
 
 static void dw_mci_edmac_start_dma(struct dw_mci *host, unsigned int sg_len)
 {
-        struct dma_slave_config slave_config;
-        struct dma_async_tx_descriptor *desc = NULL;
-        struct scatterlist *sgl = host->data->sg;
-        const u32 mszs[] = {1, 4, 8, 16, 32, 64, 128, 256};
-        u32 sg_elems = host->data->sg_len;
-        u32 fifoth_val, mburst;
-        int ret = 0;
+	struct dma_slave_config slave_config;
+	struct dma_async_tx_descriptor *desc = NULL;
+	struct scatterlist *sgl = host->data->sg;
+	const u32 mszs[] = {1, 4, 8, 16, 32, 64, 128, 256};
+	u32 sg_elems = host->data->sg_len;
+	u32 fifoth_val, mburst;
+	u32 burst_limit = 0;
+	int ret = 0;
 
-        /* Set external dma config: burst size, burst width*/
-        slave_config.dst_addr = (dma_addr_t)(host->phy_regs + host->data_offset);
-        slave_config.src_addr = slave_config.dst_addr;
-        slave_config.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-        slave_config.src_addr_width = slave_config.dst_addr_width;
+	/* Set external dma config: burst size, burst width*/
+	slave_config.dst_addr = (dma_addr_t)(host->phy_regs + host->data_offset);
+	slave_config.src_addr = slave_config.dst_addr;
+	slave_config.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	slave_config.src_addr_width = slave_config.dst_addr_width;
 
-        /* Match FIFO dma burst MSIZE with external dma config*/
-        fifoth_val = mci_readl(host, FIFOTH);
-        mburst = mszs[(fifoth_val >> 28) & 0x7];
+	/* Match FIFO dma burst MSIZE with external dma config*/
+	fifoth_val = mci_readl(host, FIFOTH);
+	mburst = mszs[(fifoth_val >> 28) & 0x7];
 
-        /* edmac limit burst to 16 */
-        slave_config.dst_maxburst = (mburst > 16) ? 16 : mburst;
-        slave_config.src_maxburst = slave_config.dst_maxburst;
+	/* edmac limit burst to 16, but work around for rk3036 to 8 */
+	if (unlikely(cpu_is_rk3036()))
+		burst_limit = 8;
+	else
+		burst_limit = 16;
 
-        if(host->data->flags & MMC_DATA_WRITE){
-                slave_config.direction = DMA_MEM_TO_DEV;
-                ret = dmaengine_slave_config(host->dms->ch, &slave_config);
-                if(ret){
-                        dev_err(host->dev, "error in dw_mci edma configuration.\n");
-                        return;
-                }
+	slave_config.dst_maxburst = (mburst > burst_limit) ? burst_limit : mburst;
+	slave_config.src_maxburst = slave_config.dst_maxburst;
 
-                desc = dmaengine_prep_slave_sg(host->dms->ch, sgl, sg_len,
-                                DMA_MEM_TO_DEV, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-                if(!desc){
-                        dev_err(host->dev, "We cannot prepare for the dw_mci slave edma!\n");
-                        return;
-                }
-                /* Set dw_mci_edmac_complete_dma as callback */
-                desc->callback = dw_mci_edmac_complete_dma;
-                desc->callback_param = (void *)host;
-                dmaengine_submit(desc);
+	if(host->data->flags & MMC_DATA_WRITE){
+		slave_config.direction = DMA_MEM_TO_DEV;
+		ret = dmaengine_slave_config(host->dms->ch, &slave_config);
+		if(ret){
+			dev_err(host->dev, "error in dw_mci edma configuration.\n");
+			return;
+		}
 
-                /* Flush cache before write */
-                dma_sync_sg_for_device(mmc_dev(host->mmc), sgl,
-                                        sg_elems, DMA_TO_DEVICE);
-                dma_async_issue_pending(host->dms->ch);
-        }else{
-                /* MMC_DATA_READ*/
-                slave_config.direction = DMA_DEV_TO_MEM;
-                ret = dmaengine_slave_config(host->dms->ch, &slave_config);
-                if(ret){
-                        dev_err(host->dev, "error in dw_mci edma configuration.\n");
-                        return;
-                }
-                desc = dmaengine_prep_slave_sg(host->dms->ch, sgl, sg_len,
-                                DMA_DEV_TO_MEM, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-                if(!desc){
-                        dev_err(host->dev, "We cannot prepare for the dw_mci slave edma!\n");
-                        return;
-                }
-                /* set dw_mci_edmac_complete_dma as callback */
-                desc->callback = dw_mci_edmac_complete_dma;
-                desc->callback_param = (void *)host;
-                dmaengine_submit(desc);
-                dma_async_issue_pending(host->dms->ch);
-        }
+		desc = dmaengine_prep_slave_sg(host->dms->ch, sgl, sg_len,
+					DMA_MEM_TO_DEV, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+		if (!desc) {
+			dev_err(host->dev, "We cannot prepare for the dw_mci slave edma!\n");
+			return;
+		}
+		/* Set dw_mci_edmac_complete_dma as callback */
+		desc->callback = dw_mci_edmac_complete_dma;
+		desc->callback_param = (void *)host;
+		dmaengine_submit(desc);
+
+		/* Flush cache before write */
+		dma_sync_sg_for_device(mmc_dev(host->mmc), sgl,
+				sg_elems, DMA_TO_DEVICE);
+		dma_async_issue_pending(host->dms->ch);
+	} else {
+		/* MMC_DATA_READ*/
+		slave_config.direction = DMA_DEV_TO_MEM;
+		ret = dmaengine_slave_config(host->dms->ch, &slave_config);
+		if (ret) {
+			dev_err(host->dev, "error in dw_mci edma configuration.\n");
+			return;
+		}
+		desc = dmaengine_prep_slave_sg(host->dms->ch, sgl, sg_len,
+					DMA_DEV_TO_MEM, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+		if (!desc) {
+			dev_err(host->dev, "We cannot prepare for the dw_mci slave edma!\n");
+			return;
+		}
+		/* set dw_mci_edmac_complete_dma as callback */
+		desc->callback = dw_mci_edmac_complete_dma;
+		desc->callback_param = (void *)host;
+		dmaengine_submit(desc);
+		dma_async_issue_pending(host->dms->ch);
+	}
 }
 
 static int dw_mci_edmac_init(struct dw_mci *host)
