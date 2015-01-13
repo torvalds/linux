@@ -217,7 +217,7 @@ SOC_SINGLE("3D Depth", AC97_REC_GAIN_MIC, 0, 15, 1),
 static int wm9713_voice_shutdown(struct snd_soc_dapm_widget *w,
 				 struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	u16 status, rate;
 
 	if (WARN_ON(event != SND_SOC_DAPM_PRE_PMD))
