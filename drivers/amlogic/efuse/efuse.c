@@ -246,6 +246,7 @@ static char *aml_efuse_mac(void)
 {
 	char hwmac[20];
 	char buf[80];
+        char mac_mask;
 	efuseinfo_item_t info;
 
 	if (efuse_getinfo_byID(EFUSE_MAC_ID, &info) < 0)
@@ -258,14 +259,22 @@ static char *aml_efuse_mac(void)
 	sprintf(hwmac, "%02x:%02x:%02x:%02x:%02x:%02x",
 			buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
 
-	info.data_len = 16;
-	info.offset = 4;
-	efuse_read_item(buf, info.data_len,
-			(loff_t*)&info.offset);
+        mac_mask = buf[3] & 0xf0;
+        if ((0x00 == mac_mask)
+                || ((0xa0 <= mac_mask) && (mac_mask <= 0xc0))) {
+                info.data_len = 16;
+                info.offset = 4;
+                efuse_read_item(buf, info.data_len,
+                                (loff_t*)&info.offset);
 
-	sprintf(hwmac + 10, "%c:%c%c:%c%c",
-			MACCHAR(buf[11]), MACCHAR(buf[12]), MACCHAR(buf[13]),
-			MACCHAR(buf[14]), MACCHAR(buf[15]));
+                if (0x00 == mac_mask) {
+                        hwmac[9] = MACCHAR(buf[5]);
+                }
+
+                sprintf(hwmac + 10, "%c:%c%c:%c%c",
+                        MACCHAR(buf[11]), MACCHAR(buf[12]), MACCHAR(buf[13]),
+                        MACCHAR(buf[14]), MACCHAR(buf[15]));
+        }
 
 	return hwmac;
 }
