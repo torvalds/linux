@@ -966,11 +966,12 @@ static void das1800_setup_counters(struct comedi_device *dev,
 	}
 }
 
-/* utility function that suggests a dma transfer size based on the conversion period 'ns' */
-static unsigned int suggest_transfer_size(const struct comedi_cmd *cmd)
+static unsigned int das1800_ai_transfer_size(struct comedi_device *dev,
+					     struct comedi_subdevice *s)
 {
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int size = DMA_BUF_SIZE;
-	static const int sample_size = 2;	/*  size in bytes of one sample from board */
+	unsigned int sample_size = comedi_bytes_per_sample(s);
 	unsigned int fill_time = 300000000;	/*  target time in nanoseconds for filling dma buffer */
 	unsigned int max_size;	/*  maximum size we will allow for a transfer */
 
@@ -1004,8 +1005,8 @@ static unsigned int suggest_transfer_size(const struct comedi_cmd *cmd)
 	return size;
 }
 
-/* sets up dma */
-static void setup_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
+static void das1800_ai_setup_dma(struct comedi_device *dev,
+				 struct comedi_subdevice *s)
 {
 	struct das1800_private *devpriv = dev->private;
 	struct das1800_dma_desc *dma = &devpriv->dma_desc[0];
@@ -1017,7 +1018,7 @@ static void setup_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
 	devpriv->cur_dma = 0;
 
 	/* determine a reasonable dma transfer size */
-	bytes = suggest_transfer_size(cmd);
+	bytes = das1800_ai_transfer_size(dev, s);
 
 	dma->size = bytes;
 	das1800_isadma_program(dma);
@@ -1089,7 +1090,7 @@ static int das1800_ai_do_cmd(struct comedi_device *dev,
 	/* setup card and start */
 	program_chanlist(dev, cmd);
 	das1800_setup_counters(dev, cmd);
-	setup_dma(dev, cmd);
+	das1800_ai_setup_dma(dev, s);
 	outb(control_c, dev->iobase + DAS1800_CONTROL_C);
 	/*  set conversion rate and length for burst mode */
 	if (control_c & BMDE) {
