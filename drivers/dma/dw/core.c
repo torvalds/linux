@@ -1562,7 +1562,8 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 		}
 	} else {
 		dw->nr_masters = pdata->nr_masters;
-		memcpy(dw->data_width, pdata->data_width, 4);
+		for (i = 0; i < dw->nr_masters; i++)
+			dw->data_width[i] = pdata->data_width[i];
 	}
 
 	/* Calculate all channel mask before DMA setup */
