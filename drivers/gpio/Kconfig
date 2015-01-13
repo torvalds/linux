@@ -369,7 +369,7 @@ config GPIO_XGENE
 
 config GPIO_XILINX
 	tristate "Xilinx GPIO support"
-	depends on OF_GPIO && (PPC_OF || MICROBLAZE || ARCH_ZYNQ || ARCH_X86)
+	depends on OF_GPIO && (PPC_OF || MICROBLAZE || ARCH_ZYNQ || X86)
 	help
 	  Say yes here to support the Xilinx FPGA GPIO device
 
