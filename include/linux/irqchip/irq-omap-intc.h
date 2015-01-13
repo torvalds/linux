@@ -20,7 +20,6 @@
 
 void omap2_init_irq(void);
 void omap3_init_irq(void);
-void ti81xx_init_irq(void);
 
 int omap_irq_pending(void);
 void omap_intc_save_context(void);
