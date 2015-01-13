@@ -41,6 +41,7 @@ struct sh_mobile_sdhi_of_data {
 	unsigned long tmio_flags;
 	unsigned long capabilities;
 	unsigned long capabilities2;
+	enum dma_slave_buswidth dma_buswidth;
 	dma_addr_t dma_rx_offset;
 };
 
@@ -60,6 +61,7 @@ static const struct sh_mobile_sdhi_of_data of_rcar_gen2_compatible = {
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_WRPROTECT_DISABLE |
 			  TMIO_MMC_CLK_ACTUAL,
 	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ,
+	.dma_buswidth	= DMA_SLAVE_BUSWIDTH_4_BYTES,
 	.dma_rx_offset	= 0x2000,
 };
 
@@ -86,6 +88,29 @@ struct sh_mobile_sdhi {
 	struct tmio_mmc_dma dma_priv;
 };
 
+static void sh_mobile_sdhi_sdbuf_width(struct tmio_mmc_host *host, int width)
+{
+	u32 val;
+
+	/*
+	 * see also
+	 *	sh_mobile_sdhi_of_data :: dma_buswidth
+	 */
+	switch (sd_ctrl_read16(host, CTL_VERSION)) {
+	case 0x490C:
+		val = (width == 32) ? 0x0001 : 0x0000;
+		break;
+	case 0xCB0D:
+		val = (width == 32) ? 0x0000 : 0x0001;
+		break;
+	default:
+		/* nothing to do */
+		return;
+	}
+
+	sd_ctrl_write16(host, EXT_ACC, val);
+}
+
 static int sh_mobile_sdhi_clk_enable(struct platform_device *pdev, unsigned int *f)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
@@ -96,6 +121,10 @@ static int sh_mobile_sdhi_clk_enable(struct platform_device *pdev, unsigned int 
 		return ret;
 
 	*f = clk_get_rate(priv->clk);
+
+	/* enable 16bit data access on SDBUF as default */
+	sh_mobile_sdhi_sdbuf_width(host, 16);
+
 	return 0;
 }
 
@@ -161,6 +190,9 @@ static int sh_mobile_sdhi_multi_io_quirk(struct mmc_card *card,
 static void sh_mobile_sdhi_enable_dma(struct tmio_mmc_host *host, bool enable)
 {
 	sd_ctrl_write16(host, CTL_DMA_ENABLE, enable ? 2 : 0);
+
+	/* enable 32bit access if DMA mode if possibile */
+	sh_mobile_sdhi_sdbuf_width(host, enable ? 32 : 16);
 }
 
 static int sh_mobile_sdhi_probe(struct platform_device *pdev)
@@ -175,7 +207,6 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	int irq, ret, i = 0;
 	bool multiplexed_isr = true;
 	struct tmio_mmc_dma *dma_priv;
-	u16 ver;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -271,19 +302,12 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		mmc_data->capabilities |= of_data->capabilities;
 		mmc_data->capabilities2 |= of_data->capabilities2;
 		mmc_data->dma_rx_offset = of_data->dma_rx_offset;
+		dma_priv->dma_buswidth = of_data->dma_buswidth;
 	}
 
 	ret = tmio_mmc_host_probe(host, mmc_data);
 	if (ret < 0)
 		goto efree;
-
-	/*
-	 * FIXME:
-	 * this Workaround can be more clever method
-	 */
-	ver = sd_ctrl_read16(host, CTL_VERSION);
-	if (ver == 0xCB0D)
-		sd_ctrl_write16(host, EXT_ACC, 1);
 
 	/*
 	 * Allow one or more specific (named) ISRs or
