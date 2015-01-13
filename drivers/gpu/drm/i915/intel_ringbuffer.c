@@ -796,6 +796,16 @@ static int bdw_init_workarounds(struct intel_engine_cs *ring)
 			  HDC_DONOT_FETCH_MEM_WHEN_MASKED |
 			  (IS_BDW_GT3(dev) ? HDC_FENCE_DEST_SLM_DISABLE : 0));
 
+	/* From the Haswell PRM, Command Reference: Registers, CACHE_MODE_0:
+	 * "The Hierarchical Z RAW Stall Optimization allows non-overlapping
+	 *  polygons in the same 8x4 pixel/sample area to be processed without
+	 *  stalling waiting for the earlier ones to write to Hierarchical Z
+	 *  buffer."
+	 *
+	 * This optimization is off by default for Broadwell; turn it on.
+	 */
+	WA_CLR_BIT_MASKED(CACHE_MODE_0_GEN7, HIZ_RAW_STALL_OPT_DISABLE);
+
 	/* Wa4x4STCOptimizationDisable:bdw */
 	WA_SET_BIT_MASKED(CACHE_MODE_1,
 			  GEN8_4x4_STC_OPTIMIZATION_DISABLE);
