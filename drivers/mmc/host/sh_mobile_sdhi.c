@@ -35,6 +35,8 @@
 
 #define EXT_ACC           0xe4
 
+#define host_to_priv(host) container_of((host)->pdata, struct sh_mobile_sdhi, mmc_data)
+
 struct sh_mobile_sdhi_of_data {
 	unsigned long tmio_flags;
 	unsigned long capabilities;
@@ -88,7 +90,7 @@ static int sh_mobile_sdhi_clk_enable(struct platform_device *pdev, unsigned int 
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	struct tmio_mmc_host *host = mmc_priv(mmc);
-	struct sh_mobile_sdhi *priv = container_of(host->pdata, struct sh_mobile_sdhi, mmc_data);
+	struct sh_mobile_sdhi *priv = host_to_priv(host);
 	int ret = clk_prepare_enable(priv->clk);
 	if (ret < 0)
 		return ret;
@@ -101,7 +103,7 @@ static void sh_mobile_sdhi_clk_disable(struct platform_device *pdev)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	struct tmio_mmc_host *host = mmc_priv(mmc);
-	struct sh_mobile_sdhi *priv = container_of(host->pdata, struct sh_mobile_sdhi, mmc_data);
+	struct sh_mobile_sdhi *priv = host_to_priv(host);
 	clk_disable_unprepare(priv->clk);
 }
 
