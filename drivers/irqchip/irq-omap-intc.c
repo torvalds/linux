@@ -364,14 +364,6 @@ out:
 		omap_ack_irq(NULL);
 }
 
-void __init omap2_init_irq(void)
-{
-	omap_nr_irqs = 96;
-	omap_nr_pending = 3;
-	omap_init_irq(OMAP24XX_IC_BASE, NULL);
-	set_handle_irq(omap_intc_handle_irq);
-}
-
 void __init omap3_init_irq(void)
 {
 	omap_nr_irqs = 96;
