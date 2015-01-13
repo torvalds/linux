@@ -154,7 +154,8 @@ int br_handle_frame_finish(struct sk_buff *skb)
 	dst = NULL;
 
 	if (is_broadcast_ether_addr(dest)) {
-		if (p->flags & BR_PROXYARP &&
+		if (IS_ENABLED(CONFIG_INET) &&
+		    p->flags & BR_PROXYARP &&
 		    skb->protocol == htons(ETH_P_ARP))
 			br_do_proxy_arp(skb, br, vid);
 
