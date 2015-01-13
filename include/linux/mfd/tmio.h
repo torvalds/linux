@@ -112,8 +112,6 @@ void tmio_core_mmc_clk_div(void __iomem *cnf, int shift, int state);
 
 struct dma_chan;
 
-struct tmio_mmc_host;
-
 /*
  * data for the MMC controller
  */
@@ -127,7 +125,6 @@ struct tmio_mmc_data {
 	unsigned int			cd_gpio;
 	void (*set_pwr)(struct platform_device *host, int state);
 	void (*set_clk_div)(struct platform_device *host, int state);
-	int (*write16_hook)(struct tmio_mmc_host *host, int addr);
 	/* clock management callbacks */
 	int (*clk_enable)(struct platform_device *pdev, unsigned int *f);
 	void (*clk_disable)(struct platform_device *pdev);

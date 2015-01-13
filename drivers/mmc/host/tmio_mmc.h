@@ -94,6 +94,8 @@ struct tmio_mmc_host {
 	struct mutex		ios_lock;	/* protect set_ios() context */
 	bool			native_hotplug;
 	bool			sdio_irq_enabled;
+
+	int (*write16_hook)(struct tmio_mmc_host *host, int addr);
 };
 
 struct tmio_mmc_host *tmio_mmc_host_alloc(struct platform_device *pdev);
@@ -183,7 +185,7 @@ static inline void sd_ctrl_write16(struct tmio_mmc_host *host, int addr, u16 val
 	/* If there is a hook and it returns non-zero then there
 	 * is an error and the write should be skipped
 	 */
-	if (host->pdata->write16_hook && host->pdata->write16_hook(host, addr))
+	if (host->write16_hook && host->write16_hook(host, addr))
 		return;
 	writew(val, host->ctl + (addr << host->pdata->bus_shift));
 }

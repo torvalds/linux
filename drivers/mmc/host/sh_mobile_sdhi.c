@@ -214,11 +214,11 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	}
 
 	host->dma		= dma_priv;
+	host->write16_hook	= sh_mobile_sdhi_write16_hook;
 
 	mmc_data->clk_enable = sh_mobile_sdhi_clk_enable;
 	mmc_data->clk_disable = sh_mobile_sdhi_clk_disable;
 	mmc_data->capabilities = MMC_CAP_MMC_HIGHSPEED;
-	mmc_data->write16_hook = sh_mobile_sdhi_write16_hook;
 	mmc_data->multi_io_quirk = sh_mobile_sdhi_multi_io_quirk;
 	if (p) {
 		mmc_data->flags = p->tmio_flags;

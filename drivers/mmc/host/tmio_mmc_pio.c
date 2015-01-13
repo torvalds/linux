@@ -1092,7 +1092,7 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host,
 	tmio_mmc_of_parse(pdev, pdata);
 
 	if (!(pdata->flags & TMIO_MMC_HAS_IDLE_WAIT))
-		pdata->write16_hook = NULL;
+		_host->write16_hook = NULL;
 
 	res_ctl = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res_ctl)
