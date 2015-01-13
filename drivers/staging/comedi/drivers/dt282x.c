@@ -339,6 +339,15 @@ static void dt282x_isadma_program(struct dt282x_dma_desc *dma)
 	release_dma_lock(flags);
 }
 
+static void dt282x_isadma_disable(struct dt282x_dma_desc *dma)
+{
+	unsigned long flags;
+
+	flags = claim_dma_lock();
+	disable_dma(dma->chan);
+	release_dma_lock(flags);
+}
+
 static int dt282x_prep_ai_dma(struct comedi_device *dev, int dma_index, int n)
 {
 	struct dt282x_private *devpriv = dev->private;
@@ -377,9 +386,10 @@ static int dt282x_prep_ao_dma(struct comedi_device *dev, int dma_index, int n)
 static void dt282x_disable_dma(struct comedi_device *dev)
 {
 	struct dt282x_private *devpriv = dev->private;
+	int i;
 
-	disable_dma(devpriv->dma_desc[0].chan);
-	disable_dma(devpriv->dma_desc[1].chan);
+	for (i = 0; i < 2; i++)
+		dt282x_isadma_disable(&devpriv->dma_desc[i]);
 }
 
 static unsigned int dt282x_ns_to_timer(unsigned int *ns, unsigned int flags)
@@ -463,7 +473,7 @@ static void dt282x_ao_dma_interrupt(struct comedi_device *dev,
 	outw(devpriv->supcsr | DT2821_SUPCSR_CLRDMADNE,
 	     dev->iobase + DT2821_SUPCSR_REG);
 
-	disable_dma(dma->chan);
+	dt282x_isadma_disable(dma);
 
 	if (!dt282x_ao_setup_dma(dev, s, devpriv->cur_dma))
 		s->async->events |= COMEDI_CB_OVERFLOW;
@@ -482,7 +492,7 @@ static void dt282x_ai_dma_interrupt(struct comedi_device *dev,
 	outw(devpriv->supcsr | DT2821_SUPCSR_CLRDMADNE,
 	     dev->iobase + DT2821_SUPCSR_REG);
 
-	disable_dma(dma->chan);
+	dt282x_isadma_disable(dma);
 
 	dt282x_munge(dev, s, dma->virt_addr, dma->size);
 	ret = comedi_buf_write_samples(s, dma->virt_addr, nsamples);
