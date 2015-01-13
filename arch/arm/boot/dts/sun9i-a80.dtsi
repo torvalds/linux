@@ -219,6 +219,42 @@
 			clock-output-names = "cci400";
 		};
 
+		mmc0_clk: clk@06000410 {
+			#clock-cells = <1>;
+			compatible = "allwinner,sun9i-a80-mmc-clk";
+			reg = <0x06000410 0x4>;
+			clocks = <&osc24M>, <&pll4>;
+			clock-output-names = "mmc0", "mmc0_output",
+					     "mmc0_sample";
+		};
+
+		mmc1_clk: clk@06000414 {
+			#clock-cells = <1>;
+			compatible = "allwinner,sun9i-a80-mmc-clk";
+			reg = <0x06000414 0x4>;
+			clocks = <&osc24M>, <&pll4>;
+			clock-output-names = "mmc1", "mmc1_output",
+					     "mmc1_sample";
+		};
+
+		mmc2_clk: clk@06000418 {
+			#clock-cells = <1>;
+			compatible = "allwinner,sun9i-a80-mmc-clk";
+			reg = <0x06000418 0x4>;
+			clocks = <&osc24M>, <&pll4>;
+			clock-output-names = "mmc2", "mmc2_output",
+					     "mmc2_sample";
+		};
+
+		mmc3_clk: clk@0600041c {
+			#clock-cells = <1>;
+			compatible = "allwinner,sun9i-a80-mmc-clk";
+			reg = <0x0600041c 0x4>;
+			clocks = <&osc24M>, <&pll4>;
+			clock-output-names = "mmc3", "mmc3_output",
+					     "mmc3_sample";
+		};
+
 		ahb0_gates: clk@06000580 {
 			#clock-cells = <1>;
 			compatible = "allwinner,sun9i-a80-ahb0-gates-clk";
