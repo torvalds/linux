@@ -92,6 +92,9 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_HAS_VEBOX:
 		value = intel_ring_initialized(&dev_priv->ring[VECS]);
 		break;
+	case I915_PARAM_HAS_BSD2:
+		value = intel_ring_initialized(&dev_priv->ring[VCS2]);
+		break;
 	case I915_PARAM_HAS_RELAXED_FENCING:
 		value = 1;
 		break;
