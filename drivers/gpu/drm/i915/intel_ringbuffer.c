@@ -846,6 +846,11 @@ static int chv_init_workarounds(struct intel_engine_cs *ring)
 			  HDC_FORCE_NON_COHERENT |
 			  HDC_DONOT_FETCH_MEM_WHEN_MASKED);
 
+	/* According to the CACHE_MODE_0 default value documentation, some
+	 * CHV platforms disable this optimization by default.  Turn it on.
+	 */
+	WA_CLR_BIT_MASKED(CACHE_MODE_0_GEN7, HIZ_RAW_STALL_OPT_DISABLE);
+
 	/* Improve HiZ throughput on CHV. */
 	WA_SET_BIT_MASKED(HIZ_CHICKEN, CHV_HZ_8X8_MODE_IN_1X);
 
