@@ -16,7 +16,7 @@
 /**
  * struct dw_dma_slave - Controller-specific information about a slave
  *
- * @dma_dev: required DMA master device. Depricated.
+ * @dma_dev:	required DMA master device
  * @src_id:	src request line
  * @dst_id:	dst request line
  * @src_master: src master for transfers on allocated channel.
