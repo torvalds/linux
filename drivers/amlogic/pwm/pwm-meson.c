@@ -35,6 +35,7 @@ MODULE_PARM_DESC(npwm,"\n odroid-c1 The number of available pwm (max 2-port)\n")
 #define PWM_B   0
 #define PWM_E   1
 #define FIN_FREQ		(24 * 1000)
+#define DUTY_MAX 1024
 
 struct meson_pwm_device {
 	unsigned int		freq;
@@ -55,17 +56,12 @@ struct meson_chip {
 
 static void meson_pwm_init(struct device *dev, int pwmn)
 {
-	unsigned long flags;
 	if(pwmn == 1) {
-	    local_irq_save(flags);
         aml_write_reg32(P_PWM_MISC_REG_AB, (aml_read_reg32(P_PWM_MISC_REG_AB) & ~(0x7f << 16)) | ((1 << 23)));    
-    	local_irq_restore(flags);
     }
     else {
-    	local_irq_save(flags);
         aml_write_reg32(P_PWM_MISC_REG_AB, (aml_read_reg32(P_PWM_MISC_REG_AB) & ~(0x7f << 16)) | ((1 << 23)));
         aml_write_reg32(P_PWM_MISC_REG_EF, (aml_read_reg32(P_PWM_MISC_REG_EF) & ~(0x7f <<  8)) | ((1 << 15)));
-    	local_irq_restore(flags);
     }
     return;
 }
@@ -75,10 +71,8 @@ static int meson_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
    	struct meson_chip *meson = to_meson_chip(chip);
    	struct meson_pwm_device *meson_pwm;
 	unsigned int id = pwm->pwm;
-	unsigned long flags;
 
     meson_pwm = meson->meson_pwm[id];
-    local_irq_save(flags);
     switch (id) {
         case PWM_B:
             aml_set_reg32_bits(P_PWM_MISC_REG_AB, 1, 1, 1);  //enable pwm_b
@@ -87,7 +81,6 @@ static int meson_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
             aml_set_reg32_bits(P_PWM_MISC_REG_EF, 1, 0, 1);  //enable pwm_e
             break;
     }
-    local_irq_restore(flags);
     
 	return 0;
 }
@@ -97,10 +90,8 @@ static void meson_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
    	struct meson_chip *meson = to_meson_chip(chip);
    	struct meson_pwm_device *meson_pwm;
 	unsigned int id = pwm->pwm;
-    unsigned long flags;
 
     meson_pwm = meson->meson_pwm[id];
-    local_irq_save(flags);
     switch (id) {
         case PWM_B:
             aml_set_reg32_bits(P_PWM_MISC_REG_AB, 0, 1, 1);  //disable pwm_b
@@ -109,12 +100,11 @@ static void meson_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
             aml_set_reg32_bits(P_PWM_MISC_REG_EF, 0, 0, 1);  //disable pwm_e
             break;
     }
-    local_irq_restore(flags);
     return;
 }
 
 static int meson_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
-		int duty_percent, int pwm_freq)
+		int duty, int pwm_freq)
 {
    	struct meson_chip *meson = to_meson_chip(chip);
    	struct meson_pwm_device *meson_pwm;
@@ -122,11 +112,11 @@ static int meson_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
     struct device *dev = chip->dev;
     unsigned pwm_hi = 0, pwm_lo = 0;
     unsigned fout_freq=0, pwm_cnt, pwm_pre_div;
-    unsigned long flags=0;
+    unsigned long temp=0;
     int i=0;
 
-	if((duty_percent<0)||(duty_percent>100)){
-	    dev_err(dev, "Not available duty_percent... error!!!\n");
+	if((duty<0)||(duty>DUTY_MAX)){
+	    dev_err(dev, "Not available duty... error!!!\n");
 	    return -EINVAL;
 	}
     meson_pwm = meson->meson_pwm[id];
@@ -138,21 +128,24 @@ static int meson_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
         if (pwm_cnt <= 0xffff)
             break;
     }
-    if(duty_percent==0) {
+
+    if(duty==0) {
         pwm_hi=0;
         pwm_lo=pwm_cnt;
         goto div_set;
     }
-    if(duty_percent==100) {
+    else if(duty==DUTY_MAX) {
         pwm_hi=pwm_cnt;
         pwm_lo=0;
         goto div_set;
     }
-    pwm_hi = (pwm_cnt*duty_percent)/100;
-    pwm_lo = (pwm_cnt*(100-duty_percent))/100;
+
+    temp = pwm_cnt*duty;
+    temp /= DUTY_MAX;
+    pwm_hi = (unsigned)temp;
+    pwm_lo = pwm_cnt - pwm_hi;
 
 div_set :
-    local_irq_save(flags);
     switch(id){
         case PWM_B:
             aml_set_reg32_bits(P_PWM_MISC_REG_AB, pwm_pre_div, 16, 7);  //pwm_b_clk_div
@@ -165,7 +158,6 @@ div_set :
         default:
             break;
     }
-    local_irq_restore(flags);
 
 	return 0;
 }
