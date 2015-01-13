@@ -1,8 +1,0 @@
-nvkm-y += nvkm/subdev/pwr/base.o
-nvkm-y += nvkm/subdev/pwr/memx.o
-nvkm-y += nvkm/subdev/pwr/nva3.o
-nvkm-y += nvkm/subdev/pwr/nvc0.o
-nvkm-y += nvkm/subdev/pwr/nvd0.o
-nvkm-y += nvkm/subdev/pwr/gk104.o
-nvkm-y += nvkm/subdev/pwr/nv108.o
-nvkm-y += nvkm/subdev/pwr/gk20a.o

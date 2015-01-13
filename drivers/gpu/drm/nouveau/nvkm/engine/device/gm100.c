@@ -39,7 +39,7 @@
 #include <subdev/instmem.h>
 #include <subdev/vm.h>
 #include <subdev/bar.h>
-#include <subdev/pwr.h>
+#include <subdev/pmu.h>
 #include <subdev/volt.h>
 
 #include <engine/device.h>
@@ -77,7 +77,7 @@ gm100_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] =  nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nvc0_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nvc0_bar_oclass;
-		device->oclass[NVDEV_SUBDEV_PWR    ] =  nv108_pwr_oclass;
+		device->oclass[NVDEV_SUBDEV_PMU    ] =  nv108_pmu_oclass;
 
 #if 0
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
@@ -121,7 +121,7 @@ gm100_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] =  nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nvc0_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nvc0_bar_oclass;
-		device->oclass[NVDEV_SUBDEV_PWR    ] =  nv108_pwr_oclass;
+		device->oclass[NVDEV_SUBDEV_PMU    ] =  nv108_pmu_oclass;
 #if 0
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 #endif

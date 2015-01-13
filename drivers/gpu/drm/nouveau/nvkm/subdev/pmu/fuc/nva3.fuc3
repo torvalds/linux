@@ -22,17 +22,17 @@
  * Authors: Ben Skeggs
  */
 
-#define NVKM_PPWR_CHIPSET GK208
-#define HW_TICKS_PER_US 324
+#define NVKM_PPWR_CHIPSET GT215
+#define HW_TICKS_PER_US 203 // should be 202.5
 
-#define NVKM_FALCON_PC24
-#define NVKM_FALCON_UNSHIFTED_IO
+//#define NVKM_FALCON_PC24
+//#define NVKM_FALCON_UNSHIFTED_IO
 //#define NVKM_FALCON_MMIO_UAS
 //#define NVKM_FALCON_MMIO_TRAP
 
 #include "macros.fuc"
 
-.section #nv108_pwr_data
+.section #nva3_pmu_data
 #define INCLUDE_PROC
 #include "kernel.fuc"
 #include "arith.fuc"
@@ -56,7 +56,7 @@
 #undef INCLUDE_DATA
 .align 256
 
-.section #nv108_pwr_code
+.section #nva3_pmu_code
 #define INCLUDE_CODE
 #include "kernel.fuc"
 #include "arith.fuc"

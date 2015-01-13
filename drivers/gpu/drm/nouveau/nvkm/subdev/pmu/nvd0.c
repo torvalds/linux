@@ -26,16 +26,16 @@
 #include "fuc/nvd0.fuc4.h"
 
 struct nouveau_oclass *
-nvd0_pwr_oclass = &(struct nvkm_pwr_impl) {
-	.base.handle = NV_SUBDEV(PWR, 0xd0),
+nvd0_pmu_oclass = &(struct nvkm_pmu_impl) {
+	.base.handle = NV_SUBDEV(PMU, 0xd0),
 	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = _nouveau_pwr_ctor,
-		.dtor = _nouveau_pwr_dtor,
-		.init = _nouveau_pwr_init,
-		.fini = _nouveau_pwr_fini,
+		.ctor = _nouveau_pmu_ctor,
+		.dtor = _nouveau_pmu_dtor,
+		.init = _nouveau_pmu_init,
+		.fini = _nouveau_pmu_fini,
 	},
-	.code.data = nvd0_pwr_code,
-	.code.size = sizeof(nvd0_pwr_code),
-	.data.data = nvd0_pwr_data,
-	.data.size = sizeof(nvd0_pwr_data),
+	.code.data = nvd0_pmu_code,
+	.code.size = sizeof(nvd0_pmu_code),
+	.data.data = nvd0_pmu_data,
+	.data.size = sizeof(nvd0_pmu_data),
 }.base;

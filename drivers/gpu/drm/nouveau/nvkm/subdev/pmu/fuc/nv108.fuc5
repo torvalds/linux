@@ -22,20 +22,49 @@
  * Authors: Ben Skeggs
  */
 
-#include "priv.h"
-#include "fuc/nv108.fuc5.h"
+#define NVKM_PPWR_CHIPSET GK208
+#define HW_TICKS_PER_US 324
 
-struct nouveau_oclass *
-nv108_pwr_oclass = &(struct nvkm_pwr_impl) {
-	.base.handle = NV_SUBDEV(PWR, 0x00),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = _nouveau_pwr_ctor,
-		.dtor = _nouveau_pwr_dtor,
-		.init = _nouveau_pwr_init,
-		.fini = _nouveau_pwr_fini,
-	},
-	.code.data = nv108_pwr_code,
-	.code.size = sizeof(nv108_pwr_code),
-	.data.data = nv108_pwr_data,
-	.data.size = sizeof(nv108_pwr_data),
-}.base;
+#define NVKM_FALCON_PC24
+#define NVKM_FALCON_UNSHIFTED_IO
+//#define NVKM_FALCON_MMIO_UAS
+//#define NVKM_FALCON_MMIO_TRAP
+
+#include "macros.fuc"
+
+.section #nv108_pmu_data
+#define INCLUDE_PROC
+#include "kernel.fuc"
+#include "arith.fuc"
+#include "host.fuc"
+#include "memx.fuc"
+#include "perf.fuc"
+#include "i2c_.fuc"
+#include "test.fuc"
+#include "idle.fuc"
+#undef INCLUDE_PROC
+
+#define INCLUDE_DATA
+#include "kernel.fuc"
+#include "arith.fuc"
+#include "host.fuc"
+#include "memx.fuc"
+#include "perf.fuc"
+#include "i2c_.fuc"
+#include "test.fuc"
+#include "idle.fuc"
+#undef INCLUDE_DATA
+.align 256
+
+.section #nv108_pmu_code
+#define INCLUDE_CODE
+#include "kernel.fuc"
+#include "arith.fuc"
+#include "host.fuc"
+#include "memx.fuc"
+#include "perf.fuc"
+#include "i2c_.fuc"
+#include "test.fuc"
+#include "idle.fuc"
+#undef INCLUDE_CODE
+.align 256

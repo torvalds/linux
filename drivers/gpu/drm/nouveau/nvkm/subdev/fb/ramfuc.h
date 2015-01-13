@@ -1,7 +1,7 @@
 #ifndef __NVKM_FBRAM_FUC_H__
 #define __NVKM_FBRAM_FUC_H__
 
-#include <subdev/pwr.h>
+#include <subdev/pmu.h>
 
 struct ramfuc {
 	struct nouveau_memx *memx;
@@ -57,10 +57,10 @@ ramfuc_reg(u32 addr)
 static inline int
 ramfuc_init(struct ramfuc *ram, struct nouveau_fb *pfb)
 {
-	struct nouveau_pwr *ppwr = nouveau_pwr(pfb);
+	struct nouveau_pmu *pmu = nouveau_pmu(pfb);
 	int ret;
 
-	ret = nouveau_memx_init(ppwr, &ram->memx);
+	ret = nouveau_memx_init(pmu, &ram->memx);
 	if (ret)
 		return ret;
 
@@ -149,9 +149,9 @@ ramfuc_train(struct ramfuc *ram)
 static inline int
 ramfuc_train_result(struct nouveau_fb *pfb, u32 *result, u32 rsize)
 {
-	struct nouveau_pwr *ppwr = nouveau_pwr(pfb);
+	struct nouveau_pmu *pmu = nouveau_pmu(pfb);
 
-	return nouveau_memx_train_result(ppwr, result, rsize);
+	return nouveau_memx_train_result(pmu, result, rsize);
 }
 
 static inline void

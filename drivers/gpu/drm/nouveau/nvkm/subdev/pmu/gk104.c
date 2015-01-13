@@ -24,46 +24,46 @@
 
 #include "priv.h"
 
-#define nvd0_pwr_code gk104_pwr_code
-#define nvd0_pwr_data gk104_pwr_data
+#define nvd0_pmu_code gk104_pmu_code
+#define nvd0_pmu_data gk104_pmu_data
 #include "fuc/nvd0.fuc4.h"
 
 static void
-gk104_pwr_pgob(struct nouveau_pwr *ppwr, bool enable)
+gk104_pmu_pgob(struct nouveau_pmu *pmu, bool enable)
 {
-	nv_mask(ppwr, 0x000200, 0x00001000, 0x00000000);
-	nv_rd32(ppwr, 0x000200);
-	nv_mask(ppwr, 0x000200, 0x08000000, 0x08000000);
+	nv_mask(pmu, 0x000200, 0x00001000, 0x00000000);
+	nv_rd32(pmu, 0x000200);
+	nv_mask(pmu, 0x000200, 0x08000000, 0x08000000);
 	msleep(50);
 
-	nv_mask(ppwr, 0x10a78c, 0x00000002, 0x00000002);
-	nv_mask(ppwr, 0x10a78c, 0x00000001, 0x00000001);
-	nv_mask(ppwr, 0x10a78c, 0x00000001, 0x00000000);
+	nv_mask(pmu, 0x10a78c, 0x00000002, 0x00000002);
+	nv_mask(pmu, 0x10a78c, 0x00000001, 0x00000001);
+	nv_mask(pmu, 0x10a78c, 0x00000001, 0x00000000);
 
-	nv_mask(ppwr, 0x020004, 0xc0000000, enable ? 0xc0000000 : 0x40000000);
+	nv_mask(pmu, 0x020004, 0xc0000000, enable ? 0xc0000000 : 0x40000000);
 	msleep(50);
 
-	nv_mask(ppwr, 0x10a78c, 0x00000002, 0x00000000);
-	nv_mask(ppwr, 0x10a78c, 0x00000001, 0x00000001);
-	nv_mask(ppwr, 0x10a78c, 0x00000001, 0x00000000);
+	nv_mask(pmu, 0x10a78c, 0x00000002, 0x00000000);
+	nv_mask(pmu, 0x10a78c, 0x00000001, 0x00000001);
+	nv_mask(pmu, 0x10a78c, 0x00000001, 0x00000000);
 
-	nv_mask(ppwr, 0x000200, 0x08000000, 0x00000000);
-	nv_mask(ppwr, 0x000200, 0x00001000, 0x00001000);
-	nv_rd32(ppwr, 0x000200);
+	nv_mask(pmu, 0x000200, 0x08000000, 0x00000000);
+	nv_mask(pmu, 0x000200, 0x00001000, 0x00001000);
+	nv_rd32(pmu, 0x000200);
 }
 
 struct nouveau_oclass *
-gk104_pwr_oclass = &(struct nvkm_pwr_impl) {
-	.base.handle = NV_SUBDEV(PWR, 0xe4),
+gk104_pmu_oclass = &(struct nvkm_pmu_impl) {
+	.base.handle = NV_SUBDEV(PMU, 0xe4),
 	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = _nouveau_pwr_ctor,
-		.dtor = _nouveau_pwr_dtor,
-		.init = _nouveau_pwr_init,
-		.fini = _nouveau_pwr_fini,
+		.ctor = _nouveau_pmu_ctor,
+		.dtor = _nouveau_pmu_dtor,
+		.init = _nouveau_pmu_init,
+		.fini = _nouveau_pmu_fini,
 	},
-	.code.data = gk104_pwr_code,
-	.code.size = sizeof(gk104_pwr_code),
-	.data.data = gk104_pwr_data,
-	.data.size = sizeof(gk104_pwr_data),
-	.pgob = gk104_pwr_pgob,
+	.code.data = gk104_pmu_code,
+	.code.size = sizeof(gk104_pmu_code),
+	.data.data = gk104_pmu_data,
+	.data.size = sizeof(gk104_pmu_data),
+	.pgob = gk104_pmu_pgob,
 }.base;

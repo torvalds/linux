@@ -22,29 +22,49 @@
  * Authors: Ben Skeggs
  */
 
-#include "priv.h"
-#include "fuc/nva3.fuc3.h"
+#define NVKM_PPWR_CHIPSET GF119
+#define HW_TICKS_PER_US 324
 
-static int
-nva3_pwr_init(struct nouveau_object *object)
-{
-	struct nouveau_pwr *ppwr = (void *)object;
-	nv_mask(ppwr, 0x022210, 0x00000001, 0x00000000);
-	nv_mask(ppwr, 0x022210, 0x00000001, 0x00000001);
-	return nouveau_pwr_init(ppwr);
-}
+//#define NVKM_FALCON_PC24
+#define NVKM_FALCON_UNSHIFTED_IO
+//#define NVKM_FALCON_MMIO_UAS
+//#define NVKM_FALCON_MMIO_TRAP
 
-struct nouveau_oclass *
-nva3_pwr_oclass = &(struct nvkm_pwr_impl) {
-	.base.handle = NV_SUBDEV(PWR, 0xa3),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = _nouveau_pwr_ctor,
-		.dtor = _nouveau_pwr_dtor,
-		.init = nva3_pwr_init,
-		.fini = _nouveau_pwr_fini,
-	},
-	.code.data = nva3_pwr_code,
-	.code.size = sizeof(nva3_pwr_code),
-	.data.data = nva3_pwr_data,
-	.data.size = sizeof(nva3_pwr_data),
-}.base;
+#include "macros.fuc"
+
+.section #nvd0_pmu_data
+#define INCLUDE_PROC
+#include "kernel.fuc"
+#include "arith.fuc"
+#include "host.fuc"
+#include "memx.fuc"
+#include "perf.fuc"
+#include "i2c_.fuc"
+#include "test.fuc"
+#include "idle.fuc"
+#undef INCLUDE_PROC
+
+#define INCLUDE_DATA
+#include "kernel.fuc"
+#include "arith.fuc"
+#include "host.fuc"
+#include "memx.fuc"
+#include "perf.fuc"
+#include "i2c_.fuc"
+#include "test.fuc"
+#include "idle.fuc"
+#undef INCLUDE_DATA
+.align 256
+
+.section #nvd0_pmu_code
+#define INCLUDE_CODE
+#include "kernel.fuc"
+#include "arith.fuc"
+#include "host.fuc"
+#include "memx.fuc"
+#include "perf.fuc"
+#include "i2c_.fuc"
+#include "test.fuc"
+#include "idle.fuc"
+#undef INCLUDE_CODE
+.align 256

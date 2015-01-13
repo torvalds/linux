@@ -28,27 +28,27 @@
 #define BUSY_SLOT	0
 #define CLK_SLOT	7
 
-struct gk20a_pwr_dvfs_data {
+struct gk20a_pmu_dvfs_data {
 	int p_load_target;
 	int p_load_max;
 	int p_smooth;
 	unsigned int avg_load;
 };
 
-struct gk20a_pwr_priv {
-	struct nouveau_pwr base;
+struct gk20a_pmu_priv {
+	struct nouveau_pmu base;
 	struct nouveau_alarm alarm;
-	struct gk20a_pwr_dvfs_data *data;
+	struct gk20a_pmu_dvfs_data *data;
 };
 
-struct gk20a_pwr_dvfs_dev_status {
+struct gk20a_pmu_dvfs_dev_status {
 	unsigned long total;
 	unsigned long busy;
 	int cur_state;
 };
 
 static int
-gk20a_pwr_dvfs_target(struct gk20a_pwr_priv *priv, int *state)
+gk20a_pmu_dvfs_target(struct gk20a_pmu_priv *priv, int *state)
 {
 	struct nouveau_clk *clk = nouveau_clk(priv);
 
@@ -56,7 +56,7 @@ gk20a_pwr_dvfs_target(struct gk20a_pwr_priv *priv, int *state)
 }
 
 static int
-gk20a_pwr_dvfs_get_cur_state(struct gk20a_pwr_priv *priv, int *state)
+gk20a_pmu_dvfs_get_cur_state(struct gk20a_pmu_priv *priv, int *state)
 {
 	struct nouveau_clk *clk = nouveau_clk(priv);
 
@@ -65,10 +65,10 @@ gk20a_pwr_dvfs_get_cur_state(struct gk20a_pwr_priv *priv, int *state)
 }
 
 static int
-gk20a_pwr_dvfs_get_target_state(struct gk20a_pwr_priv *priv,
+gk20a_pmu_dvfs_get_target_state(struct gk20a_pmu_priv *priv,
 		int *state, int load)
 {
-	struct gk20a_pwr_dvfs_data *data = priv->data;
+	struct gk20a_pmu_dvfs_data *data = priv->data;
 	struct nouveau_clk *clk = nouveau_clk(priv);
 	int cur_level, level;
 
@@ -95,8 +95,8 @@ gk20a_pwr_dvfs_get_target_state(struct gk20a_pwr_priv *priv,
 }
 
 static int
-gk20a_pwr_dvfs_get_dev_status(struct gk20a_pwr_priv *priv,
-		struct gk20a_pwr_dvfs_dev_status *status)
+gk20a_pmu_dvfs_get_dev_status(struct gk20a_pmu_priv *priv,
+		struct gk20a_pmu_dvfs_dev_status *status)
 {
 	status->busy = nv_rd32(priv, 0x10a508 + (BUSY_SLOT * 0x10));
 	status->total= nv_rd32(priv, 0x10a508 + (CLK_SLOT * 0x10));
@@ -104,32 +104,32 @@ gk20a_pwr_dvfs_get_dev_status(struct gk20a_pwr_priv *priv,
 }
 
 static void
-gk20a_pwr_dvfs_reset_dev_status(struct gk20a_pwr_priv *priv)
+gk20a_pmu_dvfs_reset_dev_status(struct gk20a_pmu_priv *priv)
 {
 	nv_wr32(priv, 0x10a508 + (BUSY_SLOT * 0x10), 0x80000000);
 	nv_wr32(priv, 0x10a508 + (CLK_SLOT * 0x10), 0x80000000);
 }
 
 static void
-gk20a_pwr_dvfs_work(struct nouveau_alarm *alarm)
+gk20a_pmu_dvfs_work(struct nouveau_alarm *alarm)
 {
-	struct gk20a_pwr_priv *priv = container_of(alarm,
-					struct gk20a_pwr_priv, alarm);
-	struct gk20a_pwr_dvfs_data *data = priv->data;
-	struct gk20a_pwr_dvfs_dev_status status;
+	struct gk20a_pmu_priv *priv = container_of(alarm,
+					struct gk20a_pmu_priv, alarm);
+	struct gk20a_pmu_dvfs_data *data = priv->data;
+	struct gk20a_pmu_dvfs_dev_status status;
 	struct nouveau_clk *clk = nouveau_clk(priv);
 	struct nouveau_volt *volt = nouveau_volt(priv);
 	u32 utilization = 0;
 	int state, ret;
 
 	/*
-	 * The PWR is initialized before CLK and VOLT, so we have to make sure the
+	 * The PMU is initialized before CLK and VOLT, so we have to make sure the
 	 * CLK and VOLT are ready here.
 	 */
 	if (!clk || !volt)
 		goto resched;
 
-	ret = gk20a_pwr_dvfs_get_dev_status(priv, &status);
+	ret = gk20a_pmu_dvfs_get_dev_status(priv, &status);
 	if (ret) {
 		nv_warn(priv, "failed to get device status\n");
 		goto resched;
@@ -143,90 +143,90 @@ gk20a_pwr_dvfs_work(struct nouveau_alarm *alarm)
 	nv_trace(priv, "utilization = %d %%, avg_load = %d %%\n",
 			utilization, data->avg_load);
 
-	ret = gk20a_pwr_dvfs_get_cur_state(priv, &state);
+	ret = gk20a_pmu_dvfs_get_cur_state(priv, &state);
 	if (ret) {
 		nv_warn(priv, "failed to get current state\n");
 		goto resched;
 	}
 
-	if (gk20a_pwr_dvfs_get_target_state(priv, &state, data->avg_load)) {
+	if (gk20a_pmu_dvfs_get_target_state(priv, &state, data->avg_load)) {
 		nv_trace(priv, "set new state to %d\n", state);
-		gk20a_pwr_dvfs_target(priv, &state);
+		gk20a_pmu_dvfs_target(priv, &state);
 	}
 
 resched:
-	gk20a_pwr_dvfs_reset_dev_status(priv);
+	gk20a_pmu_dvfs_reset_dev_status(priv);
 	nouveau_timer_alarm(priv, 100000000, alarm);
 }
 
 int
-gk20a_pwr_fini(struct nouveau_object *object, bool suspend)
+gk20a_pmu_fini(struct nouveau_object *object, bool suspend)
 {
-	struct nouveau_pwr *ppwr = (void *)object;
-	struct gk20a_pwr_priv *priv = (void *)ppwr;
+	struct nouveau_pmu *pmu = (void *)object;
+	struct gk20a_pmu_priv *priv = (void *)pmu;
 
 	nouveau_timer_alarm_cancel(priv, &priv->alarm);
 
-	return nouveau_subdev_fini(&ppwr->base, suspend);
+	return nouveau_subdev_fini(&pmu->base, suspend);
 }
 
 int
-gk20a_pwr_init(struct nouveau_object *object)
+gk20a_pmu_init(struct nouveau_object *object)
 {
-	struct nouveau_pwr *ppwr = (void *)object;
-	struct gk20a_pwr_priv *priv = (void *)ppwr;
+	struct nouveau_pmu *pmu = (void *)object;
+	struct gk20a_pmu_priv *priv = (void *)pmu;
 	int ret;
 
-	ret = nouveau_subdev_init(&ppwr->base);
+	ret = nouveau_subdev_init(&pmu->base);
 	if (ret)
 		return ret;
 
-	ppwr->pgob = nouveau_pwr_pgob;
+	pmu->pgob = nouveau_pmu_pgob;
 
 	/* init pwr perf counter */
-	nv_wr32(ppwr, 0x10a504 + (BUSY_SLOT * 0x10), 0x00200001);
-	nv_wr32(ppwr, 0x10a50c + (BUSY_SLOT * 0x10), 0x00000002);
-	nv_wr32(ppwr, 0x10a50c + (CLK_SLOT * 0x10), 0x00000003);
+	nv_wr32(pmu, 0x10a504 + (BUSY_SLOT * 0x10), 0x00200001);
+	nv_wr32(pmu, 0x10a50c + (BUSY_SLOT * 0x10), 0x00000002);
+	nv_wr32(pmu, 0x10a50c + (CLK_SLOT * 0x10), 0x00000003);
 
-	nouveau_timer_alarm(ppwr, 2000000000, &priv->alarm);
+	nouveau_timer_alarm(pmu, 2000000000, &priv->alarm);
 
 	return ret;
 }
 
-struct gk20a_pwr_dvfs_data gk20a_dvfs_data= {
+struct gk20a_pmu_dvfs_data gk20a_dvfs_data= {
 	.p_load_target = 70,
 	.p_load_max = 90,
 	.p_smooth = 1,
 };
 
 static int
-gk20a_pwr_ctor(struct nouveau_object *parent,
+gk20a_pmu_ctor(struct nouveau_object *parent,
 		  struct nouveau_object *engine,
 		  struct nouveau_oclass *oclass, void *data, u32 size,
 		  struct nouveau_object **pobject)
 {
-	struct gk20a_pwr_priv *priv;
+	struct gk20a_pmu_priv *priv;
 	int ret;
 
-	ret = nouveau_pwr_create(parent, engine, oclass, &priv);
+	ret = nouveau_pmu_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	priv->data = &gk20a_dvfs_data;
 
-	nouveau_alarm_init(&priv->alarm, gk20a_pwr_dvfs_work);
+	nouveau_alarm_init(&priv->alarm, gk20a_pmu_dvfs_work);
 
 	return 0;
 }
 
 struct nouveau_oclass *
-gk20a_pwr_oclass = &(struct nvkm_pwr_impl) {
-	.base.handle = NV_SUBDEV(PWR, 0xea),
+gk20a_pmu_oclass = &(struct nvkm_pmu_impl) {
+	.base.handle = NV_SUBDEV(PMU, 0xea),
 	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = gk20a_pwr_ctor,
-		.dtor = _nouveau_pwr_dtor,
-		.init = gk20a_pwr_init,
-		.fini = gk20a_pwr_fini,
+		.ctor = gk20a_pmu_ctor,
+		.dtor = _nouveau_pmu_dtor,
+		.init = gk20a_pmu_init,
+		.fini = gk20a_pmu_fini,
 	},
 }.base;

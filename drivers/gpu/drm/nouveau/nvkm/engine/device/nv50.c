@@ -37,7 +37,7 @@
 #include <subdev/instmem.h>
 #include <subdev/vm.h>
 #include <subdev/bar.h>
-#include <subdev/pwr.h>
+#include <subdev/pmu.h>
 #include <subdev/volt.h>
 
 #include <engine/device.h>
@@ -362,7 +362,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] =  nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
-		device->oclass[NVDEV_SUBDEV_PWR    ] =  nva3_pwr_oclass;
+		device->oclass[NVDEV_SUBDEV_PMU    ] =  nva3_pmu_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv84_fifo_oclass;
@@ -393,7 +393,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] =  nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
-		device->oclass[NVDEV_SUBDEV_PWR    ] =  nva3_pwr_oclass;
+		device->oclass[NVDEV_SUBDEV_PMU    ] =  nva3_pmu_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv84_fifo_oclass;
@@ -423,7 +423,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] =  nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
-		device->oclass[NVDEV_SUBDEV_PWR    ] =  nva3_pwr_oclass;
+		device->oclass[NVDEV_SUBDEV_PMU    ] =  nva3_pmu_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv84_fifo_oclass;
@@ -453,7 +453,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] =  nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_VM     ] = &nv50_vmmgr_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &nv50_bar_oclass;
-		device->oclass[NVDEV_SUBDEV_PWR    ] =  nva3_pwr_oclass;
+		device->oclass[NVDEV_SUBDEV_PMU    ] =  nva3_pmu_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv50_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv84_fifo_oclass;

@@ -22,7 +22,7 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 
-#include <subdev/pwr.h>
+#include <subdev/pmu.h>
 
 #include "nvc0.h"
 #include "ctxnvc0.h"
@@ -196,15 +196,15 @@ nve4_graph_init(struct nouveau_object *object)
 {
 	struct nvc0_graph_oclass *oclass = (void *)object->oclass;
 	struct nvc0_graph_priv *priv = (void *)object;
-	struct nouveau_pwr *ppwr = nouveau_pwr(priv);
+	struct nouveau_pmu *pmu = nouveau_pmu(priv);
 	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, priv->tpc_total);
 	u32 data[TPC_MAX / 8] = {};
 	u8  tpcnr[GPC_MAX];
 	int gpc, tpc, rop;
 	int ret, i;
 
-	if (ppwr)
-		ppwr->pgob(ppwr, false);
+	if (pmu)
+		pmu->pgob(pmu, false);
 
 	ret = nouveau_graph_init(&priv->base);
 	if (ret)

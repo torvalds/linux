@@ -12,7 +12,7 @@ include $(src)/nvkm/subdev/instmem/Kbuild
 include $(src)/nvkm/subdev/ltc/Kbuild
 include $(src)/nvkm/subdev/mc/Kbuild
 include $(src)/nvkm/subdev/mxm/Kbuild
-include $(src)/nvkm/subdev/pwr/Kbuild
+include $(src)/nvkm/subdev/pmu/Kbuild
 include $(src)/nvkm/subdev/therm/Kbuild
 include $(src)/nvkm/subdev/timer/Kbuild
 include $(src)/nvkm/subdev/vm/Kbuild

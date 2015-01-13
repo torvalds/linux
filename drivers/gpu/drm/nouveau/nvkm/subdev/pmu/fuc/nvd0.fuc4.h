@@ -1,4 +1,4 @@
-uint32_t nvd0_pwr_data[] = {
+uint32_t nvd0_pmu_data[] = {
 /* 0x0000: proc_kern */
 	0x52544e49,
 	0x00000000,
@@ -915,7 +915,7 @@ uint32_t nvd0_pwr_data[] = {
 	0x00000000,
 };
 
-uint32_t nvd0_pwr_code[] = {
+uint32_t nvd0_pmu_code[] = {
 	0x034d0ef5,
 /* 0x0004: rd32 */
 	0x07a007f1,
