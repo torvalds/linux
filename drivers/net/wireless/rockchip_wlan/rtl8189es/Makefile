@@ -713,11 +713,11 @@ endif
 ifeq ($(CONFIG_EFUSE_CONFIG_FILE), y)
 EXTRA_CFLAGS += -DCONFIG_EFUSE_CONFIG_FILE
 ifeq ($(MODULE_NAME), 8189es)
-EXTRA_CFLAGS += -DEFUSE_MAP_PATH=\"/system/etc/wifi/wifi_efuse_8189e.map\"
+EXTRA_CFLAGS += -DEFUSE_MAP_PATH=\"/system/etc/firmware/wifi_efuse_8189e.map\"
 else ifeq ($(MODULE_NAME), 8723bs)
-EXTRA_CFLAGS += -DEFUSE_MAP_PATH=\"/system/etc/wifi/wifi_efuse_8723bs.map\"
+EXTRA_CFLAGS += -DEFUSE_MAP_PATH=\"/system/etc/firmware/wifi_efuse_8723bs.map\"
 else
-EXTRA_CFLAGS += -DEFUSE_MAP_PATH=\"/system/etc/wifi/wifi_efuse_$(MODULE_NAME).map\"
+EXTRA_CFLAGS += -DEFUSE_MAP_PATH=\"/system/etc/firmware/wifi_efuse_$(MODULE_NAME).map\"
 endif
 EXTRA_CFLAGS += -DWIFIMAC_PATH=\"/data/wifimac.txt\"
 endif
