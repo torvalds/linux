@@ -406,7 +406,7 @@ static int s3c24xx_dma_set_runtime_config(struct dma_chan *chan,
 	s3cchan->cfg = *config;
 
 out:
-	spin_lock_irqrestore(&s3cchan->vc.lock, flags);
+	spin_unlock_irqrestore(&s3cchan->vc.lock, flags);
 	return ret;
 }
 
