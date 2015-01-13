@@ -2287,7 +2287,7 @@ static void handle_ep_small(struct net2280_ep *ep)
 	ep->irqs++;
 
 	ep_vdbg(ep->dev, "%s ack ep_stat %08x, req %p\n",
-			ep->ep.name, t, req ? &req->req : 0);
+			ep->ep.name, t, req ? &req->req : NULL);
 
 	if (!ep->is_in || (ep->dev->quirks & PLX_2280))
 		writel(t & ~BIT(NAK_OUT_PACKETS), &ep->regs->ep_stat);
