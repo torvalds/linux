@@ -39,6 +39,7 @@
 #define TMIO_MASK_IRQ     (TMIO_MASK_READOP | TMIO_MASK_WRITEOP | TMIO_MASK_CMD)
 
 struct tmio_mmc_data;
+struct tmio_mmc_host;
 
 struct tmio_mmc_dma {
 	void *chan_priv_tx;
@@ -46,6 +47,7 @@ struct tmio_mmc_dma {
 	int slave_id_tx;
 	int slave_id_rx;
 	bool (*filter)(struct dma_chan *chan, void *arg);
+	void (*enable)(struct tmio_mmc_host *host, bool enable);
 };
 
 struct tmio_mmc_host {
