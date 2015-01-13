@@ -33,11 +33,6 @@
 #define VENDOR	0x1d6b
 #define PRODUCT	0x0105
 
-/* endpoints indexes */
-
-#define EP_BULK_IN	(1 | LIBUSB_ENDPOINT_IN)
-#define EP_BULK_OUT	(2 | LIBUSB_ENDPOINT_OUT)
-
 #define BUF_LEN		8192
 
 /*
@@ -159,14 +154,21 @@ void test_exit(struct test_state *state)
 int main(void)
 {
 	struct test_state state;
+	struct libusb_config_descriptor *conf;
+	struct libusb_interface_descriptor const *iface;
+	unsigned char addr;
 
 	if (test_init(&state))
 		return 1;
 
+	libusb_get_config_descriptor(state.found, 0, &conf);
+	iface = &conf->interface[0].altsetting[0];
+	addr = iface->endpoint[0].bEndpointAddress;
+
 	while (1) {
 		static unsigned char buffer[BUF_LEN];
 		int bytes;
-		libusb_bulk_transfer(state.handle, EP_BULK_IN, buffer, BUF_LEN,
+		libusb_bulk_transfer(state.handle, addr, buffer, BUF_LEN,
 				     &bytes, 500);
 	}
 	test_exit(&state);
