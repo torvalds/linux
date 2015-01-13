@@ -96,11 +96,6 @@
 #define TMIO_MMC_SDIO_STATUS_QUIRK	(1 << 8)
 
 /*
- * Some controllers have DMA enable/disable register
- */
-#define TMIO_MMC_HAVE_CTL_DMA_REG	(1 << 9)
-
-/*
  * Some controllers allows to set SDx actual clock
  */
 #define TMIO_MMC_CLK_ACTUAL		(1 << 10)

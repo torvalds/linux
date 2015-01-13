@@ -28,9 +28,6 @@ void tmio_mmc_enable_dma(struct tmio_mmc_host *host, bool enable)
 	if (!host->chan_tx || !host->chan_rx)
 		return;
 
-	if (host->pdata->flags & TMIO_MMC_HAVE_CTL_DMA_REG)
-		sd_ctrl_write16(host, CTL_DMA_ENABLE, enable ? 2 : 0);
-
 	if (host->dma->enable)
 		host->dma->enable(host, enable);
 }
