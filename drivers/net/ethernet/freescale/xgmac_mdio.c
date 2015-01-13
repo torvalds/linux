@@ -156,7 +156,7 @@ static int xgmac_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
 		mdio_stat |= MDIO_STAT_ENC;
 	} else {
 		dev_addr = regnum & 0x1f;
-		mdio_stat = ~MDIO_STAT_ENC;
+		mdio_stat &= ~MDIO_STAT_ENC;
 	}
 
 	out_be32(&regs->mdio_stat, mdio_stat);
