@@ -163,6 +163,7 @@ struct kvm_s390_sie_block {
 	__u64	tecmc;			/* 0x00e8 */
 	__u8	reservedf0[12];		/* 0x00f0 */
 #define CRYCB_FORMAT1 0x00000001
+#define CRYCB_FORMAT2 0x00000003
 	__u32	crycbd;			/* 0x00fc */
 	__u64	gcr[16];		/* 0x0100 */
 	__u64	gbea;			/* 0x0180 */
@@ -516,6 +517,7 @@ struct kvm_s390_crypto_cb {
 	__u8    reserved00[72];                 /* 0x0000 */
 	__u8    dea_wrapping_key_mask[24];      /* 0x0048 */
 	__u8    aes_wrapping_key_mask[32];      /* 0x0060 */
+	__u8    reserved80[128];                /* 0x0080 */
 };
 
 struct kvm_arch{
