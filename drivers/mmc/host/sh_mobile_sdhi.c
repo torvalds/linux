@@ -158,6 +158,11 @@ static int sh_mobile_sdhi_multi_io_quirk(struct mmc_card *card,
 	return blk_size;
 }
 
+static void sh_mobile_sdhi_enable_dma(struct tmio_mmc_host *host, bool enable)
+{
+	sd_ctrl_write16(host, CTL_DMA_ENABLE, enable ? 2 : 0);
+}
+
 static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
@@ -230,6 +235,7 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		}
 	}
 	dma_priv->filter = shdma_chan_filter;
+	dma_priv->enable = sh_mobile_sdhi_enable_dma;
 
 	mmc_data->alignment_shift = 1; /* 2-byte alignment */
 
