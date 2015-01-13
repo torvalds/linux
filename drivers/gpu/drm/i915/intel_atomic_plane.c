@@ -22,7 +22,7 @@
  */
 
 /**
- * DOC: atomic plane helper support
+ * DOC: atomic plane helpers
  *
  * The functions here are used by the atomic plane helper functions to
  * implement legacy plane updates (i.e., drm_plane->update_plane() and
@@ -67,6 +67,7 @@ intel_plane_duplicate_state(struct drm_plane *plane)
 /**
  * intel_plane_destroy_state - destroy plane state
  * @plane: drm plane
+ * @state: state object to destroy
  *
  * Destroys the plane state (both common and Intel-specific) for the
  * specified plane.
