@@ -483,18 +483,6 @@ void svc_rdma_prep_reply_hdr(struct svc_rqst *rqstp)
 {
 }
 
-/*
- * Return the start of an xdr buffer.
- */
-static void *xdr_start(struct xdr_buf *xdr)
-{
-	return xdr->head[0].iov_base -
-		(xdr->len -
-		 xdr->page_len -
-		 xdr->tail[0].iov_len -
-		 xdr->head[0].iov_len);
-}
-
 int svc_rdma_sendto(struct svc_rqst *rqstp)
 {
 	struct svc_xprt *xprt = rqstp->rq_xprt;
@@ -512,8 +500,10 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 
 	dprintk("svcrdma: sending response for rqstp=%p\n", rqstp);
 
-	/* Get the RDMA request header. */
-	rdma_argp = xdr_start(&rqstp->rq_arg);
+	/* Get the RDMA request header. The receive logic always
+	 * places this at the start of page 0.
+	 */
+	rdma_argp = page_address(rqstp->rq_pages[0]);
 
 	/* Build an req vec for the XDR */
 	ctxt = svc_rdma_get_context(rdma);
