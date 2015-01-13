@@ -5104,6 +5104,11 @@ static void record_wakee(struct task_struct *p)
 	}
 }
 
+static inline bool energy_aware(void)
+{
+	return sched_feat(ENERGY_AWARE);
+}
+
 /*
  * Detect M:N waker/wakee relationships via a switching-frequency heuristic.
  *
