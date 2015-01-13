@@ -1979,8 +1979,7 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 		}
 	}
 	dev_drv->ops->ovl_mgr(dev_drv, 0, 1);
-	if (rk_fb->disp_policy == DISPLAY_POLICY_BOX)
-		dev_drv->ops->cfg_done(dev_drv);
+
 #if defined(CONFIG_RK_HDMI)
 	if ((rk_fb->disp_mode == DUAL)
 	    && (hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
@@ -2047,9 +2046,7 @@ ext_win_exit:
 		for (i = 0; i < dev_drv->lcdc_win_num; i++) {
 			if (dev_drv->win[i]->state == 1) {
 				if (rk_fb->disp_policy == DISPLAY_POLICY_BOX &&
-				    (dev_drv->win[i]->area[0].format == YUV420 ||
-				     dev_drv->win[i]->area[0].format == YUV420_A ||
-				     !strcmp(dev_drv->win[i]->name, "hwc"))) {
+				    (!strcmp(dev_drv->win[i]->name, "hwc"))) {
 					continue;
 				} else {
 					u32 new_start =
@@ -2059,8 +2056,7 @@ ext_win_exit:
 
 					if ((rk_fb->disp_policy ==
 					     DISPLAY_POLICY_BOX) &&
-					    (new_start == 0x0 ||
-					     dev_drv->suspend_flag))
+					    (dev_drv->suspend_flag))
 						continue;
 					if (unlikely(new_start != reg_start)) {
 						wait_for_vsync = true;
@@ -2145,7 +2141,7 @@ static int rk_fb_check_config_var(struct rk_fb_area_par *area_par,
 	if ((area_par->xpos + area_par->xsize > screen->mode.xres) ||
 	    (area_par->ypos + area_par->ysize > screen->mode.yres) ||
 	    (area_par->xsize <= 0) || (area_par->ysize <= 0)) {
-		pr_err("check config var fail 1:\n"
+		pr_warn("check config var fail 1:\n"
 		       "xpos=%d,xsize=%d,xres=%d\n"
 		       "ypos=%d,ysize=%d,yres=%d\n",
 		       area_par->xpos, area_par->xsize, screen->mode.xres,
@@ -2660,6 +2656,7 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 			if (!usr_fd) {
 				fix->smem_start = 0;
 				fix->mmio_start = 0;
+				dev_drv->ops->open(dev_drv, win_id, 0);
 				break;
 			}
 
@@ -2709,7 +2706,6 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 
 				usr_fd = yuv_phy[0];
 				offset = yuv_phy[1] - yuv_phy[0];
-
 				if (!usr_fd) {
 					fix->smem_start = 0;
 					fix->mmio_start = 0;
@@ -3571,7 +3567,8 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		if (dev_drv->ops->set_screen_scaler)
 			dev_drv->ops->set_screen_scaler(dev_drv, dev_drv->screen0, 0);
 	}
-
+	if (dev_drv->uboot_logo && (screen->type != dev_drv->cur_screen->type))
+               dev_drv->uboot_logo = 0;
 	if (!enable) {
 		/* if screen type is different, we do not disable lcdc. */
 		if (dev_drv->cur_screen->type != screen->type)
