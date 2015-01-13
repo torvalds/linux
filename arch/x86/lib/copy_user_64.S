@@ -16,30 +16,6 @@
 #include <asm/asm.h>
 #include <asm/smap.h>
 
-/*
- * By placing feature2 after feature1 in altinstructions section, we logically
- * implement:
- * If CPU has feature2, jmp to alt2 is used
- * else if CPU has feature1, jmp to alt1 is used
- * else jmp to orig is used.
- */
-	.macro ALTERNATIVE_JUMP feature1,feature2,orig,alt1,alt2
-0:
-	jmp \orig
-1:
-	.section .altinstr_replacement,"ax"
-2:
-	jmp \alt1
-3:
-	jmp \alt2
-	.previous
-
-	.section .altinstructions,"a"
-	altinstruction_entry 0b,2b,\feature1,5,5,0
-	altinstruction_entry 0b,3b,\feature2,5,5,0
-	.previous
-	.endm
-
 	.macro ALIGN_DESTINATION
 	/* check for bad alignment of destination */
 	movl %edi,%ecx
@@ -73,9 +49,11 @@ ENTRY(_copy_to_user)
 	jc bad_to_user
 	cmpq TI_addr_limit(%rax),%rcx
 	ja bad_to_user
-	ALTERNATIVE_JUMP X86_FEATURE_REP_GOOD,X86_FEATURE_ERMS,	\
-		copy_user_generic_unrolled,copy_user_generic_string,	\
-		copy_user_enhanced_fast_string
+	ALTERNATIVE_2 "jmp copy_user_generic_unrolled",		\
+		      "jmp copy_user_generic_string",		\
+		      X86_FEATURE_REP_GOOD,			\
+		      "jmp copy_user_enhanced_fast_string",	\
+		      X86_FEATURE_ERMS
 	CFI_ENDPROC
 ENDPROC(_copy_to_user)
 
@@ -88,9 +66,11 @@ ENTRY(_copy_from_user)
 	jc bad_from_user
 	cmpq TI_addr_limit(%rax),%rcx
 	ja bad_from_user
-	ALTERNATIVE_JUMP X86_FEATURE_REP_GOOD,X86_FEATURE_ERMS,	\
-		copy_user_generic_unrolled,copy_user_generic_string,	\
-		copy_user_enhanced_fast_string
+	ALTERNATIVE_2 "jmp copy_user_generic_unrolled",		\
+		      "jmp copy_user_generic_string",		\
+		      X86_FEATURE_REP_GOOD,			\
+		      "jmp copy_user_enhanced_fast_string",	\
+		      X86_FEATURE_ERMS
 	CFI_ENDPROC
 ENDPROC(_copy_from_user)
 
