@@ -105,12 +105,11 @@ void labpc_drain_dma(struct comedi_device *dev)
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
-	unsigned int sample_size = comedi_bytes_per_sample(s);
-	int status;
+	unsigned int max_samples = comedi_bytes_to_samples(s, dma->size);
+	unsigned int residue;
+	unsigned int nsamples;
+	unsigned int leftover;
 	unsigned long flags;
-	unsigned int max_points, num_points, residue, leftover;
-
-	status = devpriv->stat1;
 
 	/*
 	 * residue is the number of bytes left to be done on the dma
@@ -119,32 +118,33 @@ void labpc_drain_dma(struct comedi_device *dev)
 	 */
 	residue = labpc_isadma_disable(dma);
 
-	/* figure out how many points to read */
-	max_points = dma->size / sample_size;
-	num_points = max_points - comedi_bytes_to_samples(s, residue);
-	if (cmd->stop_src == TRIG_COUNT && devpriv->count < num_points)
-		num_points = devpriv->count;
-
-	/* figure out how many points will be stored next time */
-	leftover = 0;
-	if (cmd->stop_src != TRIG_COUNT) {
-		leftover = dma->size / sample_size;
-	} else if (devpriv->count > num_points) {
-		leftover = devpriv->count - num_points;
-		if (leftover > max_points)
-			leftover = max_points;
+	/*
+	 * Figure out how many samples to read for this transfer and
+	 * how many will be stored for next time.
+	 */
+	nsamples = max_samples - comedi_bytes_to_samples(s, residue);
+	if (cmd->stop_src == TRIG_COUNT) {
+		if (devpriv->count <= nsamples) {
+			nsamples = devpriv->count;
+			leftover = 0;
+		} else {
+			leftover = devpriv->count - nsamples;
+			if (leftover > max_samples)
+				leftover = max_samples;
+		}
+		devpriv->count -= nsamples;
+	} else {
+		leftover = max_samples;
 	}
+	dma->size = comedi_samples_to_bytes(s, leftover);
 
-	comedi_buf_write_samples(s, dma->virt_addr, num_points);
-
-	if (cmd->stop_src == TRIG_COUNT)
-		devpriv->count -= num_points;
+	comedi_buf_write_samples(s, dma->virt_addr, nsamples);
 
 	/* set address and count for next transfer */
 	flags = claim_dma_lock();
 	set_dma_mode(dma->chan, DMA_MODE_READ);
 	set_dma_addr(dma->chan, dma->hw_addr);
-	set_dma_count(dma->chan, leftover * sample_size);
+	set_dma_count(dma->chan, dma->size);
 	release_dma_lock(flags);
 }
 EXPORT_SYMBOL_GPL(labpc_drain_dma);
