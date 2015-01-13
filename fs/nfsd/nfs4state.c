@@ -150,16 +150,6 @@ renew_client_locked(struct nfs4_client *clp)
 	clp->cl_time = get_seconds();
 }
 
-static inline void
-renew_client(struct nfs4_client *clp)
-{
-	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
-
-	spin_lock(&nn->client_lock);
-	renew_client_locked(clp);
-	spin_unlock(&nn->client_lock);
-}
-
 static void put_client_renew_locked(struct nfs4_client *clp)
 {
 	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
