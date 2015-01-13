@@ -127,8 +127,7 @@ const char *vp_bus_name(struct virtio_device *vdev);
  */
 int vp_set_vq_affinity(struct virtqueue *vq, int cpu);
 
-int virtio_pci_legacy_probe(struct pci_dev *pci_dev,
-			    const struct pci_device_id *id);
-void virtio_pci_legacy_remove(struct pci_dev *pci_dev);
+int virtio_pci_legacy_probe(struct virtio_pci_device *);
+void virtio_pci_legacy_remove(struct virtio_pci_device *);
 
 #endif
