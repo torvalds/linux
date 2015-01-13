@@ -499,6 +499,35 @@ int iwl_mvm_start_fw_dbg_conf(struct iwl_mvm *mvm, enum iwl_fw_dbg_conf conf_id)
 	return ret;
 }
 
+static int iwl_mvm_config_ltr_v1(struct iwl_mvm *mvm)
+{
+	struct iwl_ltr_config_cmd_v1 cmd_v1 = {
+		.flags = cpu_to_le32(LTR_CFG_FLAG_FEATURE_ENABLE),
+	};
+
+	if (!mvm->trans->ltr_enabled)
+		return 0;
+
+	return iwl_mvm_send_cmd_pdu(mvm, LTR_CONFIG, 0,
+				    sizeof(cmd_v1), &cmd_v1);
+}
+
+static int iwl_mvm_config_ltr(struct iwl_mvm *mvm)
+{
+	struct iwl_ltr_config_cmd cmd = {
+		.flags = cpu_to_le32(LTR_CFG_FLAG_FEATURE_ENABLE),
+	};
+
+	if (!mvm->trans->ltr_enabled)
+		return 0;
+
+	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_HDC_PHASE_0))
+		return iwl_mvm_config_ltr_v1(mvm);
+
+	return iwl_mvm_send_cmd_pdu(mvm, LTR_CONFIG, 0,
+				    sizeof(cmd), &cmd);
+}
+
 int iwl_mvm_up(struct iwl_mvm *mvm)
 {
 	int ret, i;
@@ -604,14 +633,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	/* Initialize tx backoffs to the minimal possible */
 	iwl_mvm_tt_tx_backoff(mvm, 0);
 
-	if (mvm->trans->ltr_enabled) {
-		struct iwl_ltr_config_cmd cmd = {
-			.flags = cpu_to_le32(LTR_CFG_FLAG_FEATURE_ENABLE),
-		};
-
-		WARN_ON(iwl_mvm_send_cmd_pdu(mvm, LTR_CONFIG, 0,
-					     sizeof(cmd), &cmd));
-	}
+	WARN_ON(iwl_mvm_config_ltr(mvm));
 
 	ret = iwl_mvm_power_update_device(mvm);
 	if (ret)

@@ -92,14 +92,32 @@ enum iwl_ltr_config_flags {
 };
 
 /**
+ * struct iwl_ltr_config_cmd_v1 - configures the LTR
+ * @flags: See %enum iwl_ltr_config_flags
+ */
+struct iwl_ltr_config_cmd_v1 {
+	__le32 flags;
+	__le32 static_long;
+	__le32 static_short;
+} __packed; /* LTR_CAPABLE_API_S_VER_1 */
+
+#define LTR_VALID_STATES_NUM 4
+
+/**
  * struct iwl_ltr_config_cmd - configures the LTR
  * @flags: See %enum iwl_ltr_config_flags
+ * @static_long:
+ * @static_short:
+ * @ltr_cfg_values:
+ * @ltr_short_idle_timeout:
  */
 struct iwl_ltr_config_cmd {
 	__le32 flags;
 	__le32 static_long;
 	__le32 static_short;
-} __packed;
+	__le32 ltr_cfg_values[LTR_VALID_STATES_NUM];
+	__le32 ltr_short_idle_timeout;
+} __packed; /* LTR_CAPABLE_API_S_VER_2 */
 
 /* Radio LP RX Energy Threshold measured in dBm */
 #define POWER_LPRX_RSSI_THRESHOLD	75
