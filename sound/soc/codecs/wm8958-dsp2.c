@@ -418,7 +418,7 @@ static void wm8958_dsp_apply(struct snd_soc_codec *codec, int path, int start)
 int wm8958_aif_ev(struct snd_soc_dapm_widget *w,
 		  struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	int i;
 
 	switch (event) {
