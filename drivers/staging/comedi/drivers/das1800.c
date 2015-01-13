@@ -465,6 +465,19 @@ static void das1800_isadma_program(struct das1800_dma_desc *dma)
 	release_dma_lock(flags);
 }
 
+static unsigned int das1800_isadma_disable(unsigned int dma_chan)
+{
+	unsigned long flags;
+	unsigned int residue;
+
+	flags = claim_dma_lock();
+	disable_dma(dma_chan);
+	residue = get_dma_residue(dma_chan);
+	release_dma_lock(flags);
+
+	return residue;
+}
+
 static inline uint16_t munge_bipolar_sample(const struct comedi_device *dev,
 					    uint16_t sample)
 {
@@ -524,23 +537,16 @@ static void das1800_handle_fifo_not_empty(struct comedi_device *dev,
 	}
 }
 
-/* Utility function used by das1800_flush_dma() and das1800_handle_dma().
- * Assumes dma lock is held */
+/* Utility function used by das1800_flush_dma() and das1800_handle_dma() */
 static void das1800_flush_dma_channel(struct comedi_device *dev,
 				      struct comedi_subdevice *s,
 				      struct das1800_dma_desc *dma)
 {
-	unsigned int nbytes;
+	unsigned int residue = das1800_isadma_disable(dma->chan);
+	unsigned int nbytes = dma->size - residue;
 	unsigned int nsamples;
 
-	disable_dma(dma->chan);
-
-	/* clear flip-flop to make sure 2-byte registers
-	 * get set correctly */
-	clear_dma_ff(dma->chan);
-
 	/*  figure out how many points to read */
-	nbytes = dma->size - get_dma_residue(dma->chan);
 	nsamples = comedi_bytes_to_samples(s, nbytes);
 	nsamples = comedi_nsamples_left(s, nsamples);
 
@@ -555,10 +561,8 @@ static void das1800_flush_dma(struct comedi_device *dev,
 {
 	struct das1800_private *devpriv = dev->private;
 	struct das1800_dma_desc *dma = &devpriv->dma_desc[devpriv->cur_dma];
-	unsigned long flags;
 	const int dual_dma = devpriv->irq_dma_bits & DMA_DUAL;
 
-	flags = claim_dma_lock();
 	das1800_flush_dma_channel(dev, s, dma);
 
 	if (dual_dma) {
@@ -567,8 +571,6 @@ static void das1800_flush_dma(struct comedi_device *dev,
 		dma = &devpriv->dma_desc[devpriv->cur_dma];
 		das1800_flush_dma_channel(dev, s, dma);
 	}
-
-	release_dma_lock(flags);
 
 	/*  get any remaining samples in fifo */
 	das1800_handle_fifo_not_empty(dev, s);
@@ -579,12 +581,9 @@ static void das1800_handle_dma(struct comedi_device *dev,
 {
 	struct das1800_private *devpriv = dev->private;
 	struct das1800_dma_desc *dma = &devpriv->dma_desc[devpriv->cur_dma];
-	unsigned long flags;
 	const int dual_dma = devpriv->irq_dma_bits & DMA_DUAL;
 
-	flags = claim_dma_lock();
 	das1800_flush_dma_channel(dev, s, dma);
-	release_dma_lock(flags);
 
 	/* re-enable dma channel */
 	das1800_isadma_program(dma);
@@ -611,7 +610,7 @@ static int das1800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	for (i = 0; i < 2; i++) {
 		dma = &devpriv->dma_desc[i];
 		if (dma->chan)
-			disable_dma(dma->chan);
+			das1800_isadma_disable(dma->chan);
 	}
 
 	return 0;
@@ -1233,7 +1232,6 @@ static int das1800_init_dma(struct comedi_device *dev,
 	struct das1800_private *devpriv = dev->private;
 	struct das1800_dma_desc *dma;
 	unsigned int *dma_chan;
-	unsigned long flags;
 	int i;
 
 	/*
@@ -1292,9 +1290,7 @@ static int das1800_init_dma(struct comedi_device *dev,
 		if (!dma->virt_addr)
 			return -ENOMEM;
 
-		flags = claim_dma_lock();
-		disable_dma(dma->chan);
-		release_dma_lock(flags);
+		das1800_isadma_disable(dma->chan);
 	}
 
 	return 0;
