@@ -814,7 +814,7 @@ static long camsys_ioctl(struct file *filp,unsigned int cmd, unsigned long arg)
             #ifdef CONFIG_ROCKCHIP_IOMMU
 				struct device_node * vpu_node =NULL;
 				int vpu_iommu_enabled = 0;
-                vpu_node = of_find_compatible_node(NULL,NULL, "vpu_service");
+                vpu_node = of_find_compatible_node(NULL,NULL, "rockchip,vpu_sub");
 				if(vpu_node){
 					of_property_read_u32(vpu_node, "iommu_enabled", &vpu_iommu_enabled);
 					of_property_read_u32(camsys_dev->pdev->dev.of_node, "rockchip,isp,iommu_enable", &iommu_enabled);

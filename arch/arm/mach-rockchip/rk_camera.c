@@ -349,11 +349,13 @@ static int rk_dts_cif_probe(struct platform_device *pdev) /*yzm*/
 	err = of_property_read_string(dev->of_node->parent,"compatible",&compatible);	
 	rk_camera_platform_data.rockchip_name = compatible;
 
-    vpu_node = of_find_compatible_node(NULL,NULL, "vpu_service");
+    vpu_node = of_find_compatible_node(NULL,NULL, "rockchip,vpu_sub");
     if(vpu_node){
         err = of_property_read_u32(vpu_node, "iommu_enabled", &vpu_iommu_enabled);
 		rk_camera_platform_data.iommu_enabled = vpu_iommu_enabled;
-    }
+    }else{
+		printk("get vpu_node failed,vpu_iommu_enabled == 0 !!!!!!\n");
+}
 
 	if (err < 0){
 		printk(KERN_EMERG "Get rockchip compatible failed!!!!!!");

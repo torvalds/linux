@@ -285,8 +285,10 @@ static u32 CHIP_NAME;
 *v0.1.a:
 		 1. Support rk3288 cif driver
 		 2. Query and upload iommu info
+*v0.1.b:
+		 1. Vpu_service compatible has change ,fix it.
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0xa)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0xb)
 static int version = RK_CAM_VERSION_CODE;
 module_param(version, int, S_IRUGO);
 
