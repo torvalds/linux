@@ -172,12 +172,24 @@ static void a2150_isadma_program(struct a2150_dma_desc *dma)
 	release_dma_lock(flags);
 }
 
+static unsigned int a2150_isadma_disable(struct a2150_dma_desc *dma)
+{
+	unsigned long flags;
+	unsigned int residue;
+
+	flags = claim_dma_lock();
+	disable_dma(dma->chan);
+	residue = get_dma_residue(dma->chan);
+	release_dma_lock(flags);
+
+	return residue;
+}
+
 /* interrupt service routine */
 static irqreturn_t a2150_interrupt(int irq, void *d)
 {
 	int i;
 	int status;
-	unsigned long flags;
 	struct comedi_device *dev = d;
 	struct a2150_private *devpriv = dev->private;
 	struct a2150_dma_desc *dma = &devpriv->dma_desc;
@@ -217,21 +229,16 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 		return IRQ_HANDLED;
 	}
 
-	flags = claim_dma_lock();
-	disable_dma(dma->chan);
-	/* clear flip-flop to make sure 2-byte registers for
-	 * count and address get set correctly */
-	clear_dma_ff(dma->chan);
-
-	/*  figure out how many points to read */
-	max_points = comedi_bytes_to_samples(s, dma->size);
-	/* residue is the number of points left to be done on the dma
+	/*
+	 * residue is the number of bytes left to be done on the dma
 	 * transfer.  It should always be zero at this point unless
 	 * the stop_src is set to external triggering.
 	 */
-	residue = comedi_bytes_to_samples(s, get_dma_residue(dma->chan));
-	release_dma_lock(flags);
-	num_points = max_points - residue;
+	residue = a2150_isadma_disable(dma);
+
+	/*  figure out how many points to read */
+	max_points = comedi_bytes_to_samples(s, dma->size);
+	num_points = max_points - comedi_bytes_to_samples(s, residue);
 	if (devpriv->count < num_points && cmd->stop_src == TRIG_COUNT)
 		num_points = devpriv->count;
 
@@ -288,7 +295,7 @@ static int a2150_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	outw(devpriv->irq_dma_bits, dev->iobase + IRQ_DMA_CNTRL_REG);
 
 	/*  disable computer's dma */
-	disable_dma(dma->chan);
+	a2150_isadma_disable(dma);
 
 	/*  clear fifo and reset triggering circuitry */
 	outw(0, dev->iobase + FIFO_RESET_REG);
@@ -524,7 +531,6 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned long timer_base = dev->iobase + I8253_BASE_REG;
-	unsigned long lock_flags;
 	unsigned int old_config_bits = devpriv->config_bits;
 	unsigned int trigger_bits;
 
@@ -560,9 +566,7 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/*  initialize number of samples remaining */
 	devpriv->count = cmd->stop_arg * cmd->chanlist_len;
 
-	lock_flags = claim_dma_lock();
-	disable_dma(dma->chan);
-	release_dma_lock(lock_flags);
+	a2150_isadma_disable(dma);
 
 	/*  set size of transfer to fill in 1/3 second */
 #define ONE_THIRD_SECOND 333333333
@@ -730,7 +734,7 @@ static void a2150_alloc_irq_dma(struct comedi_device *dev,
 	dma->chan = dma_chan;
 	devpriv->irq_dma_bits = IRQ_LVL_BITS(irq_num) | DMA_CHAN_BITS(dma_chan);
 
-	disable_dma(dma_chan);
+	a2150_isadma_disable(dma);
 }
 
 static void a2150_free_dma(struct comedi_device *dev)
