@@ -1,0 +1,2 @@
+nvkm-y += nvkm/engine/ppp/nv98.o
+nvkm-y += nvkm/engine/ppp/nvc0.o

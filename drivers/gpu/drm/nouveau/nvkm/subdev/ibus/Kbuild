@@ -1,0 +1,3 @@
+nvkm-y += nvkm/subdev/ibus/nvc0.o
+nvkm-y += nvkm/subdev/ibus/nve0.o
+nvkm-y += nvkm/subdev/ibus/gk20a.o

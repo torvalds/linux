@@ -1,0 +1,11 @@
+nvkm-y += nvkm/engine/fifo/base.o
+nvkm-y += nvkm/engine/fifo/nv04.o
+nvkm-y += nvkm/engine/fifo/nv10.o
+nvkm-y += nvkm/engine/fifo/nv17.o
+nvkm-y += nvkm/engine/fifo/nv40.o
+nvkm-y += nvkm/engine/fifo/nv50.o
+nvkm-y += nvkm/engine/fifo/nv84.o
+nvkm-y += nvkm/engine/fifo/nvc0.o
+nvkm-y += nvkm/engine/fifo/nve0.o
+nvkm-y += nvkm/engine/fifo/gk20a.o
+nvkm-y += nvkm/engine/fifo/nv108.o

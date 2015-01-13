@@ -1,0 +1,16 @@
+nvkm-y += nvkm/engine/falcon.o
+nvkm-y += nvkm/engine/xtensa.o
+
+include $(src)/nvkm/engine/bsp/Kbuild
+include $(src)/nvkm/engine/copy/Kbuild
+include $(src)/nvkm/engine/crypt/Kbuild
+include $(src)/nvkm/engine/device/Kbuild
+include $(src)/nvkm/engine/disp/Kbuild
+include $(src)/nvkm/engine/dmaobj/Kbuild
+include $(src)/nvkm/engine/fifo/Kbuild
+include $(src)/nvkm/engine/graph/Kbuild
+include $(src)/nvkm/engine/mpeg/Kbuild
+include $(src)/nvkm/engine/perfmon/Kbuild
+include $(src)/nvkm/engine/ppp/Kbuild
+include $(src)/nvkm/engine/software/Kbuild
+include $(src)/nvkm/engine/vp/Kbuild

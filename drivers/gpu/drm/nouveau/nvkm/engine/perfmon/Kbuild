@@ -1,0 +1,9 @@
+nvkm-y += nvkm/engine/perfmon/base.o
+nvkm-y += nvkm/engine/perfmon/daemon.o
+nvkm-y += nvkm/engine/perfmon/nv40.o
+nvkm-y += nvkm/engine/perfmon/nv50.o
+nvkm-y += nvkm/engine/perfmon/nv84.o
+nvkm-y += nvkm/engine/perfmon/nva3.o
+nvkm-y += nvkm/engine/perfmon/nvc0.o
+nvkm-y += nvkm/engine/perfmon/nve0.o
+nvkm-y += nvkm/engine/perfmon/nvf0.o

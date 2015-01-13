@@ -1,0 +1,11 @@
+nvkm-y += nvkm/subdev/mc/base.o
+nvkm-y += nvkm/subdev/mc/nv04.o
+nvkm-y += nvkm/subdev/mc/nv40.o
+nvkm-y += nvkm/subdev/mc/nv44.o
+nvkm-y += nvkm/subdev/mc/nv4c.o
+nvkm-y += nvkm/subdev/mc/nv50.o
+nvkm-y += nvkm/subdev/mc/nv94.o
+nvkm-y += nvkm/subdev/mc/nv98.o
+nvkm-y += nvkm/subdev/mc/nvc0.o
+nvkm-y += nvkm/subdev/mc/nvc3.o
+nvkm-y += nvkm/subdev/mc/gk20a.o
