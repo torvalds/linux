@@ -424,6 +424,7 @@ struct das1800_dma_desc {
 	unsigned int chan;	/* DMA channel */
 	void *virt_addr;	/* virtual address of DMA buffer */
 	dma_addr_t hw_addr;	/* hardware (bus) address of DMA buffer */
+	unsigned int size;	/* transfer size (in bytes) */
 };
 
 struct das1800_private {
@@ -436,7 +437,6 @@ struct das1800_private {
 	struct das1800_dma_desc dma_desc[2];
 	int cur_dma;
 	uint16_t *fifo_buf;	/* bounce buffer for analog input FIFO */
-	unsigned int dma_transfer_size;	/* size of transfer currently used, in bytes */
 	unsigned long iobase2;	/* secondary io address used for analog out on 'ao' boards */
 	unsigned short ao_update_bits;	/* remembers the last write to the
 					 * 'update' dac */
@@ -517,7 +517,6 @@ static void das1800_flush_dma_channel(struct comedi_device *dev,
 				      struct comedi_subdevice *s,
 				      struct das1800_dma_desc *dma)
 {
-	struct das1800_private *devpriv = dev->private;
 	unsigned int nbytes;
 	unsigned int nsamples;
 
@@ -528,7 +527,7 @@ static void das1800_flush_dma_channel(struct comedi_device *dev,
 	clear_dma_ff(dma->chan);
 
 	/*  figure out how many points to read */
-	nbytes = devpriv->dma_transfer_size - get_dma_residue(dma->chan);
+	nbytes = dma->size - get_dma_residue(dma->chan);
 	nsamples = comedi_bytes_to_samples(s, nbytes);
 	nsamples = comedi_nsamples_left(s, nsamples);
 
@@ -574,7 +573,7 @@ static void das1800_handle_dma(struct comedi_device *dev,
 	das1800_flush_dma_channel(dev, s, dma);
 	/*  re-enable  dma channel */
 	set_dma_addr(dma->chan, dma->hw_addr);
-	set_dma_count(dma->chan, devpriv->dma_transfer_size);
+	set_dma_count(dma->chan, dma->size);
 	enable_dma(dma->chan);
 	release_dma_lock(flags);
 
@@ -1001,6 +1000,7 @@ static void setup_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
 	struct das1800_dma_desc *dma = &devpriv->dma_desc[0];
 	unsigned long lock_flags;
 	const int dual_dma = devpriv->irq_dma_bits & DMA_DUAL;
+	unsigned int bytes;
 
 	if ((devpriv->irq_dma_bits & DMA_ENABLED) == 0)
 		return;
@@ -1008,7 +1008,9 @@ static void setup_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
 	devpriv->cur_dma = 0;
 
 	/* determine a reasonable dma transfer size */
-	devpriv->dma_transfer_size = suggest_transfer_size(cmd);
+	bytes = suggest_transfer_size(cmd);
+
+	dma->size = bytes;
 	lock_flags = claim_dma_lock();
 	disable_dma(dma->chan);
 	/* clear flip-flop to make sure 2-byte registers for
@@ -1016,18 +1018,19 @@ static void setup_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
 	clear_dma_ff(dma->chan);
 	set_dma_addr(dma->chan, dma->hw_addr);
 	/*  set appropriate size of transfer */
-	set_dma_count(dma->chan, devpriv->dma_transfer_size);
+	set_dma_count(dma->chan, dma->size);
 	enable_dma(dma->chan);
 	/*  set up dual dma if appropriate */
 	if (dual_dma) {
 		dma = &devpriv->dma_desc[1];
+		dma->size = bytes;
 		disable_dma(dma->chan);
 		/* clear flip-flop to make sure 2-byte registers for
 		 * count and address get set correctly */
 		clear_dma_ff(dma->chan);
 		set_dma_addr(dma->chan, dma->hw_addr);
 		/*  set appropriate size of transfer */
-		set_dma_count(dma->chan, devpriv->dma_transfer_size);
+		set_dma_count(dma->chan, dma->size);
 		enable_dma(dma->chan);
 	}
 	release_dma_lock(lock_flags);
