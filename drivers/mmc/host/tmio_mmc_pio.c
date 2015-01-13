@@ -1054,12 +1054,37 @@ static void tmio_mmc_of_parse(struct platform_device *pdev,
 		pdata->flags |= TMIO_MMC_WRPROTECT_DISABLE;
 }
 
-int tmio_mmc_host_probe(struct tmio_mmc_host **host,
-				  struct platform_device *pdev,
-				  struct tmio_mmc_data *pdata)
+struct tmio_mmc_host*
+tmio_mmc_host_alloc(struct platform_device *pdev)
 {
-	struct tmio_mmc_host *_host;
+	struct tmio_mmc_host *host;
 	struct mmc_host *mmc;
+
+	mmc = mmc_alloc_host(sizeof(struct tmio_mmc_host), &pdev->dev);
+	if (!mmc)
+		return NULL;
+
+	host = mmc_priv(mmc);
+	host->mmc = mmc;
+	host->pdev = pdev;
+
+	return host;
+}
+EXPORT_SYMBOL(tmio_mmc_host_alloc);
+
+void tmio_mmc_host_free(struct tmio_mmc_host *host)
+{
+	mmc_free_host(host->mmc);
+
+	host->mmc = NULL;
+}
+EXPORT_SYMBOL(tmio_mmc_host_free);
+
+int tmio_mmc_host_probe(struct tmio_mmc_host *_host,
+			struct tmio_mmc_data *pdata)
+{
+	struct platform_device *pdev = _host->pdev;
+	struct mmc_host *mmc = _host->mmc;
 	struct resource *res_ctl;
 	int ret;
 	u32 irq_mask = TMIO_MASK_CMD;
@@ -1073,19 +1098,11 @@ int tmio_mmc_host_probe(struct tmio_mmc_host **host,
 	if (!res_ctl)
 		return -EINVAL;
 
-	mmc = mmc_alloc_host(sizeof(struct tmio_mmc_host), &pdev->dev);
-	if (!mmc)
-		return -ENOMEM;
-
 	ret = mmc_of_parse(mmc);
 	if (ret < 0)
 		goto host_free;
 
-	pdata->dev = &pdev->dev;
-	_host = mmc_priv(mmc);
 	_host->pdata = pdata;
-	_host->mmc = mmc;
-	_host->pdev = pdev;
 	platform_set_drvdata(pdev, mmc);
 
 	_host->set_pwr = pdata->set_pwr;
@@ -1192,12 +1209,9 @@ int tmio_mmc_host_probe(struct tmio_mmc_host **host,
 		mmc_gpiod_request_cd_irq(mmc);
 	}
 
-	*host = _host;
-
 	return 0;
 
 host_free:
-	mmc_free_host(mmc);
 
 	return ret;
 }
@@ -1222,7 +1236,6 @@ void tmio_mmc_host_remove(struct tmio_mmc_host *host)
 	pm_runtime_disable(&pdev->dev);
 
 	iounmap(host->ctl);
-	mmc_free_host(mmc);
 }
 EXPORT_SYMBOL(tmio_mmc_host_remove);
 

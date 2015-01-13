@@ -85,8 +85,9 @@ struct tmio_mmc_host {
 	bool			sdio_irq_enabled;
 };
 
-int tmio_mmc_host_probe(struct tmio_mmc_host **host,
-			struct platform_device *pdev,
+struct tmio_mmc_host *tmio_mmc_host_alloc(struct platform_device *pdev);
+void tmio_mmc_host_free(struct tmio_mmc_host *host);
+int tmio_mmc_host_probe(struct tmio_mmc_host *host,
 			struct tmio_mmc_data *pdata);
 void tmio_mmc_host_remove(struct tmio_mmc_host *host);
 void tmio_mmc_do_data_irq(struct tmio_mmc_host *host);

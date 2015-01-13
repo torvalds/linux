@@ -113,7 +113,7 @@ static int sh_mobile_sdhi_wait_idle(struct tmio_mmc_host *host)
 		udelay(1);
 
 	if (!timeout) {
-		dev_warn(host->pdata->dev, "timeout waiting for SD bus idle\n");
+		dev_warn(&host->pdev->dev, "timeout waiting for SD bus idle\n");
 		return -EBUSY;
 	}
 
@@ -207,6 +207,12 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		goto eclkget;
 	}
 
+	host = tmio_mmc_host_alloc(pdev);
+	if (!host) {
+		ret = -ENOMEM;
+		goto eprobe;
+	}
+
 	mmc_data->clk_enable = sh_mobile_sdhi_clk_enable;
 	mmc_data->clk_disable = sh_mobile_sdhi_clk_disable;
 	mmc_data->capabilities = MMC_CAP_MMC_HIGHSPEED;
@@ -274,9 +280,9 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	/* SD control register space size is 0x100, 0x200 for bus_shift=1 */
 	mmc_data->bus_shift = resource_size(res) >> 9;
 
-	ret = tmio_mmc_host_probe(&host, pdev, mmc_data);
+	ret = tmio_mmc_host_probe(host, mmc_data);
 	if (ret < 0)
-		goto eprobe;
+		goto efree;
 
 	/*
 	 * FIXME:
@@ -351,6 +357,8 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 
 eirq:
 	tmio_mmc_host_remove(host);
+efree:
+	tmio_mmc_host_free(host);
 eprobe:
 eclkget:
 	if (p && p->cleanup)

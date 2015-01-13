@@ -135,7 +135,6 @@ struct tmio_mmc_data {
 	unsigned long			bus_shift;
 	u32				ocr_mask;	/* available voltages */
 	struct tmio_mmc_dma		*dma;
-	struct device			*dev;
 	unsigned int			cd_gpio;
 	void (*set_pwr)(struct platform_device *host, int state);
 	void (*set_clk_div)(struct platform_device *host, int state);

@@ -92,9 +92,13 @@ static int tmio_mmc_probe(struct platform_device *pdev)
 	pdata->bus_shift = resource_size(res) >> 10;
 	pdata->flags |= TMIO_MMC_HAVE_HIGH_REG;
 
-	ret = tmio_mmc_host_probe(&host, pdev, pdata);
-	if (ret)
+	host = tmio_mmc_host_alloc(pdev);
+	if (!host)
 		goto cell_disable;
+
+	ret = tmio_mmc_host_probe(host, pdata);
+	if (ret)
+		goto host_free;
 
 	ret = request_irq(irq, tmio_mmc_irq, IRQF_TRIGGER_FALLING,
 				dev_name(&pdev->dev), host);
@@ -108,6 +112,8 @@ static int tmio_mmc_probe(struct platform_device *pdev)
 
 host_remove:
 	tmio_mmc_host_remove(host);
+host_free:
+	tmio_mmc_host_free(host);
 cell_disable:
 	if (cell->disable)
 		cell->disable(pdev);
