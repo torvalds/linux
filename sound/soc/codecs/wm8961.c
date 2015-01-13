@@ -194,7 +194,7 @@ static bool wm8961_readable(struct device *dev, unsigned int reg)
 static int wm8961_hp_event(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	u16 hp_reg = snd_soc_read(codec, WM8961_ANALOGUE_HP_0);
 	u16 cp_reg = snd_soc_read(codec, WM8961_CHARGE_PUMP_1);
 	u16 pwr_reg = snd_soc_read(codec, WM8961_PWR_MGMT_2);
@@ -286,7 +286,7 @@ static int wm8961_hp_event(struct snd_soc_dapm_widget *w,
 static int wm8961_spk_event(struct snd_soc_dapm_widget *w,
 			    struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	u16 pwr_reg = snd_soc_read(codec, WM8961_PWR_MGMT_2);
 	u16 spk_reg = snd_soc_read(codec, WM8961_CLASS_D_CONTROL_1);
 
