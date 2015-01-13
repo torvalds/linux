@@ -528,6 +528,7 @@ config GPIO_MAX7300
 config GPIO_MAX732X
 	tristate "MAX7319, MAX7320-7327 I2C Port Expanders"
 	depends on I2C
+	select IRQ_DOMAIN
 	help
 	  Say yes here to support the MAX7319, MAX7320-7327 series of I2C
 	  Port Expanders. Each IO port on these chips has a fixed role of

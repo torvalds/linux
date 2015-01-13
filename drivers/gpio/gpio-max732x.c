@@ -19,6 +19,7 @@
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/i2c.h>
 #include <linux/i2c/max732x.h>
 #include <linux/of.h>
@@ -149,13 +150,14 @@ struct max732x_chip {
 	uint8_t		reg_out[2];
 
 #ifdef CONFIG_GPIO_MAX732X_IRQ
-	struct mutex	irq_lock;
-	int		irq_base;
-	uint8_t		irq_mask;
-	uint8_t		irq_mask_cur;
-	uint8_t		irq_trig_raise;
-	uint8_t		irq_trig_fall;
-	uint8_t		irq_features;
+	struct irq_domain	*irq_domain;
+	struct mutex		irq_lock;
+	int			irq_base;
+	uint8_t			irq_mask;
+	uint8_t			irq_mask_cur;
+	uint8_t			irq_trig_raise;
+	uint8_t			irq_trig_fall;
+	uint8_t			irq_features;
 #endif
 };
 
@@ -341,21 +343,27 @@ static int max732x_gpio_to_irq(struct gpio_chip *gc, unsigned off)
 	struct max732x_chip *chip;
 
 	chip = container_of(gc, struct max732x_chip, gpio_chip);
-	return chip->irq_base + off;
+
+	if (chip->irq_domain) {
+		return irq_create_mapping(chip->irq_domain,
+				chip->irq_base + off);
+	} else {
+		return -ENXIO;
+	}
 }
 
 static void max732x_irq_mask(struct irq_data *d)
 {
 	struct max732x_chip *chip = irq_data_get_irq_chip_data(d);
 
-	chip->irq_mask_cur &= ~(1 << (d->irq - chip->irq_base));
+	chip->irq_mask_cur &= ~(1 << d->hwirq);
 }
 
 static void max732x_irq_unmask(struct irq_data *d)
 {
 	struct max732x_chip *chip = irq_data_get_irq_chip_data(d);
 
-	chip->irq_mask_cur |= 1 << (d->irq - chip->irq_base);
+	chip->irq_mask_cur |= 1 << d->hwirq;
 }
 
 static void max732x_irq_bus_lock(struct irq_data *d)
@@ -377,7 +385,7 @@ static void max732x_irq_bus_sync_unlock(struct irq_data *d)
 static int max732x_irq_set_type(struct irq_data *d, unsigned int type)
 {
 	struct max732x_chip *chip = irq_data_get_irq_chip_data(d);
-	uint16_t off = d->irq - chip->irq_base;
+	uint16_t off = d->hwirq;
 	uint16_t mask = 1 << off;
 
 	if (!(mask & chip->dir_input)) {
@@ -458,12 +466,50 @@ static irqreturn_t max732x_irq_handler(int irq, void *devid)
 
 	do {
 		level = __ffs(pending);
-		handle_nested_irq(level + chip->irq_base);
+		handle_nested_irq(irq_find_mapping(chip->irq_domain, level));
 
 		pending &= ~(1 << level);
 	} while (pending);
 
 	return IRQ_HANDLED;
+}
+
+static int max732x_irq_map(struct irq_domain *h, unsigned int virq,
+		irq_hw_number_t hw)
+{
+	struct max732x_chip *chip = h->host_data;
+
+	if (!(chip->dir_input & (1 << hw))) {
+		dev_err(&chip->client->dev,
+				"Attempt to map output line as IRQ line: %lu\n",
+				hw);
+		return -EPERM;
+	}
+
+	irq_set_chip_data(virq, chip);
+	irq_set_chip_and_handler(virq, &max732x_irq_chip,
+			handle_edge_irq);
+	irq_set_nested_thread(virq, 1);
+#ifdef CONFIG_ARM
+	/* ARM needs us to explicitly flag the IRQ as valid
+	 * and will set them noprobe when we do so. */
+	set_irq_flags(virq, IRQF_VALID);
+#else
+	irq_set_noprobe(virq);
+#endif
+
+	return 0;
+}
+
+static struct irq_domain_ops max732x_irq_domain_ops = {
+	.map	= max732x_irq_map,
+	.xlate	= irq_domain_xlate_twocell,
+};
+
+static void max732x_irq_teardown(struct max732x_chip *chip)
+{
+	if (chip->client->irq && chip->irq_domain)
+		irq_domain_remove(chip->irq_domain);
 }
 
 static int max732x_irq_setup(struct max732x_chip *chip,
@@ -476,28 +522,17 @@ static int max732x_irq_setup(struct max732x_chip *chip,
 
 	if (((pdata && pdata->irq_base) || client->irq)
 			&& has_irq != INT_NONE) {
-		int lvl;
-
 		if (pdata)
 			chip->irq_base = pdata->irq_base;
 		chip->irq_features = has_irq;
 		mutex_init(&chip->irq_lock);
 
-		for (lvl = 0; lvl < chip->gpio_chip.ngpio; lvl++) {
-			int irq = lvl + chip->irq_base;
-
-			if (!(chip->dir_input & (1 << lvl)))
-				continue;
-
-			irq_set_chip_data(irq, chip);
-			irq_set_chip_and_handler(irq, &max732x_irq_chip,
-						 handle_edge_irq);
-			irq_set_nested_thread(irq, 1);
-#ifdef CONFIG_ARM
-			set_irq_flags(irq, IRQF_VALID);
-#else
-			irq_set_noprobe(irq);
-#endif
+		chip->irq_domain = irq_domain_add_simple(client->dev.of_node,
+				chip->gpio_chip.ngpio, chip->irq_base,
+				&max732x_irq_domain_ops, chip);
+		if (!chip->irq_domain) {
+			dev_err(&client->dev, "Failed to create IRQ domain\n");
+			return -ENOMEM;
 		}
 
 		ret = request_threaded_irq(client->irq,
@@ -517,15 +552,10 @@ static int max732x_irq_setup(struct max732x_chip *chip,
 	return 0;
 
 out_failed:
-	chip->irq_base = 0;
+	max732x_irq_teardown(chip);
 	return ret;
 }
 
-static void max732x_irq_teardown(struct max732x_chip *chip)
-{
-	if (chip->irq_base)
-		free_irq(chip->client->irq, chip);
-}
 #else /* CONFIG_GPIO_MAX732X_IRQ */
 static int max732x_irq_setup(struct max732x_chip *chip,
 			     const struct i2c_device_id *id)
