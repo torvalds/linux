@@ -45,7 +45,6 @@ struct tmio_mmc_dma {
 	void *chan_priv_rx;
 	int slave_id_tx;
 	int slave_id_rx;
-	dma_addr_t dma_rx_offset;
 	bool (*filter)(struct dma_chan *chan, void *arg);
 };
 

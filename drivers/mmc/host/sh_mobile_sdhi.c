@@ -276,7 +276,7 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		mmc_data->flags |= of_data->tmio_flags;
 		mmc_data->capabilities |= of_data->capabilities;
 		mmc_data->capabilities2 |= of_data->capabilities2;
-		dma_priv->dma_rx_offset = of_data->dma_rx_offset;
+		mmc_data->dma_rx_offset = of_data->dma_rx_offset;
 	}
 
 	ret = tmio_mmc_host_probe(host, mmc_data);
