@@ -329,6 +329,7 @@ static void ps3_mm_region_destroy(struct mem_region *r)
 		r->size = r->base = r->offset = 0;
 		map.total = map.rm.size;
 	}
+	ps3_mm_set_repository_highmem(NULL);
 }
 
 /*============================================================================*/
@@ -1218,8 +1219,12 @@ void __init ps3_mm_init(void)
 
 	/* Check if we got the highmem region from an earlier boot step */
 
-	if (ps3_mm_get_repository_highmem(&map.r1))
-		ps3_mm_region_create(&map.r1, map.total - map.rm.size);
+	if (ps3_mm_get_repository_highmem(&map.r1)) {
+		result = ps3_mm_region_create(&map.r1, map.total - map.rm.size);
+
+		if (!result)
+			ps3_mm_set_repository_highmem(&map.r1);
+	}
 
 	/* correct map.total for the real total amount of memory we use */
 	map.total = map.rm.size + map.r1.size;
