@@ -106,7 +106,12 @@ static struct hdmi *hdmi_init(struct platform_device *pdev)
 		goto fail;
 	}
 
-	BUG_ON(config->hpd_reg_cnt > ARRAY_SIZE(hdmi->hpd_regs));
+	hdmi->hpd_regs = devm_kzalloc(&pdev->dev, sizeof(hdmi->hpd_regs[0]) *
+			config->hpd_reg_cnt, GFP_KERNEL);
+	if (!hdmi->hpd_regs) {
+		ret = -ENOMEM;
+		goto fail;
+	}
 	for (i = 0; i < config->hpd_reg_cnt; i++) {
 		struct regulator *reg;
 
@@ -122,7 +127,12 @@ static struct hdmi *hdmi_init(struct platform_device *pdev)
 		hdmi->hpd_regs[i] = reg;
 	}
 
-	BUG_ON(config->pwr_reg_cnt > ARRAY_SIZE(hdmi->pwr_regs));
+	hdmi->pwr_regs = devm_kzalloc(&pdev->dev, sizeof(hdmi->pwr_regs[0]) *
+			config->pwr_reg_cnt, GFP_KERNEL);
+	if (!hdmi->pwr_regs) {
+		ret = -ENOMEM;
+		goto fail;
+	}
 	for (i = 0; i < config->pwr_reg_cnt; i++) {
 		struct regulator *reg;
 
@@ -138,7 +148,12 @@ static struct hdmi *hdmi_init(struct platform_device *pdev)
 		hdmi->pwr_regs[i] = reg;
 	}
 
-	BUG_ON(config->hpd_clk_cnt > ARRAY_SIZE(hdmi->hpd_clks));
+	hdmi->hpd_clks = devm_kzalloc(&pdev->dev, sizeof(hdmi->hpd_clks[0]) *
+			config->hpd_clk_cnt, GFP_KERNEL);
+	if (!hdmi->hpd_clks) {
+		ret = -ENOMEM;
+		goto fail;
+	}
 	for (i = 0; i < config->hpd_clk_cnt; i++) {
 		struct clk *clk;
 
@@ -153,7 +168,12 @@ static struct hdmi *hdmi_init(struct platform_device *pdev)
 		hdmi->hpd_clks[i] = clk;
 	}
 
-	BUG_ON(config->pwr_clk_cnt > ARRAY_SIZE(hdmi->pwr_clks));
+	hdmi->pwr_clks = devm_kzalloc(&pdev->dev, sizeof(hdmi->pwr_clks[0]) *
+			config->pwr_clk_cnt, GFP_KERNEL);
+	if (!hdmi->pwr_clks) {
+		ret = -ENOMEM;
+		goto fail;
+	}
 	for (i = 0; i < config->pwr_clk_cnt; i++) {
 		struct clk *clk;
 

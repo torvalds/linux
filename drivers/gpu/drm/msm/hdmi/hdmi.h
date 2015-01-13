@@ -52,10 +52,10 @@ struct hdmi {
 
 	void __iomem *mmio;
 
-	struct regulator *hpd_regs[2];
-	struct regulator *pwr_regs[2];
-	struct clk *hpd_clks[3];
-	struct clk *pwr_clks[2];
+	struct regulator **hpd_regs;
+	struct regulator **pwr_regs;
+	struct clk **hpd_clks;
+	struct clk **pwr_clks;
 
 	struct hdmi_phy *phy;
 	struct i2c_adapter *i2c;
