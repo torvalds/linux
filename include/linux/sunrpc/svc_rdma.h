@@ -150,6 +150,10 @@ struct svcxprt_rdma {
 	struct ib_cq         *sc_rq_cq;
 	struct ib_cq         *sc_sq_cq;
 	struct ib_mr         *sc_phys_mr;	/* MR for server memory */
+	int		     (*sc_reader)(struct svcxprt_rdma *,
+					  struct svc_rqst *,
+					  struct svc_rdma_op_ctxt *,
+					  int *, u32 *, u32, u32, u64, bool);
 	u32		     sc_dev_caps;	/* distilled device caps */
 	u32		     sc_dma_lkey;	/* local dma key */
 	unsigned int	     sc_frmr_pg_list_len;
@@ -195,6 +199,12 @@ extern int svc_rdma_xdr_get_reply_hdr_len(struct rpcrdma_msg *);
 
 /* svc_rdma_recvfrom.c */
 extern int svc_rdma_recvfrom(struct svc_rqst *);
+extern int rdma_read_chunk_lcl(struct svcxprt_rdma *, struct svc_rqst *,
+			       struct svc_rdma_op_ctxt *, int *, u32 *,
+			       u32, u32, u64, bool);
+extern int rdma_read_chunk_frmr(struct svcxprt_rdma *, struct svc_rqst *,
+				struct svc_rdma_op_ctxt *, int *, u32 *,
+				u32, u32, u64, bool);
 
 /* svc_rdma_sendto.c */
 extern int svc_rdma_sendto(struct svc_rqst *);

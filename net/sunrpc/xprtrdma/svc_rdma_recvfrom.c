@@ -117,26 +117,16 @@ static int rdma_read_max_sge(struct svcxprt_rdma *xprt, int sge_count)
 		return min_t(int, sge_count, xprt->sc_max_sge);
 }
 
-typedef int (*rdma_reader_fn)(struct svcxprt_rdma *xprt,
-			      struct svc_rqst *rqstp,
-			      struct svc_rdma_op_ctxt *head,
-			      int *page_no,
-			      u32 *page_offset,
-			      u32 rs_handle,
-			      u32 rs_length,
-			      u64 rs_offset,
-			      int last);
-
 /* Issue an RDMA_READ using the local lkey to map the data sink */
-static int rdma_read_chunk_lcl(struct svcxprt_rdma *xprt,
-			       struct svc_rqst *rqstp,
-			       struct svc_rdma_op_ctxt *head,
-			       int *page_no,
-			       u32 *page_offset,
-			       u32 rs_handle,
-			       u32 rs_length,
-			       u64 rs_offset,
-			       int last)
+int rdma_read_chunk_lcl(struct svcxprt_rdma *xprt,
+			struct svc_rqst *rqstp,
+			struct svc_rdma_op_ctxt *head,
+			int *page_no,
+			u32 *page_offset,
+			u32 rs_handle,
+			u32 rs_length,
+			u64 rs_offset,
+			bool last)
 {
 	struct ib_send_wr read_wr;
 	int pages_needed = PAGE_ALIGN(*page_offset + rs_length) >> PAGE_SHIFT;
@@ -221,15 +211,15 @@ static int rdma_read_chunk_lcl(struct svcxprt_rdma *xprt,
 }
 
 /* Issue an RDMA_READ using an FRMR to map the data sink */
-static int rdma_read_chunk_frmr(struct svcxprt_rdma *xprt,
-				struct svc_rqst *rqstp,
-				struct svc_rdma_op_ctxt *head,
-				int *page_no,
-				u32 *page_offset,
-				u32 rs_handle,
-				u32 rs_length,
-				u64 rs_offset,
-				int last)
+int rdma_read_chunk_frmr(struct svcxprt_rdma *xprt,
+			 struct svc_rqst *rqstp,
+			 struct svc_rdma_op_ctxt *head,
+			 int *page_no,
+			 u32 *page_offset,
+			 u32 rs_handle,
+			 u32 rs_length,
+			 u64 rs_offset,
+			 bool last)
 {
 	struct ib_send_wr read_wr;
 	struct ib_send_wr inv_wr;
@@ -374,9 +364,9 @@ static int rdma_read_chunks(struct svcxprt_rdma *xprt,
 {
 	int page_no, ret;
 	struct rpcrdma_read_chunk *ch;
-	u32 page_offset, byte_count;
+	u32 handle, page_offset, byte_count;
 	u64 rs_offset;
-	rdma_reader_fn reader;
+	bool last;
 
 	/* If no read list is present, return 0 */
 	ch = svc_rdma_get_read_chunk(rmsgp);
@@ -399,27 +389,20 @@ static int rdma_read_chunks(struct svcxprt_rdma *xprt,
 	head->arg.len = rqstp->rq_arg.len;
 	head->arg.buflen = rqstp->rq_arg.buflen;
 
-	/* Use FRMR if supported */
-	if (xprt->sc_dev_caps & SVCRDMA_DEVCAP_FAST_REG)
-		reader = rdma_read_chunk_frmr;
-	else
-		reader = rdma_read_chunk_lcl;
-
 	page_no = 0; page_offset = 0;
 	for (ch = (struct rpcrdma_read_chunk *)&rmsgp->rm_body.rm_chunks[0];
 	     ch->rc_discrim != 0; ch++) {
-
+		handle = be32_to_cpu(ch->rc_target.rs_handle);
+		byte_count = be32_to_cpu(ch->rc_target.rs_length);
 		xdr_decode_hyper((__be32 *)&ch->rc_target.rs_offset,
 				 &rs_offset);
-		byte_count = ntohl(ch->rc_target.rs_length);
 
 		while (byte_count > 0) {
-			ret = reader(xprt, rqstp, head,
-				     &page_no, &page_offset,
-				     ntohl(ch->rc_target.rs_handle),
-				     byte_count, rs_offset,
-				     ((ch+1)->rc_discrim == 0) /* last */
-				     );
+			last = (ch + 1)->rc_discrim == xdr_zero;
+			ret = xprt->sc_reader(xprt, rqstp, head,
+					      &page_no, &page_offset,
+					      handle, byte_count,
+					      rs_offset, last);
 			if (ret < 0)
 				goto err;
 			byte_count -= ret;

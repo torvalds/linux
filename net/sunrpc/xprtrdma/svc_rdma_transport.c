@@ -974,10 +974,12 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	 * NB:	iWARP requires remote write access for the data sink
 	 *	of an RDMA_READ. IB does not.
 	 */
+	newxprt->sc_reader = rdma_read_chunk_lcl;
 	if (devattr.device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS) {
 		newxprt->sc_frmr_pg_list_len =
 			devattr.max_fast_reg_page_list_len;
 		newxprt->sc_dev_caps |= SVCRDMA_DEVCAP_FAST_REG;
+		newxprt->sc_reader = rdma_read_chunk_frmr;
 	}
 
 	/*
