@@ -830,6 +830,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	intel_runtime_pm_enable(dev_priv);
 
+	i915_audio_component_init(dev_priv);
+
 	return 0;
 
 out_power_well:
@@ -869,6 +871,8 @@ int i915_driver_unload(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
+
+	i915_audio_component_cleanup(dev_priv);
 
 	ret = i915_gem_suspend(dev);
 	if (ret) {
