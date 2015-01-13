@@ -70,26 +70,26 @@ nv04_vm_flush(struct nouveau_vm *vm)
  ******************************************************************************/
 
 int
-nv04_vm_create(struct nouveau_vmmgr *vmm, u64 offset, u64 length, u64 mmstart,
+nv04_vm_create(struct nouveau_mmu *mmu, u64 offset, u64 length, u64 mmstart,
 	       struct nouveau_vm **pvm)
 {
 	return -EINVAL;
 }
 
 /*******************************************************************************
- * VMMGR subdev
+ * MMU subdev
  ******************************************************************************/
 
 static int
-nv04_vmmgr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+nv04_mmu_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		struct nouveau_oclass *oclass, void *data, u32 size,
 		struct nouveau_object **pobject)
 {
-	struct nv04_vmmgr_priv *priv;
+	struct nv04_mmu_priv *priv;
 	struct nouveau_gpuobj *dma;
 	int ret;
 
-	ret = nouveau_vmmgr_create(parent, engine, oclass, "PCIGART",
+	ret = nouveau_mmu_create(parent, engine, oclass, "PCIGART",
 				   "pcigart", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
@@ -125,9 +125,9 @@ nv04_vmmgr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 }
 
 void
-nv04_vmmgr_dtor(struct nouveau_object *object)
+nv04_mmu_dtor(struct nouveau_object *object)
 {
-	struct nv04_vmmgr_priv *priv = (void *)object;
+	struct nv04_mmu_priv *priv = (void *)object;
 	if (priv->vm) {
 		nouveau_gpuobj_ref(NULL, &priv->vm->pgt[0].obj[0]);
 		nouveau_vm_ref(NULL, &priv->vm, NULL);
@@ -136,16 +136,16 @@ nv04_vmmgr_dtor(struct nouveau_object *object)
 		pci_free_consistent(nv_device(priv)->pdev, 16 * 1024,
 				    priv->nullp, priv->null);
 	}
-	nouveau_vmmgr_destroy(&priv->base);
+	nouveau_mmu_destroy(&priv->base);
 }
 
 struct nouveau_oclass
-nv04_vmmgr_oclass = {
-	.handle = NV_SUBDEV(VM, 0x04),
+nv04_mmu_oclass = {
+	.handle = NV_SUBDEV(MMU, 0x04),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv04_vmmgr_ctor,
-		.dtor = nv04_vmmgr_dtor,
-		.init = _nouveau_vmmgr_init,
-		.fini = _nouveau_vmmgr_fini,
+		.ctor = nv04_mmu_ctor,
+		.dtor = nv04_mmu_dtor,
+		.init = _nouveau_mmu_init,
+		.fini = _nouveau_mmu_fini,
 	},
 };

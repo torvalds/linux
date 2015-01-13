@@ -28,10 +28,10 @@
 #include <subdev/timer.h>
 #include <subdev/fb.h>
 #include <subdev/bar.h>
-#include <subdev/vm.h>
+#include <subdev/mmu.h>
 
-struct nv50_vmmgr_priv {
-	struct nouveau_vmmgr base;
+struct nv50_mmu_priv {
+	struct nouveau_mmu base;
 };
 
 static void
@@ -86,8 +86,8 @@ nv50_vm_map(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 
 	/* IGPs don't have real VRAM, re-target to stolen system memory */
 	target = 0;
-	if (nouveau_fb(vma->vm->vmm)->ram->stolen) {
-		phys += nouveau_fb(vma->vm->vmm)->ram->stolen;
+	if (nouveau_fb(vma->vm->mmu)->ram->stolen) {
+		phys += nouveau_fb(vma->vm->mmu)->ram->stolen;
 		target = 3;
 	}
 
@@ -151,7 +151,7 @@ nv50_vm_unmap(struct nouveau_gpuobj *pgt, u32 pte, u32 cnt)
 static void
 nv50_vm_flush(struct nouveau_vm *vm)
 {
-	struct nv50_vmmgr_priv *priv = (void *)vm->vmm;
+	struct nv50_mmu_priv *priv = (void *)vm->mmu;
 	struct nouveau_bar *bar = nouveau_bar(priv);
 	struct nouveau_engine *engine;
 	int i, vme;
@@ -191,25 +191,25 @@ nv50_vm_flush(struct nouveau_vm *vm)
 }
 
 static int
-nv50_vm_create(struct nouveau_vmmgr *vmm, u64 offset, u64 length,
+nv50_vm_create(struct nouveau_mmu *mmu, u64 offset, u64 length,
 	       u64 mm_offset, struct nouveau_vm **pvm)
 {
-	u32 block = (1 << (vmm->pgt_bits + 12));
+	u32 block = (1 << (mmu->pgt_bits + 12));
 	if (block > length)
 		block = length;
 
-	return nouveau_vm_create(vmm, offset, length, mm_offset, block, pvm);
+	return nouveau_vm_create(mmu, offset, length, mm_offset, block, pvm);
 }
 
 static int
-nv50_vmmgr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+nv50_mmu_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		struct nouveau_oclass *oclass, void *data, u32 size,
 		struct nouveau_object **pobject)
 {
-	struct nv50_vmmgr_priv *priv;
+	struct nv50_mmu_priv *priv;
 	int ret;
 
-	ret = nouveau_vmmgr_create(parent, engine, oclass, "VM", "vm", &priv);
+	ret = nouveau_mmu_create(parent, engine, oclass, "VM", "vm", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -229,12 +229,12 @@ nv50_vmmgr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 }
 
 struct nouveau_oclass
-nv50_vmmgr_oclass = {
-	.handle = NV_SUBDEV(VM, 0x50),
+nv50_mmu_oclass = {
+	.handle = NV_SUBDEV(MMU, 0x50),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv50_vmmgr_ctor,
-		.dtor = _nouveau_vmmgr_dtor,
-		.init = _nouveau_vmmgr_init,
-		.fini = _nouveau_vmmgr_fini,
+		.ctor = nv50_mmu_ctor,
+		.dtor = _nouveau_mmu_dtor,
+		.init = _nouveau_mmu_init,
+		.fini = _nouveau_mmu_fini,
 	},
 };

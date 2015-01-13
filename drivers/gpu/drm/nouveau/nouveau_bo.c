@@ -193,7 +193,7 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 	int max_size;
 
 	if (drm->client.vm)
-		lpg_shift = drm->client.vm->vmm->lpg_shift;
+		lpg_shift = drm->client.vm->mmu->lpg_shift;
 	max_size = INT_MAX & ~((1 << lpg_shift) - 1);
 
 	if (size <= 0 || size > max_size) {
@@ -220,7 +220,7 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 	nvbo->page_shift = 12;
 	if (drm->client.vm) {
 		if (!(flags & TTM_PL_FLAG_TT) && size > 256 * 1024)
-			nvbo->page_shift = drm->client.vm->vmm->lpg_shift;
+			nvbo->page_shift = drm->client.vm->mmu->lpg_shift;
 	}
 
 	nouveau_bo_fixup_align(nvbo, flags, &align, &size);
@@ -1240,7 +1240,7 @@ nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem)
 	list_for_each_entry(vma, &nvbo->vma_list, head) {
 		if (new_mem && new_mem->mem_type != TTM_PL_SYSTEM &&
 			      (new_mem->mem_type == TTM_PL_VRAM ||
-			       nvbo->page_shift != vma->vm->vmm->lpg_shift)) {
+			       nvbo->page_shift != vma->vm->mmu->lpg_shift)) {
 			nouveau_vm_map(vma, new_mem->mm_node);
 		} else {
 			nouveau_vm_unmap(vma);
@@ -1639,7 +1639,7 @@ nouveau_bo_vma_add(struct nouveau_bo *nvbo, struct nouveau_vm *vm,
 
 	if ( nvbo->bo.mem.mem_type != TTM_PL_SYSTEM &&
 	    (nvbo->bo.mem.mem_type == TTM_PL_VRAM ||
-	     nvbo->page_shift != vma->vm->vmm->lpg_shift))
+	     nvbo->page_shift != vma->vm->mmu->lpg_shift))
 		nouveau_vm_map(vma, nvbo->bo.mem.mm_node);
 
 	list_add_tail(&vma->head, &nvbo->vma_list);

@@ -28,7 +28,7 @@
 #include <core/client.h>
 #include <core/engctx.h>
 
-#include <subdev/vm.h>
+#include <subdev/mmu.h>
 
 static inline int
 nouveau_engctx_exists(struct nouveau_object *parent,

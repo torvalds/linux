@@ -26,7 +26,7 @@
 #include <core/option.h>
 
 #include <subdev/timer.h>
-#include <subdev/vm.h>
+#include <subdev/mmu.h>
 
 #include "nv04.h"
 
@@ -67,7 +67,7 @@ nv41_vm_unmap(struct nouveau_gpuobj *pgt, u32 pte, u32 cnt)
 static void
 nv41_vm_flush(struct nouveau_vm *vm)
 {
-	struct nv04_vmmgr_priv *priv = (void *)vm->vmm;
+	struct nv04_mmu_priv *priv = (void *)vm->mmu;
 
 	mutex_lock(&nv_subdev(priv)->mutex);
 	nv_wr32(priv, 0x100810, 0x00000022);
@@ -80,25 +80,25 @@ nv41_vm_flush(struct nouveau_vm *vm)
 }
 
 /*******************************************************************************
- * VMMGR subdev
+ * MMU subdev
  ******************************************************************************/
 
 static int
-nv41_vmmgr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+nv41_mmu_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		struct nouveau_oclass *oclass, void *data, u32 size,
 		struct nouveau_object **pobject)
 {
 	struct nouveau_device *device = nv_device(parent);
-	struct nv04_vmmgr_priv *priv;
+	struct nv04_mmu_priv *priv;
 	int ret;
 
 	if (pci_find_capability(device->pdev, PCI_CAP_ID_AGP) ||
 	    !nouveau_boolopt(device->cfgopt, "NvPCIE", true)) {
-		return nouveau_object_ctor(parent, engine, &nv04_vmmgr_oclass,
+		return nouveau_object_ctor(parent, engine, &nv04_mmu_oclass,
 					   data, size, pobject);
 	}
 
-	ret = nouveau_vmmgr_create(parent, engine, oclass, "PCIEGART",
+	ret = nouveau_mmu_create(parent, engine, oclass, "PCIEGART",
 				   "pciegart", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
@@ -131,13 +131,13 @@ nv41_vmmgr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 }
 
 static int
-nv41_vmmgr_init(struct nouveau_object *object)
+nv41_mmu_init(struct nouveau_object *object)
 {
-	struct nv04_vmmgr_priv *priv = (void *)object;
+	struct nv04_mmu_priv *priv = (void *)object;
 	struct nouveau_gpuobj *dma = priv->vm->pgt[0].obj[0];
 	int ret;
 
-	ret = nouveau_vmmgr_init(&priv->base);
+	ret = nouveau_mmu_init(&priv->base);
 	if (ret)
 		return ret;
 
@@ -148,12 +148,12 @@ nv41_vmmgr_init(struct nouveau_object *object)
 }
 
 struct nouveau_oclass
-nv41_vmmgr_oclass = {
-	.handle = NV_SUBDEV(VM, 0x41),
+nv41_mmu_oclass = {
+	.handle = NV_SUBDEV(MMU, 0x41),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv41_vmmgr_ctor,
-		.dtor = nv04_vmmgr_dtor,
-		.init = nv41_vmmgr_init,
-		.fini = _nouveau_vmmgr_fini,
+		.ctor = nv41_mmu_ctor,
+		.dtor = nv04_mmu_dtor,
+		.init = nv41_mmu_init,
+		.fini = _nouveau_mmu_fini,
 	},
 };

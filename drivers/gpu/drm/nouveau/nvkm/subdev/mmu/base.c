@@ -26,20 +26,20 @@
 #include <core/mm.h>
 
 #include <subdev/fb.h>
-#include <subdev/vm.h>
+#include <subdev/mmu.h>
 
 void
 nouveau_vm_map_at(struct nouveau_vma *vma, u64 delta, struct nouveau_mem *node)
 {
 	struct nouveau_vm *vm = vma->vm;
-	struct nouveau_vmmgr *vmm = vm->vmm;
+	struct nouveau_mmu *mmu = vm->mmu;
 	struct nouveau_mm_node *r;
-	int big = vma->node->type != vmm->spg_shift;
+	int big = vma->node->type != mmu->spg_shift;
 	u32 offset = vma->node->offset + (delta >> 12);
 	u32 bits = vma->node->type - 12;
-	u32 pde  = (offset >> vmm->pgt_bits) - vm->fpde;
-	u32 pte  = (offset & ((1 << vmm->pgt_bits) - 1)) >> bits;
-	u32 max  = 1 << (vmm->pgt_bits - bits);
+	u32 pde  = (offset >> mmu->pgt_bits) - vm->fpde;
+	u32 pte  = (offset & ((1 << mmu->pgt_bits) - 1)) >> bits;
+	u32 max  = 1 << (mmu->pgt_bits - bits);
 	u32 end, len;
 
 	delta = 0;
@@ -55,7 +55,7 @@ nouveau_vm_map_at(struct nouveau_vma *vma, u64 delta, struct nouveau_mem *node)
 				end = max;
 			len = end - pte;
 
-			vmm->map(vma, pgt, node, pte, len, phys, delta);
+			mmu->map(vma, pgt, node, pte, len, phys, delta);
 
 			num -= len;
 			pte += len;
@@ -69,7 +69,7 @@ nouveau_vm_map_at(struct nouveau_vma *vma, u64 delta, struct nouveau_mem *node)
 		}
 	}
 
-	vmm->flush(vm);
+	mmu->flush(vm);
 }
 
 static void
@@ -77,14 +77,14 @@ nouveau_vm_map_sg_table(struct nouveau_vma *vma, u64 delta, u64 length,
 			struct nouveau_mem *mem)
 {
 	struct nouveau_vm *vm = vma->vm;
-	struct nouveau_vmmgr *vmm = vm->vmm;
-	int big = vma->node->type != vmm->spg_shift;
+	struct nouveau_mmu *mmu = vm->mmu;
+	int big = vma->node->type != mmu->spg_shift;
 	u32 offset = vma->node->offset + (delta >> 12);
 	u32 bits = vma->node->type - 12;
 	u32 num  = length >> vma->node->type;
-	u32 pde  = (offset >> vmm->pgt_bits) - vm->fpde;
-	u32 pte  = (offset & ((1 << vmm->pgt_bits) - 1)) >> bits;
-	u32 max  = 1 << (vmm->pgt_bits - bits);
+	u32 pde  = (offset >> mmu->pgt_bits) - vm->fpde;
+	u32 pte  = (offset & ((1 << mmu->pgt_bits) - 1)) >> bits;
+	u32 max  = 1 << (mmu->pgt_bits - bits);
 	unsigned m, sglen;
 	u32 end, len;
 	int i;
@@ -102,7 +102,7 @@ nouveau_vm_map_sg_table(struct nouveau_vma *vma, u64 delta, u64 length,
 		for (m = 0; m < len; m++) {
 			dma_addr_t addr = sg_dma_address(sg) + (m << PAGE_SHIFT);
 
-			vmm->map_sg(vma, pgt, mem, pte, 1, &addr);
+			mmu->map_sg(vma, pgt, mem, pte, 1, &addr);
 			num--;
 			pte++;
 
@@ -117,7 +117,7 @@ nouveau_vm_map_sg_table(struct nouveau_vma *vma, u64 delta, u64 length,
 			for (; m < sglen; m++) {
 				dma_addr_t addr = sg_dma_address(sg) + (m << PAGE_SHIFT);
 
-				vmm->map_sg(vma, pgt, mem, pte, 1, &addr);
+				mmu->map_sg(vma, pgt, mem, pte, 1, &addr);
 				num--;
 				pte++;
 				if (num == 0)
@@ -127,7 +127,7 @@ nouveau_vm_map_sg_table(struct nouveau_vma *vma, u64 delta, u64 length,
 
 	}
 finish:
-	vmm->flush(vm);
+	mmu->flush(vm);
 }
 
 static void
@@ -135,15 +135,15 @@ nouveau_vm_map_sg(struct nouveau_vma *vma, u64 delta, u64 length,
 		  struct nouveau_mem *mem)
 {
 	struct nouveau_vm *vm = vma->vm;
-	struct nouveau_vmmgr *vmm = vm->vmm;
+	struct nouveau_mmu *mmu = vm->mmu;
 	dma_addr_t *list = mem->pages;
-	int big = vma->node->type != vmm->spg_shift;
+	int big = vma->node->type != mmu->spg_shift;
 	u32 offset = vma->node->offset + (delta >> 12);
 	u32 bits = vma->node->type - 12;
 	u32 num  = length >> vma->node->type;
-	u32 pde  = (offset >> vmm->pgt_bits) - vm->fpde;
-	u32 pte  = (offset & ((1 << vmm->pgt_bits) - 1)) >> bits;
-	u32 max  = 1 << (vmm->pgt_bits - bits);
+	u32 pde  = (offset >> mmu->pgt_bits) - vm->fpde;
+	u32 pte  = (offset & ((1 << mmu->pgt_bits) - 1)) >> bits;
+	u32 max  = 1 << (mmu->pgt_bits - bits);
 	u32 end, len;
 
 	while (num) {
@@ -154,7 +154,7 @@ nouveau_vm_map_sg(struct nouveau_vma *vma, u64 delta, u64 length,
 			end = max;
 		len = end - pte;
 
-		vmm->map_sg(vma, pgt, mem, pte, len, list);
+		mmu->map_sg(vma, pgt, mem, pte, len, list);
 
 		num  -= len;
 		pte  += len;
@@ -165,7 +165,7 @@ nouveau_vm_map_sg(struct nouveau_vma *vma, u64 delta, u64 length,
 		}
 	}
 
-	vmm->flush(vm);
+	mmu->flush(vm);
 }
 
 void
@@ -184,14 +184,14 @@ void
 nouveau_vm_unmap_at(struct nouveau_vma *vma, u64 delta, u64 length)
 {
 	struct nouveau_vm *vm = vma->vm;
-	struct nouveau_vmmgr *vmm = vm->vmm;
-	int big = vma->node->type != vmm->spg_shift;
+	struct nouveau_mmu *mmu = vm->mmu;
+	int big = vma->node->type != mmu->spg_shift;
 	u32 offset = vma->node->offset + (delta >> 12);
 	u32 bits = vma->node->type - 12;
 	u32 num  = length >> vma->node->type;
-	u32 pde  = (offset >> vmm->pgt_bits) - vm->fpde;
-	u32 pte  = (offset & ((1 << vmm->pgt_bits) - 1)) >> bits;
-	u32 max  = 1 << (vmm->pgt_bits - bits);
+	u32 pde  = (offset >> mmu->pgt_bits) - vm->fpde;
+	u32 pte  = (offset & ((1 << mmu->pgt_bits) - 1)) >> bits;
+	u32 max  = 1 << (mmu->pgt_bits - bits);
 	u32 end, len;
 
 	while (num) {
@@ -202,7 +202,7 @@ nouveau_vm_unmap_at(struct nouveau_vma *vma, u64 delta, u64 length)
 			end = max;
 		len = end - pte;
 
-		vmm->unmap(pgt, pte, len);
+		mmu->unmap(pgt, pte, len);
 
 		num -= len;
 		pte += len;
@@ -212,7 +212,7 @@ nouveau_vm_unmap_at(struct nouveau_vma *vma, u64 delta, u64 length)
 		}
 	}
 
-	vmm->flush(vm);
+	mmu->flush(vm);
 }
 
 void
@@ -224,7 +224,7 @@ nouveau_vm_unmap(struct nouveau_vma *vma)
 static void
 nouveau_vm_unmap_pgt(struct nouveau_vm *vm, int big, u32 fpde, u32 lpde)
 {
-	struct nouveau_vmmgr *vmm = vm->vmm;
+	struct nouveau_mmu *mmu = vm->mmu;
 	struct nouveau_vm_pgd *vpgd;
 	struct nouveau_vm_pgt *vpgt;
 	struct nouveau_gpuobj *pgt;
@@ -239,47 +239,47 @@ nouveau_vm_unmap_pgt(struct nouveau_vm *vm, int big, u32 fpde, u32 lpde)
 		vpgt->obj[big] = NULL;
 
 		list_for_each_entry(vpgd, &vm->pgd_list, head) {
-			vmm->map_pgt(vpgd->obj, pde, vpgt->obj);
+			mmu->map_pgt(vpgd->obj, pde, vpgt->obj);
 		}
 
-		mutex_unlock(&nv_subdev(vmm)->mutex);
+		mutex_unlock(&nv_subdev(mmu)->mutex);
 		nouveau_gpuobj_ref(NULL, &pgt);
-		mutex_lock(&nv_subdev(vmm)->mutex);
+		mutex_lock(&nv_subdev(mmu)->mutex);
 	}
 }
 
 static int
 nouveau_vm_map_pgt(struct nouveau_vm *vm, u32 pde, u32 type)
 {
-	struct nouveau_vmmgr *vmm = vm->vmm;
+	struct nouveau_mmu *mmu = vm->mmu;
 	struct nouveau_vm_pgt *vpgt = &vm->pgt[pde - vm->fpde];
 	struct nouveau_vm_pgd *vpgd;
 	struct nouveau_gpuobj *pgt;
-	int big = (type != vmm->spg_shift);
+	int big = (type != mmu->spg_shift);
 	u32 pgt_size;
 	int ret;
 
-	pgt_size  = (1 << (vmm->pgt_bits + 12)) >> type;
+	pgt_size  = (1 << (mmu->pgt_bits + 12)) >> type;
 	pgt_size *= 8;
 
-	mutex_unlock(&nv_subdev(vmm)->mutex);
-	ret = nouveau_gpuobj_new(nv_object(vm->vmm), NULL, pgt_size, 0x1000,
+	mutex_unlock(&nv_subdev(mmu)->mutex);
+	ret = nouveau_gpuobj_new(nv_object(vm->mmu), NULL, pgt_size, 0x1000,
 				 NVOBJ_FLAG_ZERO_ALLOC, &pgt);
-	mutex_lock(&nv_subdev(vmm)->mutex);
+	mutex_lock(&nv_subdev(mmu)->mutex);
 	if (unlikely(ret))
 		return ret;
 
 	/* someone beat us to filling the PDE while we didn't have the lock */
 	if (unlikely(vpgt->refcount[big]++)) {
-		mutex_unlock(&nv_subdev(vmm)->mutex);
+		mutex_unlock(&nv_subdev(mmu)->mutex);
 		nouveau_gpuobj_ref(NULL, &pgt);
-		mutex_lock(&nv_subdev(vmm)->mutex);
+		mutex_lock(&nv_subdev(mmu)->mutex);
 		return 0;
 	}
 
 	vpgt->obj[big] = pgt;
 	list_for_each_entry(vpgd, &vm->pgd_list, head) {
-		vmm->map_pgt(vpgd->obj, pde, vpgt->obj);
+		mmu->map_pgt(vpgd->obj, pde, vpgt->obj);
 	}
 
 	return 0;
@@ -289,26 +289,26 @@ int
 nouveau_vm_get(struct nouveau_vm *vm, u64 size, u32 page_shift,
 	       u32 access, struct nouveau_vma *vma)
 {
-	struct nouveau_vmmgr *vmm = vm->vmm;
+	struct nouveau_mmu *mmu = vm->mmu;
 	u32 align = (1 << page_shift) >> 12;
 	u32 msize = size >> 12;
 	u32 fpde, lpde, pde;
 	int ret;
 
-	mutex_lock(&nv_subdev(vmm)->mutex);
+	mutex_lock(&nv_subdev(mmu)->mutex);
 	ret = nouveau_mm_head(&vm->mm, 0, page_shift, msize, msize, align,
 			     &vma->node);
 	if (unlikely(ret != 0)) {
-		mutex_unlock(&nv_subdev(vmm)->mutex);
+		mutex_unlock(&nv_subdev(mmu)->mutex);
 		return ret;
 	}
 
-	fpde = (vma->node->offset >> vmm->pgt_bits);
-	lpde = (vma->node->offset + vma->node->length - 1) >> vmm->pgt_bits;
+	fpde = (vma->node->offset >> mmu->pgt_bits);
+	lpde = (vma->node->offset + vma->node->length - 1) >> mmu->pgt_bits;
 
 	for (pde = fpde; pde <= lpde; pde++) {
 		struct nouveau_vm_pgt *vpgt = &vm->pgt[pde - vm->fpde];
-		int big = (vma->node->type != vmm->spg_shift);
+		int big = (vma->node->type != mmu->spg_shift);
 
 		if (likely(vpgt->refcount[big])) {
 			vpgt->refcount[big]++;
@@ -320,11 +320,11 @@ nouveau_vm_get(struct nouveau_vm *vm, u64 size, u32 page_shift,
 			if (pde != fpde)
 				nouveau_vm_unmap_pgt(vm, big, fpde, pde - 1);
 			nouveau_mm_free(&vm->mm, &vma->node);
-			mutex_unlock(&nv_subdev(vmm)->mutex);
+			mutex_unlock(&nv_subdev(mmu)->mutex);
 			return ret;
 		}
 	}
-	mutex_unlock(&nv_subdev(vmm)->mutex);
+	mutex_unlock(&nv_subdev(mmu)->mutex);
 
 	vma->vm = NULL;
 	nouveau_vm_ref(vm, &vma->vm, NULL);
@@ -337,24 +337,24 @@ void
 nouveau_vm_put(struct nouveau_vma *vma)
 {
 	struct nouveau_vm *vm = vma->vm;
-	struct nouveau_vmmgr *vmm = vm->vmm;
+	struct nouveau_mmu *mmu = vm->mmu;
 	u32 fpde, lpde;
 
 	if (unlikely(vma->node == NULL))
 		return;
-	fpde = (vma->node->offset >> vmm->pgt_bits);
-	lpde = (vma->node->offset + vma->node->length - 1) >> vmm->pgt_bits;
+	fpde = (vma->node->offset >> mmu->pgt_bits);
+	lpde = (vma->node->offset + vma->node->length - 1) >> mmu->pgt_bits;
 
-	mutex_lock(&nv_subdev(vmm)->mutex);
-	nouveau_vm_unmap_pgt(vm, vma->node->type != vmm->spg_shift, fpde, lpde);
+	mutex_lock(&nv_subdev(mmu)->mutex);
+	nouveau_vm_unmap_pgt(vm, vma->node->type != mmu->spg_shift, fpde, lpde);
 	nouveau_mm_free(&vm->mm, &vma->node);
-	mutex_unlock(&nv_subdev(vmm)->mutex);
+	mutex_unlock(&nv_subdev(mmu)->mutex);
 
 	nouveau_vm_ref(NULL, &vma->vm, NULL);
 }
 
 int
-nouveau_vm_create(struct nouveau_vmmgr *vmm, u64 offset, u64 length,
+nouveau_vm_create(struct nouveau_mmu *mmu, u64 offset, u64 length,
 		  u64 mm_offset, u32 block, struct nouveau_vm **pvm)
 {
 	struct nouveau_vm *vm;
@@ -366,10 +366,10 @@ nouveau_vm_create(struct nouveau_vmmgr *vmm, u64 offset, u64 length,
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&vm->pgd_list);
-	vm->vmm = vmm;
+	vm->mmu = mmu;
 	kref_init(&vm->refcount);
-	vm->fpde = offset >> (vmm->pgt_bits + 12);
-	vm->lpde = (offset + length - 1) >> (vmm->pgt_bits + 12);
+	vm->fpde = offset >> (mmu->pgt_bits + 12);
+	vm->lpde = (offset + length - 1) >> (mmu->pgt_bits + 12);
 
 	vm->pgt  = vzalloc((vm->lpde - vm->fpde + 1) * sizeof(*vm->pgt));
 	if (!vm->pgt) {
@@ -394,14 +394,14 @@ int
 nouveau_vm_new(struct nouveau_device *device, u64 offset, u64 length,
 	       u64 mm_offset, struct nouveau_vm **pvm)
 {
-	struct nouveau_vmmgr *vmm = nouveau_vmmgr(device);
-	return vmm->create(vmm, offset, length, mm_offset, pvm);
+	struct nouveau_mmu *mmu = nouveau_mmu(device);
+	return mmu->create(mmu, offset, length, mm_offset, pvm);
 }
 
 static int
 nouveau_vm_link(struct nouveau_vm *vm, struct nouveau_gpuobj *pgd)
 {
-	struct nouveau_vmmgr *vmm = vm->vmm;
+	struct nouveau_mmu *mmu = vm->mmu;
 	struct nouveau_vm_pgd *vpgd;
 	int i;
 
@@ -414,25 +414,25 @@ nouveau_vm_link(struct nouveau_vm *vm, struct nouveau_gpuobj *pgd)
 
 	nouveau_gpuobj_ref(pgd, &vpgd->obj);
 
-	mutex_lock(&nv_subdev(vmm)->mutex);
+	mutex_lock(&nv_subdev(mmu)->mutex);
 	for (i = vm->fpde; i <= vm->lpde; i++)
-		vmm->map_pgt(pgd, i, vm->pgt[i - vm->fpde].obj);
+		mmu->map_pgt(pgd, i, vm->pgt[i - vm->fpde].obj);
 	list_add(&vpgd->head, &vm->pgd_list);
-	mutex_unlock(&nv_subdev(vmm)->mutex);
+	mutex_unlock(&nv_subdev(mmu)->mutex);
 	return 0;
 }
 
 static void
 nouveau_vm_unlink(struct nouveau_vm *vm, struct nouveau_gpuobj *mpgd)
 {
-	struct nouveau_vmmgr *vmm = vm->vmm;
+	struct nouveau_mmu *mmu = vm->mmu;
 	struct nouveau_vm_pgd *vpgd, *tmp;
 	struct nouveau_gpuobj *pgd = NULL;
 
 	if (!mpgd)
 		return;
 
-	mutex_lock(&nv_subdev(vmm)->mutex);
+	mutex_lock(&nv_subdev(mmu)->mutex);
 	list_for_each_entry_safe(vpgd, tmp, &vm->pgd_list, head) {
 		if (vpgd->obj == mpgd) {
 			pgd = vpgd->obj;
@@ -441,7 +441,7 @@ nouveau_vm_unlink(struct nouveau_vm *vm, struct nouveau_gpuobj *mpgd)
 			break;
 		}
 	}
-	mutex_unlock(&nv_subdev(vmm)->mutex);
+	mutex_unlock(&nv_subdev(mmu)->mutex);
 
 	nouveau_gpuobj_ref(NULL, &pgd);
 }

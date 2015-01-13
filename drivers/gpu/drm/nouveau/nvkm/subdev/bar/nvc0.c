@@ -26,7 +26,7 @@
 
 #include <subdev/timer.h>
 #include <subdev/fb.h>
-#include <subdev/vm.h>
+#include <subdev/mmu.h>
 
 #include "priv.h"
 

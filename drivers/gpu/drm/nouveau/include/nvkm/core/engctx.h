@@ -4,7 +4,7 @@
 #include <core/object.h>
 #include <core/gpuobj.h>
 
-#include <subdev/vm.h>
+#include <subdev/mmu.h>
 
 #define NV_ENGCTX_(eng,var) (NV_ENGCTX_CLASS | ((var) << 8) | (eng))
 #define NV_ENGCTX(name,var)  NV_ENGCTX_(NVDEV_ENGINE_##name, (var))

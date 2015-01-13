@@ -26,7 +26,7 @@
 #include <nvif/class.h>
 
 #include <subdev/fb.h>
-#include <subdev/vm/nv04.h>
+#include <subdev/mmu/nv04.h>
 
 #include "priv.h"
 
@@ -62,8 +62,8 @@ nv04_dmaobj_bind(struct nouveau_dmaobj *dmaobj,
 	}
 
 	if (priv->clone) {
-		struct nv04_vmmgr_priv *vmm = nv04_vmmgr(dmaobj);
-		struct nouveau_gpuobj *pgt = vmm->vm->pgt[0].obj[0];
+		struct nv04_mmu_priv *mmu = nv04_mmu(dmaobj);
+		struct nouveau_gpuobj *pgt = mmu->vm->pgt[0].obj[0];
 		if (!dmaobj->start)
 			return nouveau_gpuobj_dup(parent, pgt, pgpuobj);
 		offset  = nv_ro32(pgt, 8 + (offset >> 10));
@@ -88,7 +88,7 @@ nv04_dmaobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		 struct nouveau_object **pobject)
 {
 	struct nouveau_dmaeng *dmaeng = (void *)engine;
-	struct nv04_vmmgr_priv *vmm = nv04_vmmgr(engine);
+	struct nv04_mmu_priv *mmu = nv04_mmu(engine);
 	struct nv04_dmaobj_priv *priv;
 	int ret;
 
@@ -98,7 +98,7 @@ nv04_dmaobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	if (priv->base.target == NV_MEM_TARGET_VM) {
-		if (nv_object(vmm)->oclass == &nv04_vmmgr_oclass)
+		if (nv_object(mmu)->oclass == &nv04_mmu_oclass)
 			priv->clone = true;
 		priv->base.target = NV_MEM_TARGET_PCI;
 		priv->base.access = NV_MEM_ACCESS_RW;

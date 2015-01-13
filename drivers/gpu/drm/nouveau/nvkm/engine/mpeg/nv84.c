@@ -25,7 +25,7 @@
 #include <core/os.h>
 #include <core/engctx.h>
 
-#include <subdev/vm.h>
+#include <subdev/mmu.h>
 #include <subdev/bar.h>
 #include <subdev/timer.h>
 

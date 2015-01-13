@@ -29,7 +29,7 @@
 #include <core/enum.h>
 
 #include <subdev/fb.h>
-#include <subdev/vm.h>
+#include <subdev/mmu.h>
 #include <subdev/timer.h>
 
 #include <engine/fifo.h>

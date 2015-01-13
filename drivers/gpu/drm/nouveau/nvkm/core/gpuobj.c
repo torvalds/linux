@@ -27,7 +27,7 @@
 
 #include <subdev/instmem.h>
 #include <subdev/bar.h>
-#include <subdev/vm.h>
+#include <subdev/mmu.h>
 
 void
 nouveau_gpuobj_destroy(struct nouveau_gpuobj *gpuobj)

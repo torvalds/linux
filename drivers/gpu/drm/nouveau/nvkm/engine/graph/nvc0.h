@@ -34,7 +34,7 @@
 #include <nvif/class.h>
 
 #include <subdev/fb.h>
-#include <subdev/vm.h>
+#include <subdev/mmu.h>
 #include <subdev/bar.h>
 #include <subdev/timer.h>
 #include <subdev/mc.h>

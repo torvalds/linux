@@ -22,8 +22,8 @@
  * Authors: Ben Skeggs
  */
 
-#ifndef __NOUVEAU_VM_H__
-#define __NOUVEAU_VM_H__
+#ifndef __NOUVEAU_MMU_H__
+#define __NOUVEAU_MMU_H__
 
 #include <core/object.h>
 #include <core/subdev.h>
@@ -53,7 +53,7 @@ struct nouveau_vma {
 };
 
 struct nouveau_vm {
-	struct nouveau_vmmgr *vmm;
+	struct nouveau_mmu *mmu;
 	struct nouveau_mm mm;
 	struct kref refcount;
 
@@ -65,7 +65,7 @@ struct nouveau_vm {
 	u32 lpde;
 };
 
-struct nouveau_vmmgr {
+struct nouveau_mmu {
 	struct nouveau_subdev base;
 
 	u64 limit;
@@ -74,7 +74,7 @@ struct nouveau_vmmgr {
 	u8  spg_shift;
 	u8  lpg_shift;
 
-	int  (*create)(struct nouveau_vmmgr *, u64 offset, u64 length,
+	int  (*create)(struct nouveau_mmu *, u64 offset, u64 length,
 		       u64 mm_offset, struct nouveau_vm **);
 
 	void (*map_pgt)(struct nouveau_gpuobj *pgd, u32 pde,
@@ -88,37 +88,37 @@ struct nouveau_vmmgr {
 	void (*flush)(struct nouveau_vm *);
 };
 
-static inline struct nouveau_vmmgr *
-nouveau_vmmgr(void *obj)
+static inline struct nouveau_mmu *
+nouveau_mmu(void *obj)
 {
-	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_VM);
+	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_MMU);
 }
 
-#define nouveau_vmmgr_create(p,e,o,i,f,d)                                      \
+#define nouveau_mmu_create(p,e,o,i,f,d)                                      \
 	nouveau_subdev_create((p), (e), (o), 0, (i), (f), (d))
-#define nouveau_vmmgr_destroy(p)                                               \
+#define nouveau_mmu_destroy(p)                                               \
 	nouveau_subdev_destroy(&(p)->base)
-#define nouveau_vmmgr_init(p)                                                  \
+#define nouveau_mmu_init(p)                                                  \
 	nouveau_subdev_init(&(p)->base)
-#define nouveau_vmmgr_fini(p,s)                                                \
+#define nouveau_mmu_fini(p,s)                                                \
 	nouveau_subdev_fini(&(p)->base, (s))
 
-#define _nouveau_vmmgr_dtor _nouveau_subdev_dtor
-#define _nouveau_vmmgr_init _nouveau_subdev_init
-#define _nouveau_vmmgr_fini _nouveau_subdev_fini
+#define _nouveau_mmu_dtor _nouveau_subdev_dtor
+#define _nouveau_mmu_init _nouveau_subdev_init
+#define _nouveau_mmu_fini _nouveau_subdev_fini
 
-extern struct nouveau_oclass nv04_vmmgr_oclass;
-extern struct nouveau_oclass nv41_vmmgr_oclass;
-extern struct nouveau_oclass nv44_vmmgr_oclass;
-extern struct nouveau_oclass nv50_vmmgr_oclass;
-extern struct nouveau_oclass nvc0_vmmgr_oclass;
+extern struct nouveau_oclass nv04_mmu_oclass;
+extern struct nouveau_oclass nv41_mmu_oclass;
+extern struct nouveau_oclass nv44_mmu_oclass;
+extern struct nouveau_oclass nv50_mmu_oclass;
+extern struct nouveau_oclass nvc0_mmu_oclass;
 
-int  nv04_vm_create(struct nouveau_vmmgr *, u64, u64, u64,
+int  nv04_vm_create(struct nouveau_mmu *, u64, u64, u64,
 		    struct nouveau_vm **);
-void nv04_vmmgr_dtor(struct nouveau_object *);
+void nv04_mmu_dtor(struct nouveau_object *);
 
 /* nouveau_vm.c */
-int  nouveau_vm_create(struct nouveau_vmmgr *, u64 offset, u64 length,
+int  nouveau_vm_create(struct nouveau_mmu *, u64 offset, u64 length,
 		       u64 mm_offset, u32 block, struct nouveau_vm **);
 int  nouveau_vm_new(struct nouveau_device *, u64 offset, u64 length,
 		    u64 mm_offset, struct nouveau_vm **);

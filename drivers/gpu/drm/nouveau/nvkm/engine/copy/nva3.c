@@ -27,7 +27,7 @@
 #include <engine/copy.h>
 
 #include <subdev/fb.h>
-#include <subdev/vm.h>
+#include <subdev/mmu.h>
 
 #include <core/client.h>
 #include <core/enum.h>

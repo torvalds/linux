@@ -5,7 +5,7 @@
 #include <core/device.h>
 #include <core/mm.h>
 
-#include <subdev/vm.h>
+#include <subdev/mmu.h>
 
 /* memory type/access flags, do not match hardware values */
 #define NV_MEM_ACCESS_RO  1

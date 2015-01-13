@@ -88,7 +88,7 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 		     u32 handle, u32 size, struct nouveau_channel **pchan)
 {
 	struct nouveau_cli *cli = (void *)nvif_client(&device->base);
-	struct nouveau_vmmgr *vmm = nvkm_vmmgr(device);
+	struct nouveau_mmu *mmu = nvkm_mmu(device);
 	struct nv_dma_v0 args = {};
 	struct nouveau_channel *chan;
 	u32 target;
@@ -136,7 +136,7 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 		args.target = NV_DMA_V0_TARGET_VM;
 		args.access = NV_DMA_V0_ACCESS_VM;
 		args.start = 0;
-		args.limit = cli->vm->vmm->limit - 1;
+		args.limit = cli->vm->mmu->limit - 1;
 	} else
 	if (chan->push.buffer->bo.mem.mem_type == TTM_PL_VRAM) {
 		if (device->info.family == NV_DEVICE_INFO_V0_TNT) {
@@ -165,7 +165,7 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 			args.target = NV_DMA_V0_TARGET_VM;
 			args.access = NV_DMA_V0_ACCESS_RDWR;
 			args.start = 0;
-			args.limit = vmm->limit - 1;
+			args.limit = mmu->limit - 1;
 		}
 	}
 
@@ -281,7 +281,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 {
 	struct nvif_device *device = chan->device;
 	struct nouveau_cli *cli = (void *)nvif_client(&device->base);
-	struct nouveau_vmmgr *vmm = nvkm_vmmgr(device);
+	struct nouveau_mmu *mmu = nvkm_mmu(device);
 	struct nouveau_software_chan *swch;
 	struct nv_dma_v0 args = {};
 	int ret, i;
@@ -294,7 +294,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 			args.target = NV_DMA_V0_TARGET_VM;
 			args.access = NV_DMA_V0_ACCESS_VM;
 			args.start = 0;
-			args.limit = cli->vm->vmm->limit - 1;
+			args.limit = cli->vm->mmu->limit - 1;
 		} else {
 			args.target = NV_DMA_V0_TARGET_VRAM;
 			args.access = NV_DMA_V0_ACCESS_RDWR;
@@ -312,7 +312,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 			args.target = NV_DMA_V0_TARGET_VM;
 			args.access = NV_DMA_V0_ACCESS_VM;
 			args.start = 0;
-			args.limit = cli->vm->vmm->limit - 1;
+			args.limit = cli->vm->mmu->limit - 1;
 		} else
 		if (chan->drm->agp.stat == ENABLED) {
 			args.target = NV_DMA_V0_TARGET_AGP;
@@ -324,7 +324,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 			args.target = NV_DMA_V0_TARGET_VM;
 			args.access = NV_DMA_V0_ACCESS_RDWR;
 			args.start = 0;
-			args.limit = vmm->limit - 1;
+			args.limit = mmu->limit - 1;
 		}
 
 		ret = nvif_object_init(chan->object, NULL, gart,

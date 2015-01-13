@@ -203,13 +203,13 @@ const struct ttm_mem_type_manager_func nouveau_gart_manager = {
 };
 
 /*XXX*/
-#include <subdev/vm/nv04.h>
+#include <subdev/mmu/nv04.h>
 static int
 nv04_gart_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
 {
 	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
-	struct nouveau_vmmgr *vmm = nvkm_vmmgr(&drm->device);
-	struct nv04_vmmgr_priv *priv = (void *)vmm;
+	struct nouveau_mmu *mmu = nvkm_mmu(&drm->device);
+	struct nv04_mmu_priv *priv = (void *)mmu;
 	struct nouveau_vm *vm = NULL;
 	nouveau_vm_ref(priv->vm, &vm, NULL);
 	man->priv = vm;
@@ -354,7 +354,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	u32 bits;
 	int ret;
 
-	bits = nvkm_vmmgr(&drm->device)->dma_bits;
+	bits = nvkm_mmu(&drm->device)->dma_bits;
 	if (nv_device_is_pci(nvkm_device(&drm->device))) {
 		if (drm->agp.stat == ENABLED ||
 		     !pci_dma_supported(dev->pdev, DMA_BIT_MASK(bits)))
@@ -401,7 +401,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 
 	/* GART init */
 	if (drm->agp.stat != ENABLED) {
-		drm->gem.gart_available = nvkm_vmmgr(&drm->device)->limit;
+		drm->gem.gart_available = nvkm_mmu(&drm->device)->limit;
 	} else {
 		drm->gem.gart_available = drm->agp.size;
 	}

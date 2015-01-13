@@ -27,12 +27,12 @@
 
 #include <subdev/timer.h>
 #include <subdev/fb.h>
-#include <subdev/vm.h>
+#include <subdev/mmu.h>
 #include <subdev/ltc.h>
 #include <subdev/bar.h>
 
-struct nvc0_vmmgr_priv {
-	struct nouveau_vmmgr base;
+struct nvc0_mmu_priv {
+	struct nouveau_mmu base;
 };
 
 
@@ -116,7 +116,7 @@ nvc0_vm_map(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 	pte <<= 3;
 
 	if (mem->tag) {
-		struct nouveau_ltc *ltc = nouveau_ltc(vma->vm->vmm);
+		struct nouveau_ltc *ltc = nouveau_ltc(vma->vm->mmu);
 		u32 tag = mem->tag->offset + (delta >> 17);
 		phys |= (u64)tag << (32 + 12);
 		next |= (u64)1   << (32 + 12);
@@ -162,7 +162,7 @@ nvc0_vm_unmap(struct nouveau_gpuobj *pgt, u32 pte, u32 cnt)
 static void
 nvc0_vm_flush(struct nouveau_vm *vm)
 {
-	struct nvc0_vmmgr_priv *priv = (void *)vm->vmm;
+	struct nvc0_mmu_priv *priv = (void *)vm->mmu;
 	struct nouveau_bar *bar = nouveau_bar(priv);
 	struct nouveau_vm_pgd *vpgd;
 	u32 type;
@@ -196,21 +196,21 @@ nvc0_vm_flush(struct nouveau_vm *vm)
 }
 
 static int
-nvc0_vm_create(struct nouveau_vmmgr *vmm, u64 offset, u64 length,
+nvc0_vm_create(struct nouveau_mmu *mmu, u64 offset, u64 length,
 	       u64 mm_offset, struct nouveau_vm **pvm)
 {
-	return nouveau_vm_create(vmm, offset, length, mm_offset, 4096, pvm);
+	return nouveau_vm_create(mmu, offset, length, mm_offset, 4096, pvm);
 }
 
 static int
-nvc0_vmmgr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+nvc0_mmu_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		struct nouveau_oclass *oclass, void *data, u32 size,
 		struct nouveau_object **pobject)
 {
-	struct nvc0_vmmgr_priv *priv;
+	struct nvc0_mmu_priv *priv;
 	int ret;
 
-	ret = nouveau_vmmgr_create(parent, engine, oclass, "VM", "vm", &priv);
+	ret = nouveau_mmu_create(parent, engine, oclass, "VM", "vm", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -230,12 +230,12 @@ nvc0_vmmgr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 }
 
 struct nouveau_oclass
-nvc0_vmmgr_oclass = {
-	.handle = NV_SUBDEV(VM, 0xc0),
+nvc0_mmu_oclass = {
+	.handle = NV_SUBDEV(MMU, 0xc0),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_vmmgr_ctor,
-		.dtor = _nouveau_vmmgr_dtor,
-		.init = _nouveau_vmmgr_init,
-		.fini = _nouveau_vmmgr_fini,
+		.ctor = nvc0_mmu_ctor,
+		.dtor = _nouveau_mmu_dtor,
+		.init = _nouveau_mmu_init,
+		.fini = _nouveau_mmu_fini,
 	},
 };

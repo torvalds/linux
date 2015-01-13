@@ -25,7 +25,7 @@
 #include <core/object.h>
 
 #include <subdev/fb.h>
-#include <subdev/vm.h>
+#include <subdev/mmu.h>
 
 #include "priv.h"
 

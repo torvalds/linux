@@ -1,7 +1,7 @@
 #ifndef __NOUVEAU_DISPLAY_H__
 #define __NOUVEAU_DISPLAY_H__
 
-#include <subdev/vm.h>
+#include <subdev/mmu.h>
 
 #include "nouveau_drm.h"
 
