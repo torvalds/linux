@@ -85,6 +85,8 @@ struct ti_pipe3 {
 	struct pipe3_dpll_map	*dpll_map;
 	bool			enabled;
 	spinlock_t		lock;	/* serialize clock enable/disable */
+	/* the below flag is needed specifically for SATA */
+	bool			refclk_enabled;
 };
 
 static struct pipe3_dpll_map dpll_map_usb[] = {
@@ -337,21 +339,24 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 		}
 	}
 
+	phy->refclk = devm_clk_get(phy->dev, "refclk");
+	if (IS_ERR(phy->refclk)) {
+		dev_err(&pdev->dev, "unable to get refclk\n");
+		/* older DTBs have missing refclk in SATA PHY
+		 * so don't bail out in case of SATA PHY.
+		 */
+		if (!of_device_is_compatible(node, "ti,phy-pipe3-sata"))
+			return PTR_ERR(phy->refclk);
+	}
+
 	if (!of_device_is_compatible(node, "ti,phy-pipe3-sata")) {
 		phy->wkupclk = devm_clk_get(phy->dev, "wkupclk");
 		if (IS_ERR(phy->wkupclk)) {
 			dev_err(&pdev->dev, "unable to get wkupclk\n");
 			return PTR_ERR(phy->wkupclk);
 		}
-
-		phy->refclk = devm_clk_get(phy->dev, "refclk");
-		if (IS_ERR(phy->refclk)) {
-			dev_err(&pdev->dev, "unable to get refclk\n");
-			return PTR_ERR(phy->refclk);
-		}
 	} else {
 		phy->wkupclk = ERR_PTR(-ENODEV);
-		phy->refclk = ERR_PTR(-ENODEV);
 	}
 
 	if (of_device_is_compatible(node, "ti,phy-pipe3-pcie")) {
@@ -430,6 +435,29 @@ static int ti_pipe3_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
+static int ti_pipe3_enable_refclk(struct ti_pipe3 *phy)
+{
+	if (!IS_ERR(phy->refclk) && !phy->refclk_enabled) {
+		int ret;
+
+		ret = clk_prepare_enable(phy->refclk);
+		if (ret) {
+			dev_err(phy->dev, "Failed to enable refclk %d\n", ret);
+			return ret;
+		}
+		phy->refclk_enabled = true;
+	}
+
+	return 0;
+}
+
+static void ti_pipe3_disable_refclk(struct ti_pipe3 *phy)
+{
+	if (!IS_ERR(phy->refclk))
+		clk_disable_unprepare(phy->refclk);
+
+	phy->refclk_enabled = false;
+}
 
 static int ti_pipe3_enable_clocks(struct ti_pipe3 *phy)
 {
@@ -440,13 +468,9 @@ static int ti_pipe3_enable_clocks(struct ti_pipe3 *phy)
 	if (phy->enabled)
 		goto err1;
 
-	if (!IS_ERR(phy->refclk)) {
-		ret = clk_prepare_enable(phy->refclk);
-		if (ret) {
-			dev_err(phy->dev, "Failed to enable refclk %d\n", ret);
-			goto err1;
-		}
-	}
+	ret = ti_pipe3_enable_refclk(phy);
+	if (ret)
+		goto err1;
 
 	if (!IS_ERR(phy->wkupclk)) {
 		ret = clk_prepare_enable(phy->wkupclk);
@@ -476,6 +500,7 @@ err2:
 	if (!IS_ERR(phy->refclk))
 		clk_disable_unprepare(phy->refclk);
 
+	ti_pipe3_disable_refclk(phy);
 err1:
 	spin_unlock_irqrestore(&phy->lock, flags);
 	return ret;
@@ -493,8 +518,9 @@ static void ti_pipe3_disable_clocks(struct ti_pipe3 *phy)
 
 	if (!IS_ERR(phy->wkupclk))
 		clk_disable_unprepare(phy->wkupclk);
-	if (!IS_ERR(phy->refclk))
-		clk_disable_unprepare(phy->refclk);
+	/* Don't disable refclk for SATA PHY due to Errata i783 */
+	if (!of_device_is_compatible(phy->dev->of_node, "ti,phy-pipe3-sata"))
+		ti_pipe3_disable_refclk(phy);
 	if (!IS_ERR(phy->div_clk))
 		clk_disable_unprepare(phy->div_clk);
 	phy->enabled = false;
