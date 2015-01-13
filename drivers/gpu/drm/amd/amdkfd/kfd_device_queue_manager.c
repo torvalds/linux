@@ -191,12 +191,12 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 static int allocate_hqd(struct device_queue_manager *dqm, struct queue *q)
 {
 	bool set;
-	int pipe, bit;
+	int pipe, bit, i;
 
 	set = false;
 
-	for (pipe = dqm->next_pipe_to_allocate; pipe < get_pipes_num(dqm);
-			pipe = (pipe + 1) % get_pipes_num(dqm)) {
+	for (pipe = dqm->next_pipe_to_allocate, i = 0; i < get_pipes_num(dqm);
+			pipe = ((pipe + 1) % get_pipes_num(dqm)), ++i) {
 		if (dqm->allocated_queues[pipe] != 0) {
 			bit = find_first_bit(
 				(unsigned long *)&dqm->allocated_queues[pipe],
