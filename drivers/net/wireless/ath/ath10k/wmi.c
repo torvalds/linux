@@ -5038,6 +5038,7 @@ static const struct wmi_ops wmi_ops = {
 	.gen_addba_send = ath10k_wmi_op_gen_addba_send,
 	.gen_addba_set_resp = ath10k_wmi_op_gen_addba_set_resp,
 	.gen_delba_send = ath10k_wmi_op_gen_delba_send,
+	/* .gen_bcn_tmpl not implemented */
 };
 
 static const struct wmi_ops wmi_10_1_ops = {
@@ -5096,6 +5097,7 @@ static const struct wmi_ops wmi_10_1_ops = {
 	.gen_addba_send = ath10k_wmi_op_gen_addba_send,
 	.gen_addba_set_resp = ath10k_wmi_op_gen_addba_set_resp,
 	.gen_delba_send = ath10k_wmi_op_gen_delba_send,
+	/* .gen_bcn_tmpl not implemented */
 };
 
 static const struct wmi_ops wmi_10_2_ops = {
@@ -5214,6 +5216,7 @@ static const struct wmi_ops wmi_10_2_4_ops = {
 	.gen_addba_send = ath10k_wmi_op_gen_addba_send,
 	.gen_addba_set_resp = ath10k_wmi_op_gen_addba_set_resp,
 	.gen_delba_send = ath10k_wmi_op_gen_delba_send,
+	/* .gen_bcn_tmpl not implemented */
 };
 
 int ath10k_wmi_attach(struct ath10k *ar)

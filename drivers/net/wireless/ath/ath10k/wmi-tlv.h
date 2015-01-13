@@ -1387,6 +1387,18 @@ struct wmi_tlv_bcn_tx_status_ev {
 	__le32 tx_status;
 } __packed;
 
+struct wmi_tlv_bcn_prb_info {
+	__le32 caps;
+	__le32 erp;
+	u8 ies[0];
+} __packed;
+
+struct wmi_tlv_bcn_tmpl_cmd {
+	__le32 vdev_id;
+	__le32 tim_ie_offset;
+	__le32 buf_len;
+} __packed;
+
 void ath10k_wmi_tlv_attach(struct ath10k *ar);
 
 #endif

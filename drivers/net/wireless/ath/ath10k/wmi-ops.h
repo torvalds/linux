@@ -129,6 +129,10 @@ struct wmi_ops {
 	struct sk_buff *(*gen_delba_send)(struct ath10k *ar, u32 vdev_id,
 					  const u8 *mac, u32 tid, u32 initiator,
 					  u32 reason);
+	struct sk_buff *(*gen_bcn_tmpl)(struct ath10k *ar, u32 vdev_id,
+					u32 tim_ie_offset, struct sk_buff *bcn,
+					u32 prb_caps, u32 prb_erp,
+					void *prb_ies, size_t prb_ies_len);
 };
 
 int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id);
@@ -933,6 +937,25 @@ ath10k_wmi_delba_send(struct ath10k *ar, u32 vdev_id, const u8 *mac,
 
 	return ath10k_wmi_cmd_send(ar, skb,
 				   ar->wmi.cmd->delba_send_cmdid);
+}
+
+static inline int
+ath10k_wmi_bcn_tmpl(struct ath10k *ar, u32 vdev_id, u32 tim_ie_offset,
+		    struct sk_buff *bcn, u32 prb_caps, u32 prb_erp,
+		    void *prb_ies, size_t prb_ies_len)
+{
+	struct sk_buff *skb;
+
+	if (!ar->wmi.ops->gen_bcn_tmpl)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_bcn_tmpl(ar, vdev_id, tim_ie_offset, bcn,
+					prb_caps, prb_erp, prb_ies,
+					prb_ies_len);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->bcn_tmpl_cmdid);
 }
 
 #endif
