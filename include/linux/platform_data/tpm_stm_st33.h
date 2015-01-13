@@ -22,18 +22,18 @@
  *
  * @Author: Christophe RICARD tpmsupport@st.com
  *
- * @File: stm_st33_tpm_i2c.h
+ * @File: stm_st33_tpm.h
  *
  * @Date: 09/15/2010
  */
-#ifndef __STM_ST33_TPM_I2C_MAIN_H__
-#define __STM_ST33_TPM_I2C_MAIN_H__
+#ifndef __STM_ST33_TPM_H__
+#define __STM_ST33_TPM_H__
 
-
-#define TPM_ST33_I2C			"st33zp24_i2c"
+#define TPM_ST33_I2C			"st33zp24-i2c"
+#define TPM_ST33_SPI			"st33zp24-spi"
 
 struct st33zp24_platform_data {
 	int io_lpcpd;
 };
 
-#endif /* __STM_ST33_TPM_I2C_MAIN_H__ */
+#endif /* __STM_ST33_TPM_H__ */

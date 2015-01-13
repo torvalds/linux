@@ -50,7 +50,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
 
-#include <linux/platform_data/tpm_i2c_stm_st33.h>
+#include <linux/platform_data/tpm_stm_st33.h>
 #include "tpm.h"
 
 #define TPM_ACCESS			0x0
