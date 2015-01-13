@@ -19,6 +19,14 @@ struct vxlanhdr {
 
 /* VXLAN header flags. */
 #define VXLAN_HF_VNI 0x08000000
+#define VXLAN_HF_RCO 0x00200000
+
+/* Remote checksum offload header option */
+#define VXLAN_RCO_MASK  0x7f    /* Last byte of vni field */
+#define VXLAN_RCO_UDP   0x80    /* Indicate UDP RCO (TCP when not set *) */
+#define VXLAN_RCO_SHIFT 1       /* Left shift of start */
+#define VXLAN_RCO_SHIFT_MASK ((1 << VXLAN_RCO_SHIFT) - 1)
+#define VXLAN_MAX_REMCSUM_START (VXLAN_RCO_MASK << VXLAN_RCO_SHIFT)
 
 #define VXLAN_N_VID     (1u << 24)
 #define VXLAN_VID_MASK  (VXLAN_N_VID - 1)
@@ -38,6 +46,7 @@ struct vxlan_sock {
 	struct hlist_head vni_list[VNI_HASH_SIZE];
 	atomic_t	  refcnt;
 	struct udp_offload udp_offloads;
+	u32		  flags;
 };
 
 #define VXLAN_F_LEARN			0x01
@@ -49,6 +58,8 @@ struct vxlan_sock {
 #define VXLAN_F_UDP_CSUM		0x40
 #define VXLAN_F_UDP_ZERO_CSUM6_TX	0x80
 #define VXLAN_F_UDP_ZERO_CSUM6_RX	0x100
+#define VXLAN_F_REMCSUM_TX		0x200
+#define VXLAN_F_REMCSUM_RX		0x400
 
 struct vxlan_sock *vxlan_sock_add(struct net *net, __be16 port,
 				  vxlan_rcv_t *rcv, void *data,
