@@ -365,12 +365,22 @@ static int rdma_read_chunk_frmr(struct svcxprt_rdma *xprt,
 	return ret;
 }
 
+static unsigned int
+rdma_rcl_chunk_count(struct rpcrdma_read_chunk *ch)
+{
+	unsigned int count;
+
+	for (count = 0; ch->rc_discrim != xdr_zero; ch++)
+		count++;
+	return count;
+}
+
 static int rdma_read_chunks(struct svcxprt_rdma *xprt,
 			    struct rpcrdma_msg *rmsgp,
 			    struct svc_rqst *rqstp,
 			    struct svc_rdma_op_ctxt *head)
 {
-	int page_no, ch_count, ret;
+	int page_no, ret;
 	struct rpcrdma_read_chunk *ch;
 	u32 page_offset, byte_count;
 	u64 rs_offset;
@@ -381,8 +391,7 @@ static int rdma_read_chunks(struct svcxprt_rdma *xprt,
 	if (!ch)
 		return 0;
 
-	svc_rdma_rcl_chunk_counts(ch, &ch_count, &byte_count);
-	if (ch_count > RPCSVC_MAXPAGES)
+	if (rdma_rcl_chunk_count(ch) > RPCSVC_MAXPAGES)
 		return -EINVAL;
 
 	/* The request is completed when the RDMA_READs complete. The
