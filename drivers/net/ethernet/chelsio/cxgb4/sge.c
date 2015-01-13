@@ -2742,24 +2742,11 @@ void t4_sge_stop(struct adapter *adap)
 }
 
 /**
- *	t4_sge_init - initialize SGE
+ *	t4_sge_init_soft - grab core SGE values needed by SGE code
  *	@adap: the adapter
  *
- *	Performs SGE initialization needed every time after a chip reset.
- *	We do not initialize any of the queues here, instead the driver
- *	top-level must request them individually.
- *
- *	Called in two different modes:
- *
- *	 1. Perform actual hardware initialization and record hard-coded
- *	    parameters which were used.  This gets used when we're the
- *	    Master PF and the Firmware Configuration File support didn't
- *	    work for some reason.
- *
- *	 2. We're not the Master PF or initialization was performed with
- *	    a Firmware Configuration File.  In this case we need to grab
- *	    any of the SGE operating parameters that we need to have in
- *	    order to do our job and make sure we can live with them ...
+ *	We need to grab the SGE operating parameters that we need to have
+ *	in order to do our job and make sure we can live with them.
  */
 
 static int t4_sge_init_soft(struct adapter *adap)
@@ -2852,73 +2839,13 @@ static int t4_sge_init_soft(struct adapter *adap)
 	return 0;
 }
 
-static int t4_sge_init_hard(struct adapter *adap)
-{
-	struct sge *s = &adap->sge;
-
-	/*
-	 * Set up our basic SGE mode to deliver CPL messages to our Ingress
-	 * Queue and Packet Date to the Free List.
-	 */
-	t4_set_reg_field(adap, SGE_CONTROL_A, RXPKTCPLMODE_F, RXPKTCPLMODE_F);
-
-	/*
-	 * Set up to drop DOORBELL writes when the DOORBELL FIFO overflows
-	 * and generate an interrupt when this occurs so we can recover.
-	 */
-	if (is_t4(adap->params.chip)) {
-		t4_set_reg_field(adap, SGE_DBFIFO_STATUS_A,
-				 HP_INT_THRESH_V(HP_INT_THRESH_M) |
-				 LP_INT_THRESH_V(LP_INT_THRESH_M),
-				 HP_INT_THRESH_V(dbfifo_int_thresh) |
-				 LP_INT_THRESH_V(dbfifo_int_thresh));
-	} else {
-		t4_set_reg_field(adap, SGE_DBFIFO_STATUS_A,
-				 LP_INT_THRESH_T5_V(LP_INT_THRESH_T5_M),
-				 LP_INT_THRESH_T5_V(dbfifo_int_thresh));
-		t4_set_reg_field(adap, SGE_DBFIFO_STATUS2_A,
-				 HP_INT_THRESH_T5_V(HP_INT_THRESH_T5_M),
-				 HP_INT_THRESH_T5_V(dbfifo_int_thresh));
-	}
-	t4_set_reg_field(adap, SGE_DOORBELL_CONTROL_A, ENABLE_DROP_F,
-			 ENABLE_DROP_F);
-
-	/*
-	 * SGE_FL_BUFFER_SIZE0 (RX_SMALL_PG_BUF) is set up by
-	 * t4_fixup_host_params().
-	 */
-	s->fl_pg_order = FL_PG_ORDER;
-	if (s->fl_pg_order)
-		t4_write_reg(adap,
-			     SGE_FL_BUFFER_SIZE0_A+RX_LARGE_PG_BUF*sizeof(u32),
-			     PAGE_SIZE << FL_PG_ORDER);
-	t4_write_reg(adap, SGE_FL_BUFFER_SIZE0_A+RX_SMALL_MTU_BUF*sizeof(u32),
-		     FL_MTU_SMALL_BUFSIZE(adap));
-	t4_write_reg(adap, SGE_FL_BUFFER_SIZE0_A+RX_LARGE_MTU_BUF*sizeof(u32),
-		     FL_MTU_LARGE_BUFSIZE(adap));
-
-	/*
-	 * Note that the SGE Ingress Packet Count Interrupt Threshold and
-	 * Timer Holdoff values must be supplied by our caller.
-	 */
-	t4_write_reg(adap, SGE_INGRESS_RX_THRESHOLD_A,
-		     THRESHOLD_0_V(s->counter_val[0]) |
-		     THRESHOLD_1_V(s->counter_val[1]) |
-		     THRESHOLD_2_V(s->counter_val[2]) |
-		     THRESHOLD_3_V(s->counter_val[3]));
-	t4_write_reg(adap, SGE_TIMER_VALUE_0_AND_1_A,
-		     TIMERVALUE0_V(us_to_core_ticks(adap, s->timer_val[0])) |
-		     TIMERVALUE1_V(us_to_core_ticks(adap, s->timer_val[1])));
-	t4_write_reg(adap, SGE_TIMER_VALUE_2_AND_3_A,
-		     TIMERVALUE2_V(us_to_core_ticks(adap, s->timer_val[2])) |
-		     TIMERVALUE3_V(us_to_core_ticks(adap, s->timer_val[3])));
-	t4_write_reg(adap, SGE_TIMER_VALUE_4_AND_5_A,
-		     TIMERVALUE4_V(us_to_core_ticks(adap, s->timer_val[4])) |
-		     TIMERVALUE5_V(us_to_core_ticks(adap, s->timer_val[5])));
-
-	return 0;
-}
-
+/**
+ *     t4_sge_init - initialize SGE
+ *     @adap: the adapter
+ *
+ *     Perform low-level SGE code initialization needed every time after a
+ *     chip reset.
+ */
 int t4_sge_init(struct adapter *adap)
 {
 	struct sge *s = &adap->sge;
@@ -2959,10 +2886,7 @@ int t4_sge_init(struct adapter *adap)
 		s->fl_align = max(ingpadboundary, ingpackboundary);
 	}
 
-	if (adap->flags & USING_SOFT_PARAMS)
-		ret = t4_sge_init_soft(adap);
-	else
-		ret = t4_sge_init_hard(adap);
+	ret = t4_sge_init_soft(adap);
 	if (ret < 0)
 		return ret;
 
