@@ -1404,6 +1404,11 @@ struct wmi_tlv_prb_tmpl_cmd {
 	__le32 buf_len;
 } __packed;
 
+struct wmi_tlv_p2p_go_bcn_ie {
+	__le32 vdev_id;
+	__le32 ie_len;
+} __packed;
+
 void ath10k_wmi_tlv_attach(struct ath10k *ar);
 
 #endif

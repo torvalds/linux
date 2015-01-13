@@ -135,6 +135,8 @@ struct wmi_ops {
 					void *prb_ies, size_t prb_ies_len);
 	struct sk_buff *(*gen_prb_tmpl)(struct ath10k *ar, u32 vdev_id,
 					struct sk_buff *bcn);
+	struct sk_buff *(*gen_p2p_go_bcn_ie)(struct ath10k *ar, u32 vdev_id,
+					     const u8 *p2p_ie);
 };
 
 int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id);
@@ -973,6 +975,21 @@ ath10k_wmi_prb_tmpl(struct ath10k *ar, u32 vdev_id, struct sk_buff *prb)
 		return PTR_ERR(skb);
 
 	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->prb_tmpl_cmdid);
+}
+
+static inline int
+ath10k_wmi_p2p_go_bcn_ie(struct ath10k *ar, u32 vdev_id, const u8 *p2p_ie)
+{
+	struct sk_buff *skb;
+
+	if (!ar->wmi.ops->gen_p2p_go_bcn_ie)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_p2p_go_bcn_ie(ar, vdev_id, p2p_ie);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->p2p_go_set_beacon_ie);
 }
 
 #endif
