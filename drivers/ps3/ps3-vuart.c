@@ -151,11 +151,6 @@ static void __maybe_unused _dump_port_params(unsigned int port_number,
 #endif
 }
 
-struct vuart_triggers {
-	unsigned long rx;
-	unsigned long tx;
-};
-
 int ps3_vuart_get_triggers(struct ps3_system_bus_device *dev,
 	struct vuart_triggers *trig)
 {
