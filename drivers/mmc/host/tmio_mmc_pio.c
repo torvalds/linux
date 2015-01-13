@@ -835,13 +835,12 @@ fail:
 static int tmio_mmc_clk_update(struct tmio_mmc_host *host)
 {
 	struct mmc_host *mmc = host->mmc;
-	struct tmio_mmc_data *pdata = host->pdata;
 	int ret;
 
-	if (!pdata->clk_enable)
+	if (!host->clk_enable)
 		return -ENOTSUPP;
 
-	ret = pdata->clk_enable(host->pdev, &mmc->f_max);
+	ret = host->clk_enable(host->pdev, &mmc->f_max);
 	if (!ret)
 		mmc->f_min = mmc->f_max / 512;
 
