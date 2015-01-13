@@ -461,6 +461,20 @@ struct das16_private_struct {
 	unsigned int		can_burst:1;
 };
 
+static void das16_isadma_program(unsigned int dma_chan,
+				 struct das16_dma_desc *dma)
+{
+	unsigned long flags;
+
+	flags = claim_dma_lock();
+	clear_dma_ff(dma_chan);
+	set_dma_mode(dma_chan, DMA_MODE_READ);
+	set_dma_addr(dma_chan, dma->hw_addr);
+	set_dma_count(dma_chan, dma->size);
+	enable_dma(dma_chan);
+	release_dma_lock(flags);
+}
+
 static void das16_ai_enable(struct comedi_device *dev,
 			    unsigned int mode, unsigned int src)
 {
@@ -547,6 +561,7 @@ static void das16_interrupt(struct comedi_device *dev)
 	dma_flags = claim_dma_lock();
 	clear_dma_ff(devpriv->dma_chan);
 	residue = disable_dma_on_even(dev);
+	release_dma_lock(dma_flags);
 
 	/*  figure out how many points to read */
 	if (residue > dma->size) {
@@ -565,15 +580,12 @@ static void das16_interrupt(struct comedi_device *dev)
 	devpriv->cur_dma = 1 - devpriv->cur_dma;
 	devpriv->adc_byte_count -= num_bytes;
 
-	/*  re-enable  dma */
+	/* re-enable dma */
 	if ((async->events & COMEDI_CB_EOA) == 0) {
 		nxt_dma = &devpriv->dma_desc[devpriv->cur_dma];
-		set_dma_addr(devpriv->dma_chan, nxt_dma->hw_addr);
 		nxt_dma->size = DAS16_DMA_SIZE;
-		set_dma_count(devpriv->dma_chan, nxt_dma->size);
-		enable_dma(devpriv->dma_chan);
+		das16_isadma_program(devpriv->dma_chan, nxt_dma);
 	}
-	release_dma_lock(dma_flags);
 
 	spin_unlock_irqrestore(&dev->spinlock, spin_flags);
 
@@ -798,18 +810,10 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 	outb(byte, dev->iobase + DAS16_PACER_REG);
 
-	/*  set up dma transfer */
-	flags = claim_dma_lock();
-	disable_dma(devpriv->dma_chan);
-	/* clear flip-flop to make sure 2-byte registers for
-	 * count and address get set correctly */
-	clear_dma_ff(devpriv->dma_chan);
+	/* set up dma transfer */
 	devpriv->cur_dma = 0;
-	set_dma_addr(devpriv->dma_chan, dma->hw_addr);
 	dma->size = DAS16_DMA_SIZE;
-	set_dma_count(devpriv->dma_chan, dma->size);
-	enable_dma(devpriv->dma_chan);
-	release_dma_lock(flags);
+	das16_isadma_program(devpriv->dma_chan, dma);
 
 	/*  set up timer */
 	spin_lock_irqsave(&dev->spinlock, flags);
@@ -1018,7 +1022,6 @@ static int das16_alloc_dma(struct comedi_device *dev, unsigned int dma_chan)
 
 	flags = claim_dma_lock();
 	disable_dma(devpriv->dma_chan);
-	set_dma_mode(devpriv->dma_chan, DMA_MODE_READ);
 	release_dma_lock(flags);
 
 	init_timer(&devpriv->timer);
