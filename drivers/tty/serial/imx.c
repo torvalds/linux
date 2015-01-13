@@ -1320,6 +1320,7 @@ static void imx_flush_buffer(struct uart_port *port)
 	struct imx_port *sport = (struct imx_port *)port;
 	struct scatterlist *sgl = &sport->tx_sgl[0];
 	unsigned long temp;
+	int i = 100, ubir, ubmr, ubrc, uts;
 
 	if (!sport->dma_chan_tx)
 		return;
@@ -1334,6 +1335,31 @@ static void imx_flush_buffer(struct uart_port *port)
 		writel(temp, sport->port.membase + UCR1);
 		sport->dma_is_txing = false;
 	}
+
+	/*
+	 * According to the Reference Manual description of the UART SRST bit:
+	 * "Reset the transmit and receive state machines,
+	 * all FIFOs and register USR1, USR2, UBIR, UBMR, UBRC, URXD, UTXD
+	 * and UTS[6-3]". As we don't need to restore the old values from
+	 * USR1, USR2, URXD, UTXD, only save/restore the other four registers
+	 */
+	ubir = readl(sport->port.membase + UBIR);
+	ubmr = readl(sport->port.membase + UBMR);
+	ubrc = readl(sport->port.membase + UBRC);
+	uts = readl(sport->port.membase + IMX21_UTS);
+
+	temp = readl(sport->port.membase + UCR2);
+	temp &= ~UCR2_SRST;
+	writel(temp, sport->port.membase + UCR2);
+
+	while (!(readl(sport->port.membase + UCR2) & UCR2_SRST) && (--i > 0))
+		udelay(1);
+
+	/* Restore the registers */
+	writel(ubir, sport->port.membase + UBIR);
+	writel(ubmr, sport->port.membase + UBMR);
+	writel(ubrc, sport->port.membase + UBRC);
+	writel(uts, sport->port.membase + IMX21_UTS);
 }
 
 static void
