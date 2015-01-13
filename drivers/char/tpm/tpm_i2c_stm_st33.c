@@ -374,7 +374,7 @@ static int wait_for_stat(struct tpm_chip *chip, u8 mask, unsigned long timeout,
 			wait_queue_head_t *queue, bool check_cancel)
 {
 	unsigned long stop;
-	int r;
+	int ret;
 	bool canceled = false;
 	bool condition;
 	u32 cur_intrs;
@@ -400,7 +400,7 @@ again:
 		if ((long) timeout <= 0)
 			return -1;
 
-		r = wait_event_interruptible_timeout(*queue,
+		ret = wait_event_interruptible_timeout(*queue,
 					cur_intrs != tpm_dev->intrs, timeout);
 
 		interrupt |= clear_interruption(tpm_dev);
@@ -408,12 +408,12 @@ again:
 		condition = wait_for_tpm_stat_cond(chip, mask,
 						   check_cancel, &canceled);
 
-		if (r >= 0 && condition) {
+		if (ret >= 0 && condition) {
 			if (canceled)
 				return -ECANCELED;
 			return 0;
 		}
-		if (r == -ERESTARTSYS && freezing(current)) {
+		if (ret == -ERESTARTSYS && freezing(current)) {
 			clear_thread_flag(TIF_SIGPENDING);
 			goto again;
 		}
