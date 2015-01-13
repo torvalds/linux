@@ -109,7 +109,6 @@ void labpc_drain_dma(struct comedi_device *dev)
 	unsigned int residue;
 	unsigned int nsamples;
 	unsigned int leftover;
-	unsigned long flags;
 
 	/*
 	 * residue is the number of bytes left to be done on the dma
@@ -139,13 +138,6 @@ void labpc_drain_dma(struct comedi_device *dev)
 	dma->size = comedi_samples_to_bytes(s, leftover);
 
 	comedi_buf_write_samples(s, dma->virt_addr, nsamples);
-
-	/* set address and count for next transfer */
-	flags = claim_dma_lock();
-	set_dma_mode(dma->chan, DMA_MODE_READ);
-	set_dma_addr(dma->chan, dma->hw_addr);
-	set_dma_count(dma->chan, dma->size);
-	release_dma_lock(flags);
 }
 EXPORT_SYMBOL_GPL(labpc_drain_dma);
 
@@ -153,10 +145,18 @@ static void handle_isa_dma(struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
 	struct labpc_dma_desc *dma = &devpriv->dma_desc;
+	unsigned long flags;
 
 	labpc_drain_dma(dev);
 
-	enable_dma(dma->chan);
+	if (dma->size) {
+		flags = claim_dma_lock();
+		set_dma_mode(dma->chan, DMA_MODE_READ);
+		set_dma_addr(dma->chan, dma->hw_addr);
+		set_dma_count(dma->chan, dma->size);
+		enable_dma(dma->chan);
+		release_dma_lock(flags);
+	}
 
 	/* clear dma tc interrupt */
 	devpriv->write_byte(dev, 0x1, DMATC_CLEAR_REG);
