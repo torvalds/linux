@@ -806,13 +806,13 @@ static bool rocker_desc_gen(struct rocker_desc_info *desc_info)
 
 static void *rocker_desc_cookie_ptr_get(struct rocker_desc_info *desc_info)
 {
-	return (void *) desc_info->desc->cookie;
+	return (void *)(uintptr_t)desc_info->desc->cookie;
 }
 
 static void rocker_desc_cookie_ptr_set(struct rocker_desc_info *desc_info,
 				       void *ptr)
 {
-	desc_info->desc->cookie = (long) ptr;
+	desc_info->desc->cookie = (uintptr_t) ptr;
 }
 
 static struct rocker_desc_info *
