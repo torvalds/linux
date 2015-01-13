@@ -1827,12 +1827,23 @@ static int macb_close(struct net_device *dev)
 
 static void gem_update_stats(struct macb *bp)
 {
-	u32 __iomem *reg = bp->regs + GEM_OTX;
+	int i;
 	u32 *p = &bp->hw_stats.gem.tx_octets_31_0;
-	u32 *end = &bp->hw_stats.gem.rx_udp_checksum_errors + 1;
 
-	for (; p < end; p++, reg++)
-		*p += __raw_readl(reg);
+	for (i = 0; i < GEM_STATS_LEN; ++i, ++p) {
+		u32 offset = gem_statistics[i].offset;
+		u64 val = __raw_readl(bp->regs+offset);
+
+		bp->ethtool_stats[i] += val;
+		*p += val;
+
+		if (offset == GEM_OCTTXL || offset == GEM_OCTRXL) {
+			/* Add GEM_OCTTXH, GEM_OCTRXH */
+			val = __raw_readl(bp->regs+offset+4);
+			bp->ethtool_stats[i] += ((u64)val)<<32;
+			*(++p) += val;
+		}
+	}
 }
 
 static struct net_device_stats *gem_get_stats(struct macb *bp)
@@ -1871,6 +1882,39 @@ static struct net_device_stats *gem_get_stats(struct macb *bp)
 	nstat->tx_fifo_errors = hwstat->tx_underrun;
 
 	return nstat;
+}
+
+static void gem_get_ethtool_stats(struct net_device *dev,
+				  struct ethtool_stats *stats, u64 *data)
+{
+	struct macb *bp;
+
+	bp = netdev_priv(dev);
+	gem_update_stats(bp);
+	memcpy(data, &bp->ethtool_stats, sizeof(u64)*GEM_STATS_LEN);
+}
+
+static int gem_get_sset_count(struct net_device *dev, int sset)
+{
+	switch (sset) {
+	case ETH_SS_STATS:
+		return GEM_STATS_LEN;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static void gem_get_ethtool_strings(struct net_device *dev, u32 sset, u8 *p)
+{
+	int i;
+
+	switch (sset) {
+	case ETH_SS_STATS:
+		for (i = 0; i < GEM_STATS_LEN; i++, p += ETH_GSTRING_LEN)
+			memcpy(p, gem_statistics[i].stat_string,
+			       ETH_GSTRING_LEN);
+		break;
+	}
 }
 
 struct net_device_stats *macb_get_stats(struct net_device *dev)
@@ -1988,6 +2032,9 @@ const struct ethtool_ops macb_ethtool_ops = {
 	.get_regs		= macb_get_regs,
 	.get_link		= ethtool_op_get_link,
 	.get_ts_info		= ethtool_op_get_ts_info,
+	.get_ethtool_stats	= gem_get_ethtool_stats,
+	.get_strings		= gem_get_ethtool_strings,
+	.get_sset_count		= gem_get_sset_count,
 };
 EXPORT_SYMBOL_GPL(macb_ethtool_ops);
 
