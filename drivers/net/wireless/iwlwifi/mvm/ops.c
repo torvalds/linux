@@ -568,6 +568,9 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	if (!mvm->scan_cmd)
 		goto out_free;
 
+	/* Set EBS as successful as long as not stated otherwise by the FW. */
+	mvm->last_ebs_successful = true;
+
 	err = iwl_mvm_mac_setup_register(mvm);
 	if (err)
 		goto out_free;

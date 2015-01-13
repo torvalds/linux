@@ -704,7 +704,8 @@ int iwl_mvm_rx_scan_offload_complete_notif(struct iwl_mvm *mvm,
 		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
 	}
 
-	mvm->last_ebs_successful = !ebs_status;
+	if (ebs_status)
+		mvm->last_ebs_successful = false;
 
 	return 0;
 }
@@ -2025,7 +2026,9 @@ int iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 		       notif->ebs_status == IWL_SCAN_EBS_SUCCESS ?
 				"success" : "failed");
 
-	mvm->last_ebs_successful = !notif->ebs_status;
+	if (notif->ebs_status)
+		mvm->last_ebs_successful = false;
+
 	mvm->scan_uid[uid_idx] = 0;
 
 	if (!sched) {
@@ -2058,9 +2061,13 @@ static bool iwl_scan_umac_done_check(struct iwl_notif_wait_data *notif_wait,
 
 	/*
 	 * Clear scan uid of scans that was aborted from above and completed
-	 * in FW so the RX handler does nothing.
+	 * in FW so the RX handler does nothing. Set last_ebs_successful here if
+	 * needed.
 	 */
 	scan_done->mvm->scan_uid[uid_idx] = 0;
+
+	if (notif->ebs_status)
+		scan_done->mvm->last_ebs_successful = false;
 
 	return !iwl_mvm_find_scan_type(scan_done->mvm, scan_done->type);
 }
