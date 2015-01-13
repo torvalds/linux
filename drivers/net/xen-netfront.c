@@ -517,13 +517,15 @@ static void xennet_make_frags(struct sk_buff *skb, struct netfront_queue *queue,
 }
 
 /*
- * Count how many ring slots are required to send the frags of this
- * skb. Each frag might be a compound page.
+ * Count how many ring slots are required to send this skb. Each frag
+ * might be a compound page.
  */
-static int xennet_count_skb_frag_slots(struct sk_buff *skb)
+static int xennet_count_skb_slots(struct sk_buff *skb)
 {
 	int i, frags = skb_shinfo(skb)->nr_frags;
-	int pages = 0;
+	int pages;
+
+	pages = PFN_UP(offset_in_page(skb->data) + skb_headlen(skb));
 
 	for (i = 0; i < frags; i++) {
 		skb_frag_t *frag = skb_shinfo(skb)->frags + i;
@@ -593,8 +595,7 @@ static int xennet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto drop;
 	}
 
-	slots = DIV_ROUND_UP(offset + len, PAGE_SIZE) +
-		xennet_count_skb_frag_slots(skb);
+	slots = xennet_count_skb_slots(skb);
 	if (unlikely(slots > MAX_SKB_FRAGS + 1)) {
 		net_dbg_ratelimited("xennet: skb rides the rocket: %d slots, %d bytes\n",
 				    slots, skb->len);
