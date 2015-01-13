@@ -16,6 +16,15 @@
 		reg = <0x20000000 0x08000000>;
 	};
 
+	sram0: sram@002ff000 {
+		status = "disabled";
+	};
+
+	sram1: sram@002fc000 {
+		compatible = "mmio-sram";
+		reg = <0x002fc000 0x8000>;
+	};
+
 	ahb {
 		apb {
 			i2c0: i2c@fffac000 {

@@ -66,6 +66,11 @@
 		};
 	};
 
+	sram: sram@00200000 {
+		compatible = "mmio-sram";
+		reg = <0x00200000 0x4000>;
+	};
+
 	ahb {
 		compatible = "simple-bus";
 		#address-cells = <1>;
