@@ -79,6 +79,10 @@ struct rhashtable;
  * @obj_hashfn: Function to hash object
  * @grow_decision: If defined, may return true if table should expand
  * @shrink_decision: If defined, may return true if table should shrink
+ *
+ * Note: when implementing the grow and shrink decision function, min/max
+ * shift must be enforced, otherwise, resizing watermarks they set may be
+ * useless.
  */
 struct rhashtable_params {
 	size_t			nelem_hint;
@@ -168,7 +172,12 @@ int rhashtable_shrink(struct rhashtable *ht);
 void *rhashtable_lookup(struct rhashtable *ht, const void *key);
 void *rhashtable_lookup_compare(struct rhashtable *ht, const void *key,
 				bool (*compare)(void *, void *), void *arg);
+
 bool rhashtable_lookup_insert(struct rhashtable *ht, struct rhash_head *obj);
+bool rhashtable_lookup_compare_insert(struct rhashtable *ht,
+				      struct rhash_head *obj,
+				      bool (*compare)(void *, void *),
+				      void *arg);
 
 void rhashtable_destroy(struct rhashtable *ht);
 

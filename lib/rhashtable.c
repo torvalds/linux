@@ -727,6 +727,43 @@ EXPORT_SYMBOL_GPL(rhashtable_lookup_compare);
  */
 bool rhashtable_lookup_insert(struct rhashtable *ht, struct rhash_head *obj)
 {
+	struct rhashtable_compare_arg arg = {
+		.ht = ht,
+		.key = rht_obj(ht, obj) + ht->p.key_offset,
+	};
+
+	BUG_ON(!ht->p.key_len);
+
+	return rhashtable_lookup_compare_insert(ht, obj, &rhashtable_compare,
+						&arg);
+}
+EXPORT_SYMBOL_GPL(rhashtable_lookup_insert);
+
+/**
+ * rhashtable_lookup_compare_insert - search and insert object to hash table
+ *                                    with compare function
+ * @ht:		hash table
+ * @obj:	pointer to hash head inside object
+ * @compare:	compare function, must return true on match
+ * @arg:	argument passed on to compare function
+ *
+ * Locks down the bucket chain in both the old and new table if a resize
+ * is in progress to ensure that writers can't remove from the old table
+ * and can't insert to the new table during the atomic operation of search
+ * and insertion. Searches for duplicates in both the old and new table if
+ * a resize is in progress.
+ *
+ * Lookups may occur in parallel with hashtable mutations and resizing.
+ *
+ * Will trigger an automatic deferred table resizing if the size grows
+ * beyond the watermark indicated by grow_decision() which can be passed
+ * to rhashtable_init().
+ */
+bool rhashtable_lookup_compare_insert(struct rhashtable *ht,
+				      struct rhash_head *obj,
+				      bool (*compare)(void *, void *),
+				      void *arg)
+{
 	struct bucket_table *new_tbl, *old_tbl;
 	spinlock_t *new_bucket_lock, *old_bucket_lock;
 	u32 new_hash, old_hash;
@@ -747,7 +784,8 @@ bool rhashtable_lookup_insert(struct rhashtable *ht, struct rhash_head *obj)
 	if (unlikely(old_tbl != new_tbl))
 		spin_lock_bh_nested(new_bucket_lock, RHT_LOCK_NESTED);
 
-	if (rhashtable_lookup(ht, rht_obj(ht, obj) + ht->p.key_offset)) {
+	if (rhashtable_lookup_compare(ht, rht_obj(ht, obj) + ht->p.key_offset,
+				      compare, arg)) {
 		success = false;
 		goto exit;
 	}
@@ -763,7 +801,7 @@ exit:
 
 	return success;
 }
-EXPORT_SYMBOL_GPL(rhashtable_lookup_insert);
+EXPORT_SYMBOL_GPL(rhashtable_lookup_compare_insert);
 
 static size_t rounded_hashtable_size(struct rhashtable_params *params)
 {
