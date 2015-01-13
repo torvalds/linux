@@ -533,6 +533,20 @@ struct pcl812_private {
 	unsigned int ai_eos:1;
 };
 
+static void pcl812_isadma_program(unsigned int dma_chan,
+				  struct pcl812_dma_desc *dma)
+{
+	unsigned long flags;
+
+	flags = claim_dma_lock();
+	clear_dma_ff(dma_chan);
+	set_dma_mode(dma_chan, DMA_MODE_READ);
+	set_dma_addr(dma_chan, dma->hw_addr);
+	set_dma_count(dma_chan, dma->size);
+	enable_dma(dma_chan);
+	release_dma_lock(flags);
+}
+
 static void pcl812_start_pacer(struct comedi_device *dev, bool load_timers)
 {
 	struct pcl812_private *devpriv = dev->private;
@@ -555,7 +569,6 @@ static void pcl812_ai_setup_dma(struct comedi_device *dev,
 	struct pcl812_dma_desc *dma0 = &devpriv->dma_desc[0];
 	struct pcl812_dma_desc *dma1 = &devpriv->dma_desc[1];
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int dma_flags;
 	unsigned int bytes;
 
 	/*  we use EOS, so adapt DMA buffer to one scan */
@@ -595,13 +608,8 @@ static void pcl812_ai_setup_dma(struct comedi_device *dev,
 		devpriv->ai_eos = 0;
 	}
 	devpriv->cur_dma = 0;
-	set_dma_mode(devpriv->dma, DMA_MODE_READ);
-	dma_flags = claim_dma_lock();
-	clear_dma_ff(devpriv->dma);
-	set_dma_addr(devpriv->dma, dma0->hw_addr);
-	set_dma_count(devpriv->dma, dma0->size);
-	release_dma_lock(dma_flags);
-	enable_dma(devpriv->dma);
+
+	pcl812_isadma_program(devpriv->dma, dma0);
 }
 
 static void pcl812_ai_setup_next_dma(struct comedi_device *dev,
@@ -609,26 +617,19 @@ static void pcl812_ai_setup_next_dma(struct comedi_device *dev,
 {
 	struct pcl812_private *devpriv = dev->private;
 	struct pcl812_dma_desc *dma;
-	unsigned long dma_flags;
+
+	disable_dma(devpriv->dma);
 
 	devpriv->cur_dma = 1 - devpriv->cur_dma;
 	dma = &devpriv->dma_desc[devpriv->cur_dma];
-	disable_dma(devpriv->dma);
-	set_dma_mode(devpriv->dma, DMA_MODE_READ);
-	dma_flags = claim_dma_lock();
-	set_dma_addr(devpriv->dma, dma->hw_addr);
-	if (devpriv->ai_eos) {
-		set_dma_count(devpriv->dma, dma->size);
-	} else {
-		if (devpriv->dma_runs_to_end) {
-			set_dma_count(devpriv->dma, dma->size);
-		} else {
-			set_dma_count(devpriv->dma, devpriv->last_dma_run);
-		}
-		devpriv->dma_runs_to_end--;
+	if (!devpriv->ai_eos) {
+		if (devpriv->dma_runs_to_end)
+			devpriv->dma_runs_to_end--;
+		else
+			dma->size = devpriv->last_dma_run;
 	}
-	release_dma_lock(dma_flags);
-	enable_dma(devpriv->dma);
+
+	pcl812_isadma_program(devpriv->dma, dma);
 }
 
 static void pcl812_ai_set_chan_range(struct comedi_device *dev,
