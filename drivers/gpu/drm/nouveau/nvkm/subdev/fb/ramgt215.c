@@ -23,32 +23,21 @@
  * 	    Roy Spliet <rspliet@eclipso.eu>
  */
 
-#include <subdev/bios.h>
-#include <subdev/bios/bit.h>
-#include <subdev/bios/pll.h>
-#include <subdev/bios/rammap.h>
-#include <subdev/bios/M0205.h>
-#include <subdev/bios/timing.h>
-
-#include <subdev/clk/gt215.h>
-#include <subdev/clk/pll.h>
-
-#include <subdev/gpio.h>
-
-#include <subdev/timer.h>
-
-#include <engine/fifo.h>
+#include "ramfuc.h"
+#include "nv50.h"
 
 #include <core/option.h>
-
-#include "ramfuc.h"
-
-#include "nv50.h"
+#include <subdev/bios.h>
+#include <subdev/bios/M0205.h>
+#include <subdev/bios/rammap.h>
+#include <subdev/bios/timing.h>
+#include <subdev/clk/gt215.h>
+#include <subdev/gpio.h>
 
 /* XXX: Remove when memx gains GPIO support */
 extern int nv50_gpio_location(int line, u32 *reg, u32 *shift);
 
-struct nva3_ramfuc {
+struct gt215_ramfuc {
 	struct ramfuc base;
 	struct ramfuc_reg r_0x001610;
 	struct ramfuc_reg r_0x001700;
@@ -89,7 +78,7 @@ struct nva3_ramfuc {
 	struct ramfuc_reg r_gpioFBVREF;
 };
 
-struct nva3_ltrain {
+struct gt215_ltrain {
 	enum {
 		NVA3_TRAIN_UNKNOWN,
 		NVA3_TRAIN_UNSUPPORTED,
@@ -100,17 +89,17 @@ struct nva3_ltrain {
 	u32 r_100720;
 	u32 r_1111e0;
 	u32 r_111400;
-	struct nouveau_mem *mem;
+	struct nvkm_mem *mem;
 };
 
-struct nva3_ram {
-	struct nouveau_ram base;
-	struct nva3_ramfuc fuc;
-	struct nva3_ltrain ltrain;
+struct gt215_ram {
+	struct nvkm_ram base;
+	struct gt215_ramfuc fuc;
+	struct gt215_ltrain ltrain;
 };
 
 void
-nva3_link_train_calc(u32 *vals, struct nva3_ltrain *train)
+gt215_link_train_calc(u32 *vals, struct gt215_ltrain *train)
 {
 	int i, lo, hi;
 	u8 median[8], bins[4] = {0, 0, 0, 0}, bin = 0, qty = 0;
@@ -164,14 +153,14 @@ nva3_link_train_calc(u32 *vals, struct nva3_ltrain *train)
  * Link training for (at least) DDR3
  */
 int
-nva3_link_train(struct nouveau_fb *pfb)
+gt215_link_train(struct nvkm_fb *pfb)
 {
-	struct nouveau_bios *bios = nouveau_bios(pfb);
-	struct nva3_ram *ram = (void *)pfb->ram;
-	struct nouveau_clk *clk = nouveau_clk(pfb);
-	struct nva3_ltrain *train = &ram->ltrain;
-	struct nouveau_device *device = nv_device(pfb);
-	struct nva3_ramfuc *fuc = &ram->fuc;
+	struct nvkm_bios *bios = nvkm_bios(pfb);
+	struct gt215_ram *ram = (void *)pfb->ram;
+	struct nvkm_clk *clk = nvkm_clk(pfb);
+	struct gt215_ltrain *train = &ram->ltrain;
+	struct nvkm_device *device = nv_device(pfb);
+	struct gt215_ramfuc *fuc = &ram->fuc;
 	u32 *result, r1700;
 	int ret, i;
 	struct nvbios_M0205T M0205T = { 0 };
@@ -180,7 +169,7 @@ nva3_link_train(struct nouveau_fb *pfb)
 	unsigned long flags;
 	unsigned long *f = &flags;
 
-	if (nouveau_boolopt(device->cfgopt, "NvMemExec", true) != true)
+	if (nvkm_boolopt(device->cfgopt, "NvMemExec", true) != true)
 		return -ENOSYS;
 
 	/* XXX: Multiple partitions? */
@@ -197,7 +186,7 @@ nva3_link_train(struct nouveau_fb *pfb)
 
 	clk_current = clk->read(clk, nv_clk_src_mem);
 
-	ret = nva3_clk_pre(clk, f);
+	ret = gt215_clk_pre(clk, f);
 	if (ret)
 		goto out;
 
@@ -252,12 +241,12 @@ nva3_link_train(struct nouveau_fb *pfb)
 	nv_mask(pfb, 0x616308, 0x10, 0x10);
 	nv_mask(pfb, 0x616b08, 0x10, 0x10);
 
-	nva3_clk_post(clk, f);
+	gt215_clk_post(clk, f);
 
 	ram_train_result(pfb, result, 64);
 	for (i = 0; i < 64; i++)
 		nv_debug(pfb, "Train: %08x", result[i]);
-	nva3_link_train_calc(result, train);
+	gt215_link_train_calc(result, train);
 
 	nv_debug(pfb, "Train: %08x %08x %08x", train->r_100720,
 			train->r_1111e0, train->r_111400);
@@ -274,12 +263,12 @@ out:
 
 	train->state = NVA3_TRAIN_UNSUPPORTED;
 
-	nva3_clk_post(clk, f);
+	gt215_clk_post(clk, f);
 	return ret;
 }
 
 int
-nva3_link_train_init(struct nouveau_fb *pfb)
+gt215_link_train_init(struct nvkm_fb *pfb)
 {
 	static const u32 pattern[16] = {
 		0xaaaaaaaa, 0xcccccccc, 0xdddddddd, 0xeeeeeeee,
@@ -287,10 +276,10 @@ nva3_link_train_init(struct nouveau_fb *pfb)
 		0x33333333, 0x55555555, 0x77777777, 0x66666666,
 		0x99999999, 0x88888888, 0xeeeeeeee, 0xbbbbbbbb,
 	};
-	struct nouveau_bios *bios = nouveau_bios(pfb);
-	struct nva3_ram *ram = (void *)pfb->ram;
-	struct nva3_ltrain *train = &ram->ltrain;
-	struct nouveau_mem *mem;
+	struct nvkm_bios *bios = nvkm_bios(pfb);
+	struct gt215_ram *ram = (void *)pfb->ram;
+	struct gt215_ltrain *train = &ram->ltrain;
+	struct nvkm_mem *mem;
 	struct nvbios_M0205E M0205E;
 	u8 ver, hdr, cnt, len;
 	u32 r001700;
@@ -340,14 +329,13 @@ nva3_link_train_init(struct nouveau_fb *pfb)
 	train->r_100720 = nv_rd32(pfb, 0x100720);
 	train->r_1111e0 = nv_rd32(pfb, 0x1111e0);
 	train->r_111400 = nv_rd32(pfb, 0x111400);
-
 	return 0;
 }
 
 void
-nva3_link_train_fini(struct nouveau_fb *pfb)
+gt215_link_train_fini(struct nvkm_fb *pfb)
 {
-	struct nva3_ram *ram = (void *)pfb->ram;
+	struct gt215_ram *ram = (void *)pfb->ram;
 
 	if (ram->ltrain.mem)
 		pfb->ram->put(pfb, &ram->ltrain.mem);
@@ -358,9 +346,9 @@ nva3_link_train_fini(struct nouveau_fb *pfb)
  */
 #define T(t) cfg->timing_10_##t
 static int
-nva3_ram_timing_calc(struct nouveau_fb *pfb, u32 *timing)
+gt215_ram_timing_calc(struct nvkm_fb *pfb, u32 *timing)
 {
-	struct nva3_ram *ram = (void *)pfb->ram;
+	struct gt215_ram *ram = (void *)pfb->ram;
 	struct nvbios_ramcfg *cfg = &ram->base.target.bios;
 	int tUNK_base, tUNK_40_0, prevCL;
 	u32 cur2, cur3, cur7, cur8;
@@ -433,7 +421,7 @@ nva3_ram_timing_calc(struct nouveau_fb *pfb, u32 *timing)
 #undef T
 
 static void
-nouveau_sddr2_dll_reset(struct nva3_ramfuc *fuc)
+nvkm_sddr2_dll_reset(struct gt215_ramfuc *fuc)
 {
 	ram_mask(fuc, mr[0], 0x100, 0x100);
 	ram_nsec(fuc, 1000);
@@ -442,7 +430,7 @@ nouveau_sddr2_dll_reset(struct nva3_ramfuc *fuc)
 }
 
 static void
-nouveau_sddr3_dll_disable(struct nva3_ramfuc *fuc, u32 *mr)
+nvkm_sddr3_dll_disable(struct gt215_ramfuc *fuc, u32 *mr)
 {
 	u32 mr1_old = ram_rd32(fuc, mr[1]);
 
@@ -454,7 +442,7 @@ nouveau_sddr3_dll_disable(struct nva3_ramfuc *fuc, u32 *mr)
 }
 
 static void
-nouveau_gddr3_dll_disable(struct nva3_ramfuc *fuc, u32 *mr)
+nvkm_gddr3_dll_disable(struct gt215_ramfuc *fuc, u32 *mr)
 {
 	u32 mr1_old = ram_rd32(fuc, mr[1]);
 
@@ -465,7 +453,7 @@ nouveau_gddr3_dll_disable(struct nva3_ramfuc *fuc, u32 *mr)
 }
 
 static void
-nva3_ram_lock_pll(struct nva3_ramfuc *fuc, struct nva3_clk_info *mclk)
+gt215_ram_lock_pll(struct gt215_ramfuc *fuc, struct gt215_clk_info *mclk)
 {
 	ram_wr32(fuc, 0x004004, mclk->pll);
 	ram_mask(fuc, 0x004000, 0x00000001, 0x00000001);
@@ -475,9 +463,9 @@ nva3_ram_lock_pll(struct nva3_ramfuc *fuc, struct nva3_clk_info *mclk)
 }
 
 static void
-nva3_ram_fbvref(struct nva3_ramfuc *fuc, u32 val)
+gt215_ram_fbvref(struct gt215_ramfuc *fuc, u32 val)
 {
-	struct nouveau_gpio *gpio = nouveau_gpio(fuc->base.pfb);
+	struct nvkm_gpio *gpio = nvkm_gpio(fuc->base.pfb);
 	struct dcb_gpio_func func;
 	u32 reg, sh, gpio_val;
 	int ret;
@@ -498,14 +486,14 @@ nva3_ram_fbvref(struct nva3_ramfuc *fuc, u32 val)
 }
 
 static int
-nva3_ram_calc(struct nouveau_fb *pfb, u32 freq)
+gt215_ram_calc(struct nvkm_fb *pfb, u32 freq)
 {
-	struct nouveau_bios *bios = nouveau_bios(pfb);
-	struct nva3_ram *ram = (void *)pfb->ram;
-	struct nva3_ramfuc *fuc = &ram->fuc;
-	struct nva3_ltrain *train = &ram->ltrain;
-	struct nva3_clk_info mclk;
-	struct nouveau_ram_data *next;
+	struct nvkm_bios *bios = nvkm_bios(pfb);
+	struct gt215_ram *ram = (void *)pfb->ram;
+	struct gt215_ramfuc *fuc = &ram->fuc;
+	struct gt215_ltrain *train = &ram->ltrain;
+	struct gt215_clk_info mclk;
+	struct nvkm_ram_data *next;
 	u8  ver, hdr, cnt, len, strap;
 	u32 data;
 	u32 r004018, r100760, r100da0, r111100, ctrl;
@@ -519,12 +507,12 @@ nva3_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	ram->base.next = next;
 
 	if (ram->ltrain.state == NVA3_TRAIN_ONCE)
-		nva3_link_train(pfb);
+		gt215_link_train(pfb);
 
 	/* lookup memory config data relevant to the target frequency */
 	i = 0;
 	data = nvbios_rammapEm(bios, freq / 1000, &ver, &hdr, &cnt, &len,
-				      &next->bios);
+			       &next->bios);
 	if (!data || ver != 0x10 || hdr < 0x05) {
 		nv_error(pfb, "invalid/missing rammap entry\n");
 		return -EINVAL;
@@ -555,13 +543,13 @@ nva3_ram_calc(struct nouveau_fb *pfb, u32 freq)
 		}
 	}
 
-	ret = nva3_pll_info(nouveau_clk(pfb), 0x12, 0x4000, freq, &mclk);
+	ret = gt215_pll_info(nvkm_clk(pfb), 0x12, 0x4000, freq, &mclk);
 	if (ret < 0) {
 		nv_error(pfb, "failed mclk calculation\n");
 		return ret;
 	}
 
-	nva3_ram_timing_calc(pfb, timing);
+	gt215_ram_timing_calc(pfb, timing);
 
 	ret = ram_init(fuc, pfb);
 	if (ret)
@@ -574,13 +562,13 @@ nva3_ram_calc(struct nouveau_fb *pfb, u32 freq)
 
 	switch (ram->base.type) {
 	case NV_MEM_TYPE_DDR2:
-		ret = nouveau_sddr2_calc(&ram->base);
+		ret = nvkm_sddr2_calc(&ram->base);
 		break;
 	case NV_MEM_TYPE_DDR3:
-		ret = nouveau_sddr3_calc(&ram->base);
+		ret = nvkm_sddr3_calc(&ram->base);
 		break;
 	case NV_MEM_TYPE_GDDR3:
-		ret = nouveau_gddr3_calc(&ram->base);
+		ret = nvkm_gddr3_calc(&ram->base);
 		break;
 	default:
 		ret = -ENOSYS;
@@ -621,7 +609,7 @@ nva3_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	/* If switching from non-pll to pll, lock before disabling FB */
 	if (mclk.pll && !pll2pll) {
 		ram_mask(fuc, 0x004128, 0x003f3141, mclk.clk | 0x00000101);
-		nva3_ram_lock_pll(fuc, &mclk);
+		gt215_ram_lock_pll(fuc, &mclk);
 	}
 
 	/* Start with disabling some CRTCs and PFIFO? */
@@ -643,15 +631,15 @@ nva3_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	/* If we're disabling the DLL, do it now */
 	switch (next->bios.ramcfg_10_DLLoff * ram->base.type) {
 	case NV_MEM_TYPE_DDR3:
-		nouveau_sddr3_dll_disable(fuc, ram->base.mr);
+		nvkm_sddr3_dll_disable(fuc, ram->base.mr);
 		break;
 	case NV_MEM_TYPE_GDDR3:
-		nouveau_gddr3_dll_disable(fuc, ram->base.mr);
+		nvkm_gddr3_dll_disable(fuc, ram->base.mr);
 		break;
 	}
 
 	if (fuc->r_gpioFBVREF.addr && next->bios.timing_10_ODT)
-		nva3_ram_fbvref(fuc, 0);
+		gt215_ram_fbvref(fuc, 0);
 
 	/* Brace RAM for impact */
 	ram_wr32(fuc, 0x1002d4, 0x00000001);
@@ -678,7 +666,7 @@ nva3_ram_calc(struct nouveau_fb *pfb, u32 freq)
 		ram_mask(fuc, 0x004000, 0x00000008, 0x00000008);
 		ram_mask(fuc, 0x1110e0, 0x00088000, 0x00088000);
 		ram_wr32(fuc, 0x004018, 0x00001000);
-		nva3_ram_lock_pll(fuc, &mclk);
+		gt215_ram_lock_pll(fuc, &mclk);
 	}
 
 	if (mclk.pll) {
@@ -818,11 +806,11 @@ nva3_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	ram_mask(fuc, 0x111100, 0xffffffff, r111100);
 
 	if (fuc->r_gpioFBVREF.addr && !next->bios.timing_10_ODT)
-		nva3_ram_fbvref(fuc, 1);
+		gt215_ram_fbvref(fuc, 1);
 
 	/* Reset DLL */
 	if (!next->bios.ramcfg_10_DLLoff)
-		nouveau_sddr2_dll_reset(fuc);
+		nvkm_sddr2_dll_reset(fuc);
 
 	if (ram->base.type == NV_MEM_TYPE_GDDR3) {
 		ram_nsec(fuc, 31000);
@@ -866,12 +854,12 @@ nva3_ram_calc(struct nouveau_fb *pfb, u32 freq)
 }
 
 static int
-nva3_ram_prog(struct nouveau_fb *pfb)
+gt215_ram_prog(struct nvkm_fb *pfb)
 {
-	struct nouveau_device *device = nv_device(pfb);
-	struct nva3_ram *ram = (void *)pfb->ram;
-	struct nva3_ramfuc *fuc = &ram->fuc;
-	bool exec = nouveau_boolopt(device->cfgopt, "NvMemExec", true);
+	struct nvkm_device *device = nv_device(pfb);
+	struct gt215_ram *ram = (void *)pfb->ram;
+	struct gt215_ramfuc *fuc = &ram->fuc;
+	bool exec = nvkm_boolopt(device->cfgopt, "NvMemExec", true);
 
 	if (exec) {
 		nv_mask(pfb, 0x001534, 0x2, 0x2);
@@ -891,49 +879,48 @@ nva3_ram_prog(struct nouveau_fb *pfb)
 }
 
 static void
-nva3_ram_tidy(struct nouveau_fb *pfb)
+gt215_ram_tidy(struct nvkm_fb *pfb)
 {
-	struct nva3_ram *ram = (void *)pfb->ram;
-	struct nva3_ramfuc *fuc = &ram->fuc;
+	struct gt215_ram *ram = (void *)pfb->ram;
+	struct gt215_ramfuc *fuc = &ram->fuc;
 	ram_exec(fuc, false);
 }
 
 static int
-nva3_ram_init(struct nouveau_object *object)
+gt215_ram_init(struct nvkm_object *object)
 {
-	struct nouveau_fb *pfb = (void *)object->parent;
-	struct nva3_ram   *ram = (void *)object;
+	struct nvkm_fb *pfb = (void *)object->parent;
+	struct gt215_ram   *ram = (void *)object;
 	int ret;
 
-	ret = nouveau_ram_init(&ram->base);
+	ret = nvkm_ram_init(&ram->base);
 	if (ret)
 		return ret;
 
-	nva3_link_train_init(pfb);
-
+	gt215_link_train_init(pfb);
 	return 0;
 }
 
 static int
-nva3_ram_fini(struct nouveau_object *object, bool suspend)
+gt215_ram_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nouveau_fb *pfb = (void *)object->parent;
+	struct nvkm_fb *pfb = (void *)object->parent;
 
 	if (!suspend)
-		nva3_link_train_fini(pfb);
+		gt215_link_train_fini(pfb);
 
 	return 0;
 }
 
 static int
-nva3_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	      struct nouveau_oclass *oclass, void *data, u32 datasize,
-	      struct nouveau_object **pobject)
+gt215_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	       struct nvkm_oclass *oclass, void *data, u32 datasize,
+	       struct nvkm_object **pobject)
 {
-	struct nouveau_fb *pfb = nouveau_fb(parent);
-	struct nouveau_gpio *gpio = nouveau_gpio(pfb);
+	struct nvkm_fb *pfb = nvkm_fb(parent);
+	struct nvkm_gpio *gpio = nvkm_gpio(pfb);
 	struct dcb_gpio_func func;
-	struct nva3_ram *ram;
+	struct gt215_ram *ram;
 	int ret, i;
 	u32 reg, shift;
 
@@ -946,9 +933,9 @@ nva3_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	case NV_MEM_TYPE_DDR2:
 	case NV_MEM_TYPE_DDR3:
 	case NV_MEM_TYPE_GDDR3:
-		ram->base.calc = nva3_ram_calc;
-		ram->base.prog = nva3_ram_prog;
-		ram->base.tidy = nva3_ram_tidy;
+		ram->base.calc = gt215_ram_calc;
+		ram->base.prog = gt215_ram_prog;
+		ram->base.tidy = gt215_ram_tidy;
 		break;
 	default:
 		nv_warn(ram, "reclocking of this ram type unsupported\n");
@@ -1013,12 +1000,12 @@ nva3_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
-nva3_ram_oclass = {
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nva3_ram_ctor,
-		.dtor = _nouveau_ram_dtor,
-		.init = nva3_ram_init,
-		.fini = nva3_ram_fini,
+struct nvkm_oclass
+gt215_ram_oclass = {
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gt215_ram_ctor,
+		.dtor = _nvkm_ram_dtor,
+		.init = gt215_ram_init,
+		.fini = gt215_ram_fini,
 	},
 };

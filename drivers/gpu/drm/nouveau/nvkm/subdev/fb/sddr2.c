@@ -22,7 +22,6 @@
  * Authors: Roy Spliet <rspliet@eclipso.eu>
  *          Ben Skeggs
  */
-
 #include "priv.h"
 
 struct ramxlat {
@@ -58,7 +57,7 @@ ramddr2_wr[] = {
 };
 
 int
-nouveau_sddr2_calc(struct nouveau_ram *ram)
+nvkm_sddr2_calc(struct nvkm_ram *ram)
 {
 	int CL, WR, DLL = 0, ODT = 0;
 

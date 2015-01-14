@@ -23,12 +23,11 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-
 #include "nv04.h"
 
 void
-nv46_fb_tile_init(struct nouveau_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
-		  u32 flags, struct nouveau_fb_tile *tile)
+nv46_fb_tile_init(struct nvkm_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
+		  u32 flags, struct nvkm_fb_tile *tile)
 {
 	/* for performance, select alternate bank offset for zeta */
 	if (!(flags & 4)) tile->addr = (0 << 3);
@@ -40,14 +39,14 @@ nv46_fb_tile_init(struct nouveau_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
 	tile->pitch = pitch;
 }
 
-struct nouveau_oclass *
+struct nvkm_oclass *
 nv46_fb_oclass = &(struct nv04_fb_impl) {
 	.base.base.handle = NV_SUBDEV(FB, 0x46),
-	.base.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_fb_ctor,
-		.dtor = _nouveau_fb_dtor,
+		.dtor = _nvkm_fb_dtor,
 		.init = nv44_fb_init,
-		.fini = _nouveau_fb_fini,
+		.fini = _nvkm_fb_fini,
 	},
 	.base.memtype = nv04_fb_memtype_valid,
 	.base.ram = &nv44_ram_oclass,

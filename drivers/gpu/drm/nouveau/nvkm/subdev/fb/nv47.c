@@ -23,17 +23,16 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-
 #include "nv04.h"
 
-struct nouveau_oclass *
+struct nvkm_oclass *
 nv47_fb_oclass = &(struct nv04_fb_impl) {
 	.base.base.handle = NV_SUBDEV(FB, 0x47),
-	.base.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_fb_ctor,
-		.dtor = _nouveau_fb_dtor,
+		.dtor = _nvkm_fb_dtor,
 		.init = nv41_fb_init,
-		.fini = _nouveau_fb_fini,
+		.fini = _nvkm_fb_fini,
 	},
 	.base.memtype = nv04_fb_memtype_valid,
 	.base.ram = &nv41_ram_oclass,

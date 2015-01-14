@@ -21,8 +21,6 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-
-#include <subdev/bios.h>
 #include "priv.h"
 
 /* binary driver only executes this path if the condition (a) is true
@@ -34,7 +32,7 @@
 #define NOTE00(a) 1
 
 int
-nouveau_gddr5_calc(struct nouveau_ram *ram, bool nuts)
+nvkm_gddr5_calc(struct nvkm_ram *ram, bool nuts)
 {
 	int pd, lf, xd, vh, vr, vo, l3;
 	int WL, CL, WR, at[2], dt, ds;

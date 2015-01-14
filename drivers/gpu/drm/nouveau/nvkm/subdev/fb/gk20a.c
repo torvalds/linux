@@ -19,20 +19,19 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
-#include "nvc0.h"
+#include "gf100.h"
 
 struct gk20a_fb_priv {
-	struct nouveau_fb base;
+	struct nvkm_fb base;
 };
 
 static int
-gk20a_fb_init(struct nouveau_object *object)
+gk20a_fb_init(struct nvkm_object *object)
 {
 	struct gk20a_fb_priv *priv = (void *)object;
 	int ret;
 
-	ret = nouveau_fb_init(&priv->base);
+	ret = nvkm_fb_init(&priv->base);
 	if (ret)
 		return ret;
 
@@ -41,14 +40,14 @@ gk20a_fb_init(struct nouveau_object *object)
 }
 
 static int
-gk20a_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	     struct nouveau_oclass *oclass, void *data, u32 size,
-	     struct nouveau_object **pobject)
+gk20a_fb_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	      struct nvkm_oclass *oclass, void *data, u32 size,
+	      struct nvkm_object **pobject)
 {
 	struct gk20a_fb_priv *priv;
 	int ret;
 
-	ret = nouveau_fb_create(parent, engine, oclass, &priv);
+	ret = nvkm_fb_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -56,15 +55,15 @@ gk20a_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass *
-gk20a_fb_oclass = &(struct nouveau_fb_impl) {
+struct nvkm_oclass *
+gk20a_fb_oclass = &(struct nvkm_fb_impl) {
 	.base.handle = NV_SUBDEV(FB, 0xea),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = gk20a_fb_ctor,
-		.dtor = _nouveau_fb_dtor,
+		.dtor = _nvkm_fb_dtor,
 		.init = gk20a_fb_init,
-		.fini = _nouveau_fb_fini,
+		.fini = _nvkm_fb_fini,
 	},
-	.memtype = nvc0_fb_memtype_valid,
+	.memtype = gf100_fb_memtype_valid,
 	.ram = &gk20a_ram_oclass,
 }.base;

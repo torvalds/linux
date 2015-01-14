@@ -21,18 +21,18 @@
  *
  * Authors: Ben Skeggs
  */
+#include "nv50.h"
 
-#include "nvc0.h"
-
-struct nouveau_oclass *
-nve0_fb_oclass = &(struct nouveau_fb_impl) {
-	.base.handle = NV_SUBDEV(FB, 0xe0),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_fb_ctor,
-		.dtor = nvc0_fb_dtor,
-		.init = nvc0_fb_init,
-		.fini = _nouveau_fb_fini,
+struct nvkm_oclass *
+mcp89_fb_oclass = &(struct nv50_fb_impl) {
+	.base.base.handle = NV_SUBDEV(FB, 0xaf),
+	.base.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = nv50_fb_ctor,
+		.dtor = nv50_fb_dtor,
+		.init = nv50_fb_init,
+		.fini = _nvkm_fb_fini,
 	},
-	.memtype = nvc0_fb_memtype_valid,
-	.ram = &nve0_ram_oclass,
-}.base;
+	.base.memtype = nv50_fb_memtype_valid,
+	.base.ram = &mcp77_ram_oclass,
+	.trap = 0x089d1fff,
+}.base.base;

@@ -23,12 +23,11 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-
 #include "nv04.h"
 
 static void
-nv44_fb_tile_init(struct nouveau_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
-		  u32 flags, struct nouveau_fb_tile *tile)
+nv44_fb_tile_init(struct nvkm_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
+		  u32 flags, struct nvkm_fb_tile *tile)
 {
 	tile->addr  = 0x00000001; /* mode = vram */
 	tile->addr |= addr;
@@ -37,7 +36,7 @@ nv44_fb_tile_init(struct nouveau_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
 }
 
 void
-nv44_fb_tile_prog(struct nouveau_fb *pfb, int i, struct nouveau_fb_tile *tile)
+nv44_fb_tile_prog(struct nvkm_fb *pfb, int i, struct nvkm_fb_tile *tile)
 {
 	nv_wr32(pfb, 0x100604 + (i * 0x10), tile->limit);
 	nv_wr32(pfb, 0x100608 + (i * 0x10), tile->pitch);
@@ -46,12 +45,12 @@ nv44_fb_tile_prog(struct nouveau_fb *pfb, int i, struct nouveau_fb_tile *tile)
 }
 
 int
-nv44_fb_init(struct nouveau_object *object)
+nv44_fb_init(struct nvkm_object *object)
 {
 	struct nv04_fb_priv *priv = (void *)object;
 	int ret;
 
-	ret = nouveau_fb_init(&priv->base);
+	ret = nvkm_fb_init(&priv->base);
 	if (ret)
 		return ret;
 
@@ -60,14 +59,14 @@ nv44_fb_init(struct nouveau_object *object)
 	return 0;
 }
 
-struct nouveau_oclass *
+struct nvkm_oclass *
 nv44_fb_oclass = &(struct nv04_fb_impl) {
 	.base.base.handle = NV_SUBDEV(FB, 0x44),
-	.base.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_fb_ctor,
-		.dtor = _nouveau_fb_dtor,
+		.dtor = _nvkm_fb_dtor,
 		.init = nv44_fb_init,
-		.fini = _nouveau_fb_fini,
+		.fini = _nvkm_fb_fini,
 	},
 	.base.memtype = nv04_fb_memtype_valid,
 	.base.ram = &nv44_ram_oclass,

@@ -19,20 +19,17 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 #include "priv.h"
 
-#include <subdev/fb.h>
-
 struct gk20a_mem {
-	struct nouveau_mem base;
+	struct nvkm_mem base;
 	void *cpuaddr;
 	dma_addr_t handle;
 };
 #define to_gk20a_mem(m) container_of(m, struct gk20a_mem, base)
 
 static void
-gk20a_ram_put(struct nouveau_fb *pfb, struct nouveau_mem **pmem)
+gk20a_ram_put(struct nvkm_fb *pfb, struct nvkm_mem **pmem)
 {
 	struct device *dev = nv_device_base(nv_device(pfb));
 	struct gk20a_mem *mem = to_gk20a_mem(*pmem);
@@ -50,8 +47,8 @@ gk20a_ram_put(struct nouveau_fb *pfb, struct nouveau_mem **pmem)
 }
 
 static int
-gk20a_ram_get(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
-	     u32 memtype, struct nouveau_mem **pmem)
+gk20a_ram_get(struct nvkm_fb *pfb, u64 size, u32 align, u32 ncmin,
+	     u32 memtype, struct nvkm_mem **pmem)
 {
 	struct device *dev = nv_device_base(nv_device(pfb));
 	struct gk20a_mem *mem;
@@ -116,19 +113,18 @@ gk20a_ram_get(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
 		mem->base.pages[i] = mem->handle + (PAGE_SIZE * i);
 
 	mem->base.offset = (u64)mem->base.pages[0];
-
 	return 0;
 }
 
 static int
-gk20a_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	      struct nouveau_oclass *oclass, void *data, u32 datasize,
-	      struct nouveau_object **pobject)
+gk20a_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	       struct nvkm_oclass *oclass, void *data, u32 datasize,
+	       struct nvkm_object **pobject)
 {
-	struct nouveau_ram *ram;
+	struct nvkm_ram *ram;
 	int ret;
 
-	ret = nouveau_ram_create(parent, engine, oclass, &ram);
+	ret = nvkm_ram_create(parent, engine, oclass, &ram);
 	*pobject = nv_object(ram);
 	if (ret)
 		return ret;
@@ -137,16 +133,15 @@ gk20a_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	ram->get = gk20a_ram_get;
 	ram->put = gk20a_ram_put;
-
 	return 0;
 }
 
-struct nouveau_oclass
+struct nvkm_oclass
 gk20a_ram_oclass = {
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = gk20a_ram_ctor,
-		.dtor = _nouveau_ram_dtor,
-		.init = _nouveau_ram_init,
-		.fini = _nouveau_ram_fini,
+		.dtor = _nvkm_ram_dtor,
+		.init = _nvkm_ram_init,
+		.fini = _nvkm_ram_fini,
 	},
 };

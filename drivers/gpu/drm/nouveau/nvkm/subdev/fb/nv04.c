@@ -21,13 +21,11 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "nv04.h"
-
-#define NV04_PFB_CFG0						0x00100200
+#include "regsnv04.h"
 
 bool
-nv04_fb_memtype_valid(struct nouveau_fb *pfb, u32 tile_flags)
+nv04_fb_memtype_valid(struct nvkm_fb *pfb, u32 tile_flags)
 {
 	if (!(tile_flags & 0xff00))
 		return true;
@@ -36,12 +34,12 @@ nv04_fb_memtype_valid(struct nouveau_fb *pfb, u32 tile_flags)
 }
 
 static int
-nv04_fb_init(struct nouveau_object *object)
+nv04_fb_init(struct nvkm_object *object)
 {
 	struct nv04_fb_priv *priv = (void *)object;
 	int ret;
 
-	ret = nouveau_fb_init(&priv->base);
+	ret = nvkm_fb_init(&priv->base);
 	if (ret)
 		return ret;
 
@@ -54,15 +52,15 @@ nv04_fb_init(struct nouveau_object *object)
 }
 
 int
-nv04_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	     struct nouveau_oclass *oclass, void *data, u32 size,
-	     struct nouveau_object **pobject)
+nv04_fb_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	     struct nvkm_oclass *oclass, void *data, u32 size,
+	     struct nvkm_object **pobject)
 {
 	struct nv04_fb_impl *impl = (void *)oclass;
 	struct nv04_fb_priv *priv;
 	int ret;
 
-	ret = nouveau_fb_create(parent, engine, oclass, &priv);
+	ret = nvkm_fb_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -75,14 +73,14 @@ nv04_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass *
+struct nvkm_oclass *
 nv04_fb_oclass = &(struct nv04_fb_impl) {
 	.base.base.handle = NV_SUBDEV(FB, 0x04),
-	.base.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_fb_ctor,
-		.dtor = _nouveau_fb_dtor,
+		.dtor = _nvkm_fb_dtor,
 		.init = nv04_fb_init,
-		.fini = _nouveau_fb_fini,
+		.fini = _nvkm_fb_fini,
 	},
 	.base.memtype = nv04_fb_memtype_valid,
 	.base.ram = &nv04_ram_oclass,

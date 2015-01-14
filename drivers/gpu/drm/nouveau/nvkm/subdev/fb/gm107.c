@@ -21,18 +21,17 @@
  *
  * Authors: Ben Skeggs
  */
+#include "gf100.h"
 
-#include "nvc0.h"
-
-struct nouveau_oclass *
-gm107_fb_oclass = &(struct nouveau_fb_impl) {
+struct nvkm_oclass *
+gm107_fb_oclass = &(struct nvkm_fb_impl) {
 	.base.handle = NV_SUBDEV(FB, 0x07),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_fb_ctor,
-		.dtor = nvc0_fb_dtor,
-		.init = nvc0_fb_init,
-		.fini = _nouveau_fb_fini,
+	.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gf100_fb_ctor,
+		.dtor = gf100_fb_dtor,
+		.init = gf100_fb_init,
+		.fini = _nvkm_fb_fini,
 	},
-	.memtype = nvc0_fb_memtype_valid,
+	.memtype = gf100_fb_memtype_valid,
 	.ram = &gm107_ram_oclass,
 }.base;

@@ -23,12 +23,11 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-
 #include "nv04.h"
 
 void
-nv30_fb_tile_init(struct nouveau_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
-		  u32 flags, struct nouveau_fb_tile *tile)
+nv30_fb_tile_init(struct nvkm_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
+		  u32 flags, struct nvkm_fb_tile *tile)
 {
 	/* for performance, select alternate bank offset for zeta */
 	if (!(flags & 4)) {
@@ -46,12 +45,12 @@ nv30_fb_tile_init(struct nouveau_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
 }
 
 static void
-nv30_fb_tile_comp(struct nouveau_fb *pfb, int i, u32 size, u32 flags,
-		  struct nouveau_fb_tile *tile)
+nv30_fb_tile_comp(struct nvkm_fb *pfb, int i, u32 size, u32 flags,
+		  struct nvkm_fb_tile *tile)
 {
 	u32 tiles = DIV_ROUND_UP(size, 0x40);
 	u32 tags  = round_up(tiles / pfb->ram->parts, 0x40);
-	if (!nouveau_mm_head(&pfb->tags, 0, 1, tags, tags, 1, &tile->tag)) {
+	if (!nvkm_mm_head(&pfb->tags, 0, 1, tags, tags, 1, &tile->tag)) {
 		if (flags & 2) tile->zcomp |= 0x01000000; /* Z16 */
 		else           tile->zcomp |= 0x02000000; /* Z24S8 */
 		tile->zcomp |= ((tile->tag->offset           ) >> 6);
@@ -65,7 +64,7 @@ nv30_fb_tile_comp(struct nouveau_fb *pfb, int i, u32 size, u32 flags,
 static int
 calc_bias(struct nv04_fb_priv *priv, int k, int i, int j)
 {
-	struct nouveau_device *device = nv_device(priv);
+	struct nvkm_device *device = nv_device(priv);
 	int b = (device->chipset > 0x30 ?
 		 nv_rd32(priv, 0x122c + 0x10 * k + 0x4 * j) >> (4 * (i ^ 1)) :
 		 0) & 0xf;
@@ -88,13 +87,13 @@ calc_ref(struct nv04_fb_priv *priv, int l, int k, int i)
 }
 
 int
-nv30_fb_init(struct nouveau_object *object)
+nv30_fb_init(struct nvkm_object *object)
 {
-	struct nouveau_device *device = nv_device(object);
+	struct nvkm_device *device = nv_device(object);
 	struct nv04_fb_priv *priv = (void *)object;
 	int ret, i, j;
 
-	ret = nouveau_fb_init(&priv->base);
+	ret = nvkm_fb_init(&priv->base);
 	if (ret)
 		return ret;
 
@@ -120,14 +119,14 @@ nv30_fb_init(struct nouveau_object *object)
 	return 0;
 }
 
-struct nouveau_oclass *
+struct nvkm_oclass *
 nv30_fb_oclass = &(struct nv04_fb_impl) {
 	.base.base.handle = NV_SUBDEV(FB, 0x30),
-	.base.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_fb_ctor,
-		.dtor = _nouveau_fb_dtor,
+		.dtor = _nvkm_fb_dtor,
 		.init = nv30_fb_init,
-		.fini = _nouveau_fb_fini,
+		.fini = _nvkm_fb_fini,
 	},
 	.base.memtype = nv04_fb_memtype_valid,
 	.base.ram = &nv20_ram_oclass,

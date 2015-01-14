@@ -21,23 +21,19 @@
  *
  * Authors: Ben Skeggs
  */
+#include "nv40.h"
 
 #include <subdev/bios.h>
 #include <subdev/bios/bit.h>
-#include <subdev/bios/pll.h>
 #include <subdev/bios/init.h>
-#include <subdev/clk.h>
+#include <subdev/bios/pll.h>
 #include <subdev/clk/pll.h>
 #include <subdev/timer.h>
 
-#include <engine/fifo.h>
-
-#include "nv40.h"
-
 int
-nv40_ram_calc(struct nouveau_fb *pfb, u32 freq)
+nv40_ram_calc(struct nvkm_fb *pfb, u32 freq)
 {
-	struct nouveau_bios *bios = nouveau_bios(pfb);
+	struct nvkm_bios *bios = nvkm_bios(pfb);
 	struct nv40_ram *ram = (void *)pfb->ram;
 	struct nvbios_pll pll;
 	int N1, M1, N2, M2;
@@ -68,9 +64,9 @@ nv40_ram_calc(struct nouveau_fb *pfb, u32 freq)
 }
 
 int
-nv40_ram_prog(struct nouveau_fb *pfb)
+nv40_ram_prog(struct nvkm_fb *pfb)
 {
-	struct nouveau_bios *bios = nouveau_bios(pfb);
+	struct nvkm_bios *bios = nvkm_bios(pfb);
 	struct nv40_ram *ram = (void *)pfb->ram;
 	struct bit_entry M;
 	u32 crtc_mask = 0;
@@ -167,21 +163,21 @@ nv40_ram_prog(struct nouveau_fb *pfb)
 }
 
 void
-nv40_ram_tidy(struct nouveau_fb *pfb)
+nv40_ram_tidy(struct nvkm_fb *pfb)
 {
 }
 
 static int
-nv40_ram_create(struct nouveau_object *parent, struct nouveau_object *engine,
-		struct nouveau_oclass *oclass, void *data, u32 size,
-		struct nouveau_object **pobject)
+nv40_ram_create(struct nvkm_object *parent, struct nvkm_object *engine,
+		struct nvkm_oclass *oclass, void *data, u32 size,
+		struct nvkm_object **pobject)
 {
-	struct nouveau_fb *pfb = nouveau_fb(parent);
+	struct nvkm_fb *pfb = nvkm_fb(parent);
 	struct nv40_ram *ram;
 	u32 pbus1218 = nv_rd32(pfb, 0x001218);
 	int ret;
 
-	ret = nouveau_ram_create(parent, engine, oclass, &ram);
+	ret = nvkm_ram_create(parent, engine, oclass, &ram);
 	*pobject = nv_object(ram);
 	if (ret)
 		return ret;
@@ -203,13 +199,13 @@ nv40_ram_create(struct nouveau_object *parent, struct nouveau_object *engine,
 }
 
 
-struct nouveau_oclass
+struct nvkm_oclass
 nv40_ram_oclass = {
 	.handle = 0,
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv40_ram_create,
-		.dtor = _nouveau_ram_dtor,
-		.init = _nouveau_ram_init,
-		.fini = _nouveau_ram_fini,
+		.dtor = _nvkm_ram_dtor,
+		.init = _nvkm_ram_init,
+		.fini = _nvkm_ram_fini,
 	}
 };

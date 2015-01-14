@@ -1,11 +1,10 @@
 #ifndef __NVKM_FBRAM_FUC_H__
 #define __NVKM_FBRAM_FUC_H__
-
 #include <subdev/pmu.h>
 
 struct ramfuc {
-	struct nouveau_memx *memx;
-	struct nouveau_fb *pfb;
+	struct nvkm_memx *memx;
+	struct nvkm_fb *pfb;
 	int sequence;
 };
 
@@ -55,12 +54,12 @@ ramfuc_reg(u32 addr)
 }
 
 static inline int
-ramfuc_init(struct ramfuc *ram, struct nouveau_fb *pfb)
+ramfuc_init(struct ramfuc *ram, struct nvkm_fb *pfb)
 {
-	struct nouveau_pmu *pmu = nouveau_pmu(pfb);
+	struct nvkm_pmu *pmu = nvkm_pmu(pfb);
 	int ret;
 
-	ret = nouveau_memx_init(pmu, &ram->memx);
+	ret = nvkm_memx_init(pmu, &ram->memx);
 	if (ret)
 		return ret;
 
@@ -74,7 +73,7 @@ ramfuc_exec(struct ramfuc *ram, bool exec)
 {
 	int ret = 0;
 	if (ram->pfb) {
-		ret = nouveau_memx_fini(&ram->memx, exec);
+		ret = nvkm_memx_fini(&ram->memx, exec);
 		ram->pfb = NULL;
 	}
 	return ret;
@@ -97,10 +96,8 @@ ramfuc_wr32(struct ramfuc *ram, struct ramfuc_reg *reg, u32 data)
 	reg->data = data;
 
 	for (mask = reg->mask; mask > 0; mask = (mask & ~1) >> 1) {
-		if (mask & 1) {
-			nouveau_memx_wr32(ram->memx, reg->addr+off, reg->data);
-		}
-
+		if (mask & 1)
+			nvkm_memx_wr32(ram->memx, reg->addr+off, reg->data);
 		off += reg->stride;
 	}
 }
@@ -125,45 +122,45 @@ ramfuc_mask(struct ramfuc *ram, struct ramfuc_reg *reg, u32 mask, u32 data)
 static inline void
 ramfuc_wait(struct ramfuc *ram, u32 addr, u32 mask, u32 data, u32 nsec)
 {
-	nouveau_memx_wait(ram->memx, addr, mask, data, nsec);
+	nvkm_memx_wait(ram->memx, addr, mask, data, nsec);
 }
 
 static inline void
 ramfuc_nsec(struct ramfuc *ram, u32 nsec)
 {
-	nouveau_memx_nsec(ram->memx, nsec);
+	nvkm_memx_nsec(ram->memx, nsec);
 }
 
 static inline void
 ramfuc_wait_vblank(struct ramfuc *ram)
 {
-	nouveau_memx_wait_vblank(ram->memx);
+	nvkm_memx_wait_vblank(ram->memx);
 }
 
 static inline void
 ramfuc_train(struct ramfuc *ram)
 {
-	nouveau_memx_train(ram->memx);
+	nvkm_memx_train(ram->memx);
 }
 
 static inline int
-ramfuc_train_result(struct nouveau_fb *pfb, u32 *result, u32 rsize)
+ramfuc_train_result(struct nvkm_fb *pfb, u32 *result, u32 rsize)
 {
-	struct nouveau_pmu *pmu = nouveau_pmu(pfb);
+	struct nvkm_pmu *pmu = nvkm_pmu(pfb);
 
-	return nouveau_memx_train_result(pmu, result, rsize);
+	return nvkm_memx_train_result(pmu, result, rsize);
 }
 
 static inline void
 ramfuc_block(struct ramfuc *ram)
 {
-	nouveau_memx_block(ram->memx);
+	nvkm_memx_block(ram->memx);
 }
 
 static inline void
 ramfuc_unblock(struct ramfuc *ram)
 {
-	nouveau_memx_unblock(ram->memx);
+	nvkm_memx_unblock(ram->memx);
 }
 
 #define ram_init(s,p)        ramfuc_init(&(s)->base, (p))
@@ -180,5 +177,4 @@ ramfuc_unblock(struct ramfuc *ram)
 #define ram_train_result(s,r,l) ramfuc_train_result((s), (r), (l))
 #define ram_block(s)         ramfuc_block(&(s)->base)
 #define ram_unblock(s)       ramfuc_unblock(&(s)->base)
-
 #endif

@@ -21,14 +21,13 @@
  *
  * Authors: Ben Skeggs
  */
+#include "priv.h"
 
 #include <subdev/bios.h>
 #include <subdev/bios/M0203.h>
 
-#include "priv.h"
-
 int
-nouveau_fb_bios_memtype(struct nouveau_bios *bios)
+nvkm_fb_bios_memtype(struct nvkm_bios *bios)
 {
 	const u8 ramcfg = (nv_rd32(bios, 0x101000) & 0x0000003c) >> 2;
 	struct nvbios_M0203E M0203E;
@@ -51,25 +50,25 @@ nouveau_fb_bios_memtype(struct nouveau_bios *bios)
 }
 
 int
-_nouveau_fb_fini(struct nouveau_object *object, bool suspend)
+_nvkm_fb_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nouveau_fb *pfb = (void *)object;
+	struct nvkm_fb *pfb = (void *)object;
 	int ret;
 
 	ret = nv_ofuncs(pfb->ram)->fini(nv_object(pfb->ram), suspend);
 	if (ret && suspend)
 		return ret;
 
-	return nouveau_subdev_fini(&pfb->base, suspend);
+	return nvkm_subdev_fini(&pfb->base, suspend);
 }
 
 int
-_nouveau_fb_init(struct nouveau_object *object)
+_nvkm_fb_init(struct nvkm_object *object)
 {
-	struct nouveau_fb *pfb = (void *)object;
+	struct nvkm_fb *pfb = (void *)object;
 	int ret, i;
 
-	ret = nouveau_subdev_init(&pfb->base);
+	ret = nvkm_subdev_init(&pfb->base);
 	if (ret)
 		return ret;
 
@@ -84,25 +83,25 @@ _nouveau_fb_init(struct nouveau_object *object)
 }
 
 void
-_nouveau_fb_dtor(struct nouveau_object *object)
+_nvkm_fb_dtor(struct nvkm_object *object)
 {
-	struct nouveau_fb *pfb = (void *)object;
+	struct nvkm_fb *pfb = (void *)object;
 	int i;
 
 	for (i = 0; i < pfb->tile.regions; i++)
 		pfb->tile.fini(pfb, i, &pfb->tile.region[i]);
-	nouveau_mm_fini(&pfb->tags);
-	nouveau_mm_fini(&pfb->vram);
+	nvkm_mm_fini(&pfb->tags);
+	nvkm_mm_fini(&pfb->vram);
 
-	nouveau_object_ref(NULL, (struct nouveau_object **)&pfb->ram);
-	nouveau_subdev_destroy(&pfb->base);
+	nvkm_object_ref(NULL, (struct nvkm_object **)&pfb->ram);
+	nvkm_subdev_destroy(&pfb->base);
 }
 
 int
-nouveau_fb_create_(struct nouveau_object *parent, struct nouveau_object *engine,
-		   struct nouveau_oclass *oclass, int length, void **pobject)
+nvkm_fb_create_(struct nvkm_object *parent, struct nvkm_object *engine,
+		struct nvkm_oclass *oclass, int length, void **pobject)
 {
-	struct nouveau_fb_impl *impl = (void *)oclass;
+	struct nvkm_fb_impl *impl = (void *)oclass;
 	static const char *name[] = {
 		[NV_MEM_TYPE_UNKNOWN] = "unknown",
 		[NV_MEM_TYPE_STOLEN ] = "stolen system memory",
@@ -116,20 +115,19 @@ nouveau_fb_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 		[NV_MEM_TYPE_GDDR4  ] = "GDDR4",
 		[NV_MEM_TYPE_GDDR5  ] = "GDDR5",
 	};
-	struct nouveau_object *ram;
-	struct nouveau_fb *pfb;
+	struct nvkm_object *ram;
+	struct nvkm_fb *pfb;
 	int ret;
 
-	ret = nouveau_subdev_create_(parent, engine, oclass, 0, "PFB", "fb",
-				     length, pobject);
+	ret = nvkm_subdev_create_(parent, engine, oclass, 0, "PFB", "fb",
+				  length, pobject);
 	pfb = *pobject;
 	if (ret)
 		return ret;
 
 	pfb->memtype_valid = impl->memtype;
 
-	ret = nouveau_object_ctor(nv_object(pfb), NULL,
-				  impl->ram, NULL, 0, &ram);
+	ret = nvkm_object_ctor(nv_object(pfb), NULL, impl->ram, NULL, 0, &ram);
 	if (ret) {
 		nv_fatal(pfb, "error detecting memory configuration!!\n");
 		return ret;
@@ -137,15 +135,15 @@ nouveau_fb_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	pfb->ram = (void *)ram;
 
-	if (!nouveau_mm_initialised(&pfb->vram)) {
-		ret = nouveau_mm_init(&pfb->vram, 0, pfb->ram->size >> 12, 1);
+	if (!nvkm_mm_initialised(&pfb->vram)) {
+		ret = nvkm_mm_init(&pfb->vram, 0, pfb->ram->size >> 12, 1);
 		if (ret)
 			return ret;
 	}
 
-	if (!nouveau_mm_initialised(&pfb->tags)) {
-		ret = nouveau_mm_init(&pfb->tags, 0, pfb->ram->tags ?
-				     ++pfb->ram->tags : 0, 1);
+	if (!nvkm_mm_initialised(&pfb->tags)) {
+		ret = nvkm_mm_init(&pfb->tags, 0, pfb->ram->tags ?
+				   ++pfb->ram->tags : 0, 1);
 		if (ret)
 			return ret;
 	}

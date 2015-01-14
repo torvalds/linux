@@ -220,5 +220,22 @@
 #define nva3_clk_info gt215_clk_info
 #define nva3_pll_info gt215_pll_info
 #define nouveau_ibus nvkm_ibus
+#define nouveau_memx nvkm_memx
+#define nouveau_memx_block nvkm_memx_block
+#define nouveau_memx_unblock nvkm_memx_unblock
+#define nouveau_memx_train nvkm_memx_train
+#define nouveau_memx_train_result nvkm_memx_train_result
+#define nouveau_memx_wait_vblank nvkm_memx_wait_vblank
+#define nouveau_memx_rd32 nvkm_memx_rd32
+#define nouveau_memx_wr32 nvkm_memx_wr32
+#define nouveau_memx_wait nvkm_memx_wait
+#define nouveau_memx_init nvkm_memx_init
+#define nouveau_memx_fini nvkm_memx_fini
+#define nouveau_memx_nsec nvkm_memx_nsec
+#define nouveau_ltc nvkm_ltc
+#define nouveau_pmu nvkm_pmu
+#define nouveau_fb nvkm_fb
+#define nouveau_fb_tile nvkm_fb_tile
+#define nvc0_pte_storage_type_map gf100_pte_storage_type_map
 
 #endif

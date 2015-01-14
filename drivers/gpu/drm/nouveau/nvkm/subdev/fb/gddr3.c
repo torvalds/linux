@@ -22,8 +22,6 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  * 	    Roy Spliet <rspliet@eclipso.eu>
  */
-
-#include <subdev/bios.h>
 #include "priv.h"
 
 struct ramxlat {
@@ -70,7 +68,7 @@ ramgddr3_wr_lo[] = {
 };
 
 int
-nouveau_gddr3_calc(struct nouveau_ram *ram)
+nvkm_gddr3_calc(struct nvkm_ram *ram)
 {
 	int CL, WR, CWL, DLL = 0, ODT = 0, hi;
 

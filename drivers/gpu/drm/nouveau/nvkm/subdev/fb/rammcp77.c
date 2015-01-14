@@ -21,26 +21,25 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "nv50.h"
 
-struct nvaa_ram_priv {
-	struct nouveau_ram base;
+struct mcp77_ram_priv {
+	struct nvkm_ram base;
 	u64 poller_base;
 };
 
 static int
-nvaa_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	      struct nouveau_oclass *oclass, void *data, u32 datasize,
-	      struct nouveau_object **pobject)
+mcp77_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	       struct nvkm_oclass *oclass, void *data, u32 datasize,
+	       struct nvkm_object **pobject)
 {
 	u32 rsvd_head = ( 256 * 1024); /* vga memory */
 	u32 rsvd_tail = (1024 * 1024); /* vbios etc */
-	struct nouveau_fb *pfb = nouveau_fb(parent);
-	struct nvaa_ram_priv *priv;
+	struct nvkm_fb *pfb = nvkm_fb(parent);
+	struct mcp77_ram_priv *priv;
 	int ret;
 
-	ret = nouveau_ram_create(parent, engine, oclass, &priv);
+	ret = nvkm_ram_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -52,9 +51,9 @@ nvaa_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	rsvd_tail += 0x1000;
 	priv->poller_base = priv->base.size - rsvd_tail;
 
-	ret = nouveau_mm_init(&pfb->vram, rsvd_head >> 12,
-			      (priv->base.size  - (rsvd_head + rsvd_tail)) >> 12,
-			      1);
+	ret = nvkm_mm_init(&pfb->vram, rsvd_head >> 12,
+			   (priv->base.size  - (rsvd_head + rsvd_tail)) >> 12,
+			   1);
 	if (ret)
 		return ret;
 
@@ -64,14 +63,14 @@ nvaa_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 }
 
 static int
-nvaa_ram_init(struct nouveau_object *object)
+mcp77_ram_init(struct nvkm_object *object)
 {
-	struct nouveau_fb *pfb = nouveau_fb(object);
-	struct nvaa_ram_priv *priv = (void *)object;
+	struct nvkm_fb *pfb = nvkm_fb(object);
+	struct mcp77_ram_priv *priv = (void *)object;
 	int ret;
 	u64 dniso, hostnb, flush;
 
-	ret = nouveau_ram_init(&priv->base);
+	ret = nvkm_ram_init(&priv->base);
 	if (ret)
 		return ret;
 
@@ -88,16 +87,15 @@ nvaa_ram_init(struct nouveau_object *object)
 	nv_mask(pfb, 0x100c14, 0x00000000, 0x00000002);
 	nv_wr32(pfb, 0x100c24, flush);
 	nv_mask(pfb, 0x100c14, 0x00000000, 0x00010000);
-
 	return 0;
 }
 
-struct nouveau_oclass
-nvaa_ram_oclass = {
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvaa_ram_ctor,
-		.dtor = _nouveau_ram_dtor,
-		.init = nvaa_ram_init,
-		.fini = _nouveau_ram_fini,
+struct nvkm_oclass
+mcp77_ram_oclass = {
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = mcp77_ram_ctor,
+		.dtor = _nvkm_ram_dtor,
+		.init = mcp77_ram_init,
+		.fini = _nvkm_ram_fini,
 	},
 };

@@ -21,23 +21,19 @@
  *
  * Authors: Ben Skeggs
  */
+#include "gf100.h"
+#include "ramfuc.h"
 
+#include <core/option.h>
 #include <subdev/bios.h>
 #include <subdev/bios/pll.h>
 #include <subdev/bios/rammap.h>
 #include <subdev/bios/timing.h>
-#include <subdev/ltc.h>
-
 #include <subdev/clk.h>
 #include <subdev/clk/pll.h>
+#include <subdev/ltc.h>
 
-#include <core/option.h>
-
-#include "ramfuc.h"
-
-#include "nvc0.h"
-
-struct nvc0_ramfuc {
+struct gf100_ramfuc {
 	struct ramfuc base;
 
 	struct ramfuc_reg r_0x10fe20;
@@ -100,18 +96,18 @@ struct nvc0_ramfuc {
 	struct ramfuc_reg r_0x13d8f4;
 };
 
-struct nvc0_ram {
-	struct nouveau_ram base;
-	struct nvc0_ramfuc fuc;
+struct gf100_ram {
+	struct nvkm_ram base;
+	struct gf100_ramfuc fuc;
 	struct nvbios_pll refpll;
 	struct nvbios_pll mempll;
 };
 
 static void
-nvc0_ram_train(struct nvc0_ramfuc *fuc, u32 magic)
+gf100_ram_train(struct gf100_ramfuc *fuc, u32 magic)
 {
-	struct nvc0_ram *ram = container_of(fuc, typeof(*ram), fuc);
-	struct nouveau_fb *pfb = nouveau_fb(ram);
+	struct gf100_ram *ram = container_of(fuc, typeof(*ram), fuc);
+	struct nvkm_fb *pfb = nvkm_fb(ram);
 	u32 part = nv_rd32(pfb, 0x022438), i;
 	u32 mask = nv_rd32(pfb, 0x022554);
 	u32 addr = 0x110974;
@@ -127,12 +123,12 @@ nvc0_ram_train(struct nvc0_ramfuc *fuc, u32 magic)
 }
 
 static int
-nvc0_ram_calc(struct nouveau_fb *pfb, u32 freq)
+gf100_ram_calc(struct nvkm_fb *pfb, u32 freq)
 {
-	struct nouveau_clk *clk = nouveau_clk(pfb);
-	struct nouveau_bios *bios = nouveau_bios(pfb);
-	struct nvc0_ram *ram = (void *)pfb->ram;
-	struct nvc0_ramfuc *fuc = &ram->fuc;
+	struct nvkm_clk *clk = nvkm_clk(pfb);
+	struct nvkm_bios *bios = nvkm_bios(pfb);
+	struct gf100_ram *ram = (void *)pfb->ram;
+	struct gf100_ramfuc *fuc = &ram->fuc;
 	struct nvbios_ramcfg cfg;
 	u8  ver, cnt, len, strap;
 	struct {
@@ -146,7 +142,7 @@ nvc0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 
 	/* lookup memory config data relevant to the target frequency */
 	rammap.data = nvbios_rammapEm(bios, freq / 1000, &ver, &rammap.size,
-				     &cnt, &ramcfg.size, &cfg);
+				      &cnt, &ramcfg.size, &cfg);
 	if (!rammap.data || ver != 0x10 || rammap.size < 0x0e) {
 		nv_error(pfb, "invalid/missing rammap entry\n");
 		return -EINVAL;
@@ -169,7 +165,7 @@ nvc0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	strap = nv_ro08(bios, ramcfg.data + 0x01);
 	if (strap != 0xff) {
 		timing.data = nvbios_timingEe(bios, strap, &ver, &timing.size,
-					     &cnt, &len);
+					      &cnt, &len);
 		if (!timing.data || ver != 0x10 || timing.size < 0x19) {
 			nv_error(pfb, "invalid/missing timing entry\n");
 			return -EINVAL;
@@ -213,8 +209,8 @@ nvc0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 
 	if (mode == 1 && from == 0) {
 		/* calculate refpll */
-		ret = nva3_pll_calc(nv_subdev(pfb), &ram->refpll,
-				    ram->mempll.refclk, &N1, NULL, &M1, &P);
+		ret = gt215_pll_calc(nv_subdev(pfb), &ram->refpll,
+				     ram->mempll.refclk, &N1, NULL, &M1, &P);
 		if (ret <= 0) {
 			nv_error(pfb, "unable to calc refpll\n");
 			return ret ? ret : -ERANGE;
@@ -228,8 +224,8 @@ nvc0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 		ram_wait(fuc, 0x137390, 0x00020000, 0x00020000, 64000);
 
 		/* calculate mempll */
-		ret = nva3_pll_calc(nv_subdev(pfb), &ram->mempll, freq,
-				   &N1, NULL, &M1, &P);
+		ret = gt215_pll_calc(nv_subdev(pfb), &ram->mempll, freq,
+				     &N1, NULL, &M1, &P);
 		if (ret <= 0) {
 			nv_error(pfb, "unable to calc refpll\n");
 			return ret ? ret : -ERANGE;
@@ -277,7 +273,7 @@ nvc0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	ram_wr32(fuc, 0x10f210, 0x00000000);
 	ram_nsec(fuc, 1000);
 	if (mode == 0)
-		nvc0_ram_train(fuc, 0x000c1001);
+		gf100_ram_train(fuc, 0x000c1001);
 	ram_wr32(fuc, 0x10f310, 0x00000001);
 	ram_nsec(fuc, 1000);
 	ram_wr32(fuc, 0x10f090, 0x00000061);
@@ -325,8 +321,8 @@ nvc0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 		ram_wr32(fuc, 0x10f348, 0x00700008);
 		ram_wr32(fuc, 0x61c140, 0x19240000);
 		ram_wr32(fuc, 0x10f830, 0x00300017);
-		nvc0_ram_train(fuc, 0x80021001);
-		nvc0_ram_train(fuc, 0x80081001);
+		gf100_ram_train(fuc, 0x80021001);
+		gf100_ram_train(fuc, 0x80081001);
 		ram_wr32(fuc, 0x10f340, 0x00500004);
 		ram_nsec(fuc, 1000);
 		ram_wr32(fuc, 0x10f830, 0x01300017);
@@ -379,7 +375,7 @@ nvc0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 		ram_wr32(fuc, 0x13d8f4, 0x00000000);
 		ram_wr32(fuc, 0x61c140, 0x09a40000);
 
-		nvc0_ram_train(fuc, 0x800e1008);
+		gf100_ram_train(fuc, 0x800e1008);
 
 		ram_nsec(fuc, 1000);
 		ram_wr32(fuc, 0x10f800, 0x00001804);
@@ -392,7 +388,7 @@ nvc0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 		ram_wr32(fuc, 0x10f9b0, 0x05313f41);
 		ram_wr32(fuc, 0x10f9b4, 0x00002f50);
 
-		nvc0_ram_train(fuc, 0x010c1001);
+		gf100_ram_train(fuc, 0x010c1001);
 	}
 
 	ram_mask(fuc, 0x10f200, 0x00000800, 0x00000800);
@@ -400,34 +396,35 @@ nvc0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 
 	if (mode == 0)
 		ram_mask(fuc, 0x132000, 0x00000001, 0x00000000);
+
 	return 0;
 }
 
 static int
-nvc0_ram_prog(struct nouveau_fb *pfb)
+gf100_ram_prog(struct nvkm_fb *pfb)
 {
-	struct nouveau_device *device = nv_device(pfb);
-	struct nvc0_ram *ram = (void *)pfb->ram;
-	struct nvc0_ramfuc *fuc = &ram->fuc;
-	ram_exec(fuc, nouveau_boolopt(device->cfgopt, "NvMemExec", true));
+	struct nvkm_device *device = nv_device(pfb);
+	struct gf100_ram *ram = (void *)pfb->ram;
+	struct gf100_ramfuc *fuc = &ram->fuc;
+	ram_exec(fuc, nvkm_boolopt(device->cfgopt, "NvMemExec", true));
 	return 0;
 }
 
 static void
-nvc0_ram_tidy(struct nouveau_fb *pfb)
+gf100_ram_tidy(struct nvkm_fb *pfb)
 {
-	struct nvc0_ram *ram = (void *)pfb->ram;
-	struct nvc0_ramfuc *fuc = &ram->fuc;
+	struct gf100_ram *ram = (void *)pfb->ram;
+	struct gf100_ramfuc *fuc = &ram->fuc;
 	ram_exec(fuc, false);
 }
 
-extern const u8 nvc0_pte_storage_type_map[256];
+extern const u8 gf100_pte_storage_type_map[256];
 
 void
-nvc0_ram_put(struct nouveau_fb *pfb, struct nouveau_mem **pmem)
+gf100_ram_put(struct nvkm_fb *pfb, struct nvkm_mem **pmem)
 {
-	struct nouveau_ltc *ltc = nouveau_ltc(pfb);
-	struct nouveau_mem *mem = *pmem;
+	struct nvkm_ltc *ltc = nvkm_ltc(pfb);
+	struct nvkm_mem *mem = *pmem;
 
 	*pmem = NULL;
 	if (unlikely(mem == NULL))
@@ -443,15 +440,15 @@ nvc0_ram_put(struct nouveau_fb *pfb, struct nouveau_mem **pmem)
 }
 
 int
-nvc0_ram_get(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
-	     u32 memtype, struct nouveau_mem **pmem)
+gf100_ram_get(struct nvkm_fb *pfb, u64 size, u32 align, u32 ncmin,
+	      u32 memtype, struct nvkm_mem **pmem)
 {
-	struct nouveau_mm *mm = &pfb->vram;
-	struct nouveau_mm_node *r;
-	struct nouveau_mem *mem;
+	struct nvkm_mm *mm = &pfb->vram;
+	struct nvkm_mm_node *r;
+	struct nvkm_mem *mem;
 	int type = (memtype & 0x0ff);
 	int back = (memtype & 0x800);
-	const bool comp = nvc0_pte_storage_type_map[type] != type;
+	const bool comp = gf100_pte_storage_type_map[type] != type;
 	int ret;
 
 	size  >>= 12;
@@ -469,7 +466,7 @@ nvc0_ram_get(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
 
 	mutex_lock(&pfb->base.mutex);
 	if (comp) {
-		struct nouveau_ltc *ltc = nouveau_ltc(pfb);
+		struct nvkm_ltc *ltc = nvkm_ltc(pfb);
 
 		/* compression only works with lpages */
 		if (align == (1 << (17 - 12))) {
@@ -478,15 +475,15 @@ nvc0_ram_get(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
 		}
 
 		if (unlikely(!mem->tag))
-			type = nvc0_pte_storage_type_map[type];
+			type = gf100_pte_storage_type_map[type];
 	}
 	mem->memtype = type;
 
 	do {
 		if (back)
-			ret = nouveau_mm_tail(mm, 0, 1, size, ncmin, align, &r);
+			ret = nvkm_mm_tail(mm, 0, 1, size, ncmin, align, &r);
 		else
-			ret = nouveau_mm_head(mm, 0, 1, size, ncmin, align, &r);
+			ret = nvkm_mm_head(mm, 0, 1, size, ncmin, align, &r);
 		if (ret) {
 			mutex_unlock(&pfb->base.mutex);
 			pfb->ram->put(pfb, &mem);
@@ -498,20 +495,20 @@ nvc0_ram_get(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
 	} while (size);
 	mutex_unlock(&pfb->base.mutex);
 
-	r = list_first_entry(&mem->regions, struct nouveau_mm_node, rl_entry);
+	r = list_first_entry(&mem->regions, struct nvkm_mm_node, rl_entry);
 	mem->offset = (u64)r->offset << 12;
 	*pmem = mem;
 	return 0;
 }
 
 int
-nvc0_ram_create_(struct nouveau_object *parent, struct nouveau_object *engine,
-		 struct nouveau_oclass *oclass, u32 maskaddr, int size,
-		 void **pobject)
+gf100_ram_create_(struct nvkm_object *parent, struct nvkm_object *engine,
+		  struct nvkm_oclass *oclass, u32 maskaddr, int size,
+		  void **pobject)
 {
-	struct nouveau_fb *pfb = nouveau_fb(parent);
-	struct nouveau_bios *bios = nouveau_bios(pfb);
-	struct nouveau_ram *ram;
+	struct nvkm_fb *pfb = nvkm_fb(parent);
+	struct nvkm_bios *bios = nvkm_bios(pfb);
+	struct nvkm_ram *ram;
 	const u32 rsvd_head = ( 256 * 1024) >> 12; /* vga memory */
 	const u32 rsvd_tail = (1024 * 1024) >> 12; /* vbios etc */
 	u32 parts = nv_rd32(pfb, 0x022438);
@@ -521,7 +518,7 @@ nvc0_ram_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 	bool uniform = true;
 	int ret, part;
 
-	ret = nouveau_ram_create_(parent, engine, oclass, size, pobject);
+	ret = nvkm_ram_create_(parent, engine, oclass, size, pobject);
 	ram = *pobject;
 	if (ret)
 		return ret;
@@ -529,7 +526,7 @@ nvc0_ram_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 	nv_debug(pfb, "0x100800: 0x%08x\n", nv_rd32(pfb, 0x100800));
 	nv_debug(pfb, "parts 0x%08x mask 0x%08x\n", parts, pmask);
 
-	ram->type = nouveau_fb_bios_memtype(bios);
+	ram->type = nvkm_fb_bios_memtype(bios);
 	ram->ranks = (nv_rd32(pfb, 0x10f200) & 0x00000004) ? 2 : 1;
 
 	/* read amount of vram attached to each memory controller */
@@ -551,11 +548,11 @@ nvc0_ram_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (uniform) {
 		offset = rsvd_head;
 		length = (ram->size >> 12) - rsvd_head - rsvd_tail;
-		ret = nouveau_mm_init(&pfb->vram, offset, length, 1);
+		ret = nvkm_mm_init(&pfb->vram, offset, length, 1);
 	} else {
 		/* otherwise, address lowest common amount from 0GiB */
-		ret = nouveau_mm_init(&pfb->vram, rsvd_head,
-				      (bsize << 8) * parts - rsvd_head, 1);
+		ret = nvkm_mm_init(&pfb->vram, rsvd_head,
+				   (bsize << 8) * parts - rsvd_head, 1);
 		if (ret)
 			return ret;
 
@@ -563,27 +560,27 @@ nvc0_ram_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 		offset = (0x0200000000ULL >> 12) + (bsize << 8);
 		length = (ram->size >> 12) - ((bsize * parts) << 8) - rsvd_tail;
 
-		ret = nouveau_mm_init(&pfb->vram, offset, length, 1);
+		ret = nvkm_mm_init(&pfb->vram, offset, length, 1);
 		if (ret)
-			nouveau_mm_fini(&pfb->vram);
+			nvkm_mm_fini(&pfb->vram);
 	}
 
 	if (ret)
 		return ret;
 
-	ram->get = nvc0_ram_get;
-	ram->put = nvc0_ram_put;
+	ram->get = gf100_ram_get;
+	ram->put = gf100_ram_put;
 	return 0;
 }
 
 static int
-nvc0_ram_init(struct nouveau_object *object)
+gf100_ram_init(struct nvkm_object *object)
 {
-	struct nouveau_fb *pfb = (void *)object->parent;
-	struct nvc0_ram   *ram = (void *)object;
+	struct nvkm_fb *pfb = (void *)object->parent;
+	struct gf100_ram *ram = (void *)object;
 	int ret, i;
 
-	ret = nouveau_ram_init(&ram->base);
+	ret = nvkm_ram_init(&ram->base);
 	if (ret)
 		return ret;
 
@@ -624,15 +621,15 @@ nvc0_ram_init(struct nouveau_object *object)
 }
 
 static int
-nvc0_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	      struct nouveau_oclass *oclass, void *data, u32 size,
-	      struct nouveau_object **pobject)
+gf100_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	       struct nvkm_oclass *oclass, void *data, u32 size,
+	       struct nvkm_object **pobject)
 {
-	struct nouveau_bios *bios = nouveau_bios(parent);
-	struct nvc0_ram *ram;
+	struct nvkm_bios *bios = nvkm_bios(parent);
+	struct gf100_ram *ram;
 	int ret;
 
-	ret = nvc0_ram_create(parent, engine, oclass, 0x022554, &ram);
+	ret = gf100_ram_create(parent, engine, oclass, 0x022554, &ram);
 	*pobject = nv_object(ram);
 	if (ret)
 		return ret;
@@ -651,9 +648,9 @@ nvc0_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	switch (ram->base.type) {
 	case NV_MEM_TYPE_GDDR5:
-		ram->base.calc = nvc0_ram_calc;
-		ram->base.prog = nvc0_ram_prog;
-		ram->base.tidy = nvc0_ram_tidy;
+		ram->base.calc = gf100_ram_calc;
+		ram->base.prog = gf100_ram_prog;
+		ram->base.tidy = gf100_ram_tidy;
 		break;
 	default:
 		nv_warn(ram, "reclocking of this ram type unsupported\n");
@@ -721,13 +718,13 @@ nvc0_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
-nvc0_ram_oclass = {
+struct nvkm_oclass
+gf100_ram_oclass = {
 	.handle = 0,
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_ram_ctor,
-		.dtor = _nouveau_ram_dtor,
-		.init = nvc0_ram_init,
-		.fini = _nouveau_ram_fini,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gf100_ram_ctor,
+		.dtor = _nvkm_ram_dtor,
+		.init = gf100_ram_init,
+		.fini = _nvkm_ram_fini,
 	}
 };

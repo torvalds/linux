@@ -21,22 +21,21 @@
  *
  * Authors: Ben Skeggs
  */
+#include "gf100.h"
 
-#include "nvc0.h"
-
-extern const u8 nvc0_pte_storage_type_map[256];
+extern const u8 gf100_pte_storage_type_map[256];
 
 bool
-nvc0_fb_memtype_valid(struct nouveau_fb *pfb, u32 tile_flags)
+gf100_fb_memtype_valid(struct nvkm_fb *pfb, u32 tile_flags)
 {
 	u8 memtype = (tile_flags & 0x0000ff00) >> 8;
-	return likely((nvc0_pte_storage_type_map[memtype] != 0xff));
+	return likely((gf100_pte_storage_type_map[memtype] != 0xff));
 }
 
 static void
-nvc0_fb_intr(struct nouveau_subdev *subdev)
+gf100_fb_intr(struct nvkm_subdev *subdev)
 {
-	struct nvc0_fb_priv *priv = (void *)subdev;
+	struct gf100_fb_priv *priv = (void *)subdev;
 	u32 intr = nv_rd32(priv, 0x000100);
 	if (intr & 0x08000000) {
 		nv_debug(priv, "PFFB intr\n");
@@ -49,26 +48,27 @@ nvc0_fb_intr(struct nouveau_subdev *subdev)
 }
 
 int
-nvc0_fb_init(struct nouveau_object *object)
+gf100_fb_init(struct nvkm_object *object)
 {
-	struct nvc0_fb_priv *priv = (void *)object;
+	struct gf100_fb_priv *priv = (void *)object;
 	int ret;
 
-	ret = nouveau_fb_init(&priv->base);
+	ret = nvkm_fb_init(&priv->base);
 	if (ret)
 		return ret;
 
 	if (priv->r100c10_page)
 		nv_wr32(priv, 0x100c10, priv->r100c10 >> 8);
+
 	nv_mask(priv, 0x100c80, 0x00000001, 0x00000000); /* 128KiB lpg */
 	return 0;
 }
 
 void
-nvc0_fb_dtor(struct nouveau_object *object)
+gf100_fb_dtor(struct nvkm_object *object)
 {
-	struct nouveau_device *device = nv_device(object);
-	struct nvc0_fb_priv *priv = (void *)object;
+	struct nvkm_device *device = nv_device(object);
+	struct gf100_fb_priv *priv = (void *)object;
 
 	if (priv->r100c10_page) {
 		dma_unmap_page(nv_device_base(device), priv->r100c10, PAGE_SIZE,
@@ -76,19 +76,19 @@ nvc0_fb_dtor(struct nouveau_object *object)
 		__free_page(priv->r100c10_page);
 	}
 
-	nouveau_fb_destroy(&priv->base);
+	nvkm_fb_destroy(&priv->base);
 }
 
 int
-nvc0_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	     struct nouveau_oclass *oclass, void *data, u32 size,
-	     struct nouveau_object **pobject)
+gf100_fb_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	      struct nvkm_oclass *oclass, void *data, u32 size,
+	      struct nvkm_object **pobject)
 {
-	struct nouveau_device *device = nv_device(parent);
-	struct nvc0_fb_priv *priv;
+	struct nvkm_device *device = nv_device(parent);
+	struct gf100_fb_priv *priv;
 	int ret;
 
-	ret = nouveau_fb_create(parent, engine, oclass, &priv);
+	ret = nvkm_fb_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -102,19 +102,19 @@ nvc0_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 			return -EFAULT;
 	}
 
-	nv_subdev(priv)->intr = nvc0_fb_intr;
+	nv_subdev(priv)->intr = gf100_fb_intr;
 	return 0;
 }
 
-struct nouveau_oclass *
-nvc0_fb_oclass = &(struct nouveau_fb_impl) {
+struct nvkm_oclass *
+gf100_fb_oclass = &(struct nvkm_fb_impl) {
 	.base.handle = NV_SUBDEV(FB, 0xc0),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_fb_ctor,
-		.dtor = nvc0_fb_dtor,
-		.init = nvc0_fb_init,
-		.fini = _nouveau_fb_fini,
+	.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gf100_fb_ctor,
+		.dtor = gf100_fb_dtor,
+		.init = gf100_fb_init,
+		.fini = _nvkm_fb_fini,
 	},
-	.memtype = nvc0_fb_memtype_valid,
-	.ram = &nvc0_ram_oclass,
+	.memtype = gf100_fb_memtype_valid,
+	.ram = &gf100_ram_oclass,
 }.base;

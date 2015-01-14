@@ -21,20 +21,19 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "priv.h"
 
 static int
-nv10_ram_create(struct nouveau_object *parent, struct nouveau_object *engine,
-		struct nouveau_oclass *oclass, void *data, u32 size,
-		struct nouveau_object **pobject)
+nv10_ram_create(struct nvkm_object *parent, struct nvkm_object *engine,
+		struct nvkm_oclass *oclass, void *data, u32 size,
+		struct nvkm_object **pobject)
 {
-	struct nouveau_fb *pfb = nouveau_fb(parent);
-	struct nouveau_ram *ram;
+	struct nvkm_fb *pfb = nvkm_fb(parent);
+	struct nvkm_ram *ram;
 	u32 cfg0 = nv_rd32(pfb, 0x100200);
 	int ret;
 
-	ret = nouveau_ram_create(parent, engine, oclass, &ram);
+	ret = nvkm_ram_create(parent, engine, oclass, &ram);
 	*pobject = nv_object(ram);
 	if (ret)
 		return ret;
@@ -48,14 +47,13 @@ nv10_ram_create(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-
-struct nouveau_oclass
+struct nvkm_oclass
 nv10_ram_oclass = {
 	.handle = 0,
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv10_ram_create,
-		.dtor = _nouveau_ram_dtor,
-		.init = _nouveau_ram_init,
-		.fini = _nouveau_ram_fini,
+		.dtor = _nvkm_ram_dtor,
+		.init = _nvkm_ram_init,
+		.fini = _nvkm_ram_fini,
 	}
 };

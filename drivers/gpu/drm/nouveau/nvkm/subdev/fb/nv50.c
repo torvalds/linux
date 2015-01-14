@@ -21,15 +21,11 @@
  *
  * Authors: Ben Skeggs
  */
+#include "nv50.h"
 
 #include <core/client.h>
-#include <core/enum.h>
 #include <core/engctx.h>
-#include <core/object.h>
-
-#include <subdev/bios.h>
-
-#include "nv50.h"
+#include <core/enum.h>
 
 int
 nv50_fb_memtype[0x80] = {
@@ -44,12 +40,12 @@ nv50_fb_memtype[0x80] = {
 };
 
 bool
-nv50_fb_memtype_valid(struct nouveau_fb *pfb, u32 memtype)
+nv50_fb_memtype_valid(struct nvkm_fb *pfb, u32 memtype)
 {
 	return nv50_fb_memtype[(memtype & 0xff00) >> 8] != 0;
 }
 
-static const struct nouveau_enum vm_dispatch_subclients[] = {
+static const struct nvkm_enum vm_dispatch_subclients[] = {
 	{ 0x00000000, "GRCTX", NULL },
 	{ 0x00000001, "NOTIFY", NULL },
 	{ 0x00000002, "QUERY", NULL },
@@ -60,14 +56,14 @@ static const struct nouveau_enum vm_dispatch_subclients[] = {
 	{}
 };
 
-static const struct nouveau_enum vm_ccache_subclients[] = {
+static const struct nvkm_enum vm_ccache_subclients[] = {
 	{ 0x00000000, "CB", NULL },
 	{ 0x00000001, "TIC", NULL },
 	{ 0x00000002, "TSC", NULL },
 	{}
 };
 
-static const struct nouveau_enum vm_prop_subclients[] = {
+static const struct nvkm_enum vm_prop_subclients[] = {
 	{ 0x00000000, "RT0", NULL },
 	{ 0x00000001, "RT1", NULL },
 	{ 0x00000002, "RT2", NULL },
@@ -84,19 +80,19 @@ static const struct nouveau_enum vm_prop_subclients[] = {
 	{}
 };
 
-static const struct nouveau_enum vm_pfifo_subclients[] = {
+static const struct nvkm_enum vm_pfifo_subclients[] = {
 	{ 0x00000000, "PUSHBUF", NULL },
 	{ 0x00000001, "SEMAPHORE", NULL },
 	{}
 };
 
-static const struct nouveau_enum vm_bar_subclients[] = {
+static const struct nvkm_enum vm_bar_subclients[] = {
 	{ 0x00000000, "FB", NULL },
 	{ 0x00000001, "IN", NULL },
 	{}
 };
 
-static const struct nouveau_enum vm_client[] = {
+static const struct nvkm_enum vm_client[] = {
 	{ 0x00000000, "STRMOUT", NULL },
 	{ 0x00000003, "DISPATCH", vm_dispatch_subclients },
 	{ 0x00000004, "PFIFO_WRITE", NULL },
@@ -115,7 +111,7 @@ static const struct nouveau_enum vm_client[] = {
 	{}
 };
 
-static const struct nouveau_enum vm_engine[] = {
+static const struct nvkm_enum vm_engine[] = {
 	{ 0x00000000, "PGRAPH", NULL, NVDEV_ENGINE_GR },
 	{ 0x00000001, "PVP", NULL, NVDEV_ENGINE_VP },
 	{ 0x00000004, "PEEPHOLE", NULL },
@@ -132,7 +128,7 @@ static const struct nouveau_enum vm_engine[] = {
 	{}
 };
 
-static const struct nouveau_enum vm_fault[] = {
+static const struct nvkm_enum vm_fault[] = {
 	{ 0x00000000, "PT_NOT_PRESENT", NULL },
 	{ 0x00000001, "PT_TOO_SHORT", NULL },
 	{ 0x00000002, "PAGE_NOT_PRESENT", NULL },
@@ -146,13 +142,13 @@ static const struct nouveau_enum vm_fault[] = {
 };
 
 static void
-nv50_fb_intr(struct nouveau_subdev *subdev)
+nv50_fb_intr(struct nvkm_subdev *subdev)
 {
-	struct nouveau_device *device = nv_device(subdev);
-	struct nouveau_engine *engine;
+	struct nvkm_device *device = nv_device(subdev);
+	struct nvkm_engine *engine;
 	struct nv50_fb_priv *priv = (void *)subdev;
-	const struct nouveau_enum *en, *cl;
-	struct nouveau_object *engctx = NULL;
+	const struct nvkm_enum *en, *cl;
+	struct nvkm_object *engctx = NULL;
 	u32 trap[6], idx, chan;
 	u8 st0, st1, st2, st3;
 	int i;
@@ -183,21 +179,21 @@ nv50_fb_intr(struct nouveau_subdev *subdev)
 	}
 	chan = (trap[2] << 16) | trap[1];
 
-	en = nouveau_enum_find(vm_engine, st0);
+	en = nvkm_enum_find(vm_engine, st0);
 
 	if (en && en->data2) {
-		const struct nouveau_enum *orig_en = en;
+		const struct nvkm_enum *orig_en = en;
 		while (en->name && en->value == st0 && en->data2) {
-			engine = nouveau_engine(subdev, en->data2);
+			engine = nvkm_engine(subdev, en->data2);
 			/*XXX: clean this up */
 			if (!engine && en->data2 == NVDEV_ENGINE_BSP)
-				engine = nouveau_engine(subdev, NVDEV_ENGINE_MSVLD);
+				engine = nvkm_engine(subdev, NVDEV_ENGINE_MSVLD);
 			if (!engine && en->data2 == NVDEV_ENGINE_CIPHER)
-				engine = nouveau_engine(subdev, NVDEV_ENGINE_SEC);
+				engine = nvkm_engine(subdev, NVDEV_ENGINE_SEC);
 			if (!engine && en->data2 == NVDEV_ENGINE_VP)
-				engine = nouveau_engine(subdev, NVDEV_ENGINE_MSPDEC);
+				engine = nvkm_engine(subdev, NVDEV_ENGINE_MSPDEC);
 			if (engine) {
-				engctx = nouveau_engctx_get(engine, chan);
+				engctx = nvkm_engctx_get(engine, chan);
 				if (engctx)
 					break;
 			}
@@ -210,23 +206,23 @@ nv50_fb_intr(struct nouveau_subdev *subdev)
 	nv_error(priv, "trapped %s at 0x%02x%04x%04x on channel 0x%08x [%s] ",
 		 (trap[5] & 0x00000100) ? "read" : "write",
 		 trap[5] & 0xff, trap[4] & 0xffff, trap[3] & 0xffff, chan,
-		 nouveau_client_name(engctx));
+		 nvkm_client_name(engctx));
 
-	nouveau_engctx_put(engctx);
+	nvkm_engctx_put(engctx);
 
 	if (en)
 		pr_cont("%s/", en->name);
 	else
 		pr_cont("%02x/", st0);
 
-	cl = nouveau_enum_find(vm_client, st2);
+	cl = nvkm_enum_find(vm_client, st2);
 	if (cl)
 		pr_cont("%s/", cl->name);
 	else
 		pr_cont("%02x/", st2);
 
-	if      (cl && cl->data) cl = nouveau_enum_find(cl->data, st3);
-	else if (en && en->data) cl = nouveau_enum_find(en->data, st3);
+	if      (cl && cl->data) cl = nvkm_enum_find(cl->data, st3);
+	else if (en && en->data) cl = nvkm_enum_find(en->data, st3);
 	else                     cl = NULL;
 	if (cl)
 		pr_cont("%s", cl->name);
@@ -234,7 +230,7 @@ nv50_fb_intr(struct nouveau_subdev *subdev)
 		pr_cont("%02x", st3);
 
 	pr_cont(" reason: ");
-	en = nouveau_enum_find(vm_fault, st1);
+	en = nvkm_enum_find(vm_fault, st1);
 	if (en)
 		pr_cont("%s\n", en->name);
 	else
@@ -242,15 +238,15 @@ nv50_fb_intr(struct nouveau_subdev *subdev)
 }
 
 int
-nv50_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	     struct nouveau_oclass *oclass, void *data, u32 size,
-	     struct nouveau_object **pobject)
+nv50_fb_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	     struct nvkm_oclass *oclass, void *data, u32 size,
+	     struct nvkm_object **pobject)
 {
-	struct nouveau_device *device = nv_device(parent);
+	struct nvkm_device *device = nv_device(parent);
 	struct nv50_fb_priv *priv;
 	int ret;
 
-	ret = nouveau_fb_create(parent, engine, oclass, &priv);
+	ret = nvkm_fb_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -271,9 +267,9 @@ nv50_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 }
 
 void
-nv50_fb_dtor(struct nouveau_object *object)
+nv50_fb_dtor(struct nvkm_object *object)
 {
-	struct nouveau_device *device = nv_device(object);
+	struct nvkm_device *device = nv_device(object);
 	struct nv50_fb_priv *priv = (void *)object;
 
 	if (priv->r100c08_page) {
@@ -282,17 +278,17 @@ nv50_fb_dtor(struct nouveau_object *object)
 		__free_page(priv->r100c08_page);
 	}
 
-	nouveau_fb_destroy(&priv->base);
+	nvkm_fb_destroy(&priv->base);
 }
 
 int
-nv50_fb_init(struct nouveau_object *object)
+nv50_fb_init(struct nvkm_object *object)
 {
 	struct nv50_fb_impl *impl = (void *)object->oclass;
 	struct nv50_fb_priv *priv = (void *)object;
 	int ret;
 
-	ret = nouveau_fb_init(&priv->base);
+	ret = nvkm_fb_init(&priv->base);
 	if (ret)
 		return ret;
 
@@ -308,14 +304,14 @@ nv50_fb_init(struct nouveau_object *object)
 	return 0;
 }
 
-struct nouveau_oclass *
+struct nvkm_oclass *
 nv50_fb_oclass = &(struct nv50_fb_impl) {
 	.base.base.handle = NV_SUBDEV(FB, 0x50),
-	.base.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv50_fb_ctor,
 		.dtor = nv50_fb_dtor,
 		.init = nv50_fb_init,
-		.fini = _nouveau_fb_fini,
+		.fini = _nvkm_fb_fini,
 	},
 	.base.memtype = nv50_fb_memtype_valid,
 	.base.ram = &nv50_ram_oclass,

@@ -21,22 +21,20 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <subdev/fb/regsnv04.h>
-
 #include "priv.h"
+#include "regsnv04.h"
 
 static int
-nv04_ram_create(struct nouveau_object *parent, struct nouveau_object *engine,
-		struct nouveau_oclass *oclass, void *data, u32 size,
-		struct nouveau_object **pobject)
+nv04_ram_create(struct nvkm_object *parent, struct nvkm_object *engine,
+		struct nvkm_oclass *oclass, void *data, u32 size,
+		struct nvkm_object **pobject)
 {
-	struct nouveau_fb *pfb = nouveau_fb(parent);
-	struct nouveau_ram *ram;
+	struct nvkm_fb *pfb = nvkm_fb(parent);
+	struct nvkm_ram *ram;
 	u32 boot0 = nv_rd32(pfb, NV04_PFB_BOOT_0);
 	int ret;
 
-	ret = nouveau_ram_create(parent, engine, oclass, &ram);
+	ret = nvkm_ram_create(parent, engine, oclass, &ram);
 	*pobject = nv_object(ram);
 	if (ret)
 		return ret;
@@ -65,16 +63,17 @@ nv04_ram_create(struct nouveau_object *parent, struct nouveau_object *engine,
 		ram->type = NV_MEM_TYPE_SGRAM;
 	else
 		ram->type = NV_MEM_TYPE_SDRAM;
+
 	return 0;
 }
 
-struct nouveau_oclass
+struct nvkm_oclass
 nv04_ram_oclass = {
 	.handle = 0,
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_ram_create,
-		.dtor = _nouveau_ram_dtor,
-		.init = _nouveau_ram_init,
-		.fini = _nouveau_ram_fini,
+		.dtor = _nvkm_ram_dtor,
+		.init = _nvkm_ram_init,
+		.fini = _nvkm_ram_fini,
 	}
 };

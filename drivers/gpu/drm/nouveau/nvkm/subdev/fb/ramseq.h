@@ -1,7 +1,5 @@
 #ifndef __NVKM_FBRAM_SEQ_H__
 #define __NVKM_FBRAM_SEQ_H__
-
-#include <subdev/bus.h>
 #include <subdev/bus/hwsq.h>
 
 #define ram_init(s,p)       hwsq_init(&(s)->base, (p))
@@ -14,5 +12,4 @@
 #define ram_setf(s,f,d)     hwsq_setf(&(s)->base, (f), (d))
 #define ram_wait(s,f,d)     hwsq_wait(&(s)->base, (f), (d))
 #define ram_nsec(s,n)       hwsq_nsec(&(s)->base, (n))
-
 #endif
