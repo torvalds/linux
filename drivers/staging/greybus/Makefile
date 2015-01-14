@@ -46,3 +46,7 @@ clean:
 coccicheck:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) coccicheck
 
+install: module
+	mkdir -p /lib/modules/$(KERNELVER)/kernel/drivers/greybus/
+	cp -f *.ko /lib/modules/$(KERNELVER)/kernel/drivers/greybus/
+	depmod -a $(KERNELVER)
