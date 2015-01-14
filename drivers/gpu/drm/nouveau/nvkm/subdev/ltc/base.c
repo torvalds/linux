@@ -21,17 +21,15 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-
 #include "priv.h"
 
 static int
-nvkm_ltc_tags_alloc(struct nouveau_ltc *ltc, u32 n,
-		    struct nouveau_mm_node **pnode)
+nvkm_ltc_tags_alloc(struct nvkm_ltc *ltc, u32 n, struct nvkm_mm_node **pnode)
 {
 	struct nvkm_ltc_priv *priv = (void *)ltc;
 	int ret;
 
-	ret = nouveau_mm_head(&priv->tags, 0, 1, n, n, 1, pnode);
+	ret = nvkm_mm_head(&priv->tags, 0, 1, n, n, 1, pnode);
 	if (ret)
 		*pnode = NULL;
 
@@ -39,14 +37,14 @@ nvkm_ltc_tags_alloc(struct nouveau_ltc *ltc, u32 n,
 }
 
 static void
-nvkm_ltc_tags_free(struct nouveau_ltc *ltc, struct nouveau_mm_node **pnode)
+nvkm_ltc_tags_free(struct nvkm_ltc *ltc, struct nvkm_mm_node **pnode)
 {
 	struct nvkm_ltc_priv *priv = (void *)ltc;
-	nouveau_mm_free(&priv->tags, pnode);
+	nvkm_mm_free(&priv->tags, pnode);
 }
 
 static void
-nvkm_ltc_tags_clear(struct nouveau_ltc *ltc, u32 first, u32 count)
+nvkm_ltc_tags_clear(struct nvkm_ltc *ltc, u32 first, u32 count)
 {
 	const struct nvkm_ltc_impl *impl = (void *)nv_oclass(ltc);
 	struct nvkm_ltc_priv *priv = (void *)ltc;
@@ -59,7 +57,7 @@ nvkm_ltc_tags_clear(struct nouveau_ltc *ltc, u32 first, u32 count)
 }
 
 static int
-nvkm_ltc_zbc_color_get(struct nouveau_ltc *ltc, int index, const u32 color[4])
+nvkm_ltc_zbc_color_get(struct nvkm_ltc *ltc, int index, const u32 color[4])
 {
 	const struct nvkm_ltc_impl *impl = (void *)nv_oclass(ltc);
 	struct nvkm_ltc_priv *priv = (void *)ltc;
@@ -69,7 +67,7 @@ nvkm_ltc_zbc_color_get(struct nouveau_ltc *ltc, int index, const u32 color[4])
 }
 
 static int
-nvkm_ltc_zbc_depth_get(struct nouveau_ltc *ltc, int index, const u32 depth)
+nvkm_ltc_zbc_depth_get(struct nvkm_ltc *ltc, int index, const u32 depth)
 {
 	const struct nvkm_ltc_impl *impl = (void *)nv_oclass(ltc);
 	struct nvkm_ltc_priv *priv = (void *)ltc;
@@ -79,13 +77,13 @@ nvkm_ltc_zbc_depth_get(struct nouveau_ltc *ltc, int index, const u32 depth)
 }
 
 int
-_nvkm_ltc_init(struct nouveau_object *object)
+_nvkm_ltc_init(struct nvkm_object *object)
 {
 	const struct nvkm_ltc_impl *impl = (void *)nv_oclass(object);
 	struct nvkm_ltc_priv *priv = (void *)object;
 	int ret, i;
 
-	ret = nouveau_subdev_init(&priv->base.base);
+	ret = nvkm_subdev_init(&priv->base.base);
 	if (ret)
 		return ret;
 
@@ -98,15 +96,15 @@ _nvkm_ltc_init(struct nouveau_object *object)
 }
 
 int
-nvkm_ltc_create_(struct nouveau_object *parent, struct nouveau_object *engine,
-		 struct nouveau_oclass *oclass, int length, void **pobject)
+nvkm_ltc_create_(struct nvkm_object *parent, struct nvkm_object *engine,
+		 struct nvkm_oclass *oclass, int length, void **pobject)
 {
 	const struct nvkm_ltc_impl *impl = (void *)oclass;
 	struct nvkm_ltc_priv *priv;
 	int ret;
 
-	ret = nouveau_subdev_create_(parent, engine, oclass, 0, "PLTCG",
-				     "l2c", length, pobject);
+	ret = nvkm_subdev_create_(parent, engine, oclass, 0, "PLTCG",
+				  "l2c", length, pobject);
 	priv = *pobject;
 	if (ret)
 		return ret;
@@ -119,7 +117,7 @@ nvkm_ltc_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->base.tags_free = nvkm_ltc_tags_free;
 	priv->base.tags_clear = nvkm_ltc_tags_clear;
 	priv->base.zbc_min = 1; /* reserve 0 for disabled */
-	priv->base.zbc_max = min(impl->zbc, NOUVEAU_LTC_MAX_ZBC_CNT) - 1;
+	priv->base.zbc_max = min(impl->zbc, NVKM_LTC_MAX_ZBC_CNT) - 1;
 	priv->base.zbc_color_get = nvkm_ltc_zbc_color_get;
 	priv->base.zbc_depth_get = nvkm_ltc_zbc_depth_get;
 	return 0;

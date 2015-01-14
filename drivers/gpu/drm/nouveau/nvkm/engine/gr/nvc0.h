@@ -94,8 +94,8 @@ struct nvc0_gr_priv {
 	struct nvc0_gr_fuc fuc41ad;
 	bool firmware;
 
-	struct nvc0_gr_zbc_color zbc_color[NOUVEAU_LTC_MAX_ZBC_CNT];
-	struct nvc0_gr_zbc_depth zbc_depth[NOUVEAU_LTC_MAX_ZBC_CNT];
+	struct nvc0_gr_zbc_color zbc_color[NVKM_LTC_MAX_ZBC_CNT];
+	struct nvc0_gr_zbc_depth zbc_depth[NVKM_LTC_MAX_ZBC_CNT];
 
 	u8 rop_nr;
 	u8 gpc_nr;

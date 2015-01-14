@@ -21,11 +21,10 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "priv.h"
 
 static int
-gk104_ltc_init(struct nouveau_object *object)
+gk104_ltc_init(struct nvkm_object *object)
 {
 	struct nvkm_ltc_priv *priv = (void *)object;
 	u32 lpg128 = !(nv_rd32(priv, 0x100c80) & 0x00000001);
@@ -42,10 +41,10 @@ gk104_ltc_init(struct nouveau_object *object)
 	return 0;
 }
 
-struct nouveau_oclass *
+struct nvkm_oclass *
 gk104_ltc_oclass = &(struct nvkm_ltc_impl) {
 	.base.handle = NV_SUBDEV(LTC, 0xe4),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = gf100_ltc_ctor,
 		.dtor = gf100_ltc_dtor,
 		.init = gk104_ltc_init,

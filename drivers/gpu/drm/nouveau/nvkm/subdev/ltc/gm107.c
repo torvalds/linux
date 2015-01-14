@@ -21,11 +21,10 @@
  *
  * Authors: Ben Skeggs
  */
+#include "priv.h"
 
 #include <subdev/fb.h>
 #include <subdev/timer.h>
-
-#include "priv.h"
 
 static void
 gm107_ltc_cbc_clear(struct nvkm_ltc_priv *priv, u32 start, u32 limit)
@@ -75,7 +74,7 @@ gm107_ltc_lts_isr(struct nvkm_ltc_priv *priv, int ltc, int lts)
 }
 
 static void
-gm107_ltc_intr(struct nouveau_subdev *subdev)
+gm107_ltc_intr(struct nvkm_subdev *subdev)
 {
 	struct nvkm_ltc_priv *priv = (void *)subdev;
 	u32 mask;
@@ -90,7 +89,7 @@ gm107_ltc_intr(struct nouveau_subdev *subdev)
 }
 
 static int
-gm107_ltc_init(struct nouveau_object *object)
+gm107_ltc_init(struct nvkm_object *object)
 {
 	struct nvkm_ltc_priv *priv = (void *)object;
 	u32 lpg128 = !(nv_rd32(priv, 0x100c80) & 0x00000001);
@@ -107,11 +106,11 @@ gm107_ltc_init(struct nouveau_object *object)
 }
 
 static int
-gm107_ltc_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
+gm107_ltc_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	       struct nvkm_oclass *oclass, void *data, u32 size,
+	       struct nvkm_object **pobject)
 {
-	struct nouveau_fb *pfb = nouveau_fb(parent);
+	struct nvkm_fb *pfb = nvkm_fb(parent);
 	struct nvkm_ltc_priv *priv;
 	u32 parts, mask;
 	int ret, i;
@@ -136,10 +135,10 @@ gm107_ltc_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass *
+struct nvkm_oclass *
 gm107_ltc_oclass = &(struct nvkm_ltc_impl) {
 	.base.handle = NV_SUBDEV(LTC, 0xff),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = gm107_ltc_ctor,
 		.dtor = gf100_ltc_dtor,
 		.init = gm107_ltc_init,

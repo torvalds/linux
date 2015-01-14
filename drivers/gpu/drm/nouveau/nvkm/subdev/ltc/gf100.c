@@ -21,11 +21,11 @@
  *
  * Authors: Ben Skeggs
  */
+#include "priv.h"
 
+#include <core/enum.h>
 #include <subdev/fb.h>
 #include <subdev/timer.h>
-
-#include "priv.h"
 
 void
 gf100_ltc_cbc_clear(struct nvkm_ltc_priv *priv, u32 start, u32 limit)
@@ -62,7 +62,7 @@ gf100_ltc_zbc_clear_depth(struct nvkm_ltc_priv *priv, int i, const u32 depth)
 	nv_wr32(priv, 0x17ea58, depth);
 }
 
-static const struct nouveau_bitfield
+static const struct nvkm_bitfield
 gf100_ltc_lts_intr_name[] = {
 	{ 0x00000001, "IDLE_ERROR_IQ" },
 	{ 0x00000002, "IDLE_ERROR_CBC" },
@@ -89,7 +89,7 @@ gf100_ltc_lts_intr(struct nvkm_ltc_priv *priv, int ltc, int lts)
 
 	if (stat) {
 		nv_info(priv, "LTC%d_LTS%d:", ltc, lts);
-		nouveau_bitfield_print(gf100_ltc_lts_intr_name, stat);
+		nvkm_bitfield_print(gf100_ltc_lts_intr_name, stat);
 		pr_cont("\n");
 	}
 
@@ -97,7 +97,7 @@ gf100_ltc_lts_intr(struct nvkm_ltc_priv *priv, int ltc, int lts)
 }
 
 void
-gf100_ltc_intr(struct nouveau_subdev *subdev)
+gf100_ltc_intr(struct nvkm_subdev *subdev)
 {
 	struct nvkm_ltc_priv *priv = (void *)subdev;
 	u32 mask;
@@ -112,7 +112,7 @@ gf100_ltc_intr(struct nouveau_subdev *subdev)
 }
 
 static int
-gf100_ltc_init(struct nouveau_object *object)
+gf100_ltc_init(struct nvkm_object *object)
 {
 	struct nvkm_ltc_priv *priv = (void *)object;
 	u32 lpg128 = !(nv_rd32(priv, 0x100c80) & 0x00000001);
@@ -130,13 +130,13 @@ gf100_ltc_init(struct nouveau_object *object)
 }
 
 void
-gf100_ltc_dtor(struct nouveau_object *object)
+gf100_ltc_dtor(struct nvkm_object *object)
 {
-	struct nouveau_fb *pfb = nouveau_fb(object);
+	struct nvkm_fb *pfb = nvkm_fb(object);
 	struct nvkm_ltc_priv *priv = (void *)object;
 
-	nouveau_mm_fini(&priv->tags);
-	nouveau_mm_free(&pfb->vram, &priv->tag_ram);
+	nvkm_mm_fini(&priv->tags);
+	nvkm_mm_free(&pfb->vram, &priv->tag_ram);
 
 	nvkm_ltc_destroy(priv);
 }
@@ -144,7 +144,7 @@ gf100_ltc_dtor(struct nouveau_object *object)
 /* TODO: Figure out tag memory details and drop the over-cautious allocation.
  */
 int
-gf100_ltc_init_tag_ram(struct nouveau_fb *pfb, struct nvkm_ltc_priv *priv)
+gf100_ltc_init_tag_ram(struct nvkm_fb *pfb, struct nvkm_ltc_priv *priv)
 {
 	u32 tag_size, tag_margin, tag_align;
 	int ret;
@@ -170,8 +170,8 @@ gf100_ltc_init_tag_ram(struct nouveau_fb *pfb, struct nvkm_ltc_priv *priv)
 	tag_size += tag_align;
 	tag_size  = (tag_size + 0xfff) >> 12; /* round up */
 
-	ret = nouveau_mm_tail(&pfb->vram, 1, 1, tag_size, tag_size, 1,
-	                      &priv->tag_ram);
+	ret = nvkm_mm_tail(&pfb->vram, 1, 1, tag_size, tag_size, 1,
+			   &priv->tag_ram);
 	if (ret) {
 		priv->num_tags = 0;
 	} else {
@@ -183,16 +183,16 @@ gf100_ltc_init_tag_ram(struct nouveau_fb *pfb, struct nvkm_ltc_priv *priv)
 		priv->tag_base = tag_base;
 	}
 
-	ret = nouveau_mm_init(&priv->tags, 0, priv->num_tags, 1);
+	ret = nvkm_mm_init(&priv->tags, 0, priv->num_tags, 1);
 	return ret;
 }
 
 int
-gf100_ltc_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
+gf100_ltc_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	       struct nvkm_oclass *oclass, void *data, u32 size,
+	       struct nvkm_object **pobject)
 {
-	struct nouveau_fb *pfb = nouveau_fb(parent);
+	struct nvkm_fb *pfb = nvkm_fb(parent);
 	struct nvkm_ltc_priv *priv;
 	u32 parts, mask;
 	int ret, i;
@@ -218,10 +218,10 @@ gf100_ltc_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass *
+struct nvkm_oclass *
 gf100_ltc_oclass = &(struct nvkm_ltc_impl) {
 	.base.handle = NV_SUBDEV(LTC, 0xc0),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = gf100_ltc_ctor,
 		.dtor = gf100_ltc_dtor,
 		.init = gf100_ltc_init,
