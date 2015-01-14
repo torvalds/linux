@@ -48,7 +48,7 @@
 		};
 
 		/* SSC11 to HDMI */
-		i2c@9541000 {
+		hdmiddc: i2c@9541000 {
 			status = "okay";
 			/* HDMI V1.3a supports Standard mode only */
 			clock-frequency = <100000>;
