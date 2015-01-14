@@ -21,20 +21,15 @@
  *
  * Authors: Ben Skeggs
  */
+#include <engine/cipher.h>
+#include <engine/fifo.h>
 
 #include <core/client.h>
-#include <core/os.h>
-#include <core/enum.h>
 #include <core/engctx.h>
-#include <core/gpuobj.h>
+#include <core/enum.h>
 
-#include <subdev/fb.h>
-
-#include <engine/fifo.h>
-#include <engine/cipher.h>
-
-struct nv84_cipher_priv {
-	struct nouveau_engine base;
+struct g84_cipher_priv {
+	struct nvkm_engine base;
 };
 
 /*******************************************************************************
@@ -42,16 +37,16 @@ struct nv84_cipher_priv {
  ******************************************************************************/
 
 static int
-nv84_cipher_object_ctor(struct nouveau_object *parent,
-		       struct nouveau_object *engine,
-		       struct nouveau_oclass *oclass, void *data, u32 size,
-		       struct nouveau_object **pobject)
+g84_cipher_object_ctor(struct nvkm_object *parent,
+		       struct nvkm_object *engine,
+		       struct nvkm_oclass *oclass, void *data, u32 size,
+		       struct nvkm_object **pobject)
 {
-	struct nouveau_gpuobj *obj;
+	struct nvkm_gpuobj *obj;
 	int ret;
 
-	ret = nouveau_gpuobj_create(parent, engine, oclass, 0, parent,
-				    16, 16, 0, &obj);
+	ret = nvkm_gpuobj_create(parent, engine, oclass, 0, parent,
+				 16, 16, 0, &obj);
 	*pobject = nv_object(obj);
 	if (ret)
 		return ret;
@@ -63,19 +58,19 @@ nv84_cipher_object_ctor(struct nouveau_object *parent,
 	return 0;
 }
 
-static struct nouveau_ofuncs
-nv84_cipher_ofuncs = {
-	.ctor = nv84_cipher_object_ctor,
-	.dtor = _nouveau_gpuobj_dtor,
-	.init = _nouveau_gpuobj_init,
-	.fini = _nouveau_gpuobj_fini,
-	.rd32 = _nouveau_gpuobj_rd32,
-	.wr32 = _nouveau_gpuobj_wr32,
+static struct nvkm_ofuncs
+g84_cipher_ofuncs = {
+	.ctor = g84_cipher_object_ctor,
+	.dtor = _nvkm_gpuobj_dtor,
+	.init = _nvkm_gpuobj_init,
+	.fini = _nvkm_gpuobj_fini,
+	.rd32 = _nvkm_gpuobj_rd32,
+	.wr32 = _nvkm_gpuobj_wr32,
 };
 
-static struct nouveau_oclass
-nv84_cipher_sclass[] = {
-	{ 0x74c1, &nv84_cipher_ofuncs },
+static struct nvkm_oclass
+g84_cipher_sclass[] = {
+	{ 0x74c1, &g84_cipher_ofuncs },
 	{}
 };
 
@@ -83,16 +78,16 @@ nv84_cipher_sclass[] = {
  * PCIPHER context
  ******************************************************************************/
 
-static struct nouveau_oclass
-nv84_cipher_cclass = {
+static struct nvkm_oclass
+g84_cipher_cclass = {
 	.handle = NV_ENGCTX(CIPHER, 0x84),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = _nouveau_engctx_ctor,
-		.dtor = _nouveau_engctx_dtor,
-		.init = _nouveau_engctx_init,
-		.fini = _nouveau_engctx_fini,
-		.rd32 = _nouveau_engctx_rd32,
-		.wr32 = _nouveau_engctx_wr32,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = _nvkm_engctx_ctor,
+		.dtor = _nvkm_engctx_dtor,
+		.init = _nvkm_engctx_init,
+		.fini = _nvkm_engctx_fini,
+		.rd32 = _nvkm_engctx_rd32,
+		.wr32 = _nvkm_engctx_wr32,
 	},
 };
 
@@ -100,7 +95,8 @@ nv84_cipher_cclass = {
  * PCIPHER engine/subdev functions
  ******************************************************************************/
 
-static const struct nouveau_bitfield nv84_cipher_intr_mask[] = {
+static const struct nvkm_bitfield
+g84_cipher_intr_mask[] = {
 	{ 0x00000001, "INVALID_STATE" },
 	{ 0x00000002, "ILLEGAL_MTHD" },
 	{ 0x00000004, "ILLEGAL_CLASS" },
@@ -110,63 +106,63 @@ static const struct nouveau_bitfield nv84_cipher_intr_mask[] = {
 };
 
 static void
-nv84_cipher_intr(struct nouveau_subdev *subdev)
+g84_cipher_intr(struct nvkm_subdev *subdev)
 {
-	struct nouveau_fifo *pfifo = nouveau_fifo(subdev);
-	struct nouveau_engine *engine = nv_engine(subdev);
-	struct nouveau_object *engctx;
-	struct nv84_cipher_priv *priv = (void *)subdev;
+	struct nvkm_fifo *pfifo = nvkm_fifo(subdev);
+	struct nvkm_engine *engine = nv_engine(subdev);
+	struct nvkm_object *engctx;
+	struct g84_cipher_priv *priv = (void *)subdev;
 	u32 stat = nv_rd32(priv, 0x102130);
 	u32 mthd = nv_rd32(priv, 0x102190);
 	u32 data = nv_rd32(priv, 0x102194);
 	u32 inst = nv_rd32(priv, 0x102188) & 0x7fffffff;
 	int chid;
 
-	engctx = nouveau_engctx_get(engine, inst);
+	engctx = nvkm_engctx_get(engine, inst);
 	chid   = pfifo->chid(pfifo, engctx);
 
 	if (stat) {
 		nv_error(priv, "%s", "");
-		nouveau_bitfield_print(nv84_cipher_intr_mask, stat);
+		nvkm_bitfield_print(g84_cipher_intr_mask, stat);
 		pr_cont(" ch %d [0x%010llx %s] mthd 0x%04x data 0x%08x\n",
-		       chid, (u64)inst << 12, nouveau_client_name(engctx),
+		       chid, (u64)inst << 12, nvkm_client_name(engctx),
 		       mthd, data);
 	}
 
 	nv_wr32(priv, 0x102130, stat);
 	nv_wr32(priv, 0x10200c, 0x10);
 
-	nouveau_engctx_put(engctx);
+	nvkm_engctx_put(engctx);
 }
 
 static int
-nv84_cipher_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
+g84_cipher_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		struct nvkm_oclass *oclass, void *data, u32 size,
+		struct nvkm_object **pobject)
 {
-	struct nv84_cipher_priv *priv;
+	struct g84_cipher_priv *priv;
 	int ret;
 
-	ret = nouveau_engine_create(parent, engine, oclass, true,
-				    "PCIPHER", "cipher", &priv);
+	ret = nvkm_engine_create(parent, engine, oclass, true,
+				 "PCIPHER", "cipher", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	nv_subdev(priv)->unit = 0x00004000;
-	nv_subdev(priv)->intr = nv84_cipher_intr;
-	nv_engine(priv)->cclass = &nv84_cipher_cclass;
-	nv_engine(priv)->sclass = nv84_cipher_sclass;
+	nv_subdev(priv)->intr = g84_cipher_intr;
+	nv_engine(priv)->cclass = &g84_cipher_cclass;
+	nv_engine(priv)->sclass = g84_cipher_sclass;
 	return 0;
 }
 
 static int
-nv84_cipher_init(struct nouveau_object *object)
+g84_cipher_init(struct nvkm_object *object)
 {
-	struct nv84_cipher_priv *priv = (void *)object;
+	struct g84_cipher_priv *priv = (void *)object;
 	int ret;
 
-	ret = nouveau_engine_init(&priv->base);
+	ret = nvkm_engine_init(&priv->base);
 	if (ret)
 		return ret;
 
@@ -176,13 +172,13 @@ nv84_cipher_init(struct nouveau_object *object)
 	return 0;
 }
 
-struct nouveau_oclass
-nv84_cipher_oclass = {
+struct nvkm_oclass
+g84_cipher_oclass = {
 	.handle = NV_ENGINE(CIPHER, 0x84),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv84_cipher_ctor,
-		.dtor = _nouveau_engine_dtor,
-		.init = nv84_cipher_init,
-		.fini = _nouveau_engine_fini,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = g84_cipher_ctor,
+		.dtor = _nvkm_engine_dtor,
+		.init = g84_cipher_init,
+		.fini = _nvkm_engine_fini,
 	},
 };
