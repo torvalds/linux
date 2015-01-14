@@ -27,7 +27,7 @@
 #define get_ds()  (KERNEL_DS)
 #define set_fs(x) (current_thread_info()->addr_limit = (x))
 
-#define segment_eq(a,b)	((a).seg == (b).seg)
+#define segment_eq(a, b)	((a).seg == (b).seg)
 
 /*
  * Is a address valid? This does a straightforward calculation rather
@@ -39,13 +39,13 @@
  *  - AND "addr+size" doesn't have any high-bits set
  *  - OR we are in kernel mode.
  */
-#define __access_ok(addr,size,segment) \
+#define __access_ok(addr, size, segment) \
 	(((segment).seg & (addr | size | (addr+size))) == 0)
 
-#define access_ok(type,addr,size)				\
+#define access_ok(type, addr, size)				\
 ({								\
 	__chk_user_ptr(addr);					\
-	__access_ok(((unsigned long)(addr)),(size),get_fs());	\
+	__access_ok(((unsigned long)(addr)), (size), get_fs());	\
 })
 
 /*
@@ -60,20 +60,20 @@
  * (a) re-use the arguments for side effects (sizeof/typeof is ok)
  * (b) require any knowledge of processes at this stage
  */
-#define put_user(x,ptr) \
-  __put_user_check((__typeof__(*(ptr)))(x),(ptr),sizeof(*(ptr)),get_fs())
-#define get_user(x,ptr) \
-  __get_user_check((x),(ptr),sizeof(*(ptr)),get_fs())
+#define put_user(x, ptr) \
+  __put_user_check((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)), get_fs())
+#define get_user(x, ptr) \
+  __get_user_check((x), (ptr), sizeof(*(ptr)), get_fs())
 
 /*
  * The "__xxx" versions do not do address space checking, useful when
  * doing multiple accesses to the same area (the programmer has to do the
  * checks by hand with "access_ok()")
  */
-#define __put_user(x,ptr) \
-  __put_user_nocheck((__typeof__(*(ptr)))(x),(ptr),sizeof(*(ptr)))
-#define __get_user(x,ptr) \
-  __get_user_nocheck((x),(ptr),sizeof(*(ptr)))
+#define __put_user(x, ptr) \
+  __put_user_nocheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
+#define __get_user(x, ptr) \
+  __get_user_nocheck((x), (ptr), sizeof(*(ptr)))
   
 /*
  * The "lda %1, 2b-1b(%0)" bits are magic to get the assembler to
@@ -84,7 +84,7 @@
 
 extern void __get_user_unknown(void);
 
-#define __get_user_nocheck(x,ptr,size)				\
+#define __get_user_nocheck(x, ptr, size)			\
 ({								\
 	long __gu_err = 0;					\
 	unsigned long __gu_val;					\
@@ -96,16 +96,16 @@ extern void __get_user_unknown(void);
 	  case 8: __get_user_64(ptr); break;			\
 	  default: __get_user_unknown(); break;			\
 	}							\
-	(x) = (__typeof__(*(ptr))) __gu_val;			\
+	(x) = (__force __typeof__(*(ptr))) __gu_val;		\
 	__gu_err;						\
 })
 
-#define __get_user_check(x,ptr,size,segment)				\
+#define __get_user_check(x, ptr, size, segment)				\
 ({									\
 	long __gu_err = -EFAULT;					\
 	unsigned long __gu_val = 0;					\
 	const __typeof__(*(ptr)) __user *__gu_addr = (ptr);		\
-	if (__access_ok((unsigned long)__gu_addr,size,segment)) {	\
+	if (__access_ok((unsigned long)__gu_addr, size, segment)) {	\
 		__gu_err = 0;						\
 		switch (size) {						\
 		  case 1: __get_user_8(__gu_addr); break;		\
@@ -115,7 +115,7 @@ extern void __get_user_unknown(void);
 		  default: __get_user_unknown(); break;			\
 		}							\
 	}								\
-	(x) = (__typeof__(*(ptr))) __gu_val;				\
+	(x) = (__force __typeof__(*(ptr))) __gu_val;			\
 	__gu_err;							\
 })
 
@@ -201,31 +201,31 @@ struct __large_struct { unsigned long buf[100]; };
 
 extern void __put_user_unknown(void);
 
-#define __put_user_nocheck(x,ptr,size)				\
+#define __put_user_nocheck(x, ptr, size)			\
 ({								\
 	long __pu_err = 0;					\
 	__chk_user_ptr(ptr);					\
 	switch (size) {						\
-	  case 1: __put_user_8(x,ptr); break;			\
-	  case 2: __put_user_16(x,ptr); break;			\
-	  case 4: __put_user_32(x,ptr); break;			\
-	  case 8: __put_user_64(x,ptr); break;			\
+	  case 1: __put_user_8(x, ptr); break;			\
+	  case 2: __put_user_16(x, ptr); break;			\
+	  case 4: __put_user_32(x, ptr); break;			\
+	  case 8: __put_user_64(x, ptr); break;			\
 	  default: __put_user_unknown(); break;			\
 	}							\
 	__pu_err;						\
 })
 
-#define __put_user_check(x,ptr,size,segment)				\
+#define __put_user_check(x, ptr, size, segment)				\
 ({									\
 	long __pu_err = -EFAULT;					\
 	__typeof__(*(ptr)) __user *__pu_addr = (ptr);			\
-	if (__access_ok((unsigned long)__pu_addr,size,segment)) {	\
+	if (__access_ok((unsigned long)__pu_addr, size, segment)) {	\
 		__pu_err = 0;						\
 		switch (size) {						\
-		  case 1: __put_user_8(x,__pu_addr); break;		\
-		  case 2: __put_user_16(x,__pu_addr); break;		\
-		  case 4: __put_user_32(x,__pu_addr); break;		\
-		  case 8: __put_user_64(x,__pu_addr); break;		\
+		  case 1: __put_user_8(x, __pu_addr); break;		\
+		  case 2: __put_user_16(x, __pu_addr); break;		\
+		  case 4: __put_user_32(x, __pu_addr); break;		\
+		  case 8: __put_user_64(x, __pu_addr); break;		\
 		  default: __put_user_unknown(); break;			\
 		}							\
 	}								\
@@ -237,7 +237,7 @@ extern void __put_user_unknown(void);
  * instead of writing: this is because they do not write to
  * any memory gcc knows about, so there are no aliasing issues
  */
-#define __put_user_64(x,addr)					\
+#define __put_user_64(x, addr)					\
 __asm__ __volatile__("1: stq %r2,%1\n"				\
 	"2:\n"							\
 	".section __ex_table,\"a\"\n"				\
@@ -247,7 +247,7 @@ __asm__ __volatile__("1: stq %r2,%1\n"				\
 		: "=r"(__pu_err)				\
 		: "m" (__m(addr)), "rJ" (x), "0"(__pu_err))
 
-#define __put_user_32(x,addr)					\
+#define __put_user_32(x, addr)					\
 __asm__ __volatile__("1: stl %r2,%1\n"				\
 	"2:\n"							\
 	".section __ex_table,\"a\"\n"				\
@@ -260,7 +260,7 @@ __asm__ __volatile__("1: stl %r2,%1\n"				\
 #ifdef __alpha_bwx__
 /* Those lucky bastards with ev56 and later CPUs can do byte/word moves.  */
 
-#define __put_user_16(x,addr)					\
+#define __put_user_16(x, addr)					\
 __asm__ __volatile__("1: stw %r2,%1\n"				\
 	"2:\n"							\
 	".section __ex_table,\"a\"\n"				\
@@ -270,7 +270,7 @@ __asm__ __volatile__("1: stw %r2,%1\n"				\
 		: "=r"(__pu_err)				\
 		: "m"(__m(addr)), "rJ"(x), "0"(__pu_err))
 
-#define __put_user_8(x,addr)					\
+#define __put_user_8(x, addr)					\
 __asm__ __volatile__("1: stb %r2,%1\n"				\
 	"2:\n"							\
 	".section __ex_table,\"a\"\n"				\
@@ -283,7 +283,7 @@ __asm__ __volatile__("1: stb %r2,%1\n"				\
 /* Unfortunately, we can't get an unaligned access trap for the sub-word
    write, so we have to do a general unaligned operation.  */
 
-#define __put_user_16(x,addr)					\
+#define __put_user_16(x, addr)					\
 {								\
 	long __pu_tmp1, __pu_tmp2, __pu_tmp3, __pu_tmp4;	\
 	__asm__ __volatile__(					\
@@ -308,13 +308,13 @@ __asm__ __volatile__("1: stb %r2,%1\n"				\
 	"	.long 4b - .\n"					\
 	"	lda $31, 5b-4b(%0)\n"				\
 	".previous"						\
-		: "=r"(__pu_err), "=&r"(__pu_tmp1),		\
-		  "=&r"(__pu_tmp2), "=&r"(__pu_tmp3),		\
+		: "=r"(__pu_err), "=&r"(__pu_tmp1), 		\
+		  "=&r"(__pu_tmp2), "=&r"(__pu_tmp3), 		\
 		  "=&r"(__pu_tmp4)				\
 		: "r"(addr), "r"((unsigned long)(x)), "0"(__pu_err)); \
 }
 
-#define __put_user_8(x,addr)					\
+#define __put_user_8(x, addr)					\
 {								\
 	long __pu_tmp1, __pu_tmp2;				\
 	__asm__ __volatile__(					\
@@ -330,7 +330,7 @@ __asm__ __volatile__("1: stb %r2,%1\n"				\
 	"	.long 2b - .\n"					\
 	"	lda $31, 3b-2b(%0)\n"				\
 	".previous"						\
-		: "=r"(__pu_err),				\
+		: "=r"(__pu_err), 				\
 	  	  "=&r"(__pu_tmp1), "=&r"(__pu_tmp2)		\
 		: "r"((unsigned long)(x)), "r"(addr), "0"(__pu_err)); \
 }
@@ -366,7 +366,7 @@ __copy_tofrom_user_nocheck(void *to, const void *from, long len)
 		: "=r" (__cu_len), "=r" (__cu_from), "=r" (__cu_to)
 		: __module_address(__copy_user)
 		  "0" (__cu_len), "1" (__cu_from), "2" (__cu_to)
-		: "$1","$2","$3","$4","$5","$28","memory");
+		: "$1", "$2", "$3", "$4", "$5", "$28", "memory");
 
 	return __cu_len;
 }
@@ -379,15 +379,15 @@ __copy_tofrom_user(void *to, const void *from, long len, const void __user *vali
 	return len;
 }
 
-#define __copy_to_user(to,from,n)					\
+#define __copy_to_user(to, from, n)					\
 ({									\
 	__chk_user_ptr(to);						\
-	__copy_tofrom_user_nocheck((__force void *)(to),(from),(n));	\
+	__copy_tofrom_user_nocheck((__force void *)(to), (from), (n));	\
 })
-#define __copy_from_user(to,from,n)					\
+#define __copy_from_user(to, from, n)					\
 ({									\
 	__chk_user_ptr(from);						\
-	__copy_tofrom_user_nocheck((to),(__force void *)(from),(n));	\
+	__copy_tofrom_user_nocheck((to), (__force void *)(from), (n));	\
 })
 
 #define __copy_to_user_inatomic __copy_to_user
@@ -418,7 +418,7 @@ __clear_user(void __user *to, long len)
 		: "=r"(__cl_len), "=r"(__cl_to)
 		: __module_address(__do_clear_user)
 		  "0"(__cl_len), "1"(__cl_to)
-		: "$1","$2","$3","$4","$5","$28","memory");
+		: "$1", "$2", "$3", "$4", "$5", "$28", "memory");
 	return __cl_len;
 }
 
