@@ -1731,10 +1731,12 @@ static int ci_set_overdrive_target_tdp(struct radeon_device *rdev,
 	return 0;
 }
 
+#if 0
 static int ci_set_boot_state(struct radeon_device *rdev)
 {
 	return ci_enable_sclk_mclk_dpm(rdev, false);
 }
+#endif
 
 static u32 ci_get_average_sclk_freq(struct radeon_device *rdev)
 {
@@ -5376,10 +5378,12 @@ int ci_dpm_set_power_state(struct radeon_device *rdev)
 	return 0;
 }
 
+#if 0
 void ci_dpm_reset_asic(struct radeon_device *rdev)
 {
 	ci_set_boot_state(rdev);
 }
+#endif
 
 void ci_dpm_display_configuration_changed(struct radeon_device *rdev)
 {
