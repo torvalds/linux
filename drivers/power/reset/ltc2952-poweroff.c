@@ -75,6 +75,9 @@ struct ltc2952_poweroff {
 	struct gpio_desc *gpio_trigger;
 	struct gpio_desc *gpio_watchdog;
 	struct gpio_desc *gpio_kill;
+
+	bool kernel_panic;
+	struct notifier_block panic_notifier;
 };
 
 #define to_ltc2952(p, m) container_of(p, struct ltc2952_poweroff, m)
@@ -84,7 +87,6 @@ struct ltc2952_poweroff {
  * remove it entirely once we don't need the global state anymore.
  */
 static struct ltc2952_poweroff *ltc2952_data;
-static int ltc2952_poweroff_panic;
 
 /**
  * ltc2952_poweroff_timer_wde - Timer callback
@@ -102,7 +104,7 @@ static enum hrtimer_restart ltc2952_poweroff_timer_wde(struct hrtimer *timer)
 	unsigned long overruns;
 	struct ltc2952_poweroff *data = to_ltc2952(timer, timer_wde);
 
-	if (ltc2952_poweroff_panic)
+	if (data->kernel_panic)
 		return HRTIMER_NORESTART;
 
 	state = gpiod_get_value(data->gpio_watchdog);
@@ -154,7 +156,7 @@ static irqreturn_t ltc2952_poweroff_handler(int irq, void *dev_id)
 	int ret;
 	struct ltc2952_poweroff *data = dev_id;
 
-	if (ltc2952_poweroff_panic)
+	if (data->kernel_panic)
 		goto irq_ok;
 
 	if (hrtimer_active(&data->timer_wde)) {
@@ -255,6 +257,15 @@ static int ltc2952_poweroff_init(struct platform_device *pdev)
 	return 0;
 }
 
+static int ltc2952_poweroff_notify_panic(struct notifier_block *nb,
+					 unsigned long code, void *unused)
+{
+	struct ltc2952_poweroff *data = to_ltc2952(nb, panic_notifier);
+
+	data->kernel_panic = true;
+	return NOTIFY_DONE;
+}
+
 static int ltc2952_poweroff_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -280,6 +291,9 @@ static int ltc2952_poweroff_probe(struct platform_device *pdev)
 	ltc2952_data = data;
 	pm_power_off = &ltc2952_poweroff_kill;
 
+	data->panic_notifier.notifier_call = ltc2952_poweroff_notify_panic;
+	atomic_notifier_chain_register(&panic_notifier_list,
+				       &data->panic_notifier);
 	dev_info(&pdev->dev, "probe successful\n");
 
 	return 0;
@@ -287,8 +301,11 @@ static int ltc2952_poweroff_probe(struct platform_device *pdev)
 
 static int ltc2952_poweroff_remove(struct platform_device *pdev)
 {
-	pm_power_off = NULL;
+	struct ltc2952_poweroff *data = platform_get_drvdata(pdev);
 
+	pm_power_off = NULL;
+	atomic_notifier_chain_unregister(&panic_notifier_list,
+					 &data->panic_notifier);
 	return 0;
 }
 
@@ -309,37 +326,7 @@ static struct platform_driver ltc2952_poweroff_driver = {
 	.resume = ltc2952_poweroff_resume,
 };
 
-static int ltc2952_poweroff_notify_panic(struct notifier_block *nb,
-	unsigned long code, void *unused)
-{
-	ltc2952_poweroff_panic = 1;
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block ltc2952_poweroff_panic_nb = {
-	.notifier_call = ltc2952_poweroff_notify_panic,
-};
-
-static int __init ltc2952_poweroff_platform_init(void)
-{
-	ltc2952_poweroff_panic = 0;
-
-	atomic_notifier_chain_register(&panic_notifier_list,
-		&ltc2952_poweroff_panic_nb);
-
-	return platform_driver_register(&ltc2952_poweroff_driver);
-}
-
-static void __exit ltc2952_poweroff_platform_exit(void)
-{
-	atomic_notifier_chain_unregister(&panic_notifier_list,
-		&ltc2952_poweroff_panic_nb);
-
-	platform_driver_unregister(&ltc2952_poweroff_driver);
-}
-
-module_init(ltc2952_poweroff_platform_init);
-module_exit(ltc2952_poweroff_platform_exit);
+module_platform_driver(ltc2952_poweroff_driver);
 
 MODULE_AUTHOR("René Moll <rene.moll@xsens.com>");
 MODULE_DESCRIPTION("LTC PowerPath power-off driver");
