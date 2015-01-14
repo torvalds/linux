@@ -1300,6 +1300,7 @@ static struct config_item *uvcg_frame_make(struct config_group *group,
 		h->fmt_type = UVCG_MJPEG;
 	} else {
 		mutex_unlock(&opts->lock);
+		kfree(h);
 		return ERR_PTR(-EINVAL);
 	}
 	++fmt->num_frames;
