@@ -52,7 +52,7 @@
 #include <engine/bsp.h>
 #include <engine/msvld.h>
 #include <engine/vp.h>
-#include <engine/ppp.h>
+#include <engine/msppp.h>
 #include <engine/pm.h>
 
 int
@@ -96,7 +96,7 @@ gm100_identify(struct nouveau_device *device)
 #if 0
 		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nve0_msvld_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nve0_vp_oclass;
-		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
+		device->oclass[NVDEV_ENGINE_MSPPP  ] = &nvc0_msppp_oclass;
 #endif
 		break;
 	case 0x124:
@@ -139,7 +139,7 @@ gm100_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_CE2    ] = &gm204_ce2_oclass;
 		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nve0_msvld_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nve0_vp_oclass;
-		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
+		device->oclass[NVDEV_ENGINE_MSPPP  ] = &nvc0_msppp_oclass;
 #endif
 		break;
 	default:

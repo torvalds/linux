@@ -128,7 +128,7 @@ struct nv_device_v0 {
 #define NV_DEVICE_V0_DISABLE_VP                           0x0000000800000000ULL
 #define NV_DEVICE_V0_DISABLE_CIPHER                       0x0000001000000000ULL
 #define NV_DEVICE_V0_DISABLE_BSP                          0x0000002000000000ULL
-#define NV_DEVICE_V0_DISABLE_PPP                          0x0000004000000000ULL
+#define NV_DEVICE_V0_DISABLE_MSPPP                        0x0000004000000000ULL
 #define NV_DEVICE_V0_DISABLE_CE0                          0x0000008000000000ULL
 #define NV_DEVICE_V0_DISABLE_CE1                          0x0000010000000000ULL
 #define NV_DEVICE_V0_DISABLE_VIC                          0x0000020000000000ULL
@@ -349,7 +349,7 @@ struct kepler_channel_gpfifo_a_v0 {
 	__u8  version;
 #define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_GR                               0x01
 #define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_VP                               0x02
-#define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_PPP                              0x04
+#define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_MSPPP                            0x04
 #define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_MSVLD                            0x08
 #define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_CE0                              0x10
 #define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_CE1                              0x20

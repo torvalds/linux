@@ -49,7 +49,7 @@ static const struct {
 	_(NVDEV_ENGINE_GR      , (1ULL << NVDEV_ENGINE_SW) |
 				 (1ULL << NVDEV_ENGINE_CE2)),
 	_(NVDEV_ENGINE_VP      , 0),
-	_(NVDEV_ENGINE_PPP     , 0),
+	_(NVDEV_ENGINE_MSPPP   , 0),
 	_(NVDEV_ENGINE_MSVLD   , 0),
 	_(NVDEV_ENGINE_CE0     , 0),
 	_(NVDEV_ENGINE_CE1     , 0),
@@ -151,7 +151,7 @@ nve0_fifo_context_attach(struct nouveau_object *parent,
 	case NVDEV_ENGINE_GR   : addr = 0x0210; break;
 	case NVDEV_ENGINE_MSVLD: addr = 0x0270; break;
 	case NVDEV_ENGINE_VP   : addr = 0x0250; break;
-	case NVDEV_ENGINE_PPP  : addr = 0x0260; break;
+	case NVDEV_ENGINE_MSPPP: addr = 0x0260; break;
 	default:
 		return -EINVAL;
 	}
@@ -189,7 +189,7 @@ nve0_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 	case NVDEV_ENGINE_GR   : addr = 0x0210; break;
 	case NVDEV_ENGINE_MSVLD: addr = 0x0270; break;
 	case NVDEV_ENGINE_VP   : addr = 0x0250; break;
-	case NVDEV_ENGINE_PPP  : addr = 0x0260; break;
+	case NVDEV_ENGINE_MSPPP: addr = 0x0260; break;
 	default:
 		return -EINVAL;
 	}
@@ -417,7 +417,7 @@ nve0_fifo_engidx(struct nve0_fifo_priv *priv, u32 engn)
 	case NVDEV_ENGINE_GR   :
 	case NVDEV_ENGINE_CE2  : engn = 0; break;
 	case NVDEV_ENGINE_MSVLD: engn = 1; break;
-	case NVDEV_ENGINE_PPP  : engn = 2; break;
+	case NVDEV_ENGINE_MSPPP: engn = 2; break;
 	case NVDEV_ENGINE_VP   : engn = 3; break;
 	case NVDEV_ENGINE_CE0  : engn = 4; break;
 	case NVDEV_ENGINE_CE1  : engn = 5; break;
@@ -620,7 +620,7 @@ nve0_fifo_fault_engine[] = {
 	{ 0x08, "PBDMA1", NULL, NVDEV_ENGINE_FIFO },
 	{ 0x09, "PBDMA2", NULL, NVDEV_ENGINE_FIFO },
 	{ 0x10, "MSVLD", NULL, NVDEV_ENGINE_MSVLD },
-	{ 0x11, "MSPPP", NULL, NVDEV_ENGINE_PPP },
+	{ 0x11, "MSPPP", NULL, NVDEV_ENGINE_MSPPP },
 	{ 0x13, "PERF" },
 	{ 0x14, "MSPDEC", NULL, NVDEV_ENGINE_VP },
 	{ 0x15, "CE0", NULL, NVDEV_ENGINE_CE0 },

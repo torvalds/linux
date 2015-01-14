@@ -50,7 +50,7 @@
 #include <engine/vp.h>
 #include <engine/bsp.h>
 #include <engine/msvld.h>
-#include <engine/ppp.h>
+#include <engine/msppp.h>
 #include <engine/ce.h>
 #include <engine/disp.h>
 #include <engine/pm.h>
@@ -86,7 +86,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_GR     ] =  nvc0_gr_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nvc0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nvc0_msvld_oclass;
-		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
+		device->oclass[NVDEV_ENGINE_MSPPP  ] = &nvc0_msppp_oclass;
 		device->oclass[NVDEV_ENGINE_CE0    ] = &nvc0_ce0_oclass;
 		device->oclass[NVDEV_ENGINE_CE1    ] = &nvc0_ce1_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nva3_disp_oclass;
@@ -119,7 +119,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_GR     ] =  nvc4_gr_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nvc0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nvc0_msvld_oclass;
-		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
+		device->oclass[NVDEV_ENGINE_MSPPP  ] = &nvc0_msppp_oclass;
 		device->oclass[NVDEV_ENGINE_CE0    ] = &nvc0_ce0_oclass;
 		device->oclass[NVDEV_ENGINE_CE1    ] = &nvc0_ce1_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nva3_disp_oclass;
@@ -152,7 +152,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_GR     ] =  nvc4_gr_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nvc0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nvc0_msvld_oclass;
-		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
+		device->oclass[NVDEV_ENGINE_MSPPP  ] = &nvc0_msppp_oclass;
 		device->oclass[NVDEV_ENGINE_CE0    ] = &nvc0_ce0_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nva3_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] = &nvc0_pm_oclass;
@@ -184,7 +184,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_GR     ] =  nvc4_gr_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nvc0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nvc0_msvld_oclass;
-		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
+		device->oclass[NVDEV_ENGINE_MSPPP  ] = &nvc0_msppp_oclass;
 		device->oclass[NVDEV_ENGINE_CE0    ] = &nvc0_ce0_oclass;
 		device->oclass[NVDEV_ENGINE_CE1    ] = &nvc0_ce1_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nva3_disp_oclass;
@@ -217,7 +217,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_GR     ] =  nvc4_gr_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nvc0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nvc0_msvld_oclass;
-		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
+		device->oclass[NVDEV_ENGINE_MSPPP  ] = &nvc0_msppp_oclass;
 		device->oclass[NVDEV_ENGINE_CE0    ] = &nvc0_ce0_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nva3_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] = &nvc0_pm_oclass;
@@ -249,7 +249,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_GR     ] =  nvc1_gr_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nvc0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nvc0_msvld_oclass;
-		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
+		device->oclass[NVDEV_ENGINE_MSPPP  ] = &nvc0_msppp_oclass;
 		device->oclass[NVDEV_ENGINE_CE0    ] = &nvc0_ce0_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nva3_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] = &nvc0_pm_oclass;
@@ -281,7 +281,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_GR     ] =  nvc8_gr_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nvc0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nvc0_msvld_oclass;
-		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
+		device->oclass[NVDEV_ENGINE_MSPPP  ] = &nvc0_msppp_oclass;
 		device->oclass[NVDEV_ENGINE_CE0    ] = &nvc0_ce0_oclass;
 		device->oclass[NVDEV_ENGINE_CE1    ] = &nvc0_ce1_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nva3_disp_oclass;
@@ -314,7 +314,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_GR     ] =  nvd9_gr_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nvc0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nvc0_msvld_oclass;
-		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
+		device->oclass[NVDEV_ENGINE_MSPPP  ] = &nvc0_msppp_oclass;
 		device->oclass[NVDEV_ENGINE_CE0    ] = &nvc0_ce0_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nvd0_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] = &nvc0_pm_oclass;
@@ -344,7 +344,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_GR     ] =  nvd7_gr_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nvc0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nvc0_msvld_oclass;
-		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
+		device->oclass[NVDEV_ENGINE_MSPPP  ] = &nvc0_msppp_oclass;
 		device->oclass[NVDEV_ENGINE_CE0    ] = &nvc0_ce0_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nvd0_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PM     ] = &nvc0_pm_oclass;

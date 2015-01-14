@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Maarten Lankhorst
+ * Copyright 2012 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,33 +19,34 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Maarten Lankhorst
+ * Authors: Ben Skeggs, Maarten Lankhorst, Ilia Mirkin
  */
 
 #include <engine/falcon.h>
-#include <engine/ppp.h>
+#include <engine/msppp.h>
 
-struct nvc0_ppp_priv {
+struct nv98_msppp_priv {
 	struct nouveau_falcon base;
 };
 
 /*******************************************************************************
- * PPP object classes
+ * MSPPP object classes
  ******************************************************************************/
 
 static struct nouveau_oclass
-nvc0_ppp_sclass[] = {
-	{ 0x90b3, &nouveau_object_ofuncs },
+nv98_msppp_sclass[] = {
+	{ 0x88b3, &nouveau_object_ofuncs },
+	{ 0x85b3, &nouveau_object_ofuncs },
 	{},
 };
 
 /*******************************************************************************
- * PPPP context
+ * PMSPPP context
  ******************************************************************************/
 
 static struct nouveau_oclass
-nvc0_ppp_cclass = {
-	.handle = NV_ENGCTX(PPP, 0xc0),
+nv98_msppp_cclass = {
+	.handle = NV_ENGCTX(MSPPP, 0x98),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = _nouveau_falcon_context_ctor,
 		.dtor = _nouveau_falcon_context_dtor,
@@ -57,52 +58,51 @@ nvc0_ppp_cclass = {
 };
 
 /*******************************************************************************
- * PPPP engine/subdev functions
+ * PMSPPP engine/subdev functions
  ******************************************************************************/
 
 static int
-nvc0_ppp_init(struct nouveau_object *object)
+nv98_msppp_init(struct nouveau_object *object)
 {
-	struct nvc0_ppp_priv *priv = (void *)object;
+	struct nv98_msppp_priv *priv = (void *)object;
 	int ret;
 
 	ret = nouveau_falcon_init(&priv->base);
 	if (ret)
 		return ret;
 
-	nv_wr32(priv, 0x086010, 0x0000fff2);
+	nv_wr32(priv, 0x086010, 0x0000ffd2);
 	nv_wr32(priv, 0x08601c, 0x0000fff2);
 	return 0;
 }
 
 static int
-nvc0_ppp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+nv98_msppp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	      struct nouveau_oclass *oclass, void *data, u32 size,
 	      struct nouveau_object **pobject)
 {
-	struct nvc0_ppp_priv *priv;
+	struct nv98_msppp_priv *priv;
 	int ret;
 
 	ret = nouveau_falcon_create(parent, engine, oclass, 0x086000, true,
-				    "PPPP", "ppp", &priv);
+				    "PMSPPP", "msppp", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
-	nv_subdev(priv)->unit = 0x00000002;
-	nv_subdev(priv)->intr = nouveau_falcon_intr;
-	nv_engine(priv)->cclass = &nvc0_ppp_cclass;
-	nv_engine(priv)->sclass = nvc0_ppp_sclass;
+	nv_subdev(priv)->unit = 0x00400002;
+	nv_engine(priv)->cclass = &nv98_msppp_cclass;
+	nv_engine(priv)->sclass = nv98_msppp_sclass;
 	return 0;
 }
 
 struct nouveau_oclass
-nvc0_ppp_oclass = {
-	.handle = NV_ENGINE(PPP, 0xc0),
+nv98_msppp_oclass = {
+	.handle = NV_ENGINE(MSPPP, 0x98),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_ppp_ctor,
+		.ctor = nv98_msppp_ctor,
 		.dtor = _nouveau_falcon_dtor,
-		.init = nvc0_ppp_init,
+		.init = nv98_msppp_init,
 		.fini = _nouveau_falcon_fini,
 		.rd32 = _nouveau_falcon_rd32,
 		.wr32 = _nouveau_falcon_wr32,

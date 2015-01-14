@@ -27,7 +27,7 @@
 const struct nouveau_mc_intr
 nvc0_mc_intr[] = {
 	{ 0x04000000, NVDEV_ENGINE_DISP },  /* DISP first, so pageflip timestamps work. */
-	{ 0x00000001, NVDEV_ENGINE_PPP },
+	{ 0x00000001, NVDEV_ENGINE_MSPPP },
 	{ 0x00000020, NVDEV_ENGINE_CE0 },
 	{ 0x00000040, NVDEV_ENGINE_CE1 },
 	{ 0x00000080, NVDEV_ENGINE_CE2 },

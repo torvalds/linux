@@ -126,7 +126,7 @@ nvc0_fifo_context_attach(struct nouveau_object *parent,
 	case NVDEV_ENGINE_CE1  : addr = 0x0240; break;
 	case NVDEV_ENGINE_MSVLD: addr = 0x0270; break;
 	case NVDEV_ENGINE_VP   : addr = 0x0250; break;
-	case NVDEV_ENGINE_PPP  : addr = 0x0260; break;
+	case NVDEV_ENGINE_MSPPP: addr = 0x0260; break;
 	default:
 		return -EINVAL;
 	}
@@ -163,7 +163,7 @@ nvc0_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 	case NVDEV_ENGINE_CE1  : addr = 0x0240; break;
 	case NVDEV_ENGINE_MSVLD: addr = 0x0270; break;
 	case NVDEV_ENGINE_VP   : addr = 0x0250; break;
-	case NVDEV_ENGINE_PPP  : addr = 0x0260; break;
+	case NVDEV_ENGINE_MSPPP: addr = 0x0260; break;
 	default:
 		return -EINVAL;
 	}
@@ -216,7 +216,7 @@ nvc0_fifo_chan_ctor(struct nouveau_object *parent,
 					  (1ULL << NVDEV_ENGINE_CE1) |
 					  (1ULL << NVDEV_ENGINE_MSVLD) |
 					  (1ULL << NVDEV_ENGINE_VP) |
-					  (1ULL << NVDEV_ENGINE_PPP), &chan);
+					  (1ULL << NVDEV_ENGINE_MSPPP), &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
@@ -383,7 +383,7 @@ nvc0_fifo_engidx(struct nvc0_fifo_priv *priv, u32 engn)
 	switch (engn) {
 	case NVDEV_ENGINE_GR   : engn = 0; break;
 	case NVDEV_ENGINE_MSVLD: engn = 1; break;
-	case NVDEV_ENGINE_PPP  : engn = 2; break;
+	case NVDEV_ENGINE_MSPPP: engn = 2; break;
 	case NVDEV_ENGINE_VP   : engn = 3; break;
 	case NVDEV_ENGINE_CE0  : engn = 4; break;
 	case NVDEV_ENGINE_CE1  : engn = 5; break;
@@ -400,7 +400,7 @@ nvc0_fifo_engine(struct nvc0_fifo_priv *priv, u32 engn)
 	switch (engn) {
 	case 0: engn = NVDEV_ENGINE_GR; break;
 	case 1: engn = NVDEV_ENGINE_MSVLD; break;
-	case 2: engn = NVDEV_ENGINE_PPP; break;
+	case 2: engn = NVDEV_ENGINE_MSPPP; break;
 	case 3: engn = NVDEV_ENGINE_VP; break;
 	case 4: engn = NVDEV_ENGINE_CE0; break;
 	case 5: engn = NVDEV_ENGINE_CE1; break;
@@ -549,7 +549,7 @@ nvc0_fifo_fault_engine[] = {
 	{ 0x05, "BAR3", NULL, NVDEV_SUBDEV_INSTMEM },
 	{ 0x07, "PFIFO", NULL, NVDEV_ENGINE_FIFO },
 	{ 0x10, "PMSVLD", NULL, NVDEV_ENGINE_MSVLD },
-	{ 0x11, "PPPP", NULL, NVDEV_ENGINE_PPP },
+	{ 0x11, "PMSPPP", NULL, NVDEV_ENGINE_MSPPP },
 	{ 0x13, "PCOUNTER" },
 	{ 0x14, "PVP", NULL, NVDEV_ENGINE_VP },
 	{ 0x15, "PCE0", NULL, NVDEV_ENGINE_CE0 },
@@ -582,7 +582,7 @@ nvc0_fifo_fault_hubclient[] = {
 	{ 0x07, "BAR_READ" },
 	{ 0x08, "BAR_WRITE" },
 	{ 0x0b, "PVP" },
-	{ 0x0c, "PPPP" },
+	{ 0x0c, "PMSPPP" },
 	{ 0x0d, "PMSVLD" },
 	{ 0x11, "PCOUNTER" },
 	{ 0x12, "PDAEMON" },
@@ -940,7 +940,7 @@ nvc0_fifo_init(struct nouveau_object *object)
 	if (priv->spoon_nr >= 3) {
 		nv_wr32(priv, 0x002208, ~(1 << 0)); /* PGRAPH */
 		nv_wr32(priv, 0x00220c, ~(1 << 1)); /* PVP */
-		nv_wr32(priv, 0x002210, ~(1 << 1)); /* PPP */
+		nv_wr32(priv, 0x002210, ~(1 << 1)); /* PMSPP */
 		nv_wr32(priv, 0x002214, ~(1 << 1)); /* PMSVLD */
 		nv_wr32(priv, 0x002218, ~(1 << 2)); /* PCE0 */
 		nv_wr32(priv, 0x00221c, ~(1 << 1)); /* PCE1 */

@@ -12,7 +12,7 @@ include $(src)/nvkm/engine/gr/Kbuild
 include $(src)/nvkm/engine/mpeg/Kbuild
 include $(src)/nvkm/engine/msvld/Kbuild
 include $(src)/nvkm/engine/pm/Kbuild
-include $(src)/nvkm/engine/ppp/Kbuild
+include $(src)/nvkm/engine/msppp/Kbuild
 include $(src)/nvkm/engine/sec/Kbuild
 include $(src)/nvkm/engine/software/Kbuild
 include $(src)/nvkm/engine/vp/Kbuild

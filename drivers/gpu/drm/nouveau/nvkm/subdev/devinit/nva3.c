@@ -68,7 +68,7 @@ nva3_devinit_disable(struct nouveau_devinit *devinit)
 
 	if (!(r001540 & 0x40000000)) {
 		disable |= (1ULL << NVDEV_ENGINE_VP);
-		disable |= (1ULL << NVDEV_ENGINE_PPP);
+		disable |= (1ULL << NVDEV_ENGINE_MSPPP);
 	}
 
 	if (!(r00154c & 0x00000004))
