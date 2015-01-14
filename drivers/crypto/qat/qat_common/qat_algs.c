@@ -102,12 +102,6 @@ struct qat_alg_cd {
 	};
 } __aligned(64);
 
-#define MAX_AUTH_STATE_SIZE sizeof(struct icp_qat_hw_auth_algo_blk)
-
-struct qat_auth_state {
-	uint8_t data[MAX_AUTH_STATE_SIZE + 64];
-} __aligned(64);
-
 struct qat_alg_aead_ctx {
 	struct qat_alg_cd *enc_cd;
 	struct qat_alg_cd *dec_cd;
