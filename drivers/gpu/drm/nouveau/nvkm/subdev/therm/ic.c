@@ -21,17 +21,16 @@
  *
  * Authors: Martin Peres
  */
-
 #include "priv.h"
 
-#include <subdev/i2c.h>
 #include <subdev/bios/extdev.h>
+#include <subdev/i2c.h>
 
 static bool
-probe_monitoring_device(struct nouveau_i2c_port *i2c,
+probe_monitoring_device(struct nvkm_i2c_port *i2c,
 			struct i2c_board_info *info, void *data)
 {
-	struct nouveau_therm_priv *priv = data;
+	struct nvkm_therm_priv *priv = data;
 	struct nvbios_therm_sensor *sensor = &priv->bios_sensor;
 	struct i2c_client *client;
 
@@ -52,11 +51,10 @@ probe_monitoring_device(struct nouveau_i2c_port *i2c,
 		"temp offset %+i C)\n",
 		info->type, info->addr, sensor->offset_constant);
 	priv->ic = client;
-
 	return true;
 }
 
-static struct nouveau_i2c_board_info
+static struct nvkm_i2c_board_info
 nv_board_infos[] = {
 	{ { I2C_BOARD_INFO("w83l785ts", 0x2d) }, 0 },
 	{ { I2C_BOARD_INFO("w83781d", 0x2d) }, 0  },
@@ -82,15 +80,15 @@ nv_board_infos[] = {
 };
 
 void
-nouveau_therm_ic_ctor(struct nouveau_therm *therm)
+nvkm_therm_ic_ctor(struct nvkm_therm *therm)
 {
-	struct nouveau_therm_priv *priv = (void *)therm;
-	struct nouveau_bios *bios = nouveau_bios(therm);
-	struct nouveau_i2c *i2c = nouveau_i2c(therm);
+	struct nvkm_therm_priv *priv = (void *)therm;
+	struct nvkm_bios *bios = nvkm_bios(therm);
+	struct nvkm_i2c *i2c = nvkm_i2c(therm);
 	struct nvbios_extdev_func extdev_entry;
 
 	if (!nvbios_extdev_find(bios, NVBIOS_EXTDEV_LM89, &extdev_entry)) {
-		struct nouveau_i2c_board_info board[] = {
+		struct nvkm_i2c_board_info board[] = {
 		  { { I2C_BOARD_INFO("lm90", extdev_entry.addr >> 1) }, 0},
 		  { }
 		};
@@ -102,7 +100,7 @@ nouveau_therm_ic_ctor(struct nouveau_therm *therm)
 	}
 
 	if (!nvbios_extdev_find(bios, NVBIOS_EXTDEV_ADT7473, &extdev_entry)) {
-		struct nouveau_i2c_board_info board[] = {
+		struct nvkm_i2c_board_info board[] = {
 		  { { I2C_BOARD_INFO("adt7473", extdev_entry.addr >> 1) }, 20 },
 		  { }
 		};

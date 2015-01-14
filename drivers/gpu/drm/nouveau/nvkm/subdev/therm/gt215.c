@@ -21,17 +21,16 @@
  *
  * Authors: Ben Skeggs
  */
+#include "priv.h"
 
 #include <subdev/gpio.h>
 
-#include "priv.h"
-
-struct nva3_therm_priv {
-	struct nouveau_therm_priv base;
+struct gt215_therm_priv {
+	struct nvkm_therm_priv base;
 };
 
 int
-nva3_therm_fan_sense(struct nouveau_therm *therm)
+gt215_therm_fan_sense(struct nvkm_therm *therm)
 {
 	u32 tach = nv_rd32(therm, 0x00e728) & 0x0000ffff;
 	u32 ctrl = nv_rd32(therm, 0x00e720);
@@ -41,17 +40,17 @@ nva3_therm_fan_sense(struct nouveau_therm *therm)
 }
 
 static int
-nva3_therm_init(struct nouveau_object *object)
+gt215_therm_init(struct nvkm_object *object)
 {
-	struct nva3_therm_priv *priv = (void *)object;
+	struct gt215_therm_priv *priv = (void *)object;
 	struct dcb_gpio_func *tach = &priv->base.fan->tach;
 	int ret;
 
-	ret = nouveau_therm_init(&priv->base.base);
+	ret = nvkm_therm_init(&priv->base.base);
 	if (ret)
 		return ret;
 
-	nv84_sensor_setup(&priv->base.base);
+	g84_sensor_setup(&priv->base.base);
 
 	/* enable fan tach, count revolutions per-second */
 	nv_mask(priv, 0x00e720, 0x00000003, 0x00000002);
@@ -66,15 +65,14 @@ nva3_therm_init(struct nouveau_object *object)
 }
 
 static int
-nva3_therm_ctor(struct nouveau_object *parent,
-		struct nouveau_object *engine,
-		struct nouveau_oclass *oclass, void *data, u32 size,
-		struct nouveau_object **pobject)
+gt215_therm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		 struct nvkm_oclass *oclass, void *data, u32 size,
+		 struct nvkm_object **pobject)
 {
-	struct nva3_therm_priv *priv;
+	struct gt215_therm_priv *priv;
 	int ret;
 
-	ret = nouveau_therm_create(parent, engine, oclass, &priv);
+	ret = nvkm_therm_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -83,19 +81,19 @@ nva3_therm_ctor(struct nouveau_object *parent,
 	priv->base.base.pwm_get = nv50_fan_pwm_get;
 	priv->base.base.pwm_set = nv50_fan_pwm_set;
 	priv->base.base.pwm_clock = nv50_fan_pwm_clock;
-	priv->base.base.temp_get = nv84_temp_get;
-	priv->base.base.fan_sense = nva3_therm_fan_sense;
-	priv->base.sensor.program_alarms = nouveau_therm_program_alarms_polling;
-	return nouveau_therm_preinit(&priv->base.base);
+	priv->base.base.temp_get = g84_temp_get;
+	priv->base.base.fan_sense = gt215_therm_fan_sense;
+	priv->base.sensor.program_alarms = nvkm_therm_program_alarms_polling;
+	return nvkm_therm_preinit(&priv->base.base);
 }
 
-struct nouveau_oclass
-nva3_therm_oclass = {
+struct nvkm_oclass
+gt215_therm_oclass = {
 	.handle = NV_SUBDEV(THERM, 0xa3),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nva3_therm_ctor,
-		.dtor = _nouveau_therm_dtor,
-		.init = nva3_therm_init,
-		.fini = nv84_therm_fini,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gt215_therm_ctor,
+		.dtor = _nvkm_therm_dtor,
+		.init = gt215_therm_init,
+		.fini = g84_therm_fini,
 	},
 };

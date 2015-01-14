@@ -22,25 +22,24 @@
  * Authors: Ben Skeggs
  * 	    Martin Peres
  */
-
-#include <core/option.h>
-#include <subdev/gpio.h>
-#include <subdev/bios.h>
-#include <subdev/bios/fan.h>
-
 #include "priv.h"
 
-struct nouveau_fanpwm_priv {
-	struct nouveau_fan base;
+#include <core/option.h>
+#include <subdev/bios.h>
+#include <subdev/bios/fan.h>
+#include <subdev/gpio.h>
+
+struct nvkm_fanpwm_priv {
+	struct nvkm_fan base;
 	struct dcb_gpio_func func;
 };
 
 static int
-nouveau_fanpwm_get(struct nouveau_therm *therm)
+nvkm_fanpwm_get(struct nvkm_therm *therm)
 {
-	struct nouveau_therm_priv *tpriv = (void *)therm;
-	struct nouveau_fanpwm_priv *priv = (void *)tpriv->fan;
-	struct nouveau_gpio *gpio = nouveau_gpio(therm);
+	struct nvkm_therm_priv *tpriv = (void *)therm;
+	struct nvkm_fanpwm_priv *priv = (void *)tpriv->fan;
+	struct nvkm_gpio *gpio = nvkm_gpio(therm);
 	int card_type = nv_device(therm)->card_type;
 	u32 divs, duty;
 	int ret;
@@ -57,10 +56,10 @@ nouveau_fanpwm_get(struct nouveau_therm *therm)
 }
 
 static int
-nouveau_fanpwm_set(struct nouveau_therm *therm, int percent)
+nvkm_fanpwm_set(struct nvkm_therm *therm, int percent)
 {
-	struct nouveau_therm_priv *tpriv = (void *)therm;
-	struct nouveau_fanpwm_priv *priv = (void *)tpriv->fan;
+	struct nvkm_therm_priv *tpriv = (void *)therm;
+	struct nvkm_fanpwm_priv *priv = (void *)tpriv->fan;
 	int card_type = nv_device(therm)->card_type;
 	u32 divs, duty;
 	int ret;
@@ -84,18 +83,18 @@ nouveau_fanpwm_set(struct nouveau_therm *therm, int percent)
 }
 
 int
-nouveau_fanpwm_create(struct nouveau_therm *therm, struct dcb_gpio_func *func)
+nvkm_fanpwm_create(struct nvkm_therm *therm, struct dcb_gpio_func *func)
 {
-	struct nouveau_device *device = nv_device(therm);
-	struct nouveau_therm_priv *tpriv = (void *)therm;
-	struct nouveau_bios *bios = nouveau_bios(therm);
-	struct nouveau_fanpwm_priv *priv;
+	struct nvkm_device *device = nv_device(therm);
+	struct nvkm_therm_priv *tpriv = (void *)therm;
+	struct nvkm_bios *bios = nvkm_bios(therm);
+	struct nvkm_fanpwm_priv *priv;
 	struct nvbios_therm_fan fan;
 	u32 divs, duty;
 
 	nvbios_fan_parse(bios, &fan);
 
-	if (!nouveau_boolopt(device->cfgopt, "NvFanPWM", func->param) ||
+	if (!nvkm_boolopt(device->cfgopt, "NvFanPWM", func->param) ||
 	    !therm->pwm_ctrl || fan.type == NVBIOS_THERM_FAN_TOGGLE ||
 	     therm->pwm_get(therm, func->line, &divs, &duty) == -ENODEV)
 		return -ENODEV;
@@ -106,8 +105,8 @@ nouveau_fanpwm_create(struct nouveau_therm *therm, struct dcb_gpio_func *func)
 		return -ENOMEM;
 
 	priv->base.type = "PWM";
-	priv->base.get = nouveau_fanpwm_get;
-	priv->base.set = nouveau_fanpwm_set;
+	priv->base.get = nvkm_fanpwm_get;
+	priv->base.set = nvkm_fanpwm_set;
 	priv->func = *func;
 	return 0;
 }

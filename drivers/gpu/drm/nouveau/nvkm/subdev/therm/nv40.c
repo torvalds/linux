@@ -22,19 +22,18 @@
  * Authors: Ben Skeggs
  * 	    Martin Peres
  */
-
 #include "priv.h"
 
 struct nv40_therm_priv {
-	struct nouveau_therm_priv base;
+	struct nvkm_therm_priv base;
 };
 
 enum nv40_sensor_style { INVALID_STYLE = -1, OLD_STYLE = 0, NEW_STYLE = 1 };
 
 static enum nv40_sensor_style
-nv40_sensor_style(struct nouveau_therm *therm)
+nv40_sensor_style(struct nvkm_therm *therm)
 {
-	struct nouveau_device *device = nv_device(therm);
+	struct nvkm_device *device = nv_device(therm);
 
 	switch (device->chipset) {
 	case 0x43:
@@ -58,7 +57,7 @@ nv40_sensor_style(struct nouveau_therm *therm)
 }
 
 static int
-nv40_sensor_setup(struct nouveau_therm *therm)
+nv40_sensor_setup(struct nvkm_therm *therm)
 {
 	enum nv40_sensor_style style = nv40_sensor_style(therm);
 
@@ -77,9 +76,9 @@ nv40_sensor_setup(struct nouveau_therm *therm)
 }
 
 static int
-nv40_temp_get(struct nouveau_therm *therm)
+nv40_temp_get(struct nvkm_therm *therm)
 {
-	struct nouveau_therm_priv *priv = (void *)therm;
+	struct nvkm_therm_priv *priv = (void *)therm;
 	struct nvbios_therm_sensor *sensor = &priv->bios_sensor;
 	enum nv40_sensor_style style = nv40_sensor_style(therm);
 	int core_temp;
@@ -110,7 +109,7 @@ nv40_temp_get(struct nouveau_therm *therm)
 }
 
 static int
-nv40_fan_pwm_ctrl(struct nouveau_therm *therm, int line, bool enable)
+nv40_fan_pwm_ctrl(struct nvkm_therm *therm, int line, bool enable)
 {
 	u32 mask = enable ? 0x80000000 : 0x0000000;
 	if      (line == 2) nv_mask(therm, 0x0010f0, 0x80000000, mask);
@@ -123,7 +122,7 @@ nv40_fan_pwm_ctrl(struct nouveau_therm *therm, int line, bool enable)
 }
 
 static int
-nv40_fan_pwm_get(struct nouveau_therm *therm, int line, u32 *divs, u32 *duty)
+nv40_fan_pwm_get(struct nvkm_therm *therm, int line, u32 *divs, u32 *duty)
 {
 	if (line == 2) {
 		u32 reg = nv_rd32(therm, 0x0010f0);
@@ -149,7 +148,7 @@ nv40_fan_pwm_get(struct nouveau_therm *therm, int line, u32 *divs, u32 *duty)
 }
 
 static int
-nv40_fan_pwm_set(struct nouveau_therm *therm, int line, u32 divs, u32 duty)
+nv40_fan_pwm_set(struct nvkm_therm *therm, int line, u32 divs, u32 duty)
 {
 	if (line == 2) {
 		nv_mask(therm, 0x0010f0, 0x7fff7fff, (duty << 16) | divs);
@@ -166,9 +165,9 @@ nv40_fan_pwm_set(struct nouveau_therm *therm, int line, u32 divs, u32 duty)
 }
 
 void
-nv40_therm_intr(struct nouveau_subdev *subdev)
+nv40_therm_intr(struct nvkm_subdev *subdev)
 {
-	struct nouveau_therm *therm = nouveau_therm(subdev);
+	struct nvkm_therm *therm = nvkm_therm(subdev);
 	uint32_t stat = nv_rd32(therm, 0x1100);
 
 	/* traitement */
@@ -180,15 +179,15 @@ nv40_therm_intr(struct nouveau_subdev *subdev)
 }
 
 static int
-nv40_therm_ctor(struct nouveau_object *parent,
-		struct nouveau_object *engine,
-		struct nouveau_oclass *oclass, void *data, u32 size,
-		struct nouveau_object **pobject)
+nv40_therm_ctor(struct nvkm_object *parent,
+		struct nvkm_object *engine,
+		struct nvkm_oclass *oclass, void *data, u32 size,
+		struct nvkm_object **pobject)
 {
 	struct nv40_therm_priv *priv;
 	int ret;
 
-	ret = nouveau_therm_create(parent, engine, oclass, &priv);
+	ret = nvkm_therm_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -197,28 +196,28 @@ nv40_therm_ctor(struct nouveau_object *parent,
 	priv->base.base.pwm_get = nv40_fan_pwm_get;
 	priv->base.base.pwm_set = nv40_fan_pwm_set;
 	priv->base.base.temp_get = nv40_temp_get;
-	priv->base.sensor.program_alarms = nouveau_therm_program_alarms_polling;
+	priv->base.sensor.program_alarms = nvkm_therm_program_alarms_polling;
 	nv_subdev(priv)->intr = nv40_therm_intr;
-	return nouveau_therm_preinit(&priv->base.base);
+	return nvkm_therm_preinit(&priv->base.base);
 }
 
 static int
-nv40_therm_init(struct nouveau_object *object)
+nv40_therm_init(struct nvkm_object *object)
 {
-	struct nouveau_therm *therm = (void *)object;
+	struct nvkm_therm *therm = (void *)object;
 
 	nv40_sensor_setup(therm);
 
-	return _nouveau_therm_init(object);
+	return _nvkm_therm_init(object);
 }
 
-struct nouveau_oclass
+struct nvkm_oclass
 nv40_therm_oclass = {
 	.handle = NV_SUBDEV(THERM, 0x40),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv40_therm_ctor,
-		.dtor = _nouveau_therm_dtor,
+		.dtor = _nvkm_therm_dtor,
 		.init = nv40_therm_init,
-		.fini = _nouveau_therm_fini,
+		.fini = _nvkm_therm_fini,
 	},
 };

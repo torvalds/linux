@@ -21,15 +21,14 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "priv.h"
 
-struct nvd0_therm_priv {
-	struct nouveau_therm_priv base;
+struct gf110_therm_priv {
+	struct nvkm_therm_priv base;
 };
 
 static int
-pwm_info(struct nouveau_therm *therm, int line)
+pwm_info(struct nvkm_therm *therm, int line)
 {
 	u32 gpio = nv_rd32(therm, 0x00d610 + (line * 0x04));
 
@@ -53,7 +52,7 @@ pwm_info(struct nouveau_therm *therm, int line)
 }
 
 static int
-nvd0_fan_pwm_ctrl(struct nouveau_therm *therm, int line, bool enable)
+gf110_fan_pwm_ctrl(struct nvkm_therm *therm, int line, bool enable)
 {
 	u32 data = enable ? 0x00000040 : 0x00000000;
 	int indx = pwm_info(therm, line);
@@ -66,7 +65,7 @@ nvd0_fan_pwm_ctrl(struct nouveau_therm *therm, int line, bool enable)
 }
 
 static int
-nvd0_fan_pwm_get(struct nouveau_therm *therm, int line, u32 *divs, u32 *duty)
+gf110_fan_pwm_get(struct nvkm_therm *therm, int line, u32 *divs, u32 *duty)
 {
 	int indx = pwm_info(therm, line);
 	if (indx < 0)
@@ -87,7 +86,7 @@ nvd0_fan_pwm_get(struct nouveau_therm *therm, int line, u32 *divs, u32 *duty)
 }
 
 static int
-nvd0_fan_pwm_set(struct nouveau_therm *therm, int line, u32 divs, u32 duty)
+gf110_fan_pwm_set(struct nvkm_therm *therm, int line, u32 divs, u32 duty)
 {
 	int indx = pwm_info(therm, line);
 	if (indx < 0)
@@ -103,7 +102,7 @@ nvd0_fan_pwm_set(struct nouveau_therm *therm, int line, u32 divs, u32 duty)
 }
 
 static int
-nvd0_fan_pwm_clock(struct nouveau_therm *therm, int line)
+gf110_fan_pwm_clock(struct nvkm_therm *therm, int line)
 {
 	int indx = pwm_info(therm, line);
 	if (indx < 0)
@@ -115,12 +114,12 @@ nvd0_fan_pwm_clock(struct nouveau_therm *therm, int line)
 }
 
 int
-nvd0_therm_init(struct nouveau_object *object)
+gf110_therm_init(struct nvkm_object *object)
 {
-	struct nvd0_therm_priv *priv = (void *)object;
+	struct gf110_therm_priv *priv = (void *)object;
 	int ret;
 
-	ret = nouveau_therm_init(&priv->base.base);
+	ret = nvkm_therm_init(&priv->base.base);
 	if (ret)
 		return ret;
 
@@ -137,38 +136,37 @@ nvd0_therm_init(struct nouveau_object *object)
 }
 
 static int
-nvd0_therm_ctor(struct nouveau_object *parent,
-		struct nouveau_object *engine,
-		struct nouveau_oclass *oclass, void *data, u32 size,
-		struct nouveau_object **pobject)
+gf110_therm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		 struct nvkm_oclass *oclass, void *data, u32 size,
+		 struct nvkm_object **pobject)
 {
-	struct nvd0_therm_priv *priv;
+	struct gf110_therm_priv *priv;
 	int ret;
 
-	ret = nouveau_therm_create(parent, engine, oclass, &priv);
+	ret = nvkm_therm_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
-	nv84_sensor_setup(&priv->base.base);
+	g84_sensor_setup(&priv->base.base);
 
-	priv->base.base.pwm_ctrl = nvd0_fan_pwm_ctrl;
-	priv->base.base.pwm_get = nvd0_fan_pwm_get;
-	priv->base.base.pwm_set = nvd0_fan_pwm_set;
-	priv->base.base.pwm_clock = nvd0_fan_pwm_clock;
-	priv->base.base.temp_get = nv84_temp_get;
-	priv->base.base.fan_sense = nva3_therm_fan_sense;
-	priv->base.sensor.program_alarms = nouveau_therm_program_alarms_polling;
-	return nouveau_therm_preinit(&priv->base.base);
+	priv->base.base.pwm_ctrl = gf110_fan_pwm_ctrl;
+	priv->base.base.pwm_get = gf110_fan_pwm_get;
+	priv->base.base.pwm_set = gf110_fan_pwm_set;
+	priv->base.base.pwm_clock = gf110_fan_pwm_clock;
+	priv->base.base.temp_get = g84_temp_get;
+	priv->base.base.fan_sense = gt215_therm_fan_sense;
+	priv->base.sensor.program_alarms = nvkm_therm_program_alarms_polling;
+	return nvkm_therm_preinit(&priv->base.base);
 }
 
-struct nouveau_oclass
-nvd0_therm_oclass = {
+struct nvkm_oclass
+gf110_therm_oclass = {
 	.handle = NV_SUBDEV(THERM, 0xd0),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvd0_therm_ctor,
-		.dtor = _nouveau_therm_dtor,
-		.init = nvd0_therm_init,
-		.fini = nv84_therm_fini,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gf110_therm_ctor,
+		.dtor = _nvkm_therm_dtor,
+		.init = gf110_therm_init,
+		.fini = g84_therm_fini,
 	},
 };

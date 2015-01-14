@@ -21,18 +21,14 @@
  *
  * Authors: Martin Peres
  */
-
 #include "priv.h"
-
-#include <core/object.h>
-#include <core/device.h>
 
 #include <subdev/gpio.h>
 #include <subdev/timer.h>
 
-struct nouveau_fantog_priv {
-	struct nouveau_fan base;
-	struct nouveau_alarm alarm;
+struct nvkm_fantog_priv {
+	struct nvkm_fan base;
+	struct nvkm_alarm alarm;
 	spinlock_t lock;
 	u32 period_us;
 	u32 percent;
@@ -40,11 +36,11 @@ struct nouveau_fantog_priv {
 };
 
 static void
-nouveau_fantog_update(struct nouveau_fantog_priv *priv, int percent)
+nvkm_fantog_update(struct nvkm_fantog_priv *priv, int percent)
 {
-	struct nouveau_therm_priv *tpriv = (void *)priv->base.parent;
-	struct nouveau_timer *ptimer = nouveau_timer(tpriv);
-	struct nouveau_gpio *gpio = nouveau_gpio(tpriv);
+	struct nvkm_therm_priv *tpriv = (void *)priv->base.parent;
+	struct nvkm_timer *ptimer = nvkm_timer(tpriv);
+	struct nvkm_gpio *gpio = nvkm_gpio(tpriv);
 	unsigned long flags;
 	int duty;
 
@@ -66,37 +62,37 @@ nouveau_fantog_update(struct nouveau_fantog_priv *priv, int percent)
 }
 
 static void
-nouveau_fantog_alarm(struct nouveau_alarm *alarm)
+nvkm_fantog_alarm(struct nvkm_alarm *alarm)
 {
-	struct nouveau_fantog_priv *priv =
-	       container_of(alarm, struct nouveau_fantog_priv, alarm);
-	nouveau_fantog_update(priv, -1);
+	struct nvkm_fantog_priv *priv =
+	       container_of(alarm, struct nvkm_fantog_priv, alarm);
+	nvkm_fantog_update(priv, -1);
 }
 
 static int
-nouveau_fantog_get(struct nouveau_therm *therm)
+nvkm_fantog_get(struct nvkm_therm *therm)
 {
-	struct nouveau_therm_priv *tpriv = (void *)therm;
-	struct nouveau_fantog_priv *priv = (void *)tpriv->fan;
+	struct nvkm_therm_priv *tpriv = (void *)therm;
+	struct nvkm_fantog_priv *priv = (void *)tpriv->fan;
 	return priv->percent;
 }
 
 static int
-nouveau_fantog_set(struct nouveau_therm *therm, int percent)
+nvkm_fantog_set(struct nvkm_therm *therm, int percent)
 {
-	struct nouveau_therm_priv *tpriv = (void *)therm;
-	struct nouveau_fantog_priv *priv = (void *)tpriv->fan;
+	struct nvkm_therm_priv *tpriv = (void *)therm;
+	struct nvkm_fantog_priv *priv = (void *)tpriv->fan;
 	if (therm->pwm_ctrl)
 		therm->pwm_ctrl(therm, priv->func.line, false);
-	nouveau_fantog_update(priv, percent);
+	nvkm_fantog_update(priv, percent);
 	return 0;
 }
 
 int
-nouveau_fantog_create(struct nouveau_therm *therm, struct dcb_gpio_func *func)
+nvkm_fantog_create(struct nvkm_therm *therm, struct dcb_gpio_func *func)
 {
-	struct nouveau_therm_priv *tpriv = (void *)therm;
-	struct nouveau_fantog_priv *priv;
+	struct nvkm_therm_priv *tpriv = (void *)therm;
+	struct nvkm_fantog_priv *priv;
 	int ret;
 
 	if (therm->pwm_ctrl) {
@@ -111,9 +107,9 @@ nouveau_fantog_create(struct nouveau_therm *therm, struct dcb_gpio_func *func)
 		return -ENOMEM;
 
 	priv->base.type = "toggle";
-	priv->base.get = nouveau_fantog_get;
-	priv->base.set = nouveau_fantog_set;
-	nouveau_alarm_init(&priv->alarm, nouveau_fantog_alarm);
+	priv->base.get = nvkm_fantog_get;
+	priv->base.set = nvkm_fantog_set;
+	nvkm_alarm_init(&priv->alarm, nvkm_fantog_alarm);
 	priv->period_us = 100000; /* 10Hz */
 	priv->percent = 100;
 	priv->func = *func;

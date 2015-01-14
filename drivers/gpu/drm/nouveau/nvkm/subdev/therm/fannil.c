@@ -21,26 +21,25 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "priv.h"
 
 static int
-nouveau_fannil_get(struct nouveau_therm *therm)
+nvkm_fannil_get(struct nvkm_therm *therm)
 {
 	return -ENODEV;
 }
 
 static int
-nouveau_fannil_set(struct nouveau_therm *therm, int percent)
+nvkm_fannil_set(struct nvkm_therm *therm, int percent)
 {
 	return -ENODEV;
 }
 
 int
-nouveau_fannil_create(struct nouveau_therm *therm)
+nvkm_fannil_create(struct nvkm_therm *therm)
 {
-	struct nouveau_therm_priv *tpriv = (void *)therm;
-	struct nouveau_fan *priv;
+	struct nvkm_therm_priv *tpriv = (void *)therm;
+	struct nvkm_fan *priv;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	tpriv->fan = priv;
@@ -48,7 +47,7 @@ nouveau_fannil_create(struct nouveau_therm *therm)
 		return -ENOMEM;
 
 	priv->type = "none / external";
-	priv->get = nouveau_fannil_get;
-	priv->set = nouveau_fannil_set;
+	priv->get = nvkm_fannil_get;
+	priv->set = nvkm_fannil_set;
 	return 0;
 }

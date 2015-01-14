@@ -22,23 +22,18 @@
  * Authors: Ben Skeggs
  * 	    Martin Peres
  */
-
 #include "priv.h"
 
-#include <core/object.h>
-#include <core/device.h>
-
+#include <subdev/bios/fan.h>
 #include <subdev/gpio.h>
 #include <subdev/timer.h>
 
-#include <subdev/bios/fan.h>
-
 static int
-nouveau_fan_update(struct nouveau_fan *fan, bool immediate, int target)
+nvkm_fan_update(struct nvkm_fan *fan, bool immediate, int target)
 {
-	struct nouveau_therm *therm = fan->parent;
-	struct nouveau_therm_priv *priv = (void *)therm;
-	struct nouveau_timer *ptimer = nouveau_timer(priv);
+	struct nvkm_therm *therm = fan->parent;
+	struct nvkm_therm_priv *priv = (void *)therm;
+	struct nvkm_timer *ptimer = nvkm_timer(priv);
 	unsigned long flags;
 	int ret = 0;
 	int duty;
@@ -107,32 +102,32 @@ nouveau_fan_update(struct nouveau_fan *fan, bool immediate, int target)
 }
 
 static void
-nouveau_fan_alarm(struct nouveau_alarm *alarm)
+nvkm_fan_alarm(struct nvkm_alarm *alarm)
 {
-	struct nouveau_fan *fan = container_of(alarm, struct nouveau_fan, alarm);
-	nouveau_fan_update(fan, false, -1);
+	struct nvkm_fan *fan = container_of(alarm, struct nvkm_fan, alarm);
+	nvkm_fan_update(fan, false, -1);
 }
 
 int
-nouveau_therm_fan_get(struct nouveau_therm *therm)
+nvkm_therm_fan_get(struct nvkm_therm *therm)
 {
-	struct nouveau_therm_priv *priv = (void *)therm;
+	struct nvkm_therm_priv *priv = (void *)therm;
 	return priv->fan->get(therm);
 }
 
 int
-nouveau_therm_fan_set(struct nouveau_therm *therm, bool immediate, int percent)
+nvkm_therm_fan_set(struct nvkm_therm *therm, bool immediate, int percent)
 {
-	struct nouveau_therm_priv *priv = (void *)therm;
-	return nouveau_fan_update(priv->fan, immediate, percent);
+	struct nvkm_therm_priv *priv = (void *)therm;
+	return nvkm_fan_update(priv->fan, immediate, percent);
 }
 
 int
-nouveau_therm_fan_sense(struct nouveau_therm *therm)
+nvkm_therm_fan_sense(struct nvkm_therm *therm)
 {
-	struct nouveau_therm_priv *priv = (void *)therm;
-	struct nouveau_timer *ptimer = nouveau_timer(therm);
-	struct nouveau_gpio *gpio = nouveau_gpio(therm);
+	struct nvkm_therm_priv *priv = (void *)therm;
+	struct nvkm_timer *ptimer = nvkm_timer(therm);
+	struct nvkm_gpio *gpio = nvkm_gpio(therm);
 	u32 cycles, cur, prev;
 	u64 start, end, tach;
 
@@ -168,26 +163,26 @@ nouveau_therm_fan_sense(struct nouveau_therm *therm)
 }
 
 int
-nouveau_therm_fan_user_get(struct nouveau_therm *therm)
+nvkm_therm_fan_user_get(struct nvkm_therm *therm)
 {
-	return nouveau_therm_fan_get(therm);
+	return nvkm_therm_fan_get(therm);
 }
 
 int
-nouveau_therm_fan_user_set(struct nouveau_therm *therm, int percent)
+nvkm_therm_fan_user_set(struct nvkm_therm *therm, int percent)
 {
-	struct nouveau_therm_priv *priv = (void *)therm;
+	struct nvkm_therm_priv *priv = (void *)therm;
 
-	if (priv->mode != NOUVEAU_THERM_CTRL_MANUAL)
+	if (priv->mode != NVKM_THERM_CTRL_MANUAL)
 		return -EINVAL;
 
-	return nouveau_therm_fan_set(therm, true, percent);
+	return nvkm_therm_fan_set(therm, true, percent);
 }
 
 static void
-nouveau_therm_fan_set_defaults(struct nouveau_therm *therm)
+nvkm_therm_fan_set_defaults(struct nvkm_therm *therm)
 {
-	struct nouveau_therm_priv *priv = (void *)therm;
+	struct nvkm_therm_priv *priv = (void *)therm;
 
 	priv->fan->bios.pwm_freq = 0;
 	priv->fan->bios.min_duty = 0;
@@ -199,9 +194,9 @@ nouveau_therm_fan_set_defaults(struct nouveau_therm *therm)
 }
 
 static void
-nouveau_therm_fan_safety_checks(struct nouveau_therm *therm)
+nvkm_therm_fan_safety_checks(struct nvkm_therm *therm)
 {
-	struct nouveau_therm_priv *priv = (void *)therm;
+	struct nvkm_therm_priv *priv = (void *)therm;
 
 	if (priv->fan->bios.min_duty > 100)
 		priv->fan->bios.min_duty = 100;
@@ -213,16 +208,16 @@ nouveau_therm_fan_safety_checks(struct nouveau_therm *therm)
 }
 
 int
-nouveau_therm_fan_init(struct nouveau_therm *therm)
+nvkm_therm_fan_init(struct nvkm_therm *therm)
 {
 	return 0;
 }
 
 int
-nouveau_therm_fan_fini(struct nouveau_therm *therm, bool suspend)
+nvkm_therm_fan_fini(struct nvkm_therm *therm, bool suspend)
 {
-	struct nouveau_therm_priv *priv = (void *)therm;
-	struct nouveau_timer *ptimer = nouveau_timer(therm);
+	struct nvkm_therm_priv *priv = (void *)therm;
+	struct nvkm_timer *ptimer = nvkm_timer(therm);
 
 	if (suspend)
 		ptimer->alarm_cancel(ptimer, &priv->fan->alarm);
@@ -230,11 +225,11 @@ nouveau_therm_fan_fini(struct nouveau_therm *therm, bool suspend)
 }
 
 int
-nouveau_therm_fan_ctor(struct nouveau_therm *therm)
+nvkm_therm_fan_ctor(struct nvkm_therm *therm)
 {
-	struct nouveau_therm_priv *priv = (void *)therm;
-	struct nouveau_gpio *gpio = nouveau_gpio(therm);
-	struct nouveau_bios *bios = nouveau_bios(therm);
+	struct nvkm_therm_priv *priv = (void *)therm;
+	struct nvkm_gpio *gpio = nvkm_gpio(therm);
+	struct nvkm_bios *bios = nvkm_bios(therm);
 	struct dcb_gpio_func func;
 	int ret;
 
@@ -246,15 +241,15 @@ nouveau_therm_fan_ctor(struct nouveau_therm *therm)
 			nv_debug(therm, "GPIO_FAN is in input mode\n");
 			ret = -EINVAL;
 		} else {
-			ret = nouveau_fanpwm_create(therm, &func);
+			ret = nvkm_fanpwm_create(therm, &func);
 			if (ret != 0)
-				ret = nouveau_fantog_create(therm, &func);
+				ret = nvkm_fantog_create(therm, &func);
 		}
 	}
 
 	/* no controllable fan found, create a dummy fan module */
 	if (ret != 0) {
-		ret = nouveau_fannil_create(therm);
+		ret = nvkm_fannil_create(therm);
 		if (ret)
 			return ret;
 	}
@@ -262,7 +257,7 @@ nouveau_therm_fan_ctor(struct nouveau_therm *therm)
 	nv_info(therm, "FAN control: %s\n", priv->fan->type);
 
 	/* read the current speed, it is useful when resuming */
-	priv->fan->percent = nouveau_therm_fan_get(therm);
+	priv->fan->percent = nvkm_therm_fan_get(therm);
 
 	/* attempt to detect a tachometer connection */
 	ret = gpio->find(gpio, 0, DCB_GPIO_FAN_SENSE, 0xff, &priv->fan->tach);
@@ -271,17 +266,17 @@ nouveau_therm_fan_ctor(struct nouveau_therm *therm)
 
 	/* initialise fan bump/slow update handling */
 	priv->fan->parent = therm;
-	nouveau_alarm_init(&priv->fan->alarm, nouveau_fan_alarm);
+	nvkm_alarm_init(&priv->fan->alarm, nvkm_fan_alarm);
 	spin_lock_init(&priv->fan->lock);
 
 	/* other random init... */
-	nouveau_therm_fan_set_defaults(therm);
+	nvkm_therm_fan_set_defaults(therm);
 	nvbios_perf_fan_parse(bios, &priv->fan->perf);
 	if (!nvbios_fan_parse(bios, &priv->fan->bios)) {
 		nv_debug(therm, "parsing the fan table failed\n");
 		if (nvbios_therm_fan_parse(bios, &priv->fan->bios))
 			nv_error(therm, "parsing both fan tables failed\n");
 	}
-	nouveau_therm_fan_safety_checks(therm);
+	nvkm_therm_fan_safety_checks(therm);
 	return 0;
 }

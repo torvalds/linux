@@ -22,18 +22,18 @@
  * Authors: Ben Skeggs
  * 	    Martin Peres
  */
-
 #include "priv.h"
+
 #include <subdev/fuse.h>
 
-struct nv84_therm_priv {
-	struct nouveau_therm_priv base;
+struct g84_therm_priv {
+	struct nvkm_therm_priv base;
 };
 
 int
-nv84_temp_get(struct nouveau_therm *therm)
+g84_temp_get(struct nvkm_therm *therm)
 {
-	struct nouveau_fuse *fuse = nouveau_fuse(therm);
+	struct nvkm_fuse *fuse = nvkm_fuse(therm);
 
 	if (nv_ro32(fuse, 0x1a8) == 1)
 		return nv_rd32(therm, 0x20400);
@@ -42,9 +42,9 @@ nv84_temp_get(struct nouveau_therm *therm)
 }
 
 void
-nv84_sensor_setup(struct nouveau_therm *therm)
+g84_sensor_setup(struct nvkm_therm *therm)
 {
-	struct nouveau_fuse *fuse = nouveau_fuse(therm);
+	struct nvkm_fuse *fuse = nvkm_fuse(therm);
 
 	/* enable temperature reading for cards with insane defaults */
 	if (nv_ro32(fuse, 0x1a8) == 1) {
@@ -55,9 +55,9 @@ nv84_sensor_setup(struct nouveau_therm *therm)
 }
 
 static void
-nv84_therm_program_alarms(struct nouveau_therm *therm)
+g84_therm_program_alarms(struct nvkm_therm *therm)
 {
-	struct nouveau_therm_priv *priv = (void *)therm;
+	struct nvkm_therm_priv *priv = (void *)therm;
 	struct nvbios_therm_sensor *sensor = &priv->bios_sensor;
 	unsigned long flags;
 
@@ -92,53 +92,53 @@ nv84_therm_program_alarms(struct nouveau_therm *therm)
 
 /* must be called with alarm_program_lock taken ! */
 static void
-nv84_therm_threshold_hyst_emulation(struct nouveau_therm *therm,
+g84_therm_threshold_hyst_emulation(struct nvkm_therm *therm,
 				   uint32_t thrs_reg, u8 status_bit,
 				   const struct nvbios_therm_threshold *thrs,
-				   enum nouveau_therm_thrs thrs_name)
+				   enum nvkm_therm_thrs thrs_name)
 {
-	enum nouveau_therm_thrs_direction direction;
-	enum nouveau_therm_thrs_state prev_state, new_state;
+	enum nvkm_therm_thrs_direction direction;
+	enum nvkm_therm_thrs_state prev_state, new_state;
 	int temp, cur;
 
-	prev_state = nouveau_therm_sensor_get_threshold_state(therm, thrs_name);
+	prev_state = nvkm_therm_sensor_get_threshold_state(therm, thrs_name);
 	temp = nv_rd32(therm, thrs_reg);
 
 	/* program the next threshold */
 	if (temp == thrs->temp) {
 		nv_wr32(therm, thrs_reg, thrs->temp - thrs->hysteresis);
-		new_state = NOUVEAU_THERM_THRS_HIGHER;
+		new_state = NVKM_THERM_THRS_HIGHER;
 	} else {
 		nv_wr32(therm, thrs_reg, thrs->temp);
-		new_state = NOUVEAU_THERM_THRS_LOWER;
+		new_state = NVKM_THERM_THRS_LOWER;
 	}
 
 	/* fix the state (in case someone reprogrammed the alarms) */
 	cur = therm->temp_get(therm);
-	if (new_state == NOUVEAU_THERM_THRS_LOWER && cur > thrs->temp)
-		new_state = NOUVEAU_THERM_THRS_HIGHER;
-	else if (new_state == NOUVEAU_THERM_THRS_HIGHER &&
+	if (new_state == NVKM_THERM_THRS_LOWER && cur > thrs->temp)
+		new_state = NVKM_THERM_THRS_HIGHER;
+	else if (new_state == NVKM_THERM_THRS_HIGHER &&
 		cur < thrs->temp - thrs->hysteresis)
-		new_state = NOUVEAU_THERM_THRS_LOWER;
-	nouveau_therm_sensor_set_threshold_state(therm, thrs_name, new_state);
+		new_state = NVKM_THERM_THRS_LOWER;
+	nvkm_therm_sensor_set_threshold_state(therm, thrs_name, new_state);
 
 	/* find the direction */
 	if (prev_state < new_state)
-		direction = NOUVEAU_THERM_THRS_RISING;
+		direction = NVKM_THERM_THRS_RISING;
 	else if (prev_state > new_state)
-		direction = NOUVEAU_THERM_THRS_FALLING;
+		direction = NVKM_THERM_THRS_FALLING;
 	else
 		return;
 
 	/* advertise a change in direction */
-	nouveau_therm_sensor_event(therm, thrs_name, direction);
+	nvkm_therm_sensor_event(therm, thrs_name, direction);
 }
 
 static void
-nv84_therm_intr(struct nouveau_subdev *subdev)
+g84_therm_intr(struct nvkm_subdev *subdev)
 {
-	struct nouveau_therm *therm = nouveau_therm(subdev);
-	struct nouveau_therm_priv *priv = (void *)therm;
+	struct nvkm_therm *therm = nvkm_therm(subdev);
+	struct nvkm_therm_priv *priv = (void *)therm;
 	struct nvbios_therm_sensor *sensor = &priv->bios_sensor;
 	unsigned long flags;
 	uint32_t intr;
@@ -149,33 +149,33 @@ nv84_therm_intr(struct nouveau_subdev *subdev)
 
 	/* THRS_4: downclock */
 	if (intr & 0x002) {
-		nv84_therm_threshold_hyst_emulation(therm, 0x20414, 24,
-						  &sensor->thrs_down_clock,
-						  NOUVEAU_THERM_THRS_DOWNCLOCK);
+		g84_therm_threshold_hyst_emulation(therm, 0x20414, 24,
+						   &sensor->thrs_down_clock,
+						   NVKM_THERM_THRS_DOWNCLOCK);
 		intr &= ~0x002;
 	}
 
 	/* shutdown */
 	if (intr & 0x004) {
-		nv84_therm_threshold_hyst_emulation(therm, 0x20480, 20,
+		g84_therm_threshold_hyst_emulation(therm, 0x20480, 20,
 						   &sensor->thrs_shutdown,
-						   NOUVEAU_THERM_THRS_SHUTDOWN);
+						   NVKM_THERM_THRS_SHUTDOWN);
 		intr &= ~0x004;
 	}
 
 	/* THRS_1 : fan boost */
 	if (intr & 0x008) {
-		nv84_therm_threshold_hyst_emulation(therm, 0x204c4, 21,
+		g84_therm_threshold_hyst_emulation(therm, 0x204c4, 21,
 						   &sensor->thrs_fan_boost,
-						   NOUVEAU_THERM_THRS_FANBOOST);
+						   NVKM_THERM_THRS_FANBOOST);
 		intr &= ~0x008;
 	}
 
 	/* THRS_2 : critical */
 	if (intr & 0x010) {
-		nv84_therm_threshold_hyst_emulation(therm, 0x204c0, 22,
+		g84_therm_threshold_hyst_emulation(therm, 0x204c0, 22,
 						   &sensor->thrs_critical,
-						   NOUVEAU_THERM_THRS_CRITICAL);
+						   NVKM_THERM_THRS_CRITICAL);
 		intr &= ~0x010;
 	}
 
@@ -190,30 +190,28 @@ nv84_therm_intr(struct nouveau_subdev *subdev)
 }
 
 static int
-nv84_therm_init(struct nouveau_object *object)
+g84_therm_init(struct nvkm_object *object)
 {
-	struct nv84_therm_priv *priv = (void *)object;
+	struct g84_therm_priv *priv = (void *)object;
 	int ret;
 
-	ret = nouveau_therm_init(&priv->base.base);
+	ret = nvkm_therm_init(&priv->base.base);
 	if (ret)
 		return ret;
 
-	nv84_sensor_setup(&priv->base.base);
-
+	g84_sensor_setup(&priv->base.base);
 	return 0;
 }
 
 static int
-nv84_therm_ctor(struct nouveau_object *parent,
-		struct nouveau_object *engine,
-		struct nouveau_oclass *oclass, void *data, u32 size,
-		struct nouveau_object **pobject)
+g84_therm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	       struct nvkm_oclass *oclass, void *data, u32 size,
+	       struct nvkm_object **pobject)
 {
-	struct nv84_therm_priv *priv;
+	struct g84_therm_priv *priv;
 	int ret;
 
-	ret = nouveau_therm_create(parent, engine, oclass, &priv);
+	ret = nvkm_therm_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -222,29 +220,29 @@ nv84_therm_ctor(struct nouveau_object *parent,
 	priv->base.base.pwm_get = nv50_fan_pwm_get;
 	priv->base.base.pwm_set = nv50_fan_pwm_set;
 	priv->base.base.pwm_clock = nv50_fan_pwm_clock;
-	priv->base.base.temp_get = nv84_temp_get;
-	priv->base.sensor.program_alarms = nv84_therm_program_alarms;
-	nv_subdev(priv)->intr = nv84_therm_intr;
+	priv->base.base.temp_get = g84_temp_get;
+	priv->base.sensor.program_alarms = g84_therm_program_alarms;
+	nv_subdev(priv)->intr = g84_therm_intr;
 
 	/* init the thresholds */
-	nouveau_therm_sensor_set_threshold_state(&priv->base.base,
-						 NOUVEAU_THERM_THRS_SHUTDOWN,
-						 NOUVEAU_THERM_THRS_LOWER);
-	nouveau_therm_sensor_set_threshold_state(&priv->base.base,
-						 NOUVEAU_THERM_THRS_FANBOOST,
-						 NOUVEAU_THERM_THRS_LOWER);
-	nouveau_therm_sensor_set_threshold_state(&priv->base.base,
-						 NOUVEAU_THERM_THRS_CRITICAL,
-						 NOUVEAU_THERM_THRS_LOWER);
-	nouveau_therm_sensor_set_threshold_state(&priv->base.base,
-						 NOUVEAU_THERM_THRS_DOWNCLOCK,
-						 NOUVEAU_THERM_THRS_LOWER);
+	nvkm_therm_sensor_set_threshold_state(&priv->base.base,
+					      NVKM_THERM_THRS_SHUTDOWN,
+					      NVKM_THERM_THRS_LOWER);
+	nvkm_therm_sensor_set_threshold_state(&priv->base.base,
+					      NVKM_THERM_THRS_FANBOOST,
+					      NVKM_THERM_THRS_LOWER);
+	nvkm_therm_sensor_set_threshold_state(&priv->base.base,
+					      NVKM_THERM_THRS_CRITICAL,
+					      NVKM_THERM_THRS_LOWER);
+	nvkm_therm_sensor_set_threshold_state(&priv->base.base,
+					      NVKM_THERM_THRS_DOWNCLOCK,
+					      NVKM_THERM_THRS_LOWER);
 
-	return nouveau_therm_preinit(&priv->base.base);
+	return nvkm_therm_preinit(&priv->base.base);
 }
 
 int
-nv84_therm_fini(struct nouveau_object *object, bool suspend)
+g84_therm_fini(struct nvkm_object *object, bool suspend)
 {
 	/* Disable PTherm IRQs */
 	nv_wr32(object, 0x20000, 0x00000000);
@@ -253,16 +251,16 @@ nv84_therm_fini(struct nouveau_object *object, bool suspend)
 	nv_wr32(object, 0x20100, 0xffffffff);
 	nv_wr32(object, 0x1100, 0x10000); /* PBUS */
 
-	return _nouveau_therm_fini(object, suspend);
+	return _nvkm_therm_fini(object, suspend);
 }
 
-struct nouveau_oclass
-nv84_therm_oclass = {
+struct nvkm_oclass
+g84_therm_oclass = {
 	.handle = NV_SUBDEV(THERM, 0x84),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv84_therm_ctor,
-		.dtor = _nouveau_therm_dtor,
-		.init = nv84_therm_init,
-		.fini = nv84_therm_fini,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = g84_therm_ctor,
+		.dtor = _nvkm_therm_dtor,
+		.init = g84_therm_init,
+		.fini = g84_therm_fini,
 	},
 };
