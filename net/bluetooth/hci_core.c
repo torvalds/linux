@@ -933,10 +933,8 @@ static int __hci_init(struct hci_dev *hdev)
 	if (lmp_bredr_capable(hdev))
 		hci_debugfs_create_bredr(hdev);
 
-	if (lmp_le_capable(hdev)) {
+	if (lmp_le_capable(hdev))
 		hci_debugfs_create_le(hdev);
-		smp_register(hdev);
-	}
 
 	return 0;
 }
@@ -2133,6 +2131,8 @@ static void hci_power_off(struct work_struct *work)
 	BT_DBG("%s", hdev->name);
 
 	hci_dev_do_close(hdev);
+
+	smp_unregister(hdev);
 }
 
 static void hci_discov_off(struct work_struct *work)
