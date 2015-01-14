@@ -1710,12 +1710,6 @@ static int at91udc_probe(struct platform_device *pdev)
 	int		retval;
 	struct resource	*res;
 
-	if (!dev_get_platdata(dev) && !pdev->dev.of_node) {
-		/* small (so we copy it) but critical! */
-		DBG("missing platform_data\n");
-		return -ENODEV;
-	}
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -ENXIO;
@@ -1728,11 +1722,7 @@ static int at91udc_probe(struct platform_device *pdev)
 	/* init software state */
 	udc = &controller;
 	udc->gadget.dev.parent = dev;
-	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node)
-		at91udc_of_init(udc, pdev->dev.of_node);
-	else
-		memcpy(&udc->board, dev_get_platdata(dev),
-		       sizeof(struct at91_udc_data));
+	at91udc_of_init(udc, pdev->dev.of_node);
 	udc->pdev = pdev;
 	udc->enabled = 0;
 	spin_lock_init(&udc->lock);
@@ -1968,14 +1958,12 @@ static int at91udc_resume(struct platform_device *pdev)
 #define	at91udc_resume	NULL
 #endif
 
-#if defined(CONFIG_OF)
 static const struct of_device_id at91_udc_dt_ids[] = {
 	{ .compatible = "atmel,at91rm9200-udc" },
 	{ /* sentinel */ }
 };
 
 MODULE_DEVICE_TABLE(of, at91_udc_dt_ids);
-#endif
 
 static struct platform_driver at91_udc_driver = {
 	.remove		= __exit_p(at91udc_remove),
@@ -1984,7 +1972,7 @@ static struct platform_driver at91_udc_driver = {
 	.resume		= at91udc_resume,
 	.driver		= {
 		.name	= (char *) driver_name,
-		.of_match_table	= of_match_ptr(at91_udc_dt_ids),
+		.of_match_table	= at91_udc_dt_ids,
 	},
 };
 
