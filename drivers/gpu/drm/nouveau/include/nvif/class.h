@@ -122,7 +122,7 @@ struct nv_device_v0 {
 #define NV_DEVICE_V0_DISABLE_CORE                         0x0000000000000008ULL
 #define NV_DEVICE_V0_DISABLE_DISP                         0x0000000000010000ULL
 #define NV_DEVICE_V0_DISABLE_FIFO                         0x0000000000020000ULL
-#define NV_DEVICE_V0_DISABLE_GRAPH                        0x0000000100000000ULL
+#define NV_DEVICE_V0_DISABLE_GR                           0x0000000100000000ULL
 #define NV_DEVICE_V0_DISABLE_MPEG                         0x0000000200000000ULL
 #define NV_DEVICE_V0_DISABLE_ME                           0x0000000400000000ULL
 #define NV_DEVICE_V0_DISABLE_VP                           0x0000000800000000ULL

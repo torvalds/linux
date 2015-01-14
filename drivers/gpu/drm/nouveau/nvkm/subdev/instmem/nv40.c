@@ -22,7 +22,7 @@
  * Authors: Ben Skeggs
  */
 
-#include <engine/graph/nv40.h>
+#include <engine/gr/nv40.h>
 
 #include "nv04.h"
 
@@ -73,12 +73,12 @@ nv40_instmem_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	/* PRAMIN aperture maps over the end of vram, reserve enough space
 	 * to fit graphics contexts for every channel, the magics come
-	 * from engine/graph/nv40.c
+	 * from engine/gr/nv40.c
 	 */
 	vs = hweight8((nv_rd32(priv, 0x001540) & 0x0000ff00) >> 8);
 	if      (device->chipset == 0x40) priv->base.reserved = 0x6aa0 * vs;
 	else if (device->chipset  < 0x43) priv->base.reserved = 0x4f00 * vs;
-	else if (nv44_graph_class(priv))  priv->base.reserved = 0x4980 * vs;
+	else if (nv44_gr_class(priv))  priv->base.reserved = 0x4980 * vs;
 	else				  priv->base.reserved = 0x4a40 * vs;
 	priv->base.reserved += 16 * 1024;
 	priv->base.reserved *= 32;		/* per-channel */

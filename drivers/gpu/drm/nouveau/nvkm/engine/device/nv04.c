@@ -37,7 +37,7 @@
 #include <engine/dmaobj.h>
 #include <engine/fifo.h>
 #include <engine/software.h>
-#include <engine/graph.h>
+#include <engine/gr.h>
 #include <engine/disp.h>
 
 int
@@ -59,7 +59,7 @@ nv04_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv04_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv04_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nv04_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv04_gr_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
 	case 0x05:
@@ -77,7 +77,7 @@ nv04_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv04_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv04_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nv04_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv04_gr_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
 	default:

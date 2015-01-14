@@ -38,7 +38,7 @@
 #include <engine/dmaobj.h>
 #include <engine/fifo.h>
 #include <engine/software.h>
-#include <engine/graph.h>
+#include <engine/gr.h>
 #include <engine/mpeg.h>
 #include <engine/disp.h>
 
@@ -62,7 +62,7 @@ nv30_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv17_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nv30_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv30_gr_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
 	case 0x35:
@@ -81,7 +81,7 @@ nv30_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv17_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nv35_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv35_gr_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
 	case 0x31:
@@ -100,7 +100,7 @@ nv30_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv17_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nv30_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv30_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv31_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
@@ -120,7 +120,7 @@ nv30_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv17_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nv35_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv35_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv31_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
@@ -140,7 +140,7 @@ nv30_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv17_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nv34_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv34_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv31_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;

@@ -41,7 +41,7 @@
 #include <engine/dmaobj.h>
 #include <engine/fifo.h>
 #include <engine/software.h>
-#include <engine/graph.h>
+#include <engine/gr.h>
 #include <engine/mpeg.h>
 #include <engine/disp.h>
 #include <engine/perfmon.h>
@@ -68,7 +68,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv40_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv40_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
@@ -91,7 +91,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv40_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv40_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
@@ -114,7 +114,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv40_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv40_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
@@ -137,7 +137,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv40_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv40_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
@@ -160,7 +160,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv40_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
@@ -183,7 +183,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv40_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
@@ -206,7 +206,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv40_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
@@ -229,7 +229,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv40_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
@@ -252,7 +252,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv40_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
@@ -275,7 +275,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv40_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
@@ -298,7 +298,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv40_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
@@ -321,7 +321,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv40_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
@@ -344,7 +344,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv40_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
@@ -367,7 +367,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv40_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
@@ -390,7 +390,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv40_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
@@ -413,7 +413,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv40_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv10_software_oclass;
-		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_graph_oclass;
+		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;

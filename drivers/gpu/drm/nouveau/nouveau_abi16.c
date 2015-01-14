@@ -165,7 +165,7 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvif_device *device = &drm->device;
 	struct nouveau_timer *ptimer = nvkm_timer(device);
-	struct nouveau_graph *graph = nvkm_gr(device);
+	struct nouveau_gr *gr = nvkm_gr(device);
 	struct drm_nouveau_getparam *getparam = data;
 
 	switch (getparam->param) {
@@ -215,7 +215,7 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 		getparam->value = 1;
 		break;
 	case NOUVEAU_GETPARAM_GRAPH_UNITS:
-		getparam->value = graph->units ? graph->units(graph) : 0;
+		getparam->value = gr->units ? gr->units(gr) : 0;
 		break;
 	default:
 		NV_PRINTK(debug, cli, "unknown parameter %lld\n", getparam->param);
