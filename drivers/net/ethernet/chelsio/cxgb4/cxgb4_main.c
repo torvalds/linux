@@ -62,6 +62,7 @@
 #include <net/netevent.h>
 #include <net/addrconf.h>
 #include <net/bonding.h>
+#include <net/addrconf.h>
 #include <asm/uaccess.h>
 
 #include "cxgb4.h"
@@ -71,6 +72,7 @@
 #include "t4fw_api.h"
 #include "cxgb4_dcb.h"
 #include "cxgb4_debugfs.h"
+#include "clip_tbl.h"
 #include "l2t.h"
 
 #ifdef DRV_VERSION
@@ -3236,40 +3238,6 @@ static int tid_init(struct tid_info *t)
 	return 0;
 }
 
-int cxgb4_clip_get(const struct net_device *dev,
-		   const struct in6_addr *lip)
-{
-	struct adapter *adap;
-	struct fw_clip_cmd c;
-
-	adap = netdev2adap(dev);
-	memset(&c, 0, sizeof(c));
-	c.op_to_write = htonl(FW_CMD_OP_V(FW_CLIP_CMD) |
-			FW_CMD_REQUEST_F | FW_CMD_WRITE_F);
-	c.alloc_to_len16 = htonl(FW_CLIP_CMD_ALLOC_F | FW_LEN16(c));
-	c.ip_hi = *(__be64 *)(lip->s6_addr);
-	c.ip_lo = *(__be64 *)(lip->s6_addr + 8);
-	return t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, false);
-}
-EXPORT_SYMBOL(cxgb4_clip_get);
-
-int cxgb4_clip_release(const struct net_device *dev,
-		       const struct in6_addr *lip)
-{
-	struct adapter *adap;
-	struct fw_clip_cmd c;
-
-	adap = netdev2adap(dev);
-	memset(&c, 0, sizeof(c));
-	c.op_to_write = htonl(FW_CMD_OP_V(FW_CLIP_CMD) |
-			FW_CMD_REQUEST_F | FW_CMD_READ_F);
-	c.alloc_to_len16 = htonl(FW_CLIP_CMD_FREE_F | FW_LEN16(c));
-	c.ip_hi = *(__be64 *)(lip->s6_addr);
-	c.ip_lo = *(__be64 *)(lip->s6_addr + 8);
-	return t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, false);
-}
-EXPORT_SYMBOL(cxgb4_clip_release);
-
 /**
  *	cxgb4_create_server - create an IP server
  *	@dev: the device
@@ -4122,147 +4090,60 @@ int cxgb4_unregister_uld(enum cxgb4_uld type)
 }
 EXPORT_SYMBOL(cxgb4_unregister_uld);
 
-/* Check if netdev on which event is occured belongs to us or not. Return
- * success (true) if it belongs otherwise failure (false).
- * Called with rcu_read_lock() held.
- */
 #if IS_ENABLED(CONFIG_IPV6)
-static bool cxgb4_netdev(const struct net_device *netdev)
+static int cxgb4_inet6addr_handler(struct notifier_block *this,
+				   unsigned long event, void *data)
 {
+	struct inet6_ifaddr *ifa = data;
+	struct net_device *event_dev = ifa->idev->dev;
+	const struct device *parent = NULL;
+#if IS_ENABLED(CONFIG_BONDING)
 	struct adapter *adap;
-	int i;
+#endif
+	if (event_dev->priv_flags & IFF_802_1Q_VLAN)
+		event_dev = vlan_dev_real_dev(event_dev);
+#if IS_ENABLED(CONFIG_BONDING)
+	if (event_dev->flags & IFF_MASTER) {
+		list_for_each_entry(adap, &adapter_list, list_node) {
+			switch (event) {
+			case NETDEV_UP:
+				cxgb4_clip_get(adap->port[0],
+					       (const u32 *)ifa, 1);
+				break;
+			case NETDEV_DOWN:
+				cxgb4_clip_release(adap->port[0],
+						   (const u32 *)ifa, 1);
+				break;
+			default:
+				break;
+			}
+		}
+		return NOTIFY_OK;
+	}
+#endif
 
-	list_for_each_entry_rcu(adap, &adap_rcu_list, rcu_node)
-		for (i = 0; i < MAX_NPORTS; i++)
-			if (adap->port[i] == netdev)
-				return true;
-	return false;
-}
+	if (event_dev)
+		parent = event_dev->dev.parent;
 
-static int clip_add(struct net_device *event_dev, struct inet6_ifaddr *ifa,
-		    unsigned long event)
-{
-	int ret = NOTIFY_DONE;
-
-	rcu_read_lock();
-	if (cxgb4_netdev(event_dev)) {
+	if (parent && parent->driver == &cxgb4_driver.driver) {
 		switch (event) {
 		case NETDEV_UP:
-			ret = cxgb4_clip_get(event_dev, &ifa->addr);
-			if (ret < 0) {
-				rcu_read_unlock();
-				return ret;
-			}
-			ret = NOTIFY_OK;
+			cxgb4_clip_get(event_dev, (const u32 *)ifa, 1);
 			break;
 		case NETDEV_DOWN:
-			cxgb4_clip_release(event_dev, &ifa->addr);
-			ret = NOTIFY_OK;
+			cxgb4_clip_release(event_dev, (const u32 *)ifa, 1);
 			break;
 		default:
 			break;
 		}
 	}
-	rcu_read_unlock();
-	return ret;
+	return NOTIFY_OK;
 }
 
-static int cxgb4_inet6addr_handler(struct notifier_block *this,
-		unsigned long event, void *data)
-{
-	struct inet6_ifaddr *ifa = data;
-	struct net_device *event_dev;
-	int ret = NOTIFY_DONE;
-	struct bonding *bond = netdev_priv(ifa->idev->dev);
-	struct list_head *iter;
-	struct slave *slave;
-	struct pci_dev *first_pdev = NULL;
-
-	if (ifa->idev->dev->priv_flags & IFF_802_1Q_VLAN) {
-		event_dev = vlan_dev_real_dev(ifa->idev->dev);
-		ret = clip_add(event_dev, ifa, event);
-	} else if (ifa->idev->dev->flags & IFF_MASTER) {
-		/* It is possible that two different adapters are bonded in one
-		 * bond. We need to find such different adapters and add clip
-		 * in all of them only once.
-		 */
-		bond_for_each_slave(bond, slave, iter) {
-			if (!first_pdev) {
-				ret = clip_add(slave->dev, ifa, event);
-				/* If clip_add is success then only initialize
-				 * first_pdev since it means it is our device
-				 */
-				if (ret == NOTIFY_OK)
-					first_pdev = to_pci_dev(
-							slave->dev->dev.parent);
-			} else if (first_pdev !=
-				   to_pci_dev(slave->dev->dev.parent))
-					ret = clip_add(slave->dev, ifa, event);
-		}
-	} else
-		ret = clip_add(ifa->idev->dev, ifa, event);
-
-	return ret;
-}
-
+static bool inet6addr_registered;
 static struct notifier_block cxgb4_inet6addr_notifier = {
 	.notifier_call = cxgb4_inet6addr_handler
 };
-
-/* Retrieves IPv6 addresses from a root device (bond, vlan) associated with
- * a physical device.
- * The physical device reference is needed to send the actul CLIP command.
- */
-static int update_dev_clip(struct net_device *root_dev, struct net_device *dev)
-{
-	struct inet6_dev *idev = NULL;
-	struct inet6_ifaddr *ifa;
-	int ret = 0;
-
-	idev = __in6_dev_get(root_dev);
-	if (!idev)
-		return ret;
-
-	read_lock_bh(&idev->lock);
-	list_for_each_entry(ifa, &idev->addr_list, if_list) {
-		ret = cxgb4_clip_get(dev, &ifa->addr);
-		if (ret < 0)
-			break;
-	}
-	read_unlock_bh(&idev->lock);
-
-	return ret;
-}
-
-static int update_root_dev_clip(struct net_device *dev)
-{
-	struct net_device *root_dev = NULL;
-	int i, ret = 0;
-
-	/* First populate the real net device's IPv6 addresses */
-	ret = update_dev_clip(dev, dev);
-	if (ret)
-		return ret;
-
-	/* Parse all bond and vlan devices layered on top of the physical dev */
-	root_dev = netdev_master_upper_dev_get_rcu(dev);
-	if (root_dev) {
-		ret = update_dev_clip(root_dev, dev);
-		if (ret)
-			return ret;
-	}
-
-	for (i = 0; i < VLAN_N_VID; i++) {
-		root_dev = __vlan_find_dev_deep_rcu(dev, htons(ETH_P_8021Q), i);
-		if (!root_dev)
-			continue;
-
-		ret = update_dev_clip(root_dev, dev);
-		if (ret)
-			break;
-	}
-	return ret;
-}
 
 static void update_clip(const struct adapter *adap)
 {
@@ -4277,7 +4158,7 @@ static void update_clip(const struct adapter *adap)
 		ret = 0;
 
 		if (dev)
-			ret = update_root_dev_clip(dev);
+			ret = cxgb4_update_root_dev_clip(dev);
 
 		if (ret < 0)
 			break;
@@ -5391,6 +5272,14 @@ static int adap_init0(struct adapter *adap)
 	adap->tids.nftids = val[4] - val[3] + 1;
 	adap->sge.ingr_start = val[5];
 
+	params[0] = FW_PARAM_PFVF(CLIP_START);
+	params[1] = FW_PARAM_PFVF(CLIP_END);
+	ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 2, params, val);
+	if (ret < 0)
+		goto bye;
+	adap->clipt_start = val[0];
+	adap->clipt_end = val[1];
+
 	/* query params related to active filter region */
 	params[0] = FW_PARAM_PFVF(ACTIVE_FILTER_START);
 	params[1] = FW_PARAM_PFVF(ACTIVE_FILTER_END);
@@ -6211,6 +6100,18 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		adapter->params.offload = 0;
 	}
 
+#if IS_ENABLED(CONFIG_IPV6)
+	adapter->clipt = t4_init_clip_tbl(adapter->clipt_start,
+					  adapter->clipt_end);
+	if (!adapter->clipt) {
+		/* We tolerate a lack of clip_table, giving up
+		 * some functionality
+		 */
+		dev_warn(&pdev->dev,
+			 "could not allocate Clip table, continuing\n");
+		adapter->params.offload = 0;
+	}
+#endif
 	if (is_offload(adapter) && tid_init(&adapter->tids) < 0) {
 		dev_warn(&pdev->dev, "could not allocate TID table, "
 			 "continuing\n");
@@ -6336,6 +6237,9 @@ static void remove_one(struct pci_dev *pdev)
 			cxgb_down(adapter);
 
 		free_some_resources(adapter);
+#if IS_ENABLED(CONFIG_IPV6)
+		t4_cleanup_clip_tbl(adapter);
+#endif
 		iounmap(adapter->regs);
 		if (!is_t4(adapter->params.chip))
 			iounmap(adapter->bar2);
@@ -6374,7 +6278,10 @@ static int __init cxgb4_init_module(void)
 		debugfs_remove(cxgb4_debugfs_root);
 
 #if IS_ENABLED(CONFIG_IPV6)
-	register_inet6addr_notifier(&cxgb4_inet6addr_notifier);
+	if (!inet6addr_registered) {
+		register_inet6addr_notifier(&cxgb4_inet6addr_notifier);
+		inet6addr_registered = true;
+	}
 #endif
 
 	return ret;
@@ -6383,7 +6290,10 @@ static int __init cxgb4_init_module(void)
 static void __exit cxgb4_cleanup_module(void)
 {
 #if IS_ENABLED(CONFIG_IPV6)
-	unregister_inet6addr_notifier(&cxgb4_inet6addr_notifier);
+	if (inet6addr_registered && list_empty(&adapter_list)) {
+		unregister_inet6addr_notifier(&cxgb4_inet6addr_notifier);
+		inet6addr_registered = false;
+	}
 #endif
 	pci_unregister_driver(&cxgb4_driver);
 	debugfs_remove(cxgb4_debugfs_root);  /* NULL ok */

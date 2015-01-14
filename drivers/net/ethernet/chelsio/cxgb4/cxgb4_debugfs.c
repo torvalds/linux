@@ -41,6 +41,7 @@
 #include "t4_regs.h"
 #include "t4fw_api.h"
 #include "cxgb4_debugfs.h"
+#include "clip_tbl.h"
 #include "l2t.h"
 
 /* generic seq_file support for showing a table of size rows x width. */
@@ -563,6 +564,21 @@ static const struct file_operations mps_tcam_debugfs_fops = {
 	.release = seq_release,
 };
 
+#if IS_ENABLED(CONFIG_IPV6)
+static int clip_tbl_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, clip_tbl_show, PDE_DATA(inode));
+}
+
+static const struct file_operations clip_tbl_debugfs_fops = {
+	.owner   = THIS_MODULE,
+	.open    = clip_tbl_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = single_release
+};
+#endif
+
 static ssize_t mem_read(struct file *file, char __user *buf, size_t count,
 			loff_t *ppos)
 {
@@ -646,6 +662,9 @@ int t4_setup_debugfs(struct adapter *adap)
 		{ "devlog", &devlog_fops, S_IRUSR, 0 },
 		{ "l2t", &t4_l2t_fops, S_IRUSR, 0},
 		{ "mps_tcam", &mps_tcam_debugfs_fops, S_IRUSR, 0 },
+#if IS_ENABLED(CONFIG_IPV6)
+		{ "clip_tbl", &clip_tbl_debugfs_fops, S_IRUSR, 0 },
+#endif
 	};
 
 	add_debugfs_files(adap,
