@@ -512,8 +512,6 @@ struct pcl812_private {
 	unsigned int last_ai_chanspec;
 	unsigned char mode_reg_int;	/*  there is stored INT number for some card */
 	unsigned int ai_poll_ptr;	/*  how many sampes transfer poll */
-	unsigned int dma_runs_to_end;	/*  how many times we must switch DMA buffers */
-	unsigned int last_dma_run;	/*  how many bytes to transfer on last DMA buffer */
 	unsigned int max_812_ai_mode0_rangewait;	/*  setling time for gain */
 	unsigned int divisor1;
 	unsigned int divisor2;
@@ -544,71 +542,48 @@ static void pcl812_ai_setup_dma(struct comedi_device *dev,
 {
 	struct pcl812_private *devpriv = dev->private;
 	struct comedi_isadma *dma = devpriv->dma;
-	struct comedi_isadma_desc *desc0 = &dma->desc[0];
-	struct comedi_isadma_desc *desc1 = &dma->desc[1];
-	struct comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_isadma_desc *desc = &dma->desc[0];
 	unsigned int bytes;
+	unsigned int nsamples;
 
-	/*  we use EOS, so adapt DMA buffer to one scan */
-	if (devpriv->ai_eos) {
-		desc0->size = comedi_bytes_per_scan(s);
-		desc1->size = comedi_bytes_per_scan(s);
-		devpriv->dma_runs_to_end = 1;
-	} else {
-		desc0->size = desc0->maxsize;
-		desc1->size = desc1->maxsize;
-		if (s->async->prealloc_bufsz < desc0->maxsize)
-			desc0->size = s->async->prealloc_bufsz;
-		if (s->async->prealloc_bufsz < desc1->maxsize)
-			desc1->size = s->async->prealloc_bufsz;
-		if (cmd->stop_src == TRIG_NONE) {
-			devpriv->dma_runs_to_end = 1;
-		} else {
-			/*  how many samples we must transfer? */
-			bytes = cmd->stop_arg * comedi_bytes_per_scan(s);
-
-			/*  how many DMA pages we must fill */
-			devpriv->dma_runs_to_end = bytes / desc0->size;
-
-			/* on last dma transfer must be moved */
-			devpriv->last_dma_run = bytes % desc0->size;
-			if (devpriv->dma_runs_to_end == 0)
-				desc0->size = devpriv->last_dma_run;
-			devpriv->dma_runs_to_end--;
-		}
-	}
-	if (desc0->size > desc0->maxsize) {
-		desc0->size = desc0->maxsize;
-		devpriv->ai_eos = 0;
-	}
-	if (desc1->size > desc1->maxsize) {
-		desc1->size = desc1->maxsize;
-		devpriv->ai_eos = 0;
-	}
 	dma->cur_dma = 0;
 
-	comedi_isadma_program(desc0);
+	/* if using EOS, adapt DMA buffer to one scan */
+	bytes = devpriv->ai_eos ? comedi_bytes_per_scan(s) : desc->maxsize;
+
+	nsamples = comedi_bytes_to_samples(s, bytes);
+	nsamples = comedi_nsamples_left(s, nsamples);
+	desc->size = comedi_samples_to_bytes(s, nsamples);
+	comedi_isadma_program(desc);
 }
 
 static void pcl812_ai_setup_next_dma(struct comedi_device *dev,
-				     struct comedi_subdevice *s)
+				     struct comedi_subdevice *s,
+				     unsigned int unread_samples)
 {
 	struct pcl812_private *devpriv = dev->private;
 	struct comedi_isadma *dma = devpriv->dma;
 	struct comedi_isadma_desc *desc;
+	unsigned int bytes;
+	unsigned int max_samples;
+	unsigned int nsamples;
 
 	comedi_isadma_disable(dma->chan);
+
 	dma->cur_dma = 1 - dma->cur_dma;
-
 	desc = &dma->desc[dma->cur_dma];
-	if (!devpriv->ai_eos) {
-		if (devpriv->dma_runs_to_end)
-			devpriv->dma_runs_to_end--;
-		else
-			desc->size = devpriv->last_dma_run;
-	}
 
-	comedi_isadma_program(desc);
+	/* if using EOS, adapt DMA buffer to one scan */
+	bytes = devpriv->ai_eos ? comedi_bytes_per_scan(s) : desc->maxsize;
+
+	max_samples = comedi_bytes_to_samples(s, bytes);
+	nsamples = max_samples + unread_samples;
+	nsamples = comedi_nsamples_left(s, nsamples);
+	if (nsamples > max_samples) {
+		nsamples -= max_samples;
+		desc->size = comedi_samples_to_bytes(s, nsamples);
+		comedi_isadma_program(desc);
+	}
 }
 
 static void pcl812_ai_set_chan_range(struct comedi_device *dev,
@@ -879,12 +854,12 @@ static void pcl812_handle_dma(struct comedi_device *dev,
 	unsigned int nsamples;
 	int bufptr;
 
-	pcl812_ai_setup_next_dma(dev, s);
-
 	nsamples = comedi_bytes_to_samples(s, desc->size) -
 		   devpriv->ai_poll_ptr;
 	bufptr = devpriv->ai_poll_ptr;
 	devpriv->ai_poll_ptr = 0;
+
+	pcl812_ai_setup_next_dma(dev, s, nsamples);
 
 	transfer_from_dma_buf(dev, s, desc->virt_addr, bufptr, nsamples);
 }
