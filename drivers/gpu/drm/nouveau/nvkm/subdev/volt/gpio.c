@@ -21,10 +21,10 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include <subdev/volt.h>
-#include <subdev/gpio.h>
+#include <subdev/bios.h>
 #include <subdev/bios/gpio.h>
+#include <subdev/gpio.h>
 
 static const u8 tags[] = {
 	DCB_GPIO_VID0, DCB_GPIO_VID1, DCB_GPIO_VID2, DCB_GPIO_VID3,
@@ -32,9 +32,9 @@ static const u8 tags[] = {
 };
 
 int
-nouveau_voltgpio_get(struct nouveau_volt *volt)
+nvkm_voltgpio_get(struct nvkm_volt *volt)
 {
-	struct nouveau_gpio *gpio = nouveau_gpio(volt);
+	struct nvkm_gpio *gpio = nvkm_gpio(volt);
 	u8 vid = 0;
 	int i;
 
@@ -51,9 +51,9 @@ nouveau_voltgpio_get(struct nouveau_volt *volt)
 }
 
 int
-nouveau_voltgpio_set(struct nouveau_volt *volt, u8 vid)
+nvkm_voltgpio_set(struct nvkm_volt *volt, u8 vid)
 {
-	struct nouveau_gpio *gpio = nouveau_gpio(volt);
+	struct nvkm_gpio *gpio = nvkm_gpio(volt);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(tags); i++, vid >>= 1) {
@@ -68,9 +68,9 @@ nouveau_voltgpio_set(struct nouveau_volt *volt, u8 vid)
 }
 
 int
-nouveau_voltgpio_init(struct nouveau_volt *volt)
+nvkm_voltgpio_init(struct nvkm_volt *volt)
 {
-	struct nouveau_gpio *gpio = nouveau_gpio(volt);
+	struct nvkm_gpio *gpio = nvkm_gpio(volt);
 	struct dcb_gpio_func func;
 	int i;
 

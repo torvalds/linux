@@ -19,11 +19,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
+#include <subdev/volt.h>
 #ifdef __KERNEL__
 #include <nouveau_platform.h>
 #endif
-#include <subdev/volt.h>
 
 struct cvb_coef {
 	int c0;
@@ -35,7 +34,7 @@ struct cvb_coef {
 };
 
 struct gk20a_volt_priv {
-	struct nouveau_volt base;
+	struct nvkm_volt base;
 	struct regulator *vdd;
 };
 
@@ -62,8 +61,7 @@ const struct cvb_coef gk20a_cvb_coef[] = {
  * cvb_mv = ((c2 * speedo / s_scale + c1) * speedo / s_scale + c0)
  */
 static inline int
-gk20a_volt_get_cvb_voltage(int speedo, int s_scale,
-		const struct cvb_coef *coef)
+gk20a_volt_get_cvb_voltage(int speedo, int s_scale, const struct cvb_coef *coef)
 {
 	int mv;
 
@@ -79,7 +77,7 @@ gk20a_volt_get_cvb_voltage(int speedo, int s_scale,
  */
 static inline int
 gk20a_volt_get_cvb_t_voltage(int speedo, int temp, int s_scale, int t_scale,
-		const struct cvb_coef *coef)
+			     const struct cvb_coef *coef)
 {
 	int cvb_mv, mv;
 
@@ -103,7 +101,7 @@ gk20a_volt_calc_voltage(const struct cvb_coef *coef, int speedo)
 }
 
 static int
-gk20a_volt_vid_get(struct nouveau_volt *volt)
+gk20a_volt_vid_get(struct nvkm_volt *volt)
 {
 	struct gk20a_volt_priv *priv = (void *)volt;
 	int i, uv;
@@ -118,7 +116,7 @@ gk20a_volt_vid_get(struct nouveau_volt *volt)
 }
 
 static int
-gk20a_volt_vid_set(struct nouveau_volt *volt, u8 vid)
+gk20a_volt_vid_set(struct nvkm_volt *volt, u8 vid)
 {
 	struct gk20a_volt_priv *priv = (void *)volt;
 
@@ -127,7 +125,7 @@ gk20a_volt_vid_set(struct nouveau_volt *volt, u8 vid)
 }
 
 static int
-gk20a_volt_set_id(struct nouveau_volt *volt, u8 id, int condition)
+gk20a_volt_set_id(struct nvkm_volt *volt, u8 id, int condition)
 {
 	struct gk20a_volt_priv *priv = (void *)volt;
 	int prev_uv = regulator_get_voltage(priv->vdd);
@@ -148,16 +146,16 @@ gk20a_volt_set_id(struct nouveau_volt *volt, u8 id, int condition)
 }
 
 static int
-gk20a_volt_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
+gk20a_volt_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		struct nvkm_oclass *oclass, void *data, u32 size,
+		struct nvkm_object **pobject)
 {
 	struct gk20a_volt_priv *priv;
-	struct nouveau_volt *volt;
+	struct nvkm_volt *volt;
 	struct nouveau_platform_device *plat;
 	int i, ret, uv;
 
-	ret = nouveau_volt_create(parent, engine, oclass, &priv);
+	ret = nvkm_volt_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -187,13 +185,13 @@ gk20a_volt_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
+struct nvkm_oclass
 gk20a_volt_oclass = {
 	.handle = NV_SUBDEV(VOLT, 0xea),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = gk20a_volt_ctor,
-		.dtor = _nouveau_volt_dtor,
-		.init = _nouveau_volt_init,
-		.fini = _nouveau_volt_fini,
+		.dtor = _nvkm_volt_dtor,
+		.init = _nvkm_volt_init,
+		.fini = _nvkm_volt_fini,
 	},
 };

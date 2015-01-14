@@ -21,22 +21,21 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include <subdev/volt.h>
 
 struct nv40_volt_priv {
-	struct nouveau_volt base;
+	struct nvkm_volt base;
 };
 
 static int
-nv40_volt_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
+nv40_volt_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	       struct nvkm_oclass *oclass, void *data, u32 size,
+	       struct nvkm_object **pobject)
 {
 	struct nv40_volt_priv *priv;
 	int ret;
 
-	ret = nouveau_volt_create(parent, engine, oclass, &priv);
+	ret = nvkm_volt_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -44,13 +43,13 @@ nv40_volt_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
+struct nvkm_oclass
 nv40_volt_oclass = {
 	.handle = NV_SUBDEV(VOLT, 0x40),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv40_volt_ctor,
-		.dtor = _nouveau_volt_dtor,
-		.init = _nouveau_volt_init,
-		.fini = _nouveau_volt_fini,
+		.dtor = _nvkm_volt_dtor,
+		.init = _nvkm_volt_init,
+		.fini = _nvkm_volt_fini,
 	},
 };

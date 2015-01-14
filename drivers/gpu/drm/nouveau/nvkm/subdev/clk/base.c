@@ -30,6 +30,7 @@
 #include <subdev/therm.h>
 #include <subdev/volt.h>
 
+#include <core/device.h>
 #include <core/option.h>
 
 /******************************************************************************

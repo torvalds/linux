@@ -21,15 +21,13 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include <subdev/volt.h>
-
 #include <subdev/bios.h>
 #include <subdev/bios/vmap.h>
 #include <subdev/bios/volt.h>
 
 static int
-nouveau_volt_get(struct nouveau_volt *volt)
+nvkm_volt_get(struct nvkm_volt *volt)
 {
 	if (volt->vid_get) {
 		int ret = volt->vid_get(volt), i;
@@ -46,7 +44,7 @@ nouveau_volt_get(struct nouveau_volt *volt)
 }
 
 static int
-nouveau_volt_set(struct nouveau_volt *volt, u32 uv)
+nvkm_volt_set(struct nvkm_volt *volt, u32 uv)
 {
 	if (volt->vid_set) {
 		int i, ret = -EINVAL;
@@ -63,9 +61,9 @@ nouveau_volt_set(struct nouveau_volt *volt, u32 uv)
 }
 
 static int
-nouveau_volt_map(struct nouveau_volt *volt, u8 id)
+nvkm_volt_map(struct nvkm_volt *volt, u8 id)
 {
-	struct nouveau_bios *bios = nouveau_bios(volt);
+	struct nvkm_bios *bios = nvkm_bios(volt);
 	struct nvbios_vmap_entry info;
 	u8  ver, len;
 	u16 vmap;
@@ -73,7 +71,7 @@ nouveau_volt_map(struct nouveau_volt *volt, u8 id)
 	vmap = nvbios_vmap_entry_parse(bios, id, &ver, &len, &info);
 	if (vmap) {
 		if (info.link != 0xff) {
-			int ret = nouveau_volt_map(volt, info.link);
+			int ret = nvkm_volt_map(volt, info.link);
 			if (ret < 0)
 				return ret;
 			info.min += ret;
@@ -85,15 +83,15 @@ nouveau_volt_map(struct nouveau_volt *volt, u8 id)
 }
 
 static int
-nouveau_volt_set_id(struct nouveau_volt *volt, u8 id, int condition)
+nvkm_volt_set_id(struct nvkm_volt *volt, u8 id, int condition)
 {
-	int ret = nouveau_volt_map(volt, id);
+	int ret = nvkm_volt_map(volt, id);
 	if (ret >= 0) {
-		int prev = nouveau_volt_get(volt);
+		int prev = nvkm_volt_get(volt);
 		if (!condition || prev < 0 ||
 		    (condition < 0 && ret < prev) ||
 		    (condition > 0 && ret > prev)) {
-			ret = nouveau_volt_set(volt, ret);
+			ret = nvkm_volt_set(volt, ret);
 		} else {
 			ret = 0;
 		}
@@ -101,8 +99,8 @@ nouveau_volt_set_id(struct nouveau_volt *volt, u8 id, int condition)
 	return ret;
 }
 
-static void nouveau_volt_parse_bios(struct nouveau_bios *bios,
-		struct nouveau_volt *volt)
+static void
+nvkm_volt_parse_bios(struct nvkm_bios *bios, struct nvkm_volt *volt)
 {
 	struct nvbios_volt_entry ivid;
 	struct nvbios_volt info;
@@ -125,7 +123,7 @@ static void nouveau_volt_parse_bios(struct nouveau_bios *bios,
 	} else if (data && info.vidmask) {
 		for (i = 0; i < cnt; i++) {
 			data = nvbios_volt_entry_parse(bios, i, &ver, &hdr,
-							  &ivid);
+						       &ivid);
 			if (data) {
 				volt->vid[volt->vid_nr].uv = ivid.voltage;
 				volt->vid[volt->vid_nr].vid = ivid.vid;
@@ -137,12 +135,12 @@ static void nouveau_volt_parse_bios(struct nouveau_bios *bios,
 }
 
 int
-_nouveau_volt_init(struct nouveau_object *object)
+_nvkm_volt_init(struct nvkm_object *object)
 {
-	struct nouveau_volt *volt = (void *)object;
+	struct nvkm_volt *volt = (void *)object;
 	int ret;
 
-	ret = nouveau_subdev_init(&volt->base);
+	ret = nvkm_subdev_init(&volt->base);
 	if (ret)
 		return ret;
 
@@ -158,34 +156,33 @@ _nouveau_volt_init(struct nouveau_object *object)
 }
 
 void
-_nouveau_volt_dtor(struct nouveau_object *object)
+_nvkm_volt_dtor(struct nvkm_object *object)
 {
-	struct nouveau_volt *volt = (void *)object;
-	nouveau_subdev_destroy(&volt->base);
+	struct nvkm_volt *volt = (void *)object;
+	nvkm_subdev_destroy(&volt->base);
 }
 
 int
-nouveau_volt_create_(struct nouveau_object *parent,
-		     struct nouveau_object *engine,
-		     struct nouveau_oclass *oclass, int length, void **pobject)
+nvkm_volt_create_(struct nvkm_object *parent, struct nvkm_object *engine,
+		  struct nvkm_oclass *oclass, int length, void **pobject)
 {
-	struct nouveau_bios *bios = nouveau_bios(parent);
-	struct nouveau_volt *volt;
+	struct nvkm_bios *bios = nvkm_bios(parent);
+	struct nvkm_volt *volt;
 	int ret, i;
 
-	ret = nouveau_subdev_create_(parent, engine, oclass, 0, "VOLT",
-				     "voltage", length, pobject);
+	ret = nvkm_subdev_create_(parent, engine, oclass, 0, "VOLT",
+				  "voltage", length, pobject);
 	volt = *pobject;
 	if (ret)
 		return ret;
 
-	volt->get = nouveau_volt_get;
-	volt->set = nouveau_volt_set;
-	volt->set_id = nouveau_volt_set_id;
+	volt->get = nvkm_volt_get;
+	volt->set = nvkm_volt_set;
+	volt->set_id = nvkm_volt_set_id;
 
 	/* Assuming the non-bios device should build the voltage table later */
 	if (bios)
-		nouveau_volt_parse_bios(bios, volt);
+		nvkm_volt_parse_bios(bios, volt);
 
 	if (volt->vid_nr) {
 		for (i = 0; i < volt->vid_nr; i++) {
@@ -196,10 +193,10 @@ nouveau_volt_create_(struct nouveau_object *parent,
 		/*XXX: this is an assumption.. there probably exists boards
 		 * out there with i2c-connected voltage controllers too..
 		 */
-		ret = nouveau_voltgpio_init(volt);
+		ret = nvkm_voltgpio_init(volt);
 		if (ret == 0) {
-			volt->vid_get = nouveau_voltgpio_get;
-			volt->vid_set = nouveau_voltgpio_set;
+			volt->vid_get = nvkm_voltgpio_get;
+			volt->vid_set = nvkm_voltgpio_set;
 		}
 	}
 
