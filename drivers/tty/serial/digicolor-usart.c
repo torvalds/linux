@@ -170,9 +170,6 @@ static void digicolor_uart_rx(struct uart_port *port)
 				ch_flag = TTY_OVERRUN;
 		}
 
-		if (uart_handle_sysrq_char(port, ch))
-			continue;
-
 		if (status & port->ignore_status_mask)
 			continue;
 
@@ -404,7 +401,7 @@ static void digicolor_uart_console_write(struct console *co, const char *c,
 	unsigned long flags;
 	int locked = 1;
 
-	if (port->sysrq || oops_in_progress)
+	if (oops_in_progress)
 		locked = spin_trylock_irqsave(&port->lock, flags);
 	else
 		spin_lock_irqsave(&port->lock, flags);
