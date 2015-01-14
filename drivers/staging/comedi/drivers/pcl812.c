@@ -538,47 +538,27 @@ static void pcl812_start_pacer(struct comedi_device *dev, bool load_timers)
 }
 
 static void pcl812_ai_setup_dma(struct comedi_device *dev,
-				struct comedi_subdevice *s)
+				struct comedi_subdevice *s,
+				unsigned int unread_samples)
 {
 	struct pcl812_private *devpriv = dev->private;
 	struct comedi_isadma *dma = devpriv->dma;
-	struct comedi_isadma_desc *desc = &dma->desc[0];
-	unsigned int bytes;
-	unsigned int nsamples;
-
-	dma->cur_dma = 0;
-
-	/* if using EOS, adapt DMA buffer to one scan */
-	bytes = devpriv->ai_eos ? comedi_bytes_per_scan(s) : desc->maxsize;
-
-	nsamples = comedi_bytes_to_samples(s, bytes);
-	nsamples = comedi_nsamples_left(s, nsamples);
-	desc->size = comedi_samples_to_bytes(s, nsamples);
-	comedi_isadma_program(desc);
-}
-
-static void pcl812_ai_setup_next_dma(struct comedi_device *dev,
-				     struct comedi_subdevice *s,
-				     unsigned int unread_samples)
-{
-	struct pcl812_private *devpriv = dev->private;
-	struct comedi_isadma *dma = devpriv->dma;
-	struct comedi_isadma_desc *desc;
+	struct comedi_isadma_desc *desc = &dma->desc[dma->cur_dma];
 	unsigned int bytes;
 	unsigned int max_samples;
 	unsigned int nsamples;
 
 	comedi_isadma_disable(dma->chan);
 
-	dma->cur_dma = 1 - dma->cur_dma;
-	desc = &dma->desc[dma->cur_dma];
-
 	/* if using EOS, adapt DMA buffer to one scan */
 	bytes = devpriv->ai_eos ? comedi_bytes_per_scan(s) : desc->maxsize;
-
 	max_samples = comedi_bytes_to_samples(s, bytes);
-	nsamples = max_samples + unread_samples;
-	nsamples = comedi_nsamples_left(s, nsamples);
+
+	/*
+	 * Determine dma size based on the buffer size plus the number of
+	 * unread samples and the number of samples remaining in the command.
+	 */
+	nsamples = comedi_nsamples_left(s, max_samples + unread_samples);
 	if (nsamples > max_samples) {
 		nsamples -= max_samples;
 		desc->size = comedi_samples_to_bytes(s, nsamples);
@@ -740,6 +720,7 @@ static int pcl812_ai_cmdtest(struct comedi_device *dev,
 static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct pcl812_private *devpriv = dev->private;
+	struct comedi_isadma *dma = devpriv->dma;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int ctrl = 0;
 	unsigned int i;
@@ -748,7 +729,7 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	pcl812_ai_set_chan_range(dev, cmd->chanlist[0], 1);
 
-	if (devpriv->dma) {	/*  check if we can use DMA transfer */
+	if (dma) {	/*  check if we can use DMA transfer */
 		devpriv->ai_dma = 1;
 		for (i = 1; i < cmd->chanlist_len; i++)
 			if (cmd->chanlist[0] != cmd->chanlist[i]) {
@@ -771,8 +752,11 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			devpriv->ai_dma = 0;
 	}
 
-	if (devpriv->ai_dma)
-		pcl812_ai_setup_dma(dev, s);
+	if (devpriv->ai_dma) {
+		/* setup and enable dma for the first buffer */
+		dma->cur_dma = 0;
+		pcl812_ai_setup_dma(dev, s, 0);
+	}
 
 	switch (cmd->convert_src) {
 	case TRIG_TIMER:
@@ -859,7 +843,9 @@ static void pcl812_handle_dma(struct comedi_device *dev,
 	bufptr = devpriv->ai_poll_ptr;
 	devpriv->ai_poll_ptr = 0;
 
-	pcl812_ai_setup_next_dma(dev, s, nsamples);
+	/* restart dma with the next buffer */
+	dma->cur_dma = 1 - dma->cur_dma;
+	pcl812_ai_setup_dma(dev, s, nsamples);
 
 	transfer_from_dma_buf(dev, s, desc->virt_addr, bufptr, nsamples);
 }
