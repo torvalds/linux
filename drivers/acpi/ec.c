@@ -120,7 +120,7 @@ struct transaction {
 	u8 flags;
 };
 
-static int acpi_ec_sync_query(struct acpi_ec *ec, u8 *data);
+static int acpi_ec_query(struct acpi_ec *ec, u8 *data);
 
 struct acpi_ec *boot_ec, *first_ec;
 EXPORT_SYMBOL(first_ec);
@@ -508,7 +508,7 @@ static void acpi_ec_clear(struct acpi_ec *ec)
 	u8 value = 0;
 
 	for (i = 0; i < ACPI_EC_CLEAR_MAX; i++) {
-		status = acpi_ec_sync_query(ec, &value);
+		status = acpi_ec_query(ec, &value);
 		if (status || !value)
 			break;
 	}
@@ -539,14 +539,11 @@ void acpi_ec_unblock_transactions(void)
 	if (!ec)
 		return;
 
-	mutex_lock(&ec->mutex);
 	/* Allow transactions to be carried out again */
 	clear_bit(EC_FLAGS_BLOCKED, &ec->flags);
 
 	if (EC_FLAGS_CLEAR_ON_RESUME)
 		acpi_ec_clear(ec);
-
-	mutex_unlock(&ec->mutex);
 }
 
 void acpi_ec_unblock_transactions_early(void)
@@ -557,30 +554,6 @@ void acpi_ec_unblock_transactions_early(void)
 	 */
 	if (first_ec)
 		clear_bit(EC_FLAGS_BLOCKED, &first_ec->flags);
-}
-
-static int acpi_ec_query_unlocked(struct acpi_ec *ec, u8 *data)
-{
-	int result;
-	u8 d;
-	struct transaction t = {.command = ACPI_EC_COMMAND_QUERY,
-				.wdata = NULL, .rdata = &d,
-				.wlen = 0, .rlen = 1};
-
-	if (!ec || !data)
-		return -EINVAL;
-	/*
-	 * Query the EC to find out which _Qxx method we need to evaluate.
-	 * Note that successful completion of the query causes the ACPI_EC_SCI
-	 * bit to be cleared (and thus clearing the interrupt source).
-	 */
-	result = acpi_ec_transaction_unlocked(ec, &t);
-	if (result)
-		return result;
-	if (!d)
-		return -ENODATA;
-	*data = d;
-	return 0;
 }
 
 /* --------------------------------------------------------------------------
@@ -662,19 +635,30 @@ static void acpi_ec_run(void *cxt)
 	acpi_ec_put_query_handler(handler);
 }
 
-static int acpi_ec_sync_query(struct acpi_ec *ec, u8 *data)
+static int acpi_ec_query(struct acpi_ec *ec, u8 *data)
 {
 	u8 value = 0;
 	int result;
 	acpi_status status;
 	struct acpi_ec_query_handler *handler;
+	struct transaction t = {.command = ACPI_EC_COMMAND_QUERY,
+				.wdata = NULL, .rdata = &value,
+				.wlen = 0, .rlen = 1};
 
-	result = acpi_ec_query_unlocked(ec, &value);
-	if (data)
-		*data = value;
+	/*
+	 * Query the EC to find out which _Qxx method we need to evaluate.
+	 * Note that successful completion of the query causes the ACPI_EC_SCI
+	 * bit to be cleared (and thus clearing the interrupt source).
+	 */
+	result = acpi_ec_transaction(ec, &t);
 	if (result)
 		return result;
+	if (data)
+		*data = value;
+	if (!value)
+		return -ENODATA;
 
+	mutex_lock(&ec->mutex);
 	list_for_each_entry(handler, &ec->list, node) {
 		if (value == handler->query_bit) {
 			/* have custom handler for this bit */
@@ -689,26 +673,15 @@ static int acpi_ec_sync_query(struct acpi_ec *ec, u8 *data)
 			break;
 		}
 	}
+	mutex_unlock(&ec->mutex);
 	return result;
 }
 
 static void acpi_ec_gpe_poller(struct work_struct *work)
 {
-	acpi_status status;
-	u32 glk;
 	struct acpi_ec *ec = container_of(work, struct acpi_ec, work);
 
-	mutex_lock(&ec->mutex);
-	if (ec->global_lock) {
-		status = acpi_acquire_global_lock(ACPI_EC_UDELAY_GLK, &glk);
-		if (ACPI_FAILURE(status))
-			goto unlock;
-	}
-	acpi_ec_sync_query(ec, NULL);
-	if (ec->global_lock)
-		acpi_release_global_lock(glk);
-unlock:
-	mutex_unlock(&ec->mutex);
+	acpi_ec_query(ec, NULL);
 }
 
 static u32 acpi_ec_gpe_handler(acpi_handle gpe_device,
@@ -932,11 +905,8 @@ static int acpi_ec_add(struct acpi_device *device)
 	clear_bit(EC_FLAGS_QUERY_PENDING, &ec->flags);
 
 	/* Clear stale _Q events if hardware might require that */
-	if (EC_FLAGS_CLEAR_ON_RESUME) {
-		mutex_lock(&ec->mutex);
+	if (EC_FLAGS_CLEAR_ON_RESUME)
 		acpi_ec_clear(ec);
-		mutex_unlock(&ec->mutex);
-	}
 	return ret;
 }
 
