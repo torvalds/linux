@@ -1226,7 +1226,7 @@ static int mxs_auart_probe(struct platform_device *pdev)
 			of_match_device(mxs_auart_dt_ids, &pdev->dev);
 	struct mxs_auart_port *s;
 	u32 version;
-	int ret = 0, irq;
+	int ret, irq;
 	struct resource *r;
 
 	s = devm_kzalloc(&pdev->dev, sizeof(*s), GFP_KERNEL);
