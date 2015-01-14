@@ -24,6 +24,8 @@
  */
 #include "priv.h"
 
+#include <core/device.h>
+
 struct nv40_therm_priv {
 	struct nvkm_therm_priv base;
 };

@@ -21,13 +21,12 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include "subdev/timer.h"
+#include <subdev/timer.h>
 
 bool
-nouveau_timer_wait_eq(void *obj, u64 nsec, u32 addr, u32 mask, u32 data)
+nvkm_timer_wait_eq(void *obj, u64 nsec, u32 addr, u32 mask, u32 data)
 {
-	struct nouveau_timer *ptimer = nouveau_timer(obj);
+	struct nvkm_timer *ptimer = nvkm_timer(obj);
 	u64 time0;
 
 	time0 = ptimer->read(ptimer);
@@ -45,9 +44,9 @@ nouveau_timer_wait_eq(void *obj, u64 nsec, u32 addr, u32 mask, u32 data)
 }
 
 bool
-nouveau_timer_wait_ne(void *obj, u64 nsec, u32 addr, u32 mask, u32 data)
+nvkm_timer_wait_ne(void *obj, u64 nsec, u32 addr, u32 mask, u32 data)
 {
-	struct nouveau_timer *ptimer = nouveau_timer(obj);
+	struct nvkm_timer *ptimer = nvkm_timer(obj);
 	u64 time0;
 
 	time0 = ptimer->read(ptimer);
@@ -65,9 +64,9 @@ nouveau_timer_wait_ne(void *obj, u64 nsec, u32 addr, u32 mask, u32 data)
 }
 
 bool
-nouveau_timer_wait_cb(void *obj, u64 nsec, bool (*func)(void *), void *data)
+nvkm_timer_wait_cb(void *obj, u64 nsec, bool (*func)(void *), void *data)
 {
-	struct nouveau_timer *ptimer = nouveau_timer(obj);
+	struct nvkm_timer *ptimer = nvkm_timer(obj);
 	u64 time0;
 
 	time0 = ptimer->read(ptimer);
@@ -80,15 +79,15 @@ nouveau_timer_wait_cb(void *obj, u64 nsec, bool (*func)(void *), void *data)
 }
 
 void
-nouveau_timer_alarm(void *obj, u32 nsec, struct nouveau_alarm *alarm)
+nvkm_timer_alarm(void *obj, u32 nsec, struct nvkm_alarm *alarm)
 {
-	struct nouveau_timer *ptimer = nouveau_timer(obj);
+	struct nvkm_timer *ptimer = nvkm_timer(obj);
 	ptimer->alarm(ptimer, nsec, alarm);
 }
 
 void
-nouveau_timer_alarm_cancel(void *obj, struct nouveau_alarm *alarm)
+nvkm_timer_alarm_cancel(void *obj, struct nvkm_alarm *alarm)
 {
-	struct nouveau_timer *ptimer = nouveau_timer(obj);
+	struct nvkm_timer *ptimer = nvkm_timer(obj);
 	ptimer->alarm_cancel(ptimer, alarm);
 }

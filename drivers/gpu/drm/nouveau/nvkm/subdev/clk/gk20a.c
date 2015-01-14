@@ -25,6 +25,8 @@
 #include <subdev/clk.h>
 #include <subdev/timer.h>
 
+#include <core/device.h>
+
 #ifdef __KERNEL__
 #include <nouveau_platform.h>
 #endif

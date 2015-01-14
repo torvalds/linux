@@ -21,18 +21,17 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "nv04.h"
 
 static int
-gk20a_timer_init(struct nouveau_object *object)
+gk20a_timer_init(struct nvkm_object *object)
 {
 	struct nv04_timer_priv *priv = (void *)object;
 	u32 hi = upper_32_bits(priv->suspend_time);
 	u32 lo = lower_32_bits(priv->suspend_time);
 	int ret;
 
-	ret = nouveau_timer_init(&priv->base);
+	ret = nvkm_timer_init(&priv->base);
 	if (ret)
 		return ret;
 
@@ -45,10 +44,10 @@ gk20a_timer_init(struct nouveau_object *object)
 	return 0;
 }
 
-struct nouveau_oclass
+struct nvkm_oclass
 gk20a_timer_oclass = {
 	.handle = NV_SUBDEV(TIMER, 0xff),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_timer_ctor,
 		.dtor = nv04_timer_dtor,
 		.init = gk20a_timer_init,

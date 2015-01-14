@@ -1,4 +1,5 @@
 #include <core/os.h>
+#include <core/device.h>
 #include <core/engctx.h>
 #include <core/enum.h>
 

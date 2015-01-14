@@ -26,6 +26,7 @@
 #define __NVC0_GR_H__
 
 #include <core/client.h>
+#include <core/device.h>
 #include <core/handle.h>
 #include <core/gpuobj.h>
 #include <core/option.h>

@@ -23,6 +23,7 @@
  */
 #include "nv40.h"
 
+#include <core/device.h>
 #include <subdev/bios.h>
 #include <subdev/bios/bit.h>
 #include <subdev/bios/init.h>

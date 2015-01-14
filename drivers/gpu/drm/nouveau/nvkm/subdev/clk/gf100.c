@@ -24,6 +24,7 @@
 #include <subdev/clk.h>
 #include "pll.h"
 
+#include <core/device.h>
 #include <subdev/bios.h>
 #include <subdev/bios/pll.h>
 #include <subdev/timer.h>

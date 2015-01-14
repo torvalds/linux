@@ -24,6 +24,7 @@
 
 #include <core/os.h>
 #include <core/client.h>
+#include <core/device.h>
 #include <core/handle.h>
 #include <core/engctx.h>
 #include <core/enum.h>

@@ -21,11 +21,12 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "nv04.h"
 
+#include <core/device.h>
+
 static u64
-nv04_timer_read(struct nouveau_timer *ptimer)
+nv04_timer_read(struct nvkm_timer *ptimer)
 {
 	struct nv04_timer_priv *priv = (void *)ptimer;
 	u32 hi, lo;
@@ -39,10 +40,10 @@ nv04_timer_read(struct nouveau_timer *ptimer)
 }
 
 static void
-nv04_timer_alarm_trigger(struct nouveau_timer *ptimer)
+nv04_timer_alarm_trigger(struct nvkm_timer *ptimer)
 {
 	struct nv04_timer_priv *priv = (void *)ptimer;
-	struct nouveau_alarm *alarm, *atemp;
+	struct nvkm_alarm *alarm, *atemp;
 	unsigned long flags;
 	LIST_HEAD(exec);
 
@@ -71,11 +72,10 @@ nv04_timer_alarm_trigger(struct nouveau_timer *ptimer)
 }
 
 static void
-nv04_timer_alarm(struct nouveau_timer *ptimer, u64 time,
-		 struct nouveau_alarm *alarm)
+nv04_timer_alarm(struct nvkm_timer *ptimer, u64 time, struct nvkm_alarm *alarm)
 {
 	struct nv04_timer_priv *priv = (void *)ptimer;
-	struct nouveau_alarm *list;
+	struct nvkm_alarm *list;
 	unsigned long flags;
 
 	alarm->timestamp = ptimer->read(ptimer) + time;
@@ -99,8 +99,7 @@ nv04_timer_alarm(struct nouveau_timer *ptimer, u64 time,
 }
 
 static void
-nv04_timer_alarm_cancel(struct nouveau_timer *ptimer,
-			struct nouveau_alarm *alarm)
+nv04_timer_alarm_cancel(struct nvkm_timer *ptimer, struct nvkm_alarm *alarm)
 {
 	struct nv04_timer_priv *priv = (void *)ptimer;
 	unsigned long flags;
@@ -110,7 +109,7 @@ nv04_timer_alarm_cancel(struct nouveau_timer *ptimer,
 }
 
 static void
-nv04_timer_intr(struct nouveau_subdev *subdev)
+nv04_timer_intr(struct nvkm_subdev *subdev)
 {
 	struct nv04_timer_priv *priv = (void *)subdev;
 	u32 stat = nv_rd32(priv, NV04_PTIMER_INTR_0);
@@ -128,24 +127,24 @@ nv04_timer_intr(struct nouveau_subdev *subdev)
 }
 
 int
-nv04_timer_fini(struct nouveau_object *object, bool suspend)
+nv04_timer_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nv04_timer_priv *priv = (void *)object;
 	if (suspend)
 		priv->suspend_time = nv04_timer_read(&priv->base);
 	nv_wr32(priv, NV04_PTIMER_INTR_EN_0, 0x00000000);
-	return nouveau_timer_fini(&priv->base, suspend);
+	return nvkm_timer_fini(&priv->base, suspend);
 }
 
 static int
-nv04_timer_init(struct nouveau_object *object)
+nv04_timer_init(struct nvkm_object *object)
 {
-	struct nouveau_device *device = nv_device(object);
+	struct nvkm_device *device = nv_device(object);
 	struct nv04_timer_priv *priv = (void *)object;
 	u32 m = 1, f, n, d, lo, hi;
 	int ret;
 
-	ret = nouveau_timer_init(&priv->base);
+	ret = nvkm_timer_init(&priv->base);
 	if (ret)
 		return ret;
 
@@ -155,7 +154,7 @@ nv04_timer_init(struct nouveau_object *object)
 	/* determine base clock for timer source */
 #if 0 /*XXX*/
 	if (device->chipset < 0x40) {
-		n = nouveau_hw_get_clock(device, PLL_CORE);
+		n = nvkm_hw_get_clock(device, PLL_CORE);
 	} else
 #endif
 	if (device->chipset <= 0x40) {
@@ -217,26 +216,25 @@ nv04_timer_init(struct nouveau_object *object)
 	nv_wr32(priv, NV04_PTIMER_INTR_EN_0, 0x00000000);
 	nv_wr32(priv, NV04_PTIMER_TIME_1, hi);
 	nv_wr32(priv, NV04_PTIMER_TIME_0, lo);
-
 	return 0;
 }
 
 void
-nv04_timer_dtor(struct nouveau_object *object)
+nv04_timer_dtor(struct nvkm_object *object)
 {
 	struct nv04_timer_priv *priv = (void *)object;
-	return nouveau_timer_destroy(&priv->base);
+	return nvkm_timer_destroy(&priv->base);
 }
 
 int
-nv04_timer_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		struct nouveau_oclass *oclass, void *data, u32 size,
-		struct nouveau_object **pobject)
+nv04_timer_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		struct nvkm_oclass *oclass, void *data, u32 size,
+		struct nvkm_object **pobject)
 {
 	struct nv04_timer_priv *priv;
 	int ret;
 
-	ret = nouveau_timer_create(parent, engine, oclass, &priv);
+	ret = nvkm_timer_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -252,10 +250,10 @@ nv04_timer_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
+struct nvkm_oclass
 nv04_timer_oclass = {
 	.handle = NV_SUBDEV(TIMER, 0x04),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_timer_ctor,
 		.dtor = nv04_timer_dtor,
 		.init = nv04_timer_init,

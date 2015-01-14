@@ -23,6 +23,7 @@
  */
 
 #include <core/client.h>
+#include <core/device.h>
 #include <nvif/unpack.h>
 #include <nvif/class.h>
 #include <core/engctx.h>

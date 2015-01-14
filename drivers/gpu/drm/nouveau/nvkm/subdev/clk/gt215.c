@@ -25,6 +25,7 @@
 #include "gt215.h"
 #include "pll.h"
 
+#include <core/device.h>
 #include <engine/fifo.h>
 #include <subdev/bios.h>
 #include <subdev/bios/pll.h>
