@@ -292,7 +292,8 @@ static int ltc2952_poweroff_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	ltc2952_data = kzalloc(sizeof(*ltc2952_data), GFP_KERNEL);
+	ltc2952_data = devm_kzalloc(&pdev->dev, sizeof(*ltc2952_data),
+				    GFP_KERNEL);
 	if (!ltc2952_data)
 		return -ENOMEM;
 
@@ -300,17 +301,13 @@ static int ltc2952_poweroff_probe(struct platform_device *pdev)
 
 	ret = ltc2952_poweroff_init(pdev);
 	if (ret)
-		goto err;
+		return ret;
 
 	pm_power_off = &ltc2952_poweroff_kill;
 
 	dev_info(&pdev->dev, "probe successful\n");
 
 	return 0;
-
-err:
-	kfree(ltc2952_data);
-	return ret;
 }
 
 static int ltc2952_poweroff_remove(struct platform_device *pdev)
@@ -324,8 +321,6 @@ static int ltc2952_poweroff_remove(struct platform_device *pdev)
 
 		for (i = 0; i < ARRAY_SIZE(ltc2952_data->gpio); i++)
 			gpiod_put(ltc2952_data->gpio[i]);
-
-		kfree(ltc2952_data);
 	}
 
 	return 0;
