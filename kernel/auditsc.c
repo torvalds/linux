@@ -1877,12 +1877,18 @@ void __audit_inode(struct filename *name, const struct dentry *dentry,
 	}
 
 out_alloc:
-	/* unable to find the name from a previous getname(). Allocate a new
-	 * anonymous entry.
-	 */
-	n = audit_alloc_name(context, AUDIT_TYPE_NORMAL);
+	/* unable to find an entry with both a matching name and type */
+	n = audit_alloc_name(context, AUDIT_TYPE_UNKNOWN);
 	if (!n)
 		return;
+	if (name)
+		/* since name is not NULL we know there is already a matching
+		 * name record, see audit_getname(), so there must be a type
+		 * mismatch; reuse the string path since the original name
+		 * record will keep the string valid until we free it in
+		 * audit_free_names() */
+		n->name = name;
+
 out:
 	if (parent) {
 		n->name_len = n->name ? parent_len(n->name->name) : AUDIT_NAME_FULL;
