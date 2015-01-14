@@ -21,12 +21,11 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "priv.h"
 
 static void
-pwr_perfctr_init(struct nouveau_pm *ppm, struct nouveau_perfdom *dom,
-		 struct nouveau_perfctr *ctr)
+pwr_perfctr_init(struct nvkm_pm *ppm, struct nvkm_perfdom *dom,
+		 struct nvkm_perfctr *ctr)
 {
 	u32 mask = 0x00000000;
 	u32 ctrl = 0x00000001;
@@ -41,15 +40,15 @@ pwr_perfctr_init(struct nouveau_pm *ppm, struct nouveau_perfdom *dom,
 }
 
 static void
-pwr_perfctr_read(struct nouveau_pm *ppm, struct nouveau_perfdom *dom,
-		 struct nouveau_perfctr *ctr)
+pwr_perfctr_read(struct nvkm_pm *ppm, struct nvkm_perfdom *dom,
+		 struct nvkm_perfctr *ctr)
 {
 	ctr->ctr = ppm->pwr[ctr->slot];
 	ctr->clk = ppm->pwr[ppm->last];
 }
 
 static void
-pwr_perfctr_next(struct nouveau_pm *ppm, struct nouveau_perfdom *dom)
+pwr_perfctr_next(struct nvkm_pm *ppm, struct nvkm_perfdom *dom)
 {
 	int i;
 
@@ -59,16 +58,16 @@ pwr_perfctr_next(struct nouveau_pm *ppm, struct nouveau_perfdom *dom)
 	}
 }
 
-static const struct nouveau_funcdom
+static const struct nvkm_funcdom
 pwr_perfctr_func = {
 	.init = pwr_perfctr_init,
 	.read = pwr_perfctr_read,
 	.next = pwr_perfctr_next,
 };
 
-const struct nouveau_specdom
-nva3_pm_pwr[] = {
-	{ 0x20, (const struct nouveau_specsig[]) {
+const struct nvkm_specdom
+gt215_pm_pwr[] = {
+	{ 0x20, (const struct nvkm_specsig[]) {
 			{ 0x00, "pwr_gr_idle" },
 			{ 0x04, "pwr_bsp_idle" },
 			{ 0x05, "pwr_vp_idle" },
@@ -79,9 +78,9 @@ nva3_pm_pwr[] = {
 	{}
 };
 
-const struct nouveau_specdom
-nvc0_pm_pwr[] = {
-	{ 0x20, (const struct nouveau_specsig[]) {
+const struct nvkm_specdom
+gf100_pm_pwr[] = {
+	{ 0x20, (const struct nvkm_specsig[]) {
 			{ 0x00, "pwr_gr_idle" },
 			{ 0x04, "pwr_bsp_idle" },
 			{ 0x05, "pwr_vp_idle" },
@@ -93,9 +92,9 @@ nvc0_pm_pwr[] = {
 	{}
 };
 
-const struct nouveau_specdom
-nve0_pm_pwr[] = {
-	{ 0x20, (const struct nouveau_specsig[]) {
+const struct nvkm_specdom
+gk104_pm_pwr[] = {
+	{ 0x20, (const struct nvkm_specsig[]) {
 			{ 0x00, "pwr_gr_idle" },
 			{ 0x04, "pwr_bsp_idle" },
 			{ 0x05, "pwr_vp_idle" },

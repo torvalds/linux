@@ -21,24 +21,11 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "nv40.h"
 
-/*******************************************************************************
- * Perfmon object classes
- ******************************************************************************/
-
-/*******************************************************************************
- * PPM context
- ******************************************************************************/
-
-/*******************************************************************************
- * PPM engine/subdev functions
- ******************************************************************************/
-
 static void
-nv40_perfctr_init(struct nouveau_pm *ppm, struct nouveau_perfdom *dom,
-		  struct nouveau_perfctr *ctr)
+nv40_perfctr_init(struct nvkm_pm *ppm, struct nvkm_perfdom *dom,
+		  struct nvkm_perfctr *ctr)
 {
 	struct nv40_pm_priv *priv = (void *)ppm;
 	struct nv40_pm_cntr *cntr = (void *)ctr;
@@ -55,8 +42,8 @@ nv40_perfctr_init(struct nouveau_pm *ppm, struct nouveau_perfdom *dom,
 }
 
 static void
-nv40_perfctr_read(struct nouveau_pm *ppm, struct nouveau_perfdom *dom,
-		  struct nouveau_perfctr *ctr)
+nv40_perfctr_read(struct nvkm_pm *ppm, struct nvkm_perfdom *dom,
+		  struct nvkm_perfctr *ctr)
 {
 	struct nv40_pm_priv *priv = (void *)ppm;
 	struct nv40_pm_cntr *cntr = (void *)ctr;
@@ -71,7 +58,7 @@ nv40_perfctr_read(struct nouveau_pm *ppm, struct nouveau_perfdom *dom,
 }
 
 static void
-nv40_perfctr_next(struct nouveau_pm *ppm, struct nouveau_perfdom *dom)
+nv40_perfctr_next(struct nvkm_pm *ppm, struct nvkm_perfdom *dom)
 {
 	struct nv40_pm_priv *priv = (void *)ppm;
 	if (priv->sequence != ppm->sequence) {
@@ -80,64 +67,64 @@ nv40_perfctr_next(struct nouveau_pm *ppm, struct nouveau_perfdom *dom)
 	}
 }
 
-const struct nouveau_funcdom
+const struct nvkm_funcdom
 nv40_perfctr_func = {
 	.init = nv40_perfctr_init,
 	.read = nv40_perfctr_read,
 	.next = nv40_perfctr_next,
 };
 
-static const struct nouveau_specdom
+static const struct nvkm_specdom
 nv40_pm[] = {
-	{ 0x20, (const struct nouveau_specsig[]) {
+	{ 0x20, (const struct nvkm_specsig[]) {
 			{}
 		}, &nv40_perfctr_func },
-	{ 0x20, (const struct nouveau_specsig[]) {
+	{ 0x20, (const struct nvkm_specsig[]) {
 			{}
 		}, &nv40_perfctr_func },
-	{ 0x20, (const struct nouveau_specsig[]) {
+	{ 0x20, (const struct nvkm_specsig[]) {
 			{}
 		}, &nv40_perfctr_func },
-	{ 0x20, (const struct nouveau_specsig[]) {
+	{ 0x20, (const struct nvkm_specsig[]) {
 			{}
 		}, &nv40_perfctr_func },
-	{ 0x20, (const struct nouveau_specsig[]) {
+	{ 0x20, (const struct nvkm_specsig[]) {
 			{}
 		}, &nv40_perfctr_func },
 	{}
 };
 
 int
-nv40_pm_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		  struct nouveau_oclass *oclass, void *data, u32 size,
-		  struct nouveau_object **pobject)
+nv40_pm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	     struct nvkm_oclass *oclass, void *data, u32 size,
+	     struct nvkm_object **pobject)
 {
 	struct nv40_pm_oclass *mclass = (void *)oclass;
 	struct nv40_pm_priv *priv;
 	int ret;
 
-	ret = nouveau_pm_create(parent, engine, oclass, &priv);
+	ret = nvkm_pm_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
-	ret = nouveau_perfdom_new(&priv->base, "pm", 0, 0, 0, 4, mclass->doms);
+	ret = nvkm_perfdom_new(&priv->base, "pm", 0, 0, 0, 4, mclass->doms);
 	if (ret)
 		return ret;
 
-	nv_engine(priv)->cclass = &nouveau_pm_cclass;
-	nv_engine(priv)->sclass =  nouveau_pm_sclass;
+	nv_engine(priv)->cclass = &nvkm_pm_cclass;
+	nv_engine(priv)->sclass =  nvkm_pm_sclass;
 	return 0;
 }
 
-struct nouveau_oclass *
+struct nvkm_oclass *
 nv40_pm_oclass = &(struct nv40_pm_oclass) {
 	.base.handle = NV_ENGINE(PM, 0x40),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv40_pm_ctor,
-		.dtor = _nouveau_pm_dtor,
-		.init = _nouveau_pm_init,
-		.fini = _nouveau_pm_fini,
+		.dtor = _nvkm_pm_dtor,
+		.init = _nvkm_pm_init,
+		.fini = _nvkm_pm_fini,
 	},
 	.doms = nv40_pm,
 }.base;

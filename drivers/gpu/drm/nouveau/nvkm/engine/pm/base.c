@@ -21,22 +21,21 @@
  *
  * Authors: Ben Skeggs
  */
+#include "priv.h"
 
 #include <core/client.h>
+#include <core/device.h>
 #include <core/option.h>
-#include <nvif/unpack.h>
+
 #include <nvif/class.h>
 #include <nvif/ioctl.h>
-
-#include <subdev/clk.h>
-
-#include "priv.h"
+#include <nvif/unpack.h>
 
 #define QUAD_MASK 0x0f
 #define QUAD_FREE 0x01
 
-static struct nouveau_perfsig *
-nouveau_perfsig_find_(struct nouveau_perfdom *dom, const char *name, u32 size)
+static struct nvkm_perfsig *
+nvkm_perfsig_find_(struct nvkm_perfdom *dom, const char *name, u32 size)
 {
 	char path[64];
 	int i;
@@ -58,16 +57,16 @@ nouveau_perfsig_find_(struct nouveau_perfdom *dom, const char *name, u32 size)
 	return NULL;
 }
 
-struct nouveau_perfsig *
-nouveau_perfsig_find(struct nouveau_pm *ppm, const char *name, u32 size,
-		     struct nouveau_perfdom **pdom)
+struct nvkm_perfsig *
+nvkm_perfsig_find(struct nvkm_pm *ppm, const char *name, u32 size,
+		  struct nvkm_perfdom **pdom)
 {
-	struct nouveau_perfdom *dom = *pdom;
-	struct nouveau_perfsig *sig;
+	struct nvkm_perfdom *dom = *pdom;
+	struct nvkm_perfsig *sig;
 
 	if (dom == NULL) {
 		list_for_each_entry(dom, &ppm->domains, head) {
-			sig = nouveau_perfsig_find_(dom, name, size);
+			sig = nvkm_perfsig_find_(dom, name, size);
 			if (sig) {
 				*pdom = dom;
 				return sig;
@@ -77,17 +76,17 @@ nouveau_perfsig_find(struct nouveau_pm *ppm, const char *name, u32 size,
 		return NULL;
 	}
 
-	return nouveau_perfsig_find_(dom, name, size);
+	return nvkm_perfsig_find_(dom, name, size);
 }
 
-struct nouveau_perfctr *
-nouveau_perfsig_wrap(struct nouveau_pm *ppm, const char *name,
-		     struct nouveau_perfdom **pdom)
+struct nvkm_perfctr *
+nvkm_perfsig_wrap(struct nvkm_pm *ppm, const char *name,
+		  struct nvkm_perfdom **pdom)
 {
-	struct nouveau_perfsig *sig;
-	struct nouveau_perfctr *ctr;
+	struct nvkm_perfsig *sig;
+	struct nvkm_perfctr *ctr;
 
-	sig = nouveau_perfsig_find(ppm, name, strlen(name), pdom);
+	sig = nvkm_perfsig_find(ppm, name, strlen(name), pdom);
 	if (!sig)
 		return NULL;
 
@@ -104,16 +103,16 @@ nouveau_perfsig_wrap(struct nouveau_pm *ppm, const char *name,
  * Perfmon object classes
  ******************************************************************************/
 static int
-nouveau_perfctr_query(struct nouveau_object *object, void *data, u32 size)
+nvkm_perfctr_query(struct nvkm_object *object, void *data, u32 size)
 {
 	union {
 		struct nvif_perfctr_query_v0 v0;
 	} *args = data;
-	struct nouveau_device *device = nv_device(object);
-	struct nouveau_pm *ppm = (void *)object->engine;
-	struct nouveau_perfdom *dom = NULL, *chk;
-	const bool all = nouveau_boolopt(device->cfgopt, "NvPmShowAll", false);
-	const bool raw = nouveau_boolopt(device->cfgopt, "NvPmUnnamed", all);
+	struct nvkm_device *device = nv_device(object);
+	struct nvkm_pm *ppm = (void *)object->engine;
+	struct nvkm_perfdom *dom = NULL, *chk;
+	const bool all = nvkm_boolopt(device->cfgopt, "NvPmShowAll", false);
+	const bool raw = nvkm_boolopt(device->cfgopt, "NvPmUnnamed", all);
 	const char *name;
 	int tmp = 0, di, si;
 	int ret;
@@ -163,14 +162,14 @@ nouveau_perfctr_query(struct nouveau_object *object, void *data, u32 size)
 }
 
 static int
-nouveau_perfctr_sample(struct nouveau_object *object, void *data, u32 size)
+nvkm_perfctr_sample(struct nvkm_object *object, void *data, u32 size)
 {
 	union {
 		struct nvif_perfctr_sample none;
 	} *args = data;
-	struct nouveau_pm *ppm = (void *)object->engine;
-	struct nouveau_perfctr *ctr, *tmp;
-	struct nouveau_perfdom *dom;
+	struct nvkm_pm *ppm = (void *)object->engine;
+	struct nvkm_perfctr *ctr, *tmp;
+	struct nvkm_perfdom *dom;
 	int ret;
 
 	nv_ioctl(object, "perfctr sample size %d\n", size);
@@ -187,7 +186,7 @@ nouveau_perfctr_sample(struct nouveau_object *object, void *data, u32 size)
 			tmp = NULL;
 			while (!list_empty(&dom->list)) {
 				ctr = list_first_entry(&dom->list,
-							typeof(*ctr), head);
+						       typeof(*ctr), head);
 				if (ctr->slot < 0) break;
 				if ( tmp && tmp == ctr) break;
 				if (!tmp) tmp = ctr;
@@ -216,12 +215,12 @@ nouveau_perfctr_sample(struct nouveau_object *object, void *data, u32 size)
 }
 
 static int
-nouveau_perfctr_read(struct nouveau_object *object, void *data, u32 size)
+nvkm_perfctr_read(struct nvkm_object *object, void *data, u32 size)
 {
 	union {
 		struct nvif_perfctr_read_v0 v0;
 	} *args = data;
-	struct nouveau_perfctr *ctr = (void *)object;
+	struct nvkm_perfctr *ctr = (void *)object;
 	int ret;
 
 	nv_ioctl(object, "perfctr read size %d\n", size);
@@ -239,16 +238,15 @@ nouveau_perfctr_read(struct nouveau_object *object, void *data, u32 size)
 }
 
 static int
-nouveau_perfctr_mthd(struct nouveau_object *object, u32 mthd,
-		     void *data, u32 size)
+nvkm_perfctr_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
 	switch (mthd) {
 	case NVIF_PERFCTR_V0_QUERY:
-		return nouveau_perfctr_query(object, data, size);
+		return nvkm_perfctr_query(object, data, size);
 	case NVIF_PERFCTR_V0_SAMPLE:
-		return nouveau_perfctr_sample(object, data, size);
+		return nvkm_perfctr_sample(object, data, size);
 	case NVIF_PERFCTR_V0_READ:
-		return nouveau_perfctr_read(object, data, size);
+		return nvkm_perfctr_read(object, data, size);
 	default:
 		break;
 	}
@@ -256,27 +254,26 @@ nouveau_perfctr_mthd(struct nouveau_object *object, u32 mthd,
 }
 
 static void
-nouveau_perfctr_dtor(struct nouveau_object *object)
+nvkm_perfctr_dtor(struct nvkm_object *object)
 {
-	struct nouveau_perfctr *ctr = (void *)object;
+	struct nvkm_perfctr *ctr = (void *)object;
 	if (ctr->head.next)
 		list_del(&ctr->head);
-	nouveau_object_destroy(&ctr->base);
+	nvkm_object_destroy(&ctr->base);
 }
 
 static int
-nouveau_perfctr_ctor(struct nouveau_object *parent,
-		     struct nouveau_object *engine,
-		     struct nouveau_oclass *oclass, void *data, u32 size,
-		     struct nouveau_object **pobject)
+nvkm_perfctr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		  struct nvkm_oclass *oclass, void *data, u32 size,
+		  struct nvkm_object **pobject)
 {
 	union {
 		struct nvif_perfctr_v0 v0;
 	} *args = data;
-	struct nouveau_pm *ppm = (void *)engine;
-	struct nouveau_perfdom *dom = NULL;
-	struct nouveau_perfsig *sig[4] = {};
-	struct nouveau_perfctr *ctr;
+	struct nvkm_pm *ppm = (void *)engine;
+	struct nvkm_perfdom *dom = NULL;
+	struct nvkm_perfsig *sig[4] = {};
+	struct nvkm_perfctr *ctr;
 	int ret, i;
 
 	nv_ioctl(parent, "create perfctr size %d\n", size);
@@ -287,15 +284,15 @@ nouveau_perfctr_ctor(struct nouveau_object *parent,
 		return ret;
 
 	for (i = 0; i < ARRAY_SIZE(args->v0.name) && args->v0.name[i][0]; i++) {
-		sig[i] = nouveau_perfsig_find(ppm, args->v0.name[i],
-					      strnlen(args->v0.name[i],
-					      sizeof(args->v0.name[i])),
-					      &dom);
+		sig[i] = nvkm_perfsig_find(ppm, args->v0.name[i],
+					   strnlen(args->v0.name[i],
+						   sizeof(args->v0.name[i])),
+					   &dom);
 		if (!sig[i])
 			return -EINVAL;
 	}
 
-	ret = nouveau_object_create(parent, engine, oclass, 0, &ctr);
+	ret = nvkm_object_create(parent, engine, oclass, 0, &ctr);
 	*pobject = nv_object(ctr);
 	if (ret)
 		return ret;
@@ -311,19 +308,19 @@ nouveau_perfctr_ctor(struct nouveau_object *parent,
 	return 0;
 }
 
-static struct nouveau_ofuncs
-nouveau_perfctr_ofuncs = {
-	.ctor = nouveau_perfctr_ctor,
-	.dtor = nouveau_perfctr_dtor,
-	.init = nouveau_object_init,
-	.fini = nouveau_object_fini,
-	.mthd = nouveau_perfctr_mthd,
+static struct nvkm_ofuncs
+nvkm_perfctr_ofuncs = {
+	.ctor = nvkm_perfctr_ctor,
+	.dtor = nvkm_perfctr_dtor,
+	.init = nvkm_object_init,
+	.fini = nvkm_object_fini,
+	.mthd = nvkm_perfctr_mthd,
 };
 
-struct nouveau_oclass
-nouveau_pm_sclass[] = {
+struct nvkm_oclass
+nvkm_pm_sclass[] = {
 	{ .handle = NVIF_IOCTL_NEW_V0_PERFCTR,
-	  .ofuncs = &nouveau_perfctr_ofuncs,
+	  .ofuncs = &nvkm_perfctr_ofuncs,
 	},
 	{},
 };
@@ -332,27 +329,25 @@ nouveau_pm_sclass[] = {
  * PPM context
  ******************************************************************************/
 static void
-nouveau_perfctx_dtor(struct nouveau_object *object)
+nvkm_perfctx_dtor(struct nvkm_object *object)
 {
-	struct nouveau_pm *ppm = (void *)object->engine;
+	struct nvkm_pm *ppm = (void *)object->engine;
 	mutex_lock(&nv_subdev(ppm)->mutex);
-	nouveau_engctx_destroy(&ppm->context->base);
+	nvkm_engctx_destroy(&ppm->context->base);
 	ppm->context = NULL;
 	mutex_unlock(&nv_subdev(ppm)->mutex);
 }
 
 static int
-nouveau_perfctx_ctor(struct nouveau_object *parent,
-		     struct nouveau_object *engine,
-		     struct nouveau_oclass *oclass, void *data, u32 size,
-		     struct nouveau_object **pobject)
+nvkm_perfctx_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		  struct nvkm_oclass *oclass, void *data, u32 size,
+		  struct nvkm_object **pobject)
 {
-	struct nouveau_pm *ppm = (void *)engine;
-	struct nouveau_perfctx *ctx;
+	struct nvkm_pm *ppm = (void *)engine;
+	struct nvkm_perfctx *ctx;
 	int ret;
 
-	ret = nouveau_engctx_create(parent, engine, oclass, NULL,
-				    0, 0, 0, &ctx);
+	ret = nvkm_engctx_create(parent, engine, oclass, NULL, 0, 0, 0, &ctx);
 	*pobject = nv_object(ctx);
 	if (ret)
 		return ret;
@@ -368,14 +363,14 @@ nouveau_perfctx_ctor(struct nouveau_object *parent,
 	return 0;
 }
 
-struct nouveau_oclass
-nouveau_pm_cclass = {
+struct nvkm_oclass
+nvkm_pm_cclass = {
 	.handle = NV_ENGCTX(PM, 0x00),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nouveau_perfctx_ctor,
-		.dtor = nouveau_perfctx_dtor,
-		.init = _nouveau_engctx_init,
-		.fini = _nouveau_engctx_fini,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = nvkm_perfctx_ctor,
+		.dtor = nvkm_perfctx_dtor,
+		.init = _nvkm_engctx_init,
+		.fini = _nvkm_engctx_fini,
 	},
 };
 
@@ -383,13 +378,13 @@ nouveau_pm_cclass = {
  * PPM engine/subdev functions
  ******************************************************************************/
 int
-nouveau_perfdom_new(struct nouveau_pm *ppm, const char *name, u32 mask,
-		    u32 base, u32 size_unit, u32 size_domain,
-		    const struct nouveau_specdom *spec)
+nvkm_perfdom_new(struct nvkm_pm *ppm, const char *name, u32 mask,
+		 u32 base, u32 size_unit, u32 size_domain,
+		 const struct nvkm_specdom *spec)
 {
-	const struct nouveau_specdom *sdom;
-	const struct nouveau_specsig *ssig;
-	struct nouveau_perfdom *dom;
+	const struct nvkm_specdom *sdom;
+	const struct nvkm_specsig *ssig;
+	struct nvkm_perfdom *dom;
 	int i;
 
 	for (i = 0; i == 0 || mask; i++) {
@@ -436,44 +431,42 @@ nouveau_perfdom_new(struct nouveau_pm *ppm, const char *name, u32 mask,
 }
 
 int
-_nouveau_pm_fini(struct nouveau_object *object, bool suspend)
+_nvkm_pm_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nouveau_pm *ppm = (void *)object;
-	return nouveau_engine_fini(&ppm->base, suspend);
+	struct nvkm_pm *ppm = (void *)object;
+	return nvkm_engine_fini(&ppm->base, suspend);
 }
 
 int
-_nouveau_pm_init(struct nouveau_object *object)
+_nvkm_pm_init(struct nvkm_object *object)
 {
-	struct nouveau_pm *ppm = (void *)object;
-	return nouveau_engine_init(&ppm->base);
+	struct nvkm_pm *ppm = (void *)object;
+	return nvkm_engine_init(&ppm->base);
 }
 
 void
-_nouveau_pm_dtor(struct nouveau_object *object)
+_nvkm_pm_dtor(struct nvkm_object *object)
 {
-	struct nouveau_pm *ppm = (void *)object;
-	struct nouveau_perfdom *dom, *tmp;
+	struct nvkm_pm *ppm = (void *)object;
+	struct nvkm_perfdom *dom, *tmp;
 
 	list_for_each_entry_safe(dom, tmp, &ppm->domains, head) {
 		list_del(&dom->head);
 		kfree(dom);
 	}
 
-	nouveau_engine_destroy(&ppm->base);
+	nvkm_engine_destroy(&ppm->base);
 }
 
 int
-nouveau_pm_create_(struct nouveau_object *parent,
-			struct nouveau_object *engine,
-			struct nouveau_oclass *oclass,
-			int length, void **pobject)
+nvkm_pm_create_(struct nvkm_object *parent, struct nvkm_object *engine,
+		struct nvkm_oclass *oclass, int length, void **pobject)
 {
-	struct nouveau_pm *ppm;
+	struct nvkm_pm *ppm;
 	int ret;
 
-	ret = nouveau_engine_create_(parent, engine, oclass, true, "PPM",
-				     "pm", length, pobject);
+	ret = nvkm_engine_create_(parent, engine, oclass, true, "PPM",
+				  "pm", length, pobject);
 	ppm = *pobject;
 	if (ret)
 		return ret;

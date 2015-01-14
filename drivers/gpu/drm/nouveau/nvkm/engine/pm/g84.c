@@ -24,34 +24,42 @@
 #include "nv40.h"
 
 static const struct nvkm_specdom
-nv50_pm[] = {
-	{ 0x040, (const struct nvkm_specsig[]) {
+g84_pm[] = {
+	{ 0x20, (const struct nvkm_specsig[]) {
 			{}
 		}, &nv40_perfctr_func },
-	{ 0x100, (const struct nvkm_specsig[]) {
-			{ 0xc8, "gr_idle" },
+	{ 0x20, (const struct nvkm_specsig[]) {
 			{}
 		}, &nv40_perfctr_func },
-	{ 0x100, (const struct nvkm_specsig[]) {
+	{ 0x20, (const struct nvkm_specsig[]) {
 			{}
 		}, &nv40_perfctr_func },
-	{ 0x020, (const struct nvkm_specsig[]) {
+	{ 0x20, (const struct nvkm_specsig[]) {
 			{}
 		}, &nv40_perfctr_func },
-	{ 0x040, (const struct nvkm_specsig[]) {
+	{ 0x20, (const struct nvkm_specsig[]) {
+			{}
+		}, &nv40_perfctr_func },
+	{ 0x20, (const struct nvkm_specsig[]) {
+			{}
+		}, &nv40_perfctr_func },
+	{ 0x20, (const struct nvkm_specsig[]) {
+			{}
+		}, &nv40_perfctr_func },
+	{ 0x20, (const struct nvkm_specsig[]) {
 			{}
 		}, &nv40_perfctr_func },
 	{}
 };
 
 struct nvkm_oclass *
-nv50_pm_oclass = &(struct nv40_pm_oclass) {
-	.base.handle = NV_ENGINE(PM, 0x50),
+g84_pm_oclass = &(struct nv40_pm_oclass) {
+	.base.handle = NV_ENGINE(PM, 0x84),
 	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv40_pm_ctor,
 		.dtor = _nvkm_pm_dtor,
 		.init = _nvkm_pm_init,
 		.fini = _nvkm_pm_fini,
 	},
-	.doms = nv50_pm,
+	.doms = g84_pm,
 }.base;

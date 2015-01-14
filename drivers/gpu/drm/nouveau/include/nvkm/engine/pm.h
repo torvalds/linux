@@ -1,16 +1,13 @@
 #ifndef __NVKM_PM_H__
 #define __NVKM_PM_H__
-
-#include <core/device.h>
 #include <core/engine.h>
-#include <core/engctx.h>
 
-struct nouveau_perfdom;
-struct nouveau_perfctr;
-struct nouveau_pm {
-	struct nouveau_engine base;
+struct nvkm_perfdom;
+struct nvkm_perfctr;
+struct nvkm_pm {
+	struct nvkm_engine base;
 
-	struct nouveau_perfctx *context;
+	struct nvkm_perfctx *context;
 	void *profile_data;
 
 	struct list_head domains;
@@ -21,18 +18,17 @@ struct nouveau_pm {
 	u32 last;
 };
 
-static inline struct nouveau_pm *
-nouveau_pm(void *obj)
+static inline struct nvkm_pm *
+nvkm_pm(void *obj)
 {
-	return (void *)nouveau_engine(obj, NVDEV_ENGINE_PM);
+	return (void *)nvkm_engine(obj, NVDEV_ENGINE_PM);
 }
 
-extern struct nouveau_oclass *nv40_pm_oclass;
-extern struct nouveau_oclass *nv50_pm_oclass;
-extern struct nouveau_oclass *nv84_pm_oclass;
-extern struct nouveau_oclass *nva3_pm_oclass;
-extern struct nouveau_oclass nvc0_pm_oclass;
-extern struct nouveau_oclass nve0_pm_oclass;
-extern struct nouveau_oclass nvf0_pm_oclass;
-
+extern struct nvkm_oclass *nv40_pm_oclass;
+extern struct nvkm_oclass *nv50_pm_oclass;
+extern struct nvkm_oclass *g84_pm_oclass;
+extern struct nvkm_oclass *gt215_pm_oclass;
+extern struct nvkm_oclass gf100_pm_oclass;
+extern struct nvkm_oclass gk104_pm_oclass;
+extern struct nvkm_oclass gk110_pm_oclass;
 #endif

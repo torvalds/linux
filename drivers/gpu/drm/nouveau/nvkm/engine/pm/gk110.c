@@ -21,51 +21,37 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include "nvc0.h"
-
-/*******************************************************************************
- * Perfmon object classes
- ******************************************************************************/
-
-/*******************************************************************************
- * PPM context
- ******************************************************************************/
-
-/*******************************************************************************
- * PPM engine/subdev functions
- ******************************************************************************/
+#include "gf100.h"
 
 static int
-nvf0_pm_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		  struct nouveau_oclass *oclass, void *data, u32 size,
-		  struct nouveau_object **pobject)
+gk110_pm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	      struct nvkm_oclass *oclass, void *data, u32 size,
+	      struct nvkm_object **pobject)
 {
-	struct nvc0_pm_priv *priv;
+	struct gf100_pm_priv *priv;
 	int ret;
 
-	ret = nouveau_pm_create(parent, engine, oclass, &priv);
+	ret = nvkm_pm_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
-	ret = nouveau_perfdom_new(&priv->base, "pwr", 0, 0, 0, 0,
-				   nve0_pm_pwr);
+	ret = nvkm_perfdom_new(&priv->base, "pwr", 0, 0, 0, 0, gk104_pm_pwr);
 	if (ret)
 		return ret;
 
-	nv_engine(priv)->cclass = &nouveau_pm_cclass;
-	nv_engine(priv)->sclass =  nouveau_pm_sclass;
+	nv_engine(priv)->cclass = &nvkm_pm_cclass;
+	nv_engine(priv)->sclass =  nvkm_pm_sclass;
 	return 0;
 }
 
-struct nouveau_oclass
-nvf0_pm_oclass = {
+struct nvkm_oclass
+gk110_pm_oclass = {
 	.handle = NV_ENGINE(PM, 0xf0),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvf0_pm_ctor,
-		.dtor = _nouveau_pm_dtor,
-		.init = _nouveau_pm_init,
-		.fini = nvc0_pm_fini,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gk110_pm_ctor,
+		.dtor = _nvkm_pm_dtor,
+		.init = _nvkm_pm_init,
+		.fini = gf100_pm_fini,
 	},
 };

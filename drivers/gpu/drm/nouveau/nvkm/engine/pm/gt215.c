@@ -21,58 +21,63 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "nv40.h"
 
-/*******************************************************************************
- * Perfmon object classes
- ******************************************************************************/
-
-/*******************************************************************************
- * PPM context
- ******************************************************************************/
-
-/*******************************************************************************
- * PPM engine/subdev functions
- ******************************************************************************/
-
-static const struct nouveau_specdom
-nv84_pm[] = {
-	{ 0x20, (const struct nouveau_specsig[]) {
+static const struct nvkm_specdom
+gt215_pm[] = {
+	{ 0x20, (const struct nvkm_specsig[]) {
 			{}
 		}, &nv40_perfctr_func },
-	{ 0x20, (const struct nouveau_specsig[]) {
+	{ 0x20, (const struct nvkm_specsig[]) {
 			{}
 		}, &nv40_perfctr_func },
-	{ 0x20, (const struct nouveau_specsig[]) {
+	{ 0x20, (const struct nvkm_specsig[]) {
 			{}
 		}, &nv40_perfctr_func },
-	{ 0x20, (const struct nouveau_specsig[]) {
+	{ 0x20, (const struct nvkm_specsig[]) {
 			{}
 		}, &nv40_perfctr_func },
-	{ 0x20, (const struct nouveau_specsig[]) {
+	{ 0x20, (const struct nvkm_specsig[]) {
 			{}
 		}, &nv40_perfctr_func },
-	{ 0x20, (const struct nouveau_specsig[]) {
+	{ 0x20, (const struct nvkm_specsig[]) {
 			{}
 		}, &nv40_perfctr_func },
-	{ 0x20, (const struct nouveau_specsig[]) {
+	{ 0x20, (const struct nvkm_specsig[]) {
 			{}
 		}, &nv40_perfctr_func },
-	{ 0x20, (const struct nouveau_specsig[]) {
+	{ 0x20, (const struct nvkm_specsig[]) {
 			{}
 		}, &nv40_perfctr_func },
 	{}
 };
 
-struct nouveau_oclass *
-nv84_pm_oclass = &(struct nv40_pm_oclass) {
-	.base.handle = NV_ENGINE(PM, 0x84),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv40_pm_ctor,
-		.dtor = _nouveau_pm_dtor,
-		.init = _nouveau_pm_init,
-		.fini = _nouveau_pm_fini,
+static int
+gt215_pm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	      struct nvkm_oclass *oclass, void *data, u32 size,
+	      struct nvkm_object **object)
+{
+	int ret = nv40_pm_ctor(parent, engine, oclass, data, size, object);
+	if (ret == 0) {
+		struct nv40_pm_priv *priv = (void *)*object;
+		ret = nvkm_perfdom_new(&priv->base, "pwr", 0, 0, 0, 0,
+				       gt215_pm_pwr);
+		if (ret)
+			return ret;
+
+		priv->base.last = 3;
+	}
+	return ret;
+}
+
+struct nvkm_oclass *
+gt215_pm_oclass = &(struct nv40_pm_oclass) {
+	.base.handle = NV_ENGINE(PM, 0xa3),
+	.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gt215_pm_ctor,
+		.dtor = _nvkm_pm_dtor,
+		.init = _nvkm_pm_init,
+		.fini = _nvkm_pm_fini,
 	},
-	.doms = nv84_pm,
+	.doms = gt215_pm,
 }.base;

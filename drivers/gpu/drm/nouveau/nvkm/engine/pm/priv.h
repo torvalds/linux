@@ -1,91 +1,90 @@
 #ifndef __NVKM_PM_PRIV_H__
 #define __NVKM_PM_PRIV_H__
-
 #include <engine/pm.h>
 
-struct nouveau_perfctr {
-	struct nouveau_object base;
+struct nvkm_perfctr {
+	struct nvkm_object base;
 	struct list_head head;
-	struct nouveau_perfsig *signal[4];
+	struct nvkm_perfsig *signal[4];
 	int slot;
 	u32 logic_op;
 	u32 clk;
 	u32 ctr;
 };
 
-extern struct nouveau_oclass nouveau_pm_sclass[];
+extern struct nvkm_oclass nvkm_pm_sclass[];
 
-struct nouveau_perfctx {
-	struct nouveau_engctx base;
+#include <core/engctx.h>
+
+struct nvkm_perfctx {
+	struct nvkm_engctx base;
 };
 
-extern struct nouveau_oclass nouveau_pm_cclass;
+extern struct nvkm_oclass nvkm_pm_cclass;
 
-struct nouveau_specsig {
+struct nvkm_specsig {
 	u8 signal;
 	const char *name;
 };
 
-struct nouveau_perfsig {
+struct nvkm_perfsig {
 	const char *name;
 };
 
-struct nouveau_perfdom;
-struct nouveau_perfctr *
-nouveau_perfsig_wrap(struct nouveau_pm *, const char *,
-		     struct nouveau_perfdom **);
+struct nvkm_perfdom;
+struct nvkm_perfctr *
+nvkm_perfsig_wrap(struct nvkm_pm *, const char *, struct nvkm_perfdom **);
 
-struct nouveau_specdom {
+struct nvkm_specdom {
 	u16 signal_nr;
-	const struct nouveau_specsig *signal;
-	const struct nouveau_funcdom *func;
+	const struct nvkm_specsig *signal;
+	const struct nvkm_funcdom *func;
 };
 
-extern const struct nouveau_specdom nva3_pm_pwr[];
-extern const struct nouveau_specdom nvc0_pm_pwr[];
-extern const struct nouveau_specdom nve0_pm_pwr[];
+extern const struct nvkm_specdom gt215_pm_pwr[];
+extern const struct nvkm_specdom gf100_pm_pwr[];
+extern const struct nvkm_specdom gk104_pm_pwr[];
 
-struct nouveau_perfdom {
+struct nvkm_perfdom {
 	struct list_head head;
 	struct list_head list;
-	const struct nouveau_funcdom *func;
+	const struct nvkm_funcdom *func;
 	char name[32];
 	u32 addr;
 	u8  quad;
 	u32 signal_nr;
-	struct nouveau_perfsig signal[];
+	struct nvkm_perfsig signal[];
 };
 
-struct nouveau_funcdom {
-	void (*init)(struct nouveau_pm *, struct nouveau_perfdom *,
-		     struct nouveau_perfctr *);
-	void (*read)(struct nouveau_pm *, struct nouveau_perfdom *,
-		     struct nouveau_perfctr *);
-	void (*next)(struct nouveau_pm *, struct nouveau_perfdom *);
+struct nvkm_funcdom {
+	void (*init)(struct nvkm_pm *, struct nvkm_perfdom *,
+		     struct nvkm_perfctr *);
+	void (*read)(struct nvkm_pm *, struct nvkm_perfdom *,
+		     struct nvkm_perfctr *);
+	void (*next)(struct nvkm_pm *, struct nvkm_perfdom *);
 };
 
-int nouveau_perfdom_new(struct nouveau_pm *, const char *, u32,
-			u32, u32, u32, const struct nouveau_specdom *);
+int nvkm_perfdom_new(struct nvkm_pm *, const char *, u32, u32, u32, u32,
+		     const struct nvkm_specdom *);
 
-#define nouveau_pm_create(p,e,o,d)                                        \
-	nouveau_pm_create_((p), (e), (o), sizeof(**d), (void **)d)
-#define nouveau_pm_dtor(p) ({                                             \
-	struct nouveau_pm *c = (p);                                       \
-	_nouveau_pm_dtor(nv_object(c));                                   \
+#define nvkm_pm_create(p,e,o,d)                                        \
+	nvkm_pm_create_((p), (e), (o), sizeof(**d), (void **)d)
+#define nvkm_pm_dtor(p) ({                                             \
+	struct nvkm_pm *c = (p);                                       \
+	_nvkm_pm_dtor(nv_object(c));                                   \
 })
-#define nouveau_pm_init(p) ({                                             \
-	struct nouveau_pm *c = (p);                                       \
-	_nouveau_pm_init(nv_object(c));                                   \
+#define nvkm_pm_init(p) ({                                             \
+	struct nvkm_pm *c = (p);                                       \
+	_nvkm_pm_init(nv_object(c));                                   \
 })
-#define nouveau_pm_fini(p,s) ({                                           \
-	struct nouveau_pm *c = (p);                                       \
-	_nouveau_pm_fini(nv_object(c), (s));                              \
+#define nvkm_pm_fini(p,s) ({                                           \
+	struct nvkm_pm *c = (p);                                       \
+	_nvkm_pm_fini(nv_object(c), (s));                              \
 })
 
-int nouveau_pm_create_(struct nouveau_object *, struct nouveau_object *,
-			    struct nouveau_oclass *, int, void **);
-void _nouveau_pm_dtor(struct nouveau_object *);
-int  _nouveau_pm_init(struct nouveau_object *);
-int  _nouveau_pm_fini(struct nouveau_object *, bool);
-
+int nvkm_pm_create_(struct nvkm_object *, struct nvkm_object *,
+			    struct nvkm_oclass *, int, void **);
+void _nvkm_pm_dtor(struct nvkm_object *);
+int  _nvkm_pm_init(struct nvkm_object *);
+int  _nvkm_pm_fini(struct nvkm_object *, bool);
 #endif

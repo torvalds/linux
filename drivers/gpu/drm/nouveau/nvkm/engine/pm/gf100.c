@@ -21,42 +21,29 @@
  *
  * Authors: Ben Skeggs
  */
+#include "gf100.h"
 
-#include "nvc0.h"
-
-/*******************************************************************************
- * Perfmon object classes
- ******************************************************************************/
-
-/*******************************************************************************
- * PPM context
- ******************************************************************************/
-
-/*******************************************************************************
- * PPM engine/subdev functions
- ******************************************************************************/
-
-static const struct nouveau_specdom
-nvc0_pm_hub[] = {
+static const struct nvkm_specdom
+gf100_pm_hub[] = {
 	{}
 };
 
-static const struct nouveau_specdom
-nvc0_pm_gpc[] = {
+static const struct nvkm_specdom
+gf100_pm_gpc[] = {
 	{}
 };
 
-static const struct nouveau_specdom
-nvc0_pm_part[] = {
+static const struct nvkm_specdom
+gf100_pm_part[] = {
 	{}
 };
 
 static void
-nvc0_perfctr_init(struct nouveau_pm *ppm, struct nouveau_perfdom *dom,
-		  struct nouveau_perfctr *ctr)
+gf100_perfctr_init(struct nvkm_pm *ppm, struct nvkm_perfdom *dom,
+		   struct nvkm_perfctr *ctr)
 {
-	struct nvc0_pm_priv *priv = (void *)ppm;
-	struct nvc0_pm_cntr *cntr = (void *)ctr;
+	struct gf100_pm_priv *priv = (void *)ppm;
+	struct gf100_pm_cntr *cntr = (void *)ctr;
 	u32 log = ctr->logic_op;
 	u32 src = 0x00000000;
 	int i;
@@ -71,11 +58,11 @@ nvc0_perfctr_init(struct nouveau_pm *ppm, struct nouveau_perfdom *dom,
 }
 
 static void
-nvc0_perfctr_read(struct nouveau_pm *ppm, struct nouveau_perfdom *dom,
-		  struct nouveau_perfctr *ctr)
+gf100_perfctr_read(struct nvkm_pm *ppm, struct nvkm_perfdom *dom,
+		   struct nvkm_perfctr *ctr)
 {
-	struct nvc0_pm_priv *priv = (void *)ppm;
-	struct nvc0_pm_cntr *cntr = (void *)ctr;
+	struct gf100_pm_priv *priv = (void *)ppm;
+	struct gf100_pm_cntr *cntr = (void *)ctr;
 
 	switch (cntr->base.slot) {
 	case 0: cntr->base.ctr = nv_rd32(priv, dom->addr + 0x08c); break;
@@ -87,51 +74,50 @@ nvc0_perfctr_read(struct nouveau_pm *ppm, struct nouveau_perfdom *dom,
 }
 
 static void
-nvc0_perfctr_next(struct nouveau_pm *ppm, struct nouveau_perfdom *dom)
+gf100_perfctr_next(struct nvkm_pm *ppm, struct nvkm_perfdom *dom)
 {
-	struct nvc0_pm_priv *priv = (void *)ppm;
+	struct gf100_pm_priv *priv = (void *)ppm;
 	nv_wr32(priv, dom->addr + 0x06c, dom->signal_nr - 0x40 + 0x27);
 	nv_wr32(priv, dom->addr + 0x0ec, 0x00000011);
 }
 
-const struct nouveau_funcdom
-nvc0_perfctr_func = {
-	.init = nvc0_perfctr_init,
-	.read = nvc0_perfctr_read,
-	.next = nvc0_perfctr_next,
+const struct nvkm_funcdom
+gf100_perfctr_func = {
+	.init = gf100_perfctr_init,
+	.read = gf100_perfctr_read,
+	.next = gf100_perfctr_next,
 };
 
 int
-nvc0_pm_fini(struct nouveau_object *object, bool suspend)
+gf100_pm_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nvc0_pm_priv *priv = (void *)object;
+	struct gf100_pm_priv *priv = (void *)object;
 	nv_mask(priv, 0x000200, 0x10000000, 0x00000000);
 	nv_mask(priv, 0x000200, 0x10000000, 0x10000000);
-	return nouveau_pm_fini(&priv->base, suspend);
+	return nvkm_pm_fini(&priv->base, suspend);
 }
 
 static int
-nvc0_pm_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		  struct nouveau_oclass *oclass, void *data, u32 size,
-		  struct nouveau_object **pobject)
+gf100_pm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	      struct nvkm_oclass *oclass, void *data, u32 size,
+	      struct nvkm_object **pobject)
 {
-	struct nvc0_pm_priv *priv;
+	struct gf100_pm_priv *priv;
 	u32 mask;
 	int ret;
 
-	ret = nouveau_pm_create(parent, engine, oclass, &priv);
+	ret = nvkm_pm_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
-	ret = nouveau_perfdom_new(&priv->base, "pwr", 0, 0, 0, 0,
-				   nvc0_pm_pwr);
+	ret = nvkm_perfdom_new(&priv->base, "pwr", 0, 0, 0, 0, gf100_pm_pwr);
 	if (ret)
 		return ret;
 
 	/* HUB */
-	ret = nouveau_perfdom_new(&priv->base, "hub", 0, 0x1b0000, 0, 0x200,
-				   nvc0_pm_hub);
+	ret = nvkm_perfdom_new(&priv->base, "hub", 0, 0x1b0000, 0, 0x200,
+			       gf100_pm_hub);
 	if (ret)
 		return ret;
 
@@ -140,8 +126,8 @@ nvc0_pm_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	mask &= ~nv_rd32(priv, 0x022504);
 	mask &= ~nv_rd32(priv, 0x022584);
 
-	ret = nouveau_perfdom_new(&priv->base, "gpc", mask, 0x180000,
-				  0x1000, 0x200, nvc0_pm_gpc);
+	ret = nvkm_perfdom_new(&priv->base, "gpc", mask, 0x180000,
+			       0x1000, 0x200, gf100_pm_gpc);
 	if (ret)
 		return ret;
 
@@ -150,24 +136,24 @@ nvc0_pm_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	mask &= ~nv_rd32(priv, 0x022548);
 	mask &= ~nv_rd32(priv, 0x0225c8);
 
-	ret = nouveau_perfdom_new(&priv->base, "part", mask, 0x1a0000,
-				  0x1000, 0x200, nvc0_pm_part);
+	ret = nvkm_perfdom_new(&priv->base, "part", mask, 0x1a0000,
+			       0x1000, 0x200, gf100_pm_part);
 	if (ret)
 		return ret;
 
-	nv_engine(priv)->cclass = &nouveau_pm_cclass;
-	nv_engine(priv)->sclass =  nouveau_pm_sclass;
+	nv_engine(priv)->cclass = &nvkm_pm_cclass;
+	nv_engine(priv)->sclass =  nvkm_pm_sclass;
 	priv->base.last = 7;
 	return 0;
 }
 
-struct nouveau_oclass
-nvc0_pm_oclass = {
+struct nvkm_oclass
+gf100_pm_oclass = {
 	.handle = NV_ENGINE(PM, 0xc0),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_pm_ctor,
-		.dtor = _nouveau_pm_dtor,
-		.init = _nouveau_pm_init,
-		.fini = nvc0_pm_fini,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gf100_pm_ctor,
+		.dtor = _nvkm_pm_dtor,
+		.init = _nvkm_pm_init,
+		.fini = gf100_pm_fini,
 	},
 };
