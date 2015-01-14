@@ -1604,7 +1604,7 @@ static void btrfs_del_delalloc_inode(struct btrfs_root *root,
  * have pending delalloc work to be done.
  */
 static void btrfs_set_bit_hook(struct inode *inode,
-			       struct extent_state *state, unsigned long *bits)
+			       struct extent_state *state, unsigned *bits)
 {
 
 	if ((*bits & EXTENT_DEFRAG) && !(*bits & EXTENT_DELALLOC))
@@ -1645,7 +1645,7 @@ static void btrfs_set_bit_hook(struct inode *inode,
  */
 static void btrfs_clear_bit_hook(struct inode *inode,
 				 struct extent_state *state,
-				 unsigned long *bits)
+				 unsigned *bits)
 {
 	u64 len = state->end + 1 - state->start;
 
