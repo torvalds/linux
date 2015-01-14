@@ -847,7 +847,7 @@ static int pmecc_correction(struct mtd_info *mtd, u32 pmecc_stat, uint8_t *buf,
 	struct atmel_nand_host *host = nand_chip->priv;
 	int i, err_nbr;
 	uint8_t *buf_pos;
-	int total_err = 0;
+	int max_bitflips = 0;
 
 	for (i = 0; i < nand_chip->ecc.total; i++)
 		if (ecc[i] != 0xff)
@@ -874,13 +874,13 @@ normal_check:
 				pmecc_correct_data(mtd, buf_pos, ecc, i,
 					nand_chip->ecc.bytes, err_nbr);
 				mtd->ecc_stats.corrected += err_nbr;
-				total_err += err_nbr;
+				max_bitflips = max_t(int, max_bitflips, err_nbr);
 			}
 		}
 		pmecc_stat >>= 1;
 	}
 
-	return total_err;
+	return max_bitflips;
 }
 
 static void pmecc_enable(struct atmel_nand_host *host, int ecc_op)
