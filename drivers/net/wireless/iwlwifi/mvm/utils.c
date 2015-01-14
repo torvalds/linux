@@ -643,6 +643,35 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	ieee80211_request_smps(vif, smps_mode);
 }
 
+int iwl_mvm_request_statistics(struct iwl_mvm *mvm)
+{
+	struct iwl_statistics_cmd scmd = {};
+	struct iwl_host_cmd cmd = {
+		.id = STATISTICS_CMD,
+		.len[0] = sizeof(scmd),
+		.data[0] = &scmd,
+		.flags = CMD_WANT_SKB,
+	};
+	int ret;
+
+	ret = iwl_mvm_send_cmd(mvm, &cmd);
+	if (ret)
+		return ret;
+
+	iwl_mvm_handle_rx_statistics(mvm, cmd.resp_pkt);
+	iwl_free_resp(&cmd);
+
+	return 0;
+}
+
+void iwl_mvm_accu_radio_stats(struct iwl_mvm *mvm)
+{
+	mvm->accu_radio_stats.rx_time += mvm->radio_stats.rx_time;
+	mvm->accu_radio_stats.tx_time += mvm->radio_stats.tx_time;
+	mvm->accu_radio_stats.on_time_rf += mvm->radio_stats.on_time_rf;
+	mvm->accu_radio_stats.on_time_scan += mvm->radio_stats.on_time_scan;
+}
+
 static void iwl_mvm_diversity_iter(void *_data, u8 *mac,
 				   struct ieee80211_vif *vif)
 {

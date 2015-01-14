@@ -290,15 +290,7 @@ struct mvm_statistics_rx {
  *
  * By default, uCode issues this notification after receiving a beacon
  * while associated.  To disable this behavior, set DISABLE_NOTIF flag in the
- * REPLY_STATISTICS_CMD 0x9c, above.
- *
- * Statistics counters continue to increment beacon after beacon, but are
- * cleared when changing channels or when driver issues REPLY_STATISTICS_CMD
- * 0x9c with CLEAR_STATS bit set (see above).
- *
- * uCode also issues this notification during scans.  uCode clears statistics
- * appropriately so that each notification contains statistics for only the
- * one channel that has just been scanned.
+ * STATISTICS_CMD (0x9c), below.
  */
 
 struct iwl_notif_statistics_v8 {
@@ -314,5 +306,12 @@ struct iwl_notif_statistics_v10 {
 	struct mvm_statistics_tx tx;
 	struct mvm_statistics_general_v8 general;
 } __packed; /* STATISTICS_NTFY_API_S_VER_10 */
+
+#define IWL_STATISTICS_FLG_CLEAR		0x1
+#define IWL_STATISTICS_FLG_DISABLE_NOTIF	0x2
+
+struct iwl_statistics_cmd {
+	__le32 flags;
+} __packed; /* STATISTICS_CMD_API_S_VER_1 */
 
 #endif /* __fw_api_stats_h__ */

@@ -496,16 +496,9 @@ static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
 	}
 }
 
-/*
- * iwl_mvm_rx_statistics - STATISTICS_NOTIFICATION handler
- *
- * TODO: This handler is implemented partially.
- */
-int iwl_mvm_rx_statistics(struct iwl_mvm *mvm,
-			  struct iwl_rx_cmd_buffer *rxb,
-			  struct iwl_device_cmd *cmd)
+void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
+				  struct iwl_rx_packet *pkt)
 {
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	size_t v8_len = sizeof(struct iwl_notif_statistics_v8);
 	size_t v10_len = sizeof(struct iwl_notif_statistics_v10);
 	struct iwl_mvm_stat_data data = {
@@ -525,6 +518,13 @@ int iwl_mvm_rx_statistics(struct iwl_mvm *mvm,
 			stats->general.beacon_filter_average_energy;
 
 		iwl_mvm_update_rx_statistics(mvm, &stats->rx);
+
+		mvm->radio_stats.rx_time = le64_to_cpu(stats->general.rx_time);
+		mvm->radio_stats.tx_time = le64_to_cpu(stats->general.tx_time);
+		mvm->radio_stats.on_time_rf =
+			le64_to_cpu(stats->general.on_time_rf);
+		mvm->radio_stats.on_time_scan =
+			le64_to_cpu(stats->general.on_time_scan);
 	} else {
 		struct iwl_notif_statistics_v8 *stats = (void *)&pkt->data;
 
@@ -549,9 +549,16 @@ int iwl_mvm_rx_statistics(struct iwl_mvm *mvm,
 					    IEEE80211_IFACE_ITER_NORMAL,
 					    iwl_mvm_stat_iterator,
 					    &data);
-	return 0;
+	return;
  invalid:
 	IWL_ERR(mvm, "received invalid statistics size (%d)!\n",
 		iwl_rx_packet_payload_len(pkt));
+}
+
+int iwl_mvm_rx_statistics(struct iwl_mvm *mvm,
+			  struct iwl_rx_cmd_buffer *rxb,
+			  struct iwl_device_cmd *cmd)
+{
+	iwl_mvm_handle_rx_statistics(mvm, rxb_addr(rxb));
 	return 0;
 }

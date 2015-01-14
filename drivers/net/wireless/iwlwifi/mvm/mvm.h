@@ -593,6 +593,13 @@ struct iwl_mvm {
 
 	struct mvm_statistics_rx rx_stats;
 
+	struct {
+		u64 rx_time;
+		u64 tx_time;
+		u64 on_time_rf;
+		u64 on_time_scan;
+	} radio_stats, accu_radio_stats;
+
 	u8 queue_to_mac80211[IWL_MAX_HW_QUEUES];
 	atomic_t mac80211_queue_stop_count[IEEE80211_MAX_QUEUES];
 
@@ -951,12 +958,13 @@ static inline void iwl_mvm_wait_for_async_handlers(struct iwl_mvm *mvm)
 }
 
 /* Statistics */
-int iwl_mvm_rx_reply_statistics(struct iwl_mvm *mvm,
-				struct iwl_rx_cmd_buffer *rxb,
-				struct iwl_device_cmd *cmd);
+void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
+				  struct iwl_rx_packet *pkt);
 int iwl_mvm_rx_statistics(struct iwl_mvm *mvm,
 			  struct iwl_rx_cmd_buffer *rxb,
 			  struct iwl_device_cmd *cmd);
+int iwl_mvm_request_statistics(struct iwl_mvm *mvm);
+void iwl_mvm_accu_radio_stats(struct iwl_mvm *mvm);
 
 /* NVM */
 int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic);

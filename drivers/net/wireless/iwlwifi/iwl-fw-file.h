@@ -286,6 +286,7 @@ enum iwl_ucode_tlv_api {
  *	which also implies support for the scheduler configuration command
  * @IWL_UCODE_TLV_CAPA_TDLS_CHANNEL_SWITCH: supports TDLS channel switching
  * @IWL_UCODE_TLV_CAPA_HOTSPOT_SUPPORT: supports Hot Spot Command
+ * @IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS: support radio and beacon statistics
  */
 enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_D0I3_SUPPORT			= BIT(0),
@@ -300,6 +301,7 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_DQA_SUPPORT			= BIT(12),
 	IWL_UCODE_TLV_CAPA_TDLS_CHANNEL_SWITCH		= BIT(13),
 	IWL_UCODE_TLV_CAPA_HOTSPOT_SUPPORT		= BIT(18),
+	IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS		= BIT(22),
 };
 
 /* The default calibrate table size if not specified by firmware file */

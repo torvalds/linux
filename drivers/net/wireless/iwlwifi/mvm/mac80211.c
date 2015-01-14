@@ -1091,6 +1091,9 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 
 	mvm->vif_count = 0;
 	mvm->rx_ba_sessions = 0;
+
+	/* keep statistics ticking */
+	iwl_mvm_accu_radio_stats(mvm);
 }
 
 int __iwl_mvm_mac_start(struct iwl_mvm *mvm)
@@ -1212,6 +1215,11 @@ iwl_mvm_mac_reconfig_complete(struct ieee80211_hw *hw,
 void __iwl_mvm_mac_stop(struct iwl_mvm *mvm)
 {
 	lockdep_assert_held(&mvm->mutex);
+
+	/* firmware counters are obviously reset now, but we shouldn't
+	 * partially track so also clear the fw_reset_accu counters.
+	 */
+	memset(&mvm->accu_radio_stats, 0, sizeof(mvm->accu_radio_stats));
 
 	/*
 	 * Disallow low power states when the FW is down by taking
@@ -3581,6 +3589,55 @@ static void iwl_mvm_mac_flush(struct ieee80211_hw *hw,
 	}
 }
 
+static int iwl_mvm_mac_get_survey(struct ieee80211_hw *hw, int idx,
+				  struct survey_info *survey)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	int ret;
+
+	memset(survey, 0, sizeof(*survey));
+
+	/* only support global statistics right now */
+	if (idx != 0)
+		return -ENOENT;
+
+	if (!(mvm->fw->ucode_capa.capa[0] &
+			IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS))
+		return -ENOENT;
+
+	mutex_lock(&mvm->mutex);
+
+	if (mvm->ucode_loaded) {
+		ret = iwl_mvm_request_statistics(mvm);
+		if (ret)
+			goto out;
+	}
+
+	survey->filled = SURVEY_INFO_TIME |
+			 SURVEY_INFO_TIME_RX |
+			 SURVEY_INFO_TIME_TX |
+			 SURVEY_INFO_TIME_SCAN;
+	survey->time = mvm->accu_radio_stats.on_time_rf +
+		       mvm->radio_stats.on_time_rf;
+	do_div(survey->time, USEC_PER_MSEC);
+
+	survey->time_rx = mvm->accu_radio_stats.rx_time +
+			  mvm->radio_stats.rx_time;
+	do_div(survey->time_rx, USEC_PER_MSEC);
+
+	survey->time_tx = mvm->accu_radio_stats.tx_time +
+			  mvm->radio_stats.tx_time;
+	do_div(survey->time_tx, USEC_PER_MSEC);
+
+	survey->time_scan = mvm->accu_radio_stats.on_time_scan +
+			    mvm->radio_stats.on_time_scan;
+	do_div(survey->time_scan, USEC_PER_MSEC);
+
+ out:
+	mutex_unlock(&mvm->mutex);
+	return ret;
+}
+
 const struct ieee80211_ops iwl_mvm_hw_ops = {
 	.tx = iwl_mvm_mac_tx,
 	.ampdu_action = iwl_mvm_mac_ampdu_action,
@@ -3647,4 +3704,5 @@ const struct ieee80211_ops iwl_mvm_hw_ops = {
 #endif
 	.set_default_unicast_key = iwl_mvm_set_default_unicast_key,
 #endif
+	.get_survey = iwl_mvm_mac_get_survey,
 };
