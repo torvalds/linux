@@ -2363,7 +2363,7 @@ relock:
 			goto out_dio;
 		}
 	} else {
-		current->backing_dev_info = file->f_mapping->backing_dev_info;
+		current->backing_dev_info = inode_to_bdi(inode);
 		written = generic_perform_write(file, from, *ppos);
 		if (likely(written >= 0))
 			iocb->ki_pos = *ppos + written;

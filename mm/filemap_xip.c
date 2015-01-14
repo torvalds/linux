@@ -9,6 +9,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/backing-dev.h>
 #include <linux/pagemap.h>
 #include <linux/export.h>
 #include <linux/uio.h>
@@ -410,7 +411,7 @@ xip_file_write(struct file *filp, const char __user *buf, size_t len,
 	count = len;
 
 	/* We can write back this queue in page reclaim */
-	current->backing_dev_info = mapping->backing_dev_info;
+	current->backing_dev_info = inode_to_bdi(inode);
 
 	ret = generic_write_checks(filp, &pos, &count, S_ISBLK(inode->i_mode));
 	if (ret)

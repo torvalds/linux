@@ -699,7 +699,7 @@ xfs_file_buffered_aio_write(
 
 	iov_iter_truncate(from, count);
 	/* We can write back this queue in page reclaim */
-	current->backing_dev_info = mapping->backing_dev_info;
+	current->backing_dev_info = inode_to_bdi(inode);
 
 write_retry:
 	trace_xfs_file_buffered_write(ip, count, iocb->ki_pos, 0);

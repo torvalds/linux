@@ -47,7 +47,7 @@ TRACE_EVENT(writeback_dirty_page,
 
 	TP_fast_assign(
 		strncpy(__entry->name,
-			mapping ? dev_name(mapping->backing_dev_info->dev) : "(unknown)", 32);
+			mapping ? dev_name(inode_to_bdi(mapping->host)->dev) : "(unknown)", 32);
 		__entry->ino = mapping ? mapping->host->i_ino : 0;
 		__entry->index = page->index;
 	),
@@ -72,7 +72,7 @@ DECLARE_EVENT_CLASS(writeback_dirty_inode_template,
 	),
 
 	TP_fast_assign(
-		struct backing_dev_info *bdi = inode->i_mapping->backing_dev_info;
+		struct backing_dev_info *bdi = inode_to_bdi(inode);
 
 		/* may be called for files on pseudo FSes w/ unregistered bdi */
 		strncpy(__entry->name,
@@ -116,7 +116,7 @@ DECLARE_EVENT_CLASS(writeback_write_inode_template,
 
 	TP_fast_assign(
 		strncpy(__entry->name,
-			dev_name(inode->i_mapping->backing_dev_info->dev), 32);
+			dev_name(inode_to_bdi(inode)->dev), 32);
 		__entry->ino		= inode->i_ino;
 		__entry->sync_mode	= wbc->sync_mode;
 	),
