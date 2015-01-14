@@ -49,6 +49,17 @@ inline struct block_device *I_BDEV(struct inode *inode)
 }
 EXPORT_SYMBOL(I_BDEV);
 
+static void bdev_write_inode(struct inode *inode)
+{
+	spin_lock(&inode->i_lock);
+	while (inode->i_state & I_DIRTY) {
+		spin_unlock(&inode->i_lock);
+		WARN_ON_ONCE(write_inode_now(inode, true));
+		spin_lock(&inode->i_lock);
+	}
+	spin_unlock(&inode->i_lock);
+}
+
 /*
  * Move the inode from its current bdi to a new bdi.  Make sure the inode
  * is clean before moving so that it doesn't linger on the old bdi.
@@ -56,16 +67,10 @@ EXPORT_SYMBOL(I_BDEV);
 static void bdev_inode_switch_bdi(struct inode *inode,
 			struct backing_dev_info *dst)
 {
-	while (true) {
-		spin_lock(&inode->i_lock);
-		if (!(inode->i_state & I_DIRTY)) {
-			inode->i_data.backing_dev_info = dst;
-			spin_unlock(&inode->i_lock);
-			return;
-		}
-		spin_unlock(&inode->i_lock);
-		WARN_ON_ONCE(write_inode_now(inode, true));
-	}
+	spin_lock(&inode->i_lock);
+	WARN_ON_ONCE(inode->i_state & I_DIRTY);
+	inode->i_data.backing_dev_info = dst;
+	spin_unlock(&inode->i_lock);
 }
 
 /* Kill _all_ buffers and pagecache , dirty or not.. */
@@ -1464,9 +1469,11 @@ static void __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part)
 		WARN_ON_ONCE(bdev->bd_holders);
 		sync_blockdev(bdev);
 		kill_bdev(bdev);
-		/* ->release can cause the old bdi to disappear,
-		 * so must switch it out first
+		/*
+		 * ->release can cause the queue to disappear, so flush all
+		 * dirty data before.
 		 */
+		bdev_write_inode(bdev->bd_inode);
 		bdev_inode_switch_bdi(bdev->bd_inode,
 					&default_backing_dev_info);
 	}
