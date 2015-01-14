@@ -98,8 +98,6 @@ static struct target_backend_dev_attrib_attribute _backend##_dev_attrib_##_name 
 	TB_DEV_ATTR(_backend, block_size, S_IRUGO | S_IWUSR);		\
 	DEF_TB_DEV_ATTRIB_RO(_backend, hw_max_sectors);			\
 	TB_DEV_ATTR_RO(_backend, hw_max_sectors);			\
-	DEF_TB_DEV_ATTRIB(_backend, fabric_max_sectors);		\
-	TB_DEV_ATTR(_backend, fabric_max_sectors, S_IRUGO | S_IWUSR);	\
 	DEF_TB_DEV_ATTRIB(_backend, optimal_sectors);			\
 	TB_DEV_ATTR(_backend, optimal_sectors, S_IRUGO | S_IWUSR);	\
 	DEF_TB_DEV_ATTRIB_RO(_backend, hw_queue_depth);			\
