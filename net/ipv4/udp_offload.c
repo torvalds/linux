@@ -339,7 +339,8 @@ unflush:
 	skb_gro_pull(skb, sizeof(struct udphdr)); /* pull encapsulating udp header */
 	skb_gro_postpull_rcsum(skb, uh, sizeof(struct udphdr));
 	NAPI_GRO_CB(skb)->proto = uo_priv->offload->ipproto;
-	pp = uo_priv->offload->callbacks.gro_receive(head, skb);
+	pp = uo_priv->offload->callbacks.gro_receive(head, skb,
+						     uo_priv->offload);
 
 out_unlock:
 	rcu_read_unlock();
@@ -395,7 +396,9 @@ int udp_gro_complete(struct sk_buff *skb, int nhoff)
 
 	if (uo_priv != NULL) {
 		NAPI_GRO_CB(skb)->proto = uo_priv->offload->ipproto;
-		err = uo_priv->offload->callbacks.gro_complete(skb, nhoff + sizeof(struct udphdr));
+		err = uo_priv->offload->callbacks.gro_complete(skb,
+				nhoff + sizeof(struct udphdr),
+				uo_priv->offload);
 	}
 
 	rcu_read_unlock();
