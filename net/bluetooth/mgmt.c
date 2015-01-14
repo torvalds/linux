@@ -4683,6 +4683,21 @@ static int set_bredr(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		err = cmd_status(sk, hdev->id, MGMT_OP_SET_BREDR,
 				 MGMT_STATUS_REJECTED);
 		goto unlock;
+	} else {
+		/* When configuring a dual-mode controller to operate
+		 * with LE only and using a static address, then switching
+		 * BR/EDR back on is not allowed.
+		 *
+		 * Dual-mode controllers shall operate with the public
+		 * address as its identity address for BR/EDR and LE. So
+		 * reject the attempt to create an invalid configuration.
+		 */
+		if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags) &&
+		    bacmp(&hdev->static_addr, BDADDR_ANY)) {
+			err = cmd_status(sk, hdev->id, MGMT_OP_SET_BREDR,
+					 MGMT_STATUS_REJECTED);
+			goto unlock;
+		}
 	}
 
 	if (mgmt_pending_find(MGMT_OP_SET_BREDR, hdev)) {
