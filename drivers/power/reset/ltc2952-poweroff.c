@@ -285,6 +285,8 @@ static int ltc2952_poweroff_remove(struct platform_device *pdev)
 	struct ltc2952_poweroff *data = platform_get_drvdata(pdev);
 
 	pm_power_off = NULL;
+	hrtimer_cancel(&data->timer_trigger);
+	hrtimer_cancel(&data->timer_wde);
 	atomic_notifier_chain_unregister(&panic_notifier_list,
 					 &data->panic_notifier);
 	return 0;
