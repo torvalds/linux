@@ -199,7 +199,7 @@ gb_i2c_transfer_request(struct gb_connection *connection,
 	struct gb_i2c_transfer_op *op;
 	struct i2c_msg *msg;
 	u32 data_out_size = 0;
-	u32 data_in_size = 1;	/* Response begins with a status byte */
+	u32 data_in_size = 0;
 	size_t request_size;
 	void *data;
 	u16 op_count;
