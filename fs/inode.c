@@ -170,20 +170,7 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
 	atomic_set(&mapping->i_mmap_writable, 0);
 	mapping_set_gfp_mask(mapping, GFP_HIGHUSER_MOVABLE);
 	mapping->private_data = NULL;
-	mapping->backing_dev_info = &default_backing_dev_info;
 	mapping->writeback_index = 0;
-
-	/*
-	 * If the block_device provides a backing_dev_info for client
-	 * inodes then use that.  Otherwise the inode share the bdev's
-	 * backing_dev_info.
-	 */
-	if (sb->s_bdev) {
-		struct backing_dev_info *bdi;
-
-		bdi = sb->s_bdev->bd_inode->i_mapping->backing_dev_info;
-		mapping->backing_dev_info = bdi;
-	}
 	inode->i_private = NULL;
 	inode->i_mapping = mapping;
 	INIT_HLIST_HEAD(&inode->i_dentry);	/* buggered by rcu freeing */

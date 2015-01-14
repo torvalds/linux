@@ -131,7 +131,6 @@ struct inode *configfs_new_inode(umode_t mode, struct configfs_dirent *sd,
 	if (inode) {
 		inode->i_ino = get_next_ino();
 		inode->i_mapping->a_ops = &configfs_aops;
-		inode->i_mapping->backing_dev_info = &noop_backing_dev_info;
 		inode->i_op = &configfs_inode_operations;
 
 		if (sd->s_iattr) {
