@@ -2337,6 +2337,7 @@ static int __init ns_init_module(void)
 		}
 		chip->ecc.mode = NAND_ECC_SOFT_BCH;
 		chip->ecc.size = 512;
+		chip->ecc.strength = bch;
 		chip->ecc.bytes = eccbytes;
 		NS_INFO("using %u-bit/%u bytes BCH ECC\n", bch, chip->ecc.size);
 	}
