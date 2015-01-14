@@ -19,35 +19,33 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Ben Skeggs, Maarten Lankhorst, Ilia Mirkin
+ * Authors: Ben Skeggs
  */
 
 #include <engine/falcon.h>
-#include <engine/bsp.h>
+#include <engine/msvld.h>
 
-struct nv98_bsp_priv {
+struct nve0_msvld_priv {
 	struct nouveau_falcon base;
 };
 
 /*******************************************************************************
- * BSP object classes
+ * MSVLD object classes
  ******************************************************************************/
 
 static struct nouveau_oclass
-nv98_bsp_sclass[] = {
-	{ 0x88b1, &nouveau_object_ofuncs },
-	{ 0x85b1, &nouveau_object_ofuncs },
-	{ 0x86b1, &nouveau_object_ofuncs },
+nve0_msvld_sclass[] = {
+	{ 0x95b1, &nouveau_object_ofuncs },
 	{},
 };
 
 /*******************************************************************************
- * PBSP context
+ * PMSVLD context
  ******************************************************************************/
 
 static struct nouveau_oclass
-nv98_bsp_cclass = {
-	.handle = NV_ENGCTX(BSP, 0x98),
+nve0_msvld_cclass = {
+	.handle = NV_ENGCTX(MSVLD, 0xe0),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = _nouveau_falcon_context_ctor,
 		.dtor = _nouveau_falcon_context_dtor,
@@ -59,51 +57,52 @@ nv98_bsp_cclass = {
 };
 
 /*******************************************************************************
- * PBSP engine/subdev functions
+ * PMSVLD engine/subdev functions
  ******************************************************************************/
 
 static int
-nv98_bsp_init(struct nouveau_object *object)
+nve0_msvld_init(struct nouveau_object *object)
 {
-	struct nv98_bsp_priv *priv = (void *)object;
+	struct nve0_msvld_priv *priv = (void *)object;
 	int ret;
 
 	ret = nouveau_falcon_init(&priv->base);
 	if (ret)
 		return ret;
 
-	nv_wr32(priv, 0x084010, 0x0000ffd2);
+	nv_wr32(priv, 0x084010, 0x0000fff2);
 	nv_wr32(priv, 0x08401c, 0x0000fff2);
 	return 0;
 }
 
 static int
-nv98_bsp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+nve0_msvld_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	      struct nouveau_oclass *oclass, void *data, u32 size,
 	      struct nouveau_object **pobject)
 {
-	struct nv98_bsp_priv *priv;
+	struct nve0_msvld_priv *priv;
 	int ret;
 
 	ret = nouveau_falcon_create(parent, engine, oclass, 0x084000, true,
-				    "PBSP", "bsp", &priv);
+				    "PMSVLD", "msvld", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
-	nv_subdev(priv)->unit = 0x04008000;
-	nv_engine(priv)->cclass = &nv98_bsp_cclass;
-	nv_engine(priv)->sclass = nv98_bsp_sclass;
+	nv_subdev(priv)->unit = 0x00008000;
+	nv_subdev(priv)->intr = nouveau_falcon_intr;
+	nv_engine(priv)->cclass = &nve0_msvld_cclass;
+	nv_engine(priv)->sclass = nve0_msvld_sclass;
 	return 0;
 }
 
 struct nouveau_oclass
-nv98_bsp_oclass = {
-	.handle = NV_ENGINE(BSP, 0x98),
+nve0_msvld_oclass = {
+	.handle = NV_ENGINE(MSVLD, 0xe0),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv98_bsp_ctor,
+		.ctor = nve0_msvld_ctor,
 		.dtor = _nouveau_falcon_dtor,
-		.init = nv98_bsp_init,
+		.init = nve0_msvld_init,
 		.fini = _nouveau_falcon_fini,
 		.rd32 = _nouveau_falcon_rd32,
 		.wr32 = _nouveau_falcon_wr32,

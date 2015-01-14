@@ -50,6 +50,7 @@
 #include <engine/disp.h>
 #include <engine/copy.h>
 #include <engine/bsp.h>
+#include <engine/msvld.h>
 #include <engine/vp.h>
 #include <engine/ppp.h>
 #include <engine/perfmon.h>
@@ -93,7 +94,7 @@ gm100_identify(struct nouveau_device *device)
 #endif
 		device->oclass[NVDEV_ENGINE_COPY2  ] = &nve0_copy2_oclass;
 #if 0
-		device->oclass[NVDEV_ENGINE_BSP    ] = &nve0_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nve0_msvld_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nve0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
 #endif
@@ -136,7 +137,7 @@ gm100_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_COPY0  ] = &gm204_copy0_oclass;
 		device->oclass[NVDEV_ENGINE_COPY1  ] = &gm204_copy1_oclass;
 		device->oclass[NVDEV_ENGINE_COPY2  ] = &gm204_copy2_oclass;
-		device->oclass[NVDEV_ENGINE_BSP    ] = &nve0_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nve0_msvld_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nve0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
 #endif

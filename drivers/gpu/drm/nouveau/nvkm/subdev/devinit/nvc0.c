@@ -75,7 +75,7 @@ nvc0_devinit_disable(struct nouveau_devinit *devinit)
 	}
 
 	if (r022500 & 0x00000004)
-		disable |= (1ULL << NVDEV_ENGINE_BSP);
+		disable |= (1ULL << NVDEV_ENGINE_MSVLD);
 	if (r022500 & 0x00000008)
 		disable |= (1ULL << NVDEV_ENGINE_VENC);
 	if (r022500 & 0x00000100)

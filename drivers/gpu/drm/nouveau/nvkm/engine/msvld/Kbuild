@@ -1,0 +1,3 @@
+nvkm-y += nvkm/engine/msvld/nv98.o
+nvkm-y += nvkm/engine/msvld/nvc0.o
+nvkm-y += nvkm/engine/msvld/nve0.o

@@ -50,6 +50,7 @@
 #include <engine/disp.h>
 #include <engine/copy.h>
 #include <engine/bsp.h>
+#include <engine/msvld.h>
 #include <engine/vp.h>
 #include <engine/ppp.h>
 #include <engine/perfmon.h>
@@ -87,7 +88,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_COPY0  ] = &nve0_copy0_oclass;
 		device->oclass[NVDEV_ENGINE_COPY1  ] = &nve0_copy1_oclass;
 		device->oclass[NVDEV_ENGINE_COPY2  ] = &nve0_copy2_oclass;
-		device->oclass[NVDEV_ENGINE_BSP    ] = &nve0_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nve0_msvld_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nve0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
 		device->oclass[NVDEV_ENGINE_PERFMON] = &nve0_perfmon_oclass;
@@ -121,7 +122,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_COPY0  ] = &nve0_copy0_oclass;
 		device->oclass[NVDEV_ENGINE_COPY1  ] = &nve0_copy1_oclass;
 		device->oclass[NVDEV_ENGINE_COPY2  ] = &nve0_copy2_oclass;
-		device->oclass[NVDEV_ENGINE_BSP    ] = &nve0_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nve0_msvld_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nve0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
 		device->oclass[NVDEV_ENGINE_PERFMON] = &nve0_perfmon_oclass;
@@ -155,7 +156,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_COPY0  ] = &nve0_copy0_oclass;
 		device->oclass[NVDEV_ENGINE_COPY1  ] = &nve0_copy1_oclass;
 		device->oclass[NVDEV_ENGINE_COPY2  ] = &nve0_copy2_oclass;
-		device->oclass[NVDEV_ENGINE_BSP    ] = &nve0_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nve0_msvld_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nve0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
 		device->oclass[NVDEV_ENGINE_PERFMON] = &nve0_perfmon_oclass;
@@ -211,7 +212,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_COPY0  ] = &nve0_copy0_oclass;
 		device->oclass[NVDEV_ENGINE_COPY1  ] = &nve0_copy1_oclass;
 		device->oclass[NVDEV_ENGINE_COPY2  ] = &nve0_copy2_oclass;
-		device->oclass[NVDEV_ENGINE_BSP    ] = &nve0_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nve0_msvld_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nve0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
 		device->oclass[NVDEV_ENGINE_PERFMON] = &nvf0_perfmon_oclass;
@@ -245,7 +246,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_COPY0  ] = &nve0_copy0_oclass;
 		device->oclass[NVDEV_ENGINE_COPY1  ] = &nve0_copy1_oclass;
 		device->oclass[NVDEV_ENGINE_COPY2  ] = &nve0_copy2_oclass;
-		device->oclass[NVDEV_ENGINE_BSP    ] = &nve0_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nve0_msvld_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nve0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
 		device->oclass[NVDEV_ENGINE_PERFMON] = &nvf0_perfmon_oclass;
@@ -279,7 +280,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_COPY0  ] = &nve0_copy0_oclass;
 		device->oclass[NVDEV_ENGINE_COPY1  ] = &nve0_copy1_oclass;
 		device->oclass[NVDEV_ENGINE_COPY2  ] = &nve0_copy2_oclass;
-		device->oclass[NVDEV_ENGINE_BSP    ] = &nve0_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nve0_msvld_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nve0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
 		break;
@@ -312,7 +313,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_COPY0  ] = &nve0_copy0_oclass;
 		device->oclass[NVDEV_ENGINE_COPY1  ] = &nve0_copy1_oclass;
 		device->oclass[NVDEV_ENGINE_COPY2  ] = &nve0_copy2_oclass;
-		device->oclass[NVDEV_ENGINE_BSP    ] = &nve0_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nve0_msvld_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nve0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
 		break;

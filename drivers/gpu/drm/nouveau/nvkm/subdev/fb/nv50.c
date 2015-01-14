@@ -189,6 +189,9 @@ nv50_fb_intr(struct nouveau_subdev *subdev)
 		const struct nouveau_enum *orig_en = en;
 		while (en->name && en->value == st0 && en->data2) {
 			engine = nouveau_engine(subdev, en->data2);
+			/*XXX: clean this up */
+			if (!engine && en->data2 == NVDEV_ENGINE_BSP)
+				engine = nouveau_engine(subdev, NVDEV_ENGINE_MSVLD);
 			if (engine) {
 				engctx = nouveau_engctx_get(engine, chan);
 				if (engctx)
