@@ -129,6 +129,9 @@ struct hw_perf_event {
 			struct list_head	cqm_groups_entry;
 			struct list_head	cqm_group_entry;
 		};
+		struct { /* itrace */
+			int			itrace_started;
+		};
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 		struct { /* breakpoint */
 			/*
@@ -177,6 +180,7 @@ struct perf_event;
 #define PERF_PMU_CAP_AUX_NO_SG			0x04
 #define PERF_PMU_CAP_AUX_SW_DOUBLEBUF		0x08
 #define PERF_PMU_CAP_EXCLUSIVE			0x10
+#define PERF_PMU_CAP_ITRACE			0x20
 
 /**
  * struct pmu - generic performance monitoring unit
