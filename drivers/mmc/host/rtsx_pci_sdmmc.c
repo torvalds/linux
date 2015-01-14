@@ -100,6 +100,11 @@ static void sd_print_debug_regs(struct realtek_pci_sdmmc *host)
 #define sd_print_debug_regs(host)
 #endif /* DEBUG */
 
+static inline int sd_get_cd_int(struct realtek_pci_sdmmc *host)
+{
+	return rtsx_pci_readl(host->pcr, RTSX_BIPR) & SD_EXIST;
+}
+
 static void sd_cmd_set_sd_cmd(struct rtsx_pcr *pcr, struct mmc_command *cmd)
 {
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SD_CMD0, 0xFF,
@@ -798,7 +803,7 @@ static void sd_request(struct work_struct *work)
 	unsigned int data_size = 0;
 	int err;
 
-	if (host->eject) {
+	if (host->eject || !sd_get_cd_int(host)) {
 		cmd->error = -ENOMEDIUM;
 		goto finish;
 	}
@@ -1116,7 +1121,7 @@ static int sdmmc_get_cd(struct mmc_host *mmc)
 	u32 val;
 
 	if (host->eject)
-		return -ENOMEDIUM;
+		return cd;
 
 	mutex_lock(&pcr->pcr_mutex);
 
