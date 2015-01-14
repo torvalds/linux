@@ -21,28 +21,25 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <core/client.h>
-#include <core/device.h>
-#include <core/gpuobj.h>
-#include <nvif/unpack.h>
-#include <nvif/class.h>
-
-#include <subdev/fb.h>
-
 #include "priv.h"
 
-struct nvd0_dmaobj_priv {
-	struct nouveau_dmaobj base;
+#include <core/client.h>
+#include <core/gpuobj.h>
+#include <subdev/fb.h>
+
+#include <nvif/class.h>
+#include <nvif/unpack.h>
+
+struct gf110_dmaobj_priv {
+	struct nvkm_dmaobj base;
 	u32 flags0;
 };
 
 static int
-nvd0_dmaobj_bind(struct nouveau_dmaobj *dmaobj,
-		 struct nouveau_object *parent,
-		 struct nouveau_gpuobj **pgpuobj)
+gf110_dmaobj_bind(struct nvkm_dmaobj *dmaobj, struct nvkm_object *parent,
+		  struct nvkm_gpuobj **pgpuobj)
 {
-	struct nvd0_dmaobj_priv *priv = (void *)dmaobj;
+	struct gf110_dmaobj_priv *priv = (void *)dmaobj;
 	int ret;
 
 	if (!nv_iclass(parent, NV_ENGCTX_CLASS)) {
@@ -64,7 +61,7 @@ nvd0_dmaobj_bind(struct nouveau_dmaobj *dmaobj,
 	} else
 		return 0;
 
-	ret = nouveau_gpuobj_new(parent, parent, 24, 32, 0, pgpuobj);
+	ret = nvkm_gpuobj_new(parent, parent, 24, 32, 0, pgpuobj);
 	if (ret == 0) {
 		nv_wo32(*pgpuobj, 0x00, priv->flags0);
 		nv_wo32(*pgpuobj, 0x04, priv->base.start >> 8);
@@ -78,15 +75,15 @@ nvd0_dmaobj_bind(struct nouveau_dmaobj *dmaobj,
 }
 
 static int
-nvd0_dmaobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		 struct nouveau_oclass *oclass, void *data, u32 size,
-		 struct nouveau_object **pobject)
+gf110_dmaobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		  struct nvkm_oclass *oclass, void *data, u32 size,
+		  struct nvkm_object **pobject)
 {
-	struct nouveau_dmaeng *dmaeng = (void *)engine;
+	struct nvkm_dmaeng *dmaeng = (void *)engine;
 	union {
 		struct gf110_dma_v0 v0;
 	} *args;
-	struct nvd0_dmaobj_priv *priv;
+	struct gf110_dmaobj_priv *priv;
 	u32 kind, page;
 	int ret;
 
@@ -138,31 +135,31 @@ nvd0_dmaobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return dmaeng->bind(&priv->base, nv_object(priv), (void *)pobject);
 }
 
-static struct nouveau_ofuncs
-nvd0_dmaobj_ofuncs = {
-	.ctor =  nvd0_dmaobj_ctor,
+static struct nvkm_ofuncs
+gf110_dmaobj_ofuncs = {
+	.ctor =  gf110_dmaobj_ctor,
 	.dtor = _nvkm_dmaobj_dtor,
 	.init = _nvkm_dmaobj_init,
 	.fini = _nvkm_dmaobj_fini,
 };
 
-static struct nouveau_oclass
-nvd0_dmaeng_sclass[] = {
-	{ NV_DMA_FROM_MEMORY, &nvd0_dmaobj_ofuncs },
-	{ NV_DMA_TO_MEMORY, &nvd0_dmaobj_ofuncs },
-	{ NV_DMA_IN_MEMORY, &nvd0_dmaobj_ofuncs },
+static struct nvkm_oclass
+gf110_dmaeng_sclass[] = {
+	{ NV_DMA_FROM_MEMORY, &gf110_dmaobj_ofuncs },
+	{ NV_DMA_TO_MEMORY, &gf110_dmaobj_ofuncs },
+	{ NV_DMA_IN_MEMORY, &gf110_dmaobj_ofuncs },
 	{}
 };
 
-struct nouveau_oclass *
-nvd0_dmaeng_oclass = &(struct nvkm_dmaeng_impl) {
+struct nvkm_oclass *
+gf110_dmaeng_oclass = &(struct nvkm_dmaeng_impl) {
 	.base.handle = NV_ENGINE(DMAOBJ, 0xd0),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = _nvkm_dmaeng_ctor,
 		.dtor = _nvkm_dmaeng_dtor,
 		.init = _nvkm_dmaeng_init,
 		.fini = _nvkm_dmaeng_fini,
 	},
-	.sclass = nvd0_dmaeng_sclass,
-	.bind = nvd0_dmaobj_bind,
+	.sclass = gf110_dmaeng_sclass,
+	.bind = gf110_dmaobj_bind,
 }.base;

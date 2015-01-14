@@ -21,21 +21,19 @@
  *
  * Authors: Ben Skeggs
  */
+#include "priv.h"
 
-#include <core/object.h>
 #include <core/client.h>
 #include <core/device.h>
-#include <nvif/unpack.h>
-#include <nvif/class.h>
-
 #include <subdev/fb.h>
 #include <subdev/instmem.h>
 
-#include "priv.h"
+#include <nvif/class.h>
+#include <nvif/unpack.h>
 
 static int
-nvkm_dmaobj_bind(struct nouveau_dmaobj *dmaobj, struct nouveau_object *parent,
-		 struct nouveau_gpuobj **pgpuobj)
+nvkm_dmaobj_bind(struct nvkm_dmaobj *dmaobj, struct nvkm_object *parent,
+		 struct nvkm_gpuobj **pgpuobj)
 {
 	const struct nvkm_dmaeng_impl *impl = (void *)
 		nv_oclass(nv_object(dmaobj)->engine);
@@ -48,7 +46,7 @@ nvkm_dmaobj_bind(struct nouveau_dmaobj *dmaobj, struct nouveau_object *parent,
 		}
 		ret = impl->bind(dmaobj, parent, pgpuobj);
 		if (ret == 0)
-			nouveau_object_ref(NULL, &parent);
+			nvkm_object_ref(NULL, &parent);
 		return ret;
 	}
 
@@ -56,24 +54,24 @@ nvkm_dmaobj_bind(struct nouveau_dmaobj *dmaobj, struct nouveau_object *parent,
 }
 
 int
-nvkm_dmaobj_create_(struct nouveau_object *parent,
-		    struct nouveau_object *engine,
-		    struct nouveau_oclass *oclass, void **pdata, u32 *psize,
+nvkm_dmaobj_create_(struct nvkm_object *parent,
+		    struct nvkm_object *engine,
+		    struct nvkm_oclass *oclass, void **pdata, u32 *psize,
 		    int length, void **pobject)
 {
 	union {
 		struct nv_dma_v0 v0;
 	} *args = *pdata;
-	struct nouveau_instmem *instmem = nouveau_instmem(parent);
-	struct nouveau_client *client = nouveau_client(parent);
-	struct nouveau_device *device = nv_device(parent);
-	struct nouveau_fb *pfb = nouveau_fb(parent);
-	struct nouveau_dmaobj *dmaobj;
+	struct nvkm_instmem *instmem = nvkm_instmem(parent);
+	struct nvkm_client *client = nvkm_client(parent);
+	struct nvkm_device *device = nv_device(parent);
+	struct nvkm_fb *pfb = nvkm_fb(parent);
+	struct nvkm_dmaobj *dmaobj;
 	void *data = *pdata;
 	u32 size = *psize;
 	int ret;
 
-	ret = nouveau_object_create_(parent, engine, oclass, 0, length, pobject);
+	ret = nvkm_object_create_(parent, engine, oclass, 0, length, pobject);
 	dmaobj = *pobject;
 	if (ret)
 		return ret;
@@ -146,16 +144,16 @@ nvkm_dmaobj_create_(struct nouveau_object *parent,
 }
 
 int
-_nvkm_dmaeng_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		  struct nouveau_oclass *oclass, void *data, u32 size,
-		  struct nouveau_object **pobject)
+_nvkm_dmaeng_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		  struct nvkm_oclass *oclass, void *data, u32 size,
+		  struct nvkm_object **pobject)
 {
 	const struct nvkm_dmaeng_impl *impl = (void *)oclass;
-	struct nouveau_dmaeng *dmaeng;
+	struct nvkm_dmaeng *dmaeng;
 	int ret;
 
-	ret = nouveau_engine_create(parent, engine, oclass, true, "DMAOBJ",
-				    "dmaobj", &dmaeng);
+	ret = nvkm_engine_create(parent, engine, oclass, true, "DMAOBJ",
+				 "dmaobj", &dmaeng);
 	*pobject = nv_object(dmaeng);
 	if (ret)
 		return ret;

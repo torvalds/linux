@@ -21,29 +21,27 @@
  *
  * Authors: Ben Skeggs
  */
+#include "priv.h"
 
 #include <core/gpuobj.h>
-#include <nvif/class.h>
-
 #include <subdev/fb.h>
 #include <subdev/mmu/nv04.h>
 
-#include "priv.h"
+#include <nvif/class.h>
 
 struct nv04_dmaobj_priv {
-	struct nouveau_dmaobj base;
+	struct nvkm_dmaobj base;
 	bool clone;
 	u32 flags0;
 	u32 flags2;
 };
 
 static int
-nv04_dmaobj_bind(struct nouveau_dmaobj *dmaobj,
-		 struct nouveau_object *parent,
-		 struct nouveau_gpuobj **pgpuobj)
+nv04_dmaobj_bind(struct nvkm_dmaobj *dmaobj, struct nvkm_object *parent,
+		 struct nvkm_gpuobj **pgpuobj)
 {
 	struct nv04_dmaobj_priv *priv = (void *)dmaobj;
-	struct nouveau_gpuobj *gpuobj;
+	struct nvkm_gpuobj *gpuobj;
 	u64 offset = priv->base.start & 0xfffff000;
 	u64 adjust = priv->base.start & 0x00000fff;
 	u32 length = priv->base.limit - priv->base.start;
@@ -63,14 +61,14 @@ nv04_dmaobj_bind(struct nouveau_dmaobj *dmaobj,
 
 	if (priv->clone) {
 		struct nv04_mmu_priv *mmu = nv04_mmu(dmaobj);
-		struct nouveau_gpuobj *pgt = mmu->vm->pgt[0].obj[0];
+		struct nvkm_gpuobj *pgt = mmu->vm->pgt[0].obj[0];
 		if (!dmaobj->start)
-			return nouveau_gpuobj_dup(parent, pgt, pgpuobj);
+			return nvkm_gpuobj_dup(parent, pgt, pgpuobj);
 		offset  = nv_ro32(pgt, 8 + (offset >> 10));
 		offset &= 0xfffff000;
 	}
 
-	ret = nouveau_gpuobj_new(parent, parent, 16, 16, 0, &gpuobj);
+	ret = nvkm_gpuobj_new(parent, parent, 16, 16, 0, &gpuobj);
 	*pgpuobj = gpuobj;
 	if (ret == 0) {
 		nv_wo32(*pgpuobj, 0x00, priv->flags0 | (adjust << 20));
@@ -83,11 +81,11 @@ nv04_dmaobj_bind(struct nouveau_dmaobj *dmaobj,
 }
 
 static int
-nv04_dmaobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		 struct nouveau_oclass *oclass, void *data, u32 size,
-		 struct nouveau_object **pobject)
+nv04_dmaobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		 struct nvkm_oclass *oclass, void *data, u32 size,
+		 struct nvkm_object **pobject)
 {
-	struct nouveau_dmaeng *dmaeng = (void *)engine;
+	struct nvkm_dmaeng *dmaeng = (void *)engine;
 	struct nv04_mmu_priv *mmu = nv04_mmu(engine);
 	struct nv04_dmaobj_priv *priv;
 	int ret;
@@ -135,7 +133,7 @@ nv04_dmaobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return dmaeng->bind(&priv->base, nv_object(priv), (void *)pobject);
 }
 
-static struct nouveau_ofuncs
+static struct nvkm_ofuncs
 nv04_dmaobj_ofuncs = {
 	.ctor =  nv04_dmaobj_ctor,
 	.dtor = _nvkm_dmaobj_dtor,
@@ -143,7 +141,7 @@ nv04_dmaobj_ofuncs = {
 	.fini = _nvkm_dmaobj_fini,
 };
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 nv04_dmaeng_sclass[] = {
 	{ NV_DMA_FROM_MEMORY, &nv04_dmaobj_ofuncs },
 	{ NV_DMA_TO_MEMORY, &nv04_dmaobj_ofuncs },
@@ -151,10 +149,10 @@ nv04_dmaeng_sclass[] = {
 	{}
 };
 
-struct nouveau_oclass *
+struct nvkm_oclass *
 nv04_dmaeng_oclass = &(struct nvkm_dmaeng_impl) {
 	.base.handle = NV_ENGINE(DMAOBJ, 0x04),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = _nvkm_dmaeng_ctor,
 		.dtor = _nvkm_dmaeng_dtor,
 		.init = _nvkm_dmaeng_init,

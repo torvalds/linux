@@ -21,26 +21,24 @@
  *
  * Authors: Ben Skeggs
  */
+#include "priv.h"
 
 #include <core/client.h>
 #include <core/gpuobj.h>
-#include <nvif/unpack.h>
-#include <nvif/class.h>
-
 #include <subdev/fb.h>
 
-#include "priv.h"
+#include <nvif/class.h>
+#include <nvif/unpack.h>
 
 struct nv50_dmaobj_priv {
-	struct nouveau_dmaobj base;
+	struct nvkm_dmaobj base;
 	u32 flags0;
 	u32 flags5;
 };
 
 static int
-nv50_dmaobj_bind(struct nouveau_dmaobj *dmaobj,
-		 struct nouveau_object *parent,
-		 struct nouveau_gpuobj **pgpuobj)
+nv50_dmaobj_bind(struct nvkm_dmaobj *dmaobj, struct nvkm_object *parent,
+		 struct nvkm_gpuobj **pgpuobj)
 {
 	struct nv50_dmaobj_priv *priv = (void *)dmaobj;
 	int ret;
@@ -69,7 +67,7 @@ nv50_dmaobj_bind(struct nouveau_dmaobj *dmaobj,
 		}
 	}
 
-	ret = nouveau_gpuobj_new(parent, parent, 24, 32, 0, pgpuobj);
+	ret = nvkm_gpuobj_new(parent, parent, 24, 32, 0, pgpuobj);
 	if (ret == 0) {
 		nv_wo32(*pgpuobj, 0x00, priv->flags0 | nv_mclass(dmaobj));
 		nv_wo32(*pgpuobj, 0x04, lower_32_bits(priv->base.limit));
@@ -84,11 +82,11 @@ nv50_dmaobj_bind(struct nouveau_dmaobj *dmaobj,
 }
 
 static int
-nv50_dmaobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		 struct nouveau_oclass *oclass, void *data, u32 size,
-		 struct nouveau_object **pobject)
+nv50_dmaobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		 struct nvkm_oclass *oclass, void *data, u32 size,
+		 struct nvkm_object **pobject)
 {
-	struct nouveau_dmaeng *dmaeng = (void *)engine;
+	struct nvkm_dmaeng *dmaeng = (void *)engine;
 	union {
 		struct nv50_dma_v0 v0;
 	} *args;
@@ -167,7 +165,7 @@ nv50_dmaobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return dmaeng->bind(&priv->base, nv_object(priv), (void *)pobject);
 }
 
-static struct nouveau_ofuncs
+static struct nvkm_ofuncs
 nv50_dmaobj_ofuncs = {
 	.ctor =  nv50_dmaobj_ctor,
 	.dtor = _nvkm_dmaobj_dtor,
@@ -175,7 +173,7 @@ nv50_dmaobj_ofuncs = {
 	.fini = _nvkm_dmaobj_fini,
 };
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 nv50_dmaeng_sclass[] = {
 	{ NV_DMA_FROM_MEMORY, &nv50_dmaobj_ofuncs },
 	{ NV_DMA_TO_MEMORY, &nv50_dmaobj_ofuncs },
@@ -183,10 +181,10 @@ nv50_dmaeng_sclass[] = {
 	{}
 };
 
-struct nouveau_oclass *
+struct nvkm_oclass *
 nv50_dmaeng_oclass = &(struct nvkm_dmaeng_impl) {
 	.base.handle = NV_ENGINE(DMAOBJ, 0x50),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = _nvkm_dmaeng_ctor,
 		.dtor = _nvkm_dmaeng_dtor,
 		.init = _nvkm_dmaeng_init,

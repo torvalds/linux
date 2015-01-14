@@ -83,7 +83,7 @@ gm100_identify(struct nouveau_device *device)
 #if 0
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 #endif
-		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nvd0_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv108_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nvc0_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] =  gm107_gr_oclass;
@@ -126,7 +126,7 @@ gm100_identify(struct nouveau_device *device)
 #if 0
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 #endif
-		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nvd0_dmaeng_oclass;
+		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
 #if 0
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv108_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nvc0_sw_oclass;
