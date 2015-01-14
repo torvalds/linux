@@ -62,14 +62,13 @@ TRIG_WAKE_EOS
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
-#include "../comedidev.h"
-
 #include <linux/io.h>
 
-#include <asm/dma.h>
+#include "../comedidev.h"
 
-#include "8253.h"
+#include "comedi_isadma.h"
 #include "comedi_fc.h"
+#include "8253.h"
 
 #define A2150_DMA_BUFFER_SIZE	0xff00	/*  size in bytes of dma buffer */
 
@@ -145,85 +144,42 @@ static const struct a2150_board a2150_boards[] = {
 	 },
 };
 
-struct a2150_dma_desc {
-	unsigned int chan;	/* DMA channel */
-	void *virt_addr;	/* virtual address of DMA buffer */
-	dma_addr_t hw_addr;	/* hardware (bus) address of DMA buffer */
-	unsigned int size;	/* size of DMA transfer (in bytes) */
-};
-
 struct a2150_private {
-	struct a2150_dma_desc dma_desc;
+	struct comedi_isadma *dma;
 	unsigned int count;	/* number of data points left to be taken */
 	int irq_dma_bits;	/*  irq/dma register bits */
 	int config_bits;	/*  config register bits */
 };
 
-static void a2150_isadma_program(struct a2150_dma_desc *dma)
-{
-	unsigned long flags;
-
-	flags = claim_dma_lock();
-	clear_dma_ff(dma->chan);
-	set_dma_mode(dma->chan, DMA_MODE_READ);
-	set_dma_addr(dma->chan, dma->hw_addr);
-	set_dma_count(dma->chan, dma->size);
-	enable_dma(dma->chan);
-	release_dma_lock(flags);
-}
-
-static unsigned int a2150_isadma_disable(struct a2150_dma_desc *dma)
-{
-	unsigned long flags;
-	unsigned int residue;
-
-	flags = claim_dma_lock();
-	disable_dma(dma->chan);
-	residue = get_dma_residue(dma->chan);
-	release_dma_lock(flags);
-
-	return residue;
-}
-
 /* interrupt service routine */
 static irqreturn_t a2150_interrupt(int irq, void *d)
 {
-	int i;
-	int status;
 	struct comedi_device *dev = d;
 	struct a2150_private *devpriv = dev->private;
-	struct a2150_dma_desc *dma = &devpriv->dma_desc;
+	struct comedi_isadma *dma = devpriv->dma;
+	struct comedi_isadma_desc *desc = &dma->desc[0];
 	struct comedi_subdevice *s = dev->read_subdev;
-	struct comedi_async *async;
-	struct comedi_cmd *cmd;
-	unsigned short *buf = dma->virt_addr;
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
+	unsigned short *buf = desc->virt_addr;
 	unsigned int max_points, num_points, residue, leftover;
 	unsigned short dpnt;
+	int status;
+	int i;
 
-	if (!dev->attached) {
-		dev_err(dev->class_dev, "premature interrupt\n");
+	if (!dev->attached)
 		return IRQ_HANDLED;
-	}
-	/*  initialize async here to make sure s is not NULL */
-	async = s->async;
-	cmd = &async->cmd;
 
 	status = inw(dev->iobase + STATUS_REG);
-
-	if ((status & INTR_BIT) == 0) {
-		dev_err(dev->class_dev, "spurious interrupt\n");
+	if ((status & INTR_BIT) == 0)
 		return IRQ_NONE;
-	}
 
 	if (status & OVFL_BIT) {
-		dev_err(dev->class_dev, "fifo overflow\n");
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		comedi_handle_events(dev, s);
 	}
 
 	if ((status & DMA_TC_BIT) == 0) {
-		dev_err(dev->class_dev,
-			"caught non-dma interrupt?  Aborting.\n");
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 		comedi_handle_events(dev, s);
 		return IRQ_HANDLED;
@@ -234,10 +190,10 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	 * transfer.  It should always be zero at this point unless
 	 * the stop_src is set to external triggering.
 	 */
-	residue = a2150_isadma_disable(dma);
+	residue = comedi_isadma_disable(desc->chan);
 
 	/*  figure out how many points to read */
-	max_points = comedi_bytes_to_samples(s, dma->size);
+	max_points = comedi_bytes_to_samples(s, desc->size);
 	num_points = max_points - comedi_bytes_to_samples(s, residue);
 	if (devpriv->count < num_points && cmd->stop_src == TRIG_COUNT)
 		num_points = devpriv->count;
@@ -245,7 +201,7 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	/*  figure out how many points will be stored next time */
 	leftover = 0;
 	if (cmd->stop_src == TRIG_NONE) {
-		leftover = comedi_bytes_to_samples(s, dma->size);
+		leftover = comedi_bytes_to_samples(s, desc->size);
 	} else if (devpriv->count > max_points) {
 		leftover = devpriv->count - max_points;
 		if (leftover > max_points)
@@ -273,8 +229,8 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	}
 	/* re-enable dma */
 	if (leftover) {
-		dma->size = comedi_samples_to_bytes(s, leftover);
-		a2150_isadma_program(dma);
+		desc->size = comedi_samples_to_bytes(s, leftover);
+		comedi_isadma_program(desc);
 	}
 
 	comedi_handle_events(dev, s);
@@ -288,14 +244,15 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 static int a2150_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct a2150_private *devpriv = dev->private;
-	struct a2150_dma_desc *dma = &devpriv->dma_desc;
+	struct comedi_isadma *dma = devpriv->dma;
+	struct comedi_isadma_desc *desc = &dma->desc[0];
 
 	/*  disable dma on card */
 	devpriv->irq_dma_bits &= ~DMA_INTR_EN_BIT & ~DMA_EN_BIT;
 	outw(devpriv->irq_dma_bits, dev->iobase + IRQ_DMA_CNTRL_REG);
 
 	/*  disable computer's dma */
-	a2150_isadma_disable(dma);
+	comedi_isadma_disable(desc->chan);
 
 	/*  clear fifo and reset triggering circuitry */
 	outw(0, dev->iobase + FIFO_RESET_REG);
@@ -527,7 +484,8 @@ static int a2150_ai_cmdtest(struct comedi_device *dev,
 static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct a2150_private *devpriv = dev->private;
-	struct a2150_dma_desc *dma = &devpriv->dma_desc;
+	struct comedi_isadma *dma = devpriv->dma;
+	struct comedi_isadma_desc *desc = &dma->desc[0];
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned long timer_base = dev->iobase + I8253_BASE_REG;
@@ -566,19 +524,19 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/*  initialize number of samples remaining */
 	devpriv->count = cmd->stop_arg * cmd->chanlist_len;
 
-	a2150_isadma_disable(dma);
+	comedi_isadma_disable(desc->chan);
 
 	/*  set size of transfer to fill in 1/3 second */
 #define ONE_THIRD_SECOND 333333333
-	dma->size = comedi_bytes_per_sample(s) * cmd->chanlist_len *
+	desc->size = comedi_bytes_per_sample(s) * cmd->chanlist_len *
 		    ONE_THIRD_SECOND / cmd->scan_begin_arg;
-	if (dma->size > A2150_DMA_BUFFER_SIZE)
-		dma->size = A2150_DMA_BUFFER_SIZE;
-	if (dma->size < comedi_bytes_per_sample(s))
-		dma->size = comedi_bytes_per_sample(s);
-	dma->size -= dma->size % comedi_bytes_per_sample(s);
+	if (desc->size > desc->maxsize)
+		desc->size = desc->maxsize;
+	if (desc->size < comedi_bytes_per_sample(s))
+		desc->size = comedi_bytes_per_sample(s);
+	desc->size -= desc->size % comedi_bytes_per_sample(s);
 
-	a2150_isadma_program(dma);
+	comedi_isadma_program(desc);
 
 	/* clear dma interrupt before enabling it, to try and get rid of that
 	 * one spurious interrupt that has been happening */
@@ -693,64 +651,43 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return n;
 }
 
-static void a2150_alloc_irq_dma(struct comedi_device *dev,
-				struct comedi_devconfig *it)
+static void a2150_alloc_irq_and_dma(struct comedi_device *dev,
+				    struct comedi_devconfig *it)
 {
 	struct a2150_private *devpriv = dev->private;
-	struct a2150_dma_desc *dma = &devpriv->dma_desc;
 	unsigned int irq_num = it->options[1];
 	unsigned int dma_chan = it->options[2];
 
 	/*
 	 * Only IRQs 15, 14, 12-9, and 7-3 are valid.
 	 * Only DMA channels 7-5 and 3-0 are valid.
-	 *
-	 * Both must be valid for async command support.
 	 */
 	if (irq_num > 15 || dma_chan > 7 ||
 	    !((1 << irq_num) & 0xdef8) || !((1 << dma_chan) & 0xef))
 		return;
 
-	/*
-	 * Request the IRQ and DMA channels and allocate the DMA buffer.
-	 * If the requests or allocation fail async command supprt will
-	 * not be available.
-	 */
 	if (request_irq(irq_num, a2150_interrupt, 0, dev->board_name, dev))
 		return;
-	if (request_dma(dma_chan, dev->board_name)) {
-		free_irq(irq_num, dev);
-		return;
-	}
-	dma->virt_addr = dma_alloc_coherent(NULL, A2150_DMA_BUFFER_SIZE,
-					    &dma->hw_addr, GFP_KERNEL);
-	if (!dma->virt_addr) {
-		free_dma(dma_chan);
-		free_irq(irq_num, dev);
-		return;
-	}
 
-	dev->irq = irq_num;
-	dma->chan = dma_chan;
-	devpriv->irq_dma_bits = IRQ_LVL_BITS(irq_num) | DMA_CHAN_BITS(dma_chan);
-
-	a2150_isadma_disable(dma);
+	/* DMA uses 1 buffer */
+	devpriv->dma = comedi_isadma_alloc(dev, 1, dma_chan, dma_chan,
+					   A2150_DMA_BUFFER_SIZE,
+					   COMEDI_ISADMA_READ);
+	if (!devpriv->dma) {
+		free_irq(irq_num, dev);
+	} else {
+		dev->irq = irq_num;
+		devpriv->irq_dma_bits = IRQ_LVL_BITS(irq_num) |
+					DMA_CHAN_BITS(dma_chan);
+	}
 }
 
 static void a2150_free_dma(struct comedi_device *dev)
 {
 	struct a2150_private *devpriv = dev->private;
-	struct a2150_dma_desc *dma;
 
-	if (!devpriv)
-		return;
-
-	dma = &devpriv->dma_desc;
-	if (dma->chan)
-		free_dma(dma->chan);
-	if (dma->virt_addr)
-		dma_free_coherent(NULL, A2150_DMA_BUFFER_SIZE,
-				  dma->virt_addr, dma->hw_addr);
+	if (devpriv)
+		comedi_isadma_free(devpriv->dma);
 }
 
 /* probes board type, returns offset */
@@ -786,7 +723,8 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	thisboard = dev->board_ptr;
 	dev->board_name = thisboard->name;
 
-	a2150_alloc_irq_dma(dev, it);
+	/* an IRQ and DMA are required to support async commands */
+	a2150_alloc_irq_and_dma(dev, it);
 
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)
