@@ -32,7 +32,9 @@
  * - trigger (input)
  *     A level change indicates the shut-down trigger. If it's state reverts
  *     within the time-out defined by trigger_delay, the shut down is not
- *     executed.
+ *     executed. If no pin is assigned to this input, the driver will start the
+ *     watchdog toggle immediately. The chip will only power off the system if
+ *     it is requested to do so through the kill line.
  *
  * - watchdog (output)
  *     Once a shut down is triggered, the driver will toggle this signal,
@@ -116,15 +118,10 @@ static enum hrtimer_restart ltc2952_poweroff_timer_wde(struct hrtimer *timer)
 	return HRTIMER_RESTART;
 }
 
-static enum hrtimer_restart
-ltc2952_poweroff_timer_trigger(struct hrtimer *timer)
+static void ltc2952_poweroff_start_wde(struct ltc2952_poweroff *data)
 {
-	struct ltc2952_poweroff *data = to_ltc2952(timer, timer_trigger);
-	int ret = hrtimer_start(&data->timer_wde,
-				data->wde_interval, HRTIMER_MODE_REL);
-
-	if (ret) {
-		dev_err(data->dev, "unable to start the timer\n");
+	if (hrtimer_start(&data->timer_wde, data->wde_interval,
+			  HRTIMER_MODE_REL)) {
 		/*
 		 * The device will not toggle the watchdog reset,
 		 * thus shut down is only safe if the PowerPath controller
@@ -133,10 +130,17 @@ ltc2952_poweroff_timer_trigger(struct hrtimer *timer)
 		 *
 		 * Only sending a warning as the system will power-off anyway
 		 */
+		dev_err(data->dev, "unable to start the timer\n");
 	}
+}
 
+static enum hrtimer_restart
+ltc2952_poweroff_timer_trigger(struct hrtimer *timer)
+{
+	struct ltc2952_poweroff *data = to_ltc2952(timer, timer_trigger);
+
+	ltc2952_poweroff_start_wde(data);
 	dev_info(data->dev, "executing shutdown\n");
-
 	orderly_poweroff(true);
 
 	return HRTIMER_NORESTART;
@@ -190,7 +194,7 @@ static void ltc2952_poweroff_default(struct ltc2952_poweroff *data)
 
 static int ltc2952_poweroff_init(struct platform_device *pdev)
 {
-	int ret, virq;
+	int ret;
 	struct ltc2952_poweroff *data = platform_get_drvdata(pdev);
 
 	ltc2952_poweroff_default(data);
@@ -210,29 +214,48 @@ static int ltc2952_poweroff_init(struct platform_device *pdev)
 		return ret;
 	}
 
-	data->gpio_trigger = devm_gpiod_get(&pdev->dev, "trigger",
-					    GPIOD_IN);
-	if (IS_ERR(ltc2952_data->gpio_trigger)) {
-		ret = PTR_ERR(ltc2952_data->gpio_trigger);
-		dev_err(&pdev->dev, "unable to claim gpio \"trigger\"\n");
-		return ret;
+	data->gpio_trigger = devm_gpiod_get(&pdev->dev, "trigger", GPIOD_IN);
+	if (IS_ERR(data->gpio_trigger)) {
+		/*
+		 * It's not a problem if the trigger gpio isn't available, but
+		 * it is worth a warning if its use was defined in the device
+		 * tree.
+		 */
+		if (PTR_ERR(data->gpio_trigger) != -ENOENT)
+			dev_err(&pdev->dev,
+				"unable to claim gpio \"trigger\"\n");
+		data->gpio_trigger = NULL;
 	}
 
-	virq = gpiod_to_irq(data->gpio_trigger);
-	if (virq < 0) {
-		dev_err(&pdev->dev, "cannot map GPIO as interrupt");
-		return ret;
-	}
-
-	ret = devm_request_irq(&pdev->dev, virq,
-			       ltc2952_poweroff_handler,
-			       (IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING),
-			       "ltc2952-poweroff",
-			       data);
-
-	if (ret) {
-		dev_err(&pdev->dev, "cannot configure an interrupt handler\n");
-		return ret;
+	if (devm_request_irq(&pdev->dev, gpiod_to_irq(data->gpio_trigger),
+			     ltc2952_poweroff_handler,
+			     (IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING),
+			     "ltc2952-poweroff",
+			     data)) {
+		/*
+		 * Some things may have happened:
+		 * - No trigger input was defined
+		 * - Claiming the GPIO failed
+		 * - We could not map to an IRQ
+		 * - We couldn't register an interrupt handler
+		 *
+		 * None of these really are problems, but all of them
+		 * disqualify the push button from controlling the power.
+		 *
+		 * It is therefore important to note that if the ltc2952
+		 * detects a button press for long enough, it will still start
+		 * its own powerdown window and cut the power on us if we don't
+		 * start the watchdog trigger.
+		 */
+		if (data->gpio_trigger) {
+			dev_warn(&pdev->dev,
+				 "unable to configure the trigger interrupt\n");
+			devm_gpiod_put(&pdev->dev, data->gpio_trigger);
+			data->gpio_trigger = NULL;
+		}
+		dev_info(&pdev->dev,
+			 "power down trigger input will not be used\n");
+		ltc2952_poweroff_start_wde(data);
 	}
 
 	return 0;
