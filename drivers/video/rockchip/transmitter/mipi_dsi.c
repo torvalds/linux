@@ -28,7 +28,7 @@
 #else
 #include <linux/module.h>
 #include <linux/init.h>
-#include <asm/system.h>
+/* #include <asm/system.h> */
 #include <linux/fb.h>
 #include <linux/delay.h>
 #include <linux/rk_fb.h>
@@ -94,6 +94,7 @@ EXPORT_SYMBOL(del_dsi_ops);
 int dsi_probe_current_chip(unsigned int id) {
 	int ret = 0;
 	struct mipi_dsi_ops *ops = NULL;
+	u32 id_dummy;
 
 	if(id > (MAX_DSI_CHIPS - 1))
 		return -EINVAL;
@@ -103,7 +104,15 @@ int dsi_probe_current_chip(unsigned int id) {
 		return -EINVAL;
 
 	id = ops->get_id(ops->dsi);
-	if(id == ops->id) {
+	/* The rk3288 and rk3368 have the same physical dsi id 0x3133302A
+	 * (because of same mipi controller).
+	 * But the mipi phy is different.
+	 * In order to distinguish from the rk3288, I define the rk3368's dsi
+	 * id as 0x3133302B. I mask the 0-bit here for passing the physical
+	 * dsi id test.
+	 */
+	id_dummy = ops->id & ~0x1;
+	if (id == id_dummy) {
 		printk("load mipi dsi chip:%s id:%08x\n", ops->name, ops->id);
 		printk("%s\n", MIPI_DSI_VERSION_AND_TIME);
 	} else {
