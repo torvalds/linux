@@ -42,6 +42,22 @@
 		      <0xf0000100 0x100>;
 	};
 
+	sbsc2: memory-controller@fb400000 {
+		compatible = "renesas,sbsc-sh73a0";
+		reg = <0xfb400000 0x400>;
+		interrupts = <0 37 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 38 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "sec", "temp";
+	};
+
+	sbsc1: memory-controller@fe400000 {
+		compatible = "renesas,sbsc-sh73a0";
+		reg = <0xfe400000 0x400>;
+		interrupts = <0 35 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 36 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "sec", "temp";
+	};
+
 	pmu {
 		compatible = "arm,cortex-a9-pmu";
 		interrupts = <0 55 IRQ_TYPE_LEVEL_HIGH>,
