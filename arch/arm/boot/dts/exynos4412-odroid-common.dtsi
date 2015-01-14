@@ -7,6 +7,7 @@
  * published by the Free Software Foundation.
 */
 
+#include <dt-bindings/sound/samsung-i2s.h>
 #include <dt-bindings/input/input.h>
 #include "exynos4412.dtsi"
 
@@ -37,8 +38,9 @@
 		pinctrl-names = "default";
 		status = "okay";
 		clocks = <&clock_audss EXYNOS_I2S_BUS>,
-			 <&clock_audss EXYNOS_DOUT_AUD_BUS>;
-		clock-names = "iis", "i2s_opclk0";
+			 <&clock_audss EXYNOS_DOUT_AUD_BUS>,
+			 <&clock_audss EXYNOS_SCLK_I2S>;
+		clock-names = "iis", "i2s_opclk0", "i2s_opclk1";
 	};
 
 	sound: sound {
@@ -387,6 +389,8 @@
 			reg = <0x10>;
 			interrupt-parent = <&gpx0>;
 			interrupts = <0 0>;
+			clocks = <&i2s0 CLK_I2S_CDCLK>;
+			clock-names = "mclk";
 		};
 	};
 
