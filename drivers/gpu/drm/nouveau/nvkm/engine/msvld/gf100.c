@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat Inc.
+ * Copyright 2012 Maarten Lankhorst
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,25 +19,22 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Ben Skeggs, Maarten Lankhorst, Ilia Mirkin
+ * Authors: Maarten Lankhorst
  */
-
-#include <engine/falcon.h>
 #include <engine/msvld.h>
+#include <engine/falcon.h>
 
-struct nv98_msvld_priv {
-	struct nouveau_falcon base;
+struct gf100_msvld_priv {
+	struct nvkm_falcon base;
 };
 
 /*******************************************************************************
  * MSVLD object classes
  ******************************************************************************/
 
-static struct nouveau_oclass
-nv98_msvld_sclass[] = {
-	{ 0x88b1, &nouveau_object_ofuncs },
-	{ 0x85b1, &nouveau_object_ofuncs },
-	{ 0x86b1, &nouveau_object_ofuncs },
+static struct nvkm_oclass
+gf100_msvld_sclass[] = {
+	{ 0x90b1, &nvkm_object_ofuncs },
 	{},
 };
 
@@ -45,16 +42,16 @@ nv98_msvld_sclass[] = {
  * PMSVLD context
  ******************************************************************************/
 
-static struct nouveau_oclass
-nv98_msvld_cclass = {
-	.handle = NV_ENGCTX(MSVLD, 0x98),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = _nouveau_falcon_context_ctor,
-		.dtor = _nouveau_falcon_context_dtor,
-		.init = _nouveau_falcon_context_init,
-		.fini = _nouveau_falcon_context_fini,
-		.rd32 = _nouveau_falcon_context_rd32,
-		.wr32 = _nouveau_falcon_context_wr32,
+static struct nvkm_oclass
+gf100_msvld_cclass = {
+	.handle = NV_ENGCTX(MSVLD, 0xc0),
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = _nvkm_falcon_context_ctor,
+		.dtor = _nvkm_falcon_context_dtor,
+		.init = _nvkm_falcon_context_init,
+		.fini = _nvkm_falcon_context_fini,
+		.rd32 = _nvkm_falcon_context_rd32,
+		.wr32 = _nvkm_falcon_context_wr32,
 	},
 };
 
@@ -63,49 +60,50 @@ nv98_msvld_cclass = {
  ******************************************************************************/
 
 static int
-nv98_msvld_init(struct nouveau_object *object)
+gf100_msvld_init(struct nvkm_object *object)
 {
-	struct nv98_msvld_priv *priv = (void *)object;
+	struct gf100_msvld_priv *priv = (void *)object;
 	int ret;
 
-	ret = nouveau_falcon_init(&priv->base);
+	ret = nvkm_falcon_init(&priv->base);
 	if (ret)
 		return ret;
 
-	nv_wr32(priv, 0x084010, 0x0000ffd2);
+	nv_wr32(priv, 0x084010, 0x0000fff2);
 	nv_wr32(priv, 0x08401c, 0x0000fff2);
 	return 0;
 }
 
 static int
-nv98_msvld_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	      struct nouveau_oclass *oclass, void *data, u32 size,
-	      struct nouveau_object **pobject)
+gf100_msvld_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		 struct nvkm_oclass *oclass, void *data, u32 size,
+		 struct nvkm_object **pobject)
 {
-	struct nv98_msvld_priv *priv;
+	struct gf100_msvld_priv *priv;
 	int ret;
 
-	ret = nouveau_falcon_create(parent, engine, oclass, 0x084000, true,
-				    "PMSVLD", "msvld", &priv);
+	ret = nvkm_falcon_create(parent, engine, oclass, 0x084000, true,
+				 "PMSVLD", "msvld", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
-	nv_subdev(priv)->unit = 0x04008000;
-	nv_engine(priv)->cclass = &nv98_msvld_cclass;
-	nv_engine(priv)->sclass = nv98_msvld_sclass;
+	nv_subdev(priv)->unit = 0x00008000;
+	nv_subdev(priv)->intr = nvkm_falcon_intr;
+	nv_engine(priv)->cclass = &gf100_msvld_cclass;
+	nv_engine(priv)->sclass = gf100_msvld_sclass;
 	return 0;
 }
 
-struct nouveau_oclass
-nv98_msvld_oclass = {
-	.handle = NV_ENGINE(MSVLD, 0x98),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv98_msvld_ctor,
-		.dtor = _nouveau_falcon_dtor,
-		.init = nv98_msvld_init,
-		.fini = _nouveau_falcon_fini,
-		.rd32 = _nouveau_falcon_rd32,
-		.wr32 = _nouveau_falcon_wr32,
+struct nvkm_oclass
+gf100_msvld_oclass = {
+	.handle = NV_ENGINE(MSVLD, 0xc0),
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gf100_msvld_ctor,
+		.dtor = _nvkm_falcon_dtor,
+		.init = gf100_msvld_init,
+		.fini = _nvkm_falcon_fini,
+		.rd32 = _nvkm_falcon_rd32,
+		.wr32 = _nvkm_falcon_wr32,
 	},
 };
