@@ -895,6 +895,7 @@ void gb_operation_cancel(struct gb_operation *operation, int errno)
 		gb_message_cancel(operation->request);
 		gb_message_cancel(operation->response);
 	}
+	gb_operation_put(operation);
 }
 
 /**
