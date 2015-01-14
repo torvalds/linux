@@ -106,7 +106,7 @@ struct afs_volume *afs_volume_lookup(struct afs_mount_params *params)
 	volume->cell		= params->cell;
 	volume->vid		= vlocation->vldb.vid[params->type];
 
-	ret = bdi_setup_and_register(&volume->bdi, "afs", BDI_CAP_MAP_COPY);
+	ret = bdi_setup_and_register(&volume->bdi, "afs");
 	if (ret)
 		goto error_bdi;
 

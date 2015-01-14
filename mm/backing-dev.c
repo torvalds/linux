@@ -17,8 +17,6 @@ static atomic_long_t bdi_seq = ATOMIC_LONG_INIT(0);
 struct backing_dev_info default_backing_dev_info = {
 	.name		= "default",
 	.ra_pages	= VM_MAX_READAHEAD * 1024 / PAGE_CACHE_SIZE,
-	.state		= 0,
-	.capabilities	= BDI_CAP_MAP_COPY,
 };
 EXPORT_SYMBOL_GPL(default_backing_dev_info);
 
@@ -513,13 +511,12 @@ EXPORT_SYMBOL(bdi_destroy);
  * For use from filesystems to quickly init and register a bdi associated
  * with dirty writeback
  */
-int bdi_setup_and_register(struct backing_dev_info *bdi, char *name,
-			   unsigned int cap)
+int bdi_setup_and_register(struct backing_dev_info *bdi, char *name)
 {
 	int err;
 
 	bdi->name = name;
-	bdi->capabilities = cap;
+	bdi->capabilities = 0;
 	err = bdi_init(bdi);
 	if (err)
 		return err;

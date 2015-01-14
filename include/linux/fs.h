@@ -1502,6 +1502,26 @@ struct block_device_operations;
 #define HAVE_COMPAT_IOCTL 1
 #define HAVE_UNLOCKED_IOCTL 1
 
+/*
+ * These flags let !MMU mmap() govern direct device mapping vs immediate
+ * copying more easily for MAP_PRIVATE, especially for ROM filesystems.
+ *
+ * NOMMU_MAP_COPY:	Copy can be mapped (MAP_PRIVATE)
+ * NOMMU_MAP_DIRECT:	Can be mapped directly (MAP_SHARED)
+ * NOMMU_MAP_READ:	Can be mapped for reading
+ * NOMMU_MAP_WRITE:	Can be mapped for writing
+ * NOMMU_MAP_EXEC:	Can be mapped for execution
+ */
+#define NOMMU_MAP_COPY		0x00000001
+#define NOMMU_MAP_DIRECT	0x00000008
+#define NOMMU_MAP_READ		VM_MAYREAD
+#define NOMMU_MAP_WRITE		VM_MAYWRITE
+#define NOMMU_MAP_EXEC		VM_MAYEXEC
+
+#define NOMMU_VMFLAGS \
+	(NOMMU_MAP_READ | NOMMU_MAP_WRITE | NOMMU_MAP_EXEC)
+
+
 struct iov_iter;
 
 struct file_operations {
@@ -1536,6 +1556,9 @@ struct file_operations {
 	long (*fallocate)(struct file *file, int mode, loff_t offset,
 			  loff_t len);
 	void (*show_fdinfo)(struct seq_file *m, struct file *f);
+#ifndef CONFIG_MMU
+	unsigned (*mmap_capabilities)(struct file *);
+#endif
 };
 
 struct inode_operations {

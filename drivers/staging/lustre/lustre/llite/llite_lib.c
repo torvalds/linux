@@ -987,7 +987,7 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 	if (err)
 		goto out_free;
 	lsi->lsi_flags |= LSI_BDI_INITIALIZED;
-	lsi->lsi_bdi.capabilities = BDI_CAP_MAP_COPY;
+	lsi->lsi_bdi.capabilities = 0;
 	err = ll_bdi_register(&lsi->lsi_bdi);
 	if (err)
 		goto out_free;

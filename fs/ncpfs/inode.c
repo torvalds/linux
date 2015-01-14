@@ -560,7 +560,7 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 	server = NCP_SBP(sb);
 	memset(server, 0, sizeof(*server));
 
-	error = bdi_setup_and_register(&server->bdi, "ncpfs", BDI_CAP_MAP_COPY);
+	error = bdi_setup_and_register(&server->bdi, "ncpfs");
 	if (error)
 		goto out_fput;
 
