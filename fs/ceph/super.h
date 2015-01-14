@@ -893,7 +893,9 @@ extern void ceph_fill_inline_data(struct inode *inode, struct page *locked_page,
 int ceph_uninline_data(struct file *filp, struct page *locked_page);
 /* dir.c */
 extern const struct file_operations ceph_dir_fops;
+extern const struct file_operations ceph_snapdir_fops;
 extern const struct inode_operations ceph_dir_iops;
+extern const struct inode_operations ceph_snapdir_iops;
 extern const struct dentry_operations ceph_dentry_ops, ceph_snap_dentry_ops,
 	ceph_snapdir_dentry_ops;
 

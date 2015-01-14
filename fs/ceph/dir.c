@@ -26,8 +26,6 @@
  * point by name.
  */
 
-const struct inode_operations ceph_dir_iops;
-const struct file_operations ceph_dir_fops;
 const struct dentry_operations ceph_dentry_ops;
 
 /*
@@ -1335,6 +1333,13 @@ const struct file_operations ceph_dir_fops = {
 	.fsync = ceph_dir_fsync,
 };
 
+const struct file_operations ceph_snapdir_fops = {
+	.iterate = ceph_readdir,
+	.llseek = ceph_dir_llseek,
+	.open = ceph_open,
+	.release = ceph_release,
+};
+
 const struct inode_operations ceph_dir_iops = {
 	.lookup = ceph_lookup,
 	.permission = ceph_permission,
@@ -1355,6 +1360,14 @@ const struct inode_operations ceph_dir_iops = {
 	.rename = ceph_rename,
 	.create = ceph_create,
 	.atomic_open = ceph_atomic_open,
+};
+
+const struct inode_operations ceph_snapdir_iops = {
+	.lookup = ceph_lookup,
+	.permission = ceph_permission,
+	.getattr = ceph_getattr,
+	.mkdir = ceph_mkdir,
+	.rmdir = ceph_unlink,
 };
 
 const struct dentry_operations ceph_dentry_ops = {
