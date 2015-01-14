@@ -222,6 +222,7 @@ enum pd_types {
 	PD_CPU,
 	PD_CONSOLE,
 	PD_DEBUG,
+	PD_MEMCTL,
 };
 
 #define MAX_NUM_SPECIAL_PDS	16
@@ -232,6 +233,14 @@ static struct special_pd {
 } special_pds[MAX_NUM_SPECIAL_PDS] __initdata;
 
 static unsigned int num_special_pds __initdata;
+
+static const struct of_device_id special_ids[] __initconst = {
+	{ .compatible = "arm,coresight-etm3x", .data = (void *)PD_DEBUG },
+	{ .compatible = "renesas,dbsc-r8a73a4", .data = (void *)PD_MEMCTL, },
+	{ .compatible = "renesas,dbsc3-r8a7740", .data = (void *)PD_MEMCTL, },
+	{ .compatible = "renesas,sbsc-sh73a0", .data = (void *)PD_MEMCTL, },
+	{ /* sentinel */ },
+};
 
 static void __init add_special_pd(struct device_node *np, enum pd_types type)
 {
@@ -265,6 +274,7 @@ static void __init add_special_pd(struct device_node *np, enum pd_types type)
 static void __init get_special_pds(void)
 {
 	struct device_node *np;
+	const struct of_device_id *id;
 
 	/* PM domains containing CPUs */
 	for_each_node_by_type(np, "cpu")
@@ -274,12 +284,9 @@ static void __init get_special_pds(void)
 	if (of_stdout)
 		add_special_pd(of_stdout, PD_CONSOLE);
 
-	/* PM domain containing Coresight-ETM */
-	np = of_find_compatible_node(NULL, NULL, "arm,coresight-etm3x");
-	if (np) {
-		add_special_pd(np, PD_DEBUG);
-		of_node_put(np);
-	}
+	/* PM domains containing other special devices */
+	for_each_matching_node_and_match(np, special_ids, &id)
+		add_special_pd(np, (enum pd_types)id->data);
 }
 
 static void __init put_special_pds(void)
@@ -330,6 +337,16 @@ static void __init rmobile_setup_pm_domain(struct device_node *np,
 		 * is not in use.
 		 */
 		pr_debug("PM domain %s contains Coresight-ETM\n", name);
+		pd->gov = &pm_domain_always_on_gov;
+		pd->suspend = rmobile_pd_suspend_busy;
+		break;
+
+	case PD_MEMCTL:
+		/*
+		 * This domain contains a memory-controller and therefore it
+		 * should only be turned off if memory is not in use.
+		 */
+		pr_debug("PM domain %s contains MEMCTL\n", name);
 		pd->gov = &pm_domain_always_on_gov;
 		pd->suspend = rmobile_pd_suspend_busy;
 		break;
