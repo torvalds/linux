@@ -1,2 +1,3 @@
 [PATCH v12 0/9] Enable L2 cache support on Exynos4210/4x12 SoCs
 [PATCH v2 0/6] Enable HDMI support on Exynos platforms
+[PATCH V3 00/15] ASoC: samsung: Add clk provider for I2S internal clocks
