@@ -246,5 +246,4 @@ void __init kernfs_init(void)
 	kernfs_node_cache = kmem_cache_create("kernfs_node_cache",
 					      sizeof(struct kernfs_node),
 					      0, SLAB_PANIC, NULL);
-	kernfs_inode_init();
 }
