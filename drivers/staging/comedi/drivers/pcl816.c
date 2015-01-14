@@ -142,47 +142,22 @@ static void pcl816_start_pacer(struct comedi_device *dev, bool load_counters)
 }
 
 static void pcl816_ai_setup_dma(struct comedi_device *dev,
-				struct comedi_subdevice *s)
+				struct comedi_subdevice *s,
+				unsigned int unread_samples)
 {
 	struct pcl816_private *devpriv = dev->private;
 	struct comedi_isadma *dma = devpriv->dma;
-	struct comedi_isadma_desc *desc = &dma->desc[0];
-	unsigned int nsamples;
-
-	dma->cur_dma = 0;
-
-	/*
-	 * Determine dma size based on the buffer maxsize and the number of
-	 * samples remaining in the command.
-	 */
-	nsamples = comedi_bytes_to_samples(s, desc->maxsize);
-	nsamples = comedi_nsamples_left(s, nsamples);
-	desc->size = comedi_samples_to_bytes(s, nsamples);
-	comedi_isadma_program(desc);
-}
-
-static void pcl816_ai_setup_next_dma(struct comedi_device *dev,
-				     struct comedi_subdevice *s,
-				     unsigned int unread_samples)
-{
-	struct pcl816_private *devpriv = dev->private;
-	struct comedi_isadma *dma = devpriv->dma;
-	struct comedi_isadma_desc *desc;
-	unsigned int max_samples;
+	struct comedi_isadma_desc *desc = &dma->desc[dma->cur_dma];
+	unsigned int max_samples = comedi_bytes_to_samples(s, desc->maxsize);
 	unsigned int nsamples;
 
 	comedi_isadma_disable(dma->chan);
-
-	dma->cur_dma = 1 - dma->cur_dma;
-	desc = &dma->desc[dma->cur_dma];
 
 	/*
 	 * Determine dma size based on the buffer maxsize plus the number of
 	 * unread samples and the number of samples remaining in the command.
 	 */
-	max_samples = comedi_bytes_to_samples(s, desc->maxsize);
-	nsamples = max_samples + unread_samples;
-	nsamples = comedi_nsamples_left(s, nsamples);
+	nsamples = comedi_nsamples_left(s, max_samples + unread_samples);
 	if (nsamples > unread_samples) {
 		nsamples -= unread_samples;
 		desc->size = comedi_samples_to_bytes(s, nsamples);
@@ -321,7 +296,9 @@ static irqreturn_t pcl816_interrupt(int irq, void *d)
 	bufptr = devpriv->ai_poll_ptr;
 	devpriv->ai_poll_ptr = 0;
 
-	pcl816_ai_setup_next_dma(dev, s, nsamples);
+	/* restart dma with the next buffer */
+	dma->cur_dma = 1 - dma->cur_dma;
+	pcl816_ai_setup_dma(dev, s, nsamples);
 
 	transfer_from_dma_buf(dev, s, desc->virt_addr, bufptr, nsamples);
 
@@ -485,7 +462,9 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ai_poll_ptr = 0;
 	devpriv->ai_cmd_canceled = 0;
 
-	pcl816_ai_setup_dma(dev, s);
+	/* setup and enable dma for the first buffer */
+	dma->cur_dma = 0;
+	pcl816_ai_setup_dma(dev, s, 0);
 
 	pcl816_start_pacer(dev, true);
 
