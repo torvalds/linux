@@ -21,18 +21,14 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+#include <engine/gr.h>
+#include "regs.h"
 
 #include <core/client.h>
 #include <core/device.h>
-#include <core/os.h>
 #include <core/handle.h>
-
-#include <subdev/fb.h>
-
 #include <engine/fifo.h>
-#include <engine/gr.h>
-
-#include "regs.h"
+#include <subdev/fb.h>
 
 struct pipe_state {
 	u32 pipe_0x0000[0x040/4];
@@ -391,13 +387,13 @@ static int nv17_gr_ctx_regs[] = {
 };
 
 struct nv10_gr_priv {
-	struct nouveau_gr base;
+	struct nvkm_gr base;
 	struct nv10_gr_chan *chan[32];
 	spinlock_t lock;
 };
 
 struct nv10_gr_chan {
-	struct nouveau_object base;
+	struct nvkm_object base;
 	int chid;
 	int nv10[ARRAY_SIZE(nv10_gr_ctx_regs)];
 	int nv17[ARRAY_SIZE(nv17_gr_ctx_regs)];
@@ -432,7 +428,7 @@ nv10_gr_priv(struct nv10_gr_chan *chan)
 			nv_wr32(priv, NV10_PGRAPH_PIPE_DATA, state[__i]); \
 	} while (0)
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 nv10_gr_sclass[] = {
 	{ 0x0012, &nv04_gr_ofuncs }, /* beta1 */
 	{ 0x0019, &nv04_gr_ofuncs }, /* clip */
@@ -455,7 +451,7 @@ nv10_gr_sclass[] = {
 	{},
 };
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 nv15_gr_sclass[] = {
 	{ 0x0012, &nv04_gr_ofuncs }, /* beta1 */
 	{ 0x0019, &nv04_gr_ofuncs }, /* clip */
@@ -479,8 +475,8 @@ nv15_gr_sclass[] = {
 };
 
 static int
-nv17_gr_mthd_lma_window(struct nouveau_object *object, u32 mthd,
-			   void *args, u32 size)
+nv17_gr_mthd_lma_window(struct nvkm_object *object, u32 mthd,
+			void *args, u32 size)
 {
 	struct nv10_gr_chan *chan = (void *)object->parent;
 	struct nv10_gr_priv *priv = nv10_gr_priv(chan);
@@ -556,8 +552,8 @@ nv17_gr_mthd_lma_window(struct nouveau_object *object, u32 mthd,
 }
 
 static int
-nv17_gr_mthd_lma_enable(struct nouveau_object *object, u32 mthd,
-			   void *args, u32 size)
+nv17_gr_mthd_lma_enable(struct nvkm_object *object, u32 mthd,
+			void *args, u32 size)
 {
 	struct nv10_gr_chan *chan = (void *)object->parent;
 	struct nv10_gr_priv *priv = nv10_gr_priv(chan);
@@ -569,7 +565,7 @@ nv17_gr_mthd_lma_enable(struct nouveau_object *object, u32 mthd,
 	return 0;
 }
 
-static struct nouveau_omthds
+static struct nvkm_omthds
 nv17_celcius_omthds[] = {
 	{ 0x1638, 0x1638, nv17_gr_mthd_lma_window },
 	{ 0x163c, 0x163c, nv17_gr_mthd_lma_window },
@@ -579,7 +575,7 @@ nv17_celcius_omthds[] = {
 	{}
 };
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 nv17_gr_sclass[] = {
 	{ 0x0012, &nv04_gr_ofuncs }, /* beta1 */
 	{ 0x0019, &nv04_gr_ofuncs }, /* clip */
@@ -1022,18 +1018,17 @@ nv10_gr_context_switch(struct nv10_gr_priv *priv)
 	} while (0)
 
 static int
-nv10_gr_context_ctor(struct nouveau_object *parent,
-			struct nouveau_object *engine,
-			struct nouveau_oclass *oclass, void *data, u32 size,
-			struct nouveau_object **pobject)
+nv10_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		     struct nvkm_oclass *oclass, void *data, u32 size,
+		     struct nvkm_object **pobject)
 {
-	struct nouveau_fifo_chan *fifo = (void *)parent;
+	struct nvkm_fifo_chan *fifo = (void *)parent;
 	struct nv10_gr_priv *priv = (void *)engine;
 	struct nv10_gr_chan *chan;
 	unsigned long flags;
 	int ret;
 
-	ret = nouveau_object_create(parent, engine, oclass, 0, &chan);
+	ret = nvkm_object_create(parent, engine, oclass, 0, &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
@@ -1043,7 +1038,7 @@ nv10_gr_context_ctor(struct nouveau_object *parent,
 		*pobject = nv_object(priv->chan[fifo->chid]);
 		atomic_inc(&(*pobject)->refcount);
 		spin_unlock_irqrestore(&priv->lock, flags);
-		nouveau_object_destroy(&chan->base);
+		nvkm_object_destroy(&chan->base);
 		return 1;
 	}
 
@@ -1076,7 +1071,7 @@ nv10_gr_context_ctor(struct nouveau_object *parent,
 }
 
 static void
-nv10_gr_context_dtor(struct nouveau_object *object)
+nv10_gr_context_dtor(struct nvkm_object *object)
 {
 	struct nv10_gr_priv *priv = (void *)object->engine;
 	struct nv10_gr_chan *chan = (void *)object;
@@ -1086,11 +1081,11 @@ nv10_gr_context_dtor(struct nouveau_object *object)
 	priv->chan[chan->chid] = NULL;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	nouveau_object_destroy(&chan->base);
+	nvkm_object_destroy(&chan->base);
 }
 
 static int
-nv10_gr_context_fini(struct nouveau_object *object, bool suspend)
+nv10_gr_context_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nv10_gr_priv *priv = (void *)object->engine;
 	struct nv10_gr_chan *chan = (void *)object;
@@ -1103,16 +1098,16 @@ nv10_gr_context_fini(struct nouveau_object *object, bool suspend)
 	nv_mask(priv, NV04_PGRAPH_FIFO, 0x00000001, 0x00000001);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	return nouveau_object_fini(&chan->base, suspend);
+	return nvkm_object_fini(&chan->base, suspend);
 }
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 nv10_gr_cclass = {
 	.handle = NV_ENGCTX(GR, 0x10),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv10_gr_context_ctor,
 		.dtor = nv10_gr_context_dtor,
-		.init = nouveau_object_init,
+		.init = nvkm_object_init,
 		.fini = nv10_gr_context_fini,
 	},
 };
@@ -1122,10 +1117,10 @@ nv10_gr_cclass = {
  ******************************************************************************/
 
 static void
-nv10_gr_tile_prog(struct nouveau_engine *engine, int i)
+nv10_gr_tile_prog(struct nvkm_engine *engine, int i)
 {
-	struct nouveau_fb_tile *tile = &nouveau_fb(engine)->tile.region[i];
-	struct nouveau_fifo *pfifo = nouveau_fifo(engine);
+	struct nvkm_fb_tile *tile = &nvkm_fb(engine)->tile.region[i];
+	struct nvkm_fifo *pfifo = nvkm_fifo(engine);
 	struct nv10_gr_priv *priv = (void *)engine;
 	unsigned long flags;
 
@@ -1139,13 +1134,13 @@ nv10_gr_tile_prog(struct nouveau_engine *engine, int i)
 	pfifo->start(pfifo, &flags);
 }
 
-const struct nouveau_bitfield nv10_gr_intr_name[] = {
+const struct nvkm_bitfield nv10_gr_intr_name[] = {
 	{ NV_PGRAPH_INTR_NOTIFY, "NOTIFY" },
 	{ NV_PGRAPH_INTR_ERROR,  "ERROR"  },
 	{}
 };
 
-const struct nouveau_bitfield nv10_gr_nstatus[] = {
+const struct nvkm_bitfield nv10_gr_nstatus[] = {
 	{ NV10_PGRAPH_NSTATUS_STATE_IN_USE,       "STATE_IN_USE" },
 	{ NV10_PGRAPH_NSTATUS_INVALID_STATE,      "INVALID_STATE" },
 	{ NV10_PGRAPH_NSTATUS_BAD_ARGUMENT,       "BAD_ARGUMENT" },
@@ -1154,12 +1149,12 @@ const struct nouveau_bitfield nv10_gr_nstatus[] = {
 };
 
 static void
-nv10_gr_intr(struct nouveau_subdev *subdev)
+nv10_gr_intr(struct nvkm_subdev *subdev)
 {
 	struct nv10_gr_priv *priv = (void *)subdev;
 	struct nv10_gr_chan *chan = NULL;
-	struct nouveau_namedb *namedb = NULL;
-	struct nouveau_handle *handle = NULL;
+	struct nvkm_namedb *namedb = NULL;
+	struct nvkm_handle *handle = NULL;
 	u32 stat = nv_rd32(priv, NV03_PGRAPH_INTR);
 	u32 nsource = nv_rd32(priv, NV03_PGRAPH_NSOURCE);
 	u32 nstatus = nv_rd32(priv, NV03_PGRAPH_NSTATUS);
@@ -1180,7 +1175,7 @@ nv10_gr_intr(struct nouveau_subdev *subdev)
 
 	if (stat & NV_PGRAPH_INTR_ERROR) {
 		if (chan && (nsource & NV03_PGRAPH_NSOURCE_ILLEGAL_MTHD)) {
-			handle = nouveau_namedb_get_class(namedb, class);
+			handle = nvkm_namedb_get_class(namedb, class);
 			if (handle && !nv_call(handle->object, mthd, data))
 				show &= ~NV_PGRAPH_INTR_ERROR;
 		}
@@ -1198,30 +1193,30 @@ nv10_gr_intr(struct nouveau_subdev *subdev)
 
 	if (show) {
 		nv_error(priv, "%s", "");
-		nouveau_bitfield_print(nv10_gr_intr_name, show);
+		nvkm_bitfield_print(nv10_gr_intr_name, show);
 		pr_cont(" nsource:");
-		nouveau_bitfield_print(nv04_gr_nsource, nsource);
+		nvkm_bitfield_print(nv04_gr_nsource, nsource);
 		pr_cont(" nstatus:");
-		nouveau_bitfield_print(nv10_gr_nstatus, nstatus);
+		nvkm_bitfield_print(nv10_gr_nstatus, nstatus);
 		pr_cont("\n");
 		nv_error(priv,
 			 "ch %d [%s] subc %d class 0x%04x mthd 0x%04x data 0x%08x\n",
-			 chid, nouveau_client_name(chan), subc, class, mthd,
+			 chid, nvkm_client_name(chan), subc, class, mthd,
 			 data);
 	}
 
-	nouveau_namedb_put(handle);
+	nvkm_namedb_put(handle);
 }
 
 static int
-nv10_gr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		struct nouveau_oclass *oclass, void *data, u32 size,
-		struct nouveau_object **pobject)
+nv10_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	     struct nvkm_oclass *oclass, void *data, u32 size,
+	     struct nvkm_object **pobject)
 {
 	struct nv10_gr_priv *priv;
 	int ret;
 
-	ret = nouveau_gr_create(parent, engine, oclass, true, &priv);
+	ret = nvkm_gr_create(parent, engine, oclass, true, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -1245,21 +1240,21 @@ nv10_gr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 }
 
 static void
-nv10_gr_dtor(struct nouveau_object *object)
+nv10_gr_dtor(struct nvkm_object *object)
 {
 	struct nv10_gr_priv *priv = (void *)object;
-	nouveau_gr_destroy(&priv->base);
+	nvkm_gr_destroy(&priv->base);
 }
 
 static int
-nv10_gr_init(struct nouveau_object *object)
+nv10_gr_init(struct nvkm_object *object)
 {
-	struct nouveau_engine *engine = nv_engine(object);
-	struct nouveau_fb *pfb = nouveau_fb(object);
+	struct nvkm_engine *engine = nv_engine(object);
+	struct nvkm_fb *pfb = nvkm_fb(object);
 	struct nv10_gr_priv *priv = (void *)engine;
 	int ret, i;
 
-	ret = nouveau_gr_init(&priv->base);
+	ret = nvkm_gr_init(&priv->base);
 	if (ret)
 		return ret;
 
@@ -1302,16 +1297,16 @@ nv10_gr_init(struct nouveau_object *object)
 }
 
 static int
-nv10_gr_fini(struct nouveau_object *object, bool suspend)
+nv10_gr_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nv10_gr_priv *priv = (void *)object;
-	return nouveau_gr_fini(&priv->base, suspend);
+	return nvkm_gr_fini(&priv->base, suspend);
 }
 
-struct nouveau_oclass
+struct nvkm_oclass
 nv10_gr_oclass = {
 	.handle = NV_ENGINE(GR, 0x10),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv10_gr_ctor,
 		.dtor = nv10_gr_dtor,
 		.init = nv10_gr_init,

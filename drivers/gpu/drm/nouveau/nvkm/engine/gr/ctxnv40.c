@@ -22,8 +22,6 @@
  * Authors: Ben Skeggs
  */
 
-#include <core/gpuobj.h>
-
 /* NVIDIA context programs handle a number of other conditions which are
  * not implemented in our versions.  It's not clear why NVIDIA context
  * programs have this code, nor whether it's strictly necessary for
@@ -111,15 +109,16 @@
 #define CP_LOAD_MAGIC_NV44TCL    0x00800029 /* per-vs state (0x4497) */
 #define CP_LOAD_MAGIC_NV40TCL    0x00800041 /* per-vs state (0x4097) */
 
+#include "ctxnv40.h"
 #include "nv40.h"
-#include "ctx.h"
+#include <core/device.h>
 
 /* TODO:
  *  - get vs count from 0x1540
  */
 
 static int
-nv40_gr_vs_count(struct nouveau_device *device)
+nv40_gr_vs_count(struct nvkm_device *device)
 {
 
 	switch (device->chipset) {
@@ -158,9 +157,9 @@ enum cp_label {
 };
 
 static void
-nv40_gr_construct_general(struct nouveau_grctx *ctx)
+nv40_gr_construct_general(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	int i;
 
 	cp_ctx(ctx, 0x4000a4, 1);
@@ -264,9 +263,9 @@ nv40_gr_construct_general(struct nouveau_grctx *ctx)
 }
 
 static void
-nv40_gr_construct_state3d(struct nouveau_grctx *ctx)
+nv40_gr_construct_state3d(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	int i;
 
 	if (device->chipset == 0x40) {
@@ -369,9 +368,9 @@ nv40_gr_construct_state3d(struct nouveau_grctx *ctx)
 }
 
 static void
-nv40_gr_construct_state3d_2(struct nouveau_grctx *ctx)
+nv40_gr_construct_state3d_2(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	int i;
 
 	cp_ctx(ctx, 0x402000, 1);
@@ -533,7 +532,7 @@ nv40_gr_construct_state3d_2(struct nouveau_grctx *ctx)
 }
 
 static void
-nv40_gr_construct_state3d_3(struct nouveau_grctx *ctx)
+nv40_gr_construct_state3d_3(struct nvkm_grctx *ctx)
 {
 	int len = nv44_gr_class(ctx->device) ? 0x0084 : 0x0684;
 
@@ -548,10 +547,10 @@ nv40_gr_construct_state3d_3(struct nouveau_grctx *ctx)
 }
 
 static void
-nv40_gr_construct_shader(struct nouveau_grctx *ctx)
+nv40_gr_construct_shader(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
-	struct nouveau_gpuobj *obj = ctx->data;
+	struct nvkm_device *device = ctx->device;
+	struct nvkm_gpuobj *obj = ctx->data;
 	int vs, vs_nr, vs_len, vs_nr_b0, vs_nr_b1, b0_offset, b1_offset;
 	int offset, i;
 
@@ -579,7 +578,7 @@ nv40_gr_construct_shader(struct nouveau_grctx *ctx)
 	offset = ctx->ctxvals_pos;
 	ctx->ctxvals_pos += (0x0300/4 + (vs_nr * vs_len));
 
-	if (ctx->mode != NOUVEAU_GRCTX_VALS)
+	if (ctx->mode != NVKM_GRCTX_VALS)
 		return;
 
 	offset += 0x0280/4;
@@ -595,7 +594,7 @@ nv40_gr_construct_shader(struct nouveau_grctx *ctx)
 }
 
 static void
-nv40_grctx_generate(struct nouveau_grctx *ctx)
+nv40_grctx_generate(struct nvkm_grctx *ctx)
 {
 	/* decide whether we're loading/unloading the context */
 	cp_bra (ctx, AUTO_SAVE, PENDING, cp_setup_save);
@@ -660,22 +659,22 @@ nv40_grctx_generate(struct nouveau_grctx *ctx)
 }
 
 void
-nv40_grctx_fill(struct nouveau_device *device, struct nouveau_gpuobj *mem)
+nv40_grctx_fill(struct nvkm_device *device, struct nvkm_gpuobj *mem)
 {
-	nv40_grctx_generate(&(struct nouveau_grctx) {
+	nv40_grctx_generate(&(struct nvkm_grctx) {
 			     .device = device,
-			     .mode = NOUVEAU_GRCTX_VALS,
+			     .mode = NVKM_GRCTX_VALS,
 			     .data = mem,
 			   });
 }
 
 int
-nv40_grctx_init(struct nouveau_device *device, u32 *size)
+nv40_grctx_init(struct nvkm_device *device, u32 *size)
 {
 	u32 *ctxprog = kmalloc(256 * 4, GFP_KERNEL), i;
-	struct nouveau_grctx ctx = {
+	struct nvkm_grctx ctx = {
 		.device = device,
-		.mode = NOUVEAU_GRCTX_PROG,
+		.mode = NVKM_GRCTX_PROG,
 		.data = ctxprog,
 		.ctxprog_max = 256,
 	};

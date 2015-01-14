@@ -21,35 +21,26 @@
  *
  * Authors: Ben Skeggs
  */
+#include "nv50.h"
 
-#include <core/os.h>
 #include <core/client.h>
 #include <core/device.h>
 #include <core/handle.h>
-#include <core/engctx.h>
-#include <core/enum.h>
-
-#include <subdev/fb.h>
-#include <subdev/mmu.h>
+#include <engine/fifo.h>
 #include <subdev/timer.h>
 
-#include <engine/fifo.h>
-#include <engine/gr.h>
-
-#include "nv50.h"
-
 struct nv50_gr_priv {
-	struct nouveau_gr base;
+	struct nvkm_gr base;
 	spinlock_t lock;
 	u32 size;
 };
 
 struct nv50_gr_chan {
-	struct nouveau_gr_chan base;
+	struct nvkm_gr_chan base;
 };
 
 static u64
-nv50_gr_units(struct nouveau_gr *gr)
+nv50_gr_units(struct nvkm_gr *gr)
 {
 	struct nv50_gr_priv *priv = (void *)gr;
 
@@ -61,16 +52,15 @@ nv50_gr_units(struct nouveau_gr *gr)
  ******************************************************************************/
 
 static int
-nv50_gr_object_ctor(struct nouveau_object *parent,
-		       struct nouveau_object *engine,
-		       struct nouveau_oclass *oclass, void *data, u32 size,
-		       struct nouveau_object **pobject)
+nv50_gr_object_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		    struct nvkm_oclass *oclass, void *data, u32 size,
+		    struct nvkm_object **pobject)
 {
-	struct nouveau_gpuobj *obj;
+	struct nvkm_gpuobj *obj;
 	int ret;
 
-	ret = nouveau_gpuobj_create(parent, engine, oclass, 0, parent,
-				    16, 16, 0, &obj);
+	ret = nvkm_gpuobj_create(parent, engine, oclass, 0, parent,
+				 16, 16, 0, &obj);
 	*pobject = nv_object(obj);
 	if (ret)
 		return ret;
@@ -82,17 +72,17 @@ nv50_gr_object_ctor(struct nouveau_object *parent,
 	return 0;
 }
 
-static struct nouveau_ofuncs
+static struct nvkm_ofuncs
 nv50_gr_ofuncs = {
 	.ctor = nv50_gr_object_ctor,
-	.dtor = _nouveau_gpuobj_dtor,
-	.init = _nouveau_gpuobj_init,
-	.fini = _nouveau_gpuobj_fini,
-	.rd32 = _nouveau_gpuobj_rd32,
-	.wr32 = _nouveau_gpuobj_wr32,
+	.dtor = _nvkm_gpuobj_dtor,
+	.init = _nvkm_gpuobj_init,
+	.fini = _nvkm_gpuobj_fini,
+	.rd32 = _nvkm_gpuobj_rd32,
+	.wr32 = _nvkm_gpuobj_wr32,
 };
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 nv50_gr_sclass[] = {
 	{ 0x0030, &nv50_gr_ofuncs },
 	{ 0x502d, &nv50_gr_ofuncs },
@@ -102,8 +92,8 @@ nv50_gr_sclass[] = {
 	{}
 };
 
-static struct nouveau_oclass
-nv84_gr_sclass[] = {
+static struct nvkm_oclass
+g84_gr_sclass[] = {
 	{ 0x0030, &nv50_gr_ofuncs },
 	{ 0x502d, &nv50_gr_ofuncs },
 	{ 0x5039, &nv50_gr_ofuncs },
@@ -112,8 +102,8 @@ nv84_gr_sclass[] = {
 	{}
 };
 
-static struct nouveau_oclass
-nva0_gr_sclass[] = {
+static struct nvkm_oclass
+gt200_gr_sclass[] = {
 	{ 0x0030, &nv50_gr_ofuncs },
 	{ 0x502d, &nv50_gr_ofuncs },
 	{ 0x5039, &nv50_gr_ofuncs },
@@ -122,8 +112,8 @@ nva0_gr_sclass[] = {
 	{}
 };
 
-static struct nouveau_oclass
-nva3_gr_sclass[] = {
+static struct nvkm_oclass
+gt215_gr_sclass[] = {
 	{ 0x0030, &nv50_gr_ofuncs },
 	{ 0x502d, &nv50_gr_ofuncs },
 	{ 0x5039, &nv50_gr_ofuncs },
@@ -133,8 +123,8 @@ nva3_gr_sclass[] = {
 	{}
 };
 
-static struct nouveau_oclass
-nvaf_gr_sclass[] = {
+static struct nvkm_oclass
+mcp89_gr_sclass[] = {
 	{ 0x0030, &nv50_gr_ofuncs },
 	{ 0x502d, &nv50_gr_ofuncs },
 	{ 0x5039, &nv50_gr_ofuncs },
@@ -149,18 +139,16 @@ nvaf_gr_sclass[] = {
  ******************************************************************************/
 
 static int
-nv50_gr_context_ctor(struct nouveau_object *parent,
-			struct nouveau_object *engine,
-			struct nouveau_oclass *oclass, void *data, u32 size,
-			struct nouveau_object **pobject)
+nv50_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		     struct nvkm_oclass *oclass, void *data, u32 size,
+		     struct nvkm_object **pobject)
 {
 	struct nv50_gr_priv *priv = (void *)engine;
 	struct nv50_gr_chan *chan;
 	int ret;
 
-	ret = nouveau_gr_context_create(parent, engine, oclass, NULL,
-					   priv->size, 0,
-					   NVOBJ_FLAG_ZERO_ALLOC, &chan);
+	ret = nvkm_gr_context_create(parent, engine, oclass, NULL, priv->size,
+				     0, NVOBJ_FLAG_ZERO_ALLOC, &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
@@ -169,16 +157,16 @@ nv50_gr_context_ctor(struct nouveau_object *parent,
 	return 0;
 }
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 nv50_gr_cclass = {
 	.handle = NV_ENGCTX(GR, 0x50),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv50_gr_context_ctor,
-		.dtor = _nouveau_gr_context_dtor,
-		.init = _nouveau_gr_context_init,
-		.fini = _nouveau_gr_context_fini,
-		.rd32 = _nouveau_gr_context_rd32,
-		.wr32 = _nouveau_gr_context_wr32,
+		.dtor = _nvkm_gr_context_dtor,
+		.init = _nvkm_gr_context_init,
+		.fini = _nvkm_gr_context_fini,
+		.rd32 = _nvkm_gr_context_rd32,
+		.wr32 = _nvkm_gr_context_wr32,
 	},
 };
 
@@ -186,7 +174,7 @@ nv50_gr_cclass = {
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
-static const struct nouveau_bitfield nv50_pgr_status[] = {
+static const struct nvkm_bitfield nv50_pgr_status[] = {
 	{ 0x00000001, "BUSY" }, /* set when any bit is set */
 	{ 0x00000002, "DISPATCH" },
 	{ 0x00000004, "UNK2" },
@@ -229,8 +217,9 @@ static const char *const nv50_pgr_vstatus_2[] = {
 	"ROP", NULL
 };
 
-static void nouveau_pgr_vstatus_print(struct nv50_gr_priv *priv, int r,
-		const char *const units[], u32 status)
+static void
+nvkm_pgr_vstatus_print(struct nv50_gr_priv *priv, int r,
+		       const char *const units[], u32 status)
 {
 	int i;
 
@@ -247,9 +236,9 @@ static void nouveau_pgr_vstatus_print(struct nv50_gr_priv *priv, int r,
 }
 
 static int
-nv84_gr_tlb_flush(struct nouveau_engine *engine)
+g84_gr_tlb_flush(struct nvkm_engine *engine)
 {
-	struct nouveau_timer *ptimer = nouveau_timer(engine);
+	struct nvkm_timer *ptimer = nvkm_timer(engine);
 	struct nv50_gr_priv *priv = (void *)engine;
 	bool idle, timeout = false;
 	unsigned long flags;
@@ -285,15 +274,15 @@ nv84_gr_tlb_flush(struct nouveau_engine *engine)
 
 		tmp = nv_rd32(priv, 0x400700);
 		nv_error(priv, "PGRAPH_STATUS  : 0x%08x", tmp);
-		nouveau_bitfield_print(nv50_pgr_status, tmp);
+		nvkm_bitfield_print(nv50_pgr_status, tmp);
 		pr_cont("\n");
 
-		nouveau_pgr_vstatus_print(priv, 0, nv50_pgr_vstatus_0,
-				nv_rd32(priv, 0x400380));
-		nouveau_pgr_vstatus_print(priv, 1, nv50_pgr_vstatus_1,
-				nv_rd32(priv, 0x400384));
-		nouveau_pgr_vstatus_print(priv, 2, nv50_pgr_vstatus_2,
-				nv_rd32(priv, 0x400388));
+		nvkm_pgr_vstatus_print(priv, 0, nv50_pgr_vstatus_0,
+				       nv_rd32(priv, 0x400380));
+		nvkm_pgr_vstatus_print(priv, 1, nv50_pgr_vstatus_1,
+				       nv_rd32(priv, 0x400384));
+		nvkm_pgr_vstatus_print(priv, 2, nv50_pgr_vstatus_2,
+				       nv_rd32(priv, 0x400388));
 	}
 
 
@@ -305,7 +294,7 @@ nv84_gr_tlb_flush(struct nouveau_engine *engine)
 	return timeout ? -EBUSY : 0;
 }
 
-static const struct nouveau_bitfield nv50_mp_exec_errors[] = {
+static const struct nvkm_bitfield nv50_mp_exec_errors[] = {
 	{ 0x01, "STACK_UNDERFLOW" },
 	{ 0x02, "STACK_MISMATCH" },
 	{ 0x04, "QUADON_ACTIVE" },
@@ -316,7 +305,7 @@ static const struct nouveau_bitfield nv50_mp_exec_errors[] = {
 	{}
 };
 
-static const struct nouveau_bitfield nv50_mpc_traps[] = {
+static const struct nvkm_bitfield nv50_mpc_traps[] = {
 	{ 0x0000001, "LOCAL_LIMIT_READ" },
 	{ 0x0000010, "LOCAL_LIMIT_WRITE" },
 	{ 0x0000040, "STACK_LIMIT" },
@@ -330,7 +319,7 @@ static const struct nouveau_bitfield nv50_mpc_traps[] = {
 	{}
 };
 
-static const struct nouveau_bitfield nv50_tex_traps[] = {
+static const struct nvkm_bitfield nv50_tex_traps[] = {
 	{ 0x00000001, "" }, /* any bit set? */
 	{ 0x00000002, "FAULT" },
 	{ 0x00000004, "STORAGE_TYPE_MISMATCH" },
@@ -339,30 +328,30 @@ static const struct nouveau_bitfield nv50_tex_traps[] = {
 	{}
 };
 
-static const struct nouveau_bitfield nv50_gr_trap_m2mf[] = {
+static const struct nvkm_bitfield nv50_gr_trap_m2mf[] = {
 	{ 0x00000001, "NOTIFY" },
 	{ 0x00000002, "IN" },
 	{ 0x00000004, "OUT" },
 	{}
 };
 
-static const struct nouveau_bitfield nv50_gr_trap_vfetch[] = {
+static const struct nvkm_bitfield nv50_gr_trap_vfetch[] = {
 	{ 0x00000001, "FAULT" },
 	{}
 };
 
-static const struct nouveau_bitfield nv50_gr_trap_strmout[] = {
+static const struct nvkm_bitfield nv50_gr_trap_strmout[] = {
 	{ 0x00000001, "FAULT" },
 	{}
 };
 
-static const struct nouveau_bitfield nv50_gr_trap_ccache[] = {
+static const struct nvkm_bitfield nv50_gr_trap_ccache[] = {
 	{ 0x00000001, "FAULT" },
 	{}
 };
 
 /* There must be a *lot* of these. Will take some time to gather them up. */
-const struct nouveau_enum nv50_data_error_names[] = {
+const struct nvkm_enum nv50_data_error_names[] = {
 	{ 0x00000003, "INVALID_OPERATION", NULL },
 	{ 0x00000004, "INVALID_VALUE", NULL },
 	{ 0x00000005, "INVALID_ENUM", NULL },
@@ -408,7 +397,7 @@ const struct nouveau_enum nv50_data_error_names[] = {
 	{}
 };
 
-static const struct nouveau_bitfield nv50_gr_intr_name[] = {
+static const struct nvkm_bitfield nv50_gr_intr_name[] = {
 	{ 0x00000001, "NOTIFY" },
 	{ 0x00000002, "COMPUTE_QUERY" },
 	{ 0x00000010, "ILLEGAL_MTHD" },
@@ -422,7 +411,7 @@ static const struct nouveau_bitfield nv50_gr_intr_name[] = {
 	{}
 };
 
-static const struct nouveau_bitfield nv50_gr_trap_prop[] = {
+static const struct nvkm_bitfield nv50_gr_trap_prop[] = {
 	{ 0x00000004, "SURF_WIDTH_OVERRUN" },
 	{ 0x00000008, "SURF_HEIGHT_OVERRUN" },
 	{ 0x00000010, "DST2D_FAULT" },
@@ -469,7 +458,7 @@ nv50_priv_prop_trap(struct nv50_gr_priv *priv,
 	}
 	if (ustatus) {
 		nv_error(priv, "TRAP_PROP - TP %d -", tp);
-		nouveau_bitfield_print(nv50_gr_trap_prop, ustatus);
+		nvkm_bitfield_print(nv50_gr_trap_prop, ustatus);
 		pr_cont(" - Address %02x%08x\n", e14, e10);
 	}
 	nv_error(priv, "TRAP_PROP - TP %d - e0c: %08x, e18: %08x, e1c: %08x, e20: %08x, e24: %08x\n",
@@ -501,7 +490,7 @@ nv50_priv_mp_trap(struct nv50_gr_priv *priv, int tpid, int display)
 			ophigh = nv_rd32(priv, addr + 0x74);
 			nv_error(priv, "TRAP_MP_EXEC - "
 					"TP %d MP %d:", tpid, i);
-			nouveau_bitfield_print(nv50_mp_exec_errors, status);
+			nvkm_bitfield_print(nv50_mp_exec_errors, status);
 			pr_cont(" at %06x warp %d, opcode %08x %08x\n",
 					pc&0xffffff, pc >> 24,
 					oplow, ophigh);
@@ -517,7 +506,7 @@ nv50_priv_mp_trap(struct nv50_gr_priv *priv, int tpid, int display)
 
 static void
 nv50_priv_tp_trap(struct nv50_gr_priv *priv, int type, u32 ustatus_old,
-		u32 ustatus_new, int display, const char *name)
+		  u32 ustatus_new, int display, const char *name)
 {
 	int tps = 0;
 	u32 units = nv_rd32(priv, 0x1540);
@@ -543,7 +532,7 @@ nv50_priv_tp_trap(struct nv50_gr_priv *priv, int type, u32 ustatus_old,
 						nv_rd32(priv, r));
 				if (ustatus) {
 					nv_error(priv, "%s - TP%d:", name, i);
-					nouveau_bitfield_print(nv50_tex_traps,
+					nvkm_bitfield_print(nv50_tex_traps,
 							       ustatus);
 					pr_cont("\n");
 					ustatus = 0;
@@ -557,7 +546,7 @@ nv50_priv_tp_trap(struct nv50_gr_priv *priv, int type, u32 ustatus_old,
 			}
 			if (ustatus && display) {
 				nv_error(priv, "%s - TP%d:", name, i);
-				nouveau_bitfield_print(nv50_mpc_traps, ustatus);
+				nvkm_bitfield_print(nv50_mpc_traps, ustatus);
 				pr_cont("\n");
 				ustatus = 0;
 			}
@@ -582,7 +571,7 @@ nv50_priv_tp_trap(struct nv50_gr_priv *priv, int type, u32 ustatus_old,
 
 static int
 nv50_gr_trap_handler(struct nv50_gr_priv *priv, u32 display,
-			int chid, u64 inst, struct nouveau_object *engctx)
+		     int chid, u64 inst, struct nvkm_object *engctx)
 {
 	u32 status = nv_rd32(priv, 0x400108);
 	u32 ustatus;
@@ -618,7 +607,7 @@ nv50_gr_trap_handler(struct nv50_gr_priv *priv, u32 display,
 				nv_error(priv,
 					 "ch %d [0x%010llx %s] subc %d class 0x%04x mthd 0x%04x data 0x%08x%08x 400808 0x%08x 400848 0x%08x\n",
 					 chid, inst,
-					 nouveau_client_name(engctx), subc,
+					 nvkm_client_name(engctx), subc,
 					 class, mthd, datah, datal, addr, r848);
 			} else
 			if (display) {
@@ -643,7 +632,7 @@ nv50_gr_trap_handler(struct nv50_gr_priv *priv, u32 display,
 				nv_error(priv,
 					 "ch %d [0x%010llx %s] subc %d class 0x%04x mthd 0x%04x data 0x%08x 40084c 0x%08x\n",
 					 chid, inst,
-					 nouveau_client_name(engctx), subc,
+					 nvkm_client_name(engctx), subc,
 					 class, mthd, data, addr);
 			} else
 			if (display) {
@@ -671,7 +660,7 @@ nv50_gr_trap_handler(struct nv50_gr_priv *priv, u32 display,
 		u32 ustatus = nv_rd32(priv, 0x406800) & 0x7fffffff;
 		if (display) {
 			nv_error(priv, "TRAP_M2MF");
-			nouveau_bitfield_print(nv50_gr_trap_m2mf, ustatus);
+			nvkm_bitfield_print(nv50_gr_trap_m2mf, ustatus);
 			pr_cont("\n");
 			nv_error(priv, "TRAP_M2MF %08x %08x %08x %08x\n",
 				nv_rd32(priv, 0x406804), nv_rd32(priv, 0x406808),
@@ -692,7 +681,7 @@ nv50_gr_trap_handler(struct nv50_gr_priv *priv, u32 display,
 		u32 ustatus = nv_rd32(priv, 0x400c04) & 0x7fffffff;
 		if (display) {
 			nv_error(priv, "TRAP_VFETCH");
-			nouveau_bitfield_print(nv50_gr_trap_vfetch, ustatus);
+			nvkm_bitfield_print(nv50_gr_trap_vfetch, ustatus);
 			pr_cont("\n");
 			nv_error(priv, "TRAP_VFETCH %08x %08x %08x %08x\n",
 				nv_rd32(priv, 0x400c00), nv_rd32(priv, 0x400c08),
@@ -709,7 +698,7 @@ nv50_gr_trap_handler(struct nv50_gr_priv *priv, u32 display,
 		ustatus = nv_rd32(priv, 0x401800) & 0x7fffffff;
 		if (display) {
 			nv_error(priv, "TRAP_STRMOUT");
-			nouveau_bitfield_print(nv50_gr_trap_strmout, ustatus);
+			nvkm_bitfield_print(nv50_gr_trap_strmout, ustatus);
 			pr_cont("\n");
 			nv_error(priv, "TRAP_STRMOUT %08x %08x %08x %08x\n",
 				nv_rd32(priv, 0x401804), nv_rd32(priv, 0x401808),
@@ -730,7 +719,7 @@ nv50_gr_trap_handler(struct nv50_gr_priv *priv, u32 display,
 		ustatus = nv_rd32(priv, 0x405018) & 0x7fffffff;
 		if (display) {
 			nv_error(priv, "TRAP_CCACHE");
-			nouveau_bitfield_print(nv50_gr_trap_ccache, ustatus);
+			nvkm_bitfield_print(nv50_gr_trap_ccache, ustatus);
 			pr_cont("\n");
 			nv_error(priv, "TRAP_CCACHE %08x %08x %08x %08x"
 				     " %08x %08x %08x\n",
@@ -792,12 +781,12 @@ nv50_gr_trap_handler(struct nv50_gr_priv *priv, u32 display,
 }
 
 static void
-nv50_gr_intr(struct nouveau_subdev *subdev)
+nv50_gr_intr(struct nvkm_subdev *subdev)
 {
-	struct nouveau_fifo *pfifo = nouveau_fifo(subdev);
-	struct nouveau_engine *engine = nv_engine(subdev);
-	struct nouveau_object *engctx;
-	struct nouveau_handle *handle = NULL;
+	struct nvkm_fifo *pfifo = nvkm_fifo(subdev);
+	struct nvkm_engine *engine = nv_engine(subdev);
+	struct nvkm_object *engctx;
+	struct nvkm_handle *handle = NULL;
 	struct nv50_gr_priv *priv = (void *)subdev;
 	u32 stat = nv_rd32(priv, 0x400100);
 	u32 inst = nv_rd32(priv, 0x40032c) & 0x0fffffff;
@@ -809,27 +798,27 @@ nv50_gr_intr(struct nouveau_subdev *subdev)
 	u32 show = stat, show_bitfield = stat;
 	int chid;
 
-	engctx = nouveau_engctx_get(engine, inst);
+	engctx = nvkm_engctx_get(engine, inst);
 	chid   = pfifo->chid(pfifo, engctx);
 
 	if (stat & 0x00000010) {
-		handle = nouveau_handle_get_class(engctx, class);
+		handle = nvkm_handle_get_class(engctx, class);
 		if (handle && !nv_call(handle->object, mthd, data))
 			show &= ~0x00000010;
-		nouveau_handle_put(handle);
+		nvkm_handle_put(handle);
 	}
 
 	if (show & 0x00100000) {
 		u32 ecode = nv_rd32(priv, 0x400110);
 		nv_error(priv, "DATA_ERROR ");
-		nouveau_enum_print(nv50_data_error_names, ecode);
+		nvkm_enum_print(nv50_data_error_names, ecode);
 		pr_cont("\n");
 		show_bitfield &= ~0x00100000;
 	}
 
 	if (stat & 0x00200000) {
 		if (!nv50_gr_trap_handler(priv, show, chid, (u64)inst << 12,
-				engctx))
+					  engctx))
 			show &= ~0x00200000;
 		show_bitfield &= ~0x00200000;
 	}
@@ -841,30 +830,30 @@ nv50_gr_intr(struct nouveau_subdev *subdev)
 		show &= show_bitfield;
 		if (show) {
 			nv_error(priv, "%s", "");
-			nouveau_bitfield_print(nv50_gr_intr_name, show);
+			nvkm_bitfield_print(nv50_gr_intr_name, show);
 			pr_cont("\n");
 		}
 		nv_error(priv,
 			 "ch %d [0x%010llx %s] subc %d class 0x%04x mthd 0x%04x data 0x%08x\n",
-			 chid, (u64)inst << 12, nouveau_client_name(engctx),
+			 chid, (u64)inst << 12, nvkm_client_name(engctx),
 			 subc, class, mthd, data);
 	}
 
 	if (nv_rd32(priv, 0x400824) & (1 << 31))
 		nv_wr32(priv, 0x400824, nv_rd32(priv, 0x400824) & ~(1 << 31));
 
-	nouveau_engctx_put(engctx);
+	nvkm_engctx_put(engctx);
 }
 
 static int
-nv50_gr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
+nv50_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	     struct nvkm_oclass *oclass, void *data, u32 size,
+	     struct nvkm_object **pobject)
 {
 	struct nv50_gr_priv *priv;
 	int ret;
 
-	ret = nouveau_gr_create(parent, engine, oclass, true, &priv);
+	ret = nvkm_gr_create(parent, engine, oclass, true, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -885,20 +874,20 @@ nv50_gr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	case 0x94:
 	case 0x96:
 	case 0x98:
-		nv_engine(priv)->sclass = nv84_gr_sclass;
+		nv_engine(priv)->sclass = g84_gr_sclass;
 		break;
 	case 0xa0:
 	case 0xaa:
 	case 0xac:
-		nv_engine(priv)->sclass = nva0_gr_sclass;
+		nv_engine(priv)->sclass = gt200_gr_sclass;
 		break;
 	case 0xa3:
 	case 0xa5:
 	case 0xa8:
-		nv_engine(priv)->sclass = nva3_gr_sclass;
+		nv_engine(priv)->sclass = gt215_gr_sclass;
 		break;
 	case 0xaf:
-		nv_engine(priv)->sclass = nvaf_gr_sclass;
+		nv_engine(priv)->sclass = mcp89_gr_sclass;
 		break;
 
 	}
@@ -906,19 +895,19 @@ nv50_gr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	/* unfortunate hw bug workaround... */
 	if (nv_device(priv)->chipset != 0x50 &&
 	    nv_device(priv)->chipset != 0xac)
-		nv_engine(priv)->tlb_flush = nv84_gr_tlb_flush;
+		nv_engine(priv)->tlb_flush = g84_gr_tlb_flush;
 
 	spin_lock_init(&priv->lock);
 	return 0;
 }
 
 static int
-nv50_gr_init(struct nouveau_object *object)
+nv50_gr_init(struct nvkm_object *object)
 {
 	struct nv50_gr_priv *priv = (void *)object;
 	int ret, units, i;
 
-	ret = nouveau_gr_init(&priv->base);
+	ret = nvkm_gr_init(&priv->base);
 	if (ret)
 		return ret;
 
@@ -998,13 +987,13 @@ nv50_gr_init(struct nouveau_object *object)
 	return 0;
 }
 
-struct nouveau_oclass
+struct nvkm_oclass
 nv50_gr_oclass = {
 	.handle = NV_ENGINE(GR, 0x50),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv50_gr_ctor,
-		.dtor = _nouveau_gr_dtor,
+		.dtor = _nvkm_gr_dtor,
 		.init = nv50_gr_init,
-		.fini = _nouveau_gr_fini,
+		.fini = _nvkm_gr_fini,
 	},
 };

@@ -21,14 +21,13 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-
-#include "ctxnvc0.h"
+#include "ctxgf100.h"
 
 /*******************************************************************************
  * PGRAPH context register lists
  ******************************************************************************/
 
-static const struct nvc0_gr_init
+static const struct gf100_gr_init
 gk110b_grctx_init_sm_0[] = {
 	{ 0x419e04,   1, 0x04, 0x00000000 },
 	{ 0x419e08,   1, 0x04, 0x0000001d },
@@ -56,12 +55,12 @@ gk110b_grctx_init_sm_0[] = {
 	{}
 };
 
-static const struct nvc0_gr_pack
+static const struct gf100_gr_pack
 gk110b_grctx_pack_tpc[] = {
-	{ nvd7_grctx_init_pe_0 },
-	{ nvf0_grctx_init_tex_0 },
-	{ nvf0_grctx_init_mpc_0 },
-	{ nvf0_grctx_init_l1c_0 },
+	{ gf117_grctx_init_pe_0 },
+	{ gk110_grctx_init_tex_0 },
+	{ gk110_grctx_init_mpc_0 },
+	{ gk110_grctx_init_l1c_0 },
 	{ gk110b_grctx_init_sm_0 },
 	{}
 };
@@ -70,33 +69,33 @@ gk110b_grctx_pack_tpc[] = {
  * PGRAPH context implementation
  ******************************************************************************/
 
-struct nouveau_oclass *
-gk110b_grctx_oclass = &(struct nvc0_grctx_oclass) {
+struct nvkm_oclass *
+gk110b_grctx_oclass = &(struct gf100_grctx_oclass) {
 	.base.handle = NV_ENGCTX(GR, 0xf1),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_gr_context_ctor,
-		.dtor = nvc0_gr_context_dtor,
-		.init = _nouveau_gr_context_init,
-		.fini = _nouveau_gr_context_fini,
-		.rd32 = _nouveau_gr_context_rd32,
-		.wr32 = _nouveau_gr_context_wr32,
+	.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gf100_gr_context_ctor,
+		.dtor = gf100_gr_context_dtor,
+		.init = _nvkm_gr_context_init,
+		.fini = _nvkm_gr_context_fini,
+		.rd32 = _nvkm_gr_context_rd32,
+		.wr32 = _nvkm_gr_context_wr32,
 	},
-	.main  = nve4_grctx_generate_main,
-	.unkn  = nve4_grctx_generate_unkn,
-	.hub   = nvf0_grctx_pack_hub,
-	.gpc   = nvf0_grctx_pack_gpc,
-	.zcull = nvc0_grctx_pack_zcull,
+	.main  = gk104_grctx_generate_main,
+	.unkn  = gk104_grctx_generate_unkn,
+	.hub   = gk110_grctx_pack_hub,
+	.gpc   = gk110_grctx_pack_gpc,
+	.zcull = gf100_grctx_pack_zcull,
 	.tpc   = gk110b_grctx_pack_tpc,
-	.ppc   = nvf0_grctx_pack_ppc,
-	.icmd  = nvf0_grctx_pack_icmd,
-	.mthd  = nvf0_grctx_pack_mthd,
-	.bundle = nve4_grctx_generate_bundle,
+	.ppc   = gk110_grctx_pack_ppc,
+	.icmd  = gk110_grctx_pack_icmd,
+	.mthd  = gk110_grctx_pack_mthd,
+	.bundle = gk104_grctx_generate_bundle,
 	.bundle_size = 0x3000,
 	.bundle_min_gpm_fifo_depth = 0x180,
 	.bundle_token_limit = 0x600,
-	.pagepool = nve4_grctx_generate_pagepool,
+	.pagepool = gk104_grctx_generate_pagepool,
 	.pagepool_size = 0x8000,
-	.attrib = nvd7_grctx_generate_attrib,
+	.attrib = gf117_grctx_generate_attrib,
 	.attrib_nr_max = 0x324,
 	.attrib_nr = 0x218,
 	.alpha_nr_max = 0x7ff,

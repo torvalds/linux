@@ -19,30 +19,31 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+#include "gf100.h"
+#include "ctxgf100.h"
 
-#include "nvc0.h"
-#include "ctxnvc0.h"
+#include <nvif/class.h>
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 gk20a_gr_sclass[] = {
-	{ 0x902d, &nouveau_object_ofuncs },
-	{ 0xa040, &nouveau_object_ofuncs },
-	{ KEPLER_C, &nvc0_fermi_ofuncs, nvc0_gr_9097_omthds },
-	{ KEPLER_COMPUTE_A, &nouveau_object_ofuncs, nvc0_gr_90c0_omthds },
+	{ 0x902d, &nvkm_object_ofuncs },
+	{ 0xa040, &nvkm_object_ofuncs },
+	{ KEPLER_C, &gf100_fermi_ofuncs, gf100_gr_9097_omthds },
+	{ KEPLER_COMPUTE_A, &nvkm_object_ofuncs, gf100_gr_90c0_omthds },
 	{}
 };
 
-struct nouveau_oclass *
-gk20a_gr_oclass = &(struct nvc0_gr_oclass) {
+struct nvkm_oclass *
+gk20a_gr_oclass = &(struct gf100_gr_oclass) {
 	.base.handle = NV_ENGINE(GR, 0xea),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_gr_ctor,
-		.dtor = nvc0_gr_dtor,
-		.init = nve4_gr_init,
-		.fini = _nouveau_gr_fini,
+	.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gf100_gr_ctor,
+		.dtor = gf100_gr_dtor,
+		.init = gk104_gr_init,
+		.fini = _nvkm_gr_fini,
 	},
 	.cclass = &gk20a_grctx_oclass,
 	.sclass = gk20a_gr_sclass,
-	.mmio = nve4_gr_pack_mmio,
+	.mmio = gk104_gr_pack_mmio,
 	.ppc_nr = 1,
 }.base;

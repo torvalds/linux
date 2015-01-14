@@ -20,9 +20,6 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <core/device.h>
-#include <core/gpuobj.h>
-
 #define CP_FLAG_CLEAR                 0
 #define CP_FLAG_SET                   1
 #define CP_FLAG_SWAP_DIRECTION        ((0 * 32) + 0)
@@ -108,13 +105,13 @@
 #define CP_SEEK_1      0x00c000ff
 #define CP_SEEK_2      0x00c800ff
 
-#include "nv50.h"
-#include "ctx.h"
+#include "ctxnv40.h"
+
+#include <core/device.h>
+#include <subdev/fb.h>
 
 #define IS_NVA3F(x) (((x) > 0xa0 && (x) < 0xaa) || (x) == 0xaf)
 #define IS_NVAAF(x) ((x) >= 0xaa && (x) <= 0xac)
-
-#include <subdev/fb.h>
 
 /*
  * This code deals with PGRAPH contexts on NV50 family cards. Like NV40, it's
@@ -170,14 +167,14 @@ enum cp_label {
 	cp_exit,
 };
 
-static void nv50_gr_construct_mmio(struct nouveau_grctx *ctx);
-static void nv50_gr_construct_xfer1(struct nouveau_grctx *ctx);
-static void nv50_gr_construct_xfer2(struct nouveau_grctx *ctx);
+static void nv50_gr_construct_mmio(struct nvkm_grctx *ctx);
+static void nv50_gr_construct_xfer1(struct nvkm_grctx *ctx);
+static void nv50_gr_construct_xfer2(struct nvkm_grctx *ctx);
 
 /* Main function: construct the ctxprog skeleton, call the other functions. */
 
 static int
-nv50_grctx_generate(struct nouveau_grctx *ctx)
+nv50_grctx_generate(struct nvkm_grctx *ctx)
 {
 	cp_set (ctx, STATE, RUNNING);
 	cp_set (ctx, XFER_SWITCH, ENABLE);
@@ -256,22 +253,22 @@ nv50_grctx_generate(struct nouveau_grctx *ctx)
 }
 
 void
-nv50_grctx_fill(struct nouveau_device *device, struct nouveau_gpuobj *mem)
+nv50_grctx_fill(struct nvkm_device *device, struct nvkm_gpuobj *mem)
 {
-	nv50_grctx_generate(&(struct nouveau_grctx) {
+	nv50_grctx_generate(&(struct nvkm_grctx) {
 			     .device = device,
-			     .mode = NOUVEAU_GRCTX_VALS,
+			     .mode = NVKM_GRCTX_VALS,
 			     .data = mem,
 			   });
 }
 
 int
-nv50_grctx_init(struct nouveau_device *device, u32 *size)
+nv50_grctx_init(struct nvkm_device *device, u32 *size)
 {
 	u32 *ctxprog = kmalloc(512 * 4, GFP_KERNEL), i;
-	struct nouveau_grctx ctx = {
+	struct nvkm_grctx ctx = {
 		.device = device,
-		.mode = NOUVEAU_GRCTX_PROG,
+		.mode = NVKM_GRCTX_PROG,
 		.data = ctxprog,
 		.ctxprog_max = 512,
 	};
@@ -294,12 +291,12 @@ nv50_grctx_init(struct nouveau_device *device, u32 *size)
  */
 
 static void
-nv50_gr_construct_mmio_ddata(struct nouveau_grctx *ctx);
+nv50_gr_construct_mmio_ddata(struct nvkm_grctx *ctx);
 
 static void
-nv50_gr_construct_mmio(struct nouveau_grctx *ctx)
+nv50_gr_construct_mmio(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	int i, j;
 	int offset, base;
 	u32 units = nv_rd32 (ctx->device, 0x1540);
@@ -573,7 +570,7 @@ nv50_gr_construct_mmio(struct nouveau_grctx *ctx)
 		else if (device->chipset < 0xa0)
 			gr_def(ctx, 0x407d08, 0x00390040);
 		else {
-			if (nouveau_fb(device)->ram->type != NV_MEM_TYPE_GDDR5)
+			if (nvkm_fb(device)->ram->type != NV_MEM_TYPE_GDDR5)
 				gr_def(ctx, 0x407d08, 0x003d0040);
 			else
 				gr_def(ctx, 0x407d08, 0x003c0040);
@@ -785,18 +782,18 @@ nv50_gr_construct_mmio(struct nouveau_grctx *ctx)
 }
 
 static void
-dd_emit(struct nouveau_grctx *ctx, int num, u32 val) {
+dd_emit(struct nvkm_grctx *ctx, int num, u32 val) {
 	int i;
-	if (val && ctx->mode == NOUVEAU_GRCTX_VALS)
+	if (val && ctx->mode == NVKM_GRCTX_VALS)
 		for (i = 0; i < num; i++)
 			nv_wo32(ctx->data, 4 * (ctx->ctxvals_pos + i), val);
 	ctx->ctxvals_pos += num;
 }
 
 static void
-nv50_gr_construct_mmio_ddata(struct nouveau_grctx *ctx)
+nv50_gr_construct_mmio_ddata(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	int base, num;
 	base = ctx->ctxvals_pos;
 
@@ -1157,9 +1154,9 @@ nv50_gr_construct_mmio_ddata(struct nouveau_grctx *ctx)
  */
 
 static void
-xf_emit(struct nouveau_grctx *ctx, int num, u32 val) {
+xf_emit(struct nvkm_grctx *ctx, int num, u32 val) {
 	int i;
-	if (val && ctx->mode == NOUVEAU_GRCTX_VALS)
+	if (val && ctx->mode == NVKM_GRCTX_VALS)
 		for (i = 0; i < num; i++)
 			nv_wo32(ctx->data, 4 * (ctx->ctxvals_pos + (i << 3)), val);
 	ctx->ctxvals_pos += num << 3;
@@ -1167,29 +1164,29 @@ xf_emit(struct nouveau_grctx *ctx, int num, u32 val) {
 
 /* Gene declarations... */
 
-static void nv50_gr_construct_gene_dispatch(struct nouveau_grctx *ctx);
-static void nv50_gr_construct_gene_m2mf(struct nouveau_grctx *ctx);
-static void nv50_gr_construct_gene_ccache(struct nouveau_grctx *ctx);
-static void nv50_gr_construct_gene_unk10xx(struct nouveau_grctx *ctx);
-static void nv50_gr_construct_gene_unk14xx(struct nouveau_grctx *ctx);
-static void nv50_gr_construct_gene_zcull(struct nouveau_grctx *ctx);
-static void nv50_gr_construct_gene_clipid(struct nouveau_grctx *ctx);
-static void nv50_gr_construct_gene_unk24xx(struct nouveau_grctx *ctx);
-static void nv50_gr_construct_gene_vfetch(struct nouveau_grctx *ctx);
-static void nv50_gr_construct_gene_eng2d(struct nouveau_grctx *ctx);
-static void nv50_gr_construct_gene_csched(struct nouveau_grctx *ctx);
-static void nv50_gr_construct_gene_unk1cxx(struct nouveau_grctx *ctx);
-static void nv50_gr_construct_gene_strmout(struct nouveau_grctx *ctx);
-static void nv50_gr_construct_gene_unk34xx(struct nouveau_grctx *ctx);
-static void nv50_gr_construct_gene_ropm1(struct nouveau_grctx *ctx);
-static void nv50_gr_construct_gene_ropm2(struct nouveau_grctx *ctx);
-static void nv50_gr_construct_gene_ropc(struct nouveau_grctx *ctx);
-static void nv50_gr_construct_xfer_tp(struct nouveau_grctx *ctx);
+static void nv50_gr_construct_gene_dispatch(struct nvkm_grctx *ctx);
+static void nv50_gr_construct_gene_m2mf(struct nvkm_grctx *ctx);
+static void nv50_gr_construct_gene_ccache(struct nvkm_grctx *ctx);
+static void nv50_gr_construct_gene_unk10xx(struct nvkm_grctx *ctx);
+static void nv50_gr_construct_gene_unk14xx(struct nvkm_grctx *ctx);
+static void nv50_gr_construct_gene_zcull(struct nvkm_grctx *ctx);
+static void nv50_gr_construct_gene_clipid(struct nvkm_grctx *ctx);
+static void nv50_gr_construct_gene_unk24xx(struct nvkm_grctx *ctx);
+static void nv50_gr_construct_gene_vfetch(struct nvkm_grctx *ctx);
+static void nv50_gr_construct_gene_eng2d(struct nvkm_grctx *ctx);
+static void nv50_gr_construct_gene_csched(struct nvkm_grctx *ctx);
+static void nv50_gr_construct_gene_unk1cxx(struct nvkm_grctx *ctx);
+static void nv50_gr_construct_gene_strmout(struct nvkm_grctx *ctx);
+static void nv50_gr_construct_gene_unk34xx(struct nvkm_grctx *ctx);
+static void nv50_gr_construct_gene_ropm1(struct nvkm_grctx *ctx);
+static void nv50_gr_construct_gene_ropm2(struct nvkm_grctx *ctx);
+static void nv50_gr_construct_gene_ropc(struct nvkm_grctx *ctx);
+static void nv50_gr_construct_xfer_tp(struct nvkm_grctx *ctx);
 
 static void
-nv50_gr_construct_xfer1(struct nouveau_grctx *ctx)
+nv50_gr_construct_xfer1(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	int i;
 	int offset;
 	int size = 0;
@@ -1350,10 +1347,10 @@ nv50_gr_construct_xfer1(struct nouveau_grctx *ctx)
  */
 
 static void
-nv50_gr_construct_gene_dispatch(struct nouveau_grctx *ctx)
+nv50_gr_construct_gene_dispatch(struct nvkm_grctx *ctx)
 {
 	/* start of strand 0 */
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	/* SEEK */
 	if (device->chipset == 0x50)
 		xf_emit(ctx, 5, 0);
@@ -1406,10 +1403,10 @@ nv50_gr_construct_gene_dispatch(struct nouveau_grctx *ctx)
 }
 
 static void
-nv50_gr_construct_gene_m2mf(struct nouveau_grctx *ctx)
+nv50_gr_construct_gene_m2mf(struct nvkm_grctx *ctx)
 {
 	/* Strand 0, right after dispatch */
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	int smallm2mf = 0;
 	if (device->chipset < 0x92 || device->chipset == 0x98)
 		smallm2mf = 1;
@@ -1458,9 +1455,9 @@ nv50_gr_construct_gene_m2mf(struct nouveau_grctx *ctx)
 }
 
 static void
-nv50_gr_construct_gene_ccache(struct nouveau_grctx *ctx)
+nv50_gr_construct_gene_ccache(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	xf_emit(ctx, 2, 0);		/* RO */
 	xf_emit(ctx, 0x800, 0);		/* ffffffff */
 	switch (device->chipset) {
@@ -1526,9 +1523,9 @@ nv50_gr_construct_gene_ccache(struct nouveau_grctx *ctx)
 }
 
 static void
-nv50_gr_construct_gene_unk10xx(struct nouveau_grctx *ctx)
+nv50_gr_construct_gene_unk10xx(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	int i;
 	/* end of area 2 on pre-NVA0, area 1 on NVAx */
 	xf_emit(ctx, 1, 4);		/* 000000ff GP_RESULT_MAP_SIZE */
@@ -1586,9 +1583,9 @@ nv50_gr_construct_gene_unk10xx(struct nouveau_grctx *ctx)
 }
 
 static void
-nv50_gr_construct_gene_unk34xx(struct nouveau_grctx *ctx)
+nv50_gr_construct_gene_unk34xx(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	/* end of area 2 on pre-NVA0, area 1 on NVAx */
 	xf_emit(ctx, 1, 0);		/* 00000001 VIEWPORT_CLIP_RECTS_EN */
 	xf_emit(ctx, 1, 0);		/* 00000003 VIEWPORT_CLIP_MODE */
@@ -1611,9 +1608,9 @@ nv50_gr_construct_gene_unk34xx(struct nouveau_grctx *ctx)
 }
 
 static void
-nv50_gr_construct_gene_unk14xx(struct nouveau_grctx *ctx)
+nv50_gr_construct_gene_unk14xx(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	/* middle of area 2 on pre-NVA0, beginning of area 2 on NVA0, area 7 on >NVA0 */
 	if (device->chipset != 0x50) {
 		xf_emit(ctx, 5, 0);		/* ffffffff */
@@ -1722,9 +1719,9 @@ nv50_gr_construct_gene_unk14xx(struct nouveau_grctx *ctx)
 }
 
 static void
-nv50_gr_construct_gene_zcull(struct nouveau_grctx *ctx)
+nv50_gr_construct_gene_zcull(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	/* end of strand 0 on pre-NVA0, beginning of strand 6 on NVAx */
 	/* SEEK */
 	xf_emit(ctx, 1, 0x3f);		/* 0000003f UNK1590 */
@@ -1783,7 +1780,7 @@ nv50_gr_construct_gene_zcull(struct nouveau_grctx *ctx)
 }
 
 static void
-nv50_gr_construct_gene_clipid(struct nouveau_grctx *ctx)
+nv50_gr_construct_gene_clipid(struct nvkm_grctx *ctx)
 {
 	/* middle of strand 0 on pre-NVA0 [after 24xx], middle of area 6 on NVAx */
 	/* SEEK */
@@ -1803,9 +1800,9 @@ nv50_gr_construct_gene_clipid(struct nouveau_grctx *ctx)
 }
 
 static void
-nv50_gr_construct_gene_unk24xx(struct nouveau_grctx *ctx)
+nv50_gr_construct_gene_unk24xx(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	int i;
 	/* middle of strand 0 on pre-NVA0 [after m2mf], end of strand 2 on NVAx */
 	/* SEEK */
@@ -1886,9 +1883,9 @@ nv50_gr_construct_gene_unk24xx(struct nouveau_grctx *ctx)
 }
 
 static void
-nv50_gr_construct_gene_vfetch(struct nouveau_grctx *ctx)
+nv50_gr_construct_gene_vfetch(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	int acnt = 0x10, rep, i;
 	/* beginning of strand 1 on pre-NVA0, strand 3 on NVAx */
 	if (IS_NVA3F(device->chipset))
@@ -2072,9 +2069,9 @@ nv50_gr_construct_gene_vfetch(struct nouveau_grctx *ctx)
 }
 
 static void
-nv50_gr_construct_gene_eng2d(struct nouveau_grctx *ctx)
+nv50_gr_construct_gene_eng2d(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	/* middle of strand 1 on pre-NVA0 [after vfetch], middle of strand 6 on NVAx */
 	/* SEEK */
 	xf_emit(ctx, 2, 0);		/* 0001ffff CLIP_X, CLIP_Y */
@@ -2134,9 +2131,9 @@ nv50_gr_construct_gene_eng2d(struct nouveau_grctx *ctx)
 }
 
 static void
-nv50_gr_construct_gene_csched(struct nouveau_grctx *ctx)
+nv50_gr_construct_gene_csched(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	/* middle of strand 1 on pre-NVA0 [after eng2d], middle of strand 0 on NVAx */
 	/* SEEK */
 	xf_emit(ctx, 2, 0);		/* 00007fff WINDOW_OFFSET_XY... what is it doing here??? */
@@ -2233,9 +2230,9 @@ nv50_gr_construct_gene_csched(struct nouveau_grctx *ctx)
 }
 
 static void
-nv50_gr_construct_gene_unk1cxx(struct nouveau_grctx *ctx)
+nv50_gr_construct_gene_unk1cxx(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	xf_emit(ctx, 2, 0);		/* 00007fff WINDOW_OFFSET_XY */
 	xf_emit(ctx, 1, 0x3f800000);	/* ffffffff LINE_WIDTH */
 	xf_emit(ctx, 1, 0);		/* 00000001 LINE_SMOOTH_ENABLE */
@@ -2329,9 +2326,9 @@ nv50_gr_construct_gene_unk1cxx(struct nouveau_grctx *ctx)
 }
 
 static void
-nv50_gr_construct_gene_strmout(struct nouveau_grctx *ctx)
+nv50_gr_construct_gene_strmout(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	xf_emit(ctx, 1, 0x102);		/* 0000ffff STRMOUT_BUFFER_CTRL */
 	xf_emit(ctx, 1, 0);		/* ffffffff STRMOUT_PRIMITIVE_COUNT */
 	xf_emit(ctx, 4, 4);		/* 000000ff STRMOUT_NUM_ATTRIBS */
@@ -2371,9 +2368,9 @@ nv50_gr_construct_gene_strmout(struct nouveau_grctx *ctx)
 }
 
 static void
-nv50_gr_construct_gene_ropm1(struct nouveau_grctx *ctx)
+nv50_gr_construct_gene_ropm1(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	xf_emit(ctx, 1, 0x4e3bfdf);	/* ffffffff UNK0D64 */
 	xf_emit(ctx, 1, 0x4e3bfdf);	/* ffffffff UNK0DF4 */
 	xf_emit(ctx, 1, 0);		/* 00000007 */
@@ -2384,9 +2381,9 @@ nv50_gr_construct_gene_ropm1(struct nouveau_grctx *ctx)
 }
 
 static void
-nv50_gr_construct_gene_ropm2(struct nouveau_grctx *ctx)
+nv50_gr_construct_gene_ropm2(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	/* SEEK */
 	xf_emit(ctx, 1, 0);		/* 0000ffff DMA_QUERY */
 	xf_emit(ctx, 1, 0x0fac6881);	/* 0fffffff RT_CONTROL */
@@ -2410,9 +2407,9 @@ nv50_gr_construct_gene_ropm2(struct nouveau_grctx *ctx)
 }
 
 static void
-nv50_gr_construct_gene_ropc(struct nouveau_grctx *ctx)
+nv50_gr_construct_gene_ropc(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	int magic2;
 	if (device->chipset == 0x50) {
 		magic2 = 0x00003e60;
@@ -2645,9 +2642,9 @@ nv50_gr_construct_gene_ropc(struct nouveau_grctx *ctx)
 }
 
 static void
-nv50_gr_construct_xfer_unk84xx(struct nouveau_grctx *ctx)
+nv50_gr_construct_xfer_unk84xx(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	int magic3;
 	switch (device->chipset) {
 	case 0x50:
@@ -2737,9 +2734,9 @@ nv50_gr_construct_xfer_unk84xx(struct nouveau_grctx *ctx)
 }
 
 static void
-nv50_gr_construct_xfer_tprop(struct nouveau_grctx *ctx)
+nv50_gr_construct_xfer_tprop(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	int magic1, magic2;
 	if (device->chipset == 0x50) {
 		magic1 = 0x3ff;
@@ -3037,9 +3034,9 @@ nv50_gr_construct_xfer_tprop(struct nouveau_grctx *ctx)
 }
 
 static void
-nv50_gr_construct_xfer_tex(struct nouveau_grctx *ctx)
+nv50_gr_construct_xfer_tex(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	xf_emit(ctx, 2, 0);		/* 1 LINKED_TSC. yes, 2. */
 	if (device->chipset != 0x50)
 		xf_emit(ctx, 1, 0);	/* 3 */
@@ -3083,9 +3080,9 @@ nv50_gr_construct_xfer_tex(struct nouveau_grctx *ctx)
 }
 
 static void
-nv50_gr_construct_xfer_unk8cxx(struct nouveau_grctx *ctx)
+nv50_gr_construct_xfer_unk8cxx(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	xf_emit(ctx, 1, 0);		/* 00000001 UNK1534 */
 	xf_emit(ctx, 1, 0);		/* 7/f MULTISAMPLE_SAMPLES_LOG2 */
 	xf_emit(ctx, 2, 0);		/* 7, ffff0ff3 */
@@ -3122,9 +3119,9 @@ nv50_gr_construct_xfer_unk8cxx(struct nouveau_grctx *ctx)
 }
 
 static void
-nv50_gr_construct_xfer_tp(struct nouveau_grctx *ctx)
+nv50_gr_construct_xfer_tp(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	if (device->chipset < 0xa0) {
 		nv50_gr_construct_xfer_unk84xx(ctx);
 		nv50_gr_construct_xfer_tprop(ctx);
@@ -3139,9 +3136,9 @@ nv50_gr_construct_xfer_tp(struct nouveau_grctx *ctx)
 }
 
 static void
-nv50_gr_construct_xfer_mpc(struct nouveau_grctx *ctx)
+nv50_gr_construct_xfer_mpc(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	int i, mpcnt = 2;
 	switch (device->chipset) {
 		case 0x98:
@@ -3271,9 +3268,9 @@ nv50_gr_construct_xfer_mpc(struct nouveau_grctx *ctx)
 }
 
 static void
-nv50_gr_construct_xfer2(struct nouveau_grctx *ctx)
+nv50_gr_construct_xfer2(struct nvkm_grctx *ctx)
 {
-	struct nouveau_device *device = ctx->device;
+	struct nvkm_device *device = ctx->device;
 	int i;
 	u32 offset;
 	u32 units = nv_rd32 (ctx->device, 0x1540);

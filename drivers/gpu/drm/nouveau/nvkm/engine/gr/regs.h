@@ -1,5 +1,5 @@
-#ifndef __NOUVEAU_GR_REGS_H__
-#define __NOUVEAU_GR_REGS_H__
+#ifndef __NVKM_GR_REGS_H__
+#define __NVKM_GR_REGS_H__
 
 #define NV04_PGRAPH_DEBUG_0                                0x00400080
 #define NV04_PGRAPH_DEBUG_1                                0x00400084

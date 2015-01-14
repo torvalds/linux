@@ -250,5 +250,6 @@
 #define nouveau_disp nvkm_disp
 #define nouveau_fifo_chan nvkm_fifo_chan
 #define nouveau_fifo nvkm_fifo
+#define nouveau_gr nvkm_gr
 
 #endif

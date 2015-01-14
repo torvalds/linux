@@ -21,32 +21,26 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <core/client.h>
-#include <core/os.h>
-#include <core/handle.h>
-#include <core/engctx.h>
-
-#include <subdev/fb.h>
-#include <subdev/timer.h>
-
-#include <engine/gr.h>
-#include <engine/fifo.h>
-
 #include "nv40.h"
 #include "regs.h"
 
+#include <core/client.h>
+#include <core/handle.h>
+#include <subdev/fb.h>
+#include <subdev/timer.h>
+#include <engine/fifo.h>
+
 struct nv40_gr_priv {
-	struct nouveau_gr base;
+	struct nvkm_gr base;
 	u32 size;
 };
 
 struct nv40_gr_chan {
-	struct nouveau_gr_chan base;
+	struct nvkm_gr_chan base;
 };
 
 static u64
-nv40_gr_units(struct nouveau_gr *gr)
+nv40_gr_units(struct nvkm_gr *gr)
 {
 	struct nv40_gr_priv *priv = (void *)gr;
 
@@ -58,16 +52,15 @@ nv40_gr_units(struct nouveau_gr *gr)
  ******************************************************************************/
 
 static int
-nv40_gr_object_ctor(struct nouveau_object *parent,
-		       struct nouveau_object *engine,
-		       struct nouveau_oclass *oclass, void *data, u32 size,
-		       struct nouveau_object **pobject)
+nv40_gr_object_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		    struct nvkm_oclass *oclass, void *data, u32 size,
+		    struct nvkm_object **pobject)
 {
-	struct nouveau_gpuobj *obj;
+	struct nvkm_gpuobj *obj;
 	int ret;
 
-	ret = nouveau_gpuobj_create(parent, engine, oclass, 0, parent,
-				    20, 16, 0, &obj);
+	ret = nvkm_gpuobj_create(parent, engine, oclass, 0, parent,
+				 20, 16, 0, &obj);
 	*pobject = nv_object(obj);
 	if (ret)
 		return ret;
@@ -83,17 +76,17 @@ nv40_gr_object_ctor(struct nouveau_object *parent,
 	return 0;
 }
 
-static struct nouveau_ofuncs
+static struct nvkm_ofuncs
 nv40_gr_ofuncs = {
 	.ctor = nv40_gr_object_ctor,
-	.dtor = _nouveau_gpuobj_dtor,
-	.init = _nouveau_gpuobj_init,
-	.fini = _nouveau_gpuobj_fini,
-	.rd32 = _nouveau_gpuobj_rd32,
-	.wr32 = _nouveau_gpuobj_wr32,
+	.dtor = _nvkm_gpuobj_dtor,
+	.init = _nvkm_gpuobj_init,
+	.fini = _nvkm_gpuobj_fini,
+	.rd32 = _nvkm_gpuobj_rd32,
+	.wr32 = _nvkm_gpuobj_wr32,
 };
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 nv40_gr_sclass[] = {
 	{ 0x0012, &nv40_gr_ofuncs, NULL }, /* beta1 */
 	{ 0x0019, &nv40_gr_ofuncs, NULL }, /* clip */
@@ -114,7 +107,7 @@ nv40_gr_sclass[] = {
 	{},
 };
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 nv44_gr_sclass[] = {
 	{ 0x0012, &nv40_gr_ofuncs, NULL }, /* beta1 */
 	{ 0x0019, &nv40_gr_ofuncs, NULL }, /* clip */
@@ -140,18 +133,16 @@ nv44_gr_sclass[] = {
  ******************************************************************************/
 
 static int
-nv40_gr_context_ctor(struct nouveau_object *parent,
-			struct nouveau_object *engine,
-			struct nouveau_oclass *oclass, void *data, u32 size,
-			struct nouveau_object **pobject)
+nv40_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		     struct nvkm_oclass *oclass, void *data, u32 size,
+		     struct nvkm_object **pobject)
 {
 	struct nv40_gr_priv *priv = (void *)engine;
 	struct nv40_gr_chan *chan;
 	int ret;
 
-	ret = nouveau_gr_context_create(parent, engine, oclass, NULL,
-					   priv->size, 16,
-					   NVOBJ_FLAG_ZERO_ALLOC, &chan);
+	ret = nvkm_gr_context_create(parent, engine, oclass, NULL, priv->size,
+				     16, NVOBJ_FLAG_ZERO_ALLOC, &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
@@ -162,7 +153,7 @@ nv40_gr_context_ctor(struct nouveau_object *parent,
 }
 
 static int
-nv40_gr_context_fini(struct nouveau_object *object, bool suspend)
+nv40_gr_context_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nv40_gr_priv *priv = (void *)object->engine;
 	struct nv40_gr_chan *chan = (void *)object;
@@ -194,16 +185,16 @@ nv40_gr_context_fini(struct nouveau_object *object, bool suspend)
 	return ret;
 }
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 nv40_gr_cclass = {
 	.handle = NV_ENGCTX(GR, 0x40),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv40_gr_context_ctor,
-		.dtor = _nouveau_gr_context_dtor,
-		.init = _nouveau_gr_context_init,
+		.dtor = _nvkm_gr_context_dtor,
+		.init = _nvkm_gr_context_init,
 		.fini = nv40_gr_context_fini,
-		.rd32 = _nouveau_gr_context_rd32,
-		.wr32 = _nouveau_gr_context_wr32,
+		.rd32 = _nvkm_gr_context_rd32,
+		.wr32 = _nvkm_gr_context_wr32,
 	},
 };
 
@@ -212,10 +203,10 @@ nv40_gr_cclass = {
  ******************************************************************************/
 
 static void
-nv40_gr_tile_prog(struct nouveau_engine *engine, int i)
+nv40_gr_tile_prog(struct nvkm_engine *engine, int i)
 {
-	struct nouveau_fb_tile *tile = &nouveau_fb(engine)->tile.region[i];
-	struct nouveau_fifo *pfifo = nouveau_fifo(engine);
+	struct nvkm_fb_tile *tile = &nvkm_fb(engine)->tile.region[i];
+	struct nvkm_fifo *pfifo = nvkm_fifo(engine);
 	struct nv40_gr_priv *priv = (void *)engine;
 	unsigned long flags;
 
@@ -290,12 +281,12 @@ nv40_gr_tile_prog(struct nouveau_engine *engine, int i)
 }
 
 static void
-nv40_gr_intr(struct nouveau_subdev *subdev)
+nv40_gr_intr(struct nvkm_subdev *subdev)
 {
-	struct nouveau_fifo *pfifo = nouveau_fifo(subdev);
-	struct nouveau_engine *engine = nv_engine(subdev);
-	struct nouveau_object *engctx;
-	struct nouveau_handle *handle = NULL;
+	struct nvkm_fifo *pfifo = nvkm_fifo(subdev);
+	struct nvkm_engine *engine = nv_engine(subdev);
+	struct nvkm_object *engctx;
+	struct nvkm_handle *handle = NULL;
 	struct nv40_gr_priv *priv = (void *)subdev;
 	u32 stat = nv_rd32(priv, NV03_PGRAPH_INTR);
 	u32 nsource = nv_rd32(priv, NV03_PGRAPH_NSOURCE);
@@ -309,15 +300,15 @@ nv40_gr_intr(struct nouveau_subdev *subdev)
 	u32 show = stat;
 	int chid;
 
-	engctx = nouveau_engctx_get(engine, inst);
+	engctx = nvkm_engctx_get(engine, inst);
 	chid   = pfifo->chid(pfifo, engctx);
 
 	if (stat & NV_PGRAPH_INTR_ERROR) {
 		if (nsource & NV03_PGRAPH_NSOURCE_ILLEGAL_MTHD) {
-			handle = nouveau_handle_get_class(engctx, class);
+			handle = nvkm_handle_get_class(engctx, class);
 			if (handle && !nv_call(handle->object, mthd, data))
 				show &= ~NV_PGRAPH_INTR_ERROR;
-			nouveau_handle_put(handle);
+			nvkm_handle_put(handle);
 		}
 
 		if (nsource & NV03_PGRAPH_NSOURCE_DMA_VTX_PROTECTION) {
@@ -330,30 +321,30 @@ nv40_gr_intr(struct nouveau_subdev *subdev)
 
 	if (show) {
 		nv_error(priv, "%s", "");
-		nouveau_bitfield_print(nv10_gr_intr_name, show);
+		nvkm_bitfield_print(nv10_gr_intr_name, show);
 		pr_cont(" nsource:");
-		nouveau_bitfield_print(nv04_gr_nsource, nsource);
+		nvkm_bitfield_print(nv04_gr_nsource, nsource);
 		pr_cont(" nstatus:");
-		nouveau_bitfield_print(nv10_gr_nstatus, nstatus);
+		nvkm_bitfield_print(nv10_gr_nstatus, nstatus);
 		pr_cont("\n");
 		nv_error(priv,
 			 "ch %d [0x%08x %s] subc %d class 0x%04x mthd 0x%04x data 0x%08x\n",
-			 chid, inst << 4, nouveau_client_name(engctx), subc,
+			 chid, inst << 4, nvkm_client_name(engctx), subc,
 			 class, mthd, data);
 	}
 
-	nouveau_engctx_put(engctx);
+	nvkm_engctx_put(engctx);
 }
 
 static int
-nv40_gr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
+nv40_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	     struct nvkm_oclass *oclass, void *data, u32 size,
+	     struct nvkm_object **pobject)
 {
 	struct nv40_gr_priv *priv;
 	int ret;
 
-	ret = nouveau_gr_create(parent, engine, oclass, true, &priv);
+	ret = nvkm_gr_create(parent, engine, oclass, true, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -372,15 +363,15 @@ nv40_gr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 }
 
 static int
-nv40_gr_init(struct nouveau_object *object)
+nv40_gr_init(struct nvkm_object *object)
 {
-	struct nouveau_engine *engine = nv_engine(object);
-	struct nouveau_fb *pfb = nouveau_fb(object);
+	struct nvkm_engine *engine = nv_engine(object);
+	struct nvkm_fb *pfb = nvkm_fb(object);
 	struct nv40_gr_priv *priv = (void *)engine;
 	int ret, i, j;
 	u32 vramsz;
 
-	ret = nouveau_gr_init(&priv->base);
+	ret = nvkm_gr_init(&priv->base);
 	if (ret)
 		return ret;
 
@@ -524,13 +515,13 @@ nv40_gr_init(struct nouveau_object *object)
 	return 0;
 }
 
-struct nouveau_oclass
+struct nvkm_oclass
 nv40_gr_oclass = {
 	.handle = NV_ENGINE(GR, 0x40),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv40_gr_ctor,
-		.dtor = _nouveau_gr_dtor,
+		.dtor = _nvkm_gr_dtor,
 		.init = nv40_gr_init,
-		.fini = _nouveau_gr_fini,
+		.fini = _nvkm_gr_fini,
 	},
 };

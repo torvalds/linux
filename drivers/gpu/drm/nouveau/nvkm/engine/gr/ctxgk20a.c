@@ -19,43 +19,42 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+#include "ctxgf100.h"
 
-#include "ctxnvc0.h"
-
-static const struct nvc0_gr_pack
+static const struct gf100_gr_pack
 gk20a_grctx_pack_mthd[] = {
-	{ nve4_grctx_init_a097_0, 0xa297 },
-	{ nvc0_grctx_init_902d_0, 0x902d },
+	{ gk104_grctx_init_a097_0, 0xa297 },
+	{ gf100_grctx_init_902d_0, 0x902d },
 	{}
 };
 
-struct nouveau_oclass *
-gk20a_grctx_oclass = &(struct nvc0_grctx_oclass) {
+struct nvkm_oclass *
+gk20a_grctx_oclass = &(struct gf100_grctx_oclass) {
 	.base.handle = NV_ENGCTX(GR, 0xea),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_gr_context_ctor,
-		.dtor = nvc0_gr_context_dtor,
-		.init = _nouveau_gr_context_init,
-		.fini = _nouveau_gr_context_fini,
-		.rd32 = _nouveau_gr_context_rd32,
-		.wr32 = _nouveau_gr_context_wr32,
+	.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gf100_gr_context_ctor,
+		.dtor = gf100_gr_context_dtor,
+		.init = _nvkm_gr_context_init,
+		.fini = _nvkm_gr_context_fini,
+		.rd32 = _nvkm_gr_context_rd32,
+		.wr32 = _nvkm_gr_context_wr32,
 	},
-	.main  = nve4_grctx_generate_main,
-	.unkn  = nve4_grctx_generate_unkn,
-	.hub   = nve4_grctx_pack_hub,
-	.gpc   = nve4_grctx_pack_gpc,
-	.zcull = nvc0_grctx_pack_zcull,
-	.tpc   = nve4_grctx_pack_tpc,
-	.ppc   = nve4_grctx_pack_ppc,
-	.icmd  = nve4_grctx_pack_icmd,
+	.main  = gk104_grctx_generate_main,
+	.unkn  = gk104_grctx_generate_unkn,
+	.hub   = gk104_grctx_pack_hub,
+	.gpc   = gk104_grctx_pack_gpc,
+	.zcull = gf100_grctx_pack_zcull,
+	.tpc   = gk104_grctx_pack_tpc,
+	.ppc   = gk104_grctx_pack_ppc,
+	.icmd  = gk104_grctx_pack_icmd,
 	.mthd  = gk20a_grctx_pack_mthd,
-	.bundle = nve4_grctx_generate_bundle,
+	.bundle = gk104_grctx_generate_bundle,
 	.bundle_size = 0x1800,
 	.bundle_min_gpm_fifo_depth = 0x62,
 	.bundle_token_limit = 0x100,
-	.pagepool = nve4_grctx_generate_pagepool,
+	.pagepool = gk104_grctx_generate_pagepool,
 	.pagepool_size = 0x8000,
-	.attrib = nvd7_grctx_generate_attrib,
+	.attrib = gf117_grctx_generate_attrib,
 	.attrib_nr_max = 0x240,
 	.attrib_nr = 0x240,
 	.alpha_nr_max = 0x648 + (0x648 / 2),

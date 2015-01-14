@@ -21,21 +21,15 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+#include <engine/gr.h>
+#include "regs.h"
 
 #include <core/client.h>
 #include <core/device.h>
-#include <core/os.h>
 #include <core/handle.h>
-#include <core/namedb.h>
-
-#include <subdev/fb.h>
+#include <engine/fifo.h>
 #include <subdev/instmem.h>
 #include <subdev/timer.h>
-
-#include <engine/fifo.h>
-#include <engine/gr.h>
-
-#include "regs.h"
 
 static u32
 nv04_gr_ctx_regs[] = {
@@ -353,13 +347,13 @@ nv04_gr_ctx_regs[] = {
 };
 
 struct nv04_gr_priv {
-	struct nouveau_gr base;
+	struct nvkm_gr base;
 	struct nv04_gr_chan *chan[16];
 	spinlock_t lock;
 };
 
 struct nv04_gr_chan {
-	struct nouveau_object base;
+	struct nvkm_object base;
 	int chid;
 	u32 nv04[ARRAY_SIZE(nv04_gr_ctx_regs)];
 };
@@ -450,7 +444,7 @@ nv04_gr_priv(struct nv04_gr_chan *chan)
  */
 
 static void
-nv04_gr_set_ctx1(struct nouveau_object *object, u32 mask, u32 value)
+nv04_gr_set_ctx1(struct nvkm_object *object, u32 mask, u32 value)
 {
 	struct nv04_gr_priv *priv = (void *)object->engine;
 	int subc = (nv_rd32(priv, NV04_PGRAPH_TRAPPED_ADDR) >> 13) & 0x7;
@@ -466,7 +460,7 @@ nv04_gr_set_ctx1(struct nouveau_object *object, u32 mask, u32 value)
 }
 
 static void
-nv04_gr_set_ctx_val(struct nouveau_object *object, u32 mask, u32 value)
+nv04_gr_set_ctx_val(struct nvkm_object *object, u32 mask, u32 value)
 {
 	int class, op, valid = 1;
 	u32 tmp, ctx1;
@@ -514,8 +508,8 @@ nv04_gr_set_ctx_val(struct nouveau_object *object, u32 mask, u32 value)
 }
 
 static int
-nv04_gr_mthd_set_operation(struct nouveau_object *object, u32 mthd,
-			      void *args, u32 size)
+nv04_gr_mthd_set_operation(struct nvkm_object *object, u32 mthd,
+			   void *args, u32 size)
 {
 	u32 class = nv_ro32(object, 0) & 0xff;
 	u32 data = *(u32 *)args;
@@ -531,8 +525,8 @@ nv04_gr_mthd_set_operation(struct nouveau_object *object, u32 mthd,
 }
 
 static int
-nv04_gr_mthd_surf3d_clip_h(struct nouveau_object *object, u32 mthd,
-			      void *args, u32 size)
+nv04_gr_mthd_surf3d_clip_h(struct nvkm_object *object, u32 mthd,
+			   void *args, u32 size)
 {
 	struct nv04_gr_priv *priv = (void *)object->engine;
 	u32 data = *(u32 *)args;
@@ -552,8 +546,8 @@ nv04_gr_mthd_surf3d_clip_h(struct nouveau_object *object, u32 mthd,
 }
 
 static int
-nv04_gr_mthd_surf3d_clip_v(struct nouveau_object *object, u32 mthd,
-			      void *args, u32 size)
+nv04_gr_mthd_surf3d_clip_v(struct nvkm_object *object, u32 mthd,
+			   void *args, u32 size)
 {
 	struct nv04_gr_priv *priv = (void *)object->engine;
 	u32 data = *(u32 *)args;
@@ -573,15 +567,15 @@ nv04_gr_mthd_surf3d_clip_v(struct nouveau_object *object, u32 mthd,
 }
 
 static u16
-nv04_gr_mthd_bind_class(struct nouveau_object *object, u32 *args, u32 size)
+nv04_gr_mthd_bind_class(struct nvkm_object *object, u32 *args, u32 size)
 {
-	struct nouveau_instmem *imem = nouveau_instmem(object);
+	struct nvkm_instmem *imem = nvkm_instmem(object);
 	u32 inst = *(u32 *)args << 4;
 	return nv_ro32(imem, inst);
 }
 
 static int
-nv04_gr_mthd_bind_surf2d(struct nouveau_object *object, u32 mthd,
+nv04_gr_mthd_bind_surf2d(struct nvkm_object *object, u32 mthd,
 			    void *args, u32 size)
 {
 	switch (nv04_gr_mthd_bind_class(object, args, size)) {
@@ -598,8 +592,8 @@ nv04_gr_mthd_bind_surf2d(struct nouveau_object *object, u32 mthd,
 }
 
 static int
-nv04_gr_mthd_bind_surf2d_swzsurf(struct nouveau_object *object, u32 mthd,
-				    void *args, u32 size)
+nv04_gr_mthd_bind_surf2d_swzsurf(struct nvkm_object *object, u32 mthd,
+				 void *args, u32 size)
 {
 	switch (nv04_gr_mthd_bind_class(object, args, size)) {
 	case 0x30:
@@ -619,8 +613,8 @@ nv04_gr_mthd_bind_surf2d_swzsurf(struct nouveau_object *object, u32 mthd,
 }
 
 static int
-nv01_gr_mthd_bind_patt(struct nouveau_object *object, u32 mthd,
-			  void *args, u32 size)
+nv01_gr_mthd_bind_patt(struct nvkm_object *object, u32 mthd,
+		       void *args, u32 size)
 {
 	switch (nv04_gr_mthd_bind_class(object, args, size)) {
 	case 0x30:
@@ -634,8 +628,8 @@ nv01_gr_mthd_bind_patt(struct nouveau_object *object, u32 mthd,
 }
 
 static int
-nv04_gr_mthd_bind_patt(struct nouveau_object *object, u32 mthd,
-			  void *args, u32 size)
+nv04_gr_mthd_bind_patt(struct nvkm_object *object, u32 mthd,
+		       void *args, u32 size)
 {
 	switch (nv04_gr_mthd_bind_class(object, args, size)) {
 	case 0x30:
@@ -649,8 +643,8 @@ nv04_gr_mthd_bind_patt(struct nouveau_object *object, u32 mthd,
 }
 
 static int
-nv04_gr_mthd_bind_rop(struct nouveau_object *object, u32 mthd,
-			 void *args, u32 size)
+nv04_gr_mthd_bind_rop(struct nvkm_object *object, u32 mthd,
+		      void *args, u32 size)
 {
 	switch (nv04_gr_mthd_bind_class(object, args, size)) {
 	case 0x30:
@@ -664,8 +658,8 @@ nv04_gr_mthd_bind_rop(struct nouveau_object *object, u32 mthd,
 }
 
 static int
-nv04_gr_mthd_bind_beta1(struct nouveau_object *object, u32 mthd,
-			   void *args, u32 size)
+nv04_gr_mthd_bind_beta1(struct nvkm_object *object, u32 mthd,
+			void *args, u32 size)
 {
 	switch (nv04_gr_mthd_bind_class(object, args, size)) {
 	case 0x30:
@@ -679,8 +673,8 @@ nv04_gr_mthd_bind_beta1(struct nouveau_object *object, u32 mthd,
 }
 
 static int
-nv04_gr_mthd_bind_beta4(struct nouveau_object *object, u32 mthd,
-			   void *args, u32 size)
+nv04_gr_mthd_bind_beta4(struct nvkm_object *object, u32 mthd,
+			void *args, u32 size)
 {
 	switch (nv04_gr_mthd_bind_class(object, args, size)) {
 	case 0x30:
@@ -694,8 +688,8 @@ nv04_gr_mthd_bind_beta4(struct nouveau_object *object, u32 mthd,
 }
 
 static int
-nv04_gr_mthd_bind_surf_dst(struct nouveau_object *object, u32 mthd,
-			      void *args, u32 size)
+nv04_gr_mthd_bind_surf_dst(struct nvkm_object *object, u32 mthd,
+			   void *args, u32 size)
 {
 	switch (nv04_gr_mthd_bind_class(object, args, size)) {
 	case 0x30:
@@ -709,8 +703,8 @@ nv04_gr_mthd_bind_surf_dst(struct nouveau_object *object, u32 mthd,
 }
 
 static int
-nv04_gr_mthd_bind_surf_src(struct nouveau_object *object, u32 mthd,
-			      void *args, u32 size)
+nv04_gr_mthd_bind_surf_src(struct nvkm_object *object, u32 mthd,
+			   void *args, u32 size)
 {
 	switch (nv04_gr_mthd_bind_class(object, args, size)) {
 	case 0x30:
@@ -724,8 +718,8 @@ nv04_gr_mthd_bind_surf_src(struct nouveau_object *object, u32 mthd,
 }
 
 static int
-nv04_gr_mthd_bind_surf_color(struct nouveau_object *object, u32 mthd,
-				void *args, u32 size)
+nv04_gr_mthd_bind_surf_color(struct nvkm_object *object, u32 mthd,
+			     void *args, u32 size)
 {
 	switch (nv04_gr_mthd_bind_class(object, args, size)) {
 	case 0x30:
@@ -739,8 +733,8 @@ nv04_gr_mthd_bind_surf_color(struct nouveau_object *object, u32 mthd,
 }
 
 static int
-nv04_gr_mthd_bind_surf_zeta(struct nouveau_object *object, u32 mthd,
-			       void *args, u32 size)
+nv04_gr_mthd_bind_surf_zeta(struct nvkm_object *object, u32 mthd,
+			    void *args, u32 size)
 {
 	switch (nv04_gr_mthd_bind_class(object, args, size)) {
 	case 0x30:
@@ -754,8 +748,8 @@ nv04_gr_mthd_bind_surf_zeta(struct nouveau_object *object, u32 mthd,
 }
 
 static int
-nv01_gr_mthd_bind_clip(struct nouveau_object *object, u32 mthd,
-			  void *args, u32 size)
+nv01_gr_mthd_bind_clip(struct nvkm_object *object, u32 mthd,
+		       void *args, u32 size)
 {
 	switch (nv04_gr_mthd_bind_class(object, args, size)) {
 	case 0x30:
@@ -769,8 +763,8 @@ nv01_gr_mthd_bind_clip(struct nouveau_object *object, u32 mthd,
 }
 
 static int
-nv01_gr_mthd_bind_chroma(struct nouveau_object *object, u32 mthd,
-			    void *args, u32 size)
+nv01_gr_mthd_bind_chroma(struct nvkm_object *object, u32 mthd,
+			 void *args, u32 size)
 {
 	switch (nv04_gr_mthd_bind_class(object, args, size)) {
 	case 0x30:
@@ -786,7 +780,7 @@ nv01_gr_mthd_bind_chroma(struct nouveau_object *object, u32 mthd,
 	return 1;
 }
 
-static struct nouveau_omthds
+static struct nvkm_omthds
 nv03_gr_gdi_omthds[] = {
 	{ 0x0184, 0x0184, nv01_gr_mthd_bind_patt },
 	{ 0x0188, 0x0188, nv04_gr_mthd_bind_rop },
@@ -796,7 +790,7 @@ nv03_gr_gdi_omthds[] = {
 	{}
 };
 
-static struct nouveau_omthds
+static struct nvkm_omthds
 nv04_gr_gdi_omthds[] = {
 	{ 0x0188, 0x0188, nv04_gr_mthd_bind_patt },
 	{ 0x018c, 0x018c, nv04_gr_mthd_bind_rop },
@@ -807,7 +801,7 @@ nv04_gr_gdi_omthds[] = {
 	{}
 };
 
-static struct nouveau_omthds
+static struct nvkm_omthds
 nv01_gr_blit_omthds[] = {
 	{ 0x0184, 0x0184, nv01_gr_mthd_bind_chroma },
 	{ 0x0188, 0x0188, nv01_gr_mthd_bind_clip },
@@ -820,7 +814,7 @@ nv01_gr_blit_omthds[] = {
 	{}
 };
 
-static struct nouveau_omthds
+static struct nvkm_omthds
 nv04_gr_blit_omthds[] = {
 	{ 0x0184, 0x0184, nv01_gr_mthd_bind_chroma },
 	{ 0x0188, 0x0188, nv01_gr_mthd_bind_clip },
@@ -833,7 +827,7 @@ nv04_gr_blit_omthds[] = {
 	{}
 };
 
-static struct nouveau_omthds
+static struct nvkm_omthds
 nv04_gr_iifc_omthds[] = {
 	{ 0x0188, 0x0188, nv01_gr_mthd_bind_chroma },
 	{ 0x018c, 0x018c, nv01_gr_mthd_bind_clip },
@@ -846,7 +840,7 @@ nv04_gr_iifc_omthds[] = {
 	{}
 };
 
-static struct nouveau_omthds
+static struct nvkm_omthds
 nv01_gr_ifc_omthds[] = {
 	{ 0x0184, 0x0184, nv01_gr_mthd_bind_chroma },
 	{ 0x0188, 0x0188, nv01_gr_mthd_bind_clip },
@@ -858,7 +852,7 @@ nv01_gr_ifc_omthds[] = {
 	{}
 };
 
-static struct nouveau_omthds
+static struct nvkm_omthds
 nv04_gr_ifc_omthds[] = {
 	{ 0x0184, 0x0184, nv01_gr_mthd_bind_chroma },
 	{ 0x0188, 0x0188, nv01_gr_mthd_bind_clip },
@@ -871,7 +865,7 @@ nv04_gr_ifc_omthds[] = {
 	{}
 };
 
-static struct nouveau_omthds
+static struct nvkm_omthds
 nv03_gr_sifc_omthds[] = {
 	{ 0x0184, 0x0184, nv01_gr_mthd_bind_chroma },
 	{ 0x0188, 0x0188, nv01_gr_mthd_bind_patt },
@@ -882,7 +876,7 @@ nv03_gr_sifc_omthds[] = {
 	{}
 };
 
-static struct nouveau_omthds
+static struct nvkm_omthds
 nv04_gr_sifc_omthds[] = {
 	{ 0x0184, 0x0184, nv01_gr_mthd_bind_chroma },
 	{ 0x0188, 0x0188, nv04_gr_mthd_bind_patt },
@@ -894,7 +888,7 @@ nv04_gr_sifc_omthds[] = {
 	{}
 };
 
-static struct nouveau_omthds
+static struct nvkm_omthds
 nv03_gr_sifm_omthds[] = {
 	{ 0x0188, 0x0188, nv01_gr_mthd_bind_patt },
 	{ 0x018c, 0x018c, nv04_gr_mthd_bind_rop },
@@ -904,7 +898,7 @@ nv03_gr_sifm_omthds[] = {
 	{}
 };
 
-static struct nouveau_omthds
+static struct nvkm_omthds
 nv04_gr_sifm_omthds[] = {
 	{ 0x0188, 0x0188, nv04_gr_mthd_bind_patt },
 	{ 0x018c, 0x018c, nv04_gr_mthd_bind_rop },
@@ -915,14 +909,14 @@ nv04_gr_sifm_omthds[] = {
 	{}
 };
 
-static struct nouveau_omthds
+static struct nvkm_omthds
 nv04_gr_surf3d_omthds[] = {
 	{ 0x02f8, 0x02f8, nv04_gr_mthd_surf3d_clip_h },
 	{ 0x02fc, 0x02fc, nv04_gr_mthd_surf3d_clip_v },
 	{}
 };
 
-static struct nouveau_omthds
+static struct nvkm_omthds
 nv03_gr_ttri_omthds[] = {
 	{ 0x0188, 0x0188, nv01_gr_mthd_bind_clip },
 	{ 0x018c, 0x018c, nv04_gr_mthd_bind_surf_color },
@@ -930,7 +924,7 @@ nv03_gr_ttri_omthds[] = {
 	{}
 };
 
-static struct nouveau_omthds
+static struct nvkm_omthds
 nv01_gr_prim_omthds[] = {
 	{ 0x0184, 0x0184, nv01_gr_mthd_bind_clip },
 	{ 0x0188, 0x0188, nv01_gr_mthd_bind_patt },
@@ -941,7 +935,7 @@ nv01_gr_prim_omthds[] = {
 	{}
 };
 
-static struct nouveau_omthds
+static struct nvkm_omthds
 nv04_gr_prim_omthds[] = {
 	{ 0x0184, 0x0184, nv01_gr_mthd_bind_clip },
 	{ 0x0188, 0x0188, nv04_gr_mthd_bind_patt },
@@ -954,16 +948,15 @@ nv04_gr_prim_omthds[] = {
 };
 
 static int
-nv04_gr_object_ctor(struct nouveau_object *parent,
-		       struct nouveau_object *engine,
-		       struct nouveau_oclass *oclass, void *data, u32 size,
-		       struct nouveau_object **pobject)
+nv04_gr_object_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		    struct nvkm_oclass *oclass, void *data, u32 size,
+		    struct nvkm_object **pobject)
 {
-	struct nouveau_gpuobj *obj;
+	struct nvkm_gpuobj *obj;
 	int ret;
 
-	ret = nouveau_gpuobj_create(parent, engine, oclass, 0, parent,
-				    16, 16, 0, &obj);
+	ret = nvkm_gpuobj_create(parent, engine, oclass, 0, parent,
+				 16, 16, 0, &obj);
 	*pobject = nv_object(obj);
 	if (ret)
 		return ret;
@@ -978,17 +971,17 @@ nv04_gr_object_ctor(struct nouveau_object *parent,
 	return 0;
 }
 
-struct nouveau_ofuncs
+struct nvkm_ofuncs
 nv04_gr_ofuncs = {
 	.ctor = nv04_gr_object_ctor,
-	.dtor = _nouveau_gpuobj_dtor,
-	.init = _nouveau_gpuobj_init,
-	.fini = _nouveau_gpuobj_fini,
-	.rd32 = _nouveau_gpuobj_rd32,
-	.wr32 = _nouveau_gpuobj_wr32,
+	.dtor = _nvkm_gpuobj_dtor,
+	.init = _nvkm_gpuobj_init,
+	.fini = _nvkm_gpuobj_fini,
+	.rd32 = _nvkm_gpuobj_rd32,
+	.wr32 = _nvkm_gpuobj_wr32,
 };
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 nv04_gr_sclass[] = {
 	{ 0x0012, &nv04_gr_ofuncs }, /* beta1 */
 	{ 0x0017, &nv04_gr_ofuncs }, /* chroma */
@@ -1117,18 +1110,18 @@ static u32 *ctx_reg(struct nv04_gr_chan *chan, u32 reg)
 }
 
 static int
-nv04_gr_context_ctor(struct nouveau_object *parent,
-			struct nouveau_object *engine,
-			struct nouveau_oclass *oclass, void *data, u32 size,
-			struct nouveau_object **pobject)
+nv04_gr_context_ctor(struct nvkm_object *parent,
+		     struct nvkm_object *engine,
+		     struct nvkm_oclass *oclass, void *data, u32 size,
+		     struct nvkm_object **pobject)
 {
-	struct nouveau_fifo_chan *fifo = (void *)parent;
+	struct nvkm_fifo_chan *fifo = (void *)parent;
 	struct nv04_gr_priv *priv = (void *)engine;
 	struct nv04_gr_chan *chan;
 	unsigned long flags;
 	int ret;
 
-	ret = nouveau_object_create(parent, engine, oclass, 0, &chan);
+	ret = nvkm_object_create(parent, engine, oclass, 0, &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
@@ -1138,7 +1131,7 @@ nv04_gr_context_ctor(struct nouveau_object *parent,
 		*pobject = nv_object(priv->chan[fifo->chid]);
 		atomic_inc(&(*pobject)->refcount);
 		spin_unlock_irqrestore(&priv->lock, flags);
-		nouveau_object_destroy(&chan->base);
+		nvkm_object_destroy(&chan->base);
 		return 1;
 	}
 
@@ -1151,7 +1144,7 @@ nv04_gr_context_ctor(struct nouveau_object *parent,
 }
 
 static void
-nv04_gr_context_dtor(struct nouveau_object *object)
+nv04_gr_context_dtor(struct nvkm_object *object)
 {
 	struct nv04_gr_priv *priv = (void *)object->engine;
 	struct nv04_gr_chan *chan = (void *)object;
@@ -1161,11 +1154,11 @@ nv04_gr_context_dtor(struct nouveau_object *object)
 	priv->chan[chan->chid] = NULL;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	nouveau_object_destroy(&chan->base);
+	nvkm_object_destroy(&chan->base);
 }
 
 static int
-nv04_gr_context_fini(struct nouveau_object *object, bool suspend)
+nv04_gr_context_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nv04_gr_priv *priv = (void *)object->engine;
 	struct nv04_gr_chan *chan = (void *)object;
@@ -1178,16 +1171,16 @@ nv04_gr_context_fini(struct nouveau_object *object, bool suspend)
 	nv_mask(priv, NV04_PGRAPH_FIFO, 0x00000001, 0x00000001);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	return nouveau_object_fini(&chan->base, suspend);
+	return nvkm_object_fini(&chan->base, suspend);
 }
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 nv04_gr_cclass = {
 	.handle = NV_ENGCTX(GR, 0x04),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_gr_context_ctor,
 		.dtor = nv04_gr_context_dtor,
-		.init = nouveau_object_init,
+		.init = nvkm_object_init,
 		.fini = nv04_gr_context_fini,
 	},
 };
@@ -1199,7 +1192,7 @@ nv04_gr_cclass = {
 bool
 nv04_gr_idle(void *obj)
 {
-	struct nouveau_gr *gr = nouveau_gr(obj);
+	struct nvkm_gr *gr = nvkm_gr(obj);
 	u32 mask = 0xffffffff;
 
 	if (nv_device(obj)->card_type == NV_40)
@@ -1214,13 +1207,13 @@ nv04_gr_idle(void *obj)
 	return true;
 }
 
-static const struct nouveau_bitfield
+static const struct nvkm_bitfield
 nv04_gr_intr_name[] = {
 	{ NV_PGRAPH_INTR_NOTIFY, "NOTIFY" },
 	{}
 };
 
-static const struct nouveau_bitfield
+static const struct nvkm_bitfield
 nv04_gr_nstatus[] = {
 	{ NV04_PGRAPH_NSTATUS_STATE_IN_USE,       "STATE_IN_USE" },
 	{ NV04_PGRAPH_NSTATUS_INVALID_STATE,      "INVALID_STATE" },
@@ -1229,7 +1222,7 @@ nv04_gr_nstatus[] = {
 	{}
 };
 
-const struct nouveau_bitfield
+const struct nvkm_bitfield
 nv04_gr_nsource[] = {
 	{ NV03_PGRAPH_NSOURCE_NOTIFICATION,       "NOTIFICATION" },
 	{ NV03_PGRAPH_NSOURCE_DATA_ERROR,         "DATA_ERROR" },
@@ -1254,12 +1247,12 @@ nv04_gr_nsource[] = {
 };
 
 static void
-nv04_gr_intr(struct nouveau_subdev *subdev)
+nv04_gr_intr(struct nvkm_subdev *subdev)
 {
 	struct nv04_gr_priv *priv = (void *)subdev;
 	struct nv04_gr_chan *chan = NULL;
-	struct nouveau_namedb *namedb = NULL;
-	struct nouveau_handle *handle = NULL;
+	struct nvkm_namedb *namedb = NULL;
+	struct nvkm_handle *handle = NULL;
 	u32 stat = nv_rd32(priv, NV03_PGRAPH_INTR);
 	u32 nsource = nv_rd32(priv, NV03_PGRAPH_NSOURCE);
 	u32 nstatus = nv_rd32(priv, NV03_PGRAPH_NSTATUS);
@@ -1281,7 +1274,7 @@ nv04_gr_intr(struct nouveau_subdev *subdev)
 
 	if (stat & NV_PGRAPH_INTR_NOTIFY) {
 		if (chan && (nsource & NV03_PGRAPH_NSOURCE_ILLEGAL_MTHD)) {
-			handle = nouveau_namedb_get_vinst(namedb, inst);
+			handle = nvkm_namedb_get_vinst(namedb, inst);
 			if (handle && !nv_call(handle->object, mthd, data))
 				show &= ~NV_PGRAPH_INTR_NOTIFY;
 		}
@@ -1299,30 +1292,30 @@ nv04_gr_intr(struct nouveau_subdev *subdev)
 
 	if (show) {
 		nv_error(priv, "%s", "");
-		nouveau_bitfield_print(nv04_gr_intr_name, show);
+		nvkm_bitfield_print(nv04_gr_intr_name, show);
 		pr_cont(" nsource:");
-		nouveau_bitfield_print(nv04_gr_nsource, nsource);
+		nvkm_bitfield_print(nv04_gr_nsource, nsource);
 		pr_cont(" nstatus:");
-		nouveau_bitfield_print(nv04_gr_nstatus, nstatus);
+		nvkm_bitfield_print(nv04_gr_nstatus, nstatus);
 		pr_cont("\n");
 		nv_error(priv,
 			 "ch %d [%s] subc %d class 0x%04x mthd 0x%04x data 0x%08x\n",
-			 chid, nouveau_client_name(chan), subc, class, mthd,
+			 chid, nvkm_client_name(chan), subc, class, mthd,
 			 data);
 	}
 
-	nouveau_namedb_put(handle);
+	nvkm_namedb_put(handle);
 }
 
 static int
-nv04_gr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		struct nouveau_oclass *oclass, void *data, u32 size,
-		struct nouveau_object **pobject)
+nv04_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	     struct nvkm_oclass *oclass, void *data, u32 size,
+	     struct nvkm_object **pobject)
 {
 	struct nv04_gr_priv *priv;
 	int ret;
 
-	ret = nouveau_gr_create(parent, engine, oclass, true, &priv);
+	ret = nvkm_gr_create(parent, engine, oclass, true, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -1336,13 +1329,13 @@ nv04_gr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 }
 
 static int
-nv04_gr_init(struct nouveau_object *object)
+nv04_gr_init(struct nvkm_object *object)
 {
-	struct nouveau_engine *engine = nv_engine(object);
+	struct nvkm_engine *engine = nv_engine(object);
 	struct nv04_gr_priv *priv = (void *)engine;
 	int ret;
 
-	ret = nouveau_gr_init(&priv->base);
+	ret = nvkm_gr_init(&priv->base);
 	if (ret)
 		return ret;
 
@@ -1377,13 +1370,13 @@ nv04_gr_init(struct nouveau_object *object)
 	return 0;
 }
 
-struct nouveau_oclass
+struct nvkm_oclass
 nv04_gr_oclass = {
 	.handle = NV_ENGINE(GR, 0x04),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_gr_ctor,
-		.dtor = _nouveau_gr_dtor,
+		.dtor = _nvkm_gr_dtor,
 		.init = nv04_gr_init,
-		.fini = _nouveau_gr_fini,
+		.fini = _nvkm_gr_fini,
 	},
 };

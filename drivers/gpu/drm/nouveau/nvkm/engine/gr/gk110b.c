@@ -21,15 +21,14 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-
-#include "nvc0.h"
-#include "ctxnvc0.h"
+#include "gf100.h"
+#include "ctxgf100.h"
 
 /*******************************************************************************
  * PGRAPH register lists
  ******************************************************************************/
 
-static const struct nvc0_gr_init
+static const struct gf100_gr_init
 gk110b_gr_init_l1c_0[] = {
 	{ 0x419c98,   1, 0x04, 0x00000000 },
 	{ 0x419ca8,   1, 0x04, 0x00000000 },
@@ -44,7 +43,7 @@ gk110b_gr_init_l1c_0[] = {
 	{}
 };
 
-static const struct nvc0_gr_init
+static const struct gf100_gr_init
 gk110b_gr_init_sm_0[] = {
 	{ 0x419e00,   1, 0x04, 0x00000080 },
 	{ 0x419ea0,   1, 0x04, 0x00000000 },
@@ -61,37 +60,37 @@ gk110b_gr_init_sm_0[] = {
 	{}
 };
 
-static const struct nvc0_gr_pack
+static const struct gf100_gr_pack
 gk110b_gr_pack_mmio[] = {
-	{ nve4_gr_init_main_0 },
-	{ nvf0_gr_init_fe_0 },
-	{ nvc0_gr_init_pri_0 },
-	{ nvc0_gr_init_rstr2d_0 },
-	{ nvd9_gr_init_pd_0 },
-	{ nvf0_gr_init_ds_0 },
-	{ nvc0_gr_init_scc_0 },
-	{ nvf0_gr_init_sked_0 },
-	{ nvf0_gr_init_cwd_0 },
-	{ nvd9_gr_init_prop_0 },
-	{ nvc1_gr_init_gpc_unk_0 },
-	{ nvc0_gr_init_setup_0 },
-	{ nvc0_gr_init_crstr_0 },
-	{ nvc1_gr_init_setup_1 },
-	{ nvc0_gr_init_zcull_0 },
-	{ nvd9_gr_init_gpm_0 },
-	{ nvf0_gr_init_gpc_unk_1 },
-	{ nvc0_gr_init_gcc_0 },
-	{ nve4_gr_init_tpccs_0 },
-	{ nvf0_gr_init_tex_0 },
-	{ nve4_gr_init_pe_0 },
+	{ gk104_gr_init_main_0 },
+	{ gk110_gr_init_fe_0 },
+	{ gf100_gr_init_pri_0 },
+	{ gf100_gr_init_rstr2d_0 },
+	{ gf119_gr_init_pd_0 },
+	{ gk110_gr_init_ds_0 },
+	{ gf100_gr_init_scc_0 },
+	{ gk110_gr_init_sked_0 },
+	{ gk110_gr_init_cwd_0 },
+	{ gf119_gr_init_prop_0 },
+	{ gf108_gr_init_gpc_unk_0 },
+	{ gf100_gr_init_setup_0 },
+	{ gf100_gr_init_crstr_0 },
+	{ gf108_gr_init_setup_1 },
+	{ gf100_gr_init_zcull_0 },
+	{ gf119_gr_init_gpm_0 },
+	{ gk110_gr_init_gpc_unk_1 },
+	{ gf100_gr_init_gcc_0 },
+	{ gk104_gr_init_tpccs_0 },
+	{ gk110_gr_init_tex_0 },
+	{ gk104_gr_init_pe_0 },
 	{ gk110b_gr_init_l1c_0 },
-	{ nvc0_gr_init_mpc_0 },
+	{ gf100_gr_init_mpc_0 },
 	{ gk110b_gr_init_sm_0 },
-	{ nvd7_gr_init_pes_0 },
-	{ nvd7_gr_init_wwdx_0 },
-	{ nvd7_gr_init_cbm_0 },
-	{ nve4_gr_init_be_0 },
-	{ nvc0_gr_init_fe_1 },
+	{ gf117_gr_init_pes_0 },
+	{ gf117_gr_init_wwdx_0 },
+	{ gf117_gr_init_cbm_0 },
+	{ gk104_gr_init_be_0 },
+	{ gf100_gr_init_fe_1 },
 	{}
 };
 
@@ -99,19 +98,19 @@ gk110b_gr_pack_mmio[] = {
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
-struct nouveau_oclass *
-gk110b_gr_oclass = &(struct nvc0_gr_oclass) {
+struct nvkm_oclass *
+gk110b_gr_oclass = &(struct gf100_gr_oclass) {
 	.base.handle = NV_ENGINE(GR, 0xf1),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_gr_ctor,
-		.dtor = nvc0_gr_dtor,
-		.init = nve4_gr_init,
-		.fini = nvf0_gr_fini,
+	.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gf100_gr_ctor,
+		.dtor = gf100_gr_dtor,
+		.init = gk104_gr_init,
+		.fini = gk110_gr_fini,
 	},
 	.cclass = &gk110b_grctx_oclass,
-	.sclass =  nvf0_gr_sclass,
+	.sclass =  gk110_gr_sclass,
 	.mmio = gk110b_gr_pack_mmio,
-	.fecs.ucode = &nvf0_gr_fecs_ucode,
-	.gpccs.ucode = &nvf0_gr_gpccs_ucode,
+	.fecs.ucode = &gk110_gr_fecs_ucode,
+	.gpccs.ucode = &gk110_gr_gpccs_ucode,
 	.ppc_nr = 2,
 }.base;

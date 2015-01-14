@@ -21,14 +21,16 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
+#include "ctxgf100.h"
 
-#include "ctxnvc0.h"
+#include <subdev/fb.h>
+#include <subdev/mc.h>
 
 /*******************************************************************************
  * PGRAPH context register lists
  ******************************************************************************/
 
-static const struct nvc0_gr_init
+static const struct gf100_gr_init
 gm107_grctx_init_icmd_0[] = {
 	{ 0x001000,   1, 0x01, 0x00000004 },
 	{ 0x000039,   3, 0x01, 0x00000000 },
@@ -287,13 +289,13 @@ gm107_grctx_init_icmd_0[] = {
 	{}
 };
 
-static const struct nvc0_gr_pack
+static const struct gf100_gr_pack
 gm107_grctx_pack_icmd[] = {
 	{ gm107_grctx_init_icmd_0 },
 	{}
 };
 
-static const struct nvc0_gr_init
+static const struct gf100_gr_init
 gm107_grctx_init_b097_0[] = {
 	{ 0x000800,   8, 0x40, 0x00000000 },
 	{ 0x000804,   8, 0x40, 0x00000000 },
@@ -610,14 +612,14 @@ gm107_grctx_init_b097_0[] = {
 	{}
 };
 
-static const struct nvc0_gr_pack
+static const struct gf100_gr_pack
 gm107_grctx_pack_mthd[] = {
 	{ gm107_grctx_init_b097_0, 0xb097 },
-	{ nvc0_grctx_init_902d_0, 0x902d },
+	{ gf100_grctx_init_902d_0, 0x902d },
 	{}
 };
 
-static const struct nvc0_gr_init
+static const struct gf100_gr_init
 gm107_grctx_init_fe_0[] = {
 	{ 0x404004,   8, 0x04, 0x00000000 },
 	{ 0x404024,   1, 0x04, 0x0000e000 },
@@ -639,7 +641,7 @@ gm107_grctx_init_fe_0[] = {
 	{}
 };
 
-static const struct nvc0_gr_init
+static const struct gf100_gr_init
 gm107_grctx_init_ds_0[] = {
 	{ 0x405800,   1, 0x04, 0x0f8001bf },
 	{ 0x405830,   1, 0x04, 0x0aa01000 },
@@ -653,7 +655,7 @@ gm107_grctx_init_ds_0[] = {
 	{}
 };
 
-static const struct nvc0_gr_init
+static const struct gf100_gr_init
 gm107_grctx_init_pd_0[] = {
 	{ 0x406020,   1, 0x04, 0x07410001 },
 	{ 0x406028,   4, 0x04, 0x00000001 },
@@ -669,7 +671,7 @@ gm107_grctx_init_pd_0[] = {
 	{}
 };
 
-static const struct nvc0_gr_init
+static const struct gf100_gr_init
 gm107_grctx_init_be_0[] = {
 	{ 0x408800,   1, 0x04, 0x32802a3c },
 	{ 0x408804,   1, 0x04, 0x00000040 },
@@ -682,28 +684,28 @@ gm107_grctx_init_be_0[] = {
 	{}
 };
 
-static const struct nvc0_gr_pack
+static const struct gf100_gr_pack
 gm107_grctx_pack_hub[] = {
-	{ nvc0_grctx_init_main_0 },
+	{ gf100_grctx_init_main_0 },
 	{ gm107_grctx_init_fe_0 },
-	{ nvf0_grctx_init_pri_0 },
-	{ nve4_grctx_init_memfmt_0 },
+	{ gk110_grctx_init_pri_0 },
+	{ gk104_grctx_init_memfmt_0 },
 	{ gm107_grctx_init_ds_0 },
-	{ nvf0_grctx_init_cwd_0 },
+	{ gk110_grctx_init_cwd_0 },
 	{ gm107_grctx_init_pd_0 },
-	{ nv108_grctx_init_rstr2d_0 },
-	{ nve4_grctx_init_scc_0 },
+	{ gk208_grctx_init_rstr2d_0 },
+	{ gk104_grctx_init_scc_0 },
 	{ gm107_grctx_init_be_0 },
 	{}
 };
 
-static const struct nvc0_gr_init
+static const struct gf100_gr_init
 gm107_grctx_init_gpc_unk_0[] = {
 	{ 0x418380,   1, 0x04, 0x00000056 },
 	{}
 };
 
-static const struct nvc0_gr_init
+static const struct gf100_gr_init
 gm107_grctx_init_gpc_unk_1[] = {
 	{ 0x418600,   1, 0x04, 0x0000007f },
 	{ 0x418684,   1, 0x04, 0x0000001f },
@@ -714,7 +716,7 @@ gm107_grctx_init_gpc_unk_1[] = {
 	{}
 };
 
-static const struct nvc0_gr_init
+static const struct gf100_gr_init
 gm107_grctx_init_setup_0[] = {
 	{ 0x418800,   1, 0x04, 0x7006863a },
 	{ 0x418810,   1, 0x04, 0x00000000 },
@@ -727,7 +729,7 @@ gm107_grctx_init_setup_0[] = {
 	{}
 };
 
-static const struct nvc0_gr_init
+static const struct gf100_gr_init
 gm107_grctx_init_gpc_unk_2[] = {
 	{ 0x418d24,   1, 0x04, 0x00000000 },
 	{ 0x418e00,   1, 0x04, 0x90000000 },
@@ -741,21 +743,21 @@ gm107_grctx_init_gpc_unk_2[] = {
 	{}
 };
 
-static const struct nvc0_gr_pack
+static const struct gf100_gr_pack
 gm107_grctx_pack_gpc[] = {
 	{ gm107_grctx_init_gpc_unk_0 },
-	{ nv108_grctx_init_prop_0 },
+	{ gk208_grctx_init_prop_0 },
 	{ gm107_grctx_init_gpc_unk_1 },
 	{ gm107_grctx_init_setup_0 },
-	{ nvc0_grctx_init_zcull_0 },
-	{ nv108_grctx_init_crstr_0 },
-	{ nve4_grctx_init_gpm_0 },
+	{ gf100_grctx_init_zcull_0 },
+	{ gk208_grctx_init_crstr_0 },
+	{ gk104_grctx_init_gpm_0 },
 	{ gm107_grctx_init_gpc_unk_2 },
-	{ nvc0_grctx_init_gcc_0 },
+	{ gf100_grctx_init_gcc_0 },
 	{}
 };
 
-static const struct nvc0_gr_init
+static const struct gf100_gr_init
 gm107_grctx_init_tex_0[] = {
 	{ 0x419a00,   1, 0x04, 0x000300f0 },
 	{ 0x419a04,   1, 0x04, 0x00000005 },
@@ -771,7 +773,7 @@ gm107_grctx_init_tex_0[] = {
 	{}
 };
 
-static const struct nvc0_gr_init
+static const struct gf100_gr_init
 gm107_grctx_init_mpc_0[] = {
 	{ 0x419c00,   1, 0x04, 0x0000001a },
 	{ 0x419c04,   1, 0x04, 0x80000006 },
@@ -785,13 +787,13 @@ gm107_grctx_init_mpc_0[] = {
 	{}
 };
 
-static const struct nvc0_gr_init
+static const struct gf100_gr_init
 gm107_grctx_init_l1c_0[] = {
 	{ 0x419c84,   1, 0x04, 0x00000020 },
 	{}
 };
 
-static const struct nvc0_gr_init
+static const struct gf100_gr_init
 gm107_grctx_init_sm_0[] = {
 	{ 0x419e04,   3, 0x04, 0x00000000 },
 	{ 0x419e10,   1, 0x04, 0x00001c02 },
@@ -812,9 +814,9 @@ gm107_grctx_init_sm_0[] = {
 	{}
 };
 
-static const struct nvc0_gr_pack
+static const struct gf100_gr_pack
 gm107_grctx_pack_tpc[] = {
-	{ nvd7_grctx_init_pe_0 },
+	{ gf117_grctx_init_pe_0 },
 	{ gm107_grctx_init_tex_0 },
 	{ gm107_grctx_init_mpc_0 },
 	{ gm107_grctx_init_l1c_0 },
@@ -822,7 +824,7 @@ gm107_grctx_pack_tpc[] = {
 	{}
 };
 
-static const struct nvc0_gr_init
+static const struct gf100_gr_init
 gm107_grctx_init_cbm_0[] = {
 	{ 0x41bec0,   1, 0x04, 0x00000000 },
 	{ 0x41bec4,   1, 0x04, 0x01050000 },
@@ -832,7 +834,7 @@ gm107_grctx_init_cbm_0[] = {
 	{}
 };
 
-static const struct nvc0_gr_init
+static const struct gf100_gr_init
 gm107_grctx_init_wwdx_0[] = {
 	{ 0x41bf00,   1, 0x04, 0x0a418820 },
 	{ 0x41bf04,   1, 0x04, 0x062080e6 },
@@ -846,9 +848,9 @@ gm107_grctx_init_wwdx_0[] = {
 	{}
 };
 
-static const struct nvc0_gr_pack
+static const struct gf100_gr_pack
 gm107_grctx_pack_ppc[] = {
-	{ nve4_grctx_init_pes_0 },
+	{ gk104_grctx_init_pes_0 },
 	{ gm107_grctx_init_cbm_0 },
 	{ gm107_grctx_init_wwdx_0 },
 	{}
@@ -859,9 +861,9 @@ gm107_grctx_pack_ppc[] = {
  ******************************************************************************/
 
 static void
-gm107_grctx_generate_bundle(struct nvc0_grctx *info)
+gm107_grctx_generate_bundle(struct gf100_grctx *info)
 {
-	const struct nvc0_grctx_oclass *impl = nvc0_grctx_impl(info->priv);
+	const struct gf100_grctx_oclass *impl = gf100_grctx_impl(info->priv);
 	const u32 state_limit = min(impl->bundle_min_gpm_fifo_depth,
 				    impl->bundle_size / 0x20);
 	const u32 token_limit = impl->bundle_token_limit;
@@ -876,9 +878,9 @@ gm107_grctx_generate_bundle(struct nvc0_grctx *info)
 }
 
 static void
-gm107_grctx_generate_pagepool(struct nvc0_grctx *info)
+gm107_grctx_generate_pagepool(struct gf100_grctx *info)
 {
-	const struct nvc0_grctx_oclass *impl = nvc0_grctx_impl(info->priv);
+	const struct gf100_grctx_oclass *impl = gf100_grctx_impl(info->priv);
 	const u32 access = NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS;
 	const int s = 8;
 	const int b = mmio_vram(info, impl->pagepool_size, (1 << s), access);
@@ -891,10 +893,10 @@ gm107_grctx_generate_pagepool(struct nvc0_grctx *info)
 }
 
 static void
-gm107_grctx_generate_attrib(struct nvc0_grctx *info)
+gm107_grctx_generate_attrib(struct gf100_grctx *info)
 {
-	struct nvc0_gr_priv *priv = info->priv;
-	const struct nvc0_grctx_oclass *impl = (void *)nvc0_grctx_impl(priv);
+	struct gf100_gr_priv *priv = info->priv;
+	const struct gf100_grctx_oclass *impl = (void *)gf100_grctx_impl(priv);
 	const u32  alpha = impl->alpha_nr;
 	const u32 attrib = impl->attrib_nr;
 	const u32   size = 0x20 * (impl->attrib_nr_max + impl->alpha_nr_max);
@@ -930,7 +932,7 @@ gm107_grctx_generate_attrib(struct nvc0_grctx *info)
 }
 
 static void
-gm107_grctx_generate_tpcid(struct nvc0_gr_priv *priv)
+gm107_grctx_generate_tpcid(struct gf100_gr_priv *priv)
 {
 	int gpc, tpc, id;
 
@@ -950,16 +952,16 @@ gm107_grctx_generate_tpcid(struct nvc0_gr_priv *priv)
 }
 
 static void
-gm107_grctx_generate_main(struct nvc0_gr_priv *priv, struct nvc0_grctx *info)
+gm107_grctx_generate_main(struct gf100_gr_priv *priv, struct gf100_grctx *info)
 {
-	struct nvc0_grctx_oclass *oclass = (void *)nv_engine(priv)->cclass;
+	struct gf100_grctx_oclass *oclass = (void *)nv_engine(priv)->cclass;
 	int i;
 
-	nvc0_gr_mmio(priv, oclass->hub);
-	nvc0_gr_mmio(priv, oclass->gpc);
-	nvc0_gr_mmio(priv, oclass->zcull);
-	nvc0_gr_mmio(priv, oclass->tpc);
-	nvc0_gr_mmio(priv, oclass->ppc);
+	gf100_gr_mmio(priv, oclass->hub);
+	gf100_gr_mmio(priv, oclass->gpc);
+	gf100_gr_mmio(priv, oclass->zcull);
+	gf100_gr_mmio(priv, oclass->tpc);
+	gf100_gr_mmio(priv, oclass->ppc);
 
 	nv_wr32(priv, 0x404154, 0x00000000);
 
@@ -969,9 +971,9 @@ gm107_grctx_generate_main(struct nvc0_gr_priv *priv, struct nvc0_grctx *info)
 	oclass->unkn(priv);
 
 	gm107_grctx_generate_tpcid(priv);
-	nvc0_grctx_generate_r406028(priv);
-	nve4_grctx_generate_r418bb8(priv);
-	nvc0_grctx_generate_r406800(priv);
+	gf100_grctx_generate_r406028(priv);
+	gk104_grctx_generate_r418bb8(priv);
+	gf100_grctx_generate_r406800(priv);
 
 	nv_wr32(priv, 0x4064d0, 0x00000001);
 	for (i = 1; i < 8; i++)
@@ -988,9 +990,9 @@ gm107_grctx_generate_main(struct nvc0_gr_priv *priv, struct nvc0_grctx *info)
 		nv_mask(priv, 0x408958, 0x0000000f, priv->gpc_nr);
 	}
 
-	nvc0_gr_icmd(priv, oclass->icmd);
+	gf100_gr_icmd(priv, oclass->icmd);
 	nv_wr32(priv, 0x404154, 0x00000400);
-	nvc0_gr_mthd(priv, oclass->mthd);
+	gf100_gr_mthd(priv, oclass->mthd);
 
 	nv_mask(priv, 0x419e00, 0x00808080, 0x00808080);
 	nv_mask(priv, 0x419ccc, 0x80000000, 0x80000000);
@@ -998,22 +1000,22 @@ gm107_grctx_generate_main(struct nvc0_gr_priv *priv, struct nvc0_grctx *info)
 	nv_mask(priv, 0x419f88, 0x80000000, 0x80000000);
 }
 
-struct nouveau_oclass *
-gm107_grctx_oclass = &(struct nvc0_grctx_oclass) {
+struct nvkm_oclass *
+gm107_grctx_oclass = &(struct gf100_grctx_oclass) {
 	.base.handle = NV_ENGCTX(GR, 0x08),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_gr_context_ctor,
-		.dtor = nvc0_gr_context_dtor,
-		.init = _nouveau_gr_context_init,
-		.fini = _nouveau_gr_context_fini,
-		.rd32 = _nouveau_gr_context_rd32,
-		.wr32 = _nouveau_gr_context_wr32,
+	.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gf100_gr_context_ctor,
+		.dtor = gf100_gr_context_dtor,
+		.init = _nvkm_gr_context_init,
+		.fini = _nvkm_gr_context_fini,
+		.rd32 = _nvkm_gr_context_rd32,
+		.wr32 = _nvkm_gr_context_wr32,
 	},
 	.main  = gm107_grctx_generate_main,
-	.unkn  = nve4_grctx_generate_unkn,
+	.unkn  = gk104_grctx_generate_unkn,
 	.hub   = gm107_grctx_pack_hub,
 	.gpc   = gm107_grctx_pack_gpc,
-	.zcull = nvc0_grctx_pack_zcull,
+	.zcull = gf100_grctx_pack_zcull,
 	.tpc   = gm107_grctx_pack_tpc,
 	.ppc   = gm107_grctx_pack_ppc,
 	.icmd  = gm107_grctx_pack_icmd,

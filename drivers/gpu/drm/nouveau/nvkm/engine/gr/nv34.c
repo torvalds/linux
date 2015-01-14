@@ -1,20 +1,13 @@
-#include <core/os.h>
-#include <core/engctx.h>
-#include <core/enum.h>
-
-#include <subdev/timer.h>
-#include <subdev/fb.h>
-
-#include <engine/gr.h>
-
 #include "nv20.h"
 #include "regs.h"
+
+#include <engine/fifo.h>
 
 /*******************************************************************************
  * Graphics object classes
  ******************************************************************************/
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 nv34_gr_sclass[] = {
 	{ 0x0012, &nv04_gr_ofuncs, NULL }, /* beta1 */
 	{ 0x0019, &nv04_gr_ofuncs, NULL }, /* clip */
@@ -41,21 +34,20 @@ nv34_gr_sclass[] = {
  ******************************************************************************/
 
 static int
-nv34_gr_context_ctor(struct nouveau_object *parent,
-			struct nouveau_object *engine,
-			struct nouveau_oclass *oclass, void *data, u32 size,
-			struct nouveau_object **pobject)
+nv34_gr_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		     struct nvkm_oclass *oclass, void *data, u32 size,
+		     struct nvkm_object **pobject)
 {
 	struct nv20_gr_chan *chan;
 	int ret, i;
 
-	ret = nouveau_gr_context_create(parent, engine, oclass, NULL, 0x46dc,
-					   16, NVOBJ_FLAG_ZERO_ALLOC, &chan);
+	ret = nvkm_gr_context_create(parent, engine, oclass, NULL, 0x46dc,
+				     16, NVOBJ_FLAG_ZERO_ALLOC, &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
 
-	chan->chid = nouveau_fifo_chan(parent)->chid;
+	chan->chid = nvkm_fifo_chan(parent)->chid;
 
 	nv_wo32(chan, 0x0028, 0x00000001 | (chan->chid << 24));
 	nv_wo32(chan, 0x040c, 0x01000101);
@@ -112,16 +104,16 @@ nv34_gr_context_ctor(struct nouveau_object *parent,
 	return 0;
 }
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 nv34_gr_cclass = {
 	.handle = NV_ENGCTX(GR, 0x34),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv34_gr_context_ctor,
-		.dtor = _nouveau_gr_context_dtor,
+		.dtor = _nvkm_gr_context_dtor,
 		.init = nv20_gr_context_init,
 		.fini = nv20_gr_context_fini,
-		.rd32 = _nouveau_gr_context_rd32,
-		.wr32 = _nouveau_gr_context_wr32,
+		.rd32 = _nvkm_gr_context_rd32,
+		.wr32 = _nvkm_gr_context_wr32,
 	},
 };
 
@@ -130,20 +122,20 @@ nv34_gr_cclass = {
  ******************************************************************************/
 
 static int
-nv34_gr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
+nv34_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	     struct nvkm_oclass *oclass, void *data, u32 size,
+	     struct nvkm_object **pobject)
 {
 	struct nv20_gr_priv *priv;
 	int ret;
 
-	ret = nouveau_gr_create(parent, engine, oclass, true, &priv);
+	ret = nvkm_gr_create(parent, engine, oclass, true, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 32 * 4, 16,
-				 NVOBJ_FLAG_ZERO_ALLOC, &priv->ctxtab);
+	ret = nvkm_gpuobj_new(nv_object(priv), NULL, 32 * 4, 16,
+			      NVOBJ_FLAG_ZERO_ALLOC, &priv->ctxtab);
 	if (ret)
 		return ret;
 
@@ -155,13 +147,13 @@ nv34_gr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
+struct nvkm_oclass
 nv34_gr_oclass = {
 	.handle = NV_ENGINE(GR, 0x34),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv34_gr_ctor,
 		.dtor = nv20_gr_dtor,
 		.init = nv30_gr_init,
-		.fini = _nouveau_gr_fini,
+		.fini = _nvkm_gr_fini,
 	},
 };
