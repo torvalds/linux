@@ -2305,8 +2305,12 @@ static int smp_cmd_ident_addr_info(struct l2cap_conn *conn,
 	 * implementations are not known of and in order to not over
 	 * complicate our implementation, simply pretend that we never
 	 * received an IRK for such a device.
+	 *
+	 * The Identity Address must also be a Static Random or Public
+	 * Address, which hci_is_identity_address() checks for.
 	 */
-	if (!bacmp(&info->bdaddr, BDADDR_ANY)) {
+	if (!bacmp(&info->bdaddr, BDADDR_ANY) ||
+	    !hci_is_identity_address(&info->bdaddr, info->addr_type)) {
 		BT_ERR("Ignoring IRK with no identity address");
 		goto distribute;
 	}
