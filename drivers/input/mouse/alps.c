@@ -99,7 +99,6 @@ static const struct alps_nibble_commands alps_v6_nibble_commands[] = {
 #define ALPS_FOUR_BUTTONS	0x40	/* 4 direction button present */
 #define ALPS_PS2_INTERLEAVED	0x80	/* 3-byte PS/2 packet interleaved with
 					   6-byte ALPS packet */
-#define ALPS_IS_RUSHMORE	0x100	/* device is a rushmore */
 #define ALPS_BUTTONPAD		0x200	/* device is a clickpad */
 
 static const struct alps_model_info alps_model_data[] = {
@@ -412,7 +411,7 @@ static int alps_process_bitmap(struct alps_data *priv,
 		(2 * (priv->y_bits - 1));
 
 	/* y-bitmap order is reversed, except on rushmore */
-	if (!(priv->flags & ALPS_IS_RUSHMORE)) {
+	if (priv->proto_version != ALPS_PROTO_V3_RUSHMORE) {
 		fields->mt[0].y = priv->y_max - fields->mt[0].y;
 		fields->mt[1].y = priv->y_max - fields->mt[1].y;
 	}
@@ -648,7 +647,8 @@ static void alps_process_touchpad_packet_v3_v5(struct psmouse *psmouse)
 		 */
 		if (f->is_mp) {
 			fingers = f->fingers;
-			if (priv->proto_version == ALPS_PROTO_V3) {
+			if (priv->proto_version == ALPS_PROTO_V3 ||
+			    priv->proto_version == ALPS_PROTO_V3_RUSHMORE) {
 				if (alps_process_bitmap(priv, f) == 0)
 					fingers = 0; /* Use st data */
 
@@ -1275,7 +1275,7 @@ static psmouse_ret_t alps_process_byte(struct psmouse *psmouse)
 			    psmouse->pktcnt - 1,
 			    psmouse->packet[psmouse->pktcnt - 1]);
 
-		if (priv->proto_version == ALPS_PROTO_V3 &&
+		if (priv->proto_version == ALPS_PROTO_V3_RUSHMORE &&
 		    psmouse->pktcnt == psmouse->pktsize) {
 			/*
 			 * Some Dell boxes, such as Latitude E6440 or E7440
@@ -2182,6 +2182,7 @@ static void alps_set_defaults(struct alps_data *priv)
 		priv->x_max = 1023;
 		priv->y_max = 767;
 		break;
+
 	case ALPS_PROTO_V3:
 		priv->hw_init = alps_hw_init_v3;
 		priv->process_packet = alps_process_packet_v3;
@@ -2190,6 +2191,18 @@ static void alps_set_defaults(struct alps_data *priv)
 		priv->nibble_commands = alps_v3_nibble_commands;
 		priv->addr_command = PSMOUSE_CMD_RESET_WRAP;
 		break;
+
+	case ALPS_PROTO_V3_RUSHMORE:
+		priv->hw_init = alps_hw_init_rushmore_v3;
+		priv->process_packet = alps_process_packet_v3;
+		priv->set_abs_params = alps_set_abs_params_mt;
+		priv->decode_fields = alps_decode_rushmore;
+		priv->nibble_commands = alps_v3_nibble_commands;
+		priv->addr_command = PSMOUSE_CMD_RESET_WRAP;
+		priv->x_bits = 16;
+		priv->y_bits = 12;
+		break;
+
 	case ALPS_PROTO_V4:
 		priv->hw_init = alps_hw_init_v4;
 		priv->process_packet = alps_process_packet_v4;
@@ -2313,14 +2326,8 @@ static int alps_identify(struct psmouse *psmouse, struct alps_data *priv)
 
 		return 0;
 	} else if (ec[0] == 0x88 && ec[1] == 0x08) {
-		priv->proto_version = ALPS_PROTO_V3;
+		priv->proto_version = ALPS_PROTO_V3_RUSHMORE;
 		alps_set_defaults(priv);
-
-		priv->hw_init = alps_hw_init_rushmore_v3;
-		priv->decode_fields = alps_decode_rushmore;
-		priv->x_bits = 16;
-		priv->y_bits = 12;
-		priv->flags |= ALPS_IS_RUSHMORE;
 
 		/* hack to make addr_command, nibble_command available */
 		psmouse->private = priv;
