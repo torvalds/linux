@@ -21,11 +21,10 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "nv50.h"
 
 void
-nv94_aux_stat(struct nouveau_i2c *i2c, u32 *hi, u32 *lo, u32 *rq, u32 *tx)
+g94_aux_stat(struct nvkm_i2c *i2c, u32 *hi, u32 *lo, u32 *rq, u32 *tx)
 {
 	u32 intr = nv_rd32(i2c, 0x00e06c);
 	u32 stat = nv_rd32(i2c, 0x00e068) & intr, i;
@@ -39,7 +38,7 @@ nv94_aux_stat(struct nouveau_i2c *i2c, u32 *hi, u32 *lo, u32 *rq, u32 *tx)
 }
 
 void
-nv94_aux_mask(struct nouveau_i2c *i2c, u32 type, u32 mask, u32 data)
+g94_aux_mask(struct nvkm_i2c *i2c, u32 type, u32 mask, u32 data)
 {
 	u32 temp = nv_rd32(i2c, 0x00e068), i;
 	for (i = 0; i < 8; i++) {
@@ -58,13 +57,13 @@ nv94_aux_mask(struct nouveau_i2c *i2c, u32 type, u32 mask, u32 data)
 #define AUX_ERR(fmt, args...) nv_error(aux, "AUXCH(%d): " fmt, ch, ##args)
 
 static void
-auxch_fini(struct nouveau_i2c *aux, int ch)
+auxch_fini(struct nvkm_i2c *aux, int ch)
 {
 	nv_mask(aux, 0x00e4e4 + (ch * 0x50), 0x00310000, 0x00000000);
 }
 
 static int
-auxch_init(struct nouveau_i2c *aux, int ch)
+auxch_init(struct nvkm_i2c *aux, int ch)
 {
 	const u32 unksel = 1; /* nfi which to use, or if it matters.. */
 	const u32 ureq = unksel ? 0x00100000 : 0x00200000;
@@ -99,10 +98,10 @@ auxch_init(struct nouveau_i2c *aux, int ch)
 }
 
 int
-nv94_aux(struct nouveau_i2c_port *base, bool retry,
+g94_aux(struct nvkm_i2c_port *base, bool retry,
 	 u8 type, u32 addr, u8 *data, u8 size)
 {
-	struct nouveau_i2c *aux = nouveau_i2c(base);
+	struct nvkm_i2c *aux = nvkm_i2c(base);
 	struct nv50_i2c_port *port = (void *)base;
 	u32 ctrl, stat, timeout, retries;
 	u32 xbuf[4] = {};
@@ -185,8 +184,8 @@ out:
 	return ret < 0 ? ret : (stat & 0x000f0000) >> 16;
 }
 
-static const struct nouveau_i2c_func
-nv94_i2c_func = {
+static const struct nvkm_i2c_func
+g94_i2c_func = {
 	.drive_scl = nv50_i2c_drive_scl,
 	.drive_sda = nv50_i2c_drive_sda,
 	.sense_scl = nv50_i2c_sense_scl,
@@ -194,17 +193,16 @@ nv94_i2c_func = {
 };
 
 static int
-nv94_i2c_port_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		   struct nouveau_oclass *oclass, void *data, u32 index,
-		   struct nouveau_object **pobject)
+g94_i2c_port_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		  struct nvkm_oclass *oclass, void *data, u32 index,
+		  struct nvkm_object **pobject)
 {
 	struct dcb_i2c_entry *info = data;
 	struct nv50_i2c_port *port;
 	int ret;
 
-	ret = nouveau_i2c_port_create(parent, engine, oclass, index,
-				      &nouveau_i2c_bit_algo, &nv94_i2c_func,
-				      &port);
+	ret = nvkm_i2c_port_create(parent, engine, oclass, index,
+				   &nvkm_i2c_bit_algo, &g94_i2c_func, &port);
 	*pobject = nv_object(port);
 	if (ret)
 		return ret;
@@ -217,23 +215,22 @@ nv94_i2c_port_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-static const struct nouveau_i2c_func
-nv94_aux_func = {
-	.aux       = nv94_aux,
+static const struct nvkm_i2c_func
+g94_aux_func = {
+	.aux       = g94_aux,
 };
 
 int
-nv94_aux_port_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		   struct nouveau_oclass *oclass, void *data, u32 index,
-		   struct nouveau_object **pobject)
+g94_aux_port_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		  struct nvkm_oclass *oclass, void *data, u32 index,
+		  struct nvkm_object **pobject)
 {
 	struct dcb_i2c_entry *info = data;
 	struct nv50_i2c_port *port;
 	int ret;
 
-	ret = nouveau_i2c_port_create(parent, engine, oclass, index,
-				      &nouveau_i2c_aux_algo, &nv94_aux_func,
-				      &port);
+	ret = nvkm_i2c_port_create(parent, engine, oclass, index,
+				   &nvkm_i2c_aux_algo, &g94_aux_func, &port);
 	*pobject = nv_object(port);
 	if (ret)
 		return ret;
@@ -243,40 +240,40 @@ nv94_aux_port_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-static struct nouveau_oclass
-nv94_i2c_sclass[] = {
+static struct nvkm_oclass
+g94_i2c_sclass[] = {
 	{ .handle = NV_I2C_TYPE_DCBI2C(DCB_I2C_NVIO_BIT),
-	  .ofuncs = &(struct nouveau_ofuncs) {
-		  .ctor = nv94_i2c_port_ctor,
-		  .dtor = _nouveau_i2c_port_dtor,
+	  .ofuncs = &(struct nvkm_ofuncs) {
+		  .ctor = g94_i2c_port_ctor,
+		  .dtor = _nvkm_i2c_port_dtor,
 		  .init = nv50_i2c_port_init,
-		  .fini = _nouveau_i2c_port_fini,
+		  .fini = _nvkm_i2c_port_fini,
 	  },
 	},
 	{ .handle = NV_I2C_TYPE_DCBI2C(DCB_I2C_NVIO_AUX),
-	  .ofuncs = &(struct nouveau_ofuncs) {
-		  .ctor = nv94_aux_port_ctor,
-		  .dtor = _nouveau_i2c_port_dtor,
-		  .init = _nouveau_i2c_port_init,
-		  .fini = _nouveau_i2c_port_fini,
+	  .ofuncs = &(struct nvkm_ofuncs) {
+		  .ctor = g94_aux_port_ctor,
+		  .dtor = _nvkm_i2c_port_dtor,
+		  .init = _nvkm_i2c_port_init,
+		  .fini = _nvkm_i2c_port_fini,
 	  },
 	},
 	{}
 };
 
-struct nouveau_oclass *
-nv94_i2c_oclass = &(struct nouveau_i2c_impl) {
+struct nvkm_oclass *
+g94_i2c_oclass = &(struct nvkm_i2c_impl) {
 	.base.handle = NV_SUBDEV(I2C, 0x94),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = _nouveau_i2c_ctor,
-		.dtor = _nouveau_i2c_dtor,
-		.init = _nouveau_i2c_init,
-		.fini = _nouveau_i2c_fini,
+	.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = _nvkm_i2c_ctor,
+		.dtor = _nvkm_i2c_dtor,
+		.init = _nvkm_i2c_init,
+		.fini = _nvkm_i2c_fini,
 	},
-	.sclass = nv94_i2c_sclass,
+	.sclass = g94_i2c_sclass,
 	.pad_x = &nv04_i2c_pad_oclass,
-	.pad_s = &nv94_i2c_pad_oclass,
+	.pad_s = &g94_i2c_pad_oclass,
 	.aux = 4,
-	.aux_stat = nv94_aux_stat,
-	.aux_mask = nv94_aux_mask,
+	.aux_stat = g94_aux_stat,
+	.aux_mask = g94_aux_mask,
 }.base;

@@ -21,12 +21,11 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "pad.h"
 
-struct nouveau_oclass
+struct nvkm_oclass
 nv04_i2c_pad_oclass = {
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = _nvkm_i2c_pad_ctor,
 		.dtor = _nvkm_i2c_pad_dtor,
 		.init = _nvkm_i2c_pad_init,

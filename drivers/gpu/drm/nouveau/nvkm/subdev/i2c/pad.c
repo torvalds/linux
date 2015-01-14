@@ -21,35 +21,34 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "pad.h"
 
 int
-_nvkm_i2c_pad_fini(struct nouveau_object *object, bool suspend)
+_nvkm_i2c_pad_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nvkm_i2c_pad *pad = (void *)object;
 	DBG("-> NULL\n");
 	pad->port = NULL;
-	return nouveau_object_fini(&pad->base, suspend);
+	return nvkm_object_fini(&pad->base, suspend);
 }
 
 int
-_nvkm_i2c_pad_init(struct nouveau_object *object)
+_nvkm_i2c_pad_init(struct nvkm_object *object)
 {
 	struct nvkm_i2c_pad *pad = (void *)object;
 	DBG("-> PORT:%02x\n", pad->next->index);
 	pad->port = pad->next;
-	return nouveau_object_init(&pad->base);
+	return nvkm_object_init(&pad->base);
 }
 
 int
-nvkm_i2c_pad_create_(struct nouveau_object *parent,
-		     struct nouveau_object *engine,
-		     struct nouveau_oclass *oclass, int index,
+nvkm_i2c_pad_create_(struct nvkm_object *parent,
+		     struct nvkm_object *engine,
+		     struct nvkm_oclass *oclass, int index,
 		     int size, void **pobject)
 {
-	struct nouveau_i2c *i2c = nouveau_i2c(parent);
-	struct nouveau_i2c_port *port;
+	struct nvkm_i2c *i2c = nvkm_i2c(parent);
+	struct nvkm_i2c_port *port;
 	struct nvkm_i2c_pad *pad;
 	int ret;
 
@@ -62,7 +61,7 @@ nvkm_i2c_pad_create_(struct nouveau_object *parent,
 		}
 	}
 
-	ret = nouveau_object_create_(parent, engine, oclass, 0, size, pobject);
+	ret = nvkm_object_create_(parent, engine, oclass, 0, size, pobject);
 	pad = *pobject;
 	if (ret)
 		return ret;
@@ -72,9 +71,9 @@ nvkm_i2c_pad_create_(struct nouveau_object *parent,
 }
 
 int
-_nvkm_i2c_pad_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		   struct nouveau_oclass *oclass, void *data, u32 index,
-		   struct nouveau_object **pobject)
+_nvkm_i2c_pad_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		   struct nvkm_oclass *oclass, void *data, u32 index,
+		   struct nvkm_object **pobject)
 {
 	struct nvkm_i2c_pad *pad;
 	int ret;

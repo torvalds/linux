@@ -21,13 +21,12 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "nv50.h"
 
 void
-nv50_i2c_drive_scl(struct nouveau_i2c_port *base, int state)
+nv50_i2c_drive_scl(struct nvkm_i2c_port *base, int state)
 {
-	struct nv50_i2c_priv *priv = (void *)nouveau_i2c(base);
+	struct nv50_i2c_priv *priv = (void *)nvkm_i2c(base);
 	struct nv50_i2c_port *port = (void *)base;
 	if (state) port->state |= 0x01;
 	else	   port->state &= 0xfe;
@@ -35,9 +34,9 @@ nv50_i2c_drive_scl(struct nouveau_i2c_port *base, int state)
 }
 
 void
-nv50_i2c_drive_sda(struct nouveau_i2c_port *base, int state)
+nv50_i2c_drive_sda(struct nvkm_i2c_port *base, int state)
 {
-	struct nv50_i2c_priv *priv = (void *)nouveau_i2c(base);
+	struct nv50_i2c_priv *priv = (void *)nvkm_i2c(base);
 	struct nv50_i2c_port *port = (void *)base;
 	if (state) port->state |= 0x02;
 	else	   port->state &= 0xfd;
@@ -45,22 +44,22 @@ nv50_i2c_drive_sda(struct nouveau_i2c_port *base, int state)
 }
 
 int
-nv50_i2c_sense_scl(struct nouveau_i2c_port *base)
+nv50_i2c_sense_scl(struct nvkm_i2c_port *base)
 {
-	struct nv50_i2c_priv *priv = (void *)nouveau_i2c(base);
+	struct nv50_i2c_priv *priv = (void *)nvkm_i2c(base);
 	struct nv50_i2c_port *port = (void *)base;
 	return !!(nv_rd32(priv, port->addr) & 0x00000001);
 }
 
 int
-nv50_i2c_sense_sda(struct nouveau_i2c_port *base)
+nv50_i2c_sense_sda(struct nvkm_i2c_port *base)
 {
-	struct nv50_i2c_priv *priv = (void *)nouveau_i2c(base);
+	struct nv50_i2c_priv *priv = (void *)nvkm_i2c(base);
 	struct nv50_i2c_port *port = (void *)base;
 	return !!(nv_rd32(priv, port->addr) & 0x00000002);
 }
 
-static const struct nouveau_i2c_func
+static const struct nvkm_i2c_func
 nv50_i2c_func = {
 	.drive_scl = nv50_i2c_drive_scl,
 	.drive_sda = nv50_i2c_drive_sda,
@@ -76,17 +75,16 @@ const u32 nv50_i2c_addr[] = {
 const int nv50_i2c_addr_nr = ARRAY_SIZE(nv50_i2c_addr);
 
 static int
-nv50_i2c_port_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		   struct nouveau_oclass *oclass, void *data, u32 index,
-		   struct nouveau_object **pobject)
+nv50_i2c_port_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		   struct nvkm_oclass *oclass, void *data, u32 index,
+		   struct nvkm_object **pobject)
 {
 	struct dcb_i2c_entry *info = data;
 	struct nv50_i2c_port *port;
 	int ret;
 
-	ret = nouveau_i2c_port_create(parent, engine, oclass, index,
-				      &nouveau_i2c_bit_algo, &nv50_i2c_func,
-				      &port);
+	ret = nvkm_i2c_port_create(parent, engine, oclass, index,
+				   &nvkm_i2c_bit_algo, &nv50_i2c_func, &port);
 	*pobject = nv_object(port);
 	if (ret)
 		return ret;
@@ -100,35 +98,35 @@ nv50_i2c_port_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 }
 
 int
-nv50_i2c_port_init(struct nouveau_object *object)
+nv50_i2c_port_init(struct nvkm_object *object)
 {
-	struct nv50_i2c_priv *priv = (void *)nouveau_i2c(object);
+	struct nv50_i2c_priv *priv = (void *)nvkm_i2c(object);
 	struct nv50_i2c_port *port = (void *)object;
 	nv_wr32(priv, port->addr, port->state);
-	return nouveau_i2c_port_init(&port->base);
+	return nvkm_i2c_port_init(&port->base);
 }
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 nv50_i2c_sclass[] = {
 	{ .handle = NV_I2C_TYPE_DCBI2C(DCB_I2C_NVIO_BIT),
-	  .ofuncs = &(struct nouveau_ofuncs) {
+	  .ofuncs = &(struct nvkm_ofuncs) {
 		  .ctor = nv50_i2c_port_ctor,
-		  .dtor = _nouveau_i2c_port_dtor,
+		  .dtor = _nvkm_i2c_port_dtor,
 		  .init = nv50_i2c_port_init,
-		  .fini = _nouveau_i2c_port_fini,
+		  .fini = _nvkm_i2c_port_fini,
 	  },
 	},
 	{}
 };
 
-struct nouveau_oclass *
-nv50_i2c_oclass = &(struct nouveau_i2c_impl) {
+struct nvkm_oclass *
+nv50_i2c_oclass = &(struct nvkm_i2c_impl) {
 	.base.handle = NV_SUBDEV(I2C, 0x50),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = _nouveau_i2c_ctor,
-		.dtor = _nouveau_i2c_dtor,
-		.init = _nouveau_i2c_init,
-		.fini = _nouveau_i2c_fini,
+	.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = _nvkm_i2c_ctor,
+		.dtor = _nvkm_i2c_dtor,
+		.init = _nvkm_i2c_init,
+		.fini = _nvkm_i2c_fini,
 	},
 	.sclass = nv50_i2c_sclass,
 	.pad_x = &nv04_i2c_pad_oclass,

@@ -21,20 +21,19 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-
 #include "port.h"
 
 struct anx9805_i2c_port {
-	struct nouveau_i2c_port base;
+	struct nvkm_i2c_port base;
 	u32 addr;
 	u32 ctrl;
 };
 
 static int
-anx9805_train(struct nouveau_i2c_port *port, int link_nr, int link_bw, bool enh)
+anx9805_train(struct nvkm_i2c_port *port, int link_nr, int link_bw, bool enh)
 {
 	struct anx9805_i2c_port *chan = (void *)port;
-	struct nouveau_i2c_port *mast = (void *)nv_object(chan)->parent;
+	struct nvkm_i2c_port *mast = (void *)nv_object(chan)->parent;
 	u8 tmp, i;
 
 	DBG("ANX9805 train %d 0x%02x %d\n", link_nr, link_bw, enh);
@@ -62,11 +61,11 @@ anx9805_train(struct nouveau_i2c_port *port, int link_nr, int link_bw, bool enh)
 }
 
 static int
-anx9805_aux(struct nouveau_i2c_port *port, bool retry,
+anx9805_aux(struct nvkm_i2c_port *port, bool retry,
 	    u8 type, u32 addr, u8 *data, u8 size)
 {
 	struct anx9805_i2c_port *chan = (void *)port;
-	struct nouveau_i2c_port *mast = (void *)nv_object(chan)->parent;
+	struct nvkm_i2c_port *mast = (void *)nv_object(chan)->parent;
 	int i, ret = -ETIMEDOUT;
 	u8 buf[16] = {};
 	u8 tmp;
@@ -116,25 +115,25 @@ done:
 	return ret;
 }
 
-static const struct nouveau_i2c_func
+static const struct nvkm_i2c_func
 anx9805_aux_func = {
 	.aux = anx9805_aux,
 	.lnk_ctl = anx9805_train,
 };
 
 static int
-anx9805_aux_chan_ctor(struct nouveau_object *parent,
-		      struct nouveau_object *engine,
-		      struct nouveau_oclass *oclass, void *data, u32 index,
-		      struct nouveau_object **pobject)
+anx9805_aux_chan_ctor(struct nvkm_object *parent,
+		      struct nvkm_object *engine,
+		      struct nvkm_oclass *oclass, void *data, u32 index,
+		      struct nvkm_object **pobject)
 {
-	struct nouveau_i2c_port *mast = (void *)parent;
+	struct nvkm_i2c_port *mast = (void *)parent;
 	struct anx9805_i2c_port *chan;
 	int ret;
 
-	ret = nouveau_i2c_port_create(parent, engine, oclass, index,
-				      &nouveau_i2c_aux_algo, &anx9805_aux_func,
-				      &chan);
+	ret = nvkm_i2c_port_create(parent, engine, oclass, index,
+				   &nvkm_i2c_aux_algo, &anx9805_aux_func,
+				   &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
@@ -156,22 +155,23 @@ anx9805_aux_chan_ctor(struct nouveau_object *parent,
 		struct i2c_algo_bit_data *algo = mast->adapter.algo_data;
 		algo->udelay = max(algo->udelay, 40);
 	}
+
 	return 0;
 }
 
-static struct nouveau_ofuncs
+static struct nvkm_ofuncs
 anx9805_aux_ofuncs = {
 	.ctor =  anx9805_aux_chan_ctor,
-	.dtor = _nouveau_i2c_port_dtor,
-	.init = _nouveau_i2c_port_init,
-	.fini = _nouveau_i2c_port_fini,
+	.dtor = _nvkm_i2c_port_dtor,
+	.init = _nvkm_i2c_port_init,
+	.fini = _nvkm_i2c_port_fini,
 };
 
 static int
 anx9805_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
 	struct anx9805_i2c_port *port = adap->algo_data;
-	struct nouveau_i2c_port *mast = (void *)nv_object(port)->parent;
+	struct nvkm_i2c_port *mast = (void *)nv_object(port)->parent;
 	struct i2c_msg *msg = msgs;
 	int ret = -ETIMEDOUT;
 	int i, j, cnt = num;
@@ -233,23 +233,22 @@ anx9805_i2c_algo = {
 	.functionality = anx9805_func
 };
 
-static const struct nouveau_i2c_func
+static const struct nvkm_i2c_func
 anx9805_i2c_func = {
 };
 
 static int
-anx9805_ddc_port_ctor(struct nouveau_object *parent,
-		      struct nouveau_object *engine,
-		      struct nouveau_oclass *oclass, void *data, u32 index,
-		      struct nouveau_object **pobject)
+anx9805_ddc_port_ctor(struct nvkm_object *parent,
+		      struct nvkm_object *engine,
+		      struct nvkm_oclass *oclass, void *data, u32 index,
+		      struct nvkm_object **pobject)
 {
-	struct nouveau_i2c_port *mast = (void *)parent;
+	struct nvkm_i2c_port *mast = (void *)parent;
 	struct anx9805_i2c_port *port;
 	int ret;
 
-	ret = nouveau_i2c_port_create(parent, engine, oclass, index,
-				      &anx9805_i2c_algo, &anx9805_i2c_func,
-				      &port);
+	ret = nvkm_i2c_port_create(parent, engine, oclass, index,
+				   &anx9805_i2c_algo, &anx9805_i2c_func, &port);
 	*pobject = nv_object(port);
 	if (ret)
 		return ret;
@@ -271,19 +270,20 @@ anx9805_ddc_port_ctor(struct nouveau_object *parent,
 		struct i2c_algo_bit_data *algo = mast->adapter.algo_data;
 		algo->udelay = max(algo->udelay, 40);
 	}
+
 	return 0;
 }
 
-static struct nouveau_ofuncs
+static struct nvkm_ofuncs
 anx9805_ddc_ofuncs = {
 	.ctor =  anx9805_ddc_port_ctor,
-	.dtor = _nouveau_i2c_port_dtor,
-	.init = _nouveau_i2c_port_init,
-	.fini = _nouveau_i2c_port_fini,
+	.dtor = _nvkm_i2c_port_dtor,
+	.init = _nvkm_i2c_port_init,
+	.fini = _nvkm_i2c_port_fini,
 };
 
-struct nouveau_oclass
-nouveau_anx9805_sclass[] = {
+struct nvkm_oclass
+nvkm_anx9805_sclass[] = {
 	{ .handle = NV_I2C_TYPE_EXTDDC(0x0d), .ofuncs = &anx9805_ddc_ofuncs },
 	{ .handle = NV_I2C_TYPE_EXTAUX(0x0d), .ofuncs = &anx9805_aux_ofuncs },
 	{ .handle = NV_I2C_TYPE_EXTDDC(0x0e), .ofuncs = &anx9805_ddc_ofuncs },

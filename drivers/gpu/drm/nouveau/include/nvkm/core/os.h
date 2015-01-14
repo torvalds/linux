@@ -196,6 +196,7 @@
 #define nouveau_gpio nvkm_gpio
 #define nouveau_i2c nvkm_i2c
 #define nouveau_i2c_port nvkm_i2c_port
+#define nouveau_i2c_board_info nvkm_i2c_board_info
 #define nouveau_devinit nvkm_devinit
 #define nouveau_bios nvkm_bios
 #define nouveau_bios_oclass nvkm_bios_oclass

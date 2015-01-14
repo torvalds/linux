@@ -21,71 +21,66 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <core/notify.h>
-#include <core/option.h>
-#include <core/object.h>
-#include <core/event.h>
-
-#include <subdev/bios.h>
-#include <subdev/bios/dcb.h>
-#include <subdev/bios/i2c.h>
-#include <subdev/vga.h>
-
 #include "priv.h"
 #include "pad.h"
+
+#include <core/device.h>
+#include <core/notify.h>
+#include <core/option.h>
+#include <subdev/bios.h>
+#include <subdev/bios/dcb.h>
 
 /******************************************************************************
  * interface to linux i2c bit-banging algorithm
  *****************************************************************************/
 
-#ifdef CONFIG_NOUVEAU_I2C_INTERNAL_DEFAULT
+#ifdef CONFIG_NVKM_I2C_INTERNAL_DEFAULT
 #define CSTMSEL true
 #else
 #define CSTMSEL false
 #endif
 
 static int
-nouveau_i2c_pre_xfer(struct i2c_adapter *adap)
+nvkm_i2c_pre_xfer(struct i2c_adapter *adap)
 {
 	struct i2c_algo_bit_data *bit = adap->algo_data;
-	struct nouveau_i2c_port *port = bit->data;
-	return nouveau_i2c(port)->acquire(port, bit->timeout);
+	struct nvkm_i2c_port *port = bit->data;
+	return nvkm_i2c(port)->acquire(port, bit->timeout);
 }
 
 static void
-nouveau_i2c_post_xfer(struct i2c_adapter *adap)
+nvkm_i2c_post_xfer(struct i2c_adapter *adap)
 {
 	struct i2c_algo_bit_data *bit = adap->algo_data;
-	struct nouveau_i2c_port *port = bit->data;
-	return nouveau_i2c(port)->release(port);
+	struct nvkm_i2c_port *port = bit->data;
+	return nvkm_i2c(port)->release(port);
 }
 
 static void
-nouveau_i2c_setscl(void *data, int state)
+nvkm_i2c_setscl(void *data, int state)
 {
-	struct nouveau_i2c_port *port = data;
+	struct nvkm_i2c_port *port = data;
 	port->func->drive_scl(port, state);
 }
 
 static void
-nouveau_i2c_setsda(void *data, int state)
+nvkm_i2c_setsda(void *data, int state)
 {
-	struct nouveau_i2c_port *port = data;
+	struct nvkm_i2c_port *port = data;
 	port->func->drive_sda(port, state);
 }
 
 static int
-nouveau_i2c_getscl(void *data)
+nvkm_i2c_getscl(void *data)
 {
-	struct nouveau_i2c_port *port = data;
+	struct nvkm_i2c_port *port = data;
 	return port->func->sense_scl(port);
 }
 
 static int
-nouveau_i2c_getsda(void *data)
+nvkm_i2c_getsda(void *data)
 {
-	struct nouveau_i2c_port *port = data;
+	struct nvkm_i2c_port *port = data;
 	return port->func->sense_sda(port);
 }
 
@@ -94,42 +89,41 @@ nouveau_i2c_getsda(void *data)
  *****************************************************************************/
 
 int
-_nouveau_i2c_port_fini(struct nouveau_object *object, bool suspend)
+_nvkm_i2c_port_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nouveau_i2c_port *port = (void *)object;
+	struct nvkm_i2c_port *port = (void *)object;
 	struct nvkm_i2c_pad *pad = nvkm_i2c_pad(port);
 	nv_ofuncs(pad)->fini(nv_object(pad), suspend);
-	return nouveau_object_fini(&port->base, suspend);
+	return nvkm_object_fini(&port->base, suspend);
 }
 
 void
-_nouveau_i2c_port_dtor(struct nouveau_object *object)
+_nvkm_i2c_port_dtor(struct nvkm_object *object)
 {
-	struct nouveau_i2c_port *port = (void *)object;
+	struct nvkm_i2c_port *port = (void *)object;
 	i2c_del_adapter(&port->adapter);
-	nouveau_object_destroy(&port->base);
+	nvkm_object_destroy(&port->base);
 }
 
 int
-nouveau_i2c_port_create_(struct nouveau_object *parent,
-			 struct nouveau_object *engine,
-			 struct nouveau_oclass *oclass, u8 index,
-			 const struct i2c_algorithm *algo,
-			 const struct nouveau_i2c_func *func,
-			 int size, void **pobject)
+nvkm_i2c_port_create_(struct nvkm_object *parent, struct nvkm_object *engine,
+		      struct nvkm_oclass *oclass, u8 index,
+		      const struct i2c_algorithm *algo,
+		      const struct nvkm_i2c_func *func,
+		      int size, void **pobject)
 {
-	struct nouveau_device *device = nv_device(parent);
-	struct nouveau_i2c *i2c = nouveau_i2c(parent);
-	struct nouveau_i2c_port *port;
+	struct nvkm_device *device = nv_device(parent);
+	struct nvkm_i2c *i2c = nvkm_i2c(parent);
+	struct nvkm_i2c_port *port;
 	int ret;
 
-	ret = nouveau_object_create_(parent, engine, oclass, 0, size, pobject);
+	ret = nvkm_object_create_(parent, engine, oclass, 0, size, pobject);
 	port = *pobject;
 	if (ret)
 		return ret;
 
 	snprintf(port->adapter.name, sizeof(port->adapter.name),
-		 "nouveau-%s-%d", device->name, index);
+		 "nvkm-%s-%d", device->name, index);
 	port->adapter.owner = THIS_MODULE;
 	port->adapter.dev.parent = nv_device_base(device);
 	port->index = index;
@@ -137,8 +131,8 @@ nouveau_i2c_port_create_(struct nouveau_object *parent,
 	port->func = func;
 	mutex_init(&port->mutex);
 
-	if ( algo == &nouveau_i2c_bit_algo &&
-	    !nouveau_boolopt(device->cfgopt, "NvI2C", CSTMSEL)) {
+	if ( algo == &nvkm_i2c_bit_algo &&
+	    !nvkm_boolopt(device->cfgopt, "NvI2C", CSTMSEL)) {
 		struct i2c_algo_bit_data *bit;
 
 		bit = kzalloc(sizeof(*bit), GFP_KERNEL);
@@ -148,12 +142,12 @@ nouveau_i2c_port_create_(struct nouveau_object *parent,
 		bit->udelay = 10;
 		bit->timeout = usecs_to_jiffies(2200);
 		bit->data = port;
-		bit->pre_xfer = nouveau_i2c_pre_xfer;
-		bit->post_xfer = nouveau_i2c_post_xfer;
-		bit->setsda = nouveau_i2c_setsda;
-		bit->setscl = nouveau_i2c_setscl;
-		bit->getsda = nouveau_i2c_getsda;
-		bit->getscl = nouveau_i2c_getscl;
+		bit->pre_xfer = nvkm_i2c_pre_xfer;
+		bit->post_xfer = nvkm_i2c_post_xfer;
+		bit->setsda = nvkm_i2c_setsda;
+		bit->setscl = nvkm_i2c_setscl;
+		bit->getsda = nvkm_i2c_getsda;
+		bit->getscl = nvkm_i2c_getscl;
 
 		port->adapter.algo_data = bit;
 		ret = i2c_bit_add_bus(&port->adapter);
@@ -172,11 +166,11 @@ nouveau_i2c_port_create_(struct nouveau_object *parent,
  * base i2c subdev class implementation
  *****************************************************************************/
 
-static struct nouveau_i2c_port *
-nouveau_i2c_find(struct nouveau_i2c *i2c, u8 index)
+static struct nvkm_i2c_port *
+nvkm_i2c_find(struct nvkm_i2c *i2c, u8 index)
 {
-	struct nouveau_bios *bios = nouveau_bios(i2c);
-	struct nouveau_i2c_port *port;
+	struct nvkm_bios *bios = nvkm_bios(i2c);
+	struct nvkm_i2c_port *port;
 
 	if (index == NV_I2C_DEFAULT(0) ||
 	    index == NV_I2C_DEFAULT(1)) {
@@ -201,10 +195,10 @@ nouveau_i2c_find(struct nouveau_i2c *i2c, u8 index)
 	return NULL;
 }
 
-static struct nouveau_i2c_port *
-nouveau_i2c_find_type(struct nouveau_i2c *i2c, u16 type)
+static struct nvkm_i2c_port *
+nvkm_i2c_find_type(struct nvkm_i2c *i2c, u16 type)
 {
-	struct nouveau_i2c_port *port;
+	struct nvkm_i2c_port *port;
 
 	list_for_each_entry(port, &i2c->ports, head) {
 		if (nv_hclass(port) == type)
@@ -215,10 +209,10 @@ nouveau_i2c_find_type(struct nouveau_i2c *i2c, u16 type)
 }
 
 static void
-nouveau_i2c_release_pad(struct nouveau_i2c_port *port)
+nvkm_i2c_release_pad(struct nvkm_i2c_port *port)
 {
 	struct nvkm_i2c_pad *pad = nvkm_i2c_pad(port);
-	struct nouveau_i2c *i2c = nouveau_i2c(port);
+	struct nvkm_i2c *i2c = nvkm_i2c(port);
 
 	if (atomic_dec_and_test(&nv_object(pad)->usecount)) {
 		nv_ofuncs(pad)->fini(nv_object(pad), false);
@@ -227,18 +221,18 @@ nouveau_i2c_release_pad(struct nouveau_i2c_port *port)
 }
 
 static int
-nouveau_i2c_try_acquire_pad(struct nouveau_i2c_port *port)
+nvkm_i2c_try_acquire_pad(struct nvkm_i2c_port *port)
 {
 	struct nvkm_i2c_pad *pad = nvkm_i2c_pad(port);
 
 	if (atomic_add_return(1, &nv_object(pad)->usecount) != 1) {
-		struct nouveau_object *owner = (void *)pad->port;
+		struct nvkm_object *owner = (void *)pad->port;
 		do {
 			if (owner == (void *)port)
 				return 0;
 			owner = owner->parent;
 		} while(owner);
-		nouveau_i2c_release_pad(port);
+		nvkm_i2c_release_pad(port);
 		return -EBUSY;
 	}
 
@@ -248,48 +242,48 @@ nouveau_i2c_try_acquire_pad(struct nouveau_i2c_port *port)
 }
 
 static int
-nouveau_i2c_acquire_pad(struct nouveau_i2c_port *port, unsigned long timeout)
+nvkm_i2c_acquire_pad(struct nvkm_i2c_port *port, unsigned long timeout)
 {
-	struct nouveau_i2c *i2c = nouveau_i2c(port);
+	struct nvkm_i2c *i2c = nvkm_i2c(port);
 
 	if (timeout) {
 		if (wait_event_timeout(i2c->wait,
-				       nouveau_i2c_try_acquire_pad(port) == 0,
+				       nvkm_i2c_try_acquire_pad(port) == 0,
 				       timeout) == 0)
 			return -EBUSY;
 	} else {
-		wait_event(i2c->wait, nouveau_i2c_try_acquire_pad(port) == 0);
+		wait_event(i2c->wait, nvkm_i2c_try_acquire_pad(port) == 0);
 	}
 
 	return 0;
 }
 
 static void
-nouveau_i2c_release(struct nouveau_i2c_port *port)
+nvkm_i2c_release(struct nvkm_i2c_port *port)
 __releases(pad->mutex)
 {
-	nouveau_i2c(port)->release_pad(port);
+	nvkm_i2c(port)->release_pad(port);
 	mutex_unlock(&port->mutex);
 }
 
 static int
-nouveau_i2c_acquire(struct nouveau_i2c_port *port, unsigned long timeout)
+nvkm_i2c_acquire(struct nvkm_i2c_port *port, unsigned long timeout)
 __acquires(pad->mutex)
 {
 	int ret;
 	mutex_lock(&port->mutex);
-	if ((ret = nouveau_i2c(port)->acquire_pad(port, timeout)))
+	if ((ret = nvkm_i2c(port)->acquire_pad(port, timeout)))
 		mutex_unlock(&port->mutex);
 	return ret;
 }
 
 static int
-nouveau_i2c_identify(struct nouveau_i2c *i2c, int index, const char *what,
-		     struct nouveau_i2c_board_info *info,
-		     bool (*match)(struct nouveau_i2c_port *,
-				   struct i2c_board_info *, void *), void *data)
+nvkm_i2c_identify(struct nvkm_i2c *i2c, int index, const char *what,
+		  struct nvkm_i2c_board_info *info,
+		  bool (*match)(struct nvkm_i2c_port *,
+				struct i2c_board_info *, void *), void *data)
 {
-	struct nouveau_i2c_port *port = nouveau_i2c_find(i2c, index);
+	struct nvkm_i2c_port *port = nvkm_i2c_find(i2c, index);
 	int i;
 
 	if (!port) {
@@ -328,27 +322,27 @@ nouveau_i2c_identify(struct nouveau_i2c *i2c, int index, const char *what,
 }
 
 static void
-nouveau_i2c_intr_fini(struct nvkm_event *event, int type, int index)
+nvkm_i2c_intr_fini(struct nvkm_event *event, int type, int index)
 {
-	struct nouveau_i2c *i2c = container_of(event, typeof(*i2c), event);
-	struct nouveau_i2c_port *port = i2c->find(i2c, index);
-	const struct nouveau_i2c_impl *impl = (void *)nv_object(i2c)->oclass;
+	struct nvkm_i2c *i2c = container_of(event, typeof(*i2c), event);
+	struct nvkm_i2c_port *port = i2c->find(i2c, index);
+	const struct nvkm_i2c_impl *impl = (void *)nv_object(i2c)->oclass;
 	if (port && port->aux >= 0)
 		impl->aux_mask(i2c, type, 1 << port->aux, 0);
 }
 
 static void
-nouveau_i2c_intr_init(struct nvkm_event *event, int type, int index)
+nvkm_i2c_intr_init(struct nvkm_event *event, int type, int index)
 {
-	struct nouveau_i2c *i2c = container_of(event, typeof(*i2c), event);
-	struct nouveau_i2c_port *port = i2c->find(i2c, index);
-	const struct nouveau_i2c_impl *impl = (void *)nv_object(i2c)->oclass;
+	struct nvkm_i2c *i2c = container_of(event, typeof(*i2c), event);
+	struct nvkm_i2c_port *port = i2c->find(i2c, index);
+	const struct nvkm_i2c_impl *impl = (void *)nv_object(i2c)->oclass;
 	if (port && port->aux >= 0)
 		impl->aux_mask(i2c, type, 1 << port->aux, 1 << port->aux);
 }
 
 static int
-nouveau_i2c_intr_ctor(struct nouveau_object *object, void *data, u32 size,
+nvkm_i2c_intr_ctor(struct nvkm_object *object, void *data, u32 size,
 		      struct nvkm_notify *notify)
 {
 	struct nvkm_i2c_ntfy_req *req = data;
@@ -362,11 +356,11 @@ nouveau_i2c_intr_ctor(struct nouveau_object *object, void *data, u32 size,
 }
 
 static void
-nouveau_i2c_intr(struct nouveau_subdev *subdev)
+nvkm_i2c_intr(struct nvkm_subdev *subdev)
 {
-	struct nouveau_i2c_impl *impl = (void *)nv_oclass(subdev);
-	struct nouveau_i2c *i2c = nouveau_i2c(subdev);
-	struct nouveau_i2c_port *port;
+	struct nvkm_i2c_impl *impl = (void *)nv_oclass(subdev);
+	struct nvkm_i2c *i2c = nvkm_i2c(subdev);
+	struct nvkm_i2c_port *port;
 	u32 hi, lo, rq, tx, e;
 
 	if (impl->aux_stat) {
@@ -394,18 +388,18 @@ nouveau_i2c_intr(struct nouveau_subdev *subdev)
 }
 
 static const struct nvkm_event_func
-nouveau_i2c_intr_func = {
-	.ctor = nouveau_i2c_intr_ctor,
-	.init = nouveau_i2c_intr_init,
-	.fini = nouveau_i2c_intr_fini,
+nvkm_i2c_intr_func = {
+	.ctor = nvkm_i2c_intr_ctor,
+	.init = nvkm_i2c_intr_init,
+	.fini = nvkm_i2c_intr_fini,
 };
 
 int
-_nouveau_i2c_fini(struct nouveau_object *object, bool suspend)
+_nvkm_i2c_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nouveau_i2c_impl *impl = (void *)nv_oclass(object);
-	struct nouveau_i2c *i2c = (void *)object;
-	struct nouveau_i2c_port *port;
+	struct nvkm_i2c_impl *impl = (void *)nv_oclass(object);
+	struct nvkm_i2c *i2c = (void *)object;
+	struct nvkm_i2c_port *port;
 	u32 mask;
 	int ret;
 
@@ -420,7 +414,7 @@ _nouveau_i2c_fini(struct nouveau_object *object, bool suspend)
 		impl->aux_stat(i2c, &mask, &mask, &mask, &mask);
 	}
 
-	return nouveau_subdev_fini(&i2c->base, suspend);
+	return nvkm_subdev_fini(&i2c->base, suspend);
 fail:
 	list_for_each_entry_continue_reverse(port, &i2c->ports, head) {
 		nv_ofuncs(port)->init(nv_object(port));
@@ -430,13 +424,13 @@ fail:
 }
 
 int
-_nouveau_i2c_init(struct nouveau_object *object)
+_nvkm_i2c_init(struct nvkm_object *object)
 {
-	struct nouveau_i2c *i2c = (void *)object;
-	struct nouveau_i2c_port *port;
+	struct nvkm_i2c *i2c = (void *)object;
+	struct nvkm_i2c_port *port;
 	int ret;
 
-	ret = nouveau_subdev_init(&i2c->base);
+	ret = nvkm_subdev_init(&i2c->base);
 	if (ret == 0) {
 		list_for_each_entry(port, &i2c->ports, head) {
 			ret = nv_ofuncs(port)->init(nv_object(port));
@@ -455,33 +449,33 @@ fail:
 }
 
 void
-_nouveau_i2c_dtor(struct nouveau_object *object)
+_nvkm_i2c_dtor(struct nvkm_object *object)
 {
-	struct nouveau_i2c *i2c = (void *)object;
-	struct nouveau_i2c_port *port, *temp;
+	struct nvkm_i2c *i2c = (void *)object;
+	struct nvkm_i2c_port *port, *temp;
 
 	nvkm_event_fini(&i2c->event);
 
 	list_for_each_entry_safe(port, temp, &i2c->ports, head) {
-		nouveau_object_ref(NULL, (struct nouveau_object **)&port);
+		nvkm_object_ref(NULL, (struct nvkm_object **)&port);
 	}
 
-	nouveau_subdev_destroy(&i2c->base);
+	nvkm_subdev_destroy(&i2c->base);
 }
 
-static struct nouveau_oclass *
-nouveau_i2c_extdev_sclass[] = {
-	nouveau_anx9805_sclass,
+static struct nvkm_oclass *
+nvkm_i2c_extdev_sclass[] = {
+	nvkm_anx9805_sclass,
 };
 
 static void
-nouveau_i2c_create_port(struct nouveau_i2c *i2c, int index, u8 type,
-			struct dcb_i2c_entry *info)
+nvkm_i2c_create_port(struct nvkm_i2c *i2c, int index, u8 type,
+		     struct dcb_i2c_entry *info)
 {
-	const struct nouveau_i2c_impl *impl = (void *)nv_oclass(i2c);
-	struct nouveau_oclass *oclass;
-	struct nouveau_object *parent;
-	struct nouveau_object *object;
+	const struct nvkm_i2c_impl *impl = (void *)nv_oclass(i2c);
+	struct nvkm_oclass *oclass;
+	struct nvkm_object *parent;
+	struct nvkm_object *object;
 	int ret, pad;
 
 	if (info->share != DCB_I2C_UNUSED) {
@@ -495,8 +489,8 @@ nouveau_i2c_create_port(struct nouveau_i2c *i2c, int index, u8 type,
 		oclass = impl->pad_x;
 	}
 
-	ret = nouveau_object_ctor(nv_object(i2c), NULL, oclass,
-				  NULL, pad, &parent);
+	ret = nvkm_object_ctor(nv_object(i2c), NULL, oclass,
+			       NULL, pad, &parent);
 	if (ret < 0)
 		return;
 
@@ -504,44 +498,40 @@ nouveau_i2c_create_port(struct nouveau_i2c *i2c, int index, u8 type,
 	do {
 		ret = -EINVAL;
 		if (oclass->handle == type) {
-			ret = nouveau_object_ctor(parent, NULL,
-						  oclass, info, index,
-						 &object);
+			ret = nvkm_object_ctor(parent, NULL, oclass,
+					       info, index, &object);
 		}
 	} while (ret && (++oclass)->handle);
 
-	nouveau_object_ref(NULL, &parent);
+	nvkm_object_ref(NULL, &parent);
 }
 
 int
-nouveau_i2c_create_(struct nouveau_object *parent,
-		    struct nouveau_object *engine,
-		    struct nouveau_oclass *oclass,
-		    int length, void **pobject)
+nvkm_i2c_create_(struct nvkm_object *parent, struct nvkm_object *engine,
+		 struct nvkm_oclass *oclass, int length, void **pobject)
 {
-	struct nouveau_bios *bios = nouveau_bios(parent);
-	struct nouveau_i2c *i2c;
-	struct nouveau_object *object;
+	struct nvkm_bios *bios = nvkm_bios(parent);
+	struct nvkm_i2c *i2c;
+	struct nvkm_object *object;
 	struct dcb_i2c_entry info;
 	int ret, i, j, index = -1;
 	struct dcb_output outp;
 	u8  ver, hdr;
 	u32 data;
 
-	ret = nouveau_subdev_create(parent, engine, oclass, 0,
-				    "I2C", "i2c", &i2c);
+	ret = nvkm_subdev_create(parent, engine, oclass, 0, "I2C", "i2c", &i2c);
 	*pobject = nv_object(i2c);
 	if (ret)
 		return ret;
 
-	nv_subdev(i2c)->intr = nouveau_i2c_intr;
-	i2c->find = nouveau_i2c_find;
-	i2c->find_type = nouveau_i2c_find_type;
-	i2c->acquire_pad = nouveau_i2c_acquire_pad;
-	i2c->release_pad = nouveau_i2c_release_pad;
-	i2c->acquire = nouveau_i2c_acquire;
-	i2c->release = nouveau_i2c_release;
-	i2c->identify = nouveau_i2c_identify;
+	nv_subdev(i2c)->intr = nvkm_i2c_intr;
+	i2c->find = nvkm_i2c_find;
+	i2c->find_type = nvkm_i2c_find_type;
+	i2c->acquire_pad = nvkm_i2c_acquire_pad;
+	i2c->release_pad = nvkm_i2c_release_pad;
+	i2c->acquire = nvkm_i2c_acquire;
+	i2c->release = nvkm_i2c_release;
+	i2c->identify = nvkm_i2c_identify;
 	init_waitqueue_head(&i2c->wait);
 	INIT_LIST_HEAD(&i2c->ports);
 
@@ -550,23 +540,21 @@ nouveau_i2c_create_(struct nouveau_object *parent,
 		case DCB_I2C_NV04_BIT:
 		case DCB_I2C_NV4E_BIT:
 		case DCB_I2C_NVIO_BIT:
-			nouveau_i2c_create_port(i2c, NV_I2C_PORT(index),
-						info.type, &info);
+			nvkm_i2c_create_port(i2c, NV_I2C_PORT(index),
+					     info.type, &info);
 			break;
 		case DCB_I2C_NVIO_AUX:
-			nouveau_i2c_create_port(i2c, NV_I2C_AUX(index),
-						info.type, &info);
+			nvkm_i2c_create_port(i2c, NV_I2C_AUX(index),
+					     info.type, &info);
 			break;
 		case DCB_I2C_PMGR:
 			if (info.drive != DCB_I2C_UNUSED) {
-				nouveau_i2c_create_port(i2c, NV_I2C_PORT(index),
-							DCB_I2C_NVIO_BIT,
-							&info);
+				nvkm_i2c_create_port(i2c, NV_I2C_PORT(index),
+						     DCB_I2C_NVIO_BIT, &info);
 			}
 			if (info.auxch != DCB_I2C_UNUSED) {
-				nouveau_i2c_create_port(i2c, NV_I2C_AUX(index),
-							DCB_I2C_NVIO_AUX,
-							&info);
+				nvkm_i2c_create_port(i2c, NV_I2C_AUX(index),
+						     DCB_I2C_NVIO_AUX, &info);
 			}
 			break;
 		case DCB_I2C_UNUSED:
@@ -598,20 +586,19 @@ nouveau_i2c_create_(struct nouveau_object *parent,
 
 		ret = -ENODEV;
 		j = -1;
-		while (ret && ++j < ARRAY_SIZE(nouveau_i2c_extdev_sclass)) {
+		while (ret && ++j < ARRAY_SIZE(nvkm_i2c_extdev_sclass)) {
 			parent = nv_object(i2c->find(i2c, outp.i2c_index));
-			oclass = nouveau_i2c_extdev_sclass[j];
+			oclass = nvkm_i2c_extdev_sclass[j];
 			do {
 				if (oclass->handle != info.type)
 					continue;
-				ret = nouveau_object_ctor(parent, NULL,
-							  oclass, NULL,
-							  index++, &object);
+				ret = nvkm_object_ctor(parent, NULL, oclass,
+						       NULL, index++, &object);
 			} while (ret && (++oclass)->handle);
 		}
 	}
 
-	ret = nvkm_event_init(&nouveau_i2c_intr_func, 4, index, &i2c->event);
+	ret = nvkm_event_init(&nvkm_i2c_intr_func, 4, index, &i2c->event);
 	if (ret)
 		return ret;
 
@@ -619,14 +606,14 @@ nouveau_i2c_create_(struct nouveau_object *parent,
 }
 
 int
-_nouveau_i2c_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		  struct nouveau_oclass *oclass, void *data, u32 size,
-		  struct nouveau_object **pobject)
+_nvkm_i2c_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	       struct nvkm_oclass *oclass, void *data, u32 size,
+	       struct nvkm_object **pobject)
 {
-	struct nouveau_i2c *i2c;
+	struct nvkm_i2c *i2c;
 	int ret;
 
-	ret = nouveau_i2c_create(parent, engine, oclass, &i2c);
+	ret = nvkm_i2c_create(parent, engine, oclass, &i2c);
 	*pobject = nv_object(i2c);
 	if (ret)
 		return ret;

@@ -21,20 +21,19 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "nv50.h"
 
 #define AUX_DBG(fmt, args...) nv_debug(aux, "AUXCH(%d): " fmt, ch, ##args)
 #define AUX_ERR(fmt, args...) nv_error(aux, "AUXCH(%d): " fmt, ch, ##args)
 
 static void
-auxch_fini(struct nouveau_i2c *aux, int ch)
+auxch_fini(struct nvkm_i2c *aux, int ch)
 {
 	nv_mask(aux, 0x00d954 + (ch * 0x50), 0x00310000, 0x00000000);
 }
 
 static int
-auxch_init(struct nouveau_i2c *aux, int ch)
+auxch_init(struct nvkm_i2c *aux, int ch)
 {
 	const u32 unksel = 1; /* nfi which to use, or if it matters.. */
 	const u32 ureq = unksel ? 0x00100000 : 0x00200000;
@@ -69,10 +68,10 @@ auxch_init(struct nouveau_i2c *aux, int ch)
 }
 
 int
-gm204_aux(struct nouveau_i2c_port *base, bool retry,
+gm204_aux(struct nvkm_i2c_port *base, bool retry,
 	 u8 type, u32 addr, u8 *data, u8 size)
 {
-	struct nouveau_i2c *aux = nouveau_i2c(base);
+	struct nvkm_i2c *aux = nvkm_i2c(base);
 	struct nv50_i2c_port *port = (void *)base;
 	u32 ctrl, stat, timeout, retries;
 	u32 xbuf[4] = {};
@@ -155,24 +154,23 @@ out:
 	return ret < 0 ? ret : (stat & 0x000f0000) >> 16;
 }
 
-static const struct nouveau_i2c_func
+static const struct nvkm_i2c_func
 gm204_aux_func = {
 	.aux       = gm204_aux,
 };
 
 int
-gm204_aux_port_ctor(struct nouveau_object *parent,
-		    struct nouveau_object *engine,
-		    struct nouveau_oclass *oclass, void *data, u32 index,
-		    struct nouveau_object **pobject)
+gm204_aux_port_ctor(struct nvkm_object *parent,
+		    struct nvkm_object *engine,
+		    struct nvkm_oclass *oclass, void *data, u32 index,
+		    struct nvkm_object **pobject)
 {
 	struct dcb_i2c_entry *info = data;
 	struct nv50_i2c_port *port;
 	int ret;
 
-	ret = nouveau_i2c_port_create(parent, engine, oclass, index,
-				      &nouveau_i2c_aux_algo, &gm204_aux_func,
-				      &port);
+	ret = nvkm_i2c_port_create(parent, engine, oclass, index,
+				   &nvkm_i2c_aux_algo, &gm204_aux_func, &port);
 	*pobject = nv_object(port);
 	if (ret)
 		return ret;
@@ -182,40 +180,40 @@ gm204_aux_port_ctor(struct nouveau_object *parent,
 	return 0;
 }
 
-struct nouveau_oclass
+struct nvkm_oclass
 gm204_i2c_sclass[] = {
 	{ .handle = NV_I2C_TYPE_DCBI2C(DCB_I2C_NVIO_BIT),
-	  .ofuncs = &(struct nouveau_ofuncs) {
-		  .ctor = nvd0_i2c_port_ctor,
-		  .dtor = _nouveau_i2c_port_dtor,
+	  .ofuncs = &(struct nvkm_ofuncs) {
+		  .ctor = gf110_i2c_port_ctor,
+		  .dtor = _nvkm_i2c_port_dtor,
 		  .init = nv50_i2c_port_init,
-		  .fini = _nouveau_i2c_port_fini,
+		  .fini = _nvkm_i2c_port_fini,
 	  },
 	},
 	{ .handle = NV_I2C_TYPE_DCBI2C(DCB_I2C_NVIO_AUX),
-	  .ofuncs = &(struct nouveau_ofuncs) {
+	  .ofuncs = &(struct nvkm_ofuncs) {
 		  .ctor = gm204_aux_port_ctor,
-		  .dtor = _nouveau_i2c_port_dtor,
-		  .init = _nouveau_i2c_port_init,
-		  .fini = _nouveau_i2c_port_fini,
+		  .dtor = _nvkm_i2c_port_dtor,
+		  .init = _nvkm_i2c_port_init,
+		  .fini = _nvkm_i2c_port_fini,
 	  },
 	},
 	{}
 };
 
-struct nouveau_oclass *
-gm204_i2c_oclass = &(struct nouveau_i2c_impl) {
+struct nvkm_oclass *
+gm204_i2c_oclass = &(struct nvkm_i2c_impl) {
 	.base.handle = NV_SUBDEV(I2C, 0x24),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = _nouveau_i2c_ctor,
-		.dtor = _nouveau_i2c_dtor,
-		.init = _nouveau_i2c_init,
-		.fini = _nouveau_i2c_fini,
+	.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = _nvkm_i2c_ctor,
+		.dtor = _nvkm_i2c_dtor,
+		.init = _nvkm_i2c_init,
+		.fini = _nvkm_i2c_fini,
 	},
 	.sclass = gm204_i2c_sclass,
 	.pad_x = &nv04_i2c_pad_oclass,
 	.pad_s = &gm204_i2c_pad_oclass,
 	.aux = 8,
-	.aux_stat = nve0_aux_stat,
-	.aux_mask = nve0_aux_mask,
+	.aux_stat = gk104_aux_stat,
+	.aux_mask = gk104_aux_mask,
 }.base;

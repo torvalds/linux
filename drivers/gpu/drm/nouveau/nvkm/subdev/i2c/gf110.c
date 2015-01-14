@@ -21,45 +21,43 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "nv50.h"
 
 static int
-nvd0_i2c_sense_scl(struct nouveau_i2c_port *base)
+gf110_i2c_sense_scl(struct nvkm_i2c_port *base)
 {
-	struct nv50_i2c_priv *priv = (void *)nouveau_i2c(base);
+	struct nv50_i2c_priv *priv = (void *)nvkm_i2c(base);
 	struct nv50_i2c_port *port = (void *)base;
 	return !!(nv_rd32(priv, port->addr) & 0x00000010);
 }
 
 static int
-nvd0_i2c_sense_sda(struct nouveau_i2c_port *base)
+gf110_i2c_sense_sda(struct nvkm_i2c_port *base)
 {
-	struct nv50_i2c_priv *priv = (void *)nouveau_i2c(base);
+	struct nv50_i2c_priv *priv = (void *)nvkm_i2c(base);
 	struct nv50_i2c_port *port = (void *)base;
 	return !!(nv_rd32(priv, port->addr) & 0x00000020);
 }
 
-static const struct nouveau_i2c_func
-nvd0_i2c_func = {
+static const struct nvkm_i2c_func
+gf110_i2c_func = {
 	.drive_scl = nv50_i2c_drive_scl,
 	.drive_sda = nv50_i2c_drive_sda,
-	.sense_scl = nvd0_i2c_sense_scl,
-	.sense_sda = nvd0_i2c_sense_sda,
+	.sense_scl = gf110_i2c_sense_scl,
+	.sense_sda = gf110_i2c_sense_sda,
 };
 
 int
-nvd0_i2c_port_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		   struct nouveau_oclass *oclass, void *data, u32 index,
-		   struct nouveau_object **pobject)
+gf110_i2c_port_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		    struct nvkm_oclass *oclass, void *data, u32 index,
+		    struct nvkm_object **pobject)
 {
 	struct dcb_i2c_entry *info = data;
 	struct nv50_i2c_port *port;
 	int ret;
 
-	ret = nouveau_i2c_port_create(parent, engine, oclass, index,
-				      &nouveau_i2c_bit_algo, &nvd0_i2c_func,
-				      &port);
+	ret = nvkm_i2c_port_create(parent, engine, oclass, index,
+				   &nvkm_i2c_bit_algo, &gf110_i2c_func, &port);
 	*pobject = nv_object(port);
 	if (ret)
 		return ret;
@@ -69,40 +67,40 @@ nvd0_i2c_port_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
-nvd0_i2c_sclass[] = {
+struct nvkm_oclass
+gf110_i2c_sclass[] = {
 	{ .handle = NV_I2C_TYPE_DCBI2C(DCB_I2C_NVIO_BIT),
-	  .ofuncs = &(struct nouveau_ofuncs) {
-		  .ctor = nvd0_i2c_port_ctor,
-		  .dtor = _nouveau_i2c_port_dtor,
+	  .ofuncs = &(struct nvkm_ofuncs) {
+		  .ctor = gf110_i2c_port_ctor,
+		  .dtor = _nvkm_i2c_port_dtor,
 		  .init = nv50_i2c_port_init,
-		  .fini = _nouveau_i2c_port_fini,
+		  .fini = _nvkm_i2c_port_fini,
 	  },
 	},
 	{ .handle = NV_I2C_TYPE_DCBI2C(DCB_I2C_NVIO_AUX),
-	  .ofuncs = &(struct nouveau_ofuncs) {
-		  .ctor = nv94_aux_port_ctor,
-		  .dtor = _nouveau_i2c_port_dtor,
-		  .init = _nouveau_i2c_port_init,
-		  .fini = _nouveau_i2c_port_fini,
+	  .ofuncs = &(struct nvkm_ofuncs) {
+		  .ctor = g94_aux_port_ctor,
+		  .dtor = _nvkm_i2c_port_dtor,
+		  .init = _nvkm_i2c_port_init,
+		  .fini = _nvkm_i2c_port_fini,
 	  },
 	},
 	{}
 };
 
-struct nouveau_oclass *
-nvd0_i2c_oclass = &(struct nouveau_i2c_impl) {
+struct nvkm_oclass *
+gf110_i2c_oclass = &(struct nvkm_i2c_impl) {
 	.base.handle = NV_SUBDEV(I2C, 0xd0),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = _nouveau_i2c_ctor,
-		.dtor = _nouveau_i2c_dtor,
-		.init = _nouveau_i2c_init,
-		.fini = _nouveau_i2c_fini,
+	.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = _nvkm_i2c_ctor,
+		.dtor = _nvkm_i2c_dtor,
+		.init = _nvkm_i2c_init,
+		.fini = _nvkm_i2c_fini,
 	},
-	.sclass = nvd0_i2c_sclass,
+	.sclass = gf110_i2c_sclass,
 	.pad_x = &nv04_i2c_pad_oclass,
-	.pad_s = &nv94_i2c_pad_oclass,
+	.pad_s = &g94_i2c_pad_oclass,
 	.aux = 4,
-	.aux_stat = nv94_aux_stat,
-	.aux_mask = nv94_aux_mask,
+	.aux_stat = g94_aux_stat,
+	.aux_mask = g94_aux_mask,
 }.base;

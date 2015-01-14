@@ -21,46 +21,45 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "priv.h"
 
-#ifdef CONFIG_NOUVEAU_I2C_INTERNAL
+#ifdef CONFIG_NVKM_I2C_INTERNAL
 #define T_TIMEOUT  2200000
 #define T_RISEFALL 1000
 #define T_HOLD     5000
 
 static inline void
-i2c_drive_scl(struct nouveau_i2c_port *port, int state)
+i2c_drive_scl(struct nvkm_i2c_port *port, int state)
 {
 	port->func->drive_scl(port, state);
 }
 
 static inline void
-i2c_drive_sda(struct nouveau_i2c_port *port, int state)
+i2c_drive_sda(struct nvkm_i2c_port *port, int state)
 {
 	port->func->drive_sda(port, state);
 }
 
 static inline int
-i2c_sense_scl(struct nouveau_i2c_port *port)
+i2c_sense_scl(struct nvkm_i2c_port *port)
 {
 	return port->func->sense_scl(port);
 }
 
 static inline int
-i2c_sense_sda(struct nouveau_i2c_port *port)
+i2c_sense_sda(struct nvkm_i2c_port *port)
 {
 	return port->func->sense_sda(port);
 }
 
 static void
-i2c_delay(struct nouveau_i2c_port *port, u32 nsec)
+i2c_delay(struct nvkm_i2c_port *port, u32 nsec)
 {
 	udelay((nsec + 500) / 1000);
 }
 
 static bool
-i2c_raise_scl(struct nouveau_i2c_port *port)
+i2c_raise_scl(struct nvkm_i2c_port *port)
 {
 	u32 timeout = T_TIMEOUT / T_RISEFALL;
 
@@ -73,7 +72,7 @@ i2c_raise_scl(struct nouveau_i2c_port *port)
 }
 
 static int
-i2c_start(struct nouveau_i2c_port *port)
+i2c_start(struct nvkm_i2c_port *port)
 {
 	int ret = 0;
 
@@ -93,7 +92,7 @@ i2c_start(struct nouveau_i2c_port *port)
 }
 
 static void
-i2c_stop(struct nouveau_i2c_port *port)
+i2c_stop(struct nvkm_i2c_port *port)
 {
 	i2c_drive_scl(port, 0);
 	i2c_drive_sda(port, 0);
@@ -106,7 +105,7 @@ i2c_stop(struct nouveau_i2c_port *port)
 }
 
 static int
-i2c_bitw(struct nouveau_i2c_port *port, int sda)
+i2c_bitw(struct nvkm_i2c_port *port, int sda)
 {
 	i2c_drive_sda(port, sda);
 	i2c_delay(port, T_RISEFALL);
@@ -121,7 +120,7 @@ i2c_bitw(struct nouveau_i2c_port *port, int sda)
 }
 
 static int
-i2c_bitr(struct nouveau_i2c_port *port)
+i2c_bitr(struct nvkm_i2c_port *port)
 {
 	int sda;
 
@@ -140,7 +139,7 @@ i2c_bitr(struct nouveau_i2c_port *port)
 }
 
 static int
-i2c_get_byte(struct nouveau_i2c_port *port, u8 *byte, bool last)
+i2c_get_byte(struct nvkm_i2c_port *port, u8 *byte, bool last)
 {
 	int i, bit;
 
@@ -156,7 +155,7 @@ i2c_get_byte(struct nouveau_i2c_port *port, u8 *byte, bool last)
 }
 
 static int
-i2c_put_byte(struct nouveau_i2c_port *port, u8 byte)
+i2c_put_byte(struct nvkm_i2c_port *port, u8 byte)
 {
 	int i, ret;
 	for (i = 7; i >= 0; i--) {
@@ -172,7 +171,7 @@ i2c_put_byte(struct nouveau_i2c_port *port, u8 byte)
 }
 
 static int
-i2c_addr(struct nouveau_i2c_port *port, struct i2c_msg *msg)
+i2c_addr(struct nvkm_i2c_port *port, struct i2c_msg *msg)
 {
 	u32 addr = msg->addr << 1;
 	if (msg->flags & I2C_M_RD)
@@ -183,11 +182,11 @@ i2c_addr(struct nouveau_i2c_port *port, struct i2c_msg *msg)
 static int
 i2c_bit_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
-	struct nouveau_i2c_port *port = adap->algo_data;
+	struct nvkm_i2c_port *port = adap->algo_data;
 	struct i2c_msg *msg = msgs;
 	int ret = 0, mcnt = num;
 
-	ret = nouveau_i2c(port)->acquire(port, nsecs_to_jiffies(T_TIMEOUT));
+	ret = nvkm_i2c(port)->acquire(port, nsecs_to_jiffies(T_TIMEOUT));
 	if (ret)
 		return ret;
 
@@ -211,7 +210,7 @@ i2c_bit_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	}
 
 	i2c_stop(port);
-	nouveau_i2c(port)->release(port);
+	nvkm_i2c(port)->release(port);
 	return (ret < 0) ? ret : num;
 }
 #else
@@ -228,7 +227,7 @@ i2c_bit_func(struct i2c_adapter *adap)
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
-const struct i2c_algorithm nouveau_i2c_bit_algo = {
+const struct i2c_algorithm nvkm_i2c_bit_algo = {
 	.master_xfer = i2c_bit_xfer,
 	.functionality = i2c_bit_func
 };

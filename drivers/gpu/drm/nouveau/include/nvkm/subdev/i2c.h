@@ -1,8 +1,7 @@
-#ifndef __NOUVEAU_I2C_H__
-#define __NOUVEAU_I2C_H__
-
+#ifndef __NVKM_I2C_H__
+#define __NVKM_I2C_H__
 #include <core/subdev.h>
-#include <core/device.h>
+#include <core/event.h>
 
 #include <subdev/bios.h>
 #include <subdev/bios/i2c.h>
@@ -30,8 +29,8 @@ struct nvkm_i2c_ntfy_rep {
 	u8 mask;
 };
 
-struct nouveau_i2c_port {
-	struct nouveau_object base;
+struct nvkm_i2c_port {
+	struct nvkm_object base;
 	struct i2c_adapter adapter;
 	struct mutex mutex;
 
@@ -39,62 +38,63 @@ struct nouveau_i2c_port {
 	u8  index;
 	int aux;
 
-	const struct nouveau_i2c_func *func;
+	const struct nvkm_i2c_func *func;
 };
 
-struct nouveau_i2c_func {
-	void (*drive_scl)(struct nouveau_i2c_port *, int);
-	void (*drive_sda)(struct nouveau_i2c_port *, int);
-	int  (*sense_scl)(struct nouveau_i2c_port *);
-	int  (*sense_sda)(struct nouveau_i2c_port *);
+struct nvkm_i2c_func {
+	void (*drive_scl)(struct nvkm_i2c_port *, int);
+	void (*drive_sda)(struct nvkm_i2c_port *, int);
+	int  (*sense_scl)(struct nvkm_i2c_port *);
+	int  (*sense_sda)(struct nvkm_i2c_port *);
 
-	int  (*aux)(struct nouveau_i2c_port *, bool, u8, u32, u8 *, u8);
-	int  (*pattern)(struct nouveau_i2c_port *, int pattern);
-	int  (*lnk_ctl)(struct nouveau_i2c_port *, int nr, int bw, bool enh);
-	int  (*drv_ctl)(struct nouveau_i2c_port *, int lane, int sw, int pe);
+	int  (*aux)(struct nvkm_i2c_port *, bool, u8, u32, u8 *, u8);
+	int  (*pattern)(struct nvkm_i2c_port *, int pattern);
+	int  (*lnk_ctl)(struct nvkm_i2c_port *, int nr, int bw, bool enh);
+	int  (*drv_ctl)(struct nvkm_i2c_port *, int lane, int sw, int pe);
 };
 
-struct nouveau_i2c_board_info {
+struct nvkm_i2c_board_info {
 	struct i2c_board_info dev;
 	u8 udelay; /* set to 0 to use the standard delay */
 };
 
-struct nouveau_i2c {
-	struct nouveau_subdev base;
+struct nvkm_i2c {
+	struct nvkm_subdev base;
 	struct nvkm_event event;
 
-	struct nouveau_i2c_port *(*find)(struct nouveau_i2c *, u8 index);
-	struct nouveau_i2c_port *(*find_type)(struct nouveau_i2c *, u16 type);
-	int  (*acquire_pad)(struct nouveau_i2c_port *, unsigned long timeout);
-	void (*release_pad)(struct nouveau_i2c_port *);
-	int  (*acquire)(struct nouveau_i2c_port *, unsigned long timeout);
-	void (*release)(struct nouveau_i2c_port *);
-	int (*identify)(struct nouveau_i2c *, int index,
-			const char *what, struct nouveau_i2c_board_info *,
-			bool (*match)(struct nouveau_i2c_port *,
-				      struct i2c_board_info *, void *), void *);
+	struct nvkm_i2c_port *(*find)(struct nvkm_i2c *, u8 index);
+	struct nvkm_i2c_port *(*find_type)(struct nvkm_i2c *, u16 type);
+	int  (*acquire_pad)(struct nvkm_i2c_port *, unsigned long timeout);
+	void (*release_pad)(struct nvkm_i2c_port *);
+	int  (*acquire)(struct nvkm_i2c_port *, unsigned long timeout);
+	void (*release)(struct nvkm_i2c_port *);
+	int  (*identify)(struct nvkm_i2c *, int index,
+			 const char *what, struct nvkm_i2c_board_info *,
+			 bool (*match)(struct nvkm_i2c_port *,
+				       struct i2c_board_info *, void *),
+			 void *);
 
 	wait_queue_head_t wait;
 	struct list_head ports;
 };
 
-static inline struct nouveau_i2c *
-nouveau_i2c(void *obj)
+static inline struct nvkm_i2c *
+nvkm_i2c(void *obj)
 {
-	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_I2C);
+	return (void *)nvkm_subdev(obj, NVDEV_SUBDEV_I2C);
 }
 
-extern struct nouveau_oclass *nv04_i2c_oclass;
-extern struct nouveau_oclass *nv4e_i2c_oclass;
-extern struct nouveau_oclass *nv50_i2c_oclass;
-extern struct nouveau_oclass *nv94_i2c_oclass;
-extern struct nouveau_oclass *nvd0_i2c_oclass;
-extern struct nouveau_oclass *gf117_i2c_oclass;
-extern struct nouveau_oclass *nve0_i2c_oclass;
-extern struct nouveau_oclass *gm204_i2c_oclass;
+extern struct nvkm_oclass *nv04_i2c_oclass;
+extern struct nvkm_oclass *nv4e_i2c_oclass;
+extern struct nvkm_oclass *nv50_i2c_oclass;
+extern struct nvkm_oclass *g94_i2c_oclass;
+extern struct nvkm_oclass *gf110_i2c_oclass;
+extern struct nvkm_oclass *gf117_i2c_oclass;
+extern struct nvkm_oclass *gk104_i2c_oclass;
+extern struct nvkm_oclass *gm204_i2c_oclass;
 
 static inline int
-nv_rdi2cr(struct nouveau_i2c_port *port, u8 addr, u8 reg)
+nv_rdi2cr(struct nvkm_i2c_port *port, u8 addr, u8 reg)
 {
 	u8 val;
 	struct i2c_msg msgs[] = {
@@ -110,7 +110,7 @@ nv_rdi2cr(struct nouveau_i2c_port *port, u8 addr, u8 reg)
 }
 
 static inline int
-nv_wri2cr(struct nouveau_i2c_port *port, u8 addr, u8 reg, u8 val)
+nv_wri2cr(struct nvkm_i2c_port *port, u8 addr, u8 reg, u8 val)
 {
 	u8 buf[2] = { reg, val };
 	struct i2c_msg msgs[] = {
@@ -125,12 +125,11 @@ nv_wri2cr(struct nouveau_i2c_port *port, u8 addr, u8 reg, u8 val)
 }
 
 static inline bool
-nv_probe_i2c(struct nouveau_i2c_port *port, u8 addr)
+nv_probe_i2c(struct nvkm_i2c_port *port, u8 addr)
 {
 	return nv_rdi2cr(port, addr, 0) >= 0;
 }
 
-int nv_rdaux(struct nouveau_i2c_port *, u32 addr, u8 *data, u8 size);
-int nv_wraux(struct nouveau_i2c_port *, u32 addr, u8 *data, u8 size);
-
+int nv_rdaux(struct nvkm_i2c_port *, u32 addr, u8 *data, u8 size);
+int nv_wraux(struct nvkm_i2c_port *, u32 addr, u8 *data, u8 size);
 #endif

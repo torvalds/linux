@@ -21,13 +21,12 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "priv.h"
 
 int
-nv_rdaux(struct nouveau_i2c_port *port, u32 addr, u8 *data, u8 size)
+nv_rdaux(struct nvkm_i2c_port *port, u32 addr, u8 *data, u8 size)
 {
-	struct nouveau_i2c *i2c = nouveau_i2c(port);
+	struct nvkm_i2c *i2c = nvkm_i2c(port);
 	if (port->func->aux) {
 		int ret = i2c->acquire(port, 0);
 		if (ret == 0) {
@@ -40,9 +39,9 @@ nv_rdaux(struct nouveau_i2c_port *port, u32 addr, u8 *data, u8 size)
 }
 
 int
-nv_wraux(struct nouveau_i2c_port *port, u32 addr, u8 *data, u8 size)
+nv_wraux(struct nvkm_i2c_port *port, u32 addr, u8 *data, u8 size)
 {
-	struct nouveau_i2c *i2c = nouveau_i2c(port);
+	struct nvkm_i2c *i2c = nvkm_i2c(port);
 	if (port->func->aux) {
 		int ret = i2c->acquire(port, 0);
 		if (ret == 0) {
@@ -57,8 +56,8 @@ nv_wraux(struct nouveau_i2c_port *port, u32 addr, u8 *data, u8 size)
 static int
 aux_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
-	struct nouveau_i2c_port *port = adap->algo_data;
-	struct nouveau_i2c *i2c = nouveau_i2c(port);
+	struct nvkm_i2c_port *port = adap->algo_data;
+	struct nvkm_i2c *i2c = nvkm_i2c(port);
 	struct i2c_msg *msg = msgs;
 	int ret, mcnt = num;
 
@@ -108,7 +107,7 @@ aux_func(struct i2c_adapter *adap)
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
-const struct i2c_algorithm nouveau_i2c_aux_algo = {
+const struct i2c_algorithm nvkm_i2c_aux_algo = {
 	.master_xfer = aux_xfer,
 	.functionality = aux_func
 };

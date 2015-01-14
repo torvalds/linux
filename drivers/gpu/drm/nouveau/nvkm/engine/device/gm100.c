@@ -63,7 +63,7 @@ gm100_identify(struct nouveau_device *device)
 		device->cname = "GM107";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  gk104_gpio_oclass;
-		device->oclass[NVDEV_SUBDEV_I2C    ] =  nvd0_i2c_oclass;
+		device->oclass[NVDEV_SUBDEV_I2C    ] =  gf110_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gm107_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &gk104_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &gm107_therm_oclass;

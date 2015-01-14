@@ -21,19 +21,18 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "nv50.h"
 
-struct nouveau_oclass *
-gf117_i2c_oclass = &(struct nouveau_i2c_impl) {
+struct nvkm_oclass *
+gf117_i2c_oclass = &(struct nvkm_i2c_impl) {
 	.base.handle = NV_SUBDEV(I2C, 0xd7),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = _nouveau_i2c_ctor,
-		.dtor = _nouveau_i2c_dtor,
-		.init = _nouveau_i2c_init,
-		.fini = _nouveau_i2c_fini,
+	.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = _nvkm_i2c_ctor,
+		.dtor = _nvkm_i2c_dtor,
+		.init = _nvkm_i2c_init,
+		.fini = _nvkm_i2c_fini,
 	},
-	.sclass = nvd0_i2c_sclass,
+	.sclass = gf110_i2c_sclass,
 	.pad_x = &nv04_i2c_pad_oclass,
 	.pad_s = &nv04_i2c_pad_oclass,
 }.base;

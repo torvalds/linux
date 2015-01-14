@@ -21,7 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "pad.h"
 
 struct gm204_i2c_pad {
@@ -30,18 +29,18 @@ struct gm204_i2c_pad {
 };
 
 static int
-gm204_i2c_pad_fini(struct nouveau_object *object, bool suspend)
+gm204_i2c_pad_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nouveau_i2c *i2c = (void *)nouveau_i2c(object);
+	struct nvkm_i2c *i2c = (void *)nvkm_i2c(object);
 	struct gm204_i2c_pad *pad = (void *)object;
 	nv_mask(i2c, 0x00d97c + pad->addr, 0x00000001, 0x00000001);
 	return nvkm_i2c_pad_fini(&pad->base, suspend);
 }
 
 static int
-gm204_i2c_pad_init(struct nouveau_object *object)
+gm204_i2c_pad_init(struct nvkm_object *object)
 {
-	struct nouveau_i2c *i2c = (void *)nouveau_i2c(object);
+	struct nvkm_i2c *i2c = (void *)nvkm_i2c(object);
 	struct gm204_i2c_pad *pad = (void *)object;
 
 	switch (nv_oclass(pad->base.next)->handle) {
@@ -59,9 +58,9 @@ gm204_i2c_pad_init(struct nouveau_object *object)
 }
 
 static int
-gm204_i2c_pad_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		  struct nouveau_oclass *oclass, void *data, u32 index,
-		  struct nouveau_object **pobject)
+gm204_i2c_pad_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		   struct nvkm_oclass *oclass, void *data, u32 index,
+		   struct nvkm_object **pobject)
 {
 	struct gm204_i2c_pad *pad;
 	int ret;
@@ -75,9 +74,9 @@ gm204_i2c_pad_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
+struct nvkm_oclass
 gm204_i2c_pad_oclass = {
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = gm204_i2c_pad_ctor,
 		.dtor = _nvkm_i2c_pad_dtor,
 		.init = gm204_i2c_pad_init,

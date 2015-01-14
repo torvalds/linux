@@ -21,28 +21,27 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "pad.h"
 
-struct nv94_i2c_pad {
+struct g94_i2c_pad {
 	struct nvkm_i2c_pad base;
 	int addr;
 };
 
 static int
-nv94_i2c_pad_fini(struct nouveau_object *object, bool suspend)
+g94_i2c_pad_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nouveau_i2c *i2c = (void *)nouveau_i2c(object);
-	struct nv94_i2c_pad *pad = (void *)object;
+	struct nvkm_i2c *i2c = (void *)nvkm_i2c(object);
+	struct g94_i2c_pad *pad = (void *)object;
 	nv_mask(i2c, 0x00e50c + pad->addr, 0x00000001, 0x00000001);
 	return nvkm_i2c_pad_fini(&pad->base, suspend);
 }
 
 static int
-nv94_i2c_pad_init(struct nouveau_object *object)
+g94_i2c_pad_init(struct nvkm_object *object)
 {
-	struct nouveau_i2c *i2c = (void *)nouveau_i2c(object);
-	struct nv94_i2c_pad *pad = (void *)object;
+	struct nvkm_i2c *i2c = (void *)nvkm_i2c(object);
+	struct g94_i2c_pad *pad = (void *)object;
 
 	switch (nv_oclass(pad->base.next)->handle) {
 	case NV_I2C_TYPE_DCBI2C(DCB_I2C_NVIO_AUX):
@@ -59,11 +58,11 @@ nv94_i2c_pad_init(struct nouveau_object *object)
 }
 
 static int
-nv94_i2c_pad_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		  struct nouveau_oclass *oclass, void *data, u32 index,
-		  struct nouveau_object **pobject)
+g94_i2c_pad_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		 struct nvkm_oclass *oclass, void *data, u32 index,
+		 struct nvkm_object **pobject)
 {
-	struct nv94_i2c_pad *pad;
+	struct g94_i2c_pad *pad;
 	int ret;
 
 	ret = nvkm_i2c_pad_create(parent, engine, oclass, index, &pad);
@@ -75,12 +74,12 @@ nv94_i2c_pad_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
-nv94_i2c_pad_oclass = {
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv94_i2c_pad_ctor,
+struct nvkm_oclass
+g94_i2c_pad_oclass = {
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = g94_i2c_pad_ctor,
 		.dtor = _nvkm_i2c_pad_dtor,
-		.init = nv94_i2c_pad_init,
-		.fini = nv94_i2c_pad_fini,
+		.init = g94_i2c_pad_init,
+		.fini = g94_i2c_pad_fini,
 	},
 };
