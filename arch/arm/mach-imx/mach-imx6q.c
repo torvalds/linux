@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2013 Freescale Semiconductor, Inc.
+ * Copyright 2011-2015 Freescale Semiconductor, Inc.
  * Copyright 2011 Linaro Ltd.
  *
  * The code contained herein is licensed under the GNU General Public
@@ -193,9 +193,7 @@ static void __init imx6q_1588_init(void)
 {
 	struct device_node *np;
 	struct clk *ptp_clk;
-	struct clk *enet_ref;
 	struct regmap *gpr;
-	u32 clksel;
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-fec");
 	if (!np) {
@@ -209,30 +207,19 @@ static void __init imx6q_1588_init(void)
 		goto put_node;
 	}
 
-	enet_ref = clk_get_sys(NULL, "enet_ref");
-	if (IS_ERR(enet_ref)) {
-		pr_warn("%s: failed to get enet clock\n", __func__);
-		goto put_ptp_clk;
-	}
-
 	/*
 	 * If enet_ref from ANATOP/CCM is the PTP clock source, we need to
 	 * set bit IOMUXC_GPR1[21].  Or the PTP clock must be from pad
 	 * (external OSC), and we need to clear the bit.
 	 */
-	clksel = clk_is_match(ptp_clk, enet_ref) ?
-				IMX6Q_GPR1_ENET_CLK_SEL_ANATOP :
-				IMX6Q_GPR1_ENET_CLK_SEL_PAD;
 	gpr = syscon_regmap_lookup_by_compatible("fsl,imx6q-iomuxc-gpr");
 	if (!IS_ERR(gpr))
 		regmap_update_bits(gpr, IOMUXC_GPR1,
 				IMX6Q_GPR1_ENET_CLK_SEL_MASK,
-				clksel);
+				IMX6Q_GPR1_ENET_CLK_SEL_ANATOP);
 	else
 		pr_err("failed to find fsl,imx6q-iomux-gpr regmap\n");
 
-	clk_put(enet_ref);
-put_ptp_clk:
 	clk_put(ptp_clk);
 put_node:
 	of_node_put(np);
