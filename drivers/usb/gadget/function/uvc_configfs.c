@@ -1156,8 +1156,6 @@ static inline int __uvcg_fill_frm_intrv(char *buf, void *priv)
 	ret = kstrtou32(buf, 0, &num);
 	if (ret)
 		return ret;
-	if (num > 0xFFFFFFFF)
-		return -EINVAL;
 
 	interv = priv;
 	**interv = cpu_to_le32(num);
