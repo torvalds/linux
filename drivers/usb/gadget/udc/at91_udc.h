@@ -107,6 +107,11 @@ struct at91_ep {
 	unsigned			fifo_bank:1;
 };
 
+struct at91_udc_caps {
+	int (*init)(struct at91_udc *udc);
+	void (*pullup)(struct at91_udc *udc, int is_on);
+};
+
 /*
  * driver is non-SMP, and just blocks IRQs whenever it needs
  * access protection for chip registers or driver state
@@ -115,6 +120,7 @@ struct at91_udc {
 	struct usb_gadget		gadget;
 	struct at91_ep			ep[NUM_ENDPOINTS];
 	struct usb_gadget_driver	*driver;
+	const struct at91_udc_caps	*caps;
 	unsigned			vbus:1;
 	unsigned			enabled:1;
 	unsigned			clocked:1;
@@ -134,6 +140,7 @@ struct at91_udc {
 	spinlock_t			lock;
 	struct timer_list		vbus_timer;
 	struct work_struct		vbus_timer_work;
+	struct regmap			*matrix;
 };
 
 static inline struct at91_udc *to_udc(struct usb_gadget *g)
