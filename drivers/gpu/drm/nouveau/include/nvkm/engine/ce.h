@@ -1,5 +1,6 @@
 #ifndef __NVKM_CE_H__
 #define __NVKM_CE_H__
+#include <core/engine.h>
 
 void nva3_ce_intr(struct nouveau_subdev *);
 

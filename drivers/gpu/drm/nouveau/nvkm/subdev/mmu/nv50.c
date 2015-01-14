@@ -21,22 +21,20 @@
  *
  * Authors: Ben Skeggs
  */
+#include <subdev/mmu.h>
+#include <subdev/bar.h>
+#include <subdev/fb.h>
+#include <subdev/timer.h>
 
-#include <core/device.h>
+#include <core/engine.h>
 #include <core/gpuobj.h>
 
-#include <subdev/timer.h>
-#include <subdev/fb.h>
-#include <subdev/bar.h>
-#include <subdev/mmu.h>
-
 struct nv50_mmu_priv {
-	struct nouveau_mmu base;
+	struct nvkm_mmu base;
 };
 
 static void
-nv50_vm_map_pgt(struct nouveau_gpuobj *pgd, u32 pde,
-		struct nouveau_gpuobj *pgt[2])
+nv50_vm_map_pgt(struct nvkm_gpuobj *pgd, u32 pde, struct nvkm_gpuobj *pgt[2])
 {
 	u64 phys = 0xdeadcafe00000000ULL;
 	u32 coverage = 0;
@@ -64,7 +62,7 @@ nv50_vm_map_pgt(struct nouveau_gpuobj *pgd, u32 pde,
 }
 
 static inline u64
-vm_addr(struct nouveau_vma *vma, u64 phys, u32 memtype, u32 target)
+vm_addr(struct nvkm_vma *vma, u64 phys, u32 memtype, u32 target)
 {
 	phys |= 1; /* present */
 	phys |= (u64)memtype << 40;
@@ -77,8 +75,8 @@ vm_addr(struct nouveau_vma *vma, u64 phys, u32 memtype, u32 target)
 }
 
 static void
-nv50_vm_map(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
-	    struct nouveau_mem *mem, u32 pte, u32 cnt, u64 phys, u64 delta)
+nv50_vm_map(struct nvkm_vma *vma, struct nvkm_gpuobj *pgt,
+	    struct nvkm_mem *mem, u32 pte, u32 cnt, u64 phys, u64 delta)
 {
 	u32 comp = (mem->memtype & 0x180) >> 7;
 	u32 block, target;
@@ -86,8 +84,8 @@ nv50_vm_map(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 
 	/* IGPs don't have real VRAM, re-target to stolen system memory */
 	target = 0;
-	if (nouveau_fb(vma->vm->mmu)->ram->stolen) {
-		phys += nouveau_fb(vma->vm->mmu)->ram->stolen;
+	if (nvkm_fb(vma->vm->mmu)->ram->stolen) {
+		phys += nvkm_fb(vma->vm->mmu)->ram->stolen;
 		target = 3;
 	}
 
@@ -124,8 +122,8 @@ nv50_vm_map(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 }
 
 static void
-nv50_vm_map_sg(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
-	       struct nouveau_mem *mem, u32 pte, u32 cnt, dma_addr_t *list)
+nv50_vm_map_sg(struct nvkm_vma *vma, struct nvkm_gpuobj *pgt,
+	       struct nvkm_mem *mem, u32 pte, u32 cnt, dma_addr_t *list)
 {
 	u32 target = (vma->access & NV_MEM_ACCESS_NOSNOOP) ? 3 : 2;
 	pte <<= 3;
@@ -138,7 +136,7 @@ nv50_vm_map_sg(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 }
 
 static void
-nv50_vm_unmap(struct nouveau_gpuobj *pgt, u32 pte, u32 cnt)
+nv50_vm_unmap(struct nvkm_gpuobj *pgt, u32 pte, u32 cnt)
 {
 	pte <<= 3;
 	while (cnt--) {
@@ -149,11 +147,11 @@ nv50_vm_unmap(struct nouveau_gpuobj *pgt, u32 pte, u32 cnt)
 }
 
 static void
-nv50_vm_flush(struct nouveau_vm *vm)
+nv50_vm_flush(struct nvkm_vm *vm)
 {
 	struct nv50_mmu_priv *priv = (void *)vm->mmu;
-	struct nouveau_bar *bar = nouveau_bar(priv);
-	struct nouveau_engine *engine;
+	struct nvkm_bar *bar = nvkm_bar(priv);
+	struct nvkm_engine *engine;
 	int i, vme;
 
 	bar->flush(bar);
@@ -164,7 +162,7 @@ nv50_vm_flush(struct nouveau_vm *vm)
 			continue;
 
 		/* unfortunate hw bug workaround... */
-		engine = nouveau_engine(priv, i);
+		engine = nvkm_engine(priv, i);
 		if (engine && engine->tlb_flush) {
 			engine->tlb_flush(engine);
 			continue;
@@ -194,25 +192,25 @@ nv50_vm_flush(struct nouveau_vm *vm)
 }
 
 static int
-nv50_vm_create(struct nouveau_mmu *mmu, u64 offset, u64 length,
-	       u64 mm_offset, struct nouveau_vm **pvm)
+nv50_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length,
+	       u64 mm_offset, struct nvkm_vm **pvm)
 {
 	u32 block = (1 << (mmu->pgt_bits + 12));
 	if (block > length)
 		block = length;
 
-	return nouveau_vm_create(mmu, offset, length, mm_offset, block, pvm);
+	return nvkm_vm_create(mmu, offset, length, mm_offset, block, pvm);
 }
 
 static int
-nv50_mmu_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		struct nouveau_oclass *oclass, void *data, u32 size,
-		struct nouveau_object **pobject)
+nv50_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	      struct nvkm_oclass *oclass, void *data, u32 size,
+	      struct nvkm_object **pobject)
 {
 	struct nv50_mmu_priv *priv;
 	int ret;
 
-	ret = nouveau_mmu_create(parent, engine, oclass, "VM", "vm", &priv);
+	ret = nvkm_mmu_create(parent, engine, oclass, "VM", "vm", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -231,13 +229,13 @@ nv50_mmu_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
+struct nvkm_oclass
 nv50_mmu_oclass = {
 	.handle = NV_SUBDEV(MMU, 0x50),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv50_mmu_ctor,
-		.dtor = _nouveau_mmu_dtor,
-		.init = _nouveau_mmu_init,
-		.fini = _nouveau_mmu_fini,
+		.dtor = _nvkm_mmu_dtor,
+		.init = _nvkm_mmu_init,
+		.fini = _nvkm_mmu_fini,
 	},
 };

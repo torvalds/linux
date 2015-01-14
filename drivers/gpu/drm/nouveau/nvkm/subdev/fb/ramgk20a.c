@@ -21,6 +21,8 @@
  */
 #include "priv.h"
 
+#include <core/device.h>
+
 struct gk20a_mem {
 	struct nvkm_mem base;
 	void *cpuaddr;

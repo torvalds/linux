@@ -24,6 +24,7 @@
 #include "nv50.h"
 
 #include <core/client.h>
+#include <core/device.h>
 #include <core/engctx.h>
 #include <core/enum.h>
 

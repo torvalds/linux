@@ -20,6 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <core/device.h>
 #include <core/gpuobj.h>
 
 #define CP_FLAG_CLEAR                 0

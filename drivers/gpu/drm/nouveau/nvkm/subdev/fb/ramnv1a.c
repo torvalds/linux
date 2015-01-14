@@ -23,6 +23,8 @@
  */
 #include "priv.h"
 
+#include <core/device.h>
+
 static int
 nv1a_ram_create(struct nvkm_object *parent, struct nvkm_object *engine,
 		struct nvkm_oclass *oclass, void *data, u32 size,

@@ -25,6 +25,8 @@
  */
 #include "nv04.h"
 
+#include <core/device.h>
+
 void
 nv30_fb_tile_init(struct nvkm_fb *pfb, int i, u32 addr, u32 size, u32 pitch,
 		  u32 flags, struct nvkm_fb_tile *tile)

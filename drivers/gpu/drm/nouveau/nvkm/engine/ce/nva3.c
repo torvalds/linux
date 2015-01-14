@@ -30,6 +30,7 @@
 #include <subdev/mmu.h>
 
 #include <core/client.h>
+#include <core/device.h>
 #include <core/enum.h>
 
 

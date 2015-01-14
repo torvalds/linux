@@ -21,10 +21,10 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <core/gpuobj.h>
-
 #include "nv04.h"
+
+#include <core/device.h>
+#include <core/gpuobj.h>
 
 #define NV04_PDMA_SIZE (128 * 1024 * 1024)
 #define NV04_PDMA_PAGE (  4 * 1024)
@@ -34,8 +34,8 @@
  ******************************************************************************/
 
 static void
-nv04_vm_map_sg(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
-	       struct nouveau_mem *mem, u32 pte, u32 cnt, dma_addr_t *list)
+nv04_vm_map_sg(struct nvkm_vma *vma, struct nvkm_gpuobj *pgt,
+	       struct nvkm_mem *mem, u32 pte, u32 cnt, dma_addr_t *list)
 {
 	pte = 0x00008 + (pte * 4);
 	while (cnt) {
@@ -51,7 +51,7 @@ nv04_vm_map_sg(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 }
 
 static void
-nv04_vm_unmap(struct nouveau_gpuobj *pgt, u32 pte, u32 cnt)
+nv04_vm_unmap(struct nvkm_gpuobj *pgt, u32 pte, u32 cnt)
 {
 	pte = 0x00008 + (pte * 4);
 	while (cnt--) {
@@ -61,7 +61,7 @@ nv04_vm_unmap(struct nouveau_gpuobj *pgt, u32 pte, u32 cnt)
 }
 
 static void
-nv04_vm_flush(struct nouveau_vm *vm)
+nv04_vm_flush(struct nvkm_vm *vm)
 {
 }
 
@@ -70,8 +70,8 @@ nv04_vm_flush(struct nouveau_vm *vm)
  ******************************************************************************/
 
 int
-nv04_vm_create(struct nouveau_mmu *mmu, u64 offset, u64 length, u64 mmstart,
-	       struct nouveau_vm **pvm)
+nv04_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mmstart,
+	       struct nvkm_vm **pvm)
 {
 	return -EINVAL;
 }
@@ -81,16 +81,16 @@ nv04_vm_create(struct nouveau_mmu *mmu, u64 offset, u64 length, u64 mmstart,
  ******************************************************************************/
 
 static int
-nv04_mmu_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		struct nouveau_oclass *oclass, void *data, u32 size,
-		struct nouveau_object **pobject)
+nv04_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	      struct nvkm_oclass *oclass, void *data, u32 size,
+	      struct nvkm_object **pobject)
 {
 	struct nv04_mmu_priv *priv;
-	struct nouveau_gpuobj *dma;
+	struct nvkm_gpuobj *dma;
 	int ret;
 
-	ret = nouveau_mmu_create(parent, engine, oclass, "PCIGART",
-				   "pcigart", &priv);
+	ret = nvkm_mmu_create(parent, engine, oclass, "PCIGART",
+			      "pcigart", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -105,15 +105,15 @@ nv04_mmu_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->base.unmap = nv04_vm_unmap;
 	priv->base.flush = nv04_vm_flush;
 
-	ret = nouveau_vm_create(&priv->base, 0, NV04_PDMA_SIZE, 0, 4096,
-				&priv->vm);
+	ret = nvkm_vm_create(&priv->base, 0, NV04_PDMA_SIZE, 0, 4096,
+			     &priv->vm);
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(nv_object(priv), NULL,
-				 (NV04_PDMA_SIZE / NV04_PDMA_PAGE) * 4 +
-				 8, 16, NVOBJ_FLAG_ZERO_ALLOC,
-				 &priv->vm->pgt[0].obj[0]);
+	ret = nvkm_gpuobj_new(nv_object(priv), NULL,
+			      (NV04_PDMA_SIZE / NV04_PDMA_PAGE) * 4 + 8,
+			      16, NVOBJ_FLAG_ZERO_ALLOC,
+			      &priv->vm->pgt[0].obj[0]);
 	dma = priv->vm->pgt[0].obj[0];
 	priv->vm->pgt[0].refcount[0] = 1;
 	if (ret)
@@ -125,27 +125,27 @@ nv04_mmu_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 }
 
 void
-nv04_mmu_dtor(struct nouveau_object *object)
+nv04_mmu_dtor(struct nvkm_object *object)
 {
 	struct nv04_mmu_priv *priv = (void *)object;
 	if (priv->vm) {
-		nouveau_gpuobj_ref(NULL, &priv->vm->pgt[0].obj[0]);
-		nouveau_vm_ref(NULL, &priv->vm, NULL);
+		nvkm_gpuobj_ref(NULL, &priv->vm->pgt[0].obj[0]);
+		nvkm_vm_ref(NULL, &priv->vm, NULL);
 	}
 	if (priv->nullp) {
 		pci_free_consistent(nv_device(priv)->pdev, 16 * 1024,
 				    priv->nullp, priv->null);
 	}
-	nouveau_mmu_destroy(&priv->base);
+	nvkm_mmu_destroy(&priv->base);
 }
 
-struct nouveau_oclass
+struct nvkm_oclass
 nv04_mmu_oclass = {
 	.handle = NV_SUBDEV(MMU, 0x04),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_mmu_ctor,
 		.dtor = nv04_mmu_dtor,
-		.init = _nouveau_mmu_init,
-		.fini = _nouveau_mmu_fini,
+		.init = _nvkm_mmu_init,
+		.fini = _nvkm_mmu_fini,
 	},
 };

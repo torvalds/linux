@@ -3,4 +3,4 @@ nvkm-y += nvkm/subdev/mmu/nv04.o
 nvkm-y += nvkm/subdev/mmu/nv41.o
 nvkm-y += nvkm/subdev/mmu/nv44.o
 nvkm-y += nvkm/subdev/mmu/nv50.o
-nvkm-y += nvkm/subdev/mmu/nvc0.o
+nvkm-y += nvkm/subdev/mmu/gf100.o

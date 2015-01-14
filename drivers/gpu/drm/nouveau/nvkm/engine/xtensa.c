@@ -20,6 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <engine/xtensa.h>
+#include <core/device.h>
 
 #include <core/engctx.h>
 

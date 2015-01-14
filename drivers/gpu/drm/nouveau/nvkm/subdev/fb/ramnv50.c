@@ -24,6 +24,7 @@
 #include "nv50.h"
 #include "ramseq.h"
 
+#include <core/device.h>
 #include <core/option.h>
 #include <subdev/bios.h>
 #include <subdev/bios/perf.h>

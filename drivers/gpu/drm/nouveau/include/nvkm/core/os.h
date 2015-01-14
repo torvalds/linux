@@ -240,5 +240,6 @@
 #define nvc0_pte_storage_type_map gf100_pte_storage_type_map
 #define nouveau_fuse nvkm_fuse
 #define nouveau_mc nvkm_mc
+#define nouveau_mmu nvkm_mmu
 
 #endif

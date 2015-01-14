@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include <core/gpuobj.h>
+#include <core/engine.h>
 
 #include <subdev/instmem.h>
 #include <subdev/bar.h>

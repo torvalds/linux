@@ -23,6 +23,7 @@
  */
 
 #include <core/client.h>
+#include <core/device.h>
 #include <core/os.h>
 #include <core/handle.h>
 

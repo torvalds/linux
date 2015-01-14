@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include <core/engctx.h>
+#include <core/engine.h>
 #include <core/client.h>
 
 static inline int

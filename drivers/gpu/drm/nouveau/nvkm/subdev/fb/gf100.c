@@ -23,6 +23,8 @@
  */
 #include "gf100.h"
 
+#include <core/device.h>
+
 extern const u8 gf100_pte_storage_type_map[256];
 
 bool

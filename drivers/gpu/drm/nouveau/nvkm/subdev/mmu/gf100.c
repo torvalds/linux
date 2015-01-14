@@ -21,25 +21,23 @@
  *
  * Authors: Ben Skeggs
  */
+#include <subdev/mmu.h>
+#include <subdev/bar.h>
+#include <subdev/fb.h>
+#include <subdev/ltc.h>
+#include <subdev/timer.h>
 
-#include <core/device.h>
 #include <core/gpuobj.h>
 
-#include <subdev/timer.h>
-#include <subdev/fb.h>
-#include <subdev/mmu.h>
-#include <subdev/ltc.h>
-#include <subdev/bar.h>
-
-struct nvc0_mmu_priv {
-	struct nouveau_mmu base;
+struct gf100_mmu_priv {
+	struct nvkm_mmu base;
 };
 
 
 /* Map from compressed to corresponding uncompressed storage type.
  * The value 0xff represents an invalid storage type.
  */
-const u8 nvc0_pte_storage_type_map[256] =
+const u8 gf100_pte_storage_type_map[256] =
 {
 	0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0xff, 0x01, /* 0x00 */
 	0x01, 0x01, 0x01, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -77,8 +75,7 @@ const u8 nvc0_pte_storage_type_map[256] =
 
 
 static void
-nvc0_vm_map_pgt(struct nouveau_gpuobj *pgd, u32 index,
-		struct nouveau_gpuobj *pgt[2])
+gf100_vm_map_pgt(struct nvkm_gpuobj *pgd, u32 index, struct nvkm_gpuobj *pgt[2])
 {
 	u32 pde[2] = { 0, 0 };
 
@@ -92,7 +89,7 @@ nvc0_vm_map_pgt(struct nouveau_gpuobj *pgd, u32 index,
 }
 
 static inline u64
-nvc0_vm_addr(struct nouveau_vma *vma, u64 phys, u32 memtype, u32 target)
+gf100_vm_addr(struct nvkm_vma *vma, u64 phys, u32 memtype, u32 target)
 {
 	phys >>= 8;
 
@@ -102,21 +99,20 @@ nvc0_vm_addr(struct nouveau_vma *vma, u64 phys, u32 memtype, u32 target)
 
 	phys |= ((u64)target  << 32);
 	phys |= ((u64)memtype << 36);
-
 	return phys;
 }
 
 static void
-nvc0_vm_map(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
-	    struct nouveau_mem *mem, u32 pte, u32 cnt, u64 phys, u64 delta)
+gf100_vm_map(struct nvkm_vma *vma, struct nvkm_gpuobj *pgt,
+	     struct nvkm_mem *mem, u32 pte, u32 cnt, u64 phys, u64 delta)
 {
 	u64 next = 1 << (vma->node->type - 8);
 
-	phys  = nvc0_vm_addr(vma, phys, mem->memtype, 0);
+	phys  = gf100_vm_addr(vma, phys, mem->memtype, 0);
 	pte <<= 3;
 
 	if (mem->tag) {
-		struct nouveau_ltc *ltc = nouveau_ltc(vma->vm->mmu);
+		struct nvkm_ltc *ltc = nvkm_ltc(vma->vm->mmu);
 		u32 tag = mem->tag->offset + (delta >> 17);
 		phys |= (u64)tag << (32 + 12);
 		next |= (u64)1   << (32 + 12);
@@ -132,16 +128,16 @@ nvc0_vm_map(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 }
 
 static void
-nvc0_vm_map_sg(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
-	       struct nouveau_mem *mem, u32 pte, u32 cnt, dma_addr_t *list)
+gf100_vm_map_sg(struct nvkm_vma *vma, struct nvkm_gpuobj *pgt,
+		struct nvkm_mem *mem, u32 pte, u32 cnt, dma_addr_t *list)
 {
 	u32 target = (vma->access & NV_MEM_ACCESS_NOSNOOP) ? 7 : 5;
 	/* compressed storage types are invalid for system memory */
-	u32 memtype = nvc0_pte_storage_type_map[mem->memtype & 0xff];
+	u32 memtype = gf100_pte_storage_type_map[mem->memtype & 0xff];
 
 	pte <<= 3;
 	while (cnt--) {
-		u64 phys = nvc0_vm_addr(vma, *list++, memtype, target);
+		u64 phys = gf100_vm_addr(vma, *list++, memtype, target);
 		nv_wo32(pgt, pte + 0, lower_32_bits(phys));
 		nv_wo32(pgt, pte + 4, upper_32_bits(phys));
 		pte += 8;
@@ -149,7 +145,7 @@ nvc0_vm_map_sg(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 }
 
 static void
-nvc0_vm_unmap(struct nouveau_gpuobj *pgt, u32 pte, u32 cnt)
+gf100_vm_unmap(struct nvkm_gpuobj *pgt, u32 pte, u32 cnt)
 {
 	pte <<= 3;
 	while (cnt--) {
@@ -160,11 +156,11 @@ nvc0_vm_unmap(struct nouveau_gpuobj *pgt, u32 pte, u32 cnt)
 }
 
 static void
-nvc0_vm_flush(struct nouveau_vm *vm)
+gf100_vm_flush(struct nvkm_vm *vm)
 {
-	struct nvc0_mmu_priv *priv = (void *)vm->mmu;
-	struct nouveau_bar *bar = nouveau_bar(priv);
-	struct nouveau_vm_pgd *vpgd;
+	struct gf100_mmu_priv *priv = (void *)vm->mmu;
+	struct nvkm_bar *bar = nvkm_bar(priv);
+	struct nvkm_vm_pgd *vpgd;
 	u32 type;
 
 	bar->flush(bar);
@@ -196,21 +192,21 @@ nvc0_vm_flush(struct nouveau_vm *vm)
 }
 
 static int
-nvc0_vm_create(struct nouveau_mmu *mmu, u64 offset, u64 length,
-	       u64 mm_offset, struct nouveau_vm **pvm)
+gf100_vm_create(struct nvkm_mmu *mmu, u64 offset, u64 length, u64 mm_offset,
+		struct nvkm_vm **pvm)
 {
-	return nouveau_vm_create(mmu, offset, length, mm_offset, 4096, pvm);
+	return nvkm_vm_create(mmu, offset, length, mm_offset, 4096, pvm);
 }
 
 static int
-nvc0_mmu_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		struct nouveau_oclass *oclass, void *data, u32 size,
-		struct nouveau_object **pobject)
+gf100_mmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	       struct nvkm_oclass *oclass, void *data, u32 size,
+	       struct nvkm_object **pobject)
 {
-	struct nvc0_mmu_priv *priv;
+	struct gf100_mmu_priv *priv;
 	int ret;
 
-	ret = nouveau_mmu_create(parent, engine, oclass, "VM", "vm", &priv);
+	ret = nvkm_mmu_create(parent, engine, oclass, "VM", "vm", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -220,22 +216,22 @@ nvc0_mmu_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->base.pgt_bits  = 27 - 12;
 	priv->base.spg_shift = 12;
 	priv->base.lpg_shift = 17;
-	priv->base.create = nvc0_vm_create;
-	priv->base.map_pgt = nvc0_vm_map_pgt;
-	priv->base.map = nvc0_vm_map;
-	priv->base.map_sg = nvc0_vm_map_sg;
-	priv->base.unmap = nvc0_vm_unmap;
-	priv->base.flush = nvc0_vm_flush;
+	priv->base.create = gf100_vm_create;
+	priv->base.map_pgt = gf100_vm_map_pgt;
+	priv->base.map = gf100_vm_map;
+	priv->base.map_sg = gf100_vm_map_sg;
+	priv->base.unmap = gf100_vm_unmap;
+	priv->base.flush = gf100_vm_flush;
 	return 0;
 }
 
-struct nouveau_oclass
-nvc0_mmu_oclass = {
+struct nvkm_oclass
+gf100_mmu_oclass = {
 	.handle = NV_SUBDEV(MMU, 0xc0),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_mmu_ctor,
-		.dtor = _nouveau_mmu_dtor,
-		.init = _nouveau_mmu_init,
-		.fini = _nouveau_mmu_fini,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gf100_mmu_ctor,
+		.dtor = _nvkm_mmu_dtor,
+		.init = _nvkm_mmu_init,
+		.fini = _nvkm_mmu_fini,
 	},
 };
