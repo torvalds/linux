@@ -281,7 +281,7 @@ config COMEDI_DAS08_ISA
 
 config COMEDI_DAS16
 	tristate "DAS-16 compatible ISA and PC/104 card support"
-	depends on ISA_DMA_API
+	select COMEDI_ISADMA if ISA_DMA_API
 	select COMEDI_8255
 	---help---
 	  Enable support for Keithley Metrabyte/ComputerBoards DAS16
