@@ -516,7 +516,11 @@ int iwl_mvm_rx_statistics(struct iwl_mvm *mvm,
 		.mvm = mvm,
 	};
 
-	iwl_mvm_tt_temp_changed(mvm,
+	/* Only handle rx statistics temperature changes if async temp
+	 * notifications are not supported
+	 */
+	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_ASYNC_DTM))
+		iwl_mvm_tt_temp_changed(mvm,
 				le32_to_cpu(stats->general.radio_temperature));
 
 	iwl_mvm_update_rx_statistics(mvm, stats);
