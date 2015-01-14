@@ -1559,6 +1559,7 @@ void enable_x2apic(void)
 	rdmsrl(MSR_IA32_APICBASE, msr);
 	if (x2apic_disabled) {
 		__disable_x2apic(msr);
+		x2apic_mode = 0;
 		return;
 	}
 
