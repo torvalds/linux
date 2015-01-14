@@ -132,7 +132,7 @@ struct nv_device_v0 {
 #define NV_DEVICE_V0_DISABLE_CE0                          0x0000008000000000ULL
 #define NV_DEVICE_V0_DISABLE_CE1                          0x0000010000000000ULL
 #define NV_DEVICE_V0_DISABLE_VIC                          0x0000020000000000ULL
-#define NV_DEVICE_V0_DISABLE_VENC                         0x0000040000000000ULL
+#define NV_DEVICE_V0_DISABLE_MSENC                        0x0000040000000000ULL
 #define NV_DEVICE_V0_DISABLE_CE2                          0x0000080000000000ULL
 #define NV_DEVICE_V0_DISABLE_MSVLD                        0x0000100000000000ULL
 #define NV_DEVICE_V0_DISABLE_SEC                          0x0000200000000000ULL

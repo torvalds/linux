@@ -53,7 +53,7 @@ static const struct {
 	_(NVDEV_ENGINE_MSVLD   , 0),
 	_(NVDEV_ENGINE_CE0     , 0),
 	_(NVDEV_ENGINE_CE1     , 0),
-	_(NVDEV_ENGINE_VENC    , 0),
+	_(NVDEV_ENGINE_MSENC   , 0),
 };
 #undef _
 #define FIFO_ENGINE_NR ARRAY_SIZE(fifo_engine)
@@ -421,7 +421,7 @@ nve0_fifo_engidx(struct nve0_fifo_priv *priv, u32 engn)
 	case NVDEV_ENGINE_VP   : engn = 3; break;
 	case NVDEV_ENGINE_CE0  : engn = 4; break;
 	case NVDEV_ENGINE_CE1  : engn = 5; break;
-	case NVDEV_ENGINE_VENC : engn = 6; break;
+	case NVDEV_ENGINE_MSENC: engn = 6; break;
 	default:
 		return -1;
 	}
@@ -626,7 +626,7 @@ nve0_fifo_fault_engine[] = {
 	{ 0x15, "CE0", NULL, NVDEV_ENGINE_CE0 },
 	{ 0x16, "CE1", NULL, NVDEV_ENGINE_CE1 },
 	{ 0x17, "PMU" },
-	{ 0x19, "MSENC", NULL, NVDEV_ENGINE_VENC },
+	{ 0x19, "MSENC", NULL, NVDEV_ENGINE_MSENC },
 	{ 0x1b, "CE2", NULL, NVDEV_ENGINE_CE2 },
 	{}
 };
