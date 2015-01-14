@@ -182,10 +182,10 @@ static void ltc2952_poweroff_default(struct ltc2952_poweroff *data)
 	data->trigger_delay = ktime_set(2, 500L*1E6L);
 
 	hrtimer_init(&data->timer_trigger, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	data->timer_trigger.function = &ltc2952_poweroff_timer_trigger;
+	data->timer_trigger.function = ltc2952_poweroff_timer_trigger;
 
 	hrtimer_init(&data->timer_wde, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	data->timer_wde.function = &ltc2952_poweroff_timer_wde;
+	data->timer_wde.function = ltc2952_poweroff_timer_wde;
 }
 
 static int ltc2952_poweroff_init(struct platform_device *pdev)
@@ -270,7 +270,7 @@ static int ltc2952_poweroff_probe(struct platform_device *pdev)
 
 	/* TODO: remove ltc2952_data */
 	ltc2952_data = data;
-	pm_power_off = &ltc2952_poweroff_kill;
+	pm_power_off = ltc2952_poweroff_kill;
 
 	data->panic_notifier.notifier_call = ltc2952_poweroff_notify_panic;
 	atomic_notifier_chain_register(&panic_notifier_list,
