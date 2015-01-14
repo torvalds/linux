@@ -21,25 +21,18 @@
  *
  * Authors: Ben Skeggs
  */
+#include "nv31.h"
 
-#include <core/os.h>
-#include <core/engctx.h>
-
-#include <subdev/fb.h>
-#include <subdev/timer.h>
 #include <subdev/instmem.h>
-
-#include <engine/mpeg.h>
-#include <engine/mpeg/nv31.h>
 
 /*******************************************************************************
  * MPEG object classes
  ******************************************************************************/
 
 static int
-nv40_mpeg_mthd_dma(struct nouveau_object *object, u32 mthd, void *arg, u32 len)
+nv40_mpeg_mthd_dma(struct nvkm_object *object, u32 mthd, void *arg, u32 len)
 {
-	struct nouveau_instmem *imem = nouveau_instmem(object);
+	struct nvkm_instmem *imem = nvkm_instmem(object);
 	struct nv31_mpeg_priv *priv = (void *)object->engine;
 	u32 inst = *(u32 *)arg << 4;
 	u32 dma0 = nv_ro32(imem, inst + 0);
@@ -75,7 +68,7 @@ nv40_mpeg_mthd_dma(struct nouveau_object *object, u32 mthd, void *arg, u32 len)
 	return 0;
 }
 
-static struct nouveau_omthds
+static struct nvkm_omthds
 nv40_mpeg_omthds[] = {
 	{ 0x0190, 0x0190, nv40_mpeg_mthd_dma },
 	{ 0x01a0, 0x01a0, nv40_mpeg_mthd_dma },
@@ -83,7 +76,7 @@ nv40_mpeg_omthds[] = {
 	{}
 };
 
-struct nouveau_oclass
+struct nvkm_oclass
 nv40_mpeg_sclass[] = {
 	{ 0x3174, &nv31_mpeg_ofuncs, nv40_mpeg_omthds },
 	{}
@@ -94,7 +87,7 @@ nv40_mpeg_sclass[] = {
  ******************************************************************************/
 
 static void
-nv40_mpeg_intr(struct nouveau_subdev *subdev)
+nv40_mpeg_intr(struct nvkm_subdev *subdev)
 {
 	struct nv31_mpeg_priv *priv = (void *)subdev;
 	u32 stat;
@@ -109,14 +102,14 @@ nv40_mpeg_intr(struct nouveau_subdev *subdev)
 }
 
 static int
-nv40_mpeg_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
+nv40_mpeg_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	       struct nvkm_oclass *oclass, void *data, u32 size,
+	       struct nvkm_object **pobject)
 {
 	struct nv31_mpeg_priv *priv;
 	int ret;
 
-	ret = nouveau_mpeg_create(parent, engine, oclass, &priv);
+	ret = nvkm_mpeg_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -129,13 +122,13 @@ nv40_mpeg_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
+struct nvkm_oclass
 nv40_mpeg_oclass = {
 	.handle = NV_ENGINE(MPEG, 0x40),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv40_mpeg_ctor,
-		.dtor = _nouveau_mpeg_dtor,
+		.dtor = _nvkm_mpeg_dtor,
 		.init = nv31_mpeg_init,
-		.fini = _nouveau_mpeg_fini,
+		.fini = _nvkm_mpeg_fini,
 	},
 };

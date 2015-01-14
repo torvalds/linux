@@ -21,30 +21,22 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <core/os.h>
-#include <core/engctx.h>
-
-#include <subdev/mmu.h>
-#include <subdev/bar.h>
-#include <subdev/timer.h>
-
 #include <engine/mpeg.h>
 
-struct nv84_mpeg_priv {
-	struct nouveau_mpeg base;
+struct g84_mpeg_priv {
+	struct nvkm_mpeg base;
 };
 
-struct nv84_mpeg_chan {
-	struct nouveau_mpeg_chan base;
+struct g84_mpeg_chan {
+	struct nvkm_mpeg_chan base;
 };
 
 /*******************************************************************************
  * MPEG object classes
  ******************************************************************************/
 
-static struct nouveau_oclass
-nv84_mpeg_sclass[] = {
+static struct nvkm_oclass
+g84_mpeg_sclass[] = {
 	{ 0x8274, &nv50_mpeg_ofuncs },
 	{}
 };
@@ -53,16 +45,16 @@ nv84_mpeg_sclass[] = {
  * PMPEG context
  ******************************************************************************/
 
-static struct nouveau_oclass
-nv84_mpeg_cclass = {
+static struct nvkm_oclass
+g84_mpeg_cclass = {
 	.handle = NV_ENGCTX(MPEG, 0x84),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv50_mpeg_context_ctor,
-		.dtor = _nouveau_mpeg_context_dtor,
-		.init = _nouveau_mpeg_context_init,
-		.fini = _nouveau_mpeg_context_fini,
-		.rd32 = _nouveau_mpeg_context_rd32,
-		.wr32 = _nouveau_mpeg_context_wr32,
+		.dtor = _nvkm_mpeg_context_dtor,
+		.init = _nvkm_mpeg_context_init,
+		.fini = _nvkm_mpeg_context_fini,
+		.rd32 = _nvkm_mpeg_context_rd32,
+		.wr32 = _nvkm_mpeg_context_wr32,
 	},
 };
 
@@ -71,32 +63,32 @@ nv84_mpeg_cclass = {
  ******************************************************************************/
 
 static int
-nv84_mpeg_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
+g84_mpeg_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	      struct nvkm_oclass *oclass, void *data, u32 size,
+	      struct nvkm_object **pobject)
 {
-	struct nv84_mpeg_priv *priv;
+	struct g84_mpeg_priv *priv;
 	int ret;
 
-	ret = nouveau_mpeg_create(parent, engine, oclass, &priv);
+	ret = nvkm_mpeg_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	nv_subdev(priv)->unit = 0x00000002;
 	nv_subdev(priv)->intr = nv50_mpeg_intr;
-	nv_engine(priv)->cclass = &nv84_mpeg_cclass;
-	nv_engine(priv)->sclass = nv84_mpeg_sclass;
+	nv_engine(priv)->cclass = &g84_mpeg_cclass;
+	nv_engine(priv)->sclass = g84_mpeg_sclass;
 	return 0;
 }
 
-struct nouveau_oclass
-nv84_mpeg_oclass = {
+struct nvkm_oclass
+g84_mpeg_oclass = {
 	.handle = NV_ENGINE(MPEG, 0x84),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv84_mpeg_ctor,
-		.dtor = _nouveau_mpeg_dtor,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = g84_mpeg_ctor,
+		.dtor = _nvkm_mpeg_dtor,
 		.init = nv50_mpeg_init,
-		.fini = _nouveau_mpeg_fini,
+		.fini = _nvkm_mpeg_fini,
 	},
 };

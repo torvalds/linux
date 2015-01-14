@@ -21,25 +21,18 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <core/os.h>
-#include <core/client.h>
-#include <core/engctx.h>
-#include <core/handle.h>
-
-#include <subdev/fb.h>
-#include <subdev/timer.h>
-#include <subdev/instmem.h>
-
-#include <engine/fifo.h>
 #include <engine/mpeg.h>
 
+#include <core/client.h>
+#include <core/handle.h>
+#include <engine/fifo.h>
+
 struct nv44_mpeg_priv {
-	struct nouveau_mpeg base;
+	struct nvkm_mpeg base;
 };
 
 struct nv44_mpeg_chan {
-	struct nouveau_mpeg_chan base;
+	struct nvkm_mpeg_chan base;
 };
 
 /*******************************************************************************
@@ -47,17 +40,16 @@ struct nv44_mpeg_chan {
  ******************************************************************************/
 
 static int
-nv44_mpeg_context_ctor(struct nouveau_object *parent,
-		       struct nouveau_object *engine,
-		       struct nouveau_oclass *oclass, void *data, u32 size,
-		       struct nouveau_object **pobject)
+nv44_mpeg_context_ctor(struct nvkm_object *parent,
+		       struct nvkm_object *engine,
+		       struct nvkm_oclass *oclass, void *data, u32 size,
+		       struct nvkm_object **pobject)
 {
 	struct nv44_mpeg_chan *chan;
 	int ret;
 
-	ret = nouveau_mpeg_context_create(parent, engine, oclass, NULL,
-					  264 * 4, 16,
-					  NVOBJ_FLAG_ZERO_ALLOC, &chan);
+	ret = nvkm_mpeg_context_create(parent, engine, oclass, NULL, 264 * 4,
+				       16, NVOBJ_FLAG_ZERO_ALLOC, &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
@@ -67,7 +59,7 @@ nv44_mpeg_context_ctor(struct nouveau_object *parent,
 }
 
 static int
-nv44_mpeg_context_fini(struct nouveau_object *object, bool suspend)
+nv44_mpeg_context_fini(struct nvkm_object *object, bool suspend)
 {
 
 	struct nv44_mpeg_priv *priv = (void *)object->engine;
@@ -81,16 +73,16 @@ nv44_mpeg_context_fini(struct nouveau_object *object, bool suspend)
 	return 0;
 }
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 nv44_mpeg_cclass = {
 	.handle = NV_ENGCTX(MPEG, 0x44),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv44_mpeg_context_ctor,
-		.dtor = _nouveau_mpeg_context_dtor,
-		.init = _nouveau_mpeg_context_init,
+		.dtor = _nvkm_mpeg_context_dtor,
+		.init = _nvkm_mpeg_context_init,
 		.fini = nv44_mpeg_context_fini,
-		.rd32 = _nouveau_mpeg_context_rd32,
-		.wr32 = _nouveau_mpeg_context_wr32,
+		.rd32 = _nvkm_mpeg_context_rd32,
+		.wr32 = _nvkm_mpeg_context_wr32,
 	},
 };
 
@@ -99,12 +91,12 @@ nv44_mpeg_cclass = {
  ******************************************************************************/
 
 static void
-nv44_mpeg_intr(struct nouveau_subdev *subdev)
+nv44_mpeg_intr(struct nvkm_subdev *subdev)
 {
-	struct nouveau_fifo *pfifo = nouveau_fifo(subdev);
-	struct nouveau_engine *engine = nv_engine(subdev);
-	struct nouveau_object *engctx;
-	struct nouveau_handle *handle;
+	struct nvkm_fifo *pfifo = nvkm_fifo(subdev);
+	struct nvkm_engine *engine = nv_engine(subdev);
+	struct nvkm_object *engctx;
+	struct nvkm_handle *handle;
 	struct nv44_mpeg_priv *priv = (void *)subdev;
 	u32 inst = nv_rd32(priv, 0x00b318) & 0x000fffff;
 	u32 stat = nv_rd32(priv, 0x00b100);
@@ -114,7 +106,7 @@ nv44_mpeg_intr(struct nouveau_subdev *subdev)
 	u32 show = stat;
 	int chid;
 
-	engctx = nouveau_engctx_get(engine, inst);
+	engctx = nvkm_engctx_get(engine, inst);
 	chid   = pfifo->chid(pfifo, engctx);
 
 	if (stat & 0x01000000) {
@@ -125,10 +117,10 @@ nv44_mpeg_intr(struct nouveau_subdev *subdev)
 		}
 
 		if (type == 0x00000010) {
-			handle = nouveau_handle_get_class(engctx, 0x3174);
+			handle = nvkm_handle_get_class(engctx, 0x3174);
 			if (handle && !nv_call(handle->object, mthd, data))
 				show &= ~0x01000000;
-			nouveau_handle_put(handle);
+			nvkm_handle_put(handle);
 		}
 	}
 
@@ -138,15 +130,15 @@ nv44_mpeg_intr(struct nouveau_subdev *subdev)
 	if (show) {
 		nv_error(priv,
 			 "ch %d [0x%08x %s] 0x%08x 0x%08x 0x%08x 0x%08x\n",
-			 chid, inst << 4, nouveau_client_name(engctx), stat,
+			 chid, inst << 4, nvkm_client_name(engctx), stat,
 			 type, mthd, data);
 	}
 
-	nouveau_engctx_put(engctx);
+	nvkm_engctx_put(engctx);
 }
 
 static void
-nv44_mpeg_me_intr(struct nouveau_subdev *subdev)
+nv44_mpeg_me_intr(struct nvkm_subdev *subdev)
 {
 	struct nv44_mpeg_priv *priv = (void *)subdev;
 	u32 stat;
@@ -161,14 +153,14 @@ nv44_mpeg_me_intr(struct nouveau_subdev *subdev)
 }
 
 static int
-nv44_mpeg_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
+nv44_mpeg_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	       struct nvkm_oclass *oclass, void *data, u32 size,
+	       struct nvkm_object **pobject)
 {
 	struct nv44_mpeg_priv *priv;
 	int ret;
 
-	ret = nouveau_mpeg_create(parent, engine, oclass, &priv);
+	ret = nvkm_mpeg_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -181,13 +173,13 @@ nv44_mpeg_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
+struct nvkm_oclass
 nv44_mpeg_oclass = {
 	.handle = NV_ENGINE(MPEG, 0x44),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv44_mpeg_ctor,
-		.dtor = _nouveau_mpeg_dtor,
+		.dtor = _nvkm_mpeg_dtor,
 		.init = nv31_mpeg_init,
-		.fini = _nouveau_mpeg_fini,
+		.fini = _nvkm_mpeg_fini,
 	},
 };

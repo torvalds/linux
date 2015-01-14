@@ -21,22 +21,17 @@
  *
  * Authors: Ben Skeggs
  */
+#include <engine/mpeg.h>
 
-#include <core/os.h>
-#include <core/engctx.h>
-
-#include <subdev/mmu.h>
 #include <subdev/bar.h>
 #include <subdev/timer.h>
 
-#include <engine/mpeg.h>
-
 struct nv50_mpeg_priv {
-	struct nouveau_mpeg base;
+	struct nvkm_mpeg base;
 };
 
 struct nv50_mpeg_chan {
-	struct nouveau_mpeg_chan base;
+	struct nvkm_mpeg_chan base;
 };
 
 /*******************************************************************************
@@ -44,16 +39,16 @@ struct nv50_mpeg_chan {
  ******************************************************************************/
 
 static int
-nv50_mpeg_object_ctor(struct nouveau_object *parent,
-		      struct nouveau_object *engine,
-		      struct nouveau_oclass *oclass, void *data, u32 size,
-		      struct nouveau_object **pobject)
+nv50_mpeg_object_ctor(struct nvkm_object *parent,
+		      struct nvkm_object *engine,
+		      struct nvkm_oclass *oclass, void *data, u32 size,
+		      struct nvkm_object **pobject)
 {
-	struct nouveau_gpuobj *obj;
+	struct nvkm_gpuobj *obj;
 	int ret;
 
-	ret = nouveau_gpuobj_create(parent, engine, oclass, 0, parent,
-				    16, 16, 0, &obj);
+	ret = nvkm_gpuobj_create(parent, engine, oclass, 0, parent,
+				 16, 16, 0, &obj);
 	*pobject = nv_object(obj);
 	if (ret)
 		return ret;
@@ -65,17 +60,17 @@ nv50_mpeg_object_ctor(struct nouveau_object *parent,
 	return 0;
 }
 
-struct nouveau_ofuncs
+struct nvkm_ofuncs
 nv50_mpeg_ofuncs = {
 	.ctor = nv50_mpeg_object_ctor,
-	.dtor = _nouveau_gpuobj_dtor,
-	.init = _nouveau_gpuobj_init,
-	.fini = _nouveau_gpuobj_fini,
-	.rd32 = _nouveau_gpuobj_rd32,
-	.wr32 = _nouveau_gpuobj_wr32,
+	.dtor = _nvkm_gpuobj_dtor,
+	.init = _nvkm_gpuobj_init,
+	.fini = _nvkm_gpuobj_fini,
+	.rd32 = _nvkm_gpuobj_rd32,
+	.wr32 = _nvkm_gpuobj_wr32,
 };
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 nv50_mpeg_sclass[] = {
 	{ 0x3174, &nv50_mpeg_ofuncs },
 	{}
@@ -86,17 +81,17 @@ nv50_mpeg_sclass[] = {
  ******************************************************************************/
 
 int
-nv50_mpeg_context_ctor(struct nouveau_object *parent,
-		       struct nouveau_object *engine,
-		       struct nouveau_oclass *oclass, void *data, u32 size,
-		       struct nouveau_object **pobject)
+nv50_mpeg_context_ctor(struct nvkm_object *parent,
+		       struct nvkm_object *engine,
+		       struct nvkm_oclass *oclass, void *data, u32 size,
+		       struct nvkm_object **pobject)
 {
-	struct nouveau_bar *bar = nouveau_bar(parent);
+	struct nvkm_bar *bar = nvkm_bar(parent);
 	struct nv50_mpeg_chan *chan;
 	int ret;
 
-	ret = nouveau_mpeg_context_create(parent, engine, oclass, NULL, 128 * 4,
-					  0, NVOBJ_FLAG_ZERO_ALLOC, &chan);
+	ret = nvkm_mpeg_context_create(parent, engine, oclass, NULL, 128 * 4,
+				       0, NVOBJ_FLAG_ZERO_ALLOC, &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
@@ -107,16 +102,16 @@ nv50_mpeg_context_ctor(struct nouveau_object *parent,
 	return 0;
 }
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 nv50_mpeg_cclass = {
 	.handle = NV_ENGCTX(MPEG, 0x50),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv50_mpeg_context_ctor,
-		.dtor = _nouveau_mpeg_context_dtor,
-		.init = _nouveau_mpeg_context_init,
-		.fini = _nouveau_mpeg_context_fini,
-		.rd32 = _nouveau_mpeg_context_rd32,
-		.wr32 = _nouveau_mpeg_context_wr32,
+		.dtor = _nvkm_mpeg_context_dtor,
+		.init = _nvkm_mpeg_context_init,
+		.fini = _nvkm_mpeg_context_fini,
+		.rd32 = _nvkm_mpeg_context_rd32,
+		.wr32 = _nvkm_mpeg_context_wr32,
 	},
 };
 
@@ -125,7 +120,7 @@ nv50_mpeg_cclass = {
  ******************************************************************************/
 
 void
-nv50_mpeg_intr(struct nouveau_subdev *subdev)
+nv50_mpeg_intr(struct nvkm_subdev *subdev)
 {
 	struct nv50_mpeg_priv *priv = (void *)subdev;
 	u32 stat = nv_rd32(priv, 0x00b100);
@@ -152,7 +147,7 @@ nv50_mpeg_intr(struct nouveau_subdev *subdev)
 }
 
 static void
-nv50_vpe_intr(struct nouveau_subdev *subdev)
+nv50_vpe_intr(struct nvkm_subdev *subdev)
 {
 	struct nv50_mpeg_priv *priv = (void *)subdev;
 
@@ -167,14 +162,14 @@ nv50_vpe_intr(struct nouveau_subdev *subdev)
 }
 
 static int
-nv50_mpeg_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
+nv50_mpeg_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	       struct nvkm_oclass *oclass, void *data, u32 size,
+	       struct nvkm_object **pobject)
 {
 	struct nv50_mpeg_priv *priv;
 	int ret;
 
-	ret = nouveau_mpeg_create(parent, engine, oclass, &priv);
+	ret = nvkm_mpeg_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -187,12 +182,12 @@ nv50_mpeg_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 }
 
 int
-nv50_mpeg_init(struct nouveau_object *object)
+nv50_mpeg_init(struct nvkm_object *object)
 {
 	struct nv50_mpeg_priv *priv = (void *)object;
 	int ret;
 
-	ret = nouveau_mpeg_init(&priv->base);
+	ret = nvkm_mpeg_init(&priv->base);
 	if (ret)
 		return ret;
 
@@ -218,13 +213,13 @@ nv50_mpeg_init(struct nouveau_object *object)
 	return 0;
 }
 
-struct nouveau_oclass
+struct nvkm_oclass
 nv50_mpeg_oclass = {
 	.handle = NV_ENGINE(MPEG, 0x50),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv50_mpeg_ctor,
-		.dtor = _nouveau_mpeg_dtor,
+		.dtor = _nvkm_mpeg_dtor,
 		.init = nv50_mpeg_init,
-		.fini = _nouveau_mpeg_fini,
+		.fini = _nvkm_mpeg_fini,
 	},
 };
