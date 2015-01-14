@@ -3066,6 +3066,12 @@ int smp_register(struct hci_dev *hdev)
 
 	BT_DBG("%s", hdev->name);
 
+	/* If the controller does not support Low Energy operation, then
+	 * there is also no need to register any SMP channel.
+	 */
+	if (!lmp_le_capable(hdev))
+		return 0;
+
 	chan = smp_add_cid(hdev, L2CAP_CID_SMP);
 	if (IS_ERR(chan))
 		return PTR_ERR(chan);
