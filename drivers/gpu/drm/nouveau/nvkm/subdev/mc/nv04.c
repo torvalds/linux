@@ -21,10 +21,9 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "nv04.h"
 
-const struct nouveau_mc_intr
+const struct nvkm_mc_intr
 nv04_mc_intr[] = {
 	{ 0x00000001, NVDEV_ENGINE_MPEG },	/* NV17- MPEG/ME */
 	{ 0x00000100, NVDEV_ENGINE_FIFO },
@@ -40,25 +39,25 @@ nv04_mc_intr[] = {
 };
 
 int
-nv04_mc_init(struct nouveau_object *object)
+nv04_mc_init(struct nvkm_object *object)
 {
 	struct nv04_mc_priv *priv = (void *)object;
 
 	nv_wr32(priv, 0x000200, 0xffffffff); /* everything enabled */
 	nv_wr32(priv, 0x001850, 0x00000001); /* disable rom access */
 
-	return nouveau_mc_init(&priv->base);
+	return nvkm_mc_init(&priv->base);
 }
 
 int
-nv04_mc_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	     struct nouveau_oclass *oclass, void *data, u32 size,
-	     struct nouveau_object **pobject)
+nv04_mc_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	     struct nvkm_oclass *oclass, void *data, u32 size,
+	     struct nvkm_object **pobject)
 {
 	struct nv04_mc_priv *priv;
 	int ret;
 
-	ret = nouveau_mc_create(parent, engine, oclass, &priv);
+	ret = nvkm_mc_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -66,14 +65,14 @@ nv04_mc_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass *
-nv04_mc_oclass = &(struct nouveau_mc_oclass) {
+struct nvkm_oclass *
+nv04_mc_oclass = &(struct nvkm_mc_oclass) {
 	.base.handle = NV_SUBDEV(MC, 0x04),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_mc_ctor,
-		.dtor = _nouveau_mc_dtor,
+		.dtor = _nvkm_mc_dtor,
 		.init = nv04_mc_init,
-		.fini = _nouveau_mc_fini,
+		.fini = _nvkm_mc_fini,
 	},
 	.intr = nv04_mc_intr,
 }.base;

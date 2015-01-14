@@ -1,31 +1,28 @@
-#ifndef __NOUVEAU_MC_H__
-#define __NOUVEAU_MC_H__
-
+#ifndef __NVKM_MC_H__
+#define __NVKM_MC_H__
 #include <core/subdev.h>
-#include <core/device.h>
 
-struct nouveau_mc {
-	struct nouveau_subdev base;
+struct nvkm_mc {
+	struct nvkm_subdev base;
 	bool use_msi;
 	unsigned int irq;
-	void (*unk260)(struct nouveau_mc *, u32);
+	void (*unk260)(struct nvkm_mc *, u32);
 };
 
-static inline struct nouveau_mc *
-nouveau_mc(void *obj)
+static inline struct nvkm_mc *
+nvkm_mc(void *obj)
 {
-	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_MC);
+	return (void *)nvkm_subdev(obj, NVDEV_SUBDEV_MC);
 }
 
-extern struct nouveau_oclass *nv04_mc_oclass;
-extern struct nouveau_oclass *nv40_mc_oclass;
-extern struct nouveau_oclass *nv44_mc_oclass;
-extern struct nouveau_oclass *nv4c_mc_oclass;
-extern struct nouveau_oclass *nv50_mc_oclass;
-extern struct nouveau_oclass *nv94_mc_oclass;
-extern struct nouveau_oclass *nv98_mc_oclass;
-extern struct nouveau_oclass *nvc0_mc_oclass;
-extern struct nouveau_oclass *nvc3_mc_oclass;
-extern struct nouveau_oclass *gk20a_mc_oclass;
-
+extern struct nvkm_oclass *nv04_mc_oclass;
+extern struct nvkm_oclass *nv40_mc_oclass;
+extern struct nvkm_oclass *nv44_mc_oclass;
+extern struct nvkm_oclass *nv4c_mc_oclass;
+extern struct nvkm_oclass *nv50_mc_oclass;
+extern struct nvkm_oclass *g94_mc_oclass;
+extern struct nvkm_oclass *g98_mc_oclass;
+extern struct nvkm_oclass *gf100_mc_oclass;
+extern struct nvkm_oclass *gf106_mc_oclass;
+extern struct nvkm_oclass *gk20a_mc_oclass;
 #endif

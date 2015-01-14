@@ -21,18 +21,17 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "nv04.h"
 
-struct nouveau_oclass *
-gk20a_mc_oclass = &(struct nouveau_mc_oclass) {
+struct nvkm_oclass *
+gk20a_mc_oclass = &(struct nvkm_mc_oclass) {
 	.base.handle = NV_SUBDEV(MC, 0xea),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_mc_ctor,
-		.dtor = _nouveau_mc_dtor,
+		.dtor = _nvkm_mc_dtor,
 		.init = nv50_mc_init,
-		.fini = _nouveau_mc_fini,
+		.fini = _nvkm_mc_fini,
 	},
-	.intr = nvc0_mc_intr,
+	.intr = gf100_mc_intr,
 	.msi_rearm = nv40_mc_msi_rearm,
 }.base;

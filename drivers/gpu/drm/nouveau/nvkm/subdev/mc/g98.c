@@ -21,18 +21,38 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "nv04.h"
 
-struct nouveau_oclass *
-nv94_mc_oclass = &(struct nouveau_mc_oclass) {
-	.base.handle = NV_SUBDEV(MC, 0x94),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+static const struct nvkm_mc_intr
+g98_mc_intr[] = {
+	{ 0x04000000, NVDEV_ENGINE_DISP },  /* DISP first, so pageflip timestamps work */
+	{ 0x00000001, NVDEV_ENGINE_MSPPP },
+	{ 0x00000100, NVDEV_ENGINE_FIFO },
+	{ 0x00001000, NVDEV_ENGINE_GR },
+	{ 0x00004000, NVDEV_ENGINE_SEC },	/* NV84:NVA3 */
+	{ 0x00008000, NVDEV_ENGINE_MSVLD },
+	{ 0x00020000, NVDEV_ENGINE_MSPDEC },
+	{ 0x00040000, NVDEV_SUBDEV_PMU },	/* NVA3:NVC0 */
+	{ 0x00080000, NVDEV_SUBDEV_THERM },	/* NVA3:NVC0 */
+	{ 0x00100000, NVDEV_SUBDEV_TIMER },
+	{ 0x00200000, NVDEV_SUBDEV_GPIO },	/* PMGR->GPIO */
+	{ 0x00200000, NVDEV_SUBDEV_I2C }, 	/* PMGR->I2C/AUX */
+	{ 0x00400000, NVDEV_ENGINE_CE0 },	/* NVA3-     */
+	{ 0x10000000, NVDEV_SUBDEV_BUS },
+	{ 0x80000000, NVDEV_ENGINE_SW },
+	{ 0x0042d101, NVDEV_SUBDEV_FB },
+	{},
+};
+
+struct nvkm_oclass *
+g98_mc_oclass = &(struct nvkm_mc_oclass) {
+	.base.handle = NV_SUBDEV(MC, 0x98),
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_mc_ctor,
-		.dtor = _nouveau_mc_dtor,
+		.dtor = _nvkm_mc_dtor,
 		.init = nv50_mc_init,
-		.fini = _nouveau_mc_fini,
+		.fini = _nvkm_mc_fini,
 	},
-	.intr = nv50_mc_intr,
+	.intr = g98_mc_intr,
 	.msi_rearm = nv40_mc_msi_rearm,
 }.base;

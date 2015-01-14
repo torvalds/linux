@@ -21,10 +21,11 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "nv04.h"
 
-const struct nouveau_mc_intr
+#include <core/device.h>
+
+const struct nvkm_mc_intr
 nv50_mc_intr[] = {
 	{ 0x04000000, NVDEV_ENGINE_DISP },  /* DISP before FIFO, so pageflip-timestamping works! */
 	{ 0x00000001, NVDEV_ENGINE_MPEG },
@@ -43,28 +44,28 @@ nv50_mc_intr[] = {
 };
 
 static void
-nv50_mc_msi_rearm(struct nouveau_mc *pmc)
+nv50_mc_msi_rearm(struct nvkm_mc *pmc)
 {
-	struct nouveau_device *device = nv_device(pmc);
+	struct nvkm_device *device = nv_device(pmc);
 	pci_write_config_byte(device->pdev, 0x68, 0xff);
 }
 
 int
-nv50_mc_init(struct nouveau_object *object)
+nv50_mc_init(struct nvkm_object *object)
 {
 	struct nv04_mc_priv *priv = (void *)object;
 	nv_wr32(priv, 0x000200, 0xffffffff); /* everything on */
-	return nouveau_mc_init(&priv->base);
+	return nvkm_mc_init(&priv->base);
 }
 
-struct nouveau_oclass *
-nv50_mc_oclass = &(struct nouveau_mc_oclass) {
+struct nvkm_oclass *
+nv50_mc_oclass = &(struct nvkm_mc_oclass) {
 	.base.handle = NV_SUBDEV(MC, 0x50),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_mc_ctor,
-		.dtor = _nouveau_mc_dtor,
+		.dtor = _nvkm_mc_dtor,
 		.init = nv50_mc_init,
-		.fini = _nouveau_mc_fini,
+		.fini = _nvkm_mc_fini,
 	},
 	.intr = nv50_mc_intr,
 	.msi_rearm = nv50_mc_msi_rearm,

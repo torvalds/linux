@@ -21,20 +21,21 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "priv.h"
+
+#include <core/device.h>
 #include <core/option.h>
 
 static inline void
-nouveau_mc_unk260(struct nouveau_mc *pmc, u32 data)
+nvkm_mc_unk260(struct nvkm_mc *pmc, u32 data)
 {
-	const struct nouveau_mc_oclass *impl = (void *)nv_oclass(pmc);
+	const struct nvkm_mc_oclass *impl = (void *)nv_oclass(pmc);
 	if (impl->unk260)
 		impl->unk260(pmc, data);
 }
 
 static inline u32
-nouveau_mc_intr_mask(struct nouveau_mc *pmc)
+nvkm_mc_intr_mask(struct nvkm_mc *pmc)
 {
 	u32 intr = nv_rd32(pmc, 0x000100);
 	if (intr == 0xffffffff) /* likely fallen off the bus */
@@ -43,25 +44,25 @@ nouveau_mc_intr_mask(struct nouveau_mc *pmc)
 }
 
 static irqreturn_t
-nouveau_mc_intr(int irq, void *arg)
+nvkm_mc_intr(int irq, void *arg)
 {
-	struct nouveau_mc *pmc = arg;
-	const struct nouveau_mc_oclass *oclass = (void *)nv_object(pmc)->oclass;
-	const struct nouveau_mc_intr *map = oclass->intr;
-	struct nouveau_subdev *unit;
+	struct nvkm_mc *pmc = arg;
+	const struct nvkm_mc_oclass *oclass = (void *)nv_object(pmc)->oclass;
+	const struct nvkm_mc_intr *map = oclass->intr;
+	struct nvkm_subdev *unit;
 	u32 intr;
 
 	nv_wr32(pmc, 0x000140, 0x00000000);
 	nv_rd32(pmc, 0x000140);
-	intr = nouveau_mc_intr_mask(pmc);
+	intr = nvkm_mc_intr_mask(pmc);
 	if (pmc->use_msi)
 		oclass->msi_rearm(pmc);
 
 	if (intr) {
-		u32 stat = intr = nouveau_mc_intr_mask(pmc);
+		u32 stat = intr = nvkm_mc_intr_mask(pmc);
 		while (map->stat) {
 			if (intr & map->stat) {
-				unit = nouveau_subdev(pmc, map->unit);
+				unit = nvkm_subdev(pmc, map->unit);
 				if (unit && unit->intr)
 					unit->intr(unit);
 				stat &= ~map->stat;
@@ -78,18 +79,18 @@ nouveau_mc_intr(int irq, void *arg)
 }
 
 int
-_nouveau_mc_fini(struct nouveau_object *object, bool suspend)
+_nvkm_mc_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nouveau_mc *pmc = (void *)object;
+	struct nvkm_mc *pmc = (void *)object;
 	nv_wr32(pmc, 0x000140, 0x00000000);
-	return nouveau_subdev_fini(&pmc->base, suspend);
+	return nvkm_subdev_fini(&pmc->base, suspend);
 }
 
 int
-_nouveau_mc_init(struct nouveau_object *object)
+_nvkm_mc_init(struct nvkm_object *object)
 {
-	struct nouveau_mc *pmc = (void *)object;
-	int ret = nouveau_subdev_init(&pmc->base);
+	struct nvkm_mc *pmc = (void *)object;
+	int ret = nvkm_subdev_init(&pmc->base);
 	if (ret)
 		return ret;
 	nv_wr32(pmc, 0x000140, 0x00000001);
@@ -97,32 +98,32 @@ _nouveau_mc_init(struct nouveau_object *object)
 }
 
 void
-_nouveau_mc_dtor(struct nouveau_object *object)
+_nvkm_mc_dtor(struct nvkm_object *object)
 {
-	struct nouveau_device *device = nv_device(object);
-	struct nouveau_mc *pmc = (void *)object;
+	struct nvkm_device *device = nv_device(object);
+	struct nvkm_mc *pmc = (void *)object;
 	free_irq(pmc->irq, pmc);
 	if (pmc->use_msi)
 		pci_disable_msi(device->pdev);
-	nouveau_subdev_destroy(&pmc->base);
+	nvkm_subdev_destroy(&pmc->base);
 }
 
 int
-nouveau_mc_create_(struct nouveau_object *parent, struct nouveau_object *engine,
-		   struct nouveau_oclass *bclass, int length, void **pobject)
+nvkm_mc_create_(struct nvkm_object *parent, struct nvkm_object *engine,
+		struct nvkm_oclass *bclass, int length, void **pobject)
 {
-	const struct nouveau_mc_oclass *oclass = (void *)bclass;
-	struct nouveau_device *device = nv_device(parent);
-	struct nouveau_mc *pmc;
+	const struct nvkm_mc_oclass *oclass = (void *)bclass;
+	struct nvkm_device *device = nv_device(parent);
+	struct nvkm_mc *pmc;
 	int ret;
 
-	ret = nouveau_subdev_create_(parent, engine, bclass, 0, "PMC",
-				     "master", length, pobject);
+	ret = nvkm_subdev_create_(parent, engine, bclass, 0, "PMC",
+				  "master", length, pobject);
 	pmc = *pobject;
 	if (ret)
 		return ret;
 
-	pmc->unk260 = nouveau_mc_unk260;
+	pmc->unk260 = nvkm_mc_unk260;
 
 	if (nv_device_is_pci(device)) {
 		switch (device->pdev->device & 0x0ff0) {
@@ -141,8 +142,8 @@ nouveau_mc_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 			}
 		}
 
-		pmc->use_msi = nouveau_boolopt(device->cfgopt, "NvMSI",
-					       pmc->use_msi);
+		pmc->use_msi = nvkm_boolopt(device->cfgopt, "NvMSI",
+					    pmc->use_msi);
 
 		if (pmc->use_msi && oclass->msi_rearm) {
 			pmc->use_msi = pci_enable_msi(device->pdev) == 0;
@@ -160,9 +161,7 @@ nouveau_mc_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 	pmc->irq = ret;
 
-	ret = request_irq(pmc->irq, nouveau_mc_intr, IRQF_SHARED, "nouveau",
-			  pmc);
-
+	ret = request_irq(pmc->irq, nvkm_mc_intr, IRQF_SHARED, "nvkm", pmc);
 	if (ret < 0)
 		return ret;
 

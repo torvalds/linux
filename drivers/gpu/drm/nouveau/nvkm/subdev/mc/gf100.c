@@ -21,39 +21,56 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "nv04.h"
 
-static const struct nouveau_mc_intr
-nv98_mc_intr[] = {
-	{ 0x04000000, NVDEV_ENGINE_DISP },  /* DISP first, so pageflip timestamps work */
+const struct nvkm_mc_intr
+gf100_mc_intr[] = {
+	{ 0x04000000, NVDEV_ENGINE_DISP },  /* DISP first, so pageflip timestamps work. */
 	{ 0x00000001, NVDEV_ENGINE_MSPPP },
+	{ 0x00000020, NVDEV_ENGINE_CE0 },
+	{ 0x00000040, NVDEV_ENGINE_CE1 },
+	{ 0x00000080, NVDEV_ENGINE_CE2 },
 	{ 0x00000100, NVDEV_ENGINE_FIFO },
 	{ 0x00001000, NVDEV_ENGINE_GR },
-	{ 0x00004000, NVDEV_ENGINE_SEC },	/* NV84:NVA3 */
+	{ 0x00002000, NVDEV_SUBDEV_FB },
 	{ 0x00008000, NVDEV_ENGINE_MSVLD },
+	{ 0x00040000, NVDEV_SUBDEV_THERM },
 	{ 0x00020000, NVDEV_ENGINE_MSPDEC },
-	{ 0x00040000, NVDEV_SUBDEV_PMU },	/* NVA3:NVC0 */
-	{ 0x00080000, NVDEV_SUBDEV_THERM },	/* NVA3:NVC0 */
 	{ 0x00100000, NVDEV_SUBDEV_TIMER },
 	{ 0x00200000, NVDEV_SUBDEV_GPIO },	/* PMGR->GPIO */
-	{ 0x00200000, NVDEV_SUBDEV_I2C }, 	/* PMGR->I2C/AUX */
-	{ 0x00400000, NVDEV_ENGINE_CE0 },	/* NVA3-     */
+	{ 0x00200000, NVDEV_SUBDEV_I2C },	/* PMGR->I2C/AUX */
+	{ 0x01000000, NVDEV_SUBDEV_PMU },
+	{ 0x02000000, NVDEV_SUBDEV_LTC },
+	{ 0x08000000, NVDEV_SUBDEV_FB },
 	{ 0x10000000, NVDEV_SUBDEV_BUS },
+	{ 0x40000000, NVDEV_SUBDEV_IBUS },
 	{ 0x80000000, NVDEV_ENGINE_SW },
-	{ 0x0042d101, NVDEV_SUBDEV_FB },
 	{},
 };
 
-struct nouveau_oclass *
-nv98_mc_oclass = &(struct nouveau_mc_oclass) {
-	.base.handle = NV_SUBDEV(MC, 0x98),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+static void
+gf100_mc_msi_rearm(struct nvkm_mc *pmc)
+{
+	struct nv04_mc_priv *priv = (void *)pmc;
+	nv_wr32(priv, 0x088704, 0x00000000);
+}
+
+void
+gf100_mc_unk260(struct nvkm_mc *pmc, u32 data)
+{
+	nv_wr32(pmc, 0x000260, data);
+}
+
+struct nvkm_oclass *
+gf100_mc_oclass = &(struct nvkm_mc_oclass) {
+	.base.handle = NV_SUBDEV(MC, 0xc0),
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_mc_ctor,
-		.dtor = _nouveau_mc_dtor,
+		.dtor = _nvkm_mc_dtor,
 		.init = nv50_mc_init,
-		.fini = _nouveau_mc_fini,
+		.fini = _nvkm_mc_fini,
 	},
-	.intr = nv98_mc_intr,
-	.msi_rearm = nv40_mc_msi_rearm,
+	.intr = gf100_mc_intr,
+	.msi_rearm = gf100_mc_msi_rearm,
+	.unk260 = gf100_mc_unk260,
 }.base;

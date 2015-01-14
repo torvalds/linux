@@ -28,5 +28,4 @@ nvkm_ltc(void *obj)
 extern struct nvkm_oclass *gf100_ltc_oclass;
 extern struct nvkm_oclass *gk104_ltc_oclass;
 extern struct nvkm_oclass *gm107_ltc_oclass;
-
 #endif

@@ -23,31 +23,15 @@
  */
 #include "nv04.h"
 
-int
-nv44_mc_init(struct nvkm_object *object)
-{
-	struct nv04_mc_priv *priv = (void *)object;
-	u32 tmp = nv_rd32(priv, 0x10020c);
-
-	nv_wr32(priv, 0x000200, 0xffffffff); /* everything enabled */
-
-	nv_wr32(priv, 0x001700, tmp);
-	nv_wr32(priv, 0x001704, 0);
-	nv_wr32(priv, 0x001708, 0);
-	nv_wr32(priv, 0x00170c, tmp);
-
-	return nvkm_mc_init(&priv->base);
-}
-
 struct nvkm_oclass *
-nv44_mc_oclass = &(struct nvkm_mc_oclass) {
-	.base.handle = NV_SUBDEV(MC, 0x44),
+g94_mc_oclass = &(struct nvkm_mc_oclass) {
+	.base.handle = NV_SUBDEV(MC, 0x94),
 	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_mc_ctor,
 		.dtor = _nvkm_mc_dtor,
-		.init = nv44_mc_init,
+		.init = nv50_mc_init,
 		.fini = _nvkm_mc_fini,
 	},
-	.intr = nv04_mc_intr,
+	.intr = nv50_mc_intr,
 	.msi_rearm = nv40_mc_msi_rearm,
 }.base;

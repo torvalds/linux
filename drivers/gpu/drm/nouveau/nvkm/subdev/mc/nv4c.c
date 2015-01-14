@@ -21,17 +21,16 @@
  *
  * Authors: Ilia Mirkin
  */
-
 #include "nv04.h"
 
-struct nouveau_oclass *
-nv4c_mc_oclass = &(struct nouveau_mc_oclass) {
+struct nvkm_oclass *
+nv4c_mc_oclass = &(struct nvkm_mc_oclass) {
 	.base.handle = NV_SUBDEV(MC, 0x4c),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_mc_ctor,
-		.dtor = _nouveau_mc_dtor,
+		.dtor = _nvkm_mc_dtor,
 		.init = nv44_mc_init,
-		.fini = _nouveau_mc_fini,
+		.fini = _nvkm_mc_fini,
 	},
 	.intr = nv04_mc_intr,
 }.base;

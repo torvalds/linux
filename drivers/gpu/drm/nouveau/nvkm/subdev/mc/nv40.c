@@ -21,24 +21,23 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "nv04.h"
 
 void
-nv40_mc_msi_rearm(struct nouveau_mc *pmc)
+nv40_mc_msi_rearm(struct nvkm_mc *pmc)
 {
 	struct nv04_mc_priv *priv = (void *)pmc;
 	nv_wr08(priv, 0x088068, 0xff);
 }
 
-struct nouveau_oclass *
-nv40_mc_oclass = &(struct nouveau_mc_oclass) {
+struct nvkm_oclass *
+nv40_mc_oclass = &(struct nvkm_mc_oclass) {
 	.base.handle = NV_SUBDEV(MC, 0x40),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_mc_ctor,
-		.dtor = _nouveau_mc_dtor,
+		.dtor = _nvkm_mc_dtor,
 		.init = nv04_mc_init,
-		.fini = _nouveau_mc_fini,
+		.fini = _nvkm_mc_fini,
 	},
 	.intr = nv04_mc_intr,
 	.msi_rearm = nv40_mc_msi_rearm,
