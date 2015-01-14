@@ -160,7 +160,7 @@ static irqreturn_t ltc2952_poweroff_handler(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	if (!hrtimer_active(&data->timer_trigger)) {
+	if (gpiod_get_value(data->gpio_trigger)) {
 		if (hrtimer_start(&data->timer_trigger, data->trigger_delay,
 				  HRTIMER_MODE_REL))
 			dev_err(data->dev, "unable to start the wait timer\n");
