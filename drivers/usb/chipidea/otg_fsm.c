@@ -30,6 +30,7 @@
 #include "otg.h"
 #include "udc.h"
 #include "otg_fsm.h"
+#include "udc.h"
 
 /* Add for otg: interact with user space app */
 static ssize_t
@@ -534,8 +535,16 @@ static int ci_otg_start_host(struct otg_fsm *fsm, int on)
 static int ci_otg_start_gadget(struct otg_fsm *fsm, int on)
 {
 	struct ci_hdrc	*ci = container_of(fsm, struct ci_hdrc, fsm);
+	unsigned long flags;
+	int gadget_ready = 0;
 
-	ci_hdrc_gadget_connect(&ci->gadget, on);
+	spin_lock_irqsave(&ci->lock, flags);
+	ci->vbus_active = on;
+	if (ci->driver)
+		gadget_ready = 1;
+	spin_unlock_irqrestore(&ci->lock, flags);
+	if (gadget_ready)
+		ci_hdrc_gadget_connect(&ci->gadget, on);
 
 	return 0;
 }
@@ -553,13 +562,26 @@ static struct otg_fsm_ops ci_otg_ops = {
 
 int ci_otg_fsm_work(struct ci_hdrc *ci)
 {
-	/*
-	 * Don't do fsm transition for B device
-	 * when there is no gadget class driver
-	 */
-	if (ci->fsm.id && !(ci->driver) &&
-		ci->fsm.otg->state < OTG_STATE_A_IDLE)
-		return 0;
+	if (ci->fsm.id && ci->fsm.otg->state < OTG_STATE_A_IDLE) {
+		unsigned long flags;
+
+		/* Charger detection */
+		spin_lock_irqsave(&ci->lock, flags);
+		if (ci->b_sess_valid_event) {
+			ci->b_sess_valid_event = false;
+			ci->vbus_active = ci->fsm.b_sess_vld;
+			spin_unlock_irqrestore(&ci->lock, flags);
+			ci_usb_charger_connect(ci, ci->fsm.b_sess_vld);
+			spin_lock_irqsave(&ci->lock, flags);
+		}
+		spin_unlock_irqrestore(&ci->lock, flags);
+		/*
+		 * Don't do fsm transition for B device if gadget
+		 * driver is not binded.
+		 */
+		if (!ci->driver)
+			return 0;
+	}
 
 	pm_runtime_get_sync(ci->dev);
 	if (otg_statemachine(&ci->fsm)) {
@@ -726,6 +748,7 @@ irqreturn_t ci_otg_fsm_irq(struct ci_hdrc *ci)
 			}
 		} else if (otg_int_src & OTGSC_BSVIS) {
 			hw_write_otgsc(ci, OTGSC_BSVIS, OTGSC_BSVIS);
+			ci->b_sess_valid_event = true;
 			if (otgsc & OTGSC_BSV) {
 				fsm->b_sess_vld = 1;
 				ci_otg_del_timer(ci, B_SSEND_SRP);
