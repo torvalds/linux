@@ -25,8 +25,6 @@
 
 #include <asm/pmc_atom.h>
 
-#define	DRIVER_NAME	KBUILD_MODNAME
-
 struct pmc_dev {
 	u32 base_addr;
 	void __iomem *regmap;
