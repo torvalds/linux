@@ -21,9 +21,8 @@
  *
  * Authors: Ben Skeggs, Ilia Mirkin
  */
-
-#include <engine/xtensa.h>
 #include <engine/bsp.h>
+#include <engine/xtensa.h>
 
 #include <core/engctx.h>
 
@@ -31,9 +30,9 @@
  * BSP object classes
  ******************************************************************************/
 
-static struct nouveau_oclass
-nv84_bsp_sclass[] = {
-	{ 0x74b0, &nouveau_object_ofuncs },
+static struct nvkm_oclass
+g84_bsp_sclass[] = {
+	{ 0x74b0, &nvkm_object_ofuncs },
 	{},
 };
 
@@ -41,16 +40,16 @@ nv84_bsp_sclass[] = {
  * BSP context
  ******************************************************************************/
 
-static struct nouveau_oclass
-nv84_bsp_cclass = {
+static struct nvkm_oclass
+g84_bsp_cclass = {
 	.handle = NV_ENGCTX(BSP, 0x84),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = _nouveau_xtensa_engctx_ctor,
-		.dtor = _nouveau_engctx_dtor,
-		.init = _nouveau_engctx_init,
-		.fini = _nouveau_engctx_fini,
-		.rd32 = _nouveau_engctx_rd32,
-		.wr32 = _nouveau_engctx_wr32,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = _nvkm_xtensa_engctx_ctor,
+		.dtor = _nvkm_engctx_dtor,
+		.init = _nvkm_engctx_init,
+		.fini = _nvkm_engctx_fini,
+		.rd32 = _nvkm_engctx_rd32,
+		.wr32 = _nvkm_engctx_wr32,
 	},
 };
 
@@ -59,36 +58,36 @@ nv84_bsp_cclass = {
  ******************************************************************************/
 
 static int
-nv84_bsp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	      struct nouveau_oclass *oclass, void *data, u32 size,
-	      struct nouveau_object **pobject)
+g84_bsp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	     struct nvkm_oclass *oclass, void *data, u32 size,
+	     struct nvkm_object **pobject)
 {
-	struct nouveau_xtensa *priv;
+	struct nvkm_xtensa *priv;
 	int ret;
 
-	ret = nouveau_xtensa_create(parent, engine, oclass, 0x103000, true,
-				    "PBSP", "bsp", &priv);
+	ret = nvkm_xtensa_create(parent, engine, oclass, 0x103000, true,
+				 "PBSP", "bsp", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	nv_subdev(priv)->unit = 0x04008000;
-	nv_engine(priv)->cclass = &nv84_bsp_cclass;
-	nv_engine(priv)->sclass = nv84_bsp_sclass;
+	nv_engine(priv)->cclass = &g84_bsp_cclass;
+	nv_engine(priv)->sclass = g84_bsp_sclass;
 	priv->fifo_val = 0x1111;
 	priv->unkd28 = 0x90044;
 	return 0;
 }
 
-struct nouveau_oclass
-nv84_bsp_oclass = {
+struct nvkm_oclass
+g84_bsp_oclass = {
 	.handle = NV_ENGINE(BSP, 0x84),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv84_bsp_ctor,
-		.dtor = _nouveau_xtensa_dtor,
-		.init = _nouveau_xtensa_init,
-		.fini = _nouveau_xtensa_fini,
-		.rd32 = _nouveau_xtensa_rd32,
-		.wr32 = _nouveau_xtensa_wr32,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = g84_bsp_ctor,
+		.dtor = _nvkm_xtensa_dtor,
+		.init = _nvkm_xtensa_init,
+		.fini = _nvkm_xtensa_fini,
+		.rd32 = _nvkm_xtensa_rd32,
+		.wr32 = _nvkm_xtensa_wr32,
 	},
 };
