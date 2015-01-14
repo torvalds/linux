@@ -332,49 +332,22 @@ static void pcl818_start_pacer(struct comedi_device *dev, bool load_counters)
 }
 
 static void pcl818_ai_setup_dma(struct comedi_device *dev,
-				struct comedi_subdevice *s)
+				struct comedi_subdevice *s,
+				unsigned int unread_samples)
 {
 	struct pcl818_private *devpriv = dev->private;
 	struct comedi_isadma *dma = devpriv->dma;
-	struct comedi_isadma_desc *desc = &dma->desc[0];
+	struct comedi_isadma_desc *desc = &dma->desc[dma->cur_dma];
+	unsigned int max_samples = comedi_bytes_to_samples(s, desc->maxsize);
 	unsigned int nsamples;
 
 	comedi_isadma_disable(dma->chan);
-
-	dma->cur_dma = 0;
-
-	/*
-	 * Determine dma size based on the buffer maxsize and the number of
-	 * samples remaining in the command.
-	 */
-	nsamples = comedi_bytes_to_samples(s, desc->maxsize);
-	nsamples = comedi_nsamples_left(s, nsamples);
-	desc->size = comedi_samples_to_bytes(s, nsamples);
-	comedi_isadma_program(desc);
-}
-
-static void pcl818_ai_setup_next_dma(struct comedi_device *dev,
-				     struct comedi_subdevice *s,
-				     unsigned int unread_samples)
-{
-	struct pcl818_private *devpriv = dev->private;
-	struct comedi_isadma *dma = devpriv->dma;
-	struct comedi_isadma_desc *desc;
-	unsigned int max_samples;
-	unsigned int nsamples;
-
-	comedi_isadma_disable(dma->chan);
-
-	dma->cur_dma = 1 - dma->cur_dma;
-	desc = &dma->desc[dma->cur_dma];
 
 	/*
 	 * Determine dma size based on the buffer maxsize plus the number of
 	 * unread samples and the number of samples remaining in the command.
 	 */
-	max_samples = comedi_bytes_to_samples(s, desc->maxsize);
-	nsamples = max_samples + unread_samples;
-	nsamples = comedi_nsamples_left(s, nsamples);
+	nsamples = comedi_nsamples_left(s, max_samples + unread_samples);
 	if (nsamples > unread_samples) {
 		nsamples -= unread_samples;
 		desc->size = comedi_samples_to_bytes(s, nsamples);
@@ -554,7 +527,9 @@ static void pcl818_handle_dma(struct comedi_device *dev,
 	unsigned int val;
 	int i;
 
-	pcl818_ai_setup_next_dma(dev, s, nsamples);
+	/* restart dma with the next buffer */
+	dma->cur_dma = 1 - dma->cur_dma;
+	pcl818_ai_setup_dma(dev, s, nsamples);
 
 	for (i = 0; i < nsamples; i++) {
 		val = ptr[i];
@@ -790,6 +765,7 @@ static int pcl818_ai_cmd(struct comedi_device *dev,
 			 struct comedi_subdevice *s)
 {
 	struct pcl818_private *devpriv = dev->private;
+	struct comedi_isadma *dma = devpriv->dma;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int ctrl = 0;
 	unsigned int seglen;
@@ -815,8 +791,10 @@ static int pcl818_ai_cmd(struct comedi_device *dev,
 
 	outb(PCL818_CNTENABLE_PACER_ENA, dev->iobase + PCL818_CNTENABLE_REG);
 
-	if (devpriv->dma) {
-		pcl818_ai_setup_dma(dev, s);
+	if (dma) {
+		/* setup and enable dma for the first buffer */
+		dma->cur_dma = 0;
+		pcl818_ai_setup_dma(dev, s, 0);
 
 		ctrl |= PCL818_CTRL_INTE | PCL818_CTRL_IRQ(dev->irq) |
 			PCL818_CTRL_DMAE;
