@@ -243,6 +243,145 @@ ring_buffer_init(struct ring_buffer *rb, long watermark, int flags)
 	spin_lock_init(&rb->event_lock);
 }
 
+/*
+ * This is called before hardware starts writing to the AUX area to
+ * obtain an output handle and make sure there's room in the buffer.
+ * When the capture completes, call perf_aux_output_end() to commit
+ * the recorded data to the buffer.
+ *
+ * The ordering is similar to that of perf_output_{begin,end}, with
+ * the exception of (B), which should be taken care of by the pmu
+ * driver, since ordering rules will differ depending on hardware.
+ */
+void *perf_aux_output_begin(struct perf_output_handle *handle,
+			    struct perf_event *event)
+{
+	struct perf_event *output_event = event;
+	unsigned long aux_head, aux_tail;
+	struct ring_buffer *rb;
+
+	if (output_event->parent)
+		output_event = output_event->parent;
+
+	/*
+	 * Since this will typically be open across pmu::add/pmu::del, we
+	 * grab ring_buffer's refcount instead of holding rcu read lock
+	 * to make sure it doesn't disappear under us.
+	 */
+	rb = ring_buffer_get(output_event);
+	if (!rb)
+		return NULL;
+
+	if (!rb_has_aux(rb) || !atomic_inc_not_zero(&rb->aux_refcount))
+		goto err;
+
+	/*
+	 * Nesting is not supported for AUX area, make sure nested
+	 * writers are caught early
+	 */
+	if (WARN_ON_ONCE(local_xchg(&rb->aux_nest, 1)))
+		goto err_put;
+
+	aux_head = local_read(&rb->aux_head);
+	aux_tail = ACCESS_ONCE(rb->user_page->aux_tail);
+
+	handle->rb = rb;
+	handle->event = event;
+	handle->head = aux_head;
+	if (aux_head - aux_tail < perf_aux_size(rb))
+		handle->size = CIRC_SPACE(aux_head, aux_tail, perf_aux_size(rb));
+	else
+		handle->size = 0;
+
+	/*
+	 * handle->size computation depends on aux_tail load; this forms a
+	 * control dependency barrier separating aux_tail load from aux data
+	 * store that will be enabled on successful return
+	 */
+	if (!handle->size) { /* A, matches D */
+		event->pending_disable = 1;
+		perf_output_wakeup(handle);
+		local_set(&rb->aux_nest, 0);
+		goto err_put;
+	}
+
+	return handle->rb->aux_priv;
+
+err_put:
+	rb_free_aux(rb);
+
+err:
+	ring_buffer_put(rb);
+	handle->event = NULL;
+
+	return NULL;
+}
+
+/*
+ * Commit the data written by hardware into the ring buffer by adjusting
+ * aux_head and posting a PERF_RECORD_AUX into the perf buffer. It is the
+ * pmu driver's responsibility to observe ordering rules of the hardware,
+ * so that all the data is externally visible before this is called.
+ */
+void perf_aux_output_end(struct perf_output_handle *handle, unsigned long size,
+			 bool truncated)
+{
+	struct ring_buffer *rb = handle->rb;
+	unsigned long aux_head = local_read(&rb->aux_head);
+	u64 flags = 0;
+
+	if (truncated)
+		flags |= PERF_AUX_FLAG_TRUNCATED;
+
+	local_add(size, &rb->aux_head);
+
+	if (size || flags) {
+		/*
+		 * Only send RECORD_AUX if we have something useful to communicate
+		 */
+
+		perf_event_aux_event(handle->event, aux_head, size, flags);
+	}
+
+	rb->user_page->aux_head = local_read(&rb->aux_head);
+
+	perf_output_wakeup(handle);
+	handle->event = NULL;
+
+	local_set(&rb->aux_nest, 0);
+	rb_free_aux(rb);
+	ring_buffer_put(rb);
+}
+
+/*
+ * Skip over a given number of bytes in the AUX buffer, due to, for example,
+ * hardware's alignment constraints.
+ */
+int perf_aux_output_skip(struct perf_output_handle *handle, unsigned long size)
+{
+	struct ring_buffer *rb = handle->rb;
+	unsigned long aux_head;
+
+	if (size > handle->size)
+		return -ENOSPC;
+
+	local_add(size, &rb->aux_head);
+
+	handle->head = aux_head;
+	handle->size -= size;
+
+	return 0;
+}
+
+void *perf_get_aux(struct perf_output_handle *handle)
+{
+	/* this is only valid between perf_aux_output_begin and *_end */
+	if (!handle->event)
+		return NULL;
+
+	return handle->rb->aux_priv;
+}
+
 #define PERF_AUX_GFP	(GFP_KERNEL | __GFP_ZERO | __GFP_NOWARN | __GFP_NORETRY)
 
 static struct page *rb_alloc_aux_page(int node, int order)

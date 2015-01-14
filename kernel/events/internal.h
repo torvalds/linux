@@ -36,6 +36,8 @@ struct ring_buffer {
 	struct user_struct		*mmap_user;
 
 	/* AUX area */
+	local_t				aux_head;
+	local_t				aux_nest;
 	unsigned long			aux_pgoff;
 	int				aux_nr_pages;
 	atomic_t			aux_mmap_count;
@@ -56,6 +58,8 @@ extern void perf_event_wakeup(struct perf_event *event);
 extern int rb_alloc_aux(struct ring_buffer *rb, struct perf_event *event,
 			pgoff_t pgoff, int nr_pages, int flags);
 extern void rb_free_aux(struct ring_buffer *rb);
+extern struct ring_buffer *ring_buffer_get(struct perf_event *event);
+extern void ring_buffer_put(struct ring_buffer *rb);
 
 static inline bool rb_has_aux(struct ring_buffer *rb)
 {
