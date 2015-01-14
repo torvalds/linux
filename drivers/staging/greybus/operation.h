@@ -88,7 +88,6 @@ struct gb_operation {
 	struct work_struct	work;
 	gb_operation_callback	callback;	/* If asynchronous */
 	struct completion	completion;	/* Used if no callback */
-	struct delayed_work	timeout_work;
 
 	struct kref		kref;
 	struct list_head	links;		/* connection->operations */

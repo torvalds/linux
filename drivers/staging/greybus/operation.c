@@ -248,16 +248,6 @@ static void gb_operation_work(struct work_struct *work)
 	gb_operation_put(operation);
 }
 
-/*
- * Timeout call for the operation.
- */
-static void gb_operation_timeout(struct work_struct *work)
-{
-	struct gb_operation *operation;
-
-	operation = container_of(work, struct gb_operation, timeout_work.work);
-	gb_operation_cancel(operation, -ETIMEDOUT);
-}
 
 /*
  * Given a pointer to the header in a message sent on a given host
@@ -533,7 +523,6 @@ gb_operation_create_common(struct gb_connection *connection, u8 type,
 	INIT_WORK(&operation->work, gb_operation_work);
 	operation->callback = NULL;	/* set at submit time */
 	init_completion(&operation->completion);
-	INIT_DELAYED_WORK(&operation->timeout_work, gb_operation_timeout);
 	kref_init(&operation->kref);
 
 	spin_lock_irq(&gb_operations_lock);
@@ -652,7 +641,6 @@ int gb_operation_request_send(struct gb_operation *operation,
 {
 	struct gb_connection *connection = operation->connection;
 	struct gb_operation_msg_hdr *header;
-	unsigned long timeout;
 	unsigned int cycle;
 
 	if (connection->state != GB_CONNECTION_STATE_ENABLED)
@@ -680,14 +668,6 @@ int gb_operation_request_send(struct gb_operation *operation,
 	header = operation->request->header;
 	header->operation_id = cpu_to_le16(operation->id);
 
-	/*
-	 * We impose a time limit for requests to complete.  We need
-	 * to set the timer before we send the request though, so we
-	 * don't lose a race with the receipt of the resposne.
-	 */
-	timeout = msecs_to_jiffies(OPERATION_TIMEOUT_DEFAULT);
-	schedule_delayed_work(&operation->timeout_work, timeout);
-
 	/* All set, send the request */
 	gb_operation_result_set(operation, -EINPROGRESS);
 
@@ -703,15 +683,21 @@ int gb_operation_request_send(struct gb_operation *operation,
 int gb_operation_request_send_sync(struct gb_operation *operation)
 {
 	int ret;
+	unsigned long timeout;
 
 	ret = gb_operation_request_send(operation, gb_operation_sync_callback);
 	if (ret)
 		return ret;
 
-	/* Cancel the operation if interrupted */
-	ret = wait_for_completion_interruptible(&operation->completion);
-	if (ret < 0)
+	timeout = msecs_to_jiffies(OPERATION_TIMEOUT_DEFAULT);
+	ret = wait_for_completion_interruptible_timeout(&operation->completion, timeout);
+	if (ret < 0) {
+		/* Cancel the operation if interrupted */
 		gb_operation_cancel(operation, -ECANCELED);
+	} else if (ret == 0) {
+		/* Cancel the operation if op timed out */
+		gb_operation_cancel(operation, -ETIMEDOUT);
+	}
 
 	return gb_operation_result(operation);
 }
@@ -842,8 +828,6 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 		gb_connection_err(connection, "operation not found");
 		return;
 	}
-
-	cancel_delayed_work(&operation->timeout_work);
 
 	message = operation->response;
 	message_size = sizeof(*message->header) + message->payload_size;
