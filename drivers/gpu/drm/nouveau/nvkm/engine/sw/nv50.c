@@ -41,10 +41,10 @@
  ******************************************************************************/
 
 static int
-nv50_software_mthd_dma_vblsem(struct nouveau_object *object, u32 mthd,
+nv50_sw_mthd_dma_vblsem(struct nouveau_object *object, u32 mthd,
 			      void *args, u32 size)
 {
-	struct nv50_software_chan *chan = (void *)nv_engctx(object->parent);
+	struct nv50_sw_chan *chan = (void *)nv_engctx(object->parent);
 	struct nouveau_fifo_chan *fifo = (void *)nv_object(chan)->parent;
 	struct nouveau_handle *handle;
 	int ret = -EINVAL;
@@ -63,28 +63,28 @@ nv50_software_mthd_dma_vblsem(struct nouveau_object *object, u32 mthd,
 }
 
 static int
-nv50_software_mthd_vblsem_offset(struct nouveau_object *object, u32 mthd,
+nv50_sw_mthd_vblsem_offset(struct nouveau_object *object, u32 mthd,
 				 void *args, u32 size)
 {
-	struct nv50_software_chan *chan = (void *)nv_engctx(object->parent);
+	struct nv50_sw_chan *chan = (void *)nv_engctx(object->parent);
 	chan->vblank.offset = *(u32 *)args;
 	return 0;
 }
 
 int
-nv50_software_mthd_vblsem_value(struct nouveau_object *object, u32 mthd,
+nv50_sw_mthd_vblsem_value(struct nouveau_object *object, u32 mthd,
 				void *args, u32 size)
 {
-	struct nv50_software_chan *chan = (void *)nv_engctx(object->parent);
+	struct nv50_sw_chan *chan = (void *)nv_engctx(object->parent);
 	chan->vblank.value = *(u32 *)args;
 	return 0;
 }
 
 int
-nv50_software_mthd_vblsem_release(struct nouveau_object *object, u32 mthd,
+nv50_sw_mthd_vblsem_release(struct nouveau_object *object, u32 mthd,
 				  void *args, u32 size)
 {
-	struct nv50_software_chan *chan = (void *)nv_engctx(object->parent);
+	struct nv50_sw_chan *chan = (void *)nv_engctx(object->parent);
 	u32 head = *(u32 *)args;
 	if (head >= nouveau_disp(chan)->vblank.index_nr)
 		return -EINVAL;
@@ -94,28 +94,28 @@ nv50_software_mthd_vblsem_release(struct nouveau_object *object, u32 mthd,
 }
 
 int
-nv50_software_mthd_flip(struct nouveau_object *object, u32 mthd,
+nv50_sw_mthd_flip(struct nouveau_object *object, u32 mthd,
 			void *args, u32 size)
 {
-	struct nv50_software_chan *chan = (void *)nv_engctx(object->parent);
+	struct nv50_sw_chan *chan = (void *)nv_engctx(object->parent);
 	if (chan->base.flip)
 		return chan->base.flip(chan->base.flip_data);
 	return -EINVAL;
 }
 
 static struct nouveau_omthds
-nv50_software_omthds[] = {
-	{ 0x018c, 0x018c, nv50_software_mthd_dma_vblsem },
-	{ 0x0400, 0x0400, nv50_software_mthd_vblsem_offset },
-	{ 0x0404, 0x0404, nv50_software_mthd_vblsem_value },
-	{ 0x0408, 0x0408, nv50_software_mthd_vblsem_release },
-	{ 0x0500, 0x0500, nv50_software_mthd_flip },
+nv50_sw_omthds[] = {
+	{ 0x018c, 0x018c, nv50_sw_mthd_dma_vblsem },
+	{ 0x0400, 0x0400, nv50_sw_mthd_vblsem_offset },
+	{ 0x0404, 0x0404, nv50_sw_mthd_vblsem_value },
+	{ 0x0408, 0x0408, nv50_sw_mthd_vblsem_release },
+	{ 0x0500, 0x0500, nv50_sw_mthd_flip },
 	{}
 };
 
 static struct nouveau_oclass
-nv50_software_sclass[] = {
-	{ 0x506e, &nouveau_object_ofuncs, nv50_software_omthds },
+nv50_sw_sclass[] = {
+	{ 0x506e, &nouveau_object_ofuncs, nv50_sw_omthds },
 	{}
 };
 
@@ -124,11 +124,11 @@ nv50_software_sclass[] = {
  ******************************************************************************/
 
 static int
-nv50_software_vblsem_release(struct nvkm_notify *notify)
+nv50_sw_vblsem_release(struct nvkm_notify *notify)
 {
-	struct nv50_software_chan *chan =
+	struct nv50_sw_chan *chan =
 		container_of(notify, typeof(*chan), vblank.notify[notify->index]);
-	struct nv50_software_priv *priv = (void *)nv_object(chan)->engine;
+	struct nv50_sw_priv *priv = (void *)nv_object(chan)->engine;
 	struct nouveau_bar *bar = nouveau_bar(priv);
 
 	nv_wr32(priv, 0x001704, chan->vblank.channel);
@@ -147,29 +147,29 @@ nv50_software_vblsem_release(struct nvkm_notify *notify)
 }
 
 void
-nv50_software_context_dtor(struct nouveau_object *object)
+nv50_sw_context_dtor(struct nouveau_object *object)
 {
-	struct nv50_software_chan *chan = (void *)object;
+	struct nv50_sw_chan *chan = (void *)object;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(chan->vblank.notify); i++)
 		nvkm_notify_fini(&chan->vblank.notify[i]);
 
-	nouveau_software_context_destroy(&chan->base);
+	nouveau_sw_context_destroy(&chan->base);
 }
 
 int
-nv50_software_context_ctor(struct nouveau_object *parent,
+nv50_sw_context_ctor(struct nouveau_object *parent,
 			   struct nouveau_object *engine,
 			   struct nouveau_oclass *oclass, void *data, u32 size,
 			   struct nouveau_object **pobject)
 {
 	struct nouveau_disp *pdisp = nouveau_disp(parent);
-	struct nv50_software_cclass *pclass = (void *)oclass;
-	struct nv50_software_chan *chan;
+	struct nv50_sw_cclass *pclass = (void *)oclass;
+	struct nv50_sw_chan *chan;
 	int ret, i;
 
-	ret = nouveau_software_context_create(parent, engine, oclass, &chan);
+	ret = nouveau_sw_context_create(parent, engine, oclass, &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
@@ -191,16 +191,16 @@ nv50_software_context_ctor(struct nouveau_object *parent,
 	return 0;
 }
 
-static struct nv50_software_cclass
-nv50_software_cclass = {
+static struct nv50_sw_cclass
+nv50_sw_cclass = {
 	.base.handle = NV_ENGCTX(SW, 0x50),
 	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv50_software_context_ctor,
-		.dtor = nv50_software_context_dtor,
-		.init = _nouveau_software_context_init,
-		.fini = _nouveau_software_context_fini,
+		.ctor = nv50_sw_context_ctor,
+		.dtor = nv50_sw_context_dtor,
+		.init = _nouveau_sw_context_init,
+		.fini = _nouveau_sw_context_fini,
 	},
-	.vblank = nv50_software_vblsem_release,
+	.vblank = nv50_sw_vblsem_release,
 };
 
 /*******************************************************************************
@@ -208,34 +208,34 @@ nv50_software_cclass = {
  ******************************************************************************/
 
 int
-nv50_software_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+nv50_sw_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		   struct nouveau_oclass *oclass, void *data, u32 size,
 		   struct nouveau_object **pobject)
 {
-	struct nv50_software_oclass *pclass = (void *)oclass;
-	struct nv50_software_priv *priv;
+	struct nv50_sw_oclass *pclass = (void *)oclass;
+	struct nv50_sw_priv *priv;
 	int ret;
 
-	ret = nouveau_software_create(parent, engine, oclass, &priv);
+	ret = nouveau_sw_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	nv_engine(priv)->cclass = pclass->cclass;
 	nv_engine(priv)->sclass = pclass->sclass;
-	nv_subdev(priv)->intr = nv04_software_intr;
+	nv_subdev(priv)->intr = nv04_sw_intr;
 	return 0;
 }
 
 struct nouveau_oclass *
-nv50_software_oclass = &(struct nv50_software_oclass) {
+nv50_sw_oclass = &(struct nv50_sw_oclass) {
 	.base.handle = NV_ENGINE(SW, 0x50),
 	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv50_software_ctor,
-		.dtor = _nouveau_software_dtor,
-		.init = _nouveau_software_init,
-		.fini = _nouveau_software_fini,
+		.ctor = nv50_sw_ctor,
+		.dtor = _nouveau_sw_dtor,
+		.init = _nouveau_sw_init,
+		.fini = _nouveau_sw_fini,
 	},
-	.cclass = &nv50_software_cclass.base,
-	.sclass =  nv50_software_sclass,
+	.cclass = &nv50_sw_cclass.base,
+	.sclass =  nv50_sw_sclass,
 }.base;

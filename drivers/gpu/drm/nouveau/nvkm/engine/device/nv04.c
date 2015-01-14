@@ -36,7 +36,7 @@
 #include <engine/device.h>
 #include <engine/dmaobj.h>
 #include <engine/fifo.h>
-#include <engine/software.h>
+#include <engine/sw.h>
 #include <engine/gr.h>
 #include <engine/disp.h>
 
@@ -58,7 +58,7 @@ nv04_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_MMU    ] = &nv04_mmu_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv04_fifo_oclass;
-		device->oclass[NVDEV_ENGINE_SW     ] =  nv04_software_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] =  nv04_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv04_gr_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
@@ -76,7 +76,7 @@ nv04_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_MMU    ] = &nv04_mmu_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nv04_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv04_fifo_oclass;
-		device->oclass[NVDEV_ENGINE_SW     ] =  nv04_software_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] =  nv04_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv04_gr_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;

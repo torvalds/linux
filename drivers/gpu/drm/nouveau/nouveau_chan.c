@@ -282,7 +282,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	struct nvif_device *device = chan->device;
 	struct nouveau_cli *cli = (void *)nvif_client(&device->base);
 	struct nouveau_mmu *mmu = nvkm_mmu(device);
-	struct nouveau_software_chan *swch;
+	struct nouveau_sw_chan *swch;
 	struct nv_dma_v0 args = {};
 	int ret, i;
 

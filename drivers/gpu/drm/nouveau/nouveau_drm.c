@@ -231,7 +231,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	ret = nvif_object_init(drm->channel->object, NULL, NVDRM_NVSW,
 			       nouveau_abi16_swclass(drm), NULL, 0, &drm->nvsw);
 	if (ret == 0) {
-		struct nouveau_software_chan *swch;
+		struct nouveau_sw_chan *swch;
 		ret = RING_SPACE(drm->channel, 2);
 		if (ret == 0) {
 			if (device->info.family < NV_DEVICE_INFO_V0_FERMI) {

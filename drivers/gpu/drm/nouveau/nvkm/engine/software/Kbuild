@@ -1,4 +1,0 @@
-nvkm-y += nvkm/engine/software/nv04.o
-nvkm-y += nvkm/engine/software/nv10.o
-nvkm-y += nvkm/engine/software/nv50.o
-nvkm-y += nvkm/engine/software/nvc0.o

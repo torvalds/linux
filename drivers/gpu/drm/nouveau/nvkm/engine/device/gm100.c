@@ -45,7 +45,7 @@
 #include <engine/device.h>
 #include <engine/dmaobj.h>
 #include <engine/fifo.h>
-#include <engine/software.h>
+#include <engine/sw.h>
 #include <engine/gr.h>
 #include <engine/disp.h>
 #include <engine/ce.h>
@@ -85,7 +85,7 @@ gm100_identify(struct nouveau_device *device)
 #endif
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nvd0_dmaeng_oclass;
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv108_fifo_oclass;
-		device->oclass[NVDEV_ENGINE_SW     ] =  nvc0_software_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] =  nvc0_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] =  gm107_gr_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  gm107_disp_oclass;
 		device->oclass[NVDEV_ENGINE_CE0    ] = &nve0_ce0_oclass;
@@ -129,7 +129,7 @@ gm100_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  nvd0_dmaeng_oclass;
 #if 0
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv108_fifo_oclass;
-		device->oclass[NVDEV_ENGINE_SW     ] =  nvc0_software_oclass;
+		device->oclass[NVDEV_ENGINE_SW     ] =  nvc0_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] =  gm107_gr_oclass;
 #endif
 		device->oclass[NVDEV_ENGINE_DISP   ] =  gm204_disp_oclass;

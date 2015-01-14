@@ -53,7 +53,7 @@ void nvif_device_ref(struct nvif_device *, struct nvif_device **);
 #include <engine/device.h>
 #include <engine/fifo.h>
 #include <engine/gr.h>
-#include <engine/software.h>
+#include <engine/sw.h>
 
 #define nvkm_fifo(a) nouveau_fifo(nvkm_device(a))
 #define nvkm_fifo_chan(a) ((struct nouveau_fifo_chan *)nvkm_object(a))

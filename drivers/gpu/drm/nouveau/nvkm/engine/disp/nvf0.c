@@ -22,7 +22,7 @@
  * Authors: Ben Skeggs
  */
 
-#include <engine/software.h>
+#include <engine/sw.h>
 #include <engine/disp.h>
 
 #include <nvif/class.h>
