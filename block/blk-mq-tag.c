@@ -142,29 +142,30 @@ static inline bool hctx_may_queue(struct blk_mq_hw_ctx *hctx,
 
 static int __bt_get_word(struct blk_align_bitmap *bm, unsigned int last_tag)
 {
-	int tag, org_last_tag, end;
-	bool wrap = last_tag != 0;
+	int tag, org_last_tag = last_tag;
 
-	org_last_tag = last_tag;
-	end = bm->depth;
-	do {
-restart:
-		tag = find_next_zero_bit(&bm->word, end, last_tag);
-		if (unlikely(tag >= end)) {
+	while (1) {
+		tag = find_next_zero_bit(&bm->word, bm->depth, last_tag);
+		if (unlikely(tag >= bm->depth)) {
 			/*
-			 * We started with an offset, start from 0 to
+			 * We started with an offset, and we didn't reset the
+			 * offset to 0 in a failure case, so start from 0 to
 			 * exhaust the map.
 			 */
-			if (wrap) {
-				wrap = false;
-				end = org_last_tag;
-				last_tag = 0;
-				goto restart;
+			if (org_last_tag && last_tag) {
+				last_tag = org_last_tag = 0;
+				continue;
 			}
 			return -1;
 		}
+
+		if (!test_and_set_bit(tag, &bm->word))
+			break;
+
 		last_tag = tag + 1;
-	} while (test_and_set_bit(tag, &bm->word));
+		if (last_tag >= bm->depth - 1)
+			last_tag = 0;
+	}
 
 	return tag;
 }
@@ -199,9 +200,17 @@ static int __bt_get(struct blk_mq_hw_ctx *hctx, struct blk_mq_bitmap_tags *bt,
 			goto done;
 		}
 
-		last_tag = 0;
-		if (++index >= bt->map_nr)
+		/*
+		 * Jump to next index, and reset the last tag to be the
+		 * first tag of that index
+		 */
+		index++;
+		last_tag = (index << bt->bits_per_word);
+
+		if (index >= bt->map_nr) {
 			index = 0;
+			last_tag = 0;
+		}
 	}
 
 	*tag_cache = 0;
