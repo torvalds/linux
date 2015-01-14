@@ -115,8 +115,6 @@ static const struct pcl816_board boardtypes[] = {
 
 struct pcl816_private {
 	struct comedi_isadma *dma;
-	long dma_runs_to_end;	/*  how many we must permorm DMA transfer to end of record */
-	unsigned long last_dma_run;	/*  how many bytes we must transfer on last DMA page */
 	unsigned int ai_poll_ptr;	/*  how many sampes transfer poll */
 	unsigned int divisor1;
 	unsigned int divisor2;
@@ -149,53 +147,47 @@ static void pcl816_ai_setup_dma(struct comedi_device *dev,
 	struct pcl816_private *devpriv = dev->private;
 	struct comedi_isadma *dma = devpriv->dma;
 	struct comedi_isadma_desc *desc = &dma->desc[0];
-	struct comedi_cmd *cmd = &s->async->cmd;
-
-	if (cmd->stop_src == TRIG_COUNT) {
-		/*  how many */
-		desc->size = cmd->stop_arg * comedi_bytes_per_scan(s);
-
-		/*  how many DMA pages we must fill */
-		devpriv->dma_runs_to_end = desc->size / desc->maxsize;
-
-		/* on last dma transfer must be moved */
-		devpriv->last_dma_run = desc->size % desc->maxsize;
-		devpriv->dma_runs_to_end--;
-		if (devpriv->dma_runs_to_end >= 0)
-			desc->size = desc->maxsize;
-	} else {
-		desc->size = desc->maxsize;
-		devpriv->dma_runs_to_end = -1;
-	}
+	unsigned int nsamples;
 
 	dma->cur_dma = 0;
 
+	/*
+	 * Determine dma size based on the buffer maxsize and the number of
+	 * samples remaining in the command.
+	 */
+	nsamples = comedi_bytes_to_samples(s, desc->maxsize);
+	nsamples = comedi_nsamples_left(s, nsamples);
+	desc->size = comedi_samples_to_bytes(s, nsamples);
 	comedi_isadma_program(desc);
 }
 
 static void pcl816_ai_setup_next_dma(struct comedi_device *dev,
-				     struct comedi_subdevice *s)
+				     struct comedi_subdevice *s,
+				     unsigned int unread_samples)
 {
 	struct pcl816_private *devpriv = dev->private;
-	struct comedi_cmd *cmd = &s->async->cmd;
 	struct comedi_isadma *dma = devpriv->dma;
+	struct comedi_isadma_desc *desc;
+	unsigned int max_samples;
+	unsigned int nsamples;
 
 	comedi_isadma_disable(dma->chan);
+
 	dma->cur_dma = 1 - dma->cur_dma;
+	desc = &dma->desc[dma->cur_dma];
 
-	/* switch dma bufs if still running */
-	if (devpriv->dma_runs_to_end > -1 || cmd->stop_src == TRIG_NONE) {
-		struct comedi_isadma_desc *desc = &dma->desc[dma->cur_dma];
-
-		if (devpriv->dma_runs_to_end)
-			desc->size = desc->maxsize;
-		else
-			desc->size = devpriv->last_dma_run;
-
+	/*
+	 * Determine dma size based on the buffer maxsize plus the number of
+	 * unread samples and the number of samples remaining in the command.
+	 */
+	max_samples = comedi_bytes_to_samples(s, desc->maxsize);
+	nsamples = max_samples + unread_samples;
+	nsamples = comedi_nsamples_left(s, nsamples);
+	if (nsamples > unread_samples) {
+		nsamples -= unread_samples;
+		desc->size = comedi_samples_to_bytes(s, nsamples);
 		comedi_isadma_program(desc);
 	}
-
-	devpriv->dma_runs_to_end--;
 }
 
 static void pcl816_ai_set_chan_range(struct comedi_device *dev,
@@ -324,12 +316,12 @@ static irqreturn_t pcl816_interrupt(int irq, void *d)
 		return IRQ_HANDLED;
 	}
 
-	pcl816_ai_setup_next_dma(dev, s);
-
 	nsamples = comedi_bytes_to_samples(s, desc->size) -
 		   devpriv->ai_poll_ptr;
 	bufptr = devpriv->ai_poll_ptr;
 	devpriv->ai_poll_ptr = 0;
+
+	pcl816_ai_setup_next_dma(dev, s, nsamples);
 
 	transfer_from_dma_buf(dev, s, desc->virt_addr, bufptr, nsamples);
 
