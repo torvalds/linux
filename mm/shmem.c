@@ -191,11 +191,6 @@ static const struct inode_operations shmem_dir_inode_operations;
 static const struct inode_operations shmem_special_inode_operations;
 static const struct vm_operations_struct shmem_vm_ops;
 
-static struct backing_dev_info shmem_backing_dev_info  __read_mostly = {
-	.ra_pages	= 0,	/* No readahead */
-	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK | BDI_CAP_SWAP_BACKED,
-};
-
 static LIST_HEAD(shmem_swaplist);
 static DEFINE_MUTEX(shmem_swaplist_mutex);
 
@@ -765,11 +760,11 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 		goto redirty;
 
 	/*
-	 * shmem_backing_dev_info's capabilities prevent regular writeback or
-	 * sync from ever calling shmem_writepage; but a stacking filesystem
-	 * might use ->writepage of its underlying filesystem, in which case
-	 * tmpfs should write out to swap only in response to memory pressure,
-	 * and not for the writeback threads or sync.
+	 * Our capabilities prevent regular writeback or sync from ever calling
+	 * shmem_writepage; but a stacking filesystem might use ->writepage of
+	 * its underlying filesystem, in which case tmpfs should write out to
+	 * swap only in response to memory pressure, and not for the writeback
+	 * threads or sync.
 	 */
 	if (!wbc->for_reclaim) {
 		WARN_ON_ONCE(1);	/* Still happens? Tell us about it! */
@@ -1415,7 +1410,7 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode 
 		inode->i_ino = get_next_ino();
 		inode_init_owner(inode, dir, mode);
 		inode->i_blocks = 0;
-		inode->i_mapping->backing_dev_info = &shmem_backing_dev_info;
+		inode->i_mapping->backing_dev_info = &noop_backing_dev_info;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		inode->i_generation = get_seconds();
 		info = SHMEM_I(inode);
@@ -1461,7 +1456,7 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode 
 
 bool shmem_mapping(struct address_space *mapping)
 {
-	return mapping->backing_dev_info == &shmem_backing_dev_info;
+	return mapping->host->i_sb->s_op == &shmem_ops;
 }
 
 #ifdef CONFIG_TMPFS
@@ -3226,10 +3221,6 @@ int __init shmem_init(void)
 	if (shmem_inode_cachep)
 		return 0;
 
-	error = bdi_init(&shmem_backing_dev_info);
-	if (error)
-		goto out4;
-
 	error = shmem_init_inodecache();
 	if (error)
 		goto out3;
@@ -3253,8 +3244,6 @@ out1:
 out2:
 	shmem_destroy_inodecache();
 out3:
-	bdi_destroy(&shmem_backing_dev_info);
-out4:
 	shm_mnt = ERR_PTR(error);
 	return error;
 }
