@@ -1153,7 +1153,7 @@ end:
 static irqreturn_t rk_camera_irq(int irq, void *data)
 {
     struct rk_camera_dev *pcdev = data;
-    unsigned long reg_intstat;
+    unsigned int reg_intstat;
 
 	//should set value in cif irq    
 	static int rec_stop_cif = 0;
@@ -1162,7 +1162,7 @@ static irqreturn_t rk_camera_irq(int irq, void *data)
 
 
     reg_intstat = read_cif_reg(pcdev->base,CIF_CIF_INTSTAT);
-	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s() ,reg_intstat 0x%lx\n", __FILE__, __LINE__,__FUNCTION__,reg_intstat);
+	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s() ,reg_intstat 0x%x\n", __FILE__, __LINE__,__FUNCTION__,reg_intstat);
     if (reg_intstat & 0x0200){
         rk_camera_cifirq(irq,data);
 		if(atomic_read(&pcdev->stop_cif))
