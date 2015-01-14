@@ -1,19 +1,22 @@
 Binding for the LTC2952 PowerPath controller
 
 This chip is used to externally trigger a system shut down. Once the trigger has
-been sent, the chips' watchdog has to be reset to gracefully shut down.
-If the Linux systems decides to shut down it powers off the platform via the
-kill signal.
+been sent, the chip's watchdog has to be reset to gracefully shut down.
+A full powerdown can be triggered via the kill signal.
 
 Required properties:
 
 - compatible:		Must contain: "lltc,ltc2952"
-- trigger-gpios:	phandle + gpio-specifier for the GPIO connected to the
-			chip's trigger line
 - watchdog-gpios:	phandle + gpio-specifier for the GPIO connected to the
 			chip's watchdog line
 - kill-gpios:		phandle + gpio-specifier for the GPIO connected to the
 			chip's kill line
+
+Optional properties:
+- trigger-gpios:	phandle + gpio-specifier for the GPIO connected to the
+			chip's trigger line. If this property is not set, the
+			trigger function is ignored and the chip is kept alive
+			until an explicit kill signal is received
 
 Example:
 
