@@ -43,7 +43,7 @@ nv98_devinit_disable(struct nouveau_devinit *devinit)
 	if (!(r00154c & 0x00000020))
 		disable |= (1ULL << NVDEV_ENGINE_MSVLD);
 	if (!(r00154c & 0x00000040))
-		disable |= (1ULL << NVDEV_ENGINE_CRYPT);
+		disable |= (1ULL << NVDEV_ENGINE_SEC);
 
 	return disable;
 }

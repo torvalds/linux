@@ -55,15 +55,16 @@ nv84_fifo_context_attach(struct nouveau_object *parent,
 	u32 addr;
 
 	switch (nv_engidx(object->engine)) {
-	case NVDEV_ENGINE_SW   : return 0;
-	case NVDEV_ENGINE_GR   : addr = 0x0020; break;
-	case NVDEV_ENGINE_VP   : addr = 0x0040; break;
-	case NVDEV_ENGINE_PPP  :
-	case NVDEV_ENGINE_MPEG : addr = 0x0060; break;
-	case NVDEV_ENGINE_BSP  :
-	case NVDEV_ENGINE_MSVLD: addr = 0x0080; break;
-	case NVDEV_ENGINE_CRYPT: addr = 0x00a0; break;
-	case NVDEV_ENGINE_COPY0: addr = 0x00c0; break;
+	case NVDEV_ENGINE_SW    : return 0;
+	case NVDEV_ENGINE_GR    : addr = 0x0020; break;
+	case NVDEV_ENGINE_VP    : addr = 0x0040; break;
+	case NVDEV_ENGINE_PPP   :
+	case NVDEV_ENGINE_MPEG  : addr = 0x0060; break;
+	case NVDEV_ENGINE_BSP   :
+	case NVDEV_ENGINE_MSVLD : addr = 0x0080; break;
+	case NVDEV_ENGINE_CIPHER:
+	case NVDEV_ENGINE_SEC   : addr = 0x00a0; break;
+	case NVDEV_ENGINE_COPY0 : addr = 0x00c0; break;
 	default:
 		return -EINVAL;
 	}
@@ -92,15 +93,16 @@ nv84_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 	bool done;
 
 	switch (nv_engidx(object->engine)) {
-	case NVDEV_ENGINE_SW   : return 0;
-	case NVDEV_ENGINE_GR   : engn = 0; addr = 0x0020; break;
-	case NVDEV_ENGINE_VP   : engn = 3; addr = 0x0040; break;
-	case NVDEV_ENGINE_PPP  :
-	case NVDEV_ENGINE_MPEG : engn = 1; addr = 0x0060; break;
-	case NVDEV_ENGINE_BSP  :
-	case NVDEV_ENGINE_MSVLD: engn = 5; addr = 0x0080; break;
-	case NVDEV_ENGINE_CRYPT: engn = 4; addr = 0x00a0; break;
-	case NVDEV_ENGINE_COPY0: engn = 2; addr = 0x00c0; break;
+	case NVDEV_ENGINE_SW    : return 0;
+	case NVDEV_ENGINE_GR    : engn = 0; addr = 0x0020; break;
+	case NVDEV_ENGINE_VP    : engn = 3; addr = 0x0040; break;
+	case NVDEV_ENGINE_PPP   :
+	case NVDEV_ENGINE_MPEG  : engn = 1; addr = 0x0060; break;
+	case NVDEV_ENGINE_BSP   :
+	case NVDEV_ENGINE_MSVLD : engn = 5; addr = 0x0080; break;
+	case NVDEV_ENGINE_CIPHER:
+	case NVDEV_ENGINE_SEC   : engn = 4; addr = 0x00a0; break;
+	case NVDEV_ENGINE_COPY0 : engn = 2; addr = 0x00c0; break;
 	default:
 		return -EINVAL;
 	}
@@ -147,7 +149,8 @@ nv84_fifo_object_attach(struct nouveau_object *parent,
 	case NVDEV_ENGINE_ME    :
 	case NVDEV_ENGINE_COPY0 : context |= 0x00300000; break;
 	case NVDEV_ENGINE_VP    : context |= 0x00400000; break;
-	case NVDEV_ENGINE_CRYPT :
+	case NVDEV_ENGINE_CIPHER:
+	case NVDEV_ENGINE_SEC   :
 	case NVDEV_ENGINE_VIC   : context |= 0x00500000; break;
 	case NVDEV_ENGINE_BSP   :
 	case NVDEV_ENGINE_MSVLD : context |= 0x00600000; break;
@@ -188,7 +191,8 @@ nv84_fifo_chan_ctor_dma(struct nouveau_object *parent,
 					  (1ULL << NVDEV_ENGINE_MPEG) |
 					  (1ULL << NVDEV_ENGINE_ME) |
 					  (1ULL << NVDEV_ENGINE_VP) |
-					  (1ULL << NVDEV_ENGINE_CRYPT) |
+					  (1ULL << NVDEV_ENGINE_CIPHER) |
+					  (1ULL << NVDEV_ENGINE_SEC) |
 					  (1ULL << NVDEV_ENGINE_BSP) |
 					  (1ULL << NVDEV_ENGINE_MSVLD) |
 					  (1ULL << NVDEV_ENGINE_PPP) |
@@ -262,7 +266,8 @@ nv84_fifo_chan_ctor_ind(struct nouveau_object *parent,
 					  (1ULL << NVDEV_ENGINE_MPEG) |
 					  (1ULL << NVDEV_ENGINE_ME) |
 					  (1ULL << NVDEV_ENGINE_VP) |
-					  (1ULL << NVDEV_ENGINE_CRYPT) |
+					  (1ULL << NVDEV_ENGINE_CIPHER) |
+					  (1ULL << NVDEV_ENGINE_SEC) |
 					  (1ULL << NVDEV_ENGINE_BSP) |
 					  (1ULL << NVDEV_ENGINE_MSVLD) |
 					  (1ULL << NVDEV_ENGINE_PPP) |

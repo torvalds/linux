@@ -32,11 +32,11 @@
 
 #include <engine/falcon.h>
 #include <engine/fifo.h>
-#include <engine/crypt.h>
+#include <engine/sec.h>
 
 #include "fuc/nv98.fuc0s.h"
 
-struct nv98_crypt_priv {
+struct nv98_sec_priv {
 	struct nouveau_falcon base;
 };
 
@@ -45,18 +45,18 @@ struct nv98_crypt_priv {
  ******************************************************************************/
 
 static struct nouveau_oclass
-nv98_crypt_sclass[] = {
+nv98_sec_sclass[] = {
 	{ 0x88b4, &nouveau_object_ofuncs },
 	{},
 };
 
 /*******************************************************************************
- * PCRYPT context
+ * PSEC context
  ******************************************************************************/
 
 static struct nouveau_oclass
-nv98_crypt_cclass = {
-	.handle = NV_ENGCTX(CRYPT, 0x98),
+nv98_sec_cclass = {
+	.handle = NV_ENGCTX(SEC, 0x98),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = _nouveau_falcon_context_ctor,
 		.dtor = _nouveau_falcon_context_dtor,
@@ -68,10 +68,10 @@ nv98_crypt_cclass = {
 };
 
 /*******************************************************************************
- * PCRYPT engine/subdev functions
+ * PSEC engine/subdev functions
  ******************************************************************************/
 
-static const struct nouveau_enum nv98_crypt_isr_error_name[] = {
+static const struct nouveau_enum nv98_sec_isr_error_name[] = {
 	{ 0x0000, "ILLEGAL_MTHD" },
 	{ 0x0001, "INVALID_BITFIELD" },
 	{ 0x0002, "INVALID_ENUM" },
@@ -80,12 +80,12 @@ static const struct nouveau_enum nv98_crypt_isr_error_name[] = {
 };
 
 static void
-nv98_crypt_intr(struct nouveau_subdev *subdev)
+nv98_sec_intr(struct nouveau_subdev *subdev)
 {
 	struct nouveau_fifo *pfifo = nouveau_fifo(subdev);
 	struct nouveau_engine *engine = nv_engine(subdev);
 	struct nouveau_object *engctx;
-	struct nv98_crypt_priv *priv = (void *)subdev;
+	struct nv98_sec_priv *priv = (void *)subdev;
 	u32 disp = nv_rd32(priv, 0x08701c);
 	u32 stat = nv_rd32(priv, 0x087008) & disp & ~(disp >> 16);
 	u32 inst = nv_rd32(priv, 0x087050) & 0x3fffffff;
@@ -101,7 +101,7 @@ nv98_crypt_intr(struct nouveau_subdev *subdev)
 
 	if (stat & 0x00000040) {
 		nv_error(priv, "DISPATCH_ERROR [");
-		nouveau_enum_print(nv98_crypt_isr_error_name, ssta);
+		nouveau_enum_print(nv98_sec_isr_error_name, ssta);
 		pr_cont("] ch %d [0x%010llx %s] subc %d mthd 0x%04x data 0x%08x\n",
 		       chid, (u64)inst << 12, nouveau_client_name(engctx),
 		       subc, mthd, data);
@@ -118,35 +118,35 @@ nv98_crypt_intr(struct nouveau_subdev *subdev)
 }
 
 static int
-nv98_crypt_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+nv98_sec_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	       struct nouveau_oclass *oclass, void *data, u32 size,
 	       struct nouveau_object **pobject)
 {
-	struct nv98_crypt_priv *priv;
+	struct nv98_sec_priv *priv;
 	int ret;
 
 	ret = nouveau_falcon_create(parent, engine, oclass, 0x087000, true,
-				    "PCRYPT", "crypt", &priv);
+				    "PSEC", "sec", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	nv_subdev(priv)->unit = 0x00004000;
-	nv_subdev(priv)->intr = nv98_crypt_intr;
-	nv_engine(priv)->cclass = &nv98_crypt_cclass;
-	nv_engine(priv)->sclass = nv98_crypt_sclass;
-	nv_falcon(priv)->code.data = nv98_pcrypt_code;
-	nv_falcon(priv)->code.size = sizeof(nv98_pcrypt_code);
-	nv_falcon(priv)->data.data = nv98_pcrypt_data;
-	nv_falcon(priv)->data.size = sizeof(nv98_pcrypt_data);
+	nv_subdev(priv)->intr = nv98_sec_intr;
+	nv_engine(priv)->cclass = &nv98_sec_cclass;
+	nv_engine(priv)->sclass = nv98_sec_sclass;
+	nv_falcon(priv)->code.data = nv98_psec_code;
+	nv_falcon(priv)->code.size = sizeof(nv98_psec_code);
+	nv_falcon(priv)->data.data = nv98_psec_data;
+	nv_falcon(priv)->data.size = sizeof(nv98_psec_data);
 	return 0;
 }
 
 struct nouveau_oclass
-nv98_crypt_oclass = {
-	.handle = NV_ENGINE(CRYPT, 0x98),
+nv98_sec_oclass = {
+	.handle = NV_ENGINE(SEC, 0x98),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv98_crypt_ctor,
+		.ctor = nv98_sec_ctor,
 		.dtor = _nouveau_falcon_dtor,
 		.init = _nouveau_falcon_init,
 		.fini = _nouveau_falcon_fini,

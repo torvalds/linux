@@ -124,7 +124,7 @@ static const struct nouveau_enum vm_engine[] = {
 	{ 0x00000008, "PPPP", NULL, NVDEV_ENGINE_PPP },
 	{ 0x00000008, "PMPEG", NULL, NVDEV_ENGINE_MPEG },
 	{ 0x00000009, "PBSP", NULL, NVDEV_ENGINE_BSP },
-	{ 0x0000000a, "PCRYPT", NULL, NVDEV_ENGINE_CRYPT },
+	{ 0x0000000a, "PCRYPT", NULL, NVDEV_ENGINE_CIPHER },
 	{ 0x0000000b, "PCOUNTER", NULL },
 	{ 0x0000000c, "SEMAPHORE_BG", NULL },
 	{ 0x0000000d, "PCOPY", NULL, NVDEV_ENGINE_COPY0 },
@@ -192,6 +192,8 @@ nv50_fb_intr(struct nouveau_subdev *subdev)
 			/*XXX: clean this up */
 			if (!engine && en->data2 == NVDEV_ENGINE_BSP)
 				engine = nouveau_engine(subdev, NVDEV_ENGINE_MSVLD);
+			if (!engine && en->data2 == NVDEV_ENGINE_CIPHER)
+				engine = nouveau_engine(subdev, NVDEV_ENGINE_SEC);
 			if (engine) {
 				engctx = nouveau_engctx_get(engine, chan);
 				if (engctx)

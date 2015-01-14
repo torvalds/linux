@@ -36,7 +36,7 @@ nv84_devinit_disable(struct nouveau_devinit *devinit)
 		disable |= (1ULL << NVDEV_ENGINE_MPEG);
 		disable |= (1ULL << NVDEV_ENGINE_VP);
 		disable |= (1ULL << NVDEV_ENGINE_BSP);
-		disable |= (1ULL << NVDEV_ENGINE_CRYPT);
+		disable |= (1ULL << NVDEV_ENGINE_CIPHER);
 	}
 
 	if (!(r00154c & 0x00000004))
@@ -44,7 +44,7 @@ nv84_devinit_disable(struct nouveau_devinit *devinit)
 	if (!(r00154c & 0x00000020))
 		disable |= (1ULL << NVDEV_ENGINE_BSP);
 	if (!(r00154c & 0x00000040))
-		disable |= (1ULL << NVDEV_ENGINE_CRYPT);
+		disable |= (1ULL << NVDEV_ENGINE_CIPHER);
 
 	return disable;
 }

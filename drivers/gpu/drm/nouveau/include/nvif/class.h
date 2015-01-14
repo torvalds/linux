@@ -126,7 +126,7 @@ struct nv_device_v0 {
 #define NV_DEVICE_V0_DISABLE_MPEG                         0x0000000200000000ULL
 #define NV_DEVICE_V0_DISABLE_ME                           0x0000000400000000ULL
 #define NV_DEVICE_V0_DISABLE_VP                           0x0000000800000000ULL
-#define NV_DEVICE_V0_DISABLE_CRYPT                        0x0000001000000000ULL
+#define NV_DEVICE_V0_DISABLE_CIPHER                       0x0000001000000000ULL
 #define NV_DEVICE_V0_DISABLE_BSP                          0x0000002000000000ULL
 #define NV_DEVICE_V0_DISABLE_PPP                          0x0000004000000000ULL
 #define NV_DEVICE_V0_DISABLE_COPY0                        0x0000008000000000ULL
@@ -135,6 +135,7 @@ struct nv_device_v0 {
 #define NV_DEVICE_V0_DISABLE_VENC                         0x0000040000000000ULL
 #define NV_DEVICE_V0_DISABLE_COPY2                        0x0000080000000000ULL
 #define NV_DEVICE_V0_DISABLE_MSVLD                        0x0000100000000000ULL
+#define NV_DEVICE_V0_DISABLE_SEC                          0x0000200000000000ULL
 	__u64 disable;	/* disable particular subsystems */
 	__u64 debug0;	/* as above, but *internal* ids, and *NOT* ABI */
 };

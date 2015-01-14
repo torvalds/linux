@@ -1,5 +1,5 @@
 /*
- *  fuc microcode for nv98 pcrypt engine
+ *  fuc microcode for nv98 psec engine
  *  Copyright (C) 2010  Marcin Kościelnicki
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,7 @@
  *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-.section #nv98_pcrypt_data
+.section #nv98_psec_data
 
 ctx_dma:
 ctx_dma_query:		.b32 0
@@ -70,31 +70,31 @@ engine_cmd_dtable:
 .b32 #ctx_src_address_low + 0x20000 ~0xfffffff0
 .b32 #ctx_dst_address_high + 0x20000 ~0xff
 .b32 #ctx_dst_address_low + 0x20000 ~0xfffffff0
-.b32 #crypt_cmd_mode + 0x00000 ~0xf
-.b32 #crypt_cmd_length + 0x10000 ~0x0ffffff0
+.b32 #sec_cmd_mode + 0x00000 ~0xf
+.b32 #sec_cmd_length + 0x10000 ~0x0ffffff0
 .equ #engine_cmd_max 0xce
 
 .align 4
-crypt_dtable:
-.b16 #crypt_copy_prep #crypt_do_inout
-.b16 #crypt_store_prep #crypt_do_out
-.b16 #crypt_ecb_e_prep #crypt_do_inout
-.b16 #crypt_ecb_d_prep #crypt_do_inout
-.b16 #crypt_cbc_e_prep #crypt_do_inout
-.b16 #crypt_cbc_d_prep #crypt_do_inout
-.b16 #crypt_pcbc_e_prep #crypt_do_inout
-.b16 #crypt_pcbc_d_prep #crypt_do_inout
-.b16 #crypt_cfb_e_prep #crypt_do_inout
-.b16 #crypt_cfb_d_prep #crypt_do_inout
-.b16 #crypt_ofb_prep #crypt_do_inout
-.b16 #crypt_ctr_prep #crypt_do_inout
-.b16 #crypt_cbc_mac_prep #crypt_do_in
-.b16 #crypt_cmac_finish_complete_prep #crypt_do_in
-.b16 #crypt_cmac_finish_partial_prep #crypt_do_in
+sec_dtable:
+.b16 #sec_copy_prep #sec_do_inout
+.b16 #sec_store_prep #sec_do_out
+.b16 #sec_ecb_e_prep #sec_do_inout
+.b16 #sec_ecb_d_prep #sec_do_inout
+.b16 #sec_cbc_e_prep #sec_do_inout
+.b16 #sec_cbc_d_prep #sec_do_inout
+.b16 #sec_pcbc_e_prep #sec_do_inout
+.b16 #sec_pcbc_d_prep #sec_do_inout
+.b16 #sec_cfb_e_prep #sec_do_inout
+.b16 #sec_cfb_d_prep #sec_do_inout
+.b16 #sec_ofb_prep #sec_do_inout
+.b16 #sec_ctr_prep #sec_do_inout
+.b16 #sec_cbc_mac_prep #sec_do_in
+.b16 #sec_cmac_finish_complete_prep #sec_do_in
+.b16 #sec_cmac_finish_partial_prep #sec_do_in
 
 .align 0x100
 
-.section #nv98_pcrypt_code
+.section #nv98_psec_code
 
 	// $r0 is always set to 0 in our code - this allows some space savings.
 	clear b32 $r0
@@ -417,23 +417,23 @@ cmd_wrcache_flush:
 	iowr I[$r2] $r3
 	ret
 
-crypt_cmd_mode:
+sec_cmd_mode:
 	// if >= 0xf, INVALID_ENUM
 	bset $flags $p1
 	or $r2 2
 	cmpu b32 $r3 0xf
-	bra nc #crypt_cmd_mode_return
+	bra nc #sec_cmd_mode_return
 
 		bclr $flags $p1
 		st b32 D[$r0 + #ctx_mode] $r3
 
-	crypt_cmd_mode_return:
+	sec_cmd_mode_return:
 	ret
 
-crypt_cmd_length:
+sec_cmd_length:
 	// nop if length == 0
 	cmpu b32 $r3 0
-	bra e #crypt_cmd_mode_return
+	bra e #sec_cmd_mode_return
 
 	// init key, IV
 	cxset 3
@@ -471,11 +471,11 @@ crypt_cmd_length:
 	shl b32 $r8 2
 
 	// run prep
-	ld b16 $r9 D[$r8 + #crypt_dtable]
+	ld b16 $r9 D[$r8 + #sec_dtable]
 	call $r9
 
 	// do it
-	ld b16 $r9 D[$r8 + #crypt_dtable + 2]
+	ld b16 $r9 D[$r8 + #sec_dtable + 2]
 	call $r9
 	cxset 1
 	xdwait
@@ -509,25 +509,25 @@ crypt_cmd_length:
 	ret
 
 
-crypt_copy_prep:
+sec_copy_prep:
 	cs0begin 2
 		cxsin $c0
 		cxsout $c0
 	ret
 
-crypt_store_prep:
+sec_store_prep:
 	cs0begin 1
 		cxsout $c6
 	ret
 
-crypt_ecb_e_prep:
+sec_ecb_e_prep:
 	cs0begin 3
 		cxsin $c0
 		cenc $c0 $c0
 		cxsout $c0
 	ret
 
-crypt_ecb_d_prep:
+sec_ecb_d_prep:
 	ckexp $c7 $c7
 	cs0begin 3
 		cxsin $c0
@@ -535,7 +535,7 @@ crypt_ecb_d_prep:
 		cxsout $c0
 	ret
 
-crypt_cbc_e_prep:
+sec_cbc_e_prep:
 	cs0begin 4
 		cxsin $c0
 		cxor $c6 $c0
@@ -543,7 +543,7 @@ crypt_cbc_e_prep:
 		cxsout $c6
 	ret
 
-crypt_cbc_d_prep:
+sec_cbc_d_prep:
 	ckexp $c7 $c7
 	cs0begin 5
 		cmov $c2 $c6
@@ -553,7 +553,7 @@ crypt_cbc_d_prep:
 		cxsout $c0
 	ret
 
-crypt_pcbc_e_prep:
+sec_pcbc_e_prep:
 	cs0begin 5
 		cxsin $c0
 		cxor $c6 $c0
@@ -562,7 +562,7 @@ crypt_pcbc_e_prep:
 		cxor $c6 $c0
 	ret
 
-crypt_pcbc_d_prep:
+sec_pcbc_d_prep:
 	ckexp $c7 $c7
 	cs0begin 5
 		cxsin $c0
@@ -572,7 +572,7 @@ crypt_pcbc_d_prep:
 		cxor $c6 $c0
 	ret
 
-crypt_cfb_e_prep:
+sec_cfb_e_prep:
 	cs0begin 4
 		cenc $c6 $c6
 		cxsin $c0
@@ -580,7 +580,7 @@ crypt_cfb_e_prep:
 		cxsout $c6
 	ret
 
-crypt_cfb_d_prep:
+sec_cfb_d_prep:
 	cs0begin 4
 		cenc $c0 $c6
 		cxsin $c6
@@ -588,7 +588,7 @@ crypt_cfb_d_prep:
 		cxsout $c0
 	ret
 
-crypt_ofb_prep:
+sec_ofb_prep:
 	cs0begin 4
 		cenc $c6 $c6
 		cxsin $c0
@@ -596,7 +596,7 @@ crypt_ofb_prep:
 		cxsout $c0
 	ret
 
-crypt_ctr_prep:
+sec_ctr_prep:
 	cs0begin 5
 		cenc $c1 $c6
 		cadd $c6 1
@@ -605,14 +605,14 @@ crypt_ctr_prep:
 		cxsout $c0
 	ret
 
-crypt_cbc_mac_prep:
+sec_cbc_mac_prep:
 	cs0begin 3
 		cxsin $c0
 		cxor $c6 $c0
 		cenc $c6 $c6
 	ret
 
-crypt_cmac_finish_complete_prep:
+sec_cmac_finish_complete_prep:
 	cs0begin 7
 		cxsin $c0
 		cxor $c6 $c0
@@ -623,7 +623,7 @@ crypt_cmac_finish_complete_prep:
 		cenc $c6 $c6
 	ret
 
-crypt_cmac_finish_partial_prep:
+sec_cmac_finish_partial_prep:
 	cs0begin 8
 		cxsin $c0
 		cxor $c6 $c0
@@ -636,12 +636,12 @@ crypt_cmac_finish_partial_prep:
 	ret
 
 // TODO
-crypt_do_in:
+sec_do_in:
 	add b32 $r3 $r5
 	mov $xdbase $r4
 	mov $r9 #swap
 	sethi $r9 0x20000
-	crypt_do_in_loop:
+	sec_do_in_loop:
 		xdld $r5 $r9
 		xdwait
 		cxset 0x22
@@ -650,17 +650,17 @@ crypt_do_in:
 		xdwait
 		add b32 $r5 0x10
 		cmpu b32 $r5 $r3
-	bra ne #crypt_do_in_loop
+	bra ne #sec_do_in_loop
 	cxset 1
 	xdwait
 	ret
 
-crypt_do_out:
+sec_do_out:
 	add b32 $r3 $r7
 	mov $xdbase $r6
 	mov $r9 #swap
 	sethi $r9 0x20000
-	crypt_do_out_loop:
+	sec_do_out_loop:
 		cs0exec 1
 		cxset 0x61
 		xdld $r7 $r9
@@ -669,14 +669,14 @@ crypt_do_out:
 		xdwait
 		add b32 $r7 0x10
 		cmpu b32 $r7 $r3
-	bra ne #crypt_do_out_loop
+	bra ne #sec_do_out_loop
 	ret
 
-crypt_do_inout:
+sec_do_inout:
 	add b32 $r3 $r5
 	mov $r9 #swap
 	sethi $r9 0x20000
-	crypt_do_inout_loop:
+	sec_do_inout_loop:
 		mov $xdbase $r4
 		xdld $r5 $r9
 		xdwait
@@ -692,7 +692,7 @@ crypt_do_inout:
 		add b32 $r5 0x10
 		add b32 $r7 0x10
 		cmpu b32 $r5 $r3
-	bra ne #crypt_do_inout_loop
+	bra ne #sec_do_inout_loop
 	ret
 
 .align 0x100

@@ -1,2 +1,0 @@
-nvkm-y += nvkm/engine/crypt/nv84.o
-nvkm-y += nvkm/engine/crypt/nv98.o
