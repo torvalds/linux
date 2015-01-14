@@ -217,6 +217,8 @@ static int pmc_dbgfs_register(struct pmc_dev *pmc, struct pci_dev *pdev)
 	if (!dir)
 		return -ENOMEM;
 
+	pmc->dbgfs_dir = dir;
+
 	f = debugfs_create_file("dev_state", S_IFREG | S_IRUGO,
 				dir, pmc, &pmc_dev_state_ops);
 	if (!f) {
@@ -229,7 +231,7 @@ static int pmc_dbgfs_register(struct pmc_dev *pmc, struct pci_dev *pdev)
 		dev_err(&pdev->dev, "sleep_state register failed\n");
 		goto err;
 	}
-	pmc->dbgfs_dir = dir;
+
 	return 0;
 err:
 	pmc_dbgfs_unregister(pmc);
