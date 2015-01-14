@@ -969,18 +969,11 @@ static int samsung_i2s_dai_probe(struct snd_soc_dai *dai)
 {
 	struct i2s_dai *i2s = to_info(dai);
 	struct i2s_dai *other = i2s->pri_dai ? : i2s->sec_dai;
-	int ret;
 
 	if (is_secondary(i2s)) { /* If this is probe on the secondary DAI */
 		samsung_asoc_init_dma_data(dai, &other->sec_dai->dma_playback,
 					   NULL);
 		goto probe_exit;
-	}
-
-	ret = clk_prepare_enable(i2s->clk);
-	if (ret != 0) {
-		dev_err(&i2s->pdev->dev, "failed to enable clock: %d\n", ret);
-		return ret;
 	}
 
 	samsung_asoc_init_dma_data(dai, &i2s->dma_playback, &i2s->dma_capture);
@@ -1014,17 +1007,11 @@ probe_exit:
 static int samsung_i2s_dai_remove(struct snd_soc_dai *dai)
 {
 	struct i2s_dai *i2s = snd_soc_dai_get_drvdata(dai);
-	struct i2s_dai *other = i2s->pri_dai ? : i2s->sec_dai;
 
-	if (!other || !other->clk) {
-
+	if (!is_secondary(i2s)) {
 		if (i2s->quirks & QUIRK_NEED_RSTCLR)
 			writel(0, i2s->addr + I2SCON);
-
-		clk_disable_unprepare(i2s->clk);
 	}
-
-	i2s->clk = NULL;
 
 	return 0;
 }
@@ -1139,6 +1126,7 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 	u32 regs_base, quirks = 0, idma_addr = 0;
 	struct device_node *np = pdev->dev.of_node;
 	const struct samsung_i2s_dai_data *i2s_dai_data;
+	int ret;
 
 	/* Call during Seconday interface registration */
 	i2s_dai_data = samsung_i2s_get_driver_data(pdev);
@@ -1216,6 +1204,12 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to get iis clock\n");
 		return PTR_ERR(pri_dai->clk);
 	}
+
+	ret = clk_prepare_enable(pri_dai->clk);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "failed to enable clock: %d\n", ret);
+		return ret;
+	}
 	pri_dai->dma_playback.dma_addr = regs_base + I2STXD;
 	pri_dai->dma_capture.dma_addr = regs_base + I2SRXD;
 	pri_dai->dma_playback.ch_name = "tx";
@@ -1285,6 +1279,9 @@ static int samsung_i2s_remove(struct platform_device *pdev)
 	} else {
 		pm_runtime_disable(&pdev->dev);
 	}
+
+	if (!is_secondary(i2s))
+		clk_disable_unprepare(i2s->clk);
 
 	i2s->pri_dai = NULL;
 	i2s->sec_dai = NULL;
