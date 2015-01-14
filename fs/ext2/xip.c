@@ -13,18 +13,12 @@
 #include "ext2.h"
 #include "xip.h"
 
-static inline int
-__inode_direct_access(struct inode *inode, sector_t block,
-		      void **kaddr, unsigned long *pfn)
+static inline long __inode_direct_access(struct inode *inode, sector_t block,
+				void **kaddr, unsigned long *pfn, long size)
 {
 	struct block_device *bdev = inode->i_sb->s_bdev;
-	const struct block_device_operations *ops = bdev->bd_disk->fops;
-	sector_t sector;
-
-	sector = block * (PAGE_SIZE / 512); /* ext2 block to bdev sector */
-
-	BUG_ON(!ops->direct_access);
-	return ops->direct_access(bdev, sector, kaddr, pfn);
+	sector_t sector = block * (PAGE_SIZE / 512);
+	return bdev_direct_access(bdev, sector, kaddr, pfn, size);
 }
 
 static inline int
@@ -53,12 +47,13 @@ ext2_clear_xip_target(struct inode *inode, sector_t block)
 {
 	void *kaddr;
 	unsigned long pfn;
-	int rc;
+	long size;
 
-	rc = __inode_direct_access(inode, block, &kaddr, &pfn);
-	if (!rc)
-		clear_page(kaddr);
-	return rc;
+	size = __inode_direct_access(inode, block, &kaddr, &pfn, PAGE_SIZE);
+	if (size < 0)
+		return size;
+	clear_page(kaddr);
+	return 0;
 }
 
 void ext2_xip_verify_sb(struct super_block *sb)
@@ -77,7 +72,7 @@ void ext2_xip_verify_sb(struct super_block *sb)
 int ext2_get_xip_mem(struct address_space *mapping, pgoff_t pgoff, int create,
 				void **kmem, unsigned long *pfn)
 {
-	int rc;
+	long rc;
 	sector_t block;
 
 	/* first, retrieve the sector number */
@@ -86,6 +81,6 @@ int ext2_get_xip_mem(struct address_space *mapping, pgoff_t pgoff, int create,
 		return rc;
 
 	/* retrieve address of the target data */
-	rc = __inode_direct_access(mapping->host, block, kmem, pfn);
-	return rc;
+	rc = __inode_direct_access(mapping->host, block, kmem, pfn, PAGE_SIZE);
+	return (rc < 0) ? rc : 0;
 }
