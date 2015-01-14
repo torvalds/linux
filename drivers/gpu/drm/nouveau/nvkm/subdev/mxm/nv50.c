@@ -21,17 +21,15 @@
  *
  * Authors: Ben Skeggs
  */
+#include "mxms.h"
 
-#include <subdev/mxm.h>
 #include <subdev/bios.h>
 #include <subdev/bios/conn.h>
 #include <subdev/bios/dcb.h>
 #include <subdev/bios/mxm.h>
 
-#include "mxms.h"
-
 struct nv50_mxm_priv {
-	struct nouveau_mxm base;
+	struct nvkm_mxm base;
 };
 
 struct context {
@@ -40,7 +38,7 @@ struct context {
 };
 
 static bool
-mxm_match_tmds_partner(struct nouveau_mxm *mxm, u8 *data, void *info)
+mxm_match_tmds_partner(struct nvkm_mxm *mxm, u8 *data, void *info)
 {
 	struct context *ctx = info;
 	struct mxms_odev desc;
@@ -53,9 +51,9 @@ mxm_match_tmds_partner(struct nouveau_mxm *mxm, u8 *data, void *info)
 }
 
 static bool
-mxm_match_dcb(struct nouveau_mxm *mxm, u8 *data, void *info)
+mxm_match_dcb(struct nvkm_mxm *mxm, u8 *data, void *info)
 {
-	struct nouveau_bios *bios = nouveau_bios(mxm);
+	struct nvkm_bios *bios = nvkm_bios(mxm);
 	struct context *ctx = info;
 	u64 desc = *(u64 *)data;
 
@@ -98,9 +96,9 @@ mxm_match_dcb(struct nouveau_mxm *mxm, u8 *data, void *info)
 }
 
 static int
-mxm_dcb_sanitise_entry(struct nouveau_bios *bios, void *data, int idx, u16 pdcb)
+mxm_dcb_sanitise_entry(struct nvkm_bios *bios, void *data, int idx, u16 pdcb)
 {
-	struct nouveau_mxm *mxm = data;
+	struct nvkm_mxm *mxm = data;
 	struct context ctx = { .outp = (u32 *)(bios->data + pdcb) };
 	u8 type, i2cidx, link, ver, len;
 	u8 *conn;
@@ -180,7 +178,7 @@ mxm_dcb_sanitise_entry(struct nouveau_bios *bios, void *data, int idx, u16 pdcb)
 }
 
 static bool
-mxm_show_unmatched(struct nouveau_mxm *mxm, u8 *data, void *info)
+mxm_show_unmatched(struct nvkm_mxm *mxm, u8 *data, void *info)
 {
 	u64 desc = *(u64 *)data;
 	if ((desc & 0xf0) != 0xf0)
@@ -189,9 +187,9 @@ mxm_show_unmatched(struct nouveau_mxm *mxm, u8 *data, void *info)
 }
 
 static void
-mxm_dcb_sanitise(struct nouveau_mxm *mxm)
+mxm_dcb_sanitise(struct nvkm_mxm *mxm)
 {
-	struct nouveau_bios *bios = nouveau_bios(mxm);
+	struct nvkm_bios *bios = nvkm_bios(mxm);
 	u8  ver, hdr, cnt, len;
 	u16 dcb = dcb_table(bios, &ver, &hdr, &cnt, &len);
 	if (dcb == 0x0000 || ver != 0x40) {
@@ -204,14 +202,14 @@ mxm_dcb_sanitise(struct nouveau_mxm *mxm)
 }
 
 static int
-nv50_mxm_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	      struct nouveau_oclass *oclass, void *data, u32 size,
-	      struct nouveau_object **pobject)
+nv50_mxm_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	      struct nvkm_oclass *oclass, void *data, u32 size,
+	      struct nvkm_object **pobject)
 {
 	struct nv50_mxm_priv *priv;
 	int ret;
 
-	ret = nouveau_mxm_create(parent, engine, oclass, &priv);
+	ret = nvkm_mxm_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -221,13 +219,13 @@ nv50_mxm_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
+struct nvkm_oclass
 nv50_mxm_oclass = {
 	.handle = NV_SUBDEV(MXM, 0x50),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv50_mxm_ctor,
-		.dtor = _nouveau_mxm_dtor,
-		.init = _nouveau_mxm_init,
-		.fini = _nouveau_mxm_fini,
+		.dtor = _nvkm_mxm_dtor,
+		.init = _nvkm_mxm_init,
+		.fini = _nvkm_mxm_fini,
 	},
 };

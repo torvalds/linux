@@ -115,7 +115,7 @@ nouveau_connector_ddc_detect(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_gpio *gpio = nvxx_gpio(&drm->device);
+	struct nvkm_gpio *gpio = nvxx_gpio(&drm->device);
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
 	int i, panel = -ENODEV;
@@ -241,7 +241,7 @@ nouveau_connector_detect(struct drm_connector *connector, bool force)
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_encoder *nv_encoder = NULL;
 	struct nouveau_encoder *nv_partner;
-	struct nouveau_i2c_port *i2c;
+	struct nvkm_i2c_port *i2c;
 	int type;
 	int ret;
 	enum drm_connector_status conn_status = connector_status_disconnected;
@@ -985,7 +985,7 @@ nouveau_connector_aux_xfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 	struct nouveau_connector *nv_connector =
 		container_of(aux, typeof(*nv_connector), aux);
 	struct nouveau_encoder *nv_encoder;
-	struct nouveau_i2c_port *port;
+	struct nvkm_i2c_port *port;
 	int ret;
 
 	nv_encoder = find_encoder(&nv_connector->base, DCB_OUTPUT_DP);
@@ -996,13 +996,13 @@ nouveau_connector_aux_xfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 	if (msg->size == 0)
 		return msg->size;
 
-	ret = nouveau_i2c(port)->acquire(port, 0);
+	ret = nvkm_i2c(port)->acquire(port, 0);
 	if (ret)
 		return ret;
 
 	ret = port->func->aux(port, false, msg->request, msg->address,
 			      msg->buffer, msg->size);
-	nouveau_i2c(port)->release(port);
+	nvkm_i2c(port)->release(port);
 	if (ret >= 0) {
 		msg->reply = ret;
 		return msg->size;

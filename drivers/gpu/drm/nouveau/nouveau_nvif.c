@@ -60,22 +60,22 @@ nvkm_client_ioctl(void *priv, bool super, void *data, u32 size, void **hack)
 static int
 nvkm_client_resume(void *priv)
 {
-	return nouveau_client_init(priv);
+	return nvkm_client_init(priv);
 }
 
 static int
 nvkm_client_suspend(void *priv)
 {
-	return nouveau_client_fini(priv, true);
+	return nvkm_client_fini(priv, true);
 }
 
 static void
 nvkm_client_driver_fini(void *priv)
 {
-	struct nouveau_object *client = priv;
-	nouveau_client_fini(nv_client(client), false);
+	struct nvkm_object *client = priv;
+	nvkm_client_fini(nv_client(client), false);
 	atomic_set(&client->refcount, 1);
-	nouveau_object_ref(NULL, &client);
+	nvkm_object_ref(NULL, &client);
 }
 
 static int
@@ -110,10 +110,10 @@ static int
 nvkm_client_driver_init(const char *name, u64 device, const char *cfg,
 			const char *dbg, void **ppriv)
 {
-	struct nouveau_client *client;
+	struct nvkm_client *client;
 	int ret;
 
-	ret = nouveau_client_create(name, device, cfg, dbg, &client);
+	ret = nvkm_client_create(name, device, cfg, dbg, &client);
 	*ppriv = client;
 	if (ret)
 		return ret;

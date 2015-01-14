@@ -38,24 +38,24 @@ void nvif_device_ref(struct nvif_device *, struct nvif_device **);
 #include <subdev/therm.h>
 
 #define nvxx_device(a) nv_device(nvxx_object((a)))
-#define nvxx_bios(a) nouveau_bios(nvxx_device(a))
-#define nvxx_fb(a) nouveau_fb(nvxx_device(a))
-#define nvxx_mmu(a) nouveau_mmu(nvxx_device(a))
-#define nvxx_bar(a) nouveau_bar(nvxx_device(a))
-#define nvxx_gpio(a) nouveau_gpio(nvxx_device(a))
-#define nvxx_clk(a) nouveau_clk(nvxx_device(a))
-#define nvxx_i2c(a) nouveau_i2c(nvxx_device(a))
-#define nvxx_timer(a) nouveau_timer(nvxx_device(a))
+#define nvxx_bios(a) nvkm_bios(nvxx_device(a))
+#define nvxx_fb(a) nvkm_fb(nvxx_device(a))
+#define nvxx_mmu(a) nvkm_mmu(nvxx_device(a))
+#define nvxx_bar(a) nvkm_bar(nvxx_device(a))
+#define nvxx_gpio(a) nvkm_gpio(nvxx_device(a))
+#define nvxx_clk(a) nvkm_clk(nvxx_device(a))
+#define nvxx_i2c(a) nvkm_i2c(nvxx_device(a))
+#define nvxx_timer(a) nvkm_timer(nvxx_device(a))
 #define nvxx_wait(a,b,c,d) nv_wait(nvxx_timer(a), (b), (c), (d))
 #define nvxx_wait_cb(a,b,c) nv_wait_cb(nvxx_timer(a), (b), (c))
-#define nvxx_therm(a) nouveau_therm(nvxx_device(a))
+#define nvxx_therm(a) nvkm_therm(nvxx_device(a))
 
 #include <core/device.h>
 #include <engine/fifo.h>
 #include <engine/gr.h>
 #include <engine/sw.h>
 
-#define nvxx_fifo(a) nouveau_fifo(nvxx_device(a))
-#define nvxx_fifo_chan(a) ((struct nouveau_fifo_chan *)nvxx_object(a))
-#define nvxx_gr(a) ((struct nouveau_gr *)nouveau_engine(nvxx_object(a), NVDEV_ENGINE_GR))
+#define nvxx_fifo(a) nvkm_fifo(nvxx_device(a))
+#define nvxx_fifo_chan(a) ((struct nvkm_fifo_chan *)nvxx_object(a))
+#define nvxx_gr(a) ((struct nvkm_gr *)nvkm_engine(nvxx_object(a), NVDEV_ENGINE_GR))
 #endif

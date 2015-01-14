@@ -5,7 +5,7 @@
 
 struct nouveau_channel;
 struct nouveau_fence;
-struct nouveau_vma;
+struct nvkm_vma;
 
 struct nouveau_bo {
 	struct ttm_buffer_object bo;
@@ -87,12 +87,12 @@ int  nouveau_bo_validate(struct nouveau_bo *, bool interruptible,
 void nouveau_bo_sync_for_device(struct nouveau_bo *nvbo);
 void nouveau_bo_sync_for_cpu(struct nouveau_bo *nvbo);
 
-struct nouveau_vma *
-nouveau_bo_vma_find(struct nouveau_bo *, struct nouveau_vm *);
+struct nvkm_vma *
+nouveau_bo_vma_find(struct nouveau_bo *, struct nvkm_vm *);
 
-int  nouveau_bo_vma_add(struct nouveau_bo *, struct nouveau_vm *,
-			struct nouveau_vma *);
-void nouveau_bo_vma_del(struct nouveau_bo *, struct nouveau_vma *);
+int  nouveau_bo_vma_add(struct nouveau_bo *, struct nvkm_vm *,
+			struct nvkm_vma *);
+void nouveau_bo_vma_del(struct nouveau_bo *, struct nvkm_vma *);
 
 /* TODO: submit equivalent to TTM generic API upstream? */
 static inline void __iomem *

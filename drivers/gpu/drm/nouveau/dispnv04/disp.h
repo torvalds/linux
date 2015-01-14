@@ -36,7 +36,7 @@ struct nv04_crtc_reg {
 
 	/* PRAMDAC regs */
 	uint32_t nv10_cursync;
-	struct nouveau_pll_vals pllvals;
+	struct nvkm_pll_vals pllvals;
 	uint32_t ramdac_gen_ctrl;
 	uint32_t ramdac_630;
 	uint32_t ramdac_634;
@@ -170,7 +170,7 @@ nouveau_bios_run_init_table(struct drm_device *dev, u16 table,
 			    struct dcb_output *outp, int crtc)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_bios *bios = nvxx_bios(&drm->device);
+	struct nvkm_bios *bios = nvxx_bios(&drm->device);
 	struct nvbios_init init = {
 		.subdev = nv_subdev(bios),
 		.bios = bios,

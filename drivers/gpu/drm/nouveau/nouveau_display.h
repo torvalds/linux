@@ -8,7 +8,7 @@
 struct nouveau_framebuffer {
 	struct drm_framebuffer base;
 	struct nouveau_bo *nvbo;
-	struct nouveau_vma vma;
+	struct nvkm_vma vma;
 	u32 r_handle;
 	u32 r_format;
 	u32 r_pitch;

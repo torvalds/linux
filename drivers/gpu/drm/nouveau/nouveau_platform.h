@@ -39,7 +39,7 @@ struct nouveau_platform_gpu {
 };
 
 struct nouveau_platform_device {
-	struct nouveau_device device;
+	struct nvkm_device device;
 
 	struct nouveau_platform_gpu *gpu;
 

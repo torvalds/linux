@@ -70,6 +70,6 @@ void nvif_object_unmap(struct nvif_object *);
 
 /*XXX*/
 #include <core/object.h>
-#define nvxx_object(a) ((struct nouveau_object *)nvif_object(a)->priv)
+#define nvxx_object(a) ((struct nvkm_object *)nvif_object(a)->priv)
 
 #endif

@@ -9,7 +9,7 @@ struct nouveau_sgdma_be {
 	 * nouve_bo.c works properly, otherwise have to move them here
 	 */
 	struct ttm_dma_tt ttm;
-	struct nouveau_mem *node;
+	struct nvkm_mem *node;
 };
 
 static void
@@ -27,7 +27,7 @@ static int
 nv04_sgdma_bind(struct ttm_tt *ttm, struct ttm_mem_reg *mem)
 {
 	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)ttm;
-	struct nouveau_mem *node = mem->mm_node;
+	struct nvkm_mem *node = mem->mm_node;
 
 	if (ttm->sg) {
 		node->sg    = ttm->sg;
@@ -38,7 +38,7 @@ nv04_sgdma_bind(struct ttm_tt *ttm, struct ttm_mem_reg *mem)
 	}
 	node->size = (mem->num_pages << PAGE_SHIFT) >> 12;
 
-	nouveau_vm_map(&node->vma[0], node);
+	nvkm_vm_map(&node->vma[0], node);
 	nvbe->node = node;
 	return 0;
 }
@@ -47,7 +47,7 @@ static int
 nv04_sgdma_unbind(struct ttm_tt *ttm)
 {
 	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)ttm;
-	nouveau_vm_unmap(&nvbe->node->vma[0]);
+	nvkm_vm_unmap(&nvbe->node->vma[0]);
 	return 0;
 }
 
@@ -61,7 +61,7 @@ static int
 nv50_sgdma_bind(struct ttm_tt *ttm, struct ttm_mem_reg *mem)
 {
 	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)ttm;
-	struct nouveau_mem *node = mem->mm_node;
+	struct nvkm_mem *node = mem->mm_node;
 
 	/* noop: bound in move_notify() */
 	if (ttm->sg) {

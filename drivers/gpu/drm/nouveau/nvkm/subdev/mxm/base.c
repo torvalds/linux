@@ -21,18 +21,16 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <core/option.h>
-
-#include <subdev/i2c.h>
-#include <subdev/mxm.h>
-#include <subdev/bios.h>
-#include <subdev/bios/mxm.h>
-
 #include "mxms.h"
 
+#include <core/device.h>
+#include <core/option.h>
+#include <subdev/bios.h>
+#include <subdev/bios/mxm.h>
+#include <subdev/i2c.h>
+
 static bool
-mxm_shadow_rom_fetch(struct nouveau_i2c_port *i2c, u8 addr,
+mxm_shadow_rom_fetch(struct nvkm_i2c_port *i2c, u8 addr,
 		     u8 offset, u8 size, u8 *data)
 {
 	struct i2c_msg msgs[] = {
@@ -44,11 +42,11 @@ mxm_shadow_rom_fetch(struct nouveau_i2c_port *i2c, u8 addr,
 }
 
 static bool
-mxm_shadow_rom(struct nouveau_mxm *mxm, u8 version)
+mxm_shadow_rom(struct nvkm_mxm *mxm, u8 version)
 {
-	struct nouveau_bios *bios = nouveau_bios(mxm);
-	struct nouveau_i2c *i2c = nouveau_i2c(mxm);
-	struct nouveau_i2c_port *port = NULL;
+	struct nvkm_bios *bios = nvkm_bios(mxm);
+	struct nvkm_i2c *i2c = nvkm_i2c(mxm);
+	struct nvkm_i2c_port *port = NULL;
 	u8 i2cidx, mxms[6], addr, size;
 
 	i2cidx = mxm_ddc_map(bios, 1 /* LVDS_DDC */) & 0x0f;
@@ -79,9 +77,9 @@ mxm_shadow_rom(struct nouveau_mxm *mxm, u8 version)
 
 #if defined(CONFIG_ACPI)
 static bool
-mxm_shadow_dsm(struct nouveau_mxm *mxm, u8 version)
+mxm_shadow_dsm(struct nvkm_mxm *mxm, u8 version)
 {
-	struct nouveau_device *device = nv_device(mxm);
+	struct nvkm_device *device = nv_device(mxm);
 	static char muid[] = {
 		0x00, 0xA4, 0x04, 0x40, 0x7D, 0x91, 0xF2, 0x4C,
 		0xB8, 0x9C, 0x79, 0xB6, 0x2F, 0xD5, 0x56, 0x65
@@ -129,7 +127,7 @@ mxm_shadow_dsm(struct nouveau_mxm *mxm, u8 version)
 #define WMI_WMMX_GUID "F6CB5C3C-9CAE-4EBD-B577-931EA32A2CC0"
 
 static u8
-wmi_wmmx_mxmi(struct nouveau_mxm *mxm, u8 version)
+wmi_wmmx_mxmi(struct nvkm_mxm *mxm, u8 version)
 {
 	u32 mxmi_args[] = { 0x494D584D /* MXMI */, version, 0 };
 	struct acpi_buffer args = { sizeof(mxmi_args), mxmi_args };
@@ -158,7 +156,7 @@ wmi_wmmx_mxmi(struct nouveau_mxm *mxm, u8 version)
 }
 
 static bool
-mxm_shadow_wmi(struct nouveau_mxm *mxm, u8 version)
+mxm_shadow_wmi(struct nvkm_mxm *mxm, u8 version)
 {
 	u32 mxms_args[] = { 0x534D584D /* MXMS */, version, 0 };
 	struct acpi_buffer args = { sizeof(mxms_args), mxms_args };
@@ -186,7 +184,7 @@ mxm_shadow_wmi(struct nouveau_mxm *mxm, u8 version)
 	obj = retn.pointer;
 	if (obj->type == ACPI_TYPE_BUFFER) {
 		mxm->mxms = kmemdup(obj->buffer.pointer,
-					 obj->buffer.length, GFP_KERNEL);
+				    obj->buffer.length, GFP_KERNEL);
 	}
 
 	kfree(obj);
@@ -196,7 +194,7 @@ mxm_shadow_wmi(struct nouveau_mxm *mxm, u8 version)
 
 static struct mxm_shadow_h {
 	const char *name;
-	bool (*exec)(struct nouveau_mxm *, u8 version);
+	bool (*exec)(struct nvkm_mxm *, u8 version);
 } _mxm_shadow[] = {
 	{ "ROM", mxm_shadow_rom },
 #if defined(CONFIG_ACPI)
@@ -209,7 +207,7 @@ static struct mxm_shadow_h {
 };
 
 static int
-mxm_shadow(struct nouveau_mxm *mxm, u8 version)
+mxm_shadow(struct nvkm_mxm *mxm, u8 version)
 {
 	struct mxm_shadow_h *shadow = _mxm_shadow;
 	do {
@@ -225,19 +223,18 @@ mxm_shadow(struct nouveau_mxm *mxm, u8 version)
 }
 
 int
-nouveau_mxm_create_(struct nouveau_object *parent,
-		    struct nouveau_object *engine,
-		    struct nouveau_oclass *oclass, int length, void **pobject)
+nvkm_mxm_create_(struct nvkm_object *parent, struct nvkm_object *engine,
+		 struct nvkm_oclass *oclass, int length, void **pobject)
 {
-	struct nouveau_device *device = nv_device(parent);
-	struct nouveau_bios *bios = nouveau_bios(device);
-	struct nouveau_mxm *mxm;
+	struct nvkm_device *device = nv_device(parent);
+	struct nvkm_bios *bios = nvkm_bios(device);
+	struct nvkm_mxm *mxm;
 	u8  ver, len;
 	u16 data;
 	int ret;
 
-	ret = nouveau_subdev_create_(parent, engine, oclass, 0, "MXM", "mxm",
-				     length, pobject);
+	ret = nvkm_subdev_create_(parent, engine, oclass, 0, "MXM", "mxm",
+				  length, pobject);
 	mxm = *pobject;
 	if (ret)
 		return ret;
@@ -268,7 +265,7 @@ nouveau_mxm_create_(struct nouveau_object *parent,
 		mxms_version(mxm) >> 8, mxms_version(mxm) & 0xff);
 	mxms_foreach(mxm, 0, NULL, NULL);
 
-	if (nouveau_boolopt(device->cfgopt, "NvMXMDCB", true))
+	if (nvkm_boolopt(device->cfgopt, "NvMXMDCB", true))
 		mxm->action |= MXM_SANITISE_DCB;
 	return 0;
 }

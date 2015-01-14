@@ -21,22 +21,20 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <subdev/mxm.h>
 #include "mxms.h"
 
 #define ROM16(x) le16_to_cpu(*(u16 *)&(x))
 #define ROM32(x) le32_to_cpu(*(u32 *)&(x))
 
 static u8 *
-mxms_data(struct nouveau_mxm *mxm)
+mxms_data(struct nvkm_mxm *mxm)
 {
 	return mxm->mxms;
 
 }
 
 u16
-mxms_version(struct nouveau_mxm *mxm)
+mxms_version(struct nvkm_mxm *mxm)
 {
 	u8 *mxms = mxms_data(mxm);
 	u16 version = (mxms[4] << 8) | mxms[5];
@@ -54,19 +52,19 @@ mxms_version(struct nouveau_mxm *mxm)
 }
 
 u16
-mxms_headerlen(struct nouveau_mxm *mxm)
+mxms_headerlen(struct nvkm_mxm *mxm)
 {
 	return 8;
 }
 
 u16
-mxms_structlen(struct nouveau_mxm *mxm)
+mxms_structlen(struct nvkm_mxm *mxm)
 {
 	return *(u16 *)&mxms_data(mxm)[6];
 }
 
 bool
-mxms_checksum(struct nouveau_mxm *mxm)
+mxms_checksum(struct nvkm_mxm *mxm)
 {
 	u16 size = mxms_headerlen(mxm) + mxms_structlen(mxm);
 	u8 *mxms = mxms_data(mxm), sum = 0;
@@ -80,7 +78,7 @@ mxms_checksum(struct nouveau_mxm *mxm)
 }
 
 bool
-mxms_valid(struct nouveau_mxm *mxm)
+mxms_valid(struct nvkm_mxm *mxm)
 {
 	u8 *mxms = mxms_data(mxm);
 	if (*(u32 *)mxms != 0x5f4d584d) {
@@ -95,8 +93,8 @@ mxms_valid(struct nouveau_mxm *mxm)
 }
 
 bool
-mxms_foreach(struct nouveau_mxm *mxm, u8 types,
-	     bool (*exec)(struct nouveau_mxm *, u8 *, void *), void *info)
+mxms_foreach(struct nvkm_mxm *mxm, u8 types,
+	     bool (*exec)(struct nvkm_mxm *, u8 *, void *), void *info)
 {
 	u8 *mxms = mxms_data(mxm);
 	u8 *desc = mxms + mxms_headerlen(mxm);
@@ -180,7 +178,7 @@ mxms_foreach(struct nouveau_mxm *mxm, u8 types,
 }
 
 void
-mxms_output_device(struct nouveau_mxm *mxm, u8 *pdata, struct mxms_odev *desc)
+mxms_output_device(struct nvkm_mxm *mxm, u8 *pdata, struct mxms_odev *desc)
 {
 	u64 data = ROM32(pdata[0]);
 	if (mxms_version(mxm) >= 0x0300)

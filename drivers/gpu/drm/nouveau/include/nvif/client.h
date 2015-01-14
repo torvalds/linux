@@ -33,7 +33,7 @@ int  nvif_client_resume(struct nvif_client *);
 #include <core/client.h>
 #define nvxx_client(a) ({ \
 	struct nvif_client *_client = nvif_client(nvif_object(a)); \
-	nouveau_client(_client->base.priv); \
+	nvkm_client(_client->base.priv); \
 })
 
 #endif

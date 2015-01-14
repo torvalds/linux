@@ -33,7 +33,7 @@
 #include <drm/drm_dp_helper.h>
 #include "nouveau_crtc.h"
 
-struct nouveau_i2c_port;
+struct nvkm_i2c_port;
 
 enum nouveau_underscan_type {
 	UNDERSCAN_OFF,
