@@ -453,11 +453,13 @@ static noinline int overwrite_item(struct btrfs_trans_handle *trans,
 insert:
 	btrfs_release_path(path);
 	/* try to insert the key into the destination tree */
+	path->skip_release_on_error = 1;
 	ret = btrfs_insert_empty_item(trans, root, path,
 				      key, item_size);
+	path->skip_release_on_error = 0;
 
 	/* make sure any existing item is the correct size */
-	if (ret == -EEXIST) {
+	if (ret == -EEXIST || ret == -EOVERFLOW) {
 		u32 found_size;
 		found_size = btrfs_item_size_nr(path->nodes[0],
 						path->slots[0]);
@@ -844,7 +846,7 @@ out:
 static noinline int backref_in_log(struct btrfs_root *log,
 				   struct btrfs_key *key,
 				   u64 ref_objectid,
-				   char *name, int namelen)
+				   const char *name, int namelen)
 {
 	struct btrfs_path *path;
 	struct btrfs_inode_ref *ref;
@@ -1556,6 +1558,30 @@ static noinline int insert_one_name(struct btrfs_trans_handle *trans,
 }
 
 /*
+ * Return true if an inode reference exists in the log for the given name,
+ * inode and parent inode.
+ */
+static bool name_in_log_ref(struct btrfs_root *log_root,
+			    const char *name, const int name_len,
+			    const u64 dirid, const u64 ino)
+{
+	struct btrfs_key search_key;
+
+	search_key.objectid = ino;
+	search_key.type = BTRFS_INODE_REF_KEY;
+	search_key.offset = dirid;
+	if (backref_in_log(log_root, &search_key, dirid, name, name_len))
+		return true;
+
+	search_key.type = BTRFS_INODE_EXTREF_KEY;
+	search_key.offset = btrfs_extref_hash(dirid, name, name_len);
+	if (backref_in_log(log_root, &search_key, dirid, name, name_len))
+		return true;
+
+	return false;
+}
+
+/*
  * take a single entry in a log directory item and replay it into
  * the subvolume.
  *
@@ -1665,10 +1691,17 @@ out:
 	return ret;
 
 insert:
+	if (name_in_log_ref(root->log_root, name, name_len,
+			    key->objectid, log_key.objectid)) {
+		/* The dentry will be added later. */
+		ret = 0;
+		update_size = false;
+		goto out;
+	}
 	btrfs_release_path(path);
 	ret = insert_one_name(trans, root, path, key->objectid, key->offset,
 			      name, name_len, log_type, &log_key);
-	if (ret && ret != -ENOENT)
+	if (ret && ret != -ENOENT && ret != -EEXIST)
 		goto out;
 	update_size = false;
 	ret = 0;
