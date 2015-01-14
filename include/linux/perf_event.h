@@ -284,6 +284,18 @@ struct pmu {
 	 * Return the count value for a counter.
 	 */
 	u64 (*count)			(struct perf_event *event); /*optional*/
+
+	/*
+	 * Set up pmu-private data structures for an AUX area
+	 */
+	void *(*setup_aux)		(int cpu, void **pages,
+					 int nr_pages, bool overwrite);
+					/* optional */
+
+	/*
+	 * Free pmu-private AUX data structures
+	 */
+	void (*free_aux)		(void *aux); /* optional */
 };
 
 /**
@@ -860,6 +872,11 @@ static inline bool has_branch_stack(struct perf_event *event)
 static inline bool needs_branch_stack(struct perf_event *event)
 {
 	return event->attr.branch_sample_type != 0;
+}
+
+static inline bool has_aux(struct perf_event *event)
+{
+	return event->pmu->setup_aux;
 }
 
 extern int perf_output_begin(struct perf_output_handle *handle,

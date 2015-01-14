@@ -243,14 +243,87 @@ ring_buffer_init(struct ring_buffer *rb, long watermark, int flags)
 	spin_lock_init(&rb->event_lock);
 }
 
+int rb_alloc_aux(struct ring_buffer *rb, struct perf_event *event,
+		 pgoff_t pgoff, int nr_pages, int flags)
+{
+	bool overwrite = !(flags & RING_BUFFER_WRITABLE);
+	int node = (event->cpu == -1) ? -1 : cpu_to_node(event->cpu);
+	int ret = -ENOMEM;
+
+	if (!has_aux(event))
+		return -ENOTSUPP;
+
+	rb->aux_pages = kzalloc_node(nr_pages * sizeof(void *), GFP_KERNEL, node);
+	if (!rb->aux_pages)
+		return -ENOMEM;
+
+	rb->free_aux = event->pmu->free_aux;
+	for (rb->aux_nr_pages = 0; rb->aux_nr_pages < nr_pages;
+	     rb->aux_nr_pages++) {
+		struct page *page;
+
+		page = alloc_pages_node(node, GFP_KERNEL | __GFP_ZERO, 0);
+		if (!page)
+			goto out;
+
+		rb->aux_pages[rb->aux_nr_pages] = page_address(page);
+	}
+
+	rb->aux_priv = event->pmu->setup_aux(event->cpu, rb->aux_pages, nr_pages,
+					     overwrite);
+	if (!rb->aux_priv)
+		goto out;
+
+	ret = 0;
+
+	/*
+	 * aux_pages (and pmu driver's private data, aux_priv) will be
+	 * referenced in both producer's and consumer's contexts, thus
+	 * we keep a refcount here to make sure either of the two can
+	 * reference them safely.
+	 */
+	atomic_set(&rb->aux_refcount, 1);
+
+out:
+	if (!ret)
+		rb->aux_pgoff = pgoff;
+	else
+		rb_free_aux(rb);
+
+	return ret;
+}
+
+static void __rb_free_aux(struct ring_buffer *rb)
+{
+	int pg;
+
+	if (rb->aux_priv) {
+		rb->free_aux(rb->aux_priv);
+		rb->free_aux = NULL;
+		rb->aux_priv = NULL;
+	}
+
+	for (pg = 0; pg < rb->aux_nr_pages; pg++)
+		free_page((unsigned long)rb->aux_pages[pg]);
+
+	kfree(rb->aux_pages);
+	rb->aux_nr_pages = 0;
+}
+
+void rb_free_aux(struct ring_buffer *rb)
+{
+	if (atomic_dec_and_test(&rb->aux_refcount))
+		__rb_free_aux(rb);
+}
+
 #ifndef CONFIG_PERF_USE_VMALLOC
 
 /*
  * Back perf_mmap() with regular GFP_KERNEL-0 pages.
  */
 
-struct page *
-perf_mmap_to_page(struct ring_buffer *rb, unsigned long pgoff)
+static struct page *
+__perf_mmap_to_page(struct ring_buffer *rb, unsigned long pgoff)
 {
 	if (pgoff > rb->nr_pages)
 		return NULL;
@@ -340,8 +413,8 @@ static int data_page_nr(struct ring_buffer *rb)
 	return rb->nr_pages << page_order(rb);
 }
 
-struct page *
-perf_mmap_to_page(struct ring_buffer *rb, unsigned long pgoff)
+static struct page *
+__perf_mmap_to_page(struct ring_buffer *rb, unsigned long pgoff)
 {
 	/* The '>' counts in the user page. */
 	if (pgoff > data_page_nr(rb))
@@ -416,3 +489,19 @@ fail:
 }
 
 #endif
+
+struct page *
+perf_mmap_to_page(struct ring_buffer *rb, unsigned long pgoff)
+{
+	if (rb->aux_nr_pages) {
+		/* above AUX space */
+		if (pgoff > rb->aux_pgoff + rb->aux_nr_pages)
+			return NULL;
+
+		/* AUX space */
+		if (pgoff >= rb->aux_pgoff)
+			return virt_to_page(rb->aux_pages[pgoff - rb->aux_pgoff]);
+	}
+
+	return __perf_mmap_to_page(rb, pgoff);
+}
