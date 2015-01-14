@@ -184,7 +184,7 @@ static int rk312x_lcdc_enable_irq(struct rk_lcdc_driver *dev_drv)
 
 	return 0;
 }
-/*
+
 static int rk312x_lcdc_disable_irq(struct lcdc_device *lcdc_dev)
 {
 	u32 mask, val;
@@ -209,7 +209,7 @@ static int rk312x_lcdc_disable_irq(struct lcdc_device *lcdc_dev)
 	}
 	mdelay(1);
 	return 0;
-}*/
+}
 
 
 static int win0_set_addr(struct lcdc_device *lcdc_dev, u32 addr)
@@ -771,6 +771,7 @@ static int rk312x_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 
 static void rk312x_lcdc_deinit(struct lcdc_device *lcdc_dev)
 {
+	rk312x_lcdc_disable_irq(lcdc_dev);
 }
 
 static u32 calc_sclk_freq(struct rk_screen *src_screen,
@@ -1804,7 +1805,6 @@ static int rk312x_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 	if (!dev_drv->suspend_flag)
 		return 0;
 	rk_disp_pwr_enable(dev_drv);
-	dev_drv->suspend_flag = 0;
 
 	rk312x_lcdc_clk_enable(lcdc_dev);
 	rk312x_lcdc_reg_restore(lcdc_dev);
@@ -1842,10 +1842,12 @@ static int rk312x_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 	}
 
 	spin_unlock(&lcdc_dev->reg_lock);
+	dev_drv->suspend_flag = 0;
 
 	if (dev_drv->trsm_ops && dev_drv->trsm_ops->enable)
 		dev_drv->trsm_ops->enable();
-	msleep(160);
+	mdelay(100);
+
 	return 0;
 }
 
@@ -2633,12 +2635,14 @@ static int rk312x_lcdc_remove(struct platform_device *pdev)
 static void rk312x_lcdc_shutdown(struct platform_device *pdev)
 {
 	struct lcdc_device *lcdc_dev = platform_get_drvdata(pdev);
+	struct rk_lcdc_driver *dev_drv=&lcdc_dev->driver;
 
-	rk312x_lcdc_early_suspend(&lcdc_dev->driver);
+	flush_kthread_worker(&dev_drv->update_regs_worker);
+	kthread_stop(dev_drv->update_regs_thread);
+
 	rk312x_lcdc_deinit(lcdc_dev);
-
-	if (lcdc_dev->backlight)
-		put_device(&lcdc_dev->backlight->dev);
+	rk312x_lcdc_clk_disable(lcdc_dev);
+	rk_disp_pwr_disable(&lcdc_dev->driver);
 }
 
 static struct platform_driver rk312x_lcdc_driver = {
