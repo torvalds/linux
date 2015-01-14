@@ -152,8 +152,6 @@ struct mxs_auart_port {
 	unsigned int mctrl_prev;
 	enum mxs_auart_type devtype;
 
-	unsigned int irq;
-
 	struct clk *clk;
 	struct device *dev;
 
@@ -1228,7 +1226,7 @@ static int mxs_auart_probe(struct platform_device *pdev)
 			of_match_device(mxs_auart_dt_ids, &pdev->dev);
 	struct mxs_auart_port *s;
 	u32 version;
-	int ret = 0;
+	int ret = 0, irq;
 	struct resource *r;
 
 	s = devm_kzalloc(&pdev->dev, sizeof(*s), GFP_KERNEL);
@@ -1266,9 +1264,9 @@ static int mxs_auart_probe(struct platform_device *pdev)
 
 	s->mctrl_prev = 0;
 
-	s->irq = platform_get_irq(pdev, 0);
-	s->port.irq = s->irq;
-	ret = devm_request_irq(&pdev->dev, s->irq, mxs_auart_irq_handle, 0,
+	irq = platform_get_irq(pdev, 0);
+	s->port.irq = irq;
+	ret = devm_request_irq(&pdev->dev, irq, mxs_auart_irq_handle, 0,
 			       dev_name(&pdev->dev), s);
 	if (ret)
 		return ret;
