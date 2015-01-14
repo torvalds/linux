@@ -33,7 +33,7 @@ nvaf_devinit_disable(struct nouveau_devinit *devinit)
 	u64 disable = 0;
 
 	if (!(r001540 & 0x40000000)) {
-		disable |= (1ULL << NVDEV_ENGINE_VP);
+		disable |= (1ULL << NVDEV_ENGINE_MSPDEC);
 		disable |= (1ULL << NVDEV_ENGINE_MSPPP);
 	}
 

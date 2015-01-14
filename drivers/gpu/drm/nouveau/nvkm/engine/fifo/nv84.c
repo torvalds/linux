@@ -57,7 +57,8 @@ nv84_fifo_context_attach(struct nouveau_object *parent,
 	switch (nv_engidx(object->engine)) {
 	case NVDEV_ENGINE_SW    : return 0;
 	case NVDEV_ENGINE_GR    : addr = 0x0020; break;
-	case NVDEV_ENGINE_VP    : addr = 0x0040; break;
+	case NVDEV_ENGINE_VP    :
+	case NVDEV_ENGINE_MSPDEC: addr = 0x0040; break;
 	case NVDEV_ENGINE_MSPPP :
 	case NVDEV_ENGINE_MPEG  : addr = 0x0060; break;
 	case NVDEV_ENGINE_BSP   :
@@ -95,7 +96,8 @@ nv84_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 	switch (nv_engidx(object->engine)) {
 	case NVDEV_ENGINE_SW    : return 0;
 	case NVDEV_ENGINE_GR    : engn = 0; addr = 0x0020; break;
-	case NVDEV_ENGINE_VP    : engn = 3; addr = 0x0040; break;
+	case NVDEV_ENGINE_VP    :
+	case NVDEV_ENGINE_MSPDEC: engn = 3; addr = 0x0040; break;
 	case NVDEV_ENGINE_MSPPP :
 	case NVDEV_ENGINE_MPEG  : engn = 1; addr = 0x0060; break;
 	case NVDEV_ENGINE_BSP   :
@@ -148,7 +150,8 @@ nv84_fifo_object_attach(struct nouveau_object *parent,
 	case NVDEV_ENGINE_MSPPP : context |= 0x00200000; break;
 	case NVDEV_ENGINE_ME    :
 	case NVDEV_ENGINE_CE0   : context |= 0x00300000; break;
-	case NVDEV_ENGINE_VP    : context |= 0x00400000; break;
+	case NVDEV_ENGINE_VP    :
+	case NVDEV_ENGINE_MSPDEC: context |= 0x00400000; break;
 	case NVDEV_ENGINE_CIPHER:
 	case NVDEV_ENGINE_SEC   :
 	case NVDEV_ENGINE_VIC   : context |= 0x00500000; break;
@@ -195,6 +198,7 @@ nv84_fifo_chan_ctor_dma(struct nouveau_object *parent,
 					  (1ULL << NVDEV_ENGINE_SEC) |
 					  (1ULL << NVDEV_ENGINE_BSP) |
 					  (1ULL << NVDEV_ENGINE_MSVLD) |
+					  (1ULL << NVDEV_ENGINE_MSPDEC) |
 					  (1ULL << NVDEV_ENGINE_MSPPP) |
 					  (1ULL << NVDEV_ENGINE_CE0) |
 					  (1ULL << NVDEV_ENGINE_VIC), &chan);
@@ -270,6 +274,7 @@ nv84_fifo_chan_ctor_ind(struct nouveau_object *parent,
 					  (1ULL << NVDEV_ENGINE_SEC) |
 					  (1ULL << NVDEV_ENGINE_BSP) |
 					  (1ULL << NVDEV_ENGINE_MSVLD) |
+					  (1ULL << NVDEV_ENGINE_MSPDEC) |
 					  (1ULL << NVDEV_ENGINE_MSPPP) |
 					  (1ULL << NVDEV_ENGINE_CE0) |
 					  (1ULL << NVDEV_ENGINE_VIC), &chan);

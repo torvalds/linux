@@ -48,7 +48,7 @@ static const struct {
 } fifo_engine[] = {
 	_(NVDEV_ENGINE_GR      , (1ULL << NVDEV_ENGINE_SW) |
 				 (1ULL << NVDEV_ENGINE_CE2)),
-	_(NVDEV_ENGINE_VP      , 0),
+	_(NVDEV_ENGINE_MSPDEC  , 0),
 	_(NVDEV_ENGINE_MSPPP   , 0),
 	_(NVDEV_ENGINE_MSVLD   , 0),
 	_(NVDEV_ENGINE_CE0     , 0),
@@ -148,10 +148,10 @@ nve0_fifo_context_attach(struct nouveau_object *parent,
 	case NVDEV_ENGINE_CE2:
 		nv_engctx(ectx)->addr = nv_gpuobj(base)->addr >> 12;
 		return 0;
-	case NVDEV_ENGINE_GR   : addr = 0x0210; break;
-	case NVDEV_ENGINE_MSVLD: addr = 0x0270; break;
-	case NVDEV_ENGINE_VP   : addr = 0x0250; break;
-	case NVDEV_ENGINE_MSPPP: addr = 0x0260; break;
+	case NVDEV_ENGINE_GR    : addr = 0x0210; break;
+	case NVDEV_ENGINE_MSVLD : addr = 0x0270; break;
+	case NVDEV_ENGINE_MSPDEC: addr = 0x0250; break;
+	case NVDEV_ENGINE_MSPPP : addr = 0x0260; break;
 	default:
 		return -EINVAL;
 	}
@@ -182,14 +182,14 @@ nve0_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 	u32 addr;
 
 	switch (nv_engidx(object->engine)) {
-	case NVDEV_ENGINE_SW   : return 0;
-	case NVDEV_ENGINE_CE0  :
-	case NVDEV_ENGINE_CE1  :
-	case NVDEV_ENGINE_CE2  : addr = 0x0000; break;
-	case NVDEV_ENGINE_GR   : addr = 0x0210; break;
-	case NVDEV_ENGINE_MSVLD: addr = 0x0270; break;
-	case NVDEV_ENGINE_VP   : addr = 0x0250; break;
-	case NVDEV_ENGINE_MSPPP: addr = 0x0260; break;
+	case NVDEV_ENGINE_SW    : return 0;
+	case NVDEV_ENGINE_CE0   :
+	case NVDEV_ENGINE_CE1   :
+	case NVDEV_ENGINE_CE2   : addr = 0x0000; break;
+	case NVDEV_ENGINE_GR    : addr = 0x0210; break;
+	case NVDEV_ENGINE_MSVLD : addr = 0x0270; break;
+	case NVDEV_ENGINE_MSPDEC: addr = 0x0250; break;
+	case NVDEV_ENGINE_MSPPP : addr = 0x0260; break;
 	default:
 		return -EINVAL;
 	}
@@ -414,14 +414,14 @@ static inline int
 nve0_fifo_engidx(struct nve0_fifo_priv *priv, u32 engn)
 {
 	switch (engn) {
-	case NVDEV_ENGINE_GR   :
-	case NVDEV_ENGINE_CE2  : engn = 0; break;
-	case NVDEV_ENGINE_MSVLD: engn = 1; break;
-	case NVDEV_ENGINE_MSPPP: engn = 2; break;
-	case NVDEV_ENGINE_VP   : engn = 3; break;
-	case NVDEV_ENGINE_CE0  : engn = 4; break;
-	case NVDEV_ENGINE_CE1  : engn = 5; break;
-	case NVDEV_ENGINE_MSENC: engn = 6; break;
+	case NVDEV_ENGINE_GR    :
+	case NVDEV_ENGINE_CE2   : engn = 0; break;
+	case NVDEV_ENGINE_MSVLD : engn = 1; break;
+	case NVDEV_ENGINE_MSPPP : engn = 2; break;
+	case NVDEV_ENGINE_MSPDEC: engn = 3; break;
+	case NVDEV_ENGINE_CE0   : engn = 4; break;
+	case NVDEV_ENGINE_CE1   : engn = 5; break;
+	case NVDEV_ENGINE_MSENC : engn = 6; break;
 	default:
 		return -1;
 	}
@@ -622,7 +622,7 @@ nve0_fifo_fault_engine[] = {
 	{ 0x10, "MSVLD", NULL, NVDEV_ENGINE_MSVLD },
 	{ 0x11, "MSPPP", NULL, NVDEV_ENGINE_MSPPP },
 	{ 0x13, "PERF" },
-	{ 0x14, "MSPDEC", NULL, NVDEV_ENGINE_VP },
+	{ 0x14, "MSPDEC", NULL, NVDEV_ENGINE_MSPDEC },
 	{ 0x15, "CE0", NULL, NVDEV_ENGINE_CE0 },
 	{ 0x16, "CE1", NULL, NVDEV_ENGINE_CE1 },
 	{ 0x17, "PMU" },

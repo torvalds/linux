@@ -1,4 +1,1 @@
 nvkm-y += nvkm/engine/vp/nv84.o
-nvkm-y += nvkm/engine/vp/nv98.o
-nvkm-y += nvkm/engine/vp/nvc0.o
-nvkm-y += nvkm/engine/vp/nve0.o

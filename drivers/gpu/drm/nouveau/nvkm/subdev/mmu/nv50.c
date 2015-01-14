@@ -172,7 +172,8 @@ nv50_vm_flush(struct nouveau_vm *vm)
 
 		switch (i) {
 		case NVDEV_ENGINE_GR    : vme = 0x00; break;
-		case NVDEV_ENGINE_VP    : vme = 0x01; break;
+		case NVDEV_ENGINE_VP    :
+		case NVDEV_ENGINE_MSPDEC: vme = 0x01; break;
 		case NVDEV_SUBDEV_BAR   : vme = 0x06; break;
 		case NVDEV_ENGINE_MSPPP :
 		case NVDEV_ENGINE_MPEG  : vme = 0x08; break;

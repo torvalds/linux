@@ -194,6 +194,8 @@ nv50_fb_intr(struct nouveau_subdev *subdev)
 				engine = nouveau_engine(subdev, NVDEV_ENGINE_MSVLD);
 			if (!engine && en->data2 == NVDEV_ENGINE_CIPHER)
 				engine = nouveau_engine(subdev, NVDEV_ENGINE_SEC);
+			if (!engine && en->data2 == NVDEV_ENGINE_VP)
+				engine = nouveau_engine(subdev, NVDEV_ENGINE_MSPDEC);
 			if (engine) {
 				engctx = nouveau_engctx_get(engine, chan);
 				if (engctx)

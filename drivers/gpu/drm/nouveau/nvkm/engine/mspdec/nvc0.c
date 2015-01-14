@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat Inc.
+ * Copyright 2012 Maarten Lankhorst
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,33 +19,33 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Ben Skeggs
+ * Authors: Maarten Lankhorst
  */
 
 #include <engine/falcon.h>
-#include <engine/vp.h>
+#include <engine/mspdec.h>
 
-struct nve0_vp_priv {
+struct nvc0_mspdec_priv {
 	struct nouveau_falcon base;
 };
 
 /*******************************************************************************
- * VP object classes
+ * MSPDEC object classes
  ******************************************************************************/
 
 static struct nouveau_oclass
-nve0_vp_sclass[] = {
-	{ 0x95b2, &nouveau_object_ofuncs },
+nvc0_mspdec_sclass[] = {
+	{ 0x90b2, &nouveau_object_ofuncs },
 	{},
 };
 
 /*******************************************************************************
- * PVP context
+ * PMSPDEC context
  ******************************************************************************/
 
 static struct nouveau_oclass
-nve0_vp_cclass = {
-	.handle = NV_ENGCTX(VP, 0xe0),
+nvc0_mspdec_cclass = {
+	.handle = NV_ENGCTX(MSPDEC, 0xc0),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = _nouveau_falcon_context_ctor,
 		.dtor = _nouveau_falcon_context_dtor,
@@ -57,13 +57,13 @@ nve0_vp_cclass = {
 };
 
 /*******************************************************************************
- * PVP engine/subdev functions
+ * PMSPDEC engine/subdev functions
  ******************************************************************************/
 
 static int
-nve0_vp_init(struct nouveau_object *object)
+nvc0_mspdec_init(struct nouveau_object *object)
 {
-	struct nve0_vp_priv *priv = (void *)object;
+	struct nvc0_mspdec_priv *priv = (void *)object;
 	int ret;
 
 	ret = nouveau_falcon_init(&priv->base);
@@ -76,33 +76,33 @@ nve0_vp_init(struct nouveau_object *object)
 }
 
 static int
-nve0_vp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+nvc0_mspdec_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	     struct nouveau_oclass *oclass, void *data, u32 size,
 	     struct nouveau_object **pobject)
 {
-	struct nve0_vp_priv *priv;
+	struct nvc0_mspdec_priv *priv;
 	int ret;
 
 	ret = nouveau_falcon_create(parent, engine, oclass, 0x085000, true,
-				    "PVP", "vp", &priv);
+				    "PMSPDEC", "mspdec", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	nv_subdev(priv)->unit = 0x00020000;
 	nv_subdev(priv)->intr = nouveau_falcon_intr;
-	nv_engine(priv)->cclass = &nve0_vp_cclass;
-	nv_engine(priv)->sclass = nve0_vp_sclass;
+	nv_engine(priv)->cclass = &nvc0_mspdec_cclass;
+	nv_engine(priv)->sclass = nvc0_mspdec_sclass;
 	return 0;
 }
 
 struct nouveau_oclass
-nve0_vp_oclass = {
-	.handle = NV_ENGINE(VP, 0xe0),
+nvc0_mspdec_oclass = {
+	.handle = NV_ENGINE(MSPDEC, 0xc0),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nve0_vp_ctor,
+		.ctor = nvc0_mspdec_ctor,
 		.dtor = _nouveau_falcon_dtor,
-		.init = nve0_vp_init,
+		.init = nvc0_mspdec_init,
 		.fini = _nouveau_falcon_fini,
 		.rd32 = _nouveau_falcon_rd32,
 		.wr32 = _nouveau_falcon_wr32,

@@ -1,0 +1,3 @@
+nvkm-y += nvkm/engine/mspdec/nv98.o
+nvkm-y += nvkm/engine/mspdec/nvc0.o
+nvkm-y += nvkm/engine/mspdec/nve0.o

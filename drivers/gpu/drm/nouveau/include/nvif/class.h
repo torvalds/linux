@@ -136,6 +136,7 @@ struct nv_device_v0 {
 #define NV_DEVICE_V0_DISABLE_CE2                          0x0000080000000000ULL
 #define NV_DEVICE_V0_DISABLE_MSVLD                        0x0000100000000000ULL
 #define NV_DEVICE_V0_DISABLE_SEC                          0x0000200000000000ULL
+#define NV_DEVICE_V0_DISABLE_MSPDEC                       0x0000400000000000ULL
 	__u64 disable;	/* disable particular subsystems */
 	__u64 debug0;	/* as above, but *internal* ids, and *NOT* ABI */
 };
@@ -348,7 +349,7 @@ struct nv50_channel_gpfifo_v0 {
 struct kepler_channel_gpfifo_a_v0 {
 	__u8  version;
 #define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_GR                               0x01
-#define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_VP                               0x02
+#define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_MSPDEC                           0x02
 #define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_MSPPP                            0x04
 #define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_MSVLD                            0x08
 #define KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_CE0                              0x10
