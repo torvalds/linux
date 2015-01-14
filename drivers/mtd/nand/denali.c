@@ -1533,6 +1533,9 @@ int denali_init(struct denali_nand_info *denali)
 	denali->nand.options |= NAND_SKIP_BBTSCAN;
 	denali->nand.ecc.mode = NAND_ECC_HW_SYNDROME;
 
+	/* no subpage writes on denali */
+	denali->nand.options |= NAND_NO_SUBPAGE_WRITE;
+
 	/*
 	 * Denali Controller only support 15bit and 8bit ECC in MRST,
 	 * so just let controller do 15bit ECC for MLC and 8bit ECC for
