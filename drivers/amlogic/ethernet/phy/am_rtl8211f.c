@@ -119,9 +119,39 @@ static struct phy_driver rtl8211e_driver = {
 	.driver		= { .owner = THIS_MODULE,},
 };
 
+static int __init setup_etherphy(char *line)
+{
+        int speeds[3];
+        int features;
+        int i;
+
+        get_options(line, ARRAY_SIZE(speeds), speeds);
+
+        features = rtl8211e_driver.features
+                & ~(SUPPORTED_10baseT_Half | SUPPORTED_10baseT_Full |
+                        SUPPORTED_100baseT_Half | SUPPORTED_100baseT_Full |
+                        SUPPORTED_1000baseT_Half | SUPPORTED_1000baseT_Full);
+
+        for (i = 0; i < ARRAY_SIZE(speeds); i++) {
+                if (speeds[i] == 10)
+                        features |= (SUPPORTED_10baseT_Half |
+                                        SUPPORTED_10baseT_Full);
+                else if (speeds[i] == 100)
+                        features |= (SUPPORTED_100baseT_Half |
+                                        SUPPORTED_100baseT_Full);
+                else if (speeds[i] == 1000)
+                        features |= (SUPPORTED_1000baseT_Half |
+                                        SUPPORTED_1000baseT_Full);
+        }
+
+        rtl8211e_driver.features = features;
+
+        return 0;
+}
+__setup("etherphy=", setup_etherphy);
+
 static int __init realtek_init(void)
 {
-
 	return phy_driver_register(&rtl8211e_driver);
 }
 
