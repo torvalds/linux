@@ -96,7 +96,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLK    ] =  g84_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nv84_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv84_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_DEVINIT] =  g84_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv50_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] =  nv50_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
@@ -125,7 +125,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLK    ] =  g84_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nv84_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv84_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_DEVINIT] =  g84_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv50_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] =  nv50_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
@@ -154,7 +154,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLK    ] =  g84_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nv84_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv84_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_DEVINIT] =  g84_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv50_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] =  nv50_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
@@ -183,7 +183,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLK    ] =  g84_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nv84_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv84_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_DEVINIT] =  g84_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv94_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] =  g94_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
@@ -212,7 +212,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLK    ] =  g84_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nv84_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv84_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_DEVINIT] =  g84_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv94_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] =  g94_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
@@ -241,7 +241,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLK    ] =  g84_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nv84_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv98_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_DEVINIT] =  g98_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv98_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] =  g94_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
@@ -270,7 +270,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLK    ] =  g84_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nv84_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv84_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_DEVINIT] =  g84_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv98_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] =  g94_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
@@ -299,7 +299,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLK    ] =  mcp77_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nv84_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv98_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_DEVINIT] =  g98_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv98_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] =  g94_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
@@ -328,7 +328,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLK    ] =  mcp77_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nv84_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv98_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_DEVINIT] =  g98_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv98_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] =  g94_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
@@ -357,7 +357,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &gt215_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nva3_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nva3_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_DEVINIT] =  gt215_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv98_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] =  g94_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
@@ -388,7 +388,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &gt215_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nva3_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nva3_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_DEVINIT] =  gt215_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv98_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] =  g94_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
@@ -418,7 +418,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &gt215_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nva3_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nva3_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_DEVINIT] =  gt215_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv98_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] =  g94_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
@@ -448,7 +448,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &gt215_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_THERM  ] = &nva3_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
-		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nvaf_devinit_oclass;
+		device->oclass[NVDEV_SUBDEV_DEVINIT] =  mcp89_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nv98_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] =  g94_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;

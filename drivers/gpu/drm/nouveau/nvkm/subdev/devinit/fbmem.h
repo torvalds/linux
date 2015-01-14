@@ -23,9 +23,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-
 #include <core/device.h>
-
 #include <subdev/fb/regsnv04.h>
 
 #define NV04_PFB_DEBUG_0					0x00100080
@@ -48,7 +46,7 @@
 #	define NV10_PFB_REFCTRL_VALID_1				(1 << 31)
 
 static inline struct io_mapping *
-fbmem_init(struct nouveau_device *dev)
+fbmem_init(struct nvkm_device *dev)
 {
 	return io_mapping_create_wc(nv_device_resource_start(dev, 1),
 				    nv_device_resource_len(dev, 1));

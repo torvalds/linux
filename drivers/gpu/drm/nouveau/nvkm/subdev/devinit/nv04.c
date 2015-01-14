@@ -23,14 +23,17 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#include "nv04.h"
+#include "fbmem.h"
 
+#include <subdev/bios.h>
+#include <subdev/bios/init.h>
+#include <subdev/bios/pll.h>
+#include <subdev/clk/pll.h>
 #include <subdev/vga.h>
 
-#include "fbmem.h"
-#include "nv04.h"
-
 static void
-nv04_devinit_meminit(struct nouveau_devinit *devinit)
+nv04_devinit_meminit(struct nvkm_devinit *devinit)
 {
 	struct nv04_devinit_priv *priv = (void *)devinit;
 	u32 patt = 0xdeadbeef;
@@ -136,10 +139,10 @@ powerctrl_1_shift(int chip_version, int reg)
 }
 
 void
-setPLL_single(struct nouveau_devinit *devinit, u32 reg,
-	      struct nouveau_pll_vals *pv)
+setPLL_single(struct nvkm_devinit *devinit, u32 reg,
+	      struct nvkm_pll_vals *pv)
 {
-	int chip_version = nouveau_bios(devinit)->version.chip;
+	int chip_version = nvkm_bios(devinit)->version.chip;
 	uint32_t oldpll = nv_rd32(devinit, reg);
 	int oldN = (oldpll >> 8) & 0xff, oldM = oldpll & 0xff;
 	uint32_t pll = (oldpll & 0xfff80000) | pv->log2P << 16 | pv->NM1;
@@ -190,10 +193,10 @@ new_ramdac580(uint32_t reg1, bool ss, uint32_t ramdac580)
 }
 
 void
-setPLL_double_highregs(struct nouveau_devinit *devinit, u32 reg1,
-		       struct nouveau_pll_vals *pv)
+setPLL_double_highregs(struct nvkm_devinit *devinit, u32 reg1,
+		       struct nvkm_pll_vals *pv)
 {
-	int chip_version = nouveau_bios(devinit)->version.chip;
+	int chip_version = nvkm_bios(devinit)->version.chip;
 	bool nv3035 = chip_version == 0x30 || chip_version == 0x35;
 	uint32_t reg2 = reg1 + ((reg1 == 0x680520) ? 0x5c : 0x70);
 	uint32_t oldpll1 = nv_rd32(devinit, reg1);
@@ -267,8 +270,8 @@ setPLL_double_highregs(struct nouveau_devinit *devinit, u32 reg1,
 }
 
 void
-setPLL_double_lowregs(struct nouveau_devinit *devinit, u32 NMNMreg,
-		      struct nouveau_pll_vals *pv)
+setPLL_double_lowregs(struct nvkm_devinit *devinit, u32 NMNMreg,
+		      struct nvkm_pll_vals *pv)
 {
 	/* When setting PLLs, there is a merry game of disabling and enabling
 	 * various bits of hardware during the process. This function is a
@@ -301,7 +304,7 @@ setPLL_double_lowregs(struct nouveau_devinit *devinit, u32 NMNMreg,
 		struct nvbios_pll info;
 		uint8_t Pval2;
 
-		if (nvbios_pll_parse(nouveau_bios(devinit), Preg, &info))
+		if (nvbios_pll_parse(nvkm_bios(devinit), Preg, &info))
 			return;
 
 		Pval2 = pv->log2P + info.bias_p;
@@ -347,10 +350,10 @@ setPLL_double_lowregs(struct nouveau_devinit *devinit, u32 NMNMreg,
 }
 
 int
-nv04_devinit_pll_set(struct nouveau_devinit *devinit, u32 type, u32 freq)
+nv04_devinit_pll_set(struct nvkm_devinit *devinit, u32 type, u32 freq)
 {
-	struct nouveau_bios *bios = nouveau_bios(devinit);
-	struct nouveau_pll_vals pv;
+	struct nvkm_bios *bios = nvkm_bios(devinit);
+	struct nvkm_pll_vals pv;
 	struct nvbios_pll info;
 	int cv = bios->version.chip;
 	int N1, M1, N2, M2, P;
@@ -361,7 +364,7 @@ nv04_devinit_pll_set(struct nouveau_devinit *devinit, u32 type, u32 freq)
 		return ret;
 
 	ret = nv04_pll_calc(nv_subdev(devinit), &info, freq,
-			   &N1, &M1, &N2, &M2, &P);
+			    &N1, &M1, &N2, &M2, &P);
 	if (!ret)
 		return -EINVAL;
 
@@ -385,7 +388,7 @@ nv04_devinit_pll_set(struct nouveau_devinit *devinit, u32 type, u32 freq)
 }
 
 int
-nv04_devinit_fini(struct nouveau_object *object, bool suspend)
+nv04_devinit_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nv04_devinit_priv *priv = (void *)object;
 	int ret;
@@ -393,7 +396,7 @@ nv04_devinit_fini(struct nouveau_object *object, bool suspend)
 	/* make i2c busses accessible */
 	nv_mask(priv, 0x000200, 0x00000001, 0x00000001);
 
-	ret = nouveau_devinit_fini(&priv->base, suspend);
+	ret = nvkm_devinit_fini(&priv->base, suspend);
 	if (ret)
 		return ret;
 
@@ -401,12 +404,11 @@ nv04_devinit_fini(struct nouveau_object *object, bool suspend)
 	if (priv->owner < 0)
 		priv->owner = nv_rdvgaowner(priv);
 	nv_wrvgaowner(priv, 0);
-
 	return 0;
 }
 
 int
-nv04_devinit_init(struct nouveau_object *object)
+nv04_devinit_init(struct nvkm_object *object)
 {
 	struct nv04_devinit_priv *priv = (void *)object;
 
@@ -422,29 +424,29 @@ nv04_devinit_init(struct nouveau_object *object)
 		}
 	}
 
-	return nouveau_devinit_init(&priv->base);
+	return nvkm_devinit_init(&priv->base);
 }
 
 void
-nv04_devinit_dtor(struct nouveau_object *object)
+nv04_devinit_dtor(struct nvkm_object *object)
 {
 	struct nv04_devinit_priv *priv = (void *)object;
 
 	/* restore vga owner saved at first init */
 	nv_wrvgaowner(priv, priv->owner);
 
-	nouveau_devinit_destroy(&priv->base);
+	nvkm_devinit_destroy(&priv->base);
 }
 
 int
-nv04_devinit_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		  struct nouveau_oclass *oclass, void *data, u32 size,
-		  struct nouveau_object **pobject)
+nv04_devinit_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		  struct nvkm_oclass *oclass, void *data, u32 size,
+		  struct nvkm_object **pobject)
 {
 	struct nv04_devinit_priv *priv;
 	int ret;
 
-	ret = nouveau_devinit_create(parent, engine, oclass, &priv);
+	ret = nvkm_devinit_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -453,10 +455,10 @@ nv04_devinit_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass *
-nv04_devinit_oclass = &(struct nouveau_devinit_impl) {
+struct nvkm_oclass *
+nv04_devinit_oclass = &(struct nvkm_devinit_impl) {
 	.base.handle = NV_SUBDEV(DEVINIT, 0x04),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_devinit_ctor,
 		.dtor = nv04_devinit_dtor,
 		.init = nv04_devinit_init,

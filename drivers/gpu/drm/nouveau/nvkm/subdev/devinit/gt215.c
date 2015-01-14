@@ -21,14 +21,18 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "nv50.h"
 
+#include <subdev/bios.h>
+#include <subdev/bios/init.h>
+#include <subdev/bios/pll.h>
+#include <subdev/clk/pll.h>
+
 int
-nva3_devinit_pll_set(struct nouveau_devinit *devinit, u32 type, u32 freq)
+gt215_devinit_pll_set(struct nvkm_devinit *devinit, u32 type, u32 freq)
 {
 	struct nv50_devinit_priv *priv = (void *)devinit;
-	struct nouveau_bios *bios = nouveau_bios(priv);
+	struct nvkm_bios *bios = nvkm_bios(priv);
 	struct nvbios_pll info;
 	int N, fN, M, P;
 	int ret;
@@ -37,7 +41,7 @@ nva3_devinit_pll_set(struct nouveau_devinit *devinit, u32 type, u32 freq)
 	if (ret)
 		return ret;
 
-	ret = nva3_pll_calc(nv_subdev(devinit), &info, freq, &N, &fN, &M, &P);
+	ret = gt215_pll_calc(nv_subdev(devinit), &info, freq, &N, &fN, &M, &P);
 	if (ret < 0)
 		return ret;
 
@@ -59,7 +63,7 @@ nva3_devinit_pll_set(struct nouveau_devinit *devinit, u32 type, u32 freq)
 }
 
 static u64
-nva3_devinit_disable(struct nouveau_devinit *devinit)
+gt215_devinit_disable(struct nvkm_devinit *devinit)
 {
 	struct nv50_devinit_priv *priv = (void *)devinit;
 	u32 r001540 = nv_rd32(priv, 0x001540);
@@ -82,7 +86,7 @@ nva3_devinit_disable(struct nouveau_devinit *devinit)
 }
 
 static u32
-nva3_devinit_mmio_part[] = {
+gt215_devinit_mmio_part[] = {
 	0x100720, 0x1008bc, 4,
 	0x100a20, 0x100adc, 4,
 	0x100d80, 0x100ddc, 4,
@@ -95,10 +99,10 @@ nva3_devinit_mmio_part[] = {
 };
 
 static u32
-nva3_devinit_mmio(struct nouveau_devinit *devinit, u32 addr)
+gt215_devinit_mmio(struct nvkm_devinit *devinit, u32 addr)
 {
 	struct nv50_devinit_priv *priv = (void *)devinit;
-	u32 *mmio = nva3_devinit_mmio_part;
+	u32 *mmio = gt215_devinit_mmio_part;
 
 	/* the init tables on some boards have INIT_RAM_RESTRICT_ZM_REG_GROUP
 	 * instructions which touch registers that may not even exist on
@@ -130,17 +134,17 @@ nva3_devinit_mmio(struct nouveau_devinit *devinit, u32 addr)
 	return addr;
 }
 
-struct nouveau_oclass *
-nva3_devinit_oclass = &(struct nouveau_devinit_impl) {
+struct nvkm_oclass *
+gt215_devinit_oclass = &(struct nvkm_devinit_impl) {
 	.base.handle = NV_SUBDEV(DEVINIT, 0xa3),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv50_devinit_ctor,
-		.dtor = _nouveau_devinit_dtor,
+		.dtor = _nvkm_devinit_dtor,
 		.init = nv50_devinit_init,
-		.fini = _nouveau_devinit_fini,
+		.fini = _nvkm_devinit_fini,
 	},
-	.pll_set = nva3_devinit_pll_set,
-	.disable = nva3_devinit_disable,
-	.mmio    = nva3_devinit_mmio,
+	.pll_set = gt215_devinit_pll_set,
+	.disable = gt215_devinit_disable,
+	.mmio    = gt215_devinit_mmio,
 	.post = nvbios_init,
 }.base;

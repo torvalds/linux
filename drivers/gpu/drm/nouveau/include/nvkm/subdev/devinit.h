@@ -1,35 +1,32 @@
-#ifndef __NOUVEAU_DEVINIT_H__
-#define __NOUVEAU_DEVINIT_H__
-
+#ifndef __NVKM_DEVINIT_H__
+#define __NVKM_DEVINIT_H__
 #include <core/subdev.h>
-#include <core/device.h>
 
-struct nouveau_devinit {
-	struct nouveau_subdev base;
+struct nvkm_devinit {
+	struct nvkm_subdev base;
 	bool post;
-	void (*meminit)(struct nouveau_devinit *);
-	int  (*pll_set)(struct nouveau_devinit *, u32 type, u32 freq);
-	u32  (*mmio)(struct nouveau_devinit *, u32 addr);
+	void (*meminit)(struct nvkm_devinit *);
+	int  (*pll_set)(struct nvkm_devinit *, u32 type, u32 freq);
+	u32  (*mmio)(struct nvkm_devinit *, u32 addr);
 };
 
-static inline struct nouveau_devinit *
-nouveau_devinit(void *obj)
+static inline struct nvkm_devinit *
+nvkm_devinit(void *obj)
 {
-	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_DEVINIT);
+	return (void *)nvkm_subdev(obj, NVDEV_SUBDEV_DEVINIT);
 }
 
-extern struct nouveau_oclass *nv04_devinit_oclass;
-extern struct nouveau_oclass *nv05_devinit_oclass;
-extern struct nouveau_oclass *nv10_devinit_oclass;
-extern struct nouveau_oclass *nv1a_devinit_oclass;
-extern struct nouveau_oclass *nv20_devinit_oclass;
-extern struct nouveau_oclass *nv50_devinit_oclass;
-extern struct nouveau_oclass *nv84_devinit_oclass;
-extern struct nouveau_oclass *nv98_devinit_oclass;
-extern struct nouveau_oclass *nva3_devinit_oclass;
-extern struct nouveau_oclass *nvaf_devinit_oclass;
-extern struct nouveau_oclass *nvc0_devinit_oclass;
-extern struct nouveau_oclass *gm107_devinit_oclass;
-extern struct nouveau_oclass *gm204_devinit_oclass;
-
+extern struct nvkm_oclass *nv04_devinit_oclass;
+extern struct nvkm_oclass *nv05_devinit_oclass;
+extern struct nvkm_oclass *nv10_devinit_oclass;
+extern struct nvkm_oclass *nv1a_devinit_oclass;
+extern struct nvkm_oclass *nv20_devinit_oclass;
+extern struct nvkm_oclass *nv50_devinit_oclass;
+extern struct nvkm_oclass *g84_devinit_oclass;
+extern struct nvkm_oclass *g98_devinit_oclass;
+extern struct nvkm_oclass *gt215_devinit_oclass;
+extern struct nvkm_oclass *mcp89_devinit_oclass;
+extern struct nvkm_oclass *gf100_devinit_oclass;
+extern struct nvkm_oclass *gm107_devinit_oclass;
+extern struct nvkm_oclass *gm204_devinit_oclass;
 #endif

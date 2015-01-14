@@ -21,14 +21,18 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "nv50.h"
 
+#include <subdev/bios.h>
+#include <subdev/bios/init.h>
+#include <subdev/bios/pll.h>
+#include <subdev/clk/pll.h>
+
 int
-nvc0_devinit_pll_set(struct nouveau_devinit *devinit, u32 type, u32 freq)
+gf100_devinit_pll_set(struct nvkm_devinit *devinit, u32 type, u32 freq)
 {
 	struct nv50_devinit_priv *priv = (void *)devinit;
-	struct nouveau_bios *bios = nouveau_bios(priv);
+	struct nvkm_bios *bios = nvkm_bios(priv);
 	struct nvbios_pll info;
 	int N, fN, M, P;
 	int ret;
@@ -37,7 +41,7 @@ nvc0_devinit_pll_set(struct nouveau_devinit *devinit, u32 type, u32 freq)
 	if (ret)
 		return ret;
 
-	ret = nva3_pll_calc(nv_subdev(devinit), &info, freq, &N, &fN, &M, &P);
+	ret = gt215_pll_calc(nv_subdev(devinit), &info, freq, &N, &fN, &M, &P);
 	if (ret < 0)
 		return ret;
 
@@ -60,7 +64,7 @@ nvc0_devinit_pll_set(struct nouveau_devinit *devinit, u32 type, u32 freq)
 }
 
 static u64
-nvc0_devinit_disable(struct nouveau_devinit *devinit)
+gf100_devinit_disable(struct nvkm_devinit *devinit)
 {
 	struct nv50_devinit_priv *priv = (void *)devinit;
 	u32 r022500 = nv_rd32(priv, 0x022500);
@@ -87,33 +91,34 @@ nvc0_devinit_disable(struct nouveau_devinit *devinit)
 }
 
 static int
-nvc0_devinit_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		  struct nouveau_oclass *oclass, void *data, u32 size,
-		  struct nouveau_object **pobject)
+gf100_devinit_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		   struct nvkm_oclass *oclass, void *data, u32 size,
+		   struct nvkm_object **pobject)
 {
 	struct nv50_devinit_priv *priv;
 	int ret;
 
-	ret = nouveau_devinit_create(parent, engine, oclass, &priv);
+	ret = nvkm_devinit_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	if (nv_rd32(priv, 0x022500) & 0x00000001)
 		priv->base.post = true;
+
 	return 0;
 }
 
-struct nouveau_oclass *
-nvc0_devinit_oclass = &(struct nouveau_devinit_impl) {
+struct nvkm_oclass *
+gf100_devinit_oclass = &(struct nvkm_devinit_impl) {
 	.base.handle = NV_SUBDEV(DEVINIT, 0xc0),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_devinit_ctor,
-		.dtor = _nouveau_devinit_dtor,
+	.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gf100_devinit_ctor,
+		.dtor = _nvkm_devinit_dtor,
 		.init = nv50_devinit_init,
-		.fini = _nouveau_devinit_fini,
+		.fini = _nvkm_devinit_fini,
 	},
-	.pll_set = nvc0_devinit_pll_set,
-	.disable = nvc0_devinit_disable,
+	.pll_set = gf100_devinit_pll_set,
+	.disable = gf100_devinit_disable,
 	.post = nvbios_init,
 }.base;

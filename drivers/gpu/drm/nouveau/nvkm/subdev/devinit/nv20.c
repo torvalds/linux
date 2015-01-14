@@ -23,15 +23,17 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-
 #include "nv04.h"
 #include "fbmem.h"
 
+#include <subdev/bios.h>
+#include <subdev/bios/init.h>
+
 static void
-nv20_devinit_meminit(struct nouveau_devinit *devinit)
+nv20_devinit_meminit(struct nvkm_devinit *devinit)
 {
 	struct nv04_devinit_priv *priv = (void *)devinit;
-	struct nouveau_device *device = nv_device(priv);
+	struct nvkm_device *device = nv_device(priv);
 	uint32_t mask = (device->chipset >= 0x25 ? 0x300 : 0x900);
 	uint32_t amount, off;
 	struct io_mapping *fb;
@@ -60,10 +62,10 @@ nv20_devinit_meminit(struct nouveau_devinit *devinit)
 	fbmem_fini(fb);
 }
 
-struct nouveau_oclass *
-nv20_devinit_oclass = &(struct nouveau_devinit_impl) {
+struct nvkm_oclass *
+nv20_devinit_oclass = &(struct nvkm_devinit_impl) {
 	.base.handle = NV_SUBDEV(DEVINIT, 0x20),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_devinit_ctor,
 		.dtor = nv04_devinit_dtor,
 		.init = nv04_devinit_init,

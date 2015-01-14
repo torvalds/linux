@@ -21,11 +21,13 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "nv50.h"
 
+#include <subdev/bios.h>
+#include <subdev/bios/init.h>
+
 u64
-gm107_devinit_disable(struct nouveau_devinit *devinit)
+gm107_devinit_disable(struct nvkm_devinit *devinit)
 {
 	struct nv50_devinit_priv *priv = (void *)devinit;
 	u32 r021c00 = nv_rd32(priv, 0x021c00);
@@ -42,16 +44,16 @@ gm107_devinit_disable(struct nouveau_devinit *devinit)
 	return disable;
 }
 
-struct nouveau_oclass *
-gm107_devinit_oclass = &(struct nouveau_devinit_impl) {
+struct nvkm_oclass *
+gm107_devinit_oclass = &(struct nvkm_devinit_impl) {
 	.base.handle = NV_SUBDEV(DEVINIT, 0x07),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv50_devinit_ctor,
-		.dtor = _nouveau_devinit_dtor,
+		.dtor = _nvkm_devinit_dtor,
 		.init = nv50_devinit_init,
-		.fini = _nouveau_devinit_fini,
+		.fini = _nvkm_devinit_fini,
 	},
-	.pll_set = nvc0_devinit_pll_set,
+	.pll_set = gf100_devinit_pll_set,
 	.disable = gm107_devinit_disable,
 	.post = nvbios_init,
 }.base;

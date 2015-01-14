@@ -21,17 +21,16 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <core/option.h>
-
-#include <subdev/vga.h>
-
 #include "priv.h"
 
+#include <core/device.h>
+#include <core/option.h>
+#include <subdev/vga.h>
+
 int
-_nouveau_devinit_fini(struct nouveau_object *object, bool suspend)
+_nvkm_devinit_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nouveau_devinit *devinit = (void *)object;
+	struct nvkm_devinit *devinit = (void *)object;
 
 	/* force full reinit on resume */
 	if (suspend)
@@ -40,17 +39,17 @@ _nouveau_devinit_fini(struct nouveau_object *object, bool suspend)
 	/* unlock the extended vga crtc regs */
 	nv_lockvgac(devinit, false);
 
-	return nouveau_subdev_fini(&devinit->base, suspend);
+	return nvkm_subdev_fini(&devinit->base, suspend);
 }
 
 int
-_nouveau_devinit_init(struct nouveau_object *object)
+_nvkm_devinit_init(struct nvkm_object *object)
 {
-	struct nouveau_devinit_impl *impl = (void *)object->oclass;
-	struct nouveau_devinit *devinit = (void *)object;
+	struct nvkm_devinit_impl *impl = (void *)object->oclass;
+	struct nvkm_devinit *devinit = (void *)object;
 	int ret;
 
-	ret = nouveau_subdev_init(&devinit->base);
+	ret = nvkm_subdev_init(&devinit->base);
 	if (ret)
 		return ret;
 
@@ -64,34 +63,32 @@ _nouveau_devinit_init(struct nouveau_object *object)
 }
 
 void
-_nouveau_devinit_dtor(struct nouveau_object *object)
+_nvkm_devinit_dtor(struct nvkm_object *object)
 {
-	struct nouveau_devinit *devinit = (void *)object;
+	struct nvkm_devinit *devinit = (void *)object;
 
 	/* lock crtc regs */
 	nv_lockvgac(devinit, true);
 
-	nouveau_subdev_destroy(&devinit->base);
+	nvkm_subdev_destroy(&devinit->base);
 }
 
 int
-nouveau_devinit_create_(struct nouveau_object *parent,
-			struct nouveau_object *engine,
-			struct nouveau_oclass *oclass,
-			int size, void **pobject)
+nvkm_devinit_create_(struct nvkm_object *parent, struct nvkm_object *engine,
+		     struct nvkm_oclass *oclass, int size, void **pobject)
 {
-	struct nouveau_devinit_impl *impl = (void *)oclass;
-	struct nouveau_device *device = nv_device(parent);
-	struct nouveau_devinit *devinit;
+	struct nvkm_devinit_impl *impl = (void *)oclass;
+	struct nvkm_device *device = nv_device(parent);
+	struct nvkm_devinit *devinit;
 	int ret;
 
-	ret = nouveau_subdev_create_(parent, engine, oclass, 0, "DEVINIT",
-				     "init", size, pobject);
+	ret = nvkm_subdev_create_(parent, engine, oclass, 0, "DEVINIT",
+				  "init", size, pobject);
 	devinit = *pobject;
 	if (ret)
 		return ret;
 
-	devinit->post = nouveau_boolopt(device->cfgopt, "NvForcePost", false);
+	devinit->post = nvkm_boolopt(device->cfgopt, "NvForcePost", false);
 	devinit->meminit = impl->meminit;
 	devinit->pll_set = impl->pll_set;
 	devinit->mmio    = impl->mmio;

@@ -23,16 +23,16 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#include "nv04.h"
+#include "fbmem.h"
 
 #include <subdev/bios.h>
 #include <subdev/bios/bmp.h>
+#include <subdev/bios/init.h>
 #include <subdev/vga.h>
 
-#include "fbmem.h"
-#include "nv04.h"
-
 static void
-nv05_devinit_meminit(struct nouveau_devinit *devinit)
+nv05_devinit_meminit(struct nvkm_devinit *devinit)
 {
 	static const u8 default_config_tab[][2] = {
 		{ 0x24, 0x00 },
@@ -45,7 +45,7 @@ nv05_devinit_meminit(struct nouveau_devinit *devinit)
 		{ 0x00, 0x00 }
 	};
 	struct nv04_devinit_priv *priv = (void *)devinit;
-	struct nouveau_bios *bios = nouveau_bios(priv);
+	struct nvkm_bios *bios = nvkm_bios(priv);
 	struct io_mapping *fb;
 	u32 patt = 0xdeadbeef;
 	u16 data;
@@ -125,10 +125,10 @@ out:
 	fbmem_fini(fb);
 }
 
-struct nouveau_oclass *
-nv05_devinit_oclass = &(struct nouveau_devinit_impl) {
+struct nvkm_oclass *
+nv05_devinit_oclass = &(struct nvkm_devinit_impl) {
 	.base.handle = NV_SUBDEV(DEVINIT, 0x05),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_devinit_ctor,
 		.dtor = nv04_devinit_dtor,
 		.init = nv04_devinit_init,

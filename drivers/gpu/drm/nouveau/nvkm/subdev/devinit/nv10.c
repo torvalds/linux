@@ -23,14 +23,14 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-
-#include <subdev/vga.h>
-
-#include "fbmem.h"
 #include "nv04.h"
+#include "fbmem.h"
+
+#include <subdev/bios.h>
+#include <subdev/bios/init.h>
 
 static void
-nv10_devinit_meminit(struct nouveau_devinit *devinit)
+nv10_devinit_meminit(struct nvkm_devinit *devinit)
 {
 	struct nv04_devinit_priv *priv = (void *)devinit;
 	static const int mem_width[] = { 0x10, 0x00, 0x20 };
@@ -96,10 +96,10 @@ amount_found:
 	fbmem_fini(fb);
 }
 
-struct nouveau_oclass *
-nv10_devinit_oclass = &(struct nouveau_devinit_impl) {
+struct nvkm_oclass *
+nv10_devinit_oclass = &(struct nvkm_devinit_impl) {
 	.base.handle = NV_SUBDEV(DEVINIT, 0x10),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_devinit_ctor,
 		.dtor = nv04_devinit_dtor,
 		.init = nv04_devinit_init,

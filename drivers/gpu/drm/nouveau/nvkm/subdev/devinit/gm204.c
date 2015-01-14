@@ -21,17 +21,16 @@
  *
  * Authors: Ben Skeggs
  */
+#include "nv50.h"
 
 #include <subdev/bios.h>
 #include <subdev/bios/bit.h>
 #include <subdev/bios/pmu.h>
 
-#include "nv50.h"
-
 static void
 pmu_code(struct nv50_devinit_priv *priv, u32 pmu, u32 img, u32 len, bool sec)
 {
-	struct nouveau_bios *bios = nouveau_bios(priv);
+	struct nvkm_bios *bios = nvkm_bios(priv);
 	int i;
 
 	nv_wr32(priv, 0x10a180, 0x01000000 | (sec ? 0x10000000 : 0) | pmu);
@@ -50,7 +49,7 @@ pmu_code(struct nv50_devinit_priv *priv, u32 pmu, u32 img, u32 len, bool sec)
 static void
 pmu_data(struct nv50_devinit_priv *priv, u32 pmu, u32 img, u32 len)
 {
-	struct nouveau_bios *bios = nouveau_bios(priv);
+	struct nvkm_bios *bios = nvkm_bios(priv);
 	int i;
 
 	nv_wr32(priv, 0x10a1c0, 0x01000000 | pmu);
@@ -78,7 +77,7 @@ static int
 pmu_load(struct nv50_devinit_priv *priv, u8 type, bool post,
 	 u32 *init_addr_pmu, u32 *args_addr_pmu)
 {
-	struct nouveau_bios *bios = nouveau_bios(priv);
+	struct nvkm_bios *bios = nvkm_bios(priv);
 	struct nvbios_pmuR pmu;
 
 	if (!nvbios_pmuRm(bios, type, &pmu)) {
@@ -103,10 +102,10 @@ pmu_load(struct nv50_devinit_priv *priv, u8 type, bool post,
 }
 
 static int
-gm204_devinit_post(struct nouveau_subdev *subdev, bool post)
+gm204_devinit_post(struct nvkm_subdev *subdev, bool post)
 {
-	struct nv50_devinit_priv *priv = (void *)nouveau_devinit(subdev);
-	struct nouveau_bios *bios = nouveau_bios(priv);
+	struct nv50_devinit_priv *priv = (void *)nvkm_devinit(subdev);
+	struct nvkm_bios *bios = nvkm_bios(priv);
 	struct bit_entry bit_I;
 	u32 init, args;
 	int ret;
@@ -158,16 +157,16 @@ gm204_devinit_post(struct nouveau_subdev *subdev, bool post)
 	return pmu_load(priv, 0x01, post, NULL, NULL);
 }
 
-struct nouveau_oclass *
-gm204_devinit_oclass = &(struct nouveau_devinit_impl) {
+struct nvkm_oclass *
+gm204_devinit_oclass = &(struct nvkm_devinit_impl) {
 	.base.handle = NV_SUBDEV(DEVINIT, 0x07),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv50_devinit_ctor,
-		.dtor = _nouveau_devinit_dtor,
+		.dtor = _nvkm_devinit_dtor,
 		.init = nv50_devinit_init,
-		.fini = _nouveau_devinit_fini,
+		.fini = _nvkm_devinit_fini,
 	},
-	.pll_set = nvc0_devinit_pll_set,
+	.pll_set = gf100_devinit_pll_set,
 	.disable = gm107_devinit_disable,
 	.post = gm204_devinit_post,
 }.base;

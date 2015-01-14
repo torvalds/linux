@@ -21,21 +21,22 @@
  *
  * Authors: Ben Skeggs
  */
+#include "nv50.h"
 
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
 #include <subdev/bios/disp.h>
 #include <subdev/bios/init.h>
+#include <subdev/bios/pll.h>
+#include <subdev/clk/pll.h>
 #include <subdev/ibus.h>
 #include <subdev/vga.h>
 
-#include "nv50.h"
-
 int
-nv50_devinit_pll_set(struct nouveau_devinit *devinit, u32 type, u32 freq)
+nv50_devinit_pll_set(struct nvkm_devinit *devinit, u32 type, u32 freq)
 {
 	struct nv50_devinit_priv *priv = (void *)devinit;
-	struct nouveau_bios *bios = nouveau_bios(priv);
+	struct nvkm_bios *bios = nvkm_bios(priv);
 	struct nvbios_pll info;
 	int N1, M1, N2, M2, P;
 	int ret;
@@ -76,7 +77,7 @@ nv50_devinit_pll_set(struct nouveau_devinit *devinit, u32 type, u32 freq)
 }
 
 static u64
-nv50_devinit_disable(struct nouveau_devinit *devinit)
+nv50_devinit_disable(struct nvkm_devinit *devinit)
 {
 	struct nv50_devinit_priv *priv = (void *)devinit;
 	u32 r001540 = nv_rd32(priv, 0x001540);
@@ -89,10 +90,10 @@ nv50_devinit_disable(struct nouveau_devinit *devinit)
 }
 
 int
-nv50_devinit_init(struct nouveau_object *object)
+nv50_devinit_init(struct nvkm_object *object)
 {
-	struct nouveau_bios *bios = nouveau_bios(object);
-	struct nouveau_ibus *ibus = nouveau_ibus(object);
+	struct nvkm_bios *bios = nvkm_bios(object);
+	struct nvkm_ibus *ibus = nvkm_ibus(object);
 	struct nv50_devinit_priv *priv = (void *)object;
 	struct nvbios_outp info;
 	struct dcb_output outp;
@@ -114,7 +115,7 @@ nv50_devinit_init(struct nouveau_object *object)
 	if (priv->base.post && ibus)
 		nv_ofuncs(ibus)->init(nv_object(ibus));
 
-	ret = nouveau_devinit_init(&priv->base);
+	ret = nvkm_devinit_init(&priv->base);
 	if (ret)
 		return ret;
 
@@ -124,7 +125,7 @@ nv50_devinit_init(struct nouveau_object *object)
 	 */
 	while (priv->base.post && dcb_outp_parse(bios, i, &ver, &hdr, &outp)) {
 		if (nvbios_outp_match(bios, outp.hasht, outp.hashm,
-				     &ver, &hdr, &cnt, &len, &info)) {
+				      &ver, &hdr, &cnt, &len, &info)) {
 			struct nvbios_init init = {
 				.subdev = nv_subdev(priv),
 				.bios = bios,
@@ -143,14 +144,14 @@ nv50_devinit_init(struct nouveau_object *object)
 }
 
 int
-nv50_devinit_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		  struct nouveau_oclass *oclass, void *data, u32 size,
-		  struct nouveau_object **pobject)
+nv50_devinit_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		  struct nvkm_oclass *oclass, void *data, u32 size,
+		  struct nvkm_object **pobject)
 {
 	struct nv50_devinit_priv *priv;
 	int ret;
 
-	ret = nouveau_devinit_create(parent, engine, oclass, &priv);
+	ret = nvkm_devinit_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -158,14 +159,14 @@ nv50_devinit_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass *
-nv50_devinit_oclass = &(struct nouveau_devinit_impl) {
+struct nvkm_oclass *
+nv50_devinit_oclass = &(struct nvkm_devinit_impl) {
 	.base.handle = NV_SUBDEV(DEVINIT, 0x50),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv50_devinit_ctor,
-		.dtor = _nouveau_devinit_dtor,
+		.dtor = _nvkm_devinit_dtor,
 		.init = nv50_devinit_init,
-		.fini = _nouveau_devinit_fini,
+		.fini = _nvkm_devinit_fini,
 	},
 	.pll_set = nv50_devinit_pll_set,
 	.disable = nv50_devinit_disable,

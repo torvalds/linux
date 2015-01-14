@@ -21,13 +21,15 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "nv04.h"
 
-struct nouveau_oclass *
-nv1a_devinit_oclass = &(struct nouveau_devinit_impl) {
+#include <subdev/bios.h>
+#include <subdev/bios/init.h>
+
+struct nvkm_oclass *
+nv1a_devinit_oclass = &(struct nvkm_devinit_impl) {
 	.base.handle = NV_SUBDEV(DEVINIT, 0x1a),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_devinit_ctor,
 		.dtor = nv04_devinit_dtor,
 		.init = nv04_devinit_init,

@@ -219,5 +219,6 @@
 #define nva3_clk_post gt215_clk_post
 #define nva3_clk_info gt215_clk_info
 #define nva3_pll_info gt215_pll_info
+#define nouveau_ibus nvkm_ibus
 
 #endif
