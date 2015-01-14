@@ -57,7 +57,7 @@ int mpi_cmp(MPI u, MPI v)
 	if (usize != vsize && !u->sign && !v->sign)
 		return usize - vsize;
 	if (usize != vsize && u->sign && v->sign)
-		return vsize + usize;
+		return vsize - usize;
 	if (!usize)
 		return 0;
 	cmp = mpihelp_cmp(u->d, v->d, usize);
