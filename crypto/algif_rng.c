@@ -182,7 +182,7 @@ static int __init rng_init(void)
 	return af_alg_register_type(&algif_type_rng);
 }
 
-void __exit rng_exit(void)
+static void __exit rng_exit(void)
 {
 	int err = af_alg_unregister_type(&algif_type_rng);
 	BUG_ON(err);
