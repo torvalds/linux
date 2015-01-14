@@ -237,5 +237,6 @@
 #define nouveau_fb nvkm_fb
 #define nouveau_fb_tile nvkm_fb_tile
 #define nvc0_pte_storage_type_map gf100_pte_storage_type_map
+#define nouveau_fuse nvkm_fuse
 
 #endif

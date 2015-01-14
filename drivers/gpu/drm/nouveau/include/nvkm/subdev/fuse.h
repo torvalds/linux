@@ -1,30 +1,28 @@
-#ifndef __NOUVEAU_FUSE_H__
-#define __NOUVEAU_FUSE_H__
-
+#ifndef __NVKM_FUSE_H__
+#define __NVKM_FUSE_H__
 #include <core/subdev.h>
 #include <core/device.h>
 
-struct nouveau_fuse {
-	struct nouveau_subdev base;
+struct nvkm_fuse {
+	struct nvkm_subdev base;
 };
 
-static inline struct nouveau_fuse *
-nouveau_fuse(void *obj)
+static inline struct nvkm_fuse *
+nvkm_fuse(void *obj)
 {
-	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_FUSE);
+	return (void *)nvkm_subdev(obj, NVDEV_SUBDEV_FUSE);
 }
 
-#define nouveau_fuse_create(p, e, o, d)                                        \
-	nouveau_fuse_create_((p), (e), (o), sizeof(**d), (void **)d)
+#define nvkm_fuse_create(p, e, o, d)                                        \
+	nvkm_fuse_create_((p), (e), (o), sizeof(**d), (void **)d)
 
-int  nouveau_fuse_create_(struct nouveau_object *, struct nouveau_object *,
-			  struct nouveau_oclass *, int, void **);
-void _nouveau_fuse_dtor(struct nouveau_object *);
-int  _nouveau_fuse_init(struct nouveau_object *);
-#define _nouveau_fuse_fini _nouveau_subdev_fini
+int  nvkm_fuse_create_(struct nvkm_object *, struct nvkm_object *,
+			  struct nvkm_oclass *, int, void **);
+void _nvkm_fuse_dtor(struct nvkm_object *);
+int  _nvkm_fuse_init(struct nvkm_object *);
+#define _nvkm_fuse_fini _nvkm_subdev_fini
 
-extern struct nouveau_oclass g80_fuse_oclass;
-extern struct nouveau_oclass gf100_fuse_oclass;
-extern struct nouveau_oclass gm107_fuse_oclass;
-
+extern struct nvkm_oclass nv50_fuse_oclass;
+extern struct nvkm_oclass gf100_fuse_oclass;
+extern struct nvkm_oclass gm107_fuse_oclass;
 #endif

@@ -21,63 +21,58 @@
  *
  * Authors: Martin Peres
  */
-
 #include "priv.h"
 
 struct gf100_fuse_priv {
-	struct nouveau_fuse base;
+	struct nvkm_fuse base;
 
 	spinlock_t fuse_enable_lock;
 };
 
 static u32
-gf100_fuse_rd32(struct nouveau_object *object, u64 addr)
+gf100_fuse_rd32(struct nvkm_object *object, u64 addr)
 {
 	struct gf100_fuse_priv *priv = (void *)object;
 	unsigned long flags;
 	u32 fuse_enable, unk, val;
 
+	/* racy if another part of nvkm start writing to these regs */
 	spin_lock_irqsave(&priv->fuse_enable_lock, flags);
-
-	/* racy if another part of nouveau start writing to these regs */
 	fuse_enable = nv_mask(priv, 0x22400, 0x800, 0x800);
 	unk = nv_mask(priv, 0x21000, 0x1, 0x1);
 	val = nv_rd32(priv, 0x21100 + addr);
 	nv_wr32(priv, 0x21000, unk);
 	nv_wr32(priv, 0x22400, fuse_enable);
-
 	spin_unlock_irqrestore(&priv->fuse_enable_lock, flags);
-
 	return val;
 }
 
 
 static int
-gf100_fuse_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
+gf100_fuse_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		struct nvkm_oclass *oclass, void *data, u32 size,
+		struct nvkm_object **pobject)
 {
 	struct gf100_fuse_priv *priv;
 	int ret;
 
-	ret = nouveau_fuse_create(parent, engine, oclass, &priv);
+	ret = nvkm_fuse_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	spin_lock_init(&priv->fuse_enable_lock);
-
 	return 0;
 }
 
-struct nouveau_oclass
+struct nvkm_oclass
 gf100_fuse_oclass = {
 	.handle = NV_SUBDEV(FUSE, 0xC0),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = gf100_fuse_ctor,
-		.dtor = _nouveau_fuse_dtor,
-		.init = _nouveau_fuse_init,
-		.fini = _nouveau_fuse_fini,
+		.dtor = _nvkm_fuse_dtor,
+		.init = _nvkm_fuse_init,
+		.fini = _nvkm_fuse_fini,
 		.rd32 = gf100_fuse_rd32,
 	},
 };

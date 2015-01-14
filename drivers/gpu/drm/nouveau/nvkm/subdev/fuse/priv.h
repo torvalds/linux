@@ -1,9 +1,7 @@
 #ifndef __NVKM_FUSE_PRIV_H__
 #define __NVKM_FUSE_PRIV_H__
-
 #include <subdev/fuse.h>
 
-int _nouveau_fuse_init(struct nouveau_object *object);
-void _nouveau_fuse_dtor(struct nouveau_object *object);
-
+int _nvkm_fuse_init(struct nvkm_object *object);
+void _nvkm_fuse_dtor(struct nvkm_object *object);
 #endif

@@ -21,31 +21,29 @@
  *
  * Authors: Martin Peres
  */
-
 #include "priv.h"
 
 struct gm107_fuse_priv {
-	struct nouveau_fuse base;
+	struct nvkm_fuse base;
 };
 
 static u32
-gm107_fuse_rd32(struct nouveau_object *object, u64 addr)
+gm107_fuse_rd32(struct nvkm_object *object, u64 addr)
 {
 	struct gf100_fuse_priv *priv = (void *)object;
-
 	return nv_rd32(priv, 0x21100 + addr);
 }
 
 
 static int
-gm107_fuse_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
+gm107_fuse_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		struct nvkm_oclass *oclass, void *data, u32 size,
+		struct nvkm_object **pobject)
 {
 	struct gm107_fuse_priv *priv;
 	int ret;
 
-	ret = nouveau_fuse_create(parent, engine, oclass, &priv);
+	ret = nvkm_fuse_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -53,14 +51,14 @@ gm107_fuse_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
+struct nvkm_oclass
 gm107_fuse_oclass = {
 	.handle = NV_SUBDEV(FUSE, 0x117),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = gm107_fuse_ctor,
-		.dtor = _nouveau_fuse_dtor,
-		.init = _nouveau_fuse_init,
-		.fini = _nouveau_fuse_fini,
+		.dtor = _nvkm_fuse_dtor,
+		.init = _nvkm_fuse_init,
+		.fini = _nvkm_fuse_fini,
 		.rd32 = gm107_fuse_rd32,
 	},
 };

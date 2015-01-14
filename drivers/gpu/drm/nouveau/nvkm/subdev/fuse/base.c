@@ -21,34 +21,31 @@
  *
  * Authors: Martin Peres
  */
-
 #include <subdev/fuse.h>
 
 int
-_nouveau_fuse_init(struct nouveau_object *object)
+_nvkm_fuse_init(struct nvkm_object *object)
 {
-	struct nouveau_fuse *fuse = (void *)object;
-	return nouveau_subdev_init(&fuse->base);
+	struct nvkm_fuse *fuse = (void *)object;
+	return nvkm_subdev_init(&fuse->base);
 }
 
 void
-_nouveau_fuse_dtor(struct nouveau_object *object)
+_nvkm_fuse_dtor(struct nvkm_object *object)
 {
-	struct nouveau_fuse *fuse = (void *)object;
-	nouveau_subdev_destroy(&fuse->base);
+	struct nvkm_fuse *fuse = (void *)object;
+	nvkm_subdev_destroy(&fuse->base);
 }
 
 int
-nouveau_fuse_create_(struct nouveau_object *parent,
-		     struct nouveau_object *engine,
-		     struct nouveau_oclass *oclass, int length, void **pobject)
+nvkm_fuse_create_(struct nvkm_object *parent, struct nvkm_object *engine,
+		  struct nvkm_oclass *oclass, int length, void **pobject)
 {
-	struct nouveau_fuse *fuse;
+	struct nvkm_fuse *fuse;
 	int ret;
 
-	ret = nouveau_subdev_create_(parent, engine, oclass, 0, "FUSE",
-				     "fuse", length, pobject);
+	ret = nvkm_subdev_create_(parent, engine, oclass, 0, "FUSE",
+				  "fuse", length, pobject);
 	fuse = *pobject;
-
 	return ret;
 }

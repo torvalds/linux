@@ -21,61 +21,56 @@
  *
  * Authors: Martin Peres
  */
-
 #include "priv.h"
 
-struct g80_fuse_priv {
-	struct nouveau_fuse base;
+struct nv50_fuse_priv {
+	struct nvkm_fuse base;
 
 	spinlock_t fuse_enable_lock;
 };
 
 static u32
-g80_fuse_rd32(struct nouveau_object *object, u64 addr)
+nv50_fuse_rd32(struct nvkm_object *object, u64 addr)
 {
-	struct g80_fuse_priv *priv = (void *)object;
+	struct nv50_fuse_priv *priv = (void *)object;
 	unsigned long flags;
 	u32 fuse_enable, val;
 
+	/* racy if another part of nvkm start writing to this reg */
 	spin_lock_irqsave(&priv->fuse_enable_lock, flags);
-
-	/* racy if another part of nouveau start writing to this reg */
 	fuse_enable = nv_mask(priv, 0x1084, 0x800, 0x800);
 	val = nv_rd32(priv, 0x21000 + addr);
 	nv_wr32(priv, 0x1084, fuse_enable);
-
 	spin_unlock_irqrestore(&priv->fuse_enable_lock, flags);
-
 	return val;
 }
 
 
 static int
-g80_fuse_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
+nv50_fuse_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	       struct nvkm_oclass *oclass, void *data, u32 size,
+	       struct nvkm_object **pobject)
 {
-	struct g80_fuse_priv *priv;
+	struct nv50_fuse_priv *priv;
 	int ret;
 
-	ret = nouveau_fuse_create(parent, engine, oclass, &priv);
+	ret = nvkm_fuse_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	spin_lock_init(&priv->fuse_enable_lock);
-
 	return 0;
 }
 
-struct nouveau_oclass
-g80_fuse_oclass = {
+struct nvkm_oclass
+nv50_fuse_oclass = {
 	.handle = NV_SUBDEV(FUSE, 0x50),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = g80_fuse_ctor,
-		.dtor = _nouveau_fuse_dtor,
-		.init = _nouveau_fuse_init,
-		.fini = _nouveau_fuse_fini,
-		.rd32 = g80_fuse_rd32,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = nv50_fuse_ctor,
+		.dtor = _nvkm_fuse_dtor,
+		.init = _nvkm_fuse_init,
+		.fini = _nvkm_fuse_fini,
+		.rd32 = nv50_fuse_rd32,
 	},
 };
