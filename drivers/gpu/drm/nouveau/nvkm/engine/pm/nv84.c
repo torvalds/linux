@@ -22,7 +22,7 @@
  * Authors: Ben Skeggs
  */
 
-#include "nvc0.h"
+#include "nv40.h"
 
 /*******************************************************************************
  * Perfmon object classes
@@ -36,36 +36,43 @@
  * PPM engine/subdev functions
  ******************************************************************************/
 
-static int
-nvf0_perfmon_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		  struct nouveau_oclass *oclass, void *data, u32 size,
-		  struct nouveau_object **pobject)
-{
-	struct nvc0_perfmon_priv *priv;
-	int ret;
-
-	ret = nouveau_perfmon_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	ret = nouveau_perfdom_new(&priv->base, "pwr", 0, 0, 0, 0,
-				   nve0_perfmon_pwr);
-	if (ret)
-		return ret;
-
-	nv_engine(priv)->cclass = &nouveau_perfmon_cclass;
-	nv_engine(priv)->sclass =  nouveau_perfmon_sclass;
-	return 0;
-}
-
-struct nouveau_oclass
-nvf0_perfmon_oclass = {
-	.handle = NV_ENGINE(PERFMON, 0xf0),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvf0_perfmon_ctor,
-		.dtor = _nouveau_perfmon_dtor,
-		.init = _nouveau_perfmon_init,
-		.fini = nvc0_perfmon_fini,
-	},
+static const struct nouveau_specdom
+nv84_pm[] = {
+	{ 0x20, (const struct nouveau_specsig[]) {
+			{}
+		}, &nv40_perfctr_func },
+	{ 0x20, (const struct nouveau_specsig[]) {
+			{}
+		}, &nv40_perfctr_func },
+	{ 0x20, (const struct nouveau_specsig[]) {
+			{}
+		}, &nv40_perfctr_func },
+	{ 0x20, (const struct nouveau_specsig[]) {
+			{}
+		}, &nv40_perfctr_func },
+	{ 0x20, (const struct nouveau_specsig[]) {
+			{}
+		}, &nv40_perfctr_func },
+	{ 0x20, (const struct nouveau_specsig[]) {
+			{}
+		}, &nv40_perfctr_func },
+	{ 0x20, (const struct nouveau_specsig[]) {
+			{}
+		}, &nv40_perfctr_func },
+	{ 0x20, (const struct nouveau_specsig[]) {
+			{}
+		}, &nv40_perfctr_func },
+	{}
 };
+
+struct nouveau_oclass *
+nv84_pm_oclass = &(struct nv40_pm_oclass) {
+	.base.handle = NV_ENGINE(PM, 0x84),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv40_pm_ctor,
+		.dtor = _nouveau_pm_dtor,
+		.init = _nouveau_pm_init,
+		.fini = _nouveau_pm_fini,
+	},
+	.doms = nv84_pm,
+}.base;

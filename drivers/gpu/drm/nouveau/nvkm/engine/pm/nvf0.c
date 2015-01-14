@@ -22,7 +22,7 @@
  * Authors: Ben Skeggs
  */
 
-#include "nv40.h"
+#include "nvc0.h"
 
 /*******************************************************************************
  * Perfmon object classes
@@ -36,61 +36,36 @@
  * PPM engine/subdev functions
  ******************************************************************************/
 
-static const struct nouveau_specdom
-nva3_perfmon[] = {
-	{ 0x20, (const struct nouveau_specsig[]) {
-			{}
-		}, &nv40_perfctr_func },
-	{ 0x20, (const struct nouveau_specsig[]) {
-			{}
-		}, &nv40_perfctr_func },
-	{ 0x20, (const struct nouveau_specsig[]) {
-			{}
-		}, &nv40_perfctr_func },
-	{ 0x20, (const struct nouveau_specsig[]) {
-			{}
-		}, &nv40_perfctr_func },
-	{ 0x20, (const struct nouveau_specsig[]) {
-			{}
-		}, &nv40_perfctr_func },
-	{ 0x20, (const struct nouveau_specsig[]) {
-			{}
-		}, &nv40_perfctr_func },
-	{ 0x20, (const struct nouveau_specsig[]) {
-			{}
-		}, &nv40_perfctr_func },
-	{ 0x20, (const struct nouveau_specsig[]) {
-			{}
-		}, &nv40_perfctr_func },
-	{}
-};
-
 static int
-nva3_perfmon_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+nvf0_pm_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		  struct nouveau_oclass *oclass, void *data, u32 size,
-		  struct nouveau_object **object)
+		  struct nouveau_object **pobject)
 {
-	int ret = nv40_perfmon_ctor(parent, engine, oclass, data, size, object);
-	if (ret == 0) {
-		struct nv40_perfmon_priv *priv = (void *)*object;
-		ret = nouveau_perfdom_new(&priv->base, "pwr", 0, 0, 0, 0,
-					   nva3_perfmon_pwr);
-		if (ret)
-			return ret;
+	struct nvc0_pm_priv *priv;
+	int ret;
 
-		priv->base.last = 3;
-	}
-	return ret;
+	ret = nouveau_pm_create(parent, engine, oclass, &priv);
+	*pobject = nv_object(priv);
+	if (ret)
+		return ret;
+
+	ret = nouveau_perfdom_new(&priv->base, "pwr", 0, 0, 0, 0,
+				   nve0_pm_pwr);
+	if (ret)
+		return ret;
+
+	nv_engine(priv)->cclass = &nouveau_pm_cclass;
+	nv_engine(priv)->sclass =  nouveau_pm_sclass;
+	return 0;
 }
 
-struct nouveau_oclass *
-nva3_perfmon_oclass = &(struct nv40_perfmon_oclass) {
-	.base.handle = NV_ENGINE(PERFMON, 0xa3),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nva3_perfmon_ctor,
-		.dtor = _nouveau_perfmon_dtor,
-		.init = _nouveau_perfmon_init,
-		.fini = _nouveau_perfmon_fini,
+struct nouveau_oclass
+nvf0_pm_oclass = {
+	.handle = NV_ENGINE(PM, 0xf0),
+	.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nvf0_pm_ctor,
+		.dtor = _nouveau_pm_dtor,
+		.init = _nouveau_pm_init,
+		.fini = nvc0_pm_fini,
 	},
-	.doms = nva3_perfmon,
-}.base;
+};

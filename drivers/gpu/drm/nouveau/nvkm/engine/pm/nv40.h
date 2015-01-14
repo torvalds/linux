@@ -3,21 +3,21 @@
 
 #include "priv.h"
 
-struct nv40_perfmon_oclass {
+struct nv40_pm_oclass {
 	struct nouveau_oclass base;
 	const struct nouveau_specdom *doms;
 };
 
-struct nv40_perfmon_priv {
-	struct nouveau_perfmon base;
+struct nv40_pm_priv {
+	struct nouveau_pm base;
 	u32 sequence;
 };
 
-int nv40_perfmon_ctor(struct nouveau_object *, struct nouveau_object *,
+int nv40_pm_ctor(struct nouveau_object *, struct nouveau_object *,
 		      struct nouveau_oclass *, void *data, u32 size,
 		      struct nouveau_object **pobject);
 
-struct nv40_perfmon_cntr {
+struct nv40_pm_cntr {
 	struct nouveau_perfctr base;
 };
 

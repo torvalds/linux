@@ -44,7 +44,7 @@
 #include <engine/gr.h>
 #include <engine/mpeg.h>
 #include <engine/disp.h>
-#include <engine/perfmon.h>
+#include <engine/pm.h>
 
 int
 nv40_identify(struct nouveau_device *device)
@@ -71,7 +71,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv40_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
-		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x41:
 		device->cname = "NV41";
@@ -94,7 +94,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv40_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
-		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x42:
 		device->cname = "NV42";
@@ -117,7 +117,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv40_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
-		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x43:
 		device->cname = "NV43";
@@ -140,7 +140,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv40_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
-		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x45:
 		device->cname = "NV45";
@@ -163,7 +163,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
-		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x47:
 		device->cname = "G70";
@@ -186,7 +186,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
-		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x49:
 		device->cname = "G71";
@@ -209,7 +209,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
-		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x4b:
 		device->cname = "G73";
@@ -232,7 +232,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
-		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x44:
 		device->cname = "NV44";
@@ -255,7 +255,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
-		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x46:
 		device->cname = "G72";
@@ -278,7 +278,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
-		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x4a:
 		device->cname = "NV44A";
@@ -301,7 +301,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
-		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x4c:
 		device->cname = "C61";
@@ -324,7 +324,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
-		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x4e:
 		device->cname = "C51";
@@ -347,7 +347,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
-		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x63:
 		device->cname = "C73";
@@ -370,7 +370,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
-		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x67:
 		device->cname = "C67";
@@ -393,7 +393,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
-		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	case 0x68:
 		device->cname = "C68";
@@ -416,7 +416,7 @@ nv40_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv40_gr_oclass;
 		device->oclass[NVDEV_ENGINE_MPEG   ] = &nv44_mpeg_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
-		device->oclass[NVDEV_ENGINE_PERFMON] =  nv40_perfmon_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] =  nv40_pm_oclass;
 		break;
 	default:
 		nv_fatal(device, "unknown Curie chipset\n");

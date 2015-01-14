@@ -53,7 +53,7 @@
 #include <engine/msvld.h>
 #include <engine/vp.h>
 #include <engine/ppp.h>
-#include <engine/perfmon.h>
+#include <engine/pm.h>
 
 int
 gm100_identify(struct nouveau_device *device)

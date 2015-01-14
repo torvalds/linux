@@ -37,7 +37,7 @@
  ******************************************************************************/
 
 static const struct nouveau_specdom
-nve0_perfmon_hub[] = {
+nve0_pm_hub[] = {
 	{ 0x60, (const struct nouveau_specsig[]) {
 			{ 0x47, "hub00_user_0" },
 			{}
@@ -77,7 +77,7 @@ nve0_perfmon_hub[] = {
 };
 
 static const struct nouveau_specdom
-nve0_perfmon_gpc[] = {
+nve0_pm_gpc[] = {
 	{ 0xe0, (const struct nouveau_specsig[]) {
 			{ 0xc7, "gpc00_user_0" },
 			{}
@@ -86,7 +86,7 @@ nve0_perfmon_gpc[] = {
 };
 
 static const struct nouveau_specdom
-nve0_perfmon_part[] = {
+nve0_pm_part[] = {
 	{ 0x60, (const struct nouveau_specsig[]) {
 			{ 0x47, "part00_user_0" },
 			{}
@@ -99,28 +99,28 @@ nve0_perfmon_part[] = {
 };
 
 static int
-nve0_perfmon_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+nve0_pm_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		  struct nouveau_oclass *oclass, void *data, u32 size,
 		  struct nouveau_object **pobject)
 {
-	struct nvc0_perfmon_priv *priv;
+	struct nvc0_pm_priv *priv;
 	u32 mask;
 	int ret;
 
-	ret = nouveau_perfmon_create(parent, engine, oclass, &priv);
+	ret = nouveau_pm_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	/* PDAEMON */
 	ret = nouveau_perfdom_new(&priv->base, "pwr", 0, 0, 0, 0,
-				   nve0_perfmon_pwr);
+				   nve0_pm_pwr);
 	if (ret)
 		return ret;
 
 	/* HUB */
 	ret = nouveau_perfdom_new(&priv->base, "hub", 0, 0x1b0000, 0, 0x200,
-				   nve0_perfmon_hub);
+				   nve0_pm_hub);
 	if (ret)
 		return ret;
 
@@ -130,7 +130,7 @@ nve0_perfmon_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	mask &= ~nv_rd32(priv, 0x022584);
 
 	ret = nouveau_perfdom_new(&priv->base, "gpc", mask, 0x180000,
-				  0x1000, 0x200, nve0_perfmon_gpc);
+				  0x1000, 0x200, nve0_pm_gpc);
 	if (ret)
 		return ret;
 
@@ -140,23 +140,23 @@ nve0_perfmon_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	mask &= ~nv_rd32(priv, 0x0225c8);
 
 	ret = nouveau_perfdom_new(&priv->base, "part", mask, 0x1a0000,
-				  0x1000, 0x200, nve0_perfmon_part);
+				  0x1000, 0x200, nve0_pm_part);
 	if (ret)
 		return ret;
 
-	nv_engine(priv)->cclass = &nouveau_perfmon_cclass;
-	nv_engine(priv)->sclass =  nouveau_perfmon_sclass;
+	nv_engine(priv)->cclass = &nouveau_pm_cclass;
+	nv_engine(priv)->sclass =  nouveau_pm_sclass;
 	priv->base.last = 7;
 	return 0;
 }
 
 struct nouveau_oclass
-nve0_perfmon_oclass = {
-	.handle = NV_ENGINE(PERFMON, 0xe0),
+nve0_pm_oclass = {
+	.handle = NV_ENGINE(PM, 0xe0),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nve0_perfmon_ctor,
-		.dtor = _nouveau_perfmon_dtor,
-		.init = _nouveau_perfmon_init,
-		.fini = nvc0_perfmon_fini,
+		.ctor = nve0_pm_ctor,
+		.dtor = _nouveau_pm_dtor,
+		.init = _nouveau_pm_init,
+		.fini = nvc0_pm_fini,
 	},
 };

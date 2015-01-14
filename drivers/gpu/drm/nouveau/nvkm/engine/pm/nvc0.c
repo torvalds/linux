@@ -37,26 +37,26 @@
  ******************************************************************************/
 
 static const struct nouveau_specdom
-nvc0_perfmon_hub[] = {
+nvc0_pm_hub[] = {
 	{}
 };
 
 static const struct nouveau_specdom
-nvc0_perfmon_gpc[] = {
+nvc0_pm_gpc[] = {
 	{}
 };
 
 static const struct nouveau_specdom
-nvc0_perfmon_part[] = {
+nvc0_pm_part[] = {
 	{}
 };
 
 static void
-nvc0_perfctr_init(struct nouveau_perfmon *ppm, struct nouveau_perfdom *dom,
+nvc0_perfctr_init(struct nouveau_pm *ppm, struct nouveau_perfdom *dom,
 		  struct nouveau_perfctr *ctr)
 {
-	struct nvc0_perfmon_priv *priv = (void *)ppm;
-	struct nvc0_perfmon_cntr *cntr = (void *)ctr;
+	struct nvc0_pm_priv *priv = (void *)ppm;
+	struct nvc0_pm_cntr *cntr = (void *)ctr;
 	u32 log = ctr->logic_op;
 	u32 src = 0x00000000;
 	int i;
@@ -71,11 +71,11 @@ nvc0_perfctr_init(struct nouveau_perfmon *ppm, struct nouveau_perfdom *dom,
 }
 
 static void
-nvc0_perfctr_read(struct nouveau_perfmon *ppm, struct nouveau_perfdom *dom,
+nvc0_perfctr_read(struct nouveau_pm *ppm, struct nouveau_perfdom *dom,
 		  struct nouveau_perfctr *ctr)
 {
-	struct nvc0_perfmon_priv *priv = (void *)ppm;
-	struct nvc0_perfmon_cntr *cntr = (void *)ctr;
+	struct nvc0_pm_priv *priv = (void *)ppm;
+	struct nvc0_pm_cntr *cntr = (void *)ctr;
 
 	switch (cntr->base.slot) {
 	case 0: cntr->base.ctr = nv_rd32(priv, dom->addr + 0x08c); break;
@@ -87,9 +87,9 @@ nvc0_perfctr_read(struct nouveau_perfmon *ppm, struct nouveau_perfdom *dom,
 }
 
 static void
-nvc0_perfctr_next(struct nouveau_perfmon *ppm, struct nouveau_perfdom *dom)
+nvc0_perfctr_next(struct nouveau_pm *ppm, struct nouveau_perfdom *dom)
 {
-	struct nvc0_perfmon_priv *priv = (void *)ppm;
+	struct nvc0_pm_priv *priv = (void *)ppm;
 	nv_wr32(priv, dom->addr + 0x06c, dom->signal_nr - 0x40 + 0x27);
 	nv_wr32(priv, dom->addr + 0x0ec, 0x00000011);
 }
@@ -102,36 +102,36 @@ nvc0_perfctr_func = {
 };
 
 int
-nvc0_perfmon_fini(struct nouveau_object *object, bool suspend)
+nvc0_pm_fini(struct nouveau_object *object, bool suspend)
 {
-	struct nvc0_perfmon_priv *priv = (void *)object;
+	struct nvc0_pm_priv *priv = (void *)object;
 	nv_mask(priv, 0x000200, 0x10000000, 0x00000000);
 	nv_mask(priv, 0x000200, 0x10000000, 0x10000000);
-	return nouveau_perfmon_fini(&priv->base, suspend);
+	return nouveau_pm_fini(&priv->base, suspend);
 }
 
 static int
-nvc0_perfmon_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+nvc0_pm_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		  struct nouveau_oclass *oclass, void *data, u32 size,
 		  struct nouveau_object **pobject)
 {
-	struct nvc0_perfmon_priv *priv;
+	struct nvc0_pm_priv *priv;
 	u32 mask;
 	int ret;
 
-	ret = nouveau_perfmon_create(parent, engine, oclass, &priv);
+	ret = nouveau_pm_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	ret = nouveau_perfdom_new(&priv->base, "pwr", 0, 0, 0, 0,
-				   nvc0_perfmon_pwr);
+				   nvc0_pm_pwr);
 	if (ret)
 		return ret;
 
 	/* HUB */
 	ret = nouveau_perfdom_new(&priv->base, "hub", 0, 0x1b0000, 0, 0x200,
-				   nvc0_perfmon_hub);
+				   nvc0_pm_hub);
 	if (ret)
 		return ret;
 
@@ -141,7 +141,7 @@ nvc0_perfmon_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	mask &= ~nv_rd32(priv, 0x022584);
 
 	ret = nouveau_perfdom_new(&priv->base, "gpc", mask, 0x180000,
-				  0x1000, 0x200, nvc0_perfmon_gpc);
+				  0x1000, 0x200, nvc0_pm_gpc);
 	if (ret)
 		return ret;
 
@@ -151,23 +151,23 @@ nvc0_perfmon_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	mask &= ~nv_rd32(priv, 0x0225c8);
 
 	ret = nouveau_perfdom_new(&priv->base, "part", mask, 0x1a0000,
-				  0x1000, 0x200, nvc0_perfmon_part);
+				  0x1000, 0x200, nvc0_pm_part);
 	if (ret)
 		return ret;
 
-	nv_engine(priv)->cclass = &nouveau_perfmon_cclass;
-	nv_engine(priv)->sclass =  nouveau_perfmon_sclass;
+	nv_engine(priv)->cclass = &nouveau_pm_cclass;
+	nv_engine(priv)->sclass =  nouveau_pm_sclass;
 	priv->base.last = 7;
 	return 0;
 }
 
 struct nouveau_oclass
-nvc0_perfmon_oclass = {
-	.handle = NV_ENGINE(PERFMON, 0xc0),
+nvc0_pm_oclass = {
+	.handle = NV_ENGINE(PM, 0xc0),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_perfmon_ctor,
-		.dtor = _nouveau_perfmon_dtor,
-		.init = _nouveau_perfmon_init,
-		.fini = nvc0_perfmon_fini,
+		.ctor = nvc0_pm_ctor,
+		.dtor = _nouveau_pm_dtor,
+		.init = _nouveau_pm_init,
+		.fini = nvc0_pm_fini,
 	},
 };

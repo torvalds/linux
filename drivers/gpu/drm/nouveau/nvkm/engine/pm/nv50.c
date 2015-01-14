@@ -37,7 +37,7 @@
  ******************************************************************************/
 
 static const struct nouveau_specdom
-nv50_perfmon[] = {
+nv50_pm[] = {
 	{ 0x040, (const struct nouveau_specsig[]) {
 			{}
 		}, &nv40_perfctr_func },
@@ -58,13 +58,13 @@ nv50_perfmon[] = {
 };
 
 struct nouveau_oclass *
-nv50_perfmon_oclass = &(struct nv40_perfmon_oclass) {
-	.base.handle = NV_ENGINE(PERFMON, 0x50),
+nv50_pm_oclass = &(struct nv40_pm_oclass) {
+	.base.handle = NV_ENGINE(PM, 0x50),
 	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv40_perfmon_ctor,
-		.dtor = _nouveau_perfmon_dtor,
-		.init = _nouveau_perfmon_init,
-		.fini = _nouveau_perfmon_fini,
+		.ctor = nv40_pm_ctor,
+		.dtor = _nouveau_pm_dtor,
+		.init = _nouveau_pm_init,
+		.fini = _nouveau_pm_fini,
 	},
-	.doms = nv50_perfmon,
+	.doms = nv50_pm,
 }.base;

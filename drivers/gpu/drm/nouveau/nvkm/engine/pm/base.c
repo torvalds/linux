@@ -59,7 +59,7 @@ nouveau_perfsig_find_(struct nouveau_perfdom *dom, const char *name, u32 size)
 }
 
 struct nouveau_perfsig *
-nouveau_perfsig_find(struct nouveau_perfmon *ppm, const char *name, u32 size,
+nouveau_perfsig_find(struct nouveau_pm *ppm, const char *name, u32 size,
 		     struct nouveau_perfdom **pdom)
 {
 	struct nouveau_perfdom *dom = *pdom;
@@ -81,7 +81,7 @@ nouveau_perfsig_find(struct nouveau_perfmon *ppm, const char *name, u32 size,
 }
 
 struct nouveau_perfctr *
-nouveau_perfsig_wrap(struct nouveau_perfmon *ppm, const char *name,
+nouveau_perfsig_wrap(struct nouveau_pm *ppm, const char *name,
 		     struct nouveau_perfdom **pdom)
 {
 	struct nouveau_perfsig *sig;
@@ -110,7 +110,7 @@ nouveau_perfctr_query(struct nouveau_object *object, void *data, u32 size)
 		struct nvif_perfctr_query_v0 v0;
 	} *args = data;
 	struct nouveau_device *device = nv_device(object);
-	struct nouveau_perfmon *ppm = (void *)object->engine;
+	struct nouveau_pm *ppm = (void *)object->engine;
 	struct nouveau_perfdom *dom = NULL, *chk;
 	const bool all = nouveau_boolopt(device->cfgopt, "NvPmShowAll", false);
 	const bool raw = nouveau_boolopt(device->cfgopt, "NvPmUnnamed", all);
@@ -168,7 +168,7 @@ nouveau_perfctr_sample(struct nouveau_object *object, void *data, u32 size)
 	union {
 		struct nvif_perfctr_sample none;
 	} *args = data;
-	struct nouveau_perfmon *ppm = (void *)object->engine;
+	struct nouveau_pm *ppm = (void *)object->engine;
 	struct nouveau_perfctr *ctr, *tmp;
 	struct nouveau_perfdom *dom;
 	int ret;
@@ -273,7 +273,7 @@ nouveau_perfctr_ctor(struct nouveau_object *parent,
 	union {
 		struct nvif_perfctr_v0 v0;
 	} *args = data;
-	struct nouveau_perfmon *ppm = (void *)engine;
+	struct nouveau_pm *ppm = (void *)engine;
 	struct nouveau_perfdom *dom = NULL;
 	struct nouveau_perfsig *sig[4] = {};
 	struct nouveau_perfctr *ctr;
@@ -321,7 +321,7 @@ nouveau_perfctr_ofuncs = {
 };
 
 struct nouveau_oclass
-nouveau_perfmon_sclass[] = {
+nouveau_pm_sclass[] = {
 	{ .handle = NVIF_IOCTL_NEW_V0_PERFCTR,
 	  .ofuncs = &nouveau_perfctr_ofuncs,
 	},
@@ -334,7 +334,7 @@ nouveau_perfmon_sclass[] = {
 static void
 nouveau_perfctx_dtor(struct nouveau_object *object)
 {
-	struct nouveau_perfmon *ppm = (void *)object->engine;
+	struct nouveau_pm *ppm = (void *)object->engine;
 	mutex_lock(&nv_subdev(ppm)->mutex);
 	nouveau_engctx_destroy(&ppm->context->base);
 	ppm->context = NULL;
@@ -347,7 +347,7 @@ nouveau_perfctx_ctor(struct nouveau_object *parent,
 		     struct nouveau_oclass *oclass, void *data, u32 size,
 		     struct nouveau_object **pobject)
 {
-	struct nouveau_perfmon *ppm = (void *)engine;
+	struct nouveau_pm *ppm = (void *)engine;
 	struct nouveau_perfctx *ctx;
 	int ret;
 
@@ -369,8 +369,8 @@ nouveau_perfctx_ctor(struct nouveau_object *parent,
 }
 
 struct nouveau_oclass
-nouveau_perfmon_cclass = {
-	.handle = NV_ENGCTX(PERFMON, 0x00),
+nouveau_pm_cclass = {
+	.handle = NV_ENGCTX(PM, 0x00),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nouveau_perfctx_ctor,
 		.dtor = nouveau_perfctx_dtor,
@@ -383,7 +383,7 @@ nouveau_perfmon_cclass = {
  * PPM engine/subdev functions
  ******************************************************************************/
 int
-nouveau_perfdom_new(struct nouveau_perfmon *ppm, const char *name, u32 mask,
+nouveau_perfdom_new(struct nouveau_pm *ppm, const char *name, u32 mask,
 		    u32 base, u32 size_unit, u32 size_domain,
 		    const struct nouveau_specdom *spec)
 {
@@ -436,23 +436,23 @@ nouveau_perfdom_new(struct nouveau_perfmon *ppm, const char *name, u32 mask,
 }
 
 int
-_nouveau_perfmon_fini(struct nouveau_object *object, bool suspend)
+_nouveau_pm_fini(struct nouveau_object *object, bool suspend)
 {
-	struct nouveau_perfmon *ppm = (void *)object;
+	struct nouveau_pm *ppm = (void *)object;
 	return nouveau_engine_fini(&ppm->base, suspend);
 }
 
 int
-_nouveau_perfmon_init(struct nouveau_object *object)
+_nouveau_pm_init(struct nouveau_object *object)
 {
-	struct nouveau_perfmon *ppm = (void *)object;
+	struct nouveau_pm *ppm = (void *)object;
 	return nouveau_engine_init(&ppm->base);
 }
 
 void
-_nouveau_perfmon_dtor(struct nouveau_object *object)
+_nouveau_pm_dtor(struct nouveau_object *object)
 {
-	struct nouveau_perfmon *ppm = (void *)object;
+	struct nouveau_pm *ppm = (void *)object;
 	struct nouveau_perfdom *dom, *tmp;
 
 	list_for_each_entry_safe(dom, tmp, &ppm->domains, head) {
@@ -464,16 +464,16 @@ _nouveau_perfmon_dtor(struct nouveau_object *object)
 }
 
 int
-nouveau_perfmon_create_(struct nouveau_object *parent,
+nouveau_pm_create_(struct nouveau_object *parent,
 			struct nouveau_object *engine,
 			struct nouveau_oclass *oclass,
 			int length, void **pobject)
 {
-	struct nouveau_perfmon *ppm;
+	struct nouveau_pm *ppm;
 	int ret;
 
 	ret = nouveau_engine_create_(parent, engine, oclass, true, "PPM",
-				     "perfmon", length, pobject);
+				     "pm", length, pobject);
 	ppm = *pobject;
 	if (ret)
 		return ret;

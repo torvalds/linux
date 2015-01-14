@@ -37,7 +37,7 @@
  ******************************************************************************/
 
 static const struct nouveau_specdom
-nv84_perfmon[] = {
+nva3_pm[] = {
 	{ 0x20, (const struct nouveau_specsig[]) {
 			{}
 		}, &nv40_perfctr_func },
@@ -65,14 +65,32 @@ nv84_perfmon[] = {
 	{}
 };
 
+static int
+nva3_pm_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+		  struct nouveau_oclass *oclass, void *data, u32 size,
+		  struct nouveau_object **object)
+{
+	int ret = nv40_pm_ctor(parent, engine, oclass, data, size, object);
+	if (ret == 0) {
+		struct nv40_pm_priv *priv = (void *)*object;
+		ret = nouveau_perfdom_new(&priv->base, "pwr", 0, 0, 0, 0,
+					   nva3_pm_pwr);
+		if (ret)
+			return ret;
+
+		priv->base.last = 3;
+	}
+	return ret;
+}
+
 struct nouveau_oclass *
-nv84_perfmon_oclass = &(struct nv40_perfmon_oclass) {
-	.base.handle = NV_ENGINE(PERFMON, 0x84),
+nva3_pm_oclass = &(struct nv40_pm_oclass) {
+	.base.handle = NV_ENGINE(PM, 0xa3),
 	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv40_perfmon_ctor,
-		.dtor = _nouveau_perfmon_dtor,
-		.init = _nouveau_perfmon_init,
-		.fini = _nouveau_perfmon_fini,
+		.ctor = nva3_pm_ctor,
+		.dtor = _nouveau_pm_dtor,
+		.init = _nouveau_pm_init,
+		.fini = _nouveau_pm_fini,
 	},
-	.doms = nv84_perfmon,
+	.doms = nva3_pm,
 }.base;

@@ -3,15 +3,15 @@
 
 #include "priv.h"
 
-struct nvc0_perfmon_priv {
-	struct nouveau_perfmon base;
+struct nvc0_pm_priv {
+	struct nouveau_pm base;
 };
 
-struct nvc0_perfmon_cntr {
+struct nvc0_pm_cntr {
 	struct nouveau_perfctr base;
 };
 
 extern const struct nouveau_funcdom nvc0_perfctr_func;
-int nvc0_perfmon_fini(struct nouveau_object *, bool);
+int nvc0_pm_fini(struct nouveau_object *, bool);
 
 #endif

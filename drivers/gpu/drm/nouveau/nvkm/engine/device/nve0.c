@@ -53,7 +53,7 @@
 #include <engine/msvld.h>
 #include <engine/vp.h>
 #include <engine/ppp.h>
-#include <engine/perfmon.h>
+#include <engine/pm.h>
 
 int
 nve0_identify(struct nouveau_device *device)
@@ -91,7 +91,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nve0_msvld_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nve0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
-		device->oclass[NVDEV_ENGINE_PERFMON] = &nve0_perfmon_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] = &nve0_pm_oclass;
 		break;
 	case 0xe7:
 		device->cname = "GK107";
@@ -125,7 +125,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nve0_msvld_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nve0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
-		device->oclass[NVDEV_ENGINE_PERFMON] = &nve0_perfmon_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] = &nve0_pm_oclass;
 		break;
 	case 0xe6:
 		device->cname = "GK106";
@@ -159,7 +159,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nve0_msvld_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nve0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
-		device->oclass[NVDEV_ENGINE_PERFMON] = &nve0_perfmon_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] = &nve0_pm_oclass;
 		break;
 	case 0xea:
 		device->cname = "GK20A";
@@ -179,7 +179,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_SW     ] =  nvc0_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] =  gk20a_gr_oclass;
 		device->oclass[NVDEV_ENGINE_CE2    ] = &nve0_ce2_oclass;
-		device->oclass[NVDEV_ENGINE_PERFMON] = &nve0_perfmon_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] = &nve0_pm_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &gk20a_volt_oclass;
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gk20a_pmu_oclass;
 		break;
@@ -215,7 +215,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nve0_msvld_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nve0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
-		device->oclass[NVDEV_ENGINE_PERFMON] = &nvf0_perfmon_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] = &nvf0_pm_oclass;
 		break;
 	case 0xf1:
 		device->cname = "GK110B";
@@ -249,7 +249,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nve0_msvld_oclass;
 		device->oclass[NVDEV_ENGINE_VP     ] = &nve0_vp_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nvc0_ppp_oclass;
-		device->oclass[NVDEV_ENGINE_PERFMON] = &nvf0_perfmon_oclass;
+		device->oclass[NVDEV_ENGINE_PM     ] = &nvf0_pm_oclass;
 		break;
 	case 0x106:
 		device->cname = "GK208B";
