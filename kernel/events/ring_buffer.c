@@ -283,26 +283,33 @@ void *perf_aux_output_begin(struct perf_output_handle *handle,
 		goto err_put;
 
 	aux_head = local_read(&rb->aux_head);
-	aux_tail = ACCESS_ONCE(rb->user_page->aux_tail);
 
 	handle->rb = rb;
 	handle->event = event;
 	handle->head = aux_head;
-	if (aux_head - aux_tail < perf_aux_size(rb))
-		handle->size = CIRC_SPACE(aux_head, aux_tail, perf_aux_size(rb));
-	else
-		handle->size = 0;
+	handle->size = 0;
 
 	/*
-	 * handle->size computation depends on aux_tail load; this forms a
-	 * control dependency barrier separating aux_tail load from aux data
-	 * store that will be enabled on successful return
+	 * In overwrite mode, AUX data stores do not depend on aux_tail,
+	 * therefore (A) control dependency barrier does not exist. The
+	 * (B) <-> (C) ordering is still observed by the pmu driver.
 	 */
-	if (!handle->size) { /* A, matches D */
-		event->pending_disable = 1;
-		perf_output_wakeup(handle);
-		local_set(&rb->aux_nest, 0);
-		goto err_put;
+	if (!rb->aux_overwrite) {
+		aux_tail = ACCESS_ONCE(rb->user_page->aux_tail);
+		if (aux_head - aux_tail < perf_aux_size(rb))
+			handle->size = CIRC_SPACE(aux_head, aux_tail, perf_aux_size(rb));
+
+		/*
+		 * handle->size computation depends on aux_tail load; this forms a
+		 * control dependency barrier separating aux_tail load from aux data
+		 * store that will be enabled on successful return
+		 */
+		if (!handle->size) { /* A, matches D */
+			event->pending_disable = 1;
+			perf_output_wakeup(handle);
+			local_set(&rb->aux_nest, 0);
+			goto err_put;
+		}
 	}
 
 	return handle->rb->aux_priv;
@@ -327,13 +334,22 @@ void perf_aux_output_end(struct perf_output_handle *handle, unsigned long size,
 			 bool truncated)
 {
 	struct ring_buffer *rb = handle->rb;
-	unsigned long aux_head = local_read(&rb->aux_head);
+	unsigned long aux_head;
 	u64 flags = 0;
 
 	if (truncated)
 		flags |= PERF_AUX_FLAG_TRUNCATED;
 
-	local_add(size, &rb->aux_head);
+	/* in overwrite mode, driver provides aux_head via handle */
+	if (rb->aux_overwrite) {
+		flags |= PERF_AUX_FLAG_OVERWRITE;
+
+		aux_head = handle->head;
+		local_set(&rb->aux_head, aux_head);
+	} else {
+		aux_head = local_read(&rb->aux_head);
+		local_add(size, &rb->aux_head);
+	}
 
 	if (size || flags) {
 		/*
@@ -479,6 +495,8 @@ int rb_alloc_aux(struct ring_buffer *rb, struct perf_event *event,
 	 * reference them safely.
 	 */
 	atomic_set(&rb->aux_refcount, 1);
+
+	rb->aux_overwrite = overwrite;
 
 out:
 	if (!ret)

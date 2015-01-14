@@ -40,6 +40,7 @@ struct ring_buffer {
 	local_t				aux_nest;
 	unsigned long			aux_pgoff;
 	int				aux_nr_pages;
+	int				aux_overwrite;
 	atomic_t			aux_mmap_count;
 	unsigned long			aux_mmap_locked;
 	void				(*free_aux)(void *);
