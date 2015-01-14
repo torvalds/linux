@@ -97,12 +97,19 @@ static int rk32_edp_pre_init(struct rk32_edp *edp)
 		dsb(sy);
 		udelay(1);
 	} else {
+		/* The rk3368 reset the edp 24M clock and apb bus
+		 * according to the CRU_SOFTRST6_CON and CRU_SOFTRST7_CON.
+		 */
 		val = 0x01 | (0x01 << 16);
 		regmap_write(edp->grf, RK3368_GRF_SOC_CON4, val);
 
 		reset_control_assert(edp->rst_24m);
 		usleep_range(10, 20);
 		reset_control_deassert(edp->rst_24m);
+
+		reset_control_assert(edp->rst_apb);
+		usleep_range(10, 20);
+		reset_control_deassert(edp->rst_apb);
 	}
 	return 0;
 }
@@ -1405,13 +1412,20 @@ static int rk32_edp_probe(struct platform_device *pdev)
 		return PTR_ERR(edp->pclk);
 	}
 
+	/* We use the reset API to control the software reset at this version
+	 * and later, and we reserve the code that setting the cru regs directly
+	 * in the rk3288.
+	 */
 	/*edp 24m need sorft reset*/
 	edp->rst_24m = devm_reset_control_get(&pdev->dev, "edp_24m");
 	if (IS_ERR(edp->rst_24m)) {
 		dev_err(&pdev->dev, "failed to get reset\n");
-		return PTR_ERR(edp->rst_24m);
 	}
-
+	/* edp ctrl apb bus need sorft reset */
+	edp->rst_apb = devm_reset_control_get(&pdev->dev, "edp_apb");
+	if (IS_ERR(edp->rst_apb)) {
+		dev_err(&pdev->dev, "failed to get reset\n");
+	}
 	rk32_edp_clk_enable(edp);
 	if (!support_uboot_display())
 		rk32_edp_pre_init(edp);
