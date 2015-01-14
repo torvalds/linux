@@ -265,6 +265,13 @@ int rk3288_vpu_hw_probe(struct rk3288_vpu_dev *vpu)
 		return PTR_ERR(vpu->hclk_vcodec);
 	}
 
+	/*
+	 * Bump ACLK to max. possible freq. (400 MHz) to improve performance.
+	 *
+	 * VP8 encoding 1280x720@1.2Mbps 200 MHz: 39 fps, 400: MHz 77 fps
+	 */
+	clk_set_rate(vpu->aclk_vcodec, 400*1000*1000);
+
 	res = platform_get_resource(vpu->pdev, IORESOURCE_MEM, 0);
 	vpu->base = devm_ioremap_resource(vpu->dev, res);
 	if (IS_ERR(vpu->base))
