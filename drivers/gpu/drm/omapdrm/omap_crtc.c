@@ -45,7 +45,6 @@ struct omap_crtc {
 
 	struct omap_video_timings timings;
 	bool enabled;
-	bool full_update;
 
 	struct omap_drm_apply apply;
 
@@ -148,7 +147,6 @@ static void omap_crtc_set_timings(struct omap_overlay_manager *mgr,
 	struct omap_crtc *omap_crtc = omap_crtcs[mgr->id];
 	DBG("%s", omap_crtc->name);
 	omap_crtc->timings = *timings;
-	omap_crtc->full_update = true;
 }
 
 static void omap_crtc_set_lcd_config(struct omap_overlay_manager *mgr,
@@ -213,7 +211,6 @@ static void omap_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 	if (enabled != omap_crtc->enabled) {
 		omap_crtc->enabled = enabled;
-		omap_crtc->full_update = true;
 		omap_crtc_apply(crtc, &omap_crtc->apply);
 
 		/* Enable/disable all planes associated with the CRTC. */
@@ -252,7 +249,6 @@ static int omap_crtc_mode_set(struct drm_crtc *crtc,
 			mode->type, mode->flags);
 
 	copy_timings_drm_to_omap(&omap_crtc->timings, mode);
-	omap_crtc->full_update = true;
 
 	/*
 	 * The primary plane CRTC can be reset if the plane is disabled directly
@@ -597,19 +593,16 @@ static void omap_crtc_pre_apply(struct omap_drm_apply *apply)
 	struct omap_crtc *omap_crtc =
 			container_of(apply, struct omap_crtc, apply);
 	struct drm_crtc *crtc = &omap_crtc->base;
+	struct omap_drm_private *priv = crtc->dev->dev_private;
 	struct drm_encoder *encoder = NULL;
+	unsigned int i;
 
-	DBG("%s: enabled=%d, full=%d", omap_crtc->name,
-			omap_crtc->enabled, omap_crtc->full_update);
+	DBG("%s: enabled=%d", omap_crtc->name, omap_crtc->enabled);
 
-	if (omap_crtc->full_update) {
-		struct omap_drm_private *priv = crtc->dev->dev_private;
-		int i;
-		for (i = 0; i < priv->num_encoders; i++) {
-			if (priv->encoders[i]->crtc == crtc) {
-				encoder = priv->encoders[i];
-				break;
-			}
+	for (i = 0; i < priv->num_encoders; i++) {
+		if (priv->encoders[i]->crtc == crtc) {
+			encoder = priv->encoders[i];
+			break;
 		}
 	}
 
@@ -629,8 +622,6 @@ static void omap_crtc_pre_apply(struct omap_drm_apply *apply)
 			omap_encoder_set_enabled(encoder, true);
 		}
 	}
-
-	omap_crtc->full_update = false;
 }
 
 static void omap_crtc_post_apply(struct omap_drm_apply *apply)
