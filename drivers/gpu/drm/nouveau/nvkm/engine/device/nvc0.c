@@ -74,7 +74,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  gf100_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_LTC    ] =  gf100_ltc_oclass;
-		device->oclass[NVDEV_SUBDEV_IBUS   ] = &nvc0_ibus_oclass;
+		device->oclass[NVDEV_SUBDEV_IBUS   ] = &gf100_ibus_oclass;
 		device->oclass[NVDEV_SUBDEV_INSTMEM] =  nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_MMU    ] = &nvc0_mmu_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &gf100_bar_oclass;
@@ -107,7 +107,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  gf100_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_LTC    ] =  gf100_ltc_oclass;
-		device->oclass[NVDEV_SUBDEV_IBUS   ] = &nvc0_ibus_oclass;
+		device->oclass[NVDEV_SUBDEV_IBUS   ] = &gf100_ibus_oclass;
 		device->oclass[NVDEV_SUBDEV_INSTMEM] =  nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_MMU    ] = &nvc0_mmu_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &gf100_bar_oclass;
@@ -140,7 +140,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  gf100_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_LTC    ] =  gf100_ltc_oclass;
-		device->oclass[NVDEV_SUBDEV_IBUS   ] = &nvc0_ibus_oclass;
+		device->oclass[NVDEV_SUBDEV_IBUS   ] = &gf100_ibus_oclass;
 		device->oclass[NVDEV_SUBDEV_INSTMEM] =  nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_MMU    ] = &nvc0_mmu_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &gf100_bar_oclass;
@@ -172,7 +172,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  gf100_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_LTC    ] =  gf100_ltc_oclass;
-		device->oclass[NVDEV_SUBDEV_IBUS   ] = &nvc0_ibus_oclass;
+		device->oclass[NVDEV_SUBDEV_IBUS   ] = &gf100_ibus_oclass;
 		device->oclass[NVDEV_SUBDEV_INSTMEM] =  nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_MMU    ] = &nvc0_mmu_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &gf100_bar_oclass;
@@ -205,7 +205,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  gf100_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_LTC    ] =  gf100_ltc_oclass;
-		device->oclass[NVDEV_SUBDEV_IBUS   ] = &nvc0_ibus_oclass;
+		device->oclass[NVDEV_SUBDEV_IBUS   ] = &gf100_ibus_oclass;
 		device->oclass[NVDEV_SUBDEV_INSTMEM] =  nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_MMU    ] = &nvc0_mmu_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &gf100_bar_oclass;
@@ -237,7 +237,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  gf100_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_LTC    ] =  gf100_ltc_oclass;
-		device->oclass[NVDEV_SUBDEV_IBUS   ] = &nvc0_ibus_oclass;
+		device->oclass[NVDEV_SUBDEV_IBUS   ] = &gf100_ibus_oclass;
 		device->oclass[NVDEV_SUBDEV_INSTMEM] =  nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_MMU    ] = &nvc0_mmu_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &gf100_bar_oclass;
@@ -269,7 +269,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  gf100_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_LTC    ] =  gf100_ltc_oclass;
-		device->oclass[NVDEV_SUBDEV_IBUS   ] = &nvc0_ibus_oclass;
+		device->oclass[NVDEV_SUBDEV_IBUS   ] = &gf100_ibus_oclass;
 		device->oclass[NVDEV_SUBDEV_INSTMEM] =  nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_MMU    ] = &nvc0_mmu_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &gf100_bar_oclass;
@@ -302,7 +302,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  gf100_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_LTC    ] =  gf100_ltc_oclass;
-		device->oclass[NVDEV_SUBDEV_IBUS   ] = &nvc0_ibus_oclass;
+		device->oclass[NVDEV_SUBDEV_IBUS   ] = &gf100_ibus_oclass;
 		device->oclass[NVDEV_SUBDEV_INSTMEM] =  nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_MMU    ] = &nvc0_mmu_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &gf100_bar_oclass;
@@ -334,7 +334,7 @@ nvc0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  gf100_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_LTC    ] =  gf100_ltc_oclass;
-		device->oclass[NVDEV_SUBDEV_IBUS   ] = &nvc0_ibus_oclass;
+		device->oclass[NVDEV_SUBDEV_IBUS   ] = &gf100_ibus_oclass;
 		device->oclass[NVDEV_SUBDEV_INSTMEM] =  nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_MMU    ] = &nvc0_mmu_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &gf100_bar_oclass;

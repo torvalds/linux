@@ -19,12 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 #include <subdev/ibus.h>
 #include <subdev/timer.h>
 
 struct gk20a_ibus_priv {
-	struct nouveau_ibus base;
+	struct nvkm_ibus base;
 };
 
 static void
@@ -42,7 +41,7 @@ gk20a_ibus_init_priv_ring(struct gk20a_ibus_priv *priv)
 }
 
 static void
-gk20a_ibus_intr(struct nouveau_subdev *subdev)
+gk20a_ibus_intr(struct nvkm_subdev *subdev)
 {
 	struct gk20a_ibus_priv *priv = (void *)subdev;
 	u32 status0 = nv_rd32(priv, 0x120058);
@@ -60,12 +59,12 @@ gk20a_ibus_intr(struct nouveau_subdev *subdev)
 }
 
 static int
-gk20a_ibus_init(struct nouveau_object *object)
+gk20a_ibus_init(struct nvkm_object *object)
 {
 	struct gk20a_ibus_priv *priv = (void *)object;
 	int ret;
 
-	ret = _nouveau_ibus_init(object);
+	ret = _nvkm_ibus_init(object);
 	if (ret)
 		return ret;
 
@@ -75,14 +74,14 @@ gk20a_ibus_init(struct nouveau_object *object)
 }
 
 static int
-gk20a_ibus_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
+gk20a_ibus_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		struct nvkm_oclass *oclass, void *data, u32 size,
+		struct nvkm_object **pobject)
 {
 	struct gk20a_ibus_priv *priv;
 	int ret;
 
-	ret = nouveau_ibus_create(parent, engine, oclass, &priv);
+	ret = nvkm_ibus_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -91,13 +90,13 @@ gk20a_ibus_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
+struct nvkm_oclass
 gk20a_ibus_oclass = {
 	.handle = NV_SUBDEV(IBUS, 0xea),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = gk20a_ibus_ctor,
-		.dtor = _nouveau_ibus_dtor,
+		.dtor = _nvkm_ibus_dtor,
 		.init = gk20a_ibus_init,
-		.fini = _nouveau_ibus_fini,
+		.fini = _nvkm_ibus_fini,
 	},
 };

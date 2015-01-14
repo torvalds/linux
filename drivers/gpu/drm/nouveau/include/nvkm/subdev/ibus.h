@@ -1,35 +1,32 @@
-#ifndef __NOUVEAU_IBUS_H__
-#define __NOUVEAU_IBUS_H__
-
+#ifndef __NVKM_IBUS_H__
+#define __NVKM_IBUS_H__
 #include <core/subdev.h>
-#include <core/device.h>
 
-struct nouveau_ibus {
-	struct nouveau_subdev base;
+struct nvkm_ibus {
+	struct nvkm_subdev base;
 };
 
-static inline struct nouveau_ibus *
-nouveau_ibus(void *obj)
+static inline struct nvkm_ibus *
+nvkm_ibus(void *obj)
 {
-	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_IBUS);
+	return (void *)nvkm_subdev(obj, NVDEV_SUBDEV_IBUS);
 }
 
-#define nouveau_ibus_create(p,e,o,d)                                           \
-	nouveau_subdev_create_((p), (e), (o), 0, "PIBUS", "ibus",              \
+#define nvkm_ibus_create(p,e,o,d)                                           \
+	nvkm_subdev_create_((p), (e), (o), 0, "PIBUS", "ibus",              \
 			       sizeof(**d), (void **)d)
-#define nouveau_ibus_destroy(p)                                                \
-	nouveau_subdev_destroy(&(p)->base)
-#define nouveau_ibus_init(p)                                                   \
-	nouveau_subdev_init(&(p)->base)
-#define nouveau_ibus_fini(p,s)                                                 \
-	nouveau_subdev_fini(&(p)->base, (s))
+#define nvkm_ibus_destroy(p)                                                \
+	nvkm_subdev_destroy(&(p)->base)
+#define nvkm_ibus_init(p)                                                   \
+	nvkm_subdev_init(&(p)->base)
+#define nvkm_ibus_fini(p,s)                                                 \
+	nvkm_subdev_fini(&(p)->base, (s))
 
-#define _nouveau_ibus_dtor _nouveau_subdev_dtor
-#define _nouveau_ibus_init _nouveau_subdev_init
-#define _nouveau_ibus_fini _nouveau_subdev_fini
+#define _nvkm_ibus_dtor _nvkm_subdev_dtor
+#define _nvkm_ibus_init _nvkm_subdev_init
+#define _nvkm_ibus_fini _nvkm_subdev_fini
 
-extern struct nouveau_oclass nvc0_ibus_oclass;
-extern struct nouveau_oclass nve0_ibus_oclass;
-extern struct nouveau_oclass gk20a_ibus_oclass;
-
+extern struct nvkm_oclass gf100_ibus_oclass;
+extern struct nvkm_oclass gk104_ibus_oclass;
+extern struct nvkm_oclass gk20a_ibus_oclass;
 #endif

@@ -21,15 +21,14 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include <subdev/ibus.h>
 
-struct nvc0_ibus_priv {
-	struct nouveau_ibus base;
+struct gf100_ibus_priv {
+	struct nvkm_ibus base;
 };
 
 static void
-nvc0_ibus_intr_hub(struct nvc0_ibus_priv *priv, int i)
+gf100_ibus_intr_hub(struct gf100_ibus_priv *priv, int i)
 {
 	u32 addr = nv_rd32(priv, 0x122120 + (i * 0x0400));
 	u32 data = nv_rd32(priv, 0x122124 + (i * 0x0400));
@@ -39,7 +38,7 @@ nvc0_ibus_intr_hub(struct nvc0_ibus_priv *priv, int i)
 }
 
 static void
-nvc0_ibus_intr_rop(struct nvc0_ibus_priv *priv, int i)
+gf100_ibus_intr_rop(struct gf100_ibus_priv *priv, int i)
 {
 	u32 addr = nv_rd32(priv, 0x124120 + (i * 0x0400));
 	u32 data = nv_rd32(priv, 0x124124 + (i * 0x0400));
@@ -49,7 +48,7 @@ nvc0_ibus_intr_rop(struct nvc0_ibus_priv *priv, int i)
 }
 
 static void
-nvc0_ibus_intr_gpc(struct nvc0_ibus_priv *priv, int i)
+gf100_ibus_intr_gpc(struct gf100_ibus_priv *priv, int i)
 {
 	u32 addr = nv_rd32(priv, 0x128120 + (i * 0x0400));
 	u32 data = nv_rd32(priv, 0x128124 + (i * 0x0400));
@@ -59,9 +58,9 @@ nvc0_ibus_intr_gpc(struct nvc0_ibus_priv *priv, int i)
 }
 
 static void
-nvc0_ibus_intr(struct nouveau_subdev *subdev)
+gf100_ibus_intr(struct nvkm_subdev *subdev)
 {
-	struct nvc0_ibus_priv *priv = (void *)subdev;
+	struct gf100_ibus_priv *priv = (void *)subdev;
 	u32 intr0 = nv_rd32(priv, 0x121c58);
 	u32 intr1 = nv_rd32(priv, 0x121c5c);
 	u32 hubnr = nv_rd32(priv, 0x121c70);
@@ -72,7 +71,7 @@ nvc0_ibus_intr(struct nouveau_subdev *subdev)
 	for (i = 0; (intr0 & 0x0000ff00) && i < hubnr; i++) {
 		u32 stat = 0x00000100 << i;
 		if (intr0 & stat) {
-			nvc0_ibus_intr_hub(priv, i);
+			gf100_ibus_intr_hub(priv, i);
 			intr0 &= ~stat;
 		}
 	}
@@ -80,7 +79,7 @@ nvc0_ibus_intr(struct nouveau_subdev *subdev)
 	for (i = 0; (intr0 & 0xffff0000) && i < ropnr; i++) {
 		u32 stat = 0x00010000 << i;
 		if (intr0 & stat) {
-			nvc0_ibus_intr_rop(priv, i);
+			gf100_ibus_intr_rop(priv, i);
 			intr0 &= ~stat;
 		}
 	}
@@ -88,36 +87,36 @@ nvc0_ibus_intr(struct nouveau_subdev *subdev)
 	for (i = 0; intr1 && i < gpcnr; i++) {
 		u32 stat = 0x00000001 << i;
 		if (intr1 & stat) {
-			nvc0_ibus_intr_gpc(priv, i);
+			gf100_ibus_intr_gpc(priv, i);
 			intr1 &= ~stat;
 		}
 	}
 }
 
 static int
-nvc0_ibus_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
+gf100_ibus_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		struct nvkm_oclass *oclass, void *data, u32 size,
+		struct nvkm_object **pobject)
 {
-	struct nvc0_ibus_priv *priv;
+	struct gf100_ibus_priv *priv;
 	int ret;
 
-	ret = nouveau_ibus_create(parent, engine, oclass, &priv);
+	ret = nvkm_ibus_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
-	nv_subdev(priv)->intr = nvc0_ibus_intr;
+	nv_subdev(priv)->intr = gf100_ibus_intr;
 	return 0;
 }
 
-struct nouveau_oclass
-nvc0_ibus_oclass = {
+struct nvkm_oclass
+gf100_ibus_oclass = {
 	.handle = NV_SUBDEV(IBUS, 0xc0),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_ibus_ctor,
-		.dtor = _nouveau_ibus_dtor,
-		.init = _nouveau_ibus_init,
-		.fini = _nouveau_ibus_fini,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gf100_ibus_ctor,
+		.dtor = _nvkm_ibus_dtor,
+		.init = _nvkm_ibus_init,
+		.fini = _nvkm_ibus_fini,
 	},
 };
