@@ -2526,7 +2526,7 @@ int alps_detect(struct psmouse *psmouse, bool set_properties)
 		psmouse->vendor = "ALPS";
 		psmouse->name = dummy.flags & ALPS_DUALPOINT ?
 				"DualPoint TouchPad" : "GlidePoint";
-		psmouse->model = dummy.proto_version << 8;
+		psmouse->model = dummy.proto_version;
 	}
 	return 0;
 }

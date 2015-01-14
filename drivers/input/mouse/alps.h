@@ -14,13 +14,13 @@
 
 #include <linux/input/mt.h>
 
-#define ALPS_PROTO_V1	1
-#define ALPS_PROTO_V2	2
-#define ALPS_PROTO_V3	3
-#define ALPS_PROTO_V4	4
-#define ALPS_PROTO_V5	5
-#define ALPS_PROTO_V6	6
-#define ALPS_PROTO_V7	7	/* t3btl t4s */
+#define ALPS_PROTO_V1		0x100
+#define ALPS_PROTO_V2		0x200
+#define ALPS_PROTO_V3		0x300
+#define ALPS_PROTO_V4		0x400
+#define ALPS_PROTO_V5		0x500
+#define ALPS_PROTO_V6		0x600
+#define ALPS_PROTO_V7		0x700	/* t3btl t4s */
 
 #define MAX_TOUCHES	2
 
@@ -64,11 +64,11 @@ enum V7_PACKET_ID {
  * lists a number of such touchpads.
  */
 struct alps_model_info {
-	unsigned char signature[3];
-	unsigned char command_mode_resp;
-	unsigned char proto_version;
-	unsigned char byte0, mask0;
-	int flags;
+	u8 signature[3];
+	u8 command_mode_resp;
+	u16 proto_version;
+	u8 byte0, mask0;
+	unsigned int flags;
 };
 
 /**
@@ -166,9 +166,9 @@ struct alps_data {
 	/* these are autodetected when the device is identified */
 	const struct alps_nibble_commands *nibble_commands;
 	int addr_command;
-	unsigned char proto_version;
-	unsigned char byte0, mask0;
-	unsigned char fw_ver[3];
+	u16 proto_version;
+	u8 byte0, mask0;
+	u8 fw_ver[3];
 	int flags;
 	int x_max;
 	int y_max;
