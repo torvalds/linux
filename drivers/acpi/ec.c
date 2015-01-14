@@ -120,6 +120,8 @@ struct transaction {
 	u8 flags;
 };
 
+static int acpi_ec_sync_query(struct acpi_ec *ec, u8 *data);
+
 struct acpi_ec *boot_ec, *first_ec;
 EXPORT_SYMBOL(first_ec);
 
@@ -189,6 +191,22 @@ static const char *acpi_ec_cmd_string(u8 cmd)
 #define acpi_ec_cmd_string(cmd)		"UNDEF"
 #endif
 
+static void acpi_ec_submit_query(struct acpi_ec *ec)
+{
+	if (!test_and_set_bit(EC_FLAGS_QUERY_PENDING, &ec->flags)) {
+		pr_debug("***** Event started *****\n");
+		schedule_work(&ec->work);
+	}
+}
+
+static void acpi_ec_complete_query(struct acpi_ec *ec)
+{
+	if (ec->curr->command == ACPI_EC_COMMAND_QUERY) {
+		clear_bit(EC_FLAGS_QUERY_PENDING, &ec->flags);
+		pr_debug("***** Event stopped *****\n");
+	}
+}
+
 static int ec_transaction_completed(struct acpi_ec *ec)
 {
 	unsigned long flags;
@@ -242,6 +260,7 @@ static void advance_transaction(struct acpi_ec *ec)
 		    !(status & ACPI_EC_FLAG_SCI) &&
 		    (t->command == ACPI_EC_COMMAND_QUERY)) {
 			t->flags |= ACPI_EC_COMMAND_POLL;
+			acpi_ec_complete_query(ec);
 			t->rdata[t->ri++] = 0x00;
 			t->flags |= ACPI_EC_COMMAND_COMPLETE;
 			pr_debug("***** Command(%s) software completion *****\n",
@@ -250,6 +269,7 @@ static void advance_transaction(struct acpi_ec *ec)
 		} else if ((status & ACPI_EC_FLAG_IBF) == 0) {
 			acpi_ec_write_cmd(ec, t->command);
 			t->flags |= ACPI_EC_COMMAND_POLL;
+			acpi_ec_complete_query(ec);
 		} else
 			goto err;
 		goto out;
@@ -264,6 +284,8 @@ err:
 			++t->irq_count;
 	}
 out:
+	if (status & ACPI_EC_FLAG_SCI)
+		acpi_ec_submit_query(ec);
 	if (wakeup && in_interrupt())
 		wake_up(&ec->wait);
 }
@@ -273,17 +295,6 @@ static void start_transaction(struct acpi_ec *ec)
 	ec->curr->irq_count = ec->curr->wi = ec->curr->ri = 0;
 	ec->curr->flags = 0;
 	advance_transaction(ec);
-}
-
-static int acpi_ec_sync_query(struct acpi_ec *ec, u8 *data);
-
-static int ec_check_sci_sync(struct acpi_ec *ec, u8 state)
-{
-	if (state & ACPI_EC_FLAG_SCI) {
-		if (!test_and_set_bit(EC_FLAGS_QUERY_PENDING, &ec->flags))
-			return acpi_ec_sync_query(ec, NULL);
-	}
-	return 0;
 }
 
 static int ec_poll(struct acpi_ec *ec)
@@ -333,10 +344,6 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec,
 	pr_debug("***** Command(%s) started *****\n",
 		 acpi_ec_cmd_string(t->command));
 	start_transaction(ec);
-	if (ec->curr->command == ACPI_EC_COMMAND_QUERY) {
-		clear_bit(EC_FLAGS_QUERY_PENDING, &ec->flags);
-		pr_debug("***** Event stopped *****\n");
-	}
 	spin_unlock_irqrestore(&ec->lock, tmp);
 	ret = ec_poll(ec);
 	spin_lock_irqsave(&ec->lock, tmp);
@@ -376,8 +383,6 @@ static int acpi_ec_transaction(struct acpi_ec *ec, struct transaction *t)
 
 	status = acpi_ec_transaction_unlocked(ec, t);
 
-	/* check if we received SCI during transaction */
-	ec_check_sci_sync(ec, acpi_ec_read_status(ec));
 	if (test_bit(EC_FLAGS_GPE_STORM, &ec->flags)) {
 		msleep(1);
 		/* It is safe to enable the GPE outside of the transaction. */
@@ -687,14 +692,12 @@ static int acpi_ec_sync_query(struct acpi_ec *ec, u8 *data)
 	return result;
 }
 
-static void acpi_ec_gpe_query(void *ec_cxt)
+static void acpi_ec_gpe_poller(struct work_struct *work)
 {
-	struct acpi_ec *ec = ec_cxt;
 	acpi_status status;
 	u32 glk;
+	struct acpi_ec *ec = container_of(work, struct acpi_ec, work);
 
-	if (!ec)
-		return;
 	mutex_lock(&ec->mutex);
 	if (ec->global_lock) {
 		status = acpi_acquire_global_lock(ACPI_EC_UDELAY_GLK, &glk);
@@ -708,18 +711,6 @@ unlock:
 	mutex_unlock(&ec->mutex);
 }
 
-static int ec_check_sci(struct acpi_ec *ec, u8 state)
-{
-	if (state & ACPI_EC_FLAG_SCI) {
-		if (!test_and_set_bit(EC_FLAGS_QUERY_PENDING, &ec->flags)) {
-			pr_debug("***** Event started *****\n");
-			return acpi_os_execute(OSL_NOTIFY_HANDLER,
-				acpi_ec_gpe_query, ec);
-		}
-	}
-	return 0;
-}
-
 static u32 acpi_ec_gpe_handler(acpi_handle gpe_device,
 	u32 gpe_number, void *data)
 {
@@ -729,7 +720,6 @@ static u32 acpi_ec_gpe_handler(acpi_handle gpe_device,
 	spin_lock_irqsave(&ec->lock, flags);
 	advance_transaction(ec);
 	spin_unlock_irqrestore(&ec->lock, flags);
-	ec_check_sci(ec, acpi_ec_read_status(ec));
 	return ACPI_INTERRUPT_HANDLED | ACPI_REENABLE_GPE;
 }
 
@@ -793,6 +783,7 @@ static struct acpi_ec *make_acpi_ec(void)
 	init_waitqueue_head(&ec->wait);
 	INIT_LIST_HEAD(&ec->list);
 	spin_lock_init(&ec->lock);
+	INIT_WORK(&ec->work, acpi_ec_gpe_poller);
 	return ec;
 }
 
