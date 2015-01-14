@@ -895,8 +895,6 @@ static void clk_on(struct at91_udc *udc)
 		return;
 	udc->clocked = 1;
 
-	if (IS_ENABLED(CONFIG_COMMON_CLK))
-		clk_enable(udc->uclk);
 	clk_enable(udc->iclk);
 	clk_enable(udc->fclk);
 }
@@ -909,8 +907,6 @@ static void clk_off(struct at91_udc *udc)
 	udc->gadget.speed = USB_SPEED_UNKNOWN;
 	clk_disable(udc->fclk);
 	clk_disable(udc->iclk);
-	if (IS_ENABLED(CONFIG_COMMON_CLK))
-		clk_disable(udc->uclk);
 }
 
 /*
@@ -1781,25 +1777,17 @@ static int at91udc_probe(struct platform_device *pdev)
 	/* get interface and function clocks */
 	udc->iclk = clk_get(dev, "pclk");
 	udc->fclk = clk_get(dev, "hclk");
-	if (IS_ENABLED(CONFIG_COMMON_CLK))
-		udc->uclk = clk_get(dev, "usb_clk");
-	if (IS_ERR(udc->iclk) || IS_ERR(udc->fclk) ||
-	    (IS_ENABLED(CONFIG_COMMON_CLK) && IS_ERR(udc->uclk))) {
+	if (IS_ERR(udc->iclk) || IS_ERR(udc->fclk)) {
 		DBG("clocks missing\n");
 		retval = -ENODEV;
 		goto fail1;
 	}
 
 	/* don't do anything until we have both gadget driver and VBUS */
-	if (IS_ENABLED(CONFIG_COMMON_CLK)) {
-		clk_set_rate(udc->uclk, 48000000);
-		retval = clk_prepare(udc->uclk);
-		if (retval)
-			goto fail1;
-	}
+	clk_set_rate(udc->fclk, 48000000);
 	retval = clk_prepare(udc->fclk);
 	if (retval)
-		goto fail1a;
+		goto fail1;
 
 	retval = clk_prepare_enable(udc->iclk);
 	if (retval)
@@ -1873,12 +1861,7 @@ fail1c:
 	clk_unprepare(udc->iclk);
 fail1b:
 	clk_unprepare(udc->fclk);
-fail1a:
-	if (IS_ENABLED(CONFIG_COMMON_CLK))
-		clk_unprepare(udc->uclk);
 fail1:
-	if (IS_ENABLED(CONFIG_COMMON_CLK) && !IS_ERR(udc->uclk))
-		clk_put(udc->uclk);
 	if (!IS_ERR(udc->fclk))
 		clk_put(udc->fclk);
 	if (!IS_ERR(udc->iclk))
@@ -1924,15 +1907,11 @@ static int __exit at91udc_remove(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(res->start, resource_size(res));
 
-	if (IS_ENABLED(CONFIG_COMMON_CLK))
-		clk_unprepare(udc->uclk);
 	clk_unprepare(udc->fclk);
 	clk_unprepare(udc->iclk);
 
 	clk_put(udc->iclk);
 	clk_put(udc->fclk);
-	if (IS_ENABLED(CONFIG_COMMON_CLK))
-		clk_put(udc->uclk);
 
 	return 0;
 }
