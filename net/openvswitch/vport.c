@@ -595,14 +595,7 @@ int ovs_tunnel_get_egress_info(struct ovs_tunnel_info *egress_tun_info,
 	 * The process may need to be changed if the corresponding process
 	 * in vports ops changed.
 	 */
-	memset(&fl, 0, sizeof(fl));
-	fl.daddr = tun_key->ipv4_dst;
-	fl.saddr = tun_key->ipv4_src;
-	fl.flowi4_tos = RT_TOS(tun_key->ipv4_tos);
-	fl.flowi4_mark = skb_mark;
-	fl.flowi4_proto = ipproto;
-
-	rt = ip_route_output_key(net, &fl);
+	rt = ovs_tunnel_route_lookup(net, tun_key, skb_mark, &fl, ipproto);
 	if (IS_ERR(rt))
 		return PTR_ERR(rt);
 

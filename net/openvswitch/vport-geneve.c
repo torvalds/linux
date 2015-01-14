@@ -170,7 +170,7 @@ error:
 
 static int geneve_tnl_send(struct vport *vport, struct sk_buff *skb)
 {
-	struct ovs_key_ipv4_tunnel *tun_key;
+	const struct ovs_key_ipv4_tunnel *tun_key;
 	struct ovs_tunnel_info *tun_info;
 	struct net *net = ovs_dp_get_net(vport->dp);
 	struct geneve_port *geneve_port = geneve_vport(vport);
@@ -189,16 +189,7 @@ static int geneve_tnl_send(struct vport *vport, struct sk_buff *skb)
 	}
 
 	tun_key = &tun_info->tunnel;
-
-	/* Route lookup */
-	memset(&fl, 0, sizeof(fl));
-	fl.daddr = tun_key->ipv4_dst;
-	fl.saddr = tun_key->ipv4_src;
-	fl.flowi4_tos = RT_TOS(tun_key->ipv4_tos);
-	fl.flowi4_mark = skb->mark;
-	fl.flowi4_proto = IPPROTO_UDP;
-
-	rt = ip_route_output_key(net, &fl);
+	rt = ovs_tunnel_route_lookup(net, tun_key, skb->mark, &fl, IPPROTO_UDP);
 	if (IS_ERR(rt)) {
 		err = PTR_ERR(rt);
 		goto error;
