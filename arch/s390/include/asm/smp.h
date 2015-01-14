@@ -16,6 +16,8 @@
 #define raw_smp_processor_id()	(S390_lowcore.cpu_nr)
 
 extern struct mutex smp_cpu_state_mutex;
+extern unsigned int smp_cpu_mt_shift;
+extern unsigned int smp_cpu_mtid;
 
 extern int __cpu_up(unsigned int cpu, struct task_struct *tidle);
 
@@ -34,6 +36,8 @@ extern int smp_cpu_get_polarization(int cpu);
 extern void smp_fill_possible_mask(void);
 
 #else /* CONFIG_SMP */
+
+#define smp_cpu_mtid	0
 
 static inline void smp_call_ipl_cpu(void (*func)(void *), void *data)
 {

@@ -103,21 +103,18 @@ static int __init machine_kdump_pm_init(void)
 	return 0;
 }
 arch_initcall(machine_kdump_pm_init);
-#endif
 
 /*
  * Start kdump: We expect here that a store status has been done on our CPU
  */
 static void __do_machine_kdump(void *image)
 {
-#ifdef CONFIG_CRASH_DUMP
 	int (*start_kdump)(int) = (void *)((struct kimage *) image)->start;
 
-	setup_regs();
 	__load_psw_mask(PSW_MASK_BASE | PSW_DEFAULT_KEY | PSW_MASK_EA | PSW_MASK_BA);
 	start_kdump(1);
-#endif
 }
+#endif
 
 /*
  * Check if kdump checksums are valid: We call purgatory with parameter "0"
@@ -249,18 +246,18 @@ static void __do_machine_kexec(void *data)
  */
 static void __machine_kexec(void *data)
 {
-	struct kimage *image = data;
-
 	__arch_local_irq_stosm(0x04); /* enable DAT */
 	pfault_fini();
 	tracing_off();
 	debug_locks_off();
-	if (image->type == KEXEC_TYPE_CRASH) {
+#ifdef CONFIG_CRASH_DUMP
+	if (((struct kimage *) data)->type == KEXEC_TYPE_CRASH) {
+
 		lgr_info_log();
-		s390_reset_system(__do_machine_kdump, data);
-	} else {
-		s390_reset_system(__do_machine_kexec, data);
-	}
+		s390_reset_system(setup_regs, __do_machine_kdump, data);
+	} else
+#endif
+		s390_reset_system(NULL, __do_machine_kexec, data);
 	disabled_wait((unsigned long) __builtin_return_address(0));
 }
 

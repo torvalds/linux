@@ -90,7 +90,11 @@ struct sysinfo_2_2_2 {
 	unsigned short cpus_reserved;
 	char name[8];
 	unsigned int caf;
-	char reserved_2[16];
+	char reserved_2[8];
+	unsigned char mt_installed;
+	unsigned char mt_general;
+	unsigned char mt_psmtid;
+	char reserved_3[5];
 	unsigned short cpus_dedicated;
 	unsigned short cpus_shared;
 };
@@ -120,26 +124,28 @@ struct sysinfo_3_2_2 {
 
 extern int topology_max_mnest;
 
-#define TOPOLOGY_CPU_BITS	64
+#define TOPOLOGY_CORE_BITS	64
 #define TOPOLOGY_NR_MAG		6
 
-struct topology_cpu {
-	unsigned char reserved0[4];
+struct topology_core {
+	unsigned char nl;
+	unsigned char reserved0[3];
 	unsigned char :6;
 	unsigned char pp:2;
 	unsigned char reserved1;
 	unsigned short origin;
-	unsigned long mask[TOPOLOGY_CPU_BITS / BITS_PER_LONG];
+	unsigned long mask[TOPOLOGY_CORE_BITS / BITS_PER_LONG];
 };
 
 struct topology_container {
-	unsigned char reserved[7];
+	unsigned char nl;
+	unsigned char reserved[6];
 	unsigned char id;
 };
 
 union topology_entry {
 	unsigned char nl;
-	struct topology_cpu cpu;
+	struct topology_core cpu;
 	struct topology_container container;
 };
 
