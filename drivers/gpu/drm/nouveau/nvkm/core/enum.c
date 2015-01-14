@@ -24,12 +24,10 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-
-#include <core/os.h>
 #include <core/enum.h>
 
-const struct nouveau_enum *
-nouveau_enum_find(const struct nouveau_enum *en, u32 value)
+const struct nvkm_enum *
+nvkm_enum_find(const struct nvkm_enum *en, u32 value)
 {
 	while (en->name) {
 		if (en->value == value)
@@ -40,10 +38,10 @@ nouveau_enum_find(const struct nouveau_enum *en, u32 value)
 	return NULL;
 }
 
-const struct nouveau_enum *
-nouveau_enum_print(const struct nouveau_enum *en, u32 value)
+const struct nvkm_enum *
+nvkm_enum_print(const struct nvkm_enum *en, u32 value)
 {
-	en = nouveau_enum_find(en, value);
+	en = nvkm_enum_find(en, value);
 	if (en)
 		pr_cont("%s", en->name);
 	else
@@ -52,7 +50,7 @@ nouveau_enum_print(const struct nouveau_enum *en, u32 value)
 }
 
 void
-nouveau_bitfield_print(const struct nouveau_bitfield *bf, u32 value)
+nvkm_bitfield_print(const struct nvkm_bitfield *bf, u32 value)
 {
 	while (bf->name) {
 		if (value & bf->mask) {

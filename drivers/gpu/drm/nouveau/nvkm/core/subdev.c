@@ -21,16 +21,14 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <core/object.h>
 #include <core/subdev.h>
 #include <core/device.h>
 #include <core/option.h>
 
-struct nouveau_subdev *
-nouveau_subdev(void *obj, int idx)
+struct nvkm_subdev *
+nvkm_subdev(void *obj, int idx)
 {
-	struct nouveau_object *object = nv_object(obj);
+	struct nvkm_object *object = nv_object(obj);
 	while (object && !nv_iclass(object, NV_SUBDEV_CLASS))
 		object = object->parent;
 	if (object == NULL || nv_subidx(nv_subdev(object)) != idx)
@@ -39,7 +37,7 @@ nouveau_subdev(void *obj, int idx)
 }
 
 void
-nouveau_subdev_reset(struct nouveau_object *subdev)
+nvkm_subdev_reset(struct nvkm_object *subdev)
 {
 	nv_trace(subdev, "resetting...\n");
 	nv_ofuncs(subdev)->fini(subdev, false);
@@ -47,65 +45,64 @@ nouveau_subdev_reset(struct nouveau_object *subdev)
 }
 
 int
-nouveau_subdev_init(struct nouveau_subdev *subdev)
+nvkm_subdev_init(struct nvkm_subdev *subdev)
 {
-	int ret = nouveau_object_init(&subdev->object);
+	int ret = nvkm_object_init(&subdev->object);
 	if (ret)
 		return ret;
 
-	nouveau_subdev_reset(&subdev->object);
+	nvkm_subdev_reset(&subdev->object);
 	return 0;
 }
 
 int
-_nouveau_subdev_init(struct nouveau_object *object)
+_nvkm_subdev_init(struct nvkm_object *object)
 {
-	return nouveau_subdev_init(nv_subdev(object));
+	return nvkm_subdev_init(nv_subdev(object));
 }
 
 int
-nouveau_subdev_fini(struct nouveau_subdev *subdev, bool suspend)
+nvkm_subdev_fini(struct nvkm_subdev *subdev, bool suspend)
 {
 	if (subdev->unit) {
 		nv_mask(subdev, 0x000200, subdev->unit, 0x00000000);
 		nv_mask(subdev, 0x000200, subdev->unit, subdev->unit);
 	}
 
-	return nouveau_object_fini(&subdev->object, suspend);
+	return nvkm_object_fini(&subdev->object, suspend);
 }
 
 int
-_nouveau_subdev_fini(struct nouveau_object *object, bool suspend)
+_nvkm_subdev_fini(struct nvkm_object *object, bool suspend)
 {
-	return nouveau_subdev_fini(nv_subdev(object), suspend);
+	return nvkm_subdev_fini(nv_subdev(object), suspend);
 }
 
 void
-nouveau_subdev_destroy(struct nouveau_subdev *subdev)
+nvkm_subdev_destroy(struct nvkm_subdev *subdev)
 {
 	int subidx = nv_hclass(subdev) & 0xff;
 	nv_device(subdev)->subdev[subidx] = NULL;
-	nouveau_object_destroy(&subdev->object);
+	nvkm_object_destroy(&subdev->object);
 }
 
 void
-_nouveau_subdev_dtor(struct nouveau_object *object)
+_nvkm_subdev_dtor(struct nvkm_object *object)
 {
-	nouveau_subdev_destroy(nv_subdev(object));
+	nvkm_subdev_destroy(nv_subdev(object));
 }
 
 int
-nouveau_subdev_create_(struct nouveau_object *parent,
-		       struct nouveau_object *engine,
-		       struct nouveau_oclass *oclass, u32 pclass,
-		       const char *subname, const char *sysname,
-		       int size, void **pobject)
+nvkm_subdev_create_(struct nvkm_object *parent, struct nvkm_object *engine,
+		    struct nvkm_oclass *oclass, u32 pclass,
+		    const char *subname, const char *sysname,
+		    int size, void **pobject)
 {
-	struct nouveau_subdev *subdev;
+	struct nvkm_subdev *subdev;
 	int ret;
 
-	ret = nouveau_object_create_(parent, engine, oclass, pclass |
-				     NV_SUBDEV_CLASS, size, pobject);
+	ret = nvkm_object_create_(parent, engine, oclass, pclass |
+				  NV_SUBDEV_CLASS, size, pobject);
 	subdev = *pobject;
 	if (ret)
 		return ret;
@@ -114,8 +111,8 @@ nouveau_subdev_create_(struct nouveau_object *parent,
 	subdev->name = subname;
 
 	if (parent) {
-		struct nouveau_device *device = nv_device(parent);
-		subdev->debug = nouveau_dbgopt(device->dbgopt, subname);
+		struct nvkm_device *device = nv_device(parent);
+		subdev->debug = nvkm_dbgopt(device->dbgopt, subname);
 		subdev->mmio  = nv_subdev(device)->mmio;
 	}
 

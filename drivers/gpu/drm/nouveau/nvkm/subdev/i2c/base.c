@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 
+#include <core/notify.h>
 #include <core/option.h>
 #include <core/object.h>
 #include <core/event.h>

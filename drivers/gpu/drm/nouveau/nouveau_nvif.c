@@ -70,7 +70,7 @@ nvkm_client_suspend(void *priv)
 }
 
 static void
-nvkm_client_fini(void *priv)
+nvkm_client_driver_fini(void *priv)
 {
 	struct nouveau_object *client = priv;
 	nouveau_client_fini(nv_client(client), false);
@@ -107,8 +107,8 @@ nvkm_client_ntfy(const void *header, u32 length, const void *data, u32 size)
 }
 
 static int
-nvkm_client_init(const char *name, u64 device, const char *cfg,
-		 const char *dbg, void **ppriv)
+nvkm_client_driver_init(const char *name, u64 device, const char *cfg,
+			const char *dbg, void **ppriv)
 {
 	struct nouveau_client *client;
 	int ret;
@@ -125,8 +125,8 @@ nvkm_client_init(const char *name, u64 device, const char *cfg,
 const struct nvif_driver
 nvif_driver_nvkm = {
 	.name = "nvkm",
-	.init = nvkm_client_init,
-	.fini = nvkm_client_fini,
+	.init = nvkm_client_driver_init,
+	.fini = nvkm_client_driver_fini,
 	.suspend = nvkm_client_suspend,
 	.resume = nvkm_client_resume,
 	.ioctl = nvkm_client_ioctl,

@@ -21,21 +21,15 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <core/object.h>
-#include <core/namedb.h>
-#include <core/handle.h>
-#include <core/client.h>
 #include <core/engctx.h>
-
-#include <subdev/mmu.h>
+#include <core/client.h>
 
 static inline int
-nouveau_engctx_exists(struct nouveau_object *parent,
-		      struct nouveau_engine *engine, void **pobject)
+nvkm_engctx_exists(struct nvkm_object *parent,
+		   struct nvkm_engine *engine, void **pobject)
 {
-	struct nouveau_engctx *engctx;
-	struct nouveau_object *parctx;
+	struct nvkm_engctx *engctx;
+	struct nvkm_object *parctx;
 
 	list_for_each_entry(engctx, &engine->contexts, head) {
 		parctx = nv_pclass(nv_object(engctx), NV_PARENT_CLASS);
@@ -50,16 +44,13 @@ nouveau_engctx_exists(struct nouveau_object *parent,
 }
 
 int
-nouveau_engctx_create_(struct nouveau_object *parent,
-		       struct nouveau_object *engobj,
-		       struct nouveau_oclass *oclass,
-		       struct nouveau_object *pargpu,
-		       u32 size, u32 align, u32 flags,
-		       int length, void **pobject)
+nvkm_engctx_create_(struct nvkm_object *parent, struct nvkm_object *engobj,
+		    struct nvkm_oclass *oclass, struct nvkm_object *pargpu,
+		    u32 size, u32 align, u32 flags, int length, void **pobject)
 {
-	struct nouveau_client *client = nouveau_client(parent);
-	struct nouveau_engine *engine = nv_engine(engobj);
-	struct nouveau_object *engctx;
+	struct nvkm_client *client = nvkm_client(parent);
+	struct nvkm_engine *engine = nv_engine(engobj);
+	struct nvkm_object *engctx;
 	unsigned long save;
 	int ret;
 
@@ -67,7 +58,7 @@ nouveau_engctx_create_(struct nouveau_object *parent,
 	 * and reference it instead of creating a new one
 	 */
 	spin_lock_irqsave(&engine->lock, save);
-	ret = nouveau_engctx_exists(parent, engine, pobject);
+	ret = nvkm_engctx_exists(parent, engine, pobject);
 	spin_unlock_irqrestore(&engine->lock, save);
 	if (ret)
 		return ret;
@@ -76,13 +67,12 @@ nouveau_engctx_create_(struct nouveau_object *parent,
 	 * objects backed by instance memory
 	 */
 	if (size) {
-		ret = nouveau_gpuobj_create_(parent, engobj, oclass,
-					     NV_ENGCTX_CLASS,
-					     pargpu, size, align, flags,
-					     length, pobject);
+		ret = nvkm_gpuobj_create_(parent, engobj, oclass,
+					  NV_ENGCTX_CLASS, pargpu, size,
+					  align, flags, length, pobject);
 	} else {
-		ret = nouveau_object_create_(parent, engobj, oclass,
-					     NV_ENGCTX_CLASS, length, pobject);
+		ret = nvkm_object_create_(parent, engobj, oclass,
+					  NV_ENGCTX_CLASS, length, pobject);
 	}
 
 	engctx = *pobject;
@@ -94,10 +84,10 @@ nouveau_engctx_create_(struct nouveau_object *parent,
 	 * it's not possible to allocate the object with it held.
 	 */
 	spin_lock_irqsave(&engine->lock, save);
-	ret = nouveau_engctx_exists(parent, engine, pobject);
+	ret = nvkm_engctx_exists(parent, engine, pobject);
 	if (ret) {
 		spin_unlock_irqrestore(&engine->lock, save);
-		nouveau_object_ref(NULL, &engctx);
+		nvkm_object_ref(NULL, &engctx);
 		return ret;
 	}
 
@@ -110,13 +100,13 @@ nouveau_engctx_create_(struct nouveau_object *parent,
 }
 
 void
-nouveau_engctx_destroy(struct nouveau_engctx *engctx)
+nvkm_engctx_destroy(struct nvkm_engctx *engctx)
 {
-	struct nouveau_engine *engine = engctx->gpuobj.object.engine;
-	struct nouveau_client *client = nouveau_client(engctx);
+	struct nvkm_engine *engine = engctx->gpuobj.object.engine;
+	struct nvkm_client *client = nvkm_client(engctx);
 	unsigned long save;
 
-	nouveau_gpuobj_unmap(&engctx->vma);
+	nvkm_gpuobj_unmap(&engctx->vma);
 	spin_lock_irqsave(&engine->lock, save);
 	list_del(&engctx->head);
 	spin_unlock_irqrestore(&engine->lock, save);
@@ -125,21 +115,21 @@ nouveau_engctx_destroy(struct nouveau_engctx *engctx)
 		atomic_dec(&client->vm->engref[nv_engidx(engine)]);
 
 	if (engctx->gpuobj.size)
-		nouveau_gpuobj_destroy(&engctx->gpuobj);
+		nvkm_gpuobj_destroy(&engctx->gpuobj);
 	else
-		nouveau_object_destroy(&engctx->gpuobj.object);
+		nvkm_object_destroy(&engctx->gpuobj.object);
 }
 
 int
-nouveau_engctx_init(struct nouveau_engctx *engctx)
+nvkm_engctx_init(struct nvkm_engctx *engctx)
 {
-	struct nouveau_object *object = nv_object(engctx);
-	struct nouveau_subdev *subdev = nv_subdev(object->engine);
-	struct nouveau_object *parent;
-	struct nouveau_subdev *pardev;
+	struct nvkm_object *object = nv_object(engctx);
+	struct nvkm_subdev *subdev = nv_subdev(object->engine);
+	struct nvkm_object *parent;
+	struct nvkm_subdev *pardev;
 	int ret;
 
-	ret = nouveau_gpuobj_init(&engctx->gpuobj);
+	ret = nvkm_gpuobj_init(&engctx->gpuobj);
 	if (ret)
 		return ret;
 
@@ -162,12 +152,12 @@ nouveau_engctx_init(struct nouveau_engctx *engctx)
 }
 
 int
-nouveau_engctx_fini(struct nouveau_engctx *engctx, bool suspend)
+nvkm_engctx_fini(struct nvkm_engctx *engctx, bool suspend)
 {
-	struct nouveau_object *object = nv_object(engctx);
-	struct nouveau_subdev *subdev = nv_subdev(object->engine);
-	struct nouveau_object *parent;
-	struct nouveau_subdev *pardev;
+	struct nvkm_object *object = nv_object(engctx);
+	struct nvkm_subdev *subdev = nv_subdev(object->engine);
+	struct nvkm_object *parent;
+	struct nvkm_subdev *pardev;
 	int ret = 0;
 
 	parent = nv_pclass(object->parent, NV_PARENT_CLASS);
@@ -185,47 +175,45 @@ nouveau_engctx_fini(struct nouveau_engctx *engctx, bool suspend)
 	}
 
 	nv_debug(parent, "detached %s context\n", subdev->name);
-	return nouveau_gpuobj_fini(&engctx->gpuobj, suspend);
+	return nvkm_gpuobj_fini(&engctx->gpuobj, suspend);
 }
 
 int
-_nouveau_engctx_ctor(struct nouveau_object *parent,
-		     struct nouveau_object *engine,
-		     struct nouveau_oclass *oclass, void *data, u32 size,
-		     struct nouveau_object **pobject)
+_nvkm_engctx_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		  struct nvkm_oclass *oclass, void *data, u32 size,
+		  struct nvkm_object **pobject)
 {
-	struct nouveau_engctx *engctx;
+	struct nvkm_engctx *engctx;
 	int ret;
 
-	ret = nouveau_engctx_create(parent, engine, oclass, NULL, 256, 256,
-				    NVOBJ_FLAG_ZERO_ALLOC, &engctx);
+	ret = nvkm_engctx_create(parent, engine, oclass, NULL, 256, 256,
+				 NVOBJ_FLAG_ZERO_ALLOC, &engctx);
 	*pobject = nv_object(engctx);
 	return ret;
 }
 
 void
-_nouveau_engctx_dtor(struct nouveau_object *object)
+_nvkm_engctx_dtor(struct nvkm_object *object)
 {
-	nouveau_engctx_destroy(nv_engctx(object));
+	nvkm_engctx_destroy(nv_engctx(object));
 }
 
 int
-_nouveau_engctx_init(struct nouveau_object *object)
+_nvkm_engctx_init(struct nvkm_object *object)
 {
-	return nouveau_engctx_init(nv_engctx(object));
+	return nvkm_engctx_init(nv_engctx(object));
 }
-
 
 int
-_nouveau_engctx_fini(struct nouveau_object *object, bool suspend)
+_nvkm_engctx_fini(struct nvkm_object *object, bool suspend)
 {
-	return nouveau_engctx_fini(nv_engctx(object), suspend);
+	return nvkm_engctx_fini(nv_engctx(object), suspend);
 }
 
-struct nouveau_object *
-nouveau_engctx_get(struct nouveau_engine *engine, u64 addr)
+struct nvkm_object *
+nvkm_engctx_get(struct nvkm_engine *engine, u64 addr)
 {
-	struct nouveau_engctx *engctx;
+	struct nvkm_engctx *engctx;
 	unsigned long flags;
 
 	spin_lock_irqsave(&engine->lock, flags);
@@ -240,11 +228,11 @@ nouveau_engctx_get(struct nouveau_engine *engine, u64 addr)
 }
 
 void
-nouveau_engctx_put(struct nouveau_object *object)
+nvkm_engctx_put(struct nvkm_object *object)
 {
 	if (object) {
-		struct nouveau_engine *engine = nv_engine(object->engine);
-		struct nouveau_engctx *engctx = nv_engctx(object);
+		struct nvkm_engine *engine = nv_engine(object->engine);
+		struct nvkm_engctx *engctx = nv_engctx(object);
 		spin_unlock_irqrestore(&engine->lock, engctx->save);
 	}
 }

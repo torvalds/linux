@@ -21,12 +21,11 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include <core/option.h>
 #include <core/debug.h>
 
 const char *
-nouveau_stropt(const char *optstr, const char *opt, int *arglen)
+nvkm_stropt(const char *optstr, const char *opt, int *arglen)
 {
 	while (optstr && *optstr != '\0') {
 		int len = strcspn(optstr, ",=");
@@ -52,11 +51,11 @@ nouveau_stropt(const char *optstr, const char *opt, int *arglen)
 }
 
 bool
-nouveau_boolopt(const char *optstr, const char *opt, bool value)
+nvkm_boolopt(const char *optstr, const char *opt, bool value)
 {
 	int arglen;
 
-	optstr = nouveau_stropt(optstr, opt, &arglen);
+	optstr = nvkm_stropt(optstr, opt, &arglen);
 	if (optstr) {
 		if (!strncasecmpz(optstr, "0", arglen) ||
 		    !strncasecmpz(optstr, "no", arglen) ||
@@ -75,7 +74,7 @@ nouveau_boolopt(const char *optstr, const char *opt, bool value)
 }
 
 int
-nouveau_dbgopt(const char *optstr, const char *sub)
+nvkm_dbgopt(const char *optstr, const char *sub)
 {
 	int mode = 1, level = CONFIG_NOUVEAU_DEBUG_DEFAULT;
 

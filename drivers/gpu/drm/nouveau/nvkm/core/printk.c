@@ -21,16 +21,14 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <core/object.h>
-#include <core/client.h>
-#include <core/subdev.h>
 #include <core/printk.h>
+#include <core/client.h>
+#include <core/device.h>
 
 int nv_info_debug_level = NV_DBG_INFO_NORMAL;
 
 void
-nv_printk_(struct nouveau_object *object, int level, const char *fmt, ...)
+nv_printk_(struct nvkm_object *object, int level, const char *fmt, ...)
 {
 	static const char name[] = { '!', 'E', 'W', ' ', 'D', 'T', 'P', 'S' };
 	const char *pfx;
@@ -60,8 +58,8 @@ nv_printk_(struct nouveau_object *object, int level, const char *fmt, ...)
 	}
 
 	if (object && !nv_iclass(object, NV_CLIENT_CLASS)) {
-		struct nouveau_object *device;
-		struct nouveau_object *subdev;
+		struct nvkm_object *device;
+		struct nvkm_object *subdev;
 		char obuf[64], *ofmt = "";
 
 		if (object->engine == NULL) {

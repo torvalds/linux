@@ -19,9 +19,8 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-
-#include <core/object.h>
 #include <core/event.h>
+#include <core/notify.h>
 
 void
 nvkm_event_put(struct nvkm_event *event, u32 types, int index)

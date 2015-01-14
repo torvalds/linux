@@ -21,13 +21,8 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-
-#include <core/client.h>
-#include <core/event.h>
 #include <core/notify.h>
-
-#include <nvif/unpack.h>
-#include <nvif/event.h>
+#include <core/event.h>
 
 static inline void
 nvkm_notify_put_locked(struct nvkm_notify *notify)
@@ -134,7 +129,7 @@ nvkm_notify_fini(struct nvkm_notify *notify)
 }
 
 int
-nvkm_notify_init(struct nouveau_object *object, struct nvkm_event *event,
+nvkm_notify_init(struct nvkm_object *object, struct nvkm_event *event,
 		 int (*func)(struct nvkm_notify *), bool work,
 		 void *data, u32 size, u32 reply,
 		 struct nvkm_notify *notify)

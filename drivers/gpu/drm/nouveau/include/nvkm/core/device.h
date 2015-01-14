@@ -1,13 +1,10 @@
-#ifndef __NOUVEAU_DEVICE_H__
-#define __NOUVEAU_DEVICE_H__
-
-#include <core/object.h>
-#include <core/subdev.h>
+#ifndef __NVKM_DEVICE_H__
+#define __NVKM_DEVICE_H__
 #include <core/engine.h>
 #include <core/event.h>
 
-struct nouveau_device {
-	struct nouveau_engine engine;
+struct nvkm_device {
+	struct nvkm_engine engine;
 	struct list_head head;
 
 	struct pci_dev *pdev;
@@ -38,53 +35,53 @@ struct nouveau_device {
 	u8  chiprev;
 	u32 crystal;
 
-	struct nouveau_oclass *oclass[NVDEV_SUBDEV_NR];
-	struct nouveau_object *subdev[NVDEV_SUBDEV_NR];
+	struct nvkm_oclass *oclass[NVDEV_SUBDEV_NR];
+	struct nvkm_object *subdev[NVDEV_SUBDEV_NR];
 
 	struct {
 		struct notifier_block nb;
 	} acpi;
 };
 
-int nouveau_device_list(u64 *name, int size);
+struct nvkm_device *nvkm_device_find(u64 name);
+int nvkm_device_list(u64 *name, int size);
 
-struct nouveau_device *nv_device(void *obj);
+struct nvkm_device *nv_device(void *obj);
 
 static inline bool
-nv_device_match(struct nouveau_object *object, u16 dev, u16 ven, u16 sub)
+nv_device_match(struct nvkm_object *object, u16 dev, u16 ven, u16 sub)
 {
-	struct nouveau_device *device = nv_device(object);
+	struct nvkm_device *device = nv_device(object);
 	return device->pdev->device == dev &&
 	       device->pdev->subsystem_vendor == ven &&
 	       device->pdev->subsystem_device == sub;
 }
 
 static inline bool
-nv_device_is_pci(struct nouveau_device *device)
+nv_device_is_pci(struct nvkm_device *device)
 {
 	return device->pdev != NULL;
 }
 
 static inline bool
-nv_device_is_cpu_coherent(struct nouveau_device *device)
+nv_device_is_cpu_coherent(struct nvkm_device *device)
 {
 	return (!IS_ENABLED(CONFIG_ARM) && nv_device_is_pci(device));
 }
 
 static inline struct device *
-nv_device_base(struct nouveau_device *device)
+nv_device_base(struct nvkm_device *device)
 {
 	return nv_device_is_pci(device) ? &device->pdev->dev :
 					  &device->platformdev->dev;
 }
 
 resource_size_t
-nv_device_resource_start(struct nouveau_device *device, unsigned int bar);
+nv_device_resource_start(struct nvkm_device *device, unsigned int bar);
 
 resource_size_t
-nv_device_resource_len(struct nouveau_device *device, unsigned int bar);
+nv_device_resource_len(struct nvkm_device *device, unsigned int bar);
 
 int
-nv_device_get_irq(struct nouveau_device *device, bool stall);
-
+nv_device_get_irq(struct nvkm_device *device, bool stall);
 #endif

@@ -23,6 +23,8 @@
  */
 
 #include <core/client.h>
+#include <core/device.h>
+#include <core/notify.h>
 #include <core/object.h>
 #include <core/handle.h>
 #include <core/event.h>

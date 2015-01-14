@@ -1,6 +1,7 @@
 #ifndef __NVKM_DISP_OUTP_DP_H__
 #define __NVKM_DISP_OUTP_DP_H__
 
+#include <core/notify.h>
 #include <subdev/bios.h>
 #include <subdev/bios/dp.h>
 

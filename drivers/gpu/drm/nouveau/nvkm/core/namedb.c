@@ -21,16 +21,14 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <core/object.h>
 #include <core/namedb.h>
-#include <core/handle.h>
 #include <core/gpuobj.h>
+#include <core/handle.h>
 
-static struct nouveau_handle *
-nouveau_namedb_lookup(struct nouveau_namedb *namedb, u32 name)
+static struct nvkm_handle *
+nvkm_namedb_lookup(struct nvkm_namedb *namedb, u32 name)
 {
-	struct nouveau_handle *handle;
+	struct nvkm_handle *handle;
 
 	list_for_each_entry(handle, &namedb->list, node) {
 		if (handle->name == name)
@@ -40,10 +38,10 @@ nouveau_namedb_lookup(struct nouveau_namedb *namedb, u32 name)
 	return NULL;
 }
 
-static struct nouveau_handle *
-nouveau_namedb_lookup_class(struct nouveau_namedb *namedb, u16 oclass)
+static struct nvkm_handle *
+nvkm_namedb_lookup_class(struct nvkm_namedb *namedb, u16 oclass)
 {
-	struct nouveau_handle *handle;
+	struct nvkm_handle *handle;
 
 	list_for_each_entry(handle, &namedb->list, node) {
 		if (nv_mclass(handle->object) == oclass)
@@ -53,10 +51,10 @@ nouveau_namedb_lookup_class(struct nouveau_namedb *namedb, u16 oclass)
 	return NULL;
 }
 
-static struct nouveau_handle *
-nouveau_namedb_lookup_vinst(struct nouveau_namedb *namedb, u64 vinst)
+static struct nvkm_handle *
+nvkm_namedb_lookup_vinst(struct nvkm_namedb *namedb, u64 vinst)
 {
-	struct nouveau_handle *handle;
+	struct nvkm_handle *handle;
 
 	list_for_each_entry(handle, &namedb->list, node) {
 		if (nv_iclass(handle->object, NV_GPUOBJ_CLASS)) {
@@ -68,10 +66,10 @@ nouveau_namedb_lookup_vinst(struct nouveau_namedb *namedb, u64 vinst)
 	return NULL;
 }
 
-static struct nouveau_handle *
-nouveau_namedb_lookup_cinst(struct nouveau_namedb *namedb, u32 cinst)
+static struct nvkm_handle *
+nvkm_namedb_lookup_cinst(struct nvkm_namedb *namedb, u32 cinst)
 {
-	struct nouveau_handle *handle;
+	struct nvkm_handle *handle;
 
 	list_for_each_entry(handle, &namedb->list, node) {
 		if (nv_iclass(handle->object, NV_GPUOBJ_CLASS)) {
@@ -85,14 +83,14 @@ nouveau_namedb_lookup_cinst(struct nouveau_namedb *namedb, u32 cinst)
 }
 
 int
-nouveau_namedb_insert(struct nouveau_namedb *namedb, u32 name,
-		      struct nouveau_object *object,
-		      struct nouveau_handle *handle)
+nvkm_namedb_insert(struct nvkm_namedb *namedb, u32 name,
+		   struct nvkm_object *object,
+		   struct nvkm_handle *handle)
 {
 	int ret = -EEXIST;
 	write_lock_irq(&namedb->lock);
-	if (!nouveau_namedb_lookup(namedb, name)) {
-		nouveau_object_ref(object, &handle->object);
+	if (!nvkm_namedb_lookup(namedb, name)) {
+		nvkm_object_ref(object, &handle->object);
 		handle->namedb = namedb;
 		list_add(&handle->node, &namedb->list);
 		ret = 0;
@@ -102,80 +100,79 @@ nouveau_namedb_insert(struct nouveau_namedb *namedb, u32 name,
 }
 
 void
-nouveau_namedb_remove(struct nouveau_handle *handle)
+nvkm_namedb_remove(struct nvkm_handle *handle)
 {
-	struct nouveau_namedb *namedb = handle->namedb;
-	struct nouveau_object *object = handle->object;
+	struct nvkm_namedb *namedb = handle->namedb;
+	struct nvkm_object *object = handle->object;
 	write_lock_irq(&namedb->lock);
 	list_del(&handle->node);
 	write_unlock_irq(&namedb->lock);
-	nouveau_object_ref(NULL, &object);
+	nvkm_object_ref(NULL, &object);
 }
 
-struct nouveau_handle *
-nouveau_namedb_get(struct nouveau_namedb *namedb, u32 name)
+struct nvkm_handle *
+nvkm_namedb_get(struct nvkm_namedb *namedb, u32 name)
 {
-	struct nouveau_handle *handle;
+	struct nvkm_handle *handle;
 	read_lock(&namedb->lock);
-	handle = nouveau_namedb_lookup(namedb, name);
+	handle = nvkm_namedb_lookup(namedb, name);
 	if (handle == NULL)
 		read_unlock(&namedb->lock);
 	return handle;
 }
 
-struct nouveau_handle *
-nouveau_namedb_get_class(struct nouveau_namedb *namedb, u16 oclass)
+struct nvkm_handle *
+nvkm_namedb_get_class(struct nvkm_namedb *namedb, u16 oclass)
 {
-	struct nouveau_handle *handle;
+	struct nvkm_handle *handle;
 	read_lock(&namedb->lock);
-	handle = nouveau_namedb_lookup_class(namedb, oclass);
+	handle = nvkm_namedb_lookup_class(namedb, oclass);
 	if (handle == NULL)
 		read_unlock(&namedb->lock);
 	return handle;
 }
 
-struct nouveau_handle *
-nouveau_namedb_get_vinst(struct nouveau_namedb *namedb, u64 vinst)
+struct nvkm_handle *
+nvkm_namedb_get_vinst(struct nvkm_namedb *namedb, u64 vinst)
 {
-	struct nouveau_handle *handle;
+	struct nvkm_handle *handle;
 	read_lock(&namedb->lock);
-	handle = nouveau_namedb_lookup_vinst(namedb, vinst);
+	handle = nvkm_namedb_lookup_vinst(namedb, vinst);
 	if (handle == NULL)
 		read_unlock(&namedb->lock);
 	return handle;
 }
 
-struct nouveau_handle *
-nouveau_namedb_get_cinst(struct nouveau_namedb *namedb, u32 cinst)
+struct nvkm_handle *
+nvkm_namedb_get_cinst(struct nvkm_namedb *namedb, u32 cinst)
 {
-	struct nouveau_handle *handle;
+	struct nvkm_handle *handle;
 	read_lock(&namedb->lock);
-	handle = nouveau_namedb_lookup_cinst(namedb, cinst);
+	handle = nvkm_namedb_lookup_cinst(namedb, cinst);
 	if (handle == NULL)
 		read_unlock(&namedb->lock);
 	return handle;
 }
 
 void
-nouveau_namedb_put(struct nouveau_handle *handle)
+nvkm_namedb_put(struct nvkm_handle *handle)
 {
 	if (handle)
 		read_unlock(&handle->namedb->lock);
 }
 
 int
-nouveau_namedb_create_(struct nouveau_object *parent,
-		       struct nouveau_object *engine,
-		       struct nouveau_oclass *oclass, u32 pclass,
-		       struct nouveau_oclass *sclass, u64 engcls,
-		       int length, void **pobject)
+nvkm_namedb_create_(struct nvkm_object *parent, struct nvkm_object *engine,
+		    struct nvkm_oclass *oclass, u32 pclass,
+		    struct nvkm_oclass *sclass, u64 engcls,
+		    int length, void **pobject)
 {
-	struct nouveau_namedb *namedb;
+	struct nvkm_namedb *namedb;
 	int ret;
 
-	ret = nouveau_parent_create_(parent, engine, oclass, pclass |
-				     NV_NAMEDB_CLASS, sclass, engcls,
-				     length, pobject);
+	ret = nvkm_parent_create_(parent, engine, oclass, pclass |
+				  NV_NAMEDB_CLASS, sclass, engcls,
+				  length, pobject);
 	namedb = *pobject;
 	if (ret)
 		return ret;
@@ -186,15 +183,14 @@ nouveau_namedb_create_(struct nouveau_object *parent,
 }
 
 int
-_nouveau_namedb_ctor(struct nouveau_object *parent,
-		     struct nouveau_object *engine,
-		     struct nouveau_oclass *oclass, void *data, u32 size,
-		     struct nouveau_object **pobject)
+_nvkm_namedb_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		  struct nvkm_oclass *oclass, void *data, u32 size,
+		  struct nvkm_object **pobject)
 {
-	struct nouveau_namedb *object;
+	struct nvkm_namedb *object;
 	int ret;
 
-	ret = nouveau_namedb_create(parent, engine, oclass, 0, NULL, 0, &object);
+	ret = nvkm_namedb_create(parent, engine, oclass, 0, NULL, 0, &object);
 	*pobject = nv_object(object);
 	if (ret)
 		return ret;

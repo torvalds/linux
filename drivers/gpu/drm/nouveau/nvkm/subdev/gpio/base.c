@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 
+#include <core/notify.h>
 #include <subdev/bios.h>
 #include <subdev/bios/gpio.h>
 

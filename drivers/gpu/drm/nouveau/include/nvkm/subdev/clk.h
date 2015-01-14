@@ -2,6 +2,7 @@
 #define __NOUVEAU_CLK_H__
 
 #include <core/device.h>
+#include <core/notify.h>
 #include <core/subdev.h>
 
 struct nouveau_pll_vals;

@@ -1,8 +1,10 @@
-#ifndef __NOUVEAU_HANDLE_H__
-#define __NOUVEAU_HANDLE_H__
+#ifndef __NVKM_HANDLE_H__
+#define __NVKM_HANDLE_H__
+#include <core/os.h>
+struct nvkm_object;
 
-struct nouveau_handle {
-	struct nouveau_namedb *namedb;
+struct nvkm_handle {
+	struct nvkm_namedb *namedb;
 	struct list_head node;
 
 	struct list_head head;
@@ -13,22 +15,20 @@ struct nouveau_handle {
 	u8  route;
 	u64 token;
 
-	struct nouveau_handle *parent;
-	struct nouveau_object *object;
+	struct nvkm_handle *parent;
+	struct nvkm_object *object;
 };
 
-int  nouveau_handle_create(struct nouveau_object *, u32 parent, u32 handle,
-			   struct nouveau_object *, struct nouveau_handle **);
-void nouveau_handle_destroy(struct nouveau_handle *);
-int  nouveau_handle_init(struct nouveau_handle *);
-int  nouveau_handle_fini(struct nouveau_handle *, bool suspend);
+int  nvkm_handle_create(struct nvkm_object *, u32 parent, u32 handle,
+			struct nvkm_object *, struct nvkm_handle **);
+void nvkm_handle_destroy(struct nvkm_handle *);
+int  nvkm_handle_init(struct nvkm_handle *);
+int  nvkm_handle_fini(struct nvkm_handle *, bool suspend);
 
-struct nouveau_object *
-nouveau_handle_ref(struct nouveau_object *, u32 name);
+struct nvkm_object *nvkm_handle_ref(struct nvkm_object *, u32 name);
 
-struct nouveau_handle *nouveau_handle_get_class(struct nouveau_object *, u16);
-struct nouveau_handle *nouveau_handle_get_vinst(struct nouveau_object *, u64);
-struct nouveau_handle *nouveau_handle_get_cinst(struct nouveau_object *, u32);
-void nouveau_handle_put(struct nouveau_handle *);
-
+struct nvkm_handle *nvkm_handle_get_class(struct nvkm_object *, u16);
+struct nvkm_handle *nvkm_handle_get_vinst(struct nvkm_object *, u64);
+struct nvkm_handle *nvkm_handle_get_cinst(struct nvkm_object *, u32);
+void nvkm_handle_put(struct nvkm_handle *);
 #endif

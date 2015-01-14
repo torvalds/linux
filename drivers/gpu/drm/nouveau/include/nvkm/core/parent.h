@@ -1,32 +1,29 @@
-#ifndef __NOUVEAU_PARENT_H__
-#define __NOUVEAU_PARENT_H__
-
-#include <core/device.h>
+#ifndef __NVKM_PARENT_H__
+#define __NVKM_PARENT_H__
 #include <core/object.h>
 
-struct nouveau_sclass {
-	struct nouveau_sclass *sclass;
-	struct nouveau_engine *engine;
-	struct nouveau_oclass *oclass;
+struct nvkm_sclass {
+	struct nvkm_sclass *sclass;
+	struct nvkm_engine *engine;
+	struct nvkm_oclass *oclass;
 };
 
-struct nouveau_parent {
-	struct nouveau_object object;
+struct nvkm_parent {
+	struct nvkm_object object;
 
-	struct nouveau_sclass *sclass;
+	struct nvkm_sclass *sclass;
 	u64 engine;
 
-	int  (*context_attach)(struct nouveau_object *,
-			       struct nouveau_object *);
-	int  (*context_detach)(struct nouveau_object *, bool suspend,
-			       struct nouveau_object *);
+	int  (*context_attach)(struct nvkm_object *, struct nvkm_object *);
+	int  (*context_detach)(struct nvkm_object *, bool suspend,
+			       struct nvkm_object *);
 
-	int  (*object_attach)(struct nouveau_object *parent,
-			      struct nouveau_object *object, u32 name);
-	void (*object_detach)(struct nouveau_object *parent, int cookie);
+	int  (*object_attach)(struct nvkm_object *parent,
+			      struct nvkm_object *object, u32 name);
+	void (*object_detach)(struct nvkm_object *parent, int cookie);
 };
 
-static inline struct nouveau_parent *
+static inline struct nvkm_parent *
 nv_parent(void *obj)
 {
 #if CONFIG_NOUVEAU_DEBUG >= NV_DBG_PARANOIA
@@ -36,27 +33,26 @@ nv_parent(void *obj)
 	return obj;
 }
 
-#define nouveau_parent_create(p,e,c,v,s,m,d)                                   \
-	nouveau_parent_create_((p), (e), (c), (v), (s), (m),                   \
+#define nvkm_parent_create(p,e,c,v,s,m,d)                                   \
+	nvkm_parent_create_((p), (e), (c), (v), (s), (m),                   \
 			       sizeof(**d), (void **)d)
-#define nouveau_parent_init(p)                                                 \
-	nouveau_object_init(&(p)->object)
-#define nouveau_parent_fini(p,s)                                               \
-	nouveau_object_fini(&(p)->object, (s))
+#define nvkm_parent_init(p)                                                 \
+	nvkm_object_init(&(p)->object)
+#define nvkm_parent_fini(p,s)                                               \
+	nvkm_object_fini(&(p)->object, (s))
 
-int  nouveau_parent_create_(struct nouveau_object *, struct nouveau_object *,
-			    struct nouveau_oclass *, u32 pclass,
-			    struct nouveau_oclass *, u64 engcls,
+int  nvkm_parent_create_(struct nvkm_object *, struct nvkm_object *,
+			    struct nvkm_oclass *, u32 pclass,
+			    struct nvkm_oclass *, u64 engcls,
 			    int size, void **);
-void nouveau_parent_destroy(struct nouveau_parent *);
+void nvkm_parent_destroy(struct nvkm_parent *);
 
-void _nouveau_parent_dtor(struct nouveau_object *);
-#define _nouveau_parent_init nouveau_object_init
-#define _nouveau_parent_fini nouveau_object_fini
+void _nvkm_parent_dtor(struct nvkm_object *);
+#define _nvkm_parent_init nvkm_object_init
+#define _nvkm_parent_fini nvkm_object_fini
 
-int nouveau_parent_sclass(struct nouveau_object *, u16 handle,
-			  struct nouveau_object **pengine,
-			  struct nouveau_oclass **poclass);
-int nouveau_parent_lclass(struct nouveau_object *, u32 *, int);
-
+int nvkm_parent_sclass(struct nvkm_object *, u16 handle,
+		       struct nvkm_object **pengine,
+		       struct nvkm_oclass **poclass);
+int nvkm_parent_lclass(struct nvkm_object *, u32 *, int);
 #endif

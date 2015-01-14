@@ -1,6 +1,5 @@
-#ifndef __NOUVEAU_DEBUG_H__
-#define __NOUVEAU_DEBUG_H__
-
+#ifndef __NVKM_DEBUG_H__
+#define __NVKM_DEBUG_H__
 extern int nv_info_debug_level;
 
 #define NV_DBG_FATAL    0
@@ -16,5 +15,4 @@ extern int nv_info_debug_level;
 #define NV_DBG_INFO_SILENT NV_DBG_DEBUG
 
 #define nv_debug_level(a) nv_info_debug_level = NV_DBG_INFO_##a
-
 #endif

@@ -21,19 +21,18 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <core/object.h>
 #include <core/parent.h>
 #include <core/client.h>
+#include <core/engine.h>
 
 int
-nouveau_parent_sclass(struct nouveau_object *parent, u16 handle,
-		      struct nouveau_object **pengine,
-		      struct nouveau_oclass **poclass)
+nvkm_parent_sclass(struct nvkm_object *parent, u16 handle,
+		   struct nvkm_object **pengine,
+		   struct nvkm_oclass **poclass)
 {
-	struct nouveau_sclass *sclass;
-	struct nouveau_engine *engine;
-	struct nouveau_oclass *oclass;
+	struct nvkm_sclass *sclass;
+	struct nvkm_engine *engine;
+	struct nvkm_oclass *oclass;
 	u64 mask;
 
 	sclass = nv_parent(parent)->sclass;
@@ -54,7 +53,7 @@ nouveau_parent_sclass(struct nouveau_object *parent, u16 handle,
 		if (nv_iclass(parent, NV_CLIENT_CLASS))
 			engine = nv_engine(nv_client(parent)->device);
 		else
-			engine = nouveau_engine(parent, i);
+			engine = nvkm_engine(parent, i);
 
 		if (engine) {
 			oclass = engine->sclass;
@@ -75,11 +74,11 @@ nouveau_parent_sclass(struct nouveau_object *parent, u16 handle,
 }
 
 int
-nouveau_parent_lclass(struct nouveau_object *parent, u32 *lclass, int size)
+nvkm_parent_lclass(struct nvkm_object *parent, u32 *lclass, int size)
 {
-	struct nouveau_sclass *sclass;
-	struct nouveau_engine *engine;
-	struct nouveau_oclass *oclass;
+	struct nvkm_sclass *sclass;
+	struct nvkm_engine *engine;
+	struct nvkm_oclass *oclass;
 	int nr = -1, i;
 	u64 mask;
 
@@ -92,7 +91,7 @@ nouveau_parent_lclass(struct nouveau_object *parent, u32 *lclass, int size)
 
 	mask = nv_parent(parent)->engine;
 	while (i = __ffs64(mask), mask) {
-		engine = nouveau_engine(parent, i);
+		engine = nvkm_engine(parent, i);
 		if (engine && (oclass = engine->sclass)) {
 			while (oclass->ofuncs) {
 				if (++nr < size)
@@ -108,18 +107,17 @@ nouveau_parent_lclass(struct nouveau_object *parent, u32 *lclass, int size)
 }
 
 int
-nouveau_parent_create_(struct nouveau_object *parent,
-		       struct nouveau_object *engine,
-		       struct nouveau_oclass *oclass, u32 pclass,
-		       struct nouveau_oclass *sclass, u64 engcls,
-		       int size, void **pobject)
+nvkm_parent_create_(struct nvkm_object *parent, struct nvkm_object *engine,
+		    struct nvkm_oclass *oclass, u32 pclass,
+		    struct nvkm_oclass *sclass, u64 engcls,
+		    int size, void **pobject)
 {
-	struct nouveau_parent *object;
-	struct nouveau_sclass *nclass;
+	struct nvkm_parent *object;
+	struct nvkm_sclass *nclass;
 	int ret;
 
-	ret = nouveau_object_create_(parent, engine, oclass, pclass |
-				     NV_PARENT_CLASS, size, pobject);
+	ret = nvkm_object_create_(parent, engine, oclass, pclass |
+				  NV_PARENT_CLASS, size, pobject);
 	object = *pobject;
 	if (ret)
 		return ret;
@@ -141,21 +139,21 @@ nouveau_parent_create_(struct nouveau_object *parent,
 }
 
 void
-nouveau_parent_destroy(struct nouveau_parent *parent)
+nvkm_parent_destroy(struct nvkm_parent *parent)
 {
-	struct nouveau_sclass *sclass;
+	struct nvkm_sclass *sclass;
 
 	while ((sclass = parent->sclass)) {
 		parent->sclass = sclass->sclass;
 		kfree(sclass);
 	}
 
-	nouveau_object_destroy(&parent->object);
+	nvkm_object_destroy(&parent->object);
 }
 
 
 void
-_nouveau_parent_dtor(struct nouveau_object *object)
+_nvkm_parent_dtor(struct nvkm_object *object)
 {
-	nouveau_parent_destroy(nv_parent(object));
+	nvkm_parent_destroy(nv_parent(object));
 }

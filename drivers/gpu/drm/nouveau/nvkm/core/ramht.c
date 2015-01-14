@@ -19,14 +19,12 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-
-#include <core/object.h>
 #include <core/ramht.h>
 
 #include <subdev/bar.h>
 
 static u32
-nouveau_ramht_hash(struct nouveau_ramht *ramht, int chid, u32 handle)
+nvkm_ramht_hash(struct nvkm_ramht *ramht, int chid, u32 handle)
 {
 	u32 hash = 0;
 
@@ -41,13 +39,12 @@ nouveau_ramht_hash(struct nouveau_ramht *ramht, int chid, u32 handle)
 }
 
 int
-nouveau_ramht_insert(struct nouveau_ramht *ramht, int chid,
-		     u32 handle, u32 context)
+nvkm_ramht_insert(struct nvkm_ramht *ramht, int chid, u32 handle, u32 context)
 {
-	struct nouveau_bar *bar = nouveau_bar(ramht);
+	struct nvkm_bar *bar = nvkm_bar(ramht);
 	u32 co, ho;
 
-	co = ho = nouveau_ramht_hash(ramht, chid, handle);
+	co = ho = nvkm_ramht_hash(ramht, chid, handle);
 	do {
 		if (!nv_ro32(ramht, co + 4)) {
 			nv_wo32(ramht, co + 0, handle);
@@ -66,39 +63,39 @@ nouveau_ramht_insert(struct nouveau_ramht *ramht, int chid,
 }
 
 void
-nouveau_ramht_remove(struct nouveau_ramht *ramht, int cookie)
+nvkm_ramht_remove(struct nvkm_ramht *ramht, int cookie)
 {
-	struct nouveau_bar *bar = nouveau_bar(ramht);
+	struct nvkm_bar *bar = nvkm_bar(ramht);
 	nv_wo32(ramht, cookie + 0, 0x00000000);
 	nv_wo32(ramht, cookie + 4, 0x00000000);
 	if (bar)
 		bar->flush(bar);
 }
 
-static struct nouveau_oclass
-nouveau_ramht_oclass = {
+static struct nvkm_oclass
+nvkm_ramht_oclass = {
 	.handle = 0x0000abcd,
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = NULL,
-		.dtor = _nouveau_gpuobj_dtor,
-		.init = _nouveau_gpuobj_init,
-		.fini = _nouveau_gpuobj_fini,
-		.rd32 = _nouveau_gpuobj_rd32,
-		.wr32 = _nouveau_gpuobj_wr32,
+		.dtor = _nvkm_gpuobj_dtor,
+		.init = _nvkm_gpuobj_init,
+		.fini = _nvkm_gpuobj_fini,
+		.rd32 = _nvkm_gpuobj_rd32,
+		.wr32 = _nvkm_gpuobj_wr32,
 	},
 };
 
 int
-nouveau_ramht_new(struct nouveau_object *parent, struct nouveau_object *pargpu,
-		  u32 size, u32 align, struct nouveau_ramht **pramht)
+nvkm_ramht_new(struct nvkm_object *parent, struct nvkm_object *pargpu,
+	       u32 size, u32 align, struct nvkm_ramht **pramht)
 {
-	struct nouveau_ramht *ramht;
+	struct nvkm_ramht *ramht;
 	int ret;
 
-	ret = nouveau_gpuobj_create(parent, parent->engine ?
-				    &parent->engine->subdev.object : parent, /* <nv50 ramht */
-				    &nouveau_ramht_oclass, 0, pargpu, size,
-				    align, NVOBJ_FLAG_ZERO_ALLOC, &ramht);
+	ret = nvkm_gpuobj_create(parent, parent->engine ?
+				 &parent->engine->subdev.object : parent, /* <nv50 ramht */
+				 &nvkm_ramht_oclass, 0, pargpu, size,
+				 align, NVOBJ_FLAG_ZERO_ALLOC, &ramht);
 	*pramht = ramht;
 	if (ret)
 		return ret;

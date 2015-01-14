@@ -1,30 +1,26 @@
-#ifndef __NOUVEAU_GPUOBJ_H__
-#define __NOUVEAU_GPUOBJ_H__
-
+#ifndef __NVKM_GPUOBJ_H__
+#define __NVKM_GPUOBJ_H__
 #include <core/object.h>
-#include <core/device.h>
-#include <core/parent.h>
 #include <core/mm.h>
-
-struct nouveau_vma;
-struct nouveau_vm;
+struct nvkm_vma;
+struct nvkm_vm;
 
 #define NVOBJ_FLAG_ZERO_ALLOC 0x00000001
 #define NVOBJ_FLAG_ZERO_FREE  0x00000002
 #define NVOBJ_FLAG_HEAP       0x00000004
 
-struct nouveau_gpuobj {
-	struct nouveau_object object;
-	struct nouveau_object *parent;
-	struct nouveau_mm_node *node;
-	struct nouveau_mm heap;
+struct nvkm_gpuobj {
+	struct nvkm_object object;
+	struct nvkm_object *parent;
+	struct nvkm_mm_node *node;
+	struct nvkm_mm heap;
 
 	u32 flags;
 	u64 addr;
 	u32 size;
 };
 
-static inline struct nouveau_gpuobj *
+static inline struct nvkm_gpuobj *
 nv_gpuobj(void *obj)
 {
 #if CONFIG_NOUVEAU_DEBUG >= NV_DBG_PARANOIA
@@ -34,38 +30,35 @@ nv_gpuobj(void *obj)
 	return obj;
 }
 
-#define nouveau_gpuobj_create(p,e,c,v,g,s,a,f,d)                               \
-	nouveau_gpuobj_create_((p), (e), (c), (v), (g), (s), (a), (f),         \
+#define nvkm_gpuobj_create(p,e,c,v,g,s,a,f,d)                               \
+	nvkm_gpuobj_create_((p), (e), (c), (v), (g), (s), (a), (f),         \
 			       sizeof(**d), (void **)d)
-#define nouveau_gpuobj_init(p) nouveau_object_init(&(p)->object)
-#define nouveau_gpuobj_fini(p,s) nouveau_object_fini(&(p)->object, (s))
-int  nouveau_gpuobj_create_(struct nouveau_object *, struct nouveau_object *,
-			    struct nouveau_oclass *, u32 pclass,
-			    struct nouveau_object *, u32 size, u32 align,
+#define nvkm_gpuobj_init(p) nvkm_object_init(&(p)->object)
+#define nvkm_gpuobj_fini(p,s) nvkm_object_fini(&(p)->object, (s))
+int  nvkm_gpuobj_create_(struct nvkm_object *, struct nvkm_object *,
+			    struct nvkm_oclass *, u32 pclass,
+			    struct nvkm_object *, u32 size, u32 align,
 			    u32 flags, int length, void **);
-void nouveau_gpuobj_destroy(struct nouveau_gpuobj *);
+void nvkm_gpuobj_destroy(struct nvkm_gpuobj *);
 
-int nouveau_gpuobj_new(struct nouveau_object *, struct nouveau_object *,
-		       u32 size, u32 align, u32 flags,
-		       struct nouveau_gpuobj **);
-int nouveau_gpuobj_dup(struct nouveau_object *, struct nouveau_gpuobj *,
-		       struct nouveau_gpuobj **);
-
-int nouveau_gpuobj_map(struct nouveau_gpuobj *, u32 acc, struct nouveau_vma *);
-int nouveau_gpuobj_map_vm(struct nouveau_gpuobj *, struct nouveau_vm *,
-			  u32 access, struct nouveau_vma *);
-void nouveau_gpuobj_unmap(struct nouveau_vma *);
+int  nvkm_gpuobj_new(struct nvkm_object *, struct nvkm_object *, u32 size,
+		     u32 align, u32 flags, struct nvkm_gpuobj **);
+int  nvkm_gpuobj_dup(struct nvkm_object *, struct nvkm_gpuobj *,
+		     struct nvkm_gpuobj **);
+int  nvkm_gpuobj_map(struct nvkm_gpuobj *, u32 acc, struct nvkm_vma *);
+int  nvkm_gpuobj_map_vm(struct nvkm_gpuobj *, struct nvkm_vm *, u32 access,
+			struct nvkm_vma *);
+void nvkm_gpuobj_unmap(struct nvkm_vma *);
 
 static inline void
-nouveau_gpuobj_ref(struct nouveau_gpuobj *obj, struct nouveau_gpuobj **ref)
+nvkm_gpuobj_ref(struct nvkm_gpuobj *obj, struct nvkm_gpuobj **ref)
 {
-	nouveau_object_ref(&obj->object, (struct nouveau_object **)ref);
+	nvkm_object_ref(&obj->object, (struct nvkm_object **)ref);
 }
 
-void _nouveau_gpuobj_dtor(struct nouveau_object *);
-int  _nouveau_gpuobj_init(struct nouveau_object *);
-int  _nouveau_gpuobj_fini(struct nouveau_object *, bool);
-u32  _nouveau_gpuobj_rd32(struct nouveau_object *, u64);
-void _nouveau_gpuobj_wr32(struct nouveau_object *, u64, u32);
-
+void _nvkm_gpuobj_dtor(struct nvkm_object *);
+int  _nvkm_gpuobj_init(struct nvkm_object *);
+int  _nvkm_gpuobj_fini(struct nvkm_object *, bool);
+u32  _nvkm_gpuobj_rd32(struct nvkm_object *, u64);
+void _nvkm_gpuobj_wr32(struct nvkm_object *, u64, u32);
 #endif

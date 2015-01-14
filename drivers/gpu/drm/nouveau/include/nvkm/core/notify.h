@@ -1,5 +1,7 @@
 #ifndef __NVKM_NOTIFY_H__
 #define __NVKM_NOTIFY_H__
+#include <core/os.h>
+struct nvkm_object;
 
 struct nvkm_notify {
 	struct nvkm_event *event;
@@ -25,7 +27,7 @@ struct nvkm_notify {
 	const void *data;
 };
 
-int  nvkm_notify_init(struct nouveau_object *, struct nvkm_event *,
+int  nvkm_notify_init(struct nvkm_object *, struct nvkm_event *,
 		      int (*func)(struct nvkm_notify *), bool work,
 		      void *data, u32 size, u32 reply,
 		      struct nvkm_notify *);
@@ -33,5 +35,4 @@ void nvkm_notify_fini(struct nvkm_notify *);
 void nvkm_notify_get(struct nvkm_notify *);
 void nvkm_notify_put(struct nvkm_notify *);
 void nvkm_notify_send(struct nvkm_notify *, void *data, u32 size);
-
 #endif

@@ -21,36 +21,34 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include <core/object.h>
 #include <core/engine.h>
 
-#ifdef NOUVEAU_OBJECT_MAGIC
+#ifdef NVKM_OBJECT_MAGIC
 static struct list_head _objlist = LIST_HEAD_INIT(_objlist);
 static DEFINE_SPINLOCK(_objlist_lock);
 #endif
 
 int
-nouveau_object_create_(struct nouveau_object *parent,
-		       struct nouveau_object *engine,
-		       struct nouveau_oclass *oclass, u32 pclass,
-		       int size, void **pobject)
+nvkm_object_create_(struct nvkm_object *parent, struct nvkm_object *engine,
+		    struct nvkm_oclass *oclass, u32 pclass,
+		    int size, void **pobject)
 {
-	struct nouveau_object *object;
+	struct nvkm_object *object;
 
 	object = *pobject = kzalloc(size, GFP_KERNEL);
 	if (!object)
 		return -ENOMEM;
 
-	nouveau_object_ref(parent, &object->parent);
-	nouveau_object_ref(engine, (struct nouveau_object **)&object->engine);
+	nvkm_object_ref(parent, &object->parent);
+	nvkm_object_ref(engine, (struct nvkm_object **)&object->engine);
 	object->oclass = oclass;
 	object->oclass->handle |= pclass;
 	atomic_set(&object->refcount, 1);
 	atomic_set(&object->usecount, 0);
 
-#ifdef NOUVEAU_OBJECT_MAGIC
-	object->_magic = NOUVEAU_OBJECT_MAGIC;
+#ifdef NVKM_OBJECT_MAGIC
+	object->_magic = NVKM_OBJECT_MAGIC;
 	spin_lock(&_objlist_lock);
 	list_add(&object->list, &_objlist);
 	spin_unlock(&_objlist_lock);
@@ -59,57 +57,55 @@ nouveau_object_create_(struct nouveau_object *parent,
 }
 
 int
-_nouveau_object_ctor(struct nouveau_object *parent,
-		     struct nouveau_object *engine,
-		     struct nouveau_oclass *oclass, void *data, u32 size,
-		     struct nouveau_object **pobject)
+_nvkm_object_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		  struct nvkm_oclass *oclass, void *data, u32 size,
+		  struct nvkm_object **pobject)
 {
 	if (size != 0)
 		return -ENOSYS;
-	return nouveau_object_create(parent, engine, oclass, 0, pobject);
+	return nvkm_object_create(parent, engine, oclass, 0, pobject);
 }
 
 void
-nouveau_object_destroy(struct nouveau_object *object)
+nvkm_object_destroy(struct nvkm_object *object)
 {
-#ifdef NOUVEAU_OBJECT_MAGIC
+#ifdef NVKM_OBJECT_MAGIC
 	spin_lock(&_objlist_lock);
 	list_del(&object->list);
 	spin_unlock(&_objlist_lock);
 #endif
-	nouveau_object_ref(NULL, (struct nouveau_object **)&object->engine);
-	nouveau_object_ref(NULL, &object->parent);
+	nvkm_object_ref(NULL, (struct nvkm_object **)&object->engine);
+	nvkm_object_ref(NULL, &object->parent);
 	kfree(object);
 }
 
 int
-nouveau_object_init(struct nouveau_object *object)
+nvkm_object_init(struct nvkm_object *object)
 {
 	return 0;
 }
 
 int
-nouveau_object_fini(struct nouveau_object *object, bool suspend)
+nvkm_object_fini(struct nvkm_object *object, bool suspend)
 {
 	return 0;
 }
 
-struct nouveau_ofuncs
-nouveau_object_ofuncs = {
-	.ctor = _nouveau_object_ctor,
-	.dtor = nouveau_object_destroy,
-	.init = nouveau_object_init,
-	.fini = nouveau_object_fini,
+struct nvkm_ofuncs
+nvkm_object_ofuncs = {
+	.ctor = _nvkm_object_ctor,
+	.dtor = nvkm_object_destroy,
+	.init = nvkm_object_init,
+	.fini = nvkm_object_fini,
 };
 
 int
-nouveau_object_ctor(struct nouveau_object *parent,
-		    struct nouveau_object *engine,
-		    struct nouveau_oclass *oclass, void *data, u32 size,
-		    struct nouveau_object **pobject)
+nvkm_object_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		 struct nvkm_oclass *oclass, void *data, u32 size,
+		 struct nvkm_object **pobject)
 {
-	struct nouveau_ofuncs *ofuncs = oclass->ofuncs;
-	struct nouveau_object *object = NULL;
+	struct nvkm_ofuncs *ofuncs = oclass->ofuncs;
+	struct nvkm_object *object = NULL;
 	int ret;
 
 	ret = ofuncs->ctor(parent, engine, oclass, data, size, &object);
@@ -137,14 +133,14 @@ nouveau_object_ctor(struct nouveau_object *parent,
 }
 
 static void
-nouveau_object_dtor(struct nouveau_object *object)
+nvkm_object_dtor(struct nvkm_object *object)
 {
 	nv_trace(object, "destroying\n");
 	nv_ofuncs(object)->dtor(object);
 }
 
 void
-nouveau_object_ref(struct nouveau_object *obj, struct nouveau_object **ref)
+nvkm_object_ref(struct nvkm_object *obj, struct nvkm_object **ref)
 {
 	if (obj) {
 		atomic_inc(&obj->refcount);
@@ -155,14 +151,14 @@ nouveau_object_ref(struct nouveau_object *obj, struct nouveau_object **ref)
 		int dead = atomic_dec_and_test(&(*ref)->refcount);
 		nv_trace(*ref, "dec() == %d\n", atomic_read(&(*ref)->refcount));
 		if (dead)
-			nouveau_object_dtor(*ref);
+			nvkm_object_dtor(*ref);
 	}
 
 	*ref = obj;
 }
 
 int
-nouveau_object_inc(struct nouveau_object *object)
+nvkm_object_inc(struct nvkm_object *object)
 {
 	int ref = atomic_add_return(1, &object->usecount);
 	int ret;
@@ -173,7 +169,7 @@ nouveau_object_inc(struct nouveau_object *object)
 
 	nv_trace(object, "initialising...\n");
 	if (object->parent) {
-		ret = nouveau_object_inc(object->parent);
+		ret = nvkm_object_inc(object->parent);
 		if (ret) {
 			nv_error(object, "parent failed, %d\n", ret);
 			goto fail_parent;
@@ -182,7 +178,7 @@ nouveau_object_inc(struct nouveau_object *object)
 
 	if (object->engine) {
 		mutex_lock(&nv_subdev(object->engine)->mutex);
-		ret = nouveau_object_inc(&object->engine->subdev.object);
+		ret = nvkm_object_inc(&object->engine->subdev.object);
 		mutex_unlock(&nv_subdev(object->engine)->mutex);
 		if (ret) {
 			nv_error(object, "engine failed, %d\n", ret);
@@ -203,19 +199,19 @@ nouveau_object_inc(struct nouveau_object *object)
 fail_self:
 	if (object->engine) {
 		mutex_lock(&nv_subdev(object->engine)->mutex);
-		nouveau_object_dec(&object->engine->subdev.object, false);
+		nvkm_object_dec(&object->engine->subdev.object, false);
 		mutex_unlock(&nv_subdev(object->engine)->mutex);
 	}
 fail_engine:
 	if (object->parent)
-		 nouveau_object_dec(object->parent, false);
+		 nvkm_object_dec(object->parent, false);
 fail_parent:
 	atomic_dec(&object->usecount);
 	return ret;
 }
 
 static int
-nouveau_object_decf(struct nouveau_object *object)
+nvkm_object_decf(struct nvkm_object *object)
 {
 	int ret;
 
@@ -228,19 +224,19 @@ nouveau_object_decf(struct nouveau_object *object)
 
 	if (object->engine) {
 		mutex_lock(&nv_subdev(object->engine)->mutex);
-		nouveau_object_dec(&object->engine->subdev.object, false);
+		nvkm_object_dec(&object->engine->subdev.object, false);
 		mutex_unlock(&nv_subdev(object->engine)->mutex);
 	}
 
 	if (object->parent)
-		nouveau_object_dec(object->parent, false);
+		nvkm_object_dec(object->parent, false);
 
 	nv_trace(object, "stopped\n");
 	return 0;
 }
 
 static int
-nouveau_object_decs(struct nouveau_object *object)
+nvkm_object_decs(struct nvkm_object *object)
 {
 	int ret, rret;
 
@@ -255,7 +251,7 @@ nouveau_object_decs(struct nouveau_object *object)
 
 	if (object->engine) {
 		mutex_lock(&nv_subdev(object->engine)->mutex);
-		ret = nouveau_object_dec(&object->engine->subdev.object, true);
+		ret = nvkm_object_dec(&object->engine->subdev.object, true);
 		mutex_unlock(&nv_subdev(object->engine)->mutex);
 		if (ret) {
 			nv_warn(object, "engine failed suspend, %d\n", ret);
@@ -264,7 +260,7 @@ nouveau_object_decs(struct nouveau_object *object)
 	}
 
 	if (object->parent) {
-		ret = nouveau_object_dec(object->parent, true);
+		ret = nvkm_object_dec(object->parent, true);
 		if (ret) {
 			nv_warn(object, "parent failed suspend, %d\n", ret);
 			goto fail_parent;
@@ -277,7 +273,7 @@ nouveau_object_decs(struct nouveau_object *object)
 fail_parent:
 	if (object->engine) {
 		mutex_lock(&nv_subdev(object->engine)->mutex);
-		rret = nouveau_object_inc(&object->engine->subdev.object);
+		rret = nvkm_object_inc(&object->engine->subdev.object);
 		mutex_unlock(&nv_subdev(object->engine)->mutex);
 		if (rret)
 			nv_fatal(object, "engine failed to reinit, %d\n", rret);
@@ -292,7 +288,7 @@ fail_engine:
 }
 
 int
-nouveau_object_dec(struct nouveau_object *object, bool suspend)
+nvkm_object_dec(struct nvkm_object *object, bool suspend)
 {
 	int ref = atomic_add_return(-1, &object->usecount);
 	int ret;
@@ -301,9 +297,9 @@ nouveau_object_dec(struct nouveau_object *object, bool suspend)
 
 	if (ref == 0) {
 		if (suspend)
-			ret = nouveau_object_decs(object);
+			ret = nvkm_object_decs(object);
 		else
-			ret = nouveau_object_decf(object);
+			ret = nvkm_object_decf(object);
 
 		if (ret) {
 			atomic_inc(&object->usecount);
@@ -315,10 +311,10 @@ nouveau_object_dec(struct nouveau_object *object, bool suspend)
 }
 
 void
-nouveau_object_debug(void)
+nvkm_object_debug(void)
 {
-#ifdef NOUVEAU_OBJECT_MAGIC
-	struct nouveau_object *object;
+#ifdef NVKM_OBJECT_MAGIC
+	struct nvkm_object *object;
 	if (!list_empty(&_objlist)) {
 		nv_fatal(NULL, "*******************************************\n");
 		nv_fatal(NULL, "* AIIIII! object(s) still exist!!!\n");

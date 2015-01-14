@@ -1,12 +1,10 @@
-#ifndef __NOUVEAU_OPTION_H__
-#define __NOUVEAU_OPTION_H__
-
+#ifndef __NVKM_OPTION_H__
+#define __NVKM_OPTION_H__
 #include <core/os.h>
 
-const char *nouveau_stropt(const char *optstr, const char *opt, int *len);
-bool nouveau_boolopt(const char *optstr, const char *opt, bool value);
-
-int nouveau_dbgopt(const char *optstr, const char *sub);
+const char *nvkm_stropt(const char *optstr, const char *opt, int *len);
+bool nvkm_boolopt(const char *optstr, const char *opt, bool value);
+int  nvkm_dbgopt(const char *optstr, const char *sub);
 
 /* compares unterminated string 'str' with zero-terminated string 'cmp' */
 static inline int
@@ -16,5 +14,4 @@ strncasecmpz(const char *str, const char *cmp, size_t len)
 		return len;
 	return strncasecmp(str, cmp, len);
 }
-
 #endif

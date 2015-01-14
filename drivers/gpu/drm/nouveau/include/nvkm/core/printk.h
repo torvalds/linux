@@ -1,13 +1,11 @@
-#ifndef __NOUVEAU_PRINTK_H__
-#define __NOUVEAU_PRINTK_H__
-
+#ifndef __NVKM_PRINTK_H__
+#define __NVKM_PRINTK_H__
 #include <core/os.h>
 #include <core/debug.h>
-
-struct nouveau_object;
+struct nvkm_object;
 
 void __printf(3, 4)
-nv_printk_(struct nouveau_object *, int, const char *, ...);
+nv_printk_(struct nvkm_object *, int, const char *, ...);
 
 #define nv_printk(o,l,f,a...) do {                                             \
 	if (NV_DBG_##l <= CONFIG_NOUVEAU_DEBUG)                                \
@@ -21,12 +19,11 @@ nv_printk_(struct nouveau_object *, int, const char *, ...);
 #define nv_debug(o,f,a...) nv_printk((o), DEBUG, f, ##a)
 #define nv_trace(o,f,a...) nv_printk((o), TRACE, f, ##a)
 #define nv_spam(o,f,a...) nv_printk((o), SPAM, f, ##a)
-#define nv_ioctl(o,f,a...) nv_trace(nouveau_client(o), "ioctl: "f, ##a)
+#define nv_ioctl(o,f,a...) nv_trace(nvkm_client(o), "ioctl: "f, ##a)
 
 #define nv_assert(f,a...) do {                                                 \
 	if (NV_DBG_FATAL <= CONFIG_NOUVEAU_DEBUG)                              \
 		nv_printk_(NULL, NV_DBG_FATAL, f "\n", ##a);                   \
 	BUG_ON(1);                                                             \
 } while(0)
-
 #endif

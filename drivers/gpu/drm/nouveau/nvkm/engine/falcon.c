@@ -19,14 +19,14 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-
 #include <engine/falcon.h>
+
 #include <subdev/timer.h>
 
 void
-nouveau_falcon_intr(struct nouveau_subdev *subdev)
+nvkm_falcon_intr(struct nvkm_subdev *subdev)
 {
-	struct nouveau_falcon *falcon = (void *)subdev;
+	struct nvkm_falcon *falcon = (void *)subdev;
 	u32 dispatch = nv_ro32(falcon, 0x01c);
 	u32 intr = nv_ro32(falcon, 0x008) & dispatch & ~(dispatch >> 16);
 
@@ -43,16 +43,16 @@ nouveau_falcon_intr(struct nouveau_subdev *subdev)
 }
 
 u32
-_nouveau_falcon_rd32(struct nouveau_object *object, u64 addr)
+_nvkm_falcon_rd32(struct nvkm_object *object, u64 addr)
 {
-	struct nouveau_falcon *falcon = (void *)object;
+	struct nvkm_falcon *falcon = (void *)object;
 	return nv_rd32(falcon, falcon->addr + addr);
 }
 
 void
-_nouveau_falcon_wr32(struct nouveau_object *object, u64 addr, u32 data)
+_nvkm_falcon_wr32(struct nvkm_object *object, u64 addr, u32 data)
 {
-	struct nouveau_falcon *falcon = (void *)object;
+	struct nvkm_falcon *falcon = (void *)object;
 	nv_wr32(falcon, falcon->addr + addr, data);
 }
 
@@ -67,17 +67,17 @@ vmemdup(const void *src, size_t len)
 }
 
 int
-_nouveau_falcon_init(struct nouveau_object *object)
+_nvkm_falcon_init(struct nvkm_object *object)
 {
-	struct nouveau_device *device = nv_device(object);
-	struct nouveau_falcon *falcon = (void *)object;
+	struct nvkm_device *device = nv_device(object);
+	struct nvkm_falcon *falcon = (void *)object;
 	const struct firmware *fw;
 	char name[32] = "internal";
 	int ret, i;
 	u32 caps;
 
 	/* enable engine, and determine its capabilities */
-	ret = nouveau_engine_init(&falcon->base);
+	ret = nvkm_engine_init(&falcon->base);
 	if (ret)
 		return ret;
 
@@ -171,9 +171,8 @@ _nouveau_falcon_init(struct nouveau_object *object)
 
 	/* ensure any "self-bootstrapping" firmware image is in vram */
 	if (!falcon->data.data && !falcon->core) {
-		ret = nouveau_gpuobj_new(object->parent, NULL,
-					 falcon->code.size, 256, 0,
-					&falcon->core);
+		ret = nvkm_gpuobj_new(object->parent, NULL, falcon->code.size,
+				      256, 0, &falcon->core);
 		if (ret) {
 			nv_error(falcon, "core allocation failed, %d\n", ret);
 			return ret;
@@ -238,12 +237,12 @@ _nouveau_falcon_init(struct nouveau_object *object)
 }
 
 int
-_nouveau_falcon_fini(struct nouveau_object *object, bool suspend)
+_nvkm_falcon_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nouveau_falcon *falcon = (void *)object;
+	struct nvkm_falcon *falcon = (void *)object;
 
 	if (!suspend) {
-		nouveau_gpuobj_ref(NULL, &falcon->core);
+		nvkm_gpuobj_ref(NULL, &falcon->core);
 		if (falcon->external) {
 			vfree(falcon->data.data);
 			vfree(falcon->code.data);
@@ -254,21 +253,20 @@ _nouveau_falcon_fini(struct nouveau_object *object, bool suspend)
 	nv_mo32(falcon, 0x048, 0x00000003, 0x00000000);
 	nv_wo32(falcon, 0x014, 0xffffffff);
 
-	return nouveau_engine_fini(&falcon->base, suspend);
+	return nvkm_engine_fini(&falcon->base, suspend);
 }
 
 int
-nouveau_falcon_create_(struct nouveau_object *parent,
-		       struct nouveau_object *engine,
-		       struct nouveau_oclass *oclass, u32 addr, bool enable,
-		       const char *iname, const char *fname,
-		       int length, void **pobject)
+nvkm_falcon_create_(struct nvkm_object *parent, struct nvkm_object *engine,
+		    struct nvkm_oclass *oclass, u32 addr, bool enable,
+		    const char *iname, const char *fname,
+		    int length, void **pobject)
 {
-	struct nouveau_falcon *falcon;
+	struct nvkm_falcon *falcon;
 	int ret;
 
-	ret = nouveau_engine_create_(parent, engine, oclass, enable, iname,
-				     fname, length, pobject);
+	ret = nvkm_engine_create_(parent, engine, oclass, enable, iname,
+				  fname, length, pobject);
 	falcon = *pobject;
 	if (ret)
 		return ret;

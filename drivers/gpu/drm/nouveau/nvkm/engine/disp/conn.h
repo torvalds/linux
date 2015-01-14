@@ -1,7 +1,8 @@
 #ifndef __NVKM_DISP_CONN_H__
 #define __NVKM_DISP_CONN_H__
-
 #include "priv.h"
+
+#include <core/notify.h>
 
 struct nvkm_connector {
 	struct nouveau_object base;

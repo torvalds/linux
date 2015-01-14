@@ -21,39 +21,37 @@
  *
  * Authors: Ben Skeggs
  */
+#include <core/mm.h>
 
-#include "core/os.h"
-#include "core/mm.h"
-
-#define node(root, dir) ((root)->nl_entry.dir == &mm->nodes) ? NULL : \
-	list_entry((root)->nl_entry.dir, struct nouveau_mm_node, nl_entry)
+#define node(root, dir) ((root)->nl_entry.dir == &mm->nodes) ? NULL :          \
+	list_entry((root)->nl_entry.dir, struct nvkm_mm_node, nl_entry)
 
 static void
-nouveau_mm_dump(struct nouveau_mm *mm, const char *header)
+nvkm_mm_dump(struct nvkm_mm *mm, const char *header)
 {
-	struct nouveau_mm_node *node;
+	struct nvkm_mm_node *node;
 
-	printk(KERN_ERR "nouveau: %s\n", header);
-	printk(KERN_ERR "nouveau: node list:\n");
+	printk(KERN_ERR "nvkm: %s\n", header);
+	printk(KERN_ERR "nvkm: node list:\n");
 	list_for_each_entry(node, &mm->nodes, nl_entry) {
-		printk(KERN_ERR "nouveau: \t%08x %08x %d\n",
+		printk(KERN_ERR "nvkm: \t%08x %08x %d\n",
 		       node->offset, node->length, node->type);
 	}
-	printk(KERN_ERR "nouveau: free list:\n");
+	printk(KERN_ERR "nvkm: free list:\n");
 	list_for_each_entry(node, &mm->free, fl_entry) {
-		printk(KERN_ERR "nouveau: \t%08x %08x %d\n",
+		printk(KERN_ERR "nvkm: \t%08x %08x %d\n",
 		       node->offset, node->length, node->type);
 	}
 }
 
 void
-nouveau_mm_free(struct nouveau_mm *mm, struct nouveau_mm_node **pthis)
+nvkm_mm_free(struct nvkm_mm *mm, struct nvkm_mm_node **pthis)
 {
-	struct nouveau_mm_node *this = *pthis;
+	struct nvkm_mm_node *this = *pthis;
 
 	if (this) {
-		struct nouveau_mm_node *prev = node(this, prev);
-		struct nouveau_mm_node *next = node(this, next);
+		struct nvkm_mm_node *prev = node(this, prev);
+		struct nvkm_mm_node *next = node(this, next);
 
 		if (prev && prev->type == NVKM_MM_TYPE_NONE) {
 			prev->length += this->length;
@@ -84,10 +82,10 @@ nouveau_mm_free(struct nouveau_mm *mm, struct nouveau_mm_node **pthis)
 	*pthis = NULL;
 }
 
-static struct nouveau_mm_node *
-region_head(struct nouveau_mm *mm, struct nouveau_mm_node *a, u32 size)
+static struct nvkm_mm_node *
+region_head(struct nvkm_mm *mm, struct nvkm_mm_node *a, u32 size)
 {
-	struct nouveau_mm_node *b;
+	struct nvkm_mm_node *b;
 
 	if (a->length == size)
 		return a;
@@ -105,14 +103,15 @@ region_head(struct nouveau_mm *mm, struct nouveau_mm_node *a, u32 size)
 	list_add_tail(&b->nl_entry, &a->nl_entry);
 	if (b->type == NVKM_MM_TYPE_NONE)
 		list_add_tail(&b->fl_entry, &a->fl_entry);
+
 	return b;
 }
 
 int
-nouveau_mm_head(struct nouveau_mm *mm, u8 heap, u8 type, u32 size_max,
-		u32 size_min, u32 align, struct nouveau_mm_node **pnode)
+nvkm_mm_head(struct nvkm_mm *mm, u8 heap, u8 type, u32 size_max, u32 size_min,
+	     u32 align, struct nvkm_mm_node **pnode)
 {
-	struct nouveau_mm_node *prev, *this, *next;
+	struct nvkm_mm_node *prev, *this, *next;
 	u32 mask = align - 1;
 	u32 splitoff;
 	u32 s, e;
@@ -157,10 +156,10 @@ nouveau_mm_head(struct nouveau_mm *mm, u8 heap, u8 type, u32 size_max,
 	return -ENOSPC;
 }
 
-static struct nouveau_mm_node *
-region_tail(struct nouveau_mm *mm, struct nouveau_mm_node *a, u32 size)
+static struct nvkm_mm_node *
+region_tail(struct nvkm_mm *mm, struct nvkm_mm_node *a, u32 size)
 {
-	struct nouveau_mm_node *b;
+	struct nvkm_mm_node *b;
 
 	if (a->length == size)
 		return a;
@@ -178,14 +177,15 @@ region_tail(struct nouveau_mm *mm, struct nouveau_mm_node *a, u32 size)
 	list_add(&b->nl_entry, &a->nl_entry);
 	if (b->type == NVKM_MM_TYPE_NONE)
 		list_add(&b->fl_entry, &a->fl_entry);
+
 	return b;
 }
 
 int
-nouveau_mm_tail(struct nouveau_mm *mm, u8 heap, u8 type, u32 size_max,
-		u32 size_min, u32 align, struct nouveau_mm_node **pnode)
+nvkm_mm_tail(struct nvkm_mm *mm, u8 heap, u8 type, u32 size_max, u32 size_min,
+	     u32 align, struct nvkm_mm_node **pnode)
 {
-	struct nouveau_mm_node *prev, *this, *next;
+	struct nvkm_mm_node *prev, *this, *next;
 	u32 mask = align - 1;
 
 	BUG_ON(type == NVKM_MM_TYPE_NONE || type == NVKM_MM_TYPE_HOLE);
@@ -235,12 +235,12 @@ nouveau_mm_tail(struct nouveau_mm *mm, u8 heap, u8 type, u32 size_max,
 }
 
 int
-nouveau_mm_init(struct nouveau_mm *mm, u32 offset, u32 length, u32 block)
+nvkm_mm_init(struct nvkm_mm *mm, u32 offset, u32 length, u32 block)
 {
-	struct nouveau_mm_node *node, *prev;
+	struct nvkm_mm_node *node, *prev;
 	u32 next;
 
-	if (nouveau_mm_initialised(mm)) {
+	if (nvkm_mm_initialised(mm)) {
 		prev = list_last_entry(&mm->nodes, typeof(*node), nl_entry);
 		next = prev->offset + prev->length;
 		if (next != offset) {
@@ -277,18 +277,18 @@ nouveau_mm_init(struct nouveau_mm *mm, u32 offset, u32 length, u32 block)
 }
 
 int
-nouveau_mm_fini(struct nouveau_mm *mm)
+nvkm_mm_fini(struct nvkm_mm *mm)
 {
-	struct nouveau_mm_node *node, *temp;
+	struct nvkm_mm_node *node, *temp;
 	int nodes = 0;
 
-	if (!nouveau_mm_initialised(mm))
+	if (!nvkm_mm_initialised(mm))
 		return 0;
 
 	list_for_each_entry(node, &mm->nodes, nl_entry) {
 		if (node->type != NVKM_MM_TYPE_HOLE) {
 			if (++nodes > mm->heap_nodes) {
-				nouveau_mm_dump(mm, "mm not clean!");
+				nvkm_mm_dump(mm, "mm not clean!");
 				return -EBUSY;
 			}
 		}
@@ -298,6 +298,7 @@ nouveau_mm_fini(struct nouveau_mm *mm)
 		list_del(&node->nl_entry);
 		kfree(node);
 	}
+
 	mm->heap_nodes = 0;
 	return 0;
 }
