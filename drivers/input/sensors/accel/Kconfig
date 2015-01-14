@@ -16,6 +16,13 @@ config GS_MMA8452
 	help	 
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
+	  
+config MPU6880_ACC
+  bool "Sensor mpu6880_acc"
+  default y
+	help	 
+	  To have support for your specific gsesnor you will have to
+	  select the proper drivers which depend on this option.
 
 config GS_KXTIK
     bool "gsensor kxtik"

@@ -2098,6 +2098,7 @@ static const struct i2c_device_id sensor_id[] = {
 	{"gs_dmard10", ACCEL_ID_DMARD10},
 	{"gs_lsm303d", ACCEL_ID_LSM303D},
 	{"gs_mc3230",ACCEL_ID_MC3230},
+	{"mpu6880_acc",ACCEL_ID_MPU6880},
 	/*compass*/
 	{"compass", COMPASS_ID_ALL},
 	{"ak8975", COMPASS_ID_AK8975},	
@@ -2110,6 +2111,7 @@ static const struct i2c_device_id sensor_id[] = {
 	{"l3g20d_gyro", GYRO_ID_L3G20D},
 	{"ewtsa_gyro", GYRO_ID_EWTSA},
 	{"k3g", GYRO_ID_K3G},
+	{"mpu6880_gyro",GYRO_ID_MPU6880},
 	/*light sensor*/
 	{"lightsensor", LIGHT_ID_ALL},	
 	{"light_cm3217", LIGHT_ID_CM3217},

@@ -23,4 +23,8 @@ config GYRO_L3G20D
 config GYRO_EWTSA
   bool "gyroscope ewtsa"
 	default y
+	
+config GYRO_MPU6880
+  bool "gyroscope mpu6880_gyro"
+	default y
 endif

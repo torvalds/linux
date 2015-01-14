@@ -501,11 +501,29 @@
 		irq_gpio = <&gpio0 GPIO_A4 IRQ_TYPE_EDGE_FALLING>;
 	};
 
+	/*
+	mpu6880_acc:mpu_acc@68{
+		compatible = "mpu6880_acc";
+		reg = <0x68>;
+		irq_enable = <0>;
+		poll_delay_ms = <30>;
+		type = <SENSOR_TYPE_ACCEL>;
+		layout = <7>;
+	};
+	mpu6880_gyro:mpu_gyro@68{
+		compatible = "mpu6880_gyro";
+		reg = <0x68>;
+		//irq-gpio = <&gpio7 GPIO_B0 IRQ_TYPE_LEVEL_LOW>;
+		irq_enable = <0>;
+		poll_delay_ms = <30>;
+		type = <SENSOR_TYPE_GYROSCOPE>;
+		layout = <7>;
+	};
+	*/
 };
 
 &i2c1 {
 	status = "okay";
-	 	
 	mpu6050:mpu@68{
 		compatible = "mpu6050";
 		reg = <0x68>;
@@ -518,7 +536,6 @@
 		irq-gpio = <&gpio8 GPIO_A0 IRQ_TYPE_LEVEL_LOW>;			
 		mpu-debug = <0>;
 	};
-	
 
 	ak8963:compass@0d{
 		compatible = "mpu_ak8963";
