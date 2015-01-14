@@ -496,7 +496,7 @@ static int get_est_timing(unsigned char *block, struct fb_videomode *mode)
 }
 
 static int get_std_timing(unsigned char *block, struct fb_videomode *mode,
-		int ver, int rev)
+			  int ver, int rev, const struct fb_monspecs *specs)
 {
 	int i;
 
@@ -544,16 +544,23 @@ static int get_std_timing(unsigned char *block, struct fb_videomode *mode,
 		calc_mode_timings(xres, yres, refresh, mode);
 	}
 
+	/* Check the mode we got is within valid spec of the monitor */
+	if (specs && specs->dclkmax
+	    && PICOS2KHZ(mode->pixclock) * 1000 > specs->dclkmax) {
+		DPRINTK("        mode exceed max DCLK\n");
+		return 0;
+	}
+
 	return 1;
 }
 
-static int get_dst_timing(unsigned char *block,
-			  struct fb_videomode *mode, int ver, int rev)
+static int get_dst_timing(unsigned char *block, struct fb_videomode *mode,
+			  int ver, int rev, const struct fb_monspecs *specs)
 {
 	int j, num = 0;
 
 	for (j = 0; j < 6; j++, block += STD_TIMING_DESCRIPTION_SIZE)
-		num += get_std_timing(block, &mode[num], ver, rev);
+		num += get_std_timing(block, &mode[num], ver, rev, specs);
 
 	return num;
 }
@@ -609,7 +616,8 @@ static void get_detailed_timing(unsigned char *block,
  * This function builds a mode database using the contents of the EDID
  * data
  */
-static struct fb_videomode *fb_create_modedb(unsigned char *edid, int *dbsize)
+static struct fb_videomode *fb_create_modedb(unsigned char *edid, int *dbsize,
+					     const struct fb_monspecs *specs)
 {
 	struct fb_videomode *mode, *m;
 	unsigned char *block;
@@ -651,12 +659,13 @@ static struct fb_videomode *fb_create_modedb(unsigned char *edid, int *dbsize)
 	DPRINTK("   Standard Timings\n");
 	block = edid + STD_TIMING_DESCRIPTIONS_START;
 	for (i = 0; i < STD_TIMING; i++, block += STD_TIMING_DESCRIPTION_SIZE)
-		num += get_std_timing(block, &mode[num], ver, rev);
+		num += get_std_timing(block, &mode[num], ver, rev, specs);
 
 	block = edid + DETAILED_TIMING_DESCRIPTIONS_START;
 	for (i = 0; i < 4; i++, block+= DETAILED_TIMING_DESCRIPTION_SIZE) {
 		if (block[0] == 0x00 && block[1] == 0x00 && block[3] == 0xfa)
-			num += get_dst_timing(block + 5, &mode[num], ver, rev);
+			num += get_dst_timing(block + 5, &mode[num],
+					      ver, rev, specs);
 	}
 
 	/* Yikes, EDID data is totally useless */
@@ -715,7 +724,7 @@ static int fb_get_monitor_limits(unsigned char *edid, struct fb_monspecs *specs)
 		int num_modes, hz, hscan, pixclock;
 		int vtotal, htotal;
 
-		modes = fb_create_modedb(edid, &num_modes);
+		modes = fb_create_modedb(edid, &num_modes, specs);
 		if (!modes) {
 			DPRINTK("None Available\n");
 			return 1;
@@ -972,7 +981,7 @@ void fb_edid_to_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 	DPRINTK("   Display Characteristics:\n");
 	get_monspecs(edid, specs);
 
-	specs->modedb = fb_create_modedb(edid, &specs->modedb_len);
+	specs->modedb = fb_create_modedb(edid, &specs->modedb_len, specs);
 
 	/*
 	 * Workaround for buggy EDIDs that sets that the first
