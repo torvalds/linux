@@ -202,11 +202,7 @@ static const struct file_operations pmc_sleep_tmr_ops = {
 
 static void pmc_dbgfs_unregister(struct pmc_dev *pmc)
 {
-	if (!pmc->dbgfs_dir)
-		return;
-
 	debugfs_remove_recursive(pmc->dbgfs_dir);
-	pmc->dbgfs_dir = NULL;
 }
 
 static int pmc_dbgfs_register(struct pmc_dev *pmc, struct pci_dev *pdev)
