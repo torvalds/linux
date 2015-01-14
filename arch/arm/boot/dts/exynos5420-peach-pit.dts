@@ -831,6 +831,7 @@
 					};
 					tps65090_fet5: fet5 {
 						regulator-name = "camout";
+						regulator-always-on;
 					};
 					tps65090_fet6: fet6 {
 						regulator-name = "lcd_vdd";
