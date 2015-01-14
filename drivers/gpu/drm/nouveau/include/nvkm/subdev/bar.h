@@ -1,37 +1,33 @@
-#ifndef __NOUVEAU_BAR_H__
-#define __NOUVEAU_BAR_H__
-
+#ifndef __NVKM_BAR_H__
+#define __NVKM_BAR_H__
 #include <core/subdev.h>
-#include <core/device.h>
+struct nvkm_mem;
+struct nvkm_vma;
 
-struct nouveau_mem;
-struct nouveau_vma;
+struct nvkm_bar {
+	struct nvkm_subdev base;
 
-struct nouveau_bar {
-	struct nouveau_subdev base;
+	int  (*alloc)(struct nvkm_bar *, struct nvkm_object *,
+		      struct nvkm_mem *, struct nvkm_object **);
 
-	int (*alloc)(struct nouveau_bar *, struct nouveau_object *,
-		     struct nouveau_mem *, struct nouveau_object **);
-
-	int (*kmap)(struct nouveau_bar *, struct nouveau_mem *,
-		    u32 flags, struct nouveau_vma *);
-	int (*umap)(struct nouveau_bar *, struct nouveau_mem *,
-		    u32 flags, struct nouveau_vma *);
-	void (*unmap)(struct nouveau_bar *, struct nouveau_vma *);
-	void (*flush)(struct nouveau_bar *);
+	int  (*kmap)(struct nvkm_bar *, struct nvkm_mem *, u32 flags,
+		     struct nvkm_vma *);
+	int  (*umap)(struct nvkm_bar *, struct nvkm_mem *, u32 flags,
+		     struct nvkm_vma *);
+	void (*unmap)(struct nvkm_bar *, struct nvkm_vma *);
+	void (*flush)(struct nvkm_bar *);
 
 	/* whether the BAR supports to be ioremapped WC or should be uncached */
 	bool iomap_uncached;
 };
 
-static inline struct nouveau_bar *
-nouveau_bar(void *obj)
+static inline struct nvkm_bar *
+nvkm_bar(void *obj)
 {
-	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_BAR);
+	return (void *)nvkm_subdev(obj, NVDEV_SUBDEV_BAR);
 }
 
-extern struct nouveau_oclass nv50_bar_oclass;
-extern struct nouveau_oclass nvc0_bar_oclass;
-extern struct nouveau_oclass gk20a_bar_oclass;
-
+extern struct nvkm_oclass nv50_bar_oclass;
+extern struct nvkm_oclass gf100_bar_oclass;
+extern struct nvkm_oclass gk20a_bar_oclass;
 #endif

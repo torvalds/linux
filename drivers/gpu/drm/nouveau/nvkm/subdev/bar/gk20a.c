@@ -19,36 +19,32 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
-#include <subdev/bar.h>
-
 #include "priv.h"
 
 int
-gk20a_bar_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
+gk20a_bar_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	       struct nvkm_oclass *oclass, void *data, u32 size,
+	       struct nvkm_object **pobject)
 {
-	struct nouveau_bar *bar;
+	struct nvkm_bar *bar;
 	int ret;
 
-	ret = nvc0_bar_ctor(parent, engine, oclass, data, size, pobject);
+	ret = gf100_bar_ctor(parent, engine, oclass, data, size, pobject);
 	if (ret)
 		return ret;
 
-	bar = (struct nouveau_bar *)*pobject;
+	bar = (struct nvkm_bar *)*pobject;
 	bar->iomap_uncached = true;
-
 	return 0;
 }
 
-struct nouveau_oclass
+struct nvkm_oclass
 gk20a_bar_oclass = {
 	.handle = NV_SUBDEV(BAR, 0xea),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = gk20a_bar_ctor,
-		.dtor = nvc0_bar_dtor,
-		.init = nvc0_bar_init,
-		.fini = _nouveau_bar_fini,
+		.dtor = gf100_bar_dtor,
+		.init = gf100_bar_init,
+		.fini = _nvkm_bar_fini,
 	},
 };

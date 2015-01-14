@@ -1,32 +1,30 @@
 #ifndef __NVKM_BAR_PRIV_H__
 #define __NVKM_BAR_PRIV_H__
-
 #include <subdev/bar.h>
 
-#define nouveau_bar_create(p,e,o,d)                                            \
-	nouveau_bar_create_((p), (e), (o), sizeof(**d), (void **)d)
-#define nouveau_bar_init(p)                                                    \
-	nouveau_subdev_init(&(p)->base)
-#define nouveau_bar_fini(p,s)                                                  \
-	nouveau_subdev_fini(&(p)->base, (s))
+#define nvkm_bar_create(p,e,o,d)                                            \
+	nvkm_bar_create_((p), (e), (o), sizeof(**d), (void **)d)
+#define nvkm_bar_init(p)                                                    \
+	nvkm_subdev_init(&(p)->base)
+#define nvkm_bar_fini(p,s)                                                  \
+	nvkm_subdev_fini(&(p)->base, (s))
 
-int nouveau_bar_create_(struct nouveau_object *, struct nouveau_object *,
-			struct nouveau_oclass *, int, void **);
-void nouveau_bar_destroy(struct nouveau_bar *);
+int nvkm_bar_create_(struct nvkm_object *, struct nvkm_object *,
+			struct nvkm_oclass *, int, void **);
+void nvkm_bar_destroy(struct nvkm_bar *);
 
-void _nouveau_bar_dtor(struct nouveau_object *);
-#define _nouveau_bar_init _nouveau_subdev_init
-#define _nouveau_bar_fini _nouveau_subdev_fini
+void _nvkm_bar_dtor(struct nvkm_object *);
+#define _nvkm_bar_init _nvkm_subdev_init
+#define _nvkm_bar_fini _nvkm_subdev_fini
 
-int  nouveau_bar_alloc(struct nouveau_bar *, struct nouveau_object *,
-		       struct nouveau_mem *, struct nouveau_object **);
+int  nvkm_bar_alloc(struct nvkm_bar *, struct nvkm_object *,
+		    struct nvkm_mem *, struct nvkm_object **);
 
-void nv84_bar_flush(struct nouveau_bar *);
+void g84_bar_flush(struct nvkm_bar *);
 
-int nvc0_bar_ctor(struct nouveau_object *, struct nouveau_object *,
-		  struct nouveau_oclass *, void *, u32,
-		  struct nouveau_object **);
-void nvc0_bar_dtor(struct nouveau_object *);
-int nvc0_bar_init(struct nouveau_object *);
-
+int gf100_bar_ctor(struct nvkm_object *, struct nvkm_object *,
+		  struct nvkm_oclass *, void *, u32,
+		  struct nvkm_object **);
+void gf100_bar_dtor(struct nvkm_object *);
+int gf100_bar_init(struct nvkm_object *);
 #endif

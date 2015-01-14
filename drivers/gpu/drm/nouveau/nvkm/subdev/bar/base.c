@@ -21,33 +21,30 @@
  *
  * Authors: Ben Skeggs
  */
+#include "priv.h"
 
-#include <core/object.h>
-
+#include <core/device.h>
 #include <subdev/fb.h>
 #include <subdev/mmu.h>
 
-#include "priv.h"
-
-struct nouveau_barobj {
-	struct nouveau_object base;
-	struct nouveau_vma vma;
+struct nvkm_barobj {
+	struct nvkm_object base;
+	struct nvkm_vma vma;
 	void __iomem *iomem;
 };
 
 static int
-nouveau_barobj_ctor(struct nouveau_object *parent,
-		    struct nouveau_object *engine,
-		    struct nouveau_oclass *oclass, void *data, u32 size,
-		    struct nouveau_object **pobject)
+nvkm_barobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		 struct nvkm_oclass *oclass, void *data, u32 size,
+		 struct nvkm_object **pobject)
 {
-	struct nouveau_device *device = nv_device(parent);
-	struct nouveau_bar *bar = nouveau_bar(device);
-	struct nouveau_mem *mem = data;
-	struct nouveau_barobj *barobj;
+	struct nvkm_device *device = nv_device(parent);
+	struct nvkm_bar *bar = nvkm_bar(device);
+	struct nvkm_mem *mem = data;
+	struct nvkm_barobj *barobj;
 	int ret;
 
-	ret = nouveau_object_create(parent, engine, oclass, 0, &barobj);
+	ret = nvkm_object_create(parent, engine, oclass, 0, &barobj);
 	*pobject = nv_object(barobj);
 	if (ret)
 		return ret;
@@ -67,67 +64,65 @@ nouveau_barobj_ctor(struct nouveau_object *parent,
 }
 
 static void
-nouveau_barobj_dtor(struct nouveau_object *object)
+nvkm_barobj_dtor(struct nvkm_object *object)
 {
-	struct nouveau_bar *bar = nouveau_bar(object);
-	struct nouveau_barobj *barobj = (void *)object;
+	struct nvkm_bar *bar = nvkm_bar(object);
+	struct nvkm_barobj *barobj = (void *)object;
 	if (barobj->vma.node) {
 		if (barobj->iomem)
 			iounmap(barobj->iomem);
 		bar->unmap(bar, &barobj->vma);
 	}
-	nouveau_object_destroy(&barobj->base);
+	nvkm_object_destroy(&barobj->base);
 }
 
 static u32
-nouveau_barobj_rd32(struct nouveau_object *object, u64 addr)
+nvkm_barobj_rd32(struct nvkm_object *object, u64 addr)
 {
-	struct nouveau_barobj *barobj = (void *)object;
+	struct nvkm_barobj *barobj = (void *)object;
 	return ioread32_native(barobj->iomem + addr);
 }
 
 static void
-nouveau_barobj_wr32(struct nouveau_object *object, u64 addr, u32 data)
+nvkm_barobj_wr32(struct nvkm_object *object, u64 addr, u32 data)
 {
-	struct nouveau_barobj *barobj = (void *)object;
+	struct nvkm_barobj *barobj = (void *)object;
 	iowrite32_native(data, barobj->iomem + addr);
 }
 
-static struct nouveau_oclass
-nouveau_barobj_oclass = {
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nouveau_barobj_ctor,
-		.dtor = nouveau_barobj_dtor,
-		.init = nouveau_object_init,
-		.fini = nouveau_object_fini,
-		.rd32 = nouveau_barobj_rd32,
-		.wr32 = nouveau_barobj_wr32,
+static struct nvkm_oclass
+nvkm_barobj_oclass = {
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = nvkm_barobj_ctor,
+		.dtor = nvkm_barobj_dtor,
+		.init = nvkm_object_init,
+		.fini = nvkm_object_fini,
+		.rd32 = nvkm_barobj_rd32,
+		.wr32 = nvkm_barobj_wr32,
 	},
 };
 
 int
-nouveau_bar_alloc(struct nouveau_bar *bar, struct nouveau_object *parent,
-		  struct nouveau_mem *mem, struct nouveau_object **pobject)
+nvkm_bar_alloc(struct nvkm_bar *bar, struct nvkm_object *parent,
+	       struct nvkm_mem *mem, struct nvkm_object **pobject)
 {
-	struct nouveau_object *gpuobj;
-	int ret = nouveau_object_ctor(parent, &parent->engine->subdev.object,
-				      &nouveau_barobj_oclass,
-				      mem, 0, &gpuobj);
+	struct nvkm_object *gpuobj;
+	int ret = nvkm_object_ctor(parent, &parent->engine->subdev.object,
+				   &nvkm_barobj_oclass, mem, 0, &gpuobj);
 	if (ret == 0)
 		*pobject = gpuobj;
 	return ret;
 }
 
 int
-nouveau_bar_create_(struct nouveau_object *parent,
-		    struct nouveau_object *engine,
-		    struct nouveau_oclass *oclass, int length, void **pobject)
+nvkm_bar_create_(struct nvkm_object *parent, struct nvkm_object *engine,
+		 struct nvkm_oclass *oclass, int length, void **pobject)
 {
-	struct nouveau_bar *bar;
+	struct nvkm_bar *bar;
 	int ret;
 
-	ret = nouveau_subdev_create_(parent, engine, oclass, 0, "BARCTL",
-				     "bar", length, pobject);
+	ret = nvkm_subdev_create_(parent, engine, oclass, 0, "BARCTL",
+				  "bar", length, pobject);
 	bar = *pobject;
 	if (ret)
 		return ret;
@@ -136,14 +131,14 @@ nouveau_bar_create_(struct nouveau_object *parent,
 }
 
 void
-nouveau_bar_destroy(struct nouveau_bar *bar)
+nvkm_bar_destroy(struct nvkm_bar *bar)
 {
-	nouveau_subdev_destroy(&bar->base);
+	nvkm_subdev_destroy(&bar->base);
 }
 
 void
-_nouveau_bar_dtor(struct nouveau_object *object)
+_nvkm_bar_dtor(struct nvkm_object *object)
 {
-	struct nouveau_bar *bar = (void *)object;
-	nouveau_bar_destroy(bar);
+	struct nvkm_bar *bar = (void *)object;
+	nvkm_bar_destroy(bar);
 }

@@ -137,6 +137,8 @@
 #define nouveau_vm_put nvkm_vm_put
 #define nouveau_vm_map nvkm_vm_map
 #define nouveau_vm_unmap nvkm_vm_unmap
+#define nouveau_vm_new nvkm_vm_new
+#define nouveau_vm_ref nvkm_vm_ref
 #define nouveau_instmem nvkm_instmem
 #define nouveau_instobj nvkm_instobj
 #define nouveau_mem nvkm_mem

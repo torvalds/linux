@@ -20,6 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <core/ramht.h>
+#include <core/engine.h>
 
 #include <subdev/bar.h>
 
