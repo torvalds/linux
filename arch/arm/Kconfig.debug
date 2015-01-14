@@ -973,7 +973,7 @@ choice
 		  for Mediatek mt6589 based platforms on UART0.
 
 	config DEBUG_MT8127_UART0
-		bool "Mediatek mt8127 UART0"
+		bool "Mediatek mt8127/mt6592 UART0"
 		depends on ARCH_MEDIATEK
 		select DEBUG_UART_8250
 		help
