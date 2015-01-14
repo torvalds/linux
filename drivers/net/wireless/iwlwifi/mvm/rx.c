@@ -511,13 +511,13 @@ int iwl_mvm_rx_statistics(struct iwl_mvm *mvm,
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_notif_statistics *stats = (void *)&pkt->data;
-	struct mvm_statistics_general_common *common = &stats->general.common;
 	struct iwl_mvm_stat_data data = {
 		.stats = stats,
 		.mvm = mvm,
 	};
 
-	iwl_mvm_tt_temp_changed(mvm, le32_to_cpu(common->temperature));
+	iwl_mvm_tt_temp_changed(mvm,
+				le32_to_cpu(stats->general.radio_temperature));
 
 	iwl_mvm_update_rx_statistics(mvm, stats);
 

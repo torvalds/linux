@@ -1400,24 +1400,6 @@ struct mvm_statistics_div {
 	__le32 reserved2;
 } __packed; /* STATISTICS_SLOW_DIV_API_S_VER_2 */
 
-struct mvm_statistics_general_common {
-	__le32 temperature;   /* radio temperature */
-	__le32 temperature_m; /* radio voltage */
-	struct mvm_statistics_dbg dbg;
-	__le32 sleep_time;
-	__le32 slots_out;
-	__le32 slots_idle;
-	__le32 ttl_timestamp;
-	struct mvm_statistics_div div;
-	__le32 rx_enable_counter;
-	/*
-	 * num_of_sos_states:
-	 *  count the number of times we have to re-tune
-	 *  in order to get out of bad PHY status
-	 */
-	__le32 num_of_sos_states;
-} __packed; /* STATISTICS_GENERAL_API_S_VER_5 */
-
 struct mvm_statistics_rx_non_phy {
 	__le32 bogus_cts;	/* CTS received when not expecting CTS */
 	__le32 bogus_ack;	/* ACK received when not expecting ACK */
@@ -1490,6 +1472,23 @@ struct mvm_statistics_rx_ht_phy {
 	__le32 unsupport_mcs;
 } __packed;  /* STATISTICS_HT_RX_PHY_API_S_VER_1 */
 
+struct mvm_statistics_tx_non_phy {
+	__le32 preamble_cnt;
+	__le32 rx_detected_cnt;
+	__le32 bt_prio_defer_cnt;
+	__le32 bt_prio_kill_cnt;
+	__le32 few_bytes_cnt;
+	__le32 cts_timeout;
+	__le32 ack_timeout;
+	__le32 expected_ack_cnt;
+	__le32 actual_ack_cnt;
+	__le32 dump_msdu_cnt;
+	__le32 burst_abort_next_frame_mismatch_cnt;
+	__le32 burst_abort_missing_next_frame_cnt;
+	__le32 cts_timeout_collision;
+	__le32 ack_or_ba_timeout_collision;
+} __packed; /* STATISTICS_TX_NON_PHY_API_S_VER_3 */
+
 #define MAX_CHAINS 3
 
 struct mvm_statistics_tx_non_phy_agg {
@@ -1520,20 +1519,7 @@ struct mvm_statistics_tx_channel_width {
 }; /* STATISTICS_TX_CHANNEL_WIDTH_API_S_VER_1 */
 
 struct mvm_statistics_tx {
-	__le32 preamble_cnt;
-	__le32 rx_detected_cnt;
-	__le32 bt_prio_defer_cnt;
-	__le32 bt_prio_kill_cnt;
-	__le32 few_bytes_cnt;
-	__le32 cts_timeout;
-	__le32 ack_timeout;
-	__le32 expected_ack_cnt;
-	__le32 actual_ack_cnt;
-	__le32 dump_msdu_cnt;
-	__le32 burst_abort_next_frame_mismatch_cnt;
-	__le32 burst_abort_missing_next_frame_cnt;
-	__le32 cts_timeout_collision;
-	__le32 ack_or_ba_timeout_collision;
+	struct mvm_statistics_tx_non_phy general;
 	struct mvm_statistics_tx_non_phy_agg agg;
 	struct mvm_statistics_tx_channel_width channel_width;
 } __packed; /* STATISTICS_TX_API_S_VER_4 */
@@ -1551,7 +1537,21 @@ struct mvm_statistics_bt_activity {
 } __packed;  /* STATISTICS_BT_ACTIVITY_API_S_VER_1 */
 
 struct mvm_statistics_general {
-	struct mvm_statistics_general_common common;
+	__le32 radio_temperature;
+	__le32 radio_voltage;
+	struct mvm_statistics_dbg dbg;
+	__le32 sleep_time;
+	__le32 slots_out;
+	__le32 slots_idle;
+	__le32 ttl_timestamp;
+	struct mvm_statistics_div slow_div;
+	__le32 rx_enable_counter;
+	/*
+	 * num_of_sos_states:
+	 *  count the number of times we have to re-tune
+	 *  in order to get out of bad PHY status
+	 */
+	__le32 num_of_sos_states;
 	__le32 beacon_filtered;
 	__le32 missed_beacons;
 	__s8 beacon_filter_average_energy;
@@ -1585,12 +1585,12 @@ struct mvm_statistics_rx {
  * one channel that has just been scanned.
  */
 
-struct iwl_notif_statistics { /* STATISTICS_NTFY_API_S_VER_8 */
+struct iwl_notif_statistics {
 	__le32 flag;
 	struct mvm_statistics_rx rx;
 	struct mvm_statistics_tx tx;
 	struct mvm_statistics_general general;
-} __packed;
+} __packed; /* STATISTICS_NTFY_API_S_VER_8 */
 
 /***********************************
  * Smart Fifo API
