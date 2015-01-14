@@ -24,14 +24,14 @@
 
 #include <engine/falcon.h>
 #include <engine/fifo.h>
-#include <engine/copy.h>
+#include <engine/ce.h>
 
 #include <core/enum.h>
 #include <core/enum.h>
 
 #include "fuc/nvc0.fuc3.h"
 
-struct nvc0_copy_priv {
+struct nvc0_ce_priv {
 	struct nouveau_falcon base;
 };
 
@@ -40,23 +40,23 @@ struct nvc0_copy_priv {
  ******************************************************************************/
 
 static struct nouveau_oclass
-nvc0_copy0_sclass[] = {
+nvc0_ce0_sclass[] = {
 	{ 0x90b5, &nouveau_object_ofuncs },
 	{},
 };
 
 static struct nouveau_oclass
-nvc0_copy1_sclass[] = {
+nvc0_ce1_sclass[] = {
 	{ 0x90b8, &nouveau_object_ofuncs },
 	{},
 };
 
 /*******************************************************************************
- * PCOPY context
+ * PCE context
  ******************************************************************************/
 
 static struct nouveau_ofuncs
-nvc0_copy_context_ofuncs = {
+nvc0_ce_context_ofuncs = {
 	.ctor = _nouveau_falcon_context_ctor,
 	.dtor = _nouveau_falcon_context_dtor,
 	.init = _nouveau_falcon_context_init,
@@ -66,92 +66,92 @@ nvc0_copy_context_ofuncs = {
 };
 
 static struct nouveau_oclass
-nvc0_copy0_cclass = {
-	.handle = NV_ENGCTX(COPY0, 0xc0),
-	.ofuncs = &nvc0_copy_context_ofuncs,
+nvc0_ce0_cclass = {
+	.handle = NV_ENGCTX(CE0, 0xc0),
+	.ofuncs = &nvc0_ce_context_ofuncs,
 };
 
 static struct nouveau_oclass
-nvc0_copy1_cclass = {
-	.handle = NV_ENGCTX(COPY1, 0xc0),
-	.ofuncs = &nvc0_copy_context_ofuncs,
+nvc0_ce1_cclass = {
+	.handle = NV_ENGCTX(CE1, 0xc0),
+	.ofuncs = &nvc0_ce_context_ofuncs,
 };
 
 /*******************************************************************************
- * PCOPY engine/subdev functions
+ * PCE engine/subdev functions
  ******************************************************************************/
 
 static int
-nvc0_copy_init(struct nouveau_object *object)
+nvc0_ce_init(struct nouveau_object *object)
 {
-	struct nvc0_copy_priv *priv = (void *)object;
+	struct nvc0_ce_priv *priv = (void *)object;
 	int ret;
 
 	ret = nouveau_falcon_init(&priv->base);
 	if (ret)
 		return ret;
 
-	nv_wo32(priv, 0x084, nv_engidx(&priv->base.base) - NVDEV_ENGINE_COPY0);
+	nv_wo32(priv, 0x084, nv_engidx(&priv->base.base) - NVDEV_ENGINE_CE0);
 	return 0;
 }
 
 static int
-nvc0_copy0_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+nvc0_ce0_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		struct nouveau_oclass *oclass, void *data, u32 size,
 		struct nouveau_object **pobject)
 {
-	struct nvc0_copy_priv *priv;
+	struct nvc0_ce_priv *priv;
 	int ret;
 
 	ret = nouveau_falcon_create(parent, engine, oclass, 0x104000, true,
-				    "PCE0", "copy0", &priv);
+				    "PCE0", "ce0", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	nv_subdev(priv)->unit = 0x00000040;
-	nv_subdev(priv)->intr = nva3_copy_intr;
-	nv_engine(priv)->cclass = &nvc0_copy0_cclass;
-	nv_engine(priv)->sclass = nvc0_copy0_sclass;
-	nv_falcon(priv)->code.data = nvc0_pcopy_code;
-	nv_falcon(priv)->code.size = sizeof(nvc0_pcopy_code);
-	nv_falcon(priv)->data.data = nvc0_pcopy_data;
-	nv_falcon(priv)->data.size = sizeof(nvc0_pcopy_data);
+	nv_subdev(priv)->intr = nva3_ce_intr;
+	nv_engine(priv)->cclass = &nvc0_ce0_cclass;
+	nv_engine(priv)->sclass = nvc0_ce0_sclass;
+	nv_falcon(priv)->code.data = nvc0_pce_code;
+	nv_falcon(priv)->code.size = sizeof(nvc0_pce_code);
+	nv_falcon(priv)->data.data = nvc0_pce_data;
+	nv_falcon(priv)->data.size = sizeof(nvc0_pce_data);
 	return 0;
 }
 
 static int
-nvc0_copy1_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+nvc0_ce1_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		struct nouveau_oclass *oclass, void *data, u32 size,
 		struct nouveau_object **pobject)
 {
-	struct nvc0_copy_priv *priv;
+	struct nvc0_ce_priv *priv;
 	int ret;
 
 	ret = nouveau_falcon_create(parent, engine, oclass, 0x105000, true,
-				    "PCE1", "copy1", &priv);
+				    "PCE1", "ce1", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	nv_subdev(priv)->unit = 0x00000080;
-	nv_subdev(priv)->intr = nva3_copy_intr;
-	nv_engine(priv)->cclass = &nvc0_copy1_cclass;
-	nv_engine(priv)->sclass = nvc0_copy1_sclass;
-	nv_falcon(priv)->code.data = nvc0_pcopy_code;
-	nv_falcon(priv)->code.size = sizeof(nvc0_pcopy_code);
-	nv_falcon(priv)->data.data = nvc0_pcopy_data;
-	nv_falcon(priv)->data.size = sizeof(nvc0_pcopy_data);
+	nv_subdev(priv)->intr = nva3_ce_intr;
+	nv_engine(priv)->cclass = &nvc0_ce1_cclass;
+	nv_engine(priv)->sclass = nvc0_ce1_sclass;
+	nv_falcon(priv)->code.data = nvc0_pce_code;
+	nv_falcon(priv)->code.size = sizeof(nvc0_pce_code);
+	nv_falcon(priv)->data.data = nvc0_pce_data;
+	nv_falcon(priv)->data.size = sizeof(nvc0_pce_data);
 	return 0;
 }
 
 struct nouveau_oclass
-nvc0_copy0_oclass = {
-	.handle = NV_ENGINE(COPY0, 0xc0),
+nvc0_ce0_oclass = {
+	.handle = NV_ENGINE(CE0, 0xc0),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_copy0_ctor,
+		.ctor = nvc0_ce0_ctor,
 		.dtor = _nouveau_falcon_dtor,
-		.init = nvc0_copy_init,
+		.init = nvc0_ce_init,
 		.fini = _nouveau_falcon_fini,
 		.rd32 = _nouveau_falcon_rd32,
 		.wr32 = _nouveau_falcon_wr32,
@@ -159,12 +159,12 @@ nvc0_copy0_oclass = {
 };
 
 struct nouveau_oclass
-nvc0_copy1_oclass = {
-	.handle = NV_ENGINE(COPY1, 0xc0),
+nvc0_ce1_oclass = {
+	.handle = NV_ENGINE(CE1, 0xc0),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_copy1_ctor,
+		.ctor = nvc0_ce1_ctor,
 		.dtor = _nouveau_falcon_dtor,
-		.init = nvc0_copy_init,
+		.init = nvc0_ce_init,
 		.fini = _nouveau_falcon_fini,
 		.rd32 = _nouveau_falcon_rd32,
 		.wr32 = _nouveau_falcon_wr32,

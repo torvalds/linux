@@ -24,7 +24,7 @@
 
 #include <engine/falcon.h>
 #include <engine/fifo.h>
-#include <engine/copy.h>
+#include <engine/ce.h>
 
 #include <subdev/fb.h>
 #include <subdev/mmu.h>
@@ -35,7 +35,7 @@
 
 #include "fuc/nva3.fuc3.h"
 
-struct nva3_copy_priv {
+struct nva3_ce_priv {
 	struct nouveau_falcon base;
 };
 
@@ -44,18 +44,18 @@ struct nva3_copy_priv {
  ******************************************************************************/
 
 static struct nouveau_oclass
-nva3_copy_sclass[] = {
+nva3_ce_sclass[] = {
 	{ 0x85b5, &nouveau_object_ofuncs },
 	{}
 };
 
 /*******************************************************************************
- * PCOPY context
+ * PCE context
  ******************************************************************************/
 
 static struct nouveau_oclass
-nva3_copy_cclass = {
-	.handle = NV_ENGCTX(COPY0, 0xa3),
+nva3_ce_cclass = {
+	.handle = NV_ENGCTX(CE0, 0xa3),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = _nouveau_falcon_context_ctor,
 		.dtor = _nouveau_falcon_context_dtor,
@@ -68,10 +68,10 @@ nva3_copy_cclass = {
 };
 
 /*******************************************************************************
- * PCOPY engine/subdev functions
+ * PCE engine/subdev functions
  ******************************************************************************/
 
-static const struct nouveau_enum nva3_copy_isr_error_name[] = {
+static const struct nouveau_enum nva3_ce_isr_error_name[] = {
 	{ 0x0001, "ILLEGAL_MTHD" },
 	{ 0x0002, "INVALID_ENUM" },
 	{ 0x0003, "INVALID_BITFIELD" },
@@ -79,7 +79,7 @@ static const struct nouveau_enum nva3_copy_isr_error_name[] = {
 };
 
 void
-nva3_copy_intr(struct nouveau_subdev *subdev)
+nva3_ce_intr(struct nouveau_subdev *subdev)
 {
 	struct nouveau_fifo *pfifo = nouveau_fifo(subdev);
 	struct nouveau_engine *engine = nv_engine(subdev);
@@ -100,7 +100,7 @@ nva3_copy_intr(struct nouveau_subdev *subdev)
 
 	if (stat & 0x00000040) {
 		nv_error(falcon, "DISPATCH_ERROR [");
-		nouveau_enum_print(nva3_copy_isr_error_name, ssta);
+		nouveau_enum_print(nva3_ce_isr_error_name, ssta);
 		pr_cont("] ch %d [0x%010llx %s] subc %d mthd 0x%04x data 0x%08x\n",
 		       chid, inst << 12, nouveau_client_name(engctx), subc,
 		       mthd, data);
@@ -117,36 +117,36 @@ nva3_copy_intr(struct nouveau_subdev *subdev)
 }
 
 static int
-nva3_copy_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+nva3_ce_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	       struct nouveau_oclass *oclass, void *data, u32 size,
 	       struct nouveau_object **pobject)
 {
 	bool enable = (nv_device(parent)->chipset != 0xaf);
-	struct nva3_copy_priv *priv;
+	struct nva3_ce_priv *priv;
 	int ret;
 
 	ret = nouveau_falcon_create(parent, engine, oclass, 0x104000, enable,
-				    "PCE0", "copy0", &priv);
+				    "PCE0", "ce0", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	nv_subdev(priv)->unit = 0x00802000;
-	nv_subdev(priv)->intr = nva3_copy_intr;
-	nv_engine(priv)->cclass = &nva3_copy_cclass;
-	nv_engine(priv)->sclass = nva3_copy_sclass;
-	nv_falcon(priv)->code.data = nva3_pcopy_code;
-	nv_falcon(priv)->code.size = sizeof(nva3_pcopy_code);
-	nv_falcon(priv)->data.data = nva3_pcopy_data;
-	nv_falcon(priv)->data.size = sizeof(nva3_pcopy_data);
+	nv_subdev(priv)->intr = nva3_ce_intr;
+	nv_engine(priv)->cclass = &nva3_ce_cclass;
+	nv_engine(priv)->sclass = nva3_ce_sclass;
+	nv_falcon(priv)->code.data = nva3_pce_code;
+	nv_falcon(priv)->code.size = sizeof(nva3_pce_code);
+	nv_falcon(priv)->data.data = nva3_pce_data;
+	nv_falcon(priv)->data.size = sizeof(nva3_pce_data);
 	return 0;
 }
 
 struct nouveau_oclass
-nva3_copy_oclass = {
-	.handle = NV_ENGINE(COPY0, 0xa3),
+nva3_ce_oclass = {
+	.handle = NV_ENGINE(CE0, 0xa3),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nva3_copy_ctor,
+		.ctor = nva3_ce_ctor,
 		.dtor = _nouveau_falcon_dtor,
 		.init = _nouveau_falcon_init,
 		.fini = _nouveau_falcon_fini,

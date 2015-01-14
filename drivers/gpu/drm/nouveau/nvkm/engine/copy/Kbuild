@@ -1,3 +1,0 @@
-nvkm-y += nvkm/engine/copy/nva3.o
-nvkm-y += nvkm/engine/copy/nvc0.o
-nvkm-y += nvkm/engine/copy/nve0.o

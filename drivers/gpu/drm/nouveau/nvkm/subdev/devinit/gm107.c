@@ -33,9 +33,9 @@ gm107_devinit_disable(struct nouveau_devinit *devinit)
 	u64 disable = 0ULL;
 
 	if (r021c00 & 0x00000001)
-		disable |= (1ULL << NVDEV_ENGINE_COPY0);
+		disable |= (1ULL << NVDEV_ENGINE_CE0);
 	if (r021c00 & 0x00000004)
-		disable |= (1ULL << NVDEV_ENGINE_COPY2);
+		disable |= (1ULL << NVDEV_ENGINE_CE2);
 	if (r021c04 & 0x00000001)
 		disable |= (1ULL << NVDEV_ENGINE_DISP);
 

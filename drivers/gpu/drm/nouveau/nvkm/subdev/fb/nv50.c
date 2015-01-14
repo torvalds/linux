@@ -127,7 +127,7 @@ static const struct nouveau_enum vm_engine[] = {
 	{ 0x0000000a, "PCRYPT", NULL, NVDEV_ENGINE_CIPHER },
 	{ 0x0000000b, "PCOUNTER", NULL },
 	{ 0x0000000c, "SEMAPHORE_BG", NULL },
-	{ 0x0000000d, "PCOPY", NULL, NVDEV_ENGINE_COPY0 },
+	{ 0x0000000d, "PCE0", NULL, NVDEV_ENGINE_CE0 },
 	{ 0x0000000e, "PDAEMON", NULL },
 	{}
 };

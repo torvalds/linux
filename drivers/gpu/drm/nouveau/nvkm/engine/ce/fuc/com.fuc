@@ -31,9 +31,9 @@
  */
 
 #ifdef NVA3
-.section #nva3_pcopy_data
+.section #nva3_pce_data
 #else
-.section #nvc0_pcopy_data
+.section #nvc0_pce_data
 #endif
 
 ctx_object:                   .b32 0
@@ -135,9 +135,9 @@ dispatch_dma:
 .b16 0x800 0
 
 #ifdef NVA3
-.section #nva3_pcopy_code
+.section #nva3_pce_code
 #else
-.section #nvc0_pcopy_code
+.section #nvc0_pce_code
 #endif
 
 main:

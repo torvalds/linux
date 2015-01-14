@@ -52,7 +52,7 @@
 #include <engine/bsp.h>
 #include <engine/msvld.h>
 #include <engine/ppp.h>
-#include <engine/copy.h>
+#include <engine/ce.h>
 #include <engine/disp.h>
 #include <engine/perfmon.h>
 
@@ -374,7 +374,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_VP     ] = &nv98_vp_oclass;
 		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nv98_msvld_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nv98_ppp_oclass;
-		device->oclass[NVDEV_ENGINE_COPY0  ] = &nva3_copy_oclass;
+		device->oclass[NVDEV_ENGINE_CE0    ] = &nva3_ce_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nva3_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PERFMON] =  nva3_perfmon_oclass;
 		break;
@@ -404,7 +404,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_VP     ] = &nv98_vp_oclass;
 		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nv98_msvld_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nv98_ppp_oclass;
-		device->oclass[NVDEV_ENGINE_COPY0  ] = &nva3_copy_oclass;
+		device->oclass[NVDEV_ENGINE_CE0    ] = &nva3_ce_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nva3_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PERFMON] =  nva3_perfmon_oclass;
 		break;
@@ -434,7 +434,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_VP     ] = &nv98_vp_oclass;
 		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nv98_msvld_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nv98_ppp_oclass;
-		device->oclass[NVDEV_ENGINE_COPY0  ] = &nva3_copy_oclass;
+		device->oclass[NVDEV_ENGINE_CE0    ] = &nva3_ce_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nva3_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PERFMON] =  nva3_perfmon_oclass;
 		break;
@@ -464,7 +464,7 @@ nv50_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_VP     ] = &nv98_vp_oclass;
 		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nv98_msvld_oclass;
 		device->oclass[NVDEV_ENGINE_PPP    ] = &nv98_ppp_oclass;
-		device->oclass[NVDEV_ENGINE_COPY0  ] = &nva3_copy_oclass;
+		device->oclass[NVDEV_ENGINE_CE0    ] = &nva3_ce_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  nva3_disp_oclass;
 		device->oclass[NVDEV_ENGINE_PERFMON] =  nva3_perfmon_oclass;
 		break;

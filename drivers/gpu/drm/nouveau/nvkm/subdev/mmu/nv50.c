@@ -180,7 +180,7 @@ nv50_vm_flush(struct nouveau_vm *vm)
 		case NVDEV_ENGINE_MSVLD : vme = 0x09; break;
 		case NVDEV_ENGINE_CIPHER:
 		case NVDEV_ENGINE_SEC   : vme = 0x0a; break;
-		case NVDEV_ENGINE_COPY0 : vme = 0x0d; break;
+		case NVDEV_ENGINE_CE0   : vme = 0x0d; break;
 		default:
 			continue;
 		}

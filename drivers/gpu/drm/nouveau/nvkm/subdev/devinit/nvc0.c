@@ -79,9 +79,9 @@ nvc0_devinit_disable(struct nouveau_devinit *devinit)
 	if (r022500 & 0x00000008)
 		disable |= (1ULL << NVDEV_ENGINE_VENC);
 	if (r022500 & 0x00000100)
-		disable |= (1ULL << NVDEV_ENGINE_COPY0);
+		disable |= (1ULL << NVDEV_ENGINE_CE0);
 	if (r022500 & 0x00000200)
-		disable |= (1ULL << NVDEV_ENGINE_COPY1);
+		disable |= (1ULL << NVDEV_ENGINE_CE1);
 
 	return disable;
 }

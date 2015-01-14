@@ -64,7 +64,7 @@ nv84_fifo_context_attach(struct nouveau_object *parent,
 	case NVDEV_ENGINE_MSVLD : addr = 0x0080; break;
 	case NVDEV_ENGINE_CIPHER:
 	case NVDEV_ENGINE_SEC   : addr = 0x00a0; break;
-	case NVDEV_ENGINE_COPY0 : addr = 0x00c0; break;
+	case NVDEV_ENGINE_CE0   : addr = 0x00c0; break;
 	default:
 		return -EINVAL;
 	}
@@ -102,7 +102,7 @@ nv84_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 	case NVDEV_ENGINE_MSVLD : engn = 5; addr = 0x0080; break;
 	case NVDEV_ENGINE_CIPHER:
 	case NVDEV_ENGINE_SEC   : engn = 4; addr = 0x00a0; break;
-	case NVDEV_ENGINE_COPY0 : engn = 2; addr = 0x00c0; break;
+	case NVDEV_ENGINE_CE0   : engn = 2; addr = 0x00c0; break;
 	default:
 		return -EINVAL;
 	}
@@ -147,7 +147,7 @@ nv84_fifo_object_attach(struct nouveau_object *parent,
 	case NVDEV_ENGINE_MPEG  :
 	case NVDEV_ENGINE_PPP   : context |= 0x00200000; break;
 	case NVDEV_ENGINE_ME    :
-	case NVDEV_ENGINE_COPY0 : context |= 0x00300000; break;
+	case NVDEV_ENGINE_CE0   : context |= 0x00300000; break;
 	case NVDEV_ENGINE_VP    : context |= 0x00400000; break;
 	case NVDEV_ENGINE_CIPHER:
 	case NVDEV_ENGINE_SEC   :
@@ -196,7 +196,7 @@ nv84_fifo_chan_ctor_dma(struct nouveau_object *parent,
 					  (1ULL << NVDEV_ENGINE_BSP) |
 					  (1ULL << NVDEV_ENGINE_MSVLD) |
 					  (1ULL << NVDEV_ENGINE_PPP) |
-					  (1ULL << NVDEV_ENGINE_COPY0) |
+					  (1ULL << NVDEV_ENGINE_CE0) |
 					  (1ULL << NVDEV_ENGINE_VIC), &chan);
 	*pobject = nv_object(chan);
 	if (ret)
@@ -271,7 +271,7 @@ nv84_fifo_chan_ctor_ind(struct nouveau_object *parent,
 					  (1ULL << NVDEV_ENGINE_BSP) |
 					  (1ULL << NVDEV_ENGINE_MSVLD) |
 					  (1ULL << NVDEV_ENGINE_PPP) |
-					  (1ULL << NVDEV_ENGINE_COPY0) |
+					  (1ULL << NVDEV_ENGINE_CE0) |
 					  (1ULL << NVDEV_ENGINE_VIC), &chan);
 	*pobject = nv_object(chan);
 	if (ret)

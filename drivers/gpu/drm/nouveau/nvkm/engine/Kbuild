@@ -3,7 +3,7 @@ nvkm-y += nvkm/engine/xtensa.o
 
 include $(src)/nvkm/engine/bsp/Kbuild
 include $(src)/nvkm/engine/cipher/Kbuild
-include $(src)/nvkm/engine/copy/Kbuild
+include $(src)/nvkm/engine/ce/Kbuild
 include $(src)/nvkm/engine/device/Kbuild
 include $(src)/nvkm/engine/disp/Kbuild
 include $(src)/nvkm/engine/dmaobj/Kbuild
