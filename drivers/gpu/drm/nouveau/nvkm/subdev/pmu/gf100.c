@@ -21,50 +21,20 @@
  *
  * Authors: Ben Skeggs
  */
+#include "priv.h"
+#include "fuc/gf100.fuc3.h"
 
-#define NVKM_PPWR_CHIPSET GK208
-#define HW_TICKS_PER_US 324
-
-#define NVKM_FALCON_PC24
-#define NVKM_FALCON_UNSHIFTED_IO
-//#define NVKM_FALCON_MMIO_UAS
-//#define NVKM_FALCON_MMIO_TRAP
-
-#include "macros.fuc"
-
-.section #nv108_pmu_data
-#define INCLUDE_PROC
-#include "kernel.fuc"
-#include "arith.fuc"
-#include "host.fuc"
-#include "memx.fuc"
-#include "perf.fuc"
-#include "i2c_.fuc"
-#include "test.fuc"
-#include "idle.fuc"
-#undef INCLUDE_PROC
-
-#define INCLUDE_DATA
-#include "kernel.fuc"
-#include "arith.fuc"
-#include "host.fuc"
-#include "memx.fuc"
-#include "perf.fuc"
-#include "i2c_.fuc"
-#include "test.fuc"
-#include "idle.fuc"
-#undef INCLUDE_DATA
-.align 256
-
-.section #nv108_pmu_code
-#define INCLUDE_CODE
-#include "kernel.fuc"
-#include "arith.fuc"
-#include "host.fuc"
-#include "memx.fuc"
-#include "perf.fuc"
-#include "i2c_.fuc"
-#include "test.fuc"
-#include "idle.fuc"
-#undef INCLUDE_CODE
-.align 256
+struct nvkm_oclass *
+gf100_pmu_oclass = &(struct nvkm_pmu_impl) {
+	.base.handle = NV_SUBDEV(PMU, 0xc0),
+	.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = _nvkm_pmu_ctor,
+		.dtor = _nvkm_pmu_dtor,
+		.init = _nvkm_pmu_init,
+		.fini = _nvkm_pmu_fini,
+	},
+	.code.data = gf100_pmu_code,
+	.code.size = sizeof(gf100_pmu_code),
+	.data.data = gf100_pmu_data,
+	.data.size = sizeof(gf100_pmu_data),
+}.base;

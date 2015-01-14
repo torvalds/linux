@@ -21,13 +21,12 @@
  *
  * Authors: Ben Skeggs
  */
+#include "priv.h"
 
 #include <subdev/timer.h>
 
-#include "priv.h"
-
 void
-nouveau_pmu_pgob(struct nouveau_pmu *pmu, bool enable)
+nvkm_pmu_pgob(struct nvkm_pmu *pmu, bool enable)
 {
 	const struct nvkm_pmu_impl *impl = (void *)nv_oclass(pmu);
 	if (impl->pgob)
@@ -35,10 +34,10 @@ nouveau_pmu_pgob(struct nouveau_pmu *pmu, bool enable)
 }
 
 static int
-nouveau_pmu_send(struct nouveau_pmu *pmu, u32 reply[2],
-		 u32 process, u32 message, u32 data0, u32 data1)
+nvkm_pmu_send(struct nvkm_pmu *pmu, u32 reply[2],
+	      u32 process, u32 message, u32 data0, u32 data1)
 {
-	struct nouveau_subdev *subdev = nv_subdev(pmu);
+	struct nvkm_subdev *subdev = nv_subdev(pmu);
 	u32 addr;
 
 	/* wait for a free slot in the fifo */
@@ -85,10 +84,9 @@ nouveau_pmu_send(struct nouveau_pmu *pmu, u32 reply[2],
 }
 
 static void
-nouveau_pmu_recv(struct work_struct *work)
+nvkm_pmu_recv(struct work_struct *work)
 {
-	struct nouveau_pmu *pmu =
-		container_of(work, struct nouveau_pmu, recv.work);
+	struct nvkm_pmu *pmu = container_of(work, struct nvkm_pmu, recv.work);
 	u32 process, message, data0, data1;
 
 	/* nothing to do if GET == PUT */
@@ -137,9 +135,9 @@ nouveau_pmu_recv(struct work_struct *work)
 }
 
 static void
-nouveau_pmu_intr(struct nouveau_subdev *subdev)
+nvkm_pmu_intr(struct nvkm_subdev *subdev)
 {
-	struct nouveau_pmu *pmu = (void *)subdev;
+	struct nvkm_pmu *pmu = (void *)subdev;
 	u32 disp = nv_rd32(pmu, 0x10a01c);
 	u32 intr = nv_rd32(pmu, 0x10a008) & disp & ~(disp >> 16);
 
@@ -161,7 +159,7 @@ nouveau_pmu_intr(struct nouveau_subdev *subdev)
 
 	if (intr & 0x00000080) {
 		nv_info(pmu, "wr32 0x%06x 0x%08x\n", nv_rd32(pmu, 0x10a7a0),
-						      nv_rd32(pmu, 0x10a7a4));
+						     nv_rd32(pmu, 0x10a7a4));
 		nv_wr32(pmu, 0x10a004, 0x00000080);
 		intr &= ~0x00000080;
 	}
@@ -173,30 +171,30 @@ nouveau_pmu_intr(struct nouveau_subdev *subdev)
 }
 
 int
-_nouveau_pmu_fini(struct nouveau_object *object, bool suspend)
+_nvkm_pmu_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nouveau_pmu *pmu = (void *)object;
+	struct nvkm_pmu *pmu = (void *)object;
 
 	nv_wr32(pmu, 0x10a014, 0x00000060);
 	flush_work(&pmu->recv.work);
 
-	return nouveau_subdev_fini(&pmu->base, suspend);
+	return nvkm_subdev_fini(&pmu->base, suspend);
 }
 
 int
-_nouveau_pmu_init(struct nouveau_object *object)
+_nvkm_pmu_init(struct nvkm_object *object)
 {
 	const struct nvkm_pmu_impl *impl = (void *)object->oclass;
-	struct nouveau_pmu *pmu = (void *)object;
+	struct nvkm_pmu *pmu = (void *)object;
 	int ret, i;
 
-	ret = nouveau_subdev_init(&pmu->base);
+	ret = nvkm_subdev_init(&pmu->base);
 	if (ret)
 		return ret;
 
-	nv_subdev(pmu)->intr = nouveau_pmu_intr;
-	pmu->message = nouveau_pmu_send;
-	pmu->pgob = nouveau_pmu_pgob;
+	nv_subdev(pmu)->intr = nvkm_pmu_intr;
+	pmu->message = nvkm_pmu_send;
+	pmu->pgob = nvkm_pmu_pgob;
 
 	/* prevent previous ucode from running, wait for idle, reset */
 	nv_wr32(pmu, 0x10a014, 0x0000ffff); /* INTR_EN_CLR = ALL */
@@ -241,32 +239,30 @@ _nouveau_pmu_init(struct nouveau_object *object)
 }
 
 int
-nouveau_pmu_create_(struct nouveau_object *parent,
-		    struct nouveau_object *engine,
-		    struct nouveau_oclass *oclass, int length, void **pobject)
+nvkm_pmu_create_(struct nvkm_object *parent, struct nvkm_object *engine,
+		 struct nvkm_oclass *oclass, int length, void **pobject)
 {
-	struct nouveau_pmu *pmu;
+	struct nvkm_pmu *pmu;
 	int ret;
 
-	ret = nouveau_subdev_create_(parent, engine, oclass, 0, "PMU",
-				     "pmu", length, pobject);
+	ret = nvkm_subdev_create_(parent, engine, oclass, 0, "PMU",
+				  "pmu", length, pobject);
 	pmu = *pobject;
 	if (ret)
 		return ret;
 
-	INIT_WORK(&pmu->recv.work, nouveau_pmu_recv);
+	INIT_WORK(&pmu->recv.work, nvkm_pmu_recv);
 	init_waitqueue_head(&pmu->recv.wait);
 	return 0;
 }
 
 int
-_nouveau_pmu_ctor(struct nouveau_object *parent,
-		  struct nouveau_object *engine,
-		  struct nouveau_oclass *oclass, void *data, u32 size,
-		  struct nouveau_object **pobject)
+_nvkm_pmu_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	       struct nvkm_oclass *oclass, void *data, u32 size,
+	       struct nvkm_object **pobject)
 {
-	struct nouveau_pmu *pmu;
-	int ret = nouveau_pmu_create(parent, engine, oclass, &pmu);
+	struct nvkm_pmu *pmu;
+	int ret = nvkm_pmu_create(parent, engine, oclass, &pmu);
 	*pobject = nv_object(pmu);
 	return ret;
 }

@@ -21,21 +21,20 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "priv.h"
-#include "fuc/nvc0.fuc3.h"
+#include "fuc/gk208.fuc5.h"
 
-struct nouveau_oclass *
-nvc0_pmu_oclass = &(struct nvkm_pmu_impl) {
-	.base.handle = NV_SUBDEV(PMU, 0xc0),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = _nouveau_pmu_ctor,
-		.dtor = _nouveau_pmu_dtor,
-		.init = _nouveau_pmu_init,
-		.fini = _nouveau_pmu_fini,
+struct nvkm_oclass *
+gk208_pmu_oclass = &(struct nvkm_pmu_impl) {
+	.base.handle = NV_SUBDEV(PMU, 0x00),
+	.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = _nvkm_pmu_ctor,
+		.dtor = _nvkm_pmu_dtor,
+		.init = _nvkm_pmu_init,
+		.fini = _nvkm_pmu_fini,
 	},
-	.code.data = nvc0_pmu_code,
-	.code.size = sizeof(nvc0_pmu_code),
-	.data.data = nvc0_pmu_data,
-	.data.size = sizeof(nvc0_pmu_data),
+	.code.data = gk208_pmu_code,
+	.code.size = sizeof(gk208_pmu_code),
+	.data.data = gk208_pmu_data,
+	.data.size = sizeof(gk208_pmu_data),
 }.base;

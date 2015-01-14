@@ -21,50 +21,29 @@
  *
  * Authors: Ben Skeggs
  */
+#include "priv.h"
+#include "fuc/gt215.fuc3.h"
 
-#define NVKM_PPWR_CHIPSET GF100
-#define HW_TICKS_PER_US 203 // should be 202.5
+static int
+gt215_pmu_init(struct nvkm_object *object)
+{
+	struct nvkm_pmu *pmu = (void *)object;
+	nv_mask(pmu, 0x022210, 0x00000001, 0x00000000);
+	nv_mask(pmu, 0x022210, 0x00000001, 0x00000001);
+	return nvkm_pmu_init(pmu);
+}
 
-//#define NVKM_FALCON_PC24
-//#define NVKM_FALCON_UNSHIFTED_IO
-//#define NVKM_FALCON_MMIO_UAS
-//#define NVKM_FALCON_MMIO_TRAP
-
-#include "macros.fuc"
-
-.section #nvc0_pmu_data
-#define INCLUDE_PROC
-#include "kernel.fuc"
-#include "arith.fuc"
-#include "host.fuc"
-#include "memx.fuc"
-#include "perf.fuc"
-#include "i2c_.fuc"
-#include "test.fuc"
-#include "idle.fuc"
-#undef INCLUDE_PROC
-
-#define INCLUDE_DATA
-#include "kernel.fuc"
-#include "arith.fuc"
-#include "host.fuc"
-#include "memx.fuc"
-#include "perf.fuc"
-#include "i2c_.fuc"
-#include "test.fuc"
-#include "idle.fuc"
-#undef INCLUDE_DATA
-.align 256
-
-.section #nvc0_pmu_code
-#define INCLUDE_CODE
-#include "kernel.fuc"
-#include "arith.fuc"
-#include "host.fuc"
-#include "memx.fuc"
-#include "perf.fuc"
-#include "i2c_.fuc"
-#include "test.fuc"
-#include "idle.fuc"
-#undef INCLUDE_CODE
-.align 256
+struct nvkm_oclass *
+gt215_pmu_oclass = &(struct nvkm_pmu_impl) {
+	.base.handle = NV_SUBDEV(PMU, 0xa3),
+	.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = _nvkm_pmu_ctor,
+		.dtor = _nvkm_pmu_dtor,
+		.init = gt215_pmu_init,
+		.fini = _nvkm_pmu_fini,
+	},
+	.code.data = gt215_pmu_code,
+	.code.size = sizeof(gt215_pmu_code),
+	.data.data = gt215_pmu_data,
+	.data.size = sizeof(gt215_pmu_data),
+}.base;

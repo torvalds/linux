@@ -21,15 +21,13 @@
  *
  * Authors: Ben Skeggs
  */
-
+#define gf110_pmu_code gk104_pmu_code
+#define gf110_pmu_data gk104_pmu_data
 #include "priv.h"
-
-#define nvd0_pmu_code gk104_pmu_code
-#define nvd0_pmu_data gk104_pmu_data
-#include "fuc/nvd0.fuc4.h"
+#include "fuc/gf110.fuc4.h"
 
 static void
-gk104_pmu_pgob(struct nouveau_pmu *pmu, bool enable)
+gk104_pmu_pgob(struct nvkm_pmu *pmu, bool enable)
 {
 	nv_mask(pmu, 0x000200, 0x00001000, 0x00000000);
 	nv_rd32(pmu, 0x000200);
@@ -52,14 +50,14 @@ gk104_pmu_pgob(struct nouveau_pmu *pmu, bool enable)
 	nv_rd32(pmu, 0x000200);
 }
 
-struct nouveau_oclass *
+struct nvkm_oclass *
 gk104_pmu_oclass = &(struct nvkm_pmu_impl) {
 	.base.handle = NV_SUBDEV(PMU, 0xe4),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = _nouveau_pmu_ctor,
-		.dtor = _nouveau_pmu_dtor,
-		.init = _nouveau_pmu_init,
-		.fini = _nouveau_pmu_fini,
+	.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = _nvkm_pmu_ctor,
+		.dtor = _nvkm_pmu_dtor,
+		.init = _nvkm_pmu_init,
+		.fini = _nvkm_pmu_fini,
 	},
 	.code.data = gk104_pmu_code,
 	.code.size = sizeof(gk104_pmu_code),

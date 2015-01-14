@@ -78,7 +78,7 @@ gm100_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] =  nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_MMU    ] = &gf100_mmu_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &gf100_bar_oclass;
-		device->oclass[NVDEV_SUBDEV_PMU    ] =  nv108_pmu_oclass;
+		device->oclass[NVDEV_SUBDEV_PMU    ] =  gk208_pmu_oclass;
 
 #if 0
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
@@ -122,7 +122,7 @@ gm100_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_INSTMEM] =  nv50_instmem_oclass;
 		device->oclass[NVDEV_SUBDEV_MMU    ] = &gf100_mmu_oclass;
 		device->oclass[NVDEV_SUBDEV_BAR    ] = &gf100_bar_oclass;
-		device->oclass[NVDEV_SUBDEV_PMU    ] =  nv108_pmu_oclass;
+		device->oclass[NVDEV_SUBDEV_PMU    ] =  gk208_pmu_oclass;
 #if 0
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 #endif

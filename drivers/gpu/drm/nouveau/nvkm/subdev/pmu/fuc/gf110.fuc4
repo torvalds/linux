@@ -32,7 +32,7 @@
 
 #include "macros.fuc"
 
-.section #nvd0_pmu_data
+.section #gf110_pmu_data
 #define INCLUDE_PROC
 #include "kernel.fuc"
 #include "arith.fuc"
@@ -56,7 +56,7 @@
 #undef INCLUDE_DATA
 .align 256
 
-.section #nvd0_pmu_code
+.section #gf110_pmu_code
 #define INCLUDE_CODE
 #include "kernel.fuc"
 #include "arith.fuc"

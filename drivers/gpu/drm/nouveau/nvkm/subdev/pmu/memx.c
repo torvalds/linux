@@ -1,10 +1,11 @@
 #ifndef __NVKM_PMU_MEMX_H__
 #define __NVKM_PMU_MEMX_H__
-
 #include "priv.h"
 
-struct nouveau_memx {
-	struct nouveau_pmu *pmu;
+#include <core/device.h>
+
+struct nvkm_memx {
+	struct nvkm_pmu *pmu;
 	u32 base;
 	u32 size;
 	struct {
@@ -15,9 +16,9 @@ struct nouveau_memx {
 };
 
 static void
-memx_out(struct nouveau_memx *memx)
+memx_out(struct nvkm_memx *memx)
 {
-	struct nouveau_pmu *pmu = memx->pmu;
+	struct nvkm_pmu *pmu = memx->pmu;
 	int i;
 
 	if (memx->c.mthd) {
@@ -30,7 +31,7 @@ memx_out(struct nouveau_memx *memx)
 }
 
 static void
-memx_cmd(struct nouveau_memx *memx, u32 mthd, u32 size, u32 data[])
+memx_cmd(struct nvkm_memx *memx, u32 mthd, u32 size, u32 data[])
 {
 	if ((memx->c.size + size >= ARRAY_SIZE(memx->c.data)) ||
 	    (memx->c.mthd && memx->c.mthd != mthd))
@@ -41,14 +42,14 @@ memx_cmd(struct nouveau_memx *memx, u32 mthd, u32 size, u32 data[])
 }
 
 int
-nouveau_memx_init(struct nouveau_pmu *pmu, struct nouveau_memx **pmemx)
+nvkm_memx_init(struct nvkm_pmu *pmu, struct nvkm_memx **pmemx)
 {
-	struct nouveau_memx *memx;
+	struct nvkm_memx *memx;
 	u32 reply[2];
 	int ret;
 
 	ret = pmu->message(pmu, reply, PROC_MEMX, MEMX_MSG_INFO,
-					MEMX_INFO_DATA, 0);
+			   MEMX_INFO_DATA, 0);
 	if (ret)
 		return ret;
 
@@ -64,15 +65,14 @@ nouveau_memx_init(struct nouveau_pmu *pmu, struct nouveau_memx **pmemx)
 		nv_wr32(pmu, 0x10a580, 0x00000003);
 	} while (nv_rd32(pmu, 0x10a580) != 0x00000003);
 	nv_wr32(pmu, 0x10a1c0, 0x01000000 | memx->base);
-
 	return 0;
 }
 
 int
-nouveau_memx_fini(struct nouveau_memx **pmemx, bool exec)
+nvkm_memx_fini(struct nvkm_memx **pmemx, bool exec)
 {
-	struct nouveau_memx *memx = *pmemx;
-	struct nouveau_pmu *pmu = memx->pmu;
+	struct nvkm_memx *memx = *pmemx;
+	struct nvkm_pmu *pmu = memx->pmu;
 	u32 finish, reply[2];
 
 	/* flush the cache... */
@@ -85,7 +85,7 @@ nouveau_memx_fini(struct nouveau_memx **pmemx, bool exec)
 	/* call MEMX process to execute the script, and wait for reply */
 	if (exec) {
 		pmu->message(pmu, reply, PROC_MEMX, MEMX_MSG_EXEC,
-				 memx->base, finish);
+			     memx->base, finish);
 	}
 
 	nv_debug(memx->pmu, "Exec took %uns, PMU_IN %08x\n",
@@ -95,14 +95,14 @@ nouveau_memx_fini(struct nouveau_memx **pmemx, bool exec)
 }
 
 void
-nouveau_memx_wr32(struct nouveau_memx *memx, u32 addr, u32 data)
+nvkm_memx_wr32(struct nvkm_memx *memx, u32 addr, u32 data)
 {
 	nv_debug(memx->pmu, "R[%06x] = 0x%08x\n", addr, data);
 	memx_cmd(memx, MEMX_WR32, 2, (u32[]){ addr, data });
 }
 
 void
-nouveau_memx_wait(struct nouveau_memx *memx,
+nvkm_memx_wait(struct nvkm_memx *memx,
 		  u32 addr, u32 mask, u32 data, u32 nsec)
 {
 	nv_debug(memx->pmu, "R[%06x] & 0x%08x == 0x%08x, %d us\n",
@@ -112,7 +112,7 @@ nouveau_memx_wait(struct nouveau_memx *memx,
 }
 
 void
-nouveau_memx_nsec(struct nouveau_memx *memx, u32 nsec)
+nvkm_memx_nsec(struct nvkm_memx *memx, u32 nsec)
 {
 	nv_debug(memx->pmu, "    DELAY = %d ns\n", nsec);
 	memx_cmd(memx, MEMX_DELAY, 1, (u32[]){ nsec });
@@ -120,9 +120,9 @@ nouveau_memx_nsec(struct nouveau_memx *memx, u32 nsec)
 }
 
 void
-nouveau_memx_wait_vblank(struct nouveau_memx *memx)
+nvkm_memx_wait_vblank(struct nvkm_memx *memx)
 {
-	struct nouveau_pmu *pmu = memx->pmu;
+	struct nvkm_pmu *pmu = memx->pmu;
 	u32 heads, x, y, px = 0;
 	int i, head_sync;
 
@@ -153,20 +153,20 @@ nouveau_memx_wait_vblank(struct nouveau_memx *memx)
 }
 
 void
-nouveau_memx_train(struct nouveau_memx *memx)
+nvkm_memx_train(struct nvkm_memx *memx)
 {
 	nv_debug(memx->pmu, "   MEM TRAIN\n");
 	memx_cmd(memx, MEMX_TRAIN, 0, NULL);
 }
 
 int
-nouveau_memx_train_result(struct nouveau_pmu *pmu, u32 *res, int rsize)
+nvkm_memx_train_result(struct nvkm_pmu *pmu, u32 *res, int rsize)
 {
 	u32 reply[2], base, size, i;
 	int ret;
 
 	ret = pmu->message(pmu, reply, PROC_MEMX, MEMX_MSG_INFO,
-					MEMX_INFO_TRAIN, 0);
+			   MEMX_INFO_TRAIN, 0);
 	if (ret)
 		return ret;
 
@@ -185,17 +185,16 @@ nouveau_memx_train_result(struct nouveau_pmu *pmu, u32 *res, int rsize)
 }
 
 void
-nouveau_memx_block(struct nouveau_memx *memx)
+nvkm_memx_block(struct nvkm_memx *memx)
 {
 	nv_debug(memx->pmu, "   HOST BLOCKED\n");
 	memx_cmd(memx, MEMX_ENTER, 0, NULL);
 }
 
 void
-nouveau_memx_unblock(struct nouveau_memx *memx)
+nvkm_memx_unblock(struct nvkm_memx *memx)
 {
 	nv_debug(memx->pmu, "   HOST UNBLOCKED\n");
 	memx_cmd(memx, MEMX_LEAVE, 0, NULL);
 }
-
 #endif

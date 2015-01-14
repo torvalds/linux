@@ -209,6 +209,10 @@
 #define nouveau_volt nvkm_volt
 #define nouveau_timer nvkm_timer
 #define nouveau_timer_wait_eq nvkm_timer_wait_eq
+#define nouveau_timer_alarm nvkm_timer_alarm
+#define nouveau_alarm nvkm_alarm
+#define nouveau_timer_alarm_cancel nvkm_timer_alarm_cancel
+#define nouveau_alarm_init nvkm_alarm_init
 #define nva3_pll_calc gt215_pll_calc
 #define nouveau_clk nvkm_clk
 #define nouveau_domain nvkm_domain
