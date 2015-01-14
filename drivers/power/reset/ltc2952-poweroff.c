@@ -72,8 +72,6 @@ struct ltc2952_poweroff_data {
 
 	struct device *dev;
 
-	unsigned int virq;
-
 	/**
 	 * 0: trigger
 	 * 1: watchdog
@@ -260,13 +258,11 @@ static int ltc2952_poweroff_init(struct platform_device *pdev)
 		goto err_io;
 	}
 
-	ltc2952_data->virq = virq;
-	ret = request_irq(virq,
-		ltc2952_poweroff_handler,
-		(IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING),
-		"ltc2952-poweroff",
-		ltc2952_data
-	);
+	ret = devm_request_irq(&pdev->dev, virq,
+			       ltc2952_poweroff_handler,
+			       (IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING),
+			       "ltc2952-poweroff",
+			       ltc2952_data);
 
 	if (ret) {
 		dev_err(&pdev->dev, "cannot configure an interrupt handler\n");
@@ -316,12 +312,9 @@ static int ltc2952_poweroff_remove(struct platform_device *pdev)
 
 	pm_power_off = NULL;
 
-	if (ltc2952_data) {
-		free_irq(ltc2952_data->virq, ltc2952_data);
-
+	if (ltc2952_data)
 		for (i = 0; i < ARRAY_SIZE(ltc2952_data->gpio); i++)
 			gpiod_put(ltc2952_data->gpio[i]);
-	}
 
 	return 0;
 }
