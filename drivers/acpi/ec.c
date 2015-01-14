@@ -690,11 +690,21 @@ static int acpi_ec_sync_query(struct acpi_ec *ec, u8 *data)
 static void acpi_ec_gpe_query(void *ec_cxt)
 {
 	struct acpi_ec *ec = ec_cxt;
+	acpi_status status;
+	u32 glk;
 
 	if (!ec)
 		return;
 	mutex_lock(&ec->mutex);
+	if (ec->global_lock) {
+		status = acpi_acquire_global_lock(ACPI_EC_UDELAY_GLK, &glk);
+		if (ACPI_FAILURE(status))
+			goto unlock;
+	}
 	acpi_ec_sync_query(ec, NULL);
+	if (ec->global_lock)
+		acpi_release_global_lock(glk);
+unlock:
 	mutex_unlock(&ec->mutex);
 }
 
