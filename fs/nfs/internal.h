@@ -416,7 +416,6 @@ int  nfs_show_options(struct seq_file *, struct dentry *);
 int  nfs_show_devname(struct seq_file *, struct dentry *);
 int  nfs_show_path(struct seq_file *, struct dentry *);
 int  nfs_show_stats(struct seq_file *, struct dentry *);
-void nfs_put_super(struct super_block *);
 int nfs_remount(struct super_block *sb, int *flags, char *raw_data);
 
 /* write.c */
