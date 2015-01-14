@@ -214,7 +214,11 @@ static int snvs_secvio_probe(struct platform_device *pdev)
 		kfree(svpriv);
 		return -EINVAL;
 	}
-	svpriv->irq = of_irq_to_resource(npirq, 0, NULL);
+	svpriv->irq = irq_of_parse_and_map(npirq, 0);
+	if (svpriv->irq <= 0) {
+		kfree(svpriv);
+		return -EINVAL;
+	}
 
 	snvsregs = of_iomap(np, 0);
 	if (!snvsregs) {
