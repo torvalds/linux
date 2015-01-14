@@ -309,7 +309,7 @@ config COMEDI_DAS800
 
 config COMEDI_DAS1800
 	tristate "DAS1800 and compatible ISA card support"
-	depends on ISA_DMA_API
+	select COMEDI_ISADMA if ISA_DMA_API
 	---help---
 	  Enable support for DAS1800 and compatible ISA cards
 	  Keithley Metrabyte DAS-1701ST, DAS-1701ST-DA, DAS-1701/AO,

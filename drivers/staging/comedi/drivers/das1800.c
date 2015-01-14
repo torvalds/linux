@@ -98,12 +98,12 @@ TODO:
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/io.h>
+
 #include "../comedidev.h"
 
-#include <asm/dma.h>
-
-#include "8253.h"
+#include "comedi_isadma.h"
 #include "comedi_fc.h"
+#include "8253.h"
 
 /* misc. defines */
 #define DAS1800_SIZE           16	/* uses 16 io addresses */
@@ -420,22 +420,14 @@ static const struct das1800_board das1800_boards[] = {
 	 },
 };
 
-struct das1800_dma_desc {
-	unsigned int chan;	/* DMA channel */
-	void *virt_addr;	/* virtual address of DMA buffer */
-	dma_addr_t hw_addr;	/* hardware (bus) address of DMA buffer */
-	unsigned int size;	/* transfer size (in bytes) */
-};
-
 struct das1800_private {
+	struct comedi_isadma *dma;
 	unsigned int divisor1;	/* value to load into board's counter 1 for timed conversions */
 	unsigned int divisor2;	/* value to load into board's counter 2 for timed conversions */
 	int irq_dma_bits;	/* bits for control register b */
 	/* dma bits for control register b, stored so that dma can be
 	 * turned on and off */
 	int dma_bits;
-	struct das1800_dma_desc dma_desc[2];
-	int cur_dma;
 	uint16_t *fifo_buf;	/* bounce buffer for analog input FIFO */
 	unsigned long iobase2;	/* secondary io address used for analog out on 'ao' boards */
 	unsigned short ao_update_bits;	/* remembers the last write to the
@@ -451,32 +443,6 @@ static const struct comedi_lrange range_ao_2 = {
 	}
 };
 */
-
-static void das1800_isadma_program(struct das1800_dma_desc *dma)
-{
-	unsigned long flags;
-
-	flags = claim_dma_lock();
-	clear_dma_ff(dma->chan);
-	set_dma_mode(dma->chan, DMA_MODE_READ);
-	set_dma_addr(dma->chan, dma->hw_addr);
-	set_dma_count(dma->chan, dma->size);
-	enable_dma(dma->chan);
-	release_dma_lock(flags);
-}
-
-static unsigned int das1800_isadma_disable(unsigned int dma_chan)
-{
-	unsigned long flags;
-	unsigned int residue;
-
-	flags = claim_dma_lock();
-	disable_dma(dma_chan);
-	residue = get_dma_residue(dma_chan);
-	release_dma_lock(flags);
-
-	return residue;
-}
 
 static inline uint16_t munge_bipolar_sample(const struct comedi_device *dev,
 					    uint16_t sample)
@@ -540,18 +506,18 @@ static void das1800_handle_fifo_not_empty(struct comedi_device *dev,
 /* Utility function used by das1800_flush_dma() and das1800_handle_dma() */
 static void das1800_flush_dma_channel(struct comedi_device *dev,
 				      struct comedi_subdevice *s,
-				      struct das1800_dma_desc *dma)
+				      struct comedi_isadma_desc *desc)
 {
-	unsigned int residue = das1800_isadma_disable(dma->chan);
-	unsigned int nbytes = dma->size - residue;
+	unsigned int residue = comedi_isadma_disable(desc->chan);
+	unsigned int nbytes = desc->size - residue;
 	unsigned int nsamples;
 
 	/*  figure out how many points to read */
 	nsamples = comedi_bytes_to_samples(s, nbytes);
 	nsamples = comedi_nsamples_left(s, nsamples);
 
-	munge_data(dev, dma->virt_addr, nsamples);
-	comedi_buf_write_samples(s, dma->virt_addr, nsamples);
+	munge_data(dev, desc->virt_addr, nsamples);
+	comedi_buf_write_samples(s, desc->virt_addr, nsamples);
 }
 
 /* flushes remaining data from board when external trigger has stopped acquisition
@@ -560,16 +526,17 @@ static void das1800_flush_dma(struct comedi_device *dev,
 			      struct comedi_subdevice *s)
 {
 	struct das1800_private *devpriv = dev->private;
-	struct das1800_dma_desc *dma = &devpriv->dma_desc[devpriv->cur_dma];
+	struct comedi_isadma *dma = devpriv->dma;
+	struct comedi_isadma_desc *desc = &dma->desc[dma->cur_dma];
 	const int dual_dma = devpriv->irq_dma_bits & DMA_DUAL;
 
-	das1800_flush_dma_channel(dev, s, dma);
+	das1800_flush_dma_channel(dev, s, desc);
 
 	if (dual_dma) {
 		/*  switch to other channel and flush it */
-		devpriv->cur_dma = 1 - devpriv->cur_dma;
-		dma = &devpriv->dma_desc[devpriv->cur_dma];
-		das1800_flush_dma_channel(dev, s, dma);
+		dma->cur_dma = 1 - dma->cur_dma;
+		desc = &dma->desc[dma->cur_dma];
+		das1800_flush_dma_channel(dev, s, desc);
 	}
 
 	/*  get any remaining samples in fifo */
@@ -580,27 +547,29 @@ static void das1800_handle_dma(struct comedi_device *dev,
 			       struct comedi_subdevice *s, unsigned int status)
 {
 	struct das1800_private *devpriv = dev->private;
-	struct das1800_dma_desc *dma = &devpriv->dma_desc[devpriv->cur_dma];
+	struct comedi_isadma *dma = devpriv->dma;
+	struct comedi_isadma_desc *desc = &dma->desc[dma->cur_dma];
 	const int dual_dma = devpriv->irq_dma_bits & DMA_DUAL;
 
-	das1800_flush_dma_channel(dev, s, dma);
+	das1800_flush_dma_channel(dev, s, desc);
 
 	/* re-enable dma channel */
-	das1800_isadma_program(dma);
+	comedi_isadma_program(desc);
 
 	if (status & DMATC) {
 		/*  clear DMATC interrupt bit */
 		outb(CLEAR_INTR_MASK & ~DMATC, dev->iobase + DAS1800_STATUS);
 		/*  switch dma channels for next time, if appropriate */
 		if (dual_dma)
-			devpriv->cur_dma = 1 - devpriv->cur_dma;
+			dma->cur_dma = 1 - dma->cur_dma;
 	}
 }
 
 static int das1800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct das1800_private *devpriv = dev->private;
-	struct das1800_dma_desc *dma;
+	struct comedi_isadma *dma = devpriv->dma;
+	struct comedi_isadma_desc *desc;
 	int i;
 
 	outb(0x0, dev->iobase + DAS1800_STATUS);	/* disable conversions */
@@ -608,9 +577,9 @@ static int das1800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	outb(0x0, dev->iobase + DAS1800_CONTROL_A);	/* disable and clear fifo and stop triggering */
 
 	for (i = 0; i < 2; i++) {
-		dma = &devpriv->dma_desc[i];
-		if (dma->chan)
-			das1800_isadma_disable(dma->chan);
+		desc = &dma->desc[i];
+		if (desc->chan)
+			comedi_isadma_disable(desc->chan);
 	}
 
 	return 0;
@@ -968,10 +937,11 @@ static void das1800_setup_counters(struct comedi_device *dev,
 
 static unsigned int das1800_ai_transfer_size(struct comedi_device *dev,
 					     struct comedi_subdevice *s,
+					     unsigned int maxbytes,
 					     unsigned int ns)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int max_samples = comedi_bytes_to_samples(s, DMA_BUF_SIZE);
+	unsigned int max_samples = comedi_bytes_to_samples(s, maxbytes);
 	unsigned int samples;
 
 	samples = max_samples;
@@ -1002,25 +972,26 @@ static void das1800_ai_setup_dma(struct comedi_device *dev,
 				 struct comedi_subdevice *s)
 {
 	struct das1800_private *devpriv = dev->private;
-	struct das1800_dma_desc *dma = &devpriv->dma_desc[0];
+	struct comedi_isadma *dma = devpriv->dma;
+	struct comedi_isadma_desc *desc = &dma->desc[0];
 	unsigned int bytes;
 
 	if ((devpriv->irq_dma_bits & DMA_ENABLED) == 0)
 		return;
 
-	devpriv->cur_dma = 0;
+	dma->cur_dma = 0;
 
 	/* determine a dma transfer size to fill buffer in 0.3 sec */
-	bytes = das1800_ai_transfer_size(dev, s, 300000000);
+	bytes = das1800_ai_transfer_size(dev, s, desc->maxsize, 300000000);
 
-	dma->size = bytes;
-	das1800_isadma_program(dma);
+	desc->size = bytes;
+	comedi_isadma_program(desc);
 
 	/* set up dual dma if appropriate */
 	if (devpriv->irq_dma_bits & DMA_DUAL) {
-		dma = &devpriv->dma_desc[1];
-		dma->size = bytes;
-		das1800_isadma_program(dma);
+		desc = &dma->desc[1];
+		desc->size = bytes;
+		comedi_isadma_program(desc);
 	}
 }
 
@@ -1220,13 +1191,11 @@ static int das1800_do_wbits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int das1800_init_dma(struct comedi_device *dev,
-			    struct comedi_devconfig *it)
+static void das1800_init_dma(struct comedi_device *dev,
+			     struct comedi_devconfig *it)
 {
 	struct das1800_private *devpriv = dev->private;
-	struct das1800_dma_desc *dma;
 	unsigned int *dma_chan;
-	int i;
 
 	/*
 	 * it->options[2] is DMA channel 0
@@ -1238,75 +1207,41 @@ static int das1800_init_dma(struct comedi_device *dev,
 
 	switch ((dma_chan[0] & 0x7) | (dma_chan[1] << 4)) {
 	case 0x5:	/*  dma0 == 5 */
-		devpriv->dma_bits |= DMA_CH5;
+		devpriv->dma_bits = DMA_CH5;
 		break;
 	case 0x6:	/*  dma0 == 6 */
-		devpriv->dma_bits |= DMA_CH6;
+		devpriv->dma_bits = DMA_CH6;
 		break;
 	case 0x7:	/*  dma0 == 7 */
-		devpriv->dma_bits |= DMA_CH7;
+		devpriv->dma_bits = DMA_CH7;
 		break;
 	case 0x65:	/*  dma0 == 5, dma1 == 6 */
-		devpriv->dma_bits |= DMA_CH5_CH6;
+		devpriv->dma_bits = DMA_CH5_CH6;
 		break;
 	case 0x76:	/*  dma0 == 6, dma1 == 7 */
-		devpriv->dma_bits |= DMA_CH6_CH7;
+		devpriv->dma_bits = DMA_CH6_CH7;
 		break;
 	case 0x57:	/*  dma0 == 7, dma1 == 5 */
-		devpriv->dma_bits |= DMA_CH7_CH5;
+		devpriv->dma_bits = DMA_CH7_CH5;
 		break;
 	default:
-		dev_err(dev->class_dev,
-			"only supports dma channels 5 through 7\n");
-		dev_err(dev->class_dev,
-			"Dual dma only allows the following combinations:\n");
-		dev_err(dev->class_dev,
-			"dma 5,6 / 6,7 / or 7,5\n");
-		return -EINVAL;
+		return;
 	}
 
-	for (i = 0; i < 2; i++) {
-		dma = &devpriv->dma_desc[i];
-
-		if (dma_chan[i] == 0)
-			break;
-
-		if (request_dma(dma_chan[i], dev->board_name)) {
-			dev_err(dev->class_dev,
-				"failed to allocate dma channel %i\n",
-				dma_chan[i]);
-			return -EINVAL;
-		}
-		dma->chan = dma_chan[i];
-
-		dma->virt_addr = dma_alloc_coherent(NULL, DMA_BUF_SIZE,
-						    &dma->hw_addr, GFP_KERNEL);
-		if (!dma->virt_addr)
-			return -ENOMEM;
-
-		das1800_isadma_disable(dma->chan);
-	}
-
-	return 0;
+	/* DMA can use 1 or 2 buffers, each with a separate channel */
+	devpriv->dma = comedi_isadma_alloc(dev, dma_chan[1] ? 2 : 1,
+					   dma_chan[0], dma_chan[1],
+					   DMA_BUF_SIZE, COMEDI_ISADMA_READ);
+	if (!devpriv->dma)
+		devpriv->dma_bits = 0;
 }
 
 static void das1800_free_dma(struct comedi_device *dev)
 {
 	struct das1800_private *devpriv = dev->private;
-	struct das1800_dma_desc *dma;
-	int i;
 
-	if (!devpriv)
-		return;
-
-	for (i = 0; i < 2; i++) {
-		dma = &devpriv->dma_desc[i];
-		if (dma->chan)
-			free_dma(dma->chan);
-		if (dma->virt_addr)
-			dma_free_coherent(NULL, DMA_BUF_SIZE,
-					  dma->virt_addr, dma->hw_addr);
-	}
+	if (devpriv)
+		comedi_isadma_free(devpriv->dma);
 }
 
 static int das1800_probe(struct comedi_device *dev)
@@ -1436,11 +1371,8 @@ static int das1800_attach(struct comedi_device *dev,
 	}
 
 	/* an irq and one dma channel is required to use dma */
-	if (dev->irq & it->options[2]) {
-		ret = das1800_init_dma(dev, it);
-		if (ret < 0)
-			return ret;
-	}
+	if (dev->irq & it->options[2])
+		das1800_init_dma(dev, it);
 
 	devpriv->fifo_buf = kmalloc(FIFO_SIZE * sizeof(uint16_t), GFP_KERNEL);
 	if (!devpriv->fifo_buf)
