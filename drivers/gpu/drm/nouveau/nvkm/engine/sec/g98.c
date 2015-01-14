@@ -21,32 +21,25 @@
  *
  * Authors: Ben Skeggs
  */
+#include <engine/sec.h>
+#include <engine/falcon.h>
+#include "fuc/g98.fuc0s.h"
 
 #include <core/client.h>
-#include <core/os.h>
 #include <core/enum.h>
-#include <core/engctx.h>
-
-#include <subdev/timer.h>
-#include <subdev/fb.h>
-
-#include <engine/falcon.h>
 #include <engine/fifo.h>
-#include <engine/sec.h>
 
-#include "fuc/nv98.fuc0s.h"
-
-struct nv98_sec_priv {
-	struct nouveau_falcon base;
+struct g98_sec_priv {
+	struct nvkm_falcon base;
 };
 
 /*******************************************************************************
  * Crypt object classes
  ******************************************************************************/
 
-static struct nouveau_oclass
-nv98_sec_sclass[] = {
-	{ 0x88b4, &nouveau_object_ofuncs },
+static struct nvkm_oclass
+g98_sec_sclass[] = {
+	{ 0x88b4, &nvkm_object_ofuncs },
 	{},
 };
 
@@ -54,16 +47,16 @@ nv98_sec_sclass[] = {
  * PSEC context
  ******************************************************************************/
 
-static struct nouveau_oclass
-nv98_sec_cclass = {
+static struct nvkm_oclass
+g98_sec_cclass = {
 	.handle = NV_ENGCTX(SEC, 0x98),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = _nouveau_falcon_context_ctor,
-		.dtor = _nouveau_falcon_context_dtor,
-		.init = _nouveau_falcon_context_init,
-		.fini = _nouveau_falcon_context_fini,
-		.rd32 = _nouveau_falcon_context_rd32,
-		.wr32 = _nouveau_falcon_context_wr32,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = _nvkm_falcon_context_ctor,
+		.dtor = _nvkm_falcon_context_dtor,
+		.init = _nvkm_falcon_context_init,
+		.fini = _nvkm_falcon_context_fini,
+		.rd32 = _nvkm_falcon_context_rd32,
+		.wr32 = _nvkm_falcon_context_wr32,
 	},
 };
 
@@ -71,7 +64,7 @@ nv98_sec_cclass = {
  * PSEC engine/subdev functions
  ******************************************************************************/
 
-static const struct nouveau_enum nv98_sec_isr_error_name[] = {
+static const struct nvkm_enum g98_sec_isr_error_name[] = {
 	{ 0x0000, "ILLEGAL_MTHD" },
 	{ 0x0001, "INVALID_BITFIELD" },
 	{ 0x0002, "INVALID_ENUM" },
@@ -80,12 +73,12 @@ static const struct nouveau_enum nv98_sec_isr_error_name[] = {
 };
 
 static void
-nv98_sec_intr(struct nouveau_subdev *subdev)
+g98_sec_intr(struct nvkm_subdev *subdev)
 {
-	struct nouveau_fifo *pfifo = nouveau_fifo(subdev);
-	struct nouveau_engine *engine = nv_engine(subdev);
-	struct nouveau_object *engctx;
-	struct nv98_sec_priv *priv = (void *)subdev;
+	struct nvkm_fifo *pfifo = nvkm_fifo(subdev);
+	struct nvkm_engine *engine = nv_engine(subdev);
+	struct nvkm_object *engctx;
+	struct g98_sec_priv *priv = (void *)subdev;
 	u32 disp = nv_rd32(priv, 0x08701c);
 	u32 stat = nv_rd32(priv, 0x087008) & disp & ~(disp >> 16);
 	u32 inst = nv_rd32(priv, 0x087050) & 0x3fffffff;
@@ -96,14 +89,14 @@ nv98_sec_intr(struct nouveau_subdev *subdev)
 	u32 data = nv_rd32(priv, 0x087044);
 	int chid;
 
-	engctx = nouveau_engctx_get(engine, inst);
+	engctx = nvkm_engctx_get(engine, inst);
 	chid   = pfifo->chid(pfifo, engctx);
 
 	if (stat & 0x00000040) {
 		nv_error(priv, "DISPATCH_ERROR [");
-		nouveau_enum_print(nv98_sec_isr_error_name, ssta);
+		nvkm_enum_print(g98_sec_isr_error_name, ssta);
 		pr_cont("] ch %d [0x%010llx %s] subc %d mthd 0x%04x data 0x%08x\n",
-		       chid, (u64)inst << 12, nouveau_client_name(engctx),
+		       chid, (u64)inst << 12, nvkm_client_name(engctx),
 		       subc, mthd, data);
 		nv_wr32(priv, 0x087004, 0x00000040);
 		stat &= ~0x00000040;
@@ -114,43 +107,43 @@ nv98_sec_intr(struct nouveau_subdev *subdev)
 		nv_wr32(priv, 0x087004, stat);
 	}
 
-	nouveau_engctx_put(engctx);
+	nvkm_engctx_put(engctx);
 }
 
 static int
-nv98_sec_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
+g98_sec_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	     struct nvkm_oclass *oclass, void *data, u32 size,
+	     struct nvkm_object **pobject)
 {
-	struct nv98_sec_priv *priv;
+	struct g98_sec_priv *priv;
 	int ret;
 
-	ret = nouveau_falcon_create(parent, engine, oclass, 0x087000, true,
-				    "PSEC", "sec", &priv);
+	ret = nvkm_falcon_create(parent, engine, oclass, 0x087000, true,
+				 "PSEC", "sec", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	nv_subdev(priv)->unit = 0x00004000;
-	nv_subdev(priv)->intr = nv98_sec_intr;
-	nv_engine(priv)->cclass = &nv98_sec_cclass;
-	nv_engine(priv)->sclass = nv98_sec_sclass;
-	nv_falcon(priv)->code.data = nv98_psec_code;
-	nv_falcon(priv)->code.size = sizeof(nv98_psec_code);
-	nv_falcon(priv)->data.data = nv98_psec_data;
-	nv_falcon(priv)->data.size = sizeof(nv98_psec_data);
+	nv_subdev(priv)->intr = g98_sec_intr;
+	nv_engine(priv)->cclass = &g98_sec_cclass;
+	nv_engine(priv)->sclass = g98_sec_sclass;
+	nv_falcon(priv)->code.data = g98_psec_code;
+	nv_falcon(priv)->code.size = sizeof(g98_psec_code);
+	nv_falcon(priv)->data.data = g98_psec_data;
+	nv_falcon(priv)->data.size = sizeof(g98_psec_data);
 	return 0;
 }
 
-struct nouveau_oclass
-nv98_sec_oclass = {
+struct nvkm_oclass
+g98_sec_oclass = {
 	.handle = NV_ENGINE(SEC, 0x98),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv98_sec_ctor,
-		.dtor = _nouveau_falcon_dtor,
-		.init = _nouveau_falcon_init,
-		.fini = _nouveau_falcon_fini,
-		.rd32 = _nouveau_falcon_rd32,
-		.wr32 = _nouveau_falcon_wr32,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = g98_sec_ctor,
+		.dtor = _nvkm_falcon_dtor,
+		.init = _nvkm_falcon_init,
+		.fini = _nvkm_falcon_fini,
+		.rd32 = _nvkm_falcon_rd32,
+		.wr32 = _nvkm_falcon_wr32,
 	},
 };
