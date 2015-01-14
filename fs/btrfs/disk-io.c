@@ -1719,7 +1719,7 @@ static int setup_bdi(struct btrfs_fs_info *info, struct backing_dev_info *bdi)
 	if (err)
 		return err;
 
-	bdi->ra_pages	= default_backing_dev_info.ra_pages;
+	bdi->ra_pages = VM_MAX_READAHEAD * 1024 / PAGE_CACHE_SIZE;
 	bdi->congested_fn	= btrfs_congested_fn;
 	bdi->congested_data	= info;
 	return 0;

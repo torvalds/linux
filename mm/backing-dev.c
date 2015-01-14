@@ -14,12 +14,6 @@
 
 static atomic_long_t bdi_seq = ATOMIC_LONG_INIT(0);
 
-struct backing_dev_info default_backing_dev_info = {
-	.name		= "default",
-	.ra_pages	= VM_MAX_READAHEAD * 1024 / PAGE_CACHE_SIZE,
-};
-EXPORT_SYMBOL_GPL(default_backing_dev_info);
-
 struct backing_dev_info noop_backing_dev_info = {
 	.name		= "noop",
 	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
@@ -250,9 +244,6 @@ static int __init default_bdi_init(void)
 	if (!bdi_wq)
 		return -ENOMEM;
 
-	err = bdi_init(&default_backing_dev_info);
-	if (!err)
-		bdi_register(&default_backing_dev_info, NULL, "default");
 	err = bdi_init(&noop_backing_dev_info);
 
 	return err;

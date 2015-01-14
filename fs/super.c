@@ -185,8 +185,8 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
 	}
 	init_waitqueue_head(&s->s_writers.wait);
 	init_waitqueue_head(&s->s_writers.wait_unfrozen);
+	s->s_bdi = &noop_backing_dev_info;
 	s->s_flags = flags;
-	s->s_bdi = &default_backing_dev_info;
 	INIT_HLIST_NODE(&s->s_instances);
 	INIT_HLIST_BL_HEAD(&s->s_anon);
 	INIT_LIST_HEAD(&s->s_inodes);
@@ -863,10 +863,7 @@ EXPORT_SYMBOL(free_anon_bdev);
 
 int set_anon_super(struct super_block *s, void *data)
 {
-	int error = get_anon_bdev(&s->s_dev);
-	if (!error)
-		s->s_bdi = &noop_backing_dev_info;
-	return error;
+	return get_anon_bdev(&s->s_dev);
 }
 
 EXPORT_SYMBOL(set_anon_super);
@@ -1111,7 +1108,6 @@ mount_fs(struct file_system_type *type, int flags, const char *name, void *data)
 	sb = root->d_sb;
 	BUG_ON(!sb);
 	WARN_ON(!sb->s_bdi);
-	WARN_ON(sb->s_bdi == &default_backing_dev_info);
 	sb->s_flags |= MS_BORN;
 
 	error = security_sb_kern_mount(sb, flags, secdata);

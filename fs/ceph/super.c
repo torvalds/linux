@@ -899,7 +899,7 @@ static int ceph_register_bdi(struct super_block *sb,
 			>> PAGE_SHIFT;
 	else
 		fsc->backing_dev_info.ra_pages =
-			default_backing_dev_info.ra_pages;
+			VM_MAX_READAHEAD * 1024 / PAGE_CACHE_SIZE;
 
 	err = bdi_register(&fsc->backing_dev_info, NULL, "ceph-%ld",
 			   atomic_long_inc_return(&bdi_seq));
