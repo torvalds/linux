@@ -21,21 +21,18 @@
  *
  * Authors: Ben Skeggs
  */
+#include "nv50.h"
+#include "nv04.h"
 
 #include <core/client.h>
 #include <core/engctx.h>
 #include <core/ramht.h>
-#include <nvif/unpack.h>
-#include <nvif/class.h>
-
-#include <subdev/timer.h>
 #include <subdev/bar.h>
+#include <subdev/mmu.h>
+#include <subdev/timer.h>
 
-#include <engine/dmaobj.h>
-#include <engine/fifo.h>
-
-#include "nv04.h"
-#include "nv50.h"
+#include <nvif/class.h>
+#include <nvif/unpack.h>
 
 /*******************************************************************************
  * FIFO channel objects
@@ -44,8 +41,8 @@
 static void
 nv50_fifo_playlist_update_locked(struct nv50_fifo_priv *priv)
 {
-	struct nouveau_bar *bar = nouveau_bar(priv);
-	struct nouveau_gpuobj *cur;
+	struct nvkm_bar *bar = nvkm_bar(priv);
+	struct nvkm_gpuobj *cur;
 	int i, p;
 
 	cur = priv->playlist[priv->cur_playlist];
@@ -72,12 +69,11 @@ nv50_fifo_playlist_update(struct nv50_fifo_priv *priv)
 }
 
 static int
-nv50_fifo_context_attach(struct nouveau_object *parent,
-			 struct nouveau_object *object)
+nv50_fifo_context_attach(struct nvkm_object *parent, struct nvkm_object *object)
 {
-	struct nouveau_bar *bar = nouveau_bar(parent);
+	struct nvkm_bar *bar = nvkm_bar(parent);
 	struct nv50_fifo_base *base = (void *)parent->parent;
-	struct nouveau_gpuobj *ectx = (void *)object;
+	struct nvkm_gpuobj *ectx = (void *)object;
 	u64 limit = ectx->addr + ectx->size - 1;
 	u64 start = ectx->addr;
 	u32 addr;
@@ -103,10 +99,10 @@ nv50_fifo_context_attach(struct nouveau_object *parent,
 }
 
 static int
-nv50_fifo_context_detach(struct nouveau_object *parent, bool suspend,
-			 struct nouveau_object *object)
+nv50_fifo_context_detach(struct nvkm_object *parent, bool suspend,
+			 struct nvkm_object *object)
 {
-	struct nouveau_bar *bar = nouveau_bar(parent);
+	struct nvkm_bar *bar = nvkm_bar(parent);
 	struct nv50_fifo_priv *priv = (void *)parent->engine;
 	struct nv50_fifo_base *base = (void *)parent->parent;
 	struct nv50_fifo_chan *chan = (void *)parent;
@@ -139,7 +135,7 @@ nv50_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 	nv_wr32(priv, 0x0032fc, nv_gpuobj(base)->addr >> 12);
 	if (!nv_wait_ne(priv, 0x0032fc, 0xffffffff, 0xffffffff)) {
 		nv_error(priv, "channel %d [%s] unload timeout\n",
-			 chan->base.chid, nouveau_client_name(chan));
+			 chan->base.chid, nvkm_client_name(chan));
 		if (suspend)
 			ret = -EBUSY;
 	}
@@ -159,8 +155,8 @@ nv50_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 }
 
 static int
-nv50_fifo_object_attach(struct nouveau_object *parent,
-			struct nouveau_object *object, u32 handle)
+nv50_fifo_object_attach(struct nvkm_object *parent,
+			struct nvkm_object *object, u32 handle)
 {
 	struct nv50_fifo_chan *chan = (void *)parent;
 	u32 context;
@@ -179,26 +175,25 @@ nv50_fifo_object_attach(struct nouveau_object *parent,
 		return -EINVAL;
 	}
 
-	return nouveau_ramht_insert(chan->ramht, 0, handle, context);
+	return nvkm_ramht_insert(chan->ramht, 0, handle, context);
 }
 
 void
-nv50_fifo_object_detach(struct nouveau_object *parent, int cookie)
+nv50_fifo_object_detach(struct nvkm_object *parent, int cookie)
 {
 	struct nv50_fifo_chan *chan = (void *)parent;
-	nouveau_ramht_remove(chan->ramht, cookie);
+	nvkm_ramht_remove(chan->ramht, cookie);
 }
 
 static int
-nv50_fifo_chan_ctor_dma(struct nouveau_object *parent,
-			struct nouveau_object *engine,
-			struct nouveau_oclass *oclass, void *data, u32 size,
-			struct nouveau_object **pobject)
+nv50_fifo_chan_ctor_dma(struct nvkm_object *parent, struct nvkm_object *engine,
+			struct nvkm_oclass *oclass, void *data, u32 size,
+			struct nvkm_object **pobject)
 {
 	union {
 		struct nv03_channel_dma_v0 v0;
 	} *args = data;
-	struct nouveau_bar *bar = nouveau_bar(parent);
+	struct nvkm_bar *bar = nvkm_bar(parent);
 	struct nv50_fifo_base *base = (void *)parent;
 	struct nv50_fifo_chan *chan;
 	int ret;
@@ -211,12 +206,12 @@ nv50_fifo_chan_ctor_dma(struct nouveau_object *parent,
 	} else
 		return ret;
 
-	ret = nouveau_fifo_channel_create(parent, engine, oclass, 0, 0xc00000,
-					  0x2000, args->v0.pushbuf,
-					  (1ULL << NVDEV_ENGINE_DMAOBJ) |
-					  (1ULL << NVDEV_ENGINE_SW) |
-					  (1ULL << NVDEV_ENGINE_GR) |
-					  (1ULL << NVDEV_ENGINE_MPEG), &chan);
+	ret = nvkm_fifo_channel_create(parent, engine, oclass, 0, 0xc00000,
+				       0x2000, args->v0.pushbuf,
+				       (1ULL << NVDEV_ENGINE_DMAOBJ) |
+				       (1ULL << NVDEV_ENGINE_SW) |
+				       (1ULL << NVDEV_ENGINE_GR) |
+				       (1ULL << NVDEV_ENGINE_MPEG), &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
@@ -228,8 +223,8 @@ nv50_fifo_chan_ctor_dma(struct nouveau_object *parent,
 	nv_parent(chan)->object_attach = nv50_fifo_object_attach;
 	nv_parent(chan)->object_detach = nv50_fifo_object_detach;
 
-	ret = nouveau_ramht_new(nv_object(chan), nv_object(chan), 0x8000, 16,
-				&chan->ramht);
+	ret = nvkm_ramht_new(nv_object(chan), nv_object(chan), 0x8000, 16,
+			     &chan->ramht);
 	if (ret)
 		return ret;
 
@@ -252,15 +247,14 @@ nv50_fifo_chan_ctor_dma(struct nouveau_object *parent,
 }
 
 static int
-nv50_fifo_chan_ctor_ind(struct nouveau_object *parent,
-			struct nouveau_object *engine,
-			struct nouveau_oclass *oclass, void *data, u32 size,
-			struct nouveau_object **pobject)
+nv50_fifo_chan_ctor_ind(struct nvkm_object *parent, struct nvkm_object *engine,
+			struct nvkm_oclass *oclass, void *data, u32 size,
+			struct nvkm_object **pobject)
 {
 	union {
 		struct nv50_channel_gpfifo_v0 v0;
 	} *args = data;
-	struct nouveau_bar *bar = nouveau_bar(parent);
+	struct nvkm_bar *bar = nvkm_bar(parent);
 	struct nv50_fifo_base *base = (void *)parent;
 	struct nv50_fifo_chan *chan;
 	u64 ioffset, ilength;
@@ -275,12 +269,12 @@ nv50_fifo_chan_ctor_ind(struct nouveau_object *parent,
 	} else
 		return ret;
 
-	ret = nouveau_fifo_channel_create(parent, engine, oclass, 0, 0xc00000,
-					  0x2000, args->v0.pushbuf,
-					  (1ULL << NVDEV_ENGINE_DMAOBJ) |
-					  (1ULL << NVDEV_ENGINE_SW) |
-					  (1ULL << NVDEV_ENGINE_GR) |
-					  (1ULL << NVDEV_ENGINE_MPEG), &chan);
+	ret = nvkm_fifo_channel_create(parent, engine, oclass, 0, 0xc00000,
+				       0x2000, args->v0.pushbuf,
+				       (1ULL << NVDEV_ENGINE_DMAOBJ) |
+				       (1ULL << NVDEV_ENGINE_SW) |
+				       (1ULL << NVDEV_ENGINE_GR) |
+				       (1ULL << NVDEV_ENGINE_MPEG), &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
@@ -292,8 +286,8 @@ nv50_fifo_chan_ctor_ind(struct nouveau_object *parent,
 	nv_parent(chan)->object_attach = nv50_fifo_object_attach;
 	nv_parent(chan)->object_detach = nv50_fifo_object_detach;
 
-	ret = nouveau_ramht_new(nv_object(chan), nv_object(chan), 0x8000, 16,
-			       &chan->ramht);
+	ret = nvkm_ramht_new(nv_object(chan), nv_object(chan), 0x8000, 16,
+			     &chan->ramht);
 	if (ret)
 		return ret;
 
@@ -316,24 +310,24 @@ nv50_fifo_chan_ctor_ind(struct nouveau_object *parent,
 }
 
 void
-nv50_fifo_chan_dtor(struct nouveau_object *object)
+nv50_fifo_chan_dtor(struct nvkm_object *object)
 {
 	struct nv50_fifo_chan *chan = (void *)object;
-	nouveau_ramht_ref(NULL, &chan->ramht);
-	nouveau_fifo_channel_destroy(&chan->base);
+	nvkm_ramht_ref(NULL, &chan->ramht);
+	nvkm_fifo_channel_destroy(&chan->base);
 }
 
 static int
-nv50_fifo_chan_init(struct nouveau_object *object)
+nv50_fifo_chan_init(struct nvkm_object *object)
 {
 	struct nv50_fifo_priv *priv = (void *)object->engine;
 	struct nv50_fifo_base *base = (void *)object->parent;
 	struct nv50_fifo_chan *chan = (void *)object;
-	struct nouveau_gpuobj *ramfc = base->ramfc;
+	struct nvkm_gpuobj *ramfc = base->ramfc;
 	u32 chid = chan->base.chid;
 	int ret;
 
-	ret = nouveau_fifo_channel_init(&chan->base);
+	ret = nvkm_fifo_channel_init(&chan->base);
 	if (ret)
 		return ret;
 
@@ -343,7 +337,7 @@ nv50_fifo_chan_init(struct nouveau_object *object)
 }
 
 int
-nv50_fifo_chan_fini(struct nouveau_object *object, bool suspend)
+nv50_fifo_chan_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nv50_fifo_priv *priv = (void *)object->engine;
 	struct nv50_fifo_chan *chan = (void *)object;
@@ -354,34 +348,34 @@ nv50_fifo_chan_fini(struct nouveau_object *object, bool suspend)
 	nv50_fifo_playlist_update(priv);
 	nv_wr32(priv, 0x002600 + (chid * 4), 0x00000000);
 
-	return nouveau_fifo_channel_fini(&chan->base, suspend);
+	return nvkm_fifo_channel_fini(&chan->base, suspend);
 }
 
-static struct nouveau_ofuncs
+static struct nvkm_ofuncs
 nv50_fifo_ofuncs_dma = {
 	.ctor = nv50_fifo_chan_ctor_dma,
 	.dtor = nv50_fifo_chan_dtor,
 	.init = nv50_fifo_chan_init,
 	.fini = nv50_fifo_chan_fini,
-	.map  = _nouveau_fifo_channel_map,
-	.rd32 = _nouveau_fifo_channel_rd32,
-	.wr32 = _nouveau_fifo_channel_wr32,
-	.ntfy = _nouveau_fifo_channel_ntfy
+	.map  = _nvkm_fifo_channel_map,
+	.rd32 = _nvkm_fifo_channel_rd32,
+	.wr32 = _nvkm_fifo_channel_wr32,
+	.ntfy = _nvkm_fifo_channel_ntfy
 };
 
-static struct nouveau_ofuncs
+static struct nvkm_ofuncs
 nv50_fifo_ofuncs_ind = {
 	.ctor = nv50_fifo_chan_ctor_ind,
 	.dtor = nv50_fifo_chan_dtor,
 	.init = nv50_fifo_chan_init,
 	.fini = nv50_fifo_chan_fini,
-	.map  = _nouveau_fifo_channel_map,
-	.rd32 = _nouveau_fifo_channel_rd32,
-	.wr32 = _nouveau_fifo_channel_wr32,
-	.ntfy = _nouveau_fifo_channel_ntfy
+	.map  = _nvkm_fifo_channel_map,
+	.rd32 = _nvkm_fifo_channel_rd32,
+	.wr32 = _nvkm_fifo_channel_wr32,
+	.ntfy = _nvkm_fifo_channel_ntfy
 };
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 nv50_fifo_sclass[] = {
 	{ NV50_CHANNEL_DMA, &nv50_fifo_ofuncs_dma },
 	{ NV50_CHANNEL_GPFIFO, &nv50_fifo_ofuncs_ind },
@@ -393,36 +387,35 @@ nv50_fifo_sclass[] = {
  ******************************************************************************/
 
 static int
-nv50_fifo_context_ctor(struct nouveau_object *parent,
-		       struct nouveau_object *engine,
-		       struct nouveau_oclass *oclass, void *data, u32 size,
-		       struct nouveau_object **pobject)
+nv50_fifo_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		       struct nvkm_oclass *oclass, void *data, u32 size,
+		       struct nvkm_object **pobject)
 {
 	struct nv50_fifo_base *base;
 	int ret;
 
-	ret = nouveau_fifo_context_create(parent, engine, oclass, NULL, 0x10000,
-				          0x1000, NVOBJ_FLAG_HEAP, &base);
+	ret = nvkm_fifo_context_create(parent, engine, oclass, NULL, 0x10000,
+				       0x1000, NVOBJ_FLAG_HEAP, &base);
 	*pobject = nv_object(base);
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(nv_object(base), nv_object(base), 0x0200,
-				 0x1000, NVOBJ_FLAG_ZERO_ALLOC, &base->ramfc);
+	ret = nvkm_gpuobj_new(nv_object(base), nv_object(base), 0x0200,
+			      0x1000, NVOBJ_FLAG_ZERO_ALLOC, &base->ramfc);
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(nv_object(base), nv_object(base), 0x1200, 0,
-				 NVOBJ_FLAG_ZERO_ALLOC, &base->eng);
+	ret = nvkm_gpuobj_new(nv_object(base), nv_object(base), 0x1200, 0,
+			      NVOBJ_FLAG_ZERO_ALLOC, &base->eng);
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(nv_object(base), nv_object(base), 0x4000, 0, 0,
-				&base->pgd);
+	ret = nvkm_gpuobj_new(nv_object(base), nv_object(base), 0x4000, 0, 0,
+			      &base->pgd);
 	if (ret)
 		return ret;
 
-	ret = nouveau_vm_ref(nouveau_client(parent)->vm, &base->vm, base->pgd);
+	ret = nvkm_vm_ref(nvkm_client(parent)->vm, &base->vm, base->pgd);
 	if (ret)
 		return ret;
 
@@ -430,27 +423,27 @@ nv50_fifo_context_ctor(struct nouveau_object *parent,
 }
 
 void
-nv50_fifo_context_dtor(struct nouveau_object *object)
+nv50_fifo_context_dtor(struct nvkm_object *object)
 {
 	struct nv50_fifo_base *base = (void *)object;
-	nouveau_vm_ref(NULL, &base->vm, base->pgd);
-	nouveau_gpuobj_ref(NULL, &base->pgd);
-	nouveau_gpuobj_ref(NULL, &base->eng);
-	nouveau_gpuobj_ref(NULL, &base->ramfc);
-	nouveau_gpuobj_ref(NULL, &base->cache);
-	nouveau_fifo_context_destroy(&base->base);
+	nvkm_vm_ref(NULL, &base->vm, base->pgd);
+	nvkm_gpuobj_ref(NULL, &base->pgd);
+	nvkm_gpuobj_ref(NULL, &base->eng);
+	nvkm_gpuobj_ref(NULL, &base->ramfc);
+	nvkm_gpuobj_ref(NULL, &base->cache);
+	nvkm_fifo_context_destroy(&base->base);
 }
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 nv50_fifo_cclass = {
 	.handle = NV_ENGCTX(FIFO, 0x50),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv50_fifo_context_ctor,
 		.dtor = nv50_fifo_context_dtor,
-		.init = _nouveau_fifo_context_init,
-		.fini = _nouveau_fifo_context_fini,
-		.rd32 = _nouveau_fifo_context_rd32,
-		.wr32 = _nouveau_fifo_context_wr32,
+		.init = _nvkm_fifo_context_init,
+		.fini = _nvkm_fifo_context_fini,
+		.rd32 = _nvkm_fifo_context_rd32,
+		.wr32 = _nvkm_fifo_context_wr32,
 	},
 };
 
@@ -459,25 +452,25 @@ nv50_fifo_cclass = {
  ******************************************************************************/
 
 static int
-nv50_fifo_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
+nv50_fifo_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	       struct nvkm_oclass *oclass, void *data, u32 size,
+	       struct nvkm_object **pobject)
 {
 	struct nv50_fifo_priv *priv;
 	int ret;
 
-	ret = nouveau_fifo_create(parent, engine, oclass, 1, 127, &priv);
+	ret = nvkm_fifo_create(parent, engine, oclass, 1, 127, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 128 * 4, 0x1000, 0,
-				&priv->playlist[0]);
+	ret = nvkm_gpuobj_new(nv_object(priv), NULL, 128 * 4, 0x1000, 0,
+			      &priv->playlist[0]);
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 128 * 4, 0x1000, 0,
-				&priv->playlist[1]);
+	ret = nvkm_gpuobj_new(nv_object(priv), NULL, 128 * 4, 0x1000, 0,
+			      &priv->playlist[1]);
 	if (ret)
 		return ret;
 
@@ -491,23 +484,23 @@ nv50_fifo_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 }
 
 void
-nv50_fifo_dtor(struct nouveau_object *object)
+nv50_fifo_dtor(struct nvkm_object *object)
 {
 	struct nv50_fifo_priv *priv = (void *)object;
 
-	nouveau_gpuobj_ref(NULL, &priv->playlist[1]);
-	nouveau_gpuobj_ref(NULL, &priv->playlist[0]);
+	nvkm_gpuobj_ref(NULL, &priv->playlist[1]);
+	nvkm_gpuobj_ref(NULL, &priv->playlist[0]);
 
-	nouveau_fifo_destroy(&priv->base);
+	nvkm_fifo_destroy(&priv->base);
 }
 
 int
-nv50_fifo_init(struct nouveau_object *object)
+nv50_fifo_init(struct nvkm_object *object)
 {
 	struct nv50_fifo_priv *priv = (void *)object;
 	int ret, i;
 
-	ret = nouveau_fifo_init(&priv->base);
+	ret = nvkm_fifo_init(&priv->base);
 	if (ret)
 		return ret;
 
@@ -529,13 +522,13 @@ nv50_fifo_init(struct nouveau_object *object)
 	return 0;
 }
 
-struct nouveau_oclass *
-nv50_fifo_oclass = &(struct nouveau_oclass) {
+struct nvkm_oclass *
+nv50_fifo_oclass = &(struct nvkm_oclass) {
 	.handle = NV_ENGINE(FIFO, 0x50),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv50_fifo_ctor,
 		.dtor = nv50_fifo_dtor,
 		.init = nv50_fifo_init,
-		.fini = _nouveau_fifo_fini,
+		.fini = _nvkm_fifo_fini,
 	},
 };

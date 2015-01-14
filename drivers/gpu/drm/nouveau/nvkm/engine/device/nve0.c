@@ -81,7 +81,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gk104_pmu_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
-		device->oclass[NVDEV_ENGINE_FIFO   ] =  nve0_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] =  gk104_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nvc0_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] =  nve4_gr_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  gk104_disp_oclass;
@@ -115,7 +115,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gf110_pmu_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
-		device->oclass[NVDEV_ENGINE_FIFO   ] =  nve0_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] =  gk104_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nvc0_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] =  nve4_gr_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  gk104_disp_oclass;
@@ -149,7 +149,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gk104_pmu_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
-		device->oclass[NVDEV_ENGINE_FIFO   ] =  nve0_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] =  gk104_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nvc0_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] =  nve4_gr_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  gk104_disp_oclass;
@@ -205,7 +205,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gf110_pmu_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
-		device->oclass[NVDEV_ENGINE_FIFO   ] =  nve0_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] =  gk104_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nvc0_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] =  nvf0_gr_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  gk110_disp_oclass;
@@ -239,7 +239,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gf110_pmu_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
-		device->oclass[NVDEV_ENGINE_FIFO   ] =  nve0_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] =  gk104_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nvc0_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] =  gk110b_gr_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  gk110_disp_oclass;
@@ -273,7 +273,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gk208_pmu_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
-		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv108_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] =  gk208_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nvc0_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] =  nv108_gr_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  gk110_disp_oclass;
@@ -306,7 +306,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_PMU    ] =  gk208_pmu_oclass;
 		device->oclass[NVDEV_SUBDEV_VOLT   ] = &nv40_volt_oclass;
 		device->oclass[NVDEV_ENGINE_DMAOBJ ] =  gf110_dmaeng_oclass;
-		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv108_fifo_oclass;
+		device->oclass[NVDEV_ENGINE_FIFO   ] =  gk208_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nvc0_sw_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] =  nv108_gr_oclass;
 		device->oclass[NVDEV_ENGINE_DISP   ] =  gk110_disp_oclass;

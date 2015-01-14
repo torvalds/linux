@@ -1,6 +1,5 @@
 #ifndef __NV04_FIFO_H__
 #define __NV04_FIFO_H__
-
 #include <engine/fifo.h>
 
 #define NV04_PFIFO_DELAY_0                                 0x00002040
@@ -141,38 +140,36 @@ struct ramfc_desc {
 };
 
 struct nv04_fifo_priv {
-	struct nouveau_fifo base;
+	struct nvkm_fifo base;
 	struct ramfc_desc *ramfc_desc;
-	struct nouveau_ramht  *ramht;
-	struct nouveau_gpuobj *ramro;
-	struct nouveau_gpuobj *ramfc;
+	struct nvkm_ramht  *ramht;
+	struct nvkm_gpuobj *ramro;
+	struct nvkm_gpuobj *ramfc;
 };
 
 struct nv04_fifo_base {
-	struct nouveau_fifo_base base;
+	struct nvkm_fifo_base base;
 };
 
 struct nv04_fifo_chan {
-	struct nouveau_fifo_chan base;
+	struct nvkm_fifo_chan base;
 	u32 subc[8];
 	u32 ramfc;
 };
 
-int  nv04_fifo_object_attach(struct nouveau_object *,
-			     struct nouveau_object *, u32);
-void nv04_fifo_object_detach(struct nouveau_object *, int);
+int  nv04_fifo_object_attach(struct nvkm_object *, struct nvkm_object *, u32);
+void nv04_fifo_object_detach(struct nvkm_object *, int);
 
-void nv04_fifo_chan_dtor(struct nouveau_object *);
-int  nv04_fifo_chan_init(struct nouveau_object *);
-int  nv04_fifo_chan_fini(struct nouveau_object *, bool suspend);
+void nv04_fifo_chan_dtor(struct nvkm_object *);
+int  nv04_fifo_chan_init(struct nvkm_object *);
+int  nv04_fifo_chan_fini(struct nvkm_object *, bool suspend);
 
-int  nv04_fifo_context_ctor(struct nouveau_object *, struct nouveau_object *,
-			    struct nouveau_oclass *, void *, u32,
-			    struct nouveau_object **);
+int  nv04_fifo_context_ctor(struct nvkm_object *, struct nvkm_object *,
+			    struct nvkm_oclass *, void *, u32,
+			    struct nvkm_object **);
 
-void nv04_fifo_dtor(struct nouveau_object *);
-int  nv04_fifo_init(struct nouveau_object *);
-void nv04_fifo_pause(struct nouveau_fifo *, unsigned long *);
-void nv04_fifo_start(struct nouveau_fifo *, unsigned long *);
-
+void nv04_fifo_dtor(struct nvkm_object *);
+int  nv04_fifo_init(struct nvkm_object *);
+void nv04_fifo_pause(struct nvkm_fifo *, unsigned long *);
+void nv04_fifo_start(struct nvkm_fifo *, unsigned long *);
 #endif
