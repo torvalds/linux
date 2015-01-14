@@ -243,13 +243,3 @@ unsigned long arch_randomize_brk(struct mm_struct *mm)
 	ret = PAGE_ALIGN(mm->brk + brk_rnd());
 	return (ret > mm->brk) ? ret : mm->brk;
 }
-
-unsigned long randomize_et_dyn(unsigned long base)
-{
-	unsigned long ret;
-
-	if (!(current->flags & PF_RANDOMIZE))
-		return base;
-	ret = PAGE_ALIGN(base + brk_rnd());
-	return (ret > base) ? ret : base;
-}
