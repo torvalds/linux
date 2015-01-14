@@ -153,29 +153,21 @@ ltc2952_poweroff_timer_trigger(struct hrtimer *timer)
  */
 static irqreturn_t ltc2952_poweroff_handler(int irq, void *dev_id)
 {
-	int ret;
 	struct ltc2952_poweroff *data = dev_id;
 
-	if (data->kernel_panic)
-		goto irq_ok;
-
-	if (hrtimer_active(&data->timer_wde)) {
+	if (data->kernel_panic || hrtimer_active(&data->timer_wde)) {
 		/* shutdown is already triggered, nothing to do any more */
-		goto irq_ok;
+		return IRQ_HANDLED;
 	}
 
 	if (!hrtimer_active(&data->timer_trigger)) {
-		ret = hrtimer_start(&data->timer_trigger, data->trigger_delay,
-			HRTIMER_MODE_REL);
-
-		if (ret)
+		if (hrtimer_start(&data->timer_trigger, data->trigger_delay,
+				  HRTIMER_MODE_REL))
 			dev_err(data->dev, "unable to start the wait timer\n");
 	} else {
-		ret = hrtimer_cancel(&data->timer_trigger);
+		hrtimer_cancel(&data->timer_trigger);
 		/* omitting return value check, timer should have been valid */
 	}
-
-irq_ok:
 	return IRQ_HANDLED;
 }
 
