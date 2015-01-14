@@ -184,17 +184,6 @@ static void ltc2952_poweroff_kill(void)
 	gpiod_set_value(ltc2952_data->gpio_kill, 1);
 }
 
-static int ltc2952_poweroff_suspend(struct platform_device *pdev,
-	pm_message_t state)
-{
-	return -ENOSYS;
-}
-
-static int ltc2952_poweroff_resume(struct platform_device *pdev)
-{
-	return -ENOSYS;
-}
-
 static void ltc2952_poweroff_default(struct ltc2952_poweroff *data)
 {
 	data->wde_interval = ktime_set(0, 300L*1E6L);
@@ -322,8 +311,6 @@ static struct platform_driver ltc2952_poweroff_driver = {
 		.name = "ltc2952-poweroff",
 		.of_match_table = of_ltc2952_poweroff_match,
 	},
-	.suspend = ltc2952_poweroff_suspend,
-	.resume = ltc2952_poweroff_resume,
 };
 
 module_platform_driver(ltc2952_poweroff_driver);
