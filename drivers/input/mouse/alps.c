@@ -1796,7 +1796,7 @@ static int alps_setup_trackstick_v3(struct psmouse *psmouse, int reg_base)
 	 * all.
 	 */
 	if (alps_rpt_cmd(psmouse, 0, PSMOUSE_CMD_SETSCALE21, param)) {
-		psmouse_warn(psmouse, "trackstick E7 report failed\n");
+		psmouse_warn(psmouse, "Failed to initialize trackstick (E7 report failed)\n");
 		ret = -ENODEV;
 	} else {
 		psmouse_dbg(psmouse, "trackstick E7 report: %3ph\n", param);
@@ -1961,8 +1961,6 @@ static int alps_hw_init_rushmore_v3(struct psmouse *psmouse)
 						   ALPS_REG_BASE_RUSHMORE);
 		if (reg_val == -EIO)
 			goto error;
-		if (reg_val == -ENODEV)
-			priv->flags &= ~ALPS_DUALPOINT;
 	}
 
 	if (alps_enter_command_mode(psmouse) ||
@@ -2305,6 +2303,7 @@ static int alps_identify(struct psmouse *psmouse, struct alps_data *priv)
 {
 	const struct alps_protocol_info *protocol;
 	unsigned char e6[4], e7[4], ec[4];
+	int error;
 
 	/*
 	 * First try "E6 report".
@@ -2350,10 +2349,15 @@ static int alps_identify(struct psmouse *psmouse, struct alps_data *priv)
 		}
 	}
 
-	/* Save the Firmware version */
-	memcpy(priv->fw_ver, ec, 3);
+	if (priv) {
+		/* Save the Firmware version */
+		memcpy(priv->fw_ver, ec, 3);
+		error = alps_set_protocol(psmouse, priv, protocol);
+		if (error)
+			return error;
+	}
 
-	return alps_set_protocol(psmouse, priv, protocol);
+	return 0;
 }
 
 static int alps_reconnect(struct psmouse *psmouse)
@@ -2407,22 +2411,20 @@ static void alps_set_abs_params_mt(struct alps_data *priv,
 
 int alps_init(struct psmouse *psmouse)
 {
-	struct alps_data *priv;
+	struct alps_data *priv = psmouse->private;
 	struct input_dev *dev1 = psmouse->dev, *dev2;
+	int error;
 
-	priv = kzalloc(sizeof(struct alps_data), GFP_KERNEL);
 	dev2 = input_allocate_device();
-	if (!priv || !dev2)
+	if (!dev2) {
+		error = -ENOMEM;
 		goto init_fail;
+	}
 
 	priv->dev2 = dev2;
 
-	psmouse_reset(psmouse);
-
-	if (alps_identify(psmouse, priv) < 0)
-		goto init_fail;
-
-	if (priv->hw_init(psmouse))
+	error = priv->hw_init(psmouse);
+	if (error)
 		goto init_fail;
 
 	/*
@@ -2520,24 +2522,56 @@ int alps_init(struct psmouse *psmouse)
 init_fail:
 	psmouse_reset(psmouse);
 	input_free_device(dev2);
-	kfree(priv);
+	/*
+	 * Even though we did not allocate psmouse->private we do free
+	 * it here.
+	 */
+	kfree(psmouse->private);
 	psmouse->private = NULL;
-	return -1;
+	return error;
 }
 
 int alps_detect(struct psmouse *psmouse, bool set_properties)
 {
-	struct alps_data dummy;
+	struct alps_data *priv;
+	int error;
 
-	if (alps_identify(psmouse, &dummy) < 0)
-		return -1;
+	error = alps_identify(psmouse, NULL);
+	if (error)
+		return error;
+
+	/*
+	 * Reset the device to make sure it is fully operational:
+	 * on some laptops, like certain Dell Latitudes, we may
+	 * fail to properly detect presence of trackstick if device
+	 * has not been reset.
+	 */
+	psmouse_reset(psmouse);
+
+	priv = kzalloc(sizeof(struct alps_data), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	error = alps_identify(psmouse, priv);
+	if (error)
+		return error;
 
 	if (set_properties) {
 		psmouse->vendor = "ALPS";
-		psmouse->name = dummy.flags & ALPS_DUALPOINT ?
+		psmouse->name = priv->flags & ALPS_DUALPOINT ?
 				"DualPoint TouchPad" : "GlidePoint";
-		psmouse->model = dummy.proto_version;
+		psmouse->model = priv->proto_version;
+	} else {
+		/*
+		 * Destroy alps_data structure we allocated earlier since
+		 * this was just a "trial run". Otherwise we'll keep it
+		 * to be used by alps_init() which has to be called if
+		 * we succeed and set_properties is true.
+		 */
+		kfree(priv);
+		psmouse->private = NULL;
 	}
+
 	return 0;
 }
 
