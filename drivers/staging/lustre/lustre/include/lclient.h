@@ -135,6 +135,7 @@ static inline struct ccc_thread_info *ccc_env_info(const struct lu_env *env)
 static inline struct cl_attr *ccc_env_thread_attr(const struct lu_env *env)
 {
 	struct cl_attr *attr = &ccc_env_info(env)->cti_attr;
+
 	memset(attr, 0, sizeof(*attr));
 	return attr;
 }
@@ -142,6 +143,7 @@ static inline struct cl_attr *ccc_env_thread_attr(const struct lu_env *env)
 static inline struct cl_io *ccc_env_thread_io(const struct lu_env *env)
 {
 	struct cl_io *io = &ccc_env_info(env)->cti_io;
+
 	memset(io, 0, sizeof(*io));
 	return io;
 }
