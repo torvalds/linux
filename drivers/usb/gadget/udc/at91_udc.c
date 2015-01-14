@@ -1779,8 +1779,8 @@ static int at91udc_probe(struct platform_device *pdev)
 	udc_reinit(udc);
 
 	/* get interface and function clocks */
-	udc->iclk = clk_get(dev, "udc_clk");
-	udc->fclk = clk_get(dev, "udpck");
+	udc->iclk = clk_get(dev, "pclk");
+	udc->fclk = clk_get(dev, "hclk");
 	if (IS_ENABLED(CONFIG_COMMON_CLK))
 		udc->uclk = clk_get(dev, "usb_clk");
 	if (IS_ERR(udc->iclk) || IS_ERR(udc->fclk) ||
