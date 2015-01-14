@@ -50,7 +50,7 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 		status = BIT_ACCEL_STBY;	
 		sensor->ops->ctrl_data |= status;	
 		//gyro和acc都不工作时，模块进入休眠
-		if(sensor->ops->ctrl_data & (BIT_ACCEL_STBY | BIT_GYRO_STBY) != 0)
+		if(sensor->ops->ctrl_data && (BIT_ACCEL_STBY | BIT_GYRO_STBY) != 0)
 		{
 			pwrm1 |= MPU6880_PWRM1_SLEEP;
 		}
