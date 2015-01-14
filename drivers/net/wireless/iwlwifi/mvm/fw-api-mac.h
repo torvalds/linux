@@ -70,6 +70,7 @@
 #define MAC_INDEX_AUX		4
 #define MAC_INDEX_MIN_DRIVER	0
 #define NUM_MAC_INDEX_DRIVER	MAC_INDEX_AUX
+#define NUM_MAC_INDEX		(MAC_INDEX_AUX + 1)
 
 enum iwl_ac {
 	AC_BK,

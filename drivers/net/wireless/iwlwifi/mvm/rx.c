@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -416,33 +416,29 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 }
 
 static void iwl_mvm_update_rx_statistics(struct iwl_mvm *mvm,
-					 struct iwl_notif_statistics *stats)
+					 struct mvm_statistics_rx *rx_stats)
 {
-	/*
-	 * NOTE FW aggregates the statistics - BUT the statistics are cleared
-	 * when the driver issues REPLY_STATISTICS_CMD 0x9c with CLEAR_STATS
-	 * bit set.
-	 */
 	lockdep_assert_held(&mvm->mutex);
-	memcpy(&mvm->rx_stats, &stats->rx, sizeof(struct mvm_statistics_rx));
+
+	mvm->rx_stats = *rx_stats;
 }
 
 struct iwl_mvm_stat_data {
-	struct iwl_notif_statistics *stats;
 	struct iwl_mvm *mvm;
+	__le32 mac_id;
+	__s8 beacon_filter_average_energy;
 };
 
 static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
 				  struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_stat_data *data = _data;
-	struct iwl_notif_statistics *stats = data->stats;
 	struct iwl_mvm *mvm = data->mvm;
-	int sig = -stats->general.beacon_filter_average_energy;
+	int sig = -data->beacon_filter_average_energy;
 	int last_event;
 	int thold = vif->bss_conf.cqm_rssi_thold;
 	int hyst = vif->bss_conf.cqm_rssi_hyst;
-	u16 id = le32_to_cpu(stats->rx.general.mac_id);
+	u16 id = le32_to_cpu(data->mac_id);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	if (mvmvif->id != id)
@@ -510,24 +506,52 @@ int iwl_mvm_rx_statistics(struct iwl_mvm *mvm,
 			  struct iwl_device_cmd *cmd)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_notif_statistics *stats = (void *)&pkt->data;
+	size_t v8_len = sizeof(struct iwl_notif_statistics_v8);
+	size_t v10_len = sizeof(struct iwl_notif_statistics_v10);
 	struct iwl_mvm_stat_data data = {
-		.stats = stats,
 		.mvm = mvm,
 	};
+	u32 temperature;
+
+	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_STATS_V10) {
+		struct iwl_notif_statistics_v10 *stats = (void *)&pkt->data;
+
+		if (iwl_rx_packet_payload_len(pkt) != v10_len)
+			goto invalid;
+
+		temperature = le32_to_cpu(stats->general.radio_temperature);
+		data.mac_id = stats->rx.general.mac_id;
+		data.beacon_filter_average_energy =
+			stats->general.beacon_filter_average_energy;
+
+		iwl_mvm_update_rx_statistics(mvm, &stats->rx);
+	} else {
+		struct iwl_notif_statistics_v8 *stats = (void *)&pkt->data;
+
+		if (iwl_rx_packet_payload_len(pkt) != v8_len)
+			goto invalid;
+
+		temperature = le32_to_cpu(stats->general.radio_temperature);
+		data.mac_id = stats->rx.general.mac_id;
+		data.beacon_filter_average_energy =
+			stats->general.beacon_filter_average_energy;
+
+		iwl_mvm_update_rx_statistics(mvm, &stats->rx);
+	}
 
 	/* Only handle rx statistics temperature changes if async temp
 	 * notifications are not supported
 	 */
 	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_ASYNC_DTM))
-		iwl_mvm_tt_temp_changed(mvm,
-				le32_to_cpu(stats->general.radio_temperature));
-
-	iwl_mvm_update_rx_statistics(mvm, stats);
+		iwl_mvm_tt_temp_changed(mvm, temperature);
 
 	ieee80211_iterate_active_interfaces(mvm->hw,
 					    IEEE80211_IFACE_ITER_NORMAL,
 					    iwl_mvm_stat_iterator,
 					    &data);
+	return 0;
+ invalid:
+	IWL_ERR(mvm, "received invalid statistics size (%d)!\n",
+		iwl_rx_packet_payload_len(pkt));
 	return 0;
 }
