@@ -1296,7 +1296,6 @@ int kvm_s390_inject_vm(struct kvm *kvm,
 		inti->ext.ext_params = s390int->parm;
 		break;
 	case KVM_S390_INT_PFAULT_DONE:
-		inti->type = s390int->type;
 		inti->ext.ext_params2 = s390int->parm64;
 		break;
 	case KVM_S390_MCHK:
