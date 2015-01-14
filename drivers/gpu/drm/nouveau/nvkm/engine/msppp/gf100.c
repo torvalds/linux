@@ -21,21 +21,20 @@
  *
  * Authors: Maarten Lankhorst
  */
-
-#include <engine/falcon.h>
 #include <engine/msppp.h>
+#include <engine/falcon.h>
 
-struct nvc0_msppp_priv {
-	struct nouveau_falcon base;
+struct gf100_msppp_priv {
+	struct nvkm_falcon base;
 };
 
 /*******************************************************************************
  * MSPPP object classes
  ******************************************************************************/
 
-static struct nouveau_oclass
-nvc0_msppp_sclass[] = {
-	{ 0x90b3, &nouveau_object_ofuncs },
+static struct nvkm_oclass
+gf100_msppp_sclass[] = {
+	{ 0x90b3, &nvkm_object_ofuncs },
 	{},
 };
 
@@ -43,16 +42,16 @@ nvc0_msppp_sclass[] = {
  * PMSPPP context
  ******************************************************************************/
 
-static struct nouveau_oclass
-nvc0_msppp_cclass = {
+static struct nvkm_oclass
+gf100_msppp_cclass = {
 	.handle = NV_ENGCTX(MSPPP, 0xc0),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = _nouveau_falcon_context_ctor,
-		.dtor = _nouveau_falcon_context_dtor,
-		.init = _nouveau_falcon_context_init,
-		.fini = _nouveau_falcon_context_fini,
-		.rd32 = _nouveau_falcon_context_rd32,
-		.wr32 = _nouveau_falcon_context_wr32,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = _nvkm_falcon_context_ctor,
+		.dtor = _nvkm_falcon_context_dtor,
+		.init = _nvkm_falcon_context_init,
+		.fini = _nvkm_falcon_context_fini,
+		.rd32 = _nvkm_falcon_context_rd32,
+		.wr32 = _nvkm_falcon_context_wr32,
 	},
 };
 
@@ -61,12 +60,12 @@ nvc0_msppp_cclass = {
  ******************************************************************************/
 
 static int
-nvc0_msppp_init(struct nouveau_object *object)
+gf100_msppp_init(struct nvkm_object *object)
 {
-	struct nvc0_msppp_priv *priv = (void *)object;
+	struct gf100_msppp_priv *priv = (void *)object;
 	int ret;
 
-	ret = nouveau_falcon_init(&priv->base);
+	ret = nvkm_falcon_init(&priv->base);
 	if (ret)
 		return ret;
 
@@ -76,35 +75,35 @@ nvc0_msppp_init(struct nouveau_object *object)
 }
 
 static int
-nvc0_msppp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	      struct nouveau_oclass *oclass, void *data, u32 size,
-	      struct nouveau_object **pobject)
+gf100_msppp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		 struct nvkm_oclass *oclass, void *data, u32 size,
+		 struct nvkm_object **pobject)
 {
-	struct nvc0_msppp_priv *priv;
+	struct gf100_msppp_priv *priv;
 	int ret;
 
-	ret = nouveau_falcon_create(parent, engine, oclass, 0x086000, true,
-				    "PMSPPP", "msppp", &priv);
+	ret = nvkm_falcon_create(parent, engine, oclass, 0x086000, true,
+				 "PMSPPP", "msppp", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	nv_subdev(priv)->unit = 0x00000002;
-	nv_subdev(priv)->intr = nouveau_falcon_intr;
-	nv_engine(priv)->cclass = &nvc0_msppp_cclass;
-	nv_engine(priv)->sclass = nvc0_msppp_sclass;
+	nv_subdev(priv)->intr = nvkm_falcon_intr;
+	nv_engine(priv)->cclass = &gf100_msppp_cclass;
+	nv_engine(priv)->sclass = gf100_msppp_sclass;
 	return 0;
 }
 
-struct nouveau_oclass
-nvc0_msppp_oclass = {
+struct nvkm_oclass
+gf100_msppp_oclass = {
 	.handle = NV_ENGINE(MSPPP, 0xc0),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_msppp_ctor,
-		.dtor = _nouveau_falcon_dtor,
-		.init = nvc0_msppp_init,
-		.fini = _nouveau_falcon_fini,
-		.rd32 = _nouveau_falcon_rd32,
-		.wr32 = _nouveau_falcon_wr32,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gf100_msppp_ctor,
+		.dtor = _nvkm_falcon_dtor,
+		.init = gf100_msppp_init,
+		.fini = _nvkm_falcon_fini,
+		.rd32 = _nvkm_falcon_rd32,
+		.wr32 = _nvkm_falcon_wr32,
 	},
 };

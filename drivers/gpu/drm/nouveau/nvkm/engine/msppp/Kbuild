@@ -1,2 +1,2 @@
-nvkm-y += nvkm/engine/msppp/nv98.o
-nvkm-y += nvkm/engine/msppp/nvc0.o
+nvkm-y += nvkm/engine/msppp/g98.o
+nvkm-y += nvkm/engine/msppp/gf100.o

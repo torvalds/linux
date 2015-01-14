@@ -1,7 +1,6 @@
-#ifndef __NOUVEAU_MSPPP_H__
-#define __NOUVEAU_MSPPP_H__
-
-extern struct nouveau_oclass nv98_msppp_oclass;
-extern struct nouveau_oclass nvc0_msppp_oclass;
-
+#ifndef __NVKM_MSPPP_H__
+#define __NVKM_MSPPP_H__
+#include <core/engine.h>
+extern struct nvkm_oclass g98_msppp_oclass;
+extern struct nvkm_oclass gf100_msppp_oclass;
 #endif
