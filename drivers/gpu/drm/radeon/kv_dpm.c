@@ -1925,6 +1925,7 @@ void kv_dpm_setup_asic(struct radeon_device *rdev)
 	kv_init_sclk_t(rdev);
 }
 
+#if 0
 void kv_dpm_reset_asic(struct radeon_device *rdev)
 {
 	struct kv_power_info *pi = kv_get_pi(rdev);
@@ -1945,6 +1946,7 @@ void kv_dpm_reset_asic(struct radeon_device *rdev)
 		kv_set_enabled_level(rdev, pi->graphics_boot_level);
 	}
 }
+#endif
 
 //XXX use sumo_dpm_display_configuration_changed
 
