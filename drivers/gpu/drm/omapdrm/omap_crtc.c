@@ -120,7 +120,57 @@ static void omap_crtc_start_update(struct omap_overlay_manager *mgr)
 {
 }
 
-static void set_enabled(struct drm_crtc *crtc, bool enable);
+/* Called only from CRTC pre_apply and suspend/resume handlers. */
+static void omap_crtc_set_enabled(struct drm_crtc *crtc, bool enable)
+{
+	struct drm_device *dev = crtc->dev;
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	enum omap_channel channel = omap_crtc->channel;
+	struct omap_irq_wait *wait;
+	u32 framedone_irq, vsync_irq;
+	int ret;
+
+	if (dispc_mgr_is_enabled(channel) == enable)
+		return;
+
+	/*
+	 * Digit output produces some sync lost interrupts during the first
+	 * frame when enabling, so we need to ignore those.
+	 */
+	omap_irq_unregister(crtc->dev, &omap_crtc->error_irq);
+
+	framedone_irq = dispc_mgr_get_framedone_irq(channel);
+	vsync_irq = dispc_mgr_get_vsync_irq(channel);
+
+	if (enable) {
+		wait = omap_irq_wait_init(dev, vsync_irq, 1);
+	} else {
+		/*
+		 * When we disable the digit output, we need to wait for
+		 * FRAMEDONE to know that DISPC has finished with the output.
+		 *
+		 * OMAP2/3 does not have FRAMEDONE irq for digit output, and in
+		 * that case we need to use vsync interrupt, and wait for both
+		 * even and odd frames.
+		 */
+
+		if (framedone_irq)
+			wait = omap_irq_wait_init(dev, framedone_irq, 1);
+		else
+			wait = omap_irq_wait_init(dev, vsync_irq, 2);
+	}
+
+	dispc_mgr_enable(channel, enable);
+
+	ret = omap_irq_wait(dev, wait, msecs_to_jiffies(100));
+	if (ret) {
+		dev_err(dev->dev, "%s: timeout waiting for %s\n",
+				omap_crtc->name, enable ? "enable" : "disable");
+	}
+
+	omap_irq_register(crtc->dev, &omap_crtc->error_irq);
+}
+
 
 static int omap_crtc_enable(struct omap_overlay_manager *mgr)
 {
@@ -129,7 +179,7 @@ static int omap_crtc_enable(struct omap_overlay_manager *mgr)
 	dispc_mgr_setup(omap_crtc->channel, &omap_crtc->info);
 	dispc_mgr_set_timings(omap_crtc->channel,
 			&omap_crtc->timings);
-	set_enabled(&omap_crtc->base, true);
+	omap_crtc_set_enabled(&omap_crtc->base, true);
 
 	return 0;
 }
@@ -138,7 +188,7 @@ static void omap_crtc_disable(struct omap_overlay_manager *mgr)
 {
 	struct omap_crtc *omap_crtc = omap_crtcs[mgr->id];
 
-	set_enabled(&omap_crtc->base, false);
+	omap_crtc_set_enabled(&omap_crtc->base, false);
 }
 
 static void omap_crtc_set_timings(struct omap_overlay_manager *mgr,
@@ -535,57 +585,6 @@ int omap_crtc_apply(struct drm_crtc *crtc,
 	}
 
 	return 0;
-}
-
-/* called only from apply */
-static void set_enabled(struct drm_crtc *crtc, bool enable)
-{
-	struct drm_device *dev = crtc->dev;
-	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	enum omap_channel channel = omap_crtc->channel;
-	struct omap_irq_wait *wait;
-	u32 framedone_irq, vsync_irq;
-	int ret;
-
-	if (dispc_mgr_is_enabled(channel) == enable)
-		return;
-
-	/*
-	 * Digit output produces some sync lost interrupts during the first
-	 * frame when enabling, so we need to ignore those.
-	 */
-	omap_irq_unregister(crtc->dev, &omap_crtc->error_irq);
-
-	framedone_irq = dispc_mgr_get_framedone_irq(channel);
-	vsync_irq = dispc_mgr_get_vsync_irq(channel);
-
-	if (enable) {
-		wait = omap_irq_wait_init(dev, vsync_irq, 1);
-	} else {
-		/*
-		 * When we disable the digit output, we need to wait for
-		 * FRAMEDONE to know that DISPC has finished with the output.
-		 *
-		 * OMAP2/3 does not have FRAMEDONE irq for digit output, and in
-		 * that case we need to use vsync interrupt, and wait for both
-		 * even and odd frames.
-		 */
-
-		if (framedone_irq)
-			wait = omap_irq_wait_init(dev, framedone_irq, 1);
-		else
-			wait = omap_irq_wait_init(dev, vsync_irq, 2);
-	}
-
-	dispc_mgr_enable(channel, enable);
-
-	ret = omap_irq_wait(dev, wait, msecs_to_jiffies(100));
-	if (ret) {
-		dev_err(dev->dev, "%s: timeout waiting for %s\n",
-				omap_crtc->name, enable ? "enable" : "disable");
-	}
-
-	omap_irq_register(crtc->dev, &omap_crtc->error_irq);
 }
 
 static void omap_crtc_pre_apply(struct omap_drm_apply *apply)
