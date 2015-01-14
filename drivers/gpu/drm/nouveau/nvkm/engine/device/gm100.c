@@ -21,6 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
+#include "priv.h"
 
 #include <subdev/bios.h>
 #include <subdev/bus.h>
@@ -42,7 +43,6 @@
 #include <subdev/pmu.h>
 #include <subdev/volt.h>
 
-#include <engine/device.h>
 #include <engine/dmaobj.h>
 #include <engine/fifo.h>
 #include <engine/sw.h>
@@ -56,12 +56,12 @@
 #include <engine/pm.h>
 
 int
-gm100_identify(struct nouveau_device *device)
+gm100_identify(struct nvkm_device *device)
 {
 	switch (device->chipset) {
 	case 0x117:
 		device->cname = "GM107";
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  gk104_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  gf110_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gm107_fuse_oclass;
@@ -101,7 +101,7 @@ gm100_identify(struct nouveau_device *device)
 		break;
 	case 0x124:
 		device->cname = "GM204";
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  gk104_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  gm204_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gm107_fuse_oclass;

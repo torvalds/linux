@@ -21,14 +21,15 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "acpi.h"
+
+#include <core/device.h>
 
 #ifdef CONFIG_ACPI
 static int
 nvkm_acpi_ntfy(struct notifier_block *nb, unsigned long val, void *data)
 {
-	struct nouveau_device *device =
+	struct nvkm_device *device =
 		container_of(nb, typeof(*device), acpi.nb);
 	struct acpi_bus_event *info = data;
 
@@ -40,7 +41,7 @@ nvkm_acpi_ntfy(struct notifier_block *nb, unsigned long val, void *data)
 #endif
 
 int
-nvkm_acpi_fini(struct nouveau_device *device, bool suspend)
+nvkm_acpi_fini(struct nvkm_device *device, bool suspend)
 {
 #ifdef CONFIG_ACPI
 	unregister_acpi_notifier(&device->acpi.nb);
@@ -49,7 +50,7 @@ nvkm_acpi_fini(struct nouveau_device *device, bool suspend)
 }
 
 int
-nvkm_acpi_init(struct nouveau_device *device)
+nvkm_acpi_init(struct nvkm_device *device)
 {
 #ifdef CONFIG_ACPI
 	device->acpi.nb.notifier_call = nvkm_acpi_ntfy;

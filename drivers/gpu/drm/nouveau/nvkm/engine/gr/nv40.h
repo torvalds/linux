@@ -1,7 +1,8 @@
 #ifndef __NV40_GR_H__
 #define __NV40_GR_H__
 #include <engine/gr.h>
-#include <engine/device.h>
+
+#include <core/device.h>
 struct nvkm_gpuobj;
 
 /* returns 1 if device is one of the nv4x using the 0x4497 object class,

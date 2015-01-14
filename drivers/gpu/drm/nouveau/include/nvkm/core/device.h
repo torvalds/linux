@@ -84,4 +84,18 @@ nv_device_resource_len(struct nvkm_device *device, unsigned int bar);
 
 int
 nv_device_get_irq(struct nvkm_device *device, bool stall);
+
+struct platform_device;
+
+enum nv_bus_type {
+	NVKM_BUS_PCI,
+	NVKM_BUS_PLATFORM,
+};
+
+#define nvkm_device_create(p,t,n,s,c,d,u)                                   \
+	nvkm_device_create_((void *)(p), (t), (n), (s), (c), (d),           \
+			       sizeof(**u), (void **)u)
+int  nvkm_device_create_(void *, enum nv_bus_type type, u64 name,
+			    const char *sname, const char *cfg, const char *dbg,
+			    int, void **);
 #endif

@@ -50,7 +50,7 @@ void nvif_device_ref(struct nvif_device *, struct nvif_device **);
 #define nvxx_wait_cb(a,b,c) nv_wait_cb(nvxx_timer(a), (b), (c))
 #define nvxx_therm(a) nouveau_therm(nvxx_device(a))
 
-#include <engine/device.h>
+#include <core/device.h>
 #include <engine/fifo.h>
 #include <engine/gr.h>
 #include <engine/sw.h>

@@ -21,6 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
+#include "priv.h"
 
 #include <subdev/bios.h>
 #include <subdev/bus.h>
@@ -35,7 +36,6 @@
 #include <subdev/instmem.h>
 #include <subdev/mmu.h>
 
-#include <engine/device.h>
 #include <engine/dmaobj.h>
 #include <engine/fifo.h>
 #include <engine/sw.h>
@@ -43,12 +43,12 @@
 #include <engine/disp.h>
 
 int
-nv20_identify(struct nouveau_device *device)
+nv20_identify(struct nvkm_device *device)
 {
 	switch (device->chipset) {
 	case 0x20:
 		device->cname = "NV20";
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &nv04_clk_oclass;
@@ -67,7 +67,7 @@ nv20_identify(struct nouveau_device *device)
 		break;
 	case 0x25:
 		device->cname = "NV25";
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &nv04_clk_oclass;
@@ -86,7 +86,7 @@ nv20_identify(struct nouveau_device *device)
 		break;
 	case 0x28:
 		device->cname = "NV28";
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &nv04_clk_oclass;
@@ -105,7 +105,7 @@ nv20_identify(struct nouveau_device *device)
 		break;
 	case 0x2a:
 		device->cname = "NV2A";
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv10_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &nv04_clk_oclass;

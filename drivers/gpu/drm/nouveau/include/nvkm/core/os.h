@@ -253,5 +253,7 @@
 #define nouveau_gr nvkm_gr
 #define nouveau_sw nvkm_sw
 #define nouveau_sw_chan nvkm_sw_chan
+#define nouveau_device_create nvkm_device_create
+#define nouveau_device_create_ nvkm_device_create_
 
 #endif

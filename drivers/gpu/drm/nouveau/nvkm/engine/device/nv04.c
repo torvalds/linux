@@ -21,6 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
+#include "priv.h"
 
 #include <subdev/bios.h>
 #include <subdev/bus.h>
@@ -33,7 +34,6 @@
 #include <subdev/instmem.h>
 #include <subdev/mmu.h>
 
-#include <engine/device.h>
 #include <engine/dmaobj.h>
 #include <engine/fifo.h>
 #include <engine/sw.h>
@@ -41,12 +41,12 @@
 #include <engine/disp.h>
 
 int
-nv04_identify(struct nouveau_device *device)
+nv04_identify(struct nvkm_device *device)
 {
 	switch (device->chipset) {
 	case 0x04:
 		device->cname = "NV04";
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &nv04_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv04_devinit_oclass;
@@ -64,7 +64,7 @@ nv04_identify(struct nouveau_device *device)
 		break;
 	case 0x05:
 		device->cname = "NV05";
-		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nvkm_bios_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv04_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &nv04_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nv05_devinit_oclass;

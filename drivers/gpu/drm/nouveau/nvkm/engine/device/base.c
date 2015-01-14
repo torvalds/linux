@@ -21,29 +21,27 @@
  *
  * Authors: Ben Skeggs
  */
+#include "priv.h"
+#include "acpi.h"
 
-#include <core/notify.h>
-#include <core/object.h>
-#include <core/device.h>
 #include <core/client.h>
 #include <core/option.h>
-#include <nvif/unpack.h>
-#include <nvif/class.h>
-
+#include <core/notify.h>
+#include <core/parent.h>
 #include <subdev/bios.h>
 #include <subdev/fb.h>
 #include <subdev/instmem.h>
 
-#include "priv.h"
-#include "acpi.h"
+#include <nvif/class.h>
+#include <nvif/unpack.h>
 
 static DEFINE_MUTEX(nv_devices_mutex);
 static LIST_HEAD(nv_devices);
 
-struct nouveau_device *
-nouveau_device_find(u64 name)
+struct nvkm_device *
+nvkm_device_find(u64 name)
 {
-	struct nouveau_device *device, *match = NULL;
+	struct nvkm_device *device, *match = NULL;
 	mutex_lock(&nv_devices_mutex);
 	list_for_each_entry(device, &nv_devices, head) {
 		if (device->handle == name) {
@@ -56,9 +54,9 @@ nouveau_device_find(u64 name)
 }
 
 int
-nouveau_device_list(u64 *name, int size)
+nvkm_device_list(u64 *name, int size)
 {
-	struct nouveau_device *device;
+	struct nvkm_device *device;
 	int nr = 0;
 	mutex_lock(&nv_devices_mutex);
 	list_for_each_entry(device, &nv_devices, head) {
@@ -70,20 +68,20 @@ nouveau_device_list(u64 *name, int size)
 }
 
 /******************************************************************************
- * nouveau_devobj (0x0080): class implementation
+ * nvkm_devobj (0x0080): class implementation
  *****************************************************************************/
 
-struct nouveau_devobj {
-	struct nouveau_parent base;
-	struct nouveau_object *subdev[NVDEV_SUBDEV_NR];
+struct nvkm_devobj {
+	struct nvkm_parent base;
+	struct nvkm_object *subdev[NVDEV_SUBDEV_NR];
 };
 
 static int
-nouveau_devobj_info(struct nouveau_object *object, void *data, u32 size)
+nvkm_devobj_info(struct nvkm_object *object, void *data, u32 size)
 {
-	struct nouveau_device *device = nv_device(object);
-	struct nouveau_fb *pfb = nouveau_fb(device);
-	struct nouveau_instmem *imem = nouveau_instmem(device);
+	struct nvkm_device *device = nv_device(object);
+	struct nvkm_fb *pfb = nvkm_fb(device);
+	struct nvkm_instmem *imem = nvkm_instmem(device);
 	union {
 		struct nv_device_info_v0 v0;
 	} *args = data;
@@ -148,12 +146,11 @@ nouveau_devobj_info(struct nouveau_object *object, void *data, u32 size)
 }
 
 static int
-nouveau_devobj_mthd(struct nouveau_object *object, u32 mthd,
-		    void *data, u32 size)
+nvkm_devobj_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
 	switch (mthd) {
 	case NV_DEVICE_V0_INFO:
-		return nouveau_devobj_info(object, data, size);
+		return nvkm_devobj_info(object, data, size);
 	default:
 		break;
 	}
@@ -161,45 +158,45 @@ nouveau_devobj_mthd(struct nouveau_object *object, u32 mthd,
 }
 
 static u8
-nouveau_devobj_rd08(struct nouveau_object *object, u64 addr)
+nvkm_devobj_rd08(struct nvkm_object *object, u64 addr)
 {
 	return nv_rd08(object->engine, addr);
 }
 
 static u16
-nouveau_devobj_rd16(struct nouveau_object *object, u64 addr)
+nvkm_devobj_rd16(struct nvkm_object *object, u64 addr)
 {
 	return nv_rd16(object->engine, addr);
 }
 
 static u32
-nouveau_devobj_rd32(struct nouveau_object *object, u64 addr)
+nvkm_devobj_rd32(struct nvkm_object *object, u64 addr)
 {
 	return nv_rd32(object->engine, addr);
 }
 
 static void
-nouveau_devobj_wr08(struct nouveau_object *object, u64 addr, u8 data)
+nvkm_devobj_wr08(struct nvkm_object *object, u64 addr, u8 data)
 {
 	nv_wr08(object->engine, addr, data);
 }
 
 static void
-nouveau_devobj_wr16(struct nouveau_object *object, u64 addr, u16 data)
+nvkm_devobj_wr16(struct nvkm_object *object, u64 addr, u16 data)
 {
 	nv_wr16(object->engine, addr, data);
 }
 
 static void
-nouveau_devobj_wr32(struct nouveau_object *object, u64 addr, u32 data)
+nvkm_devobj_wr32(struct nvkm_object *object, u64 addr, u32 data)
 {
 	nv_wr32(object->engine, addr, data);
 }
 
 static int
-nouveau_devobj_map(struct nouveau_object *object, u64 *addr, u32 *size)
+nvkm_devobj_map(struct nvkm_object *object, u64 *addr, u32 *size)
 {
-	struct nouveau_device *device = nv_device(object);
+	struct nvkm_device *device = nv_device(object);
 	*addr = nv_device_resource_start(device, 0);
 	*size = nv_device_resource_len(device, 0);
 	return 0;
@@ -248,47 +245,46 @@ static const u64 disable_map[] = {
 };
 
 static void
-nouveau_devobj_dtor(struct nouveau_object *object)
+nvkm_devobj_dtor(struct nvkm_object *object)
 {
-	struct nouveau_devobj *devobj = (void *)object;
+	struct nvkm_devobj *devobj = (void *)object;
 	int i;
 
 	for (i = NVDEV_SUBDEV_NR - 1; i >= 0; i--)
-		nouveau_object_ref(NULL, &devobj->subdev[i]);
+		nvkm_object_ref(NULL, &devobj->subdev[i]);
 
-	nouveau_parent_destroy(&devobj->base);
+	nvkm_parent_destroy(&devobj->base);
 }
 
-static struct nouveau_oclass
-nouveau_devobj_oclass_super = {
+static struct nvkm_oclass
+nvkm_devobj_oclass_super = {
 	.handle = NV_DEVICE,
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.dtor = nouveau_devobj_dtor,
-		.init = _nouveau_parent_init,
-		.fini = _nouveau_parent_fini,
-		.mthd = nouveau_devobj_mthd,
-		.map  = nouveau_devobj_map,
-		.rd08 = nouveau_devobj_rd08,
-		.rd16 = nouveau_devobj_rd16,
-		.rd32 = nouveau_devobj_rd32,
-		.wr08 = nouveau_devobj_wr08,
-		.wr16 = nouveau_devobj_wr16,
-		.wr32 = nouveau_devobj_wr32,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.dtor = nvkm_devobj_dtor,
+		.init = _nvkm_parent_init,
+		.fini = _nvkm_parent_fini,
+		.mthd = nvkm_devobj_mthd,
+		.map  = nvkm_devobj_map,
+		.rd08 = nvkm_devobj_rd08,
+		.rd16 = nvkm_devobj_rd16,
+		.rd32 = nvkm_devobj_rd32,
+		.wr08 = nvkm_devobj_wr08,
+		.wr16 = nvkm_devobj_wr16,
+		.wr32 = nvkm_devobj_wr32,
 	}
 };
 
 static int
-nouveau_devobj_ctor(struct nouveau_object *parent,
-		    struct nouveau_object *engine,
-		    struct nouveau_oclass *oclass, void *data, u32 size,
-		    struct nouveau_object **pobject)
+nvkm_devobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		 struct nvkm_oclass *oclass, void *data, u32 size,
+		 struct nvkm_object **pobject)
 {
 	union {
 		struct nv_device_v0 v0;
 	} *args = data;
-	struct nouveau_client *client = nv_client(parent);
-	struct nouveau_device *device;
-	struct nouveau_devobj *devobj;
+	struct nvkm_client *client = nv_client(parent);
+	struct nvkm_device *device;
+	struct nvkm_devobj *devobj;
 	u32 boot0, strap;
 	u64 disable, mmio_base, mmio_size;
 	void __iomem *map;
@@ -305,22 +301,22 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 
 	/* give priviledged clients register access */
 	if (client->super)
-		oclass = &nouveau_devobj_oclass_super;
+		oclass = &nvkm_devobj_oclass_super;
 
 	/* find the device subdev that matches what the client requested */
 	device = nv_device(client->device);
 	if (args->v0.device != ~0) {
-		device = nouveau_device_find(args->v0.device);
+		device = nvkm_device_find(args->v0.device);
 		if (!device)
 			return -ENODEV;
 	}
 
-	ret = nouveau_parent_create(parent, nv_object(device), oclass, 0,
-				    nouveau_control_oclass,
-				    (1ULL << NVDEV_ENGINE_DMAOBJ) |
-				    (1ULL << NVDEV_ENGINE_FIFO) |
-				    (1ULL << NVDEV_ENGINE_DISP) |
-				    (1ULL << NVDEV_ENGINE_PM     ), &devobj);
+	ret = nvkm_parent_create(parent, nv_object(device), oclass, 0,
+				 nvkm_control_oclass,
+				 (1ULL << NVDEV_ENGINE_DMAOBJ) |
+				 (1ULL << NVDEV_ENGINE_FIFO) |
+				 (1ULL << NVDEV_ENGINE_DISP) |
+				 (1ULL << NVDEV_ENGINE_PM), &devobj);
 	*pobject = nv_object(devobj);
 	if (ret)
 		return ret;
@@ -403,8 +399,8 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 		case NV_30: ret = nv30_identify(device); break;
 		case NV_40: ret = nv40_identify(device); break;
 		case NV_50: ret = nv50_identify(device); break;
-		case NV_C0: ret = nvc0_identify(device); break;
-		case NV_E0: ret = nve0_identify(device); break;
+		case NV_C0: ret = gf100_identify(device); break;
+		case NV_E0: ret = gk104_identify(device); break;
 		case GM100: ret = gm100_identify(device); break;
 		default:
 			ret = -EINVAL;
@@ -439,7 +435,7 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 	} else
 	if ( (args->v0.disable & NV_DEVICE_V0_DISABLE_IDENTIFY)) {
 		device->cname = "NULL";
-		device->oclass[NVDEV_SUBDEV_VBIOS] = &nouveau_bios_oclass;
+		device->oclass[NVDEV_SUBDEV_VBIOS] = &nvkm_bios_oclass;
 	}
 
 	if (!(args->v0.disable & NV_DEVICE_V0_DISABLE_MMIO) &&
@@ -457,14 +453,12 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 			continue;
 
 		if (device->subdev[i]) {
-			nouveau_object_ref(device->subdev[i],
-					  &devobj->subdev[i]);
+			nvkm_object_ref(device->subdev[i], &devobj->subdev[i]);
 			continue;
 		}
 
-		ret = nouveau_object_ctor(nv_object(device), NULL,
-					  oclass, NULL, i,
-					  &devobj->subdev[i]);
+		ret = nvkm_object_ctor(nv_object(device), NULL, oclass,
+				       NULL, i, &devobj->subdev[i]);
 		if (ret == -ENODEV)
 			continue;
 		if (ret)
@@ -482,15 +476,15 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 		 * subdev in turn as they're created.
 		 */
 		while (i >= NVDEV_SUBDEV_DEVINIT_LAST && c <= i) {
-			struct nouveau_object *subdev = devobj->subdev[c++];
+			struct nvkm_object *subdev = devobj->subdev[c++];
 			if (subdev && !nv_iclass(subdev, NV_ENGINE_CLASS)) {
-				ret = nouveau_object_inc(subdev);
+				ret = nvkm_object_inc(subdev);
 				if (ret)
 					return ret;
 				atomic_dec(&nv_object(device)->usecount);
 			} else
 			if (subdev) {
-				nouveau_subdev_reset(subdev);
+				nvkm_subdev_reset(subdev);
 			}
 		}
 	}
@@ -498,23 +492,23 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 	return 0;
 }
 
-static struct nouveau_ofuncs
-nouveau_devobj_ofuncs = {
-	.ctor = nouveau_devobj_ctor,
-	.dtor = nouveau_devobj_dtor,
-	.init = _nouveau_parent_init,
-	.fini = _nouveau_parent_fini,
-	.mthd = nouveau_devobj_mthd,
+static struct nvkm_ofuncs
+nvkm_devobj_ofuncs = {
+	.ctor = nvkm_devobj_ctor,
+	.dtor = nvkm_devobj_dtor,
+	.init = _nvkm_parent_init,
+	.fini = _nvkm_parent_fini,
+	.mthd = nvkm_devobj_mthd,
 };
 
 /******************************************************************************
- * nouveau_device: engine functions
+ * nvkm_device: engine functions
  *****************************************************************************/
 
-struct nouveau_device *
+struct nvkm_device *
 nv_device(void *obj)
 {
-	struct nouveau_object *device = nv_object(obj);
+	struct nvkm_object *device = nv_object(obj);
 	if (device->engine == NULL) {
 		while (device && device->parent)
 			device = device->parent;
@@ -530,15 +524,15 @@ nv_device(void *obj)
 	return (void *)device;
 }
 
-static struct nouveau_oclass
-nouveau_device_sclass[] = {
-	{ 0x0080, &nouveau_devobj_ofuncs },
+static struct nvkm_oclass
+nvkm_device_sclass[] = {
+	{ 0x0080, &nvkm_devobj_ofuncs },
 	{}
 };
 
 static int
-nouveau_device_event_ctor(struct nouveau_object *object, void *data, u32 size,
-			  struct nvkm_notify *notify)
+nvkm_device_event_ctor(struct nvkm_object *object, void *data, u32 size,
+		       struct nvkm_notify *notify)
 {
 	if (!WARN_ON(size != 0)) {
 		notify->size  = 0;
@@ -550,21 +544,21 @@ nouveau_device_event_ctor(struct nouveau_object *object, void *data, u32 size,
 }
 
 static const struct nvkm_event_func
-nouveau_device_event_func = {
-	.ctor = nouveau_device_event_ctor,
+nvkm_device_event_func = {
+	.ctor = nvkm_device_event_ctor,
 };
 
 static int
-nouveau_device_fini(struct nouveau_object *object, bool suspend)
+nvkm_device_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nouveau_device *device = (void *)object;
-	struct nouveau_object *subdev;
+	struct nvkm_device *device = (void *)object;
+	struct nvkm_object *subdev;
 	int ret, i;
 
 	for (i = NVDEV_SUBDEV_NR - 1; i >= 0; i--) {
 		if ((subdev = device->subdev[i])) {
 			if (!nv_iclass(subdev, NV_ENGINE_CLASS)) {
-				ret = nouveau_object_dec(subdev, suspend);
+				ret = nvkm_object_dec(subdev, suspend);
 				if (ret && suspend)
 					goto fail;
 			}
@@ -576,7 +570,7 @@ fail:
 	for (; ret && i < NVDEV_SUBDEV_NR; i++) {
 		if ((subdev = device->subdev[i])) {
 			if (!nv_iclass(subdev, NV_ENGINE_CLASS)) {
-				ret = nouveau_object_inc(subdev);
+				ret = nvkm_object_inc(subdev);
 				if (ret) {
 					/* XXX */
 				}
@@ -588,10 +582,10 @@ fail:
 }
 
 static int
-nouveau_device_init(struct nouveau_object *object)
+nvkm_device_init(struct nvkm_object *object)
 {
-	struct nouveau_device *device = (void *)object;
-	struct nouveau_object *subdev;
+	struct nvkm_device *device = (void *)object;
+	struct nvkm_object *subdev;
 	int ret, i = 0;
 
 	ret = nvkm_acpi_init(device);
@@ -601,11 +595,11 @@ nouveau_device_init(struct nouveau_object *object)
 	for (i = 0; i < NVDEV_SUBDEV_NR; i++) {
 		if ((subdev = device->subdev[i])) {
 			if (!nv_iclass(subdev, NV_ENGINE_CLASS)) {
-				ret = nouveau_object_inc(subdev);
+				ret = nvkm_object_inc(subdev);
 				if (ret)
 					goto fail;
 			} else {
-				nouveau_subdev_reset(subdev);
+				nvkm_subdev_reset(subdev);
 			}
 		}
 	}
@@ -615,7 +609,7 @@ fail:
 	for (--i; ret && i >= 0; i--) {
 		if ((subdev = device->subdev[i])) {
 			if (!nv_iclass(subdev, NV_ENGINE_CLASS))
-				nouveau_object_dec(subdev, false);
+				nvkm_object_dec(subdev, false);
 		}
 	}
 
@@ -625,9 +619,9 @@ fail:
 }
 
 static void
-nouveau_device_dtor(struct nouveau_object *object)
+nvkm_device_dtor(struct nvkm_object *object)
 {
-	struct nouveau_device *device = (void *)object;
+	struct nvkm_device *device = (void *)object;
 
 	nvkm_event_fini(&device->event);
 
@@ -638,11 +632,11 @@ nouveau_device_dtor(struct nouveau_object *object)
 	if (nv_subdev(device)->mmio)
 		iounmap(nv_subdev(device)->mmio);
 
-	nouveau_engine_destroy(&device->engine);
+	nvkm_engine_destroy(&device->engine);
 }
 
 resource_size_t
-nv_device_resource_start(struct nouveau_device *device, unsigned int bar)
+nv_device_resource_start(struct nvkm_device *device, unsigned int bar)
 {
 	if (nv_device_is_pci(device)) {
 		return pci_resource_start(device->pdev, bar);
@@ -657,7 +651,7 @@ nv_device_resource_start(struct nouveau_device *device, unsigned int bar)
 }
 
 resource_size_t
-nv_device_resource_len(struct nouveau_device *device, unsigned int bar)
+nv_device_resource_len(struct nvkm_device *device, unsigned int bar)
 {
 	if (nv_device_is_pci(device)) {
 		return pci_resource_len(device->pdev, bar);
@@ -672,7 +666,7 @@ nv_device_resource_len(struct nouveau_device *device, unsigned int bar)
 }
 
 int
-nv_device_get_irq(struct nouveau_device *device, bool stall)
+nv_device_get_irq(struct nvkm_device *device, bool stall)
 {
 	if (nv_device_is_pci(device)) {
 		return device->pdev->irq;
@@ -682,22 +676,22 @@ nv_device_get_irq(struct nouveau_device *device, bool stall)
 	}
 }
 
-static struct nouveau_oclass
-nouveau_device_oclass = {
+static struct nvkm_oclass
+nvkm_device_oclass = {
 	.handle = NV_ENGINE(DEVICE, 0x00),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.dtor = nouveau_device_dtor,
-		.init = nouveau_device_init,
-		.fini = nouveau_device_fini,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.dtor = nvkm_device_dtor,
+		.init = nvkm_device_init,
+		.fini = nvkm_device_fini,
 	},
 };
 
 int
-nouveau_device_create_(void *dev, enum nv_bus_type type, u64 name,
-		       const char *sname, const char *cfg, const char *dbg,
-		       int length, void **pobject)
+nvkm_device_create_(void *dev, enum nv_bus_type type, u64 name,
+		    const char *sname, const char *cfg, const char *dbg,
+		    int length, void **pobject)
 {
-	struct nouveau_device *device;
+	struct nvkm_device *device;
 	int ret = -EEXIST;
 
 	mutex_lock(&nv_devices_mutex);
@@ -706,17 +700,17 @@ nouveau_device_create_(void *dev, enum nv_bus_type type, u64 name,
 			goto done;
 	}
 
-	ret = nouveau_engine_create_(NULL, NULL, &nouveau_device_oclass, true,
-				     "DEVICE", "device", length, pobject);
+	ret = nvkm_engine_create_(NULL, NULL, &nvkm_device_oclass, true,
+				  "DEVICE", "device", length, pobject);
 	device = *pobject;
 	if (ret)
 		goto done;
 
 	switch (type) {
-	case NOUVEAU_BUS_PCI:
+	case NVKM_BUS_PCI:
 		device->pdev = dev;
 		break;
-	case NOUVEAU_BUS_PLATFORM:
+	case NVKM_BUS_PLATFORM:
 		device->platformdev = dev;
 		break;
 	}
@@ -725,12 +719,11 @@ nouveau_device_create_(void *dev, enum nv_bus_type type, u64 name,
 	device->dbgopt = dbg;
 	device->name = sname;
 
-	nv_subdev(device)->debug = nouveau_dbgopt(device->dbgopt, "DEVICE");
-	nv_engine(device)->sclass = nouveau_device_sclass;
+	nv_subdev(device)->debug = nvkm_dbgopt(device->dbgopt, "DEVICE");
+	nv_engine(device)->sclass = nvkm_device_sclass;
 	list_add(&device->head, &nv_devices);
 
-	ret = nvkm_event_init(&nouveau_device_event_func, 1, 1,
-			      &device->event);
+	ret = nvkm_event_init(&nvkm_device_event_func, 1, 1, &device->event);
 done:
 	mutex_unlock(&nv_devices_mutex);
 	return ret;

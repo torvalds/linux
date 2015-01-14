@@ -21,25 +21,22 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-
-#include <core/client.h>
-#include <core/object.h>
-#include <nvif/unpack.h>
-#include <nvif/class.h>
-#include <nvif/ioctl.h>
-
-#include <subdev/clk.h>
-
 #include "priv.h"
 
+#include <core/client.h>
+#include <subdev/clk.h>
+
+#include <nvif/class.h>
+#include <nvif/ioctl.h>
+#include <nvif/unpack.h>
+
 static int
-nouveau_control_mthd_pstate_info(struct nouveau_object *object,
-				 void *data, u32 size)
+nvkm_control_mthd_pstate_info(struct nvkm_object *object, void *data, u32 size)
 {
 	union {
 		struct nvif_control_pstate_info_v0 v0;
 	} *args = data;
-	struct nouveau_clk *clk = nouveau_clk(object);
+	struct nvkm_clk *clk = nvkm_clk(object);
 	int ret;
 
 	nv_ioctl(object, "control pstate info size %d\n", size);
@@ -67,16 +64,15 @@ nouveau_control_mthd_pstate_info(struct nouveau_object *object,
 }
 
 static int
-nouveau_control_mthd_pstate_attr(struct nouveau_object *object,
-				 void *data, u32 size)
+nvkm_control_mthd_pstate_attr(struct nvkm_object *object, void *data, u32 size)
 {
 	union {
 		struct nvif_control_pstate_attr_v0 v0;
 	} *args = data;
-	struct nouveau_clk *clk = nouveau_clk(object);
-	struct nouveau_domain *domain;
-	struct nouveau_pstate *pstate;
-	struct nouveau_cstate *cstate;
+	struct nvkm_clk *clk = nvkm_clk(object);
+	struct nvkm_domain *domain;
+	struct nvkm_pstate *pstate;
+	struct nvkm_cstate *cstate;
 	int i = 0, j = -1;
 	u32 lo, hi;
 	int ret;
@@ -141,13 +137,12 @@ nouveau_control_mthd_pstate_attr(struct nouveau_object *object,
 }
 
 static int
-nouveau_control_mthd_pstate_user(struct nouveau_object *object,
-				 void *data, u32 size)
+nvkm_control_mthd_pstate_user(struct nvkm_object *object, void *data, u32 size)
 {
 	union {
 		struct nvif_control_pstate_user_v0 v0;
 	} *args = data;
-	struct nouveau_clk *clk = nouveau_clk(object);
+	struct nvkm_clk *clk = nvkm_clk(object);
 	int ret;
 
 	nv_ioctl(object, "control pstate user size %d\n", size);
@@ -161,45 +156,44 @@ nouveau_control_mthd_pstate_user(struct nouveau_object *object,
 		return ret;
 
 	if (args->v0.pwrsrc >= 0) {
-		ret |= nouveau_clk_ustate(clk, args->v0.ustate, args->v0.pwrsrc);
+		ret |= nvkm_clk_ustate(clk, args->v0.ustate, args->v0.pwrsrc);
 	} else {
-		ret |= nouveau_clk_ustate(clk, args->v0.ustate, 0);
-		ret |= nouveau_clk_ustate(clk, args->v0.ustate, 1);
+		ret |= nvkm_clk_ustate(clk, args->v0.ustate, 0);
+		ret |= nvkm_clk_ustate(clk, args->v0.ustate, 1);
 	}
 
 	return ret;
 }
 
 static int
-nouveau_control_mthd(struct nouveau_object *object, u32 mthd,
-		     void *data, u32 size)
+nvkm_control_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
 	switch (mthd) {
 	case NVIF_CONTROL_PSTATE_INFO:
-		return nouveau_control_mthd_pstate_info(object, data, size);
+		return nvkm_control_mthd_pstate_info(object, data, size);
 	case NVIF_CONTROL_PSTATE_ATTR:
-		return nouveau_control_mthd_pstate_attr(object, data, size);
+		return nvkm_control_mthd_pstate_attr(object, data, size);
 	case NVIF_CONTROL_PSTATE_USER:
-		return nouveau_control_mthd_pstate_user(object, data, size);
+		return nvkm_control_mthd_pstate_user(object, data, size);
 	default:
 		break;
 	}
 	return -EINVAL;
 }
 
-static struct nouveau_ofuncs
-nouveau_control_ofuncs = {
-	.ctor = _nouveau_object_ctor,
-	.dtor = nouveau_object_destroy,
-	.init = nouveau_object_init,
-	.fini = nouveau_object_fini,
-	.mthd = nouveau_control_mthd,
+static struct nvkm_ofuncs
+nvkm_control_ofuncs = {
+	.ctor = _nvkm_object_ctor,
+	.dtor = nvkm_object_destroy,
+	.init = nvkm_object_init,
+	.fini = nvkm_object_fini,
+	.mthd = nvkm_control_mthd,
 };
 
-struct nouveau_oclass
-nouveau_control_oclass[] = {
+struct nvkm_oclass
+nvkm_control_oclass[] = {
 	{ .handle = NVIF_IOCTL_NEW_V0_CONTROL,
-	  .ofuncs = &nouveau_control_ofuncs
+	  .ofuncs = &nvkm_control_ofuncs
 	},
 	{}
 };
