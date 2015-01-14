@@ -21,24 +21,21 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <core/os.h>
-#include <core/enum.h>
-#include <core/engctx.h>
-
 #include <engine/ce.h>
 
-struct nve0_ce_priv {
-	struct nouveau_engine base;
+#include <core/engctx.h>
+
+struct gk104_ce_priv {
+	struct nvkm_engine base;
 };
 
 /*******************************************************************************
  * Copy object classes
  ******************************************************************************/
 
-static struct nouveau_oclass
-nve0_ce_sclass[] = {
-	{ 0xa0b5, &nouveau_object_ofuncs },
+static struct nvkm_oclass
+gk104_ce_sclass[] = {
+	{ 0xa0b5, &nvkm_object_ofuncs },
 	{},
 };
 
@@ -46,20 +43,20 @@ nve0_ce_sclass[] = {
  * PCE context
  ******************************************************************************/
 
-static struct nouveau_ofuncs
-nve0_ce_context_ofuncs = {
-	.ctor = _nouveau_engctx_ctor,
-	.dtor = _nouveau_engctx_dtor,
-	.init = _nouveau_engctx_init,
-	.fini = _nouveau_engctx_fini,
-	.rd32 = _nouveau_engctx_rd32,
-	.wr32 = _nouveau_engctx_wr32,
+static struct nvkm_ofuncs
+gk104_ce_context_ofuncs = {
+	.ctor = _nvkm_engctx_ctor,
+	.dtor = _nvkm_engctx_dtor,
+	.init = _nvkm_engctx_init,
+	.fini = _nvkm_engctx_fini,
+	.rd32 = _nvkm_engctx_rd32,
+	.wr32 = _nvkm_engctx_wr32,
 };
 
-static struct nouveau_oclass
-nve0_ce_cclass = {
+static struct nvkm_oclass
+gk104_ce_cclass = {
 	.handle = NV_ENGCTX(CE0, 0xc0),
-	.ofuncs = &nve0_ce_context_ofuncs,
+	.ofuncs = &gk104_ce_context_ofuncs,
 };
 
 /*******************************************************************************
@@ -67,10 +64,10 @@ nve0_ce_cclass = {
  ******************************************************************************/
 
 static void
-nve0_ce_intr(struct nouveau_subdev *subdev)
+gk104_ce_intr(struct nvkm_subdev *subdev)
 {
 	const int ce = nv_subidx(subdev) - NVDEV_ENGINE_CE0;
-	struct nve0_ce_priv *priv = (void *)subdev;
+	struct gk104_ce_priv *priv = (void *)subdev;
 	u32 stat = nv_rd32(priv, 0x104908 + (ce * 0x1000));
 
 	if (stat) {
@@ -80,97 +77,97 @@ nve0_ce_intr(struct nouveau_subdev *subdev)
 }
 
 static int
-nve0_ce0_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		struct nouveau_oclass *oclass, void *data, u32 size,
-		struct nouveau_object **pobject)
+gk104_ce0_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	       struct nvkm_oclass *oclass, void *data, u32 size,
+	       struct nvkm_object **pobject)
 {
-	struct nve0_ce_priv *priv;
+	struct gk104_ce_priv *priv;
 	int ret;
 
-	ret = nouveau_engine_create(parent, engine, oclass, true,
-				    "PCE0", "ce0", &priv);
+	ret = nvkm_engine_create(parent, engine, oclass, true,
+				 "PCE0", "ce0", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	nv_subdev(priv)->unit = 0x00000040;
-	nv_subdev(priv)->intr = nve0_ce_intr;
-	nv_engine(priv)->cclass = &nve0_ce_cclass;
-	nv_engine(priv)->sclass = nve0_ce_sclass;
+	nv_subdev(priv)->intr = gk104_ce_intr;
+	nv_engine(priv)->cclass = &gk104_ce_cclass;
+	nv_engine(priv)->sclass = gk104_ce_sclass;
 	return 0;
 }
 
 static int
-nve0_ce1_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		struct nouveau_oclass *oclass, void *data, u32 size,
-		struct nouveau_object **pobject)
+gk104_ce1_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	       struct nvkm_oclass *oclass, void *data, u32 size,
+	       struct nvkm_object **pobject)
 {
-	struct nve0_ce_priv *priv;
+	struct gk104_ce_priv *priv;
 	int ret;
 
-	ret = nouveau_engine_create(parent, engine, oclass, true,
-				    "PCE1", "ce1", &priv);
+	ret = nvkm_engine_create(parent, engine, oclass, true,
+				 "PCE1", "ce1", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	nv_subdev(priv)->unit = 0x00000080;
-	nv_subdev(priv)->intr = nve0_ce_intr;
-	nv_engine(priv)->cclass = &nve0_ce_cclass;
-	nv_engine(priv)->sclass = nve0_ce_sclass;
+	nv_subdev(priv)->intr = gk104_ce_intr;
+	nv_engine(priv)->cclass = &gk104_ce_cclass;
+	nv_engine(priv)->sclass = gk104_ce_sclass;
 	return 0;
 }
 
 static int
-nve0_ce2_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		struct nouveau_oclass *oclass, void *data, u32 size,
-		struct nouveau_object **pobject)
+gk104_ce2_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	       struct nvkm_oclass *oclass, void *data, u32 size,
+	       struct nvkm_object **pobject)
 {
-	struct nve0_ce_priv *priv;
+	struct gk104_ce_priv *priv;
 	int ret;
 
-	ret = nouveau_engine_create(parent, engine, oclass, true,
-				    "PCE2", "ce2", &priv);
+	ret = nvkm_engine_create(parent, engine, oclass, true,
+				 "PCE2", "ce2", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	nv_subdev(priv)->unit = 0x00200000;
-	nv_subdev(priv)->intr = nve0_ce_intr;
-	nv_engine(priv)->cclass = &nve0_ce_cclass;
-	nv_engine(priv)->sclass = nve0_ce_sclass;
+	nv_subdev(priv)->intr = gk104_ce_intr;
+	nv_engine(priv)->cclass = &gk104_ce_cclass;
+	nv_engine(priv)->sclass = gk104_ce_sclass;
 	return 0;
 }
 
-struct nouveau_oclass
-nve0_ce0_oclass = {
+struct nvkm_oclass
+gk104_ce0_oclass = {
 	.handle = NV_ENGINE(CE0, 0xe0),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nve0_ce0_ctor,
-		.dtor = _nouveau_engine_dtor,
-		.init = _nouveau_engine_init,
-		.fini = _nouveau_engine_fini,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gk104_ce0_ctor,
+		.dtor = _nvkm_engine_dtor,
+		.init = _nvkm_engine_init,
+		.fini = _nvkm_engine_fini,
 	},
 };
 
-struct nouveau_oclass
-nve0_ce1_oclass = {
+struct nvkm_oclass
+gk104_ce1_oclass = {
 	.handle = NV_ENGINE(CE1, 0xe0),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nve0_ce1_ctor,
-		.dtor = _nouveau_engine_dtor,
-		.init = _nouveau_engine_init,
-		.fini = _nouveau_engine_fini,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gk104_ce1_ctor,
+		.dtor = _nvkm_engine_dtor,
+		.init = _nvkm_engine_init,
+		.fini = _nvkm_engine_fini,
 	},
 };
 
-struct nouveau_oclass
-nve0_ce2_oclass = {
+struct nvkm_oclass
+gk104_ce2_oclass = {
 	.handle = NV_ENGINE(CE2, 0xe0),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nve0_ce2_ctor,
-		.dtor = _nouveau_engine_dtor,
-		.init = _nouveau_engine_init,
-		.fini = _nouveau_engine_fini,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gk104_ce2_ctor,
+		.dtor = _nvkm_engine_dtor,
+		.init = _nvkm_engine_init,
+		.fini = _nvkm_engine_fini,
 	},
 };

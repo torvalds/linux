@@ -1,4 +1,4 @@
-/* fuc microcode for copy engine on nva3- chipsets
+/* fuc microcode for copy engine on gt215- chipsets
  *
  * Copyright 2011 Red Hat Inc.
  *
@@ -23,21 +23,14 @@
  * Authors: Ben Skeggs
  */
 
-/* To build for nva3:nvc0
- *    m4 -DNVA3 nva3_copy.fuc | envyas -a -w -m fuc -V nva3 -o nva3_copy.fuc.h
- *
- * To build for nvc0-
- *    m4 -DNVC0 nva3_copy.fuc | envyas -a -w -m fuc -V nva3 -o nvc0_copy.fuc.h
- */
-
-#ifdef NVA3
-.section #nva3_pce_data
+#ifdef GT215
+.section #gt215_pce_data
 #else
-.section #nvc0_pce_data
+.section #gf100_pce_data
 #endif
 
 ctx_object:                   .b32 0
-#ifdef NVA3
+#ifdef GT215
 ctx_dma:
 ctx_dma_query:                .b32 0
 ctx_dma_src:                  .b32 0
@@ -86,7 +79,7 @@ dispatch_table:
 // mthd 0x0140, PM_TRIGGER
 .b16 0x050 1
 .b32 0x00010000 + #cmd_pm_trigger    ~0xffffffff
-#ifdef NVA3
+#ifdef GT215
 // mthd 0x0180-0x018c, DMA_
 .b16 0x060 #ctx_dma_count
 dispatch_dma:
@@ -134,10 +127,10 @@ dispatch_dma:
 .b32 #ctx_query_counter              ~0xffffffff
 .b16 0x800 0
 
-#ifdef NVA3
-.section #nva3_pce_code
+#ifdef GT215
+.section #gt215_pce_code
 #else
-.section #nvc0_pce_code
+.section #gf100_pce_code
 #endif
 
 main:
@@ -190,7 +183,7 @@ ih:
 swctx:
    mov $r4 0x7700
    mov $xtargets $r4
-#ifdef NVA3
+#ifdef GT215
    // target 7 hardcoded to ctx dma object
    mov $xdbase $r0
 #else
@@ -271,7 +264,7 @@ chsw:
    bra e #chsw_finish_load
       bset $flags $p1
       call #swctx
-#ifdef NVA3
+#ifdef GT215
       // load dma objects back into TARGET regs
       mov $r5 #ctx_dma
       mov $r6 #ctx_dma_count
@@ -396,7 +389,7 @@ cmd_pm_trigger:
    iowr I[$r2] $r3
    ret
 
-#ifdef NVA3
+#ifdef GT215
 // SET_DMA_* method handler
 //
 // Inputs:
@@ -547,7 +540,7 @@ cmd_exec_set_surface_tiled:
    ld b32 $r7 D[$r5 + #ctx_src_tile_mode]
    extr $r9 $r7 8:11
    extr $r8 $r7 4:7
-#ifdef NVA3
+#ifdef GT215
    add b32 $r8 2
 #else
    add b32 $r8 3

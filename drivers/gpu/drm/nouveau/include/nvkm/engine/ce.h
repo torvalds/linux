@@ -2,13 +2,12 @@
 #define __NVKM_CE_H__
 #include <core/engine.h>
 
-void nva3_ce_intr(struct nouveau_subdev *);
+void gt215_ce_intr(struct nvkm_subdev *);
 
-extern struct nouveau_oclass nva3_ce_oclass;
-extern struct nouveau_oclass nvc0_ce0_oclass;
-extern struct nouveau_oclass nvc0_ce1_oclass;
-extern struct nouveau_oclass nve0_ce0_oclass;
-extern struct nouveau_oclass nve0_ce1_oclass;
-extern struct nouveau_oclass nve0_ce2_oclass;
-
+extern struct nvkm_oclass gt215_ce_oclass;
+extern struct nvkm_oclass gf100_ce0_oclass;
+extern struct nvkm_oclass gf100_ce1_oclass;
+extern struct nvkm_oclass gk104_ce0_oclass;
+extern struct nvkm_oclass gk104_ce1_oclass;
+extern struct nvkm_oclass gk104_ce2_oclass;
 #endif

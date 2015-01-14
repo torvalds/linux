@@ -21,32 +21,26 @@
  *
  * Authors: Ben Skeggs
  */
-
+#include <engine/ce.h>
 #include <engine/falcon.h>
 #include <engine/fifo.h>
-#include <engine/ce.h>
-
-#include <subdev/fb.h>
-#include <subdev/mmu.h>
+#include "fuc/gt215.fuc3.h"
 
 #include <core/client.h>
 #include <core/device.h>
 #include <core/enum.h>
 
-
-#include "fuc/nva3.fuc3.h"
-
-struct nva3_ce_priv {
-	struct nouveau_falcon base;
+struct gt215_ce_priv {
+	struct nvkm_falcon base;
 };
 
 /*******************************************************************************
  * Copy object classes
  ******************************************************************************/
 
-static struct nouveau_oclass
-nva3_ce_sclass[] = {
-	{ 0x85b5, &nouveau_object_ofuncs },
+static struct nvkm_oclass
+gt215_ce_sclass[] = {
+	{ 0x85b5, &nvkm_object_ofuncs },
 	{}
 };
 
@@ -54,16 +48,16 @@ nva3_ce_sclass[] = {
  * PCE context
  ******************************************************************************/
 
-static struct nouveau_oclass
-nva3_ce_cclass = {
+static struct nvkm_oclass
+gt215_ce_cclass = {
 	.handle = NV_ENGCTX(CE0, 0xa3),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = _nouveau_falcon_context_ctor,
-		.dtor = _nouveau_falcon_context_dtor,
-		.init = _nouveau_falcon_context_init,
-		.fini = _nouveau_falcon_context_fini,
-		.rd32 = _nouveau_falcon_context_rd32,
-		.wr32 = _nouveau_falcon_context_wr32,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = _nvkm_falcon_context_ctor,
+		.dtor = _nvkm_falcon_context_dtor,
+		.init = _nvkm_falcon_context_init,
+		.fini = _nvkm_falcon_context_fini,
+		.rd32 = _nvkm_falcon_context_rd32,
+		.wr32 = _nvkm_falcon_context_wr32,
 
 	},
 };
@@ -72,7 +66,8 @@ nva3_ce_cclass = {
  * PCE engine/subdev functions
  ******************************************************************************/
 
-static const struct nouveau_enum nva3_ce_isr_error_name[] = {
+static const struct nvkm_enum
+gt215_ce_isr_error_name[] = {
 	{ 0x0001, "ILLEGAL_MTHD" },
 	{ 0x0002, "INVALID_ENUM" },
 	{ 0x0003, "INVALID_BITFIELD" },
@@ -80,12 +75,12 @@ static const struct nouveau_enum nva3_ce_isr_error_name[] = {
 };
 
 void
-nva3_ce_intr(struct nouveau_subdev *subdev)
+gt215_ce_intr(struct nvkm_subdev *subdev)
 {
-	struct nouveau_fifo *pfifo = nouveau_fifo(subdev);
-	struct nouveau_engine *engine = nv_engine(subdev);
-	struct nouveau_falcon *falcon = (void *)subdev;
-	struct nouveau_object *engctx;
+	struct nvkm_fifo *pfifo = nvkm_fifo(subdev);
+	struct nvkm_engine *engine = nv_engine(subdev);
+	struct nvkm_falcon *falcon = (void *)subdev;
+	struct nvkm_object *engctx;
 	u32 dispatch = nv_ro32(falcon, 0x01c);
 	u32 stat = nv_ro32(falcon, 0x008) & dispatch & ~(dispatch >> 16);
 	u64 inst = nv_ro32(falcon, 0x050) & 0x3fffffff;
@@ -96,14 +91,14 @@ nva3_ce_intr(struct nouveau_subdev *subdev)
 	u32 data = nv_ro32(falcon, 0x044);
 	int chid;
 
-	engctx = nouveau_engctx_get(engine, inst);
+	engctx = nvkm_engctx_get(engine, inst);
 	chid   = pfifo->chid(pfifo, engctx);
 
 	if (stat & 0x00000040) {
 		nv_error(falcon, "DISPATCH_ERROR [");
-		nouveau_enum_print(nva3_ce_isr_error_name, ssta);
+		nvkm_enum_print(gt215_ce_isr_error_name, ssta);
 		pr_cont("] ch %d [0x%010llx %s] subc %d mthd 0x%04x data 0x%08x\n",
-		       chid, inst << 12, nouveau_client_name(engctx), subc,
+		       chid, inst << 12, nvkm_client_name(engctx), subc,
 		       mthd, data);
 		nv_wo32(falcon, 0x004, 0x00000040);
 		stat &= ~0x00000040;
@@ -114,44 +109,44 @@ nva3_ce_intr(struct nouveau_subdev *subdev)
 		nv_wo32(falcon, 0x004, stat);
 	}
 
-	nouveau_engctx_put(engctx);
+	nvkm_engctx_put(engctx);
 }
 
 static int
-nva3_ce_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
+gt215_ce_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	      struct nvkm_oclass *oclass, void *data, u32 size,
+	      struct nvkm_object **pobject)
 {
 	bool enable = (nv_device(parent)->chipset != 0xaf);
-	struct nva3_ce_priv *priv;
+	struct gt215_ce_priv *priv;
 	int ret;
 
-	ret = nouveau_falcon_create(parent, engine, oclass, 0x104000, enable,
-				    "PCE0", "ce0", &priv);
+	ret = nvkm_falcon_create(parent, engine, oclass, 0x104000, enable,
+				 "PCE0", "ce0", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	nv_subdev(priv)->unit = 0x00802000;
-	nv_subdev(priv)->intr = nva3_ce_intr;
-	nv_engine(priv)->cclass = &nva3_ce_cclass;
-	nv_engine(priv)->sclass = nva3_ce_sclass;
-	nv_falcon(priv)->code.data = nva3_pce_code;
-	nv_falcon(priv)->code.size = sizeof(nva3_pce_code);
-	nv_falcon(priv)->data.data = nva3_pce_data;
-	nv_falcon(priv)->data.size = sizeof(nva3_pce_data);
+	nv_subdev(priv)->intr = gt215_ce_intr;
+	nv_engine(priv)->cclass = &gt215_ce_cclass;
+	nv_engine(priv)->sclass = gt215_ce_sclass;
+	nv_falcon(priv)->code.data = gt215_pce_code;
+	nv_falcon(priv)->code.size = sizeof(gt215_pce_code);
+	nv_falcon(priv)->data.data = gt215_pce_data;
+	nv_falcon(priv)->data.size = sizeof(gt215_pce_data);
 	return 0;
 }
 
-struct nouveau_oclass
-nva3_ce_oclass = {
+struct nvkm_oclass
+gt215_ce_oclass = {
 	.handle = NV_ENGINE(CE0, 0xa3),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nva3_ce_ctor,
-		.dtor = _nouveau_falcon_dtor,
-		.init = _nouveau_falcon_init,
-		.fini = _nouveau_falcon_fini,
-		.rd32 = _nouveau_falcon_rd32,
-		.wr32 = _nouveau_falcon_wr32,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gt215_ce_ctor,
+		.dtor = _nvkm_falcon_dtor,
+		.init = _nvkm_falcon_init,
+		.fini = _nvkm_falcon_fini,
+		.rd32 = _nvkm_falcon_rd32,
+		.wr32 = _nvkm_falcon_wr32,
 	},
 };
