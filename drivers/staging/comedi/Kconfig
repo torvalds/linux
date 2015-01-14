@@ -1271,6 +1271,7 @@ config COMEDI_NI_LABPC
 
 config COMEDI_NI_LABPC_ISADMA
 	tristate
+	select COMEDI_ISADMA
 
 config COMEDI_NI_TIO
 	tristate

@@ -19,10 +19,10 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
+
 #include "../comedidev.h"
 
-#include <asm/dma.h>
-
+#include "comedi_isadma.h"
 #include "comedi_fc.h"
 #include "ni_labpc.h"
 #include "ni_labpc_regs.h"
@@ -31,35 +31,10 @@
 /* size in bytes of dma buffer */
 #define LABPC_ISADMA_BUFFER_SIZE	0xff00
 
-static void labpc_isadma_program(struct labpc_dma_desc *dma)
-{
-	unsigned long flags;
-
-	flags = claim_dma_lock();
-	clear_dma_ff(dma->chan);
-	set_dma_mode(dma->chan, DMA_MODE_READ);
-	set_dma_addr(dma->chan, dma->hw_addr);
-	set_dma_count(dma->chan, dma->size);
-	enable_dma(dma->chan);
-	release_dma_lock(flags);
-}
-
-static unsigned int labpc_isadma_disable(struct labpc_dma_desc *dma)
-{
-	unsigned long flags;
-	unsigned int residue;
-
-	flags = claim_dma_lock();
-	disable_dma(dma->chan);
-	residue = get_dma_residue(dma->chan);
-	release_dma_lock(flags);
-
-	return residue;
-}
-
 /* utility function that suggests a dma transfer size in bytes */
 static unsigned int labpc_suggest_transfer_size(struct comedi_device *dev,
-						struct comedi_subdevice *s)
+						struct comedi_subdevice *s,
+						unsigned int maxbytes)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int sample_size = comedi_bytes_per_sample(s);
@@ -76,8 +51,8 @@ static unsigned int labpc_suggest_transfer_size(struct comedi_device *dev,
 	size = (freq / 3) * sample_size;
 
 	/* set a minimum and maximum size allowed */
-	if (size > LABPC_ISADMA_BUFFER_SIZE)
-		size = LABPC_ISADMA_BUFFER_SIZE;
+	if (size > maxbytes)
+		size = maxbytes;
 	else if (size < sample_size)
 		size = sample_size;
 
@@ -87,17 +62,17 @@ static unsigned int labpc_suggest_transfer_size(struct comedi_device *dev,
 void labpc_setup_dma(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct labpc_private *devpriv = dev->private;
-	struct labpc_dma_desc *dma = &devpriv->dma_desc;
+	struct comedi_isadma_desc *desc = &devpriv->dma->desc[0];
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int sample_size = comedi_bytes_per_sample(s);
 
 	/* set appropriate size of transfer */
-	dma->size = labpc_suggest_transfer_size(dev, s);
+	desc->size = labpc_suggest_transfer_size(dev, s, desc->maxsize);
 	if (cmd->stop_src == TRIG_COUNT &&
-	    devpriv->count * sample_size < dma->size)
-		dma->size = devpriv->count * sample_size;
+	    devpriv->count * sample_size < desc->size)
+		desc->size = devpriv->count * sample_size;
 
-	labpc_isadma_program(dma);
+	comedi_isadma_program(desc);
 
 	/* set CMD3 bits for caller to enable DMA and interrupt */
 	devpriv->cmd3 |= (CMD3_DMAEN | CMD3_DMATCINTEN);
@@ -107,11 +82,11 @@ EXPORT_SYMBOL_GPL(labpc_setup_dma);
 void labpc_drain_dma(struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
-	struct labpc_dma_desc *dma = &devpriv->dma_desc;
+	struct comedi_isadma_desc *desc = &devpriv->dma->desc[0];
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
-	unsigned int max_samples = comedi_bytes_to_samples(s, dma->size);
+	unsigned int max_samples = comedi_bytes_to_samples(s, desc->size);
 	unsigned int residue;
 	unsigned int nsamples;
 	unsigned int leftover;
@@ -121,7 +96,7 @@ void labpc_drain_dma(struct comedi_device *dev)
 	 * transfer.  It should always be zero at this point unless
 	 * the stop_src is set to external triggering.
 	 */
-	residue = labpc_isadma_disable(dma);
+	residue = comedi_isadma_disable(desc->chan);
 
 	/*
 	 * Figure out how many samples to read for this transfer and
@@ -141,21 +116,21 @@ void labpc_drain_dma(struct comedi_device *dev)
 	} else {
 		leftover = max_samples;
 	}
-	dma->size = comedi_samples_to_bytes(s, leftover);
+	desc->size = comedi_samples_to_bytes(s, leftover);
 
-	comedi_buf_write_samples(s, dma->virt_addr, nsamples);
+	comedi_buf_write_samples(s, desc->virt_addr, nsamples);
 }
 EXPORT_SYMBOL_GPL(labpc_drain_dma);
 
 static void handle_isa_dma(struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
-	struct labpc_dma_desc *dma = &devpriv->dma_desc;
+	struct comedi_isadma_desc *desc = &devpriv->dma->desc[0];
 
 	labpc_drain_dma(dev);
 
-	if (dma->size)
-		labpc_isadma_program(dma);
+	if (desc->size)
+		comedi_isadma_program(desc);
 
 	/* clear dma tc interrupt */
 	devpriv->write_byte(dev, 0x1, DMATC_CLEAR_REG);
@@ -179,37 +154,24 @@ EXPORT_SYMBOL_GPL(labpc_handle_dma_status);
 void labpc_init_dma_chan(struct comedi_device *dev, unsigned int dma_chan)
 {
 	struct labpc_private *devpriv = dev->private;
-	struct labpc_dma_desc *dma = &devpriv->dma_desc;
 
+	/* only DMA channels 3 and 1 are valid */
 	if (dma_chan != 1 && dma_chan != 3)
 		return;
 
-	if (request_dma(dma_chan, dev->board_name))
-		return;
-
-	dma->virt_addr = dma_alloc_coherent(NULL, LABPC_ISADMA_BUFFER_SIZE,
-					    &dma->hw_addr, GFP_KERNEL);
-	if (!dma->virt_addr) {
-		free_dma(dma_chan);
-		return;
-	}
-
-	dma->chan = dma_chan;
-
-	labpc_isadma_disable(dma);
+	/* DMA uses 1 buffer */
+	devpriv->dma = comedi_isadma_alloc(dev, 1, dma_chan, dma_chan,
+					   LABPC_ISADMA_BUFFER_SIZE,
+					   COMEDI_ISADMA_READ);
 }
 EXPORT_SYMBOL_GPL(labpc_init_dma_chan);
 
 void labpc_free_dma_chan(struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
-	struct labpc_dma_desc *dma = &devpriv->dma_desc;
 
-	if (dma->virt_addr)
-		dma_free_coherent(NULL, LABPC_ISADMA_BUFFER_SIZE,
-				  dma->virt_addr, dma->hw_addr);
-	if (dma->chan)
-		free_dma(dma->chan);
+	if (devpriv)
+		comedi_isadma_free(devpriv->dma);
 }
 EXPORT_SYMBOL_GPL(labpc_free_dma_chan);
 

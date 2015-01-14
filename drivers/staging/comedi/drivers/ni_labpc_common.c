@@ -687,7 +687,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	/* figure out what method we will use to transfer data */
-	if (labpc_have_dma_chan(dev) &&
+	if (devpriv->dma &&
 	    /* dma unsafe at RT priority,
 	     * and too much setup time for CMDF_WAKE_EOS */
 	    (cmd->flags & (CMDF_WAKE_EOS | CMDF_PRIORITY)) == 0)

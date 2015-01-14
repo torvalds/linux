@@ -34,14 +34,9 @@ struct labpc_boardinfo {
 	unsigned is_labpc1200:1;	/* has extra regs compared to pc+ */
 };
 
-struct labpc_dma_desc {
-	unsigned int chan;	/* DMA channel */
-	void *virt_addr;	/* virtual address of DMA buffer */
-	dma_addr_t hw_addr;	/* hardware (bus) address of DMA buffer */
-	unsigned int size;	/* size of DMA transfer (in bytes) */
-};
-
 struct labpc_private {
+	struct comedi_isadma *dma;
+
 	/*  number of data points left to be taken */
 	unsigned long long count;
 	/*  software copys of bits written to command registers */
@@ -68,8 +63,6 @@ struct labpc_private {
 	 * conversions
 	 */
 	unsigned int divisor_b1;
-
-	struct labpc_dma_desc dma_desc;
 
 	/* we are using dma/fifo-half-full/etc. */
 	enum transfer_type current_transfer;
