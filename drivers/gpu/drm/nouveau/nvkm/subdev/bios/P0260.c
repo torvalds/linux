@@ -21,14 +21,12 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include <subdev/bios.h>
 #include <subdev/bios/bit.h>
-#include <subdev/bios/ramcfg.h>
 #include <subdev/bios/P0260.h>
 
 u32
-nvbios_P0260Te(struct nouveau_bios *bios,
+nvbios_P0260Te(struct nvkm_bios *bios,
 	       u8 *ver, u8 *hdr, u8 *cnt, u8 *len, u8 *xnr, u8 *xsz)
 {
 	struct bit_entry bit_P;
@@ -57,7 +55,7 @@ nvbios_P0260Te(struct nouveau_bios *bios,
 }
 
 u32
-nvbios_P0260Ee(struct nouveau_bios *bios, int idx, u8 *ver, u8 *len)
+nvbios_P0260Ee(struct nvkm_bios *bios, int idx, u8 *ver, u8 *len)
 {
 	u8  hdr, cnt, xnr, xsz;
 	u32 data = nvbios_P0260Te(bios, ver, &hdr, &cnt, len, &xnr, &xsz);
@@ -67,7 +65,7 @@ nvbios_P0260Ee(struct nouveau_bios *bios, int idx, u8 *ver, u8 *len)
 }
 
 u32
-nvbios_P0260Ep(struct nouveau_bios *bios, int idx, u8 *ver, u8 *len,
+nvbios_P0260Ep(struct nvkm_bios *bios, int idx, u8 *ver, u8 *len,
 	       struct nvbios_P0260E *info)
 {
 	u32 data = nvbios_P0260Ee(bios, idx, ver, len);
@@ -83,7 +81,7 @@ nvbios_P0260Ep(struct nouveau_bios *bios, int idx, u8 *ver, u8 *len,
 }
 
 u32
-nvbios_P0260Xe(struct nouveau_bios *bios, int idx, u8 *ver, u8 *xsz)
+nvbios_P0260Xe(struct nvkm_bios *bios, int idx, u8 *ver, u8 *xsz)
 {
 	u8  hdr, cnt, len, xnr;
 	u32 data = nvbios_P0260Te(bios, ver, &hdr, &cnt, &len, &xnr, xsz);
@@ -93,7 +91,7 @@ nvbios_P0260Xe(struct nouveau_bios *bios, int idx, u8 *ver, u8 *xsz)
 }
 
 u32
-nvbios_P0260Xp(struct nouveau_bios *bios, int idx, u8 *ver, u8 *hdr,
+nvbios_P0260Xp(struct nvkm_bios *bios, int idx, u8 *ver, u8 *hdr,
 	       struct nvbios_P0260X *info)
 {
 	u32 data = nvbios_P0260Xe(bios, idx, ver, hdr);

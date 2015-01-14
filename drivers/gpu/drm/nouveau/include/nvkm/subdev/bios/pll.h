@@ -1,8 +1,7 @@
 #ifndef __NVBIOS_PLL_H__
 #define __NVBIOS_PLL_H__
-
 /*XXX: kill me */
-struct nouveau_pll_vals {
+struct nvkm_pll_vals {
 	union {
 		struct {
 #ifdef __BIG_ENDIAN
@@ -20,10 +19,8 @@ struct nouveau_pll_vals {
 	int refclk;
 };
 
-struct nouveau_bios;
-
 /* these match types in pll limits table version 0x40,
- * nouveau uses them on all chipsets internally where a
+ * nvkm uses them on all chipsets internally where a
  * specific pll needs to be referenced, but the exact
  * register isn't known.
  */
@@ -74,6 +71,5 @@ struct nvbios_pll {
 	} vco1, vco2;
 };
 
-int nvbios_pll_parse(struct nouveau_bios *, u32 type, struct nvbios_pll *);
-
+int nvbios_pll_parse(struct nvkm_bios *, u32 type, struct nvbios_pll *);
 #endif

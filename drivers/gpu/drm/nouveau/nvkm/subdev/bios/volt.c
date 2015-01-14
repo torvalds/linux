@@ -21,13 +21,12 @@
  *
  * Authors: Martin Peres
  */
-
 #include <subdev/bios.h>
 #include <subdev/bios/bit.h>
 #include <subdev/bios/volt.h>
 
 u16
-nvbios_volt_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
+nvbios_volt_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	struct bit_entry bit_P;
 	u16 volt = 0x0000;
@@ -67,7 +66,7 @@ nvbios_volt_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 }
 
 u16
-nvbios_volt_parse(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
+nvbios_volt_parse(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 		  struct nvbios_volt *info)
 {
 	u16 volt = nvbios_volt_table(bios, ver, hdr, cnt, len);
@@ -102,7 +101,7 @@ nvbios_volt_parse(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 }
 
 u16
-nvbios_volt_entry(struct nouveau_bios *bios, int idx, u8 *ver, u8 *len)
+nvbios_volt_entry(struct nvkm_bios *bios, int idx, u8 *ver, u8 *len)
 {
 	u8  hdr, cnt;
 	u16 volt = nvbios_volt_table(bios, ver, &hdr, &cnt, len);
@@ -114,7 +113,7 @@ nvbios_volt_entry(struct nouveau_bios *bios, int idx, u8 *ver, u8 *len)
 }
 
 u16
-nvbios_volt_entry_parse(struct nouveau_bios *bios, int idx, u8 *ver, u8 *len,
+nvbios_volt_entry_parse(struct nvkm_bios *bios, int idx, u8 *ver, u8 *len,
 			struct nvbios_volt_entry *info)
 {
 	u16 volt = nvbios_volt_entry(bios, idx, ver, len);

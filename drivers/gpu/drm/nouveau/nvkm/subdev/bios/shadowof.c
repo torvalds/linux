@@ -20,8 +20,9 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-
 #include "priv.h"
+
+#include <core/device.h>
 
 #if defined(__powerpc__)
 struct priv {
@@ -30,7 +31,7 @@ struct priv {
 };
 
 static u32
-of_read(void *data, u32 offset, u32 length, struct nouveau_bios *bios)
+of_read(void *data, u32 offset, u32 length, struct nvkm_bios *bios)
 {
 	struct priv *priv = data;
 	if (offset + length <= priv->size) {
@@ -41,7 +42,7 @@ of_read(void *data, u32 offset, u32 length, struct nouveau_bios *bios)
 }
 
 static void *
-of_init(struct nouveau_bios *bios, const char *name)
+of_init(struct nvkm_bios *bios, const char *name)
 {
 	struct pci_dev *pdev = nv_device(bios)->pdev;
 	struct device_node *dn;

@@ -1,8 +1,5 @@
 #ifndef __NVBIOS_EXTDEV_H__
 #define __NVBIOS_EXTDEV_H__
-
-struct nouveau_bios;
-
 enum nvbios_extdev_type {
 	NVBIOS_EXTDEV_LM89		= 0x02,
 	NVBIOS_EXTDEV_VT1103M		= 0x40,
@@ -20,11 +17,9 @@ struct nvbios_extdev_func {
 };
 
 int
-nvbios_extdev_parse(struct nouveau_bios *, int, struct nvbios_extdev_func *);
+nvbios_extdev_parse(struct nvkm_bios *, int, struct nvbios_extdev_func *);
 
 int
-nvbios_extdev_find(struct nouveau_bios *, enum nvbios_extdev_type,
+nvbios_extdev_find(struct nvkm_bios *, enum nvbios_extdev_type,
 		   struct nvbios_extdev_func *);
-
-
 #endif

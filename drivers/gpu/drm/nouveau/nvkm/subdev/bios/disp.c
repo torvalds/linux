@@ -21,13 +21,12 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include <subdev/bios.h>
 #include <subdev/bios/bit.h>
 #include <subdev/bios/disp.h>
 
 u16
-nvbios_disp_table(struct nouveau_bios *bios,
+nvbios_disp_table(struct nvkm_bios *bios,
 		  u8 *ver, u8 *hdr, u8 *cnt, u8 *len, u8 *sub)
 {
 	struct bit_entry U;
@@ -57,8 +56,7 @@ nvbios_disp_table(struct nouveau_bios *bios,
 }
 
 u16
-nvbios_disp_entry(struct nouveau_bios *bios, u8 idx,
-		  u8 *ver, u8 *len, u8 *sub)
+nvbios_disp_entry(struct nvkm_bios *bios, u8 idx, u8 *ver, u8 *len, u8 *sub)
 {
 	u8  hdr, cnt;
 	u16 data = nvbios_disp_table(bios, ver, &hdr, &cnt, len, sub);
@@ -69,8 +67,7 @@ nvbios_disp_entry(struct nouveau_bios *bios, u8 idx,
 }
 
 u16
-nvbios_disp_parse(struct nouveau_bios *bios, u8 idx,
-		  u8 *ver, u8 *len, u8 *sub,
+nvbios_disp_parse(struct nvkm_bios *bios, u8 idx, u8 *ver, u8 *len, u8 *sub,
 		  struct nvbios_disp *info)
 {
 	u16 data = nvbios_disp_entry(bios, idx, ver, len, sub);
@@ -82,7 +79,7 @@ nvbios_disp_parse(struct nouveau_bios *bios, u8 idx,
 }
 
 u16
-nvbios_outp_entry(struct nouveau_bios *bios, u8 idx,
+nvbios_outp_entry(struct nvkm_bios *bios, u8 idx,
 		  u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	struct nvbios_disp info;
@@ -96,9 +93,8 @@ nvbios_outp_entry(struct nouveau_bios *bios, u8 idx,
 }
 
 u16
-nvbios_outp_parse(struct nouveau_bios *bios, u8 idx,
-		  u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
-		  struct nvbios_outp *info)
+nvbios_outp_parse(struct nvkm_bios *bios, u8 idx,
+		  u8 *ver, u8 *hdr, u8 *cnt, u8 *len, struct nvbios_outp *info)
 {
 	u16 data = nvbios_outp_entry(bios, idx, ver, hdr, cnt, len);
 	if (data && *hdr >= 0x0a) {
@@ -117,9 +113,8 @@ nvbios_outp_parse(struct nouveau_bios *bios, u8 idx,
 }
 
 u16
-nvbios_outp_match(struct nouveau_bios *bios, u16 type, u16 mask,
-		  u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
-		  struct nvbios_outp *info)
+nvbios_outp_match(struct nvkm_bios *bios, u16 type, u16 mask,
+		  u8 *ver, u8 *hdr, u8 *cnt, u8 *len, struct nvbios_outp *info)
 {
 	u16 data, idx = 0;
 	while ((data = nvbios_outp_parse(bios, idx++, ver, hdr, cnt, len, info)) || *ver) {
@@ -132,7 +127,7 @@ nvbios_outp_match(struct nouveau_bios *bios, u16 type, u16 mask,
 }
 
 u16
-nvbios_ocfg_entry(struct nouveau_bios *bios, u16 outp, u8 idx,
+nvbios_ocfg_entry(struct nvkm_bios *bios, u16 outp, u8 idx,
 		  u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	if (idx < *cnt)
@@ -141,9 +136,8 @@ nvbios_ocfg_entry(struct nouveau_bios *bios, u16 outp, u8 idx,
 }
 
 u16
-nvbios_ocfg_parse(struct nouveau_bios *bios, u16 outp, u8 idx,
-		  u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
-		  struct nvbios_ocfg *info)
+nvbios_ocfg_parse(struct nvkm_bios *bios, u16 outp, u8 idx,
+		  u8 *ver, u8 *hdr, u8 *cnt, u8 *len, struct nvbios_ocfg *info)
 {
 	u16 data = nvbios_ocfg_entry(bios, outp, idx, ver, hdr, cnt, len);
 	if (data) {
@@ -155,9 +149,8 @@ nvbios_ocfg_parse(struct nouveau_bios *bios, u16 outp, u8 idx,
 }
 
 u16
-nvbios_ocfg_match(struct nouveau_bios *bios, u16 outp, u16 type,
-		  u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
-		  struct nvbios_ocfg *info)
+nvbios_ocfg_match(struct nvkm_bios *bios, u16 outp, u16 type,
+		  u8 *ver, u8 *hdr, u8 *cnt, u8 *len, struct nvbios_ocfg *info)
 {
 	u16 data, idx = 0;
 	while ((data = nvbios_ocfg_parse(bios, outp, idx++, ver, hdr, cnt, len, info))) {
@@ -168,7 +161,7 @@ nvbios_ocfg_match(struct nouveau_bios *bios, u16 outp, u16 type,
 }
 
 u16
-nvbios_oclk_match(struct nouveau_bios *bios, u16 cmp, u32 khz)
+nvbios_oclk_match(struct nvkm_bios *bios, u16 cmp, u32 khz)
 {
 	while (cmp) {
 		if (khz / 10 >= nv_ro16(bios, cmp + 0x00))

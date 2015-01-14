@@ -21,13 +21,14 @@
  *
  * Authors: Martin Peres
  */
-
 #include <subdev/bios.h>
 #include <subdev/bios/bit.h>
 #include <subdev/bios/therm.h>
 
+#include <core/device.h>
+
 static u16
-therm_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *len, u8 *cnt)
+therm_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *len, u8 *cnt)
 {
 	struct bit_entry bit_P;
 	u16 therm = 0;
@@ -51,12 +52,11 @@ therm_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *len, u8 *cnt)
 	*hdr = nv_ro08(bios, therm + 1);
 	*len = nv_ro08(bios, therm + 2);
 	*cnt = nv_ro08(bios, therm + 3);
-
 	return therm + nv_ro08(bios, therm + 1);
 }
 
 static u16
-nvbios_therm_entry(struct nouveau_bios *bios, int idx, u8 *ver, u8 *len)
+nvbios_therm_entry(struct nvkm_bios *bios, int idx, u8 *ver, u8 *len)
 {
 	u8 hdr, cnt;
 	u16 therm = therm_table(bios, ver, &hdr, len, &cnt);
@@ -66,7 +66,7 @@ nvbios_therm_entry(struct nouveau_bios *bios, int idx, u8 *ver, u8 *len)
 }
 
 int
-nvbios_therm_sensor_parse(struct nouveau_bios *bios,
+nvbios_therm_sensor_parse(struct nvkm_bios *bios,
 			  enum nvbios_therm_domain domain,
 			  struct nvbios_therm_sensor *sensor)
 {
@@ -152,10 +152,9 @@ nvbios_therm_sensor_parse(struct nouveau_bios *bios,
 }
 
 int
-nvbios_therm_fan_parse(struct nouveau_bios *bios,
-			  struct nvbios_therm_fan *fan)
+nvbios_therm_fan_parse(struct nvkm_bios *bios, struct nvbios_therm_fan *fan)
 {
-	struct nouveau_therm_trip_point *cur_trip = NULL;
+	struct nvbios_therm_trip_point *cur_trip = NULL;
 	u8 ver, len, i;
 	u16 entry;
 

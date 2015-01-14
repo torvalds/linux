@@ -21,15 +21,12 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <core/device.h>
-
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
 #include <subdev/bios/conn.h>
 
 u32
-nvbios_connTe(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
+nvbios_connTe(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	u32 dcb = dcb_table(bios, ver, hdr, cnt, len);
 	if (dcb && *ver >= 0x30 && *hdr >= 0x16) {
@@ -46,7 +43,7 @@ nvbios_connTe(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 }
 
 u32
-nvbios_connTp(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
+nvbios_connTp(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 	      struct nvbios_connT *info)
 {
 	u32 data = nvbios_connTe(bios, ver, hdr, cnt, len);
@@ -62,7 +59,7 @@ nvbios_connTp(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 }
 
 u32
-nvbios_connEe(struct nouveau_bios *bios, u8 idx, u8 *ver, u8 *len)
+nvbios_connEe(struct nvkm_bios *bios, u8 idx, u8 *ver, u8 *len)
 {
 	u8  hdr, cnt;
 	u32 data = nvbios_connTe(bios, ver, &hdr, &cnt, len);
@@ -72,7 +69,7 @@ nvbios_connEe(struct nouveau_bios *bios, u8 idx, u8 *ver, u8 *len)
 }
 
 u32
-nvbios_connEp(struct nouveau_bios *bios, u8 idx, u8 *ver, u8 *len,
+nvbios_connEp(struct nvkm_bios *bios, u8 idx, u8 *ver, u8 *len,
 	      struct nvbios_connE *info)
 {
 	u32 data = nvbios_connEe(bios, idx, ver, len);

@@ -108,6 +108,7 @@ extern struct nouveau_oclass *nve0_fb_oclass;
 extern struct nouveau_oclass *gk20a_fb_oclass;
 extern struct nouveau_oclass *gm107_fb_oclass;
 
+#include <subdev/bios.h>
 #include <subdev/bios/ramcfg.h>
 
 struct nouveau_ram_data {

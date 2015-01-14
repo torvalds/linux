@@ -20,8 +20,9 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-
 #include "priv.h"
+
+#include <core/device.h>
 
 #if defined(CONFIG_ACPI) && defined(CONFIG_X86)
 int nouveau_acpi_get_bios_chunk(uint8_t *bios, int offset, int len);
@@ -45,7 +46,7 @@ nouveau_acpi_get_bios_chunk(uint8_t *bios, int offset, int len)
  * on some systems, such as Lenovo W530.
  */
 static u32
-acpi_read_fast(void *data, u32 offset, u32 length, struct nouveau_bios *bios)
+acpi_read_fast(void *data, u32 offset, u32 length, struct nvkm_bios *bios)
 {
 	u32 limit = (offset + length + 0xfff) & ~0xfff;
 	u32 start = offset & ~0x00000fff;
@@ -66,7 +67,7 @@ acpi_read_fast(void *data, u32 offset, u32 length, struct nouveau_bios *bios)
  * function.
  */
 static u32
-acpi_read_slow(void *data, u32 offset, u32 length, struct nouveau_bios *bios)
+acpi_read_slow(void *data, u32 offset, u32 length, struct nvkm_bios *bios)
 {
 	u32 limit = (offset + length + 0xfff) & ~0xfff;
 	u32 start = offset & ~0xfff;
@@ -87,7 +88,7 @@ acpi_read_slow(void *data, u32 offset, u32 length, struct nouveau_bios *bios)
 }
 
 static void *
-acpi_init(struct nouveau_bios *bios, const char *name)
+acpi_init(struct nvkm_bios *bios, const char *name)
 {
 	if (!nouveau_acpi_rom_supported(nv_device(bios)->pdev))
 		return ERR_PTR(-ENODEV);

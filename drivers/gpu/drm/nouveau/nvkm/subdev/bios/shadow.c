@@ -21,13 +21,15 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-
 #include "priv.h"
+
+#include <core/device.h>
 #include <core/option.h>
+#include <subdev/bios.h>
 #include <subdev/bios/image.h>
 
 struct shadow {
-	struct nouveau_oclass base;
+	struct nvkm_oclass base;
 	u32 skip;
 	const struct nvbios_source *func;
 	void *data;
@@ -36,7 +38,7 @@ struct shadow {
 };
 
 static bool
-shadow_fetch(struct nouveau_bios *bios, u32 upto)
+shadow_fetch(struct nvkm_bios *bios, u32 upto)
 {
 	struct shadow *mthd = (void *)nv_object(bios)->oclass;
 	const u32 limit = (upto + 3) & ~3;
@@ -50,36 +52,36 @@ shadow_fetch(struct nouveau_bios *bios, u32 upto)
 }
 
 static u8
-shadow_rd08(struct nouveau_object *object, u64 addr)
+shadow_rd08(struct nvkm_object *object, u64 addr)
 {
-	struct nouveau_bios *bios = (void *)object;
+	struct nvkm_bios *bios = (void *)object;
 	if (shadow_fetch(bios, addr + 1))
 		return bios->data[addr];
 	return 0x00;
 }
 
 static u16
-shadow_rd16(struct nouveau_object *object, u64 addr)
+shadow_rd16(struct nvkm_object *object, u64 addr)
 {
-	struct nouveau_bios *bios = (void *)object;
+	struct nvkm_bios *bios = (void *)object;
 	if (shadow_fetch(bios, addr + 2))
 		return get_unaligned_le16(&bios->data[addr]);
 	return 0x0000;
 }
 
 static u32
-shadow_rd32(struct nouveau_object *object, u64 addr)
+shadow_rd32(struct nvkm_object *object, u64 addr)
 {
-	struct nouveau_bios *bios = (void *)object;
+	struct nvkm_bios *bios = (void *)object;
 	if (shadow_fetch(bios, addr + 4))
 		return get_unaligned_le32(&bios->data[addr]);
 	return 0x00000000;
 }
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 shadow_class = {
 	.handle = NV_SUBDEV(VBIOS, 0x00),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.rd08 = shadow_rd08,
 		.rd16 = shadow_rd16,
 		.rd32 = shadow_rd32,
@@ -87,7 +89,7 @@ shadow_class = {
 };
 
 static int
-shadow_image(struct nouveau_bios *bios, int idx, struct shadow *mthd)
+shadow_image(struct nvkm_bios *bios, int idx, struct shadow *mthd)
 {
 	struct nvbios_image image;
 	int score = 1;
@@ -126,9 +128,9 @@ shadow_image(struct nouveau_bios *bios, int idx, struct shadow *mthd)
 }
 
 static int
-shadow_score(struct nouveau_bios *bios, struct shadow *mthd)
+shadow_score(struct nvkm_bios *bios, struct shadow *mthd)
 {
-	struct nouveau_oclass *oclass = nv_object(bios)->oclass;
+	struct nvkm_oclass *oclass = nv_object(bios)->oclass;
 	int score;
 	nv_object(bios)->oclass = &mthd->base;
 	score = shadow_image(bios, 0, mthd);
@@ -138,7 +140,7 @@ shadow_score(struct nouveau_bios *bios, struct shadow *mthd)
 }
 
 static int
-shadow_method(struct nouveau_bios *bios, struct shadow *mthd, const char *name)
+shadow_method(struct nvkm_bios *bios, struct shadow *mthd, const char *name)
 {
 	const struct nvbios_source *func = mthd->func;
 	if (func->name) {
@@ -163,7 +165,7 @@ shadow_method(struct nouveau_bios *bios, struct shadow *mthd, const char *name)
 }
 
 static u32
-shadow_fw_read(void *data, u32 offset, u32 length, struct nouveau_bios *bios)
+shadow_fw_read(void *data, u32 offset, u32 length, struct nvkm_bios *bios)
 {
 	const struct firmware *fw = data;
 	if (offset + length <= fw->size) {
@@ -174,7 +176,7 @@ shadow_fw_read(void *data, u32 offset, u32 length, struct nouveau_bios *bios)
 }
 
 static void *
-shadow_fw_init(struct nouveau_bios *bios, const char *name)
+shadow_fw_init(struct nvkm_bios *bios, const char *name)
 {
 	struct device *dev = &nv_device(bios)->pdev->dev;
 	const struct firmware *fw;
@@ -194,7 +196,7 @@ shadow_fw = {
 };
 
 int
-nvbios_shadow(struct nouveau_bios *bios)
+nvbios_shadow(struct nvkm_bios *bios)
 {
 	struct shadow mthds[] = {
 		{ shadow_class, 0, &nvbios_of },
@@ -211,7 +213,7 @@ nvbios_shadow(struct nouveau_bios *bios)
 	int optlen;
 
 	/* handle user-specified bios source */
-	optarg = nouveau_stropt(nv_device(bios)->cfgopt, "NvBios", &optlen);
+	optarg = nvkm_stropt(nv_device(bios)->cfgopt, "NvBios", &optlen);
 	source = optarg ? kstrndup(optarg, optlen, GFP_KERNEL) : NULL;
 	if (source) {
 		/* try to match one of the built-in methods */

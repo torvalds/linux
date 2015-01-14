@@ -1,14 +1,13 @@
 #ifndef __NVBIOS_M0203_H__
 #define __NVBIOS_M0203_H__
-
 struct nvbios_M0203T {
 #define M0203T_TYPE_RAMCFG 0x00
 	u8  type;
 	u16 pointer;
 };
 
-u32 nvbios_M0203Te(struct nouveau_bios *, u8 *ver, u8 *hdr, u8 *cnt, u8 *len);
-u32 nvbios_M0203Tp(struct nouveau_bios *, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
+u32 nvbios_M0203Te(struct nvkm_bios *, u8 *ver, u8 *hdr, u8 *cnt, u8 *len);
+u32 nvbios_M0203Tp(struct nvkm_bios *, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 		   struct nvbios_M0203T *);
 
 struct nvbios_M0203E {
@@ -22,10 +21,9 @@ struct nvbios_M0203E {
 	u8 group;
 };
 
-u32 nvbios_M0203Ee(struct nouveau_bios *, int idx, u8 *ver, u8 *hdr);
-u32 nvbios_M0203Ep(struct nouveau_bios *, int idx, u8 *ver, u8 *hdr,
+u32 nvbios_M0203Ee(struct nvkm_bios *, int idx, u8 *ver, u8 *hdr);
+u32 nvbios_M0203Ep(struct nvkm_bios *, int idx, u8 *ver, u8 *hdr,
 		   struct nvbios_M0203E *);
-u32 nvbios_M0203Em(struct nouveau_bios *, u8 ramcfg, u8 *ver, u8 *hdr,
+u32 nvbios_M0203Em(struct nvkm_bios *, u8 ramcfg, u8 *ver, u8 *hdr,
 		   struct nvbios_M0203E *);
-
 #endif

@@ -21,14 +21,12 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include <subdev/bios.h>
 #include <subdev/bios/bit.h>
-#include <subdev/bios/ramcfg.h>
 #include <subdev/bios/timing.h>
 
 u16
-nvbios_timingTe(struct nouveau_bios *bios,
+nvbios_timingTe(struct nvkm_bios *bios,
 		u8 *ver, u8 *hdr, u8 *cnt, u8 *len, u8 *snr, u8 *ssz)
 {
 	struct bit_entry bit_P;
@@ -68,7 +66,7 @@ nvbios_timingTe(struct nouveau_bios *bios,
 }
 
 u16
-nvbios_timingEe(struct nouveau_bios *bios, int idx,
+nvbios_timingEe(struct nvkm_bios *bios, int idx,
 		u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	u8  snr, ssz;
@@ -84,9 +82,8 @@ nvbios_timingEe(struct nouveau_bios *bios, int idx,
 }
 
 u16
-nvbios_timingEp(struct nouveau_bios *bios, int idx,
-		u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
-		struct nvbios_ramcfg *p)
+nvbios_timingEp(struct nvkm_bios *bios, int idx,
+		u8 *ver, u8 *hdr, u8 *cnt, u8 *len, struct nvbios_ramcfg *p)
 {
 	u16 data = nvbios_timingEe(bios, idx, ver, hdr, cnt, len), temp;
 	p->timing_ver = *ver;

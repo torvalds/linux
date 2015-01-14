@@ -21,14 +21,13 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-
 #include <subdev/bios.h>
 #include <subdev/bios/bit.h>
 #include <subdev/bios/image.h>
 #include <subdev/bios/pmu.h>
 
 static u32
-weirdo_pointer(struct nouveau_bios *bios, u32 data)
+weirdo_pointer(struct nvkm_bios *bios, u32 data)
 {
 	struct nvbios_image image;
 	int idx = 0;
@@ -43,7 +42,7 @@ weirdo_pointer(struct nouveau_bios *bios, u32 data)
 }
 
 u32
-nvbios_pmuTe(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
+nvbios_pmuTe(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	struct bit_entry bit_p;
 	u32 data = 0;
@@ -63,7 +62,7 @@ nvbios_pmuTe(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 }
 
 u32
-nvbios_pmuTp(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
+nvbios_pmuTp(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 	     struct nvbios_pmuT *info)
 {
 	u32 data = nvbios_pmuTe(bios, ver, hdr, cnt, len);
@@ -76,7 +75,7 @@ nvbios_pmuTp(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 }
 
 u32
-nvbios_pmuEe(struct nouveau_bios *bios, int idx, u8 *ver, u8 *hdr)
+nvbios_pmuEe(struct nvkm_bios *bios, int idx, u8 *ver, u8 *hdr)
 {
 	u8  cnt, len;
 	u32 data = nvbios_pmuTe(bios, ver, hdr, &cnt, &len);
@@ -89,7 +88,7 @@ nvbios_pmuEe(struct nouveau_bios *bios, int idx, u8 *ver, u8 *hdr)
 }
 
 u32
-nvbios_pmuEp(struct nouveau_bios *bios, int idx, u8 *ver, u8 *hdr,
+nvbios_pmuEp(struct nvkm_bios *bios, int idx, u8 *ver, u8 *hdr,
 	     struct nvbios_pmuE *info)
 {
 	u32 data = nvbios_pmuEe(bios, idx, ver, hdr);
@@ -104,7 +103,7 @@ nvbios_pmuEp(struct nouveau_bios *bios, int idx, u8 *ver, u8 *hdr,
 }
 
 bool
-nvbios_pmuRm(struct nouveau_bios *bios, u8 type, struct nvbios_pmuR *info)
+nvbios_pmuRm(struct nvkm_bios *bios, u8 type, struct nvbios_pmuR *info)
 {
 	struct nvbios_pmuE pmuE;
 	u8  ver, hdr, idx = 0;

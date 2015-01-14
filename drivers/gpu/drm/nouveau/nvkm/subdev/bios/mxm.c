@@ -21,13 +21,12 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include <subdev/bios.h>
 #include <subdev/bios/bit.h>
 #include <subdev/bios/mxm.h>
 
 u16
-mxm_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr)
+mxm_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr)
 {
 	struct bit_entry x;
 
@@ -51,28 +50,28 @@ mxm_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr)
  *
  * MXM v3.x VBIOS are nicer and provide pointers to these tables.
  */
-static u8 nv84_sor_map[16] = {
+static u8 g84_sor_map[16] = {
 	0x00, 0x12, 0x22, 0x11, 0x32, 0x31, 0x11, 0x31,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
-static u8 nv92_sor_map[16] = {
+static u8 g92_sor_map[16] = {
 	0x00, 0x12, 0x22, 0x11, 0x32, 0x31, 0x11, 0x31,
 	0x11, 0x31, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
-static u8 nv94_sor_map[16] = {
+static u8 g94_sor_map[16] = {
 	0x00, 0x14, 0x24, 0x11, 0x34, 0x31, 0x11, 0x31,
 	0x11, 0x31, 0x12, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
-static u8 nv98_sor_map[16] = {
+static u8 g98_sor_map[16] = {
 	0x00, 0x14, 0x12, 0x11, 0x00, 0x31, 0x11, 0x31,
 	0x11, 0x31, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
 u8
-mxm_sor_map(struct nouveau_bios *bios, u8 conn)
+mxm_sor_map(struct nvkm_bios *bios, u8 conn)
 {
 	u8  ver, hdr;
 	u16 mxm = mxm_table(bios, &ver, &hdr);
@@ -95,20 +94,20 @@ mxm_sor_map(struct nouveau_bios *bios, u8 conn)
 	}
 
 	if (bios->version.chip == 0x84 || bios->version.chip == 0x86)
-		return nv84_sor_map[conn];
+		return g84_sor_map[conn];
 	if (bios->version.chip == 0x92)
-		return nv92_sor_map[conn];
+		return g92_sor_map[conn];
 	if (bios->version.chip == 0x94 || bios->version.chip == 0x96)
-		return nv94_sor_map[conn];
+		return g94_sor_map[conn];
 	if (bios->version.chip == 0x98)
-		return nv98_sor_map[conn];
+		return g98_sor_map[conn];
 
 	nv_warn(bios, "missing sor map\n");
 	return 0x00;
 }
 
 u8
-mxm_ddc_map(struct nouveau_bios *bios, u8 port)
+mxm_ddc_map(struct nvkm_bios *bios, u8 port)
 {
 	u8  ver, hdr;
 	u16 mxm = mxm_table(bios, &ver, &hdr);

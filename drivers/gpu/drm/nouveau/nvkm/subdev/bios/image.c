@@ -21,14 +21,13 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-
 #include <subdev/bios.h>
 #include <subdev/bios/image.h>
 #include <subdev/bios/pcir.h>
 #include <subdev/bios/npde.h>
 
 static bool
-nvbios_imagen(struct nouveau_bios *bios, struct nvbios_image *image)
+nvbios_imagen(struct nvkm_bios *bios, struct nvbios_image *image)
 {
 	struct nvbios_pcirT pcir;
 	struct nvbios_npdeT npde;
@@ -66,7 +65,7 @@ nvbios_imagen(struct nouveau_bios *bios, struct nvbios_image *image)
 }
 
 bool
-nvbios_image(struct nouveau_bios *bios, int idx, struct nvbios_image *image)
+nvbios_image(struct nvkm_bios *bios, int idx, struct nvbios_image *image)
 {
 	memset(image, 0x00, sizeof(*image));
 	do {

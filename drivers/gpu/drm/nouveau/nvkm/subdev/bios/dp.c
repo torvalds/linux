@@ -21,14 +21,12 @@
  *
  * Authors: Ben Skeggs
  */
-
-
-#include "subdev/bios.h"
-#include "subdev/bios/bit.h"
-#include "subdev/bios/dp.h"
+#include <subdev/bios.h>
+#include <subdev/bios/bit.h>
+#include <subdev/bios/dp.h>
 
 static u16
-nvbios_dp_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
+nvbios_dp_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	struct bit_entry d;
 
@@ -57,7 +55,7 @@ nvbios_dp_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 }
 
 static u16
-nvbios_dpout_entry(struct nouveau_bios *bios, u8 idx,
+nvbios_dpout_entry(struct nvkm_bios *bios, u8 idx,
 		   u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	u16 data = nvbios_dp_table(bios, ver, hdr, cnt, len);
@@ -86,7 +84,7 @@ nvbios_dpout_entry(struct nouveau_bios *bios, u8 idx,
 }
 
 u16
-nvbios_dpout_parse(struct nouveau_bios *bios, u8 idx,
+nvbios_dpout_parse(struct nvkm_bios *bios, u8 idx,
 		   u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 		   struct nvbios_dpout *info)
 {
@@ -128,7 +126,7 @@ nvbios_dpout_parse(struct nouveau_bios *bios, u8 idx,
 }
 
 u16
-nvbios_dpout_match(struct nouveau_bios *bios, u16 type, u16 mask,
+nvbios_dpout_match(struct nvkm_bios *bios, u16 type, u16 mask,
 		   u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 		   struct nvbios_dpout *info)
 {
@@ -143,7 +141,7 @@ nvbios_dpout_match(struct nouveau_bios *bios, u16 type, u16 mask,
 }
 
 static u16
-nvbios_dpcfg_entry(struct nouveau_bios *bios, u16 outp, u8 idx,
+nvbios_dpcfg_entry(struct nvkm_bios *bios, u16 outp, u8 idx,
 		   u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	if (*ver >= 0x40) {
@@ -160,7 +158,7 @@ nvbios_dpcfg_entry(struct nouveau_bios *bios, u16 outp, u8 idx,
 }
 
 u16
-nvbios_dpcfg_parse(struct nouveau_bios *bios, u16 outp, u8 idx,
+nvbios_dpcfg_parse(struct nvkm_bios *bios, u16 outp, u8 idx,
 		   u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 		   struct nvbios_dpcfg *info)
 {
@@ -190,7 +188,7 @@ nvbios_dpcfg_parse(struct nouveau_bios *bios, u16 outp, u8 idx,
 }
 
 u16
-nvbios_dpcfg_match(struct nouveau_bios *bios, u16 outp, u8 pc, u8 vs, u8 pe,
+nvbios_dpcfg_match(struct nvkm_bios *bios, u16 outp, u8 pc, u8 vs, u8 pe,
 		   u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 		   struct nvbios_dpcfg *info)
 {

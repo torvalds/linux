@@ -20,8 +20,9 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-
 #include "priv.h"
+
+#include <core/device.h>
 
 struct priv {
 	struct pci_dev *pdev;
@@ -30,7 +31,7 @@ struct priv {
 };
 
 static u32
-pcirom_read(void *data, u32 offset, u32 length, struct nouveau_bios *bios)
+pcirom_read(void *data, u32 offset, u32 length, struct nvkm_bios *bios)
 {
 	struct priv *priv = data;
 	if (offset + length <= priv->size) {
@@ -50,7 +51,7 @@ pcirom_fini(void *data)
 }
 
 static void *
-pcirom_init(struct nouveau_bios *bios, const char *name)
+pcirom_init(struct nvkm_bios *bios, const char *name)
 {
 	struct pci_dev *pdev = nv_device(bios)->pdev;
 	struct priv *priv = NULL;
@@ -82,7 +83,7 @@ nvbios_pcirom = {
 };
 
 static void *
-platform_init(struct nouveau_bios *bios, const char *name)
+platform_init(struct nvkm_bios *bios, const char *name)
 {
 	struct pci_dev *pdev = nv_device(bios)->pdev;
 	struct priv *priv;

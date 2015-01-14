@@ -21,13 +21,12 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include <subdev/bios.h>
 #include <subdev/bios/bit.h>
 #include <subdev/bios/boost.h>
 
 u16
-nvbios_boostTe(struct nouveau_bios *bios,
+nvbios_boostTe(struct nvkm_bios *bios,
 	       u8 *ver, u8 *hdr, u8 *cnt, u8 *len, u8 *snr, u8 *ssz)
 {
 	struct bit_entry bit_P;
@@ -57,7 +56,7 @@ nvbios_boostTe(struct nouveau_bios *bios,
 }
 
 u16
-nvbios_boostEe(struct nouveau_bios *bios, int idx,
+nvbios_boostEe(struct nvkm_bios *bios, int idx,
 	       u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	u8  snr, ssz;
@@ -73,7 +72,7 @@ nvbios_boostEe(struct nouveau_bios *bios, int idx,
 }
 
 u16
-nvbios_boostEp(struct nouveau_bios *bios, int idx,
+nvbios_boostEp(struct nvkm_bios *bios, int idx,
 	       u8 *ver, u8 *hdr, u8 *cnt, u8 *len, struct nvbios_boostE *info)
 {
 	u16 data = nvbios_boostEe(bios, idx, ver, hdr, cnt, len);
@@ -87,7 +86,7 @@ nvbios_boostEp(struct nouveau_bios *bios, int idx,
 }
 
 u16
-nvbios_boostEm(struct nouveau_bios *bios, u8 pstate,
+nvbios_boostEm(struct nvkm_bios *bios, u8 pstate,
 	       u8 *ver, u8 *hdr, u8 *cnt, u8 *len, struct nvbios_boostE *info)
 {
 	u32 data, idx = 0;
@@ -99,7 +98,7 @@ nvbios_boostEm(struct nouveau_bios *bios, u8 pstate,
 }
 
 u16
-nvbios_boostSe(struct nouveau_bios *bios, int idx,
+nvbios_boostSe(struct nvkm_bios *bios, int idx,
 	       u16 data, u8 *ver, u8 *hdr, u8 cnt, u8 len)
 {
 	if (data && idx < cnt) {
@@ -111,7 +110,7 @@ nvbios_boostSe(struct nouveau_bios *bios, int idx,
 }
 
 u16
-nvbios_boostSp(struct nouveau_bios *bios, int idx,
+nvbios_boostSp(struct nvkm_bios *bios, int idx,
 	       u16 data, u8 *ver, u8 *hdr, u8 cnt, u8 len,
 	       struct nvbios_boostS *info)
 {

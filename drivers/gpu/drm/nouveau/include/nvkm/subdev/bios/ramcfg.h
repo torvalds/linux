@@ -1,8 +1,5 @@
 #ifndef __NVBIOS_RAMCFG_H__
 #define __NVBIOS_RAMCFG_H__
-
-struct nouveau_bios;
-
 struct nvbios_ramcfg {
 	unsigned rammap_ver;
 	unsigned rammap_hdr;
@@ -139,7 +136,6 @@ struct nvbios_ramcfg {
 	};
 };
 
-u8 nvbios_ramcfg_count(struct nouveau_bios *);
-u8 nvbios_ramcfg_index(struct nouveau_subdev *);
-
+u8 nvbios_ramcfg_count(struct nvkm_bios *);
+u8 nvbios_ramcfg_index(struct nvkm_subdev *);
 #endif

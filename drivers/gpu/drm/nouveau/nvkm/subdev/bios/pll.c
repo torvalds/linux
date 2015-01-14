@@ -21,12 +21,13 @@
  * OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-
-#include <subdev/vga.h>
 #include <subdev/bios.h>
 #include <subdev/bios/bit.h>
 #include <subdev/bios/bmp.h>
 #include <subdev/bios/pll.h>
+#include <subdev/vga.h>
+
+#include <core/device.h>
 
 struct pll_mapping {
 	u8  type;
@@ -66,7 +67,7 @@ nv50_pll_mapping[] = {
 };
 
 static struct pll_mapping
-nv84_pll_mapping[] = {
+g84_pll_mapping[] = {
 	{ PLL_CORE  , 0x004028 },
 	{ PLL_SHADER, 0x004020 },
 	{ PLL_MEMORY, 0x004008 },
@@ -78,7 +79,7 @@ nv84_pll_mapping[] = {
 };
 
 static u16
-pll_limits_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
+pll_limits_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	struct bit_entry bit_C;
 
@@ -109,7 +110,7 @@ pll_limits_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 }
 
 static struct pll_mapping *
-pll_map(struct nouveau_bios *bios)
+pll_map(struct nvkm_bios *bios)
 {
 	switch (nv_device(bios)->card_type) {
 	case NV_04:
@@ -128,14 +129,14 @@ pll_map(struct nouveau_bios *bios)
 		if (nv_device(bios)->chipset <  0xa3 ||
 		    nv_device(bios)->chipset == 0xaa ||
 		    nv_device(bios)->chipset == 0xac)
-			return nv84_pll_mapping;
+			return g84_pll_mapping;
 	default:
 		return NULL;
 	}
 }
 
 static u16
-pll_map_reg(struct nouveau_bios *bios, u32 reg, u32 *type, u8 *ver, u8 *len)
+pll_map_reg(struct nvkm_bios *bios, u32 reg, u32 *type, u8 *ver, u8 *len)
 {
 	struct pll_mapping *map;
 	u8  hdr, cnt;
@@ -177,7 +178,7 @@ pll_map_reg(struct nouveau_bios *bios, u32 reg, u32 *type, u8 *ver, u8 *len)
 }
 
 static u16
-pll_map_type(struct nouveau_bios *bios, u8 type, u32 *reg, u8 *ver, u8 *len)
+pll_map_type(struct nvkm_bios *bios, u8 type, u32 *reg, u8 *ver, u8 *len)
 {
 	struct pll_mapping *map;
 	u8  hdr, cnt;
@@ -219,7 +220,7 @@ pll_map_type(struct nouveau_bios *bios, u8 type, u32 *reg, u8 *ver, u8 *len)
 }
 
 int
-nvbios_pll_parse(struct nouveau_bios *bios, u32 type, struct nvbios_pll *info)
+nvbios_pll_parse(struct nvkm_bios *bios, u32 type, struct nvbios_pll *info)
 {
 	u8  ver, len;
 	u32 reg = type;

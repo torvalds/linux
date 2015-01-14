@@ -21,14 +21,12 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include <subdev/bios.h>
 #include <subdev/bios/bit.h>
-#include <subdev/bios/ramcfg.h>
 #include <subdev/bios/rammap.h>
 
 u32
-nvbios_rammapTe(struct nouveau_bios *bios, u8 *ver, u8 *hdr,
+nvbios_rammapTe(struct nvkm_bios *bios, u8 *ver, u8 *hdr,
 		u8 *cnt, u8 *len, u8 *snr, u8 *ssz)
 {
 	struct bit_entry bit_P;
@@ -59,7 +57,7 @@ nvbios_rammapTe(struct nouveau_bios *bios, u8 *ver, u8 *hdr,
 }
 
 u32
-nvbios_rammapEe(struct nouveau_bios *bios, int idx,
+nvbios_rammapEe(struct nvkm_bios *bios, int idx,
 		u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	u8  snr, ssz;
@@ -75,9 +73,8 @@ nvbios_rammapEe(struct nouveau_bios *bios, int idx,
 }
 
 u32
-nvbios_rammapEp(struct nouveau_bios *bios, int idx,
-		u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
-		struct nvbios_ramcfg *p)
+nvbios_rammapEp(struct nvkm_bios *bios, int idx,
+		u8 *ver, u8 *hdr, u8 *cnt, u8 *len, struct nvbios_ramcfg *p)
 {
 	u32 data = nvbios_rammapEe(bios, idx, ver, hdr, cnt, len), temp;
 	memset(p, 0x00, sizeof(*p));
@@ -118,9 +115,8 @@ nvbios_rammapEp(struct nouveau_bios *bios, int idx,
 }
 
 u32
-nvbios_rammapEm(struct nouveau_bios *bios, u16 mhz,
-		u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
-		struct nvbios_ramcfg *info)
+nvbios_rammapEm(struct nvkm_bios *bios, u16 mhz,
+		u8 *ver, u8 *hdr, u8 *cnt, u8 *len, struct nvbios_ramcfg *info)
 {
 	int idx = 0;
 	u32 data;
@@ -132,9 +128,8 @@ nvbios_rammapEm(struct nouveau_bios *bios, u16 mhz,
 }
 
 u32
-nvbios_rammapSe(struct nouveau_bios *bios, u32 data,
-		u8 ever, u8 ehdr, u8 ecnt, u8 elen, int idx,
-		u8 *ver, u8 *hdr)
+nvbios_rammapSe(struct nvkm_bios *bios, u32 data,
+		u8 ever, u8 ehdr, u8 ecnt, u8 elen, int idx, u8 *ver, u8 *hdr)
 {
 	if (idx < ecnt) {
 		data = data + ehdr + (idx * elen);
@@ -146,7 +141,7 @@ nvbios_rammapSe(struct nouveau_bios *bios, u32 data,
 }
 
 u32
-nvbios_rammapSp(struct nouveau_bios *bios, u32 data,
+nvbios_rammapSp(struct nvkm_bios *bios, u32 data,
 		u8 ever, u8 ehdr, u8 ecnt, u8 elen, int idx,
 		u8 *ver, u8 *hdr, struct nvbios_ramcfg *p)
 {

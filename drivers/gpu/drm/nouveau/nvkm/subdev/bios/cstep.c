@@ -21,13 +21,12 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include <subdev/bios.h>
 #include <subdev/bios/bit.h>
 #include <subdev/bios/cstep.h>
 
 u16
-nvbios_cstepTe(struct nouveau_bios *bios,
+nvbios_cstepTe(struct nvkm_bios *bios,
 	       u8 *ver, u8 *hdr, u8 *cnt, u8 *len, u8 *xnr, u8 *xsz)
 {
 	struct bit_entry bit_P;
@@ -57,7 +56,7 @@ nvbios_cstepTe(struct nouveau_bios *bios,
 }
 
 u16
-nvbios_cstepEe(struct nouveau_bios *bios, int idx, u8 *ver, u8 *hdr)
+nvbios_cstepEe(struct nvkm_bios *bios, int idx, u8 *ver, u8 *hdr)
 {
 	u8  cnt, len, xnr, xsz;
 	u16 data = nvbios_cstepTe(bios, ver, hdr, &cnt, &len, &xnr, &xsz);
@@ -70,7 +69,7 @@ nvbios_cstepEe(struct nouveau_bios *bios, int idx, u8 *ver, u8 *hdr)
 }
 
 u16
-nvbios_cstepEp(struct nouveau_bios *bios, int idx, u8 *ver, u8 *hdr,
+nvbios_cstepEp(struct nvkm_bios *bios, int idx, u8 *ver, u8 *hdr,
 	       struct nvbios_cstepE *info)
 {
 	u16 data = nvbios_cstepEe(bios, idx, ver, hdr);
@@ -83,7 +82,7 @@ nvbios_cstepEp(struct nouveau_bios *bios, int idx, u8 *ver, u8 *hdr,
 }
 
 u16
-nvbios_cstepEm(struct nouveau_bios *bios, u8 pstate, u8 *ver, u8 *hdr,
+nvbios_cstepEm(struct nvkm_bios *bios, u8 pstate, u8 *ver, u8 *hdr,
 	       struct nvbios_cstepE *info)
 {
 	u32 data, idx = 0;
@@ -95,7 +94,7 @@ nvbios_cstepEm(struct nouveau_bios *bios, u8 pstate, u8 *ver, u8 *hdr,
 }
 
 u16
-nvbios_cstepXe(struct nouveau_bios *bios, int idx, u8 *ver, u8 *hdr)
+nvbios_cstepXe(struct nvkm_bios *bios, int idx, u8 *ver, u8 *hdr)
 {
 	u8  cnt, len, xnr, xsz;
 	u16 data = nvbios_cstepTe(bios, ver, hdr, &cnt, &len, &xnr, &xsz);
@@ -108,7 +107,7 @@ nvbios_cstepXe(struct nouveau_bios *bios, int idx, u8 *ver, u8 *hdr)
 }
 
 u16
-nvbios_cstepXp(struct nouveau_bios *bios, int idx, u8 *ver, u8 *hdr,
+nvbios_cstepXp(struct nvkm_bios *bios, int idx, u8 *ver, u8 *hdr,
 	       struct nvbios_cstepX *info)
 {
 	u16 data = nvbios_cstepXe(bios, idx, ver, hdr);

@@ -21,13 +21,12 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include <subdev/bios.h>
 #include <subdev/bios/bit.h>
 #include <subdev/bios/M0205.h>
 
 u32
-nvbios_M0205Te(struct nouveau_bios *bios,
+nvbios_M0205Te(struct nvkm_bios *bios,
 	       u8 *ver, u8 *hdr, u8 *cnt, u8 *len, u8 *snr, u8 *ssz)
 {
 	struct bit_entry bit_M;
@@ -56,7 +55,7 @@ nvbios_M0205Te(struct nouveau_bios *bios,
 }
 
 u32
-nvbios_M0205Tp(struct nouveau_bios *bios,
+nvbios_M0205Tp(struct nvkm_bios *bios,
 	       u8 *ver, u8 *hdr, u8 *cnt, u8 *len, u8 *snr, u8 *ssz,
 	       struct nvbios_M0205T *info)
 {
@@ -73,7 +72,7 @@ nvbios_M0205Tp(struct nouveau_bios *bios,
 }
 
 u32
-nvbios_M0205Ee(struct nouveau_bios *bios, int idx,
+nvbios_M0205Ee(struct nvkm_bios *bios, int idx,
 	       u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	u8  snr, ssz;
@@ -89,7 +88,7 @@ nvbios_M0205Ee(struct nouveau_bios *bios, int idx,
 }
 
 u32
-nvbios_M0205Ep(struct nouveau_bios *bios, int idx,
+nvbios_M0205Ep(struct nvkm_bios *bios, int idx,
 	       u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 	       struct nvbios_M0205E *info)
 {
@@ -106,7 +105,7 @@ nvbios_M0205Ep(struct nouveau_bios *bios, int idx,
 }
 
 u32
-nvbios_M0205Se(struct nouveau_bios *bios, int ent, int idx, u8 *ver, u8 *hdr)
+nvbios_M0205Se(struct nvkm_bios *bios, int ent, int idx, u8 *ver, u8 *hdr)
 {
 
 	u8  cnt, len;
@@ -120,7 +119,7 @@ nvbios_M0205Se(struct nouveau_bios *bios, int ent, int idx, u8 *ver, u8 *hdr)
 }
 
 u32
-nvbios_M0205Sp(struct nouveau_bios *bios, int ent, int idx, u8 *ver, u8 *hdr,
+nvbios_M0205Sp(struct nvkm_bios *bios, int ent, int idx, u8 *ver, u8 *hdr,
 	       struct nvbios_M0205S *info)
 {
 	u32 data = nvbios_M0205Se(bios, ent, idx, ver, hdr);

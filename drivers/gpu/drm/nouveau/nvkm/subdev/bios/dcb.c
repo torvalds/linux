@@ -21,16 +21,15 @@
  *
  * Authors: Ben Skeggs
  */
+#include <subdev/bios.h>
+#include <subdev/bios/dcb.h>
 
-#include "core/device.h"
-
-#include "subdev/bios.h"
-#include "subdev/bios/dcb.h"
+#include <core/device.h>
 
 u16
-dcb_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
+dcb_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
-	struct nouveau_device *device = nv_device(bios);
+	struct nvkm_device *device = nv_device(bios);
 	u16 dcb = 0x0000;
 
 	if (device->card_type > NV_04)
@@ -98,7 +97,7 @@ dcb_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 }
 
 u16
-dcb_outp(struct nouveau_bios *bios, u8 idx, u8 *ver, u8 *len)
+dcb_outp(struct nvkm_bios *bios, u8 idx, u8 *ver, u8 *len)
 {
 	u8  hdr, cnt;
 	u16 dcb = dcb_table(bios, ver, &hdr, &cnt, len);
@@ -120,7 +119,7 @@ dcb_outp_hashm(struct dcb_output *outp)
 }
 
 u16
-dcb_outp_parse(struct nouveau_bios *bios, u8 idx, u8 *ver, u8 *len,
+dcb_outp_parse(struct nvkm_bios *bios, u8 idx, u8 *ver, u8 *len,
 	       struct dcb_output *outp)
 {
 	u16 dcb = dcb_outp(bios, idx, ver, len);
@@ -194,7 +193,7 @@ dcb_outp_parse(struct nouveau_bios *bios, u8 idx, u8 *ver, u8 *len,
 }
 
 u16
-dcb_outp_match(struct nouveau_bios *bios, u16 type, u16 mask,
+dcb_outp_match(struct nvkm_bios *bios, u16 type, u16 mask,
 	       u8 *ver, u8 *len, struct dcb_output *outp)
 {
 	u16 dcb, idx = 0;
@@ -208,8 +207,8 @@ dcb_outp_match(struct nouveau_bios *bios, u16 type, u16 mask,
 }
 
 int
-dcb_outp_foreach(struct nouveau_bios *bios, void *data,
-		 int (*exec)(struct nouveau_bios *, void *, int, u16))
+dcb_outp_foreach(struct nvkm_bios *bios, void *data,
+		 int (*exec)(struct nvkm_bios *, void *, int, u16))
 {
 	int ret, idx = -1;
 	u8  ver, len;

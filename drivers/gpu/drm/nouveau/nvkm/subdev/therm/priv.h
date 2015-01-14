@@ -27,6 +27,7 @@
 
 #include <subdev/therm.h>
 
+#include <subdev/bios.h>
 #include <subdev/bios/extdev.h>
 #include <subdev/bios/gpio.h>
 #include <subdev/bios/perf.h>
@@ -74,7 +75,7 @@ struct nouveau_therm_priv {
 	/* automatic thermal management */
 	struct nouveau_alarm alarm;
 	spinlock_t lock;
-	struct nouveau_therm_trip_point *last_trip;
+	struct nvbios_therm_trip_point *last_trip;
 	int mode;
 	int cstate;
 	int suspend;

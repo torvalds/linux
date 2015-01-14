@@ -1,9 +1,29 @@
-#include <core/engine.h>
-#include <core/device.h>
-
+/*
+ * Copyright 2012 Red Hat Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDER(S) OR AUTHOR(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Authors: Ben Skeggs
+ */
 #include <subdev/bios.h>
-#include <subdev/bios/bmp.h>
 #include <subdev/bios/bit.h>
+#include <subdev/bios/bmp.h>
 #include <subdev/bios/conn.h>
 #include <subdev/bios/dcb.h>
 #include <subdev/bios/dp.h>
@@ -11,9 +31,9 @@
 #include <subdev/bios/init.h>
 #include <subdev/bios/ramcfg.h>
 #include <subdev/devinit.h>
+#include <subdev/gpio.h>
 #include <subdev/i2c.h>
 #include <subdev/vga.h>
-#include <subdev/gpio.h>
 
 #define bioslog(lvl, fmt, args...) do {                                        \
 	nv_printk(init->bios, lvl, "0x%04x[%c]: "fmt, init->offset,            \
@@ -97,7 +117,7 @@ init_crtc(struct nvbios_init *init)
 static u8
 init_conn(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	struct nvbios_connE connE;
 	u8  ver, hdr;
 	u32 conn;
@@ -119,7 +139,7 @@ init_conn(struct nvbios_init *init)
 static inline u32
 init_nvreg(struct nvbios_init *init, u32 reg)
 {
-	struct nouveau_devinit *devinit = nouveau_devinit(init->bios);
+	struct nvkm_devinit *devinit = nvkm_devinit(init->bios);
 
 	/* C51 (at least) sometimes has the lower bits set which the VBIOS
 	 * interprets to mean that access needs to go through certain IO
@@ -203,7 +223,7 @@ init_wrport(struct nvbios_init *init, u16 port, u8 value)
 static u8
 init_rdvgai(struct nvbios_init *init, u16 port, u8 index)
 {
-	struct nouveau_subdev *subdev = init->subdev;
+	struct nvkm_subdev *subdev = init->subdev;
 	if (init_exec(init)) {
 		int head = init->crtc < 0 ? 0 : init->crtc;
 		return nv_rdvgai(subdev, head, port, index);
@@ -232,10 +252,10 @@ init_wrvgai(struct nvbios_init *init, u16 port, u8 index, u8 value)
 	}
 }
 
-static struct nouveau_i2c_port *
+static struct nvkm_i2c_port *
 init_i2c(struct nvbios_init *init, int index)
 {
-	struct nouveau_i2c *i2c = nouveau_i2c(init->bios);
+	struct nvkm_i2c *i2c = nvkm_i2c(init->bios);
 
 	if (index == 0xff) {
 		index = NV_I2C_DEFAULT(0);
@@ -265,7 +285,7 @@ init_i2c(struct nvbios_init *init, int index)
 static int
 init_rdi2cr(struct nvbios_init *init, u8 index, u8 addr, u8 reg)
 {
-	struct nouveau_i2c_port *port = init_i2c(init, index);
+	struct nvkm_i2c_port *port = init_i2c(init, index);
 	if (port && init_exec(init))
 		return nv_rdi2cr(port, addr, reg);
 	return -ENODEV;
@@ -274,7 +294,7 @@ init_rdi2cr(struct nvbios_init *init, u8 index, u8 addr, u8 reg)
 static int
 init_wri2cr(struct nvbios_init *init, u8 index, u8 addr, u8 reg, u8 val)
 {
-	struct nouveau_i2c_port *port = init_i2c(init, index);
+	struct nvkm_i2c_port *port = init_i2c(init, index);
 	if (port && init_exec(init))
 		return nv_wri2cr(port, addr, reg, val);
 	return -ENODEV;
@@ -283,7 +303,7 @@ init_wri2cr(struct nvbios_init *init, u8 index, u8 addr, u8 reg, u8 val)
 static u8
 init_rdauxr(struct nvbios_init *init, u32 addr)
 {
-	struct nouveau_i2c_port *port = init_i2c(init, -2);
+	struct nvkm_i2c_port *port = init_i2c(init, -2);
 	u8 data;
 
 	if (port && init_exec(init)) {
@@ -299,7 +319,7 @@ init_rdauxr(struct nvbios_init *init, u32 addr)
 static int
 init_wrauxr(struct nvbios_init *init, u32 addr, u8 data)
 {
-	struct nouveau_i2c_port *port = init_i2c(init, -2);
+	struct nvkm_i2c_port *port = init_i2c(init, -2);
 	if (port && init_exec(init)) {
 		int ret = nv_wraux(port, addr, &data, 1);
 		if (ret)
@@ -312,7 +332,7 @@ init_wrauxr(struct nvbios_init *init, u32 addr, u8 data)
 static void
 init_prog_pll(struct nvbios_init *init, u32 id, u32 freq)
 {
-	struct nouveau_devinit *devinit = nouveau_devinit(init->bios);
+	struct nvkm_devinit *devinit = nvkm_devinit(init->bios);
 	if (devinit->pll_set && init_exec(init)) {
 		int ret = devinit->pll_set(devinit, id, freq);
 		if (ret)
@@ -325,7 +345,7 @@ init_prog_pll(struct nvbios_init *init, u32 id, u32 freq)
  *****************************************************************************/
 
 static u16
-init_table(struct nouveau_bios *bios, u16 *len)
+init_table(struct nvkm_bios *bios, u16 *len)
 {
 	struct bit_entry bit_I;
 
@@ -345,7 +365,7 @@ init_table(struct nouveau_bios *bios, u16 *len)
 static u16
 init_table_(struct nvbios_init *init, u16 offset, const char *name)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u16 len, data = init_table(bios, &len);
 	if (data) {
 		if (len >= offset + 2) {
@@ -375,7 +395,7 @@ init_table_(struct nvbios_init *init, u16 offset, const char *name)
 #define init_xlat_table(b) init_table_((b), 0x10, "xlat table");
 
 static u16
-init_script(struct nouveau_bios *bios, int index)
+init_script(struct nvkm_bios *bios, int index)
 {
 	struct nvbios_init init = { .bios = bios };
 	u16 bmp_ver = bmp_version(bios), data;
@@ -396,7 +416,7 @@ init_script(struct nouveau_bios *bios, int index)
 }
 
 static u16
-init_unknown_script(struct nouveau_bios *bios)
+init_unknown_script(struct nvkm_bios *bios)
 {
 	u16 len, data = init_table(bios, &len);
 	if (data && len >= 16)
@@ -429,7 +449,7 @@ init_ram_restrict(struct nvbios_init *init)
 static u8
 init_xlat_(struct nvbios_init *init, u8 index, u8 offset)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u16 table = init_xlat_table(init);
 	if (table) {
 		u16 data = nv_ro16(bios, table + (index * 2));
@@ -447,7 +467,7 @@ init_xlat_(struct nvbios_init *init, u8 index, u8 offset)
 static bool
 init_condition_met(struct nvbios_init *init, u8 cond)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u16 table = init_condition_table(init);
 	if (table) {
 		u32 reg = nv_ro32(bios, table + (cond * 12) + 0);
@@ -463,7 +483,7 @@ init_condition_met(struct nvbios_init *init, u8 cond)
 static bool
 init_io_condition_met(struct nvbios_init *init, u8 cond)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u16 table = init_io_condition_table(init);
 	if (table) {
 		u16 port = nv_ro16(bios, table + (cond * 5) + 0);
@@ -480,7 +500,7 @@ init_io_condition_met(struct nvbios_init *init, u8 cond)
 static bool
 init_io_flag_condition_met(struct nvbios_init *init, u8 cond)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u16 table = init_io_flag_condition_table(init);
 	if (table) {
 		u16 port = nv_ro16(bios, table + (cond * 9) + 0);
@@ -515,7 +535,6 @@ init_tmds_reg(struct nvbios_init *init, u8 tmds)
 	 * CR58 for CR57 = 0 to index a table of offsets to the basic
 	 * 0x6808b0 address, and then flip the offset by 8.
 	 */
-
 	const int pramdac_offset[13] = {
 		0, 0, 0x8, 0, 0x2000, 0, 0, 0, 0x2008, 0, 0, 0, 0x2000 };
 	const u32 pramdac_table[4] = {
@@ -589,7 +608,7 @@ init_done(struct nvbios_init *init)
 static void
 init_io_restrict_prog(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u16 port = nv_ro16(bios, init->offset + 1);
 	u8 index = nv_ro08(bios, init->offset + 3);
 	u8  mask = nv_ro08(bios, init->offset + 4);
@@ -626,7 +645,7 @@ init_io_restrict_prog(struct nvbios_init *init)
 static void
 init_repeat(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u8 count = nv_ro08(bios, init->offset + 1);
 	u16 repeat = init->repeat;
 
@@ -652,7 +671,7 @@ init_repeat(struct nvbios_init *init)
 static void
 init_io_restrict_pll(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u16 port = nv_ro16(bios, init->offset + 1);
 	u8 index = nv_ro08(bios, init->offset + 3);
 	u8  mask = nv_ro08(bios, init->offset + 4);
@@ -708,7 +727,7 @@ init_end_repeat(struct nvbios_init *init)
 static void
 init_copy(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u32  reg = nv_ro32(bios, init->offset + 1);
 	u8 shift = nv_ro08(bios, init->offset + 5);
 	u8 smask = nv_ro08(bios, init->offset + 6);
@@ -747,7 +766,7 @@ init_not(struct nvbios_init *init)
 static void
 init_io_flag_condition(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u8 cond = nv_ro08(bios, init->offset + 1);
 
 	trace("IO_FLAG_CONDITION\t0x%02x\n", cond);
@@ -764,7 +783,7 @@ init_io_flag_condition(struct nvbios_init *init)
 static void
 init_dp_condition(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	struct nvbios_dpout info;
 	u8  cond = nv_ro08(bios, init->offset + 1);
 	u8  unkn = nv_ro08(bios, init->offset + 2);
@@ -812,7 +831,7 @@ init_dp_condition(struct nvbios_init *init)
 static void
 init_io_mask_or(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u8 index = nv_ro08(bios, init->offset + 1);
 	u8    or = init_or(init);
 	u8  data;
@@ -831,7 +850,7 @@ init_io_mask_or(struct nvbios_init *init)
 static void
 init_io_or(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u8 index = nv_ro08(bios, init->offset + 1);
 	u8    or = init_or(init);
 	u8  data;
@@ -850,7 +869,7 @@ init_io_or(struct nvbios_init *init)
 static void
 init_andn_reg(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u32  reg = nv_ro32(bios, init->offset + 1);
 	u32 mask = nv_ro32(bios, init->offset + 5);
 
@@ -867,7 +886,7 @@ init_andn_reg(struct nvbios_init *init)
 static void
 init_or_reg(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u32  reg = nv_ro32(bios, init->offset + 1);
 	u32 mask = nv_ro32(bios, init->offset + 5);
 
@@ -884,7 +903,7 @@ init_or_reg(struct nvbios_init *init)
 static void
 init_idx_addr_latched(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u32 creg = nv_ro32(bios, init->offset + 1);
 	u32 dreg = nv_ro32(bios, init->offset + 5);
 	u32 mask = nv_ro32(bios, init->offset + 9);
@@ -914,7 +933,7 @@ init_idx_addr_latched(struct nvbios_init *init)
 static void
 init_io_restrict_pll2(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u16 port = nv_ro16(bios, init->offset + 1);
 	u8 index = nv_ro08(bios, init->offset + 3);
 	u8  mask = nv_ro08(bios, init->offset + 4);
@@ -949,7 +968,7 @@ init_io_restrict_pll2(struct nvbios_init *init)
 static void
 init_pll2(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u32  reg = nv_ro32(bios, init->offset + 1);
 	u32 freq = nv_ro32(bios, init->offset + 5);
 
@@ -966,7 +985,7 @@ init_pll2(struct nvbios_init *init)
 static void
 init_i2c_byte(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u8 index = nv_ro08(bios, init->offset + 1);
 	u8  addr = nv_ro08(bios, init->offset + 2) >> 1;
 	u8 count = nv_ro08(bios, init->offset + 3);
@@ -997,7 +1016,7 @@ init_i2c_byte(struct nvbios_init *init)
 static void
 init_zm_i2c_byte(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u8 index = nv_ro08(bios, init->offset + 1);
 	u8  addr = nv_ro08(bios, init->offset + 2) >> 1;
 	u8 count = nv_ro08(bios, init->offset + 3);
@@ -1014,7 +1033,6 @@ init_zm_i2c_byte(struct nvbios_init *init)
 
 		init_wri2cr(init, index, addr, reg, data);
 	}
-
 }
 
 /**
@@ -1024,7 +1042,7 @@ init_zm_i2c_byte(struct nvbios_init *init)
 static void
 init_zm_i2c(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u8 index = nv_ro08(bios, init->offset + 1);
 	u8  addr = nv_ro08(bios, init->offset + 2) >> 1;
 	u8 count = nv_ro08(bios, init->offset + 3);
@@ -1040,7 +1058,7 @@ init_zm_i2c(struct nvbios_init *init)
 	}
 
 	if (init_exec(init)) {
-		struct nouveau_i2c_port *port = init_i2c(init, index);
+		struct nvkm_i2c_port *port = init_i2c(init, index);
 		struct i2c_msg msg = {
 			.addr = addr, .flags = 0, .len = count, .buf = data,
 		};
@@ -1058,7 +1076,7 @@ init_zm_i2c(struct nvbios_init *init)
 static void
 init_tmds(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u8 tmds = nv_ro08(bios, init->offset + 1);
 	u8 addr = nv_ro08(bios, init->offset + 2);
 	u8 mask = nv_ro08(bios, init->offset + 3);
@@ -1084,7 +1102,7 @@ init_tmds(struct nvbios_init *init)
 static void
 init_zm_tmds_group(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u8  tmds = nv_ro08(bios, init->offset + 1);
 	u8 count = nv_ro08(bios, init->offset + 2);
 	u32  reg = init_tmds_reg(init, tmds);
@@ -1111,7 +1129,7 @@ init_zm_tmds_group(struct nvbios_init *init)
 static void
 init_cr_idx_adr_latch(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u8 addr0 = nv_ro08(bios, init->offset + 1);
 	u8 addr1 = nv_ro08(bios, init->offset + 2);
 	u8  base = nv_ro08(bios, init->offset + 3);
@@ -1141,7 +1159,7 @@ init_cr_idx_adr_latch(struct nvbios_init *init)
 static void
 init_cr(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u8 addr = nv_ro08(bios, init->offset + 1);
 	u8 mask = nv_ro08(bios, init->offset + 2);
 	u8 data = nv_ro08(bios, init->offset + 3);
@@ -1161,7 +1179,7 @@ init_cr(struct nvbios_init *init)
 static void
 init_zm_cr(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u8 addr = nv_ro08(bios, init->offset + 1);
 	u8 data = nv_ro08(bios, init->offset + 2);
 
@@ -1178,7 +1196,7 @@ init_zm_cr(struct nvbios_init *init)
 static void
 init_zm_cr_group(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u8 count = nv_ro08(bios, init->offset + 1);
 
 	trace("ZM_CR_GROUP\n");
@@ -1202,7 +1220,7 @@ init_zm_cr_group(struct nvbios_init *init)
 static void
 init_condition_time(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u8  cond = nv_ro08(bios, init->offset + 1);
 	u8 retry = nv_ro08(bios, init->offset + 2);
 	u8  wait = min((u16)retry * 50, 100);
@@ -1229,7 +1247,7 @@ init_condition_time(struct nvbios_init *init)
 static void
 init_ltime(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u16 msec = nv_ro16(bios, init->offset + 1);
 
 	trace("LTIME\t0x%04x\n", msec);
@@ -1246,7 +1264,7 @@ init_ltime(struct nvbios_init *init)
 static void
 init_zm_reg_sequence(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u32 base = nv_ro32(bios, init->offset + 1);
 	u8 count = nv_ro08(bios, init->offset + 5);
 
@@ -1271,7 +1289,7 @@ init_zm_reg_sequence(struct nvbios_init *init)
 static void
 init_sub_direct(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u16 addr = nv_ro16(bios, init->offset + 1);
 	u16 save;
 
@@ -1297,7 +1315,7 @@ init_sub_direct(struct nvbios_init *init)
 static void
 init_jump(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u16 offset = nv_ro16(bios, init->offset + 1);
 
 	trace("JUMP\t0x%04x\n", offset);
@@ -1315,7 +1333,7 @@ init_jump(struct nvbios_init *init)
 static void
 init_i2c_if(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u8 index = nv_ro08(bios, init->offset + 1);
 	u8  addr = nv_ro08(bios, init->offset + 2);
 	u8   reg = nv_ro08(bios, init->offset + 3);
@@ -1342,7 +1360,7 @@ init_i2c_if(struct nvbios_init *init)
 static void
 init_copy_nv_reg(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u32  sreg = nv_ro32(bios, init->offset + 1);
 	u8  shift = nv_ro08(bios, init->offset + 5);
 	u32 smask = nv_ro32(bios, init->offset + 6);
@@ -1368,7 +1386,7 @@ init_copy_nv_reg(struct nvbios_init *init)
 static void
 init_zm_index_io(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u16 port = nv_ro16(bios, init->offset + 1);
 	u8 index = nv_ro08(bios, init->offset + 3);
 	u8  data = nv_ro08(bios, init->offset + 4);
@@ -1386,7 +1404,7 @@ init_zm_index_io(struct nvbios_init *init)
 static void
 init_compute_mem(struct nvbios_init *init)
 {
-	struct nouveau_devinit *devinit = nouveau_devinit(init->bios);
+	struct nvkm_devinit *devinit = nvkm_devinit(init->bios);
 
 	trace("COMPUTE_MEM\n");
 	init->offset += 1;
@@ -1404,7 +1422,7 @@ init_compute_mem(struct nvbios_init *init)
 static void
 init_reset(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u32   reg = nv_ro32(bios, init->offset + 1);
 	u32 data1 = nv_ro32(bios, init->offset + 5);
 	u32 data2 = nv_ro32(bios, init->offset + 9);
@@ -1440,7 +1458,7 @@ init_configure_mem_clk(struct nvbios_init *init)
 static void
 init_configure_mem(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u16 mdata, sdata;
 	u32 addr, data;
 
@@ -1490,7 +1508,7 @@ init_configure_mem(struct nvbios_init *init)
 static void
 init_configure_clk(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u16 mdata, clock;
 
 	trace("CONFIGURE_CLK\n");
@@ -1524,7 +1542,7 @@ init_configure_clk(struct nvbios_init *init)
 static void
 init_configure_preinit(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u32 strap;
 
 	trace("CONFIGURE_PREINIT\n");
@@ -1550,7 +1568,7 @@ init_configure_preinit(struct nvbios_init *init)
 static void
 init_io(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u16 port = nv_ro16(bios, init->offset + 1);
 	u8  mask = nv_ro16(bios, init->offset + 3);
 	u8  data = nv_ro16(bios, init->offset + 4);
@@ -1590,7 +1608,7 @@ init_io(struct nvbios_init *init)
 static void
 init_sub(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u8 index = nv_ro08(bios, init->offset + 1);
 	u16 addr, save;
 
@@ -1617,7 +1635,7 @@ init_sub(struct nvbios_init *init)
 static void
 init_ram_condition(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u8  mask = nv_ro08(bios, init->offset + 1);
 	u8 value = nv_ro08(bios, init->offset + 2);
 
@@ -1636,7 +1654,7 @@ init_ram_condition(struct nvbios_init *init)
 static void
 init_nv_reg(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u32  reg = nv_ro32(bios, init->offset + 1);
 	u32 mask = nv_ro32(bios, init->offset + 5);
 	u32 data = nv_ro32(bios, init->offset + 9);
@@ -1654,7 +1672,7 @@ init_nv_reg(struct nvbios_init *init)
 static void
 init_macro(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u8  macro = nv_ro08(bios, init->offset + 1);
 	u16 table;
 
@@ -1690,7 +1708,7 @@ init_resume(struct nvbios_init *init)
 static void
 init_time(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u16 usec = nv_ro16(bios, init->offset + 1);
 
 	trace("TIME\t0x%04x\n", usec);
@@ -1711,7 +1729,7 @@ init_time(struct nvbios_init *init)
 static void
 init_condition(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u8 cond = nv_ro08(bios, init->offset + 1);
 
 	trace("CONDITION\t0x%02x\n", cond);
@@ -1728,7 +1746,7 @@ init_condition(struct nvbios_init *init)
 static void
 init_io_condition(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u8 cond = nv_ro08(bios, init->offset + 1);
 
 	trace("IO_CONDITION\t0x%02x\n", cond);
@@ -1745,7 +1763,7 @@ init_io_condition(struct nvbios_init *init)
 static void
 init_index_io(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u16 port = nv_ro16(bios, init->offset + 1);
 	u8 index = nv_ro16(bios, init->offset + 3);
 	u8  mask = nv_ro08(bios, init->offset + 4);
@@ -1767,7 +1785,7 @@ init_index_io(struct nvbios_init *init)
 static void
 init_pll(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u32  reg = nv_ro32(bios, init->offset + 1);
 	u32 freq = nv_ro16(bios, init->offset + 5) * 10;
 
@@ -1784,7 +1802,7 @@ init_pll(struct nvbios_init *init)
 static void
 init_zm_reg(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u32 addr = nv_ro32(bios, init->offset + 1);
 	u32 data = nv_ro32(bios, init->offset + 5);
 
@@ -1804,7 +1822,7 @@ init_zm_reg(struct nvbios_init *init)
 static void
 init_ram_restrict_pll(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u8  type = nv_ro08(bios, init->offset + 1);
 	u8 count = init_ram_restrict_group_count(init);
 	u8 strap = init_ram_restrict(init);
@@ -1834,7 +1852,7 @@ init_ram_restrict_pll(struct nvbios_init *init)
 static void
 init_gpio(struct nvbios_init *init)
 {
-	struct nouveau_gpio *gpio = nouveau_gpio(init->bios);
+	struct nvkm_gpio *gpio = nvkm_gpio(init->bios);
 
 	trace("GPIO\n");
 	init->offset += 1;
@@ -1850,7 +1868,7 @@ init_gpio(struct nvbios_init *init)
 static void
 init_ram_restrict_zm_reg_group(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u32 addr = nv_ro32(bios, init->offset + 1);
 	u8  incr = nv_ro08(bios, init->offset + 5);
 	u8   num = nv_ro08(bios, init->offset + 6);
@@ -1888,7 +1906,7 @@ init_ram_restrict_zm_reg_group(struct nvbios_init *init)
 static void
 init_copy_zm_reg(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u32 sreg = nv_ro32(bios, init->offset + 1);
 	u32 dreg = nv_ro32(bios, init->offset + 5);
 
@@ -1905,7 +1923,7 @@ init_copy_zm_reg(struct nvbios_init *init)
 static void
 init_zm_reg_group(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u32 addr = nv_ro32(bios, init->offset + 1);
 	u8 count = nv_ro08(bios, init->offset + 5);
 
@@ -1927,7 +1945,7 @@ init_zm_reg_group(struct nvbios_init *init)
 static void
 init_xlat(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u32 saddr = nv_ro32(bios, init->offset + 1);
 	u8 sshift = nv_ro08(bios, init->offset + 5);
 	u8  smask = nv_ro08(bios, init->offset + 6);
@@ -1955,7 +1973,7 @@ init_xlat(struct nvbios_init *init)
 static void
 init_zm_mask_add(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u32 addr = nv_ro32(bios, init->offset + 1);
 	u32 mask = nv_ro32(bios, init->offset + 5);
 	u32  add = nv_ro32(bios, init->offset + 9);
@@ -1976,7 +1994,7 @@ init_zm_mask_add(struct nvbios_init *init)
 static void
 init_auxch(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u32 addr = nv_ro32(bios, init->offset + 1);
 	u8 count = nv_ro08(bios, init->offset + 5);
 
@@ -2000,7 +2018,7 @@ init_auxch(struct nvbios_init *init)
 static void
 init_zm_auxch(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u32 addr = nv_ro32(bios, init->offset + 1);
 	u8 count = nv_ro08(bios, init->offset + 5);
 
@@ -2022,14 +2040,14 @@ init_zm_auxch(struct nvbios_init *init)
 static void
 init_i2c_long_if(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
+	struct nvkm_bios *bios = init->bios;
 	u8 index = nv_ro08(bios, init->offset + 1);
 	u8  addr = nv_ro08(bios, init->offset + 2) >> 1;
 	u8 reglo = nv_ro08(bios, init->offset + 3);
 	u8 reghi = nv_ro08(bios, init->offset + 4);
 	u8  mask = nv_ro08(bios, init->offset + 5);
 	u8  data = nv_ro08(bios, init->offset + 6);
-	struct nouveau_i2c_port *port;
+	struct nvkm_i2c_port *port;
 
 	trace("I2C_LONG_IF\t"
 	      "I2C[0x%02x][0x%02x][0x%02x%02x] & 0x%02x == 0x%02x\n",
@@ -2061,8 +2079,8 @@ init_i2c_long_if(struct nvbios_init *init)
 static void
 init_gpio_ne(struct nvbios_init *init)
 {
-	struct nouveau_bios *bios = init->bios;
-	struct nouveau_gpio *gpio = nouveau_gpio(bios);
+	struct nvkm_bios *bios = init->bios;
+	struct nvkm_gpio *gpio = nvkm_gpio(bios);
 	struct dcb_gpio_func func;
 	u8 count = nv_ro08(bios, init->offset + 1);
 	u8 idx = 0, ver, len;
@@ -2185,9 +2203,9 @@ nvbios_exec(struct nvbios_init *init)
 }
 
 int
-nvbios_init(struct nouveau_subdev *subdev, bool execute)
+nvbios_init(struct nvkm_subdev *subdev, bool execute)
 {
-	struct nouveau_bios *bios = nouveau_bios(subdev);
+	struct nvkm_bios *bios = nvkm_bios(subdev);
 	int ret = 0;
 	int i = -1;
 	u16 data;

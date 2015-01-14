@@ -33,9 +33,9 @@ static int
 nouveau_therm_update_trip(struct nouveau_therm *therm)
 {
 	struct nouveau_therm_priv *priv = (void *)therm;
-	struct nouveau_therm_trip_point *trip = priv->fan->bios.trip,
-					*cur_trip = NULL,
-					*last_trip = priv->last_trip;
+	struct nvbios_therm_trip_point *trip = priv->fan->bios.trip,
+				       *cur_trip = NULL,
+				       *last_trip = priv->last_trip;
 	u8  temp = therm->temp_get(therm);
 	u16 duty, i;
 

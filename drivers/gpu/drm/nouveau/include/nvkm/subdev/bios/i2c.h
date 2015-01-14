@@ -1,8 +1,5 @@
 #ifndef __NVBIOS_I2C_H__
 #define __NVBIOS_I2C_H__
-
-struct nouveau_bios;
-
 enum dcb_i2c_type {
 	/* matches bios type field prior to ccb 4.1 */
 	DCB_I2C_NV04_BIT = 0x00,
@@ -22,8 +19,7 @@ struct dcb_i2c_entry {
 	u8 auxch;
 };
 
-u16 dcb_i2c_table(struct nouveau_bios *, u8 *ver, u8 *hdr, u8 *cnt, u8 *len);
-u16 dcb_i2c_entry(struct nouveau_bios *, u8 index, u8 *ver, u8 *len);
-int dcb_i2c_parse(struct nouveau_bios *, u8 index, struct dcb_i2c_entry *);
-
+u16 dcb_i2c_table(struct nvkm_bios *, u8 *ver, u8 *hdr, u8 *cnt, u8 *len);
+u16 dcb_i2c_entry(struct nvkm_bios *, u8 index, u8 *ver, u8 *len);
+int dcb_i2c_parse(struct nvkm_bios *, u8 index, struct dcb_i2c_entry *);
 #endif

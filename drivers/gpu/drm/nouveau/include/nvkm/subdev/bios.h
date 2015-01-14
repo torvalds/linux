@@ -1,11 +1,9 @@
-#ifndef __NOUVEAU_BIOS_H__
-#define __NOUVEAU_BIOS_H__
-
+#ifndef __NVKM_BIOS_H__
+#define __NVKM_BIOS_H__
 #include <core/subdev.h>
-#include <core/device.h>
 
-struct nouveau_bios {
-	struct nouveau_subdev base;
+struct nvkm_bios {
+	struct nvkm_subdev base;
 	u32 size;
 	u8 *data;
 
@@ -21,15 +19,14 @@ struct nouveau_bios {
 	} version;
 };
 
-static inline struct nouveau_bios *
-nouveau_bios(void *obj)
+static inline struct nvkm_bios *
+nvkm_bios(void *obj)
 {
-	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_VBIOS);
+	return (void *)nvkm_subdev(obj, NVDEV_SUBDEV_VBIOS);
 }
 
 u8  nvbios_checksum(const u8 *data, int size);
 u16 nvbios_findstr(const u8 *data, int size, const char *str, int len);
 
-extern struct nouveau_oclass nouveau_bios_oclass;
-
+extern struct nvkm_oclass nvkm_bios_oclass;
 #endif

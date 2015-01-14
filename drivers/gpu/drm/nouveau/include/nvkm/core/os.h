@@ -193,5 +193,13 @@
 #define _nouveau_xtensa_context_rd32 _nvkm_xtensa_context_rd32
 #define _nouveau_xtensa_context_wr32 _nvkm_xtensa_context_wr32
 #define nouveau_xtensa_intr nvkm_xtensa_intr
+#define nouveau_gpio nvkm_gpio
+#define nouveau_i2c nvkm_i2c
+#define nouveau_i2c_port nvkm_i2c_port
+#define nouveau_devinit nvkm_devinit
+#define nouveau_bios nvkm_bios
+#define nouveau_bios_oclass nvkm_bios_oclass
+#define nouveau_pll_vals nvkm_pll_vals
+#define nouveau_therm_trip_point nvkm_therm_trip_point
 
 #endif

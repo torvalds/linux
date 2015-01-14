@@ -21,17 +21,11 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <core/object.h>
-#include <core/device.h>
-#include <core/subdev.h>
-#include <core/option.h>
+#include "priv.h"
 
 #include <subdev/bios.h>
 #include <subdev/bios/bmp.h>
 #include <subdev/bios/bit.h>
-
-#include "priv.h"
 
 u8
 nvbios_checksum(const u8 *data, int size)
@@ -59,7 +53,7 @@ nvbios_findstr(const u8 *data, int size, const char *str, int len)
 }
 
 int
-nvbios_extend(struct nouveau_bios *bios, u32 length)
+nvbios_extend(struct nvkm_bios *bios, u32 length)
 {
 	if (bios->size < length) {
 		u8 *prev = bios->data;
@@ -76,59 +70,58 @@ nvbios_extend(struct nouveau_bios *bios, u32 length)
 }
 
 static u8
-nouveau_bios_rd08(struct nouveau_object *object, u64 addr)
+nvkm_bios_rd08(struct nvkm_object *object, u64 addr)
 {
-	struct nouveau_bios *bios = (void *)object;
+	struct nvkm_bios *bios = (void *)object;
 	return bios->data[addr];
 }
 
 static u16
-nouveau_bios_rd16(struct nouveau_object *object, u64 addr)
+nvkm_bios_rd16(struct nvkm_object *object, u64 addr)
 {
-	struct nouveau_bios *bios = (void *)object;
+	struct nvkm_bios *bios = (void *)object;
 	return get_unaligned_le16(&bios->data[addr]);
 }
 
 static u32
-nouveau_bios_rd32(struct nouveau_object *object, u64 addr)
+nvkm_bios_rd32(struct nvkm_object *object, u64 addr)
 {
-	struct nouveau_bios *bios = (void *)object;
+	struct nvkm_bios *bios = (void *)object;
 	return get_unaligned_le32(&bios->data[addr]);
 }
 
 static void
-nouveau_bios_wr08(struct nouveau_object *object, u64 addr, u8 data)
+nvkm_bios_wr08(struct nvkm_object *object, u64 addr, u8 data)
 {
-	struct nouveau_bios *bios = (void *)object;
+	struct nvkm_bios *bios = (void *)object;
 	bios->data[addr] = data;
 }
 
 static void
-nouveau_bios_wr16(struct nouveau_object *object, u64 addr, u16 data)
+nvkm_bios_wr16(struct nvkm_object *object, u64 addr, u16 data)
 {
-	struct nouveau_bios *bios = (void *)object;
+	struct nvkm_bios *bios = (void *)object;
 	put_unaligned_le16(data, &bios->data[addr]);
 }
 
 static void
-nouveau_bios_wr32(struct nouveau_object *object, u64 addr, u32 data)
+nvkm_bios_wr32(struct nvkm_object *object, u64 addr, u32 data)
 {
-	struct nouveau_bios *bios = (void *)object;
+	struct nvkm_bios *bios = (void *)object;
 	put_unaligned_le32(data, &bios->data[addr]);
 }
 
 static int
-nouveau_bios_ctor(struct nouveau_object *parent,
-		  struct nouveau_object *engine,
-		  struct nouveau_oclass *oclass, void *data, u32 size,
-		  struct nouveau_object **pobject)
+nvkm_bios_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	       struct nvkm_oclass *oclass, void *data, u32 size,
+	       struct nvkm_object **pobject)
 {
-	struct nouveau_bios *bios;
+	struct nvkm_bios *bios;
 	struct bit_entry bit_i;
 	int ret;
 
-	ret = nouveau_subdev_create(parent, engine, oclass, 0,
-				    "VBIOS", "bios", &bios);
+	ret = nvkm_subdev_create(parent, engine, oclass, 0,
+				 "VBIOS", "bios", &bios);
 	*pobject = nv_object(bios);
 	if (ret)
 		return ret;
@@ -174,40 +167,40 @@ nouveau_bios_ctor(struct nouveau_object *parent,
 }
 
 static void
-nouveau_bios_dtor(struct nouveau_object *object)
+nvkm_bios_dtor(struct nvkm_object *object)
 {
-	struct nouveau_bios *bios = (void *)object;
+	struct nvkm_bios *bios = (void *)object;
 	kfree(bios->data);
-	nouveau_subdev_destroy(&bios->base);
+	nvkm_subdev_destroy(&bios->base);
 }
 
 static int
-nouveau_bios_init(struct nouveau_object *object)
+nvkm_bios_init(struct nvkm_object *object)
 {
-	struct nouveau_bios *bios = (void *)object;
-	return nouveau_subdev_init(&bios->base);
+	struct nvkm_bios *bios = (void *)object;
+	return nvkm_subdev_init(&bios->base);
 }
 
 static int
-nouveau_bios_fini(struct nouveau_object *object, bool suspend)
+nvkm_bios_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nouveau_bios *bios = (void *)object;
-	return nouveau_subdev_fini(&bios->base, suspend);
+	struct nvkm_bios *bios = (void *)object;
+	return nvkm_subdev_fini(&bios->base, suspend);
 }
 
-struct nouveau_oclass
-nouveau_bios_oclass = {
+struct nvkm_oclass
+nvkm_bios_oclass = {
 	.handle = NV_SUBDEV(VBIOS, 0x00),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nouveau_bios_ctor,
-		.dtor = nouveau_bios_dtor,
-		.init = nouveau_bios_init,
-		.fini = nouveau_bios_fini,
-		.rd08 = nouveau_bios_rd08,
-		.rd16 = nouveau_bios_rd16,
-		.rd32 = nouveau_bios_rd32,
-		.wr08 = nouveau_bios_wr08,
-		.wr16 = nouveau_bios_wr16,
-		.wr32 = nouveau_bios_wr32,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = nvkm_bios_ctor,
+		.dtor = nvkm_bios_dtor,
+		.init = nvkm_bios_init,
+		.fini = nvkm_bios_fini,
+		.rd08 = nvkm_bios_rd08,
+		.rd16 = nvkm_bios_rd16,
+		.rd32 = nvkm_bios_rd32,
+		.wr08 = nvkm_bios_wr08,
+		.wr16 = nvkm_bios_wr16,
+		.wr32 = nvkm_bios_wr32,
 	},
 };

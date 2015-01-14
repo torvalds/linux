@@ -1,9 +1,8 @@
 #ifndef __NVBIOS_INIT_H__
 #define __NVBIOS_INIT_H__
-
 struct nvbios_init {
-	struct nouveau_subdev *subdev;
-	struct nouveau_bios *bios;
+	struct nvkm_subdev *subdev;
+	struct nvkm_bios *bios;
 	u16 offset;
 	struct dcb_output *outp;
 	int crtc;
@@ -17,6 +16,5 @@ struct nvbios_init {
 };
 
 int nvbios_exec(struct nvbios_init *);
-int nvbios_init(struct nouveau_subdev *, bool execute);
-
+int nvbios_init(struct nvkm_subdev *, bool execute);
 #endif

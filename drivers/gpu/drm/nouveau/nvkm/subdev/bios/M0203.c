@@ -21,13 +21,12 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include <subdev/bios.h>
 #include <subdev/bios/bit.h>
 #include <subdev/bios/M0203.h>
 
 u32
-nvbios_M0203Te(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
+nvbios_M0203Te(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	struct bit_entry bit_M;
 	u32 data = 0x00000000;
@@ -53,7 +52,7 @@ nvbios_M0203Te(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 }
 
 u32
-nvbios_M0203Tp(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
+nvbios_M0203Tp(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 	       struct nvbios_M0203T *info)
 {
 	u32 data = nvbios_M0203Te(bios, ver, hdr, cnt, len);
@@ -70,7 +69,7 @@ nvbios_M0203Tp(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 }
 
 u32
-nvbios_M0203Ee(struct nouveau_bios *bios, int idx, u8 *ver, u8 *hdr)
+nvbios_M0203Ee(struct nvkm_bios *bios, int idx, u8 *ver, u8 *hdr)
 {
 	u8  cnt, len;
 	u32 data = nvbios_M0203Te(bios, ver, hdr, &cnt, &len);
@@ -83,7 +82,7 @@ nvbios_M0203Ee(struct nouveau_bios *bios, int idx, u8 *ver, u8 *hdr)
 }
 
 u32
-nvbios_M0203Ep(struct nouveau_bios *bios, int idx, u8 *ver, u8 *hdr,
+nvbios_M0203Ep(struct nvkm_bios *bios, int idx, u8 *ver, u8 *hdr,
 	       struct nvbios_M0203E *info)
 {
 	u32 data = nvbios_M0203Ee(bios, idx, ver, hdr);
@@ -101,7 +100,7 @@ nvbios_M0203Ep(struct nouveau_bios *bios, int idx, u8 *ver, u8 *hdr,
 }
 
 u32
-nvbios_M0203Em(struct nouveau_bios *bios, u8 ramcfg, u8 *ver, u8 *hdr,
+nvbios_M0203Em(struct nvkm_bios *bios, u8 ramcfg, u8 *ver, u8 *hdr,
 	       struct nvbios_M0203E *info)
 {
 	struct nvbios_M0203T M0203T;

@@ -21,14 +21,13 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
 #include <subdev/bios/gpio.h>
 #include <subdev/bios/xpio.h>
 
 u16
-dcb_gpio_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
+dcb_gpio_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	u16 data = 0x0000;
 	u16 dcb = dcb_table(bios, ver, hdr, cnt, len);
@@ -59,7 +58,7 @@ dcb_gpio_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 }
 
 u16
-dcb_gpio_entry(struct nouveau_bios *bios, int idx, int ent, u8 *ver, u8 *len)
+dcb_gpio_entry(struct nvkm_bios *bios, int idx, int ent, u8 *ver, u8 *len)
 {
 	u8  hdr, cnt, xver; /* use gpio version for xpio entry parsing */
 	u16 gpio;
@@ -71,11 +70,12 @@ dcb_gpio_entry(struct nouveau_bios *bios, int idx, int ent, u8 *ver, u8 *len)
 
 	if (gpio && ent < cnt)
 		return gpio + hdr + (ent * *len);
+
 	return 0x0000;
 }
 
 u16
-dcb_gpio_parse(struct nouveau_bios *bios, int idx, int ent, u8 *ver, u8 *len,
+dcb_gpio_parse(struct nvkm_bios *bios, int idx, int ent, u8 *ver, u8 *len,
 	       struct dcb_gpio_func *gpio)
 {
 	u16 data = dcb_gpio_entry(bios, idx, ent, ver, len);
@@ -116,7 +116,7 @@ dcb_gpio_parse(struct nouveau_bios *bios, int idx, int ent, u8 *ver, u8 *len,
 }
 
 u16
-dcb_gpio_match(struct nouveau_bios *bios, int idx, u8 func, u8 line,
+dcb_gpio_match(struct nvkm_bios *bios, int idx, u8 func, u8 line,
 	       u8 *ver, u8 *len, struct dcb_gpio_func *gpio)
 {
 	u8  hdr, cnt, i = 0;

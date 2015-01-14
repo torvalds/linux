@@ -21,13 +21,12 @@
  *
  * Authors: Martin Peres
  */
-
 #include <subdev/bios.h>
 #include <subdev/bios/bit.h>
 #include <subdev/bios/fan.h>
 
 u16
-nvbios_fan_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
+nvbios_fan_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	struct bit_entry bit_P;
 	u16 fan = 0x0000;
@@ -54,7 +53,7 @@ nvbios_fan_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 }
 
 u16
-nvbios_fan_entry(struct nouveau_bios *bios, int idx, u8 *ver, u8 *hdr,
+nvbios_fan_entry(struct nvkm_bios *bios, int idx, u8 *ver, u8 *hdr,
 		 u8 *cnt, u8 *len)
 {
 	u16 data = nvbios_fan_table(bios, ver, hdr, cnt, len);
@@ -64,7 +63,7 @@ nvbios_fan_entry(struct nouveau_bios *bios, int idx, u8 *ver, u8 *hdr,
 }
 
 u16
-nvbios_fan_parse(struct nouveau_bios *bios, struct nvbios_therm_fan *fan)
+nvbios_fan_parse(struct nvkm_bios *bios, struct nvbios_therm_fan *fan)
 {
 	u8 ver, hdr, cnt, len;
 
@@ -89,5 +88,6 @@ nvbios_fan_parse(struct nouveau_bios *bios, struct nvbios_therm_fan *fan)
 
 		fan->pwm_freq = nv_ro32(bios, data + 0x0b) & 0xffffff;
 	}
+
 	return data;
 }

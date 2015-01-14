@@ -1,6 +1,5 @@
 #ifndef __NVBIOS_BIT_H__
 #define __NVBIOS_BIT_H__
-
 struct bit_entry {
 	u8  id;
 	u8  version;
@@ -8,6 +7,5 @@ struct bit_entry {
 	u16 offset;
 };
 
-int bit_entry(struct nouveau_bios *, u8 id, struct bit_entry *);
-
+int bit_entry(struct nvkm_bios *, u8 id, struct bit_entry *);
 #endif

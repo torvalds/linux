@@ -21,12 +21,11 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-
 #include <subdev/bios.h>
 #include <subdev/bios/pcir.h>
 
 u32
-nvbios_pcirTe(struct nouveau_bios *bios, u32 base, u8 *ver, u16 *hdr)
+nvbios_pcirTe(struct nvkm_bios *bios, u32 base, u8 *ver, u16 *hdr)
 {
 	u32 data = nv_ro16(bios, base + 0x18);
 	if (data) {
@@ -49,7 +48,7 @@ nvbios_pcirTe(struct nouveau_bios *bios, u32 base, u8 *ver, u16 *hdr)
 }
 
 u32
-nvbios_pcirTp(struct nouveau_bios *bios, u32 base, u8 *ver, u16 *hdr,
+nvbios_pcirTp(struct nvkm_bios *bios, u32 base, u8 *ver, u16 *hdr,
 	      struct nvbios_pcirT *info)
 {
 	u32 data = nvbios_pcirTe(bios, base, ver, hdr);

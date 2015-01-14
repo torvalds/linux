@@ -20,16 +20,17 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-
 #include "priv.h"
 
+#include <core/device.h>
+
 struct priv {
-	struct nouveau_bios *bios;
+	struct nvkm_bios *bios;
 	u32 bar0;
 };
 
 static u32
-pramin_read(void *data, u32 offset, u32 length, struct nouveau_bios *bios)
+pramin_read(void *data, u32 offset, u32 length, struct nvkm_bios *bios)
 {
 	u32 i;
 	if (offset + length <= 0x00100000) {
@@ -51,7 +52,7 @@ pramin_fini(void *data)
 }
 
 static void *
-pramin_init(struct nouveau_bios *bios, const char *name)
+pramin_init(struct nvkm_bios *bios, const char *name)
 {
 	struct priv *priv = NULL;
 	u64 addr = 0;

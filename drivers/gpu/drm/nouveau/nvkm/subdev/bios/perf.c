@@ -21,13 +21,14 @@
  *
  * Authors: Martin Peres
  */
-
 #include <subdev/bios.h>
 #include <subdev/bios/bit.h>
 #include <subdev/bios/perf.h>
 
+#include <core/device.h>
+
 u16
-nvbios_perf_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr,
+nvbios_perf_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr,
 		  u8 *cnt, u8 *len, u8 *snr, u8 *ssz)
 {
 	struct bit_entry bit_P;
@@ -76,7 +77,7 @@ nvbios_perf_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr,
 }
 
 u16
-nvbios_perf_entry(struct nouveau_bios *bios, int idx,
+nvbios_perf_entry(struct nvkm_bios *bios, int idx,
 		  u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	u8  snr, ssz;
@@ -92,9 +93,8 @@ nvbios_perf_entry(struct nouveau_bios *bios, int idx,
 }
 
 u16
-nvbios_perfEp(struct nouveau_bios *bios, int idx,
-	      u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
-	      struct nvbios_perfE *info)
+nvbios_perfEp(struct nvkm_bios *bios, int idx,
+	      u8 *ver, u8 *hdr, u8 *cnt, u8 *len, struct nvbios_perfE *info)
 {
 	u16 perf = nvbios_perf_entry(bios, idx, ver, hdr, cnt, len);
 	memset(info, 0x00, sizeof(*info));
@@ -155,7 +155,7 @@ nvbios_perfEp(struct nouveau_bios *bios, int idx,
 }
 
 u32
-nvbios_perfSe(struct nouveau_bios *bios, u32 perfE, int idx,
+nvbios_perfSe(struct nvkm_bios *bios, u32 perfE, int idx,
 	      u8 *ver, u8 *hdr, u8 cnt, u8 len)
 {
 	u32 data = 0x00000000;
@@ -167,7 +167,7 @@ nvbios_perfSe(struct nouveau_bios *bios, u32 perfE, int idx,
 }
 
 u32
-nvbios_perfSp(struct nouveau_bios *bios, u32 perfE, int idx,
+nvbios_perfSp(struct nvkm_bios *bios, u32 perfE, int idx,
 	      u8 *ver, u8 *hdr, u8 cnt, u8 len,
 	      struct nvbios_perfS *info)
 {
@@ -184,7 +184,7 @@ nvbios_perfSp(struct nouveau_bios *bios, u32 perfE, int idx,
 }
 
 int
-nvbios_perf_fan_parse(struct nouveau_bios *bios,
+nvbios_perf_fan_parse(struct nvkm_bios *bios,
 		      struct nvbios_perf_fan *fan)
 {
 	u8  ver, hdr, cnt, len, snr, ssz;

@@ -21,13 +21,12 @@
  *
  * Authors: Martin Peres
  */
-
 #include <subdev/bios.h>
 #include <subdev/bios/bit.h>
 #include <subdev/bios/vmap.h>
 
 u16
-nvbios_vmap_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
+nvbios_vmap_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	struct bit_entry bit_P;
 	u16 vmap = 0x0000;
@@ -55,7 +54,7 @@ nvbios_vmap_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 }
 
 u16
-nvbios_vmap_parse(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
+nvbios_vmap_parse(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 		  struct nvbios_vmap *info)
 {
 	u16 vmap = nvbios_vmap_table(bios, ver, hdr, cnt, len);
@@ -69,7 +68,7 @@ nvbios_vmap_parse(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 }
 
 u16
-nvbios_vmap_entry(struct nouveau_bios *bios, int idx, u8 *ver, u8 *len)
+nvbios_vmap_entry(struct nvkm_bios *bios, int idx, u8 *ver, u8 *len)
 {
 	u8  hdr, cnt;
 	u16 vmap = nvbios_vmap_table(bios, ver, &hdr, &cnt, len);
@@ -81,7 +80,7 @@ nvbios_vmap_entry(struct nouveau_bios *bios, int idx, u8 *ver, u8 *len)
 }
 
 u16
-nvbios_vmap_entry_parse(struct nouveau_bios *bios, int idx, u8 *ver, u8 *len,
+nvbios_vmap_entry_parse(struct nvkm_bios *bios, int idx, u8 *ver, u8 *len,
 			struct nvbios_vmap_entry *info)
 {
 	u16 vmap = nvbios_vmap_entry(bios, idx, ver, len);

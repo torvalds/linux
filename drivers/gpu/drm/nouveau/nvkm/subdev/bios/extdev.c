@@ -21,13 +21,12 @@
  *
  * Authors: Martin Peres
  */
-
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
 #include <subdev/bios/extdev.h>
 
 static u16
-extdev_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *len, u8 *cnt)
+extdev_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *len, u8 *cnt)
 {
 	u8  dcb_ver, dcb_hdr, dcb_cnt, dcb_len;
 	u16 dcb, extdev = 0;
@@ -44,12 +43,11 @@ extdev_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *len, u8 *cnt)
 	*hdr = nv_ro08(bios, extdev + 1);
 	*cnt = nv_ro08(bios, extdev + 2);
 	*len = nv_ro08(bios, extdev + 3);
-
 	return extdev + *hdr;
 }
 
 static u16
-nvbios_extdev_entry(struct nouveau_bios *bios, int idx, u8 *ver, u8 *len)
+nvbios_extdev_entry(struct nvkm_bios *bios, int idx, u8 *ver, u8 *len)
 {
 	u8 hdr, cnt;
 	u16 extdev = extdev_table(bios, ver, &hdr, len, &cnt);
@@ -59,8 +57,8 @@ nvbios_extdev_entry(struct nouveau_bios *bios, int idx, u8 *ver, u8 *len)
 }
 
 static void
-extdev_parse_entry(struct nouveau_bios *bios, u16 offset,
-			  struct nvbios_extdev_func *entry)
+extdev_parse_entry(struct nvkm_bios *bios, u16 offset,
+		   struct nvbios_extdev_func *entry)
 {
 	entry->type = nv_ro08(bios, offset + 0);
 	entry->addr = nv_ro08(bios, offset + 1);
@@ -68,7 +66,7 @@ extdev_parse_entry(struct nouveau_bios *bios, u16 offset,
 }
 
 int
-nvbios_extdev_parse(struct nouveau_bios *bios, int idx,
+nvbios_extdev_parse(struct nvkm_bios *bios, int idx,
 		    struct nvbios_extdev_func *func)
 {
 	u8 ver, len;
@@ -78,12 +76,11 @@ nvbios_extdev_parse(struct nouveau_bios *bios, int idx,
 		return -EINVAL;
 
 	extdev_parse_entry(bios, entry, func);
-
 	return 0;
 }
 
 int
-nvbios_extdev_find(struct nouveau_bios *bios, enum nvbios_extdev_type type,
+nvbios_extdev_find(struct nvkm_bios *bios, enum nvbios_extdev_type type,
 		   struct nvbios_extdev_func *func)
 {
 	u8 ver, len, i;

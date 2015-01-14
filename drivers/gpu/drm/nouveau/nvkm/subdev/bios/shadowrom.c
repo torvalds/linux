@@ -20,11 +20,12 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-
 #include "priv.h"
 
+#include <core/device.h>
+
 static u32
-prom_read(void *data, u32 offset, u32 length, struct nouveau_bios *bios)
+prom_read(void *data, u32 offset, u32 length, struct nvkm_bios *bios)
 {
 	u32 i;
 	if (offset + length <= 0x00100000) {
@@ -38,7 +39,7 @@ prom_read(void *data, u32 offset, u32 length, struct nouveau_bios *bios)
 static void
 prom_fini(void *data)
 {
-	struct nouveau_bios *bios = data;
+	struct nvkm_bios *bios = data;
 	if (nv_device(bios)->card_type < NV_50)
 		nv_mask(bios, 0x001850, 0x00000001, 0x00000001);
 	else
@@ -46,7 +47,7 @@ prom_fini(void *data)
 }
 
 static void *
-prom_init(struct nouveau_bios *bios, const char *name)
+prom_init(struct nvkm_bios *bios, const char *name)
 {
 	if (nv_device(bios)->card_type < NV_50) {
 		if (nv_device(bios)->card_type == NV_40 &&

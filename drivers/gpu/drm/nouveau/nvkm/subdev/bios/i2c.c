@@ -21,14 +21,12 @@
  *
  * Authors: Ben Skeggs
  */
-
-
-#include "subdev/bios.h"
-#include "subdev/bios/dcb.h"
-#include "subdev/bios/i2c.h"
+#include <subdev/bios.h>
+#include <subdev/bios/dcb.h>
+#include <subdev/bios/i2c.h>
 
 u16
-dcb_i2c_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
+dcb_i2c_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	u16 i2c = 0x0000;
 	u16 dcb = dcb_table(bios, ver, hdr, cnt, len);
@@ -60,7 +58,7 @@ dcb_i2c_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 }
 
 u16
-dcb_i2c_entry(struct nouveau_bios *bios, u8 idx, u8 *ver, u8 *len)
+dcb_i2c_entry(struct nvkm_bios *bios, u8 idx, u8 *ver, u8 *len)
 {
 	u8  hdr, cnt;
 	u16 i2c = dcb_i2c_table(bios, ver, &hdr, &cnt, len);
@@ -70,7 +68,7 @@ dcb_i2c_entry(struct nouveau_bios *bios, u8 idx, u8 *ver, u8 *len)
 }
 
 int
-dcb_i2c_parse(struct nouveau_bios *bios, u8 idx, struct dcb_i2c_entry *info)
+dcb_i2c_parse(struct nvkm_bios *bios, u8 idx, struct dcb_i2c_entry *info)
 {
 	u8  ver, len;
 	u16 ent = dcb_i2c_entry(bios, idx, &ver, &len);

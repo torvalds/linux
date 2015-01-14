@@ -21,13 +21,12 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include <subdev/bios.h>
 #include <subdev/bios/gpio.h>
 #include <subdev/bios/xpio.h>
 
 static u16
-dcb_xpiod_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
+dcb_xpiod_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	u16 data = dcb_gpio_table(bios, ver, hdr, cnt, len);
 	if (data && *ver >= 0x40 && *hdr >= 0x06) {
@@ -44,7 +43,7 @@ dcb_xpiod_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 }
 
 u16
-dcb_xpio_table(struct nouveau_bios *bios, u8 idx,
+dcb_xpio_table(struct nvkm_bios *bios, u8 idx,
 	       u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	u16 data = dcb_xpiod_table(bios, ver, hdr, cnt, len);
@@ -62,9 +61,8 @@ dcb_xpio_table(struct nouveau_bios *bios, u8 idx,
 }
 
 u16
-dcb_xpio_parse(struct nouveau_bios *bios, u8 idx,
-	       u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
-	       struct nvbios_xpio *info)
+dcb_xpio_parse(struct nvkm_bios *bios, u8 idx,
+	       u8 *ver, u8 *hdr, u8 *cnt, u8 *len, struct nvbios_xpio *info)
 {
 	u16 data = dcb_xpio_table(bios, idx, ver, hdr, cnt, len);
 	if (data && *len >= 6) {

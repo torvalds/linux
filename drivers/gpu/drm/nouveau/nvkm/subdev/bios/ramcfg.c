@@ -21,20 +21,19 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-
 #include <subdev/bios.h>
 #include <subdev/bios/bit.h>
 #include <subdev/bios/ramcfg.h>
 #include <subdev/bios/M0203.h>
 
 static u8
-nvbios_ramcfg_strap(struct nouveau_subdev *subdev)
+nvbios_ramcfg_strap(struct nvkm_subdev *subdev)
 {
 	return (nv_rd32(subdev, 0x101000) & 0x0000003c) >> 2;
 }
 
 u8
-nvbios_ramcfg_count(struct nouveau_bios *bios)
+nvbios_ramcfg_count(struct nvkm_bios *bios)
 {
 	struct bit_entry bit_M;
 
@@ -49,9 +48,9 @@ nvbios_ramcfg_count(struct nouveau_bios *bios)
 }
 
 u8
-nvbios_ramcfg_index(struct nouveau_subdev *subdev)
+nvbios_ramcfg_index(struct nvkm_subdev *subdev)
 {
-	struct nouveau_bios *bios = nouveau_bios(subdev);
+	struct nvkm_bios *bios = nvkm_bios(subdev);
 	u8 strap = nvbios_ramcfg_strap(subdev);
 	u32 xlat = 0x00000000;
 	struct bit_entry bit_M;

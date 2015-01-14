@@ -21,14 +21,11 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include "core/object.h"
-
-#include "subdev/bios.h"
-#include "subdev/bios/bit.h"
+#include <subdev/bios.h>
+#include <subdev/bios/bit.h>
 
 int
-bit_entry(struct nouveau_bios *bios, u8 id, struct bit_entry *bit)
+bit_entry(struct nvkm_bios *bios, u8 id, struct bit_entry *bit)
 {
 	if (likely(bios->bit_offset)) {
 		u8  entries = nv_ro08(bios, bios->bit_offset + 10);
