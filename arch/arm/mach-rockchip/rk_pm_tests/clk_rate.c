@@ -64,7 +64,8 @@ static int file_write(char *file_path, char *buf)
 	mm_segment_t old_fs;
 	loff_t offset = 0;
 
-	PM_DBG("%s: write %s %s size = %d\n", __func__, file_path, buf, strlen(buf));
+	PM_DBG("%s: write %s %s size = %d\n", __func__,
+	       file_path, buf, (int)strlen(buf));
 	file = filp_open(file_path, O_RDWR, 0);
 
 	if (IS_ERR(file)) {
