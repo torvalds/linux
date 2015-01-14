@@ -47,18 +47,28 @@ enum V7_PACKET_ID {
 };
 
 /**
+ * struct alps_protocol_info - information about protocol used by a device
+ * @version: Indicates V1/V2/V3/...
+ * @byte0: Helps figure out whether a position report packet matches the
+ *   known format for this model.  The first byte of the report, ANDed with
+ *   mask0, should match byte0.
+ * @mask0: The mask used to check the first byte of the report.
+ * @flags: Additional device capabilities (passthrough port, trackstick, etc.).
+ */
+struct alps_protocol_info {
+	u16 version;
+	u8 byte0, mask0;
+	unsigned int flags;
+};
+
+/**
  * struct alps_model_info - touchpad ID table
  * @signature: E7 response string to match.
  * @command_mode_resp: For V3/V4 touchpads, the final byte of the EC response
  *   (aka command mode response) identifies the firmware minor version.  This
  *   can be used to distinguish different hardware models which are not
  *   uniquely identifiable through their E7 responses.
- * @proto_version: Indicates V1/V2/V3/...
- * @byte0: Helps figure out whether a position report packet matches the
- *   known format for this model.  The first byte of the report, ANDed with
- *   mask0, should match byte0.
- * @mask0: The mask used to check the first byte of the report.
- * @flags: Additional device capabilities (passthrough port, trackstick, etc.).
+ * @protocol_info: information about protcol used by the device.
  *
  * Many (but not all) ALPS touchpads can be identified by looking at the
  * values returned in the "E7 report" and/or the "EC report."  This table
@@ -67,9 +77,7 @@ enum V7_PACKET_ID {
 struct alps_model_info {
 	u8 signature[3];
 	u8 command_mode_resp;
-	u16 proto_version;
-	u8 byte0, mask0;
-	unsigned int flags;
+	struct alps_protocol_info protocol_info;
 };
 
 /**
