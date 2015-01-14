@@ -2043,6 +2043,12 @@ static int neightbl_set(struct sk_buff *skb, struct nlmsghdr *nlh)
 			case NDTPA_BASE_REACHABLE_TIME:
 				NEIGH_VAR_SET(p, BASE_REACHABLE_TIME,
 					      nla_get_msecs(tbp[i]));
+				/* update reachable_time as well, otherwise, the change will
+				 * only be effective after the next time neigh_periodic_work
+				 * decides to recompute it (can be multiple minutes)
+				 */
+				p->reachable_time =
+					neigh_rand_reach_time(NEIGH_VAR(p, BASE_REACHABLE_TIME));
 				break;
 			case NDTPA_GC_STALETIME:
 				NEIGH_VAR_SET(p, GC_STALETIME,
@@ -2921,6 +2927,31 @@ static int neigh_proc_dointvec_unres_qlen(struct ctl_table *ctl, int write,
 	return ret;
 }
 
+static int neigh_proc_base_reachable_time(struct ctl_table *ctl, int write,
+					  void __user *buffer,
+					  size_t *lenp, loff_t *ppos)
+{
+	struct neigh_parms *p = ctl->extra2;
+	int ret;
+
+	if (strcmp(ctl->procname, "base_reachable_time") == 0)
+		ret = neigh_proc_dointvec_jiffies(ctl, write, buffer, lenp, ppos);
+	else if (strcmp(ctl->procname, "base_reachable_time_ms") == 0)
+		ret = neigh_proc_dointvec_ms_jiffies(ctl, write, buffer, lenp, ppos);
+	else
+		ret = -1;
+
+	if (write && ret == 0) {
+		/* update reachable_time as well, otherwise, the change will
+		 * only be effective after the next time neigh_periodic_work
+		 * decides to recompute it
+		 */
+		p->reachable_time =
+			neigh_rand_reach_time(NEIGH_VAR(p, BASE_REACHABLE_TIME));
+	}
+	return ret;
+}
+
 #define NEIGH_PARMS_DATA_OFFSET(index)	\
 	(&((struct neigh_parms *) 0)->data[index])
 
@@ -3047,6 +3078,19 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 		t->neigh_vars[NEIGH_VAR_RETRANS_TIME_MS].proc_handler = handler;
 		/* ReachableTime (in milliseconds) */
 		t->neigh_vars[NEIGH_VAR_BASE_REACHABLE_TIME_MS].proc_handler = handler;
+	} else {
+		/* Those handlers will update p->reachable_time after
+		 * base_reachable_time(_ms) is set to ensure the new timer starts being
+		 * applied after the next neighbour update instead of waiting for
+		 * neigh_periodic_work to update its value (can be multiple minutes)
+		 * So any handler that replaces them should do this as well
+		 */
+		/* ReachableTime */
+		t->neigh_vars[NEIGH_VAR_BASE_REACHABLE_TIME].proc_handler =
+			neigh_proc_base_reachable_time;
+		/* ReachableTime (in milliseconds) */
+		t->neigh_vars[NEIGH_VAR_BASE_REACHABLE_TIME_MS].proc_handler =
+			neigh_proc_base_reachable_time;
 	}
 
 	/* Don't export sysctls to unprivileged users */
