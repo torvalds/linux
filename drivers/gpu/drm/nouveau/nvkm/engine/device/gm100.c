@@ -95,7 +95,7 @@ gm100_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_CE2    ] = &gk104_ce2_oclass;
 #if 0
 		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nve0_msvld_oclass;
-		device->oclass[NVDEV_ENGINE_MSPDEC ] = &nve0_mspdec_oclass;
+		device->oclass[NVDEV_ENGINE_MSPDEC ] = &gk104_mspdec_oclass;
 		device->oclass[NVDEV_ENGINE_MSPPP  ] = &nvc0_msppp_oclass;
 #endif
 		break;
@@ -138,7 +138,7 @@ gm100_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_CE1    ] = &gm204_ce1_oclass;
 		device->oclass[NVDEV_ENGINE_CE2    ] = &gm204_ce2_oclass;
 		device->oclass[NVDEV_ENGINE_MSVLD  ] = &nve0_msvld_oclass;
-		device->oclass[NVDEV_ENGINE_MSPDEC ] = &nve0_mspdec_oclass;
+		device->oclass[NVDEV_ENGINE_MSPDEC ] = &gk104_mspdec_oclass;
 		device->oclass[NVDEV_ENGINE_MSPPP  ] = &nvc0_msppp_oclass;
 #endif
 		break;

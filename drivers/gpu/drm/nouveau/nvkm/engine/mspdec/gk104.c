@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Maarten Lankhorst
+ * Copyright 2012 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,23 +19,22 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Maarten Lankhorst
+ * Authors: Ben Skeggs
  */
-
-#include <engine/falcon.h>
 #include <engine/mspdec.h>
+#include <engine/falcon.h>
 
-struct nvc0_mspdec_priv {
-	struct nouveau_falcon base;
+struct gk104_mspdec_priv {
+	struct nvkm_falcon base;
 };
 
 /*******************************************************************************
  * MSPDEC object classes
  ******************************************************************************/
 
-static struct nouveau_oclass
-nvc0_mspdec_sclass[] = {
-	{ 0x90b2, &nouveau_object_ofuncs },
+static struct nvkm_oclass
+gk104_mspdec_sclass[] = {
+	{ 0x95b2, &nvkm_object_ofuncs },
 	{},
 };
 
@@ -43,16 +42,16 @@ nvc0_mspdec_sclass[] = {
  * PMSPDEC context
  ******************************************************************************/
 
-static struct nouveau_oclass
-nvc0_mspdec_cclass = {
-	.handle = NV_ENGCTX(MSPDEC, 0xc0),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = _nouveau_falcon_context_ctor,
-		.dtor = _nouveau_falcon_context_dtor,
-		.init = _nouveau_falcon_context_init,
-		.fini = _nouveau_falcon_context_fini,
-		.rd32 = _nouveau_falcon_context_rd32,
-		.wr32 = _nouveau_falcon_context_wr32,
+static struct nvkm_oclass
+gk104_mspdec_cclass = {
+	.handle = NV_ENGCTX(MSPDEC, 0xe0),
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = _nvkm_falcon_context_ctor,
+		.dtor = _nvkm_falcon_context_dtor,
+		.init = _nvkm_falcon_context_init,
+		.fini = _nvkm_falcon_context_fini,
+		.rd32 = _nvkm_falcon_context_rd32,
+		.wr32 = _nvkm_falcon_context_wr32,
 	},
 };
 
@@ -61,12 +60,12 @@ nvc0_mspdec_cclass = {
  ******************************************************************************/
 
 static int
-nvc0_mspdec_init(struct nouveau_object *object)
+gk104_mspdec_init(struct nvkm_object *object)
 {
-	struct nvc0_mspdec_priv *priv = (void *)object;
+	struct gk104_mspdec_priv *priv = (void *)object;
 	int ret;
 
-	ret = nouveau_falcon_init(&priv->base);
+	ret = nvkm_falcon_init(&priv->base);
 	if (ret)
 		return ret;
 
@@ -76,35 +75,35 @@ nvc0_mspdec_init(struct nouveau_object *object)
 }
 
 static int
-nvc0_mspdec_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	     struct nouveau_oclass *oclass, void *data, u32 size,
-	     struct nouveau_object **pobject)
+gk104_mspdec_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		  struct nvkm_oclass *oclass, void *data, u32 size,
+		  struct nvkm_object **pobject)
 {
-	struct nvc0_mspdec_priv *priv;
+	struct gk104_mspdec_priv *priv;
 	int ret;
 
-	ret = nouveau_falcon_create(parent, engine, oclass, 0x085000, true,
-				    "PMSPDEC", "mspdec", &priv);
+	ret = nvkm_falcon_create(parent, engine, oclass, 0x085000, true,
+				 "PMSPDEC", "mspdec", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	nv_subdev(priv)->unit = 0x00020000;
-	nv_subdev(priv)->intr = nouveau_falcon_intr;
-	nv_engine(priv)->cclass = &nvc0_mspdec_cclass;
-	nv_engine(priv)->sclass = nvc0_mspdec_sclass;
+	nv_subdev(priv)->intr = nvkm_falcon_intr;
+	nv_engine(priv)->cclass = &gk104_mspdec_cclass;
+	nv_engine(priv)->sclass = gk104_mspdec_sclass;
 	return 0;
 }
 
-struct nouveau_oclass
-nvc0_mspdec_oclass = {
-	.handle = NV_ENGINE(MSPDEC, 0xc0),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvc0_mspdec_ctor,
-		.dtor = _nouveau_falcon_dtor,
-		.init = nvc0_mspdec_init,
-		.fini = _nouveau_falcon_fini,
-		.rd32 = _nouveau_falcon_rd32,
-		.wr32 = _nouveau_falcon_wr32,
+struct nvkm_oclass
+gk104_mspdec_oclass = {
+	.handle = NV_ENGINE(MSPDEC, 0xe0),
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gk104_mspdec_ctor,
+		.dtor = _nvkm_falcon_dtor,
+		.init = gk104_mspdec_init,
+		.fini = _nvkm_falcon_fini,
+		.rd32 = _nvkm_falcon_rd32,
+		.wr32 = _nvkm_falcon_wr32,
 	},
 };
