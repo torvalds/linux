@@ -21,38 +21,37 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "priv.h"
+
+#include <core/engine.h>
 
 /******************************************************************************
  * instmem object base implementation
  *****************************************************************************/
 
 void
-_nouveau_instobj_dtor(struct nouveau_object *object)
+_nvkm_instobj_dtor(struct nvkm_object *object)
 {
-	struct nouveau_instmem *imem = nouveau_instmem(object);
-	struct nouveau_instobj *iobj = (void *)object;
+	struct nvkm_instmem *imem = nvkm_instmem(object);
+	struct nvkm_instobj *iobj = (void *)object;
 
 	mutex_lock(&nv_subdev(imem)->mutex);
 	list_del(&iobj->head);
 	mutex_unlock(&nv_subdev(imem)->mutex);
 
-	return nouveau_object_destroy(&iobj->base);
+	return nvkm_object_destroy(&iobj->base);
 }
 
 int
-nouveau_instobj_create_(struct nouveau_object *parent,
-			struct nouveau_object *engine,
-			struct nouveau_oclass *oclass,
-			int length, void **pobject)
+nvkm_instobj_create_(struct nvkm_object *parent, struct nvkm_object *engine,
+		     struct nvkm_oclass *oclass, int length, void **pobject)
 {
-	struct nouveau_instmem *imem = nouveau_instmem(parent);
-	struct nouveau_instobj *iobj;
+	struct nvkm_instmem *imem = nvkm_instmem(parent);
+	struct nvkm_instobj *iobj;
 	int ret;
 
-	ret = nouveau_object_create_(parent, engine, oclass, NV_MEMOBJ_CLASS,
-				     length, pobject);
+	ret = nvkm_object_create_(parent, engine, oclass, NV_MEMOBJ_CLASS,
+				  length, pobject);
 	iobj = *pobject;
 	if (ret)
 		return ret;
@@ -68,26 +67,24 @@ nouveau_instobj_create_(struct nouveau_object *parent,
  *****************************************************************************/
 
 static int
-nouveau_instmem_alloc(struct nouveau_instmem *imem,
-		      struct nouveau_object *parent, u32 size, u32 align,
-		      struct nouveau_object **pobject)
+nvkm_instmem_alloc(struct nvkm_instmem *imem, struct nvkm_object *parent,
+		   u32 size, u32 align, struct nvkm_object **pobject)
 {
-	struct nouveau_instmem_impl *impl = (void *)imem->base.object.oclass;
-	struct nouveau_instobj_args args = { .size = size, .align = align };
-	return nouveau_object_ctor(parent, &parent->engine->subdev.object,
-				   impl->instobj, &args, sizeof(args), pobject);
+	struct nvkm_instmem_impl *impl = (void *)imem->base.object.oclass;
+	struct nvkm_instobj_args args = { .size = size, .align = align };
+	return nvkm_object_ctor(parent, &parent->engine->subdev.object,
+				impl->instobj, &args, sizeof(args), pobject);
 }
 
 int
-_nouveau_instmem_fini(struct nouveau_object *object, bool suspend)
+_nvkm_instmem_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nouveau_instmem *imem = (void *)object;
-	struct nouveau_instobj *iobj;
+	struct nvkm_instmem *imem = (void *)object;
+	struct nvkm_instobj *iobj;
 	int i, ret = 0;
 
 	if (suspend) {
 		mutex_lock(&imem->base.mutex);
-
 		list_for_each_entry(iobj, &imem->list, head) {
 			iobj->suspend = vmalloc(iobj->size);
 			if (!iobj->suspend) {
@@ -98,29 +95,26 @@ _nouveau_instmem_fini(struct nouveau_object *object, bool suspend)
 			for (i = 0; i < iobj->size; i += 4)
 				iobj->suspend[i / 4] = nv_ro32(iobj, i);
 		}
-
 		mutex_unlock(&imem->base.mutex);
-
 		if (ret)
 			return ret;
 	}
 
-	return nouveau_subdev_fini(&imem->base, suspend);
+	return nvkm_subdev_fini(&imem->base, suspend);
 }
 
 int
-_nouveau_instmem_init(struct nouveau_object *object)
+_nvkm_instmem_init(struct nvkm_object *object)
 {
-	struct nouveau_instmem *imem = (void *)object;
-	struct nouveau_instobj *iobj;
+	struct nvkm_instmem *imem = (void *)object;
+	struct nvkm_instobj *iobj;
 	int ret, i;
 
-	ret = nouveau_subdev_init(&imem->base);
+	ret = nvkm_subdev_init(&imem->base);
 	if (ret)
 		return ret;
 
 	mutex_lock(&imem->base.mutex);
-
 	list_for_each_entry(iobj, &imem->list, head) {
 		if (iobj->suspend) {
 			for (i = 0; i < iobj->size; i += 4)
@@ -129,28 +123,24 @@ _nouveau_instmem_init(struct nouveau_object *object)
 			iobj->suspend = NULL;
 		}
 	}
-
 	mutex_unlock(&imem->base.mutex);
-
 	return 0;
 }
 
 int
-nouveau_instmem_create_(struct nouveau_object *parent,
-			struct nouveau_object *engine,
-			struct nouveau_oclass *oclass,
-			int length, void **pobject)
+nvkm_instmem_create_(struct nvkm_object *parent, struct nvkm_object *engine,
+		     struct nvkm_oclass *oclass, int length, void **pobject)
 {
-	struct nouveau_instmem *imem;
+	struct nvkm_instmem *imem;
 	int ret;
 
-	ret = nouveau_subdev_create_(parent, engine, oclass, 0,
-				     "INSTMEM", "instmem", length, pobject);
+	ret = nvkm_subdev_create_(parent, engine, oclass, 0, "INSTMEM",
+				  "instmem", length, pobject);
 	imem = *pobject;
 	if (ret)
 		return ret;
 
 	INIT_LIST_HEAD(&imem->list);
-	imem->alloc = nouveau_instmem_alloc;
+	imem->alloc = nvkm_instmem_alloc;
 	return 0;
 }

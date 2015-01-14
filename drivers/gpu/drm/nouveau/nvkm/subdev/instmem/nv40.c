@@ -21,39 +21,39 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <engine/gr/nv40.h>
-
 #include "nv04.h"
+
+#include <core/ramht.h>
+#include <engine/gr/nv40.h>
 
 /******************************************************************************
  * instmem subdev implementation
  *****************************************************************************/
 
 static u32
-nv40_instmem_rd32(struct nouveau_object *object, u64 addr)
+nv40_instmem_rd32(struct nvkm_object *object, u64 addr)
 {
 	struct nv04_instmem_priv *priv = (void *)object;
 	return ioread32_native(priv->iomem + addr);
 }
 
 static void
-nv40_instmem_wr32(struct nouveau_object *object, u64 addr, u32 data)
+nv40_instmem_wr32(struct nvkm_object *object, u64 addr, u32 data)
 {
 	struct nv04_instmem_priv *priv = (void *)object;
 	iowrite32_native(data, priv->iomem + addr);
 }
 
 static int
-nv40_instmem_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		  struct nouveau_oclass *oclass, void *data, u32 size,
-		  struct nouveau_object **pobject)
+nv40_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		  struct nvkm_oclass *oclass, void *data, u32 size,
+		  struct nvkm_object **pobject)
 {
-	struct nouveau_device *device = nv_device(parent);
+	struct nvkm_device *device = nv_device(parent);
 	struct nv04_instmem_priv *priv;
 	int ret, bar, vs;
 
-	ret = nouveau_instmem_create(parent, engine, oclass, &priv);
+	ret = nvkm_instmem_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -87,49 +87,48 @@ nv40_instmem_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	priv->base.reserved = round_up(priv->base.reserved, 4096);
 
-	ret = nouveau_mm_init(&priv->heap, 0, priv->base.reserved, 1);
+	ret = nvkm_mm_init(&priv->heap, 0, priv->base.reserved, 1);
 	if (ret)
 		return ret;
 
 	/* 0x00000-0x10000: reserve for probable vbios image */
-	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x10000, 0, 0,
-				&priv->vbios);
+	ret = nvkm_gpuobj_new(nv_object(priv), NULL, 0x10000, 0, 0,
+			      &priv->vbios);
 	if (ret)
 		return ret;
 
 	/* 0x10000-0x18000: reserve for RAMHT */
-	ret = nouveau_ramht_new(nv_object(priv), NULL, 0x08000, 0,
-			       &priv->ramht);
+	ret = nvkm_ramht_new(nv_object(priv), NULL, 0x08000, 0, &priv->ramht);
 	if (ret)
 		return ret;
 
 	/* 0x18000-0x18200: reserve for RAMRO
 	 * 0x18200-0x20000: padding
 	 */
-	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x08000, 0, 0,
-				&priv->ramro);
+	ret = nvkm_gpuobj_new(nv_object(priv), NULL, 0x08000, 0, 0,
+			      &priv->ramro);
 	if (ret)
 		return ret;
 
 	/* 0x20000-0x21000: reserve for RAMFC
 	 * 0x21000-0x40000: padding and some unknown crap
 	 */
-	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x20000, 0,
-				 NVOBJ_FLAG_ZERO_ALLOC, &priv->ramfc);
+	ret = nvkm_gpuobj_new(nv_object(priv), NULL, 0x20000, 0,
+			      NVOBJ_FLAG_ZERO_ALLOC, &priv->ramfc);
 	if (ret)
 		return ret;
 
 	return 0;
 }
 
-struct nouveau_oclass *
-nv40_instmem_oclass = &(struct nouveau_instmem_impl) {
+struct nvkm_oclass *
+nv40_instmem_oclass = &(struct nvkm_instmem_impl) {
 	.base.handle = NV_SUBDEV(INSTMEM, 0x40),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv40_instmem_ctor,
 		.dtor = nv04_instmem_dtor,
-		.init = _nouveau_instmem_init,
-		.fini = _nouveau_instmem_fini,
+		.init = _nvkm_instmem_init,
+		.fini = _nvkm_instmem_fini,
 		.rd32 = nv40_instmem_rd32,
 		.wr32 = nv40_instmem_wr32,
 	},

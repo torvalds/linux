@@ -21,21 +21,19 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <subdev/fb.h>
-#include <core/mm.h>
-
 #include "priv.h"
 
+#include <subdev/fb.h>
+
 struct nv50_instmem_priv {
-	struct nouveau_instmem base;
+	struct nvkm_instmem base;
 	spinlock_t lock;
 	u64 addr;
 };
 
 struct nv50_instobj_priv {
-	struct nouveau_instobj base;
-	struct nouveau_mem *mem;
+	struct nvkm_instobj base;
+	struct nvkm_mem *mem;
 };
 
 /******************************************************************************
@@ -43,9 +41,9 @@ struct nv50_instobj_priv {
  *****************************************************************************/
 
 static u32
-nv50_instobj_rd32(struct nouveau_object *object, u64 offset)
+nv50_instobj_rd32(struct nvkm_object *object, u64 offset)
 {
-	struct nv50_instmem_priv *priv = (void *)nouveau_instmem(object);
+	struct nv50_instmem_priv *priv = (void *)nvkm_instmem(object);
 	struct nv50_instobj_priv *node = (void *)object;
 	unsigned long flags;
 	u64 base = (node->mem->offset + offset) & 0xffffff00000ULL;
@@ -63,9 +61,9 @@ nv50_instobj_rd32(struct nouveau_object *object, u64 offset)
 }
 
 static void
-nv50_instobj_wr32(struct nouveau_object *object, u64 offset, u32 data)
+nv50_instobj_wr32(struct nvkm_object *object, u64 offset, u32 data)
 {
-	struct nv50_instmem_priv *priv = (void *)nouveau_instmem(object);
+	struct nv50_instmem_priv *priv = (void *)nvkm_instmem(object);
 	struct nv50_instobj_priv *node = (void *)object;
 	unsigned long flags;
 	u64 base = (node->mem->offset + offset) & 0xffffff00000ULL;
@@ -81,28 +79,28 @@ nv50_instobj_wr32(struct nouveau_object *object, u64 offset, u32 data)
 }
 
 static void
-nv50_instobj_dtor(struct nouveau_object *object)
+nv50_instobj_dtor(struct nvkm_object *object)
 {
 	struct nv50_instobj_priv *node = (void *)object;
-	struct nouveau_fb *pfb = nouveau_fb(object);
+	struct nvkm_fb *pfb = nvkm_fb(object);
 	pfb->ram->put(pfb, &node->mem);
-	nouveau_instobj_destroy(&node->base);
+	nvkm_instobj_destroy(&node->base);
 }
 
 static int
-nv50_instobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		  struct nouveau_oclass *oclass, void *data, u32 size,
-		  struct nouveau_object **pobject)
+nv50_instobj_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		  struct nvkm_oclass *oclass, void *data, u32 size,
+		  struct nvkm_object **pobject)
 {
-	struct nouveau_fb *pfb = nouveau_fb(parent);
-	struct nouveau_instobj_args *args = data;
+	struct nvkm_fb *pfb = nvkm_fb(parent);
+	struct nvkm_instobj_args *args = data;
 	struct nv50_instobj_priv *node;
 	int ret;
 
 	args->size  = max((args->size  + 4095) & ~4095, (u32)4096);
 	args->align = max((args->align + 4095) & ~4095, (u32)4096);
 
-	ret = nouveau_instobj_create(parent, engine, oclass, &node);
+	ret = nvkm_instobj_create(parent, engine, oclass, &node);
 	*pobject = nv_object(node);
 	if (ret)
 		return ret;
@@ -117,13 +115,13 @@ nv50_instobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-static struct nouveau_instobj_impl
+static struct nvkm_instobj_impl
 nv50_instobj_oclass = {
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv50_instobj_ctor,
 		.dtor = nv50_instobj_dtor,
-		.init = _nouveau_instobj_init,
-		.fini = _nouveau_instobj_fini,
+		.init = _nvkm_instobj_init,
+		.fini = _nvkm_instobj_fini,
 		.rd32 = nv50_instobj_rd32,
 		.wr32 = nv50_instobj_wr32,
 	},
@@ -134,22 +132,22 @@ nv50_instobj_oclass = {
  *****************************************************************************/
 
 static int
-nv50_instmem_fini(struct nouveau_object *object, bool suspend)
+nv50_instmem_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nv50_instmem_priv *priv = (void *)object;
 	priv->addr = ~0ULL;
-	return nouveau_instmem_fini(&priv->base, suspend);
+	return nvkm_instmem_fini(&priv->base, suspend);
 }
 
 static int
-nv50_instmem_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		  struct nouveau_oclass *oclass, void *data, u32 size,
-		  struct nouveau_object **pobject)
+nv50_instmem_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		  struct nvkm_oclass *oclass, void *data, u32 size,
+		  struct nvkm_object **pobject)
 {
 	struct nv50_instmem_priv *priv;
 	int ret;
 
-	ret = nouveau_instmem_create(parent, engine, oclass, &priv);
+	ret = nvkm_instmem_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -158,13 +156,13 @@ nv50_instmem_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass *
-nv50_instmem_oclass = &(struct nouveau_instmem_impl) {
+struct nvkm_oclass *
+nv50_instmem_oclass = &(struct nvkm_instmem_impl) {
 	.base.handle = NV_SUBDEV(INSTMEM, 0x50),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv50_instmem_ctor,
-		.dtor = _nouveau_instmem_dtor,
-		.init = _nouveau_instmem_init,
+		.dtor = _nvkm_instmem_dtor,
+		.init = _nvkm_instmem_init,
 		.fini = nv50_instmem_fini,
 	},
 	.instobj = &nv50_instobj_oclass.base,

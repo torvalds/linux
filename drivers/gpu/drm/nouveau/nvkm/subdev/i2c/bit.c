@@ -23,7 +23,7 @@
  */
 #include "priv.h"
 
-#ifdef CONFIG_NVKM_I2C_INTERNAL
+#ifdef CONFIG_NOUVEAU_I2C_INTERNAL
 #define T_TIMEOUT  2200000
 #define T_RISEFALL 1000
 #define T_HOLD     5000

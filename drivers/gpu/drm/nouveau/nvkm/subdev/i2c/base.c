@@ -34,7 +34,7 @@
  * interface to linux i2c bit-banging algorithm
  *****************************************************************************/
 
-#ifdef CONFIG_NVKM_I2C_INTERNAL_DEFAULT
+#ifdef CONFIG_NOUVEAU_I2C_INTERNAL_DEFAULT
 #define CSTMSEL true
 #else
 #define CSTMSEL false
