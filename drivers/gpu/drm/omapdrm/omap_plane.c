@@ -162,7 +162,6 @@ static void omap_plane_post_apply(struct omap_drm_apply *apply)
 			container_of(apply, struct omap_plane, apply);
 	struct drm_plane *plane = &omap_plane->base;
 	struct omap_drm_private *priv = plane->dev->dev_private;
-	struct omap_overlay_info *info = &omap_plane->info;
 	struct callback cb;
 
 	cb = omap_plane->apply_done_cb;
@@ -172,11 +171,6 @@ static void omap_plane_post_apply(struct omap_drm_apply *apply)
 
 	if (cb.fxn)
 		cb.fxn(cb.arg);
-
-	if (omap_plane->enabled) {
-		omap_framebuffer_flush(plane->fb, info->pos_x, info->pos_y,
-				info->out_width, info->out_height);
-	}
 }
 
 static int apply(struct drm_plane *plane)
