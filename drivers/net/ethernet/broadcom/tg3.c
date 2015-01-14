@@ -10903,10 +10903,12 @@ static void tg3_timer(unsigned long __opaque)
 {
 	struct tg3 *tp = (struct tg3 *) __opaque;
 
-	if (tp->irq_sync || tg3_flag(tp, RESET_TASK_PENDING))
-		goto restart_timer;
-
 	spin_lock(&tp->lock);
+
+	if (tp->irq_sync || tg3_flag(tp, RESET_TASK_PENDING)) {
+		spin_unlock(&tp->lock);
+		goto restart_timer;
+	}
 
 	if (tg3_asic_rev(tp) == ASIC_REV_5717 ||
 	    tg3_flag(tp, 57765_CLASS))
