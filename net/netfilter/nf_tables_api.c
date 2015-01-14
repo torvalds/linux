@@ -3753,6 +3753,24 @@ int nft_chain_validate_dependency(const struct nft_chain *chain,
 }
 EXPORT_SYMBOL_GPL(nft_chain_validate_dependency);
 
+int nft_chain_validate_hooks(const struct nft_chain *chain,
+			     unsigned int hook_flags)
+{
+	struct nft_base_chain *basechain;
+
+	if (chain->flags & NFT_BASE_CHAIN) {
+		basechain = nft_base_chain(chain);
+
+		if ((1 << basechain->ops[0].hooknum) & hook_flags)
+			return 0;
+
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nft_chain_validate_hooks);
+
 /*
  * Loop detection - walk through the ruleset beginning at the destination chain
  * of a new jump until either the source chain is reached (loop) or all

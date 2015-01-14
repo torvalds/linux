@@ -530,6 +530,8 @@ enum nft_chain_type {
 
 int nft_chain_validate_dependency(const struct nft_chain *chain,
 				  enum nft_chain_type type);
+int nft_chain_validate_hooks(const struct nft_chain *chain,
+                             unsigned int hook_flags);
 
 struct nft_stats {
 	u64			bytes;
