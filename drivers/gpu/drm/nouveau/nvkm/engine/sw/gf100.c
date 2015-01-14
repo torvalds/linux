@@ -21,25 +21,17 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <core/os.h>
-#include <core/engctx.h>
-#include <core/event.h>
+#include "nv50.h"
 
 #include <subdev/bar.h>
-
-#include <engine/sw.h>
-#include <engine/disp.h>
-
-#include "nv50.h"
 
 /*******************************************************************************
  * software object classes
  ******************************************************************************/
 
 static int
-nvc0_sw_mthd_vblsem_offset(struct nouveau_object *object, u32 mthd,
-				 void *args, u32 size)
+gf100_sw_mthd_vblsem_offset(struct nvkm_object *object, u32 mthd,
+			    void *args, u32 size)
 {
 	struct nv50_sw_chan *chan = (void *)nv_engctx(object->parent);
 	u64 data = *(u32 *)args;
@@ -54,8 +46,8 @@ nvc0_sw_mthd_vblsem_offset(struct nouveau_object *object, u32 mthd,
 }
 
 static int
-nvc0_sw_mthd_mp_control(struct nouveau_object *object, u32 mthd,
-                              void *args, u32 size)
+gf100_sw_mthd_mp_control(struct nvkm_object *object, u32 mthd,
+			 void *args, u32 size)
 {
 	struct nv50_sw_chan *chan = (void *)nv_engctx(object->parent);
 	struct nv50_sw_priv *priv = (void *)nv_object(chan)->engine;
@@ -79,22 +71,22 @@ nvc0_sw_mthd_mp_control(struct nouveau_object *object, u32 mthd,
 	return 0;
 }
 
-static struct nouveau_omthds
-nvc0_sw_omthds[] = {
-	{ 0x0400, 0x0400, nvc0_sw_mthd_vblsem_offset },
-	{ 0x0404, 0x0404, nvc0_sw_mthd_vblsem_offset },
+static struct nvkm_omthds
+gf100_sw_omthds[] = {
+	{ 0x0400, 0x0400, gf100_sw_mthd_vblsem_offset },
+	{ 0x0404, 0x0404, gf100_sw_mthd_vblsem_offset },
 	{ 0x0408, 0x0408, nv50_sw_mthd_vblsem_value },
 	{ 0x040c, 0x040c, nv50_sw_mthd_vblsem_release },
 	{ 0x0500, 0x0500, nv50_sw_mthd_flip },
-	{ 0x0600, 0x0600, nvc0_sw_mthd_mp_control },
-	{ 0x0644, 0x0644, nvc0_sw_mthd_mp_control },
-	{ 0x06ac, 0x06ac, nvc0_sw_mthd_mp_control },
+	{ 0x0600, 0x0600, gf100_sw_mthd_mp_control },
+	{ 0x0644, 0x0644, gf100_sw_mthd_mp_control },
+	{ 0x06ac, 0x06ac, gf100_sw_mthd_mp_control },
 	{}
 };
 
-static struct nouveau_oclass
-nvc0_sw_sclass[] = {
-	{ 0x906e, &nouveau_object_ofuncs, nvc0_sw_omthds },
+static struct nvkm_oclass
+gf100_sw_sclass[] = {
+	{ 0x906e, &nvkm_object_ofuncs, gf100_sw_omthds },
 	{}
 };
 
@@ -103,12 +95,12 @@ nvc0_sw_sclass[] = {
  ******************************************************************************/
 
 static int
-nvc0_sw_vblsem_release(struct nvkm_notify *notify)
+gf100_sw_vblsem_release(struct nvkm_notify *notify)
 {
 	struct nv50_sw_chan *chan =
 		container_of(notify, typeof(*chan), vblank.notify[notify->index]);
 	struct nv50_sw_priv *priv = (void *)nv_object(chan)->engine;
-	struct nouveau_bar *bar = nouveau_bar(priv);
+	struct nvkm_bar *bar = nvkm_bar(priv);
 
 	nv_wr32(priv, 0x001718, 0x80000000 | chan->vblank.channel);
 	bar->flush(bar);
@@ -120,30 +112,30 @@ nvc0_sw_vblsem_release(struct nvkm_notify *notify)
 }
 
 static struct nv50_sw_cclass
-nvc0_sw_cclass = {
+gf100_sw_cclass = {
 	.base.handle = NV_ENGCTX(SW, 0xc0),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv50_sw_context_ctor,
 		.dtor = nv50_sw_context_dtor,
-		.init = _nouveau_sw_context_init,
-		.fini = _nouveau_sw_context_fini,
+		.init = _nvkm_sw_context_init,
+		.fini = _nvkm_sw_context_fini,
 	},
-	.vblank = nvc0_sw_vblsem_release,
+	.vblank = gf100_sw_vblsem_release,
 };
 
 /*******************************************************************************
  * software engine/subdev functions
  ******************************************************************************/
 
-struct nouveau_oclass *
-nvc0_sw_oclass = &(struct nv50_sw_oclass) {
+struct nvkm_oclass *
+gf100_sw_oclass = &(struct nv50_sw_oclass) {
 	.base.handle = NV_ENGINE(SW, 0xc0),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv50_sw_ctor,
-		.dtor = _nouveau_sw_dtor,
-		.init = _nouveau_sw_init,
-		.fini = _nouveau_sw_fini,
+		.dtor = _nvkm_sw_dtor,
+		.init = _nvkm_sw_init,
+		.fini = _nvkm_sw_fini,
 	},
-	.cclass = &nvc0_sw_cclass.base,
-	.sclass =  nvc0_sw_sclass,
+	.cclass = &gf100_sw_cclass.base,
+	.sclass =  gf100_sw_sclass,
 }.base;

@@ -4,26 +4,26 @@
 #include <core/notify.h>
 
 struct nv50_sw_oclass {
-	struct nouveau_oclass base;
-	struct nouveau_oclass *cclass;
-	struct nouveau_oclass *sclass;
+	struct nvkm_oclass base;
+	struct nvkm_oclass *cclass;
+	struct nvkm_oclass *sclass;
 };
 
 struct nv50_sw_priv {
-	struct nouveau_sw base;
+	struct nvkm_sw base;
 };
 
-int  nv50_sw_ctor(struct nouveau_object *, struct nouveau_object *,
-			struct nouveau_oclass *, void *, u32,
-			struct nouveau_object **);
+int  nv50_sw_ctor(struct nvkm_object *, struct nvkm_object *,
+			struct nvkm_oclass *, void *, u32,
+			struct nvkm_object **);
 
 struct nv50_sw_cclass {
-	struct nouveau_oclass base;
+	struct nvkm_oclass base;
 	int (*vblank)(struct nvkm_notify *);
 };
 
 struct nv50_sw_chan {
-	struct nouveau_sw_chan base;
+	struct nvkm_sw_chan base;
 	struct {
 		struct nvkm_notify notify[4];
 		u32 channel;
@@ -33,14 +33,13 @@ struct nv50_sw_chan {
 	} vblank;
 };
 
-int  nv50_sw_context_ctor(struct nouveau_object *,
-				struct nouveau_object *,
-				struct nouveau_oclass *, void *, u32,
-				struct nouveau_object **);
-void nv50_sw_context_dtor(struct nouveau_object *);
+int  nv50_sw_context_ctor(struct nvkm_object *,
+				struct nvkm_object *,
+				struct nvkm_oclass *, void *, u32,
+				struct nvkm_object **);
+void nv50_sw_context_dtor(struct nvkm_object *);
 
-int nv50_sw_mthd_vblsem_value(struct nouveau_object *, u32, void *, u32);
-int nv50_sw_mthd_vblsem_release(struct nouveau_object *, u32, void *, u32);
-int nv50_sw_mthd_flip(struct nouveau_object *, u32, void *, u32);
-
+int nv50_sw_mthd_vblsem_value(struct nvkm_object *, u32, void *, u32);
+int nv50_sw_mthd_vblsem_release(struct nvkm_object *, u32, void *, u32);
+int nv50_sw_mthd_flip(struct nvkm_object *, u32, void *, u32);
 #endif

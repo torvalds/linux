@@ -21,19 +21,15 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <core/os.h>
-#include <core/engctx.h>
-
 #include <engine/sw.h>
 #include <engine/fifo.h>
 
 struct nv04_sw_priv {
-	struct nouveau_sw base;
+	struct nvkm_sw base;
 };
 
 struct nv04_sw_chan {
-	struct nouveau_sw_chan base;
+	struct nvkm_sw_chan base;
 };
 
 /*******************************************************************************
@@ -41,18 +37,16 @@ struct nv04_sw_chan {
  ******************************************************************************/
 
 static int
-nv04_sw_set_ref(struct nouveau_object *object, u32 mthd,
-		      void *data, u32 size)
+nv04_sw_set_ref(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
-	struct nouveau_object *channel = (void *)nv_engctx(object->parent);
-	struct nouveau_fifo_chan *fifo = (void *)channel->parent;
+	struct nvkm_object *channel = (void *)nv_engctx(object->parent);
+	struct nvkm_fifo_chan *fifo = (void *)channel->parent;
 	atomic_set(&fifo->refcnt, *(u32*)data);
 	return 0;
 }
 
 static int
-nv04_sw_flip(struct nouveau_object *object, u32 mthd,
-		   void *args, u32 size)
+nv04_sw_flip(struct nvkm_object *object, u32 mthd, void *args, u32 size)
 {
 	struct nv04_sw_chan *chan = (void *)nv_engctx(object->parent);
 	if (chan->base.flip)
@@ -60,16 +54,16 @@ nv04_sw_flip(struct nouveau_object *object, u32 mthd,
 	return -EINVAL;
 }
 
-static struct nouveau_omthds
+static struct nvkm_omthds
 nv04_sw_omthds[] = {
 	{ 0x0150, 0x0150, nv04_sw_set_ref },
 	{ 0x0500, 0x0500, nv04_sw_flip },
 	{}
 };
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 nv04_sw_sclass[] = {
-	{ 0x006e, &nouveau_object_ofuncs, nv04_sw_omthds },
+	{ 0x006e, &nvkm_object_ofuncs, nv04_sw_omthds },
 	{}
 };
 
@@ -78,15 +72,14 @@ nv04_sw_sclass[] = {
  ******************************************************************************/
 
 static int
-nv04_sw_context_ctor(struct nouveau_object *parent,
-		      struct nouveau_object *engine,
-		      struct nouveau_oclass *oclass, void *data, u32 size,
-		      struct nouveau_object **pobject)
+nv04_sw_context_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		     struct nvkm_oclass *oclass, void *data, u32 size,
+		     struct nvkm_object **pobject)
 {
 	struct nv04_sw_chan *chan;
 	int ret;
 
-	ret = nouveau_sw_context_create(parent, engine, oclass, &chan);
+	ret = nvkm_sw_context_create(parent, engine, oclass, &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
@@ -94,14 +87,14 @@ nv04_sw_context_ctor(struct nouveau_object *parent,
 	return 0;
 }
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 nv04_sw_cclass = {
 	.handle = NV_ENGCTX(SW, 0x04),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_sw_context_ctor,
-		.dtor = _nouveau_sw_context_dtor,
-		.init = _nouveau_sw_context_init,
-		.fini = _nouveau_sw_context_fini,
+		.dtor = _nvkm_sw_context_dtor,
+		.init = _nvkm_sw_context_init,
+		.fini = _nvkm_sw_context_fini,
 	},
 };
 
@@ -110,20 +103,20 @@ nv04_sw_cclass = {
  ******************************************************************************/
 
 void
-nv04_sw_intr(struct nouveau_subdev *subdev)
+nv04_sw_intr(struct nvkm_subdev *subdev)
 {
 	nv_mask(subdev, 0x000100, 0x80000000, 0x00000000);
 }
 
 static int
-nv04_sw_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	      struct nouveau_oclass *oclass, void *data, u32 size,
-	      struct nouveau_object **pobject)
+nv04_sw_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	     struct nvkm_oclass *oclass, void *data, u32 size,
+	     struct nvkm_object **pobject)
 {
 	struct nv04_sw_priv *priv;
 	int ret;
 
-	ret = nouveau_sw_create(parent, engine, oclass, &priv);
+	ret = nvkm_sw_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -134,13 +127,13 @@ nv04_sw_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass *
-nv04_sw_oclass = &(struct nouveau_oclass) {
+struct nvkm_oclass *
+nv04_sw_oclass = &(struct nvkm_oclass) {
 	.handle = NV_ENGINE(SW, 0x04),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_sw_ctor,
-		.dtor = _nouveau_sw_dtor,
-		.init = _nouveau_sw_init,
-		.fini = _nouveau_sw_fini,
+		.dtor = _nvkm_sw_dtor,
+		.init = _nvkm_sw_init,
+		.fini = _nvkm_sw_fini,
 	},
 };

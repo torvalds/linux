@@ -251,5 +251,7 @@
 #define nouveau_fifo_chan nvkm_fifo_chan
 #define nouveau_fifo nvkm_fifo
 #define nouveau_gr nvkm_gr
+#define nouveau_sw nvkm_sw
+#define nouveau_sw_chan nvkm_sw_chan
 
 #endif
