@@ -21,21 +21,20 @@
  *
  * Authors: Ben Skeggs
  */
+#include <subdev/clk.h>
+#include "pll.h"
 
 #include <subdev/bios.h>
 #include <subdev/bios/pll.h>
-#include <subdev/clk.h>
 #include <subdev/devinit/nv04.h>
 
-#include "pll.h"
-
 struct nv04_clk_priv {
-	struct nouveau_clk base;
+	struct nvkm_clk base;
 };
 
 int
-nv04_clk_pll_calc(struct nouveau_clk *clock, struct nvbios_pll *info,
-		    int clk, struct nouveau_pll_vals *pv)
+nv04_clk_pll_calc(struct nvkm_clk *clock, struct nvbios_pll *info,
+		  int clk, struct nvkm_pll_vals *pv)
 {
 	int N1, M1, N2, M2, P;
 	int ret = nv04_pll_calc(nv_subdev(clock), info, clk, &N1, &M1, &N2, &M2, &P);
@@ -51,11 +50,10 @@ nv04_clk_pll_calc(struct nouveau_clk *clock, struct nvbios_pll *info,
 }
 
 int
-nv04_clk_pll_prog(struct nouveau_clk *clk, u32 reg1,
-		    struct nouveau_pll_vals *pv)
+nv04_clk_pll_prog(struct nvkm_clk *clk, u32 reg1, struct nvkm_pll_vals *pv)
 {
-	struct nouveau_devinit *devinit = nouveau_devinit(clk);
-	int cv = nouveau_bios(clk)->version.chip;
+	struct nvkm_devinit *devinit = nvkm_devinit(clk);
+	int cv = nvkm_bios(clk)->version.chip;
 
 	if (cv == 0x30 || cv == 0x31 || cv == 0x35 || cv == 0x36 ||
 	    cv >= 0x40) {
@@ -69,21 +67,21 @@ nv04_clk_pll_prog(struct nouveau_clk *clk, u32 reg1,
 	return 0;
 }
 
-static struct nouveau_domain
+static struct nvkm_domain
 nv04_domain[] = {
 	{ nv_clk_src_max }
 };
 
 static int
-nv04_clk_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		struct nouveau_oclass *oclass, void *data, u32 size,
-		struct nouveau_object **pobject)
+nv04_clk_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	      struct nvkm_oclass *oclass, void *data, u32 size,
+	      struct nvkm_object **pobject)
 {
 	struct nv04_clk_priv *priv;
 	int ret;
 
-	ret = nouveau_clk_create(parent, engine, oclass, nv04_domain, NULL, 0,
-				   false, &priv);
+	ret = nvkm_clk_create(parent, engine, oclass, nv04_domain,
+			      NULL, 0, false, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -93,13 +91,13 @@ nv04_clk_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
+struct nvkm_oclass
 nv04_clk_oclass = {
 	.handle = NV_SUBDEV(CLK, 0x04),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_clk_ctor,
-		.dtor = _nouveau_clk_dtor,
-		.init = _nouveau_clk_init,
-		.fini = _nouveau_clk_fini,
+		.dtor = _nvkm_clk_dtor,
+		.init = _nvkm_clk_init,
+		.fini = _nvkm_clk_fini,
 	},
 };

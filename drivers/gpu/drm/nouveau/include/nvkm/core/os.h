@@ -201,5 +201,23 @@
 #define nouveau_bios_oclass nvkm_bios_oclass
 #define nouveau_pll_vals nvkm_pll_vals
 #define nouveau_therm_trip_point nvkm_therm_trip_point
+#define nouveau_fb nvkm_fb
+#define nouveau_fifo nvkm_fifo
+#define nouveau_therm nvkm_therm
+#define nouveau_therm_cstate nvkm_therm_cstate
+#define nouveau_volt nvkm_volt
+#define nouveau_timer nvkm_timer
+#define nouveau_timer_wait_eq nvkm_timer_wait_eq
+#define nva3_pll_calc gt215_pll_calc
+#define nouveau_clk nvkm_clk
+#define nouveau_domain nvkm_domain
+#define nouveau_cstate nvkm_cstate
+#define nouveau_pstate nvkm_pstate
+#define nouveau_clk_astate nvkm_clk_astate
+#define nouveau_clk_ustate nvkm_clk_ustate
+#define nva3_clk_pre gt215_clk_pre
+#define nva3_clk_post gt215_clk_post
+#define nva3_clk_info gt215_clk_info
+#define nva3_pll_info gt215_pll_info
 
 #endif

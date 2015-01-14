@@ -1,12 +1,9 @@
-#ifndef __NOUVEAU_CLK_H__
-#define __NOUVEAU_CLK_H__
-
-#include <core/device.h>
-#include <core/notify.h>
+#ifndef __NVKM_CLK_H__
+#define __NVKM_CLK_H__
 #include <core/subdev.h>
-
-struct nouveau_pll_vals;
+#include <core/notify.h>
 struct nvbios_pll;
+struct nvkm_pll_vals;
 
 enum nv_clk_src {
 	nv_clk_src_crystal,
@@ -50,25 +47,34 @@ enum nv_clk_src {
 	nv_clk_src_max,
 };
 
-struct nouveau_cstate {
+struct nvkm_cstate {
 	struct list_head head;
 	u8  voltage;
 	u32 domain[nv_clk_src_max];
 };
 
-struct nouveau_pstate {
+struct nvkm_pstate {
 	struct list_head head;
 	struct list_head list; /* c-states */
-	struct nouveau_cstate base;
+	struct nvkm_cstate base;
 	u8 pstate;
 	u8 fanspeed;
 };
 
-struct nouveau_clk {
-	struct nouveau_subdev base;
+struct nvkm_domain {
+	enum nv_clk_src name;
+	u8 bios; /* 0xff for none */
+#define NVKM_CLK_DOM_FLAG_CORE 0x01
+	u8 flags;
+	const char *mname;
+	int mdiv;
+};
 
-	struct nouveau_domain *domains;
-	struct nouveau_pstate bstate;
+struct nvkm_clk {
+	struct nvkm_subdev base;
+
+	struct nvkm_domain *domains;
+	struct nvkm_pstate bstate;
 
 	struct list_head states;
 	int state_nr;
@@ -88,80 +94,68 @@ struct nouveau_clk {
 
 	bool allow_reclock;
 
-	int  (*read)(struct nouveau_clk *, enum nv_clk_src);
-	int  (*calc)(struct nouveau_clk *, struct nouveau_cstate *);
-	int  (*prog)(struct nouveau_clk *);
-	void (*tidy)(struct nouveau_clk *);
+	int  (*read)(struct nvkm_clk *, enum nv_clk_src);
+	int  (*calc)(struct nvkm_clk *, struct nvkm_cstate *);
+	int  (*prog)(struct nvkm_clk *);
+	void (*tidy)(struct nvkm_clk *);
 
 	/*XXX: die, these are here *only* to support the completely
-	 *     bat-shit insane what-was-nouveau_hw.c code
+	 *     bat-shit insane what-was-nvkm_hw.c code
 	 */
-	int (*pll_calc)(struct nouveau_clk *, struct nvbios_pll *,
-			int clk, struct nouveau_pll_vals *pv);
-	int (*pll_prog)(struct nouveau_clk *, u32 reg1,
-			struct nouveau_pll_vals *pv);
+	int (*pll_calc)(struct nvkm_clk *, struct nvbios_pll *, int clk,
+			struct nvkm_pll_vals *pv);
+	int (*pll_prog)(struct nvkm_clk *, u32 reg1, struct nvkm_pll_vals *pv);
 };
 
-static inline struct nouveau_clk *
-nouveau_clk(void *obj)
+static inline struct nvkm_clk *
+nvkm_clk(void *obj)
 {
-	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_CLK);
+	return (void *)nvkm_subdev(obj, NVDEV_SUBDEV_CLK);
 }
 
-struct nouveau_domain {
-	enum nv_clk_src name;
-	u8 bios; /* 0xff for none */
-#define NVKM_CLK_DOM_FLAG_CORE 0x01
-	u8 flags;
-	const char *mname;
-	int mdiv;
-};
-
-#define nouveau_clk_create(p,e,o,i,r,s,n,d)                                  \
-	nouveau_clk_create_((p), (e), (o), (i), (r), (s), (n), sizeof(**d),  \
+#define nvkm_clk_create(p,e,o,i,r,s,n,d)                                  \
+	nvkm_clk_create_((p), (e), (o), (i), (r), (s), (n), sizeof(**d),  \
 			      (void **)d)
-#define nouveau_clk_destroy(p) ({                                            \
-	struct nouveau_clk *clk = (p);                                       \
-	_nouveau_clk_dtor(nv_object(clk));                                   \
+#define nvkm_clk_destroy(p) ({                                            \
+	struct nvkm_clk *clk = (p);                                       \
+	_nvkm_clk_dtor(nv_object(clk));                                   \
 })
-#define nouveau_clk_init(p) ({                                               \
-	struct nouveau_clk *clk = (p);                                       \
-	_nouveau_clk_init(nv_object(clk));                                   \
+#define nvkm_clk_init(p) ({                                               \
+	struct nvkm_clk *clk = (p);                                       \
+	_nvkm_clk_init(nv_object(clk));                                   \
 })
-#define nouveau_clk_fini(p,s) ({                                             \
-	struct nouveau_clk *clk = (p);                                       \
-	_nouveau_clk_fini(nv_object(clk), (s));                              \
+#define nvkm_clk_fini(p,s) ({                                             \
+	struct nvkm_clk *clk = (p);                                       \
+	_nvkm_clk_fini(nv_object(clk), (s));                              \
 })
 
-int  nouveau_clk_create_(struct nouveau_object *, struct nouveau_object *,
-			   struct nouveau_oclass *,
-			   struct nouveau_domain *, struct nouveau_pstate *,
+int  nvkm_clk_create_(struct nvkm_object *, struct nvkm_object *,
+			   struct nvkm_oclass *,
+			   struct nvkm_domain *, struct nvkm_pstate *,
 			   int, bool, int, void **);
-void _nouveau_clk_dtor(struct nouveau_object *);
-int  _nouveau_clk_init(struct nouveau_object *);
-int  _nouveau_clk_fini(struct nouveau_object *, bool);
+void _nvkm_clk_dtor(struct nvkm_object *);
+int  _nvkm_clk_init(struct nvkm_object *);
+int  _nvkm_clk_fini(struct nvkm_object *, bool);
 
-extern struct nouveau_oclass nv04_clk_oclass;
-extern struct nouveau_oclass nv40_clk_oclass;
-extern struct nouveau_oclass *nv50_clk_oclass;
-extern struct nouveau_oclass *nv84_clk_oclass;
-extern struct nouveau_oclass *nvaa_clk_oclass;
-extern struct nouveau_oclass nva3_clk_oclass;
-extern struct nouveau_oclass nvc0_clk_oclass;
-extern struct nouveau_oclass nve0_clk_oclass;
-extern struct nouveau_oclass gk20a_clk_oclass;
+extern struct nvkm_oclass nv04_clk_oclass;
+extern struct nvkm_oclass nv40_clk_oclass;
+extern struct nvkm_oclass *nv50_clk_oclass;
+extern struct nvkm_oclass *g84_clk_oclass;
+extern struct nvkm_oclass *mcp77_clk_oclass;
+extern struct nvkm_oclass gt215_clk_oclass;
+extern struct nvkm_oclass gf100_clk_oclass;
+extern struct nvkm_oclass gk104_clk_oclass;
+extern struct nvkm_oclass gk20a_clk_oclass;
 
-int nv04_clk_pll_set(struct nouveau_clk *, u32 type, u32 freq);
-int nv04_clk_pll_calc(struct nouveau_clk *, struct nvbios_pll *,
-			int clk, struct nouveau_pll_vals *);
-int nv04_clk_pll_prog(struct nouveau_clk *, u32 reg1,
-			struct nouveau_pll_vals *);
-int nva3_clk_pll_calc(struct nouveau_clk *, struct nvbios_pll *,
-			int clk, struct nouveau_pll_vals *);
+int nv04_clk_pll_set(struct nvkm_clk *, u32 type, u32 freq);
+int nv04_clk_pll_calc(struct nvkm_clk *, struct nvbios_pll *, int clk,
+		      struct nvkm_pll_vals *);
+int nv04_clk_pll_prog(struct nvkm_clk *, u32 reg1, struct nvkm_pll_vals *);
+int gt215_clk_pll_calc(struct nvkm_clk *, struct nvbios_pll *,
+		       int clk, struct nvkm_pll_vals *);
 
-int nouveau_clk_ustate(struct nouveau_clk *, int req, int pwr);
-int nouveau_clk_astate(struct nouveau_clk *, int req, int rel, bool wait);
-int nouveau_clk_dstate(struct nouveau_clk *, int req, int rel);
-int nouveau_clk_tstate(struct nouveau_clk *, int req, int rel);
-
+int nvkm_clk_ustate(struct nvkm_clk *, int req, int pwr);
+int nvkm_clk_astate(struct nvkm_clk *, int req, int rel, bool wait);
+int nvkm_clk_dstate(struct nvkm_clk *, int req, int rel);
+int nvkm_clk_tstate(struct nvkm_clk *, int req, int rel);
 #endif

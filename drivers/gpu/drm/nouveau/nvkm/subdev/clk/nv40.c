@@ -21,22 +21,22 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include <subdev/clk.h>
+#include "pll.h"
+
+#include <core/device.h>
 #include <subdev/bios.h>
 #include <subdev/bios/pll.h>
 
-#include "pll.h"
-
 struct nv40_clk_priv {
-	struct nouveau_clk base;
+	struct nvkm_clk base;
 	u32 ctrl;
 	u32 npll_ctrl;
 	u32 npll_coef;
 	u32 spll;
 };
 
-static struct nouveau_domain
+static struct nvkm_domain
 nv40_domain[] = {
 	{ nv_clk_src_crystal, 0xff },
 	{ nv_clk_src_href   , 0xff },
@@ -102,7 +102,7 @@ read_clk(struct nv40_clk_priv *priv, u32 src)
 }
 
 static int
-nv40_clk_read(struct nouveau_clk *clk, enum nv_clk_src src)
+nv40_clk_read(struct nvkm_clk *clk, enum nv_clk_src src)
 {
 	struct nv40_clk_priv *priv = (void *)clk;
 	u32 mast = nv_rd32(priv, 0x00c040);
@@ -128,9 +128,9 @@ nv40_clk_read(struct nouveau_clk *clk, enum nv_clk_src src)
 
 static int
 nv40_clk_calc_pll(struct nv40_clk_priv *priv, u32 reg, u32 clk,
-		    int *N1, int *M1, int *N2, int *M2, int *log2P)
+		  int *N1, int *M1, int *N2, int *M2, int *log2P)
 {
-	struct nouveau_bios *bios = nouveau_bios(priv);
+	struct nvkm_bios *bios = nvkm_bios(priv);
 	struct nvbios_pll pll;
 	int ret;
 
@@ -144,11 +144,12 @@ nv40_clk_calc_pll(struct nv40_clk_priv *priv, u32 reg, u32 clk,
 	ret = nv04_pll_calc(nv_subdev(priv), &pll, clk, N1, M1, N2, M2, log2P);
 	if (ret == 0)
 		return -ERANGE;
+
 	return ret;
 }
 
 static int
-nv40_clk_calc(struct nouveau_clk *clk, struct nouveau_cstate *cstate)
+nv40_clk_calc(struct nvkm_clk *clk, struct nvkm_cstate *cstate)
 {
 	struct nv40_clk_priv *priv = (void *)clk;
 	int gclk = cstate->domain[nv_clk_src_core];
@@ -158,7 +159,7 @@ nv40_clk_calc(struct nouveau_clk *clk, struct nouveau_cstate *cstate)
 
 	/* core/geometric clock */
 	ret = nv40_clk_calc_pll(priv, 0x004000, gclk,
-				 &N1, &M1, &N2, &M2, &log2P);
+				&N1, &M1, &N2, &M2, &log2P);
 	if (ret < 0)
 		return ret;
 
@@ -173,7 +174,7 @@ nv40_clk_calc(struct nouveau_clk *clk, struct nouveau_cstate *cstate)
 	/* use the second pll for shader/rop clock, if it differs from core */
 	if (sclk && sclk != gclk) {
 		ret = nv40_clk_calc_pll(priv, 0x004008, sclk,
-					 &N1, &M1, NULL, NULL, &log2P);
+					&N1, &M1, NULL, NULL, &log2P);
 		if (ret < 0)
 			return ret;
 
@@ -188,7 +189,7 @@ nv40_clk_calc(struct nouveau_clk *clk, struct nouveau_cstate *cstate)
 }
 
 static int
-nv40_clk_prog(struct nouveau_clk *clk)
+nv40_clk_prog(struct nvkm_clk *clk)
 {
 	struct nv40_clk_priv *priv = (void *)clk;
 	nv_mask(priv, 0x00c040, 0x00000333, 0x00000000);
@@ -201,20 +202,20 @@ nv40_clk_prog(struct nouveau_clk *clk)
 }
 
 static void
-nv40_clk_tidy(struct nouveau_clk *clk)
+nv40_clk_tidy(struct nvkm_clk *clk)
 {
 }
 
 static int
-nv40_clk_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		struct nouveau_oclass *oclass, void *data, u32 size,
-		struct nouveau_object **pobject)
+nv40_clk_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	      struct nvkm_oclass *oclass, void *data, u32 size,
+	      struct nvkm_object **pobject)
 {
 	struct nv40_clk_priv *priv;
 	int ret;
 
-	ret = nouveau_clk_create(parent, engine, oclass, nv40_domain, NULL, 0,
-				   true, &priv);
+	ret = nvkm_clk_create(parent, engine, oclass, nv40_domain,
+			      NULL, 0, true, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -228,13 +229,13 @@ nv40_clk_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
+struct nvkm_oclass
 nv40_clk_oclass = {
 	.handle = NV_SUBDEV(CLK, 0x40),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv40_clk_ctor,
-		.dtor = _nouveau_clk_dtor,
-		.init = _nouveau_clk_init,
-		.fini = _nouveau_clk_fini,
+		.dtor = _nvkm_clk_dtor,
+		.init = _nvkm_clk_init,
+		.fini = _nvkm_clk_fini,
 	},
 };

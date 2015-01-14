@@ -21,13 +21,13 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <subdev/bios.h>
-#include <subdev/bios/pll.h>
-
 #include "nv50.h"
 #include "pll.h"
 #include "seq.h"
+
+#include <core/device.h>
+#include <subdev/bios.h>
+#include <subdev/bios/pll.h>
 
 static u32
 read_div(struct nv50_clk_priv *priv)
@@ -51,7 +51,7 @@ read_div(struct nv50_clk_priv *priv)
 static u32
 read_pll_src(struct nv50_clk_priv *priv, u32 base)
 {
-	struct nouveau_clk *clk = &priv->base;
+	struct nvkm_clk *clk = &priv->base;
 	u32 coef, ref = clk->read(clk, nv_clk_src_crystal);
 	u32 rsel = nv_rd32(priv, 0x00e18c);
 	int P, N, M, id;
@@ -116,13 +116,14 @@ read_pll_src(struct nv50_clk_priv *priv, u32 base)
 
 	if (M)
 		return (ref * N / M) >> P;
+
 	return 0;
 }
 
 static u32
 read_pll_ref(struct nv50_clk_priv *priv, u32 base)
 {
-	struct nouveau_clk *clk = &priv->base;
+	struct nvkm_clk *clk = &priv->base;
 	u32 src, mast = nv_rd32(priv, 0x00c040);
 
 	switch (base) {
@@ -147,13 +148,14 @@ read_pll_ref(struct nv50_clk_priv *priv, u32 base)
 
 	if (src)
 		return clk->read(clk, nv_clk_src_href);
+
 	return read_pll_src(priv, base);
 }
 
 static u32
 read_pll(struct nv50_clk_priv *priv, u32 base)
 {
-	struct nouveau_clk *clk = &priv->base;
+	struct nvkm_clk *clk = &priv->base;
 	u32 mast = nv_rd32(priv, 0x00c040);
 	u32 ctrl = nv_rd32(priv, base + 0);
 	u32 coef = nv_rd32(priv, base + 4);
@@ -162,7 +164,7 @@ read_pll(struct nv50_clk_priv *priv, u32 base)
 	int N1, N2, M1, M2;
 
 	if (base == 0x004028 && (mast & 0x00100000)) {
-		/* wtf, appears to only disable post-divider on nva0 */
+		/* wtf, appears to only disable post-divider on gt200 */
 		if (nv_device(priv)->chipset != 0xa0)
 			return clk->read(clk, nv_clk_src_dom6);
 	}
@@ -185,7 +187,7 @@ read_pll(struct nv50_clk_priv *priv, u32 base)
 }
 
 static int
-nv50_clk_read(struct nouveau_clk *clk, enum nv_clk_src src)
+nv50_clk_read(struct nvkm_clk *clk, enum nv_clk_src src)
 {
 	struct nv50_clk_priv *priv = (void *)clk;
 	u32 mast = nv_rd32(priv, 0x00c040);
@@ -318,7 +320,7 @@ nv50_clk_read(struct nouveau_clk *clk, enum nv_clk_src src)
 static u32
 calc_pll(struct nv50_clk_priv *priv, u32 reg, u32 clk, int *N, int *M, int *P)
 {
-	struct nouveau_bios *bios = nouveau_bios(priv);
+	struct nvkm_bios *bios = nvkm_bios(priv);
 	struct nvbios_pll pll;
 	int ret;
 
@@ -359,7 +361,7 @@ clk_same(u32 a, u32 b)
 }
 
 static int
-nv50_clk_calc(struct nouveau_clk *clk, struct nouveau_cstate *cstate)
+nv50_clk_calc(struct nvkm_clk *clk, struct nvkm_cstate *cstate)
 {
 	struct nv50_clk_priv *priv = (void *)clk;
 	struct nv50_clk_hwsq *hwsq = &priv->hwsq;
@@ -484,30 +486,30 @@ nv50_clk_calc(struct nouveau_clk *clk, struct nouveau_cstate *cstate)
 }
 
 static int
-nv50_clk_prog(struct nouveau_clk *clk)
+nv50_clk_prog(struct nvkm_clk *clk)
 {
 	struct nv50_clk_priv *priv = (void *)clk;
 	return clk_exec(&priv->hwsq, true);
 }
 
 static void
-nv50_clk_tidy(struct nouveau_clk *clk)
+nv50_clk_tidy(struct nvkm_clk *clk)
 {
 	struct nv50_clk_priv *priv = (void *)clk;
 	clk_exec(&priv->hwsq, false);
 }
 
 int
-nv50_clk_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		struct nouveau_oclass *oclass, void *data, u32 size,
-		struct nouveau_object **pobject)
+nv50_clk_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	      struct nvkm_oclass *oclass, void *data, u32 size,
+	      struct nvkm_object **pobject)
 {
 	struct nv50_clk_oclass *pclass = (void *)oclass;
 	struct nv50_clk_priv *priv;
 	int ret;
 
-	ret = nouveau_clk_create(parent, engine, oclass, pclass->domains,
-				   NULL, 0, false, &priv);
+	ret = nvkm_clk_create(parent, engine, oclass, pclass->domains,
+			      NULL, 0, false, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -536,7 +538,7 @@ nv50_clk_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-static struct nouveau_domain
+static struct nvkm_domain
 nv50_domains[] = {
 	{ nv_clk_src_crystal, 0xff },
 	{ nv_clk_src_href   , 0xff },
@@ -546,14 +548,14 @@ nv50_domains[] = {
 	{ nv_clk_src_max }
 };
 
-struct nouveau_oclass *
+struct nvkm_oclass *
 nv50_clk_oclass = &(struct nv50_clk_oclass) {
 	.base.handle = NV_SUBDEV(CLK, 0x50),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv50_clk_ctor,
-		.dtor = _nouveau_clk_dtor,
-		.init = _nouveau_clk_init,
-		.fini = _nouveau_clk_fini,
+		.dtor = _nvkm_clk_dtor,
+		.init = _nvkm_clk_init,
+		.fini = _nvkm_clk_fini,
 	},
 	.domains = nv50_domains,
 }.base;

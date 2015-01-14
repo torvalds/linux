@@ -21,11 +21,10 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-
 #include "nv50.h"
 
-static struct nouveau_domain
-nv84_domains[] = {
+static struct nvkm_domain
+g84_domains[] = {
 	{ nv_clk_src_crystal, 0xff },
 	{ nv_clk_src_href   , 0xff },
 	{ nv_clk_src_core   , 0xff, 0, "core", 1000 },
@@ -35,14 +34,14 @@ nv84_domains[] = {
 	{ nv_clk_src_max }
 };
 
-struct nouveau_oclass *
-nv84_clk_oclass = &(struct nv50_clk_oclass) {
+struct nvkm_oclass *
+g84_clk_oclass = &(struct nv50_clk_oclass) {
 	.base.handle = NV_SUBDEV(CLK, 0x84),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv50_clk_ctor,
-		.dtor = _nouveau_clk_dtor,
-		.init = _nouveau_clk_init,
-		.fini = _nouveau_clk_fini,
+		.dtor = _nvkm_clk_dtor,
+		.init = _nvkm_clk_init,
+		.fini = _nvkm_clk_fini,
 	},
-	.domains = nv84_domains,
+	.domains = g84_domains,
 }.base;

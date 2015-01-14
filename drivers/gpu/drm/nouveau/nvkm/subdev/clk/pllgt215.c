@@ -21,16 +21,14 @@
  *
  * Authors: Ben Skeggs
  */
+#include "pll.h"
 
-#include <subdev/clk.h>
 #include <subdev/bios.h>
 #include <subdev/bios/pll.h>
 
-#include "pll.h"
-
 int
-nva3_pll_calc(struct nouveau_subdev *subdev, struct nvbios_pll *info,
-	      u32 freq, int *pN, int *pfN, int *pM, int *P)
+gt215_pll_calc(struct nvkm_subdev *subdev, struct nvbios_pll *info,
+	       u32 freq, int *pN, int *pfN, int *pM, int *P)
 {
 	u32 best_err = ~0, err;
 	int M, lM, hM, N, fN;

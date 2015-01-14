@@ -22,6 +22,12 @@
  * Shamelessly ripped off from ChromeOS's gk20a/clk_pllg.c
  *
  */
+#include <subdev/clk.h>
+#include <subdev/timer.h>
+
+#ifdef __KERNEL__
+#include <nouveau_platform.h>
+#endif
 
 #define MHZ (1000 * 1000)
 
@@ -87,13 +93,6 @@
 #define GPC_BCAST_NDIV_SLOWDOWN_DEBUG_PLL_DYNRAMP_DONE_SYNCED_MASK \
 	    (0x1 << GPC_BCAST_NDIV_SLOWDOWN_DEBUG_PLL_DYNRAMP_DONE_SYNCED_SHIFT)
 
-#include <subdev/clk.h>
-#include <subdev/timer.h>
-
-#ifdef __KERNEL__
-#include <nouveau_platform.h>
-#endif
-
 static const u8 pl_to_div[] = {
 /* PL:   0, 1, 2, 3, 4, 5, 6,  7,  8,  9, 10, 11, 12, 13, 14 */
 /* p: */ 1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 12, 16, 20, 24, 32,
@@ -117,7 +116,7 @@ static const struct gk20a_clk_pllg_params gk20a_pllg_params = {
 };
 
 struct gk20a_clk_priv {
-	struct nouveau_clk base;
+	struct nvkm_clk base;
 	const struct gk20a_clk_pllg_params *params;
 	u32 m, n, pl;
 	u32 parent_rate;
@@ -260,7 +259,6 @@ found_match:
 
 	nv_debug(priv, "actual target freq %d MHz, M %d, N %d, PL %d(div%d)\n",
 		 target_freq, priv->m, priv->n, priv->pl, pl_to_div[priv->pl]);
-
 	return 0;
 }
 
@@ -402,8 +400,8 @@ _gk20a_pllg_program_mnp(struct gk20a_clk_priv *priv, bool allow_slide)
 		nv_wr32(priv, GPCPLL_CFG, val);
 	}
 
-	if (!nouveau_timer_wait_eq(priv, 300000, GPCPLL_CFG, GPCPLL_CFG_LOCK,
-				   GPCPLL_CFG_LOCK)) {
+	if (!nvkm_timer_wait_eq(priv, 300000, GPCPLL_CFG, GPCPLL_CFG_LOCK,
+				GPCPLL_CFG_LOCK)) {
 		nv_error(priv, "%s: timeout waiting for pllg lock\n", __func__);
 		return -ETIMEDOUT;
 	}
@@ -458,14 +456,14 @@ gk20a_pllg_disable(struct gk20a_clk_priv *priv)
 
 #define GK20A_CLK_GPC_MDIV 1000
 
-static struct nouveau_domain
+static struct nvkm_domain
 gk20a_domains[] = {
 	{ nv_clk_src_crystal, 0xff },
 	{ nv_clk_src_gpc, 0xff, 0, "core", GK20A_CLK_GPC_MDIV },
 	{ nv_clk_src_max }
 };
 
-static struct nouveau_pstate
+static struct nvkm_pstate
 gk20a_pstates[] = {
 	{
 		.base = {
@@ -560,7 +558,7 @@ gk20a_pstates[] = {
 };
 
 static int
-gk20a_clk_read(struct nouveau_clk *clk, enum nv_clk_src src)
+gk20a_clk_read(struct nvkm_clk *clk, enum nv_clk_src src)
 {
 	struct gk20a_clk_priv *priv = (void *)clk;
 
@@ -577,7 +575,7 @@ gk20a_clk_read(struct nouveau_clk *clk, enum nv_clk_src src)
 }
 
 static int
-gk20a_clk_calc(struct nouveau_clk *clk, struct nouveau_cstate *cstate)
+gk20a_clk_calc(struct nvkm_clk *clk, struct nvkm_cstate *cstate)
 {
 	struct gk20a_clk_priv *priv = (void *)clk;
 
@@ -586,7 +584,7 @@ gk20a_clk_calc(struct nouveau_clk *clk, struct nouveau_cstate *cstate)
 }
 
 static int
-gk20a_clk_prog(struct nouveau_clk *clk)
+gk20a_clk_prog(struct nvkm_clk *clk)
 {
 	struct gk20a_clk_priv *priv = (void *)clk;
 
@@ -594,17 +592,17 @@ gk20a_clk_prog(struct nouveau_clk *clk)
 }
 
 static void
-gk20a_clk_tidy(struct nouveau_clk *clk)
+gk20a_clk_tidy(struct nvkm_clk *clk)
 {
 }
 
 static int
-gk20a_clk_fini(struct nouveau_object *object, bool suspend)
+gk20a_clk_fini(struct nvkm_object *object, bool suspend)
 {
 	struct gk20a_clk_priv *priv = (void *)object;
 	int ret;
 
-	ret = nouveau_clk_fini(&priv->base, false);
+	ret = nvkm_clk_fini(&priv->base, false);
 
 	gk20a_pllg_disable(priv);
 
@@ -612,14 +610,14 @@ gk20a_clk_fini(struct nouveau_object *object, bool suspend)
 }
 
 static int
-gk20a_clk_init(struct nouveau_object *object)
+gk20a_clk_init(struct nvkm_object *object)
 {
 	struct gk20a_clk_priv *priv = (void *)object;
 	int ret;
 
 	nv_mask(priv, GPC2CLK_OUT, GPC2CLK_OUT_INIT_MASK, GPC2CLK_OUT_INIT_VAL);
 
-	ret = nouveau_clk_init(&priv->base);
+	ret = nvkm_clk_init(&priv->base);
 	if (ret)
 		return ret;
 
@@ -633,9 +631,9 @@ gk20a_clk_init(struct nouveau_object *object)
 }
 
 static int
-gk20a_clk_ctor(struct nouveau_object *parent,  struct nouveau_object *engine,
-		 struct nouveau_oclass *oclass, void *data, u32 size,
-		 struct nouveau_object **pobject)
+gk20a_clk_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	       struct nvkm_oclass *oclass, void *data, u32 size,
+	       struct nvkm_object **pobject)
 {
 	struct gk20a_clk_priv *priv;
 	struct nouveau_platform_device *plat;
@@ -648,8 +646,9 @@ gk20a_clk_ctor(struct nouveau_object *parent,  struct nouveau_object *engine,
 		gk20a_pstates[i].pstate = i + 1;
 	}
 
-	ret = nouveau_clk_create(parent, engine, oclass, gk20a_domains,
-			gk20a_pstates, ARRAY_SIZE(gk20a_pstates), true, &priv);
+	ret = nvkm_clk_create(parent, engine, oclass, gk20a_domains,
+			      gk20a_pstates, ARRAY_SIZE(gk20a_pstates),
+			      true, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -664,16 +663,15 @@ gk20a_clk_ctor(struct nouveau_object *parent,  struct nouveau_object *engine,
 	priv->base.calc = gk20a_clk_calc;
 	priv->base.prog = gk20a_clk_prog;
 	priv->base.tidy = gk20a_clk_tidy;
-
 	return 0;
 }
 
-struct nouveau_oclass
+struct nvkm_oclass
 gk20a_clk_oclass = {
 	.handle = NV_SUBDEV(CLK, 0xea),
-	.ofuncs = &(struct nouveau_ofuncs) {
+	.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = gk20a_clk_ctor,
-		.dtor = _nouveau_subdev_dtor,
+		.dtor = _nvkm_subdev_dtor,
 		.init = gk20a_clk_init,
 		.fini = gk20a_clk_fini,
 	},

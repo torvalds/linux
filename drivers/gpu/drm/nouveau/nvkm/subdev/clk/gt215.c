@@ -22,26 +22,24 @@
  * Authors: Ben Skeggs
  *          Roy Spliet
  */
+#include "gt215.h"
+#include "pll.h"
 
 #include <engine/fifo.h>
 #include <subdev/bios.h>
 #include <subdev/bios/pll.h>
 #include <subdev/timer.h>
 
-#include "pll.h"
-
-#include "nva3.h"
-
-struct nva3_clk_priv {
-	struct nouveau_clk base;
-	struct nva3_clk_info eng[nv_clk_src_max];
+struct gt215_clk_priv {
+	struct nvkm_clk base;
+	struct gt215_clk_info eng[nv_clk_src_max];
 };
 
-static u32 read_clk(struct nva3_clk_priv *, int, bool);
-static u32 read_pll(struct nva3_clk_priv *, int, u32);
+static u32 read_clk(struct gt215_clk_priv *, int, bool);
+static u32 read_pll(struct gt215_clk_priv *, int, u32);
 
 static u32
-read_vco(struct nva3_clk_priv *priv, int clk)
+read_vco(struct gt215_clk_priv *priv, int clk)
 {
 	u32 sctl = nv_rd32(priv, 0x4120 + (clk * 4));
 
@@ -58,7 +56,7 @@ read_vco(struct nva3_clk_priv *priv, int clk)
 }
 
 static u32
-read_clk(struct nva3_clk_priv *priv, int clk, bool ignore_en)
+read_clk(struct gt215_clk_priv *priv, int clk, bool ignore_en)
 {
 	u32 sctl, sdiv, sclk;
 
@@ -104,7 +102,7 @@ read_clk(struct nva3_clk_priv *priv, int clk, bool ignore_en)
 }
 
 static u32
-read_pll(struct nva3_clk_priv *priv, int clk, u32 pll)
+read_pll(struct gt215_clk_priv *priv, int clk, u32 pll)
 {
 	u32 ctrl = nv_rd32(priv, pll + 0);
 	u32 sclk = 0, P = 1, N = 1, M = 1;
@@ -130,13 +128,14 @@ read_pll(struct nva3_clk_priv *priv, int clk, u32 pll)
 
 	if (M * P)
 		return sclk * N / (M * P);
+
 	return 0;
 }
 
 static int
-nva3_clk_read(struct nouveau_clk *clk, enum nv_clk_src src)
+gt215_clk_read(struct nvkm_clk *clk, enum nv_clk_src src)
 {
-	struct nva3_clk_priv *priv = (void *)clk;
+	struct gt215_clk_priv *priv = (void *)clk;
 	u32 hsrc;
 
 	switch (src) {
@@ -176,10 +175,10 @@ nva3_clk_read(struct nouveau_clk *clk, enum nv_clk_src src)
 }
 
 int
-nva3_clk_info(struct nouveau_clk *clock, int clk, u32 khz,
-		struct nva3_clk_info *info)
+gt215_clk_info(struct nvkm_clk *clock, int clk, u32 khz,
+	       struct gt215_clk_info *info)
 {
-	struct nva3_clk_priv *priv = (void *)clock;
+	struct gt215_clk_priv *priv = (void *)clock;
 	u32 oclk, sclk, sdiv, diff;
 
 	info->clk = 0;
@@ -223,11 +222,11 @@ nva3_clk_info(struct nouveau_clk *clock, int clk, u32 khz,
 }
 
 int
-nva3_pll_info(struct nouveau_clk *clock, int clk, u32 pll, u32 khz,
-		struct nva3_clk_info *info)
+gt215_pll_info(struct nvkm_clk *clock, int clk, u32 pll, u32 khz,
+	       struct gt215_clk_info *info)
 {
-	struct nouveau_bios *bios = nouveau_bios(clock);
-	struct nva3_clk_priv *priv = (void *)clock;
+	struct nvkm_bios *bios = nvkm_bios(clock);
+	struct gt215_clk_priv *priv = (void *)clock;
 	struct nvbios_pll limits;
 	int P, N, M, diff;
 	int ret;
@@ -236,7 +235,7 @@ nva3_pll_info(struct nouveau_clk *clock, int clk, u32 pll, u32 khz,
 
 	/* If we can get a within [-2, 3) MHz of a divider, we'll disable the
 	 * PLL and use the divider instead. */
-	ret = nva3_clk_info(clock, clk, khz, info);
+	ret = gt215_clk_info(clock, clk, khz, info);
 	diff = khz - ret;
 	if (!pll || (diff >= -2000 && diff < 3000)) {
 		goto out;
@@ -247,38 +246,37 @@ nva3_pll_info(struct nouveau_clk *clock, int clk, u32 pll, u32 khz,
 	if (ret)
 		return ret;
 
-	ret = nva3_clk_info(clock, clk - 0x10, limits.refclk, info);
+	ret = gt215_clk_info(clock, clk - 0x10, limits.refclk, info);
 	if (ret != limits.refclk)
 		return -EINVAL;
 
-	ret = nva3_pll_calc(nv_subdev(priv), &limits, khz, &N, NULL, &M, &P);
+	ret = gt215_pll_calc(nv_subdev(priv), &limits, khz, &N, NULL, &M, &P);
 	if (ret >= 0) {
 		info->pll = (P << 16) | (N << 8) | M;
 	}
 
 out:
 	info->fb_delay = max(((khz + 7566) / 15133), (u32) 18);
-
 	return ret ? ret : -ERANGE;
 }
 
 static int
-calc_clk(struct nva3_clk_priv *priv, struct nouveau_cstate *cstate,
+calc_clk(struct gt215_clk_priv *priv, struct nvkm_cstate *cstate,
 	 int clk, u32 pll, int idx)
 {
-	int ret = nva3_pll_info(&priv->base, clk, pll, cstate->domain[idx],
-				  &priv->eng[idx]);
+	int ret = gt215_pll_info(&priv->base, clk, pll, cstate->domain[idx],
+				 &priv->eng[idx]);
 	if (ret >= 0)
 		return 0;
 	return ret;
 }
 
 static int
-calc_host(struct nva3_clk_priv *priv, struct nouveau_cstate *cstate)
+calc_host(struct gt215_clk_priv *priv, struct nvkm_cstate *cstate)
 {
 	int ret = 0;
 	u32 kHz = cstate->domain[nv_clk_src_host];
-	struct nva3_clk_info *info = &priv->eng[nv_clk_src_host];
+	struct gt215_clk_info *info = &priv->eng[nv_clk_src_host];
 
 	if (kHz == 277000) {
 		info->clk = 0;
@@ -288,16 +286,17 @@ calc_host(struct nva3_clk_priv *priv, struct nouveau_cstate *cstate)
 
 	info->host_out = NVA3_HOST_CLK;
 
-	ret = nva3_clk_info(&priv->base, 0x1d, kHz, info);
+	ret = gt215_clk_info(&priv->base, 0x1d, kHz, info);
 	if (ret >= 0)
 		return 0;
+
 	return ret;
 }
 
 int
-nva3_clk_pre(struct nouveau_clk *clk, unsigned long *flags)
+gt215_clk_pre(struct nvkm_clk *clk, unsigned long *flags)
 {
-	struct nouveau_fifo *pfifo = nouveau_fifo(clk);
+	struct nvkm_fifo *pfifo = nvkm_fifo(clk);
 
 	/* halt and idle execution engines */
 	nv_mask(clk, 0x020060, 0x00070000, 0x00000000);
@@ -318,9 +317,9 @@ nva3_clk_pre(struct nouveau_clk *clk, unsigned long *flags)
 }
 
 void
-nva3_clk_post(struct nouveau_clk *clk, unsigned long *flags)
+gt215_clk_post(struct nvkm_clk *clk, unsigned long *flags)
 {
-	struct nouveau_fifo *pfifo = nouveau_fifo(clk);
+	struct nvkm_fifo *pfifo = nvkm_fifo(clk);
 
 	if (pfifo && flags)
 		pfifo->start(pfifo, flags);
@@ -330,16 +329,16 @@ nva3_clk_post(struct nouveau_clk *clk, unsigned long *flags)
 }
 
 static void
-disable_clk_src(struct nva3_clk_priv *priv, u32 src)
+disable_clk_src(struct gt215_clk_priv *priv, u32 src)
 {
 	nv_mask(priv, src, 0x00000100, 0x00000000);
 	nv_mask(priv, src, 0x00000001, 0x00000000);
 }
 
 static void
-prog_pll(struct nva3_clk_priv *priv, int clk, u32 pll, int idx)
+prog_pll(struct gt215_clk_priv *priv, int clk, u32 pll, int idx)
 {
-	struct nva3_clk_info *info = &priv->eng[idx];
+	struct gt215_clk_info *info = &priv->eng[idx];
 	const u32 src0 = 0x004120 + (clk * 4);
 	const u32 src1 = 0x004160 + (clk * 4);
 	const u32 ctrl = pll + 0;
@@ -377,16 +376,16 @@ prog_pll(struct nva3_clk_priv *priv, int clk, u32 pll, int idx)
 }
 
 static void
-prog_clk(struct nva3_clk_priv *priv, int clk, int idx)
+prog_clk(struct gt215_clk_priv *priv, int clk, int idx)
 {
-	struct nva3_clk_info *info = &priv->eng[idx];
+	struct gt215_clk_info *info = &priv->eng[idx];
 	nv_mask(priv, 0x004120 + (clk * 4), 0x003f3141, 0x00000101 | info->clk);
 }
 
 static void
-prog_host(struct nva3_clk_priv *priv)
+prog_host(struct gt215_clk_priv *priv)
 {
-	struct nva3_clk_info *info = &priv->eng[nv_clk_src_host];
+	struct gt215_clk_info *info = &priv->eng[nv_clk_src_host];
 	u32 hsrc = (nv_rd32(priv, 0xc040));
 
 	switch (info->host_out) {
@@ -411,9 +410,9 @@ prog_host(struct nva3_clk_priv *priv)
 }
 
 static void
-prog_core(struct nva3_clk_priv *priv, int idx)
+prog_core(struct gt215_clk_priv *priv, int idx)
 {
-	struct nva3_clk_info *info = &priv->eng[idx];
+	struct gt215_clk_info *info = &priv->eng[idx];
 	u32 fb_delay = nv_rd32(priv, 0x10002c);
 
 	if (fb_delay < info->fb_delay)
@@ -426,10 +425,10 @@ prog_core(struct nva3_clk_priv *priv, int idx)
 }
 
 static int
-nva3_clk_calc(struct nouveau_clk *clk, struct nouveau_cstate *cstate)
+gt215_clk_calc(struct nvkm_clk *clk, struct nvkm_cstate *cstate)
 {
-	struct nva3_clk_priv *priv = (void *)clk;
-	struct nva3_clk_info *core = &priv->eng[nv_clk_src_core];
+	struct gt215_clk_priv *priv = (void *)clk;
+	struct gt215_clk_info *core = &priv->eng[nv_clk_src_core];
 	int ret;
 
 	if ((ret = calc_clk(priv, cstate, 0x10, 0x4200, nv_clk_src_core)) ||
@@ -442,9 +441,9 @@ nva3_clk_calc(struct nouveau_clk *clk, struct nouveau_cstate *cstate)
 	/* XXX: Should be reading the highest bit in the VBIOS clock to decide
 	 * whether to use a PLL or not... but using a PLL defeats the purpose */
 	if (core->pll) {
-		ret = nva3_clk_info(clk, 0x10,
-				cstate->domain[nv_clk_src_core_intm],
-				&priv->eng[nv_clk_src_core_intm]);
+		ret = gt215_clk_info(clk, 0x10,
+				     cstate->domain[nv_clk_src_core_intm],
+				     &priv->eng[nv_clk_src_core_intm]);
 		if (ret < 0)
 			return ret;
 	}
@@ -453,15 +452,15 @@ nva3_clk_calc(struct nouveau_clk *clk, struct nouveau_cstate *cstate)
 }
 
 static int
-nva3_clk_prog(struct nouveau_clk *clk)
+gt215_clk_prog(struct nvkm_clk *clk)
 {
-	struct nva3_clk_priv *priv = (void *)clk;
-	struct nva3_clk_info *core = &priv->eng[nv_clk_src_core];
+	struct gt215_clk_priv *priv = (void *)clk;
+	struct gt215_clk_info *core = &priv->eng[nv_clk_src_core];
 	int ret = 0;
 	unsigned long flags;
 	unsigned long *f = &flags;
 
-	ret = nva3_clk_pre(clk, f);
+	ret = gt215_clk_pre(clk, f);
 	if (ret)
 		goto out;
 
@@ -478,18 +477,17 @@ out:
 	if (ret == -EBUSY)
 		f = NULL;
 
-	nva3_clk_post(clk, f);
-
+	gt215_clk_post(clk, f);
 	return ret;
 }
 
 static void
-nva3_clk_tidy(struct nouveau_clk *clk)
+gt215_clk_tidy(struct nvkm_clk *clk)
 {
 }
 
-static struct nouveau_domain
-nva3_domain[] = {
+static struct nvkm_domain
+gt215_domain[] = {
 	{ nv_clk_src_crystal  , 0xff },
 	{ nv_clk_src_core     , 0x00, 0, "core", 1000 },
 	{ nv_clk_src_shader   , 0x01, 0, "shader", 1000 },
@@ -502,33 +500,33 @@ nva3_domain[] = {
 };
 
 static int
-nva3_clk_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		struct nouveau_oclass *oclass, void *data, u32 size,
-		struct nouveau_object **pobject)
+gt215_clk_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	       struct nvkm_oclass *oclass, void *data, u32 size,
+	       struct nvkm_object **pobject)
 {
-	struct nva3_clk_priv *priv;
+	struct gt215_clk_priv *priv;
 	int ret;
 
-	ret = nouveau_clk_create(parent, engine, oclass, nva3_domain, NULL, 0,
-				   true, &priv);
+	ret = nvkm_clk_create(parent, engine, oclass, gt215_domain,
+			      NULL, 0, true, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
-	priv->base.read = nva3_clk_read;
-	priv->base.calc = nva3_clk_calc;
-	priv->base.prog = nva3_clk_prog;
-	priv->base.tidy = nva3_clk_tidy;
+	priv->base.read = gt215_clk_read;
+	priv->base.calc = gt215_clk_calc;
+	priv->base.prog = gt215_clk_prog;
+	priv->base.tidy = gt215_clk_tidy;
 	return 0;
 }
 
-struct nouveau_oclass
-nva3_clk_oclass = {
+struct nvkm_oclass
+gt215_clk_oclass = {
 	.handle = NV_SUBDEV(CLK, 0xa3),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nva3_clk_ctor,
-		.dtor = _nouveau_clk_dtor,
-		.init = _nouveau_clk_init,
-		.fini = _nouveau_clk_fini,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gt215_clk_ctor,
+		.dtor = _nvkm_clk_dtor,
+		.init = _nvkm_clk_init,
+		.fini = _nvkm_clk_fini,
 	},
 };

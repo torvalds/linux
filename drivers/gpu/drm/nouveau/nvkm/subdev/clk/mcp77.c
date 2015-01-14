@@ -21,18 +21,15 @@
  *
  * Authors: Ben Skeggs
  */
+#include "gt215.h"
+#include "pll.h"
 
-#include <engine/fifo.h>
 #include <subdev/bios.h>
 #include <subdev/bios/pll.h>
 #include <subdev/timer.h>
-#include <subdev/clk.h>
 
-#include "nva3.h"
-#include "pll.h"
-
-struct nvaa_clk_priv {
-	struct nouveau_clk base;
+struct mcp77_clk_priv {
+	struct nvkm_clk base;
 	enum nv_clk_src csrc, ssrc, vsrc;
 	u32 cctrl, sctrl;
 	u32 ccoef, scoef;
@@ -41,13 +38,13 @@ struct nvaa_clk_priv {
 };
 
 static u32
-read_div(struct nouveau_clk *clk)
+read_div(struct nvkm_clk *clk)
 {
 	return nv_rd32(clk, 0x004600);
 }
 
 static u32
-read_pll(struct nouveau_clk *clk, u32 base)
+read_pll(struct nvkm_clk *clk, u32 base)
 {
 	u32 ctrl = nv_rd32(clk, base + 0);
 	u32 coef = nv_rd32(clk, base + 4);
@@ -78,9 +75,9 @@ read_pll(struct nouveau_clk *clk, u32 base)
 }
 
 static int
-nvaa_clk_read(struct nouveau_clk *clk, enum nv_clk_src src)
+mcp77_clk_read(struct nvkm_clk *clk, enum nv_clk_src src)
 {
-	struct nvaa_clk_priv *priv = (void *)clk;
+	struct mcp77_clk_priv *priv = (void *)clk;
 	u32 mast = nv_rd32(clk, 0x00c054);
 	u32 P = 0;
 
@@ -160,12 +157,12 @@ nvaa_clk_read(struct nouveau_clk *clk, enum nv_clk_src src)
 }
 
 static u32
-calc_pll(struct nvaa_clk_priv *priv, u32 reg,
+calc_pll(struct mcp77_clk_priv *priv, u32 reg,
 	 u32 clock, int *N, int *M, int *P)
 {
-	struct nouveau_bios *bios = nouveau_bios(priv);
+	struct nvkm_bios *bios = nvkm_bios(priv);
 	struct nvbios_pll pll;
-	struct nouveau_clk *clk = &priv->base;
+	struct nvkm_clk *clk = &priv->base;
 	int ret;
 
 	ret = nvbios_pll_parse(bios, reg, &pll);
@@ -199,9 +196,9 @@ calc_P(u32 src, u32 target, int *div)
 }
 
 static int
-nvaa_clk_calc(struct nouveau_clk *clk, struct nouveau_cstate *cstate)
+mcp77_clk_calc(struct nvkm_clk *clk, struct nvkm_cstate *cstate)
 {
-	struct nvaa_clk_priv *priv = (void *)clk;
+	struct mcp77_clk_priv *priv = (void *)clk;
 	const int shader = cstate->domain[nv_clk_src_shader];
 	const int core = cstate->domain[nv_clk_src_core];
 	const int vdec = cstate->domain[nv_clk_src_vdec];
@@ -216,8 +213,7 @@ nvaa_clk_calc(struct nouveau_clk *clk, struct nouveau_cstate *cstate)
 	/* Calculate clock * 2, so shader clock can use it too */
 	clock = calc_pll(priv, 0x4028, (core << 1), &N, &M, &P1);
 
-	if (abs(core - out) <=
-	    abs(core - (clock >> 1))) {
+	if (abs(core - out) <= abs(core - (clock >> 1))) {
 		priv->csrc = nv_clk_src_hclkm4;
 		priv->cctrl = divs << 16;
 	} else {
@@ -242,9 +238,8 @@ nvaa_clk_calc(struct nouveau_clk *clk, struct nouveau_cstate *cstate)
 		priv->ssrc = nv_clk_src_href;
 	} else {
 		clock = calc_pll(priv, 0x4020, shader, &N, &M, &P1);
-		if (priv->csrc == nv_clk_src_core) {
+		if (priv->csrc == nv_clk_src_core)
 			out = calc_P((core << 1), shader, &divs);
-		}
 
 		if (abs(shader - out) <=
 		    abs(shader - clock) &&
@@ -261,8 +256,7 @@ nvaa_clk_calc(struct nouveau_clk *clk, struct nouveau_cstate *cstate)
 	/* vclk */
 	out = calc_P(core, vdec, &divs);
 	clock = calc_P(500000, vdec, &P1);
-	if(abs(vdec - out) <=
-	   abs(vdec - clock)) {
+	if(abs(vdec - out) <= abs(vdec - clock)) {
 		priv->vsrc = nv_clk_src_cclk;
 		priv->vdiv = divs << 16;
 	} else {
@@ -297,15 +291,15 @@ nvaa_clk_calc(struct nouveau_clk *clk, struct nouveau_cstate *cstate)
 }
 
 static int
-nvaa_clk_prog(struct nouveau_clk *clk)
+mcp77_clk_prog(struct nvkm_clk *clk)
 {
-	struct nvaa_clk_priv *priv = (void *)clk;
+	struct mcp77_clk_priv *priv = (void *)clk;
 	u32 pllmask = 0, mast;
 	unsigned long flags;
 	unsigned long *f = &flags;
 	int ret = 0;
 
-	ret = nva3_clk_pre(clk, f);
+	ret = gt215_clk_pre(clk, f);
 	if (ret)
 		goto out;
 
@@ -382,18 +376,17 @@ out:
 	if (ret == -EBUSY)
 		f = NULL;
 
-	nva3_clk_post(clk, f);
-
+	gt215_clk_post(clk, f);
 	return ret;
 }
 
 static void
-nvaa_clk_tidy(struct nouveau_clk *clk)
+mcp77_clk_tidy(struct nvkm_clk *clk)
 {
 }
 
-static struct nouveau_domain
-nvaa_domains[] = {
+static struct nvkm_domain
+mcp77_domains[] = {
 	{ nv_clk_src_crystal, 0xff },
 	{ nv_clk_src_href   , 0xff },
 	{ nv_clk_src_core   , 0xff, 0, "core", 1000 },
@@ -403,33 +396,33 @@ nvaa_domains[] = {
 };
 
 static int
-nvaa_clk_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		struct nouveau_oclass *oclass, void *data, u32 size,
-		struct nouveau_object **pobject)
+mcp77_clk_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	       struct nvkm_oclass *oclass, void *data, u32 size,
+	       struct nvkm_object **pobject)
 {
-	struct nvaa_clk_priv *priv;
+	struct mcp77_clk_priv *priv;
 	int ret;
 
-	ret = nouveau_clk_create(parent, engine, oclass, nvaa_domains, NULL,
-				   0, true, &priv);
+	ret = nvkm_clk_create(parent, engine, oclass, mcp77_domains,
+			      NULL, 0, true, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
-	priv->base.read = nvaa_clk_read;
-	priv->base.calc = nvaa_clk_calc;
-	priv->base.prog = nvaa_clk_prog;
-	priv->base.tidy = nvaa_clk_tidy;
+	priv->base.read = mcp77_clk_read;
+	priv->base.calc = mcp77_clk_calc;
+	priv->base.prog = mcp77_clk_prog;
+	priv->base.tidy = mcp77_clk_tidy;
 	return 0;
 }
 
-struct nouveau_oclass *
-nvaa_clk_oclass = &(struct nouveau_oclass) {
+struct nvkm_oclass *
+mcp77_clk_oclass = &(struct nvkm_oclass) {
 	.handle = NV_SUBDEV(CLK, 0xaa),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvaa_clk_ctor,
-		.dtor = _nouveau_clk_dtor,
-		.init = _nouveau_clk_init,
-		.fini = _nouveau_clk_fini,
+	.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = mcp77_clk_ctor,
+		.dtor = _nvkm_clk_dtor,
+		.init = _nvkm_clk_init,
+		.fini = _nvkm_clk_fini,
 	},
 };

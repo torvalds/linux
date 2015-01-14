@@ -30,7 +30,7 @@
 #include <subdev/bios/M0205.h>
 #include <subdev/bios/timing.h>
 
-#include <subdev/clk/nva3.h>
+#include <subdev/clk/gt215.h>
 #include <subdev/clk/pll.h>
 
 #include <subdev/gpio.h>
