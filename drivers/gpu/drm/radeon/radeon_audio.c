@@ -470,7 +470,7 @@ void radeon_audio_detect(struct drm_connector *connector,
 		int sink_type;
 
 		if (!drm_detect_monitor_audio(radeon_connector_edid(connector))) {
-			radeon_encoder->audio = 0;
+			radeon_encoder->audio = NULL;
 			return;
 		}
 
