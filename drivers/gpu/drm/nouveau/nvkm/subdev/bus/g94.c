@@ -22,13 +22,12 @@
  * Authors: Martin Peres <martin.peres@labri.fr>
  *          Ben Skeggs
  */
+#include "nv04.h"
 
 #include <subdev/timer.h>
 
-#include "nv04.h"
-
 static int
-nv94_bus_hwsq_exec(struct nouveau_bus *pbus, u32 *data, u32 size)
+g94_bus_hwsq_exec(struct nvkm_bus *pbus, u32 *data, u32 size)
 {
 	struct nv50_bus_priv *priv = (void *)pbus;
 	int i;
@@ -44,16 +43,16 @@ nv94_bus_hwsq_exec(struct nouveau_bus *pbus, u32 *data, u32 size)
 	return nv_wait(pbus, 0x001308, 0x00000100, 0x00000000) ? 0 : -ETIMEDOUT;
 }
 
-struct nouveau_oclass *
-nv94_bus_oclass = &(struct nv04_bus_impl) {
+struct nvkm_oclass *
+g94_bus_oclass = &(struct nv04_bus_impl) {
 	.base.handle = NV_SUBDEV(BUS, 0x94),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_bus_ctor,
-		.dtor = _nouveau_bus_dtor,
+		.dtor = _nvkm_bus_dtor,
 		.init = nv50_bus_init,
-		.fini = _nouveau_bus_fini,
+		.fini = _nvkm_bus_fini,
 	},
 	.intr = nv50_bus_intr,
-	.hwsq_exec = nv94_bus_hwsq_exec,
+	.hwsq_exec = g94_bus_hwsq_exec,
 	.hwsq_size = 128,
 }.base;

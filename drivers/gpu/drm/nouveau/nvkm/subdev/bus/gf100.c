@@ -22,13 +22,12 @@
  * Authors: Martin Peres <martin.peres@labri.fr>
  *          Ben Skeggs
  */
-
 #include "nv04.h"
 
 static void
-nvc0_bus_intr(struct nouveau_subdev *subdev)
+gf100_bus_intr(struct nvkm_subdev *subdev)
 {
-	struct nouveau_bus *pbus = nouveau_bus(subdev);
+	struct nvkm_bus *pbus = nvkm_bus(subdev);
 	u32 stat = nv_rd32(pbus, 0x001100) & nv_rd32(pbus, 0x001140);
 
 	if (stat & 0x0000000e) {
@@ -54,12 +53,12 @@ nvc0_bus_intr(struct nouveau_subdev *subdev)
 }
 
 static int
-nvc0_bus_init(struct nouveau_object *object)
+gf100_bus_init(struct nvkm_object *object)
 {
 	struct nv04_bus_priv *priv = (void *)object;
 	int ret;
 
-	ret = nouveau_bus_init(&priv->base);
+	ret = nvkm_bus_init(&priv->base);
 	if (ret)
 		return ret;
 
@@ -68,14 +67,14 @@ nvc0_bus_init(struct nouveau_object *object)
 	return 0;
 }
 
-struct nouveau_oclass *
-nvc0_bus_oclass = &(struct nv04_bus_impl) {
+struct nvkm_oclass *
+gf100_bus_oclass = &(struct nv04_bus_impl) {
 	.base.handle = NV_SUBDEV(BUS, 0xc0),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_bus_ctor,
-		.dtor = _nouveau_bus_dtor,
-		.init = nvc0_bus_init,
-		.fini = _nouveau_bus_fini,
+		.dtor = _nvkm_bus_dtor,
+		.init = gf100_bus_init,
+		.fini = _nvkm_bus_fini,
 	},
-	.intr = nvc0_bus_intr,
+	.intr = gf100_bus_intr,
 }.base;

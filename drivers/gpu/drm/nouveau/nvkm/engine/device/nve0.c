@@ -70,7 +70,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nvc0_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nvc3_mc_oclass;
-		device->oclass[NVDEV_SUBDEV_BUS    ] =  nvc0_bus_oclass;
+		device->oclass[NVDEV_SUBDEV_BUS    ] =  gf100_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  nve0_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_LTC    ] =  gk104_ltc_oclass;
@@ -104,7 +104,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nvc0_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nvc3_mc_oclass;
-		device->oclass[NVDEV_SUBDEV_BUS    ] =  nvc0_bus_oclass;
+		device->oclass[NVDEV_SUBDEV_BUS    ] =  gf100_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  nve0_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_LTC    ] =  gk104_ltc_oclass;
@@ -138,7 +138,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nvc0_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nvc3_mc_oclass;
-		device->oclass[NVDEV_SUBDEV_BUS    ] =  nvc0_bus_oclass;
+		device->oclass[NVDEV_SUBDEV_BUS    ] =  gf100_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  nve0_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_LTC    ] =  gk104_ltc_oclass;
@@ -165,7 +165,7 @@ nve0_identify(struct nouveau_device *device)
 		device->cname = "GK20A";
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &gk20a_clk_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gk20a_mc_oclass;
-		device->oclass[NVDEV_SUBDEV_BUS    ] =  nvc0_bus_oclass;
+		device->oclass[NVDEV_SUBDEV_BUS    ] =  gf100_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] = &gf100_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &gk20a_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  gk20a_fb_oclass;
@@ -194,7 +194,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nvc0_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nvc3_mc_oclass;
-		device->oclass[NVDEV_SUBDEV_BUS    ] =  nvc0_bus_oclass;
+		device->oclass[NVDEV_SUBDEV_BUS    ] =  gf100_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  nve0_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_LTC    ] =  gk104_ltc_oclass;
@@ -228,7 +228,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nvc0_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  nvc3_mc_oclass;
-		device->oclass[NVDEV_SUBDEV_BUS    ] =  nvc0_bus_oclass;
+		device->oclass[NVDEV_SUBDEV_BUS    ] =  gf100_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  nve0_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_LTC    ] =  gk104_ltc_oclass;
@@ -262,7 +262,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nvc0_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gk20a_mc_oclass;
-		device->oclass[NVDEV_SUBDEV_BUS    ] =  nvc0_bus_oclass;
+		device->oclass[NVDEV_SUBDEV_BUS    ] =  gf100_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  nve0_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_LTC    ] =  gk104_ltc_oclass;
@@ -295,7 +295,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  nvc0_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] =  gk20a_mc_oclass;
-		device->oclass[NVDEV_SUBDEV_BUS    ] =  nvc0_bus_oclass;
+		device->oclass[NVDEV_SUBDEV_BUS    ] =  gf100_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  nve0_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_LTC    ] =  gk104_ltc_oclass;

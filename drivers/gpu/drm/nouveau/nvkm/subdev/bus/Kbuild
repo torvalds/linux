@@ -2,5 +2,5 @@ nvkm-y += nvkm/subdev/bus/hwsq.o
 nvkm-y += nvkm/subdev/bus/nv04.o
 nvkm-y += nvkm/subdev/bus/nv31.o
 nvkm-y += nvkm/subdev/bus/nv50.o
-nvkm-y += nvkm/subdev/bus/nv94.o
-nvkm-y += nvkm/subdev/bus/nvc0.o
+nvkm-y += nvkm/subdev/bus/g94.o
+nvkm-y += nvkm/subdev/bus/gf100.o

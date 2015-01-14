@@ -21,12 +21,10 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-
-#include <subdev/timer.h>
 #include <subdev/bus.h>
 
-struct nouveau_hwsq {
-	struct nouveau_bus *pbus;
+struct nvkm_hwsq {
+	struct nvkm_bus *pbus;
 	u32 addr;
 	u32 data;
 	struct {
@@ -36,16 +34,16 @@ struct nouveau_hwsq {
 };
 
 static void
-hwsq_cmd(struct nouveau_hwsq *hwsq, int size, u8 data[])
+hwsq_cmd(struct nvkm_hwsq *hwsq, int size, u8 data[])
 {
 	memcpy(&hwsq->c.data[hwsq->c.size], data, size * sizeof(data[0]));
 	hwsq->c.size += size;
 }
 
 int
-nouveau_hwsq_init(struct nouveau_bus *pbus, struct nouveau_hwsq **phwsq)
+nvkm_hwsq_init(struct nvkm_bus *pbus, struct nvkm_hwsq **phwsq)
 {
-	struct nouveau_hwsq *hwsq;
+	struct nvkm_hwsq *hwsq;
 
 	hwsq = *phwsq = kmalloc(sizeof(*hwsq), GFP_KERNEL);
 	if (hwsq) {
@@ -60,12 +58,12 @@ nouveau_hwsq_init(struct nouveau_bus *pbus, struct nouveau_hwsq **phwsq)
 }
 
 int
-nouveau_hwsq_fini(struct nouveau_hwsq **phwsq, bool exec)
+nvkm_hwsq_fini(struct nvkm_hwsq **phwsq, bool exec)
 {
-	struct nouveau_hwsq *hwsq = *phwsq;
+	struct nvkm_hwsq *hwsq = *phwsq;
 	int ret = 0, i;
 	if (hwsq) {
-		struct nouveau_bus *pbus = hwsq->pbus;
+		struct nvkm_bus *pbus = hwsq->pbus;
 		hwsq->c.size = (hwsq->c.size + 4) / 4;
 		if (hwsq->c.size <= pbus->hwsq_size) {
 			if (exec)
@@ -88,7 +86,7 @@ nouveau_hwsq_fini(struct nouveau_hwsq **phwsq, bool exec)
 }
 
 void
-nouveau_hwsq_wr32(struct nouveau_hwsq *hwsq, u32 addr, u32 data)
+nvkm_hwsq_wr32(struct nvkm_hwsq *hwsq, u32 addr, u32 data)
 {
 	nv_debug(hwsq->pbus, "R[%06x] = 0x%08x\n", addr, data);
 
@@ -113,7 +111,7 @@ nouveau_hwsq_wr32(struct nouveau_hwsq *hwsq, u32 addr, u32 data)
 }
 
 void
-nouveau_hwsq_setf(struct nouveau_hwsq *hwsq, u8 flag, int data)
+nvkm_hwsq_setf(struct nvkm_hwsq *hwsq, u8 flag, int data)
 {
 	nv_debug(hwsq->pbus, " FLAG[%02x] = %d\n", flag, data);
 	flag += 0x80;
@@ -125,14 +123,14 @@ nouveau_hwsq_setf(struct nouveau_hwsq *hwsq, u8 flag, int data)
 }
 
 void
-nouveau_hwsq_wait(struct nouveau_hwsq *hwsq, u8 flag, u8 data)
+nvkm_hwsq_wait(struct nvkm_hwsq *hwsq, u8 flag, u8 data)
 {
 	nv_debug(hwsq->pbus, " WAIT[%02x] = %d\n", flag, data);
 	hwsq_cmd(hwsq, 3, (u8[]){ 0x5f, flag, data });
 }
 
 void
-nouveau_hwsq_nsec(struct nouveau_hwsq *hwsq, u32 nsec)
+nvkm_hwsq_nsec(struct nvkm_hwsq *hwsq, u32 nsec)
 {
 	u8 shift = 0, usec = nsec / 1000;
 	while (usec & ~3) {

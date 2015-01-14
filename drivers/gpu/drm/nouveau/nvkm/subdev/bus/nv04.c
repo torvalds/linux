@@ -22,13 +22,12 @@
  * Authors: Martin Peres <martin.peres@labri.fr>
  *          Ben Skeggs
  */
-
 #include "nv04.h"
 
 static void
-nv04_bus_intr(struct nouveau_subdev *subdev)
+nv04_bus_intr(struct nvkm_subdev *subdev)
 {
-	struct nouveau_bus *pbus = nouveau_bus(subdev);
+	struct nvkm_bus *pbus = nvkm_bus(subdev);
 	u32 stat = nv_rd32(pbus, 0x001100) & nv_rd32(pbus, 0x001140);
 
 	if (stat & 0x00000001) {
@@ -38,7 +37,7 @@ nv04_bus_intr(struct nouveau_subdev *subdev)
 	}
 
 	if (stat & 0x00000110) {
-		subdev = nouveau_subdev(subdev, NVDEV_SUBDEV_GPIO);
+		subdev = nvkm_subdev(subdev, NVDEV_SUBDEV_GPIO);
 		if (subdev && subdev->intr)
 			subdev->intr(subdev);
 		stat &= ~0x00000110;
@@ -52,26 +51,26 @@ nv04_bus_intr(struct nouveau_subdev *subdev)
 }
 
 static int
-nv04_bus_init(struct nouveau_object *object)
+nv04_bus_init(struct nvkm_object *object)
 {
 	struct nv04_bus_priv *priv = (void *)object;
 
 	nv_wr32(priv, 0x001100, 0xffffffff);
 	nv_wr32(priv, 0x001140, 0x00000111);
 
-	return nouveau_bus_init(&priv->base);
+	return nvkm_bus_init(&priv->base);
 }
 
 int
-nv04_bus_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	      struct nouveau_oclass *oclass, void *data, u32 size,
-	      struct nouveau_object **pobject)
+nv04_bus_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	      struct nvkm_oclass *oclass, void *data, u32 size,
+	      struct nvkm_object **pobject)
 {
 	struct nv04_bus_impl *impl = (void *)oclass;
 	struct nv04_bus_priv *priv;
 	int ret;
 
-	ret = nouveau_bus_create(parent, engine, oclass, &priv);
+	ret = nvkm_bus_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -82,14 +81,14 @@ nv04_bus_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass *
+struct nvkm_oclass *
 nv04_bus_oclass = &(struct nv04_bus_impl) {
 	.base.handle = NV_SUBDEV(BUS, 0x04),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_bus_ctor,
-		.dtor = _nouveau_bus_dtor,
+		.dtor = _nvkm_bus_dtor,
 		.init = nv04_bus_init,
-		.fini = _nouveau_bus_fini,
+		.fini = _nvkm_bus_fini,
 	},
 	.intr = nv04_bus_intr,
 }.base;

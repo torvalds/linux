@@ -22,18 +22,17 @@
  * Authors: Martin Peres <martin.peres@labri.fr>
  *          Ben Skeggs
  */
-
 #include "nv04.h"
 
 static void
-nv31_bus_intr(struct nouveau_subdev *subdev)
+nv31_bus_intr(struct nvkm_subdev *subdev)
 {
-	struct nouveau_bus *pbus = nouveau_bus(subdev);
+	struct nvkm_bus *pbus = nvkm_bus(subdev);
 	u32 stat = nv_rd32(pbus, 0x001100) & nv_rd32(pbus, 0x001140);
 	u32 gpio = nv_rd32(pbus, 0x001104) & nv_rd32(pbus, 0x001144);
 
 	if (gpio) {
-		subdev = nouveau_subdev(pbus, NVDEV_SUBDEV_GPIO);
+		subdev = nvkm_subdev(pbus, NVDEV_SUBDEV_GPIO);
 		if (subdev && subdev->intr)
 			subdev->intr(subdev);
 	}
@@ -51,7 +50,7 @@ nv31_bus_intr(struct nouveau_subdev *subdev)
 	}
 
 	if (stat & 0x00070000) {
-		subdev = nouveau_subdev(pbus, NVDEV_SUBDEV_THERM);
+		subdev = nvkm_subdev(pbus, NVDEV_SUBDEV_THERM);
 		if (subdev && subdev->intr)
 			subdev->intr(subdev);
 		stat &= ~0x00070000;
@@ -65,12 +64,12 @@ nv31_bus_intr(struct nouveau_subdev *subdev)
 }
 
 static int
-nv31_bus_init(struct nouveau_object *object)
+nv31_bus_init(struct nvkm_object *object)
 {
 	struct nv04_bus_priv *priv = (void *)object;
 	int ret;
 
-	ret = nouveau_bus_init(&priv->base);
+	ret = nvkm_bus_init(&priv->base);
 	if (ret)
 		return ret;
 
@@ -79,14 +78,14 @@ nv31_bus_init(struct nouveau_object *object)
 	return 0;
 }
 
-struct nouveau_oclass *
+struct nvkm_oclass *
 nv31_bus_oclass = &(struct nv04_bus_impl) {
 	.base.handle = NV_SUBDEV(BUS, 0x31),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_bus_ctor,
-		.dtor = _nouveau_bus_dtor,
+		.dtor = _nvkm_bus_dtor,
 		.init = nv31_bus_init,
-		.fini = _nouveau_bus_fini,
+		.fini = _nvkm_bus_fini,
 	},
 	.intr = nv31_bus_intr,
 }.base;
