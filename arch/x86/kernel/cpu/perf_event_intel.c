@@ -1942,6 +1942,17 @@ static int intel_pmu_hw_config(struct perf_event *event)
 		ret = intel_pmu_setup_lbr_filter(event);
 		if (ret)
 			return ret;
+
+		/*
+		 * BTS is set up earlier in this path, so don't account twice
+		 */
+		if (!intel_pmu_has_bts(event)) {
+			/* disallow lbr if conflicting events are present */
+			if (x86_add_exclusive(x86_lbr_exclusive_lbr))
+				return -EBUSY;
+
+			event->destroy = hw_perf_lbr_event_destroy;
+		}
 	}
 
 	if (event->attr.type != PERF_TYPE_RAW)

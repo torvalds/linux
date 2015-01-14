@@ -408,6 +408,12 @@ union x86_pmu_config {
 
 #define X86_CONFIG(args...) ((union x86_pmu_config){.bits = {args}}).value
 
+enum {
+	x86_lbr_exclusive_lbr,
+	x86_lbr_exclusive_pt,
+	x86_lbr_exclusive_max,
+};
+
 /*
  * struct x86_pmu - generic x86 pmu
  */
@@ -504,6 +510,11 @@ struct x86_pmu {
 	u64		lbr_sel_mask;		   /* LBR_SELECT valid bits */
 	const int	*lbr_sel_map;		   /* lbr_select mappings */
 	bool		lbr_double_abort;	   /* duplicated lbr aborts */
+
+	/*
+	 * Intel PT/LBR/BTS are exclusive
+	 */
+	atomic_t	lbr_exclusive[x86_lbr_exclusive_max];
 
 	/*
 	 * Extra registers for events
@@ -603,6 +614,12 @@ static inline int x86_pmu_rdpmc_index(int index)
 	return x86_pmu.rdpmc_index ? x86_pmu.rdpmc_index(index) : index;
 }
 
+int x86_add_exclusive(unsigned int what);
+
+void x86_del_exclusive(unsigned int what);
+
+void hw_perf_lbr_event_destroy(struct perf_event *event);
+
 int x86_setup_perfctr(struct perf_event *event);
 
 int x86_pmu_hw_config(struct perf_event *event);
@@ -688,6 +705,29 @@ static inline int amd_pmu_init(void)
 #endif /* CONFIG_CPU_SUP_AMD */
 
 #ifdef CONFIG_CPU_SUP_INTEL
+
+static inline bool intel_pmu_needs_lbr_smpl(struct perf_event *event)
+{
+	/* user explicitly requested branch sampling */
+	if (has_branch_stack(event))
+		return true;
+
+	/* implicit branch sampling to correct PEBS skid */
+	if (x86_pmu.intel_cap.pebs_trap && event->attr.precise_ip > 1 &&
+	    x86_pmu.intel_cap.pebs_format < 2)
+		return true;
+
+	return false;
+}
+
+static inline bool intel_pmu_has_bts(struct perf_event *event)
+{
+	if (event->attr.config == PERF_COUNT_HW_BRANCH_INSTRUCTIONS &&
+	    !event->attr.freq && event->hw.sample_period == 1)
+		return true;
+
+	return false;
+}
 
 int intel_pmu_save_and_restart(struct perf_event *event);
 

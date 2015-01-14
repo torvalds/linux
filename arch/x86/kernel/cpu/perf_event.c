@@ -263,6 +263,14 @@ static void hw_perf_event_destroy(struct perf_event *event)
 	}
 }
 
+void hw_perf_lbr_event_destroy(struct perf_event *event)
+{
+	hw_perf_event_destroy(event);
+
+	/* undo the lbr/bts event accounting */
+	x86_del_exclusive(x86_lbr_exclusive_lbr);
+}
+
 static inline int x86_pmu_initialized(void)
 {
 	return x86_pmu.handle_irq != NULL;
@@ -300,6 +308,35 @@ set_ext_hw_attr(struct hw_perf_event *hwc, struct perf_event *event)
 	hwc->config |= val;
 	attr->config1 = hw_cache_extra_regs[cache_type][cache_op][cache_result];
 	return x86_pmu_extra_regs(val, event);
+}
+
+/*
+ * Check if we can create event of a certain type (that no conflicting events
+ * are present).
+ */
+int x86_add_exclusive(unsigned int what)
+{
+	int ret = -EBUSY, i;
+
+	if (atomic_inc_not_zero(&x86_pmu.lbr_exclusive[what]))
+		return 0;
+
+	mutex_lock(&pmc_reserve_mutex);
+	for (i = 0; i < ARRAY_SIZE(x86_pmu.lbr_exclusive); i++)
+		if (i != what && atomic_read(&x86_pmu.lbr_exclusive[i]))
+			goto out;
+
+	atomic_inc(&x86_pmu.lbr_exclusive[what]);
+	ret = 0;
+
+out:
+	mutex_unlock(&pmc_reserve_mutex);
+	return ret;
+}
+
+void x86_del_exclusive(unsigned int what)
+{
+	atomic_dec(&x86_pmu.lbr_exclusive[what]);
 }
 
 int x86_setup_perfctr(struct perf_event *event)
@@ -346,6 +383,12 @@ int x86_setup_perfctr(struct perf_event *event)
 		/* BTS is currently only allowed for user-mode. */
 		if (!attr->exclude_kernel)
 			return -EOPNOTSUPP;
+
+		/* disallow bts if conflicting events are present */
+		if (x86_add_exclusive(x86_lbr_exclusive_lbr))
+			return -EBUSY;
+
+		event->destroy = hw_perf_lbr_event_destroy;
 	}
 
 	hwc->config |= config;
