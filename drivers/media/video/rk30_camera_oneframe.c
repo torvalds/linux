@@ -287,8 +287,10 @@ static u32 CHIP_NAME;
 		 2. Query and upload iommu info
 *v0.1.b:
 		 1. Vpu_service compatible has change ,fix it.
+*v0.1.c:
+		 1. setting cif capture en bit can't stop cif really,reset cif instead.
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0xb)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0xc)
 static int version = RK_CAM_VERSION_CODE;
 module_param(version, int, S_IRUGO);
 
@@ -471,6 +473,8 @@ struct rk_camera_dev
     unsigned int reinit_times; 
     struct videobuf_queue *video_vq;
     atomic_t stop_cif;
+	wait_queue_head_t cif_stop_done;
+	volatile  bool cif_stopped;
     struct timeval first_tv;
     
     int chip_id;
@@ -1151,23 +1155,37 @@ static irqreturn_t rk_camera_irq(int irq, void *data)
     struct rk_camera_dev *pcdev = data;
     unsigned long reg_intstat;
 
+	//should set value in cif irq    
+	static int rec_stop_cif = 0;
 
     spin_lock(&pcdev->lock);
 
-    if(atomic_read(&pcdev->stop_cif) == true) {
-        write_cif_reg(pcdev->base,CIF_CIF_INTSTAT,0xffffffff);
-        goto end;
-    }
 
     reg_intstat = read_cif_reg(pcdev->base,CIF_CIF_INTSTAT);
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s() ,reg_intstat 0x%lx\n", __FILE__, __LINE__,__FUNCTION__,reg_intstat);
-    if (reg_intstat & 0x0200)
+    if (reg_intstat & 0x0200){
         rk_camera_cifirq(irq,data);
+		if(atomic_read(&pcdev->stop_cif))
+			rec_stop_cif ++;
+		if(rec_stop_cif){
+		debug_printk("receive cif stop request, recevie cif irq,reg_intstat = 0x%x\n",reg_intstat);
+		}
+    }
 
-    if (reg_intstat & 0x01) 
-        rk_camera_dmairq(irq,data);
+    if (reg_intstat & 0x01){
+    	if(rec_stop_cif == 1){
+			pcdev->cif_stopped = true;
+			rec_stop_cif = 0;
+			write_cif_reg(pcdev->base,CIF_CIF_INTEN, 0x0);
+			//workaround: disabled capen can't stop cif really,so should reset instead.
+			rk_camera_cif_reset(pcdev,false);
+			debug_printk("receive cif stop request,recevie dma irq ,reg_intstat = 0x%x\n",reg_intstat);
+			wake_up(&pcdev->cif_stop_done);
+    	}else
+			rk_camera_dmairq(irq,data);
+    }
 
-end:    
+//end:    
     spin_unlock(&pcdev->lock);
     return IRQ_HANDLED;
 }
@@ -1289,7 +1307,6 @@ static int rk_camera_mclk_ctrl(int cif_idx, int on, int clk_rate)
         clk->on = true;
     } else if (!on && clk->on) {
 		clk_set_rate(clk->cif_clk_out,36000000);/*yzm :just for close clk which base on XIN24M */
-    	msleep(100);
         clk_disable_unprepare(clk->aclk_cif);
     	clk_disable_unprepare(clk->hclk_cif);
     	clk_disable_unprepare(clk->cif_clk_in);
@@ -2672,6 +2689,7 @@ static int rk_camera_s_stream(struct soc_camera_device *icd, int enable)
 
         spin_lock_irqsave(&pcdev->lock,flags);
         atomic_set(&pcdev->stop_cif,false);
+		pcdev->cif_stopped = false;
         pcdev->irqinfo.cifirq_idx = 0;
         pcdev->irqinfo.cifirq_normal_idx = 0;
         pcdev->irqinfo.cifirq_abnormal_idx = 0;
@@ -2692,12 +2710,19 @@ static int rk_camera_s_stream(struct soc_camera_device *icd, int enable)
         
         cif_ctrl_val &= ~ENABLE_CAPTURE;
 		spin_lock_irqsave(&pcdev->lock, flags);
-    	write_cif_reg(pcdev->base,CIF_CIF_CTRL, cif_ctrl_val);
+    	//write_cif_reg(pcdev->base,CIF_CIF_CTRL, cif_ctrl_val);
         atomic_set(&pcdev->stop_cif,true);
-		write_cif_reg(pcdev->base,CIF_CIF_INTEN, 0x0); 
+		//write_cif_reg(pcdev->base,CIF_CIF_INTEN, 0x0); 
     	spin_unlock_irqrestore(&pcdev->lock, flags);
+		
+		init_waitqueue_head(&pcdev->cif_stop_done);
+		if (wait_event_timeout(pcdev->cif_stop_done, pcdev->cif_stopped, msecs_to_jiffies(1000)) == 0) {
+			RKCAMERA_TR("%s:%d, wait cif stop timeout!",__func__,__LINE__);
+			pcdev->cif_stopped = true;
+		}
+
 		flush_workqueue((pcdev->camera_wq));
-		msleep(100);
+		//msleep(100);
 	}
     /*must be reinit,or will be somthing wrong in irq process.*/
     if(enable == false) {
