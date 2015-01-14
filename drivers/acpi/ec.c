@@ -660,14 +660,15 @@ static void acpi_ec_run(void *cxt)
 static int acpi_ec_sync_query(struct acpi_ec *ec, u8 *data)
 {
 	u8 value = 0;
-	int status;
+	int result;
+	acpi_status status;
 	struct acpi_ec_query_handler *handler;
 
-	status = acpi_ec_query_unlocked(ec, &value);
+	result = acpi_ec_query_unlocked(ec, &value);
 	if (data)
 		*data = value;
-	if (status)
-		return status;
+	if (result)
+		return result;
 
 	list_for_each_entry(handler, &ec->list, node) {
 		if (value == handler->query_bit) {
@@ -675,12 +676,15 @@ static int acpi_ec_sync_query(struct acpi_ec *ec, u8 *data)
 			handler = acpi_ec_get_query_handler(handler);
 			pr_debug("##### Query(0x%02x) scheduled #####\n",
 				 handler->query_bit);
-			return acpi_os_execute((handler->func) ?
+			status = acpi_os_execute((handler->func) ?
 				OSL_NOTIFY_HANDLER : OSL_GPE_HANDLER,
 				acpi_ec_run, handler);
+			if (ACPI_FAILURE(status))
+				result = -EBUSY;
+			break;
 		}
 	}
-	return 0;
+	return result;
 }
 
 static void acpi_ec_gpe_query(void *ec_cxt)
