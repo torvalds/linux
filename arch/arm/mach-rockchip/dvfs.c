@@ -2188,6 +2188,10 @@ int of_dvfs_init(void)
 	return 0;
 }
 
+#ifdef CONFIG_ARM64
+arch_initcall_sync(of_dvfs_init);
+#endif
+
 /*********************************************************************************/
 /**
  * dump_dbg_map() : Draw all informations of dvfs while debug

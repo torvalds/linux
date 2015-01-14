@@ -879,35 +879,25 @@
 			regulator_name = "vdd_arm";
 			suspend_volt = <1000>; //mV
 			pd_core {
-				clk_core_dvfs_table: clk_core {
+				clk_core_b_dvfs_table: clk_core_b {
 					operating-points = <
 						/* KHz    uV */
-						312000 1100000
-						504000 1100000
-						816000 1100000
-						1008000 1100000
-						>;
-					channel = <0>;
-					temp-limit-enable = <0>;
-					target-temp = <80>;
-					normal-temp-limit = <
-					/*delta-temp    delta-freq*/
-						3	96000
-						6	144000
-						9	192000
-						15	384000
-						>;
-					performance-temp-limit = <
-						/*temp    freq*/
-						100     816000
+						312000 1200000
+						504000 1200000
+						816000 1200000
+						1008000 1200000
 						>;
 					status = "okay";
-					regu-mode-table = <
-						/*freq     mode*/
-						1008000    4
-						0          3
-					>;
-					regu-mode-en = <0>;
+				};
+				clk_core_l_dvfs_table: clk_core_l {
+					operating-points = <
+						/* KHz    uV */
+						312000 1200000
+						504000 1200000
+						816000 1200000
+						1008000 1200000
+						>;
+					status = "okay";
 				};
 			};
 		};
@@ -928,21 +918,6 @@
 				};
 			};
 
-			pd_vio {
-				aclk_vio1_dvfs_table: aclk_vio1 {
-					operating-points = <
-						/* KHz    uV */
-						100000 1100000
-						500000 1100000
-						>;
-					status = "okay";
-				};
-			};
-		};
-
-		vd_gpu: vd_gpu {
-			regulator_name = "vdd_gpu";
-			suspend_volt = <1000>; //mV
 			pd_gpu {
 				clk_gpu_dvfs_table: clk_gpu {
 					operating-points = <
