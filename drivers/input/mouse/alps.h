@@ -141,8 +141,12 @@ struct alps_fields {
 
 /**
  * struct alps_data - private data structure for the ALPS driver
- * @dev2: "Relative" device used to report trackstick or mouse activity.
- * @phys: Physical path for the relative device.
+ * @psmouse: Pointer to parent psmouse device
+ * @dev2: Trackstick device (can be NULL).
+ * @dev3: Generic PS/2 mouse (can be NULL, delayed registering).
+ * @phys2: Physical path for the trackstick device.
+ * @phys3: Physical path for the generic PS/2 mouse.
+ * @dev3_register_work: Delayed work for registering PS/2 mouse.
  * @nibble_commands: Command mapping used for touchpad register accesses.
  * @addr_command: Command used to tell the touchpad that a register address
  *   follows.
@@ -169,8 +173,12 @@ struct alps_fields {
  * @timer: Timer for flushing out the final report packet in the stream.
  */
 struct alps_data {
+	struct psmouse *psmouse;
 	struct input_dev *dev2;
-	char phys[32];
+	struct input_dev *dev3;
+	char phys2[32];
+	char phys3[32];
+	struct delayed_work dev3_register_work;
 
 	/* these are autodetected when the device is identified */
 	const struct alps_nibble_commands *nibble_commands;

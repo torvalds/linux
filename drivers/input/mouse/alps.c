@@ -165,8 +165,7 @@ static bool alps_is_valid_first_byte(struct alps_data *priv,
 	return (data & priv->mask0) == priv->byte0;
 }
 
-static void alps_report_buttons(struct psmouse *psmouse,
-				struct input_dev *dev1, struct input_dev *dev2,
+static void alps_report_buttons(struct input_dev *dev1, struct input_dev *dev2,
 				int left, int right, int middle)
 {
 	struct input_dev *dev;
@@ -176,20 +175,21 @@ static void alps_report_buttons(struct psmouse *psmouse,
 	 * other device (dev2) then this event should be also
 	 * sent through that device.
 	 */
-	dev = test_bit(BTN_LEFT, dev2->key) ? dev2 : dev1;
+	dev = (dev2 && test_bit(BTN_LEFT, dev2->key)) ? dev2 : dev1;
 	input_report_key(dev, BTN_LEFT, left);
 
-	dev = test_bit(BTN_RIGHT, dev2->key) ? dev2 : dev1;
+	dev = (dev2 && test_bit(BTN_RIGHT, dev2->key)) ? dev2 : dev1;
 	input_report_key(dev, BTN_RIGHT, right);
 
-	dev = test_bit(BTN_MIDDLE, dev2->key) ? dev2 : dev1;
+	dev = (dev2 && test_bit(BTN_MIDDLE, dev2->key)) ? dev2 : dev1;
 	input_report_key(dev, BTN_MIDDLE, middle);
 
 	/*
 	 * Sync the _other_ device now, we'll do the first
 	 * device later once we report the rest of the events.
 	 */
-	input_sync(dev2);
+	if (dev2)
+		input_sync(dev2);
 }
 
 static void alps_process_packet_v1_v2(struct psmouse *psmouse)
@@ -236,13 +236,13 @@ static void alps_process_packet_v1_v2(struct psmouse *psmouse)
 		input_report_rel(dev2, REL_X,  (x > 383 ? (x - 768) : x));
 		input_report_rel(dev2, REL_Y, -(y > 255 ? (y - 512) : y));
 
-		alps_report_buttons(psmouse, dev2, dev, left, right, middle);
+		alps_report_buttons(dev2, dev, left, right, middle);
 
 		input_sync(dev2);
 		return;
 	}
 
-	alps_report_buttons(psmouse, dev, dev2, left, right, middle);
+	alps_report_buttons(dev, dev2, left, right, middle);
 
 	/* Convert hardware tap to a reasonable Z value */
 	if (ges && !fin)
@@ -1123,23 +1123,89 @@ static void alps_process_packet_v7(struct psmouse *psmouse)
 		alps_process_touchpad_packet_v7(psmouse);
 }
 
-static void alps_report_bare_ps2_packet(struct psmouse *psmouse,
+static DEFINE_MUTEX(alps_mutex);
+
+static void alps_register_bare_ps2_mouse(struct work_struct *work)
+{
+	struct alps_data *priv =
+		container_of(work, struct alps_data, dev3_register_work.work);
+	struct psmouse *psmouse = priv->psmouse;
+	struct input_dev *dev3;
+	int error = 0;
+
+	mutex_lock(&alps_mutex);
+
+	if (priv->dev3)
+		goto out;
+
+	dev3 = input_allocate_device();
+	if (!dev3) {
+		psmouse_err(psmouse, "failed to allocate secondary device\n");
+		error = -ENOMEM;
+		goto out;
+	}
+
+	snprintf(priv->phys3, sizeof(priv->phys3), "%s/%s",
+		 psmouse->ps2dev.serio->phys,
+		 (priv->dev2 ? "input2" : "input1"));
+	dev3->phys = priv->phys3;
+
+	/*
+	 * format of input device name is: "protocol vendor name"
+	 * see function psmouse_switch_protocol() in psmouse-base.c
+	 */
+	dev3->name = "PS/2 ALPS Mouse";
+
+	dev3->id.bustype = BUS_I8042;
+	dev3->id.vendor  = 0x0002;
+	dev3->id.product = PSMOUSE_PS2;
+	dev3->id.version = 0x0000;
+	dev3->dev.parent = &psmouse->ps2dev.serio->dev;
+
+	input_set_capability(dev3, EV_REL, REL_X);
+	input_set_capability(dev3, EV_REL, REL_Y);
+	input_set_capability(dev3, EV_KEY, BTN_LEFT);
+	input_set_capability(dev3, EV_KEY, BTN_RIGHT);
+	input_set_capability(dev3, EV_KEY, BTN_MIDDLE);
+
+	__set_bit(INPUT_PROP_POINTER, dev3->propbit);
+
+	error = input_register_device(dev3);
+	if (error) {
+		psmouse_err(psmouse,
+			    "failed to register secondary device: %d\n",
+			    error);
+		input_free_device(dev3);
+		goto out;
+	}
+
+	priv->dev3 = dev3;
+
+out:
+	/*
+	 * Save the error code so that we can detect that we
+	 * already tried to create the device.
+	 */
+	if (error)
+		priv->dev3 = ERR_PTR(error);
+
+	mutex_unlock(&alps_mutex);
+}
+
+static void alps_report_bare_ps2_packet(struct input_dev *dev,
 					unsigned char packet[],
 					bool report_buttons)
 {
-	struct alps_data *priv = psmouse->private;
-	struct input_dev *dev2 = priv->dev2;
-
 	if (report_buttons)
-		alps_report_buttons(psmouse, dev2, psmouse->dev,
+		alps_report_buttons(dev, NULL,
 				packet[0] & 1, packet[0] & 2, packet[0] & 4);
 
-	input_report_rel(dev2, REL_X,
+	input_report_rel(dev, REL_X,
 		packet[1] ? packet[1] - ((packet[0] << 4) & 0x100) : 0);
-	input_report_rel(dev2, REL_Y,
+	input_report_rel(dev, REL_Y,
 		packet[2] ? ((packet[0] << 3) & 0x100) - packet[2] : 0);
 
-	input_sync(dev2);
+	input_sync(dev);
 }
 
 static psmouse_ret_t alps_handle_interleaved_ps2(struct psmouse *psmouse)
@@ -1204,8 +1270,8 @@ static psmouse_ret_t alps_handle_interleaved_ps2(struct psmouse *psmouse)
 		 * de-synchronization.
 		 */
 
-		alps_report_bare_ps2_packet(psmouse, &psmouse->packet[3],
-					    false);
+		alps_report_bare_ps2_packet(priv->dev2,
+					    &psmouse->packet[3], false);
 
 		/*
 		 * Continue with the standard ALPS protocol handling,
@@ -1261,9 +1327,18 @@ static psmouse_ret_t alps_process_byte(struct psmouse *psmouse)
 	 * properly we only do this if the device is fully synchronized.
 	 */
 	if (!psmouse->out_of_sync_cnt && (psmouse->packet[0] & 0xc8) == 0x08) {
+
+		/* Register dev3 mouse if we received PS/2 packet first time */
+		if (unlikely(!priv->dev3))
+			psmouse_queue_work(psmouse,
+					   &priv->dev3_register_work, 0);
+
 		if (psmouse->pktcnt == 3) {
-			alps_report_bare_ps2_packet(psmouse, psmouse->packet,
-						    true);
+			/* Once dev3 mouse device is registered report data */
+			if (likely(!IS_ERR_OR_NULL(priv->dev3)))
+				alps_report_bare_ps2_packet(priv->dev3,
+							    psmouse->packet,
+							    true);
 			return PSMOUSE_FULL_PACKET;
 		}
 		return PSMOUSE_GOOD_DATA;
@@ -2378,7 +2453,10 @@ static void alps_disconnect(struct psmouse *psmouse)
 
 	psmouse_reset(psmouse);
 	del_timer_sync(&priv->timer);
-	input_unregister_device(priv->dev2);
+	if (priv->dev2)
+		input_unregister_device(priv->dev2);
+	if (!IS_ERR_OR_NULL(priv->dev3))
+		input_unregister_device(priv->dev3);
 	kfree(priv);
 }
 
@@ -2412,16 +2490,8 @@ static void alps_set_abs_params_mt(struct alps_data *priv,
 int alps_init(struct psmouse *psmouse)
 {
 	struct alps_data *priv = psmouse->private;
-	struct input_dev *dev1 = psmouse->dev, *dev2;
+	struct input_dev *dev1 = psmouse->dev;
 	int error;
-
-	dev2 = input_allocate_device();
-	if (!dev2) {
-		error = -ENOMEM;
-		goto init_fail;
-	}
-
-	priv->dev2 = dev2;
 
 	error = priv->hw_init(psmouse);
 	if (error)
@@ -2474,36 +2544,57 @@ int alps_init(struct psmouse *psmouse)
 	}
 
 	if (priv->flags & ALPS_DUALPOINT) {
+		struct input_dev *dev2;
+
+		dev2 = input_allocate_device();
+		if (!dev2) {
+			psmouse_err(psmouse,
+				    "failed to allocate trackstick device\n");
+			error = -ENOMEM;
+			goto init_fail;
+		}
+
+		snprintf(priv->phys2, sizeof(priv->phys2), "%s/input1",
+			 psmouse->ps2dev.serio->phys);
+		dev2->phys = priv->phys2;
+
 		/*
 		 * format of input device name is: "protocol vendor name"
 		 * see function psmouse_switch_protocol() in psmouse-base.c
 		 */
 		dev2->name = "AlpsPS/2 ALPS DualPoint Stick";
+
+		dev2->id.bustype = BUS_I8042;
+		dev2->id.vendor  = 0x0002;
 		dev2->id.product = PSMOUSE_ALPS;
 		dev2->id.version = priv->proto_version;
-	} else {
-		dev2->name = "PS/2 ALPS Mouse";
-		dev2->id.product = PSMOUSE_PS2;
-		dev2->id.version = 0x0000;
-	}
+		dev2->dev.parent = &psmouse->ps2dev.serio->dev;
 
-	snprintf(priv->phys, sizeof(priv->phys), "%s/input1", psmouse->ps2dev.serio->phys);
-	dev2->phys = priv->phys;
-	dev2->id.bustype = BUS_I8042;
-	dev2->id.vendor  = 0x0002;
-	dev2->dev.parent = &psmouse->ps2dev.serio->dev;
+		input_set_capability(dev2, EV_REL, REL_X);
+		input_set_capability(dev2, EV_REL, REL_Y);
+		input_set_capability(dev2, EV_KEY, BTN_LEFT);
+		input_set_capability(dev2, EV_KEY, BTN_RIGHT);
+		input_set_capability(dev2, EV_KEY, BTN_MIDDLE);
 
-	dev2->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REL);
-	dev2->relbit[BIT_WORD(REL_X)] = BIT_MASK(REL_X) | BIT_MASK(REL_Y);
-	dev2->keybit[BIT_WORD(BTN_LEFT)] =
-		BIT_MASK(BTN_LEFT) | BIT_MASK(BTN_MIDDLE) | BIT_MASK(BTN_RIGHT);
-
-	__set_bit(INPUT_PROP_POINTER, dev2->propbit);
-	if (priv->flags & ALPS_DUALPOINT)
+		__set_bit(INPUT_PROP_POINTER, dev2->propbit);
 		__set_bit(INPUT_PROP_POINTING_STICK, dev2->propbit);
 
-	if (input_register_device(priv->dev2))
-		goto init_fail;
+		error = input_register_device(dev2);
+		if (error) {
+			psmouse_err(psmouse,
+				    "failed to register trackstick device: %d\n",
+				    error);
+			input_free_device(dev2);
+			goto init_fail;
+		}
+
+		priv->dev2 = dev2;
+	}
+
+	priv->psmouse = psmouse;
+
+	INIT_DELAYED_WORK(&priv->dev3_register_work,
+			  alps_register_bare_ps2_mouse);
 
 	psmouse->protocol_handler = alps_process_byte;
 	psmouse->poll = alps_poll;
@@ -2521,7 +2612,6 @@ int alps_init(struct psmouse *psmouse)
 
 init_fail:
 	psmouse_reset(psmouse);
-	input_free_device(dev2);
 	/*
 	 * Even though we did not allocate psmouse->private we do free
 	 * it here.
