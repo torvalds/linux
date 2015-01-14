@@ -21,33 +21,30 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <core/notify.h>
-#include <subdev/bios.h>
-#include <subdev/bios/gpio.h>
-
 #include "priv.h"
 
+#include <core/device.h>
+#include <core/notify.h>
+
 static int
-nouveau_gpio_drive(struct nouveau_gpio *gpio,
-		   int idx, int line, int dir, int out)
+nvkm_gpio_drive(struct nvkm_gpio *gpio, int idx, int line, int dir, int out)
 {
-	const struct nouveau_gpio_impl *impl = (void *)nv_object(gpio)->oclass;
+	const struct nvkm_gpio_impl *impl = (void *)nv_object(gpio)->oclass;
 	return impl->drive ? impl->drive(gpio, line, dir, out) : -ENODEV;
 }
 
 static int
-nouveau_gpio_sense(struct nouveau_gpio *gpio, int idx, int line)
+nvkm_gpio_sense(struct nvkm_gpio *gpio, int idx, int line)
 {
-	const struct nouveau_gpio_impl *impl = (void *)nv_object(gpio)->oclass;
+	const struct nvkm_gpio_impl *impl = (void *)nv_object(gpio)->oclass;
 	return impl->sense ? impl->sense(gpio, line) : -ENODEV;
 }
 
 static int
-nouveau_gpio_find(struct nouveau_gpio *gpio, int idx, u8 tag, u8 line,
-		  struct dcb_gpio_func *func)
+nvkm_gpio_find(struct nvkm_gpio *gpio, int idx, u8 tag, u8 line,
+	       struct dcb_gpio_func *func)
 {
-	struct nouveau_bios *bios = nouveau_bios(gpio);
+	struct nvkm_bios *bios = nvkm_bios(gpio);
 	u8  ver, len;
 	u16 data;
 
@@ -75,30 +72,30 @@ nouveau_gpio_find(struct nouveau_gpio *gpio, int idx, u8 tag, u8 line,
 }
 
 static int
-nouveau_gpio_set(struct nouveau_gpio *gpio, int idx, u8 tag, u8 line, int state)
+nvkm_gpio_set(struct nvkm_gpio *gpio, int idx, u8 tag, u8 line, int state)
 {
 	struct dcb_gpio_func func;
 	int ret;
 
-	ret = nouveau_gpio_find(gpio, idx, tag, line, &func);
+	ret = nvkm_gpio_find(gpio, idx, tag, line, &func);
 	if (ret == 0) {
 		int dir = !!(func.log[state] & 0x02);
 		int out = !!(func.log[state] & 0x01);
-		ret = nouveau_gpio_drive(gpio, idx, func.line, dir, out);
+		ret = nvkm_gpio_drive(gpio, idx, func.line, dir, out);
 	}
 
 	return ret;
 }
 
 static int
-nouveau_gpio_get(struct nouveau_gpio *gpio, int idx, u8 tag, u8 line)
+nvkm_gpio_get(struct nvkm_gpio *gpio, int idx, u8 tag, u8 line)
 {
 	struct dcb_gpio_func func;
 	int ret;
 
-	ret = nouveau_gpio_find(gpio, idx, tag, line, &func);
+	ret = nvkm_gpio_find(gpio, idx, tag, line, &func);
 	if (ret == 0) {
-		ret = nouveau_gpio_sense(gpio, idx, func.line);
+		ret = nvkm_gpio_sense(gpio, idx, func.line);
 		if (ret >= 0)
 			ret = (ret == (func.log[1] & 1));
 	}
@@ -107,24 +104,24 @@ nouveau_gpio_get(struct nouveau_gpio *gpio, int idx, u8 tag, u8 line)
 }
 
 static void
-nouveau_gpio_intr_fini(struct nvkm_event *event, int type, int index)
+nvkm_gpio_intr_fini(struct nvkm_event *event, int type, int index)
 {
-	struct nouveau_gpio *gpio = container_of(event, typeof(*gpio), event);
-	const struct nouveau_gpio_impl *impl = (void *)nv_object(gpio)->oclass;
+	struct nvkm_gpio *gpio = container_of(event, typeof(*gpio), event);
+	const struct nvkm_gpio_impl *impl = (void *)nv_object(gpio)->oclass;
 	impl->intr_mask(gpio, type, 1 << index, 0);
 }
 
 static void
-nouveau_gpio_intr_init(struct nvkm_event *event, int type, int index)
+nvkm_gpio_intr_init(struct nvkm_event *event, int type, int index)
 {
-	struct nouveau_gpio *gpio = container_of(event, typeof(*gpio), event);
-	const struct nouveau_gpio_impl *impl = (void *)nv_object(gpio)->oclass;
+	struct nvkm_gpio *gpio = container_of(event, typeof(*gpio), event);
+	const struct nvkm_gpio_impl *impl = (void *)nv_object(gpio)->oclass;
 	impl->intr_mask(gpio, type, 1 << index, 1 << index);
 }
 
 static int
-nouveau_gpio_intr_ctor(struct nouveau_object *object, void *data, u32 size,
-		       struct nvkm_notify *notify)
+nvkm_gpio_intr_ctor(struct nvkm_object *object, void *data, u32 size,
+		    struct nvkm_notify *notify)
 {
 	struct nvkm_gpio_ntfy_req *req = data;
 	if (!WARN_ON(size != sizeof(*req))) {
@@ -137,10 +134,10 @@ nouveau_gpio_intr_ctor(struct nouveau_object *object, void *data, u32 size,
 }
 
 static void
-nouveau_gpio_intr(struct nouveau_subdev *subdev)
+nvkm_gpio_intr(struct nvkm_subdev *subdev)
 {
-	struct nouveau_gpio *gpio = nouveau_gpio(subdev);
-	const struct nouveau_gpio_impl *impl = (void *)nv_object(gpio)->oclass;
+	struct nvkm_gpio *gpio = nvkm_gpio(subdev);
+	const struct nvkm_gpio_impl *impl = (void *)nv_object(gpio)->oclass;
 	u32 hi, lo, i;
 
 	impl->intr_stat(gpio, &hi, &lo);
@@ -155,23 +152,23 @@ nouveau_gpio_intr(struct nouveau_subdev *subdev)
 }
 
 static const struct nvkm_event_func
-nouveau_gpio_intr_func = {
-	.ctor = nouveau_gpio_intr_ctor,
-	.init = nouveau_gpio_intr_init,
-	.fini = nouveau_gpio_intr_fini,
+nvkm_gpio_intr_func = {
+	.ctor = nvkm_gpio_intr_ctor,
+	.init = nvkm_gpio_intr_init,
+	.fini = nvkm_gpio_intr_fini,
 };
 
 int
-_nouveau_gpio_fini(struct nouveau_object *object, bool suspend)
+_nvkm_gpio_fini(struct nvkm_object *object, bool suspend)
 {
-	const struct nouveau_gpio_impl *impl = (void *)object->oclass;
-	struct nouveau_gpio *gpio = nouveau_gpio(object);
+	const struct nvkm_gpio_impl *impl = (void *)object->oclass;
+	struct nvkm_gpio *gpio = nvkm_gpio(object);
 	u32 mask = (1 << impl->lines) - 1;
 
 	impl->intr_mask(gpio, NVKM_GPIO_TOGGLED, mask, 0);
 	impl->intr_stat(gpio, &mask, &mask);
 
-	return nouveau_subdev_fini(&gpio->base, suspend);
+	return nvkm_subdev_fini(&gpio->base, suspend);
 }
 
 static struct dmi_system_id gpio_reset_ids[] = {
@@ -186,12 +183,12 @@ static struct dmi_system_id gpio_reset_ids[] = {
 };
 
 int
-_nouveau_gpio_init(struct nouveau_object *object)
+_nvkm_gpio_init(struct nvkm_object *object)
 {
-	struct nouveau_gpio *gpio = nouveau_gpio(object);
+	struct nvkm_gpio *gpio = nvkm_gpio(object);
 	int ret;
 
-	ret = nouveau_subdev_init(&gpio->base);
+	ret = nvkm_subdev_init(&gpio->base);
 	if (ret)
 		return ret;
 
@@ -202,52 +199,50 @@ _nouveau_gpio_init(struct nouveau_object *object)
 }
 
 void
-_nouveau_gpio_dtor(struct nouveau_object *object)
+_nvkm_gpio_dtor(struct nvkm_object *object)
 {
-	struct nouveau_gpio *gpio = (void *)object;
+	struct nvkm_gpio *gpio = (void *)object;
 	nvkm_event_fini(&gpio->event);
-	nouveau_subdev_destroy(&gpio->base);
+	nvkm_subdev_destroy(&gpio->base);
 }
 
 int
-nouveau_gpio_create_(struct nouveau_object *parent,
-		     struct nouveau_object *engine,
-		     struct nouveau_oclass *oclass,
-		     int length, void **pobject)
+nvkm_gpio_create_(struct nvkm_object *parent, struct nvkm_object *engine,
+		  struct nvkm_oclass *oclass, int length, void **pobject)
 {
-	const struct nouveau_gpio_impl *impl = (void *)oclass;
-	struct nouveau_gpio *gpio;
+	const struct nvkm_gpio_impl *impl = (void *)oclass;
+	struct nvkm_gpio *gpio;
 	int ret;
 
-	ret = nouveau_subdev_create_(parent, engine, oclass, 0, "GPIO", "gpio",
-				     length, pobject);
+	ret = nvkm_subdev_create_(parent, engine, oclass, 0, "GPIO",
+				  "gpio", length, pobject);
 	gpio = *pobject;
 	if (ret)
 		return ret;
 
-	gpio->find = nouveau_gpio_find;
-	gpio->set  = nouveau_gpio_set;
-	gpio->get  = nouveau_gpio_get;
+	gpio->find = nvkm_gpio_find;
+	gpio->set  = nvkm_gpio_set;
+	gpio->get  = nvkm_gpio_get;
 	gpio->reset = impl->reset;
 
-	ret = nvkm_event_init(&nouveau_gpio_intr_func, 2, impl->lines,
+	ret = nvkm_event_init(&nvkm_gpio_intr_func, 2, impl->lines,
 			      &gpio->event);
 	if (ret)
 		return ret;
 
-	nv_subdev(gpio)->intr = nouveau_gpio_intr;
+	nv_subdev(gpio)->intr = nvkm_gpio_intr;
 	return 0;
 }
 
 int
-_nouveau_gpio_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		   struct nouveau_oclass *oclass, void *data, u32 size,
-		   struct nouveau_object **pobject)
+_nvkm_gpio_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		struct nvkm_oclass *oclass, void *data, u32 size,
+		struct nvkm_object **pobject)
 {
-	struct nouveau_gpio *gpio;
+	struct nvkm_gpio *gpio;
 	int ret;
 
-	ret = nouveau_gpio_create(parent, engine, oclass, &gpio);
+	ret = nvkm_gpio_create(parent, engine, oclass, &gpio);
 	*pobject = nv_object(gpio);
 	if (ret)
 		return ret;

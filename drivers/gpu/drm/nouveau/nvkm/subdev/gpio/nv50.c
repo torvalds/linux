@@ -21,13 +21,12 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "priv.h"
 
 void
-nv50_gpio_reset(struct nouveau_gpio *gpio, u8 match)
+nv50_gpio_reset(struct nvkm_gpio *gpio, u8 match)
 {
-	struct nouveau_bios *bios = nouveau_bios(gpio);
+	struct nvkm_bios *bios = nvkm_bios(gpio);
 	u8 ver, len;
 	u16 entry;
 	int ent = -1;
@@ -68,7 +67,7 @@ nv50_gpio_location(int line, u32 *reg, u32 *shift)
 }
 
 int
-nv50_gpio_drive(struct nouveau_gpio *gpio, int line, int dir, int out)
+nv50_gpio_drive(struct nvkm_gpio *gpio, int line, int dir, int out)
 {
 	u32 reg, shift;
 
@@ -80,7 +79,7 @@ nv50_gpio_drive(struct nouveau_gpio *gpio, int line, int dir, int out)
 }
 
 int
-nv50_gpio_sense(struct nouveau_gpio *gpio, int line)
+nv50_gpio_sense(struct nvkm_gpio *gpio, int line)
 {
 	u32 reg, shift;
 
@@ -91,7 +90,7 @@ nv50_gpio_sense(struct nouveau_gpio *gpio, int line)
 }
 
 static void
-nv50_gpio_intr_stat(struct nouveau_gpio *gpio, u32 *hi, u32 *lo)
+nv50_gpio_intr_stat(struct nvkm_gpio *gpio, u32 *hi, u32 *lo)
 {
 	u32 intr = nv_rd32(gpio, 0x00e054);
 	u32 stat = nv_rd32(gpio, 0x00e050) & intr;
@@ -101,7 +100,7 @@ nv50_gpio_intr_stat(struct nouveau_gpio *gpio, u32 *hi, u32 *lo)
 }
 
 static void
-nv50_gpio_intr_mask(struct nouveau_gpio *gpio, u32 type, u32 mask, u32 data)
+nv50_gpio_intr_mask(struct nvkm_gpio *gpio, u32 type, u32 mask, u32 data)
 {
 	u32 inte = nv_rd32(gpio, 0x00e050);
 	if (type & NVKM_GPIO_LO)
@@ -111,14 +110,14 @@ nv50_gpio_intr_mask(struct nouveau_gpio *gpio, u32 type, u32 mask, u32 data)
 	nv_wr32(gpio, 0x00e050, inte);
 }
 
-struct nouveau_oclass *
-nv50_gpio_oclass = &(struct nouveau_gpio_impl) {
+struct nvkm_oclass *
+nv50_gpio_oclass = &(struct nvkm_gpio_impl) {
 	.base.handle = NV_SUBDEV(GPIO, 0x50),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = _nouveau_gpio_ctor,
-		.dtor = _nouveau_gpio_dtor,
-		.init = _nouveau_gpio_init,
-		.fini = _nouveau_gpio_fini,
+	.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = _nvkm_gpio_ctor,
+		.dtor = _nvkm_gpio_dtor,
+		.init = _nvkm_gpio_init,
+		.fini = _nvkm_gpio_fini,
 	},
 	.lines = 16,
 	.intr_stat = nv50_gpio_intr_stat,

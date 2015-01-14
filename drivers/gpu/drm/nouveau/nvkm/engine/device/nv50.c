@@ -177,7 +177,7 @@ nv50_identify(struct nouveau_device *device)
 	case 0x94:
 		device->cname = "G94";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
-		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv94_gpio_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] =  g94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv94_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] =  &nv50_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_CLK    ] =  g84_clk_oclass;
@@ -206,7 +206,7 @@ nv50_identify(struct nouveau_device *device)
 	case 0x96:
 		device->cname = "G96";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
-		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv94_gpio_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] =  g94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv94_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] =  &nv50_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_CLK    ] =  g84_clk_oclass;
@@ -235,7 +235,7 @@ nv50_identify(struct nouveau_device *device)
 	case 0x98:
 		device->cname = "G98";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
-		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv94_gpio_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] =  g94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv94_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] =  &nv50_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_CLK    ] =  g84_clk_oclass;
@@ -264,7 +264,7 @@ nv50_identify(struct nouveau_device *device)
 	case 0xa0:
 		device->cname = "G200";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
-		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv94_gpio_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] =  g94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv50_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] =  &nv50_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_CLK    ] =  g84_clk_oclass;
@@ -293,7 +293,7 @@ nv50_identify(struct nouveau_device *device)
 	case 0xaa:
 		device->cname = "MCP77/MCP78";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
-		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv94_gpio_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] =  g94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv94_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] =  &nv50_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_CLK    ] =  mcp77_clk_oclass;
@@ -322,7 +322,7 @@ nv50_identify(struct nouveau_device *device)
 	case 0xac:
 		device->cname = "MCP79/MCP7A";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
-		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv94_gpio_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] =  g94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv94_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] =  &nv50_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_CLK    ] =  mcp77_clk_oclass;
@@ -351,7 +351,7 @@ nv50_identify(struct nouveau_device *device)
 	case 0xa3:
 		device->cname = "GT215";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
-		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv94_gpio_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] =  g94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv94_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] =  &nv50_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &gt215_clk_oclass;
@@ -382,7 +382,7 @@ nv50_identify(struct nouveau_device *device)
 	case 0xa5:
 		device->cname = "GT216";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
-		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv94_gpio_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] =  g94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv94_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] =  &nv50_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &gt215_clk_oclass;
@@ -412,7 +412,7 @@ nv50_identify(struct nouveau_device *device)
 	case 0xa8:
 		device->cname = "GT218";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
-		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv94_gpio_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] =  g94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv94_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] =  &nv50_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &gt215_clk_oclass;
@@ -442,7 +442,7 @@ nv50_identify(struct nouveau_device *device)
 	case 0xaf:
 		device->cname = "MCP89";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
-		device->oclass[NVDEV_SUBDEV_GPIO   ] =  nv94_gpio_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] =  g94_gpio_oclass;
 		device->oclass[NVDEV_SUBDEV_I2C    ] =  nv94_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_FUSE   ] =  &nv50_fuse_oclass;
 		device->oclass[NVDEV_SUBDEV_CLK    ] = &gt215_clk_oclass;

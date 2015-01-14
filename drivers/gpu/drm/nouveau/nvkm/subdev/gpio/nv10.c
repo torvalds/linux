@@ -23,11 +23,10 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-
 #include "priv.h"
 
 static int
-nv10_gpio_sense(struct nouveau_gpio *gpio, int line)
+nv10_gpio_sense(struct nvkm_gpio *gpio, int line)
 {
 	if (line < 2) {
 		line = line * 16;
@@ -49,7 +48,7 @@ nv10_gpio_sense(struct nouveau_gpio *gpio, int line)
 }
 
 static int
-nv10_gpio_drive(struct nouveau_gpio *gpio, int line, int dir, int out)
+nv10_gpio_drive(struct nvkm_gpio *gpio, int line, int dir, int out)
 {
 	u32 reg, mask, data;
 
@@ -79,7 +78,7 @@ nv10_gpio_drive(struct nouveau_gpio *gpio, int line, int dir, int out)
 }
 
 static void
-nv10_gpio_intr_stat(struct nouveau_gpio *gpio, u32 *hi, u32 *lo)
+nv10_gpio_intr_stat(struct nvkm_gpio *gpio, u32 *hi, u32 *lo)
 {
 	u32 intr = nv_rd32(gpio, 0x001104);
 	u32 stat = nv_rd32(gpio, 0x001144) & intr;
@@ -89,7 +88,7 @@ nv10_gpio_intr_stat(struct nouveau_gpio *gpio, u32 *hi, u32 *lo)
 }
 
 static void
-nv10_gpio_intr_mask(struct nouveau_gpio *gpio, u32 type, u32 mask, u32 data)
+nv10_gpio_intr_mask(struct nvkm_gpio *gpio, u32 type, u32 mask, u32 data)
 {
 	u32 inte = nv_rd32(gpio, 0x001144);
 	if (type & NVKM_GPIO_LO)
@@ -99,14 +98,14 @@ nv10_gpio_intr_mask(struct nouveau_gpio *gpio, u32 type, u32 mask, u32 data)
 	nv_wr32(gpio, 0x001144, inte);
 }
 
-struct nouveau_oclass *
-nv10_gpio_oclass = &(struct nouveau_gpio_impl) {
+struct nvkm_oclass *
+nv10_gpio_oclass = &(struct nvkm_gpio_impl) {
 	.base.handle = NV_SUBDEV(GPIO, 0x10),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = _nouveau_gpio_ctor,
-		.dtor = _nouveau_gpio_dtor,
-		.init = _nouveau_gpio_init,
-		.fini = _nouveau_gpio_fini,
+	.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = _nvkm_gpio_ctor,
+		.dtor = _nvkm_gpio_dtor,
+		.init = _nvkm_gpio_init,
+		.fini = _nvkm_gpio_fini,
 	},
 	.lines = 16,
 	.intr_stat = nv10_gpio_intr_stat,

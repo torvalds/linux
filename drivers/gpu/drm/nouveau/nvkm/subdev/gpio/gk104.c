@@ -21,11 +21,10 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "priv.h"
 
 static void
-nve0_gpio_intr_stat(struct nouveau_gpio *gpio, u32 *hi, u32 *lo)
+gk104_gpio_intr_stat(struct nvkm_gpio *gpio, u32 *hi, u32 *lo)
 {
 	u32 intr0 = nv_rd32(gpio, 0x00dc00);
 	u32 intr1 = nv_rd32(gpio, 0x00dc80);
@@ -38,7 +37,7 @@ nve0_gpio_intr_stat(struct nouveau_gpio *gpio, u32 *hi, u32 *lo)
 }
 
 void
-nve0_gpio_intr_mask(struct nouveau_gpio *gpio, u32 type, u32 mask, u32 data)
+gk104_gpio_intr_mask(struct nvkm_gpio *gpio, u32 type, u32 mask, u32 data)
 {
 	u32 inte0 = nv_rd32(gpio, 0x00dc08);
 	u32 inte1 = nv_rd32(gpio, 0x00dc88);
@@ -56,19 +55,19 @@ nve0_gpio_intr_mask(struct nouveau_gpio *gpio, u32 type, u32 mask, u32 data)
 	nv_wr32(gpio, 0x00dc88, inte1);
 }
 
-struct nouveau_oclass *
-nve0_gpio_oclass = &(struct nouveau_gpio_impl) {
+struct nvkm_oclass *
+gk104_gpio_oclass = &(struct nvkm_gpio_impl) {
 	.base.handle = NV_SUBDEV(GPIO, 0xe0),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = _nouveau_gpio_ctor,
-		.dtor = _nouveau_gpio_dtor,
-		.init = _nouveau_gpio_init,
-		.fini = _nouveau_gpio_fini,
+	.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = _nvkm_gpio_ctor,
+		.dtor = _nvkm_gpio_dtor,
+		.init = _nvkm_gpio_init,
+		.fini = _nvkm_gpio_fini,
 	},
 	.lines = 32,
-	.intr_stat = nve0_gpio_intr_stat,
-	.intr_mask = nve0_gpio_intr_mask,
-	.drive = nvd0_gpio_drive,
-	.sense = nvd0_gpio_sense,
-	.reset = nvd0_gpio_reset,
+	.intr_stat = gk104_gpio_intr_stat,
+	.intr_mask = gk104_gpio_intr_mask,
+	.drive = gf110_gpio_drive,
+	.sense = gf110_gpio_sense,
+	.reset = gf110_gpio_reset,
 }.base;

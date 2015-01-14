@@ -1,8 +1,6 @@
-#ifndef __NOUVEAU_GPIO_H__
-#define __NOUVEAU_GPIO_H__
-
+#ifndef __NVKM_GPIO_H__
+#define __NVKM_GPIO_H__
 #include <core/subdev.h>
-#include <core/device.h>
 #include <core/event.h>
 
 #include <subdev/bios.h>
@@ -20,28 +18,27 @@ struct nvkm_gpio_ntfy_rep {
 	u8 mask;
 };
 
-struct nouveau_gpio {
-	struct nouveau_subdev base;
+struct nvkm_gpio {
+	struct nvkm_subdev base;
 
 	struct nvkm_event event;
 
-	void (*reset)(struct nouveau_gpio *, u8 func);
-	int  (*find)(struct nouveau_gpio *, int idx, u8 tag, u8 line,
+	void (*reset)(struct nvkm_gpio *, u8 func);
+	int  (*find)(struct nvkm_gpio *, int idx, u8 tag, u8 line,
 		     struct dcb_gpio_func *);
-	int  (*set)(struct nouveau_gpio *, int idx, u8 tag, u8 line, int state);
-	int  (*get)(struct nouveau_gpio *, int idx, u8 tag, u8 line);
+	int  (*set)(struct nvkm_gpio *, int idx, u8 tag, u8 line, int state);
+	int  (*get)(struct nvkm_gpio *, int idx, u8 tag, u8 line);
 };
 
-static inline struct nouveau_gpio *
-nouveau_gpio(void *obj)
+static inline struct nvkm_gpio *
+nvkm_gpio(void *obj)
 {
-	return (void *)nouveau_subdev(obj, NVDEV_SUBDEV_GPIO);
+	return (void *)nvkm_subdev(obj, NVDEV_SUBDEV_GPIO);
 }
 
-extern struct nouveau_oclass *nv10_gpio_oclass;
-extern struct nouveau_oclass *nv50_gpio_oclass;
-extern struct nouveau_oclass *nv94_gpio_oclass;
-extern struct nouveau_oclass *nvd0_gpio_oclass;
-extern struct nouveau_oclass *nve0_gpio_oclass;
-
+extern struct nvkm_oclass *nv10_gpio_oclass;
+extern struct nvkm_oclass *nv50_gpio_oclass;
+extern struct nvkm_oclass *g94_gpio_oclass;
+extern struct nvkm_oclass *gf110_gpio_oclass;
+extern struct nvkm_oclass *gk104_gpio_oclass;
 #endif
