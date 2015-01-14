@@ -200,7 +200,7 @@ static int ec_transaction_completed(struct acpi_ec *ec)
 	return ret;
 }
 
-static bool advance_transaction(struct acpi_ec *ec)
+static void advance_transaction(struct acpi_ec *ec)
 {
 	struct transaction *t;
 	u8 status;
@@ -235,7 +235,7 @@ static bool advance_transaction(struct acpi_ec *ec)
 			t->flags |= ACPI_EC_COMMAND_COMPLETE;
 			wakeup = true;
 		}
-		return wakeup;
+		goto out;
 	} else {
 		if (EC_FLAGS_QUERY_HANDSHAKE &&
 		    !(status & ACPI_EC_FLAG_SCI) &&
@@ -251,7 +251,7 @@ static bool advance_transaction(struct acpi_ec *ec)
 			t->flags |= ACPI_EC_COMMAND_POLL;
 		} else
 			goto err;
-		return wakeup;
+		goto out;
 	}
 err:
 	/*
@@ -262,14 +262,16 @@ err:
 		if (in_interrupt() && t)
 			++t->irq_count;
 	}
-	return wakeup;
+out:
+	if (wakeup && in_interrupt())
+		wake_up(&ec->wait);
 }
 
 static void start_transaction(struct acpi_ec *ec)
 {
 	ec->curr->irq_count = ec->curr->wi = ec->curr->ri = 0;
 	ec->curr->flags = 0;
-	(void)advance_transaction(ec);
+	advance_transaction(ec);
 }
 
 static int acpi_ec_sync_query(struct acpi_ec *ec, u8 *data);
@@ -304,7 +306,7 @@ static int ec_poll(struct acpi_ec *ec)
 					return 0;
 			}
 			spin_lock_irqsave(&ec->lock, flags);
-			(void)advance_transaction(ec);
+			advance_transaction(ec);
 			spin_unlock_irqrestore(&ec->lock, flags);
 		} while (time_before(jiffies, delay));
 		pr_debug("controller reset, restart transaction\n");
@@ -688,8 +690,7 @@ static u32 acpi_ec_gpe_handler(acpi_handle gpe_device,
 	struct acpi_ec *ec = data;
 
 	spin_lock_irqsave(&ec->lock, flags);
-	if (advance_transaction(ec))
-		wake_up(&ec->wait);
+	advance_transaction(ec);
 	spin_unlock_irqrestore(&ec->lock, flags);
 	ec_check_sci(ec, acpi_ec_read_status(ec));
 	return ACPI_INTERRUPT_HANDLED | ACPI_REENABLE_GPE;
