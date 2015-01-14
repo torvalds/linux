@@ -200,11 +200,10 @@ void rmobile_add_devices_to_domains(struct pm_domain_device data[],
 
 #else /* !CONFIG_ARCH_SHMOBILE_LEGACY */
 
-static int rmobile_pd_suspend_cpu(void)
+static int rmobile_pd_suspend_busy(void)
 {
 	/*
-	 * This domain contains the CPU core and therefore it should
-	 * only be turned off if the CPU is not in use.
+	 * This domain should not be turned off.
 	 */
 	return -EBUSY;
 }
@@ -216,16 +215,6 @@ static int rmobile_pd_suspend_console(void)
 	 * hence keep the power domain on if "no_console_suspend" is set.
 	 */
 	return console_suspend_enabled ? 0 : -EBUSY;
-}
-
-static int rmobile_pd_suspend_debug(void)
-{
-	/*
-	 * This domain contains the Coresight-ETM hardware block and
-	 * therefore it should only be turned off if the debug module is
-	 * not in use.
-	 */
-	return -EBUSY;
 }
 
 #define MAX_NUM_CPU_PDS		8
@@ -303,17 +292,26 @@ static void __init rmobile_setup_pm_domain(struct device_node *np,
 	const char *name = pd->genpd.name;
 
 	if (pd_contains_cpu(np)) {
+		/*
+		 * This domain contains the CPU core and therefore it should
+		 * only be turned off if the CPU is not in use.
+		 */
 		pr_debug("PM domain %s contains CPU\n", name);
 		pd->gov = &pm_domain_always_on_gov;
-		pd->suspend = rmobile_pd_suspend_cpu;
+		pd->suspend = rmobile_pd_suspend_busy;
 	} else if (np == console_pd) {
 		pr_debug("PM domain %s contains serial console\n", name);
 		pd->gov = &pm_domain_always_on_gov;
 		pd->suspend = rmobile_pd_suspend_console;
 	} else if (np == debug_pd) {
+		/*
+		 * This domain contains the Coresight-ETM hardware block and
+		 * therefore it should only be turned off if the debug module
+		 * is not in use.
+		 */
 		pr_debug("PM domain %s contains Coresight-ETM\n", name);
 		pd->gov = &pm_domain_always_on_gov;
-		pd->suspend = rmobile_pd_suspend_debug;
+		pd->suspend = rmobile_pd_suspend_busy;
 	}
 
 	rmobile_init_pm_domain(pd);
