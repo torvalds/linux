@@ -247,6 +247,13 @@ choice
 		  Say Y here if you want the debug print routines to direct
 		  their output to the serial port in the DC21285 (Footbridge).
 
+	config DEBUG_DIGICOLOR_UA0
+		bool "Kernel low-level debugging messages via Digicolor UA0"
+		depends on ARCH_DIGICOLOR
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to the UA0 serial port in the CX92755.
+
 	config DEBUG_FOOTBRIDGE_COM1
 		bool "Kernel low-level debugging messages via footbridge 8250 at PCI COM1"
 		depends on FOOTBRIDGE
@@ -1255,6 +1262,7 @@ config DEBUG_LL_INCLUDE
 	default "debug/vt8500.S" if DEBUG_VT8500_UART0
 	default "debug/zynq.S" if DEBUG_ZYNQ_UART0 || DEBUG_ZYNQ_UART1
 	default "debug/bcm63xx.S" if DEBUG_UART_BCM63XX
+	default "debug/digicolor.S" if DEBUG_DIGICOLOR_UA0
 	default "mach/debug-macro.S"
 
 # Compatibility options for PL01x
@@ -1377,7 +1385,7 @@ config DEBUG_UART_PHYS
 		DEBUG_RMOBILE_SCIFA0 || DEBUG_RMOBILE_SCIFA1 || \
 		DEBUG_RMOBILE_SCIFA4 || DEBUG_S3C24XX_UART || \
 		DEBUG_UART_BCM63XX || DEBUG_ASM9260_UART || \
-		DEBUG_SIRFSOC_UART
+		DEBUG_SIRFSOC_UART || DEBUG_DIGICOLOR_UA0
 
 config DEBUG_UART_VIRT
 	hex "Virtual base address of debug UART"
@@ -1460,7 +1468,8 @@ config DEBUG_UART_VIRT
 	depends on DEBUG_LL_UART_8250 || DEBUG_LL_UART_PL01X || \
 		DEBUG_UART_8250 || DEBUG_UART_PL01X || DEBUG_MESON_UARTAO || \
 		DEBUG_MSM_UART || DEBUG_QCOM_UARTDM || DEBUG_S3C24XX_UART || \
-		DEBUG_UART_BCM63XX || DEBUG_ASM9260_UART || DEBUG_SIRFSOC_UART
+		DEBUG_UART_BCM63XX || DEBUG_ASM9260_UART || \
+		DEBUG_SIRFSOC_UART || DEBUG_DIGICOLOR_UA0
 
 config DEBUG_UART_8250_SHIFT
 	int "Register offset shift for the 8250 debug UART"
