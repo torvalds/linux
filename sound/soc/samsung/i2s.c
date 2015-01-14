@@ -1123,15 +1123,14 @@ static const struct of_device_id exynos_i2s_match[];
 static inline const struct samsung_i2s_dai_data *samsung_i2s_get_driver_data(
 						struct platform_device *pdev)
 {
-#ifdef CONFIG_OF
-	if (pdev->dev.of_node) {
+	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
 		const struct of_device_id *match;
 		match = of_match_node(exynos_i2s_match, pdev->dev.of_node);
-		return match->data;
-	} else
-#endif
+		return match ? match->data : NULL;
+	} else {
 		return (struct samsung_i2s_dai_data *)
 				platform_get_device_id(pdev)->driver_data;
+	}
 }
 
 #ifdef CONFIG_PM
