@@ -2110,6 +2110,8 @@ static int ieee80211_set_tx_power(struct wiphy *wiphy,
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct ieee80211_sub_if_data *sdata;
+	enum nl80211_tx_power_setting txp_type = type;
+	bool update_txp_type = false;
 
 	if (wdev) {
 		sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
@@ -2117,6 +2119,7 @@ static int ieee80211_set_tx_power(struct wiphy *wiphy,
 		switch (type) {
 		case NL80211_TX_POWER_AUTOMATIC:
 			sdata->user_power_level = IEEE80211_UNSET_POWER_LEVEL;
+			txp_type = NL80211_TX_POWER_LIMITED;
 			break;
 		case NL80211_TX_POWER_LIMITED:
 		case NL80211_TX_POWER_FIXED:
@@ -2126,7 +2129,12 @@ static int ieee80211_set_tx_power(struct wiphy *wiphy,
 			break;
 		}
 
-		ieee80211_recalc_txpower(sdata);
+		if (txp_type != sdata->vif.bss_conf.txpower_type) {
+			update_txp_type = true;
+			sdata->vif.bss_conf.txpower_type = txp_type;
+		}
+
+		ieee80211_recalc_txpower(sdata, update_txp_type);
 
 		return 0;
 	}
@@ -2134,6 +2142,7 @@ static int ieee80211_set_tx_power(struct wiphy *wiphy,
 	switch (type) {
 	case NL80211_TX_POWER_AUTOMATIC:
 		local->user_power_level = IEEE80211_UNSET_POWER_LEVEL;
+		txp_type = NL80211_TX_POWER_LIMITED;
 		break;
 	case NL80211_TX_POWER_LIMITED:
 	case NL80211_TX_POWER_FIXED:
@@ -2144,10 +2153,14 @@ static int ieee80211_set_tx_power(struct wiphy *wiphy,
 	}
 
 	mutex_lock(&local->iflist_mtx);
-	list_for_each_entry(sdata, &local->interfaces, list)
+	list_for_each_entry(sdata, &local->interfaces, list) {
 		sdata->user_power_level = local->user_power_level;
+		if (txp_type != sdata->vif.bss_conf.txpower_type)
+			update_txp_type = true;
+		sdata->vif.bss_conf.txpower_type = txp_type;
+	}
 	list_for_each_entry(sdata, &local->interfaces, list)
-		ieee80211_recalc_txpower(sdata);
+		ieee80211_recalc_txpower(sdata, update_txp_type);
 	mutex_unlock(&local->iflist_mtx);
 
 	return 0;

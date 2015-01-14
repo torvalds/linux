@@ -655,7 +655,7 @@ out:
 	}
 
 	if (new_ctx && ieee80211_chanctx_num_assigned(local, new_ctx) > 0) {
-		ieee80211_recalc_txpower(sdata);
+		ieee80211_recalc_txpower(sdata, false);
 		ieee80211_recalc_chanctx_min_def(local, new_ctx);
 	}
 
@@ -1387,7 +1387,7 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 				ieee80211_bss_info_change_notify(sdata,
 								 changed);
 
-			ieee80211_recalc_txpower(sdata);
+			ieee80211_recalc_txpower(sdata, false);
 		}
 
 		ieee80211_recalc_chanctx_chantype(local, ctx);
