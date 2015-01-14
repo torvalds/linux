@@ -62,8 +62,11 @@ struct virtio_pci_device {
 	struct virtio_pci_common_cfg __iomem *common;
 	/* Device-specific data (non-legacy mode)  */
 	void __iomem *device;
+	/* Base of vq notifications (non-legacy mode). */
+	void __iomem *notify_base;
 
 	/* So we can sanity-check accesses. */
+	size_t notify_len;
 	size_t device_len;
 
 	/* Capability for when we need to map notifications per-vq. */
