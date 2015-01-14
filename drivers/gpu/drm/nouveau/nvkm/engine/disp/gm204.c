@@ -21,31 +21,28 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <engine/sw.h>
-#include <engine/disp.h>
+#include "nv50.h"
+#include "outpdp.h"
 
 #include <nvif/class.h>
-
-#include "nv50.h"
 
 /*******************************************************************************
  * Base display object
  ******************************************************************************/
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 gm204_disp_sclass[] = {
-	{ GM204_DISP_CORE_CHANNEL_DMA, &nvd0_disp_core_ofuncs.base },
-	{ GK110_DISP_BASE_CHANNEL_DMA, &nvd0_disp_base_ofuncs.base },
-	{ GK104_DISP_OVERLAY_CONTROL_DMA, &nvd0_disp_ovly_ofuncs.base },
-	{ GK104_DISP_OVERLAY, &nvd0_disp_oimm_ofuncs.base },
-	{ GK104_DISP_CURSOR, &nvd0_disp_curs_ofuncs.base },
+	{ GM204_DISP_CORE_CHANNEL_DMA, &gf110_disp_core_ofuncs.base },
+	{ GK110_DISP_BASE_CHANNEL_DMA, &gf110_disp_base_ofuncs.base },
+	{ GK104_DISP_OVERLAY_CONTROL_DMA, &gf110_disp_ovly_ofuncs.base },
+	{ GK104_DISP_OVERLAY, &gf110_disp_oimm_ofuncs.base },
+	{ GK104_DISP_CURSOR, &gf110_disp_curs_ofuncs.base },
 	{}
 };
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 gm204_disp_main_oclass[] = {
-	{ GM204_DISP, &nvd0_disp_main_ofuncs },
+	{ GM204_DISP, &gf110_disp_main_ofuncs },
 	{}
 };
 
@@ -54,28 +51,28 @@ gm204_disp_main_oclass[] = {
  ******************************************************************************/
 
 static int
-gm204_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
+gm204_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		struct nvkm_oclass *oclass, void *data, u32 size,
+		struct nvkm_object **pobject)
 {
 	struct nv50_disp_priv *priv;
 	int heads = nv_rd32(parent, 0x022448);
 	int ret;
 
-	ret = nouveau_disp_create(parent, engine, oclass, heads,
-				  "PDISP", "display", &priv);
+	ret = nvkm_disp_create(parent, engine, oclass, heads,
+			       "PDISP", "display", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
-	ret = nvkm_event_init(&nvd0_disp_chan_uevent, 1, 17, &priv->uevent);
+	ret = nvkm_event_init(&gf110_disp_chan_uevent, 1, 17, &priv->uevent);
 	if (ret)
 		return ret;
 
 	nv_engine(priv)->sclass = gm204_disp_main_oclass;
 	nv_engine(priv)->cclass = &nv50_disp_cclass;
-	nv_subdev(priv)->intr = nvd0_disp_intr;
-	INIT_WORK(&priv->supervisor, nvd0_disp_intr_supervisor);
+	nv_subdev(priv)->intr = gf110_disp_intr;
+	INIT_WORK(&priv->supervisor, gf110_disp_intr_supervisor);
 	priv->sclass = gm204_disp_sclass;
 	priv->head.nr = heads;
 	priv->dac.nr = 3;
@@ -83,32 +80,32 @@ gm204_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->dac.power = nv50_dac_power;
 	priv->dac.sense = nv50_dac_sense;
 	priv->sor.power = nv50_sor_power;
-	priv->sor.hda_eld = nvd0_hda_eld;
-	priv->sor.hdmi = nvd0_hdmi_ctrl;
+	priv->sor.hda_eld = gf110_hda_eld;
+	priv->sor.hdmi = gf110_hdmi_ctrl;
 	priv->sor.magic = gm204_sor_magic;
 	return 0;
 }
 
-struct nouveau_oclass *
+struct nvkm_oclass *
 gm204_disp_outp_sclass[] = {
 	&gm204_sor_dp_impl.base.base,
 	NULL
 };
 
-struct nouveau_oclass *
+struct nvkm_oclass *
 gm204_disp_oclass = &(struct nv50_disp_impl) {
 	.base.base.handle = NV_ENGINE(DISP, 0x07),
-	.base.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = gm204_disp_ctor,
-		.dtor = _nouveau_disp_dtor,
-		.init = _nouveau_disp_init,
-		.fini = _nouveau_disp_fini,
+		.dtor = _nvkm_disp_dtor,
+		.init = _nvkm_disp_init,
+		.fini = _nvkm_disp_fini,
 	},
-	.base.vblank = &nvd0_disp_vblank_func,
+	.base.vblank = &gf110_disp_vblank_func,
 	.base.outp =  gm204_disp_outp_sclass,
-	.mthd.core = &nve0_disp_core_mthd_chan,
-	.mthd.base = &nvd0_disp_base_mthd_chan,
-	.mthd.ovly = &nve0_disp_ovly_mthd_chan,
+	.mthd.core = &gk104_disp_core_mthd_chan,
+	.mthd.base = &gf110_disp_base_mthd_chan,
+	.mthd.ovly = &gk104_disp_ovly_mthd_chan,
 	.mthd.prev = -0x020000,
-	.head.scanoutpos = nvd0_disp_main_scanoutpos,
+	.head.scanoutpos = gf110_disp_main_scanoutpos,
 }.base.base;

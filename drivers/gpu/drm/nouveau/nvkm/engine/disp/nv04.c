@@ -21,20 +21,20 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "priv.h"
 
 #include <core/client.h>
-#include <core/event.h>
-#include <nvif/unpack.h>
+#include <core/device.h>
+
 #include <nvif/class.h>
+#include <nvif/unpack.h>
 
 struct nv04_disp_priv {
-	struct nouveau_disp base;
+	struct nvkm_disp base;
 };
 
 static int
-nv04_disp_scanoutpos(struct nouveau_object *object, struct nv04_disp_priv *priv,
+nv04_disp_scanoutpos(struct nvkm_object *object, struct nv04_disp_priv *priv,
 		     void *data, u32 size, int head)
 {
 	const u32 hoff = head * 0x2000;
@@ -75,7 +75,7 @@ nv04_disp_scanoutpos(struct nouveau_object *object, struct nv04_disp_priv *priv,
 }
 
 static int
-nv04_disp_mthd(struct nouveau_object *object, u32 mthd, void *data, u32 size)
+nv04_disp_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
 	union {
 		struct nv04_disp_mthd_v0 v0;
@@ -105,17 +105,17 @@ nv04_disp_mthd(struct nouveau_object *object, u32 mthd, void *data, u32 size)
 	return -EINVAL;
 }
 
-static struct nouveau_ofuncs
+static struct nvkm_ofuncs
 nv04_disp_ofuncs = {
-	.ctor = _nouveau_object_ctor,
-	.dtor = nouveau_object_destroy,
-	.init = nouveau_object_init,
-	.fini = nouveau_object_fini,
+	.ctor = _nvkm_object_ctor,
+	.dtor = nvkm_object_destroy,
+	.init = nvkm_object_init,
+	.fini = nvkm_object_fini,
 	.mthd = nv04_disp_mthd,
-	.ntfy = nouveau_disp_ntfy,
+	.ntfy = nvkm_disp_ntfy,
 };
 
-static struct nouveau_oclass
+static struct nvkm_oclass
 nv04_disp_sclass[] = {
 	{ NV04_DISP, &nv04_disp_ofuncs },
 	{},
@@ -128,26 +128,26 @@ nv04_disp_sclass[] = {
 static void
 nv04_disp_vblank_init(struct nvkm_event *event, int type, int head)
 {
-	struct nouveau_disp *disp = container_of(event, typeof(*disp), vblank);
+	struct nvkm_disp *disp = container_of(event, typeof(*disp), vblank);
 	nv_wr32(disp, 0x600140 + (head * 0x2000) , 0x00000001);
 }
 
 static void
 nv04_disp_vblank_fini(struct nvkm_event *event, int type, int head)
 {
-	struct nouveau_disp *disp = container_of(event, typeof(*disp), vblank);
+	struct nvkm_disp *disp = container_of(event, typeof(*disp), vblank);
 	nv_wr32(disp, 0x600140 + (head * 0x2000) , 0x00000000);
 }
 
 static const struct nvkm_event_func
 nv04_disp_vblank_func = {
-	.ctor = nouveau_disp_vblank_ctor,
+	.ctor = nvkm_disp_vblank_ctor,
 	.init = nv04_disp_vblank_init,
 	.fini = nv04_disp_vblank_fini,
 };
 
 static void
-nv04_disp_intr(struct nouveau_subdev *subdev)
+nv04_disp_intr(struct nvkm_subdev *subdev)
 {
 	struct nv04_disp_priv *priv = (void *)subdev;
 	u32 crtc0 = nv_rd32(priv, 0x600100);
@@ -155,12 +155,12 @@ nv04_disp_intr(struct nouveau_subdev *subdev)
 	u32 pvideo;
 
 	if (crtc0 & 0x00000001) {
-		nouveau_disp_vblank(&priv->base, 0);
+		nvkm_disp_vblank(&priv->base, 0);
 		nv_wr32(priv, 0x600100, 0x00000001);
 	}
 
 	if (crtc1 & 0x00000001) {
-		nouveau_disp_vblank(&priv->base, 1);
+		nvkm_disp_vblank(&priv->base, 1);
 		nv_wr32(priv, 0x602100, 0x00000001);
 	}
 
@@ -174,15 +174,15 @@ nv04_disp_intr(struct nouveau_subdev *subdev)
 }
 
 static int
-nv04_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
+nv04_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	       struct nvkm_oclass *oclass, void *data, u32 size,
+	       struct nvkm_object **pobject)
 {
 	struct nv04_disp_priv *priv;
 	int ret;
 
-	ret = nouveau_disp_create(parent, engine, oclass, 2, "DISPLAY",
-				  "display", &priv);
+	ret = nvkm_disp_create(parent, engine, oclass, 2, "DISPLAY",
+			       "display", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -192,14 +192,14 @@ nv04_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass *
-nv04_disp_oclass = &(struct nouveau_disp_impl) {
+struct nvkm_oclass *
+nv04_disp_oclass = &(struct nvkm_disp_impl) {
 	.base.handle = NV_ENGINE(DISP, 0x04),
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv04_disp_ctor,
-		.dtor = _nouveau_disp_dtor,
-		.init = _nouveau_disp_init,
-		.fini = _nouveau_disp_fini,
+		.dtor = _nvkm_disp_dtor,
+		.init = _nvkm_disp_init,
+		.fini = _nvkm_disp_fini,
 	},
 	.vblank = &nv04_disp_vblank_func,
 }.base;

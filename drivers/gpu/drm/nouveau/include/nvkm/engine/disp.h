@@ -1,13 +1,10 @@
-#ifndef __NOUVEAU_DISP_H__
-#define __NOUVEAU_DISP_H__
-
-#include <core/object.h>
+#ifndef __NVKM_DISP_H__
+#define __NVKM_DISP_H__
 #include <core/engine.h>
-#include <core/device.h>
 #include <core/event.h>
 
-struct nouveau_disp {
-	struct nouveau_engine base;
+struct nvkm_disp {
+	struct nvkm_engine base;
 
 	struct list_head outp;
 
@@ -15,22 +12,21 @@ struct nouveau_disp {
 	struct nvkm_event vblank;
 };
 
-static inline struct nouveau_disp *
-nouveau_disp(void *obj)
+static inline struct nvkm_disp *
+nvkm_disp(void *obj)
 {
-	return (void *)nouveau_engine(obj, NVDEV_ENGINE_DISP);
+	return (void *)nvkm_engine(obj, NVDEV_ENGINE_DISP);
 }
 
-extern struct nouveau_oclass *nv04_disp_oclass;
-extern struct nouveau_oclass *nv50_disp_oclass;
-extern struct nouveau_oclass *nv84_disp_oclass;
-extern struct nouveau_oclass *nva0_disp_oclass;
-extern struct nouveau_oclass *nv94_disp_oclass;
-extern struct nouveau_oclass *nva3_disp_oclass;
-extern struct nouveau_oclass *nvd0_disp_oclass;
-extern struct nouveau_oclass *nve0_disp_oclass;
-extern struct nouveau_oclass *nvf0_disp_oclass;
-extern struct nouveau_oclass *gm107_disp_oclass;
-extern struct nouveau_oclass *gm204_disp_oclass;
-
+extern struct nvkm_oclass *nv04_disp_oclass;
+extern struct nvkm_oclass *nv50_disp_oclass;
+extern struct nvkm_oclass *g84_disp_oclass;
+extern struct nvkm_oclass *gt200_disp_oclass;
+extern struct nvkm_oclass *g94_disp_oclass;
+extern struct nvkm_oclass *gt215_disp_oclass;
+extern struct nvkm_oclass *gf110_disp_oclass;
+extern struct nvkm_oclass *gk104_disp_oclass;
+extern struct nvkm_oclass *gk110_disp_oclass;
+extern struct nvkm_oclass *gm107_disp_oclass;
+extern struct nvkm_oclass *gm204_disp_oclass;
 #endif

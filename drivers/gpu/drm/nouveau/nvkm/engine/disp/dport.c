@@ -21,19 +21,15 @@
  *
  * Authors: Ben Skeggs
  */
+#include "dport.h"
+#include "outpdp.h"
+#include "nv50.h"
 
 #include <subdev/bios.h>
-#include <subdev/bios/dcb.h>
-#include <subdev/bios/dp.h>
 #include <subdev/bios/init.h>
 #include <subdev/i2c.h>
 
-#include "nv50.h"
-
 #include <nvif/class.h>
-
-#include "dport.h"
-#include "outpdp.h"
 
 /******************************************************************************
  * link training
@@ -54,8 +50,8 @@ dp_set_link_config(struct dp_state *dp)
 {
 	struct nvkm_output_dp_impl *impl = (void *)nv_oclass(dp->outp);
 	struct nvkm_output_dp *outp = dp->outp;
-	struct nouveau_disp *disp = nouveau_disp(outp);
-	struct nouveau_bios *bios = nouveau_bios(disp);
+	struct nvkm_disp *disp = nvkm_disp(outp);
+	struct nvkm_bios *bios = nvkm_bios(disp);
 	struct nvbios_init init = {
 		.subdev = nv_subdev(disp),
 		.bios = bios,
@@ -264,8 +260,8 @@ static void
 dp_link_train_init(struct dp_state *dp, bool spread)
 {
 	struct nvkm_output_dp *outp = dp->outp;
-	struct nouveau_disp *disp = nouveau_disp(outp);
-	struct nouveau_bios *bios = nouveau_bios(disp);
+	struct nvkm_disp *disp = nvkm_disp(outp);
+	struct nvkm_bios *bios = nvkm_bios(disp);
 	struct nvbios_init init = {
 		.subdev = nv_subdev(disp),
 		.bios = bios,
@@ -290,8 +286,8 @@ static void
 dp_link_train_fini(struct dp_state *dp)
 {
 	struct nvkm_output_dp *outp = dp->outp;
-	struct nouveau_disp *disp = nouveau_disp(outp);
-	struct nouveau_bios *bios = nouveau_bios(disp);
+	struct nvkm_disp *disp = nvkm_disp(outp);
+	struct nvkm_bios *bios = nvkm_bios(disp);
 	struct nvbios_init init = {
 		.subdev = nv_subdev(disp),
 		.bios = bios,
@@ -309,7 +305,7 @@ static const struct dp_rates {
 	u32 rate;
 	u8  bw;
 	u8  nr;
-} nouveau_dp_rates[] = {
+} nvkm_dp_rates[] = {
 	{ 2160000, 0x14, 4 },
 	{ 1080000, 0x0a, 4 },
 	{ 1080000, 0x14, 2 },
@@ -323,11 +319,11 @@ static const struct dp_rates {
 };
 
 void
-nouveau_dp_train(struct work_struct *w)
+nvkm_dp_train(struct work_struct *w)
 {
 	struct nvkm_output_dp *outp = container_of(w, typeof(*outp), lt.work);
-	struct nv50_disp_priv *priv = (void *)nouveau_disp(outp);
-	const struct dp_rates *cfg = nouveau_dp_rates;
+	struct nv50_disp_priv *priv = (void *)nvkm_disp(outp);
+	const struct dp_rates *cfg = nvkm_dp_rates;
 	struct dp_state _dp = {
 		.outp = outp,
 	}, *dp = &_dp;

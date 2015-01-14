@@ -21,21 +21,23 @@
  *
  * Authors: Ben Skeggs
  */
+#include "priv.h"
+#include "conn.h"
+#include "outp.h"
 
-#include <core/os.h>
-#include <nvif/unpack.h>
+#include <core/notify.h>
+#include <subdev/bios.h>
+#include <subdev/bios/dcb.h>
+
 #include <nvif/class.h>
 #include <nvif/event.h>
-
-#include "priv.h"
-#include "outp.h"
-#include "conn.h"
+#include <nvif/unpack.h>
 
 int
-nouveau_disp_vblank_ctor(struct nouveau_object *object, void *data, u32 size,
-			 struct nvkm_notify *notify)
+nvkm_disp_vblank_ctor(struct nvkm_object *object, void *data, u32 size,
+		      struct nvkm_notify *notify)
 {
-	struct nouveau_disp *disp =
+	struct nvkm_disp *disp =
 		container_of(notify->event, typeof(*disp), vblank);
 	union {
 		struct nvif_notify_head_req_v0 v0;
@@ -55,17 +57,17 @@ nouveau_disp_vblank_ctor(struct nouveau_object *object, void *data, u32 size,
 }
 
 void
-nouveau_disp_vblank(struct nouveau_disp *disp, int head)
+nvkm_disp_vblank(struct nvkm_disp *disp, int head)
 {
 	struct nvif_notify_head_rep_v0 rep = {};
 	nvkm_event_send(&disp->vblank, 1, head, &rep, sizeof(rep));
 }
 
 static int
-nouveau_disp_hpd_ctor(struct nouveau_object *object, void *data, u32 size,
-		      struct nvkm_notify *notify)
+nvkm_disp_hpd_ctor(struct nvkm_object *object, void *data, u32 size,
+		   struct nvkm_notify *notify)
 {
-	struct nouveau_disp *disp =
+	struct nvkm_disp *disp =
 		container_of(notify->event, typeof(*disp), hpd);
 	union {
 		struct nvif_notify_conn_req_v0 v0;
@@ -91,15 +93,14 @@ nouveau_disp_hpd_ctor(struct nouveau_object *object, void *data, u32 size,
 }
 
 static const struct nvkm_event_func
-nouveau_disp_hpd_func = {
-	.ctor = nouveau_disp_hpd_ctor
+nvkm_disp_hpd_func = {
+	.ctor = nvkm_disp_hpd_ctor
 };
 
 int
-nouveau_disp_ntfy(struct nouveau_object *object, u32 type,
-		  struct nvkm_event **event)
+nvkm_disp_ntfy(struct nvkm_object *object, u32 type, struct nvkm_event **event)
 {
-	struct nouveau_disp *disp = (void *)object->engine;
+	struct nvkm_disp *disp = (void *)object->engine;
 	switch (type) {
 	case NV04_DISP_NTFY_VBLANK:
 		*event = &disp->vblank;
@@ -114,9 +115,9 @@ nouveau_disp_ntfy(struct nouveau_object *object, u32 type,
 }
 
 int
-_nouveau_disp_fini(struct nouveau_object *object, bool suspend)
+_nvkm_disp_fini(struct nvkm_object *object, bool suspend)
 {
-	struct nouveau_disp *disp = (void *)object;
+	struct nvkm_disp *disp = (void *)object;
 	struct nvkm_output *outp;
 	int ret;
 
@@ -126,7 +127,7 @@ _nouveau_disp_fini(struct nouveau_object *object, bool suspend)
 			goto fail_outp;
 	}
 
-	return nouveau_engine_fini(&disp->base, suspend);
+	return nvkm_engine_fini(&disp->base, suspend);
 
 fail_outp:
 	list_for_each_entry_continue_reverse(outp, &disp->outp, head) {
@@ -137,13 +138,13 @@ fail_outp:
 }
 
 int
-_nouveau_disp_init(struct nouveau_object *object)
+_nvkm_disp_init(struct nvkm_object *object)
 {
-	struct nouveau_disp *disp = (void *)object;
+	struct nvkm_disp *disp = (void *)object;
 	struct nvkm_output *outp;
 	int ret;
 
-	ret = nouveau_engine_init(&disp->base);
+	ret = nvkm_engine_init(&disp->base);
 	if (ret)
 		return ret;
 
@@ -164,9 +165,9 @@ fail_outp:
 }
 
 void
-_nouveau_disp_dtor(struct nouveau_object *object)
+_nvkm_disp_dtor(struct nvkm_object *object)
 {
-	struct nouveau_disp *disp = (void *)object;
+	struct nvkm_disp *disp = (void *)object;
 	struct nvkm_output *outp, *outt;
 
 	nvkm_event_fini(&disp->vblank);
@@ -174,32 +175,30 @@ _nouveau_disp_dtor(struct nouveau_object *object)
 
 	if (disp->outp.next) {
 		list_for_each_entry_safe(outp, outt, &disp->outp, head) {
-			nouveau_object_ref(NULL, (struct nouveau_object **)&outp);
+			nvkm_object_ref(NULL, (struct nvkm_object **)&outp);
 		}
 	}
 
-	nouveau_engine_destroy(&disp->base);
+	nvkm_engine_destroy(&disp->base);
 }
 
 int
-nouveau_disp_create_(struct nouveau_object *parent,
-		     struct nouveau_object *engine,
-		     struct nouveau_oclass *oclass, int heads,
-		     const char *intname, const char *extname,
-		     int length, void **pobject)
+nvkm_disp_create_(struct nvkm_object *parent, struct nvkm_object *engine,
+		  struct nvkm_oclass *oclass, int heads, const char *intname,
+		  const char *extname, int length, void **pobject)
 {
-	struct nouveau_disp_impl *impl = (void *)oclass;
-	struct nouveau_bios *bios = nouveau_bios(parent);
-	struct nouveau_disp *disp;
-	struct nouveau_oclass **sclass;
-	struct nouveau_object *object;
+	struct nvkm_disp_impl *impl = (void *)oclass;
+	struct nvkm_bios *bios = nvkm_bios(parent);
+	struct nvkm_disp *disp;
+	struct nvkm_oclass **sclass;
+	struct nvkm_object *object;
 	struct dcb_output dcbE;
 	u8  hpd = 0, ver, hdr;
 	u32 data;
 	int ret, i;
 
-	ret = nouveau_engine_create_(parent, engine, oclass, true,
-				     intname, extname, length, pobject);
+	ret = nvkm_engine_create_(parent, engine, oclass, true, intname,
+				  extname, length, pobject);
 	disp = *pobject;
 	if (ret)
 		return ret;
@@ -225,11 +224,11 @@ nouveau_disp_create_(struct nouveau_object *parent,
 			sclass++;
 		}
 
-		nouveau_object_ctor(*pobject, NULL, oclass, &dcbE, i, &object);
+		nvkm_object_ctor(*pobject, NULL, oclass, &dcbE, i, &object);
 		hpd = max(hpd, (u8)(dcbE.connector + 1));
 	}
 
-	ret = nvkm_event_init(&nouveau_disp_hpd_func, 3, hpd, &disp->hpd);
+	ret = nvkm_event_init(&nvkm_disp_hpd_func, 3, hpd, &disp->hpd);
 	if (ret)
 		return ret;
 

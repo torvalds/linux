@@ -21,31 +21,27 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <engine/sw.h>
-#include <engine/disp.h>
+#include "nv50.h"
 
 #include <nvif/class.h>
-
-#include "nv50.h"
 
 /*******************************************************************************
  * Base display object
  ******************************************************************************/
 
-static struct nouveau_oclass
-nvf0_disp_sclass[] = {
-	{ GK110_DISP_CORE_CHANNEL_DMA, &nvd0_disp_core_ofuncs.base },
-	{ GK110_DISP_BASE_CHANNEL_DMA, &nvd0_disp_base_ofuncs.base },
-	{ GK104_DISP_OVERLAY_CONTROL_DMA, &nvd0_disp_ovly_ofuncs.base },
-	{ GK104_DISP_OVERLAY, &nvd0_disp_oimm_ofuncs.base },
-	{ GK104_DISP_CURSOR, &nvd0_disp_curs_ofuncs.base },
+static struct nvkm_oclass
+gt215_disp_sclass[] = {
+	{ GT214_DISP_CORE_CHANNEL_DMA, &nv50_disp_core_ofuncs.base },
+	{ GT214_DISP_BASE_CHANNEL_DMA, &nv50_disp_base_ofuncs.base },
+	{ GT214_DISP_OVERLAY_CHANNEL_DMA, &nv50_disp_ovly_ofuncs.base },
+	{ GT214_DISP_OVERLAY, &nv50_disp_oimm_ofuncs.base },
+	{ GT214_DISP_CURSOR, &nv50_disp_curs_ofuncs.base },
 	{}
 };
 
-static struct nouveau_oclass
-nvf0_disp_main_oclass[] = {
-	{ GK110_DISP, &nvd0_disp_main_ofuncs },
+static struct nvkm_oclass
+gt215_disp_main_oclass[] = {
+	{ GT214_DISP, &nv50_disp_main_ofuncs },
 	{}
 };
 
@@ -54,54 +50,55 @@ nvf0_disp_main_oclass[] = {
  ******************************************************************************/
 
 static int
-nvf0_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
+gt215_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+		struct nvkm_oclass *oclass, void *data, u32 size,
+		struct nvkm_object **pobject)
 {
 	struct nv50_disp_priv *priv;
-	int heads = nv_rd32(parent, 0x022448);
 	int ret;
 
-	ret = nouveau_disp_create(parent, engine, oclass, heads,
-				  "PDISP", "display", &priv);
+	ret = nvkm_disp_create(parent, engine, oclass, 2, "PDISP",
+			       "display", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
-	ret = nvkm_event_init(&nvd0_disp_chan_uevent, 1, 17, &priv->uevent);
+	ret = nvkm_event_init(&nv50_disp_chan_uevent, 1, 9, &priv->uevent);
 	if (ret)
 		return ret;
 
-	nv_engine(priv)->sclass = nvf0_disp_main_oclass;
+	nv_engine(priv)->sclass = gt215_disp_main_oclass;
 	nv_engine(priv)->cclass = &nv50_disp_cclass;
-	nv_subdev(priv)->intr = nvd0_disp_intr;
-	INIT_WORK(&priv->supervisor, nvd0_disp_intr_supervisor);
-	priv->sclass = nvf0_disp_sclass;
-	priv->head.nr = heads;
+	nv_subdev(priv)->intr = nv50_disp_intr;
+	INIT_WORK(&priv->supervisor, nv50_disp_intr_supervisor);
+	priv->sclass = gt215_disp_sclass;
+	priv->head.nr = 2;
 	priv->dac.nr = 3;
 	priv->sor.nr = 4;
+	priv->pior.nr = 3;
 	priv->dac.power = nv50_dac_power;
 	priv->dac.sense = nv50_dac_sense;
 	priv->sor.power = nv50_sor_power;
-	priv->sor.hda_eld = nvd0_hda_eld;
-	priv->sor.hdmi = nve0_hdmi_ctrl;
+	priv->sor.hda_eld = gt215_hda_eld;
+	priv->sor.hdmi = gt215_hdmi_ctrl;
+	priv->pior.power = nv50_pior_power;
 	return 0;
 }
 
-struct nouveau_oclass *
-nvf0_disp_oclass = &(struct nv50_disp_impl) {
-	.base.base.handle = NV_ENGINE(DISP, 0x92),
-	.base.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nvf0_disp_ctor,
-		.dtor = _nouveau_disp_dtor,
-		.init = _nouveau_disp_init,
-		.fini = _nouveau_disp_fini,
+struct nvkm_oclass *
+gt215_disp_oclass = &(struct nv50_disp_impl) {
+	.base.base.handle = NV_ENGINE(DISP, 0x85),
+	.base.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = gt215_disp_ctor,
+		.dtor = _nvkm_disp_dtor,
+		.init = _nvkm_disp_init,
+		.fini = _nvkm_disp_fini,
 	},
-	.base.vblank = &nvd0_disp_vblank_func,
-	.base.outp =  nvd0_disp_outp_sclass,
-	.mthd.core = &nve0_disp_core_mthd_chan,
-	.mthd.base = &nvd0_disp_base_mthd_chan,
-	.mthd.ovly = &nve0_disp_ovly_mthd_chan,
-	.mthd.prev = -0x020000,
-	.head.scanoutpos = nvd0_disp_main_scanoutpos,
+	.base.vblank = &nv50_disp_vblank_func,
+	.base.outp =  g94_disp_outp_sclass,
+	.mthd.core = &g94_disp_core_mthd_chan,
+	.mthd.base = &g84_disp_base_mthd_chan,
+	.mthd.ovly = &g84_disp_ovly_mthd_chan,
+	.mthd.prev = 0x000004,
+	.head.scanoutpos = nv50_disp_main_scanoutpos,
 }.base.base;

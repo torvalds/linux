@@ -21,16 +21,14 @@
  *
  * Authors: Ben Skeggs
  */
+#include "nv50.h"
+#include "outp.h"
 
 #include <core/client.h>
-#include <nvif/unpack.h>
-#include <nvif/class.h>
-
-#include <subdev/bios.h>
-#include <subdev/bios/dcb.h>
 #include <subdev/timer.h>
 
-#include "nv50.h"
+#include <nvif/class.h>
+#include <nvif/unpack.h>
 
 int
 nv50_dac_power(NV50_DISP_MTHD_V1)

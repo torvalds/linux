@@ -245,5 +245,8 @@
 #define nouveau_fuse nvkm_fuse
 #define nouveau_mc nvkm_mc
 #define nouveau_mmu nvkm_mmu
+#define nouveau_dmaeng nvkm_dmaeng
+#define nouveau_dmaobj nvkm_dmaobj
+#define nouveau_disp nvkm_disp
 
 #endif

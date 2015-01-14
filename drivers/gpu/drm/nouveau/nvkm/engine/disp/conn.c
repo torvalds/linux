@@ -21,21 +21,20 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <core/os.h>
-#include <nvif/event.h>
+#include "conn.h"
+#include "outp.h"
+#include "priv.h"
 
 #include <subdev/gpio.h>
 
-#include "conn.h"
-#include "outp.h"
+#include <nvif/event.h>
 
 static int
 nvkm_connector_hpd(struct nvkm_notify *notify)
 {
 	struct nvkm_connector *conn = container_of(notify, typeof(*conn), hpd);
-	struct nouveau_disp *disp = nouveau_disp(conn);
-	struct nouveau_gpio *gpio = nouveau_gpio(conn);
+	struct nvkm_disp *disp = nvkm_disp(conn);
+	struct nvkm_gpio *gpio = nvkm_gpio(conn);
 	const struct nvkm_gpio_ntfy_rep *line = notify->data;
 	struct nvif_notify_conn_rep_v0 rep;
 	int index = conn->index;
@@ -53,41 +52,41 @@ nvkm_connector_hpd(struct nvkm_notify *notify)
 }
 
 int
-_nvkm_connector_fini(struct nouveau_object *object, bool suspend)
+_nvkm_connector_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nvkm_connector *conn = (void *)object;
 	nvkm_notify_put(&conn->hpd);
-	return nouveau_object_fini(&conn->base, suspend);
+	return nvkm_object_fini(&conn->base, suspend);
 }
 
 int
-_nvkm_connector_init(struct nouveau_object *object)
+_nvkm_connector_init(struct nvkm_object *object)
 {
 	struct nvkm_connector *conn = (void *)object;
-	int ret = nouveau_object_init(&conn->base);
+	int ret = nvkm_object_init(&conn->base);
 	if (ret == 0)
 		nvkm_notify_get(&conn->hpd);
 	return ret;
 }
 
 void
-_nvkm_connector_dtor(struct nouveau_object *object)
+_nvkm_connector_dtor(struct nvkm_object *object)
 {
 	struct nvkm_connector *conn = (void *)object;
 	nvkm_notify_fini(&conn->hpd);
-	nouveau_object_destroy(&conn->base);
+	nvkm_object_destroy(&conn->base);
 }
 
 int
-nvkm_connector_create_(struct nouveau_object *parent,
-		       struct nouveau_object *engine,
-		       struct nouveau_oclass *oclass,
+nvkm_connector_create_(struct nvkm_object *parent,
+		       struct nvkm_object *engine,
+		       struct nvkm_oclass *oclass,
 		       struct nvbios_connE *info, int index,
 		       int length, void **pobject)
 {
 	static const u8 hpd[] = { 0x07, 0x08, 0x51, 0x52, 0x5e, 0x5f, 0x60 };
-	struct nouveau_disp *disp = nouveau_disp(parent);
-	struct nouveau_gpio *gpio = nouveau_gpio(parent);
+	struct nvkm_disp *disp = nvkm_disp(parent);
+	struct nvkm_gpio *gpio = nvkm_gpio(parent);
 	struct nvkm_connector *conn;
 	struct nvkm_output *outp;
 	struct dcb_gpio_func func;
@@ -101,7 +100,7 @@ nvkm_connector_create_(struct nouveau_object *parent,
 		}
 	}
 
-	ret = nouveau_object_create_(parent, engine, oclass, 0, length, pobject);
+	ret = nvkm_object_create_(parent, engine, oclass, 0, length, pobject);
 	conn = *pobject;
 	if (ret)
 		return ret;
@@ -145,10 +144,10 @@ nvkm_connector_create_(struct nouveau_object *parent,
 }
 
 int
-_nvkm_connector_ctor(struct nouveau_object *parent,
-		     struct nouveau_object *engine,
-		     struct nouveau_oclass *oclass, void *info, u32 index,
-		     struct nouveau_object **pobject)
+_nvkm_connector_ctor(struct nvkm_object *parent,
+		     struct nvkm_object *engine,
+		     struct nvkm_oclass *oclass, void *info, u32 index,
+		     struct nvkm_object **pobject)
 {
 	struct nvkm_connector *conn;
 	int ret;
@@ -161,11 +160,11 @@ _nvkm_connector_ctor(struct nouveau_object *parent,
 	return 0;
 }
 
-struct nouveau_oclass *
+struct nvkm_oclass *
 nvkm_connector_oclass = &(struct nvkm_connector_impl) {
 	.base = {
 		.handle = 0,
-		.ofuncs = &(struct nouveau_ofuncs) {
+		.ofuncs = &(struct nvkm_ofuncs) {
 			.ctor = _nvkm_connector_ctor,
 			.dtor = _nvkm_connector_dtor,
 			.init = _nvkm_connector_init,

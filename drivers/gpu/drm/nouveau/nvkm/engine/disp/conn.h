@@ -1,11 +1,13 @@
 #ifndef __NVKM_DISP_CONN_H__
 #define __NVKM_DISP_CONN_H__
-#include "priv.h"
-
+#include <core/object.h>
 #include <core/notify.h>
 
+#include <subdev/bios.h>
+#include <subdev/bios/conn.h>
+
 struct nvkm_connector {
-	struct nouveau_object base;
+	struct nvkm_object base;
 	struct list_head head;
 
 	struct nvbios_connE info;
@@ -29,19 +31,19 @@ struct nvkm_connector {
 	_nvkm_connector_fini(nv_object(disp), (s));                            \
 })
 
-int nvkm_connector_create_(struct nouveau_object *, struct nouveau_object *,
-			   struct nouveau_oclass *, struct nvbios_connE *,
+int nvkm_connector_create_(struct nvkm_object *, struct nvkm_object *,
+			   struct nvkm_oclass *, struct nvbios_connE *,
 			   int, int, void **);
 
-int  _nvkm_connector_ctor(struct nouveau_object *, struct nouveau_object *,
-			  struct nouveau_oclass *, void *, u32,
-			  struct nouveau_object **);
-void _nvkm_connector_dtor(struct nouveau_object *);
-int  _nvkm_connector_init(struct nouveau_object *);
-int  _nvkm_connector_fini(struct nouveau_object *, bool);
+int  _nvkm_connector_ctor(struct nvkm_object *, struct nvkm_object *,
+			  struct nvkm_oclass *, void *, u32,
+			  struct nvkm_object **);
+void _nvkm_connector_dtor(struct nvkm_object *);
+int  _nvkm_connector_init(struct nvkm_object *);
+int  _nvkm_connector_fini(struct nvkm_object *, bool);
 
 struct nvkm_connector_impl {
-	struct nouveau_oclass base;
+	struct nvkm_oclass base;
 };
 
 #ifndef MSG
@@ -53,5 +55,4 @@ struct nvkm_connector_impl {
 #define DBG(f,a...) MSG(debug, f, ##a)
 #define ERR(f,a...) MSG(error, f, ##a)
 #endif
-
 #endif

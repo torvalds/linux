@@ -21,15 +21,16 @@
  *
  * Authors: Ben Skeggs
  */
+#include "nv50.h"
+#include "outp.h"
 
 #include <core/client.h>
-#include <nvif/unpack.h>
-#include <nvif/class.h>
 
-#include "nv50.h"
+#include <nvif/class.h>
+#include <nvif/unpack.h>
 
 int
-nva3_hdmi_ctrl(NV50_DISP_MTHD_V1)
+gt215_hdmi_ctrl(NV50_DISP_MTHD_V1)
 {
 	const u32 soff = outp->or * 0x800;
 	union {

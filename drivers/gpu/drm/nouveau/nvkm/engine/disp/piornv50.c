@@ -21,29 +21,27 @@
  *
  * Authors: Ben Skeggs
  */
+#include "nv50.h"
+#include "outpdp.h"
 
 #include <core/client.h>
-#include <nvif/unpack.h>
-#include <nvif/class.h>
-
-#include <subdev/bios.h>
-#include <subdev/bios/dcb.h>
-#include <subdev/timer.h>
 #include <subdev/i2c.h>
+#include <subdev/timer.h>
 
-#include "nv50.h"
+#include <nvif/class.h>
+#include <nvif/unpack.h>
 
 /******************************************************************************
  * TMDS
  *****************************************************************************/
 
 static int
-nv50_pior_tmds_ctor(struct nouveau_object *parent,
-		    struct nouveau_object *engine,
-		    struct nouveau_oclass *oclass, void *info, u32 index,
-		    struct nouveau_object **pobject)
+nv50_pior_tmds_ctor(struct nvkm_object *parent,
+		    struct nvkm_object *engine,
+		    struct nvkm_oclass *oclass, void *info, u32 index,
+		    struct nvkm_object **pobject)
 {
-	struct nouveau_i2c *i2c = nouveau_i2c(parent);
+	struct nvkm_i2c *i2c = nvkm_i2c(parent);
 	struct nvkm_output *outp;
 	int ret;
 
@@ -59,7 +57,7 @@ nv50_pior_tmds_ctor(struct nouveau_object *parent,
 struct nvkm_output_impl
 nv50_pior_tmds_impl = {
 	.base.handle = DCB_OUTPUT_TMDS | 0x0100,
-	.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv50_pior_tmds_ctor,
 		.dtor = _nvkm_output_dtor,
 		.init = _nvkm_output_init,
@@ -74,7 +72,7 @@ nv50_pior_tmds_impl = {
 static int
 nv50_pior_dp_pattern(struct nvkm_output_dp *outp, int pattern)
 {
-	struct nouveau_i2c_port *port = outp->base.edid;
+	struct nvkm_i2c_port *port = outp->base.edid;
 	if (port && port->func->pattern)
 		return port->func->pattern(port, pattern);
 	return port ? 0 : -ENODEV;
@@ -89,7 +87,7 @@ nv50_pior_dp_lnk_pwr(struct nvkm_output_dp *outp, int nr)
 static int
 nv50_pior_dp_lnk_ctl(struct nvkm_output_dp *outp, int nr, int bw, bool ef)
 {
-	struct nouveau_i2c_port *port = outp->base.edid;
+	struct nvkm_i2c_port *port = outp->base.edid;
 	if (port && port->func->lnk_ctl)
 		return port->func->lnk_ctl(port, nr, bw, ef);
 	return port ? 0 : -ENODEV;
@@ -98,19 +96,19 @@ nv50_pior_dp_lnk_ctl(struct nvkm_output_dp *outp, int nr, int bw, bool ef)
 static int
 nv50_pior_dp_drv_ctl(struct nvkm_output_dp *outp, int ln, int vs, int pe, int pc)
 {
-	struct nouveau_i2c_port *port = outp->base.edid;
+	struct nvkm_i2c_port *port = outp->base.edid;
 	if (port && port->func->drv_ctl)
 		return port->func->drv_ctl(port, ln, vs, pe);
 	return port ? 0 : -ENODEV;
 }
 
 static int
-nv50_pior_dp_ctor(struct nouveau_object *parent,
-		  struct nouveau_object *engine,
-		  struct nouveau_oclass *oclass, void *info, u32 index,
-		  struct nouveau_object **pobject)
+nv50_pior_dp_ctor(struct nvkm_object *parent,
+		  struct nvkm_object *engine,
+		  struct nvkm_oclass *oclass, void *info, u32 index,
+		  struct nvkm_object **pobject)
 {
-	struct nouveau_i2c *i2c = nouveau_i2c(parent);
+	struct nvkm_i2c *i2c = nvkm_i2c(parent);
 	struct nvkm_output_dp *outp;
 	int ret;
 
@@ -127,7 +125,7 @@ nv50_pior_dp_ctor(struct nouveau_object *parent,
 struct nvkm_output_dp_impl
 nv50_pior_dp_impl = {
 	.base.base.handle = DCB_OUTPUT_DP | 0x0010,
-	.base.base.ofuncs = &(struct nouveau_ofuncs) {
+	.base.base.ofuncs = &(struct nvkm_ofuncs) {
 		.ctor = nv50_pior_dp_ctor,
 		.dtor = _nvkm_output_dp_dtor,
 		.init = _nvkm_output_dp_init,

@@ -1,5 +1,6 @@
 #ifndef __NVKM_DISP_DPORT_H__
 #define __NVKM_DISP_DPORT_H__
+#include <core/os.h>
 
 /* DPCD Receiver Capabilities */
 #define DPCD_RC00_DPCD_REV                                              0x00000
@@ -70,6 +71,5 @@
 #define DPCD_LS0C_LANE1_POST_CURSOR2                                       0x0c
 #define DPCD_LS0C_LANE0_POST_CURSOR2                                       0x03
 
-void nouveau_dp_train(struct work_struct *);
-
+void nvkm_dp_train(struct work_struct *);
 #endif

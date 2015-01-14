@@ -21,55 +21,35 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <engine/sw.h>
-#include <engine/disp.h>
+#include "nv50.h"
+#include "outpdp.h"
 
 #include <nvif/class.h>
 
-#include "nv50.h"
-
 /*******************************************************************************
- * EVO overlay channel objects
+ * EVO master channel object
  ******************************************************************************/
 
-static const struct nv50_disp_mthd_list
-nva0_disp_ovly_mthd_base = {
-	.mthd = 0x0000,
-	.addr = 0x000000,
+const struct nv50_disp_mthd_list
+g94_disp_core_mthd_sor = {
+	.mthd = 0x0040,
+	.addr = 0x000008,
 	.data = {
-		{ 0x0080, 0x000000 },
-		{ 0x0084, 0x6109a0 },
-		{ 0x0088, 0x6109c0 },
-		{ 0x008c, 0x6109c8 },
-		{ 0x0090, 0x6109b4 },
-		{ 0x0094, 0x610970 },
-		{ 0x00a0, 0x610998 },
-		{ 0x00a4, 0x610964 },
-		{ 0x00b0, 0x610c98 },
-		{ 0x00b4, 0x610ca4 },
-		{ 0x00b8, 0x610cac },
-		{ 0x00c0, 0x610958 },
-		{ 0x00e0, 0x6109a8 },
-		{ 0x00e4, 0x6109d0 },
-		{ 0x00e8, 0x6109d8 },
-		{ 0x0100, 0x61094c },
-		{ 0x0104, 0x610984 },
-		{ 0x0108, 0x61098c },
-		{ 0x0800, 0x6109f8 },
-		{ 0x0808, 0x610a08 },
-		{ 0x080c, 0x610a10 },
-		{ 0x0810, 0x610a00 },
+		{ 0x0600, 0x610794 },
 		{}
 	}
 };
 
-static const struct nv50_disp_mthd_chan
-nva0_disp_ovly_mthd_chan = {
-	.name = "Overlay",
-	.addr = 0x000540,
+const struct nv50_disp_mthd_chan
+g94_disp_core_mthd_chan = {
+	.name = "Core",
+	.addr = 0x000000,
 	.data = {
-		{ "Global", 1, &nva0_disp_ovly_mthd_base },
+		{ "Global", 1, &nv50_disp_core_mthd_base },
+		{    "DAC", 3, &g84_disp_core_mthd_dac  },
+		{    "SOR", 4, &g94_disp_core_mthd_sor  },
+		{   "PIOR", 3, &nv50_disp_core_mthd_pior },
+		{   "HEAD", 2, &g84_disp_core_mthd_head },
 		{}
 	}
 };
@@ -78,9 +58,9 @@ nva0_disp_ovly_mthd_chan = {
  * Base display object
  ******************************************************************************/
 
-static struct nouveau_oclass
-nva0_disp_sclass[] = {
-	{ GT200_DISP_CORE_CHANNEL_DMA, &nv50_disp_core_ofuncs.base },
+static struct nvkm_oclass
+g94_disp_sclass[] = {
+	{ GT206_DISP_CORE_CHANNEL_DMA, &nv50_disp_core_ofuncs.base },
 	{ GT200_DISP_BASE_CHANNEL_DMA, &nv50_disp_base_ofuncs.base },
 	{ GT200_DISP_OVERLAY_CHANNEL_DMA, &nv50_disp_ovly_ofuncs.base },
 	{ G82_DISP_OVERLAY, &nv50_disp_oimm_ofuncs.base },
@@ -88,9 +68,9 @@ nva0_disp_sclass[] = {
 	{}
 };
 
-static struct nouveau_oclass
-nva0_disp_main_oclass[] = {
-	{ GT200_DISP, &nv50_disp_main_ofuncs },
+static struct nvkm_oclass
+g94_disp_main_oclass[] = {
+	{ GT206_DISP, &nv50_disp_main_ofuncs },
 	{}
 };
 
@@ -99,15 +79,15 @@ nva0_disp_main_oclass[] = {
  ******************************************************************************/
 
 static int
-nva0_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
+g94_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	      struct nvkm_oclass *oclass, void *data, u32 size,
+	      struct nvkm_object **pobject)
 {
 	struct nv50_disp_priv *priv;
 	int ret;
 
-	ret = nouveau_disp_create(parent, engine, oclass, 2, "PDISP",
-				  "display", &priv);
+	ret = nvkm_disp_create(parent, engine, oclass, 2, "PDISP",
+			       "display", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -116,37 +96,44 @@ nva0_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	nv_engine(priv)->sclass = nva0_disp_main_oclass;
+	nv_engine(priv)->sclass = g94_disp_main_oclass;
 	nv_engine(priv)->cclass = &nv50_disp_cclass;
 	nv_subdev(priv)->intr = nv50_disp_intr;
 	INIT_WORK(&priv->supervisor, nv50_disp_intr_supervisor);
-	priv->sclass = nva0_disp_sclass;
+	priv->sclass = g94_disp_sclass;
 	priv->head.nr = 2;
 	priv->dac.nr = 3;
-	priv->sor.nr = 2;
+	priv->sor.nr = 4;
 	priv->pior.nr = 3;
 	priv->dac.power = nv50_dac_power;
 	priv->dac.sense = nv50_dac_sense;
 	priv->sor.power = nv50_sor_power;
-	priv->sor.hdmi = nv84_hdmi_ctrl;
+	priv->sor.hdmi = g84_hdmi_ctrl;
 	priv->pior.power = nv50_pior_power;
 	return 0;
 }
 
-struct nouveau_oclass *
-nva0_disp_oclass = &(struct nv50_disp_impl) {
-	.base.base.handle = NV_ENGINE(DISP, 0x83),
-	.base.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nva0_disp_ctor,
-		.dtor = _nouveau_disp_dtor,
-		.init = _nouveau_disp_init,
-		.fini = _nouveau_disp_fini,
+struct nvkm_oclass *
+g94_disp_outp_sclass[] = {
+	&nv50_pior_dp_impl.base.base,
+	&g94_sor_dp_impl.base.base,
+	NULL
+};
+
+struct nvkm_oclass *
+g94_disp_oclass = &(struct nv50_disp_impl) {
+	.base.base.handle = NV_ENGINE(DISP, 0x88),
+	.base.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = g94_disp_ctor,
+		.dtor = _nvkm_disp_dtor,
+		.init = _nvkm_disp_init,
+		.fini = _nvkm_disp_fini,
 	},
 	.base.vblank = &nv50_disp_vblank_func,
-	.base.outp =  nv50_disp_outp_sclass,
-	.mthd.core = &nv84_disp_core_mthd_chan,
-	.mthd.base = &nv84_disp_base_mthd_chan,
-	.mthd.ovly = &nva0_disp_ovly_mthd_chan,
+	.base.outp =  g94_disp_outp_sclass,
+	.mthd.core = &g94_disp_core_mthd_chan,
+	.mthd.base = &g84_disp_base_mthd_chan,
+	.mthd.ovly = &g84_disp_ovly_mthd_chan,
 	.mthd.prev = 0x000004,
 	.head.scanoutpos = nv50_disp_main_scanoutpos,
 }.base.base;

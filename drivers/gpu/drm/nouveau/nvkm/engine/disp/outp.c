@@ -21,57 +21,58 @@
  *
  * Authors: Ben Skeggs
  */
+#include "outp.h"
+#include "priv.h"
 
-#include <subdev/i2c.h>
 #include <subdev/bios.h>
 #include <subdev/bios/conn.h>
-
-#include "outp.h"
+#include <subdev/bios/dcb.h>
+#include <subdev/i2c.h>
 
 int
-_nvkm_output_fini(struct nouveau_object *object, bool suspend)
+_nvkm_output_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nvkm_output *outp = (void *)object;
 	nv_ofuncs(outp->conn)->fini(nv_object(outp->conn), suspend);
-	return nouveau_object_fini(&outp->base, suspend);
+	return nvkm_object_fini(&outp->base, suspend);
 }
 
 int
-_nvkm_output_init(struct nouveau_object *object)
+_nvkm_output_init(struct nvkm_object *object)
 {
 	struct nvkm_output *outp = (void *)object;
-	int ret = nouveau_object_init(&outp->base);
+	int ret = nvkm_object_init(&outp->base);
 	if (ret == 0)
 		nv_ofuncs(outp->conn)->init(nv_object(outp->conn));
 	return 0;
 }
 
 void
-_nvkm_output_dtor(struct nouveau_object *object)
+_nvkm_output_dtor(struct nvkm_object *object)
 {
 	struct nvkm_output *outp = (void *)object;
 	list_del(&outp->head);
-	nouveau_object_ref(NULL, (void *)&outp->conn);
-	nouveau_object_destroy(&outp->base);
+	nvkm_object_ref(NULL, (void *)&outp->conn);
+	nvkm_object_destroy(&outp->base);
 }
 
 int
-nvkm_output_create_(struct nouveau_object *parent,
-		    struct nouveau_object *engine,
-		    struct nouveau_oclass *oclass,
+nvkm_output_create_(struct nvkm_object *parent,
+		    struct nvkm_object *engine,
+		    struct nvkm_oclass *oclass,
 		    struct dcb_output *dcbE, int index,
 		    int length, void **pobject)
 {
-	struct nouveau_disp *disp = nouveau_disp(parent);
-	struct nouveau_bios *bios = nouveau_bios(parent);
-	struct nouveau_i2c *i2c = nouveau_i2c(parent);
+	struct nvkm_disp *disp = nvkm_disp(parent);
+	struct nvkm_bios *bios = nvkm_bios(parent);
+	struct nvkm_i2c *i2c = nvkm_i2c(parent);
 	struct nvbios_connE connE;
 	struct nvkm_output *outp;
 	u8  ver, hdr;
 	u32 data;
 	int ret;
 
-	ret = nouveau_object_create_(parent, engine, oclass, 0, length, pobject);
+	ret = nvkm_object_create_(parent, engine, oclass, 0, length, pobject);
 	outp = *pobject;
 	if (ret)
 		return ret;
@@ -98,9 +99,9 @@ nvkm_output_create_(struct nouveau_object *parent,
 		connE.type = DCB_CONNECTOR_NONE;
 	}
 
-	ret = nouveau_object_ctor(parent, NULL, nvkm_connector_oclass,
-				 &connE, outp->info.connector,
-				 (struct nouveau_object **)&outp->conn);
+	ret = nvkm_object_ctor(parent, NULL, nvkm_connector_oclass,
+			       &connE, outp->info.connector,
+			       (struct nvkm_object **)&outp->conn);
 	if (ret < 0) {
 		ERR("error %d creating connector, disabling\n", ret);
 		return ret;
@@ -111,10 +112,10 @@ nvkm_output_create_(struct nouveau_object *parent,
 }
 
 int
-_nvkm_output_ctor(struct nouveau_object *parent,
-		  struct nouveau_object *engine,
-		  struct nouveau_oclass *oclass, void *dcbE, u32 index,
-		  struct nouveau_object **pobject)
+_nvkm_output_ctor(struct nvkm_object *parent,
+		  struct nvkm_object *engine,
+		  struct nvkm_oclass *oclass, void *dcbE, u32 index,
+		  struct nvkm_object **pobject)
 {
 	struct nvkm_output *outp;
 	int ret;
@@ -127,11 +128,11 @@ _nvkm_output_ctor(struct nouveau_object *parent,
 	return 0;
 }
 
-struct nouveau_oclass *
+struct nvkm_oclass *
 nvkm_output_oclass = &(struct nvkm_output_impl) {
 	.base = {
 		.handle = 0,
-		.ofuncs = &(struct nouveau_ofuncs) {
+		.ofuncs = &(struct nvkm_ofuncs) {
 			.ctor = _nvkm_output_ctor,
 			.dtor = _nvkm_output_dtor,
 			.init = _nvkm_output_init,

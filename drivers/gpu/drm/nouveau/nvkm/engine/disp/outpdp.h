@@ -1,11 +1,10 @@
 #ifndef __NVKM_DISP_OUTP_DP_H__
 #define __NVKM_DISP_OUTP_DP_H__
+#include "outp.h"
 
 #include <core/notify.h>
 #include <subdev/bios.h>
 #include <subdev/bios/dp.h>
-
-#include "outp.h"
 
 struct nvkm_output_dp {
 	struct nvkm_output base;
@@ -39,16 +38,16 @@ struct nvkm_output_dp {
 	_nvkm_output_dp_fini(nv_object(_outp), (s));                           \
 })
 
-int nvkm_output_dp_create_(struct nouveau_object *, struct nouveau_object *,
-			   struct nouveau_oclass *, struct dcb_output *,
+int nvkm_output_dp_create_(struct nvkm_object *, struct nvkm_object *,
+			   struct nvkm_oclass *, struct dcb_output *,
 			   int, int, void **);
 
-int  _nvkm_output_dp_ctor(struct nouveau_object *, struct nouveau_object *,
-			  struct nouveau_oclass *, void *, u32,
-			  struct nouveau_object **);
-void _nvkm_output_dp_dtor(struct nouveau_object *);
-int  _nvkm_output_dp_init(struct nouveau_object *);
-int  _nvkm_output_dp_fini(struct nouveau_object *, bool);
+int  _nvkm_output_dp_ctor(struct nvkm_object *, struct nvkm_object *,
+			  struct nvkm_oclass *, void *, u32,
+			  struct nvkm_object **);
+void _nvkm_output_dp_dtor(struct nvkm_object *);
+int  _nvkm_output_dp_init(struct nvkm_object *);
+int  _nvkm_output_dp_fini(struct nvkm_object *, bool);
 
 struct nvkm_output_dp_impl {
 	struct nvkm_output_impl base;
@@ -59,5 +58,4 @@ struct nvkm_output_dp_impl {
 };
 
 int nvkm_output_dp_train(struct nvkm_output *, u32 rate, bool wait);
-
 #endif

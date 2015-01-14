@@ -21,15 +21,14 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <core/os.h>
-#include <nvif/event.h>
-
-#include <subdev/i2c.h>
-
 #include "outpdp.h"
 #include "conn.h"
 #include "dport.h"
+#include "priv.h"
+
+#include <subdev/i2c.h>
+
+#include <nvif/event.h>
 
 int
 nvkm_output_dp_train(struct nvkm_output *base, u32 datarate, bool wait)
@@ -105,17 +104,17 @@ done:
 static void
 nvkm_output_dp_enable(struct nvkm_output_dp *outp, bool present)
 {
-	struct nouveau_i2c_port *port = outp->base.edid;
+	struct nvkm_i2c_port *port = outp->base.edid;
 	if (present) {
 		if (!outp->present) {
-			nouveau_i2c(port)->acquire_pad(port, 0);
+			nvkm_i2c(port)->acquire_pad(port, 0);
 			DBG("aux power -> always\n");
 			outp->present = true;
 		}
 		nvkm_output_dp_train(&outp->base, 0, true);
 	} else {
 		if (outp->present) {
-			nouveau_i2c(port)->release_pad(port);
+			nvkm_i2c(port)->release_pad(port);
 			DBG("aux power -> demand\n");
 			outp->present = false;
 		}
@@ -126,13 +125,13 @@ nvkm_output_dp_enable(struct nvkm_output_dp *outp, bool present)
 static void
 nvkm_output_dp_detect(struct nvkm_output_dp *outp)
 {
-	struct nouveau_i2c_port *port = outp->base.edid;
-	int ret = nouveau_i2c(port)->acquire_pad(port, 0);
+	struct nvkm_i2c_port *port = outp->base.edid;
+	int ret = nvkm_i2c(port)->acquire_pad(port, 0);
 	if (ret == 0) {
 		ret = nv_rdaux(outp->base.edid, DPCD_RC00_DPCD_REV,
 			       outp->dpcd, sizeof(outp->dpcd));
 		nvkm_output_dp_enable(outp, ret == 0);
-		nouveau_i2c(port)->release_pad(port);
+		nvkm_i2c(port)->release_pad(port);
 	}
 }
 
@@ -141,7 +140,7 @@ nvkm_output_dp_hpd(struct nvkm_notify *notify)
 {
 	struct nvkm_connector *conn = container_of(notify, typeof(*conn), hpd);
 	struct nvkm_output_dp *outp;
-	struct nouveau_disp *disp = nouveau_disp(conn);
+	struct nvkm_disp *disp = nvkm_disp(conn);
 	const struct nvkm_i2c_ntfy_rep *line = notify->data;
 	struct nvif_notify_conn_rep_v0 rep = {};
 
@@ -170,7 +169,7 @@ static int
 nvkm_output_dp_irq(struct nvkm_notify *notify)
 {
 	struct nvkm_output_dp *outp = container_of(notify, typeof(*outp), irq);
-	struct nouveau_disp *disp = nouveau_disp(outp);
+	struct nvkm_disp *disp = nvkm_disp(outp);
 	const struct nvkm_i2c_ntfy_rep *line = notify->data;
 	struct nvif_notify_conn_rep_v0 rep = {
 		.mask = NVIF_NOTIFY_CONN_V0_IRQ,
@@ -185,7 +184,7 @@ nvkm_output_dp_irq(struct nvkm_notify *notify)
 }
 
 int
-_nvkm_output_dp_fini(struct nouveau_object *object, bool suspend)
+_nvkm_output_dp_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nvkm_output_dp *outp = (void *)object;
 	nvkm_notify_put(&outp->irq);
@@ -194,7 +193,7 @@ _nvkm_output_dp_fini(struct nouveau_object *object, bool suspend)
 }
 
 int
-_nvkm_output_dp_init(struct nouveau_object *object)
+_nvkm_output_dp_init(struct nvkm_object *object)
 {
 	struct nvkm_output_dp *outp = (void *)object;
 	nvkm_output_dp_detect(outp);
@@ -202,7 +201,7 @@ _nvkm_output_dp_init(struct nouveau_object *object)
 }
 
 void
-_nvkm_output_dp_dtor(struct nouveau_object *object)
+_nvkm_output_dp_dtor(struct nvkm_object *object)
 {
 	struct nvkm_output_dp *outp = (void *)object;
 	nvkm_notify_fini(&outp->irq);
@@ -210,14 +209,14 @@ _nvkm_output_dp_dtor(struct nouveau_object *object)
 }
 
 int
-nvkm_output_dp_create_(struct nouveau_object *parent,
-		       struct nouveau_object *engine,
-		       struct nouveau_oclass *oclass,
+nvkm_output_dp_create_(struct nvkm_object *parent,
+		       struct nvkm_object *engine,
+		       struct nvkm_oclass *oclass,
 		       struct dcb_output *info, int index,
 		       int length, void **pobject)
 {
-	struct nouveau_bios *bios = nouveau_bios(parent);
-	struct nouveau_i2c *i2c = nouveau_i2c(parent);
+	struct nvkm_bios *bios = nvkm_bios(parent);
+	struct nvkm_i2c *i2c = nvkm_i2c(parent);
 	struct nvkm_output_dp *outp;
 	u8  hdr, cnt, len;
 	u32 data;
@@ -249,7 +248,7 @@ nvkm_output_dp_create_(struct nouveau_object *parent,
 	DBG("bios dp %02x %02x %02x %02x\n", outp->version, hdr, cnt, len);
 
 	/* link training */
-	INIT_WORK(&outp->lt.work, nouveau_dp_train);
+	INIT_WORK(&outp->lt.work, nvkm_dp_train);
 	init_waitqueue_head(&outp->lt.wait);
 	atomic_set(&outp->lt.done, 0);
 
@@ -285,10 +284,10 @@ nvkm_output_dp_create_(struct nouveau_object *parent,
 }
 
 int
-_nvkm_output_dp_ctor(struct nouveau_object *parent,
-		     struct nouveau_object *engine,
-		     struct nouveau_oclass *oclass, void *info, u32 index,
-		     struct nouveau_object **pobject)
+_nvkm_output_dp_ctor(struct nvkm_object *parent,
+		     struct nvkm_object *engine,
+		     struct nvkm_oclass *oclass, void *info, u32 index,
+		     struct nvkm_object **pobject)
 {
 	struct nvkm_output_dp *outp;
 	int ret;

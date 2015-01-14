@@ -21,15 +21,15 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <core/client.h>
-#include <nvif/unpack.h>
-#include <nvif/class.h>
-
 #include "nv50.h"
 
+#include <core/client.h>
+
+#include <nvif/class.h>
+#include <nvif/unpack.h>
+
 int
-nvd0_hdmi_ctrl(NV50_DISP_MTHD_V1)
+gf110_hdmi_ctrl(NV50_DISP_MTHD_V1)
 {
 	const u32 hoff = (head * 0x800);
 	union {

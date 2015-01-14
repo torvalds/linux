@@ -23,6 +23,7 @@
  */
 
 #include <core/os.h>
+#include <core/device.h>
 #include <core/engctx.h>
 #include <core/namedb.h>
 #include <core/handle.h>

@@ -21,20 +21,16 @@
  *
  * Authors: Ben Skeggs
  */
-
-#include <engine/sw.h>
-#include <engine/disp.h>
+#include "nv50.h"
 
 #include <nvif/class.h>
-
-#include "nv50.h"
 
 /*******************************************************************************
  * EVO master channel object
  ******************************************************************************/
 
 const struct nv50_disp_mthd_list
-nv84_disp_core_mthd_dac = {
+g84_disp_core_mthd_dac = {
 	.mthd = 0x0080,
 	.addr = 0x000008,
 	.data = {
@@ -46,7 +42,7 @@ nv84_disp_core_mthd_dac = {
 };
 
 const struct nv50_disp_mthd_list
-nv84_disp_core_mthd_head = {
+g84_disp_core_mthd_head = {
 	.mthd = 0x0400,
 	.addr = 0x000540,
 	.data = {
@@ -98,15 +94,15 @@ nv84_disp_core_mthd_head = {
 };
 
 const struct nv50_disp_mthd_chan
-nv84_disp_core_mthd_chan = {
+g84_disp_core_mthd_chan = {
 	.name = "Core",
 	.addr = 0x000000,
 	.data = {
 		{ "Global", 1, &nv50_disp_core_mthd_base },
-		{    "DAC", 3, &nv84_disp_core_mthd_dac  },
+		{    "DAC", 3, &g84_disp_core_mthd_dac  },
 		{    "SOR", 2, &nv50_disp_core_mthd_sor  },
 		{   "PIOR", 3, &nv50_disp_core_mthd_pior },
-		{   "HEAD", 2, &nv84_disp_core_mthd_head },
+		{   "HEAD", 2, &g84_disp_core_mthd_head },
 		{}
 	}
 };
@@ -116,7 +112,7 @@ nv84_disp_core_mthd_chan = {
  ******************************************************************************/
 
 static const struct nv50_disp_mthd_list
-nv84_disp_base_mthd_base = {
+g84_disp_base_mthd_base = {
 	.mthd = 0x0000,
 	.addr = 0x000000,
 	.data = {
@@ -146,11 +142,11 @@ nv84_disp_base_mthd_base = {
 };
 
 const struct nv50_disp_mthd_chan
-nv84_disp_base_mthd_chan = {
+g84_disp_base_mthd_chan = {
 	.name = "Base",
 	.addr = 0x000540,
 	.data = {
-		{ "Global", 1, &nv84_disp_base_mthd_base },
+		{ "Global", 1, &g84_disp_base_mthd_base },
 		{  "Image", 2, &nv50_disp_base_mthd_image },
 		{}
 	}
@@ -161,7 +157,7 @@ nv84_disp_base_mthd_chan = {
  ******************************************************************************/
 
 static const struct nv50_disp_mthd_list
-nv84_disp_ovly_mthd_base = {
+g84_disp_ovly_mthd_base = {
 	.mthd = 0x0000,
 	.addr = 0x000000,
 	.data = {
@@ -189,11 +185,11 @@ nv84_disp_ovly_mthd_base = {
 };
 
 const struct nv50_disp_mthd_chan
-nv84_disp_ovly_mthd_chan = {
+g84_disp_ovly_mthd_chan = {
 	.name = "Overlay",
 	.addr = 0x000540,
 	.data = {
-		{ "Global", 1, &nv84_disp_ovly_mthd_base },
+		{ "Global", 1, &g84_disp_ovly_mthd_base },
 		{}
 	}
 };
@@ -202,8 +198,8 @@ nv84_disp_ovly_mthd_chan = {
  * Base display object
  ******************************************************************************/
 
-static struct nouveau_oclass
-nv84_disp_sclass[] = {
+static struct nvkm_oclass
+g84_disp_sclass[] = {
 	{ G82_DISP_CORE_CHANNEL_DMA, &nv50_disp_core_ofuncs.base },
 	{ G82_DISP_BASE_CHANNEL_DMA, &nv50_disp_base_ofuncs.base },
 	{ G82_DISP_OVERLAY_CHANNEL_DMA, &nv50_disp_ovly_ofuncs.base },
@@ -212,8 +208,8 @@ nv84_disp_sclass[] = {
 	{}
 };
 
-static struct nouveau_oclass
-nv84_disp_main_oclass[] = {
+static struct nvkm_oclass
+g84_disp_main_oclass[] = {
 	{ G82_DISP, &nv50_disp_main_ofuncs },
 	{}
 };
@@ -223,15 +219,15 @@ nv84_disp_main_oclass[] = {
  ******************************************************************************/
 
 static int
-nv84_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	       struct nouveau_oclass *oclass, void *data, u32 size,
-	       struct nouveau_object **pobject)
+g84_disp_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
+	      struct nvkm_oclass *oclass, void *data, u32 size,
+	      struct nvkm_object **pobject)
 {
 	struct nv50_disp_priv *priv;
 	int ret;
 
-	ret = nouveau_disp_create(parent, engine, oclass, 2, "PDISP",
-				  "display", &priv);
+	ret = nvkm_disp_create(parent, engine, oclass, 2, "PDISP",
+			       "display", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -240,11 +236,11 @@ nv84_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	nv_engine(priv)->sclass = nv84_disp_main_oclass;
+	nv_engine(priv)->sclass = g84_disp_main_oclass;
 	nv_engine(priv)->cclass = &nv50_disp_cclass;
 	nv_subdev(priv)->intr = nv50_disp_intr;
 	INIT_WORK(&priv->supervisor, nv50_disp_intr_supervisor);
-	priv->sclass = nv84_disp_sclass;
+	priv->sclass = g84_disp_sclass;
 	priv->head.nr = 2;
 	priv->dac.nr = 3;
 	priv->sor.nr = 2;
@@ -252,25 +248,25 @@ nv84_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->dac.power = nv50_dac_power;
 	priv->dac.sense = nv50_dac_sense;
 	priv->sor.power = nv50_sor_power;
-	priv->sor.hdmi = nv84_hdmi_ctrl;
+	priv->sor.hdmi = g84_hdmi_ctrl;
 	priv->pior.power = nv50_pior_power;
 	return 0;
 }
 
-struct nouveau_oclass *
-nv84_disp_oclass = &(struct nv50_disp_impl) {
+struct nvkm_oclass *
+g84_disp_oclass = &(struct nv50_disp_impl) {
 	.base.base.handle = NV_ENGINE(DISP, 0x82),
-	.base.base.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv84_disp_ctor,
-		.dtor = _nouveau_disp_dtor,
-		.init = _nouveau_disp_init,
-		.fini = _nouveau_disp_fini,
+	.base.base.ofuncs = &(struct nvkm_ofuncs) {
+		.ctor = g84_disp_ctor,
+		.dtor = _nvkm_disp_dtor,
+		.init = _nvkm_disp_init,
+		.fini = _nvkm_disp_fini,
 	},
 	.base.vblank = &nv50_disp_vblank_func,
 	.base.outp =  nv50_disp_outp_sclass,
-	.mthd.core = &nv84_disp_core_mthd_chan,
-	.mthd.base = &nv84_disp_base_mthd_chan,
-	.mthd.ovly = &nv84_disp_ovly_mthd_chan,
+	.mthd.core = &g84_disp_core_mthd_chan,
+	.mthd.base = &g84_disp_base_mthd_chan,
+	.mthd.ovly = &g84_disp_ovly_mthd_chan,
 	.mthd.prev = 0x000004,
 	.head.scanoutpos = nv50_disp_main_scanoutpos,
 }.base.base;
