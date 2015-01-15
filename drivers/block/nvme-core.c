@@ -106,7 +106,7 @@ struct nvme_queue {
 	dma_addr_t cq_dma_addr;
 	u32 __iomem *q_db;
 	u16 q_depth;
-	u16 cq_vector;
+	s16 cq_vector;
 	u16 sq_head;
 	u16 sq_tail;
 	u16 cq_head;
