@@ -1073,8 +1073,7 @@ static u32 cfg80211_calculate_bitrate_vht(struct rate_info *rate)
 	if (WARN_ON_ONCE(rate->mcs > 9))
 		return 0;
 
-	idx = rate->flags & (RATE_INFO_FLAGS_160_MHZ_WIDTH |
-			     RATE_INFO_FLAGS_80P80_MHZ_WIDTH) ? 3 :
+	idx = rate->flags & RATE_INFO_FLAGS_160_MHZ_WIDTH ? 3 :
 		  rate->flags & RATE_INFO_FLAGS_80_MHZ_WIDTH ? 2 :
 		  rate->flags & RATE_INFO_FLAGS_40_MHZ_WIDTH ? 1 : 0;
 

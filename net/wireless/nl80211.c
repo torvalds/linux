@@ -3614,9 +3614,6 @@ static bool nl80211_put_sta_rate(struct sk_buff *msg, struct rate_info *info,
 		if (info->flags & RATE_INFO_FLAGS_80_MHZ_WIDTH &&
 		    nla_put_flag(msg, NL80211_RATE_INFO_80_MHZ_WIDTH))
 			return false;
-		if (info->flags & RATE_INFO_FLAGS_80P80_MHZ_WIDTH &&
-		    nla_put_flag(msg, NL80211_RATE_INFO_80P80_MHZ_WIDTH))
-			return false;
 		if (info->flags & RATE_INFO_FLAGS_160_MHZ_WIDTH &&
 		    nla_put_flag(msg, NL80211_RATE_INFO_160_MHZ_WIDTH))
 			return false;
