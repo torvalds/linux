@@ -11,8 +11,17 @@
  */
 #define VNET_TX_TIMEOUT			(5 * HZ)
 
+/* length of time (or less) we expect pending descriptors to be marked
+ * as VIO_DESC_DONE and skbs ready to be freed
+ */
+#define	VNET_CLEAN_TIMEOUT		((HZ/100)+1)
+
+#define VNET_MAXPACKET			(65535ULL + ETH_HLEN + VLAN_HLEN)
 #define VNET_TX_RING_SIZE		512
 #define VNET_TX_WAKEUP_THRESH(dr)	((dr)->pending / 4)
+
+#define	VNET_MINTSO	 2048	/* VIO protocol's minimum TSO len */
+#define	VNET_MAXTSO	65535	/* VIO protocol's maximum TSO len */
 
 /* VNET packets are sent in buffers with the first 6 bytes skipped
  * so that after the ethernet header the IPv4/IPv6 headers are aligned
@@ -20,10 +29,12 @@
  */
 #define VNET_PACKET_SKIP		6
 
+#define VNET_MAXCOOKIES			(VNET_MAXPACKET/PAGE_SIZE + 1)
+
 struct vnet_tx_entry {
-	void			*buf;
+	struct sk_buff		*skb;
 	unsigned int		ncookies;
-	struct ldc_trans_cookie	cookies[2];
+	struct ldc_trans_cookie	cookies[VNET_MAXCOOKIES];
 };
 
 struct vnet;
@@ -32,14 +43,30 @@ struct vnet_port {
 
 	struct hlist_node	hash;
 	u8			raddr[ETH_ALEN];
-	u8			switch_port;
-	u8			__pad;
+	unsigned		switch_port:1;
+	unsigned		tso:1;
+	unsigned		__pad:14;
 
 	struct vnet		*vp;
 
 	struct vnet_tx_entry	tx_bufs[VNET_TX_RING_SIZE];
 
 	struct list_head	list;
+
+	u32			stop_rx_idx;
+	bool			stop_rx;
+	bool			start_cons;
+
+	struct timer_list	clean_timer;
+
+	u64			rmtu;
+	u16			tsolen;
+
+	struct napi_struct	napi;
+	u32			napi_stop_idx;
+	bool			napi_resume;
+	int			rx_event;
+	u16			q_index;
 };
 
 static inline struct vnet_port *to_vnet_port(struct vio_driver_state *vio)
@@ -81,7 +108,7 @@ struct vnet {
 	struct list_head	list;
 	u64			local_mac;
 
-	struct tasklet_struct	vnet_tx_wakeup;
+	int			nports;
 };
 
 #endif /* _SUNVNET_H */

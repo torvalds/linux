@@ -506,7 +506,10 @@ static void send_message(capidrv_contr *card, _cmsg *cmsg)
 	struct sk_buff *skb;
 	size_t len;
 
-	capi_cmsg2message(cmsg, cmsg->buf);
+	if (capi_cmsg2message(cmsg, cmsg->buf)) {
+		printk(KERN_ERR "capidrv::send_message: parser failure\n");
+		return;
+	}
 	len = CAPIMSG_LEN(cmsg->buf);
 	skb = alloc_skb(len, GFP_ATOMIC);
 	if (!skb) {
@@ -1578,7 +1581,12 @@ static _cmsg s_cmsg;
 
 static void capidrv_recv_message(struct capi20_appl *ap, struct sk_buff *skb)
 {
-	capi_message2cmsg(&s_cmsg, skb->data);
+	if (capi_message2cmsg(&s_cmsg, skb->data)) {
+		printk(KERN_ERR "capidrv: applid=%d: received invalid message\n",
+		       ap->applid);
+		kfree_skb(skb);
+		return;
+	}
 	if (debugmode > 3) {
 		_cdebbuf *cdb = capi_cmsg2str(&s_cmsg);
 
@@ -1903,7 +1911,11 @@ static int capidrv_command(isdn_ctrl *c, capidrv_contr *card)
 				       NULL,	/* Useruserdata */
 				       NULL	/* Facilitydataarray */
 			);
-		capi_cmsg2message(&cmdcmsg, cmdcmsg.buf);
+		if (capi_cmsg2message(&cmdcmsg, cmdcmsg.buf)) {
+			printk(KERN_ERR "capidrv-%d: capidrv_command: parser failure\n",
+			       card->contrnr);
+			return -EINVAL;
+		}
 		plci_change_state(card, bchan->plcip, EV_PLCI_CONNECT_RESP);
 		send_message(card, &cmdcmsg);
 		return 0;
@@ -2090,7 +2102,11 @@ static int if_sendbuf(int id, int channel, int doack, struct sk_buff *skb)
 	if (capidrv_add_ack(nccip, datahandle, doack ? (int)skb->len : -1) < 0)
 		return 0;
 
-	capi_cmsg2message(&sendcmsg, sendcmsg.buf);
+	if (capi_cmsg2message(&sendcmsg, sendcmsg.buf)) {
+		printk(KERN_ERR "capidrv-%d: if_sendbuf: parser failure\n",
+		       card->contrnr);
+		return -EINVAL;
+	}
 	msglen = CAPIMSG_LEN(sendcmsg.buf);
 	if (skb_headroom(skb) < msglen) {
 		struct sk_buff *nskb = skb_realloc_headroom(skb, msglen);

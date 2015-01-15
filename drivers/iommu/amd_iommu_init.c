@@ -712,7 +712,7 @@ static void __init set_dev_entry_from_acpi(struct amd_iommu *iommu,
 	set_iommu_for_device(iommu, devid);
 }
 
-static int __init add_special_device(u8 type, u8 id, u16 devid, bool cmd_line)
+static int __init add_special_device(u8 type, u8 id, u16 *devid, bool cmd_line)
 {
 	struct devid_map *entry;
 	struct list_head *list;
@@ -731,6 +731,8 @@ static int __init add_special_device(u8 type, u8 id, u16 devid, bool cmd_line)
 		pr_info("AMD-Vi: Command-line override present for %s id %d - ignoring\n",
 			type == IVHD_SPECIAL_IOAPIC ? "IOAPIC" : "HPET", id);
 
+		*devid = entry->devid;
+
 		return 0;
 	}
 
@@ -739,7 +741,7 @@ static int __init add_special_device(u8 type, u8 id, u16 devid, bool cmd_line)
 		return -ENOMEM;
 
 	entry->id	= id;
-	entry->devid	= devid;
+	entry->devid	= *devid;
 	entry->cmd_line	= cmd_line;
 
 	list_add_tail(&entry->list, list);
@@ -754,7 +756,7 @@ static int __init add_early_maps(void)
 	for (i = 0; i < early_ioapic_map_size; ++i) {
 		ret = add_special_device(IVHD_SPECIAL_IOAPIC,
 					 early_ioapic_map[i].id,
-					 early_ioapic_map[i].devid,
+					 &early_ioapic_map[i].devid,
 					 early_ioapic_map[i].cmd_line);
 		if (ret)
 			return ret;
@@ -763,7 +765,7 @@ static int __init add_early_maps(void)
 	for (i = 0; i < early_hpet_map_size; ++i) {
 		ret = add_special_device(IVHD_SPECIAL_HPET,
 					 early_hpet_map[i].id,
-					 early_hpet_map[i].devid,
+					 &early_hpet_map[i].devid,
 					 early_hpet_map[i].cmd_line);
 		if (ret)
 			return ret;
@@ -978,10 +980,17 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 				    PCI_SLOT(devid),
 				    PCI_FUNC(devid));
 
-			set_dev_entry_from_acpi(iommu, devid, e->flags, 0);
-			ret = add_special_device(type, handle, devid, false);
+			ret = add_special_device(type, handle, &devid, false);
 			if (ret)
 				return ret;
+
+			/*
+			 * add_special_device might update the devid in case a
+			 * command-line override is present. So call
+			 * set_dev_entry_from_acpi after add_special_device.
+			 */
+			set_dev_entry_from_acpi(iommu, devid, e->flags, 0);
+
 			break;
 		}
 		default:

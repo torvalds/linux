@@ -342,6 +342,8 @@ static void sdi_init_output(struct platform_device *pdev)
 	out->output_type = OMAP_DISPLAY_TYPE_SDI;
 	out->name = "sdi.0";
 	out->dispc_channel = OMAP_DSS_CHANNEL_LCD;
+	/* We have SDI only on OMAP3, where it's on port 1 */
+	out->port_num = 1;
 	out->ops.sdi = &sdi_ops;
 	out->owner = THIS_MODULE;
 
@@ -376,7 +378,7 @@ static struct platform_driver omap_sdi_driver = {
 	.remove         = __exit_p(omap_sdi_remove),
 	.driver         = {
 		.name   = "omapdss_sdi",
-		.owner  = THIS_MODULE,
+		.suppress_bind_attrs = true,
 	},
 };
 
@@ -424,7 +426,7 @@ err_datapairs:
 	return r;
 }
 
-void __exit sdi_uninit_port(void)
+void __exit sdi_uninit_port(struct device_node *port)
 {
 	if (!sdi.port_initialized)
 		return;

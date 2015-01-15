@@ -1055,9 +1055,9 @@ static int bcm281xx_pinctrl_get_fcn_groups(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int bcm281xx_pinmux_enable(struct pinctrl_dev *pctldev,
-				  unsigned function,
-				  unsigned group)
+static int bcm281xx_pinmux_set(struct pinctrl_dev *pctldev,
+			       unsigned function,
+			       unsigned group)
 {
 	struct bcm281xx_pinctrl_data *pdata = pinctrl_dev_get_drvdata(pctldev);
 	const struct bcm281xx_pin_function *f = &pdata->functions[function];
@@ -1084,7 +1084,7 @@ static struct pinmux_ops bcm281xx_pinctrl_pinmux_ops = {
 	.get_functions_count = bcm281xx_pinctrl_get_fcns_count,
 	.get_function_name = bcm281xx_pinctrl_get_fcn_name,
 	.get_function_groups = bcm281xx_pinctrl_get_fcn_groups,
-	.enable = bcm281xx_pinmux_enable,
+	.set_mux = bcm281xx_pinmux_set,
 };
 
 static int bcm281xx_pinctrl_pin_config_get(struct pinctrl_dev *pctldev,
@@ -1404,11 +1404,6 @@ static int __init bcm281xx_pinctrl_probe(struct platform_device *pdev)
 
 	/* So far We can assume there is only 1 bank of registers */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "Missing MEM resource\n");
-		return -ENODEV;
-	}
-
 	pdata->reg_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(pdata->reg_base)) {
 		dev_err(&pdev->dev, "Failed to ioremap MEM resource\n");
@@ -1448,7 +1443,6 @@ static struct of_device_id bcm281xx_pinctrl_of_match[] = {
 static struct platform_driver bcm281xx_pinctrl_driver = {
 	.driver = {
 		.name = "bcm281xx-pinctrl",
-		.owner = THIS_MODULE,
 		.of_match_table = bcm281xx_pinctrl_of_match,
 	},
 };

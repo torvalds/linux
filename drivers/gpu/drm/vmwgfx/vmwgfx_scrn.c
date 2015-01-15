@@ -26,6 +26,7 @@
  **************************************************************************/
 
 #include "vmwgfx_kms.h"
+#include <drm/drm_plane_helper.h>
 
 
 #define vmw_crtc_to_sou(x) \

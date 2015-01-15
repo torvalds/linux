@@ -239,6 +239,9 @@ struct rpc_xprt {
 	struct net		*xprt_net;
 	const char		*servername;
 	const char		*address_strings[RPC_DISPLAY_MAX];
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
+	struct dentry		*debugfs;		/* debugfs directory */
+#endif
 };
 
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)
@@ -357,6 +360,7 @@ int			xs_swapper(struct rpc_xprt *xprt, int enable);
 #define XPRT_CONNECTION_ABORT	(7)
 #define XPRT_CONNECTION_CLOSE	(8)
 #define XPRT_CONGESTED		(9)
+#define XPRT_CONNECTION_REUSE	(10)
 
 static inline void xprt_set_connected(struct rpc_xprt *xprt)
 {

@@ -325,10 +325,10 @@ static int ams369fg06_power_on(struct ams369fg06 *lcd)
 	if (!pd->reset) {
 		dev_err(lcd->dev, "reset is NULL.\n");
 		return -EINVAL;
-	} else {
-		pd->reset(lcd->ld);
-		msleep(pd->reset_delay);
 	}
+
+	pd->reset(lcd->ld);
+	msleep(pd->reset_delay);
 
 	ret = ams369fg06_ldi_init(lcd);
 	if (ret) {

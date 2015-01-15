@@ -107,7 +107,7 @@ static void sreset_restore_network_station(struct rtw_adapter *padapter)
 
 	mlmeext_joinbss_event_callback23a(padapter, 1);
 	/* restore Sequence No. */
-	rtl8723au_write8(padapter, 0x4dc, padapter->xmitpriv.nqos_ssn);
+	rtl8723au_write8(padapter, REG_NQOS_SEQ, padapter->xmitpriv.nqos_ssn);
 
 	sreset_restore_security_station(padapter);
 }
@@ -173,9 +173,8 @@ static void sreset_start_adapter(struct rtw_adapter *padapter)
 
 	DBG_8723A("%s(%s)\n", __func__, padapter->pnetdev->name);
 
-	if (check_fwstate(pmlmepriv, _FW_LINKED)) {
+	if (check_fwstate(pmlmepriv, _FW_LINKED))
 		sreset_restore_network_status(padapter);
-	}
 
 	/* TODO: OS and HCI independent */
 	tasklet_hi_schedule(&pxmitpriv->xmit_tasklet);

@@ -309,11 +309,7 @@ static int snd_ice1712_value_init(struct snd_ice1712 *ice)
 		return err;
 
 	/* ak4524 controls */
-	err = snd_ice1712_akm4xxx_build_controls(ice);
-	if (err < 0)
-		return err;
-
-	return 0;
+	return snd_ice1712_akm4xxx_build_controls(ice);
 }
 
 static int snd_ice1712_ez8_init(struct snd_ice1712 *ice)

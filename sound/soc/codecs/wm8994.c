@@ -4082,17 +4082,23 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 
 	switch (control->type) {
 	case WM8994:
-		if (wm8994->micdet_irq) {
+		if (wm8994->micdet_irq)
 			ret = request_threaded_irq(wm8994->micdet_irq, NULL,
 						   wm8994_mic_irq,
 						   IRQF_TRIGGER_RISING,
 						   "Mic1 detect",
 						   wm8994);
-			if (ret != 0)
-				dev_warn(codec->dev,
-					 "Failed to request Mic1 detect IRQ: %d\n",
-					 ret);
-		}
+		 else
+			ret = wm8994_request_irq(wm8994->wm8994,
+					WM8994_IRQ_MIC1_DET,
+					wm8994_mic_irq, "Mic 1 detect",
+					wm8994);
+
+		if (ret != 0)
+			dev_warn(codec->dev,
+				 "Failed to request Mic1 detect IRQ: %d\n",
+				 ret);
+
 
 		ret = wm8994_request_irq(wm8994->wm8994,
 					 WM8994_IRQ_MIC1_SHRT,
@@ -4385,8 +4391,6 @@ static int wm8994_codec_remove(struct snd_soc_codec *codec)
 	struct wm8994 *control = wm8994->wm8994;
 	int i;
 
-	wm8994_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
 	for (i = 0; i < ARRAY_SIZE(wm8994->fll_locked); i++)
 		wm8994_free_irq(wm8994->wm8994, WM8994_IRQ_FLL1_LOCK + i,
 				&wm8994->fll_locked[i]);
@@ -4451,6 +4455,8 @@ static int wm8994_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, wm8994);
 
+	mutex_init(&wm8994->fw_lock);
+
 	wm8994->wm8994 = dev_get_drvdata(pdev->dev.parent);
 
 	pm_runtime_enable(&pdev->dev);
@@ -4502,7 +4508,6 @@ static const struct dev_pm_ops wm8994_pm_ops = {
 static struct platform_driver wm8994_codec_driver = {
 	.driver = {
 		.name = "wm8994-codec",
-		.owner = THIS_MODULE,
 		.pm = &wm8994_pm_ops,
 	},
 	.probe = wm8994_probe,

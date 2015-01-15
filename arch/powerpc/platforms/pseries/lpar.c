@@ -43,6 +43,8 @@
 #include <asm/trace.h>
 #include <asm/firmware.h>
 #include <asm/plpar_wrappers.h>
+#include <asm/kexec.h>
+#include <asm/fadump.h>
 
 #include "pseries.h"
 
@@ -58,8 +60,6 @@
 EXPORT_SYMBOL(plpar_hcall);
 EXPORT_SYMBOL(plpar_hcall9);
 EXPORT_SYMBOL(plpar_hcall_norets);
-
-extern void pSeries_find_serial_port(void);
 
 void vpa_init(int cpu)
 {
@@ -249,8 +249,17 @@ static void pSeries_lpar_hptab_clear(void)
 	}
 
 #ifdef __LITTLE_ENDIAN__
-	/* Reset exceptions to big endian */
-	if (firmware_has_feature(FW_FEATURE_SET_MODE)) {
+	/*
+	 * Reset exceptions to big endian.
+	 *
+	 * FIXME this is a hack for kexec, we need to reset the exception
+	 * endian before starting the new kernel and this is a convenient place
+	 * to do it.
+	 *
+	 * This is also called on boot when a fadump happens. In that case we
+	 * must not change the exception endian mode.
+	 */
+	if (firmware_has_feature(FW_FEATURE_SET_MODE) && !is_fadump_active()) {
 		long rc;
 
 		rc = pseries_big_endian_exceptions();
@@ -259,8 +268,13 @@ static void pSeries_lpar_hptab_clear(void)
 		 * out to the user, but at least this will stop us from
 		 * continuing on further and creating an even more
 		 * difficult to debug situation.
+		 *
+		 * There is a known problem when kdump'ing, if cpus are offline
+		 * the above call will fail. Rather than panicking again, keep
+		 * going and hope the kdump kernel is also little endian, which
+		 * it usually is.
 		 */
-		if (rc)
+		if (rc && !kdump_in_progress())
 			panic("Could not enable big endian exceptions");
 	}
 #endif
@@ -276,7 +290,7 @@ static long pSeries_lpar_hpte_updatepp(unsigned long slot,
 				       unsigned long newpp,
 				       unsigned long vpn,
 				       int psize, int apsize,
-				       int ssize, int local)
+				       int ssize, unsigned long inv_flags)
 {
 	unsigned long lpar_rc;
 	unsigned long flags = (newpp & 7) | H_AVPN;
@@ -434,7 +448,7 @@ static void __pSeries_lpar_hugepage_invalidate(unsigned long *slot,
 static void pSeries_lpar_hugepage_invalidate(unsigned long vsid,
 					     unsigned long addr,
 					     unsigned char *hpte_slot_array,
-					     int psize, int ssize)
+					     int psize, int ssize, int local)
 {
 	int i, index = 0;
 	unsigned long s_addr = addr;
@@ -507,7 +521,7 @@ static void pSeries_lpar_flush_hash_range(unsigned long number, int local)
 	unsigned long vpn;
 	unsigned long i, pix, rc;
 	unsigned long flags = 0;
-	struct ppc64_tlb_batch *batch = &__get_cpu_var(ppc64_tlb_batch);
+	struct ppc64_tlb_batch *batch = this_cpu_ptr(&ppc64_tlb_batch);
 	int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
 	unsigned long param[9];
 	unsigned long hash, index, shift, hidx, slot;
@@ -642,7 +656,7 @@ EXPORT_SYMBOL(arch_free_page);
 #endif
 
 #ifdef CONFIG_TRACEPOINTS
-#ifdef CONFIG_JUMP_LABEL
+#ifdef HAVE_JUMP_LABEL
 struct static_key hcall_tracepoint_key = STATIC_KEY_INIT;
 
 void hcall_tracepoint_regfunc(void)
@@ -697,7 +711,7 @@ void __trace_hcall_entry(unsigned long opcode, unsigned long *args)
 
 	local_irq_save(flags);
 
-	depth = &__get_cpu_var(hcall_trace_depth);
+	depth = this_cpu_ptr(&hcall_trace_depth);
 
 	if (*depth)
 		goto out;
@@ -722,7 +736,7 @@ void __trace_hcall_exit(long opcode, unsigned long retval,
 
 	local_irq_save(flags);
 
-	depth = &__get_cpu_var(hcall_trace_depth);
+	depth = this_cpu_ptr(&hcall_trace_depth);
 
 	if (*depth)
 		goto out;

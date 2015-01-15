@@ -144,6 +144,7 @@ static int adp8870_read(struct i2c_client *client, int reg, uint8_t *val)
 static int adp8870_write(struct i2c_client *client, u8 reg, u8 val)
 {
 	int ret = i2c_smbus_write_byte_data(client, reg, val);
+
 	if (ret)
 		dev_err(&client->dev, "failed to write\n");
 
@@ -195,6 +196,7 @@ static int adp8870_clr_bits(struct i2c_client *client, int reg, uint8_t bit_mask
 static void adp8870_led_work(struct work_struct *work)
 {
 	struct adp8870_led *led = container_of(work, struct adp8870_led, work);
+
 	adp8870_write(led->client, ADP8870_ISC1 + led->id - 1,
 			 led->new_brightness >> 1);
 }
@@ -399,6 +401,7 @@ static int adp8870_bl_set(struct backlight_device *bl, int brightness)
 static int adp8870_bl_update_status(struct backlight_device *bl)
 {
 	int brightness = bl->props.brightness;
+
 	if (bl->props.power != FB_BLANK_UNBLANK)
 		brightness = 0;
 
@@ -649,6 +652,7 @@ static ssize_t adp8870_bl_l1_daylight_max_store(struct device *dev,
 {
 	struct adp8870_bl *data = dev_get_drvdata(dev);
 	int ret = kstrtoul(buf, 10, &data->cached_daylight_max);
+
 	if (ret)
 		return ret;
 

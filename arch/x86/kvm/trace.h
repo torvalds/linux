@@ -5,6 +5,7 @@
 #include <asm/vmx.h>
 #include <asm/svm.h>
 #include <asm/clocksource.h>
+#include <asm/pvclock-abi.h>
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM kvm
@@ -415,15 +416,14 @@ TRACE_EVENT(kvm_apic_ipi,
 );
 
 TRACE_EVENT(kvm_apic_accept_irq,
-	    TP_PROTO(__u32 apicid, __u16 dm, __u8 tm, __u8 vec, bool coalesced),
-	    TP_ARGS(apicid, dm, tm, vec, coalesced),
+	    TP_PROTO(__u32 apicid, __u16 dm, __u8 tm, __u8 vec),
+	    TP_ARGS(apicid, dm, tm, vec),
 
 	TP_STRUCT__entry(
 		__field(	__u32,		apicid		)
 		__field(	__u16,		dm		)
 		__field(	__u8,		tm		)
 		__field(	__u8,		vec		)
-		__field(	bool,		coalesced	)
 	),
 
 	TP_fast_assign(
@@ -431,14 +431,12 @@ TRACE_EVENT(kvm_apic_accept_irq,
 		__entry->dm		= dm;
 		__entry->tm		= tm;
 		__entry->vec		= vec;
-		__entry->coalesced	= coalesced;
 	),
 
-	TP_printk("apicid %x vec %u (%s|%s)%s",
+	TP_printk("apicid %x vec %u (%s|%s)",
 		  __entry->apicid, __entry->vec,
 		  __print_symbolic((__entry->dm >> 8 & 0x7), kvm_deliver_mode),
-		  __entry->tm ? "level" : "edge",
-		  __entry->coalesced ? " (coalesced)" : "")
+		  __entry->tm ? "level" : "edge")
 );
 
 TRACE_EVENT(kvm_eoi,
@@ -849,6 +847,72 @@ TRACE_EVENT(kvm_track_tsc,
 );
 
 #endif /* CONFIG_X86_64 */
+
+TRACE_EVENT(kvm_ple_window,
+	TP_PROTO(bool grow, unsigned int vcpu_id, int new, int old),
+	TP_ARGS(grow, vcpu_id, new, old),
+
+	TP_STRUCT__entry(
+		__field(                bool,      grow         )
+		__field(        unsigned int,   vcpu_id         )
+		__field(                 int,       new         )
+		__field(                 int,       old         )
+	),
+
+	TP_fast_assign(
+		__entry->grow           = grow;
+		__entry->vcpu_id        = vcpu_id;
+		__entry->new            = new;
+		__entry->old            = old;
+	),
+
+	TP_printk("vcpu %u: ple_window %d (%s %d)",
+	          __entry->vcpu_id,
+	          __entry->new,
+	          __entry->grow ? "grow" : "shrink",
+	          __entry->old)
+);
+
+#define trace_kvm_ple_window_grow(vcpu_id, new, old) \
+	trace_kvm_ple_window(true, vcpu_id, new, old)
+#define trace_kvm_ple_window_shrink(vcpu_id, new, old) \
+	trace_kvm_ple_window(false, vcpu_id, new, old)
+
+TRACE_EVENT(kvm_pvclock_update,
+	TP_PROTO(unsigned int vcpu_id, struct pvclock_vcpu_time_info *pvclock),
+	TP_ARGS(vcpu_id, pvclock),
+
+	TP_STRUCT__entry(
+		__field(	unsigned int,	vcpu_id			)
+		__field(	__u32,		version			)
+		__field(	__u64,		tsc_timestamp		)
+		__field(	__u64,		system_time		)
+		__field(	__u32,		tsc_to_system_mul	)
+		__field(	__s8,		tsc_shift		)
+		__field(	__u8,		flags			)
+	),
+
+	TP_fast_assign(
+		__entry->vcpu_id	   = vcpu_id;
+		__entry->version	   = pvclock->version;
+		__entry->tsc_timestamp	   = pvclock->tsc_timestamp;
+		__entry->system_time	   = pvclock->system_time;
+		__entry->tsc_to_system_mul = pvclock->tsc_to_system_mul;
+		__entry->tsc_shift	   = pvclock->tsc_shift;
+		__entry->flags		   = pvclock->flags;
+	),
+
+	TP_printk("vcpu_id %u, pvclock { version %u, tsc_timestamp 0x%llx, "
+		  "system_time 0x%llx, tsc_to_system_mul 0x%x, tsc_shift %d, "
+		  "flags 0x%x }",
+		  __entry->vcpu_id,
+		  __entry->version,
+		  __entry->tsc_timestamp,
+		  __entry->system_time,
+		  __entry->tsc_to_system_mul,
+		  __entry->tsc_shift,
+		  __entry->flags)
+);
 
 #endif /* _TRACE_KVM_H */
 

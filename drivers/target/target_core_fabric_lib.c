@@ -394,9 +394,9 @@ char *iscsi_parse_pr_out_transport_id(
 	 * If the caller wants the TransportID Length, we set that value for the
 	 * entire iSCSI Tarnsport ID now.
 	 */
-	 if (out_tid_len != NULL) {
-		add_len = ((buf[2] >> 8) & 0xff);
-		add_len |= (buf[3] & 0xff);
+	if (out_tid_len) {
+		/* The shift works thanks to integer promotion rules */
+		add_len = (buf[2] << 8) | buf[3];
 
 		tid_len = strlen(&buf[4]);
 		tid_len += 4; /* Add four bytes for iSCSI Transport ID header */

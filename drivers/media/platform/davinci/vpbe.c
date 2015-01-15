@@ -227,7 +227,7 @@ static int vpbe_set_output(struct vpbe_device *vpbe_dev, int index)
 			vpbe_current_encoder_info(vpbe_dev);
 	struct vpbe_config *cfg = vpbe_dev->cfg;
 	struct venc_platform_data *venc_device = vpbe_dev->venc_device;
-	enum v4l2_mbus_pixelcode if_params;
+	u32 if_params;
 	int enc_out_index;
 	int sd_index;
 	int ret = 0;
@@ -341,7 +341,7 @@ static int vpbe_s_dv_timings(struct vpbe_device *vpbe_dev,
 
 	if (!(cfg->outputs[out_index].output.capabilities &
 	    V4L2_OUT_CAP_DV_TIMINGS))
-		return -EINVAL;
+		return -ENODATA;
 
 	for (i = 0; i < output->num_modes; i++) {
 		if (output->modes[i].timings_type == VPBE_ENC_DV_TIMINGS &&
@@ -384,6 +384,13 @@ static int vpbe_s_dv_timings(struct vpbe_device *vpbe_dev,
 static int vpbe_g_dv_timings(struct vpbe_device *vpbe_dev,
 		     struct v4l2_dv_timings *dv_timings)
 {
+	struct vpbe_config *cfg = vpbe_dev->cfg;
+	int out_index = vpbe_dev->current_out_index;
+
+	if (!(cfg->outputs[out_index].output.capabilities &
+		V4L2_OUT_CAP_DV_TIMINGS))
+		return -ENODATA;
+
 	if (vpbe_dev->current_timings.timings_type &
 	  VPBE_ENC_DV_TIMINGS) {
 		*dv_timings = vpbe_dev->current_timings.dv_timings;
@@ -409,7 +416,7 @@ static int vpbe_enum_dv_timings(struct vpbe_device *vpbe_dev,
 	int i;
 
 	if (!(output->output.capabilities & V4L2_OUT_CAP_DV_TIMINGS))
-		return -EINVAL;
+		return -ENODATA;
 
 	for (i = 0; i < output->num_modes; i++) {
 		if (output->modes[i].timings_type == VPBE_ENC_DV_TIMINGS) {
@@ -440,7 +447,7 @@ static int vpbe_s_std(struct vpbe_device *vpbe_dev, v4l2_std_id std_id)
 
 	if (!(cfg->outputs[out_index].output.capabilities &
 		V4L2_OUT_CAP_STD))
-		return -EINVAL;
+		return -ENODATA;
 
 	ret = vpbe_get_std_info(vpbe_dev, std_id);
 	if (ret)
@@ -473,6 +480,11 @@ static int vpbe_s_std(struct vpbe_device *vpbe_dev, v4l2_std_id std_id)
 static int vpbe_g_std(struct vpbe_device *vpbe_dev, v4l2_std_id *std_id)
 {
 	struct vpbe_enc_mode_info *cur_timings = &vpbe_dev->current_timings;
+	struct vpbe_config *cfg = vpbe_dev->cfg;
+	int out_index = vpbe_dev->current_out_index;
+
+	if (!(cfg->outputs[out_index].output.capabilities & V4L2_OUT_CAP_STD))
+		return -ENODATA;
 
 	if (cur_timings->timings_type & VPBE_ENC_STD) {
 		*std_id = cur_timings->std_id;
@@ -613,6 +625,7 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 		}
 		if (clk_prepare_enable(vpbe_dev->dac_clk)) {
 			ret =  -ENODEV;
+			clk_put(vpbe_dev->dac_clk);
 			goto fail_mutex_unlock;
 		}
 	}
@@ -863,7 +876,6 @@ static int vpbe_remove(struct platform_device *device)
 static struct platform_driver vpbe_driver = {
 	.driver	= {
 		.name	= "vpbe_controller",
-		.owner	= THIS_MODULE,
 	},
 	.probe = vpbe_probe,
 	.remove = vpbe_remove,

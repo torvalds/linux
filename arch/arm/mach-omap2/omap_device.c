@@ -588,7 +588,7 @@ odbs_exit:
 	return ERR_PTR(ret);
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int _od_runtime_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -917,6 +917,10 @@ static int __init omap_device_late_idle(struct device *dev, void *data)
 static int __init omap_device_late_init(void)
 {
 	bus_for_each_dev(&platform_bus_type, NULL, NULL, omap_device_late_idle);
+
+	WARN(!of_have_populated_dt(),
+		"legacy booting deprecated, please update to boot with .dts\n");
+
 	return 0;
 }
 omap_late_initcall_sync(omap_device_late_init);

@@ -64,46 +64,6 @@ static ssize_t dgnc_driver_maxboards_show(struct device_driver *ddp, char *buf)
 static DRIVER_ATTR(maxboards, S_IRUSR, dgnc_driver_maxboards_show, NULL);
 
 
-static ssize_t dgnc_driver_pollcounter_show(struct device_driver *ddp, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%ld\n", dgnc_poll_counter);
-}
-static DRIVER_ATTR(pollcounter, S_IRUSR, dgnc_driver_pollcounter_show, NULL);
-
-
-static ssize_t dgnc_driver_state_show(struct device_driver *ddp, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%s\n", dgnc_driver_state_text[dgnc_driver_state]);
-}
-static DRIVER_ATTR(state, S_IRUSR, dgnc_driver_state_show, NULL);
-
-
-static ssize_t dgnc_driver_debug_show(struct device_driver *ddp, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "0x%x\n", dgnc_debug);
-}
-
-static ssize_t dgnc_driver_debug_store(struct device_driver *ddp, const char *buf, size_t count)
-{
-	sscanf(buf, "0x%x\n", &dgnc_debug);
-	return count;
-}
-static DRIVER_ATTR(debug, (S_IRUSR | S_IWUSR), dgnc_driver_debug_show, dgnc_driver_debug_store);
-
-
-static ssize_t dgnc_driver_rawreadok_show(struct device_driver *ddp, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "0x%x\n", dgnc_rawreadok);
-}
-
-static ssize_t dgnc_driver_rawreadok_store(struct device_driver *ddp, const char *buf, size_t count)
-{
-	sscanf(buf, "0x%x\n", &dgnc_rawreadok);
-	return count;
-}
-static DRIVER_ATTR(rawreadok, (S_IRUSR | S_IWUSR), dgnc_driver_rawreadok_show, dgnc_driver_rawreadok_store);
-
-
 static ssize_t dgnc_driver_pollrate_show(struct device_driver *ddp, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%dms\n", dgnc_poll_tick);
@@ -111,7 +71,11 @@ static ssize_t dgnc_driver_pollrate_show(struct device_driver *ddp, char *buf)
 
 static ssize_t dgnc_driver_pollrate_store(struct device_driver *ddp, const char *buf, size_t count)
 {
-	sscanf(buf, "%d\n", &dgnc_poll_tick);
+	int ret;
+
+	ret = sscanf(buf, "%d\n", &dgnc_poll_tick);
+	if (ret != 1)
+		return -EINVAL;
 	return count;
 }
 static DRIVER_ATTR(pollrate, (S_IRUSR | S_IWUSR), dgnc_driver_pollrate_show, dgnc_driver_pollrate_store);
@@ -125,28 +89,20 @@ void dgnc_create_driver_sysfiles(struct pci_driver *dgnc_driver)
 	rc |= driver_create_file(driverfs, &driver_attr_version);
 	rc |= driver_create_file(driverfs, &driver_attr_boards);
 	rc |= driver_create_file(driverfs, &driver_attr_maxboards);
-	rc |= driver_create_file(driverfs, &driver_attr_debug);
-	rc |= driver_create_file(driverfs, &driver_attr_rawreadok);
 	rc |= driver_create_file(driverfs, &driver_attr_pollrate);
-	rc |= driver_create_file(driverfs, &driver_attr_pollcounter);
-	rc |= driver_create_file(driverfs, &driver_attr_state);
-	if (rc) {
+	if (rc)
 		printk(KERN_ERR "DGNC: sysfs driver_create_file failed!\n");
-	}
 }
 
 
 void dgnc_remove_driver_sysfiles(struct pci_driver *dgnc_driver)
 {
 	struct device_driver *driverfs = &dgnc_driver->driver;
+
 	driver_remove_file(driverfs, &driver_attr_version);
 	driver_remove_file(driverfs, &driver_attr_boards);
 	driver_remove_file(driverfs, &driver_attr_maxboards);
-	driver_remove_file(driverfs, &driver_attr_debug);
-	driver_remove_file(driverfs, &driver_attr_rawreadok);
 	driver_remove_file(driverfs, &driver_attr_pollrate);
-	driver_remove_file(driverfs, &driver_attr_pollcounter);
-	driver_remove_file(driverfs, &driver_attr_state);
 }
 
 
@@ -403,9 +359,8 @@ void dgnc_create_ports_sysfiles(struct dgnc_board *bd)
 	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_ports_txcount);
 	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_vpd);
 	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_serial_number);
-	if (rc) {
+	if (rc)
 		printk(KERN_ERR "DGNC: sysfs device_create_file failed!\n");
-	}
 }
 
 

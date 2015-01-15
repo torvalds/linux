@@ -12,10 +12,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
@@ -36,6 +32,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
+#include <asm/hardware/cache-l2x0.h>
 
 #include "common.h"
 #include "dma-register.h"
@@ -70,6 +67,7 @@ static struct map_desc r8a7740_io_desc[] __initdata = {
 
 void __init r8a7740_map_io(void)
 {
+	debug_ll_io_init();
 	iotable_init(r8a7740_io_desc, ARRAY_SIZE(r8a7740_io_desc));
 }
 
@@ -311,10 +309,6 @@ static struct platform_device ipmmu_device = {
 	.num_resources  = ARRAY_SIZE(ipmmu_resources),
 };
 
-static struct platform_device *r8a7740_devices_dt[] __initdata = {
-	&cmt1_device,
-};
-
 static struct platform_device *r8a7740_early_devices[] __initdata = {
 	&scif0_device,
 	&scif1_device,
@@ -331,6 +325,7 @@ static struct platform_device *r8a7740_early_devices[] __initdata = {
 	&irqpin3_device,
 	&tmu0_device,
 	&ipmmu_device,
+	&cmt1_device,
 };
 
 /* DMA */
@@ -747,6 +742,30 @@ static void r8a7740_i2c_workaround(struct platform_device *pdev)
 
 void __init r8a7740_add_standard_devices(void)
 {
+	static struct pm_domain_device domain_devices[] __initdata = {
+		{ "A4R",  &tmu0_device },
+		{ "A4R",  &i2c0_device },
+		{ "A4S",  &irqpin0_device },
+		{ "A4S",  &irqpin1_device },
+		{ "A4S",  &irqpin2_device },
+		{ "A4S",  &irqpin3_device },
+		{ "A3SP", &scif0_device },
+		{ "A3SP", &scif1_device },
+		{ "A3SP", &scif2_device },
+		{ "A3SP", &scif3_device },
+		{ "A3SP", &scif4_device },
+		{ "A3SP", &scif5_device },
+		{ "A3SP", &scif6_device },
+		{ "A3SP", &scif7_device },
+		{ "A3SP", &scif8_device },
+		{ "A3SP", &i2c1_device },
+		{ "A3SP", &ipmmu_device },
+		{ "A3SP", &dma0_device },
+		{ "A3SP", &dma1_device },
+		{ "A3SP", &dma2_device },
+		{ "A3SP", &usb_dma_device },
+	};
+
 	/* I2C work-around */
 	r8a7740_i2c_workaround(&i2c0_device);
 	r8a7740_i2c_workaround(&i2c1_device);
@@ -756,44 +775,24 @@ void __init r8a7740_add_standard_devices(void)
 	/* add devices */
 	platform_add_devices(r8a7740_early_devices,
 			    ARRAY_SIZE(r8a7740_early_devices));
-	platform_add_devices(r8a7740_devices_dt,
-			    ARRAY_SIZE(r8a7740_devices_dt));
 	platform_add_devices(r8a7740_late_devices,
 			     ARRAY_SIZE(r8a7740_late_devices));
 
 	/* add devices to PM domain  */
-
-	rmobile_add_device_to_domain("A3SP",	&scif0_device);
-	rmobile_add_device_to_domain("A3SP",	&scif1_device);
-	rmobile_add_device_to_domain("A3SP",	&scif2_device);
-	rmobile_add_device_to_domain("A3SP",	&scif3_device);
-	rmobile_add_device_to_domain("A3SP",	&scif4_device);
-	rmobile_add_device_to_domain("A3SP",	&scif5_device);
-	rmobile_add_device_to_domain("A3SP",	&scif6_device);
-	rmobile_add_device_to_domain("A3SP",	&scif7_device);
-	rmobile_add_device_to_domain("A3SP",	&scif8_device);
-	rmobile_add_device_to_domain("A3SP",	&i2c1_device);
+	rmobile_add_devices_to_domains(domain_devices,
+				       ARRAY_SIZE(domain_devices));
 }
 
 void __init r8a7740_add_early_devices(void)
 {
 	early_platform_add_devices(r8a7740_early_devices,
 				   ARRAY_SIZE(r8a7740_early_devices));
-	early_platform_add_devices(r8a7740_devices_dt,
-				   ARRAY_SIZE(r8a7740_devices_dt));
 
 	/* setup early console here as well */
 	shmobile_setup_console();
 }
 
 #ifdef CONFIG_USE_OF
-
-void __init r8a7740_add_standard_devices_dt(void)
-{
-	platform_add_devices(r8a7740_devices_dt,
-			    ARRAY_SIZE(r8a7740_devices_dt));
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
-}
 
 void __init r8a7740_init_irq_of(void)
 {
@@ -827,8 +826,20 @@ void __init r8a7740_init_irq_of(void)
 
 static void __init r8a7740_generic_init(void)
 {
-	r8a7740_clock_init(0);
-	r8a7740_add_standard_devices_dt();
+	r8a7740_meram_workaround();
+
+#ifdef CONFIG_CACHE_L2X0
+	/* Shared attribute override enable, 32K*8way */
+	l2x0_init(IOMEM(0xf0002000), 0x00400000, 0xc20f0fff);
+#endif
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+}
+
+#define RESCNT2 IOMEM(0xe6188020)
+static void r8a7740_restart(enum reboot_mode mode, const char *cmd)
+{
+	/* Do soft power on reset */
+	writel(1 << 31, RESCNT2);
 }
 
 static const char *r8a7740_boards_compat_dt[] __initdata = {
@@ -843,6 +854,7 @@ DT_MACHINE_START(R8A7740_DT, "Generic R8A7740 (Flattened Device Tree)")
 	.init_machine	= r8a7740_generic_init,
 	.init_late	= shmobile_init_late,
 	.dt_compat	= r8a7740_boards_compat_dt,
+	.restart	= r8a7740_restart,
 MACHINE_END
 
 #endif /* CONFIG_USE_OF */

@@ -71,7 +71,7 @@ static int pci263_auto_attach(struct comedi_device *dev,
 	s = &dev->subdevices[0];
 	/* digital output subdevice */
 	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = 16;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
@@ -86,7 +86,7 @@ static struct comedi_driver amplc_pci263_driver = {
 	.driver_name	= "amplc_pci263",
 	.module		= THIS_MODULE,
 	.auto_attach	= pci263_auto_attach,
-	.detach		= comedi_pci_disable,
+	.detach		= comedi_pci_detach,
 };
 
 static const struct pci_device_id pci263_pci_table[] = {

@@ -2,6 +2,10 @@ Kernel driver lm95234
 =====================
 
 Supported chips:
+  * National Semiconductor / Texas Instruments LM95233
+    Addresses scanned: I2C 0x18, 0x2a, 0x2b
+    Datasheet: Publicly available at the Texas Instruments website
+               http://www.ti.com/product/lm95233
   * National Semiconductor / Texas Instruments LM95234
     Addresses scanned: I2C 0x18, 0x4d, 0x4e
     Datasheet: Publicly available at the Texas Instruments website
@@ -13,11 +17,12 @@ Author: Guenter Roeck <linux@roeck-us.net>
 Description
 -----------
 
-LM95234 is an 11-bit digital temperature sensor with a 2-wire System Management
-Bus (SMBus) interface and TrueTherm technology that can very accurately monitor
-the temperature of four remote diodes as well as its own temperature.
-The four remote diodes can be external devices such as microprocessors,
-graphics processors or diode-connected 2N3904s. The LM95234's TruTherm
+LM95233 and LM95234 are 11-bit digital temperature sensors with a 2-wire
+System Management Bus (SMBus) interface and TrueTherm technology
+that can very accurately monitor the temperature of two (LM95233)
+or four (LM95234) remote diodes as well as its own temperature.
+The remote diodes can be external devices such as microprocessors,
+graphics processors or diode-connected 2N3904s. The chip's TruTherm
 beta compensation technology allows sensing of 90 nm or 65 nm process
 thermal diodes accurately.
 

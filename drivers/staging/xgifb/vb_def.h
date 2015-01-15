@@ -7,7 +7,6 @@
 #define SupportCRT2in301C       0x0100  /* for 301C */
 #define SetCHTVOverScan         0x8000
 
-#define Panel_320x480            0x07 /*fstn*/
 #define PanelResInfo            0x1F /* CR36 Panel Type/LCDResInfo */
 #define Panel_1024x768x75        0x22
 #define Panel_1280x1024x75       0x23

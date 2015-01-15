@@ -356,10 +356,9 @@ static int ptlrpcd_check(struct lu_env *env, struct ptlrpcd_ctl *pc)
 				if (atomic_read(&ps->set_new_count)) {
 					rc = ptlrpcd_steal_rqset(set, ps);
 					if (rc > 0)
-						CDEBUG(D_RPCTRACE, "transfer %d"
-						       " async RPCs [%d->%d]\n",
-							rc, partner->pc_index,
-							pc->pc_index);
+						CDEBUG(D_RPCTRACE, "transfer %d async RPCs [%d->%d]\n",
+						       rc, partner->pc_index,
+						       pc->pc_index);
 				}
 				ptlrpc_reqset_put(ps);
 			} while (rc == 0 && pc->pc_cursor != first);
@@ -615,8 +614,10 @@ int ptlrpcd_start(int index, int max, const char *name, struct ptlrpcd_ctl *pc)
 	spin_lock_init(&pc->pc_lock);
 	strlcpy(pc->pc_name, name, sizeof(pc->pc_name));
 	pc->pc_set = ptlrpc_prep_set();
-	if (pc->pc_set == NULL)
-		GOTO(out, rc = -ENOMEM);
+	if (pc->pc_set == NULL) {
+		rc = -ENOMEM;
+		goto out;
+	}
 
 	/*
 	 * So far only "client" ptlrpcd uses an environment. In the future,
@@ -625,19 +626,21 @@ int ptlrpcd_start(int index, int max, const char *name, struct ptlrpcd_ctl *pc)
 	 */
 	rc = lu_context_init(&pc->pc_env.le_ctx, LCT_CL_THREAD|LCT_REMEMBER);
 	if (rc != 0)
-		GOTO(out_set, rc);
+		goto out_set;
 
 	{
 		struct task_struct *task;
 		if (index >= 0) {
 			rc = ptlrpcd_bind(index, max);
 			if (rc < 0)
-				GOTO(out_env, rc);
+				goto out_env;
 		}
 
 		task = kthread_run(ptlrpcd, pc, "%s", pc->pc_name);
-		if (IS_ERR(task))
-			GOTO(out_env, rc = PTR_ERR(task));
+		if (IS_ERR(task)) {
+			rc = PTR_ERR(task);
+			goto out_env;
+		}
 
 		wait_for_completion(&pc->pc_starting);
 	}
@@ -741,14 +744,16 @@ static int ptlrpcd_init(void)
 
 	size = offsetof(struct ptlrpcd, pd_threads[nthreads]);
 	OBD_ALLOC(ptlrpcds, size);
-	if (ptlrpcds == NULL)
-		GOTO(out, rc = -ENOMEM);
+	if (ptlrpcds == NULL) {
+		rc = -ENOMEM;
+		goto out;
+	}
 
 	snprintf(name, sizeof(name), "ptlrpcd_rcv");
 	set_bit(LIOD_RECOVERY, &ptlrpcds->pd_thread_rcv.pc_flags);
 	rc = ptlrpcd_start(-1, nthreads, name, &ptlrpcds->pd_thread_rcv);
 	if (rc < 0)
-		GOTO(out, rc);
+		goto out;
 
 	/* XXX: We start nthreads ptlrpc daemons. Each of them can process any
 	 *      non-recovery async RPC to improve overall async RPC efficiency.
@@ -766,7 +771,7 @@ static int ptlrpcd_init(void)
 		snprintf(name, sizeof(name), "ptlrpcd_%d", i);
 		rc = ptlrpcd_start(i, nthreads, name, &ptlrpcds->pd_threads[i]);
 		if (rc < 0)
-			GOTO(out, rc);
+			goto out;
 	}
 
 	ptlrpcds->pd_size = size;

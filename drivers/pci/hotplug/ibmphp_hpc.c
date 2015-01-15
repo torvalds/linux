@@ -997,9 +997,8 @@ static int process_changeinstatus (struct slot *pslot, struct slot *poldslot)
 		rc = ibmphp_do_disable_slot (pslot);
 	}
 
-	if (update || disable) {
+	if (update || disable)
 		ibmphp_update_slot_info (pslot);
-	}
 
 	debug ("%s - Exit rc[%d] disable[%x] update[%x]\n", __func__, rc, disable, update);
 

@@ -317,7 +317,6 @@ static struct platform_driver palmas_pwron_driver = {
 	.remove	= palmas_pwron_remove,
 	.driver	= {
 		.name	= "palmas_pwrbutton",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(of_palmas_pwr_match),
 		.pm	= &palmas_pwron_pm,
 	},

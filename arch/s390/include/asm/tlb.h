@@ -105,7 +105,7 @@ static inline void tlb_remove_page(struct mmu_gather *tlb, struct page *page)
 static inline void pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
 				unsigned long address)
 {
-	page_table_free_rcu(tlb, (unsigned long *) pte);
+	page_table_free_rcu(tlb, (unsigned long *) pte, address);
 }
 
 /*
@@ -121,6 +121,7 @@ static inline void pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd,
 #ifdef CONFIG_64BIT
 	if (tlb->mm->context.asce_limit <= (1UL << 31))
 		return;
+	pgtable_pmd_page_dtor(virt_to_page(pmd));
 	tlb_remove_table(tlb, pmd);
 #endif
 }

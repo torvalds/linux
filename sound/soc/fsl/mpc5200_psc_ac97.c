@@ -237,7 +237,7 @@ static const struct snd_soc_dai_ops psc_ac97_digital_ops = {
 static struct snd_soc_dai_driver psc_ac97_dai[] = {
 {
 	.name = "mpc5200-psc-ac97.0",
-	.ac97_control = 1,
+	.bus_control = true,
 	.probe	= psc_ac97_probe,
 	.playback = {
 		.stream_name	= "AC97 Playback",
@@ -257,7 +257,7 @@ static struct snd_soc_dai_driver psc_ac97_dai[] = {
 },
 {
 	.name = "mpc5200-psc-ac97.1",
-	.ac97_control = 1,
+	.bus_control = true,
 	.playback = {
 		.stream_name	= "AC97 SPDIF",
 		.channels_min   = 1,
@@ -282,7 +282,6 @@ static const struct snd_soc_component_driver psc_ac97_component = {
 static int psc_ac97_of_probe(struct platform_device *op)
 {
 	int rc;
-	struct snd_ac97 ac97;
 	struct mpc52xx_psc __iomem *regs;
 
 	rc = mpc5200_audio_dma_create(op);
@@ -304,7 +303,6 @@ static int psc_ac97_of_probe(struct platform_device *op)
 
 	psc_dma = dev_get_drvdata(&op->dev);
 	regs = psc_dma->psc_regs;
-	ac97.private_data = psc_dma;
 
 	psc_dma->imr = 0;
 	out_be16(&psc_dma->psc_regs->isr_imr.imr, psc_dma->imr);
@@ -340,7 +338,6 @@ static struct platform_driver psc_ac97_driver = {
 	.remove = psc_ac97_of_remove,
 	.driver = {
 		.name = "mpc5200-psc-ac97",
-		.owner = THIS_MODULE,
 		.of_match_table = psc_ac97_match,
 	},
 };

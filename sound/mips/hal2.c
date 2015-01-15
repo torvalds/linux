@@ -929,7 +929,6 @@ static struct platform_driver hal2_driver = {
 	.remove	= hal2_remove,
 	.driver = {
 		.name	= "sgihal2",
-		.owner	= THIS_MODULE,
 	}
 };
 

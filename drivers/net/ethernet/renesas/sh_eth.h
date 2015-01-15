@@ -162,9 +162,9 @@ enum {
 
 /* Driver's parameters */
 #if defined(CONFIG_CPU_SH4) || defined(CONFIG_ARCH_SHMOBILE)
-#define SH4_SKB_RX_ALIGN	32
+#define SH_ETH_RX_ALIGN		32
 #else
-#define SH2_SH3_SKB_RX_ALIGN	2
+#define SH_ETH_RX_ALIGN		2
 #endif
 
 /* Register's bits
@@ -522,6 +522,7 @@ struct sh_eth_private {
 
 	unsigned no_ether_link:1;
 	unsigned ether_link_active_low:1;
+	unsigned is_opened:1;
 };
 
 static inline void sh_eth_soft_swap(char *src, int len)

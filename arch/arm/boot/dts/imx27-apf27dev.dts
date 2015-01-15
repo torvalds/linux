@@ -67,6 +67,16 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_cspi1 &pinctrl_cspi1_cs>;
 	status = "okay";
+
+	adc@0 {
+		compatible = "maxim,max1027";
+		reg = <0>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <15 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_max1027>;
+		spi-max-frequency = <10000000>;
+	};
 };
 
 &cspi2 {
@@ -186,6 +196,13 @@
 			fsl,pins = <
 				MX27_PAD_I2C2_SDA__I2C2_SDA 0x0
 				MX27_PAD_I2C2_SCL__I2C2_SCL 0x0
+			>;
+		};
+
+		pinctrl_max1027: max1027 {
+			 fsl,pins = <
+				 MX27_PAD_UART1_CTS__GPIO5_14 0x0 /* CNVST */
+				 MX27_PAD_UART1_RTS__GPIO5_15 0x0 /* EOC */
 			>;
 		};
 

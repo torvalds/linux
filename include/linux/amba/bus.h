@@ -23,6 +23,7 @@
 
 #define AMBA_NR_IRQS	9
 #define AMBA_CID	0xb105f00d
+#define CORESIGHT_CID	0xb105900d
 
 struct clk;
 
@@ -44,10 +45,15 @@ struct amba_driver {
 	const struct amba_id	*id_table;
 };
 
+/*
+ * Constants for the designer field of the Peripheral ID register. When bit 7
+ * is set to '1', bits [6:0] should be the JEP106 manufacturer identity code.
+ */
 enum amba_vendor {
 	AMBA_VENDOR_ARM = 0x41,
 	AMBA_VENDOR_ST = 0x80,
 	AMBA_VENDOR_QCOM = 0x51,
+	AMBA_VENDOR_LSI = 0xb6,
 };
 
 extern struct bus_type amba_bustype;
@@ -91,6 +97,16 @@ void amba_release_regions(struct amba_device *);
 
 #define amba_pclk_disable(d)	\
 	do { if (!IS_ERR((d)->pclk)) clk_disable((d)->pclk); } while (0)
+
+static inline int amba_pclk_prepare(struct amba_device *dev)
+{
+	return clk_prepare(dev->pclk);
+}
+
+static inline void amba_pclk_unprepare(struct amba_device *dev)
+{
+	clk_unprepare(dev->pclk);
+}
 
 /* Some drivers don't use the struct amba_device */
 #define AMBA_CONFIG_BITS(a) (((a) >> 24) & 0xff)

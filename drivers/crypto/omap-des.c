@@ -1222,7 +1222,6 @@ static struct platform_driver omap_des_driver = {
 	.remove	= omap_des_remove,
 	.driver	= {
 		.name	= "omap-des",
-		.owner	= THIS_MODULE,
 		.pm	= &omap_des_pm_ops,
 		.of_match_table	= of_match_ptr(omap_des_of_match),
 	},

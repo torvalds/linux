@@ -122,7 +122,8 @@ static int (*uverbs_ex_cmd_table[])(struct ib_uverbs_file *file,
 				    struct ib_udata *ucore,
 				    struct ib_udata *uhw) = {
 	[IB_USER_VERBS_EX_CMD_CREATE_FLOW]	= ib_uverbs_ex_create_flow,
-	[IB_USER_VERBS_EX_CMD_DESTROY_FLOW]	= ib_uverbs_ex_destroy_flow
+	[IB_USER_VERBS_EX_CMD_DESTROY_FLOW]	= ib_uverbs_ex_destroy_flow,
+	[IB_USER_VERBS_EX_CMD_QUERY_DEVICE]	= ib_uverbs_ex_query_device
 };
 
 static void ib_uverbs_add_one(struct ib_device *device);
@@ -295,6 +296,8 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 		ib_dealloc_pd(pd);
 		kfree(uobj);
 	}
+
+	put_pid(context->tgid);
 
 	return context->device->dealloc_ucontext(context);
 }
@@ -477,6 +480,7 @@ static void ib_uverbs_async_handler(struct ib_uverbs_file *file,
 
 	entry->desc.async.element    = element;
 	entry->desc.async.event_type = event;
+	entry->desc.async.reserved   = 0;
 	entry->counter               = counter;
 
 	list_add_tail(&entry->list, &file->async_file->event_list);
@@ -501,6 +505,10 @@ void ib_uverbs_cq_event_handler(struct ib_event *event, void *context_ptr)
 void ib_uverbs_qp_event_handler(struct ib_event *event, void *context_ptr)
 {
 	struct ib_uevent_object *uobj;
+
+	/* for XRC target qp's, check that qp is live */
+	if (!event->element.qp->uobject || !event->element.qp->uobject->live)
+		return;
 
 	uobj = container_of(event->element.qp->uobject,
 			    struct ib_uevent_object, uobject);

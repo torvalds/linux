@@ -573,7 +573,6 @@ static struct attribute_group msipf_old_attribute_group = {
 static struct platform_driver msipf_driver = {
 	.driver = {
 		.name = "msi-laptop-pf",
-		.owner = THIS_MODULE,
 		.pm = &msi_laptop_pm,
 	},
 };
@@ -821,7 +820,7 @@ static bool msi_laptop_i8042_filter(unsigned char data, unsigned char str,
 {
 	static bool extended;
 
-	if (str & 0x20)
+	if (str & I8042_STR_AUXDATA)
 		return false;
 
 	/* 0x54 wwan, 0x62 bluetooth, 0x76 wlan, 0xE4 touchpad toggle*/

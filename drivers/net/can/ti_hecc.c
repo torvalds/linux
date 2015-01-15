@@ -1039,7 +1039,6 @@ static int ti_hecc_resume(struct platform_device *pdev)
 static struct platform_driver ti_hecc_driver = {
 	.driver = {
 		.name    = DRV_NAME,
-		.owner   = THIS_MODULE,
 	},
 	.probe = ti_hecc_probe,
 	.remove = ti_hecc_remove,

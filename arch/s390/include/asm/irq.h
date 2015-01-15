@@ -1,20 +1,17 @@
 #ifndef _ASM_IRQ_H
 #define _ASM_IRQ_H
 
-#define EXT_INTERRUPT	1
-#define IO_INTERRUPT	2
-#define THIN_INTERRUPT	3
+#define EXT_INTERRUPT	0
+#define IO_INTERRUPT	1
+#define THIN_INTERRUPT	2
 
-#define NR_IRQS_BASE	4
+#define NR_IRQS_BASE	3
 
 #ifdef CONFIG_PCI_NR_MSI
 # define NR_IRQS	(NR_IRQS_BASE + CONFIG_PCI_NR_MSI)
 #else
 # define NR_IRQS	NR_IRQS_BASE
 #endif
-
-/* This number is used when no interrupt has been assigned */
-#define NO_IRQ		0
 
 /* External interruption codes */
 #define EXT_IRQ_INTERRUPT_KEY	0x0040
@@ -51,6 +48,7 @@ enum interruption_class {
 	IRQEXT_CMS,
 	IRQEXT_CMC,
 	IRQEXT_CMR,
+	IRQEXT_FTP,
 	IRQIO_CIO,
 	IRQIO_QAI,
 	IRQIO_DAS,
@@ -81,7 +79,7 @@ DECLARE_PER_CPU_SHARED_ALIGNED(struct irq_stat, irq_stat);
 
 static __always_inline void inc_irq_stat(enum interruption_class irq)
 {
-	__get_cpu_var(irq_stat).irqs[irq]++;
+	__this_cpu_inc(irq_stat.irqs[irq]);
 }
 
 struct ext_code {

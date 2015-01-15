@@ -16,7 +16,7 @@
 #include <linux/sunrpc/gss_api.h>
 #include <linux/spinlock.h>
 
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY	RPCDBG_AUTH
 #endif
 
@@ -646,7 +646,7 @@ rpcauth_init_cred(struct rpc_cred *cred, const struct auth_cred *acred,
 	cred->cr_auth = auth;
 	cred->cr_ops = ops;
 	cred->cr_expire = jiffies;
-#ifdef RPC_DEBUG
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 	cred->cr_magic = RPCAUTH_CRED_MAGIC;
 #endif
 	cred->cr_uid = acred->uid;

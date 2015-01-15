@@ -585,16 +585,11 @@ void bpf_jit_compile(struct bpf_prog *fp)
 			case BPF_ANC | SKF_AD_PROTOCOL:
 				emit_skb_load16(protocol, r_A);
 				break;
-#if 0
-				/* GCC won't let us take the address of
-				 * a bit field even though we very much
-				 * know what we are doing here.
-				 */
 			case BPF_ANC | SKF_AD_PKTTYPE:
-				__emit_skb_load8(pkt_type, r_A);
+				__emit_skb_load8(__pkt_type_offset, r_A);
+				emit_andi(r_A, PKT_TYPE_MAX, r_A);
 				emit_alu_K(SRL, 5);
 				break;
-#endif
 			case BPF_ANC | SKF_AD_IFINDEX:
 				emit_skb_loadptr(dev, r_A);
 				emit_cmpi(r_A, 0);
@@ -629,7 +624,12 @@ void bpf_jit_compile(struct bpf_prog *fp)
 					emit_and(r_A, r_TMP, r_A);
 				}
 				break;
-
+			case BPF_LD | BPF_W | BPF_LEN:
+				emit_skb_load32(len, r_A);
+				break;
+			case BPF_LDX | BPF_W | BPF_LEN:
+				emit_skb_load32(len, r_X);
+				break;
 			case BPF_LD | BPF_IMM:
 				emit_loadimm(K, r_A);
 				break;
@@ -812,7 +812,7 @@ cond_branch:			f_offset = addrs[i + filter[i].jf];
 	if (image) {
 		bpf_flush_icache(image, image + proglen);
 		fp->bpf_func = (void *)image;
-		fp->jited = 1;
+		fp->jited = true;
 	}
 out:
 	kfree(addrs);
@@ -823,5 +823,6 @@ void bpf_jit_free(struct bpf_prog *fp)
 {
 	if (fp->jited)
 		module_free(NULL, fp->bpf_func);
-	kfree(fp);
+
+	bpf_prog_unlock_free(fp);
 }

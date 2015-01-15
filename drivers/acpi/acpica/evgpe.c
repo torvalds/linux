@@ -100,13 +100,14 @@ acpi_ev_update_gpe_enable_mask(struct acpi_gpe_event_info *gpe_event_info)
  *
  * FUNCTION:    acpi_ev_enable_gpe
  *
- * PARAMETERS:  gpe_event_info  - GPE to enable
+ * PARAMETERS:  gpe_event_info          - GPE to enable
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Clear a GPE of stale events and enable it.
  *
  ******************************************************************************/
+
 acpi_status acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info)
 {
 	acpi_status status;
@@ -125,6 +126,7 @@ acpi_status acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info)
 	}
 
 	/* Clear the GPE (of stale events) */
+
 	status = acpi_hw_clear_gpe(gpe_event_info);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
@@ -132,10 +134,9 @@ acpi_status acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info)
 
 	/* Enable the requested GPE */
 
-	status = acpi_hw_low_set_gpe(gpe_event_info, ACPI_GPE_ENABLE);
+	status = acpi_hw_low_set_gpe(gpe_event_info, ACPI_GPE_ENABLE_SAVE);
 	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -212,7 +213,7 @@ acpi_ev_remove_gpe_reference(struct acpi_gpe_event_info *gpe_event_info)
 		if (ACPI_SUCCESS(status)) {
 			status =
 			    acpi_hw_low_set_gpe(gpe_event_info,
-						     ACPI_GPE_DISABLE);
+						ACPI_GPE_DISABLE_SAVE);
 		}
 
 		if (ACPI_FAILURE(status)) {
@@ -334,7 +335,7 @@ struct acpi_gpe_event_info *acpi_ev_get_gpe_event_info(acpi_handle gpe_device,
  *
  ******************************************************************************/
 
-u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
+u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info *gpe_xrupt_list)
 {
 	acpi_status status;
 	struct acpi_gpe_block_info *gpe_block;
@@ -427,7 +428,7 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 
 			/* Check if there is anything active at all in this register */
 
-			enabled_status_byte = (u8) (status_reg & enable_reg);
+			enabled_status_byte = (u8)(status_reg & enable_reg);
 			if (!enabled_status_byte) {
 
 				/* No active GPEs in this register, move on */
@@ -450,7 +451,7 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 					    acpi_ev_gpe_dispatch(gpe_block->
 								 node,
 								 &gpe_block->
-						event_info[((acpi_size) i * ACPI_GPE_REGISTER_WIDTH) + j], j + gpe_register_info->base_gpe_number);
+								 event_info[((acpi_size) i * ACPI_GPE_REGISTER_WIDTH) + j], j + gpe_register_info->base_gpe_number);
 				}
 			}
 		}
@@ -615,8 +616,11 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 static void ACPI_SYSTEM_XFACE acpi_ev_asynch_enable_gpe(void *context)
 {
 	struct acpi_gpe_event_info *gpe_event_info = context;
+	acpi_cpu_flags flags;
 
+	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
 	(void)acpi_ev_finish_gpe(gpe_event_info);
+	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 
 	ACPI_FREE(gpe_event_info);
 	return;
@@ -636,7 +640,7 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_enable_gpe(void *context)
  *
  ******************************************************************************/
 
-acpi_status acpi_ev_finish_gpe(struct acpi_gpe_event_info *gpe_event_info)
+acpi_status acpi_ev_finish_gpe(struct acpi_gpe_event_info * gpe_event_info)
 {
 	acpi_status status;
 
@@ -654,7 +658,7 @@ acpi_status acpi_ev_finish_gpe(struct acpi_gpe_event_info *gpe_event_info)
 
 	/*
 	 * Enable this GPE, conditionally. This means that the GPE will
-	 * only be physically enabled if the enable_for_run bit is set
+	 * only be physically enabled if the enable_mask bit is set
 	 * in the event_info.
 	 */
 	(void)acpi_hw_low_set_gpe(gpe_event_info, ACPI_GPE_CONDITIONAL_ENABLE);
@@ -666,9 +670,9 @@ acpi_status acpi_ev_finish_gpe(struct acpi_gpe_event_info *gpe_event_info)
  *
  * FUNCTION:    acpi_ev_gpe_dispatch
  *
- * PARAMETERS:  gpe_device      - Device node. NULL for GPE0/GPE1
- *              gpe_event_info  - Info for this GPE
- *              gpe_number      - Number relative to the parent GPE block
+ * PARAMETERS:  gpe_device          - Device node. NULL for GPE0/GPE1
+ *              gpe_event_info      - Info for this GPE
+ *              gpe_number          - Number relative to the parent GPE block
  *
  * RETURN:      INTERRUPT_HANDLED or INTERRUPT_NOT_HANDLED
  *
@@ -681,7 +685,7 @@ acpi_status acpi_ev_finish_gpe(struct acpi_gpe_event_info *gpe_event_info)
 
 u32
 acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
-		    struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
+		     struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 {
 	acpi_status status;
 	u32 return_value;

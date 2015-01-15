@@ -29,7 +29,7 @@
 #include <linux/pci.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/pci_regs.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -401,11 +401,11 @@ error:
 	} else {
 		if (config && *config) {
 			size = 256;
-			free_bootmem(__pa(*config), size);
+			memblock_free(__pa(*config), size);
 		}
 		if (res && *res) {
 			size = sizeof(struct celleb_pci_resource);
-			free_bootmem(__pa(*res), size);
+			memblock_free(__pa(*res), size);
 		}
 	}
 
@@ -454,7 +454,7 @@ static struct celleb_phb_spec celleb_fake_pci_spec __initdata = {
 	.setup = celleb_setup_fake_pci,
 };
 
-static struct of_device_id celleb_phb_match[] __initdata = {
+static const struct of_device_id celleb_phb_match[] __initconst = {
 	{
 		.name = "pci-pseudo",
 		.data = &celleb_fake_pci_spec,

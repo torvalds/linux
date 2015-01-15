@@ -1013,7 +1013,7 @@ static int vsock_dgram_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		goto out;
 	}
 
-	err = transport->dgram_enqueue(vsk, remote_addr, msg->msg_iov, len);
+	err = transport->dgram_enqueue(vsk, remote_addr, msg, len);
 
 out:
 	release_sock(sk);
@@ -1617,7 +1617,7 @@ static int vsock_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		 */
 
 		written = transport->stream_enqueue(
-				vsk, msg->msg_iov,
+				vsk, msg,
 				len - total_written);
 		if (written < 0) {
 			err = -ENOMEM;
@@ -1739,7 +1739,7 @@ vsock_stream_recvmsg(struct kiocb *kiocb,
 				break;
 
 			read = transport->stream_dequeue(
-					vsk, msg->msg_iov,
+					vsk, msg,
 					len - copied, flags);
 			if (read < 0) {
 				err = -ENOMEM;

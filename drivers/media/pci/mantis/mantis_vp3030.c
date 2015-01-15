@@ -35,11 +35,11 @@
 #include "mantis_dvb.h"
 #include "mantis_vp3030.h"
 
-struct zl10353_config mantis_vp3030_config = {
+static struct zl10353_config mantis_vp3030_config = {
 	.demod_address		= 0x0f,
 };
 
-struct tda665x_config env57h12d5_config = {
+static struct tda665x_config env57h12d5_config = {
 	.name			= "ENV57H12D5 (ET-50DT)",
 	.addr			= 0x60,
 	.frequency_min		=  47000000,

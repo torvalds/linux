@@ -13,6 +13,19 @@ struct ctl_table_header;
 struct xfrm_policy_hash {
 	struct hlist_head	*table;
 	unsigned int		hmask;
+	u8			dbits4;
+	u8			sbits4;
+	u8			dbits6;
+	u8			sbits6;
+};
+
+struct xfrm_policy_hthresh {
+	struct work_struct	work;
+	seqlock_t		lock;
+	u8			lbits4;
+	u8			rbits4;
+	u8			lbits6;
+	u8			rbits6;
 };
 
 struct netns_xfrm {
@@ -37,10 +50,11 @@ struct netns_xfrm {
 	struct list_head	policy_all;
 	struct hlist_head	*policy_byidx;
 	unsigned int		policy_idx_hmask;
-	struct hlist_head	policy_inexact[XFRM_POLICY_MAX * 2];
-	struct xfrm_policy_hash	policy_bydst[XFRM_POLICY_MAX * 2];
+	struct hlist_head	policy_inexact[XFRM_POLICY_MAX];
+	struct xfrm_policy_hash	policy_bydst[XFRM_POLICY_MAX];
 	unsigned int		policy_count[XFRM_POLICY_MAX * 2];
 	struct work_struct	policy_hash_work;
+	struct xfrm_policy_hthresh policy_hthresh;
 
 
 	struct sock		*nlsk;

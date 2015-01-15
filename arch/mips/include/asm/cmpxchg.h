@@ -10,6 +10,7 @@
 
 #include <linux/bug.h>
 #include <linux/irqflags.h>
+#include <asm/compiler.h>
 #include <asm/war.h>
 
 static inline unsigned long __xchg_u32(volatile int * m, unsigned int val)
@@ -30,8 +31,8 @@ static inline unsigned long __xchg_u32(volatile int * m, unsigned int val)
 		"	sc	%2, %1					\n"
 		"	beqzl	%2, 1b					\n"
 		"	.set	mips0					\n"
-		: "=&r" (retval), "=m" (*m), "=&r" (dummy)
-		: "R" (*m), "Jr" (val)
+		: "=&r" (retval), "=" GCC_OFF12_ASM() (*m), "=&r" (dummy)
+		: GCC_OFF12_ASM() (*m), "Jr" (val)
 		: "memory");
 	} else if (kernel_uses_llsc) {
 		unsigned long dummy;
@@ -45,8 +46,9 @@ static inline unsigned long __xchg_u32(volatile int * m, unsigned int val)
 			"	.set	arch=r4000			\n"
 			"	sc	%2, %1				\n"
 			"	.set	mips0				\n"
-			: "=&r" (retval), "=m" (*m), "=&r" (dummy)
-			: "R" (*m), "Jr" (val)
+			: "=&r" (retval), "=" GCC_OFF12_ASM() (*m),
+			  "=&r" (dummy)
+			: GCC_OFF12_ASM() (*m), "Jr" (val)
 			: "memory");
 		} while (unlikely(!dummy));
 	} else {
@@ -80,8 +82,8 @@ static inline __u64 __xchg_u64(volatile __u64 * m, __u64 val)
 		"	scd	%2, %1					\n"
 		"	beqzl	%2, 1b					\n"
 		"	.set	mips0					\n"
-		: "=&r" (retval), "=m" (*m), "=&r" (dummy)
-		: "R" (*m), "Jr" (val)
+		: "=&r" (retval), "=" GCC_OFF12_ASM() (*m), "=&r" (dummy)
+		: GCC_OFF12_ASM() (*m), "Jr" (val)
 		: "memory");
 	} else if (kernel_uses_llsc) {
 		unsigned long dummy;
@@ -93,8 +95,9 @@ static inline __u64 __xchg_u64(volatile __u64 * m, __u64 val)
 			"	move	%2, %z4				\n"
 			"	scd	%2, %1				\n"
 			"	.set	mips0				\n"
-			: "=&r" (retval), "=m" (*m), "=&r" (dummy)
-			: "R" (*m), "Jr" (val)
+			: "=&r" (retval), "=" GCC_OFF12_ASM() (*m),
+			  "=&r" (dummy)
+			: GCC_OFF12_ASM() (*m), "Jr" (val)
 			: "memory");
 		} while (unlikely(!dummy));
 	} else {
@@ -155,8 +158,8 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 		"	beqzl	$1, 1b				\n"	\
 		"2:						\n"	\
 		"	.set	pop				\n"	\
-		: "=&r" (__ret), "=R" (*m)				\
-		: "R" (*m), "Jr" (old), "Jr" (new)			\
+		: "=&r" (__ret), "=" GCC_OFF12_ASM() (*m)		\
+		: GCC_OFF12_ASM() (*m), "Jr" (old), "Jr" (new)		\
 		: "memory");						\
 	} else if (kernel_uses_llsc) {					\
 		__asm__ __volatile__(					\
@@ -172,8 +175,8 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 		"	beqz	$1, 1b				\n"	\
 		"	.set	pop				\n"	\
 		"2:						\n"	\
-		: "=&r" (__ret), "=R" (*m)				\
-		: "R" (*m), "Jr" (old), "Jr" (new)			\
+		: "=&r" (__ret), "=" GCC_OFF12_ASM() (*m)		\
+		: GCC_OFF12_ASM() (*m), "Jr" (old), "Jr" (new)		\
 		: "memory");						\
 	} else {							\
 		unsigned long __flags;					\

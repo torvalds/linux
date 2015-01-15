@@ -1031,9 +1031,6 @@ static int vidioc_querycap(struct file *file, void *fh,
 	strcpy(cap->card, "meye");
 	sprintf(cap->bus_info, "PCI:%s", pci_name(meye.mchip_dev));
 
-	cap->version = (MEYE_DRIVER_MAJORVERSION << 8) +
-		       MEYE_DRIVER_MINORVERSION;
-
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE |
 			    V4L2_CAP_STREAMING;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;

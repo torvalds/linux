@@ -38,7 +38,7 @@
 #include <linux/pci.h>
 #include <linux/i2c.h>
 
-static struct of_device_id ppc47x_of_bus[] __initdata = {
+static const struct of_device_id ppc47x_of_bus[] __initconst = {
 	{ .compatible = "ibm,plb4", },
 	{ .compatible = "ibm,plb6", },
 	{ .compatible = "ibm,opb", },
@@ -94,7 +94,7 @@ static int avr_probe(struct i2c_client *client,
 {
 	avr_i2c_client = client;
 	ppc_md.restart = avr_reset_system;
-	ppc_md.power_off = avr_power_off_system;
+	pm_power_off = avr_power_off_system;
 	return 0;
 }
 

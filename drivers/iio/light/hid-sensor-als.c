@@ -381,7 +381,6 @@ static struct platform_driver hid_als_platform_driver = {
 	.id_table = hid_als_ids,
 	.driver = {
 		.name	= KBUILD_MODNAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= hid_als_probe,
 	.remove		= hid_als_remove,

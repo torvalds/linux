@@ -225,7 +225,6 @@ static int __init msm6242_rtc_probe(struct platform_device *pdev)
 static struct platform_driver msm6242_rtc_driver = {
 	.driver	= {
 		.name	= "rtc-msm6242",
-		.owner	= THIS_MODULE,
 	},
 };
 

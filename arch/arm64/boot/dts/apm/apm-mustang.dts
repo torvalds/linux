@@ -1,0 +1,50 @@
+/*
+ * dts file for AppliedMicro (APM) Mustang Board
+ *
+ * Copyright (C) 2013, Applied Micro Circuits Corporation
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ */
+
+/dts-v1/;
+
+/include/ "apm-storm.dtsi"
+
+/ {
+	model = "APM X-Gene Mustang board";
+	compatible = "apm,mustang", "apm,xgene-storm";
+
+	chosen { };
+
+	memory {
+		device_type = "memory";
+		reg = < 0x1 0x00000000 0x0 0x80000000 >; /* Updated by bootloader */
+	};
+};
+
+&pcie0clk {
+	status = "ok";
+};
+
+&pcie0 {
+	status = "ok";
+};
+
+&serial0 {
+	status = "ok";
+};
+
+&menet {
+	status = "ok";
+};
+
+&sgenet0 {
+	status = "ok";
+};
+
+&xgenet {
+	status = "ok";
+};

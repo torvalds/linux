@@ -421,12 +421,12 @@ void __init mmu_context_init(void)
 	/*
 	 * Allocate the maps used by context management
 	 */
-	context_map = alloc_bootmem(CTX_MAP_SIZE);
-	context_mm = alloc_bootmem(sizeof(void *) * (last_context + 1));
+	context_map = memblock_virt_alloc(CTX_MAP_SIZE, 0);
+	context_mm = memblock_virt_alloc(sizeof(void *) * (last_context + 1), 0);
 #ifndef CONFIG_SMP
-	stale_map[0] = alloc_bootmem(CTX_MAP_SIZE);
+	stale_map[0] = memblock_virt_alloc(CTX_MAP_SIZE, 0);
 #else
-	stale_map[boot_cpuid] = alloc_bootmem(CTX_MAP_SIZE);
+	stale_map[boot_cpuid] = memblock_virt_alloc(CTX_MAP_SIZE, 0);
 
 	register_cpu_notifier(&mmu_context_cpu_nb);
 #endif

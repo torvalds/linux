@@ -31,11 +31,11 @@ module_param_named(debug, dvb_usb_mxl111sf_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level "
 		 "(1=info, 2=xfer, 4=i2c, 8=reg, 16=adv (or-able)).");
 
-int dvb_usb_mxl111sf_isoc;
+static int dvb_usb_mxl111sf_isoc;
 module_param_named(isoc, dvb_usb_mxl111sf_isoc, int, 0644);
 MODULE_PARM_DESC(isoc, "enable usb isoc xfer (0=bulk, 1=isoc).");
 
-int dvb_usb_mxl111sf_spi;
+static int dvb_usb_mxl111sf_spi;
 module_param_named(spi, dvb_usb_mxl111sf_spi, int, 0644);
 MODULE_PARM_DESC(spi, "use spi rather than tp for data xfer (0=tp, 1=spi).");
 
@@ -43,7 +43,7 @@ MODULE_PARM_DESC(spi, "use spi rather than tp for data xfer (0=tp, 1=spi).");
 #define ANT_PATH_EXTERNAL 1
 #define ANT_PATH_INTERNAL 2
 
-int dvb_usb_mxl111sf_rfswitch =
+static int dvb_usb_mxl111sf_rfswitch =
 #if 0
 		ANT_PATH_AUTO;
 #else
@@ -887,7 +887,7 @@ static u32 mxl111sf_i2c_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C;
 }
 
-struct i2c_algorithm mxl111sf_i2c_algo = {
+static struct i2c_algorithm mxl111sf_i2c_algo = {
 	.master_xfer   = mxl111sf_i2c_xfer,
 	.functionality = mxl111sf_i2c_func,
 #ifdef NEED_ALGO_CONTROL

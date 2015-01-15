@@ -35,7 +35,7 @@ static irqreturn_t altera_ps2_rxint(int irq, void *dev_id)
 {
 	struct ps2if *ps2if = dev_id;
 	unsigned int status;
-	int handled = IRQ_NONE;
+	irqreturn_t handled = IRQ_NONE;
 
 	while ((status = readl(ps2if->base)) & 0xffff0000) {
 		serio_interrupt(ps2if->io, status & 0xff, 0);
@@ -72,7 +72,7 @@ static void altera_ps2_close(struct serio *io)
 {
 	struct ps2if *ps2if = io->port_data;
 
-	writel(0, ps2if->base); /* disable rx irq */
+	writel(0, ps2if->base + 4); /* disable rx irq */
 }
 
 /*
@@ -156,7 +156,6 @@ static struct platform_driver altera_ps2_driver = {
 	.remove		= altera_ps2_remove,
 	.driver	= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(altera_ps2_match),
 	},
 };

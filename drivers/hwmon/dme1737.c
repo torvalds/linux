@@ -2732,7 +2732,6 @@ static int dme1737_isa_remove(struct platform_device *pdev)
 
 static struct platform_driver dme1737_isa_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "dme1737",
 	},
 	.probe = dme1737_isa_probe,

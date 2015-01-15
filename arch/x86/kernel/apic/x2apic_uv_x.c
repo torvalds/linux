@@ -204,7 +204,6 @@ EXPORT_SYMBOL(sn_rtc_cycles_per_second);
 
 static int uv_wakeup_secondary(int phys_apicid, unsigned long start_rip)
 {
-#ifdef CONFIG_SMP
 	unsigned long val;
 	int pnode;
 
@@ -223,7 +222,6 @@ static int uv_wakeup_secondary(int phys_apicid, unsigned long start_rip)
 	uv_write_global_mmr64(pnode, UVH_IPI_INT, val);
 
 	atomic_set(&init_deasserted, 1);
-#endif
 	return 0;
 }
 

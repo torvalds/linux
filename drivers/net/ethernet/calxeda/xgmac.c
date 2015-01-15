@@ -1735,7 +1735,6 @@ static int xgmac_probe(struct platform_device *pdev)
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 	priv = netdev_priv(ndev);
 	platform_set_drvdata(pdev, ndev);
-	ether_setup(ndev);
 	ndev->netdev_ops = &xgmac_netdev_ops;
 	ndev->ethtool_ops = &xgmac_ethtool_ops;
 	spin_lock_init(&priv->stats_lock);

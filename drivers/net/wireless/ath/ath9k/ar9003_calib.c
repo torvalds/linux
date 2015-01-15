@@ -121,13 +121,12 @@ static bool ar9003_hw_per_calibration(struct ath_hw *ah,
 	return iscaldone;
 }
 
-static bool ar9003_hw_calibrate(struct ath_hw *ah,
-				struct ath9k_channel *chan,
-				u8 rxchainmask,
-				bool longcal)
+static int ar9003_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
+			       u8 rxchainmask, bool longcal)
 {
 	bool iscaldone = true;
 	struct ath9k_cal_list *currCal = ah->cal_list_curr;
+	int ret;
 
 	/*
 	 * For given calibration:
@@ -163,7 +162,9 @@ static bool ar9003_hw_calibrate(struct ath_hw *ah,
 		 * NF is slow time-variant, so it is OK to use a historical
 		 * value.
 		 */
-		ath9k_hw_loadnf(ah, ah->curchan);
+		ret = ath9k_hw_loadnf(ah, ah->curchan);
+		if (ret < 0)
+			return ret;
 
 		/* start NF calibration, without updating BB NF register */
 		ath9k_hw_start_nfcal(ah, false);

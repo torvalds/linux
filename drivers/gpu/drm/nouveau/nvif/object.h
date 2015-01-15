@@ -14,7 +14,7 @@ struct nvif_object {
 	void *priv; /*XXX: hack */
 	void (*dtor)(struct nvif_object *);
 	struct {
-		void *ptr;
+		void __iomem *ptr;
 		u32 size;
 	} map;
 };
@@ -42,7 +42,7 @@ void nvif_object_unmap(struct nvif_object *);
 	struct nvif_object *_object = nvif_object(a);                          \
 	u32 _data;                                                             \
 	if (likely(_object->map.ptr))                                          \
-		_data = ioread##b##_native((u8 *)_object->map.ptr + (c));      \
+		_data = ioread##b##_native((u8 __iomem *)_object->map.ptr + (c));      \
 	else                                                                   \
 		_data = nvif_object_rd(_object, (b) / 8, (c));                 \
 	_data;                                                                 \
@@ -50,7 +50,7 @@ void nvif_object_unmap(struct nvif_object *);
 #define nvif_wr(a,b,c,d) ({                                                    \
 	struct nvif_object *_object = nvif_object(a);                          \
 	if (likely(_object->map.ptr))                                          \
-		iowrite##b##_native((d), (u8 *)_object->map.ptr + (c));        \
+		iowrite##b##_native((d), (u8 __iomem *)_object->map.ptr + (c));        \
 	else                                                                   \
 		nvif_object_wr(_object, (b) / 8, (c), (d));                    \
 })

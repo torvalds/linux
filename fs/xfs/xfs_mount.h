@@ -168,6 +168,7 @@ typedef struct xfs_mount {
 						/* low free space thresholds */
 	struct xfs_kobj		m_kobj;
 
+	struct workqueue_struct *m_buf_workqueue;
 	struct workqueue_struct	*m_data_workqueue;
 	struct workqueue_struct	*m_unwritten_workqueue;
 	struct workqueue_struct	*m_cil_workqueue;
@@ -320,10 +321,7 @@ typedef struct xfs_mod_sb {
 
 /*
  * Per-ag incore structure, copies of information in agf and agi, to improve the
- * performance of allocation group selection. This is defined for the kernel
- * only, and hence is defined here instead of in xfs_ag.h. You need the struct
- * xfs_mount to be defined to look up a xfs_perag anyway (via mp->m_perag_tree),
- * so this doesn't introduce any strange header file dependencies.
+ * performance of allocation group selection.
  */
 typedef struct xfs_perag {
 	struct xfs_mount *pag_mount;	/* owner filesystem */
@@ -384,7 +382,7 @@ extern int	xfs_mount_log_sb(xfs_mount_t *, __int64_t);
 extern struct xfs_buf *xfs_getsb(xfs_mount_t *, int);
 extern int	xfs_readsb(xfs_mount_t *, int);
 extern void	xfs_freesb(xfs_mount_t *);
-extern int	xfs_fs_writable(xfs_mount_t *);
+extern bool	xfs_fs_writable(struct xfs_mount *mp, int level);
 extern int	xfs_sb_validate_fsb_count(struct xfs_sb *, __uint64_t);
 
 extern int	xfs_dev_is_read_only(struct xfs_mount *, char *);

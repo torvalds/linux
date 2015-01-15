@@ -49,7 +49,7 @@ PGM_CHECK_DEFAULT			/* 17 */
 PGM_CHECK_64BIT(transaction_exception)	/* 18 */
 PGM_CHECK_DEFAULT			/* 19 */
 PGM_CHECK_DEFAULT			/* 1a */
-PGM_CHECK_DEFAULT			/* 1b */
+PGM_CHECK_64BIT(vector_exception)	/* 1b */
 PGM_CHECK(space_switch_exception)	/* 1c */
 PGM_CHECK(hfp_sqrt_exception)		/* 1d */
 PGM_CHECK_DEFAULT			/* 1e */

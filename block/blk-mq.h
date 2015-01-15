@@ -27,7 +27,6 @@ struct blk_mq_ctx {
 
 void __blk_mq_complete_request(struct request *rq);
 void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async);
-void blk_mq_init_flush(struct request_queue *q);
 void blk_mq_freeze_queue(struct request_queue *q);
 void blk_mq_free_queue(struct request_queue *q);
 void blk_mq_clone_flush_request(struct request *flush_rq,
@@ -59,6 +58,8 @@ extern int blk_mq_hw_queue_to_node(unsigned int *map, unsigned int);
  */
 extern int blk_mq_sysfs_register(struct request_queue *q);
 extern void blk_mq_sysfs_unregister(struct request_queue *q);
+
+extern void blk_mq_rq_timed_out(struct request *req, bool reserved);
 
 /*
  * Basic implementation of sparser bitmap, allowing the user to spread
@@ -112,6 +113,11 @@ static inline void blk_mq_set_alloc_data(struct blk_mq_alloc_data *data,
 	data->reserved = reserved;
 	data->ctx = ctx;
 	data->hctx = hctx;
+}
+
+static inline bool blk_mq_hw_queue_mapped(struct blk_mq_hw_ctx *hctx)
+{
+	return hctx->nr_ctx && hctx->tags;
 }
 
 #endif

@@ -320,10 +320,7 @@ static int rmi_f11_input_event(struct hid_device *hdev, u8 irq, u8 *data,
 	int offset;
 	int i;
 
-	if (size < hdata->f11.report_size)
-		return 0;
-
-	if (!(irq & hdata->f11.irq_mask))
+	if (!(irq & hdata->f11.irq_mask) || size <= 0)
 		return 0;
 
 	offset = (hdata->max_fingers >> 2) + 1;
@@ -332,9 +329,19 @@ static int rmi_f11_input_event(struct hid_device *hdev, u8 irq, u8 *data,
 		int fs_bit_position = (i & 0x3) << 1;
 		int finger_state = (data[fs_byte_position] >> fs_bit_position) &
 					0x03;
+		int position = offset + 5 * i;
 
-		rmi_f11_process_touch(hdata, i, finger_state,
-				&data[offset + 5 * i]);
+		if (position + 5 > size) {
+			/* partial report, go on with what we received */
+			printk_once(KERN_WARNING
+				"%s %s: Detected incomplete finger report. Finger reports may occasionally get dropped on this platform.\n",
+				 dev_driver_string(&hdev->dev),
+				 dev_name(&hdev->dev));
+			hid_dbg(hdev, "Incomplete finger report\n");
+			break;
+		}
+
+		rmi_f11_process_touch(hdata, i, finger_state, &data[position]);
 	}
 	input_mt_sync_frame(hdata->input);
 	input_sync(hdata->input);
@@ -351,6 +358,11 @@ static int rmi_f30_input_event(struct hid_device *hdev, u8 irq, u8 *data,
 
 	if (!(irq & hdata->f30.irq_mask))
 		return 0;
+
+	if (size < (int)hdata->f30.report_size) {
+		hid_warn(hdev, "Click Button pressed, but the click data is missing\n");
+		return 0;
+	}
 
 	for (i = 0; i < hdata->gpio_led_count; i++) {
 		if (test_bit(i, &hdata->button_mask)) {
@@ -412,9 +424,29 @@ static int rmi_read_data_event(struct hid_device *hdev, u8 *data, int size)
 	return 1;
 }
 
+static int rmi_check_sanity(struct hid_device *hdev, u8 *data, int size)
+{
+	int valid_size = size;
+	/*
+	 * On the Dell XPS 13 9333, the bus sometimes get confused and fills
+	 * the report with a sentinel value "ff". Synaptics told us that such
+	 * behavior does not comes from the touchpad itself, so we filter out
+	 * such reports here.
+	 */
+
+	while ((data[valid_size - 1] == 0xff) && valid_size > 0)
+		valid_size--;
+
+	return valid_size;
+}
+
 static int rmi_raw_event(struct hid_device *hdev,
 		struct hid_report *report, u8 *data, int size)
 {
+	size = rmi_check_sanity(hdev, data, size);
+	if (size < 2)
+		return 0;
+
 	switch (data[0]) {
 	case RMI_READ_DATA_REPORT_ID:
 		return rmi_read_data_event(hdev, data, size);
@@ -552,11 +584,15 @@ static int rmi_populate_f11(struct hid_device *hdev)
 	bool has_query10 = false;
 	bool has_query11;
 	bool has_query12;
+	bool has_query27;
+	bool has_query28;
+	bool has_query36 = false;
 	bool has_physical_props;
 	bool has_gestures;
 	bool has_rel;
+	bool has_data40 = false;
 	unsigned x_size, y_size;
-	u16 query12_offset;
+	u16 query_offset;
 
 	if (!data->f11.query_base_addr) {
 		hid_err(hdev, "No 2D sensor found, giving up.\n");
@@ -572,6 +608,8 @@ static int rmi_populate_f11(struct hid_device *hdev)
 	has_query9 = !!(buf[0] & BIT(3));
 	has_query11 = !!(buf[0] & BIT(4));
 	has_query12 = !!(buf[0] & BIT(5));
+	has_query27 = !!(buf[0] & BIT(6));
+	has_query28 = !!(buf[0] & BIT(7));
 
 	/* query 1 to get the max number of fingers */
 	ret = rmi_read(hdev, data->f11.query_base_addr + 1, buf);
@@ -594,43 +632,43 @@ static int rmi_populate_f11(struct hid_device *hdev)
 	has_rel = !!(buf[0] & BIT(3));
 	has_gestures = !!(buf[0] & BIT(5));
 
+	/*
+	 * At least 4 queries are guaranteed to be present in F11
+	 * +1 for query 5 which is present since absolute events are
+	 * reported and +1 for query 12.
+	 */
+	query_offset = 6;
+
+	if (has_rel)
+		++query_offset; /* query 6 is present */
+
 	if (has_gestures) {
 		/* query 8 to find out if query 10 exists */
-		ret = rmi_read(hdev, data->f11.query_base_addr + 8, buf);
+		ret = rmi_read(hdev,
+			data->f11.query_base_addr + query_offset + 1, buf);
 		if (ret) {
 			hid_err(hdev, "can not read gesture information: %d.\n",
 				ret);
 			return ret;
 		}
 		has_query10 = !!(buf[0] & BIT(2));
+
+		query_offset += 2; /* query 7 and 8 are present */
 	}
 
-	/*
-	 * At least 4 queries are guaranteed to be present in F11
-	 * +1 for query 5 which is present since absolute events are
-	 * reported and +1 for query 12.
-	 */
-	query12_offset = 6;
-
-	if (has_rel)
-		++query12_offset; /* query 6 is present */
-
-	if (has_gestures)
-		query12_offset += 2; /* query 7 and 8 are present */
-
 	if (has_query9)
-		++query12_offset;
+		++query_offset;
 
 	if (has_query10)
-		++query12_offset;
+		++query_offset;
 
 	if (has_query11)
-		++query12_offset;
+		++query_offset;
 
 	/* query 12 to know if the physical properties are reported */
 	if (has_query12) {
 		ret = rmi_read(hdev, data->f11.query_base_addr
-				+ query12_offset, buf);
+				+ query_offset, buf);
 		if (ret) {
 			hid_err(hdev, "can not get query 12: %d.\n", ret);
 			return ret;
@@ -638,9 +676,10 @@ static int rmi_populate_f11(struct hid_device *hdev)
 		has_physical_props = !!(buf[0] & BIT(5));
 
 		if (has_physical_props) {
+			query_offset += 1;
 			ret = rmi_read_block(hdev,
 					data->f11.query_base_addr
-						+ query12_offset + 1, buf, 4);
+						+ query_offset, buf, 4);
 			if (ret) {
 				hid_err(hdev, "can not read query 15-18: %d.\n",
 					ret);
@@ -655,8 +694,44 @@ static int rmi_populate_f11(struct hid_device *hdev)
 
 			hid_info(hdev, "%s: size in mm: %d x %d\n",
 				 __func__, data->x_size_mm, data->y_size_mm);
+
+			/*
+			 * query 15 - 18 contain the size of the sensor
+			 * and query 19 - 26 contain bezel dimensions
+			 */
+			query_offset += 12;
 		}
 	}
+
+	if (has_query27)
+		++query_offset;
+
+	if (has_query28) {
+		ret = rmi_read(hdev, data->f11.query_base_addr
+				+ query_offset, buf);
+		if (ret) {
+			hid_err(hdev, "can not get query 28: %d.\n", ret);
+			return ret;
+		}
+
+		has_query36 = !!(buf[0] & BIT(6));
+	}
+
+	if (has_query36) {
+		query_offset += 2;
+		ret = rmi_read(hdev, data->f11.query_base_addr
+				+ query_offset, buf);
+		if (ret) {
+			hid_err(hdev, "can not get query 36: %d.\n", ret);
+			return ret;
+		}
+
+		has_data40 = !!(buf[0] & BIT(5));
+	}
+
+
+	if (has_data40)
+		data->f11.report_size += data->max_fingers * 2;
 
 	/*
 	 * retrieve the ctrl registers

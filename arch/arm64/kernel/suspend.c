@@ -5,26 +5,24 @@
 #include <asm/debug-monitors.h>
 #include <asm/pgtable.h>
 #include <asm/memory.h>
+#include <asm/mmu_context.h>
 #include <asm/smp_plat.h>
 #include <asm/suspend.h>
 #include <asm/tlbflush.h>
 
-extern int __cpu_suspend(unsigned long);
+extern int __cpu_suspend_enter(unsigned long arg, int (*fn)(unsigned long));
 /*
- * This is called by __cpu_suspend() to save the state, and do whatever
+ * This is called by __cpu_suspend_enter() to save the state, and do whatever
  * flushing is required to ensure that when the CPU goes to sleep we have
  * the necessary data available when the caches are not searched.
  *
- * @arg: Argument to pass to suspend operations
- * @ptr: CPU context virtual address
- * @save_ptr: address of the location where the context physical address
- *            must be saved
+ * ptr: CPU context virtual address
+ * save_ptr: address of the location where the context physical address
+ *           must be saved
  */
-int __cpu_suspend_finisher(unsigned long arg, struct cpu_suspend_ctx *ptr,
-			   phys_addr_t *save_ptr)
+void notrace __cpu_suspend_save(struct cpu_suspend_ctx *ptr,
+				phys_addr_t *save_ptr)
 {
-	int cpu = smp_processor_id();
-
 	*save_ptr = virt_to_phys(ptr);
 
 	cpu_do_suspend(ptr);
@@ -35,8 +33,6 @@ int __cpu_suspend_finisher(unsigned long arg, struct cpu_suspend_ctx *ptr,
 	 */
 	__flush_dcache_area(ptr, sizeof(*ptr));
 	__flush_dcache_area(save_ptr, sizeof(*save_ptr));
-
-	return cpu_ops[cpu]->cpu_suspend(arg);
 }
 
 /*
@@ -56,15 +52,15 @@ void __init cpu_suspend_set_dbg_restorer(void (*hw_bp_restore)(void *))
 }
 
 /**
- * cpu_suspend
+ * cpu_suspend() - function to enter a low-power state
+ * @arg: argument to pass to CPU suspend operations
  *
- * @arg: argument to pass to the finisher function
+ * Return: 0 on success, -EOPNOTSUPP if CPU suspend hook not initialized, CPU
+ * operations back-end error code otherwise.
  */
 int cpu_suspend(unsigned long arg)
 {
-	struct mm_struct *mm = current->active_mm;
-	int ret, cpu = smp_processor_id();
-	unsigned long flags;
+	int cpu = smp_processor_id();
 
 	/*
 	 * If cpu_ops have not been registered or suspend
@@ -72,6 +68,21 @@ int cpu_suspend(unsigned long arg)
 	 */
 	if (!cpu_ops[cpu] || !cpu_ops[cpu]->cpu_suspend)
 		return -EOPNOTSUPP;
+	return cpu_ops[cpu]->cpu_suspend(arg);
+}
+
+/*
+ * __cpu_suspend
+ *
+ * arg: argument to pass to the finisher function
+ * fn: finisher function pointer
+ *
+ */
+int __cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
+{
+	struct mm_struct *mm = current->active_mm;
+	int ret;
+	unsigned long flags;
 
 	/*
 	 * From this point debug exceptions are disabled to prevent
@@ -86,16 +97,27 @@ int cpu_suspend(unsigned long arg)
 	 * page tables, so that the thread address space is properly
 	 * set-up on function return.
 	 */
-	ret = __cpu_suspend(arg);
+	ret = __cpu_suspend_enter(arg, fn);
 	if (ret == 0) {
-		cpu_switch_mm(mm->pgd, mm);
+		/*
+		 * We are resuming from reset with TTBR0_EL1 set to the
+		 * idmap to enable the MMU; restore the active_mm mappings in
+		 * TTBR0_EL1 unless the active_mm == &init_mm, in which case
+		 * the thread entered __cpu_suspend with TTBR0_EL1 set to
+		 * reserved TTBR0 page tables and should be restored as such.
+		 */
+		if (mm == &init_mm)
+			cpu_set_reserved_ttbr0();
+		else
+			cpu_switch_mm(mm->pgd, mm);
+
 		flush_tlb_all();
 
 		/*
 		 * Restore per-cpu offset before any kernel
 		 * subsystem relying on it has a chance to run.
 		 */
-		set_my_cpu_offset(per_cpu_offset(cpu));
+		set_my_cpu_offset(per_cpu_offset(smp_processor_id()));
 
 		/*
 		 * Restore HW breakpoint registers to sane values
@@ -116,8 +138,8 @@ int cpu_suspend(unsigned long arg)
 	return ret;
 }
 
-extern struct sleep_save_sp sleep_save_sp;
-extern phys_addr_t sleep_idmap_phys;
+struct sleep_save_sp sleep_save_sp;
+phys_addr_t sleep_idmap_phys;
 
 static int __init cpu_suspend_init(void)
 {

@@ -255,4 +255,31 @@
  */
 #define CLK_NR_CLKS			248
 
+/*
+ * CMU DMC
+ */
+
+#define CLK_FOUT_BPLL			1
+#define CLK_FOUT_EPLL			2
+
+/* Muxes */
+#define CLK_MOUT_MPLL_MIF		8
+#define CLK_MOUT_BPLL			9
+#define CLK_MOUT_DPHY			10
+#define CLK_MOUT_DMC_BUS		11
+#define CLK_MOUT_EPLL			12
+
+/* Dividers */
+#define CLK_DIV_DMC			16
+#define CLK_DIV_DPHY			17
+#define CLK_DIV_DMC_PRE			18
+#define CLK_DIV_DMCP			19
+#define CLK_DIV_DMCD			20
+
+/*
+ * Total number of clocks of main CMU.
+ * NOTE: Must be equal to last clock ID increased by one.
+ */
+#define NR_CLKS_DMC			21
+
 #endif /* _DT_BINDINGS_CLOCK_SAMSUNG_EXYNOS3250_CLOCK_H */

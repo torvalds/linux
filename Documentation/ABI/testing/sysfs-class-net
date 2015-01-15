@@ -159,7 +159,7 @@ Description:
 		lower-level interface protocol used. Ethernet devices will show
 		a 'mtu' attribute value of 1500 unless changed.
 
-What:		/sys/calss/net/<iface>/netdev_group
+What:		/sys/class/net/<iface>/netdev_group
 Date:		January 2011
 KernelVersion:	2.6.39
 Contact:	netdev@vger.kernel.org
@@ -216,3 +216,11 @@ Contact:	netdev@vger.kernel.org
 Description:
 		Indicates the interface protocol type as a decimal value. See
 		include/uapi/linux/if_arp.h for all possible values.
+
+What:		/sys/class/net/<iface>/phys_switch_id
+Date:		November 2014
+KernelVersion:	3.19
+Contact:	netdev@vger.kernel.org
+Description:
+		Indicates the unique physical switch identifier of a switch this
+		port belongs to, as a string.

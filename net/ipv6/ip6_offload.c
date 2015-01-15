@@ -46,36 +46,12 @@ static int ipv6_gso_pull_exthdrs(struct sk_buff *skb, int proto)
 		if (unlikely(!pskb_may_pull(skb, len)))
 			break;
 
+		opth = (void *)skb->data;
 		proto = opth->nexthdr;
 		__skb_pull(skb, len);
 	}
 
 	return proto;
-}
-
-static int ipv6_gso_send_check(struct sk_buff *skb)
-{
-	const struct ipv6hdr *ipv6h;
-	const struct net_offload *ops;
-	int err = -EINVAL;
-
-	if (unlikely(!pskb_may_pull(skb, sizeof(*ipv6h))))
-		goto out;
-
-	ipv6h = ipv6_hdr(skb);
-	__skb_pull(skb, sizeof(*ipv6h));
-	err = -EPROTONOSUPPORT;
-
-	ops = rcu_dereference(inet6_offloads[
-		ipv6_gso_pull_exthdrs(skb, ipv6h->nexthdr)]);
-
-	if (likely(ops && ops->callbacks.gso_send_check)) {
-		skb_reset_transport_header(skb);
-		err = ops->callbacks.gso_send_check(skb);
-	}
-
-out:
-	return err;
 }
 
 static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
@@ -93,7 +69,8 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 	int nhoff;
 
 	if (unlikely(skb_shinfo(skb)->gso_type &
-		     ~(SKB_GSO_UDP |
+		     ~(SKB_GSO_TCPV4 |
+		       SKB_GSO_UDP |
 		       SKB_GSO_DODGY |
 		       SKB_GSO_TCP_ECN |
 		       SKB_GSO_GRE |
@@ -102,7 +79,7 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 		       SKB_GSO_SIT |
 		       SKB_GSO_UDP_TUNNEL |
 		       SKB_GSO_UDP_TUNNEL_CSUM |
-		       SKB_GSO_MPLS |
+		       SKB_GSO_TUNNEL_REMCSUM |
 		       SKB_GSO_TCPV6 |
 		       0)))
 		goto out;
@@ -114,7 +91,7 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 
 	encap = SKB_GSO_CB(skb)->encap_level > 0;
 	if (encap)
-		features = skb->dev->hw_enc_features & netif_skb_features(skb);
+		features &= skb->dev->hw_enc_features;
 	SKB_GSO_CB(skb)->encap_level += sizeof(*ipv6h);
 
 	ipv6h = ipv6_hdr(skb);
@@ -244,7 +221,7 @@ static struct sk_buff **ipv6_gro_receive(struct sk_buff **head,
 			continue;
 
 		iph2 = (struct ipv6hdr *)(p->data + off);
-		first_word = *(__be32 *)iph ^ *(__be32 *)iph2 ;
+		first_word = *(__be32 *)iph ^ *(__be32 *)iph2;
 
 		/* All fields must match except length and Traffic Class.
 		 * XXX skbs on the gro_list have all been parsed and pulled
@@ -261,6 +238,9 @@ static struct sk_buff **ipv6_gro_receive(struct sk_buff **head,
 		/* flush if Traffic Class fields are different */
 		NAPI_GRO_CB(p)->flush |= !!(first_word & htonl(0x0FF00000));
 		NAPI_GRO_CB(p)->flush |= flush;
+
+		/* Clear flush_id, there's really no concept of ID in IPv6. */
+		NAPI_GRO_CB(p)->flush_id = 0;
 	}
 
 	NAPI_GRO_CB(skb)->flush |= flush;
@@ -303,7 +283,6 @@ out_unlock:
 static struct packet_offload ipv6_packet_offload __read_mostly = {
 	.type = cpu_to_be16(ETH_P_IPV6),
 	.callbacks = {
-		.gso_send_check = ipv6_gso_send_check,
 		.gso_segment = ipv6_gso_segment,
 		.gro_receive = ipv6_gro_receive,
 		.gro_complete = ipv6_gro_complete,
@@ -312,8 +291,9 @@ static struct packet_offload ipv6_packet_offload __read_mostly = {
 
 static const struct net_offload sit_offload = {
 	.callbacks = {
-		.gso_send_check = ipv6_gso_send_check,
 		.gso_segment	= ipv6_gso_segment,
+		.gro_receive	= ipv6_gro_receive,
+		.gro_complete	= ipv6_gro_complete,
 	},
 };
 

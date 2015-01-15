@@ -395,7 +395,6 @@ static struct platform_driver wm831x_clk_driver = {
 	.probe = wm831x_clk_probe,
 	.driver		= {
 		.name	= "wm831x-clk",
-		.owner	= THIS_MODULE,
 	},
 };
 

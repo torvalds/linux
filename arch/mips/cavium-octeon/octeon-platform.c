@@ -7,22 +7,27 @@
  * Copyright (C) 2008 Wind River Systems
  */
 
+#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/i2c.h>
 #include <linux/usb.h>
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/of_platform.h>
 #include <linux/of_fdt.h>
 #include <linux/libfdt.h>
+#include <linux/usb/ehci_pdriver.h>
+#include <linux/usb/ohci_pdriver.h>
 
 #include <asm/octeon/octeon.h>
 #include <asm/octeon/cvmx-rnm-defs.h>
 #include <asm/octeon/cvmx-helper.h>
 #include <asm/octeon/cvmx-helper-board.h>
+#include <asm/octeon/cvmx-uctlx-defs.h>
 
 /* Octeon Random Number Generator.  */
 static int __init octeon_rng_device_init(void)
@@ -68,6 +73,229 @@ device_initcall(octeon_rng_device_init);
 
 #ifdef CONFIG_USB
 
+static DEFINE_MUTEX(octeon2_usb_clocks_mutex);
+
+static int octeon2_usb_clock_start_cnt;
+
+static void octeon2_usb_clocks_start(void)
+{
+	u64 div;
+	union cvmx_uctlx_if_ena if_ena;
+	union cvmx_uctlx_clk_rst_ctl clk_rst_ctl;
+	union cvmx_uctlx_uphy_ctl_status uphy_ctl_status;
+	union cvmx_uctlx_uphy_portx_ctl_status port_ctl_status;
+	int i;
+	unsigned long io_clk_64_to_ns;
+
+
+	mutex_lock(&octeon2_usb_clocks_mutex);
+
+	octeon2_usb_clock_start_cnt++;
+	if (octeon2_usb_clock_start_cnt != 1)
+		goto exit;
+
+	io_clk_64_to_ns = 64000000000ull / octeon_get_io_clock_rate();
+
+	/*
+	 * Step 1: Wait for voltages stable.  That surely happened
+	 * before starting the kernel.
+	 *
+	 * Step 2: Enable  SCLK of UCTL by writing UCTL0_IF_ENA[EN] = 1
+	 */
+	if_ena.u64 = 0;
+	if_ena.s.en = 1;
+	cvmx_write_csr(CVMX_UCTLX_IF_ENA(0), if_ena.u64);
+
+	/* Step 3: Configure the reference clock, PHY, and HCLK */
+	clk_rst_ctl.u64 = cvmx_read_csr(CVMX_UCTLX_CLK_RST_CTL(0));
+
+	/*
+	 * If the UCTL looks like it has already been started, skip
+	 * the initialization, otherwise bus errors are obtained.
+	 */
+	if (clk_rst_ctl.s.hrst)
+		goto end_clock;
+	/* 3a */
+	clk_rst_ctl.s.p_por = 1;
+	clk_rst_ctl.s.hrst = 0;
+	clk_rst_ctl.s.p_prst = 0;
+	clk_rst_ctl.s.h_clkdiv_rst = 0;
+	clk_rst_ctl.s.o_clkdiv_rst = 0;
+	clk_rst_ctl.s.h_clkdiv_en = 0;
+	clk_rst_ctl.s.o_clkdiv_en = 0;
+	cvmx_write_csr(CVMX_UCTLX_CLK_RST_CTL(0), clk_rst_ctl.u64);
+
+	/* 3b */
+	/* 12MHz crystal. */
+	clk_rst_ctl.s.p_refclk_sel = 0;
+	clk_rst_ctl.s.p_refclk_div = 0;
+	cvmx_write_csr(CVMX_UCTLX_CLK_RST_CTL(0), clk_rst_ctl.u64);
+
+	/* 3c */
+	div = octeon_get_io_clock_rate() / 130000000ull;
+
+	switch (div) {
+	case 0:
+		div = 1;
+		break;
+	case 1:
+	case 2:
+	case 3:
+	case 4:
+		break;
+	case 5:
+		div = 4;
+		break;
+	case 6:
+	case 7:
+		div = 6;
+		break;
+	case 8:
+	case 9:
+	case 10:
+	case 11:
+		div = 8;
+		break;
+	default:
+		div = 12;
+		break;
+	}
+	clk_rst_ctl.s.h_div = div;
+	cvmx_write_csr(CVMX_UCTLX_CLK_RST_CTL(0), clk_rst_ctl.u64);
+	/* Read it back, */
+	clk_rst_ctl.u64 = cvmx_read_csr(CVMX_UCTLX_CLK_RST_CTL(0));
+	clk_rst_ctl.s.h_clkdiv_en = 1;
+	cvmx_write_csr(CVMX_UCTLX_CLK_RST_CTL(0), clk_rst_ctl.u64);
+	/* 3d */
+	clk_rst_ctl.s.h_clkdiv_rst = 1;
+	cvmx_write_csr(CVMX_UCTLX_CLK_RST_CTL(0), clk_rst_ctl.u64);
+
+	/* 3e: delay 64 io clocks */
+	ndelay(io_clk_64_to_ns);
+
+	/*
+	 * Step 4: Program the power-on reset field in the UCTL
+	 * clock-reset-control register.
+	 */
+	clk_rst_ctl.s.p_por = 0;
+	cvmx_write_csr(CVMX_UCTLX_CLK_RST_CTL(0), clk_rst_ctl.u64);
+
+	/* Step 5:    Wait 1 ms for the PHY clock to start. */
+	mdelay(1);
+
+	/*
+	 * Step 6: Program the reset input from automatic test
+	 * equipment field in the UPHY CSR
+	 */
+	uphy_ctl_status.u64 = cvmx_read_csr(CVMX_UCTLX_UPHY_CTL_STATUS(0));
+	uphy_ctl_status.s.ate_reset = 1;
+	cvmx_write_csr(CVMX_UCTLX_UPHY_CTL_STATUS(0), uphy_ctl_status.u64);
+
+	/* Step 7: Wait for at least 10ns. */
+	ndelay(10);
+
+	/* Step 8: Clear the ATE_RESET field in the UPHY CSR. */
+	uphy_ctl_status.s.ate_reset = 0;
+	cvmx_write_csr(CVMX_UCTLX_UPHY_CTL_STATUS(0), uphy_ctl_status.u64);
+
+	/*
+	 * Step 9: Wait for at least 20ns for UPHY to output PHY clock
+	 * signals and OHCI_CLK48
+	 */
+	ndelay(20);
+
+	/* Step 10: Configure the OHCI_CLK48 and OHCI_CLK12 clocks. */
+	/* 10a */
+	clk_rst_ctl.s.o_clkdiv_rst = 1;
+	cvmx_write_csr(CVMX_UCTLX_CLK_RST_CTL(0), clk_rst_ctl.u64);
+
+	/* 10b */
+	clk_rst_ctl.s.o_clkdiv_en = 1;
+	cvmx_write_csr(CVMX_UCTLX_CLK_RST_CTL(0), clk_rst_ctl.u64);
+
+	/* 10c */
+	ndelay(io_clk_64_to_ns);
+
+	/*
+	 * Step 11: Program the PHY reset field:
+	 * UCTL0_CLK_RST_CTL[P_PRST] = 1
+	 */
+	clk_rst_ctl.s.p_prst = 1;
+	cvmx_write_csr(CVMX_UCTLX_CLK_RST_CTL(0), clk_rst_ctl.u64);
+
+	/* Step 12: Wait 1 uS. */
+	udelay(1);
+
+	/* Step 13: Program the HRESET_N field: UCTL0_CLK_RST_CTL[HRST] = 1 */
+	clk_rst_ctl.s.hrst = 1;
+	cvmx_write_csr(CVMX_UCTLX_CLK_RST_CTL(0), clk_rst_ctl.u64);
+
+end_clock:
+	/* Now we can set some other registers.  */
+
+	for (i = 0; i <= 1; i++) {
+		port_ctl_status.u64 =
+			cvmx_read_csr(CVMX_UCTLX_UPHY_PORTX_CTL_STATUS(i, 0));
+		/* Set txvreftune to 15 to obtain compliant 'eye' diagram. */
+		port_ctl_status.s.txvreftune = 15;
+		port_ctl_status.s.txrisetune = 1;
+		port_ctl_status.s.txpreemphasistune = 1;
+		cvmx_write_csr(CVMX_UCTLX_UPHY_PORTX_CTL_STATUS(i, 0),
+			       port_ctl_status.u64);
+	}
+
+	/* Set uSOF cycle period to 60,000 bits. */
+	cvmx_write_csr(CVMX_UCTLX_EHCI_FLA(0), 0x20ull);
+exit:
+	mutex_unlock(&octeon2_usb_clocks_mutex);
+}
+
+static void octeon2_usb_clocks_stop(void)
+{
+	mutex_lock(&octeon2_usb_clocks_mutex);
+	octeon2_usb_clock_start_cnt--;
+	mutex_unlock(&octeon2_usb_clocks_mutex);
+}
+
+static int octeon_ehci_power_on(struct platform_device *pdev)
+{
+	octeon2_usb_clocks_start();
+	return 0;
+}
+
+static void octeon_ehci_power_off(struct platform_device *pdev)
+{
+	octeon2_usb_clocks_stop();
+}
+
+static struct usb_ehci_pdata octeon_ehci_pdata = {
+	/* Octeon EHCI matches CPU endianness. */
+#ifdef __BIG_ENDIAN
+	.big_endian_mmio	= 1,
+#endif
+	.power_on	= octeon_ehci_power_on,
+	.power_off	= octeon_ehci_power_off,
+};
+
+static void __init octeon_ehci_hw_start(void)
+{
+	union cvmx_uctlx_ehci_ctl ehci_ctl;
+
+	octeon2_usb_clocks_start();
+
+	ehci_ctl.u64 = cvmx_read_csr(CVMX_UCTLX_EHCI_CTL(0));
+	/* Use 64-bit addressing. */
+	ehci_ctl.s.ehci_64b_addr_en = 1;
+	ehci_ctl.s.l2c_addr_msb = 0;
+	ehci_ctl.s.l2c_buff_emod = 1; /* Byte swapped. */
+	ehci_ctl.s.l2c_desc_emod = 1; /* Byte swapped. */
+	cvmx_write_csr(CVMX_UCTLX_EHCI_CTL(0), ehci_ctl.u64);
+
+	octeon2_usb_clocks_stop();
+}
+
+static u64 octeon_ehci_dma_mask = DMA_BIT_MASK(64);
+
 static int __init octeon_ehci_device_init(void)
 {
 	struct platform_device *pd;
@@ -88,7 +316,7 @@ static int __init octeon_ehci_device_init(void)
 	if (octeon_is_simulation() || usb_disabled())
 		return 0; /* No USB in the simulator. */
 
-	pd = platform_device_alloc("octeon-ehci", 0);
+	pd = platform_device_alloc("ehci-platform", 0);
 	if (!pd) {
 		ret = -ENOMEM;
 		goto out;
@@ -105,6 +333,10 @@ static int __init octeon_ehci_device_init(void)
 	if (ret)
 		goto fail;
 
+	pd->dev.dma_mask = &octeon_ehci_dma_mask;
+	pd->dev.platform_data = &octeon_ehci_pdata;
+	octeon_ehci_hw_start();
+
 	ret = platform_device_add(pd);
 	if (ret)
 		goto fail;
@@ -116,6 +348,41 @@ out:
 	return ret;
 }
 device_initcall(octeon_ehci_device_init);
+
+static int octeon_ohci_power_on(struct platform_device *pdev)
+{
+	octeon2_usb_clocks_start();
+	return 0;
+}
+
+static void octeon_ohci_power_off(struct platform_device *pdev)
+{
+	octeon2_usb_clocks_stop();
+}
+
+static struct usb_ohci_pdata octeon_ohci_pdata = {
+	/* Octeon OHCI matches CPU endianness. */
+#ifdef __BIG_ENDIAN
+	.big_endian_mmio	= 1,
+#endif
+	.power_on	= octeon_ohci_power_on,
+	.power_off	= octeon_ohci_power_off,
+};
+
+static void __init octeon_ohci_hw_start(void)
+{
+	union cvmx_uctlx_ohci_ctl ohci_ctl;
+
+	octeon2_usb_clocks_start();
+
+	ohci_ctl.u64 = cvmx_read_csr(CVMX_UCTLX_OHCI_CTL(0));
+	ohci_ctl.s.l2c_addr_msb = 0;
+	ohci_ctl.s.l2c_buff_emod = 1; /* Byte swapped. */
+	ohci_ctl.s.l2c_desc_emod = 1; /* Byte swapped. */
+	cvmx_write_csr(CVMX_UCTLX_OHCI_CTL(0), ohci_ctl.u64);
+
+	octeon2_usb_clocks_stop();
+}
 
 static int __init octeon_ohci_device_init(void)
 {
@@ -137,7 +404,7 @@ static int __init octeon_ohci_device_init(void)
 	if (octeon_is_simulation() || usb_disabled())
 		return 0; /* No USB in the simulator. */
 
-	pd = platform_device_alloc("octeon-ohci", 0);
+	pd = platform_device_alloc("ohci-platform", 0);
 	if (!pd) {
 		ret = -ENOMEM;
 		goto out;
@@ -153,6 +420,9 @@ static int __init octeon_ohci_device_init(void)
 					    ARRAY_SIZE(usb_resources));
 	if (ret)
 		goto fail;
+
+	pd->dev.platform_data = &octeon_ohci_pdata;
+	octeon_ohci_hw_start();
 
 	ret = platform_device_add(pd);
 	if (ret)

@@ -106,8 +106,8 @@ struct inode *search_inode_for_lustre(struct super_block *sb,
 
 	/* Because inode is NULL, ll_prep_md_op_data can not
 	 * be used here. So we allocate op_data ourselves */
-	OBD_ALLOC_PTR(op_data);
-	if (op_data == NULL)
+	op_data = kzalloc(sizeof(*op_data), GFP_NOFS);
+	if (!op_data)
 		return ERR_PTR(-ENOMEM);
 
 	op_data->op_fid1 = *fid;
@@ -207,13 +207,15 @@ static int ll_encode_fh(struct inode *inode, __u32 *fh, int *plen,
 	return LUSTRE_NFS_FID;
 }
 
-static int ll_nfs_get_name_filldir(void *cookie, const char *name, int namelen,
-				   loff_t hash, u64 ino, unsigned type)
+static int ll_nfs_get_name_filldir(struct dir_context *ctx, const char *name,
+				   int namelen, loff_t hash, u64 ino,
+				   unsigned type)
 {
 	/* It is hack to access lde_fid for comparison with lgd_fid.
 	 * So the input 'name' must be part of the 'lu_dirent'. */
 	struct lu_dirent *lde = container_of0(name, struct lu_dirent, lde_name);
-	struct ll_getname_data *lgd = cookie;
+	struct ll_getname_data *lgd =
+		container_of(ctx, struct ll_getname_data, ctx);
 	struct lu_fid fid;
 
 	fid_le_to_cpu(&fid, &lde->lde_fid);
@@ -236,11 +238,15 @@ static int ll_get_name(struct dentry *dentry, char *name,
 		.ctx.actor = ll_nfs_get_name_filldir,
 	};
 
-	if (!dir || !S_ISDIR(dir->i_mode))
-		GOTO(out, rc = -ENOTDIR);
+	if (!dir || !S_ISDIR(dir->i_mode)) {
+		rc = -ENOTDIR;
+		goto out;
+	}
 
-	if (!dir->i_fop)
-		GOTO(out, rc = -EINVAL);
+	if (!dir->i_fop) {
+		rc = -EINVAL;
+		goto out;
+	}
 
 	mutex_lock(&dir->i_mutex);
 	rc = ll_dir_read(dir, &lgd.ctx);

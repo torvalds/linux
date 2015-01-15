@@ -3733,7 +3733,6 @@ static struct platform_driver ab8500_charger_driver = {
 	.resume = ab8500_charger_resume,
 	.driver = {
 		.name = "ab8500-charger",
-		.owner = THIS_MODULE,
 		.of_match_table = ab8500_charger_match,
 	},
 };

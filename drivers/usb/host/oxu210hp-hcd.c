@@ -2046,7 +2046,7 @@ static void intr_deschedule(struct oxu_hcd *oxu, struct ehci_qh *qh)
 
 	/* simple/paranoid:  always delay, expecting the HC needs to read
 	 * qh->hw_next or finish a writeback after SPLIT/CSPLIT ... and
-	 * expect khubd to clean up after any CSPLITs we won't issue.
+	 * expect hub_wq to clean up after any CSPLITs we won't issue.
 	 * active high speed queues may need bigger delays...
 	 */
 	if (list_empty(&qh->qtd_list)
@@ -2501,7 +2501,7 @@ static irqreturn_t oxu210_hcd_irq(struct usb_hcd *hcd)
 				continue;
 
 			/* start 20 msec resume signaling from this port,
-			 * and make khubd collect PORT_STAT_C_SUSPEND to
+			 * and make hub_wq collect PORT_STAT_C_SUSPEND to
 			 * stop that signaling.
 			 */
 			oxu->reset_done[i] = jiffies + msecs_to_jiffies(20);
@@ -3087,7 +3087,7 @@ static int oxu_hub_status_data(struct usb_hcd *hcd, char *buf)
 	int ports, i, retval = 1;
 	unsigned long flags;
 
-	/* if !PM_RUNTIME, root hub timers won't get shut down ... */
+	/* if !PM, root hub timers won't get shut down ... */
 	if (!HC_IS_RUNNING(hcd->state))
 		return 0;
 
@@ -3119,7 +3119,7 @@ static int oxu_hub_status_data(struct usb_hcd *hcd, char *buf)
 
 		/*
 		 * Return status information even for ports with OWNER set.
-		 * Otherwise khubd wouldn't see the disconnect event when a
+		 * Otherwise hub_wq wouldn't see the disconnect event when a
 		 * high-speed device is switched over to the companion
 		 * controller by the user.
 		 */
@@ -3194,7 +3194,7 @@ static int oxu_hub_control(struct usb_hcd *hcd, u16 typeReq,
 
 		/*
 		 * Even if OWNER is set, so the port is owned by the
-		 * companion controller, khubd needs to be able to clear
+		 * companion controller, hub_wq needs to be able to clear
 		 * the port-change status bits (especially
 		 * USB_PORT_STAT_C_CONNECTION).
 		 */
@@ -3336,7 +3336,7 @@ static int oxu_hub_control(struct usb_hcd *hcd, u16 typeReq,
 		}
 
 		/*
-		 * Even if OWNER is set, there's no harm letting khubd
+		 * Even if OWNER is set, there's no harm letting hub_wq
 		 * see the wPortStatus values (they should all be 0 except
 		 * for PORT_POWER anyway).
 		 */
@@ -3846,7 +3846,6 @@ static int oxu_drv_probe(struct platform_device *pdev)
 	 */
 	info = devm_kzalloc(&pdev->dev, sizeof(struct oxu_info), GFP_KERNEL);
 	if (!info) {
-		dev_dbg(&pdev->dev, "error allocating memory\n");
 		ret = -EFAULT;
 		goto error;
 	}

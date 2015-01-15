@@ -267,7 +267,6 @@ static struct platform_driver davinci_vcif_driver = {
 	.remove		= davinci_vcif_remove,
 	.driver		= {
 		.name	= "davinci-vcif",
-		.owner	= THIS_MODULE,
 	},
 };
 

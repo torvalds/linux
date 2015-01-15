@@ -44,6 +44,7 @@
 
 #include <target/target_core_base.h>
 #include <target/target_core_backend.h>
+#include <target/target_core_backend_configfs.h>
 
 #include "target_core_alua.h"
 #include "target_core_pscsi.h"
@@ -749,14 +750,18 @@ static ssize_t pscsi_set_configfs_dev_params(struct se_device *dev,
 				ret = -EINVAL;
 				goto out;
 			}
-			match_int(args, &arg);
+			ret = match_int(args, &arg);
+			if (ret)
+				goto out;
 			pdv->pdv_host_id = arg;
 			pr_debug("PSCSI[%d]: Referencing SCSI Host ID:"
 				" %d\n", phv->phv_host_id, pdv->pdv_host_id);
 			pdv->pdv_flags |= PDF_HAS_VIRT_HOST_ID;
 			break;
 		case Opt_scsi_channel_id:
-			match_int(args, &arg);
+			ret = match_int(args, &arg);
+			if (ret)
+				goto out;
 			pdv->pdv_channel_id = arg;
 			pr_debug("PSCSI[%d]: Referencing SCSI Channel"
 				" ID: %d\n",  phv->phv_host_id,
@@ -764,7 +769,9 @@ static ssize_t pscsi_set_configfs_dev_params(struct se_device *dev,
 			pdv->pdv_flags |= PDF_HAS_CHANNEL_ID;
 			break;
 		case Opt_scsi_target_id:
-			match_int(args, &arg);
+			ret = match_int(args, &arg);
+			if (ret)
+				goto out;
 			pdv->pdv_target_id = arg;
 			pr_debug("PSCSI[%d]: Referencing SCSI Target"
 				" ID: %d\n", phv->phv_host_id,
@@ -772,7 +779,9 @@ static ssize_t pscsi_set_configfs_dev_params(struct se_device *dev,
 			pdv->pdv_flags |= PDF_HAS_TARGET_ID;
 			break;
 		case Opt_scsi_lun_id:
-			match_int(args, &arg);
+			ret = match_int(args, &arg);
+			if (ret)
+				goto out;
 			pdv->pdv_lun_id = arg;
 			pr_debug("PSCSI[%d]: Referencing SCSI LUN ID:"
 				" %d\n", phv->phv_host_id, pdv->pdv_lun_id);
@@ -1050,7 +1059,7 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 		req = blk_get_request(pdv->pdv_sd->request_queue,
 				(data_direction == DMA_TO_DEVICE),
 				GFP_KERNEL);
-		if (!req) {
+		if (IS_ERR(req)) {
 			pr_err("PSCSI: blk_get_request() failed\n");
 			ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 			goto fail;
@@ -1086,7 +1095,7 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 	req->retries = PS_RETRY;
 
 	blk_execute_rq_nowait(pdv->pdv_sd->request_queue, NULL, req,
-			(cmd->sam_task_attr == MSG_HEAD_TAG),
+			(cmd->sam_task_attr == TCM_HEAD_TAG),
 			pscsi_req_done);
 
 	return 0;
@@ -1157,6 +1166,26 @@ static void pscsi_req_done(struct request *req, int uptodate)
 	kfree(pt);
 }
 
+DEF_TB_DEV_ATTRIB_RO(pscsi, hw_pi_prot_type);
+TB_DEV_ATTR_RO(pscsi, hw_pi_prot_type);
+
+DEF_TB_DEV_ATTRIB_RO(pscsi, hw_block_size);
+TB_DEV_ATTR_RO(pscsi, hw_block_size);
+
+DEF_TB_DEV_ATTRIB_RO(pscsi, hw_max_sectors);
+TB_DEV_ATTR_RO(pscsi, hw_max_sectors);
+
+DEF_TB_DEV_ATTRIB_RO(pscsi, hw_queue_depth);
+TB_DEV_ATTR_RO(pscsi, hw_queue_depth);
+
+static struct configfs_attribute *pscsi_backend_dev_attrs[] = {
+	&pscsi_dev_attrib_hw_pi_prot_type.attr,
+	&pscsi_dev_attrib_hw_block_size.attr,
+	&pscsi_dev_attrib_hw_max_sectors.attr,
+	&pscsi_dev_attrib_hw_queue_depth.attr,
+	NULL,
+};
+
 static struct se_subsystem_api pscsi_template = {
 	.name			= "pscsi",
 	.owner			= THIS_MODULE,
@@ -1177,6 +1206,11 @@ static struct se_subsystem_api pscsi_template = {
 
 static int __init pscsi_module_init(void)
 {
+	struct target_backend_cits *tbc = &pscsi_template.tb_cits;
+
+	target_core_setup_sub_cits(&pscsi_template);
+	tbc->tb_dev_attrib_cit.ct_attrs = pscsi_backend_dev_attrs;
+
 	return transport_subsystem_register(&pscsi_template);
 }
 

@@ -717,7 +717,7 @@ static int get_poolop_reply_buf(const char *src, size_t src_len,
 	if (src_len != sizeof(u32) + dst_len)
 		return -EINVAL;
 
-	buf_len = le32_to_cpu(*(u32 *)src);
+	buf_len = le32_to_cpu(*(__le32 *)src);
 	if (buf_len != dst_len)
 		return -EINVAL;
 
@@ -1182,10 +1182,10 @@ static struct ceph_msg *mon_alloc_msg(struct ceph_connection *con,
 		pr_info("alloc_msg unknown type %d\n", type);
 		*skip = 1;
 	} else if (front_len > m->front_alloc_len) {
-		pr_warning("mon_alloc_msg front %d > prealloc %d (%u#%llu)\n",
-			   front_len, m->front_alloc_len,
-			   (unsigned int)con->peer_name.type,
-			   le64_to_cpu(con->peer_name.num));
+		pr_warn("mon_alloc_msg front %d > prealloc %d (%u#%llu)\n",
+			front_len, m->front_alloc_len,
+			(unsigned int)con->peer_name.type,
+			le64_to_cpu(con->peer_name.num));
 		ceph_msg_put(m);
 		m = ceph_msg_new(type, front_len, GFP_NOFS, false);
 	}

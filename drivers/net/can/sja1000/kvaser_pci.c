@@ -214,7 +214,7 @@ static int kvaser_pci_add_chan(struct pci_dev *pdev, int channel,
 	struct net_device *dev;
 	struct sja1000_priv *priv;
 	struct kvaser_pci *board;
-	int err, init_step;
+	int err;
 
 	dev = alloc_sja1000dev(sizeof(struct kvaser_pci));
 	if (dev == NULL)
@@ -235,7 +235,6 @@ static int kvaser_pci_add_chan(struct pci_dev *pdev, int channel,
 	if (channel == 0) {
 		board->xilinx_ver =
 			ioread8(board->res_addr + XILINX_VERINT) >> 4;
-		init_step = 2;
 
 		/* Assert PTADR# - we're in passive mode so the other bits are
 		   not important */
@@ -263,8 +262,6 @@ static int kvaser_pci_add_chan(struct pci_dev *pdev, int channel,
 
 	priv->irq_flags = IRQF_SHARED;
 	dev->irq = pdev->irq;
-
-	init_step = 4;
 
 	dev_info(&pdev->dev, "reg_base=%p conf_addr=%p irq=%d\n",
 		 priv->reg_base, board->conf_addr, dev->irq);

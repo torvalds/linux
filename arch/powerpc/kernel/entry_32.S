@@ -1424,11 +1424,17 @@ _GLOBAL(ftrace_graph_caller)
 	lwz	r4, 44(r1)
 	subi	r4, r4, MCOUNT_INSN_SIZE
 
-	/* get the parent address */
-	addi	r3, r1, 52
+	/* Grab the LR out of the caller stack frame */
+	lwz	r3,52(r1)
 
 	bl	prepare_ftrace_return
 	nop
+
+        /*
+         * prepare_ftrace_return gives us the address we divert to.
+         * Change the LR in the callers stack frame to this.
+         */
+	stw	r3,52(r1)
 
 	MCOUNT_RESTORE_FRAME
 	/* old link register ends up in ctr reg */
@@ -1457,4 +1463,4 @@ _GLOBAL(return_to_handler)
 	blr
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
-#endif /* CONFIG_MCOUNT */
+#endif /* CONFIG_FUNCTION_TRACER */

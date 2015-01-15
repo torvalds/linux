@@ -573,7 +573,7 @@ nouveau_clock_create_(struct nouveau_object *parent,
 
 	clk->allow_reclock = allow_reclock;
 
-	ret = nvkm_notify_init(&device->event, nouveau_clock_pwrsrc, true,
+	ret = nvkm_notify_init(NULL, &device->event, nouveau_clock_pwrsrc, true,
 			       NULL, 0, 0, &clk->pwrsrc_ntfy);
 	if (ret)
 		return ret;

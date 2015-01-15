@@ -293,7 +293,8 @@ void sync_fence_put(struct sync_fence *fence);
  * @fence:	fence to install
  * @fd:		file descriptor in which to install the fence
  *
- * Installs @fence into @fd.  @fd's should be acquired through get_unused_fd().
+ * Installs @fence into @fd.  @fd's should be acquired through
+ * get_unused_fd_flags(O_CLOEXEC).
  */
 void sync_fence_install(struct sync_fence *fence, int fd);
 

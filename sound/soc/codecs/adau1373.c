@@ -551,7 +551,7 @@ static const struct snd_kcontrol_new adau1373_drc_controls[] = {
 static int adau1373_pll_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct adau1373 *adau1373 = snd_soc_codec_get_drvdata(codec);
 	unsigned int pll_id = w->name[3] - '1';
 	unsigned int val;
@@ -823,7 +823,7 @@ static const struct snd_soc_dapm_widget adau1373_dapm_widgets[] = {
 static int adau1373_check_aif_clk(struct snd_soc_dapm_widget *source,
 	struct snd_soc_dapm_widget *sink)
 {
-	struct snd_soc_codec *codec = source->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(source->dapm);
 	struct adau1373 *adau1373 = snd_soc_codec_get_drvdata(codec);
 	unsigned int dai;
 	const char *clk;
@@ -844,7 +844,7 @@ static int adau1373_check_aif_clk(struct snd_soc_dapm_widget *source,
 static int adau1373_check_src(struct snd_soc_dapm_widget *source,
 	struct snd_soc_dapm_widget *sink)
 {
-	struct snd_soc_codec *codec = source->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(source->dapm);
 	struct adau1373 *adau1373 = snd_soc_codec_get_drvdata(codec);
 	unsigned int dai;
 
@@ -1448,29 +1448,10 @@ static int adau1373_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static int adau1373_remove(struct snd_soc_codec *codec)
-{
-	adau1373_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int adau1373_suspend(struct snd_soc_codec *codec)
-{
-	struct adau1373 *adau1373 = snd_soc_codec_get_drvdata(codec);
-	int ret;
-
-	ret = adau1373_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	regcache_cache_only(adau1373->regmap, true);
-
-	return ret;
-}
-
 static int adau1373_resume(struct snd_soc_codec *codec)
 {
 	struct adau1373 *adau1373 = snd_soc_codec_get_drvdata(codec);
 
-	regcache_cache_only(adau1373->regmap, false);
-	adau1373_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	regcache_sync(adau1373->regmap);
 
 	return 0;
@@ -1501,8 +1482,6 @@ static const struct regmap_config adau1373_regmap_config = {
 
 static struct snd_soc_codec_driver adau1373_codec_driver = {
 	.probe =	adau1373_probe,
-	.remove =	adau1373_remove,
-	.suspend =	adau1373_suspend,
 	.resume =	adau1373_resume,
 	.set_bias_level = adau1373_set_bias_level,
 	.idle_bias_off = true,

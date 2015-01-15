@@ -1082,7 +1082,6 @@ static struct platform_driver mg_disk_driver = {
 	.remove = mg_remove,
 	.driver = {
 		.name = MG_DEV_NAME,
-		.owner = THIS_MODULE,
 		.pm = &mg_pm,
 	}
 };

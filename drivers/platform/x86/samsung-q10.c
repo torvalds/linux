@@ -82,7 +82,6 @@ static int samsungq10_remove(struct platform_device *pdev)
 static struct platform_driver samsungq10_driver = {
 	.driver		= {
 		.name	= KBUILD_MODNAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= samsungq10_probe,
 	.remove		= samsungq10_remove,

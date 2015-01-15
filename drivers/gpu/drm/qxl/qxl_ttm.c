@@ -127,7 +127,7 @@ int qxl_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET)) {
 		pr_info("%s: vma->vm_pgoff (%ld) < DRM_FILE_PAGE_OFFSET\n",
 			__func__, vma->vm_pgoff);
-		return drm_mmap(filp, vma);
+		return -EINVAL;
 	}
 
 	file_priv = filp->private_data;
@@ -188,11 +188,13 @@ static void qxl_evict_flags(struct ttm_buffer_object *bo,
 				struct ttm_placement *placement)
 {
 	struct qxl_bo *qbo;
-	static u32 placements = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
+	static struct ttm_place placements = {
+		.fpfn = 0,
+		.lpfn = 0,
+		.flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM
+	};
 
 	if (!qxl_ttm_bo_is_qxl_bo(bo)) {
-		placement->fpfn = 0;
-		placement->lpfn = 0;
 		placement->placement = &placements;
 		placement->busy_placement = &placements;
 		placement->num_placement = 1;
@@ -355,92 +357,6 @@ static int qxl_bo_move(struct ttm_buffer_object *bo,
 	return ttm_bo_move_memcpy(bo, evict, no_wait_gpu, new_mem);
 }
 
-
-static int qxl_sync_obj_wait(void *sync_obj,
-			     bool lazy, bool interruptible)
-{
-	struct qxl_fence *qfence = (struct qxl_fence *)sync_obj;
-	int count = 0, sc = 0;
-	struct qxl_bo *bo = container_of(qfence, struct qxl_bo, fence);
-
-	if (qfence->num_active_releases == 0)
-		return 0;
-
-retry:
-	if (sc == 0) {
-		if (bo->type == QXL_GEM_DOMAIN_SURFACE)
-			qxl_update_surface(qfence->qdev, bo);
-	} else if (sc >= 1) {
-		qxl_io_notify_oom(qfence->qdev);
-	}
-
-	sc++;
-
-	for (count = 0; count < 10; count++) {
-		bool ret;
-		ret = qxl_queue_garbage_collect(qfence->qdev, true);
-		if (ret == false)
-			break;
-
-		if (qfence->num_active_releases == 0)
-			return 0;
-	}
-
-	if (qfence->num_active_releases) {
-		bool have_drawable_releases = false;
-		void **slot;
-		struct radix_tree_iter iter;
-		int release_id;
-
-		radix_tree_for_each_slot(slot, &qfence->tree, &iter, 0) {
-			struct qxl_release *release;
-
-			release_id = iter.index;
-			release = qxl_release_from_id_locked(qfence->qdev, release_id);
-			if (release == NULL)
-				continue;
-
-			if (release->type == QXL_RELEASE_DRAWABLE)
-				have_drawable_releases = true;
-		}
-
-		qxl_queue_garbage_collect(qfence->qdev, true);
-
-		if (have_drawable_releases || sc < 4) {
-			if (sc > 2)
-				/* back off */
-				usleep_range(500, 1000);
-			if (have_drawable_releases && sc > 300) {
-				WARN(1, "sync obj %d still has outstanding releases %d %d %d %ld %d\n", sc, bo->surface_id, bo->is_primary, bo->pin_count, (unsigned long)bo->gem_base.size, qfence->num_active_releases);
-				return -EBUSY;
-			}
-			goto retry;
-		}
-	}
-	return 0;
-}
-
-static int qxl_sync_obj_flush(void *sync_obj)
-{
-	return 0;
-}
-
-static void qxl_sync_obj_unref(void **sync_obj)
-{
-	*sync_obj = NULL;
-}
-
-static void *qxl_sync_obj_ref(void *sync_obj)
-{
-	return sync_obj;
-}
-
-static bool qxl_sync_obj_signaled(void *sync_obj)
-{
-	struct qxl_fence *qfence = (struct qxl_fence *)sync_obj;
-	return (qfence->num_active_releases == 0);
-}
-
 static void qxl_bo_move_notify(struct ttm_buffer_object *bo,
 			       struct ttm_mem_reg *new_mem)
 {
@@ -467,15 +383,8 @@ static struct ttm_bo_driver qxl_bo_driver = {
 	.verify_access = &qxl_verify_access,
 	.io_mem_reserve = &qxl_ttm_io_mem_reserve,
 	.io_mem_free = &qxl_ttm_io_mem_free,
-	.sync_obj_signaled = &qxl_sync_obj_signaled,
-	.sync_obj_wait = &qxl_sync_obj_wait,
-	.sync_obj_flush = &qxl_sync_obj_flush,
-	.sync_obj_unref = &qxl_sync_obj_unref,
-	.sync_obj_ref = &qxl_sync_obj_ref,
 	.move_notify = &qxl_bo_move_notify,
 };
-
-
 
 int qxl_ttm_init(struct qxl_device *qdev)
 {

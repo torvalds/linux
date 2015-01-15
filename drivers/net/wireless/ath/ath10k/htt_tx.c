@@ -58,6 +58,7 @@ exit:
 
 int ath10k_htt_tx_alloc_msdu_id(struct ath10k_htt *htt)
 {
+	struct ath10k *ar = htt->ar;
 	int msdu_id;
 
 	lockdep_assert_held(&htt->tx_lock);
@@ -67,33 +68,37 @@ int ath10k_htt_tx_alloc_msdu_id(struct ath10k_htt *htt)
 	if (msdu_id == htt->max_num_pending_tx)
 		return -ENOBUFS;
 
-	ath10k_dbg(ATH10K_DBG_HTT, "htt tx alloc msdu_id %d\n", msdu_id);
+	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt tx alloc msdu_id %d\n", msdu_id);
 	__set_bit(msdu_id, htt->used_msdu_ids);
 	return msdu_id;
 }
 
 void ath10k_htt_tx_free_msdu_id(struct ath10k_htt *htt, u16 msdu_id)
 {
+	struct ath10k *ar = htt->ar;
+
 	lockdep_assert_held(&htt->tx_lock);
 
 	if (!test_bit(msdu_id, htt->used_msdu_ids))
-		ath10k_warn("trying to free unallocated msdu_id %d\n", msdu_id);
+		ath10k_warn(ar, "trying to free unallocated msdu_id %d\n",
+			    msdu_id);
 
-	ath10k_dbg(ATH10K_DBG_HTT, "htt tx free msdu_id %hu\n", msdu_id);
+	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt tx free msdu_id %hu\n", msdu_id);
 	__clear_bit(msdu_id, htt->used_msdu_ids);
 }
 
 int ath10k_htt_tx_alloc(struct ath10k_htt *htt)
 {
+	struct ath10k *ar = htt->ar;
+
 	spin_lock_init(&htt->tx_lock);
-	init_waitqueue_head(&htt->empty_tx_wq);
 
 	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, htt->ar->fw_features))
 		htt->max_num_pending_tx = TARGET_10X_NUM_MSDU_DESC;
 	else
 		htt->max_num_pending_tx = TARGET_NUM_MSDU_DESC;
 
-	ath10k_dbg(ATH10K_DBG_BOOT, "htt tx max num pending tx %d\n",
+	ath10k_dbg(ar, ATH10K_DBG_BOOT, "htt tx max num pending tx %d\n",
 		   htt->max_num_pending_tx);
 
 	htt->pending_tx = kzalloc(sizeof(*htt->pending_tx) *
@@ -122,6 +127,7 @@ int ath10k_htt_tx_alloc(struct ath10k_htt *htt)
 
 static void ath10k_htt_tx_free_pending(struct ath10k_htt *htt)
 {
+	struct ath10k *ar = htt->ar;
 	struct htt_tx_done tx_done = {0};
 	int msdu_id;
 
@@ -130,7 +136,7 @@ static void ath10k_htt_tx_free_pending(struct ath10k_htt *htt)
 		if (!test_bit(msdu_id, htt->used_msdu_ids))
 			continue;
 
-		ath10k_dbg(ATH10K_DBG_HTT, "force cleanup msdu_id %hu\n",
+		ath10k_dbg(ar, ATH10K_DBG_HTT, "force cleanup msdu_id %hu\n",
 			   msdu_id);
 
 		tx_done.discard = 1;
@@ -147,7 +153,6 @@ void ath10k_htt_tx_free(struct ath10k_htt *htt)
 	kfree(htt->pending_tx);
 	kfree(htt->used_msdu_ids);
 	dma_pool_destroy(htt->tx_pool);
-	return;
 }
 
 void ath10k_htt_htc_tx_complete(struct ath10k *ar, struct sk_buff *skb)
@@ -157,6 +162,7 @@ void ath10k_htt_htc_tx_complete(struct ath10k *ar, struct sk_buff *skb)
 
 int ath10k_htt_h2t_ver_req_msg(struct ath10k_htt *htt)
 {
+	struct ath10k *ar = htt->ar;
 	struct sk_buff *skb;
 	struct htt_cmd *cmd;
 	int len = 0;
@@ -165,7 +171,7 @@ int ath10k_htt_h2t_ver_req_msg(struct ath10k_htt *htt)
 	len += sizeof(cmd->hdr);
 	len += sizeof(cmd->ver_req);
 
-	skb = ath10k_htc_alloc_skb(len);
+	skb = ath10k_htc_alloc_skb(ar, len);
 	if (!skb)
 		return -ENOMEM;
 
@@ -184,6 +190,7 @@ int ath10k_htt_h2t_ver_req_msg(struct ath10k_htt *htt)
 
 int ath10k_htt_h2t_stats_req(struct ath10k_htt *htt, u8 mask, u64 cookie)
 {
+	struct ath10k *ar = htt->ar;
 	struct htt_stats_req *req;
 	struct sk_buff *skb;
 	struct htt_cmd *cmd;
@@ -192,7 +199,7 @@ int ath10k_htt_h2t_stats_req(struct ath10k_htt *htt, u8 mask, u64 cookie)
 	len += sizeof(cmd->hdr);
 	len += sizeof(cmd->stats_req);
 
-	skb = ath10k_htc_alloc_skb(len);
+	skb = ath10k_htc_alloc_skb(ar, len);
 	if (!skb)
 		return -ENOMEM;
 
@@ -214,7 +221,8 @@ int ath10k_htt_h2t_stats_req(struct ath10k_htt *htt, u8 mask, u64 cookie)
 
 	ret = ath10k_htc_send(&htt->ar->htc, htt->eid, skb);
 	if (ret) {
-		ath10k_warn("failed to send htt type stats request: %d", ret);
+		ath10k_warn(ar, "failed to send htt type stats request: %d",
+			    ret);
 		dev_kfree_skb_any(skb);
 		return ret;
 	}
@@ -224,6 +232,7 @@ int ath10k_htt_h2t_stats_req(struct ath10k_htt *htt, u8 mask, u64 cookie)
 
 int ath10k_htt_send_rx_ring_cfg_ll(struct ath10k_htt *htt)
 {
+	struct ath10k *ar = htt->ar;
 	struct sk_buff *skb;
 	struct htt_cmd *cmd;
 	struct htt_rx_ring_setup_ring *ring;
@@ -242,7 +251,7 @@ int ath10k_htt_send_rx_ring_cfg_ll(struct ath10k_htt *htt)
 
 	len = sizeof(cmd->hdr) + sizeof(cmd->rx_setup.hdr)
 	    + (sizeof(*ring) * num_rx_ring);
-	skb = ath10k_htc_alloc_skb(len);
+	skb = ath10k_htc_alloc_skb(ar, len);
 	if (!skb)
 		return -ENOMEM;
 
@@ -311,6 +320,7 @@ int ath10k_htt_h2t_aggr_cfg_msg(struct ath10k_htt *htt,
 				u8 max_subfrms_ampdu,
 				u8 max_subfrms_amsdu)
 {
+	struct ath10k *ar = htt->ar;
 	struct htt_aggr_conf *aggr_conf;
 	struct sk_buff *skb;
 	struct htt_cmd *cmd;
@@ -328,7 +338,7 @@ int ath10k_htt_h2t_aggr_cfg_msg(struct ath10k_htt *htt,
 	len = sizeof(cmd->hdr);
 	len += sizeof(cmd->aggr_conf);
 
-	skb = ath10k_htc_alloc_skb(len);
+	skb = ath10k_htc_alloc_skb(ar, len);
 	if (!skb)
 		return -ENOMEM;
 
@@ -340,7 +350,7 @@ int ath10k_htt_h2t_aggr_cfg_msg(struct ath10k_htt *htt,
 	aggr_conf->max_num_ampdu_subframes = max_subfrms_ampdu;
 	aggr_conf->max_num_amsdu_subframes = max_subfrms_amsdu;
 
-	ath10k_dbg(ATH10K_DBG_HTT, "htt h2t aggr cfg msg amsdu %d ampdu %d",
+	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt h2t aggr cfg msg amsdu %d ampdu %d",
 		   aggr_conf->max_num_amsdu_subframes,
 		   aggr_conf->max_num_ampdu_subframes);
 
@@ -355,7 +365,8 @@ int ath10k_htt_h2t_aggr_cfg_msg(struct ath10k_htt *htt,
 
 int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 {
-	struct device *dev = htt->ar->dev;
+	struct ath10k *ar = htt->ar;
+	struct device *dev = ar->dev;
 	struct sk_buff *txdesc = NULL;
 	struct htt_cmd *cmd;
 	struct ath10k_skb_cb *skb_cb = ATH10K_SKB_CB(msdu);
@@ -363,7 +374,6 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	int len = 0;
 	int msdu_id = -1;
 	int res;
-
 
 	res = ath10k_htt_tx_inc_pending(htt);
 	if (res)
@@ -382,7 +392,7 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	htt->pending_tx[msdu_id] = msdu;
 	spin_unlock_bh(&htt->tx_lock);
 
-	txdesc = ath10k_htc_alloc_skb(len);
+	txdesc = ath10k_htc_alloc_skb(ar, len);
 	if (!txdesc) {
 		res = -ENOMEM;
 		goto err_free_msdu_id;
@@ -429,7 +439,8 @@ err:
 
 int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 {
-	struct device *dev = htt->ar->dev;
+	struct ath10k *ar = htt->ar;
+	struct device *dev = ar->dev;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)msdu->data;
 	struct ath10k_skb_cb *skb_cb = ATH10K_SKB_CB(msdu);
 	struct ath10k_hif_sg_item sg_items[2];
@@ -543,14 +554,18 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	skb_cb->htt.txbuf->cmd_tx.len = __cpu_to_le16(msdu->len);
 	skb_cb->htt.txbuf->cmd_tx.id = __cpu_to_le16(msdu_id);
 	skb_cb->htt.txbuf->cmd_tx.frags_paddr = __cpu_to_le32(frags_paddr);
-	skb_cb->htt.txbuf->cmd_tx.peerid = __cpu_to_le32(HTT_INVALID_PEERID);
+	skb_cb->htt.txbuf->cmd_tx.peerid = __cpu_to_le16(HTT_INVALID_PEERID);
+	skb_cb->htt.txbuf->cmd_tx.freq = __cpu_to_le16(skb_cb->htt.freq);
 
-	ath10k_dbg(ATH10K_DBG_HTT,
-		   "htt tx flags0 %hhu flags1 %hu len %d id %hu frags_paddr %08x, msdu_paddr %08x vdev %hhu tid %hhu\n",
+	trace_ath10k_htt_tx(ar, msdu_id, msdu->len, vdev_id, tid);
+	ath10k_dbg(ar, ATH10K_DBG_HTT,
+		   "htt tx flags0 %hhu flags1 %hu len %d id %hu frags_paddr %08x, msdu_paddr %08x vdev %hhu tid %hhu freq %hu\n",
 		   flags0, flags1, msdu->len, msdu_id, frags_paddr,
-		   (u32)skb_cb->paddr, vdev_id, tid);
-	ath10k_dbg_dump(ATH10K_DBG_HTT_DUMP, NULL, "htt tx msdu: ",
+		   (u32)skb_cb->paddr, vdev_id, tid, skb_cb->htt.freq);
+	ath10k_dbg_dump(ar, ATH10K_DBG_HTT_DUMP, NULL, "htt tx msdu: ",
 			msdu->data, msdu->len);
+	trace_ath10k_tx_hdr(ar, msdu->data, msdu->len);
+	trace_ath10k_tx_payload(ar, msdu->data, msdu->len);
 
 	sg_items[0].transfer_id = 0;
 	sg_items[0].transfer_context = NULL;

@@ -2065,11 +2065,6 @@ static int nfs23_validate_mount_data(void *options,
 		return NFS_TEXT_DATA;
 	}
 
-#if !IS_ENABLED(CONFIG_NFS_V3)
-	if (args->version == 3)
-		goto out_v3_not_compiled;
-#endif /* !CONFIG_NFS_V3 */
-
 	return 0;
 
 out_no_data:
@@ -2084,12 +2079,6 @@ out_no_v3:
 out_no_sec:
 	dfprintk(MOUNT, "NFS: nfs_mount_data version supports only AUTH_SYS\n");
 	return -EINVAL;
-
-#if !IS_ENABLED(CONFIG_NFS_V3)
-out_v3_not_compiled:
-	dfprintk(MOUNT, "NFS: NFSv3 is not compiled into kernel\n");
-	return -EPROTONOSUPPORT;
-#endif /* !CONFIG_NFS_V3 */
 
 out_nomem:
 	dfprintk(MOUNT, "NFS: not enough memory to handle mount options\n");

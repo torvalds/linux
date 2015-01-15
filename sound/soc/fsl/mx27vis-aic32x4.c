@@ -229,7 +229,6 @@ static int mx27vis_aic32x4_remove(struct platform_device *pdev)
 static struct platform_driver mx27vis_aic32x4_audio_driver = {
 	.driver = {
 		.name = "mx27vis",
-		.owner = THIS_MODULE,
 	},
 	.probe = mx27vis_aic32x4_probe,
 	.remove = mx27vis_aic32x4_remove,

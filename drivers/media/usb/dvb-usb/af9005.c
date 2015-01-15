@@ -30,7 +30,7 @@ MODULE_PARM_DESC(debug,
 		 "set debugging level (1=info,xfer=2,rc=4,reg=8,i2c=16,fw=32 (or-able))."
 		 DVB_USB_DEBUG_STATUS);
 /* enable obnoxious led */
-bool dvb_usb_af9005_led = 1;
+bool dvb_usb_af9005_led = true;
 module_param_named(led, dvb_usb_af9005_led, bool, 0644);
 MODULE_PARM_DESC(led, "enable led (default: 1).");
 
@@ -1081,9 +1081,12 @@ static int __init af9005_usb_module_init(void)
 		err("usb_register failed. (%d)", result);
 		return result;
 	}
+#if IS_MODULE(CONFIG_DVB_USB_AF9005) || defined(CONFIG_DVB_USB_AF9005_REMOTE)
+	/* FIXME: convert to todays kernel IR infrastructure */
 	rc_decode = symbol_request(af9005_rc_decode);
 	rc_keys = symbol_request(rc_map_af9005_table);
 	rc_keys_size = symbol_request(rc_map_af9005_table_size);
+#endif
 	if (rc_decode == NULL || rc_keys == NULL || rc_keys_size == NULL) {
 		err("af9005_rc_decode function not found, disabling remote");
 		af9005_properties.rc.legacy.rc_query = NULL;

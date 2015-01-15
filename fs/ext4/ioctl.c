@@ -78,8 +78,6 @@ static void swap_inode_data(struct inode *inode1, struct inode *inode2)
 	memswap(&ei1->i_disksize, &ei2->i_disksize, sizeof(ei1->i_disksize));
 	ext4_es_remove_extent(inode1, 0, EXT_MAX_BLOCKS);
 	ext4_es_remove_extent(inode2, 0, EXT_MAX_BLOCKS);
-	ext4_es_lru_del(inode1);
-	ext4_es_lru_del(inode2);
 
 	isize = i_size_read(inode1);
 	i_size_write(inode1, i_size_read(inode2));
@@ -331,8 +329,7 @@ flags_out:
 		if (!inode_owner_or_capable(inode))
 			return -EPERM;
 
-		if (EXT4_HAS_RO_COMPAT_FEATURE(inode->i_sb,
-				EXT4_FEATURE_RO_COMPAT_METADATA_CSUM)) {
+		if (ext4_has_metadata_csum(inode->i_sb)) {
 			ext4_warning(sb, "Setting inode version is not "
 				     "supported with metadata_csum enabled.");
 			return -ENOTTY;
@@ -532,9 +529,17 @@ group_add_out:
 	}
 
 	case EXT4_IOC_SWAP_BOOT:
+	{
+		int err;
 		if (!(filp->f_mode & FMODE_WRITE))
 			return -EBADF;
-		return swap_inode_boot_loader(sb, inode);
+		err = mnt_want_write_file(filp);
+		if (err)
+			return err;
+		err = swap_inode_boot_loader(sb, inode);
+		mnt_drop_write_file(filp);
+		return err;
+	}
 
 	case EXT4_IOC_RESIZE_FS: {
 		ext4_fsblk_t n_blocks_count;

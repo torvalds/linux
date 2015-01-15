@@ -70,6 +70,38 @@ DMA addresses types dma_addr_t:
 	For printing a dma_addr_t type which can vary based on build options,
 	regardless of the width of the CPU data path. Passed by reference.
 
+Raw buffer as an escaped string:
+
+	%*pE[achnops]
+
+	For printing raw buffer as an escaped string. For the following buffer
+
+		1b 62 20 5c 43 07 22 90 0d 5d
+
+	few examples show how the conversion would be done (the result string
+	without surrounding quotes):
+
+		%*pE		"\eb \C\a"\220\r]"
+		%*pEhp		"\x1bb \C\x07"\x90\x0d]"
+		%*pEa		"\e\142\040\\\103\a\042\220\r\135"
+
+	The conversion rules are applied according to an optional combination
+	of flags (see string_escape_mem() kernel documentation for the
+	details):
+		a - ESCAPE_ANY
+		c - ESCAPE_SPECIAL
+		h - ESCAPE_HEX
+		n - ESCAPE_NULL
+		o - ESCAPE_OCTAL
+		p - ESCAPE_NP
+		s - ESCAPE_SPACE
+	By default ESCAPE_ANY_NP is used.
+
+	ESCAPE_ANY_NP is the sane choice for many cases, in particularly for
+	printing SSIDs.
+
+	If field width is omitted the 1 byte only will be escaped.
+
 Raw buffer as a hex string:
 	%*ph	00 01 02  ...  3f
 	%*phC	00:01:02: ... :3f

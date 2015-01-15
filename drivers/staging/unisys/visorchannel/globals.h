@@ -25,5 +25,4 @@
 
 #define MYDRVNAME "visorchannel"
 
-
 #endif

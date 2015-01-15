@@ -287,6 +287,8 @@ local_ops.txt
 	- semantics and behavior of local atomic operations.
 lockdep-design.txt
 	- documentation on the runtime locking correctness validator.
+locking/
+	- directory with info about kernel locking primitives
 lockstat.txt
 	- info on collecting statistics on locks (and contention).
 lockup-watchdogs.txt

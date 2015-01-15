@@ -253,7 +253,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 			}
 
 			/*
-			 * If we're  going to bind the MAC to this PHY bus,
+			 * If we're going to bind the MAC to this PHY bus,
 			 * and no PHY number was provided to the MAC,
 			 * use the one probed here.
 			 */
@@ -282,7 +282,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 	}
 
 	if (!found) {
-		pr_warning("%s: No PHY found\n", ndev->name);
+		pr_warn("%s: No PHY found\n", ndev->name);
 		mdiobus_unregister(new_bus);
 		mdiobus_free(new_bus);
 		return -ENODEV;

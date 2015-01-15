@@ -35,6 +35,9 @@
 #include "def.h"
 #include "phy.h"
 #include "dm.h"
+#include "../rtl8192c/dm_common.h"
+#include "../rtl8192c/fw_common.h"
+#include "../rtl8192c/phy_common.h"
 #include "hw.h"
 #include "rf.h"
 #include "sw.h"
@@ -165,7 +168,7 @@ int rtl92c_init_sw_vars(struct ieee80211_hw *hw)
 	if (IS_VENDOR_UMC_A_CUT(rtlhal->version) &&
 	    !IS_92C_SERIAL(rtlhal->version))
 		rtlpriv->cfg->fw_name = "rtlwifi/rtl8192cfwU.bin";
-	else if (IS_81xxC_VENDOR_UMC_B_CUT(rtlhal->version))
+	else if (IS_81XXC_VENDOR_UMC_B_CUT(rtlhal->version))
 		rtlpriv->cfg->fw_name = "rtlwifi/rtl8192cfwU_B.bin";
 
 	rtlpriv->max_fw_size = 0x4000;
@@ -225,6 +228,7 @@ static struct rtl_hal_ops rtl8192ce_hal_ops = {
 	.led_control = rtl92ce_led_control,
 	.set_desc = rtl92ce_set_desc,
 	.get_desc = rtl92ce_get_desc,
+	.is_tx_desc_closed = rtl92ce_is_tx_desc_closed,
 	.tx_polling = rtl92ce_tx_polling,
 	.enable_hw_sec = rtl92ce_enable_hw_security_config,
 	.set_key = rtl92ce_set_key,
@@ -241,6 +245,7 @@ static struct rtl_hal_ops rtl8192ce_hal_ops = {
 	.phy_lc_calibrate = _rtl92ce_phy_lc_calibrate,
 	.phy_set_bw_mode_callback = rtl92ce_phy_set_bw_mode_callback,
 	.dm_dynamic_txpower = rtl92ce_dm_dynamic_txpower,
+	.get_btc_status = rtl_btc_status_false,
 };
 
 static struct rtl_mod_params rtl92ce_mod_params = {
@@ -267,6 +272,8 @@ static struct rtl_hal_cfg rtl92ce_hal_cfg = {
 	.maps[MAC_RCR_ACRC32] = ACRC32,
 	.maps[MAC_RCR_ACF] = ACF,
 	.maps[MAC_RCR_AAP] = AAP,
+	.maps[MAC_HIMR] = REG_HIMR,
+	.maps[MAC_HIMRE] = REG_HIMRE,
 
 	.maps[EFUSE_TEST] = REG_EFUSE_TEST,
 	.maps[EFUSE_CTRL] = REG_EFUSE_CTRL,

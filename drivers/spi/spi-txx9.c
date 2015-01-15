@@ -97,6 +97,7 @@ static void txx9spi_cs_func(struct spi_device *spi, struct txx9spi *c,
 		int on, unsigned int cs_delay)
 {
 	int val = (spi->mode & SPI_CS_HIGH) ? on : !on;
+
 	if (on) {
 		/* deselect the chip with cs_change hint in last transfer */
 		if (c->last_chipselect >= 0)
@@ -188,6 +189,7 @@ static void txx9spi_work_one(struct txx9spi *c, struct spi_message *m)
 		if (prev_speed_hz != speed_hz
 				|| prev_bits_per_word != bits_per_word) {
 			int n = DIV_ROUND_UP(c->baseclk, speed_hz) - 1;
+
 			n = clamp(n, SPI_MIN_DIVIDER, SPI_MAX_DIVIDER);
 			/* enter config mode */
 			txx9spi_wr(c, mcr | TXx9_SPMCR_CONFIG | TXx9_SPMCR_BCLR,
@@ -400,8 +402,7 @@ exit_busy:
 exit:
 	if (c->workqueue)
 		destroy_workqueue(c->workqueue);
-	if (c->clk)
-		clk_disable(c->clk);
+	clk_disable(c->clk);
 	spi_master_put(master);
 	return ret;
 }
@@ -424,7 +425,6 @@ static struct platform_driver txx9spi_driver = {
 	.remove = txx9spi_remove,
 	.driver = {
 		.name = "spi_txx9",
-		.owner = THIS_MODULE,
 	},
 };
 

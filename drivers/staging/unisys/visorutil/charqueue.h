@@ -21,17 +21,18 @@
 #include "uniklog.h"
 #include "timskmod.h"
 
-/* CHARQUEUE is an opaque structure to users.
+/* struct charqueue is an opaque structure to users.
  * Fields are declared only in the implementation .c files.
  */
-typedef struct CHARQUEUE_Tag CHARQUEUE;
+struct charqueue;
 
-CHARQUEUE *visor_charqueue_create(ulong nslots);
-void visor_charqueue_enqueue(CHARQUEUE *charqueue, unsigned char c);
-int charqueue_dequeue(CHARQUEUE *charqueue);
-int visor_charqueue_dequeue_n(CHARQUEUE *charqueue, unsigned char *buf, int n);
-BOOL visor_charqueue_is_empty(CHARQUEUE *charqueue);
-void visor_charqueue_destroy(CHARQUEUE *charqueue);
+struct charqueue *visor_charqueue_create(ulong nslots);
+void visor_charqueue_enqueue(struct charqueue *charqueue, unsigned char c);
+int charqueue_dequeue(struct charqueue *charqueue);
+int visor_charqueue_dequeue_n(struct charqueue *charqueue, unsigned char *buf,
+			      int n);
+BOOL visor_charqueue_is_empty(struct charqueue *charqueue);
+void visor_charqueue_destroy(struct charqueue *charqueue);
 
 #endif
 

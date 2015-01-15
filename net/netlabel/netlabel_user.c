@@ -71,11 +71,7 @@ int __init netlbl_netlink_init(void)
 	if (ret_val != 0)
 		return ret_val;
 
-	ret_val = netlbl_unlabel_genl_init();
-	if (ret_val != 0)
-		return ret_val;
-
-	return 0;
+	return netlbl_unlabel_genl_init();
 }
 
 /*

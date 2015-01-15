@@ -139,6 +139,7 @@ static int cirrusfb_create_object(struct cirrus_fbdev *afbdev,
 			       struct drm_gem_object **gobj_p)
 {
 	struct drm_device *dev = afbdev->helper.dev;
+	struct cirrus_device *cdev = dev->dev_private;
 	u32 bpp, depth;
 	u32 size;
 	struct drm_gem_object *gobj;
@@ -146,8 +147,10 @@ static int cirrusfb_create_object(struct cirrus_fbdev *afbdev,
 	int ret = 0;
 	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &depth, &bpp);
 
-	if (bpp > 24)
+	if (!cirrus_check_framebuffer(cdev, mode_cmd->width, mode_cmd->height,
+				      bpp, mode_cmd->pitches[0]))
 		return -EINVAL;
+
 	size = mode_cmd->pitches[0] * mode_cmd->height;
 	ret = cirrus_gem_create(dev, size, true, &gobj);
 	if (ret)
@@ -160,7 +163,8 @@ static int cirrusfb_create_object(struct cirrus_fbdev *afbdev,
 static int cirrusfb_create(struct drm_fb_helper *helper,
 			   struct drm_fb_helper_surface_size *sizes)
 {
-	struct cirrus_fbdev *gfbdev = (struct cirrus_fbdev *)helper;
+	struct cirrus_fbdev *gfbdev =
+		container_of(helper, struct cirrus_fbdev, helper);
 	struct drm_device *dev = gfbdev->helper.dev;
 	struct cirrus_device *cdev = gfbdev->helper.dev->dev_private;
 	struct fb_info *info;

@@ -277,14 +277,14 @@ static int smsusb1_load_firmware(struct usb_device *udev, int id, int board_id)
 		rc = usb_bulk_msg(udev, usb_sndbulkpipe(udev, 2),
 				  fw_buffer, fw->size, &dummy, 1000);
 
-		sms_info("sent %zd(%d) bytes, rc %d", fw->size, dummy, rc);
+		sms_info("sent %zu(%d) bytes, rc %d", fw->size, dummy, rc);
 
 		kfree(fw_buffer);
 	} else {
 		sms_err("failed to allocate firmware buffer");
 		rc = -ENOMEM;
 	}
-	sms_info("read FW %s, size=%zd", fw_filename, fw->size);
+	sms_info("read FW %s, size=%zu", fw_filename, fw->size);
 
 	release_firmware(fw);
 
@@ -655,6 +655,8 @@ static const struct usb_device_id smsusb_id_table[] = {
 		.driver_info = SMS1XXX_BOARD_ONDA_MDTV_DATA_CARD },
 	{ USB_DEVICE(0x3275, 0x0080),
 		.driver_info = SMS1XXX_BOARD_SIANO_RIO },
+	{ USB_DEVICE(0x2013, 0x0257),
+		.driver_info = SMS1XXX_BOARD_PCTV_77E },
 	{ } /* Terminating entry */
 	};
 

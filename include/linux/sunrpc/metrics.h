@@ -27,10 +27,13 @@
 
 #include <linux/seq_file.h>
 #include <linux/ktime.h>
+#include <linux/spinlock.h>
 
 #define RPC_IOSTATS_VERS	"1.0"
 
 struct rpc_iostats {
+	spinlock_t		om_lock;
+
 	/*
 	 * These counters give an idea about how many request
 	 * transmissions are required, on average, to complete that

@@ -35,10 +35,10 @@
 #define RETRY_TIMER 30 /* msec */
 
 struct mux_pkt_header {
-	unsigned int start_flag;
-	unsigned int seq_num;
-	unsigned int payload_size;
-	unsigned short packet_type;
+	__le32 start_flag;
+	__le32 seq_num;
+	__le32 payload_size;
+	__le16 packet_type;
 	unsigned char data[0];
 };
 

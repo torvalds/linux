@@ -281,7 +281,6 @@ static struct platform_driver irqc_device_driver = {
 	.driver		= {
 		.name	= "renesas_irqc",
 		.of_match_table	= irqc_dt_ids,
-		.owner	= THIS_MODULE,
 	}
 };
 

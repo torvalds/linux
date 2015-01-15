@@ -669,12 +669,10 @@ static ssize_t lio_target_nacl_show_info(
 	} else {
 		sess = se_sess->fabric_sess_ptr;
 
-		if (sess->sess_ops->InitiatorName)
-			rb += sprintf(page+rb, "InitiatorName: %s\n",
-				sess->sess_ops->InitiatorName);
-		if (sess->sess_ops->InitiatorAlias)
-			rb += sprintf(page+rb, "InitiatorAlias: %s\n",
-				sess->sess_ops->InitiatorAlias);
+		rb += sprintf(page+rb, "InitiatorName: %s\n",
+			sess->sess_ops->InitiatorName);
+		rb += sprintf(page+rb, "InitiatorAlias: %s\n",
+			sess->sess_ops->InitiatorAlias);
 
 		rb += sprintf(page+rb, "LIO Session ID: %u   "
 			"ISID: 0x%02x %02x %02x %02x %02x %02x  "

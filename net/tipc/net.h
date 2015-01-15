@@ -1,7 +1,7 @@
 /*
  * net/tipc/net.h: Include file for TIPC network routing code
  *
- * Copyright (c) 1995-2006, Ericsson AB
+ * Copyright (c) 1995-2006, 2014, Ericsson AB
  * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -37,7 +37,13 @@
 #ifndef _TIPC_NET_H
 #define _TIPC_NET_H
 
+#include <net/genetlink.h>
+
 int tipc_net_start(u32 addr);
+
 void tipc_net_stop(void);
+
+int tipc_nl_net_dump(struct sk_buff *skb, struct netlink_callback *cb);
+int tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info);
 
 #endif

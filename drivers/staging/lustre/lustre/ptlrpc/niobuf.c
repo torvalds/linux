@@ -224,8 +224,8 @@ int ptlrpc_register_bulk(struct ptlrpc_request *req)
 		      total_md - desc->bd_md_count);
 	spin_unlock(&desc->bd_lock);
 
-	CDEBUG(D_NET, "Setup %u bulk %s buffers: %u pages %u bytes, "
-	       "xid x%#llx-%#llx, portal %u\n", desc->bd_md_count,
+	CDEBUG(D_NET, "Setup %u bulk %s buffers: %u pages %u bytes, xid x%#llx-%#llx, portal %u\n",
+	       desc->bd_md_count,
 	       desc->bd_type == BULK_GET_SOURCE ? "get-source" : "put-sink",
 	       desc->bd_iov_count, desc->bd_nob,
 	       desc->bd_last_xid, req->rq_xid, desc->bd_portal);
@@ -337,8 +337,7 @@ static void ptlrpc_at_set_reply(struct ptlrpc_request *req, int flags)
 
 	if (req->rq_reqmsg &&
 	    !(lustre_msghdr_get_flags(req->rq_reqmsg) & MSGHDR_AT_SUPPORT)) {
-		CDEBUG(D_ADAPTTO, "No early reply support: flags=%#x "
-		       "req_flags=%#x magic=%d:%x/%x len=%d\n",
+		CDEBUG(D_ADAPTTO, "No early reply support: flags=%#x req_flags=%#x magic=%d:%x/%x len=%d\n",
 		       flags, lustre_msg_get_flags(req->rq_reqmsg),
 		       lustre_msg_is_v1(req->rq_reqmsg),
 		       lustre_msg_get_magic(req->rq_reqmsg),
@@ -442,8 +441,7 @@ int ptlrpc_reply(struct ptlrpc_request *req)
 {
 	if (req->rq_no_reply)
 		return 0;
-	else
-		return (ptlrpc_send_reply(req, 0));
+	return ptlrpc_send_reply(req, 0);
 }
 EXPORT_SYMBOL(ptlrpc_reply);
 
@@ -537,13 +535,13 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 
 	rc = sptlrpc_cli_wrap_request(request);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	/* bulk register should be done after wrap_request() */
 	if (request->rq_bulk != NULL) {
 		rc = ptlrpc_register_bulk(request);
 		if (rc != 0)
-			GOTO(out, rc);
+			goto out;
 	}
 
 	if (!noreply) {
@@ -560,7 +558,7 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 				request->rq_err = 1;
 				spin_unlock(&request->rq_lock);
 				request->rq_status = rc;
-				GOTO(cleanup_bulk, rc);
+				goto cleanup_bulk;
 			}
 		} else {
 			request->rq_repdata = NULL;
@@ -573,7 +571,8 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 		if (rc != 0) {
 			CERROR("LNetMEAttach failed: %d\n", rc);
 			LASSERT(rc == -ENOMEM);
-			GOTO(cleanup_bulk, rc = -ENOMEM);
+			rc = -ENOMEM;
+			goto cleanup_bulk;
 		}
 	}
 
@@ -616,7 +615,8 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 			/* ...but the MD attach didn't succeed... */
 			request->rq_receiving_reply = 0;
 			spin_unlock(&request->rq_lock);
-			GOTO(cleanup_me, rc = -ENOMEM);
+			rc = -ENOMEM;
+			goto cleanup_me;
 		}
 
 		CDEBUG(D_NET, "Setup reply buffer: %u bytes, xid %llu, portal %u\n",
@@ -650,11 +650,11 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 			  request->rq_request_portal,
 			  request->rq_xid, 0);
 	if (rc == 0)
-		GOTO(out, rc);
+		goto out;
 
 	ptlrpc_req_finished(request);
 	if (noreply)
-		GOTO(out, rc);
+		goto out;
 
  cleanup_me:
 	/* MEUnlink is safe; the PUT didn't even get off the ground, and
@@ -691,7 +691,7 @@ int ptlrpc_register_rqbd(struct ptlrpc_request_buffer_desc *rqbd)
 	       service->srv_req_portal);
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_RQBD))
-		return (-ENOMEM);
+		return -ENOMEM;
 
 	/* NB: CPT affinity service should use new LNet flag LNET_INS_LOCAL,
 	 * which means buffer can only be attached on local CPT, and LND
@@ -702,7 +702,7 @@ int ptlrpc_register_rqbd(struct ptlrpc_request_buffer_desc *rqbd)
 			  LNET_INS_LOCAL : LNET_INS_AFTER, &me_h);
 	if (rc != 0) {
 		CERROR("LNetMEAttach failed: %d\n", rc);
-		return (-ENOMEM);
+		return -ENOMEM;
 	}
 
 	LASSERT(rqbd->rqbd_refcount == 0);
@@ -718,7 +718,7 @@ int ptlrpc_register_rqbd(struct ptlrpc_request_buffer_desc *rqbd)
 
 	rc = LNetMDAttach(me_h, md, LNET_UNLINK, &rqbd->rqbd_md_h);
 	if (rc == 0)
-		return (0);
+		return 0;
 
 	CERROR("LNetMDAttach failed: %d;\n", rc);
 	LASSERT(rc == -ENOMEM);
@@ -726,5 +726,5 @@ int ptlrpc_register_rqbd(struct ptlrpc_request_buffer_desc *rqbd)
 	LASSERT(rc == 0);
 	rqbd->rqbd_refcount = 0;
 
-	return (-ENOMEM);
+	return -ENOMEM;
 }

@@ -485,7 +485,7 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd)
 	cmd->t_data_nents_orig = cmd->t_data_nents;
 	cmd->t_data_nents = 1;
 
-	cmd->sam_task_attr = MSG_HEAD_TAG;
+	cmd->sam_task_attr = TCM_HEAD_TAG;
 	cmd->transport_complete_callback = compare_and_write_post;
 	/*
 	 * Now reset ->execute_cmd() to the normal sbc_execute_rw() handler
@@ -852,7 +852,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		size = READ_CAP_LEN;
 		cmd->execute_cmd = sbc_emulate_readcapacity;
 		break;
-	case SERVICE_ACTION_IN:
+	case SERVICE_ACTION_IN_16:
 		switch (cmd->t_task_cdb[1] & 0x1f) {
 		case SAI_READ_CAPACITY_16:
 			cmd->execute_cmd = sbc_emulate_readcapacity_16;
@@ -948,7 +948,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 	}
 
 	/* reject any command that we don't have a handler for */
-	if (!(cmd->se_cmd_flags & SCF_SCSI_DATA_CDB) && !cmd->execute_cmd)
+	if (!cmd->execute_cmd)
 		return TCM_UNSUPPORTED_SCSI_OPCODE;
 
 	if (cmd->se_cmd_flags & SCF_SCSI_DATA_CDB) {

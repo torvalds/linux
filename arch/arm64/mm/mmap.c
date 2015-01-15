@@ -47,22 +47,14 @@ static int mmap_is_legacy(void)
 	return sysctl_legacy_va_layout;
 }
 
-/*
- * Since get_random_int() returns the same value within a 1 jiffy window, we
- * will almost always get the same randomisation for the stack and mmap
- * region. This will mean the relative distance between stack and mmap will be
- * the same.
- *
- * To avoid this we can shift the randomness by 1 bit.
- */
 static unsigned long mmap_rnd(void)
 {
 	unsigned long rnd = 0;
 
 	if (current->flags & PF_RANDOMIZE)
-		rnd = (long)get_random_int() & (STACK_RND_MASK >> 1);
+		rnd = (long)get_random_int() & STACK_RND_MASK;
 
-	return rnd << (PAGE_SHIFT + 1);
+	return rnd << PAGE_SHIFT;
 }
 
 static unsigned long mmap_base(void)
@@ -102,7 +94,7 @@ EXPORT_SYMBOL_GPL(arch_pick_mmap_layout);
  * You really shouldn't be using read() or write() on /dev/mem.  This might go
  * away in the future.
  */
-int valid_phys_addr_range(unsigned long addr, size_t size)
+int valid_phys_addr_range(phys_addr_t addr, size_t size)
 {
 	if (addr < PHYS_OFFSET)
 		return 0;

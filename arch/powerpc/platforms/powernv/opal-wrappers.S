@@ -18,7 +18,7 @@
 	.section	".text"
 
 #ifdef CONFIG_TRACEPOINTS
-#ifdef CONFIG_JUMP_LABEL
+#ifdef HAVE_JUMP_LABEL
 #define OPAL_BRANCH(LABEL)					\
 	ARCH_STATIC_BRANCH(LABEL, opal_tracepoint_key)
 #else
@@ -58,7 +58,7 @@ END_FTR_SECTION(0, 1);						\
  */
 
 #define OPAL_CALL(name, token)		\
- _GLOBAL(name);				\
+ _GLOBAL_TOC(name);			\
 	mflr	r0;			\
 	std	r0,16(r1);		\
 	li	r0,token;		\
@@ -158,6 +158,43 @@ opal_tracepoint_return:
 	blr
 #endif
 
+/*
+ * Make opal call in realmode. This is a generic function to be called
+ * from realmode. It handles endianness.
+ *
+ * r13 - paca pointer
+ * r1  - stack pointer
+ * r0  - opal token
+ */
+_GLOBAL(opal_call_realmode)
+	mflr	r12
+	std	r12,PPC_LR_STKOFF(r1)
+	ld	r2,PACATOC(r13)
+	/* Set opal return address */
+	LOAD_REG_ADDR(r12,return_from_opal_call)
+	mtlr	r12
+
+	mfmsr	r12
+#ifdef __LITTLE_ENDIAN__
+	/* Handle endian-ness */
+	li	r11,MSR_LE
+	andc	r12,r12,r11
+#endif
+	mtspr	SPRN_HSRR1,r12
+	LOAD_REG_ADDR(r11,opal)
+	ld	r12,8(r11)
+	ld	r2,0(r11)
+	mtspr	SPRN_HSRR0,r12
+	hrfid
+
+return_from_opal_call:
+#ifdef __LITTLE_ENDIAN__
+	FIXUP_ENDIAN
+#endif
+	ld	r12,PPC_LR_STKOFF(r1)
+	mtlr	r12
+	blr
+
 OPAL_CALL(opal_invalid_call,			OPAL_INVALID_CALL);
 OPAL_CALL(opal_console_write,			OPAL_CONSOLE_WRITE);
 OPAL_CALL(opal_console_read,			OPAL_CONSOLE_READ);
@@ -184,6 +221,7 @@ OPAL_CALL(opal_register_exception_handler,	OPAL_REGISTER_OPAL_EXCEPTION_HANDLER)
 OPAL_CALL(opal_pci_eeh_freeze_status,		OPAL_PCI_EEH_FREEZE_STATUS);
 OPAL_CALL(opal_pci_eeh_freeze_clear,		OPAL_PCI_EEH_FREEZE_CLEAR);
 OPAL_CALL(opal_pci_eeh_freeze_set,		OPAL_PCI_EEH_FREEZE_SET);
+OPAL_CALL(opal_pci_err_inject,			OPAL_PCI_ERR_INJECT);
 OPAL_CALL(opal_pci_shpc,			OPAL_PCI_SHPC);
 OPAL_CALL(opal_pci_phb_mmio_enable,		OPAL_PCI_PHB_MMIO_ENABLE);
 OPAL_CALL(opal_pci_set_phb_mem_window,		OPAL_PCI_SET_PHB_MEM_WINDOW);
@@ -232,6 +270,7 @@ OPAL_CALL(opal_validate_flash,			OPAL_FLASH_VALIDATE);
 OPAL_CALL(opal_manage_flash,			OPAL_FLASH_MANAGE);
 OPAL_CALL(opal_update_flash,			OPAL_FLASH_UPDATE);
 OPAL_CALL(opal_resync_timebase,			OPAL_RESYNC_TIMEBASE);
+OPAL_CALL(opal_check_token,			OPAL_CHECK_TOKEN);
 OPAL_CALL(opal_dump_init,			OPAL_DUMP_INIT);
 OPAL_CALL(opal_dump_info,			OPAL_DUMP_INFO);
 OPAL_CALL(opal_dump_info2,			OPAL_DUMP_INFO2);
@@ -245,5 +284,12 @@ OPAL_CALL(opal_sensor_read,			OPAL_SENSOR_READ);
 OPAL_CALL(opal_get_param,			OPAL_GET_PARAM);
 OPAL_CALL(opal_set_param,			OPAL_SET_PARAM);
 OPAL_CALL(opal_handle_hmi,			OPAL_HANDLE_HMI);
+OPAL_CALL(opal_slw_set_reg,			OPAL_SLW_SET_REG);
 OPAL_CALL(opal_register_dump_region,		OPAL_REGISTER_DUMP_REGION);
 OPAL_CALL(opal_unregister_dump_region,		OPAL_UNREGISTER_DUMP_REGION);
+OPAL_CALL(opal_pci_set_phb_cxl_mode,		OPAL_PCI_SET_PHB_CXL_MODE);
+OPAL_CALL(opal_tpo_write,			OPAL_WRITE_TPO);
+OPAL_CALL(opal_tpo_read,			OPAL_READ_TPO);
+OPAL_CALL(opal_ipmi_send,			OPAL_IPMI_SEND);
+OPAL_CALL(opal_ipmi_recv,			OPAL_IPMI_RECV);
+OPAL_CALL(opal_i2c_request,			OPAL_I2C_REQUEST);

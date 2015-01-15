@@ -1309,56 +1309,6 @@ samsung_gpio_pull_t s3c_gpio_getpull(unsigned int pin)
 }
 EXPORT_SYMBOL(s3c_gpio_getpull);
 
-#ifdef CONFIG_S5P_GPIO_DRVSTR
-s5p_gpio_drvstr_t s5p_gpio_get_drvstr(unsigned int pin)
-{
-	struct samsung_gpio_chip *chip = samsung_gpiolib_getchip(pin);
-	unsigned int off;
-	void __iomem *reg;
-	int shift;
-	u32 drvstr;
-
-	if (!chip)
-		return -EINVAL;
-
-	off = pin - chip->chip.base;
-	shift = off * 2;
-	reg = chip->base + 0x0C;
-
-	drvstr = __raw_readl(reg);
-	drvstr = drvstr >> shift;
-	drvstr &= 0x3;
-
-	return (__force s5p_gpio_drvstr_t)drvstr;
-}
-EXPORT_SYMBOL(s5p_gpio_get_drvstr);
-
-int s5p_gpio_set_drvstr(unsigned int pin, s5p_gpio_drvstr_t drvstr)
-{
-	struct samsung_gpio_chip *chip = samsung_gpiolib_getchip(pin);
-	unsigned int off;
-	void __iomem *reg;
-	int shift;
-	u32 tmp;
-
-	if (!chip)
-		return -EINVAL;
-
-	off = pin - chip->chip.base;
-	shift = off * 2;
-	reg = chip->base + 0x0C;
-
-	tmp = __raw_readl(reg);
-	tmp &= ~(0x3 << shift);
-	tmp |= drvstr << shift;
-
-	__raw_writel(tmp, reg);
-
-	return 0;
-}
-EXPORT_SYMBOL(s5p_gpio_set_drvstr);
-#endif	/* CONFIG_S5P_GPIO_DRVSTR */
-
 #ifdef CONFIG_PLAT_S3C24XX
 unsigned int s3c2410_modify_misccr(unsigned int clear, unsigned int change)
 {

@@ -527,7 +527,6 @@ MODULE_ALIAS("platform:omap_uwire");
 static struct platform_driver uwire_driver = {
 	.driver = {
 		.name		= "omap_uwire",
-		.owner		= THIS_MODULE,
 	},
 	.probe = uwire_probe,
 	.remove = uwire_remove,

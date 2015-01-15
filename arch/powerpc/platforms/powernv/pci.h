@@ -85,6 +85,8 @@ struct pnv_eeh_ops {
 	int (*get_log)(struct eeh_pe *pe, int severity,
 		       char *drv_log, unsigned long len);
 	int (*configure_bridge)(struct eeh_pe *pe);
+	int (*err_inject)(struct eeh_pe *pe, int type, int func,
+			  unsigned long addr, unsigned long mask);
 	int (*next_error)(struct eeh_pe **pe);
 };
 #endif /* CONFIG_EEH */
@@ -122,11 +124,13 @@ struct pnv_phb {
 	void (*dma_dev_setup)(struct pnv_phb *phb, struct pci_dev *pdev);
 	int (*dma_set_mask)(struct pnv_phb *phb, struct pci_dev *pdev,
 			    u64 dma_mask);
+	u64 (*dma_get_required_mask)(struct pnv_phb *phb,
+				     struct pci_dev *pdev);
 	void (*fixup_phb)(struct pci_controller *hose);
 	u32 (*bdfn_to_pe)(struct pnv_phb *phb, struct pci_bus *bus, u32 devfn);
 	void (*shutdown)(struct pnv_phb *phb);
 	int (*init_m64)(struct pnv_phb *phb);
-	void (*alloc_m64_pe)(struct pnv_phb *phb);
+	void (*reserve_m64_pe)(struct pnv_phb *phb);
 	int (*pick_m64_pe)(struct pnv_phb *phb, struct pci_bus *bus, int all);
 	int (*get_pe_state)(struct pnv_phb *phb, int pe_no);
 	void (*freeze_pe)(struct pnv_phb *phb, int pe_no);

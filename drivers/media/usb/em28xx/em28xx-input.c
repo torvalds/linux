@@ -71,8 +71,7 @@ struct em28xx_IR {
 	unsigned int last_readcount;
 	u64 rc_type;
 
-	/* i2c slave address of external device (if used) */
-	u16 i2c_dev_addr;
+	struct i2c_client *i2c_client;
 
 	int  (*get_key_i2c)(struct i2c_client *ir, enum rc_type *protocol, u32 *scancode);
 	int  (*get_key)(struct em28xx_IR *, struct em28xx_ir_poll_result *);
@@ -294,16 +293,11 @@ static int em2874_polling_getkey(struct em28xx_IR *ir,
 
 static int em28xx_i2c_ir_handle_key(struct em28xx_IR *ir)
 {
-	struct em28xx *dev = ir->dev;
 	static u32 scancode;
 	enum rc_type protocol;
 	int rc;
-	struct i2c_client client;
 
-	client.adapter = &ir->dev->i2c_adap[dev->def_i2c_bus];
-	client.addr = ir->i2c_dev_addr;
-
-	rc = ir->get_key_i2c(&client, &protocol, &scancode);
+	rc = ir->get_key_i2c(ir->i2c_client, &protocol, &scancode);
 	if (rc < 0) {
 		dprintk("ir->get_key_i2c() failed: %d\n", rc);
 		return rc;
@@ -361,7 +355,7 @@ static void em28xx_ir_work(struct work_struct *work)
 {
 	struct em28xx_IR *ir = container_of(work, struct em28xx_IR, work.work);
 
-	if (ir->i2c_dev_addr) /* external i2c device */
+	if (ir->i2c_client) /* external i2c device */
 		em28xx_i2c_ir_handle_key(ir);
 	else /* internal device */
 		em28xx_ir_handle_key(ir);
@@ -465,7 +459,7 @@ static int em28xx_ir_change_protocol(struct rc_dev *rc_dev, u64 *rc_type)
 		return em2874_ir_change_protocol(rc_dev, rc_type);
 	default:
 		printk("Unrecognized em28xx chip id 0x%02x: IR not supported\n",
-			dev->chip_id);
+		       dev->chip_id);
 		return -EINVAL;
 	}
 }
@@ -511,7 +505,7 @@ static void em28xx_query_buttons(struct work_struct *work)
 		/* Check states of the buttons and act */
 		j = 0;
 		while (dev->board.buttons[j].role >= 0 &&
-			 dev->board.buttons[j].role < EM28XX_NUM_BUTTON_ROLES) {
+		       dev->board.buttons[j].role < EM28XX_NUM_BUTTON_ROLES) {
 			struct em28xx_button *button = &dev->board.buttons[j];
 			/* Check if button uses the current address */
 			if (button->reg_r != dev->button_polling_addresses[i]) {
@@ -609,17 +603,17 @@ static int em28xx_register_snapshot_button(struct em28xx *dev)
 static void em28xx_init_buttons(struct em28xx *dev)
 {
 	u8  i = 0, j = 0;
-	bool addr_new = 0;
+	bool addr_new = false;
 
 	dev->button_polling_interval = EM28XX_BUTTONS_DEBOUNCED_QUERY_INTERVAL;
 	while (dev->board.buttons[i].role >= 0 &&
-			 dev->board.buttons[i].role < EM28XX_NUM_BUTTON_ROLES) {
+	       dev->board.buttons[i].role < EM28XX_NUM_BUTTON_ROLES) {
 		struct em28xx_button *button = &dev->board.buttons[i];
 		/* Check if polling address is already on the list */
-		addr_new = 1;
+		addr_new = true;
 		for (j = 0; j < dev->num_button_polling_addresses; j++) {
 			if (button->reg_r == dev->button_polling_addresses[j]) {
-				addr_new = 0;
+				addr_new = false;
 				break;
 			}
 		}
@@ -659,11 +653,11 @@ next_button:
 	/* Start polling */
 	if (dev->num_button_polling_addresses) {
 		memset(dev->button_polling_last_values, 0,
-					       EM28XX_NUM_BUTTON_ADDRESSES_MAX);
+		       EM28XX_NUM_BUTTON_ADDRESSES_MAX);
 		INIT_DELAYED_WORK(&dev->buttons_query_work,
-							  em28xx_query_buttons);
+				  em28xx_query_buttons);
 		schedule_delayed_work(&dev->buttons_query_work,
-			       msecs_to_jiffies(dev->button_polling_interval));
+				      msecs_to_jiffies(dev->button_polling_interval));
 	}
 }
 
@@ -718,8 +712,10 @@ static int em28xx_ir_init(struct em28xx *dev)
 	em28xx_info("Registering input extension\n");
 
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
+	if (!ir)
+		return -ENOMEM;
 	rc = rc_allocate_device();
-	if (!ir || !rc)
+	if (!rc)
 		goto error;
 
 	/* record handles to ourself */
@@ -756,7 +752,13 @@ static int em28xx_ir_init(struct em28xx *dev)
 			goto error;
 		}
 
-		ir->i2c_dev_addr = i2c_rc_dev_addr;
+		ir->i2c_client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
+		if (!ir->i2c_client)
+			goto error;
+		ir->i2c_client->adapter = &ir->dev->i2c_adap[dev->def_i2c_bus];
+		ir->i2c_client->addr = i2c_rc_dev_addr;
+		ir->i2c_client->flags = 0;
+		/* NOTE: all other fields of i2c_client are unused */
 	} else {	/* internal device */
 		switch (dev->chip_id) {
 		case CHIP_ID_EM2860:
@@ -815,6 +817,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 	return 0;
 
 error:
+	kfree(ir->i2c_client);
 	dev->ir = NULL;
 	rc_free_device(rc);
 	kfree(ir);
@@ -838,8 +841,9 @@ static int em28xx_ir_fini(struct em28xx *dev)
 	if (!ir)
 		goto ref_put;
 
-	if (ir->rc)
-		rc_unregister_device(ir->rc);
+	rc_unregister_device(ir->rc);
+
+	kfree(ir->i2c_client);
 
 	/* done */
 	kfree(ir);
@@ -882,7 +886,7 @@ static int em28xx_ir_resume(struct em28xx *dev)
 		schedule_delayed_work(&ir->work, msecs_to_jiffies(ir->polling));
 	if (dev->num_button_polling_addresses)
 		schedule_delayed_work(&dev->buttons_query_work,
-			       msecs_to_jiffies(dev->button_polling_interval));
+				      msecs_to_jiffies(dev->button_polling_interval));
 	return 0;
 }
 

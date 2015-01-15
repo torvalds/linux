@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -239,16 +241,12 @@ enum iwl_wowlan_wakeup_filters {
 	IWL_WOWLAN_WAKEUP_BCN_FILTERING			= BIT(16),
 }; /* WOWLAN_WAKEUP_FILTER_API_E_VER_4 */
 
-struct iwl_wowlan_config_cmd_v2 {
+struct iwl_wowlan_config_cmd {
 	__le32 wakeup_filter;
 	__le16 non_qos_seq;
 	__le16 qos_seq[8];
 	u8 wowlan_ba_teardown_tids;
 	u8 is_11n_connection;
-} __packed; /* WOWLAN_CONFIG_API_S_VER_2 */
-
-struct iwl_wowlan_config_cmd_v3 {
-	struct iwl_wowlan_config_cmd_v2 common;
 	u8 offloading_tid;
 	u8 reserved[3];
 } __packed; /* WOWLAN_CONFIG_API_S_VER_3 */

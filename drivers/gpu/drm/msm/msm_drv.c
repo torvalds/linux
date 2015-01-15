@@ -29,6 +29,8 @@ static void msm_fb_output_poll_changed(struct drm_device *dev)
 static const struct drm_mode_config_funcs mode_config_funcs = {
 	.fb_create = msm_framebuffer_create,
 	.output_poll_changed = msm_fb_output_poll_changed,
+	.atomic_check = drm_atomic_helper_check,
+	.atomic_commit = msm_atomic_commit,
 };
 
 int msm_register_mmu(struct drm_device *dev, struct msm_mmu *mmu)
@@ -191,6 +193,7 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 
 	priv->wq = alloc_ordered_workqueue("msm", 0);
 	init_waitqueue_head(&priv->fence_event);
+	init_waitqueue_head(&priv->pending_crtcs_event);
 
 	INIT_LIST_HEAD(&priv->inactive_list);
 	INIT_LIST_HEAD(&priv->fence_cbs);
@@ -280,7 +283,7 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 	dev->mode_config.max_height = 2048;
 	dev->mode_config.funcs = &mode_config_funcs;
 
-	ret = drm_vblank_init(dev, 1);
+	ret = drm_vblank_init(dev, priv->num_crtcs);
 	if (ret < 0) {
 		dev_err(dev->dev, "failed to initialize vblank\n");
 		goto fail;
@@ -293,6 +296,8 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 		dev_err(dev->dev, "failed to install IRQ handler\n");
 		goto fail;
 	}
+
+	drm_mode_config_reset(dev);
 
 #ifdef CONFIG_DRM_MSM_FBDEV
 	priv->fbdev = msm_fbdev_init(dev);
@@ -315,39 +320,12 @@ static void load_gpu(struct drm_device *dev)
 {
 	static DEFINE_MUTEX(init_lock);
 	struct msm_drm_private *priv = dev->dev_private;
-	struct msm_gpu *gpu;
 
 	mutex_lock(&init_lock);
 
-	if (priv->gpu)
-		goto out;
+	if (!priv->gpu)
+		priv->gpu = adreno_load_gpu(dev);
 
-	gpu = a3xx_gpu_init(dev);
-	if (IS_ERR(gpu)) {
-		dev_warn(dev->dev, "failed to load a3xx gpu\n");
-		gpu = NULL;
-		/* not fatal */
-	}
-
-	if (gpu) {
-		int ret;
-		mutex_lock(&dev->struct_mutex);
-		gpu->funcs->pm_resume(gpu);
-		mutex_unlock(&dev->struct_mutex);
-		ret = gpu->funcs->hw_init(gpu);
-		if (ret) {
-			dev_err(dev->dev, "gpu hw init failed: %d\n", ret);
-			gpu->funcs->destroy(gpu);
-			gpu = NULL;
-		} else {
-			/* give inactive pm a chance to kick in: */
-			msm_gpu_retire(gpu);
-		}
-	}
-
-	priv->gpu = gpu;
-
-out:
 	mutex_unlock(&init_lock);
 }
 
@@ -646,6 +624,26 @@ int msm_wait_fence_interruptable(struct drm_device *dev, uint32_t fence,
 	return ret;
 }
 
+int msm_queue_fence_cb(struct drm_device *dev,
+		struct msm_fence_cb *cb, uint32_t fence)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+	int ret = 0;
+
+	mutex_lock(&dev->struct_mutex);
+	if (!list_empty(&cb->work.entry)) {
+		ret = -EINVAL;
+	} else if (fence > priv->completed_fence) {
+		cb->fence = fence;
+		list_add_tail(&cb->work.entry, &priv->fence_cbs);
+	} else {
+		queue_work(priv->wq, &cb->work);
+	}
+	mutex_unlock(&dev->struct_mutex);
+
+	return ret;
+}
+
 /* called from workqueue */
 void msm_update_fence(struct drm_device *dev, uint32_t fence)
 {
@@ -836,6 +834,7 @@ static struct drm_driver msm_driver = {
 	.open               = msm_open,
 	.preclose           = msm_preclose,
 	.lastclose          = msm_lastclose,
+	.set_busid          = drm_platform_set_busid,
 	.irq_handler        = msm_irq,
 	.irq_preinstall     = msm_irq_preinstall,
 	.irq_postinstall    = msm_irq_postinstall,
@@ -858,6 +857,7 @@ static struct drm_driver msm_driver = {
 	.gem_prime_import_sg_table = msm_gem_prime_import_sg_table,
 	.gem_prime_vmap     = msm_gem_prime_vmap,
 	.gem_prime_vunmap   = msm_gem_prime_vunmap,
+	.gem_prime_mmap     = msm_gem_prime_mmap,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init       = msm_debugfs_init,
 	.debugfs_cleanup    = msm_debugfs_cleanup,
@@ -1013,7 +1013,6 @@ static struct platform_driver msm_platform_driver = {
 	.probe      = msm_pdev_probe,
 	.remove     = msm_pdev_remove,
 	.driver     = {
-		.owner  = THIS_MODULE,
 		.name   = "msm",
 		.of_match_table = dt_match,
 		.pm     = &msm_pm_ops,
@@ -1025,7 +1024,7 @@ static int __init msm_drm_register(void)
 {
 	DBG("init");
 	hdmi_register();
-	a3xx_register();
+	adreno_register();
 	return platform_driver_register(&msm_platform_driver);
 }
 
@@ -1034,7 +1033,7 @@ static void __exit msm_drm_unregister(void)
 	DBG("fini");
 	platform_driver_unregister(&msm_platform_driver);
 	hdmi_unregister();
-	a3xx_unregister();
+	adreno_unregister();
 }
 
 module_init(msm_drm_register);

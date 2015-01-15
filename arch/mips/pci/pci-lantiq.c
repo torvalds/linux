@@ -215,17 +215,12 @@ static int ltq_pci_probe(struct platform_device *pdev)
 
 	pci_clear_flags(PCI_PROBE_ONLY);
 
-	res_cfg = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	res_bridge = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (!res_cfg || !res_bridge) {
-		dev_err(&pdev->dev, "missing memory reources\n");
-		return -EINVAL;
-	}
-
 	ltq_pci_membase = devm_ioremap_resource(&pdev->dev, res_bridge);
 	if (IS_ERR(ltq_pci_membase))
 		return PTR_ERR(ltq_pci_membase);
 
+	res_cfg = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ltq_pci_mapped_cfg = devm_ioremap_resource(&pdev->dev, res_cfg);
 	if (IS_ERR(ltq_pci_mapped_cfg))
 		return PTR_ERR(ltq_pci_mapped_cfg);
@@ -247,7 +242,6 @@ static struct platform_driver ltq_pci_driver = {
 	.probe = ltq_pci_probe,
 	.driver = {
 		.name = "pci-xway",
-		.owner = THIS_MODULE,
 		.of_match_table = ltq_pci_match,
 	},
 };

@@ -63,7 +63,7 @@ static inline void linux_exit(int code)
 	x86_syscall3(__NR_exit, code, 0, 0);
 }
 
-void to_base10(char *lastdig, uint64_t n)
+void to_base10(char *lastdig, time_t n)
 {
 	while (n) {
 		*lastdig = (n % 10) + '0';

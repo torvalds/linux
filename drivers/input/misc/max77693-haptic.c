@@ -152,7 +152,7 @@ static void max77693_haptic_disable(struct max77693_haptic *haptic)
 {
 	int error;
 
-	if (haptic->enabled)
+	if (!haptic->enabled)
 		return;
 
 	error = max77693_haptic_configure(haptic, false);
@@ -194,7 +194,7 @@ static int max77693_haptic_play_effect(struct input_dev *dev, void *data,
 				       struct ff_effect *effect)
 {
 	struct max77693_haptic *haptic = input_get_drvdata(dev);
-	uint64_t period_mag_multi;
+	u64 period_mag_multi;
 
 	haptic->magnitude = effect->u.rumble.strong_magnitude;
 	if (!haptic->magnitude)
@@ -205,8 +205,7 @@ static int max77693_haptic_play_effect(struct input_dev *dev, void *data,
 	 * The formula to convert magnitude to pwm_duty as follows:
 	 * - pwm_duty = (magnitude * pwm_period) / MAX_MAGNITUDE(0xFFFF)
 	 */
-	period_mag_multi = (int64_t)(haptic->pwm_dev->period *
-						haptic->magnitude);
+	period_mag_multi = (u64)haptic->pwm_dev->period * haptic->magnitude;
 	haptic->pwm_duty = (unsigned int)(period_mag_multi >>
 						MAX_MAGNITUDE_SHIFT);
 
@@ -342,7 +341,6 @@ static SIMPLE_DEV_PM_OPS(max77693_haptic_pm_ops,
 static struct platform_driver max77693_haptic_driver = {
 	.driver		= {
 		.name	= "max77693-haptic",
-		.owner	= THIS_MODULE,
 		.pm	= &max77693_haptic_pm_ops,
 	},
 	.probe		= max77693_haptic_probe,

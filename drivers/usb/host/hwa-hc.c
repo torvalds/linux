@@ -607,7 +607,7 @@ found:
 	wa->wa_descr = wa_descr = (struct usb_wa_descriptor *) hdr;
 	if (le16_to_cpu(wa_descr->bcdWAVersion) > 0x0100)
 		dev_warn(dev, "Wire Adapter v%d.%d newer than groked v1.0\n",
-			 le16_to_cpu(wa_descr->bcdWAVersion) & 0xff00 >> 8,
+			 (le16_to_cpu(wa_descr->bcdWAVersion) & 0xff00) >> 8,
 			 le16_to_cpu(wa_descr->bcdWAVersion) & 0x00ff);
 	result = 0;
 error:

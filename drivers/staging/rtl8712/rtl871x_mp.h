@@ -208,7 +208,7 @@ enum POWER_MODE {
 #define RX_PKT_DEST_ADDR	2
 #define RX_PKT_PHY_MATCH	3
 
-#define RPTMaxCount 0x000FFFFF;
+#define RPTMaxCount 0x000FFFFF
 
 /* parameter 1 : BitMask
  *	bit 0  : OFDM PPDU

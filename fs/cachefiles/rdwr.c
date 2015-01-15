@@ -880,7 +880,6 @@ int cachefiles_write_page(struct fscache_storage *op, struct page *page)
 {
 	struct cachefiles_object *object;
 	struct cachefiles_cache *cache;
-	mm_segment_t old_fs;
 	struct file *file;
 	struct path path;
 	loff_t pos, eof;
@@ -914,36 +913,27 @@ int cachefiles_write_page(struct fscache_storage *op, struct page *page)
 	if (IS_ERR(file)) {
 		ret = PTR_ERR(file);
 	} else {
-		ret = -EIO;
-		if (file->f_op->write) {
-			pos = (loff_t) page->index << PAGE_SHIFT;
+		pos = (loff_t) page->index << PAGE_SHIFT;
 
-			/* we mustn't write more data than we have, so we have
-			 * to beware of a partial page at EOF */
-			eof = object->fscache.store_limit_l;
-			len = PAGE_SIZE;
-			if (eof & ~PAGE_MASK) {
-				ASSERTCMP(pos, <, eof);
-				if (eof - pos < PAGE_SIZE) {
-					_debug("cut short %llx to %llx",
-					       pos, eof);
-					len = eof - pos;
-					ASSERTCMP(pos + len, ==, eof);
-				}
+		/* we mustn't write more data than we have, so we have
+		 * to beware of a partial page at EOF */
+		eof = object->fscache.store_limit_l;
+		len = PAGE_SIZE;
+		if (eof & ~PAGE_MASK) {
+			ASSERTCMP(pos, <, eof);
+			if (eof - pos < PAGE_SIZE) {
+				_debug("cut short %llx to %llx",
+				       pos, eof);
+				len = eof - pos;
+				ASSERTCMP(pos + len, ==, eof);
 			}
-
-			data = kmap(page);
-			file_start_write(file);
-			old_fs = get_fs();
-			set_fs(KERNEL_DS);
-			ret = file->f_op->write(
-				file, (const void __user *) data, len, &pos);
-			set_fs(old_fs);
-			kunmap(page);
-			file_end_write(file);
-			if (ret != len)
-				ret = -EIO;
 		}
+
+		data = kmap(page);
+		ret = __kernel_write(file, data, len, &pos);
+		kunmap(page);
+		if (ret != len)
+			ret = -EIO;
 		fput(file);
 	}
 

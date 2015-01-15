@@ -306,7 +306,7 @@ int ocfs2_slot_to_node_num_locked(struct ocfs2_super *osb, int slot_num,
 	assert_spin_locked(&osb->osb_lock);
 
 	BUG_ON(slot_num < 0);
-	BUG_ON(slot_num > osb->max_slots);
+	BUG_ON(slot_num >= osb->max_slots);
 
 	if (!si->si_slots[slot_num].sl_valid)
 		return -ENOENT;

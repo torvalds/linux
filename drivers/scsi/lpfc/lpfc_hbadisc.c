@@ -150,9 +150,30 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 
 		/* If the WWPN of the rport and ndlp don't match, ignore it */
 		if (rport->port_name != wwn_to_u64(ndlp->nlp_portname.u.wwn)) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE,
+				"6789 rport name %lx != node port name %lx",
+				(unsigned long)rport->port_name,
+				(unsigned long)wwn_to_u64(
+						ndlp->nlp_portname.u.wwn));
+			put_node = rdata->pnode != NULL;
+			put_rport = ndlp->rport != NULL;
+			rdata->pnode = NULL;
+			ndlp->rport = NULL;
+			if (put_node)
+				lpfc_nlp_put(ndlp);
 			put_device(&rport->dev);
 			return;
 		}
+
+		put_node = rdata->pnode != NULL;
+		put_rport = ndlp->rport != NULL;
+		rdata->pnode = NULL;
+		ndlp->rport = NULL;
+		if (put_node)
+			lpfc_nlp_put(ndlp);
+		if (put_rport)
+			put_device(&rport->dev);
+		return;
 	}
 
 	evtp = &ndlp->dev_loss_evt;
@@ -161,6 +182,7 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 		return;
 
 	evtp->evt_arg1  = lpfc_nlp_get(ndlp);
+	ndlp->nlp_add_flag |= NLP_IN_DEV_LOSS;
 
 	spin_lock_irq(&phba->hbalock);
 	/* We need to hold the node by incrementing the reference
@@ -201,8 +223,10 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 
 	rport = ndlp->rport;
 
-	if (!rport)
+	if (!rport) {
+		ndlp->nlp_add_flag &= ~NLP_IN_DEV_LOSS;
 		return fcf_inuse;
+	}
 
 	rdata = rport->dd_data;
 	name = (uint8_t *) &ndlp->nlp_portname;
@@ -235,6 +259,7 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 		put_rport = ndlp->rport != NULL;
 		rdata->pnode = NULL;
 		ndlp->rport = NULL;
+		ndlp->nlp_add_flag &= ~NLP_IN_DEV_LOSS;
 		if (put_node)
 			lpfc_nlp_put(ndlp);
 		if (put_rport)
@@ -250,6 +275,7 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 				 *name, *(name+1), *(name+2), *(name+3),
 				 *(name+4), *(name+5), *(name+6), *(name+7),
 				 ndlp->nlp_DID);
+		ndlp->nlp_add_flag &= ~NLP_IN_DEV_LOSS;
 		return fcf_inuse;
 	}
 
@@ -259,6 +285,7 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 		put_rport = ndlp->rport != NULL;
 		rdata->pnode = NULL;
 		ndlp->rport = NULL;
+		ndlp->nlp_add_flag &= ~NLP_IN_DEV_LOSS;
 		if (put_node)
 			lpfc_nlp_put(ndlp);
 		if (put_rport)
@@ -269,6 +296,7 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 	if (ndlp->nlp_sid != NLP_NO_SID) {
 		warn_on = 1;
 		/* flush the target */
+		ndlp->nlp_add_flag &= ~NLP_IN_DEV_LOSS;
 		lpfc_sli_abort_iocb(vport, &phba->sli.ring[phba->sli.fcp_ring],
 				    ndlp->nlp_sid, 0, LPFC_CTX_TGT);
 	}
@@ -297,6 +325,7 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 	put_rport = ndlp->rport != NULL;
 	rdata->pnode = NULL;
 	ndlp->rport = NULL;
+	ndlp->nlp_add_flag &= ~NLP_IN_DEV_LOSS;
 	if (put_node)
 		lpfc_nlp_put(ndlp);
 	if (put_rport)
@@ -995,7 +1024,6 @@ lpfc_linkup(struct lpfc_hba *phba)
 	struct lpfc_vport **vports;
 	int i;
 
-	lpfc_cleanup_wt_rrqs(phba);
 	phba->link_state = LPFC_LINK_UP;
 
 	/* Unblock fabric iocbs if they are blocked */
@@ -2042,7 +2070,8 @@ lpfc_sli4_set_fcf_flogi_fail(struct lpfc_hba *phba, uint16_t fcf_index)
  * returns:
  * 0=success 1=failure
  **/
-int lpfc_sli4_fcf_pri_list_add(struct lpfc_hba *phba, uint16_t fcf_index,
+static int lpfc_sli4_fcf_pri_list_add(struct lpfc_hba *phba,
+	uint16_t fcf_index,
 	struct fcf_record *new_fcf_record)
 {
 	uint16_t current_fcf_pri;
@@ -2146,7 +2175,6 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	uint16_t fcf_index, next_fcf_index;
 	struct lpfc_fcf_rec *fcf_rec = NULL;
 	uint16_t vlan_id;
-	uint32_t seed;
 	bool select_new_fcf;
 	int rc;
 
@@ -2383,9 +2411,6 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		phba->fcf.fcf_flag |= FCF_AVAILABLE;
 		/* Setup initial running random FCF selection count */
 		phba->fcf.eligible_fcf_cnt = 1;
-		/* Seeding the random number generator for random selection */
-		seed = (uint32_t)(0xFFFFFFFF & jiffies);
-		prandom_seed(seed);
 	}
 	spin_unlock_irq(&phba->hbalock);
 	goto read_next_fcf;
@@ -2678,7 +2703,7 @@ out:
  *
  * This function handles completion of init vfi mailbox command.
  */
-void
+static void
 lpfc_init_vfi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 {
 	struct lpfc_vport *vport = mboxq->vport;
@@ -4438,7 +4463,7 @@ lpfc_no_rpi(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
  * This function will issue an ELS LOGO command after completing
  * the UNREG_RPI.
  **/
-void
+static void
 lpfc_nlp_logo_unreg(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport  *vport = pmb->vport;
@@ -5006,7 +5031,6 @@ lpfc_disc_start(struct lpfc_vport *vport)
 	struct lpfc_hba  *phba = vport->phba;
 	uint32_t num_sent;
 	uint32_t clear_la_pending;
-	int did_changed;
 
 	if (!lpfc_is_link_up(phba)) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_SLI,
@@ -5024,11 +5048,6 @@ lpfc_disc_start(struct lpfc_vport *vport)
 		vport->port_state = LPFC_DISC_AUTH;
 
 	lpfc_set_disctmo(vport);
-
-	if (vport->fc_prevDID == vport->fc_myDID)
-		did_changed = 0;
-	else
-		did_changed = 1;
 
 	vport->fc_prevDID = vport->fc_myDID;
 	vport->num_disc_nodes = 0;
@@ -6318,7 +6337,7 @@ lpfc_parse_fcoe_conf(struct lpfc_hba *phba,
 		uint8_t *buff,
 		uint32_t size)
 {
-	uint32_t offset = 0, rec_length;
+	uint32_t offset = 0;
 	uint8_t *rec_ptr;
 
 	/*
@@ -6344,8 +6363,6 @@ lpfc_parse_fcoe_conf(struct lpfc_hba *phba,
 		return;
 	}
 	offset += 4;
-
-	rec_length = buff[offset + 1];
 
 	/* Read FCoE param record */
 	rec_ptr = lpfc_get_rec_conf23(&buff[offset],

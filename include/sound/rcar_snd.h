@@ -36,14 +36,14 @@
 #define RSND_SSI_CLK_PIN_SHARE		(1 << 31)
 #define RSND_SSI_NO_BUSIF		(1 << 30) /* SSI+DMA without BUSIF */
 
-#define RSND_SSI(_dma_id, _pio_irq, _flags)		\
-{ .dma_id = _dma_id, .pio_irq = _pio_irq, .flags = _flags }
+#define RSND_SSI(_dma_id, _irq, _flags)		\
+{ .dma_id = _dma_id, .irq = _irq, .flags = _flags }
 #define RSND_SSI_UNUSED \
-{ .dma_id = -1, .pio_irq = -1, .flags = 0 }
+{ .dma_id = -1, .irq = -1, .flags = 0 }
 
 struct rsnd_ssi_platform_info {
 	int dma_id;
-	int pio_irq;
+	int irq;
 	u32 flags;
 };
 

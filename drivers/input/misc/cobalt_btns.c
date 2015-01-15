@@ -157,7 +157,6 @@ static struct platform_driver cobalt_buttons_driver = {
 	.remove	= cobalt_buttons_remove,
 	.driver	= {
 		.name	= "Cobalt buttons",
-		.owner	= THIS_MODULE,
 	},
 };
 module_platform_driver(cobalt_buttons_driver);

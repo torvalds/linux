@@ -914,7 +914,7 @@ EXPORT_SYMBOL(drm_mode_equal_no_clocks_no_stereo);
  *
  * This function is a helper which can be used to validate modes against size
  * limitations of the DRM device/connector. If a mode is too big its status
- * memeber is updated with the appropriate validation failure code. The list
+ * member is updated with the appropriate validation failure code. The list
  * itself is not changed.
  */
 void drm_mode_validate_size(struct drm_device *dev,
@@ -1259,6 +1259,7 @@ drm_mode_create_from_cmdline_mode(struct drm_device *dev,
 	if (!mode)
 		return NULL;
 
+	mode->type |= DRM_MODE_TYPE_USERDEF;
 	drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
 	return mode;
 }

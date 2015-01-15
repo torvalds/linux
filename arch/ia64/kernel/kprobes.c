@@ -396,7 +396,7 @@ static void __kprobes restore_previous_kprobe(struct kprobe_ctlblk *kcb)
 {
 	unsigned int i;
 	i = atomic_read(&kcb->prev_kprobe_index);
-	__get_cpu_var(current_kprobe) = kcb->prev_kprobe[i-1].kp;
+	__this_cpu_write(current_kprobe, kcb->prev_kprobe[i-1].kp);
 	kcb->kprobe_status = kcb->prev_kprobe[i-1].status;
 	atomic_sub(1, &kcb->prev_kprobe_index);
 }
@@ -404,7 +404,7 @@ static void __kprobes restore_previous_kprobe(struct kprobe_ctlblk *kcb)
 static void __kprobes set_current_kprobe(struct kprobe *p,
 			struct kprobe_ctlblk *kcb)
 {
-	__get_cpu_var(current_kprobe) = p;
+	__this_cpu_write(current_kprobe, p);
 }
 
 static void kretprobe_trampoline(void)
@@ -823,7 +823,7 @@ static int __kprobes pre_kprobes_handler(struct die_args *args)
 			/*
 			 * jprobe instrumented function just completed
 			 */
-			p = __get_cpu_var(current_kprobe);
+			p = __this_cpu_read(current_kprobe);
 			if (p->break_handler && p->break_handler(p, regs)) {
 				goto ss_probe;
 			}

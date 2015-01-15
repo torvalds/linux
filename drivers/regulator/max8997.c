@@ -953,7 +953,8 @@ static int max8997_pmic_dt_parse_pdata(struct platform_device *pdev,
 
 		rdata->id = i;
 		rdata->initdata = of_get_regulator_init_data(&pdev->dev,
-							     reg_np);
+							     reg_np,
+							     &regulators[i]);
 		rdata->reg_node = reg_np;
 		rdata++;
 	}
@@ -1218,7 +1219,6 @@ MODULE_DEVICE_TABLE(platform, max8997_pmic_id);
 static struct platform_driver max8997_pmic_driver = {
 	.driver = {
 		.name = "max8997-pmic",
-		.owner = THIS_MODULE,
 	},
 	.probe = max8997_pmic_probe,
 	.id_table = max8997_pmic_id,

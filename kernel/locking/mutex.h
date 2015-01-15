@@ -16,7 +16,7 @@
 #define mutex_remove_waiter(lock, waiter, ti) \
 		__list_del((waiter)->list.prev, (waiter)->list.next)
 
-#ifdef CONFIG_SMP
+#ifdef CONFIG_MUTEX_SPIN_ON_OWNER
 static inline void mutex_set_owner(struct mutex *lock)
 {
 	lock->owner = current;

@@ -380,7 +380,6 @@ geth_bind(struct usb_configuration *c, struct usb_function *f)
 	return 0;
 
 fail:
-	usb_free_all_descriptors(f);
 	/* we might as well release our claims on endpoints */
 	if (geth->port.out_ep)
 		geth->port.out_ep->driver_data = NULL;

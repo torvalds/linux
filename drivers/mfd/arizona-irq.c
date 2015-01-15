@@ -152,10 +152,18 @@ static void arizona_irq_disable(struct irq_data *data)
 {
 }
 
+static int arizona_irq_set_wake(struct irq_data *data, unsigned int on)
+{
+	struct arizona *arizona = irq_data_get_irq_chip_data(data);
+
+	return irq_set_irq_wake(arizona->irq, on);
+}
+
 static struct irq_chip arizona_irq_chip = {
 	.name			= "arizona",
 	.irq_disable		= arizona_irq_disable,
 	.irq_enable		= arizona_irq_enable,
+	.irq_set_wake		= arizona_irq_set_wake,
 };
 
 static int arizona_irq_map(struct irq_domain *h, unsigned int virq,
@@ -164,7 +172,7 @@ static int arizona_irq_map(struct irq_domain *h, unsigned int virq,
 	struct regmap_irq_chip_data *data = h->host_data;
 
 	irq_set_chip_data(virq, data);
-	irq_set_chip_and_handler(virq, &arizona_irq_chip, handle_edge_irq);
+	irq_set_chip_and_handler(virq, &arizona_irq_chip, handle_simple_irq);
 	irq_set_nested_thread(virq, 1);
 
 	/* ARM needs us to explicitly flag the IRQ as valid
@@ -282,7 +290,7 @@ int arizona_irq_init(struct arizona *arizona)
 
 	ret = regmap_add_irq_chip(arizona->regmap,
 				  irq_create_mapping(arizona->virq, 0),
-				  IRQF_ONESHOT, -1, aod,
+				  IRQF_ONESHOT, 0, aod,
 				  &arizona->aod_irq_chip);
 	if (ret != 0) {
 		dev_err(arizona->dev, "Failed to add AOD IRQs: %d\n", ret);
@@ -291,7 +299,7 @@ int arizona_irq_init(struct arizona *arizona)
 
 	ret = regmap_add_irq_chip(arizona->regmap,
 				  irq_create_mapping(arizona->virq, 1),
-				  IRQF_ONESHOT, -1, irq,
+				  IRQF_ONESHOT, 0, irq,
 				  &arizona->irq_chip);
 	if (ret != 0) {
 		dev_err(arizona->dev, "Failed to add main IRQs: %d\n", ret);

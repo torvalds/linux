@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  * Written by:
  * Sergey Lapin <slapin@ossfans.org>
  * Maxim Gorbachyov <maxim.gorbachev@siemens.com>
@@ -103,6 +99,7 @@ static int ieee802154_sock_release(struct socket *sock)
 	}
 	return 0;
 }
+
 static int ieee802154_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 				   struct msghdr *msg, size_t len)
 {
@@ -235,7 +232,6 @@ static const struct proto_ops ieee802154_dgram_ops = {
 #endif
 };
 
-
 /* Create a socket. Initialise the socket, blank the addresses
  * set the state.
  */
@@ -324,7 +320,6 @@ drop:
 	return NET_RX_DROP;
 }
 
-
 static struct packet_type ieee802154_packet_type = {
 	.type = htons(ETH_P_IEEE802154),
 	.func = ieee802154_rcv,
@@ -358,6 +353,7 @@ err_dgram:
 out:
 	return rc;
 }
+
 static void __exit af_ieee802154_remove(void)
 {
 	dev_remove_pack(&ieee802154_packet_type);

@@ -428,6 +428,24 @@ struct nfsd4_reclaim_complete {
 	u32 rca_one_fs;
 };
 
+struct nfsd4_fallocate {
+	/* request */
+	stateid_t	falloc_stateid;
+	loff_t		falloc_offset;
+	u64		falloc_length;
+};
+
+struct nfsd4_seek {
+	/* request */
+	stateid_t	seek_stateid;
+	loff_t		seek_offset;
+	u32		seek_whence;
+
+	/* response */
+	u32		seek_eof;
+	loff_t		seek_pos;
+};
+
 struct nfsd4_op {
 	int					opnum;
 	__be32					status;
@@ -473,6 +491,11 @@ struct nfsd4_op {
 		struct nfsd4_reclaim_complete	reclaim_complete;
 		struct nfsd4_test_stateid	test_stateid;
 		struct nfsd4_free_stateid	free_stateid;
+
+		/* NFSv4.2 */
+		struct nfsd4_fallocate		allocate;
+		struct nfsd4_fallocate		deallocate;
+		struct nfsd4_seek		seek;
 	} u;
 	struct nfs4_replay *			replay;
 };

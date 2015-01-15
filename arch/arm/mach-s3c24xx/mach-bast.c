@@ -591,5 +591,4 @@ MACHINE_START(BAST, "Simtec-BAST")
 	.init_irq	= s3c2410_init_irq,
 	.init_machine	= bast_init,
 	.init_time	= bast_init_time,
-	.restart	= s3c2410_restart,
 MACHINE_END

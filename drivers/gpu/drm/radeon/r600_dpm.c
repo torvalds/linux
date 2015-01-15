@@ -24,6 +24,7 @@
 
 #include "drmP.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "r600d.h"
 #include "r600_dpm.h"
 #include "atom.h"
@@ -810,6 +811,7 @@ union power_info {
 union fan_info {
 	struct _ATOM_PPLIB_FANTABLE fan;
 	struct _ATOM_PPLIB_FANTABLE2 fan2;
+	struct _ATOM_PPLIB_FANTABLE3 fan3;
 };
 
 static int r600_parse_clk_voltage_dep_table(struct radeon_clock_voltage_dependency_table *radeon_table,
@@ -899,6 +901,14 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 			else
 				rdev->pm.dpm.fan.t_max = 10900;
 			rdev->pm.dpm.fan.cycle_delay = 100000;
+			if (fan_info->fan.ucFanTableFormat >= 3) {
+				rdev->pm.dpm.fan.control_mode = fan_info->fan3.ucFanControlMode;
+				rdev->pm.dpm.fan.default_max_fan_pwm =
+					le16_to_cpu(fan_info->fan3.usFanPWMMax);
+				rdev->pm.dpm.fan.default_fan_output_sensitivity = 4836;
+				rdev->pm.dpm.fan.fan_output_sensitivity =
+					le16_to_cpu(fan_info->fan3.usFanOutputSensitivity);
+			}
 			rdev->pm.dpm.fan.ucode_fan_control = true;
 		}
 	}
@@ -1255,7 +1265,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 					(mode_info->atom_context->bios + data_offset +
 					 le16_to_cpu(ext_hdr->usPowerTuneTableOffset));
 				rdev->pm.dpm.dyn_state.cac_tdp_table->maximum_power_delivery_limit =
-					ppt->usMaximumPowerDeliveryLimit;
+					le16_to_cpu(ppt->usMaximumPowerDeliveryLimit);
 				pt = &ppt->power_tune_table;
 			} else {
 				ATOM_PPLIB_POWERTUNE_Table *ppt = (ATOM_PPLIB_POWERTUNE_Table *)

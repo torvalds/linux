@@ -284,7 +284,7 @@ static int ima_eventname_init_common(struct integrity_iint_cache *iint,
 	}
 
 	if (file) {
-		cur_filename = file->f_dentry->d_name.name;
+		cur_filename = file->f_path.dentry->d_name.name;
 		cur_filename_len = strlen(cur_filename);
 	} else
 		/*

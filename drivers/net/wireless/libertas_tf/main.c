@@ -332,7 +332,7 @@ static int lbtf_op_start(struct ieee80211_hw *hw)
 
 err_prog_firmware:
 	priv->hw_reset_device(card);
-	lbtf_deb_leave_args(LBTF_DEB_MACOPS, "error programing fw; ret=%d", ret);
+	lbtf_deb_leave_args(LBTF_DEB_MACOPS, "error programming fw; ret=%d", ret);
 	return ret;
 }
 

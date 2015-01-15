@@ -540,7 +540,8 @@ static void psbfb_gamma_get(struct drm_crtc *crtc, u16 *red,
 static int psbfb_probe(struct drm_fb_helper *helper,
 				struct drm_fb_helper_surface_size *sizes)
 {
-	struct psb_fbdev *psb_fbdev = (struct psb_fbdev *)helper;
+	struct psb_fbdev *psb_fbdev =
+		container_of(helper, struct psb_fbdev, psb_fb_helper);
 	struct drm_device *dev = psb_fbdev->psb_fb_helper.dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	int bytespp;

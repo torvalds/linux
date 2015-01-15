@@ -205,6 +205,8 @@ struct bnx2x_virtf {
 	/* slow-path operations */
 	struct mutex			op_mutex; /* one vfop at a time mutex */
 	enum channel_tlvs		op_current;
+
+	u8 fp_hsi;
 };
 
 #define BNX2X_NR_VIRTFN(bp)	((bp)->vfdb->sriov.nr_virtfn)
@@ -299,7 +301,8 @@ struct bnx2x_vfdb {
 #define BP_VFDB(bp)		((bp)->vfdb)
 	/* vf array */
 	struct bnx2x_virtf	*vfs;
-#define BP_VF(bp, idx)		(&((bp)->vfdb->vfs[idx]))
+#define BP_VF(bp, idx)		((BP_VFDB(bp) && (bp)->vfdb->vfs) ? \
+					&((bp)->vfdb->vfs[idx]) : NULL)
 #define bnx2x_vf(bp, idx, var)	((bp)->vfdb->vfs[idx].var)
 
 	/* queue array - for all vfs */

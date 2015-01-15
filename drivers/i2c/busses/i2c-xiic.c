@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  *
  * This code was implemented by Mocean Laboratories AB when porting linux
  * to the automotive development board Russellville. The copyright holder
@@ -50,6 +46,11 @@ enum xilinx_i2c_state {
 	STATE_START
 };
 
+enum xiic_endian {
+	LITTLE,
+	BIG
+};
+
 /**
  * struct xiic_i2c - Internal representation of the XIIC I2C bus
  * @base:	Memory base of the HW registers
@@ -74,6 +75,7 @@ struct xiic_i2c {
 	enum xilinx_i2c_state	state;
 	struct i2c_msg		*rx_msg;
 	int			rx_pos;
+	enum xiic_endian	endianness;
 };
 
 
@@ -174,29 +176,58 @@ struct xiic_i2c {
 static void xiic_start_xfer(struct xiic_i2c *i2c);
 static void __xiic_start_xfer(struct xiic_i2c *i2c);
 
+/*
+ * For the register read and write functions, a little-endian and big-endian
+ * version are necessary. Endianness is detected during the probe function.
+ * Only the least significant byte [doublet] of the register are ever
+ * accessed. This requires an offset of 3 [2] from the base address for
+ * big-endian systems.
+ */
+
 static inline void xiic_setreg8(struct xiic_i2c *i2c, int reg, u8 value)
 {
-	iowrite8(value, i2c->base + reg);
+	if (i2c->endianness == LITTLE)
+		iowrite8(value, i2c->base + reg);
+	else
+		iowrite8(value, i2c->base + reg + 3);
 }
 
 static inline u8 xiic_getreg8(struct xiic_i2c *i2c, int reg)
 {
-	return ioread8(i2c->base + reg);
+	u8 ret;
+
+	if (i2c->endianness == LITTLE)
+		ret = ioread8(i2c->base + reg);
+	else
+		ret = ioread8(i2c->base + reg + 3);
+	return ret;
 }
 
 static inline void xiic_setreg16(struct xiic_i2c *i2c, int reg, u16 value)
 {
-	iowrite16(value, i2c->base + reg);
+	if (i2c->endianness == LITTLE)
+		iowrite16(value, i2c->base + reg);
+	else
+		iowrite16be(value, i2c->base + reg + 2);
 }
 
 static inline void xiic_setreg32(struct xiic_i2c *i2c, int reg, int value)
 {
-	iowrite32(value, i2c->base + reg);
+	if (i2c->endianness == LITTLE)
+		iowrite32(value, i2c->base + reg);
+	else
+		iowrite32be(value, i2c->base + reg);
 }
 
 static inline int xiic_getreg32(struct xiic_i2c *i2c, int reg)
 {
-	return ioread32(i2c->base + reg);
+	u32 ret;
+
+	if (i2c->endianness == LITTLE)
+		ret = ioread32(i2c->base + reg);
+	else
+		ret = ioread32be(i2c->base + reg);
+	return ret;
 }
 
 static inline void xiic_irq_dis(struct xiic_i2c *i2c, u32 mask)
@@ -696,6 +727,7 @@ static int xiic_i2c_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret, irq;
 	u8 i;
+	u32 sr;
 
 	i2c = devm_kzalloc(&pdev->dev, sizeof(*i2c), GFP_KERNEL);
 	if (!i2c)
@@ -727,6 +759,18 @@ static int xiic_i2c_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Cannot claim IRQ\n");
 		return ret;
 	}
+
+	/*
+	 * Detect endianness
+	 * Try to reset the TX FIFO. Then check the EMPTY flag. If it is not
+	 * set, assume that the endianness was wrong and swap.
+	 */
+	i2c->endianness = LITTLE;
+	xiic_setreg32(i2c, XIIC_CR_REG_OFFSET, XIIC_CR_TX_FIFO_RESET_MASK);
+	/* Reset is cleared in xiic_reinit */
+	sr = xiic_getreg32(i2c, XIIC_SR_REG_OFFSET);
+	if (!(sr & XIIC_SR_TX_FIFO_EMPTY_MASK))
+		i2c->endianness = BIG;
 
 	xiic_reinit(i2c);
 
@@ -771,7 +815,6 @@ static struct platform_driver xiic_i2c_driver = {
 	.probe   = xiic_i2c_probe,
 	.remove  = xiic_i2c_remove,
 	.driver  = {
-		.owner = THIS_MODULE,
 		.name = DRIVER_NAME,
 		.of_match_table = of_match_ptr(xiic_of_match),
 	},

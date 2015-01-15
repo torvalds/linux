@@ -327,6 +327,7 @@ static int diff__process_sample_event(struct perf_tool *tool __maybe_unused,
 				      struct machine *machine)
 {
 	struct addr_location al;
+	struct hists *hists = evsel__hists(evsel);
 
 	if (perf_event__preprocess_sample(event, machine, &al, sample) < 0) {
 		pr_warning("problem processing %d event, skipping it.\n",
@@ -334,7 +335,7 @@ static int diff__process_sample_event(struct perf_tool *tool __maybe_unused,
 		return -1;
 	}
 
-	if (hists__add_entry(&evsel->hists, &al, sample->period,
+	if (hists__add_entry(hists, &al, sample->period,
 			     sample->weight, sample->transaction)) {
 		pr_warning("problem incrementing symbol period, skipping event\n");
 		return -1;
@@ -346,9 +347,9 @@ static int diff__process_sample_event(struct perf_tool *tool __maybe_unused,
 	 * hists__output_resort() and precompute needs the total
 	 * period in order to sort entries by percentage delta.
 	 */
-	evsel->hists.stats.total_period += sample->period;
+	hists->stats.total_period += sample->period;
 	if (!al.filtered)
-		evsel->hists.stats.total_non_filtered_period += sample->period;
+		hists->stats.total_non_filtered_period += sample->period;
 
 	return 0;
 }
@@ -356,11 +357,12 @@ static int diff__process_sample_event(struct perf_tool *tool __maybe_unused,
 static struct perf_tool tool = {
 	.sample	= diff__process_sample_event,
 	.mmap	= perf_event__process_mmap,
+	.mmap2	= perf_event__process_mmap2,
 	.comm	= perf_event__process_comm,
 	.exit	= perf_event__process_exit,
 	.fork	= perf_event__process_fork,
 	.lost	= perf_event__process_lost,
-	.ordered_samples = true,
+	.ordered_events = true,
 	.ordering_requires_timestamps = true,
 };
 
@@ -382,7 +384,7 @@ static void perf_evlist__collapse_resort(struct perf_evlist *evlist)
 	struct perf_evsel *evsel;
 
 	evlist__for_each(evlist, evsel) {
-		struct hists *hists = &evsel->hists;
+		struct hists *hists = evsel__hists(evsel);
 
 		hists__collapse_resort(hists, NULL);
 	}
@@ -543,6 +545,42 @@ hist_entry__cmp_compute(struct hist_entry *left, struct hist_entry *right,
 	return __hist_entry__cmp_compute(p_left, p_right, c);
 }
 
+static int64_t
+hist_entry__cmp_nop(struct hist_entry *left __maybe_unused,
+		    struct hist_entry *right __maybe_unused)
+{
+	return 0;
+}
+
+static int64_t
+hist_entry__cmp_baseline(struct hist_entry *left, struct hist_entry *right)
+{
+	if (sort_compute)
+		return 0;
+
+	if (left->stat.period == right->stat.period)
+		return 0;
+	return left->stat.period > right->stat.period ? 1 : -1;
+}
+
+static int64_t
+hist_entry__cmp_delta(struct hist_entry *left, struct hist_entry *right)
+{
+	return hist_entry__cmp_compute(right, left, COMPUTE_DELTA);
+}
+
+static int64_t
+hist_entry__cmp_ratio(struct hist_entry *left, struct hist_entry *right)
+{
+	return hist_entry__cmp_compute(right, left, COMPUTE_RATIO);
+}
+
+static int64_t
+hist_entry__cmp_wdiff(struct hist_entry *left, struct hist_entry *right)
+{
+	return hist_entry__cmp_compute(right, left, COMPUTE_WEIGHTED_DIFF);
+}
+
 static void insert_hist_entry_by_compute(struct rb_root *root,
 					 struct hist_entry *he,
 					 int c)
@@ -603,7 +641,7 @@ static void hists__process(struct hists *hists)
 		hists__precompute(hists);
 		hists__compute_resort(hists);
 	} else {
-		hists__output_resort(hists);
+		hists__output_resort(hists, NULL);
 	}
 
 	hists__fprintf(hists, true, 0, 0, 0, stdout);
@@ -631,24 +669,26 @@ static void data_process(void)
 	bool first = true;
 
 	evlist__for_each(evlist_base, evsel_base) {
+		struct hists *hists_base = evsel__hists(evsel_base);
 		struct data__file *d;
 		int i;
 
 		data__for_each_file_new(i, d) {
 			struct perf_evlist *evlist = d->session->evlist;
 			struct perf_evsel *evsel;
+			struct hists *hists;
 
 			evsel = evsel_match(evsel_base, evlist);
 			if (!evsel)
 				continue;
 
-			d->hists = &evsel->hists;
+			hists = evsel__hists(evsel);
+			d->hists = hists;
 
-			hists__match(&evsel_base->hists, &evsel->hists);
+			hists__match(hists_base, hists);
 
 			if (!show_baseline_only)
-				hists__link(&evsel_base->hists,
-					    &evsel->hists);
+				hists__link(hists_base, hists);
 		}
 
 		fprintf(stdout, "%s# Event '%s'\n#\n", first ? "" : "\n",
@@ -659,7 +699,7 @@ static void data_process(void)
 		if (verbose || data__files_cnt > 2)
 			data__fprintf();
 
-		hists__process(&evsel_base->hists);
+		hists__process(hists_base);
 	}
 }
 
@@ -683,7 +723,7 @@ static int __cmd_diff(void)
 		d->session = perf_session__new(&d->file, false, &tool);
 		if (!d->session) {
 			pr_err("Failed to open %s\n", d->file.path);
-			ret = -ENOMEM;
+			ret = -1;
 			goto out_delete;
 		}
 
@@ -1034,27 +1074,35 @@ static void data__hpp_register(struct data__file *d, int idx)
 	fmt->header = hpp__header;
 	fmt->width  = hpp__width;
 	fmt->entry  = hpp__entry_global;
+	fmt->cmp    = hist_entry__cmp_nop;
+	fmt->collapse = hist_entry__cmp_nop;
 
 	/* TODO more colors */
 	switch (idx) {
 	case PERF_HPP_DIFF__BASELINE:
 		fmt->color = hpp__color_baseline;
+		fmt->sort  = hist_entry__cmp_baseline;
 		break;
 	case PERF_HPP_DIFF__DELTA:
 		fmt->color = hpp__color_delta;
+		fmt->sort  = hist_entry__cmp_delta;
 		break;
 	case PERF_HPP_DIFF__RATIO:
 		fmt->color = hpp__color_ratio;
+		fmt->sort  = hist_entry__cmp_ratio;
 		break;
 	case PERF_HPP_DIFF__WEIGHTED_DIFF:
 		fmt->color = hpp__color_wdiff;
+		fmt->sort  = hist_entry__cmp_wdiff;
 		break;
 	default:
+		fmt->sort  = hist_entry__cmp_nop;
 		break;
 	}
 
 	init_header(d, dfmt);
 	perf_hpp__column_register(fmt);
+	perf_hpp__register_sort_field(fmt);
 }
 
 static void ui_init(void)
@@ -1139,11 +1187,16 @@ static int data_init(int argc, const char **argv)
 
 int cmd_diff(int argc, const char **argv, const char *prefix __maybe_unused)
 {
+	int ret = hists__init();
+
+	if (ret < 0)
+		return ret;
+
 	perf_config(perf_default_config, NULL);
 
 	argc = parse_options(argc, argv, options, diff_usage, 0);
 
-	if (symbol__init() < 0)
+	if (symbol__init(NULL) < 0)
 		return -1;
 
 	if (data_init(argc, argv) < 0)

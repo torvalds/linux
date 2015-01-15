@@ -223,6 +223,7 @@ extern void oaktrail_lvds_init(struct drm_device *dev,
 extern void oaktrail_wait_for_INTR_PKT_SENT(struct drm_device *dev);
 extern void oaktrail_dsi_init(struct drm_device *dev,
 			   struct psb_intel_mode_device *mode_dev);
+extern void oaktrail_lvds_i2c_init(struct drm_encoder *encoder);
 extern void mid_dsi_init(struct drm_device *dev,
 		    struct psb_intel_mode_device *mode_dev, int dsi_num);
 

@@ -259,4 +259,21 @@
 	INTEL_VGA_DEVICE(0x22b2, info), \
 	INTEL_VGA_DEVICE(0x22b3, info)
 
+#define INTEL_SKL_IDS(info) \
+	INTEL_VGA_DEVICE(0x1916, info), /* ULT GT2 */ \
+	INTEL_VGA_DEVICE(0x1906, info), /* ULT GT1 */ \
+	INTEL_VGA_DEVICE(0x1926, info), /* ULT GT3 */ \
+	INTEL_VGA_DEVICE(0x1921, info), /* ULT GT2F */ \
+	INTEL_VGA_DEVICE(0x190E, info), /* ULX GT1 */ \
+	INTEL_VGA_DEVICE(0x191E, info), /* ULX GT2 */ \
+	INTEL_VGA_DEVICE(0x1912, info), /* DT  GT2 */ \
+	INTEL_VGA_DEVICE(0x1902, info), /* DT  GT1 */ \
+	INTEL_VGA_DEVICE(0x191B, info), /* Halo GT2 */ \
+	INTEL_VGA_DEVICE(0x192B, info), /* Halo GT3 */ \
+	INTEL_VGA_DEVICE(0x190B, info), /* Halo GT1 */ \
+	INTEL_VGA_DEVICE(0x191A, info), /* SRV GT2 */ \
+	INTEL_VGA_DEVICE(0x192A, info), /* SRV GT3 */ \
+	INTEL_VGA_DEVICE(0x190A, info), /* SRV GT1 */ \
+	INTEL_VGA_DEVICE(0x191D, info)  /* WKS GT2 */
+
 #endif /* _I915_PCIIDS_H */

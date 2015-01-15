@@ -104,11 +104,6 @@ static int kdwc3_probe(struct platform_device *pdev)
 	kdwc->dev = dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "missing usbss resource\n");
-		return -EINVAL;
-	}
-
 	kdwc->usbss = devm_ioremap_resource(dev, res);
 	if (IS_ERR(kdwc->usbss))
 		return PTR_ERR(kdwc->usbss);
@@ -128,6 +123,7 @@ static int kdwc3_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(&pdev->dev, "missing irq\n");
+		error = irq;
 		goto err_irq;
 	}
 
@@ -189,7 +185,6 @@ static struct platform_driver kdwc3_driver = {
 	.remove		= kdwc3_remove,
 	.driver		= {
 		.name	= "keystone-dwc3",
-		.owner	        = THIS_MODULE,
 		.of_match_table	= kdwc3_of_match,
 	},
 };

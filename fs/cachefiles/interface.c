@@ -268,20 +268,27 @@ static void cachefiles_drop_object(struct fscache_object *_object)
 	ASSERT((atomic_read(&object->usage) & 0xffff0000) != 0x6b6b0000);
 #endif
 
-	/* delete retired objects */
-	if (test_bit(FSCACHE_OBJECT_RETIRED, &object->fscache.flags) &&
-	    _object != cache->cache.fsdef
-	    ) {
-		_debug("- retire object OBJ%x", object->fscache.debug_id);
-		cachefiles_begin_secure(cache, &saved_cred);
-		cachefiles_delete_object(cache, object);
-		cachefiles_end_secure(cache, saved_cred);
-	}
+	/* We need to tidy the object up if we did in fact manage to open it.
+	 * It's possible for us to get here before the object is fully
+	 * initialised if the parent goes away or the object gets retired
+	 * before we set it up.
+	 */
+	if (object->dentry) {
+		/* delete retired objects */
+		if (test_bit(FSCACHE_OBJECT_RETIRED, &object->fscache.flags) &&
+		    _object != cache->cache.fsdef
+		    ) {
+			_debug("- retire object OBJ%x", object->fscache.debug_id);
+			cachefiles_begin_secure(cache, &saved_cred);
+			cachefiles_delete_object(cache, object);
+			cachefiles_end_secure(cache, saved_cred);
+		}
 
-	/* close the filesystem stuff attached to the object */
-	if (object->backer != object->dentry)
-		dput(object->backer);
-	object->backer = NULL;
+		/* close the filesystem stuff attached to the object */
+		if (object->backer != object->dentry)
+			dput(object->backer);
+		object->backer = NULL;
+	}
 
 	/* note that the object is now inactive */
 	if (test_bit(CACHEFILES_OBJECT_ACTIVE, &object->flags)) {

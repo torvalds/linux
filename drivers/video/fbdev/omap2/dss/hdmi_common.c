@@ -48,7 +48,6 @@ int hdmi_parse_lanes_of(struct platform_device *pdev, struct device_node *ep,
 	return 0;
 }
 
-#if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
 int hdmi_compute_acr(u32 pclk, u32 sample_freq, u32 *n, u32 *cts)
 {
 	u32 deep_color;
@@ -147,4 +146,3 @@ int hdmi_compute_acr(u32 pclk, u32 sample_freq, u32 *n, u32 *cts)
 
 	return 0;
 }
-#endif

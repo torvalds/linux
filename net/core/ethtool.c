@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <linux/rtnetlink.h>
 #include <linux/sched.h>
+#include <linux/net.h>
 
 /*
  * Some useful ethtool_ops methods that're device independent.
@@ -84,7 +85,6 @@ static const char netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN]
 	[NETIF_F_GSO_IPIP_BIT] =	 "tx-ipip-segmentation",
 	[NETIF_F_GSO_SIT_BIT] =		 "tx-sit-segmentation",
 	[NETIF_F_GSO_UDP_TUNNEL_BIT] =	 "tx-udp_tnl-segmentation",
-	[NETIF_F_GSO_MPLS_BIT] =	 "tx-mpls-segmentation",
 
 	[NETIF_F_FCOE_CRC_BIT] =         "tx-checksum-fcoe-crc",
 	[NETIF_F_SCTP_CSUM_BIT] =        "tx-checksum-sctp",
@@ -98,6 +98,12 @@ static const char netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN]
 	[NETIF_F_RXALL_BIT] =            "rx-all",
 	[NETIF_F_HW_L2FW_DOFFLOAD_BIT] = "l2-fwd-offload",
 	[NETIF_F_BUSY_POLL_BIT] =        "busy-poll",
+};
+
+static const char
+rss_hash_func_strings[ETH_RSS_HASH_FUNCS_COUNT][ETH_GSTRING_LEN] = {
+	[ETH_RSS_HASH_TOP_BIT] =	"toeplitz",
+	[ETH_RSS_HASH_XOR_BIT] =	"xor",
 };
 
 static int ethtool_get_features(struct net_device *dev, void __user *useraddr)
@@ -185,6 +191,9 @@ static int __ethtool_get_sset_count(struct net_device *dev, int sset)
 	if (sset == ETH_SS_FEATURES)
 		return ARRAY_SIZE(netdev_features_strings);
 
+	if (sset == ETH_SS_RSS_HASH_FUNCS)
+		return ARRAY_SIZE(rss_hash_func_strings);
+
 	if (ops->get_sset_count && ops->get_strings)
 		return ops->get_sset_count(dev, sset);
 	else
@@ -199,6 +208,9 @@ static void __ethtool_get_strings(struct net_device *dev,
 	if (stringset == ETH_SS_FEATURES)
 		memcpy(data, netdev_features_strings,
 			sizeof(netdev_features_strings));
+	else if (stringset == ETH_SS_RSS_HASH_FUNCS)
+		memcpy(data, rss_hash_func_strings,
+		       sizeof(rss_hash_func_strings));
 	else
 		/* ops->get_strings is valid because checked earlier */
 		ops->get_strings(dev, stringset, data);
@@ -574,6 +586,16 @@ static int ethtool_copy_validate_indir(u32 *indir, void __user *useraddr,
 	return 0;
 }
 
+u8 netdev_rss_key[NETDEV_RSS_KEY_LEN];
+
+void netdev_rss_key_fill(void *buffer, size_t len)
+{
+	BUG_ON(len > sizeof(netdev_rss_key));
+	net_get_random_once(netdev_rss_key, sizeof(netdev_rss_key));
+	memcpy(buffer, netdev_rss_key, len);
+}
+EXPORT_SYMBOL(netdev_rss_key_fill);
+
 static noinline_for_stack int ethtool_get_rxfh_indir(struct net_device *dev,
 						     void __user *useraddr)
 {
@@ -608,7 +630,7 @@ static noinline_for_stack int ethtool_get_rxfh_indir(struct net_device *dev,
 	if (!indir)
 		return -ENOMEM;
 
-	ret = dev->ethtool_ops->get_rxfh(dev, indir, NULL);
+	ret = dev->ethtool_ops->get_rxfh(dev, indir, NULL, NULL);
 	if (ret)
 		goto out;
 
@@ -669,7 +691,7 @@ static noinline_for_stack int ethtool_set_rxfh_indir(struct net_device *dev,
 			goto out;
 	}
 
-	ret = ops->set_rxfh(dev, indir, NULL);
+	ret = ops->set_rxfh(dev, indir, NULL, ETH_RSS_HASH_NO_CHANGE);
 
 out:
 	kfree(indir);
@@ -687,12 +709,11 @@ static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 	u32 total_size;
 	u32 indir_bytes;
 	u32 *indir = NULL;
+	u8 dev_hfunc = 0;
 	u8 *hkey = NULL;
 	u8 *rss_config;
 
-	if (!(dev->ethtool_ops->get_rxfh_indir_size ||
-	      dev->ethtool_ops->get_rxfh_key_size) ||
-	      !dev->ethtool_ops->get_rxfh)
+	if (!ops->get_rxfh)
 		return -EOPNOTSUPP;
 
 	if (ops->get_rxfh_indir_size)
@@ -700,29 +721,20 @@ static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 	if (ops->get_rxfh_key_size)
 		dev_key_size = ops->get_rxfh_key_size(dev);
 
-	if ((dev_key_size + dev_indir_size) == 0)
-		return -EOPNOTSUPP;
-
 	if (copy_from_user(&rxfh, useraddr, sizeof(rxfh)))
 		return -EFAULT;
 	user_indir_size = rxfh.indir_size;
 	user_key_size = rxfh.key_size;
 
 	/* Check that reserved fields are 0 for now */
-	if (rxfh.rss_context || rxfh.rsvd[0] || rxfh.rsvd[1])
+	if (rxfh.rss_context || rxfh.rsvd8[0] || rxfh.rsvd8[1] ||
+	    rxfh.rsvd8[2] || rxfh.rsvd32)
 		return -EINVAL;
 
 	rxfh.indir_size = dev_indir_size;
 	rxfh.key_size = dev_key_size;
 	if (copy_to_user(useraddr, &rxfh, sizeof(rxfh)))
 		return -EFAULT;
-
-	/* If the user buffer size is 0, this is just a query for the
-	 * device table size and key size.  Otherwise, if the User size is
-	 * not equal to device table size or key size it's an error.
-	 */
-	if (!user_indir_size && !user_key_size)
-		return 0;
 
 	if ((user_indir_size && (user_indir_size != dev_indir_size)) ||
 	    (user_key_size && (user_key_size != dev_key_size)))
@@ -740,14 +752,19 @@ static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 	if (user_key_size)
 		hkey = rss_config + indir_bytes;
 
-	ret = dev->ethtool_ops->get_rxfh(dev, indir, hkey);
-	if (!ret) {
-		if (copy_to_user(useraddr +
-				 offsetof(struct ethtool_rxfh, rss_config[0]),
-				 rss_config, total_size))
-			ret = -EFAULT;
-	}
+	ret = dev->ethtool_ops->get_rxfh(dev, indir, hkey, &dev_hfunc);
+	if (ret)
+		goto out;
 
+	if (copy_to_user(useraddr + offsetof(struct ethtool_rxfh, hfunc),
+			 &dev_hfunc, sizeof(rxfh.hfunc))) {
+		ret = -EFAULT;
+	} else if (copy_to_user(useraddr +
+			      offsetof(struct ethtool_rxfh, rss_config[0]),
+			      rss_config, total_size)) {
+		ret = -EFAULT;
+	}
+out:
 	kfree(rss_config);
 
 	return ret;
@@ -766,33 +783,31 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	u8 *rss_config;
 	u32 rss_cfg_offset = offsetof(struct ethtool_rxfh, rss_config[0]);
 
-	if (!(ops->get_rxfh_indir_size || ops->get_rxfh_key_size) ||
-	    !ops->get_rxnfc || !ops->set_rxfh)
+	if (!ops->get_rxnfc || !ops->set_rxfh)
 		return -EOPNOTSUPP;
 
 	if (ops->get_rxfh_indir_size)
 		dev_indir_size = ops->get_rxfh_indir_size(dev);
 	if (ops->get_rxfh_key_size)
 		dev_key_size = dev->ethtool_ops->get_rxfh_key_size(dev);
-	if ((dev_key_size + dev_indir_size) == 0)
-		return -EOPNOTSUPP;
 
 	if (copy_from_user(&rxfh, useraddr, sizeof(rxfh)))
 		return -EFAULT;
 
 	/* Check that reserved fields are 0 for now */
-	if (rxfh.rss_context || rxfh.rsvd[0] || rxfh.rsvd[1])
+	if (rxfh.rss_context || rxfh.rsvd8[0] || rxfh.rsvd8[1] ||
+	    rxfh.rsvd8[2] || rxfh.rsvd32)
 		return -EINVAL;
 
-	/* If either indir or hash key is valid, proceed further.
-	 * It is not valid to request that both be unchanged.
+	/* If either indir, hash key or function is valid, proceed further.
+	 * Must request at least one change: indir size, hash key or function.
 	 */
 	if ((rxfh.indir_size &&
 	     rxfh.indir_size != ETH_RXFH_INDIR_NO_CHANGE &&
 	     rxfh.indir_size != dev_indir_size) ||
 	    (rxfh.key_size && (rxfh.key_size != dev_key_size)) ||
 	    (rxfh.indir_size == ETH_RXFH_INDIR_NO_CHANGE &&
-	     rxfh.key_size == 0))
+	     rxfh.key_size == 0 && rxfh.hfunc == ETH_RSS_HASH_NO_CHANGE))
 		return -EINVAL;
 
 	if (rxfh.indir_size != ETH_RXFH_INDIR_NO_CHANGE)
@@ -835,7 +850,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 		}
 	}
 
-	ret = ops->set_rxfh(dev, indir, hkey);
+	ret = ops->set_rxfh(dev, indir, hkey, rxfh.hfunc);
 
 out:
 	kfree(rss_config);
@@ -1036,7 +1051,8 @@ static int ethtool_get_eeprom(struct net_device *dev, void __user *useraddr)
 {
 	const struct ethtool_ops *ops = dev->ethtool_ops;
 
-	if (!ops->get_eeprom || !ops->get_eeprom_len)
+	if (!ops->get_eeprom || !ops->get_eeprom_len ||
+	    !ops->get_eeprom_len(dev))
 		return -EOPNOTSUPP;
 
 	return ethtool_get_any_eeprom(dev, useraddr, ops->get_eeprom,
@@ -1052,7 +1068,8 @@ static int ethtool_set_eeprom(struct net_device *dev, void __user *useraddr)
 	u8 *data;
 	int ret = 0;
 
-	if (!ops->set_eeprom || !ops->get_eeprom_len)
+	if (!ops->set_eeprom || !ops->get_eeprom_len ||
+	    !ops->get_eeprom_len(dev))
 		return -EOPNOTSUPP;
 
 	if (copy_from_user(&eeprom, useraddr, sizeof(eeprom)))
@@ -1621,6 +1638,81 @@ static int ethtool_get_module_eeprom(struct net_device *dev,
 				      modinfo.eeprom_len);
 }
 
+static int ethtool_tunable_valid(const struct ethtool_tunable *tuna)
+{
+	switch (tuna->id) {
+	case ETHTOOL_RX_COPYBREAK:
+	case ETHTOOL_TX_COPYBREAK:
+		if (tuna->len != sizeof(u32) ||
+		    tuna->type_id != ETHTOOL_TUNABLE_U32)
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int ethtool_get_tunable(struct net_device *dev, void __user *useraddr)
+{
+	int ret;
+	struct ethtool_tunable tuna;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+	void *data;
+
+	if (!ops->get_tunable)
+		return -EOPNOTSUPP;
+	if (copy_from_user(&tuna, useraddr, sizeof(tuna)))
+		return -EFAULT;
+	ret = ethtool_tunable_valid(&tuna);
+	if (ret)
+		return ret;
+	data = kmalloc(tuna.len, GFP_USER);
+	if (!data)
+		return -ENOMEM;
+	ret = ops->get_tunable(dev, &tuna, data);
+	if (ret)
+		goto out;
+	useraddr += sizeof(tuna);
+	ret = -EFAULT;
+	if (copy_to_user(useraddr, data, tuna.len))
+		goto out;
+	ret = 0;
+
+out:
+	kfree(data);
+	return ret;
+}
+
+static int ethtool_set_tunable(struct net_device *dev, void __user *useraddr)
+{
+	int ret;
+	struct ethtool_tunable tuna;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+	void *data;
+
+	if (!ops->set_tunable)
+		return -EOPNOTSUPP;
+	if (copy_from_user(&tuna, useraddr, sizeof(tuna)))
+		return -EFAULT;
+	ret = ethtool_tunable_valid(&tuna);
+	if (ret)
+		return ret;
+	data = kmalloc(tuna.len, GFP_USER);
+	if (!data)
+		return -ENOMEM;
+	useraddr += sizeof(tuna);
+	ret = -EFAULT;
+	if (copy_from_user(data, useraddr, tuna.len))
+		goto out;
+	ret = ops->set_tunable(dev, &tuna, data);
+
+out:
+	kfree(data);
+	return ret;
+}
+
 /* The main entry point in this file.  Called from net/core/dev_ioctl.c */
 
 int dev_ethtool(struct net *net, struct ifreq *ifr)
@@ -1670,6 +1762,7 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 	case ETHTOOL_GCHANNELS:
 	case ETHTOOL_GET_TS_INFO:
 	case ETHTOOL_GEEE:
+	case ETHTOOL_GTUNABLE:
 		break;
 	default:
 		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
@@ -1856,6 +1949,12 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 		break;
 	case ETHTOOL_GMODULEEEPROM:
 		rc = ethtool_get_module_eeprom(dev, useraddr);
+		break;
+	case ETHTOOL_GTUNABLE:
+		rc = ethtool_get_tunable(dev, useraddr);
+		break;
+	case ETHTOOL_STUNABLE:
+		rc = ethtool_set_tunable(dev, useraddr);
 		break;
 	default:
 		rc = -EOPNOTSUPP;

@@ -243,7 +243,6 @@ static int mc13783_ts_remove(struct platform_device *pdev)
 static struct platform_driver mc13783_ts_driver = {
 	.remove		= mc13783_ts_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= MC13783_TS_NAME,
 	},
 };

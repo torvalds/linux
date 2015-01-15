@@ -108,6 +108,8 @@
 #define DA_EMULATE_ALUA				0
 /* Enforce SCSI Initiator Port TransportID with 'ISID' for PR */
 #define DA_ENFORCE_PR_ISIDS			1
+/* Force SPC-3 PR Activate Persistence across Target Power Loss */
+#define DA_FORCE_PR_APTPL			0
 #define DA_STATUS_MAX_SECTORS_MIN		16
 #define DA_STATUS_MAX_SECTORS_MAX		8192
 /* By default don't report non-rotating (solid state) medium */
@@ -474,6 +476,12 @@ struct se_dif_v1_tuple {
 	__be32			ref_tag;
 };
 
+/* for sam_task_attr */
+#define TCM_SIMPLE_TAG	0x20
+#define TCM_HEAD_TAG	0x21
+#define TCM_ORDERED_TAG	0x22
+#define TCM_ACA_TAG	0x24
+
 struct se_cmd {
 	/* SAM response code being sent to initiator */
 	u8			scsi_status;
@@ -680,6 +688,7 @@ struct se_dev_attrib {
 	enum target_prot_type pi_prot_type;
 	enum target_prot_type hw_pi_prot_type;
 	int		enforce_pr_isids;
+	int		force_pr_aptpl;
 	int		is_nonrot;
 	int		emulate_rest_reord;
 	u32		hw_block_size;
@@ -902,5 +911,19 @@ struct se_wwn {
 	struct config_group	*wwn_default_groups[2];
 	struct config_group	fabric_stat_group;
 };
+
+static inline void atomic_inc_mb(atomic_t *v)
+{
+	smp_mb__before_atomic();
+	atomic_inc(v);
+	smp_mb__after_atomic();
+}
+
+static inline void atomic_dec_mb(atomic_t *v)
+{
+	smp_mb__before_atomic();
+	atomic_dec(v);
+	smp_mb__after_atomic();
+}
 
 #endif /* TARGET_CORE_BASE_H */

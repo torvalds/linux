@@ -233,7 +233,10 @@ struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev, int entries, int vector
 	if (err)
 		goto err_dbmap;
 
-	cq->mcq.comp  = mlx4_ib_cq_comp;
+	if (context)
+		cq->mcq.tasklet_ctx.comp = mlx4_ib_cq_comp;
+	else
+		cq->mcq.comp = mlx4_ib_cq_comp;
 	cq->mcq.event = mlx4_ib_cq_event;
 
 	if (context)

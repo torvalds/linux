@@ -304,12 +304,12 @@ static int find_pattern(const char *data, size_t dlen,
 
 	if (dlen <= plen) {
 		/* Short packet: try for partial? */
-		if (strnicmp(data, pattern, dlen) == 0)
+		if (strncasecmp(data, pattern, dlen) == 0)
 			return -1;
 		else return 0;
 	}
 
-	if (strnicmp(data, pattern, plen) != 0) {
+	if (strncasecmp(data, pattern, plen) != 0) {
 #if 0
 		size_t i;
 

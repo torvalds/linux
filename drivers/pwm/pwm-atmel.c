@@ -102,7 +102,7 @@ static int atmel_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			    int duty_ns, int period_ns)
 {
 	struct atmel_pwm_chip *atmel_pwm = to_atmel_pwm_chip(chip);
-	unsigned long clk_rate, prd, dty;
+	unsigned long prd, dty;
 	unsigned long long div;
 	unsigned int pres = 0;
 	u32 val;
@@ -113,20 +113,18 @@ static int atmel_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		return -EBUSY;
 	}
 
-	clk_rate = clk_get_rate(atmel_pwm->clk);
-	div = clk_rate;
+	/* Calculate the period cycles and prescale value */
+	div = (unsigned long long)clk_get_rate(atmel_pwm->clk) * period_ns;
+	do_div(div, NSEC_PER_SEC);
 
-	/* Calculate the period cycles */
 	while (div > PWM_MAX_PRD) {
-		div = clk_rate / (1 << pres);
-		div = div * period_ns;
-		/* 1/Hz = 100000000 ns */
-		do_div(div, 1000000000);
+		div >>= 1;
+		pres++;
+	}
 
-		if (pres++ > PRD_MAX_PRES) {
-			dev_err(chip->dev, "pres exceeds the maximum value\n");
-			return -EINVAL;
-		}
+	if (pres > PRD_MAX_PRES) {
+		dev_err(chip->dev, "pres exceeds the maximum value\n");
+		return -EINVAL;
 	}
 
 	/* Calculate the duty cycles */

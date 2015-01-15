@@ -92,7 +92,7 @@ static void drbd_adm_send_reply(struct sk_buff *skb, struct genl_info *info)
 
 /* Used on a fresh "drbd_adm_prepare"d reply_skb, this cannot fail: The only
  * reason it could fail was no space in skb, and there are 4k available. */
-int drbd_msg_put_info(struct sk_buff *skb, const char *info)
+static int drbd_msg_put_info(struct sk_buff *skb, const char *info)
 {
 	struct nlattr *nla;
 	int err = -EMSGSIZE;
@@ -588,7 +588,7 @@ drbd_set_role(struct drbd_device *const device, enum drbd_role new_role, int for
 	val.i  = 0; val.role  = new_role;
 
 	while (try++ < max_tries) {
-		rv = _drbd_request_state(device, mask, val, CS_WAIT_COMPLETE);
+		rv = _drbd_request_state_holding_state_mutex(device, mask, val, CS_WAIT_COMPLETE);
 
 		/* in case we first succeeded to outdate,
 		 * but now suddenly could establish a connection */
@@ -2052,7 +2052,7 @@ check_net_options(struct drbd_connection *connection, struct net_conf *new_net_c
 	rv = _check_net_options(connection, rcu_dereference(connection->net_conf), new_net_conf);
 	rcu_read_unlock();
 
-	/* connection->volumes protected by genl_lock() here */
+	/* connection->peer_devices protected by genl_lock() here */
 	idr_for_each_entry(&connection->peer_devices, peer_device, i) {
 		struct drbd_device *device = peer_device->device;
 		if (!device->bitmap) {
@@ -3483,7 +3483,7 @@ int drbd_adm_new_minor(struct sk_buff *skb, struct genl_info *info)
 	 * that first_peer_device(device)->connection and device->vnr match the request. */
 	if (adm_ctx.device) {
 		if (info->nlhdr->nlmsg_flags & NLM_F_EXCL)
-			retcode = ERR_MINOR_EXISTS;
+			retcode = ERR_MINOR_OR_VOLUME_EXISTS;
 		/* else: still NO_ERROR */
 		goto out;
 	}
@@ -3528,6 +3528,27 @@ int drbd_adm_del_minor(struct sk_buff *skb, struct genl_info *info)
 out:
 	drbd_adm_finish(&adm_ctx, info, retcode);
 	return 0;
+}
+
+static int adm_del_resource(struct drbd_resource *resource)
+{
+	struct drbd_connection *connection;
+
+	for_each_connection(connection, resource) {
+		if (connection->cstate > C_STANDALONE)
+			return ERR_NET_CONFIGURED;
+	}
+	if (!idr_is_empty(&resource->devices))
+		return ERR_RES_IN_USE;
+
+	list_del_rcu(&resource->resources);
+	/* Make sure all threads have actually stopped: state handling only
+	 * does drbd_thread_stop_nowait(). */
+	list_for_each_entry(connection, &resource->connections, connections)
+		drbd_thread_stop(&connection->worker);
+	synchronize_rcu();
+	drbd_free_resource(resource);
+	return NO_ERROR;
 }
 
 int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
@@ -3575,14 +3596,6 @@ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
-	/* If we reach this, all volumes (of this connection) are Secondary,
-	 * Disconnected, Diskless, aka Unconfigured. Make sure all threads have
-	 * actually stopped, state handling only does drbd_thread_stop_nowait(). */
-	for_each_connection(connection, resource)
-		drbd_thread_stop(&connection->worker);
-
-	/* Now, nothing can fail anymore */
-
 	/* delete volumes */
 	idr_for_each_entry(&resource->devices, device, i) {
 		retcode = adm_del_minor(device);
@@ -3593,10 +3606,7 @@ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
-	list_del_rcu(&resource->resources);
-	synchronize_rcu();
-	drbd_free_resource(resource);
-	retcode = NO_ERROR;
+	retcode = adm_del_resource(resource);
 out:
 	mutex_unlock(&resource->adm_mutex);
 finish:
@@ -3608,7 +3618,6 @@ int drbd_adm_del_resource(struct sk_buff *skb, struct genl_info *info)
 {
 	struct drbd_config_context adm_ctx;
 	struct drbd_resource *resource;
-	struct drbd_connection *connection;
 	enum drbd_ret_code retcode;
 
 	retcode = drbd_adm_prepare(&adm_ctx, skb, info, DRBD_ADM_NEED_RESOURCE);
@@ -3616,27 +3625,10 @@ int drbd_adm_del_resource(struct sk_buff *skb, struct genl_info *info)
 		return retcode;
 	if (retcode != NO_ERROR)
 		goto finish;
-
 	resource = adm_ctx.resource;
-	mutex_lock(&resource->adm_mutex);
-	for_each_connection(connection, resource) {
-		if (connection->cstate > C_STANDALONE) {
-			retcode = ERR_NET_CONFIGURED;
-			goto out;
-		}
-	}
-	if (!idr_is_empty(&resource->devices)) {
-		retcode = ERR_RES_IN_USE;
-		goto out;
-	}
 
-	list_del_rcu(&resource->resources);
-	for_each_connection(connection, resource)
-		drbd_thread_stop(&connection->worker);
-	synchronize_rcu();
-	drbd_free_resource(resource);
-	retcode = NO_ERROR;
-out:
+	mutex_lock(&resource->adm_mutex);
+	retcode = adm_del_resource(resource);
 	mutex_unlock(&resource->adm_mutex);
 finish:
 	drbd_adm_finish(&adm_ctx, info, retcode);

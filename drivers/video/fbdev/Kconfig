@@ -4,6 +4,7 @@
 
 menuconfig FB
 	tristate "Support for frame buffer devices"
+	select FB_CMDLINE
 	---help---
 	  The frame buffer device provides an abstraction for the graphics
 	  hardware. It represents the frame buffer of some video hardware and
@@ -51,6 +52,9 @@ config FIRMWARE_EDID
 	 something on your display, try setting this to N.  Matrox cards in
 	 combination with certain motherboards and monitors are known to
 	 suffer from this problem.
+
+config FB_CMDLINE
+	bool
 
 config FB_DDC
        tristate
@@ -994,23 +998,6 @@ config FB_ATMEL
 	select VIDEOMODE_HELPERS
 	help
 	  This enables support for the AT91/AT32 LCD Controller.
-
-config FB_INTSRAM
-	bool "Frame Buffer in internal SRAM"
-	depends on FB_ATMEL && ARCH_AT91SAM9261
-	help
-	  Say Y if you want to map Frame Buffer in internal SRAM. Say N if you want
-	  to let frame buffer in external SDRAM.
-
-config FB_ATMEL_STN
-	bool "Use a STN display with AT91/AT32 LCD Controller"
-	depends on FB_ATMEL && (MACH_AT91SAM9261EK || MACH_AT91SAM9G10EK)
-	default n
-	help
-	  Say Y if you want to connect a STN LCD display to the AT91/AT32 LCD
-	  Controller. Say N if you want to connect a TFT.
-
-	  If unsure, say N.
 
 config FB_NVIDIA
 	tristate "nVidia Framebuffer Support"
@@ -2352,10 +2339,11 @@ config FB_MSM
 config FB_MX3
 	tristate "MX3 Framebuffer support"
 	depends on FB && MX3_IPU
+	select BACKLIGHT_CLASS_DEVICE
+	select BACKLIGHT_LCD_SUPPORT
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	select BACKLIGHT_CLASS_DEVICE
 	default y
 	help
 	  This is a framebuffer device for the i.MX31 LCD Controller. So
@@ -2420,7 +2408,7 @@ config FB_JZ4740
 
 config FB_MXS
 	tristate "MXS LCD framebuffer support"
-	depends on FB && ARCH_MXS
+	depends on FB && (ARCH_MXS || ARCH_MXC)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT

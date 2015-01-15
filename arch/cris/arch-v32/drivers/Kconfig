@@ -108,6 +108,7 @@ config ETRAX_AXISFLASHMAP
 	select MTD_JEDECPROBE
 	select MTD_BLOCK
 	select MTD_COMPLEX_MAPPINGS
+	select MTD_MTDRAM
 	help
 	  This option enables MTD mapping of flash devices.  Needed to use
 	  flash memories.  If unsure, say Y.
@@ -358,13 +359,6 @@ config ETRAX_SPI_MMC
 	default MMC
 	select SPI
 	select MMC_SPI
-	select ETRAX_SPI_MMC_BOARD
-
-# For the parts that can't be a module (due to restrictions in
-# framework elsewhere).
-config ETRAX_SPI_MMC_BOARD
-       boolean
-       default n
 
 # While the board info is MMC_SPI only, the drivers are written to be
 # independent of MMC_SPI, so we'll keep SPI non-dependent on the

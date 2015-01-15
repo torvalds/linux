@@ -291,14 +291,8 @@ static int mmc_ext_csd_open(struct inode *inode, struct file *filp)
 	if (!buf)
 		return -ENOMEM;
 
-	ext_csd = kmalloc(512, GFP_KERNEL);
-	if (!ext_csd) {
-		err = -ENOMEM;
-		goto out_free;
-	}
-
 	mmc_get_card(card);
-	err = mmc_send_ext_csd(card, ext_csd);
+	err = mmc_get_ext_csd(card, &ext_csd);
 	mmc_put_card(card);
 	if (err)
 		goto out_free;
@@ -314,7 +308,6 @@ static int mmc_ext_csd_open(struct inode *inode, struct file *filp)
 
 out_free:
 	kfree(buf);
-	kfree(ext_csd);
 	return err;
 }
 

@@ -24,6 +24,7 @@
 #include <linux/binfmts.h>
 #include <linux/in.h>
 #include <linux/spinlock.h>
+#include <net/net_namespace.h>
 #include "flask.h"
 #include "avc.h"
 
@@ -78,6 +79,7 @@ struct ipc_security_struct {
 };
 
 struct netif_security_struct {
+	struct net *ns;			/* network namespace */
 	int ifindex;			/* device index */
 	u32 sid;			/* SID for this interface */
 };

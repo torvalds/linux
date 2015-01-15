@@ -223,15 +223,15 @@ struct reg_protocol_wt {
 
 };
 
-#define PlatformEFIOWrite1Byte(_a,_b,_c)		\
-	rtl8723au_write8(_a,_b,_c)
-#define PlatformEFIOWrite2Byte(_a,_b,_c)		\
-	rtl8723au_write16(_a,_b,_c)
-#define PlatformEFIOWrite4Byte(_a,_b,_c)		\
-	rtl8723au_write32(_a,_b,_c)
+#define PlatformEFIOWrite1Byte(_a, _b, _c)		\
+	rtl8723au_write8(_a, _b, _c)
+#define PlatformEFIOWrite2Byte(_a, _b, _c)		\
+	rtl8723au_write16(_a, _b, _c)
+#define PlatformEFIOWrite4Byte(_a, _b, _c)		\
+	rtl8723au_write32(_a, _b, _c)
 
-#define PlatformEFIORead1Byte(_a,_b)		rtl8723au_read8(_a,_b)
-#define PlatformEFIORead2Byte(_a,_b)		rtl8723au_read16(_a,_b)
-#define PlatformEFIORead4Byte(_a,_b)		rtl8723au_read32(_a,_b)
+#define PlatformEFIORead1Byte(_a, _b)		rtl8723au_read8(_a, _b)
+#define PlatformEFIORead2Byte(_a, _b)		rtl8723au_read16(_a, _b)
+#define PlatformEFIORead4Byte(_a, _b)		rtl8723au_read32(_a, _b)
 
 #endif	/* _RTL8711_IO_H_ */

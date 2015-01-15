@@ -375,7 +375,6 @@ MODULE_DEVICE_TABLE(of, omap_twl4030_of_match);
 static struct platform_driver omap_twl4030_driver = {
 	.driver = {
 		.name = "omap-twl4030",
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 		.of_match_table = omap_twl4030_of_match,
 	},

@@ -393,7 +393,6 @@ static struct platform_driver exynos5_busfreq_int_driver = {
 	.remove		= exynos5_busfreq_int_remove,
 	.driver		= {
 		.name		= "exynos5-bus-int",
-		.owner		= THIS_MODULE,
 		.pm		= &exynos5_busfreq_int_pm_ops,
 	},
 };

@@ -3,6 +3,7 @@
  * Copyright 2005-2006, Devicescape Software, Inc.
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007-2008	Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2013-2014  Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -93,8 +94,17 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 
 	might_sleep();
 
-	if (key->flags & KEY_FLAG_TAINTED)
+	if (key->flags & KEY_FLAG_TAINTED) {
+		/* If we get here, it's during resume and the key is
+		 * tainted so shouldn't be used/programmed any more.
+		 * However, its flags may still indicate that it was
+		 * programmed into the device (since we're in resume)
+		 * so clear that flag now to avoid trying to remove
+		 * it again later.
+		 */
+		key->flags &= ~KEY_FLAG_UPLOADED_TO_HARDWARE;
 		return -EINVAL;
+	}
 
 	if (!key->local->ops->set_key)
 		goto out_unsupported;
@@ -425,7 +435,7 @@ static void ieee80211_key_free_common(struct ieee80211_key *key)
 		ieee80211_aes_key_free(key->u.ccmp.tfm);
 	if (key->conf.cipher == WLAN_CIPHER_SUITE_AES_CMAC)
 		ieee80211_aes_cmac_key_free(key->u.aes_cmac.tfm);
-	kfree(key);
+	kzfree(key);
 }
 
 static void __ieee80211_key_destroy(struct ieee80211_key *key,
@@ -650,7 +660,7 @@ void ieee80211_free_sta_keys(struct ieee80211_local *local,
 	int i;
 
 	mutex_lock(&local->key_mtx);
-	for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
+	for (i = 0; i < ARRAY_SIZE(sta->gtk); i++) {
 		key = key_mtx_dereference(local, sta->gtk[i]);
 		if (!key)
 			continue;

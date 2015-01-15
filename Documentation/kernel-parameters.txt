@@ -605,11 +605,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			See Documentation/s390/CommonIO for details.
 	clk_ignore_unused
 			[CLK]
-			Keep all clocks already enabled by bootloader on,
-			even if no driver has claimed them. This is useful
-			for debug and development, but should not be
-			needed on a platform with proper driver support.
-			For more information, see Documentation/clk.txt.
+			Prevents the clock framework from automatically gating
+			clocks that have not been explicitly enabled by a Linux
+			device driver but are enabled in hardware at reset or
+			by the bootloader/firmware. Note that this does not
+			force such clocks to be always-on nor does it reserve
+			those clocks in any way. This parameter is useful for
+			debug and development, but should not be needed on a
+			platform with proper driver support.  For more
+			information, see Documentation/clk.txt.
 
 	clock=		[BUGS=X86-32, HW] gettimeofday clocksource override.
 			[Deprecated]
@@ -656,7 +660,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Sets the size of kernel global memory area for
 			contiguous memory allocations and optionally the
 			placement constraint by the physical address range of
-			memory allocations. For more information, see
+			memory allocations. A value of 0 disables CMA
+			altogether. For more information, see
 			include/linux/dma-contiguous.h
 
 	cmo_free_hint=	[PPC] Format: { yes | no }
@@ -824,6 +829,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			CONFIG_DEBUG_PAGEALLOC, hence this option will not help
 			tracking down these problems.
 
+	debug_pagealloc=
+			[KNL] When CONFIG_DEBUG_PAGEALLOC is set, this
+			parameter enables the feature at boot time. In
+			default, it is disabled. We can avoid allocating huge
+			chunk of memory for debug pagealloc if we don't enable
+			it at boot time and the system will work mostly same
+			with the kernel built without CONFIG_DEBUG_PAGEALLOC.
+			on: enable the feature
+
 	debugpat	[X86] Enable PAT debugging
 
 	decnet.addr=	[HW,NET]
@@ -921,6 +935,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	earlycon=	[KNL] Output early console device and options.
 
+		cdns,<addr>
+			Start an early, polled-mode console on a cadence serial
+			port at the specified address. The cadence serial port
+			must already be setup and configured. Options are not
+			yet supported.
+
 		uart[8250],io,<addr>[,options]
 		uart[8250],mmio,<addr>[,options]
 		uart[8250],mmio32,<addr>[,options]
@@ -933,6 +953,18 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 		pl011,<addr>
 			Start an early, polled-mode console on a pl011 serial
 			port at the specified address. The pl011 serial port
+			must already be setup and configured. Options are not
+			yet supported.
+
+		msm_serial,<addr>
+			Start an early, polled-mode console on an msm serial
+			port at the specified address. The serial port
+			must already be setup and configured. Options are not
+			yet supported.
+
+		msm_serial_dm,<addr>
+			Start an early, polled-mode console on an msm serial
+			dm port at the specified address. The serial port
 			must already be setup and configured. Options are not
 			yet supported.
 
@@ -992,10 +1024,14 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Format: {"off" | "on" | "skip[mbr]"}
 
 	efi=		[EFI]
-			Format: { "old_map" }
+			Format: { "old_map", "nochunk", "noruntime" }
 			old_map [X86-64]: switch to the old ioremap-based EFI
 			runtime services mapping. 32-bit still uses this one by
 			default.
+			nochunk: disable reading files in "chunks" in the EFI
+			boot stub, as chunking can cause problems with some
+			firmware implementations.
+			noruntime : disable EFI runtime services support
 
 	efi_no_storage_paranoia [EFI; X86]
 			Using this parameter you can use more than 50% of
@@ -1201,9 +1237,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			multiple times interleaved with hugepages= to reserve
 			huge pages of different sizes. Valid pages sizes on
 			x86-64 are 2M (when the CPU supports "pse") and 1G
-			(when the CPU supports the "pdpe1gb" cpuinfo flag)
-			Note that 1GB pages can only be allocated at boot time
-			using hugepages= and not freed afterwards.
+			(when the CPU supports the "pdpe1gb" cpuinfo flag).
 
 	hvc_iucv=	[S390] Number of z/VM IUCV hypervisor console (HVC)
 			       terminal devices. Valid values: 0..8
@@ -1237,7 +1271,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	i8042.noloop	[HW] Disable the AUX Loopback command while probing
 			     for the AUX port
 	i8042.nomux	[HW] Don't check presence of an active multiplexing
-			     controller. Default: true.
+			     controller
 	i8042.nopnp	[HW] Don't use ACPIPnP / PnPBIOS to discover KBD/AUX
 			     controllers
 	i8042.notimeout	[HW] Ignore timeout condition signalled by controller
@@ -1280,6 +1314,18 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			.cdrom .chs .ignore_cable are additional options
 			See Documentation/ide/ide.txt.
 
+	ide-generic.probe-mask= [HW] (E)IDE subsystem
+			Format: <int>
+			Probe mask for legacy ISA IDE ports.  Depending on
+			platform up to 6 ports are supported, enabled by
+			setting corresponding bits in the mask to 1.  The
+			default value is 0x0, which has a special meaning.
+			On systems that have PCI, it triggers scanning the
+			PCI bus for the first and the second port, which
+			are then probed.  On systems without PCI the value
+			of 0x0 enables probing the two first ports as if it
+			was 0x3.
+
 	ide-pci-generic.all-generic-ide [HW] (E)IDE subsystem
 			Claim all unknown PCI IDE storage controllers.
 
@@ -1304,7 +1350,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Set number of hash buckets for inode cache.
 
 	ima_appraise=	[IMA] appraise integrity measurements
-			Format: { "off" | "enforce" | "fix" }
+			Format: { "off" | "enforce" | "fix" | "log" }
 			default: "enforce"
 
 	ima_appraise_tcb [IMA]
@@ -1329,6 +1375,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Select one of defined IMA measurements template formats.
 			Formats: { "ima" | "ima-ng" }
 			Default: "ima-ng"
+
+	ima_template_fmt=
+	                [IMA] Define a custom template format.
+			Format: { "field1|...|fieldN" }
 
 	ima.ahash_minsize= [IMA] Minimum file size for asynchronous hash usage
 			Format: <min_file_size>
@@ -1407,6 +1457,18 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 		       disable
 		         Do not enable intel_pstate as the default
 		         scaling driver for the supported processors
+		       force
+			 Enable intel_pstate on systems that prohibit it by default
+			 in favor of acpi-cpufreq. Forcing the intel_pstate driver
+			 instead of acpi-cpufreq may disable platform features, such
+			 as thermal controls and power capping, that rely on ACPI
+			 P-States information being indicated to OSPM and therefore
+			 should be used with caution. This option does not work with
+			 processors that aren't supported by the intel_pstate driver
+			 or on platforms that use pcc-cpufreq instead of acpi-cpufreq.
+		       no_hwp
+		         Do not enable hardware P state control (HWP)
+			 if available.
 
 	intremap=	[X86-64, Intel-IOMMU]
 			on	enable Interrupt Remapping (default)
@@ -1560,6 +1622,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	kmemleak=	[KNL] Boot-time kmemleak enable/disable
 			Valid arguments: on, off
 			Default: on
+			Built with CONFIG_DEBUG_KMEMLEAK_DEFAULT_OFF=y,
+			the default is off.
 
 	kmemcheck=	[X86] Boot-time kmemcheck enable/disable/one-shot mode
 			Valid arguments: 0, 1, 2
@@ -1703,6 +1767,49 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	lockd.nlm_udpport=M	[NFS] Assign UDP port.
 			Format: <integer>
+
+	locktorture.nreaders_stress= [KNL]
+			Set the number of locking read-acquisition kthreads.
+			Defaults to being automatically set based on the
+			number of online CPUs.
+
+	locktorture.nwriters_stress= [KNL]
+			Set the number of locking write-acquisition kthreads.
+
+	locktorture.onoff_holdoff= [KNL]
+			Set time (s) after boot for CPU-hotplug testing.
+
+	locktorture.onoff_interval= [KNL]
+			Set time (s) between CPU-hotplug operations, or
+			zero to disable CPU-hotplug testing.
+
+	locktorture.shuffle_interval= [KNL]
+			Set task-shuffle interval (jiffies).  Shuffling
+			tasks allows some CPUs to go into dyntick-idle
+			mode during the locktorture test.
+
+	locktorture.shutdown_secs= [KNL]
+			Set time (s) after boot system shutdown.  This
+			is useful for hands-off automated testing.
+
+	locktorture.stat_interval= [KNL]
+			Time (s) between statistics printk()s.
+
+	locktorture.stutter= [KNL]
+			Time (s) to stutter testing, for example,
+			specifying five seconds causes the test to run for
+			five seconds, wait for five seconds, and so on.
+			This tests the locking primitive's ability to
+			transition abruptly to and from idle.
+
+	locktorture.torture_runnable= [BOOT]
+			Start locktorture running at boot time.
+
+	locktorture.torture_type= [KNL]
+			Specify the locking implementation to test.
+
+	locktorture.verbose= [KNL]
+			Enable additional printk() statements.
 
 	logibm.irq=	[HW,MOUSE] Logitech Bus Mouse Driver
 			Format: <irq>
@@ -2166,7 +2273,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	nodsp		[SH] Disable hardware DSP at boot time.
 
-	noefi		[X86] Disable EFI runtime services support.
+	noefi		Disable EFI runtime services support.
 
 	noexec		[IA-64]
 
@@ -2419,11 +2526,20 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	OSS		[HW,OSS]
 			See Documentation/sound/oss/oss-parameters.txt
 
+	page_owner=	[KNL] Boot-time page_owner enabling option.
+			Storage of the information about who allocated
+			each page is disabled in default. With this switch,
+			we can turn it on.
+			on: enable the feature
+
 	panic=		[KNL] Kernel behaviour on panic: delay <timeout>
 			timeout > 0: seconds before rebooting
 			timeout = 0: wait forever
 			timeout < 0: reboot immediately
 			Format: <timeout>
+
+	panic_on_warn	panic() instead of WARN().  Useful to cause kdump
+			on a WARN().
 
 	crash_kexec_post_notifiers
 			Run kdump after running panic-notifiers and dumping
@@ -2856,6 +2972,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			quiescent states.  Units are jiffies, minimum
 			value is one, and maximum value is HZ.
 
+	rcutree.kthread_prio= 	 [KNL,BOOT]
+			Set the SCHED_FIFO priority of the RCU
+			per-CPU kthreads (rcuc/N). This value is also
+			used for the priority of the RCU boost threads
+			(rcub/N). Valid values are 1-99 and the default
+			is 1 (the least-favored priority).
+
 	rcutree.rcu_nocb_leader_stride= [KNL]
 			Set the number of NOCB kthread groups, which
 			defaults to the square root of the number of
@@ -2880,6 +3003,24 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			only "lazy" RCU callbacks (RCU_FAST_NO_HZ=y).
 			Lazy RCU callbacks are those which RCU can
 			prove do nothing more than free memory.
+
+	rcutorture.cbflood_inter_holdoff= [KNL]
+			Set holdoff time (jiffies) between successive
+			callback-flood tests.
+
+	rcutorture.cbflood_intra_holdoff= [KNL]
+			Set holdoff time (jiffies) between successive
+			bursts of callbacks within a given callback-flood
+			test.
+
+	rcutorture.cbflood_n_burst= [KNL]
+			Set the number of bursts making up a given
+			callback-flood test.  Set this to zero to
+			disable callback-flood testing.
+
+	rcutorture.cbflood_n_per_burst= [KNL]
+			Set the number of callbacks to be registered
+			in a given burst of a callback-flood test.
 
 	rcutorture.fqs_duration= [KNL]
 			Set duration of force_quiescent_state bursts.
@@ -2920,7 +3061,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Set time (s) between CPU-hotplug operations, or
 			zero to disable CPU-hotplug testing.
 
-	rcutorture.rcutorture_runnable= [BOOT]
+	rcutorture.torture_runnable= [BOOT]
 			Start rcutorture running at boot time.
 
 	rcutorture.shuffle_interval= [KNL]
@@ -2981,6 +3122,20 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	rcupdate.rcu_cpu_stall_timeout= [KNL]
 			Set timeout for RCU CPU stall warning messages.
+
+	rcupdate.rcu_task_stall_timeout= [KNL]
+			Set timeout in jiffies for RCU task stall warning
+			messages.  Disable with a value less than or equal
+			to zero.
+
+	rcupdate.rcu_self_test= [KNL]
+			Run the RCU early boot self tests
+
+	rcupdate.rcu_self_test_bh= [KNL]
+			Run the RCU bh early boot self tests
+
+	rcupdate.rcu_self_test_sched= [KNL]
+			Run the RCU sched early boot self tests
 
 	rdinit=		[KNL]
 			Format: <full_path>
@@ -3140,6 +3295,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	slram=		[HW,MTD]
 
+	slab_nomerge	[MM]
+			Disable merging of slabs with similar size. May be
+			necessary if there is some reason to distinguish
+			allocs to different slabs. Debug options disable
+			merging on their own.
+			For more information see Documentation/vm/slub.txt.
+
 	slab_max_order=	[MM, SLAB]
 			Determines the maximum allowed order for slabs.
 			A high setting may cause OOMs due to memory
@@ -3175,11 +3337,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			For more information see Documentation/vm/slub.txt.
 
 	slub_nomerge	[MM, SLUB]
-			Disable merging of slabs with similar size. May be
-			necessary if there is some reason to distinguish
-			allocs to different slabs. Debug options disable
-			merging on their own.
-			For more information see Documentation/vm/slub.txt.
+			Same with slab_nomerge. This is supported for legacy.
+			See slab_nomerge for more information.
 
 	smart2=		[HW]
 			Format: <io1>[,<io2>[,...,<io8>]]
@@ -3301,13 +3460,22 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			neutralize any effect of /proc/sys/kernel/sysrq.
 			Useful for debugging.
 
+	tcpmhash_entries= [KNL,NET]
+			Set the number of tcp_metrics_hash slots.
+			Default value is 8192 or 16384 depending on total
+			ram pages. This is used to specify the TCP metrics
+			cache size. See Documentation/networking/ip-sysctl.txt
+			"tcp_no_metrics_save" section for more details.
+
 	tdfx=		[HW,DRM]
 
-	test_suspend=	[SUSPEND]
+	test_suspend=	[SUSPEND][,N]
 			Specify "mem" (for Suspend-to-RAM) or "standby" (for
-			standby suspend) as the system sleep state to briefly
-			enter during system startup.  The system is woken from
-			this state using a wakeup-capable RTC alarm.
+			standby suspend) or "freeze" (for suspend type freeze)
+			as the system sleep state during system startup with
+			the optional capability to repeat N number of times.
+			The system is woken from this state using a
+			wakeup-capable RTC alarm.
 
 	thash_entries=	[KNL,NET]
 			Set number of hash buckets for TCP connection
@@ -3370,6 +3538,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			e.g. base its process migration decisions on it.
 			Default is on.
 
+	topology_updates= [KNL, PPC, NUMA]
+			Format: {off}
+			Specify if the kernel should ignore (off)
+			topology updates sent by the hypervisor to this
+			LPAR.
+
 	tp720=		[HW,PS2]
 
 	tpm_suspend_pcr=[HW,TPM]
@@ -3382,7 +3556,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			are saved.
 
 	trace_buf_size=nn[KMG]
-			[FTRACE] will set tracing buffer size.
+			[FTRACE] will set tracing buffer size on each cpu.
 
 	trace_event=[event-list]
 			[FTRACE] Set and start specified trace events in order
@@ -3404,6 +3578,24 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 			See also Documentation/trace/ftrace.txt "trace options"
 			section.
+
+	tp_printk[FTRACE]
+			Have the tracepoints sent to printk as well as the
+			tracing ring buffer. This is useful for early boot up
+			where the system hangs or reboots and does not give the
+			option for reading the tracing buffer or performing a
+			ftrace_dump_on_oops.
+
+			To turn off having tracepoints sent to printk,
+			 echo 0 > /proc/sys/kernel/tracepoint_printk
+			Note, echoing 1 into this file without the
+			tracepoint_printk kernel cmdline option has no effect.
+
+			** CAUTION **
+
+			Having tracepoints sent to printk() and activating high
+			frequency tracepoints such as irq or sched, can cause
+			the system to live lock.
 
 	traceoff_on_warning
 			[FTRACE] enable this option to disable tracing when a
@@ -3502,7 +3694,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	usb-storage.delay_use=
 			[UMS] The delay in seconds before a new device is
-			scanned for Logical Units (default 5).
+			scanned for Logical Units (default 1).
 
 	usb-storage.quirks=
 			[UMS] A list of quirks entries to supplement or
@@ -3522,6 +3714,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 					READ_DISC_INFO command);
 				e = NO_READ_CAPACITY_16 (don't use
 					READ_CAPACITY_16 command);
+				f = NO_REPORT_OPCODES (don't use report opcodes
+					command, uas only);
 				h = CAPACITY_HEURISTICS (decrease the
 					reported device capacity by one
 					sector if the number is odd);
@@ -3541,6 +3735,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 					bogus residue values);
 				s = SINGLE_LUN (the device has only one
 					Logical Unit);
+				t = NO_ATA_1X (don't allow ATA(12) and ATA(16)
+					commands, uas only);
 				u = IGNORE_UAS (don't bind to the uas driver);
 				w = NO_WP_DETECT (don't test whether the
 					medium is write-protected).

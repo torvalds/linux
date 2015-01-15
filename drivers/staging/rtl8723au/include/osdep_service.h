@@ -54,7 +54,7 @@ struct rtw_queue {
 
 static inline struct list_head *get_list_head(struct rtw_queue *queue)
 {
-	return (&queue->queue);
+	return &queue->queue;
 }
 
 static inline int rtw_netif_queue_stopped(struct net_device *pnetdev)
@@ -62,7 +62,7 @@ static inline int rtw_netif_queue_stopped(struct net_device *pnetdev)
 	return (netif_tx_queue_stopped(netdev_get_tx_queue(pnetdev, 0)) &&
 		netif_tx_queue_stopped(netdev_get_tx_queue(pnetdev, 1)) &&
 		netif_tx_queue_stopped(netdev_get_tx_queue(pnetdev, 2)) &&
-		netif_tx_queue_stopped(netdev_get_tx_queue(pnetdev, 3)) );
+		netif_tx_queue_stopped(netdev_get_tx_queue(pnetdev, 3)));
 }
 
 static inline u32 CHKBIT(u32 x)

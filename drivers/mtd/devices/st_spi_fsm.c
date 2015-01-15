@@ -2069,7 +2069,6 @@ static struct platform_driver stfsm_driver = {
 	.remove		= stfsm_remove,
 	.driver		= {
 		.name	= "st-spi-fsm",
-		.owner	= THIS_MODULE,
 		.of_match_table = stfsm_match,
 	},
 };

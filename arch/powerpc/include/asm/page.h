@@ -379,12 +379,14 @@ static inline int hugepd_ok(hugepd_t hpd)
 }
 #endif
 
-#define is_hugepd(pdep)               (hugepd_ok(*((hugepd_t *)(pdep))))
+#define is_hugepd(hpd)               (hugepd_ok(hpd))
+#define pgd_huge pgd_huge
 int pgd_huge(pgd_t pgd);
 #else /* CONFIG_HUGETLB_PAGE */
 #define is_hugepd(pdep)			0
 #define pgd_huge(pgd)			0
 #endif /* CONFIG_HUGETLB_PAGE */
+#define __hugepd(x) ((hugepd_t) { (x) })
 
 struct page;
 extern void clear_user_page(void *page, unsigned long vaddr, struct page *pg);

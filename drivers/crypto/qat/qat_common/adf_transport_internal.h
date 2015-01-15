@@ -75,7 +75,7 @@ struct adf_etr_ring_data {
 
 struct adf_etr_bank_data {
 	struct adf_etr_ring_data rings[ADF_ETR_MAX_RINGS_PER_BANK];
-	struct tasklet_struct resp_hanlder;
+	struct tasklet_struct resp_handler;
 	void __iomem *csr_addr;
 	struct adf_accel_dev *accel_dev;
 	uint32_t irq_coalesc_timer;

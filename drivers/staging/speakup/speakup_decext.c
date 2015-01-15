@@ -39,6 +39,7 @@ static unsigned char last_char;
 static inline u_char get_last_char(void)
 {
 	u_char avail = inb_p(speakup_info.port_tts + UART_LSR) & UART_LSR_DR;
+
 	if (avail)
 		last_char = inb_p(speakup_info.port_tts + UART_RX);
 	return last_char;
@@ -203,7 +204,7 @@ static void do_catch_up(struct spk_synth *synth)
 		else if (ch <= SPACE) {
 			if (!in_escape && strchr(",.!?;:", last))
 				spk_serial_out(PROCSPEECH);
-			if (jiffies >= jiff_max) {
+			if (time_after_eq(jiffies, jiff_max)) {
 				if (!in_escape)
 					spk_serial_out(PROCSPEECH);
 				spin_lock_irqsave(&speakup_info.spinlock, flags);

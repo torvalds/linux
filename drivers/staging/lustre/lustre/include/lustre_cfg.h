@@ -290,4 +290,4 @@ static inline int lustre_cfg_sanity_check(void *buf, int len)
 
 /** @} cfg */
 
-#endif // _LUSTRE_CFG_H
+#endif /* _LUSTRE_CFG_H */

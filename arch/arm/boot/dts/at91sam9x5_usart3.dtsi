@@ -57,6 +57,9 @@
 				interrupts = <8 IRQ_TYPE_LEVEL_HIGH 5>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_usart3>;
+				dmas = <&dma1 1 AT91_DMA_CFG_PER_ID(14)>,
+				       <&dma1 1 (AT91_DMA_CFG_PER_ID(15) | AT91_DMA_CFG_FIFOCFG_ASAP)>;
+				dma-names = "tx", "rx";
 				clocks = <&usart3_clk>;
 				clock-names = "usart";
 				status = "disabled";

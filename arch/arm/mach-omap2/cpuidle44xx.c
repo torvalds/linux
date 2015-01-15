@@ -196,7 +196,6 @@ static struct cpuidle_driver omap4_idle_driver = {
 			/* C1 - CPU0 ON + CPU1 ON + MPU ON */
 			.exit_latency = 2 + 2,
 			.target_residency = 5,
-			.flags = CPUIDLE_FLAG_TIME_VALID,
 			.enter = omap_enter_idle_simple,
 			.name = "C1",
 			.desc = "CPUx ON, MPUSS ON"
@@ -205,7 +204,7 @@ static struct cpuidle_driver omap4_idle_driver = {
 			/* C2 - CPU0 OFF + CPU1 OFF + MPU CSWR */
 			.exit_latency = 328 + 440,
 			.target_residency = 960,
-			.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_COUPLED,
+			.flags = CPUIDLE_FLAG_COUPLED,
 			.enter = omap_enter_idle_coupled,
 			.name = "C2",
 			.desc = "CPUx OFF, MPUSS CSWR",
@@ -214,7 +213,7 @@ static struct cpuidle_driver omap4_idle_driver = {
 			/* C3 - CPU0 OFF + CPU1 OFF + MPU OSWR */
 			.exit_latency = 460 + 518,
 			.target_residency = 1100,
-			.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_COUPLED,
+			.flags = CPUIDLE_FLAG_COUPLED,
 			.enter = omap_enter_idle_coupled,
 			.name = "C3",
 			.desc = "CPUx OFF, MPUSS OSWR",

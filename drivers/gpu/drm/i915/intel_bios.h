@@ -46,7 +46,7 @@ struct bdb_header {
 	u16 version;			/**< decimal */
 	u16 header_size;		/**< in bytes */
 	u16 bdb_size;			/**< in bytes */
-};
+} __packed;
 
 /* strictly speaking, this is a "skip" block, but it has interesting info */
 struct vbios_data {
@@ -252,7 +252,7 @@ union child_device_config {
 	/* This one should also be safe to use anywhere, even without version
 	 * checks. */
 	struct common_child_dev_config common;
-};
+} __packed;
 
 struct bdb_general_definitions {
 	/* DDC GPIO */
@@ -802,7 +802,8 @@ struct mipi_config {
 
 	u16 rsvd4;
 
-	u8 rsvd5[5];
+	u8 rsvd5;
+	u32 target_burst_mode_freq;
 	u32 dsi_ddr_clk;
 	u32 bridge_ref_clk;
 
@@ -887,12 +888,12 @@ struct mipi_pps_data {
 	u16 bl_disable_delay;
 	u16 panel_off_delay;
 	u16 panel_power_cycle_delay;
-};
+} __packed;
 
 struct bdb_mipi_config {
 	struct mipi_config config[MAX_MIPI_CONFIGURATIONS];
 	struct mipi_pps_data pps[MAX_MIPI_CONFIGURATIONS];
-};
+} __packed;
 
 /* Block 53 contains MIPI sequences as needed by the panel
  * for enabling it. This block can be variable in size and
@@ -901,7 +902,7 @@ struct bdb_mipi_config {
 struct bdb_mipi_sequence {
 	u8 version;
 	u8 data[0];
-};
+} __packed;
 
 /* MIPI Sequnece Block definitions */
 enum mipi_seq {

@@ -12,57 +12,20 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <asm/sysrq.h>
+#include <asm/stacktrace.h>
 #include <os.h>
 
-struct stack_frame {
-	struct stack_frame *next_frame;
-	unsigned long return_address;
+static void _print_addr(void *data, unsigned long address, int reliable)
+{
+	pr_info(" [<%08lx>]", address);
+	pr_cont(" %s", reliable ? "" : "? ");
+	print_symbol("%s", address);
+	pr_cont("\n");
+}
+
+static const struct stacktrace_ops stackops = {
+	.address = _print_addr
 };
-
-static void do_stack_trace(unsigned long *sp, unsigned long bp)
-{
-	int reliable;
-	unsigned long addr;
-	struct stack_frame *frame = (struct stack_frame *)bp;
-
-	printk(KERN_INFO "Call Trace:\n");
-	while (((long) sp & (THREAD_SIZE-1)) != 0) {
-		addr = *sp;
-		if (__kernel_text_address(addr)) {
-			reliable = 0;
-			if ((unsigned long) sp == bp + sizeof(long)) {
-				frame = frame ? frame->next_frame : NULL;
-				bp = (unsigned long)frame;
-				reliable = 1;
-			}
-
-			printk(KERN_INFO " [<%08lx>]", addr);
-			printk(KERN_CONT " %s", reliable ? "" : "? ");
-			print_symbol(KERN_CONT "%s", addr);
-			printk(KERN_CONT "\n");
-		}
-		sp++;
-	}
-	printk(KERN_INFO "\n");
-}
-
-static unsigned long get_frame_pointer(struct task_struct *task,
-				       struct pt_regs *segv_regs)
-{
-	if (!task || task == current)
-		return segv_regs ? PT_REGS_BP(segv_regs) : current_bp();
-	else
-		return KSTK_EBP(task);
-}
-
-static unsigned long *get_stack_pointer(struct task_struct *task,
-					struct pt_regs *segv_regs)
-{
-	if (!task || task == current)
-		return segv_regs ? (unsigned long *)PT_REGS_SP(segv_regs) : current_sp();
-	else
-		return (unsigned long *)KSTK_ESP(task);
-}
 
 void show_stack(struct task_struct *task, unsigned long *stack)
 {
@@ -71,7 +34,7 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 	int i;
 
 	if (!segv_regs && os_is_signal_stack()) {
-		printk(KERN_ERR "Received SIGSEGV in SIGSEGV handler,"
+		pr_err("Received SIGSEGV in SIGSEGV handler,"
 				" aborting stack trace!\n");
 		return;
 	}
@@ -83,16 +46,18 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 	if (!stack)
 		sp = get_stack_pointer(task, segv_regs);
 
-	printk(KERN_INFO "Stack:\n");
+	pr_info("Stack:\n");
 	stack = sp;
 	for (i = 0; i < 3 * STACKSLOTS_PER_LINE; i++) {
 		if (kstack_end(stack))
 			break;
 		if (i && ((i % STACKSLOTS_PER_LINE) == 0))
-			printk(KERN_CONT "\n");
-		printk(KERN_CONT " %08lx", *stack++);
+			pr_cont("\n");
+		pr_cont(" %08lx", *stack++);
 	}
-	printk(KERN_CONT "\n");
+	pr_cont("\n");
 
-	do_stack_trace(sp, bp);
+	pr_info("Call Trace:\n");
+	dump_trace(current, &stackops, NULL);
+	pr_info("\n");
 }

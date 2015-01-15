@@ -108,8 +108,7 @@ static int autofs4_dir_open(struct inode *inode, struct file *file)
 	struct dentry *dentry = file->f_path.dentry;
 	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
 
-	DPRINTK("file=%p dentry=%p %.*s",
-		file, dentry, dentry->d_name.len, dentry->d_name.name);
+	DPRINTK("file=%p dentry=%p %pD", file, dentry, dentry);
 
 	if (autofs4_oz_mode(sbi))
 		goto out;
@@ -210,7 +209,8 @@ next:
 	return NULL;
 }
 
-static struct dentry *autofs4_lookup_expiring(struct dentry *dentry)
+static struct dentry *autofs4_lookup_expiring(struct dentry *dentry,
+					      bool rcu_walk)
 {
 	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
 	struct dentry *parent = dentry->d_parent;
@@ -228,6 +228,11 @@ static struct dentry *autofs4_lookup_expiring(struct dentry *dentry)
 		struct autofs_info *ino;
 		struct dentry *expiring;
 		struct qstr *qstr;
+
+		if (rcu_walk) {
+			spin_unlock(&sbi->lookup_lock);
+			return ERR_PTR(-ECHILD);
+		}
 
 		ino = list_entry(p, struct autofs_info, expiring);
 		expiring = ino->dentry;
@@ -264,15 +269,16 @@ next:
 	return NULL;
 }
 
-static int autofs4_mount_wait(struct dentry *dentry)
+static int autofs4_mount_wait(struct dentry *dentry, bool rcu_walk)
 {
 	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
 	struct autofs_info *ino = autofs4_dentry_ino(dentry);
 	int status = 0;
 
 	if (ino->flags & AUTOFS_INF_PENDING) {
-		DPRINTK("waiting for mount name=%.*s",
-			dentry->d_name.len, dentry->d_name.name);
+		if (rcu_walk)
+			return -ECHILD;
+		DPRINTK("waiting for mount name=%pd", dentry);
 		status = autofs4_wait(sbi, dentry, NFY_MOUNT);
 		DPRINTK("mount wait done status=%d", status);
 	}
@@ -280,20 +286,22 @@ static int autofs4_mount_wait(struct dentry *dentry)
 	return status;
 }
 
-static int do_expire_wait(struct dentry *dentry)
+static int do_expire_wait(struct dentry *dentry, bool rcu_walk)
 {
 	struct dentry *expiring;
 
-	expiring = autofs4_lookup_expiring(dentry);
+	expiring = autofs4_lookup_expiring(dentry, rcu_walk);
+	if (IS_ERR(expiring))
+		return PTR_ERR(expiring);
 	if (!expiring)
-		return autofs4_expire_wait(dentry);
+		return autofs4_expire_wait(dentry, rcu_walk);
 	else {
 		/*
 		 * If we are racing with expire the request might not
 		 * be quite complete, but the directory has been removed
 		 * so it must have been successful, just wait for it.
 		 */
-		autofs4_expire_wait(expiring);
+		autofs4_expire_wait(expiring, 0);
 		autofs4_del_expiring(expiring);
 		dput(expiring);
 	}
@@ -330,8 +338,7 @@ static struct vfsmount *autofs4_d_automount(struct path *path)
 	struct autofs_info *ino = autofs4_dentry_ino(dentry);
 	int status;
 
-	DPRINTK("dentry=%p %.*s",
-		dentry, dentry->d_name.len, dentry->d_name.name);
+	DPRINTK("dentry=%p %pd", dentry, dentry);
 
 	/* The daemon never triggers a mount. */
 	if (autofs4_oz_mode(sbi))
@@ -345,7 +352,7 @@ static struct vfsmount *autofs4_d_automount(struct path *path)
 	 * and the directory was removed, so just go ahead and try
 	 * the mount.
 	 */
-	status = do_expire_wait(dentry);
+	status = do_expire_wait(dentry, 0);
 	if (status && status != -EAGAIN)
 		return NULL;
 
@@ -353,7 +360,7 @@ static struct vfsmount *autofs4_d_automount(struct path *path)
 	spin_lock(&sbi->fs_lock);
 	if (ino->flags & AUTOFS_INF_PENDING) {
 		spin_unlock(&sbi->fs_lock);
-		status = autofs4_mount_wait(dentry);
+		status = autofs4_mount_wait(dentry, 0);
 		if (status)
 			return ERR_PTR(status);
 		goto done;
@@ -394,7 +401,7 @@ static struct vfsmount *autofs4_d_automount(struct path *path)
 		}
 		ino->flags |= AUTOFS_INF_PENDING;
 		spin_unlock(&sbi->fs_lock);
-		status = autofs4_mount_wait(dentry);
+		status = autofs4_mount_wait(dentry, 0);
 		spin_lock(&sbi->fs_lock);
 		ino->flags &= ~AUTOFS_INF_PENDING;
 		if (status) {
@@ -418,32 +425,49 @@ static int autofs4_d_manage(struct dentry *dentry, bool rcu_walk)
 	struct autofs_info *ino = autofs4_dentry_ino(dentry);
 	int status;
 
-	DPRINTK("dentry=%p %.*s",
-		dentry, dentry->d_name.len, dentry->d_name.name);
+	DPRINTK("dentry=%p %pd", dentry, dentry);
 
 	/* The daemon never waits. */
 	if (autofs4_oz_mode(sbi)) {
-		if (rcu_walk)
-			return 0;
 		if (!d_mountpoint(dentry))
 			return -EISDIR;
 		return 0;
 	}
 
-	/* We need to sleep, so we need pathwalk to be in ref-mode */
-	if (rcu_walk)
-		return -ECHILD;
-
 	/* Wait for pending expires */
-	do_expire_wait(dentry);
+	if (do_expire_wait(dentry, rcu_walk) == -ECHILD)
+		return -ECHILD;
 
 	/*
 	 * This dentry may be under construction so wait on mount
 	 * completion.
 	 */
-	status = autofs4_mount_wait(dentry);
+	status = autofs4_mount_wait(dentry, rcu_walk);
 	if (status)
 		return status;
+
+	if (rcu_walk) {
+		/* We don't need fs_lock in rcu_walk mode,
+		 * just testing 'AUTOFS_INFO_NO_RCU' is enough.
+		 * simple_empty() takes a spinlock, so leave it
+		 * to last.
+		 * We only return -EISDIR when certain this isn't
+		 * a mount-trap.
+		 */
+		struct inode *inode;
+		if (ino->flags & (AUTOFS_INF_EXPIRING | AUTOFS_INF_NO_RCU))
+			return 0;
+		if (d_mountpoint(dentry))
+			return 0;
+		inode = ACCESS_ONCE(dentry->d_inode);
+		if (inode && S_ISLNK(inode->i_mode))
+			return -EISDIR;
+		if (list_empty(&dentry->d_subdirs))
+			return 0;
+		if (!simple_empty(dentry))
+			return -EISDIR;
+		return 0;
+	}
 
 	spin_lock(&sbi->fs_lock);
 	/*
@@ -476,7 +500,7 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, u
 	struct autofs_info *ino;
 	struct dentry *active;
 
-	DPRINTK("name = %.*s", dentry->d_name.len, dentry->d_name.name);
+	DPRINTK("name = %pd", dentry);
 
 	/* File name too long to exist */
 	if (dentry->d_name.len > NAME_MAX)
@@ -530,8 +554,7 @@ static int autofs4_dir_symlink(struct inode *dir,
 	size_t size = strlen(symname);
 	char *cp;
 
-	DPRINTK("%s <- %.*s", symname,
-		dentry->d_name.len, dentry->d_name.name);
+	DPRINTK("%s <- %pd", symname, dentry);
 
 	if (!autofs4_oz_mode(sbi))
 		return -EACCES;
@@ -659,7 +682,7 @@ static void autofs_clear_leaf_automount_flags(struct dentry *dentry)
 	/* only consider parents below dentrys in the root */
 	if (IS_ROOT(parent->d_parent))
 		return;
-	d_child = &dentry->d_u.d_child;
+	d_child = &dentry->d_child;
 	/* Set parent managed if it's becoming empty */
 	if (d_child->next == &parent->d_subdirs &&
 	    d_child->prev == &parent->d_subdirs)
@@ -673,8 +696,7 @@ static int autofs4_dir_rmdir(struct inode *dir, struct dentry *dentry)
 	struct autofs_info *ino = autofs4_dentry_ino(dentry);
 	struct autofs_info *p_ino;
 	
-	DPRINTK("dentry %p, removing %.*s",
-		dentry, dentry->d_name.len, dentry->d_name.name);
+	DPRINTK("dentry %p, removing %pd", dentry, dentry);
 
 	if (!autofs4_oz_mode(sbi))
 		return -EACCES;
@@ -716,8 +738,7 @@ static int autofs4_dir_mkdir(struct inode *dir, struct dentry *dentry, umode_t m
 	if (!autofs4_oz_mode(sbi))
 		return -EACCES;
 
-	DPRINTK("dentry %p, creating %.*s",
-		dentry, dentry->d_name.len, dentry->d_name.name);
+	DPRINTK("dentry %p, creating %pd", dentry, dentry);
 
 	BUG_ON(!ino);
 

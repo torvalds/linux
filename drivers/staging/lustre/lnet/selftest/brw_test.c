@@ -66,7 +66,7 @@ brw_client_fini(sfw_test_instance_t *tsi)
 	}
 }
 
-int
+static int
 brw_client_init(sfw_test_instance_t *tsi)
 {
 	sfw_session_t	 *sn = tsi->tsi_batch->bat_session;
@@ -131,7 +131,7 @@ brw_client_init(sfw_test_instance_t *tsi)
 #define BRW_MAGIC       0xeeb0eeb1eeb2eeb3ULL
 #define BRW_MSIZE       sizeof(__u64)
 
-int
+static int
 brw_inject_one_error(void)
 {
 	struct timeval tv;
@@ -147,7 +147,7 @@ brw_inject_one_error(void)
 	return brw_inject_errors--;
 }
 
-void
+static void
 brw_fill_page(struct page *pg, int pattern, __u64 magic)
 {
 	char *addr = page_address(pg);
@@ -178,7 +178,7 @@ brw_fill_page(struct page *pg, int pattern, __u64 magic)
 	return;
 }
 
-int
+static int
 brw_check_page(struct page *pg, int pattern, __u64 magic)
 {
 	char  *addr = page_address(pg);
@@ -221,7 +221,7 @@ bad_data:
 	return 1;
 }
 
-void
+static void
 brw_fill_bulk(srpc_bulk_t *bk, int pattern, __u64 magic)
 {
 	int	 i;
@@ -233,7 +233,7 @@ brw_fill_bulk(srpc_bulk_t *bk, int pattern, __u64 magic)
 	}
 }
 
-int
+static int
 brw_check_bulk(srpc_bulk_t *bk, int pattern, __u64 magic)
 {
 	int	 i;
@@ -358,7 +358,7 @@ out:
 	return;
 }
 
-void
+static void
 brw_server_rpc_done(srpc_server_rpc_t *rpc)
 {
 	srpc_bulk_t *blk = rpc->srpc_bulk;
@@ -378,7 +378,7 @@ brw_server_rpc_done(srpc_server_rpc_t *rpc)
 	sfw_free_pages(rpc);
 }
 
-int
+static int
 brw_bulk_ready(srpc_server_rpc_t *rpc, int status)
 {
 	__u64	     magic = BRW_MAGIC;
@@ -414,7 +414,7 @@ brw_bulk_ready(srpc_server_rpc_t *rpc, int status)
 	return 0;
 }
 
-int
+static int
 brw_server_handle(struct srpc_server_rpc *rpc)
 {
 	struct srpc_service	*sv = rpc->srpc_scd->scd_svc;

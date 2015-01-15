@@ -88,8 +88,7 @@ static void ll_destroy_inodecache(void)
 }
 
 /* exported operations */
-struct super_operations lustre_super_operations =
-{
+struct super_operations lustre_super_operations = {
 	.alloc_inode   = ll_alloc_inode,
 	.destroy_inode = ll_destroy_inode,
 	.evict_inode   = ll_delete_inode,
@@ -163,7 +162,7 @@ static int __init init_lustre_lite(void)
 
 	/* Nodes with small feet have little entropy
 	 * the NID for this node gives the most entropy in the low bits */
-	for (i=0; ; i++) {
+	for (i = 0; ; i++) {
 		if (LNetGetId(i, &lnet_id) == -ENOENT) {
 			break;
 		}

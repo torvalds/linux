@@ -21,22 +21,30 @@
 #include <net/mac80211.h>
 #include "core.h"
 
+#define WEP_KEYID_SHIFT 6
+
 struct ath10k_generic_iter {
 	struct ath10k *ar;
 	int ret;
 };
 
-struct ath10k *ath10k_mac_create(void);
+struct ath10k *ath10k_mac_create(size_t priv_size);
 void ath10k_mac_destroy(struct ath10k *ar);
 int ath10k_mac_register(struct ath10k *ar);
 void ath10k_mac_unregister(struct ath10k *ar);
 struct ath10k_vif *ath10k_get_arvif(struct ath10k *ar, u32 vdev_id);
-void ath10k_reset_scan(unsigned long ptr);
+void __ath10k_scan_finish(struct ath10k *ar);
+void ath10k_scan_finish(struct ath10k *ar);
+void ath10k_scan_timeout_work(struct work_struct *work);
 void ath10k_offchan_tx_purge(struct ath10k *ar);
 void ath10k_offchan_tx_work(struct work_struct *work);
 void ath10k_mgmt_over_wmi_tx_purge(struct ath10k *ar);
 void ath10k_mgmt_over_wmi_tx_work(struct work_struct *work);
 void ath10k_halt(struct ath10k *ar);
+void ath10k_mac_vif_beacon_free(struct ath10k_vif *arvif);
+void ath10k_drain_tx(struct ath10k *ar);
+bool ath10k_mac_is_peer_wep_key_set(struct ath10k *ar, const u8 *addr,
+				    u8 keyidx);
 
 static inline struct ath10k_vif *ath10k_vif_to_arvif(struct ieee80211_vif *vif)
 {

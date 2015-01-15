@@ -1066,7 +1066,7 @@ cifs_push_mandatory_locks(struct cifsFileInfo *cfile)
 
 	max_num = (max_buf - sizeof(struct smb_hdr)) /
 						sizeof(LOCKING_ANDX_RANGE);
-	buf = kzalloc(max_num * sizeof(LOCKING_ANDX_RANGE), GFP_KERNEL);
+	buf = kcalloc(max_num, sizeof(LOCKING_ANDX_RANGE), GFP_KERNEL);
 	if (!buf) {
 		free_xid(xid);
 		return -ENOMEM;
@@ -1401,7 +1401,7 @@ cifs_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 
 	max_num = (max_buf - sizeof(struct smb_hdr)) /
 						sizeof(LOCKING_ANDX_RANGE);
-	buf = kzalloc(max_num * sizeof(LOCKING_ANDX_RANGE), GFP_KERNEL);
+	buf = kcalloc(max_num, sizeof(LOCKING_ANDX_RANGE), GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
@@ -1586,7 +1586,7 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *flock)
 	cifs_read_flock(flock, &type, &lock, &unlock, &wait_flag,
 			tcon->ses->server);
 
-	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
+	cifs_sb = CIFS_FILE_SB(file);
 	netfid = cfile->fid.netfid;
 	cinode = CIFS_I(file_inode(file));
 
@@ -1650,8 +1650,8 @@ cifs_write(struct cifsFileInfo *open_file, __u32 pid, const char *write_data,
 
 	cifs_sb = CIFS_SB(dentry->d_sb);
 
-	cifs_dbg(FYI, "write %zd bytes to offset %lld of %s\n",
-		 write_size, *offset, dentry->d_name.name);
+	cifs_dbg(FYI, "write %zd bytes to offset %lld of %pd\n",
+		 write_size, *offset, dentry);
 
 	tcon = tlink_tcon(open_file->tlink);
 	server = tcon->ses->server;
@@ -1687,8 +1687,8 @@ cifs_write(struct cifsFileInfo *open_file, __u32 pid, const char *write_data,
 			io_parms.tcon = tcon;
 			io_parms.offset = *offset;
 			io_parms.length = len;
-			rc = server->ops->sync_write(xid, open_file, &io_parms,
-						     &bytes_written, iov, 1);
+			rc = server->ops->sync_write(xid, &open_file->fid,
+					&io_parms, &bytes_written, iov, 1);
 		}
 		if (rc || (bytes_written == 0)) {
 			if (total_written)
@@ -2273,8 +2273,8 @@ int cifs_strict_fsync(struct file *file, loff_t start, loff_t end,
 
 	xid = get_xid();
 
-	cifs_dbg(FYI, "Sync file - name: %s datasync: 0x%x\n",
-		 file->f_path.dentry->d_name.name, datasync);
+	cifs_dbg(FYI, "Sync file - name: %pD datasync: 0x%x\n",
+		 file, datasync);
 
 	if (!CIFS_CACHE_READ(CIFS_I(inode))) {
 		rc = cifs_zap_mapping(inode);
@@ -2305,7 +2305,7 @@ int cifs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	struct cifs_tcon *tcon;
 	struct TCP_Server_Info *server;
 	struct cifsFileInfo *smbfile = file->private_data;
-	struct cifs_sb_info *cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
+	struct cifs_sb_info *cifs_sb = CIFS_FILE_SB(file);
 	struct inode *inode = file->f_mapping->host;
 
 	rc = filemap_write_and_wait_range(inode->i_mapping, start, end);
@@ -2315,8 +2315,8 @@ int cifs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 
 	xid = get_xid();
 
-	cifs_dbg(FYI, "Sync file - name: %s datasync: 0x%x\n",
-		 file->f_path.dentry->d_name.name, datasync);
+	cifs_dbg(FYI, "Sync file - name: %pD datasync: 0x%x\n",
+		 file, datasync);
 
 	tcon = tlink_tcon(smbfile->tlink);
 	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOSSYNC)) {
@@ -2585,7 +2585,7 @@ cifs_iovec_write(struct file *file, struct iov_iter *from, loff_t *poffset)
 	iov_iter_truncate(from, len);
 
 	INIT_LIST_HEAD(&wdata_list);
-	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
+	cifs_sb = CIFS_FILE_SB(file);
 	open_file = file->private_data;
 	tcon = tlink_tcon(open_file->tlink);
 
@@ -3010,7 +3010,7 @@ ssize_t cifs_user_readv(struct kiocb *iocb, struct iov_iter *to)
 		return 0;
 
 	INIT_LIST_HEAD(&rdata_list);
-	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
+	cifs_sb = CIFS_FILE_SB(file);
 	open_file = file->private_data;
 	tcon = tlink_tcon(open_file->tlink);
 
@@ -3155,7 +3155,7 @@ cifs_read(struct file *file, char *read_data, size_t read_size, loff_t *offset)
 	__u32 pid;
 
 	xid = get_xid();
-	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
+	cifs_sb = CIFS_FILE_SB(file);
 
 	/* FIXME: set up handlers for larger reads and/or convert to async */
 	rsize = min_t(unsigned int, cifs_sb->rsize, CIFSMaxBufSize);
@@ -3206,7 +3206,7 @@ cifs_read(struct file *file, char *read_data, size_t read_size, loff_t *offset)
 			io_parms.tcon = tcon;
 			io_parms.offset = *offset;
 			io_parms.length = current_read_size;
-			rc = server->ops->sync_read(xid, open_file, &io_parms,
+			rc = server->ops->sync_read(xid, &open_file->fid, &io_parms,
 						    &bytes_read, &cur_offset,
 						    &buf_type);
 		} while (rc == -EAGAIN);
@@ -3462,7 +3462,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 	int rc;
 	struct list_head tmplist;
 	struct cifsFileInfo *open_file = file->private_data;
-	struct cifs_sb_info *cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
+	struct cifs_sb_info *cifs_sb = CIFS_FILE_SB(file);
 	struct TCP_Server_Info *server;
 	pid_t pid;
 

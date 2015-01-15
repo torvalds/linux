@@ -179,6 +179,9 @@ static void radeon_encoder_add_backlight(struct radeon_encoder *radeon_encoder,
 		    (rdev->pdev->subsystem_vendor == 0x1734) &&
 		    (rdev->pdev->subsystem_device == 0x1107))
 			use_bl = false;
+		/* disable native backlight control on older asics */
+		else if (rdev->family < CHIP_R600)
+			use_bl = false;
 		else
 			use_bl = true;
 	}
@@ -410,3 +413,24 @@ bool radeon_dig_monitor_is_duallink(struct drm_encoder *encoder,
 	}
 }
 
+bool radeon_encoder_is_digital(struct drm_encoder *encoder)
+{
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	switch (radeon_encoder->encoder_id) {
+	case ENCODER_OBJECT_ID_INTERNAL_LVDS:
+	case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
+	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
+	case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
+	case ENCODER_OBJECT_ID_INTERNAL_DVO1:
+	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
+	case ENCODER_OBJECT_ID_INTERNAL_DDI:
+	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
+	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
+	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
+	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY3:
+		return true;
+	default:
+		return false;
+	}
+}

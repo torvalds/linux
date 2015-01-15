@@ -76,12 +76,12 @@ static const struct pci_device_id mei_me_pci_tbl[] = {
 	{MEI_PCI_DEVICE(MEI_DEV_ID_PPT_1, mei_me_pch_cfg)},
 	{MEI_PCI_DEVICE(MEI_DEV_ID_PPT_2, mei_me_pch_cfg)},
 	{MEI_PCI_DEVICE(MEI_DEV_ID_PPT_3, mei_me_pch_cfg)},
-	{MEI_PCI_DEVICE(MEI_DEV_ID_LPT_H, mei_me_lpt_cfg)},
-	{MEI_PCI_DEVICE(MEI_DEV_ID_LPT_W, mei_me_lpt_cfg)},
-	{MEI_PCI_DEVICE(MEI_DEV_ID_LPT_LP, mei_me_pch_cfg)},
-	{MEI_PCI_DEVICE(MEI_DEV_ID_LPT_HR, mei_me_lpt_cfg)},
-	{MEI_PCI_DEVICE(MEI_DEV_ID_WPT_LP, mei_me_pch_cfg)},
-	{MEI_PCI_DEVICE(MEI_DEV_ID_WPT_LP_2, mei_me_pch_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_LPT_H, mei_me_pch8_sps_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_LPT_W, mei_me_pch8_sps_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_LPT_LP, mei_me_pch8_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_LPT_HR, mei_me_pch8_sps_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_WPT_LP, mei_me_pch8_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_WPT_LP_2, mei_me_pch8_cfg)},
 
 	/* required last entry */
 	{0, }
@@ -89,21 +89,21 @@ static const struct pci_device_id mei_me_pci_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, mei_me_pci_tbl);
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static inline void mei_me_set_pm_domain(struct mei_device *dev);
 static inline void mei_me_unset_pm_domain(struct mei_device *dev);
 #else
 static inline void mei_me_set_pm_domain(struct mei_device *dev) {}
 static inline void mei_me_unset_pm_domain(struct mei_device *dev) {}
-#endif /* CONFIG_PM_RUNTIME */
+#endif /* CONFIG_PM */
 
 /**
- * mei_quirk_probe - probe for devices that doesn't valid ME interface
+ * mei_me_quirk_probe - probe for devices that doesn't valid ME interface
  *
  * @pdev: PCI device structure
  * @cfg: per generation config
  *
- * returns true if ME Interface is valid, false otherwise
+ * Return: true if ME Interface is valid, false otherwise
  */
 static bool mei_me_quirk_probe(struct pci_dev *pdev,
 				const struct mei_cfg *cfg)
@@ -117,12 +117,12 @@ static bool mei_me_quirk_probe(struct pci_dev *pdev,
 }
 
 /**
- * mei_probe - Device Initialization Routine
+ * mei_me_probe - Device Initialization Routine
  *
  * @pdev: PCI device structure
  * @ent: entry in kcs_pci_tbl
  *
- * returns 0 on success, <0 on failure.
+ * Return: 0 on success, <0 on failure.
  */
 static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -249,7 +249,7 @@ end:
 }
 
 /**
- * mei_remove - Device Removal Routine
+ * mei_me_remove - Device Removal Routine
  *
  * @pdev: PCI device structure
  *
@@ -357,7 +357,7 @@ static int mei_me_pci_resume(struct device *device)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int mei_me_pm_runtime_idle(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
@@ -424,13 +424,13 @@ static int mei_me_pm_runtime_resume(struct device *device)
 }
 
 /**
- * mei_me_set_pm_domain - fill and set pm domian stucture for device
+ * mei_me_set_pm_domain - fill and set pm domain structure for device
  *
  * @dev: mei_device
  */
 static inline void mei_me_set_pm_domain(struct mei_device *dev)
 {
-	struct pci_dev *pdev  = dev->pdev;
+	struct pci_dev *pdev  = to_pci_dev(dev->dev);
 
 	if (pdev->dev.bus && pdev->dev.bus->pm) {
 		dev->pg_domain.ops = *pdev->dev.bus->pm;
@@ -444,18 +444,16 @@ static inline void mei_me_set_pm_domain(struct mei_device *dev)
 }
 
 /**
- * mei_me_unset_pm_domain - clean pm domian stucture for device
+ * mei_me_unset_pm_domain - clean pm domain structure for device
  *
  * @dev: mei_device
  */
 static inline void mei_me_unset_pm_domain(struct mei_device *dev)
 {
 	/* stop using pm callbacks if any */
-	dev->pdev->dev.pm_domain = NULL;
+	dev->dev->pm_domain = NULL;
 }
-#endif /* CONFIG_PM_RUNTIME */
 
-#ifdef CONFIG_PM
 static const struct dev_pm_ops mei_me_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(mei_me_pci_suspend,
 				mei_me_pci_resume)

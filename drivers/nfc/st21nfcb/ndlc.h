@@ -42,6 +42,10 @@ struct llt_ndlc {
 
 	struct device *dev;
 
+	/*
+	 * < 0 if hardware error occured
+	 * and prevents normal operation.
+	 */
 	int hard_fault;
 };
 

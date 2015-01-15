@@ -13,42 +13,24 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/string.h>
+#include <linux/initrd.h>
 
 #include <asm/bootinfo.h>
 #include <asm/addrspace.h>
+#include <asm/fw/fw.h>
 
 #include "common.h"
 
-static inline int is_valid_ram_addr(void *addr)
-{
-	if (((u32) addr > KSEG0) &&
-	    ((u32) addr < (KSEG0 + ATH79_MEM_SIZE_MAX)))
-		return 1;
-
-	if (((u32) addr > KSEG1) &&
-	    ((u32) addr < (KSEG1 + ATH79_MEM_SIZE_MAX)))
-		return 1;
-
-	return 0;
-}
-
-static __init void ath79_prom_init_cmdline(int argc, char **argv)
-{
-	int i;
-
-	if (!is_valid_ram_addr(argv))
-		return;
-
-	for (i = 0; i < argc; i++)
-		if (is_valid_ram_addr(argv[i])) {
-			strlcat(arcs_cmdline, " ", sizeof(arcs_cmdline));
-			strlcat(arcs_cmdline, argv[i], sizeof(arcs_cmdline));
-		}
-}
-
 void __init prom_init(void)
 {
-	ath79_prom_init_cmdline(fw_arg0, (char **)fw_arg1);
+	fw_init_cmdline();
+
+	/* Read the initrd address from the firmware environment */
+	initrd_start = fw_getenvl("initrd_start");
+	if (initrd_start) {
+		initrd_start = KSEG0ADDR(initrd_start);
+		initrd_end = initrd_start + fw_getenvl("initrd_size");
+	}
 }
 
 void __init prom_free_prom_memory(void)

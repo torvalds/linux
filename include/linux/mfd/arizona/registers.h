@@ -27,6 +27,7 @@
 #define ARIZONA_WRITE_SEQUENCER_CTRL_0           0x16
 #define ARIZONA_WRITE_SEQUENCER_CTRL_1           0x17
 #define ARIZONA_WRITE_SEQUENCER_CTRL_2           0x18
+#define ARIZONA_WRITE_SEQUENCER_CTRL_3           0x19
 #define ARIZONA_WRITE_SEQUENCER_PROM             0x1A
 #define ARIZONA_TONE_GENERATOR_1                 0x20
 #define ARIZONA_TONE_GENERATOR_2                 0x21
@@ -70,7 +71,9 @@
 #define ARIZONA_SAMPLE_RATE_3_STATUS             0x10C
 #define ARIZONA_ASYNC_CLOCK_1                    0x112
 #define ARIZONA_ASYNC_SAMPLE_RATE_1              0x113
+#define ARIZONA_ASYNC_SAMPLE_RATE_2              0x114
 #define ARIZONA_ASYNC_SAMPLE_RATE_1_STATUS       0x11B
+#define ARIZONA_ASYNC_SAMPLE_RATE_2_STATUS       0x11C
 #define ARIZONA_OUTPUT_SYSTEM_CLOCK              0x149
 #define ARIZONA_OUTPUT_ASYNC_CLOCK               0x14A
 #define ARIZONA_RATE_ESTIMATOR_1                 0x152
@@ -122,6 +125,8 @@
 #define ARIZONA_MIC_BIAS_CTRL_1                  0x218
 #define ARIZONA_MIC_BIAS_CTRL_2                  0x219
 #define ARIZONA_MIC_BIAS_CTRL_3                  0x21A
+#define ARIZONA_HP_CTRL_1L                       0x225
+#define ARIZONA_HP_CTRL_1R                       0x226
 #define ARIZONA_ACCESSORY_DETECT_MODE_1          0x293
 #define ARIZONA_HEADPHONE_DETECT_1               0x29B
 #define ARIZONA_HEADPHONE_DETECT_2               0x29C
@@ -276,8 +281,16 @@
 #define ARIZONA_AIF2_FRAME_CTRL_2                0x548
 #define ARIZONA_AIF2_FRAME_CTRL_3                0x549
 #define ARIZONA_AIF2_FRAME_CTRL_4                0x54A
+#define ARIZONA_AIF2_FRAME_CTRL_5                0x54B
+#define ARIZONA_AIF2_FRAME_CTRL_6                0x54C
+#define ARIZONA_AIF2_FRAME_CTRL_7                0x54D
+#define ARIZONA_AIF2_FRAME_CTRL_8                0x54E
 #define ARIZONA_AIF2_FRAME_CTRL_11               0x551
 #define ARIZONA_AIF2_FRAME_CTRL_12               0x552
+#define ARIZONA_AIF2_FRAME_CTRL_13               0x553
+#define ARIZONA_AIF2_FRAME_CTRL_14               0x554
+#define ARIZONA_AIF2_FRAME_CTRL_15               0x555
+#define ARIZONA_AIF2_FRAME_CTRL_16               0x556
 #define ARIZONA_AIF2_TX_ENABLES                  0x559
 #define ARIZONA_AIF2_RX_ENABLES                  0x55A
 #define ARIZONA_AIF2_FORCE_WRITE                 0x55B
@@ -1664,16 +1677,30 @@
 /*
  * R275 (0x113) - Async sample rate 1
  */
-#define ARIZONA_ASYNC_SAMPLE_RATE_MASK           0x001F  /* ASYNC_SAMPLE_RATE - [4:0] */
-#define ARIZONA_ASYNC_SAMPLE_RATE_SHIFT               0  /* ASYNC_SAMPLE_RATE - [4:0] */
-#define ARIZONA_ASYNC_SAMPLE_RATE_WIDTH               5  /* ASYNC_SAMPLE_RATE - [4:0] */
+#define ARIZONA_ASYNC_SAMPLE_RATE_1_MASK         0x001F  /* ASYNC_SAMPLE_RATE_1 - [4:0] */
+#define ARIZONA_ASYNC_SAMPLE_RATE_1_SHIFT             0  /* ASYNC_SAMPLE_RATE_1 - [4:0] */
+#define ARIZONA_ASYNC_SAMPLE_RATE_1_WIDTH             5  /* ASYNC_SAMPLE_RATE_1 - [4:0] */
+
+/*
+ * R276 (0x114) - Async sample rate 2
+ */
+#define ARIZONA_ASYNC_SAMPLE_RATE_2_MASK         0x001F  /* ASYNC_SAMPLE_RATE_2 - [4:0] */
+#define ARIZONA_ASYNC_SAMPLE_RATE_2_SHIFT             0  /* ASYNC_SAMPLE_RATE_2 - [4:0] */
+#define ARIZONA_ASYNC_SAMPLE_RATE_2_WIDTH             5  /* ASYNC_SAMPLE_RATE_2 - [4:0] */
 
 /*
  * R283 (0x11B) - Async sample rate 1 status
  */
-#define ARIZONA_ASYNC_SAMPLE_RATE_STS_MASK       0x001F  /* ASYNC_SAMPLE_RATE_STS - [4:0] */
-#define ARIZONA_ASYNC_SAMPLE_RATE_STS_SHIFT           0  /* ASYNC_SAMPLE_RATE_STS - [4:0] */
-#define ARIZONA_ASYNC_SAMPLE_RATE_STS_WIDTH           5  /* ASYNC_SAMPLE_RATE_STS - [4:0] */
+#define ARIZONA_ASYNC_SAMPLE_RATE_1_STS_MASK     0x001F  /* ASYNC_SAMPLE_RATE_1_STS - [4:0] */
+#define ARIZONA_ASYNC_SAMPLE_RATE_1_STS_SHIFT         0  /* ASYNC_SAMPLE_RATE_1_STS - [4:0] */
+#define ARIZONA_ASYNC_SAMPLE_RATE_1_STS_WIDTH         5  /* ASYNC_SAMPLE_RATE_1_STS - [4:0] */
+
+/*
+ * R284 (0x11C) - Async sample rate 2 status
+ */
+#define ARIZONA_ASYNC_SAMPLE_RATE_2_STS_MASK     0x001F  /* ASYNC_SAMPLE_RATE_2_STS - [4:0] */
+#define ARIZONA_ASYNC_SAMPLE_RATE_2_STS_SHIFT         0  /* ASYNC_SAMPLE_RATE_2_STS - [4:0] */
+#define ARIZONA_ASYNC_SAMPLE_RATE_2_STS_WIDTH         5  /* ASYNC_SAMPLE_RATE_2_STS - [4:0] */
 
 /*
  * R329 (0x149) - Output system clock
@@ -2226,6 +2253,46 @@
 #define ARIZONA_MICB3_ENA_MASK                   0x0001  /* MICB3_ENA */
 #define ARIZONA_MICB3_ENA_SHIFT                       0  /* MICB3_ENA */
 #define ARIZONA_MICB3_ENA_WIDTH                       1  /* MICB3_ENA */
+
+/*
+ * R549 (0x225) - HP Ctrl 1L
+ */
+#define ARIZONA_RMV_SHRT_HP1L                    0x4000  /* RMV_SHRT_HP1L */
+#define ARIZONA_RMV_SHRT_HP1L_MASK               0x4000  /* RMV_SHRT_HP1L */
+#define ARIZONA_RMV_SHRT_HP1L_SHIFT                  14  /* RMV_SHRT_HP1L */
+#define ARIZONA_RMV_SHRT_HP1L_WIDTH                   1  /* RMV_SHRT_HP1L */
+#define ARIZONA_HP1L_FLWR                        0x0004  /* HP1L_FLWR */
+#define ARIZONA_HP1L_FLWR_MASK                   0x0004  /* HP1L_FLWR */
+#define ARIZONA_HP1L_FLWR_SHIFT                       2  /* HP1L_FLWR */
+#define ARIZONA_HP1L_FLWR_WIDTH                       1  /* HP1L_FLWR */
+#define ARIZONA_HP1L_SHRTI                       0x0002  /* HP1L_SHRTI */
+#define ARIZONA_HP1L_SHRTI_MASK                  0x0002  /* HP1L_SHRTI */
+#define ARIZONA_HP1L_SHRTI_SHIFT                      1  /* HP1L_SHRTI */
+#define ARIZONA_HP1L_SHRTI_WIDTH                      1  /* HP1L_SHRTI */
+#define ARIZONA_HP1L_SHRTO                       0x0001  /* HP1L_SHRTO */
+#define ARIZONA_HP1L_SHRTO_MASK                  0x0001  /* HP1L_SHRTO */
+#define ARIZONA_HP1L_SHRTO_SHIFT                      0  /* HP1L_SHRTO */
+#define ARIZONA_HP1L_SHRTO_WIDTH                      1  /* HP1L_SHRTO */
+
+/*
+ * R550 (0x226) - HP Ctrl 1R
+ */
+#define ARIZONA_RMV_SHRT_HP1R                    0x4000  /* RMV_SHRT_HP1R */
+#define ARIZONA_RMV_SHRT_HP1R_MASK               0x4000  /* RMV_SHRT_HP1R */
+#define ARIZONA_RMV_SHRT_HP1R_SHIFT                  14  /* RMV_SHRT_HP1R */
+#define ARIZONA_RMV_SHRT_HP1R_WIDTH                   1  /* RMV_SHRT_HP1R */
+#define ARIZONA_HP1R_FLWR                        0x0004  /* HP1R_FLWR */
+#define ARIZONA_HP1R_FLWR_MASK                   0x0004  /* HP1R_FLWR */
+#define ARIZONA_HP1R_FLWR_SHIFT                       2  /* HP1R_FLWR */
+#define ARIZONA_HP1R_FLWR_WIDTH                       1  /* HP1R_FLWR */
+#define ARIZONA_HP1R_SHRTI                       0x0002  /* HP1R_SHRTI */
+#define ARIZONA_HP1R_SHRTI_MASK                  0x0002  /* HP1R_SHRTI */
+#define ARIZONA_HP1R_SHRTI_SHIFT                      1  /* HP1R_SHRTI */
+#define ARIZONA_HP1R_SHRTI_WIDTH                      1  /* HP1R_SHRTI */
+#define ARIZONA_HP1R_SHRTO                       0x0001  /* HP1R_SHRTO */
+#define ARIZONA_HP1R_SHRTO_MASK                  0x0001  /* HP1R_SHRTO */
+#define ARIZONA_HP1R_SHRTO_SHIFT                      0  /* HP1R_SHRTO */
+#define ARIZONA_HP1R_SHRTO_WIDTH                      1  /* HP1R_SHRTO */
 
 /*
  * R659 (0x293) - Accessory Detect Mode 1

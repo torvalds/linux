@@ -20,7 +20,7 @@
 #define CACHE_LINE_MASK		(~(L1_CACHE_BYTES - 1))
 
 /*
- * ARC700 doesn't cache any access in top 256M.
+ * ARC700 doesn't cache any access in top 1G (0xc000_0000 to 0xFFFF_FFFF)
  * Ideal for wiring memory mapped peripherals as we don't need to do
  * explicit uncached accesses (LD.di/ST.di) hence more portable drivers
  */

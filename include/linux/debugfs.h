@@ -20,6 +20,7 @@
 
 #include <linux/types.h>
 
+struct device;
 struct file_operations;
 
 struct debugfs_blob_wrapper {
@@ -92,12 +93,17 @@ struct dentry *debugfs_create_regset32(const char *name, umode_t mode,
 				     struct dentry *parent,
 				     struct debugfs_regset32 *regset);
 
-int debugfs_print_regs32(struct seq_file *s, const struct debugfs_reg32 *regs,
-			 int nregs, void __iomem *base, char *prefix);
+void debugfs_print_regs32(struct seq_file *s, const struct debugfs_reg32 *regs,
+			  int nregs, void __iomem *base, char *prefix);
 
 struct dentry *debugfs_create_u32_array(const char *name, umode_t mode,
 					struct dentry *parent,
 					u32 *array, u32 elements);
+
+struct dentry *debugfs_create_devm_seqfile(struct device *dev, const char *name,
+					   struct dentry *parent,
+					   int (*read_fn)(struct seq_file *s,
+							  void *data));
 
 bool debugfs_initialized(void);
 
@@ -105,7 +111,7 @@ bool debugfs_initialized(void);
 
 #include <linux/err.h>
 
-/* 
+/*
  * We do not return NULL from these functions if CONFIG_DEBUG_FS is not enabled
  * so users have a chance to detect if there was a real error or not.  We don't
  * want to duplicate the design decision mistakes of procfs and devfs again.
@@ -233,10 +239,9 @@ static inline struct dentry *debugfs_create_regset32(const char *name,
 	return ERR_PTR(-ENODEV);
 }
 
-static inline int debugfs_print_regs32(struct seq_file *s, const struct debugfs_reg32 *regs,
+static inline void debugfs_print_regs32(struct seq_file *s, const struct debugfs_reg32 *regs,
 			 int nregs, void __iomem *base, char *prefix)
 {
-	return 0;
 }
 
 static inline bool debugfs_initialized(void)
@@ -247,6 +252,15 @@ static inline bool debugfs_initialized(void)
 static inline struct dentry *debugfs_create_u32_array(const char *name, umode_t mode,
 					struct dentry *parent,
 					u32 *array, u32 elements)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline struct dentry *debugfs_create_devm_seqfile(struct device *dev,
+							 const char *name,
+							 struct dentry *parent,
+					   int (*read_fn)(struct seq_file *s,
+							  void *data))
 {
 	return ERR_PTR(-ENODEV);
 }

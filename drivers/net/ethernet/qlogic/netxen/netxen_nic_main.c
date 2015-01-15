@@ -1475,9 +1475,8 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	u32 val;
 
 	if (pdev->revision >= NX_P3_A0 && pdev->revision <= NX_P3_B1) {
-		pr_warning("%s: chip revisions between 0x%x-0x%x "
-				"will not be enabled.\n",
-				module_name(THIS_MODULE), NX_P3_A0, NX_P3_B1);
+		pr_warn("%s: chip revisions between 0x%x-0x%x will not be enabled\n",
+			module_name(THIS_MODULE), NX_P3_A0, NX_P3_B1);
 		return -ENODEV;
 	}
 
@@ -2763,7 +2762,8 @@ netxen_fw_poll_work(struct work_struct *work)
 	if (test_bit(__NX_RESETTING, &adapter->state))
 		goto reschedule;
 
-	if (test_bit(__NX_DEV_UP, &adapter->state)) {
+	if (test_bit(__NX_DEV_UP, &adapter->state) &&
+	    !(adapter->capabilities & NX_FW_CAPABILITY_LINK_NOTIFICATION)) {
 		if (!adapter->has_link_events) {
 
 			netxen_nic_handle_phy_intr(adapter);

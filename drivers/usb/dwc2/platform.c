@@ -40,7 +40,10 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/of_device.h>
+#include <linux/mutex.h>
 #include <linux/platform_device.h>
+
+#include <linux/usb/of.h>
 
 #include "core.h"
 #include "hcd.h"
@@ -75,6 +78,34 @@ static const struct dwc2_core_params params_bcm2835 = {
 	.uframe_sched			= 0,
 };
 
+static const struct dwc2_core_params params_rk3066 = {
+	.otg_cap			= 2,	/* non-HNP/non-SRP */
+	.otg_ver			= -1,
+	.dma_enable			= -1,
+	.dma_desc_enable		= 0,
+	.speed				= -1,
+	.enable_dynamic_fifo		= 1,
+	.en_multiple_tx_fifo		= -1,
+	.host_rx_fifo_size		= 520,	/* 520 DWORDs */
+	.host_nperio_tx_fifo_size	= 128,	/* 128 DWORDs */
+	.host_perio_tx_fifo_size	= 256,	/* 256 DWORDs */
+	.max_transfer_size		= 65535,
+	.max_packet_count		= -1,
+	.host_channels			= -1,
+	.phy_type			= -1,
+	.phy_utmi_width			= -1,
+	.phy_ulpi_ddr			= -1,
+	.phy_ulpi_ext_vbus		= -1,
+	.i2c_enable			= -1,
+	.ulpi_fs_ls			= -1,
+	.host_support_fs_ls_low_power	= -1,
+	.host_ls_low_power_phy_clk	= -1,
+	.ts_dline			= -1,
+	.reload_ctl			= -1,
+	.ahbcfg				= 0x7, /* INCR16 */
+	.uframe_sched			= -1,
+};
+
 /**
  * dwc2_driver_remove() - Called when the DWC_otg core is unregistered with the
  * DWC_otg driver
@@ -91,13 +122,16 @@ static int dwc2_driver_remove(struct platform_device *dev)
 	struct dwc2_hsotg *hsotg = platform_get_drvdata(dev);
 
 	dwc2_hcd_remove(hsotg);
+	s3c_hsotg_remove(hsotg);
 
 	return 0;
 }
 
 static const struct of_device_id dwc2_of_match_table[] = {
 	{ .compatible = "brcm,bcm2835-usb", .data = &params_bcm2835 },
+	{ .compatible = "rockchip,rk3066-usb", .data = &params_rk3066 },
 	{ .compatible = "snps,dwc2", .data = NULL },
+	{ .compatible = "samsung,s3c6400-hsotg", .data = NULL},
 	{},
 };
 MODULE_DEVICE_TABLE(of, dwc2_of_match_table);
@@ -123,9 +157,6 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	struct resource *res;
 	int retval;
 	int irq;
-
-	if (usb_disabled())
-		return -ENODEV;
 
 	match = of_match_device(dwc2_of_match_table, &dev->dev);
 	if (match && match->data) {
@@ -163,6 +194,14 @@ static int dwc2_driver_probe(struct platform_device *dev)
 		return irq;
 	}
 
+	dev_dbg(hsotg->dev, "registering common handler for irq%d\n",
+		irq);
+	retval = devm_request_irq(hsotg->dev, irq,
+				  dwc2_handle_common_intr, IRQF_SHARED,
+				  dev_name(hsotg->dev), hsotg);
+	if (retval)
+		return retval;
+
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	hsotg->regs = devm_ioremap_resource(&dev->dev, res);
 	if (IS_ERR(hsotg->regs))
@@ -171,6 +210,13 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	dev_dbg(&dev->dev, "mapped PA %08lx to VA %p\n",
 		(unsigned long)res->start, hsotg->regs);
 
+	hsotg->dr_mode = of_usb_get_dr_mode(dev->dev.of_node);
+
+	spin_lock_init(&hsotg->lock);
+	mutex_init(&hsotg->init_mutex);
+	retval = dwc2_gadget_init(hsotg, irq);
+	if (retval)
+		return retval;
 	retval = dwc2_hcd_init(hsotg, irq, params);
 	if (retval)
 		return retval;
@@ -180,10 +226,35 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	return retval;
 }
 
+static int __maybe_unused dwc2_suspend(struct device *dev)
+{
+	struct dwc2_hsotg *dwc2 = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (dwc2_is_device_mode(dwc2))
+		ret = s3c_hsotg_suspend(dwc2);
+	return ret;
+}
+
+static int __maybe_unused dwc2_resume(struct device *dev)
+{
+	struct dwc2_hsotg *dwc2 = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (dwc2_is_device_mode(dwc2))
+		ret = s3c_hsotg_resume(dwc2);
+	return ret;
+}
+
+static const struct dev_pm_ops dwc2_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(dwc2_suspend, dwc2_resume)
+};
+
 static struct platform_driver dwc2_platform_driver = {
 	.driver = {
 		.name = dwc2_driver_name,
 		.of_match_table = dwc2_of_match_table,
+		.pm = &dwc2_dev_pm_ops,
 	},
 	.probe = dwc2_driver_probe,
 	.remove = dwc2_driver_remove,

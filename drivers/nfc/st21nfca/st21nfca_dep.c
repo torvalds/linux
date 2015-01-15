@@ -49,6 +49,12 @@
 #define ST21NFCA_LR_BITS_PAYLOAD_SIZE_254B 0x30
 #define ST21NFCA_GB_BIT  0x02
 
+#define ST21NFCA_EVT_SEND_DATA		0x10
+#define ST21NFCA_EVT_FIELD_ON           0x11
+#define ST21NFCA_EVT_CARD_DEACTIVATED   0x12
+#define ST21NFCA_EVT_CARD_ACTIVATED     0x13
+#define ST21NFCA_EVT_FIELD_OFF          0x14
+
 #define ST21NFCA_EVT_CARD_F_BITRATE 0x16
 #define ST21NFCA_EVT_READER_F_BITRATE 0x13
 #define	ST21NFCA_PSL_REQ_SEND_SPEED(brs) (brs & 0x38)
@@ -121,6 +127,7 @@ static void st21nfca_tx_work(struct work_struct *work)
 
 	struct nfc_dev *dev;
 	struct sk_buff *skb;
+
 	if (info) {
 		dev = info->hdev->ndev;
 		skb = info->dep_info.tx_pending;
@@ -128,9 +135,8 @@ static void st21nfca_tx_work(struct work_struct *work)
 		device_lock(&dev->dev);
 
 		nfc_hci_send_cmd_async(info->hdev, ST21NFCA_RF_READER_F_GATE,
-							ST21NFCA_WR_XCHG_DATA,
-							skb->data, skb->len,
-							info->async_cb, info);
+				ST21NFCA_WR_XCHG_DATA, skb->data, skb->len,
+				info->async_cb, info);
 		device_unlock(&dev->dev);
 		kfree_skb(skb);
 	}
@@ -185,8 +191,10 @@ static int st21nfca_tm_send_atr_res(struct nfc_hci_dev *hdev,
 
 	info->dep_info.curr_nfc_dep_pni = 0;
 
-	return nfc_hci_send_event(hdev, ST21NFCA_RF_CARD_F_GATE,
+	r = nfc_hci_send_event(hdev, ST21NFCA_RF_CARD_F_GATE,
 				ST21NFCA_EVT_SEND_DATA, skb->data, skb->len);
+	kfree_skb(skb);
+	return r;
 }
 
 static int st21nfca_tm_recv_atr_req(struct nfc_hci_dev *hdev,
@@ -197,10 +205,6 @@ static int st21nfca_tm_recv_atr_req(struct nfc_hci_dev *hdev,
 	int r;
 
 	skb_trim(skb, skb->len - 1);
-	if (IS_ERR(skb)) {
-		r = PTR_ERR(skb);
-		goto exit;
-	}
 
 	if (!skb->len) {
 		r = -EIO;
@@ -213,6 +217,11 @@ static int st21nfca_tm_recv_atr_req(struct nfc_hci_dev *hdev,
 	}
 
 	atr_req = (struct st21nfca_atr_req *)skb->data;
+
+	if (atr_req->length < sizeof(struct st21nfca_atr_req)) {
+		r = -EPROTO;
+		goto exit;
+	}
 
 	r = st21nfca_tm_send_atr_res(hdev, atr_req);
 	if (r)
@@ -237,7 +246,6 @@ static int st21nfca_tm_send_psl_res(struct nfc_hci_dev *hdev,
 	struct st21nfca_psl_res *psl_res;
 	struct sk_buff *skb;
 	u8 bitrate[2] = {0, 0};
-
 	int r;
 
 	skb = alloc_skb(sizeof(struct st21nfca_psl_res), GFP_KERNEL);
@@ -254,6 +262,8 @@ static int st21nfca_tm_send_psl_res(struct nfc_hci_dev *hdev,
 
 	r = nfc_hci_send_event(hdev, ST21NFCA_RF_CARD_F_GATE,
 				ST21NFCA_EVT_SEND_DATA, skb->data, skb->len);
+	if (r < 0)
+		goto error;
 
 	/*
 	 * ST21NFCA only support P2P passive.
@@ -269,8 +279,11 @@ static int st21nfca_tm_send_psl_res(struct nfc_hci_dev *hdev,
 	}
 
 	/* Send an event to change bitrate change event to card f */
-	return nfc_hci_send_event(hdev, ST21NFCA_RF_CARD_F_GATE,
+	r = nfc_hci_send_event(hdev, ST21NFCA_RF_CARD_F_GATE,
 			ST21NFCA_EVT_CARD_F_BITRATE, bitrate, 2);
+error:
+	kfree_skb(skb);
+	return r;
 }
 
 static int st21nfca_tm_recv_psl_req(struct nfc_hci_dev *hdev,
@@ -280,11 +293,6 @@ static int st21nfca_tm_recv_psl_req(struct nfc_hci_dev *hdev,
 	int r;
 
 	skb_trim(skb, skb->len - 1);
-	if (IS_ERR(skb)) {
-		r = PTR_ERR(skb);
-		skb = NULL;
-		goto exit;
-	}
 
 	if (!skb->len) {
 		r = -EIO;
@@ -314,7 +322,7 @@ int st21nfca_tm_send_dep_res(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 	*skb_push(skb, 1) = skb->len;
 
 	r = nfc_hci_send_event(hdev, ST21NFCA_RF_CARD_F_GATE,
-				ST21NFCA_EVT_SEND_DATA, skb->data, skb->len);
+			ST21NFCA_EVT_SEND_DATA, skb->data, skb->len);
 	kfree_skb(skb);
 
 	return r;
@@ -330,11 +338,6 @@ static int st21nfca_tm_recv_dep_req(struct nfc_hci_dev *hdev,
 	struct st21nfca_hci_info *info = nfc_hci_get_clientdata(hdev);
 
 	skb_trim(skb, skb->len - 1);
-	if (IS_ERR(skb)) {
-		r = PTR_ERR(skb);
-		skb = NULL;
-		goto exit;
-	}
 
 	size = 4;
 
@@ -368,12 +371,6 @@ static int st21nfca_tm_recv_dep_req(struct nfc_hci_dev *hdev,
 		break;
 	}
 
-	if (IS_ERR(skb)) {
-		r = PTR_ERR(skb);
-		skb = NULL;
-		goto exit;
-	}
-
 	skb_pull(skb, size);
 
 	return nfc_tm_data_received(hdev->ndev, skb);
@@ -381,8 +378,8 @@ exit:
 	return r;
 }
 
-int st21nfca_tm_event_send_data(struct nfc_hci_dev *hdev, struct sk_buff *skb,
-				u8 gate)
+static int st21nfca_tm_event_send_data(struct nfc_hci_dev *hdev,
+				struct sk_buff *skb)
 {
 	u8 cmd0, cmd1;
 	int r;
@@ -409,7 +406,42 @@ int st21nfca_tm_event_send_data(struct nfc_hci_dev *hdev, struct sk_buff *skb,
 	}
 	return r;
 }
-EXPORT_SYMBOL(st21nfca_tm_event_send_data);
+
+/*
+ * Returns:
+ * <= 0: driver handled the event, skb consumed
+ *    1: driver does not handle the event, please do standard processing
+ */
+int st21nfca_dep_event_received(struct nfc_hci_dev *hdev,
+				u8 event, struct sk_buff *skb)
+{
+	int r = 0;
+	struct st21nfca_hci_info *info = nfc_hci_get_clientdata(hdev);
+
+	pr_debug("dep event: %d\n", event);
+
+	switch (event) {
+	case ST21NFCA_EVT_CARD_ACTIVATED:
+		info->dep_info.curr_nfc_dep_pni = 0;
+		break;
+	case ST21NFCA_EVT_CARD_DEACTIVATED:
+		break;
+	case ST21NFCA_EVT_FIELD_ON:
+		break;
+	case ST21NFCA_EVT_FIELD_OFF:
+		break;
+	case ST21NFCA_EVT_SEND_DATA:
+		r = st21nfca_tm_event_send_data(hdev, skb);
+		if (r < 0)
+			return r;
+		return 0;
+	default:
+		return 1;
+	}
+	kfree_skb(skb);
+	return r;
+}
+EXPORT_SYMBOL(st21nfca_dep_event_received);
 
 static void st21nfca_im_send_psl_req(struct nfc_hci_dev *hdev, u8 did, u8 bsi,
 				     u8 bri, u8 lri)
@@ -437,8 +469,6 @@ static void st21nfca_im_send_psl_req(struct nfc_hci_dev *hdev, u8 did, u8 bsi,
 	*skb_push(skb, 1) = info->dep_info.to | 0x10;
 
 	st21nfca_im_send_pdu(info, skb);
-
-	kfree_skb(skb);
 }
 
 #define ST21NFCA_CB_TYPE_READER_F 1
@@ -452,7 +482,7 @@ static void st21nfca_im_recv_atr_res_cb(void *context, struct sk_buff *skb,
 	if (err != 0)
 		return;
 
-	if (IS_ERR(skb))
+	if (!skb)
 		return;
 
 	switch (info->async_cb_type) {
@@ -484,8 +514,7 @@ static void st21nfca_im_recv_atr_res_cb(void *context, struct sk_buff *skb,
 						ST21NFCA_PP2LRI(atr_res->ppi));
 		break;
 	default:
-		if (err == 0)
-			kfree_skb(skb);
+		kfree_skb(skb);
 		break;
 	}
 }
@@ -522,7 +551,7 @@ int st21nfca_im_send_atr_req(struct nfc_hci_dev *hdev, u8 *gb, size_t gb_len)
 	memset(atr_req->nfcid3, 0, NFC_NFCID3_MAXSIZE);
 	target = hdev->ndev->targets;
 
-	if (target->sensf_res)
+	if (target->sensf_res_len > 0)
 		memcpy(atr_req->nfcid3, target->sensf_res,
 				target->sensf_res_len);
 	else
@@ -565,7 +594,7 @@ static void st21nfca_im_recv_dep_res_cb(void *context, struct sk_buff *skb,
 	if (err != 0)
 		return;
 
-	if (IS_ERR(skb))
+	if (!skb)
 		return;
 
 	switch (info->async_cb_type) {
@@ -615,8 +644,7 @@ static void st21nfca_im_recv_dep_res_cb(void *context, struct sk_buff *skb,
 	}
 
 exit:
-	if (err == 0)
-		kfree_skb(skb);
+	kfree_skb(skb);
 }
 
 int st21nfca_im_send_dep_req(struct nfc_hci_dev *hdev, struct sk_buff *skb)

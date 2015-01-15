@@ -178,6 +178,7 @@ struct kexec_buf {
 	struct kimage *image;
 	char *buffer;
 	unsigned long bufsz;
+	unsigned long mem;
 	unsigned long memsz;
 	unsigned long buf_align;
 	unsigned long buf_min;

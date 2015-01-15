@@ -55,8 +55,7 @@ static int si2168_cmd_execute(struct si2168 *s, struct si2168_cmd *cmd)
 				break;
 		}
 
-		dev_dbg(&s->client->dev, "%s: cmd execution took %d ms\n",
-				__func__,
+		dev_dbg(&s->client->dev, "cmd execution took %d ms\n",
 				jiffies_to_msecs(jiffies) -
 				(jiffies_to_msecs(timeout) - TIMEOUT));
 
@@ -75,7 +74,7 @@ err_mutex_unlock:
 
 	return 0;
 err:
-	dev_dbg(&s->client->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&s->client->dev, "failed=%d\n", ret);
 	return ret;
 }
 
@@ -150,12 +149,12 @@ static int si2168_read_status(struct dvb_frontend *fe, fe_status_t *status)
 		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	}
 
-	dev_dbg(&s->client->dev, "%s: status=%02x args=%*ph\n",
-			__func__, *status, cmd.rlen, cmd.args);
+	dev_dbg(&s->client->dev, "status=%02x args=%*ph\n",
+			*status, cmd.rlen, cmd.args);
 
 	return 0;
 err:
-	dev_dbg(&s->client->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&s->client->dev, "failed=%d\n", ret);
 	return ret;
 }
 
@@ -168,10 +167,10 @@ static int si2168_set_frontend(struct dvb_frontend *fe)
 	u8 bandwidth, delivery_system;
 
 	dev_dbg(&s->client->dev,
-			"%s: delivery_system=%u modulation=%u frequency=%u bandwidth_hz=%u symbol_rate=%u inversion=%u\n",
-			__func__, c->delivery_system, c->modulation,
+			"delivery_system=%u modulation=%u frequency=%u bandwidth_hz=%u symbol_rate=%u inversion=%u, stream_id=%d\n",
+			c->delivery_system, c->modulation,
 			c->frequency, c->bandwidth_hz, c->symbol_rate,
-			c->inversion);
+			c->inversion, c->stream_id);
 
 	if (!s->active) {
 		ret = -EAGAIN;
@@ -235,6 +234,18 @@ static int si2168_set_frontend(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
+	if (c->delivery_system == SYS_DVBT2) {
+		/* select PLP */
+		cmd.args[0] = 0x52;
+		cmd.args[1] = c->stream_id & 0xff;
+		cmd.args[2] = c->stream_id == NO_STREAM_ID_FILTER ? 0 : 1;
+		cmd.wlen = 3;
+		cmd.rlen = 1;
+		ret = si2168_cmd_execute(s, &cmd);
+		if (ret)
+			goto err;
+	}
+
 	memcpy(cmd.args, "\x51\x03", 2);
 	cmd.wlen = 2;
 	cmd.rlen = 12;
@@ -297,21 +308,16 @@ static int si2168_set_frontend(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	memcpy(cmd.args, "\x14\x00\x01\x10\x16\x00", 6);
+	memcpy(cmd.args, "\x14\x00\x09\x10\xe3\x08", 6);
+	cmd.args[5] |= s->ts_clock_inv ? 0x00 : 0x10;
 	cmd.wlen = 6;
 	cmd.rlen = 4;
 	ret = si2168_cmd_execute(s, &cmd);
 	if (ret)
 		goto err;
 
-	memcpy(cmd.args, "\x14\x00\x09\x10\xe3\x18", 6);
-	cmd.wlen = 6;
-	cmd.rlen = 4;
-	ret = si2168_cmd_execute(s, &cmd);
-	if (ret)
-		goto err;
-
-	memcpy(cmd.args, "\x14\x00\x08\x10\xd7\x15", 6);
+	memcpy(cmd.args, "\x14\x00\x08\x10\xd7\x05", 6);
+	cmd.args[5] |= s->ts_clock_inv ? 0x00 : 0x10;
 	cmd.wlen = 6;
 	cmd.rlen = 4;
 	ret = si2168_cmd_execute(s, &cmd);
@@ -343,7 +349,7 @@ static int si2168_set_frontend(struct dvb_frontend *fe)
 
 	return 0;
 err:
-	dev_dbg(&s->client->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&s->client->dev, "failed=%d\n", ret);
 	return ret;
 }
 
@@ -357,8 +363,9 @@ static int si2168_init(struct dvb_frontend *fe)
 	struct si2168_cmd cmd;
 	unsigned int chip_id;
 
-	dev_dbg(&s->client->dev, "%s:\n", __func__);
+	dev_dbg(&s->client->dev, "\n");
 
+	/* initialize */
 	memcpy(cmd.args, "\xc0\x12\x00\x0c\x00\x0d\x16\x00\x00\x00\x00\x00\x00", 13);
 	cmd.wlen = 13;
 	cmd.rlen = 0;
@@ -366,6 +373,26 @@ static int si2168_init(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
+	if (s->fw_loaded) {
+		/* resume */
+		memcpy(cmd.args, "\xc0\x06\x08\x0f\x00\x20\x21\x01", 8);
+		cmd.wlen = 8;
+		cmd.rlen = 1;
+		ret = si2168_cmd_execute(s, &cmd);
+		if (ret)
+			goto err;
+
+		memcpy(cmd.args, "\x85", 1);
+		cmd.wlen = 1;
+		cmd.rlen = 1;
+		ret = si2168_cmd_execute(s, &cmd);
+		if (ret)
+			goto err;
+
+		goto warm;
+	}
+
+	/* power up */
 	memcpy(cmd.args, "\xc0\x06\x01\x0f\x00\x20\x20\x01", 8);
 	cmd.wlen = 8;
 	cmd.rlen = 1;
@@ -400,16 +427,16 @@ static int si2168_init(struct dvb_frontend *fe)
 		break;
 	default:
 		dev_err(&s->client->dev,
-				"%s: unkown chip version Si21%d-%c%c%c\n",
-				KBUILD_MODNAME, cmd.args[2], cmd.args[1],
+				"unknown chip version Si21%d-%c%c%c\n",
+				cmd.args[2], cmd.args[1],
 				cmd.args[3], cmd.args[4]);
 		ret = -EINVAL;
 		goto err;
 	}
 
 	/* cold state - try to download firmware */
-	dev_info(&s->client->dev, "%s: found a '%s' in cold state\n",
-			KBUILD_MODNAME, si2168_ops.info.name);
+	dev_info(&s->client->dev, "found a '%s' in cold state\n",
+			si2168_ops.info.name);
 
 	/* request the firmware, this will block and timeout */
 	ret = request_firmware(&fw, fw_file, &s->client->dev);
@@ -422,33 +449,51 @@ static int si2168_init(struct dvb_frontend *fe)
 
 		if (ret == 0) {
 			dev_notice(&s->client->dev,
-					"%s: please install firmware file '%s'\n",
-					KBUILD_MODNAME, SI2168_B40_FIRMWARE);
+					"please install firmware file '%s'\n",
+					SI2168_B40_FIRMWARE);
 		} else {
 			dev_err(&s->client->dev,
-					"%s: firmware file '%s' not found\n",
-					KBUILD_MODNAME, fw_file);
-			goto err;
+					"firmware file '%s' not found\n",
+					fw_file);
+			goto error_fw_release;
 		}
 	}
 
-	dev_info(&s->client->dev, "%s: downloading firmware from file '%s'\n",
-			KBUILD_MODNAME, fw_file);
+	dev_info(&s->client->dev, "downloading firmware from file '%s'\n",
+			fw_file);
 
-	for (remaining = fw->size; remaining > 0; remaining -= i2c_wr_max) {
-		len = remaining;
-		if (len > i2c_wr_max)
-			len = i2c_wr_max;
+	if ((fw->size % 17 == 0) && (fw->data[0] > 5)) {
+		/* firmware is in the new format */
+		for (remaining = fw->size; remaining > 0; remaining -= 17) {
+			len = fw->data[fw->size - remaining];
+			memcpy(cmd.args, &fw->data[(fw->size - remaining) + 1], len);
+			cmd.wlen = len;
+			cmd.rlen = 1;
+			ret = si2168_cmd_execute(s, &cmd);
+			if (ret) {
+				dev_err(&s->client->dev,
+						"firmware download failed=%d\n",
+						ret);
+				goto error_fw_release;
+			}
+		}
+	} else {
+		/* firmware is in the old format */
+		for (remaining = fw->size; remaining > 0; remaining -= i2c_wr_max) {
+			len = remaining;
+			if (len > i2c_wr_max)
+				len = i2c_wr_max;
 
-		memcpy(cmd.args, &fw->data[fw->size - remaining], len);
-		cmd.wlen = len;
-		cmd.rlen = 1;
-		ret = si2168_cmd_execute(s, &cmd);
-		if (ret) {
-			dev_err(&s->client->dev,
-					"%s: firmware download failed=%d\n",
-					KBUILD_MODNAME, ret);
-			goto err;
+			memcpy(cmd.args, &fw->data[fw->size - remaining], len);
+			cmd.wlen = len;
+			cmd.rlen = 1;
+			ret = si2168_cmd_execute(s, &cmd);
+			if (ret) {
+				dev_err(&s->client->dev,
+						"firmware download failed=%d\n",
+						ret);
+				goto error_fw_release;
+			}
 		}
 	}
 
@@ -462,17 +507,39 @@ static int si2168_init(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	dev_info(&s->client->dev, "%s: found a '%s' in warm state\n",
-			KBUILD_MODNAME, si2168_ops.info.name);
+	/* query firmware version */
+	memcpy(cmd.args, "\x11", 1);
+	cmd.wlen = 1;
+	cmd.rlen = 10;
+	ret = si2168_cmd_execute(s, &cmd);
+	if (ret)
+		goto err;
 
+	dev_dbg(&s->client->dev, "firmware version: %c.%c.%d\n",
+			cmd.args[6], cmd.args[7], cmd.args[8]);
+
+	/* set ts mode */
+	memcpy(cmd.args, "\x14\x00\x01\x10\x10\x00", 6);
+	cmd.args[4] |= s->ts_mode;
+	cmd.wlen = 6;
+	cmd.rlen = 4;
+	ret = si2168_cmd_execute(s, &cmd);
+	if (ret)
+		goto err;
+
+	s->fw_loaded = true;
+
+	dev_info(&s->client->dev, "found a '%s' in warm state\n",
+			si2168_ops.info.name);
+warm:
 	s->active = true;
 
 	return 0;
-err:
-	if (fw)
-		release_firmware(fw);
 
-	dev_dbg(&s->client->dev, "%s: failed=%d\n", __func__, ret);
+error_fw_release:
+	release_firmware(fw);
+err:
+	dev_dbg(&s->client->dev, "failed=%d\n", ret);
 	return ret;
 }
 
@@ -482,7 +549,7 @@ static int si2168_sleep(struct dvb_frontend *fe)
 	int ret;
 	struct si2168_cmd cmd;
 
-	dev_dbg(&s->client->dev, "%s:\n", __func__);
+	dev_dbg(&s->client->dev, "\n");
 
 	s->active = false;
 
@@ -495,7 +562,7 @@ static int si2168_sleep(struct dvb_frontend *fe)
 
 	return 0;
 err:
-	dev_dbg(&s->client->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&s->client->dev, "failed=%d\n", ret);
 	return ret;
 }
 
@@ -528,8 +595,7 @@ static int si2168_select(struct i2c_adapter *adap, void *mux_priv, u32 chan)
 	/* open tuner I2C gate */
 	ret = __i2c_transfer(s->client->adapter, &gate_open_msg, 1);
 	if (ret != 1) {
-		dev_warn(&s->client->dev, "%s: i2c write failed=%d\n",
-				KBUILD_MODNAME, ret);
+		dev_warn(&s->client->dev, "i2c write failed=%d\n", ret);
 		if (ret >= 0)
 			ret = -EREMOTEIO;
 	} else {
@@ -553,8 +619,7 @@ static int si2168_deselect(struct i2c_adapter *adap, void *mux_priv, u32 chan)
 	/* close tuner I2C gate */
 	ret = __i2c_transfer(s->client->adapter, &gate_close_msg, 1);
 	if (ret != 1) {
-		dev_warn(&s->client->dev, "%s: i2c write failed=%d\n",
-				KBUILD_MODNAME, ret);
+		dev_warn(&s->client->dev, "i2c write failed=%d\n", ret);
 		if (ret >= 0)
 			ret = -EREMOTEIO;
 	} else {
@@ -587,7 +652,8 @@ static const struct dvb_frontend_ops si2168_ops = {
 			FE_CAN_GUARD_INTERVAL_AUTO |
 			FE_CAN_HIERARCHY_AUTO |
 			FE_CAN_MUTE_TS |
-			FE_CAN_2G_MODULATION
+			FE_CAN_2G_MODULATION |
+			FE_CAN_MULTISTREAM
 	},
 
 	.get_tune_settings = si2168_get_tune_settings,
@@ -607,12 +673,12 @@ static int si2168_probe(struct i2c_client *client,
 	struct si2168 *s;
 	int ret;
 
-	dev_dbg(&client->dev, "%s:\n", __func__);
+	dev_dbg(&client->dev, "\n");
 
 	s = kzalloc(sizeof(struct si2168), GFP_KERNEL);
 	if (!s) {
 		ret = -ENOMEM;
-		dev_err(&client->dev, "%s: kzalloc() failed\n", KBUILD_MODNAME);
+		dev_err(&client->dev, "kzalloc() failed\n");
 		goto err;
 	}
 
@@ -633,16 +699,18 @@ static int si2168_probe(struct i2c_client *client,
 
 	*config->i2c_adapter = s->adapter;
 	*config->fe = &s->fe;
+	s->ts_mode = config->ts_mode;
+	s->ts_clock_inv = config->ts_clock_inv;
+	s->fw_loaded = false;
 
 	i2c_set_clientdata(client, s);
 
 	dev_info(&s->client->dev,
-			"%s: Silicon Labs Si2168 successfully attached\n",
-			KBUILD_MODNAME);
+			"Silicon Labs Si2168 successfully attached\n");
 	return 0;
 err:
 	kfree(s);
-	dev_dbg(&client->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
 }
 
@@ -650,7 +718,7 @@ static int si2168_remove(struct i2c_client *client)
 {
 	struct si2168 *s = i2c_get_clientdata(client);
 
-	dev_dbg(&client->dev, "%s:\n", __func__);
+	dev_dbg(&client->dev, "\n");
 
 	i2c_del_mux_adapter(s->adapter);
 

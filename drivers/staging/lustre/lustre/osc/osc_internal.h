@@ -59,7 +59,7 @@ struct osc_async_page {
 	struct list_head	      oap_pending_item;
 	struct list_head	      oap_rpc_item;
 
-	obd_off		 oap_obj_off;
+	u64		 oap_obj_off;
 	unsigned		oap_page_off;
 	enum async_flags	oap_async_flags;
 
@@ -161,7 +161,7 @@ static inline unsigned long rpcs_in_flight(struct client_obd *cli)
 }
 
 #ifndef min_t
-#define min_t(type,x,y) \
+#define min_t(type, x, y) \
 	({ type __x = (x); type __y = (y); __x < __y ? __x: __y; })
 #endif
 
@@ -192,12 +192,12 @@ extern struct kmem_cache *osc_quota_kmem;
 struct osc_quota_info {
 	/** linkage for quota hash table */
 	struct hlist_node oqi_hash;
-	obd_uid	  oqi_id;
+	u32	  oqi_id;
 };
 int osc_quota_setup(struct obd_device *obd);
 int osc_quota_cleanup(struct obd_device *obd);
 int osc_quota_setdq(struct client_obd *cli, const unsigned int qid[],
-		    obd_flag valid, obd_flag flags);
+		    u32 valid, u32 flags);
 int osc_quota_chkdq(struct client_obd *cli, const unsigned int qid[]);
 int osc_quotactl(struct obd_device *unused, struct obd_export *exp,
 		 struct obd_quotactl *oqctl);

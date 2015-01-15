@@ -79,9 +79,6 @@
 #define xcounter	%xmm8
 #define xbyteswap	%xmm9
 #define xkey0		%xmm10
-#define xkey3		%xmm11
-#define xkey6		%xmm12
-#define xkey9		%xmm13
 #define xkey4		%xmm11
 #define xkey8		%xmm12
 #define xkey12		%xmm13
@@ -108,6 +105,10 @@
 
 byteswap_const:
 	.octa 0x000102030405060708090A0B0C0D0E0F
+ddq_low_msk:
+	.octa 0x0000000000000000FFFFFFFFFFFFFFFF
+ddq_high_add_1:
+	.octa 0x00000000000000010000000000000000
 ddq_add_1:
 	.octa 0x00000000000000000000000000000001
 ddq_add_2:
@@ -169,7 +170,12 @@ ddq_add_8:
 	.rept (by - 1)
 		club DDQ_DATA, i
 		club XDATA, i
-		vpaddd	var_ddq_add(%rip), xcounter, var_xdata
+		vpaddq	var_ddq_add(%rip), xcounter, var_xdata
+		vptest	ddq_low_msk(%rip), var_xdata
+		jnz 1f
+		vpaddq	ddq_high_add_1(%rip), var_xdata, var_xdata
+		vpaddq	ddq_high_add_1(%rip), xcounter, xcounter
+		1:
 		vpshufb	xbyteswap, var_xdata, var_xdata
 		.set i, (i +1)
 	.endr
@@ -178,7 +184,11 @@ ddq_add_8:
 
 	vpxor	xkey0, xdata0, xdata0
 	club DDQ_DATA, by
-	vpaddd	var_ddq_add(%rip), xcounter, xcounter
+	vpaddq	var_ddq_add(%rip), xcounter, xcounter
+	vptest	ddq_low_msk(%rip), xcounter
+	jnz	1f
+	vpaddq	ddq_high_add_1(%rip), xcounter, xcounter
+	1:
 
 	.set i, 1
 	.rept (by - 1)
@@ -198,7 +208,7 @@ ddq_add_8:
 
 	.if (klen == KEY_128)
 		.if (load_keys)
-			vmovdqa	3*16(p_keys), xkeyA
+			vmovdqa	3*16(p_keys), xkey4
 		.endif
 	.else
 		vmovdqa	3*16(p_keys), xkeyA
@@ -214,7 +224,7 @@ ddq_add_8:
 	add	$(16*by), p_in
 
 	.if (klen == KEY_128)
-		vmovdqa	4*16(p_keys), xkey4
+		vmovdqa	4*16(p_keys), xkeyB
 	.else
 		.if (load_keys)
 			vmovdqa	4*16(p_keys), xkey4
@@ -224,7 +234,12 @@ ddq_add_8:
 	.set i, 0
 	.rept by
 		club XDATA, i
-		vaesenc	xkeyA, var_xdata, var_xdata		/* key 3 */
+		/* key 3 */
+		.if (klen == KEY_128)
+			vaesenc	xkey4, var_xdata, var_xdata
+		.else
+			vaesenc	xkeyA, var_xdata, var_xdata
+		.endif
 		.set i, (i +1)
 	.endr
 
@@ -233,13 +248,18 @@ ddq_add_8:
 	.set i, 0
 	.rept by
 		club XDATA, i
-		vaesenc	xkey4, var_xdata, var_xdata		/* key 4 */
+		/* key 4 */
+		.if (klen == KEY_128)
+			vaesenc	xkeyB, var_xdata, var_xdata
+		.else
+			vaesenc	xkey4, var_xdata, var_xdata
+		.endif
 		.set i, (i +1)
 	.endr
 
 	.if (klen == KEY_128)
 		.if (load_keys)
-			vmovdqa	6*16(p_keys), xkeyB
+			vmovdqa	6*16(p_keys), xkey8
 		.endif
 	.else
 		vmovdqa	6*16(p_keys), xkeyB
@@ -257,12 +277,17 @@ ddq_add_8:
 	.set i, 0
 	.rept by
 		club XDATA, i
-		vaesenc	xkeyB, var_xdata, var_xdata		/* key 6 */
+		/* key 6 */
+		.if (klen == KEY_128)
+			vaesenc	xkey8, var_xdata, var_xdata
+		.else
+			vaesenc	xkeyB, var_xdata, var_xdata
+		.endif
 		.set i, (i +1)
 	.endr
 
 	.if (klen == KEY_128)
-		vmovdqa	8*16(p_keys), xkey8
+		vmovdqa	8*16(p_keys), xkeyB
 	.else
 		.if (load_keys)
 			vmovdqa	8*16(p_keys), xkey8
@@ -278,7 +303,7 @@ ddq_add_8:
 
 	.if (klen == KEY_128)
 		.if (load_keys)
-			vmovdqa	9*16(p_keys), xkeyA
+			vmovdqa	9*16(p_keys), xkey12
 		.endif
 	.else
 		vmovdqa	9*16(p_keys), xkeyA
@@ -287,7 +312,12 @@ ddq_add_8:
 	.set i, 0
 	.rept by
 		club XDATA, i
-		vaesenc	xkey8, var_xdata, var_xdata		/* key 8 */
+		/* key 8 */
+		.if (klen == KEY_128)
+			vaesenc	xkeyB, var_xdata, var_xdata
+		.else
+			vaesenc	xkey8, var_xdata, var_xdata
+		.endif
 		.set i, (i +1)
 	.endr
 
@@ -296,7 +326,12 @@ ddq_add_8:
 	.set i, 0
 	.rept by
 		club XDATA, i
-		vaesenc	xkeyA, var_xdata, var_xdata		/* key 9 */
+		/* key 9 */
+		.if (klen == KEY_128)
+			vaesenc	xkey12, var_xdata, var_xdata
+		.else
+			vaesenc	xkeyA, var_xdata, var_xdata
+		.endif
 		.set i, (i +1)
 	.endr
 
@@ -402,7 +437,6 @@ ddq_add_8:
 /* main body of aes ctr load */
 
 .macro do_aes_ctrmain key_len
-
 	cmp	$16, num_bytes
 	jb	.Ldo_return2\key_len
 

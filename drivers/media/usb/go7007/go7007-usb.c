@@ -696,7 +696,7 @@ static int go7007_usb_ezusb_write_interrupt(struct go7007 *go,
 				sizeof(status_reg), timeout);
 		if (r < 0)
 			break;
-		status_reg = le16_to_cpu(*((u16 *)go->usb_buf));
+		status_reg = le16_to_cpu(*((__le16 *)go->usb_buf));
 		if (!(status_reg & 0x0010))
 			break;
 		msleep(10);
@@ -751,7 +751,7 @@ static int go7007_usb_onboard_write_interrupt(struct go7007 *go,
 static void go7007_usb_readinterrupt_complete(struct urb *urb)
 {
 	struct go7007 *go = (struct go7007 *)urb->context;
-	u16 *regs = (u16 *)urb->transfer_buffer;
+	__le16 *regs = (__le16 *)urb->transfer_buffer;
 	int status = urb->status;
 
 	if (status) {

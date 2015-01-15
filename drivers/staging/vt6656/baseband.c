@@ -167,20 +167,18 @@ unsigned int vnt_get_frame_time(u8 preamble_type, u8 pkt_type,
 			frame_time++;
 
 		return preamble + frame_time;
-	} else {
-		frame_time = (frame_length * 8 + 22) / rate;
-		tmp = ((frame_time * rate) - 22) / 8;
-
-		if (frame_length != tmp)
-			frame_time++;
-
-		frame_time = frame_time * 4;
-
-		if (pkt_type != PK_TYPE_11A)
-			frame_time += 6;
-
-		return 20 + frame_time;
 	}
+	frame_time = (frame_length * 8 + 22) / rate;
+	tmp = ((frame_time * rate) - 22) / 8;
+
+	if (frame_length != tmp)
+		frame_time++;
+
+	frame_time = frame_time * 4;
+
+	if (pkt_type != PK_TYPE_11A)
+		frame_time += 6;
+	return 20 + frame_time;
 }
 
 /*

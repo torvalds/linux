@@ -22,7 +22,6 @@
 #include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
-#include <linux/bootmem.h>
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
@@ -693,7 +692,6 @@ static const struct of_device_id qe_ids[] = {
 static struct platform_driver qe_driver = {
 	.driver = {
 		.name = "fsl-qe",
-		.owner = THIS_MODULE,
 		.of_match_table = qe_ids,
 	},
 	.probe = qe_probe,

@@ -22,14 +22,17 @@
  */
 
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/notifier.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
+#include <linux/reboot.h>
 #include <linux/regmap.h>
 #include <linux/timer.h>
 #include <linux/watchdog.h>
@@ -59,6 +62,7 @@ struct imx2_wdt_device {
 	struct regmap *regmap;
 	struct timer_list timer;	/* Pings the watchdog when closed */
 	struct watchdog_device wdog;
+	struct notifier_block restart_handler;
 };
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
@@ -76,6 +80,31 @@ static const struct watchdog_info imx2_wdt_info = {
 	.identity = "imx2+ watchdog",
 	.options = WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE,
 };
+
+static int imx2_restart_handler(struct notifier_block *this, unsigned long mode,
+				void *cmd)
+{
+	unsigned int wcr_enable = IMX2_WDT_WCR_WDE;
+	struct imx2_wdt_device *wdev = container_of(this,
+						    struct imx2_wdt_device,
+						    restart_handler);
+	/* Assert SRS signal */
+	regmap_write(wdev->regmap, 0, wcr_enable);
+	/*
+	 * Due to imx6q errata ERR004346 (WDOG: WDOG SRS bit requires to be
+	 * written twice), we add another two writes to ensure there must be at
+	 * least two writes happen in the same one 32kHz clock period.  We save
+	 * the target check here, since the writes shouldn't be a huge burden
+	 * for other platforms.
+	 */
+	regmap_write(wdev->regmap, 0, wcr_enable);
+	regmap_write(wdev->regmap, 0, wcr_enable);
+
+	/* wait for reset to assert... */
+	mdelay(500);
+
+	return NOTIFY_DONE;
+}
 
 static inline void imx2_wdt_setup(struct watchdog_device *wdog)
 {
@@ -191,22 +220,16 @@ static struct regmap_config imx2_wdt_regmap_config = {
 
 static int __init imx2_wdt_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
 	struct imx2_wdt_device *wdev;
 	struct watchdog_device *wdog;
 	struct resource *res;
 	void __iomem *base;
-	bool big_endian;
 	int ret;
 	u32 val;
 
 	wdev = devm_kzalloc(&pdev->dev, sizeof(*wdev), GFP_KERNEL);
 	if (!wdev)
 		return -ENOMEM;
-
-	big_endian = of_property_read_bool(np, "big-endian");
-	if (big_endian)
-		imx2_wdt_regmap_config.val_format_endian = REGMAP_ENDIAN_BIG;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);
@@ -257,6 +280,12 @@ static int __init imx2_wdt_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	wdev->restart_handler.notifier_call = imx2_restart_handler;
+	wdev->restart_handler.priority = 128;
+	ret = register_restart_handler(&wdev->restart_handler);
+	if (ret)
+		dev_err(&pdev->dev, "cannot register restart handler\n");
+
 	dev_info(&pdev->dev, "timeout %d sec (nowayout=%d)\n",
 		 wdog->timeout, nowayout);
 
@@ -267,6 +296,8 @@ static int __exit imx2_wdt_remove(struct platform_device *pdev)
 {
 	struct watchdog_device *wdog = platform_get_drvdata(pdev);
 	struct imx2_wdt_device *wdev = watchdog_get_drvdata(wdog);
+
+	unregister_restart_handler(&wdev->restart_handler);
 
 	watchdog_unregister_device(wdog);
 
@@ -295,6 +326,52 @@ static void imx2_wdt_shutdown(struct platform_device *pdev)
 	}
 }
 
+#ifdef CONFIG_PM_SLEEP
+/* Disable watchdog if it is active during suspend */
+static int imx2_wdt_suspend(struct device *dev)
+{
+	struct watchdog_device *wdog = dev_get_drvdata(dev);
+	struct imx2_wdt_device *wdev = watchdog_get_drvdata(wdog);
+
+	imx2_wdt_set_timeout(wdog, IMX2_WDT_MAX_TIME);
+	imx2_wdt_ping(wdog);
+
+	/* Watchdog has been stopped but IP block is still running */
+	if (!watchdog_active(wdog) && imx2_wdt_is_running(wdev))
+		del_timer_sync(&wdev->timer);
+
+	clk_disable_unprepare(wdev->clk);
+
+	return 0;
+}
+
+/* Enable watchdog and configure it if necessary */
+static int imx2_wdt_resume(struct device *dev)
+{
+	struct watchdog_device *wdog = dev_get_drvdata(dev);
+	struct imx2_wdt_device *wdev = watchdog_get_drvdata(wdog);
+
+	clk_prepare_enable(wdev->clk);
+
+	if (watchdog_active(wdog) && !imx2_wdt_is_running(wdev)) {
+		/* Resumes from deep sleep we need restart
+		 * the watchdog again.
+		 */
+		imx2_wdt_setup(wdog);
+		imx2_wdt_set_timeout(wdog, wdog->timeout);
+		imx2_wdt_ping(wdog);
+	} else if (imx2_wdt_is_running(wdev)) {
+		imx2_wdt_ping(wdog);
+		mod_timer(&wdev->timer, jiffies + wdog->timeout * HZ / 2);
+	}
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(imx2_wdt_pm_ops, imx2_wdt_suspend,
+			 imx2_wdt_resume);
+
 static const struct of_device_id imx2_wdt_dt_ids[] = {
 	{ .compatible = "fsl,imx21-wdt", },
 	{ /* sentinel */ }
@@ -306,7 +383,7 @@ static struct platform_driver imx2_wdt_driver = {
 	.shutdown	= imx2_wdt_shutdown,
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
+		.pm     = &imx2_wdt_pm_ops,
 		.of_match_table = imx2_wdt_dt_ids,
 	},
 };

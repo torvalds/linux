@@ -195,10 +195,8 @@ static int rcar_gen2_usb_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(base);
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(dev, "Memory allocation failed\n");
+	if (!priv)
 		return -ENOMEM;
-	}
 
 	spin_lock_init(&priv->lock);
 	priv->clk = clk;

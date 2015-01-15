@@ -28,7 +28,7 @@
  *
  * The actual execution of flush is double buffered.  Whenever a request
  * needs to execute PRE or POSTFLUSH, it queues at
- * q->flush_queue[q->flush_pending_idx].  Once certain criteria are met, a
+ * fq->flush_queue[fq->flush_pending_idx].  Once certain criteria are met, a
  * flush is issued and the pending_idx is toggled.  When the flush
  * completes, all the requests which were pending are proceeded to the next
  * step.  This allows arbitrary merging of different types of FLUSH/FUA
@@ -91,7 +91,8 @@ enum {
 	FLUSH_PENDING_TIMEOUT	= 5 * HZ,
 };
 
-static bool blk_kick_flush(struct request_queue *q);
+static bool blk_kick_flush(struct request_queue *q,
+			   struct blk_flush_queue *fq);
 
 static unsigned int blk_flush_policy(unsigned int fflags, struct request *rq)
 {
@@ -126,8 +127,6 @@ static void blk_flush_restore_request(struct request *rq)
 	/* make @rq a normal request */
 	rq->cmd_flags &= ~REQ_FLUSH_SEQ;
 	rq->end_io = rq->flush.saved_end_io;
-
-	blk_clear_rq_complete(rq);
 }
 
 static bool blk_flush_queue_rq(struct request *rq, bool add_front)
@@ -150,6 +149,7 @@ static bool blk_flush_queue_rq(struct request *rq, bool add_front)
 /**
  * blk_flush_complete_seq - complete flush sequence
  * @rq: FLUSH/FUA request being sequenced
+ * @fq: flush queue
  * @seq: sequences to complete (mask of %REQ_FSEQ_*, can be zero)
  * @error: whether an error occurred
  *
@@ -157,16 +157,17 @@ static bool blk_flush_queue_rq(struct request *rq, bool add_front)
  * completion and trigger the next step.
  *
  * CONTEXT:
- * spin_lock_irq(q->queue_lock or q->mq_flush_lock)
+ * spin_lock_irq(q->queue_lock or fq->mq_flush_lock)
  *
  * RETURNS:
  * %true if requests were added to the dispatch queue, %false otherwise.
  */
-static bool blk_flush_complete_seq(struct request *rq, unsigned int seq,
-				   int error)
+static bool blk_flush_complete_seq(struct request *rq,
+				   struct blk_flush_queue *fq,
+				   unsigned int seq, int error)
 {
 	struct request_queue *q = rq->q;
-	struct list_head *pending = &q->flush_queue[q->flush_pending_idx];
+	struct list_head *pending = &fq->flush_queue[fq->flush_pending_idx];
 	bool queued = false, kicked;
 
 	BUG_ON(rq->flush.seq & seq);
@@ -182,12 +183,12 @@ static bool blk_flush_complete_seq(struct request *rq, unsigned int seq,
 	case REQ_FSEQ_POSTFLUSH:
 		/* queue for flush */
 		if (list_empty(pending))
-			q->flush_pending_since = jiffies;
+			fq->flush_pending_since = jiffies;
 		list_move_tail(&rq->flush.list, pending);
 		break;
 
 	case REQ_FSEQ_DATA:
-		list_move_tail(&rq->flush.list, &q->flush_data_in_flight);
+		list_move_tail(&rq->flush.list, &fq->flush_data_in_flight);
 		queued = blk_flush_queue_rq(rq, true);
 		break;
 
@@ -202,7 +203,7 @@ static bool blk_flush_complete_seq(struct request *rq, unsigned int seq,
 		list_del_init(&rq->flush.list);
 		blk_flush_restore_request(rq);
 		if (q->mq_ops)
-			blk_mq_end_io(rq, error);
+			blk_mq_end_request(rq, error);
 		else
 			__blk_end_request_all(rq, error);
 		break;
@@ -211,7 +212,7 @@ static bool blk_flush_complete_seq(struct request *rq, unsigned int seq,
 		BUG();
 	}
 
-	kicked = blk_kick_flush(q);
+	kicked = blk_kick_flush(q, fq);
 	return kicked | queued;
 }
 
@@ -222,17 +223,18 @@ static void flush_end_io(struct request *flush_rq, int error)
 	bool queued = false;
 	struct request *rq, *n;
 	unsigned long flags = 0;
+	struct blk_flush_queue *fq = blk_get_flush_queue(q, flush_rq->mq_ctx);
 
 	if (q->mq_ops) {
-		spin_lock_irqsave(&q->mq_flush_lock, flags);
-		q->flush_rq->tag = -1;
+		spin_lock_irqsave(&fq->mq_flush_lock, flags);
+		flush_rq->tag = -1;
 	}
 
-	running = &q->flush_queue[q->flush_running_idx];
-	BUG_ON(q->flush_pending_idx == q->flush_running_idx);
+	running = &fq->flush_queue[fq->flush_running_idx];
+	BUG_ON(fq->flush_pending_idx == fq->flush_running_idx);
 
 	/* account completion of the flush request */
-	q->flush_running_idx ^= 1;
+	fq->flush_running_idx ^= 1;
 
 	if (!q->mq_ops)
 		elv_completed_request(q, flush_rq);
@@ -242,7 +244,7 @@ static void flush_end_io(struct request *flush_rq, int error)
 		unsigned int seq = blk_flush_cur_seq(rq);
 
 		BUG_ON(seq != REQ_FSEQ_PREFLUSH && seq != REQ_FSEQ_POSTFLUSH);
-		queued |= blk_flush_complete_seq(rq, seq, error);
+		queued |= blk_flush_complete_seq(rq, fq, seq, error);
 	}
 
 	/*
@@ -256,71 +258,81 @@ static void flush_end_io(struct request *flush_rq, int error)
 	 * directly into request_fn may confuse the driver.  Always use
 	 * kblockd.
 	 */
-	if (queued || q->flush_queue_delayed) {
+	if (queued || fq->flush_queue_delayed) {
 		WARN_ON(q->mq_ops);
 		blk_run_queue_async(q);
 	}
-	q->flush_queue_delayed = 0;
+	fq->flush_queue_delayed = 0;
 	if (q->mq_ops)
-		spin_unlock_irqrestore(&q->mq_flush_lock, flags);
+		spin_unlock_irqrestore(&fq->mq_flush_lock, flags);
 }
 
 /**
  * blk_kick_flush - consider issuing flush request
  * @q: request_queue being kicked
+ * @fq: flush queue
  *
  * Flush related states of @q have changed, consider issuing flush request.
  * Please read the comment at the top of this file for more info.
  *
  * CONTEXT:
- * spin_lock_irq(q->queue_lock or q->mq_flush_lock)
+ * spin_lock_irq(q->queue_lock or fq->mq_flush_lock)
  *
  * RETURNS:
  * %true if flush was issued, %false otherwise.
  */
-static bool blk_kick_flush(struct request_queue *q)
+static bool blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq)
 {
-	struct list_head *pending = &q->flush_queue[q->flush_pending_idx];
+	struct list_head *pending = &fq->flush_queue[fq->flush_pending_idx];
 	struct request *first_rq =
 		list_first_entry(pending, struct request, flush.list);
+	struct request *flush_rq = fq->flush_rq;
 
 	/* C1 described at the top of this file */
-	if (q->flush_pending_idx != q->flush_running_idx || list_empty(pending))
+	if (fq->flush_pending_idx != fq->flush_running_idx || list_empty(pending))
 		return false;
 
 	/* C2 and C3 */
-	if (!list_empty(&q->flush_data_in_flight) &&
+	if (!list_empty(&fq->flush_data_in_flight) &&
 	    time_before(jiffies,
-			q->flush_pending_since + FLUSH_PENDING_TIMEOUT))
+			fq->flush_pending_since + FLUSH_PENDING_TIMEOUT))
 		return false;
 
 	/*
 	 * Issue flush and toggle pending_idx.  This makes pending_idx
 	 * different from running_idx, which means flush is in flight.
 	 */
-	q->flush_pending_idx ^= 1;
+	fq->flush_pending_idx ^= 1;
 
-	blk_rq_init(q, q->flush_rq);
-	if (q->mq_ops)
-		blk_mq_clone_flush_request(q->flush_rq, first_rq);
+	blk_rq_init(q, flush_rq);
 
-	q->flush_rq->cmd_type = REQ_TYPE_FS;
-	q->flush_rq->cmd_flags = WRITE_FLUSH | REQ_FLUSH_SEQ;
-	q->flush_rq->rq_disk = first_rq->rq_disk;
-	q->flush_rq->end_io = flush_end_io;
+	/*
+	 * Borrow tag from the first request since they can't
+	 * be in flight at the same time.
+	 */
+	if (q->mq_ops) {
+		flush_rq->mq_ctx = first_rq->mq_ctx;
+		flush_rq->tag = first_rq->tag;
+	}
 
-	return blk_flush_queue_rq(q->flush_rq, false);
+	flush_rq->cmd_type = REQ_TYPE_FS;
+	flush_rq->cmd_flags = WRITE_FLUSH | REQ_FLUSH_SEQ;
+	flush_rq->rq_disk = first_rq->rq_disk;
+	flush_rq->end_io = flush_end_io;
+
+	return blk_flush_queue_rq(flush_rq, false);
 }
 
 static void flush_data_end_io(struct request *rq, int error)
 {
 	struct request_queue *q = rq->q;
+	struct blk_flush_queue *fq = blk_get_flush_queue(q, NULL);
 
 	/*
 	 * After populating an empty queue, kick it to avoid stall.  Read
 	 * the comment in flush_end_io().
 	 */
-	if (blk_flush_complete_seq(rq, REQ_FSEQ_DATA, error))
+	if (blk_flush_complete_seq(rq, fq, REQ_FSEQ_DATA, error))
 		blk_run_queue_async(q);
 }
 
@@ -328,20 +340,20 @@ static void mq_flush_data_end_io(struct request *rq, int error)
 {
 	struct request_queue *q = rq->q;
 	struct blk_mq_hw_ctx *hctx;
-	struct blk_mq_ctx *ctx;
+	struct blk_mq_ctx *ctx = rq->mq_ctx;
 	unsigned long flags;
+	struct blk_flush_queue *fq = blk_get_flush_queue(q, ctx);
 
-	ctx = rq->mq_ctx;
 	hctx = q->mq_ops->map_queue(q, ctx->cpu);
 
 	/*
 	 * After populating an empty queue, kick it to avoid stall.  Read
 	 * the comment in flush_end_io().
 	 */
-	spin_lock_irqsave(&q->mq_flush_lock, flags);
-	if (blk_flush_complete_seq(rq, REQ_FSEQ_DATA, error))
+	spin_lock_irqsave(&fq->mq_flush_lock, flags);
+	if (blk_flush_complete_seq(rq, fq, REQ_FSEQ_DATA, error))
 		blk_mq_run_hw_queue(hctx, true);
-	spin_unlock_irqrestore(&q->mq_flush_lock, flags);
+	spin_unlock_irqrestore(&fq->mq_flush_lock, flags);
 }
 
 /**
@@ -361,6 +373,7 @@ void blk_insert_flush(struct request *rq)
 	struct request_queue *q = rq->q;
 	unsigned int fflags = q->flush_flags;	/* may change, cache */
 	unsigned int policy = blk_flush_policy(fflags, rq);
+	struct blk_flush_queue *fq = blk_get_flush_queue(q, rq->mq_ctx);
 
 	/*
 	 * @policy now records what operations need to be done.  Adjust
@@ -378,7 +391,7 @@ void blk_insert_flush(struct request *rq)
 	 */
 	if (!policy) {
 		if (q->mq_ops)
-			blk_mq_end_io(rq, 0);
+			blk_mq_end_request(rq, 0);
 		else
 			__blk_end_bidi_request(rq, 0, 0, 0);
 		return;
@@ -411,14 +424,14 @@ void blk_insert_flush(struct request *rq)
 	if (q->mq_ops) {
 		rq->end_io = mq_flush_data_end_io;
 
-		spin_lock_irq(&q->mq_flush_lock);
-		blk_flush_complete_seq(rq, REQ_FSEQ_ACTIONS & ~policy, 0);
-		spin_unlock_irq(&q->mq_flush_lock);
+		spin_lock_irq(&fq->mq_flush_lock);
+		blk_flush_complete_seq(rq, fq, REQ_FSEQ_ACTIONS & ~policy, 0);
+		spin_unlock_irq(&fq->mq_flush_lock);
 		return;
 	}
 	rq->end_io = flush_data_end_io;
 
-	blk_flush_complete_seq(rq, REQ_FSEQ_ACTIONS & ~policy, 0);
+	blk_flush_complete_seq(rq, fq, REQ_FSEQ_ACTIONS & ~policy, 0);
 }
 
 /**
@@ -474,7 +487,43 @@ int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
 }
 EXPORT_SYMBOL(blkdev_issue_flush);
 
-void blk_mq_init_flush(struct request_queue *q)
+struct blk_flush_queue *blk_alloc_flush_queue(struct request_queue *q,
+		int node, int cmd_size)
 {
-	spin_lock_init(&q->mq_flush_lock);
+	struct blk_flush_queue *fq;
+	int rq_sz = sizeof(struct request);
+
+	fq = kzalloc_node(sizeof(*fq), GFP_KERNEL, node);
+	if (!fq)
+		goto fail;
+
+	if (q->mq_ops) {
+		spin_lock_init(&fq->mq_flush_lock);
+		rq_sz = round_up(rq_sz + cmd_size, cache_line_size());
+	}
+
+	fq->flush_rq = kzalloc_node(rq_sz, GFP_KERNEL, node);
+	if (!fq->flush_rq)
+		goto fail_rq;
+
+	INIT_LIST_HEAD(&fq->flush_queue[0]);
+	INIT_LIST_HEAD(&fq->flush_queue[1]);
+	INIT_LIST_HEAD(&fq->flush_data_in_flight);
+
+	return fq;
+
+ fail_rq:
+	kfree(fq);
+ fail:
+	return NULL;
+}
+
+void blk_free_flush_queue(struct blk_flush_queue *fq)
+{
+	/* bio based request queue hasn't flush queue */
+	if (!fq)
+		return;
+
+	kfree(fq->flush_rq);
+	kfree(fq);
 }

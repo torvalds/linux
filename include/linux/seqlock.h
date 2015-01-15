@@ -456,4 +456,23 @@ read_sequnlock_excl_irqrestore(seqlock_t *sl, unsigned long flags)
 	spin_unlock_irqrestore(&sl->lock, flags);
 }
 
+static inline unsigned long
+read_seqbegin_or_lock_irqsave(seqlock_t *lock, int *seq)
+{
+	unsigned long flags = 0;
+
+	if (!(*seq & 1))	/* Even */
+		*seq = read_seqbegin(lock);
+	else			/* Odd */
+		read_seqlock_excl_irqsave(lock, flags);
+
+	return flags;
+}
+
+static inline void
+done_seqretry_irqrestore(seqlock_t *lock, int seq, unsigned long flags)
+{
+	if (seq & 1)
+		read_sequnlock_excl_irqrestore(lock, flags);
+}
 #endif /* __LINUX_SEQLOCK_H */

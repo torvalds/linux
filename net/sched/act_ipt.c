@@ -1,5 +1,5 @@
 /*
- * net/sched/ipt.c     iptables target interface
+ * net/sched/act_ipt.c		iptables target interface
  *
  *TODO: Add other tables. For now we only support the ipv4 table targets
  *

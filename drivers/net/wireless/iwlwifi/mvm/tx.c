@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -71,9 +73,9 @@
 /*
  * Sets most of the Tx cmd's fields
  */
-static void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
-			       struct iwl_tx_cmd *tx_cmd,
-			       struct ieee80211_tx_info *info, u8 sta_id)
+void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
+			struct iwl_tx_cmd *tx_cmd,
+			struct ieee80211_tx_info *info, u8 sta_id)
 {
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	__le16 fc = hdr->frame_control;
@@ -131,6 +133,11 @@ static void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 	    !is_multicast_ether_addr(ieee80211_get_DA(hdr)))
 		tx_flags |= TX_CMD_FLG_PROT_REQUIRE;
 
+	if ((mvm->fw->ucode_capa.capa[0] &
+	     IWL_UCODE_TLV_CAPA_TXPOWER_INSERTION_SUPPORT) &&
+	    ieee80211_action_contains_tpc(skb))
+		tx_flags |= TX_CMD_FLG_WRITE_TX_POWER;
+
 	tx_cmd->tx_flags = cpu_to_le32(tx_flags);
 	/* Total # bytes to be transmitted */
 	tx_cmd->len = cpu_to_le16((u16)skb->len);
@@ -142,11 +149,9 @@ static void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 /*
  * Sets the fields in the Tx cmd that are rate related
  */
-static void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm,
-				    struct iwl_tx_cmd *tx_cmd,
-				    struct ieee80211_tx_info *info,
-				    struct ieee80211_sta *sta,
-				    __le16 fc)
+void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm, struct iwl_tx_cmd *tx_cmd,
+			    struct ieee80211_tx_info *info,
+			    struct ieee80211_sta *sta, __le16 fc)
 {
 	u32 rate_flags;
 	int rate_idx;
@@ -168,14 +173,10 @@ static void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm,
 
 	/*
 	 * for data packets, rate info comes from the table inside the fw. This
-	 * table is controlled by LINK_QUALITY commands. Exclude ctrl port
-	 * frames like EAPOLs which should be treated as mgmt frames. This
-	 * avoids them being sent initially in high rates which increases the
-	 * chances for completion of the 4-Way handshake.
+	 * table is controlled by LINK_QUALITY commands
 	 */
 
-	if (ieee80211_is_data(fc) && sta &&
-	    !(info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO)) {
+	if (ieee80211_is_data(fc) && sta) {
 		tx_cmd->initial_rate_index = 0;
 		tx_cmd->tx_flags |= cpu_to_le32(TX_CMD_FLG_STA_RATE);
 		return;
@@ -186,8 +187,10 @@ static void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm,
 
 	/* HT rate doesn't make sense for a non data frame */
 	WARN_ONCE(info->control.rates[0].flags & IEEE80211_TX_RC_MCS,
-		  "Got an HT rate for a non data frame 0x%x\n",
-		  info->control.rates[0].flags);
+		  "Got an HT rate (flags:0x%x/mcs:%d) for a non data frame (fc:0x%x)\n",
+		  info->control.rates[0].flags,
+		  info->control.rates[0].idx,
+		  le16_to_cpu(fc));
 
 	rate_idx = info->control.rates[0].idx;
 	/* if the rate isn't a well known legacy rate, take the lowest one */
@@ -211,7 +214,7 @@ static void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm,
 
 	if (info->band == IEEE80211_BAND_2GHZ &&
 	    !iwl_mvm_bt_coex_is_shared_ant_avail(mvm))
-		rate_flags = BIT(ANT_A) << RATE_MCS_ANT_POS;
+		rate_flags = BIT(mvm->cfg->non_shared_ant) << RATE_MCS_ANT_POS;
 	else
 		rate_flags =
 			BIT(mvm->mgmt_last_antenna_idx) << RATE_MCS_ANT_POS;
@@ -227,10 +230,10 @@ static void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm,
 /*
  * Sets the fields in the Tx cmd that are crypto related
  */
-static void iwl_mvm_set_tx_cmd_crypto(struct iwl_mvm *mvm,
-				      struct ieee80211_tx_info *info,
-				      struct iwl_tx_cmd *tx_cmd,
-				      struct sk_buff *skb_frag)
+void iwl_mvm_set_tx_cmd_crypto(struct iwl_mvm *mvm,
+			       struct ieee80211_tx_info *info,
+			       struct iwl_tx_cmd *tx_cmd,
+			       struct sk_buff *skb_frag)
 {
 	struct ieee80211_key_conf *keyconf = info->control.hw_key;
 
@@ -421,6 +424,13 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	WARN_ON_ONCE(info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM);
 
+	if (sta->tdls) {
+		/* default to TID 0 for non-QoS packets */
+		u8 tdls_tid = tid == IWL_MAX_TID_COUNT ? 0 : tid;
+
+		txq_id = mvmsta->hw_queue[tid_to_mac80211_ac[tdls_tid]];
+	}
+
 	if (is_ampdu) {
 		if (WARN_ON_ONCE(mvmsta->tid_data[tid].state != IWL_AGG_ON))
 			goto drop_unlock_sta;
@@ -486,11 +496,11 @@ static void iwl_mvm_check_ratid_empty(struct iwl_mvm *mvm,
 		IWL_DEBUG_TX_QUEUES(mvm,
 				    "Can continue DELBA flow ssn = next_recl = %d\n",
 				    tid_data->next_reclaimed);
-		iwl_trans_txq_disable(mvm->trans, tid_data->txq_id);
+		iwl_mvm_disable_txq(mvm, tid_data->txq_id);
 		tid_data->state = IWL_AGG_OFF;
 		/*
 		 * we can't hold the mutex - but since we are after a sequence
-		 * point (call to iwl_trans_txq_disable), so we don't even need
+		 * point (call to iwl_mvm_disable_txq(), so we don't even need
 		 * a memory barrier.
 		 */
 		mvm->queue_to_mac80211[tid_data->txq_id] =
@@ -655,6 +665,12 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 			seq_ctl = le16_to_cpu(hdr->seq_ctrl);
 		}
 
+		/*
+		 * TODO: this is not accurate if we are freeing more than one
+		 * packet.
+		 */
+		info->status.tx_time =
+			le16_to_cpu(tx_resp->wireless_media_time);
 		BUILD_BUG_ON(ARRAY_SIZE(info->status.status_driver_data) < 1);
 		info->status.status_driver_data[0] =
 				(void *)(uintptr_t)tx_resp->reduced_tpc;
@@ -847,6 +863,8 @@ static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 		mvmsta->tid_data[tid].rate_n_flags =
 			le32_to_cpu(tx_resp->initial_rate);
 		mvmsta->tid_data[tid].reduced_tpc = tx_resp->reduced_tpc;
+		mvmsta->tid_data[tid].tx_time =
+			le16_to_cpu(tx_resp->wireless_media_time);
 	}
 
 	rcu_read_unlock();
@@ -864,6 +882,21 @@ int iwl_mvm_rx_tx_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 		iwl_mvm_rx_tx_cmd_agg(mvm, pkt);
 
 	return 0;
+}
+
+static void iwl_mvm_tx_info_from_ba_notif(struct ieee80211_tx_info *info,
+					  struct iwl_mvm_ba_notif *ba_notif,
+					  struct iwl_mvm_tid_data *tid_data)
+{
+	info->flags |= IEEE80211_TX_STAT_AMPDU;
+	info->status.ampdu_ack_len = ba_notif->txed_2_done;
+	info->status.ampdu_len = ba_notif->txed;
+	iwl_mvm_hwrate_to_tx_status(tid_data->rate_n_flags,
+				    info);
+	/* TODO: not accounted if the whole A-MPDU failed */
+	info->status.tx_time = tid_data->tx_time;
+	info->status.status_driver_data[0] =
+		(void *)(uintptr_t)tid_data->reduced_tpc;
 }
 
 int iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
@@ -952,21 +985,37 @@ int iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 		 */
 		info->flags |= IEEE80211_TX_STAT_ACK;
 
-		if (freed == 1) {
-			/* this is the first skb we deliver in this batch */
-			/* put the rate scaling data there */
-			info->flags |= IEEE80211_TX_STAT_AMPDU;
-			info->status.ampdu_ack_len = ba_notif->txed_2_done;
-			info->status.ampdu_len = ba_notif->txed;
-			iwl_mvm_hwrate_to_tx_status(tid_data->rate_n_flags,
-						    info);
-			info->status.status_driver_data[0] =
-				(void *)(uintptr_t)tid_data->reduced_tpc;
-		}
+		/* this is the first skb we deliver in this batch */
+		/* put the rate scaling data there */
+		if (freed == 1)
+			iwl_mvm_tx_info_from_ba_notif(info, ba_notif, tid_data);
 	}
 
 	spin_unlock_bh(&mvmsta->lock);
 
+	/* We got a BA notif with 0 acked or scd_ssn didn't progress which is
+	 * possible (i.e. first MPDU in the aggregation wasn't acked)
+	 * Still it's important to update RS about sent vs. acked.
+	 */
+	if (skb_queue_empty(&reclaimed_skbs)) {
+		struct ieee80211_tx_info ba_info = {};
+		struct ieee80211_chanctx_conf *chanctx_conf = NULL;
+
+		if (mvmsta->vif)
+			chanctx_conf =
+				rcu_dereference(mvmsta->vif->chanctx_conf);
+
+		if (WARN_ON_ONCE(!chanctx_conf))
+			goto out;
+
+		ba_info.band = chanctx_conf->def.chan->band;
+		iwl_mvm_tx_info_from_ba_notif(&ba_info, ba_notif, tid_data);
+
+		IWL_DEBUG_TX_REPLY(mvm, "No reclaim. Update rs directly\n");
+		iwl_mvm_rs_tx_status(mvm, sta, tid, &ba_info);
+	}
+
+out:
 	rcu_read_unlock();
 
 	while (!skb_queue_empty(&reclaimed_skbs)) {

@@ -126,6 +126,7 @@ extern int radeon_bo_create(struct radeon_device *rdev,
 			    unsigned long size, int byte_align,
 			    bool kernel, u32 domain, u32 flags,
 			    struct sg_table *sg,
+			    struct reservation_object *resv,
 			    struct radeon_bo **bo_ptr);
 extern int radeon_bo_kmap(struct radeon_bo *bo, void **ptr);
 extern void radeon_bo_kunmap(struct radeon_bo *bo);
@@ -154,6 +155,8 @@ extern void radeon_bo_move_notify(struct ttm_buffer_object *bo,
 				  struct ttm_mem_reg *new_mem);
 extern int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo);
 extern int radeon_bo_get_surface_reg(struct radeon_bo *bo);
+extern void radeon_bo_fence(struct radeon_bo *bo, struct radeon_fence *fence,
+			    bool shared);
 
 /*
  * sub allocation

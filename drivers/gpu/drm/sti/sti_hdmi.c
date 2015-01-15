@@ -130,8 +130,7 @@ static irqreturn_t hdmi_irq_thread(int irq, void *arg)
 
 	/* Hot plug/unplug IRQ */
 	if (hdmi->irq_status & HDMI_INT_HOT_PLUG) {
-		/* read gpio to get the status */
-		hdmi->hpd = gpio_get_value(hdmi->hpd_gpio);
+		hdmi->hpd = readl(hdmi->regs + HDMI_STA) & HDMI_STA_HOT_PLUG;
 		if (hdmi->drm_dev)
 			drm_helper_hpd_irq_event(hdmi->drm_dev);
 	}
@@ -273,31 +272,32 @@ static int hdmi_avi_infoframe_config(struct sti_hdmi *hdmi)
 	hdmi_write(hdmi, val, HDMI_SW_DI_CFG);
 
 	/* Infoframe header */
-	val = buffer[0x0];
-	val |= buffer[0x1] << 8;
-	val |= buffer[0x2] << 16;
+	val =  buffer[0];
+	val |= buffer[1] << 8;
+	val |= buffer[2] << 16;
 	hdmi_write(hdmi, val, HDMI_SW_DI_N_HEAD_WORD(HDMI_IFRAME_SLOT_AVI));
 
 	/* Infoframe packet bytes */
-	val = frame[0x0];
-	val |= frame[0x1] << 8;
-	val |= frame[0x2] << 16;
-	val |= frame[0x3] << 24;
+	val =  buffer[3];
+	val |= *(frame++) << 8;
+	val |= *(frame++) << 16;
+	val |= *(frame++) << 24;
 	hdmi_write(hdmi, val, HDMI_SW_DI_N_PKT_WORD0(HDMI_IFRAME_SLOT_AVI));
 
-	val = frame[0x4];
-	val |= frame[0x5] << 8;
-	val |= frame[0x6] << 16;
-	val |= frame[0x7] << 24;
+	val =  *(frame++);
+	val |= *(frame++) << 8;
+	val |= *(frame++) << 16;
+	val |= *(frame++) << 24;
 	hdmi_write(hdmi, val, HDMI_SW_DI_N_PKT_WORD1(HDMI_IFRAME_SLOT_AVI));
 
-	val = frame[0x8];
-	val |= frame[0x9] << 8;
-	val |= frame[0xA] << 16;
-	val |= frame[0xB] << 24;
+	val =  *(frame++);
+	val |= *(frame++) << 8;
+	val |= *(frame++) << 16;
+	val |= *(frame++) << 24;
 	hdmi_write(hdmi, val, HDMI_SW_DI_N_PKT_WORD2(HDMI_IFRAME_SLOT_AVI));
 
-	val = frame[0xC];
+	val = *(frame++);
+	val |= *(frame) << 8;
 	hdmi_write(hdmi, val, HDMI_SW_DI_N_PKT_WORD3(HDMI_IFRAME_SLOT_AVI));
 
 	/* Enable transmission slot for AVI infoframe
@@ -480,17 +480,15 @@ static const struct drm_bridge_funcs sti_hdmi_bridge_funcs = {
 
 static int sti_hdmi_connector_get_modes(struct drm_connector *connector)
 {
-	struct i2c_adapter *i2c_adap;
+	struct sti_hdmi_connector *hdmi_connector
+		= to_sti_hdmi_connector(connector);
+	struct sti_hdmi *hdmi = hdmi_connector->hdmi;
 	struct edid *edid;
 	int count;
 
 	DRM_DEBUG_DRIVER("\n");
 
-	i2c_adap = i2c_get_adapter(1);
-	if (!i2c_adap)
-		goto fail;
-
-	edid = drm_get_edid(connector, i2c_adap);
+	edid = drm_get_edid(connector, hdmi->ddc_adapt);
 	if (!edid)
 		goto fail;
 
@@ -603,29 +601,38 @@ static int sti_hdmi_bind(struct device *dev, struct device *master, void *data)
 	struct sti_hdmi_connector *connector;
 	struct drm_connector *drm_connector;
 	struct drm_bridge *bridge;
-	struct i2c_adapter *i2c_adap;
+	struct device_node *ddc;
 	int err;
 
-	i2c_adap = i2c_get_adapter(1);
-	if (!i2c_adap)
-		return -EPROBE_DEFER;
+	ddc = of_parse_phandle(dev->of_node, "ddc", 0);
+	if (ddc) {
+		hdmi->ddc_adapt = of_find_i2c_adapter_by_node(ddc);
+		if (!hdmi->ddc_adapt) {
+			err = -EPROBE_DEFER;
+			of_node_put(ddc);
+			return err;
+		}
+
+		of_node_put(ddc);
+	}
 
 	/* Set the drm device handle */
 	hdmi->drm_dev = drm_dev;
 
 	encoder = sti_hdmi_find_encoder(drm_dev);
 	if (!encoder)
-		return -ENOMEM;
+		goto err_adapt;
 
 	connector = devm_kzalloc(dev, sizeof(*connector), GFP_KERNEL);
 	if (!connector)
-		return -ENOMEM;
+		goto err_adapt;
+
 
 	connector->hdmi = hdmi;
 
 	bridge = devm_kzalloc(dev, sizeof(*bridge), GFP_KERNEL);
 	if (!bridge)
-		return -ENOMEM;
+		goto err_adapt;
 
 	bridge->driver_private = hdmi;
 	drm_bridge_init(drm_dev, bridge, &sti_hdmi_bridge_funcs);
@@ -662,6 +669,8 @@ err_sysfs:
 err_connector:
 	drm_bridge_cleanup(bridge);
 	drm_connector_cleanup(drm_connector);
+err_adapt:
+	put_device(&hdmi->ddc_adapt->dev);
 	return -EINVAL;
 }
 
@@ -757,13 +766,7 @@ static int sti_hdmi_probe(struct platform_device *pdev)
 		return PTR_ERR(hdmi->clk_audio);
 	}
 
-	hdmi->hpd_gpio = of_get_named_gpio(np, "hdmi,hpd-gpio", 0);
-	if (hdmi->hpd_gpio < 0) {
-		DRM_ERROR("Failed to get hdmi hpd-gpio\n");
-		return -EIO;
-	}
-
-	hdmi->hpd = gpio_get_value(hdmi->hpd_gpio);
+	hdmi->hpd = readl(hdmi->regs + HDMI_STA) & HDMI_STA_HOT_PLUG;
 
 	init_waitqueue_head(&hdmi->wait_event);
 
@@ -788,6 +791,11 @@ static int sti_hdmi_probe(struct platform_device *pdev)
 
 static int sti_hdmi_remove(struct platform_device *pdev)
 {
+	struct sti_hdmi *hdmi = dev_get_drvdata(&pdev->dev);
+
+	if (hdmi->ddc_adapt)
+		put_device(&hdmi->ddc_adapt->dev);
+
 	component_del(&pdev->dev, &sti_hdmi_ops);
 	return 0;
 }

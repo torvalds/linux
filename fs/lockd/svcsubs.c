@@ -408,7 +408,7 @@ nlmsvc_match_sb(void *datap, struct nlm_file *file)
 {
 	struct super_block *sb = datap;
 
-	return sb == file->f_file->f_path.dentry->d_sb;
+	return sb == file_inode(file->f_file)->i_sb;
 }
 
 /**

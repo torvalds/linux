@@ -33,3 +33,6 @@ obj-$(CONFIG_S390_VMUR) += vmur.o
 
 zcore_mod-objs := sclp_sdias.o zcore.o
 obj-$(CONFIG_CRASH_DUMP) += zcore_mod.o
+
+hmcdrv-objs := hmcdrv_mod.o hmcdrv_dev.o hmcdrv_ftp.o hmcdrv_cache.o diag_ftp.o sclp_ftp.o
+obj-$(CONFIG_HMC_DRV) += hmcdrv.o

@@ -1,7 +1,7 @@
 /*
  * ACPI support for Intel Lynxpoint LPSS.
  *
- * Copyright (C) 2013, Intel Corporation
+ * Copyright (C) 2013, 2014, Intel Corporation
  * Authors: Mika Westerberg <mika.westerberg@linux.intel.com>
  *          Rafael J. Wysocki <rafael.j.wysocki@intel.com>
  *
@@ -54,55 +54,62 @@ ACPI_MODULE_NAME("acpi_lpss");
 
 #define LPSS_PRV_REG_COUNT		9
 
-struct lpss_shared_clock {
-	const char *name;
-	unsigned long rate;
-	struct clk *clk;
-};
+/* LPSS Flags */
+#define LPSS_CLK			BIT(0)
+#define LPSS_CLK_GATE			BIT(1)
+#define LPSS_CLK_DIVIDER		BIT(2)
+#define LPSS_LTR			BIT(3)
+#define LPSS_SAVE_CTX			BIT(4)
+#define LPSS_DEV_PROXY			BIT(5)
+#define LPSS_PROXY_REQ			BIT(6)
 
 struct lpss_private_data;
 
 struct lpss_device_desc {
-	bool clk_required;
-	const char *clkdev_name;
-	bool ltr_required;
+	unsigned int flags;
 	unsigned int prv_offset;
 	size_t prv_size_override;
-	bool clk_divider;
-	bool clk_gate;
-	bool save_ctx;
-	struct lpss_shared_clock *shared_clock;
 	void (*setup)(struct lpss_private_data *pdata);
 };
 
+static struct device *proxy_device;
+
 static struct lpss_device_desc lpss_dma_desc = {
-	.clk_required = true,
-	.clkdev_name = "hclk",
+	.flags = LPSS_CLK | LPSS_PROXY_REQ,
 };
 
 struct lpss_private_data {
 	void __iomem *mmio_base;
 	resource_size_t mmio_size;
+	unsigned int fixed_clk_rate;
 	struct clk *clk;
 	const struct lpss_device_desc *dev_desc;
 	u32 prv_reg_ctx[LPSS_PRV_REG_COUNT];
 };
 
+/* UART Component Parameter Register */
+#define LPSS_UART_CPR			0xF4
+#define LPSS_UART_CPR_AFCE		BIT(4)
+
 static void lpss_uart_setup(struct lpss_private_data *pdata)
 {
 	unsigned int offset;
-	u32 reg;
+	u32 val;
 
 	offset = pdata->dev_desc->prv_offset + LPSS_TX_INT;
-	reg = readl(pdata->mmio_base + offset);
-	writel(reg | LPSS_TX_INT_MASK, pdata->mmio_base + offset);
+	val = readl(pdata->mmio_base + offset);
+	writel(val | LPSS_TX_INT_MASK, pdata->mmio_base + offset);
 
-	offset = pdata->dev_desc->prv_offset + LPSS_GENERAL;
-	reg = readl(pdata->mmio_base + offset);
-	writel(reg | LPSS_GENERAL_UART_RTS_OVRD, pdata->mmio_base + offset);
+	val = readl(pdata->mmio_base + LPSS_UART_CPR);
+	if (!(val & LPSS_UART_CPR_AFCE)) {
+		offset = pdata->dev_desc->prv_offset + LPSS_GENERAL;
+		val = readl(pdata->mmio_base + offset);
+		val |= LPSS_GENERAL_UART_RTS_OVRD;
+		writel(val, pdata->mmio_base + offset);
+	}
 }
 
-static void lpss_i2c_setup(struct lpss_private_data *pdata)
+static void byt_i2c_setup(struct lpss_private_data *pdata)
 {
 	unsigned int offset;
 	u32 val;
@@ -111,100 +118,58 @@ static void lpss_i2c_setup(struct lpss_private_data *pdata)
 	val = readl(pdata->mmio_base + offset);
 	val |= LPSS_RESETS_RESET_APB | LPSS_RESETS_RESET_FUNC;
 	writel(val, pdata->mmio_base + offset);
+
+	if (readl(pdata->mmio_base + pdata->dev_desc->prv_offset))
+		pdata->fixed_clk_rate = 133000000;
 }
 
-static struct lpss_device_desc wpt_dev_desc = {
-	.clk_required = true,
-	.prv_offset = 0x800,
-	.ltr_required = true,
-	.clk_divider = true,
-	.clk_gate = true,
-};
-
 static struct lpss_device_desc lpt_dev_desc = {
-	.clk_required = true,
+	.flags = LPSS_CLK | LPSS_CLK_GATE | LPSS_CLK_DIVIDER | LPSS_LTR,
 	.prv_offset = 0x800,
-	.ltr_required = true,
-	.clk_divider = true,
-	.clk_gate = true,
 };
 
 static struct lpss_device_desc lpt_i2c_dev_desc = {
-	.clk_required = true,
+	.flags = LPSS_CLK | LPSS_CLK_GATE | LPSS_LTR,
 	.prv_offset = 0x800,
-	.ltr_required = true,
-	.clk_gate = true,
 };
 
 static struct lpss_device_desc lpt_uart_dev_desc = {
-	.clk_required = true,
+	.flags = LPSS_CLK | LPSS_CLK_GATE | LPSS_CLK_DIVIDER | LPSS_LTR,
 	.prv_offset = 0x800,
-	.ltr_required = true,
-	.clk_divider = true,
-	.clk_gate = true,
 	.setup = lpss_uart_setup,
 };
 
 static struct lpss_device_desc lpt_sdio_dev_desc = {
+	.flags = LPSS_LTR,
 	.prv_offset = 0x1000,
 	.prv_size_override = 0x1018,
-	.ltr_required = true,
-};
-
-static struct lpss_shared_clock pwm_clock = {
-	.name = "pwm_clk",
-	.rate = 25000000,
 };
 
 static struct lpss_device_desc byt_pwm_dev_desc = {
-	.clk_required = true,
-	.save_ctx = true,
-	.shared_clock = &pwm_clock,
+	.flags = LPSS_SAVE_CTX,
 };
 
 static struct lpss_device_desc byt_uart_dev_desc = {
-	.clk_required = true,
+	.flags = LPSS_CLK | LPSS_CLK_GATE | LPSS_CLK_DIVIDER | LPSS_SAVE_CTX |
+		 LPSS_DEV_PROXY,
 	.prv_offset = 0x800,
-	.clk_divider = true,
-	.clk_gate = true,
-	.save_ctx = true,
 	.setup = lpss_uart_setup,
 };
 
 static struct lpss_device_desc byt_spi_dev_desc = {
-	.clk_required = true,
+	.flags = LPSS_CLK | LPSS_CLK_GATE | LPSS_CLK_DIVIDER | LPSS_SAVE_CTX |
+		 LPSS_DEV_PROXY,
 	.prv_offset = 0x400,
-	.clk_divider = true,
-	.clk_gate = true,
-	.save_ctx = true,
 };
 
 static struct lpss_device_desc byt_sdio_dev_desc = {
-	.clk_required = true,
-};
-
-static struct lpss_shared_clock i2c_clock = {
-	.name = "i2c_clk",
-	.rate = 100000000,
+	.flags = LPSS_CLK | LPSS_DEV_PROXY,
 };
 
 static struct lpss_device_desc byt_i2c_dev_desc = {
-	.clk_required = true,
+	.flags = LPSS_CLK | LPSS_SAVE_CTX | LPSS_DEV_PROXY,
 	.prv_offset = 0x800,
-	.save_ctx = true,
-	.shared_clock = &i2c_clock,
-	.setup = lpss_i2c_setup,
-};
-
-static struct lpss_shared_clock bsw_pwm_clock = {
-	.name = "pwm_clk",
-	.rate = 19200000,
-};
-
-static struct lpss_device_desc bsw_pwm_dev_desc = {
-	.clk_required = true,
-	.save_ctx = true,
-	.shared_clock = &bsw_pwm_clock,
+	.setup = byt_i2c_setup,
 };
 
 #else
@@ -237,7 +202,7 @@ static const struct acpi_device_id acpi_lpss_device_ids[] = {
 	{ "INT33FC", },
 
 	/* Braswell LPSS devices */
-	{ "80862288", LPSS_ADDR(bsw_pwm_dev_desc) },
+	{ "80862288", LPSS_ADDR(byt_pwm_dev_desc) },
 	{ "8086228A", LPSS_ADDR(byt_uart_dev_desc) },
 	{ "8086228E", LPSS_ADDR(byt_spi_dev_desc) },
 	{ "808622C1", LPSS_ADDR(byt_i2c_dev_desc) },
@@ -251,7 +216,8 @@ static const struct acpi_device_id acpi_lpss_device_ids[] = {
 	{ "INT3436", LPSS_ADDR(lpt_sdio_dev_desc) },
 	{ "INT3437", },
 
-	{ "INT3438", LPSS_ADDR(wpt_dev_desc) },
+	/* Wildcat Point LPSS devices */
+	{ "INT3438", LPSS_ADDR(lpt_dev_desc) },
 
 	{ }
 };
@@ -276,7 +242,6 @@ static int register_device_clock(struct acpi_device *adev,
 				 struct lpss_private_data *pdata)
 {
 	const struct lpss_device_desc *dev_desc = pdata->dev_desc;
-	struct lpss_shared_clock *shared_clock = dev_desc->shared_clock;
 	const char *devname = dev_name(&adev->dev);
 	struct clk *clk = ERR_PTR(-ENODEV);
 	struct lpss_clk_data *clk_data;
@@ -289,12 +254,7 @@ static int register_device_clock(struct acpi_device *adev,
 	clk_data = platform_get_drvdata(lpss_clk_dev);
 	if (!clk_data)
 		return -ENODEV;
-
-	if (dev_desc->clkdev_name) {
-		clk_register_clkdev(clk_data->clk, dev_desc->clkdev_name,
-				    devname);
-		return 0;
-	}
+	clk = clk_data->clk;
 
 	if (!pdata->mmio_base
 	    || pdata->mmio_size < dev_desc->prv_offset + LPSS_CLK_SIZE)
@@ -303,24 +263,19 @@ static int register_device_clock(struct acpi_device *adev,
 	parent = clk_data->name;
 	prv_base = pdata->mmio_base + dev_desc->prv_offset;
 
-	if (shared_clock) {
-		clk = shared_clock->clk;
-		if (!clk) {
-			clk = clk_register_fixed_rate(NULL, shared_clock->name,
-						      "lpss_clk", 0,
-						      shared_clock->rate);
-			shared_clock->clk = clk;
-		}
-		parent = shared_clock->name;
+	if (pdata->fixed_clk_rate) {
+		clk = clk_register_fixed_rate(NULL, devname, parent, 0,
+					      pdata->fixed_clk_rate);
+		goto out;
 	}
 
-	if (dev_desc->clk_gate) {
+	if (dev_desc->flags & LPSS_CLK_GATE) {
 		clk = clk_register_gate(NULL, devname, parent, 0,
 					prv_base, 0, 0, NULL);
 		parent = devname;
 	}
 
-	if (dev_desc->clk_divider) {
+	if (dev_desc->flags & LPSS_CLK_DIVIDER) {
 		/* Prevent division by zero */
 		if (!readl(prv_base))
 			writel(LPSS_CLK_DIVIDER_DEF_MASK, prv_base);
@@ -344,7 +299,7 @@ static int register_device_clock(struct acpi_device *adev,
 		kfree(parent);
 		kfree(clk_name);
 	}
-
+out:
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
@@ -392,7 +347,10 @@ static int acpi_lpss_create_device(struct acpi_device *adev,
 
 	pdata->dev_desc = dev_desc;
 
-	if (dev_desc->clk_required) {
+	if (dev_desc->setup)
+		dev_desc->setup(pdata);
+
+	if (dev_desc->flags & LPSS_CLK) {
 		ret = register_device_clock(adev, pdata);
 		if (ret) {
 			/* Skip the device, but continue the namespace scan. */
@@ -413,12 +371,11 @@ static int acpi_lpss_create_device(struct acpi_device *adev,
 		goto err_out;
 	}
 
-	if (dev_desc->setup)
-		dev_desc->setup(pdata);
-
 	adev->driver_data = pdata;
 	pdev = acpi_create_platform_device(adev);
 	if (!IS_ERR_OR_NULL(pdev)) {
+		if (!proxy_device && dev_desc->flags & LPSS_DEV_PROXY)
+			proxy_device = &pdev->dev;
 		return 1;
 	}
 
@@ -550,14 +507,15 @@ static void acpi_lpss_set_ltr(struct device *dev, s32 val)
 /**
  * acpi_lpss_save_ctx() - Save the private registers of LPSS device
  * @dev: LPSS device
+ * @pdata: pointer to the private data of the LPSS device
  *
  * Most LPSS devices have private registers which may loose their context when
  * the device is powered down. acpi_lpss_save_ctx() saves those registers into
  * prv_reg_ctx array.
  */
-static void acpi_lpss_save_ctx(struct device *dev)
+static void acpi_lpss_save_ctx(struct device *dev,
+			       struct lpss_private_data *pdata)
 {
-	struct lpss_private_data *pdata = acpi_driver_data(ACPI_COMPANION(dev));
 	unsigned int i;
 
 	for (i = 0; i < LPSS_PRV_REG_COUNT; i++) {
@@ -572,12 +530,13 @@ static void acpi_lpss_save_ctx(struct device *dev)
 /**
  * acpi_lpss_restore_ctx() - Restore the private registers of LPSS device
  * @dev: LPSS device
+ * @pdata: pointer to the private data of the LPSS device
  *
  * Restores the registers that were previously stored with acpi_lpss_save_ctx().
  */
-static void acpi_lpss_restore_ctx(struct device *dev)
+static void acpi_lpss_restore_ctx(struct device *dev,
+				  struct lpss_private_data *pdata)
 {
-	struct lpss_private_data *pdata = acpi_driver_data(ACPI_COMPANION(dev));
 	unsigned int i;
 
 	/*
@@ -600,54 +559,82 @@ static void acpi_lpss_restore_ctx(struct device *dev)
 #ifdef CONFIG_PM_SLEEP
 static int acpi_lpss_suspend_late(struct device *dev)
 {
-	int ret = pm_generic_suspend_late(dev);
+	struct lpss_private_data *pdata = acpi_driver_data(ACPI_COMPANION(dev));
+	int ret;
 
+	ret = pm_generic_suspend_late(dev);
 	if (ret)
 		return ret;
 
-	acpi_lpss_save_ctx(dev);
+	if (pdata->dev_desc->flags & LPSS_SAVE_CTX)
+		acpi_lpss_save_ctx(dev, pdata);
+
 	return acpi_dev_suspend_late(dev);
 }
 
 static int acpi_lpss_resume_early(struct device *dev)
 {
-	int ret = acpi_dev_resume_early(dev);
+	struct lpss_private_data *pdata = acpi_driver_data(ACPI_COMPANION(dev));
+	int ret;
 
+	ret = acpi_dev_resume_early(dev);
 	if (ret)
 		return ret;
 
-	acpi_lpss_restore_ctx(dev);
+	if (pdata->dev_desc->flags & LPSS_SAVE_CTX)
+		acpi_lpss_restore_ctx(dev, pdata);
+
 	return pm_generic_resume_early(dev);
 }
 #endif /* CONFIG_PM_SLEEP */
 
-#ifdef CONFIG_PM_RUNTIME
 static int acpi_lpss_runtime_suspend(struct device *dev)
 {
-	int ret = pm_generic_runtime_suspend(dev);
+	struct lpss_private_data *pdata = acpi_driver_data(ACPI_COMPANION(dev));
+	int ret;
 
+	ret = pm_generic_runtime_suspend(dev);
 	if (ret)
 		return ret;
 
-	acpi_lpss_save_ctx(dev);
-	return acpi_dev_runtime_suspend(dev);
+	if (pdata->dev_desc->flags & LPSS_SAVE_CTX)
+		acpi_lpss_save_ctx(dev, pdata);
+
+	ret = acpi_dev_runtime_suspend(dev);
+	if (ret)
+		return ret;
+
+	if (pdata->dev_desc->flags & LPSS_PROXY_REQ && proxy_device)
+		return pm_runtime_put_sync_suspend(proxy_device);
+
+	return 0;
 }
 
 static int acpi_lpss_runtime_resume(struct device *dev)
 {
-	int ret = acpi_dev_runtime_resume(dev);
+	struct lpss_private_data *pdata = acpi_driver_data(ACPI_COMPANION(dev));
+	int ret;
 
+	if (pdata->dev_desc->flags & LPSS_PROXY_REQ && proxy_device) {
+		ret = pm_runtime_get_sync(proxy_device);
+		if (ret)
+			return ret;
+	}
+
+	ret = acpi_dev_runtime_resume(dev);
 	if (ret)
 		return ret;
 
-	acpi_lpss_restore_ctx(dev);
+	if (pdata->dev_desc->flags & LPSS_SAVE_CTX)
+		acpi_lpss_restore_ctx(dev, pdata);
+
 	return pm_generic_runtime_resume(dev);
 }
-#endif /* CONFIG_PM_RUNTIME */
 #endif /* CONFIG_PM */
 
 static struct dev_pm_domain acpi_lpss_pm_domain = {
 	.ops = {
+#ifdef CONFIG_PM
 #ifdef CONFIG_PM_SLEEP
 		.prepare = acpi_subsys_prepare,
 		.complete = acpi_subsys_complete,
@@ -659,7 +646,6 @@ static struct dev_pm_domain acpi_lpss_pm_domain = {
 		.poweroff_late = acpi_lpss_suspend_late,
 		.restore_early = acpi_lpss_resume_early,
 #endif
-#ifdef CONFIG_PM_RUNTIME
 		.runtime_suspend = acpi_lpss_runtime_suspend,
 		.runtime_resume = acpi_lpss_runtime_resume,
 #endif
@@ -682,30 +668,27 @@ static int acpi_lpss_platform_notify(struct notifier_block *nb,
 		return 0;
 
 	pdata = acpi_driver_data(adev);
-	if (!pdata || !pdata->mmio_base)
+	if (!pdata)
 		return 0;
 
-	if (pdata->mmio_size < pdata->dev_desc->prv_offset + LPSS_LTR_SIZE) {
+	if (pdata->mmio_base &&
+	    pdata->mmio_size < pdata->dev_desc->prv_offset + LPSS_LTR_SIZE) {
 		dev_err(&pdev->dev, "MMIO size insufficient to access LTR\n");
 		return 0;
 	}
 
 	switch (action) {
-	case BUS_NOTIFY_BOUND_DRIVER:
-		if (pdata->dev_desc->save_ctx)
-			pdev->dev.pm_domain = &acpi_lpss_pm_domain;
-		break;
-	case BUS_NOTIFY_UNBOUND_DRIVER:
-		if (pdata->dev_desc->save_ctx)
-			pdev->dev.pm_domain = NULL;
-		break;
 	case BUS_NOTIFY_ADD_DEVICE:
-		if (pdata->dev_desc->ltr_required)
+		pdev->dev.pm_domain = &acpi_lpss_pm_domain;
+		if (pdata->dev_desc->flags & LPSS_LTR)
 			return sysfs_create_group(&pdev->dev.kobj,
 						  &lpss_attr_group);
+		break;
 	case BUS_NOTIFY_DEL_DEVICE:
-		if (pdata->dev_desc->ltr_required)
+		if (pdata->dev_desc->flags & LPSS_LTR)
 			sysfs_remove_group(&pdev->dev.kobj, &lpss_attr_group);
+		pdev->dev.pm_domain = NULL;
+		break;
 	default:
 		break;
 	}
@@ -721,7 +704,7 @@ static void acpi_lpss_bind(struct device *dev)
 {
 	struct lpss_private_data *pdata = acpi_driver_data(ACPI_COMPANION(dev));
 
-	if (!pdata || !pdata->mmio_base || !pdata->dev_desc->ltr_required)
+	if (!pdata || !pdata->mmio_base || !(pdata->dev_desc->flags & LPSS_LTR))
 		return;
 
 	if (pdata->mmio_size >= pdata->dev_desc->prv_offset + LPSS_LTR_SIZE)

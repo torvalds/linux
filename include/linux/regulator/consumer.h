@@ -35,6 +35,8 @@
 #ifndef __LINUX_REGULATOR_CONSUMER_H_
 #define __LINUX_REGULATOR_CONSUMER_H_
 
+#include <linux/err.h>
+
 struct device;
 struct notifier_block;
 struct regmap;
@@ -93,7 +95,14 @@ struct regmap;
  * OVER_TEMP      Regulator over temp.
  * FORCE_DISABLE  Regulator forcibly shut down by software.
  * VOLTAGE_CHANGE Regulator voltage changed.
+ *                Data passed is old voltage cast to (void *).
  * DISABLE        Regulator was disabled.
+ * PRE_VOLTAGE_CHANGE   Regulator is about to have voltage changed.
+ *                      Data passed is "struct pre_voltage_change_data"
+ * ABORT_VOLTAGE_CHANGE Regulator voltage change failed for some reason.
+ *                      Data passed is old voltage cast to (void *).
+ * PRE_DISABLE    Regulator is about to be disabled
+ * ABORT_DISABLE  Regulator disable failed for some reason
  *
  * NOTE: These events can be OR'ed together when passed into handler.
  */
@@ -106,6 +115,23 @@ struct regmap;
 #define REGULATOR_EVENT_FORCE_DISABLE		0x20
 #define REGULATOR_EVENT_VOLTAGE_CHANGE		0x40
 #define REGULATOR_EVENT_DISABLE 		0x80
+#define REGULATOR_EVENT_PRE_VOLTAGE_CHANGE	0x100
+#define REGULATOR_EVENT_ABORT_VOLTAGE_CHANGE	0x200
+#define REGULATOR_EVENT_PRE_DISABLE		0x400
+#define REGULATOR_EVENT_ABORT_DISABLE		0x800
+
+/**
+ * struct pre_voltage_change_data - Data sent with PRE_VOLTAGE_CHANGE event
+ *
+ * @old_uV: Current voltage before change.
+ * @min_uV: Min voltage we'll change to.
+ * @max_uV: Max voltage we'll change to.
+ */
+struct pre_voltage_change_data {
+	unsigned long old_uV;
+	unsigned long min_uV;
+	unsigned long max_uV;
+};
 
 struct regulator;
 
@@ -262,7 +288,7 @@ devm_regulator_get(struct device *dev, const char *id)
 static inline struct regulator *__must_check
 regulator_get_exclusive(struct device *dev, const char *id)
 {
-	return NULL;
+	return ERR_PTR(-ENODEV);
 }
 
 static inline struct regulator *__must_check

@@ -13,8 +13,9 @@
 #define __LINUX_LEDS_H_INCLUDED
 
 #include <linux/list.h>
-#include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <linux/rwsem.h>
+#include <linux/spinlock.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 
@@ -31,8 +32,8 @@ enum led_brightness {
 
 struct led_classdev {
 	const char		*name;
-	int			 brightness;
-	int			 max_brightness;
+	enum led_brightness	 brightness;
+	enum led_brightness	 max_brightness;
 	int			 flags;
 
 	/* Lower 16 bits reflect status */
@@ -42,11 +43,20 @@ struct led_classdev {
 #define LED_BLINK_ONESHOT	(1 << 17)
 #define LED_BLINK_ONESHOT_STOP	(1 << 18)
 #define LED_BLINK_INVERT	(1 << 19)
+#define LED_SYSFS_DISABLE	(1 << 20)
+#define SET_BRIGHTNESS_ASYNC	(1 << 21)
+#define SET_BRIGHTNESS_SYNC	(1 << 22)
 
 	/* Set LED brightness level */
 	/* Must not sleep, use a workqueue if needed */
 	void		(*brightness_set)(struct led_classdev *led_cdev,
 					  enum led_brightness brightness);
+	/*
+	 * Set LED brightness level immediately - it can block the caller for
+	 * the time required for accessing a LED device register.
+	 */
+	int		(*brightness_set_sync)(struct led_classdev *led_cdev,
+					enum led_brightness brightness);
 	/* Get LED brightness level */
 	enum led_brightness (*brightness_get)(struct led_classdev *led_cdev);
 
@@ -85,6 +95,9 @@ struct led_classdev {
 	/* true if activated - deactivate routine uses it to do cleanup */
 	bool			activated;
 #endif
+
+	/* Ensures consistent access to the LED Flash Class device */
+	struct mutex		led_access;
 };
 
 extern int led_classdev_register(struct device *parent,
@@ -140,6 +153,43 @@ extern void led_blink_set_oneshot(struct led_classdev *led_cdev,
  */
 extern void led_set_brightness(struct led_classdev *led_cdev,
 			       enum led_brightness brightness);
+/**
+ * led_update_brightness - update LED brightness
+ * @led_cdev: the LED to query
+ *
+ * Get an LED's current brightness and update led_cdev->brightness
+ * member with the obtained value.
+ *
+ * Returns: 0 on success or negative error value on failure
+ */
+extern int led_update_brightness(struct led_classdev *led_cdev);
+
+/**
+ * led_sysfs_disable - disable LED sysfs interface
+ * @led_cdev: the LED to set
+ *
+ * Disable the led_cdev's sysfs interface.
+ */
+extern void led_sysfs_disable(struct led_classdev *led_cdev);
+
+/**
+ * led_sysfs_enable - enable LED sysfs interface
+ * @led_cdev: the LED to set
+ *
+ * Enable the led_cdev's sysfs interface.
+ */
+extern void led_sysfs_enable(struct led_classdev *led_cdev);
+
+/**
+ * led_sysfs_is_disabled - check if LED sysfs interface is disabled
+ * @led_cdev: the LED to query
+ *
+ * Returns: true if the led_cdev's sysfs interface is disabled.
+ */
+static inline bool led_sysfs_is_disabled(struct led_classdev *led_cdev)
+{
+	return led_cdev->flags & LED_SYSFS_DISABLE;
+}
 
 /*
  * LED Triggers
@@ -251,6 +301,7 @@ struct gpio_led {
 	unsigned	retain_state_suspended : 1;
 	unsigned	default_state : 2;
 	/* default_state should be one of LEDS_GPIO_DEFSTATE_(ON|OFF|KEEP) */
+	struct gpio_desc *gpiod;
 };
 #define LEDS_GPIO_DEFSTATE_OFF		0
 #define LEDS_GPIO_DEFSTATE_ON		1
@@ -263,7 +314,7 @@ struct gpio_led_platform_data {
 #define GPIO_LED_NO_BLINK_LOW	0	/* No blink GPIO state low */
 #define GPIO_LED_NO_BLINK_HIGH	1	/* No blink GPIO state high */
 #define GPIO_LED_BLINK		2	/* Please, blink */
-	int		(*gpio_blink_set)(unsigned gpio, int state,
+	int		(*gpio_blink_set)(struct gpio_desc *desc, int state,
 					unsigned long *delay_on,
 					unsigned long *delay_off);
 };

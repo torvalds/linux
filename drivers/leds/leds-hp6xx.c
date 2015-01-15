@@ -83,7 +83,6 @@ static struct platform_driver hp6xxled_driver = {
 	.remove		= hp6xxled_remove,
 	.driver		= {
 		.name		= "hp6xx-led",
-		.owner		= THIS_MODULE,
 	},
 };
 

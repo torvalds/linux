@@ -33,8 +33,6 @@ Copy/pasted/hacked from pcm724.c
 
 #include "8255.h"
 
-#define SIZE_8255	4
-
 #define BUF_C0 0x1
 #define BUF_B0 0x2
 #define BUF_A0 0x4
@@ -48,16 +46,6 @@ Copy/pasted/hacked from pcm724.c
 #define GATE_A1	0x20
 #define GATE_B1	0x10
 #define GATE_C1 0x8
-
-/* from 8255.c */
-#define CR_CW		0x80
-#define _8255_CR 3
-#define CR_B_IO		0x02
-#define CR_B_MODE	0x04
-#define CR_C_IO	        0x09
-#define CR_A_IO		0x10
-#define CR_A_MODE(a)	((a)<<5)
-#define CR_CW		0x80
 
 /* used to track configured dios */
 struct priv_pcm3724 {
@@ -98,26 +86,26 @@ static void do_3724_config(struct comedi_device *dev,
 	int buffer_config;
 	unsigned long port_8255_cfg;
 
-	config = CR_CW;
+	config = I8255_CTRL_CW;
 	buffer_config = 0;
 
 	/* 1 in io_bits indicates output, 1 in config indicates input */
 	if (!(s->io_bits & 0x0000ff))
-		config |= CR_A_IO;
+		config |= I8255_CTRL_A_IO;
 
 	if (!(s->io_bits & 0x00ff00))
-		config |= CR_B_IO;
+		config |= I8255_CTRL_B_IO;
 
 	if (!(s->io_bits & 0xff0000))
-		config |= CR_C_IO;
+		config |= I8255_CTRL_C_HI_IO | I8255_CTRL_C_LO_IO;
 
 	buffer_config = compute_buffer(0, 0, s_dio1);
 	buffer_config = compute_buffer(buffer_config, 1, s_dio2);
 
 	if (s == s_dio1)
-		port_8255_cfg = dev->iobase + _8255_CR;
+		port_8255_cfg = dev->iobase + I8255_CTRL_REG;
 	else
-		port_8255_cfg = dev->iobase + SIZE_8255 + _8255_CR;
+		port_8255_cfg = dev->iobase + I8255_SIZE + I8255_CTRL_REG;
 
 	outb(buffer_config, dev->iobase + 8);	/* update buffer register */
 
@@ -211,8 +199,7 @@ static int pcm3724_attach(struct comedi_device *dev,
 
 	for (i = 0; i < dev->n_subdevices; i++) {
 		s = &dev->subdevices[i];
-		ret = subdev_8255_init(dev, s, NULL,
-				       dev->iobase + SIZE_8255 * i);
+		ret = subdev_8255_init(dev, s, NULL, i * I8255_SIZE);
 		if (ret)
 			return ret;
 		s->insn_config = subdev_3724_insn_config;

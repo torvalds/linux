@@ -99,10 +99,10 @@ enum ci_role {
 
 /**
  * struct ci_role_driver - host/gadget role driver
- * start: start this role
- * stop: stop this role
- * irq: irq handler for this role
- * name: role name string (host/gadget)
+ * @start: start this role
+ * @stop: stop this role
+ * @irq: irq handler for this role
+ * @name: role name string (host/gadget)
  */
 struct ci_role_driver {
 	int		(*start)(struct ci_hdrc *);
@@ -161,7 +161,8 @@ struct hw_bank {
  * @test_mode: the selected test mode
  * @platdata: platform specific information supplied by parent device
  * @vbus_active: is VBUS active
- * @transceiver: pointer to USB PHY, if any
+ * @phy: pointer to PHY, if any
+ * @usb_phy: pointer to USB PHY, if any and if using the USB PHY framework
  * @hcd: pointer to usb_hcd for ehci host driver
  * @debugfs: root dentry for this controller in debugfs
  * @id_event: indicates there is an id event, and handled at ci_otg_work
@@ -177,6 +178,7 @@ struct ci_hdrc {
 	struct ci_role_driver		*roles[CI_ROLE_END];
 	enum ci_role			role;
 	bool				is_otg;
+	struct usb_otg			otg;
 	struct otg_fsm			fsm;
 	struct ci_otg_fsm_timer_list	*fsm_timer;
 	struct work_struct		work;
@@ -201,7 +203,9 @@ struct ci_hdrc {
 
 	struct ci_hdrc_platform_data	*platdata;
 	int				vbus_active;
-	struct usb_phy			*transceiver;
+	struct phy			*phy;
+	/* old usb_phy interface */
+	struct usb_phy			*usb_phy;
 	struct usb_hcd			*hcd;
 	struct dentry			*debugfs;
 	bool				id_event;
@@ -245,6 +249,7 @@ static inline void ci_role_stop(struct ci_hdrc *ci)
 
 /**
  * hw_read: reads from a hw register
+ * @ci: the controller
  * @reg:  register index
  * @mask: bitfield mask
  *
@@ -277,6 +282,7 @@ static inline void __hw_write(struct ci_hdrc *ci, u32 val,
 
 /**
  * hw_write: writes to a hw register
+ * @ci: the controller
  * @reg:  register index
  * @mask: bitfield mask
  * @data: new value
@@ -293,6 +299,7 @@ static inline void hw_write(struct ci_hdrc *ci, enum ci_hw_regs reg,
 
 /**
  * hw_test_and_clear: tests & clears a hw register
+ * @ci: the controller
  * @reg:  register index
  * @mask: bitfield mask
  *
@@ -309,6 +316,7 @@ static inline u32 hw_test_and_clear(struct ci_hdrc *ci, enum ci_hw_regs reg,
 
 /**
  * hw_test_and_write: tests & writes a hw register
+ * @ci: the controller
  * @reg:  register index
  * @mask: bitfield mask
  * @data: new value
@@ -327,6 +335,8 @@ static inline u32 hw_test_and_write(struct ci_hdrc *ci, enum ci_hw_regs reg,
 /**
  * ci_otg_is_fsm_mode: runtime check if otg controller
  * is in otg fsm mode.
+ *
+ * @ci: chipidea device
  */
 static inline bool ci_otg_is_fsm_mode(struct ci_hdrc *ci)
 {
@@ -342,7 +352,7 @@ u32 hw_read_intr_enable(struct ci_hdrc *ci);
 
 u32 hw_read_intr_status(struct ci_hdrc *ci);
 
-int hw_device_reset(struct ci_hdrc *ci, u32 mode);
+int hw_device_reset(struct ci_hdrc *ci);
 
 int hw_port_test_set(struct ci_hdrc *ci, u8 mode);
 

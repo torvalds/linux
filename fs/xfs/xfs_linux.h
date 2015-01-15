@@ -56,7 +56,6 @@ typedef __uint64_t __psunsigned_t;
 
 #include "kmem.h"
 #include "mrlock.h"
-#include "time.h"
 #include "uuid.h"
 
 #include <linux/semaphore.h>
@@ -178,6 +177,11 @@ typedef __uint64_t __psunsigned_t;
 #define MIN(a,b)	(min(a,b))
 #define MAX(a,b)	(max(a,b))
 #define howmany(x, y)	(((x)+((y)-1))/(y))
+
+static inline void delay(long ticks)
+{
+	schedule_timeout_uninterruptible(ticks);
+}
 
 /*
  * XFS wrapper structure for sysfs support. It depends on external data
@@ -379,5 +383,11 @@ static inline __uint64_t howmany_64(__uint64_t x, __uint32_t y)
 
 #endif /* XFS_WARN */
 #endif /* DEBUG */
+
+#ifdef CONFIG_XFS_RT
+#define XFS_IS_REALTIME_INODE(ip) ((ip)->i_d.di_flags & XFS_DIFLAG_REALTIME)
+#else
+#define XFS_IS_REALTIME_INODE(ip) (0)
+#endif
 
 #endif /* __XFS_LINUX__ */

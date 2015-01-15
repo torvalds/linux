@@ -54,6 +54,7 @@ struct ci_hdrc_imx_data {
 
 static struct imx_usbmisc_data *usbmisc_get_init_data(struct device *dev)
 {
+	struct platform_device *misc_pdev;
 	struct device_node *np = dev->of_node;
 	struct of_phandle_args args;
 	struct imx_usbmisc_data *data;
@@ -79,7 +80,14 @@ static struct imx_usbmisc_data *usbmisc_get_init_data(struct device *dev)
 	}
 
 	data->index = args.args[0];
+
+	misc_pdev = of_find_device_by_node(args.np);
 	of_node_put(args.np);
+
+	if (!misc_pdev)
+		return ERR_PTR(-EPROBE_DEFER);
+
+	data->dev = &misc_pdev->dev;
 
 	if (of_find_property(np, "disable-over-current", NULL))
 		data->disable_oc = 1;
@@ -98,8 +106,7 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	struct ci_hdrc_platform_data pdata = {
 		.name		= dev_name(&pdev->dev),
 		.capoffset	= DEF_CAPOFFSET,
-		.flags		= CI_HDRC_REQUIRE_TRANSCEIVER |
-				  CI_HDRC_DISABLE_STREAMING,
+		.flags		= CI_HDRC_DISABLE_STREAMING,
 	};
 	int ret;
 	const struct of_device_id *of_id =
@@ -107,10 +114,8 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	const struct ci_hdrc_imx_platform_flag *imx_platform_flag = of_id->data;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
-	if (!data) {
-		dev_err(&pdev->dev, "Failed to allocate ci_hdrc-imx data!\n");
+	if (!data)
 		return -ENOMEM;
-	}
 
 	data->usbmisc_data = usbmisc_get_init_data(&pdev->dev);
 	if (IS_ERR(data->usbmisc_data))
@@ -139,7 +144,7 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	pdata.phy = data->phy;
+	pdata.usb_phy = data->phy;
 
 	if (imx_platform_flag->flags & CI_HDRC_IMX_IMX28_WRITE_FIX)
 		pdata.flags |= CI_HDRC_IMX28_WRITE_FIX;
@@ -202,13 +207,48 @@ static int ci_hdrc_imx_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int imx_controller_suspend(struct device *dev)
+{
+	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "at %s\n", __func__);
+
+	clk_disable_unprepare(data->clk);
+
+	return 0;
+}
+
+static int imx_controller_resume(struct device *dev)
+{
+	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "at %s\n", __func__);
+
+	return clk_prepare_enable(data->clk);
+}
+
+static int ci_hdrc_imx_suspend(struct device *dev)
+{
+	return imx_controller_suspend(dev);
+}
+
+static int ci_hdrc_imx_resume(struct device *dev)
+{
+	return imx_controller_resume(dev);
+}
+#endif /* CONFIG_PM_SLEEP */
+
+static const struct dev_pm_ops ci_hdrc_imx_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(ci_hdrc_imx_suspend, ci_hdrc_imx_resume)
+};
 static struct platform_driver ci_hdrc_imx_driver = {
 	.probe = ci_hdrc_imx_probe,
 	.remove = ci_hdrc_imx_remove,
 	.driver = {
 		.name = "imx_usb",
-		.owner = THIS_MODULE,
 		.of_match_table = ci_hdrc_imx_dt_ids,
+		.pm = &ci_hdrc_imx_pm_ops,
 	 },
 };
 

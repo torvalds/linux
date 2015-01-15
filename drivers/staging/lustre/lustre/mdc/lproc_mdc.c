@@ -56,7 +56,8 @@ static ssize_t mdc_max_rpcs_in_flight_seq_write(struct file *file,
 						size_t count,
 						loff_t *off)
 {
-	struct obd_device *dev = ((struct seq_file *)file->private_data)->private;
+	struct obd_device *dev =
+			((struct seq_file *)file->private_data)->private;
 	struct client_obd *cli = &dev->u.cli;
 	int val, rc;
 
@@ -84,7 +85,8 @@ static int mdc_kuc_open(struct inode *inode, struct file *file)
 static ssize_t mdc_kuc_write(struct file *file, const char *buffer,
 			     size_t count, loff_t *off)
 {
-	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
+	struct obd_device *obd =
+			((struct seq_file *)file->private_data)->private;
 	struct kuc_hdr		*lh;
 	struct hsm_action_list	*hal;
 	struct hsm_action_item	*hai;
@@ -209,6 +211,6 @@ static struct lprocfs_vars lprocfs_mdc_module_vars[] = {
 
 void lprocfs_mdc_init_vars(struct lprocfs_static_vars *lvars)
 {
-    lvars->module_vars  = lprocfs_mdc_module_vars;
-    lvars->obd_vars     = lprocfs_mdc_obd_vars;
+	lvars->module_vars  = lprocfs_mdc_module_vars;
+	lvars->obd_vars     = lprocfs_mdc_obd_vars;
 }

@@ -1142,8 +1142,7 @@ static void ufx_free_framebuffer_work(struct work_struct *work)
 		fb_dealloc_cmap(&info->cmap);
 	if (info->monspecs.modedb)
 		fb_destroy_modedb(info->monspecs.modedb);
-	if (info->screen_base)
-		vfree(info->screen_base);
+	vfree(info->screen_base);
 
 	fb_destroy_modelist(&info->modelist);
 
@@ -1743,8 +1742,7 @@ error:
 				fb_dealloc_cmap(&info->cmap);
 			if (info->monspecs.modedb)
 				fb_destroy_modedb(info->monspecs.modedb);
-			if (info->screen_base)
-				vfree(info->screen_base);
+			vfree(info->screen_base);
 
 			fb_destroy_modelist(&info->modelist);
 

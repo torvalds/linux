@@ -195,7 +195,7 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 	for (i = 0 ; i < nr ; i++) {
 		item = btrfs_item_nr(i);
 		btrfs_item_key_to_cpu(l, &key, i);
-		type = btrfs_key_type(&key);
+		type = key.type;
 		printk(KERN_INFO "\titem %d key (%llu %u %llu) itemoff %d "
 		       "itemsize %d\n",
 			i, key.objectid, type, key.offset,
@@ -336,7 +336,6 @@ void btrfs_print_tree(struct btrfs_root *root, struct extent_buffer *c)
 	for (i = 0; i < nr; i++) {
 		struct extent_buffer *next = read_tree_block(root,
 					btrfs_node_blockptr(c, i),
-					btrfs_level_size(root, level - 1),
 					btrfs_node_ptr_generation(c, i));
 		if (btrfs_is_leaf(next) &&
 		   level != 1)

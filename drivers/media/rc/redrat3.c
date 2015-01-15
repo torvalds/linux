@@ -966,7 +966,7 @@ static int redrat3_dev_probe(struct usb_interface *intf,
 
 	rr3->ep_in = ep_in;
 	rr3->bulk_in_buf = usb_alloc_coherent(udev,
-		le16_to_cpu(ep_in->wMaxPacketSize), GFP_ATOMIC, &rr3->dma_in);
+		le16_to_cpu(ep_in->wMaxPacketSize), GFP_KERNEL, &rr3->dma_in);
 	if (!rr3->bulk_in_buf) {
 		dev_err(dev, "Read buffer allocation failure\n");
 		goto error;
@@ -975,6 +975,8 @@ static int redrat3_dev_probe(struct usb_interface *intf,
 	pipe = usb_rcvbulkpipe(udev, ep_in->bEndpointAddress);
 	usb_fill_bulk_urb(rr3->read_urb, udev, pipe, rr3->bulk_in_buf,
 		le16_to_cpu(ep_in->wMaxPacketSize), redrat3_handle_async, rr3);
+	rr3->read_urb->transfer_dma = rr3->dma_in;
+	rr3->read_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
 	rr3->ep_out = ep_out;
 	rr3->udev = udev;

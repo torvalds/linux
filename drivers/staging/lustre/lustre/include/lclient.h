@@ -279,7 +279,7 @@ int ccc_req_init(const struct lu_env *env, struct cl_device *dev,
 void ccc_umount(const struct lu_env *env, struct cl_device *dev);
 int ccc_global_init(struct lu_device_type *device_type);
 void ccc_global_fini(struct lu_device_type *device_type);
-int ccc_object_init0(const struct lu_env *env,struct ccc_object *vob,
+int ccc_object_init0(const struct lu_env *env, struct ccc_object *vob,
 		     const struct cl_object_conf *conf);
 int ccc_object_init(const struct lu_env *env, struct lu_object *obj,
 		    const struct lu_object_conf *conf);
@@ -319,11 +319,12 @@ int ccc_transient_page_prep(const struct lu_env *env,
 			    struct cl_io *io);
 void ccc_lock_delete(const struct lu_env *env,
 		     const struct cl_lock_slice *slice);
-void ccc_lock_fini(const struct lu_env *env,struct cl_lock_slice *slice);
-int ccc_lock_enqueue(const struct lu_env *env,const struct cl_lock_slice *slice,
+void ccc_lock_fini(const struct lu_env *env, struct cl_lock_slice *slice);
+int ccc_lock_enqueue(const struct lu_env *env,
+		     const struct cl_lock_slice *slice,
 		     struct cl_io *io, __u32 enqflags);
-int ccc_lock_unuse(const struct lu_env *env,const struct cl_lock_slice *slice);
-int ccc_lock_wait(const struct lu_env *env,const struct cl_lock_slice *slice);
+int ccc_lock_unuse(const struct lu_env *env, const struct cl_lock_slice *slice);
+int ccc_lock_wait(const struct lu_env *env, const struct cl_lock_slice *slice);
 int ccc_lock_fits_into(const struct lu_env *env,
 		       const struct cl_lock_slice *slice,
 		       const struct cl_lock_descr *need,
@@ -348,9 +349,10 @@ int ccc_prep_size(const struct lu_env *env, struct cl_object *obj,
 		  struct cl_io *io, loff_t start, size_t count, int *exceed);
 void ccc_req_completion(const struct lu_env *env,
 			const struct cl_req_slice *slice, int ioret);
-void ccc_req_attr_set(const struct lu_env *env,const struct cl_req_slice *slice,
+void ccc_req_attr_set(const struct lu_env *env,
+		      const struct cl_req_slice *slice,
 		      const struct cl_object *obj,
-		      struct cl_req_attr *oa, obd_valid flags);
+		      struct cl_req_attr *oa, u64 flags);
 
 struct lu_device   *ccc2lu_dev      (struct ccc_device *vdv);
 struct lu_object   *ccc2lu	  (struct ccc_object *vob);

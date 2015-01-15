@@ -196,26 +196,24 @@ static struct mmp_intc_conf mmp2_conf = {
 
 static void __exception_irq_entry mmp_handle_irq(struct pt_regs *regs)
 {
-	int irq, hwirq;
+	int hwirq;
 
 	hwirq = readl_relaxed(mmp_icu_base + PJ1_INT_SEL);
 	if (!(hwirq & SEL_INT_PENDING))
 		return;
 	hwirq &= SEL_INT_NUM_MASK;
-	irq = irq_find_mapping(icu_data[0].domain, hwirq);
-	handle_IRQ(irq, regs);
+	handle_domain_irq(icu_data[0].domain, hwirq, regs);
 }
 
 static void __exception_irq_entry mmp2_handle_irq(struct pt_regs *regs)
 {
-	int irq, hwirq;
+	int hwirq;
 
 	hwirq = readl_relaxed(mmp_icu_base + PJ4_INT_SEL);
 	if (!(hwirq & SEL_INT_PENDING))
 		return;
 	hwirq &= SEL_INT_NUM_MASK;
-	irq = irq_find_mapping(icu_data[0].domain, hwirq);
-	handle_IRQ(irq, regs);
+	handle_domain_irq(icu_data[0].domain, hwirq, regs);
 }
 
 /* MMP (ARMv5) */

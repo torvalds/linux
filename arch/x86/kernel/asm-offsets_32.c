@@ -1,3 +1,7 @@
+#ifndef __LINUX_KBUILD_H
+# error "Please do not build this file directly, build asm-offsets.c instead"
+#endif
+
 #include <asm/ucontext.h>
 
 #include <linux/lguest.h>

@@ -95,11 +95,11 @@ bool irq_work_queue(struct irq_work *work)
 
 	/* If the work is "lazy", handle it from next tick if any */
 	if (work->flags & IRQ_WORK_LAZY) {
-		if (llist_add(&work->llnode, &__get_cpu_var(lazy_list)) &&
+		if (llist_add(&work->llnode, this_cpu_ptr(&lazy_list)) &&
 		    tick_nohz_tick_stopped())
 			arch_irq_work_raise();
 	} else {
-		if (llist_add(&work->llnode, &__get_cpu_var(raised_list)))
+		if (llist_add(&work->llnode, this_cpu_ptr(&raised_list)))
 			arch_irq_work_raise();
 	}
 
@@ -113,10 +113,12 @@ bool irq_work_needs_cpu(void)
 {
 	struct llist_head *raised, *lazy;
 
-	raised = &__get_cpu_var(raised_list);
-	lazy = &__get_cpu_var(lazy_list);
-	if (llist_empty(raised) && llist_empty(lazy))
-		return false;
+	raised = this_cpu_ptr(&raised_list);
+	lazy = this_cpu_ptr(&lazy_list);
+
+	if (llist_empty(raised) || arch_irq_work_has_interrupt())
+		if (llist_empty(lazy))
+			return false;
 
 	/* All work should have been flushed before going offline */
 	WARN_ON_ONCE(cpu_is_offline(smp_processor_id()));
@@ -166,10 +168,19 @@ static void irq_work_run_list(struct llist_head *list)
  */
 void irq_work_run(void)
 {
-	irq_work_run_list(&__get_cpu_var(raised_list));
-	irq_work_run_list(&__get_cpu_var(lazy_list));
+	irq_work_run_list(this_cpu_ptr(&raised_list));
+	irq_work_run_list(this_cpu_ptr(&lazy_list));
 }
 EXPORT_SYMBOL_GPL(irq_work_run);
+
+void irq_work_tick(void)
+{
+	struct llist_head *raised = this_cpu_ptr(&raised_list);
+
+	if (!llist_empty(raised) && !arch_irq_work_has_interrupt())
+		irq_work_run_list(raised);
+	irq_work_run_list(this_cpu_ptr(&lazy_list));
+}
 
 /*
  * Synchronize against the irq_work @entry, ensures the entry is not

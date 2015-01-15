@@ -34,7 +34,8 @@
 #include <engine/fifo.h>
 
 static int
-nouveau_fifo_event_ctor(void *data, u32 size, struct nvkm_notify *notify)
+nouveau_fifo_event_ctor(struct nouveau_object *object, void *data, u32 size,
+			struct nvkm_notify *notify)
 {
 	if (size == 0) {
 		notify->size  = 0;
@@ -170,7 +171,8 @@ _nouveau_fifo_channel_wr32(struct nouveau_object *object, u64 addr, u32 data)
 }
 
 int
-nouveau_fifo_uevent_ctor(void *data, u32 size, struct nvkm_notify *notify)
+nouveau_fifo_uevent_ctor(struct nouveau_object *object, void *data, u32 size,
+			 struct nvkm_notify *notify)
 {
 	union {
 		struct nvif_notify_uevent_req none;

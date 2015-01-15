@@ -947,6 +947,7 @@ static void rtsx_pci_idle_work(struct work_struct *work)
 	mutex_unlock(&pcr->pcr_mutex);
 }
 
+#ifdef CONFIG_PM
 static void rtsx_pci_power_off(struct rtsx_pcr *pcr, u8 pm_state)
 {
 	if (pcr->ops->turn_off_led)
@@ -961,6 +962,7 @@ static void rtsx_pci_power_off(struct rtsx_pcr *pcr, u8 pm_state)
 	if (pcr->ops->force_power_down)
 		pcr->ops->force_power_down(pcr, pm_state);
 }
+#endif
 
 static int rtsx_pci_init_hw(struct rtsx_pcr *pcr)
 {
@@ -1197,7 +1199,7 @@ static int rtsx_pci_probe(struct pci_dev *pcidev,
 	pcr->msi_en = msi_en;
 	if (pcr->msi_en) {
 		ret = pci_enable_msi(pcidev);
-		if (ret < 0)
+		if (ret)
 			pcr->msi_en = false;
 	}
 

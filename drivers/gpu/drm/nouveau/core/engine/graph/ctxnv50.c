@@ -113,6 +113,8 @@
 #define IS_NVA3F(x) (((x) > 0xa0 && (x) < 0xaa) || (x) == 0xaf)
 #define IS_NVAAF(x) ((x) >= 0xaa && (x) <= 0xac)
 
+#include <subdev/fb.h>
+
 /*
  * This code deals with PGRAPH contexts on NV50 family cards. Like NV40, it's
  * the GPU itself that does context-switching, but it needs a special
@@ -569,8 +571,12 @@ nv50_graph_construct_mmio(struct nouveau_grctx *ctx)
 			gr_def(ctx, 0x407d08, 0x00010040);
 		else if (device->chipset < 0xa0)
 			gr_def(ctx, 0x407d08, 0x00390040);
-		else
-			gr_def(ctx, 0x407d08, 0x003d0040);
+		else {
+			if (nouveau_fb(device)->ram->type != NV_MEM_TYPE_GDDR5)
+				gr_def(ctx, 0x407d08, 0x003d0040);
+			else
+				gr_def(ctx, 0x407d08, 0x003c0040);
+		}
 		gr_def(ctx, 0x407d0c, 0x00000022);
 	}
 

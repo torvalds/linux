@@ -33,6 +33,7 @@ static int iio_trig_periodic_rtc_set_state(struct iio_trigger *trig, bool state)
 {
 	struct iio_prtc_trigger_info *trig_info = iio_trigger_get_drvdata(trig);
 	int ret;
+
 	if (trig_info->frequency == 0 && state)
 		return -EINVAL;
 	dev_dbg(&trig_info->rtc->dev, "trigger frequency is %d\n",
@@ -50,6 +51,7 @@ static ssize_t iio_trig_periodic_read_freq(struct device *dev,
 {
 	struct iio_trigger *trig = to_iio_trigger(dev);
 	struct iio_prtc_trigger_info *trig_info = iio_trigger_get_drvdata(trig);
+
 	return sprintf(buf, "%u\n", trig_info->frequency);
 }
 
@@ -70,7 +72,8 @@ static ssize_t iio_trig_periodic_write_freq(struct device *dev,
 	if (val > 0) {
 		ret = rtc_irq_set_freq(trig_info->rtc, &trig_info->task, val);
 		if (ret == 0 && trig_info->state && trig_info->frequency == 0)
-			ret = rtc_irq_set_state(trig_info->rtc, &trig_info->task, 1);
+			ret = rtc_irq_set_state(trig_info->rtc,
+						&trig_info->task, 1);
 	} else if (val == 0) {
 		ret = rtc_irq_set_state(trig_info->rtc, &trig_info->task, 0);
 	} else
@@ -183,6 +186,7 @@ static int iio_trig_periodic_rtc_remove(struct platform_device *dev)
 {
 	struct iio_trigger *trig, *trig2;
 	struct iio_prtc_trigger_info *trig_info;
+
 	mutex_lock(&iio_prtc_trigger_list_lock);
 	list_for_each_entry_safe(trig,
 				 trig2,
@@ -203,7 +207,6 @@ static struct platform_driver iio_trig_periodic_rtc_driver = {
 	.remove = iio_trig_periodic_rtc_remove,
 	.driver = {
 		.name = "iio_prtc_trigger",
-		.owner = THIS_MODULE,
 	},
 };
 

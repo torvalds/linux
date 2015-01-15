@@ -612,7 +612,7 @@ static int tgr160_final(struct shash_desc *desc, u8 * out)
 
 	tgr192_final(desc, D);
 	memcpy(out, D, TGR160_DIGEST_SIZE);
-	memset(D, 0, TGR192_DIGEST_SIZE);
+	memzero_explicit(D, TGR192_DIGEST_SIZE);
 
 	return 0;
 }
@@ -623,7 +623,7 @@ static int tgr128_final(struct shash_desc *desc, u8 * out)
 
 	tgr192_final(desc, D);
 	memcpy(out, D, TGR128_DIGEST_SIZE);
-	memset(D, 0, TGR192_DIGEST_SIZE);
+	memzero_explicit(D, TGR192_DIGEST_SIZE);
 
 	return 0;
 }
@@ -676,8 +676,8 @@ static void __exit tgr192_mod_fini(void)
 	crypto_unregister_shashes(tgr_algs, ARRAY_SIZE(tgr_algs));
 }
 
-MODULE_ALIAS("tgr160");
-MODULE_ALIAS("tgr128");
+MODULE_ALIAS_CRYPTO("tgr160");
+MODULE_ALIAS_CRYPTO("tgr128");
 
 module_init(tgr192_mod_init);
 module_exit(tgr192_mod_fini);

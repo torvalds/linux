@@ -6,6 +6,7 @@
  * Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
  * Copyright (c) 2005, Devicescape Software, Inc.
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
+ * Copyright (c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -18,6 +19,7 @@
 #include <linux/types.h>
 #include <linux/if_ether.h>
 #include <asm/byteorder.h>
+#include <asm/unaligned.h>
 
 /*
  * DS bit usage
@@ -165,7 +167,11 @@ static inline u16 ieee80211_sn_sub(u16 sn1, u16 sn2)
 
 #define IEEE80211_MAX_MESH_ID_LEN	32
 
+#define IEEE80211_FIRST_TSPEC_TSID	8
 #define IEEE80211_NUM_TIDS		16
+
+/* number of user priorities 802.11 uses */
+#define IEEE80211_NUM_UPS		8
 
 #define IEEE80211_QOS_CTL_LEN		2
 /* 1d tag mask */
@@ -838,6 +844,16 @@ enum ieee80211_vht_opmode_bits {
 
 #define WLAN_SA_QUERY_TR_ID_LEN 2
 
+/**
+ * struct ieee80211_tpc_report_ie
+ *
+ * This structure refers to "TPC Report element"
+ */
+struct ieee80211_tpc_report_ie {
+	u8 tx_power;
+	u8 link_margin;
+} __packed;
+
 struct ieee80211_mgmt {
 	__le16 frame_control;
 	__le16 duration;
@@ -973,6 +989,13 @@ struct ieee80211_mgmt {
 					u8 action_code;
 					u8 operating_mode;
 				} __packed vht_opmode_notif;
+				struct {
+					u8 action_code;
+					u8 dialog_token;
+					u8 tpc_elem_id;
+					u8 tpc_elem_length;
+					struct ieee80211_tpc_report_ie tpc;
+				} __packed tpc_report;
 			} u;
 		} __packed action;
 	} u;
@@ -1044,6 +1067,12 @@ struct ieee80211_pspoll {
 
 /* TDLS */
 
+/* Channel switch timing */
+struct ieee80211_ch_switch_timing {
+	__le16 switch_time;
+	__le16 switch_timeout;
+} __packed;
+
 /* Link-id information element */
 struct ieee80211_tdls_lnkie {
 	u8 ie_type; /* Link Identifier IE */
@@ -1085,6 +1114,15 @@ struct ieee80211_tdls_data {
 			u8 dialog_token;
 			u8 variable[0];
 		} __packed discover_req;
+		struct {
+			u8 target_channel;
+			u8 oper_class;
+			u8 variable[0];
+		} __packed chan_switch_req;
+		struct {
+			__le16 status_code;
+			u8 variable[0];
+		} __packed chan_switch_resp;
 	} u;
 } __packed;
 
@@ -1252,7 +1290,7 @@ struct ieee80211_ht_cap {
 #define		IEEE80211_HT_AMPDU_PARM_DENSITY_SHIFT	2
 
 /*
- * Maximum length of AMPDU that the STA can receive.
+ * Maximum length of AMPDU that the STA can receive in high-throughput (HT).
  * Length = 2 ^ (13 + max_ampdu_length_exp) - 1 (octets)
  */
 enum ieee80211_max_ampdu_length_exp {
@@ -1260,6 +1298,21 @@ enum ieee80211_max_ampdu_length_exp {
 	IEEE80211_HT_MAX_AMPDU_16K = 1,
 	IEEE80211_HT_MAX_AMPDU_32K = 2,
 	IEEE80211_HT_MAX_AMPDU_64K = 3
+};
+
+/*
+ * Maximum length of AMPDU that the STA can receive in VHT.
+ * Length = 2 ^ (13 + max_ampdu_length_exp) - 1 (octets)
+ */
+enum ieee80211_vht_max_ampdu_length_exp {
+	IEEE80211_VHT_MAX_AMPDU_8K = 0,
+	IEEE80211_VHT_MAX_AMPDU_16K = 1,
+	IEEE80211_VHT_MAX_AMPDU_32K = 2,
+	IEEE80211_VHT_MAX_AMPDU_64K = 3,
+	IEEE80211_VHT_MAX_AMPDU_128K = 4,
+	IEEE80211_VHT_MAX_AMPDU_256K = 5,
+	IEEE80211_VHT_MAX_AMPDU_512K = 6,
+	IEEE80211_VHT_MAX_AMPDU_1024K = 7
 };
 
 #define IEEE80211_HT_MAX_AMPDU_FACTOR 13
@@ -1806,7 +1859,8 @@ enum ieee80211_eid {
 	WLAN_EID_DMG_TSPEC = 146,
 	WLAN_EID_DMG_AT = 147,
 	WLAN_EID_DMG_CAP = 148,
-	/* 149-150 reserved for Cisco */
+	/* 149 reserved for Cisco */
+	WLAN_EID_CISCO_VENDOR_SPECIFIC = 150,
 	WLAN_EID_DMG_OPERATION = 151,
 	WLAN_EID_DMG_BSS_PARAM_CHANGE = 152,
 	WLAN_EID_DMG_BEAM_REFINEMENT = 153,
@@ -1865,6 +1919,7 @@ enum ieee80211_category {
 	WLAN_CATEGORY_DLS = 2,
 	WLAN_CATEGORY_BACK = 3,
 	WLAN_CATEGORY_PUBLIC = 4,
+	WLAN_CATEGORY_RADIO_MEASUREMENT = 5,
 	WLAN_CATEGORY_HT = 7,
 	WLAN_CATEGORY_SA_QUERY = 8,
 	WLAN_CATEGORY_PROTECTED_DUAL_OF_ACTION = 9,
@@ -1974,6 +2029,16 @@ enum ieee80211_tdls_actioncode {
 	WLAN_TDLS_DISCOVERY_REQUEST = 10,
 };
 
+/* Extended Channel Switching capability to be set in the 1st byte of
+ * the @WLAN_EID_EXT_CAPABILITY information element
+ */
+#define WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING	BIT(2)
+
+/* TDLS capabilities in the the 4th byte of @WLAN_EID_EXT_CAPABILITY */
+#define WLAN_EXT_CAPA4_TDLS_BUFFER_STA		BIT(4)
+#define WLAN_EXT_CAPA4_TDLS_PEER_PSM		BIT(5)
+#define WLAN_EXT_CAPA4_TDLS_CHAN_SWITCH		BIT(6)
+
 /* Interworking capabilities are set in 7th bit of 4th byte of the
  * @WLAN_EID_EXT_CAPABILITY information element
  */
@@ -1985,12 +2050,16 @@ enum ieee80211_tdls_actioncode {
  */
 #define WLAN_EXT_CAPA5_TDLS_ENABLED	BIT(5)
 #define WLAN_EXT_CAPA5_TDLS_PROHIBITED	BIT(6)
+#define WLAN_EXT_CAPA5_TDLS_CH_SW_PROHIBITED	BIT(7)
 
 #define WLAN_EXT_CAPA8_OPMODE_NOTIF	BIT(6)
 #define WLAN_EXT_CAPA8_TDLS_WIDE_BW_ENABLED	BIT(7)
 
 /* TDLS specific payload type in the LLC/SNAP header */
 #define WLAN_TDLS_SNAP_RFTYPE	0x2
+
+/* BSS Coex IE information field bits */
+#define WLAN_BSS_COEX_INFORMATION_REQUEST	BIT(0)
 
 /**
  * enum - mesh synchronization method identifier
@@ -2374,8 +2443,79 @@ static inline bool ieee80211_check_tim(const struct ieee80211_tim_ie *tim,
 	return !!(tim->virtual_map[index] & mask);
 }
 
+/**
+ * ieee80211_get_tdls_action - get tdls packet action (or -1, if not tdls packet)
+ * @skb: the skb containing the frame, length will not be checked
+ * @hdr_size: the size of the ieee80211_hdr that starts at skb->data
+ *
+ * This function assumes the frame is a data frame, and that the network header
+ * is in the correct place.
+ */
+static inline int ieee80211_get_tdls_action(struct sk_buff *skb, u32 hdr_size)
+{
+	if (!skb_is_nonlinear(skb) &&
+	    skb->len > (skb_network_offset(skb) + 2)) {
+		/* Point to where the indication of TDLS should start */
+		const u8 *tdls_data = skb_network_header(skb) - 2;
+
+		if (get_unaligned_be16(tdls_data) == ETH_P_TDLS &&
+		    tdls_data[2] == WLAN_TDLS_SNAP_RFTYPE &&
+		    tdls_data[3] == WLAN_CATEGORY_TDLS)
+			return tdls_data[4];
+	}
+
+	return -1;
+}
+
 /* convert time units */
 #define TU_TO_JIFFIES(x)	(usecs_to_jiffies((x) * 1024))
 #define TU_TO_EXP_TIME(x)	(jiffies + TU_TO_JIFFIES(x))
+
+/**
+ * ieee80211_action_contains_tpc - checks if the frame contains TPC element
+ * @skb: the skb containing the frame, length will be checked
+ *
+ * This function checks if it's either TPC report action frame or Link
+ * Measurement report action frame as defined in IEEE Std. 802.11-2012 8.5.2.5
+ * and 8.5.7.5 accordingly.
+ */
+static inline bool ieee80211_action_contains_tpc(struct sk_buff *skb)
+{
+	struct ieee80211_mgmt *mgmt = (void *)skb->data;
+
+	if (!ieee80211_is_action(mgmt->frame_control))
+		return false;
+
+	if (skb->len < IEEE80211_MIN_ACTION_SIZE +
+		       sizeof(mgmt->u.action.u.tpc_report))
+		return false;
+
+	/*
+	 * TPC report - check that:
+	 * category = 0 (Spectrum Management) or 5 (Radio Measurement)
+	 * spectrum management action = 3 (TPC/Link Measurement report)
+	 * TPC report EID = 35
+	 * TPC report element length = 2
+	 *
+	 * The spectrum management's tpc_report struct is used here both for
+	 * parsing tpc_report and radio measurement's link measurement report
+	 * frame, since the relevant part is identical in both frames.
+	 */
+	if (mgmt->u.action.category != WLAN_CATEGORY_SPECTRUM_MGMT &&
+	    mgmt->u.action.category != WLAN_CATEGORY_RADIO_MEASUREMENT)
+		return false;
+
+	/* both spectrum mgmt and link measurement have same action code */
+	if (mgmt->u.action.u.tpc_report.action_code !=
+	    WLAN_ACTION_SPCT_TPC_RPRT)
+		return false;
+
+	if (mgmt->u.action.u.tpc_report.tpc_elem_id != WLAN_EID_TPC_REPORT ||
+	    mgmt->u.action.u.tpc_report.tpc_elem_length !=
+	    sizeof(struct ieee80211_tpc_report_ie))
+		return false;
+
+	return true;
+}
 
 #endif /* LINUX_IEEE80211_H */

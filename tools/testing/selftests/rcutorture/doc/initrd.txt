@@ -6,6 +6,7 @@ this case.  There are probably much better ways of doing this.
 That said, here are the commands:
 
 ------------------------------------------------------------------------
+cd tools/testing/selftests/rcutorture
 zcat /initrd.img > /tmp/initrd.img.zcat
 mkdir initrd
 cd initrd

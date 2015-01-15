@@ -250,6 +250,17 @@ config LEDS_LP8788
 	help
 	  This option enables support for the Keyboard LEDs on the LP8788 PMIC.
 
+config LEDS_LP8860
+	tristate "LED support for the TI LP8860 4 channel LED driver"
+	depends on LEDS_CLASS && I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the TI LP8860 4 channel
+	  LED driver.
+	  This option enables support for the display cluster LEDs
+	  on the LP8860 4 channel LED driver using the I2C communication
+	  bus.
+
 config LEDS_CLEVO_MAIL
 	tristate "Mail LED on Clevo notebook"
 	depends on LEDS_CLASS
@@ -410,7 +421,7 @@ config LEDS_MC13783
 config LEDS_NS2
 	tristate "LED support for Network Space v2 GPIO LEDs"
 	depends on LEDS_CLASS
-	depends on ARCH_KIRKWOOD || MACH_KIRKWOOD
+	depends on MACH_KIRKWOOD
 	default y
 	help
 	  This option enable support for the dual-GPIO LED found on the
@@ -420,7 +431,7 @@ config LEDS_NS2
 config LEDS_NETXBIG
 	tristate "LED support for Big Network series LEDs"
 	depends on LEDS_CLASS
-	depends on ARCH_KIRKWOOD || MACH_KIRKWOOD
+	depends on MACH_KIRKWOOD
 	default y
 	help
 	  This option enable support for LEDs found on the LaCie 2Big
@@ -468,6 +479,15 @@ config LEDS_OT200
 	  This option enables support for the LEDs on the Bachmann OT200.
 	  Say Y to enable LEDs on the Bachmann OT200.
 
+config LEDS_MENF21BMC
+	tristate "LED support for the MEN 14F021P00 BMC"
+	depends on LEDS_CLASS && MFD_MENF21BMC
+	help
+	  Say Y here to include support for the MEN 14F021P00 BMC LEDs.
+
+	  This driver can also be built as a module. If so the module
+	  will be called leds-menf21bmc.
+
 comment "LED driver for blink(1) USB RGB LED is under Special HID drivers (HID_THINGM)"
 
 config LEDS_BLINKM
@@ -477,6 +497,16 @@ config LEDS_BLINKM
 	help
 	  This option enables support for the BlinkM RGB LED connected
 	  through I2C. Say Y to enable support for the BlinkM LED.
+
+config LEDS_SYSCON
+	bool "LED support for LEDs on system controllers"
+	depends on LEDS_CLASS=y
+	depends on MFD_SYSCON
+	depends on OF
+	help
+	  This option enabled support for the LEDs on syscon type
+	  devices. This will only work with device tree enabled
+	  devices.
 
 config LEDS_VERSATILE
 	tristate "LED support for the ARM Versatile and RealView"

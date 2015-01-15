@@ -431,7 +431,7 @@ static inline int nlmsg_report(const struct nlmsghdr *nlh)
 /**
  * nlmsg_put - Add a new netlink message to an skb
  * @skb: socket buffer to store message in
- * @portid: netlink process id
+ * @portid: netlink PORTID of requesting application
  * @seq: sequence number of message
  * @type: message type
  * @payload: length of message payload
@@ -1184,5 +1184,15 @@ static inline int nla_validate_nested(const struct nlattr *start, int maxtype,
  */
 #define nla_for_each_nested(pos, nla, rem) \
 	nla_for_each_attr(pos, nla_data(nla), nla_len(nla), rem)
+
+/**
+ * nla_is_last - Test if attribute is last in stream
+ * @nla: attribute to test
+ * @rem: bytes remaining in stream
+ */
+static inline bool nla_is_last(const struct nlattr *nla, int rem)
+{
+	return nla->nla_len == rem;
+}
 
 #endif

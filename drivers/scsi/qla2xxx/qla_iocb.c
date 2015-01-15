@@ -325,7 +325,6 @@ qla2x00_start_scsi(srb_t *sp)
 	struct qla_hw_data *ha;
 	struct req_que *req;
 	struct rsp_que *rsp;
-	char		tag[2];
 
 	/* Setup device pointers. */
 	ret = 0;
@@ -404,26 +403,7 @@ qla2x00_start_scsi(srb_t *sp)
 	/* Set target ID and LUN number*/
 	SET_TARGET_ID(ha, cmd_pkt->target, sp->fcport->loop_id);
 	cmd_pkt->lun = cpu_to_le16(cmd->device->lun);
-
-	/* Update tagged queuing modifier */
-	if (scsi_populate_tag_msg(cmd, tag)) {
-		switch (tag[0]) {
-		case HEAD_OF_QUEUE_TAG:
-			cmd_pkt->control_flags =
-			    __constant_cpu_to_le16(CF_HEAD_TAG);
-			break;
-		case ORDERED_QUEUE_TAG:
-			cmd_pkt->control_flags =
-			    __constant_cpu_to_le16(CF_ORDERED_TAG);
-			break;
-		default:
-			cmd_pkt->control_flags =
-			    __constant_cpu_to_le16(CF_SIMPLE_TAG);
-			break;
-		}
-	} else {
-		cmd_pkt->control_flags = __constant_cpu_to_le16(CF_SIMPLE_TAG);
-	}
+	cmd_pkt->control_flags = __constant_cpu_to_le16(CF_SIMPLE_TAG);
 
 	/* Load SCSI command packet. */
 	memcpy(cmd_pkt->scsi_cdb, cmd->cmnd, cmd->cmd_len);
@@ -1264,7 +1244,6 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 	uint16_t		fcp_cmnd_len;
 	struct fcp_cmnd		*fcp_cmnd;
 	dma_addr_t		crc_ctx_dma;
-	char			tag[2];
 
 	cmd = GET_CMD_SP(sp);
 
@@ -1356,25 +1335,7 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 	cmd_pkt->fcp_cmnd_dseg_address[1] = cpu_to_le32(
 	    MSD(crc_ctx_dma + CRC_CONTEXT_FCPCMND_OFF));
 	fcp_cmnd->task_management = 0;
-
-	/*
-	 * Update tagged queuing modifier if using command tag queuing
-	 */
-	if (scsi_populate_tag_msg(cmd, tag)) {
-		switch (tag[0]) {
-		case HEAD_OF_QUEUE_TAG:
-		    fcp_cmnd->task_attribute = TSK_HEAD_OF_QUEUE;
-		    break;
-		case ORDERED_QUEUE_TAG:
-		    fcp_cmnd->task_attribute = TSK_ORDERED;
-		    break;
-		default:
-		    fcp_cmnd->task_attribute = TSK_SIMPLE;
-		    break;
-		}
-	} else {
-		fcp_cmnd->task_attribute = TSK_SIMPLE;
-	}
+	fcp_cmnd->task_attribute = TSK_SIMPLE;
 
 	cmd_pkt->fcp_rsp_dseg_len = 0; /* Let response come in status iocb */
 
@@ -1495,7 +1456,6 @@ qla24xx_start_scsi(srb_t *sp)
 	struct scsi_cmnd *cmd = GET_CMD_SP(sp);
 	struct scsi_qla_host *vha = sp->fcport->vha;
 	struct qla_hw_data *ha = vha->hw;
-	char		tag[2];
 
 	/* Setup device pointers. */
 	ret = 0;
@@ -1578,22 +1538,7 @@ qla24xx_start_scsi(srb_t *sp)
 	int_to_scsilun(cmd->device->lun, &cmd_pkt->lun);
 	host_to_fcp_swap((uint8_t *)&cmd_pkt->lun, sizeof(cmd_pkt->lun));
 
-	/* Update tagged queuing modifier -- default is TSK_SIMPLE (0). */
-	if (scsi_populate_tag_msg(cmd, tag)) {
-		switch (tag[0]) {
-		case HEAD_OF_QUEUE_TAG:
-			cmd_pkt->task = TSK_HEAD_OF_QUEUE;
-			break;
-		case ORDERED_QUEUE_TAG:
-			cmd_pkt->task = TSK_ORDERED;
-			break;
-		default:
-		    cmd_pkt->task = TSK_SIMPLE;
-		    break;
-		}
-	} else {
-		cmd_pkt->task = TSK_SIMPLE;
-	}
+	cmd_pkt->task = TSK_SIMPLE;
 
 	/* Load SCSI command packet. */
 	memcpy(cmd_pkt->fcp_cdb, cmd->cmnd, cmd->cmd_len);
@@ -1858,6 +1803,17 @@ static void qla25xx_set_que(srb_t *sp, struct rsp_que **rsp)
 }
 
 /* Generic Control-SRB manipulation functions. */
+
+/* hardware_lock assumed to be held. */
+void *
+qla2x00_alloc_iocbs_ready(scsi_qla_host_t *vha, srb_t *sp)
+{
+	if (qla2x00_reset_active(vha))
+		return NULL;
+
+	return qla2x00_alloc_iocbs(vha, sp);
+}
+
 void *
 qla2x00_alloc_iocbs(scsi_qla_host_t *vha, srb_t *sp)
 {
@@ -1901,7 +1857,7 @@ qla2x00_alloc_iocbs(scsi_qla_host_t *vha, srb_t *sp)
 
 skip_cmd_array:
 	/* Check for room on request queue. */
-	if (req->cnt < req_cnt) {
+	if (req->cnt < req_cnt + 2) {
 		if (ha->mqenable || IS_QLA83XX(ha) || IS_QLA27XX(ha))
 			cnt = RD_REG_DWORD(&reg->isp25mq.req_q_out);
 		else if (IS_P3P_TYPE(ha))
@@ -1920,7 +1876,7 @@ skip_cmd_array:
 			req->cnt = req->length -
 			    (req->ring_index - cnt);
 	}
-	if (req->cnt < req_cnt)
+	if (req->cnt < req_cnt + 2)
 		goto queuing_error;
 
 	/* Prep packet */
@@ -2299,7 +2255,6 @@ qla82xx_start_scsi(srb_t *sp)
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = NULL;
 	struct rsp_que *rsp = NULL;
-	char tag[2];
 
 	/* Setup device pointers. */
 	ret = 0;
@@ -2478,22 +2433,6 @@ sufficient_dsds:
 		else if (cmd->sc_data_direction == DMA_FROM_DEVICE)
 			ctx->fcp_cmnd->additional_cdb_len |= 2;
 
-		/*
-		 * Update tagged queuing modifier -- default is TSK_SIMPLE (0).
-		 */
-		if (scsi_populate_tag_msg(cmd, tag)) {
-			switch (tag[0]) {
-			case HEAD_OF_QUEUE_TAG:
-				ctx->fcp_cmnd->task_attribute =
-				    TSK_HEAD_OF_QUEUE;
-				break;
-			case ORDERED_QUEUE_TAG:
-				ctx->fcp_cmnd->task_attribute =
-				    TSK_ORDERED;
-				break;
-			}
-		}
-
 		/* Populate the FCP_PRIO. */
 		if (ha->flags.fcp_prio_enabled)
 			ctx->fcp_cmnd->task_attribute |=
@@ -2553,20 +2492,6 @@ sufficient_dsds:
 		int_to_scsilun(cmd->device->lun, &cmd_pkt->lun);
 		host_to_fcp_swap((uint8_t *)&cmd_pkt->lun,
 		    sizeof(cmd_pkt->lun));
-
-		/*
-		 * Update tagged queuing modifier -- default is TSK_SIMPLE (0).
-		 */
-		if (scsi_populate_tag_msg(cmd, tag)) {
-			switch (tag[0]) {
-			case HEAD_OF_QUEUE_TAG:
-				cmd_pkt->task = TSK_HEAD_OF_QUEUE;
-				break;
-			case ORDERED_QUEUE_TAG:
-				cmd_pkt->task = TSK_ORDERED;
-				break;
-			}
-		}
 
 		/* Populate the FCP_PRIO. */
 		if (ha->flags.fcp_prio_enabled)
@@ -2648,7 +2573,7 @@ queuing_error:
 	return QLA_FUNCTION_FAILED;
 }
 
-void
+static void
 qla24xx_abort_iocb(srb_t *sp, struct abort_entry_24xx *abt_iocb)
 {
 	struct srb_iocb *aio = &sp->u.iocb_cmd;

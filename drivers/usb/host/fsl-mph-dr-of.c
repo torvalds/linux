@@ -326,7 +326,6 @@ static const struct of_device_id fsl_usb2_mph_dr_of_match[] = {
 static struct platform_driver fsl_usb2_mph_dr_driver = {
 	.driver = {
 		.name = "fsl-usb2-mph-dr",
-		.owner = THIS_MODULE,
 		.of_match_table = fsl_usb2_mph_dr_of_match,
 	},
 	.probe	= fsl_usb2_mph_dr_of_probe,

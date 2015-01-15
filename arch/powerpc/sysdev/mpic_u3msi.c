@@ -10,7 +10,6 @@
  */
 
 #include <linux/irq.h>
-#include <linux/bootmem.h>
 #include <linux/msi.h>
 #include <asm/mpic.h>
 #include <asm/prom.h>
@@ -25,14 +24,14 @@ static struct mpic *msi_mpic;
 
 static void mpic_u3msi_mask_irq(struct irq_data *data)
 {
-	mask_msi_irq(data);
+	pci_msi_mask_irq(data);
 	mpic_mask_irq(data);
 }
 
 static void mpic_u3msi_unmask_irq(struct irq_data *data)
 {
 	mpic_unmask_irq(data);
-	unmask_msi_irq(data);
+	pci_msi_unmask_irq(data);
 }
 
 static struct irq_chip mpic_u3msi_chip = {
@@ -105,22 +104,6 @@ static u64 find_u4_magic_addr(struct pci_dev *pdev, unsigned int hwirq)
 	return 0;
 }
 
-static int u3msi_msi_check_device(struct pci_dev *pdev, int nvec, int type)
-{
-	if (type == PCI_CAP_ID_MSIX)
-		pr_debug("u3msi: MSI-X untested, trying anyway.\n");
-
-	/* If we can't find a magic address then MSI ain't gonna work */
-	if (find_ht_magic_addr(pdev, 0) == 0 &&
-	    find_u4_magic_addr(pdev, 0) == 0) {
-		pr_debug("u3msi: no magic address found for %s\n",
-			 pci_name(pdev));
-		return -ENXIO;
-	}
-
-	return 0;
-}
-
 static void u3msi_teardown_msi_irqs(struct pci_dev *pdev)
 {
 	struct msi_desc *entry;
@@ -145,6 +128,17 @@ static int u3msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	struct msi_msg msg;
 	u64 addr;
 	int hwirq;
+
+	if (type == PCI_CAP_ID_MSIX)
+		pr_debug("u3msi: MSI-X untested, trying anyway.\n");
+
+	/* If we can't find a magic address then MSI ain't gonna work */
+	if (find_ht_magic_addr(pdev, 0) == 0 &&
+	    find_u4_magic_addr(pdev, 0) == 0) {
+		pr_debug("u3msi: no magic address found for %s\n",
+			 pci_name(pdev));
+		return -ENXIO;
+	}
 
 	list_for_each_entry(entry, &pdev->msi_list, list) {
 		hwirq = msi_bitmap_alloc_hwirqs(&msi_mpic->msi_bitmap, 1);
@@ -176,7 +170,7 @@ static int u3msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		printk("u3msi: allocated virq 0x%x (hw 0x%x) addr 0x%lx\n",
 			  virq, hwirq, (unsigned long)addr);
 		msg.data = hwirq;
-		write_msi_msg(virq, &msg);
+		pci_write_msi_msg(virq, &msg);
 
 		hwirq++;
 	}
@@ -202,7 +196,6 @@ int mpic_u3msi_init(struct mpic *mpic)
 	WARN_ON(ppc_md.setup_msi_irqs);
 	ppc_md.setup_msi_irqs = u3msi_setup_msi_irqs;
 	ppc_md.teardown_msi_irqs = u3msi_teardown_msi_irqs;
-	ppc_md.msi_check_device = u3msi_msi_check_device;
 
 	return 0;
 }

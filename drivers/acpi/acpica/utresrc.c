@@ -87,7 +87,9 @@ const char *acpi_gbl_io_decode[] = {
 
 const char *acpi_gbl_ll_decode[] = {
 	"ActiveHigh",
-	"ActiveLow"
+	"ActiveLow",
+	"ActiveBoth",
+	"Reserved"
 };
 
 const char *acpi_gbl_max_decode[] = {
@@ -261,7 +263,7 @@ const char *acpi_gbl_bpb_decode[] = {
 /* UART serial bus stop bits */
 
 const char *acpi_gbl_sb_decode[] = {
-	"StopBitsNone",
+	"StopBitsZero",
 	"StopBitsOne",
 	"StopBitsOnePlusHalf",
 	"StopBitsTwo"

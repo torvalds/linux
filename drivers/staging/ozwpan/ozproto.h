@@ -29,24 +29,14 @@
 
 /* Application handler functions.
  */
-typedef int (*oz_app_init_fn_t)(void);
-typedef void (*oz_app_term_fn_t)(void);
-typedef int (*oz_app_start_fn_t)(struct oz_pd *pd, int resume);
-typedef void (*oz_app_stop_fn_t)(struct oz_pd *pd, int pause);
-typedef void (*oz_app_rx_fn_t)(struct oz_pd *pd, struct oz_elt *elt);
-typedef int (*oz_app_hearbeat_fn_t)(struct oz_pd *pd);
-typedef void (*oz_app_farewell_fn_t)(struct oz_pd *pd, u8 ep_num,
-			u8 *data, u8 len);
-
 struct oz_app_if {
-	oz_app_init_fn_t	init;
-	oz_app_term_fn_t	term;
-	oz_app_start_fn_t	start;
-	oz_app_stop_fn_t	stop;
-	oz_app_rx_fn_t		rx;
-	oz_app_hearbeat_fn_t	heartbeat;
-	oz_app_farewell_fn_t	farewell;
-	int			app_id;
+	int  (*init)(void);
+	void (*term)(void);
+	int  (*start)(struct oz_pd *pd, int resume);
+	void (*stop)(struct oz_pd *pd, int pause);
+	void (*rx)(struct oz_pd *pd, struct oz_elt *elt);
+	int  (*heartbeat)(struct oz_pd *pd);
+	void (*farewell)(struct oz_pd *pd, u8 ep_num, u8 *data, u8 len);
 };
 
 int oz_protocol_init(char *devs);
@@ -65,5 +55,8 @@ enum hrtimer_restart oz_pd_heartbeat_event(struct hrtimer *timer);
 enum hrtimer_restart oz_pd_timeout_event(struct hrtimer *timer);
 int oz_get_pd_status_list(char *pd_list, int max_count);
 int oz_get_binding_list(char *buf, int max_if);
+
+extern struct kmem_cache *oz_elt_info_cache;
+extern struct kmem_cache *oz_tx_frame_cache;
 
 #endif /* _OZPROTO_H */

@@ -20,8 +20,6 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_sb.h"
-#include "xfs_ag.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_trans.h"
@@ -29,7 +27,6 @@
 #include "xfs_error.h"
 #include "xfs_trace.h"
 #include "xfs_trans_priv.h"
-#include "xfs_dinode.h"
 #include "xfs_log.h"
 
 
@@ -615,7 +612,7 @@ xfs_iflush_done(
 	blip = bp->b_fspriv;
 	prev = NULL;
 	while (blip != NULL) {
-		if (lip->li_cb != xfs_iflush_done) {
+		if (blip->li_cb != xfs_iflush_done) {
 			prev = blip;
 			blip = blip->li_bio_list;
 			continue;

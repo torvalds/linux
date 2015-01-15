@@ -356,6 +356,8 @@ static int do_rx_dma(struct atm_vcc *vcc,struct sk_buff *skb,
 	if (skb) {
 		paddr = pci_map_single(eni_dev->pci_dev,skb->data,skb->len,
 		    PCI_DMA_FROMDEVICE);
+		if (pci_dma_mapping_error(eni_dev->pci_dev, paddr))
+			goto dma_map_error;
 		ENI_PRV_PADDR(skb) = paddr;
 		if (paddr & 3)
 			printk(KERN_CRIT DEV_LABEL "(itf %d): VCI %d has "
@@ -481,6 +483,7 @@ trouble:
 	if (paddr)
 		pci_unmap_single(eni_dev->pci_dev,paddr,skb->len,
 		    PCI_DMA_FROMDEVICE);
+dma_map_error:
 	if (skb) dev_kfree_skb_irq(skb);
 	return -1;
 }

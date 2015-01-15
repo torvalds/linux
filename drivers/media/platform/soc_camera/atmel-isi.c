@@ -54,7 +54,7 @@ static void set_dma_ctrl(struct fbd *fb_desc, u32 ctrl)
 struct isi_dma_desc {
 	struct list_head list;
 	struct fbd *p_fbd;
-	u32 fbd_phys;
+	dma_addr_t fbd_phys;
 };
 
 /* Frame buffer data */
@@ -75,7 +75,7 @@ struct atmel_isi {
 
 	/* Allocate descriptors for dma buffer use */
 	struct fbd			*p_fb_descriptors;
-	u32				fb_descriptors_phys;
+	dma_addr_t			fb_descriptors_phys;
 	struct				list_head dma_desc_head;
 	struct isi_dma_desc		dma_desc[MAX_BUFFER_NUM];
 
@@ -105,25 +105,25 @@ static u32 isi_readl(struct atmel_isi *isi, u32 reg)
 }
 
 static int configure_geometry(struct atmel_isi *isi, u32 width,
-			u32 height, enum v4l2_mbus_pixelcode code)
+			u32 height, u32 code)
 {
 	u32 cfg2, cr;
 
 	switch (code) {
 	/* YUV, including grey */
-	case V4L2_MBUS_FMT_Y8_1X8:
+	case MEDIA_BUS_FMT_Y8_1X8:
 		cr = ISI_CFG2_GRAYSCALE;
 		break;
-	case V4L2_MBUS_FMT_VYUY8_2X8:
+	case MEDIA_BUS_FMT_VYUY8_2X8:
 		cr = ISI_CFG2_YCC_SWAP_MODE_3;
 		break;
-	case V4L2_MBUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
 		cr = ISI_CFG2_YCC_SWAP_MODE_2;
 		break;
-	case V4L2_MBUS_FMT_YVYU8_2X8:
+	case MEDIA_BUS_FMT_YVYU8_2X8:
 		cr = ISI_CFG2_YCC_SWAP_MODE_1;
 		break;
-	case V4L2_MBUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
 		cr = ISI_CFG2_YCC_SWAP_DEFAULT;
 		break;
 	/* RGB, TODO */
@@ -169,7 +169,7 @@ static irqreturn_t atmel_isi_handle_streaming(struct atmel_isi *isi)
 		isi->active = list_entry(isi->video_buffer_list.next,
 					struct frame_buffer, list);
 		isi_writel(isi, ISI_DMA_C_DSCR,
-			isi->active->p_dma_desc->fbd_phys);
+			(u32)isi->active->p_dma_desc->fbd_phys);
 		isi_writel(isi, ISI_DMA_C_CTRL,
 			ISI_DMA_CTRL_FETCH | ISI_DMA_CTRL_DONE);
 		isi_writel(isi, ISI_DMA_CHER, ISI_DMA_CHSR_C_CH);
@@ -346,7 +346,7 @@ static void start_dma(struct atmel_isi *isi, struct frame_buffer *buffer)
 		return;
 	}
 
-	isi_writel(isi, ISI_DMA_C_DSCR, buffer->p_dma_desc->fbd_phys);
+	isi_writel(isi, ISI_DMA_C_DSCR, (u32)buffer->p_dma_desc->fbd_phys);
 	isi_writel(isi, ISI_DMA_C_CTRL, ISI_DMA_CTRL_FETCH | ISI_DMA_CTRL_DONE);
 	isi_writel(isi, ISI_DMA_CHER, ISI_DMA_CHSR_C_CH);
 
@@ -384,7 +384,6 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct atmel_isi *isi = ici->priv;
-	u32 sr = 0;
 	int ret;
 
 	/* Reset ISI */
@@ -394,11 +393,11 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 		return ret;
 	}
 	/* Disable all interrupts */
-	isi_writel(isi, ISI_INTDIS, ~0UL);
+	isi_writel(isi, ISI_INTDIS, (u32)~0UL);
 
 	spin_lock_irq(&isi->lock);
 	/* Clear any pending interrupt */
-	sr = isi_readl(isi, ISI_STATUS);
+	isi_readl(isi, ISI_STATUS);
 
 	if (count)
 		start_dma(isi, isi->active);
@@ -646,7 +645,7 @@ static int isi_camera_get_formats(struct soc_camera_device *icd,
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	int formats = 0, ret;
 	/* sensor format */
-	enum v4l2_mbus_pixelcode code;
+	u32 code;
 	/* soc camera host format */
 	const struct soc_mbus_pixelfmt *fmt;
 
@@ -671,10 +670,10 @@ static int isi_camera_get_formats(struct soc_camera_device *icd,
 	}
 
 	switch (code) {
-	case V4L2_MBUS_FMT_UYVY8_2X8:
-	case V4L2_MBUS_FMT_VYUY8_2X8:
-	case V4L2_MBUS_FMT_YUYV8_2X8:
-	case V4L2_MBUS_FMT_YVYU8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_VYUY8_2X8:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YVYU8_2X8:
 		formats++;
 		if (xlate) {
 			xlate->host_fmt	= &isi_camera_formats[0];
@@ -1069,7 +1068,6 @@ static struct platform_driver atmel_isi_driver = {
 	.remove		= atmel_isi_remove,
 	.driver		= {
 		.name = "atmel_isi",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(atmel_isi_of_match),
 	},
 };

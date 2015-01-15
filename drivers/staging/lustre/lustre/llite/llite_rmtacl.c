@@ -58,7 +58,7 @@ static inline __u32 ee_hashfunc(uid_t id)
 	return id & (EE_HASHES - 1);
 }
 
-obd_valid rce_ops2valid(int ops)
+u64 rce_ops2valid(int ops)
 {
 	switch (ops) {
 	case RMT_LSETFACL:
@@ -78,7 +78,7 @@ static struct rmtacl_ctl_entry *rce_alloc(pid_t key, int ops)
 {
 	struct rmtacl_ctl_entry *rce;
 
-	OBD_ALLOC_PTR(rce);
+	rce = kzalloc(sizeof(*rce), GFP_NOFS);
 	if (!rce)
 		return NULL;
 
@@ -131,8 +131,8 @@ int rct_add(struct rmtacl_ctl_table *rct, pid_t key, int ops)
 	spin_lock(&rct->rct_lock);
 	e = __rct_search(rct, key);
 	if (unlikely(e != NULL)) {
-		CWARN("Unexpected stale rmtacl_entry found: "
-		      "[key: %d] [ops: %d]\n", (int)key, ops);
+		CWARN("Unexpected stale rmtacl_entry found: [key: %d] [ops: %d]\n",
+		      (int)key, ops);
 		rce_free(e);
 	}
 	list_add_tail(&rce->rce_list, &rct->rct_entries[rce_hashfunc(key)]);
@@ -184,7 +184,7 @@ static struct eacl_entry *ee_alloc(pid_t key, struct lu_fid *fid, int type,
 {
 	struct eacl_entry *ee;
 
-	OBD_ALLOC_PTR(ee);
+	ee = kzalloc(sizeof(*ee), GFP_NOFS);
 	if (!ee)
 		return NULL;
 
@@ -263,8 +263,7 @@ int ee_add(struct eacl_table *et, pid_t key, struct lu_fid *fid, int type,
 	spin_lock(&et->et_lock);
 	e = __et_search_del(et, key, fid, type);
 	if (unlikely(e != NULL)) {
-		CWARN("Unexpected stale eacl_entry found: "
-		      "[key: %d] [fid: "DFID"] [type: %d]\n",
+		CWARN("Unexpected stale eacl_entry found: [key: %d] [fid: " DFID "] [type: %d]\n",
 		      (int)key, PFID(fid), type);
 		ee_free(e);
 	}

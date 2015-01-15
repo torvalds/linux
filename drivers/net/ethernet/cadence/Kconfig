@@ -22,7 +22,7 @@ if NET_CADENCE
 
 config ARM_AT91_ETHER
 	tristate "AT91RM9200 Ethernet support"
-	depends on HAS_DMA && (ARCH_AT91RM9200 || COMPILE_TEST)
+	depends on HAS_DMA && (ARCH_AT91 || COMPILE_TEST)
 	select MACB
 	---help---
 	  If you wish to compile a kernel for the AT91RM9200 and enable
@@ -35,8 +35,8 @@ config MACB
 	---help---
 	  The Cadence MACB ethernet interface is found on many Atmel AT32 and
 	  AT91 parts.  This driver also supports the Cadence GEM (Gigabit
-	  Ethernet MAC found in some ARM SoC devices).  Note: the Gigabit mode
-	  is not yet supported.  Say Y to include support for the MACB/GEM chip.
+	  Ethernet MAC found in some ARM SoC devices).  Say Y to include
+	  support for the MACB/GEM chip.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called macb.

@@ -856,7 +856,7 @@ static void __exit cmos_do_remove(struct device *dev)
 	cmos->dev = NULL;
 }
 
-#ifdef	CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
 
 static int cmos_suspend(struct device *dev)
 {
@@ -907,6 +907,8 @@ static inline int cmos_poweroff(struct device *dev)
 	return cmos_suspend(dev);
 }
 
+#ifdef	CONFIG_PM_SLEEP
+
 static int cmos_resume(struct device *dev)
 {
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
@@ -954,6 +956,7 @@ static int cmos_resume(struct device *dev)
 	return 0;
 }
 
+#endif
 #else
 
 static inline int cmos_poweroff(struct device *dev)

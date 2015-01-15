@@ -63,7 +63,7 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 	struct iio_hwmon_state *st;
 	struct sensor_device_attribute *a;
 	int ret, i;
-	int in_i = 1, temp_i = 1, curr_i = 1;
+	int in_i = 1, temp_i = 1, curr_i = 1, humidity_i = 1;
 	enum iio_chan_type type;
 	struct iio_channel *channels;
 	const char *name = "iio_hwmon";
@@ -123,6 +123,11 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 							  "curr%d_input",
 							  curr_i++);
 			break;
+		case IIO_HUMIDITYRELATIVE:
+			a->dev_attr.attr.name = kasprintf(GFP_KERNEL,
+							  "humidity%d_input",
+							  humidity_i++);
+			break;
 		default:
 			ret = -EINVAL;
 			goto error_release_channels;
@@ -172,7 +177,6 @@ MODULE_DEVICE_TABLE(of, iio_hwmon_of_match);
 static struct platform_driver __refdata iio_hwmon_driver = {
 	.driver = {
 		.name = "iio_hwmon",
-		.owner = THIS_MODULE,
 		.of_match_table = iio_hwmon_of_match,
 	},
 	.probe = iio_hwmon_probe,

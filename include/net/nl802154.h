@@ -1,126 +1,122 @@
+#ifndef __NL802154_H
+#define __NL802154_H
 /*
- * nl802154.h
+ * 802.15.4 netlink interface public header
  *
- * Copyright (C) 2007, 2008, 2009 Siemens AG
+ * Copyright 2014 Alexander Aring <aar@pengutronix.de>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
  */
 
-#ifndef IEEE802154_NL_H
-#define IEEE802154_NL_H
+#define NL802154_GENL_NAME "nl802154"
 
-struct net_device;
-struct ieee802154_addr;
+enum nl802154_commands {
+/* don't change the order or add anything between, this is ABI! */
+/* currently we don't shipping this file via uapi, ignore the above one */
+	NL802154_CMD_UNSPEC,
 
-/**
- * ieee802154_nl_assoc_indic - Notify userland of an association request.
- * @dev: The network device on which this association request was
- *       received.
- * @addr: The address of the device requesting association.
- * @cap: The capability information field from the device.
- *
- * This informs a userland coordinator of a device requesting to
- * associate with the PAN controlled by the coordinator.
- *
- * Note: This is in section 7.3.1 of the IEEE 802.15.4-2006 document.
- */
-int ieee802154_nl_assoc_indic(struct net_device *dev,
-		struct ieee802154_addr *addr, u8 cap);
+	NL802154_CMD_GET_WPAN_PHY,		/* can dump */
+	NL802154_CMD_SET_WPAN_PHY,
+	NL802154_CMD_NEW_WPAN_PHY,
+	NL802154_CMD_DEL_WPAN_PHY,
 
-/**
- * ieee802154_nl_assoc_confirm - Notify userland of association.
- * @dev: The device which has completed association.
- * @short_addr: The short address assigned to the device.
- * @status: The status of the association.
- *
- * Inform userland of the result of an association request. If the
- * association request included asking the coordinator to allocate
- * a short address then it is returned in @short_addr.
- *
- * Note: This is in section 7.3.2 of the IEEE 802.15.4 document.
- */
-int ieee802154_nl_assoc_confirm(struct net_device *dev,
-		__le16 short_addr, u8 status);
+	NL802154_CMD_GET_INTERFACE,		/* can dump */
+	NL802154_CMD_SET_INTERFACE,
+	NL802154_CMD_NEW_INTERFACE,
+	NL802154_CMD_DEL_INTERFACE,
 
-/**
- * ieee802154_nl_disassoc_indic - Notify userland of disassociation.
- * @dev: The device on which disassociation was indicated.
- * @addr: The device which is disassociating.
- * @reason: The reason for the disassociation.
- *
- * Inform userland that a device has disassociated from the network.
- *
- * Note: This is in section 7.3.3 of the IEEE 802.15.4 document.
- */
-int ieee802154_nl_disassoc_indic(struct net_device *dev,
-		struct ieee802154_addr *addr, u8 reason);
+	NL802154_CMD_SET_CHANNEL,
 
-/**
- * ieee802154_nl_disassoc_confirm - Notify userland of disassociation
- * completion.
- * @dev: The device on which disassociation was ordered.
- * @status: The result of the disassociation.
- *
- * Inform userland of the result of requesting that a device
- * disassociate, or the result of requesting that we disassociate from
- * a PAN managed by another coordinator.
- *
- * Note: This is in section 7.1.4.3 of the IEEE 802.15.4 document.
- */
-int ieee802154_nl_disassoc_confirm(struct net_device *dev,
-		u8 status);
+	NL802154_CMD_SET_PAN_ID,
+	NL802154_CMD_SET_SHORT_ADDR,
 
-/**
- * ieee802154_nl_scan_confirm - Notify userland of completion of scan.
- * @dev: The device which was instructed to scan.
- * @status: The status of the scan operation.
- * @scan_type: What type of scan was performed.
- * @unscanned: Any channels that the device was unable to scan.
- * @edl: The energy levels (if a passive scan).
- *
- *
- * Note: This is in section 7.1.11 of the IEEE 802.15.4 document.
- * Note: This API does not permit the return of an active scan result.
- */
-int ieee802154_nl_scan_confirm(struct net_device *dev,
-		u8 status, u8 scan_type, u32 unscanned, u8 page,
-		u8 *edl/*, struct list_head *pan_desc_list */);
+	NL802154_CMD_SET_TX_POWER,
+	NL802154_CMD_SET_CCA_MODE,
+	NL802154_CMD_SET_CCA_ED_LEVEL,
 
-/**
- * ieee802154_nl_beacon_indic - Notify userland of a received beacon.
- * @dev: The device on which a beacon was received.
- * @panid: The PAN of the coordinator.
- * @coord_addr: The short address of the coordinator on that PAN.
- *
- * Note: This is in section 7.1.5 of the IEEE 802.15.4 document.
- * Note: This API does not provide extended information such as what
- * channel the PAN is on or what the LQI of the beacon frame was on
- * receipt.
- * Note: This API cannot indicate a beacon frame for a coordinator
- *       operating in long addressing mode.
- */
-int ieee802154_nl_beacon_indic(struct net_device *dev, __le16 panid,
-		__le16 coord_addr);
+	NL802154_CMD_SET_MAX_FRAME_RETRIES,
 
-/**
- * ieee802154_nl_start_confirm - Notify userland of completion of start.
- * @dev: The device which was instructed to scan.
- * @status: The status of the scan operation.
- *
- * Note: This is in section 7.1.14 of the IEEE 802.15.4 document.
- */
-int ieee802154_nl_start_confirm(struct net_device *dev, u8 status);
+	NL802154_CMD_SET_BACKOFF_EXPONENT,
+	NL802154_CMD_SET_MAX_CSMA_BACKOFFS,
 
-#endif
+	NL802154_CMD_SET_LBT_MODE,
+
+	/* add new commands above here */
+
+	/* used to define NL802154_CMD_MAX below */
+	__NL802154_CMD_AFTER_LAST,
+	NL802154_CMD_MAX = __NL802154_CMD_AFTER_LAST - 1
+};
+
+enum nl802154_attrs {
+/* don't change the order or add anything between, this is ABI! */
+/* currently we don't shipping this file via uapi, ignore the above one */
+	NL802154_ATTR_UNSPEC,
+
+	NL802154_ATTR_WPAN_PHY,
+	NL802154_ATTR_WPAN_PHY_NAME,
+
+	NL802154_ATTR_IFINDEX,
+	NL802154_ATTR_IFNAME,
+	NL802154_ATTR_IFTYPE,
+
+	NL802154_ATTR_WPAN_DEV,
+
+	NL802154_ATTR_PAGE,
+	NL802154_ATTR_CHANNEL,
+
+	NL802154_ATTR_PAN_ID,
+	NL802154_ATTR_SHORT_ADDR,
+
+	NL802154_ATTR_TX_POWER,
+
+	NL802154_ATTR_CCA_MODE,
+	NL802154_ATTR_CCA_MODE3_AND,
+	NL802154_ATTR_CCA_ED_LEVEL,
+
+	NL802154_ATTR_MAX_FRAME_RETRIES,
+
+	NL802154_ATTR_MAX_BE,
+	NL802154_ATTR_MIN_BE,
+	NL802154_ATTR_MAX_CSMA_BACKOFFS,
+
+	NL802154_ATTR_LBT_MODE,
+
+	NL802154_ATTR_GENERATION,
+
+	NL802154_ATTR_CHANNELS_SUPPORTED,
+	NL802154_ATTR_SUPPORTED_CHANNEL,
+
+	NL802154_ATTR_EXTENDED_ADDR,
+
+	/* add attributes here, update the policy in nl802154.c */
+
+	__NL802154_ATTR_AFTER_LAST,
+	NL802154_ATTR_MAX = __NL802154_ATTR_AFTER_LAST - 1
+};
+
+enum nl802154_iftype {
+	/* for backwards compatibility TODO */
+	NL802154_IFTYPE_UNSPEC = -1,
+
+	NL802154_IFTYPE_NODE,
+	NL802154_IFTYPE_MONITOR,
+	NL802154_IFTYPE_COORD,
+
+	/* keep last */
+	NUM_NL802154_IFTYPES,
+	NL802154_IFTYPE_MAX = NUM_NL802154_IFTYPES - 1
+};
+
+#endif /* __NL802154_H */

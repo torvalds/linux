@@ -26,12 +26,10 @@ static int logon_vet_description(const char *desc);
  */
 struct key_type key_type_user = {
 	.name			= "user",
-	.def_lookup_type	= KEYRING_SEARCH_LOOKUP_DIRECT,
 	.preparse		= user_preparse,
 	.free_preparse		= user_free_preparse,
 	.instantiate		= generic_key_instantiate,
 	.update			= user_update,
-	.match			= user_match,
 	.revoke			= user_revoke,
 	.destroy		= user_destroy,
 	.describe		= user_describe,
@@ -48,12 +46,10 @@ EXPORT_SYMBOL_GPL(key_type_user);
  */
 struct key_type key_type_logon = {
 	.name			= "logon",
-	.def_lookup_type	= KEYRING_SEARCH_LOOKUP_DIRECT,
 	.preparse		= user_preparse,
 	.free_preparse		= user_free_preparse,
 	.instantiate		= generic_key_instantiate,
 	.update			= user_update,
-	.match			= user_match,
 	.revoke			= user_revoke,
 	.destroy		= user_destroy,
 	.describe		= user_describe,
@@ -137,16 +133,6 @@ error:
 }
 
 EXPORT_SYMBOL_GPL(user_update);
-
-/*
- * match users on their name
- */
-int user_match(const struct key *key, const void *description)
-{
-	return strcmp(key->description, description) == 0;
-}
-
-EXPORT_SYMBOL_GPL(user_match);
 
 /*
  * dispose of the links from a revoked keyring

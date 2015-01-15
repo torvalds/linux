@@ -845,7 +845,7 @@ static void ip6mr_destroy_unres(struct mr6_table *mrt, struct mfc6_cache *c)
 
 	atomic_dec(&mrt->cache_resolve_queue_len);
 
-	while((skb = skb_dequeue(&c->mfc_un.unres.unresolved)) != NULL) {
+	while ((skb = skb_dequeue(&c->mfc_un.unres.unresolved)) != NULL) {
 		if (ipv6_hdr(skb)->version == 0) {
 			struct nlmsghdr *nlh = (struct nlmsghdr *)skb_pull(skb, sizeof(struct ipv6hdr));
 			nlh->nlmsg_type = NLMSG_ERROR;
@@ -1103,7 +1103,7 @@ static void ip6mr_cache_resolve(struct net *net, struct mr6_table *mrt,
 	 *	Play the pending entries through our router
 	 */
 
-	while((skb = __skb_dequeue(&uc->mfc_un.unres.unresolved))) {
+	while ((skb = __skb_dequeue(&uc->mfc_un.unres.unresolved))) {
 		if (ipv6_hdr(skb)->version == 0) {
 			struct nlmsghdr *nlh = (struct nlmsghdr *)skb_pull(skb, sizeof(struct ipv6hdr));
 
@@ -1439,6 +1439,10 @@ reg_pernet_fail:
 
 void ip6_mr_cleanup(void)
 {
+	rtnl_unregister(RTNL_FAMILY_IP6MR, RTM_GETROUTE);
+#ifdef CONFIG_IPV6_PIMSM_V2
+	inet6_del_protocol(&pim6_protocol, IPPROTO_PIM);
+#endif
 	unregister_netdevice_notifier(&ip6_mr_notifier);
 	unregister_pernet_subsys(&ip6mr_net_ops);
 	kmem_cache_destroy(mrt_cachep);
@@ -2090,7 +2094,7 @@ static void ip6_mr_forward(struct net *net, struct mr6_table *mrt,
 	if (ipv6_addr_any(&cache->mf6c_origin) && true_vifi >= 0) {
 		struct mfc6_cache *cache_proxy;
 
-		/* For an (*,G) entry, we only check that the incomming
+		/* For an (*,G) entry, we only check that the incoming
 		 * interface is part of the static tree.
 		 */
 		cache_proxy = ip6mr_cache_find_any_parent(mrt, vif);

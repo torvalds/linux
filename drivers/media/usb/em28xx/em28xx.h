@@ -141,6 +141,8 @@
 #define EM28178_BOARD_PCTV_461E                   92
 #define EM2874_BOARD_KWORLD_UB435Q_V3		  93
 #define EM28178_BOARD_PCTV_292E                   94
+#define EM2861_BOARD_LEADTEK_VC100                95
+#define EM28178_BOARD_TERRATEC_T2_STICK_HD        96
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4
@@ -215,7 +217,6 @@ enum em28xx_mode {
 	EM28XX_DIGITAL_MODE,
 };
 
-
 struct em28xx;
 
 struct em28xx_usb_bufs {
@@ -243,11 +244,11 @@ struct em28xx_usb_ctl {
 	struct em28xx_usb_bufs		digital_bufs;
 
 		/* Stores already requested buffers */
-	struct em28xx_buffer    	*vid_buf;
-	struct em28xx_buffer    	*vbi_buf;
+	struct em28xx_buffer	*vid_buf;
+	struct em28xx_buffer	*vbi_buf;
 
 		/* copy data from URB */
-	int (*urb_data_copy) (struct em28xx *dev, struct urb *urb);
+	int (*urb_data_copy)(struct em28xx *dev, struct urb *urb);
 
 };
 
@@ -309,13 +310,18 @@ enum em28xx_ac97_mode {
 
 struct em28xx_audio_mode {
 	enum em28xx_ac97_mode ac97;
+};
 
-	u16 ac97_feat;
-	u32 ac97_vendor_id;
+enum em28xx_int_audio_type {
+	EM28XX_INT_AUDIO_NONE = 0,
+	EM28XX_INT_AUDIO_AC97,
+	EM28XX_INT_AUDIO_I2S,
+};
 
-	unsigned int has_audio:1;
-
-	u8 i2s_samplerates;
+enum em28xx_usb_audio_type {
+	EM28XX_USB_AUDIO_NONE = 0,
+	EM28XX_USB_AUDIO_CLASS,
+	EM28XX_USB_AUDIO_VENDOR,
 };
 
 /* em28xx has two audio inputs: tuner and line in.
@@ -608,9 +614,9 @@ struct em28xx {
 	unsigned int is_em25xx:1;	/* em25xx/em276x/7x/8x family bridge */
 	unsigned char disconnected:1;	/* device has been diconnected */
 	unsigned int has_video:1;
-	unsigned int has_audio_class:1;
-	unsigned int has_alsa_audio:1;
 	unsigned int is_audio_only:1;
+	enum em28xx_int_audio_type int_audio_type;
+	enum em28xx_usb_audio_type usb_audio_type;
 
 	struct em28xx_board board;
 
@@ -690,14 +696,14 @@ struct em28xx {
 	char urb_buf[URB_MAX_CTRL_SIZE];	/* urb control msg buffer */
 
 	/* helper funcs that call usb_control_msg */
-	int (*em28xx_write_regs) (struct em28xx *dev, u16 reg,
-					char *buf, int len);
-	int (*em28xx_read_reg) (struct em28xx *dev, u16 reg);
-	int (*em28xx_read_reg_req_len) (struct em28xx *dev, u8 req, u16 reg,
-					char *buf, int len);
-	int (*em28xx_write_regs_req) (struct em28xx *dev, u8 req, u16 reg,
-				      char *buf, int len);
-	int (*em28xx_read_reg_req) (struct em28xx *dev, u8 req, u16 reg);
+	int (*em28xx_write_regs)(struct em28xx *dev, u16 reg,
+				 char *buf, int len);
+	int (*em28xx_read_reg)(struct em28xx *dev, u16 reg);
+	int (*em28xx_read_reg_req_len)(struct em28xx *dev, u8 req, u16 reg,
+				       char *buf, int len);
+	int (*em28xx_write_regs_req)(struct em28xx *dev, u8 req, u16 reg,
+				     char *buf, int len);
+	int (*em28xx_read_reg_req)(struct em28xx *dev, u8 req, u16 reg);
 
 	enum em28xx_mode mode;
 
@@ -740,7 +746,7 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 int em28xx_write_regs(struct em28xx *dev, u16 reg, char *buf, int len);
 int em28xx_write_reg(struct em28xx *dev, u16 reg, u8 val);
 int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
-				 u8 bitmask);
+			  u8 bitmask);
 int em28xx_toggle_reg_bits(struct em28xx *dev, u16 reg, u8 bitmask);
 
 int em28xx_read_ac97(struct em28xx *dev, u8 reg);

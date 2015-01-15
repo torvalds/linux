@@ -3,6 +3,24 @@
  *
  * Definitions used for the Xen ELF notes.
  *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to
+ * deal in the Software without restriction, including without limitation the
+ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+ * sell copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ *
  * Copyright (c) 2006, Ian Campbell, XenSource Ltd.
  */
 
@@ -18,12 +36,13 @@
  *
  * LEGACY indicated the fields in the legacy __xen_guest string which
  * this a note type replaces.
+ *
+ * String values (for non-legacy) are NULL terminated ASCII, also known
+ * as ASCIZ type.
  */
 
 /*
  * NAME=VALUE pair (string).
- *
- * LEGACY: FEATURES and PAE
  */
 #define XEN_ELFNOTE_INFO           0
 
@@ -137,8 +156,28 @@
 
 /*
  * Whether or not the guest supports cooperative suspend cancellation.
+ * This is a numeric value.
+ *
+ * Default is 0
  */
 #define XEN_ELFNOTE_SUSPEND_CANCEL 14
+
+/*
+ * The (non-default) location the initial phys-to-machine map should be
+ * placed at by the hypervisor (Dom0) or the tools (DomU).
+ * The kernel must be prepared for this mapping to be established using
+ * large pages, despite such otherwise not being available to guests.
+ * The kernel must also be able to handle the page table pages used for
+ * this mapping not being accessible through the initial mapping.
+ * (Only x86-64 supports this at present.)
+ */
+#define XEN_ELFNOTE_INIT_P2M      15
+
+/*
+ * Whether or not the guest can deal with being passed an initrd not
+ * mapped through its initial page tables.
+ */
+#define XEN_ELFNOTE_MOD_START_PFN 16
 
 /*
  * The features supported by this kernel (numeric).
@@ -152,6 +191,11 @@
  * LEGACY: FEATURES
  */
 #define XEN_ELFNOTE_SUPPORTED_FEATURES 17
+
+/*
+ * The number of the highest elfnote defined.
+ */
+#define XEN_ELFNOTE_MAX XEN_ELFNOTE_SUPPORTED_FEATURES
 
 #endif /* __XEN_PUBLIC_ELFNOTE_H__ */
 

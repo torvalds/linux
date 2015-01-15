@@ -78,7 +78,7 @@ void __init opal_nvram_init(void)
 	}
 	nvram_size = be32_to_cpup(nbytes_p);
 
-	printk(KERN_INFO "OPAL nvram setup, %u bytes\n", nvram_size);
+	pr_info("OPAL nvram setup, %u bytes\n", nvram_size);
 	of_node_put(np);
 
 	ppc_md.nvram_read = opal_nvram_read;

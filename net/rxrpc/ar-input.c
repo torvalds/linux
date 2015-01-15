@@ -45,7 +45,7 @@ int rxrpc_queue_rcv_skb(struct rxrpc_call *call, struct sk_buff *skb,
 	struct rxrpc_skb_priv *sp;
 	struct rxrpc_sock *rx = call->socket;
 	struct sock *sk;
-	int skb_len, ret;
+	int ret;
 
 	_enter(",,%d,%d", force, terminal);
 
@@ -101,13 +101,6 @@ int rxrpc_queue_rcv_skb(struct rxrpc_call *call, struct sk_buff *skb,
 			rx->interceptor(sk, call->user_call_ID, skb);
 			spin_unlock_bh(&sk->sk_receive_queue.lock);
 		} else {
-
-			/* Cache the SKB length before we tack it onto the
-			 * receive queue.  Once it is added it no longer
-			 * belongs to us and may be freed by other threads of
-			 * control pulling packets from the queue */
-			skb_len = skb->len;
-
 			_net("post skb %p", skb);
 			__skb_queue_tail(&sk->sk_receive_queue, skb);
 			spin_unlock_bh(&sk->sk_receive_queue.lock);

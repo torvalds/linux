@@ -39,7 +39,7 @@ static bool i8042_noaux;
 module_param_named(noaux, i8042_noaux, bool, 0);
 MODULE_PARM_DESC(noaux, "Do not probe or use AUX (mouse) port.");
 
-static bool i8042_nomux = true;
+static bool i8042_nomux;
 module_param_named(nomux, i8042_nomux, bool, 0);
 MODULE_PARM_DESC(nomux, "Do not check whether an active multiplexing controller is present.");
 
@@ -1463,7 +1463,6 @@ static int i8042_remove(struct platform_device *dev)
 static struct platform_driver i8042_driver = {
 	.driver		= {
 		.name	= "i8042",
-		.owner	= THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm	= &i8042_pm_ops,
 #endif

@@ -490,7 +490,7 @@ static int budget_patch_attach (struct saa7146_dev* dev, struct saa7146_pci_exte
 
 	if(detected == 0)
 		printk("budget-patch not detected or saa7146 in non-default state.\n"
-		       "try enabling ressetting of 7146 with MASK_31 in MC1 register\n");
+		       "try enabling resetting of 7146 with MASK_31 in MC1 register\n");
 
 	else
 		printk("BUDGET-PATCH DETECTED.\n");

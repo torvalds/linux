@@ -1,5 +1,5 @@
 /*
-    Driver for Silicon Labs SI2165 DVB-C/-T Demodulator
+    Driver for Silicon Labs Si2161 DVB-T and Si2165 DVB-C/-T Demodulator
 
     Copyright (C) 2013-2014 Matthias Schwarzott <zzam@gentoo.org>
 
@@ -44,9 +44,7 @@ struct si2165_state {
 
 	struct si2165_config config;
 
-	/* chip revision */
-	u8 revcode;
-	/* chip type */
+	u8 chip_revcode;
 	u8 chip_type;
 
 	/* calculated by xtal and div settings */
@@ -312,7 +310,7 @@ static u32 si2165_get_fe_clk(struct si2165_state *state)
 	return state->adc_clk;
 }
 
-static bool si2165_wait_init_done(struct si2165_state *state)
+static int si2165_wait_init_done(struct si2165_state *state)
 {
 	int ret = -EINVAL;
 	u8 val = 0;
@@ -407,7 +405,7 @@ static int si2165_upload_firmware(struct si2165_state *state)
 	int ret;
 
 	const struct firmware *fw = NULL;
-	u8 *fw_file = SI2165_FIRMWARE;
+	u8 *fw_file;
 	const u8 *data;
 	u32 len;
 	u32 offset;
@@ -415,10 +413,20 @@ static int si2165_upload_firmware(struct si2165_state *state)
 	u8 block_count;
 	u16 crc_expected;
 
+	switch (state->chip_revcode) {
+	case 0x03: /* revision D */
+		fw_file = SI2165_FIRMWARE_REV_D;
+		break;
+	default:
+		dev_info(&state->i2c->dev, "%s: no firmware file for revision=%d\n",
+			KBUILD_MODNAME, state->chip_revcode);
+		return 0;
+	}
+
 	/* request the firmware, this will block and timeout */
 	ret = request_firmware(&fw, fw_file, state->i2c->dev.parent);
 	if (ret) {
-		dev_warn(&state->i2c->dev, "%s: firmare file '%s' not found\n",
+		dev_warn(&state->i2c->dev, "%s: firmware file '%s' not found\n",
 				KBUILD_MODNAME, fw_file);
 		goto error;
 	}
@@ -908,7 +916,7 @@ static void si2165_release(struct dvb_frontend *fe)
 
 static struct dvb_frontend_ops si2165_ops = {
 	.info = {
-		.name = "Silicon Labs Si2165",
+		.name = "Silicon Labs ",
 		.caps =	FE_CAN_FEC_1_2 |
 			FE_CAN_FEC_2_3 |
 			FE_CAN_FEC_3_4 |
@@ -948,6 +956,8 @@ struct dvb_frontend *si2165_attach(const struct si2165_config *config,
 	int n;
 	int io_ret;
 	u8 val;
+	char rev_char;
+	const char *chip_name;
 
 	if (config == NULL || i2c == NULL)
 		goto error;
@@ -984,7 +994,7 @@ struct dvb_frontend *si2165_attach(const struct si2165_config *config,
 	if (val != state->config.chip_mode)
 		goto error;
 
-	io_ret = si2165_readreg8(state, 0x0023 , &state->revcode);
+	io_ret = si2165_readreg8(state, 0x0023, &state->chip_revcode);
 	if (io_ret < 0)
 		goto error;
 
@@ -997,21 +1007,34 @@ struct dvb_frontend *si2165_attach(const struct si2165_config *config,
 	if (io_ret < 0)
 		goto error;
 
-	dev_info(&state->i2c->dev, "%s: hardware revision 0x%02x, chip type 0x%02x\n",
-		 KBUILD_MODNAME, state->revcode, state->chip_type);
+	if (state->chip_revcode < 26)
+		rev_char = 'A' + state->chip_revcode;
+	else
+		rev_char = '?';
 
-	/* It is a guess that register 0x0118 (chip type?) can be used to
-	 * differ between si2161, si2163 and si2165
-	 * Only si2165 has been tested.
-	 */
-	if (state->revcode == 0x03 && state->chip_type == 0x07) {
+	switch (state->chip_type) {
+	case 0x06:
+		chip_name = "Si2161";
+		state->has_dvbt = true;
+		break;
+	case 0x07:
+		chip_name = "Si2165";
 		state->has_dvbt = true;
 		state->has_dvbc = true;
-	} else {
-		dev_err(&state->i2c->dev, "%s: Unsupported chip.\n",
-			KBUILD_MODNAME);
+		break;
+	default:
+		dev_err(&state->i2c->dev, "%s: Unsupported Silicon Labs chip (type %d, rev %d)\n",
+			KBUILD_MODNAME, state->chip_type, state->chip_revcode);
 		goto error;
 	}
+
+	dev_info(&state->i2c->dev,
+		"%s: Detected Silicon Labs %s-%c (type %d, rev %d)\n",
+		KBUILD_MODNAME, chip_name, rev_char, state->chip_type,
+		state->chip_revcode);
+
+	strlcat(state->frontend.ops.info.name, chip_name,
+			sizeof(state->frontend.ops.info.name));
 
 	n = 0;
 	if (state->has_dvbt) {
@@ -1037,4 +1060,4 @@ MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
 MODULE_DESCRIPTION("Silicon Labs Si2165 DVB-C/-T Demodulator driver");
 MODULE_AUTHOR("Matthias Schwarzott <zzam@gentoo.org>");
 MODULE_LICENSE("GPL");
-MODULE_FIRMWARE(SI2165_FIRMWARE);
+MODULE_FIRMWARE(SI2165_FIRMWARE_REV_D);

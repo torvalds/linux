@@ -17,6 +17,11 @@ extern int rtnl_put_cacheinfo(struct sk_buff *skb, struct dst_entry *dst,
 			      u32 id, long expires, u32 error);
 
 void rtmsg_ifinfo(int type, struct net_device *dev, unsigned change, gfp_t flags);
+struct sk_buff *rtmsg_ifinfo_build_skb(int type, struct net_device *dev,
+				       unsigned change, gfp_t flags);
+void rtmsg_ifinfo_send(struct sk_buff *skb, struct net_device *dev,
+		       gfp_t flags);
+
 
 /* RTNL is used as a global lock for all changes to network configuration  */
 extern void rtnl_lock(void);
@@ -45,6 +50,16 @@ static inline int lockdep_rtnl_is_held(void)
  */
 #define rcu_dereference_rtnl(p)					\
 	rcu_dereference_check(p, lockdep_rtnl_is_held())
+
+/**
+ * rcu_dereference_bh_rtnl - rcu_dereference_bh with debug checking
+ * @p: The pointer to read, prior to dereference
+ *
+ * Do an rcu_dereference_bh(p), but check caller either holds rcu_read_lock_bh()
+ * or RTNL. Note : Please prefer rtnl_dereference() or rcu_dereference_bh()
+ */
+#define rcu_dereference_bh_rtnl(p)				\
+	rcu_dereference_bh_check(p, lockdep_rtnl_is_held())
 
 /**
  * rtnl_dereference - fetch RCU pointer when updates are prevented by RTNL
@@ -84,12 +99,15 @@ extern int ndo_dflt_fdb_add(struct ndmsg *ndm,
 			    struct nlattr *tb[],
 			    struct net_device *dev,
 			    const unsigned char *addr,
-			     u16 flags);
+			    u16 vid,
+			    u16 flags);
 extern int ndo_dflt_fdb_del(struct ndmsg *ndm,
 			    struct nlattr *tb[],
 			    struct net_device *dev,
-			    const unsigned char *addr);
+			    const unsigned char *addr,
+			    u16 vid);
 
 extern int ndo_dflt_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
-				   struct net_device *dev, u16 mode);
+				   struct net_device *dev, u16 mode,
+				   u32 flags, u32 mask);
 #endif	/* __LINUX_RTNETLINK_H */

@@ -55,7 +55,7 @@ static int soc_button_lookup_gpio(struct device *dev, int acpi_index)
 	struct gpio_desc *desc;
 	int gpio;
 
-	desc = gpiod_get_index(dev, KBUILD_MODNAME, acpi_index);
+	desc = gpiod_get_index(dev, KBUILD_MODNAME, acpi_index, GPIOD_ASIS);
 	if (IS_ERR(desc))
 		return PTR_ERR(desc);
 
@@ -214,7 +214,6 @@ static struct platform_driver soc_button_driver = {
 	.remove		= soc_button_remove,
 	.driver		= {
 		.name = KBUILD_MODNAME,
-		.owner = THIS_MODULE,
 		.acpi_match_table = ACPI_PTR(soc_button_acpi_match),
 	},
 };

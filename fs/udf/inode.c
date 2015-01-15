@@ -1277,7 +1277,7 @@ update_time:
  */
 #define UDF_MAX_ICB_NESTING 1024
 
-static int udf_read_inode(struct inode *inode)
+static int udf_read_inode(struct inode *inode, bool hidden_inode)
 {
 	struct buffer_head *bh = NULL;
 	struct fileEntry *fe;
@@ -1436,8 +1436,11 @@ reread:
 
 	link_count = le16_to_cpu(fe->fileLinkCount);
 	if (!link_count) {
-		ret = -ESTALE;
-		goto out;
+		if (!hidden_inode) {
+			ret = -ESTALE;
+			goto out;
+		}
+		link_count = 1;
 	}
 	set_nlink(inode, link_count);
 
@@ -1485,6 +1488,20 @@ reread:
 		iinfo->i_checkpoint = le32_to_cpu(efe->checkpoint);
 	}
 	inode->i_generation = iinfo->i_unique;
+
+	/* Sanity checks for files in ICB so that we don't get confused later */
+	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
+		/*
+		 * For file in ICB data is stored in allocation descriptor
+		 * so sizes should match
+		 */
+		if (iinfo->i_lenAlloc != inode->i_size)
+			goto out;
+		/* File in ICB has to fit in there... */
+		if (inode->i_size > inode->i_sb->s_blocksize -
+					udf_file_entry_alloc_offset(inode))
+			goto out;
+	}
 
 	switch (fe->icbTag.fileType) {
 	case ICBTAG_FILE_TYPE_DIRECTORY:
@@ -1826,7 +1843,8 @@ out:
 	return err;
 }
 
-struct inode *udf_iget(struct super_block *sb, struct kernel_lb_addr *ino)
+struct inode *__udf_iget(struct super_block *sb, struct kernel_lb_addr *ino,
+			 bool hidden_inode)
 {
 	unsigned long block = udf_get_lb_pblock(sb, ino, 0);
 	struct inode *inode = iget_locked(sb, block);
@@ -1839,7 +1857,7 @@ struct inode *udf_iget(struct super_block *sb, struct kernel_lb_addr *ino)
 		return inode;
 
 	memcpy(&UDF_I(inode)->i_location, ino, sizeof(struct kernel_lb_addr));
-	err = udf_read_inode(inode);
+	err = udf_read_inode(inode, hidden_inode);
 	if (err < 0) {
 		iget_failed(inode);
 		return ERR_PTR(err);
