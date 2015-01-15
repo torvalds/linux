@@ -62,26 +62,6 @@ struct evdev_client {
 	struct input_event buffer[];
 };
 
-static int evdev_set_clk_type(struct evdev_client *client, unsigned int clkid)
-{
-	switch (clkid) {
-
-	case CLOCK_REALTIME:
-		client->clk_type = EV_CLK_REAL;
-		break;
-	case CLOCK_MONOTONIC:
-		client->clk_type = EV_CLK_MONO;
-		break;
-	case CLOCK_BOOTTIME:
-		client->clk_type = EV_CLK_BOOT;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 /* flush queued events of type @type, caller must hold client->buffer_lock */
 static void __evdev_flush_queue(struct evdev_client *client, unsigned int type)
 {
@@ -128,8 +108,8 @@ static void __evdev_flush_queue(struct evdev_client *client, unsigned int type)
 	client->head = head;
 }
 
-/* queue SYN_DROPPED event */
-static void evdev_queue_syn_dropped(struct evdev_client *client)
+/* queue SYN_DROPPED event and flush queue if flush parameter is true */
+static void evdev_queue_syn_dropped(struct evdev_client *client, bool flush)
 {
 	unsigned long flags;
 	struct input_event ev;
@@ -148,6 +128,9 @@ static void evdev_queue_syn_dropped(struct evdev_client *client)
 
 	spin_lock_irqsave(&client->buffer_lock, flags);
 
+	if (flush)
+		client->packet_head = client->head = client->tail;
+
 	client->buffer[client->head++] = ev;
 	client->head &= client->bufsize - 1;
 
@@ -158,6 +141,32 @@ static void evdev_queue_syn_dropped(struct evdev_client *client)
 	}
 
 	spin_unlock_irqrestore(&client->buffer_lock, flags);
+}
+
+static int evdev_set_clk_type(struct evdev_client *client, unsigned int clkid)
+{
+	if (client->clk_type == clkid)
+		return 0;
+
+	switch (clkid) {
+
+	case CLOCK_REALTIME:
+		client->clk_type = EV_CLK_REAL;
+		break;
+	case CLOCK_MONOTONIC:
+		client->clk_type = EV_CLK_MONO;
+		break;
+	case CLOCK_BOOTTIME:
+		client->clk_type = EV_CLK_BOOT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* Flush pending events and queue SYN_DROPPED event.*/
+	evdev_queue_syn_dropped(client, true);
+
+	return 0;
 }
 
 static void __pass_event(struct evdev_client *client,
@@ -794,7 +803,7 @@ static int evdev_handle_get_val(struct evdev_client *client,
 
 	ret = bits_to_user(mem, maxbit, maxlen, p, compat);
 	if (ret < 0)
-		evdev_queue_syn_dropped(client);
+		evdev_queue_syn_dropped(client, false);
 
 	kfree(mem);
 
