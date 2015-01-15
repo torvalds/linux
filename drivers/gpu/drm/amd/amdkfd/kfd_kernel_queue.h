@@ -61,8 +61,6 @@ struct kernel_queue_ops {
 					unsigned int **buffer_ptr);
 
 	void	(*submit_packet)(struct kernel_queue *kq);
-	int	(*sync_with_hw)(struct kernel_queue *kq,
-				unsigned long timeout_ms);
 	void	(*rollback_packet)(struct kernel_queue *kq);
 };
 

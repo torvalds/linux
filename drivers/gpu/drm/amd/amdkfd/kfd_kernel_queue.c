@@ -262,28 +262,6 @@ static void submit_packet(struct kernel_queue *kq)
 				kq->pending_wptr);
 }
 
-static int sync_with_hw(struct kernel_queue *kq, unsigned long timeout_ms)
-{
-	unsigned long org_timeout_ms;
-
-	BUG_ON(!kq);
-
-	org_timeout_ms = timeout_ms;
-	timeout_ms += jiffies * 1000 / HZ;
-	while (*kq->wptr_kernel != *kq->rptr_kernel) {
-		if (time_after(jiffies * 1000 / HZ, timeout_ms)) {
-			pr_err("kfd: kernel_queue %s timeout expired %lu\n",
-				__func__, org_timeout_ms);
-			pr_err("kfd: wptr: %d rptr: %d\n",
-				*kq->wptr_kernel, *kq->rptr_kernel);
-			return -ETIME;
-		}
-		schedule();
-	}
-
-	return 0;
-}
-
 static void rollback_packet(struct kernel_queue *kq)
 {
 	BUG_ON(!kq);
@@ -305,7 +283,6 @@ struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 	kq->ops.uninitialize = uninitialize;
 	kq->ops.acquire_packet_buffer = acquire_packet_buffer;
 	kq->ops.submit_packet = submit_packet;
-	kq->ops.sync_with_hw = sync_with_hw;
 	kq->ops.rollback_packet = rollback_packet;
 
 	switch (dev->device_info->asic_family) {
@@ -349,7 +326,6 @@ static __attribute__((unused)) void test_kq(struct kfd_dev *dev)
 	for (i = 0; i < 5; i++)
 		buffer[i] = kq->nop_packet;
 	kq->ops.submit_packet(kq);
-	kq->ops.sync_with_hw(kq, 1000);
 
 	pr_err("kfd: ending kernel queue test\n");
 }

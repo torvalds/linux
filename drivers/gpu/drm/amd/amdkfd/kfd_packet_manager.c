@@ -376,7 +376,6 @@ int pm_send_set_resources(struct packet_manager *pm,
 	packet->queue_mask_hi = upper_32_bits(res->queue_mask);
 
 	pm->priv_queue->ops.submit_packet(pm->priv_queue);
-	pm->priv_queue->ops.sync_with_hw(pm->priv_queue, KFD_HIQ_TIMEOUT);
 
 	mutex_unlock(&pm->lock);
 
@@ -413,7 +412,6 @@ int pm_send_runlist(struct packet_manager *pm, struct list_head *dqm_queues)
 		goto fail_create_runlist;
 
 	pm->priv_queue->ops.submit_packet(pm->priv_queue);
-	pm->priv_queue->ops.sync_with_hw(pm->priv_queue, KFD_HIQ_TIMEOUT);
 
 	mutex_unlock(&pm->lock);
 
@@ -460,7 +458,6 @@ int pm_send_query_status(struct packet_manager *pm, uint64_t fence_address,
 	packet->data_lo = lower_32_bits((uint64_t)fence_value);
 
 	pm->priv_queue->ops.submit_packet(pm->priv_queue);
-	pm->priv_queue->ops.sync_with_hw(pm->priv_queue, KFD_HIQ_TIMEOUT);
 	mutex_unlock(&pm->lock);
 
 	return 0;
@@ -538,7 +535,6 @@ int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
 	};
 
 	pm->priv_queue->ops.submit_packet(pm->priv_queue);
-	pm->priv_queue->ops.sync_with_hw(pm->priv_queue, KFD_HIQ_TIMEOUT);
 
 	mutex_unlock(&pm->lock);
 	return 0;
