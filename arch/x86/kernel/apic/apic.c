@@ -1480,6 +1480,14 @@ static bool nox2apic __initdata;
 #ifdef CONFIG_X86_X2APIC
 int x2apic_mode;
 static int x2apic_disabled;
+
+enum {
+	X2APIC_OFF,
+	X2APIC_ON,
+	X2APIC_DISABLED,
+};
+static int x2apic_state;
+
 static int __init setup_nox2apic(char *str)
 {
 	if (x2apic_enabled()) {
@@ -1496,7 +1504,7 @@ static int __init setup_nox2apic(char *str)
 		setup_clear_cpu_cap(X86_FEATURE_X2APIC);
 
 	nox2apic = true;
-
+	x2apic_state = X2APIC_DISABLED;
 	return 0;
 }
 early_param("nox2apic", setup_nox2apic);
@@ -1539,6 +1547,7 @@ static __init void disable_x2apic(void)
 	}
 
 	x2apic_disabled = 1;
+	x2apic_state = X2APIC_DISABLED;
 }
 
 void enable_x2apic(void)
@@ -1559,6 +1568,7 @@ void enable_x2apic(void)
 		printk_once(KERN_INFO "Enabling x2apic\n");
 		wrmsrl(MSR_IA32_APICBASE, msr | X2APIC_ENABLE);
 	}
+	x2apic_state = X2APIC_ON;
 }
 
 static __init void try_to_enable_x2apic(int remap_mode)
@@ -1597,6 +1607,9 @@ void __init check_x2apic(void)
 	if (x2apic_enabled()) {
 		pr_info("x2apic: enabled by BIOS, switching to x2apic ops\n");
 		x2apic_mode = 1;
+		x2apic_state = X2APIC_ON;
+	} else if (!cpu_has_x2apic) {
+		x2apic_state = X2APIC_DISABLED;
 	}
 }
 #else /* CONFIG_X86_X2APIC */
