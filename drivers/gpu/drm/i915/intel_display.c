@@ -8931,6 +8931,7 @@ static void intel_crtc_set_state(struct intel_crtc *crtc,
 {
 	kfree(crtc->config);
 	crtc->config = crtc_state;
+	crtc->base.state = &crtc_state->base;
 }
 
 static void intel_crtc_destroy(struct drm_crtc *crtc)
