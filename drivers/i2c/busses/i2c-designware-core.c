@@ -285,6 +285,15 @@ int i2c_dw_init(struct dw_i2c_dev *dev)
 	u32 hcnt, lcnt;
 	u32 reg;
 	u32 sda_falling_time, scl_falling_time;
+	int ret;
+
+	if (dev->acquire_lock) {
+		ret = dev->acquire_lock(dev);
+		if (ret) {
+			dev_err(dev->dev, "couldn't acquire bus ownership\n");
+			return ret;
+		}
+	}
 
 	input_clock_khz = dev->get_clk_rate_khz(dev);
 
@@ -298,6 +307,8 @@ int i2c_dw_init(struct dw_i2c_dev *dev)
 	} else if (reg != DW_IC_COMP_TYPE_VALUE) {
 		dev_err(dev->dev, "Unknown Synopsys component type: "
 			"0x%08x\n", reg);
+		if (dev->release_lock)
+			dev->release_lock(dev);
 		return -ENODEV;
 	}
 
@@ -364,6 +375,9 @@ int i2c_dw_init(struct dw_i2c_dev *dev)
 
 	/* configure the i2c master */
 	dw_writel(dev, dev->master_cfg , DW_IC_CON);
+
+	if (dev->release_lock)
+		dev->release_lock(dev);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(i2c_dw_init);
@@ -627,6 +641,14 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	dev->abort_source = 0;
 	dev->rx_outstanding = 0;
 
+	if (dev->acquire_lock) {
+		ret = dev->acquire_lock(dev);
+		if (ret) {
+			dev_err(dev->dev, "couldn't acquire bus ownership\n");
+			goto done_nolock;
+		}
+	}
+
 	ret = i2c_dw_wait_bus_not_busy(dev);
 	if (ret < 0)
 		goto done;
@@ -672,6 +694,10 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	ret = -EIO;
 
 done:
+	if (dev->release_lock)
+		dev->release_lock(dev);
+
+done_nolock:
 	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
 	mutex_unlock(&dev->lock);
