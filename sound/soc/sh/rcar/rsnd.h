@@ -190,9 +190,9 @@ void  rsnd_dma_quit(struct rsnd_priv *priv,
  *	R-Car sound mod
  */
 enum rsnd_mod_type {
-	RSND_MOD_SRC = 0,
+	RSND_MOD_DVC = 0,
+	RSND_MOD_SRC,
 	RSND_MOD_SSI,
-	RSND_MOD_DVC,
 	RSND_MOD_MAX,
 };
 
