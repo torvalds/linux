@@ -136,9 +136,28 @@ static void arm64_memory_present(void)
 }
 #endif
 
+static phys_addr_t memory_limit = (phys_addr_t)ULLONG_MAX;
+
+/*
+ * Limit the memory size that was specified via FDT.
+ */
+static int __init early_mem(char *p)
+{
+	if (!p)
+		return 1;
+
+	memory_limit = memparse(p, &p) & PAGE_MASK;
+	pr_notice("Memory limited to %lldMB\n", memory_limit >> 20);
+
+	return 0;
+}
+early_param("mem", early_mem);
+
 void __init arm64_memblock_init(void)
 {
 	phys_addr_t dma_phys_limit = 0;
+
+	memblock_enforce_memory_limit(memory_limit);
 
 	/*
 	 * Register the kernel text, kernel data, initrd, and initial
