@@ -525,6 +525,7 @@ struct f2fs_sb_info {
 	struct f2fs_super_block *raw_super;	/* raw super block pointer */
 	int s_dirty;				/* dirty flag for checkpoint */
 	bool need_fsck;				/* need fsck.f2fs to fix */
+	bool s_closing;				/* specify unmounting */
 
 	/* for node-related operations */
 	struct f2fs_nm_info *nm_info;		/* node manager */
