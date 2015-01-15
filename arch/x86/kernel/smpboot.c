@@ -1147,7 +1147,7 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 		return;
 	case SMP_FORCE_UP:
 		disable_smp();
-		apic_bsp_setup();
+		apic_bsp_setup(false);
 		return;
 	case SMP_OK:
 		break;
@@ -1161,7 +1161,7 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 		/* Or can we switch back to PIC here? */
 	}
 
-	cpu0_logical_apicid = apic_bsp_setup();
+	cpu0_logical_apicid = apic_bsp_setup(false);
 
 	/*
 	 * Set up local APIC timer on boot CPU.

@@ -215,7 +215,7 @@ extern void setup_secondary_APIC_clock(void);
 extern int APIC_init_uniprocessor(void);
 extern int apic_force_enable(unsigned long addr);
 
-extern int apic_bsp_setup(void);
+extern int apic_bsp_setup(bool upmode);
 extern void apic_ap_setup(void);
 
 /*
