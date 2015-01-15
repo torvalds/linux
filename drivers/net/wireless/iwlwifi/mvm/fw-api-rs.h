@@ -308,6 +308,17 @@ enum {
 #define LQ_FLAG_DYNAMIC_BW_POS          6
 #define LQ_FLAG_DYNAMIC_BW_MSK          (1 << LQ_FLAG_DYNAMIC_BW_POS)
 
+/* Single Stream Parameters
+ * SS_STBC/BFER_ALLOWED - Controls whether STBC or Beamformer (BFER) is allowed
+ * ucode will make a smart decision between SISO/STBC/BFER
+ * SS_PARAMS_VALID - if not set ignore the ss_params field.
+ */
+enum {
+	RS_SS_STBC_ALLOWED = BIT(0),
+	RS_SS_BFER_ALLOWED = BIT(1),
+	RS_SS_PARAMS_VALID = BIT(31),
+};
+
 /**
  * struct iwl_lq_cmd - link quality command
  * @sta_id: station to update
@@ -330,7 +341,7 @@ enum {
  *	2 - 0x3f: maximal number of frames (up to 3f == 63)
  * @rs_table: array of rates for each TX try, each is rate_n_flags,
  *	meaning it is a combination of RATE_MCS_* and IWL_RATE_*_PLCP
- * @bf_params: beam forming params, currently not used
+ * @ss_params: single stream features. declare whether STBC or BFER are allowed.
  */
 struct iwl_lq_cmd {
 	u8 sta_id;
@@ -348,6 +359,6 @@ struct iwl_lq_cmd {
 	u8 agg_frame_cnt_limit;
 	__le32 reserved2;
 	__le32 rs_table[LQ_MAX_RETRY_NUM];
-	__le32 bf_params;
+	__le32 ss_params;
 }; /* LINK_QUALITY_CMD_API_S_VER_1 */
 #endif /* __fw_api_rs_h__ */

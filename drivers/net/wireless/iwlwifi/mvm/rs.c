@@ -2868,11 +2868,23 @@ static void rs_build_rates_table(struct iwl_mvm *mvm,
 	u8 valid_tx_ant = 0;
 	struct iwl_lq_cmd *lq_cmd = &lq_sta->lq;
 	bool toggle_ant = false;
+	bool stbc_allowed = false;
 
 	memcpy(&rate, initial_rate, sizeof(rate));
 
 	valid_tx_ant = iwl_mvm_get_valid_tx_ant(mvm);
-	rate.stbc = rs_stbc_allow(mvm, sta, lq_sta);
+
+	stbc_allowed = rs_stbc_allow(mvm, sta, lq_sta);
+	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LQ_SS_PARAMS) {
+		u32 ss_params = RS_SS_PARAMS_VALID;
+
+		if (stbc_allowed)
+			ss_params |= RS_SS_STBC_ALLOWED;
+		lq_cmd->ss_params = cpu_to_le32(ss_params);
+	} else {
+		/* TODO: remove old API when min FW API hits 14 */
+		rate.stbc = stbc_allowed;
+	}
 
 	if (is_siso(&rate)) {
 		num_rates = IWL_MVM_RS_INITIAL_SISO_NUM_RATES;
