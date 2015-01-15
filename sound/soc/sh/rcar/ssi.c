@@ -327,7 +327,8 @@ static int rsnd_ssi_quit(struct rsnd_mod *mod,
 	struct device *dev = rsnd_priv_to_dev(priv);
 
 	if (ssi->err > 0)
-		dev_warn(dev, "ssi under/over flow err = %d\n", ssi->err);
+		dev_warn(dev, "%s[%d] under/over flow err = %d\n",
+			 rsnd_mod_name(mod), rsnd_mod_id(mod), ssi->err);
 
 	ssi->cr_own	= 0;
 	ssi->err	= 0;

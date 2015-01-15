@@ -302,7 +302,8 @@ static int rsnd_src_quit(struct rsnd_mod *mod,
 	rsnd_mod_hw_stop(mod);
 
 	if (src->err)
-		dev_warn(dev, "src under/over flow err = %d\n", src->err);
+		dev_warn(dev, "%s[%d] under/over flow err = %d\n",
+			 rsnd_mod_name(mod), rsnd_mod_id(mod), src->err);
 
 	return 0;
 }
