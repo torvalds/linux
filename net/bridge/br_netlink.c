@@ -569,6 +569,11 @@ int br_dellink(struct net_device *dev, struct nlmsghdr *nlh)
 
 	err = br_afspec((struct net_bridge *)netdev_priv(dev), p,
 			afspec, RTM_DELLINK);
+	if (err == 0)
+		/* Send RTM_NEWLINK because userspace
+		 * expects RTM_NEWLINK for vlan dels
+		 */
+		br_ifinfo_notify(RTM_NEWLINK, p);
 
 	return err;
 }
