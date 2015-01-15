@@ -26,6 +26,7 @@
 #include <linux/types.h>
 #include <linux/printk.h>
 #include <linux/bitops.h>
+#include <linux/sched.h>
 #include "kfd_priv.h"
 #include "kfd_device_queue_manager.h"
 #include "kfd_mqd_manager.h"
@@ -829,7 +830,7 @@ static int fence_wait_timeout(unsigned int *fence_addr,
 			pr_err("kfd: qcm fence wait loop timeout expired\n");
 			return -ETIME;
 		}
-		cpu_relax();
+		schedule();
 	}
 
 	return 0;
