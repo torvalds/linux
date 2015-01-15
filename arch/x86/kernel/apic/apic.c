@@ -1561,41 +1561,8 @@ void enable_x2apic(void)
 	}
 }
 
-void __init check_x2apic(void)
-{
-	if (x2apic_enabled()) {
-		pr_info("x2apic enabled by BIOS, switching to x2apic ops\n");
-		x2apic_mode = 1;
-	}
-}
-#else /* CONFIG_X86_X2APIC */
-static int __init validate_x2apic(void)
-{
-	if (!apic_is_x2apic_enabled())
-		return 0;
-	/*
-	 * Checkme: Can we simply turn off x2apic here instead of panic?
-	 */
-	panic("BIOS has enabled x2apic but kernel doesn't support x2apic, please disable x2apic in BIOS.\n");
-}
-early_initcall(validate_x2apic);
-#endif /* !CONFIG_X86_X2APIC */
-
-static int __init try_to_enable_IR(void)
-{
-#ifdef CONFIG_X86_IO_APIC
-	if (!x2apic_enabled() && skip_ioapic_setup) {
-		pr_info("Skipped enabling intr-remap because of skipping "
-			"io-apic setup\n");
-		return -1;
-	}
-#endif
-	return irq_remapping_enable();
-}
-
 static __init void try_to_enable_x2apic(int ir_stat)
 {
-#ifdef CONFIG_X86_X2APIC
 	if (!x2apic_supported())
 		return;
 
@@ -1615,7 +1582,7 @@ static __init void try_to_enable_x2apic(int ir_stat)
 		 * without IR all CPUs can be addressed by IOAPIC/MSI
 		 * only in physical mode
 		 */
-		x2apic_force_phys();
+		x2apic_phys = 1;
 	}
 
 	if (!x2apic_mode) {
@@ -1623,7 +1590,39 @@ static __init void try_to_enable_x2apic(int ir_stat)
 		enable_x2apic();
 		pr_info("Enabled x2apic\n");
 	}
+}
+
+void __init check_x2apic(void)
+{
+	if (x2apic_enabled()) {
+		pr_info("x2apic: enabled by BIOS, switching to x2apic ops\n");
+		x2apic_mode = 1;
+	}
+}
+#else /* CONFIG_X86_X2APIC */
+static int __init validate_x2apic(void)
+{
+	if (!apic_is_x2apic_enabled())
+		return 0;
+	/*
+	 * Checkme: Can we simply turn off x2apic here instead of panic?
+	 */
+	panic("BIOS has enabled x2apic but kernel doesn't support x2apic, please disable x2apic in BIOS.\n");
+}
+early_initcall(validate_x2apic);
+
+static inline void try_to_enable_x2apic(int ir_stat) { }
+#endif /* !CONFIG_X86_X2APIC */
+
+static int __init try_to_enable_IR(void)
+{
+#ifdef CONFIG_X86_IO_APIC
+	if (!x2apic_enabled() && skip_ioapic_setup) {
+		pr_info("Not enabling interrupt remapping due to skipped IO-APIC setup\n");
+		return -1;
+	}
 #endif
+	return irq_remapping_enable();
 }
 
 void __init enable_IR_x2apic(void)
