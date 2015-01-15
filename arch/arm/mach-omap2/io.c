@@ -568,7 +568,6 @@ void __init am35xx_init_late(void)
 void __init ti81xx_init_late(void)
 {
 	omap_common_late_init();
-	omap3_pm_init();
 	omap2_clk_enable_autoidle_all();
 }
 #endif
