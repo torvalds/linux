@@ -241,7 +241,10 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 err_create_queue:
 	kfree(pqn);
 err_allocate_pqn:
+	/* check if queues list is empty unregister process from device */
 	clear_bit(*qid, pqm->queue_slot_bitmap);
+	if (list_empty(&pqm->queues))
+		dev->dqm->unregister_process(dev->dqm, &pdd->qpd);
 	return retval;
 }
 
