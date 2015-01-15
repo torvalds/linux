@@ -432,8 +432,7 @@ static int genev_tun_opt_from_nlattr(const struct nlattr *a,
 		SW_FLOW_KEY_PUT(match, tun_opts_len, 0xff, true);
 	}
 
-	opt_key_offset = (unsigned long)GENEVE_OPTS((struct sw_flow_key *)0,
-						    nla_len(a));
+	opt_key_offset = TUN_METADATA_OFFSET(nla_len(a));
 	SW_FLOW_KEY_MEMCPY_OFFSET(match, opt_key_offset, nla_data(a),
 				  nla_len(a), is_mask);
 	return 0;
@@ -558,8 +557,7 @@ static int ipv4_tun_from_nlattr(const struct nlattr *attr,
 
 static int __ipv4_tun_to_nlattr(struct sk_buff *skb,
 				const struct ovs_key_ipv4_tunnel *output,
-				const struct geneve_opt *tun_opts,
-				int swkey_tun_opts_len)
+				const void *tun_opts, int swkey_tun_opts_len)
 {
 	if (output->tun_flags & TUNNEL_KEY &&
 	    nla_put_be64(skb, OVS_TUNNEL_KEY_ATTR_ID, output->tun_id))
@@ -600,8 +598,7 @@ static int __ipv4_tun_to_nlattr(struct sk_buff *skb,
 
 static int ipv4_tun_to_nlattr(struct sk_buff *skb,
 			      const struct ovs_key_ipv4_tunnel *output,
-			      const struct geneve_opt *tun_opts,
-			      int swkey_tun_opts_len)
+			      const void *tun_opts, int swkey_tun_opts_len)
 {
 	struct nlattr *nla;
 	int err;
@@ -1148,10 +1145,10 @@ int ovs_nla_put_flow(const struct sw_flow_key *swkey,
 		goto nla_put_failure;
 
 	if ((swkey->tun_key.ipv4_dst || is_mask)) {
-		const struct geneve_opt *opts = NULL;
+		const void *opts = NULL;
 
 		if (output->tun_key.tun_flags & TUNNEL_OPTIONS_PRESENT)
-			opts = GENEVE_OPTS(output, swkey->tun_opts_len);
+			opts = TUN_METADATA_OPTS(output, swkey->tun_opts_len);
 
 		if (ipv4_tun_to_nlattr(skb, &output->tun_key, opts,
 				       swkey->tun_opts_len))
@@ -1540,6 +1537,34 @@ void ovs_match_init(struct sw_flow_match *match,
 	}
 }
 
+static int validate_geneve_opts(struct sw_flow_key *key)
+{
+	struct geneve_opt *option;
+	int opts_len = key->tun_opts_len;
+	bool crit_opt = false;
+
+	option = (struct geneve_opt *)TUN_METADATA_OPTS(key, key->tun_opts_len);
+	while (opts_len > 0) {
+		int len;
+
+		if (opts_len < sizeof(*option))
+			return -EINVAL;
+
+		len = sizeof(*option) + option->length * 4;
+		if (len > opts_len)
+			return -EINVAL;
+
+		crit_opt |= !!(option->type & GENEVE_CRIT_OPT_TYPE);
+
+		option = (struct geneve_opt *)((u8 *)option + len);
+		opts_len -= len;
+	};
+
+	key->tun_key.tun_flags |= crit_opt ? TUNNEL_CRIT_OPT : 0;
+
+	return 0;
+}
+
 static int validate_and_copy_set_tun(const struct nlattr *attr,
 				     struct sw_flow_actions **sfa, bool log)
 {
@@ -1555,28 +1580,9 @@ static int validate_and_copy_set_tun(const struct nlattr *attr,
 		return err;
 
 	if (key.tun_opts_len) {
-		struct geneve_opt *option = GENEVE_OPTS(&key,
-							key.tun_opts_len);
-		int opts_len = key.tun_opts_len;
-		bool crit_opt = false;
-
-		while (opts_len > 0) {
-			int len;
-
-			if (opts_len < sizeof(*option))
-				return -EINVAL;
-
-			len = sizeof(*option) + option->length * 4;
-			if (len > opts_len)
-				return -EINVAL;
-
-			crit_opt |= !!(option->type & GENEVE_CRIT_OPT_TYPE);
-
-			option = (struct geneve_opt *)((u8 *)option + len);
-			opts_len -= len;
-		};
-
-		key.tun_key.tun_flags |= crit_opt ? TUNNEL_CRIT_OPT : 0;
+		err = validate_geneve_opts(&key);
+		if (err < 0)
+			return err;
 	};
 
 	start = add_nested_action_start(sfa, OVS_ACTION_ATTR_SET, log);
@@ -1597,9 +1603,9 @@ static int validate_and_copy_set_tun(const struct nlattr *attr,
 		 * everything else will go away after flow setup. We can append
 		 * it to tun_info and then point there.
 		 */
-		memcpy((tun_info + 1), GENEVE_OPTS(&key, key.tun_opts_len),
-		       key.tun_opts_len);
-		tun_info->options = (struct geneve_opt *)(tun_info + 1);
+		memcpy((tun_info + 1),
+		       TUN_METADATA_OPTS(&key, key.tun_opts_len), key.tun_opts_len);
+		tun_info->options = (tun_info + 1);
 	} else {
 		tun_info->options = NULL;
 	}

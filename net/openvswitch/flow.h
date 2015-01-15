@@ -53,7 +53,7 @@ struct ovs_key_ipv4_tunnel {
 
 struct ovs_tunnel_info {
 	struct ovs_key_ipv4_tunnel tunnel;
-	const struct geneve_opt *options;
+	const void *options;
 	u8 options_len;
 };
 
@@ -61,10 +61,10 @@ struct ovs_tunnel_info {
  * maximum size. This allows us to get the benefits of variable length
  * matching for small options.
  */
-#define GENEVE_OPTS(flow_key, opt_len)	\
-	((struct geneve_opt *)((flow_key)->tun_opts + \
-			       FIELD_SIZEOF(struct sw_flow_key, tun_opts) - \
-			       opt_len))
+#define TUN_METADATA_OFFSET(opt_len) \
+	(FIELD_SIZEOF(struct sw_flow_key, tun_opts) - opt_len)
+#define TUN_METADATA_OPTS(flow_key, opt_len) \
+	((void *)((flow_key)->tun_opts + TUN_METADATA_OFFSET(opt_len)))
 
 static inline void __ovs_flow_tun_info_init(struct ovs_tunnel_info *tun_info,
 					    __be32 saddr, __be32 daddr,
@@ -73,7 +73,7 @@ static inline void __ovs_flow_tun_info_init(struct ovs_tunnel_info *tun_info,
 					    __be16 tp_dst,
 					    __be64 tun_id,
 					    __be16 tun_flags,
-					    const struct geneve_opt *opts,
+					    const void *opts,
 					    u8 opts_len)
 {
 	tun_info->tunnel.tun_id = tun_id;
@@ -105,7 +105,7 @@ static inline void ovs_flow_tun_info_init(struct ovs_tunnel_info *tun_info,
 					  __be16 tp_dst,
 					  __be64 tun_id,
 					  __be16 tun_flags,
-					  const struct geneve_opt *opts,
+					  const void *opts,
 					  u8 opts_len)
 {
 	__ovs_flow_tun_info_init(tun_info, iph->saddr, iph->daddr,
