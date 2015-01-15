@@ -411,7 +411,7 @@ static inline int __iio_add_event_config_attrs(struct iio_dev *indio_dev)
 {
 	int j, ret, attrcount = 0;
 
-	/* Dynically created from the channels array */
+	/* Dynamically created from the channels array */
 	for (j = 0; j < indio_dev->num_channels; j++) {
 		ret = iio_device_add_event_sysfs(indio_dev,
 						 &indio_dev->channels[j]);
