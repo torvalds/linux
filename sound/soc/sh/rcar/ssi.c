@@ -307,7 +307,7 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 		cr |= SDTA;
 	if (rdai->sys_delay)
 		cr |= DEL;
-	if (rsnd_dai_is_play(rdai, io))
+	if (rsnd_io_is_play(io))
 		cr |= TRMD;
 
 	/*
@@ -401,7 +401,7 @@ static irqreturn_t rsnd_ssi_interrupt(int irq, void *data)
 		 * directly as 32bit data
 		 * see rsnd_ssi_init()
 		 */
-		if (rsnd_dai_is_play(rdai, io))
+		if (rsnd_io_is_play(io))
 			rsnd_mod_write(mod, SSITDR, *buf);
 		else
 			*buf = rsnd_mod_read(mod, SSIRDR);

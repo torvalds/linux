@@ -362,7 +362,7 @@ static int rsnd_src_set_route_gen1(struct rsnd_mod *mod,
 	/*
 	 * SRC_ROUTE_SELECT
 	 */
-	val = rsnd_dai_is_play(rdai, io) ? 0x1 : 0x2;
+	val = rsnd_io_is_play(io) ? 0x1 : 0x2;
 	val = val		<< routes[id].shift;
 	mask = routes[id].mask	<< routes[id].shift;
 

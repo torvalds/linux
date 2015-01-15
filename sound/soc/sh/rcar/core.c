@@ -494,11 +494,6 @@ static struct rsnd_dai *rsnd_dai_to_rdai(struct snd_soc_dai *dai)
 	return rsnd_rdai_get(priv, dai->id);
 }
 
-int rsnd_dai_is_play(struct rsnd_dai *rdai, struct rsnd_dai_stream *io)
-{
-	return &rdai->playback == io;
-}
-
 /*
  *	rsnd_soc_dai functions
  */

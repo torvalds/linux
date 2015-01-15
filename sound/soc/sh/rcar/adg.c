@@ -80,7 +80,7 @@ static int rsnd_adg_set_src_timsel_gen2(struct rsnd_dai *rdai,
 					struct rsnd_dai_stream *io,
 					u32 timsel)
 {
-	int is_play = rsnd_dai_is_play(rdai, io);
+	int is_play = rsnd_io_is_play(io);
 	int id = rsnd_mod_id(mod);
 	int shift = (id % 2) ? 16 : 0;
 	u32 mask, ws;
