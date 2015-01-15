@@ -252,11 +252,21 @@ enum ovs_vport_attr {
 
 #define OVS_VPORT_ATTR_MAX (__OVS_VPORT_ATTR_MAX - 1)
 
+enum {
+	OVS_VXLAN_EXT_UNSPEC,
+	OVS_VXLAN_EXT_GBP,	/* Flag or __u32 */
+	__OVS_VXLAN_EXT_MAX,
+};
+
+#define OVS_VXLAN_EXT_MAX (__OVS_VXLAN_EXT_MAX - 1)
+
+
 /* OVS_VPORT_ATTR_OPTIONS attributes for tunnels.
  */
 enum {
 	OVS_TUNNEL_ATTR_UNSPEC,
 	OVS_TUNNEL_ATTR_DST_PORT, /* 16-bit UDP port, used by L4 tunnels. */
+	OVS_TUNNEL_ATTR_EXTENSION,
 	__OVS_TUNNEL_ATTR_MAX
 };
 
@@ -328,6 +338,7 @@ enum ovs_tunnel_key_attr {
 	OVS_TUNNEL_KEY_ATTR_GENEVE_OPTS,        /* Array of Geneve options. */
 	OVS_TUNNEL_KEY_ATTR_TP_SRC,		/* be16 src Transport Port. */
 	OVS_TUNNEL_KEY_ATTR_TP_DST,		/* be16 dst Transport Port. */
+	OVS_TUNNEL_KEY_ATTR_VXLAN_OPTS,		/* Nested OVS_VXLAN_EXT_* */
 	__OVS_TUNNEL_KEY_ATTR_MAX
 };
 

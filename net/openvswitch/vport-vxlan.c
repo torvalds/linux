@@ -40,6 +40,7 @@
 
 #include "datapath.h"
 #include "vport.h"
+#include "vport-vxlan.h"
 
 /**
  * struct vxlan_port - Keeps track of open UDP ports
@@ -49,6 +50,7 @@
 struct vxlan_port {
 	struct vxlan_sock *vs;
 	char name[IFNAMSIZ];
+	u32 exts; /* VXLAN_F_* in <net/vxlan.h> */
 };
 
 static struct vport_ops ovs_vxlan_vport_ops;
@@ -63,16 +65,26 @@ static void vxlan_rcv(struct vxlan_sock *vs, struct sk_buff *skb,
 		      struct vxlan_metadata *md)
 {
 	struct ovs_tunnel_info tun_info;
+	struct vxlan_port *vxlan_port;
 	struct vport *vport = vs->data;
 	struct iphdr *iph;
+	struct ovs_vxlan_opts opts = {
+		.gbp = md->gbp,
+	};
 	__be64 key;
+	__be16 flags;
+
+	flags = TUNNEL_KEY;
+	vxlan_port = vxlan_vport(vport);
+	if (vxlan_port->exts & VXLAN_F_GBP)
+		flags |= TUNNEL_VXLAN_OPT;
 
 	/* Save outer tunnel values */
 	iph = ip_hdr(skb);
 	key = cpu_to_be64(ntohl(md->vni) >> 8);
 	ovs_flow_tun_info_init(&tun_info, iph,
 			       udp_hdr(skb)->source, udp_hdr(skb)->dest,
-			       key, TUNNEL_KEY, NULL, 0);
+			       key, flags, &opts, sizeof(opts));
 
 	ovs_vport_receive(vport, skb, &tun_info);
 }
@@ -84,6 +96,21 @@ static int vxlan_get_options(const struct vport *vport, struct sk_buff *skb)
 
 	if (nla_put_u16(skb, OVS_TUNNEL_ATTR_DST_PORT, ntohs(dst_port)))
 		return -EMSGSIZE;
+
+	if (vxlan_port->exts) {
+		struct nlattr *exts;
+
+		exts = nla_nest_start(skb, OVS_TUNNEL_ATTR_EXTENSION);
+		if (!exts)
+			return -EMSGSIZE;
+
+		if (vxlan_port->exts & VXLAN_F_GBP &&
+		    nla_put_flag(skb, OVS_VXLAN_EXT_GBP))
+			return -EMSGSIZE;
+
+		nla_nest_end(skb, exts);
+	}
+
 	return 0;
 }
 
@@ -94,6 +121,31 @@ static void vxlan_tnl_destroy(struct vport *vport)
 	vxlan_sock_release(vxlan_port->vs);
 
 	ovs_vport_deferred_free(vport);
+}
+
+static const struct nla_policy exts_policy[OVS_VXLAN_EXT_MAX+1] = {
+	[OVS_VXLAN_EXT_GBP]	= { .type = NLA_FLAG, },
+};
+
+static int vxlan_configure_exts(struct vport *vport, struct nlattr *attr)
+{
+	struct nlattr *exts[OVS_VXLAN_EXT_MAX+1];
+	struct vxlan_port *vxlan_port;
+	int err;
+
+	if (nla_len(attr) < sizeof(struct nlattr))
+		return -EINVAL;
+
+	err = nla_parse_nested(exts, OVS_VXLAN_EXT_MAX, attr, exts_policy);
+	if (err < 0)
+		return err;
+
+	vxlan_port = vxlan_vport(vport);
+
+	if (exts[OVS_VXLAN_EXT_GBP])
+		vxlan_port->exts |= VXLAN_F_GBP;
+
+	return 0;
 }
 
 static struct vport *vxlan_tnl_create(const struct vport_parms *parms)
@@ -128,7 +180,17 @@ static struct vport *vxlan_tnl_create(const struct vport_parms *parms)
 	vxlan_port = vxlan_vport(vport);
 	strncpy(vxlan_port->name, parms->name, IFNAMSIZ);
 
-	vs = vxlan_sock_add(net, htons(dst_port), vxlan_rcv, vport, true, 0);
+	a = nla_find_nested(options, OVS_TUNNEL_ATTR_EXTENSION);
+	if (a) {
+		err = vxlan_configure_exts(vport, a);
+		if (err) {
+			ovs_vport_free(vport);
+			goto error;
+		}
+	}
+
+	vs = vxlan_sock_add(net, htons(dst_port), vxlan_rcv, vport, true,
+			    vxlan_port->exts);
 	if (IS_ERR(vs)) {
 		ovs_vport_free(vport);
 		return (void *)vs;
@@ -139,6 +201,21 @@ static struct vport *vxlan_tnl_create(const struct vport_parms *parms)
 
 error:
 	return ERR_PTR(err);
+}
+
+static int vxlan_ext_gbp(struct sk_buff *skb)
+{
+	const struct ovs_tunnel_info *tun_info;
+	const struct ovs_vxlan_opts *opts;
+
+	tun_info = OVS_CB(skb)->egress_tun_info;
+	opts = tun_info->options;
+
+	if (tun_info->tunnel.tun_flags & TUNNEL_VXLAN_OPT &&
+	    tun_info->options_len >= sizeof(*opts))
+		return opts->gbp;
+	else
+		return 0;
 }
 
 static int vxlan_tnl_send(struct vport *vport, struct sk_buff *skb)
@@ -173,6 +250,7 @@ static int vxlan_tnl_send(struct vport *vport, struct sk_buff *skb)
 
 	src_port = udp_flow_src_port(net, skb, 0, 0, true);
 	md.vni = htonl(be64_to_cpu(tun_key->tun_id) << 8);
+	md.gbp = vxlan_ext_gbp(skb);
 
 	err = vxlan_xmit_skb(vxlan_port->vs, rt, skb,
 			     fl.saddr, tun_key->ipv4_dst,

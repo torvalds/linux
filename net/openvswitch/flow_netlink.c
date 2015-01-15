@@ -49,6 +49,7 @@
 #include <net/mpls.h>
 
 #include "flow_netlink.h"
+#include "vport-vxlan.h"
 
 struct ovs_len_tbl {
 	int len;
@@ -268,6 +269,9 @@ size_t ovs_tun_key_attr_size(void)
 		+ nla_total_size(0)    /* OVS_TUNNEL_KEY_ATTR_CSUM */
 		+ nla_total_size(0)    /* OVS_TUNNEL_KEY_ATTR_OAM */
 		+ nla_total_size(256)  /* OVS_TUNNEL_KEY_ATTR_GENEVE_OPTS */
+		/* OVS_TUNNEL_KEY_ATTR_VXLAN_OPTS is mutually exclusive with
+		 * OVS_TUNNEL_KEY_ATTR_GENEVE_OPTS and covered by it.
+		 */
 		+ nla_total_size(2)    /* OVS_TUNNEL_KEY_ATTR_TP_SRC */
 		+ nla_total_size(2);   /* OVS_TUNNEL_KEY_ATTR_TP_DST */
 }
@@ -308,6 +312,7 @@ static const struct ovs_len_tbl ovs_tunnel_key_lens[OVS_TUNNEL_KEY_ATTR_MAX + 1]
 	[OVS_TUNNEL_KEY_ATTR_TP_DST]	    = { .len = sizeof(u16) },
 	[OVS_TUNNEL_KEY_ATTR_OAM]	    = { .len = 0 },
 	[OVS_TUNNEL_KEY_ATTR_GENEVE_OPTS]   = { .len = OVS_ATTR_NESTED },
+	[OVS_TUNNEL_KEY_ATTR_VXLAN_OPTS]    = { .len = OVS_ATTR_NESTED },
 };
 
 /* The size of the argument for each %OVS_KEY_ATTR_* Netlink attribute.  */
@@ -460,6 +465,41 @@ static int genev_tun_opt_from_nlattr(const struct nlattr *a,
 	return 0;
 }
 
+static const struct nla_policy vxlan_opt_policy[OVS_VXLAN_EXT_MAX + 1] = {
+	[OVS_VXLAN_EXT_GBP]	= { .type = NLA_U32 },
+};
+
+static int vxlan_tun_opt_from_nlattr(const struct nlattr *a,
+				     struct sw_flow_match *match, bool is_mask,
+				     bool log)
+{
+	struct nlattr *tb[OVS_VXLAN_EXT_MAX+1];
+	unsigned long opt_key_offset;
+	struct ovs_vxlan_opts opts;
+	int err;
+
+	BUILD_BUG_ON(sizeof(opts) > sizeof(match->key->tun_opts));
+
+	err = nla_parse_nested(tb, OVS_VXLAN_EXT_MAX, a, vxlan_opt_policy);
+	if (err < 0)
+		return err;
+
+	memset(&opts, 0, sizeof(opts));
+
+	if (tb[OVS_VXLAN_EXT_GBP])
+		opts.gbp = nla_get_u32(tb[OVS_VXLAN_EXT_GBP]);
+
+	if (!is_mask)
+		SW_FLOW_KEY_PUT(match, tun_opts_len, sizeof(opts), false);
+	else
+		SW_FLOW_KEY_PUT(match, tun_opts_len, 0xff, true);
+
+	opt_key_offset = TUN_METADATA_OFFSET(sizeof(opts));
+	SW_FLOW_KEY_MEMCPY_OFFSET(match, opt_key_offset, &opts, sizeof(opts),
+				  is_mask);
+	return 0;
+}
+
 static int ipv4_tun_from_nlattr(const struct nlattr *attr,
 				struct sw_flow_match *match, bool is_mask,
 				bool log)
@@ -468,6 +508,7 @@ static int ipv4_tun_from_nlattr(const struct nlattr *attr,
 	int rem;
 	bool ttl = false;
 	__be16 tun_flags = 0;
+	int opts_type = 0;
 
 	nla_for_each_nested(a, attr, rem) {
 		int type = nla_type(a);
@@ -527,11 +568,30 @@ static int ipv4_tun_from_nlattr(const struct nlattr *attr,
 			tun_flags |= TUNNEL_OAM;
 			break;
 		case OVS_TUNNEL_KEY_ATTR_GENEVE_OPTS:
+			if (opts_type) {
+				OVS_NLERR(log, "Multiple metadata blocks provided");
+				return -EINVAL;
+			}
+
 			err = genev_tun_opt_from_nlattr(a, match, is_mask, log);
 			if (err)
 				return err;
 
-			tun_flags |= TUNNEL_OPTIONS_PRESENT;
+			tun_flags |= TUNNEL_GENEVE_OPT;
+			opts_type = type;
+			break;
+		case OVS_TUNNEL_KEY_ATTR_VXLAN_OPTS:
+			if (opts_type) {
+				OVS_NLERR(log, "Multiple metadata blocks provided");
+				return -EINVAL;
+			}
+
+			err = vxlan_tun_opt_from_nlattr(a, match, is_mask, log);
+			if (err)
+				return err;
+
+			tun_flags |= TUNNEL_VXLAN_OPT;
+			opts_type = type;
 			break;
 		default:
 			OVS_NLERR(log, "Unknown IPv4 tunnel attribute %d",
@@ -560,6 +620,23 @@ static int ipv4_tun_from_nlattr(const struct nlattr *attr,
 		}
 	}
 
+	return opts_type;
+}
+
+static int vxlan_opt_to_nlattr(struct sk_buff *skb,
+			       const void *tun_opts, int swkey_tun_opts_len)
+{
+	const struct ovs_vxlan_opts *opts = tun_opts;
+	struct nlattr *nla;
+
+	nla = nla_nest_start(skb, OVS_TUNNEL_KEY_ATTR_VXLAN_OPTS);
+	if (!nla)
+		return -EMSGSIZE;
+
+	if (nla_put_u32(skb, OVS_VXLAN_EXT_GBP, opts->gbp) < 0)
+		return -EMSGSIZE;
+
+	nla_nest_end(skb, nla);
 	return 0;
 }
 
@@ -596,10 +673,15 @@ static int __ipv4_tun_to_nlattr(struct sk_buff *skb,
 	if ((output->tun_flags & TUNNEL_OAM) &&
 	    nla_put_flag(skb, OVS_TUNNEL_KEY_ATTR_OAM))
 		return -EMSGSIZE;
-	if (tun_opts &&
-	    nla_put(skb, OVS_TUNNEL_KEY_ATTR_GENEVE_OPTS,
-		    swkey_tun_opts_len, tun_opts))
-		return -EMSGSIZE;
+	if (tun_opts) {
+		if (output->tun_flags & TUNNEL_GENEVE_OPT &&
+		    nla_put(skb, OVS_TUNNEL_KEY_ATTR_GENEVE_OPTS,
+			    swkey_tun_opts_len, tun_opts))
+			return -EMSGSIZE;
+		else if (output->tun_flags & TUNNEL_VXLAN_OPT &&
+			 vxlan_opt_to_nlattr(skb, tun_opts, swkey_tun_opts_len))
+			return -EMSGSIZE;
+	}
 
 	return 0;
 }
@@ -680,7 +762,7 @@ static int metadata_from_nlattrs(struct sw_flow_match *match,  u64 *attrs,
 	}
 	if (*attrs & (1 << OVS_KEY_ATTR_TUNNEL)) {
 		if (ipv4_tun_from_nlattr(a[OVS_KEY_ATTR_TUNNEL], match,
-					 is_mask, log))
+					 is_mask, log) < 0)
 			return -EINVAL;
 		*attrs &= ~(1 << OVS_KEY_ATTR_TUNNEL);
 	}
@@ -1578,17 +1660,23 @@ static int validate_and_copy_set_tun(const struct nlattr *attr,
 	struct sw_flow_key key;
 	struct ovs_tunnel_info *tun_info;
 	struct nlattr *a;
-	int err, start;
+	int err, start, opts_type;
 
 	ovs_match_init(&match, &key, NULL);
-	err = ipv4_tun_from_nlattr(nla_data(attr), &match, false, log);
-	if (err)
-		return err;
+	opts_type = ipv4_tun_from_nlattr(nla_data(attr), &match, false, log);
+	if (opts_type < 0)
+		return opts_type;
 
 	if (key.tun_opts_len) {
-		err = validate_geneve_opts(&key);
-		if (err < 0)
-			return err;
+		switch (opts_type) {
+		case OVS_TUNNEL_KEY_ATTR_GENEVE_OPTS:
+			err = validate_geneve_opts(&key);
+			if (err < 0)
+				return err;
+			break;
+		case OVS_TUNNEL_KEY_ATTR_VXLAN_OPTS:
+			break;
+		}
 	};
 
 	start = add_nested_action_start(sfa, OVS_ACTION_ATTR_SET, log);
