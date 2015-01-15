@@ -1479,8 +1479,6 @@ static bool nox2apic __initdata;
 
 #ifdef CONFIG_X86_X2APIC
 int x2apic_mode;
-/* x2apic enabled before OS handover */
-static int x2apic_preenabled;
 static int x2apic_disabled;
 static int __init setup_nox2apic(char *str)
 {
@@ -1535,18 +1533,19 @@ static __init void disable_x2apic(void)
 			setup_clear_cpu_cap(X86_FEATURE_X2APIC);
 		}
 
-		x2apic_disabled = 1;
 		x2apic_mode = 0;
 
 		register_lapic_address(mp_lapic_addr);
 	}
+
+	x2apic_disabled = 1;
 }
 
 void check_x2apic(void)
 {
 	if (x2apic_enabled()) {
 		pr_info("x2apic enabled by BIOS, switching to x2apic ops\n");
-		x2apic_preenabled = x2apic_mode = 1;
+		x2apic_mode = 1;
 	}
 }
 
@@ -1569,8 +1568,6 @@ void enable_x2apic(void)
 		wrmsrl(MSR_IA32_APICBASE, msr | X2APIC_ENABLE);
 	}
 }
-#else
-#define x2apic_preenabled	(0)
 #endif /* CONFIG_X86_X2APIC */
 
 static int __init try_to_enable_IR(void)
@@ -1599,8 +1596,7 @@ static __init void try_to_enable_x2apic(int ir_stat)
 		    (IS_ENABLED(CONFIG_HYPERVISOR_GUEST) &&
 		     !hypervisor_x2apic_available())) {
 			pr_info("IRQ remapping doesn't support X2APIC mode, disable x2apic.\n");
-			if (x2apic_preenabled)
-				disable_x2apic();
+			disable_x2apic();
 			return;
 		}
 
@@ -1643,7 +1639,7 @@ void __init enable_IR_x2apic(void)
 	legacy_pic->mask_all();
 	mask_ioapic_entries();
 
-	if (x2apic_preenabled && nox2apic)
+	if (nox2apic)
 		disable_x2apic();
 	/* If irq_remapping_prepare() succeded, try to enable it */
 	if (ir_stat >= 0)
