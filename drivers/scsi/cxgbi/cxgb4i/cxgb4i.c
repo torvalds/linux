@@ -28,6 +28,7 @@
 #include "t4fw_api.h"
 #include "l2t.h"
 #include "cxgb4i.h"
+#include "clip_tbl.h"
 
 static unsigned int dbg_level;
 
@@ -1322,6 +1323,9 @@ static inline void l2t_put(struct cxgbi_sock *csk)
 static void release_offload_resources(struct cxgbi_sock *csk)
 {
 	struct cxgb4_lld_info *lldi;
+#if IS_ENABLED(CONFIG_IPV6)
+	struct net_device *ndev = csk->cdev->ports[csk->port_id];
+#endif
 
 	log_debug(1 << CXGBI_DBG_TOE | 1 << CXGBI_DBG_SOCK,
 		"csk 0x%p,%u,0x%lx,%u.\n",
@@ -1334,6 +1338,12 @@ static void release_offload_resources(struct cxgbi_sock *csk)
 	}
 
 	l2t_put(csk);
+#if IS_ENABLED(CONFIG_IPV6)
+	if (csk->csk_family == AF_INET6)
+		cxgb4_clip_release(ndev,
+				   (const u32 *)&csk->saddr6.sin6_addr, 1);
+#endif
+
 	if (cxgbi_sock_flag(csk, CTPF_HAS_ATID))
 		free_atid(csk);
 	else if (cxgbi_sock_flag(csk, CTPF_HAS_TID)) {
@@ -1391,9 +1401,14 @@ static int init_act_open(struct cxgbi_sock *csk)
 	csk->l2t = cxgb4_l2t_get(lldi->l2t, n, ndev, 0);
 	if (!csk->l2t) {
 		pr_err("%s, cannot alloc l2t.\n", ndev->name);
-		goto rel_resource;
+		goto rel_resource_without_clip;
 	}
 	cxgbi_sock_get(csk);
+
+#if IS_ENABLED(CONFIG_IPV6)
+	if (csk->csk_family == AF_INET6)
+		cxgb4_clip_get(ndev, (const u32 *)&csk->saddr6.sin6_addr, 1);
+#endif
 
 	if (t4) {
 		size = sizeof(struct cpl_act_open_req);
@@ -1451,6 +1466,12 @@ static int init_act_open(struct cxgbi_sock *csk)
 	return 0;
 
 rel_resource:
+#if IS_ENABLED(CONFIG_IPV6)
+	if (csk->csk_family == AF_INET6)
+		cxgb4_clip_release(ndev,
+				   (const u32 *)&csk->saddr6.sin6_addr, 1);
+#endif
+rel_resource_without_clip:
 	if (n)
 		neigh_release(n);
 	if (skb)

@@ -668,6 +668,9 @@ struct adapter {
 	unsigned int l2t_start;
 	unsigned int l2t_end;
 	struct l2t_data *l2t;
+	unsigned int clipt_start;
+	unsigned int clipt_end;
+	struct clip_tbl *clipt;
 	void *uld_handle[CXGB4_ULD_MAX];
 	struct list_head list_node;
 	struct list_head rcu_node;
