@@ -131,7 +131,7 @@ struct mvm_statistics_rx_phy {
 	__le32 sfd_timeout;
 	__le32 fina_timeout;
 	__le32 unresponded_rts;
-	__le32 rxe_frame_limit_overrun;
+	__le32 rxe_frame_lmt_overrun;
 	__le32 sent_ack_cnt;
 	__le32 sent_cts_cnt;
 	__le32 sent_ba_rsp_cnt;
