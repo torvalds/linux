@@ -8926,6 +8926,13 @@ out:
 	intel_runtime_pm_put(dev_priv);
 }
 
+static void intel_crtc_set_state(struct intel_crtc *crtc,
+				 struct intel_crtc_state *crtc_state)
+{
+	kfree(crtc->config);
+	crtc->config = crtc_state;
+}
+
 static void intel_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -8942,6 +8949,7 @@ static void intel_crtc_destroy(struct drm_crtc *crtc)
 		kfree(work);
 	}
 
+	intel_crtc_set_state(intel_crtc, NULL);
 	drm_crtc_cleanup(crtc);
 
 	kfree(intel_crtc);
@@ -10995,8 +11003,7 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 		crtc->mode = *mode;
 		/* mode_set/enable/disable functions rely on a correct pipe
 		 * config. */
-		(*(to_intel_crtc(crtc)->config)) = *pipe_config;
-		to_intel_crtc(crtc)->new_config = to_intel_crtc(crtc)->config;
+		intel_crtc_set_state(to_intel_crtc(crtc), pipe_config);
 
 		/*
 		 * Calculate and store various constants which
@@ -11040,7 +11047,6 @@ done:
 	if (ret && crtc->enabled)
 		crtc->mode = *saved_mode;
 
-	kfree(pipe_config);
 	kfree(saved_mode);
 	return ret;
 }
@@ -12186,6 +12192,7 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc;
+	struct intel_crtc_state *crtc_state = NULL;
 	struct drm_plane *primary = NULL;
 	struct drm_plane *cursor = NULL;
 	int i, ret;
@@ -12193,6 +12200,11 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	intel_crtc = kzalloc(sizeof(*intel_crtc), GFP_KERNEL);
 	if (intel_crtc == NULL)
 		return;
+
+	crtc_state = kzalloc(sizeof(*crtc_state), GFP_KERNEL);
+	if (!crtc_state)
+		goto fail;
+	intel_crtc_set_state(intel_crtc, crtc_state);
 
 	primary = intel_primary_plane_create(dev, pipe);
 	if (!primary)
@@ -12239,7 +12251,6 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	drm_crtc_helper_add(&intel_crtc->base, &intel_helper_funcs);
 
 	WARN_ON(drm_crtc_index(&intel_crtc->base) != intel_crtc->pipe);
-	intel_crtc->config = &intel_crtc->_config;
 	return;
 
 fail:
@@ -12247,6 +12258,7 @@ fail:
 		drm_plane_cleanup(primary);
 	if (cursor)
 		drm_plane_cleanup(cursor);
+	kfree(crtc_state);
 	kfree(intel_crtc);
 }
 

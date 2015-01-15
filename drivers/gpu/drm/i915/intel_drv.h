@@ -469,7 +469,6 @@ struct intel_crtc {
 	uint32_t cursor_base;
 
 	struct intel_plane_config plane_config;
-	struct intel_crtc_state _config;
 	struct intel_crtc_state *config;
 	struct intel_crtc_state *new_config;
 	bool new_enabled;
