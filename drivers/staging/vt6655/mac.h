@@ -336,12 +336,12 @@
 //
 #define HOSTCR_TXONST       0x80
 #define HOSTCR_RXONST       0x40
-#define HOSTCR_ADHOC        0x20 // Network Type 1 = Ad-hoc
-#define HOSTCR_AP           0x10 // Port Type 1 = AP
-#define HOSTCR_TXON         0x08 //0000 1000
-#define HOSTCR_RXON         0x04 //0000 0100
-#define HOSTCR_MACEN        0x02 //0000 0010
-#define HOSTCR_SOFTRST      0x01 //0000 0001
+#define HOSTCR_ADHOC        0x20 /* Network Type 1 = Ad-hoc */
+#define HOSTCR_AP           0x10 /* Port Type 1 = AP */
+#define HOSTCR_TXON         0x08 /* 0000 1000 */
+#define HOSTCR_RXON         0x04 /* 0000 0100 */
+#define HOSTCR_MACEN        0x02 /* 0000 0010 */
+#define HOSTCR_SOFTRST      0x01 /* 0000 0001 */
 
 //
 // Bits in the MACCR register
@@ -371,7 +371,7 @@
 // Bits in the TCR register
 //
 #define TCR_SYNCDCFOPT      0x02
-#define TCR_AUTOBCNTX       0x01 // Beacon automatically transmit enable
+#define TCR_AUTOBCNTX       0x01 /* Beacon automatically transmit enable */
 
 //
 // Bits in the IMR register
@@ -381,7 +381,7 @@
 #define IMR_RADARDETECT     0x10000000
 #define IMR_MEASUREEND      0x08000000
 #define IMR_SOFTTIMER1      0x00200000
-#define IMR_RXDMA1          0x00001000 //0000 0000 0001 0000 0000 0000
+#define IMR_RXDMA1          0x00001000 /* 0000 0000 0001 0000 0000 0000 */
 #define IMR_RXNOBUF         0x00000800
 #define IMR_MIBNEARFULL     0x00000400
 #define IMR_SOFTINT         0x00000200
@@ -404,9 +404,9 @@
 #define ISR_RADARDETECT     0x10000000
 #define ISR_MEASUREEND      0x08000000
 #define ISR_SOFTTIMER1      0x00200000
-#define ISR_RXDMA1          0x00001000 //0000 0000 0001 0000 0000 0000
-#define ISR_RXNOBUF         0x00000800 //0000 0000 0000 1000 0000 0000
-#define ISR_MIBNEARFULL     0x00000400 //0000 0000 0000 0100 0000 0000
+#define ISR_RXDMA1          0x00001000 /* 0000 0000 0001 0000 0000 0000 */
+#define ISR_RXNOBUF         0x00000800 /* 0000 0000 0000 1000 0000 0000 */
+#define ISR_MIBNEARFULL     0x00000400 /* 0000 0000 0000 0100 0000 0000 */
 #define ISR_SOFTINT         0x00000200
 #define ISR_FETALERR        0x00000100
 #define ISR_WATCHDOG        0x00000080
@@ -603,7 +603,7 @@
 #define W_MAX_TIMEOUT       0xFFF0U
 
 // wait time within loop
-#define CB_DELAY_LOOP_WAIT  10 // 10ms
+#define CB_DELAY_LOOP_WAIT  10 /* 10ms */
 
 //
 // revision id
@@ -993,4 +993,4 @@ void MACvSetKeyEntry(void __iomem *dwIoBase, unsigned short wKeyCtl, unsigned in
 		     unsigned int uKeyIdx, unsigned char *pbyAddr, u32 *pdwKey, unsigned char byLocalID);
 void MACvDisableKeyEntry(void __iomem *dwIoBase, unsigned int uEntryIdx);
 
-#endif // __MAC_H__
+#endif /* __MAC_H__ */
