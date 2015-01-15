@@ -20,17 +20,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/mm.h>
 #include <linux/kvm_host.h>
+#include <linux/mm.h>
 #include <linux/uaccess.h>
-#include <asm/kvm_arm.h>
-#include <asm/kvm_host.h>
-#include <asm/kvm_emulate.h>
-#include <asm/kvm_coproc.h>
-#include <asm/kvm_mmu.h>
+
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
 #include <asm/debug-monitors.h>
+#include <asm/esr.h>
+#include <asm/kvm_arm.h>
+#include <asm/kvm_coproc.h>
+#include <asm/kvm_emulate.h>
+#include <asm/kvm_host.h>
+#include <asm/kvm_mmu.h>
+
 #include <trace/events/kvm.h>
 
 #include "sys_regs.h"
@@ -815,12 +818,12 @@ static void unhandled_cp_access(struct kvm_vcpu *vcpu,
 	int cp;
 
 	switch(hsr_ec) {
-	case ESR_EL2_EC_CP15_32:
-	case ESR_EL2_EC_CP15_64:
+	case ESR_ELx_EC_CP15_32:
+	case ESR_ELx_EC_CP15_64:
 		cp = 15;
 		break;
-	case ESR_EL2_EC_CP14_MR:
-	case ESR_EL2_EC_CP14_64:
+	case ESR_ELx_EC_CP14_MR:
+	case ESR_ELx_EC_CP14_64:
 		cp = 14;
 		break;
 	default:
