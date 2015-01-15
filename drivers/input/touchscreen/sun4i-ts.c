@@ -34,6 +34,7 @@
 
 #include <linux/err.h>
 #include <linux/hwmon.h>
+#include <linux/thermal.h>
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
@@ -107,6 +108,7 @@
 struct sun4i_ts_data {
 	struct device *dev;
 	struct input_dev *input;
+	struct thermal_zone_device *tz;
 	void __iomem *base;
 	unsigned int irq;
 	bool ignore_fifo_data;
@@ -180,16 +182,48 @@ static void sun4i_ts_close(struct input_dev *dev)
 	writel(TEMP_IRQ_EN(1), ts->base + TP_INT_FIFOC);
 }
 
-static ssize_t show_temp(struct device *dev, struct device_attribute *devattr,
-			 char *buf)
+static int sun4i_get_temp(const struct sun4i_ts_data *ts, long *temp)
 {
-	struct sun4i_ts_data *ts = dev_get_drvdata(dev);
-
 	/* No temp_data until the first irq */
 	if (ts->temp_data == -1)
 		return -EAGAIN;
 
-	return sprintf(buf, "%d\n", (ts->temp_data - 1447) * 100);
+	/*
+	 * The user manuals do not contain the formula for calculating
+	 * the temperature. The formula used here is from the AXP209,
+	 * which is designed by X-Powers, an affiliate of Allwinner:
+	 *
+	 *     temperature = -144.7 + (value * 0.1)
+	 *
+	 * This should be replaced with the correct one if such information
+	 * becomes available.
+	 */
+	*temp = (ts->temp_data - 1447) * 100;
+
+	return 0;
+}
+
+static int sun4i_get_tz_temp(void *data, long *temp)
+{
+	return sun4i_get_temp(data, temp);
+}
+
+static struct thermal_zone_of_device_ops sun4i_ts_tz_ops = {
+	.get_temp = sun4i_get_tz_temp,
+};
+
+static ssize_t show_temp(struct device *dev, struct device_attribute *devattr,
+			 char *buf)
+{
+	struct sun4i_ts_data *ts = dev_get_drvdata(dev);
+	long temp;
+	int error;
+
+	error = sun4i_get_temp(ts, &temp);
+	if (error)
+		return error;
+
+	return sprintf(buf, "%ld\n", temp);
 }
 
 static ssize_t show_temp_label(struct device *dev,
@@ -283,10 +317,19 @@ static int sun4i_ts_probe(struct platform_device *pdev)
 	writel(STYLUS_UP_DEBOUN(5) | STYLUS_UP_DEBOUN_EN(1) | TP_MODE_EN(1),
 	       ts->base + TP_CTRL1);
 
+	/*
+	 * The thermal core does not register hwmon devices for DT-based
+	 * thermal zone sensors, such as this one.
+	 */
 	hwmon = devm_hwmon_device_register_with_groups(ts->dev, "sun4i_ts",
 						       ts, sun4i_ts_groups);
 	if (IS_ERR(hwmon))
 		return PTR_ERR(hwmon);
+
+	ts->tz = thermal_zone_of_sensor_register(ts->dev, 0, ts,
+						 &sun4i_ts_tz_ops);
+	if (IS_ERR(ts->tz))
+		ts->tz = NULL;
 
 	writel(TEMP_IRQ_EN(1), ts->base + TP_INT_FIFOC);
 
@@ -294,6 +337,7 @@ static int sun4i_ts_probe(struct platform_device *pdev)
 		error = input_register_device(ts->input);
 		if (error) {
 			writel(0, ts->base + TP_INT_FIFOC);
+			thermal_zone_of_sensor_unregister(ts->dev, ts->tz);
 			return error;
 		}
 	}
@@ -309,6 +353,8 @@ static int sun4i_ts_remove(struct platform_device *pdev)
 	/* Explicit unregister to avoid open/close changing the imask later */
 	if (ts->input)
 		input_unregister_device(ts->input);
+
+	thermal_zone_of_sensor_unregister(ts->dev, ts->tz);
 
 	/* Deactivate all IRQs */
 	writel(0, ts->base + TP_INT_FIFOC);
