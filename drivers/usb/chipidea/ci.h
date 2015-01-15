@@ -125,12 +125,16 @@ enum ci_revision {
  * @start: start this role
  * @stop: stop this role
  * @irq: irq handler for this role
+ * @suspend: system suspend handler for this role
+ * @resume: system resume handler for this role
  * @name: role name string (host/gadget)
  */
 struct ci_role_driver {
 	int		(*start)(struct ci_hdrc *);
 	void		(*stop)(struct ci_hdrc *);
 	irqreturn_t	(*irq)(struct ci_hdrc *);
+	void		(*suspend)(struct ci_hdrc *);
+	void		(*resume)(struct ci_hdrc *, bool power_lost);
 	const char	*name;
 };
 
