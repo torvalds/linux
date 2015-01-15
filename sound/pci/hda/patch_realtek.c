@@ -121,9 +121,7 @@ struct alc_spec {
 	hda_nid_t pll_nid;
 	unsigned int pll_coef_idx, pll_coef_bit;
 	unsigned int coef0;
-#if IS_ENABLED(CONFIG_INPUT)
 	struct input_dev *kb_dev;
-#endif
 };
 
 /*
@@ -3476,7 +3474,6 @@ static void alc280_fixup_hp_gpio4(struct hda_codec *codec,
 	}
 }
 
-#if IS_ENABLED(CONFIG_INPUT)
 static void gpio2_mic_hotkey_event(struct hda_codec *codec,
 				   struct hda_jack_callback *event)
 {
@@ -3489,12 +3486,10 @@ static void gpio2_mic_hotkey_event(struct hda_codec *codec,
 	input_report_key(spec->kb_dev, KEY_MICMUTE, 0);
 	input_sync(spec->kb_dev);
 }
-#endif
 
 static void alc280_fixup_hp_gpio2_mic_hotkey(struct hda_codec *codec,
 					     const struct hda_fixup *fix, int action)
 {
-#if IS_ENABLED(CONFIG_INPUT)
 	/* GPIO1 = set according to SKU external amp
 	   GPIO2 = mic mute hotkey
 	   GPIO3 = mute LED
@@ -3550,7 +3545,6 @@ static void alc280_fixup_hp_gpio2_mic_hotkey(struct hda_codec *codec,
 		input_unregister_device(spec->kb_dev);
 		spec->kb_dev = NULL;
 	}
-#endif
 }
 
 static void alc269_fixup_hp_line1_mic1_led(struct hda_codec *codec,
