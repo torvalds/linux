@@ -4,12 +4,15 @@ config VIDEO_BT848
 	select I2C_ALGOBIT
 	select VIDEOBUF_DMA_SG
 	depends on RC_CORE
+	depends on MEDIA_RADIO_SUPPORT
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select VIDEO_MSP3400 if MEDIA_SUBDRV_AUTOSELECT
 	select VIDEO_TVAUDIO if MEDIA_SUBDRV_AUTOSELECT
 	select VIDEO_TDA7432 if MEDIA_SUBDRV_AUTOSELECT
 	select VIDEO_SAA6588 if MEDIA_SUBDRV_AUTOSELECT
+	select RADIO_ADAPTERS
+	select RADIO_TEA575X
 	---help---
 	  Support for BT848 based frame grabber/overlay boards. This includes
 	  the Miro, Hauppauge and STB boards. Please read the material in
