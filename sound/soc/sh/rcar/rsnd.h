@@ -221,7 +221,6 @@ struct rsnd_dai_stream;
 struct rsnd_mod {
 	int id;
 	enum rsnd_mod_type type;
-	struct rsnd_priv *priv;
 	struct rsnd_mod_ops *ops;
 	struct rsnd_dma dma;
 	struct rsnd_dai_stream *io;
@@ -256,7 +255,7 @@ struct rsnd_mod {
 #define __rsnd_mod_call_pcm_new		0
 #define __rsnd_mod_call_fallback	0
 
-#define rsnd_mod_to_priv(mod) ((mod)->priv)
+#define rsnd_mod_to_priv(mod) (rsnd_io_to_priv(rsnd_mod_to_io(mod)))
 #define rsnd_mod_to_dma(mod) (&(mod)->dma)
 #define rsnd_dma_to_mod(_dma) container_of((_dma), struct rsnd_mod, dma)
 #define rsnd_mod_to_io(mod) ((mod)->io)
@@ -264,8 +263,7 @@ struct rsnd_mod {
 #define rsnd_mod_hw_start(mod)	clk_prepare_enable((mod)->clk)
 #define rsnd_mod_hw_stop(mod)	clk_disable_unprepare((mod)->clk)
 
-void rsnd_mod_init(struct rsnd_priv *priv,
-		   struct rsnd_mod *mod,
+void rsnd_mod_init(struct rsnd_mod *mod,
 		   struct rsnd_mod_ops *ops,
 		   struct clk *clk,
 		   enum rsnd_mod_type type,
@@ -291,6 +289,7 @@ struct rsnd_dai_stream {
 #define rsnd_io_to_mod_src(io)	((io)->mod[RSND_MOD_SRC])
 #define rsnd_io_to_mod_dvc(io)	((io)->mod[RSND_MOD_DVC])
 #define rsnd_io_to_rdai(io)	((io)->rdai)
+#define rsnd_io_to_priv(io)	(rsnd_rdai_to_priv(rsnd_io_to_rdai(io)))
 #define rsnd_io_is_play(io)	(&rsnd_io_to_rdai(io)->playback == io)
 #define rsnd_io_to_runtime(io) ((io)->substream ? \
 				(io)->substream->runtime : NULL)
@@ -300,6 +299,7 @@ struct rsnd_dai {
 	char name[RSND_DAI_NAME_SIZE];
 	struct rsnd_dai_stream playback;
 	struct rsnd_dai_stream capture;
+	struct rsnd_priv *priv;
 
 	unsigned int clk_master:1;
 	unsigned int bit_clk_inv:1;
@@ -310,6 +310,7 @@ struct rsnd_dai {
 
 #define rsnd_rdai_nr(priv) ((priv)->rdai_nr)
 #define rsnd_rdai_is_clk_master(rdai) ((rdai)->clk_master)
+#define rsnd_rdai_to_priv(rdai) ((rdai)->priv)
 #define for_each_rsnd_dai(rdai, priv, i)		\
 	for (i = 0;					\
 	     (i < rsnd_rdai_nr(priv)) &&		\

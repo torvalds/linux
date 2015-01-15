@@ -149,14 +149,12 @@ char *rsnd_mod_dma_name(struct rsnd_mod *mod)
 	return mod->ops->dma_name(mod);
 }
 
-void rsnd_mod_init(struct rsnd_priv *priv,
-		   struct rsnd_mod *mod,
+void rsnd_mod_init(struct rsnd_mod *mod,
 		   struct rsnd_mod_ops *ops,
 		   struct clk *clk,
 		   enum rsnd_mod_type type,
 		   int id)
 {
-	mod->priv	= priv;
 	mod->id		= id;
 	mod->ops	= ops;
 	mod->type	= type;
@@ -868,6 +866,7 @@ static int rsnd_dai_probe(struct platform_device *pdev,
 		 *	init rsnd_dai
 		 */
 		snprintf(rdai[i].name, RSND_DAI_NAME_SIZE, "rsnd-dai.%d", i);
+		rdai[i].priv = priv;
 
 		/*
 		 *	init snd_soc_dai_driver

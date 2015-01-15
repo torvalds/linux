@@ -351,7 +351,7 @@ int rsnd_dvc_probe(struct platform_device *pdev,
 
 		dvc->info = &info->dvc_info[i];
 
-		rsnd_mod_init(priv, &dvc->mod, &rsnd_dvc_ops,
+		rsnd_mod_init(&dvc->mod, &rsnd_dvc_ops,
 			      clk, RSND_MOD_DVC, i);
 
 		dev_dbg(dev, "CMD%d probed\n", i);

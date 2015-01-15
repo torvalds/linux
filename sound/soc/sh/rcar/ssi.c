@@ -125,7 +125,7 @@ static void rsnd_ssi_status_check(struct rsnd_mod *mod,
 static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
 				     struct rsnd_dai_stream *io)
 {
-	struct rsnd_priv *priv = rsnd_mod_to_priv(&ssi->mod);
+	struct rsnd_priv *priv = rsnd_io_to_priv(io);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	int i, j, ret;
@@ -179,7 +179,7 @@ static void rsnd_ssi_master_clk_stop(struct rsnd_ssi *ssi)
 static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 			      struct rsnd_dai_stream *io)
 {
-	struct rsnd_priv *priv = rsnd_mod_to_priv(&ssi->mod);
+	struct rsnd_priv *priv = rsnd_io_to_priv(io);
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	u32 cr_mode;
@@ -730,7 +730,7 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 		else if (rsnd_ssi_pio_available(ssi))
 			ops = &rsnd_ssi_pio_ops;
 
-		rsnd_mod_init(priv, &ssi->mod, ops, clk, RSND_MOD_SSI, i);
+		rsnd_mod_init(&ssi->mod, ops, clk, RSND_MOD_SSI, i);
 
 		rsnd_ssi_parent_clk_setup(priv, ssi);
 	}
