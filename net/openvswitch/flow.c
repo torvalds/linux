@@ -691,7 +691,7 @@ int ovs_flow_key_extract(const struct ovs_tunnel_info *tun_info,
 			BUILD_BUG_ON((1 << (sizeof(tun_info->options_len) *
 						   8)) - 1
 					> sizeof(key->tun_opts));
-			memcpy(GENEVE_OPTS(key, tun_info->options_len),
+			memcpy(TUN_METADATA_OPTS(key, tun_info->options_len),
 			       tun_info->options, tun_info->options_len);
 			key->tun_opts_len = tun_info->options_len;
 		} else {

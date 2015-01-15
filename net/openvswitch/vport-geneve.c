@@ -88,7 +88,7 @@ static void geneve_rcv(struct geneve_sock *gs, struct sk_buff *skb)
 
 	opts_len = geneveh->opt_len * 4;
 
-	flags = TUNNEL_KEY | TUNNEL_OPTIONS_PRESENT |
+	flags = TUNNEL_KEY | TUNNEL_GENEVE_OPT |
 		(udp_hdr(skb)->check != 0 ? TUNNEL_CSUM : 0) |
 		(geneveh->oam ? TUNNEL_OAM : 0) |
 		(geneveh->critical ? TUNNEL_CRIT_OPT : 0);
@@ -178,7 +178,7 @@ static int geneve_tnl_send(struct vport *vport, struct sk_buff *skb)
 	__be16 sport;
 	struct rtable *rt;
 	struct flowi4 fl;
-	u8 vni[3];
+	u8 vni[3], opts_len, *opts;
 	__be16 df;
 	int err;
 
@@ -200,11 +200,18 @@ static int geneve_tnl_send(struct vport *vport, struct sk_buff *skb)
 	tunnel_id_to_vni(tun_key->tun_id, vni);
 	skb->ignore_df = 1;
 
+	if (tun_key->tun_flags & TUNNEL_GENEVE_OPT) {
+		opts = (u8 *)tun_info->options;
+		opts_len = tun_info->options_len;
+	} else {
+		opts = NULL;
+		opts_len = 0;
+	}
+
 	err = geneve_xmit_skb(geneve_port->gs, rt, skb, fl.saddr,
 			      tun_key->ipv4_dst, tun_key->ipv4_tos,
 			      tun_key->ipv4_ttl, df, sport, dport,
-			      tun_key->tun_flags, vni,
-			      tun_info->options_len, (u8 *)tun_info->options,
+			      tun_key->tun_flags, vni, opts_len, opts,
 			      false);
 	if (err < 0)
 		ip_rt_put(rt);
