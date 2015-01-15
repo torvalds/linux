@@ -342,12 +342,10 @@
 
 		watchdog0: watchdog@f8005000 {
 			clocks = <&clkc 45>;
-			compatible = "xlnx,zynq-wdt-r1p2";
-			device_type = "watchdog";
+			compatible = "cdns,wdt-r1p2";
 			interrupt-parent = <&intc>;
 			interrupts = <0 9 1>;
 			reg = <0xf8005000 0x1000>;
-			reset = <0>;
 			timeout-sec = <10>;
 		};
 	};
