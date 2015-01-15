@@ -179,7 +179,7 @@ static inline u64 native_x2apic_icr_read(void)
 extern int x2apic_mode;
 extern int x2apic_phys;
 extern void __init check_x2apic(void);
-extern void enable_x2apic(void);
+extern void x2apic_setup(void);
 static inline int x2apic_enabled(void)
 {
 	return cpu_has_x2apic && apic_is_x2apic_enabled();
@@ -188,7 +188,7 @@ static inline int x2apic_enabled(void)
 #define x2apic_supported()	(cpu_has_x2apic)
 #else
 static inline void check_x2apic(void) { }
-static inline void enable_x2apic(void) { }
+static inline void x2apic_setup(void) { }
 static inline int x2apic_enabled(void) { return 0; }
 
 #define x2apic_mode		(0)

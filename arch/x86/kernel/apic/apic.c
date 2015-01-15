@@ -1488,6 +1488,9 @@ static inline void __x2apic_disable(void)
 {
 	u64 msr;
 
+	if (cpu_has_apic)
+		return;
+
 	rdmsrl(MSR_IA32_APICBASE, msr);
 	if (!(msr & X2APIC_ENABLE))
 		return;
@@ -1495,6 +1498,17 @@ static inline void __x2apic_disable(void)
 	wrmsrl(MSR_IA32_APICBASE, msr & ~(X2APIC_ENABLE | XAPIC_ENABLE));
 	wrmsrl(MSR_IA32_APICBASE, msr & ~X2APIC_ENABLE);
 	printk_once(KERN_INFO "x2apic disabled\n");
+}
+
+static inline void __x2apic_enable(void)
+{
+	u64 msr;
+
+	rdmsrl(MSR_IA32_APICBASE, msr);
+	if (msr & X2APIC_ENABLE)
+		return;
+	wrmsrl(MSR_IA32_APICBASE, msr | X2APIC_ENABLE);
+	printk_once(KERN_INFO "x2apic enabled\n");
 }
 
 static int __init setup_nox2apic(char *str)
@@ -1516,6 +1530,20 @@ static int __init setup_nox2apic(char *str)
 	return 0;
 }
 early_param("nox2apic", setup_nox2apic);
+
+/* Called from cpu_init() to enable x2apic on (secondary) cpus */
+void x2apic_setup(void)
+{
+	/*
+	 * If x2apic is not in ON state, disable it if already enabled
+	 * from BIOS.
+	 */
+	if (x2apic_state != X2APIC_ON) {
+		__x2apic_disable();
+		return;
+	}
+	__x2apic_enable();
+}
 
 static __init void x2apic_disable(void)
 {
@@ -1541,30 +1569,19 @@ static __init void x2apic_disable(void)
 	x2apic_state = X2APIC_DISABLED;
 }
 
-void enable_x2apic(void)
+static __init void x2apic_enable(void)
 {
-	u64 msr;
-
-	if (x2apic_state == X2APIC_DISABLED) {
-		__x2apic_disable();
-		x2apic_mode = 0;
-		return;
-	}
-
-	if (!x2apic_mode)
+	if (x2apic_state != X2APIC_OFF)
 		return;
 
-	rdmsrl(MSR_IA32_APICBASE, msr);
-	if (!(msr & X2APIC_ENABLE)) {
-		printk_once(KERN_INFO "Enabling x2apic\n");
-		wrmsrl(MSR_IA32_APICBASE, msr | X2APIC_ENABLE);
-	}
+	x2apic_mode = 1;
 	x2apic_state = X2APIC_ON;
+	__x2apic_enable();
 }
 
 static __init void try_to_enable_x2apic(int remap_mode)
 {
-	if (!x2apic_supported())
+	if (x2apic_state == X2APIC_DISABLED)
 		return;
 
 	if (remap_mode != IRQ_REMAP_X2APIC_MODE) {
@@ -1585,12 +1602,7 @@ static __init void try_to_enable_x2apic(int remap_mode)
 		 */
 		x2apic_phys = 1;
 	}
-
-	if (!x2apic_mode) {
-		x2apic_mode = 1;
-		enable_x2apic();
-		pr_info("Enabled x2apic\n");
-	}
+	x2apic_enable();
 }
 
 void __init check_x2apic(void)
@@ -1616,6 +1628,7 @@ static int __init validate_x2apic(void)
 early_initcall(validate_x2apic);
 
 static inline void try_to_enable_x2apic(int remap_mode) { }
+static inline void __x2apic_enable(void) { }
 #endif /* !CONFIG_X86_X2APIC */
 
 static int __init try_to_enable_IR(void)
@@ -2357,9 +2370,9 @@ static void lapic_resume(void)
 	mask_ioapic_entries();
 	legacy_pic->mask_all();
 
-	if (x2apic_mode)
-		enable_x2apic();
-	else {
+	if (x2apic_mode) {
+		__x2apic_enable();
+	} else {
 		/*
 		 * Make sure the APICBASE points to the right address
 		 *
