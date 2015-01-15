@@ -888,7 +888,7 @@ do {									\
 	VNSvOutPortB(dwIoBase + MAC_REG_PAGE1SEL, 1)
 
 #define MACvReadMIBCounter(dwIoBase, pdwCounter)			\
-	VNSvInPortD(dwIoBase + MAC_REG_MIBCNTR , pdwCounter)
+	VNSvInPortD(dwIoBase + MAC_REG_MIBCNTR, pdwCounter)
 
 #define MACvPwrEvntDisable(dwIoBase)					\
 	VNSvOutPortW(dwIoBase + MAC_REG_WAKEUPEN0, 0x0000)
@@ -896,7 +896,7 @@ do {									\
 #define MACvEnableProtectMD(dwIoBase)					\
 do {									\
 	unsigned long dwOrgValue;					\
-	VNSvInPortD(dwIoBase + MAC_REG_ENCFG , &dwOrgValue);		\
+	VNSvInPortD(dwIoBase + MAC_REG_ENCFG, &dwOrgValue);		\
 	dwOrgValue = dwOrgValue | EnCFG_ProtectMd;			\
 	VNSvOutPortD(dwIoBase + MAC_REG_ENCFG, dwOrgValue);		\
 } while (0)
@@ -904,7 +904,7 @@ do {									\
 #define MACvDisableProtectMD(dwIoBase)					\
 do {									\
 	unsigned long dwOrgValue;					\
-	VNSvInPortD(dwIoBase + MAC_REG_ENCFG , &dwOrgValue);		\
+	VNSvInPortD(dwIoBase + MAC_REG_ENCFG, &dwOrgValue);		\
 	dwOrgValue = dwOrgValue & ~EnCFG_ProtectMd;			\
 	VNSvOutPortD(dwIoBase + MAC_REG_ENCFG, dwOrgValue);		\
 } while (0)
@@ -912,7 +912,7 @@ do {									\
 #define MACvEnableBarkerPreambleMd(dwIoBase)				\
 do {									\
 	unsigned long dwOrgValue;					\
-	VNSvInPortD(dwIoBase + MAC_REG_ENCFG , &dwOrgValue);		\
+	VNSvInPortD(dwIoBase + MAC_REG_ENCFG, &dwOrgValue);		\
 	dwOrgValue = dwOrgValue | EnCFG_BarkerPream;			\
 	VNSvOutPortD(dwIoBase + MAC_REG_ENCFG, dwOrgValue);		\
 } while (0)
@@ -920,7 +920,7 @@ do {									\
 #define MACvDisableBarkerPreambleMd(dwIoBase)				\
 do {									\
 	unsigned long dwOrgValue;					\
-	VNSvInPortD(dwIoBase + MAC_REG_ENCFG , &dwOrgValue);		\
+	VNSvInPortD(dwIoBase + MAC_REG_ENCFG, &dwOrgValue);		\
 	dwOrgValue = dwOrgValue & ~EnCFG_BarkerPream;			\
 	VNSvOutPortD(dwIoBase + MAC_REG_ENCFG, dwOrgValue);		\
 } while (0)
@@ -928,7 +928,7 @@ do {									\
 #define MACvSetBBType(dwIoBase, byTyp)					\
 do {									\
 	unsigned long dwOrgValue;					\
-	VNSvInPortD(dwIoBase + MAC_REG_ENCFG , &dwOrgValue);		\
+	VNSvInPortD(dwIoBase + MAC_REG_ENCFG, &dwOrgValue);		\
 	dwOrgValue = dwOrgValue & ~EnCFG_BBType_MASK;			\
 	dwOrgValue = dwOrgValue | (unsigned long)byTyp;			\
 	VNSvOutPortD(dwIoBase + MAC_REG_ENCFG, dwOrgValue);		\
