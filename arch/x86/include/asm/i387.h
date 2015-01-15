@@ -51,6 +51,10 @@ static inline void kernel_fpu_end(void)
 	preempt_enable();
 }
 
+/* Must be called with preempt disabled */
+extern void kernel_fpu_disable(void);
+extern void kernel_fpu_enable(void);
+
 /*
  * Some instructions like VIA's padlock instructions generate a spurious
  * DNA fault but don't modify SSE registers. And these instructions

@@ -21,6 +21,17 @@
 
 static DEFINE_PER_CPU(bool, in_kernel_fpu);
 
+void kernel_fpu_disable(void)
+{
+	WARN_ON(this_cpu_read(in_kernel_fpu));
+	this_cpu_write(in_kernel_fpu, true);
+}
+
+void kernel_fpu_enable(void)
+{
+	this_cpu_write(in_kernel_fpu, false);
+}
+
 /*
  * Were we in an interrupt that interrupted kernel mode?
  *
