@@ -1244,6 +1244,8 @@ static int __inject_vm(struct kvm *kvm, struct kvm_s390_interrupt_info *inti)
 		list_add_tail(&inti->list, &iter->list);
 	}
 	atomic_set(&fi->active, 1);
+	if (atomic_read(&kvm->online_vcpus) == 0)
+		goto unlock_fi;
 	sigcpu = find_first_bit(fi->idle_mask, KVM_MAX_VCPUS);
 	if (sigcpu == KVM_MAX_VCPUS) {
 		do {
