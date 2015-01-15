@@ -447,8 +447,13 @@ static void f2fs_put_super(struct super_block *sb)
 	f2fs_destroy_stats(sbi);
 	stop_gc_thread(sbi);
 
-	/* We don't need to do checkpoint when it's clean */
-	if (sbi->s_dirty) {
+	/*
+	 * We don't need to do checkpoint when superblock is clean.
+	 * But, the previous checkpoint was not done by umount, it needs to do
+	 * clean checkpoint again.
+	 */
+	if (sbi->s_dirty ||
+			!is_set_ckpt_flags(F2FS_CKPT(sbi), CP_UMOUNT_FLAG)) {
 		struct cp_control cpc = {
 			.reason = CP_UMOUNT,
 		};
