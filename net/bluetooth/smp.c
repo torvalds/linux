@@ -3072,6 +3072,12 @@ int smp_register(struct hci_dev *hdev)
 	if (!lmp_le_capable(hdev))
 		return 0;
 
+	if (WARN_ON(hdev->smp_data)) {
+		chan = hdev->smp_data;
+		hdev->smp_data = NULL;
+		smp_del_chan(chan);
+	}
+
 	chan = smp_add_cid(hdev, L2CAP_CID_SMP);
 	if (IS_ERR(chan))
 		return PTR_ERR(chan);
@@ -3089,6 +3095,12 @@ int smp_register(struct hci_dev *hdev)
 		debugfs_create_file("force_bredr_smp", 0644, hdev->debugfs,
 				    hdev, &force_bredr_smp_fops);
 		return 0;
+	}
+
+	if (WARN_ON(hdev->smp_bredr_data)) {
+		chan = hdev->smp_bredr_data;
+		hdev->smp_bredr_data = NULL;
+		smp_del_chan(chan);
 	}
 
 	chan = smp_add_cid(hdev, L2CAP_CID_SMP_BREDR);
