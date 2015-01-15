@@ -820,6 +820,8 @@ static void ci_power_lost_work(struct work_struct *work)
 	pm_runtime_get_sync(ci->dev);
 	if (!ci_otg_is_fsm_mode(ci))
 		ci_start_new_role(ci);
+	else
+		ci_hdrc_otg_fsm_restart(ci);
 	pm_runtime_put_sync(ci->dev);
 	enable_irq(ci->irq);
 }

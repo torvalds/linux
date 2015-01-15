@@ -31,6 +31,7 @@
 #include "udc.h"
 #include "otg_fsm.h"
 #include "udc.h"
+#include "host.h"
 
 /* Add for otg: interact with user space app */
 static ssize_t
@@ -833,4 +834,40 @@ int ci_hdrc_otg_fsm_init(struct ci_hdrc *ci)
 void ci_hdrc_otg_fsm_remove(struct ci_hdrc *ci)
 {
 	sysfs_remove_group(&ci->dev->kobj, &inputs_attr_group);
+}
+
+/* Restart OTG fsm if resume from power lost */
+void ci_hdrc_otg_fsm_restart(struct ci_hdrc *ci)
+{
+	struct otg_fsm *fsm = &ci->fsm;
+	int id_status = fsm->id;
+
+	/* Update fsm if power lost in peripheral state */
+	if (ci->fsm.otg->state == OTG_STATE_B_PERIPHERAL) {
+		fsm->b_sess_vld = 0;
+		otg_statemachine(fsm);
+	}
+
+	hw_write_otgsc(ci, OTGSC_IDIE, OTGSC_IDIE);
+	hw_write_otgsc(ci, OTGSC_AVVIE, OTGSC_AVVIE);
+
+	/* Update fsm variables for restart */
+	fsm->id = hw_read_otgsc(ci, OTGSC_ID) ? 1 : 0;
+	if (fsm->id) {
+		fsm->b_ssend_srp =
+			hw_read_otgsc(ci, OTGSC_BSV) ? 0 : 1;
+		fsm->b_sess_vld =
+			hw_read_otgsc(ci, OTGSC_BSV) ? 1 : 0;
+	} else if (fsm->id != id_status) {
+		/* ID changes to be 0 */
+		fsm->a_bus_drop = 0;
+		fsm->a_bus_req = 1;
+		ci->id_event = true;
+	}
+
+	if (ci_hdrc_host_has_device(ci) &&
+			!hw_read(ci, OP_PORTSC, PORTSC_CCS))
+		fsm->b_conn = 0;
+
+	ci_otg_fsm_work(ci);
 }
