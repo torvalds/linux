@@ -32,6 +32,127 @@
 		mshc0 = &mshc_0;
 	};
 
+	memory_bus_mif: memory_bus@0 {
+		compatible = "samsung,exynos-memory-bus";
+
+		operating-points = <
+			400000 1100000
+			200000 1000000
+			160000 950000
+			133000 950000
+			100000 950000>;
+		status = "disabled";
+
+		blocks {
+			dmc_block: memory_bus_block1 {
+				clocks = <&clock CLK_DIV_DMC>;
+				clock-names = "memory-bus";
+				frequency = <
+					400000
+					200000
+					160000
+					133000
+					100000>;
+			};
+
+			acp_block: memory_bus_block2 {
+				clocks = <&clock CLK_DIV_ACP>;
+				clock-names = "memory-bus";
+				frequency = <
+					200000
+					160000
+					133000
+					133000
+					100000>;
+			};
+
+			c2c_block: memory_bus_block3 {
+				clocks = <&clock CLK_DIV_C2C>;
+				clock-names = "memory-bus";
+				frequency = <
+					400000
+					200000
+					160000
+					133000
+					100000>;
+			};
+		};
+	};
+
+	memory_bus_int: memory_bus@1 {
+		compatible = "samsung,exynos-memory-bus";
+
+		operating-points = <
+			200000 1000000
+			160000 950000
+			133000 925000
+			100000 900000>;
+
+		status = "disabled";
+
+		blocks {
+			peri_block: memory_bus_block1 {
+				clocks = <&clock CLK_ACLK100>;
+				clock-names = "memory-bus";
+				frequency = <
+					100000
+					100000
+					100000
+					100000>;
+			};
+
+			fsys_block: memory_bus_block2 {
+				clocks = <&clock CLK_ACLK133>;
+				clock-names = "memory-bus";
+				frequency = <
+					133000
+					133000
+					100000
+					100000>;
+			};
+
+			display_block: memory_bus_block3 {
+				clocks = <&clock CLK_ACLK160>;
+				clock-names = "memory-bus";
+				frequency = <
+					160000
+					160000
+					133000
+					100000>;
+			};
+
+			leftbus_block: memory_bus_block4 {
+				clocks = <&clock CLK_DIV_GDL>;
+				clock-names = "memory-bus";
+				frequency = <
+					200000
+					160000
+					133000
+					100000>;
+			};
+
+			rightbus_block: memory_bus_block5 {
+				clocks = <&clock CLK_DIV_GDR>;
+				clock-names = "memory-bus";
+				frequency = <
+					200000
+					160000
+					133000
+					100000>;
+			};
+
+			mfc_block: memory_bus_block6 {
+				clocks = <&clock CLK_SCLK_MFC>;
+				clock-names = "memory-bus";
+				frequency = <
+					200000
+					160000
+					133000
+					100000>;
+			};
+		};
+	};
+
 	sysram@02020000 {
 		compatible = "mmio-sram";
 		reg = <0x02020000 0x40000>;
