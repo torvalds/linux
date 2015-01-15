@@ -54,8 +54,7 @@
 #define END_USE(vq)
 #endif
 
-struct vring_virtqueue
-{
+struct vring_virtqueue {
 	struct virtqueue vq;
 
 	/* Actual memory layout for this queue */
