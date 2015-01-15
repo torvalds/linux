@@ -498,6 +498,8 @@ static struct sh_eth_cpu_data r8a779x_data = {
 			  EESR_ECI,
 	.fdr_value	= 0x00000f0f,
 
+	.trscer_err_mask = DESC_I_RINT8,
+
 	.apr		= 1,
 	.mpr		= 1,
 	.tpauser	= 1,
@@ -537,8 +539,6 @@ static struct sh_eth_cpu_data sh7724_data = {
 	.eesr_err_check	= EESR_TWB | EESR_TABT | EESR_RABT | EESR_RFE |
 			  EESR_RDE | EESR_RFRMER | EESR_TFE | EESR_TDE |
 			  EESR_ECI,
-
-	.trscer_err_mask = DESC_I_RINT8,
 
 	.apr		= 1,
 	.mpr		= 1,
