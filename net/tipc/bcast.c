@@ -220,10 +220,11 @@ static void bclink_retransmit_pkt(u32 after, u32 to)
 	struct sk_buff *skb;
 
 	skb_queue_walk(&bcl->outqueue, skb) {
-		if (more(buf_seqno(skb), after))
+		if (more(buf_seqno(skb), after)) {
+			tipc_link_retransmit(bcl, skb, mod(to - after));
 			break;
+		}
 	}
-	tipc_link_retransmit(bcl, skb, mod(to - after));
 }
 
 /**

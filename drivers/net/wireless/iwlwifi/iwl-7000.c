@@ -69,8 +69,8 @@
 #include "iwl-agn-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL7260_UCODE_API_MAX	10
-#define IWL3160_UCODE_API_MAX	10
+#define IWL7260_UCODE_API_MAX	12
+#define IWL3160_UCODE_API_MAX	12
 
 /* Oldest version we won't warn about */
 #define IWL7260_UCODE_API_OK	10
@@ -105,7 +105,7 @@
 #define IWL7265_MODULE_FIRMWARE(api) IWL7265_FW_PRE __stringify(api) ".ucode"
 
 #define IWL7265D_FW_PRE "iwlwifi-7265D-"
-#define IWL7265D_MODULE_FIRMWARE(api) IWL7265_FW_PRE __stringify(api) ".ucode"
+#define IWL7265D_MODULE_FIRMWARE(api) IWL7265D_FW_PRE __stringify(api) ".ucode"
 
 #define NVM_HW_SECTION_NUM_FAMILY_7000		0
 
