@@ -40,8 +40,8 @@ extern void __kernel_fpu_end(void);
 
 static inline void kernel_fpu_begin(void)
 {
-	WARN_ON_ONCE(!irq_fpu_usable());
 	preempt_disable();
+	WARN_ON_ONCE(!irq_fpu_usable());
 	__kernel_fpu_begin();
 }
 

@@ -19,6 +19,8 @@
 #include <asm/fpu-internal.h>
 #include <asm/user.h>
 
+static DEFINE_PER_CPU(bool, in_kernel_fpu);
+
 /*
  * Were we in an interrupt that interrupted kernel mode?
  *
@@ -33,6 +35,9 @@
  */
 static inline bool interrupted_kernel_fpu_idle(void)
 {
+	if (this_cpu_read(in_kernel_fpu))
+		return false;
+
 	if (use_eager_fpu())
 		return __thread_has_fpu(current);
 
@@ -73,6 +78,8 @@ void __kernel_fpu_begin(void)
 {
 	struct task_struct *me = current;
 
+	this_cpu_write(in_kernel_fpu, true);
+
 	if (__thread_has_fpu(me)) {
 		__thread_clear_has_fpu(me);
 		__save_init_fpu(me);
@@ -99,6 +106,8 @@ void __kernel_fpu_end(void)
 	} else {
 		stts();
 	}
+
+	this_cpu_write(in_kernel_fpu, false);
 }
 EXPORT_SYMBOL(__kernel_fpu_end);
 
