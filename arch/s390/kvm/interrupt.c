@@ -1354,12 +1354,12 @@ int s390int_to_s390irq(struct kvm_s390_interrupt *s390int,
 		irq->u.stop.flags = s390int->parm;
 		break;
 	case KVM_S390_INT_EXTERNAL_CALL:
-		if (irq->u.extcall.code & 0xffff0000)
+		if (s390int->parm & 0xffff0000)
 			return -EINVAL;
 		irq->u.extcall.code = s390int->parm;
 		break;
 	case KVM_S390_INT_EMERGENCY:
-		if (irq->u.emerg.code & 0xffff0000)
+		if (s390int->parm & 0xffff0000)
 			return -EINVAL;
 		irq->u.emerg.code = s390int->parm;
 		break;
