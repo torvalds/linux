@@ -3634,10 +3634,6 @@ int __init omap3xxx_clk_init(void)
 		omap_clocks_register(omap36xx_am35xx_omap3430es2plus_clks,
 				     ARRAY_SIZE(omap36xx_am35xx_omap3430es2plus_clks));
 		omap_clocks_register(omap3xxx_clks, ARRAY_SIZE(omap3xxx_clks));
-	} else if (soc_is_am33xx()) {
-		cpu_mask = RATE_IN_AM33XX;
-	} else if (cpu_is_ti814x()) {
-		cpu_mask = RATE_IN_TI814X;
 	} else if (cpu_is_omap34xx()) {
 		if (omap_rev() == OMAP3430_REV_ES1_0) {
 			cpu_mask = RATE_IN_3430ES1;
@@ -3681,7 +3677,7 @@ int __init omap3xxx_clk_init(void)
 	 * Lock DPLL5 -- here only until other device init code can
 	 * handle this
 	 */
-	if (!cpu_is_ti81xx() && (omap_rev() >= OMAP3430_REV_ES2_0))
+	if (omap_rev() >= OMAP3430_REV_ES2_0)
 		omap3_clk_lock_dpll5();
 
 	/* Avoid sleeping during omap3_core_dpll_m2_set_rate() */
