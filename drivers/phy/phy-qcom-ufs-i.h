@@ -15,14 +15,55 @@
 #ifndef UFS_QCOM_PHY_I_H_
 #define UFS_QCOM_PHY_I_H_
 
+#include <linux/module.h>
 #include <linux/clk.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
-#include <linux/phy/phy.h>
+#include <linux/phy/phy-qcom-ufs.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/delay.h>
 
+#define readl_poll_timeout(addr, val, cond, sleep_us, timeout_us) \
+({ \
+	ktime_t timeout = ktime_add_us(ktime_get(), timeout_us); \
+	might_sleep_if(timeout_us); \
+	for (;;) { \
+		(val) = readl(addr); \
+		if (cond) \
+			break; \
+		if (timeout_us && ktime_compare(ktime_get(), timeout) > 0) { \
+			(val) = readl(addr); \
+			break; \
+		} \
+		if (sleep_us) \
+			usleep_range(DIV_ROUND_UP(sleep_us, 4), sleep_us); \
+	} \
+	(cond) ? 0 : -ETIMEDOUT; \
+})
+
+#define UFS_QCOM_PHY_CAL_ENTRY(reg, val)	\
+	{				\
+		.reg_offset = reg,	\
+		.cfg_value = val,	\
+	}
+
 #define UFS_QCOM_PHY_NAME_LEN	30
+
+enum {
+	MASK_SERDES_START       = 0x1,
+	MASK_PCS_READY          = 0x1,
+};
+
+enum {
+	OFFSET_SERDES_START     = 0x0,
+};
+
+struct ufs_qcom_phy_stored_attributes {
+	u32 att;
+	u32 value;
+};
+
 
 struct ufs_qcom_phy_calibration {
 	u32 reg_offset;
