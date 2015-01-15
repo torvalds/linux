@@ -1547,26 +1547,20 @@ void x2apic_setup(void)
 
 static __init void x2apic_disable(void)
 {
-	u64 msr;
+	u32 x2apic_id;
 
-	if (!cpu_has_x2apic)
-		return;
+	if (x2apic_state != X2APIC_ON)
+		goto out;
 
-	rdmsrl(MSR_IA32_APICBASE, msr);
-	if (msr & X2APIC_ENABLE) {
-		u32 x2apic_id = read_apic_id();
+	x2apic_id = read_apic_id();
+	if (x2apic_id >= 255)
+		panic("Cannot disable x2apic, id: %08x\n", x2apic_id);
 
-		if (x2apic_id >= 255)
-			panic("Cannot disable x2apic, id: %08x\n", x2apic_id);
-
-		__x2apic_disable();
-
-		x2apic_mode = 0;
-
-		register_lapic_address(mp_lapic_addr);
-	}
-
+	__x2apic_disable();
+	register_lapic_address(mp_lapic_addr);
+out:
 	x2apic_state = X2APIC_DISABLED;
+	x2apic_mode = 0;
 }
 
 static __init void x2apic_enable(void)
