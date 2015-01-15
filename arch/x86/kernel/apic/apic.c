@@ -134,9 +134,6 @@ static inline void imcr_apic_to_pic(void)
  */
 static int force_enable_local_apic __initdata;
 
-/* Control whether x2APIC mode is enabled or not */
-static bool nox2apic __initdata;
-
 /*
  * APIC command line parameters
  */
@@ -159,33 +156,6 @@ static __init int setup_apicpmtimer(char *s)
 	return 0;
 }
 __setup("apicpmtimer", setup_apicpmtimer);
-#endif
-
-#ifdef CONFIG_X86_X2APIC
-int x2apic_mode;
-/* x2apic enabled before OS handover */
-int x2apic_preenabled;
-static int x2apic_disabled;
-static int __init setup_nox2apic(char *str)
-{
-	if (x2apic_enabled()) {
-		int apicid = native_apic_msr_read(APIC_ID);
-
-		if (apicid >= 255) {
-			pr_warning("Apicid: %08x, cannot enforce nox2apic\n",
-				   apicid);
-			return 0;
-		}
-
-		pr_warning("x2apic already enabled. will disable it\n");
-	} else
-		setup_clear_cpu_cap(X86_FEATURE_X2APIC);
-
-	nox2apic = true;
-
-	return 0;
-}
-early_param("nox2apic", setup_nox2apic);
 #endif
 
 unsigned long mp_lapic_addr;
@@ -1504,7 +1474,35 @@ void __init bsp_end_local_APIC_setup(void)
 
 }
 
+/* Control whether x2APIC mode is enabled or not */
+static bool nox2apic __initdata;
+
 #ifdef CONFIG_X86_X2APIC
+int x2apic_mode;
+/* x2apic enabled before OS handover */
+int x2apic_preenabled;
+static int x2apic_disabled;
+static int __init setup_nox2apic(char *str)
+{
+	if (x2apic_enabled()) {
+		int apicid = native_apic_msr_read(APIC_ID);
+
+		if (apicid >= 255) {
+			pr_warning("Apicid: %08x, cannot enforce nox2apic\n",
+				   apicid);
+			return 0;
+		}
+
+		pr_warning("x2apic already enabled. will disable it\n");
+	} else
+		setup_clear_cpu_cap(X86_FEATURE_X2APIC);
+
+	nox2apic = true;
+
+	return 0;
+}
+early_param("nox2apic", setup_nox2apic);
+
 /*
  * Need to disable xapic and x2apic at the same time and then enable xapic mode
  */
