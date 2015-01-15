@@ -46,7 +46,7 @@ sk_load_word_slow:
 	lgr	%r9,%r2			# save %r2
 	lgr	%r3,%r1			# offset
 	la	%r4,160(%r15)		# pointer to temp buffer
-	lhi	%r5,4			# 4 bytes
+	lghi	%r5,4			# 4 bytes
 	brasl	%r14,skb_copy_bits	# get data from skb
 	l	%r5,160(%r15)		# load result from temp buffer
 	ltgr	%r2,%r2			# set cc to (%r2 != 0)
@@ -72,7 +72,7 @@ sk_load_half_slow:
 	lgr	%r9,%r2			# save %r2
 	lgr	%r3,%r1			# offset
 	la	%r4,162(%r15)		# pointer to temp buffer
-	lhi	%r5,2			# 2 bytes
+	lghi	%r5,2			# 2 bytes
 	brasl	%r14,skb_copy_bits	# get data from skb
 	xc	160(2,%r15),160(%r15)
 	l	%r5,160(%r15)		# load result from temp buffer
@@ -97,8 +97,9 @@ ENTRY(sk_load_byte)
 
 sk_load_byte_slow:
 	lgr	%r9,%r2			# save %r2
+	lgr	%r3,%r1			# offset
 	la	%r4,163(%r15)		# pointer to temp buffer
-	lhi	%r5,1			# 1 bytes
+	lghi	%r5,1			# 1 byte
 	brasl	%r14,skb_copy_bits	# get data from skb
 	xc	160(3,%r15),160(%r15)
 	l	%r5,160(%r15)		# load result from temp buffer
@@ -120,8 +121,9 @@ ENTRY(sk_load_byte_msh)
 
 sk_load_byte_msh_slow:
 	lgr	%r9,%r2			# save %r2
+	lgr	%r3,%r1			# offset
 	la	%r4,163(%r15)		# pointer to temp buffer
-	lhi	%r5,1			# 1 bytes
+	lghi	%r5,1			# 1 byte
 	brasl	%r14,skb_copy_bits	# get data from skb
 	xc	160(3,%r15),160(%r15)
 	l	%r12,160(%r15)		# load result from temp buffer
