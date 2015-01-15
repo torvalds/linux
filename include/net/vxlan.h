@@ -129,6 +129,9 @@ struct vxlan_sock {
 #define VXLAN_F_REMCSUM_RX		0x400
 #define VXLAN_F_GBP			0x800
 
+/* These flags must match in order for a socket to be shareable */
+#define VXLAN_F_UNSHAREABLE		VXLAN_F_GBP
+
 struct vxlan_sock *vxlan_sock_add(struct net *net, __be16 port,
 				  vxlan_rcv_t *rcv, void *data,
 				  bool no_share, u32 flags);
