@@ -81,7 +81,7 @@ static int rear_amp_power(struct snd_soc_codec *codec, int power)
 static int rear_amp_event(struct snd_soc_dapm_widget *widget,
 			  struct snd_kcontrol *kctl, int event)
 {
-	struct snd_soc_codec *codec = widget->codec;
+	struct snd_soc_codec *codec = widget->dapm->card->rtd[0].codec;
 
 	return rear_amp_power(codec, SND_SOC_DAPM_EVENT_ON(event));
 }
