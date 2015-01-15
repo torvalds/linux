@@ -239,6 +239,8 @@ static int _complete(dwc_otg_hcd_t *hcd, void *urb_handle,
 		     dwc_otg_hcd_urb_t *dwc_otg_urb, int32_t status)
 {
 	struct urb *urb = (struct urb *)urb_handle;
+	if (!urb)
+		return 0;
 #ifdef DEBUG
 	if (CHK_DEBUG_LEVEL(DBG_HCDV | DBG_HCD_URB)) {
 		DWC_PRINTF("%s: urb %p, device %d, ep %d %s, status=%d\n",

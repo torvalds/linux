@@ -179,6 +179,8 @@ static void kill_urbs_in_qh_list(dwc_otg_hcd_t *hcd, dwc_list_link_t *qh_list)
 				hcd->fops->complete(hcd, qtd->urb->priv,
 						    qtd->urb, -DWC_E_SHUTDOWN);
 				dwc_otg_hcd_qtd_remove_and_free(hcd, qtd, qh);
+			} else {
+				return;
 			}
 
 		}
@@ -953,6 +955,7 @@ static void dwc_otg_hcd_reinit(dwc_otg_hcd_t *hcd)
 	int i;
 	dwc_hc_t *channel;
 	dwc_hc_t *channel_tmp;
+	dwc_irqflags_t flags;
 
 	hcd->flags.d32 = 0;
 
@@ -960,6 +963,7 @@ static void dwc_otg_hcd_reinit(dwc_otg_hcd_t *hcd)
 	hcd->non_periodic_channels = 0;
 	hcd->periodic_channels = 0;
 
+	DWC_SPINLOCK_IRQSAVE(hcd->lock, &flags);
 	/*
 	 * Put all channels in the free channel list and clean up channel
 	 * states.
@@ -976,7 +980,7 @@ static void dwc_otg_hcd_reinit(dwc_otg_hcd_t *hcd)
 					hc_list_entry);
 		dwc_otg_hc_cleanup(hcd->core_if, channel);
 	}
-
+	DWC_SPINUNLOCK_IRQRESTORE(hcd->lock, flags);
 	/* Initialize the DWC core for host mode operation. */
 	dwc_otg_core_host_init(hcd->core_if);
 
@@ -1334,6 +1338,8 @@ static int queue_transaction(dwc_otg_hcd_t *hcd,
 				hc->qh->ping_state = 0;
 			}
 		} else if (!hc->xfer_started) {
+			if (!hc || !(hc->qh))
+				return -ENODEV;
 			dwc_otg_hc_start_transfer(hcd->core_if, hc);
 			hc->qh->ping_state = 0;
 		}
