@@ -50,7 +50,7 @@ static int sa1100_direction_output(struct gpio_chip *chip, unsigned offset, int 
 
 static int sa1100_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	return offset < 11 ? (IRQ_GPIO0 + offset) : (IRQ_GPIO11 - 11 + offset);
+	return IRQ_GPIO0 + offset;
 }
 
 static struct gpio_chip sa1100_gpio_chip = {
