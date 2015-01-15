@@ -1257,6 +1257,8 @@
 				tx-fifo-resize;
 				maximum-speed = "super-speed";
 				dr_mode = "otg";
+				snps,dis_u3_susphy_quirk;
+				snps,dis_u2_susphy_quirk;
 			};
 		};
 
@@ -1278,6 +1280,8 @@
 				tx-fifo-resize;
 				maximum-speed = "high-speed";
 				dr_mode = "otg";
+				snps,dis_u3_susphy_quirk;
+				snps,dis_u2_susphy_quirk;
 			};
 		};
 
@@ -1299,6 +1303,8 @@
 				tx-fifo-resize;
 				maximum-speed = "high-speed";
 				dr_mode = "otg";
+				snps,dis_u3_susphy_quirk;
+				snps,dis_u2_susphy_quirk;
 			};
 		};
 
