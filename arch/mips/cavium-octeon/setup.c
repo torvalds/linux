@@ -579,12 +579,10 @@ void octeon_user_io_init(void)
 	/* R/W If set, CVMSEG is available for loads/stores in user
 	 * mode. */
 	cvmmemctl.s.cvmsegenau = 0;
-	/* R/W Size of local memory in cache blocks, 54 (6912 bytes)
-	 * is max legal value. */
-	cvmmemctl.s.lmemsz = CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE;
 
 	write_c0_cvmmemctl(cvmmemctl.u64);
 
+	/* Setup of CVMSEG is done in kernel-entry-init.h */
 	if (smp_processor_id() == 0)
 		pr_notice("CVMSEG size: %d cache lines (%d bytes)\n",
 			  CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE,

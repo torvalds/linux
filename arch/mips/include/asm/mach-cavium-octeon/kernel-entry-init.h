@@ -8,11 +8,10 @@
 #ifndef __ASM_MACH_CAVIUM_OCTEON_KERNEL_ENTRY_H
 #define __ASM_MACH_CAVIUM_OCTEON_KERNEL_ENTRY_H
 
-
-#define CP0_CYCLE_COUNTER $9, 6
 #define CP0_CVMCTL_REG $9, 7
 #define CP0_CVMMEMCTL_REG $11,7
 #define CP0_PRID_REG $15, 0
+#define CP0_DCACHE_ERR_REG $27, 1
 #define CP0_PRID_OCTEON_PASS1 0x000d0000
 #define CP0_PRID_OCTEON_CN30XX 0x000d0200
 
@@ -60,7 +59,7 @@
 skip:
 	# First clear off CvmCtl[IPPCI] bit and move the performance
 	# counters interrupt to IRQ 6
-	li	v1, ~(7 << 7)
+	dli	v1, ~(7 << 7)
 	and	v0, v0, v1
 	ori	v0, v0, (6 << 7)
 
@@ -90,6 +89,20 @@ skip:
 	sync
 	# Flush dcache after config change
 	cache	9, 0($0)
+	# Zero all of CVMSEG to make sure parity is correct
+	dli	v0, CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE
+	dsll	v0, 7
+	beqz	v0, 2f
+1:	dsubu	v0, 8
+	sd	$0, -32768(v0)
+	bnez	v0, 1b
+2:
+	mfc0	v0, CP0_PRID_REG
+	bbit0	v0, 15, 1f
+	# OCTEON II or better have bit 15 set.  Clear the error bits.
+	dli	v0, 0x27
+	dmtc0	v0, CP0_DCACHE_ERR_REG
+1:
 	# Get my core id
 	rdhwr	v0, $0
 	# Jump the master to kernel_entry
