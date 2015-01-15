@@ -808,7 +808,6 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
  */
 int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm, struct kvm_dirty_log *log)
 {
-#ifdef CONFIG_ARM
 	bool is_dirty = false;
 	int r;
 
@@ -821,9 +820,6 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm, struct kvm_dirty_log *log)
 
 	mutex_unlock(&kvm->slots_lock);
 	return r;
-#else /* arm64 */
-	return -EINVAL;
-#endif
 }
 
 static int kvm_vm_ioctl_set_device_addr(struct kvm *kvm,

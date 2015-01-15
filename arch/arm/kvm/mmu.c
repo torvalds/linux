@@ -52,11 +52,18 @@ static phys_addr_t hyp_idmap_vector;
 
 static bool memslot_is_logging(struct kvm_memory_slot *memslot)
 {
-#ifdef CONFIG_ARM
 	return memslot->dirty_bitmap && !(memslot->flags & KVM_MEM_READONLY);
-#else
-	return false;
-#endif
+}
+
+/**
+ * kvm_flush_remote_tlbs() - flush all VM TLB entries for v7/8
+ * @kvm:	pointer to kvm structure.
+ *
+ * Interface to HYP function to flush all VM TLB entries
+ */
+void kvm_flush_remote_tlbs(struct kvm *kvm)
+{
+	kvm_call_hyp(__kvm_tlb_flush_vmid, kvm);
 }
 
 static void kvm_tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa)
@@ -950,7 +957,6 @@ static bool kvm_is_device_pfn(unsigned long pfn)
 	return !pfn_valid(pfn);
 }
 
-#ifdef CONFIG_ARM
 /**
  * stage2_wp_ptes - write protect PMD range
  * @pmd:	pointer to pmd entry
@@ -1095,7 +1101,6 @@ void kvm_arch_mmu_write_protect_pt_masked(struct kvm *kvm,
 
 	stage2_wp_range(kvm, start, end);
 }
-#endif
 
 static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 			  struct kvm_memory_slot *memslot, unsigned long hva,
@@ -1511,7 +1516,6 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 				   const struct kvm_memory_slot *old,
 				   enum kvm_mr_change change)
 {
-#ifdef CONFIG_ARM
 	/*
 	 * At this point memslot has been committed and there is an
 	 * allocated dirty_bitmap[], dirty pages will be be tracked while the
@@ -1519,7 +1523,6 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 	 */
 	if (change != KVM_MR_DELETE && mem->flags & KVM_MEM_LOG_DIRTY_PAGES)
 		kvm_mmu_wp_memory_region(kvm, mem->slot);
-#endif
 }
 
 int kvm_arch_prepare_memory_region(struct kvm *kvm,
