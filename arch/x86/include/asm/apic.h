@@ -178,7 +178,6 @@ static inline u64 native_x2apic_icr_read(void)
 
 extern int x2apic_mode;
 extern int x2apic_phys;
-extern int x2apic_preenabled;
 extern void check_x2apic(void);
 extern void enable_x2apic(void);
 static inline int x2apic_enabled(void)
@@ -210,7 +209,6 @@ static inline void x2apic_force_phys(void)
 }
 
 #define x2apic_mode		(0)
-#define	x2apic_preenabled	(0)
 #define	x2apic_supported()	(0)
 #endif
 
