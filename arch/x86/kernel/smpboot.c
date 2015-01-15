@@ -1163,12 +1163,8 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 
 	cpu0_logical_apicid = apic_bsp_setup(false);
 
-	/*
-	 * Set up local APIC timer on boot CPU.
-	 */
 	pr_info("CPU%d: ", 0);
 	print_cpu_info(&cpu_data(0));
-	x86_init.timers.setup_percpu_clockev();
 
 	if (is_uv_system())
 		uv_system_init();
