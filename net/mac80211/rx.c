@@ -361,9 +361,6 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 		u16 known = local->hw.radiotap_vht_details;
 
 		rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_VHT);
-		/* known field - how to handle 80+80? */
-		if (status->vht_flag & RX_VHT_FLAG_80P80MHZ)
-			known &= ~IEEE80211_RADIOTAP_VHT_KNOWN_BANDWIDTH;
 		put_unaligned_le16(known, pos);
 		pos += 2;
 		/* flags */
@@ -378,8 +375,6 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 		/* bandwidth */
 		if (status->vht_flag & RX_VHT_FLAG_80MHZ)
 			*pos++ = 4;
-		else if (status->vht_flag & RX_VHT_FLAG_80P80MHZ)
-			*pos++ = 0; /* marked not known above */
 		else if (status->vht_flag & RX_VHT_FLAG_160MHZ)
 			*pos++ = 11;
 		else if (status->flag & RX_FLAG_40MHZ)
