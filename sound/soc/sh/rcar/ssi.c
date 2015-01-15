@@ -189,7 +189,7 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 	if (0 == ssi->usrcnt) {
 		rsnd_mod_hw_start(&ssi->mod);
 
-		if (rsnd_dai_is_clk_master(rdai)) {
+		if (rsnd_rdai_is_clk_master(rdai)) {
 			if (rsnd_ssi_clk_from_parent(ssi))
 				rsnd_ssi_hw_start(ssi->parent, rdai, io);
 			else
@@ -210,7 +210,7 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 	rsnd_mod_write(&ssi->mod, SSICR, cr);
 
 	/* enable WS continue */
-	if (rsnd_dai_is_clk_master(rdai))
+	if (rsnd_rdai_is_clk_master(rdai))
 		rsnd_mod_write(&ssi->mod, SSIWSR, CONT);
 
 	/* clear error status */
@@ -252,7 +252,7 @@ static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi,
 		rsnd_mod_write(&ssi->mod, SSICR, cr);	/* disabled all */
 		rsnd_ssi_status_check(&ssi->mod, IIRQ);
 
-		if (rsnd_dai_is_clk_master(rdai)) {
+		if (rsnd_rdai_is_clk_master(rdai)) {
 			if (rsnd_ssi_clk_from_parent(ssi))
 				rsnd_ssi_hw_stop(ssi->parent, rdai);
 			else
