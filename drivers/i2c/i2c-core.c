@@ -704,8 +704,10 @@ EXPORT_SYMBOL_GPL(i2c_new_device);
  */
 void i2c_unregister_device(struct i2c_client *client)
 {
+#if IS_ENABLED(CONFIG_OF_DYNAMIC)
 	if (client->dev.of_node)
 		of_node_clear_flag(client->dev.of_node, OF_POPULATED);
+#endif
 	device_unregister(&client->dev);
 }
 EXPORT_SYMBOL_GPL(i2c_unregister_device);
