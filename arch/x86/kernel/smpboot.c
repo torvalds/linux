@@ -172,8 +172,7 @@ static void smp_callin(void)
 	 * CPU, first the APIC. (this is probably redundant on most
 	 * boards)
 	 */
-	setup_local_APIC();
-	end_local_APIC_setup();
+	apic_ap_setup();
 
 	/*
 	 * Need to setup vector mappings before we enable interrupts.
@@ -1078,7 +1077,6 @@ static int __init smp_sanity_check(unsigned max_cpus)
 				boot_cpu_physical_apicid);
 			pr_err("... forcing use of dummy APIC emulation (tell your hw vendor)\n");
 		}
-		disable_ioapic_support();
 		return -1;
 	}
 
@@ -1090,10 +1088,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 	if (!max_cpus) {
 		pr_info("SMP mode deactivated\n");
 		disable_ioapic_support();
-
-		connect_bsp_APIC();
-		setup_local_APIC();
-		bsp_end_local_APIC_setup();
+		apic_bsp_setup();
 		return -1;
 	}
 
@@ -1151,23 +1146,7 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 		/* Or can we switch back to PIC here? */
 	}
 
-	connect_bsp_APIC();
-
-	/*
-	 * Switch from PIC to APIC mode.
-	 */
-	setup_local_APIC();
-
-	if (x2apic_mode)
-		cpu0_logical_apicid = apic_read(APIC_LDR);
-	else
-		cpu0_logical_apicid = GET_APIC_LOGICAL_ID(apic_read(APIC_LDR));
-
-	/* Enable IO APIC before setting up error vector */
-	enable_IO_APIC();
-
-	bsp_end_local_APIC_setup();
-	setup_IO_APIC();
+	cpu0_logical_apicid = apic_bsp_setup();
 
 	/*
 	 * Set up local APIC timer on boot CPU.

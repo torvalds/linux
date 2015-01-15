@@ -1445,7 +1445,7 @@ void setup_local_APIC(void)
 #endif
 }
 
-void end_local_APIC_setup(void)
+static void end_local_APIC_setup(void)
 {
 	lapic_setup_esr();
 
@@ -1462,16 +1462,13 @@ void end_local_APIC_setup(void)
 	apic_pm_activate();
 }
 
-void __init bsp_end_local_APIC_setup(void)
+/*
+ * APIC setup function for application processors. Called from smpboot.c
+ */
+void apic_ap_setup(void)
 {
+	setup_local_APIC();
 	end_local_APIC_setup();
-
-	/*
-	 * Now that local APIC setup is completed for BP, configure the fault
-	 * handling for interrupt remapping.
-	 */
-	irq_remap_enable_fault_handling();
-
 }
 
 #ifdef CONFIG_X86_X2APIC
@@ -1958,7 +1955,7 @@ __visible void smp_trace_error_interrupt(struct pt_regs *regs)
 /**
  * connect_bsp_APIC - attach the APIC to the interrupt system
  */
-void __init connect_bsp_APIC(void)
+static void __init connect_bsp_APIC(void)
 {
 #ifdef CONFIG_X86_32
 	if (pic_mode) {
@@ -2203,6 +2200,40 @@ void __init apic_set_eoi_write(void (*eoi_write)(u32 reg, u32 v))
 		WARN_ON((*drv)->eoi_write == eoi_write);
 		(*drv)->eoi_write = eoi_write;
 	}
+}
+
+static void __init bsp_end_local_APIC_setup(void)
+{
+	end_local_APIC_setup();
+	/*
+	 * Now that local APIC setup is completed for BP, configure the fault
+	 * handling for interrupt remapping.
+	 */
+	irq_remap_enable_fault_handling();
+}
+
+/**
+ * apic_bsp_setup - Setup function for local apic and io-apic
+ *
+ * Returns:
+ * apic_id of BSP APIC
+ */
+int __init apic_bsp_setup(void)
+{
+	int id;
+
+	connect_bsp_APIC();
+	setup_local_APIC();
+
+	if (x2apic_mode)
+		id = apic_read(APIC_LDR);
+	else
+		id = GET_APIC_LOGICAL_ID(apic_read(APIC_LDR));
+
+	enable_IO_APIC();
+	bsp_end_local_APIC_setup();
+	setup_IO_APIC();
+	return id;
 }
 
 /*

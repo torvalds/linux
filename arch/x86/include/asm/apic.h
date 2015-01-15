@@ -201,7 +201,6 @@ extern int get_physical_broadcast(void);
 
 extern int lapic_get_maxlvt(void);
 extern void clear_local_APIC(void);
-extern void connect_bsp_APIC(void);
 extern void disconnect_bsp_APIC(int virt_wire_setup);
 extern void disable_local_APIC(void);
 extern void lapic_shutdown(void);
@@ -209,14 +208,15 @@ extern int verify_local_APIC(void);
 extern void sync_Arb_IDs(void);
 extern void init_bsp_APIC(void);
 extern void setup_local_APIC(void);
-extern void end_local_APIC_setup(void);
-extern void bsp_end_local_APIC_setup(void);
 extern void init_apic_mappings(void);
 void register_lapic_address(unsigned long address);
 extern void setup_boot_APIC_clock(void);
 extern void setup_secondary_APIC_clock(void);
 extern int APIC_init_uniprocessor(void);
 extern int apic_force_enable(unsigned long addr);
+
+extern int apic_bsp_setup(void);
+extern void apic_ap_setup(void);
 
 /*
  * On 32bit this is mach-xxx local
