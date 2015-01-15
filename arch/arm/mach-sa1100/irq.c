@@ -318,12 +318,12 @@ void __init sa1100_init_irq(void)
 	 */
 	ICCR = 1;
 
-	sa1100_normal_irqdomain = irq_domain_add_legacy(NULL,
-			32, IRQ_GPIO0_SC, 0,
+	sa1100_normal_irqdomain = irq_domain_add_simple(NULL,
+			32, IRQ_GPIO0_SC,
 			&sa1100_normal_irqdomain_ops, NULL);
 
-	sa1100_gpio_irqdomain = irq_domain_add_legacy(NULL,
-			28, IRQ_GPIO0, 0,
+	sa1100_gpio_irqdomain = irq_domain_add_simple(NULL,
+			28, IRQ_GPIO0,
 			&sa1100_gpio_irqdomain_ops, NULL);
 
 	/*
