@@ -16,6 +16,9 @@
 #include <linux/mutex.h>
 #include <linux/rockchip/iomap.h>
 #include <linux/rockchip/cpu.h>
+#include <linux/of.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 
 #define RK3288_PVTM_CON0 (0x368)
 #define RK3288_PVTM_CON1 (0x36c)
@@ -33,6 +36,13 @@
 #define RK312X_PVTM_STATUS2 (0x218)
 #define RK312X_PVTM_STATUS3 (0x21c)
 
+#define RK3368_PVTM_CON0 (0x800)
+#define RK3368_PVTM_CON1 (0x804)
+#define RK3368_PVTM_CON2 (0x808)
+#define RK3368_PVTM_STATUS0 (0x80c)
+#define RK3368_PVTM_STATUS1 (0x810)
+#define RK3368_PVTM_STATUS2 (0x814)
+
 #define grf_readl(offset)	readl_relaxed(RK_GRF_VIRT+offset)
 #define grf_writel(val, offset)	writel_relaxed(val, RK_GRF_VIRT+offset)
 
@@ -40,7 +50,54 @@
 
 static struct clk *ch_clk[3];
 
+struct rockchip_pvtm {
+	u32 (*get_value)(u32 ch , u32 time_us);
+};
+static struct rockchip_pvtm pvtm;
+
+static struct regmap *grf_regmap;
+
 static DEFINE_MUTEX(pvtm_mutex);
+
+/* 0 core, 1 gpu */
+static u32 rk3368_pvtm_get_value(u32 ch , u32 time_us)
+{
+	u32 val = 0, clk_cnt, check_cnt, pvtm_done_bit;
+	u32 sta = 0;
+
+	if (ch > 1)
+		return 0;
+	/* 24m clk ,24cnt=1us */
+	clk_cnt = time_us*24;
+
+	regmap_write(grf_regmap, RK3368_PVTM_CON0+(ch+1)*4, clk_cnt);
+	regmap_write(grf_regmap, RK3368_PVTM_CON0, wr_msk_bit(3, ch*8, 0x3));
+
+	if (time_us >= 1000)
+		mdelay(time_us / 1000);
+	udelay(time_us % 1000);
+
+	if (ch == 0)
+		pvtm_done_bit = 0;
+	else if (ch == 1)
+		pvtm_done_bit = 1;
+
+	check_cnt = 100;
+	while (!((regmap_read(grf_regmap, RK3368_PVTM_STATUS0, &sta) == 0) &&
+		 (sta & (1 << pvtm_done_bit)))) {
+		udelay(4);
+		check_cnt--;
+		if (!check_cnt)
+			break;
+	}
+
+	if (check_cnt)
+		regmap_read(grf_regmap, RK3368_PVTM_STATUS0+(ch+1)*4, &val);
+
+	regmap_write(grf_regmap, RK3368_PVTM_CON0, wr_msk_bit(0, ch*8, 0x3));
+
+	return val;
+}
 
 /* 0 core, 1 gpu*/
 static u32 rk3288_pvtm_get_value(u32 ch , u32 time_us)
@@ -136,10 +193,7 @@ u32 pvtm_get_value(u32 ch, u32 time_us)
 
 	clk_prepare_enable(ch_clk[ch]);
 	mutex_lock(&pvtm_mutex);
-	if (cpu_is_rk3288())
-		val = rk3288_pvtm_get_value(ch, time_us);
-	else if (cpu_is_rk312x())
-		val = rk312x_pvtm_get_value(ch, time_us);
+	val = pvtm.get_value(ch, time_us);
 	mutex_unlock(&pvtm_mutex);
 	clk_disable_unprepare(ch_clk[ch]);
 
@@ -148,12 +202,39 @@ u32 pvtm_get_value(u32 ch, u32 time_us)
 
 static int __init pvtm_init(void)
 {
-	ch_clk[0] = clk_get(NULL, "g_clk_pvtm_core");
-	ch_clk[1] = clk_get(NULL, "g_clk_pvtm_gpu");
-	ch_clk[2] = clk_get(NULL, "g_clk_pvtm_func");
+	struct device_node *np;
 
+	np = of_find_node_by_name(NULL, "pvtm");
+	if (!IS_ERR_OR_NULL(np)) {
+		grf_regmap = syscon_regmap_lookup_by_phandle(np,
+							     "rockchip,grf");
+		if (IS_ERR(grf_regmap)) {
+			pr_err("pvtm: dts couldn't find grf regmap\n");
+			return PTR_ERR(grf_regmap);
+		}
+		if (of_device_is_compatible(np, "rockchip,rk3368-pvtm")) {
+			ch_clk[0] = clk_get(NULL, "clk_pvtm_core");
+			ch_clk[1] = clk_get(NULL, "clk_pvtm_gpu");
+			pvtm.get_value = rk3368_pvtm_get_value;
+		}
+		return 0;
+	}
+
+	if (cpu_is_rk3288() || cpu_is_rk312x()) {
+		ch_clk[0] = clk_get(NULL, "g_clk_pvtm_core");
+		ch_clk[1] = clk_get(NULL, "g_clk_pvtm_gpu");
+		ch_clk[2] = clk_get(NULL, "g_clk_pvtm_func");
+		if (cpu_is_rk3288())
+			pvtm.get_value = rk3288_pvtm_get_value;
+		else if (cpu_is_rk312x())
+			pvtm.get_value = rk312x_pvtm_get_value;
+	}
 	return 0;
 }
 
+#ifdef CONFIG_ARM64
+arch_initcall_sync(pvtm_init);
+#else
 core_initcall(pvtm_init);
+#endif
 

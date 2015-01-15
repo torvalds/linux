@@ -873,6 +873,11 @@
 		status = "disabled";
 	};
 
+	pvtm {
+		compatible = "rockchip,rk3368-pvtm";
+		rockchip,grf = <&grf>;
+	};
+
 	dvfs {
 
 		vd_arm: vd_arm {
