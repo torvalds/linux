@@ -19,6 +19,14 @@
 
 #include "virtio_pci_common.h"
 
+static bool force_legacy = false;
+
+#if IS_ENABLED(CONFIG_VIRTIO_PCI_LEGACY)
+module_param(force_legacy, bool, 0444);
+MODULE_PARM_DESC(force_legacy,
+		 "Force legacy mode for transitional virtio 1 devices");
+#endif
+
 /* wait for pending irq handlers */
 void vp_synchronize_vectors(struct virtio_device *vdev)
 {
@@ -505,11 +513,20 @@ static int virtio_pci_probe(struct pci_dev *pci_dev,
 	if (rc)
 		goto err_request_regions;
 
-	rc = virtio_pci_modern_probe(vp_dev);
-	if (rc == -ENODEV)
+	if (force_legacy) {
 		rc = virtio_pci_legacy_probe(vp_dev);
-	if (rc)
-		goto err_probe;
+		/* Also try modern mode if we can't map BAR0 (no IO space). */
+		if (rc == -ENODEV || rc == -ENOMEM)
+			rc = virtio_pci_modern_probe(vp_dev);
+		if (rc)
+			goto err_probe;
+	} else {
+		rc = virtio_pci_modern_probe(vp_dev);
+		if (rc == -ENODEV)
+			rc = virtio_pci_legacy_probe(vp_dev);
+		if (rc)
+			goto err_probe;
+	}
 
 	pci_set_master(pci_dev);
 
