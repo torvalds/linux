@@ -62,6 +62,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_mdio.h>
 #include <linux/of_irq.h>
 #include <linux/of_net.h>
 
@@ -343,9 +344,7 @@ struct emac_priv {
 	u32 multicast_hash_cnt[EMAC_NUM_MULTICAST_BITS];
 	u32 rx_addr_type;
 	const char *phy_id;
-#ifdef CONFIG_OF
 	struct device_node *phy_node;
-#endif
 	struct phy_device *phydev;
 	spinlock_t lock;
 	/*platform specific members*/
@@ -1603,8 +1602,20 @@ static int emac_dev_open(struct net_device *ndev)
 	cpdma_ctlr_start(priv->dma);
 
 	priv->phydev = NULL;
+
+	if (priv->phy_node) {
+		priv->phydev = of_phy_connect(ndev, priv->phy_node,
+					      &emac_adjust_link, 0, 0);
+		if (!priv->phydev) {
+			dev_err(emac_dev, "could not connect to phy %s\n",
+				priv->phy_node->full_name);
+			ret = -ENODEV;
+			goto err;
+		}
+	}
+
 	/* use the first phy on the bus if pdata did not give us a phy id */
-	if (!priv->phy_id) {
+	if (!priv->phydev && !priv->phy_id) {
 		struct device *phy;
 
 		phy = bus_find_device(&mdio_bus_type, NULL, NULL,
@@ -1613,7 +1624,7 @@ static int emac_dev_open(struct net_device *ndev)
 			priv->phy_id = dev_name(phy);
 	}
 
-	if (priv->phy_id && *priv->phy_id) {
+	if (!priv->phydev && priv->phy_id && *priv->phy_id) {
 		priv->phydev = phy_connect(ndev, priv->phy_id,
 					   &emac_adjust_link,
 					   PHY_INTERFACE_MODE_MII);
@@ -1634,7 +1645,9 @@ static int emac_dev_open(struct net_device *ndev)
 			"(mii_bus:phy_addr=%s, id=%x)\n",
 			priv->phydev->drv->name, dev_name(&priv->phydev->dev),
 			priv->phydev->phy_id);
-	} else {
+	}
+
+	if (!priv->phydev) {
 		/* No PHY , fix the link, speed and duplex settings */
 		dev_notice(emac_dev, "no phy, defaulting to 100/full\n");
 		priv->link = 1;
