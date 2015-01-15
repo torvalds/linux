@@ -22,8 +22,8 @@
  * skb_copy_bits takes 4 parameters:
  *   %r2 = skb pointer
  *   %r3 = offset into skb data
- *   %r4 = length to copy
- *   %r5 = pointer to temp buffer
+ *   %r4 = pointer to temp buffer
+ *   %r5 = length to copy
  */
 #define SKBDATA	%r8
 
@@ -44,8 +44,8 @@ ENTRY(sk_load_word)
 
 sk_load_word_slow:
 	lgr	%r9,%r2			# save %r2
-	lhi	%r4,4			# 4 bytes
-	la	%r5,160(%r15)		# pointer to temp buffer
+	la	%r4,160(%r15)		# pointer to temp buffer
+	lhi	%r5,4			# 4 bytes
 	brasl	%r14,skb_copy_bits	# get data from skb
 	l	%r5,160(%r15)		# load result from temp buffer
 	ltgr	%r2,%r2			# set cc to (%r2 != 0)
@@ -69,8 +69,8 @@ ENTRY(sk_load_half)
 
 sk_load_half_slow:
 	lgr	%r9,%r2			# save %r2
-	lhi	%r4,2			# 2 bytes
-	la	%r5,162(%r15)		# pointer to temp buffer
+	la	%r4,162(%r15)		# pointer to temp buffer
+	lhi	%r5,2			# 2 bytes
 	brasl	%r14,skb_copy_bits	# get data from skb
 	xc	160(2,%r15),160(%r15)
 	l	%r5,160(%r15)		# load result from temp buffer
@@ -95,8 +95,8 @@ ENTRY(sk_load_byte)
 
 sk_load_byte_slow:
 	lgr	%r9,%r2			# save %r2
-	lhi	%r4,1			# 1 bytes
-	la	%r5,163(%r15)		# pointer to temp buffer
+	la	%r4,163(%r15)		# pointer to temp buffer
+	lhi	%r5,1			# 1 bytes
 	brasl	%r14,skb_copy_bits	# get data from skb
 	xc	160(3,%r15),160(%r15)
 	l	%r5,160(%r15)		# load result from temp buffer
@@ -118,8 +118,8 @@ ENTRY(sk_load_byte_msh)
 
 sk_load_byte_msh_slow:
 	lgr	%r9,%r2			# save %r2
-	lhi	%r4,2			# 2 bytes
-	la	%r5,162(%r15)		# pointer to temp buffer
+	la	%r4,162(%r15)		# pointer to temp buffer
+	lhi	%r5,2			# 2 bytes
 	brasl	%r14,skb_copy_bits	# get data from skb
 	xc	160(3,%r15),160(%r15)
 	l	%r12,160(%r15)		# load result from temp buffer
