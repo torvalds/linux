@@ -855,6 +855,10 @@ config SCHED_MC
 
 source "kernel/Kconfig.preempt"
 
+config UP_LATE_INIT
+       def_bool y
+       depends on X86_UP_APIC
+
 config X86_UP_APIC
 	bool "Local APIC support on uniprocessors"
 	depends on X86_32 && !SMP && !X86_32_NON_STANDARD && !PCI_MSI
