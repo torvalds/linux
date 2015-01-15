@@ -615,6 +615,7 @@ void __init prom_init(void)
 	const char *arg;
 	char *p;
 	int i;
+	u64 t;
 	int argc;
 #ifdef CONFIG_CAVIUM_RESERVE32
 	int64_t addr = -1;
@@ -661,6 +662,42 @@ void __init prom_init(void)
 		octeon_io_clock_rate = 50000000 * rst_boot.s.pnr_mul;
 	} else {
 		octeon_io_clock_rate = sysinfo->cpu_clock_hz;
+	}
+
+	t = read_c0_cvmctl();
+	if ((t & (1ull << 27)) == 0) {
+		/*
+		 * Setup the multiplier save/restore code if
+		 * CvmCtl[NOMUL] clear.
+		 */
+		void *save;
+		void *save_end;
+		void *restore;
+		void *restore_end;
+		int save_len;
+		int restore_len;
+		int save_max = (char *)octeon_mult_save_end -
+			(char *)octeon_mult_save;
+		int restore_max = (char *)octeon_mult_restore_end -
+			(char *)octeon_mult_restore;
+		if (current_cpu_data.cputype == CPU_CAVIUM_OCTEON3) {
+			save = octeon_mult_save3;
+			save_end = octeon_mult_save3_end;
+			restore = octeon_mult_restore3;
+			restore_end = octeon_mult_restore3_end;
+		} else {
+			save = octeon_mult_save2;
+			save_end = octeon_mult_save2_end;
+			restore = octeon_mult_restore2;
+			restore_end = octeon_mult_restore2_end;
+		}
+		save_len = (char *)save_end - (char *)save;
+		restore_len = (char *)restore_end - (char *)restore;
+		if (!WARN_ON(save_len > save_max ||
+				restore_len > restore_max)) {
+			memcpy(octeon_mult_save, save, save_len);
+			memcpy(octeon_mult_restore, restore, restore_len);
+		}
 	}
 
 	/*
