@@ -529,8 +529,7 @@ static int ovl_remount(struct super_block *sb, int *flags, char *data)
 {
 	struct ovl_fs *ufs = sb->s_fs_info;
 
-	if (!(*flags & MS_RDONLY) &&
-	    (!ufs->upper_mnt || (ufs->upper_mnt->mnt_sb->s_flags & MS_RDONLY)))
+	if (!(*flags & MS_RDONLY) && !ufs->upper_mnt)
 		return -EROFS;
 
 	return 0;
@@ -619,6 +618,15 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 			return -EINVAL;
 		}
 	}
+
+	/* Workdir is useless in non-upper mount */
+	if (!config->upperdir && config->workdir) {
+		pr_info("overlayfs: option \"workdir=%s\" is useless in a non-upper mount, ignore\n",
+			config->workdir);
+		kfree(config->workdir);
+		config->workdir = NULL;
+	}
+
 	return 0;
 }
 
@@ -838,7 +846,6 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 	sb->s_stack_depth = 0;
 	if (ufs->config.upperdir) {
-		/* FIXME: workdir is not needed for a R/O mount */
 		if (!ufs->config.workdir) {
 			pr_err("overlayfs: missing 'workdir'\n");
 			goto out_free_config;
@@ -847,6 +854,13 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		err = ovl_mount_dir(ufs->config.upperdir, &upperpath);
 		if (err)
 			goto out_free_config;
+
+		/* Upper fs should not be r/o */
+		if (upperpath.mnt->mnt_sb->s_flags & MS_RDONLY) {
+			pr_err("overlayfs: upper fs is r/o, try multi-lower layers mount\n");
+			err = -EINVAL;
+			goto out_put_upperpath;
+		}
 
 		err = ovl_mount_dir(ufs->config.workdir, &workpath);
 		if (err)
@@ -939,8 +953,8 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		ufs->numlower++;
 	}
 
-	/* If the upper fs is r/o or nonexistent, we mark overlayfs r/o too */
-	if (!ufs->upper_mnt || (ufs->upper_mnt->mnt_sb->s_flags & MS_RDONLY))
+	/* If the upper fs is nonexistent, we mark overlayfs r/o too */
+	if (!ufs->upper_mnt)
 		sb->s_flags |= MS_RDONLY;
 
 	sb->s_d_op = &ovl_dentry_operations;
