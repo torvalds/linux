@@ -37,26 +37,6 @@
 	# Needed for octeon specific memcpy
 	or  v0, v0, 0x5001
 	xor v0, v0, 0x1001
-	# Read the processor ID register
-	mfc0 v1, CP0_PRID_REG
-	# Disable instruction prefetching (Octeon Pass1 errata)
-	or  v0, v0, 0x2000
-	# Skip reenable of prefetching for Octeon Pass1
-	beq v1, CP0_PRID_OCTEON_PASS1, skip
-	nop
-	# Reenable instruction prefetching, not on Pass1
-	xor v0, v0, 0x2000
-	# Strip off pass number off of processor id
-	srl v1, 8
-	sll v1, 8
-	# CN30XX needs some extra stuff turned off for better performance
-	bne v1, CP0_PRID_OCTEON_CN30XX, skip
-	nop
-	# CN30XX Use random Icache replacement
-	or  v0, v0, 0x400
-	# CN30XX Disable instruction prefetching
-	or  v0, v0, 0x2000
-skip:
 	# First clear off CvmCtl[IPPCI] bit and move the performance
 	# counters interrupt to IRQ 6
 	dli	v1, ~(7 << 7)
