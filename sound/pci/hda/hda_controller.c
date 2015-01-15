@@ -1993,4 +1993,4 @@ void azx_notifier_unregister(struct azx *chip)
 EXPORT_SYMBOL_GPL(azx_notifier_unregister);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Common HDA driver funcitons");
+MODULE_DESCRIPTION("Common HDA driver functions");
