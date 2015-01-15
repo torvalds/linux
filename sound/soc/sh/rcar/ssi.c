@@ -384,13 +384,14 @@ static irqreturn_t rsnd_ssi_interrupt(int irq, void *data)
 	struct rsnd_mod *mod = &ssi->mod;
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
+	int is_dma = rsnd_ssi_is_dma_mode(mod);
 	u32 status = rsnd_mod_read(mod, SSISR);
 
 	if (!io)
 		return IRQ_NONE;
 
 	/* PIO only */
-	if (status & DIRQ) {
+	if (!is_dma && (status & DIRQ)) {
 		struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 		u32 *buf = (u32 *)(runtime->dma_area +
 				   rsnd_dai_pointer_offset(io, 0));
