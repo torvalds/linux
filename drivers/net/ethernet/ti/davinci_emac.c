@@ -1890,7 +1890,7 @@ davinci_emac_of_get_pdata(struct platform_device *pdev, struct emac_priv *priv)
 static int davinci_emac_probe(struct platform_device *pdev)
 {
 	int rc = 0;
-	struct resource *res;
+	struct resource *res, *res_ctrl;
 	struct net_device *ndev;
 	struct emac_priv *priv;
 	unsigned long hw_ram_addr;
@@ -1949,10 +1949,19 @@ static int davinci_emac_probe(struct platform_device *pdev)
 		rc = PTR_ERR(priv->remap_addr);
 		goto no_pdata;
 	}
+
+	res_ctrl = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (res_ctrl) {
+		priv->ctrl_base =
+			devm_ioremap_resource(&pdev->dev, res_ctrl);
+		if (IS_ERR(priv->ctrl_base))
+			goto no_pdata;
+	} else {
+		priv->ctrl_base = priv->remap_addr + pdata->ctrl_mod_reg_offset;
+	}
+
 	priv->emac_base = priv->remap_addr + pdata->ctrl_reg_offset;
 	ndev->base_addr = (unsigned long)priv->remap_addr;
-
-	priv->ctrl_base = priv->remap_addr + pdata->ctrl_mod_reg_offset;
 
 	hw_ram_addr = pdata->hw_ram_addr;
 	if (!hw_ram_addr)
