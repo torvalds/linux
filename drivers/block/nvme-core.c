@@ -1108,21 +1108,14 @@ static void nvme_free_queue(struct nvme_queue *nvmeq)
 
 static void nvme_free_queues(struct nvme_dev *dev, int lowest)
 {
-	LLIST_HEAD(q_list);
-	struct nvme_queue *nvmeq, *next;
-	struct llist_node *entry;
 	int i;
 
 	for (i = dev->queue_count - 1; i >= lowest; i--) {
 		struct nvme_queue *nvmeq = dev->queues[i];
-		llist_add(&nvmeq->node, &q_list);
 		dev->queue_count--;
 		dev->queues[i] = NULL;
-	}
-	synchronize_rcu();
-	entry = llist_del_all(&q_list);
-	llist_for_each_entry_safe(nvmeq, next, entry, node)
 		nvme_free_queue(nvmeq);
+	}
 }
 
 /**
