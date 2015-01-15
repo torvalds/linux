@@ -317,7 +317,6 @@ struct rsnd_dai {
 struct rsnd_dai *rsnd_rdai_get(struct rsnd_priv *priv, int id);
 
 int rsnd_dai_is_play(struct rsnd_dai *rdai, struct rsnd_dai_stream *io);
-int rsnd_dai_id(struct rsnd_priv *priv, struct rsnd_dai *rdai);
 #define rsnd_dai_get_platform_info(rdai) ((rdai)->info)
 
 void rsnd_dai_pointer_update(struct rsnd_dai_stream *io, int cnt);

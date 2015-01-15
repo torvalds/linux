@@ -479,16 +479,6 @@ static void rsnd_dai_disconnect(struct rsnd_mod *mod,
 	io->mod[mod->type] = NULL;
 }
 
-int rsnd_dai_id(struct rsnd_priv *priv, struct rsnd_dai *rdai)
-{
-	int id = rdai - priv->rdai;
-
-	if ((id < 0) || (id >= rsnd_rdai_nr(priv)))
-		return -EINVAL;
-
-	return id;
-}
-
 struct rsnd_dai *rsnd_rdai_get(struct rsnd_priv *priv, int id)
 {
 	if ((id < 0) || (id >= rsnd_rdai_nr(priv)))
