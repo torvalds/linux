@@ -9,7 +9,7 @@ greybus-y :=	core.o		\
 		protocol.o	\
 		operation.o
 
-gpbridge-y :=	gpb.o		\
+gb-phy-y :=	gpb.o		\
 		sdio-gb.o	\
 		uart-gb.o	\
 		pwm-gb.o	\
@@ -18,7 +18,7 @@ gpbridge-y :=	gpb.o		\
 		usb-gb.o
 
 obj-m += greybus.o
-obj-m += gpbridge.o
+obj-m += gb-phy.o
 obj-m += vibrator-gb.o
 obj-m += battery-gb.o
 obj-m += es1-ap-usb.o
