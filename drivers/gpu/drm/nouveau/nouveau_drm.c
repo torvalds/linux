@@ -52,6 +52,7 @@
 #include "nouveau_debugfs.h"
 #include "nouveau_usif.h"
 #include "nouveau_connector.h"
+#include "nouveau_platform.h"
 
 MODULE_PARM_DESC(config, "option string to pass to driver core");
 static char *nouveau_config;
@@ -533,7 +534,6 @@ nouveau_drm_device_remove(struct drm_device *dev)
 	nouveau_object_ref(NULL, &device);
 	nouveau_object_debug();
 }
-EXPORT_SYMBOL(nouveau_drm_device_remove);
 
 static void
 nouveau_drm_remove(struct pci_dev *pdev)
@@ -1083,7 +1083,6 @@ err_free:
 
 	return ERR_PTR(err);
 }
-EXPORT_SYMBOL(nouveau_platform_device_create_);
 
 static int __init
 nouveau_drm_init(void)
@@ -1105,6 +1104,10 @@ nouveau_drm_init(void)
 	if (!nouveau_modeset)
 		return 0;
 
+#ifdef CONFIG_NOUVEAU_PLATFORM_DRIVER
+	platform_driver_register(&nouveau_platform_driver);
+#endif
+
 	nouveau_register_dsm_handler();
 	return drm_pci_init(&driver_pci, &nouveau_drm_pci_driver);
 }
@@ -1117,6 +1120,10 @@ nouveau_drm_exit(void)
 
 	drm_pci_exit(&driver_pci, &nouveau_drm_pci_driver);
 	nouveau_unregister_dsm_handler();
+
+#ifdef CONFIG_NOUVEAU_PLATFORM_DRIVER
+	platform_driver_unregister(&nouveau_platform_driver);
+#endif
 }
 
 module_init(nouveau_drm_init);
