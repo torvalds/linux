@@ -1561,14 +1561,14 @@ static int fpu_emu(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 		 * achieve full IEEE-754 accuracy - however this emulator does.
 		 */
 		case frsqrt_op:
-			if (!cpu_has_mips_4_5_r2)
+			if (!cpu_has_mips_4_5_r2_r6)
 				return SIGILL;
 
 			handler.u = fpemu_sp_rsqrt;
 			goto scopuop;
 
 		case frecip_op:
-			if (!cpu_has_mips_4_5_r2)
+			if (!cpu_has_mips_4_5_r2_r6)
 				return SIGILL;
 
 			handler.u = fpemu_sp_recip;
@@ -1763,13 +1763,13 @@ copcsr:
 		 * achieve full IEEE-754 accuracy - however this emulator does.
 		 */
 		case frsqrt_op:
-			if (!cpu_has_mips_4_5_r2)
+			if (!cpu_has_mips_4_5_r2_r6)
 				return SIGILL;
 
 			handler.u = fpemu_dp_rsqrt;
 			goto dcopuop;
 		case frecip_op:
-			if (!cpu_has_mips_4_5_r2)
+			if (!cpu_has_mips_4_5_r2_r6)
 				return SIGILL;
 
 			handler.u = fpemu_dp_recip;
