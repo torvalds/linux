@@ -142,6 +142,8 @@
  * void octeon_cop2_save(struct octeon_cop2_state *a0)
  */
 	.align	7
+	.set push
+	.set noreorder
 	LEAF(octeon_cop2_save)
 
 	dmfc0	t9, $9,7	/* CvmCtl register. */
@@ -152,17 +154,17 @@
 	dmfc2	t2, 0x0200
 	sd	t0, OCTEON_CP2_CRC_IV(a0)
 	sd	t1, OCTEON_CP2_CRC_LENGTH(a0)
-	sd	t2, OCTEON_CP2_CRC_POLY(a0)
 	/* Skip next instructions if CvmCtl[NODFA_CP2] set */
 	bbit1	t9, 28, 1f
+	 sd	t2, OCTEON_CP2_CRC_POLY(a0)
 
 	/* Save the LLM state */
 	dmfc2	t0, 0x0402
 	dmfc2	t1, 0x040A
 	sd	t0, OCTEON_CP2_LLM_DAT(a0)
-	sd	t1, OCTEON_CP2_LLM_DAT+8(a0)
 
 1:	bbit1	t9, 26, 3f	/* done if CvmCtl[NOCRYPTO] set */
+	 sd	t1, OCTEON_CP2_LLM_DAT+8(a0)
 
 	/* Save the COP2 crypto state */
 	/* this part is mostly common to both pass 1 and later revisions */
@@ -193,18 +195,20 @@
 	sd	t2, OCTEON_CP2_AES_KEY+16(a0)
 	dmfc2	t2, 0x0101
 	sd	t3, OCTEON_CP2_AES_KEY+24(a0)
-	mfc0	t3, $15,0	/* Get the processor ID register */
+	mfc0	v0, $15,0	/* Get the processor ID register */
 	sd	t0, OCTEON_CP2_AES_KEYLEN(a0)
-	li	t0, 0x000d0000	/* This is the processor ID of Octeon Pass1 */
+	li	v1, 0x000d0000	/* This is the processor ID of Octeon Pass1 */
 	sd	t1, OCTEON_CP2_AES_RESULT(a0)
-	sd	t2, OCTEON_CP2_AES_RESULT+8(a0)
 	/* Skip to the Pass1 version of the remainder of the COP2 state */
-	beq	t3, t0, 2f
+	beq	v0, v1, 2f
+	 sd	t2, OCTEON_CP2_AES_RESULT+8(a0)
 
 	/* the non-pass1 state when !CvmCtl[NOCRYPTO] */
 	dmfc2	t1, 0x0240
 	dmfc2	t2, 0x0241
+	ori	v1, v1, 0x9500 /* lowest OCTEON III PrId*/
 	dmfc2	t3, 0x0242
+	subu	v1, v0, v1 /* prid - lowest OCTEON III PrId */
 	dmfc2	t0, 0x0243
 	sd	t1, OCTEON_CP2_HSH_DATW(a0)
 	dmfc2	t1, 0x0244
@@ -257,8 +261,16 @@
 	sd	t1, OCTEON_CP2_GFM_MULT+8(a0)
 	sd	t2, OCTEON_CP2_GFM_POLY(a0)
 	sd	t3, OCTEON_CP2_GFM_RESULT(a0)
-	sd	t0, OCTEON_CP2_GFM_RESULT+8(a0)
+	bltz	v1, 4f
+	 sd	t0, OCTEON_CP2_GFM_RESULT+8(a0)
+	/* OCTEON III things*/
+	dmfc2	t0, 0x024F
+	dmfc2	t1, 0x0050
+	sd	t0, OCTEON_CP2_SHA3(a0)
+	sd	t1, OCTEON_CP2_SHA3+8(a0)
+4:
 	jr	ra
+	 nop
 
 2:	/* pass 1 special stuff when !CvmCtl[NOCRYPTO] */
 	dmfc2	t3, 0x0040
@@ -284,7 +296,9 @@
 
 3:	/* pass 1 or CvmCtl[NOCRYPTO] set */
 	jr	ra
+	 nop
 	END(octeon_cop2_save)
+	.set pop
 
 /*
  * void octeon_cop2_restore(struct octeon_cop2_state *a0)
@@ -349,9 +363,9 @@
 	ld	t2, OCTEON_CP2_AES_RESULT+8(a0)
 	mfc0	t3, $15,0	/* Get the processor ID register */
 	dmtc2	t0, 0x0110
-	li	t0, 0x000d0000	/* This is the processor ID of Octeon Pass1 */
+	li	v0, 0x000d0000	/* This is the processor ID of Octeon Pass1 */
 	dmtc2	t1, 0x0100
-	bne	t0, t3, 3f	/* Skip the next stuff for non-pass1 */
+	bne	v0, t3, 3f	/* Skip the next stuff for non-pass1 */
 	 dmtc2	t2, 0x0101
 
 	/* this code is specific for pass 1 */
@@ -379,6 +393,7 @@
 
 3:	/* this is post-pass1 code */
 	ld	t2, OCTEON_CP2_HSH_DATW(a0)
+	ori	v0, v0, 0x9500 /* lowest OCTEON III PrId*/
 	ld	t0, OCTEON_CP2_HSH_DATW+8(a0)
 	ld	t1, OCTEON_CP2_HSH_DATW+16(a0)
 	dmtc2	t2, 0x0240
@@ -432,9 +447,15 @@
 	dmtc2	t2, 0x0259
 	ld	t2, OCTEON_CP2_GFM_RESULT+8(a0)
 	dmtc2	t0, 0x025E
+	subu	v0, t3, v0 /* prid - lowest OCTEON III PrId */
 	dmtc2	t1, 0x025A
-	dmtc2	t2, 0x025B
-
+	bltz	v0, done_restore
+	 dmtc2	t2, 0x025B
+	/* OCTEON III things*/
+	ld	t0, OCTEON_CP2_SHA3(a0)
+	ld	t1, OCTEON_CP2_SHA3+8(a0)
+	dmtc2	t0, 0x0051
+	dmtc2	t1, 0x0050
 done_restore:
 	jr	ra
 	 nop
