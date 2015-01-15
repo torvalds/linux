@@ -535,9 +535,9 @@ static int rsnd_ssi_dma_start(struct rsnd_mod *mod,
 {
 	struct rsnd_dma *dma = rsnd_mod_to_dma(mod);
 
-	rsnd_ssi_start(mod, priv);
-
 	rsnd_dma_start(dma);
+
+	rsnd_ssi_start(mod, priv);
 
 	return 0;
 }
@@ -547,9 +547,9 @@ static int rsnd_ssi_dma_stop(struct rsnd_mod *mod,
 {
 	struct rsnd_dma *dma = rsnd_mod_to_dma(mod);
 
-	rsnd_dma_stop(dma);
-
 	rsnd_ssi_stop(mod, priv);
+
+	rsnd_dma_stop(dma);
 
 	return 0;
 }
