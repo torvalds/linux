@@ -218,10 +218,10 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop,
 			clk_rate = 0;
 
 		needs_vcc = of_property_read_bool(node, "vcc-supply");
-		nop->gpiod_reset = devm_gpiod_get(dev, "reset-gpios");
+		nop->gpiod_reset = devm_gpiod_get_optional(dev, "reset-gpios");
 		err = PTR_ERR(nop->gpiod_reset);
 		if (!err) {
-			nop->gpiod_vbus = devm_gpiod_get(dev,
+			nop->gpiod_vbus = devm_gpiod_get_optional(dev,
 							 "vbus-detect-gpio");
 			err = PTR_ERR(nop->gpiod_vbus);
 		}
