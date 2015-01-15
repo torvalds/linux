@@ -366,6 +366,7 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 	struct cifsLockInfo *li, *tmp;
 	struct cifs_fid fid;
 	struct cifs_pending_open open;
+	bool oplock_break_cancelled;
 
 	spin_lock(&cifs_file_list_lock);
 	if (--cifs_file->count > 0) {
@@ -397,7 +398,7 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 	}
 	spin_unlock(&cifs_file_list_lock);
 
-	cancel_work_sync(&cifs_file->oplock_break);
+	oplock_break_cancelled = cancel_work_sync(&cifs_file->oplock_break);
 
 	if (!tcon->need_reconnect && !cifs_file->invalidHandle) {
 		struct TCP_Server_Info *server = tcon->ses->server;
@@ -408,6 +409,9 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 			server->ops->close(xid, tcon, &cifs_file->fid);
 		_free_xid(xid);
 	}
+
+	if (oplock_break_cancelled)
+		cifs_done_oplock_break(cifsi);
 
 	cifs_del_pending_open(&open);
 
