@@ -76,9 +76,9 @@ static const uint32_t intel_cursor_formats[] = {
 static void intel_crtc_update_cursor(struct drm_crtc *crtc, bool on);
 
 static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
-				struct intel_crtc_config *pipe_config);
+				struct intel_crtc_state *pipe_config);
 static void ironlake_pch_clock_get(struct intel_crtc *crtc,
-				   struct intel_crtc_config *pipe_config);
+				   struct intel_crtc_state *pipe_config);
 
 static int intel_set_mode(struct drm_crtc *crtc, struct drm_display_mode *mode,
 			  int x, int y, struct drm_framebuffer *old_fb);
@@ -95,9 +95,9 @@ static void ironlake_set_pipeconf(struct drm_crtc *crtc);
 static void haswell_set_pipeconf(struct drm_crtc *crtc);
 static void intel_set_pipe_csc(struct drm_crtc *crtc);
 static void vlv_prepare_pll(struct intel_crtc *crtc,
-			    const struct intel_crtc_config *pipe_config);
+			    const struct intel_crtc_state *pipe_config);
 static void chv_prepare_pll(struct intel_crtc *crtc,
-			    const struct intel_crtc_config *pipe_config);
+			    const struct intel_crtc_state *pipe_config);
 static void intel_begin_crtc_commit(struct drm_crtc *crtc);
 static void intel_finish_crtc_commit(struct drm_crtc *crtc);
 
@@ -1507,7 +1507,7 @@ static void intel_init_dpio(struct drm_device *dev)
 }
 
 static void vlv_enable_pll(struct intel_crtc *crtc,
-			   const struct intel_crtc_config *pipe_config)
+			   const struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1546,7 +1546,7 @@ static void vlv_enable_pll(struct intel_crtc *crtc,
 }
 
 static void chv_enable_pll(struct intel_crtc *crtc,
-			   const struct intel_crtc_config *pipe_config)
+			   const struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -4602,7 +4602,7 @@ static void i9xx_pfit_enable(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc_config *pipe_config = &crtc->config;
+	struct intel_crtc_state *pipe_config = &crtc->config;
 
 	if (!crtc->config.gmch_pfit.control)
 		return;
@@ -5367,7 +5367,7 @@ bool intel_connector_get_hw_state(struct intel_connector *connector)
 }
 
 static bool ironlake_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
-				     struct intel_crtc_config *pipe_config)
+				     struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *pipe_B_crtc =
@@ -5426,7 +5426,7 @@ static bool ironlake_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 
 #define RETRY 1
 static int ironlake_fdi_compute_config(struct intel_crtc *intel_crtc,
-				       struct intel_crtc_config *pipe_config)
+				       struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = intel_crtc->base.dev;
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
@@ -5472,7 +5472,7 @@ retry:
 }
 
 static void hsw_compute_ips_config(struct intel_crtc *crtc,
-				   struct intel_crtc_config *pipe_config)
+				   struct intel_crtc_state *pipe_config)
 {
 	pipe_config->ips_enabled = i915.enable_ips &&
 				   hsw_crtc_supports_ips(crtc) &&
@@ -5480,7 +5480,7 @@ static void hsw_compute_ips_config(struct intel_crtc *crtc,
 }
 
 static int intel_crtc_compute_config(struct intel_crtc *crtc,
-				     struct intel_crtc_config *pipe_config)
+				     struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -5842,7 +5842,7 @@ void intel_dp_set_m_n(struct intel_crtc *crtc)
 }
 
 static void vlv_update_pll(struct intel_crtc *crtc,
-			   struct intel_crtc_config *pipe_config)
+			   struct intel_crtc_state *pipe_config)
 {
 	u32 dpll, dpll_md;
 
@@ -5865,7 +5865,7 @@ static void vlv_update_pll(struct intel_crtc *crtc,
 }
 
 static void vlv_prepare_pll(struct intel_crtc *crtc,
-			    const struct intel_crtc_config *pipe_config)
+			    const struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -5956,7 +5956,7 @@ static void vlv_prepare_pll(struct intel_crtc *crtc,
 }
 
 static void chv_update_pll(struct intel_crtc *crtc,
-			   struct intel_crtc_config *pipe_config)
+			   struct intel_crtc_state *pipe_config)
 {
 	pipe_config->dpll_hw_state.dpll = DPLL_SSC_REF_CLOCK_CHV |
 		DPLL_REFA_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS |
@@ -5969,7 +5969,7 @@ static void chv_update_pll(struct intel_crtc *crtc,
 }
 
 static void chv_prepare_pll(struct intel_crtc *crtc,
-			    const struct intel_crtc_config *pipe_config)
+			    const struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -6054,7 +6054,7 @@ void vlv_force_pll_on(struct drm_device *dev, enum pipe pipe,
 {
 	struct intel_crtc *crtc =
 		to_intel_crtc(intel_get_crtc_for_pipe(dev, pipe));
-	struct intel_crtc_config pipe_config = {
+	struct intel_crtc_state pipe_config = {
 		.pixel_multiplier = 1,
 		.dpll = *dpll,
 	};
@@ -6269,7 +6269,7 @@ static void intel_set_pipe_timings(struct intel_crtc *intel_crtc)
 }
 
 static void intel_get_pipe_timings(struct intel_crtc *crtc,
-				   struct intel_crtc_config *pipe_config)
+				   struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -6311,7 +6311,7 @@ static void intel_get_pipe_timings(struct intel_crtc *crtc,
 }
 
 void intel_mode_from_pipe_config(struct drm_display_mode *mode,
-				 struct intel_crtc_config *pipe_config)
+				 struct intel_crtc_state *pipe_config)
 {
 	mode->hdisplay = pipe_config->adjusted_mode.crtc_hdisplay;
 	mode->htotal = pipe_config->adjusted_mode.crtc_htotal;
@@ -6481,7 +6481,7 @@ static int i9xx_crtc_compute_clock(struct intel_crtc *crtc)
 }
 
 static void i9xx_get_pfit_config(struct intel_crtc *crtc,
-				 struct intel_crtc_config *pipe_config)
+				 struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -6511,7 +6511,7 @@ static void i9xx_get_pfit_config(struct intel_crtc *crtc,
 }
 
 static void vlv_crtc_clock_get(struct intel_crtc *crtc,
-			       struct intel_crtc_config *pipe_config)
+			       struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -6602,7 +6602,7 @@ static void i9xx_get_plane_config(struct intel_crtc *crtc,
 }
 
 static void chv_crtc_clock_get(struct intel_crtc *crtc,
-			       struct intel_crtc_config *pipe_config)
+			       struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -6632,7 +6632,7 @@ static void chv_crtc_clock_get(struct intel_crtc *crtc,
 }
 
 static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
-				 struct intel_crtc_config *pipe_config)
+				 struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -7534,7 +7534,7 @@ static void intel_cpu_transcoder_get_m_n(struct intel_crtc *crtc,
 }
 
 void intel_dp_get_m_n(struct intel_crtc *crtc,
-		      struct intel_crtc_config *pipe_config)
+		      struct intel_crtc_state *pipe_config)
 {
 	if (crtc->config.has_pch_encoder)
 		intel_pch_transcoder_get_m_n(crtc, &pipe_config->dp_m_n);
@@ -7545,14 +7545,14 @@ void intel_dp_get_m_n(struct intel_crtc *crtc,
 }
 
 static void ironlake_get_fdi_m_n_config(struct intel_crtc *crtc,
-					struct intel_crtc_config *pipe_config)
+					struct intel_crtc_state *pipe_config)
 {
 	intel_cpu_transcoder_get_m_n(crtc, pipe_config->cpu_transcoder,
 				     &pipe_config->fdi_m_n, NULL);
 }
 
 static void skylake_get_pfit_config(struct intel_crtc *crtc,
-				    struct intel_crtc_config *pipe_config)
+				    struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -7568,7 +7568,7 @@ static void skylake_get_pfit_config(struct intel_crtc *crtc,
 }
 
 static void ironlake_get_pfit_config(struct intel_crtc *crtc,
-				     struct intel_crtc_config *pipe_config)
+				     struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -7652,7 +7652,7 @@ static void ironlake_get_plane_config(struct intel_crtc *crtc,
 }
 
 static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
-				     struct intel_crtc_config *pipe_config)
+				     struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -7982,7 +7982,7 @@ static int haswell_crtc_compute_clock(struct intel_crtc *crtc)
 
 static void skylake_get_ddi_pll(struct drm_i915_private *dev_priv,
 				enum port port,
-				struct intel_crtc_config *pipe_config)
+				struct intel_crtc_state *pipe_config)
 {
 	u32 temp, dpll_ctl1;
 
@@ -8013,7 +8013,7 @@ static void skylake_get_ddi_pll(struct drm_i915_private *dev_priv,
 
 static void haswell_get_ddi_pll(struct drm_i915_private *dev_priv,
 				enum port port,
-				struct intel_crtc_config *pipe_config)
+				struct intel_crtc_state *pipe_config)
 {
 	pipe_config->ddi_pll_sel = I915_READ(PORT_CLK_SEL(port));
 
@@ -8028,7 +8028,7 @@ static void haswell_get_ddi_pll(struct drm_i915_private *dev_priv,
 }
 
 static void haswell_get_ddi_port_state(struct intel_crtc *crtc,
-				       struct intel_crtc_config *pipe_config)
+				       struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -8070,7 +8070,7 @@ static void haswell_get_ddi_port_state(struct intel_crtc *crtc,
 }
 
 static bool haswell_get_pipe_config(struct intel_crtc *crtc,
-				    struct intel_crtc_config *pipe_config)
+				    struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -8652,7 +8652,7 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 }
 
 static int i9xx_pll_refclk(struct drm_device *dev,
-			   const struct intel_crtc_config *pipe_config)
+			   const struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 dpll = pipe_config->dpll_hw_state.dpll;
@@ -8669,7 +8669,7 @@ static int i9xx_pll_refclk(struct drm_device *dev,
 
 /* Returns the clock of the currently programmed mode of the given pipe. */
 static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
-				struct intel_crtc_config *pipe_config)
+				struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -8776,7 +8776,7 @@ int intel_dotclock_calculate(int link_freq,
 }
 
 static void ironlake_pch_clock_get(struct intel_crtc *crtc,
-				   struct intel_crtc_config *pipe_config)
+				   struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = crtc->base.dev;
 
@@ -8802,7 +8802,7 @@ struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum transcoder cpu_transcoder = intel_crtc->config.cpu_transcoder;
 	struct drm_display_mode *mode;
-	struct intel_crtc_config pipe_config;
+	struct intel_crtc_state pipe_config;
 	int htot = I915_READ(HTOTAL(cpu_transcoder));
 	int hsync = I915_READ(HSYNC(cpu_transcoder));
 	int vtot = I915_READ(VTOTAL(cpu_transcoder));
@@ -9851,7 +9851,7 @@ static void intel_modeset_commit_output_state(struct drm_device *dev)
 
 static void
 connected_sink_compute_bpp(struct intel_connector *connector,
-			   struct intel_crtc_config *pipe_config)
+			   struct intel_crtc_state *pipe_config)
 {
 	int bpp = pipe_config->pipe_bpp;
 
@@ -9878,7 +9878,7 @@ connected_sink_compute_bpp(struct intel_connector *connector,
 static int
 compute_baseline_pipe_bpp(struct intel_crtc *crtc,
 			  struct drm_framebuffer *fb,
-			  struct intel_crtc_config *pipe_config)
+			  struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct intel_connector *connector;
@@ -9947,7 +9947,7 @@ static void intel_dump_crtc_timings(const struct drm_display_mode *mode)
 }
 
 static void intel_dump_pipe_config(struct intel_crtc *crtc,
-				   struct intel_crtc_config *pipe_config,
+				   struct intel_crtc_state *pipe_config,
 				   const char *context)
 {
 	DRM_DEBUG_KMS("[CRTC:%d]%s config for pipe %c\n", crtc->base.base.id,
@@ -10083,14 +10083,14 @@ static bool check_digital_port_conflicts(struct drm_device *dev)
 	return true;
 }
 
-static struct intel_crtc_config *
+static struct intel_crtc_state *
 intel_modeset_pipe_config(struct drm_crtc *crtc,
 			  struct drm_framebuffer *fb,
 			  struct drm_display_mode *mode)
 {
 	struct drm_device *dev = crtc->dev;
 	struct intel_encoder *encoder;
-	struct intel_crtc_config *pipe_config;
+	struct intel_crtc_state *pipe_config;
 	int plane_bpp, ret = -EINVAL;
 	bool retry = true;
 
@@ -10384,8 +10384,8 @@ static bool intel_fuzzy_clock_check(int clock1, int clock2)
 
 static bool
 intel_pipe_config_compare(struct drm_device *dev,
-			  struct intel_crtc_config *current_config,
-			  struct intel_crtc_config *pipe_config)
+			  struct intel_crtc_state *current_config,
+			  struct intel_crtc_state *pipe_config)
 {
 #define PIPE_CONF_CHECK_X(name)	\
 	if (current_config->name != pipe_config->name) { \
@@ -10709,7 +10709,7 @@ check_crtc_state(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc;
 	struct intel_encoder *encoder;
-	struct intel_crtc_config pipe_config;
+	struct intel_crtc_state pipe_config;
 
 	for_each_intel_crtc(dev, crtc) {
 		bool enabled = false;
@@ -10828,7 +10828,7 @@ intel_modeset_check_state(struct drm_device *dev)
 	check_shared_dpll_state(dev);
 }
 
-void ironlake_check_encoder_dotclock(const struct intel_crtc_config *pipe_config,
+void ironlake_check_encoder_dotclock(const struct intel_crtc_state *pipe_config,
 				     int dotclock)
 {
 	/*
@@ -10878,7 +10878,7 @@ static void update_scanline_offset(struct intel_crtc *crtc)
 		crtc->scanline_offset = 1;
 }
 
-static struct intel_crtc_config *
+static struct intel_crtc_state *
 intel_modeset_compute_config(struct drm_crtc *crtc,
 			     struct drm_display_mode *mode,
 			     struct drm_framebuffer *fb,
@@ -10886,7 +10886,7 @@ intel_modeset_compute_config(struct drm_crtc *crtc,
 			     unsigned *prepare_pipes,
 			     unsigned *disable_pipes)
 {
-	struct intel_crtc_config *pipe_config = NULL;
+	struct intel_crtc_state *pipe_config = NULL;
 
 	intel_modeset_affected_pipes(crtc, modeset_pipes,
 				     prepare_pipes, disable_pipes);
@@ -10914,7 +10914,7 @@ out:
 static int __intel_set_mode(struct drm_crtc *crtc,
 			    struct drm_display_mode *mode,
 			    int x, int y, struct drm_framebuffer *fb,
-			    struct intel_crtc_config *pipe_config,
+			    struct intel_crtc_state *pipe_config,
 			    unsigned modeset_pipes,
 			    unsigned prepare_pipes,
 			    unsigned disable_pipes)
@@ -11036,7 +11036,7 @@ done:
 static int intel_set_mode_pipes(struct drm_crtc *crtc,
 				struct drm_display_mode *mode,
 				int x, int y, struct drm_framebuffer *fb,
-				struct intel_crtc_config *pipe_config,
+				struct intel_crtc_state *pipe_config,
 				unsigned modeset_pipes,
 				unsigned prepare_pipes,
 				unsigned disable_pipes)
@@ -11056,7 +11056,7 @@ static int intel_set_mode(struct drm_crtc *crtc,
 			  struct drm_display_mode *mode,
 			  int x, int y, struct drm_framebuffer *fb)
 {
-	struct intel_crtc_config *pipe_config;
+	struct intel_crtc_state *pipe_config;
 	unsigned modeset_pipes, prepare_pipes, disable_pipes;
 
 	pipe_config = intel_modeset_compute_config(crtc, mode, fb,
@@ -11400,7 +11400,7 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 	struct drm_device *dev;
 	struct drm_mode_set save_set;
 	struct intel_set_config *config;
-	struct intel_crtc_config *pipe_config;
+	struct intel_crtc_state *pipe_config;
 	unsigned modeset_pipes, prepare_pipes, disable_pipes;
 	int ret;
 

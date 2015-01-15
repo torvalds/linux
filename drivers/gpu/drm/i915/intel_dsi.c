@@ -78,7 +78,7 @@ static void intel_dsi_hot_plug(struct intel_encoder *encoder)
 }
 
 static bool intel_dsi_compute_config(struct intel_encoder *encoder,
-				     struct intel_crtc_config *config)
+				     struct intel_crtc_state *config)
 {
 	struct intel_dsi *intel_dsi = container_of(encoder, struct intel_dsi,
 						   base);
@@ -437,7 +437,7 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 }
 
 static void intel_dsi_get_config(struct intel_encoder *encoder,
-				 struct intel_crtc_config *pipe_config)
+				 struct intel_crtc_state *pipe_config)
 {
 	u32 pclk;
 	DRM_DEBUG_KMS("\n");

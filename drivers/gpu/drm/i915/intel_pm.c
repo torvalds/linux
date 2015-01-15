@@ -2556,7 +2556,7 @@ skl_allocate_pipe_ddb(struct drm_crtc *crtc,
 
 }
 
-static uint32_t skl_pipe_pixel_rate(const struct intel_crtc_config *config)
+static uint32_t skl_pipe_pixel_rate(const struct intel_crtc_state *config)
 {
 	/* TODO: Take into account the scalers once we support them */
 	return config->adjusted_mode.crtc_clock;

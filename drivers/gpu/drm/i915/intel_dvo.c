@@ -144,7 +144,7 @@ static bool intel_dvo_get_hw_state(struct intel_encoder *encoder,
 }
 
 static void intel_dvo_get_config(struct intel_encoder *encoder,
-				 struct intel_crtc_config *pipe_config)
+				 struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
@@ -200,7 +200,7 @@ static void intel_dvo_dpms(struct drm_connector *connector, int mode)
 {
 	struct intel_dvo *intel_dvo = intel_attached_dvo(connector);
 	struct drm_crtc *crtc;
-	struct intel_crtc_config *config;
+	struct intel_crtc_state *config;
 
 	/* dvo supports only 2 dpms states. */
 	if (mode != DRM_MODE_DPMS_ON)
@@ -261,7 +261,7 @@ intel_dvo_mode_valid(struct drm_connector *connector,
 }
 
 static bool intel_dvo_compute_config(struct intel_encoder *encoder,
-				     struct intel_crtc_config *pipe_config)
+				     struct intel_crtc_state *pipe_config)
 {
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;

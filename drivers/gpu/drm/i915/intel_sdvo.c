@@ -1085,7 +1085,7 @@ intel_sdvo_get_preferred_input_mode(struct intel_sdvo *intel_sdvo,
 	return true;
 }
 
-static void i9xx_adjust_sdvo_tv_clock(struct intel_crtc_config *pipe_config)
+static void i9xx_adjust_sdvo_tv_clock(struct intel_crtc_state *pipe_config)
 {
 	unsigned dotclock = pipe_config->port_clock;
 	struct dpll *clock = &pipe_config->dpll;
@@ -1112,7 +1112,7 @@ static void i9xx_adjust_sdvo_tv_clock(struct intel_crtc_config *pipe_config)
 }
 
 static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
-				      struct intel_crtc_config *pipe_config)
+				      struct intel_crtc_state *pipe_config)
 {
 	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
@@ -1338,7 +1338,7 @@ static bool intel_sdvo_get_hw_state(struct intel_encoder *encoder,
 }
 
 static void intel_sdvo_get_config(struct intel_encoder *encoder,
-				  struct intel_crtc_config *pipe_config)
+				  struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;

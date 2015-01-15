@@ -1074,7 +1074,7 @@ intel_dp_connector_unregister(struct intel_connector *intel_connector)
 }
 
 static void
-skl_edp_set_pll_config(struct intel_crtc_config *pipe_config, int link_bw)
+skl_edp_set_pll_config(struct intel_crtc_state *pipe_config, int link_bw)
 {
 	u32 ctrl1;
 
@@ -1101,7 +1101,7 @@ skl_edp_set_pll_config(struct intel_crtc_config *pipe_config, int link_bw)
 }
 
 static void
-hsw_dp_set_ddi_pll_sel(struct intel_crtc_config *pipe_config, int link_bw)
+hsw_dp_set_ddi_pll_sel(struct intel_crtc_state *pipe_config, int link_bw)
 {
 	switch (link_bw) {
 	case DP_LINK_BW_1_62:
@@ -1118,7 +1118,7 @@ hsw_dp_set_ddi_pll_sel(struct intel_crtc_config *pipe_config, int link_bw)
 
 static void
 intel_dp_set_clock(struct intel_encoder *encoder,
-		   struct intel_crtc_config *pipe_config, int link_bw)
+		   struct intel_crtc_state *pipe_config, int link_bw)
 {
 	struct drm_device *dev = encoder->base.dev;
 	const struct dp_link_dpll *divisor = NULL;
@@ -1151,7 +1151,7 @@ intel_dp_set_clock(struct intel_encoder *encoder,
 
 bool
 intel_dp_compute_config(struct intel_encoder *encoder,
-			struct intel_crtc_config *pipe_config)
+			struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2013,7 +2013,7 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 }
 
 static void intel_dp_get_config(struct intel_encoder *encoder,
-				struct intel_crtc_config *pipe_config)
+				struct intel_crtc_state *pipe_config)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	u32 tmp, flags = 0;
@@ -4751,7 +4751,7 @@ static void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate)
 	struct intel_encoder *encoder;
 	struct intel_digital_port *dig_port = NULL;
 	struct intel_dp *intel_dp = dev_priv->drrs.dp;
-	struct intel_crtc_config *config = NULL;
+	struct intel_crtc_state *config = NULL;
 	struct intel_crtc *intel_crtc = NULL;
 	u32 reg, val;
 	enum drrs_refresh_rate_type index = DRRS_HIGH_RR;

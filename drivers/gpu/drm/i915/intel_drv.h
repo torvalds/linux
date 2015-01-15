@@ -143,7 +143,7 @@ struct intel_encoder {
 	bool connectors_active;
 	void (*hot_plug)(struct intel_encoder *);
 	bool (*compute_config)(struct intel_encoder *,
-			       struct intel_crtc_config *);
+			       struct intel_crtc_state *);
 	void (*pre_pll_enable)(struct intel_encoder *);
 	void (*pre_enable)(struct intel_encoder *);
 	void (*enable)(struct intel_encoder *);
@@ -159,7 +159,7 @@ struct intel_encoder {
 	 * pre-filled the pipe config. Note that intel_encoder->base.crtc must
 	 * be set correctly before calling this function. */
 	void (*get_config)(struct intel_encoder *,
-			   struct intel_crtc_config *pipe_config);
+			   struct intel_crtc_state *pipe_config);
 	/*
 	 * Called during system suspend after all pending requests for the
 	 * encoder are flushed (for example for DP AUX transactions) and
@@ -263,7 +263,7 @@ struct intel_plane_config {
 	u32 base;
 };
 
-struct intel_crtc_config {
+struct intel_crtc_state {
 	/**
 	 * quirks - bitfield with hw state readout quirks
 	 *
@@ -477,8 +477,8 @@ struct intel_crtc {
 	uint32_t cursor_base;
 
 	struct intel_plane_config plane_config;
-	struct intel_crtc_config config;
-	struct intel_crtc_config *new_config;
+	struct intel_crtc_state config;
+	struct intel_crtc_state *new_config;
 	bool new_enabled;
 
 	/* reset counter value when the last flip was submitted */
@@ -845,11 +845,11 @@ void intel_ddi_prepare_link_retrain(struct drm_encoder *encoder);
 bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector);
 void intel_ddi_fdi_disable(struct drm_crtc *crtc);
 void intel_ddi_get_config(struct intel_encoder *encoder,
-			  struct intel_crtc_config *pipe_config);
+			  struct intel_crtc_state *pipe_config);
 
 void intel_ddi_init_dp_buf_reg(struct intel_encoder *encoder);
 void intel_ddi_clock_get(struct intel_encoder *encoder,
-			 struct intel_crtc_config *pipe_config);
+			 struct intel_crtc_state *pipe_config);
 void intel_ddi_set_vc_payload_alloc(struct drm_crtc *crtc, bool state);
 
 /* intel_frontbuffer.c */
@@ -982,11 +982,11 @@ void intel_finish_reset(struct drm_device *dev);
 void hsw_enable_pc8(struct drm_i915_private *dev_priv);
 void hsw_disable_pc8(struct drm_i915_private *dev_priv);
 void intel_dp_get_m_n(struct intel_crtc *crtc,
-		      struct intel_crtc_config *pipe_config);
+		      struct intel_crtc_state *pipe_config);
 void intel_dp_set_m_n(struct intel_crtc *crtc);
 int intel_dotclock_calculate(int link_freq, const struct intel_link_m_n *m_n);
 void
-ironlake_check_encoder_dotclock(const struct intel_crtc_config *pipe_config,
+ironlake_check_encoder_dotclock(const struct intel_crtc_state *pipe_config,
 				int dotclock);
 bool intel_crtc_active(struct drm_crtc *crtc);
 void hsw_enable_ips(struct intel_crtc *crtc);
@@ -994,7 +994,7 @@ void hsw_disable_ips(struct intel_crtc *crtc);
 enum intel_display_power_domain
 intel_display_port_power_domain(struct intel_encoder *intel_encoder);
 void intel_mode_from_pipe_config(struct drm_display_mode *mode,
-				 struct intel_crtc_config *pipe_config);
+				 struct intel_crtc_state *pipe_config);
 int intel_format_to_fourcc(int format);
 void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc);
 void intel_modeset_preclose(struct drm_device *dev, struct drm_file *file);
@@ -1011,7 +1011,7 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder);
 void intel_dp_check_link_status(struct intel_dp *intel_dp);
 int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc);
 bool intel_dp_compute_config(struct intel_encoder *encoder,
-			     struct intel_crtc_config *pipe_config);
+			     struct intel_crtc_state *pipe_config);
 bool intel_dp_is_edp(struct drm_device *dev, enum port port);
 bool intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port,
 			bool long_hpd);
@@ -1091,7 +1091,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 			       struct intel_connector *intel_connector);
 struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder);
 bool intel_hdmi_compute_config(struct intel_encoder *encoder,
-			       struct intel_crtc_config *pipe_config);
+			       struct intel_crtc_state *pipe_config);
 
 
 /* intel_lvds.c */
@@ -1126,10 +1126,10 @@ void intel_panel_fini(struct intel_panel *panel);
 void intel_fixed_panel_mode(const struct drm_display_mode *fixed_mode,
 			    struct drm_display_mode *adjusted_mode);
 void intel_pch_panel_fitting(struct intel_crtc *crtc,
-			     struct intel_crtc_config *pipe_config,
+			     struct intel_crtc_state *pipe_config,
 			     int fitting_mode);
 void intel_gmch_panel_fitting(struct intel_crtc *crtc,
-			      struct intel_crtc_config *pipe_config,
+			      struct intel_crtc_state *pipe_config,
 			      int fitting_mode);
 void intel_panel_set_backlight_acpi(struct intel_connector *connector,
 				    u32 level, u32 max);

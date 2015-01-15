@@ -98,7 +98,7 @@ intel_find_panel_downclock(struct drm_device *dev,
 /* adjusted_mode has been preset to be the panel's fixed mode */
 void
 intel_pch_panel_fitting(struct intel_crtc *intel_crtc,
-			struct intel_crtc_config *pipe_config,
+			struct intel_crtc_state *pipe_config,
 			int fitting_mode)
 {
 	struct drm_display_mode *adjusted_mode;
@@ -223,7 +223,7 @@ static inline u32 panel_fitter_scaling(u32 source, u32 target)
 	return (FACTOR * ratio + FACTOR/2) / FACTOR;
 }
 
-static void i965_scale_aspect(struct intel_crtc_config *pipe_config,
+static void i965_scale_aspect(struct intel_crtc_state *pipe_config,
 			      u32 *pfit_control)
 {
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
@@ -243,7 +243,7 @@ static void i965_scale_aspect(struct intel_crtc_config *pipe_config,
 		*pfit_control |= PFIT_ENABLE | PFIT_SCALING_AUTO;
 }
 
-static void i9xx_scale_aspect(struct intel_crtc_config *pipe_config,
+static void i9xx_scale_aspect(struct intel_crtc_state *pipe_config,
 			      u32 *pfit_control, u32 *pfit_pgm_ratios,
 			      u32 *border)
 {
@@ -301,7 +301,7 @@ static void i9xx_scale_aspect(struct intel_crtc_config *pipe_config,
 }
 
 void intel_gmch_panel_fitting(struct intel_crtc *intel_crtc,
-			      struct intel_crtc_config *pipe_config,
+			      struct intel_crtc_state *pipe_config,
 			      int fitting_mode)
 {
 	struct drm_device *dev = intel_crtc->base.dev;

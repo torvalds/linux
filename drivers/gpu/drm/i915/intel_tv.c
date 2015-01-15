@@ -908,14 +908,14 @@ intel_tv_mode_valid(struct drm_connector *connector,
 
 static void
 intel_tv_get_config(struct intel_encoder *encoder,
-		    struct intel_crtc_config *pipe_config)
+		    struct intel_crtc_state *pipe_config)
 {
 	pipe_config->adjusted_mode.crtc_clock = pipe_config->port_clock;
 }
 
 static bool
 intel_tv_compute_config(struct intel_encoder *encoder,
-			struct intel_crtc_config *pipe_config)
+			struct intel_crtc_state *pipe_config)
 {
 	struct intel_tv *intel_tv = enc_to_tv(encoder);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_tv);

@@ -732,7 +732,7 @@ static int skl_calc_wrpll_link(struct drm_i915_private *dev_priv,
 
 
 static void skl_ddi_clock_get(struct intel_encoder *encoder,
-				struct intel_crtc_config *pipe_config)
+				struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	int link_clock = 0;
@@ -776,7 +776,7 @@ static void skl_ddi_clock_get(struct intel_encoder *encoder,
 }
 
 static void hsw_ddi_clock_get(struct intel_encoder *encoder,
-			      struct intel_crtc_config *pipe_config)
+			      struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	int link_clock = 0;
@@ -832,7 +832,7 @@ static void hsw_ddi_clock_get(struct intel_encoder *encoder,
 }
 
 void intel_ddi_clock_get(struct intel_encoder *encoder,
-			 struct intel_crtc_config *pipe_config)
+			 struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = encoder->base.dev;
 
@@ -2027,7 +2027,7 @@ static void intel_ddi_hot_plug(struct intel_encoder *intel_encoder)
 }
 
 void intel_ddi_get_config(struct intel_encoder *encoder,
-			  struct intel_crtc_config *pipe_config)
+			  struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
@@ -2120,7 +2120,7 @@ static void intel_ddi_destroy(struct drm_encoder *encoder)
 }
 
 static bool intel_ddi_compute_config(struct intel_encoder *encoder,
-				     struct intel_crtc_config *pipe_config)
+				     struct intel_crtc_state *pipe_config)
 {
 	int type = encoder->type;
 	int port = intel_ddi_get_encoder_port(encoder);
