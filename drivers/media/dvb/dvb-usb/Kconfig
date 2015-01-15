@@ -422,3 +422,11 @@ config DVB_USB_RTL28XXU
 	select MEDIA_TUNER_MXL5005S if !MEDIA_TUNER_CUSTOMISE
 	help
 	  Say Y here to support the Realtek RTL28xxU DVB USB receiver.
+
+config DVB_USB_RTL2832
+       tristate "Realtek RTL2832 DVB-T USB2.0 support"
+       depends on DVB_USB
+       default m
+       help
+         Say Y or M to support the Realtek RTL2832 DVB-T receiver
+
