@@ -25,6 +25,7 @@ extern void __init at91_dt_initialize(void);
 extern void at91rm9200_timer_init(void);
 
 /* idle */
+extern void at91rm9200_idle(void);
 extern void at91sam9_idle(void);
 
 /* Matrix */
