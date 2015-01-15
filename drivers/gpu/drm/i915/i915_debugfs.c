@@ -1928,7 +1928,7 @@ static int i915_execlists(struct seq_file *m, void *data)
 	intel_runtime_pm_get(dev_priv);
 
 	for_each_ring(ring, dev_priv, ring_id) {
-		struct intel_ctx_submit_request *head_req = NULL;
+		struct drm_i915_gem_request *head_req = NULL;
 		int count = 0;
 		unsigned long flags;
 
@@ -1961,18 +1961,18 @@ static int i915_execlists(struct seq_file *m, void *data)
 		list_for_each(cursor, &ring->execlist_queue)
 			count++;
 		head_req = list_first_entry_or_null(&ring->execlist_queue,
-				struct intel_ctx_submit_request, execlist_link);
+				struct drm_i915_gem_request, execlist_link);
 		spin_unlock_irqrestore(&ring->execlist_lock, flags);
 
 		seq_printf(m, "\t%d requests in queue\n", count);
 		if (head_req) {
 			struct drm_i915_gem_object *ctx_obj;
 
-			ctx_obj = head_req->request->ctx->engine[ring_id].state;
+			ctx_obj = head_req->ctx->engine[ring_id].state;
 			seq_printf(m, "\tHead request id: %u\n",
 				   intel_execlists_ctx_id(ctx_obj));
 			seq_printf(m, "\tHead request tail: %u\n",
-				   head_req->request->tail);
+				   head_req->tail);
 		}
 
 		seq_putc(m, '\n');

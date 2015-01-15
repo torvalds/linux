@@ -2414,7 +2414,7 @@ int __i915_add_request(struct intel_engine_cs *ring,
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	struct drm_i915_gem_request *request;
 	struct intel_ringbuffer *ringbuf;
-	u32 request_ring_position, request_start;
+	u32 request_start;
 	int ret;
 
 	request = ring->outstanding_lazy_request;
@@ -2449,7 +2449,7 @@ int __i915_add_request(struct intel_engine_cs *ring,
 	 * GPU processing the request, we never over-estimate the
 	 * position of the head.
 	 */
-	request_ring_position = intel_ring_get_tail(ringbuf);
+	request->postfix = intel_ring_get_tail(ringbuf);
 
 	if (i915.enable_execlists) {
 		ret = ring->emit_request(ringbuf, request);
@@ -2462,7 +2462,7 @@ int __i915_add_request(struct intel_engine_cs *ring,
 	}
 
 	request->head = request_start;
-	request->postfix = request_ring_position;
+	request->tail = intel_ring_get_tail(ringbuf);
 
 	/* Whilst this request exists, batch_obj will be on the
 	 * active_list, and so will hold the active reference. Only when this
@@ -2649,14 +2649,14 @@ static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
 	 * pinned in place.
 	 */
 	while (!list_empty(&ring->execlist_queue)) {
-		struct intel_ctx_submit_request *submit_req;
+		struct drm_i915_gem_request *submit_req;
 
 		submit_req = list_first_entry(&ring->execlist_queue,
-				struct intel_ctx_submit_request,
+				struct drm_i915_gem_request,
 				execlist_link);
 		list_del(&submit_req->execlist_link);
 		intel_runtime_pm_put(dev_priv);
-		i915_gem_context_unreference(submit_req->request->ctx);
+		i915_gem_context_unreference(submit_req->ctx);
 		kfree(submit_req);
 	}
 

@@ -2116,6 +2116,26 @@ struct drm_i915_gem_request {
 	struct list_head client_list;
 
 	uint32_t uniq;
+
+	/**
+	 * The ELSP only accepts two elements at a time, so we queue
+	 * context/tail pairs on a given queue (ring->execlist_queue) until the
+	 * hardware is available. The queue serves a double purpose: we also use
+	 * it to keep track of the up to 2 contexts currently in the hardware
+	 * (usually one in execution and the other queued up by the GPU): We
+	 * only remove elements from the head of the queue when the hardware
+	 * informs us that an element has been completed.
+	 *
+	 * All accesses to the queue are mediated by a spinlock
+	 * (ring->execlist_lock).
+	 */
+
+	/** Execlist link in the submission queue.*/
+	struct list_head execlist_link;
+
+	/** Execlists no. of times this request has been sent to the ELSP */
+	int elsp_submitted;
+
 };
 
 void i915_gem_request_free(struct kref *req_ref);

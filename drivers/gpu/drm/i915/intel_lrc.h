@@ -89,33 +89,6 @@ int intel_execlists_submission(struct drm_device *dev, struct drm_file *file,
 			       u64 exec_start, u32 flags);
 u32 intel_execlists_ctx_id(struct drm_i915_gem_object *ctx_obj);
 
-/**
- * struct intel_ctx_submit_request - queued context submission request
- * @ctx: Context to submit to the ELSP.
- * @ring: Engine to submit it to.
- * @tail: how far in the context's ringbuffer this request goes to.
- * @execlist_link: link in the submission queue.
- * @work: workqueue for processing this request in a bottom half.
- * @elsp_submitted: no. of times this request has been sent to the ELSP.
- *
- * The ELSP only accepts two elements at a time, so we queue context/tail
- * pairs on a given queue (ring->execlist_queue) until the hardware is
- * available. The queue serves a double purpose: we also use it to keep track
- * of the up to 2 contexts currently in the hardware (usually one in execution
- * and the other queued up by the GPU): We only remove elements from the head
- * of the queue when the hardware informs us that an element has been
- * completed.
- *
- * All accesses to the queue are mediated by a spinlock (ring->execlist_lock).
- */
-struct intel_ctx_submit_request {
-	struct list_head execlist_link;
-
-	int elsp_submitted;
-
-	struct drm_i915_gem_request *request;
-};
-
 void intel_lrc_irq_handler(struct intel_engine_cs *ring);
 void intel_execlists_retire_requests(struct intel_engine_cs *ring);
 
