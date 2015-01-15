@@ -699,7 +699,7 @@ static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 static int is_sys_clk_from_pll(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink)
 {
-	struct snd_soc_codec *codec = source->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(source->dapm);
 	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
 
 	if (rt5670->sysclk_src == RT5670_SCLK_S_PLL1)
