@@ -66,48 +66,40 @@ static void __init soc_detect(u32 dbgu_base)
 	case ARCH_ID_AT91SAM9260:
 		at91_soc_initdata.type = AT91_SOC_SAM9260;
 		at91_soc_initdata.subtype = AT91_SOC_SUBTYPE_NONE;
-		at91_boot_soc = at91sam9260_soc;
 		break;
 
 	case ARCH_ID_AT91SAM9261:
 		at91_soc_initdata.type = AT91_SOC_SAM9261;
 		at91_soc_initdata.subtype = AT91_SOC_SUBTYPE_NONE;
-		at91_boot_soc = at91sam9261_soc;
 		break;
 
 	case ARCH_ID_AT91SAM9263:
 		at91_soc_initdata.type = AT91_SOC_SAM9263;
 		at91_soc_initdata.subtype = AT91_SOC_SUBTYPE_NONE;
-		at91_boot_soc = at91sam9263_soc;
 		break;
 
 	case ARCH_ID_AT91SAM9G20:
 		at91_soc_initdata.type = AT91_SOC_SAM9G20;
 		at91_soc_initdata.subtype = AT91_SOC_SUBTYPE_NONE;
-		at91_boot_soc = at91sam9260_soc;
 		break;
 
 	case ARCH_ID_AT91SAM9G45:
 		at91_soc_initdata.type = AT91_SOC_SAM9G45;
 		if (cidr == ARCH_ID_AT91SAM9G45ES)
 			at91_soc_initdata.subtype = AT91_SOC_SAM9G45ES;
-		at91_boot_soc = at91sam9g45_soc;
 		break;
 
 	case ARCH_ID_AT91SAM9RL64:
 		at91_soc_initdata.type = AT91_SOC_SAM9RL;
 		at91_soc_initdata.subtype = AT91_SOC_SUBTYPE_NONE;
-		at91_boot_soc = at91sam9rl_soc;
 		break;
 
 	case ARCH_ID_AT91SAM9X5:
 		at91_soc_initdata.type = AT91_SOC_SAM9X5;
-		at91_boot_soc = at91sam9x5_soc;
 		break;
 
 	case ARCH_ID_AT91SAM9N12:
 		at91_soc_initdata.type = AT91_SOC_SAM9N12;
-		at91_boot_soc = at91sam9n12_soc;
 		break;
 
 	case ARCH_ID_SAMA5:
@@ -123,13 +115,11 @@ static void __init soc_detect(u32 dbgu_base)
 	if ((socid & ~AT91_CIDR_EXT) == ARCH_ID_AT91SAM9G10) {
 		at91_soc_initdata.type = AT91_SOC_SAM9G10;
 		at91_soc_initdata.subtype = AT91_SOC_SUBTYPE_NONE;
-		at91_boot_soc = at91sam9261_soc;
 	}
 	/* at91sam9xe */
 	else if ((cidr & AT91_CIDR_ARCH) == ARCH_FAMILY_AT91SAM9XE) {
 		at91_soc_initdata.type = AT91_SOC_SAM9260;
 		at91_soc_initdata.subtype = AT91_SOC_SAM9XE;
-		at91_boot_soc = at91sam9260_soc;
 	}
 
 	if (!at91_soc_is_detected())
@@ -318,12 +308,6 @@ void __init at91_map_io(void)
 	if (at91_soc_initdata.subtype != AT91_SOC_SUBTYPE_NONE)
 		pr_info("Detected soc subtype: %s\n",
 			at91_get_soc_subtype(&at91_soc_initdata));
-
-	if (!at91_soc_is_enabled())
-		panic(pr_fmt("Soc not enabled"));
-
-	if (at91_boot_soc.map_io)
-		at91_boot_soc.map_io();
 }
 
 void __init at91_alt_map_io(void)
@@ -401,7 +385,4 @@ static void at91_dt_ramc(void)
 void __init at91_dt_initialize(void)
 {
 	at91_dt_ramc();
-
-	if (at91_boot_soc.init)
-		at91_boot_soc.init();
 }
