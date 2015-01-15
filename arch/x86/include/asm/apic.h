@@ -108,6 +108,15 @@ extern u64 native_apic_icr_read(void);
 
 extern int x2apic_mode;
 
+static inline bool apic_is_x2apic_enabled(void)
+{
+	u64 msr;
+
+	if (rdmsrl_safe(MSR_IA32_APICBASE, &msr))
+		return false;
+	return msr & X2APIC_ENABLE;
+}
+
 #ifdef CONFIG_X86_X2APIC
 /*
  * Make previous memory operations globally visible before
@@ -175,15 +184,7 @@ extern void check_x2apic(void);
 extern void enable_x2apic(void);
 static inline int x2apic_enabled(void)
 {
-	u64 msr;
-
-	if (!cpu_has_x2apic)
-		return 0;
-
-	rdmsrl(MSR_IA32_APICBASE, msr);
-	if (msr & X2APIC_ENABLE)
-		return 1;
-	return 0;
+	return cpu_has_x2apic && apic_is_x2apic_enabled();
 }
 
 #define x2apic_supported()	(cpu_has_x2apic)

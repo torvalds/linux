@@ -1625,10 +1625,7 @@ void __init enable_IR_x2apic(void)
 	int ret, ir_stat;
 
 	if (!IS_ENABLED(CONFIG_X86_X2APIC)) {
-		u64 msr;
-
-		rdmsrl(MSR_IA32_APICBASE, msr);
-		if (msr & X2APIC_ENABLE)
+		if (apic_is_x2apic_enabled())
 			panic("BIOS has enabled x2apic but kernel doesn't support x2apic, please disable x2apic in BIOS.\n");
 	}
 
