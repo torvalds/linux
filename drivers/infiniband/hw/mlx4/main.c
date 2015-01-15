@@ -1114,7 +1114,8 @@ static int mlx4_ib_tunnel_steer_add(struct ib_qp *qp, struct ib_flow_attr *flow_
 	struct mlx4_dev	*dev = to_mdev(qp->device)->dev;
 	int err = 0;
 
-	if (dev->caps.tunnel_offload_mode != MLX4_TUNNEL_OFFLOAD_MODE_VXLAN)
+	if (dev->caps.tunnel_offload_mode != MLX4_TUNNEL_OFFLOAD_MODE_VXLAN ||
+	    dev->caps.dmfs_high_steer_mode == MLX4_STEERING_DMFS_A0_STATIC)
 		return 0; /* do nothing */
 
 	ib_flow = flow_attr + 1;
