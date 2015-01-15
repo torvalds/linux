@@ -3380,7 +3380,7 @@ static noinline int insert_new_root(struct btrfs_trans_handle *trans,
 	add_root_to_dirty_list(root);
 	extent_buffer_get(c);
 	path->nodes[level] = c;
-	path->locks[level] = BTRFS_WRITE_LOCK;
+	path->locks[level] = BTRFS_WRITE_LOCK_BLOCKING;
 	path->slots[level] = 0;
 	return 0;
 }
