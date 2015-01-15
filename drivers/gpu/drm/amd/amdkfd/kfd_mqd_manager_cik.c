@@ -28,12 +28,6 @@
 #include "cik_regs.h"
 #include "cik_structs.h"
 
-inline void busy_wait(unsigned long ms)
-{
-	while (time_before(jiffies, ms))
-		cpu_relax();
-}
-
 static inline struct cik_mqd *get_mqd(void *mqd)
 {
 	return (struct cik_mqd *)mqd;
