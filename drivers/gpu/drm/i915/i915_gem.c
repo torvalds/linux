@@ -2453,7 +2453,7 @@ int __i915_add_request(struct intel_engine_cs *ring,
 	request_ring_position = intel_ring_get_tail(ringbuf);
 
 	if (i915.enable_execlists) {
-		ret = ring->emit_request(ringbuf);
+		ret = ring->emit_request(ringbuf, request);
 		if (ret)
 			return ret;
 	} else {
@@ -2463,7 +2463,7 @@ int __i915_add_request(struct intel_engine_cs *ring,
 	}
 
 	request->head = request_start;
-	request->tail = request_ring_position;
+	request->postfix = request_ring_position;
 
 	/* Whilst this request exists, batch_obj will be on the
 	 * active_list, and so will hold the active reference. Only when this
@@ -2657,7 +2657,7 @@ static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
 				execlist_link);
 		list_del(&submit_req->execlist_link);
 		intel_runtime_pm_put(dev_priv);
-		i915_gem_context_unreference(submit_req->ctx);
+		i915_gem_context_unreference(submit_req->request->ctx);
 		kfree(submit_req);
 	}
 
@@ -2783,7 +2783,7 @@ i915_gem_retire_requests_ring(struct intel_engine_cs *ring)
 		 * of tail of the request to update the last known position
 		 * of the GPU head.
 		 */
-		ringbuf->last_retired_head = request->tail;
+		ringbuf->last_retired_head = request->postfix;
 
 		i915_gem_free_request(request);
 	}

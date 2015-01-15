@@ -2089,7 +2089,14 @@ struct drm_i915_gem_request {
 	/** Position in the ringbuffer of the start of the request */
 	u32 head;
 
-	/** Position in the ringbuffer of the end of the request */
+	/**
+	 * Position in the ringbuffer of the start of the postfix.
+	 * This is required to calculate the maximum available ringbuffer
+	 * space without overwriting the postfix.
+	 */
+	 u32 postfix;
+
+	/** Position in the ringbuffer of the end of the whole request */
 	u32 tail;
 
 	/** Context related to this request */

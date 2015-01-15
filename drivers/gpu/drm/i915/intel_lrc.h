@@ -105,10 +105,6 @@ u32 intel_execlists_ctx_id(struct drm_i915_gem_object *ctx_obj);
  * All accesses to the queue are mediated by a spinlock (ring->execlist_lock).
  */
 struct intel_ctx_submit_request {
-	struct intel_context *ctx;
-	struct intel_engine_cs *ring;
-	u32 tail;
-
 	struct list_head execlist_link;
 
 	int elsp_submitted;

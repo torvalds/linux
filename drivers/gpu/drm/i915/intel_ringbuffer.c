@@ -1949,7 +1949,7 @@ static int intel_ring_wait_request(struct intel_engine_cs *ring, int n)
 		return 0;
 
 	list_for_each_entry(request, &ring->request_list, list) {
-		if (__intel_ring_space(request->tail, ringbuf->tail,
+		if (__intel_ring_space(request->postfix, ringbuf->tail,
 				       ringbuf->size) >= n) {
 			break;
 		}

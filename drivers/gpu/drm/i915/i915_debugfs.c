@@ -1968,11 +1968,11 @@ static int i915_execlists(struct seq_file *m, void *data)
 		if (head_req) {
 			struct drm_i915_gem_object *ctx_obj;
 
-			ctx_obj = head_req->ctx->engine[ring_id].state;
+			ctx_obj = head_req->request->ctx->engine[ring_id].state;
 			seq_printf(m, "\tHead request id: %u\n",
 				   intel_execlists_ctx_id(ctx_obj));
 			seq_printf(m, "\tHead request tail: %u\n",
-				   head_req->tail);
+				   head_req->request->tail);
 		}
 
 		seq_putc(m, '\n');

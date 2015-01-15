@@ -417,7 +417,7 @@ static void execlists_context_unqueue(struct intel_engine_cs *ring)
 				 execlist_link) {
 		if (!req0) {
 			req0 = cursor;
-		} else if (req0->ctx == cursor->ctx) {
+		} else if (req0->request->ctx == cursor->request->ctx) {
 			/* Same ctx: ignore first request, as second request
 			 * will update tail past first request's workload */
 			cursor->elsp_submitted = req0->elsp_submitted;
@@ -433,9 +433,9 @@ static void execlists_context_unqueue(struct intel_engine_cs *ring)
 
 	WARN_ON(req1 && req1->elsp_submitted);
 
-	execlists_submit_contexts(ring, req0->ctx, req0->tail,
-				  req1 ? req1->ctx : NULL,
-				  req1 ? req1->tail : 0);
+	execlists_submit_contexts(ring, req0->request->ctx, req0->request->tail,
+				  req1 ? req1->request->ctx : NULL,
+				  req1 ? req1->request->tail : 0);
 
 	req0->elsp_submitted++;
 	if (req1)
@@ -455,7 +455,7 @@ static bool execlists_check_remove_request(struct intel_engine_cs *ring,
 
 	if (head_req != NULL) {
 		struct drm_i915_gem_object *ctx_obj =
-				head_req->ctx->engine[ring->id].state;
+				head_req->request->ctx->engine[ring->id].state;
 		if (intel_execlists_ctx_id(ctx_obj) == request_id) {
 			WARN(head_req->elsp_submitted == 0,
 			     "Never submitted head request\n");
@@ -545,14 +545,9 @@ static int execlists_context_queue(struct intel_engine_cs *ring,
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (req == NULL)
 		return -ENOMEM;
-	req->ctx = to;
-	i915_gem_context_reference(req->ctx);
 
 	if (to != ring->default_context)
 		intel_lr_context_pin(ring, to);
-
-	req->ring = ring;
-	req->tail = tail;
 
 	if (!request) {
 		/*
@@ -563,11 +558,13 @@ static int execlists_context_queue(struct intel_engine_cs *ring,
 		request = kzalloc(sizeof(*request), GFP_KERNEL);
 		if (request == NULL)
 			return -ENOMEM;
-		request->ctx = to;
 		request->ring = ring;
 	}
+	request->ctx = to;
+	request->tail = tail;
 	req->request = request;
 	i915_gem_request_reference(request);
+	i915_gem_context_reference(req->request->ctx);
 
 	intel_runtime_pm_get(dev_priv);
 
@@ -584,7 +581,7 @@ static int execlists_context_queue(struct intel_engine_cs *ring,
 					   struct intel_ctx_submit_request,
 					   execlist_link);
 
-		if (to == tail_req->ctx) {
+		if (to == tail_req->request->ctx) {
 			WARN(tail_req->elsp_submitted != 0,
 				"More than 2 already-submitted reqs queued\n");
 			list_del(&tail_req->execlist_link);
@@ -774,14 +771,14 @@ void intel_execlists_retire_requests(struct intel_engine_cs *ring)
 	spin_unlock_irqrestore(&ring->execlist_lock, flags);
 
 	list_for_each_entry_safe(req, tmp, &retired_list, execlist_link) {
-		struct intel_context *ctx = req->ctx;
+		struct intel_context *ctx = req->request->ctx;
 		struct drm_i915_gem_object *ctx_obj =
 				ctx->engine[ring->id].state;
 
 		if (ctx_obj && (ctx != ring->default_context))
 			intel_lr_context_unpin(ring, ctx);
 		intel_runtime_pm_put(dev_priv);
-		i915_gem_context_unreference(req->ctx);
+		i915_gem_context_unreference(ctx);
 		i915_gem_request_unreference(req->request);
 		list_del(&req->execlist_link);
 		kfree(req);
