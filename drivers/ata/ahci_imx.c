@@ -221,11 +221,9 @@ static int imx_sata_enable(struct ahci_host_priv *hpriv)
 	if (imxpriv->no_device)
 		return 0;
 
-	if (hpriv->target_pwr) {
-		ret = regulator_enable(hpriv->target_pwr);
-		if (ret)
-			return ret;
-	}
+	ret = ahci_platform_enable_regulators(hpriv);
+	if (ret)
+		return ret;
 
 	ret = clk_prepare_enable(imxpriv->sata_ref_clk);
 	if (ret < 0)
@@ -270,8 +268,7 @@ static int imx_sata_enable(struct ahci_host_priv *hpriv)
 disable_clk:
 	clk_disable_unprepare(imxpriv->sata_ref_clk);
 disable_regulator:
-	if (hpriv->target_pwr)
-		regulator_disable(hpriv->target_pwr);
+	ahci_platform_disable_regulators(hpriv);
 
 	return ret;
 }
@@ -291,8 +288,7 @@ static void imx_sata_disable(struct ahci_host_priv *hpriv)
 
 	clk_disable_unprepare(imxpriv->sata_ref_clk);
 
-	if (hpriv->target_pwr)
-		regulator_disable(hpriv->target_pwr);
+	ahci_platform_disable_regulators(hpriv);
 }
 
 static void ahci_imx_error_handler(struct ata_port *ap)
