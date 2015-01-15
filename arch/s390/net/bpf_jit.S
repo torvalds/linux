@@ -44,6 +44,7 @@ ENTRY(sk_load_word)
 
 sk_load_word_slow:
 	lgr	%r9,%r2			# save %r2
+	lgr	%r3,%r1			# offset
 	la	%r4,160(%r15)		# pointer to temp buffer
 	lhi	%r5,4			# 4 bytes
 	brasl	%r14,skb_copy_bits	# get data from skb
@@ -69,6 +70,7 @@ ENTRY(sk_load_half)
 
 sk_load_half_slow:
 	lgr	%r9,%r2			# save %r2
+	lgr	%r3,%r1			# offset
 	la	%r4,162(%r15)		# pointer to temp buffer
 	lhi	%r5,2			# 2 bytes
 	brasl	%r14,skb_copy_bits	# get data from skb
