@@ -147,8 +147,18 @@ const char *vp_bus_name(struct virtio_device *vdev);
  */
 int vp_set_vq_affinity(struct virtqueue *vq, int cpu);
 
+#if IS_ENABLED(CONFIG_VIRTIO_PCI_LEGACY)
 int virtio_pci_legacy_probe(struct virtio_pci_device *);
 void virtio_pci_legacy_remove(struct virtio_pci_device *);
+#else
+static inline int virtio_pci_legacy_probe(struct virtio_pci_device *vp_dev)
+{
+	return -ENODEV;
+}
+static inline void virtio_pci_legacy_remove(struct virtio_pci_device *vp_dev)
+{
+}
+#endif
 int virtio_pci_modern_probe(struct virtio_pci_device *);
 void virtio_pci_modern_remove(struct virtio_pci_device *);
 
