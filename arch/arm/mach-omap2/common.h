@@ -164,6 +164,14 @@ static inline void omap3xxx_restart(enum reboot_mode mode, const char *cmd)
 }
 #endif
 
+#ifdef CONFIG_SOC_TI81XX
+void ti81xx_restart(enum reboot_mode mode, const char *cmd);
+#else
+static inline void ti81xx_restart(enum reboot_mode mode, const char *cmd)
+{
+}
+#endif
+
 #if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5) || \
 	defined(CONFIG_SOC_DRA7XX) || defined(CONFIG_SOC_AM43XX)
 void omap44xx_restart(enum reboot_mode mode, const char *cmd);
