@@ -1203,7 +1203,7 @@ static bool __rmap_write_protect(struct kvm *kvm, unsigned long *rmapp,
 }
 
 /**
- * kvm_mmu_write_protect_pt_masked - write protect selected PT level pages
+ * kvm_arch_mmu_write_protect_pt_masked - write protect selected PT level pages
  * @kvm: kvm instance
  * @slot: slot to protect
  * @gfn_offset: start of the BITS_PER_LONG pages we care about
@@ -1212,7 +1212,7 @@ static bool __rmap_write_protect(struct kvm *kvm, unsigned long *rmapp,
  * Used when we do not need to care about huge page mappings: e.g. during dirty
  * logging we do not have any such mappings.
  */
-void kvm_mmu_write_protect_pt_masked(struct kvm *kvm,
+void kvm_arch_mmu_write_protect_pt_masked(struct kvm *kvm,
 				     struct kvm_memory_slot *slot,
 				     gfn_t gfn_offset, unsigned long mask)
 {
