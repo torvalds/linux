@@ -717,7 +717,7 @@ static int get_poolop_reply_buf(const char *src, size_t src_len,
 	if (src_len != sizeof(u32) + dst_len)
 		return -EINVAL;
 
-	buf_len = le32_to_cpu(*(u32 *)src);
+	buf_len = le32_to_cpu(*(__le32 *)src);
 	if (buf_len != dst_len)
 		return -EINVAL;
 

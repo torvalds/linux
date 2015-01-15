@@ -426,6 +426,8 @@ struct bufdesc_ex {
  * (40ns * 6).
  */
 #define FEC_QUIRK_BUG_CAPTURE		(1 << 10)
+/* Controller has only one MDIO bus */
+#define FEC_QUIRK_SINGLE_MDIO		(1 << 11)
 
 struct fec_enet_priv_tx_q {
 	int index;

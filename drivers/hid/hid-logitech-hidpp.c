@@ -282,6 +282,33 @@ static inline bool hidpp_report_is_connect_event(struct hidpp_report *report)
 		(report->rap.sub_id == 0x41);
 }
 
+/**
+ * hidpp_prefix_name() prefixes the current given name with "Logitech ".
+ */
+static void hidpp_prefix_name(char **name, int name_length)
+{
+#define PREFIX_LENGTH 9 /* "Logitech " */
+
+	int new_length;
+	char *new_name;
+
+	if (name_length > PREFIX_LENGTH &&
+	    strncmp(*name, "Logitech ", PREFIX_LENGTH) == 0)
+		/* The prefix has is already in the name */
+		return;
+
+	new_length = PREFIX_LENGTH + name_length;
+	new_name = kzalloc(new_length, GFP_KERNEL);
+	if (!new_name)
+		return;
+
+	snprintf(new_name, new_length, "Logitech %s", *name);
+
+	kfree(*name);
+
+	*name = new_name;
+}
+
 /* -------------------------------------------------------------------------- */
 /* HIDP++ 1.0 commands                                                        */
 /* -------------------------------------------------------------------------- */
@@ -321,6 +348,10 @@ static char *hidpp_get_unifying_name(struct hidpp_device *hidpp_dev)
 		return NULL;
 
 	memcpy(name, &response.rap.params[2], len);
+
+	/* include the terminating '\0' */
+	hidpp_prefix_name(&name, len + 1);
+
 	return name;
 }
 
@@ -497,6 +528,9 @@ static char *hidpp_get_device_name(struct hidpp_device *hidpp)
 		}
 		index += ret;
 	}
+
+	/* include the terminating '\0' */
+	hidpp_prefix_name(&name, __name_length + 1);
 
 	return name;
 }
@@ -794,18 +828,25 @@ static int wtp_raw_event(struct hid_device *hdev, u8 *data, int size)
 
 	switch (data[0]) {
 	case 0x02:
+		if (size < 2) {
+			hid_err(hdev, "Received HID report of bad size (%d)",
+				size);
+			return 1;
+		}
 		if (hidpp->quirks & HIDPP_QUIRK_WTP_PHYSICAL_BUTTONS) {
 			input_event(wd->input, EV_KEY, BTN_LEFT,
 					!!(data[1] & 0x01));
 			input_event(wd->input, EV_KEY, BTN_RIGHT,
 					!!(data[1] & 0x02));
 			input_sync(wd->input);
+			return 0;
 		} else {
 			if (size < 21)
 				return 1;
 			return wtp_mouse_raw_xy_event(hidpp, &data[7]);
 		}
 	case REPORT_ID_HIDPP_LONG:
+		/* size is already checked in hidpp_raw_event. */
 		if ((report->fap.feature_index != wd->mt_feature_index) ||
 		    (report->fap.funcindex_clientid != EVENT_TOUCHPAD_RAW_XY))
 			return 1;

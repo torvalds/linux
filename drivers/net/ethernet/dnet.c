@@ -398,13 +398,8 @@ static int dnet_poll(struct napi_struct *napi, int budget)
 		 * break out of while loop if there are no more
 		 * packets waiting
 		 */
-		if (!(dnet_readl(bp, RX_FIFO_WCNT) >> 16)) {
-			napi_complete(napi);
-			int_enable = dnet_readl(bp, INTR_ENB);
-			int_enable |= DNET_INTR_SRC_RX_CMDFIFOAF;
-			dnet_writel(bp, int_enable, INTR_ENB);
-			return 0;
-		}
+		if (!(dnet_readl(bp, RX_FIFO_WCNT) >> 16))
+			break;
 
 		cmd_word = dnet_readl(bp, RX_LEN_FIFO);
 		pkt_len = cmd_word & 0xFFFF;
@@ -433,20 +428,17 @@ static int dnet_poll(struct napi_struct *napi, int budget)
 			       "size %u.\n", dev->name, pkt_len);
 	}
 
-	budget -= npackets;
-
 	if (npackets < budget) {
 		/* We processed all packets available.  Tell NAPI it can
-		 * stop polling then re-enable rx interrupts */
+		 * stop polling then re-enable rx interrupts.
+		 */
 		napi_complete(napi);
 		int_enable = dnet_readl(bp, INTR_ENB);
 		int_enable |= DNET_INTR_SRC_RX_CMDFIFOAF;
 		dnet_writel(bp, int_enable, INTR_ENB);
-		return 0;
 	}
 
-	/* There are still packets waiting */
-	return 1;
+	return npackets;
 }
 
 static irqreturn_t dnet_interrupt(int irq, void *dev_id)
