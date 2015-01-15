@@ -171,7 +171,7 @@ static int rsnd_dvc_init(struct rsnd_mod *dvc_mod,
 
 	rsnd_mod_write(dvc_mod, DVC_DVUIR, 0);
 
-	rsnd_adg_set_cmd_timsel_gen2(rdai, dvc_mod, io);
+	rsnd_adg_set_cmd_timsel_gen2(dvc_mod, io);
 
 	return 0;
 }
@@ -210,7 +210,7 @@ static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 	int ret;
 
 	/* Volume */
-	ret = rsnd_kctrl_new_m(mod, rdai, rtd,
+	ret = rsnd_kctrl_new_m(mod, rtd,
 			is_play ?
 			"DVC Out Playback Volume" : "DVC In Capture Volume",
 			rsnd_dvc_volume_update,
@@ -219,7 +219,7 @@ static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 		return ret;
 
 	/* Mute */
-	ret = rsnd_kctrl_new_m(mod, rdai, rtd,
+	ret = rsnd_kctrl_new_m(mod, rtd,
 			is_play ?
 			"DVC Out Mute Switch" : "DVC In Mute Switch",
 			rsnd_dvc_volume_update,
@@ -228,7 +228,7 @@ static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 		return ret;
 
 	/* Ramp */
-	ret = rsnd_kctrl_new_s(mod, rdai, rtd,
+	ret = rsnd_kctrl_new_s(mod, rtd,
 			is_play ?
 			"DVC Out Ramp Switch" : "DVC In Ramp Switch",
 			rsnd_dvc_volume_update,
@@ -236,7 +236,7 @@ static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 	if (ret < 0)
 		return ret;
 
-	ret = rsnd_kctrl_new_e(mod, rdai, rtd,
+	ret = rsnd_kctrl_new_e(mod, rtd,
 			is_play ?
 			"DVC Out Ramp Up Rate" : "DVC In Ramp Up Rate",
 			&dvc->rup,
@@ -245,7 +245,7 @@ static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 	if (ret < 0)
 		return ret;
 
-	ret = rsnd_kctrl_new_e(mod, rdai, rtd,
+	ret = rsnd_kctrl_new_e(mod, rtd,
 			is_play ?
 			"DVC Out Ramp Down Rate" : "DVC In Ramp Down Rate",
 			&dvc->rdown,

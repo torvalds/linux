@@ -351,15 +351,12 @@ int rsnd_adg_set_convert_clk_gen1(struct rsnd_priv *priv,
 				  unsigned int src_rate,
 				  unsigned int dst_rate);
 int rsnd_adg_set_convert_clk_gen2(struct rsnd_mod *mod,
-				  struct rsnd_dai *rdai,
 				  struct rsnd_dai_stream *io,
 				  unsigned int src_rate,
 				  unsigned int dst_rate);
 int rsnd_adg_set_convert_timing_gen2(struct rsnd_mod *mod,
-				     struct rsnd_dai *rdai,
 				     struct rsnd_dai_stream *io);
-int rsnd_adg_set_cmd_timsel_gen2(struct rsnd_dai *rdai,
-				 struct rsnd_mod *mod,
+int rsnd_adg_set_cmd_timsel_gen2(struct rsnd_mod *mod,
 				 struct rsnd_dai_stream *io);
 
 /*
@@ -453,21 +450,18 @@ struct rsnd_kctrl_cfg_s {
 };
 
 int rsnd_kctrl_new_m(struct rsnd_mod *mod,
-		     struct rsnd_dai *rdai,
 		     struct snd_soc_pcm_runtime *rtd,
 		     const unsigned char *name,
 		     void (*update)(struct rsnd_mod *mod),
 		     struct rsnd_kctrl_cfg_m *_cfg,
 		     u32 max);
 int rsnd_kctrl_new_s(struct rsnd_mod *mod,
-		     struct rsnd_dai *rdai,
 		     struct snd_soc_pcm_runtime *rtd,
 		     const unsigned char *name,
 		     void (*update)(struct rsnd_mod *mod),
 		     struct rsnd_kctrl_cfg_s *_cfg,
 		     u32 max);
 int rsnd_kctrl_new_e(struct rsnd_mod *mod,
-		     struct rsnd_dai *rdai,
 		     struct snd_soc_pcm_runtime *rtd,
 		     const unsigned char *name,
 		     struct rsnd_kctrl_cfg_s *_cfg,
@@ -486,14 +480,10 @@ unsigned int rsnd_src_get_ssi_rate(struct rsnd_priv *priv,
 				   struct rsnd_dai_stream *io,
 				   struct snd_pcm_runtime *runtime);
 int rsnd_src_ssiu_start(struct rsnd_mod *ssi_mod,
-			struct rsnd_dai *rdai,
 			int use_busif);
-int rsnd_src_ssiu_stop(struct rsnd_mod *ssi_mod,
-		       struct rsnd_dai *rdai);
-int rsnd_src_ssi_irq_enable(struct rsnd_mod *ssi_mod,
-			    struct rsnd_dai *rdai);
-int rsnd_src_ssi_irq_disable(struct rsnd_mod *ssi_mod,
-			     struct rsnd_dai *rdai);
+int rsnd_src_ssiu_stop(struct rsnd_mod *ssi_mod);
+int rsnd_src_ssi_irq_enable(struct rsnd_mod *ssi_mod);
+int rsnd_src_ssi_irq_disable(struct rsnd_mod *ssi_mod);
 
 #define rsnd_src_nr(priv) ((priv)->src_nr)
 

@@ -1025,7 +1025,6 @@ static int rsnd_kctrl_put(struct snd_kcontrol *kctrl,
 }
 
 static int __rsnd_kctrl_new(struct rsnd_mod *mod,
-			    struct rsnd_dai *rdai,
 			    struct snd_soc_pcm_runtime *rtd,
 			    const unsigned char *name,
 			    struct rsnd_kctrl_cfg *cfg,
@@ -1057,7 +1056,6 @@ static int __rsnd_kctrl_new(struct rsnd_mod *mod,
 }
 
 int rsnd_kctrl_new_m(struct rsnd_mod *mod,
-		     struct rsnd_dai *rdai,
 		     struct snd_soc_pcm_runtime *rtd,
 		     const unsigned char *name,
 		     void (*update)(struct rsnd_mod *mod),
@@ -1067,11 +1065,10 @@ int rsnd_kctrl_new_m(struct rsnd_mod *mod,
 	_cfg->cfg.max	= max;
 	_cfg->cfg.size	= RSND_DVC_CHANNELS;
 	_cfg->cfg.val	= _cfg->val;
-	return __rsnd_kctrl_new(mod, rdai, rtd, name, &_cfg->cfg, update);
+	return __rsnd_kctrl_new(mod, rtd, name, &_cfg->cfg, update);
 }
 
 int rsnd_kctrl_new_s(struct rsnd_mod *mod,
-		     struct rsnd_dai *rdai,
 		     struct snd_soc_pcm_runtime *rtd,
 		     const unsigned char *name,
 		     void (*update)(struct rsnd_mod *mod),
@@ -1081,11 +1078,10 @@ int rsnd_kctrl_new_s(struct rsnd_mod *mod,
 	_cfg->cfg.max	= max;
 	_cfg->cfg.size	= 1;
 	_cfg->cfg.val	= &_cfg->val;
-	return __rsnd_kctrl_new(mod, rdai, rtd, name, &_cfg->cfg, update);
+	return __rsnd_kctrl_new(mod, rtd, name, &_cfg->cfg, update);
 }
 
 int rsnd_kctrl_new_e(struct rsnd_mod *mod,
-		     struct rsnd_dai *rdai,
 		     struct snd_soc_pcm_runtime *rtd,
 		     const unsigned char *name,
 		     struct rsnd_kctrl_cfg_s *_cfg,
@@ -1097,7 +1093,7 @@ int rsnd_kctrl_new_e(struct rsnd_mod *mod,
 	_cfg->cfg.size	= 1;
 	_cfg->cfg.val	= &_cfg->val;
 	_cfg->cfg.texts	= texts;
-	return __rsnd_kctrl_new(mod, rdai, rtd, name, &_cfg->cfg, update);
+	return __rsnd_kctrl_new(mod, rtd, name, &_cfg->cfg, update);
 }
 
 /*
@@ -1138,10 +1134,9 @@ static const struct snd_soc_component_driver rsnd_soc_component = {
 };
 
 static int rsnd_rdai_continuance_probe(struct rsnd_priv *priv,
-				       struct rsnd_dai *rdai,
-				       int is_play)
+				       struct rsnd_dai_stream *io)
 {
-	struct rsnd_dai_stream *io = is_play ? &rdai->playback : &rdai->capture;
+	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	int ret;
 
 	ret = rsnd_dai_call(probe, io, rdai);
@@ -1241,11 +1236,11 @@ static int rsnd_probe(struct platform_device *pdev)
 	}
 
 	for_each_rsnd_dai(rdai, priv, i) {
-		ret = rsnd_rdai_continuance_probe(priv, rdai, 1);
+		ret = rsnd_rdai_continuance_probe(priv, &rdai->playback);
 		if (ret)
 			goto exit_snd_probe;
 
-		ret = rsnd_rdai_continuance_probe(priv, rdai, 0);
+		ret = rsnd_rdai_continuance_probe(priv, &rdai->capture);
 		if (ret)
 			goto exit_snd_probe;
 	}

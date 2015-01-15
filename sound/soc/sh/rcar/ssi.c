@@ -64,7 +64,6 @@ struct rsnd_ssi {
 	struct rsnd_ssi *parent;
 	struct rsnd_mod mod;
 
-	struct rsnd_dai *rdai;
 	u32 cr_own;
 	u32 cr_clk;
 	int err;
@@ -178,10 +177,10 @@ static void rsnd_ssi_master_clk_stop(struct rsnd_ssi *ssi)
 }
 
 static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
-			      struct rsnd_dai *rdai,
 			      struct rsnd_dai_stream *io)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(&ssi->mod);
+	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	u32 cr_mode;
 	u32 cr;
@@ -191,7 +190,7 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 
 		if (rsnd_rdai_is_clk_master(rdai)) {
 			if (rsnd_ssi_clk_from_parent(ssi))
-				rsnd_ssi_hw_start(ssi->parent, rdai, io);
+				rsnd_ssi_hw_start(ssi->parent, io);
 			else
 				rsnd_ssi_master_clk_start(ssi, io);
 		}
@@ -222,10 +221,11 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 		rsnd_mod_name(&ssi->mod), rsnd_mod_id(&ssi->mod));
 }
 
-static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi,
-			     struct rsnd_dai *rdai)
+static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(&ssi->mod);
+	struct rsnd_dai_stream *io = rsnd_mod_to_io(&ssi->mod);
+	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	u32 cr;
 
@@ -254,7 +254,7 @@ static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi,
 
 		if (rsnd_rdai_is_clk_master(rdai)) {
 			if (rsnd_ssi_clk_from_parent(ssi))
-				rsnd_ssi_hw_stop(ssi->parent, rdai);
+				rsnd_ssi_hw_stop(ssi->parent);
 			else
 				rsnd_ssi_master_clk_stop(ssi);
 		}
@@ -313,7 +313,6 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 	/*
 	 * set ssi parameter
 	 */
-	ssi->rdai	= rdai;
 	ssi->cr_own	= cr;
 	ssi->err	= -1; /* ignore 1st error */
 
@@ -330,7 +329,6 @@ static int rsnd_ssi_quit(struct rsnd_mod *mod,
 	if (ssi->err > 0)
 		dev_warn(dev, "ssi under/over flow err = %d\n", ssi->err);
 
-	ssi->rdai	= NULL;
 	ssi->cr_own	= 0;
 	ssi->err	= 0;
 
@@ -354,11 +352,11 @@ static int rsnd_ssi_start(struct rsnd_mod *mod,
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 
-	rsnd_src_ssiu_start(mod, rdai, rsnd_ssi_use_busif(mod));
+	rsnd_src_ssiu_start(mod, rsnd_ssi_use_busif(mod));
 
-	rsnd_ssi_hw_start(ssi, rdai, io);
+	rsnd_ssi_hw_start(ssi, io);
 
-	rsnd_src_ssi_irq_enable(mod, rdai);
+	rsnd_src_ssi_irq_enable(mod);
 
 	return 0;
 }
@@ -368,13 +366,13 @@ static int rsnd_ssi_stop(struct rsnd_mod *mod,
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 
-	rsnd_src_ssi_irq_disable(mod, rdai);
+	rsnd_src_ssi_irq_disable(mod);
 
 	rsnd_ssi_record_error(ssi, rsnd_mod_read(mod, SSISR));
 
-	rsnd_ssi_hw_stop(ssi, rdai);
+	rsnd_ssi_hw_stop(ssi);
 
-	rsnd_src_ssiu_stop(mod, rdai);
+	rsnd_src_ssiu_stop(mod);
 
 	return 0;
 }
@@ -382,9 +380,9 @@ static int rsnd_ssi_stop(struct rsnd_mod *mod,
 static irqreturn_t rsnd_ssi_interrupt(int irq, void *data)
 {
 	struct rsnd_ssi *ssi = data;
-	struct rsnd_dai *rdai = ssi->rdai;
 	struct rsnd_mod *mod = &ssi->mod;
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
+	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	u32 status = rsnd_mod_read(mod, SSISR);
 
 	if (!io)
