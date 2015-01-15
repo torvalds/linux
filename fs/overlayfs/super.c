@@ -870,8 +870,14 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 	err = -EINVAL;
 	stacklen = ovl_split_lowerdirs(lowertmp);
-	if (stacklen > OVL_MAX_STACK)
+	if (stacklen > OVL_MAX_STACK) {
+		pr_err("overlayfs: too many lower directries, limit is %d\n",
+		       OVL_MAX_STACK);
 		goto out_free_lowertmp;
+	} else if (!ufs->config.upperdir && stacklen == 1) {
+		pr_err("overlayfs: at least 2 lowerdir are needed while upperdir nonexistent\n");
+		goto out_free_lowertmp;
+	}
 
 	stack = kcalloc(stacklen, sizeof(struct path), GFP_KERNEL);
 	if (!stack)
