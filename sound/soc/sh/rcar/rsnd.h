@@ -226,6 +226,7 @@ struct rsnd_mod {
 	struct rsnd_mod_ops *ops;
 	struct rsnd_dma dma;
 	struct rsnd_dai_stream *io;
+	struct clk *clk;
 	u32 status;
 };
 /*
@@ -261,10 +262,13 @@ struct rsnd_mod {
 #define rsnd_dma_to_mod(_dma) container_of((_dma), struct rsnd_mod, dma)
 #define rsnd_mod_to_io(mod) ((mod)->io)
 #define rsnd_mod_id(mod) ((mod)->id)
+#define rsnd_mod_hw_start(mod)	clk_prepare_enable((mod)->clk)
+#define rsnd_mod_hw_stop(mod)	clk_disable_unprepare((mod)->clk)
 
 void rsnd_mod_init(struct rsnd_priv *priv,
 		   struct rsnd_mod *mod,
 		   struct rsnd_mod_ops *ops,
+		   struct clk *clk,
 		   enum rsnd_mod_type type,
 		   int id);
 char *rsnd_mod_name(struct rsnd_mod *mod);

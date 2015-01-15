@@ -17,7 +17,6 @@
 struct rsnd_dvc {
 	struct rsnd_dvc_platform_info *info; /* rcar_snd.h */
 	struct rsnd_mod mod;
-	struct clk *clk;
 	struct rsnd_kctrl_cfg_m volume;
 	struct rsnd_kctrl_cfg_m mute;
 	struct rsnd_kctrl_cfg_s ren;	/* Ramp Enable */
@@ -132,7 +131,6 @@ static int rsnd_dvc_probe_gen2(struct rsnd_mod *mod,
 static int rsnd_dvc_init(struct rsnd_mod *dvc_mod,
 			 struct rsnd_dai *rdai)
 {
-	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(dvc_mod);
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(dvc_mod);
 	struct rsnd_priv *priv = rsnd_mod_to_priv(dvc_mod);
 	struct rsnd_mod *src_mod = rsnd_io_to_mod_src(io);
@@ -153,7 +151,7 @@ static int rsnd_dvc_init(struct rsnd_mod *dvc_mod,
 		return -EINVAL;
 	}
 
-	clk_prepare_enable(dvc->clk);
+	rsnd_mod_hw_start(dvc_mod);
 
 	/*
 	 * fixme
@@ -181,9 +179,7 @@ static int rsnd_dvc_init(struct rsnd_mod *dvc_mod,
 static int rsnd_dvc_quit(struct rsnd_mod *mod,
 			 struct rsnd_dai *rdai)
 {
-	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
-
-	clk_disable_unprepare(dvc->clk);
+	rsnd_mod_hw_stop(mod);
 
 	return 0;
 }
@@ -356,9 +352,9 @@ int rsnd_dvc_probe(struct platform_device *pdev,
 			return PTR_ERR(clk);
 
 		dvc->info = &info->dvc_info[i];
-		dvc->clk  = clk;
 
-		rsnd_mod_init(priv, &dvc->mod, &rsnd_dvc_ops, RSND_MOD_DVC, i);
+		rsnd_mod_init(priv, &dvc->mod, &rsnd_dvc_ops,
+			      clk, RSND_MOD_DVC, i);
 
 		dev_dbg(dev, "CMD%d probed\n", i);
 	}

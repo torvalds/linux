@@ -152,6 +152,7 @@ char *rsnd_mod_dma_name(struct rsnd_mod *mod)
 void rsnd_mod_init(struct rsnd_priv *priv,
 		   struct rsnd_mod *mod,
 		   struct rsnd_mod_ops *ops,
+		   struct clk *clk,
 		   enum rsnd_mod_type type,
 		   int id)
 {
@@ -159,6 +160,7 @@ void rsnd_mod_init(struct rsnd_priv *priv,
 	mod->id		= id;
 	mod->ops	= ops;
 	mod->type	= type;
+	mod->clk	= clk;
 }
 
 /*
