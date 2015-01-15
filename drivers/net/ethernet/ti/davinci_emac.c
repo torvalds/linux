@@ -922,6 +922,16 @@ static void emac_int_disable(struct emac_priv *priv)
 		if (priv->int_disable)
 			priv->int_disable();
 
+		/* NOTE: Rx Threshold and Misc interrupts are not enabled */
+
+		/* ack rxen only then a new pulse will be generated */
+		emac_write(EMAC_DM646X_MACEOIVECTOR,
+			EMAC_DM646X_MAC_EOI_C0_RXEN);
+
+		/* ack txen- only then a new pulse will be generated */
+		emac_write(EMAC_DM646X_MACEOIVECTOR,
+			EMAC_DM646X_MAC_EOI_C0_TXEN);
+
 		local_irq_restore(flags);
 
 	} else {
@@ -951,15 +961,6 @@ static void emac_int_enable(struct emac_priv *priv)
 		 * register */
 
 		/* NOTE: Rx Threshold and Misc interrupts are not enabled */
-
-		/* ack rxen only then a new pulse will be generated */
-		emac_write(EMAC_DM646X_MACEOIVECTOR,
-			EMAC_DM646X_MAC_EOI_C0_RXEN);
-
-		/* ack txen- only then a new pulse will be generated */
-		emac_write(EMAC_DM646X_MACEOIVECTOR,
-			EMAC_DM646X_MAC_EOI_C0_TXEN);
-
 	} else {
 		/* Set DM644x control registers for interrupt control */
 		emac_ctrl_write(EMAC_CTRL_EWCTL, 0x1);
