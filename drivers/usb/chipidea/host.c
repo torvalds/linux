@@ -192,6 +192,21 @@ static void host_stop(struct ci_hdrc *ci)
 	}
 }
 
+bool ci_hdrc_host_has_device(struct ci_hdrc *ci)
+{
+	struct usb_device *roothub;
+	int i;
+
+	if ((ci->role == CI_ROLE_HOST) && ci->hcd) {
+		roothub = ci->hcd->self.root_hub;
+		for (i = 0; i < roothub->maxchild; ++i) {
+			if (usb_hub_find_child(roothub, (i + 1)))
+				return true;
+		}
+	}
+	return false;
+}
+
 static void ci_hdrc_host_save_for_power_lost(struct ci_hdrc *ci)
 {
 	struct ehci_hcd *ehci;
