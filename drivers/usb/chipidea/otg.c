@@ -82,7 +82,7 @@ void ci_handle_vbus_change(struct ci_hdrc *ci)
 }
 
 #define CI_VBUS_STABLE_TIMEOUT_MS 5000
-static void ci_handle_id_switch(struct ci_hdrc *ci)
+void ci_handle_id_switch(struct ci_hdrc *ci)
 {
 	enum ci_role role = ci_otg_role(ci);
 
