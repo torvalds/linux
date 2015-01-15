@@ -1474,12 +1474,8 @@ void __init bsp_end_local_APIC_setup(void)
 
 }
 
-/* Control whether x2APIC mode is enabled or not */
-static bool nox2apic __initdata;
-
 #ifdef CONFIG_X86_X2APIC
 int x2apic_mode;
-static int x2apic_disabled;
 
 enum {
 	X2APIC_OFF,
@@ -1487,6 +1483,19 @@ enum {
 	X2APIC_DISABLED,
 };
 static int x2apic_state;
+
+static inline void __x2apic_disable(void)
+{
+	u64 msr;
+
+	rdmsrl(MSR_IA32_APICBASE, msr);
+	if (!(msr & X2APIC_ENABLE))
+		return;
+	/* Disable xapic and x2apic first and then reenable xapic mode */
+	wrmsrl(MSR_IA32_APICBASE, msr & ~(X2APIC_ENABLE | XAPIC_ENABLE));
+	wrmsrl(MSR_IA32_APICBASE, msr & ~X2APIC_ENABLE);
+	printk_once(KERN_INFO "x2apic disabled\n");
+}
 
 static int __init setup_nox2apic(char *str)
 {
@@ -1498,28 +1507,17 @@ static int __init setup_nox2apic(char *str)
 				   apicid);
 			return 0;
 		}
-
-		pr_warning("x2apic already enabled. will disable it\n");
-	} else
-		setup_clear_cpu_cap(X86_FEATURE_X2APIC);
-
-	nox2apic = true;
+		pr_warning("x2apic already enabled.\n");
+		__x2apic_disable();
+	}
+	setup_clear_cpu_cap(X86_FEATURE_X2APIC);
 	x2apic_state = X2APIC_DISABLED;
+	x2apic_mode = 0;
 	return 0;
 }
 early_param("nox2apic", setup_nox2apic);
 
-/*
- * Need to disable xapic and x2apic at the same time and then enable xapic mode
- */
-static inline void __disable_x2apic(u64 msr)
-{
-	wrmsrl(MSR_IA32_APICBASE,
-	       msr & ~(X2APIC_ENABLE | XAPIC_ENABLE));
-	wrmsrl(MSR_IA32_APICBASE, msr & ~X2APIC_ENABLE);
-}
-
-static __init void disable_x2apic(void)
+static __init void x2apic_disable(void)
 {
 	u64 msr;
 
@@ -1533,20 +1531,13 @@ static __init void disable_x2apic(void)
 		if (x2apic_id >= 255)
 			panic("Cannot disable x2apic, id: %08x\n", x2apic_id);
 
-		pr_info("Disabling x2apic\n");
-		__disable_x2apic(msr);
-
-		if (nox2apic) {
-			clear_cpu_cap(&cpu_data(0), X86_FEATURE_X2APIC);
-			setup_clear_cpu_cap(X86_FEATURE_X2APIC);
-		}
+		__x2apic_disable();
 
 		x2apic_mode = 0;
 
 		register_lapic_address(mp_lapic_addr);
 	}
 
-	x2apic_disabled = 1;
 	x2apic_state = X2APIC_DISABLED;
 }
 
@@ -1554,9 +1545,8 @@ void enable_x2apic(void)
 {
 	u64 msr;
 
-	rdmsrl(MSR_IA32_APICBASE, msr);
-	if (x2apic_disabled) {
-		__disable_x2apic(msr);
+	if (x2apic_state == X2APIC_DISABLED) {
+		__x2apic_disable();
 		x2apic_mode = 0;
 		return;
 	}
@@ -1564,6 +1554,7 @@ void enable_x2apic(void)
 	if (!x2apic_mode)
 		return;
 
+	rdmsrl(MSR_IA32_APICBASE, msr);
 	if (!(msr & X2APIC_ENABLE)) {
 		printk_once(KERN_INFO "Enabling x2apic\n");
 		wrmsrl(MSR_IA32_APICBASE, msr | X2APIC_ENABLE);
@@ -1584,7 +1575,7 @@ static __init void try_to_enable_x2apic(int remap_mode)
 		    (IS_ENABLED(CONFIG_HYPERVISOR_GUEST) &&
 		     !hypervisor_x2apic_available())) {
 			pr_info("x2apic: IRQ remapping doesn't support X2APIC mode\n");
-			disable_x2apic();
+			x2apic_disable();
 			return;
 		}
 
@@ -1657,8 +1648,6 @@ void __init enable_IR_x2apic(void)
 	legacy_pic->mask_all();
 	mask_ioapic_entries();
 
-	if (nox2apic)
-		disable_x2apic();
 	/* If irq_remapping_prepare() succeded, try to enable it */
 	if (ir_stat >= 0)
 		ir_stat = try_to_enable_IR();

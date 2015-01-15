@@ -187,7 +187,6 @@ static inline int x2apic_enabled(void)
 
 #define x2apic_supported()	(cpu_has_x2apic)
 #else
-static inline void disable_x2apic(void) { }
 static inline void check_x2apic(void) { }
 static inline void enable_x2apic(void) { }
 static inline int x2apic_enabled(void) { return 0; }
