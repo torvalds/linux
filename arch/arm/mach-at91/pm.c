@@ -275,6 +275,7 @@ static int __init at91_pm_init(void)
 	pr_info("AT91: Power Management%s\n", (slow_clock ? " (with slow clock mode)" : ""));
 
 	at91_pm_data.memctrl = AT91_MEMCTRL_SDRAMC;
+	at91_pm_data.uhp_udp_mask = AT91SAM926x_PMC_UHP | AT91SAM926x_PMC_UDP;
 
 	if (of_machine_is_compatible("atmel,at91rm9200")) {
 		/*
@@ -286,14 +287,8 @@ static int __init at91_pm_init(void)
 		at91_pm_data.uhp_udp_mask = AT91RM9200_PMC_UHP |
 					    AT91RM9200_PMC_UDP;
 		at91_pm_data.memctrl = AT91_MEMCTRL_MC;
-	} else if (of_machine_is_compatible("atmel,at91sam9260") ||
-		   of_machine_is_compatible("atmel,at91sam9g20") ||
-		   of_machine_is_compatible("atmel,at91sam9261") ||
-		   of_machine_is_compatible("atmel,at91sam9g10") ||
-		   of_machine_is_compatible("atmel,at91sam9263")) {
-		at91_pm_data.uhp_udp_mask = AT91SAM926x_PMC_UHP |
-					    AT91SAM926x_PMC_UDP;
 	} else if (of_machine_is_compatible("atmel,at91sam9g45")) {
+		at91_pm_data.uhp_udp_mask = AT91RM9200_PMC_UHP;
 		at91_pm_data.memctrl = AT91_MEMCTRL_DDRSDR;
 	}
 
