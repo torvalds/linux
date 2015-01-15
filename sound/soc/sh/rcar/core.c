@@ -865,10 +865,9 @@ static int rsnd_dai_probe(struct platform_device *pdev,
 	priv->rdai	= rdai;
 
 	for (i = 0; i < dai_nr; i++) {
-		rdai[i].info = &info->dai_info[i];
 
-		pmod = rdai[i].info->playback.ssi;
-		cmod = rdai[i].info->capture.ssi;
+		pmod = info->dai_info[i].playback.ssi;
+		cmod = info->dai_info[i].capture.ssi;
 
 		/*
 		 *	init rsnd_dai

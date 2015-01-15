@@ -295,7 +295,6 @@ struct rsnd_dai_stream {
 
 struct rsnd_dai {
 	char name[RSND_DAI_NAME_SIZE];
-	struct rsnd_dai_platform_info *info; /* rcar_snd.h */
 	struct rsnd_dai_stream playback;
 	struct rsnd_dai_stream capture;
 
@@ -317,7 +316,6 @@ struct rsnd_dai {
 struct rsnd_dai *rsnd_rdai_get(struct rsnd_priv *priv, int id);
 
 int rsnd_dai_is_play(struct rsnd_dai *rdai, struct rsnd_dai_stream *io);
-#define rsnd_dai_get_platform_info(rdai) ((rdai)->info)
 
 void rsnd_dai_pointer_update(struct rsnd_dai_stream *io, int cnt);
 int rsnd_dai_pointer_offset(struct rsnd_dai_stream *io, int additional);
