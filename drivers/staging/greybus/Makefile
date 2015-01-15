@@ -20,7 +20,7 @@ gb-phy-y :=	gpb.o		\
 obj-m += greybus.o
 obj-m += gb-phy.o
 obj-m += gb-vibrator.o
-obj-m += battery-gb.o
+obj-m += gb-battery.o
 obj-m += es1-ap-usb.o
 
 KERNELVER		?= $(shell uname -r)
