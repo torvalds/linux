@@ -3233,7 +3233,7 @@ CONFIG_USB_MON=m
 # USB Device Class drivers
 #
 CONFIG_USB_ACM=y
-# CONFIG_USB_PRINTER is not set
+CONFIG_USB_PRINTER=m
 CONFIG_USB_WDM=m
 # CONFIG_USB_TMC is not set
 
