@@ -151,7 +151,7 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 #endif
 	CURRENT_THREAD_INFO(r11, r1)
 	ld	r10,TI_FLAGS(r11)
-	andi.	r11,r10,_TIF_SYSCALL_T_OR_A
+	andi.	r11,r10,_TIF_SYSCALL_DOTRACE
 	bne	syscall_dotrace
 .Lsyscall_dotrace_cont:
 	cmpldi	0,r0,NR_syscalls
@@ -214,7 +214,7 @@ syscall_exit:
 
 	ld	r9,TI_FLAGS(r12)
 	li	r11,-_LAST_ERRNO
-	andi.	r0,r9,(_TIF_SYSCALL_T_OR_A|_TIF_SINGLESTEP|_TIF_USER_WORK_MASK|_TIF_PERSYSCALL_MASK)
+	andi.	r0,r9,(_TIF_SYSCALL_DOTRACE|_TIF_SINGLESTEP|_TIF_USER_WORK_MASK|_TIF_PERSYSCALL_MASK)
 	bne-	syscall_exit_work
 	cmpld	r3,r11
 	ld	r5,_CCR(r1)
@@ -307,7 +307,7 @@ syscall_exit_work:
 
 4:	/* Anything else left to do? */
 	SET_DEFAULT_THREAD_PPR(r3, r10)		/* Set thread.ppr = 3 */
-	andi.	r0,r9,(_TIF_SYSCALL_T_OR_A|_TIF_SINGLESTEP)
+	andi.	r0,r9,(_TIF_SYSCALL_DOTRACE|_TIF_SINGLESTEP)
 	beq	ret_from_except_lite
 
 	/* Re-enable interrupts */
