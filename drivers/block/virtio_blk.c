@@ -28,8 +28,7 @@ struct virtio_blk_vq {
 	char name[VQ_NAME_LEN];
 } ____cacheline_aligned_in_smp;
 
-struct virtio_blk
-{
+struct virtio_blk {
 	struct virtio_device *vdev;
 
 	/* The disk structure for the kernel. */
@@ -52,8 +51,7 @@ struct virtio_blk
 	struct virtio_blk_vq *vqs;
 };
 
-struct virtblk_req
-{
+struct virtblk_req {
 	struct request *req;
 	struct virtio_blk_outhdr out_hdr;
 	struct virtio_scsi_inhdr in_hdr;
