@@ -34,26 +34,6 @@ EXPORT_SYMBOL(at91_soc_initdata);
 void __iomem *at91_ramc_base[2];
 EXPORT_SYMBOL_GPL(at91_ramc_base);
 
-static struct map_desc sram_desc[2] __initdata;
-
-void __init at91_init_sram(int bank, unsigned long base, unsigned int length)
-{
-	struct map_desc *desc = &sram_desc[bank];
-
-	desc->virtual = (unsigned long)AT91_IO_VIRT_BASE - length;
-	if (bank > 0)
-		desc->virtual -= sram_desc[bank - 1].length;
-
-	desc->pfn = __phys_to_pfn(base);
-	desc->length = length;
-	desc->type = MT_MEMORY_RWX_NONCACHED;
-
-	pr_info("sram at 0x%lx of 0x%x mapped at 0x%lx\n",
-		base, length, desc->virtual);
-
-	iotable_init(desc, 1);
-}
-
 static struct map_desc at91_io_desc __initdata __maybe_unused = {
 	.virtual	= (unsigned long)AT91_VA_BASE_SYS,
 	.pfn		= __phys_to_pfn(AT91_BASE_SYS),

@@ -17,8 +17,6 @@
  /* Map io */
 extern void __init at91_map_io(void);
 extern void __init at91_alt_map_io(void);
-extern void __init at91_init_sram(int bank, unsigned long base,
-				  unsigned int length);
 
  /* Processors */
 extern void __init at91_dt_initialize(void);
