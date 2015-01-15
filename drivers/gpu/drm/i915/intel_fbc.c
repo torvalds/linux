@@ -542,7 +542,7 @@ void intel_fbc_update(struct drm_device *dev)
 	intel_crtc = to_intel_crtc(crtc);
 	fb = crtc->primary->fb;
 	obj = intel_fb_obj(fb);
-	adjusted_mode = &intel_crtc->config.adjusted_mode;
+	adjusted_mode = &intel_crtc->config.base.adjusted_mode;
 
 	if (i915.enable_fbc < 0) {
 		if (set_no_fbc_reason(dev_priv, FBC_CHIP_DEFAULT))

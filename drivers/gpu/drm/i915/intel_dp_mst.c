@@ -38,7 +38,7 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	struct drm_device *dev = encoder->base.dev;
 	int bpp;
 	int lane_count, slots;
-	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
+	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 	struct intel_connector *found = NULL, *intel_connector;
 	int mst_pbn;
 
@@ -254,7 +254,7 @@ static void intel_dp_mst_enc_get_config(struct intel_encoder *encoder,
 	default:
 		break;
 	}
-	pipe_config->adjusted_mode.flags |= flags;
+	pipe_config->base.adjusted_mode.flags |= flags;
 	intel_dp_get_m_n(crtc, pipe_config);
 
 	intel_ddi_clock_get(&intel_dig_port->base, pipe_config);

@@ -84,8 +84,8 @@ static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 						   base);
 	struct intel_connector *intel_connector = intel_dsi->attached_connector;
 	struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
-	struct drm_display_mode *adjusted_mode = &config->adjusted_mode;
-	struct drm_display_mode *mode = &config->requested_mode;
+	struct drm_display_mode *adjusted_mode = &config->base.adjusted_mode;
+	struct drm_display_mode *mode = &config->base.mode;
 
 	DRM_DEBUG_KMS("\n");
 
@@ -452,7 +452,7 @@ static void intel_dsi_get_config(struct intel_encoder *encoder,
 	if (!pclk)
 		return;
 
-	pipe_config->adjusted_mode.crtc_clock = pclk;
+	pipe_config->base.adjusted_mode.crtc_clock = pclk;
 	pipe_config->port_clock = pclk;
 }
 
@@ -566,7 +566,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	struct drm_display_mode *adjusted_mode =
-		&intel_crtc->config.adjusted_mode;
+		&intel_crtc->config.base.adjusted_mode;
 	enum port port;
 	unsigned int bpp = intel_crtc->config.pipe_bpp;
 	u32 val, tmp;

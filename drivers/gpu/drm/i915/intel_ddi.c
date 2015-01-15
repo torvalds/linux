@@ -768,11 +768,11 @@ static void skl_ddi_clock_get(struct intel_encoder *encoder,
 	pipe_config->port_clock = link_clock;
 
 	if (pipe_config->has_dp_encoder)
-		pipe_config->adjusted_mode.crtc_clock =
+		pipe_config->base.adjusted_mode.crtc_clock =
 			intel_dotclock_calculate(pipe_config->port_clock,
 						 &pipe_config->dp_m_n);
 	else
-		pipe_config->adjusted_mode.crtc_clock = pipe_config->port_clock;
+		pipe_config->base.adjusted_mode.crtc_clock = pipe_config->port_clock;
 }
 
 static void hsw_ddi_clock_get(struct intel_encoder *encoder,
@@ -820,15 +820,15 @@ static void hsw_ddi_clock_get(struct intel_encoder *encoder,
 	pipe_config->port_clock = link_clock * 2;
 
 	if (pipe_config->has_pch_encoder)
-		pipe_config->adjusted_mode.crtc_clock =
+		pipe_config->base.adjusted_mode.crtc_clock =
 			intel_dotclock_calculate(pipe_config->port_clock,
 						 &pipe_config->fdi_m_n);
 	else if (pipe_config->has_dp_encoder)
-		pipe_config->adjusted_mode.crtc_clock =
+		pipe_config->base.adjusted_mode.crtc_clock =
 			intel_dotclock_calculate(pipe_config->port_clock,
 						 &pipe_config->dp_m_n);
 	else
-		pipe_config->adjusted_mode.crtc_clock = pipe_config->port_clock;
+		pipe_config->base.adjusted_mode.crtc_clock = pipe_config->port_clock;
 }
 
 void intel_ddi_clock_get(struct intel_encoder *encoder,
@@ -1261,9 +1261,9 @@ void intel_ddi_enable_transcoder_func(struct drm_crtc *crtc)
 		BUG();
 	}
 
-	if (intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_PVSYNC)
+	if (intel_crtc->config.base.adjusted_mode.flags & DRM_MODE_FLAG_PVSYNC)
 		temp |= TRANS_DDI_PVSYNC;
-	if (intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_PHSYNC)
+	if (intel_crtc->config.base.adjusted_mode.flags & DRM_MODE_FLAG_PHSYNC)
 		temp |= TRANS_DDI_PHSYNC;
 
 	if (cpu_transcoder == TRANSCODER_EDP) {
@@ -1533,7 +1533,7 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 
 		intel_hdmi->set_infoframes(encoder,
 					   crtc->config.has_hdmi_sink,
-					   &crtc->config.adjusted_mode);
+					   &crtc->config.base.adjusted_mode);
 	}
 }
 
@@ -2045,7 +2045,7 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 	else
 		flags |= DRM_MODE_FLAG_NVSYNC;
 
-	pipe_config->adjusted_mode.flags |= flags;
+	pipe_config->base.adjusted_mode.flags |= flags;
 
 	switch (temp & TRANS_DDI_BPC_MASK) {
 	case TRANS_DDI_BPC_6:

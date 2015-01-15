@@ -160,9 +160,9 @@ static void intel_dvo_get_config(struct intel_encoder *encoder,
 	else
 		flags |= DRM_MODE_FLAG_NVSYNC;
 
-	pipe_config->adjusted_mode.flags |= flags;
+	pipe_config->base.adjusted_mode.flags |= flags;
 
-	pipe_config->adjusted_mode.crtc_clock = pipe_config->port_clock;
+	pipe_config->base.adjusted_mode.crtc_clock = pipe_config->port_clock;
 }
 
 static void intel_disable_dvo(struct intel_encoder *encoder)
@@ -186,8 +186,8 @@ static void intel_enable_dvo(struct intel_encoder *encoder)
 	u32 temp = I915_READ(dvo_reg);
 
 	intel_dvo->dev.dev_ops->mode_set(&intel_dvo->dev,
-					 &crtc->config.requested_mode,
-					 &crtc->config.adjusted_mode);
+					 &crtc->config.base.mode,
+					 &crtc->config.base.adjusted_mode);
 
 	I915_WRITE(dvo_reg, temp | DVO_ENABLE);
 	I915_READ(dvo_reg);
@@ -264,7 +264,7 @@ static bool intel_dvo_compute_config(struct intel_encoder *encoder,
 				     struct intel_crtc_state *pipe_config)
 {
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
-	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
+	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 
 	/* If we have timings from the BIOS for the panel, put them in
 	 * to the adjusted mode.  The CRTC will be set up for this mode,
@@ -295,7 +295,7 @@ static void intel_dvo_pre_enable(struct intel_encoder *encoder)
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
-	struct drm_display_mode *adjusted_mode = &crtc->config.adjusted_mode;
+	struct drm_display_mode *adjusted_mode = &crtc->config.base.adjusted_mode;
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
 	int pipe = crtc->pipe;
 	u32 dvo_val;

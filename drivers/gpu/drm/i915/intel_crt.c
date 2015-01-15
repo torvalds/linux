@@ -115,14 +115,14 @@ static void intel_crt_get_config(struct intel_encoder *encoder,
 	struct drm_device *dev = encoder->base.dev;
 	int dotclock;
 
-	pipe_config->adjusted_mode.flags |= intel_crt_get_flags(encoder);
+	pipe_config->base.adjusted_mode.flags |= intel_crt_get_flags(encoder);
 
 	dotclock = pipe_config->port_clock;
 
 	if (HAS_PCH_SPLIT(dev))
 		ironlake_check_encoder_dotclock(pipe_config, dotclock);
 
-	pipe_config->adjusted_mode.crtc_clock = dotclock;
+	pipe_config->base.adjusted_mode.crtc_clock = dotclock;
 }
 
 static void hsw_crt_get_config(struct intel_encoder *encoder,
@@ -130,11 +130,11 @@ static void hsw_crt_get_config(struct intel_encoder *encoder,
 {
 	intel_ddi_get_config(encoder, pipe_config);
 
-	pipe_config->adjusted_mode.flags &= ~(DRM_MODE_FLAG_PHSYNC |
+	pipe_config->base.adjusted_mode.flags &= ~(DRM_MODE_FLAG_PHSYNC |
 					      DRM_MODE_FLAG_NHSYNC |
 					      DRM_MODE_FLAG_PVSYNC |
 					      DRM_MODE_FLAG_NVSYNC);
-	pipe_config->adjusted_mode.flags |= intel_crt_get_flags(encoder);
+	pipe_config->base.adjusted_mode.flags |= intel_crt_get_flags(encoder);
 }
 
 static void hsw_crt_pre_enable(struct intel_encoder *encoder)
@@ -157,7 +157,7 @@ static void intel_crt_set_dpms(struct intel_encoder *encoder, int mode)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crt *crt = intel_encoder_to_crt(encoder);
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
-	struct drm_display_mode *adjusted_mode = &crtc->config.adjusted_mode;
+	struct drm_display_mode *adjusted_mode = &crtc->config.base.adjusted_mode;
 	u32 adpa;
 
 	if (INTEL_INFO(dev)->gen >= 5)

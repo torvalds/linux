@@ -270,7 +270,7 @@ static bool intel_psr_match_conditions(struct intel_dp *intel_dp)
 	}
 
 	if (IS_HASWELL(dev) &&
-	    intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE) {
+	    intel_crtc->config.base.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE) {
 		DRM_DEBUG_KMS("PSR condition failed: Interlaced is Enabled\n");
 		return false;
 	}

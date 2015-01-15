@@ -115,7 +115,7 @@ static void intel_lvds_get_config(struct intel_encoder *encoder,
 	else
 		flags |= DRM_MODE_FLAG_PVSYNC;
 
-	pipe_config->adjusted_mode.flags |= flags;
+	pipe_config->base.adjusted_mode.flags |= flags;
 
 	/* gen2/3 store dither state in pfit control, needs to match */
 	if (INTEL_INFO(dev)->gen < 4) {
@@ -129,7 +129,7 @@ static void intel_lvds_get_config(struct intel_encoder *encoder,
 	if (HAS_PCH_SPLIT(dev_priv->dev))
 		ironlake_check_encoder_dotclock(pipe_config, dotclock);
 
-	pipe_config->adjusted_mode.crtc_clock = dotclock;
+	pipe_config->base.adjusted_mode.crtc_clock = dotclock;
 }
 
 static void intel_pre_enable_lvds(struct intel_encoder *encoder)
@@ -139,7 +139,7 @@ static void intel_pre_enable_lvds(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	const struct drm_display_mode *adjusted_mode =
-		&crtc->config.adjusted_mode;
+		&crtc->config.base.adjusted_mode;
 	int pipe = crtc->pipe;
 	u32 temp;
 
@@ -284,7 +284,7 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 		to_lvds_encoder(&intel_encoder->base);
 	struct intel_connector *intel_connector =
 		&lvds_encoder->attached_connector->base;
-	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
+	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 	struct intel_crtc *intel_crtc = lvds_encoder->base.new_crtc;
 	unsigned int lvds_bpp;
 

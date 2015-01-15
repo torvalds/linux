@@ -264,6 +264,8 @@ struct intel_plane_config {
 };
 
 struct intel_crtc_state {
+	struct drm_crtc_state base;
+
 	/**
 	 * quirks - bitfield with hw state readout quirks
 	 *
@@ -275,16 +277,6 @@ struct intel_crtc_state {
 #define PIPE_CONFIG_QUIRK_MODE_SYNC_FLAGS	(1<<0) /* unreliable sync mode.flags */
 #define PIPE_CONFIG_QUIRK_INHERITED_MODE	(1<<1) /* mode inherited from firmware */
 	unsigned long quirks;
-
-	/* User requested mode, only valid as a starting point to
-	 * compute adjusted_mode, except in the case of (S)DVO where
-	 * it's also for the output timings of the (S)DVO chip.
-	 * adjusted_mode will then correspond to the S(DVO) chip's
-	 * preferred input timings. */
-	struct drm_display_mode requested_mode;
-	/* Actual pipe timings ie. what we program into the pipe timing
-	 * registers. adjusted_mode.crtc_clock is the pipe pixel clock. */
-	struct drm_display_mode adjusted_mode;
 
 	/* Pipe source size (ie. panel fitter input size)
 	 * All planes will be positioned inside this space,
