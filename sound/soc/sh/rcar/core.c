@@ -489,7 +489,7 @@ int rsnd_dai_id(struct rsnd_priv *priv, struct rsnd_dai *rdai)
 	return id;
 }
 
-struct rsnd_dai *rsnd_dai_get(struct rsnd_priv *priv, int id)
+struct rsnd_dai *rsnd_rdai_get(struct rsnd_priv *priv, int id)
 {
 	if ((id < 0) || (id >= rsnd_rdai_nr(priv)))
 		return NULL;
@@ -501,7 +501,7 @@ static struct rsnd_dai *rsnd_dai_to_rdai(struct snd_soc_dai *dai)
 {
 	struct rsnd_priv *priv = snd_soc_dai_get_drvdata(dai);
 
-	return rsnd_dai_get(priv, dai->id);
+	return rsnd_rdai_get(priv, dai->id);
 }
 
 int rsnd_dai_is_play(struct rsnd_dai *rdai, struct rsnd_dai_stream *io)

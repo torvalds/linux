@@ -310,10 +310,11 @@ struct rsnd_dai {
 #define for_each_rsnd_dai(rdai, priv, i)		\
 	for (i = 0;					\
 	     (i < rsnd_rdai_nr(priv)) &&		\
-	     ((rdai) = rsnd_dai_get(priv, i));		\
+	     ((rdai) = rsnd_rdai_get(priv, i));		\
 	     i++)
 
-struct rsnd_dai *rsnd_dai_get(struct rsnd_priv *priv, int id);
+struct rsnd_dai *rsnd_rdai_get(struct rsnd_priv *priv, int id);
+
 int rsnd_dai_is_play(struct rsnd_dai *rdai, struct rsnd_dai_stream *io);
 int rsnd_dai_id(struct rsnd_priv *priv, struct rsnd_dai *rdai);
 #define rsnd_dai_get_platform_info(rdai) ((rdai)->info)
