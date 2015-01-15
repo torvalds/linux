@@ -39,7 +39,9 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *ring);
 int intel_logical_rings_init(struct drm_device *dev);
 
 int logical_ring_flush_all_caches(struct intel_ringbuffer *ringbuf);
-void intel_logical_ring_advance_and_submit(struct intel_ringbuffer *ringbuf);
+void intel_logical_ring_advance_and_submit(
+				struct intel_ringbuffer *ringbuf,
+				struct drm_i915_gem_request *request);
 /**
  * intel_logical_ring_advance() - advance the ringbuffer tail
  * @ringbuf: Ringbuffer to advance.
@@ -110,6 +112,8 @@ struct intel_ctx_submit_request {
 	struct list_head execlist_link;
 
 	int elsp_submitted;
+
+	struct drm_i915_gem_request *request;
 };
 
 void intel_lrc_irq_handler(struct intel_engine_cs *ring);

@@ -534,7 +534,8 @@ void intel_lrc_irq_handler(struct intel_engine_cs *ring)
 
 static int execlists_context_queue(struct intel_engine_cs *ring,
 				   struct intel_context *to,
-				   u32 tail)
+				   u32 tail,
+				   struct drm_i915_gem_request *request)
 {
 	struct intel_ctx_submit_request *req = NULL, *cursor;
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
@@ -552,6 +553,21 @@ static int execlists_context_queue(struct intel_engine_cs *ring,
 
 	req->ring = ring;
 	req->tail = tail;
+
+	if (!request) {
+		/*
+		 * If there isn't a request associated with this submission,
+		 * create one as a temporary holder.
+		 */
+		WARN(1, "execlist context submission without request");
+		request = kzalloc(sizeof(*request), GFP_KERNEL);
+		if (request == NULL)
+			return -ENOMEM;
+		request->ctx = to;
+		request->ring = ring;
+	}
+	req->request = request;
+	i915_gem_request_reference(request);
 
 	intel_runtime_pm_get(dev_priv);
 
@@ -766,6 +782,7 @@ void intel_execlists_retire_requests(struct intel_engine_cs *ring)
 			intel_lr_context_unpin(ring, ctx);
 		intel_runtime_pm_put(dev_priv);
 		i915_gem_context_unreference(req->ctx);
+		i915_gem_request_unreference(req->request);
 		list_del(&req->execlist_link);
 		kfree(req);
 	}
@@ -818,7 +835,8 @@ int logical_ring_flush_all_caches(struct intel_ringbuffer *ringbuf)
  * on a queue waiting for the ELSP to be ready to accept a new context submission. At that
  * point, the tail *inside* the context is updated and the ELSP written to.
  */
-void intel_logical_ring_advance_and_submit(struct intel_ringbuffer *ringbuf)
+void intel_logical_ring_advance_and_submit(struct intel_ringbuffer *ringbuf,
+					   struct drm_i915_gem_request *request)
 {
 	struct intel_engine_cs *ring = ringbuf->ring;
 	struct intel_context *ctx = ringbuf->FIXME_lrc_ctx;
@@ -828,7 +846,7 @@ void intel_logical_ring_advance_and_submit(struct intel_ringbuffer *ringbuf)
 	if (intel_ring_stopped(ring))
 		return;
 
-	execlists_context_queue(ring, ctx, ringbuf->tail);
+	execlists_context_queue(ring, ctx, ringbuf->tail, request);
 }
 
 static int intel_lr_context_pin(struct intel_engine_cs *ring,
@@ -972,7 +990,7 @@ static int logical_ring_wait_for_space(struct intel_ringbuffer *ringbuf,
 		return ret;
 
 	/* Force the context submission in case we have been skipping it */
-	intel_logical_ring_advance_and_submit(ringbuf);
+	intel_logical_ring_advance_and_submit(ringbuf, NULL);
 
 	/* With GEM the hangcheck timer should kick us out of the loop,
 	 * leaving it early runs the risk of corrupting GEM state (due
@@ -1311,7 +1329,8 @@ static void gen8_set_seqno(struct intel_engine_cs *ring, u32 seqno)
 	intel_write_status_page(ring, I915_GEM_HWS_INDEX, seqno);
 }
 
-static int gen8_emit_request(struct intel_ringbuffer *ringbuf)
+static int gen8_emit_request(struct intel_ringbuffer *ringbuf,
+			     struct drm_i915_gem_request *request)
 {
 	struct intel_engine_cs *ring = ringbuf->ring;
 	u32 cmd;
@@ -1333,7 +1352,7 @@ static int gen8_emit_request(struct intel_ringbuffer *ringbuf)
 		i915_gem_request_get_seqno(ring->outstanding_lazy_request));
 	intel_logical_ring_emit(ringbuf, MI_USER_INTERRUPT);
 	intel_logical_ring_emit(ringbuf, MI_NOOP);
-	intel_logical_ring_advance_and_submit(ringbuf);
+	intel_logical_ring_advance_and_submit(ringbuf, request);
 
 	return 0;
 }
