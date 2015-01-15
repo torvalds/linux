@@ -22,11 +22,5 @@
  *  AT91SAM9260 processor initialization
  * -------------------------------------------------------------------- */
 
-static void __init at91sam9260_initialize(void)
-{
-	arm_pm_idle = at91sam9_idle;
-}
-
 AT91_SOC_START(at91sam9260)
-	.init = at91sam9260_initialize,
 AT91_SOC_END

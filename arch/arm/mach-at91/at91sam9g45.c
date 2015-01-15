@@ -19,11 +19,6 @@
 /* --------------------------------------------------------------------
  *  AT91SAM9G45 processor initialization
  * -------------------------------------------------------------------- */
-static void __init at91sam9g45_initialize(void)
-{
-	arm_pm_idle = at91sam9_idle;
-}
 
 AT91_SOC_START(at91sam9g45)
-	.init = at91sam9g45_initialize,
 AT91_SOC_END

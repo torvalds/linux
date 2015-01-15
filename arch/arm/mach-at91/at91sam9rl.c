@@ -21,11 +21,5 @@
  *  AT91SAM9RL processor initialization
  * -------------------------------------------------------------------- */
 
-static void __init at91sam9rl_initialize(void)
-{
-	arm_pm_idle = at91sam9_idle;
-}
-
 AT91_SOC_START(at91sam9rl)
-	.init = at91sam9rl_initialize,
 AT91_SOC_END

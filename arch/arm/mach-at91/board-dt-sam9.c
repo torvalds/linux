@@ -16,6 +16,7 @@
 #include <linux/of_platform.h>
 #include <linux/clk-provider.h>
 
+#include <asm/system_misc.h>
 #include <asm/setup.h>
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
@@ -26,7 +27,9 @@
 
 static void __init sam9_dt_device_init(void)
 {
+	arm_pm_idle = at91sam9_idle;
 	at91_sam9260_pm_init();
+
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
@@ -45,7 +48,9 @@ MACHINE_END
 
 static void __init sam9g45_dt_device_init(void)
 {
+	arm_pm_idle = at91sam9_idle;
 	at91_sam9g45_pm_init();
+
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
@@ -64,7 +69,9 @@ MACHINE_END
 
 static void __init sam9x5_dt_device_init(void)
 {
+	arm_pm_idle = at91sam9_idle;
 	at91_sam9x5_pm_init();
+
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
