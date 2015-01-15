@@ -990,26 +990,14 @@ void br_fdb_unsync_static(struct net_bridge *br, struct net_bridge_port *p)
 	}
 }
 
-int br_fdb_external_learn_add(struct net_device *dev,
+int br_fdb_external_learn_add(struct net_bridge *br, struct net_bridge_port *p,
 			      const unsigned char *addr, u16 vid)
 {
-	struct net_bridge_port *p;
-	struct net_bridge *br;
 	struct hlist_head *head;
 	struct net_bridge_fdb_entry *fdb;
 	int err = 0;
 
-	rtnl_lock();
-
-	p = br_port_get_rtnl(dev);
-	if (!p) {
-		pr_info("bridge: %s not a bridge port\n", dev->name);
-		err = -EINVAL;
-		goto err_rtnl_unlock;
-	}
-
-	br = p->br;
-
+	ASSERT_RTNL();
 	spin_lock_bh(&br->hash_lock);
 
 	head = &br->hash[br_mac_hash(addr, vid)];
@@ -1034,33 +1022,18 @@ int br_fdb_external_learn_add(struct net_device *dev,
 
 err_unlock:
 	spin_unlock_bh(&br->hash_lock);
-err_rtnl_unlock:
-	rtnl_unlock();
 
 	return err;
 }
-EXPORT_SYMBOL(br_fdb_external_learn_add);
 
-int br_fdb_external_learn_del(struct net_device *dev,
+int br_fdb_external_learn_del(struct net_bridge *br, struct net_bridge_port *p,
 			      const unsigned char *addr, u16 vid)
 {
-	struct net_bridge_port *p;
-	struct net_bridge *br;
 	struct hlist_head *head;
 	struct net_bridge_fdb_entry *fdb;
 	int err = 0;
 
-	rtnl_lock();
-
-	p = br_port_get_rtnl(dev);
-	if (!p) {
-		pr_info("bridge: %s not a bridge port\n", dev->name);
-		err = -EINVAL;
-		goto err_rtnl_unlock;
-	}
-
-	br = p->br;
-
+	ASSERT_RTNL();
 	spin_lock_bh(&br->hash_lock);
 
 	head = &br->hash[br_mac_hash(addr, vid)];
@@ -1071,9 +1044,6 @@ int br_fdb_external_learn_del(struct net_device *dev,
 		err = -ENOENT;
 
 	spin_unlock_bh(&br->hash_lock);
-err_rtnl_unlock:
-	rtnl_unlock();
 
 	return err;
 }
-EXPORT_SYMBOL(br_fdb_external_learn_del);

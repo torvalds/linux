@@ -402,6 +402,10 @@ int br_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 		struct net_device *dev, struct net_device *fdev, int idx);
 int br_fdb_sync_static(struct net_bridge *br, struct net_bridge_port *p);
 void br_fdb_unsync_static(struct net_bridge *br, struct net_bridge_port *p);
+int br_fdb_external_learn_add(struct net_bridge *br, struct net_bridge_port *p,
+			      const unsigned char *addr, u16 vid);
+int br_fdb_external_learn_del(struct net_bridge *br, struct net_bridge_port *p,
+			      const unsigned char *addr, u16 vid);
 
 /* br_forward.c */
 void br_deliver(const struct net_bridge_port *to, struct sk_buff *skb);

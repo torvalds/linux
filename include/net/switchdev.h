@@ -13,8 +13,19 @@
 #include <linux/netdevice.h>
 #include <linux/notifier.h>
 
+enum netdev_switch_notifier_type {
+	NETDEV_SWITCH_FDB_ADD = 1,
+	NETDEV_SWITCH_FDB_DEL,
+};
+
 struct netdev_switch_notifier_info {
 	struct net_device *dev;
+};
+
+struct netdev_switch_notifier_fdb_info {
+	struct netdev_switch_notifier_info info; /* must be first */
+	const unsigned char *addr;
+	u16 vid;
 };
 
 static inline struct net_device *
