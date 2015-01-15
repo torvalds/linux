@@ -19,6 +19,7 @@
 struct cmux_clk {
 	struct clk_hw hw;
 	void __iomem *reg;
+	unsigned int clk_per_pll;
 	u32 flags;
 };
 
@@ -27,14 +28,12 @@ struct cmux_clk {
 #define CLKSEL_ADJUST		BIT(0)
 #define to_cmux_clk(p)		container_of(p, struct cmux_clk, hw)
 
-static unsigned int clocks_per_pll;
-
 static int cmux_set_parent(struct clk_hw *hw, u8 idx)
 {
 	struct cmux_clk *clk = to_cmux_clk(hw);
 	u32 clksel;
 
-	clksel = ((idx / clocks_per_pll) << 2) + idx % clocks_per_pll;
+	clksel = ((idx / clk->clk_per_pll) << 2) + idx % clk->clk_per_pll;
 	if (clk->flags & CLKSEL_ADJUST)
 		clksel += 8;
 	clksel = (clksel & 0xf) << CLKSEL_SHIFT;
@@ -52,7 +51,7 @@ static u8 cmux_get_parent(struct clk_hw *hw)
 	clksel = (clksel >> CLKSEL_SHIFT) & 0xf;
 	if (clk->flags & CLKSEL_ADJUST)
 		clksel -= 8;
-	clksel = (clksel >> 2) * clocks_per_pll + clksel % 4;
+	clksel = (clksel >> 2) * clk->clk_per_pll + clksel % 4;
 
 	return clksel;
 }
@@ -72,6 +71,7 @@ static void __init core_mux_init(struct device_node *np)
 	u32	offset;
 	const char *clk_name;
 	const char **parent_names;
+	struct of_phandle_args clkspec;
 
 	rc = of_property_read_u32(np, "reg", &offset);
 	if (rc) {
@@ -104,6 +104,17 @@ static void __init core_mux_init(struct device_node *np)
 		pr_err("%s: could not map register\n", __func__);
 		goto err_clk;
 	}
+
+	rc = of_parse_phandle_with_args(np, "clocks", "#clock-cells", 0,
+					&clkspec);
+	if (rc) {
+		pr_err("%s: parse clock node error\n", __func__);
+		goto err_clk;
+	}
+
+	cmux_clk->clk_per_pll = of_property_count_strings(clkspec.np,
+			"clock-output-names");
+	of_node_put(clkspec.np);
 
 	node = of_find_compatible_node(NULL, NULL, "fsl,p4080-clockgen");
 	if (node && (offset >= 0x80))
@@ -180,9 +191,6 @@ static void __init core_pll_init(struct device_node *np)
 		pr_err("%s: clock is not supported\n", np->name);
 		goto err_map;
 	}
-
-	/* output clock number per PLL */
-	clocks_per_pll = count;
 
 	subclks = kzalloc(sizeof(struct clk *) * count, GFP_KERNEL);
 	if (!subclks) {
