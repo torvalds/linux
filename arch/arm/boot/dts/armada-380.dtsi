@@ -32,9 +32,8 @@
 
 	soc {
 		internal-regs {
-			pinctrl {
+			pinctrl@18000 {
 				compatible = "marvell,mv88f6810-pinctrl";
-				reg = <0x18000 0x20>;
 			};
 		};
 

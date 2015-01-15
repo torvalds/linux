@@ -130,6 +130,7 @@ dtb-$(CONFIG_ARCH_KEYSTONE) += \
 	k2e-evm.dtb
 dtb-$(CONFIG_MACH_KIRKWOOD) += \
 	kirkwood-b3.dtb \
+	kirkwood-blackarmor-nas220.dtb \
 	kirkwood-cloudbox.dtb \
 	kirkwood-d2net.dtb \
 	kirkwood-db-88f6281.dtb \
@@ -602,8 +603,10 @@ dtb-$(CONFIG_MACH_ARMADA_370) += \
 dtb-$(CONFIG_MACH_ARMADA_375) += \
 	armada-375-db.dtb
 dtb-$(CONFIG_MACH_ARMADA_38X) += \
-	armada-385-db.dtb \
-	armada-385-rd.dtb
+	armada-385-db-ap.dtb \
+	armada-388-db.dtb \
+	armada-388-gp.dtb \
+	armada-388-rd.dtb
 dtb-$(CONFIG_MACH_ARMADA_XP) += \
 	armada-xp-axpwifiap.dtb \
 	armada-xp-db.dtb \
