@@ -63,7 +63,7 @@ struct rcar_thermal_priv {
 	struct mutex lock;
 	struct list_head list;
 	int id;
-	int ctemp;
+	u32 ctemp;
 };
 
 #define rcar_thermal_for_each_priv(pos, common)	\
@@ -145,7 +145,7 @@ static int rcar_thermal_update_temp(struct rcar_thermal_priv *priv)
 {
 	struct device *dev = rcar_priv_to_dev(priv);
 	int i;
-	int ctemp, old, new;
+	u32 ctemp, old, new;
 	int ret = -EINVAL;
 
 	mutex_lock(&priv->lock);
@@ -372,6 +372,7 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 	int i;
 	int ret = -ENODEV;
 	int idle = IDLE_INTERVAL;
+	u32 enr_bits = 0;
 
 	common = devm_kzalloc(dev, sizeof(*common), GFP_KERNEL);
 	if (!common)
@@ -390,7 +391,7 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 
 		/*
 		 * platform has IRQ support.
-		 * Then, drier use common register
+		 * Then, driver uses common registers
 		 */
 
 		ret = devm_request_irq(dev, irq->start, rcar_thermal_irq, 0,
@@ -407,9 +408,6 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 		common->base = devm_ioremap_resource(dev, res);
 		if (IS_ERR(common->base))
 			return PTR_ERR(common->base);
-
-		/* enable temperature comparation */
-		rcar_thermal_common_write(common, ENR, 0x00030303);
 
 		idle = 0; /* polling delay is not needed */
 	}
@@ -452,7 +450,14 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 			rcar_thermal_irq_enable(priv);
 
 		list_move_tail(&priv->list, &common->head);
+
+		/* update ENR bits */
+		enr_bits |= 3 << (i * 8);
 	}
+
+	/* enable temperature comparation */
+	if (irq)
+		rcar_thermal_common_write(common, ENR, enr_bits);
 
 	platform_set_drvdata(pdev, common);
 
