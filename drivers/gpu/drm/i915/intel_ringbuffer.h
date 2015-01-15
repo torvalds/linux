@@ -99,13 +99,6 @@ struct intel_ringbuffer {
 
 	struct intel_engine_cs *ring;
 
-	/*
-	 * FIXME: This backpointer is an artifact of the history of how the
-	 * execlist patches came into being. It will get removed once the basic
-	 * code has landed.
-	 */
-	struct intel_context *FIXME_lrc_ctx;
-
 	u32 head;
 	u32 tail;
 	int space;
@@ -122,6 +115,8 @@ struct intel_ringbuffer {
 	 */
 	u32 last_retired_head;
 };
+
+struct	intel_context;
 
 struct  intel_engine_cs {
 	const char	*name;
@@ -242,9 +237,11 @@ struct  intel_engine_cs {
 	int		(*emit_request)(struct intel_ringbuffer *ringbuf,
 					struct drm_i915_gem_request *request);
 	int		(*emit_flush)(struct intel_ringbuffer *ringbuf,
+				      struct intel_context *ctx,
 				      u32 invalidate_domains,
 				      u32 flush_domains);
 	int		(*emit_bb_start)(struct intel_ringbuffer *ringbuf,
+					 struct intel_context *ctx,
 					 u64 offset, unsigned flags);
 
 	/**

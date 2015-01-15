@@ -2422,8 +2422,7 @@ int __i915_add_request(struct intel_engine_cs *ring,
 		return -ENOMEM;
 
 	if (i915.enable_execlists) {
-		struct intel_context *ctx = request->ctx;
-		ringbuf = ctx->engine[ring->id].ringbuf;
+		ringbuf = request->ctx->engine[ring->id].ringbuf;
 	} else
 		ringbuf = ring->buffer;
 
@@ -2436,7 +2435,7 @@ int __i915_add_request(struct intel_engine_cs *ring,
 	 * what.
 	 */
 	if (i915.enable_execlists) {
-		ret = logical_ring_flush_all_caches(ringbuf);
+		ret = logical_ring_flush_all_caches(ringbuf, request->ctx);
 		if (ret)
 			return ret;
 	} else {

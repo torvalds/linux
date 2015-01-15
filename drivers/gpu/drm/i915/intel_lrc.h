@@ -38,9 +38,11 @@ void intel_logical_ring_stop(struct intel_engine_cs *ring);
 void intel_logical_ring_cleanup(struct intel_engine_cs *ring);
 int intel_logical_rings_init(struct drm_device *dev);
 
-int logical_ring_flush_all_caches(struct intel_ringbuffer *ringbuf);
+int logical_ring_flush_all_caches(struct intel_ringbuffer *ringbuf,
+				  struct intel_context *ctx);
 void intel_logical_ring_advance_and_submit(
 				struct intel_ringbuffer *ringbuf,
+				struct intel_context *ctx,
 				struct drm_i915_gem_request *request);
 /**
  * intel_logical_ring_advance() - advance the ringbuffer tail
@@ -63,7 +65,9 @@ static inline void intel_logical_ring_emit(struct intel_ringbuffer *ringbuf,
 	iowrite32(data, ringbuf->virtual_start + ringbuf->tail);
 	ringbuf->tail += 4;
 }
-int intel_logical_ring_begin(struct intel_ringbuffer *ringbuf, int num_dwords);
+int intel_logical_ring_begin(struct intel_ringbuffer *ringbuf,
+			     struct intel_context *ctx,
+			     int num_dwords);
 
 /* Logical Ring Contexts */
 int intel_lr_context_render_state_init(struct intel_engine_cs *ring,
