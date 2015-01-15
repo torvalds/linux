@@ -18,6 +18,12 @@
 	model = "Zynq ZC702 Development Board";
 	compatible = "xlnx,zynq-zc702", "xlnx,zynq-7000";
 
+	aliases {
+		ethernet0 = &gem0;
+		i2c0 = &i2c0;
+		serial0 = &uart1;
+	};
+
 	memory {
 		device_type = "memory";
 		reg = <0x0 0x40000000>;
