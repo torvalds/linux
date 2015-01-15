@@ -882,11 +882,7 @@ static ssize_t do_sock_read(struct msghdr *msg, struct kiocb *iocb,
 		unsigned long nr_segs)
 {
 	struct socket *sock = file->private_data;
-	size_t size = 0;
-	int i;
-
-	for (i = 0; i < nr_segs; i++)
-		size += iov[i].iov_len;
+	size_t size = iov_length(iov, nr_segs);
 
 	msg->msg_name = NULL;
 	msg->msg_namelen = 0;
@@ -921,11 +917,7 @@ static ssize_t do_sock_write(struct msghdr *msg, struct kiocb *iocb,
 			unsigned long nr_segs)
 {
 	struct socket *sock = file->private_data;
-	size_t size = 0;
-	int i;
-
-	for (i = 0; i < nr_segs; i++)
-		size += iov[i].iov_len;
+	size_t size = iov_length(iov, nr_segs);
 
 	msg->msg_name = NULL;
 	msg->msg_namelen = 0;
