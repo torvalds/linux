@@ -1541,14 +1541,6 @@ static __init void disable_x2apic(void)
 	x2apic_disabled = 1;
 }
 
-void check_x2apic(void)
-{
-	if (x2apic_enabled()) {
-		pr_info("x2apic enabled by BIOS, switching to x2apic ops\n");
-		x2apic_mode = 1;
-	}
-}
-
 void enable_x2apic(void)
 {
 	u64 msr;
@@ -1568,7 +1560,26 @@ void enable_x2apic(void)
 		wrmsrl(MSR_IA32_APICBASE, msr | X2APIC_ENABLE);
 	}
 }
-#endif /* CONFIG_X86_X2APIC */
+
+void __init check_x2apic(void)
+{
+	if (x2apic_enabled()) {
+		pr_info("x2apic enabled by BIOS, switching to x2apic ops\n");
+		x2apic_mode = 1;
+	}
+}
+#else /* CONFIG_X86_X2APIC */
+static int __init validate_x2apic(void)
+{
+	if (!apic_is_x2apic_enabled())
+		return 0;
+	/*
+	 * Checkme: Can we simply turn off x2apic here instead of panic?
+	 */
+	panic("BIOS has enabled x2apic but kernel doesn't support x2apic, please disable x2apic in BIOS.\n");
+}
+early_initcall(validate_x2apic);
+#endif /* !CONFIG_X86_X2APIC */
 
 static int __init try_to_enable_IR(void)
 {
@@ -1619,11 +1630,6 @@ void __init enable_IR_x2apic(void)
 {
 	unsigned long flags;
 	int ret, ir_stat;
-
-	if (!IS_ENABLED(CONFIG_X86_X2APIC)) {
-		if (apic_is_x2apic_enabled())
-			panic("BIOS has enabled x2apic but kernel doesn't support x2apic, please disable x2apic in BIOS.\n");
-	}
 
 	ir_stat = irq_remapping_prepare();
 	if (ir_stat < 0 && !x2apic_supported())
