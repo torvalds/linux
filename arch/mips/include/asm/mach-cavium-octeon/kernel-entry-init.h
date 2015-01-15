@@ -80,6 +80,9 @@
 	mfc0	v0, CP0_PRID_REG
 	bbit0	v0, 15, 1f
 	# OCTEON II or better have bit 15 set.  Clear the error bits.
+	and	t1, v0, 0xff00
+	dli	v0, 0x9500
+	bge	t1, v0, 1f  # OCTEON III has no DCACHE_ERR_REG COP0
 	dli	v0, 0x27
 	dmtc0	v0, CP0_DCACHE_ERR_REG
 1:
