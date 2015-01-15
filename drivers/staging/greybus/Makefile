@@ -21,7 +21,7 @@ obj-m += greybus.o
 obj-m += gb-phy.o
 obj-m += gb-vibrator.o
 obj-m += gb-battery.o
-obj-m += es1-ap-usb.o
+obj-m += gb-es1.o
 
 KERNELVER		?= $(shell uname -r)
 KERNELDIR 		?= /lib/modules/$(KERNELVER)/build
