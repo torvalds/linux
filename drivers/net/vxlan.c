@@ -620,7 +620,8 @@ static struct sk_buff **vxlan_gro_receive(struct sk_buff **head,
 			continue;
 
 		vh2 = (struct vxlanhdr *)(p->data + off_vx);
-		if (vh->vx_vni != vh2->vx_vni) {
+		if (vh->vx_flags != vh2->vx_flags ||
+		    vh->vx_vni != vh2->vx_vni) {
 			NAPI_GRO_CB(p)->same_flow = 0;
 			continue;
 		}
@@ -1183,6 +1184,7 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	struct vxlan_sock *vs;
 	struct vxlanhdr *vxh;
 	u32 flags, vni;
+	struct vxlan_metadata md = {0};
 
 	/* Need Vxlan and inner Ethernet header to be present */
 	if (!pskb_may_pull(skb, VXLAN_HLEN))
@@ -1216,6 +1218,24 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		vni &= VXLAN_VID_MASK;
 	}
 
+	/* For backwards compatibility, only allow reserved fields to be
+	 * used by VXLAN extensions if explicitly requested.
+	 */
+	if ((flags & VXLAN_HF_GBP) && (vs->flags & VXLAN_F_GBP)) {
+		struct vxlanhdr_gbp *gbp;
+
+		gbp = (struct vxlanhdr_gbp *)vxh;
+		md.gbp = ntohs(gbp->policy_id);
+
+		if (gbp->dont_learn)
+			md.gbp |= VXLAN_GBP_DONT_LEARN;
+
+		if (gbp->policy_applied)
+			md.gbp |= VXLAN_GBP_POLICY_APPLIED;
+
+		flags &= ~VXLAN_GBP_USED_BITS;
+	}
+
 	if (flags || (vni & ~VXLAN_VID_MASK)) {
 		/* If there are any unprocessed flags remaining treat
 		 * this as a malformed packet. This behavior diverges from
@@ -1229,7 +1249,8 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		goto bad_flags;
 	}
 
-	vs->rcv(vs, skb, vxh->vx_vni);
+	md.vni = vxh->vx_vni;
+	vs->rcv(vs, skb, &md);
 	return 0;
 
 drop:
@@ -1246,8 +1267,8 @@ error:
 	return 1;
 }
 
-static void vxlan_rcv(struct vxlan_sock *vs,
-		      struct sk_buff *skb, __be32 vx_vni)
+static void vxlan_rcv(struct vxlan_sock *vs, struct sk_buff *skb,
+		      struct vxlan_metadata *md)
 {
 	struct iphdr *oip = NULL;
 	struct ipv6hdr *oip6 = NULL;
@@ -1258,7 +1279,7 @@ static void vxlan_rcv(struct vxlan_sock *vs,
 	int err = 0;
 	union vxlan_addr *remote_ip;
 
-	vni = ntohl(vx_vni) >> 8;
+	vni = ntohl(md->vni) >> 8;
 	/* Is this VNI defined? */
 	vxlan = vxlan_vs_find_vni(vs, vni);
 	if (!vxlan)
@@ -1292,6 +1313,7 @@ static void vxlan_rcv(struct vxlan_sock *vs,
 		goto drop;
 
 	skb_reset_network_header(skb);
+	skb->mark = md->gbp;
 
 	if (oip6)
 		err = IP6_ECN_decapsulate(oip6, skb);
@@ -1641,13 +1663,30 @@ static bool route_shortcircuit(struct net_device *dev, struct sk_buff *skb)
 	return false;
 }
 
+static void vxlan_build_gbp_hdr(struct vxlanhdr *vxh, struct vxlan_sock *vs,
+				struct vxlan_metadata *md)
+{
+	struct vxlanhdr_gbp *gbp;
+
+	gbp = (struct vxlanhdr_gbp *)vxh;
+	vxh->vx_flags |= htonl(VXLAN_HF_GBP);
+
+	if (md->gbp & VXLAN_GBP_DONT_LEARN)
+		gbp->dont_learn = 1;
+
+	if (md->gbp & VXLAN_GBP_POLICY_APPLIED)
+		gbp->policy_applied = 1;
+
+	gbp->policy_id = htons(md->gbp & VXLAN_GBP_ID_MASK);
+}
+
 #if IS_ENABLED(CONFIG_IPV6)
 static int vxlan6_xmit_skb(struct vxlan_sock *vs,
 			   struct dst_entry *dst, struct sk_buff *skb,
 			   struct net_device *dev, struct in6_addr *saddr,
 			   struct in6_addr *daddr, __u8 prio, __u8 ttl,
-			   __be16 src_port, __be16 dst_port, __be32 vni,
-			   bool xnet)
+			   __be16 src_port, __be16 dst_port,
+			   struct vxlan_metadata *md, bool xnet)
 {
 	struct vxlanhdr *vxh;
 	int min_headroom;
@@ -1696,7 +1735,7 @@ static int vxlan6_xmit_skb(struct vxlan_sock *vs,
 
 	vxh = (struct vxlanhdr *) __skb_push(skb, sizeof(*vxh));
 	vxh->vx_flags = htonl(VXLAN_HF_VNI);
-	vxh->vx_vni = vni;
+	vxh->vx_vni = md->vni;
 
 	if (type & SKB_GSO_TUNNEL_REMCSUM) {
 		u32 data = (skb_checksum_start_offset(skb) - hdrlen) >>
@@ -1714,6 +1753,9 @@ static int vxlan6_xmit_skb(struct vxlan_sock *vs,
 		}
 	}
 
+	if (vs->flags & VXLAN_F_GBP)
+		vxlan_build_gbp_hdr(vxh, vs, md);
+
 	skb_set_inner_protocol(skb, htons(ETH_P_TEB));
 
 	udp_tunnel6_xmit_skb(vs->sock, dst, skb, dev, saddr, daddr, prio,
@@ -1728,7 +1770,8 @@ err:
 int vxlan_xmit_skb(struct vxlan_sock *vs,
 		   struct rtable *rt, struct sk_buff *skb,
 		   __be32 src, __be32 dst, __u8 tos, __u8 ttl, __be16 df,
-		   __be16 src_port, __be16 dst_port, __be32 vni, bool xnet)
+		   __be16 src_port, __be16 dst_port,
+		   struct vxlan_metadata *md, bool xnet)
 {
 	struct vxlanhdr *vxh;
 	int min_headroom;
@@ -1771,7 +1814,7 @@ int vxlan_xmit_skb(struct vxlan_sock *vs,
 
 	vxh = (struct vxlanhdr *) __skb_push(skb, sizeof(*vxh));
 	vxh->vx_flags = htonl(VXLAN_HF_VNI);
-	vxh->vx_vni = vni;
+	vxh->vx_vni = md->vni;
 
 	if (type & SKB_GSO_TUNNEL_REMCSUM) {
 		u32 data = (skb_checksum_start_offset(skb) - hdrlen) >>
@@ -1788,6 +1831,9 @@ int vxlan_xmit_skb(struct vxlan_sock *vs,
 			skb->encapsulation = 0;
 		}
 	}
+
+	if (vs->flags & VXLAN_F_GBP)
+		vxlan_build_gbp_hdr(vxh, vs, md);
 
 	skb_set_inner_protocol(skb, htons(ETH_P_TEB));
 
@@ -1849,6 +1895,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 	const struct iphdr *old_iph;
 	struct flowi4 fl4;
 	union vxlan_addr *dst;
+	struct vxlan_metadata md;
 	__be16 src_port = 0, dst_port;
 	u32 vni;
 	__be16 df = 0;
@@ -1919,11 +1966,12 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 
 		tos = ip_tunnel_ecn_encap(tos, old_iph, skb);
 		ttl = ttl ? : ip4_dst_hoplimit(&rt->dst);
+		md.vni = htonl(vni << 8);
+		md.gbp = skb->mark;
 
 		err = vxlan_xmit_skb(vxlan->vn_sock, rt, skb,
 				     fl4.saddr, dst->sin.sin_addr.s_addr,
-				     tos, ttl, df, src_port, dst_port,
-				     htonl(vni << 8),
+				     tos, ttl, df, src_port, dst_port, &md,
 				     !net_eq(vxlan->net, dev_net(vxlan->dev)));
 		if (err < 0) {
 			/* skb is already freed. */
@@ -1976,10 +2024,12 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		}
 
 		ttl = ttl ? : ip6_dst_hoplimit(ndst);
+		md.vni = htonl(vni << 8);
+		md.gbp = skb->mark;
 
 		err = vxlan6_xmit_skb(vxlan->vn_sock, ndst, skb,
 				      dev, &fl6.saddr, &fl6.daddr, 0, ttl,
-				      src_port, dst_port, htonl(vni << 8),
+				      src_port, dst_port, &md,
 				      !net_eq(vxlan->net, dev_net(vxlan->dev)));
 #endif
 	}
@@ -2382,6 +2432,7 @@ static const struct nla_policy vxlan_policy[IFLA_VXLAN_MAX + 1] = {
 	[IFLA_VXLAN_UDP_ZERO_CSUM6_RX]	= { .type = NLA_U8 },
 	[IFLA_VXLAN_REMCSUM_TX]	= { .type = NLA_U8 },
 	[IFLA_VXLAN_REMCSUM_RX]	= { .type = NLA_U8 },
+	[IFLA_VXLAN_GBP]	= { .type = NLA_FLAG, },
 };
 
 static int vxlan_validate(struct nlattr *tb[], struct nlattr *data[])
@@ -2706,6 +2757,9 @@ static int vxlan_newlink(struct net *net, struct net_device *dev,
 	    nla_get_u8(data[IFLA_VXLAN_REMCSUM_RX]))
 		vxlan->flags |= VXLAN_F_REMCSUM_RX;
 
+	if (data[IFLA_VXLAN_GBP])
+		vxlan->flags |= VXLAN_F_GBP;
+
 	if (vxlan_find_vni(net, vni, use_ipv6 ? AF_INET6 : AF_INET,
 			   vxlan->dst_port)) {
 		pr_info("duplicate VNI %u\n", vni);
@@ -2849,6 +2903,10 @@ static int vxlan_fill_info(struct sk_buff *skb, const struct net_device *dev)
 		goto nla_put_failure;
 
 	if (nla_put(skb, IFLA_VXLAN_PORT_RANGE, sizeof(ports), &ports))
+		goto nla_put_failure;
+
+	if (vxlan->flags & VXLAN_F_GBP &&
+	    nla_put_flag(skb, IFLA_VXLAN_GBP))
 		goto nla_put_failure;
 
 	return 0;
