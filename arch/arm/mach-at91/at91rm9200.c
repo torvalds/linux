@@ -42,11 +42,6 @@ static void at91rm9200_restart(enum reboot_mode reboot_mode, const char *cmd)
 /* --------------------------------------------------------------------
  *  AT91RM9200 processor initialization
  * -------------------------------------------------------------------- */
-static void __init at91rm9200_map_io(void)
-{
-	/* Map peripherals */
-	at91_init_sram(0, AT91RM9200_SRAM_BASE, AT91RM9200_SRAM_SIZE);
-}
 
 static void __init at91rm9200_initialize(void)
 {
@@ -56,6 +51,5 @@ static void __init at91rm9200_initialize(void)
 
 
 AT91_SOC_START(at91rm9200)
-	.map_io = at91rm9200_map_io,
 	.init = at91rm9200_initialize,
 AT91_SOC_END

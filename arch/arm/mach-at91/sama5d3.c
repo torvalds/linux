@@ -25,11 +25,5 @@
  *  AT91SAM9x5 processor initialization
  * -------------------------------------------------------------------- */
 
-static void __init sama5d3_map_io(void)
-{
-	at91_init_sram(0, SAMA5D3_SRAM_BASE, SAMA5D3_SRAM_SIZE);
-}
-
 AT91_SOC_START(sama5d3)
-	.map_io = sama5d3_map_io,
 AT91_SOC_END
