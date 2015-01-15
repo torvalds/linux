@@ -2032,11 +2032,21 @@ const struct ethtool_ops macb_ethtool_ops = {
 	.get_regs		= macb_get_regs,
 	.get_link		= ethtool_op_get_link,
 	.get_ts_info		= ethtool_op_get_ts_info,
+};
+EXPORT_SYMBOL_GPL(macb_ethtool_ops);
+
+const struct ethtool_ops gem_ethtool_ops = {
+	.get_settings		= macb_get_settings,
+	.set_settings		= macb_set_settings,
+	.get_regs_len		= macb_get_regs_len,
+	.get_regs		= macb_get_regs,
+	.get_link		= ethtool_op_get_link,
+	.get_ts_info		= ethtool_op_get_ts_info,
 	.get_ethtool_stats	= gem_get_ethtool_stats,
 	.get_strings		= gem_get_ethtool_strings,
 	.get_sset_count		= gem_get_sset_count,
 };
-EXPORT_SYMBOL_GPL(macb_ethtool_ops);
+EXPORT_SYMBOL_GPL(gem_ethtool_ops);
 
 int macb_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
@@ -2325,7 +2335,6 @@ static int __init macb_probe(struct platform_device *pdev)
 
 	dev->netdev_ops = &macb_netdev_ops;
 	netif_napi_add(dev, &bp->napi, macb_poll, 64);
-	dev->ethtool_ops = &macb_ethtool_ops;
 
 	dev->base_addr = regs->start;
 
@@ -2339,12 +2348,14 @@ static int __init macb_probe(struct platform_device *pdev)
 		bp->macbgem_ops.mog_free_rx_buffers = gem_free_rx_buffers;
 		bp->macbgem_ops.mog_init_rings = gem_init_rings;
 		bp->macbgem_ops.mog_rx = gem_rx;
+		dev->ethtool_ops = &gem_ethtool_ops;
 	} else {
 		bp->max_tx_length = MACB_MAX_TX_LEN;
 		bp->macbgem_ops.mog_alloc_rx_buffers = macb_alloc_rx_buffers;
 		bp->macbgem_ops.mog_free_rx_buffers = macb_free_rx_buffers;
 		bp->macbgem_ops.mog_init_rings = macb_init_rings;
 		bp->macbgem_ops.mog_rx = macb_rx;
+		dev->ethtool_ops = &macb_ethtool_ops;
 	}
 
 	/* Set features */
