@@ -1290,6 +1290,11 @@ int pcd_init(
 		return -EBUSY;
 	}
 
+        if (irq_set_affinity(_dev->irq, cpumask_of(3))) {
+                pr_warning("unable to set irq affinity (irq=%d, cpu=%u)\n",
+                                _dev->irq, 3);
+        }
+
 	dwc_otg_pcd_start(gadget_wrapper->pcd, &fops);
 
 	return retval;
