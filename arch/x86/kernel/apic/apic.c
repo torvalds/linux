@@ -1561,19 +1561,19 @@ void enable_x2apic(void)
 	}
 }
 
-static __init void try_to_enable_x2apic(int ir_stat)
+static __init void try_to_enable_x2apic(int remap_mode)
 {
 	if (!x2apic_supported())
 		return;
 
-	if (ir_stat != IRQ_REMAP_X2APIC_MODE) {
+	if (remap_mode != IRQ_REMAP_X2APIC_MODE) {
 		/* IR is required if there is APIC ID > 255 even when running
 		 * under KVM
 		 */
 		if (max_physical_apicid > 255 ||
 		    (IS_ENABLED(CONFIG_HYPERVISOR_GUEST) &&
 		     !hypervisor_x2apic_available())) {
-			pr_info("IRQ remapping doesn't support X2APIC mode, disable x2apic.\n");
+			pr_info("x2apic: IRQ remapping doesn't support X2APIC mode\n");
 			disable_x2apic();
 			return;
 		}
@@ -1611,7 +1611,7 @@ static int __init validate_x2apic(void)
 }
 early_initcall(validate_x2apic);
 
-static inline void try_to_enable_x2apic(int ir_stat) { }
+static inline void try_to_enable_x2apic(int remap_mode) { }
 #endif /* !CONFIG_X86_X2APIC */
 
 static int __init try_to_enable_IR(void)
