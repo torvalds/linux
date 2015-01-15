@@ -1,12 +1,14 @@
-menuconfig LINE6_USB
-	tristate "Line6 USB support"
-	depends on USB && SND
+config SND_USB_LINE6
+	tristate
 	select SND_RAWMIDI
 	select SND_PCM
+
+config SND_USB_POD
+	tristate "Line6 POD USB support"
+	select SND_USB_LINE6
 	help
-	  This is a driver for the guitar amp, cab, and effects modeller
-	  PODxt Pro by Line6 (and similar devices), supporting the
-	  following features:
+	  This is a driver for PODxt and other similar devices,
+	  supporting the following features:
 	    * Reading/writing individual parameters
 	    * Reading/writing complete channel, effects setup, and amp
 	      setup data
@@ -18,14 +20,27 @@ menuconfig LINE6_USB
 	    * Signal routing (record clean/processed guitar signal,
 	      re-amping)
 
-	  Preliminary support for the Variax Workbench and TonePort
-	  devices is included.
+config SND_USB_PODHD
+	tristate "Line6 POD HD300/400/500 USB support"
+	select SND_USB_LINE6
+	help
+	  This is a driver for POD HD300, 400 and 500 devices.
 
-if LINE6_USB
+config SND_USB_TONEPORT
+	tristate "TonePort GX, UX1 and UX2 USB support"
+	select SND_USB_LINE6
+	help
+	  This is a driver for TonePort GX, UX1 and UX2 devices.
+
+config SND_USB_VARIAX
+	tristate "Variax Workbench USB support"
+	select SND_USB_LINE6
+	help
+	  This is a driver for Variax Workbench device.
 
 config LINE6_USB_IMPULSE_RESPONSE
 	bool "measure impulse response"
-	default n
+	depends on SND_USB_LINE6
 	help
 	  Say Y here to add code to measure the impulse response of a Line6
 	  device. This is more accurate than user-space methods since it
@@ -35,4 +50,3 @@ config LINE6_USB_IMPULSE_RESPONSE
 
 	  If unsure, say N.
 
-endif # LINE6_USB

@@ -18,7 +18,6 @@
 #include "capture.h"
 #include "driver.h"
 #include "pcm.h"
-#include "pod.h"
 
 /*
 	Find a free URB and submit it.

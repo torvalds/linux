@@ -11,6 +11,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
 
@@ -19,262 +20,12 @@
 #include "driver.h"
 #include "midi.h"
 #include "playback.h"
-#include "pod.h"
-#include "podhd.h"
 #include "revision.h"
-#include "toneport.h"
 #include "usbdefs.h"
-#include "variax.h"
 
 #define DRIVER_AUTHOR  "Markus Grabner <grabner@icg.tugraz.at>"
 #define DRIVER_DESC    "Line6 USB Driver"
 #define DRIVER_VERSION "0.9.1beta" DRIVER_REVISION
-
-#define LINE6_DEVICE(prod) USB_DEVICE(0x0e41, prod)
-#define LINE6_IF_NUM(prod, n) USB_DEVICE_INTERFACE_NUMBER(0x0e41, prod, n)
-
-/* table of devices that work with this driver */
-static const struct usb_device_id line6_id_table[] = {
-	{ LINE6_DEVICE(0x4250),    .driver_info = LINE6_BASSPODXT },
-	{ LINE6_DEVICE(0x4642),    .driver_info = LINE6_BASSPODXTLIVE },
-	{ LINE6_DEVICE(0x4252),    .driver_info = LINE6_BASSPODXTPRO },
-	{ LINE6_DEVICE(0x4750),    .driver_info = LINE6_GUITARPORT },
-	{ LINE6_IF_NUM(0x5051, 1), .driver_info = LINE6_POCKETPOD },
-	{ LINE6_DEVICE(0x5057),    .driver_info = LINE6_PODHD300 },
-	{ LINE6_DEVICE(0x5058),    .driver_info = LINE6_PODHD400 },
-	{ LINE6_IF_NUM(0x414D, 0), .driver_info = LINE6_PODHD500_0 },
-	{ LINE6_IF_NUM(0x414D, 1), .driver_info = LINE6_PODHD500_1 },
-	{ LINE6_DEVICE(0x4153),    .driver_info = LINE6_PODSTUDIO_GX },
-	{ LINE6_DEVICE(0x4150),    .driver_info = LINE6_PODSTUDIO_UX1 },
-	{ LINE6_IF_NUM(0x4151, 0), .driver_info = LINE6_PODSTUDIO_UX2 },
-	{ LINE6_DEVICE(0x5044),    .driver_info = LINE6_PODXT },
-	{ LINE6_IF_NUM(0x4650, 0), .driver_info = LINE6_PODXTLIVE_POD },
-	{ LINE6_IF_NUM(0x4650, 1), .driver_info = LINE6_PODXTLIVE_VARIAX },
-	{ LINE6_DEVICE(0x5050),    .driver_info = LINE6_PODXTPRO },
-	{ LINE6_DEVICE(0x4147),    .driver_info = LINE6_TONEPORT_GX },
-	{ LINE6_DEVICE(0x4141),    .driver_info = LINE6_TONEPORT_UX1 },
-	{ LINE6_IF_NUM(0x4142, 0), .driver_info = LINE6_TONEPORT_UX2 },
-	{ LINE6_DEVICE(0x534d),    .driver_info = LINE6_VARIAX },
-	{}
-};
-
-MODULE_DEVICE_TABLE(usb, line6_id_table);
-
-static const struct line6_properties line6_properties_table[] = {
-	[LINE6_BASSPODXT] = {
-		.id = "BassPODxt",
-		.name = "BassPODxt",
-		.capabilities	= LINE6_CAP_CONTROL
-				| LINE6_CAP_PCM
-				| LINE6_CAP_HWMON,
-		.altsetting = 5,
-		.ep_ctrl_r = 0x84,
-		.ep_ctrl_w = 0x03,
-		.ep_audio_r = 0x82,
-		.ep_audio_w = 0x01,
-	},
-	[LINE6_BASSPODXTLIVE] = {
-		.id = "BassPODxtLive",
-		.name = "BassPODxt Live",
-		.capabilities	= LINE6_CAP_CONTROL
-				| LINE6_CAP_PCM
-				| LINE6_CAP_HWMON,
-		.altsetting = 1,
-		.ep_ctrl_r = 0x84,
-		.ep_ctrl_w = 0x03,
-		.ep_audio_r = 0x82,
-		.ep_audio_w = 0x01,
-	},
-	[LINE6_BASSPODXTPRO] = {
-		.id = "BassPODxtPro",
-		.name = "BassPODxt Pro",
-		.capabilities	= LINE6_CAP_CONTROL
-				| LINE6_CAP_PCM
-				| LINE6_CAP_HWMON,
-		.altsetting = 5,
-		.ep_ctrl_r = 0x84,
-		.ep_ctrl_w = 0x03,
-		.ep_audio_r = 0x82,
-		.ep_audio_w = 0x01,
-	},
-	[LINE6_GUITARPORT] = {
-		.id = "GuitarPort",
-		.name = "GuitarPort",
-		.capabilities	= LINE6_CAP_PCM,
-		.altsetting = 2,  /* 1..4 seem to be ok */
-		/* no control channel */
-		.ep_audio_r = 0x82,
-		.ep_audio_w = 0x01,
-	},
-	[LINE6_POCKETPOD] = {
-		.id = "PocketPOD",
-		.name = "Pocket POD",
-		.capabilities	= LINE6_CAP_CONTROL,
-		.altsetting = 0,
-		.ep_ctrl_r = 0x82,
-		.ep_ctrl_w = 0x02,
-		/* no audio channel */
-	},
-	[LINE6_PODHD300] = {
-		.id = "PODHD300",
-		.name = "POD HD300",
-		.capabilities	= LINE6_CAP_CONTROL
-				| LINE6_CAP_PCM
-				| LINE6_CAP_HWMON,
-		.altsetting = 5,
-		.ep_ctrl_r = 0x84,
-		.ep_ctrl_w = 0x03,
-		.ep_audio_r = 0x82,
-		.ep_audio_w = 0x01,
-	},
-	[LINE6_PODHD400] = {
-		.id = "PODHD400",
-		.name = "POD HD400",
-		.capabilities	= LINE6_CAP_CONTROL
-				| LINE6_CAP_PCM
-				| LINE6_CAP_HWMON,
-		.altsetting = 5,
-		.ep_ctrl_r = 0x84,
-		.ep_ctrl_w = 0x03,
-		.ep_audio_r = 0x82,
-		.ep_audio_w = 0x01,
-	},
-	[LINE6_PODHD500_0] = {
-		.id = "PODHD500",
-		.name = "POD HD500",
-		.capabilities	= LINE6_CAP_CONTROL
-				| LINE6_CAP_PCM
-				| LINE6_CAP_HWMON,
-		.altsetting = 1,
-		.ep_ctrl_r = 0x81,
-		.ep_ctrl_w = 0x01,
-		.ep_audio_r = 0x86,
-		.ep_audio_w = 0x02,
-	},
-	[LINE6_PODHD500_1] = {
-		.id = "PODHD500",
-		.name = "POD HD500",
-		.capabilities	= LINE6_CAP_CONTROL
-				| LINE6_CAP_PCM
-				| LINE6_CAP_HWMON,
-		.altsetting = 1,
-		.ep_ctrl_r = 0x81,
-		.ep_ctrl_w = 0x01,
-		.ep_audio_r = 0x86,
-		.ep_audio_w = 0x02,
-	},
-	[LINE6_PODSTUDIO_GX] = {
-		.id = "PODStudioGX",
-		.name = "POD Studio GX",
-		.capabilities	= LINE6_CAP_PCM,
-		.altsetting = 2,  /* 1..4 seem to be ok */
-		/* no control channel */
-		.ep_audio_r = 0x82,
-		.ep_audio_w = 0x01,
-	},
-	[LINE6_PODSTUDIO_UX1] = {
-		.id = "PODStudioUX1",
-		.name = "POD Studio UX1",
-		.capabilities	= LINE6_CAP_PCM,
-		.altsetting = 2,  /* 1..4 seem to be ok */
-		/* no control channel */
-		.ep_audio_r = 0x82,
-		.ep_audio_w = 0x01,
-	},
-	[LINE6_PODSTUDIO_UX2] = {
-		.id = "PODStudioUX2",
-		.name = "POD Studio UX2",
-		.capabilities	= LINE6_CAP_PCM,
-		.altsetting = 2,  /* defaults to 44.1kHz, 16-bit */
-		/* no control channel */
-		.ep_audio_r = 0x82,
-		.ep_audio_w = 0x01,
-	},
-	[LINE6_PODXT] = {
-		.id = "PODxt",
-		.name = "PODxt",
-		.capabilities	= LINE6_CAP_CONTROL
-				| LINE6_CAP_PCM
-				| LINE6_CAP_HWMON,
-		.altsetting = 5,
-		.ep_ctrl_r = 0x84,
-		.ep_ctrl_w = 0x03,
-		.ep_audio_r = 0x82,
-		.ep_audio_w = 0x01,
-	},
-	[LINE6_PODXTLIVE_POD] = {
-		.id = "PODxtLive",
-		.name = "PODxt Live",
-		.capabilities	= LINE6_CAP_CONTROL
-				| LINE6_CAP_PCM
-				| LINE6_CAP_HWMON,
-		.altsetting = 1,
-		.ep_ctrl_r = 0x84,
-		.ep_ctrl_w = 0x03,
-		.ep_audio_r = 0x82,
-		.ep_audio_w = 0x01,
-	},
-	[LINE6_PODXTLIVE_VARIAX] = {
-		.id = "PODxtLive",
-		.name = "PODxt Live",
-		.capabilities	= LINE6_CAP_CONTROL
-				| LINE6_CAP_PCM
-				| LINE6_CAP_HWMON,
-		.altsetting = 1,
-		.ep_ctrl_r = 0x86,
-		.ep_ctrl_w = 0x05,
-		.ep_audio_r = 0x82,
-		.ep_audio_w = 0x01,
-	},
-	[LINE6_PODXTPRO] = {
-		.id = "PODxtPro",
-		.name = "PODxt Pro",
-		.capabilities	= LINE6_CAP_CONTROL
-				| LINE6_CAP_PCM
-				| LINE6_CAP_HWMON,
-		.altsetting = 5,
-		.ep_ctrl_r = 0x84,
-		.ep_ctrl_w = 0x03,
-		.ep_audio_r = 0x82,
-		.ep_audio_w = 0x01,
-	},
-	[LINE6_TONEPORT_GX] = {
-		.id = "TonePortGX",
-		.name = "TonePort GX",
-		.capabilities	= LINE6_CAP_PCM,
-		.altsetting = 2,  /* 1..4 seem to be ok */
-		/* no control channel */
-		.ep_audio_r = 0x82,
-		.ep_audio_w = 0x01,
-	},
-	[LINE6_TONEPORT_UX1] = {
-		.id = "TonePortUX1",
-		.name = "TonePort UX1",
-		.capabilities	= LINE6_CAP_PCM,
-		.altsetting = 2,  /* 1..4 seem to be ok */
-		/* no control channel */
-		.ep_audio_r = 0x82,
-		.ep_audio_w = 0x01,
-	},
-	[LINE6_TONEPORT_UX2] = {
-		.id = "TonePortUX2",
-		.name = "TonePort UX2",
-		.capabilities	= LINE6_CAP_PCM,
-		.altsetting = 2,  /* defaults to 44.1kHz, 16-bit */
-		/* no control channel */
-		.ep_audio_r = 0x82,
-		.ep_audio_w = 0x01,
-	},
-	[LINE6_VARIAX] = {
-		.id = "Variax",
-		.name = "Variax Workbench",
-		.capabilities	= LINE6_CAP_CONTROL,
-		.altsetting = 1,
-		.ep_ctrl_r = 0x82,
-		.ep_ctrl_w = 0x01,
-		/* no audio channel */
-	}
-};
 
 /*
 	This is Line6's MIDI manufacturer ID.
@@ -282,6 +33,7 @@ static const struct line6_properties line6_properties_table[] = {
 const unsigned char line6_midi_id[] = {
 	0x00, 0x01, 0x0c
 };
+EXPORT_SYMBOL_GPL(line6_midi_id);
 
 /*
 	Code to request version of POD, Variax interface
@@ -417,6 +169,7 @@ void line6_start_timer(struct timer_list *timer, unsigned int msecs,
 	setup_timer(timer, function, data);
 	mod_timer(timer, jiffies + msecs * HZ / 1000);
 }
+EXPORT_SYMBOL_GPL(line6_start_timer);
 
 /*
 	Asynchronously send raw message.
@@ -450,6 +203,7 @@ int line6_send_raw_message_async(struct usb_line6 *line6, const char *buffer,
 	/* start sending: */
 	return line6_send_raw_message_async_part(msg, urb);
 }
+EXPORT_SYMBOL_GPL(line6_send_raw_message_async);
 
 /*
 	Send asynchronous device version request.
@@ -471,6 +225,7 @@ int line6_version_request_async(struct usb_line6 *line6)
 	kfree(buffer);
 	return retval;
 }
+EXPORT_SYMBOL_GPL(line6_version_request_async);
 
 /*
 	Send sysex message in pieces of wMaxPacketSize bytes.
@@ -482,6 +237,7 @@ int line6_send_sysex_message(struct usb_line6 *line6, const char *buffer,
 				      size + SYSEX_EXTRA_SIZE) -
 	    SYSEX_EXTRA_SIZE;
 }
+EXPORT_SYMBOL_GPL(line6_send_sysex_message);
 
 /*
 	Allocate buffer for sysex message and prepare header.
@@ -503,6 +259,7 @@ char *line6_alloc_sysex_buffer(struct usb_line6 *line6, int code1, int code2,
 	buffer[sizeof(line6_midi_id) + 3 + size] = LINE6_SYSEX_END;
 	return buffer;
 }
+EXPORT_SYMBOL_GPL(line6_alloc_sysex_buffer);
 
 /*
 	Notification of data received from the Line6 device.
@@ -658,6 +415,7 @@ int line6_read_data(struct usb_line6 *line6, int address, void *data,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(line6_read_data);
 
 /*
 	Write data to device.
@@ -702,6 +460,7 @@ int line6_write_data(struct usb_line6 *line6, int address, void *data,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(line6_write_data);
 
 /*
 	Read Line6 device serial number.
@@ -712,6 +471,7 @@ int line6_read_serial_number(struct usb_line6 *line6, int *serial_number)
 	return line6_read_data(line6, 0x80d0, serial_number,
 			       sizeof(*serial_number));
 }
+EXPORT_SYMBOL_GPL(line6_read_serial_number);
 
 /*
 	No operation (i.e., unsupported).
@@ -721,6 +481,7 @@ ssize_t line6_nop_read(struct device *dev, struct device_attribute *attr,
 {
 	return 0;
 }
+EXPORT_SYMBOL_GPL(line6_nop_read);
 
 /*
 	Generic destructor.
@@ -744,30 +505,29 @@ static void line6_destruct(struct usb_interface *interface)
 
 	/* make sure the device isn't destructed twice: */
 	usb_set_intfdata(interface, NULL);
-
-	/* free interface data: */
-	kfree(line6);
 }
 
 /*
 	Probe USB device.
 */
-static int line6_probe(struct usb_interface *interface,
-		       const struct usb_device_id *id)
+int line6_probe(struct usb_interface *interface,
+		struct usb_line6 *line6,
+		const struct line6_properties *properties,
+		int (*private_init)(struct usb_interface *, struct usb_line6 *))
 {
-	enum line6_device_type devtype;
 	struct usb_device *usbdev;
-	struct usb_line6 *line6;
-	const struct line6_properties *properties;
 	int interface_number;
-	int size = 0;
 	int ret;
 
-	if (interface == NULL)
-		return -ENODEV;
+	if (!interface) {
+		ret = -ENODEV;
+		goto err_put;
+	}
 	usbdev = interface_to_usbdev(interface);
-	if (usbdev == NULL)
-		return -ENODEV;
+	if (!usbdev) {
+		ret = -ENODEV;
+		goto err_put;
+	}
 
 	/* we don't handle multiple configurations */
 	if (usbdev->descriptor.bNumConfigurations != 1) {
@@ -775,10 +535,7 @@ static int line6_probe(struct usb_interface *interface,
 		goto err_put;
 	}
 
-	devtype = id->driver_info;
-
 	/* initialize device info: */
-	properties = &line6_properties_table[devtype];
 	dev_info(&interface->dev, "Line6 %s found\n", properties->name);
 
 	/* query interface number */
@@ -791,76 +548,10 @@ static int line6_probe(struct usb_interface *interface,
 		goto err_put;
 	}
 
-	/* initialize device data based on device: */
-	switch (devtype) {
-	case LINE6_BASSPODXT:
-	case LINE6_BASSPODXTLIVE:
-	case LINE6_BASSPODXTPRO:
-	case LINE6_PODXT:
-	case LINE6_PODXTPRO:
-		size = sizeof(struct usb_line6_pod);
-		break;
-
-	case LINE6_PODHD300:
-	case LINE6_PODHD400:
-		size = sizeof(struct usb_line6_podhd);
-		break;
-
-	case LINE6_PODHD500_0:
-	case LINE6_PODHD500_1:
-		size = sizeof(struct usb_line6_podhd);
-		break;
-
-	case LINE6_POCKETPOD:
-		size = sizeof(struct usb_line6_pod);
-		break;
-
-	case LINE6_PODSTUDIO_GX:
-	case LINE6_PODSTUDIO_UX1:
-	case LINE6_PODSTUDIO_UX2:
-	case LINE6_TONEPORT_GX:
-	case LINE6_TONEPORT_UX1:
-	case LINE6_TONEPORT_UX2:
-	case LINE6_GUITARPORT:
-		size = sizeof(struct usb_line6_toneport);
-		break;
-
-	case LINE6_PODXTLIVE_POD:
-		size = sizeof(struct usb_line6_pod);
-		break;
-
-	case LINE6_PODXTLIVE_VARIAX:
-		size = sizeof(struct usb_line6_variax);
-		break;
-
-	case LINE6_VARIAX:
-		size = sizeof(struct usb_line6_variax);
-		break;
-
-	default:
-		MISSING_CASE;
-		ret = -ENODEV;
-		goto err_put;
-	}
-
-	if (size == 0) {
-		dev_err(&interface->dev,
-			"driver bug: interface data size not set\n");
-		ret = -ENODEV;
-		goto err_put;
-	}
-
-	line6 = kzalloc(size, GFP_KERNEL);
-	if (line6 == NULL) {
-		ret = -ENODEV;
-		goto err_put;
-	}
-
 	/* store basic data: */
 	line6->properties = properties;
 	line6->usbdev = usbdev;
 	line6->ifcdev = &interface->dev;
-	line6->type = devtype;
 
 	/* get data from endpoint descriptor (see usb_maxpacket): */
 	{
@@ -903,7 +594,6 @@ static int line6_probe(struct usb_interface *interface,
 
 		if (line6->urb_listen == NULL) {
 			dev_err(&interface->dev, "Out of memory\n");
-			line6_destruct(interface);
 			ret = -ENOMEM;
 			goto err_destruct;
 		}
@@ -917,50 +607,7 @@ static int line6_probe(struct usb_interface *interface,
 	}
 
 	/* initialize device data based on device: */
-	switch (devtype) {
-	case LINE6_BASSPODXT:
-	case LINE6_BASSPODXTLIVE:
-	case LINE6_BASSPODXTPRO:
-	case LINE6_POCKETPOD:
-	case LINE6_PODXT:
-	case LINE6_PODXTPRO:
-		ret = line6_pod_init(interface, line6);
-		break;
-
-	case LINE6_PODHD300:
-	case LINE6_PODHD400:
-	case LINE6_PODHD500_0:
-	case LINE6_PODHD500_1:
-		ret = line6_podhd_init(interface, line6);
-		break;
-
-	case LINE6_PODXTLIVE_POD:
-		ret = line6_pod_init(interface, line6);
-		break;
-
-	case LINE6_PODXTLIVE_VARIAX:
-		ret = line6_variax_init(interface, line6);
-		break;
-
-	case LINE6_VARIAX:
-		ret = line6_variax_init(interface, line6);
-		break;
-
-	case LINE6_PODSTUDIO_GX:
-	case LINE6_PODSTUDIO_UX1:
-	case LINE6_PODSTUDIO_UX2:
-	case LINE6_TONEPORT_GX:
-	case LINE6_TONEPORT_UX1:
-	case LINE6_TONEPORT_UX2:
-	case LINE6_GUITARPORT:
-		ret = line6_toneport_init(interface, line6);
-		break;
-
-	default:
-		MISSING_CASE;
-		ret = -ENODEV;
-	}
-
+	ret = private_init(interface, line6);
 	if (ret < 0)
 		goto err_destruct;
 
@@ -985,11 +632,12 @@ err_destruct:
 err_put:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(line6_probe);
 
 /*
 	Line6 device disconnected.
 */
-static void line6_disconnect(struct usb_interface *interface)
+void line6_disconnect(struct usb_interface *interface)
 {
 	struct usb_line6 *line6;
 	struct usb_device *usbdev;
@@ -1024,17 +672,21 @@ static void line6_disconnect(struct usb_interface *interface)
 
 	line6_destruct(interface);
 
+	/* free interface data: */
+	kfree(line6);
+
 	/* decrement reference counters: */
 	usb_put_intf(interface);
 	usb_put_dev(usbdev);
 }
+EXPORT_SYMBOL_GPL(line6_disconnect);
 
 #ifdef CONFIG_PM
 
 /*
 	Suspend Line6 device.
 */
-static int line6_suspend(struct usb_interface *interface, pm_message_t message)
+int line6_suspend(struct usb_interface *interface, pm_message_t message)
 {
 	struct usb_line6 *line6 = usb_get_intfdata(interface);
 	struct snd_line6_pcm *line6pcm = line6->line6pcm;
@@ -1052,11 +704,12 @@ static int line6_suspend(struct usb_interface *interface, pm_message_t message)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(line6_suspend);
 
 /*
 	Resume Line6 device.
 */
-static int line6_resume(struct usb_interface *interface)
+int line6_resume(struct usb_interface *interface)
 {
 	struct usb_line6 *line6 = usb_get_intfdata(interface);
 
@@ -1066,46 +719,9 @@ static int line6_resume(struct usb_interface *interface)
 	snd_power_change_state(line6->card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
-
-/*
-	Resume Line6 device after reset.
-*/
-static int line6_reset_resume(struct usb_interface *interface)
-{
-	struct usb_line6 *line6 = usb_get_intfdata(interface);
-
-	switch (line6->type) {
-	case LINE6_PODSTUDIO_GX:
-	case LINE6_PODSTUDIO_UX1:
-	case LINE6_PODSTUDIO_UX2:
-	case LINE6_TONEPORT_GX:
-	case LINE6_TONEPORT_UX1:
-	case LINE6_TONEPORT_UX2:
-	case LINE6_GUITARPORT:
-		line6_toneport_reset_resume((struct usb_line6_toneport *)line6);
-
-	default:
-		break;
-	}
-
-	return line6_resume(interface);
-}
+EXPORT_SYMBOL_GPL(line6_resume);
 
 #endif /* CONFIG_PM */
-
-static struct usb_driver line6_driver = {
-	.name = DRIVER_NAME,
-	.probe = line6_probe,
-	.disconnect = line6_disconnect,
-#ifdef CONFIG_PM
-	.suspend = line6_suspend,
-	.resume = line6_resume,
-	.reset_resume = line6_reset_resume,
-#endif
-	.id_table = line6_id_table,
-};
-
-module_usb_driver(line6_driver);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

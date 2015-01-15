@@ -11,13 +11,59 @@
  */
 
 #include <linux/wait.h>
+#include <linux/usb.h>
+#include <linux/slab.h>
+#include <linux/module.h>
+#include <sound/core.h>
 #include <sound/control.h>
 
 #include "audio.h"
 #include "capture.h"
 #include "driver.h"
 #include "playback.h"
-#include "toneport.h"
+#include "usbdefs.h"
+
+enum line6_device_type {
+	LINE6_GUITARPORT,
+	LINE6_PODSTUDIO_GX,
+	LINE6_PODSTUDIO_UX1,
+	LINE6_PODSTUDIO_UX2,
+	LINE6_TONEPORT_GX,
+	LINE6_TONEPORT_UX1,
+	LINE6_TONEPORT_UX2,
+};
+
+struct usb_line6_toneport {
+	/**
+		Generic Line6 USB data.
+	*/
+	struct usb_line6 line6;
+
+	/**
+		Source selector.
+	*/
+	int source;
+
+	/**
+		Serial number of device.
+	*/
+	int serial_number;
+
+	/**
+		Firmware version (x 100).
+	*/
+	int firmware_version;
+
+	/**
+		 Timer for delayed PCM startup.
+	*/
+	struct timer_list timer;
+
+	/**
+		 Device type.
+	*/
+	enum line6_device_type type;
+};
 
 static int toneport_send_cmd(struct usb_device *usbdev, int cmd1, int cmd2);
 
@@ -319,7 +365,7 @@ static void toneport_setup(struct usb_line6_toneport *toneport)
 	toneport_send_cmd(usbdev, 0x0301, 0x0000);
 
 	/* initialize source select: */
-	switch (line6->type) {
+	switch (toneport->type) {
 	case LINE6_TONEPORT_UX1:
 	case LINE6_TONEPORT_UX2:
 	case LINE6_PODSTUDIO_UX1:
@@ -331,7 +377,7 @@ static void toneport_setup(struct usb_line6_toneport *toneport)
 		break;
 	}
 
-	if (toneport_has_led(line6->type))
+	if (toneport_has_led(toneport->type))
 		toneport_update_led(&usbdev->dev);
 }
 
@@ -400,7 +446,7 @@ static int toneport_try_init(struct usb_interface *interface,
 		return err;
 
 	/* register source select control: */
-	switch (line6->type) {
+	switch (toneport->type) {
 	case LINE6_TONEPORT_UX1:
 	case LINE6_TONEPORT_UX2:
 	case LINE6_PODSTUDIO_UX1:
@@ -424,7 +470,7 @@ static int toneport_try_init(struct usb_interface *interface,
 	line6_read_serial_number(line6, &toneport->serial_number);
 	line6_read_data(line6, 0x80c2, &toneport->firmware_version, 1);
 
-	if (toneport_has_led(line6->type)) {
+	if (toneport_has_led(toneport->type)) {
 		CHECK_RETURN(device_create_file
 			     (&interface->dev, &dev_attr_led_red));
 		CHECK_RETURN(device_create_file
@@ -443,8 +489,8 @@ static int toneport_try_init(struct usb_interface *interface,
 /*
 	 Init Toneport device (and clean up in case of failure).
 */
-int line6_toneport_init(struct usb_interface *interface,
-			struct usb_line6 *line6)
+static int toneport_init(struct usb_interface *interface,
+			 struct usb_line6 *line6)
 {
 	int err = toneport_try_init(interface, line6);
 
@@ -454,10 +500,134 @@ int line6_toneport_init(struct usb_interface *interface,
 	return err;
 }
 
+#ifdef CONFIG_PM
 /*
 	Resume Toneport device after reset.
 */
-void line6_toneport_reset_resume(struct usb_line6_toneport *toneport)
+static int toneport_reset_resume(struct usb_interface *interface)
 {
-	toneport_setup(toneport);
+	toneport_setup(usb_get_intfdata(interface));
+	return line6_resume(interface);
 }
+#endif
+
+#define LINE6_DEVICE(prod) USB_DEVICE(0x0e41, prod)
+#define LINE6_IF_NUM(prod, n) USB_DEVICE_INTERFACE_NUMBER(0x0e41, prod, n)
+
+/* table of devices that work with this driver */
+static const struct usb_device_id toneport_id_table[] = {
+	{ LINE6_DEVICE(0x4750),    .driver_info = LINE6_GUITARPORT },
+	{ LINE6_DEVICE(0x4153),    .driver_info = LINE6_PODSTUDIO_GX },
+	{ LINE6_DEVICE(0x4150),    .driver_info = LINE6_PODSTUDIO_UX1 },
+	{ LINE6_IF_NUM(0x4151, 0), .driver_info = LINE6_PODSTUDIO_UX2 },
+	{ LINE6_DEVICE(0x4147),    .driver_info = LINE6_TONEPORT_GX },
+	{ LINE6_DEVICE(0x4141),    .driver_info = LINE6_TONEPORT_UX1 },
+	{ LINE6_IF_NUM(0x4142, 0), .driver_info = LINE6_TONEPORT_UX2 },
+	{}
+};
+
+MODULE_DEVICE_TABLE(usb, toneport_id_table);
+
+static const struct line6_properties toneport_properties_table[] = {
+	[LINE6_GUITARPORT] = {
+		.id = "GuitarPort",
+		.name = "GuitarPort",
+		.capabilities	= LINE6_CAP_PCM,
+		.altsetting = 2,  /* 1..4 seem to be ok */
+		/* no control channel */
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
+	},
+	[LINE6_PODSTUDIO_GX] = {
+		.id = "PODStudioGX",
+		.name = "POD Studio GX",
+		.capabilities	= LINE6_CAP_PCM,
+		.altsetting = 2,  /* 1..4 seem to be ok */
+		/* no control channel */
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
+	},
+	[LINE6_PODSTUDIO_UX1] = {
+		.id = "PODStudioUX1",
+		.name = "POD Studio UX1",
+		.capabilities	= LINE6_CAP_PCM,
+		.altsetting = 2,  /* 1..4 seem to be ok */
+		/* no control channel */
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
+	},
+	[LINE6_PODSTUDIO_UX2] = {
+		.id = "PODStudioUX2",
+		.name = "POD Studio UX2",
+		.capabilities	= LINE6_CAP_PCM,
+		.altsetting = 2,  /* defaults to 44.1kHz, 16-bit */
+		/* no control channel */
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
+	},
+	[LINE6_TONEPORT_GX] = {
+		.id = "TonePortGX",
+		.name = "TonePort GX",
+		.capabilities	= LINE6_CAP_PCM,
+		.altsetting = 2,  /* 1..4 seem to be ok */
+		/* no control channel */
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
+	},
+	[LINE6_TONEPORT_UX1] = {
+		.id = "TonePortUX1",
+		.name = "TonePort UX1",
+		.capabilities	= LINE6_CAP_PCM,
+		.altsetting = 2,  /* 1..4 seem to be ok */
+		/* no control channel */
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
+	},
+	[LINE6_TONEPORT_UX2] = {
+		.id = "TonePortUX2",
+		.name = "TonePort UX2",
+		.capabilities	= LINE6_CAP_PCM,
+		.altsetting = 2,  /* defaults to 44.1kHz, 16-bit */
+		/* no control channel */
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
+	},
+};
+
+/*
+	Probe USB device.
+*/
+static int toneport_probe(struct usb_interface *interface,
+			  const struct usb_device_id *id)
+{
+	struct usb_line6_toneport *toneport;
+	int err;
+
+	toneport = kzalloc(sizeof(*toneport), GFP_KERNEL);
+	if (!toneport)
+		return -ENODEV;
+	toneport->type = id->driver_info;
+	err = line6_probe(interface, &toneport->line6,
+			  &toneport_properties_table[id->driver_info],
+			  toneport_init);
+	if (err < 0)
+		kfree(toneport);
+	return err;
+}
+
+static struct usb_driver toneport_driver = {
+	.name = KBUILD_MODNAME,
+	.probe = toneport_probe,
+	.disconnect = line6_disconnect,
+#ifdef CONFIG_PM
+	.suspend = line6_suspend,
+	.resume = line6_resume,
+	.reset_resume = toneport_reset_resume,
+#endif
+	.id_table = toneport_id_table,
+};
+
+module_usb_driver(toneport_driver);
+
+MODULE_DESCRIPTION("TonePort USB driver");
+MODULE_LICENSE("GPL");

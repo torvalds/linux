@@ -10,6 +10,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/pcm.h>
@@ -19,7 +20,6 @@
 #include "capture.h"
 #include "driver.h"
 #include "playback.h"
-#include "pod.h"
 
 #ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
 
@@ -195,6 +195,7 @@ pcm_acquire_error:
 	line6_pcm_release(line6pcm, flags_final & channels);
 	return err;
 }
+EXPORT_SYMBOL_GPL(line6_pcm_acquire);
 
 int line6_pcm_release(struct snd_line6_pcm *line6pcm, int channels)
 {
@@ -223,6 +224,7 @@ int line6_pcm_release(struct snd_line6_pcm *line6pcm, int channels)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(line6_pcm_release);
 
 /* trigger callback */
 int snd_line6_trigger(struct snd_pcm_substream *substream, int cmd)
@@ -408,6 +410,7 @@ void line6_pcm_disconnect(struct snd_line6_pcm *line6pcm)
 	line6_unlink_wait_clear_audio_out_urbs(line6pcm);
 	line6_unlink_wait_clear_audio_in_urbs(line6pcm);
 }
+EXPORT_SYMBOL_GPL(line6_pcm_disconnect);
 
 /*
 	Create and register the PCM device and mixer entries.
@@ -490,6 +493,7 @@ int line6_init_pcm(struct usb_line6 *line6,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(line6_init_pcm);
 
 /* prepare pcm callback */
 int snd_line6_prepare(struct snd_pcm_substream *substream)

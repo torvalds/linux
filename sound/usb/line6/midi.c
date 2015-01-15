@@ -11,13 +11,13 @@
 
 #include <linux/slab.h>
 #include <linux/usb.h>
+#include <linux/export.h>
 #include <sound/core.h>
 #include <sound/rawmidi.h>
 
 #include "audio.h"
 #include "driver.h"
 #include "midi.h"
-#include "pod.h"
 #include "usbdefs.h"
 
 #define line6_rawmidi_substream_midi(substream) \
@@ -319,3 +319,4 @@ int line6_init_midi(struct usb_line6 *line6)
 	spin_lock_init(&line6midi->midi_transmit_lock);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(line6_init_midi);

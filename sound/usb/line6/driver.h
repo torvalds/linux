@@ -20,29 +20,6 @@
 
 #define DRIVER_NAME "line6usb"
 
-enum line6_device_type {
-	LINE6_BASSPODXT,
-	LINE6_BASSPODXTLIVE,
-	LINE6_BASSPODXTPRO,
-	LINE6_GUITARPORT,
-	LINE6_POCKETPOD,
-	LINE6_PODHD300,
-	LINE6_PODHD400,
-	LINE6_PODHD500_0,
-	LINE6_PODHD500_1,
-	LINE6_PODSTUDIO_GX,
-	LINE6_PODSTUDIO_UX1,
-	LINE6_PODSTUDIO_UX2,
-	LINE6_PODXT,
-	LINE6_PODXTLIVE_POD,
-	LINE6_PODXTLIVE_VARIAX,
-	LINE6_PODXTPRO,
-	LINE6_TONEPORT_GX,
-	LINE6_TONEPORT_UX1,
-	LINE6_TONEPORT_UX2,
-	LINE6_VARIAX
-};
-
 #define LINE6_TIMEOUT 1
 #define LINE6_BUFSIZE_LISTEN 32
 #define LINE6_MESSAGE_MAXLEN 256
@@ -135,11 +112,6 @@ struct usb_line6 {
 	struct usb_device *usbdev;
 
 	/**
-		 Device type.
-	*/
-	enum line6_device_type type;
-
-	/**
 		 Properties.
 	*/
 	const struct line6_properties *properties;
@@ -224,5 +196,16 @@ extern int line6_transmit_parameter(struct usb_line6 *line6, int param,
 extern int line6_version_request_async(struct usb_line6 *line6);
 extern int line6_write_data(struct usb_line6 *line6, int address, void *data,
 			    size_t datalen);
+
+int line6_probe(struct usb_interface *interface,
+		struct usb_line6 *line6,
+		const struct line6_properties *properties,
+		int (*private_init)(struct usb_interface *, struct usb_line6 *));
+void line6_disconnect(struct usb_interface *interface);
+
+#ifdef CONFIG_PM
+int line6_suspend(struct usb_interface *interface, pm_message_t message);
+int line6_resume(struct usb_interface *interface);
+#endif
 
 #endif

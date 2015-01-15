@@ -9,13 +9,30 @@
  *
  */
 
+#include <linux/usb.h>
+#include <linux/slab.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 
 #include "audio.h"
 #include "driver.h"
 #include "pcm.h"
-#include "podhd.h"
+#include "usbdefs.h"
+
+enum {
+	LINE6_PODHD300,
+	LINE6_PODHD400,
+	LINE6_PODHD500_0,
+	LINE6_PODHD500_1,
+};
+
+struct usb_line6_podhd {
+	/**
+		Generic Line6 USB data.
+	*/
+	struct usb_line6 line6;
+};
 
 #define PODHD_BYTES_PER_FRAME 6	/* 24bit audio (stereo) */
 
@@ -141,10 +158,76 @@ static int podhd_try_init(struct usb_interface *interface,
 	return err;
 }
 
+#define LINE6_DEVICE(prod) USB_DEVICE(0x0e41, prod)
+#define LINE6_IF_NUM(prod, n) USB_DEVICE_INTERFACE_NUMBER(0x0e41, prod, n)
+
+/* table of devices that work with this driver */
+static const struct usb_device_id podhd_id_table[] = {
+	{ LINE6_DEVICE(0x5057),    .driver_info = LINE6_PODHD300 },
+	{ LINE6_DEVICE(0x5058),    .driver_info = LINE6_PODHD400 },
+	{ LINE6_IF_NUM(0x414D, 0), .driver_info = LINE6_PODHD500_0 },
+	{ LINE6_IF_NUM(0x414D, 1), .driver_info = LINE6_PODHD500_1 },
+	{}
+};
+
+MODULE_DEVICE_TABLE(usb, podhd_id_table);
+
+static const struct line6_properties podhd_properties_table[] = {
+	[LINE6_PODHD300] = {
+		.id = "PODHD300",
+		.name = "POD HD300",
+		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_PCM
+				| LINE6_CAP_HWMON,
+		.altsetting = 5,
+		.ep_ctrl_r = 0x84,
+		.ep_ctrl_w = 0x03,
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
+	},
+	[LINE6_PODHD400] = {
+		.id = "PODHD400",
+		.name = "POD HD400",
+		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_PCM
+				| LINE6_CAP_HWMON,
+		.altsetting = 5,
+		.ep_ctrl_r = 0x84,
+		.ep_ctrl_w = 0x03,
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
+	},
+	[LINE6_PODHD500_0] = {
+		.id = "PODHD500",
+		.name = "POD HD500",
+		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_PCM
+				| LINE6_CAP_HWMON,
+		.altsetting = 1,
+		.ep_ctrl_r = 0x81,
+		.ep_ctrl_w = 0x01,
+		.ep_audio_r = 0x86,
+		.ep_audio_w = 0x02,
+	},
+	[LINE6_PODHD500_1] = {
+		.id = "PODHD500",
+		.name = "POD HD500",
+		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_PCM
+				| LINE6_CAP_HWMON,
+		.altsetting = 1,
+		.ep_ctrl_r = 0x81,
+		.ep_ctrl_w = 0x01,
+		.ep_audio_r = 0x86,
+		.ep_audio_w = 0x02,
+	},
+};
+
 /*
 	Init POD HD device (and clean up in case of failure).
 */
-int line6_podhd_init(struct usb_interface *interface, struct usb_line6 *line6)
+static int podhd_init(struct usb_interface *interface,
+		      struct usb_line6 *line6)
 {
 	struct usb_line6_podhd *podhd = (struct usb_line6_podhd *) line6;
 	int err = podhd_try_init(interface, podhd);
@@ -154,3 +237,40 @@ int line6_podhd_init(struct usb_interface *interface, struct usb_line6 *line6)
 
 	return err;
 }
+
+/*
+	Probe USB device.
+*/
+static int podhd_probe(struct usb_interface *interface,
+		       const struct usb_device_id *id)
+{
+	struct usb_line6_podhd *podhd;
+	int err;
+
+	podhd = kzalloc(sizeof(*podhd), GFP_KERNEL);
+	if (!podhd)
+		return -ENODEV;
+	err = line6_probe(interface, &podhd->line6,
+			  &podhd_properties_table[id->driver_info],
+			  podhd_init);
+	if (err < 0)
+		kfree(podhd);
+	return err;
+}
+
+static struct usb_driver podhd_driver = {
+	.name = KBUILD_MODNAME,
+	.probe = podhd_probe,
+	.disconnect = line6_disconnect,
+#ifdef CONFIG_PM
+	.suspend = line6_suspend,
+	.resume = line6_resume,
+	.reset_resume = line6_resume,
+#endif
+	.id_table = podhd_id_table,
+};
+
+module_usb_driver(podhd_driver);
+
+MODULE_DESCRIPTION("Line6 PODHD USB driver");
+MODULE_LICENSE("GPL");

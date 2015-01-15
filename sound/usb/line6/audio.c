@@ -40,6 +40,7 @@ int line6_init_audio(struct usb_line6 *line6)
 		dev_name(line6->ifcdev));
 	return 0;
 }
+EXPORT_SYMBOL_GPL(line6_init_audio);
 
 /*
 	Register the Line6 USB audio system.
@@ -54,6 +55,7 @@ int line6_register_audio(struct usb_line6 *line6)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(line6_register_audio);
 
 /*
 	Cleanup the Line6 USB audio system.
@@ -69,3 +71,4 @@ void line6_cleanup_audio(struct usb_line6 *line6)
 	snd_card_free(card);
 	line6->card = NULL;
 }
+EXPORT_SYMBOL_GPL(line6_cleanup_audio);
