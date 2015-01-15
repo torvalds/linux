@@ -4605,7 +4605,7 @@ static void i9xx_pfit_enable(struct intel_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc_state *pipe_config = &crtc->config;
 
-	if (!crtc->config.gmch_pfit.control)
+	if (!pipe_config->gmch_pfit.control)
 		return;
 
 	/*
@@ -5928,7 +5928,7 @@ static void vlv_prepare_pll(struct intel_crtc *crtc,
 		vlv_dpio_write(dev_priv, pipe, VLV_PLL_DW10(pipe),
 				 0x00d0000f);
 
-	if (crtc->config.has_dp_encoder) {
+	if (pipe_config->has_dp_encoder) {
 		/* Use SSC source */
 		if (pipe == PIPE_A)
 			vlv_dpio_write(dev_priv, pipe, VLV_PLL_DW5(pipe),
@@ -7544,7 +7544,7 @@ static void intel_cpu_transcoder_get_m_n(struct intel_crtc *crtc,
 void intel_dp_get_m_n(struct intel_crtc *crtc,
 		      struct intel_crtc_state *pipe_config)
 {
-	if (crtc->config.has_pch_encoder)
+	if (pipe_config->has_pch_encoder)
 		intel_pch_transcoder_get_m_n(crtc, &pipe_config->dp_m_n);
 	else
 		intel_cpu_transcoder_get_m_n(crtc, pipe_config->cpu_transcoder,
