@@ -125,3 +125,9 @@ extern void i2c_dw_disable(struct dw_i2c_dev *dev);
 extern void i2c_dw_clear_int(struct dw_i2c_dev *dev);
 extern void i2c_dw_disable_int(struct dw_i2c_dev *dev);
 extern u32 i2c_dw_read_comp_param(struct dw_i2c_dev *dev);
+
+#if IS_ENABLED(CONFIG_I2C_DESIGNWARE_BAYTRAIL)
+extern int i2c_dw_eval_lock_support(struct dw_i2c_dev *dev);
+#else
+static inline int i2c_dw_eval_lock_support(struct dw_i2c_dev *dev) { return 0; }
+#endif
