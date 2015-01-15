@@ -70,7 +70,6 @@ struct rsnd_ssi {
 	u32 cr_clk;
 	int err;
 	unsigned int usrcnt;
-	unsigned int rate;
 };
 
 #define for_each_rsnd_ssi(pos, priv, i)					\
@@ -157,7 +156,6 @@ static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
 
 			ret = rsnd_adg_ssi_clk_try_start(&ssi->mod, main_rate);
 			if (0 == ret) {
-				ssi->rate	= rate;
 				ssi->cr_clk	= FORCE | SWL_32 |
 						  SCKD | SWSD | CKDV(j);
 
@@ -176,7 +174,6 @@ static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
 
 static void rsnd_ssi_master_clk_stop(struct rsnd_ssi *ssi)
 {
-	ssi->rate = 0;
 	ssi->cr_clk = 0;
 	rsnd_adg_ssi_clk_stop(&ssi->mod);
 }
