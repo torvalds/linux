@@ -323,7 +323,7 @@ vmxnet3_get_ethtool_stats(struct net_device *netdev,
 					  vmxnet3_tq_driver_stats[i].offset);
 	}
 
-	for (j = 0; j < adapter->num_tx_queues; j++) {
+	for (j = 0; j < adapter->num_rx_queues; j++) {
 		base = (u8 *)&adapter->rqd_start[j].stats;
 		*buf++ = (u64) j;
 		for (i = 1; i < ARRAY_SIZE(vmxnet3_rq_dev_stats); i++)
