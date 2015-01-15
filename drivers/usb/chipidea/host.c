@@ -192,6 +192,73 @@ static void host_stop(struct ci_hdrc *ci)
 	}
 }
 
+static void ci_hdrc_host_save_for_power_lost(struct ci_hdrc *ci)
+{
+	struct ehci_hcd *ehci;
+
+	if (!ci->hcd)
+		return;
+
+	ehci = hcd_to_ehci(ci->hcd);
+	/* save EHCI registers */
+	ci->pm_usbmode = ehci_readl(ehci, &ehci->regs->usbmode);
+	ci->pm_command = ehci_readl(ehci, &ehci->regs->command);
+	ci->pm_command &= ~CMD_RUN;
+	ci->pm_status  = ehci_readl(ehci, &ehci->regs->status);
+	ci->pm_intr_enable  = ehci_readl(ehci, &ehci->regs->intr_enable);
+	ci->pm_frame_index  = ehci_readl(ehci, &ehci->regs->frame_index);
+	ci->pm_segment  = ehci_readl(ehci, &ehci->regs->segment);
+	ci->pm_frame_list  = ehci_readl(ehci, &ehci->regs->frame_list);
+	ci->pm_async_next  = ehci_readl(ehci, &ehci->regs->async_next);
+	ci->pm_configured_flag  =
+			ehci_readl(ehci, &ehci->regs->configured_flag);
+	ci->pm_portsc = ehci_readl(ehci, &ehci->regs->port_status[0]);
+}
+
+static void ci_hdrc_host_restore_from_power_lost(struct ci_hdrc *ci)
+{
+	struct ehci_hcd *ehci;
+	unsigned long   flags;
+	u32 tmp;
+
+	if (!ci->hcd)
+		return;
+
+	hw_controller_reset(ci);
+
+	ehci = hcd_to_ehci(ci->hcd);
+	spin_lock_irqsave(&ehci->lock, flags);
+	/* Restore EHCI registers */
+	ehci_writel(ehci, ci->pm_usbmode, &ehci->regs->usbmode);
+	ehci_writel(ehci, ci->pm_portsc, &ehci->regs->port_status[0]);
+	ehci_writel(ehci, ci->pm_command, &ehci->regs->command);
+	ehci_writel(ehci, ci->pm_intr_enable, &ehci->regs->intr_enable);
+	ehci_writel(ehci, ci->pm_frame_index, &ehci->regs->frame_index);
+	ehci_writel(ehci, ci->pm_segment, &ehci->regs->segment);
+	ehci_writel(ehci, ci->pm_frame_list, &ehci->regs->frame_list);
+	ehci_writel(ehci, ci->pm_async_next, &ehci->regs->async_next);
+	ehci_writel(ehci, ci->pm_configured_flag,
+					&ehci->regs->configured_flag);
+	/* Restore the PHY's connect notifier setting */
+	if (ci->pm_portsc & PORTSC_HSP)
+		usb_phy_notify_connect(ci->usb_phy, USB_SPEED_HIGH);
+
+	tmp = ehci_readl(ehci, &ehci->regs->command);
+	tmp |= CMD_RUN;
+	ehci_writel(ehci, tmp, &ehci->regs->command);
+	spin_unlock_irqrestore(&ehci->lock, flags);
+}
+
+static void ci_hdrc_host_suspend(struct ci_hdrc *ci)
+{
+	ci_hdrc_host_save_for_power_lost(ci);
+}
+
+static void ci_hdrc_host_resume(struct ci_hdrc *ci, bool power_lost)
+{
+	if (power_lost)
+		ci_hdrc_host_restore_from_power_lost(ci);
+}
 
 void ci_hdrc_host_destroy(struct ci_hdrc *ci)
 {
@@ -254,6 +321,8 @@ int ci_hdrc_host_init(struct ci_hdrc *ci)
 	rdrv->start	= host_start;
 	rdrv->stop	= host_stop;
 	rdrv->irq	= host_irq;
+	rdrv->suspend	= ci_hdrc_host_suspend;
+	rdrv->resume	= ci_hdrc_host_resume;
 	rdrv->name	= "host";
 	ci->roles[CI_ROLE_HOST] = rdrv;
 
