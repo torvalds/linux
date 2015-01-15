@@ -474,13 +474,19 @@ static int init_rx_ring(struct net_device *dev, u8 queue_no,
 	/* allocate memory for RX skbuff array */
 	rx_ring->rx_skbuff_dma = kmalloc_array(rx_rsize,
 					       sizeof(dma_addr_t), GFP_KERNEL);
-	if (rx_ring->rx_skbuff_dma == NULL)
-		goto dmamem_err;
+	if (!rx_ring->rx_skbuff_dma) {
+		dma_free_coherent(priv->device,
+				  rx_rsize * sizeof(struct sxgbe_rx_norm_desc),
+				  rx_ring->dma_rx, rx_ring->dma_rx_phy);
+		goto error;
+	}
 
 	rx_ring->rx_skbuff = kmalloc_array(rx_rsize,
 					   sizeof(struct sk_buff *), GFP_KERNEL);
-	if (rx_ring->rx_skbuff == NULL)
-		goto rxbuff_err;
+	if (!rx_ring->rx_skbuff) {
+		kfree(rx_ring->rx_skbuff_dma);
+		goto error;
+	}
 
 	/* initialise the buffers */
 	for (desc_index = 0; desc_index < rx_rsize; desc_index++) {
@@ -502,13 +508,6 @@ static int init_rx_ring(struct net_device *dev, u8 queue_no,
 err_init_rx_buffers:
 	while (--desc_index >= 0)
 		free_rx_ring(priv->device, rx_ring, desc_index);
-	kfree(rx_ring->rx_skbuff);
-rxbuff_err:
-	kfree(rx_ring->rx_skbuff_dma);
-dmamem_err:
-	dma_free_coherent(priv->device,
-			  rx_rsize * sizeof(struct sxgbe_rx_norm_desc),
-			  rx_ring->dma_rx, rx_ring->dma_rx_phy);
 error:
 	return -ENOMEM;
 }
