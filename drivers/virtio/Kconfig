@@ -17,9 +17,6 @@ config VIRTIO_PCI
 	  virtio backends.  Most QEMU based VMMs should support these devices
 	  (like KVM or Xen).
 
-	  Currently, the ABI is not considered stable so there is no guarantee
-	  that this version of the driver will work with your VMM.
-
 	  If unsure, say M.
 
 config VIRTIO_BALLOON
