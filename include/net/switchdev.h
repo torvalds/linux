@@ -11,12 +11,27 @@
 #define _LINUX_SWITCHDEV_H_
 
 #include <linux/netdevice.h>
+#include <linux/notifier.h>
+
+struct netdev_switch_notifier_info {
+	struct net_device *dev;
+};
+
+static inline struct net_device *
+netdev_switch_notifier_info_to_dev(const struct netdev_switch_notifier_info *info)
+{
+	return info->dev;
+}
 
 #ifdef CONFIG_NET_SWITCHDEV
 
 int netdev_switch_parent_id_get(struct net_device *dev,
 				struct netdev_phys_item_id *psid);
 int netdev_switch_port_stp_update(struct net_device *dev, u8 state);
+int register_netdev_switch_notifier(struct notifier_block *nb);
+int unregister_netdev_switch_notifier(struct notifier_block *nb);
+int call_netdev_switch_notifiers(unsigned long val, struct net_device *dev,
+				 struct netdev_switch_notifier_info *info);
 
 #else
 
@@ -30,6 +45,22 @@ static inline int netdev_switch_port_stp_update(struct net_device *dev,
 						u8 state)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline int register_netdev_switch_notifier(struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline int unregister_netdev_switch_notifier(struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline int call_netdev_switch_notifiers(unsigned long val, struct net_device *dev,
+					       struct netdev_switch_notifier_info *info);
+{
+	return NOTIFY_DONE;
 }
 
 #endif

@@ -11,6 +11,8 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/init.h>
+#include <linux/mutex.h>
+#include <linux/notifier.h>
 #include <linux/netdevice.h>
 #include <net/switchdev.h>
 
@@ -50,3 +52,66 @@ int netdev_switch_port_stp_update(struct net_device *dev, u8 state)
 	return ops->ndo_switch_port_stp_update(dev, state);
 }
 EXPORT_SYMBOL(netdev_switch_port_stp_update);
+
+static DEFINE_MUTEX(netdev_switch_mutex);
+static RAW_NOTIFIER_HEAD(netdev_switch_notif_chain);
+
+/**
+ *	register_netdev_switch_notifier - Register nofifier
+ *	@nb: notifier_block
+ *
+ *	Register switch device notifier. This should be used by code
+ *	which needs to monitor events happening in particular device.
+ *	Return values are same as for atomic_notifier_chain_register().
+ */
+int register_netdev_switch_notifier(struct notifier_block *nb)
+{
+	int err;
+
+	mutex_lock(&netdev_switch_mutex);
+	err = raw_notifier_chain_register(&netdev_switch_notif_chain, nb);
+	mutex_unlock(&netdev_switch_mutex);
+	return err;
+}
+EXPORT_SYMBOL(register_netdev_switch_notifier);
+
+/**
+ *	unregister_netdev_switch_notifier - Unregister nofifier
+ *	@nb: notifier_block
+ *
+ *	Unregister switch device notifier.
+ *	Return values are same as for atomic_notifier_chain_unregister().
+ */
+int unregister_netdev_switch_notifier(struct notifier_block *nb)
+{
+	int err;
+
+	mutex_lock(&netdev_switch_mutex);
+	err = raw_notifier_chain_unregister(&netdev_switch_notif_chain, nb);
+	mutex_unlock(&netdev_switch_mutex);
+	return err;
+}
+EXPORT_SYMBOL(unregister_netdev_switch_notifier);
+
+/**
+ *	call_netdev_switch_notifiers - Call nofifiers
+ *	@val: value passed unmodified to notifier function
+ *	@dev: port device
+ *	@info: notifier information data
+ *
+ *	Call all network notifier blocks. This should be called by driver
+ *	when it needs to propagate hardware event.
+ *	Return values are same as for atomic_notifier_call_chain().
+ */
+int call_netdev_switch_notifiers(unsigned long val, struct net_device *dev,
+				 struct netdev_switch_notifier_info *info)
+{
+	int err;
+
+	info->dev = dev;
+	mutex_lock(&netdev_switch_mutex);
+	err = raw_notifier_call_chain(&netdev_switch_notif_chain, val, info);
+	mutex_unlock(&netdev_switch_mutex);
+	return err;
+}
+EXPORT_SYMBOL(call_netdev_switch_notifiers);
