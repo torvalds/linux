@@ -144,9 +144,11 @@ static int ge2d_process_work_queue(ge2d_context_t *  wq)
 	}while(pos!=head);
 	ge2d_manager.last_wq=wq;
 exit:
+	spin_lock(&ge2d_manager.state_lock);
 	if(ge2d_manager.ge2d_state==GE2D_STATE_REMOVING_WQ)
-	complete(&ge2d_manager.event.process_complete);
+	    complete(&ge2d_manager.event.process_complete);
 	ge2d_manager.ge2d_state=GE2D_STATE_IDLE;
+	spin_unlock(&ge2d_manager.state_lock);
 	return ret;	
 }
 
@@ -854,8 +856,17 @@ int  destroy_ge2d_work_queue(ge2d_context_t* ge2d_work_queue)
 		spin_unlock(&ge2d_manager.event.sem_lock);
 		if((ge2d_manager.current_wq==ge2d_work_queue)&&(ge2d_manager.ge2d_state== GE2D_STATE_RUNNING))
 		{
-			ge2d_manager.ge2d_state=GE2D_STATE_REMOVING_WQ;
-			wait_for_completion(&ge2d_manager.event.process_complete);
+		        // check again with lock
+		        int wasRunning = 0;
+		        spin_lock(&ge2d_manager.state_lock);
+		        if (ge2d_manager.ge2d_state== GE2D_STATE_RUNNING)
+		        {
+			  ge2d_manager.ge2d_state=GE2D_STATE_REMOVING_WQ;
+			  wasRunning = 1;
+			}
+			spin_unlock(&ge2d_manager.state_lock);
+			if (wasRunning)
+			    wait_for_completion(&ge2d_manager.event.process_complete);
 			ge2d_manager.last_wq=NULL;  //condition so complex ,simplify it .
 		}//else we can delete it safely.
 		
@@ -901,6 +912,7 @@ int ge2d_wq_init(void)
 	//prepare bottom half		
 	
 	spin_lock_init(&ge2d_manager.event.sem_lock);
+	spin_lock_init(&ge2d_manager.state_lock);
 	sema_init (&ge2d_manager.event.cmd_in_sem,1); 
 	init_waitqueue_head (&ge2d_manager.event.cmd_complete);
 	init_completion(&ge2d_manager.event.process_complete);

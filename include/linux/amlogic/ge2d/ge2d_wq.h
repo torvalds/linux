@@ -81,6 +81,7 @@ typedef  struct {
    ge2d_event_t			event ;
    int		 			irq_num;
    int 		 			ge2d_state;
+   spinlock_t	 			state_lock;  //for sync access to ge2d_state
    int					process_queue_state;
 }ge2d_manager_t ;
 
