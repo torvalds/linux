@@ -42,8 +42,16 @@
 
 //ring buf must less than the MAX alloc length 131072
 //131072/1536~=85;
-#define TX_RING_SIZE 	128
-#define RX_RING_SIZE 	128
+#define TX_RING_SIZE 	512	    // 512 gives 35-40mb/sec
+#define RX_RING_SIZE 	4096  	// 512 gives 51mb/sec
+// lower gives slower perf, very high inconsistent with spikes
+// 768 gives around 50mb
+// RX of 2048 gives around 56mb/sec w/RPS 63mb/sec
+// TX of 1024 gives around 31mb/sec w/XPS 40mb/sec
+// RX of 4096 gives around 59mb/sec
+// TX of 2048 gives around 39mb/sec
+// RX of 16384 = 48mb/sec w/RPS = 64mb/sec
+// TX of 16384 = 31mb/sec w/XPS = 36mb/sec
 #define CACHE_LINE 32
 #define IS_CACHE_ALIGNED(x)		(!((unsigned long )x &(CACHE_LINE-1)))
 #define CACHE_HEAD_ALIGNED(x)	((x-CACHE_LINE) & (~(CACHE_LINE-1)))
@@ -163,7 +171,7 @@ struct am_net_private {
 	struct net_device_stats stats;
 	struct timer_list timer;	/* Media monitoring timer. */
 	struct tasklet_struct rx_tasklet;
-	int int_rx_tx;
+	struct tasklet_struct tx_tasklet;
 	int pmt;
 	unsigned int irq_mask;
 
