@@ -14,6 +14,7 @@
 #include <linux/gpio.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
+#include <linux/of_platform.h>
 #include <linux/clk-provider.h>
 
 #include <asm/setup.h>
@@ -30,6 +31,15 @@ static void __init at91rm9200_dt_timer_init(void)
 	at91rm9200_timer_init();
 }
 
+static void __init rm9200_dt_device_init(void)
+{
+	at91_rm9200_pm_init();
+
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+}
+
+
+
 static const char *at91rm9200_dt_board_compat[] __initdata = {
 	"atmel,at91rm9200",
 	NULL
@@ -39,5 +49,6 @@ DT_MACHINE_START(at91rm9200_dt, "Atmel AT91RM9200 (Device Tree)")
 	.init_time      = at91rm9200_dt_timer_init,
 	.map_io		= at91_map_io,
 	.init_early	= at91_dt_initialize,
+	.init_machine	= rm9200_dt_device_init,
 	.dt_compat	= at91rm9200_dt_board_compat,
 MACHINE_END

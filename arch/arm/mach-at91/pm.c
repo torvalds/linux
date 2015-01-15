@@ -266,7 +266,7 @@ put_node:
 #endif
 
 
-static int __init at91_pm_init(void)
+static void __init at91_pm_init(void)
 {
 #ifdef CONFIG_AT91_SLOW_CLOCK
 	at91_pm_sram_init();
@@ -274,29 +274,35 @@ static int __init at91_pm_init(void)
 
 	pr_info("AT91: Power Management%s\n", (slow_clock ? " (with slow clock mode)" : ""));
 
-	at91_pm_data.memctrl = AT91_MEMCTRL_SDRAMC;
-	at91_pm_data.uhp_udp_mask = AT91SAM926x_PMC_UHP | AT91SAM926x_PMC_UDP;
-
-	if (of_machine_is_compatible("atmel,at91rm9200")) {
-		/*
-		 * AT91RM9200 SDRAM low-power mode cannot be used with
-		 * self-refresh.
-		 */
-		at91_ramc_write(0, AT91RM9200_SDRAMC_LPR, 0);
-
-		at91_pm_data.uhp_udp_mask = AT91RM9200_PMC_UHP |
-					    AT91RM9200_PMC_UDP;
-		at91_pm_data.memctrl = AT91_MEMCTRL_MC;
-	} else if (of_machine_is_compatible("atmel,at91sam9g45")) {
-		at91_pm_data.uhp_udp_mask = AT91RM9200_PMC_UHP;
-		at91_pm_data.memctrl = AT91_MEMCTRL_DDRSDR;
-	}
-
 	if (at91_cpuidle_device.dev.platform_data)
 		platform_device_register(&at91_cpuidle_device);
 
 	suspend_set_ops(&at91_pm_ops);
-
-	return 0;
 }
-arch_initcall(at91_pm_init);
+
+void __init at91_rm9200_pm_init(void)
+{
+	/*
+	 * AT91RM9200 SDRAM low-power mode cannot be used with self-refresh.
+	 */
+	at91_ramc_write(0, AT91RM9200_SDRAMC_LPR, 0);
+
+	at91_pm_data.uhp_udp_mask = AT91RM9200_PMC_UHP | AT91RM9200_PMC_UDP;
+	at91_pm_data.memctrl = AT91_MEMCTRL_MC;
+
+	at91_pm_init();
+}
+
+void __init at91_sam9260_pm_init(void)
+{
+	at91_pm_data.memctrl = AT91_MEMCTRL_SDRAMC;
+	at91_pm_data.uhp_udp_mask = AT91SAM926x_PMC_UHP | AT91SAM926x_PMC_UDP;
+	return at91_pm_init();
+}
+
+void __init at91_sam9g45_pm_init(void)
+{
+	at91_pm_data.uhp_udp_mask = AT91SAM926x_PMC_UHP;
+	at91_pm_data.memctrl = AT91_MEMCTRL_DDRSDR;
+	return at91_pm_init();
+}

@@ -31,4 +31,16 @@ extern void at91sam9_idle(void);
 
 /* Matrix */
 extern void at91_ioremap_matrix(u32 base_addr);
+
+
+#ifdef CONFIG_PM
+extern void __init at91_rm9200_pm_init(void);
+extern void __init at91_sam9260_pm_init(void);
+extern void __init at91_sam9g45_pm_init(void);
+#else
+void __init at91_rm9200_pm_init(void) { }
+void __init at91_sam9260_pm_init(void) { }
+void __init at91_sam9g45_pm_init(void) { }
+#endif
+
 #endif /* _AT91_GENERIC_H */

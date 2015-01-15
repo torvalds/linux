@@ -13,6 +13,7 @@
 #include <linux/gpio.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
+#include <linux/of_platform.h>
 #include <linux/clk-provider.h>
 
 #include <asm/setup.h>
@@ -23,6 +24,12 @@
 
 #include "generic.h"
 
+static void __init sam9_dt_device_init(void)
+{
+	at91_sam9260_pm_init();
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+}
+
 static const char *at91_dt_board_compat[] __initdata = {
 	"atmel,at91sam9",
 	NULL
@@ -32,5 +39,25 @@ DT_MACHINE_START(at91sam_dt, "Atmel AT91SAM (Device Tree)")
 	/* Maintainer: Atmel */
 	.map_io		= at91_map_io,
 	.init_early	= at91_dt_initialize,
+	.init_machine	= sam9_dt_device_init,
 	.dt_compat	= at91_dt_board_compat,
+MACHINE_END
+
+static void __init sam9g45_dt_device_init(void)
+{
+	at91_sam9g45_pm_init();
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+}
+
+static const char *at91_9g45_board_compat[] __initconst = {
+	"atmel,at91sam9g45",
+	NULL
+};
+
+DT_MACHINE_START(at91sam9g45_dt, "Atmel AT91SAM9G45")
+	/* Maintainer: Atmel */
+	.map_io		= at91_map_io,
+	.init_early	= at91_dt_initialize,
+	.init_machine	= sam9g45_dt_device_init,
+	.dt_compat	= at91_9g45_board_compat,
 MACHINE_END
