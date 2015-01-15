@@ -286,6 +286,8 @@ struct rsnd_dai_stream {
 #define rsnd_io_to_mod_ssi(io)	((io)->mod[RSND_MOD_SSI])
 #define rsnd_io_to_mod_src(io)	((io)->mod[RSND_MOD_SRC])
 #define rsnd_io_to_mod_dvc(io)	((io)->mod[RSND_MOD_DVC])
+#define rsnd_io_to_runtime(io) ((io)->substream ? \
+				(io)->substream->runtime : NULL)
 
 struct rsnd_dai {
 	char name[RSND_DAI_NAME_SIZE];
@@ -311,8 +313,6 @@ struct rsnd_dai *rsnd_dai_get(struct rsnd_priv *priv, int id);
 int rsnd_dai_is_play(struct rsnd_dai *rdai, struct rsnd_dai_stream *io);
 int rsnd_dai_id(struct rsnd_priv *priv, struct rsnd_dai *rdai);
 #define rsnd_dai_get_platform_info(rdai) ((rdai)->info)
-#define rsnd_io_to_runtime(io) ((io)->substream ? \
-				(io)->substream->runtime : NULL)
 
 void rsnd_dai_pointer_update(struct rsnd_dai_stream *io, int cnt);
 int rsnd_dai_pointer_offset(struct rsnd_dai_stream *io, int additional);
