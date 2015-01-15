@@ -538,6 +538,7 @@ static const struct i2c_device_id ina2xx_id[] = {
 	{ "ina220", ina219 },
 	{ "ina226", ina226 },
 	{ "ina230", ina226 },
+	{ "ina231", ina226 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ina2xx_id);
