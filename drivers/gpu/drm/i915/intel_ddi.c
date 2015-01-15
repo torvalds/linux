@@ -909,6 +909,7 @@ hsw_ddi_calculate_wrpll(int clock /* in Hz */,
 
 static bool
 hsw_ddi_pll_select(struct intel_crtc *intel_crtc,
+		   struct intel_crtc_state *crtc_state,
 		   struct intel_encoder *intel_encoder,
 		   int clock)
 {
@@ -923,16 +924,16 @@ hsw_ddi_pll_select(struct intel_crtc *intel_crtc,
 		      WRPLL_DIVIDER_REFERENCE(r2) | WRPLL_DIVIDER_FEEDBACK(n2) |
 		      WRPLL_DIVIDER_POST(p);
 
-		intel_crtc->new_config->dpll_hw_state.wrpll = val;
+		crtc_state->dpll_hw_state.wrpll = val;
 
-		pll = intel_get_shared_dpll(intel_crtc);
+		pll = intel_get_shared_dpll(intel_crtc, crtc_state);
 		if (pll == NULL) {
 			DRM_DEBUG_DRIVER("failed to find PLL for pipe %c\n",
 					 pipe_name(intel_crtc->pipe));
 			return false;
 		}
 
-		intel_crtc->new_config->ddi_pll_sel = PORT_CLK_SEL_WRPLL(pll->id);
+		crtc_state->ddi_pll_sel = PORT_CLK_SEL_WRPLL(pll->id);
 	}
 
 	return true;
@@ -1095,6 +1096,7 @@ found:
 
 static bool
 skl_ddi_pll_select(struct intel_crtc *intel_crtc,
+		   struct intel_crtc_state *crtc_state,
 		   struct intel_encoder *intel_encoder,
 		   int clock)
 {
@@ -1144,11 +1146,11 @@ skl_ddi_pll_select(struct intel_crtc *intel_crtc,
 	} else /* eDP */
 		return true;
 
-	intel_crtc->new_config->dpll_hw_state.ctrl1 = ctrl1;
-	intel_crtc->new_config->dpll_hw_state.cfgcr1 = cfgcr1;
-	intel_crtc->new_config->dpll_hw_state.cfgcr2 = cfgcr2;
+	crtc_state->dpll_hw_state.ctrl1 = ctrl1;
+	crtc_state->dpll_hw_state.cfgcr1 = cfgcr1;
+	crtc_state->dpll_hw_state.cfgcr2 = cfgcr2;
 
-	pll = intel_get_shared_dpll(intel_crtc);
+	pll = intel_get_shared_dpll(intel_crtc, crtc_state);
 	if (pll == NULL) {
 		DRM_DEBUG_DRIVER("failed to find PLL for pipe %c\n",
 				 pipe_name(intel_crtc->pipe));
@@ -1156,7 +1158,7 @@ skl_ddi_pll_select(struct intel_crtc *intel_crtc,
 	}
 
 	/* shared DPLL id 0 is DPLL 1 */
-	intel_crtc->new_config->ddi_pll_sel = pll->id + 1;
+	crtc_state->ddi_pll_sel = pll->id + 1;
 
 	return true;
 }
@@ -1168,17 +1170,20 @@ skl_ddi_pll_select(struct intel_crtc *intel_crtc,
  * For private DPLLs, compute_config() should do the selection for us. This
  * function should be folded into compute_config() eventually.
  */
-bool intel_ddi_pll_select(struct intel_crtc *intel_crtc)
+bool intel_ddi_pll_select(struct intel_crtc *intel_crtc,
+			  struct intel_crtc_state *crtc_state)
 {
 	struct drm_device *dev = intel_crtc->base.dev;
 	struct intel_encoder *intel_encoder =
 		intel_ddi_get_crtc_new_encoder(intel_crtc);
-	int clock = intel_crtc->new_config->port_clock;
+	int clock = crtc_state->port_clock;
 
 	if (IS_SKYLAKE(dev))
-		return skl_ddi_pll_select(intel_crtc, intel_encoder, clock);
+		return skl_ddi_pll_select(intel_crtc, crtc_state,
+					  intel_encoder, clock);
 	else
-		return hsw_ddi_pll_select(intel_crtc, intel_encoder, clock);
+		return hsw_ddi_pll_select(intel_crtc, crtc_state,
+					  intel_encoder, clock);
 }
 
 void intel_ddi_set_pipe_settings(struct drm_crtc *crtc)
