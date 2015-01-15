@@ -19,7 +19,7 @@ gb-phy-y :=	gpb.o		\
 
 obj-m += greybus.o
 obj-m += gb-phy.o
-obj-m += vibrator-gb.o
+obj-m += gb-vibrator.o
 obj-m += battery-gb.o
 obj-m += es1-ap-usb.o
 
