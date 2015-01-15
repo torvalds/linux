@@ -984,7 +984,7 @@ static int __inject_pfault_init(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 	return 0;
 }
 
-int __inject_extcall(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
+static int __inject_extcall(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 {
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
 	struct kvm_s390_extcall_info *extcall = &li->irq.extcall;
