@@ -79,8 +79,8 @@ static void intel_psr_write_vsc(struct intel_dp *intel_dp,
 	struct drm_device *dev = dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc = to_intel_crtc(dig_port->base.base.crtc);
-	u32 ctl_reg = HSW_TVIDEO_DIP_CTL(crtc->config.cpu_transcoder);
-	u32 data_reg = HSW_TVIDEO_DIP_VSC_DATA(crtc->config.cpu_transcoder);
+	u32 ctl_reg = HSW_TVIDEO_DIP_CTL(crtc->config->cpu_transcoder);
+	u32 data_reg = HSW_TVIDEO_DIP_VSC_DATA(crtc->config->cpu_transcoder);
 	uint32_t *data = (uint32_t *) vsc_psr;
 	unsigned int i;
 
@@ -263,14 +263,14 @@ static bool intel_psr_match_conditions(struct intel_dp *intel_dp)
 	}
 
 	if (IS_HASWELL(dev) &&
-	    I915_READ(HSW_STEREO_3D_CTL(intel_crtc->config.cpu_transcoder)) &
+	    I915_READ(HSW_STEREO_3D_CTL(intel_crtc->config->cpu_transcoder)) &
 		      S3D_ENABLE) {
 		DRM_DEBUG_KMS("PSR condition failed: Stereo 3D is Enabled\n");
 		return false;
 	}
 
 	if (IS_HASWELL(dev) &&
-	    intel_crtc->config.base.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE) {
+	    intel_crtc->config->base.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE) {
 		DRM_DEBUG_KMS("PSR condition failed: Interlaced is Enabled\n");
 		return false;
 	}

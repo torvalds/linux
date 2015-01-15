@@ -2628,7 +2628,8 @@ static int i915_display_info(struct seq_file *m, void *unused)
 
 		seq_printf(m, "CRTC %d: pipe: %c, active=%s (size=%dx%d)\n",
 			   crtc->base.base.id, pipe_name(crtc->pipe),
-			   yesno(crtc->active), crtc->config.pipe_src_w, crtc->config.pipe_src_h);
+			   yesno(crtc->active), crtc->config->pipe_src_w,
+			   crtc->config->pipe_src_h);
 		if (crtc->active) {
 			intel_crtc_info(m, crtc);
 
@@ -3362,9 +3363,9 @@ static void hsw_trans_edp_pipe_A_crc_wa(struct drm_device *dev)
 	 * relevant on hsw with pipe A when using the always-on power well
 	 * routing.
 	 */
-	if (crtc->config.cpu_transcoder == TRANSCODER_EDP &&
-	    !crtc->config.pch_pfit.enabled) {
-		crtc->config.pch_pfit.force_thru = true;
+	if (crtc->config->cpu_transcoder == TRANSCODER_EDP &&
+	    !crtc->config->pch_pfit.enabled) {
+		crtc->config->pch_pfit.force_thru = true;
 
 		intel_display_power_get(dev_priv,
 					POWER_DOMAIN_PIPE_PANEL_FITTER(PIPE_A));
@@ -3388,8 +3389,8 @@ static void hsw_undo_trans_edp_pipe_A_crc_wa(struct drm_device *dev)
 	 * relevant on hsw with pipe A when using the always-on power well
 	 * routing.
 	 */
-	if (crtc->config.pch_pfit.force_thru) {
-		crtc->config.pch_pfit.force_thru = false;
+	if (crtc->config->pch_pfit.force_thru) {
+		crtc->config->pch_pfit.force_thru = false;
 
 		dev_priv->display.crtc_disable(&crtc->base);
 		dev_priv->display.crtc_enable(&crtc->base);

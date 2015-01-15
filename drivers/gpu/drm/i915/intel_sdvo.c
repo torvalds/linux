@@ -1007,7 +1007,7 @@ static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo,
 	}
 
 	if (intel_sdvo->rgb_quant_range_selectable) {
-		if (intel_crtc->config.limited_color_range)
+		if (intel_crtc->config->limited_color_range)
 			frame.avi.quantization_range =
 				HDMI_QUANTIZATION_RANGE_LIMITED;
 		else
@@ -1181,8 +1181,8 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc = to_intel_crtc(intel_encoder->base.crtc);
 	struct drm_display_mode *adjusted_mode =
-		&crtc->config.base.adjusted_mode;
-	struct drm_display_mode *mode = &crtc->config.base.mode;
+		&crtc->config->base.adjusted_mode;
+	struct drm_display_mode *mode = &crtc->config->base.mode;
 	struct intel_sdvo *intel_sdvo = to_sdvo(intel_encoder);
 	u32 sdvox;
 	struct intel_sdvo_in_out_map in_out;
@@ -1224,7 +1224,7 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder)
 	if (!intel_sdvo_set_target_input(intel_sdvo))
 		return;
 
-	if (crtc->config.has_hdmi_sink) {
+	if (crtc->config->has_hdmi_sink) {
 		intel_sdvo_set_encode(intel_sdvo, SDVO_ENCODE_HDMI);
 		intel_sdvo_set_colorimetry(intel_sdvo,
 					   SDVO_COLORIMETRY_RGB256);
@@ -1244,7 +1244,7 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder)
 		DRM_INFO("Setting input timings on %s failed\n",
 			 SDVO_NAME(intel_sdvo));
 
-	switch (crtc->config.pixel_multiplier) {
+	switch (crtc->config->pixel_multiplier) {
 	default:
 		WARN(1, "unknown pixel mutlipler specified\n");
 	case 1: rate = SDVO_CLOCK_RATE_MULT_1X; break;
@@ -1259,7 +1259,7 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder)
 		/* The real mode polarity is set by the SDVO commands, using
 		 * struct intel_sdvo_dtd. */
 		sdvox = SDVO_VSYNC_ACTIVE_HIGH | SDVO_HSYNC_ACTIVE_HIGH;
-		if (!HAS_PCH_SPLIT(dev) && crtc->config.limited_color_range)
+		if (!HAS_PCH_SPLIT(dev) && crtc->config->limited_color_range)
 			sdvox |= HDMI_COLOR_RANGE_16_235;
 		if (INTEL_INFO(dev)->gen < 5)
 			sdvox |= SDVO_BORDER_ENABLE;
@@ -1289,7 +1289,7 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder)
 	} else if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev)) {
 		/* done in crtc_mode_set as it lives inside the dpll register */
 	} else {
-		sdvox |= (crtc->config.pixel_multiplier - 1)
+		sdvox |= (crtc->config->pixel_multiplier - 1)
 			<< SDVO_PORT_MULTIPLY_SHIFT;
 	}
 

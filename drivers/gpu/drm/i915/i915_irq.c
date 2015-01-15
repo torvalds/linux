@@ -593,7 +593,7 @@ static u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 		struct intel_crtc *intel_crtc =
 			to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 		const struct drm_display_mode *mode =
-			&intel_crtc->config.base.adjusted_mode;
+			&intel_crtc->config->base.adjusted_mode;
 
 		htotal = mode->crtc_htotal;
 		hsync_start = mode->crtc_hsync_start;
@@ -664,7 +664,7 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	const struct drm_display_mode *mode = &crtc->config.base.adjusted_mode;
+	const struct drm_display_mode *mode = &crtc->config->base.adjusted_mode;
 	enum pipe pipe = crtc->pipe;
 	int position, vtotal;
 
@@ -691,7 +691,7 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	const struct drm_display_mode *mode = &intel_crtc->config.base.adjusted_mode;
+	const struct drm_display_mode *mode = &intel_crtc->config->base.adjusted_mode;
 	int position;
 	int vbl_start, vbl_end, hsync_start, htotal, vtotal;
 	bool in_vbl = true;
@@ -849,7 +849,7 @@ static int i915_get_vblank_timestamp(struct drm_device *dev, int pipe,
 	return drm_calc_vbltimestamp_from_scanoutpos(dev, pipe, max_error,
 						     vblank_time, flags,
 						     crtc,
-						     &to_intel_crtc(crtc)->config.base.adjusted_mode);
+						     &to_intel_crtc(crtc)->config->base.adjusted_mode);
 }
 
 static bool intel_hpd_irq_event(struct drm_device *dev,

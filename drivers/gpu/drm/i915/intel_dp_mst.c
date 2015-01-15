@@ -157,7 +157,8 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder)
 	if (intel_dp->active_mst_links == 0) {
 		enum port port = intel_ddi_get_encoder_port(encoder);
 
-		I915_WRITE(PORT_CLK_SEL(port), intel_crtc->config.ddi_pll_sel);
+		I915_WRITE(PORT_CLK_SEL(port),
+			   intel_crtc->config->ddi_pll_sel);
 
 		intel_ddi_init_dp_buf_reg(&intel_dig_port->base);
 
@@ -170,7 +171,8 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder)
 	}
 
 	ret = drm_dp_mst_allocate_vcpi(&intel_dp->mst_mgr,
-				       intel_mst->port, intel_crtc->config.pbn, &slots);
+				       intel_mst->port,
+				       intel_crtc->config->pbn, &slots);
 	if (ret == false) {
 		DRM_ERROR("failed to allocate vcpi\n");
 		return;
@@ -223,7 +225,7 @@ static void intel_dp_mst_enc_get_config(struct intel_encoder *encoder,
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	enum transcoder cpu_transcoder = crtc->config.cpu_transcoder;
+	enum transcoder cpu_transcoder = crtc->config->cpu_transcoder;
 	u32 temp, flags = 0;
 
 	pipe_config->has_dp_encoder = true;

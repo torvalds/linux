@@ -108,9 +108,9 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 	intel_state->clip.x1 = 0;
 	intel_state->clip.y1 = 0;
 	intel_state->clip.x2 =
-		intel_crtc->active ? intel_crtc->config.pipe_src_w : 0;
+		intel_crtc->active ? intel_crtc->config->pipe_src_w : 0;
 	intel_state->clip.y2 =
-		intel_crtc->active ? intel_crtc->config.pipe_src_h : 0;
+		intel_crtc->active ? intel_crtc->config->pipe_src_h : 0;
 
 	/*
 	 * Disabling a plane is always okay; we just need to update

@@ -1295,11 +1295,12 @@ static void ironlake_set_pll_cpu_edp(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 dpa_ctl;
 
-	DRM_DEBUG_KMS("eDP PLL enable for clock %d\n", crtc->config.port_clock);
+	DRM_DEBUG_KMS("eDP PLL enable for clock %d\n",
+		      crtc->config->port_clock);
 	dpa_ctl = I915_READ(DP_A);
 	dpa_ctl &= ~DP_PLL_FREQ_MASK;
 
-	if (crtc->config.port_clock == 162000) {
+	if (crtc->config->port_clock == 162000) {
 		/* For a long time we've carried around a ILK-DevA w/a for the
 		 * 160MHz clock. If we're really unlucky, it's still required.
 		 */
@@ -1324,7 +1325,7 @@ static void intel_dp_prepare(struct intel_encoder *encoder)
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	enum port port = dp_to_dig_port(intel_dp)->port;
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
-	struct drm_display_mode *adjusted_mode = &crtc->config.base.adjusted_mode;
+	struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
 
 	/*
 	 * There are four kinds of DP registers:
@@ -1352,7 +1353,7 @@ static void intel_dp_prepare(struct intel_encoder *encoder)
 	intel_dp->DP |= DP_VOLTAGE_0_4 | DP_PRE_EMPHASIS_0;
 	intel_dp->DP |= DP_PORT_WIDTH(intel_dp->lane_count);
 
-	if (crtc->config.has_audio)
+	if (crtc->config->has_audio)
 		intel_dp->DP |= DP_AUDIO_OUTPUT_ENABLE;
 
 	/* Split out the IBX/CPU vs CPT settings */
@@ -2102,7 +2103,7 @@ static void intel_disable_dp(struct intel_encoder *encoder)
 	struct drm_device *dev = encoder->base.dev;
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 
-	if (crtc->config.has_audio)
+	if (crtc->config->has_audio)
 		intel_audio_codec_disable(encoder);
 
 	if (HAS_PSR(dev) && !HAS_DDI(dev))
@@ -2312,7 +2313,7 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 	intel_dp_complete_link_train(intel_dp);
 	intel_dp_stop_link_train(intel_dp);
 
-	if (crtc->config.has_audio) {
+	if (crtc->config->has_audio) {
 		DRM_DEBUG_DRIVER("Enabling DP audio on pipe %c\n",
 				 pipe_name(crtc->pipe));
 		intel_audio_codec_enable(encoder);
@@ -4780,7 +4781,7 @@ static void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate)
 		return;
 	}
 
-	config = &intel_crtc->config;
+	config = intel_crtc->config;
 
 	if (dev_priv->drrs.type < SEAMLESS_DRRS_SUPPORT) {
 		DRM_DEBUG_KMS("Only Seamless DRRS supported.\n");
@@ -4803,7 +4804,7 @@ static void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate)
 	}
 
 	if (INTEL_INFO(dev)->gen > 6 && INTEL_INFO(dev)->gen < 8) {
-		reg = PIPECONF(intel_crtc->config.cpu_transcoder);
+		reg = PIPECONF(intel_crtc->config->cpu_transcoder);
 		val = I915_READ(reg);
 		if (index > DRRS_HIGH_RR) {
 			val |= PIPECONF_EDP_RR_MODE_SWITCH;

@@ -186,8 +186,8 @@ static void intel_enable_dvo(struct intel_encoder *encoder)
 	u32 temp = I915_READ(dvo_reg);
 
 	intel_dvo->dev.dev_ops->mode_set(&intel_dvo->dev,
-					 &crtc->config.base.mode,
-					 &crtc->config.base.adjusted_mode);
+					 &crtc->config->base.mode,
+					 &crtc->config->base.adjusted_mode);
 
 	I915_WRITE(dvo_reg, temp | DVO_ENABLE);
 	I915_READ(dvo_reg);
@@ -221,7 +221,7 @@ static void intel_dvo_dpms(struct drm_connector *connector, int mode)
 	/* We call connector dpms manually below in case pipe dpms doesn't
 	 * change due to cloning. */
 	if (mode == DRM_MODE_DPMS_ON) {
-		config = &to_intel_crtc(crtc)->config;
+		config = to_intel_crtc(crtc)->config;
 
 		intel_dvo->base.connectors_active = true;
 
@@ -295,7 +295,7 @@ static void intel_dvo_pre_enable(struct intel_encoder *encoder)
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
-	struct drm_display_mode *adjusted_mode = &crtc->config.base.adjusted_mode;
+	struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
 	int pipe = crtc->pipe;
 	u32 dvo_val;

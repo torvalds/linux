@@ -542,7 +542,7 @@ void intel_fbc_update(struct drm_device *dev)
 	intel_crtc = to_intel_crtc(crtc);
 	fb = crtc->primary->fb;
 	obj = intel_fb_obj(fb);
-	adjusted_mode = &intel_crtc->config.base.adjusted_mode;
+	adjusted_mode = &intel_crtc->config->base.adjusted_mode;
 
 	if (i915.enable_fbc < 0) {
 		if (set_no_fbc_reason(dev_priv, FBC_CHIP_DEFAULT))
@@ -572,8 +572,8 @@ void intel_fbc_update(struct drm_device *dev)
 		max_width = 2048;
 		max_height = 1536;
 	}
-	if (intel_crtc->config.pipe_src_w > max_width ||
-	    intel_crtc->config.pipe_src_h > max_height) {
+	if (intel_crtc->config->pipe_src_w > max_width ||
+	    intel_crtc->config->pipe_src_h > max_height) {
 		if (set_no_fbc_reason(dev_priv, FBC_MODE_TOO_LARGE))
 			DRM_DEBUG_KMS("mode too large for compression, disabling\n");
 		goto out_disable;
