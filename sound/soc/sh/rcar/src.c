@@ -294,10 +294,9 @@ static int rsnd_src_init(struct rsnd_mod *mod)
 }
 
 static int rsnd_src_quit(struct rsnd_mod *mod,
-			 struct rsnd_dai *rdai)
+			 struct rsnd_priv *priv)
 {
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 
 	rsnd_mod_hw_stop(mod);
@@ -449,9 +448,8 @@ static int rsnd_src_set_convert_rate_gen1(struct rsnd_mod *mod)
 }
 
 static int rsnd_src_probe_gen1(struct rsnd_mod *mod,
-			      struct rsnd_dai *rdai)
+			       struct rsnd_priv *priv)
 {
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 
 	dev_dbg(dev, "%s[%d] (Gen1) is probed\n",
@@ -461,7 +459,7 @@ static int rsnd_src_probe_gen1(struct rsnd_mod *mod,
 }
 
 static int rsnd_src_init_gen1(struct rsnd_mod *mod,
-			      struct rsnd_dai *rdai)
+			      struct rsnd_priv *priv)
 {
 	int ret;
 
@@ -485,7 +483,7 @@ static int rsnd_src_init_gen1(struct rsnd_mod *mod,
 }
 
 static int rsnd_src_start_gen1(struct rsnd_mod *mod,
-			       struct rsnd_dai *rdai)
+			       struct rsnd_priv *priv)
 {
 	int id = rsnd_mod_id(mod);
 
@@ -495,7 +493,7 @@ static int rsnd_src_start_gen1(struct rsnd_mod *mod,
 }
 
 static int rsnd_src_stop_gen1(struct rsnd_mod *mod,
-			      struct rsnd_dai *rdai)
+			      struct rsnd_priv *priv)
 {
 	int id = rsnd_mod_id(mod);
 
@@ -691,9 +689,8 @@ static int rsnd_src_set_convert_timing_gen2(struct rsnd_mod *mod)
 }
 
 static int rsnd_src_probe_gen2(struct rsnd_mod *mod,
-			       struct rsnd_dai *rdai)
+			       struct rsnd_priv *priv)
 {
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	int irq = src->info->irq;
@@ -733,15 +730,15 @@ rsnd_src_probe_gen2_fail:
 }
 
 static int rsnd_src_remove_gen2(struct rsnd_mod *mod,
-				struct rsnd_dai *rdai)
+				struct rsnd_priv *priv)
 {
-	rsnd_dma_quit(rsnd_mod_to_priv(mod), rsnd_mod_to_dma(mod));
+	rsnd_dma_quit(priv, rsnd_mod_to_dma(mod));
 
 	return 0;
 }
 
 static int rsnd_src_init_gen2(struct rsnd_mod *mod,
-			      struct rsnd_dai *rdai)
+			      struct rsnd_priv *priv)
 {
 	int ret;
 
@@ -761,7 +758,7 @@ static int rsnd_src_init_gen2(struct rsnd_mod *mod,
 }
 
 static int rsnd_src_start_gen2(struct rsnd_mod *mod,
-			       struct rsnd_dai *rdai)
+			       struct rsnd_priv *priv)
 {
 	rsnd_dma_start(rsnd_mod_to_dma(mod));
 
@@ -769,7 +766,7 @@ static int rsnd_src_start_gen2(struct rsnd_mod *mod,
 }
 
 static int rsnd_src_stop_gen2(struct rsnd_mod *mod,
-			      struct rsnd_dai *rdai)
+			      struct rsnd_priv *priv)
 {
 	int ret;
 

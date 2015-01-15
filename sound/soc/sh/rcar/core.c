@@ -414,7 +414,7 @@ u32 rsnd_get_adinr(struct rsnd_mod *mod)
 /*
  *	rsnd_dai functions
  */
-#define __rsnd_mod_call(mod, func, rdai...)			\
+#define __rsnd_mod_call(mod, func, param...)			\
 ({								\
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);		\
 	struct device *dev = rsnd_priv_to_dev(priv);		\
@@ -424,18 +424,18 @@ u32 rsnd_get_adinr(struct rsnd_mod *mod)
 	if ((mod->status & mask) == call) {				\
 		dev_dbg(dev, "%s[%d] %s\n",				\
 			rsnd_mod_name(mod), rsnd_mod_id(mod), #func);	\
-		ret = (mod)->ops->func(mod, rdai);			\
+		ret = (mod)->ops->func(mod, param);			\
 		mod->status = (mod->status & ~mask) | (~call & mask);	\
 	}								\
 	ret;								\
 })
 
-#define rsnd_mod_call(mod, func, rdai...)	\
+#define rsnd_mod_call(mod, func, param...)	\
 	(!(mod) ? -ENODEV :			\
 	 !((mod)->ops->func) ? 0 :		\
-	 __rsnd_mod_call(mod, func, rdai))
+	 __rsnd_mod_call(mod, func, param))
 
-#define rsnd_dai_call(fn, io, rdai...)				\
+#define rsnd_dai_call(fn, io, param...)				\
 ({								\
 	struct rsnd_mod *mod;					\
 	int ret = 0, i;						\
@@ -443,7 +443,7 @@ u32 rsnd_get_adinr(struct rsnd_mod *mod)
 		mod = (io)->mod[i];				\
 		if (!mod)					\
 			continue;				\
-		ret = rsnd_mod_call(mod, fn, rdai);		\
+		ret = rsnd_mod_call(mod, fn, param);		\
 		if (ret < 0)					\
 			break;					\
 	}							\
@@ -585,20 +585,20 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 		if (ret < 0)
 			goto dai_trigger_end;
 
-		ret = rsnd_dai_call(init, io, rdai);
+		ret = rsnd_dai_call(init, io, priv);
 		if (ret < 0)
 			goto dai_trigger_end;
 
-		ret = rsnd_dai_call(start, io, rdai);
+		ret = rsnd_dai_call(start, io, priv);
 		if (ret < 0)
 			goto dai_trigger_end;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		ret = rsnd_dai_call(stop, io, rdai);
+		ret = rsnd_dai_call(stop, io, priv);
 		if (ret < 0)
 			goto dai_trigger_end;
 
-		ret = rsnd_dai_call(quit, io, rdai);
+		ret = rsnd_dai_call(quit, io, priv);
 		if (ret < 0)
 			goto dai_trigger_end;
 
@@ -1109,11 +1109,11 @@ static int rsnd_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
 	int ret;
 
-	ret = rsnd_dai_call(pcm_new, &rdai->playback, rdai, rtd);
+	ret = rsnd_dai_call(pcm_new, &rdai->playback, rtd);
 	if (ret)
 		return ret;
 
-	ret = rsnd_dai_call(pcm_new, &rdai->capture, rdai, rtd);
+	ret = rsnd_dai_call(pcm_new, &rdai->capture, rtd);
 	if (ret)
 		return ret;
 
@@ -1136,10 +1136,9 @@ static const struct snd_soc_component_driver rsnd_soc_component = {
 static int rsnd_rdai_continuance_probe(struct rsnd_priv *priv,
 				       struct rsnd_dai_stream *io)
 {
-	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	int ret;
 
-	ret = rsnd_dai_call(probe, io, rdai);
+	ret = rsnd_dai_call(probe, io, priv);
 	if (ret == -EAGAIN) {
 		/*
 		 * Fallback to PIO mode
@@ -1152,7 +1151,7 @@ static int rsnd_rdai_continuance_probe(struct rsnd_priv *priv,
 		 *	rsnd_dma_init()
 		 *	rsnd_ssi_fallback()
 		 */
-		rsnd_dai_call(remove, io, rdai);
+		rsnd_dai_call(remove, io, priv);
 
 		/*
 		 * remove SRC/DVC from DAI,
@@ -1163,13 +1162,13 @@ static int rsnd_rdai_continuance_probe(struct rsnd_priv *priv,
 		/*
 		 * fallback
 		 */
-		rsnd_dai_call(fallback, io, rdai);
+		rsnd_dai_call(fallback, io, priv);
 
 		/*
 		 * retry to "probe".
 		 * DAI has SSI which is PIO mode only now.
 		 */
-		ret = rsnd_dai_call(probe, io, rdai);
+		ret = rsnd_dai_call(probe, io, priv);
 	}
 
 	return ret;
@@ -1272,8 +1271,8 @@ exit_snd_soc:
 	snd_soc_unregister_platform(dev);
 exit_snd_probe:
 	for_each_rsnd_dai(rdai, priv, i) {
-		rsnd_dai_call(remove, &rdai->playback, rdai);
-		rsnd_dai_call(remove, &rdai->capture, rdai);
+		rsnd_dai_call(remove, &rdai->playback, priv);
+		rsnd_dai_call(remove, &rdai->capture, priv);
 	}
 
 	return ret;
@@ -1288,8 +1287,8 @@ static int rsnd_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	for_each_rsnd_dai(rdai, priv, i) {
-		ret |= rsnd_dai_call(remove, &rdai->playback, rdai);
-		ret |= rsnd_dai_call(remove, &rdai->capture, rdai);
+		ret |= rsnd_dai_call(remove, &rdai->playback, priv);
+		ret |= rsnd_dai_call(remove, &rdai->capture, priv);
 	}
 
 	return ret;

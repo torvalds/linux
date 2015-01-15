@@ -200,22 +200,21 @@ struct rsnd_mod_ops {
 	char *name;
 	char* (*dma_name)(struct rsnd_mod *mod);
 	int (*probe)(struct rsnd_mod *mod,
-		     struct rsnd_dai *rdai);
+		     struct rsnd_priv *priv);
 	int (*remove)(struct rsnd_mod *mod,
-		      struct rsnd_dai *rdai);
+		      struct rsnd_priv *priv);
 	int (*init)(struct rsnd_mod *mod,
-		    struct rsnd_dai *rdai);
+		    struct rsnd_priv *priv);
 	int (*quit)(struct rsnd_mod *mod,
-		    struct rsnd_dai *rdai);
+		    struct rsnd_priv *priv);
 	int (*start)(struct rsnd_mod *mod,
-		     struct rsnd_dai *rdai);
+		     struct rsnd_priv *priv);
 	int (*stop)(struct rsnd_mod *mod,
-		    struct rsnd_dai *rdai);
+		    struct rsnd_priv *priv);
 	int (*pcm_new)(struct rsnd_mod *mod,
-		       struct rsnd_dai *rdai,
 		       struct snd_soc_pcm_runtime *rtd);
 	int (*fallback)(struct rsnd_mod *mod,
-			struct rsnd_dai *rdai);
+			struct rsnd_priv *priv);
 };
 
 struct rsnd_dai_stream;
