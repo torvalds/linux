@@ -106,11 +106,11 @@ sk_load_byte_slow:
 	lgr	%r2,%r9			# restore %r2
 	br	%r8
 
-	/* A = (*(u8 *)(skb->data+K) & 0xf) << 2 */
+	/* X = (*(u8 *)(skb->data+K) & 0xf) << 2 */
 ENTRY(sk_load_byte_msh)
 	llgfr	%r1,%r3			# extend offset
 	clr	%r11,%r3		# hlen < offset ?
-	jle	sk_load_byte_slow
+	jle	sk_load_byte_msh_slow
 	lhi	%r12,0
 	ic	%r12,0(%r1,%r10)	# get byte from skb
 	nill	%r12,0x0f
@@ -120,8 +120,8 @@ ENTRY(sk_load_byte_msh)
 
 sk_load_byte_msh_slow:
 	lgr	%r9,%r2			# save %r2
-	la	%r4,162(%r15)		# pointer to temp buffer
-	lhi	%r5,2			# 2 bytes
+	la	%r4,163(%r15)		# pointer to temp buffer
+	lhi	%r5,1			# 1 bytes
 	brasl	%r14,skb_copy_bits	# get data from skb
 	xc	160(3,%r15),160(%r15)
 	l	%r12,160(%r15)		# load result from temp buffer
