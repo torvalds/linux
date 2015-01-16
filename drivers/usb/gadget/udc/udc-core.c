@@ -321,6 +321,7 @@ err4:
 
 err3:
 	put_device(&udc->dev);
+	device_del(&gadget->dev);
 
 err2:
 	put_device(&gadget->dev);
