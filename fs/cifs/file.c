@@ -1125,7 +1125,7 @@ cifs_push_posix_locks(struct cifsFileInfo *cfile)
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 	struct file_lock *flock;
 	struct file_lock_context *flctx = inode->i_flctx;
-	unsigned int count = 0, i;
+	unsigned int i;
 	int rc = 0, xid, type;
 	struct list_head locks_to_send, *el;
 	struct lock_to_push *lck, *tmp;
@@ -1136,20 +1136,14 @@ cifs_push_posix_locks(struct cifsFileInfo *cfile)
 	if (!flctx)
 		goto out;
 
-	spin_lock(&flctx->flc_lock);
-	list_for_each(el, &flctx->flc_posix) {
-		count++;
-	}
-	spin_unlock(&flctx->flc_lock);
-
 	INIT_LIST_HEAD(&locks_to_send);
 
 	/*
-	 * Allocating count locks is enough because no FL_POSIX locks can be
-	 * added to the list while we are holding cinode->lock_sem that
+	 * Allocating flc_posix_cnt locks is enough because no FL_POSIX locks
+	 * can be added to the list while we are holding cinode->lock_sem that
 	 * protects locking operations of this inode.
 	 */
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < flctx->flc_posix_cnt; i++) {
 		lck = kmalloc(sizeof(struct lock_to_push), GFP_KERNEL);
 		if (!lck) {
 			rc = -ENOMEM;

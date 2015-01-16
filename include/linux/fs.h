@@ -972,6 +972,9 @@ struct file_lock_context {
 	struct list_head	flc_flock;
 	struct list_head	flc_posix;
 	struct list_head	flc_lease;
+	int			flc_flock_cnt;
+	int			flc_posix_cnt;
+	int			flc_lease_cnt;
 };
 
 /* The following constant reflects the upper bound of the file/locking space */
