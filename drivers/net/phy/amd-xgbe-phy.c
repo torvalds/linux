@@ -76,6 +76,8 @@
 #include <linux/of_device.h>
 #include <linux/uaccess.h>
 #include <linux/bitops.h>
+#include <linux/property.h>
+#include <linux/acpi.h>
 
 MODULE_AUTHOR("Tom Lendacky <thomas.lendacky@amd.com>");
 MODULE_LICENSE("Dual BSD/GPL");
@@ -323,12 +325,13 @@ enum amd_xgbe_phy_mode {
 };
 
 enum amd_xgbe_phy_speedset {
-	AMD_XGBE_PHY_SPEEDSET_1000_10000,
+	AMD_XGBE_PHY_SPEEDSET_1000_10000 = 0,
 	AMD_XGBE_PHY_SPEEDSET_2500_10000,
 };
 
 struct amd_xgbe_phy_priv {
 	struct platform_device *pdev;
+	struct acpi_device *adev;
 	struct device *dev;
 
 	struct phy_device *phydev;
@@ -1420,46 +1423,94 @@ static int amd_xgbe_phy_resume(struct phy_device *phydev)
 	return 0;
 }
 
+static unsigned int amd_xgbe_phy_resource_count(struct platform_device *pdev,
+						unsigned int type)
+{
+	unsigned int count;
+	int i;
+
+	for (i = 0, count = 0; i < pdev->num_resources; i++) {
+		struct resource *r = &pdev->resource[i];
+
+		if (type == resource_type(r))
+			count++;
+	}
+
+	return count;
+}
+
 static int amd_xgbe_phy_probe(struct phy_device *phydev)
 {
 	struct amd_xgbe_phy_priv *priv;
-	struct platform_device *pdev;
-	struct device *dev;
-	const __be32 *property;
-	unsigned int speed_set;
+	struct platform_device *phy_pdev;
+	struct device *dev, *phy_dev;
+	unsigned int phy_resnum, phy_irqnum;
 	int ret;
 
-	if (!phydev->dev.of_node)
+	if (!phydev->bus || !phydev->bus->parent)
 		return -EINVAL;
 
-	pdev = of_find_device_by_node(phydev->dev.of_node);
-	if (!pdev)
-		return -EINVAL;
-	dev = &pdev->dev;
+	dev = phydev->bus->parent;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		ret = -ENOMEM;
-		goto err_pdev;
-	}
+	if (!priv)
+		return -ENOMEM;
 
-	priv->pdev = pdev;
+	priv->pdev = to_platform_device(dev);
+	priv->adev = ACPI_COMPANION(dev);
 	priv->dev = dev;
 	priv->phydev = phydev;
 	mutex_init(&priv->an_mutex);
 	INIT_WORK(&priv->an_irq_work, amd_xgbe_an_irq_work);
 	INIT_WORK(&priv->an_work, amd_xgbe_an_state_machine);
 
+	if (!priv->adev || acpi_disabled) {
+		struct device_node *bus_node;
+		struct device_node *phy_node;
+
+		bus_node = priv->dev->of_node;
+		phy_node = of_parse_phandle(bus_node, "phy-handle", 0);
+		if (!phy_node) {
+			dev_err(dev, "unable to parse phy-handle\n");
+			ret = -EINVAL;
+			goto err_priv;
+		}
+
+		phy_pdev = of_find_device_by_node(phy_node);
+		of_node_put(phy_node);
+
+		if (!phy_pdev) {
+			dev_err(dev, "unable to obtain phy device\n");
+			ret = -EINVAL;
+			goto err_priv;
+		}
+
+		phy_resnum = 0;
+		phy_irqnum = 0;
+	} else {
+		/* In ACPI, the XGBE and PHY resources are the grouped
+		 * together with the PHY resources at the end
+		 */
+		phy_pdev = priv->pdev;
+		phy_resnum = amd_xgbe_phy_resource_count(phy_pdev,
+							 IORESOURCE_MEM) - 3;
+		phy_irqnum = amd_xgbe_phy_resource_count(phy_pdev,
+							 IORESOURCE_IRQ) - 1;
+	}
+	phy_dev = &phy_pdev->dev;
+
 	/* Get the device mmio areas */
-	priv->rxtx_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	priv->rxtx_res = platform_get_resource(phy_pdev, IORESOURCE_MEM,
+					       phy_resnum++);
 	priv->rxtx_regs = devm_ioremap_resource(dev, priv->rxtx_res);
 	if (IS_ERR(priv->rxtx_regs)) {
 		dev_err(dev, "rxtx ioremap failed\n");
 		ret = PTR_ERR(priv->rxtx_regs);
-		goto err_priv;
+		goto err_put;
 	}
 
-	priv->sir0_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	priv->sir0_res = platform_get_resource(phy_pdev, IORESOURCE_MEM,
+					       phy_resnum++);
 	priv->sir0_regs = devm_ioremap_resource(dev, priv->sir0_res);
 	if (IS_ERR(priv->sir0_regs)) {
 		dev_err(dev, "sir0 ioremap failed\n");
@@ -1467,7 +1518,8 @@ static int amd_xgbe_phy_probe(struct phy_device *phydev)
 		goto err_rxtx;
 	}
 
-	priv->sir1_res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+	priv->sir1_res = platform_get_resource(phy_pdev, IORESOURCE_MEM,
+					       phy_resnum++);
 	priv->sir1_regs = devm_ioremap_resource(dev, priv->sir1_res);
 	if (IS_ERR(priv->sir1_regs)) {
 		dev_err(dev, "sir1 ioremap failed\n");
@@ -1476,7 +1528,7 @@ static int amd_xgbe_phy_probe(struct phy_device *phydev)
 	}
 
 	/* Get the auto-negotiation interrupt */
-	ret = platform_get_irq(pdev, 0);
+	ret = platform_get_irq(phy_pdev, phy_irqnum);
 	if (ret < 0) {
 		dev_err(dev, "platform_get_irq failed\n");
 		goto err_sir1;
@@ -1484,28 +1536,29 @@ static int amd_xgbe_phy_probe(struct phy_device *phydev)
 	priv->an_irq = ret;
 
 	/* Get the device speed set property */
-	speed_set = 0;
-	property = of_get_property(dev->of_node, XGBE_PHY_SPEEDSET_PROPERTY,
-				   NULL);
-	if (property)
-		speed_set = be32_to_cpu(*property);
+	ret = device_property_read_u32(phy_dev, XGBE_PHY_SPEEDSET_PROPERTY,
+				       &priv->speed_set);
+	if (ret) {
+		dev_err(dev, "invalid %s property\n",
+			XGBE_PHY_SPEEDSET_PROPERTY);
+		goto err_sir1;
+	}
 
-	switch (speed_set) {
-	case 0:
-		priv->speed_set = AMD_XGBE_PHY_SPEEDSET_1000_10000;
-		break;
-	case 1:
-		priv->speed_set = AMD_XGBE_PHY_SPEEDSET_2500_10000;
+	switch (priv->speed_set) {
+	case AMD_XGBE_PHY_SPEEDSET_1000_10000:
+	case AMD_XGBE_PHY_SPEEDSET_2500_10000:
 		break;
 	default:
-		dev_err(dev, "invalid amd,speed-set property\n");
+		dev_err(dev, "invalid %s property\n",
+			XGBE_PHY_SPEEDSET_PROPERTY);
 		ret = -EINVAL;
 		goto err_sir1;
 	}
 
 	phydev->priv = priv;
 
-	of_dev_put(pdev);
+	if (!priv->adev || acpi_disabled)
+		platform_device_put(phy_pdev);
 
 	return 0;
 
@@ -1524,11 +1577,12 @@ err_rxtx:
 	devm_release_mem_region(dev, priv->rxtx_res->start,
 				resource_size(priv->rxtx_res));
 
+err_put:
+	if (!priv->adev || acpi_disabled)
+		platform_device_put(phy_pdev);
+
 err_priv:
 	devm_kfree(dev, priv);
-
-err_pdev:
-	of_dev_put(pdev);
 
 	return ret;
 }
