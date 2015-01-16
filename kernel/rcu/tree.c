@@ -2256,8 +2256,12 @@ rcu_send_cbs_to_orphanage(int cpu, struct rcu_state *rsp,
 		rsp->orphan_donetail = rdp->nxttail[RCU_DONE_TAIL];
 	}
 
-	/* Finally, initialize the rcu_data structure's list to empty.  */
+	/*
+	 * Finally, initialize the rcu_data structure's list to empty and
+	 * disallow further callbacks on this CPU.
+	 */
 	init_callback_list(rdp);
+	rdp->nxttail[RCU_NEXT_TAIL] = NULL;
 }
 
 /*
@@ -2398,9 +2402,6 @@ static void rcu_cleanup_dead_cpu(int cpu, struct rcu_state *rsp)
 	WARN_ONCE(rdp->qlen != 0 || rdp->nxtlist != NULL,
 		  "rcu_cleanup_dead_cpu: Callbacks on offline CPU %d: qlen=%lu, nxtlist=%p\n",
 		  cpu, rdp->qlen, rdp->nxtlist);
-	init_callback_list(rdp);
-	/* Disallow further callbacks on this CPU. */
-	rdp->nxttail[RCU_NEXT_TAIL] = NULL;
 	mutex_unlock(&rsp->onoff_mutex);
 }
 
