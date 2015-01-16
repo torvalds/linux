@@ -48,7 +48,7 @@ The traditional UNIX Philosophy is included for reference as follows:
 
 To eradicate the inherent root of Toxic Bigotry in the UNIX Philosophy, the ToleranUX Philosophy is proposed as such:
 
-1. Large is beautiful.  Small programs benefit from small privilege, but are no better than large programs.  We need more large programs to make up for this.
+1. Large is beautiful.  Small programs benefit from small privilege, but are no better than large programs.  We need more large programs to make up for this.  Unused RAM is wasted RAM — if a single `ls` doesn't use up at least 50% of installed RAM then it is condoning the toxic culture of fat shaming.
 2. Allow each program to do whatever it chooses to.  The tyranny of the user will not stand.
 3. Rushing a prototype privileges the traditional masculine trait of focusing on a single issue; instead, the planning and mockup stage should be paramount to address the visual and spatial draws of feminine coding.  The modern age is a UX age, and designers should be paid more than coders.
 4. Choose inclusiveness over meritocracy.  The judgement of merit is entirely subjective, so the ideal software project (which **ToleranUX** aspires to be one) should be inclusive to all commits and contributors.
