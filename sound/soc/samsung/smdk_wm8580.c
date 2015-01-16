@@ -32,7 +32,6 @@ static int smdk_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	unsigned int pll_out;
 	int bfs, rfs, ret;
@@ -76,20 +75,6 @@ static int smdk_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 	pll_out = params_rate(params) * rfs;
-
-	/* Set the Codec DAI configuration */
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S
-					 | SND_SOC_DAIFMT_NB_NF
-					 | SND_SOC_DAIFMT_CBM_CFM);
-	if (ret < 0)
-		return ret;
-
-	/* Set the AP DAI configuration */
-	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S
-					 | SND_SOC_DAIFMT_NB_NF
-					 | SND_SOC_DAIFMT_CBM_CFM);
-	if (ret < 0)
-		return ret;
 
 	/* Set WM8580 to drive MCLK from its PLLA */
 	ret = snd_soc_dai_set_clkdiv(codec_dai, WM8580_MCLK,
@@ -168,6 +153,9 @@ enum {
 	SEC_PLAYBACK,
 };
 
+#define SMDK_DAI_FMT (SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | \
+	SND_SOC_DAIFMT_CBM_CFM)
+
 static struct snd_soc_dai_link smdk_dai[] = {
 	[PRI_PLAYBACK] = { /* Primary Playback i/f */
 		.name = "WM8580 PAIF RX",
@@ -176,6 +164,7 @@ static struct snd_soc_dai_link smdk_dai[] = {
 		.codec_dai_name = "wm8580-hifi-playback",
 		.platform_name = "samsung-i2s.0",
 		.codec_name = "wm8580.0-001b",
+		.dai_fmt = SMDK_DAI_FMT,
 		.ops = &smdk_ops,
 	},
 	[PRI_CAPTURE] = { /* Primary Capture i/f */
@@ -185,6 +174,7 @@ static struct snd_soc_dai_link smdk_dai[] = {
 		.codec_dai_name = "wm8580-hifi-capture",
 		.platform_name = "samsung-i2s.0",
 		.codec_name = "wm8580.0-001b",
+		.dai_fmt = SMDK_DAI_FMT,
 		.init = smdk_wm8580_init_paiftx,
 		.ops = &smdk_ops,
 	},
@@ -195,6 +185,7 @@ static struct snd_soc_dai_link smdk_dai[] = {
 		.codec_dai_name = "wm8580-hifi-playback",
 		.platform_name = "samsung-i2s-sec",
 		.codec_name = "wm8580.0-001b",
+		.dai_fmt = SMDK_DAI_FMT,
 		.ops = &smdk_ops,
 	},
 };
