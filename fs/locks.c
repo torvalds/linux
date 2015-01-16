@@ -2360,6 +2360,30 @@ void locks_remove_posix(struct file *filp, fl_owner_t owner)
 
 EXPORT_SYMBOL(locks_remove_posix);
 
+static void
+locks_remove_flock(struct file *filp)
+{
+	struct file_lock fl = {
+		.fl_owner = filp,
+		.fl_pid = current->tgid,
+		.fl_file = filp,
+		.fl_flags = FL_FLOCK,
+		.fl_type = F_UNLCK,
+		.fl_end = OFFSET_MAX,
+	};
+
+	if (!file_inode(filp)->i_flock)
+		return;
+
+	if (filp->f_op->flock)
+		filp->f_op->flock(filp, F_SETLKW, &fl);
+	else
+		flock_lock_file(filp, &fl);
+
+	if (fl.fl_ops && fl.fl_ops->fl_release_private)
+		fl.fl_ops->fl_release_private(&fl);
+}
+
 /*
  * This function is called on the last close of an open file.
  */
@@ -2370,24 +2394,14 @@ void locks_remove_file(struct file *filp)
 	struct file_lock **before;
 	LIST_HEAD(dispose);
 
-	if (!inode->i_flock)
-		return;
-
+	/* remove any OFD locks */
 	locks_remove_posix(filp, filp);
 
-	if (filp->f_op->flock) {
-		struct file_lock fl = {
-			.fl_owner = filp,
-			.fl_pid = current->tgid,
-			.fl_file = filp,
-			.fl_flags = FL_FLOCK,
-			.fl_type = F_UNLCK,
-			.fl_end = OFFSET_MAX,
-		};
-		filp->f_op->flock(filp, F_SETLKW, &fl);
-		if (fl.fl_ops && fl.fl_ops->fl_release_private)
-			fl.fl_ops->fl_release_private(&fl);
-	}
+	/* remove flock locks */
+	locks_remove_flock(filp);
+
+	if (!inode->i_flock)
+		return;
 
 	spin_lock(&inode->i_lock);
 	before = &inode->i_flock;
@@ -2407,8 +2421,7 @@ void locks_remove_file(struct file *filp)
 			 * some info about it and then just remove it from
 			 * the list.
 			 */
-			WARN(!IS_FLOCK(fl),
-				"leftover lock: dev=%u:%u ino=%lu type=%hhd flags=0x%x start=%lld end=%lld\n",
+			WARN(1, "leftover lock: dev=%u:%u ino=%lu type=%hhd flags=0x%x start=%lld end=%lld\n",
 				MAJOR(inode->i_sb->s_dev),
 				MINOR(inode->i_sb->s_dev), inode->i_ino,
 				fl->fl_type, fl->fl_flags,
