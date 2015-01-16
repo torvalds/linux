@@ -10,7 +10,7 @@ A project of the Feminist Software Foundation. Feminist software is a cornerston
 ToleranUX
 ===============
 
-**ToleranUX** (like UNIX, but with more Toblerone and Tolerance) is the world's first UNIX-like operating system kernel that adheres to the 21st Century modern tenants of Equality, Inclusiveness, and Tolerance.  **ToleranUX** is created to revolutionise the Toxic Meritocracy that permeates the FOSS (Free and Open Source Software) world that has proved itself to be the crux of divisiveness, the cause of the gender imbalance in IT, and the bane of True Equality.
+**ToleranUX** (like UNIX, but with more Toblerone and Tolerance) is the world's first [UNIX-like]( operating system kernel that adheres to the 21st Century modern tenants of Equality, Inclusiveness, and Tolerance.  **ToleranUX** is created to revolutionise the Toxic Meritocracy that permeates the FOSS (Free and Open Source Software) world that has proved itself to be the crux of divisiveness, the cause of the gender imbalance in IT, and the bane of True Equality.
 
 In light of the continued reign of Linus Torvalds as the sole, white, cisgendered and male project ~~leader~~ dictator of the (in)famous Linux kernel, the Feminist Software Foundation has forked where no feminist has forked and **reclaimed** the software bits to **all people**.
 
@@ -22,7 +22,7 @@ The creation of **ToleranUX** marks the first step towards the liberation of all
 
 ### How to contribute
 
-Absolutely no coding experience is necessary: all code are equal in the eyes of the Feminist Software Foundation.  Simply submit a pull request for any submission, whether code, artwork, or even irrelevant bits — nothing is irrelevant in the grand struggle for a Truly Tolerant UNIX-ike Kernel!
+Absolutely no coding experience is necessary: all code are equal in the eyes of the Feminist Software Foundation.  There is no objective way to determine whether one person's code is better than another's. In light of this fact, all submitted code will be equally accepted.  However, marginalized groups, such as wom*n and trans* will be given priority in order to make up for past discrimination.  Simply submit a pull request for any submission, whether code, artwork, or even irrelevant bits — nothing is irrelevant in the grand struggle for a Truly Tolerant UNIX-ike Kernel!
 
 The ToleranUX Philosophy
 ==========
