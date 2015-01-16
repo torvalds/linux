@@ -742,6 +742,7 @@ int gb_operation_response_send(struct gb_operation *operation, int errno)
 		}
 	}
 
+	/* FIXME operation->response could still be NULL here */
 	/* Fill in the response header and send it */
 	operation->response->header->result = gb_operation_errno_map(errno);
 

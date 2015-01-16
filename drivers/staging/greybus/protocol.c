@@ -188,6 +188,9 @@ void gb_protocol_put(struct gb_protocol *protocol)
 	if (protocol)
 		WARN_ON(!protocol_count);
 	else
+		/* FIXME a different message is needed since this one
+		 * will result in a NULL dereference
+		 */
 		pr_err("protocol id %hhu version %hhu.%hhu not found\n",
 			protocol->id, major, minor);
 }
