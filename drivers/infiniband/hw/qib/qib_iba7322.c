@@ -158,6 +158,7 @@ MODULE_PARM_DESC(txselect, \
 
 #define BOARD_QME7342 5
 #define BOARD_QMH7342 6
+#define BOARD_QMH7360 9
 #define IS_QMH(dd) (SYM_FIELD((dd)->revision, Revision, BoardID) == \
 		    BOARD_QMH7342)
 #define IS_QME(dd) (SYM_FIELD((dd)->revision, Revision, BoardID) == \
@@ -3615,6 +3616,10 @@ static unsigned qib_7322_boardname(struct qib_devdata *dd)
 		break;
 	case 8:
 		n = "InfiniPath_QME7362";
+		dd->flags |= QIB_HAS_QSFP;
+		break;
+	case BOARD_QMH7360:
+		n = "Intel IB QDR 1P FLR-QSFP Adptr";
 		dd->flags |= QIB_HAS_QSFP;
 		break;
 	case 15:
