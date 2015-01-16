@@ -12,6 +12,8 @@ A project of the Feminist Software Foundation. Feminist software is a cornerston
 ToleranUX
 ===============
 
+  ![ToleranUX logo](http://i.imgur.com/BLaIpzJ.png)
+
 **ToleranUX** (like UNIX, but with more Toblerone and Tolerance) is the world's first [UNIX-like](https://en.wikipedia.org/wiki/Unix-like) operating system kernel that adheres to the 21st Century modern tenets of Equality, Inclusiveness, and Tolerance.  **ToleranUX** is created to revolutionise the [Toxic Meritocracy](http://geekfeminism.wikia.com/wiki/Meritocracy) that permeates the [FLOSS (Free, Libre, and Open Source Software)](http://geekfeminism.wikia.com/wiki/FLOSS) world that has proved itself to be the crux of divisiveness, the cause of the gender imbalance in IT, and the bane of True Equality.
 
 In light of the continued reign of [Linus Torvalds](https://en.wikipedia.org/wiki/Linus_Torvalds) as the sole, white, cisgendered and male project ~~leader~~ dictator of the (in)famous [Linux kernel](http://geekfeminism.wikia.com/wiki/Linux), the Feminist Software Foundation has forked where no feminist has forked and **reclaimed** the software bits to **all people**.
