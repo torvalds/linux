@@ -1525,6 +1525,15 @@ static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 	complete(waiting);
 }
 
+static bool ata_valid_internal_tag(struct ata_port *ap, struct ata_device *dev,
+				   unsigned int tag)
+{
+	if (!ap->scsi_host)
+		return !test_and_set_bit(tag, &ap->sas_tag_allocated);
+	return !dev->sdev ||
+	       !blk_queue_find_tag(dev->sdev->request_queue, tag);
+}
+
 /**
  *	ata_exec_internal_sg - execute libata internal command
  *	@dev: Device to which the command is sent
@@ -1585,8 +1594,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	else
 		tag = 0;
 
-	if (test_and_set_bit(tag, &ap->qc_allocated))
-		BUG();
+	BUG_ON(!ata_valid_internal_tag(ap, dev, tag));
 	qc = __ata_qc_from_tag(ap, tag);
 
 	qc->tag = tag;
@@ -4737,32 +4745,46 @@ void swap_buf_le16(u16 *buf, unsigned int buf_words)
  *	None.
  */
 
-static struct ata_queued_cmd *ata_qc_new(struct ata_port *ap)
+static struct ata_queued_cmd *sas_ata_qc_new(struct ata_port *ap)
 {
 	struct ata_queued_cmd *qc = NULL;
 	unsigned int max_queue = ap->host->n_tags;
 	unsigned int i, tag;
 
-	/* no command while frozen */
-	if (unlikely(ap->pflags & ATA_PFLAG_FROZEN))
-		return NULL;
-
-	for (i = 0, tag = ap->last_tag + 1; i < max_queue; i++, tag++) {
+	for (i = 0, tag = ap->sas_last_tag + 1; i < max_queue; i++, tag++) {
 		tag = tag < max_queue ? tag : 0;
 
 		/* the last tag is reserved for internal command. */
 		if (tag == ATA_TAG_INTERNAL)
 			continue;
 
-		if (!test_and_set_bit(tag, &ap->qc_allocated)) {
+		if (!test_and_set_bit(tag, &ap->sas_tag_allocated)) {
 			qc = __ata_qc_from_tag(ap, tag);
 			qc->tag = tag;
-			ap->last_tag = tag;
+			ap->sas_last_tag = tag;
 			break;
 		}
 	}
 
 	return qc;
+}
+
+static struct ata_queued_cmd *ata_qc_new(struct ata_port *ap, int blktag)
+{
+	struct ata_queued_cmd *qc;
+
+	/* no command while frozen */
+	if (unlikely(ap->pflags & ATA_PFLAG_FROZEN))
+		return NULL;
+
+	/* SATA will directly use block tag. libsas need its own tag management */
+	if (ap->scsi_host) {
+		qc = __ata_qc_from_tag(ap, blktag);
+		qc->tag = blktag;
+		return qc;
+	}
+
+	return sas_ata_qc_new(ap);
 }
 
 /**
@@ -4773,12 +4795,12 @@ static struct ata_queued_cmd *ata_qc_new(struct ata_port *ap)
  *	None.
  */
 
-struct ata_queued_cmd *ata_qc_new_init(struct ata_device *dev)
+struct ata_queued_cmd *ata_qc_new_init(struct ata_device *dev, int blktag)
 {
 	struct ata_port *ap = dev->link->ap;
 	struct ata_queued_cmd *qc;
 
-	qc = ata_qc_new(ap);
+	qc = ata_qc_new(ap, blktag);
 	if (qc) {
 		qc->scsicmd = NULL;
 		qc->ap = ap;
@@ -4800,6 +4822,12 @@ struct ata_queued_cmd *ata_qc_new_init(struct ata_device *dev)
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
+static void sas_ata_qc_free(unsigned int tag, struct ata_port *ap)
+{
+	if (!ap->scsi_host)
+		clear_bit(tag, &ap->sas_tag_allocated);
+}
+
 void ata_qc_free(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap;
@@ -4812,7 +4840,7 @@ void ata_qc_free(struct ata_queued_cmd *qc)
 	tag = qc->tag;
 	if (likely(ata_tag_valid(tag))) {
 		qc->tag = ATA_TAG_POISON;
-		clear_bit(tag, &ap->qc_allocated);
+		sas_ata_qc_free(tag, ap);
 	}
 }
 
