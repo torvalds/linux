@@ -23,6 +23,7 @@
 #include "bits.h"
 #include "otg.h"
 #include "otg_fsm.h"
+#include "host.h"
 
 /**
  * hw_read_otgsc returns otgsc register bits value.
@@ -89,6 +90,12 @@ void ci_handle_id_switch(struct ci_hdrc *ci)
 	if (role != ci->role) {
 		dev_dbg(ci->dev, "switching from %s to %s\n",
 			ci_role(ci)->name, ci->roles[role]->name);
+
+		while (ci_hdrc_host_has_device(ci)) {
+			enable_irq(ci->irq);
+			usleep_range(10000, 15000);
+			disable_irq_nosync(ci->irq);
+		}
 
 		ci_role_stop(ci);
 		/* wait vbus lower than OTGSC_BSV */
