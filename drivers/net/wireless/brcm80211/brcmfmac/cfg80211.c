@@ -3737,17 +3737,12 @@ static u32
 brcmf_vndr_ie(u8 *iebuf, s32 pktflag, u8 *ie_ptr, u32 ie_len, s8 *add_del_cmd)
 {
 
-	__le32 iecount_le;
-	__le32 pktflag_le;
-
 	strncpy(iebuf, add_del_cmd, VNDR_IE_CMD_LEN - 1);
 	iebuf[VNDR_IE_CMD_LEN - 1] = '\0';
 
-	iecount_le = cpu_to_le32(1);
-	memcpy(&iebuf[VNDR_IE_COUNT_OFFSET], &iecount_le, sizeof(iecount_le));
+	put_unaligned_le32(1, &iebuf[VNDR_IE_COUNT_OFFSET]);
 
-	pktflag_le = cpu_to_le32(pktflag);
-	memcpy(&iebuf[VNDR_IE_PKTFLAG_OFFSET], &pktflag_le, sizeof(pktflag_le));
+	put_unaligned_le32(pktflag, &iebuf[VNDR_IE_PKTFLAG_OFFSET]);
 
 	memcpy(&iebuf[VNDR_IE_VSIE_OFFSET], ie_ptr, ie_len);
 
