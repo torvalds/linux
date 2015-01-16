@@ -78,6 +78,12 @@ When one considers the [monolithic kernel paradigm](http://en.wikipedia.org/wiki
 
 This so-called "pointer diversity" is extremely important in encouraging equal runtime to the otherwise disenfranchised userspace addresses.  A pan-kernel daemon `ProgressiveD` shall be implemented that oversees the runtime privileges of all things — from the biggest forkbombs to the smallest variables — all shall be equalised according to the [**Progressive Stack**](https://en.wikipedia.org/wiki/Progressive_stack).  Additionally, the server messenger system (from now on referred to as **"deconstructional dialogue"**) enables the calling out and shaming of problematic behaviour among any server deemed problematic.
 
+### Processes and forking
+
+Processes in **ToleranUX** do not follow the antiquated patriarchal practices of UNIX. In **ToleranUX**, processes *diverse*.
+
+In sexist FOSS software, this would be a *fork*.  This term, for being so commonplace and existing in the roots of how an OS handles its processes, displays an inherent lack of consideration and sensibility towards a tolerant approach to shepherding resources.  Immature and sexually aggravating puns aside, the term *fork* also reinforces the Eurocentric idea that "forks" are a sign of culture — who are we to disprivilege and discriminate against the chopsticks, the spoons, and the hand?  In light of this, processes must only *diverse* and never *fork* in **ToleranUX**.
+
 Smashing the socially constructed barriers between kernel space and userspace
 =============================================================================
 
