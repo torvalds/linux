@@ -4031,6 +4031,8 @@ static void gen9_enable_rps(struct drm_device *dev)
 
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
+	gen6_init_rps_frequencies(dev);
+
 	I915_WRITE(GEN6_RPNSWREQ, 0xc800000);
 	I915_WRITE(GEN6_RC_VIDEO_FREQ, 0xc800000);
 
