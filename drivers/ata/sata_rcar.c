@@ -2,8 +2,8 @@
  * Renesas R-Car SATA driver
  *
  * Author: Vladimir Barinov <source@cogentembedded.com>
- * Copyright (C) 2013 Cogent Embedded, Inc.
- * Copyright (C) 2013 Renesas Solutions Corp.
+ * Copyright (C) 2013-2015 Cogent Embedded, Inc.
+ * Copyright (C) 2013-2015 Renesas Solutions Corp.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -992,9 +992,30 @@ static int sata_rcar_resume(struct device *dev)
 	return 0;
 }
 
+static int sata_rcar_restore(struct device *dev)
+{
+	struct ata_host *host = dev_get_drvdata(dev);
+	struct sata_rcar_priv *priv = host->private_data;
+
+	clk_prepare_enable(priv->clk);
+
+	sata_rcar_setup_port(host);
+
+	/* initialize host controller */
+	sata_rcar_init_controller(host);
+
+	ata_host_resume(host);
+
+	return 0;
+}
+
 static const struct dev_pm_ops sata_rcar_pm_ops = {
 	.suspend	= sata_rcar_suspend,
 	.resume		= sata_rcar_resume,
+	.freeze		= sata_rcar_suspend,
+	.thaw		= sata_rcar_resume,
+	.poweroff	= sata_rcar_suspend,
+	.restore	= sata_rcar_restore,
 };
 #endif
 
