@@ -2400,6 +2400,7 @@ void locks_remove_posix(struct file *filp, fl_owner_t owner)
 
 EXPORT_SYMBOL(locks_remove_posix);
 
+/* The i_flctx must be valid when calling into here */
 static void
 locks_remove_flock(struct file *filp)
 {
@@ -2413,7 +2414,7 @@ locks_remove_flock(struct file *filp)
 	};
 	struct file_lock_context *flctx = file_inode(filp)->i_flctx;
 
-	if (!flctx || list_empty(&flctx->flc_flock))
+	if (list_empty(&flctx->flc_flock))
 		return;
 
 	if (filp->f_op->flock)
@@ -2425,6 +2426,7 @@ locks_remove_flock(struct file *filp)
 		fl.fl_ops->fl_release_private(&fl);
 }
 
+/* The i_flctx must be valid when calling into here */
 static void
 locks_remove_lease(struct file *filp)
 {
@@ -2433,7 +2435,7 @@ locks_remove_lease(struct file *filp)
 	struct file_lock *fl, *tmp;
 	LIST_HEAD(dispose);
 
-	if (!ctx || list_empty(&ctx->flc_lease))
+	if (list_empty(&ctx->flc_lease))
 		return;
 
 	spin_lock(&ctx->flc_lock);
@@ -2448,6 +2450,9 @@ locks_remove_lease(struct file *filp)
  */
 void locks_remove_file(struct file *filp)
 {
+	if (!file_inode(filp)->i_flctx)
+		return;
+
 	/* remove any OFD locks */
 	locks_remove_posix(filp, filp);
 
