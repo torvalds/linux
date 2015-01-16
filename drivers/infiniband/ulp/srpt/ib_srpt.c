@@ -3518,7 +3518,7 @@ static void srpt_close_session(struct se_session *se_sess)
 	DECLARE_COMPLETION_ONSTACK(release_done);
 	struct srpt_rdma_ch *ch;
 	struct srpt_device *sdev;
-	int res;
+	unsigned long res;
 
 	ch = se_sess->fabric_sess_ptr;
 	WARN_ON(ch->sess != se_sess);
@@ -3533,7 +3533,7 @@ static void srpt_close_session(struct se_session *se_sess)
 	spin_unlock_irq(&sdev->spinlock);
 
 	res = wait_for_completion_timeout(&release_done, 60 * HZ);
-	WARN_ON(res <= 0);
+	WARN_ON(res == 0);
 }
 
 /**
