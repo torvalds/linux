@@ -214,10 +214,8 @@ static int tegra_bo_get_pages(struct drm_device *drm, struct tegra_bo *bo)
 	for_each_sg(sgt->sgl, s, sgt->nents, i)
 		sg_dma_address(s) = sg_phys(s);
 
-	if (dma_map_sg(drm->dev, sgt->sgl, sgt->nents, DMA_TO_DEVICE) == 0) {
-		sgt = ERR_PTR(-ENOMEM);
+	if (dma_map_sg(drm->dev, sgt->sgl, sgt->nents, DMA_TO_DEVICE) == 0)
 		goto release_sgt;
-	}
 
 	bo->sgt = sgt;
 
@@ -226,6 +224,7 @@ static int tegra_bo_get_pages(struct drm_device *drm, struct tegra_bo *bo)
 release_sgt:
 	sg_free_table(sgt);
 	kfree(sgt);
+	sgt = ERR_PTR(-ENOMEM);
 put_pages:
 	drm_gem_put_pages(&bo->gem, bo->pages, false, false);
 	return PTR_ERR(sgt);
