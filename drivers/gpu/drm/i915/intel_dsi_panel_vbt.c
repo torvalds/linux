@@ -113,14 +113,18 @@ static inline enum port intel_dsi_seq_port_to_port(u8 port)
 static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
 				       const u8 *data)
 {
-	u8 type, byte, mode, vc, seq_port;
+	struct mipi_dsi_device *dsi_device;
+	u8 type, flags, seq_port;
 	u16 len;
 	enum port port;
 
-	byte = *data++;
-	mode = (byte >> MIPI_TRANSFER_MODE_SHIFT) & 0x1;
-	vc = (byte >> MIPI_VIRTUAL_CHANNEL_SHIFT) & 0x3;
-	seq_port = (byte >> MIPI_PORT_SHIFT) & 0x3;
+	flags = *data++;
+	type = *data++;
+
+	len = *((u16 *) data);
+	data += 2;
+
+	seq_port = (flags >> MIPI_PORT_SHIFT) & 3;
 
 	/* For DSI single link on Port A & C, the seq_port value which is
 	 * parsed from Sequence Block#53 of VBT has been set to 0
@@ -131,24 +135,29 @@ static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
 		port = PORT_C;
 	else
 		port = intel_dsi_seq_port_to_port(seq_port);
-	/* LP or HS mode */
-	intel_dsi->hs = mode;
 
-	/* get packet type and increment the pointer */
-	type = *data++;
+	dsi_device = intel_dsi->dsi_hosts[port]->device;
+	if (!dsi_device) {
+		DRM_DEBUG_KMS("no dsi device for port %c\n", port_name(port));
+		goto out;
+	}
 
-	len = *((u16 *) data);
-	data += 2;
+	if ((flags >> MIPI_TRANSFER_MODE_SHIFT) & 1)
+		dsi_device->mode_flags &= ~MIPI_DSI_MODE_LPM;
+	else
+		dsi_device->mode_flags |= MIPI_DSI_MODE_LPM;
+
+	dsi_device->channel = (flags >> MIPI_VIRTUAL_CHANNEL_SHIFT) & 3;
 
 	switch (type) {
 	case MIPI_DSI_GENERIC_SHORT_WRITE_0_PARAM:
-		dsi_vc_generic_write_0(intel_dsi, vc, port);
+		mipi_dsi_generic_write(dsi_device, NULL, 0);
 		break;
 	case MIPI_DSI_GENERIC_SHORT_WRITE_1_PARAM:
-		dsi_vc_generic_write_1(intel_dsi, vc, *data, port);
+		mipi_dsi_generic_write(dsi_device, data, 1);
 		break;
 	case MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM:
-		dsi_vc_generic_write_2(intel_dsi, vc, *data, *(data + 1), port);
+		mipi_dsi_generic_write(dsi_device, data, 2);
 		break;
 	case MIPI_DSI_GENERIC_READ_REQUEST_0_PARAM:
 	case MIPI_DSI_GENERIC_READ_REQUEST_1_PARAM:
@@ -156,22 +165,23 @@ static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
 		DRM_DEBUG_DRIVER("Generic Read not yet implemented or used\n");
 		break;
 	case MIPI_DSI_GENERIC_LONG_WRITE:
-		dsi_vc_generic_write(intel_dsi, vc, data, len, port);
+		mipi_dsi_generic_write(dsi_device, data, len);
 		break;
 	case MIPI_DSI_DCS_SHORT_WRITE:
-		dsi_vc_dcs_write_0(intel_dsi, vc, *data, port);
+		mipi_dsi_dcs_write_buffer(dsi_device, data, 1);
 		break;
 	case MIPI_DSI_DCS_SHORT_WRITE_PARAM:
-		dsi_vc_dcs_write_1(intel_dsi, vc, *data, *(data + 1), port);
+		mipi_dsi_dcs_write_buffer(dsi_device, data, 2);
 		break;
 	case MIPI_DSI_DCS_READ:
 		DRM_DEBUG_DRIVER("DCS Read not yet implemented or used\n");
 		break;
 	case MIPI_DSI_DCS_LONG_WRITE:
-		dsi_vc_dcs_write(intel_dsi, vc, data, len, port);
+		mipi_dsi_dcs_write_buffer(dsi_device, data, len);
 		break;
 	}
 
+out:
 	data += len;
 
 	return data;
@@ -389,6 +399,7 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	u32 lp_to_hs_switch, hs_to_lp_switch;
 	u32 pclk, computed_ddr;
 	u16 burst_mode_ratio;
+	enum port port;
 
 	DRM_DEBUG_KMS("\n");
 
@@ -661,6 +672,11 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	drm_panel_init(&vbt_panel->panel);
 	vbt_panel->panel.funcs = &vbt_panel_funcs;
 	drm_panel_add(&vbt_panel->panel);
+
+	/* a regular driver would get the device in probe */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		mipi_dsi_attach(intel_dsi->dsi_hosts[port]->device);
+	}
 
 	return &vbt_panel->panel;
 }
