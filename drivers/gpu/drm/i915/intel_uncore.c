@@ -234,16 +234,6 @@ static int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 	return ret;
 }
 
-static void __vlv_force_wake_put(struct drm_i915_private *dev_priv,
-				 int fw_engine)
-{
-	fw_domains_put(dev_priv, fw_engine);
-	fw_domains_posting_read(dev_priv);
-
-	if (!IS_CHERRYVIEW(dev_priv->dev))
-		gen6_gt_check_fifodbg(dev_priv);
-}
-
 static void gen6_force_wake_timer(unsigned long arg)
 {
 	struct intel_uncore_forcewake_domain *domain = (void *)arg;
@@ -998,7 +988,11 @@ void intel_uncore_init(struct drm_device *dev)
 			       FORCEWAKE_MEDIA_GEN9, FORCEWAKE_ACK_MEDIA_GEN9);
 	} else if (IS_VALLEYVIEW(dev)) {
 		dev_priv->uncore.funcs.force_wake_get = fw_domains_get;
-		dev_priv->uncore.funcs.force_wake_put = __vlv_force_wake_put;
+		if (!IS_CHERRYVIEW(dev))
+			dev_priv->uncore.funcs.force_wake_put =
+				fw_domains_put_with_fifo;
+		else
+			dev_priv->uncore.funcs.force_wake_put = fw_domains_put;
 		fw_domain_init(dev_priv, FW_DOMAIN_ID_RENDER,
 			       FORCEWAKE_VLV, FORCEWAKE_ACK_VLV);
 		fw_domain_init(dev_priv, FW_DOMAIN_ID_MEDIA,
