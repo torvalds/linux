@@ -319,11 +319,12 @@ static void oxygen_restore_eeprom(struct oxygen *chip,
 
 static void configure_pcie_bridge(struct pci_dev *pci)
 {
-	enum { PEX811X, PI7C9X110 };
+	enum { PEX811X, PI7C9X110, XIO2001 };
 	static const struct pci_device_id bridge_ids[] = {
 		{ PCI_VDEVICE(PLX, 0x8111), .driver_data = PEX811X },
 		{ PCI_VDEVICE(PLX, 0x8112), .driver_data = PEX811X },
 		{ PCI_DEVICE(0x12d8, 0xe110), .driver_data = PI7C9X110 },
+		{ PCI_VDEVICE(TI, 0x8240), .driver_data = XIO2001 },
 		{ }
 	};
 	struct pci_dev *bridge;
@@ -356,6 +357,14 @@ static void configure_pcie_bridge(struct pci_dev *pci)
 		pci_read_config_dword(bridge, 0x40, &tmp);
 		tmp |= 1;	/* park the PCI arbiter to the sound chip */
 		pci_write_config_dword(bridge, 0x40, tmp);
+		break;
+
+	case XIO2001: /* Texas Instruments XIO2001 PCIe/PCI bridge */
+		pci_read_config_dword(bridge, 0xe8, &tmp);
+		tmp &= ~0xf;	/* request length limit: 64 bytes */
+		tmp &= ~(0xf << 8);
+		tmp |= 1 << 8;	/* request count limit: one buffer */
+		pci_write_config_dword(bridge, 0xe8, tmp);
 		break;
 	}
 }
