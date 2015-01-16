@@ -401,9 +401,14 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	if (mvm->nvm_data->bands[IEEE80211_BAND_2GHZ].n_channels)
 		hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
 			&mvm->nvm_data->bands[IEEE80211_BAND_2GHZ];
-	if (mvm->nvm_data->bands[IEEE80211_BAND_5GHZ].n_channels)
+	if (mvm->nvm_data->bands[IEEE80211_BAND_5GHZ].n_channels) {
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&mvm->nvm_data->bands[IEEE80211_BAND_5GHZ];
+
+		if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_BEAMFORMER)
+			hw->wiphy->bands[IEEE80211_BAND_5GHZ]->vht_cap.cap |=
+				IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE;
+	}
 
 	hw->wiphy->hw_version = mvm->trans->hw_id;
 

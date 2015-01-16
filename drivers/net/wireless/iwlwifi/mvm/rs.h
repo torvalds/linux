@@ -293,7 +293,9 @@ struct iwl_lq_sta {
 	u64 last_tx;
 	bool is_vht;
 	bool ldpc;              /* LDPC Rx is supported by the STA */
-	bool stbc;              /* Tx STBC is supported by chip and Rx by STA */
+	bool stbc_capable;      /* Tx STBC is supported by chip and Rx by STA */
+	bool bfer_capable;      /* Remote supports beamformee and we BFer */
+
 	enum ieee80211_band band;
 
 	/* The following are bitmaps of rates; IWL_RATE_6M_MASK, etc. */
