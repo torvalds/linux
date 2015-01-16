@@ -367,6 +367,14 @@ config GPIO_XGENE
 	  the generic flash controller's address and data pins. Say yes
 	  here to enable the GFC GPIO functionality.
 
+config GPIO_XGENE_SB
+	tristate "APM X-Gene GPIO standby controller support"
+	depends on ARCH_XGENE && OF_GPIO
+	select GPIO_GENERIC
+	help
+	  This driver supports the GPIO block within the APM X-Gene
+	  Standby Domain. Say yes here to enable the GPIO functionality.
+
 config GPIO_XILINX
 	tristate "Xilinx GPIO support"
 	depends on OF_GPIO && (PPC_OF || MICROBLAZE || ARCH_ZYNQ || X86)
