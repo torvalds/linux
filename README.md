@@ -90,6 +90,14 @@ Processes in **ToleranUX** do not follow the antiquated patriarchal practices of
 
 In sexist FOSS software, this would be a *fork*.  This term, for being so commonplace and existing in the roots of how an OS handles its processes, displays an inherent lack of consideration and sensibility towards a tolerant approach to shepherding resources.  Immature and sexually aggravating puns aside, the term *fork* also reinforces the Eurocentric idea that "forks" are a sign of culture — who are we to disprivilege and discriminate against the chopsticks, the spoons, and the hand?  In light of this, processes must only *diverse* and never *fork* in **ToleranUX**.
 
+### Filesystem, Metadata, and Hierarchy
+
+Directories imply hierarchy — there will be no directories in **ToleranUX**.  Instead, a "tag based" file "pool" is instated where all files co-exist in the same level of privilege.  In other words, "Everything is a File, and every File is in a [Semantic Filesystem](https://en.wikipedia.org/wiki/Semantic_file_system)."
+
+Certain metadata of files will be scrutinised by **ToleranUX* to ensure that the *Semantic Pool* is sufficiently inclusive:
+
+* Reported filesize shall change depending on context.  Average users are inherently biased towards smaller filesizes, and the unhealthy and misogynistic pursuit of the ever-shaming "conserving space" ideal is toxic to the well-being of individual files who have no control over their filesizes.  Users attempting to `ls -S` will be punished by having their user session kicked by the [OOM](https://en.wikipedia.org/wiki/Out_of_memory) (Obesity Oppression Mercy-killer).
+
 Smashing the socially constructed barriers between kernel space and userspace
 =============================================================================
 
