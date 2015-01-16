@@ -1288,7 +1288,7 @@ static int ironlake_drpc_info(struct seq_file *m)
 	return 0;
 }
 
-static int i915_gen6_forcewake_count_info(struct seq_file *m, void *data)
+static int i915_forcewake_domains(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -1344,7 +1344,7 @@ static int vlv_drpc_info(struct seq_file *m)
 	seq_printf(m, "Media RC6 residency since boot: %u\n",
 		   I915_READ(VLV_GT_MEDIA_RC6));
 
-	return i915_gen6_forcewake_count_info(m, NULL);
+	return i915_forcewake_domains(m, NULL);
 }
 
 static int gen6_drpc_info(struct seq_file *m)
@@ -4410,7 +4410,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_context_status", i915_context_status, 0},
 	{"i915_dump_lrc", i915_dump_lrc, 0},
 	{"i915_execlists", i915_execlists, 0},
-	{"i915_gen6_forcewake_count", i915_gen6_forcewake_count_info, 0},
+	{"i915_forcewake_domains", i915_forcewake_domains, 0},
 	{"i915_swizzle_info", i915_swizzle_info, 0},
 	{"i915_ppgtt_info", i915_ppgtt_info, 0},
 	{"i915_llc", i915_llc, 0},
