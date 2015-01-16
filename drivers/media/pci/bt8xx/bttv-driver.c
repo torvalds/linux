@@ -2515,6 +2515,8 @@ static int bttv_querycap(struct file *file, void  *priv,
 		if (btv->has_saa6588)
 			cap->device_caps |= V4L2_CAP_READWRITE |
 						V4L2_CAP_RDS_CAPTURE;
+		if (btv->has_tea575x)
+			cap->device_caps |= V4L2_CAP_HW_FREQ_SEEK;
 	}
 	return 0;
 }
@@ -3244,6 +3246,9 @@ static int radio_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 	if (btv->audio_mode_gpio)
 		btv->audio_mode_gpio(btv, t, 0);
 
+	if (btv->has_tea575x)
+		return snd_tea575x_g_tuner(&btv->tea, t);
+
 	return 0;
 }
 
@@ -3259,6 +3264,30 @@ static int radio_s_tuner(struct file *file, void *priv,
 	radio_enable(btv);
 	bttv_call_all(btv, tuner, s_tuner, t);
 	return 0;
+}
+
+static int radio_s_hw_freq_seek(struct file *file, void *priv,
+					const struct v4l2_hw_freq_seek *a)
+{
+	struct bttv_fh *fh = priv;
+	struct bttv *btv = fh->btv;
+
+	if (btv->has_tea575x)
+		return snd_tea575x_s_hw_freq_seek(file, &btv->tea, a);
+
+	return -ENOTTY;
+}
+
+static int radio_enum_freq_bands(struct file *file, void *priv,
+					 struct v4l2_frequency_band *band)
+{
+	struct bttv_fh *fh = priv;
+	struct bttv *btv = fh->btv;
+
+	if (btv->has_tea575x)
+		return snd_tea575x_enum_freq_bands(&btv->tea, band);
+
+	return -ENOTTY;
 }
 
 static ssize_t radio_read(struct file *file, char __user *data,
@@ -3318,6 +3347,8 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 	.vidioc_s_tuner         = radio_s_tuner,
 	.vidioc_g_frequency     = bttv_g_frequency,
 	.vidioc_s_frequency     = bttv_s_frequency,
+	.vidioc_s_hw_freq_seek	= radio_s_hw_freq_seek,
+	.vidioc_enum_freq_bands	= radio_enum_freq_bands,
 	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
