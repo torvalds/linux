@@ -638,7 +638,7 @@ void clockevents_suspend(void)
 	struct clock_event_device *dev;
 
 	list_for_each_entry_reverse(dev, &clockevent_devices, list)
-		if (dev->suspend)
+		if (dev->suspend && dev->mode != CLOCK_EVT_MODE_UNUSED)
 			dev->suspend(dev);
 }
 
@@ -650,7 +650,7 @@ void clockevents_resume(void)
 	struct clock_event_device *dev;
 
 	list_for_each_entry(dev, &clockevent_devices, list)
-		if (dev->resume)
+		if (dev->resume && dev->mode != CLOCK_EVT_MODE_UNUSED)
 			dev->resume(dev);
 }
 
