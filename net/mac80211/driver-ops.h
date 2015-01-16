@@ -639,6 +639,21 @@ static inline void drv_sta_rate_tbl_update(struct ieee80211_local *local,
 	trace_drv_return_void(local);
 }
 
+static inline void drv_sta_statistics(struct ieee80211_local *local,
+				      struct ieee80211_sub_if_data *sdata,
+				      struct ieee80211_sta *sta,
+				      struct station_info *sinfo)
+{
+	sdata = get_bss_sdata(sdata);
+	if (!check_sdata_in_driver(sdata))
+		return;
+
+	trace_drv_sta_statistics(local, sdata, sta);
+	if (local->ops->sta_statistics)
+		local->ops->sta_statistics(&local->hw, &sdata->vif, sta, sinfo);
+	trace_drv_return_void(local);
+}
+
 static inline int drv_conf_tx(struct ieee80211_local *local,
 			      struct ieee80211_sub_if_data *sdata, u16 ac,
 			      const struct ieee80211_tx_queue_params *params)
@@ -964,21 +979,6 @@ drv_allow_buffered_frames(struct ieee80211_local *local,
 						  tids, num_frames, reason,
 						  more_data);
 	trace_drv_return_void(local);
-}
-
-static inline int drv_get_rssi(struct ieee80211_local *local,
-				struct ieee80211_sub_if_data *sdata,
-				struct ieee80211_sta *sta,
-				s8 *rssi_dbm)
-{
-	int ret;
-
-	might_sleep();
-
-	ret = local->ops->get_rssi(&local->hw, &sdata->vif, sta, rssi_dbm);
-	trace_drv_get_rssi(local, sta, *rssi_dbm, ret);
-
-	return ret;
 }
 
 static inline void drv_mgd_prepare_tx(struct ieee80211_local *local,

@@ -578,7 +578,7 @@ ieee80211_get_vif_queues(struct ieee80211_local *local,
 
 void __ieee80211_flush_queues(struct ieee80211_local *local,
 			      struct ieee80211_sub_if_data *sdata,
-			      unsigned int queues)
+			      unsigned int queues, bool drop)
 {
 	if (!local->ops->flush)
 		return;
@@ -594,7 +594,7 @@ void __ieee80211_flush_queues(struct ieee80211_local *local,
 					IEEE80211_QUEUE_STOP_REASON_FLUSH,
 					false);
 
-	drv_flush(local, sdata, queues, false);
+	drv_flush(local, sdata, queues, drop);
 
 	ieee80211_wake_queues_by_reason(&local->hw, queues,
 					IEEE80211_QUEUE_STOP_REASON_FLUSH,
@@ -602,9 +602,9 @@ void __ieee80211_flush_queues(struct ieee80211_local *local,
 }
 
 void ieee80211_flush_queues(struct ieee80211_local *local,
-			    struct ieee80211_sub_if_data *sdata)
+			    struct ieee80211_sub_if_data *sdata, bool drop)
 {
-	__ieee80211_flush_queues(local, sdata, 0);
+	__ieee80211_flush_queues(local, sdata, 0, drop);
 }
 
 void ieee80211_stop_vif_queues(struct ieee80211_local *local,
@@ -1470,10 +1470,12 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_local *local,
 
 	/* Check if any channel in this sband supports at least 80 MHz */
 	for (i = 0; i < sband->n_channels; i++) {
-		if (!(sband->channels[i].flags & IEEE80211_CHAN_NO_80MHZ)) {
-			have_80mhz = true;
-			break;
-		}
+		if (sband->channels[i].flags & (IEEE80211_CHAN_DISABLED |
+						IEEE80211_CHAN_NO_80MHZ))
+			continue;
+
+		have_80mhz = true;
+		break;
 	}
 
 	if (sband->vht_cap.vht_supported && have_80mhz) {
@@ -1735,6 +1737,10 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	struct cfg80211_sched_scan_request *sched_scan_req;
 	bool sched_scan_stopped = false;
 
+	/* nothing to do if HW shouldn't run */
+	if (!local->open_count)
+		goto wake_up;
+
 #ifdef CONFIG_PM
 	if (local->suspended)
 		local->resuming = true;
@@ -1756,9 +1762,6 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		reconfig_due_to_wowlan = true;
 	}
 #endif
-	/* everything else happens only if HW was up & running */
-	if (!local->open_count)
-		goto wake_up;
 
 	/*
 	 * Upon resume hardware can sometimes be goofy due to
@@ -2042,7 +2045,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	 * If this is for hw restart things are still running.
 	 * We may want to change that later, however.
 	 */
-	if (!local->suspended || reconfig_due_to_wowlan)
+	if (local->open_count && (!local->suspended || reconfig_due_to_wowlan))
 		drv_reconfig_complete(local, IEEE80211_RECONFIG_TYPE_RESTART);
 
 	if (!local->suspended)
@@ -2054,7 +2057,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	mb();
 	local->resuming = false;
 
-	if (!reconfig_due_to_wowlan)
+	if (local->open_count && !reconfig_due_to_wowlan)
 		drv_reconfig_complete(local, IEEE80211_RECONFIG_TYPE_SUSPEND);
 
 	list_for_each_entry(sdata, &local->interfaces, list) {

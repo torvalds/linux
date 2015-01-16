@@ -678,7 +678,8 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 		      BSS_CHANGED_BEACON_ENABLED |
 		      BSS_CHANGED_BEACON |
 		      BSS_CHANGED_SSID |
-		      BSS_CHANGED_P2P_PS;
+		      BSS_CHANGED_P2P_PS |
+		      BSS_CHANGED_TXPOWER;
 	int err;
 
 	old = sdata_dereference(sdata->u.ap.beacon, sdata);
@@ -2556,7 +2557,7 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 
 	/* if there's one pending or we're scanning, queue this one */
 	if (!list_empty(&local->roc_list) ||
-	    local->scanning || local->radar_detect_enabled)
+	    local->scanning || ieee80211_is_radar_required(local))
 		goto out_check_combine;
 
 	/* if not HW assist, just queue & schedule work */
@@ -3664,7 +3665,7 @@ static int ieee80211_del_tx_ts(struct wiphy *wiphy, struct net_device *dev,
 		 * queues.
 		 */
 		synchronize_net();
-		ieee80211_flush_queues(local, sdata);
+		ieee80211_flush_queues(local, sdata, false);
 
 		/* restore the normal QoS parameters
 		 * (unconditionally to avoid races)

@@ -625,22 +625,22 @@ static int hwsim_fops_ps_write(void *dat, u64 val)
 	old_ps = data->ps;
 	data->ps = val;
 
+	local_bh_disable();
 	if (val == PS_MANUAL_POLL) {
-		ieee80211_iterate_active_interfaces(data->hw,
-						    IEEE80211_IFACE_ITER_NORMAL,
-						    hwsim_send_ps_poll, data);
+		ieee80211_iterate_active_interfaces_atomic(
+			data->hw, IEEE80211_IFACE_ITER_NORMAL,
+			hwsim_send_ps_poll, data);
 		data->ps_poll_pending = true;
 	} else if (old_ps == PS_DISABLED && val != PS_DISABLED) {
-		ieee80211_iterate_active_interfaces(data->hw,
-						    IEEE80211_IFACE_ITER_NORMAL,
-						    hwsim_send_nullfunc_ps,
-						    data);
+		ieee80211_iterate_active_interfaces_atomic(
+			data->hw, IEEE80211_IFACE_ITER_NORMAL,
+			hwsim_send_nullfunc_ps, data);
 	} else if (old_ps != PS_DISABLED && val == PS_DISABLED) {
-		ieee80211_iterate_active_interfaces(data->hw,
-						    IEEE80211_IFACE_ITER_NORMAL,
-						    hwsim_send_nullfunc_no_ps,
-						    data);
+		ieee80211_iterate_active_interfaces_atomic(
+			data->hw, IEEE80211_IFACE_ITER_NORMAL,
+			hwsim_send_nullfunc_no_ps, data);
 	}
+	local_bh_enable();
 
 	return 0;
 }
@@ -2149,14 +2149,14 @@ static int append_radio_msg(struct sk_buff *skb, int id,
 	if (param->regd) {
 		int i;
 
-		for (i = 0; hwsim_world_regdom_custom[i] != param->regd &&
-		     i < ARRAY_SIZE(hwsim_world_regdom_custom); i++)
-			;
+		for (i = 0; i < ARRAY_SIZE(hwsim_world_regdom_custom); i++) {
+			if (hwsim_world_regdom_custom[i] != param->regd)
+				continue;
 
-		if (i < ARRAY_SIZE(hwsim_world_regdom_custom)) {
 			ret = nla_put_u32(skb, HWSIM_ATTR_REG_CUSTOM_REG, i);
 			if (ret < 0)
 				return ret;
+			break;
 		}
 	}
 

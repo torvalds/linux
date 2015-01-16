@@ -457,7 +457,6 @@ static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)
 		if (assoc_req_ie) {
 			sinfo.assoc_req_ies = assoc_req_ie;
 			sinfo.assoc_req_ies_len = assoc_req_ielen;
-			sinfo.filled |= STATION_INFO_ASSOC_REQ_IES;
 		}
 
 		cfg80211_new_sta(ndev, evt->bssid, &sinfo, GFP_KERNEL);

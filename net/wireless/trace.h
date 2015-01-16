@@ -1604,11 +1604,12 @@ TRACE_EVENT(rdev_return_int_survey_info,
 		WIPHY_ENTRY
 		CHAN_ENTRY
 		__field(int, ret)
-		__field(u64, channel_time)
-		__field(u64, channel_time_busy)
-		__field(u64, channel_time_ext_busy)
-		__field(u64, channel_time_rx)
-		__field(u64, channel_time_tx)
+		__field(u64, time)
+		__field(u64, time_busy)
+		__field(u64, time_ext_busy)
+		__field(u64, time_rx)
+		__field(u64, time_tx)
+		__field(u64, time_scan)
 		__field(u32, filled)
 		__field(s8, noise)
 	),
@@ -1616,22 +1617,24 @@ TRACE_EVENT(rdev_return_int_survey_info,
 		WIPHY_ASSIGN;
 		CHAN_ASSIGN(info->channel);
 		__entry->ret = ret;
-		__entry->channel_time = info->channel_time;
-		__entry->channel_time_busy = info->channel_time_busy;
-		__entry->channel_time_ext_busy = info->channel_time_ext_busy;
-		__entry->channel_time_rx = info->channel_time_rx;
-		__entry->channel_time_tx = info->channel_time_tx;
+		__entry->time = info->time;
+		__entry->time_busy = info->time_busy;
+		__entry->time_ext_busy = info->time_ext_busy;
+		__entry->time_rx = info->time_rx;
+		__entry->time_tx = info->time_tx;
+		__entry->time_scan = info->time_scan;
 		__entry->filled = info->filled;
 		__entry->noise = info->noise;
 	),
 	TP_printk(WIPHY_PR_FMT ", returned: %d, " CHAN_PR_FMT
 		  ", channel time: %llu, channel time busy: %llu, "
 		  "channel time extension busy: %llu, channel time rx: %llu, "
-		  "channel time tx: %llu, filled: %u, noise: %d",
+		  "channel time tx: %llu, scan time: %llu, filled: %u, noise: %d",
 		  WIPHY_PR_ARG, __entry->ret, CHAN_PR_ARG,
-		  __entry->channel_time, __entry->channel_time_busy,
-		  __entry->channel_time_ext_busy, __entry->channel_time_rx,
-		  __entry->channel_time_tx, __entry->filled, __entry->noise)
+		  __entry->time, __entry->time_busy,
+		  __entry->time_ext_busy, __entry->time_rx,
+		  __entry->time_tx, __entry->time_scan,
+		  __entry->filled, __entry->noise)
 );
 
 TRACE_EVENT(rdev_tdls_oper,

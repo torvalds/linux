@@ -3206,6 +3206,18 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	retain_initrd	[RAM] Keep initrd memory after extraction
 
+	rfkill.default_state=
+		0	"airplane mode".  All wifi, bluetooth, wimax, gps, fm,
+			etc. communication is blocked by default.
+		1	Unblocked.
+
+	rfkill.master_switch_mode=
+		0	The "airplane mode" button does nothing.
+		1	The "airplane mode" button toggles between everything
+			blocked and the previous configuration.
+		2	The "airplane mode" button toggles between everything
+			blocked and everything unblocked.
+
 	rhash_entries=	[KNL,NET]
 			Set number of hash buckets for route cache
 

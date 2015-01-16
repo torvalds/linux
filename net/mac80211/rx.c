@@ -2314,6 +2314,15 @@ ieee80211_rx_h_data(struct ieee80211_rx_data *rx)
 	if (unlikely(!ieee80211_is_data_present(hdr->frame_control)))
 		return RX_DROP_MONITOR;
 
+	if (rx->sta) {
+		/* The security index has the same property as needed
+		 * for the rx_msdu field, i.e. it is IEEE80211_NUM_TIDS
+		 * for non-QoS-data frames. Here we know it's a data
+		 * frame, so count MSDUs.
+		 */
+		rx->sta->rx_msdu[rx->security_idx]++;
+	}
+
 	/*
 	 * Send unexpected-4addr-frame event to hostapd. For older versions,
 	 * also drop the frame to cooked monitor interfaces.
@@ -2598,7 +2607,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		case WLAN_HT_ACTION_NOTIFY_CHANWIDTH: {
 			struct ieee80211_supported_band *sband;
 			u8 chanwidth = mgmt->u.action.u.ht_notify_cw.chanwidth;
-			enum ieee80211_sta_rx_bandwidth new_bw;
+			enum ieee80211_sta_rx_bandwidth max_bw, new_bw;
 
 			/* If it doesn't support 40 MHz it can't change ... */
 			if (!(rx->sta->sta.ht_cap.cap &
@@ -2606,13 +2615,18 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 				goto handled;
 
 			if (chanwidth == IEEE80211_HT_CHANWIDTH_20MHZ)
-				new_bw = IEEE80211_STA_RX_BW_20;
+				max_bw = IEEE80211_STA_RX_BW_20;
 			else
-				new_bw = ieee80211_sta_cur_vht_bw(rx->sta);
+				max_bw = ieee80211_sta_cap_rx_bw(rx->sta);
+
+			/* set cur_max_bandwidth and recalc sta bw */
+			rx->sta->cur_max_bandwidth = max_bw;
+			new_bw = ieee80211_sta_cur_vht_bw(rx->sta);
 
 			if (rx->sta->sta.bandwidth == new_bw)
 				goto handled;
 
+			rx->sta->sta.bandwidth = new_bw;
 			sband = rx->local->hw.wiphy->bands[status->band];
 
 			rate_control_rate_update(local, sband, rx->sta,

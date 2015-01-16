@@ -68,7 +68,6 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 				len = ETH_ALEN;
 
 			if (len != -1) {
-				sinfo.filled = STATION_INFO_ASSOC_REQ_IES;
 				sinfo.assoc_req_ies = &event->data[len];
 				len = (u8 *)sinfo.assoc_req_ies -
 				      (u8 *)&event->frame_control;

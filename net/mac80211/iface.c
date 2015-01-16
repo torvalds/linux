@@ -93,7 +93,7 @@ static u32 __ieee80211_idle_on(struct ieee80211_local *local)
 	if (local->hw.conf.flags & IEEE80211_CONF_IDLE)
 		return 0;
 
-	ieee80211_flush_queues(local, NULL);
+	ieee80211_flush_queues(local, NULL, false);
 
 	local->hw.conf.flags |= IEEE80211_CONF_IDLE;
 	return IEEE80211_CONF_CHANGE_IDLE;

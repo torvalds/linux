@@ -8020,13 +8020,13 @@ int rt2800_get_survey(struct ieee80211_hw *hw, int idx,
 	rt2800_register_read(rt2x00dev, CH_BUSY_STA_SEC, &busy_ext);
 
 	if (idle || busy) {
-		survey->filled = SURVEY_INFO_CHANNEL_TIME |
-				 SURVEY_INFO_CHANNEL_TIME_BUSY |
-				 SURVEY_INFO_CHANNEL_TIME_EXT_BUSY;
+		survey->filled = SURVEY_INFO_TIME |
+				 SURVEY_INFO_TIME_BUSY |
+				 SURVEY_INFO_TIME_EXT_BUSY;
 
-		survey->channel_time = (idle + busy) / 1000;
-		survey->channel_time_busy = busy / 1000;
-		survey->channel_time_ext_busy = busy_ext / 1000;
+		survey->time = (idle + busy) / 1000;
+		survey->time_busy = busy / 1000;
+		survey->time_ext_busy = busy_ext / 1000;
 	}
 
 	if (!(hw->conf.flags & IEEE80211_CONF_OFFCHANNEL))
