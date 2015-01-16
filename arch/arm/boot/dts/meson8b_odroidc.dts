@@ -143,15 +143,6 @@
                 pinctrl-0 = <&ao_uart_pins>;
         };
 
-        uart_0{
-                compatible = "amlogic,aml_uart";
-                port_name = "uart_a";
-                status = "okay";
-                dev_name = "uart_0";
-//      pinctrl-names = "default";
-//      pinctrl-0 = <&a_uart_pins>;
-        };
-
         uart_1{
                 compatible = "amlogic,aml_uart";
                 port_name = "uart_b";
@@ -159,20 +150,6 @@
                 dev_name = "uart_1";
         pinctrl-names = "default";
         pinctrl-0 = <&b_uart_pins>;
-        };
-
-        uart_2{
-                compatible = "amlogic,aml_uart";
-                port_name = "uart_c";
-                status = "disabled";
-                dev_name = "uart_2";
-        };
-
-        uart_3{
-                compatible = "amlogic,aml_uart";
-                port_name = "uart_d";
-                status = "ok";
-                dev_name = "uart_3";
         };
 
     sdio{
