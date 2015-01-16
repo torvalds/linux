@@ -882,16 +882,15 @@ static ssize_t do_sock_read(struct msghdr *msg, struct kiocb *iocb,
 		unsigned long nr_segs)
 {
 	struct socket *sock = file->private_data;
-	size_t size = iov_length(iov, nr_segs);
 
 	msg->msg_name = NULL;
 	msg->msg_namelen = 0;
 	msg->msg_control = NULL;
 	msg->msg_controllen = 0;
-	iov_iter_init(&msg->msg_iter, READ, iov, nr_segs, size);
+	iov_iter_init(&msg->msg_iter, READ, iov, nr_segs, iocb->ki_nbytes);
 	msg->msg_flags = (file->f_flags & O_NONBLOCK) ? MSG_DONTWAIT : 0;
 
-	return __sock_recvmsg(iocb, sock, msg, size, msg->msg_flags);
+	return __sock_recvmsg(iocb, sock, msg, iocb->ki_nbytes, msg->msg_flags);
 }
 
 static ssize_t sock_aio_read(struct kiocb *iocb, const struct iovec *iov,
@@ -917,18 +916,17 @@ static ssize_t do_sock_write(struct msghdr *msg, struct kiocb *iocb,
 			unsigned long nr_segs)
 {
 	struct socket *sock = file->private_data;
-	size_t size = iov_length(iov, nr_segs);
 
 	msg->msg_name = NULL;
 	msg->msg_namelen = 0;
 	msg->msg_control = NULL;
 	msg->msg_controllen = 0;
-	iov_iter_init(&msg->msg_iter, WRITE, iov, nr_segs, size);
+	iov_iter_init(&msg->msg_iter, WRITE, iov, nr_segs, iocb->ki_nbytes);
 	msg->msg_flags = (file->f_flags & O_NONBLOCK) ? MSG_DONTWAIT : 0;
 	if (sock->type == SOCK_SEQPACKET)
 		msg->msg_flags |= MSG_EOR;
 
-	return __sock_sendmsg(iocb, sock, msg, size);
+	return __sock_sendmsg(iocb, sock, msg, iocb->ki_nbytes);
 }
 
 static ssize_t sock_aio_write(struct kiocb *iocb, const struct iovec *iov,
