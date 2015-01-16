@@ -786,6 +786,9 @@ static const struct snd_kcontrol_new controls[] = {
 		.get = upmix_get,
 		.put = upmix_put,
 	},
+};
+
+static const struct snd_kcontrol_new spdif_output_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = SNDRV_CTL_NAME_IEC958("", PLAYBACK, SWITCH),
@@ -1073,6 +1076,12 @@ int oxygen_mixer_init(struct oxygen *chip)
 	err = add_controls(chip, controls, ARRAY_SIZE(controls));
 	if (err < 0)
 		return err;
+	if (chip->model.device_config & PLAYBACK_1_TO_SPDIF) {
+		err = add_controls(chip, spdif_output_controls,
+				   ARRAY_SIZE(spdif_output_controls));
+		if (err < 0)
+			return err;
+	}
 	if (chip->model.device_config & CAPTURE_1_FROM_SPDIF) {
 		err = add_controls(chip, spdif_input_controls,
 				   ARRAY_SIZE(spdif_input_controls));
