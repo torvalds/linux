@@ -2124,7 +2124,7 @@ F:	arch/arm/boot/dts/bcm470*
 BROADCOM BCM63XX ARM ARCHITECTURE
 M:	Florian Fainelli <f.fainelli@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org
-T:	git git://git.github.com/brcm/linux.git
+T:	git git://git.github.com/broadcom/arm-bcm63xx.git
 S:	Maintained
 F:	arch/arm/mach-bcm/bcm63xx.c
 F:	arch/arm/include/debug/bcm63xx.S
@@ -2141,6 +2141,7 @@ M:	Brian Norris <computersforpeace@gmail.com>
 M:	Gregory Fong <gregory.0xf0@gmail.com>
 M:	Florian Fainelli <f.fainelli@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+T:	git git://git.github.com/broadcom/stblinux.git
 S:	Maintained
 F:	arch/arm/mach-bcm/*brcmstb*
 F:	arch/arm/boot/dts/bcm7*.dts*
@@ -2150,6 +2151,7 @@ BROADCOM BMIPS MIPS ARCHITECTURE
 M:	Kevin Cernekee <cernekee@gmail.com>
 M:	Florian Fainelli <f.fainelli@gmail.com>
 L:	linux-mips@linux-mips.org
+T:	git git://git.github.com/broadcom/stblinux.git
 S:	Maintained
 F:	arch/mips/bmips/*
 F:	arch/mips/include/asm/mach-bmips/*
@@ -2192,7 +2194,7 @@ M:	Ray Jui <rjui@broadcom.com>
 M:	Scott Branden <sbranden@broadcom.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	bcm-kernel-feedback-list@broadcom.com
-T:	git git://git.github.com/brcm/linux.git
+T:	git git://git.github.com/broadcom/cygnus-linux.git
 S:	Maintained
 N:	iproc
 N:	cygnus
