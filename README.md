@@ -136,7 +136,7 @@ An added benefit of implementing **Multispatialism** is that there will never be
 Associated Coreutils
 ====================
 
-Unlike the [GNU project](https://en.wikipedia.org/wiki/GNU) and the [Linux project](https://en.wikipedia.org/wiki/Linux), the infighting amongst which has brought much ire and hatred to the FLOSS world, **ToleranUX** shall supply its own set of `coreutils` so as to prevent the possibility of any naysayers claiming the absurd notion that a kernel and its peripheral but core user space are somehow distinct and different entities in an operating system — under **ToleranUX**, the kernel is equal to the pager.
+Unlike the [GNU project](https://en.wikipedia.org/wiki/GNU) and the [Linux project](https://en.wikipedia.org/wiki/Linux), the infighting amongst which has brought much ire and hatred to the FLOSS world, **ToleranUX** shall supply its own set of `coreutils` so as to prevent the possibility of any naysayers claiming the absurd notion that a kernel and its peripheral but core user space are somehow distinct and different entities in an operating system — under **ToleranUX**, the kernel is equal to the pager.  In fact, the whole operating system is a single, beautiful, [fat binary](https://en.wikipedia.org/wiki/Fat_binary).
 
 ### ls
 
