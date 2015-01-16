@@ -70,7 +70,13 @@ At Feminist Software Foundation, we uphold the belief that all people are equal,
 Design
 ======
 
-*TBC*
+### Kernel type
+
+The decision of kernel-type has been carefully debated and considered.  In the end, it was chosen the **ToleranUX** be a **[micro-aggression](http://en.wikipedia.org/wiki/Microaggression_theory) kernel**.
+
+When one considers the [monolithic kernel paradigm](http://en.wikipedia.org/wiki/Monolithic_kernel), one realises that the drivers and services all working under the kernel's address space is extremely oppressive.  Much like how the patriarchy keeps womyn and POC down, so too does a monolithic kernel encourage problematic code in kernel memory.  Of course, the most important part of why a monolithic kernel was not picked is simply due to the phallic nature of monoliths and other large sculpted rocks (See Laura Chiltern's "Patriarchy of Stone:  How Mt. Rushmore Oppressed Me and How You Can Prevent it" for more information on the subject).  Compare that to a micro-aggression kernel, where servers exist in all manner of address space.  This is clearly a superior design for a truly tolerant kernel fit for the modern ages.
+
+This so-called "pointer diversity" is extremely important in encouraging equal runtime to the otherwise disenfranchised userspace addresses.  A pan-kernel daemon `ProgressiveD` shall be implemented that oversees the runtime privileges of all things — from the biggest forkbombs to the smallest variables — all shall be equalised according to the [**Progressive Stack**](https://en.wikipedia.org/wiki/Progressive_stack).  Additionally, the server messenger system (from now on referred to as **"deconstructional dialog"**) enables the calling out and shaming of problematic behavior among any server deemed problematic.
 
 Smashing the socially constructed barriers between kernel space and userspace
 =============================================================================
