@@ -153,6 +153,7 @@ void qib_get_eeprom_info(struct qib_devdata *dd)
 
 	if (t && dd0->nguid > 1 && t <= dd0->nguid) {
 		u8 oguid;
+
 		dd->base_guid = dd0->base_guid;
 		bguid = (u8 *) &dd->base_guid;
 

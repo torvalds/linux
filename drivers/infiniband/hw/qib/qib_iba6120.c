@@ -333,6 +333,7 @@ static inline void qib_write_ureg(const struct qib_devdata *dd,
 				  enum qib_ureg regno, u64 value, int ctxt)
 {
 	u64 __iomem *ubase;
+
 	if (dd->userbase)
 		ubase = (u64 __iomem *)
 			((char __iomem *) dd->userbase +
@@ -1670,6 +1671,7 @@ static irqreturn_t qib_6120intr(int irq, void *data)
 		}
 		if (crcs) {
 			u32 cntr = dd->cspec->lli_counter;
+
 			cntr += crcs;
 			if (cntr) {
 				if (cntr > dd->cspec->lli_thresh) {
@@ -1722,6 +1724,7 @@ static void qib_setup_6120_interrupt(struct qib_devdata *dd)
 			"irq is 0, BIOS error?  Interrupts won't work\n");
 	else {
 		int ret;
+
 		ret = request_irq(dd->cspec->irq, qib_6120intr, 0,
 				  QIB_DRV_NAME, dd);
 		if (ret)
@@ -2927,6 +2930,7 @@ bail:
 static int qib_6120_set_loopback(struct qib_pportdata *ppd, const char *what)
 {
 	int ret = 0;
+
 	if (!strncmp(what, "ibc", 3)) {
 		ppd->dd->cspec->ibcctrl |= SYM_MASK(IBCCtrl, Loopback);
 		qib_devinfo(ppd->dd->pcidev, "Enabling IB%u:%u IBC loopback\n",
@@ -3168,6 +3172,7 @@ static void get_6120_chip_params(struct qib_devdata *dd)
 static void set_6120_baseaddrs(struct qib_devdata *dd)
 {
 	u32 cregbase;
+
 	cregbase = qib_read_kreg32(dd, kr_counterregbase);
 	dd->cspec->cregbase = (u64 __iomem *)
 		((char __iomem *) dd->kregbase + cregbase);

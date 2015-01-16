@@ -226,6 +226,7 @@ qib_user_sdma_queue_create(struct device *dev, int unit, int ctxt, int sctxt)
 		sdma_rb_node->refcount++;
 	} else {
 		int ret;
+
 		sdma_rb_node = kmalloc(sizeof(
 			struct qib_user_sdma_rb_node), GFP_KERNEL);
 		if (!sdma_rb_node)
@@ -936,6 +937,7 @@ static int qib_user_sdma_queue_pkts(const struct qib_devdata *dd,
 
 			if (tiddma) {
 				char *tidsm = (char *)pkt + pktsize;
+
 				cfur = copy_from_user(tidsm,
 					iov[idx].iov_base, tidsmsize);
 				if (cfur) {

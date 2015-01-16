@@ -560,6 +560,7 @@ static struct dentry *qibfs_mount(struct file_system_type *fs_type, int flags,
 			const char *dev_name, void *data)
 {
 	struct dentry *ret;
+
 	ret = mount_single(fs_type, flags, data, qibfs_fill_super);
 	if (!IS_ERR(ret))
 		qib_super = ret->d_sb;

@@ -818,6 +818,7 @@ static inline void qib_write_ureg(const struct qib_devdata *dd,
 				  enum qib_ureg regno, u64 value, int ctxt)
 {
 	u64 __iomem *ubase;
+
 	if (dd->userbase)
 		ubase = (u64 __iomem *)
 			((char __iomem *) dd->userbase +
@@ -2032,6 +2033,7 @@ static void qib_7322_set_intr_state(struct qib_devdata *dd, u32 enable)
 		if (dd->cspec->num_msix_entries) {
 			/* and same for MSIx */
 			u64 val = qib_read_kreg64(dd, kr_intgranted);
+
 			if (val)
 				qib_write_kreg(dd, kr_intgranted, val);
 		}
@@ -2177,6 +2179,7 @@ static void qib_7322_handle_hwerrors(struct qib_devdata *dd, char *msg,
 		int err;
 		unsigned long flags;
 		struct qib_pportdata *ppd = dd->pport;
+
 		for (; pidx < dd->num_pports; ++pidx, ppd++) {
 			err = 0;
 			if (pidx == 0 && (hwerrs &
@@ -2802,9 +2805,11 @@ static void qib_irq_notifier_notify(struct irq_affinity_notify *notify,
 
 	if (n->rcv) {
 		struct qib_ctxtdata *rcd = (struct qib_ctxtdata *)n->arg;
+
 		qib_update_rhdrq_dca(rcd, cpu);
 	} else {
 		struct qib_pportdata *ppd = (struct qib_pportdata *)n->arg;
+
 		qib_update_sdma_dca(ppd, cpu);
 	}
 }
@@ -2817,9 +2822,11 @@ static void qib_irq_notifier_release(struct kref *ref)
 
 	if (n->rcv) {
 		struct qib_ctxtdata *rcd = (struct qib_ctxtdata *)n->arg;
+
 		dd = rcd->dd;
 	} else {
 		struct qib_pportdata *ppd = (struct qib_pportdata *)n->arg;
+
 		dd = ppd->dd;
 	}
 	qib_devinfo(dd->pcidev,
@@ -2995,6 +3002,7 @@ static noinline void unknown_7322_gpio_intr(struct qib_devdata *dd)
 		struct qib_pportdata *ppd;
 		struct qib_qsfp_data *qd;
 		u32 mask;
+
 		if (!dd->pport[pidx].link_speed_supported)
 			continue;
 		mask = QSFP_GPIO_MOD_PRS_N;
@@ -3002,6 +3010,7 @@ static noinline void unknown_7322_gpio_intr(struct qib_devdata *dd)
 		mask <<= (QSFP_GPIO_PORT2_SHIFT * ppd->hw_pidx);
 		if (gpiostatus & dd->cspec->gpio_mask & mask) {
 			u64 pins;
+
 			qd = &ppd->cpspec->qsfp_data;
 			gpiostatus &= ~mask;
 			pins = qib_read_kreg64(dd, kr_extstatus);
@@ -3699,6 +3708,7 @@ static int qib_do_7322_reset(struct qib_devdata *dd)
 	 */
 	for (i = 0; i < msix_entries; i++) {
 		u64 vecaddr, vecdata;
+
 		vecaddr = qib_read_kreg64(dd, 2 * i +
 				  (QIB_7322_MsixTable_OFFS / sizeof(u64)));
 		vecdata = qib_read_kreg64(dd, 1 + 2 * i +
@@ -5360,6 +5370,7 @@ static void qib_autoneg_7322_send(struct qib_pportdata *ppd, int which)
 static void set_7322_ibspeed_fast(struct qib_pportdata *ppd, u32 speed)
 {
 	u64 newctrlb;
+
 	newctrlb = ppd->cpspec->ibcctrl_b & ~(IBA7322_IBC_SPEED_MASK |
 				    IBA7322_IBC_IBTA_1_2_MASK |
 				    IBA7322_IBC_MAX_SPEED_MASK);
@@ -5846,6 +5857,7 @@ static void get_7322_chip_params(struct qib_devdata *dd)
 static void qib_7322_set_baseaddrs(struct qib_devdata *dd)
 {
 	u32 cregbase;
+
 	cregbase = qib_read_kreg32(dd, kr_counterregbase);
 
 	dd->cspec->cregbase = (u64 __iomem *)(cregbase +
@@ -6186,6 +6198,7 @@ static int setup_txselect(const char *str, struct kernel_param *kp)
 	struct qib_devdata *dd;
 	unsigned long val;
 	char *n;
+
 	if (strlen(str) >= MAX_ATTEN_LEN) {
 		pr_info("txselect_values string too long\n");
 		return -ENOSPC;
@@ -6396,6 +6409,7 @@ static void write_7322_initregs(struct qib_devdata *dd)
 	val = TIDFLOW_ERRBITS; /* these are W1C */
 	for (i = 0; i < dd->cfgctxts; i++) {
 		int flow;
+
 		for (flow = 0; flow < NUM_TIDFLOWS_CTXT; flow++)
 			qib_write_ureg(dd, ur_rcvflowtable+flow, val, i);
 	}
@@ -6506,6 +6520,7 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 
 	for (pidx = 0; pidx < NUM_IB_PORTS; ++pidx) {
 		struct qib_chippport_specific *cp = ppd->cpspec;
+
 		ppd->link_speed_supported = features & PORT_SPD_CAP;
 		features >>=  PORT_SPD_CAP_SHIFT;
 		if (!ppd->link_speed_supported) {
@@ -7892,6 +7907,7 @@ static void serdes_7322_los_enable(struct qib_pportdata *ppd, int enable)
 static int serdes_7322_init(struct qib_pportdata *ppd)
 {
 	int ret = 0;
+
 	if (ppd->dd->cspec->r1)
 		ret = serdes_7322_init_old(ppd);
 	else
@@ -8307,8 +8323,8 @@ static void force_h1(struct qib_pportdata *ppd)
 
 static int qib_r_grab(struct qib_devdata *dd)
 {
-	u64 val;
-	val = SJA_EN;
+	u64 val = SJA_EN;
+
 	qib_write_kreg(dd, kr_r_access, val);
 	qib_read_kreg32(dd, kr_scratch);
 	return 0;
@@ -8321,6 +8337,7 @@ static int qib_r_wait_for_rdy(struct qib_devdata *dd)
 {
 	u64 val;
 	int timeout;
+
 	for (timeout = 0; timeout < 100 ; ++timeout) {
 		val = qib_read_kreg32(dd, kr_r_access);
 		if (val & R_RDY)
@@ -8348,6 +8365,7 @@ static int qib_r_shift(struct qib_devdata *dd, int bisten,
 		}
 		if (inp) {
 			int tdi = inp[pos >> 3] >> (pos & 7);
+
 			val |= ((tdi & 1) << R_TDI_LSB);
 		}
 		qib_write_kreg(dd, kr_r_access, val);

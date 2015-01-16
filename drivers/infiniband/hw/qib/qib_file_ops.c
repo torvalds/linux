@@ -1186,6 +1186,7 @@ static void assign_ctxt_affinity(struct file *fp, struct qib_devdata *dd)
 	 */
 	if (weight >= qib_cpulist_count) {
 		int cpu;
+
 		cpu = find_first_zero_bit(qib_cpulist,
 					  qib_cpulist_count);
 		if (cpu == qib_cpulist_count)
@@ -1389,6 +1390,7 @@ static int choose_port_ctxt(struct file *fp, struct qib_devdata *dd, u32 port,
 	}
 	if (!ppd) {
 		u32 pidx = ctxt % dd->num_pports;
+
 		if (usable(dd->pport + pidx))
 			ppd = dd->pport + pidx;
 		else {
@@ -1436,10 +1438,12 @@ static int get_a_ctxt(struct file *fp, const struct qib_user_info *uinfo,
 
 	if (alg == QIB_PORT_ALG_ACROSS) {
 		unsigned inuse = ~0U;
+
 		/* find device (with ACTIVE ports) with fewest ctxts in use */
 		for (ndev = 0; ndev < devmax; ndev++) {
 			struct qib_devdata *dd = qib_lookup(ndev);
 			unsigned cused = 0, cfree = 0, pusable = 0;
+
 			if (!dd)
 				continue;
 			if (port && port <= dd->num_pports &&
@@ -1469,6 +1473,7 @@ static int get_a_ctxt(struct file *fp, const struct qib_user_info *uinfo,
 	} else {
 		for (ndev = 0; ndev < devmax; ndev++) {
 			struct qib_devdata *dd = qib_lookup(ndev);
+
 			if (dd) {
 				ret = choose_port_ctxt(fp, dd, port, uinfo);
 				if (!ret)
@@ -1554,6 +1559,7 @@ static int find_hca(unsigned int cpu, int *unit)
 	}
 	for (ndev = 0; ndev < devmax; ndev++) {
 		struct qib_devdata *dd = qib_lookup(ndev);
+
 		if (dd) {
 			if (pcibus_to_node(dd->pcidev->bus) < 0) {
 				ret = -EINVAL;
