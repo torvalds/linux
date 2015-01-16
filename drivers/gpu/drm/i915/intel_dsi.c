@@ -42,6 +42,22 @@ static const struct intel_dsi_device intel_dsi_devices[] = {
 	},
 };
 
+static void wait_for_dsi_fifo_empty(struct intel_dsi *intel_dsi)
+{
+	struct drm_encoder *encoder = &intel_dsi->base.base;
+	struct drm_device *dev = encoder->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
+	enum port port = intel_dsi_pipe_to_port(intel_crtc->pipe);
+	u32 mask;
+
+	mask = LP_CTRL_FIFO_EMPTY | HS_CTRL_FIFO_EMPTY |
+		LP_DATA_FIFO_EMPTY | HS_DATA_FIFO_EMPTY;
+
+	if (wait_for((I915_READ(MIPI_GEN_FIFO_STAT(port)) & mask) == mask, 100))
+		DRM_ERROR("DPI FIFOs are not empty\n");
+}
+
 static void band_gap_reset(struct drm_i915_private *dev_priv)
 {
 	mutex_lock(&dev_priv->dpio_lock);
