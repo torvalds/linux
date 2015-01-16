@@ -2131,7 +2131,7 @@ static void intel_enable_pipe(struct intel_crtc *crtc)
 	 * a plane.  On ILK+ the pipe PLLs are integrated, so we don't
 	 * need the check.
 	 */
-	if (!HAS_PCH_SPLIT(dev_priv->dev))
+	if (HAS_GMCH_DISPLAY(dev_priv->dev))
 		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DSI))
 			assert_dsi_pll_enabled(dev_priv);
 		else
@@ -4666,7 +4666,7 @@ static void intel_crtc_load_lut(struct drm_crtc *crtc)
 	if (!crtc->state->enable || !intel_crtc->active)
 		return;
 
-	if (!HAS_PCH_SPLIT(dev_priv->dev)) {
+	if (HAS_GMCH_DISPLAY(dev_priv->dev)) {
 		if (intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DSI))
 			assert_dsi_pll_enabled(dev_priv);
 		else
