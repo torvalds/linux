@@ -129,6 +129,7 @@ Instead of allowing multiple, pluggable schedulers as in Linux, (which has cause
 * As every process is equal, so should the allocated resource for each process be equal.  A Round-robin policy ensures this.
 * Some process, however, are more oppressed than the others.  This requires the active interference of the overseeing kernel to rectify this injustice.
 * The added element of Social Justice is implemented by mapping all processes to a [Progressive Stack](https://en.wikipedia.org/wiki/Progressive_stack), a mechanism by which the least privileged process is allocated more resource, and the most privileged process is allocated less resource, such that equality between processes will be ultimately guaranteed.  It is an ingenious implementation of the [Bubble sort algorithm](https://en.wikipedia.org/wiki/Bubble_sort), the easiest to understand sorting algorithm there is and therefore also the best algorithm.
+* The combined result of all of the above is thus **Round-robin+**, a completely-fair scheduler that is aware not only of processes and of NUMA, but of everything, since not taking the identity of the hardware in to account is problematic.
 
 Smashing the socially constructed barriers between kernel space and user space
 =============================================================================
