@@ -122,6 +122,10 @@ MODULE_DESCRIPTION("AMD 10GbE (amd-xgbe) PHY driver");
 #define MDIO_AN_XNP			0x0016
 #endif
 
+#ifndef MDIO_AN_LPX
+#define MDIO_AN_LPX			0x0019
+#endif
+
 #ifndef MDIO_AN_INTMASK
 #define MDIO_AN_INTMASK			0x8001
 #endif
@@ -779,11 +783,11 @@ static enum amd_xgbe_phy_an amd_xgbe_an_rx_xnp(struct phy_device *phydev,
 	int ad_reg, lp_reg;
 
 	/* Check Extended Next Page support */
-	ad_reg = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_ADVERTISE);
+	ad_reg = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_XNP);
 	if (ad_reg < 0)
 		return AMD_XGBE_AN_ERROR;
 
-	lp_reg = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_LPA);
+	lp_reg = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_LPX);
 	if (lp_reg < 0)
 		return AMD_XGBE_AN_ERROR;
 
