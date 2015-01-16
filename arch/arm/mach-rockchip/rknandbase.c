@@ -61,26 +61,30 @@ int rknand_get_part_info(char **s)
 }
 EXPORT_SYMBOL(rknand_get_part_info); 
 
-static char sn_data[512];
-static char vendor0[512];
-
+static char nand_idb_data[2048];
 char GetSNSectorInfo(char * pbuf)
 {
-    memcpy(pbuf,sn_data,0x200);
+    memcpy(pbuf,&nand_idb_data[0x600],0x200);
     return 0;
 }
 
 char GetSNSectorInfoBeforeNandInit(char * pbuf)
 {
-    memcpy(pbuf,sn_data,0x200);
+    memcpy(pbuf,&nand_idb_data[0x600],0x200);
     return 0;
 } 
 
 char GetVendor0InfoBeforeNandInit(char * pbuf)
 {
-    memcpy(pbuf,vendor0 + 8,504);
+    memcpy(pbuf,&nand_idb_data[0x400+8],504);
     return 0;
 }
+
+char* rknand_get_idb_data(void)
+{
+    return nand_idb_data;
+}
+EXPORT_SYMBOL(rknand_get_idb_data);
 
 int  GetParamterInfo(char * pbuf , int len)
 {
@@ -141,7 +145,11 @@ EXPORT_SYMBOL(rk_nand_get_device);
 
 unsigned long rknand_dma_flush_dcache(unsigned long ptr,int size,int dir)
 {
+#ifdef CONFIG_ARM64
+	__flush_dcache_area((void *)ptr, size + 63);
+#else
      __cpuc_flush_dcache_area((void*)ptr, size + 63);
+#endif
     return ((unsigned long )virt_to_phys((void *)ptr));
 }
 EXPORT_SYMBOL(rknand_dma_flush_dcache);
@@ -164,10 +172,10 @@ int rknand_flash_cs_init(int id)
 }
 EXPORT_SYMBOL(rknand_flash_cs_init);
 
-int rknand_get_reg_addr(int *pNandc0,int *pNandc1,int *pSDMMC0,int *pSDMMC1,int *pSDMMC2)
+int rknand_get_reg_addr(unsigned long *pNandc0,unsigned long *pNandc1,unsigned long *pSDMMC0,unsigned long *pSDMMC1,unsigned long *pSDMMC2)
 {
-	*pNandc0 = (int)g_nandc_info[0].reg_base;
-	*pNandc1 = (int)g_nandc_info[1].reg_base;
+	*pNandc0 = (unsigned long)g_nandc_info[0].reg_base;
+	*pNandc1 = (unsigned long)g_nandc_info[1].reg_base;
 	return 0;
 }
 EXPORT_SYMBOL(rknand_get_reg_addr);
@@ -223,8 +231,7 @@ static int rknand_probe(struct platform_device *pdev)
 #endif
     if(id == 0)
 	{
-        memcpy(vendor0,membase+0x1400,0x200);
-        memcpy(sn_data,membase+0x1600,0x200);
+        memcpy(nand_idb_data,membase+0x1000,0x800);
 	}
 	else if(id >= 2)
 	{
