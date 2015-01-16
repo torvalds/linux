@@ -2177,7 +2177,7 @@ bool BBbVT3253Init(struct vnt_private *priv)
 		/* Init ANT B select,RX Config CR10 = 0x28->0x2A, 0x2A->0x28(VC1/VC2 define, make the ANT_A, ANT_B inverted) */
 		/*bResult &= BBbWriteEmbedded(dwIoBase,0x0a,0x28);*/
 		/* Select VC1/VC2, CR215 = 0x02->0x06 */
-		bResult &= BBbWriteEmbedded(dwIoBase, 0xd7, 0x06);
+		bResult &= BBbWriteEmbedded(priv, 0xd7, 0x06);
 		/* }} */
 
 		for (ii = 0; ii < CB_VT3253B0_AGC; ii++)
