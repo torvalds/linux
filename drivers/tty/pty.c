@@ -88,19 +88,6 @@ static void pty_unthrottle(struct tty_struct *tty)
 }
 
 /**
- *	pty_space	-	report space left for writing
- *	@to: tty we are writing into
- *
- *	Limit the buffer space used by ptys to 8k.
- */
-
-static int pty_space(struct tty_struct *to)
-{
-	int n = tty_buffer_space_avail(to->port);
-	return min(n, 8192);
-}
-
-/**
  *	pty_write		-	write to a pty
  *	@tty: the tty we write from
  *	@buf: kernel buffer of data
@@ -141,7 +128,7 @@ static int pty_write_room(struct tty_struct *tty)
 {
 	if (tty->stopped)
 		return 0;
-	return pty_space(tty->link);
+	return tty_buffer_space_avail(tty->link->port);
 }
 
 /**
@@ -432,6 +419,8 @@ static int pty_common_install(struct tty_driver *driver, struct tty_struct *tty,
 	o_tty->link = tty;
 	tty_port_init(ports[0]);
 	tty_port_init(ports[1]);
+	tty_buffer_set_limit(ports[0], 8192);
+	tty_buffer_set_limit(ports[1], 8192);
 	o_tty->port = ports[0];
 	tty->port = ports[1];
 	o_tty->port->itty = o_tty;
