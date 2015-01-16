@@ -100,6 +100,7 @@ int snd_ak4114_create(struct snd_card *card,
 	chip->private_data = private_data;
 	INIT_DELAYED_WORK(&chip->work, ak4114_stats);
 	atomic_set(&chip->wq_processing, 0);
+	mutex_init(&chip->reinit_mutex);
 
 	for (reg = 0; reg < 6; reg++)
 		chip->regmap[reg] = pgm[reg];
@@ -156,7 +157,9 @@ void snd_ak4114_reinit(struct ak4114 *chip)
 {
 	if (atomic_inc_return(&chip->wq_processing) == 1)
 		cancel_delayed_work_sync(&chip->work);
+	mutex_lock(&chip->reinit_mutex);
 	ak4114_init_regs(chip);
+	mutex_unlock(&chip->reinit_mutex);
 	/* bring up statistics / event queing */
 	if (atomic_dec_and_test(&chip->wq_processing))
 		schedule_delayed_work(&chip->work, HZ / 10);

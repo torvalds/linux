@@ -169,6 +169,7 @@ struct ak4114 {
 	ak4114_read_t * read;
 	void * private_data;
 	atomic_t wq_processing;
+	struct mutex reinit_mutex;
 	spinlock_t lock;
 	unsigned char regmap[6];
 	unsigned char txcsb[5];
