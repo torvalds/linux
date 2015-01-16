@@ -190,7 +190,8 @@ static int nlmsg_populate_mdb_fill(struct sk_buff *skb,
 
 	nla_nest_end(skb, nest2);
 	nla_nest_end(skb, nest);
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 end:
 	nla_nest_end(skb, nest);

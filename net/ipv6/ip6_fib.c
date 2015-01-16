@@ -277,7 +277,6 @@ static int fib6_dump_node(struct fib6_walker *w)
 			w->leaf = rt;
 			return 1;
 		}
-		WARN_ON(res == 0);
 	}
 	w->leaf = NULL;
 	return 0;

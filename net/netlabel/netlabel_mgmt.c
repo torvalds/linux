@@ -456,7 +456,8 @@ static int netlbl_mgmt_listall_cb(struct netlbl_dom_map *entry, void *arg)
 		goto listall_cb_failure;
 
 	cb_arg->seq++;
-	return genlmsg_end(cb_arg->skb, data);
+	genlmsg_end(cb_arg->skb, data);
+	return 0;
 
 listall_cb_failure:
 	genlmsg_cancel(cb_arg->skb, data);
@@ -620,7 +621,8 @@ static int netlbl_mgmt_protocols_cb(struct sk_buff *skb,
 	if (ret_val != 0)
 		goto protocols_cb_failure;
 
-	return genlmsg_end(skb, data);
+	genlmsg_end(skb, data);
+	return 0;
 
 protocols_cb_failure:
 	genlmsg_cancel(skb, data);

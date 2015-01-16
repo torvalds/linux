@@ -799,7 +799,8 @@ static int ovs_flow_cmd_fill_info(const struct sw_flow *flow, int dp_ifindex,
 	if (err)
 		goto error;
 
-	return genlmsg_end(skb, ovs_header);
+	genlmsg_end(skb, ovs_header);
+	return 0;
 
 error:
 	genlmsg_cancel(skb, ovs_header);
@@ -1349,7 +1350,8 @@ static int ovs_dp_cmd_fill_info(struct datapath *dp, struct sk_buff *skb,
 	if (nla_put_u32(skb, OVS_DP_ATTR_USER_FEATURES, dp->user_features))
 		goto nla_put_failure;
 
-	return genlmsg_end(skb, ovs_header);
+	genlmsg_end(skb, ovs_header);
+	return 0;
 
 nla_put_failure:
 	genlmsg_cancel(skb, ovs_header);
@@ -1723,7 +1725,8 @@ static int ovs_vport_cmd_fill_info(struct vport *vport, struct sk_buff *skb,
 	if (err == -EMSGSIZE)
 		goto error;
 
-	return genlmsg_end(skb, ovs_header);
+	genlmsg_end(skb, ovs_header);
+	return 0;
 
 nla_put_failure:
 	err = -EMSGSIZE;

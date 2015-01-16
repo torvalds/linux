@@ -2557,7 +2557,8 @@ static int mac80211_hwsim_get_radio(struct sk_buff *skb,
 	if (res < 0)
 		goto out_err;
 
-	return genlmsg_end(skb, hdr);
+	genlmsg_end(skb, hdr);
+	return 0;
 
 out_err:
 	genlmsg_cancel(skb, hdr);

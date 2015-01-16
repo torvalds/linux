@@ -3674,7 +3674,8 @@ static int rocker_fdb_fill_info(struct sk_buff *skb,
 	if (vid && nla_put_u16(skb, NDA_VLAN, vid))
 		goto nla_put_failure;
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 nla_put_failure:
 	nlmsg_cancel(skb, nlh);
