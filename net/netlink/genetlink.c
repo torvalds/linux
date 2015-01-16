@@ -23,6 +23,9 @@
 static DEFINE_MUTEX(genl_mutex); /* serialization of message processing */
 static DECLARE_RWSEM(cb_lock);
 
+atomic_t genl_sk_destructing_cnt = ATOMIC_INIT(0);
+DECLARE_WAIT_QUEUE_HEAD(genl_sk_destructing_waitq);
+
 void genl_lock(void)
 {
 	mutex_lock(&genl_mutex);
@@ -435,15 +438,18 @@ int genl_unregister_family(struct genl_family *family)
 
 	genl_lock_all();
 
-	genl_unregister_mc_groups(family);
-
 	list_for_each_entry(rc, genl_family_chain(family->id), family_list) {
 		if (family->id != rc->id || strcmp(rc->name, family->name))
 			continue;
 
+		genl_unregister_mc_groups(family);
+
 		list_del(&rc->family_list);
 		family->n_ops = 0;
-		genl_unlock_all();
+		up_write(&cb_lock);
+		wait_event(genl_sk_destructing_waitq,
+			   atomic_read(&genl_sk_destructing_cnt) == 0);
+		genl_unlock();
 
 		kfree(family->attrbuf);
 		genl_ctrl_event(CTRL_CMD_DELFAMILY, family, NULL, 0);
@@ -1014,7 +1020,6 @@ static int genl_bind(struct net *net, int group)
 static void genl_unbind(struct net *net, int group)
 {
 	int i;
-	bool found = false;
 
 	down_read(&cb_lock);
 	for (i = 0; i < GENL_FAM_TAB_SIZE; i++) {
@@ -1027,14 +1032,11 @@ static void genl_unbind(struct net *net, int group)
 
 				if (f->mcast_unbind)
 					f->mcast_unbind(net, fam_grp);
-				found = true;
 				break;
 			}
 		}
 	}
 	up_read(&cb_lock);
-
-	WARN_ON(!found);
 }
 
 static int __net_init genl_pernet_init(struct net *net)
