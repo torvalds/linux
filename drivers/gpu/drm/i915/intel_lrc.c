@@ -283,7 +283,6 @@ static void execlists_elsp_write(struct intel_engine_cs *ring,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint64_t temp = 0;
 	uint32_t desc[4];
-	unsigned long flags;
 
 	/* XXX: You must always write both descriptors in the order below. */
 	if (ctx_obj1)
@@ -297,63 +296,17 @@ static void execlists_elsp_write(struct intel_engine_cs *ring,
 	desc[3] = (u32)(temp >> 32);
 	desc[2] = (u32)temp;
 
-	/* Set Force Wakeup bit to prevent GT from entering C6 while ELSP writes
-	 * are in progress.
-	 *
-	 * The other problem is that we can't just call gen6_gt_force_wake_get()
-	 * because that function calls intel_runtime_pm_get(), which might sleep.
-	 * Instead, we do the runtime_pm_get/put when creating/destroying requests.
-	 */
-	spin_lock_irqsave(&dev_priv->uncore.lock, flags);
-	if (IS_CHERRYVIEW(dev) || INTEL_INFO(dev)->gen >= 9) {
-		if (dev_priv->uncore.fw_rendercount++ == 0)
-			dev_priv->uncore.funcs.force_wake_get(dev_priv,
-							      FORCEWAKE_RENDER);
-		if (dev_priv->uncore.fw_mediacount++ == 0)
-			dev_priv->uncore.funcs.force_wake_get(dev_priv,
-							      FORCEWAKE_MEDIA);
-		if (INTEL_INFO(dev)->gen >= 9) {
-			if (dev_priv->uncore.fw_blittercount++ == 0)
-				dev_priv->uncore.funcs.force_wake_get(dev_priv,
-							FORCEWAKE_BLITTER);
-		}
-	} else {
-		if (dev_priv->uncore.forcewake_count++ == 0)
-			dev_priv->uncore.funcs.force_wake_get(dev_priv,
-							      FORCEWAKE_ALL);
-	}
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, flags);
-
+	gen6_gt_force_wake_get(dev_priv, FORCEWAKE_ALL);
 	I915_WRITE(RING_ELSP(ring), desc[1]);
 	I915_WRITE(RING_ELSP(ring), desc[0]);
 	I915_WRITE(RING_ELSP(ring), desc[3]);
+
 	/* The context is automatically loaded after the following */
 	I915_WRITE(RING_ELSP(ring), desc[2]);
 
 	/* ELSP is a wo register, so use another nearby reg for posting instead */
 	POSTING_READ(RING_EXECLIST_STATUS(ring));
-
-	/* Release Force Wakeup (see the big comment above). */
-	spin_lock_irqsave(&dev_priv->uncore.lock, flags);
-	if (IS_CHERRYVIEW(dev) || INTEL_INFO(dev)->gen >= 9) {
-		if (--dev_priv->uncore.fw_rendercount == 0)
-			dev_priv->uncore.funcs.force_wake_put(dev_priv,
-							      FORCEWAKE_RENDER);
-		if (--dev_priv->uncore.fw_mediacount == 0)
-			dev_priv->uncore.funcs.force_wake_put(dev_priv,
-							      FORCEWAKE_MEDIA);
-		if (INTEL_INFO(dev)->gen >= 9) {
-			if (--dev_priv->uncore.fw_blittercount == 0)
-				dev_priv->uncore.funcs.force_wake_put(dev_priv,
-							FORCEWAKE_BLITTER);
-		}
-	} else {
-		if (--dev_priv->uncore.forcewake_count == 0)
-			dev_priv->uncore.funcs.force_wake_put(dev_priv,
-							      FORCEWAKE_ALL);
-	}
-
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, flags);
+	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
 }
 
 static int execlists_update_context(struct drm_i915_gem_object *ctx_obj,

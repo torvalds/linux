@@ -7870,19 +7870,8 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 	/*
 	 * Make sure we're not on PC8 state before disabling PC8, otherwise
 	 * we'll hang the machine. To prevent PC8 state, just enable force_wake.
-	 *
-	 * The other problem is that hsw_restore_lcpll() is called as part of
-	 * the runtime PM resume sequence, so we can't just call
-	 * gen6_gt_force_wake_get() because that function calls
-	 * intel_runtime_pm_get(), and we can't change the runtime PM refcount
-	 * while we are on the resume sequence. So to solve this problem we have
-	 * to call special forcewake code that doesn't touch runtime PM and
-	 * doesn't enable the forcewake delayed work.
 	 */
-	spin_lock_irq(&dev_priv->uncore.lock);
-	if (dev_priv->uncore.forcewake_count++ == 0)
-		dev_priv->uncore.funcs.force_wake_get(dev_priv, FORCEWAKE_ALL);
-	spin_unlock_irq(&dev_priv->uncore.lock);
+	gen6_gt_force_wake_get(dev_priv, FORCEWAKE_ALL);
 
 	if (val & LCPLL_POWER_DOWN_ALLOW) {
 		val &= ~LCPLL_POWER_DOWN_ALLOW;
@@ -7912,11 +7901,7 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 			DRM_ERROR("Switching back to LCPLL failed\n");
 	}
 
-	/* See the big comment above. */
-	spin_lock_irq(&dev_priv->uncore.lock);
-	if (--dev_priv->uncore.forcewake_count == 0)
-		dev_priv->uncore.funcs.force_wake_put(dev_priv, FORCEWAKE_ALL);
-	spin_unlock_irq(&dev_priv->uncore.lock);
+	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
 }
 
 /*

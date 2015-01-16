@@ -24,6 +24,8 @@
 #include "i915_drv.h"
 #include "intel_drv.h"
 
+#include <linux/pm_runtime.h>
+
 #define FORCEWAKE_ACK_TIMEOUT_MS 2
 
 #define __raw_i915_read8(dev_priv__, reg__) readb((dev_priv__)->regs + (reg__))
@@ -247,10 +249,6 @@ static void __vlv_force_wake_put(struct drm_i915_private *dev_priv,
 
 static void vlv_force_wake_get(struct drm_i915_private *dev_priv, int fw_engine)
 {
-	unsigned long irqflags;
-
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
-
 	if (fw_engine & FORCEWAKE_RENDER &&
 	    dev_priv->uncore.fw_rendercount++ != 0)
 		fw_engine &= ~FORCEWAKE_RENDER;
@@ -260,16 +258,10 @@ static void vlv_force_wake_get(struct drm_i915_private *dev_priv, int fw_engine)
 
 	if (fw_engine)
 		dev_priv->uncore.funcs.force_wake_get(dev_priv, fw_engine);
-
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 static void vlv_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine)
 {
-	unsigned long irqflags;
-
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
-
 	if (fw_engine & FORCEWAKE_RENDER) {
 		WARN_ON(!dev_priv->uncore.fw_rendercount);
 		if (--dev_priv->uncore.fw_rendercount != 0)
@@ -284,8 +276,6 @@ static void vlv_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine)
 
 	if (fw_engine)
 		dev_priv->uncore.funcs.force_wake_put(dev_priv, fw_engine);
-
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 static void __gen9_gt_force_wake_mt_reset(struct drm_i915_private *dev_priv)
@@ -380,10 +370,6 @@ __gen9_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine)
 static void
 gen9_force_wake_get(struct drm_i915_private *dev_priv, int fw_engine)
 {
-	unsigned long irqflags;
-
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
-
 	if (FORCEWAKE_RENDER & fw_engine) {
 		if (dev_priv->uncore.fw_rendercount++ == 0)
 			dev_priv->uncore.funcs.force_wake_get(dev_priv,
@@ -401,17 +387,11 @@ gen9_force_wake_get(struct drm_i915_private *dev_priv, int fw_engine)
 			dev_priv->uncore.funcs.force_wake_get(dev_priv,
 							FORCEWAKE_BLITTER);
 	}
-
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 static void
 gen9_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine)
 {
-	unsigned long irqflags;
-
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
-
 	if (FORCEWAKE_RENDER & fw_engine) {
 		WARN_ON(dev_priv->uncore.fw_rendercount == 0);
 		if (--dev_priv->uncore.fw_rendercount == 0)
@@ -432,8 +412,6 @@ gen9_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine)
 			dev_priv->uncore.funcs.force_wake_put(dev_priv,
 							FORCEWAKE_BLITTER);
 	}
-
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 static void gen6_force_wake_timer(unsigned long arg)
@@ -562,19 +540,20 @@ void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv, int fw_engine)
 	if (!dev_priv->uncore.funcs.force_wake_get)
 		return;
 
-	intel_runtime_pm_get(dev_priv);
-
-	/* Redirect to Gen9 specific routine */
-	if (IS_GEN9(dev_priv->dev))
-		return gen9_force_wake_get(dev_priv, fw_engine);
-
-	/* Redirect to VLV specific routine */
-	if (IS_VALLEYVIEW(dev_priv->dev))
-		return vlv_force_wake_get(dev_priv, fw_engine);
+	WARN_ON(dev_priv->pm.suspended);
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
-	if (dev_priv->uncore.forcewake_count++ == 0)
-		dev_priv->uncore.funcs.force_wake_get(dev_priv, FORCEWAKE_ALL);
+
+	if (IS_GEN9(dev_priv->dev)) {
+		gen9_force_wake_get(dev_priv, fw_engine);
+	} else if (IS_VALLEYVIEW(dev_priv->dev)) {
+		vlv_force_wake_get(dev_priv, fw_engine);
+	} else {
+		if (dev_priv->uncore.forcewake_count++ == 0)
+			dev_priv->uncore.funcs.force_wake_get(dev_priv,
+							      FORCEWAKE_ALL);
+	}
+
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
@@ -588,31 +567,22 @@ void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine)
 	if (!dev_priv->uncore.funcs.force_wake_put)
 		return;
 
-	/* Redirect to Gen9 specific routine */
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+
 	if (IS_GEN9(dev_priv->dev)) {
 		gen9_force_wake_put(dev_priv, fw_engine);
-		goto out;
-	}
-
-	/* Redirect to VLV specific routine */
-	if (IS_VALLEYVIEW(dev_priv->dev)) {
+	} else if (IS_VALLEYVIEW(dev_priv->dev)) {
 		vlv_force_wake_put(dev_priv, fw_engine);
-		goto out;
-	}
-
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
-	WARN_ON(!dev_priv->uncore.forcewake_count);
-
-	if (--dev_priv->uncore.forcewake_count == 0) {
-		dev_priv->uncore.forcewake_count++;
-		mod_timer_pinned(&dev_priv->uncore.force_wake_timer,
-				 jiffies + 1);
+	} else {
+		WARN_ON(!dev_priv->uncore.forcewake_count);
+		if (--dev_priv->uncore.forcewake_count == 0) {
+			dev_priv->uncore.forcewake_count++;
+			mod_timer_pinned(&dev_priv->uncore.force_wake_timer,
+					 jiffies + 1);
+		}
 	}
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
-
-out:
-	intel_runtime_pm_put(dev_priv);
 }
 
 void assert_force_wake_inactive(struct drm_i915_private *dev_priv)

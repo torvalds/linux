@@ -4339,6 +4339,7 @@ static int i915_forcewake_open(struct inode *inode, struct file *file)
 	if (INTEL_INFO(dev)->gen < 6)
 		return 0;
 
+	intel_runtime_pm_get(dev_priv);
 	gen6_gt_force_wake_get(dev_priv, FORCEWAKE_ALL);
 
 	return 0;
@@ -4353,6 +4354,7 @@ static int i915_forcewake_release(struct inode *inode, struct file *file)
 		return 0;
 
 	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
+	intel_runtime_pm_put(dev_priv);
 
 	return 0;
 }
