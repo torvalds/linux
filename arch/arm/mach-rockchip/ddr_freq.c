@@ -32,12 +32,6 @@
 #include "../../../drivers/clk/rockchip/clk-pd.h"
 #include "cpu_axi.h"
 
-#ifdef CONFIG_CPU_FREQ
-extern int rockchip_cpufreq_reboot_limit_freq(void);
-#else
-static inline int rockchip_cpufreq_reboot_limit_freq(void) { return 0; }
-#endif
-
 static DECLARE_COMPLETION(ddrfreq_completion);
 static DEFINE_MUTEX(ddrfreq_mutex);
 
@@ -777,18 +771,6 @@ CLK_NOTIFIER(pd_vop0, LCDC0)
 CLK_NOTIFIER(pd_vop1, LCDC1)
 #endif
 
-static int ddrfreq_reboot_notifier_event(struct notifier_block *this, unsigned long event, void *ptr)
-{
-	rockchip_set_system_status(SYS_STATUS_REBOOT);
-	rockchip_cpufreq_reboot_limit_freq();
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block ddrfreq_reboot_notifier = {
-	.notifier_call = ddrfreq_reboot_notifier_event,
-};
-
 static int ddr_freq_suspend_notifier_call(struct notifier_block *self,
 				unsigned long action, void *data)
 {
@@ -1004,7 +986,6 @@ static int ddrfreq_init(void)
 
 	rockchip_register_system_status_notifier(&ddrfreq_system_status_notifier);
 	fb_register_client(&ddr_freq_suspend_notifier);
-	register_reboot_notifier(&ddrfreq_reboot_notifier);
 
 	pr_info("verion 1.2 20140526\n");
 	pr_info("normal %luMHz video_1080p %luMHz video_4k %luMHz dualview %luMHz idle %luMHz suspend %luMHz reboot %luMHz\n",

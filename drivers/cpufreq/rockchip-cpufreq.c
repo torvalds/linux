@@ -33,6 +33,8 @@
 #include <asm/unistd.h>
 #include <asm/uaccess.h>
 #include <asm/system_misc.h>
+#include <linux/rockchip/common.h>
+#include <dt-bindings/clock/rk_system_status.h>
 #include "../../../drivers/clk/rockchip/clk-pd.h"
 
 extern void dvfs_disable_temp_limit(void);
@@ -397,21 +399,7 @@ out:
 static struct notifier_block cpufreq_pm_notifier = {
 	.notifier_call = cpufreq_pm_notifier_event,
 };
-#if 0
-static int cpufreq_reboot_notifier_event(struct notifier_block *this, unsigned long event, void *ptr)
-{
-	struct cpufreq_policy *policy = cpufreq_cpu_get(0);
 
-	if (policy) {
-		is_booting = false;
-		policy->cur++;
-		cpufreq_driver_target(policy, suspend_freq, DISABLE_FURTHER_CPUFREQ | CPUFREQ_RELATION_H);
-		cpufreq_cpu_put(policy);
-	}
-
-	return NOTIFY_OK;
-}
-#endif
 int rockchip_cpufreq_reboot_limit_freq(void)
 {
 	struct regulator *regulator;
@@ -432,11 +420,20 @@ int rockchip_cpufreq_reboot_limit_freq(void)
 
 	return 0;
 }
-#if 0
+
+static int cpufreq_reboot_notifier_event(struct notifier_block *this,
+					 unsigned long event, void *ptr)
+{
+	rockchip_set_system_status(SYS_STATUS_REBOOT);
+	rockchip_cpufreq_reboot_limit_freq();
+
+	return NOTIFY_OK;
+}
+
 static struct notifier_block cpufreq_reboot_notifier = {
 	.notifier_call = cpufreq_reboot_notifier_event,
 };
-#endif
+
 static int clk_pd_vio_notifier_call(struct notifier_block *nb, unsigned long event, void *ptr)
 {
 	switch (event) {
@@ -455,7 +452,6 @@ static int clk_pd_vio_notifier_call(struct notifier_block *nb, unsigned long eve
 static struct notifier_block clk_pd_vio_notifier = {
 	.notifier_call = clk_pd_vio_notifier_call,
 };
-
 
 static struct cpufreq_driver cpufreq_driver = {
 	.flags = CPUFREQ_CONST_LOOPS,
@@ -480,6 +476,7 @@ static int __init cpufreq_driver_init(void)
 			clk_enable_dvfs(aclk_vio1_dvfs_node);
 		}
 	}
+	register_reboot_notifier(&cpufreq_reboot_notifier);
 	register_pm_notifier(&cpufreq_pm_notifier);
 	return cpufreq_register_driver(&cpufreq_driver);
 }
