@@ -1669,9 +1669,8 @@ n_tty_receive_buf_common(struct tty_struct *tty, const unsigned char *cp,
 
 	while (1) {
 		/*
-		 * When PARMRK is set, multiply read_cnt by 3, since each byte
-		 * might take up to three times as many spaces (depending on
-		 * its flags, e.g. parity error). [This calculation is wrong.]
+		 * When PARMRK is set, each input char may take up to 3 chars
+		 * in the read buf; reduce the buffer space avail by 3x
 		 *
 		 * If we are doing input canonicalization, and there are no
 		 * pending newlines, let characters through without limit, so
@@ -1683,13 +1682,10 @@ n_tty_receive_buf_common(struct tty_struct *tty, const unsigned char *cp,
 		 * read_tail (so this producer will not overwrite unread data)
 		 */
 		size_t tail = smp_load_acquire(&ldata->read_tail);
-		size_t head = ldata->read_head;
 
+		room = N_TTY_BUF_SIZE - (ldata->read_head - tail) - 1;
 		if (I_PARMRK(tty))
-			room = N_TTY_BUF_SIZE - (head - tail) * 3 - 1;
-		else
-			room = N_TTY_BUF_SIZE - (head - tail) - 1;
-
+			room /= 3;
 		if (room <= 0)
 			room = ldata->icanon && ldata->canon_head == tail;
 
