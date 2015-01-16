@@ -115,6 +115,8 @@ More advanced IPC is to be *guided*, never *dictated*.  The obsolete `D-Bus` mec
 Smashing the socially constructed barriers between kernel space and userspace
 =============================================================================
 
+  ![Kernel space is a social construct](http://i.imgur.com/vGCYGK3.png)
+
 *TBC*
 
 Supported architectures and form factors
