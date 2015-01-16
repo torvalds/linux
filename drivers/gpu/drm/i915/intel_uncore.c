@@ -49,7 +49,7 @@ static const char * const forcewake_domain_names[] = {
 };
 
 const char *
-intel_uncore_forcewake_domain_to_str(const int id)
+intel_uncore_forcewake_domain_to_str(const enum forcewake_domain_id id)
 {
 	BUILD_BUG_ON((sizeof(forcewake_domain_names)/sizeof(const char *)) !=
 		     FW_DOMAIN_ID_COUNT);
@@ -122,10 +122,10 @@ fw_domain_posting_read(const struct intel_uncore_forcewake_domain *d)
 }
 
 static void
-fw_domains_get(struct drm_i915_private *dev_priv, int fw_domains)
+fw_domains_get(struct drm_i915_private *dev_priv, enum forcewake_domains fw_domains)
 {
 	struct intel_uncore_forcewake_domain *d;
-	int id;
+	enum forcewake_domain_id id;
 
 	for_each_fw_domain_mask(d, fw_domains, dev_priv, id) {
 		fw_domain_wait_ack_clear(d);
@@ -136,10 +136,10 @@ fw_domains_get(struct drm_i915_private *dev_priv, int fw_domains)
 }
 
 static void
-fw_domains_put(struct drm_i915_private *dev_priv, int fw_domains)
+fw_domains_put(struct drm_i915_private *dev_priv, enum forcewake_domains fw_domains)
 {
 	struct intel_uncore_forcewake_domain *d;
-	int id;
+	enum forcewake_domain_id id;
 
 	for_each_fw_domain_mask(d, fw_domains, dev_priv, id) {
 		fw_domain_put(d);
@@ -151,7 +151,7 @@ static void
 fw_domains_posting_read(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore_forcewake_domain *d;
-	int id;
+	enum forcewake_domain_id id;
 
 	/* No need to do for all, just do for first found */
 	for_each_fw_domain(d, dev_priv, id) {
@@ -161,10 +161,10 @@ fw_domains_posting_read(struct drm_i915_private *dev_priv)
 }
 
 static void
-fw_domains_reset(struct drm_i915_private *dev_priv, const unsigned fw_domains)
+fw_domains_reset(struct drm_i915_private *dev_priv, enum forcewake_domains fw_domains)
 {
 	struct intel_uncore_forcewake_domain *d;
-	int id;
+	enum forcewake_domain_id id;
 
 	for_each_fw_domain_mask(d, fw_domains, dev_priv, id)
 		fw_domain_reset(d);
@@ -183,7 +183,7 @@ static void __gen6_gt_wait_for_thread_c0(struct drm_i915_private *dev_priv)
 }
 
 static void fw_domains_get_with_thread_status(struct drm_i915_private *dev_priv,
-					      int fw_domains)
+					      enum forcewake_domains fw_domains)
 {
 	fw_domains_get(dev_priv, fw_domains);
 
@@ -201,7 +201,7 @@ static void gen6_gt_check_fifodbg(struct drm_i915_private *dev_priv)
 }
 
 static void fw_domains_put_with_fifo(struct drm_i915_private *dev_priv,
-				     int fw_domains)
+				     enum forcewake_domains fw_domains)
 {
 	fw_domains_put(dev_priv, fw_domains);
 	gen6_gt_check_fifodbg(dev_priv);
@@ -255,9 +255,11 @@ static void intel_uncore_fw_release_timer(unsigned long arg)
 void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long irqflags, fw = 0;
+	unsigned long irqflags;
 	struct intel_uncore_forcewake_domain *domain;
-	int id, active_domains, retry_count = 100;
+	int retry_count = 100;
+	enum forcewake_domain_id id;
+	enum forcewake_domains fw = 0, active_domains;
 
 	/* Hold uncore.lock across reset to prevent any register access
 	 * with forcewake not set correctly. Wait until all pending
@@ -372,11 +374,11 @@ void intel_uncore_sanitize(struct drm_device *dev)
  * to be kept awake so the @fw_domains would be then FORCEWAKE_ALL.
  */
 void intel_uncore_forcewake_get(struct drm_i915_private *dev_priv,
-				unsigned fw_domains)
+				enum forcewake_domains fw_domains)
 {
 	unsigned long irqflags;
 	struct intel_uncore_forcewake_domain *domain;
-	int id;
+	enum forcewake_domain_id id;
 
 	if (!dev_priv->uncore.funcs.force_wake_get)
 		return;
@@ -407,11 +409,11 @@ void intel_uncore_forcewake_get(struct drm_i915_private *dev_priv,
  * domains obtained by intel_uncore_forcewake_get().
  */
 void intel_uncore_forcewake_put(struct drm_i915_private *dev_priv,
-				unsigned fw_domains)
+				enum forcewake_domains fw_domains)
 {
 	unsigned long irqflags;
 	struct intel_uncore_forcewake_domain *domain;
-	int id;
+	enum forcewake_domain_id id;
 
 	if (!dev_priv->uncore.funcs.force_wake_put)
 		return;
@@ -437,7 +439,7 @@ void intel_uncore_forcewake_put(struct drm_i915_private *dev_priv,
 void assert_forcewakes_inactive(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore_forcewake_domain *domain;
-	int id;
+	enum forcewake_domain_id id;
 
 	if (!dev_priv->uncore.funcs.force_wake_get)
 		return;
@@ -607,10 +609,10 @@ __gen2_read(64)
 	return val
 
 static inline void __force_wake_get(struct drm_i915_private *dev_priv,
-				    unsigned fw_domains)
+				    enum forcewake_domains fw_domains)
 {
 	struct intel_uncore_forcewake_domain *domain;
-	int id;
+	enum forcewake_domain_id id;
 
 	if (WARN_ON(!fw_domains))
 		return;
@@ -675,7 +677,7 @@ chv_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 #define __gen9_read(x) \
 static u##x \
 gen9_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
-	unsigned fw_engine; \
+	enum forcewake_domains fw_engine; \
 	GEN6_READ_HEADER(x); \
 	if (!SKL_NEEDS_FORCE_WAKE((dev_priv), (reg)))	\
 		fw_engine = 0; \
@@ -875,7 +877,7 @@ static bool is_gen9_shadowed(struct drm_i915_private *dev_priv, u32 reg)
 static void \
 gen9_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, \
 		bool trace) { \
-	unsigned fw_engine; \
+	enum forcewake_domains fw_engine; \
 	GEN6_WRITE_HEADER; \
 	if (!SKL_NEEDS_FORCE_WAKE((dev_priv), (reg)) ||	\
 	    is_gen9_shadowed(dev_priv, reg)) \
@@ -941,7 +943,8 @@ do { \
 
 
 static void fw_domain_init(struct drm_i915_private *dev_priv,
-			   u32 domain_id, u32 reg_set, u32 reg_ack)
+			   enum forcewake_domain_id domain_id,
+			   u32 reg_set, u32 reg_ack)
 {
 	struct intel_uncore_forcewake_domain *d;
 

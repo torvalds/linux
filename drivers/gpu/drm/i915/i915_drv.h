@@ -575,11 +575,28 @@ struct drm_i915_display_funcs {
 	void (*enable_backlight)(struct intel_connector *connector);
 };
 
+enum forcewake_domain_id {
+	FW_DOMAIN_ID_RENDER = 0,
+	FW_DOMAIN_ID_BLITTER,
+	FW_DOMAIN_ID_MEDIA,
+
+	FW_DOMAIN_ID_COUNT
+};
+
+enum forcewake_domains {
+	FORCEWAKE_RENDER = (1 << FW_DOMAIN_ID_RENDER),
+	FORCEWAKE_BLITTER = (1 << FW_DOMAIN_ID_BLITTER),
+	FORCEWAKE_MEDIA	= (1 << FW_DOMAIN_ID_MEDIA),
+	FORCEWAKE_ALL = (FORCEWAKE_RENDER |
+			 FORCEWAKE_BLITTER |
+			 FORCEWAKE_MEDIA)
+};
+
 struct intel_uncore_funcs {
 	void (*force_wake_get)(struct drm_i915_private *dev_priv,
-							int fw_engine);
+							enum forcewake_domains domains);
 	void (*force_wake_put)(struct drm_i915_private *dev_priv,
-							int fw_engine);
+							enum forcewake_domains domains);
 
 	uint8_t  (*mmio_readb)(struct drm_i915_private *dev_priv, off_t offset, bool trace);
 	uint16_t (*mmio_readw)(struct drm_i915_private *dev_priv, off_t offset, bool trace);
@@ -596,25 +613,17 @@ struct intel_uncore_funcs {
 				uint64_t val, bool trace);
 };
 
-enum {
-	FW_DOMAIN_ID_RENDER = 0,
-	FW_DOMAIN_ID_BLITTER,
-	FW_DOMAIN_ID_MEDIA,
-
-	FW_DOMAIN_ID_COUNT
-};
-
 struct intel_uncore {
 	spinlock_t lock; /** lock is also taken in irq contexts. */
 
 	struct intel_uncore_funcs funcs;
 
 	unsigned fifo_count;
-	unsigned fw_domains;
+	enum forcewake_domains fw_domains;
 
 	struct intel_uncore_forcewake_domain {
 		struct drm_i915_private *i915;
-		int id;
+		enum forcewake_domain_id id;
 		unsigned wake_count;
 		struct timer_list timer;
 		u32 reg_set;
@@ -624,12 +633,6 @@ struct intel_uncore {
 		u32 reg_post;
 		u32 val_reset;
 	} fw_domain[FW_DOMAIN_ID_COUNT];
-#define FORCEWAKE_RENDER	(1 << FW_DOMAIN_ID_RENDER)
-#define FORCEWAKE_BLITTER	(1 << FW_DOMAIN_ID_BLITTER)
-#define FORCEWAKE_MEDIA		(1 << FW_DOMAIN_ID_MEDIA)
-#define FORCEWAKE_ALL		(FORCEWAKE_RENDER | \
-				 FORCEWAKE_BLITTER | \
-				 FORCEWAKE_MEDIA)
 };
 
 /* Iterate over initialised fw domains */
@@ -2563,11 +2566,11 @@ extern void intel_uncore_init(struct drm_device *dev);
 extern void intel_uncore_check_errors(struct drm_device *dev);
 extern void intel_uncore_fini(struct drm_device *dev);
 extern void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore);
-const char *intel_uncore_forcewake_domain_to_str(const int domain_id);
+const char *intel_uncore_forcewake_domain_to_str(const enum forcewake_domain_id id);
 void intel_uncore_forcewake_get(struct drm_i915_private *dev_priv,
-				unsigned fw_domains);
+				enum forcewake_domains domains);
 void intel_uncore_forcewake_put(struct drm_i915_private *dev_priv,
-				unsigned fw_domains);
+				enum forcewake_domains domains);
 void assert_forcewakes_inactive(struct drm_i915_private *dev_priv);
 
 void
