@@ -136,13 +136,10 @@ static const struct snd_soc_dapm_route smdk_wm8580_audio_map[] = {
 
 static int smdk_wm8580_init_paiftx(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
 	/* Enabling the microphone requires the fitting of a 0R
 	 * resistor to connect the line from the microphone jack.
 	 */
-	snd_soc_dapm_disable_pin(dapm, "MicIn");
+	snd_soc_dapm_disable_pin(&rtd->card->dapm, "MicIn");
 
 	return 0;
 }
