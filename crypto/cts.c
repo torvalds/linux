@@ -307,8 +307,6 @@ static struct crypto_instance *crypto_cts_alloc(struct rtattr **tb)
 	inst->alg.cra_blkcipher.min_keysize = alg->cra_blkcipher.min_keysize;
 	inst->alg.cra_blkcipher.max_keysize = alg->cra_blkcipher.max_keysize;
 
-	inst->alg.cra_blkcipher.geniv = "seqiv";
-
 	inst->alg.cra_ctxsize = sizeof(struct crypto_cts_ctx);
 
 	inst->alg.cra_init = crypto_cts_init_tfm;
