@@ -1,5 +1,5 @@
 /*
- * Keystone GBE subsystem code
+ * Keystone GBE and XGBE subsystem code
  *
  * Copyright (C) 2014 Texas Instruments Incorporated
  * Authors:	Sandeep Nair <sandeep_n@ti.com>
@@ -53,6 +53,23 @@
 #define GBE13_NUM_ALE_PORTS		(GBE13_NUM_SLAVES + 1)
 #define GBE13_NUM_ALE_ENTRIES		1024
 
+/* 10G Ethernet SS defines */
+#define XGBE_MODULE_NAME		"netcp-xgbe"
+#define XGBE_SS_VERSION_10		0x4ee42100
+
+#define XGBE_SERDES_REG_INDEX		1
+#define XGBE10_SGMII_MODULE_OFFSET	0x100
+#define XGBE10_SWITCH_MODULE_OFFSET	0x1000
+#define XGBE10_HOST_PORT_OFFSET		0x1034
+#define XGBE10_SLAVE_PORT_OFFSET	0x1064
+#define XGBE10_EMAC_OFFSET		0x1400
+#define XGBE10_ALE_OFFSET		0x1700
+#define XGBE10_HW_STATS_OFFSET		0x1800
+#define XGBE10_HOST_PORT_NUM		0
+#define XGBE10_NUM_SLAVES		2
+#define XGBE10_NUM_ALE_PORTS		(XGBE10_NUM_SLAVES + 1)
+#define XGBE10_NUM_ALE_ENTRIES		1024
+
 #define	GBE_TIMER_INTERVAL			(HZ / 2)
 
 /* Soft reset register values */
@@ -63,12 +80,15 @@
 
 #define MACSL_RX_ENABLE_CSF			BIT(23)
 #define MACSL_ENABLE_EXT_CTL			BIT(18)
+#define MACSL_XGMII_ENABLE			BIT(13)
+#define MACSL_XGIG_MODE				BIT(8)
 #define MACSL_GIG_MODE				BIT(7)
 #define MACSL_GMII_ENABLE			BIT(5)
 #define MACSL_FULLDUPLEX			BIT(0)
 
 #define GBE_CTL_P0_ENABLE			BIT(2)
 #define GBE_REG_VAL_STAT_ENABLE_ALL		0xff
+#define XGBE_REG_VAL_STAT_ENABLE_ALL		0xf
 #define GBE_STATS_CD_SEL			BIT(28)
 
 #define GBE_PORT_MASK(x)			(BIT(x) - 1)
@@ -78,10 +98,18 @@
 		(MACSL_GIG_MODE | MACSL_GMII_ENABLE |		\
 		 MACSL_ENABLE_EXT_CTL |	MACSL_RX_ENABLE_CSF)
 
+#define GBE_DEF_10G_MAC_CONTROL				\
+		(MACSL_XGIG_MODE | MACSL_XGMII_ENABLE |		\
+		 MACSL_ENABLE_EXT_CTL |	MACSL_RX_ENABLE_CSF)
+
 #define GBE_STATSA_MODULE			0
 #define GBE_STATSB_MODULE			1
 #define GBE_STATSC_MODULE			2
 #define GBE_STATSD_MODULE			3
+
+#define XGBE_STATS0_MODULE			0
+#define XGBE_STATS1_MODULE			1
+#define XGBE_STATS2_MODULE			2
 
 #define MAX_SLAVES				GBE13_NUM_SLAVES
 /* s: 0-based slave_port */
@@ -91,11 +119,143 @@
 #define GBE_TX_QUEUE				648
 #define	GBE_TXHOOK_ORDER			0
 #define GBE_DEFAULT_ALE_AGEOUT			30
+#define SLAVE_LINK_IS_XGMII(s) ((s)->link_interface >= XGMII_LINK_MAC_PHY)
 #define NETCP_LINK_STATE_INVALID		-1
 
 #define GBE_SET_REG_OFS(p, rb, rn) p->rb##_ofs.rn = \
 		offsetof(struct gbe##_##rb, rn)
+#define XGBE_SET_REG_OFS(p, rb, rn) p->rb##_ofs.rn = \
+		offsetof(struct xgbe##_##rb, rn)
 #define GBE_REG_ADDR(p, rb, rn) (p->rb + p->rb##_ofs.rn)
+
+struct xgbe_ss_regs {
+	u32	id_ver;
+	u32	synce_count;
+	u32	synce_mux;
+	u32	control;
+};
+
+struct xgbe_switch_regs {
+	u32	id_ver;
+	u32	control;
+	u32	emcontrol;
+	u32	stat_port_en;
+	u32	ptype;
+	u32	soft_idle;
+	u32	thru_rate;
+	u32	gap_thresh;
+	u32	tx_start_wds;
+	u32	flow_control;
+	u32	cppi_thresh;
+};
+
+struct xgbe_port_regs {
+	u32	blk_cnt;
+	u32	port_vlan;
+	u32	tx_pri_map;
+	u32	sa_lo;
+	u32	sa_hi;
+	u32	ts_ctl;
+	u32	ts_seq_ltype;
+	u32	ts_vlan;
+	u32	ts_ctl_ltype2;
+	u32	ts_ctl2;
+	u32	control;
+};
+
+struct xgbe_host_port_regs {
+	u32	blk_cnt;
+	u32	port_vlan;
+	u32	tx_pri_map;
+	u32	src_id;
+	u32	rx_pri_map;
+	u32	rx_maxlen;
+};
+
+struct xgbe_emac_regs {
+	u32	id_ver;
+	u32	mac_control;
+	u32	mac_status;
+	u32	soft_reset;
+	u32	rx_maxlen;
+	u32	__reserved_0;
+	u32	rx_pause;
+	u32	tx_pause;
+	u32	em_control;
+	u32	__reserved_1;
+	u32	tx_gap;
+	u32	rsvd[4];
+};
+
+struct xgbe_host_hw_stats {
+	u32	rx_good_frames;
+	u32	rx_broadcast_frames;
+	u32	rx_multicast_frames;
+	u32	__rsvd_0[3];
+	u32	rx_oversized_frames;
+	u32	__rsvd_1;
+	u32	rx_undersized_frames;
+	u32	__rsvd_2;
+	u32	overrun_type4;
+	u32	overrun_type5;
+	u32	rx_bytes;
+	u32	tx_good_frames;
+	u32	tx_broadcast_frames;
+	u32	tx_multicast_frames;
+	u32	__rsvd_3[9];
+	u32	tx_bytes;
+	u32	tx_64byte_frames;
+	u32	tx_65_to_127byte_frames;
+	u32	tx_128_to_255byte_frames;
+	u32	tx_256_to_511byte_frames;
+	u32	tx_512_to_1023byte_frames;
+	u32	tx_1024byte_frames;
+	u32	net_bytes;
+	u32	rx_sof_overruns;
+	u32	rx_mof_overruns;
+	u32	rx_dma_overruns;
+};
+
+struct xgbe_hw_stats {
+	u32	rx_good_frames;
+	u32	rx_broadcast_frames;
+	u32	rx_multicast_frames;
+	u32	rx_pause_frames;
+	u32	rx_crc_errors;
+	u32	rx_align_code_errors;
+	u32	rx_oversized_frames;
+	u32	rx_jabber_frames;
+	u32	rx_undersized_frames;
+	u32	rx_fragments;
+	u32	overrun_type4;
+	u32	overrun_type5;
+	u32	rx_bytes;
+	u32	tx_good_frames;
+	u32	tx_broadcast_frames;
+	u32	tx_multicast_frames;
+	u32	tx_pause_frames;
+	u32	tx_deferred_frames;
+	u32	tx_collision_frames;
+	u32	tx_single_coll_frames;
+	u32	tx_mult_coll_frames;
+	u32	tx_excessive_collisions;
+	u32	tx_late_collisions;
+	u32	tx_underrun;
+	u32	tx_carrier_sense_errors;
+	u32	tx_bytes;
+	u32	tx_64byte_frames;
+	u32	tx_65_to_127byte_frames;
+	u32	tx_128_to_255byte_frames;
+	u32	tx_256_to_511byte_frames;
+	u32	tx_512_to_1023byte_frames;
+	u32	tx_1024byte_frames;
+	u32	net_bytes;
+	u32	rx_sof_overruns;
+	u32	rx_mof_overruns;
+	u32	rx_dma_overruns;
+};
+
+#define XGBE10_NUM_STAT_ENTRIES (sizeof(struct xgbe_hw_stats)/sizeof(u32))
 
 struct gbe_ss_regs {
 	u32	id_ver;
@@ -230,6 +390,7 @@ struct gbe_hw_stats {
 
 #define GBE13_NUM_HW_STAT_ENTRIES (sizeof(struct gbe_hw_stats)/sizeof(u32))
 #define GBE13_NUM_HW_STATS_MOD			2
+#define XGBE10_NUM_HW_STATS_MOD			3
 #define GBE_MAX_HW_STAT_MODS			3
 #define GBE_HW_STATS_REG_MAP_SZ			0x100
 
@@ -303,6 +464,7 @@ struct gbe_intf {
 };
 
 static struct netcp_module gbe_module;
+static struct netcp_module xgbe_module;
 
 /* Statistic management */
 struct netcp_ethtool_stat {
@@ -471,6 +633,118 @@ static const struct netcp_ethtool_stat gbe13_et_stats[] = {
 	{GBE_STATSD_INFO(rx_dma_overruns)},
 };
 
+#define XGBE_STATS0_INFO(field)	"GBE_0:"#field, XGBE_STATS0_MODULE, \
+				FIELD_SIZEOF(struct xgbe_hw_stats, field), \
+				offsetof(struct xgbe_hw_stats, field)
+
+#define XGBE_STATS1_INFO(field)	"GBE_1:"#field, XGBE_STATS1_MODULE, \
+				FIELD_SIZEOF(struct xgbe_hw_stats, field), \
+				offsetof(struct xgbe_hw_stats, field)
+
+#define XGBE_STATS2_INFO(field)	"GBE_2:"#field, XGBE_STATS2_MODULE, \
+				FIELD_SIZEOF(struct xgbe_hw_stats, field), \
+				offsetof(struct xgbe_hw_stats, field)
+
+static const struct netcp_ethtool_stat xgbe10_et_stats[] = {
+	/* GBE module 0 */
+	{XGBE_STATS0_INFO(rx_good_frames)},
+	{XGBE_STATS0_INFO(rx_broadcast_frames)},
+	{XGBE_STATS0_INFO(rx_multicast_frames)},
+	{XGBE_STATS0_INFO(rx_oversized_frames)},
+	{XGBE_STATS0_INFO(rx_undersized_frames)},
+	{XGBE_STATS0_INFO(overrun_type4)},
+	{XGBE_STATS0_INFO(overrun_type5)},
+	{XGBE_STATS0_INFO(rx_bytes)},
+	{XGBE_STATS0_INFO(tx_good_frames)},
+	{XGBE_STATS0_INFO(tx_broadcast_frames)},
+	{XGBE_STATS0_INFO(tx_multicast_frames)},
+	{XGBE_STATS0_INFO(tx_bytes)},
+	{XGBE_STATS0_INFO(tx_64byte_frames)},
+	{XGBE_STATS0_INFO(tx_65_to_127byte_frames)},
+	{XGBE_STATS0_INFO(tx_128_to_255byte_frames)},
+	{XGBE_STATS0_INFO(tx_256_to_511byte_frames)},
+	{XGBE_STATS0_INFO(tx_512_to_1023byte_frames)},
+	{XGBE_STATS0_INFO(tx_1024byte_frames)},
+	{XGBE_STATS0_INFO(net_bytes)},
+	{XGBE_STATS0_INFO(rx_sof_overruns)},
+	{XGBE_STATS0_INFO(rx_mof_overruns)},
+	{XGBE_STATS0_INFO(rx_dma_overruns)},
+	/* XGBE module 1 */
+	{XGBE_STATS1_INFO(rx_good_frames)},
+	{XGBE_STATS1_INFO(rx_broadcast_frames)},
+	{XGBE_STATS1_INFO(rx_multicast_frames)},
+	{XGBE_STATS1_INFO(rx_pause_frames)},
+	{XGBE_STATS1_INFO(rx_crc_errors)},
+	{XGBE_STATS1_INFO(rx_align_code_errors)},
+	{XGBE_STATS1_INFO(rx_oversized_frames)},
+	{XGBE_STATS1_INFO(rx_jabber_frames)},
+	{XGBE_STATS1_INFO(rx_undersized_frames)},
+	{XGBE_STATS1_INFO(rx_fragments)},
+	{XGBE_STATS1_INFO(overrun_type4)},
+	{XGBE_STATS1_INFO(overrun_type5)},
+	{XGBE_STATS1_INFO(rx_bytes)},
+	{XGBE_STATS1_INFO(tx_good_frames)},
+	{XGBE_STATS1_INFO(tx_broadcast_frames)},
+	{XGBE_STATS1_INFO(tx_multicast_frames)},
+	{XGBE_STATS1_INFO(tx_pause_frames)},
+	{XGBE_STATS1_INFO(tx_deferred_frames)},
+	{XGBE_STATS1_INFO(tx_collision_frames)},
+	{XGBE_STATS1_INFO(tx_single_coll_frames)},
+	{XGBE_STATS1_INFO(tx_mult_coll_frames)},
+	{XGBE_STATS1_INFO(tx_excessive_collisions)},
+	{XGBE_STATS1_INFO(tx_late_collisions)},
+	{XGBE_STATS1_INFO(tx_underrun)},
+	{XGBE_STATS1_INFO(tx_carrier_sense_errors)},
+	{XGBE_STATS1_INFO(tx_bytes)},
+	{XGBE_STATS1_INFO(tx_64byte_frames)},
+	{XGBE_STATS1_INFO(tx_65_to_127byte_frames)},
+	{XGBE_STATS1_INFO(tx_128_to_255byte_frames)},
+	{XGBE_STATS1_INFO(tx_256_to_511byte_frames)},
+	{XGBE_STATS1_INFO(tx_512_to_1023byte_frames)},
+	{XGBE_STATS1_INFO(tx_1024byte_frames)},
+	{XGBE_STATS1_INFO(net_bytes)},
+	{XGBE_STATS1_INFO(rx_sof_overruns)},
+	{XGBE_STATS1_INFO(rx_mof_overruns)},
+	{XGBE_STATS1_INFO(rx_dma_overruns)},
+	/* XGBE module 2 */
+	{XGBE_STATS2_INFO(rx_good_frames)},
+	{XGBE_STATS2_INFO(rx_broadcast_frames)},
+	{XGBE_STATS2_INFO(rx_multicast_frames)},
+	{XGBE_STATS2_INFO(rx_pause_frames)},
+	{XGBE_STATS2_INFO(rx_crc_errors)},
+	{XGBE_STATS2_INFO(rx_align_code_errors)},
+	{XGBE_STATS2_INFO(rx_oversized_frames)},
+	{XGBE_STATS2_INFO(rx_jabber_frames)},
+	{XGBE_STATS2_INFO(rx_undersized_frames)},
+	{XGBE_STATS2_INFO(rx_fragments)},
+	{XGBE_STATS2_INFO(overrun_type4)},
+	{XGBE_STATS2_INFO(overrun_type5)},
+	{XGBE_STATS2_INFO(rx_bytes)},
+	{XGBE_STATS2_INFO(tx_good_frames)},
+	{XGBE_STATS2_INFO(tx_broadcast_frames)},
+	{XGBE_STATS2_INFO(tx_multicast_frames)},
+	{XGBE_STATS2_INFO(tx_pause_frames)},
+	{XGBE_STATS2_INFO(tx_deferred_frames)},
+	{XGBE_STATS2_INFO(tx_collision_frames)},
+	{XGBE_STATS2_INFO(tx_single_coll_frames)},
+	{XGBE_STATS2_INFO(tx_mult_coll_frames)},
+	{XGBE_STATS2_INFO(tx_excessive_collisions)},
+	{XGBE_STATS2_INFO(tx_late_collisions)},
+	{XGBE_STATS2_INFO(tx_underrun)},
+	{XGBE_STATS2_INFO(tx_carrier_sense_errors)},
+	{XGBE_STATS2_INFO(tx_bytes)},
+	{XGBE_STATS2_INFO(tx_64byte_frames)},
+	{XGBE_STATS2_INFO(tx_65_to_127byte_frames)},
+	{XGBE_STATS2_INFO(tx_128_to_255byte_frames)},
+	{XGBE_STATS2_INFO(tx_256_to_511byte_frames)},
+	{XGBE_STATS2_INFO(tx_512_to_1023byte_frames)},
+	{XGBE_STATS2_INFO(tx_1024byte_frames)},
+	{XGBE_STATS2_INFO(net_bytes)},
+	{XGBE_STATS2_INFO(rx_sof_overruns)},
+	{XGBE_STATS2_INFO(rx_mof_overruns)},
+	{XGBE_STATS2_INFO(rx_dma_overruns)},
+};
+
 #define for_each_intf(i, priv) \
 	list_for_each_entry((i), &(priv)->gbe_intf_head, gbe_intf_list)
 
@@ -631,7 +905,10 @@ static void keystone_get_ethtool_stats(struct net_device *ndev,
 
 	gbe_dev = gbe_intf->gbe_dev;
 	spin_lock_bh(&gbe_dev->hw_stats_lock);
-	gbe_update_stats_ver14(gbe_dev, data);
+	if (gbe_dev->ss_version == GBE_SS_VERSION_14)
+		gbe_update_stats_ver14(gbe_dev, data);
+	else
+		gbe_update_stats(gbe_dev, data);
 	spin_unlock_bh(&gbe_dev->hw_stats_lock);
 }
 
@@ -742,8 +1019,13 @@ static void netcp_ethss_link_state_action(struct gbe_priv *gbe_dev,
 
 	if (up) {
 		mac_control = slave->mac_control;
-		if (phy && (phy->speed == SPEED_1000))
+		if (phy && (phy->speed == SPEED_1000)) {
 			mac_control |= MACSL_GIG_MODE;
+			mac_control &= ~MACSL_XGIG_MODE;
+		} else if (phy && (phy->speed == SPEED_10000)) {
+			mac_control |= MACSL_XGIG_MODE;
+			mac_control &= ~MACSL_GIG_MODE;
+		}
 
 		writel(mac_control, GBE_REG_ADDR(slave, emac_regs,
 						 mac_control));
@@ -783,13 +1065,28 @@ static void netcp_ethss_update_link_state(struct gbe_priv *gbe_dev,
 	if (!slave->open)
 		return;
 
-	sgmii_link_state = netcp_sgmii_get_port_link(SGMII_BASE(sp), sp);
+	if (!SLAVE_LINK_IS_XGMII(slave))
+		sgmii_link_state = netcp_sgmii_get_port_link(SGMII_BASE(sp),
+							     sp);
 	phy_link_state = gbe_phy_link_status(slave);
 	link_state = phy_link_state & sgmii_link_state;
 
 	if (atomic_xchg(&slave->link_state, link_state) != link_state)
 		netcp_ethss_link_state_action(gbe_dev, ndev, slave,
 					      link_state);
+}
+
+static void xgbe_adjust_link(struct net_device *ndev)
+{
+	struct netcp_intf *netcp = netdev_priv(ndev);
+	struct gbe_intf *gbe_intf;
+
+	gbe_intf = netcp_module_get_intf_data(&xgbe_module, netcp);
+	if (!gbe_intf)
+		return;
+
+	netcp_ethss_update_link_state(gbe_intf->gbe_dev, gbe_intf->slave,
+				      ndev);
 }
 
 static void gbe_adjust_link(struct net_device *ndev)
@@ -839,8 +1136,18 @@ static int gbe_port_reset(struct gbe_slave *slave)
 static void gbe_port_config(struct gbe_priv *gbe_dev, struct gbe_slave *slave,
 			    int max_rx_len)
 {
+	u32 xgmii_mode;
+
 	if (max_rx_len > NETCP_MAX_FRAME_SIZE)
 		max_rx_len = NETCP_MAX_FRAME_SIZE;
+
+	/* Enable correct MII mode at SS level */
+	if ((gbe_dev->ss_version == XGBE_SS_VERSION_10) &&
+	    (slave->link_interface >= XGMII_LINK_MAC_PHY)) {
+		xgmii_mode = readl(GBE_REG_ADDR(gbe_dev, ss_regs, control));
+		xgmii_mode |= (1 << slave->slave_num);
+		writel(xgmii_mode, GBE_REG_ADDR(gbe_dev, ss_regs, control));
+	}
 
 	writel(max_rx_len, GBE_REG_ADDR(slave, emac_regs, rx_maxlen));
 	writel(slave->mac_control, GBE_REG_ADDR(slave, emac_regs, mac_control));
@@ -874,9 +1181,11 @@ static void gbe_sgmii_config(struct gbe_priv *priv, struct gbe_slave *slave)
 	if ((priv->ss_version == GBE_SS_VERSION_14) && (slave->slave_num >= 2))
 		sgmii_port_regs = priv->sgmii_port34_regs;
 
-	netcp_sgmii_reset(sgmii_port_regs, slave->slave_num);
-	netcp_sgmii_config(sgmii_port_regs, slave->slave_num,
-			   slave->link_interface);
+	if (!SLAVE_LINK_IS_XGMII(slave)) {
+		netcp_sgmii_reset(sgmii_port_regs, slave->slave_num);
+		netcp_sgmii_config(sgmii_port_regs, slave->slave_num,
+				   slave->link_interface);
+	}
 }
 
 static int gbe_slave_open(struct gbe_intf *gbe_intf)
@@ -909,6 +1218,9 @@ static int gbe_slave_open(struct gbe_intf *gbe_intf)
 	}
 
 	if (has_phy) {
+		if (priv->ss_version == XGBE_SS_VERSION_10)
+			hndlr = xgbe_adjust_link;
+
 		slave->phy = of_phy_connect(gbe_intf->ndev,
 					    slave->phy_node,
 					    hndlr, 0,
@@ -1233,7 +1545,10 @@ static int init_slave(struct gbe_priv *gbe_dev, struct gbe_slave *slave,
 	slave->phy_node = of_parse_phandle(node, "phy-handle", 0);
 	slave->port_num = gbe_get_slave_port(gbe_dev, slave->slave_num);
 
-	slave->mac_control = GBE_DEF_1G_MAC_CONTROL;
+	if (slave->link_interface >= XGMII_LINK_MAC_PHY)
+		slave->mac_control = GBE_DEF_10G_MAC_CONTROL;
+	else
+		slave->mac_control = GBE_DEF_1G_MAC_CONTROL;
 
 	/* Emac regs memmap are contiguous but port regs are not */
 	port_reg_num = slave->slave_num;
@@ -1244,6 +1559,8 @@ static int init_slave(struct gbe_priv *gbe_dev, struct gbe_slave *slave,
 		} else {
 			port_reg_ofs = GBE13_SLAVE_PORT_OFFSET;
 		}
+	} else if (gbe_dev->ss_version == XGBE_SS_VERSION_10) {
+		port_reg_ofs = XGBE10_SLAVE_PORT_OFFSET;
 	} else {
 		dev_err(gbe_dev->dev, "unknown ethss(0x%x)\n",
 			gbe_dev->ss_version);
@@ -1252,6 +1569,8 @@ static int init_slave(struct gbe_priv *gbe_dev, struct gbe_slave *slave,
 
 	if (gbe_dev->ss_version == GBE_SS_VERSION_14)
 		emac_reg_ofs = GBE13_EMAC_OFFSET;
+	else if (gbe_dev->ss_version == XGBE_SS_VERSION_10)
+		emac_reg_ofs = XGBE10_EMAC_OFFSET;
 
 	slave->port_regs = gbe_dev->ss_regs + port_reg_ofs +
 				(0x30 * port_reg_num);
@@ -1275,10 +1594,22 @@ static int init_slave(struct gbe_priv *gbe_dev, struct gbe_slave *slave,
 		GBE_SET_REG_OFS(slave, emac_regs, soft_reset);
 		GBE_SET_REG_OFS(slave, emac_regs, rx_maxlen);
 
-	} else {
-		dev_err(gbe_dev->dev, "unknown ethss(0x%x)\n",
-			gbe_dev->ss_version);
-		return -EINVAL;
+	} else if (gbe_dev->ss_version == XGBE_SS_VERSION_10) {
+		/* Initialize  slave port register offsets */
+		XGBE_SET_REG_OFS(slave, port_regs, port_vlan);
+		XGBE_SET_REG_OFS(slave, port_regs, tx_pri_map);
+		XGBE_SET_REG_OFS(slave, port_regs, sa_lo);
+		XGBE_SET_REG_OFS(slave, port_regs, sa_hi);
+		XGBE_SET_REG_OFS(slave, port_regs, ts_ctl);
+		XGBE_SET_REG_OFS(slave, port_regs, ts_seq_ltype);
+		XGBE_SET_REG_OFS(slave, port_regs, ts_vlan);
+		XGBE_SET_REG_OFS(slave, port_regs, ts_ctl_ltype2);
+		XGBE_SET_REG_OFS(slave, port_regs, ts_ctl2);
+
+		/* Initialize EMAC register offsets */
+		XGBE_SET_REG_OFS(slave, emac_regs, mac_control);
+		XGBE_SET_REG_OFS(slave, emac_regs, soft_reset);
+		XGBE_SET_REG_OFS(slave, emac_regs, rx_maxlen);
 	}
 
 	atomic_set(&slave->link_state, NETCP_LINK_STATE_INVALID);
@@ -1317,7 +1648,8 @@ static void init_secondary_ports(struct gbe_priv *gbe_dev,
 		gbe_port_config(gbe_dev, slave, gbe_dev->rx_packet_max);
 		list_add_tail(&slave->slave_list, &gbe_dev->secondary_slaves);
 		gbe_dev->num_slaves++;
-		if (slave->link_interface == SGMII_LINK_MAC_PHY)
+		if ((slave->link_interface == SGMII_LINK_MAC_PHY) ||
+		    (slave->link_interface == XGMII_LINK_MAC_PHY))
 			mac_phy_link = true;
 
 		slave->open = true;
@@ -1347,7 +1679,8 @@ static void init_secondary_ports(struct gbe_priv *gbe_dev,
 	}
 
 	for_each_sec_slave(slave, gbe_dev) {
-		if (slave->link_interface != SGMII_LINK_MAC_PHY)
+		if ((slave->link_interface != SGMII_LINK_MAC_PHY) &&
+		    (slave->link_interface != XGMII_LINK_MAC_PHY))
 			continue;
 		slave->phy =
 			of_phy_connect(gbe_dev->dummy_ndev,
@@ -1381,6 +1714,85 @@ static void free_secondary_ports(struct gbe_priv *gbe_dev)
 	}
 	if (gbe_dev->dummy_ndev)
 		free_netdev(gbe_dev->dummy_ndev);
+}
+
+static int set_xgbe_ethss10_priv(struct gbe_priv *gbe_dev,
+				 struct device_node *node)
+{
+	struct resource res;
+	void __iomem *regs;
+	int ret, i;
+
+	ret = of_address_to_resource(node, 0, &res);
+	if (ret) {
+		dev_err(gbe_dev->dev, "Can't translate of node(%s) address for xgbe subsystem regs\n",
+			node->name);
+		return ret;
+	}
+
+	regs = devm_ioremap_resource(gbe_dev->dev, &res);
+	if (IS_ERR(regs)) {
+		dev_err(gbe_dev->dev, "Failed to map xgbe register base\n");
+		return PTR_ERR(regs);
+	}
+	gbe_dev->ss_regs = regs;
+
+	ret = of_address_to_resource(node, XGBE_SERDES_REG_INDEX, &res);
+	if (ret) {
+		dev_err(gbe_dev->dev, "Can't translate of node(%s) address for xgbe serdes regs\n",
+			node->name);
+		return ret;
+	}
+
+	regs = devm_ioremap_resource(gbe_dev->dev, &res);
+	if (IS_ERR(regs)) {
+		dev_err(gbe_dev->dev, "Failed to map xgbe serdes register base\n");
+		return PTR_ERR(regs);
+	}
+	gbe_dev->xgbe_serdes_regs = regs;
+
+	gbe_dev->hw_stats = devm_kzalloc(gbe_dev->dev,
+					  XGBE10_NUM_STAT_ENTRIES *
+					  (XGBE10_NUM_SLAVES + 1) * sizeof(u64),
+					  GFP_KERNEL);
+	if (!gbe_dev->hw_stats) {
+		dev_err(gbe_dev->dev, "hw_stats memory allocation failed\n");
+		return -ENOMEM;
+	}
+
+	gbe_dev->ss_version = XGBE_SS_VERSION_10;
+	gbe_dev->sgmii_port_regs = gbe_dev->ss_regs +
+					XGBE10_SGMII_MODULE_OFFSET;
+	gbe_dev->switch_regs = gbe_dev->ss_regs + XGBE10_SWITCH_MODULE_OFFSET;
+	gbe_dev->host_port_regs = gbe_dev->ss_regs + XGBE10_HOST_PORT_OFFSET;
+
+	for (i = 0; i < XGBE10_NUM_HW_STATS_MOD; i++)
+		gbe_dev->hw_stats_regs[i] = gbe_dev->ss_regs +
+			XGBE10_HW_STATS_OFFSET + (GBE_HW_STATS_REG_MAP_SZ * i);
+
+	gbe_dev->ale_reg = gbe_dev->ss_regs + XGBE10_ALE_OFFSET;
+	gbe_dev->ale_ports = XGBE10_NUM_ALE_PORTS;
+	gbe_dev->host_port = XGBE10_HOST_PORT_NUM;
+	gbe_dev->ale_entries = XGBE10_NUM_ALE_ENTRIES;
+	gbe_dev->et_stats = xgbe10_et_stats;
+	gbe_dev->num_et_stats = ARRAY_SIZE(xgbe10_et_stats);
+
+	/* Subsystem registers */
+	XGBE_SET_REG_OFS(gbe_dev, ss_regs, id_ver);
+	XGBE_SET_REG_OFS(gbe_dev, ss_regs, control);
+
+	/* Switch module registers */
+	XGBE_SET_REG_OFS(gbe_dev, switch_regs, id_ver);
+	XGBE_SET_REG_OFS(gbe_dev, switch_regs, control);
+	XGBE_SET_REG_OFS(gbe_dev, switch_regs, ptype);
+	XGBE_SET_REG_OFS(gbe_dev, switch_regs, stat_port_en);
+	XGBE_SET_REG_OFS(gbe_dev, switch_regs, flow_control);
+
+	/* Host port registers */
+	XGBE_SET_REG_OFS(gbe_dev, host_port_regs, port_vlan);
+	XGBE_SET_REG_OFS(gbe_dev, host_port_regs, tx_pri_map);
+	XGBE_SET_REG_OFS(gbe_dev, host_port_regs, rx_maxlen);
+	return 0;
 }
 
 static int get_gbe_resource_version(struct gbe_priv *gbe_dev,
@@ -1511,6 +1923,14 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 			goto quit;
 
 		ret = set_gbe_ethss14_priv(gbe_dev, node);
+		if (ret)
+			goto quit;
+	} else if (!strcmp(node->name, "xgbe")) {
+		ret = set_xgbe_ethss10_priv(gbe_dev, node);
+		if (ret)
+			goto quit;
+		ret = netcp_xgbe_serdes_init(gbe_dev->xgbe_serdes_regs,
+					     gbe_dev->ss_regs);
 		if (ret)
 			goto quit;
 	} else {
@@ -1695,11 +2115,32 @@ static struct netcp_module gbe_module = {
 	.ioctl		= gbe_ioctl,
 };
 
+static struct netcp_module xgbe_module = {
+	.name		= XGBE_MODULE_NAME,
+	.owner		= THIS_MODULE,
+	.primary	= true,
+	.probe		= gbe_probe,
+	.open		= gbe_open,
+	.close		= gbe_close,
+	.remove		= gbe_remove,
+	.attach		= gbe_attach,
+	.release	= gbe_release,
+	.add_addr	= gbe_add_addr,
+	.del_addr	= gbe_del_addr,
+	.add_vid	= gbe_add_vid,
+	.del_vid	= gbe_del_vid,
+	.ioctl		= gbe_ioctl,
+};
+
 static int __init keystone_gbe_init(void)
 {
 	int ret;
 
 	ret = netcp_register_module(&gbe_module);
+	if (ret)
+		return ret;
+
+	ret = netcp_register_module(&xgbe_module);
 	if (ret)
 		return ret;
 
@@ -1710,5 +2151,6 @@ module_init(keystone_gbe_init);
 static void __exit keystone_gbe_exit(void)
 {
 	netcp_unregister_module(&gbe_module);
+	netcp_unregister_module(&xgbe_module);
 }
 module_exit(keystone_gbe_exit);
