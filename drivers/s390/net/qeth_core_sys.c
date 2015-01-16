@@ -531,8 +531,7 @@ static ssize_t qeth_dev_isolation_store(struct device *dev,
 	/* defer IP assist if device is offline (until discipline->set_online)*/
 	card->options.prev_isolation = card->options.isolation;
 	card->options.isolation = isolation;
-	if (card->state == CARD_STATE_SOFTSETUP ||
-	    card->state == CARD_STATE_UP) {
+	if (qeth_card_hw_is_reachable(card)) {
 		int ipa_rc = qeth_set_access_ctrl_online(card, 1);
 		if (ipa_rc != 0)
 			rc = ipa_rc;
@@ -555,7 +554,7 @@ static ssize_t qeth_dev_switch_attrs_show(struct device *dev,
 	if (!card)
 		return -EINVAL;
 
-	if (card->state != CARD_STATE_SOFTSETUP && card->state != CARD_STATE_UP)
+	if (!qeth_card_hw_is_reachable(card))
 		return sprintf(buf, "n/a\n");
 
 	rc = qeth_query_switch_attributes(card, &sw_info);
@@ -606,7 +605,7 @@ static ssize_t qeth_hw_trap_store(struct device *dev,
 		return -EINVAL;
 
 	mutex_lock(&card->conf_mutex);
-	if (card->state == CARD_STATE_SOFTSETUP || card->state == CARD_STATE_UP)
+	if (qeth_card_hw_is_reachable(card))
 		state = 1;
 	tmp = strsep(&curtoken, "\n");
 

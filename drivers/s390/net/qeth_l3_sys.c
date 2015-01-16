@@ -78,8 +78,7 @@ static ssize_t qeth_l3_dev_route_store(struct qeth_card *card,
 		rc = -EINVAL;
 		goto out;
 	}
-	if (((card->state == CARD_STATE_SOFTSETUP) ||
-	     (card->state == CARD_STATE_UP)) &&
+	if (qeth_card_hw_is_reachable(card) &&
 	    (old_route_type != route->type)) {
 		if (prot == QETH_PROT_IPV4)
 			rc = qeth_l3_setrouting_v4(card);
