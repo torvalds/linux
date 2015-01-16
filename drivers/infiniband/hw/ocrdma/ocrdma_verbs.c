@@ -1591,10 +1591,7 @@ static void ocrdma_srq_toggle_bit(struct ocrdma_srq *srq, int idx)
 	int i = idx / 32;
 	unsigned int mask = (1 << (idx % 32));
 
-	if (srq->idx_bit_fields[i] & mask)
-		srq->idx_bit_fields[i] &= ~mask;
-	else
-		srq->idx_bit_fields[i] |= mask;
+	srq->idx_bit_fields[i] ^= mask;
 }
 
 static int ocrdma_hwq_free_cnt(struct ocrdma_qp_hwq_info *q)
