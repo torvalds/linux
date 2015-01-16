@@ -12,4 +12,5 @@ obj-$(CONFIG_TI_CPSW) += ti_cpsw.o
 ti_cpsw-y := cpsw_ale.o cpsw.o cpts.o
 
 obj-$(CONFIG_TI_KEYSTONE_NETCP) += keystone_netcp.o
-keystone_netcp-y := netcp_core.o
+keystone_netcp-y := netcp_core.o netcp_ethss.o	netcp_sgmii.o \
+			cpsw_ale.o cpts.o
