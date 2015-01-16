@@ -3,8 +3,8 @@ Samsung S5P/EXYNOS SoC series MIPI CSIS/DSIM DPHY
 
 Required properties:
 - compatible : should be "samsung,s5pv210-mipi-video-phy";
-- reg : offset and length of the MIPI DPHY register set;
 - #phy-cells : from the generic phy bindings, must be 1;
+- syscon - phandle to the PMU system controller;
 
 For "samsung,s5pv210-mipi-video-phy" compatible PHYs the second cell in
 the PHY specifier identifies the PHY and its meaning is as follows:
