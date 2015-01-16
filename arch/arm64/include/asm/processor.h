@@ -136,8 +136,8 @@ extern struct task_struct *cpu_switch_to(struct task_struct *prev,
 #define task_pt_regs(p) \
 	((struct pt_regs *)(THREAD_START_SP + task_stack_page(p)) - 1)
 
-#define KSTK_EIP(tsk)	task_pt_regs(tsk)->pc
-#define KSTK_ESP(tsk)	task_pt_regs(tsk)->sp
+#define KSTK_EIP(tsk)	((unsigned long)task_pt_regs(tsk)->pc)
+#define KSTK_ESP(tsk)	((unsigned long)task_pt_regs(tsk)->sp)
 
 /*
  * Prefetching support

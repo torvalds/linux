@@ -349,6 +349,8 @@ ENTRY(set_cpu_boot_mode_flag)
 	b.ne	1f
 	add	x1, x1, #4
 1:	str	w20, [x1]			// This CPU has booted in EL1
+	dmb	sy
+	dc	ivac, x1			// Invalidate potentially stale cache line
 	ret
 ENDPROC(set_cpu_boot_mode_flag)
 
