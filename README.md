@@ -120,6 +120,16 @@ The [traditional UNIX Pipes](https://en.wikipedia.org/wiki/Pipeline_(Unix)) are 
 
 More advanced IPC is to be *guided*, never *dictated*.  The obsolete `D-Bus` mechanism is rewritten in Node.js and *accepted* into kernel-space for inclusion.  This IPC shall be named **"cervical canals"**, denoted by the symbol `Ω`, as a feminist respite of the Patriarchal construct **"UNIX Pipes"** and its `|`.
 
+### Scheduling
+
+Instead of allowing multiple, pluggable schedulers as in Linux, (which has caused much unprofessional vitriol that alienates female participation in kernel development, for a particular case of anti-female vitriol see the Con Kolivas and his **\[TRIGGER WARNING: INTERCOURSE EXPLETIVE\]** BFS (Brain Fuck Scheduler)) scheduling in **ToleranUX** is determined by a singular, equality-sanctioned, and completely-fair method: **Round-robin+**.
+
+**Round-robin+** is the next logical step of scheduling.  **Round-robin+** is the next generation of scheduling.  **Round-robin+** is `Round-robin`+`Social Justice`.  The incentive behind the **Round-robin+** scheduler is as follows:
+
+* As every process is equal, so should the allocated resource for each process be equal.  A Round-robin policy ensures this.
+* Some process, however, are more oppressed than the others.  This requires the active interference of the overseeing kernel to rectify this injustice.
+* The added element of Social Justice is implemented by mapping all processes to a [Progressive Stack](https://en.wikipedia.org/wiki/Progressive_stack), a mechanism by which the least privileged process is allocated more resource, and the most privileged process is allocated less resource, such that equality between processes will be ultimately guaranteed.  It is an ingenious implementation of the [Bubble sort algorithm](https://en.wikipedia.org/wiki/Bubble_sort), the easiest to understand sorting algorithm there is and therefore also the best algorithm.
+
 Smashing the socially constructed barriers between kernel space and user space
 =============================================================================
 
