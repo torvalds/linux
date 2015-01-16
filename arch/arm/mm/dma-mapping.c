@@ -1221,7 +1221,7 @@ __iommu_alloc_remap(struct page **pages, size_t size, gfp_t gfp, pgprot_t prot,
 static dma_addr_t
 __iommu_create_mapping(struct device *dev, struct page **pages, size_t size)
 {
-	struct dma_iommu_mapping *mapping = dev->archdata.mapping;
+	struct dma_iommu_mapping *mapping = to_dma_iommu_mapping(dev);
 	unsigned int count = PAGE_ALIGN(size) >> PAGE_SHIFT;
 	dma_addr_t dma_addr, iova;
 	int i, ret = DMA_ERROR_CODE;
@@ -1257,7 +1257,7 @@ fail:
 
 static int __iommu_remove_mapping(struct device *dev, dma_addr_t iova, size_t size)
 {
-	struct dma_iommu_mapping *mapping = dev->archdata.mapping;
+	struct dma_iommu_mapping *mapping = to_dma_iommu_mapping(dev);
 
 	/*
 	 * add optional in-page offset from iova to size and align
@@ -1472,7 +1472,7 @@ static int __map_sg_chunk(struct device *dev, struct scatterlist *sg,
 			  enum dma_data_direction dir, struct dma_attrs *attrs,
 			  bool is_coherent)
 {
-	struct dma_iommu_mapping *mapping = dev->archdata.mapping;
+	struct dma_iommu_mapping *mapping = to_dma_iommu_mapping(dev);
 	dma_addr_t iova, iova_base;
 	int ret = 0;
 	unsigned int count;
@@ -1693,7 +1693,7 @@ static dma_addr_t arm_coherent_iommu_map_page(struct device *dev, struct page *p
 	     unsigned long offset, size_t size, enum dma_data_direction dir,
 	     struct dma_attrs *attrs)
 {
-	struct dma_iommu_mapping *mapping = dev->archdata.mapping;
+	struct dma_iommu_mapping *mapping = to_dma_iommu_mapping(dev);
 	dma_addr_t dma_addr;
 	int ret, prot, len = PAGE_ALIGN(size + offset);
 
@@ -1746,7 +1746,7 @@ static void arm_coherent_iommu_unmap_page(struct device *dev, dma_addr_t handle,
 		size_t size, enum dma_data_direction dir,
 		struct dma_attrs *attrs)
 {
-	struct dma_iommu_mapping *mapping = dev->archdata.mapping;
+	struct dma_iommu_mapping *mapping = to_dma_iommu_mapping(dev);
 	dma_addr_t iova = handle & PAGE_MASK;
 	int offset = handle & ~PAGE_MASK;
 	int len = PAGE_ALIGN(size + offset);
@@ -1771,7 +1771,7 @@ static void arm_iommu_unmap_page(struct device *dev, dma_addr_t handle,
 		size_t size, enum dma_data_direction dir,
 		struct dma_attrs *attrs)
 {
-	struct dma_iommu_mapping *mapping = dev->archdata.mapping;
+	struct dma_iommu_mapping *mapping = to_dma_iommu_mapping(dev);
 	dma_addr_t iova = handle & PAGE_MASK;
 	struct page *page = phys_to_page(iommu_iova_to_phys(mapping->domain, iova));
 	int offset = handle & ~PAGE_MASK;
@@ -1790,7 +1790,7 @@ static void arm_iommu_unmap_page(struct device *dev, dma_addr_t handle,
 static void arm_iommu_sync_single_for_cpu(struct device *dev,
 		dma_addr_t handle, size_t size, enum dma_data_direction dir)
 {
-	struct dma_iommu_mapping *mapping = dev->archdata.mapping;
+	struct dma_iommu_mapping *mapping = to_dma_iommu_mapping(dev);
 	dma_addr_t iova = handle & PAGE_MASK;
 	struct page *page = phys_to_page(iommu_iova_to_phys(mapping->domain, iova));
 	unsigned int offset = handle & ~PAGE_MASK;
@@ -1804,7 +1804,7 @@ static void arm_iommu_sync_single_for_cpu(struct device *dev,
 static void arm_iommu_sync_single_for_device(struct device *dev,
 		dma_addr_t handle, size_t size, enum dma_data_direction dir)
 {
-	struct dma_iommu_mapping *mapping = dev->archdata.mapping;
+	struct dma_iommu_mapping *mapping = to_dma_iommu_mapping(dev);
 	dma_addr_t iova = handle & PAGE_MASK;
 	struct page *page = phys_to_page(iommu_iova_to_phys(mapping->domain, iova));
 	unsigned int offset = handle & ~PAGE_MASK;
@@ -1965,7 +1965,7 @@ static int __arm_iommu_attach_device(struct device *dev,
 		return err;
 
 	kref_get(&mapping->kref);
-	dev->archdata.mapping = mapping;
+	to_dma_iommu_mapping(dev) = mapping;
 
 	pr_debug("Attached IOMMU controller to %s device.\n", dev_name(dev));
 	return 0;
@@ -2010,7 +2010,7 @@ static void __arm_iommu_detach_device(struct device *dev)
 
 	iommu_detach_device(mapping->domain, dev);
 	kref_put(&mapping->kref, release_iommu_mapping);
-	dev->archdata.mapping = NULL;
+	to_dma_iommu_mapping(dev) = NULL;
 
 	pr_debug("Detached IOMMU controller from %s device.\n", dev_name(dev));
 }
@@ -2061,7 +2061,7 @@ static bool arm_setup_iommu_dma_ops(struct device *dev, u64 dma_base, u64 size,
 
 static void arm_teardown_iommu_dma_ops(struct device *dev)
 {
-	struct dma_iommu_mapping *mapping = dev->archdata.mapping;
+	struct dma_iommu_mapping *mapping = to_dma_iommu_mapping(dev);
 
 	if (!mapping)
 		return;
