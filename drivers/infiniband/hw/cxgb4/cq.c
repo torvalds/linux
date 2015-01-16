@@ -52,7 +52,7 @@ static int destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	memset(res_wr, 0, wr_len);
 	res_wr->op_nres = cpu_to_be32(
 			FW_WR_OP_V(FW_RI_RES_WR) |
-			V_FW_RI_RES_WR_NRES(1) |
+			FW_RI_RES_WR_NRES_V(1) |
 			FW_WR_COMPL_F);
 	res_wr->len16_pkd = cpu_to_be32(DIV_ROUND_UP(wr_len, 16));
 	res_wr->cookie = (unsigned long) &wr_wait;
@@ -122,7 +122,7 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	memset(res_wr, 0, wr_len);
 	res_wr->op_nres = cpu_to_be32(
 			FW_WR_OP_V(FW_RI_RES_WR) |
-			V_FW_RI_RES_WR_NRES(1) |
+			FW_RI_RES_WR_NRES_V(1) |
 			FW_WR_COMPL_F);
 	res_wr->len16_pkd = cpu_to_be32(DIV_ROUND_UP(wr_len, 16));
 	res_wr->cookie = (unsigned long) &wr_wait;
@@ -131,17 +131,17 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	res->u.cq.op = FW_RI_RES_OP_WRITE;
 	res->u.cq.iqid = cpu_to_be32(cq->cqid);
 	res->u.cq.iqandst_to_iqandstindex = cpu_to_be32(
-			V_FW_RI_RES_WR_IQANUS(0) |
-			V_FW_RI_RES_WR_IQANUD(1) |
-			F_FW_RI_RES_WR_IQANDST |
-			V_FW_RI_RES_WR_IQANDSTINDEX(
+			FW_RI_RES_WR_IQANUS_V(0) |
+			FW_RI_RES_WR_IQANUD_V(1) |
+			FW_RI_RES_WR_IQANDST_F |
+			FW_RI_RES_WR_IQANDSTINDEX_V(
 				rdev->lldi.ciq_ids[cq->vector]));
 	res->u.cq.iqdroprss_to_iqesize = cpu_to_be16(
-			F_FW_RI_RES_WR_IQDROPRSS |
-			V_FW_RI_RES_WR_IQPCIECH(2) |
-			V_FW_RI_RES_WR_IQINTCNTTHRESH(0) |
-			F_FW_RI_RES_WR_IQO |
-			V_FW_RI_RES_WR_IQESIZE(1));
+			FW_RI_RES_WR_IQDROPRSS_F |
+			FW_RI_RES_WR_IQPCIECH_V(2) |
+			FW_RI_RES_WR_IQINTCNTTHRESH_V(0) |
+			FW_RI_RES_WR_IQO_F |
+			FW_RI_RES_WR_IQESIZE_V(1));
 	res->u.cq.iqsize = cpu_to_be16(cq->size);
 	res->u.cq.iqaddr = cpu_to_be64(cq->dma_addr);
 

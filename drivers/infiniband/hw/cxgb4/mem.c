@@ -286,17 +286,17 @@ static int write_tpt_entry(struct c4iw_rdev *rdev, u32 reset_tpt_entry,
 	if (reset_tpt_entry)
 		memset(&tpt, 0, sizeof(tpt));
 	else {
-		tpt.valid_to_pdid = cpu_to_be32(F_FW_RI_TPTE_VALID |
-			V_FW_RI_TPTE_STAGKEY((*stag & M_FW_RI_TPTE_STAGKEY)) |
-			V_FW_RI_TPTE_STAGSTATE(stag_state) |
-			V_FW_RI_TPTE_STAGTYPE(type) | V_FW_RI_TPTE_PDID(pdid));
-		tpt.locread_to_qpid = cpu_to_be32(V_FW_RI_TPTE_PERM(perm) |
-			(bind_enabled ? F_FW_RI_TPTE_MWBINDEN : 0) |
-			V_FW_RI_TPTE_ADDRTYPE((zbva ? FW_RI_ZERO_BASED_TO :
+		tpt.valid_to_pdid = cpu_to_be32(FW_RI_TPTE_VALID_F |
+			FW_RI_TPTE_STAGKEY_V((*stag & FW_RI_TPTE_STAGKEY_M)) |
+			FW_RI_TPTE_STAGSTATE_V(stag_state) |
+			FW_RI_TPTE_STAGTYPE_V(type) | FW_RI_TPTE_PDID_V(pdid));
+		tpt.locread_to_qpid = cpu_to_be32(FW_RI_TPTE_PERM_V(perm) |
+			(bind_enabled ? FW_RI_TPTE_MWBINDEN_F : 0) |
+			FW_RI_TPTE_ADDRTYPE_V((zbva ? FW_RI_ZERO_BASED_TO :
 						      FW_RI_VA_BASED_TO))|
-			V_FW_RI_TPTE_PS(page_size));
+			FW_RI_TPTE_PS_V(page_size));
 		tpt.nosnoop_pbladdr = !pbl_size ? 0 : cpu_to_be32(
-			V_FW_RI_TPTE_PBLADDR(PBL_OFF(rdev, pbl_addr)>>3));
+			FW_RI_TPTE_PBLADDR_V(PBL_OFF(rdev, pbl_addr)>>3));
 		tpt.len_lo = cpu_to_be32((u32)(len & 0xffffffffUL));
 		tpt.va_hi = cpu_to_be32((u32)(to >> 32));
 		tpt.va_lo_fbo = cpu_to_be32((u32)(to & 0xffffffffUL));
