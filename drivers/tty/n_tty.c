@@ -247,6 +247,8 @@ static void n_tty_write_wakeup(struct tty_struct *tty)
 
 static void n_tty_check_throttle(struct tty_struct *tty)
 {
+	struct n_tty_data *ldata = tty->disc_data;
+
 	if (tty->driver->type == TTY_DRIVER_TYPE_PTY)
 		return;
 	/*
@@ -254,6 +256,9 @@ static void n_tty_check_throttle(struct tty_struct *tty)
 	 * mode.  We don't want to throttle the driver if we're in
 	 * canonical mode and don't have a newline yet!
 	 */
+	if (ldata->icanon && ldata->canon_head == ldata->read_tail)
+		return;
+
 	while (1) {
 		int throttled;
 		tty_set_flow_change(tty, TTY_THROTTLE_SAFE);
