@@ -33,12 +33,7 @@
 #include "intel_drv.h"
 #include "intel_dsi.h"
 
-#define DPI_LP_MODE_EN	false
-#define DPI_HS_MODE_EN	true
-
 void dsi_hs_mode_enable(struct intel_dsi *intel_dsi, bool enable,
 						enum port port);
-
-int dpi_send_cmd(struct intel_dsi *intel_dsi, u32 cmd, bool hs, enum port port);
 
 #endif /* _INTEL_DSI_DSI_H */

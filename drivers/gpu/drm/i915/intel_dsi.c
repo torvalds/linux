@@ -203,6 +203,41 @@ static struct intel_dsi_host *intel_dsi_host_init(struct intel_dsi *intel_dsi,
 	return host;
 }
 
+/*
+ * send a video mode command
+ *
+ * XXX: commands with data in MIPI_DPI_DATA?
+ */
+static int dpi_send_cmd(struct intel_dsi *intel_dsi, u32 cmd, bool hs,
+			enum port port)
+{
+	struct drm_encoder *encoder = &intel_dsi->base.base;
+	struct drm_device *dev = encoder->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 mask;
+
+	/* XXX: pipe, hs */
+	if (hs)
+		cmd &= ~DPI_LP_MODE;
+	else
+		cmd |= DPI_LP_MODE;
+
+	/* clear bit */
+	I915_WRITE(MIPI_INTR_STAT(port), SPL_PKT_SENT_INTERRUPT);
+
+	/* XXX: old code skips write if control unchanged */
+	if (cmd == I915_READ(MIPI_DPI_CONTROL(port)))
+		DRM_ERROR("Same special packet %02x twice in a row.\n", cmd);
+
+	I915_WRITE(MIPI_DPI_CONTROL(port), cmd);
+
+	mask = SPL_PKT_SENT_INTERRUPT;
+	if (wait_for((I915_READ(MIPI_INTR_STAT(port)) & mask) == mask, 100))
+		DRM_ERROR("Video mode command 0x%08x send failed.\n", cmd);
+
+	return 0;
+}
+
 static void band_gap_reset(struct drm_i915_private *dev_priv)
 {
 	mutex_lock(&dev_priv->dpio_lock);
@@ -358,7 +393,7 @@ static void intel_dsi_enable(struct intel_encoder *encoder)
 	} else {
 		msleep(20); /* XXX */
 		for_each_dsi_port(port, intel_dsi->ports)
-			dpi_send_cmd(intel_dsi, TURN_ON, DPI_LP_MODE_EN, port);
+			dpi_send_cmd(intel_dsi, TURN_ON, false, port);
 		msleep(100);
 
 		drm_panel_enable(intel_dsi->panel);
@@ -431,7 +466,7 @@ static void intel_dsi_pre_disable(struct intel_encoder *encoder)
 	if (is_vid_mode(intel_dsi)) {
 		/* Send Shutdown command to the panel in LP mode */
 		for_each_dsi_port(port, intel_dsi->ports)
-			dpi_send_cmd(intel_dsi, SHUTDOWN, DPI_LP_MODE_EN, port);
+			dpi_send_cmd(intel_dsi, SHUTDOWN, false, port);
 		msleep(10);
 	}
 }
