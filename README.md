@@ -88,7 +88,7 @@ By implementing this Truly Equal environment, we also have an added bonus: [Priv
 
 Users coming from a particularly oppressed background (e.g. Women in Tech living in the United States of America) may even evoke the `--with-empowerment` when creating their user accounts.  Doing so will elevate their user to the same privilege as the micro-aggressional kernel daemons, allowing them to ban other users from the safespace of **ToleranUX**.
 
-### Processes and forking
+### Processes and Forking
 
 Processes in **ToleranUX** do not follow the antiquated patriarchal practices of UNIX. In **ToleranUX**, processes *diverse*.
 
@@ -103,6 +103,8 @@ Certain metadata of files will be scrutinised by **ToleranUX** to ensure that th
 * Reported filesize shall change depending on context.  Average users are inherently biased towards smaller filesizes, and the unhealthy and misogynistic pursuit of the ever-shaming "conserving space" ideal is toxic to the well-being of individual files who have no control over their filesizes.  Users attempting to `ls -S` will be punished by having their user session kicked by the [OOM](https://en.wikipedia.org/wiki/Out_of_memory) (Obesity Oppression Mercy-killer).
 
 * Filetypes are passé.  Who are we to affix the [magic number label](http://en.wikipedia.org/wiki/File_format#Magic_number) to files when they are created and claim that they are so for their lifespan in our computers?  A `.png` file may identify as a `.epub` file for all its merits.  It is simply not right to categorise.  Shall a user complain that he/she/xe cannot open a file because he/she/xe expects a certain format, (e.g. trying to parse a `LaTeX-identifying DOCX` with `vim` and failing,) the kernel reduces the allocated processing power to the user by half.
+
+* Out with the [Traditional UNIX permissions](http://en.wikipedia.org/wiki/File_system_permissions#Traditional_Unix_permissions).  These permissions are arbitrarily enforced privileges.  A program should be able to run, read, and write wherever and whenever it wants to.
 
 Smashing the socially constructed barriers between kernel space and userspace
 =============================================================================
