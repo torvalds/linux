@@ -3571,6 +3571,8 @@ nest_cancel:
 	rocker_tlv_nest_cancel(desc_info, frags);
 out:
 	dev_kfree_skb(skb);
+	dev->stats.tx_dropped++;
+
 	return NETDEV_TX_OK;
 }
 
@@ -3857,12 +3859,22 @@ static int rocker_port_poll_tx(struct napi_struct *napi, int budget)
 
 	/* Cleanup tx descriptors */
 	while ((desc_info = rocker_desc_tail_get(&rocker_port->tx_ring))) {
+		struct sk_buff *skb;
+
 		err = rocker_desc_err(desc_info);
 		if (err && net_ratelimit())
 			netdev_err(rocker_port->dev, "tx desc received with err %d\n",
 				   err);
 		rocker_tx_desc_frags_unmap(rocker_port, desc_info);
-		dev_kfree_skb_any(rocker_desc_cookie_ptr_get(desc_info));
+
+		skb = rocker_desc_cookie_ptr_get(desc_info);
+		if (err == 0) {
+			rocker_port->dev->stats.tx_packets++;
+			rocker_port->dev->stats.tx_bytes += skb->len;
+		} else
+			rocker_port->dev->stats.tx_errors++;
+
+		dev_kfree_skb_any(skb);
 		credits++;
 	}
 
@@ -3895,6 +3907,10 @@ static int rocker_port_rx_proc(struct rocker *rocker,
 	rx_len = rocker_tlv_get_u16(attrs[ROCKER_TLV_RX_FRAG_LEN]);
 	skb_put(skb, rx_len);
 	skb->protocol = eth_type_trans(skb, rocker_port->dev);
+
+	rocker_port->dev->stats.rx_packets++;
+	rocker_port->dev->stats.rx_bytes += skb->len;
+
 	netif_receive_skb(skb);
 
 	return rocker_dma_rx_ring_skb_alloc(rocker, rocker_port, desc_info);
@@ -3928,6 +3944,9 @@ static int rocker_port_poll_rx(struct napi_struct *napi, int budget)
 				netdev_err(rocker_port->dev, "rx processing failed with err %d\n",
 					   err);
 		}
+		if (err)
+			rocker_port->dev->stats.rx_errors++;
+
 		rocker_desc_gen_clear(desc_info);
 		rocker_desc_head_set(rocker, &rocker_port->rx_ring, desc_info);
 		credits++;
