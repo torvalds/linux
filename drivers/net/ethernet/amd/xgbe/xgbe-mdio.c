@@ -260,10 +260,14 @@ int xgbe_mdio_register(struct xgbe_prv_data *pdata)
 		of_node_put(phy_node);
 		goto err_phy_device;
 	}
+	if (!phydev->dev.driver) {
+		dev_err(pdata->dev, "phy driver probe failed\n");
+		ret = -EIO;
+		goto err_phy_device;
+	}
 
 	/* Add a reference to the PHY driver so it can't be unloaded */
-	pdata->phy_module = phydev->dev.driver ?
-			    phydev->dev.driver->owner : NULL;
+	pdata->phy_module = phydev->dev.driver->owner;
 	if (!try_module_get(pdata->phy_module)) {
 		dev_err(pdata->dev, "try_module_get failed\n");
 		ret = -EIO;
