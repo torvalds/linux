@@ -63,7 +63,7 @@ At Feminist Software Foundation, we uphold the belief that all people are equal,
 * Assuming/Not using someone's preferred pronouns
 * Toxic criticism (a.k.a. "Concern Trolling"/"Sealioning")
 * Endangering the inclusive safe space of **ToleranUX**
-* Questioning the inherent merits of **ToleranUX* (a.k.a. "Derailing")
+* Questioning the inherent merits of **ToleranUX** (a.k.a. "Derailing")
 * Attempting to get a pull request accepted due to its code quality (a.k.a. "Meritocracy"/"Mansplaining")
 * Management by perkele
 
