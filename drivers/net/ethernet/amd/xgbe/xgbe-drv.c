@@ -225,6 +225,11 @@ static inline unsigned int xgbe_tx_avail_desc(struct xgbe_ring *ring)
 	return (ring->rdesc_count - (ring->cur - ring->dirty));
 }
 
+static inline unsigned int xgbe_rx_dirty_desc(struct xgbe_ring *ring)
+{
+	return (ring->cur - ring->dirty);
+}
+
 static int xgbe_maybe_stop_tx_queue(struct xgbe_channel *channel,
 				    struct xgbe_ring *ring, unsigned int count)
 {
@@ -1775,15 +1780,28 @@ struct net_device_ops *xgbe_get_netdev_ops(void)
 static void xgbe_rx_refresh(struct xgbe_channel *channel)
 {
 	struct xgbe_prv_data *pdata = channel->pdata;
+	struct xgbe_hw_if *hw_if = &pdata->hw_if;
 	struct xgbe_desc_if *desc_if = &pdata->desc_if;
 	struct xgbe_ring *ring = channel->rx_ring;
 	struct xgbe_ring_data *rdata;
 
-	desc_if->realloc_rx_buffer(channel);
+	while (ring->dirty != ring->cur) {
+		rdata = XGBE_GET_DESC_DATA(ring, ring->dirty);
+
+		/* Reset rdata values */
+		desc_if->unmap_rdata(pdata, rdata);
+
+		if (desc_if->map_rx_buffer(pdata, ring, rdata))
+			break;
+
+		hw_if->rx_desc_reset(rdata);
+
+		ring->dirty++;
+	}
 
 	/* Update the Rx Tail Pointer Register with address of
 	 * the last cleaned entry */
-	rdata = XGBE_GET_DESC_DATA(ring, ring->rx.realloc_index - 1);
+	rdata = XGBE_GET_DESC_DATA(ring, ring->dirty - 1);
 	XGMAC_DMA_IOWRITE(channel, DMA_CH_RDTR_LO,
 			  lower_32_bits(rdata->rdesc_dma));
 }
@@ -1933,7 +1951,7 @@ static int xgbe_rx_poll(struct xgbe_channel *channel, int budget)
 read_again:
 		rdata = XGBE_GET_DESC_DATA(ring, ring->cur);
 
-		if (ring->dirty > (XGBE_RX_DESC_CNT >> 3))
+		if (xgbe_rx_dirty_desc(ring) > (XGBE_RX_DESC_CNT >> 3))
 			xgbe_rx_refresh(channel);
 
 		if (hw_if->dev_read(channel))
@@ -1941,7 +1959,6 @@ read_again:
 
 		received++;
 		ring->cur++;
-		ring->dirty++;
 
 		incomplete = XGMAC_GET_BITS(packet->attributes,
 					    RX_PACKET_ATTRIBUTES,
