@@ -100,8 +100,6 @@ static ssize_t timeout_store(struct device *dev, struct device_attribute *attr,
 		return retval;
 	}
 
-	if (val < 0)
-		return -EINVAL;
 	if (val)
 		retval = turn_on(vib, (u16)val);
 	else
