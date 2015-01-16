@@ -350,6 +350,8 @@ struct amd_xgbe_phy_priv {
 	struct work_struct an_work;
 	struct workqueue_struct *an_workqueue;
 	unsigned int parallel_detect;
+
+	unsigned int lpm_ctrl;		/* CTRL1 for resume */
 };
 
 static int amd_xgbe_an_enable_kr_training(struct phy_device *phydev)
@@ -1250,6 +1252,7 @@ static int amd_xgbe_phy_read_status(struct phy_device *phydev)
 
 static int amd_xgbe_phy_suspend(struct phy_device *phydev)
 {
+	struct amd_xgbe_phy_priv *priv = phydev->priv;
 	int ret;
 
 	mutex_lock(&phydev->lock);
@@ -1257,6 +1260,8 @@ static int amd_xgbe_phy_suspend(struct phy_device *phydev)
 	ret = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_CTRL1);
 	if (ret < 0)
 		goto unlock;
+
+	priv->lpm_ctrl = ret;
 
 	ret |= MDIO_CTRL1_LPOWER;
 	phy_write_mmd(phydev, MDIO_MMD_PCS, MDIO_CTRL1, ret);
@@ -1271,23 +1276,16 @@ unlock:
 
 static int amd_xgbe_phy_resume(struct phy_device *phydev)
 {
-	int ret;
+	struct amd_xgbe_phy_priv *priv = phydev->priv;
 
 	mutex_lock(&phydev->lock);
 
-	ret = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_CTRL1);
-	if (ret < 0)
-		goto unlock;
+	priv->lpm_ctrl &= ~MDIO_CTRL1_LPOWER;
+	phy_write_mmd(phydev, MDIO_MMD_PCS, MDIO_CTRL1, priv->lpm_ctrl);
 
-	ret &= ~MDIO_CTRL1_LPOWER;
-	phy_write_mmd(phydev, MDIO_MMD_PCS, MDIO_CTRL1, ret);
-
-	ret = 0;
-
-unlock:
 	mutex_unlock(&phydev->lock);
 
-	return ret;
+	return 0;
 }
 
 static int amd_xgbe_phy_probe(struct phy_device *phydev)
