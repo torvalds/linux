@@ -4024,7 +4024,35 @@ static void gen6_init_rps_frequencies(struct drm_device *dev)
 	}
 }
 
+/* See the Gen9_GT_PM_Programming_Guide doc for the below */
 static void gen9_enable_rps(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+
+	I915_WRITE(GEN6_RPNSWREQ, 0xc800000);
+	I915_WRITE(GEN6_RC_VIDEO_FREQ, 0xc800000);
+
+	I915_WRITE(GEN6_RP_DOWN_TIMEOUT, 0xf4240);
+	I915_WRITE(GEN6_RP_INTERRUPT_LIMITS, 0x12060000);
+	I915_WRITE(GEN6_RP_UP_THRESHOLD, 0xe808);
+	I915_WRITE(GEN6_RP_DOWN_THRESHOLD, 0x3bd08);
+	I915_WRITE(GEN6_RP_UP_EI, 0x101d0);
+	I915_WRITE(GEN6_RP_DOWN_EI, 0x55730);
+	I915_WRITE(GEN6_RP_IDLE_HYSTERSIS, 0xa);
+	I915_WRITE(GEN6_PMINTRMSK, 0x6);
+	I915_WRITE(GEN6_RP_CONTROL, GEN6_RP_MEDIA_TURBO |
+		   GEN6_RP_MEDIA_HW_MODE | GEN6_RP_MEDIA_IS_GFX |
+		   GEN6_RP_ENABLE | GEN6_RP_UP_BUSY_AVG |
+		   GEN6_RP_DOWN_IDLE_AVG);
+
+	gen6_enable_rps_interrupts(dev);
+
+	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+}
+
+static void gen9_enable_rc6(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *ring;
@@ -5574,7 +5602,9 @@ static void intel_gen6_powersave_work(struct work_struct *work)
 	} else if (IS_VALLEYVIEW(dev)) {
 		valleyview_enable_rps(dev);
 	} else if (INTEL_INFO(dev)->gen >= 9) {
+		gen9_enable_rc6(dev);
 		gen9_enable_rps(dev);
+		__gen6_update_ring_freq(dev);
 	} else if (IS_BROADWELL(dev)) {
 		gen8_enable_rps(dev);
 		__gen6_update_ring_freq(dev);
