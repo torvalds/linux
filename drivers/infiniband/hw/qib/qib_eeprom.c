@@ -259,9 +259,9 @@ void qib_get_eeprom_info(struct qib_devdata *dd)
 		if (len > sizeof(ifp->if_serial))
 			len = sizeof(ifp->if_serial);
 		memcpy(snp, ifp->if_serial, len);
-	} else
-		memcpy(dd->serial, ifp->if_serial,
-		       sizeof(ifp->if_serial));
+	} else {
+		memcpy(dd->serial, ifp->if_serial, sizeof(ifp->if_serial));
+	}
 	if (!strstr(ifp->if_comment, "Tested successfully"))
 		qib_dev_err(dd,
 			"Board SN %s did not pass functional test: %s\n",

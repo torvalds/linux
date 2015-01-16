@@ -2054,7 +2054,9 @@ int qib_register_ib_device(struct qib_devdata *dd)
 
 	dev->qp_table_size = ib_qib_qp_table_size;
 	get_random_bytes(&dev->qp_rnd, sizeof(dev->qp_rnd));
-	dev->qp_table = kmalloc(dev->qp_table_size * sizeof(*dev->qp_table),
+	dev->qp_table = kmalloc_array(
+				dev->qp_table_size,
+				sizeof(*dev->qp_table),
 				GFP_KERNEL);
 	if (!dev->qp_table) {
 		ret = -ENOMEM;

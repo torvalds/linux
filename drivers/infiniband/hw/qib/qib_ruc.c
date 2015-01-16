@@ -247,8 +247,8 @@ static __be64 get_sguid(struct qib_ibport *ibp, unsigned index)
 		struct qib_pportdata *ppd = ppd_from_ibp(ibp);
 
 		return ppd->guid;
-	} else
-		return ibp->guids[index - 1];
+	}
+	return ibp->guids[index - 1];
 }
 
 static int gid_ok(union ib_gid *gid, __be64 gid_prefix, __be64 id)

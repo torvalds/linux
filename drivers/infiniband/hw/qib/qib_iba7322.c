@@ -117,7 +117,7 @@ MODULE_PARM_DESC(chase, "Enable state chase handling");
 
 static ushort qib_long_atten = 10; /* 10 dB ~= 5m length */
 module_param_named(long_attenuation, qib_long_atten, ushort, S_IRUGO);
-MODULE_PARM_DESC(long_attenuation, \
+MODULE_PARM_DESC(long_attenuation,
 		 "attenuation cutoff (dB) for long copper cable setup");
 
 static ushort qib_singleport;
@@ -153,7 +153,7 @@ static struct kparam_string kp_txselect = {
 static int  setup_txselect(const char *, struct kernel_param *);
 module_param_call(txselect, setup_txselect, param_get_string,
 		  &kp_txselect, S_IWUSR | S_IRUGO);
-MODULE_PARM_DESC(txselect, \
+MODULE_PARM_DESC(txselect,
 		 "Tx serdes indices (for no QSFP or invalid QSFP data)");
 
 #define BOARD_QME7342 5
@@ -6584,8 +6584,7 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 				ppd->vls_supported = IB_VL_VL0_7;
 			else {
 				qib_devinfo(dd->pcidev,
-					    "Invalid num_vls %u for MTU %d "
-					    ", using 4 VLs\n",
+					    "Invalid num_vls %u for MTU %d , using 4 VLs\n",
 					    qib_num_cfg_vls, mtu);
 				ppd->vls_supported = IB_VL_VL0_3;
 				qib_num_cfg_vls = 4;

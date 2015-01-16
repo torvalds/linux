@@ -91,7 +91,7 @@ int qib_enable_wc(struct qib_devdata *dd)
 	}
 
 	for (bits = 0; !(piolen & (1ULL << bits)); bits++)
-		/* do nothing */ ;
+		; /* do nothing */
 
 	if (piolen != (1ULL << bits)) {
 		piolen >>= bits;

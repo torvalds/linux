@@ -922,7 +922,7 @@ qib_sd7220_ib_vfy(struct qib_devdata *dd, const struct firmware *fw)
  * IRQ not set up at this point in init, so we poll.
  */
 #define IB_SERDES_TRIM_DONE (1ULL << 11)
-#define TRIM_TMO (30)
+#define TRIM_TMO (15)
 
 static int qib_sd_trimdone_poll(struct qib_devdata *dd)
 {
@@ -940,7 +940,7 @@ static int qib_sd_trimdone_poll(struct qib_devdata *dd)
 			ret = 1;
 			break;
 		}
-		msleep(10);
+		msleep(20);
 	}
 	if (trim_tmo >= TRIM_TMO) {
 		qib_dev_err(dd, "No TRIMDONE in %d tries\n", trim_tmo);

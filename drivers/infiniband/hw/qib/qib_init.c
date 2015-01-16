@@ -140,7 +140,7 @@ int qib_create_ctxts(struct qib_devdata *dd)
 	 * Allocate full ctxtcnt array, rather than just cfgctxts, because
 	 * cleanup iterates across all possible ctxts.
 	 */
-	dd->rcd = kzalloc(sizeof(*dd->rcd) * dd->ctxtcnt, GFP_KERNEL);
+	dd->rcd = kcalloc(dd->ctxtcnt, sizeof(*dd->rcd), GFP_KERNEL);
 	if (!dd->rcd) {
 		qib_dev_err(dd,
 			"Unable to allocate ctxtdata array, failing\n");
@@ -1025,8 +1025,7 @@ static void qib_verify_pioperf(struct qib_devdata *dd)
 	addr = vmalloc(cnt);
 	if (!addr) {
 		qib_devinfo(dd->pcidev,
-			 "Couldn't get memory for checking PIO perf,"
-			 " skipping\n");
+			 "Couldn't get memory for checking PIO perf, skipping\n");
 		goto done;
 	}
 
@@ -1178,7 +1177,7 @@ bail:
 	if (!list_empty(&dd->list))
 		list_del_init(&dd->list);
 	ib_dealloc_device(&dd->verbs_dev.ibdev);
-	return ERR_PTR(ret);;
+	return ERR_PTR(ret);
 }
 
 /*

@@ -81,7 +81,7 @@ static int qsfp_read(struct qib_pportdata *ppd, int addr, void *bp, int len)
 	 * Module could take up to 2 Msec to respond to MOD_SEL, and there
 	 * is no way to tell if it is ready, so we must wait.
 	 */
-	msleep(2);
+	msleep(20);
 
 	/* Make sure TWSI bus is in sane state. */
 	ret = qib_twsi_reset(dd);
@@ -139,7 +139,7 @@ deselect:
 	else if (pass)
 		qib_dev_porterr(dd, ppd->port, "QSFP retries: %d\n", pass);
 
-	msleep(2);
+	msleep(20);
 
 bail:
 	mutex_unlock(&dd->eep_lock);
@@ -189,7 +189,7 @@ static int qib_qsfp_write(struct qib_pportdata *ppd, int addr, void *bp,
 	 * Module could take up to 2 Msec to respond to MOD_SEL,
 	 * and there is no way to tell if it is ready, so we must wait.
 	 */
-	msleep(2);
+	msleep(20);
 
 	/* Make sure TWSI bus is in sane state. */
 	ret = qib_twsi_reset(dd);
@@ -234,7 +234,7 @@ deselect:
 	 * going away, and there is no way to tell if it is ready.
 	 * so we must wait.
 	 */
-	msleep(2);
+	msleep(20);
 
 bail:
 	mutex_unlock(&dd->eep_lock);
@@ -480,7 +480,6 @@ void qib_qsfp_init(struct qib_qsfp_data *qd,
 	udelay(20); /* Generous RST dwell */
 
 	dd->f_gpio_mod(dd, mask, mask, mask);
-	return;
 }
 
 void qib_qsfp_deinit(struct qib_qsfp_data *qd)
