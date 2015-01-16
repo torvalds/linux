@@ -133,6 +133,31 @@ To alleviate this, **ToleranUX** replaces the outdated concept of "occupied virt
 
 An added benefit of implementing **Multispatialism** is that there will never be any commit that will break the *user space* any more, because the *user space* no longer exists as a separate and socially constructed concept.
 
+Associated Coreutils
+====================
+
+Unlike the [GNU project](https://en.wikipedia.org/wiki/GNU) and the [Linux project](https://en.wikipedia.org/wiki/Linux), the infighting amongst which has brought much ire and hatred to the FLOSS world, **ToleranUX** shall supply its own set of `coreutils` so as to prevent the possibility of any naysayers claiming the absurd notion that a kernel and its peripheral but core user space are somehow distinct and different entities in an operating system — under **ToleranUX**, the kernel is equal to the pager.
+
+### ls
+
+`ls` is problematic because it allows you to see everything about the computer. This oppresses the computer because it always has to be up-to-par with your demands every time you use it. Thus, `ls` will now be packaged as `rs` (request search) and the directory contents will be displayed according to the user's privilege level upon creation of the account. Furthermore, `rs` does not have an obligation to list folders correctly as some folders need to have a safe space free of privacy-infringing searches. Fake information will thus be created for files that `rs` deems problematic to reveal.
+
+### man
+
+The `man` or manual util is simply oppressive because of its name. To fix this, it is changed to `wymyn` for wymynual. Wymynual is special in the fact that it does not take demands but rather proposals. Just because you want to `wymyn cyrvix` does not mean `wymyn` will give you the wymynual of `Cyrvix`. Perhaps it decides to give you a wymynual on `pgrep` instead; this is okay because the program is not being forced to comply to demands of potential oppressors.
+
+### whois
+
+`whois` is deemed as problematic because it allows potential oppressors to look up data about wymyn or PoC who have been targets by oppressors.  Some even say `whois` should be illegal because it promotes [doxxing](http://en.wikipedia.org/wiki/Doxing).  As such, `whois` will be restricted based on the privilege checker's privilege of the user. This has come to light due to privileged white males Doxxing women in the technology and video game industries. `whois` will also be censored upon request to all who are institutionally oppressed. Additionally, the name is changed to `whowhatwhxwhxtis` as to include all who identify as either a person or a non-person; `whx` and `whxt` are used in place of any pronouns by which the user wishes to be referred to.
+
+### shell
+
+To refer to the user interface as a `shell` is troubling in nature due to the fact that is an obstacle for those who are recently coming out from the psychoanalytical "shell" of trans\*sexuality or trans\*genderism. To refer to as a UI as a `shell` implies that all programs ran inside the `shell` is never going to leave the `shell`. As such, all `shell` processes are to be referred to as **`User-Interactive Free To Be Thee Devices (UIFTBTD)`**. To further this, all `UIFTBTD`s are given permission to process data and perform calculations anywhere inside the Computerspaces, not just the "Shell".
+
+### kill
+
+To `kill` a process is a triggering term to those who have been affected by death or killings in their life.  Instead of `kill`-ing a process, which is something immoral and a result of toxic masculinity, ToleranUX opts to `fire` processes.  Unlike `kill`-ing a process, `firing` a process allows it to still live, just no longer performs any function.  In addition to being able to manually `fire` any process that offends you, **ToleranUX** will automatically `fire` any process that is determined to be too offensive.
+
 Supported architectures and form factors
 ========================================
 
