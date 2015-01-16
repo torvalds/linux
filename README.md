@@ -57,6 +57,10 @@ To eradicate the inherent root of Toxic Bigotry in the UNIX Philosophy, the Tole
 Kernel Hacking Etiquette
 ========================
 
+**Before you make a comment or suggestion, think about this:  
+Could someone conceivably take offence at what I'm saying? Am I going to hurt someone's feelings?  
+If the answer is 'yes', then we would rather you not say anything at all, no matter how "good" your suggestion.**
+
 At Feminist Software Foundation, we uphold the belief that all people are equal, and thus we aim to promote kindness to all.  In the immortal words of Sarah Sharp, victim of the Verbal Abuse Culture on the Linux Kernel Mailing List, "No one deserves to be shouted or cussed at".  To achieve this goal, the following behaviours are banned:
 
 * Negative emotions/words
@@ -110,7 +114,7 @@ Certain metadata of files will be scrutinised by **ToleranUX** to ensure that th
 
 The [traditional UNIX Pipes](https://en.wikipedia.org/wiki/Pipeline_(Unix)) are deemed offensive for their [phallic](https://en.wikipedia.org/wiki/Phallus) and therefore problematic tone.  Instead of the user [dictating](https://en.wikipedia.org/wiki/Dictatorship) the order of programs passing data between themselves, programs should be able to choose when and where to **organically congregate** amongst themselves, and pass either full or partial data between input and output.
 
-More advanced IPC is to be *guided*, never *dictated*.  The obsolete `D-Bus` mechanism is rewritten in Node.js and *accepted* into kernel-space for inclusion.  This IPC shall be named **"cervical canals""**, denoted by the symbol `Ω`, as a feminist respite of the Patriarchal construct **"UNIX Pipes"** and its `|`.
+More advanced IPC is to be *guided*, never *dictated*.  The obsolete `D-Bus` mechanism is rewritten in Node.js and *accepted* into kernel-space for inclusion.  This IPC shall be named **"cervical canals"**, denoted by the symbol `Ω`, as a feminist respite of the Patriarchal construct **"UNIX Pipes"** and its `|`.
 
 Smashing the socially constructed barriers between kernel space and userspace
 =============================================================================
