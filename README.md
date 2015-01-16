@@ -106,6 +106,12 @@ Certain metadata of files will be scrutinised by **ToleranUX** to ensure that th
 
 * Out with the [Traditional UNIX permissions of Read, Write, and Execute](http://en.wikipedia.org/wiki/File_system_permissions#Traditional_Unix_permissions).  These permissions are arbitrarily enforced privileges.  A program should be able to run, read, and write wherever and whenever it wants to.
 
+### IPC and Pipes
+
+The [traditional UNIX Pipes](https://en.wikipedia.org/wiki/Pipeline_(Unix)) are deemed offensive for their [phallic](https://en.wikipedia.org/wiki/Phallus) and therefore problematic tone.  Instead of the user [dictating](https://en.wikipedia.org/wiki/Dictatorship) the order of programs passing data between themselves, programs should be able to choose when and where to **organically congregate** amongst themselves, and pass either full or partial data between input and output.
+
+More advanced IPC is to be *guided*, never *dictated*.  The obsolete `D-Bus` mechanism is rewritten in Node.js and *accepted* into kernel-space for inclusion.  This IPC shall be named **"cervical canals""** as a feminist respite of the Patriarchal construct **"UNIX Pipes"**.
+
 Smashing the socially constructed barriers between kernel space and userspace
 =============================================================================
 
