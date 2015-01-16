@@ -435,14 +435,11 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 	return 0;
 }
 
-void bcma_init_bus(struct bcma_bus *bus)
+void bcma_detect_chip(struct bcma_bus *bus)
 {
 	s32 tmp;
 	struct bcma_chipinfo *chipinfo = &(bus->chipinfo);
 	char chip_id[8];
-
-	INIT_LIST_HEAD(&bus->cores);
-	bus->nr_cores = 0;
 
 	bcma_scan_switch_core(bus, BCMA_ADDR_BASE);
 

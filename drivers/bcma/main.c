@@ -268,6 +268,18 @@ void bcma_prepare_core(struct bcma_bus *bus, struct bcma_device *core)
 	}
 }
 
+void bcma_init_bus(struct bcma_bus *bus)
+{
+	mutex_lock(&bcma_buses_mutex);
+	bus->num = bcma_bus_next_num++;
+	mutex_unlock(&bcma_buses_mutex);
+
+	INIT_LIST_HEAD(&bus->cores);
+	bus->nr_cores = 0;
+
+	bcma_detect_chip(bus);
+}
+
 static void bcma_register_core(struct bcma_bus *bus, struct bcma_device *core)
 {
 	int err;
@@ -368,10 +380,6 @@ int bcma_bus_register(struct bcma_bus *bus)
 {
 	int err;
 	struct bcma_device *core;
-
-	mutex_lock(&bcma_buses_mutex);
-	bus->num = bcma_bus_next_num++;
-	mutex_unlock(&bcma_buses_mutex);
 
 	/* Scan for devices (cores) */
 	err = bcma_bus_scan(bus);
