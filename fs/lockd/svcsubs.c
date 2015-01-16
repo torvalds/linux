@@ -171,7 +171,7 @@ nlm_traverse_locks(struct nlm_host *host, struct nlm_file *file,
 		return 0;
 again:
 	file->f_locks = 0;
-	spin_lock(&inode->i_lock);
+	spin_lock(&flctx->flc_lock);
 	list_for_each_entry(fl, &flctx->flc_posix, fl_list) {
 		if (fl->fl_lmops != &nlmsvc_lock_operations)
 			continue;
@@ -183,7 +183,7 @@ again:
 		if (match(lockhost, host)) {
 			struct file_lock lock = *fl;
 
-			spin_unlock(&inode->i_lock);
+			spin_unlock(&flctx->flc_lock);
 			lock.fl_type  = F_UNLCK;
 			lock.fl_start = 0;
 			lock.fl_end   = OFFSET_MAX;
@@ -195,7 +195,7 @@ again:
 			goto again;
 		}
 	}
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&flctx->flc_lock);
 
 	return 0;
 }
@@ -232,14 +232,14 @@ nlm_file_inuse(struct nlm_file *file)
 		return 1;
 
 	if (flctx && !list_empty_careful(&flctx->flc_posix)) {
-		spin_lock(&inode->i_lock);
+		spin_lock(&flctx->flc_lock);
 		list_for_each_entry(fl, &flctx->flc_posix, fl_list) {
 			if (fl->fl_lmops == &nlmsvc_lock_operations) {
-				spin_unlock(&inode->i_lock);
+				spin_unlock(&flctx->flc_lock);
 				return 1;
 			}
 		}
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&flctx->flc_lock);
 	}
 	file->f_locks = 0;
 	return 0;

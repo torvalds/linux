@@ -5572,14 +5572,14 @@ check_for_locks(struct nfs4_file *fp, struct nfs4_lockowner *lowner)
 	flctx = inode->i_flctx;
 
 	if (flctx && !list_empty_careful(&flctx->flc_posix)) {
-		spin_lock(&inode->i_lock);
+		spin_lock(&flctx->flc_lock);
 		list_for_each_entry(fl, &flctx->flc_posix, fl_list) {
 			if (fl->fl_owner == (fl_owner_t)lowner) {
 				status = true;
 				break;
 			}
 		}
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&flctx->flc_lock);
 	}
 	fput(filp);
 	return status;

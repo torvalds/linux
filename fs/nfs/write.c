@@ -1206,7 +1206,7 @@ static int nfs_can_extend_write(struct file *file, struct page *page, struct ino
 
 	/* Check to see if there are whole file write locks */
 	ret = 0;
-	spin_lock(&inode->i_lock);
+	spin_lock(&flctx->flc_lock);
 	if (!list_empty(&flctx->flc_posix)) {
 		fl = list_first_entry(&flctx->flc_posix, struct file_lock,
 					fl_list);
@@ -1218,7 +1218,7 @@ static int nfs_can_extend_write(struct file *file, struct page *page, struct ino
 		if (fl->fl_type == F_WRLCK)
 			ret = 1;
 	}
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&flctx->flc_lock);
 	return ret;
 }
 
