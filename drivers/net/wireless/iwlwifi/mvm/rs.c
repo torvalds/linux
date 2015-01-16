@@ -2714,44 +2714,10 @@ void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		lq_sta->active_legacy_rate |= BIT(sband->bitrates[i].hw_value);
 
 	/* TODO: should probably account for rx_highest for both HT/VHT */
-	if (!vht_cap || !vht_cap->vht_supported) {
-		/* active_siso_rate mask includes 9 MBits (bit 5),
-		 * and CCK (bits 0-3), supp_rates[] does not;
-		 * shift to convert format, force 9 MBits off.
-		 */
-		lq_sta->active_siso_rate = ht_cap->mcs.rx_mask[0] << 1;
-		lq_sta->active_siso_rate |= ht_cap->mcs.rx_mask[0] & 0x1;
-		lq_sta->active_siso_rate &= ~((u16)0x2);
-		lq_sta->active_siso_rate <<= IWL_FIRST_OFDM_RATE;
-
-		/* Same here */
-		lq_sta->active_mimo2_rate = ht_cap->mcs.rx_mask[1] << 1;
-		lq_sta->active_mimo2_rate |= ht_cap->mcs.rx_mask[1] & 0x1;
-		lq_sta->active_mimo2_rate &= ~((u16)0x2);
-		lq_sta->active_mimo2_rate <<= IWL_FIRST_OFDM_RATE;
-
-		lq_sta->is_vht = false;
-		if (mvm->cfg->ht_params->ldpc &&
-		    (ht_cap->cap & IEEE80211_HT_CAP_LDPC_CODING))
-			lq_sta->ldpc = true;
-
-		if (mvm->cfg->ht_params->stbc &&
-		    (num_of_ant(iwl_mvm_get_valid_tx_ant(mvm)) > 1) &&
-		    (ht_cap->cap & IEEE80211_HT_CAP_RX_STBC))
-			lq_sta->stbc = true;
-	} else {
-		rs_vht_set_enabled_rates(sta, vht_cap, lq_sta);
-		lq_sta->is_vht = true;
-
-		if (mvm->cfg->ht_params->ldpc &&
-		    (vht_cap->cap & IEEE80211_VHT_CAP_RXLDPC))
-			lq_sta->ldpc = true;
-
-		if (mvm->cfg->ht_params->stbc &&
-		    (num_of_ant(iwl_mvm_get_valid_tx_ant(mvm)) > 1) &&
-		    (vht_cap->cap & IEEE80211_VHT_CAP_RXSTBC_MASK))
-			lq_sta->stbc = true;
-	}
+	if (!vht_cap || !vht_cap->vht_supported)
+		rs_ht_init(mvm, sta, lq_sta, ht_cap);
+	else
+		rs_vht_init(mvm, sta, lq_sta, vht_cap);
 
 	if (IWL_MVM_RS_DISABLE_P2P_MIMO && sta_priv->vif->p2p)
 		lq_sta->active_mimo2_rate = 0;
