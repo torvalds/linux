@@ -492,7 +492,7 @@ out:
 }
 
 /**
- * drm_plane_helper_update() - Helper for primary plane update
+ * drm_plane_helper_update() - Transitional helper for plane update
  * @plane: plane object to update
  * @crtc: owning CRTC of owning plane
  * @fb: framebuffer to flip onto plane
@@ -549,7 +549,7 @@ int drm_plane_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
 EXPORT_SYMBOL(drm_plane_helper_update);
 
 /**
- * drm_plane_helper_disable() - Helper for primary plane disable
+ * drm_plane_helper_disable() - Transitional helper for plane disable
  * @plane: plane to disable
  *
  * Provides a default plane disable handler using the atomic plane update
