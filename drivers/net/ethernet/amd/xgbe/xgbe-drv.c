@@ -415,16 +415,12 @@ static enum hrtimer_restart xgbe_tx_timer(struct hrtimer *timer)
 	struct xgbe_channel *channel = container_of(timer,
 						    struct xgbe_channel,
 						    tx_timer);
-	struct xgbe_ring *ring = channel->tx_ring;
 	struct xgbe_prv_data *pdata = channel->pdata;
 	struct napi_struct *napi;
-	unsigned long flags;
 
 	DBGPR("-->xgbe_tx_timer\n");
 
 	napi = (pdata->per_channel_irq) ? &channel->napi : &pdata->napi;
-
-	spin_lock_irqsave(&ring->lock, flags);
 
 	if (napi_schedule_prep(napi)) {
 		/* Disable Tx and Rx interrupts */
@@ -438,8 +434,6 @@ static enum hrtimer_restart xgbe_tx_timer(struct hrtimer *timer)
 	}
 
 	channel->tx_timer_active = 0;
-
-	spin_unlock_irqrestore(&ring->lock, flags);
 
 	DBGPR("<--xgbe_tx_timer\n");
 
@@ -1450,7 +1444,6 @@ static int xgbe_xmit(struct sk_buff *skb, struct net_device *netdev)
 	struct xgbe_ring *ring;
 	struct xgbe_packet_data *packet;
 	struct netdev_queue *txq;
-	unsigned long flags;
 	int ret;
 
 	DBGPR("-->xgbe_xmit: skb->len = %d\n", skb->len);
@@ -1461,8 +1454,6 @@ static int xgbe_xmit(struct sk_buff *skb, struct net_device *netdev)
 	packet = &ring->packet_data;
 
 	ret = NETDEV_TX_OK;
-
-	spin_lock_irqsave(&ring->lock, flags);
 
 	if (skb->len == 0) {
 		netdev_err(netdev, "empty skb received from stack\n");
@@ -1510,10 +1501,6 @@ static int xgbe_xmit(struct sk_buff *skb, struct net_device *netdev)
 	ret = NETDEV_TX_OK;
 
 tx_netdev_return:
-	spin_unlock_irqrestore(&ring->lock, flags);
-
-	DBGPR("<--xgbe_xmit\n");
-
 	return ret;
 }
 
@@ -1841,7 +1828,6 @@ static int xgbe_tx_poll(struct xgbe_channel *channel)
 	struct xgbe_ring_desc *rdesc;
 	struct net_device *netdev = pdata->netdev;
 	struct netdev_queue *txq;
-	unsigned long flags;
 	int processed = 0;
 	unsigned int tx_packets = 0, tx_bytes = 0;
 
@@ -1852,8 +1838,6 @@ static int xgbe_tx_poll(struct xgbe_channel *channel)
 		return 0;
 
 	txq = netdev_get_tx_queue(netdev, channel->queue_index);
-
-	spin_lock_irqsave(&ring->lock, flags);
 
 	while ((processed < XGBE_TX_DESC_MAX_PROC) &&
 	       (ring->dirty != ring->cur)) {
@@ -1885,7 +1869,7 @@ static int xgbe_tx_poll(struct xgbe_channel *channel)
 	}
 
 	if (!processed)
-		goto unlock;
+		return 0;
 
 	netdev_tx_completed_queue(txq, tx_packets, tx_bytes);
 
@@ -1896,9 +1880,6 @@ static int xgbe_tx_poll(struct xgbe_channel *channel)
 	}
 
 	DBGPR("<--xgbe_tx_poll: processed=%d\n", processed);
-
-unlock:
-	spin_unlock_irqrestore(&ring->lock, flags);
 
 	return processed;
 }

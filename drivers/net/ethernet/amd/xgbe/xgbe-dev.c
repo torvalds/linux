@@ -1359,6 +1359,7 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 	unsigned int tso_context, vlan_context;
 	unsigned int tx_set_ic;
 	int start_index = ring->cur;
+	int cur_index = ring->cur;
 	int i;
 
 	DBGPR("-->xgbe_dev_xmit\n");
@@ -1401,7 +1402,7 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 	else
 		tx_set_ic = 0;
 
-	rdata = XGBE_GET_DESC_DATA(ring, ring->cur);
+	rdata = XGBE_GET_DESC_DATA(ring, cur_index);
 	rdesc = rdata->rdesc;
 
 	/* Create a context descriptor if this is a TSO packet */
@@ -1444,8 +1445,8 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 			ring->tx.cur_vlan_ctag = packet->vlan_ctag;
 		}
 
-		ring->cur++;
-		rdata = XGBE_GET_DESC_DATA(ring, ring->cur);
+		cur_index++;
+		rdata = XGBE_GET_DESC_DATA(ring, cur_index);
 		rdesc = rdata->rdesc;
 	}
 
@@ -1473,7 +1474,7 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 	XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, CTXT, 0);
 
 	/* Set OWN bit if not the first descriptor */
-	if (ring->cur != start_index)
+	if (cur_index != start_index)
 		XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, OWN, 1);
 
 	if (tso) {
@@ -1497,9 +1498,9 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 				  packet->length);
 	}
 
-	for (i = ring->cur - start_index + 1; i < packet->rdesc_count; i++) {
-		ring->cur++;
-		rdata = XGBE_GET_DESC_DATA(ring, ring->cur);
+	for (i = cur_index - start_index + 1; i < packet->rdesc_count; i++) {
+		cur_index++;
+		rdata = XGBE_GET_DESC_DATA(ring, cur_index);
 		rdesc = rdata->rdesc;
 
 		/* Update buffer address */
@@ -1551,7 +1552,7 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 	/* Make sure ownership is written to the descriptor */
 	wmb();
 
-	ring->cur++;
+	ring->cur = cur_index + 1;
 	if (!packet->skb->xmit_more ||
 	    netif_xmit_stopped(netdev_get_tx_queue(pdata->netdev,
 						   channel->queue_index)))
