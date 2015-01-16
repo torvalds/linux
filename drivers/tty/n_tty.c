@@ -262,7 +262,7 @@ static void n_tty_check_throttle(struct tty_struct *tty)
 	while (1) {
 		int throttled;
 		tty_set_flow_change(tty, TTY_THROTTLE_SAFE);
-		if (receive_room(tty) >= TTY_THRESHOLD_THROTTLE)
+		if (N_TTY_BUF_SIZE - read_cnt(ldata) >= TTY_THRESHOLD_THROTTLE)
 			break;
 		throttled = tty_throttle_safe(tty);
 		if (!throttled)
