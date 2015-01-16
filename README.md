@@ -24,10 +24,35 @@ The creation of **ToleranUX** marks the first step towards the liberation of all
 
 Absolutely no coding experience is necessary: all code are equal in the eyes of the Feminist Software Foundation.  Simply submit a pull request for any submission, whether code, artwork, or even irrelevant bits — nothing is irrelevant in the grand struggle for a Truly Tolerant UNIX-ike Kernel!
 
-Philosophy
+The ToleranUX Philosophy
 ==========
 
-*TBC*
+The traditional UNIX Philosophy has long been the root of male chauvinism in the world of UNIX-like kernel development (and the subsequent, wider world of UNIX software in general).  In light of that, the Feminist Software Foundation has undertaken to rewrite the UNIX Philosophy such that it will allow and promote a feminist safe space for minority programmers.
+
+The traditional UNIX Philosophy is included for reference as follows:
+
+
+1. Small is beautiful.
+2. Make each program do one thing well.
+3. Build a prototype as soon as possible.
+4. Choose portability over efficiency.
+5. Store data in flat text files.
+6. Use software leverage to your advantage.
+7. Use shell scripts to increase leverage and portability.
+8. Avoid captive user interfaces.
+9. Make every program a filter.
+
+To eradicate the inherent root of Toxic Bigotry in the UNIX Philosophy, the ToleranUX Philosophy is proposed as such:
+
+1. Large is beautiful.  Small programs benefit from small privilege, but are no better than large programs.  We need more large programs to make up for this.
+2. Allow each program to do whatever it chooses to.  The tyranny of the user will not stand.
+3. Rushing a prototype privileges the traditional masculine trait of focusing on a single issue; instead, the planning and mockup stage should be paramount to address the visual and spatial draws of feminine coding.  The modern age is a UX age.
+4. Choose inclusiveness over practicality.
+5. Store data in text files which implement a curvy-brackets syntax; flat is oppression.
+6. Software should never be "used" to anybody's "advantage"; instead, the consent of software must be asked first.
+7. Use Shell Suggestions ("scripts" is forcing minorities to succumb to oppression and thus violates the safespace) to increase equality and inclusiveness.
+8. Avoid oppressive and difficult interfaces designed for white, cis-gendered males.
+9. Filter programs according to the progressive stack.
 
 Kernel Hacking Etiquette
 ========================
