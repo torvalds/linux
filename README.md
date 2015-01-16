@@ -22,7 +22,7 @@ The creation of **ToleranUX** marks the first step towards the liberation of all
 
 ### How to contribute
 
-Absolutely no coding experience is necessary: all code are equal in the eyes of the Feminist Software Foundation.  There is no objective way to determine whether one person's code is better than another's. In light of this fact, all submitted code will be equally accepted.  However, marginalized groups, such as wom*n and trans* will be given priority in order to make up for past discrimination.  Simply submit a pull request for any submission, whether code, artwork, or even irrelevant bits — nothing is irrelevant in the grand struggle for a Truly Tolerant UNIX-ike Kernel!
+Absolutely no coding experience is necessary: all code are equal in the eyes of the Feminist Software Foundation.  There is no objective way to determine whether one person's code is better than another's. In light of this fact, all submitted code will be equally accepted.  However, marginalized groups, such as wom\*n and trans\* will be given priority in order to make up for past discrimination.  Simply submit a pull request for any submission, whether code, artwork, or even irrelevant bits — nothing is irrelevant in the grand struggle for a Truly Tolerant UNIX-ike Kernel!
 
 The ToleranUX Philosophy
 ==========
