@@ -29,6 +29,7 @@
 #include <drm/drm_edid.h>
 #include <drm/i915_drm.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_mipi_dsi.h>
 #include <linux/slab.h>
 #include "i915_drv.h"
 #include "intel_drv.h"
@@ -57,6 +58,149 @@ static void wait_for_dsi_fifo_empty(struct intel_dsi *intel_dsi, enum port port)
 
 	if (wait_for((I915_READ(MIPI_GEN_FIFO_STAT(port)) & mask) == mask, 100))
 		DRM_ERROR("DPI FIFOs are not empty\n");
+}
+
+static void write_data(struct drm_i915_private *dev_priv, u32 reg,
+		       const u8 *data, u32 len)
+{
+	u32 i, j;
+
+	for (i = 0; i < len; i += 4) {
+		u32 val = 0;
+
+		for (j = 0; j < min_t(u32, len - i, 4); j++)
+			val |= *data++ << 8 * j;
+
+		I915_WRITE(reg, val);
+	}
+}
+
+static void read_data(struct drm_i915_private *dev_priv, u32 reg,
+		      u8 *data, u32 len)
+{
+	u32 i, j;
+
+	for (i = 0; i < len; i += 4) {
+		u32 val = I915_READ(reg);
+
+		for (j = 0; j < min_t(u32, len - i, 4); j++)
+			*data++ = val >> 8 * j;
+	}
+}
+
+static ssize_t intel_dsi_host_transfer(struct mipi_dsi_host *host,
+				       const struct mipi_dsi_msg *msg)
+{
+	struct intel_dsi_host *intel_dsi_host = to_intel_dsi_host(host);
+	struct drm_device *dev = intel_dsi_host->intel_dsi->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum port port = intel_dsi_host->port;
+	struct mipi_dsi_packet packet;
+	ssize_t ret;
+	const u8 *header, *data;
+	u32 data_reg, data_mask, ctrl_reg, ctrl_mask;
+
+	ret = mipi_dsi_create_packet(&packet, msg);
+	if (ret < 0)
+		return ret;
+
+	header = packet.header;
+	data = packet.payload;
+
+	if (msg->flags & MIPI_DSI_MSG_USE_LPM) {
+		data_reg = MIPI_LP_GEN_DATA(port);
+		data_mask = LP_DATA_FIFO_FULL;
+		ctrl_reg = MIPI_LP_GEN_CTRL(port);
+		ctrl_mask = LP_CTRL_FIFO_FULL;
+	} else {
+		data_reg = MIPI_HS_GEN_DATA(port);
+		data_mask = HS_DATA_FIFO_FULL;
+		ctrl_reg = MIPI_HS_GEN_CTRL(port);
+		ctrl_mask = HS_CTRL_FIFO_FULL;
+	}
+
+	/* note: this is never true for reads */
+	if (packet.payload_length) {
+
+		if (wait_for((I915_READ(MIPI_GEN_FIFO_STAT(port)) & data_mask) == 0, 50))
+			DRM_ERROR("Timeout waiting for HS/LP DATA FIFO !full\n");
+
+		write_data(dev_priv, data_reg, packet.payload,
+			   packet.payload_length);
+	}
+
+	if (msg->rx_len) {
+		I915_WRITE(MIPI_INTR_STAT(port), GEN_READ_DATA_AVAIL);
+	}
+
+	if (wait_for((I915_READ(MIPI_GEN_FIFO_STAT(port)) & ctrl_mask) == 0, 50)) {
+		DRM_ERROR("Timeout waiting for HS/LP CTRL FIFO !full\n");
+	}
+
+	I915_WRITE(ctrl_reg, header[2] << 16 | header[1] << 8 | header[0]);
+
+	/* ->rx_len is set only for reads */
+	if (msg->rx_len) {
+		data_mask = GEN_READ_DATA_AVAIL;
+		if (wait_for((I915_READ(MIPI_INTR_STAT(port)) & data_mask) == data_mask, 50))
+			DRM_ERROR("Timeout waiting for read data.\n");
+
+		read_data(dev_priv, data_reg, msg->rx_buf, msg->rx_len);
+	}
+
+	/* XXX: fix for reads and writes */
+	return 4 + packet.payload_length;
+}
+
+static int intel_dsi_host_attach(struct mipi_dsi_host *host,
+				 struct mipi_dsi_device *dsi)
+{
+	return 0;
+}
+
+static int intel_dsi_host_detach(struct mipi_dsi_host *host,
+				 struct mipi_dsi_device *dsi)
+{
+	return 0;
+}
+
+static const struct mipi_dsi_host_ops intel_dsi_host_ops = {
+	.attach = intel_dsi_host_attach,
+	.detach = intel_dsi_host_detach,
+	.transfer = intel_dsi_host_transfer,
+};
+
+static struct intel_dsi_host *intel_dsi_host_init(struct intel_dsi *intel_dsi,
+						  enum port port)
+{
+	struct intel_dsi_host *host;
+	struct mipi_dsi_device *device;
+
+	host = kzalloc(sizeof(*host), GFP_KERNEL);
+	if (!host)
+		return NULL;
+
+	host->base.ops = &intel_dsi_host_ops;
+	host->intel_dsi = intel_dsi;
+	host->port = port;
+
+	/*
+	 * We should call mipi_dsi_host_register(&host->base) here, but we don't
+	 * have a host->dev, and we don't have OF stuff either. So just use the
+	 * dsi framework as a library and hope for the best. Create the dsi
+	 * devices by ourselves here too. Need to be careful though, because we
+	 * don't initialize any of the driver model devices here.
+	 */
+	device = kzalloc(sizeof(*device), GFP_KERNEL);
+	if (!device) {
+		kfree(host);
+		return NULL;
+	}
+
+	device->host = &host->base;
+	host->device = device;
+
+	return host;
 }
 
 static void band_gap_reset(struct drm_i915_private *dev_priv)
@@ -809,6 +953,7 @@ void intel_dsi_init(struct drm_device *dev)
 	struct drm_connector *connector;
 	struct drm_display_mode *scan, *fixed_mode = NULL;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum port port;
 	unsigned int i;
 
 	DRM_DEBUG_KMS("\n");
@@ -857,12 +1002,27 @@ void intel_dsi_init(struct drm_device *dev)
 	intel_connector->unregister = intel_connector_unregister;
 
 	/* Pipe A maps to MIPI DSI port A, pipe B maps to MIPI DSI port C */
-	if (dev_priv->vbt.dsi.port == DVO_PORT_MIPIA) {
+	if (dev_priv->vbt.dsi.config->dual_link) {
+		/* XXX: does dual link work on either pipe? */
+		intel_encoder->crtc_mask = (1 << PIPE_A);
+		intel_dsi->ports = ((1 << PORT_A) | (1 << PORT_C));
+	} else if (dev_priv->vbt.dsi.port == DVO_PORT_MIPIA) {
 		intel_encoder->crtc_mask = (1 << PIPE_A);
 		intel_dsi->ports = (1 << PORT_A);
 	} else if (dev_priv->vbt.dsi.port == DVO_PORT_MIPIC) {
 		intel_encoder->crtc_mask = (1 << PIPE_B);
 		intel_dsi->ports = (1 << PORT_C);
+	}
+
+	/* Create a DSI host (and a device) for each port. */
+	for_each_dsi_port(port, intel_dsi->ports) {
+		struct intel_dsi_host *host;
+
+		host = intel_dsi_host_init(intel_dsi, port);
+		if (!host)
+			goto err;
+
+		intel_dsi->dsi_hosts[port] = host;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(intel_dsi_drivers); i++) {

@@ -26,6 +26,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_mipi_dsi.h>
 #include "intel_drv.h"
 
 /* Dual Link support */
@@ -33,10 +34,13 @@
 #define DSI_DUAL_LINK_FRONT_BACK	1
 #define DSI_DUAL_LINK_PIXEL_ALT		2
 
+struct intel_dsi_host;
+
 struct intel_dsi {
 	struct intel_encoder base;
 
 	struct drm_panel *panel;
+	struct intel_dsi_host *dsi_hosts[I915_MAX_PORTS];
 
 	struct intel_connector *attached_connector;
 
@@ -93,6 +97,20 @@ struct intel_dsi {
 	u16 panel_off_delay;
 	u16 panel_pwr_cycle_delay;
 };
+
+struct intel_dsi_host {
+	struct mipi_dsi_host base;
+	struct intel_dsi *intel_dsi;
+	enum port port;
+
+	/* our little hack */
+	struct mipi_dsi_device *device;
+};
+
+static inline struct intel_dsi_host *to_intel_dsi_host(struct mipi_dsi_host *h)
+{
+	return container_of(h, struct intel_dsi_host, base);
+}
 
 #define for_each_dsi_port(__port, __ports_mask) \
 	for ((__port) = PORT_A; (__port) < I915_MAX_PORTS; (__port)++)	\

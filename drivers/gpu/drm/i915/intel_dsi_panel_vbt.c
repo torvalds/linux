@@ -399,9 +399,6 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	intel_dsi->dual_link = mipi_config->dual_link;
 	intel_dsi->pixel_overlap = mipi_config->pixel_overlap;
 
-	if (intel_dsi->dual_link)
-		intel_dsi->ports = ((1 << PORT_A) | (1 << PORT_C));
-
 	if (intel_dsi->pixel_format == VID_MODE_FORMAT_RGB666)
 		bits_per_pixel = 18;
 	else if (intel_dsi->pixel_format == VID_MODE_FORMAT_RGB565)
