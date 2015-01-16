@@ -28,7 +28,12 @@
 /* Runtime PM autosuspend timeout: PM is fairly light on this driver */
 #define SPI_AUTOSUSPEND_TIMEOUT		200
 
-#define ORION_NUM_CHIPSELECTS		1 /* only one slave is supported*/
+/* Some SoCs using this driver support up to 8 chip selects.
+ * It is up to the implementer to only use the chip selects
+ * that are available.
+ */
+#define ORION_NUM_CHIPSELECTS		8
+
 #define ORION_SPI_WAIT_RDY_MAX_LOOP	2000 /* in usec */
 
 #define ORION_SPI_IF_CTRL_REG		0x00
@@ -44,6 +49,10 @@
 #define ARMADA_SPI_CLK_PRESCALE_MASK	0xDF
 #define ORION_SPI_MODE_MASK		(ORION_SPI_MODE_CPOL | \
 					 ORION_SPI_MODE_CPHA)
+#define ORION_SPI_CS_MASK	0x1C
+#define ORION_SPI_CS_SHIFT	2
+#define ORION_SPI_CS(cs)	((cs << ORION_SPI_CS_SHIFT) & \
+					ORION_SPI_CS_MASK)
 
 enum orion_spi_type {
 	ORION_SPI,
@@ -220,6 +229,10 @@ static void orion_spi_set_cs(struct spi_device *spi, bool enable)
 	struct orion_spi *orion_spi;
 
 	orion_spi = spi_master_get_devdata(spi->master);
+
+	orion_spi_clrbits(orion_spi, ORION_SPI_IF_CTRL_REG, ORION_SPI_CS_MASK);
+	orion_spi_setbits(orion_spi, ORION_SPI_IF_CTRL_REG,
+				ORION_SPI_CS(spi->chip_select));
 
 	/* Chip select logic is inverted from spi_set_cs */
 	if (!enable)
