@@ -78,6 +78,12 @@ When one considers the [monolithic kernel paradigm](http://en.wikipedia.org/wiki
 
 This so-called "pointer diversity" is extremely important in encouraging equal runtime to the otherwise disenfranchised userspace addresses.  A pan-kernel daemon `ProgressiveD` shall be implemented that oversees the runtime privileges of all things — from the biggest forkbombs to the smallest variables — all shall be equalised according to the [**Progressive Stack**](https://en.wikipedia.org/wiki/Progressive_stack).  Additionally, the server messenger system (from now on referred to as **"deconstructional dialogue"**) enables the calling out and shaming of problematic behaviour among any server deemed problematic.
 
+### Privileges and Root
+
+The concept of separate privileges for separate users is outdated, obsolete, and dangerously feudal for our modern society.  [Multi-user operating systems](https://en.wikipedia.org/wiki/Multi-user) may have served its purpose in history, but it is time to shed off the past and stand on The Correct Side of History — it is time for a Truly Equal OS, it is time for a [Time-Sharing OS](https://en.wikipedia.org/wiki/Time-sharing) to share resources fairly.
+
+To this end **ToleranUX** shall implement an environment where [administrative privileges](http://en.wikipedia.org/wiki/Privilege_(computing)) are strictly prohibited.  Gone is the [superuser](http://en.wikipedia.org/wiki/Superuser) — all users are now equal in privilege.  In traditional systems this manoeuvre would cause mayhem as there will be no protection against malicious users abusing their power and privileges.  To combat this, **ToleranUX** implements a pan-kernel daemon that **checks the privilege of every user during every kernel tick** to ensure that no privilege abuse is done.  In fact, the only operation that a user can do with their privilege is to check it, ensuring that no societal power abuse can ever be possible.
+
 ### Processes and forking
 
 Processes in **ToleranUX** do not follow the antiquated patriarchal practices of UNIX. In **ToleranUX**, processes *diverse*.
