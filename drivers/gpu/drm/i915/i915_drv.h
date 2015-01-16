@@ -2564,6 +2564,11 @@ extern void intel_uncore_check_errors(struct drm_device *dev);
 extern void intel_uncore_fini(struct drm_device *dev);
 extern void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore);
 const char *intel_uncore_forcewake_domain_to_str(const int domain_id);
+void intel_uncore_forcewake_get(struct drm_i915_private *dev_priv,
+				unsigned fw_domains);
+void intel_uncore_forcewake_put(struct drm_i915_private *dev_priv,
+				unsigned fw_domains);
+void assert_forcewakes_inactive(struct drm_i915_private *dev_priv);
 
 void
 i915_enable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
@@ -3194,16 +3199,6 @@ extern struct intel_display_error_state *intel_display_capture_error_state(struc
 extern void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
 					    struct drm_device *dev,
 					    struct intel_display_error_state *error);
-
-/* On SNB platform, before reading ring registers forcewake bit
- * must be set to prevent GT core from power down and stale values being
- * returned.
- */
-void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv,
-			    unsigned fw_domains);
-void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv,
-			    unsigned fw_domains);
-void assert_force_wake_inactive(struct drm_i915_private *dev_priv);
 
 int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val);
 int sandybridge_pcode_write(struct drm_i915_private *dev_priv, u32 mbox, u32 val);

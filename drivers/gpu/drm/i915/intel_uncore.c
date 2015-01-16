@@ -234,7 +234,7 @@ static int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 	return ret;
 }
 
-static void gen6_force_wake_timer(unsigned long arg)
+static void intel_uncore_fw_release_timer(unsigned long arg)
 {
 	struct intel_uncore_forcewake_domain *domain = (void *)arg;
 	unsigned long irqflags;
@@ -270,7 +270,7 @@ void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore)
 			if (del_timer_sync(&domain->timer) == 0)
 				continue;
 
-			gen6_force_wake_timer((unsigned long)domain);
+			intel_uncore_fw_release_timer((unsigned long)domain);
 		}
 
 		spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
@@ -314,7 +314,7 @@ void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore)
 	}
 
 	if (!restore)
-		assert_force_wake_inactive(dev_priv);
+		assert_forcewakes_inactive(dev_priv);
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
@@ -358,14 +358,21 @@ void intel_uncore_sanitize(struct drm_device *dev)
 	intel_disable_gt_powersave(dev);
 }
 
-/*
- * Generally this is called implicitly by the register read function. However,
- * if some sequence requires the GT to not power down then this function should
- * be called at the beginning of the sequence followed by a call to
- * gen6_gt_force_wake_put() at the end of the sequence.
+/**
+ * intel_uncore_forcewake_get - grab forcewake domain references
+ * @dev_priv: i915 device instance
+ * @fw_domains: forcewake domains to get reference on
+ *
+ * This function can be used get GT's forcewake domain references.
+ * Normal register access will handle the forcewake domains automatically.
+ * However if some sequence requires the GT to not power down a particular
+ * forcewake domains this function should be called at the beginning of the
+ * sequence. And subsequently the reference should be dropped by symmetric
+ * call to intel_unforce_forcewake_put(). Usually caller wants all the domains
+ * to be kept awake so the @fw_domains would be then FORCEWAKE_ALL.
  */
-void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv,
-			    unsigned fw_domains)
+void intel_uncore_forcewake_get(struct drm_i915_private *dev_priv,
+				unsigned fw_domains)
 {
 	unsigned long irqflags;
 	struct intel_uncore_forcewake_domain *domain;
@@ -391,11 +398,16 @@ void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv,
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-/*
- * see gen6_gt_force_wake_get()
+/**
+ * intel_uncore_forcewake_put - release a forcewake domain reference
+ * @dev_priv: i915 device instance
+ * @fw_domains: forcewake domains to put references
+ *
+ * This function drops the device-level forcewakes for specified
+ * domains obtained by intel_uncore_forcewake_get().
  */
-void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv,
-			    unsigned fw_domains)
+void intel_uncore_forcewake_put(struct drm_i915_private *dev_priv,
+				unsigned fw_domains)
 {
 	unsigned long irqflags;
 	struct intel_uncore_forcewake_domain *domain;
@@ -422,7 +434,7 @@ void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv,
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-void assert_force_wake_inactive(struct drm_i915_private *dev_priv)
+void assert_forcewakes_inactive(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore_forcewake_domain *domain;
 	int id;
@@ -964,7 +976,7 @@ static void fw_domain_init(struct drm_i915_private *dev_priv,
 	d->i915 = dev_priv;
 	d->id = domain_id;
 
-	setup_timer(&d->timer, gen6_force_wake_timer, (unsigned long)d);
+	setup_timer(&d->timer, intel_uncore_fw_release_timer, (unsigned long)d);
 
 	dev_priv->uncore.fw_domains |= (1 << domain_id);
 }

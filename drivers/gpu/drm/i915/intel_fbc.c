@@ -182,7 +182,7 @@ static void snb_fbc_blit_update(struct drm_device *dev)
 
 	/* Blitter is part of Media powerwell on VLV. No impact of
 	 * his param in other platforms for now */
-	gen6_gt_force_wake_get(dev_priv, FORCEWAKE_MEDIA);
+	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_MEDIA);
 
 	blt_ecoskpd = I915_READ(GEN6_BLITTER_ECOSKPD);
 	blt_ecoskpd |= GEN6_BLITTER_FBC_NOTIFY <<
@@ -195,7 +195,7 @@ static void snb_fbc_blit_update(struct drm_device *dev)
 	I915_WRITE(GEN6_BLITTER_ECOSKPD, blt_ecoskpd);
 	POSTING_READ(GEN6_BLITTER_ECOSKPD);
 
-	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_MEDIA);
+	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_MEDIA);
 }
 
 static void ilk_fbc_enable(struct drm_crtc *crtc)

@@ -539,7 +539,7 @@ static int init_ring_common(struct intel_engine_cs *ring)
 	struct drm_i915_gem_object *obj = ringbuf->obj;
 	int ret = 0;
 
-	gen6_gt_force_wake_get(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
 	if (!stop_ring(ring)) {
 		/* G45 ring initialization often fails to reset head to zero */
@@ -611,7 +611,7 @@ static int init_ring_common(struct intel_engine_cs *ring)
 	memset(&ring->hangcheck, 0, sizeof(ring->hangcheck));
 
 out:
-	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 
 	return ret;
 }

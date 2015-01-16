@@ -1105,7 +1105,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		if (ret)
 			goto out;
 
-		gen6_gt_force_wake_get(dev_priv, FORCEWAKE_ALL);
+		intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
 		reqf = I915_READ(GEN6_RPNSWREQ);
 		reqf &= ~GEN6_TURBO_DISABLE;
@@ -1132,7 +1132,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 			cagf = (rpstat & GEN6_CAGF_MASK) >> GEN6_CAGF_SHIFT;
 		cagf *= GT_FREQUENCY_MULTIPLIER;
 
-		gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
+		intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 		mutex_unlock(&dev->struct_mutex);
 
 		if (IS_GEN6(dev) || IS_GEN7(dev)) {
@@ -4322,7 +4322,7 @@ static int i915_forcewake_open(struct inode *inode, struct file *file)
 		return 0;
 
 	intel_runtime_pm_get(dev_priv);
-	gen6_gt_force_wake_get(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
 	return 0;
 }
@@ -4335,7 +4335,7 @@ static int i915_forcewake_release(struct inode *inode, struct file *file)
 	if (INTEL_INFO(dev)->gen < 6)
 		return 0;
 
-	gen6_gt_force_wake_put(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 	intel_runtime_pm_put(dev_priv);
 
 	return 0;

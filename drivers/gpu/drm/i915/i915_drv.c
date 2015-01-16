@@ -1431,7 +1431,7 @@ static int intel_runtime_suspend(struct device *device)
 		intel_opregion_notify_adapter(dev, PCI_D3hot);
 	}
 
-	assert_force_wake_inactive(dev_priv);
+	assert_forcewakes_inactive(dev_priv);
 
 	DRM_DEBUG_KMS("Device suspended\n");
 	return 0;
