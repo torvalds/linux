@@ -94,23 +94,23 @@
 	interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
 };
 
-&gpio1 {
+&gpio0 {
 	interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
 };
 
-&gpio2 {
+&gpio1 {
 	interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
 };
 
-&gpio3 {
+&gpio2 {
 	interrupts = <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
 };
 
-&gpio4 {
+&gpio3 {
 	interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
 };
 
-&gpio5 {
+&gpio4 {
 	interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
 };
 

@@ -22,11 +22,11 @@
 		serial3 = &uart3;
 		serial4 = &uart4;
 		serial5 = &uart5;
-		gpio0 = &gpio1;
-		gpio1 = &gpio2;
-		gpio2 = &gpio3;
-		gpio3 = &gpio4;
-		gpio4 = &gpio5;
+		gpio0 = &gpio0;
+		gpio1 = &gpio1;
+		gpio2 = &gpio2;
+		gpio3 = &gpio3;
+		gpio4 = &gpio4;
 		usbphy0 = &usbphy0;
 		usbphy1 = &usbphy1;
 	};
@@ -216,7 +216,7 @@
 				#gpio-range-cells = <3>;
 			};
 
-			gpio1: gpio@40049000 {
+			gpio0: gpio@40049000 {
 				compatible = "fsl,vf610-gpio";
 				reg = <0x40049000 0x1000 0x400ff000 0x40>;
 				gpio-controller;
@@ -226,7 +226,7 @@
 				gpio-ranges = <&iomuxc 0 0 32>;
 			};
 
-			gpio2: gpio@4004a000 {
+			gpio1: gpio@4004a000 {
 				compatible = "fsl,vf610-gpio";
 				reg = <0x4004a000 0x1000 0x400ff040 0x40>;
 				gpio-controller;
@@ -236,7 +236,7 @@
 				gpio-ranges = <&iomuxc 0 32 32>;
 			};
 
-			gpio3: gpio@4004b000 {
+			gpio2: gpio@4004b000 {
 				compatible = "fsl,vf610-gpio";
 				reg = <0x4004b000 0x1000 0x400ff080 0x40>;
 				gpio-controller;
@@ -246,7 +246,7 @@
 				gpio-ranges = <&iomuxc 0 64 32>;
 			};
 
-			gpio4: gpio@4004c000 {
+			gpio3: gpio@4004c000 {
 				compatible = "fsl,vf610-gpio";
 				reg = <0x4004c000 0x1000 0x400ff0c0 0x40>;
 				gpio-controller;
@@ -256,7 +256,7 @@
 				gpio-ranges = <&iomuxc 0 96 32>;
 			};
 
-			gpio5: gpio@4004d000 {
+			gpio4: gpio@4004d000 {
 				compatible = "fsl,vf610-gpio";
 				reg = <0x4004d000 0x1000 0x400ff100 0x40>;
 				gpio-controller;
