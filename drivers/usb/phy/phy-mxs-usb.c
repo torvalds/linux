@@ -371,10 +371,16 @@ static int mxs_phy_suspend(struct usb_phy *x, int suspend)
 		 * connect. The low speed connection will have problem at
 		 * very rare cases during usb suspend and resume process.
 		 */
-		if (low_speed_connection & vbus_is_on)
-			writel(0xfffbffff, x->io_priv + HW_USBPHY_PWD);
-		else
+		if (low_speed_connection & vbus_is_on) {
+			/*
+			 * If value to be set as pwd value is not 0xffffffff,
+			 * several 32Khz cycles are needed.
+			 */
+			mxs_phy_clock_switch_delay();
+			writel(0xffbfffff, x->io_priv + HW_USBPHY_PWD);
+		} else {
 			writel(0xffffffff, x->io_priv + HW_USBPHY_PWD);
+		}
 		writel(BM_USBPHY_CTRL_CLKGATE,
 		       x->io_priv + HW_USBPHY_CTRL_SET);
 		clk_disable_unprepare(mxs_phy->clk);
