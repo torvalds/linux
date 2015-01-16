@@ -692,7 +692,7 @@ static void xgbe_adjust_link(struct net_device *netdev)
 	struct phy_device *phydev = pdata->phydev;
 	int new_state = 0;
 
-	if (phydev == NULL)
+	if (!phydev)
 		return;
 
 	if (phydev->link) {

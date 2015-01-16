@@ -220,7 +220,7 @@ int xgbe_mdio_register(struct xgbe_prv_data *pdata)
 	}
 
 	mii = mdiobus_alloc();
-	if (mii == NULL) {
+	if (!mii) {
 		dev_err(pdata->dev, "mdiobus_alloc failed\n");
 		ret = -ENOMEM;
 		goto err_node_get;
