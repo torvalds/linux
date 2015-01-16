@@ -11937,7 +11937,6 @@ static void intel_finish_crtc_commit(struct drm_crtc *crtc)
 void intel_plane_destroy(struct drm_plane *plane)
 {
 	struct intel_plane *intel_plane = to_intel_plane(plane);
-	intel_plane_destroy_state(plane, plane->state);
 	drm_plane_cleanup(plane);
 	kfree(intel_plane);
 }
