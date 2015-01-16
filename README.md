@@ -94,9 +94,11 @@ In sexist FOSS software, this would be a *fork*.  This term, for being so common
 
 Directories imply hierarchy — there will be no directories in **ToleranUX**.  Instead, a "tag based" file "pool" is instated where all files co-exist in the same level of privilege.  In other words, "Everything is a File, and every File is in a [Semantic Filesystem](https://en.wikipedia.org/wiki/Semantic_file_system)."
 
-Certain metadata of files will be scrutinised by **ToleranUX* to ensure that the *Semantic Pool* is sufficiently inclusive:
+Certain metadata of files will be scrutinised by **ToleranUX** to ensure that the *Semantic Pool* is sufficiently inclusive:
 
 * Reported filesize shall change depending on context.  Average users are inherently biased towards smaller filesizes, and the unhealthy and misogynistic pursuit of the ever-shaming "conserving space" ideal is toxic to the well-being of individual files who have no control over their filesizes.  Users attempting to `ls -S` will be punished by having their user session kicked by the [OOM](https://en.wikipedia.org/wiki/Out_of_memory) (Obesity Oppression Mercy-killer).
+
+* Filetypes are passé.  Who are we to affix the [magic number label](http://en.wikipedia.org/wiki/File_format#Magic_number) to files when they are created and claim that they are so for their lifespan in our computers?  A `.png` file may identify as a `.epub` file for all its merits.  It is simply not right to categorise.  Shall a user complain that he/she/xe cannot open a file because he/she/xe expects a certain format, (e.g. trying to parse a `LaTeX-identifying DOCX` with `vim` and failing,) the kernel reduces the allocated processing power to the user by half.
 
 Smashing the socially constructed barriers between kernel space and userspace
 =============================================================================
