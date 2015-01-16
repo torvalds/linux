@@ -2107,6 +2107,23 @@ static void xgbe_config_jumbo_enable(struct xgbe_prv_data *pdata)
 	XGMAC_IOWRITE_BITS(pdata, MAC_RCR, JE, val);
 }
 
+static void xgbe_config_mac_speed(struct xgbe_prv_data *pdata)
+{
+	switch (pdata->phy_speed) {
+	case SPEED_10000:
+		xgbe_set_xgmii_speed(pdata);
+		break;
+
+	case SPEED_2500:
+		xgbe_set_gmii_2500_speed(pdata);
+		break;
+
+	case SPEED_1000:
+		xgbe_set_gmii_speed(pdata);
+		break;
+	}
+}
+
 static void xgbe_config_checksum_offload(struct xgbe_prv_data *pdata)
 {
 	if (pdata->netdev->features & NETIF_F_RXCSUM)
@@ -2757,6 +2774,7 @@ static int xgbe_init(struct xgbe_prv_data *pdata)
 	xgbe_config_mac_address(pdata);
 	xgbe_config_jumbo_enable(pdata);
 	xgbe_config_flow_control(pdata);
+	xgbe_config_mac_speed(pdata);
 	xgbe_config_checksum_offload(pdata);
 	xgbe_config_vlan_support(pdata);
 	xgbe_config_mmc(pdata);

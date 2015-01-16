@@ -148,6 +148,7 @@ static void xgbe_default_config(struct xgbe_prv_data *pdata)
 	pdata->pause_autoneg = 1;
 	pdata->tx_pause = 1;
 	pdata->rx_pause = 1;
+	pdata->phy_speed = SPEED_UNKNOWN;
 	pdata->power_down = 0;
 	pdata->default_autoneg = AUTONEG_ENABLE;
 	pdata->default_speed = SPEED_10000;
