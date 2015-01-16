@@ -702,38 +702,61 @@ hsw_unclaimed_reg_detect(struct drm_i915_private *dev_priv)
 	}
 }
 
-#define REG_READ_HEADER(x) \
-	unsigned long irqflags; \
+#define GEN2_READ_HEADER(x) \
 	u##x val = 0; \
-	assert_device_not_suspended(dev_priv); \
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags)
+	assert_device_not_suspended(dev_priv);
 
-#define REG_READ_FOOTER \
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags); \
+#define GEN2_READ_FOOTER \
 	trace_i915_reg_rw(false, reg, val, sizeof(val), trace); \
 	return val
 
-#define __gen4_read(x) \
+#define __gen2_read(x) \
 static u##x \
-gen4_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
-	REG_READ_HEADER(x); \
+gen2_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
+	GEN2_READ_HEADER(x); \
 	val = __raw_i915_read##x(dev_priv, reg); \
-	REG_READ_FOOTER; \
+	GEN2_READ_FOOTER; \
 }
 
 #define __gen5_read(x) \
 static u##x \
 gen5_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
-	REG_READ_HEADER(x); \
+	GEN2_READ_HEADER(x); \
 	ilk_dummy_write(dev_priv); \
 	val = __raw_i915_read##x(dev_priv, reg); \
-	REG_READ_FOOTER; \
+	GEN2_READ_FOOTER; \
 }
+
+__gen5_read(8)
+__gen5_read(16)
+__gen5_read(32)
+__gen5_read(64)
+__gen2_read(8)
+__gen2_read(16)
+__gen2_read(32)
+__gen2_read(64)
+
+#undef __gen5_read
+#undef __gen2_read
+
+#undef GEN2_READ_FOOTER
+#undef GEN2_READ_HEADER
+
+#define GEN6_READ_HEADER(x) \
+	unsigned long irqflags; \
+	u##x val = 0; \
+	assert_device_not_suspended(dev_priv); \
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags)
+
+#define GEN6_READ_FOOTER \
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags); \
+	trace_i915_reg_rw(false, reg, val, sizeof(val), trace); \
+	return val
 
 #define __gen6_read(x) \
 static u##x \
 gen6_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
-	REG_READ_HEADER(x); \
+	GEN6_READ_HEADER(x); \
 	hsw_unclaimed_reg_debug(dev_priv, reg, true, true); \
 	if (dev_priv->uncore.forcewake_count == 0 && \
 	    NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
@@ -745,14 +768,14 @@ gen6_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	} \
 	val = __raw_i915_read##x(dev_priv, reg); \
 	hsw_unclaimed_reg_debug(dev_priv, reg, true, false); \
-	REG_READ_FOOTER; \
+	GEN6_READ_FOOTER; \
 }
 
 #define __vlv_read(x) \
 static u##x \
 vlv_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	unsigned fwengine = 0; \
-	REG_READ_HEADER(x); \
+	GEN6_READ_HEADER(x); \
 	if (FORCEWAKE_VLV_RENDER_RANGE_OFFSET(reg)) { \
 		if (dev_priv->uncore.fw_rendercount == 0) \
 			fwengine = FORCEWAKE_RENDER; \
@@ -765,14 +788,14 @@ vlv_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	val = __raw_i915_read##x(dev_priv, reg); \
 	if (fwengine) \
 		dev_priv->uncore.funcs.force_wake_put(dev_priv, fwengine); \
-	REG_READ_FOOTER; \
+	GEN6_READ_FOOTER; \
 }
 
 #define __chv_read(x) \
 static u##x \
 chv_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	unsigned fwengine = 0; \
-	REG_READ_HEADER(x); \
+	GEN6_READ_HEADER(x); \
 	if (FORCEWAKE_CHV_RENDER_RANGE_OFFSET(reg)) { \
 		if (dev_priv->uncore.fw_rendercount == 0) \
 			fwengine = FORCEWAKE_RENDER; \
@@ -790,7 +813,7 @@ chv_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	val = __raw_i915_read##x(dev_priv, reg); \
 	if (fwengine) \
 		dev_priv->uncore.funcs.force_wake_put(dev_priv, fwengine); \
-	REG_READ_FOOTER; \
+	GEN6_READ_FOOTER; \
 }
 
 #define SKL_NEEDS_FORCE_WAKE(dev_priv, reg)	\
@@ -799,7 +822,7 @@ chv_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 #define __gen9_read(x) \
 static u##x \
 gen9_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
-	REG_READ_HEADER(x); \
+	GEN6_READ_HEADER(x); \
 	if (!SKL_NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
 		val = __raw_i915_read##x(dev_priv, reg); \
 	} else { \
@@ -825,7 +848,7 @@ gen9_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 		if (fwengine) \
 			dev_priv->uncore.funcs.force_wake_put(dev_priv, fwengine); \
 	} \
-	REG_READ_FOOTER; \
+	GEN6_READ_FOOTER; \
 }
 
 __gen9_read(8)
@@ -844,55 +867,66 @@ __gen6_read(8)
 __gen6_read(16)
 __gen6_read(32)
 __gen6_read(64)
-__gen5_read(8)
-__gen5_read(16)
-__gen5_read(32)
-__gen5_read(64)
-__gen4_read(8)
-__gen4_read(16)
-__gen4_read(32)
-__gen4_read(64)
 
 #undef __gen9_read
 #undef __chv_read
 #undef __vlv_read
 #undef __gen6_read
-#undef __gen5_read
-#undef __gen4_read
-#undef REG_READ_FOOTER
-#undef REG_READ_HEADER
+#undef GEN6_READ_FOOTER
+#undef GEN6_READ_HEADER
 
-#define REG_WRITE_HEADER \
-	unsigned long irqflags; \
+#define GEN2_WRITE_HEADER \
 	trace_i915_reg_rw(true, reg, val, sizeof(val), trace); \
 	assert_device_not_suspended(dev_priv); \
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags)
 
-#define REG_WRITE_FOOTER \
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags)
+#define GEN2_WRITE_FOOTER
 
-#define __gen4_write(x) \
+#define __gen2_write(x) \
 static void \
-gen4_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace) { \
-	REG_WRITE_HEADER; \
+gen2_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace) { \
+	GEN2_WRITE_HEADER; \
 	__raw_i915_write##x(dev_priv, reg, val); \
-	REG_WRITE_FOOTER; \
+	GEN2_WRITE_FOOTER; \
 }
 
 #define __gen5_write(x) \
 static void \
 gen5_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace) { \
-	REG_WRITE_HEADER; \
+	GEN2_WRITE_HEADER; \
 	ilk_dummy_write(dev_priv); \
 	__raw_i915_write##x(dev_priv, reg, val); \
-	REG_WRITE_FOOTER; \
+	GEN2_WRITE_FOOTER; \
 }
+
+__gen5_write(8)
+__gen5_write(16)
+__gen5_write(32)
+__gen5_write(64)
+__gen2_write(8)
+__gen2_write(16)
+__gen2_write(32)
+__gen2_write(64)
+
+#undef __gen5_write
+#undef __gen2_write
+
+#undef GEN2_WRITE_FOOTER
+#undef GEN2_WRITE_HEADER
+
+#define GEN6_WRITE_HEADER \
+	unsigned long irqflags; \
+	trace_i915_reg_rw(true, reg, val, sizeof(val), trace); \
+	assert_device_not_suspended(dev_priv); \
+	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags)
+
+#define GEN6_WRITE_FOOTER \
+	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags)
 
 #define __gen6_write(x) \
 static void \
 gen6_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace) { \
 	u32 __fifo_ret = 0; \
-	REG_WRITE_HEADER; \
+	GEN6_WRITE_HEADER; \
 	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
 		__fifo_ret = __gen6_gt_wait_for_fifo(dev_priv); \
 	} \
@@ -900,14 +934,14 @@ gen6_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace
 	if (unlikely(__fifo_ret)) { \
 		gen6_gt_check_fifodbg(dev_priv); \
 	} \
-	REG_WRITE_FOOTER; \
+	GEN6_WRITE_FOOTER; \
 }
 
 #define __hsw_write(x) \
 static void \
 hsw_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace) { \
 	u32 __fifo_ret = 0; \
-	REG_WRITE_HEADER; \
+	GEN6_WRITE_HEADER; \
 	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
 		__fifo_ret = __gen6_gt_wait_for_fifo(dev_priv); \
 	} \
@@ -918,7 +952,7 @@ hsw_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace)
 	} \
 	hsw_unclaimed_reg_debug(dev_priv, reg, false, false); \
 	hsw_unclaimed_reg_detect(dev_priv); \
-	REG_WRITE_FOOTER; \
+	GEN6_WRITE_FOOTER; \
 }
 
 static const u32 gen8_shadowed_regs[] = {
@@ -945,7 +979,7 @@ static bool is_gen8_shadowed(struct drm_i915_private *dev_priv, u32 reg)
 #define __gen8_write(x) \
 static void \
 gen8_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace) { \
-	REG_WRITE_HEADER; \
+	GEN6_WRITE_HEADER; \
 	hsw_unclaimed_reg_debug(dev_priv, reg, false, true); \
 	if (reg < 0x40000 && !is_gen8_shadowed(dev_priv, reg)) { \
 		if (dev_priv->uncore.forcewake_count == 0) \
@@ -960,7 +994,7 @@ gen8_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace
 	} \
 	hsw_unclaimed_reg_debug(dev_priv, reg, false, false); \
 	hsw_unclaimed_reg_detect(dev_priv); \
-	REG_WRITE_FOOTER; \
+	GEN6_WRITE_FOOTER; \
 }
 
 #define __chv_write(x) \
@@ -968,7 +1002,7 @@ static void \
 chv_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace) { \
 	unsigned fwengine = 0; \
 	bool shadowed = is_gen8_shadowed(dev_priv, reg); \
-	REG_WRITE_HEADER; \
+	GEN6_WRITE_HEADER; \
 	if (!shadowed) { \
 		if (FORCEWAKE_CHV_RENDER_RANGE_OFFSET(reg)) { \
 			if (dev_priv->uncore.fw_rendercount == 0) \
@@ -988,7 +1022,7 @@ chv_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace)
 	__raw_i915_write##x(dev_priv, reg, val); \
 	if (fwengine) \
 		dev_priv->uncore.funcs.force_wake_put(dev_priv, fwengine); \
-	REG_WRITE_FOOTER; \
+	GEN6_WRITE_FOOTER; \
 }
 
 static const u32 gen9_shadowed_regs[] = {
@@ -1018,7 +1052,7 @@ static bool is_gen9_shadowed(struct drm_i915_private *dev_priv, u32 reg)
 static void \
 gen9_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, \
 		bool trace) { \
-	REG_WRITE_HEADER; \
+	GEN6_WRITE_HEADER; \
 	if (!SKL_NEEDS_FORCE_WAKE((dev_priv), (reg)) || \
 			is_gen9_shadowed(dev_priv, reg)) { \
 		__raw_i915_write##x(dev_priv, reg, val); \
@@ -1047,7 +1081,7 @@ gen9_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, \
 			dev_priv->uncore.funcs.force_wake_put(dev_priv, \
 					fwengine); \
 	} \
-	REG_WRITE_FOOTER; \
+	GEN6_WRITE_FOOTER; \
 }
 
 __gen9_write(8)
@@ -1070,24 +1104,14 @@ __gen6_write(8)
 __gen6_write(16)
 __gen6_write(32)
 __gen6_write(64)
-__gen5_write(8)
-__gen5_write(16)
-__gen5_write(32)
-__gen5_write(64)
-__gen4_write(8)
-__gen4_write(16)
-__gen4_write(32)
-__gen4_write(64)
 
 #undef __gen9_write
 #undef __chv_write
 #undef __gen8_write
 #undef __hsw_write
 #undef __gen6_write
-#undef __gen5_write
-#undef __gen4_write
-#undef REG_WRITE_FOOTER
-#undef REG_WRITE_HEADER
+#undef GEN6_WRITE_FOOTER
+#undef GEN6_WRITE_HEADER
 
 #define ASSIGN_WRITE_MMIO_VFUNCS(x) \
 do { \
@@ -1200,8 +1224,8 @@ void intel_uncore_init(struct drm_device *dev)
 	case 4:
 	case 3:
 	case 2:
-		ASSIGN_WRITE_MMIO_VFUNCS(gen4);
-		ASSIGN_READ_MMIO_VFUNCS(gen4);
+		ASSIGN_WRITE_MMIO_VFUNCS(gen2);
+		ASSIGN_READ_MMIO_VFUNCS(gen2);
 		break;
 	}
 
