@@ -290,6 +290,9 @@ static struct crypto_instance *crypto_cts_alloc(struct rtattr **tb)
 	if (!is_power_of_2(alg->cra_blocksize))
 		goto out_put_alg;
 
+	if (strncmp(alg->cra_name, "cbc(", 4))
+		goto out_put_alg;
+
 	inst = crypto_alloc_instance("cts", alg);
 	if (IS_ERR(inst))
 		goto out_put_alg;
