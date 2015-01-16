@@ -293,7 +293,7 @@ static void can_update_state_error_stats(struct net_device *dev,
 		break;
 	default:
 		break;
-	};
+	}
 }
 
 static int can_tx_state_to_frame(struct net_device *dev, enum can_state state)
