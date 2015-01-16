@@ -156,10 +156,7 @@ static void fuse_lookup_init(struct fuse_conn *fc, struct fuse_args *args,
 	args->in.args[0].size = name->len + 1;
 	args->in.args[0].value = name->name;
 	args->out.numargs = 1;
-	if (fc->minor < 9)
-		args->out.args[0].size = FUSE_COMPAT_ENTRY_OUT_SIZE;
-	else
-		args->out.args[0].size = sizeof(struct fuse_entry_out);
+	args->out.args[0].size = sizeof(struct fuse_entry_out);
 	args->out.args[0].value = outarg;
 }
 
@@ -422,16 +419,12 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry,
 	args.in.h.opcode = FUSE_CREATE;
 	args.in.h.nodeid = get_node_id(dir);
 	args.in.numargs = 2;
-	args.in.args[0].size = fc->minor < 12 ? sizeof(struct fuse_open_in) :
-						sizeof(inarg);
+	args.in.args[0].size = sizeof(inarg);
 	args.in.args[0].value = &inarg;
 	args.in.args[1].size = entry->d_name.len + 1;
 	args.in.args[1].value = entry->d_name.name;
 	args.out.numargs = 2;
-	if (fc->minor < 9)
-		args.out.args[0].size = FUSE_COMPAT_ENTRY_OUT_SIZE;
-	else
-		args.out.args[0].size = sizeof(outentry);
+	args.out.args[0].size = sizeof(outentry);
 	args.out.args[0].value = &outentry;
 	args.out.args[1].size = sizeof(outopen);
 	args.out.args[1].value = &outopen;
@@ -539,10 +532,7 @@ static int create_new_entry(struct fuse_conn *fc, struct fuse_args *args,
 	memset(&outarg, 0, sizeof(outarg));
 	args->in.h.nodeid = get_node_id(dir);
 	args->out.numargs = 1;
-	if (fc->minor < 9)
-		args->out.args[0].size = FUSE_COMPAT_ENTRY_OUT_SIZE;
-	else
-		args->out.args[0].size = sizeof(outarg);
+	args->out.args[0].size = sizeof(outarg);
 	args->out.args[0].value = &outarg;
 	err = fuse_simple_request(fc, args);
 	if (err)
@@ -592,8 +582,7 @@ static int fuse_mknod(struct inode *dir, struct dentry *entry, umode_t mode,
 	inarg.umask = current_umask();
 	args.in.h.opcode = FUSE_MKNOD;
 	args.in.numargs = 2;
-	args.in.args[0].size = fc->minor < 12 ? FUSE_COMPAT_MKNOD_IN_SIZE :
-						sizeof(inarg);
+	args.in.args[0].size = sizeof(inarg);
 	args.in.args[0].value = &inarg;
 	args.in.args[1].size = entry->d_name.len + 1;
 	args.in.args[1].value = entry->d_name.name;
@@ -899,10 +888,7 @@ static int fuse_do_getattr(struct inode *inode, struct kstat *stat,
 	args.in.args[0].size = sizeof(inarg);
 	args.in.args[0].value = &inarg;
 	args.out.numargs = 1;
-	if (fc->minor < 9)
-		args.out.args[0].size = FUSE_COMPAT_ATTR_OUT_SIZE;
-	else
-		args.out.args[0].size = sizeof(outarg);
+	args.out.args[0].size = sizeof(outarg);
 	args.out.args[0].value = &outarg;
 	err = fuse_simple_request(fc, &args);
 	if (!err) {
@@ -1574,10 +1560,7 @@ static void fuse_setattr_fill(struct fuse_conn *fc, struct fuse_args *args,
 	args->in.args[0].size = sizeof(*inarg_p);
 	args->in.args[0].value = inarg_p;
 	args->out.numargs = 1;
-	if (fc->minor < 9)
-		args->out.args[0].size = FUSE_COMPAT_ATTR_OUT_SIZE;
-	else
-		args->out.args[0].size = sizeof(*outarg_p);
+	args->out.args[0].size = sizeof(*outarg_p);
 	args->out.args[0].value = outarg_p;
 }
 
