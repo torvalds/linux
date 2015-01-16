@@ -36,7 +36,6 @@
 #include "i915_drv.h"
 #include "intel_drv.h"
 #include "intel_dsi.h"
-#include "intel_dsi_cmd.h"
 
 struct vbt_panel {
 	struct drm_panel panel;

@@ -34,7 +34,6 @@
 #include "i915_drv.h"
 #include "intel_drv.h"
 #include "intel_dsi.h"
-#include "intel_dsi_cmd.h"
 
 static const struct {
 	u16 panel_id;
