@@ -559,18 +559,6 @@ static bool generic_init(struct intel_dsi_device *dsi)
 	return true;
 }
 
-static int generic_mode_valid(struct intel_dsi_device *dsi,
-		   struct drm_display_mode *mode)
-{
-	return MODE_OK;
-}
-
-static bool generic_mode_fixup(struct intel_dsi_device *dsi,
-		    const struct drm_display_mode *mode,
-		    struct drm_display_mode *adjusted_mode) {
-	return true;
-}
-
 static void generic_panel_reset(struct intel_dsi_device *dsi)
 {
 	struct intel_dsi *intel_dsi = container_of(dsi, struct intel_dsi, dev);
@@ -579,6 +567,9 @@ static void generic_panel_reset(struct intel_dsi_device *dsi)
 
 	char *sequence = dev_priv->vbt.dsi.sequence[MIPI_SEQ_ASSERT_RESET];
 
+	generic_exec_sequence(intel_dsi, sequence);
+
+	sequence = dev_priv->vbt.dsi.sequence[MIPI_SEQ_INIT_OTP];
 	generic_exec_sequence(intel_dsi, sequence);
 }
 
@@ -589,17 +580,6 @@ static void generic_disable_panel_power(struct intel_dsi_device *dsi)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	char *sequence = dev_priv->vbt.dsi.sequence[MIPI_SEQ_DEASSERT_RESET];
-
-	generic_exec_sequence(intel_dsi, sequence);
-}
-
-static void generic_send_otp_cmds(struct intel_dsi_device *dsi)
-{
-	struct intel_dsi *intel_dsi = container_of(dsi, struct intel_dsi, dev);
-	struct drm_device *dev = intel_dsi->base.base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	char *sequence = dev_priv->vbt.dsi.sequence[MIPI_SEQ_INIT_OTP];
 
 	generic_exec_sequence(intel_dsi, sequence);
 }
@@ -626,16 +606,6 @@ static void generic_disable(struct intel_dsi_device *dsi)
 	generic_exec_sequence(intel_dsi, sequence);
 }
 
-static enum drm_connector_status generic_detect(struct intel_dsi_device *dsi)
-{
-	return connector_status_connected;
-}
-
-static bool generic_get_hw_state(struct intel_dsi_device *dev)
-{
-	return true;
-}
-
 static struct drm_display_mode *generic_get_modes(struct intel_dsi_device *dsi)
 {
 	struct intel_dsi *intel_dsi = container_of(dsi, struct intel_dsi, dev);
@@ -646,20 +616,11 @@ static struct drm_display_mode *generic_get_modes(struct intel_dsi_device *dsi)
 	return dev_priv->vbt.lfp_lvds_vbt_mode;
 }
 
-static void generic_destroy(struct intel_dsi_device *dsi) { }
-
-/* Callbacks. We might not need them all. */
 struct intel_dsi_dev_ops vbt_generic_dsi_display_ops = {
 	.init = generic_init,
-	.mode_valid = generic_mode_valid,
-	.mode_fixup = generic_mode_fixup,
 	.panel_reset = generic_panel_reset,
 	.disable_panel_power = generic_disable_panel_power,
-	.send_otp_cmds = generic_send_otp_cmds,
 	.enable = generic_enable,
 	.disable = generic_disable,
-	.detect = generic_detect,
-	.get_hw_state = generic_get_hw_state,
 	.get_modes = generic_get_modes,
-	.destroy = generic_destroy,
 };

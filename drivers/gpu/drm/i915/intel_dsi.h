@@ -47,33 +47,13 @@ struct intel_dsi_dev_ops {
 
 	void (*disable_panel_power)(struct intel_dsi_device *dsi);
 
-	/* one time programmable commands if needed */
-	void (*send_otp_cmds)(struct intel_dsi_device *dsi);
-
 	/* This callback must be able to assume DSI commands can be sent */
 	void (*enable)(struct intel_dsi_device *dsi);
 
 	/* This callback must be able to assume DSI commands can be sent */
 	void (*disable)(struct intel_dsi_device *dsi);
 
-	int (*mode_valid)(struct intel_dsi_device *dsi,
-			  struct drm_display_mode *mode);
-
-	bool (*mode_fixup)(struct intel_dsi_device *dsi,
-			   const struct drm_display_mode *mode,
-			   struct drm_display_mode *adjusted_mode);
-
-	void (*mode_set)(struct intel_dsi_device *dsi,
-			 struct drm_display_mode *mode,
-			 struct drm_display_mode *adjusted_mode);
-
-	enum drm_connector_status (*detect)(struct intel_dsi_device *dsi);
-
-	bool (*get_hw_state)(struct intel_dsi_device *dev);
-
 	struct drm_display_mode *(*get_modes)(struct intel_dsi_device *dsi);
-
-	void (*destroy) (struct intel_dsi_device *dsi);
 };
 
 struct intel_dsi {
