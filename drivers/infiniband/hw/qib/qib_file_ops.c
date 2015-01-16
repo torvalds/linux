@@ -437,7 +437,7 @@ cleanup:
 			goto cleanup;
 		}
 		if (copy_to_user((void __user *) (unsigned long) ti->tidmap,
-				 tidmap, sizeof tidmap)) {
+				 tidmap, sizeof(tidmap))) {
 			ret = -EFAULT;
 			goto cleanup;
 		}
@@ -484,7 +484,7 @@ static int qib_tid_free(struct qib_ctxtdata *rcd, unsigned subctxt,
 	}
 
 	if (copy_from_user(tidmap, (void __user *)(unsigned long)ti->tidmap,
-			   sizeof tidmap)) {
+			   sizeof(tidmap))) {
 		ret = -EFAULT;
 		goto done;
 	}

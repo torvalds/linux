@@ -834,14 +834,14 @@ static void qib_handle_6120_hwerrors(struct qib_devdata *dd, char *msg,
 		bits = (u32) ((hwerrs >>
 			       QLOGIC_IB_HWE_PCIEMEMPARITYERR_SHIFT) &
 			      QLOGIC_IB_HWE_PCIEMEMPARITYERR_MASK);
-		snprintf(bitsmsg, sizeof dd->cspec->bitsmsgbuf,
+		snprintf(bitsmsg, sizeof(dd->cspec->bitsmsgbuf),
 			 "[PCIe Mem Parity Errs %x] ", bits);
 		strlcat(msg, bitsmsg, msgl);
 	}
 
 	if (hwerrs & _QIB_PLL_FAIL) {
 		isfatal = 1;
-		snprintf(bitsmsg, sizeof dd->cspec->bitsmsgbuf,
+		snprintf(bitsmsg, sizeof(dd->cspec->bitsmsgbuf),
 			 "[PLL failed (%llx), InfiniPath hardware unusable]",
 			 (unsigned long long) hwerrs & _QIB_PLL_FAIL);
 		strlcat(msg, bitsmsg, msgl);
@@ -1014,7 +1014,7 @@ static void handle_6120_errors(struct qib_devdata *dd, u64 errs)
 
 	/* do these first, they are most important */
 	if (errs & ERR_MASK(HardwareErr))
-		qib_handle_6120_hwerrors(dd, msg, sizeof dd->cspec->emsgbuf);
+		qib_handle_6120_hwerrors(dd, msg, sizeof(dd->cspec->emsgbuf));
 	else
 		for (log_idx = 0; log_idx < QIB_EEP_LOG_CNT; ++log_idx)
 			if (errs & dd->eep_st_masks[log_idx].errs_to_log)
@@ -1062,7 +1062,7 @@ static void handle_6120_errors(struct qib_devdata *dd, u64 errs)
 	 */
 	mask = ERR_MASK(IBStatusChanged) | ERR_MASK(RcvEgrFullErr) |
 		ERR_MASK(RcvHdrFullErr) | ERR_MASK(HardwareErr);
-	qib_decode_6120_err(dd, msg, sizeof dd->cspec->emsgbuf, errs & ~mask);
+	qib_decode_6120_err(dd, msg, sizeof(dd->cspec->emsgbuf), errs & ~mask);
 
 	if (errs & E_SUM_PKTERRS)
 		qib_stats.sps_rcverrs++;

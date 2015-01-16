@@ -586,8 +586,8 @@ static ssize_t show_serial(struct device *device,
 		container_of(device, struct qib_ibdev, ibdev.dev);
 	struct qib_devdata *dd = dd_from_dev(dev);
 
-	buf[sizeof dd->serial] = '\0';
-	memcpy(buf, dd->serial, sizeof dd->serial);
+	buf[sizeof(dd->serial)] = '\0';
+	memcpy(buf, dd->serial, sizeof(dd->serial));
 	strcat(buf, "\n");
 	return strlen(buf);
 }

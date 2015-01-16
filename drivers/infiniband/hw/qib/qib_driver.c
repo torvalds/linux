@@ -86,7 +86,7 @@ const char *qib_get_unit_name(int unit)
 {
 	static char iname[16];
 
-	snprintf(iname, sizeof iname, "infinipath%u", unit);
+	snprintf(iname, sizeof(iname), "infinipath%u", unit);
 	return iname;
 }
 

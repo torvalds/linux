@@ -1678,7 +1678,7 @@ static noinline void handle_7322_errors(struct qib_devdata *dd)
 	/* do these first, they are most important */
 	if (errs & QIB_E_HARDWARE) {
 		*msg = '\0';
-		qib_7322_handle_hwerrors(dd, msg, sizeof dd->cspec->emsgbuf);
+		qib_7322_handle_hwerrors(dd, msg, sizeof(dd->cspec->emsgbuf));
 	} else
 		for (log_idx = 0; log_idx < QIB_EEP_LOG_CNT; ++log_idx)
 			if (errs & dd->eep_st_masks[log_idx].errs_to_log)
@@ -1703,7 +1703,7 @@ static noinline void handle_7322_errors(struct qib_devdata *dd)
 	mask = QIB_E_HARDWARE;
 	*msg = '\0';
 
-	err_decode(msg, sizeof dd->cspec->emsgbuf, errs & ~mask,
+	err_decode(msg, sizeof(dd->cspec->emsgbuf), errs & ~mask,
 		   qib_7322error_msgs);
 
 	/*
@@ -1890,10 +1890,10 @@ static noinline void handle_7322_p_errors(struct qib_pportdata *ppd)
 	*msg = '\0';
 
 	if (errs & ~QIB_E_P_BITSEXTANT) {
-		err_decode(msg, sizeof ppd->cpspec->epmsgbuf,
+		err_decode(msg, sizeof(ppd->cpspec->epmsgbuf),
 			   errs & ~QIB_E_P_BITSEXTANT, qib_7322p_error_msgs);
 		if (!*msg)
-			snprintf(msg, sizeof ppd->cpspec->epmsgbuf,
+			snprintf(msg, sizeof(ppd->cpspec->epmsgbuf),
 				 "no others");
 		qib_dev_porterr(dd, ppd->port,
 			"error interrupt with unknown errors 0x%016Lx set (and %s)\n",
@@ -1907,7 +1907,7 @@ static noinline void handle_7322_p_errors(struct qib_pportdata *ppd)
 		/* determine cause, then write to clear */
 		symptom = qib_read_kreg_port(ppd, krp_sendhdrsymptom);
 		qib_write_kreg_port(ppd, krp_sendhdrsymptom, 0);
-		err_decode(msg, sizeof ppd->cpspec->epmsgbuf, symptom,
+		err_decode(msg, sizeof(ppd->cpspec->epmsgbuf), symptom,
 			   hdrchk_msgs);
 		*msg = '\0';
 		/* senderrbuf cleared in SPKTERRS below */
@@ -1923,7 +1923,7 @@ static noinline void handle_7322_p_errors(struct qib_pportdata *ppd)
 			 * isn't valid.  We don't want to confuse people, so
 			 * we just don't print them, except at debug
 			 */
-			err_decode(msg, sizeof ppd->cpspec->epmsgbuf,
+			err_decode(msg, sizeof(ppd->cpspec->epmsgbuf),
 				   (errs & QIB_E_P_LINK_PKTERRS),
 				   qib_7322p_error_msgs);
 			*msg = '\0';
@@ -1939,7 +1939,7 @@ static noinline void handle_7322_p_errors(struct qib_pportdata *ppd)
 		 * valid.  We don't want to confuse people, so we just
 		 * don't print them, except at debug
 		 */
-		err_decode(msg, sizeof ppd->cpspec->epmsgbuf, errs,
+		err_decode(msg, sizeof(ppd->cpspec->epmsgbuf), errs,
 			   qib_7322p_error_msgs);
 		ignore_this_time = errs & QIB_E_P_LINK_PKTERRS;
 		*msg = '\0';
@@ -3443,7 +3443,7 @@ try_intx:
 	}
 
 	/* Try to get MSIx interrupts */
-	memset(redirect, 0, sizeof redirect);
+	memset(redirect, 0, sizeof(redirect));
 	mask = ~0ULL;
 	msixnum = 0;
 	local_mask = cpumask_of_pcibus(dd->pcidev->bus);

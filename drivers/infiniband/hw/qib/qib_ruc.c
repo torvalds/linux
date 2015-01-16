@@ -420,7 +420,7 @@ again:
 		goto serr;
 	}
 
-	memset(&wc, 0, sizeof wc);
+	memset(&wc, 0, sizeof(wc));
 	send_status = IB_WC_SUCCESS;
 
 	release = 1;
@@ -792,7 +792,7 @@ void qib_send_complete(struct qib_qp *qp, struct qib_swqe *wqe,
 	    status != IB_WC_SUCCESS) {
 		struct ib_wc wc;
 
-		memset(&wc, 0, sizeof wc);
+		memset(&wc, 0, sizeof(wc));
 		wc.wr_id = wqe->wr.wr_id;
 		wc.status = status;
 		wc.opcode = ib_qib_wc_opcode[wqe->wr.opcode];

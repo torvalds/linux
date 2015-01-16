@@ -1744,7 +1744,7 @@ static struct ib_pd *qib_alloc_pd(struct ib_device *ibdev,
 	 * we allow allocations of more than we report for this value.
 	 */
 
-	pd = kmalloc(sizeof *pd, GFP_KERNEL);
+	pd = kmalloc(sizeof(*pd), GFP_KERNEL);
 	if (!pd) {
 		ret = ERR_PTR(-ENOMEM);
 		goto bail;
@@ -1829,7 +1829,7 @@ static struct ib_ah *qib_create_ah(struct ib_pd *pd,
 		goto bail;
 	}
 
-	ah = kmalloc(sizeof *ah, GFP_ATOMIC);
+	ah = kmalloc(sizeof(*ah), GFP_ATOMIC);
 	if (!ah) {
 		ret = ERR_PTR(-ENOMEM);
 		goto bail;
@@ -1862,7 +1862,7 @@ struct ib_ah *qib_create_qp0_ah(struct qib_ibport *ibp, u16 dlid)
 	struct ib_ah *ah = ERR_PTR(-EINVAL);
 	struct qib_qp *qp0;
 
-	memset(&attr, 0, sizeof attr);
+	memset(&attr, 0, sizeof(attr));
 	attr.dlid = dlid;
 	attr.port_num = ppd_from_ibp(ibp)->port;
 	rcu_read_lock();
@@ -1977,7 +1977,7 @@ static struct ib_ucontext *qib_alloc_ucontext(struct ib_device *ibdev,
 	struct qib_ucontext *context;
 	struct ib_ucontext *ret;
 
-	context = kmalloc(sizeof *context, GFP_KERNEL);
+	context = kmalloc(sizeof(*context), GFP_KERNEL);
 	if (!context) {
 		ret = ERR_PTR(-ENOMEM);
 		goto bail;
@@ -2054,7 +2054,7 @@ int qib_register_ib_device(struct qib_devdata *dd)
 
 	dev->qp_table_size = ib_qib_qp_table_size;
 	get_random_bytes(&dev->qp_rnd, sizeof(dev->qp_rnd));
-	dev->qp_table = kmalloc(dev->qp_table_size * sizeof *dev->qp_table,
+	dev->qp_table = kmalloc(dev->qp_table_size * sizeof(*dev->qp_table),
 				GFP_KERNEL);
 	if (!dev->qp_table) {
 		ret = -ENOMEM;
@@ -2122,7 +2122,7 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	for (i = 0; i < ppd->sdma_descq_cnt; i++) {
 		struct qib_verbs_txreq *tx;
 
-		tx = kzalloc(sizeof *tx, GFP_KERNEL);
+		tx = kzalloc(sizeof(*tx), GFP_KERNEL);
 		if (!tx) {
 			ret = -ENOMEM;
 			goto err_tx;
