@@ -267,6 +267,12 @@ static struct crypto_instance *seqiv_ablkcipher_alloc(struct rtattr **tb)
 	if (IS_ERR(inst))
 		goto out;
 
+	if (inst->alg.cra_ablkcipher.ivsize < sizeof(u64)) {
+		skcipher_geniv_free(inst);
+		inst = ERR_PTR(-EINVAL);
+		goto out;
+	}
+
 	inst->alg.cra_ablkcipher.givencrypt = seqiv_givencrypt_first;
 
 	inst->alg.cra_init = seqiv_init;
@@ -286,6 +292,12 @@ static struct crypto_instance *seqiv_aead_alloc(struct rtattr **tb)
 
 	if (IS_ERR(inst))
 		goto out;
+
+	if (inst->alg.cra_aead.ivsize < sizeof(u64)) {
+		aead_geniv_free(inst);
+		inst = ERR_PTR(-EINVAL);
+		goto out;
+	}
 
 	inst->alg.cra_aead.givencrypt = seqiv_aead_givencrypt_first;
 
