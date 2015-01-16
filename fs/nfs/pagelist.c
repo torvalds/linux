@@ -826,11 +826,17 @@ static bool nfs_can_coalesce_requests(struct nfs_page *prev,
 				      struct nfs_pageio_descriptor *pgio)
 {
 	size_t size;
+	struct file_lock_context *flctx;
 
 	if (prev) {
 		if (!nfs_match_open_context(req->wb_context, prev->wb_context))
 			return false;
 		if (req->wb_context->dentry->d_inode->i_flock != NULL &&
+		    !nfs_match_lock_context(req->wb_lock_context,
+					    prev->wb_lock_context))
+			return false;
+		flctx = req->wb_context->dentry->d_inode->i_flctx;
+		if (flctx != NULL && !list_empty_careful(&flctx->flc_flock) &&
 		    !nfs_match_lock_context(req->wb_lock_context,
 					    prev->wb_lock_context))
 			return false;

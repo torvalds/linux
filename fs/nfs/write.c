@@ -1113,6 +1113,11 @@ int nfs_flush_incompatible(struct file *file, struct page *page)
 			do_flush |= l_ctx->lockowner.l_owner != current->files
 				|| l_ctx->lockowner.l_pid != current->tgid;
 		}
+		if (l_ctx && ctx->dentry->d_inode->i_flctx &&
+		    !list_empty_careful(&ctx->dentry->d_inode->i_flctx->flc_flock)) {
+			do_flush |= l_ctx->lockowner.l_owner != current->files
+				|| l_ctx->lockowner.l_pid != current->tgid;
+		}
 		nfs_release_request(req);
 		if (!do_flush)
 			return 0;
@@ -1170,6 +1175,13 @@ out:
 	return PageUptodate(page) != 0;
 }
 
+static bool
+is_whole_file_wrlock(struct file_lock *fl)
+{
+	return fl->fl_start == 0 && fl->fl_end == OFFSET_MAX &&
+			fl->fl_type == F_WRLCK;
+}
+
 /* If we know the page is up to date, and we're not using byte range locks (or
  * if we have the whole file locked for writing), it may be more efficient to
  * extend the write to cover the entire page in order to avoid fragmentation
@@ -1180,17 +1192,38 @@ out:
  */
 static int nfs_can_extend_write(struct file *file, struct page *page, struct inode *inode)
 {
+	int ret;
+	struct file_lock_context *flctx = inode->i_flctx;
+	struct file_lock *fl;
+
 	if (file->f_flags & O_DSYNC)
 		return 0;
 	if (!nfs_write_pageuptodate(page, inode))
 		return 0;
 	if (NFS_PROTO(inode)->have_delegation(inode, FMODE_WRITE))
 		return 1;
-	if (inode->i_flock == NULL || (inode->i_flock->fl_start == 0 &&
-			inode->i_flock->fl_end == OFFSET_MAX &&
-			inode->i_flock->fl_type != F_RDLCK))
-		return 1;
-	return 0;
+	if (!inode->i_flock && !flctx)
+		return 0;
+
+	/* Check to see if there are whole file write locks */
+	spin_lock(&inode->i_lock);
+	ret = 0;
+
+	fl = inode->i_flock;
+	if (fl && is_whole_file_wrlock(fl)) {
+		ret = 1;
+		goto out;
+	}
+
+	if (!list_empty(&flctx->flc_flock)) {
+		fl = list_first_entry(&flctx->flc_flock, struct file_lock,
+					fl_list);
+		if (fl->fl_type == F_WRLCK)
+			ret = 1;
+	}
+out:
+	spin_unlock(&inode->i_lock);
+	return ret;
 }
 
 /*
