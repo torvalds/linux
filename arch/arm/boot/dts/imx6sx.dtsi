@@ -877,11 +877,14 @@
                         };
 
 			mlb: mlb@0218c000 {
+				compatible = "fsl,imx6sx-mlb50";
 				reg = <0x0218c000 0x4000>;
 				interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6SX_CLK_MLB>;
+				clock-names = "mlb";
+				iram = <&ocram>;
 				status = "disabled";
 			};
 
