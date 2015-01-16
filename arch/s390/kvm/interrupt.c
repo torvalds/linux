@@ -1277,6 +1277,7 @@ int kvm_s390_inject_vm(struct kvm *kvm,
 		       struct kvm_s390_interrupt *s390int)
 {
 	struct kvm_s390_interrupt_info *inti;
+	int rc;
 
 	inti = kzalloc(sizeof(*inti), GFP_KERNEL);
 	if (!inti)
@@ -1324,7 +1325,10 @@ int kvm_s390_inject_vm(struct kvm *kvm,
 	trace_kvm_s390_inject_vm(s390int->type, s390int->parm, s390int->parm64,
 				 2);
 
-	return __inject_vm(kvm, inti);
+	rc = __inject_vm(kvm, inti);
+	if (rc)
+		kfree(inti);
+	return rc;
 }
 
 void kvm_s390_reinject_io_int(struct kvm *kvm,
