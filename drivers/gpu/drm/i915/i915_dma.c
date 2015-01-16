@@ -601,6 +601,17 @@ static void intel_device_info_runtime_init(struct drm_device *dev)
 			info->num_pipes = 0;
 		}
 	}
+
+	if (IS_CHERRYVIEW(dev)) {
+		u32 fuse, mask_eu;
+
+		fuse = I915_READ(CHV_FUSE_GT);
+		mask_eu = fuse & (CHV_FGT_EU_DIS_SS0_R0_MASK |
+				  CHV_FGT_EU_DIS_SS0_R1_MASK |
+				  CHV_FGT_EU_DIS_SS1_R0_MASK |
+				  CHV_FGT_EU_DIS_SS1_R1_MASK);
+		info->eu_total = 16 - hweight32(mask_eu);
+	}
 }
 
 /**
