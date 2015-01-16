@@ -1673,8 +1673,10 @@ int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	     cpu_to_le32(EP_STATE_DISABLED)) ||
 	    le32_to_cpu(ctrl_ctx->drop_flags) &
 	    xhci_get_endpoint_flag(&ep->desc)) {
-		xhci_warn(xhci, "xHCI %s called with disabled ep %p\n",
-				__func__, ep);
+		/* Do not warn when called after a usb_device_reset */
+		if (xhci->devs[udev->slot_id]->eps[ep_index].ring != NULL)
+			xhci_warn(xhci, "xHCI %s called with disabled ep %p\n",
+				  __func__, ep);
 		return 0;
 	}
 
