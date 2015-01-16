@@ -276,7 +276,7 @@ static struct da9211_pdata *da9211_parse_regulators_dt(
 			continue;
 
 		pdata->init_data[n] = da9211_matches[i].init_data;
-
+		pdata->reg_node[n] = da9211_matches[i].of_node;
 		n++;
 	}
 
@@ -364,7 +364,7 @@ static int da9211_regulator_init(struct da9211 *chip)
 		config.dev = chip->dev;
 		config.driver_data = chip;
 		config.regmap = chip->regmap;
-		config.of_node = chip->dev->of_node;
+		config.of_node = chip->pdata->reg_node[i];
 
 		chip->rdev[i] = devm_regulator_register(chip->dev,
 			&da9211_regulators[i], &config);
