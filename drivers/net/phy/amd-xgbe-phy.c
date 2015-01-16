@@ -74,6 +74,7 @@
 #include <linux/of_platform.h>
 #include <linux/of_device.h>
 #include <linux/uaccess.h>
+#include <linux/bitops.h>
 
 MODULE_AUTHOR("Tom Lendacky <thomas.lendacky@amd.com>");
 MODULE_LICENSE("Dual BSD/GPL");
@@ -90,9 +91,9 @@ MODULE_DESCRIPTION("AMD 10GbE (amd-xgbe) PHY driver");
 #define XGBE_AN_PG_RCV			0x04
 
 #define XNP_MCF_NULL_MESSAGE		0x001
-#define XNP_ACK_PROCESSED		(1 << 12)
-#define XNP_MP_FORMATTED		(1 << 13)
-#define XNP_NP_EXCHANGE			(1 << 15)
+#define XNP_ACK_PROCESSED		BIT(12)
+#define XNP_MP_FORMATTED		BIT(13)
+#define XNP_NP_EXCHANGE			BIT(15)
 
 #define XGBE_PHY_RATECHANGE_COUNT	500
 
