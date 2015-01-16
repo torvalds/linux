@@ -2163,7 +2163,8 @@ static int cpsw_probe(struct platform_device *pdev)
 	void __iomem			*ss_regs;
 	struct resource			*res, *ss_res;
 	u32 slave_offset, sliver_offset, slave_size;
-	int ret = 0, i, k = 0;
+	int ret = 0, i;
+	int irq;
 
 	ndev = alloc_etherdev(sizeof(struct cpsw_priv));
 	if (!ndev) {
@@ -2352,24 +2353,55 @@ static int cpsw_probe(struct platform_device *pdev)
 		goto clean_ale_ret;
 	}
 
-	while ((res = platform_get_resource(priv->pdev, IORESOURCE_IRQ, k))) {
-		if (k >= ARRAY_SIZE(priv->irqs_table)) {
-			ret = -EINVAL;
-			goto clean_ale_ret;
-		}
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		goto clean_ale_ret;
 
-		ret = devm_request_irq(&pdev->dev, res->start, cpsw_interrupt,
-				       0, dev_name(&pdev->dev), priv);
-		if (ret < 0) {
-			dev_err(priv->dev, "error attaching irq (%d)\n", ret);
-			goto clean_ale_ret;
-		}
-
-		priv->irqs_table[k] = res->start;
-		k++;
+	priv->irqs_table[0] = irq;
+	ret = devm_request_irq(&pdev->dev, irq, cpsw_interrupt,
+			       0, dev_name(&pdev->dev), priv);
+	if (ret < 0) {
+		dev_err(priv->dev, "error attaching irq (%d)\n", ret);
+		goto clean_ale_ret;
 	}
 
-	priv->num_irqs = k;
+	irq = platform_get_irq(pdev, 1);
+	if (irq < 0)
+		goto clean_ale_ret;
+
+	priv->irqs_table[1] = irq;
+	ret = devm_request_irq(&pdev->dev, irq, cpsw_interrupt,
+			       0, dev_name(&pdev->dev), priv);
+	if (ret < 0) {
+		dev_err(priv->dev, "error attaching irq (%d)\n", ret);
+		goto clean_ale_ret;
+	}
+
+	irq = platform_get_irq(pdev, 2);
+	if (irq < 0)
+		goto clean_ale_ret;
+
+	priv->irqs_table[2] = irq;
+	ret = devm_request_irq(&pdev->dev, irq, cpsw_interrupt,
+			       0, dev_name(&pdev->dev), priv);
+	if (ret < 0) {
+		dev_err(priv->dev, "error attaching irq (%d)\n", ret);
+		goto clean_ale_ret;
+	}
+
+	irq = platform_get_irq(pdev, 3);
+	if (irq < 0)
+		goto clean_ale_ret;
+
+	priv->irqs_table[3] = irq;
+	ret = devm_request_irq(&pdev->dev, irq, cpsw_interrupt,
+			       0, dev_name(&pdev->dev), priv);
+	if (ret < 0) {
+		dev_err(priv->dev, "error attaching irq (%d)\n", ret);
+		goto clean_ale_ret;
+	}
+
+	priv->num_irqs = 4;
 
 	ndev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 
