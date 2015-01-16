@@ -596,20 +596,45 @@ struct intel_uncore_funcs {
 				uint64_t val, bool trace);
 };
 
+enum {
+	FW_DOMAIN_ID_RENDER = 0,
+	FW_DOMAIN_ID_BLITTER,
+	FW_DOMAIN_ID_MEDIA,
+
+	FW_DOMAIN_ID_COUNT
+};
+
 struct intel_uncore {
 	spinlock_t lock; /** lock is also taken in irq contexts. */
 
 	struct intel_uncore_funcs funcs;
 
 	unsigned fifo_count;
-	unsigned forcewake_count;
+	unsigned fw_domains;
 
-	unsigned fw_rendercount;
-	unsigned fw_mediacount;
-	unsigned fw_blittercount;
-
-	struct timer_list force_wake_timer;
+	struct intel_uncore_forcewake_domain {
+		struct drm_i915_private *i915;
+		int id;
+		unsigned wake_count;
+		struct timer_list timer;
+	} fw_domain[FW_DOMAIN_ID_COUNT];
+#define FORCEWAKE_RENDER	(1 << FW_DOMAIN_ID_RENDER)
+#define FORCEWAKE_BLITTER	(1 << FW_DOMAIN_ID_BLITTER)
+#define FORCEWAKE_MEDIA		(1 << FW_DOMAIN_ID_MEDIA)
+#define FORCEWAKE_ALL		(FORCEWAKE_RENDER | \
+				 FORCEWAKE_BLITTER | \
+				 FORCEWAKE_MEDIA)
 };
+
+/* Iterate over initialised fw domains */
+#define for_each_fw_domain_mask(domain__, mask__, dev_priv__, i__) \
+	for ((i__) = 0, (domain__) = &(dev_priv__)->uncore.fw_domain[0]; \
+	     (i__) < FW_DOMAIN_ID_COUNT; \
+	     (i__)++, (domain__) = &(dev_priv__)->uncore.fw_domain[i__]) \
+		if (((mask__) & (dev_priv__)->uncore.fw_domains) & (1 << (i__)))
+
+#define for_each_fw_domain(domain__, dev_priv__, i__) \
+	for_each_fw_domain_mask(domain__, FORCEWAKE_ALL, dev_priv__, i__)
 
 #define DEV_INFO_FOR_EACH_FLAG(func, sep) \
 	func(is_mobile) sep \
@@ -3167,8 +3192,10 @@ extern void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
  * must be set to prevent GT core from power down and stale values being
  * returned.
  */
-void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv, int fw_engine);
-void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine);
+void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv,
+			    unsigned fw_domains);
+void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv,
+			    unsigned fw_domains);
 void assert_force_wake_inactive(struct drm_i915_private *dev_priv);
 
 int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u32 mbox, u32 *val);
@@ -3199,13 +3226,6 @@ void vlv_flisdsi_write(struct drm_i915_private *dev_priv, u32 reg, u32 val);
 
 int vlv_gpu_freq(struct drm_i915_private *dev_priv, int val);
 int vlv_freq_opcode(struct drm_i915_private *dev_priv, int val);
-
-#define FORCEWAKE_RENDER	(1 << 0)
-#define FORCEWAKE_MEDIA		(1 << 1)
-#define FORCEWAKE_BLITTER	(1 << 2)
-#define FORCEWAKE_ALL		(FORCEWAKE_RENDER | FORCEWAKE_MEDIA | \
-					FORCEWAKE_BLITTER)
-
 
 #define I915_READ8(reg)		dev_priv->uncore.funcs.mmio_readb(dev_priv, (reg), true)
 #define I915_WRITE8(reg, val)	dev_priv->uncore.funcs.mmio_writeb(dev_priv, (reg), (val), true)
