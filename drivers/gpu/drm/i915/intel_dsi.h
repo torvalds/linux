@@ -137,18 +137,6 @@ struct intel_dsi {
 	u16 panel_pwr_cycle_delay;
 };
 
-/* XXX: Transitional before dual port configuration */
-static inline enum port intel_dsi_pipe_to_port(enum pipe pipe)
-{
-	if (pipe == PIPE_A)
-		return PORT_A;
-	else if (pipe == PIPE_B)
-		return PORT_C;
-
-	WARN(1, "DSI on pipe %c, assuming port C\n", pipe_name(pipe));
-	return PORT_C;
-}
-
 #define for_each_dsi_port(__port, __ports_mask) \
 	for ((__port) = PORT_A; (__port) < I915_MAX_PORTS; (__port)++)	\
 		if ((__ports_mask) & (1 << (__port)))
