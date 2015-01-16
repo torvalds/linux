@@ -1153,10 +1153,6 @@ static void tegra_crtc_prepare(struct drm_crtc *crtc)
 
 	drm_crtc_vblank_off(crtc);
 
-	/* hardware initialization */
-	reset_control_deassert(dc->rst);
-	usleep_range(10000, 20000);
-
 	if (dc->pipe)
 		syncpt = SYNCPT_VBLANK1;
 	else
