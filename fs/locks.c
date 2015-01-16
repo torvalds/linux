@@ -202,7 +202,48 @@ static DEFINE_HASHTABLE(blocked_hash, BLOCKED_HASH_BITS);
  */
 static DEFINE_SPINLOCK(blocked_lock_lock);
 
+static struct kmem_cache *flctx_cache __read_mostly;
 static struct kmem_cache *filelock_cache __read_mostly;
+
+static struct file_lock_context *
+locks_get_lock_context(struct inode *inode)
+{
+	struct file_lock_context *new;
+
+	if (likely(inode->i_flctx))
+		goto out;
+
+	new = kmem_cache_alloc(flctx_cache, GFP_KERNEL);
+	if (!new)
+		goto out;
+
+	INIT_LIST_HEAD(&new->flc_flock);
+
+	/*
+	 * Assign the pointer if it's not already assigned. If it is, then
+	 * free the context we just allocated.
+	 */
+	spin_lock(&inode->i_lock);
+	if (likely(!inode->i_flctx)) {
+		inode->i_flctx = new;
+		new = NULL;
+	}
+	spin_unlock(&inode->i_lock);
+
+	if (new)
+		kmem_cache_free(flctx_cache, new);
+out:
+	return inode->i_flctx;
+}
+
+void
+locks_free_lock_context(struct file_lock_context *ctx)
+{
+	if (ctx) {
+		WARN_ON_ONCE(!list_empty(&ctx->flc_flock));
+		kmem_cache_free(flctx_cache, ctx);
+	}
+}
 
 static void locks_init_lock_heads(struct file_lock *fl)
 {
@@ -2635,6 +2676,9 @@ module_init(proc_locks_init);
 static int __init filelock_init(void)
 {
 	int i;
+
+	flctx_cache = kmem_cache_create("file_lock_ctx",
+			sizeof(struct file_lock_context), 0, SLAB_PANIC, NULL);
 
 	filelock_cache = kmem_cache_create("file_lock_cache",
 			sizeof(struct file_lock), 0, SLAB_PANIC, NULL);

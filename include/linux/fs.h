@@ -626,6 +626,7 @@ struct inode {
 #endif
 	const struct file_operations	*i_fop;	/* former ->i_op->default_file_ops */
 	struct file_lock	*i_flock;
+	struct file_lock_context	*i_flctx;
 	struct address_space	i_data;
 	struct list_head	i_devices;
 	union {
@@ -965,6 +966,10 @@ struct file_lock {
 	} fl_u;
 };
 
+struct file_lock_context {
+	struct list_head	flc_flock;
+};
+
 /* The following constant reflects the upper bound of the file/locking space */
 #ifndef OFFSET_MAX
 #define INT_LIMIT(x)	(~((x)1 << (sizeof(x)*8 - 1)))
@@ -991,6 +996,7 @@ extern int fcntl_setlease(unsigned int fd, struct file *filp, long arg);
 extern int fcntl_getlease(struct file *filp);
 
 /* fs/locks.c */
+void locks_free_lock_context(struct file_lock_context *ctx);
 void locks_free_lock(struct file_lock *fl);
 extern void locks_init_lock(struct file_lock *);
 extern struct file_lock * locks_alloc_lock(void);
@@ -1046,6 +1052,11 @@ static inline int fcntl_setlease(unsigned int fd, struct file *filp, long arg)
 static inline int fcntl_getlease(struct file *filp)
 {
 	return F_UNLCK;
+}
+
+static inline void
+locks_free_lock_context(struct file_lock_context *ctx)
+{
 }
 
 static inline void locks_init_lock(struct file_lock *fl)
