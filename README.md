@@ -27,20 +27,20 @@ Absolutely no coding experience is necessary: all code are equal in the eyes of 
 The ToleranUX Philosophy
 ==========
 
-The traditional UNIX Philosophy has long been the root of male chauvinism in the world of UNIX-like kernel development (and the subsequent, wider world of UNIX software in general).  In light of that, the Feminist Software Foundation has undertaken to rewrite the UNIX Philosophy such that it will allow and promote a feminist safe space for minority programmers.
+The [traditional UNIX Philosophy](http://en.wikipedia.org/wiki/Unix_philosophy) has long been the root of [male chauvinism](https://en.wikipedia.org/wiki/Chauvinism#Male_chauvinism) in the world of UNIX-like kernel development (and the subsequent, wider world of UNIX software in general).  In light of that, the Feminist Software Foundation has undertaken to rewrite the UNIX Philosophy such that it will allow and promote a feminist [safe space](https://en.wikipedia.org/wiki/Safe-space) for minority programmers.
 
 The traditional UNIX Philosophy is included for reference as follows:
 
 
-1. Small is beautiful.
-2. Make each program do one thing well.
-3. Build a prototype as soon as possible.
-4. Choose portability over efficiency.
-5. Store data in flat text files.
-6. Use software leverage to your advantage.
-7. Use shell scripts to increase leverage and portability.
-8. Avoid captive user interfaces.
-9. Make every program a filter.
+1. [Small is beautiful.](http://www.huffingtonpost.com/news/fat-shaming/)
+2. [Make each program do one thing well.](http://en.wikipedia.org/wiki/Transphobia)
+3. [Build a prototype as soon as possible.](http://www.rooshv.com/it-doesnt-matter-if-she-orgasms-or-not)
+4. [Choose portability over efficiency.](http://en.wikipedia.org/wiki/Deadbeat_parent)
+5. [Store data in flat text files.](http://thinkprogress.org/health/2014/06/16/3449302/media-women-portrayals/)
+6. [Use software leverage to your advantage.](http://host.jibc.ca/seytoolkit/what.htm)
+7. [Use shell scripts to increase leverage and portability.](http://en.wikipedia.org/wiki/Dictatorship)
+8. [Avoid captive user interfaces.](http://en.wikipedia.org/wiki/Slavery)
+9. [Make every program a filter.](https://en.wikipedia.org/wiki/Gender_role)
 
 To eradicate the inherent root of Toxic Bigotry in the UNIX Philosophy, the ToleranUX Philosophy is proposed as such:
 
