@@ -104,7 +104,7 @@ Certain metadata of files will be scrutinised by **ToleranUX** to ensure that th
 
 * Filetypes are passé.  Who are we to affix the [magic number label](http://en.wikipedia.org/wiki/File_format#Magic_number) to files when they are created and claim that they are so for their lifespan in our computers?  A `.png` file may identify as a `.epub` file for all its merits.  It is simply not right to categorise.  Shall a user complain that he/she/xe cannot open a file because he/she/xe expects a certain format, (e.g. trying to parse a `LaTeX-identifying DOCX` with `vim` and failing,) the kernel reduces the allocated processing power to the user by half.
 
-* Out with the [Traditional UNIX permissions](http://en.wikipedia.org/wiki/File_system_permissions#Traditional_Unix_permissions).  These permissions are arbitrarily enforced privileges.  A program should be able to run, read, and write wherever and whenever it wants to.
+* Out with the [Traditional UNIX permissions of Read, Write, and Execute](http://en.wikipedia.org/wiki/File_system_permissions#Traditional_Unix_permissions).  These permissions are arbitrarily enforced privileges.  A program should be able to run, read, and write wherever and whenever it wants to.
 
 Smashing the socially constructed barriers between kernel space and userspace
 =============================================================================
