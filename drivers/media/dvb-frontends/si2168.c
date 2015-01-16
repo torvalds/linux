@@ -180,7 +180,10 @@ static int si2168_set_frontend(struct dvb_frontend *fe)
 		goto err;
 	}
 
-	if (c->bandwidth_hz <= 5000000)
+	if (c->bandwidth_hz == 0) {
+		ret = -EINVAL;
+		goto err;
+	} else if (c->bandwidth_hz <= 5000000)
 		bandwidth = 0x05;
 	else if (c->bandwidth_hz <= 6000000)
 		bandwidth = 0x06;
