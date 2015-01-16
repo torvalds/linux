@@ -487,12 +487,9 @@ DEFINE_PER_CPU(char[256], iucv_dbf_txt_buf);
 
 static void iucv_unregister_dbf_views(void)
 {
-	if (iucv_dbf_setup)
-		debug_unregister(iucv_dbf_setup);
-	if (iucv_dbf_data)
-		debug_unregister(iucv_dbf_data);
-	if (iucv_dbf_trace)
-		debug_unregister(iucv_dbf_trace);
+	debug_unregister(iucv_dbf_setup);
+	debug_unregister(iucv_dbf_data);
+	debug_unregister(iucv_dbf_trace);
 }
 static int iucv_register_dbf_views(void)
 {

@@ -109,10 +109,8 @@ static debug_info_t *claw_dbf_trace;
 static void
 claw_unregister_debug_facility(void)
 {
-	if (claw_dbf_setup)
-		debug_unregister(claw_dbf_setup);
-	if (claw_dbf_trace)
-		debug_unregister(claw_dbf_trace);
+	debug_unregister(claw_dbf_setup);
+	debug_unregister(claw_dbf_trace);
 }
 
 static int
