@@ -84,6 +84,8 @@ The concept of separate privileges for separate users is outdated, obsolete, and
 
 To this end **ToleranUX** shall implement an environment where [administrative privileges](http://en.wikipedia.org/wiki/Privilege_(computing)) are strictly prohibited.  Gone is the [superuser](http://en.wikipedia.org/wiki/Superuser) — all users are now equal in privilege.  In traditional systems this manoeuvre would cause mayhem as there will be no protection against malicious users abusing their power and privileges.  To combat this, **ToleranUX** implements a pan-kernel daemon that **checks the privilege of every user during every kernel tick** to ensure that no privilege abuse is done.  In fact, the only operation that a user can do with their privilege is to check it, ensuring that no societal power abuse can ever be possible.
 
+By implementing this Truly Equal environment, we also have an added bonus: [Privilege Escalation](https://en.wikipedia.org/wiki/Privilege_escalation) is no longer possible, rendering **ToleranUX** a Truly Secure OS.
+
 Users coming from a particularly oppressed background (e.g. Women in Tech living in the United States of America) may even evoke the `--with-empowerment` when creating their user accounts.  Doing so will elevate their user to the same privilege as the micro-aggressional kernel daemons, allowing them to ban other users from the safespace of **ToleranUX**.
 
 ### Processes and forking
