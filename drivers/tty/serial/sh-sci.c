@@ -2605,7 +2605,7 @@ static int sci_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int sci_suspend(struct device *dev)
+static __maybe_unused int sci_suspend(struct device *dev)
 {
 	struct sci_port *sport = dev_get_drvdata(dev);
 
@@ -2615,7 +2615,7 @@ static int sci_suspend(struct device *dev)
 	return 0;
 }
 
-static int sci_resume(struct device *dev)
+static __maybe_unused int sci_resume(struct device *dev)
 {
 	struct sci_port *sport = dev_get_drvdata(dev);
 
@@ -2625,10 +2625,7 @@ static int sci_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops sci_dev_pm_ops = {
-	.suspend	= sci_suspend,
-	.resume		= sci_resume,
-};
+static SIMPLE_DEV_PM_OPS(sci_dev_pm_ops, sci_suspend, sci_resume);
 
 static struct platform_driver sci_driver = {
 	.probe		= sci_probe,
