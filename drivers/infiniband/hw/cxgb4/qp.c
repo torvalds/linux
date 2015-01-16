@@ -1776,7 +1776,7 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 		if (mm5) {
 			mm5->key = uresp.ma_sync_key;
 			mm5->addr = (pci_resource_start(rhp->rdev.lldi.pdev, 0)
-				    + A_PCIE_MA_SYNC) & PAGE_MASK;
+				    + PCIE_MA_SYNC_A) & PAGE_MASK;
 			mm5->len = PAGE_SIZE;
 			insert_mmap(ucontext, mm5);
 		}
