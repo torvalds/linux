@@ -941,6 +941,33 @@ static const struct {
 		},
 	},
 	{
+		.pcm_dev = CAPTURE_3_FROM_I2S_3,
+		.controls = {
+			{
+				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+				.name = "Analog Input Monitor Playback Switch",
+				.index = 2,
+				.info = snd_ctl_boolean_mono_info,
+				.get = monitor_get,
+				.put = monitor_put,
+				.private_value = OXYGEN_ADC_MONITOR_C,
+			},
+			{
+				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+				.name = "Analog Input Monitor Playback Volume",
+				.index = 2,
+				.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
+					  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
+				.info = monitor_volume_info,
+				.get = monitor_get,
+				.put = monitor_put,
+				.private_value = OXYGEN_ADC_MONITOR_C_HALF_VOL
+						| (1 << 8),
+				.tlv = { .p = monitor_db_scale, },
+			},
+		},
+	},
+	{
 		.pcm_dev = CAPTURE_1_FROM_SPDIF,
 		.controls = {
 			{

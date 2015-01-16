@@ -441,9 +441,18 @@ static void oxygen_init(struct oxygen *chip)
 		oxygen_write16(chip, OXYGEN_I2S_B_FORMAT,
 			       OXYGEN_I2S_MASTER |
 			       OXYGEN_I2S_MUTE_MCLK);
-	oxygen_write16(chip, OXYGEN_I2S_C_FORMAT,
-		       OXYGEN_I2S_MASTER |
-		       OXYGEN_I2S_MUTE_MCLK);
+	if (chip->model.device_config & CAPTURE_3_FROM_I2S_3)
+		oxygen_write16(chip, OXYGEN_I2S_C_FORMAT,
+			       OXYGEN_RATE_48000 |
+			       chip->model.adc_i2s_format |
+			       OXYGEN_I2S_MCLK(chip->model.adc_mclks) |
+			       OXYGEN_I2S_BITS_16 |
+			       OXYGEN_I2S_MASTER |
+			       OXYGEN_I2S_BCLK_64);
+	else
+		oxygen_write16(chip, OXYGEN_I2S_C_FORMAT,
+			       OXYGEN_I2S_MASTER |
+			       OXYGEN_I2S_MUTE_MCLK);
 	oxygen_clear_bits32(chip, OXYGEN_SPDIF_CONTROL,
 			    OXYGEN_SPDIF_OUT_ENABLE |
 			    OXYGEN_SPDIF_LOOPBACK);
