@@ -69,6 +69,7 @@
  */
 #define WIN_CTRL_OFF		0x0000
 #define   WIN_CTRL_ENABLE       BIT(0)
+#define   WIN_CTRL_SYNCBARRIER  BIT(1)
 #define   WIN_CTRL_TGT_MASK     0xf0
 #define   WIN_CTRL_TGT_SHIFT    4
 #define   WIN_CTRL_ATTR_MASK    0xff00
@@ -81,6 +82,9 @@
 #define WIN_REMAP_LO_OFF	0x0008
 #define   WIN_REMAP_LOW         0xffff0000
 #define WIN_REMAP_HI_OFF	0x000c
+
+#define UNIT_SYNC_BARRIER_OFF   0x84
+#define   UNIT_SYNC_BARRIER_ALL 0xFFFF
 
 #define ATTR_HW_COHERENCY	(0x1 << 4)
 
@@ -316,6 +320,7 @@ static int mvebu_mbus_setup_window(struct mvebu_mbus_state *mbus,
 	ctrl = ((size - 1) & WIN_CTRL_SIZE_MASK) |
 		(attr << WIN_CTRL_ATTR_SHIFT)    |
 		(target << WIN_CTRL_TGT_SHIFT)   |
+		WIN_CTRL_SYNCBARRIER             |
 		WIN_CTRL_ENABLE;
 
 	writel(base & WIN_BASE_LOW, addr + WIN_BASE_OFF);
@@ -857,7 +862,8 @@ static int __init mvebu_mbus_common_init(struct mvebu_mbus_state *mbus,
 					 phys_addr_t sdramwins_phys_base,
 					 size_t sdramwins_size,
 					 phys_addr_t mbusbridge_phys_base,
-					 size_t mbusbridge_size)
+					 size_t mbusbridge_size,
+					 bool is_coherent)
 {
 	int win;
 
@@ -889,6 +895,10 @@ static int __init mvebu_mbus_common_init(struct mvebu_mbus_state *mbus,
 
 	mbus->soc->setup_cpu_target(mbus);
 
+	if (is_coherent)
+		writel(UNIT_SYNC_BARRIER_ALL,
+		       mbus->mbuswins_base + UNIT_SYNC_BARRIER_OFF);
+
 	register_syscore_ops(&mvebu_mbus_syscore_ops);
 
 	return 0;
@@ -916,7 +926,7 @@ int __init mvebu_mbus_init(const char *soc, phys_addr_t mbuswins_phys_base,
 			mbuswins_phys_base,
 			mbuswins_size,
 			sdramwins_phys_base,
-			sdramwins_size, 0, 0);
+			sdramwins_size, 0, 0, false);
 }
 
 #ifdef CONFIG_OF
@@ -1118,7 +1128,8 @@ int __init mvebu_mbus_dt_init(bool is_coherent)
 				     sdramwins_res.start,
 				     resource_size(&sdramwins_res),
 				     mbusbridge_res.start,
-				     resource_size(&mbusbridge_res));
+				     resource_size(&mbusbridge_res),
+				     is_coherent);
 	if (ret)
 		return ret;
 
