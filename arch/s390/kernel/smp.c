@@ -762,7 +762,7 @@ static void __init smp_detect_cpus(void)
 			panic("Could not find boot CPU type");
 	}
 
-#if defined(CONFIG_ZFCPDUMP) || defined(CONFIG_CRASH_DUMP)
+#ifdef CONFIG_CRASH_DUMP
 	/* Collect CPU state of previous system */
 	smp_store_cpu_states(info);
 #endif
