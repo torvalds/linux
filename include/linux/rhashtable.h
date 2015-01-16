@@ -119,7 +119,7 @@ struct rhashtable {
 	atomic_t			nelems;
 	atomic_t			shift;
 	struct rhashtable_params	p;
-	struct delayed_work             run_work;
+	struct work_struct		run_work;
 	struct mutex                    mutex;
 	bool                            being_destroyed;
 };

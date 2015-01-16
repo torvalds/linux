@@ -485,7 +485,7 @@ static void rht_deferred_worker(struct work_struct *work)
 	struct rhashtable *ht;
 	struct bucket_table *tbl;
 
-	ht = container_of(work, struct rhashtable, run_work.work);
+	ht = container_of(work, struct rhashtable, run_work);
 	mutex_lock(&ht->mutex);
 	tbl = rht_dereference(ht->tbl, ht);
 
@@ -507,7 +507,7 @@ static void rhashtable_wakeup_worker(struct rhashtable *ht)
 	if (tbl == new_tbl &&
 	    ((ht->p.grow_decision && ht->p.grow_decision(ht, size)) ||
 	     (ht->p.shrink_decision && ht->p.shrink_decision(ht, size))))
-		schedule_delayed_work(&ht->run_work, 0);
+		schedule_work(&ht->run_work);
 }
 
 static void __rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj,
@@ -903,7 +903,7 @@ int rhashtable_init(struct rhashtable *ht, struct rhashtable_params *params)
 		get_random_bytes(&ht->p.hash_rnd, sizeof(ht->p.hash_rnd));
 
 	if (ht->p.grow_decision || ht->p.shrink_decision)
-		INIT_DEFERRABLE_WORK(&ht->run_work, rht_deferred_worker);
+		INIT_WORK(&ht->run_work, rht_deferred_worker);
 
 	return 0;
 }
@@ -921,11 +921,11 @@ void rhashtable_destroy(struct rhashtable *ht)
 {
 	ht->being_destroyed = true;
 
+	if (ht->p.grow_decision || ht->p.shrink_decision)
+		cancel_work_sync(&ht->run_work);
+
 	mutex_lock(&ht->mutex);
-
-	cancel_delayed_work(&ht->run_work);
 	bucket_table_free(rht_dereference(ht->tbl, ht));
-
 	mutex_unlock(&ht->mutex);
 }
 EXPORT_SYMBOL_GPL(rhashtable_destroy);
