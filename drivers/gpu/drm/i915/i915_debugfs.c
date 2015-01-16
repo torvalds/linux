@@ -2382,6 +2382,14 @@ static const char *power_domain_str(enum intel_display_power_domain domain)
 		return "AUDIO";
 	case POWER_DOMAIN_PLLS:
 		return "PLLS";
+	case POWER_DOMAIN_AUX_A:
+		return "AUX_A";
+	case POWER_DOMAIN_AUX_B:
+		return "AUX_B";
+	case POWER_DOMAIN_AUX_C:
+		return "AUX_C";
+	case POWER_DOMAIN_AUX_D:
+		return "AUX_D";
 	case POWER_DOMAIN_INIT:
 		return "INIT";
 	default:
