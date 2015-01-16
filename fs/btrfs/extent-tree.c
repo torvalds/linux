@@ -5032,7 +5032,7 @@ static u64 calc_csum_metadata_size(struct inode *inode, u64 num_bytes,
 	    BTRFS_I(inode)->csum_bytes == 0)
 		return 0;
 
-	old_csums = (int)div64_u64(BTRFS_I(inode)->csum_bytes, root->sectorsize);
+	old_csums = (int)div_u64(BTRFS_I(inode)->csum_bytes, root->sectorsize);
 	if (reserve)
 		BTRFS_I(inode)->csum_bytes += num_bytes;
 	else
@@ -5041,7 +5041,7 @@ static u64 calc_csum_metadata_size(struct inode *inode, u64 num_bytes,
 	num_csums_per_leaf = (int)div_u64(csum_size,
 					    sizeof(struct btrfs_csum_item) +
 					    sizeof(struct btrfs_disk_key));
-	num_csums = (int)div64_u64(BTRFS_I(inode)->csum_bytes, root->sectorsize);
+	num_csums = (int)div_u64(BTRFS_I(inode)->csum_bytes, root->sectorsize);
 	num_csums = num_csums + num_csums_per_leaf - 1;
 	num_csums = num_csums / num_csums_per_leaf;
 

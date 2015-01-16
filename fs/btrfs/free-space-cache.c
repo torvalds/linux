@@ -1298,11 +1298,11 @@ static inline u64 offset_to_bitmap(struct btrfs_free_space_ctl *ctl,
 				   u64 offset)
 {
 	u64 bitmap_start;
-	u64 bytes_per_bitmap;
+	u32 bytes_per_bitmap;
 
 	bytes_per_bitmap = BITS_PER_BITMAP * ctl->unit;
 	bitmap_start = offset - ctl->start;
-	bitmap_start = div64_u64(bitmap_start, bytes_per_bitmap);
+	bitmap_start = div_u64(bitmap_start, bytes_per_bitmap);
 	bitmap_start *= bytes_per_bitmap;
 	bitmap_start += ctl->start;
 
@@ -1521,10 +1521,10 @@ static void recalculate_thresholds(struct btrfs_free_space_ctl *ctl)
 	u64 bitmap_bytes;
 	u64 extent_bytes;
 	u64 size = block_group->key.offset;
-	u64 bytes_per_bg = BITS_PER_BITMAP * ctl->unit;
-	int max_bitmaps = div64_u64(size + bytes_per_bg - 1, bytes_per_bg);
+	u32 bytes_per_bg = BITS_PER_BITMAP * ctl->unit;
+	u32 max_bitmaps = div_u64(size + bytes_per_bg - 1, bytes_per_bg);
 
-	max_bitmaps = max(max_bitmaps, 1);
+	max_bitmaps = max_t(u32, max_bitmaps, 1);
 
 	ASSERT(ctl->total_bitmaps <= max_bitmaps);
 

@@ -1564,7 +1564,7 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 		goto out_free;
 	}
 
-	do_div(new_size, root->sectorsize);
+	new_size = div_u64(new_size, root->sectorsize);
 	new_size *= root->sectorsize;
 
 	printk_in_rcu(KERN_INFO "BTRFS: new size for %s is %llu\n",
