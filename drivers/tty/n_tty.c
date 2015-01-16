@@ -187,10 +187,10 @@ static int receive_room(struct tty_struct *tty)
 }
 
 /**
- *	n_tty_set_room	-	receive space
+ *	n_tty_kick_worker - start input worker (if required)
  *	@tty: terminal
  *
- *	Re-schedules the flip buffer work if space just became available.
+ *	Re-schedules the flip buffer work if it may have stopped
  *
  *	Caller holds exclusive termios_rwsem
  *	   or
@@ -198,12 +198,12 @@ static int receive_room(struct tty_struct *tty)
  *		holds non-exclusive termios_rwsem
  */
 
-static void n_tty_set_room(struct tty_struct *tty)
+static void n_tty_kick_worker(struct tty_struct *tty)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 
-	/* Did this open up the receive buffer? We may need to flip */
-	if (unlikely(ldata->no_room) && receive_room(tty)) {
+	/* Did the input worker stop? Restart it */
+	if (unlikely(ldata->no_room)) {
 		ldata->no_room = 0;
 
 		WARN_RATELIMIT(tty->port->itty == NULL,
@@ -274,7 +274,7 @@ static void n_tty_check_unthrottle(struct tty_struct *tty)
 			return;
 		if (!tty->count)
 			return;
-		n_tty_set_room(tty);
+		n_tty_kick_worker(tty);
 		n_tty_write_wakeup(tty->link);
 		if (waitqueue_active(&tty->link->write_wait))
 			wake_up_interruptible_poll(&tty->link->write_wait, POLLOUT);
@@ -296,7 +296,7 @@ static void n_tty_check_unthrottle(struct tty_struct *tty)
 			break;
 		if (!tty->count)
 			break;
-		n_tty_set_room(tty);
+		n_tty_kick_worker(tty);
 		unthrottled = tty_unthrottle_safe(tty);
 		if (!unthrottled)
 			break;
@@ -379,7 +379,7 @@ static void n_tty_flush_buffer(struct tty_struct *tty)
 {
 	down_write(&tty->termios_rwsem);
 	reset_buffer_flags(tty->disc_data);
-	n_tty_set_room(tty);
+	n_tty_kick_worker(tty);
 
 	if (tty->link)
 		n_tty_packet_mode_flush(tty);
@@ -1817,7 +1817,6 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 		else
 			ldata->real_raw = 0;
 	}
-	n_tty_set_room(tty);
 	/*
 	 * Fix tty hang when I_IXON(tty) is cleared, but the tty
 	 * been stopped by STOP_CHAR(tty) before it.
@@ -2130,6 +2129,7 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 	ssize_t retval = 0;
 	long timeout;
 	int packet;
+	size_t tail;
 
 	c = job_control(tty, file);
 	if (c < 0)
@@ -2166,6 +2166,7 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 	}
 
 	packet = tty->packet;
+	tail = ldata->read_tail;
 
 	add_wait_queue(&tty->read_wait, &wait);
 	while (nr) {
@@ -2208,7 +2209,6 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 				retval = -ERESTARTSYS;
 				break;
 			}
-			n_tty_set_room(tty);
 			up_read(&tty->termios_rwsem);
 
 			timeout = wait_woken(&wait, TASK_INTERRUPTIBLE,
@@ -2253,7 +2253,8 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 		if (time)
 			timeout = time;
 	}
-	n_tty_set_room(tty);
+	if (tail != ldata->read_tail)
+		n_tty_kick_worker(tty);
 	up_read(&tty->termios_rwsem);
 
 	remove_wait_queue(&tty->read_wait, &wait);
