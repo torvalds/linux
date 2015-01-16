@@ -146,5 +146,5 @@ No feminist project is complete without its share of feminist artwork.  **Submis
 Coding Style
 ============
 
-*TBC*
+Variables can be declared in any style, CamelCase, some_variable or even FoooBaRvaLue, if a variable wants to be redeclared, we shall let it.
 
