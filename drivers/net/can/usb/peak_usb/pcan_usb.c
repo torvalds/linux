@@ -488,6 +488,7 @@ static int pcan_usb_decode_error(struct pcan_usb_msg_context *mc, u8 n,
 	switch (new_state) {
 	case CAN_STATE_BUS_OFF:
 		cf->can_id |= CAN_ERR_BUSOFF;
+		mc->pdev->dev.can.can_stats.bus_off++;
 		can_bus_off(mc->netdev);
 		break;
 

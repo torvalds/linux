@@ -289,6 +289,8 @@ static void can_update_state_error_stats(struct net_device *dev,
 		priv->can_stats.error_passive++;
 		break;
 	case CAN_STATE_BUS_OFF:
+		priv->can_stats.bus_off++;
+		break;
 	default:
 		break;
 	};
@@ -544,7 +546,6 @@ void can_bus_off(struct net_device *dev)
 	netdev_dbg(dev, "bus-off\n");
 
 	netif_carrier_off(dev);
-	priv->can_stats.bus_off++;
 
 	if (priv->restart_ms)
 		mod_timer(&priv->restart_timer,
