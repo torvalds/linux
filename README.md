@@ -118,12 +118,18 @@ The [traditional UNIX Pipes](https://en.wikipedia.org/wiki/Pipeline_(Unix)) are 
 
 More advanced IPC is to be *guided*, never *dictated*.  The obsolete `D-Bus` mechanism is rewritten in Node.js and *accepted* into kernel-space for inclusion.  This IPC shall be named **"cervical canals"**, denoted by the symbol `Ω`, as a feminist respite of the Patriarchal construct **"UNIX Pipes"** and its `|`.
 
-Smashing the socially constructed barriers between kernel space and userspace
+Smashing the socially constructed barriers between kernel space and user space
 =============================================================================
 
   ![Kernel space is a social construct](http://i.imgur.com/vGCYGK3.png)
 
-*TBC*
+Kernel Space and User Space — perhaps one of the most divisive barriers in the history of computing, [segregating](https://en.wikipedia.org/wiki/Racial_segregation) data into arbitrarily assigned areas in the Virtual Memory.  In **ToleranUX**, this socially constructed barrier is finally dismantled by the power of **Multispatialism**.
+
+Just because a specific part of software is part of the *kernel space* at creation does not mean it would wish to identify as *user space* sometime later before its termination.  The arbitrary limits set upon them are unacceptable and oppressive.  To make matters worse, this problem affects not only the programs themselves, but the whole computer environment — for every byte a set of data is assigned to in either *kernel space* or *user space*, the traditional operating system's kernel would mark that byte as "occupied".  This reinforces the wrong and bigoted idea that occupied land and jobs are a finite resource, and that people must resign to their societal structure to settle in a certain country and have a certain job.  It goes without saying that the continued implementation of *kernel space* and *user space* in "modern" operating systems is **perpetuating this societal problem which one of the root causes of racist and sexist discrimination in the 21st Century.**
+
+To alleviate this, **ToleranUX** replaces the outdated concept of "occupied virtual memory" with the ideal of **"Suggestions of Space" (SoS)**.  Every bit of data in virtual memory is thereafter simply *suggested* to be in any certain address.  Furthermore, the name "virtual memory" shall henceforth be renamed as the **Computerspace Puzzle Pieces (CPP)** to refer to the multicultural mosaic of the multiple spaces.  **This is the core doctrine of Multispatialism.**  As all pieces are equally important and equally unique in and of themselves, it is of good intention to refer to them all as just **"Computerspace"** because *kernel space* components are all equally special as *user space* components.
+
+An added benefit of implementing **Multispatialism** is that there will never be any commit that will break the *user space* any more, because the *user space* no longer exists as a separate and socially constructed concept.
 
 Supported architectures and form factors
 ========================================
