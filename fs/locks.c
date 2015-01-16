@@ -1309,9 +1309,8 @@ static void lease_clear_pending(struct file_lock *fl, int arg)
 }
 
 /* We already had a lease on this file; just change its type */
-int lease_modify(struct file_lock **before, int arg, struct list_head *dispose)
+int lease_modify(struct file_lock *fl, int arg, struct list_head *dispose)
 {
-	struct file_lock *fl = *before;
 	int error = assign_type(fl, arg);
 
 	if (error)
@@ -1352,9 +1351,9 @@ static void time_out_leases(struct inode *inode, struct list_head *dispose)
 	list_for_each_entry_safe(fl, tmp, &ctx->flc_lease, fl_list) {
 		trace_time_out_leases(inode, fl);
 		if (past_time(fl->fl_downgrade_time))
-			lease_modify(&fl, F_RDLCK, dispose);
+			lease_modify(fl, F_RDLCK, dispose);
 		if (past_time(fl->fl_break_time))
-			lease_modify(&fl, F_UNLCK, dispose);
+			lease_modify(fl, F_UNLCK, dispose);
 	}
 }
 
@@ -1669,7 +1668,7 @@ generic_add_lease(struct file *filp, long arg, struct file_lock **flp, void **pr
 	}
 
 	if (my_fl != NULL) {
-		error = lease->fl_lmops->lm_change(&my_fl, arg, &dispose);
+		error = lease->fl_lmops->lm_change(my_fl, arg, &dispose);
 		if (error)
 			goto out;
 		goto out_setup;
@@ -1732,7 +1731,7 @@ static int generic_delete_lease(struct file *filp)
 	}
 	trace_generic_delete_lease(inode, fl);
 	if (victim)
-		error = fl->fl_lmops->lm_change(&victim, F_UNLCK, &dispose);
+		error = fl->fl_lmops->lm_change(victim, F_UNLCK, &dispose);
 	spin_unlock(&ctx->flc_lock);
 	locks_dispose_list(&dispose);
 	return error;
@@ -2426,7 +2425,7 @@ locks_remove_lease(struct file *filp)
 
 	spin_lock(&ctx->flc_lock);
 	list_for_each_entry_safe(fl, tmp, &ctx->flc_lease, fl_list)
-		lease_modify(&fl, F_UNLCK, &dispose);
+		lease_modify(fl, F_UNLCK, &dispose);
 	spin_unlock(&ctx->flc_lock);
 	locks_dispose_list(&dispose);
 }
