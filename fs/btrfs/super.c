@@ -1704,7 +1704,7 @@ static int btrfs_calc_avail_data_space(struct btrfs_root *root, u64 *free_bytes)
 		avail_space = device->total_bytes - device->bytes_used;
 
 		/* align with stripe_len */
-		do_div(avail_space, BTRFS_STRIPE_LEN);
+		avail_space = div_u64(avail_space, BTRFS_STRIPE_LEN);
 		avail_space *= BTRFS_STRIPE_LEN;
 
 		/*

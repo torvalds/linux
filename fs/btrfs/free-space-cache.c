@@ -1537,7 +1537,7 @@ static void recalculate_thresholds(struct btrfs_free_space_ctl *ctl)
 		max_bytes = MAX_CACHE_BYTES_PER_GIG;
 	else
 		max_bytes = MAX_CACHE_BYTES_PER_GIG *
-			div64_u64(size, 1024 * 1024 * 1024);
+			div_u64(size, 1024 * 1024 * 1024);
 
 	/*
 	 * we want to account for 1 more bitmap than what we have so we can make
@@ -1552,14 +1552,14 @@ static void recalculate_thresholds(struct btrfs_free_space_ctl *ctl)
 	}
 
 	/*
-	 * we want the extent entry threshold to always be at most 1/2 the maxw
+	 * we want the extent entry threshold to always be at most 1/2 the max
 	 * bytes we can have, or whatever is less than that.
 	 */
 	extent_bytes = max_bytes - bitmap_bytes;
-	extent_bytes = min_t(u64, extent_bytes, div64_u64(max_bytes, 2));
+	extent_bytes = min_t(u64, extent_bytes, max_bytes >> 1);
 
 	ctl->extents_thresh =
-		div64_u64(extent_bytes, (sizeof(struct btrfs_free_space)));
+		div_u64(extent_bytes, sizeof(struct btrfs_free_space));
 }
 
 static inline void __bitmap_clear_bits(struct btrfs_free_space_ctl *ctl,

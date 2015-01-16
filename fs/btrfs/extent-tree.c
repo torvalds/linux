@@ -2561,8 +2561,7 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 		 */
 		spin_lock(&delayed_refs->lock);
 		avg = fs_info->avg_delayed_ref_runtime * 3 + runtime;
-		avg = div64_u64(avg, 4);
-		fs_info->avg_delayed_ref_runtime = avg;
+		fs_info->avg_delayed_ref_runtime = avg >> 2;	/* div by 4 */
 		spin_unlock(&delayed_refs->lock);
 	}
 	return 0;
@@ -2624,7 +2623,7 @@ static inline u64 heads_to_leaves(struct btrfs_root *root, u64 heads)
 	 * We don't ever fill up leaves all the way so multiply by 2 just to be
 	 * closer to what we're really going to want to ouse.
 	 */
-	return div64_u64(num_bytes, BTRFS_LEAF_DATA_SIZE(root));
+	return div_u64(num_bytes, BTRFS_LEAF_DATA_SIZE(root));
 }
 
 int btrfs_check_space_for_delayed_refs(struct btrfs_trans_handle *trans,
@@ -3193,7 +3192,7 @@ static int cache_save_setup(struct btrfs_block_group_cache *block_group,
 	struct inode *inode = NULL;
 	u64 alloc_hint = 0;
 	int dcs = BTRFS_DC_ERROR;
-	int num_pages = 0;
+	u64 num_pages = 0;
 	int retries = 0;
 	int ret = 0;
 
@@ -3277,7 +3276,7 @@ again:
 	 * taking up quite a bit since it's not folded into the other space
 	 * cache.
 	 */
-	num_pages = (int)div64_u64(block_group->key.offset, 256 * 1024 * 1024);
+	num_pages = div_u64(block_group->key.offset, 256 * 1024 * 1024);
 	if (!num_pages)
 		num_pages = 1;
 
@@ -4770,10 +4769,10 @@ static u64 calc_global_metadata_size(struct btrfs_fs_info *fs_info)
 
 	num_bytes = (data_used >> fs_info->sb->s_blocksize_bits) *
 		    csum_size * 2;
-	num_bytes += div64_u64(data_used + meta_used, 50);
+	num_bytes += div_u64(data_used + meta_used, 50);
 
 	if (num_bytes * 3 > meta_used)
-		num_bytes = div64_u64(meta_used, 3);
+		num_bytes = div_u64(meta_used, 3);
 
 	return ALIGN(num_bytes, fs_info->extent_root->nodesize << 10);
 }
@@ -5039,7 +5038,7 @@ static u64 calc_csum_metadata_size(struct inode *inode, u64 num_bytes,
 	else
 		BTRFS_I(inode)->csum_bytes -= num_bytes;
 	csum_size = BTRFS_LEAF_DATA_SIZE(root) - sizeof(struct btrfs_item);
-	num_csums_per_leaf = (int)div64_u64(csum_size,
+	num_csums_per_leaf = (int)div_u64(csum_size,
 					    sizeof(struct btrfs_csum_item) +
 					    sizeof(struct btrfs_disk_key));
 	num_csums = (int)div64_u64(BTRFS_I(inode)->csum_bytes, root->sectorsize);
