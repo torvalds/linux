@@ -1586,10 +1586,10 @@ mbx_err:
 	return status;
 }
 
-static void ocrdma_srq_toggle_bit(struct ocrdma_srq *srq, int idx)
+static void ocrdma_srq_toggle_bit(struct ocrdma_srq *srq, unsigned int idx)
 {
-	int i = idx / 32;
-	unsigned int mask = (1 << (idx % 32));
+	unsigned int i = idx / 32;
+	u32 mask = (1U << (idx % 32));
 
 	srq->idx_bit_fields[i] ^= mask;
 }
