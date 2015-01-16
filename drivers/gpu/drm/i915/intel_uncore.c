@@ -449,8 +449,6 @@ static void gen6_force_wake_timer(unsigned long arg)
 	if (--dev_priv->uncore.forcewake_count == 0)
 		dev_priv->uncore.funcs.force_wake_put(dev_priv, FORCEWAKE_ALL);
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
-
-	intel_runtime_pm_put(dev_priv);
 }
 
 void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore)
@@ -586,7 +584,6 @@ void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv, int fw_engine)
 void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine)
 {
 	unsigned long irqflags;
-	bool delayed = false;
 
 	if (!dev_priv->uncore.funcs.force_wake_put)
 		return;
@@ -603,21 +600,19 @@ void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine)
 		goto out;
 	}
 
-
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 	WARN_ON(!dev_priv->uncore.forcewake_count);
 
 	if (--dev_priv->uncore.forcewake_count == 0) {
 		dev_priv->uncore.forcewake_count++;
-		delayed = true;
 		mod_timer_pinned(&dev_priv->uncore.force_wake_timer,
 				 jiffies + 1);
 	}
+
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 
 out:
-	if (!delayed)
-		intel_runtime_pm_put(dev_priv);
+	intel_runtime_pm_put(dev_priv);
 }
 
 void assert_force_wake_inactive(struct drm_i915_private *dev_priv)
@@ -774,12 +769,11 @@ gen6_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	    NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
 		dev_priv->uncore.funcs.force_wake_get(dev_priv, \
 						      FORCEWAKE_ALL); \
-		val = __raw_i915_read##x(dev_priv, reg); \
-		dev_priv->uncore.funcs.force_wake_put(dev_priv, \
-						      FORCEWAKE_ALL); \
-	} else { \
-		val = __raw_i915_read##x(dev_priv, reg); \
+		dev_priv->uncore.forcewake_count++; \
+		mod_timer_pinned(&dev_priv->uncore.force_wake_timer, \
+				 jiffies + 1); \
 	} \
+	val = __raw_i915_read##x(dev_priv, reg); \
 	hsw_unclaimed_reg_debug(dev_priv, reg, true, false); \
 	REG_READ_FOOTER; \
 }

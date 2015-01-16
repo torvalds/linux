@@ -1365,8 +1365,6 @@ static int intel_runtime_suspend(struct device *device)
 	if (WARN_ON_ONCE(!HAS_RUNTIME_PM(dev)))
 		return -ENODEV;
 
-	assert_force_wake_inactive(dev_priv);
-
 	DRM_DEBUG_KMS("Suspending device\n");
 
 	/*
@@ -1405,6 +1403,7 @@ static int intel_runtime_suspend(struct device *device)
 	}
 
 	del_timer_sync(&dev_priv->gpu_error.hangcheck_timer);
+	intel_uncore_forcewake_reset(dev, false);
 	dev_priv->pm.suspended = true;
 
 	/*
@@ -1431,6 +1430,8 @@ static int intel_runtime_suspend(struct device *device)
 		 */
 		intel_opregion_notify_adapter(dev, PCI_D3hot);
 	}
+
+	assert_force_wake_inactive(dev_priv);
 
 	DRM_DEBUG_KMS("Device suspended\n");
 	return 0;
