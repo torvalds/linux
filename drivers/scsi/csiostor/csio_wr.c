@@ -85,7 +85,7 @@ csio_wr_ring_fldb(struct csio_hw *hw, struct csio_q *flq)
 	 */
 	if (flq->inc_idx >= 8) {
 		csio_wr_reg32(hw, DBPRIO_F | QID_V(flq->un.fl.flid) |
-				  CSIO_HW_PIDX(hw, flq->inc_idx / 8),
+				  PIDX_T5_V(flq->inc_idx / 8) | DBTYPE_F,
 				  MYPF_REG(SGE_PF_KDOORBELL_A));
 		flq->inc_idx &= 7;
 	}
@@ -983,7 +983,7 @@ csio_wr_issue(struct csio_hw *hw, int qidx, bool prio)
 	wmb();
 	/* Ring SGE Doorbell writing q->pidx into it */
 	csio_wr_reg32(hw, DBPRIO_V(prio) | QID_V(q->un.eq.physeqid) |
-			  CSIO_HW_PIDX(hw, q->inc_idx),
+			  PIDX_T5_V(q->inc_idx) | DBTYPE_F,
 			  MYPF_REG(SGE_PF_KDOORBELL_A));
 	q->inc_idx = 0;
 
@@ -1467,12 +1467,11 @@ csio_wr_set_sge(struct csio_hw *hw)
 	 * and generate an interrupt when this occurs so we can recover.
 	 */
 	csio_set_reg_field(hw, SGE_DBFIFO_STATUS_A,
-			   HP_INT_THRESH_V(HP_INT_THRESH_M) |
-			   CSIO_HW_LP_INT_THRESH(hw,
-						 CSIO_HW_M_LP_INT_THRESH(hw)),
-			   HP_INT_THRESH_V(CSIO_SGE_DBFIFO_INT_THRESH) |
-			   CSIO_HW_LP_INT_THRESH(hw,
-						 CSIO_SGE_DBFIFO_INT_THRESH));
+			   LP_INT_THRESH_T5_V(LP_INT_THRESH_T5_M),
+			   LP_INT_THRESH_T5_V(CSIO_SGE_DBFIFO_INT_THRESH));
+	csio_set_reg_field(hw, SGE_DBFIFO_STATUS2_A,
+			   HP_INT_THRESH_T5_V(LP_INT_THRESH_T5_M),
+			   HP_INT_THRESH_T5_V(CSIO_SGE_DBFIFO_INT_THRESH));
 
 	csio_set_reg_field(hw, SGE_DOORBELL_CONTROL_A, ENABLE_DROP_F,
 			   ENABLE_DROP_F);

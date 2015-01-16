@@ -60,37 +60,10 @@ int csio_msi = 2;
 static int dev_num;
 
 /* FCoE Adapter types & its description */
-static const struct csio_adap_desc csio_t4_fcoe_adapters[] = {
-	{"T440-Dbg 10G", "Chelsio T440-Dbg 10G [FCoE]"},
-	{"T420-CR 10G", "Chelsio T420-CR 10G [FCoE]"},
-	{"T422-CR 10G/1G", "Chelsio T422-CR 10G/1G [FCoE]"},
-	{"T440-CR 10G", "Chelsio T440-CR 10G [FCoE]"},
-	{"T420-BCH 10G", "Chelsio T420-BCH 10G [FCoE]"},
-	{"T440-BCH 10G", "Chelsio T440-BCH 10G [FCoE]"},
-	{"T440-CH 10G", "Chelsio T440-CH 10G [FCoE]"},
-	{"T420-SO 10G", "Chelsio T420-SO 10G [FCoE]"},
-	{"T420-CX4 10G", "Chelsio T420-CX4 10G [FCoE]"},
-	{"T420-BT 10G", "Chelsio T420-BT 10G [FCoE]"},
-	{"T404-BT 1G", "Chelsio T404-BT 1G [FCoE]"},
-	{"B420-SR 10G", "Chelsio B420-SR 10G [FCoE]"},
-	{"B404-BT 1G", "Chelsio B404-BT 1G [FCoE]"},
-	{"T480-CR 10G", "Chelsio T480-CR 10G [FCoE]"},
-	{"T440-LP-CR 10G", "Chelsio T440-LP-CR 10G [FCoE]"},
-	{"AMSTERDAM 10G", "Chelsio AMSTERDAM 10G [FCoE]"},
-	{"HUAWEI T480 10G", "Chelsio HUAWEI T480 10G [FCoE]"},
-	{"HUAWEI T440 10G", "Chelsio HUAWEI T440 10G [FCoE]"},
-	{"HUAWEI STG 10G", "Chelsio HUAWEI STG 10G [FCoE]"},
-	{"ACROMAG XAUI 10G", "Chelsio ACROMAG XAUI 10G [FCoE]"},
-	{"ACROMAG SFP+ 10G", "Chelsio ACROMAG SFP+ 10G [FCoE]"},
-	{"QUANTA SFP+ 10G", "Chelsio QUANTA SFP+ 10G [FCoE]"},
-	{"HUAWEI 10Gbase-T", "Chelsio HUAWEI 10Gbase-T [FCoE]"},
-	{"HUAWEI T4TOE 10G", "Chelsio HUAWEI T4TOE 10G [FCoE]"}
-};
-
 static const struct csio_adap_desc csio_t5_fcoe_adapters[] = {
 	{"T580-Dbg 10G", "Chelsio T580-Dbg 10G [FCoE]"},
 	{"T520-CR 10G", "Chelsio T520-CR 10G [FCoE]"},
-	{"T522-CR 10G/1G", "Chelsio T452-CR 10G/1G [FCoE]"},
+	{"T522-CR 10G/1G", "Chelsio T522-CR 10G/1G [FCoE]"},
 	{"T540-CR 10G", "Chelsio T540-CR 10G [FCoE]"},
 	{"T520-BCH 10G", "Chelsio T520-BCH 10G [FCoE]"},
 	{"T540-BCH 10G", "Chelsio T540-BCH 10G [FCoE]"},
@@ -107,7 +80,9 @@ static const struct csio_adap_desc csio_t5_fcoe_adapters[] = {
 	{"T580-LP-CR 40G", "Chelsio T580-LP-CR 40G [FCoE]"},
 	{"T520-LL-CR 10G", "Chelsio T520-LL-CR 10G [FCoE]"},
 	{"T560-CR 40G", "Chelsio T560-CR 40G [FCoE]"},
-	{"T580-CR 40G", "Chelsio T580-CR 40G [FCoE]"}
+	{"T580-CR 40G", "Chelsio T580-CR 40G [FCoE]"},
+	{"T580-SO 40G", "Chelsio T580-SO 40G [FCoE]"},
+	{"T502-BT 1G", "Chelsio T502-BT 1G [FCoE]"}
 };
 
 static void csio_mgmtm_cleanup(struct csio_mgmtm *);
@@ -1716,9 +1691,9 @@ csio_hw_flash_config(struct csio_hw *hw, u32 *fw_cfg_param, char *path)
 	uint32_t *cfg_data;
 	int value_to_add = 0;
 
-	if (request_firmware(&cf, CSIO_CF_FNAME(hw), dev) < 0) {
+	if (request_firmware(&cf, FW_CFG_NAME_T5, dev) < 0) {
 		csio_err(hw, "could not find config file %s, err: %d\n",
-			 CSIO_CF_FNAME(hw), ret);
+			 FW_CFG_NAME_T5, ret);
 		return -ENOENT;
 	}
 
@@ -1758,8 +1733,8 @@ csio_hw_flash_config(struct csio_hw *hw, u32 *fw_cfg_param, char *path)
 	}
 	if (ret == 0) {
 		csio_info(hw, "config file upgraded to %s\n",
-			  CSIO_CF_FNAME(hw));
-		snprintf(path, 64, "%s%s", "/lib/firmware/", CSIO_CF_FNAME(hw));
+			  FW_CFG_NAME_T5);
+		snprintf(path, 64, "%s%s", "/lib/firmware/", FW_CFG_NAME_T5);
 	}
 
 leave:
@@ -2123,9 +2098,9 @@ csio_hw_flash_fw(struct csio_hw *hw, int *reset)
 		return -EINVAL;
 	}
 
-	if (request_firmware(&fw, CSIO_FW_FNAME(hw), dev) < 0) {
+	if (request_firmware(&fw, FW_FNAME_T5, dev) < 0) {
 		csio_err(hw, "could not find firmware image %s, err: %d\n",
-			 CSIO_FW_FNAME(hw), ret);
+			 FW_FNAME_T5, ret);
 		return -EINVAL;
 	}
 
@@ -3207,7 +3182,7 @@ static void csio_ncsi_intr_handler(struct csio_hw *hw)
  */
 static void csio_xgmac_intr_handler(struct csio_hw *hw, int port)
 {
-	uint32_t v = csio_rd_reg32(hw, CSIO_MAC_INT_CAUSE_REG(hw, port));
+	uint32_t v = csio_rd_reg32(hw, T5_PORT_REG(port, MAC_PORT_INT_CAUSE_A));
 
 	v &= TXFIFO_PRTY_ERR_F | RXFIFO_PRTY_ERR_F;
 	if (!v)
@@ -3217,7 +3192,7 @@ static void csio_xgmac_intr_handler(struct csio_hw *hw, int port)
 		csio_fatal(hw, "XGMAC %d Tx FIFO parity error\n", port);
 	if (v & RXFIFO_PRTY_ERR_F)
 		csio_fatal(hw, "XGMAC %d Rx FIFO parity error\n", port);
-	csio_wr_reg32(hw, v, CSIO_MAC_INT_CAUSE_REG(hw, port));
+	csio_wr_reg32(hw, v, T5_PORT_REG(port, MAC_PORT_INT_CAUSE_A));
 	csio_hw_fatal_err(hw);
 }
 
@@ -3966,13 +3941,7 @@ csio_hw_set_description(struct csio_hw *hw, uint16_t ven_id, uint16_t dev_id)
 		prot_type = (dev_id & CSIO_ASIC_DEVID_PROTO_MASK);
 		adap_type = (dev_id & CSIO_ASIC_DEVID_TYPE_MASK);
 
-		if (prot_type == CSIO_T4_FCOE_ASIC) {
-			memcpy(hw->hw_ver,
-			       csio_t4_fcoe_adapters[adap_type].model_no, 16);
-			memcpy(hw->model_desc,
-			       csio_t4_fcoe_adapters[adap_type].description,
-			       32);
-		} else if (prot_type == CSIO_T5_FCOE_ASIC) {
+		if (prot_type == CSIO_T5_FCOE_ASIC) {
 			memcpy(hw->hw_ver,
 			       csio_t5_fcoe_adapters[adap_type].model_no, 16);
 			memcpy(hw->model_desc,
@@ -4009,8 +3978,8 @@ csio_hw_init(struct csio_hw *hw)
 
 	strcpy(hw->name, CSIO_HW_NAME);
 
-	/* Initialize the HW chip ops with T4/T5 specific ops */
-	hw->chip_ops = csio_is_t4(hw->chip_id) ? &t4_ops : &t5_ops;
+	/* Initialize the HW chip ops T5 specific ops */
+	hw->chip_ops = &t5_ops;
 
 	/* Set the model & its description */
 
