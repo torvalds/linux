@@ -5,6 +5,7 @@ config SECURITY_TOMOYO
 	select SECURITYFS
 	select SECURITY_PATH
 	select SECURITY_NETWORK
+	select SRCU
 	default n
 	help
 	  This selects TOMOYO Linux, pathname-based access control.

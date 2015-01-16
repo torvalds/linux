@@ -656,9 +656,8 @@ static void run_ksoftirqd(unsigned int cpu)
 		 * in the task stack here.
 		 */
 		__do_softirq();
-		rcu_note_context_switch();
 		local_irq_enable();
-		cond_resched();
+		cond_resched_rcu_qs();
 		return;
 	}
 	local_irq_enable();
