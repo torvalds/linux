@@ -844,8 +844,9 @@ static struct ceph_msg *create_session_open_msg(struct ceph_mds_client *mdsc, u6
 	struct ceph_options *opt = mdsc->fsc->client->options;
 	void *p;
 
-	const char* metadata[3][2] = {
+	const char* metadata[][2] = {
 		{"hostname", utsname()->nodename},
+		{"kernel_version", utsname()->release},
 		{"entity_id", opt->name ? opt->name : ""},
 		{NULL, NULL}
 	};
