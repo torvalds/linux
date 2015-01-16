@@ -16,6 +16,18 @@ Optional properties:
     0 - 1GbE and 10GbE (default)
     1 - 2.5GbE and 10GbE
 
+The following optional properties are represented by an array with each
+value corresponding to a particular speed. The first array value represents
+the setting for the 1GbE speed, the second value for the 2.5GbE speed and
+the third value for the 10GbE speed.  All three values are required if the
+property is used.
+- amd,serdes-blwc: Baseline wandering correction enablement
+    0 - Off
+    1 - On
+- amd,serdes-cdr-rate: CDR rate speed selection
+- amd,serdes-pq-skew: PQ (data sampling) skew
+- amd,serdes-tx-amp: TX amplitude boost
+
 Example:
 	xgbe_phy@e1240800 {
 		compatible = "amd,xgbe-phy-seattle-v1a", "ethernet-phy-ieee802.3-c45";
@@ -25,4 +37,8 @@ Example:
 		interrupt-parent = <&gic>;
 		interrupts = <0 323 4>;
 		amd,speed-set = <0>;
+		amd,serdes-blwc = <1>, <1>, <0>;
+		amd,serdes-cdr-rate = <2>, <2>, <7>;
+		amd,serdes-pq-skew = <10>, <10>, <30>;
+		amd,serdes-tx-amp = <15>, <15>, <10>;
 	};
