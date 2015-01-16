@@ -2086,7 +2086,7 @@ static int uvcg_streaming_class_allow_link(struct config_item *src,
 	struct mutex *su_mutex = &src->ci_group->cg_subsys->su_mutex;
 	struct uvc_descriptor_header ***class_array, **cl_arr;
 	struct uvcg_streaming_header *target_hdr;
-	void *data;
+	void *data, *data_save;
 	size_t size = 0, count = 0;
 	int ret = -EINVAL;
 
@@ -2119,7 +2119,7 @@ static int uvcg_streaming_class_allow_link(struct config_item *src,
 		goto unlock;
 	}
 
-	data = kzalloc(size, GFP_KERNEL);
+	data = data_save = kzalloc(size, GFP_KERNEL);
 	if (!data) {
 		kfree(*class_array);
 		*class_array = NULL;
@@ -2132,7 +2132,11 @@ static int uvcg_streaming_class_allow_link(struct config_item *src,
 	if (ret) {
 		kfree(*class_array);
 		*class_array = NULL;
-		kfree(data);
+		/*
+		 * __uvcg_fill_strm() called from __uvcg_iter_stream_cls()
+		 * might have advanced the "data", so use a backup copy
+		 */
+		kfree(data_save);
 		goto unlock;
 	}
 	*cl_arr = (struct uvc_descriptor_header *)&opts->uvc_color_matching;
