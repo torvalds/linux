@@ -41,7 +41,7 @@
 #define T4_PAGESIZE_MASK 0xffff000  /* 4KB-128MB */
 #define T4_STAG_UNSET 0xffffffff
 #define T4_FW_MAJ 0
-#define A_PCIE_MA_SYNC 0x30b4
+#define PCIE_MA_SYNC_A 0x30b4
 
 struct t4_status_page {
 	__be32 rsvd1;	/* flit 0 - hw owns */
@@ -184,44 +184,44 @@ struct t4_cqe {
 
 /* macros for flit 0 of the cqe */
 
-#define S_CQE_QPID        12
-#define M_CQE_QPID        0xFFFFF
-#define G_CQE_QPID(x)     ((((x) >> S_CQE_QPID)) & M_CQE_QPID)
-#define V_CQE_QPID(x)	  ((x)<<S_CQE_QPID)
+#define CQE_QPID_S        12
+#define CQE_QPID_M        0xFFFFF
+#define CQE_QPID_G(x)     ((((x) >> CQE_QPID_S)) & CQE_QPID_M)
+#define CQE_QPID_V(x)	  ((x)<<CQE_QPID_S)
 
-#define S_CQE_SWCQE       11
-#define M_CQE_SWCQE       0x1
-#define G_CQE_SWCQE(x)    ((((x) >> S_CQE_SWCQE)) & M_CQE_SWCQE)
-#define V_CQE_SWCQE(x)	  ((x)<<S_CQE_SWCQE)
+#define CQE_SWCQE_S       11
+#define CQE_SWCQE_M       0x1
+#define CQE_SWCQE_G(x)    ((((x) >> CQE_SWCQE_S)) & CQE_SWCQE_M)
+#define CQE_SWCQE_V(x)	  ((x)<<CQE_SWCQE_S)
 
-#define S_CQE_STATUS      5
-#define M_CQE_STATUS      0x1F
-#define G_CQE_STATUS(x)   ((((x) >> S_CQE_STATUS)) & M_CQE_STATUS)
-#define V_CQE_STATUS(x)   ((x)<<S_CQE_STATUS)
+#define CQE_STATUS_S      5
+#define CQE_STATUS_M      0x1F
+#define CQE_STATUS_G(x)   ((((x) >> CQE_STATUS_S)) & CQE_STATUS_M)
+#define CQE_STATUS_V(x)   ((x)<<CQE_STATUS_S)
 
-#define S_CQE_TYPE        4
-#define M_CQE_TYPE        0x1
-#define G_CQE_TYPE(x)     ((((x) >> S_CQE_TYPE)) & M_CQE_TYPE)
-#define V_CQE_TYPE(x)     ((x)<<S_CQE_TYPE)
+#define CQE_TYPE_S        4
+#define CQE_TYPE_M        0x1
+#define CQE_TYPE_G(x)     ((((x) >> CQE_TYPE_S)) & CQE_TYPE_M)
+#define CQE_TYPE_V(x)     ((x)<<CQE_TYPE_S)
 
-#define S_CQE_OPCODE      0
-#define M_CQE_OPCODE      0xF
-#define G_CQE_OPCODE(x)   ((((x) >> S_CQE_OPCODE)) & M_CQE_OPCODE)
-#define V_CQE_OPCODE(x)   ((x)<<S_CQE_OPCODE)
+#define CQE_OPCODE_S      0
+#define CQE_OPCODE_M      0xF
+#define CQE_OPCODE_G(x)   ((((x) >> CQE_OPCODE_S)) & CQE_OPCODE_M)
+#define CQE_OPCODE_V(x)   ((x)<<CQE_OPCODE_S)
 
-#define SW_CQE(x)         (G_CQE_SWCQE(be32_to_cpu((x)->header)))
-#define CQE_QPID(x)       (G_CQE_QPID(be32_to_cpu((x)->header)))
-#define CQE_TYPE(x)       (G_CQE_TYPE(be32_to_cpu((x)->header)))
+#define SW_CQE(x)         (CQE_SWCQE_G(be32_to_cpu((x)->header)))
+#define CQE_QPID(x)       (CQE_QPID_G(be32_to_cpu((x)->header)))
+#define CQE_TYPE(x)       (CQE_TYPE_G(be32_to_cpu((x)->header)))
 #define SQ_TYPE(x)	  (CQE_TYPE((x)))
 #define RQ_TYPE(x)	  (!CQE_TYPE((x)))
-#define CQE_STATUS(x)     (G_CQE_STATUS(be32_to_cpu((x)->header)))
-#define CQE_OPCODE(x)     (G_CQE_OPCODE(be32_to_cpu((x)->header)))
+#define CQE_STATUS(x)     (CQE_STATUS_G(be32_to_cpu((x)->header)))
+#define CQE_OPCODE(x)     (CQE_OPCODE_G(be32_to_cpu((x)->header)))
 
 #define CQE_SEND_OPCODE(x)( \
-	(G_CQE_OPCODE(be32_to_cpu((x)->header)) == FW_RI_SEND) || \
-	(G_CQE_OPCODE(be32_to_cpu((x)->header)) == FW_RI_SEND_WITH_SE) || \
-	(G_CQE_OPCODE(be32_to_cpu((x)->header)) == FW_RI_SEND_WITH_INV) || \
-	(G_CQE_OPCODE(be32_to_cpu((x)->header)) == FW_RI_SEND_WITH_SE_INV))
+	(CQE_OPCODE_G(be32_to_cpu((x)->header)) == FW_RI_SEND) || \
+	(CQE_OPCODE_G(be32_to_cpu((x)->header)) == FW_RI_SEND_WITH_SE) || \
+	(CQE_OPCODE_G(be32_to_cpu((x)->header)) == FW_RI_SEND_WITH_INV) || \
+	(CQE_OPCODE_G(be32_to_cpu((x)->header)) == FW_RI_SEND_WITH_SE_INV))
 
 #define CQE_LEN(x)        (be32_to_cpu((x)->len))
 
@@ -237,25 +237,25 @@ struct t4_cqe {
 #define CQE_WRID_LOW(x)		(be32_to_cpu((x)->u.gen.wrid_low))
 
 /* macros for flit 3 of the cqe */
-#define S_CQE_GENBIT	63
-#define M_CQE_GENBIT	0x1
-#define G_CQE_GENBIT(x)	(((x) >> S_CQE_GENBIT) & M_CQE_GENBIT)
-#define V_CQE_GENBIT(x) ((x)<<S_CQE_GENBIT)
+#define CQE_GENBIT_S	63
+#define CQE_GENBIT_M	0x1
+#define CQE_GENBIT_G(x)	(((x) >> CQE_GENBIT_S) & CQE_GENBIT_M)
+#define CQE_GENBIT_V(x) ((x)<<CQE_GENBIT_S)
 
-#define S_CQE_OVFBIT	62
-#define M_CQE_OVFBIT	0x1
-#define G_CQE_OVFBIT(x)	((((x) >> S_CQE_OVFBIT)) & M_CQE_OVFBIT)
+#define CQE_OVFBIT_S	62
+#define CQE_OVFBIT_M	0x1
+#define CQE_OVFBIT_G(x)	((((x) >> CQE_OVFBIT_S)) & CQE_OVFBIT_M)
 
-#define S_CQE_IQTYPE	60
-#define M_CQE_IQTYPE	0x3
-#define G_CQE_IQTYPE(x)	((((x) >> S_CQE_IQTYPE)) & M_CQE_IQTYPE)
+#define CQE_IQTYPE_S	60
+#define CQE_IQTYPE_M	0x3
+#define CQE_IQTYPE_G(x)	((((x) >> CQE_IQTYPE_S)) & CQE_IQTYPE_M)
 
-#define M_CQE_TS	0x0fffffffffffffffULL
-#define G_CQE_TS(x)	((x) & M_CQE_TS)
+#define CQE_TS_M	0x0fffffffffffffffULL
+#define CQE_TS_G(x)	((x) & CQE_TS_M)
 
-#define CQE_OVFBIT(x)	((unsigned)G_CQE_OVFBIT(be64_to_cpu((x)->bits_type_ts)))
-#define CQE_GENBIT(x)	((unsigned)G_CQE_GENBIT(be64_to_cpu((x)->bits_type_ts)))
-#define CQE_TS(x)	(G_CQE_TS(be64_to_cpu((x)->bits_type_ts)))
+#define CQE_OVFBIT(x)	((unsigned)CQE_OVFBIT_G(be64_to_cpu((x)->bits_type_ts)))
+#define CQE_GENBIT(x)	((unsigned)CQE_GENBIT_G(be64_to_cpu((x)->bits_type_ts)))
+#define CQE_TS(x)	(CQE_TS_G(be64_to_cpu((x)->bits_type_ts)))
 
 struct t4_swsqe {
 	u64			wr_id;
