@@ -207,6 +207,7 @@ static struct kmem_cache *filelock_cache __read_mostly;
 static void locks_init_lock_heads(struct file_lock *fl)
 {
 	INIT_HLIST_NODE(&fl->fl_link);
+	INIT_LIST_HEAD(&fl->fl_list);
 	INIT_LIST_HEAD(&fl->fl_block);
 	init_waitqueue_head(&fl->fl_wait);
 }
@@ -243,6 +244,7 @@ EXPORT_SYMBOL_GPL(locks_release_private);
 void locks_free_lock(struct file_lock *fl)
 {
 	BUG_ON(waitqueue_active(&fl->fl_wait));
+	BUG_ON(!list_empty(&fl->fl_list));
 	BUG_ON(!list_empty(&fl->fl_block));
 	BUG_ON(!hlist_unhashed(&fl->fl_link));
 
@@ -257,8 +259,8 @@ locks_dispose_list(struct list_head *dispose)
 	struct file_lock *fl;
 
 	while (!list_empty(dispose)) {
-		fl = list_first_entry(dispose, struct file_lock, fl_block);
-		list_del_init(&fl->fl_block);
+		fl = list_first_entry(dispose, struct file_lock, fl_list);
+		list_del_init(&fl->fl_list);
 		locks_free_lock(fl);
 	}
 }
@@ -691,7 +693,7 @@ static void locks_delete_lock(struct file_lock **thisfl_p,
 
 	locks_unlink_lock(thisfl_p);
 	if (dispose)
-		list_add(&fl->fl_block, dispose);
+		list_add(&fl->fl_list, dispose);
 	else
 		locks_free_lock(fl);
 }
