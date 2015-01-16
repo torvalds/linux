@@ -1403,7 +1403,6 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	struct usb_interface_assoc_descriptor *assoc_desc;
 
 	ifnum = interface->altsetting[0].desc.bInterfaceNumber;
-	udev = usb_get_dev(interface_to_usbdev(interface));
 
 	/*
 	 * Interface number 0 - IR interface (handled by mceusb driver)
@@ -1424,11 +1423,13 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		}
 	} while (test_and_set_bit(nr, &cx231xx_devused));
 
+	udev = usb_get_dev(interface_to_usbdev(interface));
+
 	/* allocate memory for our device state and initialize it */
 	dev = devm_kzalloc(&udev->dev, sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
-		clear_bit(nr, &cx231xx_devused);
-		return -ENOMEM;
+		retval = -ENOMEM;
+		goto err_if;
 	}
 
 	snprintf(dev->name, 29, "cx231xx #%d", nr);
