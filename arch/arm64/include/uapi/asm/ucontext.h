@@ -13,8 +13,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef __ASM_UCONTEXT_H
-#define __ASM_UCONTEXT_H
+#ifndef _UAPI__ASM_UCONTEXT_H
+#define _UAPI__ASM_UCONTEXT_H
+
+#include <linux/types.h>
 
 struct ucontext {
 	unsigned long	  uc_flags;
@@ -27,4 +29,4 @@ struct ucontext {
 	struct sigcontext uc_mcontext;
 };
 
-#endif /* __ASM_UCONTEXT_H */
+#endif /* _UAPI__ASM_UCONTEXT_H */

@@ -18,4 +18,5 @@ header-y += siginfo.h
 header-y += signal.h
 header-y += stat.h
 header-y += statfs.h
+header-y += ucontext.h
 header-y += unistd.h
