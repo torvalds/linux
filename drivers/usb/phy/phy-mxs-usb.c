@@ -131,8 +131,7 @@ static const struct mxs_phy_data vf610_phy_data = {
 };
 
 static const struct mxs_phy_data imx6sx_phy_data = {
-	.flags = MXS_PHY_DISCONNECT_LINE_WITHOUT_VBUS |
-		MXS_PHY_NEED_IP_FIX,
+	.flags = MXS_PHY_DISCONNECT_LINE_WITHOUT_VBUS,
 };
 
 static const struct of_device_id mxs_phy_dt_ids[] = {
