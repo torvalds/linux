@@ -70,6 +70,9 @@
 #define ANADIG_USB2_LOOPBACK_SET		0x244
 #define ANADIG_USB2_LOOPBACK_CLR		0x248
 
+#define ANADIG_USB1_MISC			0x1f0
+#define ANADIG_USB2_MISC			0x250
+
 #define BM_ANADIG_ANA_MISC0_STOP_MODE_CONFIG	BIT(12)
 #define BM_ANADIG_ANA_MISC0_STOP_MODE_CONFIG_SL BIT(11)
 
@@ -80,6 +83,11 @@
 #define BM_ANADIG_USB1_LOOPBACK_TSTI_TX_EN	BIT(5)
 #define BM_ANADIG_USB2_LOOPBACK_UTMI_DIG_TST1	BIT(2)
 #define BM_ANADIG_USB2_LOOPBACK_TSTI_TX_EN	BIT(5)
+
+#define BM_ANADIG_USB1_MISC_RX_VPIN_FS		BIT(29)
+#define BM_ANADIG_USB1_MISC_RX_VMIN_FS		BIT(28)
+#define BM_ANADIG_USB2_MISC_RX_VPIN_FS		BIT(29)
+#define BM_ANADIG_USB2_MISC_RX_VMIN_FS		BIT(28)
 
 #define to_mxs_phy(p) container_of((p), struct mxs_phy, phy)
 
@@ -323,13 +331,50 @@ static void mxs_phy_shutdown(struct usb_phy *phy)
 	clk_disable_unprepare(mxs_phy->clk);
 }
 
+static bool mxs_phy_is_low_speed_connection(struct mxs_phy *mxs_phy)
+{
+	unsigned int line_state;
+	/* bit definition is the same for all controllers */
+	unsigned int dp_bit = BM_ANADIG_USB1_MISC_RX_VPIN_FS,
+		     dm_bit = BM_ANADIG_USB1_MISC_RX_VMIN_FS;
+	unsigned int reg = ANADIG_USB1_MISC;
+
+	/* If the SoCs don't have anatop, quit */
+	if (!mxs_phy->regmap_anatop)
+		return false;
+
+	if (mxs_phy->port_id == 0)
+		reg = ANADIG_USB1_MISC;
+	else if (mxs_phy->port_id == 1)
+		reg = ANADIG_USB2_MISC;
+
+	regmap_read(mxs_phy->regmap_anatop, reg, &line_state);
+
+	if ((line_state & (dp_bit | dm_bit)) ==  dm_bit)
+		return true;
+	else
+		return false;
+}
+
 static int mxs_phy_suspend(struct usb_phy *x, int suspend)
 {
 	int ret;
 	struct mxs_phy *mxs_phy = to_mxs_phy(x);
+	bool low_speed_connection, vbus_is_on;
+
+	low_speed_connection = mxs_phy_is_low_speed_connection(mxs_phy);
+	vbus_is_on = mxs_phy_get_vbus_status(mxs_phy);
 
 	if (suspend) {
-		writel(0xffffffff, x->io_priv + HW_USBPHY_PWD);
+		/*
+		 * FIXME: Do not power down RXPWD1PT1 bit for low speed
+		 * connect. The low speed connection will have problem at
+		 * very rare cases during usb suspend and resume process.
+		 */
+		if (low_speed_connection & vbus_is_on)
+			writel(0xfffbffff, x->io_priv + HW_USBPHY_PWD);
+		else
+			writel(0xffffffff, x->io_priv + HW_USBPHY_PWD);
 		writel(BM_USBPHY_CTRL_CLKGATE,
 		       x->io_priv + HW_USBPHY_CTRL_SET);
 		clk_disable_unprepare(mxs_phy->clk);
