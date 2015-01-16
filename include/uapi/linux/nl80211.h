@@ -324,7 +324,9 @@
  *	if passed, define which channels should be scanned; if not
  *	passed, all channels allowed for the current regulatory domain
  *	are used.  Extra IEs can also be passed from the userspace by
- *	using the %NL80211_ATTR_IE attribute.
+ *	using the %NL80211_ATTR_IE attribute.  The first cycle of the
+ *	scheduled scan can be delayed by %NL80211_ATTR_SCHED_SCAN_DELAY
+ *	is supplied.
  * @NL80211_CMD_STOP_SCHED_SCAN: stop a scheduled scan. Returns -ENOENT if
  *	scheduled scan is not running. The caller may assume that as soon
  *	as the call returns, it is safe to start a new scheduled scan again.
@@ -1735,6 +1737,9 @@ enum nl80211_commands {
  *	should be contained in the result as the sum of the respective counters
  *	over all channels.
  *
+ * @NL80211_ATTR_SCHED_SCAN_DELAY: delay before a scheduled scan (or a
+ *	WoWLAN net-detect scan) is started, u32 in seconds.
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -2099,6 +2104,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_SURVEY_RADIO_STATS,
 
 	NL80211_ATTR_NETNS_FD,
+
+	NL80211_ATTR_SCHED_SCAN_DELAY,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -3743,11 +3750,12 @@ struct nl80211_pattern_support {
  * @NL80211_WOWLAN_TRIG_NET_DETECT: wake up when a configured network
  *	is detected.  This is a nested attribute that contains the
  *	same attributes used with @NL80211_CMD_START_SCHED_SCAN.  It
- *	specifies how the scan is performed (e.g. the interval and the
- *	channels to scan) as well as the scan results that will
- *	trigger a wake (i.e. the matchsets).  This attribute is also
- *	sent in a response to @NL80211_CMD_GET_WIPHY, indicating the
- *	number of match sets supported by the driver (u32).
+ *	specifies how the scan is performed (e.g. the interval, the
+ *	channels to scan and the initial delay) as well as the scan
+ *	results that will trigger a wake (i.e. the matchsets).  This
+ *	attribute is also sent in a response to
+ *	@NL80211_CMD_GET_WIPHY, indicating the number of match sets
+ *	supported by the driver (u32).
  * @NL80211_WOWLAN_TRIG_NET_DETECT_RESULTS: nested attribute
  *	containing an array with information about what triggered the
  *	wake up.  If no elements are present in the array, it means
