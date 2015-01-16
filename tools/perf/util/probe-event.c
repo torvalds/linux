@@ -2196,14 +2196,11 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 static int find_probe_functions(struct map *map, char *name)
 {
 	int found = 0;
-	struct symbol *sym = map__find_symbol_by_name(map, name, NULL);
+	struct symbol *sym;
 
-	while (sym != NULL) {
+	map__for_each_symbol_by_name(map, name, sym) {
 		if (sym->binding == STB_GLOBAL || sym->binding == STB_LOCAL)
 			found++;
-		sym = symbol__next_by_name(sym);
-		if (sym == NULL || strcmp(sym->name, name))
-			break;
 	}
 
 	return found;
@@ -2275,9 +2272,8 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 	}
 
 	ret = 0;
-	sym = map__find_symbol_by_name(map, pp->function, NULL);
 
-	while (sym != NULL) {
+	map__for_each_symbol_by_name(map, pp->function, sym) {
 		tev = (*tevs) + ret;
 		tp = &tev->point;
 		if (ret == num_matched_functions) {
@@ -2325,10 +2321,6 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 					strdup_or_goto(pev->args[i].type,
 							nomem_out);
 		}
-
-		sym = symbol__next_by_name(sym);
-		if (sym == NULL || strcmp(sym->name, pp->function))
-			break;
 	}
 
 out:
