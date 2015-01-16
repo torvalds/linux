@@ -358,7 +358,7 @@ int rw_verify_area(int read_write, struct file *file, const loff_t *ppos, size_t
 			return retval;
 	}
 
-	if (unlikely(inode->i_flock && mandatory_lock(inode))) {
+	if (unlikely(inode->i_flctx && mandatory_lock(inode))) {
 		retval = locks_mandatory_area(
 			read_write == READ ? FLOCK_VERIFY_READ : FLOCK_VERIFY_WRITE,
 			inode, file, pos, count);

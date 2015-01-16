@@ -157,9 +157,6 @@ static int target_leasetype(struct file_lock *fl)
 int leases_enable = 1;
 int lease_break_time = 45;
 
-#define for_each_lock(inode, lockp) \
-	for (lockp = &inode->i_flock; *lockp != NULL; lockp = &(*lockp)->fl_next)
-
 /*
  * The global file_lock_list is only used for displaying /proc/locks, so we
  * keep a list on each CPU, with each list protected by its own spinlock via
@@ -218,6 +215,7 @@ locks_get_lock_context(struct inode *inode)
 		goto out;
 
 	INIT_LIST_HEAD(&new->flc_flock);
+	INIT_LIST_HEAD(&new->flc_posix);
 
 	/*
 	 * Assign the pointer if it's not already assigned. If it is, then
@@ -241,6 +239,7 @@ locks_free_lock_context(struct file_lock_context *ctx)
 {
 	if (ctx) {
 		WARN_ON_ONCE(!list_empty(&ctx->flc_flock));
+		WARN_ON_ONCE(!list_empty(&ctx->flc_posix));
 		kmem_cache_free(flctx_cache, ctx);
 	}
 }
@@ -809,21 +808,26 @@ void
 posix_test_lock(struct file *filp, struct file_lock *fl)
 {
 	struct file_lock *cfl;
+	struct file_lock_context *ctx;
 	struct inode *inode = file_inode(filp);
 
-	spin_lock(&inode->i_lock);
-	for (cfl = file_inode(filp)->i_flock; cfl; cfl = cfl->fl_next) {
-		if (!IS_POSIX(cfl))
-			continue;
-		if (posix_locks_conflict(fl, cfl))
-			break;
-	}
-	if (cfl) {
-		locks_copy_conflock(fl, cfl);
-		if (cfl->fl_nspid)
-			fl->fl_pid = pid_vnr(cfl->fl_nspid);
-	} else
+	ctx = inode->i_flctx;
+	if (!ctx || list_empty_careful(&ctx->flc_posix)) {
 		fl->fl_type = F_UNLCK;
+		return;
+	}
+
+	spin_lock(&inode->i_lock);
+	list_for_each_entry(cfl, &ctx->flc_posix, fl_list) {
+		if (posix_locks_conflict(fl, cfl)) {
+			locks_copy_conflock(fl, cfl);
+			if (cfl->fl_nspid)
+				fl->fl_pid = pid_vnr(cfl->fl_nspid);
+			goto out;
+		}
+	}
+	fl->fl_type = F_UNLCK;
+out:
 	spin_unlock(&inode->i_lock);
 	return;
 }
@@ -983,15 +987,19 @@ out:
 
 static int __posix_lock_file(struct inode *inode, struct file_lock *request, struct file_lock *conflock)
 {
-	struct file_lock *fl;
+	struct file_lock *fl, *tmp;
 	struct file_lock *new_fl = NULL;
 	struct file_lock *new_fl2 = NULL;
 	struct file_lock *left = NULL;
 	struct file_lock *right = NULL;
-	struct file_lock **before;
+	struct file_lock_context *ctx;
 	int error;
 	bool added = false;
 	LIST_HEAD(dispose);
+
+	ctx = locks_get_lock_context(inode);
+	if (!ctx)
+		return -ENOMEM;
 
 	/*
 	 * We may need two file_lock structures for this operation,
@@ -1013,8 +1021,7 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request, str
 	 * blocker's list of waiters and the global blocked_hash.
 	 */
 	if (request->fl_type != F_UNLCK) {
-		for_each_lock(inode, before) {
-			fl = *before;
+		list_for_each_entry(fl, &ctx->flc_posix, fl_list) {
 			if (!IS_POSIX(fl))
 				continue;
 			if (!posix_locks_conflict(request, fl))
@@ -1044,29 +1051,25 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request, str
 	if (request->fl_flags & FL_ACCESS)
 		goto out;
 
-	/*
-	 * Find the first old lock with the same owner as the new lock.
-	 */
-	
-	before = &inode->i_flock;
-
-	/* First skip locks owned by other processes.  */
-	while ((fl = *before) && (!IS_POSIX(fl) ||
-				  !posix_same_owner(request, fl))) {
-		before = &fl->fl_next;
+	/* Find the first old lock with the same owner as the new lock */
+	list_for_each_entry(fl, &ctx->flc_posix, fl_list) {
+		if (posix_same_owner(request, fl))
+			break;
 	}
 
 	/* Process locks with this owner. */
-	while ((fl = *before) && posix_same_owner(request, fl)) {
-		/* Detect adjacent or overlapping regions (if same lock type)
-		 */
+	list_for_each_entry_safe_from(fl, tmp, &ctx->flc_posix, fl_list) {
+		if (!posix_same_owner(request, fl))
+			break;
+
+		/* Detect adjacent or overlapping regions (if same lock type) */
 		if (request->fl_type == fl->fl_type) {
 			/* In all comparisons of start vs end, use
 			 * "start - 1" rather than "end + 1". If end
 			 * is OFFSET_MAX, end + 1 will become negative.
 			 */
 			if (fl->fl_end < request->fl_start - 1)
-				goto next_lock;
+				continue;
 			/* If the next lock in the list has entirely bigger
 			 * addresses than the new one, insert the lock here.
 			 */
@@ -1087,18 +1090,17 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request, str
 			else
 				request->fl_end = fl->fl_end;
 			if (added) {
-				locks_delete_lock(before, &dispose);
+				locks_delete_lock_ctx(fl, &dispose);
 				continue;
 			}
 			request = fl;
 			added = true;
-		}
-		else {
+		} else {
 			/* Processing for different lock types is a bit
 			 * more complex.
 			 */
 			if (fl->fl_end < request->fl_start)
-				goto next_lock;
+				continue;
 			if (fl->fl_start > request->fl_end)
 				break;
 			if (request->fl_type == F_UNLCK)
@@ -1117,7 +1119,7 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request, str
 				 * one (This may happen several times).
 				 */
 				if (added) {
-					locks_delete_lock(before, &dispose);
+					locks_delete_lock_ctx(fl, &dispose);
 					continue;
 				}
 				/*
@@ -1133,15 +1135,11 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request, str
 				locks_copy_lock(new_fl, request);
 				request = new_fl;
 				new_fl = NULL;
-				locks_delete_lock(before, &dispose);
-				locks_insert_lock(before, request);
+				locks_insert_lock_ctx(request, &fl->fl_list);
+				locks_delete_lock_ctx(fl, &dispose);
 				added = true;
 			}
 		}
-		/* Go on to next lock.
-		 */
-	next_lock:
-		before = &fl->fl_next;
 	}
 
 	/*
@@ -1166,7 +1164,7 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request, str
 			goto out;
 		}
 		locks_copy_lock(new_fl, request);
-		locks_insert_lock(before, new_fl);
+		locks_insert_lock_ctx(new_fl, &fl->fl_list);
 		new_fl = NULL;
 	}
 	if (right) {
@@ -1177,7 +1175,7 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request, str
 			left = new_fl2;
 			new_fl2 = NULL;
 			locks_copy_lock(left, right);
-			locks_insert_lock(before, left);
+			locks_insert_lock_ctx(left, &fl->fl_list);
 		}
 		right->fl_start = request->fl_end + 1;
 		locks_wake_up_blocks(right);
@@ -1257,22 +1255,29 @@ EXPORT_SYMBOL(posix_lock_file_wait);
  */
 int locks_mandatory_locked(struct file *file)
 {
+	int ret;
 	struct inode *inode = file_inode(file);
+	struct file_lock_context *ctx;
 	struct file_lock *fl;
+
+	ctx = inode->i_flctx;
+	if (!ctx || list_empty_careful(&ctx->flc_posix))
+		return 0;
 
 	/*
 	 * Search the lock list for this inode for any POSIX locks.
 	 */
 	spin_lock(&inode->i_lock);
-	for (fl = inode->i_flock; fl != NULL; fl = fl->fl_next) {
-		if (!IS_POSIX(fl))
-			continue;
+	ret = 0;
+	list_for_each_entry(fl, &ctx->flc_posix, fl_list) {
 		if (fl->fl_owner != current->files &&
-		    fl->fl_owner != file)
+		    fl->fl_owner != file) {
+			ret = -EAGAIN;
 			break;
+		}
 	}
 	spin_unlock(&inode->i_lock);
-	return fl ? -EAGAIN : 0;
+	return ret;
 }
 
 /**
@@ -2389,13 +2394,14 @@ out:
 void locks_remove_posix(struct file *filp, fl_owner_t owner)
 {
 	struct file_lock lock;
+	struct file_lock_context *ctx = file_inode(filp)->i_flctx;
 
 	/*
 	 * If there are no locks held on this file, we don't need to call
 	 * posix_lock_file().  Another process could be setting a lock on this
 	 * file at the same time, but we wouldn't remove that lock anyway.
 	 */
-	if (!file_inode(filp)->i_flock)
+	if (!ctx || list_empty(&ctx->flc_posix))
 		return;
 
 	lock.fl_type = F_UNLCK;

@@ -1091,6 +1091,7 @@ int nfs_flush_incompatible(struct file *file, struct page *page)
 {
 	struct nfs_open_context *ctx = nfs_file_open_context(file);
 	struct nfs_lock_context *l_ctx;
+	struct file_lock_context *flctx = file_inode(file)->i_flctx;
 	struct nfs_page	*req;
 	int do_flush, status;
 	/*
@@ -1109,12 +1110,9 @@ int nfs_flush_incompatible(struct file *file, struct page *page)
 		do_flush = req->wb_page != page || req->wb_context != ctx;
 		/* for now, flush if more than 1 request in page_group */
 		do_flush |= req->wb_this_page != req;
-		if (l_ctx && ctx->dentry->d_inode->i_flock != NULL) {
-			do_flush |= l_ctx->lockowner.l_owner != current->files
-				|| l_ctx->lockowner.l_pid != current->tgid;
-		}
-		if (l_ctx && ctx->dentry->d_inode->i_flctx &&
-		    !list_empty_careful(&ctx->dentry->d_inode->i_flctx->flc_flock)) {
+		if (l_ctx && flctx &&
+		    !(list_empty_careful(&flctx->flc_posix) &&
+		      list_empty_careful(&flctx->flc_flock))) {
 			do_flush |= l_ctx->lockowner.l_owner != current->files
 				|| l_ctx->lockowner.l_pid != current->tgid;
 		}
@@ -1202,26 +1200,24 @@ static int nfs_can_extend_write(struct file *file, struct page *page, struct ino
 		return 0;
 	if (NFS_PROTO(inode)->have_delegation(inode, FMODE_WRITE))
 		return 1;
-	if (!inode->i_flock && !flctx)
+	if (!flctx || (list_empty_careful(&flctx->flc_flock) &&
+		       list_empty_careful(&flctx->flc_posix)))
 		return 0;
 
 	/* Check to see if there are whole file write locks */
-	spin_lock(&inode->i_lock);
 	ret = 0;
-
-	fl = inode->i_flock;
-	if (fl && is_whole_file_wrlock(fl)) {
-		ret = 1;
-		goto out;
-	}
-
-	if (!list_empty(&flctx->flc_flock)) {
+	spin_lock(&inode->i_lock);
+	if (!list_empty(&flctx->flc_posix)) {
+		fl = list_first_entry(&flctx->flc_posix, struct file_lock,
+					fl_list);
+		if (is_whole_file_wrlock(fl))
+			ret = 1;
+	} else if (!list_empty(&flctx->flc_flock)) {
 		fl = list_first_entry(&flctx->flc_flock, struct file_lock,
 					fl_list);
 		if (fl->fl_type == F_WRLCK)
 			ret = 1;
 	}
-out:
 	spin_unlock(&inode->i_lock);
 	return ret;
 }
