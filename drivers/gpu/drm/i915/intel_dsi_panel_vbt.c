@@ -99,7 +99,8 @@ static inline enum port intel_dsi_seq_port_to_port(u8 port)
 	return port ? PORT_C : PORT_A;
 }
 
-static u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi, u8 *data)
+static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
+				       const u8 *data)
 {
 	u8 type, byte, mode, vc, seq_port;
 	u16 len;
@@ -165,9 +166,9 @@ static u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi, u8 *data)
 	return data;
 }
 
-static u8 *mipi_exec_delay(struct intel_dsi *intel_dsi, u8 *data)
+static const u8 *mipi_exec_delay(struct intel_dsi *intel_dsi, const u8 *data)
 {
-	u32 delay = *((u32 *) data);
+	u32 delay = *((const u32 *) data);
 
 	usleep_range(delay, delay + 10);
 	data += 4;
@@ -175,7 +176,7 @@ static u8 *mipi_exec_delay(struct intel_dsi *intel_dsi, u8 *data)
 	return data;
 }
 
-static u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, u8 *data)
+static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 {
 	u8 gpio, action;
 	u16 function, pad;
@@ -208,7 +209,8 @@ static u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, u8 *data)
 	return data;
 }
 
-typedef u8 * (*fn_mipi_elem_exec)(struct intel_dsi *intel_dsi, u8 *data);
+typedef const u8 * (*fn_mipi_elem_exec)(struct intel_dsi *intel_dsi,
+					const u8 *data);
 static const fn_mipi_elem_exec exec_elem[] = {
 	NULL, /* reserved */
 	mipi_exec_send_packet,
@@ -232,13 +234,12 @@ static const char * const seq_name[] = {
 	"MIPI_SEQ_DEASSERT_RESET"
 };
 
-static void generic_exec_sequence(struct intel_dsi *intel_dsi, char *sequence)
+static void generic_exec_sequence(struct intel_dsi *intel_dsi, const u8 *data)
 {
-	u8 *data = sequence;
 	fn_mipi_elem_exec mipi_elem_exec;
 	int index;
 
-	if (!sequence)
+	if (!data)
 		return;
 
 	DRM_DEBUG_DRIVER("Starting MIPI sequence - %s\n", seq_name[*data]);
