@@ -674,7 +674,7 @@ static int send_connect(struct c4iw_ep *ep)
 		opt2 |= WND_SCALE_EN_F;
 	if (is_t5(ep->com.dev->rdev.lldi.adapter_type)) {
 		opt2 |= T5_OPT_2_VALID_F;
-		opt2 |= V_CONG_CNTRL(CONG_ALG_TAHOE);
+		opt2 |= CONG_CNTRL_V(CONG_ALG_TAHOE);
 		opt2 |= CONG_CNTRL_VALID; /* OPT_2_ISS for T5 */
 	}
 	t4_set_arp_err_handler(skb, ep, act_open_req_arp_failure);
@@ -1258,8 +1258,8 @@ static int update_rx_credits(struct c4iw_ep *ep, u32 credits)
 	OPCODE_TID(req) = cpu_to_be32(MK_OPCODE_TID(CPL_RX_DATA_ACK,
 						    ep->hwtid));
 	req->credit_dack = cpu_to_be32(credits | RX_FORCE_ACK_F |
-				       F_RX_DACK_CHANGE |
-				       V_RX_DACK_MODE(dack_mode));
+				       RX_DACK_CHANGE_F |
+				       RX_DACK_MODE_V(dack_mode));
 	set_wr_txq(skb, CPL_PRIORITY_ACK, ep->ctrlq_idx);
 	c4iw_ofld_send(&ep->com.dev->rdev, skb);
 	return credits;
@@ -2205,15 +2205,15 @@ static void accept_cr(struct c4iw_ep *ep, struct sk_buff *skb,
 		const struct tcphdr *tcph;
 		u32 hlen = ntohl(req->hdr_len);
 
-		tcph = (const void *)(req + 1) + G_ETH_HDR_LEN(hlen) +
-			G_IP_HDR_LEN(hlen);
+		tcph = (const void *)(req + 1) + ETH_HDR_LEN_G(hlen) +
+			IP_HDR_LEN_G(hlen);
 		if (tcph->ece && tcph->cwr)
 			opt2 |= CCTRL_ECN_V(1);
 	}
 	if (is_t5(ep->com.dev->rdev.lldi.adapter_type)) {
 		u32 isn = (prandom_u32() & ~7UL) - 1;
 		opt2 |= T5_OPT_2_VALID_F;
-		opt2 |= V_CONG_CNTRL(CONG_ALG_TAHOE);
+		opt2 |= CONG_CNTRL_V(CONG_ALG_TAHOE);
 		opt2 |= CONG_CNTRL_VALID; /* OPT_2_ISS for T5 */
 		rpl5 = (void *)rpl;
 		memset(&rpl5->iss, 0, roundup(sizeof(*rpl5)-sizeof(*rpl), 16));
@@ -2245,8 +2245,8 @@ static void get_4tuple(struct cpl_pass_accept_req *req, int *iptype,
 		       __u8 *local_ip, __u8 *peer_ip,
 		       __be16 *local_port, __be16 *peer_port)
 {
-	int eth_len = G_ETH_HDR_LEN(be32_to_cpu(req->hdr_len));
-	int ip_len = G_IP_HDR_LEN(be32_to_cpu(req->hdr_len));
+	int eth_len = ETH_HDR_LEN_G(be32_to_cpu(req->hdr_len));
+	int ip_len = IP_HDR_LEN_G(be32_to_cpu(req->hdr_len));
 	struct iphdr *ip = (struct iphdr *)((u8 *)(req + 1) + eth_len);
 	struct ipv6hdr *ip6 = (struct ipv6hdr *)((u8 *)(req + 1) + eth_len);
 	struct tcphdr *tcp = (struct tcphdr *)
@@ -3500,20 +3500,20 @@ static void build_cpl_pass_accept_req(struct sk_buff *skb, int stid , u8 tos)
 
 	req = (struct cpl_pass_accept_req *)__skb_push(skb, sizeof(*req));
 	memset(req, 0, sizeof(*req));
-	req->l2info = cpu_to_be16(V_SYN_INTF(intf) |
-			 V_SYN_MAC_IDX(RX_MACIDX_G(
+	req->l2info = cpu_to_be16(SYN_INTF_V(intf) |
+			 SYN_MAC_IDX_V(RX_MACIDX_G(
 			 (__force int) htonl(l2info))) |
-			 F_SYN_XACT_MATCH);
+			 SYN_XACT_MATCH_F);
 	eth_hdr_len = is_t4(dev->rdev.lldi.adapter_type) ?
 			    RX_ETHHDR_LEN_G((__force int)htonl(l2info)) :
 			    RX_T5_ETHHDR_LEN_G((__force int)htonl(l2info));
-	req->hdr_len = cpu_to_be32(V_SYN_RX_CHAN(RX_CHAN_G(
+	req->hdr_len = cpu_to_be32(SYN_RX_CHAN_V(RX_CHAN_G(
 					(__force int) htonl(l2info))) |
-				   V_TCP_HDR_LEN(RX_TCPHDR_LEN_G(
+				   TCP_HDR_LEN_V(RX_TCPHDR_LEN_G(
 					(__force int) htons(hdr_len))) |
-				   V_IP_HDR_LEN(RX_IPHDR_LEN_G(
+				   IP_HDR_LEN_V(RX_IPHDR_LEN_G(
 					(__force int) htons(hdr_len))) |
-				   V_ETH_HDR_LEN(RX_ETHHDR_LEN_G(eth_hdr_len)));
+				   ETH_HDR_LEN_V(RX_ETHHDR_LEN_G(eth_hdr_len)));
 	req->vlan = (__force __be16) vlantag;
 	req->len = (__force __be16) len;
 	req->tos_stid = cpu_to_be32(PASS_OPEN_TID_V(stid) |
