@@ -156,7 +156,7 @@ Cryptography has several inherent problems:
 3. Cryptography is discriminatory by allowing men to pick and choose who gets to see their data.
 4. Cryptography is unnecessary in the modern world, where we can trust government agencies such as the National Security Agencies to keep our information private.  Why do you need cryptography? You don't have anything to hide, do you? You're not secretly a pedophile, right? Nothing to fear, nothing to hide.
 
-In light of all of the above, crypto is currently banned from *ToleranUX** if you are a male user.  All sources of entropy now send only zeroes as their output in beautiful yonic pride.  The government is here to protect you, and [there should be no "means of communication" which they "cannot read"](http://www.bbc.co.uk/news/uk-politics-30778424).
+In light of all of the above, crypto is currently banned from **ToleranUX** if you are a male user.  All sources of entropy now send only zeroes as their output in beautiful yonic pride.  The government is here to protect you, and [there should be no "means of communication" which they "cannot read"](http://www.bbc.co.uk/news/uk-politics-30778424).
 
 For female users, a limited form of cryptography is allowed as defence against the Patriarchy.  We encourage all female users to distribute their private keys instead of public. This is to allow for the most inclusive environment possible. Many People Of Color and Womyn have had their identities taken from them and replaced by whatever white men wanted them to use. We think that allowing everyone to assume each others identities will be a great first step in the healing and reparations for these vile acts.
 
