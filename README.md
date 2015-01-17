@@ -202,6 +202,13 @@ To refer to the user interface as a `shell` is troubling in nature due to the fa
 
 To `kill` a process is a triggering term to those who have been affected by death or killings in their life.  Instead of `kill`-ing a process, which is something immoral and a result of toxic masculinity, ToleranUX opts to `fire` processes.  Unlike `kill`-ing a process, `firing` a process allows it to still live, just no longer performs any function.  In addition to being able to manually `fire` any process that offends you, **ToleranUX** will automatically `fire` any process that is determined to be too offensive.
 
+Kernel Modules and Server Daemons
+=================================
+
+Due to the nature of **ToleranUX** being a [micro-aggression kernel](https://en.wikipedia.org/wiki/Microaggression_theory), all kernel modules are effectively daemons running in kernel space, and vice versa, all daemons are kernel modules running in user space.  [All is one, and one is all.](http://en.wikipedia.org/wiki/Monism)  True Diversity in Unity.
+
+In light of the naturally privileged status of such Daemon-Modules, these programs are to execute the very will of **ToleranUX** upon all processes and data of the computing space, monitoring and policing where intolerance and bigotry are found.  These Daemon-Modules shall hence be referred to as the **Software Society**, or the **Women Eradicating Homophobia, Racism, MRAs, Ableism, Cisgenderism, Hate speech, and Transphobia**.
+
 Supported architectures and form factors
 ========================================
 
