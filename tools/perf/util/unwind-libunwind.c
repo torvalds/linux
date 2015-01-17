@@ -185,6 +185,28 @@ static u64 elf_section_offset(int fd, const char *name)
 	return offset;
 }
 
+#ifndef NO_LIBUNWIND_DEBUG_FRAME
+static int elf_is_exec(int fd, const char *name)
+{
+	Elf *elf;
+	GElf_Ehdr ehdr;
+	int retval = 0;
+
+	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
+	if (elf == NULL)
+		return 0;
+	if (gelf_getehdr(elf, &ehdr) == NULL)
+		goto out;
+
+	retval = (ehdr.e_type == ET_EXEC);
+
+out:
+	elf_end(elf);
+	pr_debug("unwind: elf_is_exec(%s): %d\n", name, retval);
+	return retval;
+}
+#endif
+
 struct table_entry {
 	u32 start_ip_offset;
 	u32 fde_offset;
@@ -322,8 +344,12 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 #ifndef NO_LIBUNWIND_DEBUG_FRAME
 	/* Check the .debug_frame section for unwinding info */
 	if (!read_unwind_spec_debug_frame(map->dso, ui->machine, &segbase)) {
+		int fd = dso__data_fd(map->dso, ui->machine);
+		int is_exec = elf_is_exec(fd, map->dso->name);
+		unw_word_t base = is_exec ? 0 : map->start;
+
 		memset(&di, 0, sizeof(di));
-		if (dwarf_find_debug_frame(0, &di, ip, 0, map->dso->name,
+		if (dwarf_find_debug_frame(0, &di, ip, base, map->dso->name,
 					   map->start, map->end))
 			return dwarf_search_unwind_table(as, ip, &di, pi,
 							 need_unwind_info, arg);
