@@ -4338,11 +4338,35 @@ void gen6_update_ring_freq(struct drm_device *dev)
 
 static int cherryview_rps_max_freq(struct drm_i915_private *dev_priv)
 {
+	struct drm_device *dev = dev_priv->dev;
 	u32 val, rp0;
 
-	val = vlv_punit_read(dev_priv, PUNIT_GPU_STATUS_REG);
-	rp0 = (val >> PUNIT_GPU_STATUS_MAX_FREQ_SHIFT) & PUNIT_GPU_STATUS_MAX_FREQ_MASK;
+	if (dev->pdev->revision >= 0x20) {
+		val = vlv_punit_read(dev_priv, FB_GFX_FMAX_AT_VMAX_FUSE);
 
+		switch (INTEL_INFO(dev)->eu_total) {
+		case 8:
+				/* (2 * 4) config */
+				rp0 = (val >> FB_GFX_FMAX_AT_VMAX_2SS4EU_FUSE_SHIFT);
+				break;
+		case 12:
+				/* (2 * 6) config */
+				rp0 = (val >> FB_GFX_FMAX_AT_VMAX_2SS6EU_FUSE_SHIFT);
+				break;
+		case 16:
+				/* (2 * 8) config */
+		default:
+				/* Setting (2 * 8) Min RP0 for any other combination */
+				rp0 = (val >> FB_GFX_FMAX_AT_VMAX_2SS8EU_FUSE_SHIFT);
+				break;
+		}
+		rp0 = (rp0 & FB_GFX_FREQ_FUSE_MASK);
+	} else {
+		/* For pre-production hardware */
+		val = vlv_punit_read(dev_priv, PUNIT_GPU_STATUS_REG);
+		rp0 = (val >> PUNIT_GPU_STATUS_MAX_FREQ_SHIFT) &
+		       PUNIT_GPU_STATUS_MAX_FREQ_MASK;
+	}
 	return rp0;
 }
 
@@ -4358,20 +4382,36 @@ static int cherryview_rps_rpe_freq(struct drm_i915_private *dev_priv)
 
 static int cherryview_rps_guar_freq(struct drm_i915_private *dev_priv)
 {
+	struct drm_device *dev = dev_priv->dev;
 	u32 val, rp1;
 
-	val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
-	rp1 = (val >> PUNIT_GPU_STATUS_MAX_FREQ_SHIFT) & PUNIT_GPU_STATUS_MAX_FREQ_MASK;
-
+	if (dev->pdev->revision >= 0x20) {
+		val = vlv_punit_read(dev_priv, FB_GFX_FMAX_AT_VMAX_FUSE);
+		rp1 = (val & FB_GFX_FREQ_FUSE_MASK);
+	} else {
+		/* For pre-production hardware */
+		val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
+		rp1 = ((val >> PUNIT_GPU_STATUS_MAX_FREQ_SHIFT) &
+		       PUNIT_GPU_STATUS_MAX_FREQ_MASK);
+	}
 	return rp1;
 }
 
 static int cherryview_rps_min_freq(struct drm_i915_private *dev_priv)
 {
+	struct drm_device *dev = dev_priv->dev;
 	u32 val, rpn;
 
-	val = vlv_punit_read(dev_priv, PUNIT_GPU_STATUS_REG);
-	rpn = (val >> PUNIT_GPU_STATIS_GFX_MIN_FREQ_SHIFT) & PUNIT_GPU_STATUS_GFX_MIN_FREQ_MASK;
+	if (dev->pdev->revision >= 0x20) {
+		val = vlv_punit_read(dev_priv, FB_GFX_FMIN_AT_VMIN_FUSE);
+		rpn = ((val >> FB_GFX_FMIN_AT_VMIN_FUSE_SHIFT) &
+		       FB_GFX_FREQ_FUSE_MASK);
+	} else { /* For pre-production hardware */
+		val = vlv_punit_read(dev_priv, PUNIT_GPU_STATUS_REG);
+		rpn = ((val >> PUNIT_GPU_STATIS_GFX_MIN_FREQ_SHIFT) &
+		       PUNIT_GPU_STATUS_GFX_MIN_FREQ_MASK);
+	}
+
 	return rpn;
 }
 
