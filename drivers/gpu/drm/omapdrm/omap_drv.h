@@ -50,21 +50,6 @@ struct omap_drm_window {
 	uint32_t src_w, src_h;
 };
 
-/* Once GO bit is set, we can't make further updates to shadowed registers
- * until the GO bit is cleared.  So various parts in the kms code that need
- * to update shadowed registers queue up a pair of callbacks, pre_apply
- * which is called before setting GO bit, and post_apply that is called
- * after GO bit is cleared.  The crtc manages the queuing, and everyone
- * else goes thru omap_crtc_apply() using these callbacks so that the
- * code which has to deal w/ GO bit state is centralized.
- */
-struct omap_drm_apply {
-	struct list_head pending_node, queued_node;
-	bool queued;
-	void (*pre_apply)(struct omap_drm_apply *apply);
-	void (*post_apply)(struct omap_drm_apply *apply);
-};
-
 /* For transiently registering for different DSS irqs that various parts
  * of the KMS code need during setup/configuration.  We these are not
  * necessarily the same as what drm_vblank_get/put() are requesting, and
@@ -153,13 +138,12 @@ void omap_fbdev_free(struct drm_device *dev);
 
 const struct omap_video_timings *omap_crtc_timings(struct drm_crtc *crtc);
 enum omap_channel omap_crtc_channel(struct drm_crtc *crtc);
-int omap_crtc_apply(struct drm_crtc *crtc,
-		struct omap_drm_apply *apply);
+int omap_crtc_flush(struct drm_crtc *crtc);
+int omap_crtc_queue_unpin(struct drm_crtc *crtc, struct drm_framebuffer *fb);
 void omap_crtc_pre_init(void);
 void omap_crtc_pre_uninit(void);
 struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 		struct drm_plane *plane, enum omap_channel channel, int id);
-void omap_crtc_flush(struct drm_crtc *crtc);
 
 struct drm_plane *omap_plane_init(struct drm_device *dev,
 		int id, enum drm_plane_type type);
@@ -169,8 +153,7 @@ int omap_plane_mode_set(struct drm_plane *plane,
 			int crtc_x, int crtc_y,
 			unsigned int crtc_w, unsigned int crtc_h,
 			unsigned int src_x, unsigned int src_y,
-			unsigned int src_w, unsigned int src_h,
-			void (*fxn)(void *), void *arg);
+			unsigned int src_w, unsigned int src_h);
 void omap_plane_install_properties(struct drm_plane *plane,
 		struct drm_mode_object *obj);
 int omap_plane_set_property(struct drm_plane *plane,

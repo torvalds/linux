@@ -17,6 +17,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/completion.h>
+
 #include "omap_drv.h"
 
 #include <drm/drm_mode.h>
@@ -46,34 +48,31 @@ struct omap_crtc {
 	struct omap_video_timings timings;
 	bool enabled;
 
-	struct omap_drm_apply apply;
-
-	struct omap_drm_irq apply_irq;
+	struct omap_drm_irq vblank_irq;
 	struct omap_drm_irq error_irq;
 
-	/* list of in-progress apply's: */
-	struct list_head pending_applies;
-
-	/* list of queued apply's: */
-	struct list_head queued_applies;
-
-	/* for handling queued and in-progress applies: */
-	struct work_struct apply_work;
+	/* list of framebuffers to unpin */
+	struct list_head pending_unpins;
 
 	/* if there is a pending flip, these will be non-null: */
 	struct drm_pending_vblank_event *event;
 	struct drm_framebuffer *old_fb;
 
+	struct completion completion;
+
 	/* for handling page flips without caring about what
 	 * the callback is called from.  Possibly we should just
 	 * make omap_gem always call the cb from the worker so
 	 * we don't have to care about this..
-	 *
-	 * XXX maybe fold into apply_work??
 	 */
 	struct work_struct page_flip_work;
 
 	bool ignore_digit_sync_lost;
+};
+
+struct omap_framebuffer_unpin {
+	struct list_head list;
+	struct drm_framebuffer *fb;
 };
 
 /* -----------------------------------------------------------------------------
@@ -142,7 +141,7 @@ static void omap_crtc_start_update(struct omap_overlay_manager *mgr)
 {
 }
 
-/* Called only from CRTC pre_apply and suspend/resume handlers. */
+/* Called only from omap_crtc_setup and suspend/resume handlers. */
 static void omap_crtc_set_enabled(struct drm_crtc *crtc, bool enable)
 {
 	struct drm_device *dev = crtc->dev;
@@ -261,7 +260,7 @@ static const struct dss_mgr_ops mgr_ops = {
 };
 
 /* -----------------------------------------------------------------------------
- * Apply Logic
+ * Setup and Flush
  */
 
 static void omap_crtc_error_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
@@ -278,120 +277,92 @@ static void omap_crtc_error_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
 	DRM_ERROR_RATELIMITED("%s: errors: %08x\n", omap_crtc->name, irqstatus);
 }
 
-static void omap_crtc_apply_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
+static void omap_crtc_vblank_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
 {
 	struct omap_crtc *omap_crtc =
-			container_of(irq, struct omap_crtc, apply_irq);
-	struct drm_crtc *crtc = &omap_crtc->base;
+			container_of(irq, struct omap_crtc, vblank_irq);
+	struct drm_device *dev = omap_crtc->base.dev;
+	unsigned long flags;
 
-	if (!dispc_mgr_go_busy(omap_crtc->channel)) {
-		struct omap_drm_private *priv =
-				crtc->dev->dev_private;
-		DBG("%s: apply done", omap_crtc->name);
-		__omap_irq_unregister(crtc->dev, &omap_crtc->apply_irq);
-		queue_work(priv->wq, &omap_crtc->apply_work);
-	}
+	if (dispc_mgr_go_busy(omap_crtc->channel))
+		return;
+
+	DBG("%s: apply done", omap_crtc->name);
+	__omap_irq_unregister(dev, &omap_crtc->vblank_irq);
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+
+	/* wakeup userspace */
+	if (omap_crtc->event)
+		drm_send_vblank_event(dev, omap_crtc->pipe, omap_crtc->event);
+
+	omap_crtc->event = NULL;
+	omap_crtc->old_fb = NULL;
+
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	complete(&omap_crtc->completion);
 }
 
-static void apply_worker(struct work_struct *work)
-{
-	struct omap_crtc *omap_crtc =
-			container_of(work, struct omap_crtc, apply_work);
-	struct drm_crtc *crtc = &omap_crtc->base;
-	struct drm_device *dev = crtc->dev;
-	struct omap_drm_apply *apply, *n;
-	bool need_apply;
-
-	/*
-	 * Synchronize everything on mode_config.mutex, to keep
-	 * the callbacks and list modification all serialized
-	 * with respect to modesetting ioctls from userspace.
-	 */
-	drm_modeset_lock(&crtc->mutex, NULL);
-	dispc_runtime_get();
-
-	/*
-	 * If we are still pending a previous update, wait.. when the
-	 * pending update completes, we get kicked again.
-	 */
-	if (omap_crtc->apply_irq.registered)
-		goto out;
-
-	/* finish up previous apply's: */
-	list_for_each_entry_safe(apply, n,
-			&omap_crtc->pending_applies, pending_node) {
-		apply->post_apply(apply);
-		list_del(&apply->pending_node);
-	}
-
-	need_apply = !list_empty(&omap_crtc->queued_applies);
-
-	/* then handle the next round of of queued apply's: */
-	list_for_each_entry_safe(apply, n,
-			&omap_crtc->queued_applies, queued_node) {
-		apply->pre_apply(apply);
-		list_del(&apply->queued_node);
-		apply->queued = false;
-		list_add_tail(&apply->pending_node,
-				&omap_crtc->pending_applies);
-	}
-
-	if (need_apply) {
-		enum omap_channel channel = omap_crtc->channel;
-
-		DBG("%s: GO", omap_crtc->name);
-
-		if (dispc_mgr_is_enabled(channel)) {
-			dispc_mgr_go(channel);
-			omap_irq_register(dev, &omap_crtc->apply_irq);
-		} else {
-			struct omap_drm_private *priv = dev->dev_private;
-			queue_work(priv->wq, &omap_crtc->apply_work);
-		}
-	}
-
-out:
-	dispc_runtime_put();
-	drm_modeset_unlock(&crtc->mutex);
-}
-
-int omap_crtc_apply(struct drm_crtc *crtc,
-		struct omap_drm_apply *apply)
+int omap_crtc_flush(struct drm_crtc *crtc)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	struct omap_framebuffer_unpin *fb, *next;
+
+	DBG("%s: GO", omap_crtc->name);
 
 	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
+	WARN_ON(omap_crtc->vblank_irq.registered);
 
-	/* no need to queue it again if it is already queued: */
-	if (apply->queued)
-		return 0;
+	dispc_runtime_get();
 
-	apply->queued = true;
-	list_add_tail(&apply->queued_node, &omap_crtc->queued_applies);
+	if (dispc_mgr_is_enabled(omap_crtc->channel)) {
+		dispc_mgr_go(omap_crtc->channel);
+		omap_irq_register(crtc->dev, &omap_crtc->vblank_irq);
 
-	/*
-	 * If there are no currently pending updates, then go ahead and
-	 * kick the worker immediately, otherwise it will run again when
-	 * the current update finishes.
-	 */
-	if (list_empty(&omap_crtc->pending_applies)) {
-		struct omap_drm_private *priv = crtc->dev->dev_private;
-		queue_work(priv->wq, &omap_crtc->apply_work);
+		WARN_ON(!wait_for_completion_timeout(&omap_crtc->completion,
+						     msecs_to_jiffies(100)));
+		reinit_completion(&omap_crtc->completion);
+	}
+
+	dispc_runtime_put();
+
+	/* Unpin and unreference pending framebuffers. */
+	list_for_each_entry_safe(fb, next, &omap_crtc->pending_unpins, list) {
+		omap_framebuffer_unpin(fb->fb);
+		drm_framebuffer_unreference(fb->fb);
+		list_del(&fb->list);
+		kfree(fb);
 	}
 
 	return 0;
 }
 
-static void omap_crtc_pre_apply(struct omap_drm_apply *apply)
+int omap_crtc_queue_unpin(struct drm_crtc *crtc, struct drm_framebuffer *fb)
 {
-	struct omap_crtc *omap_crtc =
-			container_of(apply, struct omap_crtc, apply);
-	struct drm_crtc *crtc = &omap_crtc->base;
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	struct omap_framebuffer_unpin *unpin;
+
+	unpin = kzalloc(sizeof(*unpin), GFP_KERNEL);
+	if (!unpin)
+		return -ENOMEM;
+
+	unpin->fb = fb;
+	list_add_tail(&unpin->list, &omap_crtc->pending_unpins);
+
+	return 0;
+}
+
+static void omap_crtc_setup(struct drm_crtc *crtc)
+{
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 	struct omap_drm_private *priv = crtc->dev->dev_private;
 	struct drm_encoder *encoder = NULL;
 	unsigned int i;
 
 	DBG("%s: enabled=%d", omap_crtc->name, omap_crtc->enabled);
+
+	dispc_runtime_get();
 
 	for (i = 0; i < priv->num_encoders; i++) {
 		if (priv->encoders[i]->crtc == crtc) {
@@ -416,30 +387,8 @@ static void omap_crtc_pre_apply(struct omap_drm_apply *apply)
 			omap_encoder_set_enabled(encoder, true);
 		}
 	}
-}
 
-static void omap_crtc_post_apply(struct omap_drm_apply *apply)
-{
-	/* nothing needed for post-apply */
-}
-
-void omap_crtc_flush(struct drm_crtc *crtc)
-{
-	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	int loops = 0;
-
-	while (!list_empty(&omap_crtc->pending_applies) ||
-		!list_empty(&omap_crtc->queued_applies) ||
-		omap_crtc->event || omap_crtc->old_fb) {
-
-		if (++loops > 10) {
-			dev_err(crtc->dev->dev,
-				"omap_crtc_flush() timeout\n");
-			break;
-		}
-
-		schedule_timeout_uninterruptible(msecs_to_jiffies(20));
-	}
+	dispc_runtime_put();
 }
 
 /* -----------------------------------------------------------------------------
@@ -452,7 +401,7 @@ static void omap_crtc_destroy(struct drm_crtc *crtc)
 
 	DBG("%s", omap_crtc->name);
 
-	WARN_ON(omap_crtc->apply_irq.registered);
+	WARN_ON(omap_crtc->vblank_irq.registered);
 	omap_irq_unregister(crtc->dev, &omap_crtc->error_irq);
 
 	drm_crtc_cleanup(crtc);
@@ -469,17 +418,21 @@ static void omap_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 	DBG("%s: %d", omap_crtc->name, mode);
 
-	if (enabled != omap_crtc->enabled) {
-		omap_crtc->enabled = enabled;
-		omap_crtc_apply(crtc, &omap_crtc->apply);
+	if (enabled == omap_crtc->enabled)
+		return;
 
-		/* Enable/disable all planes associated with the CRTC. */
-		for (i = 0; i < priv->num_planes; i++) {
-			struct drm_plane *plane = priv->planes[i];
-			if (plane->crtc == crtc)
-				WARN_ON(omap_plane_set_enable(plane, enabled));
-		}
+	/* Enable/disable all planes associated with the CRTC. */
+	for (i = 0; i < priv->num_planes; i++) {
+		struct drm_plane *plane = priv->planes[i];
+
+		if (plane->crtc == crtc)
+			WARN_ON(omap_plane_set_enable(plane, enabled));
 	}
+
+	omap_crtc->enabled = enabled;
+
+	omap_crtc_setup(crtc);
+	omap_crtc_flush(crtc);
 }
 
 static bool omap_crtc_mode_fixup(struct drm_crtc *crtc,
@@ -518,8 +471,7 @@ static int omap_crtc_mode_set(struct drm_crtc *crtc,
 
 	return omap_plane_mode_set(crtc->primary, crtc, crtc->primary->fb,
 				   0, 0, mode->hdisplay, mode->vdisplay,
-				   x, y, mode->hdisplay, mode->vdisplay,
-				   NULL, NULL);
+				   x, y, mode->hdisplay, mode->vdisplay);
 }
 
 static void omap_crtc_prepare(struct drm_crtc *crtc)
@@ -541,36 +493,15 @@ static int omap_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 {
 	struct drm_plane *plane = crtc->primary;
 	struct drm_display_mode *mode = &crtc->mode;
+	int ret;
 
-	return omap_plane_mode_set(plane, crtc, crtc->primary->fb,
-				   0, 0, mode->hdisplay, mode->vdisplay,
-				   x, y, mode->hdisplay, mode->vdisplay,
-				   NULL, NULL);
-}
+	ret = omap_plane_mode_set(plane, crtc, crtc->primary->fb,
+				  0, 0, mode->hdisplay, mode->vdisplay,
+				  x, y, mode->hdisplay, mode->vdisplay);
+	if (ret < 0)
+		return ret;
 
-static void vblank_cb(void *arg)
-{
-	struct drm_crtc *crtc = arg;
-	struct drm_device *dev = crtc->dev;
-	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	unsigned long flags;
-	struct drm_framebuffer *fb;
-
-	spin_lock_irqsave(&dev->event_lock, flags);
-
-	/* wakeup userspace */
-	if (omap_crtc->event)
-		drm_send_vblank_event(dev, omap_crtc->pipe, omap_crtc->event);
-
-	fb = omap_crtc->old_fb;
-
-	omap_crtc->event = NULL;
-	omap_crtc->old_fb = NULL;
-
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-
-	if (fb)
-		drm_framebuffer_unreference(fb);
+	return omap_crtc_flush(crtc);
 }
 
 static void page_flip_worker(struct work_struct *work)
@@ -584,12 +515,13 @@ static void page_flip_worker(struct work_struct *work)
 	drm_modeset_lock(&crtc->mutex, NULL);
 	omap_plane_mode_set(crtc->primary, crtc, crtc->primary->fb,
 			    0, 0, mode->hdisplay, mode->vdisplay,
-			    crtc->x, crtc->y, mode->hdisplay, mode->vdisplay,
-			    vblank_cb, crtc);
+			    crtc->x, crtc->y, mode->hdisplay, mode->vdisplay);
+	omap_crtc_flush(crtc);
 	drm_modeset_unlock(&crtc->mutex);
 
 	bo = omap_framebuffer_bo(crtc->primary->fb, 0);
 	drm_gem_object_unreference_unlocked(bo);
+	drm_framebuffer_unreference(crtc->primary->fb);
 }
 
 static void page_flip_cb(void *arg)
@@ -709,20 +641,17 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 	crtc = &omap_crtc->base;
 
 	INIT_WORK(&omap_crtc->page_flip_work, page_flip_worker);
-	INIT_WORK(&omap_crtc->apply_work, apply_worker);
 
-	INIT_LIST_HEAD(&omap_crtc->pending_applies);
-	INIT_LIST_HEAD(&omap_crtc->queued_applies);
+	INIT_LIST_HEAD(&omap_crtc->pending_unpins);
 
-	omap_crtc->apply.pre_apply  = omap_crtc_pre_apply;
-	omap_crtc->apply.post_apply = omap_crtc_post_apply;
+	init_completion(&omap_crtc->completion);
 
 	omap_crtc->channel = channel;
 	omap_crtc->name = channel_names[channel];
 	omap_crtc->pipe = id;
 
-	omap_crtc->apply_irq.irqmask = pipe2vbl(crtc);
-	omap_crtc->apply_irq.irq = omap_crtc_apply_irq;
+	omap_crtc->vblank_irq.irqmask = pipe2vbl(crtc);
+	omap_crtc->vblank_irq.irq = omap_crtc_vblank_irq;
 
 	omap_crtc->error_irq.irqmask =
 			dispc_mgr_get_sync_lost_irq(channel);

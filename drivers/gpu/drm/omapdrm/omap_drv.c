@@ -550,7 +550,6 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 static int dev_unload(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
-	int i;
 
 	DBG("unload: dev=%p", dev);
 
@@ -558,10 +557,6 @@ static int dev_unload(struct drm_device *dev)
 
 	if (priv->fbdev)
 		omap_fbdev_free(dev);
-
-	/* flush crtcs so the fbs get released */
-	for (i = 0; i < priv->num_crtcs; i++)
-		omap_crtc_flush(priv->crtcs[i]);
 
 	omap_modeset_free(dev);
 	omap_gem_deinit(dev);
