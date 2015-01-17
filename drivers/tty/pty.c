@@ -395,6 +395,7 @@ static int pty_common_install(struct tty_driver *driver, struct tty_struct *tty,
 		goto err_put_module;
 
 	tty_set_lock_subclass(o_tty);
+	lockdep_set_subclass(&o_tty->termios_rwsem, TTY_LOCK_SLAVE);
 
 	if (legacy) {
 		/* We always use new tty termios data so we can do this

@@ -1090,15 +1090,44 @@ static void eraser(unsigned char c, struct tty_struct *tty)
  *	Called when a signal is being sent due to terminal input.
  *	Called from the driver receive_buf path so serialized.
  *
+ *	Performs input and output flush if !NOFLSH. In this context, the echo
+ *	buffer is 'output'. The signal is processed first to alert any current
+ *	readers or writers to discontinue and exit their i/o loops.
+ *
  *	Locking: ctrl_lock
  */
 
 static void isig(int sig, struct tty_struct *tty)
 {
+	struct n_tty_data *ldata = tty->disc_data;
 	struct pid *tty_pgrp = tty_get_pgrp(tty);
 	if (tty_pgrp) {
 		kill_pgrp(tty_pgrp, sig, 1);
 		put_pid(tty_pgrp);
+	}
+
+	if (!L_NOFLSH(tty)) {
+		up_read(&tty->termios_rwsem);
+		down_write(&tty->termios_rwsem);
+
+		/* clear echo buffer */
+		mutex_lock(&ldata->output_lock);
+		ldata->echo_head = ldata->echo_tail = 0;
+		ldata->echo_mark = ldata->echo_commit = 0;
+		mutex_unlock(&ldata->output_lock);
+
+		/* clear output buffer */
+		tty_driver_flush_buffer(tty);
+
+		/* clear input buffer */
+		reset_buffer_flags(tty->disc_data);
+
+		/* notify pty master of flush */
+		if (tty->link)
+			n_tty_packet_mode_flush(tty);
+
+		up_write(&tty->termios_rwsem);
+		down_read(&tty->termios_rwsem);
 	}
 }
 
@@ -1123,13 +1152,6 @@ static void n_tty_receive_break(struct tty_struct *tty)
 		return;
 	if (I_BRKINT(tty)) {
 		isig(SIGINT, tty);
-		if (!L_NOFLSH(tty)) {
-			/* flushing needs exclusive termios_rwsem */
-			up_read(&tty->termios_rwsem);
-			n_tty_flush_buffer(tty);
-			tty_driver_flush_buffer(tty);
-			down_read(&tty->termios_rwsem);
-		}
 		return;
 	}
 	if (I_PARMRK(tty)) {
@@ -1203,13 +1225,7 @@ static void n_tty_receive_parity_error(struct tty_struct *tty, unsigned char c)
 static void
 n_tty_receive_signal_char(struct tty_struct *tty, int signal, unsigned char c)
 {
-	if (!L_NOFLSH(tty)) {
-		/* flushing needs exclusive termios_rwsem */
-		up_read(&tty->termios_rwsem);
-		n_tty_flush_buffer(tty);
-		tty_driver_flush_buffer(tty);
-		down_read(&tty->termios_rwsem);
-	}
+	isig(signal, tty);
 	if (I_IXON(tty))
 		start_tty(tty);
 	if (L_ECHO(tty)) {
@@ -1217,7 +1233,6 @@ n_tty_receive_signal_char(struct tty_struct *tty, int signal, unsigned char c)
 		commit_echoes(tty);
 	} else
 		process_echoes(tty);
-	isig(signal, tty);
 	return;
 }
 

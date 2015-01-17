@@ -25,6 +25,9 @@
  *
  * legacy_mutex - Nested tty locks are necessary for releasing pty pairs.
  *		  The stable lock order is master pty first, then slave pty.
+ * termios_rwsem - The stable lock order is tty_buffer lock->termios_rwsem.
+ *		   Subclassing this lock enables the slave pty to hold its
+ *		   termios_rwsem when claiming the master tty_buffer lock.
  * tty_buffer lock - slave ptys can claim nested buffer lock when handling
  *		     signal chars. The stable lock order is slave pty, then
  *		     master.
