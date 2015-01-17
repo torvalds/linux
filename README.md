@@ -61,9 +61,9 @@ To eradicate the inherent root of Toxic Bigotry in the UNIX Philosophy, the Tole
 Kernel Hacking Etiquette
 ========================
 
-**Before you make a comment or suggestion, think about this:  
+*Before you make a comment or suggestion, think about this:  
 Could someone conceivably take offence at what I'm saying? Am I going to hurt someone's feelings?  
-If the answer is 'yes', then we would rather you not say anything at all, no matter how "good" your suggestion.**
+If the answer is 'yes', then we would rather you not say anything at all, no matter how "good" your suggestion.*
 
 At Feminist Software Foundation, we uphold the belief that all people are equal, and thus we aim to promote kindness to all.  In the immortal words of Sarah Sharp, victim of the Verbal Abuse Culture on the Linux Kernel Mailing List, "No one deserves to be shouted or cussed at".  To achieve this goal, the following behaviours are banned:
 
