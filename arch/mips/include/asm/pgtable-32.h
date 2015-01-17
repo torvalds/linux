@@ -18,7 +18,7 @@
 
 #include <asm-generic/pgtable-nopmd.h>
 
-extern int temp_tlb_entry __cpuinitdata;
+extern int temp_tlb_entry;
 
 /*
  * - add_temporary_entry() add a temporary TLB entry. We use TLB entries
