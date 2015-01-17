@@ -1631,7 +1631,7 @@ resp_rsup_opcodes(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 		a_len = 8192;
 	else
 		a_len = alloc_len;
-	arr = kzalloc((a_len < 256) ? 320 : a_len + 64, GFP_KERNEL);
+	arr = kzalloc((a_len < 256) ? 320 : a_len + 64, GFP_ATOMIC);
 	if (NULL == arr) {
 		mk_sense_buffer(scp, ILLEGAL_REQUEST, INSUFF_RES_ASC,
 				INSUFF_RES_ASCQ);
