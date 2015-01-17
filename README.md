@@ -217,6 +217,10 @@ In light of the naturally privileged status of such Daemon-Modules, these progra
 
 `SafespaceD` routinely and randomly scans the virtual memory space for triggering words and phrases, whether in user input, program output, or [intermediate bytecode](http://en.wikipedia.org/wiki/Bytecode).  Such words will be replaced on-the-fly with more acceptable alternatives, e.g. the string "Black people" will be replaced with the string "Person of Colour", and the string "Misandry" will cause the whole pipeline to be redirected to `/dev/null`.
 
+### PrivCheckD
+
+`PrivCheckD` is responsible for ensuring that the in-kernel [Progressive Stack](https://en.wikipedia.org/wiki/Progressive_stack) is kept updated.  `PrivCheckD` evaluates each process's, user's, and memory address's privilege at every kernel tick and re-maps their position in the Progressive Stack by Bubble-sorting them.
+
 Supported architectures and form factors
 ========================================
 
