@@ -19,6 +19,7 @@
  */
 
 #include "vc4_drv.h"
+#include "uapi/drm/vc4_drm.h"
 
 static void vc4_bo_stats_dump(struct vc4_dev *vc4)
 {
@@ -344,6 +345,46 @@ static void vc4_bo_cache_time_timer(unsigned long data)
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
 	schedule_work(&vc4->bo_cache.time_work);
+}
+
+int vc4_create_bo_ioctl(struct drm_device *dev, void *data,
+			struct drm_file *file_priv)
+{
+	struct drm_vc4_create_bo *args = data;
+	struct vc4_bo *bo = NULL;
+	int ret;
+
+	/*
+	 * We can't allocate from the BO cache, because the BOs don't
+	 * get zeroed, and that might leak data between users.
+	 */
+	bo = vc4_bo_create(dev, args->size, false);
+	if (!bo)
+		return -ENOMEM;
+
+	ret = drm_gem_handle_create(file_priv, &bo->base.base, &args->handle);
+	drm_gem_object_unreference_unlocked(&bo->base.base);
+
+	return ret;
+}
+
+int vc4_mmap_bo_ioctl(struct drm_device *dev, void *data,
+		      struct drm_file *file_priv)
+{
+	struct drm_vc4_mmap_bo *args = data;
+	struct drm_gem_object *gem_obj;
+
+	gem_obj = drm_gem_object_lookup(dev, file_priv, args->handle);
+	if (!gem_obj) {
+		DRM_ERROR("Failed to look up GEM BO %d\n", args->handle);
+		return -EINVAL;
+	}
+
+	/* The mmap offset was set up at BO allocation time. */
+	args->offset = drm_vma_node_offset_addr(&gem_obj->vma_node);
+
+	drm_gem_object_unreference_unlocked(gem_obj);
+	return 0;
 }
 
 void vc4_bo_cache_init(struct drm_device *dev)
