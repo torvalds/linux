@@ -143,6 +143,9 @@ More advanced IPC is to be *guided*, never *dictated*.  The obsolete `D-Bus` mec
 
 Instead of allowing multiple, pluggable schedulers as in Linux, (which has caused much unprofessional vitriol that alienates female participation in kernel development, for a particular case of anti-female vitriol see the Con Kolivas and his **\[TRIGGER WARNING: INTERCOURSE EXPLETIVE\]** BFS (Brain Fuck Scheduler)) scheduling in **ToleranUX** is determined by a singular, equality-sanctioned, and completely-fair method: **Round-robin+**.
 
+  ![An artist's depiction of the Round-robin+ scheduler](http://i.imgur.com/WpAGxD6.jpg)
+> *An artist's depiction of the Round-robin+ scheduler.  Legally remixed from the CC-A 2.0 licensed picture by Magnus Manske at http://commons.wikimedia.org/wiki/File:Robin_in_the_snow_3_(4250400943).jpg*
+
 **Round-robin+** is the next logical step of scheduling.  **Round-robin+** is the next generation of scheduling.  **Round-robin+** is `Round-robin`+`Social Justice`.  The incentive behind the **Round-robin+** scheduler is as follows:
 
 * As every process is equal, so should the allocated resource for each process be equal.  A Round-robin policy ensures this.
@@ -176,7 +179,7 @@ To alleviate this, **ToleranUX** replaces the outdated concept of "occupied virt
 
 An added benefit of implementing **Multispatialism** is that there will never be any commit that will break the *user space* any more, because the *user space* no longer exists as a separate and socially constructed concept.
 
-  ![One day, ToleranUX will grow to becomes xir own distro...](http://i.imgur.com/Ua6EICi.png)
+  ![One day, ToleranUX will grow to becomes xir own distro...](http://i.imgur.com/8WcE7Bl.jpg)
 > *One day, ToleranUX will grow to becomes xir own distro...*
 
 Associated Coreutils
