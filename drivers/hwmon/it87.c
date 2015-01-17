@@ -23,6 +23,7 @@
  *            IT8758E  Super I/O chip w/LPC interface
  *            IT8771E  Super I/O chip w/LPC interface
  *            IT8772E  Super I/O chip w/LPC interface
+ *            IT8781F  Super I/O chip w/LPC interface
  *            IT8782F  Super I/O chip w/LPC interface
  *            IT8783E/F Super I/O chip w/LPC interface
  *            Sis950   A clone of the IT8705F
@@ -66,7 +67,7 @@
 #define DRVNAME "it87"
 
 enum chips { it87, it8712, it8716, it8718, it8720, it8721, it8728, it8771,
-	     it8772, it8782, it8783, it8603 };
+	     it8772, it8781, it8782, it8783, it8603 };
 
 static unsigned short force_id;
 module_param(force_id, ushort, 0);
@@ -146,6 +147,7 @@ static inline void superio_exit(void)
 #define IT8728F_DEVID 0x8728
 #define IT8771E_DEVID 0x8771
 #define IT8772E_DEVID 0x8772
+#define IT8781F_DEVID 0x8781
 #define IT8782F_DEVID 0x8782
 #define IT8783E_DEVID 0x8783
 #define IT8603E_DEVID 0x8603
@@ -306,6 +308,12 @@ static const struct it87_devices it87_devices[] = {
 					/* 12mV ADC (HWSensors4, OHM) */
 					/* 16 bit fans (HWSensors4, OHM) */
 		.peci_mask = 0x07,
+	},
+	[it8781] = {
+		.name = "it8781",
+		.features = FEAT_16BIT_FANS | FEAT_TEMP_OFFSET
+		  | FEAT_TEMP_OLD_PECI,
+		.old_peci_mask = 0x4,
 	},
 	[it8782] = {
 		.name = "it8782",
@@ -1761,6 +1769,9 @@ static int __init it87_find(unsigned short *address,
 	case IT8772E_DEVID:
 		sio_data->type = it8772;
 		break;
+	case IT8781F_DEVID:
+		sio_data->type = it8781;
+		break;
 	case IT8782F_DEVID:
 		sio_data->type = it8782;
 		break;
@@ -1919,10 +1930,11 @@ static int __init it87_find(unsigned short *address,
 		reg = superio_inb(IT87_SIO_GPIO3_REG);
 		if (sio_data->type == it8721 || sio_data->type == it8728 ||
 		    sio_data->type == it8771 || sio_data->type == it8772 ||
-		    sio_data->type == it8782) {
+		    sio_data->type == it8781 || sio_data->type == it8782) {
 			/*
-			 * IT8721F/IT8758E, and IT8782F don't have VID pins
-			 * at all, not sure about the IT8728F and compatibles.
+			 * IT8721F/IT8758E, IT8728F, IT8772F, IT8781F, and
+			 * IT8782F don't have VID pins at all, not sure about
+			 * the IT8771F.
 			 */
 			sio_data->skip_vid = 1;
 		} else {
@@ -2147,7 +2159,8 @@ static int it87_probe(struct platform_device *pdev)
 			data->in_scaled |= (1 << 8);	/* in8 is Vbat */
 		if (sio_data->internal & (1 << 3))
 			data->in_scaled |= (1 << 9);	/* in9 is AVCC */
-	} else if (sio_data->type == it8782 || sio_data->type == it8783) {
+	} else if (sio_data->type == it8781 || sio_data->type == it8782 ||
+		   sio_data->type == it8783) {
 		if (sio_data->internal & (1 << 0))
 			data->in_scaled |= (1 << 3);	/* in3 is VCC5V */
 		if (sio_data->internal & (1 << 1))
@@ -2460,9 +2473,12 @@ static void it87_init_device(struct platform_device *pdev)
 			it87_write_value(data, IT87_REG_FAN_16BIT,
 					 tmp | 0x07);
 		}
-		/* IT8705F, IT8782F, and IT8783E/F only support three fans. */
-		if (data->type != it87 && data->type != it8782 &&
-		    data->type != it8783) {
+		/*
+		 * IT8705F, IT8781F, IT8782F, and IT8783E/F only support
+		 * three fans.
+		 */
+		if (data->type != it87 && data->type != it8781 &&
+		    data->type != it8782 && data->type != it8783) {
 			if (tmp & (1 << 4))
 				data->has_fan |= (1 << 3); /* fan4 enabled */
 			if (tmp & (1 << 5))
