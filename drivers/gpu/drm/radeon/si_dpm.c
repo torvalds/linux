@@ -5976,6 +5976,10 @@ static int si_thermal_setup_fan_table(struct radeon_device *rdev)
 	slope1 = (u16)((50 + ((16 * duty100 * pwm_diff1) / t_diff1)) / 100);
 	slope2 = (u16)((50 + ((16 * duty100 * pwm_diff2) / t_diff2)) / 100);
 
+	fan_table.temp_min = cpu_to_be16((50 + rdev->pm.dpm.fan.t_min) / 100);
+	fan_table.temp_med = cpu_to_be16((50 + rdev->pm.dpm.fan.t_med) / 100);
+	fan_table.temp_max = cpu_to_be16((50 + rdev->pm.dpm.fan.t_max) / 100);
+
 	fan_table.slope1 = cpu_to_be16(slope1);
 	fan_table.slope2 = cpu_to_be16(slope2);
 
@@ -6045,15 +6049,11 @@ static int si_fan_ctrl_stop_smc_fan_control(struct radeon_device *rdev)
 int si_fan_ctrl_get_fan_speed_percent(struct radeon_device *rdev,
 				      u32 *speed)
 {
-	struct si_power_info *si_pi = si_get_pi(rdev);
 	u32 duty, duty100;
 	u64 tmp64;
 
 	if (rdev->pm.no_fan)
 		return -ENOENT;
-
-	if (si_pi->fan_is_controlled_by_smc)
- 		return -EINVAL;
 
 	duty100 = (RREG32(CG_FDO_CTRL1) & FMAX_DUTY100_MASK) >> FMAX_DUTY100_SHIFT;
 	duty = (RREG32(CG_THERMAL_STATUS) & FDO_PWM_DUTY_MASK) >> FDO_PWM_DUTY_SHIFT;
@@ -6074,12 +6074,16 @@ int si_fan_ctrl_get_fan_speed_percent(struct radeon_device *rdev,
 int si_fan_ctrl_set_fan_speed_percent(struct radeon_device *rdev,
 				      u32 speed)
 {
+	struct si_power_info *si_pi = si_get_pi(rdev);
 	u32 tmp;
 	u32 duty, duty100;
 	u64 tmp64;
 
 	if (rdev->pm.no_fan)
 		return -ENOENT;
+
+	if (si_pi->fan_is_controlled_by_smc)
+		return -EINVAL;
 
 	if (speed > 100)
 		return -EINVAL;
