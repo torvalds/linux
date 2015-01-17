@@ -235,7 +235,7 @@ Kernel Modules and Server Daemons
 
 Due to the nature of **ToleranUX** being a [micro-aggression kernel](https://en.wikipedia.org/wiki/Microaggression_theory), all kernel modules are effectively daemons running in kernel space, and vice versa, all daemons are kernel modules running in user space.  [All is one, and one is all.](http://en.wikipedia.org/wiki/Monism)  True Diversity in Unity.
 
-In light of the naturally privileged status of such Daemon-Modules, these programs are to execute the very will of **ToleranUX** upon all processes and data of the computing space, monitoring and policing where intolerance and bigotry are found.  These Daemon-Modules shall hence be referred to as the **Software Society**, or the **Women Eradicating Homophobia, Racism, MRAs, Ableism, Cisgenderism, Hate speech, and Transphobia**.
+In light of the naturally privileged status of such Daemon-Modules, these programs are to execute the very will of **ToleranUX** upon all processes and data of the computing space, monitoring and policing where intolerance and bigotry are found.  These Daemon-Modules shall hence be referred to as the **Software Society (SS)**, or the **Women Eradicating Homophobia, Racism, MRAs, Ableism, Cisgenderism, Hate speech, and Transphobia (WEHRMACHT)**.
 
 ### SafespaceV
 
