@@ -268,7 +268,6 @@ static void omap_plane_destroy(struct drm_plane *plane)
 
 	omap_irq_unregister(plane->dev, &omap_plane->error_irq);
 
-	omap_plane_disable(plane);
 	drm_plane_cleanup(plane);
 
 	drm_flip_work_cleanup(&omap_plane->unpin_work);
