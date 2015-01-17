@@ -1505,7 +1505,6 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 	dw->regs = chip->regs;
 	chip->dw = dw;
 
-	pm_runtime_enable(chip->dev);
 	pm_runtime_get_sync(chip->dev);
 
 	dw_params = dma_read_byaddr(chip->regs, DW_PARAMS);
@@ -1703,7 +1702,6 @@ int dw_dma_remove(struct dw_dma_chip *chip)
 	}
 
 	pm_runtime_put_sync_suspend(chip->dev);
-	pm_runtime_disable(chip->dev);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dw_dma_remove);
