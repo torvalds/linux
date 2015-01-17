@@ -56,7 +56,9 @@ Required properties:
 	"allwinner,sun8i-a23-apb2-gates-clk" - for the APB2 gates on A23
 	"allwinner,sun5i-a13-mbus-clk" - for the MBUS clock on A13
 	"allwinner,sun4i-a10-mmc-clk" - for the MMC clock
+	"allwinner,sun9i-a80-mmc-clk" - for mmc module clocks on A80
 	"allwinner,sun4i-a10-mod0-clk" - for the module 0 family of clocks
+	"allwinner,sun9i-a80-mod0-clk" - for module 0 (storage) clocks on A80
 	"allwinner,sun8i-a23-mbus-clk" - for the MBUS clock on A23
 	"allwinner,sun7i-a20-out-clk" - for the external output clocks
 	"allwinner,sun7i-a20-gmac-clk" - for the GMAC clock module on A20/A31
@@ -72,7 +74,8 @@ Required properties for all clocks:
 - #clock-cells : from common clock binding; shall be set to 0 except for
 	the following compatibles where it shall be set to 1:
 	"allwinner,*-gates-clk", "allwinner,sun4i-pll5-clk",
-	"allwinner,sun4i-pll6-clk", "allwinner,sun6i-a31-pll6-clk"
+	"allwinner,sun4i-pll6-clk", "allwinner,sun6i-a31-pll6-clk",
+	"allwinner,*-usb-clk", "allwinner,*-mmc-clk"
 - clock-output-names : shall be the corresponding names of the outputs.
 	If the clock module only has one output, the name shall be the
 	module name.
@@ -94,7 +97,7 @@ For "allwinner,sun6i-a31-pll6-clk", there are 2 outputs. The first output
 is the normal PLL6 output, or "pll6". The second output is rate doubled
 PLL6, or "pll6x2".
 
-The "allwinner,sun4i-a10-mmc-clk" has three different outputs: the
+The "allwinner,*-mmc-clk" clocks have three different outputs: the
 main clock, with the ID 0, and the output and sample clocks, with the
 IDs 1 and 2, respectively.
 

@@ -130,6 +130,30 @@ static struct platform_driver sun4i_a10_mod0_clk_driver = {
 };
 module_platform_driver(sun4i_a10_mod0_clk_driver);
 
+static const struct factors_data sun9i_a80_mod0_data __initconst = {
+	.enable = 31,
+	.mux = 24,
+	.muxmask = BIT(3) | BIT(2) | BIT(1) | BIT(0),
+	.table = &sun4i_a10_mod0_config,
+	.getter = sun4i_a10_get_mod0_factors,
+};
+
+static void __init sun9i_a80_mod0_setup(struct device_node *node)
+{
+	void __iomem *reg;
+
+	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	if (IS_ERR(reg)) {
+		pr_err("Could not get registers for mod0-clk: %s\n",
+		       node->name);
+		return;
+	}
+
+	sunxi_factors_register(node, &sun9i_a80_mod0_data,
+			       &sun4i_a10_mod0_lock, reg);
+}
+CLK_OF_DECLARE(sun9i_a80_mod0, "allwinner,sun9i-a80-mod0-clk", sun9i_a80_mod0_setup);
+
 static DEFINE_SPINLOCK(sun5i_a13_mbus_lock);
 
 static void __init sun5i_a13_mbus_setup(struct device_node *node)
@@ -358,3 +382,11 @@ static void __init sun4i_a10_mmc_setup(struct device_node *node)
 	sunxi_mmc_setup(node, &sun4i_a10_mod0_data, &sun4i_a10_mmc_lock);
 }
 CLK_OF_DECLARE(sun4i_a10_mmc, "allwinner,sun4i-a10-mmc-clk", sun4i_a10_mmc_setup);
+
+static DEFINE_SPINLOCK(sun9i_a80_mmc_lock);
+
+static void __init sun9i_a80_mmc_setup(struct device_node *node)
+{
+	sunxi_mmc_setup(node, &sun9i_a80_mod0_data, &sun9i_a80_mmc_lock);
+}
+CLK_OF_DECLARE(sun9i_a80_mmc, "allwinner,sun9i-a80-mmc-clk", sun9i_a80_mmc_setup);
