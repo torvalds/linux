@@ -223,7 +223,11 @@ In light of the naturally privileged status of such Daemon-Modules, these progra
 
 ### EducateD
 
-`EducateD` does nothing.  It is not *ToleranUX*'s responsibility to educate you.
+`EducateD` does nothing.  It is not **ToleranUX**'s responsibility to educate you.
+
+### SignalBoostD
+
+`SignalBoostD` runs periodically to consult which process has a level of privilege lower than a certain threshold determined by the CPU load of `PrivCheckD`.  Said processes would then be *~~forked~~ diversed* by `SignalBoostD` in an attempt to give them more exposure.
 
 Supported architectures and form factors
 ========================================
