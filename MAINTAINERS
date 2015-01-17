@@ -9723,6 +9723,8 @@ M:	Peter Huewe <peterhuewe@gmx.de>
 M:	Marcel Selhorst <tpmdd@selhorst.net>
 W:	http://tpmdd.sourceforge.net
 L:	tpmdd-devel@lists.sourceforge.net (moderated for non-subscribers)
+Q:	git git://github.com/PeterHuewe/linux-tpmdd.git
+T:	https://github.com/PeterHuewe/linux-tpmdd
 S:	Maintained
 F:	drivers/char/tpm/
 
