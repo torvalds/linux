@@ -65,7 +65,7 @@ struct omap_plane {
 	struct callback apply_done_cb;
 };
 
-static void unpin_worker(struct drm_flip_work *work, void *val)
+static void omap_plane_unpin_worker(struct drm_flip_work *work, void *val)
 {
 	struct omap_plane *omap_plane =
 			container_of(work, struct omap_plane, unpin_work);
@@ -78,7 +78,8 @@ static void unpin_worker(struct drm_flip_work *work, void *val)
 }
 
 /* update which fb (if any) is pinned for scanout */
-static int update_pin(struct drm_plane *plane, struct drm_framebuffer *fb)
+static int omap_plane_update_pin(struct drm_plane *plane,
+				 struct drm_framebuffer *fb)
 {
 	struct omap_plane *omap_plane = to_omap_plane(plane);
 	struct drm_framebuffer *pinned_fb = omap_plane->pinned_fb;
@@ -126,7 +127,7 @@ static void omap_plane_pre_apply(struct omap_drm_apply *apply)
 	DBG("%s, enabled=%d", omap_plane->name, enabled);
 
 	/* if fb has changed, pin new fb: */
-	update_pin(plane, enabled ? plane->fb : NULL);
+	omap_plane_update_pin(plane, enabled ? plane->fb : NULL);
 
 	if (!enabled) {
 		dispc_ovl_enable(omap_plane->id, false);
@@ -173,7 +174,7 @@ static void omap_plane_post_apply(struct omap_drm_apply *apply)
 		cb.fxn(cb.arg);
 }
 
-static int apply(struct drm_plane *plane)
+static int omap_plane_apply(struct drm_plane *plane)
 {
 	if (plane->crtc) {
 		struct omap_plane *omap_plane = to_omap_plane(plane);
@@ -214,7 +215,7 @@ int omap_plane_mode_set(struct drm_plane *plane,
 		omap_plane->apply_done_cb.arg = arg;
 	}
 
-	return apply(plane);
+	return omap_plane_apply(plane);
 }
 
 static int omap_plane_update(struct drm_plane *plane,
@@ -283,7 +284,7 @@ int omap_plane_set_enable(struct drm_plane *plane, bool enable)
 		return 0;
 
 	omap_plane->enabled = enable;
-	return apply(plane);
+	return omap_plane_apply(plane);
 }
 
 /* helper to install properties which are common to planes and crtcs */
@@ -331,11 +332,11 @@ int omap_plane_set_property(struct drm_plane *plane,
 	if (property == priv->rotation_prop) {
 		DBG("%s: rotation: %02x", omap_plane->name, (uint32_t)val);
 		omap_plane->win.rotation = val;
-		ret = apply(plane);
+		ret = omap_plane_apply(plane);
 	} else if (property == priv->zorder_prop) {
 		DBG("%s: zorder: %02x", omap_plane->name, (uint32_t)val);
 		omap_plane->info.zorder = val;
-		ret = apply(plane);
+		ret = omap_plane_apply(plane);
 	}
 
 	return ret;
@@ -386,7 +387,7 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 		return ERR_PTR(-ENOMEM);
 
 	drm_flip_work_init(&omap_plane->unpin_work,
-			"unpin", unpin_worker);
+			"unpin", omap_plane_unpin_worker);
 
 	omap_plane->nformats = omap_framebuffer_get_formats(
 			omap_plane->formats, ARRAY_SIZE(omap_plane->formats),
