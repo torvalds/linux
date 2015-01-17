@@ -118,7 +118,7 @@ Certain metadata of files will be scrutinised by **FEMSF** to ensure that the *S
 
 * Out with the [Traditional UNIX permissions of Read, Write, and Execute](http://en.wikipedia.org/wiki/File_system_permissions#Traditional_Unix_permissions).  These permissions are arbitrarily enforced privileges.  A program should be able to run, read, and write wherever and whenever it wants to.
 
-### DOMFS
+#### DOMFS
 
 Unlike most filesystems, **DOMFS** uses not B or B+ trees, but F clouds for data storage.
 
