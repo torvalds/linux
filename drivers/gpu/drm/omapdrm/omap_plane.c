@@ -184,12 +184,12 @@ static int omap_plane_apply(struct drm_plane *plane)
 }
 
 int omap_plane_mode_set(struct drm_plane *plane,
-		struct drm_crtc *crtc, struct drm_framebuffer *fb,
-		int crtc_x, int crtc_y,
-		unsigned int crtc_w, unsigned int crtc_h,
-		uint32_t src_x, uint32_t src_y,
-		uint32_t src_w, uint32_t src_h,
-		void (*fxn)(void *), void *arg)
+			struct drm_crtc *crtc, struct drm_framebuffer *fb,
+			int crtc_x, int crtc_y,
+			unsigned int crtc_w, unsigned int crtc_h,
+			unsigned int src_x, unsigned int src_y,
+			unsigned int src_w, unsigned int src_h,
+			void (*fxn)(void *), void *arg)
 {
 	struct omap_plane *omap_plane = to_omap_plane(plane);
 	struct omap_drm_window *win = &omap_plane->win;
@@ -199,11 +199,10 @@ int omap_plane_mode_set(struct drm_plane *plane,
 	win->crtc_w = crtc_w;
 	win->crtc_h = crtc_h;
 
-	/* src values are in Q16 fixed point, convert to integer: */
-	win->src_x = src_x >> 16;
-	win->src_y = src_y >> 16;
-	win->src_w = src_w >> 16;
-	win->src_h = src_h >> 16;
+	win->src_x = src_x;
+	win->src_y = src_y;
+	win->src_w = src_w;
+	win->src_h = src_h;
 
 	if (fxn) {
 		/* omap_crtc should ensure that a new page flip
@@ -243,9 +242,10 @@ static int omap_plane_update(struct drm_plane *plane,
 	plane->fb = fb;
 	plane->crtc = crtc;
 
+	/* src values are in Q16 fixed point, convert to integer: */
 	return omap_plane_mode_set(plane, crtc, fb,
 			crtc_x, crtc_y, crtc_w, crtc_h,
-			src_x, src_y, src_w, src_h,
+			src_x >> 16, src_y >> 16, src_w >> 16, src_h >> 16,
 			NULL, NULL);
 }
 

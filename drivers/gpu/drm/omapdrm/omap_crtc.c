@@ -307,10 +307,9 @@ static int omap_crtc_mode_set(struct drm_crtc *crtc,
 	crtc->primary->crtc = crtc;
 
 	return omap_plane_mode_set(crtc->primary, crtc, crtc->primary->fb,
-			0, 0, mode->hdisplay, mode->vdisplay,
-			x << 16, y << 16,
-			mode->hdisplay << 16, mode->vdisplay << 16,
-			NULL, NULL);
+				   0, 0, mode->hdisplay, mode->vdisplay,
+				   x, y, mode->hdisplay, mode->vdisplay,
+				   NULL, NULL);
 }
 
 static void omap_crtc_prepare(struct drm_crtc *crtc)
@@ -334,10 +333,9 @@ static int omap_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	struct drm_display_mode *mode = &crtc->mode;
 
 	return omap_plane_mode_set(plane, crtc, crtc->primary->fb,
-			0, 0, mode->hdisplay, mode->vdisplay,
-			x << 16, y << 16,
-			mode->hdisplay << 16, mode->vdisplay << 16,
-			NULL, NULL);
+				   0, 0, mode->hdisplay, mode->vdisplay,
+				   x, y, mode->hdisplay, mode->vdisplay,
+				   NULL, NULL);
 }
 
 static void vblank_cb(void *arg)
@@ -369,10 +367,9 @@ static void page_flip_worker(struct work_struct *work)
 
 	drm_modeset_lock(&crtc->mutex, NULL);
 	omap_plane_mode_set(crtc->primary, crtc, crtc->primary->fb,
-			0, 0, mode->hdisplay, mode->vdisplay,
-			crtc->x << 16, crtc->y << 16,
-			mode->hdisplay << 16, mode->vdisplay << 16,
-			vblank_cb, crtc);
+			    0, 0, mode->hdisplay, mode->vdisplay,
+			    crtc->x, crtc->y, mode->hdisplay, mode->vdisplay,
+			    vblank_cb, crtc);
 	drm_modeset_unlock(&crtc->mutex);
 
 	bo = omap_framebuffer_bo(crtc->primary->fb, 0);

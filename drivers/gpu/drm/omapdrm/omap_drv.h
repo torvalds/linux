@@ -163,12 +163,12 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 		int id, enum drm_plane_type type);
 int omap_plane_set_enable(struct drm_plane *plane, bool enable);
 int omap_plane_mode_set(struct drm_plane *plane,
-		struct drm_crtc *crtc, struct drm_framebuffer *fb,
-		int crtc_x, int crtc_y,
-		unsigned int crtc_w, unsigned int crtc_h,
-		uint32_t src_x, uint32_t src_y,
-		uint32_t src_w, uint32_t src_h,
-		void (*fxn)(void *), void *arg);
+			struct drm_crtc *crtc, struct drm_framebuffer *fb,
+			int crtc_x, int crtc_y,
+			unsigned int crtc_w, unsigned int crtc_h,
+			unsigned int src_x, unsigned int src_y,
+			unsigned int src_w, unsigned int src_h,
+			void (*fxn)(void *), void *arg);
 void omap_plane_install_properties(struct drm_plane *plane,
 		struct drm_mode_object *obj);
 int omap_plane_set_property(struct drm_plane *plane,
