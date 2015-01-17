@@ -21,6 +21,16 @@ config PSTORE_CONSOLE
 	  When the option is enabled, pstore will log all kernel
 	  messages, even if no oops or panic happened.
 
+config PSTORE_PMSG
+	bool "Log user space messages"
+	depends on PSTORE
+	help
+	  When the option is enabled, pstore will export a character
+	  interface /dev/pmsg0 to log user space messages. On reboot
+	  data can be retrieved from /sys/fs/pstore/pmsg-ramoops-[ID].
+
+	  If unsure, say N.
+
 config PSTORE_FTRACE
 	bool "Persistent function tracer"
 	depends on PSTORE
