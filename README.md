@@ -202,6 +202,10 @@ The `man` or manual util is simply oppressive because of its name. To fix this, 
 
 `whois` is deemed as problematic because it allows potential oppressors to look up data about wymyn or PoC who have been targets by oppressors.  Some even say `whois` should be illegal because it promotes [doxxing](http://en.wikipedia.org/wiki/Doxing).  As such, `whois` will be restricted based on the privilege checker's privilege of the user. This has come to light due to privileged white males Doxxing women in the technology and video game industries. `whois` will also be censored upon request to all who are institutionally oppressed. Additionally, the name is changed to `whowhatwhxwhxtis` as to include all who identify as either a person or a non-person; `whx` and `whxt` are used in place of any pronouns by which the user wishes to be referred to.
 
+### touch
+
+`touch` now operates [asynchronously](https://en.wikipedia.org/wiki/Asynchronous_I/O).  Some files simply don't want to be `touch`ed, and that's perfectly fine.  Do not worry when the file does not get created after executing the `touch` command — the file will tell you when it has allowed consent to be `touch`ed
+
 ### shell
 
 To refer to the user interface as a `shell` is troubling in nature due to the fact that is an obstacle for those who are recently coming out from the psychoanalytical "shell" of trans\*sexuality or trans\*genderism. To refer to as a UI as a `shell` implies that all programs ran inside the `shell` is never going to leave the `shell`. As such, all `shell` processes are to be referred to as **`User-Interactive Free To Be Thee Devices (UIFTBTD)`**. To further this, all `UIFTBTD`s are given permission to process data and perform calculations anywhere inside the Computerspaces, not just the "Shell".
