@@ -10,13 +10,13 @@
  * Maintained by: <tpmdd-devel@lists.sourceforge.net>
  *
  * Device driver for TCG/TCPA TPM (trusted platform module).
- * Specifications at www.trustedcomputinggroup.org	 
+ * Specifications at www.trustedcomputinggroup.org
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation, version 2 of the
  * License.
- * 
+ *
  */
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -141,7 +141,7 @@ struct tpm_vendor_specific {
 	u16 manufacturer_id;
 };
 
-#define TPM_VPRIV(c)	(c)->vendor.priv
+#define TPM_VPRIV(c)     ((c)->vendor.priv)
 
 #define TPM_VID_INTEL    0x8086
 #define TPM_VID_WINBOND  0x1050

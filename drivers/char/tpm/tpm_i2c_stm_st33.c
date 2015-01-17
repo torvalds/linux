@@ -777,7 +777,7 @@ tpm_stm_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 				IRQF_TRIGGER_HIGH,
 				"TPM SERIRQ management", chip);
 		if (ret < 0) {
-			dev_err(chip->pdev , "TPM SERIRQ signals %d not available\n",
+			dev_err(chip->pdev, "TPM SERIRQ signals %d not available\n",
 				client->irq);
 			goto _tpm_clean_answer;
 		}
