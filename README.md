@@ -135,8 +135,8 @@ Instead of allowing multiple, pluggable schedulers as in Linux, (which has cause
 
 Cryptography has several inherent problems:
 
-1. It implies that there is no trust within ToleranUX, or without it --- as ToleranUX is a safe space, it is unnecessary.
-2. Cryptography privileges conceptual and abstract logic over creative expression, and as such is a field dominated by white males who use it to hide their blatant sexploitation of womyn.
+1. It implies that there is no trust within **ToleranUX**, or without it — as **ToleranUX** is a *safe space*, it is unnecessary.
+2. Cryptography privileges conceptual and abstract logic over *creative expression*, and as such is a field dominated by white males who use it to hide their blatant sexploitation of womyn.
 3. Cryptography is unnecessary in the modern world, where we can trust government agencies such as the National Security Agencies to keep our information private.  Why do you need cryptography? You don't have anything to hide, do you? You're not secretly a pedophile, right? Nothing to fear, nothing to hide.
 
 In light of all of the above, crypto is currently banned from *ToleranUX**.  The government is here to protect you, and [there should be no "means of communication" which they "cannot read"](http://www.bbc.co.uk/news/uk-politics-30778424).
