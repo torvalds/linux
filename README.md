@@ -11,6 +11,47 @@ A project of the Feminist Software Foundation. Feminist software is a cornerston
 
 > *"Bullshit. [...] Don't give me the "I'm not polite" card. [...] Stop verbally abusing your developers." — [Sarah Sharp on LKML](https://lkml.org/lkml/2013/7/15/427)*
 
+Table of Contents
+=================
+
+  * [ToleranUX](#toleranux)
+      * [News](#news)
+      * [How to contribute](#how-to-contribute)
+  * [The ToleranUX Philosophy](#the-toleranux-philosophy)
+  * [Kernel Hacking Etiquette](#kernel-hacking-etiquette)
+  * [Design](#design)
+      * [Kernel type](#kernel-type)
+      * [Privileges, Root, and Empowerment](#privileges-root-and-empowerment)
+      * [Processes and Forking](#processes-and-forking)
+      * [Filesystem, Metadata, and Hierarchy](#filesystem-metadata-and-hierarchy)
+        * [FEMFS](#femfs)
+        * [DOMFS](#domfs)
+      * [IPC and Pipes](#ipc-and-pipes)
+      * [Scheduling](#scheduling)
+      * [Crypto](#crypto)
+  * [Smashing the socially constructed barriers between kernel space and user space](#smashing-the-socially-constructed-barriers-between-kernel-space-and-user-space)
+  * [Associated Coreutils](#associated-coreutils)
+      * [init](#init)
+      * [mount](#mount)
+      * [ls](#ls)
+      * [man](#man)
+      * [whois](#whois)
+      * [touch](#touch)
+      * [shell](#shell)
+      * [kill](#kill)
+      * [grep](#grep)
+  * [Kernel Modules and Server Daemons — SystemV](#kernel-modules-and-server-daemons--systemv)
+      * [SafespaceV](#safespacev)
+      * [PrivCheckV](#privcheckv)
+      * [ProgressiveV](#progressivev)
+      * [RedundantV](#redundantv)
+      * [EducateV](#educatev)
+      * [SignalBoostV](#signalboostv)
+  * [Supported architectures and form factors](#supported-architectures-and-form-factors)
+  * [Artwork](#artwork)
+  * [Coding Style](#coding-style)
+
+
 ToleranUX
 ===============
 
