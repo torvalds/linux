@@ -87,7 +87,7 @@ The decision of kernel-type has been carefully debated and considered.  In the e
 
 When one considers the [monolithic kernel paradigm](http://en.wikipedia.org/wiki/Monolithic_kernel), one realises that the drivers and services all working under the kernel's address space is extremely oppressive.  Much like how the patriarchy keeps womyn and POC down, so too does a monolithic kernel encourage problematic code in kernel memory.  Of course, the most important part of why a monolithic kernel was not picked is simply due to the phallic nature of monoliths and other large sculpted rocks (See Laura Chiltern's "Patriarchy of Stone:  How Mt. Rushmore Oppressed Me and How You Can Prevent it" for more information on the subject).  Compare that to a micro-aggression kernel, where servers exist in all manner of address space.  This is clearly a superior design for a truly tolerant kernel fit for the modern ages.
 
-This so-called "pointer diversity" is extremely important in encouraging equal runtime to the otherwise disenfranchised userspace addresses.  A pan-kernel daemon `ProgressiveD` shall be implemented that oversees the runtime privileges of all things — from the biggest forkbombs to the smallest variables — all shall be equalised according to the [**Progressive Stack**](https://en.wikipedia.org/wiki/Progressive_stack).  Additionally, the server messenger system (from now on referred to as **"deconstructional dialogue"**) enables the calling out and shaming of problematic behaviour among any server deemed problematic.
+This so-called "pointer diversity" is extremely important in encouraging equal runtime to the otherwise disenfranchised userspace addresses.  A pan-kernel daemon `ProgressiveV` shall be implemented that oversees the runtime privileges of all things — from the biggest forkbombs to the smallest variables — all shall be equalised according to the [**Progressive Stack**](https://en.wikipedia.org/wiki/Progressive_stack).  Additionally, the server messenger system (from now on referred to as **"deconstructional dialogue"**) enables the calling out and shaming of problematic behaviour among any server deemed problematic.
 
 ### Privileges, Root, and Empowerment
 
@@ -234,21 +234,21 @@ Due to the nature of **ToleranUX** being a [micro-aggression kernel](https://en.
 
 In light of the naturally privileged status of such Daemon-Modules, these programs are to execute the very will of **ToleranUX** upon all processes and data of the computing space, monitoring and policing where intolerance and bigotry are found.  These Daemon-Modules shall hence be referred to as the **Software Society**, or the **Women Eradicating Homophobia, Racism, MRAs, Ableism, Cisgenderism, Hate speech, and Transphobia**.
 
-### SafespaceD
+### SafespaceV
 
-`SafespaceD` routinely and randomly scans the virtual memory space for triggering words and phrases, whether in user input, program output, or [intermediate bytecode](http://en.wikipedia.org/wiki/Bytecode).  Such words will be replaced on-the-fly with more acceptable alternatives, e.g. the string "Black people" will be replaced with the string "Person of Colour", and the string "Misandry" will cause the whole pipeline to be redirected to `/dev/null`.
+`SafespaceV` routinely and randomly scans the virtual memory space for triggering words and phrases, whether in user input, program output, or [intermediate bytecode](http://en.wikipedia.org/wiki/Bytecode).  Such words will be replaced on-the-fly with more acceptable alternatives, e.g. the string "Black people" will be replaced with the string "Person of Colour", and the string "Misandry" will cause the whole pipeline to be redirected to `/dev/null`.
 
-### PrivCheckD
+### PrivCheckV
 
-`PrivCheckD` is responsible for ensuring that the in-kernel [Progressive Stack](https://en.wikipedia.org/wiki/Progressive_stack) is kept updated.  `PrivCheckD` evaluates each process's, user's, and memory address's privilege at every kernel tick and re-maps their position in the Progressive Stack by Bubble-sorting them.
+`PrivCheckV` is responsible for ensuring that the in-kernel [Progressive Stack](https://en.wikipedia.org/wiki/Progressive_stack) is kept updated.  `PrivCheckV` evaluates each process's, user's, and memory address's privilege at every kernel tick and re-maps their position in the Progressive Stack by Bubble-sorting them.
 
-### EducateD
+### EducateV
 
-`EducateD` does nothing.  It is not **ToleranUX**'s responsibility to educate you.
+`EducateV` does nothing.  It is not **ToleranUX**'s responsibility to educate you.
 
-### SignalBoostD
+### SignalBoostV
 
-`SignalBoostD` runs periodically to consult which process has a level of privilege lower than a certain threshold determined by the CPU load of `PrivCheckD`.  Said processes would then be *~~forked~~ diversed* by `SignalBoostD` in an attempt to give them more exposure.
+`SignalBoostV` runs periodically to consult which process has a level of privilege lower than a certain threshold determined by the CPU load of `PrivCheckV`.  Said processes would then be *~~forked~~ diversed* by `SignalBoostV` in an attempt to give them more exposure.
 
 Supported architectures and form factors
 ========================================
