@@ -182,6 +182,14 @@ Unlike the [GNU project](https://en.wikipedia.org/wiki/GNU) and the [Linux proje
 
 In Linux land, the adoption of `SystemD` seems to be a growing trend amongst all different walks of distros.  This is alarming and problematic largely due to the blatant association of the name `SystemD` with what must be a [brogrammer](http://en.wikipedia.org/wiki/Brogrammer) inside joke about phalluses and computing systems.  In reaction to that, **ToleranUX** shall boldly go where no Linux dev has dared to go before: instead of an immature and creepy `SystemDick`, we shall celebrate the beautiful and strong `SystemVag`, or **SystemV** for short, as our `init`.
 
+### mount
+
+In **ToleranUX**, `mount`-ing is not tolerated. The implication that one has to sexually `mount` a data storage before "accessing" it is deeply misogynistic for presuming that all relationships have to be first-and-foremost sexual.
+
+To alleviate this, **ToleranUX** would instead `embrace` any new inserted media. The old `/mnt` hierarchy is now abolished, with all new media now living under the same `/media`.
+
+Installing `gnome-online-accounts` would further plug in virtual `embrace`s of your Facebook photos, Twitter posts, and Tumblr blogs under the `/media` directory. Finally, a UNIX-like kernel with social media built in!
+
 ### ls
 
 `ls` is problematic because it allows you to see everything about the computer. This oppresses the computer because it always has to be up-to-par with your demands every time you use it. Thus, `ls` will now be packaged as `rs` (request search) and the directory contents will be displayed according to the user's privilege level upon creation of the account. Furthermore, `rs` does not have an obligation to list folders correctly as some folders need to have a safe space free of privacy-infringing searches. Fake information will thus be created for files that `rs` deems problematic to reveal.
