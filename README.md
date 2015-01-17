@@ -232,12 +232,12 @@ To `kill` a process is a triggering term to those who have been affected by deat
   ![Kernel space, user space... Safe space.](http://i.imgur.com/JCFsu0m.png)
 > *Kernel space, user space... Safe space.*
 
-Kernel Modules and Server Daemons
-=================================
+Kernel Modules and Server Daemons — SystemV
+===========================================
 
-Due to the nature of **ToleranUX** being a [micro-aggression kernel](https://en.wikipedia.org/wiki/Microaggression_theory), all kernel modules are effectively daemons running in kernel space, and vice versa, all daemons are kernel modules running in user space.  [All is one, and one is all.](http://en.wikipedia.org/wiki/Monism)  True Diversity in Unity.
+Due to the nature of **ToleranUX** being a [micro-aggression kernel](https://en.wikipedia.org/wiki/Microaggression_theory), all kernel modules are effectively daemons running in kernel space, and vice versa, all daemons are kernel modules running in user space.  [All is one, and one is all.](http://en.wikipedia.org/wiki/Monism)  True Diversity in Unity.  This set of Daemon-Modules is named **SystemV**, in rejection of the phallic `SystemD`.
 
-In light of the naturally privileged status of such Daemon-Modules, these programs are to execute the very will of **ToleranUX** upon all processes and data of the computing space, monitoring and policing where intolerance and bigotry are found.  These Daemon-Modules shall hence be referred to as the **Software Society (SS)**, or the **Women Eradicating Homophobia, Racism, MRAs, Ableism, Cisgenderism, Hate speech, and Transphobia (WEHRMACHT)**.
+In light of the naturally privileged status of **SystemV**, these programs are to execute the very will of **ToleranUX** upon all processes and data of the computing space, monitoring and policing where intolerance and bigotry are found.  These **SysVutils** shall hence be referred to as the **Software Society (SS)**, or the **Women Eradicating Homophobia, Racism, MRAs, Ableism, Cisgenderism, Hate speech, and Transphobia (WEHRMACHT)**.
 
 ### SafespaceV
 
@@ -246,6 +246,14 @@ In light of the naturally privileged status of such Daemon-Modules, these progra
 ### PrivCheckV
 
 `PrivCheckV` is responsible for ensuring that the in-kernel [Progressive Stack](https://en.wikipedia.org/wiki/Progressive_stack) is kept updated.  `PrivCheckV` evaluates each process's, user's, and memory address's privilege at every kernel tick and re-maps their position in the Progressive Stack by Bubble-sorting them.
+
+### ProgressiveV
+
+`ProgressiveV` oversees the runtime privileges of all things — from the biggest forkbombs to the smallest variables — all shall be equalised according to the [**Progressive Stack**](https://en.wikipedia.org/wiki/Progressive_stack).
+
+### RedundantV
+
+There is no such thing as redundancy in the Great Feminist Struggle, and thus the function of `RedundantV` will be to oversee and ensuring that the processes are adequatly equalised according to the in-kernel [**Progressive Stack**](https://en.wikipedia.org/wiki/Progressive_stack).
 
 ### EducateV
 
