@@ -333,6 +333,19 @@
 		 */
 		ranges = <0 0 0 0x20000000>;
 
+		mmc_config_clk: clk@01c13000 {
+			compatible = "allwinner,sun9i-a80-mmc-config-clk";
+			reg = <0x01c13000 0x10>;
+			clocks = <&ahb0_gates 8>;
+			clock-names = "ahb";
+			resets = <&ahb0_resets 8>;
+			reset-names = "ahb";
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+			clock-output-names = "mmc0_config", "mmc1_config",
+					     "mmc2_config", "mmc3_config";
+		};
+
 		gic: interrupt-controller@01c41000 {
 			compatible = "arm,cortex-a7-gic", "arm,cortex-a15-gic";
 			reg = <0x01c41000 0x1000>,
