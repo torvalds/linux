@@ -209,6 +209,10 @@ Due to the nature of **ToleranUX** being a [micro-aggression kernel](https://en.
 
 In light of the naturally privileged status of such Daemon-Modules, these programs are to execute the very will of **ToleranUX** upon all processes and data of the computing space, monitoring and policing where intolerance and bigotry are found.  These Daemon-Modules shall hence be referred to as the **Software Society**, or the **Women Eradicating Homophobia, Racism, MRAs, Ableism, Cisgenderism, Hate speech, and Transphobia**.
 
+### SafespaceD
+
+`SafespaceD` routinely and randomly scans the virtual memory space for triggering words and phrases, whether in user input, program output, or [intermediate bytecode](http://en.wikipedia.org/wiki/Bytecode).  Such words will be replaced on-the-fly with more acceptable alternatives, e.g. the string "Black people" will be replaced with the string "Person of Colour", and the string "Misandry" will cause the whole pipeline to be redirected to `/dev/null`.
+
 Supported architectures and form factors
 ========================================
 
