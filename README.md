@@ -104,15 +104,31 @@ In sexist FOSS software, this would be a *fork*.  This term, for being so common
 
 ### Filesystem, Metadata, and Hierarchy
 
-Directories imply hierarchy — there will be no directories in **ToleranUX**.  Instead, a "tag based" file "pool" is instated where all files co-exist in the same level of privilege.  In other words, "Everything is a File, and every File is in a [Semantic Filesystem](https://en.wikipedia.org/wiki/Semantic_file_system)."
+The filesystem of **ToleranUX** is implemented in 2 different but equal layers that showcases the diversity of **ToleranUX**.  They are the **Feminists End MRAs Filesystem (FEMFS)**, which sits at the bottom, and the **Damsels Obliterate Masculinity Filesystem (DOMFS)**, which sits at the top.
 
-Certain metadata of files will be scrutinised by **ToleranUX** to ensure that the *Semantic Pool* is sufficiently inclusive:
+#### FEMFS
+
+Directories imply hierarchy — there will be no directories in **FEMFS**.  Instead, a "tag based" file "pool" is instated where all files co-exist in the same level of privilege.  In other words, "Everything is a File, and every File is in a [Semantic Filesystem](https://en.wikipedia.org/wiki/Semantic_file_system)."
+
+Certain metadata of files will be scrutinised by **FEMSF** to ensure that the *Semantic Pool* is sufficiently inclusive:
 
 * Reported filesize shall change depending on context.  Average users are inherently biased towards smaller filesizes, and the unhealthy and misogynistic pursuit of the ever-shaming "conserving space" ideal is toxic to the well-being of individual files who have no control over their filesizes.  Users attempting to `ls -S` will be punished by having their user session kicked by the [OOM](https://en.wikipedia.org/wiki/Out_of_memory) (Obesity Oppression Mercy-killer).
 
 * Filetypes are passé.  Who are we to affix the [magic number label](http://en.wikipedia.org/wiki/File_format#Magic_number) to files when they are created and claim that they are so for their lifespan in our computers?  A `.png` file may identify as a `.epub` file for all its merits.  It is simply not right to categorise.  Shall a user complain that he/she/xe cannot open a file because he/she/xe expects a certain format, (e.g. trying to parse a `LaTeX-identifying DOCX` with `vim` and failing,) the kernel reduces the allocated processing power to the user by half.
 
 * Out with the [Traditional UNIX permissions of Read, Write, and Execute](http://en.wikipedia.org/wiki/File_system_permissions#Traditional_Unix_permissions).  These permissions are arbitrarily enforced privileges.  A program should be able to run, read, and write wherever and whenever it wants to.
+
+### DOMFS
+
+Unlike most filesystems, **DOMFS** uses not B or B+ trees, but F clouds for data storage.
+
+The mental image of a tree is misogynistic.  In cultures we see how the "root" is strong associated with the **mythical nuclear family unit** (i.e. a [family tree](http://en.wikipedia.org/wiki/Family_tree)) that perpetuates the very foundation of [the Patriarchy](https://en.wikipedia.org/wiki/Patriarchy).  In this sexist culture the "root" is also often equated with the male genitalia, itself a problematic thing because male genitalias are all potential rapist weapons.  To alleviate this, clouds will be used instead of trees.
+
+F clouds act like B trees in that they have "mother" and "child" nodes. However, nodes cannot be "inserted," but nodes can be suggested to be added to the filesystem journal structure. In the F-cloud, all data is created equal, and as such, a child node may choose which mother node(s) it wishes to associate with, and it may change the number (that it has willfully provided) associated with it. In addition, there is no limit to the depth of nodes, unlike in B trees. F-clouds, like B-trees will be auto-balancing, in promotion of equality.
+
+Like the popular ZFS, **DOMFS** will provide "next-generation" features. Some features included are privilege level for files as a replacement for "Access Control Lists," and like ZFS, hard disks (which should be renamed soft disks to remove implied masculinity) will all be handled as if they were one entity in RAIDFEM. Deduplication will not be supported, as it is suggestive of privileged data, which is superior to other data.
+
+The filesystem can add the data, if it consents, or it may refuse. Data is not "read" from the file system, it is given. Data is not "written," it is offered.
 
 ### IPC and Pipes
 
