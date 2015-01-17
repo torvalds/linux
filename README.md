@@ -204,7 +204,7 @@ The `man` or manual util is simply oppressive because of its name. To fix this, 
 
 ### touch
 
-`touch` now operates [asynchronously](https://en.wikipedia.org/wiki/Asynchronous_I/O).  Some files simply don't want to be `touch`ed, and that's perfectly fine.  Do not worry when the file does not get created after executing the `touch` command — the file will tell you when it has allowed consent to be `touch`ed
+`touch` now operates [asynchronously](https://en.wikipedia.org/wiki/Asynchronous_I/O).  Some files simply don't want to be `touch`ed, and that's perfectly fine.  Do not worry when the file does not get created after executing the `touch` command — the file will tell you when it has allowed consent to be `touch`ed.
 
 ### shell
 
