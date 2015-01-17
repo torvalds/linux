@@ -75,6 +75,9 @@ At Feminist Software Foundation, we uphold the belief that all people are equal,
 * Attempting to get a pull request accepted due to its code quality (a.k.a. "Meritocracy"/"Mansplaining")
 * Management by perkele
 
+  ![FemiTux is watching you for your problematic behaviour.](http://i.imgur.com/fJRgZ3P.jpg)
+> *FemiTux is watching you for your problematic behaviour.*
+
 Design
 ======
 
@@ -173,6 +176,9 @@ To alleviate this, **ToleranUX** replaces the outdated concept of "occupied virt
 
 An added benefit of implementing **Multispatialism** is that there will never be any commit that will break the *user space* any more, because the *user space* no longer exists as a separate and socially constructed concept.
 
+  ![One day, ToleranUX will grow to becomes xir own distro...](http://i.imgur.com/Ua6EICi.png)
+> *One day, ToleranUX will grow to becomes xir own distro...*
+
 Associated Coreutils
 ====================
 
@@ -217,6 +223,9 @@ To `kill` a process is a triggering term to those who have been affected by deat
 ### grep
 
 `grep` (Global Regular Expression Print) sounds like `grope` — renamed to `gffp` (Global Find Feelings Print).  `gffp` is one of the many 'filter' type programs of UNIX, used to transform input streams into something more desirable. This is a toxic attitude, as all input streams should be accepted as they are. The `gffp` filter uses a segregation technique called 'regular expressions' to discriminate input lines that contain specific patterns. The digital apartheid does not end in `gffp`: `sed` and `awk` are examples of filters that combine regular expressions with programming language constructs for even more intricate discrimination. We seek to deprecate the filter model of program design that poisons UNIX in favor of more tolerant alternatives.
+
+  ![Kernel space, user space... Safe space.](http://i.imgur.com/JCFsu0m.png)
+> *Kernel space, user space... Safe space.*
 
 Kernel Modules and Server Daemons
 =================================
