@@ -376,31 +376,16 @@ int sst_hsw_fw_get_version(struct sst_hsw *hsw,
 u32 create_channel_map(enum sst_hsw_channel_config config);
 
 /* Stream Mixer Controls - */
-int sst_hsw_stream_mute(struct sst_hsw *hsw, struct sst_hsw_stream *stream,
-	u32 stage_id, u32 channel);
-int sst_hsw_stream_unmute(struct sst_hsw *hsw, struct sst_hsw_stream *stream,
-	u32 stage_id, u32 channel);
-
 int sst_hsw_stream_set_volume(struct sst_hsw *hsw,
 	struct sst_hsw_stream *stream, u32 stage_id, u32 channel, u32 volume);
 int sst_hsw_stream_get_volume(struct sst_hsw *hsw,
 	struct sst_hsw_stream *stream, u32 stage_id, u32 channel, u32 *volume);
 
-int sst_hsw_stream_set_volume_curve(struct sst_hsw *hsw,
-	struct sst_hsw_stream *stream, u64 curve_duration,
-	enum sst_hsw_volume_curve curve);
-
 /* Global Mixer Controls - */
-int sst_hsw_mixer_mute(struct sst_hsw *hsw, u32 stage_id, u32 channel);
-int sst_hsw_mixer_unmute(struct sst_hsw *hsw, u32 stage_id, u32 channel);
-
 int sst_hsw_mixer_set_volume(struct sst_hsw *hsw, u32 stage_id, u32 channel,
 	u32 volume);
 int sst_hsw_mixer_get_volume(struct sst_hsw *hsw, u32 stage_id, u32 channel,
 	u32 *volume);
-
-int sst_hsw_mixer_set_volume_curve(struct sst_hsw *hsw,
-	u64 curve_duration, enum sst_hsw_volume_curve curve);
 
 /* Stream API */
 struct sst_hsw_stream *sst_hsw_stream_new(struct sst_hsw *hsw, int id,
@@ -440,18 +425,6 @@ int sst_hsw_stream_set_pmemory_info(struct sst_hsw *hsw,
 	struct sst_hsw_stream *stream, u32 offset, u32 size);
 int sst_hsw_stream_set_smemory_info(struct sst_hsw *hsw,
 	struct sst_hsw_stream *stream, u32 offset, u32 size);
-int sst_hsw_stream_get_hw_id(struct sst_hsw *hsw,
-	struct sst_hsw_stream *stream);
-int sst_hsw_stream_get_mixer_id(struct sst_hsw *hsw,
-	struct sst_hsw_stream *stream);
-u32 sst_hsw_stream_get_read_reg(struct sst_hsw *hsw,
-	struct sst_hsw_stream *stream);
-u32 sst_hsw_stream_get_pointer_reg(struct sst_hsw *hsw,
-	struct sst_hsw_stream *stream);
-u32 sst_hsw_stream_get_peak_reg(struct sst_hsw *hsw,
-	struct sst_hsw_stream *stream, u32 channel);
-u32 sst_hsw_stream_get_vol_reg(struct sst_hsw *hsw,
-	struct sst_hsw_stream *stream, u32 channel);
 int sst_hsw_mixer_get_info(struct sst_hsw *hsw);
 
 /* Stream ALSA trigger operations */
@@ -466,8 +439,6 @@ int sst_hsw_stream_get_read_pos(struct sst_hsw *hsw,
 	struct sst_hsw_stream *stream, u32 *position);
 int sst_hsw_stream_get_write_pos(struct sst_hsw *hsw,
 	struct sst_hsw_stream *stream, u32 *position);
-int sst_hsw_stream_set_write_position(struct sst_hsw *hsw,
-	struct sst_hsw_stream *stream, u32 stage_id, u32 position);
 u32 sst_hsw_get_dsp_position(struct sst_hsw *hsw,
 	struct sst_hsw_stream *stream);
 u64 sst_hsw_get_dsp_presentation_position(struct sst_hsw *hsw,
@@ -481,8 +452,6 @@ int sst_hsw_device_set_config(struct sst_hsw *hsw,
 /* DX Config */
 int sst_hsw_dx_set_state(struct sst_hsw *hsw,
 	enum sst_hsw_dx_state state, struct sst_hsw_ipc_dx_reply *dx);
-int sst_hsw_dx_get_state(struct sst_hsw *hsw, u32 item,
-	u32 *offset, u32 *size, u32 *source);
 
 /* init */
 int sst_hsw_dsp_init(struct device *dev, struct sst_pdata *pdata);
