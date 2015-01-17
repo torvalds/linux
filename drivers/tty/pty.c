@@ -212,10 +212,16 @@ static int pty_signal(struct tty_struct *tty, int sig)
 static void pty_flush_buffer(struct tty_struct *tty)
 {
 	struct tty_struct *to = tty->link;
+	struct tty_ldisc *ld;
 
 	if (!to)
 		return;
-	/* tty_buffer_flush(to); FIXME */
+
+	ld = tty_ldisc_ref(to);
+	tty_buffer_flush(to, ld);
+	if (ld)
+		tty_ldisc_deref(ld);
+
 	if (to->packet) {
 		spin_lock_irq(&tty->ctrl_lock);
 		tty->ctrl_status |= TIOCPKT_FLUSHWRITE;
@@ -424,6 +430,8 @@ static int pty_common_install(struct tty_driver *driver, struct tty_struct *tty,
 	o_tty->port = ports[0];
 	tty->port = ports[1];
 	o_tty->port->itty = o_tty;
+
+	tty_buffer_set_lock_subclass(o_tty->port);
 
 	tty_driver_kref_get(driver);
 	tty->count++;
