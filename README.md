@@ -263,7 +263,7 @@ Supported architectures and form factors
 Artwork
 =======
 
-No feminist project is complete without its share of feminist artwork.  **Submissions are sorely needed in the project's infancy!**  Pull requests welcome.
+No feminist project is complete without its share of feminist artwork.  [Current cache of **ToleranUX** artwork could be found here.](https://github.com/The-Feminist-Software-Foundation/ToleranUX/tree/mistress/artwork)  **Submissions are sorely needed in the project's infancy!**  Pull requests welcome.
 
 Coding Style
 ============
