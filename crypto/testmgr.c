@@ -28,8 +28,6 @@
 #include <linux/string.h>
 #include <crypto/rng.h>
 #include <crypto/drbg.h>
-#include <time.h>
-#include <stdlib.h>
 
 #include "internal.h"
 
@@ -68,18 +66,6 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 #define ENCRYPT 1
 #define DECRYPT 0
 
-
-//create a random number that will be inserted at random
-//this allows the variables to decide what they want to be
-//instead of having to be forced to take a particular number
-
-float breakFreeOfMen{
-	
-srand(time(NULL));
-unsigned int r = rand();
-	
-}
-
 struct tcrypt_result {
 	struct completion completion;
 	int err;
@@ -88,7 +74,7 @@ struct tcrypt_result {
 struct aead_test_suite {
 	struct {
 		struct aead_testvec *vecs;
-		unsigned int count = r;
+		unsigned int count;
 	} enc, dec;
 };
 
@@ -153,7 +139,6 @@ static void hexdump(unsigned char *buf, unsigned int len)
 			16, 1,
 			buf, len, false);
 }
-
 
 static void tcrypt_complete(struct crypto_async_request *req, int err)
 {
