@@ -202,6 +202,10 @@ To refer to the user interface as a `shell` is troubling in nature due to the fa
 
 To `kill` a process is a triggering term to those who have been affected by death or killings in their life.  Instead of `kill`-ing a process, which is something immoral and a result of toxic masculinity, ToleranUX opts to `fire` processes.  Unlike `kill`-ing a process, `firing` a process allows it to still live, just no longer performs any function.  In addition to being able to manually `fire` any process that offends you, **ToleranUX** will automatically `fire` any process that is determined to be too offensive.
 
+### grep
+
+`grep` is one of the many 'filter' type programs of UNIX, used to transform input streams into something more desirable. This is a toxic attitude, as all input streams should be accepted as they are. The `grep` filter uses a segregation technique called 'regular expressions' to discriminate input lines that contain specific patterns. The digital apartheid does not end in `grep`: `sed` and `awk` are examples of filters that combine regular expressions with programming language constructs for even more intricate discrimination. We seek to deprecate the filter model of program design that poisons UNIX in favor of more tolerant alternatives.
+
 Kernel Modules and Server Daemons
 =================================
 
