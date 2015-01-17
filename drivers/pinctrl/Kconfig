@@ -96,6 +96,14 @@ config PINCTRL_FALCON
 	depends on SOC_FALCON
 	depends on PINCTRL_LANTIQ
 
+config PINCTRL_MESON
+	bool
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select OF_GPIO
+	select REGMAP_MMIO
+
 config PINCTRL_ROCKCHIP
 	bool
 	select PINMUX
