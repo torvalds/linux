@@ -9,7 +9,7 @@ A project of the Feminist Software Foundation. Feminist software is a cornerston
 
 > *"A Linux without Linus Torvalds is a better community. A more independent and self-determinate community. A more welcoming community." — @shanley on Twitter*
 
-> *"Bullshit. [...] Don't give me the "I'm not polite" card. [...] Stop verbally abusing your developers." - [Sarah Sharp on LKML](https://lkml.org/lkml/2013/7/15/427)*
+> *"Bullshit. [...] Don't give me the "I'm not polite" card. [...] Stop verbally abusing your developers." — [Sarah Sharp on LKML](https://lkml.org/lkml/2013/7/15/427)*
 
 ToleranUX
 ===============
