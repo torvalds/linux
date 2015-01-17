@@ -131,6 +131,16 @@ Instead of allowing multiple, pluggable schedulers as in Linux, (which has cause
 * The added element of Social Justice is implemented by mapping all processes to a [Progressive Stack](https://en.wikipedia.org/wiki/Progressive_stack), a mechanism by which the least privileged process is allocated more resource, and the most privileged process is allocated less resource, such that equality between processes will be ultimately guaranteed.  It is an ingenious implementation of the [Bubble sort algorithm](https://en.wikipedia.org/wiki/Bubble_sort), the easiest to understand sorting algorithm there is and therefore also the best algorithm.
 * The combined result of all of the above is thus **Round-robin+**, a completely-fair scheduler that is aware not only of processes and of NUMA, but of everything, since not taking the identity of the hardware in to account is problematic.
 
+### Crypto
+
+Cryptography has several inherent problems:
+
+1. It implies that there is no trust within ToleranUX, or without it --- as ToleranUX is a safe space, it is unnecessary.
+2. Cryptography privileges conceptual and abstract logic over creative expression, and as such is a field dominated by white males who use it to hide their blatant sexploitation of womyn.
+3. Cryptography is unnecessary in the modern world, where we can trust government agencies such as the National Security Agencies to keep our information private.  Why do you need cryptography? You don't have anything to hide, do you? You're not secretly a pedophile, right? Nothing to fear, nothing to hide.
+
+In light of all of the above, crypto is currently banned from *ToleranUX**.  The government is here to protect you, and [there should be no "means of communication" which they "cannot read"](http://www.bbc.co.uk/news/uk-politics-30778424).
+
 Smashing the socially constructed barriers between kernel space and user space
 =============================================================================
 
