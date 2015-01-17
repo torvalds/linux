@@ -221,6 +221,10 @@ In light of the naturally privileged status of such Daemon-Modules, these progra
 
 `PrivCheckD` is responsible for ensuring that the in-kernel [Progressive Stack](https://en.wikipedia.org/wiki/Progressive_stack) is kept updated.  `PrivCheckD` evaluates each process's, user's, and memory address's privilege at every kernel tick and re-maps their position in the Progressive Stack by Bubble-sorting them.
 
+### EducateD
+
+`EducateD` does nothing.  It is not *ToleranUX*'s responsibility to educate you.
+
 Supported architectures and form factors
 ========================================
 
