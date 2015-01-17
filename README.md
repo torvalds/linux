@@ -212,7 +212,7 @@ To `kill` a process is a triggering term to those who have been affected by deat
 
 ### grep
 
-`grep` is one of the many 'filter' type programs of UNIX, used to transform input streams into something more desirable. This is a toxic attitude, as all input streams should be accepted as they are. The `grep` filter uses a segregation technique called 'regular expressions' to discriminate input lines that contain specific patterns. The digital apartheid does not end in `grep`: `sed` and `awk` are examples of filters that combine regular expressions with programming language constructs for even more intricate discrimination. We seek to deprecate the filter model of program design that poisons UNIX in favor of more tolerant alternatives.
+`grep` (Global Regular Expression Print) sounds like `grope` — renamed to `gffp` (Global Find Feelings Print).  `gffp` is one of the many 'filter' type programs of UNIX, used to transform input streams into something more desirable. This is a toxic attitude, as all input streams should be accepted as they are. The `gffp` filter uses a segregation technique called 'regular expressions' to discriminate input lines that contain specific patterns. The digital apartheid does not end in `gffp`: `sed` and `awk` are examples of filters that combine regular expressions with programming language constructs for even more intricate discrimination. We seek to deprecate the filter model of program design that poisons UNIX in favor of more tolerant alternatives.
 
 Kernel Modules and Server Daemons
 =================================
