@@ -411,27 +411,21 @@ safe_sig_queue_validate(struct signal_queue_header *psafe_sqh,
 	return 1;
 }				/* end safe_sig_queue_validate */
 
-BOOL
-visorchannel_signalremove(struct visorchannel *channel, u32 queue, void *msg)
+static BOOL
+signalremove_inner(struct visorchannel *channel, u32 queue, void *msg)
 {
-	BOOL rc = FALSE;
 	struct signal_queue_header sig_hdr;
 
-	if (channel->needs_lock)
-		spin_lock(&channel->remove_lock);
-
 	if (!sig_read_header(channel, queue, &sig_hdr)) {
-		rc = FALSE;
-		goto cleanup;
+		return FALSE;
 	}
-	if (sig_hdr.head == sig_hdr.tail) {
-		rc = FALSE;	/* no signals to remove */
-		goto cleanup;
-	}
+	if (sig_hdr.head == sig_hdr.tail)
+		return FALSE;	/* no signals to remove */
+
 	sig_hdr.tail = (sig_hdr.tail + 1) % sig_hdr.max_slots;
 	if (!sig_read_data(channel, queue, &sig_hdr, sig_hdr.tail, msg)) {
-		ERRDRV("sig_read_data failed: (status=%d)\n", rc);
-		goto cleanup;
+		ERRDRV("sig_read_data failed\n");
+		return FALSE;
 	}
 	sig_hdr.num_received++;
 
@@ -440,53 +434,54 @@ visorchannel_signalremove(struct visorchannel *channel, u32 queue, void *msg)
 	 */
 	mb(); /* required for channel synch */
 	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, tail)) {
-		ERRDRV("visor_memregion_write of Tail failed: (status=%d)\n",
-		       rc);
-		goto cleanup;
+		ERRDRV("visor_memregion_write of Tail failed\n");
+		return FALSE;
 	}
 	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, num_received)) {
-		ERRDRV("visor_memregion_write of NumSignalsReceived failed: (status=%d)\n",
-		       rc);
-		goto cleanup;
+		ERRDRV("visor_memregion_write of NumSignalsReceived failed\n");
+		return FALSE;
 	}
-	rc = TRUE;
-cleanup:
-	if (channel->needs_lock)
+	return TRUE;
+}
+
+BOOL
+visorchannel_signalremove(struct visorchannel *channel, u32 queue, void *msg)
+{
+	BOOL rc;
+
+	if (channel->needs_lock) {
+		spin_lock(&channel->remove_lock);
+		rc = signalremove_inner(channel, queue, msg);
 		spin_unlock(&channel->remove_lock);
+	} else {
+		rc = signalremove_inner(channel, queue, msg);
+	}
 
 	return rc;
 }
 EXPORT_SYMBOL_GPL(visorchannel_signalremove);
 
-BOOL
-visorchannel_signalinsert(struct visorchannel *channel, u32 queue, void *msg)
+static BOOL
+signalinsert_inner(struct visorchannel *channel, u32 queue, void *msg)
 {
-	BOOL rc = FALSE;
 	struct signal_queue_header sig_hdr;
 
-	if (channel->needs_lock)
-		spin_lock(&channel->insert_lock);
-
 	if (!sig_read_header(channel, queue, &sig_hdr)) {
-		rc = FALSE;
-		goto cleanup;
+		return FALSE;
 	}
 
 	sig_hdr.head = ((sig_hdr.head + 1) % sig_hdr.max_slots);
 	if (sig_hdr.head == sig_hdr.tail) {
 		sig_hdr.num_overflows++;
-		if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, num_overflows)) {
-			ERRDRV("visor_memregion_write of NumOverflows failed: (status=%d)\n",
-			       rc);
-			goto cleanup;
-		}
-		rc = FALSE;
-		goto cleanup;
+		if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, num_overflows))
+			ERRDRV("visor_memregion_write of NumOverflows failed\n");
+
+		return FALSE;
 	}
 
 	if (!sig_write_data(channel, queue, &sig_hdr, sig_hdr.head, msg)) {
-		ERRDRV("sig_write_data failed: (status=%d)\n", rc);
-		goto cleanup;
+		ERRDRV("sig_write_data failed\n");
+		return FALSE;
 	}
 	sig_hdr.num_sent++;
 
@@ -495,19 +490,29 @@ visorchannel_signalinsert(struct visorchannel *channel, u32 queue, void *msg)
 	 */
 	mb(); /* required for channel synch */
 	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, head)) {
-		ERRDRV("visor_memregion_write of Head failed: (status=%d)\n",
-		       rc);
-		goto cleanup;
+		ERRDRV("visor_memregion_write of Head failed\n");
+		return FALSE;
 	}
 	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, num_sent)) {
-		ERRDRV("visor_memregion_write of NumSignalsSent failed: (status=%d)\n",
-		       rc);
-		goto cleanup;
+		ERRDRV("visor_memregion_write of NumSignalsSent failed\n");
+		return FALSE;
 	}
-	rc = TRUE;
-cleanup:
-	if (channel->needs_lock)
+
+	return TRUE;
+}
+
+BOOL
+visorchannel_signalinsert(struct visorchannel *channel, u32 queue, void *msg)
+{
+	BOOL rc;
+
+	if (channel->needs_lock) {
+		spin_lock(&channel->insert_lock);
+		rc = signalinsert_inner(channel, queue, msg);
 		spin_unlock(&channel->insert_lock);
+	} else {
+		rc = signalinsert_inner(channel, queue, msg);
+	}
 
 	return rc;
 }
