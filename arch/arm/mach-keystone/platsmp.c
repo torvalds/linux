@@ -40,14 +40,14 @@ static int keystone_smp_boot_secondary(unsigned int cpu,
 }
 
 #ifdef CONFIG_ARM_LPAE
-static void __cpuinit keystone_smp_secondary_initmem(unsigned int cpu)
+static void keystone_smp_secondary_initmem(unsigned int cpu)
 {
 	pgd_t *pgd0 = pgd_offset_k(0);
 	cpu_set_ttbr(1, __pa(pgd0) + TTBR1_OFFSET);
 	local_flush_tlb_all();
 }
 #else
-static inline void __cpuinit keystone_smp_secondary_initmem(unsigned int cpu)
+static inline void keystone_smp_secondary_initmem(unsigned int cpu)
 {}
 #endif
 
