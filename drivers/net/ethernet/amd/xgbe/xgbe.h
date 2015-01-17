@@ -182,10 +182,18 @@
 #define XGBE_PHY_NAME		"amd_xgbe_phy"
 #define XGBE_PRTAD		0
 
+/* Common property names */
+#define XGBE_MAC_ADDR_PROPERTY	"mac-address"
+#define XGBE_PHY_MODE_PROPERTY	"phy-mode"
+#define XGBE_DMA_IRQS_PROPERTY	"amd,per-channel-interrupt"
+
 /* Device-tree clock names */
 #define XGBE_DMA_CLOCK		"dma_clk"
 #define XGBE_PTP_CLOCK		"ptp_clk"
-#define XGBE_DMA_IRQS		"amd,per-channel-interrupt"
+
+/* ACPI property names */
+#define XGBE_ACPI_DMA_FREQ	"amd,dma-freq"
+#define XGBE_ACPI_PTP_FREQ	"amd,ptp-freq"
 
 /* Timestamp support - values based on 50MHz PTP clock
  *   50MHz => 20 nsec
@@ -361,8 +369,7 @@ struct xgbe_ring {
 	 *  cur   - Tx: index of descriptor to be used for current transfer
 	 *          Rx: index of descriptor to check for packet availability
 	 *  dirty - Tx: index of descriptor to check for transfer complete
-	 *          Rx: count of descriptors in which a packet has been received
-	 *              (used with skb_realloc_index to refresh the ring)
+	 *          Rx: index of descriptor to check for buffer reallocation
 	 */
 	unsigned int cur;
 	unsigned int dirty;
@@ -377,11 +384,6 @@ struct xgbe_ring {
 			unsigned short cur_mss;
 			unsigned short cur_vlan_ctag;
 		} tx;
-
-		struct {
-			unsigned int realloc_index;
-			unsigned int realloc_threshold;
-		} rx;
 	};
 } ____cacheline_aligned;
 
@@ -596,7 +598,8 @@ struct xgbe_desc_if {
 	int (*alloc_ring_resources)(struct xgbe_prv_data *);
 	void (*free_ring_resources)(struct xgbe_prv_data *);
 	int (*map_tx_skb)(struct xgbe_channel *, struct sk_buff *);
-	void (*realloc_rx_buffer)(struct xgbe_channel *);
+	int (*map_rx_buffer)(struct xgbe_prv_data *, struct xgbe_ring *,
+			     struct xgbe_ring_data *);
 	void (*unmap_rdata)(struct xgbe_prv_data *, struct xgbe_ring_data *);
 	void (*wrapper_tx_desc_init)(struct xgbe_prv_data *);
 	void (*wrapper_rx_desc_init)(struct xgbe_prv_data *);
@@ -650,7 +653,11 @@ struct xgbe_hw_features {
 struct xgbe_prv_data {
 	struct net_device *netdev;
 	struct platform_device *pdev;
+	struct acpi_device *adev;
 	struct device *dev;
+
+	/* ACPI or DT flag */
+	unsigned int use_acpi;
 
 	/* XGMAC/XPCS related mmio registers */
 	void __iomem *xgmac_regs;	/* XGMAC CSRs */
@@ -672,6 +679,7 @@ struct xgbe_prv_data {
 	struct xgbe_desc_if desc_if;
 
 	/* AXI DMA settings */
+	unsigned int coherent;
 	unsigned int axdomain;
 	unsigned int arcache;
 	unsigned int awcache;
@@ -739,6 +747,7 @@ struct xgbe_prv_data {
 	unsigned int phy_rx_pause;
 
 	/* Netdev related settings */
+	unsigned char mac_addr[ETH_ALEN];
 	netdev_features_t netdev_features;
 	struct napi_struct napi;
 	struct xgbe_mmc_stats mmc_stats;
@@ -748,7 +757,9 @@ struct xgbe_prv_data {
 
 	/* Device clocks */
 	struct clk *sysclk;
+	unsigned long sysclk_rate;
 	struct clk *ptpclk;
+	unsigned long ptpclk_rate;
 
 	/* Timestamp support */
 	spinlock_t tstamp_lock;
