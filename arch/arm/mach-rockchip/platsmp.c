@@ -119,8 +119,7 @@ static int pmu_set_power_domain(int pd, bool on)
  * Handling of CPU cores
  */
 
-static int __cpuinit rockchip_boot_secondary(unsigned int cpu,
-					     struct task_struct *idle)
+static int rockchip_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	int ret;
 
