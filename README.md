@@ -80,6 +80,8 @@ At Feminist Software Foundation, we uphold the belief that all people are equal,
   ![FemiTux is watching you for your problematic behaviour.](http://i.imgur.com/fJRgZ3P.jpg)
 > *FemiTux is watching you for your problematic behaviour.*
 
+***
+
 Design
 ======
 
@@ -168,6 +170,8 @@ In light of all of the above, crypto is currently banned from **ToleranUX** if y
 
 For female users, a limited form of cryptography is allowed as defence against the Patriarchy.  We encourage all female users to distribute their private keys instead of public. This is to allow for the most inclusive environment possible. Many People Of Color and Womyn have had their identities taken from them and replaced by whatever white men wanted them to use. We think that allowing everyone to assume each others identities will be a great first step in the healing and reparations for these vile acts.
 
+***
+
 Smashing the socially constructed barriers between kernel space and user space
 =============================================================================
 
@@ -183,6 +187,8 @@ An added benefit of implementing **Multispatialism** is that there will never be
 
   ![One day, ToleranUX will grow to becomes xir own distro...](http://i.imgur.com/8WcE7Bl.jpg)
 > *One day, ToleranUX will grow to becomes xir own distro...*
+
+***
 
 Associated Coreutils
 ====================
@@ -232,6 +238,8 @@ To `kill` a process is a triggering term to those who have been affected by deat
   ![Kernel space, user space... Safe space.](http://i.imgur.com/JCFsu0m.png)
 > *Kernel space, user space... Safe space.*
 
+***
+
 Kernel Modules and Server Daemons — SystemV
 ===========================================
 
@@ -262,6 +270,8 @@ There is no such thing as redundancy in the Great Feminist Struggle, and thus th
 ### SignalBoostV
 
 `SignalBoostV` runs periodically to consult which process has a level of privilege lower than a certain threshold determined by the CPU load of `PrivCheckV`.  Said processes would then be *~~forked~~ diversed* by `SignalBoostV` in an attempt to give them more exposure.
+
+***
 
 Supported architectures and form factors
 ========================================
