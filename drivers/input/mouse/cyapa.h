@@ -242,6 +242,8 @@ struct cyapa {
 	/* power mode settings */
 	u8 suspend_power_mode;
 	u16 suspend_sleep_time;
+	u8 runtime_suspend_power_mode;
+	u16 runtime_suspend_sleep_time;
 	u8 dev_pwr_mode;
 	u16 dev_sleep_time;
 
