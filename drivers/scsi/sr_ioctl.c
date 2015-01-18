@@ -188,7 +188,6 @@ int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
 	struct scsi_sense_hdr sshdr;
 	int result, err = 0, retries = 0;
 	struct request_sense *sense = cgc->sense;
-	char logbuf[SCSI_LOG_BUFSIZE];
 
 	SDev = cd->device;
 
@@ -246,9 +245,6 @@ int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
 				sr_printk(KERN_INFO, cd,
 					  "CDROM not ready.  Make sure there "
 					  "is a disc in the drive.\n");
-#ifdef DEBUG
-			scsi_print_sense_hdr(cd->device, cd->cdi.name, &sshdr);
-#endif
 			err = -ENOMEDIUM;
 			break;
 		case ILLEGAL_REQUEST:
@@ -257,22 +253,8 @@ int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
 			    sshdr.ascq == 0x00)
 				/* sense: Invalid command operation code */
 				err = -EDRIVE_CANT_DO_THIS;
-#ifdef DEBUG
-			__scsi_format_command(logbuf, sizeof(logbuf),
-					      cgc->cmd, CDROM_PACKET_SIZE);
-			sr_printk(KERN_INFO, cd,
-				  "CDROM (ioctl) invalid command: %s\n",
-				  logbuf);
-			scsi_print_sense_hdr(cd->device, cd->cdi.name, &sshdr);
-#endif
 			break;
 		default:
-			__scsi_format_command(logbuf, sizeof(logbuf),
-					      cgc->cmd, CDROM_PACKET_SIZE);
-			sr_printk(KERN_ERR, cd,
-				  "CDROM (ioctl) error, command: %s\n",
-				  logbuf);
-			scsi_print_sense_hdr(cd->device, cd->cdi.name, &sshdr);
 			err = -EIO;
 		}
 	}
