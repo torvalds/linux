@@ -17,7 +17,7 @@ Table of Contents
 =================
 
   * [ToleranUX](#toleranux)
-      * [News](#news)
+      * [News and TODO](#news-and-todo)
       * [How to contribute](#how-to-contribute)
   * [The ToleranUX Philosophy](#the-toleranux-philosophy)
   * [Kernel Hacking Etiquette](#kernel-hacking-etiquette)
@@ -65,9 +65,11 @@ As did [GitHub remove the problematic "Meritocracy" rug from their office](http:
 
 **This is the world's first operating system kernel by FEMINISTS, for FEMINISTS.  Women and gay men with internalised misogyny/homophobia who are here to concern troll and [sealion](http://rationalwiki.org/wiki/Sealioning) are not welcome.**
 
-### News
+### News and TODO
 
-The creation of **ToleranUX** marks the first step towards the liberation of all FOSS software from the Toxic Meritocratic grasp of cis, white men.  All patches from all people — irregardless of creed, gender, or identity — are most welcome.
+The specification is almost done.  The parts where there is input still needed are: supported architectures and form factors; inclusion of more `coreutils` to be corrected to feminist thought; and inclusion of more Kernel Daemons under ~~SystemD~~ `SystemV`.
+
+An initial implementation of the `TolernUX-coreutils` is now done in as a ~~`shell .rc`~~ `User-Interactive Free To Be Thee Devices (UIFTBTD) .rc`, which can be [found here](https://github.com/The-Feminist-Software-Foundation/ToleranUX/tree/mistress/ToleranUX-utils).
 
 ### How to contribute
 
