@@ -1012,10 +1012,8 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	readw(dev->mmio + LAS0_CLEAR);
 
 	/* TODO: allow multiple interrupt sources */
-	if (devpriv->xfer_count > 0)	/* transfer every N samples */
-		writew(IRQM_ADC_ABOUT_CNT, dev->mmio + LAS0_IT);
-	else				/* 1/2 FIFO transfers */
-		writew(IRQM_ADC_ABOUT_CNT, dev->mmio + LAS0_IT);
+	/* transfer every N samples */
+	writew(IRQM_ADC_ABOUT_CNT, dev->mmio + LAS0_IT);
 
 	/* BUG: start_src is ASSUMED to be TRIG_NOW */
 	/* BUG? it seems like things are running before the "start" */
