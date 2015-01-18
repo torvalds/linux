@@ -41,6 +41,7 @@ Table of Contents
       * [touch](#touch)
       * [shell](#shell)
       * [kill](#kill)
+      * [less and more](#less-and-more)
       * [grep](#grep)
   * [Kernel Modules and Server Daemons — SystemV](#kernel-modules-and-server-daemons--systemv)
       * [SafespaceV](#safespacev)
@@ -52,7 +53,6 @@ Table of Contents
   * [Supported architectures and form factors](#supported-architectures-and-form-factors)
   * [Artwork](#artwork)
   * [Coding Style](#coding-style)
-
 
 ToleranUX
 ===============
