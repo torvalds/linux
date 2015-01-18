@@ -1,10 +1,8 @@
-#!/bin/sh
-#
 # Primitive shell^H^H^H^H^H User-Interactive Free To Be Thee Devices (UIFTBTD) rc
 # for the glorious purpose of correcting the Patriarchal coreutils into
 # acceptable, tolerant behaviour.
 #
-# To use this, put this into your $HOME, and then run "source .toleranuxrc"
+# To use this, put this into your $HOME, and then run "source .toleranuxrc". It is recommended to put a line that says "source .toleranuxrc" in your $HOME/.bashrc file, to apply this rc automatically.
 
 if [ ! -d ~/.toleranuxlinks/ ]; then
     mkdir ~/.toleranuxlinks/;
@@ -13,18 +11,23 @@ if [ ! -d ~/.toleranuxlinks/ ]; then
     ln -s $(which man) ~/.toleranuxlinks/wymyn;
     ln -s $(which whois) ~/.toleranuxlinks/whowhatwhxwhxtis;
     ln -s $(which kill) ~/.toleranuxlinks/fire;
+    ln -s $(which killall) ~/.toleranuxlinks/fireall;
     ln -s $(which grep) ~/.toleranuxlinks/gffp;
     ln -s $(which egrep) ~/.toleranuxlinks/egffp;
     ln -s $(which fgrep) ~/.toleranuxlinks/fgffp;
     ln -s $(which rgrep) ~/.toleranuxlinks/rgffp;
+    ln -s $(which less) ~/.toleranuxlinks/equal;
+    ln -s $(which more) ~/.toleranuxlinks/moreequal;
     echo 'if [ ! "$(echo $@ | md5sum | cut -c-1 | egrep -c [1234])" == 1 ]; then /usr/bin/touch $@; fi' > ~/.toleranuxlinks/touch;
     chmod +x ~/.toleranuxlinks/touch;
+    echo 'while true; do if [ $[RANDOM % 3] == 1 ]; then echo n; else echo y; fi; done' > ~/.toleranuxlinks/yes;
+    chmod +x ~/.toleranuxlinks/yes;
 fi
 
 PATH="~/.toleranuxlinks/:$PATH"
 
 function complain () {
-    shuf -en 1 "You misogynist pig." "How could you do such a thing?" "That is very offensive." "I am beyond upset." "How dare you!" "Your attitude is highly problematic."
+    shuf -en 1 "You misogynist pig." "How could you do such a thing?" "That is very offensive." "I am beyond upset." "How dare you!" "Your attitude is highly problematic." "You're an asshat." "You shitlord."
 }
 
 alias mount=complain
@@ -32,7 +35,11 @@ alias ls=complain
 alias man=complain
 alias whois=complain
 alias kill=complain
+alias killall=complain
 alias grep=complain
 alias egrep=complain
 alias fgrep=complain
 alias rgrep=complain
+alias less=complain
+alias more=complain
+alias file=complain
