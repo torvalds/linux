@@ -184,6 +184,14 @@ static int cyapa_get_state(struct cyapa *cyapa)
 			if (!error)
 				goto out_detected;
 		}
+		if ((cyapa->gen == CYAPA_GEN_UNKNOWN ||
+				cyapa->gen == CYAPA_GEN5) &&
+			!smbus && even_addr) {
+			error = cyapa_gen5_ops.state_parse(cyapa,
+					status, BL_STATUS_SIZE);
+			if (!error)
+				goto out_detected;
+		}
 
 		/*
 		 * Write 0x00 0x00 to trackpad device to force update its
@@ -272,6 +280,9 @@ static int cyapa_check_is_operational(struct cyapa *cyapa)
 		return error;
 
 	switch (cyapa->gen) {
+	case CYAPA_GEN5:
+		cyapa->ops = &cyapa_gen5_ops;
+		break;
 	case CYAPA_GEN3:
 		cyapa->ops = &cyapa_gen3_ops;
 		break;
@@ -506,6 +517,8 @@ static int cyapa_initialize(struct cyapa *cyapa)
 
 	/* ops.initialize() is aimed to prepare for module communications. */
 	error = cyapa_gen3_ops.initialize(cyapa);
+	if (!error)
+		error = cyapa_gen5_ops.initialize(cyapa);
 	if (error)
 		return error;
 

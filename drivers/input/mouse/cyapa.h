@@ -292,5 +292,6 @@ u16 cyapa_pwr_cmd_to_sleep_time(u8 pwr_mode);
 
 extern const char product_id[];
 extern const struct cyapa_dev_ops cyapa_gen3_ops;
+extern const struct cyapa_dev_ops cyapa_gen5_ops;
 
 #endif
