@@ -43,6 +43,8 @@ Table of Contents
       * [kill](#kill)
       * [less and more](#less-and-more)
       * [grep](#grep)
+      * [yes](#yes)
+      * [history](#history)
   * [Kernel Modules and Server Daemons — SystemV](#kernel-modules-and-server-daemons--systemv)
       * [SafespaceV](#safespacev)
       * [PrivCheckV](#privcheckv)
@@ -289,6 +291,16 @@ The implication that something could be `less`er is outrageous.  From now on `le
 ### `grep`
 
 `grep` (Global Regular Expression Print) sounds like `grope` — renamed to `gffp` (Global Find Feelings Print).  `gffp` is one of the many 'filter' type programs of UNIX, used to transform input streams into something more desirable. This is a toxic attitude, as all input streams should be accepted as they are. The `gffp` filter uses a segregation technique called 'regular expressions' to discriminate input lines that contain specific patterns. The digital apartheid does not end in `gffp`: `sed` and `awk` are examples of filters that combine regular expressions with programming language constructs for even more intricate discrimination. We seek to deprecate the filter model of program design that poisons UNIX in favor of more tolerant alternatives.
+
+### `yes`
+
+`yes` is one of the most inherently toxic commands in traditional UNIX coreutils because it implies that the Patriarchal user can force consent from the computer.  **In ToleranUX, `no` means `no`, and `yes` could mean `no` as well.**
+
+### `history`
+
+> "History is a commentary on the various and continuing incapabilities of men. What is history? History is women following behind with the bucket." Mrs Lintott from *History Boys, Alan Bennett.
+
+`history` is renamed to `herstory` for obvious reasons.
 
   ![Kernel space, user space... Safe space.](http://i.imgur.com/JCFsu0m.png)
 > *Kernel space, user space... Safe space.*
