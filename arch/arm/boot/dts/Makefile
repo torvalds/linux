@@ -465,6 +465,7 @@ dtb-$(CONFIG_MACH_SUN6I) += \
 	sun6i-a31s-cs908.dtb
 dtb-$(CONFIG_MACH_SUN7I) += \
 	sun7i-a20-bananapi.dtb \
+	sun7i-a20-bananapro.dtb \
 	sun7i-a20-cubieboard2.dtb \
 	sun7i-a20-cubietruck.dtb \
 	sun7i-a20-hummingbird.dtb \
