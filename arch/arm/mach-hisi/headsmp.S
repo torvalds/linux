@@ -7,9 +7,6 @@
  * published by the Free Software Foundation.
  */
 #include <linux/linkage.h>
-#include <linux/init.h>
-
-	__CPUINIT
 
 ENTRY(hisi_secondary_startup)
 	bl	v7_invalidate_l1
