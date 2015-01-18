@@ -154,7 +154,7 @@ static int fld_proc_cache_flush_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-struct file_operations fld_proc_cache_flush_fops = {
+static struct file_operations fld_proc_cache_flush_fops = {
 	.owner		= THIS_MODULE,
 	.open		= fld_proc_cache_flush_open,
 	.write		= fld_proc_cache_flush_write,
