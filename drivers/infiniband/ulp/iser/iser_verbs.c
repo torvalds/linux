@@ -646,9 +646,11 @@ void iser_conn_release(struct iser_conn *iser_conn)
 	mutex_unlock(&ig.connlist_mutex);
 
 	mutex_lock(&iser_conn->state_mutex);
+	/* In case we endup here without ep_disconnect being invoked. */
 	if (iser_conn->state != ISER_CONN_DOWN) {
 		iser_warn("iser conn %p state %d, expected state down.\n",
 			  iser_conn, iser_conn->state);
+		iscsi_destroy_endpoint(iser_conn->ep);
 		iser_conn->state = ISER_CONN_DOWN;
 	}
 	/*
