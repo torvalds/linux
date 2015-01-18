@@ -177,6 +177,8 @@ static int lock__parse(struct ins_operands *ops)
 		goto out_free_ops;
 
 	ops->locked.ins = ins__find(name);
+	free(name);
+
 	if (ops->locked.ins == NULL)
 		goto out_free_ops;
 
@@ -209,6 +211,13 @@ static int lock__scnprintf(struct ins *ins, char *bf, size_t size,
 
 static void lock__delete(struct ins_operands *ops)
 {
+	struct ins *ins = ops->locked.ins;
+
+	if (ins && ins->ops->free)
+		ins->ops->free(ops->locked.ops);
+	else
+		ins__delete(ops->locked.ops);
+
 	zfree(&ops->locked.ops);
 	zfree(&ops->target.raw);
 	zfree(&ops->target.name);
