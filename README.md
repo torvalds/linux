@@ -246,7 +246,7 @@ In the spirit of [inclusive intersectionality](http://en.wikipedia.org/wiki/Inte
 
 In Linux land, the adoption of `SystemD` seems to be a growing trend amongst all different walks of distros.  This is alarming and problematic largely due to the blatant association of the name `SystemD` with what must be a [brogrammer](http://en.wikipedia.org/wiki/Brogrammer) inside joke about phalluses and computing systems.  In reaction to that, **ToleranUX** shall boldly go where no Linux dev has dared to go before: instead of an immature and creepy `SystemDick`, we shall celebrate the beautiful and strong `SystemVag`, or **SysVinit** for short.
 
-### `mount
+### `mount`
 
 In **ToleranUX**, `mount`-ing is not tolerated. The implication that one has to sexually `mount` a data storage before "accessing" it is deeply misogynistic for presuming that all relationships have to be first-and-foremost sexual.
 
