@@ -534,10 +534,10 @@ static void page_flip_cb(void *arg)
 	queue_work(priv->wq, &omap_crtc->page_flip_work);
 }
 
-static int omap_crtc_page_flip_locked(struct drm_crtc *crtc,
-		 struct drm_framebuffer *fb,
-		 struct drm_pending_vblank_event *event,
-		 uint32_t page_flip_flags)
+static int omap_crtc_page_flip(struct drm_crtc *crtc,
+			       struct drm_framebuffer *fb,
+			       struct drm_pending_vblank_event *event,
+			       uint32_t page_flip_flags)
 {
 	struct drm_device *dev = crtc->dev;
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
@@ -589,7 +589,7 @@ static int omap_crtc_set_property(struct drm_crtc *crtc,
 static const struct drm_crtc_funcs omap_crtc_funcs = {
 	.set_config = drm_crtc_helper_set_config,
 	.destroy = omap_crtc_destroy,
-	.page_flip = omap_crtc_page_flip_locked,
+	.page_flip = omap_crtc_page_flip,
 	.set_property = omap_crtc_set_property,
 };
 
