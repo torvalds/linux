@@ -49,6 +49,7 @@ Table of Contents
       * [look](#look)
       * [true](#true)
       * [make](#make)
+      * [sed](#sed)
   * [Kernel Modules and Server Daemons — SystemV](#kernel-modules-and-server-daemons--systemv)
       * [SafespaceV](#safespacev)
       * [PrivCheckV](#privcheckv)
