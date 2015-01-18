@@ -2141,7 +2141,8 @@ static void r8a66597_hub_descriptor(struct r8a66597 *r8a66597,
 	desc->bNbrPorts = r8a66597->max_root_hub;
 	desc->bDescLength = 9;
 	desc->bPwrOn2PwrGood = 0;
-	desc->wHubCharacteristics = cpu_to_le16(0x0011);
+	desc->wHubCharacteristics =
+		cpu_to_le16(HUB_CHAR_INDV_PORT_LPSM | HUB_CHAR_NO_OCPM);
 	desc->u.hs.DeviceRemovable[0] =
 		((1 << r8a66597->max_root_hub) - 1) << 1;
 	desc->u.hs.DeviceRemovable[1] = ~0;
