@@ -1734,22 +1734,19 @@ sg_start_req(Sg_request *srp, unsigned char *cmd)
 	}
 
 	if (iov_count) {
-		int len, size = sizeof(struct sg_iovec) * iov_count;
+		int size = sizeof(struct iovec) * iov_count;
 		struct iovec *iov;
+		struct iov_iter i;
 
 		iov = memdup_user(hp->dxferp, size);
 		if (IS_ERR(iov))
 			return PTR_ERR(iov);
 
-		len = iov_length(iov, iov_count);
-		if (hp->dxfer_len < len) {
-			iov_count = iov_shorten(iov, iov_count, hp->dxfer_len);
-			len = hp->dxfer_len;
-		}
+		iov_iter_init(&i, rw, iov, iov_count,
+			      min_t(size_t, hp->dxfer_len,
+				    iov_length(iov, iov_count)));
 
-		res = blk_rq_map_user_iov(q, rq, md, (struct sg_iovec *)iov,
-					  iov_count,
-					  len, GFP_ATOMIC);
+		res = blk_rq_map_user_iov(q, rq, md, &i, GFP_ATOMIC);
 		kfree(iov);
 	} else
 		res = blk_rq_map_user(q, rq, md, hp->dxferp,
