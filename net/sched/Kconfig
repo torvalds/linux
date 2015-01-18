@@ -710,6 +710,17 @@ config NET_ACT_BPF
 	  To compile this code as a module, choose M here: the
 	  module will be called act_bpf.
 
+config NET_ACT_CONNMARK
+        tristate "Netfilter Connection Mark Retriever"
+        depends on NET_CLS_ACT && NETFILTER && IP_NF_IPTABLES
+        ---help---
+	  Say Y here to allow retrieving of conn mark
+
+	  If unsure, say N.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called act_connmark.
+
 config NET_CLS_IND
 	bool "Incoming device classification"
 	depends on NET_CLS_U32 || NET_CLS_FW
