@@ -1986,7 +1986,7 @@ static void lstcon_init_acceptor_service(void)
 
 extern int lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_data *data);
 
-DECLARE_IOCTL_HANDLER(lstcon_ioctl_handler, lstcon_ioctl_entry);
+static DECLARE_IOCTL_HANDLER(lstcon_ioctl_handler, lstcon_ioctl_entry);
 
 /* initialize console */
 int
