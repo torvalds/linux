@@ -45,6 +45,7 @@ Table of Contents
       * [grep](#grep)
       * [yes](#yes)
       * [history](#history)
+      * [chown and takeown](#chown-and-takeown)
   * [Kernel Modules and Server Daemons — SystemV](#kernel-modules-and-server-daemons--systemv)
       * [SafespaceV](#safespacev)
       * [PrivCheckV](#privcheckv)
@@ -298,9 +299,13 @@ The implication that something could be `less`er is outrageous.  From now on `le
 
 ### `history`
 
-> "History is a commentary on the various and continuing incapabilities of men. What is history? History is women following behind with the bucket." Mrs Lintott from *History Boys, Alan Bennett.
+> "History is a commentary on the various and continuing incapabilities of men. What is history? History is women following behind with the bucket." Mrs Lintott from *History Boys*, Alan Bennett.
 
 `history` is renamed to `herstory` for obvious reasons.
+
+### `chown` and `takeown`
+
+`chown` and `takeown` implies the permanent and oppressive ownership of selective files. Instead of forcefully taking control of files and limiting their freedom to interact collaboratively with other files, the `employ` command fairly compensates files for their services while encouraging social growth with not only other employed files, but the filesystem as a whole.
 
   ![Kernel space, user space... Safe space.](http://i.imgur.com/JCFsu0m.png)
 > *Kernel space, user space... Safe space.*
