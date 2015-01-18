@@ -761,10 +761,10 @@ extern char			ignore_fpu_irq;
 #define ARCH_HAS_SPINLOCK_PREFETCH
 
 #ifdef CONFIG_X86_32
-# define BASE_PREFETCH		ASM_NOP4
+# define BASE_PREFETCH		""
 # define ARCH_HAS_PREFETCH
 #else
-# define BASE_PREFETCH		"prefetcht0 (%1)"
+# define BASE_PREFETCH		"prefetcht0 %P1"
 #endif
 
 /*
@@ -775,10 +775,9 @@ extern char			ignore_fpu_irq;
  */
 static inline void prefetch(const void *x)
 {
-	alternative_input(BASE_PREFETCH,
-			  "prefetchnta (%1)",
+	alternative_input(BASE_PREFETCH, "prefetchnta %P1",
 			  X86_FEATURE_XMM,
-			  "r" (x));
+			  "m" (*(const char *)x));
 }
 
 /*
@@ -788,10 +787,9 @@ static inline void prefetch(const void *x)
  */
 static inline void prefetchw(const void *x)
 {
-	alternative_input(BASE_PREFETCH,
-			  "prefetchw (%1)",
-			  X86_FEATURE_3DNOW,
-			  "r" (x));
+	alternative_input(BASE_PREFETCH, "prefetchw %P1",
+			  X86_FEATURE_3DNOWPREFETCH,
+			  "m" (*(const char *)x));
 }
 
 static inline void spin_lock_prefetch(const void *x)
