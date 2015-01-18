@@ -927,7 +927,10 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	/* Register the sensor with thermal management interface */
 	ret = exynos_register_thermal(sensor_conf);
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to register thermal interface\n");
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev,
+				"Failed to register thermal interface: %d\n",
+				ret);
 		goto err_clk;
 	}
 	data->reg_conf = sensor_conf;

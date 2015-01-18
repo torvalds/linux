@@ -760,7 +760,6 @@ static int virtnet_poll(struct napi_struct *napi, int budget)
 		container_of(napi, struct receive_queue, napi);
 	unsigned int r, received = 0;
 
-again:
 	received += virtnet_receive(rq, budget - received);
 
 	/* Out of packets? */
@@ -771,7 +770,6 @@ again:
 		    napi_schedule_prep(napi)) {
 			virtqueue_disable_cb(rq->vq);
 			__napi_schedule(napi);
-			goto again;
 		}
 	}
 
