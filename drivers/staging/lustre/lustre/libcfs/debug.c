@@ -115,7 +115,7 @@ static wait_queue_head_t debug_ctlwq;
 char libcfs_debug_file_path_arr[PATH_MAX] = LIBCFS_DEBUG_FILE_PATH_DEFAULT;
 
 /* We need to pass a pointer here, but elsewhere this must be a const */
-char *libcfs_debug_file_path;
+static char *libcfs_debug_file_path;
 module_param(libcfs_debug_file_path, charp, 0644);
 MODULE_PARM_DESC(libcfs_debug_file_path,
 		 "Path for dumping debug logs, set 'NONE' to prevent log dumping");
@@ -124,7 +124,7 @@ int libcfs_panic_in_progress;
 
 /* libcfs_debug_token2mask() expects the returned
  * string in lower-case */
-const char *
+static const char *
 libcfs_debug_subsys2str(int subsys)
 {
 	switch (1 << subsys) {
@@ -185,7 +185,7 @@ libcfs_debug_subsys2str(int subsys)
 
 /* libcfs_debug_token2mask() expects the returned
  * string in lower-case */
-const char *
+static const char *
 libcfs_debug_dbg2str(int debug)
 {
 	switch (1 << debug) {
@@ -350,7 +350,7 @@ void libcfs_debug_dumplog_internal(void *arg)
 	current->journal_info = journal_info;
 }
 
-int libcfs_debug_dumplog_thread(void *arg)
+static int libcfs_debug_dumplog_thread(void *arg)
 {
 	libcfs_debug_dumplog_internal(arg);
 	wake_up(&debug_ctlwq);
