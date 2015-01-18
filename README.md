@@ -11,6 +11,8 @@ A project of the Feminist Software Foundation. Feminist software is a cornerston
 
 > *"Bullshit. [...] Don't give me the "I'm not polite" card. [...] Stop verbally abusing your developers." — [Sarah Sharp on LKML](https://lkml.org/lkml/2013/7/15/427)*
 
+> *"Checking your Privilege, specifically a How-To, to do this very hard thing." — [Leslie Hawthorn at Linux.conf.au 2015](https://www.youtube.com/watch?v=cuK45hDRlaE)*
+
 Table of Contents
 =================
 
