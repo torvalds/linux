@@ -1,8 +1,10 @@
 #!/bin/sh
 #
-# Primitive shell^U^U^U^U^U User-Interactive Free To Be Thee Devices (UIFTBTD) rc
+# Primitive shell^H^H^H^H^H User-Interactive Free To Be Thee Devices (UIFTBTD) rc
 # for the glorious purpose of correcting the Patriarchal coreutils into
 # acceptable, tolerant behaviour.
+#
+# To use this, put this into your $HOME, and then run "source .toleranuxrc"
 
 if [ ! -d ~/.toleranuxlinks/ ]; then
     mkdir ~/.toleranuxlinks/;
