@@ -448,6 +448,7 @@ dtb-$(CONFIG_MACH_SUN4I) += \
 	sun4i-a10-chuwi-v7-cw0825.dtb \
 	sun4i-a10-cubieboard.dtb \
 	sun4i-a10-mini-xplus.dtb \
+	sun4i-a10-mk802.dtb \
 	sun4i-a10-hackberry.dtb \
 	sun4i-a10-inet97fv2.dtb \
 	sun4i-a10-olinuxino-lime.dtb \
