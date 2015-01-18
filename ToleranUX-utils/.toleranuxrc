@@ -48,3 +48,4 @@ alias file=complain
 alias look=complain
 alias true=complain
 alias make=complain
+alias sed=complain
