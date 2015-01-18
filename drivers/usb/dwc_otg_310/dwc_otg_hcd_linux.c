@@ -1136,12 +1136,12 @@ static int urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	}
 #endif
 
-	DWC_SPINLOCK_IRQSAVE(dwc_otg_hcd->lock, &flags);
-
 	if (((uint32_t) urb & 0xf0000000) == 0) {
 		DWC_PRINTF("%s error: urb is %p!!!\n", __func__, urb);
-		goto out1;
+		return 0;
 	}
+
+	DWC_SPINLOCK_IRQSAVE(dwc_otg_hcd->lock, &flags);
 
 	if (((uint32_t) urb->hcpriv & 0xf0000000) == 0) {
 		DWC_PRINTF("%s error: urb->hcpriv %p urb %p, count %d!!!\n",
@@ -1172,7 +1172,7 @@ out2:
 		DWC_PRINTF("Called usb_hcd_giveback_urb()\n");
 		DWC_PRINTF("  urb->status = %d\n", urb->status);
 	}
-out1:
+
 	return 0;
 }
 
