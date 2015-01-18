@@ -678,6 +678,7 @@ static struct snd_soc_dai_link aml_codec_dai_link[] = {
         .platform_name = "aml-i2s.0",
         //.codec_name = "aml_m8_codec.0",
         .ops = &aml_asoc_ops,
+        .no_pcm = 1,
     },
 #ifdef CONFIG_SND_SOC_PCM2BT
     {
