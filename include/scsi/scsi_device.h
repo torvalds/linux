@@ -237,14 +237,15 @@ struct scsi_dh_data {
  * like scmd_printk, but the device name is passed in
  * as a string pointer
  */
-extern int sdev_prefix_printk(const char *, const struct scsi_device *,
-			      const char *, const char *, ...);
+__printf(4, 5) int
+sdev_prefix_printk(const char *, const struct scsi_device *, const char *,
+		const char *, ...);
 
 #define sdev_printk(l, sdev, fmt, a...)				\
 	sdev_prefix_printk(l, sdev, NULL, fmt, ##a)
 
-extern int scmd_printk(const char *, const struct scsi_cmnd *,
-		       const char *, ...);
+__printf(3, 4) int
+scmd_printk(const char *, const struct scsi_cmnd *, const char *, ...);
 
 #define scmd_dbg(scmd, fmt, a...)					   \
 	do {								   \
