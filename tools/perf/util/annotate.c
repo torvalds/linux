@@ -183,8 +183,9 @@ static int lock__parse(struct ins_operands *ops)
 	if (!ops->locked.ins->ops)
 		return 0;
 
-	if (ops->locked.ins->ops->parse)
-		ops->locked.ins->ops->parse(ops->locked.ops);
+	if (ops->locked.ins->ops->parse &&
+	    ops->locked.ins->ops->parse(ops->locked.ops) < 0)
+		goto out_free_ops;
 
 	return 0;
 
@@ -531,8 +532,8 @@ static void disasm_line__init_ins(struct disasm_line *dl)
 	if (!dl->ins->ops)
 		return;
 
-	if (dl->ins->ops->parse)
-		dl->ins->ops->parse(&dl->ops);
+	if (dl->ins->ops->parse && dl->ins->ops->parse(&dl->ops) < 0)
+		dl->ins = NULL;
 }
 
 static int disasm_line__parse(char *line, char **namep, char **rawp)
