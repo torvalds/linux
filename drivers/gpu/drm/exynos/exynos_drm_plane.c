@@ -68,7 +68,7 @@ int exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 			  uint32_t src_w, uint32_t src_h)
 {
 	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
-	struct exynos_drm_manager *manager = to_exynos_crtc(crtc)->manager;
+	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 	unsigned int actual_w;
 	unsigned int actual_h;
 	int nr;
@@ -133,8 +133,8 @@ int exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	plane->crtc = crtc;
 
-	if (manager->ops->win_mode_set)
-		manager->ops->win_mode_set(manager, exynos_plane);
+	if (exynos_crtc->ops->win_mode_set)
+		exynos_crtc->ops->win_mode_set(exynos_crtc, exynos_plane);
 
 	return 0;
 }
@@ -142,24 +142,24 @@ int exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 void exynos_plane_dpms(struct drm_plane *plane, int mode)
 {
 	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
-	struct exynos_drm_manager *manager;
+	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(plane->crtc);
 
 	if (mode == DRM_MODE_DPMS_ON) {
 		if (exynos_plane->enabled)
 			return;
 
-		manager = to_exynos_crtc(plane->crtc)->manager;
-		if (manager->ops->win_enable)
-			manager->ops->win_enable(manager, exynos_plane->zpos);
+		if (exynos_crtc->ops->win_enable)
+			exynos_crtc->ops->win_enable(exynos_crtc,
+						     exynos_plane->zpos);
 
 		exynos_plane->enabled = true;
 	} else {
 		if (!exynos_plane->enabled)
 			return;
 
-		manager = to_exynos_crtc(plane->crtc)->manager;
-		if (manager->ops->win_disable)
-			manager->ops->win_disable(manager, exynos_plane->zpos);
+		if (exynos_crtc->ops->win_disable)
+			exynos_crtc->ops->win_disable(exynos_crtc,
+						      exynos_plane->zpos);
 
 		exynos_plane->enabled = false;
 	}
@@ -173,7 +173,7 @@ exynos_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		     uint32_t src_w, uint32_t src_h)
 {
 
-	struct exynos_drm_manager *manager = to_exynos_crtc(crtc)->manager;
+	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
 	int ret;
 
@@ -183,8 +183,8 @@ exynos_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (ret < 0)
 		return ret;
 
-	if (manager->ops->win_commit)
-		manager->ops->win_commit(manager, exynos_plane->zpos);
+	if (exynos_crtc->ops->win_commit)
+		exynos_crtc->ops->win_commit(exynos_crtc, exynos_plane->zpos);
 
 	return 0;
 }

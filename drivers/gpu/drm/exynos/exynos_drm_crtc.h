@@ -17,9 +17,11 @@
 
 #include "exynos_drm_drv.h"
 
-int exynos_drm_crtc_create(struct exynos_drm_manager *manager,
-			   struct drm_device *drm_dev, int pipe,
-			   enum exynos_drm_output_type type);
+struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
+					       int pipe,
+					       enum exynos_drm_output_type type,
+					       struct exynos_drm_crtc_ops *ops,
+					       void *context);
 int exynos_drm_crtc_enable_vblank(struct drm_device *dev, int pipe);
 void exynos_drm_crtc_disable_vblank(struct drm_device *dev, int pipe);
 void exynos_drm_crtc_finish_pageflip(struct drm_device *dev, int pipe);

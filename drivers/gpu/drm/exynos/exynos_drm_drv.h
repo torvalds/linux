@@ -163,7 +163,7 @@ struct exynos_drm_display {
 };
 
 /*
- * Exynos drm manager ops
+ * Exynos drm crtc ops
  *
  * @dpms: control device power.
  * @mode_fixup: fix mode data before applying it
@@ -180,39 +180,24 @@ struct exynos_drm_display {
  * @te_handler: trigger to transfer video image at the tearing effect
  *	synchronization signal if there is a page flip request.
  */
-struct exynos_drm_manager;
-struct exynos_drm_manager_ops {
-	void (*dpms)(struct exynos_drm_manager *mgr, int mode);
-	bool (*mode_fixup)(struct exynos_drm_manager *mgr,
+struct exynos_drm_crtc;
+struct exynos_drm_crtc_ops {
+	void (*dpms)(struct exynos_drm_crtc *crtc, int mode);
+	bool (*mode_fixup)(struct exynos_drm_crtc *crtc,
 				const struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode);
-	void (*mode_set)(struct exynos_drm_manager *mgr,
+	void (*mode_set)(struct exynos_drm_crtc *crtc,
 				const struct drm_display_mode *mode);
-	void (*commit)(struct exynos_drm_manager *mgr);
-	int (*enable_vblank)(struct exynos_drm_manager *mgr);
-	void (*disable_vblank)(struct exynos_drm_manager *mgr);
-	void (*wait_for_vblank)(struct exynos_drm_manager *mgr);
-	void (*win_mode_set)(struct exynos_drm_manager *mgr,
+	void (*commit)(struct exynos_drm_crtc *crtc);
+	int (*enable_vblank)(struct exynos_drm_crtc *crtc);
+	void (*disable_vblank)(struct exynos_drm_crtc *crtc);
+	void (*wait_for_vblank)(struct exynos_drm_crtc *crtc);
+	void (*win_mode_set)(struct exynos_drm_crtc *crtc,
 				struct exynos_drm_plane *plane);
-	void (*win_commit)(struct exynos_drm_manager *mgr, int zpos);
-	void (*win_enable)(struct exynos_drm_manager *mgr, int zpos);
-	void (*win_disable)(struct exynos_drm_manager *mgr, int zpos);
-	void (*te_handler)(struct exynos_drm_manager *mgr);
-};
-
-/*
- * Exynos drm common manager structure, maps 1:1 with a crtc
- *
- * @list: the list entry for this manager
- * @drm_dev: pointer to the drm device
- * @crtc: crtc object.
- * @ops: pointer to callbacks for exynos drm specific functionality
- * @ctx: A pointer to the manager's implementation specific context
- */
-struct exynos_drm_manager {
-	struct list_head list;
-	struct drm_crtc *crtc;
-	struct exynos_drm_manager_ops *ops;
+	void (*win_commit)(struct exynos_drm_crtc *crtc, int zpos);
+	void (*win_enable)(struct exynos_drm_crtc *crtc, int zpos);
+	void (*win_disable)(struct exynos_drm_crtc *crtc, int zpos);
+	void (*te_handler)(struct exynos_drm_crtc *crtc);
 };
 
 enum exynos_crtc_mode {
@@ -224,7 +209,6 @@ enum exynos_crtc_mode {
  * Exynos specific crtc structure.
  *
  * @base: crtc object.
- * @manager: the manager associated with this crtc
  * @type: one of EXYNOS_DISPLAY_TYPE_LCD and HDMI.
  * @pipe: a crtc index created at load() with a new crtc object creation
  *	and the crtc object would be set to private->crtc array
@@ -235,16 +219,19 @@ enum exynos_crtc_mode {
  *	this pipe value.
  * @dpms: store the crtc dpms value
  * @mode: store the crtc mode value
+ * @ops: pointer to callbacks for exynos drm specific functionality
+ * @ctx: A pointer to the crtc's implementation specific context
  */
 struct exynos_drm_crtc {
 	struct drm_crtc			base;
-	struct exynos_drm_manager	*manager;
 	enum exynos_drm_output_type	type;
 	unsigned int			pipe;
 	unsigned int			dpms;
 	enum exynos_crtc_mode		mode;
 	wait_queue_head_t		pending_flip_queue;
 	atomic_t			pending_flip;
+	struct exynos_drm_crtc_ops	*ops;
+	void				*ctx;
 };
 
 struct exynos_drm_g2d_private {
