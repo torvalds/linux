@@ -1262,8 +1262,6 @@ static int mixer_bind(struct device *dev, struct device *manager, void *data)
 		return ret;
 	}
 
-	pm_runtime_enable(dev);
-
 	return 0;
 }
 
@@ -1272,8 +1270,6 @@ static void mixer_unbind(struct device *dev, struct device *master, void *data)
 	struct mixer_context *ctx = dev_get_drvdata(dev);
 
 	mixer_mgr_remove(&ctx->manager);
-
-	pm_runtime_disable(dev);
 }
 
 static const struct component_ops mixer_component_ops = {
