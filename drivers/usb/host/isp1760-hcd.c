@@ -1796,13 +1796,13 @@ static void isp1760_hub_descriptor(struct isp1760_hcd *priv,
 	memset(&desc->u.hs.DeviceRemovable[temp], 0xff, temp);
 
 	/* per-port overcurrent reporting */
-	temp = 0x0008;
+	temp = HUB_CHAR_INDV_PORT_OCPM;
 	if (HCS_PPC(priv->hcs_params))
 		/* per-port power control */
-		temp |= 0x0001;
+		temp |= HUB_CHAR_INDV_PORT_LPSM;
 	else
 		/* no power switching */
-		temp |= 0x0002;
+		temp |= HUB_CHAR_NO_LPSM;
 	desc->wHubCharacteristics = cpu_to_le16(temp);
 }
 
