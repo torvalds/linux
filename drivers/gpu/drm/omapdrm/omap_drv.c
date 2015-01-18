@@ -630,7 +630,13 @@ static void dev_lastclose(struct drm_device *dev)
 
 static void dev_preclose(struct drm_device *dev, struct drm_file *file)
 {
+	struct omap_drm_private *priv = dev->dev_private;
+	unsigned int i;
+
 	DBG("preclose: dev=%p", dev);
+
+	for (i = 0; i < priv->num_crtcs; ++i)
+		omap_crtc_cancel_page_flip(priv->crtcs[i], file);
 }
 
 static void dev_postclose(struct drm_device *dev, struct drm_file *file)

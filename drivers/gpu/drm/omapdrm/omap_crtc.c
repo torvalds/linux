@@ -263,8 +263,27 @@ static const struct dss_mgr_ops mgr_ops = {
 };
 
 /* -----------------------------------------------------------------------------
- * Setup and Flush
+ * Setup, Flush and Page Flip
  */
+
+void omap_crtc_cancel_page_flip(struct drm_crtc *crtc, struct drm_file *file)
+{
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+
+	/* Only complete events queued for our file handle. */
+	if (omap_crtc->flip_event &&
+	    file == omap_crtc->flip_event->base.file_priv) {
+		drm_send_vblank_event(dev, omap_crtc->pipe,
+				      omap_crtc->flip_event);
+		omap_crtc->flip_event = NULL;
+	}
+
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+}
 
 static void omap_crtc_error_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
 {

@@ -136,6 +136,7 @@ const struct omap_video_timings *omap_crtc_timings(struct drm_crtc *crtc);
 enum omap_channel omap_crtc_channel(struct drm_crtc *crtc);
 int omap_crtc_flush(struct drm_crtc *crtc);
 int omap_crtc_queue_unpin(struct drm_crtc *crtc, struct drm_framebuffer *fb);
+void omap_crtc_cancel_page_flip(struct drm_crtc *crtc, struct drm_file *file);
 void omap_crtc_pre_init(void);
 void omap_crtc_pre_uninit(void);
 struct drm_crtc *omap_crtc_init(struct drm_device *dev,
