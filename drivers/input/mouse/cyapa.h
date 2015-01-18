@@ -263,6 +263,8 @@ struct cyapa {
 	u8 y_origin;  /* Y Axis Origin: 0 = top; 1 = bottom. */
 	int electrodes_x;  /* Number of electrodes on the X Axis*/
 	int electrodes_y;  /* Number of electrodes on the Y Axis*/
+	int electrodes_rx;  /* Number of Rx electrodes */
+	int aligned_electrodes_rx;  /* 4 aligned */
 	int max_z;
 
 	/*
