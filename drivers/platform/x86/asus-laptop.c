@@ -1616,7 +1616,7 @@ static umode_t asus_sysfs_is_visible(struct kobject *kobj,
 		else
 			goto normal;
 
-		return supported;
+		return supported ? attr->mode : 0;
 	}
 
 normal:
