@@ -69,7 +69,7 @@ static inline int unregister_netdev_switch_notifier(struct notifier_block *nb)
 }
 
 static inline int call_netdev_switch_notifiers(unsigned long val, struct net_device *dev,
-					       struct netdev_switch_notifier_info *info);
+					       struct netdev_switch_notifier_info *info)
 {
 	return NOTIFY_DONE;
 }
