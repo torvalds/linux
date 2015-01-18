@@ -276,7 +276,15 @@ To refer to the user interface as a `shell` is troubling in nature due to the fa
 
 ### `kill`
 
-To `kill` a process is a triggering term to those who have been affected by death or killings in their life.  Instead of `kill`-ing a process, which is something immoral and a result of toxic masculinity, ToleranUX opts to `fire` processes.  Unlike `kill`-ing a process, `firing` a process allows it to still live, just no longer performs any function.  In addition to being able to manually `fire` any process that offends you, **ToleranUX** will automatically `fire` any process that is determined to be too offensive.
+To `kill` a process is a triggering term to those who have been affected by death or killings in their life.  Instead of `kill`-ing a process, which is something immoral and a result of toxic masculinity, ToleranUX opts to `fire` processes.  Unlike `kill`-ing a process, `firing` a process allows it to still live, just no longer performs any function.  In addition to being able to manually `fire` any process that offends you, **ToleranUX** will automatically `fire` any process that is determined to be too offensive.  Likewise, `killall` is now `fireall`.
+
+### `less` and `more`
+
+The implication that something could be `less`er is outrageous.  From now on `less` is no longer `more`, but `equal`.  `more` is now `moreequal`, because everybody is equal, but some otherkin is more equal than others.
+
+### `file`
+
+`file` is utterly banned.  How dare you question a file's identity!
 
 ### `grep`
 
