@@ -1,0 +1,33 @@
+#!/bin/sh
+#
+# whowhatwhxwhxtis : discern the (politically) correct identity of a subject
+#
+# written as part of the ToleranUX coreutils project
+
+usage () {
+	echo "
+Although you are free and empowered to execute a script however you'd like,
+it typically helps to literally specify a literal subject for identification. Literally.
+
+'whowhatwhxwhxtis [subject]'
+"
+}
+
+output () {
+	local f="$*"
+	shuf -en 1 \
+	"$f is whomever they/them/xem/zek want to be, and that is perfectly okay." \
+	"You think you have the right to just automatically examine someone? Disgusting." \
+	"$f doesn't feel like being examined right now. Back off and check your privilege." \
+
+	exit 0
+}
+
+
+if [ $# -eq 0 ]; then
+	usage
+	exit 1
+else
+	output $*
+fi
+exit
