@@ -238,6 +238,8 @@ Associated Coreutils
 
 Unlike the [GNU project](https://en.wikipedia.org/wiki/GNU) and the [Linux project](https://en.wikipedia.org/wiki/Linux), the infighting amongst which has brought much ire and hatred to the FLOSS world, **ToleranUX** shall supply its own set of `coreutils` so as to prevent the possibility of any naysayers claiming the absurd notion that a kernel and its peripheral but core user space are somehow distinct and different entities in an operating system — under **ToleranUX**, the kernel is equal to the pager.  In fact, the whole operating system is a single, beautiful, [fat binary](https://en.wikipedia.org/wiki/Fat_binary).
 
+In the spirit of [inclusive intersectionality](http://en.wikipedia.org/wiki/Intersectionality), the `coreutils` lives within the same repo as the kernel, and can be [found here.](https://github.com/The-Feminist-Software-Foundation/ToleranUX/tree/mistress/ToleranUX-utils)
+
 ### init
 
 In Linux land, the adoption of `SystemD` seems to be a growing trend amongst all different walks of distros.  This is alarming and problematic largely due to the blatant association of the name `SystemD` with what must be a [brogrammer](http://en.wikipedia.org/wiki/Brogrammer) inside joke about phalluses and computing systems.  In reaction to that, **ToleranUX** shall boldly go where no Linux dev has dared to go before: instead of an immature and creepy `SystemDick`, we shall celebrate the beautiful and strong `SystemVag`, or **SysVinit** for short.
