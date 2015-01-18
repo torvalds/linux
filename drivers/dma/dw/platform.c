@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/clk.h>
+#include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
@@ -185,6 +186,8 @@ static int dw_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
+	pm_runtime_enable(&pdev->dev);
+
 	err = dw_dma_probe(chip, pdata);
 	if (err)
 		goto err_dw_dma_probe;
@@ -205,6 +208,7 @@ static int dw_probe(struct platform_device *pdev)
 	return 0;
 
 err_dw_dma_probe:
+	pm_runtime_disable(&pdev->dev);
 	clk_disable_unprepare(chip->clk);
 	return err;
 }
@@ -217,6 +221,7 @@ static int dw_remove(struct platform_device *pdev)
 		of_dma_controller_free(pdev->dev.of_node);
 
 	dw_dma_remove(chip);
+	pm_runtime_disable(&pdev->dev);
 	clk_disable_unprepare(chip->clk);
 
 	return 0;
