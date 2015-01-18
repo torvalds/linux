@@ -75,7 +75,7 @@ static inline int ti_thermal_hotspot_temperature(int t, int s, int c)
 }
 
 /* thermal zone ops */
-/* Get temperature callback function for thermal zone*/
+/* Get temperature callback function for thermal zone */
 static inline int __ti_thermal_get_temp(void *devdata, long *temp)
 {
 	struct thermal_zone_device *pcb_tz = NULL;
