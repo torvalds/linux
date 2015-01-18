@@ -313,11 +313,11 @@ The implication that something could be `less`er is outrageous.  From now on `le
 
 ### `look`
 
-Only womyn should be allowed to `look`, [cis male](https://en.wikipedia.org/wiki/Cisgender) nerds should not be allowed to use their oppressive gaze!
+Only womyn should be allowed to `look`.  [Cishet male](https://en.wikipedia.org/wiki/Cisgender) nerds should not be allowed to use their oppressive gaze upon the beautiful visages of strong and independent womyn.  1 in 4 women are visually raped in their lifetime when walking down the street.
 
 ### `true`
 
-Truth is a patriarchial construct, we need to know whether things are `pc`, or [politicially correct](https://en.wikipedia.org/wiki/Political_correctness), not whether they are `true`.
+Truth is a Patriarchial construct, stemming from the toxic schools of Platonism and Aristotelianism.  Truth is not something that is reserved for the privileged few [Philosophy Kings (note how it's never "Queens")](https://en.wikipedia.org/wiki/Philosopher_king), now is it some [immutable, assigned-at-birth Essence that doesn't change even if you have a gender reassignment surgery](https://en.wikipedia.org/wiki/Essence).  In a tolerant society, we should not concern ourselves with the toxic thought of "Truth"; instead, we need to know whether things are `PC`, or [politicially correct](https://en.wikipedia.org/wiki/Political_correctness).
 
 ### `make`
 
