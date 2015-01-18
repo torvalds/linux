@@ -1515,6 +1515,8 @@ static int bgmac_probe(struct bcma_device *core)
 	if (core->bus->sprom.boardflags_lo & BGMAC_BFL_ENETADM)
 		bgmac_warn(bgmac, "Support for ADMtek ethernet switch not implemented\n");
 
+	netif_napi_add(net_dev, &bgmac->napi, bgmac_poll, BGMAC_WEIGHT);
+
 	err = bgmac_mii_register(bgmac);
 	if (err) {
 		bgmac_err(bgmac, "Cannot register MDIO\n");
@@ -1528,8 +1530,6 @@ static int bgmac_probe(struct bcma_device *core)
 	}
 
 	netif_carrier_off(net_dev);
-
-	netif_napi_add(net_dev, &bgmac->napi, bgmac_poll, BGMAC_WEIGHT);
 
 	return 0;
 
@@ -1549,9 +1549,9 @@ static void bgmac_remove(struct bcma_device *core)
 {
 	struct bgmac *bgmac = bcma_get_drvdata(core);
 
-	netif_napi_del(&bgmac->napi);
 	unregister_netdev(bgmac->net_dev);
 	bgmac_mii_unregister(bgmac);
+	netif_napi_del(&bgmac->napi);
 	bgmac_dma_free(bgmac);
 	bcma_set_drvdata(core, NULL);
 	free_netdev(bgmac->net_dev);
