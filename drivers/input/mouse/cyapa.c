@@ -604,6 +604,136 @@ out:
 	return IRQ_HANDLED;
 }
 
+/*
+ **************************************************************
+ * sysfs interface
+ **************************************************************
+*/
+#ifdef CONFIG_PM_SLEEP
+static ssize_t cyapa_show_suspend_scanrate(struct device *dev,
+					   struct device_attribute *attr,
+					   char *buf)
+{
+	struct cyapa *cyapa = dev_get_drvdata(dev);
+	u8 pwr_cmd = cyapa->suspend_power_mode;
+	u16 sleep_time;
+	int len;
+	int error;
+
+	error = mutex_lock_interruptible(&cyapa->state_sync_lock);
+	if (error)
+		return error;
+
+	pwr_cmd = cyapa->suspend_power_mode;
+	sleep_time = cyapa->suspend_sleep_time;
+
+	mutex_unlock(&cyapa->state_sync_lock);
+
+	switch (pwr_cmd) {
+	case PWR_MODE_BTN_ONLY:
+		len = scnprintf(buf, PAGE_SIZE, "%s\n", BTN_ONLY_MODE_NAME);
+		break;
+
+	case PWR_MODE_OFF:
+		len = scnprintf(buf, PAGE_SIZE, "%s\n", OFF_MODE_NAME);
+		break;
+
+	default:
+		len = scnprintf(buf, PAGE_SIZE, "%u\n",
+				cyapa->gen == CYAPA_GEN3 ?
+					cyapa_pwr_cmd_to_sleep_time(pwr_cmd) :
+					sleep_time);
+		break;
+	}
+
+	return len;
+}
+
+static ssize_t cyapa_update_suspend_scanrate(struct device *dev,
+					     struct device_attribute *attr,
+					     const char *buf, size_t count)
+{
+	struct cyapa *cyapa = dev_get_drvdata(dev);
+	u16 sleep_time;
+	int error;
+
+	error = mutex_lock_interruptible(&cyapa->state_sync_lock);
+	if (error)
+		return error;
+
+	if (sysfs_streq(buf, BTN_ONLY_MODE_NAME)) {
+		cyapa->suspend_power_mode = PWR_MODE_BTN_ONLY;
+	} else if (sysfs_streq(buf, OFF_MODE_NAME)) {
+		cyapa->suspend_power_mode = PWR_MODE_OFF;
+	} else if (!kstrtou16(buf, 10, &sleep_time)) {
+		cyapa->suspend_sleep_time = max_t(u16, sleep_time, 1000);
+		cyapa->suspend_power_mode =
+			cyapa_sleep_time_to_pwr_cmd(cyapa->suspend_sleep_time);
+	} else {
+		count = -EINVAL;
+	}
+
+	mutex_unlock(&cyapa->state_sync_lock);
+
+	return count;
+}
+
+static DEVICE_ATTR(suspend_scanrate_ms, S_IRUGO|S_IWUSR,
+		   cyapa_show_suspend_scanrate,
+		   cyapa_update_suspend_scanrate);
+
+static struct attribute *cyapa_power_wakeup_entries[] = {
+	&dev_attr_suspend_scanrate_ms.attr,
+	NULL,
+};
+
+static const struct attribute_group cyapa_power_wakeup_group = {
+	.name = power_group_name,
+	.attrs = cyapa_power_wakeup_entries,
+};
+
+static void cyapa_remove_power_wakeup_group(void *data)
+{
+	struct cyapa *cyapa = data;
+
+	sysfs_unmerge_group(&cyapa->client->dev.kobj,
+				&cyapa_power_wakeup_group);
+}
+
+static int cyapa_prepare_wakeup_controls(struct cyapa *cyapa)
+{
+	struct i2c_client *client = cyapa->client;
+	struct device *dev = &client->dev;
+	int error;
+
+	if (device_can_wakeup(dev)) {
+		error = sysfs_merge_group(&client->dev.kobj,
+					&cyapa_power_wakeup_group);
+		if (error) {
+			dev_err(dev, "failed to add power wakeup group: %d\n",
+				error);
+			return error;
+		}
+
+		error = devm_add_action(dev,
+				cyapa_remove_power_wakeup_group, cyapa);
+		if (error) {
+			cyapa_remove_power_wakeup_group(cyapa);
+			dev_err(dev, "failed to add power cleanup action: %d\n",
+				error);
+			return error;
+		}
+	}
+
+	return 0;
+}
+#else
+static inline int cyapa_prepare_wakeup_controls(struct cyapa *cyapa)
+{
+	return 0;
+}
+#endif /* CONFIG_PM_SLEEP */
+
 static int cyapa_probe(struct i2c_client *client,
 		       const struct i2c_device_id *dev_id)
 {
@@ -640,6 +770,12 @@ static int cyapa_probe(struct i2c_client *client,
 	error = cyapa_initialize(cyapa);
 	if (error) {
 		dev_err(dev, "failed to detect and initialize tp device.\n");
+		return error;
+	}
+
+	error = cyapa_prepare_wakeup_controls(cyapa);
+	if (error) {
+		dev_err(dev, "failed to prepare wakeup controls: %d\n", error);
 		return error;
 	}
 
