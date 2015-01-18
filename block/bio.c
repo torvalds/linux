@@ -1102,7 +1102,7 @@ static int __bio_copy_iov(struct bio *bio, const struct sg_iovec *iov, int iov_c
  *	bio_uncopy_user	-	finish previously mapped bio
  *	@bio: bio being terminated
  *
- *	Free pages allocated from bio_copy_user() and write back data
+ *	Free pages allocated from bio_copy_user_iov() and write back data
  *	to user space in case of a read.
  */
 int bio_uncopy_user(struct bio *bio)
@@ -1256,32 +1256,6 @@ out_bmd:
 	return ERR_PTR(ret);
 }
 
-/**
- *	bio_copy_user	-	copy user data to bio
- *	@q: destination block queue
- *	@map_data: pointer to the rq_map_data holding pages (if necessary)
- *	@uaddr: start of user address
- *	@len: length in bytes
- *	@write_to_vm: bool indicating writing to pages or not
- *	@gfp_mask: memory allocation flags
- *
- *	Prepares and returns a bio for indirect user io, bouncing data
- *	to/from kernel pages as necessary. Must be paired with
- *	call bio_uncopy_user() on io completion.
- */
-struct bio *bio_copy_user(struct request_queue *q, struct rq_map_data *map_data,
-			  unsigned long uaddr, unsigned int len,
-			  int write_to_vm, gfp_t gfp_mask)
-{
-	struct sg_iovec iov;
-
-	iov.iov_base = (void __user *)uaddr;
-	iov.iov_len = len;
-
-	return bio_copy_user_iov(q, map_data, &iov, 1, write_to_vm, gfp_mask);
-}
-EXPORT_SYMBOL(bio_copy_user);
-
 static struct bio *__bio_map_user_iov(struct request_queue *q,
 				      struct block_device *bdev,
 				      const struct sg_iovec *iov, int iov_count,
@@ -1393,31 +1367,6 @@ static struct bio *__bio_map_user_iov(struct request_queue *q,
 	bio_put(bio);
 	return ERR_PTR(ret);
 }
-
-/**
- *	bio_map_user	-	map user address into bio
- *	@q: the struct request_queue for the bio
- *	@bdev: destination block device
- *	@uaddr: start of user address
- *	@len: length in bytes
- *	@write_to_vm: bool indicating writing to pages or not
- *	@gfp_mask: memory allocation flags
- *
- *	Map the user space address into a bio suitable for io to a block
- *	device. Returns an error pointer in case of error.
- */
-struct bio *bio_map_user(struct request_queue *q, struct block_device *bdev,
-			 unsigned long uaddr, unsigned int len, int write_to_vm,
-			 gfp_t gfp_mask)
-{
-	struct sg_iovec iov;
-
-	iov.iov_base = (void __user *)uaddr;
-	iov.iov_len = len;
-
-	return bio_map_user_iov(q, bdev, &iov, 1, write_to_vm, gfp_mask);
-}
-EXPORT_SYMBOL(bio_map_user);
 
 /**
  *	bio_map_user_iov - map user sg_iovec table into bio
