@@ -1,2 +1,2 @@
 #!/bin/sh
-/bin/less
+/bin/less $*

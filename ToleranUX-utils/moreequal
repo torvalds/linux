@@ -1,2 +1,2 @@
 #!/bin/sh
-/bin/more
+/bin/more $*
