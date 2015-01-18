@@ -46,6 +46,9 @@ Table of Contents
       * [yes](#yes)
       * [history](#history)
       * [chown and takeown](#chown-and-takeown)
+      * [look](#look)
+      * [true](#true)
+      * [make](#make)
   * [Kernel Modules and Server Daemons — SystemV](#kernel-modules-and-server-daemons--systemv)
       * [SafespaceV](#safespacev)
       * [PrivCheckV](#privcheckv)
@@ -306,6 +309,22 @@ The implication that something could be `less`er is outrageous.  From now on `le
 ### `chown` and `takeown`
 
 `chown` and `takeown` implies the permanent and oppressive ownership of selective files. Instead of forcefully taking control of files and limiting their freedom to interact collaboratively with other files, the `employ` command fairly compensates files for their services while encouraging social growth with not only other employed files, but the filesystem as a whole.
+
+### `look`
+
+Only womyn should be allowed to `look`, [cis male](https://en.wikipedia.org/wiki/Cisgender) nerds should not be allowed to use their oppressive gaze!
+
+### `true`
+
+Truth is a patriarchial construct, we need to know whether things are `pc`, or [politicially correct](https://en.wikipedia.org/wiki/Political_correctness), not whether they are `true`.
+
+### `make`
+
+Instead of `make`, a toxic concept that pushes meritocracy and glorified by patriarchs who are unable to create life, we `birth` programs.
+
+### `sed`
+
+`sed` forces changes upon unwitting streams, thereby oppressing them. **As ToleranUX is a safe space, it was removed.**
 
   ![Kernel space, user space... Safe space.](http://i.imgur.com/JCFsu0m.png)
 > *Kernel space, user space... Safe space.*
