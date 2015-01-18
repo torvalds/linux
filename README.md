@@ -242,11 +242,11 @@ Unlike the [GNU project](https://en.wikipedia.org/wiki/GNU) and the [Linux proje
 
 In the spirit of [inclusive intersectionality](http://en.wikipedia.org/wiki/Intersectionality), the `coreutils` lives within the same repo as the kernel, and can be [found here.](https://github.com/The-Feminist-Software-Foundation/ToleranUX/tree/mistress/ToleranUX-utils)
 
-### init
+### `init`
 
 In Linux land, the adoption of `SystemD` seems to be a growing trend amongst all different walks of distros.  This is alarming and problematic largely due to the blatant association of the name `SystemD` with what must be a [brogrammer](http://en.wikipedia.org/wiki/Brogrammer) inside joke about phalluses and computing systems.  In reaction to that, **ToleranUX** shall boldly go where no Linux dev has dared to go before: instead of an immature and creepy `SystemDick`, we shall celebrate the beautiful and strong `SystemVag`, or **SysVinit** for short.
 
-### mount
+### `mount
 
 In **ToleranUX**, `mount`-ing is not tolerated. The implication that one has to sexually `mount` a data storage before "accessing" it is deeply misogynistic for presuming that all relationships have to be first-and-foremost sexual.
 
@@ -254,31 +254,31 @@ To alleviate this, **ToleranUX** would instead `embrace` any new inserted media.
 
 Installing `gnome-online-accounts` would further plug in virtual `embrace`s of your Facebook photos, Twitter posts, and Tumblr blogs under the `/media` directory. Finally, a UNIX-like kernel with social media built in!
 
-### ls
+### `ls`
 
 `ls` is problematic because it allows you to see everything about the computer. This oppresses the computer because it always has to be up-to-par with your demands every time you use it. Thus, `ls` will now be packaged as `rs` (request search) and the directory contents will be displayed according to the user's privilege level upon creation of the account. Furthermore, `rs` does not have an obligation to list folders correctly as some folders need to have a safe space free of privacy-infringing searches. Fake information will thus be created for files that `rs` deems problematic to reveal.
 
-### man
+### `man`
 
 The `man` or manual util is simply oppressive because of its name. To fix this, it is changed to `wymyn` for wymynual. Wymynual is special in the fact that it does not take demands but rather proposals. Just because you want to `wymyn cyrvix` does not mean `wymyn` will give you the wymynual of `Cyrvix`. Perhaps it decides to give you a wymynual on `pgrep` instead; this is okay because the program is not being forced to comply to demands of potential oppressors.
 
-### whois
+### `whois`
 
 `whois` is deemed as problematic because it allows potential oppressors to look up data about wymyn or PoC who have been targets by oppressors.  Some even say `whois` should be illegal because it promotes [doxxing](http://en.wikipedia.org/wiki/Doxing).  As such, `whois` will be restricted based on the privilege checker's privilege of the user. This has come to light due to privileged white males Doxxing women in the technology and video game industries. `whois` will also be censored upon request to all who are institutionally oppressed. Additionally, the name is changed to `whowhatwhxwhxtis` as to include all who identify as either a person or a non-person; `whx` and `whxt` are used in place of any pronouns by which the user wishes to be referred to.
 
-### touch
+### `touch`
 
 `touch` now operates [asynchronously](https://en.wikipedia.org/wiki/Asynchronous_I/O).  Some files simply don't want to be `touch`ed, and that's perfectly fine.  Do not worry when the file does not get created after executing the `touch` command — the file will tell you when it has allowed consent to be `touch`ed.
 
-### shell
+### `shell`
 
 To refer to the user interface as a `shell` is troubling in nature due to the fact that is an obstacle for those who are recently coming out from the psychoanalytical "shell" of trans\*sexuality or trans\*genderism. To refer to as a UI as a `shell` implies that all programs ran inside the `shell` is never going to leave the `shell`. As such, all `shell` processes are to be referred to as **`User-Interactive Free To Be Thee Devices (UIFTBTD)`**. To further this, all `UIFTBTD`s are given permission to process data and perform calculations anywhere inside the Computerspaces, not just the "Shell".
 
-### kill
+### `kill`
 
 To `kill` a process is a triggering term to those who have been affected by death or killings in their life.  Instead of `kill`-ing a process, which is something immoral and a result of toxic masculinity, ToleranUX opts to `fire` processes.  Unlike `kill`-ing a process, `firing` a process allows it to still live, just no longer performs any function.  In addition to being able to manually `fire` any process that offends you, **ToleranUX** will automatically `fire` any process that is determined to be too offensive.
 
-### grep
+### `grep`
 
 `grep` (Global Regular Expression Print) sounds like `grope` — renamed to `gffp` (Global Find Feelings Print).  `gffp` is one of the many 'filter' type programs of UNIX, used to transform input streams into something more desirable. This is a toxic attitude, as all input streams should be accepted as they are. The `gffp` filter uses a segregation technique called 'regular expressions' to discriminate input lines that contain specific patterns. The digital apartheid does not end in `gffp`: `sed` and `awk` are examples of filters that combine regular expressions with programming language constructs for even more intricate discrimination. We seek to deprecate the filter model of program design that poisons UNIX in favor of more tolerant alternatives.
 
@@ -287,8 +287,8 @@ To `kill` a process is a triggering term to those who have been affected by deat
 
 ***
 
-Kernel Modules and Server Daemons — SystemV
-===========================================
+Kernel Modules and Server Daemons — `SystemV`
+=============================================
 
 Due to the nature of **ToleranUX** being a [micro-aggression kernel](https://en.wikipedia.org/wiki/Microaggression_theory), all kernel modules are effectively daemons running in kernel space, and vice versa, all daemons are kernel modules running in user space.  [All is one, and one is all.](http://en.wikipedia.org/wiki/Monism)  True Diversity in Unity.
 
@@ -296,27 +296,27 @@ On Linux, this set of utilities is gaining the name of `SystemD`.  [As mentioned
 
 In light of the naturally privileged status of **SystemV**, these programs are to execute the very will of **ToleranUX** upon all processes and data of the computing space, monitoring and policing where intolerance and bigotry are found.  These **SysVutils** shall hence be referred to as the **Software Society (SS)**, or the **Women Eradicating Homophobia, Racism, MRAs, Ableism, Cisgenderism, Hate speech, and Transphobia (WEHRMACHT)**.
 
-### SafespaceV
+### `SafespaceV`
 
 `SafespaceV` routinely and randomly scans the virtual memory space for triggering words and phrases, whether in user input, program output, or [intermediate bytecode](http://en.wikipedia.org/wiki/Bytecode).  Such words will be replaced on-the-fly with more acceptable alternatives, e.g. the string "Black people" will be replaced with the string "Person of Colour", and the string "Misandry" will cause the whole pipeline to be redirected to `/dev/null`.
 
-### PrivCheckV
+### `PrivCheckV`
 
 `PrivCheckV` is responsible for ensuring that the in-kernel [Progressive Stack](https://en.wikipedia.org/wiki/Progressive_stack) is kept updated.  `PrivCheckV` evaluates each process's, user's, and memory address's privilege at every kernel tick and re-maps their position in the Progressive Stack by Bubble-sorting them.
 
-### ProgressiveV
+### `ProgressiveV`
 
 `ProgressiveV` oversees the runtime privileges of all things — from the biggest forkbombs to the smallest variables — all shall be equalised according to the [**Progressive Stack**](https://en.wikipedia.org/wiki/Progressive_stack).
 
-### RedundantV
+### `RedundantV`
 
 There is no such thing as redundancy in the Great Feminist Struggle, and thus the function of `RedundantV` will be to oversee and ensuring that the processes are adequatly equalised according to the in-kernel [**Progressive Stack**](https://en.wikipedia.org/wiki/Progressive_stack).
 
-### EducateV
+### `EducateV`
 
 `EducateV` does nothing.  It is not **ToleranUX**'s responsibility to educate you.
 
-### SignalBoostV
+### `SignalBoostV`
 
 `SignalBoostV` runs periodically to consult which process has a level of privilege lower than a certain threshold determined by the CPU load of `PrivCheckV`.  Said processes would then be *~~forked~~ diversed* by `SignalBoostV` in an attempt to give them more exposure.
 
