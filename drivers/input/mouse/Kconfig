@@ -216,6 +216,7 @@ config MOUSE_BCM5974
 config MOUSE_CYAPA
 	tristate "Cypress APA I2C Trackpad support"
 	depends on I2C
+	select CRC_ITU_T
 	help
 	  This driver adds support for Cypress All Points Addressable (APA)
 	  I2C Trackpads, including the ones used in 2012 Samsung Chromebooks.
