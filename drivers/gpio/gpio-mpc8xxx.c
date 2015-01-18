@@ -40,6 +40,7 @@ struct mpc8xxx_gpio_chip {
 	 */
 	u32 data;
 	struct irq_domain *irq;
+	unsigned int irqn;
 	const void *of_dev_id_data;
 };
 
@@ -350,12 +351,13 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 	struct of_mm_gpio_chip *mm_gc;
 	struct gpio_chip *gc;
 	const struct of_device_id *id;
-	unsigned hwirq;
 	int ret;
 
 	mpc8xxx_gc = devm_kzalloc(&pdev->dev, sizeof(*mpc8xxx_gc), GFP_KERNEL);
 	if (!mpc8xxx_gc)
 		return -ENOMEM;
+
+	platform_set_drvdata(pdev, mpc8xxx_gc);
 
 	spin_lock_init(&mpc8xxx_gc->lock);
 
@@ -377,8 +379,8 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	hwirq = irq_of_parse_and_map(np, 0);
-	if (hwirq == NO_IRQ)
+	mpc8xxx_gc->irqn = irq_of_parse_and_map(np, 0);
+	if (mpc8xxx_gc->irqn == NO_IRQ)
 		return 0;
 
 	mpc8xxx_gc->irq = irq_domain_add_linear(np, MPC8XXX_GPIO_PINS,
@@ -394,14 +396,30 @@ static int mpc8xxx_probe(struct platform_device *pdev)
 	out_be32(mm_gc->regs + GPIO_IER, 0xffffffff);
 	out_be32(mm_gc->regs + GPIO_IMR, 0);
 
-	irq_set_handler_data(hwirq, mpc8xxx_gc);
-	irq_set_chained_handler(hwirq, mpc8xxx_gpio_irq_cascade);
+	irq_set_handler_data(mpc8xxx_gc->irqn, mpc8xxx_gc);
+	irq_set_chained_handler(mpc8xxx_gc->irqn, mpc8xxx_gpio_irq_cascade);
+
+	return 0;
+}
+
+static int mpc8xxx_remove(struct platform_device *pdev)
+{
+	struct mpc8xxx_gpio_chip *mpc8xxx_gc = platform_get_drvdata(pdev);
+
+	if (mpc8xxx_gc->irq) {
+		irq_set_handler_data(mpc8xxx_gc->irqn, NULL);
+		irq_set_chained_handler(mpc8xxx_gc->irqn, NULL);
+		irq_domain_remove(mpc8xxx_gc->irq);
+	}
+
+	of_mm_gpiochip_remove(&mpc8xxx_gc->mm_gc);
 
 	return 0;
 }
 
 static struct platform_driver mpc8xxx_plat_driver = {
 	.probe		= mpc8xxx_probe,
+	.remove		= mpc8xxx_remove,
 	.driver		= {
 		.name = "gpio-mpc8xxx",
 		.of_match_table	= mpc8xxx_gpio_ids,
