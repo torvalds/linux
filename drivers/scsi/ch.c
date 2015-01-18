@@ -194,18 +194,10 @@ ch_do_scsi(scsi_changer *ch, unsigned char *cmd, int cmd_len,
 
  retry:
 	errno = 0;
-	if (debug) {
-		char logbuf[SCSI_LOG_BUFSIZE];
-
-		__scsi_format_command(logbuf, sizeof(logbuf), cmd, cmd_len);
-		DPRINTK("command: %s", logbuf);
-	}
-
 	result = scsi_execute_req(ch->device, cmd, direction, buffer,
 				  buflength, &sshdr, timeout * HZ,
 				  MAX_RETRIES, NULL);
 
-	DPRINTK("result: 0x%x\n",result);
 	if (driver_byte(result) & DRIVER_SENSE) {
 		if (debug)
 			scsi_print_sense_hdr(ch->device, ch->name, &sshdr);
