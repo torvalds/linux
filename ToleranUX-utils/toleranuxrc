@@ -1,0 +1,36 @@
+#!/bin/sh
+#
+# Primitive shell^U^U^U^U^U User-Interactive Free To Be Thee Devices (UIFTBTD) rc
+# for the glorious purpose of correcting the Patriarchal coreutils into
+# acceptable, tolerant behaviour.
+
+if [ ! -d ~/.toleranuxlinks/ ]; then
+    mkdir ~/.toleranuxlinks/;
+    ln -s $(which mount) ~/.toleranuxlinks/embrace;
+    ln -s $(which ls) ~/.toleranuxlinks/rs;
+    ln -s $(which man) ~/.toleranuxlinks/wymyn;
+    ln -s $(which whois) ~/.toleranuxlinks/whowhatwhxwhxtis;
+    ln -s $(which kill) ~/.toleranuxlinks/fire;
+    ln -s $(which grep) ~/.toleranuxlinks/gffp;
+    ln -s $(which egrep) ~/.toleranuxlinks/egffp;
+    ln -s $(which fgrep) ~/.toleranuxlinks/fgffp;
+    ln -s $(which rgrep) ~/.toleranuxlinks/rgffp;
+    echo 'if [ ! "$(echo $@ | md5sum | cut -c-1 | egrep -c [1234])" == 1 ]; then /usr/bin/touch $@; fi' > ~/.toleranuxlinks/touch;
+    chmod +x ~/.toleranuxlinks/touch;
+fi
+
+PATH="~/.toleranuxlinks/:$PATH"
+
+function complain () {
+    shuf -en 1 "You misogynist pig." "How could you do such a thing?" "That is very offensive." "I am beyond upset." "How dare you!" "Your attitude is highly problematic."
+}
+
+alias mount=complain
+alias ls=complain
+alias man=complain
+alias whois=complain
+alias kill=complain
+alias grep=complain
+alias egrep=complain
+alias fgrep=complain
+alias rgrep=complain
