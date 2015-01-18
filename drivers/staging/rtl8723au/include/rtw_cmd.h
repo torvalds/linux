@@ -99,7 +99,6 @@ int rtw_init_cmd_priv23a(struct cmd_priv *pcmdpriv);
 
 u32 rtw_init_evt_priv23a (struct evt_priv *pevtpriv);
 void rtw_free_evt_priv23a (struct evt_priv *pevtpriv);
-void rtw_cmd_clr_isr23a(struct cmd_priv *pcmdpriv);
 void rtw_evt_notify_isr(struct evt_priv *pevtpriv);
 
 enum rtw_drvextra_cmd_id
@@ -713,7 +712,6 @@ int rtw_ps_cmd23a(struct rtw_adapter*padapter);
 int rtw_chk_hi_queue_cmd23a(struct rtw_adapter*padapter);
 #endif
 
-int rtw_set_ch_cmd23a(struct rtw_adapter*padapter, u8 ch, u8 bw, u8 ch_offset, u8 enqueue);
 int rtw_set_chplan_cmd(struct rtw_adapter*padapter, u8 chplan, u8 enqueue);
 int rtw_led_blink_cmd(struct rtw_adapter*padapter, struct led_8723a *pLed);
 int rtw_set_csa_cmd(struct rtw_adapter*padapter, u8 new_ch_no);
