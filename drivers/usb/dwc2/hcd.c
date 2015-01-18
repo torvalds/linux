@@ -1608,7 +1608,9 @@ static int dwc2_hcd_hub_control(struct dwc2_hsotg *hsotg, u16 typereq,
 		hub_desc->bDescLength = 9;
 		hub_desc->bDescriptorType = 0x29;
 		hub_desc->bNbrPorts = 1;
-		hub_desc->wHubCharacteristics = cpu_to_le16(0x08);
+		hub_desc->wHubCharacteristics =
+			cpu_to_le16(HUB_CHAR_COMMON_LPSM |
+				    HUB_CHAR_INDV_PORT_OCPM);
 		hub_desc->bPwrOn2PwrGood = 1;
 		hub_desc->bHubContrCurrent = 0;
 		hub_desc->u.hs.DeviceRemovable[0] = 0;
