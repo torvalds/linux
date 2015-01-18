@@ -833,7 +833,7 @@ static int nsc_ircc_init_39x(nsc_chip_t *chip, chipio_t *info)
 	int cfg_base = info->cfg_base;
 	int enabled;
 
-	/* User is sure about his config... accept it. */
+	/* User is sure about their config... yes means yes. */
 	pr_debug("%s(): nsc_ircc_init_39x (user settings): io=0x%04x, irq=%d, dma=%d\n",
 		 __func__, info->fir_base, info->irq, info->dma);
 

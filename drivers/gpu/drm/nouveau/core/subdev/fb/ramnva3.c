@@ -590,7 +590,7 @@ nva3_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	if (ret)
 		return ret;
 
-	/* XXX: where the fuck does 750MHz come from? */
+	/* XXX: why is 750MHz not being treated equally? */
 	if (freq <= 750000) {
 		r004018 = 0x10000000;
 		r100760 = 0x22222222;
