@@ -1,7 +1,7 @@
 
   ![FSF](http://i.imgur.com/ZhTU8r3.png)
   
-  ![ToleranUX Shell Prompt](http://i.imgur.com/eJuO5wN.png)
+  ![ToleranUX Shell Prompt](http://i.imgur.com/ZVjbJeS.png)
 
 ***
 
