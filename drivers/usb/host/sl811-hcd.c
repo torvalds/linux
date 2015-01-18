@@ -1103,12 +1103,12 @@ sl811h_hub_descriptor (
 		desc->bPwrOn2PwrGood = sl811->board->potpg;
 		if (!desc->bPwrOn2PwrGood)
 			desc->bPwrOn2PwrGood = 10;
-		temp = 0x0001;
+		temp = HUB_CHAR_INDV_PORT_LPSM;
 	} else
-		temp = 0x0002;
+		temp = HUB_CHAR_NO_LPSM;
 
 	/* no overcurrent errors detection/handling */
-	temp |= 0x0010;
+	temp |= HUB_CHAR_NO_OCPM;
 
 	desc->wHubCharacteristics = cpu_to_le16(temp);
 
