@@ -88,7 +88,7 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 	if (unaligned || (q->dma_pad_mask & iter->count) || map_data)
 		bio = bio_copy_user_iov(q, map_data, iter, gfp_mask);
 	else
-		bio = bio_map_user_iov(q, NULL, iter, gfp_mask);
+		bio = bio_map_user_iov(q, iter, gfp_mask);
 
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);

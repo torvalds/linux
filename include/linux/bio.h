@@ -430,7 +430,6 @@ extern int bio_add_pc_page(struct request_queue *, struct bio *, struct page *,
 extern int bio_get_nr_vecs(struct block_device *);
 struct rq_map_data;
 extern struct bio *bio_map_user_iov(struct request_queue *,
-				    struct block_device *,
 				    const struct iov_iter *, gfp_t);
 extern void bio_unmap_user(struct bio *);
 extern struct bio *bio_map_kern(struct request_queue *, void *, unsigned int,

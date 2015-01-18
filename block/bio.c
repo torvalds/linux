@@ -1244,10 +1244,18 @@ out_bmd:
 	return ERR_PTR(ret);
 }
 
-static struct bio *__bio_map_user_iov(struct request_queue *q,
-				      struct block_device *bdev,
-				      const struct iov_iter *iter,
-				      gfp_t gfp_mask)
+/**
+ *	bio_map_user_iov - map user iovec into bio
+ *	@q:		the struct request_queue for the bio
+ *	@iter:		iovec iterator
+ *	@gfp_mask:	memory allocation flags
+ *
+ *	Map the user space address into a bio suitable for io to a block
+ *	device. Returns an error pointer in case of error.
+ */
+struct bio *bio_map_user_iov(struct request_queue *q,
+			     const struct iov_iter *iter,
+			     gfp_t gfp_mask)
 {
 	int j;
 	int nr_pages = 0;
@@ -1343,8 +1351,15 @@ static struct bio *__bio_map_user_iov(struct request_queue *q,
 	if (iter->type & WRITE)
 		bio->bi_rw |= REQ_WRITE;
 
-	bio->bi_bdev = bdev;
 	bio->bi_flags |= (1 << BIO_USER_MAPPED);
+
+	/*
+	 * subtle -- if __bio_map_user() ended up bouncing a bio,
+	 * it would normally disappear when its bi_end_io is run.
+	 * however, we need it for the unmap, so grab an extra
+	 * reference to it
+	 */
+	bio_get(bio);
 	return bio;
 
  out_unmap:
@@ -1357,37 +1372,6 @@ static struct bio *__bio_map_user_iov(struct request_queue *q,
 	kfree(pages);
 	bio_put(bio);
 	return ERR_PTR(ret);
-}
-
-/**
- *	bio_map_user_iov - map user iovec into bio
- *	@q:		the struct request_queue for the bio
- *	@bdev:		destination block device
- *	@iter:		iovec iterator
- *	@gfp_mask:	memory allocation flags
- *
- *	Map the user space address into a bio suitable for io to a block
- *	device. Returns an error pointer in case of error.
- */
-struct bio *bio_map_user_iov(struct request_queue *q, struct block_device *bdev,
-			     const struct iov_iter *iter,
-			     gfp_t gfp_mask)
-{
-	struct bio *bio;
-
-	bio = __bio_map_user_iov(q, bdev, iter, gfp_mask);
-	if (IS_ERR(bio))
-		return bio;
-
-	/*
-	 * subtle -- if __bio_map_user() ended up bouncing a bio,
-	 * it would normally disappear when its bi_end_io is run.
-	 * however, we need it for the unmap, so grab an extra
-	 * reference to it
-	 */
-	bio_get(bio);
-
-	return bio;
 }
 
 static void __bio_unmap_user(struct bio *bio)
