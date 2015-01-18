@@ -1026,6 +1026,7 @@ static void mixer_win_disable(struct exynos_drm_manager *mgr, int zpos)
 static void mixer_wait_for_vblank(struct exynos_drm_manager *mgr)
 {
 	struct mixer_context *mixer_ctx = mgr_to_mixer(mgr);
+	int err;
 
 	mutex_lock(&mixer_ctx->mixer_mutex);
 	if (!mixer_ctx->powered) {
@@ -1034,7 +1035,11 @@ static void mixer_wait_for_vblank(struct exynos_drm_manager *mgr)
 	}
 	mutex_unlock(&mixer_ctx->mixer_mutex);
 
-	drm_vblank_get(mgr->crtc->dev, mixer_ctx->pipe);
+	err = drm_vblank_get(mgr->crtc->dev, mixer_ctx->pipe);
+	if (err < 0) {
+		DRM_DEBUG_KMS("failed to acquire vblank counter\n");
+		return;
+	}
 
 	atomic_set(&mixer_ctx->wait_vsync_event, 1);
 
