@@ -104,21 +104,14 @@ static void ltq_mm_save_regs(struct of_mm_gpio_chip *mm_gc)
 
 static int ltq_mm_probe(struct platform_device *pdev)
 {
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct ltq_mm *chip;
 	const __be32 *shadow;
-
-	if (!res) {
-		dev_err(&pdev->dev, "failed to get memory resource\n");
-		return -ENOENT;
-	}
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
 	chip->mmchip.gc.ngpio = 16;
-	chip->mmchip.gc.label = "gpio-mm-ltq";
 	chip->mmchip.gc.direction_output = ltq_mm_dir_out;
 	chip->mmchip.gc.set = ltq_mm_set;
 	chip->mmchip.save_regs = ltq_mm_save_regs;
