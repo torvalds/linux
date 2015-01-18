@@ -214,6 +214,40 @@ static void hci_cc_reset(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_bdaddr_list_clear(&hdev->le_white_list);
 }
 
+static void hci_cc_read_stored_link_key(struct hci_dev *hdev,
+					struct sk_buff *skb)
+{
+	struct hci_rp_read_stored_link_key *rp = (void *)skb->data;
+	struct hci_cp_read_stored_link_key *sent;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
+
+	sent = hci_sent_cmd_data(hdev, HCI_OP_READ_STORED_LINK_KEY);
+	if (!sent)
+		return;
+
+	if (!rp->status && sent->read_all == 0x01) {
+		hdev->stored_max_keys = rp->max_keys;
+		hdev->stored_num_keys = rp->num_keys;
+	}
+}
+
+static void hci_cc_delete_stored_link_key(struct hci_dev *hdev,
+					  struct sk_buff *skb)
+{
+	struct hci_rp_delete_stored_link_key *rp = (void *)skb->data;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
+
+	if (rp->status)
+		return;
+
+	if (rp->num_keys <= hdev->stored_num_keys)
+		hdev->stored_num_keys -= rp->num_keys;
+	else
+		hdev->stored_num_keys = 0;
+}
+
 static void hci_cc_write_local_name(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	__u8 status = *((__u8 *) skb->data);
@@ -2712,6 +2746,14 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_OP_RESET:
 		hci_cc_reset(hdev, skb);
+		break;
+
+	case HCI_OP_READ_STORED_LINK_KEY:
+		hci_cc_read_stored_link_key(hdev, skb);
+		break;
+
+	case HCI_OP_DELETE_STORED_LINK_KEY:
+		hci_cc_delete_stored_link_key(hdev, skb);
 		break;
 
 	case HCI_OP_WRITE_LOCAL_NAME:

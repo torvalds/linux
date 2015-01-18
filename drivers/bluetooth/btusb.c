@@ -49,7 +49,7 @@ static struct usb_driver btusb_driver;
 #define BTUSB_INTEL_BOOT	0x200
 #define BTUSB_BCM_PATCHRAM	0x400
 #define BTUSB_MARVELL		0x800
-#define BTUSB_AVM		0x1000
+#define BTUSB_SWAVE		0x1000
 
 static const struct usb_device_id btusb_table[] = {
 	/* Generic Bluetooth USB device */
@@ -86,7 +86,7 @@ static const struct usb_device_id btusb_table[] = {
 	{ USB_DEVICE(0x05ac, 0x8281) },
 
 	/* AVM BlueFRITZ! USB v2.0 */
-	{ USB_DEVICE(0x057c, 0x3800), .driver_info = BTUSB_AVM },
+	{ USB_DEVICE(0x057c, 0x3800), .driver_info = BTUSB_SWAVE },
 
 	/* Bluetooth Ultraport Module from IBM */
 	{ USB_DEVICE(0x04bf, 0x030a) },
@@ -238,6 +238,9 @@ static const struct usb_device_id blacklist_table[] = {
 	/* CONWISE Technology based adapters with buggy SCO support */
 	{ USB_DEVICE(0x0e5e, 0x6622), .driver_info = BTUSB_BROKEN_ISOC },
 
+	/* Roper Class 1 Bluetooth Dongle (Silicon Wave based) */
+	{ USB_DEVICE(0x1300, 0x0001), .driver_info = BTUSB_SWAVE },
+
 	/* Digianswer devices */
 	{ USB_DEVICE(0x08fd, 0x0001), .driver_info = BTUSB_DIGIANSWER },
 	{ USB_DEVICE(0x08fd, 0x0002), .driver_info = BTUSB_IGNORE },
@@ -306,6 +309,7 @@ struct btusb_data {
 	int isoc_altsetting;
 	int suspend_count;
 
+	int (*recv_event)(struct hci_dev *hdev, struct sk_buff *skb);
 	int (*recv_bulk)(struct btusb_data *data, void *buffer, int count);
 };
 
@@ -371,7 +375,7 @@ static int btusb_recv_intr(struct btusb_data *data, void *buffer, int count)
 
 		if (bt_cb(skb)->expect == 0) {
 			/* Complete frame */
-			hci_recv_frame(data->hdev, skb);
+			data->recv_event(data->hdev, skb);
 			skb = NULL;
 		}
 	}
@@ -2045,6 +2049,7 @@ static int btusb_probe(struct usb_interface *intf,
 	init_usb_anchor(&data->isoc_anchor);
 	spin_lock_init(&data->rxlock);
 
+	data->recv_event = hci_recv_frame;
 	data->recv_bulk = btusb_recv_bulk;
 
 	hdev = hci_alloc_dev();
@@ -2081,8 +2086,10 @@ static int btusb_probe(struct usb_interface *intf,
 	if (id->driver_info & BTUSB_MARVELL)
 		hdev->set_bdaddr = btusb_set_bdaddr_marvell;
 
-	if (id->driver_info & BTUSB_AVM)
+	if (id->driver_info & BTUSB_SWAVE) {
+		set_bit(HCI_QUIRK_FIXUP_INQUIRY_MODE, &hdev->quirks);
 		set_bit(HCI_QUIRK_BROKEN_LOCAL_COMMANDS, &hdev->quirks);
+	}
 
 	if (id->driver_info & BTUSB_INTEL_BOOT)
 		set_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks);

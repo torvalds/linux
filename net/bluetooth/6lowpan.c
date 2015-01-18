@@ -31,7 +31,7 @@
 
 #define VERSION "0.1"
 
-static struct dentry *lowpan_psm_debugfs;
+static struct dentry *lowpan_enable_debugfs;
 static struct dentry *lowpan_control_debugfs;
 
 #define IFACE_NAME_TEMPLATE "bt%d"
@@ -55,11 +55,7 @@ struct skb_cb {
 static LIST_HEAD(bt_6lowpan_devices);
 static DEFINE_SPINLOCK(devices_lock);
 
-/* If psm is set to 0 (default value), then 6lowpan is disabled.
- * Other values are used to indicate a Protocol Service Multiplexer
- * value for 6lowpan.
- */
-static u16 psm_6lowpan;
+static bool enable_6lowpan;
 
 /* We are listening incoming connections via this channel
  */
@@ -761,7 +757,7 @@ static bool is_bt_6lowpan(struct hci_conn *hcon)
 	if (hcon->type != LE_LINK)
 		return false;
 
-	if (!psm_6lowpan)
+	if (!enable_6lowpan)
 		return false;
 
 	return true;
@@ -1085,7 +1081,7 @@ static int bt_6lowpan_connect(bdaddr_t *addr, u8 dst_type)
 	if (!pchan)
 		return -EINVAL;
 
-	err = l2cap_chan_connect(pchan, cpu_to_le16(psm_6lowpan), 0,
+	err = l2cap_chan_connect(pchan, cpu_to_le16(L2CAP_PSM_IPSP), 0,
 				 addr, dst_type);
 
 	BT_DBG("chan %p err %d", pchan, err);
@@ -1118,7 +1114,7 @@ static struct l2cap_chan *bt_6lowpan_listen(void)
 	struct l2cap_chan *pchan;
 	int err;
 
-	if (psm_6lowpan == 0)
+	if (!enable_6lowpan)
 		return NULL;
 
 	pchan = chan_get();
@@ -1130,10 +1126,9 @@ static struct l2cap_chan *bt_6lowpan_listen(void)
 
 	atomic_set(&pchan->nesting, L2CAP_NESTING_PARENT);
 
-	BT_DBG("psm 0x%04x chan %p src type %d", psm_6lowpan, pchan,
-	       pchan->src_type);
+	BT_DBG("chan %p src type %d", pchan, pchan->src_type);
 
-	err = l2cap_add_psm(pchan, addr, cpu_to_le16(psm_6lowpan));
+	err = l2cap_add_psm(pchan, addr, cpu_to_le16(L2CAP_PSM_IPSP));
 	if (err) {
 		l2cap_chan_put(pchan);
 		BT_ERR("psm cannot be added err %d", err);
@@ -1219,22 +1214,23 @@ static void disconnect_all_peers(void)
 	spin_unlock(&devices_lock);
 }
 
-struct set_psm {
+struct set_enable {
 	struct work_struct work;
-	u16 psm;
+	bool flag;
 };
 
-static void do_psm_set(struct work_struct *work)
+static void do_enable_set(struct work_struct *work)
 {
-	struct set_psm *set_psm = container_of(work, struct set_psm, work);
+	struct set_enable *set_enable = container_of(work,
+						     struct set_enable, work);
 
-	if (set_psm->psm == 0 || psm_6lowpan != set_psm->psm)
+	if (!set_enable->flag || enable_6lowpan != set_enable->flag)
 		/* Disconnect existing connections if 6lowpan is
-		 * disabled (psm = 0), or if psm changes.
+		 * disabled
 		 */
 		disconnect_all_peers();
 
-	psm_6lowpan = set_psm->psm;
+	enable_6lowpan = set_enable->flag;
 
 	if (listen_chan) {
 		l2cap_chan_close(listen_chan, 0);
@@ -1243,33 +1239,33 @@ static void do_psm_set(struct work_struct *work)
 
 	listen_chan = bt_6lowpan_listen();
 
-	kfree(set_psm);
+	kfree(set_enable);
 }
 
-static int lowpan_psm_set(void *data, u64 val)
+static int lowpan_enable_set(void *data, u64 val)
 {
-	struct set_psm *set_psm;
+	struct set_enable *set_enable;
 
-	set_psm = kzalloc(sizeof(*set_psm), GFP_KERNEL);
-	if (!set_psm)
+	set_enable = kzalloc(sizeof(*set_enable), GFP_KERNEL);
+	if (!set_enable)
 		return -ENOMEM;
 
-	set_psm->psm = val;
-	INIT_WORK(&set_psm->work, do_psm_set);
+	set_enable->flag = !!val;
+	INIT_WORK(&set_enable->work, do_enable_set);
 
-	schedule_work(&set_psm->work);
+	schedule_work(&set_enable->work);
 
 	return 0;
 }
 
-static int lowpan_psm_get(void *data, u64 *val)
+static int lowpan_enable_get(void *data, u64 *val)
 {
-	*val = psm_6lowpan;
+	*val = enable_6lowpan;
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(lowpan_psm_fops, lowpan_psm_get,
-			lowpan_psm_set, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(lowpan_enable_fops, lowpan_enable_get,
+			lowpan_enable_set, "%llu\n");
 
 static ssize_t lowpan_control_write(struct file *fp,
 				    const char __user *user_buffer,
@@ -1439,9 +1435,9 @@ static struct notifier_block bt_6lowpan_dev_notifier = {
 
 static int __init bt_6lowpan_init(void)
 {
-	lowpan_psm_debugfs = debugfs_create_file("6lowpan_psm", 0644,
-						 bt_debugfs, NULL,
-						 &lowpan_psm_fops);
+	lowpan_enable_debugfs = debugfs_create_file("6lowpan_enable", 0644,
+						    bt_debugfs, NULL,
+						    &lowpan_enable_fops);
 	lowpan_control_debugfs = debugfs_create_file("6lowpan_control", 0644,
 						     bt_debugfs, NULL,
 						     &lowpan_control_fops);
@@ -1451,7 +1447,7 @@ static int __init bt_6lowpan_init(void)
 
 static void __exit bt_6lowpan_exit(void)
 {
-	debugfs_remove(lowpan_psm_debugfs);
+	debugfs_remove(lowpan_enable_debugfs);
 	debugfs_remove(lowpan_control_debugfs);
 
 	if (listen_chan) {

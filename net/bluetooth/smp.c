@@ -20,6 +20,7 @@
    SOFTWARE IS DISCLAIMED.
 */
 
+#include <linux/debugfs.h>
 #include <linux/crypto.h>
 #include <linux/scatterlist.h>
 #include <crypto/b128ops.h>
@@ -299,7 +300,7 @@ static int smp_f6(struct crypto_hash *tfm_cmac, const u8 w[16],
 	if (err)
 		return err;
 
-	BT_DBG("res %16phN", res);
+	SMP_DBG("res %16phN", res);
 
 	return err;
 }
@@ -1675,7 +1676,7 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (conn->hcon->type == ACL_LINK) {
 		/* We must have a BR/EDR SC link */
 		if (!test_bit(HCI_CONN_AES_CCM, &conn->hcon->flags) &&
-		    !test_bit(HCI_FORCE_LESC, &hdev->dbg_flags))
+		    !test_bit(HCI_FORCE_BREDR_SMP, &hdev->dbg_flags))
 			return SMP_CROSS_TRANSP_NOT_ALLOWED;
 
 		set_bit(SMP_FLAG_SC, &smp->flags);
@@ -2304,8 +2305,12 @@ static int smp_cmd_ident_addr_info(struct l2cap_conn *conn,
 	 * implementations are not known of and in order to not over
 	 * complicate our implementation, simply pretend that we never
 	 * received an IRK for such a device.
+	 *
+	 * The Identity Address must also be a Static Random or Public
+	 * Address, which hci_is_identity_address() checks for.
 	 */
-	if (!bacmp(&info->bdaddr, BDADDR_ANY)) {
+	if (!bacmp(&info->bdaddr, BDADDR_ANY) ||
+	    !hci_is_identity_address(&info->bdaddr, info->addr_type)) {
 		BT_ERR("Ignoring IRK with no identity address");
 		goto distribute;
 	}
@@ -2738,7 +2743,7 @@ static void bredr_pairing(struct l2cap_chan *chan)
 
 	/* BR/EDR must use Secure Connections for SMP */
 	if (!test_bit(HCI_CONN_AES_CCM, &hcon->flags) &&
-	    !test_bit(HCI_FORCE_LESC, &hdev->dbg_flags))
+	    !test_bit(HCI_FORCE_BREDR_SMP, &hdev->dbg_flags))
 		return;
 
 	/* If our LE support is not enabled don't do anything */
@@ -2945,11 +2950,30 @@ create_chan:
 
 	l2cap_chan_set_defaults(chan);
 
-	bacpy(&chan->src, &hdev->bdaddr);
-	if (cid == L2CAP_CID_SMP)
-		chan->src_type = BDADDR_LE_PUBLIC;
-	else
+	if (cid == L2CAP_CID_SMP) {
+		/* If usage of static address is forced or if the devices
+		 * does not have a public address, then listen on the static
+		 * address.
+		 *
+		 * In case BR/EDR has been disabled on a dual-mode controller
+		 * and a static address has been configued, then listen on
+		 * the static address instead.
+		 */
+		if (test_bit(HCI_FORCE_STATIC_ADDR, &hdev->dbg_flags) ||
+		    !bacmp(&hdev->bdaddr, BDADDR_ANY) ||
+		    (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags) &&
+		     bacmp(&hdev->static_addr, BDADDR_ANY))) {
+			bacpy(&chan->src, &hdev->static_addr);
+			chan->src_type = BDADDR_LE_RANDOM;
+		} else {
+			bacpy(&chan->src, &hdev->bdaddr);
+			chan->src_type = BDADDR_LE_PUBLIC;
+		}
+	} else {
+		bacpy(&chan->src, &hdev->bdaddr);
 		chan->src_type = BDADDR_BREDR;
+	}
+
 	chan->state = BT_LISTEN;
 	chan->mode = L2CAP_MODE_BASIC;
 	chan->imtu = L2CAP_DEFAULT_MTU;
@@ -2976,11 +3000,83 @@ static void smp_del_chan(struct l2cap_chan *chan)
 	l2cap_chan_put(chan);
 }
 
+static ssize_t force_bredr_smp_read(struct file *file,
+				    char __user *user_buf,
+				    size_t count, loff_t *ppos)
+{
+	struct hci_dev *hdev = file->private_data;
+	char buf[3];
+
+	buf[0] = test_bit(HCI_FORCE_BREDR_SMP, &hdev->dbg_flags) ? 'Y': 'N';
+	buf[1] = '\n';
+	buf[2] = '\0';
+	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
+}
+
+static ssize_t force_bredr_smp_write(struct file *file,
+				     const char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	struct hci_dev *hdev = file->private_data;
+	char buf[32];
+	size_t buf_size = min(count, (sizeof(buf)-1));
+	bool enable;
+
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+
+	buf[buf_size] = '\0';
+	if (strtobool(buf, &enable))
+		return -EINVAL;
+
+	if (enable == test_bit(HCI_FORCE_BREDR_SMP, &hdev->dbg_flags))
+		return -EALREADY;
+
+	if (enable) {
+		struct l2cap_chan *chan;
+
+		chan = smp_add_cid(hdev, L2CAP_CID_SMP_BREDR);
+		if (IS_ERR(chan))
+			return PTR_ERR(chan);
+
+		hdev->smp_bredr_data = chan;
+	} else {
+		struct l2cap_chan *chan;
+
+		chan = hdev->smp_bredr_data;
+		hdev->smp_bredr_data = NULL;
+		smp_del_chan(chan);
+	}
+
+	change_bit(HCI_FORCE_BREDR_SMP, &hdev->dbg_flags);
+
+	return count;
+}
+
+static const struct file_operations force_bredr_smp_fops = {
+	.open		= simple_open,
+	.read		= force_bredr_smp_read,
+	.write		= force_bredr_smp_write,
+	.llseek		= default_llseek,
+};
+
 int smp_register(struct hci_dev *hdev)
 {
 	struct l2cap_chan *chan;
 
 	BT_DBG("%s", hdev->name);
+
+	/* If the controller does not support Low Energy operation, then
+	 * there is also no need to register any SMP channel.
+	 */
+	if (!lmp_le_capable(hdev))
+		return 0;
+
+	if (WARN_ON(hdev->smp_data)) {
+		chan = hdev->smp_data;
+		hdev->smp_data = NULL;
+		smp_del_chan(chan);
+	}
 
 	chan = smp_add_cid(hdev, L2CAP_CID_SMP);
 	if (IS_ERR(chan))
@@ -2988,9 +3084,24 @@ int smp_register(struct hci_dev *hdev)
 
 	hdev->smp_data = chan;
 
-	if (!lmp_sc_capable(hdev) &&
-	    !test_bit(HCI_FORCE_LESC, &hdev->dbg_flags))
+	/* If the controller does not support BR/EDR Secure Connections
+	 * feature, then the BR/EDR SMP channel shall not be present.
+	 *
+	 * To test this with Bluetooth 4.0 controllers, create a debugfs
+	 * switch that allows forcing BR/EDR SMP support and accepting
+	 * cross-transport pairing on non-AES encrypted connections.
+	 */
+	if (!lmp_sc_capable(hdev)) {
+		debugfs_create_file("force_bredr_smp", 0644, hdev->debugfs,
+				    hdev, &force_bredr_smp_fops);
 		return 0;
+	}
+
+	if (WARN_ON(hdev->smp_bredr_data)) {
+		chan = hdev->smp_bredr_data;
+		hdev->smp_bredr_data = NULL;
+		smp_del_chan(chan);
+	}
 
 	chan = smp_add_cid(hdev, L2CAP_CID_SMP_BREDR);
 	if (IS_ERR(chan)) {
@@ -3317,7 +3428,7 @@ static int __init run_selftests(struct crypto_blkcipher *tfm_aes,
 	delta = ktime_sub(rettime, calltime);
 	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
 
-	BT_INFO("SMP test passed in %lld usecs", duration);
+	BT_INFO("SMP test passed in %llu usecs", duration);
 
 	return 0;
 }

@@ -28,7 +28,7 @@
 #include <net/ipv6.h>
 #include <net/inet_frag.h>
 
-#include "reassembly.h"
+#include "6lowpan_i.h"
 
 static const char lowpan_frags_cache_name[] = "lowpan-frags";
 

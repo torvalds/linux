@@ -141,7 +141,7 @@ static const struct file_operations dut_mode_fops = {
 
 /* ---- HCI requests ---- */
 
-static void hci_req_sync_complete(struct hci_dev *hdev, u8 result)
+static void hci_req_sync_complete(struct hci_dev *hdev, u8 result, u16 opcode)
 {
 	BT_DBG("%s result 0x%2.2x", hdev->name, result);
 
@@ -497,43 +497,6 @@ static void le_setup(struct hci_request *req)
 		set_bit(HCI_LE_ENABLED, &hdev->dev_flags);
 }
 
-static u8 hci_get_inquiry_mode(struct hci_dev *hdev)
-{
-	if (lmp_ext_inq_capable(hdev))
-		return 0x02;
-
-	if (lmp_inq_rssi_capable(hdev))
-		return 0x01;
-
-	if (hdev->manufacturer == 11 && hdev->hci_rev == 0x00 &&
-	    hdev->lmp_subver == 0x0757)
-		return 0x01;
-
-	if (hdev->manufacturer == 15) {
-		if (hdev->hci_rev == 0x03 && hdev->lmp_subver == 0x6963)
-			return 0x01;
-		if (hdev->hci_rev == 0x09 && hdev->lmp_subver == 0x6963)
-			return 0x01;
-		if (hdev->hci_rev == 0x00 && hdev->lmp_subver == 0x6965)
-			return 0x01;
-	}
-
-	if (hdev->manufacturer == 31 && hdev->hci_rev == 0x2005 &&
-	    hdev->lmp_subver == 0x1805)
-		return 0x01;
-
-	return 0x00;
-}
-
-static void hci_setup_inquiry_mode(struct hci_request *req)
-{
-	u8 mode;
-
-	mode = hci_get_inquiry_mode(req->hdev);
-
-	hci_req_add(req, HCI_OP_WRITE_INQUIRY_MODE, 1, &mode);
-}
-
 static void hci_setup_event_mask(struct hci_request *req)
 {
 	struct hci_dev *hdev = req->hdev;
@@ -658,8 +621,18 @@ static void hci_init2_req(struct hci_request *req, unsigned long opt)
 		}
 	}
 
-	if (lmp_inq_rssi_capable(hdev))
-		hci_setup_inquiry_mode(req);
+	if (lmp_inq_rssi_capable(hdev) ||
+	    test_bit(HCI_QUIRK_FIXUP_INQUIRY_MODE, &hdev->quirks)) {
+		u8 mode;
+
+		/* If Extended Inquiry Result events are supported, then
+		 * they are clearly preferred over Inquiry Result with RSSI
+		 * events.
+		 */
+		mode = lmp_ext_inq_capable(hdev) ? 0x02 : 0x01;
+
+		hci_req_add(req, HCI_OP_WRITE_INQUIRY_MODE, 1, &mode);
+	}
 
 	if (lmp_inq_tx_pwr_capable(hdev))
 		hci_req_add(req, HCI_OP_READ_INQ_RSP_TX_POWER, 0, NULL);
@@ -758,27 +731,12 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 
 	hci_setup_event_mask(req);
 
-	/* Some Broadcom based Bluetooth controllers do not support the
-	 * Delete Stored Link Key command. They are clearly indicating its
-	 * absence in the bit mask of supported commands.
-	 *
-	 * Check the supported commands and only if the the command is marked
-	 * as supported send it. If not supported assume that the controller
-	 * does not have actual support for stored link keys which makes this
-	 * command redundant anyway.
-	 *
-	 * Some controllers indicate that they support handling deleting
-	 * stored link keys, but they don't. The quirk lets a driver
-	 * just disable this command.
-	 */
-	if (hdev->commands[6] & 0x80 &&
-	    !test_bit(HCI_QUIRK_BROKEN_STORED_LINK_KEY, &hdev->quirks)) {
-		struct hci_cp_delete_stored_link_key cp;
+	if (hdev->commands[6] & 0x20) {
+		struct hci_cp_read_stored_link_key cp;
 
 		bacpy(&cp.bdaddr, BDADDR_ANY);
-		cp.delete_all = 0x01;
-		hci_req_add(req, HCI_OP_DELETE_STORED_LINK_KEY,
-			    sizeof(cp), &cp);
+		cp.read_all = 0x01;
+		hci_req_add(req, HCI_OP_READ_STORED_LINK_KEY, sizeof(cp), &cp);
 	}
 
 	if (hdev->commands[5] & 0x10)
@@ -872,6 +830,29 @@ static void hci_init4_req(struct hci_request *req, unsigned long opt)
 {
 	struct hci_dev *hdev = req->hdev;
 
+	/* Some Broadcom based Bluetooth controllers do not support the
+	 * Delete Stored Link Key command. They are clearly indicating its
+	 * absence in the bit mask of supported commands.
+	 *
+	 * Check the supported commands and only if the the command is marked
+	 * as supported send it. If not supported assume that the controller
+	 * does not have actual support for stored link keys which makes this
+	 * command redundant anyway.
+	 *
+	 * Some controllers indicate that they support handling deleting
+	 * stored link keys, but they don't. The quirk lets a driver
+	 * just disable this command.
+	 */
+	if (hdev->commands[6] & 0x80 &&
+	    !test_bit(HCI_QUIRK_BROKEN_STORED_LINK_KEY, &hdev->quirks)) {
+		struct hci_cp_delete_stored_link_key cp;
+
+		bacpy(&cp.bdaddr, BDADDR_ANY);
+		cp.delete_all = 0x01;
+		hci_req_add(req, HCI_OP_DELETE_STORED_LINK_KEY,
+			    sizeof(cp), &cp);
+	}
+
 	/* Set event mask page 2 if the HCI command for it is supported */
 	if (hdev->commands[22] & 0x04)
 		hci_set_event_mask_page_2(req);
@@ -931,10 +912,20 @@ static int __hci_init(struct hci_dev *hdev)
 	if (err < 0)
 		return err;
 
-	/* Only create debugfs entries during the initial setup
-	 * phase and not every time the controller gets powered on.
+	/* This function is only called when the controller is actually in
+	 * configured state. When the controller is marked as unconfigured,
+	 * this initialization procedure is not run.
+	 *
+	 * It means that it is possible that a controller runs through its
+	 * setup phase and then discovers missing settings. If that is the
+	 * case, then this function will not be called. It then will only
+	 * be called during the config phase.
+	 *
+	 * So only when in setup phase or config phase, create the debugfs
+	 * entries and register the SMP channels.
 	 */
-	if (!test_bit(HCI_SETUP, &hdev->dev_flags))
+	if (!test_bit(HCI_SETUP, &hdev->dev_flags) &&
+	    !test_bit(HCI_CONFIG, &hdev->dev_flags))
 		return 0;
 
 	hci_debugfs_create_common(hdev);
@@ -942,10 +933,8 @@ static int __hci_init(struct hci_dev *hdev)
 	if (lmp_bredr_capable(hdev))
 		hci_debugfs_create_bredr(hdev);
 
-	if (lmp_le_capable(hdev)) {
+	if (lmp_le_capable(hdev))
 		hci_debugfs_create_le(hdev);
-		smp_register(hdev);
-	}
 
 	return 0;
 }
@@ -2142,6 +2131,8 @@ static void hci_power_off(struct work_struct *work)
 	BT_DBG("%s", hdev->name);
 
 	hci_dev_do_close(hdev);
+
+	smp_unregister(hdev);
 }
 
 static void hci_discov_off(struct work_struct *work)
@@ -2771,7 +2762,7 @@ void hci_conn_params_clear_all(struct hci_dev *hdev)
 	BT_DBG("All LE connection parameters were removed");
 }
 
-static void inquiry_complete(struct hci_dev *hdev, u8 status)
+static void inquiry_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 {
 	if (status) {
 		BT_ERR("Failed to start inquiry: status %d", status);
@@ -2783,7 +2774,8 @@ static void inquiry_complete(struct hci_dev *hdev, u8 status)
 	}
 }
 
-static void le_scan_disable_work_complete(struct hci_dev *hdev, u8 status)
+static void le_scan_disable_work_complete(struct hci_dev *hdev, u8 status,
+					  u16 opcode)
 {
 	/* General inquiry access code (GIAC) */
 	u8 lap[3] = { 0x33, 0x8b, 0x9e };
@@ -4176,7 +4168,7 @@ void hci_req_cmd_complete(struct hci_dev *hdev, u16 opcode, u8 status)
 
 call_complete:
 	if (req_complete)
-		req_complete(hdev, status);
+		req_complete(hdev, status, status ? opcode : HCI_OP_NOP);
 }
 
 static void hci_rx_work(struct work_struct *work)

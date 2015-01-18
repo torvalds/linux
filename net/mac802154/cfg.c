@@ -51,10 +51,7 @@ ieee802154_add_iface(struct wpan_phy *phy, const char *name,
 	struct net_device *err;
 
 	err = ieee802154_if_add(local, name, type, extended_addr);
-	if (IS_ERR(err))
-		return PTR_ERR(err);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(err);
 }
 
 static int

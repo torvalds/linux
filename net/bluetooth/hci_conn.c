@@ -633,7 +633,7 @@ void hci_le_conn_failed(struct hci_conn *conn, u8 status)
 	mgmt_reenable_advertising(hdev);
 }
 
-static void create_le_conn_complete(struct hci_dev *hdev, u8 status)
+static void create_le_conn_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 {
 	struct hci_conn *conn;
 
@@ -1083,21 +1083,6 @@ int hci_conn_check_secure(struct hci_conn *conn, __u8 sec_level)
 	return 0;
 }
 EXPORT_SYMBOL(hci_conn_check_secure);
-
-/* Change link key */
-int hci_conn_change_link_key(struct hci_conn *conn)
-{
-	BT_DBG("hcon %p", conn);
-
-	if (!test_and_set_bit(HCI_CONN_AUTH_PEND, &conn->flags)) {
-		struct hci_cp_change_conn_link_key cp;
-		cp.handle = cpu_to_le16(conn->handle);
-		hci_send_cmd(conn->hdev, HCI_OP_CHANGE_CONN_LINK_KEY,
-			     sizeof(cp), &cp);
-	}
-
-	return 0;
-}
 
 /* Switch role */
 int hci_conn_switch_role(struct hci_conn *conn, __u8 role)
