@@ -320,9 +320,6 @@ void iser_free_rx_descriptors(struct iser_conn *iser_conn)
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
 	struct iser_device *device = ib_conn->device;
 
-	if (!iser_conn->rx_descs)
-		goto free_login_buf;
-
 	if (device->iser_free_rdma_reg_res)
 		device->iser_free_rdma_reg_res(ib_conn);
 
@@ -334,7 +331,6 @@ void iser_free_rx_descriptors(struct iser_conn *iser_conn)
 	/* make sure we never redo any unmapping */
 	iser_conn->rx_descs = NULL;
 
-free_login_buf:
 	iser_free_login_buf(iser_conn);
 }
 

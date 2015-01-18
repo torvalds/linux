@@ -600,16 +600,16 @@ void iser_release_work(struct work_struct *work)
 /**
  * iser_free_ib_conn_res - release IB related resources
  * @iser_conn: iser connection struct
- * @destroy_device: indicator if we need to try to release
- *     the iser device (only iscsi shutdown and DEVICE_REMOVAL
- *     will use this.
+ * @destroy: indicator if we need to try to release the
+ *     iser device and memory regoins pool (only iscsi
+ *     shutdown and DEVICE_REMOVAL will use this).
  *
  * This routine is called with the iser state mutex held
  * so the cm_id removal is out of here. It is Safe to
  * be invoked multiple times.
  */
 static void iser_free_ib_conn_res(struct iser_conn *iser_conn,
-				  bool destroy_device)
+				  bool destroy)
 {
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
 	struct iser_device *device = ib_conn->device;
@@ -617,17 +617,20 @@ static void iser_free_ib_conn_res(struct iser_conn *iser_conn,
 	iser_info("freeing conn %p cma_id %p qp %p\n",
 		  iser_conn, ib_conn->cma_id, ib_conn->qp);
 
-	iser_free_rx_descriptors(iser_conn);
-
 	if (ib_conn->qp != NULL) {
 		ib_conn->comp->active_qps--;
 		rdma_destroy_qp(ib_conn->cma_id);
 		ib_conn->qp = NULL;
 	}
 
-	if (destroy_device && device != NULL) {
-		iser_device_try_release(device);
-		ib_conn->device = NULL;
+	if (destroy) {
+		if (iser_conn->rx_descs)
+			iser_free_rx_descriptors(iser_conn);
+
+		if (device != NULL) {
+			iser_device_try_release(device);
+			ib_conn->device = NULL;
+		}
 	}
 }
 
@@ -840,7 +843,7 @@ static void iser_disconnected_handler(struct rdma_cm_id *cma_id)
 }
 
 static void iser_cleanup_handler(struct rdma_cm_id *cma_id,
-				 bool destroy_device)
+				 bool destroy)
 {
 	struct iser_conn *iser_conn = (struct iser_conn *)cma_id->context;
 
@@ -850,7 +853,7 @@ static void iser_cleanup_handler(struct rdma_cm_id *cma_id,
 	 * and flush errors.
 	 */
 	iser_disconnected_handler(cma_id);
-	iser_free_ib_conn_res(iser_conn, destroy_device);
+	iser_free_ib_conn_res(iser_conn, destroy);
 	complete(&iser_conn->ib_completion);
 };
 
