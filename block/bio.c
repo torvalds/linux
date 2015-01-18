@@ -1036,43 +1036,66 @@ static struct bio_map_data *bio_alloc_map_data(unsigned int iov_count,
 		       sizeof(struct iovec) * iov_count, gfp_mask);
 }
 
-static int __bio_copy_iov(struct bio *bio, const struct iov_iter *iter,
-			  int to_user, int from_user)
+/**
+ * bio_copy_from_iter - copy all pages from iov_iter to bio
+ * @bio: The &struct bio which describes the I/O as destination
+ * @iter: iov_iter as source
+ *
+ * Copy all pages from iov_iter to bio.
+ * Returns 0 on success, or error on failure.
+ */
+static int bio_copy_from_iter(struct bio *bio, struct iov_iter iter)
 {
-	int ret = 0, i;
+	int i;
 	struct bio_vec *bvec;
-	struct iov_iter iov_iter = *iter;
 
 	bio_for_each_segment_all(bvec, bio, i) {
-		char *bv_addr = page_address(bvec->bv_page);
-		unsigned int bv_len = bvec->bv_len;
+		ssize_t ret;
 
-		while (bv_len && iov_iter.count) {
-			struct iovec iov = iov_iter_iovec(&iov_iter);
-			unsigned int bytes = min_t(unsigned int, bv_len,
-						   iov.iov_len);
+		ret = copy_page_from_iter(bvec->bv_page,
+					  bvec->bv_offset,
+					  bvec->bv_len,
+					  &iter);
 
-			if (!ret) {
-				if (to_user)
-					ret = copy_to_user(iov.iov_base,
-							   bv_addr, bytes);
+		if (!iov_iter_count(&iter))
+			break;
 
-				if (from_user)
-					ret = copy_from_user(bv_addr,
-							     iov.iov_base,
-							     bytes);
-
-				if (ret)
-					ret = -EFAULT;
-			}
-
-			bv_len -= bytes;
-			bv_addr += bytes;
-			iov_iter_advance(&iov_iter, bytes);
-		}
+		if (ret < bvec->bv_len)
+			return -EFAULT;
 	}
 
-	return ret;
+	return 0;
+}
+
+/**
+ * bio_copy_to_iter - copy all pages from bio to iov_iter
+ * @bio: The &struct bio which describes the I/O as source
+ * @iter: iov_iter as destination
+ *
+ * Copy all pages from bio to iov_iter.
+ * Returns 0 on success, or error on failure.
+ */
+static int bio_copy_to_iter(struct bio *bio, struct iov_iter iter)
+{
+	int i;
+	struct bio_vec *bvec;
+
+	bio_for_each_segment_all(bvec, bio, i) {
+		ssize_t ret;
+
+		ret = copy_page_to_iter(bvec->bv_page,
+					bvec->bv_offset,
+					bvec->bv_len,
+					&iter);
+
+		if (!iov_iter_count(&iter))
+			break;
+
+		if (ret < bvec->bv_len)
+			return -EFAULT;
+	}
+
+	return 0;
 }
 
 static void bio_free_pages(struct bio *bio)
@@ -1101,9 +1124,8 @@ int bio_uncopy_user(struct bio *bio)
 		 * if we're in a workqueue, the request is orphaned, so
 		 * don't copy into a random user address space, just free.
 		 */
-		if (current->mm)
-			ret = __bio_copy_iov(bio, &bmd->iter,
-					     bio_data_dir(bio) == READ, 0);
+		if (current->mm && bio_data_dir(bio) == READ)
+			ret = bio_copy_to_iter(bio, bmd->iter);
 		if (bmd->is_our_pages)
 			bio_free_pages(bio);
 	}
@@ -1228,7 +1250,7 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 	 */
 	if (((iter->type & WRITE) && (!map_data || !map_data->null_mapped)) ||
 	    (map_data && map_data->from_user)) {
-		ret = __bio_copy_iov(bio, iter, 0, 1);
+		ret = bio_copy_from_iter(bio, *iter);
 		if (ret)
 			goto cleanup;
 	}
