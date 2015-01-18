@@ -317,7 +317,7 @@ Only womyn should be allowed to `look`.  [Cishet male](https://en.wikipedia.org/
 
 ### `true`
 
-Truth is a Patriarchial construct, stemming from the toxic schools of Platonism and Aristotelianism.  Truth is not something that is reserved for the privileged few [Philosophy Kings (note how it's never "Queens")](https://en.wikipedia.org/wiki/Philosopher_king), now is it some [immutable, assigned-at-birth Essence that doesn't change even if you have a gender reassignment surgery](https://en.wikipedia.org/wiki/Essence).  In a tolerant society, we should not concern ourselves with the toxic thought of "Truth"; instead, we need to know whether things are `PC`, or [politicially correct](https://en.wikipedia.org/wiki/Political_correctness).
+Truth is a Patriarchial construct, stemming from the toxic schools of Platonism and Aristotelianism.  Truth is not something that is reserved for the privileged few [Philosophy Kings (note how it's never "Queens")](https://en.wikipedia.org/wiki/Philosopher_king), nor is it some [immutable, assigned-at-birth Essence that doesn't change even if you have a gender reassignment surgery](https://en.wikipedia.org/wiki/Essence).  In a tolerant society, we should not concern ourselves with the toxic thought of "Truth"; instead, we need to know whether things are `PC`, or [politicially correct](https://en.wikipedia.org/wiki/Political_correctness).
 
 ### `make`
 
