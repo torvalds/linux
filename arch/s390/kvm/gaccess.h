@@ -156,9 +156,9 @@ int read_guest_lc(struct kvm_vcpu *vcpu, unsigned long gra, void *data,
 }
 
 int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva,
-			    unsigned long *gpa, int write);
+			    ar_t ar, unsigned long *gpa, int write);
 
-int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, void *data,
+int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, ar_t ar, void *data,
 		 unsigned long len, int write);
 
 int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
@@ -168,6 +168,7 @@ int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
  * write_guest - copy data from kernel space to guest space
  * @vcpu: virtual cpu
  * @ga: guest address
+ * @ar: access register
  * @data: source address in kernel space
  * @len: number of bytes to copy
  *
@@ -210,16 +211,17 @@ int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
  *	 if data has been changed in guest space in case of an exception.
  */
 static inline __must_check
-int write_guest(struct kvm_vcpu *vcpu, unsigned long ga, void *data,
+int write_guest(struct kvm_vcpu *vcpu, unsigned long ga, ar_t ar, void *data,
 		unsigned long len)
 {
-	return access_guest(vcpu, ga, data, len, 1);
+	return access_guest(vcpu, ga, ar, data, len, 1);
 }
 
 /**
  * read_guest - copy data from guest space to kernel space
  * @vcpu: virtual cpu
  * @ga: guest address
+ * @ar: access register
  * @data: destination address in kernel space
  * @len: number of bytes to copy
  *
@@ -229,10 +231,10 @@ int write_guest(struct kvm_vcpu *vcpu, unsigned long ga, void *data,
  * data will be copied from guest space to kernel space.
  */
 static inline __must_check
-int read_guest(struct kvm_vcpu *vcpu, unsigned long ga, void *data,
+int read_guest(struct kvm_vcpu *vcpu, unsigned long ga, ar_t ar, void *data,
 	       unsigned long len)
 {
-	return access_guest(vcpu, ga, data, len, 0);
+	return access_guest(vcpu, ga, ar, data, len, 0);
 }
 
 /**

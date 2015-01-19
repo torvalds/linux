@@ -578,7 +578,7 @@ static int guest_page_range(struct kvm_vcpu *vcpu, unsigned long ga,
 	return 0;
 }
 
-int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, void *data,
+int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, ar_t ar, void *data,
 		 unsigned long len, int write)
 {
 	psw_t *psw = &vcpu->arch.sie_block->gpsw;
@@ -652,7 +652,7 @@ int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
  * Note: The IPTE lock is not taken during this function, so the caller
  * has to take care of this.
  */
-int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva,
+int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva, ar_t ar,
 			    unsigned long *gpa, int write)
 {
 	struct kvm_s390_pgm_info *pgm = &vcpu->arch.pgm;

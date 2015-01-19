@@ -434,7 +434,7 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 
-	order_code = kvm_s390_get_base_disp_rs(vcpu);
+	order_code = kvm_s390_get_base_disp_rs(vcpu, NULL);
 	if (handle_sigp_order_in_user_space(vcpu, order_code))
 		return -EOPNOTSUPP;
 
@@ -476,7 +476,7 @@ int kvm_s390_handle_sigp_pei(struct kvm_vcpu *vcpu)
 	int r3 = vcpu->arch.sie_block->ipa & 0x000f;
 	u16 cpu_addr = vcpu->run->s.regs.gprs[r3];
 	struct kvm_vcpu *dest_vcpu;
-	u8 order_code = kvm_s390_get_base_disp_rs(vcpu);
+	u8 order_code = kvm_s390_get_base_disp_rs(vcpu, NULL);
 
 	trace_kvm_s390_handle_sigp_pei(vcpu, order_code, cpu_addr);
 

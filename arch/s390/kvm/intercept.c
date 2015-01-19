@@ -320,7 +320,7 @@ static int handle_mvpg_pei(struct kvm_vcpu *vcpu)
 
 	/* Make sure that the source is paged-in */
 	rc = guest_translate_address(vcpu, vcpu->run->s.regs.gprs[reg2],
-				     &srcaddr, 0);
+				     reg2, &srcaddr, 0);
 	if (rc)
 		return kvm_s390_inject_prog_cond(vcpu, rc);
 	rc = kvm_arch_fault_in_page(vcpu, srcaddr, 0);
@@ -329,7 +329,7 @@ static int handle_mvpg_pei(struct kvm_vcpu *vcpu)
 
 	/* Make sure that the destination is paged-in */
 	rc = guest_translate_address(vcpu, vcpu->run->s.regs.gprs[reg1],
-				     &dstaddr, 1);
+				     reg1, &dstaddr, 1);
 	if (rc)
 		return kvm_s390_inject_prog_cond(vcpu, rc);
 	rc = kvm_arch_fault_in_page(vcpu, dstaddr, 1);
