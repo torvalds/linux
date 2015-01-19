@@ -1827,6 +1827,9 @@ static int sh_eth_get_settings(struct net_device *ndev,
 	unsigned long flags;
 	int ret;
 
+	if (!mdp->phydev)
+		return -ENODEV;
+
 	spin_lock_irqsave(&mdp->lock, flags);
 	ret = phy_ethtool_gset(mdp->phydev, ecmd);
 	spin_unlock_irqrestore(&mdp->lock, flags);
@@ -1840,6 +1843,9 @@ static int sh_eth_set_settings(struct net_device *ndev,
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	unsigned long flags;
 	int ret;
+
+	if (!mdp->phydev)
+		return -ENODEV;
 
 	spin_lock_irqsave(&mdp->lock, flags);
 
@@ -1874,6 +1880,9 @@ static int sh_eth_nway_reset(struct net_device *ndev)
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	unsigned long flags;
 	int ret;
+
+	if (!mdp->phydev)
+		return -ENODEV;
 
 	spin_lock_irqsave(&mdp->lock, flags);
 	ret = phy_start_aneg(mdp->phydev);
@@ -2184,6 +2193,7 @@ static int sh_eth_close(struct net_device *ndev)
 	if (mdp->phydev) {
 		phy_stop(mdp->phydev);
 		phy_disconnect(mdp->phydev);
+		mdp->phydev = NULL;
 	}
 
 	free_irq(ndev->irq, ndev);
@@ -2417,7 +2427,7 @@ static int sh_eth_tsu_purge_all(struct net_device *ndev)
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	int i, ret;
 
-	if (unlikely(!mdp->cd->tsu))
+	if (!mdp->cd->tsu)
 		return 0;
 
 	for (i = 0; i < SH_ETH_TSU_CAM_ENTRIES; i++) {
@@ -2440,7 +2450,7 @@ static void sh_eth_tsu_purge_mcast(struct net_device *ndev)
 	void *reg_offset = sh_eth_tsu_get_offset(mdp, TSU_ADRH0);
 	int i;
 
-	if (unlikely(!mdp->cd->tsu))
+	if (!mdp->cd->tsu)
 		return;
 
 	for (i = 0; i < SH_ETH_TSU_CAM_ENTRIES; i++, reg_offset += 8) {
@@ -2450,8 +2460,8 @@ static void sh_eth_tsu_purge_mcast(struct net_device *ndev)
 	}
 }
 
-/* Multicast reception directions set */
-static void sh_eth_set_multicast_list(struct net_device *ndev)
+/* Update promiscuous flag and multicast filter */
+static void sh_eth_set_rx_mode(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	u32 ecmr_bits;
@@ -2462,7 +2472,9 @@ static void sh_eth_set_multicast_list(struct net_device *ndev)
 	/* Initial condition is MCT = 1, PRM = 0.
 	 * Depending on ndev->flags, set PRM or clear MCT
 	 */
-	ecmr_bits = (sh_eth_read(ndev, ECMR) & ~ECMR_PRM) | ECMR_MCT;
+	ecmr_bits = sh_eth_read(ndev, ECMR) & ~ECMR_PRM;
+	if (mdp->cd->tsu)
+		ecmr_bits |= ECMR_MCT;
 
 	if (!(ndev->flags & IFF_MULTICAST)) {
 		sh_eth_tsu_purge_mcast(ndev);
@@ -2491,9 +2503,6 @@ static void sh_eth_set_multicast_list(struct net_device *ndev)
 				}
 			}
 		}
-	} else {
-		/* Normal, unicast/broadcast-only mode. */
-		ecmr_bits = (ecmr_bits & ~ECMR_PRM) | ECMR_MCT;
 	}
 
 	/* update the ethernet mode */
@@ -2701,6 +2710,7 @@ static const struct net_device_ops sh_eth_netdev_ops = {
 	.ndo_stop		= sh_eth_close,
 	.ndo_start_xmit		= sh_eth_start_xmit,
 	.ndo_get_stats		= sh_eth_get_stats,
+	.ndo_set_rx_mode	= sh_eth_set_rx_mode,
 	.ndo_tx_timeout		= sh_eth_tx_timeout,
 	.ndo_do_ioctl		= sh_eth_do_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -2713,7 +2723,7 @@ static const struct net_device_ops sh_eth_netdev_ops_tsu = {
 	.ndo_stop		= sh_eth_close,
 	.ndo_start_xmit		= sh_eth_start_xmit,
 	.ndo_get_stats		= sh_eth_get_stats,
-	.ndo_set_rx_mode	= sh_eth_set_multicast_list,
+	.ndo_set_rx_mode	= sh_eth_set_rx_mode,
 	.ndo_vlan_rx_add_vid	= sh_eth_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= sh_eth_vlan_rx_kill_vid,
 	.ndo_tx_timeout		= sh_eth_tx_timeout,
