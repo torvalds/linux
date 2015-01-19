@@ -415,8 +415,7 @@ void line6_start_timer(struct timer_list *timer, unsigned int msecs,
 		       void (*function)(unsigned long), unsigned long data)
 {
 	setup_timer(timer, function, data);
-	timer->expires = jiffies + msecs * HZ / 1000;
-	add_timer(timer);
+	mod_timer(timer, jiffies + msecs * HZ / 1000);
 }
 
 /*
