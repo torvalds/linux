@@ -283,6 +283,7 @@ header-y += net.h
 header-y += netlink_diag.h
 header-y += netlink.h
 header-y += netrom.h
+header-y += net_namespace.h
 header-y += net_tstamp.h
 header-y += nfc.h
 header-y += nfs2.h

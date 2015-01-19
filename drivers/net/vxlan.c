@@ -2923,6 +2923,13 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+static struct net *vxlan_get_link_net(const struct net_device *dev)
+{
+	struct vxlan_dev *vxlan = netdev_priv(dev);
+
+	return vxlan->net;
+}
+
 static struct rtnl_link_ops vxlan_link_ops __read_mostly = {
 	.kind		= "vxlan",
 	.maxtype	= IFLA_VXLAN_MAX,
@@ -2934,6 +2941,7 @@ static struct rtnl_link_ops vxlan_link_ops __read_mostly = {
 	.dellink	= vxlan_dellink,
 	.get_size	= vxlan_get_size,
 	.fill_info	= vxlan_fill_info,
+	.get_link_net	= vxlan_get_link_net,
 };
 
 static void vxlan_handle_lowerdev_unregister(struct vxlan_net *vn,
