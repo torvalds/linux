@@ -74,7 +74,7 @@ error:
 
 
 /* Free memory returned from module_alloc */
-void module_free(struct module *mod, void *module_region)
+void module_memfree(void *module_region)
 {
 	vfree(module_region);
 
