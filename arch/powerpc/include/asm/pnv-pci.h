@@ -13,7 +13,7 @@
 #include <linux/pci.h>
 #include <misc/cxl.h>
 
-int pnv_phb_to_cxl(struct pci_dev *dev);
+int pnv_phb_to_cxl_mode(struct pci_dev *dev, uint64_t mode);
 int pnv_cxl_ioda_msi_setup(struct pci_dev *dev, unsigned int hwirq,
 			   unsigned int virq);
 int pnv_cxl_alloc_hwirqs(struct pci_dev *dev, int num);

@@ -595,6 +595,14 @@ enum {
 	OPAL_PHB3_NUM_PEST_REGS = 256
 };
 
+/* CAPI modes for PHB */
+enum {
+	OPAL_PHB_CAPI_MODE_PCIE         = 0,
+	OPAL_PHB_CAPI_MODE_CAPI         = 1,
+	OPAL_PHB_CAPI_MODE_SNOOP_OFF    = 2,
+	OPAL_PHB_CAPI_MODE_SNOOP_ON     = 3,
+};
+
 struct OpalIoPhbErrorCommon {
 	__be32 version;
 	__be32 ioType;

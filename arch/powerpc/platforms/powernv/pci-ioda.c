@@ -1468,7 +1468,7 @@ struct device_node *pnv_pci_to_phb_node(struct pci_dev *dev)
 }
 EXPORT_SYMBOL(pnv_pci_to_phb_node);
 
-int pnv_phb_to_cxl(struct pci_dev *dev)
+int pnv_phb_to_cxl_mode(struct pci_dev *dev, uint64_t mode)
 {
 	struct pci_controller *hose = pci_bus_to_host(dev->bus);
 	struct pnv_phb *phb = hose->private_data;
@@ -1481,13 +1481,13 @@ int pnv_phb_to_cxl(struct pci_dev *dev)
 
 	pe_info(pe, "Switching PHB to CXL\n");
 
-	rc = opal_pci_set_phb_cxl_mode(phb->opal_id, 1, pe->pe_number);
+	rc = opal_pci_set_phb_cxl_mode(phb->opal_id, mode, pe->pe_number);
 	if (rc)
 		dev_err(&dev->dev, "opal_pci_set_phb_cxl_mode failed: %i\n", rc);
 
 	return rc;
 }
-EXPORT_SYMBOL(pnv_phb_to_cxl);
+EXPORT_SYMBOL(pnv_phb_to_cxl_mode);
 
 /* Find PHB for cxl dev and allocate MSI hwirqs?
  * Returns the absolute hardware IRQ number
