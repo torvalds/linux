@@ -49,14 +49,14 @@ static u32 calc_residency(struct drm_device *dev, const u32 reg)
 
 	/* On VLV and CHV, residency time is in CZ units rather than 1.28us */
 	if (IS_VALLEYVIEW(dev)) {
-		u32 reg, czcount_30ns;
+		u32 clk_reg, czcount_30ns;
 
 		if (IS_CHERRYVIEW(dev))
-			reg = CHV_CLK_CTL1;
+			clk_reg = CHV_CLK_CTL1;
 		else
-			reg = VLV_CLK_CTL2;
+			clk_reg = VLV_CLK_CTL2;
 
-		czcount_30ns = I915_READ(reg) >> CLK_CTL2_CZCOUNT_30NS_SHIFT;
+		czcount_30ns = I915_READ(clk_reg) >> CLK_CTL2_CZCOUNT_30NS_SHIFT;
 
 		if (!czcount_30ns) {
 			WARN(!czcount_30ns, "bogus CZ count value");
