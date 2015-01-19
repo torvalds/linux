@@ -149,7 +149,7 @@ EXPORT_SYMBOL_GPL(of_thermal_is_trip_valid);
  *
  * Return: pointer to trip points table, NULL otherwise
  */
-const struct thermal_trip * const
+const struct thermal_trip *
 of_thermal_get_trip_points(struct thermal_zone_device *tz)
 {
 	struct __thermal_zone *data = tz->devdata;

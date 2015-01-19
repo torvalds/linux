@@ -2602,7 +2602,7 @@ error:
  * s3c_hsotg_ep_disable - disable given endpoint
  * @ep: The endpoint to disable.
  */
-static int s3c_hsotg_ep_disable(struct usb_ep *ep)
+static int s3c_hsotg_ep_disable_force(struct usb_ep *ep, bool force)
 {
 	struct s3c_hsotg_ep *hs_ep = our_ep(ep);
 	struct dwc2_hsotg *hsotg = hs_ep->parent;
@@ -2645,6 +2645,10 @@ static int s3c_hsotg_ep_disable(struct usb_ep *ep)
 	return 0;
 }
 
+static int s3c_hsotg_ep_disable(struct usb_ep *ep)
+{
+	return s3c_hsotg_ep_disable_force(ep, false);
+}
 /**
  * on_list - check request is on the given endpoint
  * @ep: The endpoint to check.
