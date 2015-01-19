@@ -42,16 +42,12 @@
 
 //ring buf must less than the MAX alloc length 131072
 //131072/1536~=85;
-#define TX_RING_SIZE 	512	    // 512 gives 35-40mb/sec
-#define RX_RING_SIZE 	4096  	// 512 gives 51mb/sec
-// lower gives slower perf, very high inconsistent with spikes
-// 768 gives around 50mb
-// RX of 2048 gives around 56mb/sec w/RPS 63mb/sec
-// TX of 1024 gives around 31mb/sec w/XPS 40mb/sec
-// RX of 4096 gives around 59mb/sec
-// TX of 2048 gives around 39mb/sec
-// RX of 16384 = 48mb/sec w/RPS = 64mb/sec
-// TX of 16384 = 31mb/sec w/XPS = 36mb/sec
+#define TX_RING_SIZE 	16384	// 512, 32768
+#define RX_RING_SIZE 	32768  	// 4096, 65536
+#define TX_THROT		TX_RING_SIZE / 2	// how many tx packets per tasklet
+#define RX_THROT		RX_RING_SIZE / 2	// how many rx packets per tasklet
+#define TX_THROTL		8		// lower limit that you can set on TX
+#define RX_THROTL		8		// lower limit that you can set on RX
 #define CACHE_LINE 32
 #define IS_CACHE_ALIGNED(x)		(!((unsigned long )x &(CACHE_LINE-1)))
 #define CACHE_HEAD_ALIGNED(x)	((x-CACHE_LINE) & (~(CACHE_LINE-1)))
@@ -160,19 +156,22 @@ struct _rx_desc {
 };
 
 struct am_net_private {
-	struct _rx_desc *rx_ring;
+	struct _rx_desc *rx_ring;		// rx section
 	struct _rx_desc *rx_ring_dma;
-	struct _tx_desc *tx_ring;
-	struct _tx_desc *tx_ring_dma;
 	struct _rx_desc *last_rx;
+	struct tasklet_struct rx_tasklet;
+
+	struct _tx_desc *tx_ring;		// tx section
+	struct _tx_desc *tx_ring_dma;
 	struct _tx_desc *last_tx;
 	struct _tx_desc *start_tx;
+	struct tasklet_struct tx_tasklet;
+
 	struct net_device *dev;
 	struct net_device_stats stats;
 	struct timer_list timer;	/* Media monitoring timer. */
-	struct tasklet_struct rx_tasklet;
-	struct tasklet_struct tx_tasklet;
-	int pmt;
+//	int pmt;
+//	currently not used in the driver
 	unsigned int irq_mask;
 
 	/* Frequently used values: keep some adjacent for cache effect. */
@@ -192,8 +191,6 @@ struct am_net_private {
 	int speed;
 	int oldduplex;
 	int refcnt;
-
-
 };
 
 #endif			

@@ -76,8 +76,9 @@ static int g_debug = CONFIG_AM_ETHERNET_DEBUG_LEVEL;
 #else
 static int g_debug = 1;
 #endif
-static unsigned int g_tx_cnt = 0; // these 2 are not used anymore
-static unsigned int g_rx_cnt = 0;
+// These two now control how many packets per tasklet are sent/received
+static unsigned int g_tx_cnt = TX_THROT; 
+static unsigned int g_rx_cnt = RX_THROT;
 static int g_mdcclk = 2;
 static int new_maclogic = 0;
 static unsigned int ethbaseaddr = ETHBASE;
@@ -411,8 +412,8 @@ static int free_ringdesc(struct net_device *dev)
  * @return
  */
 /* --------------------------------------------------------------------------*/
-static __attribute__((flatten)) void update_status(struct net_device *dev, unsigned long status,
-//static void inline update_status(struct net_device *dev, unsigned long status,
+//static __attribute__((flatten)) void update_status(struct net_device *dev, unsigned long status,
+static void inline update_status(struct net_device *dev, unsigned long status,
                                 unsigned long mask)
 {
 	struct am_net_private *np = netdev_priv(dev);
@@ -423,11 +424,11 @@ static __attribute__((flatten)) void update_status(struct net_device *dev, unsig
 	}
 #endif
 	if (likely(status & NOR_INTR_EN)) {	//Normal Interrupts Process
-		if (status & RX_INTR_EN) {	//Receive Interrupt Process
+		if (likely(status & RX_INTR_EN)) {	//Receive Interrupt Process
 			writel((1 << 6 | 1 << 16), (void*)(np->base_addr + ETH_DMA_5_Status));
 			tasklet_schedule(&np->rx_tasklet);
 		}
-		if (status & TX_INTR_EN) {	//Transmit Interrupt Process
+		if (likely(status & TX_INTR_EN)) {	//Transmit Interrupt Process
 			writel(1,(void*)(np->base_addr + ETH_DMA_1_Tr_Poll_Demand));
 			netif_wake_queue(dev);
 			writel((1 << 0 | 1 << 16),(void*)(np->base_addr + ETH_DMA_5_Status));
@@ -452,7 +453,6 @@ static __attribute__((flatten)) void update_status(struct net_device *dev, unsig
 			np->stats.rx_over_errors++;
 			writel(1, (void*)(np->base_addr + ETH_DMA_2_Re_Poll_Demand));
 			tasklet_schedule(&np->rx_tasklet);
-			//printk(KERN_WARNING DRV_NAME "Receive Buffer Unavailable\n");
 #ifdef M_DEBUG_ON
 			if (g_debug > 1) {
 				printk(KERN_WARNING "[" DRV_NAME "]" "Rx bufer unenable\n");
@@ -580,7 +580,8 @@ static void inline print_rx_error_log(unsigned long status)
 /* --------------------------------------------------------------------------*/
 // todo: need to figure out how to either get multiple RX, TX queues on diff processors
 // or quit hammering CPU0 so much.  Perhaps split the priv->phy info into TX, RX versions
-void net_tasklettx(unsigned long dev_instance)
+// note: problem with high CPU0 irq is due to usb1, uart, and vsync IRQ
+__attribute__((flatten)) void net_tasklettx(unsigned long dev_instance)
 {
 	struct net_device *dev = (struct net_device *)dev_instance;
 	struct am_net_private *np = netdev_priv(dev);
@@ -639,13 +640,16 @@ void net_tasklettx(unsigned long dev_instance)
 #endif
 			tx = tx->next;
 			CACHE_RSYNC(tx, sizeof(struct _tx_desc));
+			if (unlikely(tx_count >= g_tx_cnt)) {
+					break;		// throttle
+			}
 		}
 		np->start_tx = tx;
 releasetx:
 	writel(np->irq_mask, (void*)(np->base_addr + ETH_DMA_7_Interrupt_Enable));
 }
 
-void net_taskletrx(unsigned long dev_instance)
+__attribute__((flatten)) void net_taskletrx(unsigned long dev_instance)
 {
 	struct net_device *dev = (struct net_device *)dev_instance;
 	struct am_net_private *np = netdev_priv(dev);
@@ -687,7 +691,7 @@ void net_taskletrx(unsigned long dev_instance)
 				}
 				len = len - 4;	//clear the crc
 #ifdef DMA_USE_SKB_BUF
-				if (rx->skb == NULL) {
+				if (unlikely(rx->skb == NULL)) {
 					printk("NET skb pointer error!!!\n");
 					break;
 				}
@@ -738,7 +742,7 @@ to_next:
 					dev_kfree_skb_any(rx->skb);
 				}
 				rx->skb = dev_alloc_skb(np->rx_buf_sz );
-				if (rx->skb == NULL) {
+				if (unlikely(rx->skb == NULL)) {
 					printk(KERN_ERR "error to alloc the skb\n");
 					rx->buf = 0;
 					rx->buf_dma = 0;
@@ -759,6 +763,9 @@ to_next:
 				rx = rx->next;
 			} else {
 				break;
+			}
+			if (unlikely(rx_cnt >= g_rx_cnt)) {
+					break;	// throttle
 			}
 		}
 releaserx:
@@ -886,13 +893,11 @@ static int aml_mac_init(struct net_device *ndev)
 	data_dump(ndev->dev_addr, 6);
 
 	write_mac_addr(ndev, ndev->dev_addr);
-
 	val = 0xc80c |		//8<<8 | 8<<17; //tx and rx all 8bit mode;
 	      1 << 10 | 1 << 24;		//checksum offload enabled
 #ifdef MAC_LOOPBACK_TEST
 	val |= 1 << 12; //mac loop back
 #endif
-
 	writel(val, (void*)(np->base_addr + ETH_MAC_0_Configuration));
 
 	val = 1 << 4;/*receive all muticast*/
@@ -916,7 +921,8 @@ static int aml_mac_init(struct net_device *ndev)
 	//mac_pmt_enable(1);
 	return 0;
 }
-
+/*--------------------------*/
+//  https://www.kernel.org/doc/Documentation/networking/phy.txt
 static void aml_adjust_link(struct net_device *dev)
 {
 	struct am_net_private *priv = netdev_priv(dev);
@@ -924,16 +930,18 @@ static void aml_adjust_link(struct net_device *dev)
 	unsigned long flags;
 	int new_state = 0;
 	int val;
-
 	if (phydev == NULL)
 		return;
 
+//#define P_PREG_ETHERNET_ADDR0 CBUS_REG_ADDR(PREG_ETHERNET_ADDR0)
+//#define PREG_ETHERNET_ADDR0 0x2042  ///../ucode/register.h:450
 	spin_lock_irqsave(&priv->lock, flags);
 	if(phydev->phy_id == INTERNALPHY_ID){
 		val = (8<<27)|(7 << 24)|(1<<16)|(1<<15)|(1 << 13)|(1 << 12)|(4 << 4)|(0 << 1);
 		PERIPHS_SET_BITS(P_PREG_ETHERNET_ADDR0, val);
 	}
 	if (phydev->link) {
+//#define ETH_MAC_0_Configuration         (0x0000)
 		u32 ctrl = readl((void*)(priv->base_addr + ETH_MAC_0_Configuration));
 
 		/* Now we make sure that we can be in full duplex mode.
@@ -941,12 +949,14 @@ static void aml_adjust_link(struct net_device *dev)
 		if (phydev->duplex != priv->oldduplex) {
 			new_state = 1;
 			if (!(phydev->duplex)) {
+				printk("[adjust link -> eth: half-duplex\n");
 				ctrl &= ~((1 << 11)|(7<< 17)|(3<<5));
 				if(new_maclogic != 0)
 					ctrl |= (4 << 17);
 				ctrl |= (3 << 5);
 			}
 			else {
+				printk("[adjust link -> eth: full-duplex\n");
 				ctrl &= ~((7 << 17)|(3 << 5));
 				ctrl |= (1 << 11);
 				if(new_maclogic != 0)
@@ -957,6 +967,7 @@ static void aml_adjust_link(struct net_device *dev)
 		}
 
 		if (phydev->speed != priv->speed) {
+			printk("[adjust link -> eth: phy_speed <> priv_speed)\n");
 			new_state = 1;
 			if(new_maclogic != 0)
 				PERIPHS_CLEAR_BITS(P_PREG_ETHERNET_ADDR0, 1);
@@ -967,11 +978,13 @@ static void aml_adjust_link(struct net_device *dev)
 					break;
 				case 100:
 					ctrl |= (1 << 14)|(1 << 15);
+					printk("[adjust link -> eth: switching to RGMII 100\n");
 					if(new_maclogic !=0)
 						PERIPHS_SET_BITS(P_PREG_ETHERNET_ADDR0, (1 << 1));
 					break;
 				case 10:
 					ctrl &= ~((1 << 14)|(3 << 5));//10m half backoff = 00
+					printk("[adjust link -> eth: switching to RGMII 10\n");
 					if(new_maclogic !=0)
 						PERIPHS_CLEAR_BITS(P_PREG_ETHERNET_ADDR0, (1 << 1));
 					if(phydev->phy_id == INTERNALPHY_ID){
@@ -1004,8 +1017,8 @@ static void aml_adjust_link(struct net_device *dev)
 	}
 
 	if (new_state){
-		if(new_maclogic == 1)
-			read_macreg();
+		if(new_maclogic == 1) read_macreg();
+		printk("[adjust link -> eth: am_adjust_link state change (new_state=true)\n");
 		phy_print_status(phydev);
 	}
 
@@ -1070,8 +1083,7 @@ static int aml_phy_init(struct net_device *dev)
                " Link = %d\n", dev->name, phydev->phy_id, phydev->link);
 
         priv->phydev = phydev;
-	if (priv->phydev)
-		phy_start(priv->phydev);
+		if (priv->phydev) phy_start(priv->phydev);
 
         return 0;
 }
@@ -1305,7 +1317,7 @@ static int start_tx(struct sk_buff *skb, struct net_device *dev)
 	spin_lock_irqsave(&np->lock, flags);
 	writel(0,(void*)(np->base_addr + ETH_DMA_7_Interrupt_Enable));
 
-	if (np->last_tx != NULL) {
+	if (likely(np->last_tx != NULL)) {
 		tx = np->last_tx->next;
 	} else {
 		tx = &np->tx_ring[0];
@@ -1321,7 +1333,7 @@ static int start_tx(struct sk_buff *skb, struct net_device *dev)
 		goto err;
 	}
 #ifdef DMA_USE_SKB_BUF
-	if (tx->skb != NULL) {
+	if (likely(tx->skb != NULL)) {
 		if (tx->buf_dma != 0) {
 			dma_unmap_single(&dev->dev, tx->buf_dma, np->rx_buf_sz, DMA_TO_DEVICE);
 		}
@@ -1345,7 +1357,7 @@ static int start_tx(struct sk_buff *skb, struct net_device *dev)
 #ifndef DMA_USE_SKB_BUF
 	dev_kfree_skb_any(skb);
 #endif
-	if (np->first_tx) {
+	if (likely(np->first_tx)) {
 		np->first_tx = 0;
 		tmp = readl((void*)(np->base_addr + ETH_DMA_6_Operation_Mode));
 		tmp |= (7 << 14) | (1 << 13);
@@ -1899,10 +1911,47 @@ static void am_net_dump_phyreg(void)
 		return;
 
 	printk("========== ETH PHY regs ==========\n");
-	for (reg = 0; reg < 32; reg++) {
+	for (reg = 0; reg < 16; reg++) {
 		val = mdio_read(np->mii, np->phy_addr, reg);
-		printk("[reg_%d] 0x%x\n", reg, val);
+		printk("[reg_%02d, 0x%02x] 0x%04x\n", reg, reg, val);
 	}
+	mdio_write(np->mii, np->phy_addr, 31, 0xa43);
+	printk("========== ETH PHY regs ==========\n");
+	for (reg = 24; reg < 32; reg++) {
+		val = mdio_read(np->mii, np->phy_addr, reg);
+		printk("[reg_%02d, 0x%02x] 0x%04x - ext43\n", reg, reg, val);
+	}
+	mdio_write(np->mii, np->phy_addr, 31, 0xa46);
+	val = mdio_read(np->mii, np->phy_addr, reg);
+	printk("========== ETH PHY regs ==========\n");
+	printk("[reg_%02d, 0x%02x] 0x%04x - ext46\n", reg, reg, val);
+	mdio_write(np->mii, np->phy_addr, 31, 0);
+	// following registers from /usr/src/linux/include/uapi/linux/mii.h
+	spin_lock_irq(&np->lock);
+	val = mdio_read(np->mii, np->phy_addr, MII_BMSR);
+	spin_unlock_irq(&np->lock);
+	printk("========== MII_BMSR status ==========\n");
+	printk("0x%04x\n", val);
+	spin_lock_irq(&np->lock);
+	val = mdio_read(np->mii, np->phy_addr, MII_STAT1000);
+	spin_unlock_irq(&np->lock);
+	printk("========== MII_STAT1000 1000Base-T status ==========\n");
+	printk("0x%04x\n", val);
+	spin_lock_irq(&np->lock);
+	val = mdio_read(np->mii, np->phy_addr, MII_LPA);
+	spin_unlock_irq(&np->lock);
+	printk("========== MII_LPA link partner ability reg ==========\n");
+	printk("0x%04x\n", val);
+	spin_lock_irq(&np->lock);
+	val = mdio_read(np->mii, np->phy_addr, MII_ESTATUS);
+	spin_unlock_irq(&np->lock);
+	printk("========== MII_ESTATUS link partner ability reg ==========\n");
+	printk("0x%04x\n", val);
+	spin_lock_irq(&np->lock);
+	val = mdio_read(np->mii, np->phy_addr, MII_EXPANSION);
+	spin_unlock_irq(&np->lock);
+	printk("========== MII_EXPANSION auto-neg expansion reg  ==========\n");
+	printk("0x%04x\n", val);
 }
 
 /* --------------------------------------------------------------------------*/
@@ -2498,7 +2547,7 @@ static ssize_t eth_debug_store(struct class *class, struct class_attribute *attr
 
 /* --------------------------------------------------------------------------*/
 /**
- * @brief  eth_count_show
+ * @brief  eth_thrcount_show
  *
  * @param  class
  * @param  attr
@@ -2507,41 +2556,43 @@ static ssize_t eth_debug_store(struct class *class, struct class_attribute *attr
  * @return
  */
 /* --------------------------------------------------------------------------*/
-static ssize_t eth_count_show(struct class *class, struct class_attribute *attr, char *buf)
+static ssize_t eth_rxthrcount_show(struct class *class, struct class_attribute *attr, char *buf)
 {
-	printk("Ethernet TX count: %08d\n", g_tx_cnt);
-	printk("Ethernet RX count: %08d\n", g_rx_cnt);
-
-	return 0;
+	printk("Ethernet RX throttle value: %d\n", g_rx_cnt);
+	return (sprintf(buf,"%d\nRange: %d - %d\n", g_rx_cnt, RX_THROTL, RX_RING_SIZE));
 }
 
-/* --------------------------------------------------------------------------*/
-/**
- * @brief  eth_count_store
- *
- * @param  class
- * @param  attr
- * @param  buf
- * @param  count
- *
- * @return
- */
-/* --------------------------------------------------------------------------*/
-static ssize_t eth_count_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count)
+static ssize_t eth_rxthrcount_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count)
 {
 	unsigned int cnt = 0;
-
 	cnt = simple_strtoul(buf, NULL, 0);
-	if (cnt == 0) {
-		printk("reset ethernet tx/rx count.\n");
-		g_tx_cnt = 0;
-		g_rx_cnt = 0;
+	if ((cnt >= RX_THROTL) && (cnt <= RX_RING_SIZE)) {
+		printk("loaded new rx_throttle\n");
+		g_rx_cnt = cnt;
 	} else {
-		printk("reset ethernet count error\n");
+		printk("error loading new rx_throttle\n");
 	}
-
 	return count;
 }
+static ssize_t eth_txthrcount_show(struct class *class, struct class_attribute *attr, char *buf)
+{
+	printk("Ethernet TX throttle value: %d\n", g_tx_cnt);
+	return (sprintf(buf,"%d\nRange: %d - %d\n", g_tx_cnt, TX_THROTL, TX_RING_SIZE));
+}
+
+static ssize_t eth_txthrcount_store(struct class *class, struct class_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int cnt = 0;
+	cnt = simple_strtoul(buf, NULL, 0);
+	if ((cnt >= TX_THROTL) && (cnt <= TX_RING_SIZE)) {
+		printk("loaded new tx_throttle\n");
+		g_tx_cnt = cnt;
+	} else {
+		printk("error loading new tx_throttle\n");
+	}
+	return count;
+}
+/*--------------------------------------------------------------------------*/
 
 static const char *g_wol_help = {
 	"Ethernet WOL:\n"
@@ -2769,7 +2820,8 @@ static ssize_t eth_cali_store(struct class *class, struct class_attribute *attr,
 static struct class *eth_sys_class;
 static CLASS_ATTR(mdcclk, S_IWUSR | S_IRUGO, eth_mdcclk_show, eth_mdcclk_store);
 static CLASS_ATTR(debug, S_IWUSR | S_IRUGO, eth_debug_show, eth_debug_store);
-static CLASS_ATTR(count, S_IWUSR | S_IRUGO, eth_count_show, eth_count_store);
+static CLASS_ATTR(txthrottle, S_IWUSR | S_IRUGO, eth_txthrcount_show, eth_txthrcount_store);
+static CLASS_ATTR(rxthrottle, S_IWUSR | S_IRUGO, eth_rxthrcount_show, eth_rxthrcount_store);
 static CLASS_ATTR(phyreg, S_IWUSR | S_IRUGO, eth_phyreg_help, eth_phyreg_func);
 static CLASS_ATTR(macreg, S_IWUSR | S_IRUGO, eth_macreg_help, eth_macreg_func);
 static CLASS_ATTR(wol, S_IWUSR | S_IRUGO, eth_wol_show, eth_wol_store);
@@ -2796,7 +2848,8 @@ static int __init am_eth_class_init(void)
 	eth_sys_class = class_create(THIS_MODULE, DRIVER_NAME);
 	ret = class_create_file(eth_sys_class, &class_attr_mdcclk);
 	ret = class_create_file(eth_sys_class, &class_attr_debug);
-	ret = class_create_file(eth_sys_class, &class_attr_count);
+	ret = class_create_file(eth_sys_class, &class_attr_txthrottle);
+	ret = class_create_file(eth_sys_class, &class_attr_rxthrottle);
 	ret = class_create_file(eth_sys_class, &class_attr_phyreg);
 	ret = class_create_file(eth_sys_class, &class_attr_macreg);
 	ret = class_create_file(eth_sys_class, &class_attr_wol);
