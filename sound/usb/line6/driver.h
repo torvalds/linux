@@ -48,10 +48,6 @@
 
 #define LINE6_CHANNEL_MASK 0x0f
 
-#define MISSING_CASE	\
-	pr_err("line6usb driver bug: missing case in %s:%d\n", \
-		__FILE__, __LINE__)
-
 #define CHECK_RETURN(x)		\
 do {				\
 	err = x;		\

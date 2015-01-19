@@ -488,9 +488,6 @@ int snd_line6_prepare(struct snd_pcm_substream *substream)
 			line6_unlink_wait_clear_audio_in_urbs(line6pcm);
 
 		break;
-
-	default:
-		MISSING_CASE;
 	}
 
 	if (!test_and_set_bit(LINE6_INDEX_PREPARED, &line6pcm->flags)) {
