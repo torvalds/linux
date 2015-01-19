@@ -93,9 +93,10 @@ void __kernel_fpu_begin(void)
 
 	if (__thread_has_fpu(me)) {
 		__save_init_fpu(me);
-	} else if (!use_eager_fpu()) {
+	} else {
 		this_cpu_write(fpu_owner_task, NULL);
-		clts();
+		if (!use_eager_fpu())
+			clts();
 	}
 }
 EXPORT_SYMBOL(__kernel_fpu_begin);
