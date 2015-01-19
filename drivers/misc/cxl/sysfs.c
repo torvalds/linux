@@ -56,11 +56,50 @@ static ssize_t image_loaded_show(struct device *device,
 	return scnprintf(buf, PAGE_SIZE, "factory\n");
 }
 
+static ssize_t load_image_on_perst_show(struct device *device,
+				 struct device_attribute *attr,
+				 char *buf)
+{
+	struct cxl *adapter = to_cxl_adapter(device);
+
+	if (!adapter->perst_loads_image)
+		return scnprintf(buf, PAGE_SIZE, "none\n");
+
+	if (adapter->perst_select_user)
+		return scnprintf(buf, PAGE_SIZE, "user\n");
+	return scnprintf(buf, PAGE_SIZE, "factory\n");
+}
+
+static ssize_t load_image_on_perst_store(struct device *device,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	struct cxl *adapter = to_cxl_adapter(device);
+	int rc;
+
+	if (!strncmp(buf, "none", 4))
+		adapter->perst_loads_image = false;
+	else if (!strncmp(buf, "user", 4)) {
+		adapter->perst_select_user = true;
+		adapter->perst_loads_image = true;
+	} else if (!strncmp(buf, "factory", 7)) {
+		adapter->perst_select_user = false;
+		adapter->perst_loads_image = true;
+	} else
+		return -EINVAL;
+
+	if ((rc = cxl_update_image_control(adapter)))
+		return rc;
+
+	return count;
+}
+
 static struct device_attribute adapter_attrs[] = {
 	__ATTR_RO(caia_version),
 	__ATTR_RO(psl_revision),
 	__ATTR_RO(base_image),
 	__ATTR_RO(image_loaded),
+	__ATTR_RW(load_image_on_perst),
 };
 
 
