@@ -88,6 +88,7 @@ struct nfs_direct_req {
 
 	ssize_t			count,		/* bytes actually processed */
 				bytes_left,	/* bytes left to be sent */
+				io_start,	/* start of IO */
 				error;		/* any reported error */
 	struct completion	completion;	/* wait for i/o completion */
 
@@ -130,10 +131,11 @@ nfs_direct_good_bytes(struct nfs_direct_req *dreq, struct nfs_pgio_header *hdr)
 
 	WARN_ON_ONCE(hdr->pgio_mirror_idx >= dreq->mirror_count);
 
-	dreq->mirrors[hdr->pgio_mirror_idx].count += hdr->good_bytes;
-
-	if (hdr->pgio_mirror_idx == 0)
-		dreq->count += hdr->good_bytes;
+	count = dreq->mirrors[hdr->pgio_mirror_idx].count;
+	if (count + dreq->io_start < hdr->io_start + hdr->good_bytes) {
+		count = hdr->io_start + hdr->good_bytes - dreq->io_start;
+		dreq->mirrors[hdr->pgio_mirror_idx].count = count;
+	}
 
 	/* update the dreq->count by finding the minimum agreed count from all
 	 * mirrors */
@@ -594,6 +596,7 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, struct iov_iter *iter,
 
 	dreq->inode = inode;
 	dreq->bytes_left = count;
+	dreq->io_start = pos;
 	dreq->ctx = get_nfs_open_context(nfs_file_open_context(iocb->ki_filp));
 	l_ctx = nfs_get_lock_context(dreq->ctx);
 	if (IS_ERR(l_ctx)) {
@@ -1002,6 +1005,7 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter,
 
 	dreq->inode = inode;
 	dreq->bytes_left = count;
+	dreq->io_start = pos;
 	dreq->ctx = get_nfs_open_context(nfs_file_open_context(iocb->ki_filp));
 	l_ctx = nfs_get_lock_context(dreq->ctx);
 	if (IS_ERR(l_ctx)) {
