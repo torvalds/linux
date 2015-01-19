@@ -1918,6 +1918,25 @@ enum uvcg_strm_type {
 	UVCG_FRAME
 };
 
+/*
+ * Iterate over a hierarchy of streaming descriptors' config items.
+ * The items are created by the user with configfs.
+ *
+ * It "processes" the header pointed to by @priv1, then for each format
+ * that follows the header "processes" the format itself and then for
+ * each frame inside a format "processes" the frame.
+ *
+ * As a "processing" function the @fun is used.
+ *
+ * __uvcg_iter_strm_cls() is used in two context: first, to calculate
+ * the amount of memory needed for an array of streaming descriptors
+ * and second, to actually fill the array.
+ *
+ * @h: streaming header pointer
+ * @priv2: an "inout" parameter (the caller might want to see the changes to it)
+ * @priv3: an "inout" parameter (the caller might want to see the changes to it)
+ * @fun: callback function for processing each level of the hierarchy
+ */
 static int __uvcg_iter_strm_cls(struct uvcg_streaming_header *h,
 	void *priv2, void *priv3,
 	int (*fun)(void *, void *, void *, int, enum uvcg_strm_type type))
@@ -1951,6 +1970,14 @@ static int __uvcg_iter_strm_cls(struct uvcg_streaming_header *h,
 	return ret;
 }
 
+/*
+ * Count how many bytes are needed for an array of streaming descriptors.
+ *
+ * @priv1: pointer to a header, format or frame
+ * @priv2: inout parameter, accumulated size of the array
+ * @priv3: inout parameter, accumulated number of the array elements
+ * @n: unused, this function's prototype must match @fun in __uvcg_iter_strm_cls
+ */
 static int __uvcg_cnt_strm(void *priv1, void *priv2, void *priv3, int n,
 			   enum uvcg_strm_type type)
 {
@@ -2000,6 +2027,13 @@ static int __uvcg_cnt_strm(void *priv1, void *priv2, void *priv3, int n,
 	return 0;
 }
 
+/*
+ * Fill an array of streaming descriptors.
+ *
+ * @priv1: pointer to a header, format or frame
+ * @priv2: inout parameter, pointer into a block of memory
+ * @priv3: inout parameter, pointer to a 2-dimensional array
+ */
 static int __uvcg_fill_strm(void *priv1, void *priv2, void *priv3, int n,
 			    enum uvcg_strm_type type)
 {
