@@ -939,7 +939,7 @@
         compatible = "gpio-leds";
         /* Blue LED */
         hearbeat {
-            label = "blue:heartbeart";
+            label = "blue:heartbeat";
             gpios = "GPIOAO_13";
             default-state = "off";
             linux,default-trigger = "heartbeat";
