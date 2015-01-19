@@ -611,11 +611,6 @@ int line6_probe(struct usb_interface *interface,
 	if (ret < 0)
 		goto err_destruct;
 
-	ret = sysfs_create_link(&interface->dev.kobj, &usbdev->dev.kobj,
-				"usb_device");
-	if (ret < 0)
-		goto err_destruct;
-
 	/* creation of additional special files should go here */
 
 	dev_info(&interface->dev, "Line6 %s now attached\n",
@@ -648,10 +643,6 @@ void line6_disconnect(struct usb_interface *interface)
 	usbdev = interface_to_usbdev(interface);
 	if (usbdev == NULL)
 		return;
-
-	/* removal of additional special files should go here */
-
-	sysfs_remove_link(&interface->dev.kobj, "usb_device");
 
 	interface_number = interface->cur_altsetting->desc.bInterfaceNumber;
 	line6 = usb_get_intfdata(interface);
