@@ -292,10 +292,10 @@ void rcu_note_context_switch(void)
 EXPORT_SYMBOL_GPL(rcu_note_context_switch);
 
 /*
- * Register a quiesecent state for all RCU flavors.  If there is an
+ * Register a quiescent state for all RCU flavors.  If there is an
  * emergency, invoke rcu_momentary_dyntick_idle() to do a heavy-weight
  * dyntick-idle quiescent state visible to other CPUs (but only for those
- * RCU flavors in desparate need of a quiescent state, which will normally
+ * RCU flavors in desperate need of a quiescent state, which will normally
  * be none of them).  Either way, do a lightweight quiescent state for
  * all RCU flavors.
  */
