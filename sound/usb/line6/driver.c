@@ -700,7 +700,6 @@ int line6_suspend(struct usb_interface *interface, pm_message_t message)
 
 	if (line6pcm != NULL) {
 		snd_pcm_suspend_all(line6pcm->pcm);
-		line6_pcm_disconnect(line6pcm);
 		line6pcm->flags = 0;
 	}
 
