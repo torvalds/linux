@@ -471,8 +471,9 @@ void dwc_otg_hcd_stop(dwc_otg_hcd_t *hcd)
 {
 	hprt0_data_t hprt0 = {.d32 = 0 };
 	struct dwc_otg_platform_data *pldata;
-	pldata = hcd->core_if->otg_dev->pldata;
+	dwc_irqflags_t flags;
 
+	pldata = hcd->core_if->otg_dev->pldata;
 	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD STOP\n");
 
 	/*
@@ -480,6 +481,15 @@ void dwc_otg_hcd_stop(dwc_otg_hcd_t *hcd)
 	 * The disconnect will clear the QTD lists (via ..._hcd_urb_dequeue)
 	 * and the QH lists (via ..._hcd_endpoint_disable).
 	 */
+	DWC_SPINLOCK_IRQSAVE(hcd->lock, &flags);
+	kill_all_urbs(hcd);
+	DWC_SPINUNLOCK_IRQRESTORE(hcd->lock, flags);
+
+	/*
+	 * Set status flags for the hub driver.
+	 */
+	hcd->flags.b.port_connect_status_change = 1;
+	hcd->flags.b.port_connect_status = 0;
 
 	/* Turn off all host-specific interrupts. */
 	dwc_otg_disable_host_interrupts(hcd->core_if);
