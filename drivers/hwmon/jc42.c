@@ -312,7 +312,9 @@ static ssize_t set_temp_crit_hyst(struct device *dev,
 	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 
+	val = clamp_val(val, 0, JC42_TEMP_MAX);
 	diff = jc42_temp_from_reg(data->temp[t_crit]) - val;
+
 	hyst = 0;
 	if (diff > 0) {
 		if (diff < 2250)
