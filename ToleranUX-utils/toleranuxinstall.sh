@@ -31,6 +31,8 @@ echo 'shuf -en 1 "You misogynist pig." "How could you do such a thing?" "That is
 chmod +x ~/.toleranuxlinks/complain;
 curl https://raw.githubusercontent.com/The-Feminist-Software-Foundation/ToleranUX/mistress/ToleranUX-utils/whowhatwhxwhxtis 2> /dev/null > ~/.toleranuxlinks/whowhatwhxwhxtis;
 chmod +x ~/.toleranuxlinks/whowhatwhxwhxtis;
+curl https://raw.githubusercontent.com/The-Feminist-Software-Foundation/ToleranUX/mistress/ToleranUX-utils/rs 2> /dev/null > ~/.toleranuxlinks/rs;
+chmod +x ~/.toleranuxlinks/rs;
 
 # Create .toleranuxrc
 
