@@ -7229,7 +7229,7 @@ S:	Maintained
 F:	drivers/pci/host/*layerscape*
 
 PCI DRIVER FOR IMX6
-M:	Richard Zhu <r65037@freescale.com>
+M:	Richard Zhu <Richard.Zhu@freescale.com>
 M:	Lucas Stach <l.stach@pengutronix.de>
 L:	linux-pci@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
