@@ -384,3 +384,4 @@
 	};
 };
 
+#include "dm816x-clocks.dtsi"
