@@ -116,12 +116,6 @@ static bool vnt_rx_data(struct vnt_private *priv, struct sk_buff *skb,
 			rx_status.flag = RX_FLAG_DECRYPTED;
 	}
 
-	if (priv->vif && priv->bDiversityEnable) {
-		if (ieee80211_is_data(fc) &&
-		    (frame_size > 50) && priv->vif->bss_conf.assoc)
-			BBvAntennaDiversity(priv, priv->rx_rate, 0);
-	}
-
 	memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
 
 	ieee80211_rx_irqsafe(priv->hw, skb);

@@ -126,10 +126,6 @@ DEVICE_PARAM(LongRetryLimit, "long frame retry limits");
 
 DEVICE_PARAM(BasebandType, "baseband type");
 
-#define DIVERSITY_ANT_DEF     0
-
-DEVICE_PARAM(bDiversityANTEnable, "ANT diversity mode");
-
 //
 // Static vars definitions
 //
@@ -152,7 +148,6 @@ static void vt6655_init_info(struct pci_dev *pcid,
 static void device_free_info(struct vnt_private *pDevice);
 static bool device_get_pci_info(struct vnt_private *, struct pci_dev *pcid);
 static void device_print_info(struct vnt_private *pDevice);
-static void device_init_diversity_timer(struct vnt_private *pDevice);
 static  irqreturn_t  device_intr(int irq,  void *dev_instance);
 
 #ifdef CONFIG_PM
@@ -216,7 +211,6 @@ static void device_get_options(struct vnt_private *pDevice)
 	pOpts->short_retry = SHORT_RETRY_DEF;
 	pOpts->long_retry = LONG_RETRY_DEF;
 	pOpts->bbp_type = BBP_TYPE_DEF;
-	pOpts->flags |= DEVICE_FLAGS_DiversityANT;
 }
 
 static void
@@ -224,7 +218,6 @@ device_set_options(struct vnt_private *pDevice)
 {
 	pDevice->byShortRetryLimit = pDevice->sOpts.short_retry;
 	pDevice->byLongRetryLimit = pDevice->sOpts.long_retry;
-	pDevice->bDiversityRegCtlON = (pDevice->sOpts.flags & DEVICE_FLAGS_DiversityANT) ? 1 : 0;
 	pDevice->byBBType = pDevice->sOpts.bbp_type;
 	pDevice->byPacketType = pDevice->byBBType;
 	pDevice->byAutoFBCtrl = AUTO_FB_0;
@@ -236,8 +229,6 @@ device_set_options(struct vnt_private *pDevice)
 	pr_debug(" byPreambleType= %d\n", (int)pDevice->byPreambleType);
 	pr_debug(" byShortPreamble= %d\n", (int)pDevice->byShortPreamble);
 	pr_debug(" byBBType= %d\n", (int)pDevice->byBBType);
-	pr_debug(" pDevice->bDiversityRegCtlON= %d\n",
-		 (int)pDevice->bDiversityRegCtlON);
 }
 
 //
@@ -249,7 +240,6 @@ static void device_init_registers(struct vnt_private *pDevice)
 	unsigned long flags;
 	unsigned int ii;
 	unsigned char byValue;
-	unsigned char byValue1;
 	unsigned char byCCKPwrdBm = 0;
 	unsigned char byOFDMPwrdBm = 0;
 
@@ -301,13 +291,6 @@ static void device_init_registers(struct vnt_private *pDevice)
 	if (byValue == 0)
 		byValue = (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
 
-	pDevice->ulDiversityNValue = 100*260;
-	pDevice->ulDiversityMValue = 100*16;
-	pDevice->byTMax = 1;
-	pDevice->byTMax2 = 4;
-	pDevice->ulSQ3TH = 0;
-	pDevice->byTMax3 = 64;
-
 	if (byValue == (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN)) {
 		pDevice->byAntennaCount = 2;
 		pDevice->byTxAntennaMode = ANT_B;
@@ -318,16 +301,7 @@ static void device_init_registers(struct vnt_private *pDevice)
 			pDevice->byRxAntennaMode = ANT_A;
 		else
 			pDevice->byRxAntennaMode = ANT_B;
-
-		byValue1 = SROMbyReadEmbedded(pDevice->PortOffset,
-					      EEP_OFS_ANTENNA);
-
-		if ((byValue1 & 0x08) == 0)
-			pDevice->bDiversityEnable = false;
-		else
-			pDevice->bDiversityEnable = true;
 	} else  {
-		pDevice->bDiversityEnable = false;
 		pDevice->byAntennaCount = 1;
 		pDevice->dwTxAntennaSel = 0;
 		pDevice->dwRxAntennaSel = 0;
@@ -348,11 +322,6 @@ static void device_init_registers(struct vnt_private *pDevice)
 				pDevice->byRxAntennaMode = ANT_B;
 		}
 	}
-
-	pr_debug("bDiversityEnable=[%d],NValue=[%d],MValue=[%d],TMax=[%d],TMax2=[%d]\n",
-		 pDevice->bDiversityEnable, (int)pDevice->ulDiversityNValue,
-		 (int)pDevice->ulDiversityMValue, pDevice->byTMax,
-		 pDevice->byTMax2);
 
 	/* zonetype initial */
 	pDevice->byOriginalZonetype = pDevice->abyEEPROM[EEP_OFS_ZONETYPE];
@@ -491,24 +460,6 @@ static void device_init_registers(struct vnt_private *pDevice)
 
 	/* start the adapter */
 	MACvStart(pDevice->PortOffset);
-}
-
-static void device_init_diversity_timer(struct vnt_private *pDevice)
-{
-	init_timer(&pDevice->TimerSQ3Tmax1);
-	pDevice->TimerSQ3Tmax1.data = (unsigned long) pDevice;
-	pDevice->TimerSQ3Tmax1.function = TimerSQ3CallBack;
-	pDevice->TimerSQ3Tmax1.expires = RUN_AT(HZ);
-
-	init_timer(&pDevice->TimerSQ3Tmax2);
-	pDevice->TimerSQ3Tmax2.data = (unsigned long) pDevice;
-	pDevice->TimerSQ3Tmax2.function = TimerSQ3CallBack;
-	pDevice->TimerSQ3Tmax2.expires = RUN_AT(HZ);
-
-	init_timer(&pDevice->TimerSQ3Tmax3);
-	pDevice->TimerSQ3Tmax3.data = (unsigned long) pDevice;
-	pDevice->TimerSQ3Tmax3.function = TimerState1CallBack;
-	pDevice->TimerSQ3Tmax3.expires = RUN_AT(HZ);
 }
 
 static void device_print_info(struct vnt_private *pDevice)
@@ -1348,8 +1299,6 @@ static int vnt_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
-		if (priv->bDiversityRegCtlON)
-			device_init_diversity_timer(priv);
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		MACvRegBitsOff(priv->PortOffset, MAC_REG_RCR, RCR_UNICAST);
@@ -1379,11 +1328,6 @@ static void vnt_remove_interface(struct ieee80211_hw *hw,
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
-		if (priv->bDiversityRegCtlON) {
-			del_timer(&priv->TimerSQ3Tmax1);
-			del_timer(&priv->TimerSQ3Tmax2);
-			del_timer(&priv->TimerSQ3Tmax3);
-		}
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		MACvRegBitsOff(priv->PortOffset, MAC_REG_TCR, TCR_AUTOBCNTX);
