@@ -172,7 +172,7 @@ bnad_get_debug_drvinfo(struct bnad *bnad, void *buffer, u32 len)
 
 	/* Retrieve flash partition info */
 	fcomp.comp_status = 0;
-	init_completion(&fcomp.comp);
+	reinit_completion(&fcomp.comp);
 	spin_lock_irqsave(&bnad->bna_lock, flags);
 	ret = bfa_nw_flash_get_attr(&bnad->bna.flash, &drvinfo->flash_attr,
 				bnad_cb_completion, &fcomp);

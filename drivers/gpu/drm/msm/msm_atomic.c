@@ -23,9 +23,40 @@ struct msm_commit {
 	struct drm_atomic_state *state;
 	uint32_t fence;
 	struct msm_fence_cb fence_cb;
+	uint32_t crtc_mask;
 };
 
 static void fence_cb(struct msm_fence_cb *cb);
+
+/* block until specified crtcs are no longer pending update, and
+ * atomically mark them as pending update
+ */
+static int start_atomic(struct msm_drm_private *priv, uint32_t crtc_mask)
+{
+	int ret;
+
+	spin_lock(&priv->pending_crtcs_event.lock);
+	ret = wait_event_interruptible_locked(priv->pending_crtcs_event,
+			!(priv->pending_crtcs & crtc_mask));
+	if (ret == 0) {
+		DBG("start: %08x", crtc_mask);
+		priv->pending_crtcs |= crtc_mask;
+	}
+	spin_unlock(&priv->pending_crtcs_event.lock);
+
+	return ret;
+}
+
+/* clear specified crtcs (no longer pending update)
+ */
+static void end_atomic(struct msm_drm_private *priv, uint32_t crtc_mask)
+{
+	spin_lock(&priv->pending_crtcs_event.lock);
+	DBG("end: %08x", crtc_mask);
+	priv->pending_crtcs &= ~crtc_mask;
+	wake_up_all_locked(&priv->pending_crtcs_event);
+	spin_unlock(&priv->pending_crtcs_event.lock);
+}
 
 static struct msm_commit *new_commit(struct drm_atomic_state *state)
 {
@@ -58,11 +89,26 @@ static void complete_commit(struct msm_commit *c)
 
 	drm_atomic_helper_commit_post_planes(dev, state);
 
+	/* NOTE: _wait_for_vblanks() only waits for vblank on
+	 * enabled CRTCs.  So we end up faulting when disabling
+	 * due to (potentially) unref'ing the outgoing fb's
+	 * before the vblank when the disable has latched.
+	 *
+	 * But if it did wait on disabled (or newly disabled)
+	 * CRTCs, that would be racy (ie. we could have missed
+	 * the irq.  We need some way to poll for pipe shut
+	 * down.  Or just live with occasionally hitting the
+	 * timeout in the CRTC disable path (which really should
+	 * not be critical path)
+	 */
+
 	drm_atomic_helper_wait_for_vblanks(dev, state);
 
 	drm_atomic_helper_cleanup_planes(dev, state);
 
 	drm_atomic_state_free(state);
+
+	end_atomic(dev->dev_private, c->crtc_mask);
 
 	kfree(c);
 }
@@ -97,8 +143,9 @@ static void add_fb(struct msm_commit *c, struct drm_framebuffer *fb)
 int msm_atomic_commit(struct drm_device *dev,
 		struct drm_atomic_state *state, bool async)
 {
-	struct msm_commit *c;
 	int nplanes = dev->mode_config.num_total_plane;
+	int ncrtcs = dev->mode_config.num_crtc;
+	struct msm_commit *c;
 	int i, ret;
 
 	ret = drm_atomic_helper_prepare_planes(dev, state);
@@ -106,6 +153,18 @@ int msm_atomic_commit(struct drm_device *dev,
 		return ret;
 
 	c = new_commit(state);
+	if (!c)
+		return -ENOMEM;
+
+	/*
+	 * Figure out what crtcs we have:
+	 */
+	for (i = 0; i < ncrtcs; i++) {
+		struct drm_crtc *crtc = state->crtcs[i];
+		if (!crtc)
+			continue;
+		c->crtc_mask |= (1 << drm_crtc_index(crtc));
+	}
 
 	/*
 	 * Figure out what fence to wait for:
@@ -120,6 +179,14 @@ int msm_atomic_commit(struct drm_device *dev,
 		if ((plane->state->fb != new_state->fb) && new_state->fb)
 			add_fb(c, new_state->fb);
 	}
+
+	/*
+	 * Wait for pending updates on any of the same crtc's and then
+	 * mark our set of crtc's as busy:
+	 */
+	ret = start_atomic(dev->dev_private, c->crtc_mask);
+	if (ret)
+		return ret;
 
 	/*
 	 * This is the point of no return - everything below never fails except
