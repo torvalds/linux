@@ -18,7 +18,6 @@
 #include <sound/core.h>
 #include <sound/control.h>
 
-#include "audio.h"
 #include "capture.h"
 #include "driver.h"
 #include "playback.h"
@@ -340,7 +339,7 @@ static void pod_startup4(struct work_struct *work)
 	line6_read_serial_number(&pod->line6, &pod->serial_number);
 
 	/* ALSA audio interface: */
-	line6_register_audio(line6);
+	snd_card_register(line6->card);
 }
 
 /* POD special files: */
@@ -398,21 +397,6 @@ static struct snd_kcontrol_new pod_control_monitor = {
 };
 
 /*
-	POD destructor.
-*/
-static void pod_destruct(struct usb_interface *interface)
-{
-	struct usb_line6_pod *pod = usb_get_intfdata(interface);
-
-	if (pod == NULL)
-		return;
-	line6_cleanup_audio(&pod->line6);
-
-	del_timer(&pod->startup_timer);
-	cancel_work_sync(&pod->startup_work);
-}
-
-/*
 	POD device disconnected.
 */
 static void line6_pod_disconnect(struct usb_interface *interface)
@@ -424,11 +408,7 @@ static void line6_pod_disconnect(struct usb_interface *interface)
 	pod = usb_get_intfdata(interface);
 
 	if (pod != NULL) {
-		struct snd_line6_pcm *line6pcm = pod->line6.line6pcm;
 		struct device *dev = &interface->dev;
-
-		if (line6pcm != NULL)
-			line6_pcm_disconnect(line6pcm);
 
 		if (dev != NULL) {
 			/* remove sysfs entries: */
@@ -436,9 +416,10 @@ static void line6_pod_disconnect(struct usb_interface *interface)
 			device_remove_file(dev, &dev_attr_firmware_version);
 			device_remove_file(dev, &dev_attr_serial_number);
 		}
-	}
 
-	pod_destruct(interface);
+		del_timer_sync(&pod->startup_timer);
+		cancel_work_sync(&pod->startup_work);
+	}
 }
 
 /*
@@ -457,8 +438,8 @@ static int pod_create_files2(struct device *dev)
 /*
 	 Try to init POD device.
 */
-static int pod_try_init(struct usb_interface *interface,
-			struct usb_line6 *line6)
+static int pod_init(struct usb_interface *interface,
+		    struct usb_line6 *line6)
 {
 	int err;
 	struct usb_line6_pod *pod = (struct usb_line6_pod *) line6;
@@ -474,11 +455,6 @@ static int pod_try_init(struct usb_interface *interface,
 
 	/* create sysfs entries: */
 	err = pod_create_files2(&interface->dev);
-	if (err < 0)
-		return err;
-
-	/* initialize audio system: */
-	err = line6_init_audio(line6);
 	if (err < 0)
 		return err;
 
@@ -512,20 +488,6 @@ static int pod_try_init(struct usb_interface *interface,
 	}
 
 	return 0;
-}
-
-/*
-	 Init POD device (and clean up in case of failure).
-*/
-static int pod_init(struct usb_interface *interface,
-		    struct usb_line6 *line6)
-{
-	int err = pod_try_init(interface, line6);
-
-	if (err < 0)
-		pod_destruct(interface);
-
-	return err;
 }
 
 #define LINE6_DEVICE(prod) USB_DEVICE(0x0e41, prod)
@@ -636,17 +598,13 @@ static int pod_probe(struct usb_interface *interface,
 		     const struct usb_device_id *id)
 {
 	struct usb_line6_pod *pod;
-	int err;
 
 	pod = kzalloc(sizeof(*pod), GFP_KERNEL);
 	if (!pod)
 		return -ENODEV;
-	err = line6_probe(interface, &pod->line6,
-			  &pod_properties_table[id->driver_info],
-			  pod_init);
-	if (err < 0)
-		kfree(pod);
-	return err;
+	return line6_probe(interface, &pod->line6,
+			   &pod_properties_table[id->driver_info],
+			   pod_init);
 }
 
 static struct usb_driver pod_driver = {

@@ -14,7 +14,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 
-#include "audio.h"
 #include "capture.h"
 #include "driver.h"
 #include "pcm.h"

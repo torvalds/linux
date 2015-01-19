@@ -15,7 +15,9 @@
 #include <linux/slab.h>
 #include <linux/usb.h>
 
-#include "audio.h"
+#include <sound/core.h>
+#include <sound/initval.h>
+
 #include "capture.h"
 #include "driver.h"
 #include "midi.h"
@@ -481,17 +483,16 @@ ssize_t line6_nop_read(struct device *dev, struct device_attribute *attr,
 EXPORT_SYMBOL_GPL(line6_nop_read);
 
 /*
-	Generic destructor.
+	Card destructor.
 */
-static void line6_destruct(struct usb_interface *interface)
+static void line6_destruct(struct snd_card *card)
 {
-	struct usb_line6 *line6;
+	struct usb_line6 *line6 = card->private_data;
+	struct usb_device *usbdev;
 
-	if (interface == NULL)
+	if (!line6)
 		return;
-	line6 = usb_get_intfdata(interface);
-	if (line6 == NULL)
-		return;
+	usbdev = line6->usbdev;
 
 	/* free buffer memory first: */
 	kfree(line6->buffer_message);
@@ -500,8 +501,11 @@ static void line6_destruct(struct usb_interface *interface)
 	/* then free URBs: */
 	usb_free_urb(line6->urb_listen);
 
-	/* make sure the device isn't destructed twice: */
-	usb_set_intfdata(interface, NULL);
+	/* free interface data: */
+	kfree(line6);
+
+	/* decrement reference counters: */
+	usb_put_dev(usbdev);
 }
 
 /*
@@ -513,6 +517,7 @@ int line6_probe(struct usb_interface *interface,
 		int (*private_init)(struct usb_interface *, struct usb_line6 *))
 {
 	struct usb_device *usbdev;
+	struct snd_card *card;
 	int interface_number;
 	int ret;
 
@@ -569,7 +574,25 @@ int line6_probe(struct usb_interface *interface,
 		}
 	}
 
+	ret = snd_card_new(line6->ifcdev,
+			   SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
+			   THIS_MODULE, 0, &card);
+	if (ret < 0)
+		goto err_put;
+
+	line6->card = card;
+	strcpy(card->id, line6->properties->id);
+	strcpy(card->driver, DRIVER_NAME);
+	strcpy(card->shortname, line6->properties->name);
+	sprintf(card->longname, "Line6 %s at USB %s", line6->properties->name,
+		dev_name(line6->ifcdev));
+	card->private_data = line6;
+	card->private_free = line6_destruct;
+
 	usb_set_intfdata(interface, line6);
+
+	/* increment reference counters: */
+	usb_get_dev(usbdev);
 
 	if (properties->capabilities & LINE6_CAP_CONTROL) {
 		/* initialize USB buffers: */
@@ -612,15 +635,11 @@ int line6_probe(struct usb_interface *interface,
 	dev_info(&interface->dev, "Line6 %s now attached\n",
 		 line6->properties->name);
 
-	/* increment reference counters: */
-	usb_get_intf(interface);
-	usb_get_dev(usbdev);
-
 	return 0;
 
-err_destruct:
-	line6_destruct(interface);
-err_put:
+ err_destruct:
+	snd_card_free(card);
+ err_put:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(line6_probe);
@@ -642,29 +661,26 @@ void line6_disconnect(struct usb_interface *interface)
 
 	interface_number = interface->cur_altsetting->desc.bInterfaceNumber;
 	line6 = usb_get_intfdata(interface);
+	if (!line6)
+		return;
 
-	if (line6 != NULL) {
-		if (line6->urb_listen != NULL)
-			line6_stop_listen(line6);
+	if (line6->urb_listen != NULL)
+		line6_stop_listen(line6);
 
-		if (usbdev != line6->usbdev)
-			dev_err(line6->ifcdev,
-				"driver bug: inconsistent usb device\n");
+	if (usbdev != line6->usbdev)
+		dev_err(line6->ifcdev, "driver bug: inconsistent usb device\n");
 
+	snd_card_disconnect(line6->card);
+	if (line6->disconnect)
 		line6->disconnect(interface);
 
-		dev_info(&interface->dev, "Line6 %s now disconnected\n",
-			 line6->properties->name);
-	}
+	dev_info(&interface->dev, "Line6 %s now disconnected\n",
+		 line6->properties->name);
 
-	line6_destruct(interface);
+	/* make sure the device isn't destructed twice: */
+	usb_set_intfdata(interface, NULL);
 
-	/* free interface data: */
-	kfree(line6);
-
-	/* decrement reference counters: */
-	usb_put_intf(interface);
-	usb_put_dev(usbdev);
+	snd_card_free_when_closed(line6->card);
 }
 EXPORT_SYMBOL_GPL(line6_disconnect);
 

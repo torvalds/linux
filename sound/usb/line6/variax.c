@@ -16,7 +16,6 @@
 #include <linux/module.h>
 #include <sound/core.h>
 
-#include "audio.h"
 #include "driver.h"
 #include "usbdefs.h"
 
@@ -179,7 +178,7 @@ static void variax_startup6(struct work_struct *work)
 	CHECK_STARTUP_PROGRESS(variax->startup_progress, VARIAX_STARTUP_SETUP);
 
 	/* ALSA audio interface: */
-	line6_register_audio(&variax->line6);
+	snd_card_register(variax->line6.card);
 }
 
 /*
@@ -211,13 +210,16 @@ static void line6_variax_process_message(struct usb_line6 *line6)
 /*
 	Variax destructor.
 */
-static void variax_destruct(struct usb_interface *interface)
+static void line6_variax_disconnect(struct usb_interface *interface)
 {
-	struct usb_line6_variax *variax = usb_get_intfdata(interface);
+	struct usb_line6_variax *variax;
 
-	if (variax == NULL)
+	if (!interface)
 		return;
-	line6_cleanup_audio(&variax->line6);
+
+	variax = usb_get_intfdata(interface);
+	if (!variax)
+		return;
 
 	del_timer(&variax->startup_timer1);
 	del_timer(&variax->startup_timer2);
@@ -227,21 +229,10 @@ static void variax_destruct(struct usb_interface *interface)
 }
 
 /*
-	Workbench device disconnected.
-*/
-static void line6_variax_disconnect(struct usb_interface *interface)
-{
-	if (interface == NULL)
-		return;
-
-	variax_destruct(interface);
-}
-
-/*
 	 Try to init workbench device.
 */
-static int variax_try_init(struct usb_interface *interface,
-			   struct usb_line6 *line6)
+static int variax_init(struct usb_interface *interface,
+		       struct usb_line6 *line6)
 {
 	struct usb_line6_variax *variax = (struct usb_line6_variax *) line6;
 	int err;
@@ -263,11 +254,6 @@ static int variax_try_init(struct usb_interface *interface,
 	if (variax->buffer_activate == NULL)
 		return -ENOMEM;
 
-	/* initialize audio system: */
-	err = line6_init_audio(&variax->line6);
-	if (err < 0)
-		return err;
-
 	/* initialize MIDI subsystem: */
 	err = line6_init_midi(&variax->line6);
 	if (err < 0)
@@ -276,20 +262,6 @@ static int variax_try_init(struct usb_interface *interface,
 	/* initiate startup procedure: */
 	variax_startup1(variax);
 	return 0;
-}
-
-/*
-	 Init workbench device (and clean up in case of failure).
-*/
-static int variax_init(struct usb_interface *interface,
-		       struct usb_line6 *line6)
-{
-	int err = variax_try_init(interface, line6);
-
-	if (err < 0)
-		variax_destruct(interface);
-
-	return err;
 }
 
 #define LINE6_DEVICE(prod) USB_DEVICE(0x0e41, prod)
@@ -335,17 +307,13 @@ static int variax_probe(struct usb_interface *interface,
 			const struct usb_device_id *id)
 {
 	struct usb_line6_variax *variax;
-	int err;
 
 	variax = kzalloc(sizeof(*variax), GFP_KERNEL);
 	if (!variax)
 		return -ENODEV;
-	err = line6_probe(interface, &variax->line6,
-			  &variax_properties_table[id->driver_info],
-			  variax_init);
-	if (err < 0)
-		kfree(variax);
-	return err;
+	return line6_probe(interface, &variax->line6,
+			   &variax_properties_table[id->driver_info],
+			   variax_init);
 }
 
 static struct usb_driver variax_driver = {

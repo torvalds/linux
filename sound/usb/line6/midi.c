@@ -15,7 +15,6 @@
 #include <sound/core.h>
 #include <sound/rawmidi.h>
 
-#include "audio.h"
 #include "driver.h"
 #include "midi.h"
 #include "usbdefs.h"

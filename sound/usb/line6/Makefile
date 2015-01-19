@@ -1,5 +1,4 @@
 snd-usb-line6-y := 		\
-		audio.o		\
 		capture.o	\
 		driver.o	\
 		midi.o		\

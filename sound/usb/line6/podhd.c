@@ -15,7 +15,6 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 
-#include "audio.h"
 #include "driver.h"
 #include "pcm.h"
 #include "usbdefs.h"
@@ -86,56 +85,16 @@ static struct line6_pcm_properties podhd_pcm_properties = {
 };
 
 /*
-	POD HD destructor.
-*/
-static void podhd_destruct(struct usb_interface *interface)
-{
-	struct usb_line6_podhd *podhd = usb_get_intfdata(interface);
-
-	if (podhd == NULL)
-		return;
-	line6_cleanup_audio(&podhd->line6);
-}
-
-/*
-	POD HD device disconnected.
-*/
-static void line6_podhd_disconnect(struct usb_interface *interface)
-{
-	struct usb_line6_podhd *podhd;
-
-	if (interface == NULL)
-		return;
-	podhd = usb_get_intfdata(interface);
-
-	if (podhd != NULL) {
-		struct snd_line6_pcm *line6pcm = podhd->line6.line6pcm;
-
-		if (line6pcm != NULL)
-			line6_pcm_disconnect(line6pcm);
-	}
-
-	podhd_destruct(interface);
-}
-
-/*
 	Try to init POD HD device.
 */
-static int podhd_try_init(struct usb_interface *interface,
-			  struct usb_line6_podhd *podhd)
+static int podhd_init(struct usb_interface *interface,
+		      struct usb_line6 *line6)
 {
+	struct usb_line6_podhd *podhd = (struct usb_line6_podhd *) line6;
 	int err;
-	struct usb_line6 *line6 = &podhd->line6;
 
 	if ((interface == NULL) || (podhd == NULL))
 		return -ENODEV;
-
-	line6->disconnect = line6_podhd_disconnect;
-
-	/* initialize audio system: */
-	err = line6_init_audio(line6);
-	if (err < 0)
-		return err;
 
 	/* initialize MIDI subsystem: */
 	err = line6_init_midi(line6);
@@ -148,8 +107,7 @@ static int podhd_try_init(struct usb_interface *interface,
 		return err;
 
 	/* register USB audio system: */
-	err = line6_register_audio(line6);
-	return err;
+	return snd_card_register(line6->card);
 }
 
 #define LINE6_DEVICE(prod) USB_DEVICE(0x0e41, prod)
@@ -218,38 +176,19 @@ static const struct line6_properties podhd_properties_table[] = {
 };
 
 /*
-	Init POD HD device (and clean up in case of failure).
-*/
-static int podhd_init(struct usb_interface *interface,
-		      struct usb_line6 *line6)
-{
-	struct usb_line6_podhd *podhd = (struct usb_line6_podhd *) line6;
-	int err = podhd_try_init(interface, podhd);
-
-	if (err < 0)
-		podhd_destruct(interface);
-
-	return err;
-}
-
-/*
 	Probe USB device.
 */
 static int podhd_probe(struct usb_interface *interface,
 		       const struct usb_device_id *id)
 {
 	struct usb_line6_podhd *podhd;
-	int err;
 
 	podhd = kzalloc(sizeof(*podhd), GFP_KERNEL);
 	if (!podhd)
 		return -ENODEV;
-	err = line6_probe(interface, &podhd->line6,
-			  &podhd_properties_table[id->driver_info],
-			  podhd_init);
-	if (err < 0)
-		kfree(podhd);
-	return err;
+	return line6_probe(interface, &podhd->line6,
+			   &podhd_properties_table[id->driver_info],
+			   podhd_init);
 }
 
 static struct usb_driver podhd_driver = {

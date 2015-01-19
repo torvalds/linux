@@ -17,7 +17,6 @@
 #include <sound/core.h>
 #include <sound/control.h>
 
-#include "audio.h"
 #include "capture.h"
 #include "driver.h"
 #include "playback.h"
@@ -331,18 +330,6 @@ static struct snd_kcontrol_new toneport_control_source = {
 };
 
 /*
-	Toneport destructor.
-*/
-static void toneport_destruct(struct usb_interface *interface)
-{
-	struct usb_line6_toneport *toneport = usb_get_intfdata(interface);
-
-	if (toneport == NULL)
-		return;
-	line6_cleanup_audio(&toneport->line6);
-}
-
-/*
 	Setup Toneport device.
 */
 static void toneport_setup(struct usb_line6_toneport *toneport)
@@ -394,25 +381,14 @@ static void line6_toneport_disconnect(struct usb_interface *interface)
 		device_remove_file(&interface->dev, &dev_attr_led_red);
 		device_remove_file(&interface->dev, &dev_attr_led_green);
 	}
-
-	if (toneport != NULL) {
-		struct snd_line6_pcm *line6pcm = toneport->line6.line6pcm;
-
-		if (line6pcm != NULL) {
-			line6_pcm_release(line6pcm, LINE6_BITS_PCM_MONITOR);
-			line6_pcm_disconnect(line6pcm);
-		}
-	}
-
-	toneport_destruct(interface);
 }
 
 
 /*
 	 Try to init Toneport device.
 */
-static int toneport_try_init(struct usb_interface *interface,
-			     struct usb_line6 *line6)
+static int toneport_init(struct usb_interface *interface,
+			 struct usb_line6 *line6)
 {
 	int err;
 	struct usb_line6_toneport *toneport =  (struct usb_line6_toneport *) line6;
@@ -421,11 +397,6 @@ static int toneport_try_init(struct usb_interface *interface,
 		return -ENODEV;
 
 	line6->disconnect = line6_toneport_disconnect;
-
-	/* initialize audio system: */
-	err = line6_init_audio(line6);
-	if (err < 0)
-		return err;
 
 	/* initialize PCM subsystem: */
 	err = line6_init_pcm(line6, &toneport_pcm_properties);
@@ -456,11 +427,6 @@ static int toneport_try_init(struct usb_interface *interface,
 		break;
 	}
 
-	/* register audio system: */
-	err = line6_register_audio(line6);
-	if (err < 0)
-		return err;
-
 	line6_read_serial_number(line6, &toneport->serial_number);
 	line6_read_data(line6, 0x80c2, &toneport->firmware_version, 1);
 
@@ -477,21 +443,8 @@ static int toneport_try_init(struct usb_interface *interface,
 		    (unsigned long)toneport);
 	mod_timer(&toneport->timer, jiffies + TONEPORT_PCM_DELAY * HZ);
 
-	return 0;
-}
-
-/*
-	 Init Toneport device (and clean up in case of failure).
-*/
-static int toneport_init(struct usb_interface *interface,
-			 struct usb_line6 *line6)
-{
-	int err = toneport_try_init(interface, line6);
-
-	if (err < 0)
-		toneport_destruct(interface);
-
-	return err;
+	/* register audio system: */
+	return snd_card_register(line6->card);
 }
 
 #ifdef CONFIG_PM
@@ -595,18 +548,14 @@ static int toneport_probe(struct usb_interface *interface,
 			  const struct usb_device_id *id)
 {
 	struct usb_line6_toneport *toneport;
-	int err;
 
 	toneport = kzalloc(sizeof(*toneport), GFP_KERNEL);
 	if (!toneport)
 		return -ENODEV;
 	toneport->type = id->driver_info;
-	err = line6_probe(interface, &toneport->line6,
-			  &toneport_properties_table[id->driver_info],
-			  toneport_init);
-	if (err < 0)
-		kfree(toneport);
-	return err;
+	return line6_probe(interface, &toneport->line6,
+			   &toneport_properties_table[id->driver_info],
+			   toneport_init);
 }
 
 static struct usb_driver toneport_driver = {
