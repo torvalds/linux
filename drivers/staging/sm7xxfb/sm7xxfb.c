@@ -352,8 +352,8 @@ static ssize_t smtcfb_read(struct fb_info *info, char __user *buf, size_t
 			dst++;
 		}
 		if (c & 3) {
-			u8 *dst8 = (u8 *) dst;
-			u8 __iomem *src8 = (u8 __iomem *) src;
+			u8 *dst8 = (u8 *)dst;
+			u8 __iomem *src8 = (u8 __iomem *)src;
 
 			for (i = c & 3; i--;) {
 				if (i & 1) {
@@ -363,7 +363,7 @@ static ssize_t smtcfb_read(struct fb_info *info, char __user *buf, size_t
 					src8 += 2;
 				}
 			}
-			src = (u32 __iomem *) src8;
+			src = (u32 __iomem *)src8;
 		}
 
 		if (copy_to_user(buf, buffer, c)) {
@@ -442,8 +442,8 @@ smtcfb_write(struct fb_info *info, const char __user *buf, size_t count,
 			src++;
 		}
 		if (c & 3) {
-			u8 *src8 = (u8 *) src;
-			u8 __iomem *dst8 = (u8 __iomem *) dst;
+			u8 *src8 = (u8 *)src;
+			u8 __iomem *dst8 = (u8 __iomem *)dst;
 
 			for (i = c & 3; i--;) {
 				if (i & 1) {
@@ -453,7 +453,7 @@ smtcfb_write(struct fb_info *info, const char __user *buf, size_t count,
 					dst8 += 2;
 				}
 			}
-			dst = (u32 __iomem *) dst8;
+			dst = (u32 __iomem *)dst8;
 		}
 
 		*ppos += c;
