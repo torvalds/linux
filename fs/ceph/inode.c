@@ -840,30 +840,31 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 		       ceph_vinop(inode), inode->i_mode);
 	}
 
-	/* set dir completion flag? */
-	if (S_ISDIR(inode->i_mode) &&
-	    ci->i_files == 0 && ci->i_subdirs == 0 &&
-	    ceph_snap(inode) == CEPH_NOSNAP &&
-	    (le32_to_cpu(info->cap.caps) & CEPH_CAP_FILE_SHARED) &&
-	    (issued & CEPH_CAP_FILE_EXCL) == 0 &&
-	    !__ceph_dir_is_complete(ci)) {
-		dout(" marking %p complete (empty)\n", inode);
-		__ceph_dir_set_complete(ci, atomic_read(&ci->i_release_count),
-					ci->i_ordered_count);
-	}
-
 	/* were we issued a capability? */
 	if (info->cap.caps) {
 		if (ceph_snap(inode) == CEPH_NOSNAP) {
+			unsigned caps = le32_to_cpu(info->cap.caps);
 			ceph_add_cap(inode, session,
 				     le64_to_cpu(info->cap.cap_id),
-				     cap_fmode,
-				     le32_to_cpu(info->cap.caps),
+				     cap_fmode, caps,
 				     le32_to_cpu(info->cap.wanted),
 				     le32_to_cpu(info->cap.seq),
 				     le32_to_cpu(info->cap.mseq),
 				     le64_to_cpu(info->cap.realm),
 				     info->cap.flags, &new_cap);
+
+			/* set dir completion flag? */
+			if (S_ISDIR(inode->i_mode) &&
+			    ci->i_files == 0 && ci->i_subdirs == 0 &&
+			    (caps & CEPH_CAP_FILE_SHARED) &&
+			    (issued & CEPH_CAP_FILE_EXCL) == 0 &&
+			    !__ceph_dir_is_complete(ci)) {
+				dout(" marking %p complete (empty)\n", inode);
+				__ceph_dir_set_complete(ci,
+					atomic_read(&ci->i_release_count),
+					ci->i_ordered_count);
+			}
+
 			wake = true;
 		} else {
 			dout(" %p got snap_caps %s\n", inode,
