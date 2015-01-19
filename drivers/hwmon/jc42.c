@@ -201,7 +201,7 @@ struct jc42_data {
 #define JC42_TEMP_MIN		0
 #define JC42_TEMP_MAX		125000
 
-static u16 jc42_temp_to_reg(int temp, bool extended)
+static u16 jc42_temp_to_reg(long temp, bool extended)
 {
 	int ntemp = clamp_val(temp,
 			      extended ? JC42_TEMP_MIN_EXTENDED :
