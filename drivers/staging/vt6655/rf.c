@@ -788,6 +788,9 @@ bool RFbSetPower(
 	case RATE_2M:
 	case RATE_5M:
 	case RATE_11M:
+		if (uCH > CB_MAX_CHANNEL_24G)
+			return false;
+
 		byPwr = priv->abyCCKPwrTbl[uCH];
 		byPwrdBm = priv->abyCCKDefaultPwr[uCH];
 		break;
