@@ -167,11 +167,11 @@
 		#size-cells = <0>;
 
 		ethphy1: ethernet-phy@0 {
-			reg = <0>;
+			reg = <1>;
 		};
 
 		ethphy2: ethernet-phy@1 {
-			reg = <1>;
+			reg = <2>;
 		};
 	};
 };
