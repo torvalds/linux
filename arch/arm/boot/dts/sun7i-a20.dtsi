@@ -580,7 +580,7 @@
 			status = "disabled";
 		};
 
-		mdio@01c0b080 {
+		mdio: mdio@01c0b080 {
 			compatible = "allwinner,sun4i-a10-mdio";
 			reg = <0x01c0b080 0x14>;
 			status = "disabled";
