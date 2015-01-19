@@ -343,11 +343,9 @@ static void spu_begin_dma(struct snd_pcm_substream *substream)
 		mod_timer(&dreamcastcard->timer, jiffies + 4);
 		return;
 	}
-	init_timer(&(dreamcastcard->timer));
-	dreamcastcard->timer.data = (unsigned long) substream;
-	dreamcastcard->timer.function = aica_period_elapsed;
-	dreamcastcard->timer.expires = jiffies + 4;
-	add_timer(&(dreamcastcard->timer));
+	setup_timer(&dreamcastcard->timer, aica_period_elapsed,
+		    (unsigned long) substream);
+	mod_timer(&dreamcastcard->timer, jiffies + 4);
 }
 
 static int snd_aicapcm_pcm_open(struct snd_pcm_substream
