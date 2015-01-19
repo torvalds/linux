@@ -178,12 +178,11 @@ static inline unsigned long pte_update(pte_t *p,
 	andc	%1,%0,%5\n\
 	or	%1,%1,%6\n\
 	/* 0x200 == Extended encoding, bit 22 */ \
-	/* Bit 22 has to be 1 if neither _PAGE_USER nor _PAGE_RW are set */ \
-	rlwimi	%1,%1,32-2,0x200\n /* get _PAGE_USER */ \
-	rlwinm	%3,%1,32-1,0x200\n /* get _PAGE_RW */ \
-	or	%1,%3,%1\n\
-	xori	%1,%1,0x200\n"
-"	stwcx.	%1,0,%4\n\
+	/* Bit 22 has to be 1 when _PAGE_USER is unset and _PAGE_RO is set */ \
+	rlwimi	%1,%1,32-1,0x200\n /* get _PAGE_RO */ \
+	rlwinm	%3,%1,32-2,0x200\n /* get _PAGE_USER */ \
+	andc	%1,%1,%3\n\
+	stwcx.	%1,0,%4\n\
 	bne-	1b"
 	: "=&r" (old), "=&r" (tmp), "=m" (*p), "=&r" (tmp2)
 	: "r" (p), "r" (clr), "r" (set), "m" (*p)
