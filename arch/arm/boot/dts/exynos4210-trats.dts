@@ -92,6 +92,7 @@
 	hsotg@12480000 {
 		vusb_d-supply = <&vusb_reg>;
 		vusb_a-supply = <&vusbdac_reg>;
+		dr_mode = "peripheral";
 		status = "okay";
 	};
 
