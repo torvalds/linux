@@ -50,9 +50,6 @@ static struct line6_pcm_properties podhd_pcm_properties = {
 					   SNDRV_PCM_INFO_BLOCK_TRANSFER |
 					   SNDRV_PCM_INFO_MMAP_VALID |
 					   SNDRV_PCM_INFO_PAUSE |
-#ifdef CONFIG_PM
-					   SNDRV_PCM_INFO_RESUME |
-#endif
 					   SNDRV_PCM_INFO_SYNC_START),
 				  .formats = SNDRV_PCM_FMTBIT_S24_3LE,
 				  .rates = SNDRV_PCM_RATE_48000,
@@ -70,9 +67,6 @@ static struct line6_pcm_properties podhd_pcm_properties = {
 					  SNDRV_PCM_INFO_INTERLEAVED |
 					  SNDRV_PCM_INFO_BLOCK_TRANSFER |
 					  SNDRV_PCM_INFO_MMAP_VALID |
-#ifdef CONFIG_PM
-					  SNDRV_PCM_INFO_RESUME |
-#endif
 					  SNDRV_PCM_INFO_SYNC_START),
 				 .formats = SNDRV_PCM_FMTBIT_S24_3LE,
 				 .rates = SNDRV_PCM_RATE_48000,
