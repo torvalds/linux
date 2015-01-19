@@ -172,6 +172,7 @@
             pinname = "emmc";
             ocr_avail = <0x200000>;          /**VDD voltage 3.3 ~ 3.4 */
             caps = "MMC_CAP_4_BIT_DATA","MMC_CAP_MMC_HIGHSPEED","MMC_CAP_SD_HIGHSPEED", "MMC_CAP_NONREMOVABLE","MMC_CAP_ERASE", "MMC_CAP_HW_RESET"; // MMC_CAP_NEEDS_POLL -- for detect, MMC_CAP_NONREMOVABLE -- for eMMC/TSD
+            caps2 = "MMC_CAP2_BOOTPART_NOACC";
             f_min = <300000>;
             f_max = <50000000>;
             f_max_w = <50000000>;
