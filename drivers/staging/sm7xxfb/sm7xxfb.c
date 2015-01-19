@@ -509,7 +509,7 @@ static void sm7xx_set_timing(struct smtcfb_info *sfb)
 				    (i + 0x30) != 0x6a &&
 				    (i + 0x30) != 0x6b)
 					smtc_seqw(i + 0x30,
-						VGAMode[j].Init_SR30_SR75[i]);
+						  VGAMode[j].Init_SR30_SR75[i]);
 
 			/* init SEQ register SR80 - SR93 */
 			for (i = 0; i < SIZE_SR80_SR93; i++)
@@ -720,7 +720,7 @@ static void smtc_unmap_mmio(struct smtcfb_info *sfb)
  */
 
 static int smtc_map_smem(struct smtcfb_info *sfb,
-		struct pci_dev *pdev, u_long smem_len)
+			 struct pci_dev *pdev, u_long smem_len)
 {
 	sfb->fb.fix.smem_start = pci_resource_start(pdev, 0);
 
@@ -764,7 +764,7 @@ static inline void sm7xx_init_hw(void)
 }
 
 static int smtcfb_pci_probe(struct pci_dev *pdev,
-				   const struct pci_device_id *ent)
+			    const struct pci_device_id *ent)
 {
 	struct smtcfb_info *sfb;
 	u_long smem_size = 0x00800000;	/* default 8MB */
