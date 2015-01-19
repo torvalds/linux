@@ -2481,8 +2481,6 @@ static void ata_eh_link_report(struct ata_link *link)
 	for (tag = 0; tag < ATA_MAX_QUEUE; tag++) {
 		struct ata_queued_cmd *qc = __ata_qc_from_tag(ap, tag);
 		struct ata_taskfile *cmd = &qc->tf, *res = &qc->result_tf;
-		const u8 *cdb = qc->cdb;
-		size_t cdb_len = qc->dev->cdb_len;
 		char data_buf[20] = "";
 		char cdb_buf[70] = "";
 
@@ -2510,6 +2508,9 @@ static void ata_eh_link_report(struct ata_link *link)
 		}
 
 		if (ata_is_atapi(qc->tf.protocol)) {
+			const u8 *cdb = qc->cdb;
+			size_t cdb_len = qc->dev->cdb_len;
+
 			if (qc->scsicmd) {
 				cdb = qc->scsicmd->cmnd;
 				cdb_len = qc->scsicmd->cmd_len;
