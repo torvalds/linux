@@ -77,6 +77,14 @@
 			clocks = <&pll6 0>;
 			status = "disabled";
 		};
+
+		framebuffer@1 {
+			compatible = "allwinner,simple-framebuffer",
+				     "simple-framebuffer";
+			allwinner,pipeline = "de_be0-lcd0";
+			clocks = <&pll6 0>;
+			status = "disabled";
+		};
 	};
 
 	cpus {
