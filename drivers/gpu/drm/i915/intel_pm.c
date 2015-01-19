@@ -4743,6 +4743,7 @@ static void cherryview_enable_rps(struct drm_device *dev)
 	I915_WRITE(GEN6_RC_CONTROL, rc6_mode);
 
 	/* 4 Program defaults and thresholds for RPS*/
+	I915_WRITE(GEN6_RP_DOWN_TIMEOUT, 1000000);
 	I915_WRITE(GEN6_RP_UP_THRESHOLD, 59400);
 	I915_WRITE(GEN6_RP_DOWN_THRESHOLD, 245000);
 	I915_WRITE(GEN6_RP_UP_EI, 66000);
