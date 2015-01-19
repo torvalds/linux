@@ -1,0 +1,2 @@
+#!/bin/sh
+man `apropos . | awk '{print $1}' | shuf -n 1`
