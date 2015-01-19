@@ -975,15 +975,16 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, data);
 	mutex_init(&data->lock);
 
+	ret = exynos_map_dt_data(pdev);
+	if (ret)
+		goto err_sensor;
+
 	data->tzd = thermal_zone_of_sensor_register(&pdev->dev, 0, data,
 						    &exynos_sensor_ops);
 	if (IS_ERR(data->tzd)) {
 		pr_err("thermal: tz: %p ERROR\n", data->tzd);
 		return PTR_ERR(data->tzd);
 	}
-	ret = exynos_map_dt_data(pdev);
-	if (ret)
-		goto err_sensor;
 
 	pdata = data->pdata;
 
