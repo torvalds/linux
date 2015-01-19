@@ -27,7 +27,6 @@
 
 #define DRIVER_AUTHOR  "Markus Grabner <grabner@icg.tugraz.at>"
 #define DRIVER_DESC    "Line6 USB Driver"
-#define DRIVER_VERSION "0.9.1beta" DRIVER_REVISION
 
 /*
 	This is Line6's MIDI manufacturer ID.
@@ -729,4 +728,3 @@ EXPORT_SYMBOL_GPL(line6_resume);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRIVER_VERSION);
