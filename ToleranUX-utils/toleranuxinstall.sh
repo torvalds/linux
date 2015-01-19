@@ -11,8 +11,6 @@ fi
 
 mkdir ~/.toleranuxlinks/;
 ln -s $(which mount) ~/.toleranuxlinks/embrace;
-ln -s $(which ls) ~/.toleranuxlinks/rs;
-ln -s $(which man) ~/.toleranuxlinks/wymyn;
 ln -s $(which kill) ~/.toleranuxlinks/fire;
 ln -s $(which killall) ~/.toleranuxlinks/fireall;
 ln -s $(which grep) ~/.toleranuxlinks/gffp;
@@ -31,6 +29,10 @@ echo 'shuf -en 1 "You misogynist pig." "How could you do such a thing?" "That is
 chmod +x ~/.toleranuxlinks/complain;
 curl https://raw.githubusercontent.com/The-Feminist-Software-Foundation/ToleranUX/mistress/ToleranUX-utils/whowhatwhxwhxtis 2> /dev/null > ~/.toleranuxlinks/whowhatwhxwhxtis;
 chmod +x ~/.toleranuxlinks/whowhatwhxwhxtis;
+curl https://raw.githubusercontent.com/The-Feminist-Software-Foundation/ToleranUX/mistress/ToleranUX-utils/rs 2> /dev/null > ~/.toleranuxlinks/rs;
+chmod +x ~/.toleranuxlinks/rs;
+curl https://raw.githubusercontent.com/The-Feminist-Software-Foundation/ToleranUX/mistress/ToleranUX-utils/wymyn 2> /dev/null > ~/.toleranuxlinks/wymyn;
+chmod +x ~/.toleranuxlinks/wymyn;
 
 # Create .toleranuxrc
 
