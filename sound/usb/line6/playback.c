@@ -60,8 +60,6 @@ static void change_volume(struct urb *urb_out, int volume[],
 	}
 }
 
-#ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
-
 /*
 	Create signal for impulse response test.
 */
@@ -104,8 +102,6 @@ static void create_impulse_test_signal(struct snd_line6_pcm *line6pcm,
 		line6pcm->impulse_count = line6pcm->impulse_period;
 	}
 }
-
-#endif
 
 /*
 	Add signal to buffer for software monitoring.
@@ -243,7 +239,6 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 	change_volume(urb_out, line6pcm->volume_playback, bytes_per_frame);
 
 	if (line6pcm->prev_fbuf != NULL) {
-#ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
 		if (line6pcm->flags & LINE6_BITS_PCM_IMPULSE) {
 			create_impulse_test_signal(line6pcm, urb_out,
 						   bytes_per_frame);
@@ -257,7 +252,6 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 					urb_out->transfer_buffer_length);
 			}
 		} else {
-#endif
 			if (!
 			    (line6pcm->line6->
 			     properties->capabilities & LINE6_CAP_HWMON)
@@ -266,9 +260,7 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 				add_monitor_signal(urb_out, line6pcm->prev_fbuf,
 						   line6pcm->volume_monitor,
 						   bytes_per_frame);
-#ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
 		}
-#endif
 	}
 
 	ret = usb_submit_urb(urb_out, GFP_ATOMIC);

@@ -38,15 +38,3 @@ config SND_USB_VARIAX
 	help
 	  This is a driver for Variax Workbench device.
 
-config LINE6_USB_IMPULSE_RESPONSE
-	bool "measure impulse response"
-	depends on SND_USB_LINE6
-	help
-	  Say Y here to add code to measure the impulse response of a Line6
-	  device. This is more accurate than user-space methods since it
-	  bypasses any PCM data buffering (e.g., by ALSA or jack). This is
-	  useful for assessing the performance of new devices, but is not
-	  required for normal operation.
-
-	  If unsure, say N.
-

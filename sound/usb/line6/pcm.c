@@ -21,80 +21,75 @@
 #include "driver.h"
 #include "playback.h"
 
-#ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
-
-static struct snd_line6_pcm *dev2pcm(struct device *dev)
+/* impulse response volume controls */
+static int snd_line6_impulse_volume_info(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_info *uinfo)
 {
-	struct usb_interface *interface = to_usb_interface(dev);
-	struct usb_line6 *line6 = usb_get_intfdata(interface);
-	struct snd_line6_pcm *line6pcm = line6->line6pcm;
-	return line6pcm;
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 255;
+	return 0;
 }
 
-/*
-	"read" request on "impulse_volume" special file.
-*/
-static ssize_t impulse_volume_show(struct device *dev,
-				   struct device_attribute *attr, char *buf)
+static int snd_line6_impulse_volume_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
 {
-	return sprintf(buf, "%d\n", dev2pcm(dev)->impulse_volume);
+	struct snd_line6_pcm *line6pcm = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.integer.value[0] = line6pcm->impulse_volume;
+	return 0;
 }
 
-/*
-	"write" request on "impulse_volume" special file.
-*/
-static ssize_t impulse_volume_store(struct device *dev,
-				    struct device_attribute *attr,
-				    const char *buf, size_t count)
+static int snd_line6_impulse_volume_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_line6_pcm *line6pcm = dev2pcm(dev);
-	int value;
-	int ret;
+	struct snd_line6_pcm *line6pcm = snd_kcontrol_chip(kcontrol);
+	int value = ucontrol->value.integer.value[0];
 
-	ret = kstrtoint(buf, 10, &value);
-	if (ret < 0)
-		return ret;
+	if (line6pcm->impulse_volume == value)
+		return 0;
 
 	line6pcm->impulse_volume = value;
-
 	if (value > 0)
 		line6_pcm_acquire(line6pcm, LINE6_BITS_PCM_IMPULSE);
 	else
 		line6_pcm_release(line6pcm, LINE6_BITS_PCM_IMPULSE);
-
-	return count;
+	return 1;
 }
-static DEVICE_ATTR_RW(impulse_volume);
 
-/*
-	"read" request on "impulse_period" special file.
-*/
-static ssize_t impulse_period_show(struct device *dev,
-				   struct device_attribute *attr, char *buf)
+/* impulse response period controls */
+static int snd_line6_impulse_period_info(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_info *uinfo)
 {
-	return sprintf(buf, "%d\n", dev2pcm(dev)->impulse_period);
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 2000;
+	return 0;
 }
 
-/*
-	"write" request on "impulse_period" special file.
-*/
-static ssize_t impulse_period_store(struct device *dev,
-				    struct device_attribute *attr,
-				    const char *buf, size_t count)
+static int snd_line6_impulse_period_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
 {
-	int value;
-	int ret;
+	struct snd_line6_pcm *line6pcm = snd_kcontrol_chip(kcontrol);
 
-	ret = kstrtoint(buf, 10, &value);
-	if (ret < 0)
-		return ret;
-
-	dev2pcm(dev)->impulse_period = value;
-	return count;
+	ucontrol->value.integer.value[0] = line6pcm->impulse_period;
+	return 0;
 }
-static DEVICE_ATTR_RW(impulse_period);
 
-#endif
+static int snd_line6_impulse_period_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_line6_pcm *line6pcm = snd_kcontrol_chip(kcontrol);
+	int value = ucontrol->value.integer.value[0];
+
+	if (line6pcm->impulse_period == value)
+		return 0;
+
+	line6pcm->impulse_period = value;
+	return 1;
+}
 
 static bool test_flags(unsigned long flags0, unsigned long flags1,
 		       unsigned long mask)
@@ -314,14 +309,28 @@ static int snd_line6_control_playback_put(struct snd_kcontrol *kcontrol,
 }
 
 /* control definition */
-static struct snd_kcontrol_new line6_control_playback = {
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "PCM Playback Volume",
-	.index = 0,
-	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
-	.info = snd_line6_control_playback_info,
-	.get = snd_line6_control_playback_get,
-	.put = snd_line6_control_playback_put
+static struct snd_kcontrol_new line6_controls[] = {
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "PCM Playback Volume",
+		.info = snd_line6_control_playback_info,
+		.get = snd_line6_control_playback_get,
+		.put = snd_line6_control_playback_put
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Impulse Response Volume",
+		.info = snd_line6_impulse_volume_info,
+		.get = snd_line6_impulse_volume_get,
+		.put = snd_line6_impulse_volume_put
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Impulse Response Period",
+		.info = snd_line6_impulse_period_info,
+		.get = snd_line6_impulse_period_get,
+		.put = snd_line6_impulse_period_put
+	},
 };
 
 /*
@@ -331,11 +340,6 @@ static void line6_cleanup_pcm(struct snd_pcm *pcm)
 {
 	int i;
 	struct snd_line6_pcm *line6pcm = snd_pcm_chip(pcm);
-
-#ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
-	device_remove_file(line6pcm->line6->ifcdev, &dev_attr_impulse_volume);
-	device_remove_file(line6pcm->line6->ifcdev, &dev_attr_impulse_period);
-#endif
 
 	for (i = LINE6_ISO_BUFFERS; i--;) {
 		if (line6pcm->urb_audio_out[i]) {
@@ -423,7 +427,7 @@ int line6_init_pcm(struct usb_line6 *line6,
 		.dev_free = snd_line6_pcm_free,
 	};
 
-	int err;
+	int i, err;
 	unsigned ep_read = line6->properties->ep_audio_r;
 	unsigned ep_write = line6->properties->ep_audio_w;
 	struct snd_line6_pcm *line6pcm;
@@ -462,6 +466,7 @@ int line6_init_pcm(struct usb_line6 *line6,
 	spin_lock_init(&line6pcm->lock_audio_out);
 	spin_lock_init(&line6pcm->lock_audio_in);
 	spin_lock_init(&line6pcm->lock_trigger);
+	line6pcm->impulse_period = LINE6_IMPULSE_DEFAULT_PERIOD;
 
 	err = line6_create_audio_out_urbs(line6pcm);
 	if (err < 0)
@@ -472,24 +477,12 @@ int line6_init_pcm(struct usb_line6 *line6,
 		return err;
 
 	/* mixer: */
-	err =
-	    snd_ctl_add(line6->card,
-			snd_ctl_new1(&line6_control_playback, line6pcm));
-	if (err < 0)
-		return err;
-
-#ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
-	/* impulse response test: */
-	err = device_create_file(line6->ifcdev, &dev_attr_impulse_volume);
-	if (err < 0)
-		return err;
-
-	err = device_create_file(line6->ifcdev, &dev_attr_impulse_period);
-	if (err < 0)
-		return err;
-
-	line6pcm->impulse_period = LINE6_IMPULSE_DEFAULT_PERIOD;
-#endif
+	for (i = 0; i < ARRAY_SIZE(line6_controls); i++) {
+		err = snd_ctl_add(line6->card,
+				  snd_ctl_new1(&line6_controls[i], line6pcm));
+		if (err < 0)
+			return err;
+	}
 
 	return 0;
 }
