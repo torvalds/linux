@@ -7,7 +7,6 @@
 if [ ! -d ~/.toleranuxlinks/ ]; then
     mkdir ~/.toleranuxlinks/;
     ln -s $(which mount) ~/.toleranuxlinks/embrace;
-    ln -s $(which ls) ~/.toleranuxlinks/rs;
     ln -s $(which man) ~/.toleranuxlinks/wymyn;
     ln -s $(which whois) ~/.toleranuxlinks/whowhatwhxwhxtis;
     ln -s $(which kill) ~/.toleranuxlinks/fire;
