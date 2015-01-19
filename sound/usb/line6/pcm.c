@@ -379,30 +379,13 @@ static int snd_line6_new_pcm(struct usb_line6 *line6, struct snd_pcm **pcm_ret)
 }
 
 /*
-	Stop substream if still running.
-*/
-static void pcm_disconnect_substream(struct snd_pcm_substream *substream)
-{
-	if (substream->runtime && snd_pcm_running(substream)) {
-		snd_pcm_stream_lock_irq(substream);
-		snd_pcm_stop(substream, SNDRV_PCM_STATE_DISCONNECTED);
-		snd_pcm_stream_unlock_irq(substream);
-	}
-}
-
-/*
-	Stop PCM stream.
+	Sync with PCM stream stops.
 */
 void line6_pcm_disconnect(struct snd_line6_pcm *line6pcm)
 {
-	pcm_disconnect_substream(get_substream
-				 (line6pcm, SNDRV_PCM_STREAM_CAPTURE));
-	pcm_disconnect_substream(get_substream
-				 (line6pcm, SNDRV_PCM_STREAM_PLAYBACK));
 	line6_unlink_wait_clear_audio_out_urbs(line6pcm);
 	line6_unlink_wait_clear_audio_in_urbs(line6pcm);
 }
-EXPORT_SYMBOL_GPL(line6_pcm_disconnect);
 
 /*
 	Create and register the PCM device and mixer entries.

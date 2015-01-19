@@ -670,6 +670,8 @@ void line6_disconnect(struct usb_interface *interface)
 		dev_err(line6->ifcdev, "driver bug: inconsistent usb device\n");
 
 	snd_card_disconnect(line6->card);
+	if (line6->line6pcm)
+		line6_pcm_disconnect(line6->line6pcm);
 	if (line6->disconnect)
 		line6->disconnect(interface);
 
