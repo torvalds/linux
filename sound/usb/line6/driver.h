@@ -168,7 +168,6 @@ extern int line6_read_data(struct usb_line6 *line6, int address, void *data,
 			   size_t datalen);
 extern int line6_read_serial_number(struct usb_line6 *line6,
 				    int *serial_number);
-extern int line6_send_program(struct usb_line6 *line6, u8 value);
 extern int line6_send_raw_message_async(struct usb_line6 *line6,
 					const char *buffer, int size);
 extern int line6_send_sysex_message(struct usb_line6 *line6,
@@ -178,8 +177,6 @@ extern ssize_t line6_set_raw(struct device *dev, struct device_attribute *attr,
 extern void line6_start_timer(struct timer_list *timer, unsigned int msecs,
 			      void (*function)(unsigned long),
 			      unsigned long data);
-extern int line6_transmit_parameter(struct usb_line6 *line6, int param,
-				    u8 value);
 extern int line6_version_request_async(struct usb_line6 *line6);
 extern int line6_write_data(struct usb_line6 *line6, int address, void *data,
 			    size_t datalen);

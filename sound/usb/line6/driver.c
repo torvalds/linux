@@ -299,65 +299,6 @@ static void line6_data_received(struct urb *urb)
 }
 
 /*
-	Send channel number (i.e., switch to a different sound).
-*/
-int line6_send_program(struct usb_line6 *line6, u8 value)
-{
-	int retval;
-	unsigned char *buffer;
-	int partial;
-
-	buffer = kmalloc(2, GFP_KERNEL);
-	if (!buffer)
-		return -ENOMEM;
-
-	buffer[0] = LINE6_PROGRAM_CHANGE | LINE6_CHANNEL_HOST;
-	buffer[1] = value;
-
-	retval = usb_interrupt_msg(line6->usbdev,
-				   usb_sndintpipe(line6->usbdev,
-						  line6->properties->ep_ctrl_w),
-				   buffer, 2, &partial, LINE6_TIMEOUT * HZ);
-
-	if (retval)
-		dev_err(line6->ifcdev, "usb_interrupt_msg failed (%d)\n",
-			retval);
-
-	kfree(buffer);
-	return retval;
-}
-
-/*
-	Transmit Line6 control parameter.
-*/
-int line6_transmit_parameter(struct usb_line6 *line6, int param, u8 value)
-{
-	int retval;
-	unsigned char *buffer;
-	int partial;
-
-	buffer = kmalloc(3, GFP_KERNEL);
-	if (!buffer)
-		return -ENOMEM;
-
-	buffer[0] = LINE6_PARAM_CHANGE | LINE6_CHANNEL_HOST;
-	buffer[1] = param;
-	buffer[2] = value;
-
-	retval = usb_interrupt_msg(line6->usbdev,
-				   usb_sndintpipe(line6->usbdev,
-						  line6->properties->ep_ctrl_w),
-				   buffer, 3, &partial, LINE6_TIMEOUT * HZ);
-
-	if (retval)
-		dev_err(line6->ifcdev, "usb_interrupt_msg failed (%d)\n",
-			retval);
-
-	kfree(buffer);
-	return retval;
-}
-
-/*
 	Read data from device.
 */
 int line6_read_data(struct usb_line6 *line6, int address, void *data,
