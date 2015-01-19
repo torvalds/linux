@@ -966,9 +966,9 @@ static void dwc_otg_hcd_reinit(dwc_otg_hcd_t *hcd)
 	dwc_hc_t *channel;
 	dwc_hc_t *channel_tmp;
 	dwc_irqflags_t flags;
+	dwc_spinlock_t *temp_lock;
 
 	hcd->flags.d32 = 0;
-
 	hcd->non_periodic_qh_ptr = &hcd->non_periodic_sched_active;
 	hcd->non_periodic_channels = 0;
 	hcd->periodic_channels = 0;
@@ -995,7 +995,15 @@ static void dwc_otg_hcd_reinit(dwc_otg_hcd_t *hcd)
 	dwc_otg_core_host_init(hcd->core_if);
 
 	/* Set core_if's lock pointer to the hcd->lock */
-	hcd->core_if->lock = hcd->lock;
+	/* Should get this lock before modify it */
+	if (hcd->core_if->lock) {
+		DWC_SPINLOCK_IRQSAVE(hcd->core_if->lock, &flags);
+		temp_lock = hcd->core_if->lock;
+		hcd->core_if->lock = hcd->lock;
+		DWC_SPINUNLOCK_IRQRESTORE(temp_lock, flags);
+	} else {
+		hcd->core_if->lock = hcd->lock;
+	}
 }
 
 /**
