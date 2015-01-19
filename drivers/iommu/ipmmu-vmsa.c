@@ -16,7 +16,7 @@
 #include <linux/io.h>
 #include <linux/iommu.h>
 #include <linux/module.h>
-#include <linux/platform_data/ipmmu-vmsa.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
@@ -29,7 +29,6 @@ struct ipmmu_vmsa_device {
 	void __iomem *base;
 	struct list_head list;
 
-	const struct ipmmu_vmsa_platform_data *pdata;
 	unsigned int num_utlbs;
 
 	struct dma_iommu_mapping *mapping;
@@ -46,7 +45,8 @@ struct ipmmu_vmsa_domain {
 
 struct ipmmu_vmsa_archdata {
 	struct ipmmu_vmsa_device *mmu;
-	unsigned int utlb;
+	unsigned int *utlbs;
+	unsigned int num_utlbs;
 };
 
 static DEFINE_SPINLOCK(ipmmu_devices_lock);
@@ -57,6 +57,8 @@ static LIST_HEAD(ipmmu_devices);
 /* -----------------------------------------------------------------------------
  * Registers Definition
  */
+
+#define IM_NS_ALIAS_OFFSET		0x800
 
 #define IM_CTX_SIZE			0x40
 
@@ -678,29 +680,32 @@ done:
 
 static void ipmmu_clear_pud(struct ipmmu_vmsa_device *mmu, pud_t *pud)
 {
-	/* Free the page table. */
 	pgtable_t table = pud_pgtable(*pud);
-	__free_page(table);
 
 	/* Clear the PUD. */
 	*pud = __pud(0);
 	ipmmu_flush_pgtable(mmu, pud, sizeof(*pud));
+
+	/* Free the page table. */
+	__free_page(table);
 }
 
 static void ipmmu_clear_pmd(struct ipmmu_vmsa_device *mmu, pud_t *pud,
 			    pmd_t *pmd)
 {
+	pmd_t pmdval = *pmd;
 	unsigned int i;
-
-	/* Free the page table. */
-	if (pmd_table(*pmd)) {
-		pgtable_t table = pmd_pgtable(*pmd);
-		__free_page(table);
-	}
 
 	/* Clear the PMD. */
 	*pmd = __pmd(0);
 	ipmmu_flush_pgtable(mmu, pmd, sizeof(*pmd));
+
+	/* Free the page table. */
+	if (pmd_table(pmdval)) {
+		pgtable_t table = pmd_pgtable(pmdval);
+
+		__free_page(table);
+	}
 
 	/* Check whether the PUD is still needed. */
 	pmd = pmd_offset(pud, 0);
@@ -782,7 +787,6 @@ static int ipmmu_clear_mapping(struct ipmmu_vmsa_domain *domain,
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
-	int ret = 0;
 
 	if (!pgd)
 		return -EINVAL;
@@ -844,8 +848,7 @@ static int ipmmu_clear_mapping(struct ipmmu_vmsa_domain *domain,
 done:
 	spin_unlock_irqrestore(&domain->lock, flags);
 
-	if (ret)
-		ipmmu_tlb_invalidate(domain);
+	ipmmu_tlb_invalidate(domain);
 
 	return 0;
 }
@@ -896,6 +899,7 @@ static int ipmmu_attach_device(struct iommu_domain *io_domain,
 	struct ipmmu_vmsa_device *mmu = archdata->mmu;
 	struct ipmmu_vmsa_domain *domain = io_domain->priv;
 	unsigned long flags;
+	unsigned int i;
 	int ret = 0;
 
 	if (!mmu) {
@@ -924,7 +928,8 @@ static int ipmmu_attach_device(struct iommu_domain *io_domain,
 	if (ret < 0)
 		return ret;
 
-	ipmmu_utlb_enable(domain, archdata->utlb);
+	for (i = 0; i < archdata->num_utlbs; ++i)
+		ipmmu_utlb_enable(domain, archdata->utlbs[i]);
 
 	return 0;
 }
@@ -934,8 +939,10 @@ static void ipmmu_detach_device(struct iommu_domain *io_domain,
 {
 	struct ipmmu_vmsa_archdata *archdata = dev->archdata.iommu;
 	struct ipmmu_vmsa_domain *domain = io_domain->priv;
+	unsigned int i;
 
-	ipmmu_utlb_disable(domain, archdata->utlb);
+	for (i = 0; i < archdata->num_utlbs; ++i)
+		ipmmu_utlb_disable(domain, archdata->utlbs[i]);
 
 	/*
 	 * TODO: Optimize by disabling the context when no device is attached.
@@ -999,26 +1006,56 @@ static phys_addr_t ipmmu_iova_to_phys(struct iommu_domain *io_domain,
 	return __pfn_to_phys(pte_pfn(pte)) | (iova & ~PAGE_MASK);
 }
 
-static int ipmmu_find_utlb(struct ipmmu_vmsa_device *mmu, struct device *dev)
+static int ipmmu_find_utlbs(struct ipmmu_vmsa_device *mmu, struct device *dev,
+			    unsigned int **_utlbs)
 {
-	const struct ipmmu_vmsa_master *master = mmu->pdata->masters;
-	const char *devname = dev_name(dev);
+	unsigned int *utlbs;
 	unsigned int i;
+	int count;
 
-	for (i = 0; i < mmu->pdata->num_masters; ++i, ++master) {
-		if (strcmp(master->name, devname) == 0)
-			return master->utlb;
+	count = of_count_phandle_with_args(dev->of_node, "iommus",
+					   "#iommu-cells");
+	if (count < 0)
+		return -EINVAL;
+
+	utlbs = kcalloc(count, sizeof(*utlbs), GFP_KERNEL);
+	if (!utlbs)
+		return -ENOMEM;
+
+	for (i = 0; i < count; ++i) {
+		struct of_phandle_args args;
+		int ret;
+
+		ret = of_parse_phandle_with_args(dev->of_node, "iommus",
+						 "#iommu-cells", i, &args);
+		if (ret < 0)
+			goto error;
+
+		of_node_put(args.np);
+
+		if (args.np != mmu->dev->of_node || args.args_count != 1)
+			goto error;
+
+		utlbs[i] = args.args[0];
 	}
 
-	return -1;
+	*_utlbs = utlbs;
+
+	return count;
+
+error:
+	kfree(utlbs);
+	return -EINVAL;
 }
 
 static int ipmmu_add_device(struct device *dev)
 {
 	struct ipmmu_vmsa_archdata *archdata;
 	struct ipmmu_vmsa_device *mmu;
-	struct iommu_group *group;
-	int utlb = -1;
+	struct iommu_group *group = NULL;
+	unsigned int *utlbs = NULL;
+	unsigned int i;
+	int num_utlbs = 0;
 	int ret;
 
 	if (dev->archdata.iommu) {
@@ -1031,8 +1068,8 @@ static int ipmmu_add_device(struct device *dev)
 	spin_lock(&ipmmu_devices_lock);
 
 	list_for_each_entry(mmu, &ipmmu_devices, list) {
-		utlb = ipmmu_find_utlb(mmu, dev);
-		if (utlb >= 0) {
+		num_utlbs = ipmmu_find_utlbs(mmu, dev, &utlbs);
+		if (num_utlbs) {
 			/*
 			 * TODO Take a reference to the MMU to protect
 			 * against device removal.
@@ -1043,17 +1080,22 @@ static int ipmmu_add_device(struct device *dev)
 
 	spin_unlock(&ipmmu_devices_lock);
 
-	if (utlb < 0)
+	if (num_utlbs <= 0)
 		return -ENODEV;
 
-	if (utlb >= mmu->num_utlbs)
-		return -EINVAL;
+	for (i = 0; i < num_utlbs; ++i) {
+		if (utlbs[i] >= mmu->num_utlbs) {
+			ret = -EINVAL;
+			goto error;
+		}
+	}
 
 	/* Create a device group and add the device to it. */
 	group = iommu_group_alloc();
 	if (IS_ERR(group)) {
 		dev_err(dev, "Failed to allocate IOMMU group\n");
-		return PTR_ERR(group);
+		ret = PTR_ERR(group);
+		goto error;
 	}
 
 	ret = iommu_group_add_device(group, dev);
@@ -1061,7 +1103,8 @@ static int ipmmu_add_device(struct device *dev)
 
 	if (ret < 0) {
 		dev_err(dev, "Failed to add device to IPMMU group\n");
-		return ret;
+		group = NULL;
+		goto error;
 	}
 
 	archdata = kzalloc(sizeof(*archdata), GFP_KERNEL);
@@ -1071,7 +1114,8 @@ static int ipmmu_add_device(struct device *dev)
 	}
 
 	archdata->mmu = mmu;
-	archdata->utlb = utlb;
+	archdata->utlbs = utlbs;
+	archdata->num_utlbs = num_utlbs;
 	dev->archdata.iommu = archdata;
 
 	/*
@@ -1090,7 +1134,8 @@ static int ipmmu_add_device(struct device *dev)
 						   SZ_1G, SZ_2G);
 		if (IS_ERR(mapping)) {
 			dev_err(mmu->dev, "failed to create ARM IOMMU mapping\n");
-			return PTR_ERR(mapping);
+			ret = PTR_ERR(mapping);
+			goto error;
 		}
 
 		mmu->mapping = mapping;
@@ -1106,17 +1151,29 @@ static int ipmmu_add_device(struct device *dev)
 	return 0;
 
 error:
+	arm_iommu_release_mapping(mmu->mapping);
+
 	kfree(dev->archdata.iommu);
+	kfree(utlbs);
+
 	dev->archdata.iommu = NULL;
-	iommu_group_remove_device(dev);
+
+	if (!IS_ERR_OR_NULL(group))
+		iommu_group_remove_device(dev);
+
 	return ret;
 }
 
 static void ipmmu_remove_device(struct device *dev)
 {
+	struct ipmmu_vmsa_archdata *archdata = dev->archdata.iommu;
+
 	arm_iommu_detach_device(dev);
 	iommu_group_remove_device(dev);
-	kfree(dev->archdata.iommu);
+
+	kfree(archdata->utlbs);
+	kfree(archdata);
+
 	dev->archdata.iommu = NULL;
 }
 
@@ -1154,7 +1211,7 @@ static int ipmmu_probe(struct platform_device *pdev)
 	int irq;
 	int ret;
 
-	if (!pdev->dev.platform_data) {
+	if (!IS_ENABLED(CONFIG_OF) && !pdev->dev.platform_data) {
 		dev_err(&pdev->dev, "missing platform data\n");
 		return -EINVAL;
 	}
@@ -1166,7 +1223,6 @@ static int ipmmu_probe(struct platform_device *pdev)
 	}
 
 	mmu->dev = &pdev->dev;
-	mmu->pdata = pdev->dev.platform_data;
 	mmu->num_utlbs = 32;
 
 	/* Map I/O memory and request IRQ. */
@@ -1174,6 +1230,20 @@ static int ipmmu_probe(struct platform_device *pdev)
 	mmu->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(mmu->base))
 		return PTR_ERR(mmu->base);
+
+	/*
+	 * The IPMMU has two register banks, for secure and non-secure modes.
+	 * The bank mapped at the beginning of the IPMMU address space
+	 * corresponds to the running mode of the CPU. When running in secure
+	 * mode the non-secure register bank is also available at an offset.
+	 *
+	 * Secure mode operation isn't clearly documented and is thus currently
+	 * not implemented in the driver. Furthermore, preliminary tests of
+	 * non-secure operation with the main register bank were not successful.
+	 * Offset the registers base unconditionally to point to the non-secure
+	 * alias space for now.
+	 */
+	mmu->base += IM_NS_ALIAS_OFFSET;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -1220,9 +1290,14 @@ static int ipmmu_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id ipmmu_of_ids[] = {
+	{ .compatible = "renesas,ipmmu-vmsa", },
+};
+
 static struct platform_driver ipmmu_driver = {
 	.driver = {
 		.name = "ipmmu-vmsa",
+		.of_match_table = of_match_ptr(ipmmu_of_ids),
 	},
 	.probe = ipmmu_probe,
 	.remove	= ipmmu_remove,
