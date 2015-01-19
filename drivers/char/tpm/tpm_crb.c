@@ -107,9 +107,9 @@ static int crb_resume(struct device *dev)
 
 	return rc;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(crb_pm, tpm_pm_suspend, crb_resume);
-#endif
 
 static u8 crb_status(struct tpm_chip *chip)
 {
