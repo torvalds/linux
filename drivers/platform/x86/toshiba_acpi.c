@@ -404,6 +404,19 @@ static int sci_open(struct toshiba_acpi_dev *dev)
 	} else if (out[0] == TOS_ALREADY_OPEN) {
 		pr_info("Toshiba SCI already opened\n");
 		return 1;
+	} else if (out[0] == TOS_NOT_SUPPORTED) {
+		/* Some BIOSes do not have the SCI open/close functions
+		 * implemented and return 0x8000 (Not Supported), failing to
+		 * register some supported features.
+		 *
+		 * Simply return 1 if we hit those affected laptops to make the
+		 * supported features work.
+		 *
+		 * In the case that some laptops really do not support the SCI,
+		 * all the SCI dependent functions check for TOS_NOT_SUPPORTED,
+		 * and thus, not registering support for the queried feature.
+		 */
+		return 1;
 	} else if (out[0] == TOS_NOT_PRESENT) {
 		pr_info("Toshiba SCI is not present\n");
 	}
