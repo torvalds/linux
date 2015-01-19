@@ -116,8 +116,6 @@ show_rc6p_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 {
 	struct drm_minor *dminor = dev_to_drm_minor(kdev);
 	u32 rc6p_residency = calc_residency(dminor->dev, GEN6_GT_GFX_RC6p);
-	if (IS_VALLEYVIEW(dminor->dev))
-		rc6p_residency = 0;
 	return snprintf(buf, PAGE_SIZE, "%u\n", rc6p_residency);
 }
 
@@ -126,8 +124,6 @@ show_rc6pp_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 {
 	struct drm_minor *dminor = dev_to_drm_minor(kdev);
 	u32 rc6pp_residency = calc_residency(dminor->dev, GEN6_GT_GFX_RC6pp);
-	if (IS_VALLEYVIEW(dminor->dev))
-		rc6pp_residency = 0;
 	return snprintf(buf, PAGE_SIZE, "%u\n", rc6pp_residency);
 }
 
