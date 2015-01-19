@@ -314,7 +314,7 @@ The implication that something could be `less`er is outrageous.  From now on `le
 
 ### `look`
 
-Only womyn should be allowed to `look`.  [Cishet male](https://en.wikipedia.org/wiki/Cisgender) nerds should not be allowed to use their oppressive gaze upon the beautiful visages of strong and independent womyn.  1 in 4 women are visually raped in their lifetime when walking down the street.
+Only womyn should be allowed to `look`.  [Cishet male](https://en.wikipedia.org/wiki/Cisgender) nerds should not be allowed to use their oppressive gaze upon the beautiful visages of strong and independent womyn.  1 in 4 women are [psychologically raped by visual contact](http://www.umich.edu/~mrev/issues/Vol_10_No_6.pdf) in their lifetime when walking down the street.
 
 ### `true`
 
