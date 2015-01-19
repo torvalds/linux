@@ -642,6 +642,7 @@ static __modinit int add_sysfs_param(struct module_kobject *mk,
 	mk->mp->grp.attrs = new_attrs;
 
 	/* Tack new one on the end. */
+	memset(&mk->mp->attrs[mk->mp->num], 0, sizeof(mk->mp->attrs[0]));
 	sysfs_attr_init(&mk->mp->attrs[mk->mp->num].mattr.attr);
 	mk->mp->attrs[mk->mp->num].param = kp;
 	mk->mp->attrs[mk->mp->num].mattr.show = param_attr_show;
