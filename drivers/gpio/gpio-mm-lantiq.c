@@ -105,7 +105,7 @@ static void ltq_mm_save_regs(struct of_mm_gpio_chip *mm_gc)
 static int ltq_mm_probe(struct platform_device *pdev)
 {
 	struct ltq_mm *chip;
-	const __be32 *shadow;
+	u32 shadow;
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -117,9 +117,8 @@ static int ltq_mm_probe(struct platform_device *pdev)
 	chip->mmchip.save_regs = ltq_mm_save_regs;
 
 	/* store the shadow value if one was passed by the devicetree */
-	shadow = of_get_property(pdev->dev.of_node, "lantiq,shadow", NULL);
-	if (shadow)
-		chip->shadow = be32_to_cpu(*shadow);
+	if (!of_property_read_u32(pdev->dev.of_node, "lantiq,shadow", &shadow))
+		chip->shadow = shadow;
 
 	return of_mm_gpiochip_add(pdev->dev.of_node, &chip->mmchip);
 }
