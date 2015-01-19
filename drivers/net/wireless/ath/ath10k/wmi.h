@@ -2939,7 +2939,7 @@ struct wmi_wmm_params_arg {
 	u32 no_ack;
 };
 
-struct wmi_pdev_set_wmm_params_arg {
+struct wmi_wmm_params_all_arg {
 	struct wmi_wmm_params_arg ac_be;
 	struct wmi_wmm_params_arg ac_bk;
 	struct wmi_wmm_params_arg ac_vi;
@@ -4869,8 +4869,8 @@ void ath10k_wmi_put_host_mem_chunks(struct ath10k *ar,
 				    struct wmi_host_mem_chunks *chunks);
 void ath10k_wmi_put_start_scan_common(struct wmi_start_scan_common *cmn,
 				      const struct wmi_start_scan_arg *arg);
-void ath10k_wmi_pdev_set_wmm_param(struct wmi_wmm_params *params,
-				   const struct wmi_wmm_params_arg *arg);
+void ath10k_wmi_set_wmm_param(struct wmi_wmm_params *params,
+			      const struct wmi_wmm_params_arg *arg);
 void ath10k_wmi_put_wmi_channel(struct wmi_channel *ch,
 				const struct wmi_channel_arg *arg);
 int ath10k_wmi_start_scan_verify(const struct wmi_start_scan_arg *arg);

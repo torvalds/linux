@@ -104,7 +104,7 @@ struct wmi_ops {
 					      const struct wmi_scan_chan_list_arg *arg);
 	struct sk_buff *(*gen_beacon_dma)(struct ath10k_vif *arvif);
 	struct sk_buff *(*gen_pdev_set_wmm)(struct ath10k *ar,
-					    const struct wmi_pdev_set_wmm_params_arg *arg);
+					    const struct wmi_wmm_params_all_arg *arg);
 	struct sk_buff *(*gen_request_stats)(struct ath10k *ar,
 					     enum wmi_stats_id stats_id);
 	struct sk_buff *(*gen_force_fw_hang)(struct ath10k *ar,
@@ -774,7 +774,7 @@ ath10k_wmi_beacon_send_ref_nowait(struct ath10k_vif *arvif)
 
 static inline int
 ath10k_wmi_pdev_set_wmm_params(struct ath10k *ar,
-			       const struct wmi_pdev_set_wmm_params_arg *arg)
+			       const struct wmi_wmm_params_all_arg *arg)
 {
 	struct sk_buff *skb;
 

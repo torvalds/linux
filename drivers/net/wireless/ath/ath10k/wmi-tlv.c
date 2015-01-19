@@ -1584,6 +1584,21 @@ ath10k_wmi_tlv_op_gen_vdev_sta_uapsd(struct ath10k *ar, u32 vdev_id,
 	return skb;
 }
 
+static void *ath10k_wmi_tlv_put_wmm(void *ptr,
+				    const struct wmi_wmm_params_arg *arg)
+{
+	struct wmi_wmm_params *wmm;
+	struct wmi_tlv *tlv;
+
+	tlv = ptr;
+	tlv->tag = __cpu_to_le16(WMI_TLV_TAG_STRUCT_WMM_PARAMS);
+	tlv->len = __cpu_to_le16(sizeof(*wmm));
+	wmm = (void *)tlv->value;
+	ath10k_wmi_set_wmm_param(wmm, arg);
+
+	return ptr + sizeof(*tlv) + sizeof(*wmm);
+}
+
 static struct sk_buff *
 ath10k_wmi_tlv_op_gen_peer_create(struct ath10k *ar, u32 vdev_id,
 				  const u8 peer_addr[ETH_ALEN])
@@ -1944,24 +1959,9 @@ ath10k_wmi_tlv_op_gen_beacon_dma(struct ath10k_vif *arvif)
 	return skb;
 }
 
-static void *ath10k_wmi_tlv_put_wmm(void *ptr,
-				    const struct wmi_wmm_params_arg *arg)
-{
-	struct wmi_wmm_params *wmm;
-	struct wmi_tlv *tlv;
-
-	tlv = ptr;
-	tlv->tag = __cpu_to_le16(WMI_TLV_TAG_STRUCT_WMM_PARAMS);
-	tlv->len = __cpu_to_le16(sizeof(*wmm));
-	wmm = (void *)tlv->value;
-	ath10k_wmi_pdev_set_wmm_param(wmm, arg);
-
-	return ptr + sizeof(*tlv) + sizeof(*wmm);
-}
-
 static struct sk_buff *
 ath10k_wmi_tlv_op_gen_pdev_set_wmm(struct ath10k *ar,
-				   const struct wmi_pdev_set_wmm_params_arg *arg)
+				   const struct wmi_wmm_params_all_arg *arg)
 {
 	struct wmi_tlv_pdev_set_wmm_cmd *cmd;
 	struct wmi_wmm_params *wmm;

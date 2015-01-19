@@ -315,6 +315,7 @@ struct ath10k_vif {
 	bool use_cts_prot;
 	int num_legacy_stations;
 	int txpower;
+	struct wmi_wmm_params_all_arg wmm_params;
 };
 
 struct ath10k_vif_iter {
@@ -577,7 +578,6 @@ struct ath10k {
 	u8 cfg_tx_chainmask;
 	u8 cfg_rx_chainmask;
 
-	struct wmi_pdev_set_wmm_params_arg wmm_params;
 	struct completion install_key_done;
 
 	struct completion vdev_setup_done;

@@ -4092,6 +4092,7 @@ static int ath10k_conf_tx(struct ieee80211_hw *hw,
 			  const struct ieee80211_tx_queue_params *params)
 {
 	struct ath10k *ar = hw->priv;
+	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
 	struct wmi_wmm_params_arg *p = NULL;
 	int ret;
 
@@ -4099,16 +4100,16 @@ static int ath10k_conf_tx(struct ieee80211_hw *hw,
 
 	switch (ac) {
 	case IEEE80211_AC_VO:
-		p = &ar->wmm_params.ac_vo;
+		p = &arvif->wmm_params.ac_vo;
 		break;
 	case IEEE80211_AC_VI:
-		p = &ar->wmm_params.ac_vi;
+		p = &arvif->wmm_params.ac_vi;
 		break;
 	case IEEE80211_AC_BE:
-		p = &ar->wmm_params.ac_be;
+		p = &arvif->wmm_params.ac_be;
 		break;
 	case IEEE80211_AC_BK:
-		p = &ar->wmm_params.ac_bk;
+		p = &arvif->wmm_params.ac_bk;
 		break;
 	}
 
@@ -4129,7 +4130,7 @@ static int ath10k_conf_tx(struct ieee80211_hw *hw,
 	p->txop = params->txop * 32;
 
 	/* FIXME: FW accepts wmm params per hw, not per vif */
-	ret = ath10k_wmi_pdev_set_wmm_params(ar, &ar->wmm_params);
+	ret = ath10k_wmi_pdev_set_wmm_params(ar, &arvif->wmm_params);
 	if (ret) {
 		ath10k_warn(ar, "failed to set wmm params: %d\n", ret);
 		goto exit;
