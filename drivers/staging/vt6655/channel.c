@@ -197,11 +197,11 @@ bool set_channel(void *pDeviceHandler, struct ieee80211_channel *ch)
 
 	if (pDevice->byRFType == RF_AIROHA7230)
 		RFbAL7230SelectChannelPostProcess(pDevice, pDevice->byCurrentCh,
-						  (unsigned char)ch->hw_value);
+						  ch->hw_value);
 
-	pDevice->byCurrentCh = (unsigned char)ch->hw_value;
+	pDevice->byCurrentCh = ch->hw_value;
 	bResult &= RFbSelectChannel(pDevice, pDevice->byRFType,
-				    (unsigned char)ch->hw_value);
+				    ch->hw_value);
 
 	/* Init Synthesizer Table */
 	if (pDevice->bEnablePSMode)

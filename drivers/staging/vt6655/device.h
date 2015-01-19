@@ -367,7 +367,7 @@ struct vnt_private {
 	bool bIsBeaconBufReadySet;
 	unsigned int	cbBeaconBufReadySetCnt;
 	bool bFixRate;
-	unsigned char byCurrentCh;
+	u16 byCurrentCh;
 
 	bool bAES;
 

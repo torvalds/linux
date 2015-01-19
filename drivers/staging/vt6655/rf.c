@@ -651,7 +651,8 @@ bool RFbInit(
  * Return Value: true if succeeded; false if failed.
  *
  */
-bool RFbSelectChannel(struct vnt_private *priv, unsigned char byRFType, unsigned char byChannel)
+bool RFbSelectChannel(struct vnt_private *priv, unsigned char byRFType,
+		      u16 byChannel)
 {
 	bool bResult = true;
 
@@ -687,7 +688,8 @@ bool RFbSelectChannel(struct vnt_private *priv, unsigned char byRFType, unsigned
  * Return Value: None.
  *
  */
-bool RFvWriteWakeProgSyn(struct vnt_private *priv, unsigned char byRFType, unsigned int uChannel)
+bool RFvWriteWakeProgSyn(struct vnt_private *priv, unsigned char byRFType,
+			 u16 uChannel)
 {
 	void __iomem *dwIoBase = priv->PortOffset;
 	int   ii;
@@ -767,7 +769,7 @@ bool RFvWriteWakeProgSyn(struct vnt_private *priv, unsigned char byRFType, unsig
 bool RFbSetPower(
 	struct vnt_private *priv,
 	unsigned int uRATE,
-	unsigned int uCH
+	u16 uCH
 )
 {
 	bool bResult = true;
@@ -937,8 +939,8 @@ RFvRSSITodBm(
 /* Post processing for the 11b/g and 11a.
  * for save time on changing Reg2,3,5,7,10,12,15 */
 bool RFbAL7230SelectChannelPostProcess(struct vnt_private *priv,
-				       unsigned char byOldChannel,
-				       unsigned char byNewChannel)
+				       u16 byOldChannel,
+				       u16 byNewChannel)
 {
 	bool bResult;
 
