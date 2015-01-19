@@ -758,8 +758,6 @@ static inline struct dma_async_tx_descriptor *dmaengine_prep_dma_sg(
 			src_sg, src_nents, flags);
 }
 
-int dma_get_slave_caps(struct dma_chan *chan, struct dma_slave_caps *caps);
-
 static inline int dmaengine_terminate_all(struct dma_chan *chan)
 {
 	if (chan->device->device_terminate_all)
@@ -1048,6 +1046,7 @@ struct dma_chan *dma_request_slave_channel_reason(struct device *dev,
 						  const char *name);
 struct dma_chan *dma_request_slave_channel(struct device *dev, const char *name);
 void dma_release_channel(struct dma_chan *chan);
+int dma_get_slave_caps(struct dma_chan *chan, struct dma_slave_caps *caps);
 #else
 static inline struct dma_chan *dma_find_channel(enum dma_transaction_type tx_type)
 {
@@ -1081,6 +1080,11 @@ static inline struct dma_chan *dma_request_slave_channel(struct device *dev,
 }
 static inline void dma_release_channel(struct dma_chan *chan)
 {
+}
+static inline int dma_get_slave_caps(struct dma_chan *chan,
+				     struct dma_slave_caps *caps)
+{
+	return -ENXIO;
 }
 #endif
 
