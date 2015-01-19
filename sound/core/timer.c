@@ -1030,9 +1030,7 @@ static int snd_timer_register_system(void)
 		snd_timer_free(timer);
 		return -ENOMEM;
 	}
-	init_timer(&priv->tlist);
-	priv->tlist.function = snd_timer_s_function;
-	priv->tlist.data = (unsigned long) timer;
+	setup_timer(&priv->tlist, snd_timer_s_function, (unsigned long) timer);
 	timer->private_data = priv;
 	timer->private_free = snd_timer_free_system;
 	return snd_timer_global_register(timer);
