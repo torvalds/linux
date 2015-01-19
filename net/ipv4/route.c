@@ -2483,7 +2483,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh)
 	err = rt_fill_info(net, dst, src, &fl4, skb,
 			   NETLINK_CB(in_skb).portid, nlh->nlmsg_seq,
 			   RTM_NEWROUTE, 0, 0);
-	if (err <= 0)
+	if (err < 0)
 		goto errout_free;
 
 	err = rtnl_unicast(skb, net, NETLINK_CB(in_skb).portid);

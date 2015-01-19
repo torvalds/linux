@@ -4213,7 +4213,7 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 				goto cont;
 
 			if (in6_dump_addrs(idev, skb, cb, type,
-					   s_ip_idx, &ip_idx) <= 0)
+					   s_ip_idx, &ip_idx) < 0)
 				goto done;
 cont:
 			idx++;
