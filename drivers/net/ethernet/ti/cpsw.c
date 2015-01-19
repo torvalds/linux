@@ -1632,8 +1632,8 @@ static void cpsw_ndo_poll_controller(struct net_device *ndev)
 
 	cpsw_intr_disable(priv);
 	cpdma_ctlr_int_ctrl(priv->dma, false);
-	cpsw_rx_interrupt(priv->irq[0], priv);
-	cpsw_tx_interrupt(priv->irq[1], priv);
+	cpsw_rx_interrupt(priv->irqs_table[0], priv);
+	cpsw_tx_interrupt(priv->irqs_table[1], priv);
 	cpdma_ctlr_int_ctrl(priv->dma, true);
 	cpsw_intr_enable(priv);
 }
