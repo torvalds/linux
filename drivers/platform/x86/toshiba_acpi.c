@@ -122,6 +122,7 @@ MODULE_LICENSE("GPL");
 #define HCI_ECO_MODE			0x0097
 #define HCI_ACCELEROMETER2		0x00a6
 #define SCI_ILLUMINATION		0x014e
+#define SCI_USB_SLEEP_CHARGE		0x0150
 #define SCI_KBD_ILLUM_STATUS		0x015c
 #define SCI_TOUCHPAD			0x050e
 
@@ -146,6 +147,10 @@ MODULE_LICENSE("GPL");
 #define SCI_KBD_MODE_ON			0x8
 #define SCI_KBD_MODE_OFF		0x10
 #define SCI_KBD_TIME_MAX		0x3c001a
+#define SCI_USB_CHARGE_MODE_MASK	0xff
+#define SCI_USB_CHARGE_DISABLED		0x30000
+#define SCI_USB_CHARGE_ALTERNATE	0x30009
+#define SCI_USB_CHARGE_AUTO		0x30021
 
 struct toshiba_acpi_dev {
 	struct acpi_device *acpi_dev;
@@ -177,6 +182,7 @@ struct toshiba_acpi_dev {
 	unsigned int touchpad_supported:1;
 	unsigned int eco_supported:1;
 	unsigned int accelerometer_supported:1;
+	unsigned int usb_sleep_charge_supported:1;
 	unsigned int sysfs_created:1;
 
 	struct mutex mutex;
@@ -760,6 +766,53 @@ static int toshiba_accelerometer_get(struct toshiba_acpi_dev *dev,
 	return 0;
 }
 
+/* Sleep (Charge and Music) utilities support */
+static int toshiba_usb_sleep_charge_get(struct toshiba_acpi_dev *dev,
+					u32 *mode)
+{
+	u32 result;
+
+	if (!sci_open(dev))
+		return -EIO;
+
+	result = sci_read(dev, SCI_USB_SLEEP_CHARGE, mode);
+	sci_close(dev);
+	if (result == TOS_FAILURE) {
+		pr_err("ACPI call to set USB S&C mode failed\n");
+		return -EIO;
+	} else if (result == TOS_NOT_SUPPORTED) {
+		pr_info("USB Sleep and Charge not supported\n");
+		return -ENODEV;
+	} else if (result == TOS_INPUT_DATA_ERROR) {
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int toshiba_usb_sleep_charge_set(struct toshiba_acpi_dev *dev,
+					u32 mode)
+{
+	u32 result;
+
+	if (!sci_open(dev))
+		return -EIO;
+
+	result = sci_write(dev, SCI_USB_SLEEP_CHARGE, mode);
+	sci_close(dev);
+	if (result == TOS_FAILURE) {
+		pr_err("ACPI call to set USB S&C mode failed\n");
+		return -EIO;
+	} else if (result == TOS_NOT_SUPPORTED) {
+		pr_info("USB Sleep and Charge not supported\n");
+		return -ENODEV;
+	} else if (result == TOS_INPUT_DATA_ERROR) {
+		return -EIO;
+	}
+
+	return 0;
+}
+
 /* Bluetooth rfkill handlers */
 
 static u32 hci_get_bt_present(struct toshiba_acpi_dev *dev, bool *present)
@@ -1313,6 +1366,12 @@ static ssize_t toshiba_touchpad_show(struct device *dev,
 static ssize_t toshiba_position_show(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf);
+static ssize_t toshiba_usb_sleep_charge_show(struct device *dev,
+					     struct device_attribute *attr,
+					     char *buf);
+static ssize_t toshiba_usb_sleep_charge_store(struct device *dev,
+					      struct device_attribute *attr,
+					      const char *buf, size_t count);
 
 static DEVICE_ATTR(kbd_backlight_mode, S_IRUGO | S_IWUSR,
 		   toshiba_kbd_bl_mode_show, toshiba_kbd_bl_mode_store);
@@ -1324,6 +1383,9 @@ static DEVICE_ATTR(kbd_backlight_timeout, S_IRUGO | S_IWUSR,
 static DEVICE_ATTR(touchpad, S_IRUGO | S_IWUSR,
 		   toshiba_touchpad_show, toshiba_touchpad_store);
 static DEVICE_ATTR(position, S_IRUGO, toshiba_position_show, NULL);
+static DEVICE_ATTR(usb_sleep_charge, S_IRUGO | S_IWUSR,
+		   toshiba_usb_sleep_charge_show,
+		   toshiba_usb_sleep_charge_store);
 
 static struct attribute *toshiba_attributes[] = {
 	&dev_attr_kbd_backlight_mode.attr,
@@ -1332,6 +1394,7 @@ static struct attribute *toshiba_attributes[] = {
 	&dev_attr_kbd_backlight_timeout.attr,
 	&dev_attr_touchpad.attr,
 	&dev_attr_position.attr,
+	&dev_attr_usb_sleep_charge.attr,
 	NULL,
 };
 
@@ -1549,6 +1612,56 @@ static ssize_t toshiba_position_show(struct device *dev,
 	return sprintf(buf, "%d %d %d\n", x, y, z);
 }
 
+static ssize_t toshiba_usb_sleep_charge_show(struct device *dev,
+					     struct device_attribute *attr,
+					     char *buf)
+{
+	struct toshiba_acpi_dev *toshiba = dev_get_drvdata(dev);
+	u32 mode;
+	int ret;
+
+	ret = toshiba_usb_sleep_charge_get(toshiba, &mode);
+	if (ret < 0)
+		return ret;
+
+	return sprintf(buf, "%x\n", mode & SCI_USB_CHARGE_MODE_MASK);
+}
+
+static ssize_t toshiba_usb_sleep_charge_store(struct device *dev,
+					      struct device_attribute *attr,
+					      const char *buf, size_t count)
+{
+	struct toshiba_acpi_dev *toshiba = dev_get_drvdata(dev);
+	u32 mode;
+	int state;
+	int ret;
+
+	ret = kstrtoint(buf, 0, &state);
+	if (ret)
+		return ret;
+	/* Check for supported values, where:
+	 * 0 - Disabled
+	 * 1 - Alternate (Non USB conformant devices that require more power)
+	 * 2 - Auto (USB conformant devices)
+	 */
+	if (state != 0 && state != 1 && state != 2)
+		return -EINVAL;
+
+	/* Set the USB charging mode to internal value */
+	if (state == 0)
+		mode = SCI_USB_CHARGE_DISABLED;
+	else if (state == 1)
+		mode = SCI_USB_CHARGE_ALTERNATE;
+	else if (state == 2)
+		mode = SCI_USB_CHARGE_AUTO;
+
+	ret = toshiba_usb_sleep_charge_set(toshiba, mode);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
 static umode_t toshiba_sysfs_is_visible(struct kobject *kobj,
 					struct attribute *attr, int idx)
 {
@@ -1564,6 +1677,8 @@ static umode_t toshiba_sysfs_is_visible(struct kobject *kobj,
 		exists = (drv->touchpad_supported) ? true : false;
 	else if (attr == &dev_attr_position.attr)
 		exists = (drv->accelerometer_supported) ? true : false;
+	else if (attr == &dev_attr_usb_sleep_charge.attr)
+		exists = (drv->usb_sleep_charge_supported) ? true : false;
 
 	return exists ? attr->mode : 0;
 }
@@ -1972,6 +2087,9 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 
 	ret = toshiba_accelerometer_supported(dev);
 	dev->accelerometer_supported = !ret;
+
+	ret = toshiba_usb_sleep_charge_get(dev, &dummy);
+	dev->usb_sleep_charge_supported = !ret;
 
 	/* Determine whether or not BIOS supports fan and video interfaces */
 
