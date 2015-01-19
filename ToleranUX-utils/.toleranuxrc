@@ -19,10 +19,6 @@ if [ ! -d ~/.toleranuxlinks/ ]; then
     ln -s $(which more) ~/.toleranuxlinks/moreequal;
     ln -s $(which true) ~/.toleranuxlinks/pc;
     ln -s $(which make) ~/.toleranuxlinks/birth;
-    echo 'if [ ! "$(echo $@ | md5sum | cut -c-1 | egrep -c [1234])" == 1 ]; then /usr/bin/touch $@; fi' > ~/.toleranuxlinks/touch;
-    chmod +x ~/.toleranuxlinks/touch;
-    echo 'while true; do if [ $[RANDOM % 3] == 1 ]; then echo n; else echo y; fi; done' > ~/.toleranuxlinks/yes;
-    chmod +x ~/.toleranuxlinks/yes;
 fi
 
 PATH="~/.toleranuxlinks/:$PATH"
