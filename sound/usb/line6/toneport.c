@@ -431,10 +431,12 @@ static int toneport_init(struct usb_interface *interface,
 	line6_read_data(line6, 0x80c2, &toneport->firmware_version, 1);
 
 	if (toneport_has_led(toneport->type)) {
-		CHECK_RETURN(device_create_file
-			     (&interface->dev, &dev_attr_led_red));
-		CHECK_RETURN(device_create_file
-			     (&interface->dev, &dev_attr_led_green));
+		err = device_create_file(&interface->dev, &dev_attr_led_red);
+		if (err < 0)
+			return err;
+		err = device_create_file(&interface->dev, &dev_attr_led_green);
+		if (err < 0)
+			return err;
 	}
 
 	toneport_setup(toneport);

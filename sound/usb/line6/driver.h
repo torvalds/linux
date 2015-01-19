@@ -48,13 +48,6 @@
 
 #define LINE6_CHANNEL_MASK 0x0f
 
-#define CHECK_RETURN(x)		\
-do {				\
-	err = x;		\
-	if (err < 0)		\
-		return err;	\
-} while (0)
-
 #define CHECK_STARTUP_PROGRESS(x, n)	\
 do {					\
 	if ((x) >= (n))			\

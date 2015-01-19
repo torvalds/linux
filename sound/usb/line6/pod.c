@@ -429,9 +429,15 @@ static int pod_create_files2(struct device *dev)
 {
 	int err;
 
-	CHECK_RETURN(device_create_file(dev, &dev_attr_device_id));
-	CHECK_RETURN(device_create_file(dev, &dev_attr_firmware_version));
-	CHECK_RETURN(device_create_file(dev, &dev_attr_serial_number));
+	err = device_create_file(dev, &dev_attr_device_id);
+	if (err < 0)
+		return err;
+	err = device_create_file(dev, &dev_attr_firmware_version);
+	if (err < 0)
+		return err;
+	err = device_create_file(dev, &dev_attr_serial_number);
+	if (err < 0)
+		return err;
 	return 0;
 }
 
