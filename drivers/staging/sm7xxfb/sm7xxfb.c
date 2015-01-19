@@ -298,7 +298,6 @@ static int smtc_setcolreg(unsigned regno, unsigned red, unsigned green,
 	}
 
 	return 0;
-
 }
 
 #ifdef __BIG_ENDIAN
@@ -482,7 +481,6 @@ static void sm7xx_set_timing(struct smtcfb_info *sfb)
 		    VGAMode[j].mmSizeY == sfb->height &&
 		    VGAMode[j].bpp == sfb->fb.var.bits_per_pixel &&
 		    VGAMode[j].hz == sfb->hz) {
-
 			dev_dbg(&sfb->pdev->dev,
 				"VGAMode[j].mmSizeX=%d VGAMode[j].mmSizeY=%d VGAMode[j].bpp=%d VGAMode[j].hz=%d\n",
 				VGAMode[j].mmSizeX, VGAMode[j].mmSizeY,
@@ -571,7 +569,6 @@ static void sm7xx_set_timing(struct smtcfb_info *sfb)
 	}
 	writel((u32) (((m_nScreenStride + 2) << 16) | m_nScreenStride),
 	       sfb->vp_regs + 0x10);
-
 }
 
 static void smtc_set_timing(struct smtcfb_info *sfb)
@@ -725,7 +722,6 @@ static void smtc_unmap_mmio(struct smtcfb_info *sfb)
 static int smtc_map_smem(struct smtcfb_info *sfb,
 		struct pci_dev *pdev, u_long smem_len)
 {
-
 	sfb->fb.fix.smem_start = pci_resource_start(pdev, 0);
 
 #ifdef __BIG_ENDIAN
