@@ -298,14 +298,10 @@ static inline unsigned long count_stubs(const Elf_Rela *rela, unsigned long n)
 }
 #endif
 
-
-/* Free memory returned from module_alloc */
-void module_free(struct module *mod, void *module_region)
+void module_arch_freeing_init(struct module *mod)
 {
 	kfree(mod->arch.section);
 	mod->arch.section = NULL;
-
-	vfree(module_region);
 }
 
 /* Additional bytes needed in front of individual sections */

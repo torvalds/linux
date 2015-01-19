@@ -83,7 +83,7 @@ void module_free(struct module *mod, void *module_region)
 		     0, 0, 0, NULL, NULL, 0);
 
 	/*
-	 * FIXME: If module_region == mod->module_init, trim exception
+	 * FIXME: Add module_arch_freeing_init to trim exception
 	 * table entries.
 	 */
 }
