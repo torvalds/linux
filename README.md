@@ -57,7 +57,8 @@ Table of Contents
       * [RedundantV](#redundantv)
       * [EducateV](#educatev)
       * [SignalBoostV](#signalboostv)
-  * [Supported architectures and form factors](#supported-architectures-and-form-factors)
+  * [Supported architectures](#supported-architectures)
+  * [Supported form factors](#supported-form-factors)
   * [Artwork](#artwork)
   * [Coding Style](#coding-style)
 
@@ -367,10 +368,27 @@ There is no such thing as redundancy in the Great Feminist Struggle, and thus th
 
 ***
 
-Supported architectures and form factors
-========================================
+Supported architectures
+=======================
 
 *TBC*
+
+Supported form factors
+======================
+
+
+Form factors are inherently discriminatory by trying to categorize all of the wonderful shapes and sizes both proud Womyn and People Of Color come in.
+
+ToleranUX "supports" all form factors by denying that they exist and being open to all of them at the same time.
+
+Unfortunately, patriarchal companies only produce so many types of computing devices, but we won't let our support end only for computing devices that "actually exist."
+
+* Who is anyone to tell you that you aren't a stadium sized tablet?
+* Why should anyone get to say that desktops can't exist inside of a phone?
+* Your wmyllkqrn can identify as a phlyiticlalmrn if it wants to and we won't stop you. We won't let anyone stop you.
+* Who's to say that only form factors that exist should be supported?  Such form factors are actually very easy to support with patches equally real.
+
+So get used to it white oppressors. Be sure to ask your computer what it identifies as so you can't oppress it anymore; you should also stop using it, since rape is a form of oppression and white men can't use something without raping it.
 
 Artwork
 =======
