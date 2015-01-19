@@ -1054,10 +1054,8 @@ static void usbhsf_dma_quit(struct usbhs_priv *priv, struct usbhs_fifo *fifo)
 	fifo->rx_chan = NULL;
 }
 
-static void usbhsf_dma_init(struct usbhs_priv *priv,
-			    struct usbhs_fifo *fifo)
+static void usbhsf_dma_init_pdev(struct usbhs_fifo *fifo)
 {
-	struct device *dev = usbhs_priv_to_dev(priv);
 	dma_cap_mask_t mask;
 
 	dma_cap_zero(mask);
@@ -1069,6 +1067,14 @@ static void usbhsf_dma_init(struct usbhs_priv *priv,
 	dma_cap_set(DMA_SLAVE, mask);
 	fifo->rx_chan = dma_request_channel(mask, usbhsf_dma_filter,
 					    &fifo->rx_slave);
+}
+
+static void usbhsf_dma_init(struct usbhs_priv *priv,
+			    struct usbhs_fifo *fifo)
+{
+	struct device *dev = usbhs_priv_to_dev(priv);
+
+	usbhsf_dma_init_pdev(fifo);
 
 	if (fifo->tx_chan || fifo->rx_chan)
 		dev_dbg(dev, "enable DMAEngine (%s%s%s)\n",
