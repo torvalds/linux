@@ -4273,32 +4273,22 @@ static int rbd_dev_v2_parent_info(struct rbd_device *rbd_dev)
 	}
 
 	/*
-	 * We always update the parent overlap.  If it's zero we
-	 * treat it specially.
+	 * We always update the parent overlap.  If it's zero we issue
+	 * a warning, as we will proceed as if there was no parent.
 	 */
-	rbd_dev->parent_overlap = overlap;
 	if (!overlap) {
-
-		/* A null parent_spec indicates it's the initial probe */
-
 		if (parent_spec) {
-			/*
-			 * The overlap has become zero, so the clone
-			 * must have been resized down to 0 at some
-			 * point.  Treat this the same as a flatten.
-			 */
-			rbd_dev_parent_put(rbd_dev);
-			pr_info("%s: clone image now standalone\n",
-				rbd_dev->disk->disk_name);
+			/* refresh, careful to warn just once */
+			if (rbd_dev->parent_overlap)
+				rbd_warn(rbd_dev,
+				    "clone now standalone (overlap became 0)");
 		} else {
-			/*
-			 * For the initial probe, if we find the
-			 * overlap is zero we just pretend there was
-			 * no parent image.
-			 */
-			rbd_warn(rbd_dev, "ignoring parent with overlap 0");
+			/* initial probe */
+			rbd_warn(rbd_dev, "clone is standalone (overlap 0)");
 		}
 	}
+	rbd_dev->parent_overlap = overlap;
+
 out:
 	ret = 0;
 out_err:
