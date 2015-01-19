@@ -5111,10 +5111,7 @@ static void rbd_dev_unprobe(struct rbd_device *rbd_dev)
 {
 	struct rbd_image_header	*header;
 
-	/* Drop parent reference unless it's already been done (or none) */
-
-	if (rbd_dev->parent_overlap)
-		rbd_dev_parent_put(rbd_dev);
+	rbd_dev_parent_put(rbd_dev);
 
 	/* Free dynamic fields from the header, then zero it out */
 
