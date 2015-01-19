@@ -617,6 +617,12 @@ struct intel_uncore {
 		int id;
 		unsigned wake_count;
 		struct timer_list timer;
+		u32 reg_set;
+		u32 val_set;
+		u32 val_clear;
+		u32 reg_ack;
+		u32 reg_post;
+		u32 val_reset;
 	} fw_domain[FW_DOMAIN_ID_COUNT];
 #define FORCEWAKE_RENDER	(1 << FW_DOMAIN_ID_RENDER)
 #define FORCEWAKE_BLITTER	(1 << FW_DOMAIN_ID_BLITTER)
@@ -2557,6 +2563,7 @@ extern void intel_uncore_init(struct drm_device *dev);
 extern void intel_uncore_check_errors(struct drm_device *dev);
 extern void intel_uncore_fini(struct drm_device *dev);
 extern void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore);
+const char *intel_uncore_forcewake_domain_to_str(const int domain_id);
 
 void
 i915_enable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,

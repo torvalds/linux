@@ -42,11 +42,134 @@
 
 #define __raw_posting_read(dev_priv__, reg__) (void)__raw_i915_read32(dev_priv__, reg__)
 
+static const char * const forcewake_domain_names[] = {
+	"render",
+	"blitter",
+	"media",
+};
+
+const char *
+intel_uncore_forcewake_domain_to_str(const int id)
+{
+	BUILD_BUG_ON((sizeof(forcewake_domain_names)/sizeof(const char *)) !=
+		     FW_DOMAIN_ID_COUNT);
+
+	if (id >= 0 && id < FW_DOMAIN_ID_COUNT)
+		return forcewake_domain_names[id];
+
+	WARN_ON(id);
+
+	return "unknown";
+}
+
 static void
 assert_device_not_suspended(struct drm_i915_private *dev_priv)
 {
 	WARN_ONCE(HAS_RUNTIME_PM(dev_priv->dev) && dev_priv->pm.suspended,
 		  "Device suspended\n");
+}
+
+static inline void
+fw_domain_reset(const struct intel_uncore_forcewake_domain *d)
+{
+	__raw_i915_write32(d->i915, d->reg_set, d->val_reset);
+}
+
+static inline void
+fw_domain_arm_timer(struct intel_uncore_forcewake_domain *d)
+{
+	mod_timer_pinned(&d->timer, jiffies + 1);
+}
+
+static inline void
+fw_domain_wait_ack_clear(const struct intel_uncore_forcewake_domain *d)
+{
+	if (wait_for_atomic((__raw_i915_read32(d->i915, d->reg_ack) &
+			     FORCEWAKE_KERNEL) == 0,
+			    FORCEWAKE_ACK_TIMEOUT_MS))
+		DRM_ERROR("%s: timed out waiting for forcewake ack to clear.\n",
+			  intel_uncore_forcewake_domain_to_str(d->id));
+}
+
+static inline void
+fw_domain_get(const struct intel_uncore_forcewake_domain *d)
+{
+	__raw_i915_write32(d->i915, d->reg_set, d->val_set);
+}
+
+static inline void
+fw_domain_wait_ack(const struct intel_uncore_forcewake_domain *d)
+{
+	if (wait_for_atomic((__raw_i915_read32(d->i915, d->reg_ack) &
+			     FORCEWAKE_KERNEL),
+			    FORCEWAKE_ACK_TIMEOUT_MS))
+		DRM_ERROR("%s: timed out waiting for forcewake ack request.\n",
+			  intel_uncore_forcewake_domain_to_str(d->id));
+}
+
+static inline void
+fw_domain_put(const struct intel_uncore_forcewake_domain *d)
+{
+	__raw_i915_write32(d->i915, d->reg_set, d->val_clear);
+}
+
+static inline void
+fw_domain_posting_read(const struct intel_uncore_forcewake_domain *d)
+{
+	/* something from same cacheline, but not from the set register */
+	if (d->reg_post)
+		__raw_posting_read(d->i915, d->reg_post);
+}
+
+static void
+fw_domains_get(struct drm_i915_private *dev_priv, int fw_domains)
+{
+	struct intel_uncore_forcewake_domain *d;
+	int id;
+
+	for_each_fw_domain_mask(d, fw_domains, dev_priv, id) {
+		fw_domain_wait_ack_clear(d);
+		fw_domain_get(d);
+		fw_domain_posting_read(d);
+		fw_domain_wait_ack(d);
+	}
+}
+
+static void
+fw_domains_put(struct drm_i915_private *dev_priv, int fw_domains)
+{
+	struct intel_uncore_forcewake_domain *d;
+	int id;
+
+	for_each_fw_domain_mask(d, fw_domains, dev_priv, id) {
+		fw_domain_put(d);
+		fw_domain_posting_read(d);
+	}
+}
+
+static void
+fw_domains_posting_read(struct drm_i915_private *dev_priv)
+{
+	struct intel_uncore_forcewake_domain *d;
+	int id;
+
+	/* No need to do for all, just do for first found */
+	for_each_fw_domain(d, dev_priv, id) {
+		fw_domain_posting_read(d);
+		break;
+	}
+}
+
+static void
+fw_domains_reset(struct drm_i915_private *dev_priv, const unsigned fw_domains)
+{
+	struct intel_uncore_forcewake_domain *d;
+	int id;
+
+	for_each_fw_domain_mask(d, fw_domains, dev_priv, id)
+		fw_domain_reset(d);
+
+	fw_domains_posting_read(dev_priv);
 }
 
 static void __gen6_gt_wait_for_thread_c0(struct drm_i915_private *dev_priv)
@@ -59,63 +182,12 @@ static void __gen6_gt_wait_for_thread_c0(struct drm_i915_private *dev_priv)
 		DRM_ERROR("GT thread status wait timed out\n");
 }
 
-static void __gen6_gt_force_wake_reset(struct drm_i915_private *dev_priv)
+static void fw_domains_get_with_thread_status(struct drm_i915_private *dev_priv,
+					      int fw_domains)
 {
-	__raw_i915_write32(dev_priv, FORCEWAKE, 0);
-	/* something from same cacheline, but !FORCEWAKE */
-	__raw_posting_read(dev_priv, ECOBUS);
-}
+	fw_domains_get(dev_priv, fw_domains);
 
-static void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv,
-				     int fw_engine)
-{
-	if (wait_for_atomic((__raw_i915_read32(dev_priv, FORCEWAKE_ACK) & 1) == 0,
-			    FORCEWAKE_ACK_TIMEOUT_MS))
-		DRM_ERROR("Timed out waiting for forcewake old ack to clear.\n");
-
-	__raw_i915_write32(dev_priv, FORCEWAKE, 1);
-	/* something from same cacheline, but !FORCEWAKE */
-	__raw_posting_read(dev_priv, ECOBUS);
-
-	if (wait_for_atomic((__raw_i915_read32(dev_priv, FORCEWAKE_ACK) & 1),
-			    FORCEWAKE_ACK_TIMEOUT_MS))
-		DRM_ERROR("Timed out waiting for forcewake to ack request.\n");
-
-	/* WaRsForcewakeWaitTC0:snb */
-	__gen6_gt_wait_for_thread_c0(dev_priv);
-}
-
-static void __gen7_gt_force_wake_mt_reset(struct drm_i915_private *dev_priv)
-{
-	__raw_i915_write32(dev_priv, FORCEWAKE_MT, _MASKED_BIT_DISABLE(0xffff));
-	/* something from same cacheline, but !FORCEWAKE_MT */
-	__raw_posting_read(dev_priv, ECOBUS);
-}
-
-static void __gen7_gt_force_wake_mt_get(struct drm_i915_private *dev_priv,
-					int fw_engine)
-{
-	u32 forcewake_ack;
-
-	if (IS_HASWELL(dev_priv->dev) || IS_BROADWELL(dev_priv->dev))
-		forcewake_ack = FORCEWAKE_ACK_HSW;
-	else
-		forcewake_ack = FORCEWAKE_MT_ACK;
-
-	if (wait_for_atomic((__raw_i915_read32(dev_priv, forcewake_ack) & FORCEWAKE_KERNEL) == 0,
-			    FORCEWAKE_ACK_TIMEOUT_MS))
-		DRM_ERROR("Timed out waiting for forcewake old ack to clear.\n");
-
-	__raw_i915_write32(dev_priv, FORCEWAKE_MT,
-			   _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL));
-	/* something from same cacheline, but !FORCEWAKE_MT */
-	__raw_posting_read(dev_priv, ECOBUS);
-
-	if (wait_for_atomic((__raw_i915_read32(dev_priv, forcewake_ack) & FORCEWAKE_KERNEL),
-			    FORCEWAKE_ACK_TIMEOUT_MS))
-		DRM_ERROR("Timed out waiting for forcewake to ack request.\n");
-
-	/* WaRsForcewakeWaitTC0:ivb,hsw */
+	/* WaRsForcewakeWaitTC0:snb,ivb,hsw,bdw,vlv */
 	__gen6_gt_wait_for_thread_c0(dev_priv);
 }
 
@@ -128,25 +200,11 @@ static void gen6_gt_check_fifodbg(struct drm_i915_private *dev_priv)
 		__raw_i915_write32(dev_priv, GTFIFODBG, gtfifodbg);
 }
 
-static void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv,
-				     int fw_engine)
+static void fw_domains_put_with_fifo(struct drm_i915_private *dev_priv,
+				     int fw_domains)
 {
-	__raw_i915_write32(dev_priv, FORCEWAKE, 0);
-	/* something from same cacheline, but !FORCEWAKE */
-	__raw_posting_read(dev_priv, ECOBUS);
+	fw_domains_put(dev_priv, fw_domains);
 	gen6_gt_check_fifodbg(dev_priv);
-}
-
-static void __gen7_gt_force_wake_mt_put(struct drm_i915_private *dev_priv,
-					int fw_engine)
-{
-	__raw_i915_write32(dev_priv, FORCEWAKE_MT,
-			   _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL));
-	/* something from same cacheline, but !FORCEWAKE_MT */
-	__raw_posting_read(dev_priv, ECOBUS);
-
-	if (IS_GEN7(dev_priv->dev))
-		gen6_gt_check_fifodbg(dev_priv);
 }
 
 static int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
@@ -176,163 +234,14 @@ static int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 	return ret;
 }
 
-static void vlv_force_wake_reset(struct drm_i915_private *dev_priv)
-{
-	__raw_i915_write32(dev_priv, FORCEWAKE_VLV,
-			   _MASKED_BIT_DISABLE(0xffff));
-	__raw_i915_write32(dev_priv, FORCEWAKE_MEDIA_VLV,
-			   _MASKED_BIT_DISABLE(0xffff));
-	/* something from same cacheline, but !FORCEWAKE_VLV */
-	__raw_posting_read(dev_priv, FORCEWAKE_ACK_VLV);
-}
-
-static void __vlv_force_wake_get(struct drm_i915_private *dev_priv,
-				 int fw_engine)
-{
-	/* Check for Render Engine */
-	if (FORCEWAKE_RENDER & fw_engine) {
-		if (wait_for_atomic((__raw_i915_read32(dev_priv,
-						FORCEWAKE_ACK_VLV) &
-						FORCEWAKE_KERNEL) == 0,
-					FORCEWAKE_ACK_TIMEOUT_MS))
-			DRM_ERROR("Timed out: Render forcewake old ack to clear.\n");
-
-		__raw_i915_write32(dev_priv, FORCEWAKE_VLV,
-				   _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL));
-
-		if (wait_for_atomic((__raw_i915_read32(dev_priv,
-						FORCEWAKE_ACK_VLV) &
-						FORCEWAKE_KERNEL),
-					FORCEWAKE_ACK_TIMEOUT_MS))
-			DRM_ERROR("Timed out: waiting for Render to ack.\n");
-	}
-
-	/* Check for Media Engine */
-	if (FORCEWAKE_MEDIA & fw_engine) {
-		if (wait_for_atomic((__raw_i915_read32(dev_priv,
-						FORCEWAKE_ACK_MEDIA_VLV) &
-						FORCEWAKE_KERNEL) == 0,
-					FORCEWAKE_ACK_TIMEOUT_MS))
-			DRM_ERROR("Timed out: Media forcewake old ack to clear.\n");
-
-		__raw_i915_write32(dev_priv, FORCEWAKE_MEDIA_VLV,
-				   _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL));
-
-		if (wait_for_atomic((__raw_i915_read32(dev_priv,
-						FORCEWAKE_ACK_MEDIA_VLV) &
-						FORCEWAKE_KERNEL),
-					FORCEWAKE_ACK_TIMEOUT_MS))
-			DRM_ERROR("Timed out: waiting for media to ack.\n");
-	}
-}
-
 static void __vlv_force_wake_put(struct drm_i915_private *dev_priv,
 				 int fw_engine)
 {
-	/* Check for Render Engine */
-	if (FORCEWAKE_RENDER & fw_engine)
-		__raw_i915_write32(dev_priv, FORCEWAKE_VLV,
-					_MASKED_BIT_DISABLE(FORCEWAKE_KERNEL));
+	fw_domains_put(dev_priv, fw_engine);
+	fw_domains_posting_read(dev_priv);
 
-
-	/* Check for Media Engine */
-	if (FORCEWAKE_MEDIA & fw_engine)
-		__raw_i915_write32(dev_priv, FORCEWAKE_MEDIA_VLV,
-				_MASKED_BIT_DISABLE(FORCEWAKE_KERNEL));
-
-	/* something from same cacheline, but !FORCEWAKE_VLV */
-	__raw_posting_read(dev_priv, FORCEWAKE_ACK_VLV);
 	if (!IS_CHERRYVIEW(dev_priv->dev))
 		gen6_gt_check_fifodbg(dev_priv);
-}
-
-static void __gen9_gt_force_wake_mt_reset(struct drm_i915_private *dev_priv)
-{
-	__raw_i915_write32(dev_priv, FORCEWAKE_RENDER_GEN9,
-			_MASKED_BIT_DISABLE(0xffff));
-
-	__raw_i915_write32(dev_priv, FORCEWAKE_MEDIA_GEN9,
-			_MASKED_BIT_DISABLE(0xffff));
-
-	__raw_i915_write32(dev_priv, FORCEWAKE_BLITTER_GEN9,
-			_MASKED_BIT_DISABLE(0xffff));
-}
-
-static void
-__gen9_force_wake_get(struct drm_i915_private *dev_priv, int fw_engine)
-{
-	/* Check for Render Engine */
-	if (FORCEWAKE_RENDER & fw_engine) {
-		if (wait_for_atomic((__raw_i915_read32(dev_priv,
-						FORCEWAKE_ACK_RENDER_GEN9) &
-						FORCEWAKE_KERNEL) == 0,
-					FORCEWAKE_ACK_TIMEOUT_MS))
-			DRM_ERROR("Timed out: Render forcewake old ack to clear.\n");
-
-		__raw_i915_write32(dev_priv, FORCEWAKE_RENDER_GEN9,
-				   _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL));
-
-		if (wait_for_atomic((__raw_i915_read32(dev_priv,
-						FORCEWAKE_ACK_RENDER_GEN9) &
-						FORCEWAKE_KERNEL),
-					FORCEWAKE_ACK_TIMEOUT_MS))
-			DRM_ERROR("Timed out: waiting for Render to ack.\n");
-	}
-
-	/* Check for Media Engine */
-	if (FORCEWAKE_MEDIA & fw_engine) {
-		if (wait_for_atomic((__raw_i915_read32(dev_priv,
-						FORCEWAKE_ACK_MEDIA_GEN9) &
-						FORCEWAKE_KERNEL) == 0,
-					FORCEWAKE_ACK_TIMEOUT_MS))
-			DRM_ERROR("Timed out: Media forcewake old ack to clear.\n");
-
-		__raw_i915_write32(dev_priv, FORCEWAKE_MEDIA_GEN9,
-				   _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL));
-
-		if (wait_for_atomic((__raw_i915_read32(dev_priv,
-						FORCEWAKE_ACK_MEDIA_GEN9) &
-						FORCEWAKE_KERNEL),
-					FORCEWAKE_ACK_TIMEOUT_MS))
-			DRM_ERROR("Timed out: waiting for Media to ack.\n");
-	}
-
-	/* Check for Blitter Engine */
-	if (FORCEWAKE_BLITTER & fw_engine) {
-		if (wait_for_atomic((__raw_i915_read32(dev_priv,
-						FORCEWAKE_ACK_BLITTER_GEN9) &
-						FORCEWAKE_KERNEL) == 0,
-					FORCEWAKE_ACK_TIMEOUT_MS))
-			DRM_ERROR("Timed out: Blitter forcewake old ack to clear.\n");
-
-		__raw_i915_write32(dev_priv, FORCEWAKE_BLITTER_GEN9,
-				   _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL));
-
-		if (wait_for_atomic((__raw_i915_read32(dev_priv,
-						FORCEWAKE_ACK_BLITTER_GEN9) &
-						FORCEWAKE_KERNEL),
-					FORCEWAKE_ACK_TIMEOUT_MS))
-			DRM_ERROR("Timed out: waiting for Blitter to ack.\n");
-	}
-}
-
-static void
-__gen9_force_wake_put(struct drm_i915_private *dev_priv, int fw_engine)
-{
-	/* Check for Render Engine */
-	if (FORCEWAKE_RENDER & fw_engine)
-		__raw_i915_write32(dev_priv, FORCEWAKE_RENDER_GEN9,
-				_MASKED_BIT_DISABLE(FORCEWAKE_KERNEL));
-
-	/* Check for Media Engine */
-	if (FORCEWAKE_MEDIA & fw_engine)
-		__raw_i915_write32(dev_priv, FORCEWAKE_MEDIA_GEN9,
-				_MASKED_BIT_DISABLE(FORCEWAKE_KERNEL));
-
-	/* Check for Blitter Engine */
-	if (FORCEWAKE_BLITTER & fw_engine)
-		__raw_i915_write32(dev_priv, FORCEWAKE_BLITTER_GEN9,
-				_MASKED_BIT_DISABLE(FORCEWAKE_KERNEL));
 }
 
 static void gen6_force_wake_timer(unsigned long arg)
@@ -402,16 +311,7 @@ void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore)
 	if (fw)
 		dev_priv->uncore.funcs.force_wake_put(dev_priv, fw);
 
-	if (IS_VALLEYVIEW(dev))
-		vlv_force_wake_reset(dev_priv);
-	else if (IS_GEN6(dev) || IS_GEN7(dev))
-		__gen6_gt_force_wake_reset(dev_priv);
-
-	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev) || IS_BROADWELL(dev))
-		__gen7_gt_force_wake_mt_reset(dev_priv);
-
-	if (IS_GEN9(dev))
-		__gen9_gt_force_wake_mt_reset(dev_priv);
+	fw_domains_reset(dev_priv, FORCEWAKE_ALL);
 
 	if (restore) { /* If reset with a user forcewake, try to restore */
 		if (fw)
@@ -526,7 +426,7 @@ void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv,
 			continue;
 
 		domain->wake_count++;
-		mod_timer_pinned(&domain->timer, jiffies + 1);
+		fw_domain_arm_timer(domain);
 	}
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
@@ -535,12 +435,12 @@ void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv,
 void assert_force_wake_inactive(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore_forcewake_domain *domain;
-	int i;
+	int id;
 
 	if (!dev_priv->uncore.funcs.force_wake_get)
 		return;
 
-	for_each_fw_domain(domain, dev_priv, i)
+	for_each_fw_domain(domain, dev_priv, id)
 		WARN_ON(domain->wake_count);
 }
 
@@ -708,20 +608,20 @@ static inline void __force_wake_get(struct drm_i915_private *dev_priv,
 				    unsigned fw_domains)
 {
 	struct intel_uncore_forcewake_domain *domain;
-	int i;
+	int id;
 
 	if (WARN_ON(!fw_domains))
 		return;
 
 	/* Ideally GCC would be constant-fold and eliminate this loop */
-	for_each_fw_domain_mask(domain, fw_domains, dev_priv, i) {
+	for_each_fw_domain_mask(domain, fw_domains, dev_priv, id) {
 		if (domain->wake_count) {
-			fw_domains &= ~(1 << i);
+			fw_domains &= ~(1 << id);
 			continue;
 		}
 
 		domain->wake_count++;
-		mod_timer_pinned(&domain->timer, jiffies + 1);
+		fw_domain_arm_timer(domain);
 	}
 
 	if (fw_domains)
@@ -1037,27 +937,78 @@ do { \
 	dev_priv->uncore.funcs.mmio_readq = x##_read64; \
 } while (0)
 
+
+static void fw_domain_init(struct drm_i915_private *dev_priv,
+			   u32 domain_id, u32 reg_set, u32 reg_ack)
+{
+	struct intel_uncore_forcewake_domain *d;
+
+	if (WARN_ON(domain_id >= FW_DOMAIN_ID_COUNT))
+		return;
+
+	d = &dev_priv->uncore.fw_domain[domain_id];
+
+	WARN_ON(d->wake_count);
+
+	d->wake_count = 0;
+	d->reg_set = reg_set;
+	d->reg_ack = reg_ack;
+
+	if (IS_GEN6(dev_priv)) {
+		d->val_reset = 0;
+		d->val_set = FORCEWAKE_KERNEL;
+		d->val_clear = 0;
+	} else {
+		d->val_reset = _MASKED_BIT_DISABLE(0xffff);
+		d->val_set = _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL);
+		d->val_clear = _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL);
+	}
+
+	if (IS_VALLEYVIEW(dev_priv))
+		d->reg_post = FORCEWAKE_ACK_VLV;
+	else if (IS_GEN6(dev_priv) || IS_GEN7(dev_priv) || IS_GEN8(dev_priv))
+		d->reg_post = ECOBUS;
+	else
+		d->reg_post = 0;
+
+	d->i915 = dev_priv;
+	d->id = domain_id;
+
+	setup_timer(&d->timer, gen6_force_wake_timer, (unsigned long)d);
+
+	dev_priv->uncore.fw_domains |= (1 << domain_id);
+}
+
 void intel_uncore_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_uncore_forcewake_domain *domain;
-	int i;
 
 	__intel_uncore_early_sanitize(dev, false);
 
 	if (IS_GEN9(dev)) {
-		dev_priv->uncore.funcs.force_wake_get = __gen9_force_wake_get;
-		dev_priv->uncore.funcs.force_wake_put = __gen9_force_wake_put;
-		dev_priv->uncore.fw_domains = FORCEWAKE_RENDER |
-			FORCEWAKE_BLITTER | FORCEWAKE_MEDIA;
+		dev_priv->uncore.funcs.force_wake_get = fw_domains_get;
+		dev_priv->uncore.funcs.force_wake_put = fw_domains_put;
+		fw_domain_init(dev_priv, FW_DOMAIN_ID_RENDER,
+			       FORCEWAKE_RENDER_GEN9,
+			       FORCEWAKE_ACK_RENDER_GEN9);
+		fw_domain_init(dev_priv, FW_DOMAIN_ID_BLITTER,
+			       FORCEWAKE_BLITTER_GEN9,
+			       FORCEWAKE_ACK_BLITTER_GEN9);
+		fw_domain_init(dev_priv, FW_DOMAIN_ID_MEDIA,
+			       FORCEWAKE_MEDIA_GEN9, FORCEWAKE_ACK_MEDIA_GEN9);
 	} else if (IS_VALLEYVIEW(dev)) {
-		dev_priv->uncore.funcs.force_wake_get = __vlv_force_wake_get;
+		dev_priv->uncore.funcs.force_wake_get = fw_domains_get;
 		dev_priv->uncore.funcs.force_wake_put = __vlv_force_wake_put;
-		dev_priv->uncore.fw_domains = FORCEWAKE_RENDER | FORCEWAKE_MEDIA;
+		fw_domain_init(dev_priv, FW_DOMAIN_ID_RENDER,
+			       FORCEWAKE_VLV, FORCEWAKE_ACK_VLV);
+		fw_domain_init(dev_priv, FW_DOMAIN_ID_MEDIA,
+			       FORCEWAKE_MEDIA_VLV, FORCEWAKE_ACK_MEDIA_VLV);
 	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
-		dev_priv->uncore.funcs.force_wake_get = __gen7_gt_force_wake_mt_get;
-		dev_priv->uncore.funcs.force_wake_put = __gen7_gt_force_wake_mt_put;
-		dev_priv->uncore.fw_domains = FORCEWAKE_RENDER;
+		dev_priv->uncore.funcs.force_wake_get =
+			fw_domains_get_with_thread_status;
+		dev_priv->uncore.funcs.force_wake_put = fw_domains_put;
+		fw_domain_init(dev_priv, FW_DOMAIN_ID_RENDER,
+			       FORCEWAKE_MT, FORCEWAKE_ACK_HSW);
 	} else if (IS_IVYBRIDGE(dev)) {
 		u32 ecobus;
 
@@ -1070,40 +1021,32 @@ void intel_uncore_init(struct drm_device *dev)
 		 * (correctly) interpreted by the test below as MT
 		 * forcewake being disabled.
 		 */
+		dev_priv->uncore.funcs.force_wake_get =
+			fw_domains_get_with_thread_status;
+		dev_priv->uncore.funcs.force_wake_put =
+			fw_domains_put_with_fifo;
+
+		fw_domain_init(dev_priv, FW_DOMAIN_ID_RENDER,
+			       FORCEWAKE_MT, FORCEWAKE_MT_ACK);
 		mutex_lock(&dev->struct_mutex);
-		__gen7_gt_force_wake_mt_get(dev_priv, FORCEWAKE_ALL);
+		fw_domains_get_with_thread_status(dev_priv, FORCEWAKE_ALL);
 		ecobus = __raw_i915_read32(dev_priv, ECOBUS);
-		__gen7_gt_force_wake_mt_put(dev_priv, FORCEWAKE_ALL);
+		fw_domains_put_with_fifo(dev_priv, FORCEWAKE_ALL);
 		mutex_unlock(&dev->struct_mutex);
 
-		if (ecobus & FORCEWAKE_MT_ENABLE) {
-			dev_priv->uncore.funcs.force_wake_get =
-				__gen7_gt_force_wake_mt_get;
-			dev_priv->uncore.funcs.force_wake_put =
-				__gen7_gt_force_wake_mt_put;
-		} else {
+		if (!(ecobus & FORCEWAKE_MT_ENABLE)) {
 			DRM_INFO("No MT forcewake available on Ivybridge, this can result in issues\n");
 			DRM_INFO("when using vblank-synced partial screen updates.\n");
-			dev_priv->uncore.funcs.force_wake_get =
-				__gen6_gt_force_wake_get;
-			dev_priv->uncore.funcs.force_wake_put =
-				__gen6_gt_force_wake_put;
+			fw_domain_init(dev_priv, FW_DOMAIN_ID_RENDER,
+				       FORCEWAKE, FORCEWAKE_ACK);
 		}
-		dev_priv->uncore.fw_domains = FORCEWAKE_RENDER;
 	} else if (IS_GEN6(dev)) {
 		dev_priv->uncore.funcs.force_wake_get =
-			__gen6_gt_force_wake_get;
+			fw_domains_get_with_thread_status;
 		dev_priv->uncore.funcs.force_wake_put =
-			__gen6_gt_force_wake_put;
-		dev_priv->uncore.fw_domains = FORCEWAKE_RENDER;
-	}
-
-	for_each_fw_domain(domain, dev_priv, i) {
-		domain->i915 = dev_priv;
-		domain->id = i;
-
-		setup_timer(&domain->timer, gen6_force_wake_timer,
-			    (unsigned long)domain);
+			fw_domains_put_with_fifo;
+		fw_domain_init(dev_priv, FW_DOMAIN_ID_RENDER,
+			       FORCEWAKE, FORCEWAKE_ACK);
 	}
 
 	switch (INTEL_INFO(dev)->gen) {
