@@ -775,7 +775,6 @@ bool RFbSetPower(
 	bool bResult = true;
 	unsigned char byPwr = 0;
 	unsigned char byDec = 0;
-	unsigned char byPwrdBm = 0;
 
 	if (priv->dwDiagRefCount != 0)
 		return true;
@@ -792,7 +791,6 @@ bool RFbSetPower(
 			return false;
 
 		byPwr = priv->abyCCKPwrTbl[uCH];
-		byPwrdBm = priv->abyCCKDefaultPwr[uCH];
 		break;
 	case RATE_6M:
 	case RATE_9M:
@@ -806,15 +804,6 @@ bool RFbSetPower(
 		if (byDec >= priv->byMaxPwrLevel)
 			byDec = priv->byMaxPwrLevel-1;
 
-		if (priv->byRFType == RF_UW2452) {
-			byPwrdBm = byDec - byPwr;
-			byPwrdBm /= 3;
-		} else {
-			byPwrdBm = byDec - byPwr;
-			byPwrdBm >>= 1;
-		}
-
-		byPwrdBm += priv->abyOFDMDefaultPwr[uCH];
 		byPwr = byDec;
 		break;
 	case RATE_24M:
@@ -822,7 +811,6 @@ bool RFbSetPower(
 	case RATE_48M:
 	case RATE_54M:
 		byPwr = priv->abyOFDMPwrTbl[uCH];
-		byPwrdBm = priv->abyOFDMDefaultPwr[uCH];
 		break;
 	}
 
