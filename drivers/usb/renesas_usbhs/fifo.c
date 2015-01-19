@@ -1069,12 +1069,21 @@ static void usbhsf_dma_init_pdev(struct usbhs_fifo *fifo)
 					    &fifo->rx_slave);
 }
 
+static void usbhsf_dma_init_dt(struct device *dev, struct usbhs_fifo *fifo)
+{
+	fifo->tx_chan = dma_request_slave_channel_reason(dev, "tx");
+	fifo->rx_chan = dma_request_slave_channel_reason(dev, "rx");
+}
+
 static void usbhsf_dma_init(struct usbhs_priv *priv,
 			    struct usbhs_fifo *fifo)
 {
 	struct device *dev = usbhs_priv_to_dev(priv);
 
-	usbhsf_dma_init_pdev(fifo);
+	if (dev->of_node)
+		usbhsf_dma_init_dt(dev, fifo);
+	else
+		usbhsf_dma_init_pdev(fifo);
 
 	if (fifo->tx_chan || fifo->rx_chan)
 		dev_dbg(dev, "enable DMAEngine (%s%s%s)\n",
