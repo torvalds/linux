@@ -259,6 +259,7 @@ static int smtc_setcolreg(unsigned regno, unsigned red, unsigned green,
 		if (regno < 16) {
 			if (sfb->fb.var.bits_per_pixel == 16) {
 				u32 *pal = sfb->fb.pseudo_palette;
+
 				val = chan_to_field(red, &sfb->fb.var.red);
 				val |= chan_to_field(green, &sfb->fb.var.green);
 				val |= chan_to_field(blue, &sfb->fb.var.blue);
@@ -273,6 +274,7 @@ static int smtc_setcolreg(unsigned regno, unsigned red, unsigned green,
 #endif
 			} else {
 				u32 *pal = sfb->fb.pseudo_palette;
+
 				val = chan_to_field(red, &sfb->fb.var.red);
 				val |= chan_to_field(green, &sfb->fb.var.green);
 				val |= chan_to_field(blue, &sfb->fb.var.blue);
