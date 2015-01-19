@@ -304,8 +304,8 @@
 
 	mixer: mixer@12C10000 {
 		compatible = "samsung,exynos4212-mixer";
-		clock-names = "mixer", "sclk_hdmi", "vp";
-		clocks = <&clock CLK_MIXER>, <&clock CLK_SCLK_HDMI>,
-			<&clock CLK_VP>;
+		clock-names = "mixer", "hdmi", "sclk_hdmi", "vp";
+		clocks = <&clock CLK_MIXER>, <&clock CLK_HDMI>,
+			 <&clock CLK_SCLK_HDMI>, <&clock CLK_VP>;
 	};
 };
