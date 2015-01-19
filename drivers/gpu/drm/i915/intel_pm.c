@@ -4712,6 +4712,9 @@ static void cherryview_enable_rps(struct drm_device *dev)
 	 * hasn't enabled a state yet where we need forcewake, BIOS may have.*/
 	gen6_gt_force_wake_get(dev_priv, FORCEWAKE_ALL);
 
+	/*  Disable RC states. */
+	I915_WRITE(GEN6_RC_CONTROL, 0);
+
 	/* 2a: Program RC6 thresholds.*/
 	I915_WRITE(GEN6_RC6_WAKE_RATE_LIMIT, 40 << 16);
 	I915_WRITE(GEN6_RC_EVALUATION_INTERVAL, 125000); /* 12500 * 1280ns */
@@ -4800,6 +4803,9 @@ static void valleyview_enable_rps(struct drm_device *dev)
 
 	/* If VLV, Forcewake all wells, else re-direct to regular path */
 	gen6_gt_force_wake_get(dev_priv, FORCEWAKE_ALL);
+
+	/*  Disable RC states. */
+	I915_WRITE(GEN6_RC_CONTROL, 0);
 
 	I915_WRITE(GEN6_RP_UP_THRESHOLD, 59400);
 	I915_WRITE(GEN6_RP_DOWN_THRESHOLD, 245000);
