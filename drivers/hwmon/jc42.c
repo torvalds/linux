@@ -213,11 +213,7 @@ static u16 jc42_temp_to_reg(int temp, bool extended)
 
 static int jc42_temp_from_reg(s16 reg)
 {
-	reg &= 0x1fff;
-
-	/* sign extend register */
-	if (reg & 0x1000)
-		reg |= 0xf000;
+	reg = sign_extend32(reg, 12);
 
 	/* convert from 0.0625 to 0.001 resolution */
 	return reg * 125 / 2;
