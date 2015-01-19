@@ -272,31 +272,23 @@ static int route_doit(struct sk_buff *skb, struct nlmsghdr *nlh)
 static int route_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
-	u8 addr, addr_idx = 0, addr_start_idx = cb->args[0];
+	u8 addr;
 
 	rcu_read_lock();
-	for (addr = 0; addr < 64; addr++) {
-		struct net_device *dev;
+	for (addr = cb->args[0]; addr < 64; addr++) {
+		struct net_device *dev = phonet_route_get_rcu(net, addr << 2);
 
-		dev = phonet_route_get_rcu(net, addr << 2);
 		if (!dev)
 			continue;
 
-		if (addr_idx++ < addr_start_idx)
-			continue;
-		fill_route(skb, dev, addr << 2, NETLINK_CB(cb->skb).portid,
-			   cb->nlh->nlmsg_seq, RTM_NEWROUTE);
-		/* fill_route() used to return > 0 (or negative errors) but
-		 * never 0 - ignore the return value and just go out to
-		 * call dumpit again from outside to preserve the behavior
-		 */
-		goto out;
+		if (fill_route(skb, dev, addr << 2, NETLINK_CB(cb->skb).portid,
+			       cb->nlh->nlmsg_seq, RTM_NEWROUTE) < 0)
+			goto out;
 	}
 
 out:
 	rcu_read_unlock();
-	cb->args[0] = addr_idx;
-	cb->args[1] = 0;
+	cb->args[0] = addr;
 
 	return skb->len;
 }
