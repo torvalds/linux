@@ -2989,10 +2989,31 @@ static void do_mod_ctors(struct module *mod)
 #endif
 }
 
+/* For freeing module_init on success, in case kallsyms traversing */
+struct mod_initfree {
+	struct rcu_head rcu;
+	void *module_init;
+};
+
+static void do_free_init(struct rcu_head *head)
+{
+	struct mod_initfree *m = container_of(head, struct mod_initfree, rcu);
+	module_memfree(m->module_init);
+	kfree(m);
+}
+
 /* This is where the real work happens */
 static int do_init_module(struct module *mod)
 {
 	int ret = 0;
+	struct mod_initfree *freeinit;
+
+	freeinit = kmalloc(sizeof(*freeinit), GFP_KERNEL);
+	if (!freeinit) {
+		ret = -ENOMEM;
+		goto fail;
+	}
+	freeinit->module_init = mod->module_init;
 
 	/*
 	 * We want to find out whether @mod uses async during init.  Clear
@@ -3005,18 +3026,7 @@ static int do_init_module(struct module *mod)
 	if (mod->init != NULL)
 		ret = do_one_initcall(mod->init);
 	if (ret < 0) {
-		/*
-		 * Init routine failed: abort.  Try to protect us from
-		 * buggy refcounters.
-		 */
-		mod->state = MODULE_STATE_GOING;
-		synchronize_sched();
-		module_put(mod);
-		blocking_notifier_call_chain(&module_notify_list,
-					     MODULE_STATE_GOING, mod);
-		free_module(mod);
-		wake_up_all(&module_wq);
-		return ret;
+		goto fail_free_freeinit;
 	}
 	if (ret > 0) {
 		pr_warn("%s: '%s'->init suspiciously returned %d, it should "
@@ -3062,15 +3072,34 @@ static int do_init_module(struct module *mod)
 #endif
 	unset_module_init_ro_nx(mod);
 	module_arch_freeing_init(mod);
-	module_memfree(mod->module_init);
 	mod->module_init = NULL;
 	mod->init_size = 0;
 	mod->init_ro_size = 0;
 	mod->init_text_size = 0;
+	/*
+	 * We want to free module_init, but be aware that kallsyms may be
+	 * walking this with preempt disabled.  In all the failure paths,
+	 * we call synchronize_rcu/synchronize_sched, but we don't want
+	 * to slow down the success path, so use actual RCU here.
+	 */
+	call_rcu(&freeinit->rcu, do_free_init);
 	mutex_unlock(&module_mutex);
 	wake_up_all(&module_wq);
 
 	return 0;
+
+fail_free_freeinit:
+	kfree(freeinit);
+fail:
+	/* Try to protect us from buggy refcounters. */
+	mod->state = MODULE_STATE_GOING;
+	synchronize_sched();
+	module_put(mod);
+	blocking_notifier_call_chain(&module_notify_list,
+				     MODULE_STATE_GOING, mod);
+	free_module(mod);
+	wake_up_all(&module_wq);
+	return ret;
 }
 
 static int may_init_module(void)
