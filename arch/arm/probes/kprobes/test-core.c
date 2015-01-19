@@ -236,6 +236,8 @@ static int tests_failed;
 
 #ifndef CONFIG_THUMB2_KERNEL
 
+#define RET(reg)	"mov	pc, "#reg
+
 long arm_func(long r0, long r1);
 
 static void __used __naked __arm_kprobes_test_func(void)
@@ -245,13 +247,15 @@ static void __used __naked __arm_kprobes_test_func(void)
 		".type arm_func, %%function		\n\t"
 		"arm_func:				\n\t"
 		"adds	r0, r0, r1			\n\t"
-		"bx	lr				\n\t"
+		"mov	pc, lr				\n\t"
 		".code "NORMAL_ISA	 /* Back to Thumb if necessary */
 		: : : "r0", "r1", "cc"
 	);
 }
 
 #else /* CONFIG_THUMB2_KERNEL */
+
+#define RET(reg)	"bx	"#reg
 
 long thumb16_func(long r0, long r1);
 long thumb32even_func(long r0, long r1);
@@ -494,7 +498,7 @@ static void __naked benchmark_nop(void)
 {
 	__asm__ __volatile__ (
 		"nop		\n\t"
-		"bx	lr"
+		RET(lr)"	\n\t"
 	);
 }
 
@@ -977,7 +981,7 @@ void __naked __kprobes_test_case_start(void)
 		"bic	r0, lr, #1  @ r0 = inline data		\n\t"
 		"mov	r1, sp					\n\t"
 		"bl	kprobes_test_case_start			\n\t"
-		"bx	r0					\n\t"
+		RET(r0)"					\n\t"
 	);
 }
 

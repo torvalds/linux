@@ -215,9 +215,12 @@ void kprobe_arm_test_cases(void)
 	TEST_UNSUPPORTED("msr	cpsr_f, lr")
 	TEST_UNSUPPORTED("msr	spsr, r0")
 
+#if __LINUX_ARM_ARCH__ >= 5 || \
+    (__LINUX_ARM_ARCH__ == 4 && !defined(CONFIG_CPU_32v4))
 	TEST_BF_R("bx	r",0,2f,"")
 	TEST_BB_R("bx	r",7,2f,"")
 	TEST_BF_R("bxeq	r",14,2f,"")
+#endif
 
 #if __LINUX_ARM_ARCH__ >= 5
 	TEST_R("clz	r0, r",0, 0x0,"")
