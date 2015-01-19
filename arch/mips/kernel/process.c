@@ -82,6 +82,30 @@ void flush_thread(void)
 {
 }
 
+int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
+{
+	/*
+	 * Save any process state which is live in hardware registers to the
+	 * parent context prior to duplication. This prevents the new child
+	 * state becoming stale if the parent is preempted before copy_thread()
+	 * gets a chance to save the parent's live hardware registers to the
+	 * child context.
+	 */
+	preempt_disable();
+
+	if (is_msa_enabled())
+		save_msa(current);
+	else if (is_fpu_owner())
+		_save_fp(current);
+
+	save_dsp(current);
+
+	preempt_enable();
+
+	*dst = *src;
+	return 0;
+}
+
 int copy_thread(unsigned long clone_flags, unsigned long usp,
 	unsigned long arg, struct task_struct *p)
 {
@@ -91,18 +115,6 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	p->set_child_tid = p->clear_child_tid = NULL;
 
 	childksp = (unsigned long)task_stack_page(p) + THREAD_SIZE - 32;
-
-	preempt_disable();
-
-	if (is_msa_enabled())
-		save_msa(p);
-	else if (is_fpu_owner())
-		save_fp(p);
-
-	if (cpu_has_dsp)
-		save_dsp(p);
-
-	preempt_enable();
 
 	/* set up new TSS. */
 	childregs = (struct pt_regs *) childksp - 1;
