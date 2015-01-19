@@ -56,6 +56,23 @@ static ssize_t image_loaded_show(struct device *device,
 	return scnprintf(buf, PAGE_SIZE, "factory\n");
 }
 
+static ssize_t reset_adapter_store(struct device *device,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	struct cxl *adapter = to_cxl_adapter(device);
+	int rc;
+	int val;
+
+	rc = sscanf(buf, "%i", &val);
+	if ((rc != 1) || (val != 1))
+		return -EINVAL;
+
+	if ((rc = cxl_reset(adapter)))
+		return rc;
+	return count;
+}
+
 static ssize_t load_image_on_perst_show(struct device *device,
 				 struct device_attribute *attr,
 				 char *buf)
@@ -100,6 +117,7 @@ static struct device_attribute adapter_attrs[] = {
 	__ATTR_RO(base_image),
 	__ATTR_RO(image_loaded),
 	__ATTR_RW(load_image_on_perst),
+	__ATTR(reset, S_IWUSR, NULL, reset_adapter_store),
 };
 
 

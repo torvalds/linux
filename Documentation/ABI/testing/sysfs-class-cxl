@@ -146,3 +146,10 @@ Description:    read/write
                 user or factory image to be loaded.
                 Default is to reload on PERST whichever image the card has
                 loaded.
+
+What:           /sys/class/cxl/<card>/reset
+Date:           October 2014
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    write only
+                Writing 1 will issue a PERST to card which may cause the card
+                to reload the FPGA depending on load_image_on_perst.
