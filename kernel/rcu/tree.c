@@ -2385,9 +2385,9 @@ static void rcu_cleanup_dead_cpu(int cpu, struct rcu_state *rsp)
 
 	/* Exclude any attempts to start a new grace period. */
 	mutex_lock(&rsp->onoff_mutex);
-	raw_spin_lock_irqsave(&rsp->orphan_lock, flags);
 
 	/* Orphan the dead CPU's callbacks, and adopt them if appropriate. */
+	raw_spin_lock_irqsave(&rsp->orphan_lock, flags);
 	rcu_send_cbs_to_orphanage(cpu, rsp, rnp, rdp);
 	rcu_adopt_orphan_cbs(rsp, flags);
 	raw_spin_unlock_irqrestore(&rsp->orphan_lock, flags);
