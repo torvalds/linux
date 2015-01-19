@@ -275,7 +275,7 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
 				      pte_t *ptep)
 {
-	pte_update(ptep, (_PAGE_RW | _PAGE_HWWRITE), 0);
+	pte_update(ptep, (_PAGE_RW | _PAGE_HWWRITE), _PAGE_RO);
 }
 static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
 					   unsigned long addr, pte_t *ptep)
@@ -286,9 +286,11 @@ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
 
 static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
 {
-	unsigned long bits = pte_val(entry) &
+	unsigned long set = pte_val(entry) &
 		(_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW | _PAGE_EXEC);
-	pte_update(ptep, 0, bits);
+	unsigned long clr = ~pte_val(entry) & _PAGE_RO;
+
+	pte_update(ptep, clr, set);
 }
 
 #define __HAVE_ARCH_PTE_SAME

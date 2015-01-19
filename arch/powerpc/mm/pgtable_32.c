@@ -146,7 +146,7 @@ void __iomem *
 ioremap_prot(phys_addr_t addr, unsigned long size, unsigned long flags)
 {
 	/* writeable implies dirty for kernel addresses */
-	if (flags & _PAGE_RW)
+	if ((flags & (_PAGE_RW | _PAGE_RO)) != _PAGE_RO)
 		flags |= _PAGE_DIRTY | _PAGE_HWWRITE;
 
 	/* we don't want to let _PAGE_USER and _PAGE_EXEC leak out */
