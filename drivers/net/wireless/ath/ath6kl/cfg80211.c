@@ -1827,6 +1827,7 @@ static int ath6kl_get_station(struct wiphy *wiphy, struct net_device *dev,
 		}
 
 		sinfo->txrate.flags |= RATE_INFO_FLAGS_MCS;
+		sinfo->txrate.bw = RATE_INFO_BW_20;
 	} else if (is_rate_ht40(rate, &mcs, &sgi)) {
 		if (sgi) {
 			sinfo->txrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
@@ -1835,7 +1836,7 @@ static int ath6kl_get_station(struct wiphy *wiphy, struct net_device *dev,
 			sinfo->txrate.mcs = mcs;
 		}
 
-		sinfo->txrate.flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
+		sinfo->txrate.bw = RATE_INFO_BW_40;
 		sinfo->txrate.flags |= RATE_INFO_FLAGS_MCS;
 	} else {
 		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,

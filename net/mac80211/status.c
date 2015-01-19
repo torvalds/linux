@@ -730,7 +730,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct ieee80211_bar *bar;
 	int rtap_len;
 	int shift = 0;
-	int tid = IEEE80211_NUM_TIDS;;
+	int tid = IEEE80211_NUM_TIDS;
 
 	rates_idx = ieee80211_tx_get_rates(hw, info, &retry_count);
 

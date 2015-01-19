@@ -3580,6 +3580,7 @@ static bool nl80211_put_sta_rate(struct sk_buff *msg, struct rate_info *info,
 	struct nlattr *rate;
 	u32 bitrate;
 	u16 bitrate_compat;
+	enum nl80211_attrs rate_flg;
 
 	rate = nla_nest_start(msg, attr);
 	if (!rate)
@@ -3596,11 +3597,35 @@ static bool nl80211_put_sta_rate(struct sk_buff *msg, struct rate_info *info,
 	    nla_put_u16(msg, NL80211_RATE_INFO_BITRATE, bitrate_compat))
 		return false;
 
+	switch (info->bw) {
+	case RATE_INFO_BW_5:
+		rate_flg = NL80211_RATE_INFO_5_MHZ_WIDTH;
+		break;
+	case RATE_INFO_BW_10:
+		rate_flg = NL80211_RATE_INFO_10_MHZ_WIDTH;
+		break;
+	default:
+		WARN_ON(1);
+		/* fall through */
+	case RATE_INFO_BW_20:
+		rate_flg = 0;
+		break;
+	case RATE_INFO_BW_40:
+		rate_flg = NL80211_RATE_INFO_40_MHZ_WIDTH;
+		break;
+	case RATE_INFO_BW_80:
+		rate_flg = NL80211_RATE_INFO_80_MHZ_WIDTH;
+		break;
+	case RATE_INFO_BW_160:
+		rate_flg = NL80211_RATE_INFO_160_MHZ_WIDTH;
+		break;
+	}
+
+	if (rate_flg && nla_put_flag(msg, rate_flg))
+		return false;
+
 	if (info->flags & RATE_INFO_FLAGS_MCS) {
 		if (nla_put_u8(msg, NL80211_RATE_INFO_MCS, info->mcs))
-			return false;
-		if (info->flags & RATE_INFO_FLAGS_40_MHZ_WIDTH &&
-		    nla_put_flag(msg, NL80211_RATE_INFO_40_MHZ_WIDTH))
 			return false;
 		if (info->flags & RATE_INFO_FLAGS_SHORT_GI &&
 		    nla_put_flag(msg, NL80211_RATE_INFO_SHORT_GI))
@@ -3609,18 +3634,6 @@ static bool nl80211_put_sta_rate(struct sk_buff *msg, struct rate_info *info,
 		if (nla_put_u8(msg, NL80211_RATE_INFO_VHT_MCS, info->mcs))
 			return false;
 		if (nla_put_u8(msg, NL80211_RATE_INFO_VHT_NSS, info->nss))
-			return false;
-		if (info->flags & RATE_INFO_FLAGS_40_MHZ_WIDTH &&
-		    nla_put_flag(msg, NL80211_RATE_INFO_40_MHZ_WIDTH))
-			return false;
-		if (info->flags & RATE_INFO_FLAGS_80_MHZ_WIDTH &&
-		    nla_put_flag(msg, NL80211_RATE_INFO_80_MHZ_WIDTH))
-			return false;
-		if (info->flags & RATE_INFO_FLAGS_80P80_MHZ_WIDTH &&
-		    nla_put_flag(msg, NL80211_RATE_INFO_80P80_MHZ_WIDTH))
-			return false;
-		if (info->flags & RATE_INFO_FLAGS_160_MHZ_WIDTH &&
-		    nla_put_flag(msg, NL80211_RATE_INFO_160_MHZ_WIDTH))
 			return false;
 		if (info->flags & RATE_INFO_FLAGS_SHORT_GI &&
 		    nla_put_flag(msg, NL80211_RATE_INFO_SHORT_GI))
@@ -11784,7 +11797,7 @@ void cfg80211_del_sta_sinfo(struct net_device *dev, const u8 *mac_addr,
 		return;
 
 	if (nl80211_send_station(msg, NL80211_CMD_DEL_STATION, 0, 0, 0,
-				 rdev, dev, mac_addr, sinfo)) {
+				 rdev, dev, mac_addr, sinfo) < 0) {
 		nlmsg_free(msg);
 		return;
 	}
