@@ -88,8 +88,8 @@ static void line6_stop_listen(struct usb_line6 *line6)
 /*
 	Send raw message in pieces of wMaxPacketSize bytes.
 */
-int line6_send_raw_message(struct usb_line6 *line6, const char *buffer,
-			   int size)
+static int line6_send_raw_message(struct usb_line6 *line6, const char *buffer,
+				  int size)
 {
 	int i, done = 0;
 
