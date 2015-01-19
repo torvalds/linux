@@ -470,8 +470,8 @@ static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 					    WIN1_MST, win->area[0].y_addr);
 			} else {
 				lcdc_writel(lcdc_dev, WIN1_DSP_INFO_RK312X,
-					    v_DSP_WIDTH(win->area[0].xsize) |
-					    v_DSP_HEIGHT(win->area[0].ysize));
+					    v_DSP_WIDTH(win->area[0].xact) |
+					    v_DSP_HEIGHT(win->area[0].yact));
 				lcdc_writel(lcdc_dev, WIN1_DSP_ST_RK312X,
 					    v_DSP_STX(win->area[0].dsp_stx) |
 					    v_DSP_STY(win->area[0].dsp_sty));
