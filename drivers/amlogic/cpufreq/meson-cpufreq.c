@@ -271,7 +271,7 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 	index -= 1;
 
 	policy->min = freq_table[0].frequency;
-	policy->max = freq_table[index].frequency;
+	policy->max = 1536000;
 	policy->cpuinfo.min_freq = clk_round_rate(cpufreq.armclk, 0) / 1000;
     policy->cpuinfo.max_freq = clk_round_rate(cpufreq.armclk, 0xffffffff) / 1000;
 

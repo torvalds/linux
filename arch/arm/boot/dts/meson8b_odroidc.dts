@@ -312,7 +312,7 @@
 
         vcck_dvfs {
             dvfs_id     = <1>;                                  /** must be value of (1 << n)            */
-            table_count = <13>;                                 /** must be correct count for dvfs_table */
+            table_count = <15>;                                 /** must be correct count for dvfs_table */
             change-frequent-only;
             dvfs_table  = <
             /* NOTE: frequent in this table must be ascending order */
@@ -330,6 +330,8 @@
                 1320000        1100000     1100000
                 1488000        1100000     1100000
 		1536000	       1140000     1140000
+		1632000	       1150000     1150000
+                1728000        1160000     1160000
             >;
         };
     };
