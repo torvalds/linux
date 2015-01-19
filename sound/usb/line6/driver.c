@@ -190,7 +190,6 @@ int line6_send_raw_message_async(struct usb_line6 *line6, const char *buffer,
 
 	if (urb == NULL) {
 		kfree(msg);
-		dev_err(line6->ifcdev, "Out of memory\n");
 		return -ENOMEM;
 	}
 
@@ -215,10 +214,8 @@ int line6_version_request_async(struct usb_line6 *line6)
 
 	buffer = kmemdup(line6_request_version,
 			sizeof(line6_request_version), GFP_ATOMIC);
-	if (buffer == NULL) {
-		dev_err(line6->ifcdev, "Out of memory");
+	if (buffer == NULL)
 		return -ENOMEM;
-	}
 
 	retval = line6_send_raw_message_async(line6, buffer,
 					      sizeof(line6_request_version));
@@ -593,7 +590,6 @@ int line6_probe(struct usb_interface *interface,
 		line6->urb_listen = usb_alloc_urb(0, GFP_KERNEL);
 
 		if (line6->urb_listen == NULL) {
-			dev_err(&interface->dev, "Out of memory\n");
 			ret = -ENOMEM;
 			goto err_destruct;
 		}

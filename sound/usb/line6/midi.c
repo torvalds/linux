@@ -121,16 +121,13 @@ static int send_midi_async(struct usb_line6 *line6, unsigned char *data,
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 
-	if (urb == NULL) {
-		dev_err(line6->ifcdev, "Out of memory\n");
+	if (urb == NULL)
 		return -ENOMEM;
-	}
 
 	transfer_buffer = kmemdup(data, length, GFP_ATOMIC);
 
 	if (transfer_buffer == NULL) {
 		usb_free_urb(urb);
-		dev_err(line6->ifcdev, "Out of memory\n");
 		return -ENOMEM;
 	}
 

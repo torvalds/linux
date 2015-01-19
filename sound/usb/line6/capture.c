@@ -402,10 +402,8 @@ int line6_create_audio_in_urbs(struct snd_line6_pcm *line6pcm)
 		urb = line6pcm->urb_audio_in[i] =
 		    usb_alloc_urb(LINE6_ISO_PACKETS, GFP_KERNEL);
 
-		if (urb == NULL) {
-			dev_err(line6->ifcdev, "Out of memory\n");
+		if (urb == NULL)
 			return -ENOMEM;
-		}
 
 		urb->dev = line6->usbdev;
 		urb->pipe =

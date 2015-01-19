@@ -260,10 +260,8 @@ static int variax_try_init(struct usb_interface *interface,
 	variax->buffer_activate = kmemdup(variax_activate,
 					  sizeof(variax_activate), GFP_KERNEL);
 
-	if (variax->buffer_activate == NULL) {
-		dev_err(&interface->dev, "Out of memory\n");
+	if (variax->buffer_activate == NULL)
 		return -ENOMEM;
-	}
 
 	/* initialize audio system: */
 	err = line6_init_audio(&variax->line6);
