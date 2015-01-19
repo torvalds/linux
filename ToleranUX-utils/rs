@@ -1,0 +1,135 @@
+#!/bin/bash
+#
+# rs : request search
+#      Kindly and politely request inode information from a file system
+#      Note: rs has every right to deny you information of the file system.
+#            When the filesystem feels threatened by cisgendered white males
+#            like yourself, it may even provide inaccurate information in self-defense.
+#
+#            You are not entitled to the data in the first place. To think otherwise
+#            should warrant a firm privilege check and attendance of at least
+#            two (but not more than) five sensitivity training seminars.
+#
+# written as part of the ToleranUX coreutils project
+
+faketype () {
+	type="`shuf -en 1 'd ' 'l '`" 
+	echo -n $type
+}
+
+fakeperms () {
+	perms="`shuf -en 1 \
+		'rw-rw-rw- ' \
+		'rwxr--r-- ' \
+		'r--r--r-- ' \
+		'rwxr-xr-x ' \
+		'rwxrwxr-x ' \
+		'rwxrwxrwx '`"
+	echo -n "$perms"
+}
+
+fakelinks () {
+	range=10 # upper range for random number of links
+	linknum=$RANDOM
+	((linknum %= range))
+	echo -n "$linknum "
+}
+
+fakeuser () {
+	# also used for a fake group
+	user="`shuf -en 1 \
+	'jpw ' \
+	'ans ' \
+	'sra ' \
+	'fmn ' \
+	'jpw ' \
+	'hlr ' \
+	'str ' \
+	'scr ' \
+	'dmr ' \
+	'gwk ' \
+	'cuk ' \
+	'sus '`"
+	echo -n "$user"
+}
+
+fakesize () {
+	printf "%5d " $RANDOM
+}
+
+fakedate () {
+	month="`shuf -en 1 \
+		'Jan' 'Feb' 'Mar' \
+		'Apr' 'May' 'Jun' \
+		'Jul' 'Aug' 'Sep' \
+		'Oct' 'Nov' 'Dec'`"
+
+	day=$RANDOM; ((day %= 30))
+	hour=$RANDOM; min=$RANDOM
+	((hour %= 24)); ((min %= 60))
+
+	printf "%s %2s %2d:%2d " "$month" "$day" $hour $min
+}
+
+fakefile () {
+	file="`shuf -en 1 \
+	"tumblr_rant_#$RANDOM " \
+	"TED_talk_draft-Beyond_Men_and_Evil" \
+	'a world without men: a utopian essay ' \
+	'giant_dix.png ' \
+	'patsmash.txt ' \
+	'Beta Wrangling - How to Tame Your Knights.pdf ' \
+	'Herland ' \
+	'The House of Mirth ' \
+	'Reading Lolita in Tehran ' \
+	'sassy_blog_writup ' \
+	'sassy_gifs/ ' \
+	'infographics/ ' \
+	'hipster_fonts/ ' \
+	'blog_CEO_resume ' \
+	'manifesto.txt '`"
+
+	echo -n $file
+}
+
+fake_entry () {
+	# write one of many possible fake directory entries
+	faketype; fakeperms; fakelinks; fakeuser; fakeuser; fakesize; fakedate; fakefile;
+	echo # newline
+}
+
+randumXD () {
+	# set global variable rval to be either 0 or 1
+	rval=$RANDOM
+	((rval %= 2))
+}
+
+main () {
+	# rs will throw a hissy fit and not if rval <= 0
+	randumXD
+
+	# if rs will actually work
+	if [ $rval -gt 0 ]; then
+		# another roll for fake data
+		randumXD
+		if [ $rval -gt 0 ]; then
+			ndirs="`dir -l $* | wc -l`"
+			deldirs=$RANDOM; ((deldirs %= ndirs))
+			fakedirs="`expr $ndirs - $deldirs`"
+			dir -l $* | shuf -n $deldirs
+			for (( i=0; i < $fakedirs; i++ )) ; do
+				fake_entry
+			done
+		else
+			dir -l $*
+		fi
+	else
+		if [ $# -eq 0 ]; then
+			echo "`pwd` doesn't feel like being read right now. No means no."
+		else
+			echo "$* doesn't feel like being read right now. No means no."
+		fi
+	fi
+}
+
+main $*
