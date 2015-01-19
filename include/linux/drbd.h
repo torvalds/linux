@@ -25,7 +25,6 @@
 */
 #ifndef DRBD_H
 #define DRBD_H
-#include <linux/connector.h>
 #include <asm/types.h>
 
 #ifdef __KERNEL__
