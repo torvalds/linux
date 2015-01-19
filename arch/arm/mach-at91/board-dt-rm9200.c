@@ -38,6 +38,6 @@ static const char *at91rm9200_dt_board_compat[] __initdata = {
 DT_MACHINE_START(at91rm9200_dt, "Atmel AT91RM9200 (Device Tree)")
 	.init_time      = at91rm9200_dt_timer_init,
 	.map_io		= at91_map_io,
-	.init_early	= at91rm9200_dt_initialize,
+	.init_early	= at91_dt_initialize,
 	.dt_compat	= at91rm9200_dt_board_compat,
 MACHINE_END
