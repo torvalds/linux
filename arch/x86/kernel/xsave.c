@@ -688,7 +688,7 @@ void eager_fpu_init(void)
 {
 	static __refdata void (*boot_func)(void) = eager_fpu_init_bp;
 
-	clear_used_math();
+	WARN_ON(used_math());
 	current_thread_info()->status = 0;
 
 	if (eagerfpu == ENABLE)
@@ -703,17 +703,6 @@ void eager_fpu_init(void)
 		boot_func();
 		boot_func = NULL;
 	}
-
-	/*
-	 * This is same as math_state_restore(). But use_xsave() is
-	 * not yet patched to use math_state_restore().
-	 */
-	init_fpu(current);
-	__thread_fpu_begin(current);
-	if (cpu_has_xsave)
-		xrstor_state(init_xstate_buf, -1);
-	else
-		fxrstor_checking(&init_xstate_buf->i387);
 }
 
 /*
