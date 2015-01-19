@@ -210,6 +210,9 @@ static int pty_signal(struct tty_struct *tty, int sig)
 {
 	struct pid *pgrp;
 
+	if (sig != SIGINT && sig != SIGQUIT && sig != SIGTSTP)
+		return -EINVAL;
+
 	if (tty->link) {
 		pgrp = tty_get_pgrp(tty->link);
 		if (pgrp)
