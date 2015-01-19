@@ -36,7 +36,14 @@ void
 nouveau_gem_object_del(struct drm_gem_object *gem)
 {
 	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
+	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
 	struct ttm_buffer_object *bo = &nvbo->bo;
+	struct device *dev = drm->dev->dev;
+	int ret;
+
+	ret = pm_runtime_get_sync(dev);
+	if (WARN_ON(ret < 0 && ret != -EACCES))
+		return;
 
 	if (gem->import_attach)
 		drm_prime_gem_destroy(gem, nvbo->bo.sg);
@@ -46,6 +53,9 @@ nouveau_gem_object_del(struct drm_gem_object *gem)
 	/* reset filp so nouveau_bo_del_ttm() can test for it */
 	gem->filp = NULL;
 	ttm_bo_unref(&bo);
+
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 }
 
 int
@@ -53,7 +63,9 @@ nouveau_gem_object_open(struct drm_gem_object *gem, struct drm_file *file_priv)
 {
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
+	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
 	struct nouveau_vma *vma;
+	struct device *dev = drm->dev->dev;
 	int ret;
 
 	if (!cli->vm)
@@ -71,11 +83,16 @@ nouveau_gem_object_open(struct drm_gem_object *gem, struct drm_file *file_priv)
 			goto out;
 		}
 
-		ret = nouveau_bo_vma_add(nvbo, cli->vm, vma);
-		if (ret) {
-			kfree(vma);
+		ret = pm_runtime_get_sync(dev);
+		if (ret < 0 && ret != -EACCES)
 			goto out;
-		}
+
+		ret = nouveau_bo_vma_add(nvbo, cli->vm, vma);
+		if (ret)
+			kfree(vma);
+
+		pm_runtime_mark_last_busy(dev);
+		pm_runtime_put_autosuspend(dev);
 	} else {
 		vma->refcount++;
 	}
@@ -129,6 +146,8 @@ nouveau_gem_object_close(struct drm_gem_object *gem, struct drm_file *file_priv)
 {
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
+	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
+	struct device *dev = drm->dev->dev;
 	struct nouveau_vma *vma;
 	int ret;
 
@@ -141,8 +160,14 @@ nouveau_gem_object_close(struct drm_gem_object *gem, struct drm_file *file_priv)
 
 	vma = nouveau_bo_vma_find(nvbo, cli->vm);
 	if (vma) {
-		if (--vma->refcount == 0)
-			nouveau_gem_object_unmap(nvbo, vma);
+		if (--vma->refcount == 0) {
+			ret = pm_runtime_get_sync(dev);
+			if (!WARN_ON(ret < 0 && ret != -EACCES)) {
+				nouveau_gem_object_unmap(nvbo, vma);
+				pm_runtime_mark_last_busy(dev);
+				pm_runtime_put_autosuspend(dev);
+			}
+		}
 	}
 	ttm_bo_unreserve(&nvbo->bo);
 }

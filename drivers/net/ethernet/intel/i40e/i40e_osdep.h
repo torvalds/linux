@@ -78,7 +78,7 @@ do {                                                            \
 } while (0)
 
 typedef enum i40e_status_code i40e_status;
-#if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
+#ifdef CONFIG_I40E_FCOE
 #define I40E_FCOE
-#endif /* CONFIG_FCOE or CONFIG_FCOE_MODULE */
+#endif
 #endif /* _I40E_OSDEP_H_ */

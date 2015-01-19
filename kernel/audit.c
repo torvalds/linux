@@ -1100,7 +1100,7 @@ static void audit_receive(struct sk_buff  *skb)
 }
 
 /* Run custom bind function on netlink socket group connect or bind requests. */
-static int audit_bind(int group)
+static int audit_bind(struct net *net, int group)
 {
 	if (!capable(CAP_AUDIT_READ))
 		return -EPERM;
