@@ -174,12 +174,12 @@ void vnt_init_bands(struct vnt_private *priv)
  * Return Value: true if succeeded; false if failed.
  *
  */
-bool set_channel(void *pDeviceHandler, unsigned int uConnectionChannel)
+bool set_channel(void *pDeviceHandler, struct ieee80211_channel *ch)
 {
 	struct vnt_private *pDevice = pDeviceHandler;
 	bool bResult = true;
 
-	if (pDevice->byCurrentCh == uConnectionChannel)
+	if (pDevice->byCurrentCh == ch->hw_value)
 		return bResult;
 
 	/* Set VGA to max sensitivity */
@@ -197,15 +197,15 @@ bool set_channel(void *pDeviceHandler, unsigned int uConnectionChannel)
 
 	if (pDevice->byRFType == RF_AIROHA7230)
 		RFbAL7230SelectChannelPostProcess(pDevice, pDevice->byCurrentCh,
-						  (unsigned char)uConnectionChannel);
+						  (unsigned char)ch->hw_value);
 
-	pDevice->byCurrentCh = (unsigned char)uConnectionChannel;
+	pDevice->byCurrentCh = (unsigned char)ch->hw_value;
 	bResult &= RFbSelectChannel(pDevice, pDevice->byRFType,
-				    (unsigned char)uConnectionChannel);
+				    (unsigned char)ch->hw_value);
 
 	/* Init Synthesizer Table */
 	if (pDevice->bEnablePSMode)
-		RFvWriteWakeProgSyn(pDevice, pDevice->byRFType, uConnectionChannel);
+		RFvWriteWakeProgSyn(pDevice, pDevice->byRFType, ch->hw_value);
 
 	BBvSoftwareReset(pDevice);
 

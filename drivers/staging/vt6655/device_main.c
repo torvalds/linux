@@ -1420,7 +1420,7 @@ static int vnt_config(struct ieee80211_hw *hw, u32 changed)
 
 	if ((changed & IEEE80211_CONF_CHANGE_CHANNEL) ||
 	    (conf->flags & IEEE80211_CONF_OFFCHANNEL)) {
-		set_channel(priv, conf->chandef.chan->hw_value);
+		set_channel(priv, conf->chandef.chan);
 
 		if (conf->chandef.chan->band == IEEE80211_BAND_5GHZ)
 			bb_type = BB_TYPE_11A;
