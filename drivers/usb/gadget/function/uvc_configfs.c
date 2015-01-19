@@ -1918,10 +1918,10 @@ enum uvcg_strm_type {
 	UVCG_FRAME
 };
 
-static int __uvcg_iter_strm_cls(void *priv1, void *priv2, void *priv3,
+static int __uvcg_iter_strm_cls(struct uvcg_streaming_header *h,
+	void *priv2, void *priv3,
 	int (*fun)(void *, void *, void *, int, enum uvcg_strm_type type))
 {
-	struct uvcg_streaming_header *h = priv1;
 	struct uvcg_format_ptr *f;
 	struct config_group *grp;
 	struct config_item *item;
