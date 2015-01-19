@@ -435,7 +435,8 @@ int drm_plane_helper_commit(struct drm_plane *plane,
 			goto out;
 	}
 
-	if (plane_funcs->prepare_fb && plane_state->fb) {
+	if (plane_funcs->prepare_fb && plane_state->fb &&
+	    plane_state->fb != old_fb) {
 		ret = plane_funcs->prepare_fb(plane, plane_state->fb);
 		if (ret)
 			goto out;
@@ -455,6 +456,13 @@ int drm_plane_helper_commit(struct drm_plane *plane,
 		if (crtc_funcs[i] && crtc_funcs[i]->atomic_flush)
 			crtc_funcs[i]->atomic_flush(crtc[i]);
 	}
+
+	/*
+	 * If we only moved the plane and didn't change fb's, there's no need to
+	 * wait for vblank.
+	 */
+	if (plane->state->fb == old_fb)
+		goto out;
 
 	for (i = 0; i < 2; i++) {
 		if (!crtc[i])
