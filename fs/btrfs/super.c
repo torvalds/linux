@@ -1001,9 +1001,9 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 			if (fs_info->pending_changes == 0)
 				return 0;
 			trans = btrfs_start_transaction(root, 0);
-		} else {
-			return PTR_ERR(trans);
 		}
+		if (IS_ERR(trans))
+			return PTR_ERR(trans);
 	}
 	return btrfs_commit_transaction(trans, root);
 }
