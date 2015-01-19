@@ -302,16 +302,35 @@ static int f2fs_set_meta_page_dirty(struct page *page)
 	if (!PageDirty(page)) {
 		__set_page_dirty_nobuffers(page);
 		inc_page_count(F2FS_P_SB(page), F2FS_DIRTY_META);
+		SetPagePrivate(page);
 		f2fs_trace_pid(page);
 		return 1;
 	}
 	return 0;
 }
 
+static void f2fs_invalidate_meta_page(struct page *page, unsigned int offset,
+				      unsigned int length)
+{
+	struct inode *inode = page->mapping->host;
+
+	if (PageDirty(page))
+		dec_page_count(F2FS_I_SB(inode), F2FS_DIRTY_META);
+	ClearPagePrivate(page);
+}
+
+static int f2fs_release_meta_page(struct page *page, gfp_t wait)
+{
+	ClearPagePrivate(page);
+	return 1;
+}
+
 const struct address_space_operations f2fs_meta_aops = {
 	.writepage	= f2fs_write_meta_page,
 	.writepages	= f2fs_write_meta_pages,
 	.set_page_dirty	= f2fs_set_meta_page_dirty,
+	.invalidatepage = f2fs_invalidate_meta_page,
+	.releasepage	= f2fs_release_meta_page,
 };
 
 static void __add_ino_entry(struct f2fs_sb_info *sbi, nid_t ino, int type)
