@@ -1180,16 +1180,7 @@ config DEBUG_CREDENTIALS
 menu "RCU Debugging"
 
 config PROVE_RCU
-	bool "RCU debugging: prove RCU correctness"
-	depends on PROVE_LOCKING
-	default n
-	help
-	 This feature enables lockdep extensions that check for correct
-	 use of RCU APIs.  This is currently under development.  Say Y
-	 if you want to debug RCU usage or help work on the PROVE_RCU
-	 feature.
-
-	 Say N if you are unsure.
+	def_bool PROVE_LOCKING
 
 config PROVE_RCU_REPEATEDLY
 	bool "RCU debugging: don't disable PROVE_RCU on first splat"
