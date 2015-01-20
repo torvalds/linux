@@ -175,12 +175,12 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 		return IRQ_NONE;
 
 	if (status & OVFL_BIT) {
-		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		async->events |= COMEDI_CB_ERROR;
 		comedi_handle_events(dev, s);
 	}
 
 	if ((status & DMA_TC_BIT) == 0) {
-		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		async->events |= COMEDI_CB_ERROR;
 		comedi_handle_events(dev, s);
 		return IRQ_HANDLED;
 	}

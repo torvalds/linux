@@ -261,12 +261,12 @@ static irqreturn_t gsc_hpdi_interrupt(int irq, void *d)
 
 	if (hpdi_board_status & RX_OVERRUN_BIT) {
 		dev_err(dev->class_dev, "rx fifo overrun\n");
-		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		async->events |= COMEDI_CB_ERROR;
 	}
 
 	if (hpdi_board_status & RX_UNDERRUN_BIT) {
 		dev_err(dev->class_dev, "rx fifo underrun\n");
-		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		async->events |= COMEDI_CB_ERROR;
 	}
 
 	if (devpriv->dio_count == 0)

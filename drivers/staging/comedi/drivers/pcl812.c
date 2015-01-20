@@ -797,7 +797,7 @@ static void pcl812_handle_eoc(struct comedi_device *dev,
 
 	if (pcl812_ai_eoc(dev, s, NULL, 0)) {
 		dev_dbg(dev->class_dev, "A/D cmd IRQ without DRDY!\n");
-		s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		s->async->events |= COMEDI_CB_ERROR;
 		return;
 	}
 

@@ -2804,7 +2804,7 @@ static void handle_ai_interrupt(struct comedi_device *dev,
 	/*  check for fifo overrun */
 	if (status & ADC_OVERRUN_BIT) {
 		dev_err(dev->class_dev, "fifo overrun\n");
-		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		async->events |= COMEDI_CB_ERROR;
 	}
 	/*  spin lock makes sure no one else changes plx dma control reg */
 	spin_lock_irqsave(&dev->spinlock, flags);

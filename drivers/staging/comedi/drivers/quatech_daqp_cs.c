@@ -210,8 +210,7 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 			unsigned short data;
 
 			if (status & DAQP_STATUS_DATA_LOST) {
-				s->async->events |=
-				    COMEDI_CB_EOA | COMEDI_CB_OVERFLOW;
+				s->async->events |= COMEDI_CB_OVERFLOW;
 				dev_warn(dev->class_dev, "data lost\n");
 				break;
 			}
@@ -239,7 +238,7 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 		if (loop_limit <= 0) {
 			dev_warn(dev->class_dev,
 				 "loop_limit reached in daqp_interrupt()\n");
-			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+			s->async->events |= COMEDI_CB_ERROR;
 		}
 
 		comedi_handle_events(dev, s);

@@ -611,7 +611,7 @@ static void das1800_ai_handler(struct comedi_device *dev)
 		/*  clear OVF interrupt bit */
 		outb(CLEAR_INTR_MASK & ~OVF, dev->iobase + DAS1800_STATUS);
 		dev_err(dev->class_dev, "FIFO overflow\n");
-		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		async->events |= COMEDI_CB_ERROR;
 		comedi_handle_events(dev, s);
 		return;
 	}
