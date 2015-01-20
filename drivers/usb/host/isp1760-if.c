@@ -160,14 +160,7 @@ cleanup1:
 
 static void isp1761_pci_remove(struct pci_dev *dev)
 {
-	struct usb_hcd *hcd;
-
-	hcd = pci_get_drvdata(dev);
-
-	usb_remove_hcd(hcd);
-	iounmap(hcd->regs);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
-	usb_put_hcd(hcd);
+	isp1760_unregister(&dev->dev);
 
 	pci_disable_device(dev);
 }
@@ -291,12 +284,7 @@ cleanup:
 
 static int isp1760_plat_remove(struct platform_device *pdev)
 {
-	struct usb_hcd *hcd = platform_get_drvdata(pdev);
-
-	usb_remove_hcd(hcd);
-	iounmap(hcd->regs);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
-	usb_put_hcd(hcd);
+	isp1760_unregister(&pdev->dev);
 
 	return 0;
 }

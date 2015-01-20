@@ -2263,6 +2263,16 @@ err_put:
 	 return ERR_PTR(ret);
 }
 
+void isp1760_unregister(struct device *dev)
+{
+	struct usb_hcd *hcd = dev_get_drvdata(dev);
+
+	usb_remove_hcd(hcd);
+	iounmap(hcd->regs);
+	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
+	usb_put_hcd(hcd);
+}
+
 MODULE_DESCRIPTION("Driver for the ISP1760 USB-controller from NXP");
 MODULE_AUTHOR("Sebastian Siewior <bigeasy@linuxtronix.de>");
 MODULE_LICENSE("GPL v2");
