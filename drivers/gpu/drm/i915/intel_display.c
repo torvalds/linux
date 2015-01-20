@@ -2337,6 +2337,32 @@ static int i9xx_format_to_fourcc(int format)
 	}
 }
 
+static int skl_format_to_fourcc(int format, bool rgb_order, bool alpha)
+{
+	switch (format) {
+	case PLANE_CTL_FORMAT_RGB_565:
+		return DRM_FORMAT_RGB565;
+	default:
+	case PLANE_CTL_FORMAT_XRGB_8888:
+		if (rgb_order) {
+			if (alpha)
+				return DRM_FORMAT_ABGR8888;
+			else
+				return DRM_FORMAT_XBGR8888;
+		} else {
+			if (alpha)
+				return DRM_FORMAT_ARGB8888;
+			else
+				return DRM_FORMAT_XRGB8888;
+		}
+	case PLANE_CTL_FORMAT_XRGB_2101010:
+		if (rgb_order)
+			return DRM_FORMAT_XBGR2101010;
+		else
+			return DRM_FORMAT_XRGB2101010;
+	}
+}
+
 static bool intel_alloc_plane_obj(struct intel_crtc *crtc,
 				  struct intel_plane_config *plane_config)
 {
@@ -7573,6 +7599,74 @@ static void skylake_get_pfit_config(struct intel_crtc *crtc,
 	}
 }
 
+static void skylake_get_plane_config(struct intel_crtc *crtc,
+				      struct intel_plane_config *plane_config)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 val, base, offset, stride_mult;
+	int pipe = crtc->pipe;
+	int fourcc, pixel_format;
+	int aligned_height;
+	struct drm_framebuffer *fb;
+
+	fb = kzalloc(sizeof(struct intel_framebuffer), GFP_KERNEL);
+	if (!fb) {
+		DRM_DEBUG_KMS("failed to alloc fb\n");
+		return;
+	}
+
+	val = I915_READ(PLANE_CTL(pipe, 0));
+	if (val & PLANE_CTL_TILED_MASK)
+		plane_config->tiling = I915_TILING_X;
+
+	pixel_format = val & PLANE_CTL_FORMAT_MASK;
+	fourcc = skl_format_to_fourcc(pixel_format,
+				      val & PLANE_CTL_ORDER_RGBX,
+				      val & PLANE_CTL_ALPHA_MASK);
+	fb->pixel_format = fourcc;
+	fb->bits_per_pixel = drm_format_plane_cpp(fourcc, 0) * 8;
+
+	base = I915_READ(PLANE_SURF(pipe, 0)) & 0xfffff000;
+	plane_config->base = base;
+
+	offset = I915_READ(PLANE_OFFSET(pipe, 0));
+
+	val = I915_READ(PLANE_SIZE(pipe, 0));
+	fb->height = ((val >> 16) & 0xfff) + 1;
+	fb->width = ((val >> 0) & 0x1fff) + 1;
+
+	val = I915_READ(PLANE_STRIDE(pipe, 0));
+	switch (plane_config->tiling) {
+	case I915_TILING_NONE:
+		stride_mult = 64;
+		break;
+	case I915_TILING_X:
+		stride_mult = 512;
+		break;
+	default:
+		MISSING_CASE(plane_config->tiling);
+		goto error;
+	}
+	fb->pitches[0] = (val & 0x3ff) * stride_mult;
+
+	aligned_height = intel_fb_align_height(dev, fb->height,
+					       plane_config->tiling);
+
+	plane_config->size = ALIGN(fb->pitches[0] * aligned_height, PAGE_SIZE);
+
+	DRM_DEBUG_KMS("pipe %c with fb: size=%dx%d@%d, offset=%x, pitch %d, size 0x%x\n",
+		      pipe_name(pipe), fb->width, fb->height,
+		      fb->bits_per_pixel, base, fb->pitches[0],
+		      plane_config->size);
+
+	crtc->base.primary->fb = fb;
+	return;
+
+error:
+	kfree(fb);
+}
+
 static void ironlake_get_pfit_config(struct intel_crtc *crtc,
 				     struct intel_crtc_state *pipe_config)
 {
@@ -12668,7 +12762,17 @@ static void intel_init_display(struct drm_device *dev)
 	else
 		dev_priv->display.find_dpll = i9xx_find_best_dpll;
 
-	if (HAS_DDI(dev)) {
+	if (INTEL_INFO(dev)->gen >= 9) {
+		dev_priv->display.get_pipe_config = haswell_get_pipe_config;
+		dev_priv->display.get_plane_config = skylake_get_plane_config;
+		dev_priv->display.crtc_compute_clock =
+			haswell_crtc_compute_clock;
+		dev_priv->display.crtc_enable = haswell_crtc_enable;
+		dev_priv->display.crtc_disable = haswell_crtc_disable;
+		dev_priv->display.off = ironlake_crtc_off;
+		dev_priv->display.update_primary_plane =
+			skylake_update_primary_plane;
+	} else if (HAS_DDI(dev)) {
 		dev_priv->display.get_pipe_config = haswell_get_pipe_config;
 		dev_priv->display.get_plane_config = ironlake_get_plane_config;
 		dev_priv->display.crtc_compute_clock =
@@ -12676,12 +12780,8 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.crtc_enable = haswell_crtc_enable;
 		dev_priv->display.crtc_disable = haswell_crtc_disable;
 		dev_priv->display.off = ironlake_crtc_off;
-		if (INTEL_INFO(dev)->gen >= 9)
-			dev_priv->display.update_primary_plane =
-				skylake_update_primary_plane;
-		else
-			dev_priv->display.update_primary_plane =
-				ironlake_update_primary_plane;
+		dev_priv->display.update_primary_plane =
+			ironlake_update_primary_plane;
 	} else if (HAS_PCH_SPLIT(dev)) {
 		dev_priv->display.get_pipe_config = ironlake_get_pipe_config;
 		dev_priv->display.get_plane_config = ironlake_get_plane_config;
