@@ -1,5 +1,5 @@
 /*
- * Line6 Linux USB driver - 0.9.1beta
+ * Line 6 Linux USB driver
  *
  * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
@@ -26,7 +26,7 @@ static int midibuf_message_length(unsigned char code)
 	} else {
 		/*
 		   Note that according to the MIDI specification 0xf2 is
-		   the "Song Position Pointer", but this is used by Line6
+		   the "Song Position Pointer", but this is used by Line 6
 		   to send sysex messages to the host.
 		 */
 		static const int length[] = { -1, 2, -1, 2, -1, -1, 1, 1, 1, 1,

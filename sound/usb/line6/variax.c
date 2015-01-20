@@ -1,5 +1,5 @@
 /*
- * Line6 Linux USB driver - 0.9.1beta
+ * Line 6 Linux USB driver
  *
  * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
@@ -10,10 +10,64 @@
  */
 
 #include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/usb.h>
+#include <linux/wait.h>
+#include <linux/module.h>
+#include <sound/core.h>
 
-#include "audio.h"
 #include "driver.h"
-#include "variax.h"
+#include "usbdefs.h"
+
+#define VARIAX_STARTUP_DELAY1 1000
+#define VARIAX_STARTUP_DELAY3 100
+#define VARIAX_STARTUP_DELAY4 100
+
+/*
+	Stages of Variax startup procedure
+*/
+enum {
+	VARIAX_STARTUP_INIT = 1,
+	VARIAX_STARTUP_VERSIONREQ,
+	VARIAX_STARTUP_WAIT,
+	VARIAX_STARTUP_ACTIVATE,
+	VARIAX_STARTUP_WORKQUEUE,
+	VARIAX_STARTUP_SETUP,
+	VARIAX_STARTUP_LAST = VARIAX_STARTUP_SETUP - 1
+};
+
+enum {
+	LINE6_PODXTLIVE_VARIAX,
+	LINE6_VARIAX
+};
+
+struct usb_line6_variax {
+	/**
+		Generic Line 6 USB data.
+	*/
+	struct usb_line6 line6;
+
+	/**
+		Buffer for activation code.
+	*/
+	unsigned char *buffer_activate;
+
+	/**
+		Handler for device initializaton.
+	*/
+	struct work_struct startup_work;
+
+	/**
+		Timers for device initializaton.
+	*/
+	struct timer_list startup_timer1;
+	struct timer_list startup_timer2;
+
+	/**
+		Current progress in startup procedure.
+	*/
+	int startup_progress;
+};
 
 #define VARIAX_OFFSET_ACTIVATE 7
 
@@ -124,7 +178,7 @@ static void variax_startup6(struct work_struct *work)
 	CHECK_STARTUP_PROGRESS(variax->startup_progress, VARIAX_STARTUP_SETUP);
 
 	/* ALSA audio interface: */
-	line6_register_audio(&variax->line6);
+	snd_card_register(variax->line6.card);
 }
 
 /*
@@ -156,13 +210,16 @@ static void line6_variax_process_message(struct usb_line6 *line6)
 /*
 	Variax destructor.
 */
-static void variax_destruct(struct usb_interface *interface)
+static void line6_variax_disconnect(struct usb_interface *interface)
 {
-	struct usb_line6_variax *variax = usb_get_intfdata(interface);
+	struct usb_line6_variax *variax;
 
-	if (variax == NULL)
+	if (!interface)
 		return;
-	line6_cleanup_audio(&variax->line6);
+
+	variax = usb_get_intfdata(interface);
+	if (!variax)
+		return;
 
 	del_timer(&variax->startup_timer1);
 	del_timer(&variax->startup_timer2);
@@ -172,21 +229,10 @@ static void variax_destruct(struct usb_interface *interface)
 }
 
 /*
-	Workbench device disconnected.
-*/
-static void line6_variax_disconnect(struct usb_interface *interface)
-{
-	if (interface == NULL)
-		return;
-
-	variax_destruct(interface);
-}
-
-/*
 	 Try to init workbench device.
 */
-static int variax_try_init(struct usb_interface *interface,
-			   struct usb_line6 *line6)
+static int variax_init(struct usb_interface *interface,
+		       struct usb_line6 *line6)
 {
 	struct usb_line6_variax *variax = (struct usb_line6_variax *) line6;
 	int err;
@@ -205,15 +251,8 @@ static int variax_try_init(struct usb_interface *interface,
 	variax->buffer_activate = kmemdup(variax_activate,
 					  sizeof(variax_activate), GFP_KERNEL);
 
-	if (variax->buffer_activate == NULL) {
-		dev_err(&interface->dev, "Out of memory\n");
+	if (variax->buffer_activate == NULL)
 		return -ENOMEM;
-	}
-
-	/* initialize audio system: */
-	err = line6_init_audio(&variax->line6);
-	if (err < 0)
-		return err;
 
 	/* initialize MIDI subsystem: */
 	err = line6_init_midi(&variax->line6);
@@ -225,15 +264,71 @@ static int variax_try_init(struct usb_interface *interface,
 	return 0;
 }
 
+#define LINE6_DEVICE(prod) USB_DEVICE(0x0e41, prod)
+#define LINE6_IF_NUM(prod, n) USB_DEVICE_INTERFACE_NUMBER(0x0e41, prod, n)
+
+/* table of devices that work with this driver */
+static const struct usb_device_id variax_id_table[] = {
+	{ LINE6_IF_NUM(0x4650, 1), .driver_info = LINE6_PODXTLIVE_VARIAX },
+	{ LINE6_DEVICE(0x534d),    .driver_info = LINE6_VARIAX },
+	{}
+};
+
+MODULE_DEVICE_TABLE(usb, variax_id_table);
+
+static const struct line6_properties variax_properties_table[] = {
+	[LINE6_PODXTLIVE_VARIAX] = {
+		.id = "PODxtLive",
+		.name = "PODxt Live",
+		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_PCM
+				| LINE6_CAP_HWMON,
+		.altsetting = 1,
+		.ep_ctrl_r = 0x86,
+		.ep_ctrl_w = 0x05,
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
+	},
+	[LINE6_VARIAX] = {
+		.id = "Variax",
+		.name = "Variax Workbench",
+		.capabilities	= LINE6_CAP_CONTROL,
+		.altsetting = 1,
+		.ep_ctrl_r = 0x82,
+		.ep_ctrl_w = 0x01,
+		/* no audio channel */
+	}
+};
+
 /*
-	 Init workbench device (and clean up in case of failure).
+	Probe USB device.
 */
-int line6_variax_init(struct usb_interface *interface, struct usb_line6 *line6)
+static int variax_probe(struct usb_interface *interface,
+			const struct usb_device_id *id)
 {
-	int err = variax_try_init(interface, line6);
+	struct usb_line6_variax *variax;
 
-	if (err < 0)
-		variax_destruct(interface);
-
-	return err;
+	variax = kzalloc(sizeof(*variax), GFP_KERNEL);
+	if (!variax)
+		return -ENODEV;
+	return line6_probe(interface, &variax->line6,
+			   &variax_properties_table[id->driver_info],
+			   variax_init);
 }
+
+static struct usb_driver variax_driver = {
+	.name = KBUILD_MODNAME,
+	.probe = variax_probe,
+	.disconnect = line6_disconnect,
+#ifdef CONFIG_PM
+	.suspend = line6_suspend,
+	.resume = line6_resume,
+	.reset_resume = line6_resume,
+#endif
+	.id_table = variax_id_table,
+};
+
+module_usb_driver(variax_driver);
+
+MODULE_DESCRIPTION("Vairax Workbench USB driver");
+MODULE_LICENSE("GPL");

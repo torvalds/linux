@@ -1,5 +1,5 @@
 /*
- * Line6 Linux USB driver - 0.9.1beta
+ * Line 6 Linux USB driver
  *
  * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
@@ -20,35 +20,12 @@
 
 #define DRIVER_NAME "line6usb"
 
-enum line6_device_type {
-	LINE6_BASSPODXT,
-	LINE6_BASSPODXTLIVE,
-	LINE6_BASSPODXTPRO,
-	LINE6_GUITARPORT,
-	LINE6_POCKETPOD,
-	LINE6_PODHD300,
-	LINE6_PODHD400,
-	LINE6_PODHD500_0,
-	LINE6_PODHD500_1,
-	LINE6_PODSTUDIO_GX,
-	LINE6_PODSTUDIO_UX1,
-	LINE6_PODSTUDIO_UX2,
-	LINE6_PODXT,
-	LINE6_PODXTLIVE_POD,
-	LINE6_PODXTLIVE_VARIAX,
-	LINE6_PODXTPRO,
-	LINE6_TONEPORT_GX,
-	LINE6_TONEPORT_UX1,
-	LINE6_TONEPORT_UX2,
-	LINE6_VARIAX
-};
-
 #define LINE6_TIMEOUT 1
 #define LINE6_BUFSIZE_LISTEN 32
 #define LINE6_MESSAGE_MAXLEN 256
 
 /*
-	Line6 MIDI control commands
+	Line 6 MIDI control commands
 */
 #define LINE6_PARAM_CHANGE   0xb0
 #define LINE6_PROGRAM_CHANGE 0xc0
@@ -71,17 +48,6 @@ enum line6_device_type {
 
 #define LINE6_CHANNEL_MASK 0x0f
 
-#define MISSING_CASE	\
-	pr_err("line6usb driver bug: missing case in %s:%d\n", \
-		__FILE__, __LINE__)
-
-#define CHECK_RETURN(x)		\
-do {				\
-	err = x;		\
-	if (err < 0)		\
-		return err;	\
-} while (0)
-
 #define CHECK_STARTUP_PROGRESS(x, n)	\
 do {					\
 	if ((x) >= (n))			\
@@ -95,7 +61,7 @@ static const int SYSEX_DATA_OFS = sizeof(line6_midi_id) + 3;
 static const int SYSEX_EXTRA_SIZE = sizeof(line6_midi_id) + 4;
 
 /**
-	 Common properties of Line6 devices.
+	 Common properties of Line 6 devices.
 */
 struct line6_properties {
 	/**
@@ -125,7 +91,7 @@ struct line6_properties {
 };
 
 /**
-	 Common data shared by all Line6 devices.
+	 Common data shared by all Line 6 devices.
 	 Corresponds to a pair of USB endpoints.
 */
 struct usb_line6 {
@@ -133,11 +99,6 @@ struct usb_line6 {
 		 USB device.
 	*/
 	struct usb_device *usbdev;
-
-	/**
-		 Device type.
-	*/
-	enum line6_device_type type;
 
 	/**
 		 Properties.
@@ -160,18 +121,18 @@ struct usb_line6 {
 	struct device *ifcdev;
 
 	/**
-		 Line6 sound card data structure.
+		 Line 6 sound card data structure.
 		 Each device has at least MIDI or PCM.
 	*/
 	struct snd_card *card;
 
 	/**
-		 Line6 PCM device data structure.
+		 Line 6 PCM device data structure.
 	*/
 	struct snd_line6_pcm *line6pcm;
 
 	/**
-		 Line6 MIDI device data structure.
+		 Line 6 MIDI device data structure.
 	*/
 	struct snd_line6_midi *line6midi;
 
@@ -207,9 +168,6 @@ extern int line6_read_data(struct usb_line6 *line6, int address, void *data,
 			   size_t datalen);
 extern int line6_read_serial_number(struct usb_line6 *line6,
 				    int *serial_number);
-extern int line6_send_program(struct usb_line6 *line6, u8 value);
-extern int line6_send_raw_message(struct usb_line6 *line6, const char *buffer,
-				  int size);
 extern int line6_send_raw_message_async(struct usb_line6 *line6,
 					const char *buffer, int size);
 extern int line6_send_sysex_message(struct usb_line6 *line6,
@@ -219,10 +177,19 @@ extern ssize_t line6_set_raw(struct device *dev, struct device_attribute *attr,
 extern void line6_start_timer(struct timer_list *timer, unsigned int msecs,
 			      void (*function)(unsigned long),
 			      unsigned long data);
-extern int line6_transmit_parameter(struct usb_line6 *line6, int param,
-				    u8 value);
 extern int line6_version_request_async(struct usb_line6 *line6);
 extern int line6_write_data(struct usb_line6 *line6, int address, void *data,
 			    size_t datalen);
+
+int line6_probe(struct usb_interface *interface,
+		struct usb_line6 *line6,
+		const struct line6_properties *properties,
+		int (*private_init)(struct usb_interface *, struct usb_line6 *));
+void line6_disconnect(struct usb_interface *interface);
+
+#ifdef CONFIG_PM
+int line6_suspend(struct usb_interface *interface, pm_message_t message);
+int line6_resume(struct usb_interface *interface);
+#endif
 
 #endif

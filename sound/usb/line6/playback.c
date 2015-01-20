@@ -1,5 +1,5 @@
 /*
- * Line6 Linux USB driver - 0.9.1beta
+ * Line 6 Linux USB driver
  *
  * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
@@ -14,11 +14,9 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 
-#include "audio.h"
 #include "capture.h"
 #include "driver.h"
 #include "pcm.h"
-#include "pod.h"
 #include "playback.h"
 
 /*
@@ -60,8 +58,6 @@ static void change_volume(struct urb *urb_out, int volume[],
 		}
 	}
 }
-
-#ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
 
 /*
 	Create signal for impulse response test.
@@ -105,8 +101,6 @@ static void create_impulse_test_signal(struct snd_line6_pcm *line6pcm,
 		line6pcm->impulse_count = line6pcm->impulse_period;
 	}
 }
-
-#endif
 
 /*
 	Add signal to buffer for software monitoring.
@@ -244,7 +238,6 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 	change_volume(urb_out, line6pcm->volume_playback, bytes_per_frame);
 
 	if (line6pcm->prev_fbuf != NULL) {
-#ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
 		if (line6pcm->flags & LINE6_BITS_PCM_IMPULSE) {
 			create_impulse_test_signal(line6pcm, urb_out,
 						   bytes_per_frame);
@@ -258,7 +251,6 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 					urb_out->transfer_buffer_length);
 			}
 		} else {
-#endif
 			if (!
 			    (line6pcm->line6->
 			     properties->capabilities & LINE6_CAP_HWMON)
@@ -267,9 +259,7 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 				add_monitor_signal(urb_out, line6pcm->prev_fbuf,
 						   line6pcm->volume_monitor,
 						   bytes_per_frame);
-#ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
 		}
-#endif
 	}
 
 	ret = usb_submit_urb(urb_out, GFP_ATOMIC);
@@ -499,9 +489,7 @@ int snd_line6_playback_trigger(struct snd_line6_pcm *line6pcm, int cmd)
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-#ifdef CONFIG_PM
 	case SNDRV_PCM_TRIGGER_RESUME:
-#endif
 		err = line6_pcm_acquire(line6pcm,
 					LINE6_BIT_PCM_ALSA_PLAYBACK_STREAM);
 
@@ -511,9 +499,7 @@ int snd_line6_playback_trigger(struct snd_line6_pcm *line6pcm, int cmd)
 		break;
 
 	case SNDRV_PCM_TRIGGER_STOP:
-#ifdef CONFIG_PM
 	case SNDRV_PCM_TRIGGER_SUSPEND:
-#endif
 		err = line6_pcm_release(line6pcm,
 					LINE6_BIT_PCM_ALSA_PLAYBACK_STREAM);
 
@@ -571,10 +557,8 @@ int line6_create_audio_out_urbs(struct snd_line6_pcm *line6pcm)
 		urb = line6pcm->urb_audio_out[i] =
 		    usb_alloc_urb(LINE6_ISO_PACKETS, GFP_KERNEL);
 
-		if (urb == NULL) {
-			dev_err(line6->ifcdev, "Out of memory\n");
+		if (urb == NULL)
 			return -ENOMEM;
-		}
 
 		urb->dev = line6->usbdev;
 		urb->pipe =

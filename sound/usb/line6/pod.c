@@ -1,5 +1,5 @@
 /*
- * Line6 Linux USB driver - 0.9.1beta
+ * Line 6 Linux USB driver
  *
  * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
@@ -11,13 +11,93 @@
 
 #include <linux/slab.h>
 #include <linux/wait.h>
+#include <linux/interrupt.h>
+#include <linux/module.h>
+#include <linux/usb.h>
+
+#include <sound/core.h>
 #include <sound/control.h>
 
-#include "audio.h"
 #include "capture.h"
 #include "driver.h"
 #include "playback.h"
-#include "pod.h"
+#include "usbdefs.h"
+
+/*
+	Locate name in binary program dump
+*/
+#define	POD_NAME_OFFSET 0
+#define	POD_NAME_LENGTH 16
+
+/*
+	Other constants
+*/
+#define POD_CONTROL_SIZE 0x80
+#define POD_BUFSIZE_DUMPREQ 7
+#define POD_STARTUP_DELAY 1000
+
+/*
+	Stages of POD startup procedure
+*/
+enum {
+	POD_STARTUP_INIT = 1,
+	POD_STARTUP_VERSIONREQ,
+	POD_STARTUP_WORKQUEUE,
+	POD_STARTUP_SETUP,
+	POD_STARTUP_LAST = POD_STARTUP_SETUP - 1
+};
+
+enum {
+	LINE6_BASSPODXT,
+	LINE6_BASSPODXTLIVE,
+	LINE6_BASSPODXTPRO,
+	LINE6_POCKETPOD,
+	LINE6_PODXT,
+	LINE6_PODXTLIVE_POD,
+	LINE6_PODXTPRO,
+};
+
+struct usb_line6_pod {
+	/**
+		Generic Line 6 USB data.
+	*/
+	struct usb_line6 line6;
+
+	/**
+		Instrument monitor level.
+	*/
+	int monitor_level;
+
+	/**
+		Timer for device initializaton.
+	*/
+	struct timer_list startup_timer;
+
+	/**
+		Work handler for device initializaton.
+	*/
+	struct work_struct startup_work;
+
+	/**
+		Current progress in startup procedure.
+	*/
+	int startup_progress;
+
+	/**
+		Serial number of device.
+	*/
+	int serial_number;
+
+	/**
+		Firmware version (x 100).
+	*/
+	int firmware_version;
+
+	/**
+		Device ID.
+	*/
+	int device_id;
+};
 
 #define POD_SYSEX_CODE 3
 #define POD_BYTES_PER_FRAME 6	/* 24bit audio (stereo) */
@@ -72,9 +152,6 @@ static struct line6_pcm_properties pod_pcm_properties = {
 					   SNDRV_PCM_INFO_BLOCK_TRANSFER |
 					   SNDRV_PCM_INFO_MMAP_VALID |
 					   SNDRV_PCM_INFO_PAUSE |
-#ifdef CONFIG_PM
-					   SNDRV_PCM_INFO_RESUME |
-#endif
 					   SNDRV_PCM_INFO_SYNC_START),
 				  .formats = SNDRV_PCM_FMTBIT_S24_3LE,
 				  .rates = SNDRV_PCM_RATE_KNOT,
@@ -92,9 +169,6 @@ static struct line6_pcm_properties pod_pcm_properties = {
 					  SNDRV_PCM_INFO_INTERLEAVED |
 					  SNDRV_PCM_INFO_BLOCK_TRANSFER |
 					  SNDRV_PCM_INFO_MMAP_VALID |
-#ifdef CONFIG_PM
-					  SNDRV_PCM_INFO_RESUME |
-#endif
 					  SNDRV_PCM_INFO_SYNC_START),
 				 .formats = SNDRV_PCM_FMTBIT_S24_3LE,
 				 .rates = SNDRV_PCM_RATE_KNOT,
@@ -265,7 +339,7 @@ static void pod_startup4(struct work_struct *work)
 	line6_read_serial_number(&pod->line6, &pod->serial_number);
 
 	/* ALSA audio interface: */
-	line6_register_audio(line6);
+	snd_card_register(line6->card);
 }
 
 /* POD special files: */
@@ -323,21 +397,6 @@ static struct snd_kcontrol_new pod_control_monitor = {
 };
 
 /*
-	POD destructor.
-*/
-static void pod_destruct(struct usb_interface *interface)
-{
-	struct usb_line6_pod *pod = usb_get_intfdata(interface);
-
-	if (pod == NULL)
-		return;
-	line6_cleanup_audio(&pod->line6);
-
-	del_timer(&pod->startup_timer);
-	cancel_work_sync(&pod->startup_work);
-}
-
-/*
 	POD device disconnected.
 */
 static void line6_pod_disconnect(struct usb_interface *interface)
@@ -349,11 +408,7 @@ static void line6_pod_disconnect(struct usb_interface *interface)
 	pod = usb_get_intfdata(interface);
 
 	if (pod != NULL) {
-		struct snd_line6_pcm *line6pcm = pod->line6.line6pcm;
 		struct device *dev = &interface->dev;
-
-		if (line6pcm != NULL)
-			line6_pcm_disconnect(line6pcm);
 
 		if (dev != NULL) {
 			/* remove sysfs entries: */
@@ -361,9 +416,10 @@ static void line6_pod_disconnect(struct usb_interface *interface)
 			device_remove_file(dev, &dev_attr_firmware_version);
 			device_remove_file(dev, &dev_attr_serial_number);
 		}
-	}
 
-	pod_destruct(interface);
+		del_timer_sync(&pod->startup_timer);
+		cancel_work_sync(&pod->startup_work);
+	}
 }
 
 /*
@@ -373,17 +429,23 @@ static int pod_create_files2(struct device *dev)
 {
 	int err;
 
-	CHECK_RETURN(device_create_file(dev, &dev_attr_device_id));
-	CHECK_RETURN(device_create_file(dev, &dev_attr_firmware_version));
-	CHECK_RETURN(device_create_file(dev, &dev_attr_serial_number));
+	err = device_create_file(dev, &dev_attr_device_id);
+	if (err < 0)
+		return err;
+	err = device_create_file(dev, &dev_attr_firmware_version);
+	if (err < 0)
+		return err;
+	err = device_create_file(dev, &dev_attr_serial_number);
+	if (err < 0)
+		return err;
 	return 0;
 }
 
 /*
 	 Try to init POD device.
 */
-static int pod_try_init(struct usb_interface *interface,
-			struct usb_line6 *line6)
+static int pod_init(struct usb_interface *interface,
+		    struct usb_line6 *line6)
 {
 	int err;
 	struct usb_line6_pod *pod = (struct usb_line6_pod *) line6;
@@ -399,11 +461,6 @@ static int pod_try_init(struct usb_interface *interface,
 
 	/* create sysfs entries: */
 	err = pod_create_files2(&interface->dev);
-	if (err < 0)
-		return err;
-
-	/* initialize audio system: */
-	err = line6_init_audio(line6);
 	if (err < 0)
 		return err;
 
@@ -439,15 +496,136 @@ static int pod_try_init(struct usb_interface *interface,
 	return 0;
 }
 
+#define LINE6_DEVICE(prod) USB_DEVICE(0x0e41, prod)
+#define LINE6_IF_NUM(prod, n) USB_DEVICE_INTERFACE_NUMBER(0x0e41, prod, n)
+
+/* table of devices that work with this driver */
+static const struct usb_device_id pod_id_table[] = {
+	{ LINE6_DEVICE(0x4250),    .driver_info = LINE6_BASSPODXT },
+	{ LINE6_DEVICE(0x4642),    .driver_info = LINE6_BASSPODXTLIVE },
+	{ LINE6_DEVICE(0x4252),    .driver_info = LINE6_BASSPODXTPRO },
+	{ LINE6_IF_NUM(0x5051, 1), .driver_info = LINE6_POCKETPOD },
+	{ LINE6_DEVICE(0x5044),    .driver_info = LINE6_PODXT },
+	{ LINE6_IF_NUM(0x4650, 0), .driver_info = LINE6_PODXTLIVE_POD },
+	{ LINE6_DEVICE(0x5050),    .driver_info = LINE6_PODXTPRO },
+	{}
+};
+
+MODULE_DEVICE_TABLE(usb, pod_id_table);
+
+static const struct line6_properties pod_properties_table[] = {
+	[LINE6_BASSPODXT] = {
+		.id = "BassPODxt",
+		.name = "BassPODxt",
+		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_PCM
+				| LINE6_CAP_HWMON,
+		.altsetting = 5,
+		.ep_ctrl_r = 0x84,
+		.ep_ctrl_w = 0x03,
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
+	},
+	[LINE6_BASSPODXTLIVE] = {
+		.id = "BassPODxtLive",
+		.name = "BassPODxt Live",
+		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_PCM
+				| LINE6_CAP_HWMON,
+		.altsetting = 1,
+		.ep_ctrl_r = 0x84,
+		.ep_ctrl_w = 0x03,
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
+	},
+	[LINE6_BASSPODXTPRO] = {
+		.id = "BassPODxtPro",
+		.name = "BassPODxt Pro",
+		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_PCM
+				| LINE6_CAP_HWMON,
+		.altsetting = 5,
+		.ep_ctrl_r = 0x84,
+		.ep_ctrl_w = 0x03,
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
+	},
+	[LINE6_POCKETPOD] = {
+		.id = "PocketPOD",
+		.name = "Pocket POD",
+		.capabilities	= LINE6_CAP_CONTROL,
+		.altsetting = 0,
+		.ep_ctrl_r = 0x82,
+		.ep_ctrl_w = 0x02,
+		/* no audio channel */
+	},
+	[LINE6_PODXT] = {
+		.id = "PODxt",
+		.name = "PODxt",
+		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_PCM
+				| LINE6_CAP_HWMON,
+		.altsetting = 5,
+		.ep_ctrl_r = 0x84,
+		.ep_ctrl_w = 0x03,
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
+	},
+	[LINE6_PODXTLIVE_POD] = {
+		.id = "PODxtLive",
+		.name = "PODxt Live",
+		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_PCM
+				| LINE6_CAP_HWMON,
+		.altsetting = 1,
+		.ep_ctrl_r = 0x84,
+		.ep_ctrl_w = 0x03,
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
+	},
+	[LINE6_PODXTPRO] = {
+		.id = "PODxtPro",
+		.name = "PODxt Pro",
+		.capabilities	= LINE6_CAP_CONTROL
+				| LINE6_CAP_PCM
+				| LINE6_CAP_HWMON,
+		.altsetting = 5,
+		.ep_ctrl_r = 0x84,
+		.ep_ctrl_w = 0x03,
+		.ep_audio_r = 0x82,
+		.ep_audio_w = 0x01,
+	},
+};
+
 /*
-	 Init POD device (and clean up in case of failure).
+	Probe USB device.
 */
-int line6_pod_init(struct usb_interface *interface, struct usb_line6 *line6)
+static int pod_probe(struct usb_interface *interface,
+		     const struct usb_device_id *id)
 {
-	int err = pod_try_init(interface, line6);
+	struct usb_line6_pod *pod;
 
-	if (err < 0)
-		pod_destruct(interface);
-
-	return err;
+	pod = kzalloc(sizeof(*pod), GFP_KERNEL);
+	if (!pod)
+		return -ENODEV;
+	return line6_probe(interface, &pod->line6,
+			   &pod_properties_table[id->driver_info],
+			   pod_init);
 }
+
+static struct usb_driver pod_driver = {
+	.name = KBUILD_MODNAME,
+	.probe = pod_probe,
+	.disconnect = line6_disconnect,
+#ifdef CONFIG_PM
+	.suspend = line6_suspend,
+	.resume = line6_resume,
+	.reset_resume = line6_resume,
+#endif
+	.id_table = pod_id_table,
+};
+
+module_usb_driver(pod_driver);
+
+MODULE_DESCRIPTION("Line 6 POD USB driver");
+MODULE_LICENSE("GPL");

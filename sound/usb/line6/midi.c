@@ -1,5 +1,5 @@
 /*
- * Line6 Linux USB driver - 0.9.1beta
+ * Line 6 Linux USB driver
  *
  * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
@@ -11,13 +11,12 @@
 
 #include <linux/slab.h>
 #include <linux/usb.h>
+#include <linux/export.h>
 #include <sound/core.h>
 #include <sound/rawmidi.h>
 
-#include "audio.h"
 #include "driver.h"
 #include "midi.h"
-#include "pod.h"
 #include "usbdefs.h"
 
 #define line6_rawmidi_substream_midi(substream) \
@@ -121,16 +120,13 @@ static int send_midi_async(struct usb_line6 *line6, unsigned char *data,
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 
-	if (urb == NULL) {
-		dev_err(line6->ifcdev, "Out of memory\n");
+	if (urb == NULL)
 		return -ENOMEM;
-	}
 
 	transfer_buffer = kmemdup(data, length, GFP_ATOMIC);
 
 	if (transfer_buffer == NULL) {
 		usb_free_urb(urb);
-		dev_err(line6->ifcdev, "Out of memory\n");
 		return -ENOMEM;
 	}
 
@@ -223,28 +219,20 @@ static struct snd_rawmidi_ops line6_midi_input_ops = {
 	.trigger = line6_midi_input_trigger,
 };
 
-/*
-	Cleanup the Line6 MIDI device.
-*/
-static void line6_cleanup_midi(struct snd_rawmidi *rmidi)
-{
-}
-
 /* Create a MIDI device */
-static int snd_line6_new_midi(struct snd_line6_midi *line6midi)
+static int snd_line6_new_midi(struct usb_line6 *line6,
+			      struct snd_rawmidi **rmidi_ret)
 {
 	struct snd_rawmidi *rmidi;
 	int err;
 
-	err = snd_rawmidi_new(line6midi->line6->card, "Line6 MIDI", 0, 1, 1,
-			      &rmidi);
+	err = snd_rawmidi_new(line6->card, "Line 6 MIDI", 0, 1, 1, rmidi_ret);
 	if (err < 0)
 		return err;
 
-	rmidi->private_data = line6midi;
-	rmidi->private_free = line6_cleanup_midi;
-	strcpy(rmidi->id, line6midi->line6->properties->id);
-	strcpy(rmidi->name, line6midi->line6->properties->name);
+	rmidi = *rmidi_ret;
+	strcpy(rmidi->id, line6->properties->id);
+	strcpy(rmidi->name, line6->properties->name);
 
 	rmidi->info_flags =
 	    SNDRV_RAWMIDI_INFO_OUTPUT |
@@ -258,25 +246,22 @@ static int snd_line6_new_midi(struct snd_line6_midi *line6midi)
 }
 
 /* MIDI device destructor */
-static int snd_line6_midi_free(struct snd_device *device)
+static void snd_line6_midi_free(struct snd_rawmidi *rmidi)
 {
-	struct snd_line6_midi *line6midi = device->device_data;
+	struct snd_line6_midi *line6midi = rmidi->private_data;
 
 	line6_midibuf_destroy(&line6midi->midibuf_in);
 	line6_midibuf_destroy(&line6midi->midibuf_out);
-	return 0;
+	kfree(line6midi);
 }
 
 /*
-	Initialize the Line6 MIDI subsystem.
+	Initialize the Line 6 MIDI subsystem.
 */
 int line6_init_midi(struct usb_line6 *line6)
 {
-	static struct snd_device_ops midi_ops = {
-		.dev_free = snd_line6_midi_free,
-	};
-
 	int err;
+	struct snd_rawmidi *rmidi;
 	struct snd_line6_midi *line6midi;
 
 	if (!(line6->properties->capabilities & LINE6_CAP_CONTROL)) {
@@ -284,38 +269,31 @@ int line6_init_midi(struct usb_line6 *line6)
 		return 0;
 	}
 
-	line6midi = kzalloc(sizeof(struct snd_line6_midi), GFP_KERNEL);
+	err = snd_line6_new_midi(line6, &rmidi);
+	if (err < 0)
+		return err;
 
-	if (line6midi == NULL)
+	line6midi = kzalloc(sizeof(struct snd_line6_midi), GFP_KERNEL);
+	if (!line6midi)
 		return -ENOMEM;
 
-	err = line6_midibuf_init(&line6midi->midibuf_in, MIDI_BUFFER_SIZE, 0);
-	if (err < 0) {
-		kfree(line6midi);
-		return err;
-	}
-
-	err = line6_midibuf_init(&line6midi->midibuf_out, MIDI_BUFFER_SIZE, 1);
-	if (err < 0) {
-		kfree(line6midi->midibuf_in.buf);
-		kfree(line6midi);
-		return err;
-	}
-
-	line6midi->line6 = line6;
-	line6->line6midi = line6midi;
-
-	err = snd_device_new(line6->card, SNDRV_DEV_RAWMIDI, line6midi,
-			     &midi_ops);
-	if (err < 0)
-		return err;
-
-	err = snd_line6_new_midi(line6midi);
-	if (err < 0)
-		return err;
+	rmidi->private_data = line6midi;
+	rmidi->private_free = snd_line6_midi_free;
 
 	init_waitqueue_head(&line6midi->send_wait);
 	spin_lock_init(&line6midi->send_urb_lock);
 	spin_lock_init(&line6midi->midi_transmit_lock);
+	line6midi->line6 = line6;
+
+	err = line6_midibuf_init(&line6midi->midibuf_in, MIDI_BUFFER_SIZE, 0);
+	if (err < 0)
+		return err;
+
+	err = line6_midibuf_init(&line6midi->midibuf_out, MIDI_BUFFER_SIZE, 1);
+	if (err < 0)
+		return err;
+
+	line6->line6midi = line6midi;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(line6_init_midi);

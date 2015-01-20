@@ -1,5 +1,5 @@
 /*
- * Line6 Linux USB driver - 0.9.1beta
+ * Line 6 Linux USB driver
  *
  * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
@@ -26,7 +26,7 @@
 
 /*
 	number of USB frames per URB
-	The Line6 Windows driver always transmits two frames per packet, but
+	The Line 6 Windows driver always transmits two frames per packet, but
 	the Linux driver performs significantly better (i.e., lower latency)
 	with only one frame per packet.
 */
@@ -35,12 +35,10 @@
 /* in a "full speed" device (such as the PODxt Pro) this means 1ms */
 #define LINE6_ISO_INTERVAL	1
 
-#ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
 #define LINE6_IMPULSE_DEFAULT_PERIOD 100
-#endif
 
 /*
-	Get substream from Line6 PCM data structure
+	Get substream from Line 6 PCM data structure
 */
 #define get_substream(line6pcm, stream)	\
 		(line6pcm->pcm->streams[stream].substream)
@@ -48,7 +46,7 @@
 /*
 	PCM mode bits.
 
-	There are several features of the Line6 USB driver which require PCM
+	There are several features of the Line 6 USB driver which require PCM
 	data to be exchanged with the device:
 	*) PCM playback and capture via ALSA
 	*) software monitoring (for devices without hardware monitoring)
@@ -89,12 +87,10 @@ enum {
 	LINE6_INDEX_PCM_MONITOR_PLAYBACK_STREAM,
 	LINE6_INDEX_PCM_MONITOR_CAPTURE_BUFFER,
 	LINE6_INDEX_PCM_MONITOR_CAPTURE_STREAM,
-#ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
 	LINE6_INDEX_PCM_IMPULSE_PLAYBACK_BUFFER,
 	LINE6_INDEX_PCM_IMPULSE_PLAYBACK_STREAM,
 	LINE6_INDEX_PCM_IMPULSE_CAPTURE_BUFFER,
 	LINE6_INDEX_PCM_IMPULSE_CAPTURE_STREAM,
-#endif
 	LINE6_INDEX_PAUSE_PLAYBACK,
 	LINE6_INDEX_PREPARED,
 
@@ -109,12 +105,10 @@ enum {
 	LINE6_BIT(PCM_MONITOR_PLAYBACK_STREAM),
 	LINE6_BIT(PCM_MONITOR_CAPTURE_BUFFER),
 	LINE6_BIT(PCM_MONITOR_CAPTURE_STREAM),
-#ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
 	LINE6_BIT(PCM_IMPULSE_PLAYBACK_BUFFER),
 	LINE6_BIT(PCM_IMPULSE_PLAYBACK_STREAM),
 	LINE6_BIT(PCM_IMPULSE_CAPTURE_BUFFER),
 	LINE6_BIT(PCM_IMPULSE_CAPTURE_STREAM),
-#endif
 	LINE6_BIT(PAUSE_PLAYBACK),
 	LINE6_BIT(PREPARED),
 
@@ -133,40 +127,30 @@ enum {
 	    LINE6_BIT_PCM_MONITOR_CAPTURE_BUFFER |
 	    LINE6_BIT_PCM_MONITOR_CAPTURE_STREAM,
 
-#ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
 	LINE6_BITS_PCM_IMPULSE =
 	    LINE6_BIT_PCM_IMPULSE_PLAYBACK_BUFFER |
 	    LINE6_BIT_PCM_IMPULSE_PLAYBACK_STREAM |
 	    LINE6_BIT_PCM_IMPULSE_CAPTURE_BUFFER |
 	    LINE6_BIT_PCM_IMPULSE_CAPTURE_STREAM,
-#endif
 
 	/* combined bit masks (by direction): */
 	LINE6_BITS_PLAYBACK_BUFFER =
-#ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
 	    LINE6_BIT_PCM_IMPULSE_PLAYBACK_BUFFER |
-#endif
 	    LINE6_BIT_PCM_ALSA_PLAYBACK_BUFFER |
 	    LINE6_BIT_PCM_MONITOR_PLAYBACK_BUFFER,
 
 	LINE6_BITS_PLAYBACK_STREAM =
-#ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
 	    LINE6_BIT_PCM_IMPULSE_PLAYBACK_STREAM |
-#endif
 	    LINE6_BIT_PCM_ALSA_PLAYBACK_STREAM |
 	    LINE6_BIT_PCM_MONITOR_PLAYBACK_STREAM,
 
 	LINE6_BITS_CAPTURE_BUFFER =
-#ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
 	    LINE6_BIT_PCM_IMPULSE_CAPTURE_BUFFER |
-#endif
 	    LINE6_BIT_PCM_ALSA_CAPTURE_BUFFER |
 	    LINE6_BIT_PCM_MONITOR_CAPTURE_BUFFER,
 
 	LINE6_BITS_CAPTURE_STREAM =
-#ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
 	    LINE6_BIT_PCM_IMPULSE_CAPTURE_STREAM |
-#endif
 	    LINE6_BIT_PCM_ALSA_CAPTURE_STREAM |
 	    LINE6_BIT_PCM_MONITOR_CAPTURE_STREAM,
 
@@ -183,7 +167,7 @@ struct line6_pcm_properties {
 
 struct snd_line6_pcm {
 	/**
-		 Pointer back to the Line6 driver data structure.
+		 Pointer back to the Line 6 driver data structure.
 	*/
 	struct usb_line6 *line6;
 
@@ -338,7 +322,6 @@ struct snd_line6_pcm {
 	*/
 	int volume_monitor;
 
-#ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
 	/**
 		 Volume of impulse response test signal (if zero, test is disabled).
 	*/
@@ -353,7 +336,6 @@ struct snd_line6_pcm {
 		 Counter for impulse response test signal.
 	*/
 	int impulse_count;
-#endif
 
 	/**
 		 Several status bits (see LINE6_BIT_*).
