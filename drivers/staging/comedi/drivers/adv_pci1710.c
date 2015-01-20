@@ -1088,18 +1088,18 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 
 	if (this_board->has_ao) {
 		s = &dev->subdevices[subdev];
-		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
-		s->maxdata = 0x0fff;
-		s->range_table = this_board->rangelist_ao;
+		s->type		= COMEDI_SUBD_AO;
+		s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
+		s->maxdata	= 0x0fff;
+		s->range_table	= this_board->rangelist_ao;
 		switch (this_board->cardtype) {
 		case TYPE_PCI1720:
-			s->n_chan = 4;
-			s->insn_write = pci1720_ao_insn_write;
+			s->n_chan	= 4;
+			s->insn_write	= pci1720_ao_insn_write;
 			break;
 		default:
-			s->n_chan = 2;
-			s->insn_write = pci171x_ao_insn_write;
+			s->n_chan	= 2;
+			s->insn_write	= pci171x_ao_insn_write;
 			break;
 		}
 
