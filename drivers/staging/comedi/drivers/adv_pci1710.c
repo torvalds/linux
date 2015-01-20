@@ -195,7 +195,6 @@ struct boardtype {
 	int n_aichan;		/*  num of A/D chans */
 	int n_aichand;		/*  num of A/D chans in diff mode */
 	int n_aochan;		/*  num of D/A chans */
-	int ai_maxdata;		/*  resolution of A/D */
 	int ao_maxdata;		/*  resolution of D/A */
 	const struct comedi_lrange *rangelist_ai;	/*  rangelist for A/D */
 	const char *rangecode_ai;	/*  range codes for programming */
@@ -214,7 +213,6 @@ static const struct boardtype boardtypes[] = {
 		.n_aichan	= 16,
 		.n_aichand	= 8,
 		.n_aochan	= 2,
-		.ai_maxdata	= 0x0fff,
 		.ao_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pci1710_3,
 		.rangecode_ai	= range_codes_pci1710_3,
@@ -231,7 +229,6 @@ static const struct boardtype boardtypes[] = {
 		.n_aichan	= 16,
 		.n_aichand	= 8,
 		.n_aochan	= 2,
-		.ai_maxdata	= 0x0fff,
 		.ao_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pci1710hg,
 		.rangecode_ai	= range_codes_pci1710hg,
@@ -247,7 +244,6 @@ static const struct boardtype boardtypes[] = {
 		.cardtype	= TYPE_PCI171X,
 		.n_aichan	= 16,
 		.n_aochan	= 2,
-		.ai_maxdata	= 0x0fff,
 		.ao_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pci17x1,
 		.rangecode_ai	= range_codes_pci17x1,
@@ -263,7 +259,6 @@ static const struct boardtype boardtypes[] = {
 		.cardtype	= TYPE_PCI1713,
 		.n_aichan	= 32,
 		.n_aichand	= 16,
-		.ai_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pci1710_3,
 		.rangecode_ai	= range_codes_pci1710_3,
 		.ai_ns_min	= 10000,
@@ -281,7 +276,6 @@ static const struct boardtype boardtypes[] = {
 		.name		= "pci1731",
 		.cardtype	= TYPE_PCI171X,
 		.n_aichan	= 16,
-		.ai_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pci17x1,
 		.rangecode_ai	= range_codes_pci17x1,
 		.ai_ns_min	= 10000,
@@ -1140,7 +1134,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		if (this_board->n_aichand)
 			s->subdev_flags |= SDF_DIFF;
 		s->n_chan = this_board->n_aichan;
-		s->maxdata = this_board->ai_maxdata;
+		s->maxdata = 0x0fff;
 		s->range_table = this_board->rangelist_ai;
 		s->insn_read = pci171x_insn_read_ai;
 		if (dev->irq) {
