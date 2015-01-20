@@ -1027,8 +1027,7 @@ bool rtl92ee_is_tx_desc_closed(struct ieee80211_hw *hw, u8 hw_queue, u16 index)
 	static u8 stop_report_cnt;
 	struct rtl8192_tx_ring *ring = &rtlpci->tx_ring[hw_queue];
 
-	/*checking Read/Write Point each interrupt wastes CPU */
-	if (stop_report_cnt > 15 || !rtlpriv->link_info.busytraffic) {
+	{
 		u16 point_diff = 0;
 		u16 cur_tx_rp, cur_tx_wp;
 		u32 tmpu32 = 0;
