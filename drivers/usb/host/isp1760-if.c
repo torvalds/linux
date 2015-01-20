@@ -373,15 +373,11 @@ out:
 
 static int isp1760_plat_remove(struct platform_device *pdev)
 {
-	struct resource *mem_res;
-	resource_size_t mem_size;
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
 	usb_remove_hcd(hcd);
 
-	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mem_size = resource_size(mem_res);
-	release_mem_region(mem_res->start, mem_size);
+	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 
 	usb_put_hcd(hcd);
 
