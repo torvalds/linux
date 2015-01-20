@@ -585,11 +585,11 @@ void line6_disconnect(struct usb_interface *interface)
 	if (!line6)
 		return;
 
+	if (WARN_ON(usbdev != line6->usbdev))
+		return;
+
 	if (line6->urb_listen != NULL)
 		line6_stop_listen(line6);
-
-	if (usbdev != line6->usbdev)
-		dev_err(line6->ifcdev, "driver bug: inconsistent usb device\n");
 
 	snd_card_disconnect(line6->card);
 	if (line6->line6pcm)
