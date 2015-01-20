@@ -151,10 +151,15 @@ static void report_ccb_status(struct device *jrdev, const u32 status,
 	else
 		snprintf(err_err_code, sizeof(err_err_code), "%02x", err_id);
 
-	dev_err(jrdev, "%08x: %s: %s %d: %s%s: %s%s\n",
-		status, error, idx_str, idx,
-		cha_str, cha_err_code,
-		err_str, err_err_code);
+	/*
+	 * CCB ICV check failures are part of normal operation life;
+	 * we leave the upper layers to do what they want with them.
+	 */
+	if (err_id != JRSTA_CCBERR_ERRID_ICVCHK)
+		dev_err(jrdev, "%08x: %s: %s %d: %s%s: %s%s\n",
+			status, error, idx_str, idx,
+			cha_str, cha_err_code,
+			err_str, err_err_code);
 }
 
 static void report_jump_status(struct device *jrdev, const u32 status,
