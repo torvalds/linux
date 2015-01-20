@@ -121,7 +121,7 @@ static ssize_t enable_ints_write(struct file *file,
 /*****************************************************/
 
 static int rsltq_wait_usecs = 4000;	/* Default 4ms */
-static unsigned int MaxBuffLen;
+static unsigned int max_buff_len;
 
 /* Module options */
 static char *virthba_options = "NONE";
@@ -247,7 +247,7 @@ static const struct file_operations debugfs_enable_ints_fops = {
 
 #define VIRTHBASOPENMAX 1
 /* array of open devices maintained by open() and close(); */
-static struct virthba_devices_open VirtHbasOpen[VIRTHBASOPENMAX];
+static struct virthba_devices_open virthbas_open[VIRTHBASOPENMAX];
 static struct dentry *virthba_debugfs_dir;
 
 /*****************************************************/
@@ -550,8 +550,8 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	virthbainfo = (struct virthba_info *)scsihost->hostdata;
 	memset(virthbainfo, 0, sizeof(struct virthba_info));
 	for (i = 0; i < VIRTHBASOPENMAX; i++) {
-		if (VirtHbasOpen[i].virthbainfo == NULL) {
-			VirtHbasOpen[i].virthbainfo = virthbainfo;
+		if (virthbas_open[i].virthbainfo == NULL) {
+			virthbas_open[i].virthbainfo = virthbainfo;
 			break;
 		}
 	}
@@ -964,8 +964,8 @@ virthba_queue_command_lck(struct scsi_cmnd *scsicmd,
 	cmdrsp->scsi.bufflen = scsi_bufflen(scsicmd);
 
 	/* keep track of the max buffer length so far. */
-	if (cmdrsp->scsi.bufflen > MaxBuffLen)
-		MaxBuffLen = cmdrsp->scsi.bufflen;
+	if (cmdrsp->scsi.bufflen > max_buff_len)
+		max_buff_len = cmdrsp->scsi.bufflen;
 
 	if (scsi_sg_count(scsicmd) > MAX_PHYS_INFO) {
 		LOGERR("scsicmd use_sg:%d greater than MAX:%d\n",
@@ -1386,13 +1386,14 @@ static ssize_t info_debugfs_read(struct file *file,
 		return -ENOMEM;
 
 	for (i = 0; i < VIRTHBASOPENMAX; i++) {
-		if (VirtHbasOpen[i].virthbainfo == NULL)
+		if (virthbas_open[i].virthbainfo == NULL)
 			continue;
 
-		virthbainfo = VirtHbasOpen[i].virthbainfo;
+		virthbainfo = virthbas_open[i].virthbainfo;
 
 		str_pos += scnprintf(vbuf + str_pos,
-				len - str_pos, "MaxBuffLen:%u\n", MaxBuffLen);
+				len - str_pos, "max_buff_len:%u\n",
+				max_buff_len);
 
 		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
 				"\nvirthba result queue poll wait:%d usecs.\n",
@@ -1451,8 +1452,8 @@ static ssize_t enable_ints_write(struct file *file, const char __user *buffer,
 
 	/* set all counts to new_value usually 0 */
 	for (i = 0; i < VIRTHBASOPENMAX; i++) {
-		if (VirtHbasOpen[i].virthbainfo != NULL) {
-			virthbainfo = VirtHbasOpen[i].virthbainfo;
+		if (virthbas_open[i].virthbainfo != NULL) {
+			virthbainfo = virthbas_open[i].virthbainfo;
 			Features_addr =
 				&virthbainfo->chinfo.queueinfo->chan->features;
 			if (new_value == 1) {
@@ -1676,7 +1677,7 @@ virthba_mod_init(void)
 
 		/* clear out array */
 		for (i = 0; i < VIRTHBASOPENMAX; i++)
-			VirtHbasOpen[i].virthbainfo = NULL;
+			virthbas_open[i].virthbainfo = NULL;
 		/* Initialize the serverdown workqueue */
 		virthba_serverdown_workqueue =
 		    create_singlethread_workqueue("virthba_serverdown");
