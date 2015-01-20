@@ -398,7 +398,7 @@ process_disk_notify(struct Scsi_Host *shost, struct uiscmdrsp *cmdrsp)
 	struct diskaddremove *dar;
 	unsigned long flags;
 
-	dar = kzalloc(sizeof(struct diskaddremove), GFP_ATOMIC);
+	dar = kzalloc(sizeof(*dar), GFP_ATOMIC);
 	if (dar) {
 		dar->add = cmdrsp->disknotify.add;
 		dar->shost = shost;
@@ -1061,7 +1061,7 @@ virthba_slave_alloc(struct scsi_device *scsidev)
 		    (vdisk->next->lun == scsidev->lun))
 			return 0;
 	}
-	tmpvdisk = kzalloc(sizeof(struct virtdisk_info), GFP_ATOMIC);
+	tmpvdisk = kzalloc(sizeof(*tmpvdisk), GFP_ATOMIC);
 	if (!tmpvdisk) {	/* error allocating */
 		LOGERR("Could not allocate memory for disk\n");
 		return 0;
