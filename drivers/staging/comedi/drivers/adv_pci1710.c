@@ -388,14 +388,14 @@ static void setup_channel_list(struct comedi_device *dev,
 			       unsigned int *chanlist, unsigned int n_chan,
 			       unsigned int seglen)
 {
-	const struct boardtype *this_board = dev->board_ptr;
+	const struct boardtype *board = dev->board_ptr;
 	struct pci1710_private *devpriv = dev->private;
 	unsigned int i, range, chanprog;
 
 	for (i = 0; i < seglen; i++) {	/*  store range list to card */
 		chanprog = muxonechan[CR_CHAN(chanlist[i])];
 		outw(chanprog, dev->iobase + PCI171x_MUX); /* select channel */
-		range = this_board->rangecode_ai[CR_RANGE(chanlist[i])];
+		range = board->rangecode_ai[CR_RANGE(chanlist[i])];
 		if (CR_AREF(chanlist[i]) == AREF_DIFF)
 			range |= 0x0020;
 		outw(range, dev->iobase + PCI171x_RANGE); /* select gain */
@@ -648,10 +648,10 @@ static int pci1720_ao_insn_write(struct comedi_device *dev,
 static int pci171x_ai_cancel(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
-	const struct boardtype *this_board = dev->board_ptr;
+	const struct boardtype *board = dev->board_ptr;
 	struct pci1710_private *devpriv = dev->private;
 
-	switch (this_board->cardtype) {
+	switch (board->cardtype) {
 	default:
 		devpriv->CntrlReg &= Control_CNT0;
 		devpriv->CntrlReg |= Control_SW;
@@ -950,7 +950,7 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 */
 static int pci171x_reset(struct comedi_device *dev)
 {
-	const struct boardtype *this_board = dev->board_ptr;
+	const struct boardtype *board = dev->board_ptr;
 	struct pci1710_private *devpriv = dev->private;
 
 	outw(0x30, dev->iobase + PCI171x_CNTCTRL);
@@ -962,7 +962,7 @@ static int pci171x_reset(struct comedi_device *dev)
 	outb(0, dev->iobase + PCI171x_CLRINT);	/*  clear INT request */
 	pci171x_start_pacer(dev, false);
 	devpriv->da_ranges = 0;
-	if (this_board->has_ao) {
+	if (board->has_ao) {
 		/* set DACs to 0..5V */
 		outb(devpriv->da_ranges, dev->iobase + PCI171x_DAREF);
 		outw(0, dev->iobase + PCI171x_DA1); /* set DA outputs to 0V */
@@ -1000,9 +1000,9 @@ static int pci1720_reset(struct comedi_device *dev)
 */
 static int pci1710_reset(struct comedi_device *dev)
 {
-	const struct boardtype *this_board = dev->board_ptr;
+	const struct boardtype *board = dev->board_ptr;
 
-	switch (this_board->cardtype) {
+	switch (board->cardtype) {
 	case TYPE_PCI1720:
 		return pci1720_reset(dev);
 	default:
@@ -1014,17 +1014,17 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 			       unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct boardtype *this_board = NULL;
+	const struct boardtype *board = NULL;
 	struct pci1710_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret, subdev, n_subdevices;
 
 	if (context < ARRAY_SIZE(boardtypes))
-		this_board = &boardtypes[context];
-	if (!this_board)
+		board = &boardtypes[context];
+	if (!board)
 		return -ENODEV;
-	dev->board_ptr = this_board;
-	dev->board_name = this_board->name;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
@@ -1036,13 +1036,13 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 	dev->iobase = pci_resource_start(pcidev, 2);
 
 	n_subdevices = 0;
-	if (this_board->n_aichan)
+	if (board->n_aichan)
 		n_subdevices++;
-	if (this_board->has_ao)
+	if (board->has_ao)
 		n_subdevices++;
-	if (this_board->has_di_do)
+	if (board->has_di_do)
 		n_subdevices += 2;
-	if (this_board->has_counter)
+	if (board->has_counter)
 		n_subdevices++;
 
 	ret = comedi_alloc_subdevices(dev, n_subdevices);
@@ -1051,7 +1051,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 
 	pci1710_reset(dev);
 
-	if (this_board->has_irq && pcidev->irq) {
+	if (board->has_irq && pcidev->irq) {
 		ret = request_irq(pcidev->irq, interrupt_service_pci1710,
 				  IRQF_SHARED, dev->board_name, dev);
 		if (ret == 0)
@@ -1060,15 +1060,15 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 
 	subdev = 0;
 
-	if (this_board->n_aichan) {
+	if (board->n_aichan) {
 		s = &dev->subdevices[subdev];
 		s->type		= COMEDI_SUBD_AI;
 		s->subdev_flags	= SDF_READABLE | SDF_COMMON | SDF_GROUND;
-		if (this_board->has_diff_ai)
+		if (board->has_diff_ai)
 			s->subdev_flags	|= SDF_DIFF;
-		s->n_chan	= this_board->n_aichan;
+		s->n_chan	= board->n_aichan;
 		s->maxdata	= 0x0fff;
-		s->range_table	= this_board->rangelist_ai;
+		s->range_table	= board->rangelist_ai;
 		s->insn_read	= pci171x_ai_insn_read;
 		if (dev->irq) {
 			dev->read_subdev = s;
@@ -1081,13 +1081,13 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		subdev++;
 	}
 
-	if (this_board->has_ao) {
+	if (board->has_ao) {
 		s = &dev->subdevices[subdev];
 		s->type		= COMEDI_SUBD_AO;
 		s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
 		s->maxdata	= 0x0fff;
-		s->range_table	= this_board->rangelist_ao;
-		switch (this_board->cardtype) {
+		s->range_table	= board->rangelist_ao;
+		switch (board->cardtype) {
 		case TYPE_PCI1720:
 			s->n_chan	= 4;
 			s->insn_write	= pci1720_ao_insn_write;
@@ -1103,7 +1103,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 			return ret;
 
 		/* initialize the readback values to match the board reset */
-		if (this_board->cardtype == TYPE_PCI1720) {
+		if (board->cardtype == TYPE_PCI1720) {
 			int i;
 
 			for (i = 0; i < s->n_chan; i++)
@@ -1113,7 +1113,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		subdev++;
 	}
 
-	if (this_board->has_di_do) {
+	if (board->has_di_do) {
 		s = &dev->subdevices[subdev];
 		s->type		= COMEDI_SUBD_DI;
 		s->subdev_flags	= SDF_READABLE;
@@ -1133,7 +1133,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		subdev++;
 	}
 
-	if (this_board->has_counter) {
+	if (board->has_counter) {
 		s = &dev->subdevices[subdev];
 		s->type		= COMEDI_SUBD_COUNTER;
 		s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
@@ -1147,7 +1147,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 	}
 
 	/* max_samples is half the FIFO size (2 bytes/sample) */
-	devpriv->max_samples = (this_board->has_large_fifo) ? 2048 : 512;
+	devpriv->max_samples = (board->has_large_fifo) ? 2048 : 512;
 
 	return 0;
 }
