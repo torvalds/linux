@@ -440,18 +440,9 @@ leave:
  */
 static void btrfs_rm_dev_replace_blocked(struct btrfs_fs_info *fs_info)
 {
-	s64 writers;
-	DEFINE_WAIT(wait);
-
 	set_bit(BTRFS_FS_STATE_DEV_REPLACING, &fs_info->fs_state);
-	do {
-		prepare_to_wait(&fs_info->replace_wait, &wait,
-				TASK_UNINTERRUPTIBLE);
-		writers = percpu_counter_sum(&fs_info->bio_counter);
-		if (writers)
-			schedule();
-		finish_wait(&fs_info->replace_wait, &wait);
-	} while (writers);
+	wait_event(fs_info->replace_wait, !percpu_counter_sum(
+		   &fs_info->bio_counter));
 }
 
 /*
