@@ -2259,12 +2259,12 @@ int isp1760_register(phys_addr_t res_start, resource_size_t res_len, int irq,
 	return 0;
 
 err_unmap:
-	 iounmap(hcd->regs);
+	iounmap(hcd->regs);
 
 err_put:
-	 usb_put_hcd(hcd);
+	usb_put_hcd(hcd);
 
-	 return ret;
+	return ret;
 }
 
 void isp1760_unregister(struct device *dev)
