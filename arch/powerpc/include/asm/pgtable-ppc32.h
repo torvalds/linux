@@ -347,10 +347,14 @@ static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
 #define pte_to_pgoff(pte)	(pte_val(pte) >> 3)
 #define pgoff_to_pte(off)	((pte_t) { ((off) << 3) | _PAGE_FILE })
 
+#ifndef CONFIG_PPC_4K_PAGES
+void pgtable_cache_init(void);
+#else
 /*
  * No page table caches to initialise
  */
 #define pgtable_cache_init()	do { } while (0)
+#endif
 
 extern int get_pteptr(struct mm_struct *mm, unsigned long addr, pte_t **ptep,
 		      pmd_t **pmdp);
