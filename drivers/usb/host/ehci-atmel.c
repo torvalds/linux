@@ -37,6 +37,8 @@ static int clocked;
 
 static void atmel_start_clock(void)
 {
+	if (clocked)
+		return;
 	if (IS_ENABLED(CONFIG_COMMON_CLK)) {
 		clk_set_rate(uclk, 48000000);
 		clk_prepare_enable(uclk);
@@ -48,6 +50,8 @@ static void atmel_start_clock(void)
 
 static void atmel_stop_clock(void)
 {
+	if (!clocked)
+		return;
 	clk_disable_unprepare(fclk);
 	clk_disable_unprepare(iclk);
 	if (IS_ENABLED(CONFIG_COMMON_CLK))
@@ -174,6 +178,29 @@ static int ehci_atmel_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int ehci_atmel_drv_suspend(struct device *dev)
+{
+	struct usb_hcd *hcd = dev_get_drvdata(dev);
+	int ret;
+
+	ret = ehci_suspend(hcd, false);
+	if (ret)
+		return ret;
+
+	atmel_stop_clock();
+	return 0;
+}
+
+static int ehci_atmel_drv_resume(struct device *dev)
+{
+	struct usb_hcd *hcd = dev_get_drvdata(dev);
+
+	atmel_start_clock();
+	return ehci_resume(hcd, false);
+}
+#endif
+
 #ifdef CONFIG_OF
 static const struct of_device_id atmel_ehci_dt_ids[] = {
 	{ .compatible = "atmel,at91sam9g45-ehci" },
@@ -183,12 +210,16 @@ static const struct of_device_id atmel_ehci_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, atmel_ehci_dt_ids);
 #endif
 
+static SIMPLE_DEV_PM_OPS(ehci_atmel_pm_ops, ehci_atmel_drv_suspend,
+					ehci_atmel_drv_resume);
+
 static struct platform_driver ehci_atmel_driver = {
 	.probe		= ehci_atmel_drv_probe,
 	.remove		= ehci_atmel_drv_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver		= {
 		.name	= "atmel-ehci",
+		.pm	= &ehci_atmel_pm_ops,
 		.of_match_table	= of_match_ptr(atmel_ehci_dt_ids),
 	},
 };
