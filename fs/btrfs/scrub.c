@@ -1394,7 +1394,7 @@ static int scrub_setup_recheck_block(struct scrub_ctx *sctx,
 			struct scrub_page *page;
 
 			if (mirror_index >= BTRFS_MAX_MIRRORS)
-				continue;
+				break;
 
 			sblock = sblocks_for_recheck + mirror_index;
 			sblock->sctx = sctx;
