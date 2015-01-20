@@ -24,7 +24,6 @@
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/of_gpio.h>
 #endif
 
 #ifdef CONFIG_PCI
@@ -34,7 +33,6 @@
 #if defined(CONFIG_OF) && defined(CONFIG_OF_IRQ)
 struct isp1760 {
 	struct usb_hcd *hcd;
-	int rst_gpio;
 };
 
 static int of_isp1760_probe(struct platform_device *dev)
@@ -47,7 +45,6 @@ static int of_isp1760_probe(struct platform_device *dev)
 	resource_size_t res_len;
 	int ret;
 	unsigned int devflags = 0;
-	enum of_gpio_flags gpio_flags;
 	u32 bus_width = 0;
 
 	drvdata = kzalloc(sizeof(*drvdata), GFP_KERNEL);
@@ -94,36 +91,17 @@ static int of_isp1760_probe(struct platform_device *dev)
 	if (of_get_property(dp, "dreq-polarity", NULL) != NULL)
 		devflags |= ISP1760_FLAG_DREQ_POL_HIGH;
 
-	drvdata->rst_gpio = of_get_gpio_flags(dp, 0, &gpio_flags);
-	if (gpio_is_valid(drvdata->rst_gpio)) {
-		ret = gpio_request(drvdata->rst_gpio, dev_name(&dev->dev));
-		if (!ret) {
-			if (!(gpio_flags & OF_GPIO_ACTIVE_LOW)) {
-				devflags |= ISP1760_FLAG_RESET_ACTIVE_HIGH;
-				gpio_direction_output(drvdata->rst_gpio, 0);
-			} else {
-				gpio_direction_output(drvdata->rst_gpio, 1);
-			}
-		} else {
-			drvdata->rst_gpio = ret;
-		}
-	}
-
 	drvdata->hcd = isp1760_register(memory.start, res_len, virq,
-					IRQF_SHARED, drvdata->rst_gpio,
-					&dev->dev, dev_name(&dev->dev),
-					devflags);
+					IRQF_SHARED, &dev->dev,
+					dev_name(&dev->dev), devflags);
 	if (IS_ERR(drvdata->hcd)) {
 		ret = PTR_ERR(drvdata->hcd);
-		goto free_gpio;
+		goto release_reg;
 	}
 
 	platform_set_drvdata(dev, drvdata);
 	return ret;
 
-free_gpio:
-	if (gpio_is_valid(drvdata->rst_gpio))
-		gpio_free(drvdata->rst_gpio);
 release_reg:
 	release_mem_region(memory.start, res_len);
 free_data:
@@ -139,9 +117,6 @@ static int of_isp1760_remove(struct platform_device *dev)
 	iounmap(drvdata->hcd->regs);
 	release_mem_region(drvdata->hcd->rsrc_start, drvdata->hcd->rsrc_len);
 	usb_put_hcd(drvdata->hcd);
-
-	if (gpio_is_valid(drvdata->rst_gpio))
-		gpio_free(drvdata->rst_gpio);
 
 	kfree(drvdata);
 	return 0;
@@ -279,8 +254,8 @@ static int isp1761_pci_probe(struct pci_dev *dev,
 
 	dev->dev.dma_mask = NULL;
 	hcd = isp1760_register(pci_mem_phy0, memlength, dev->irq,
-		IRQF_SHARED, -ENOENT, &dev->dev, dev_name(&dev->dev),
-		devflags);
+			       IRQF_SHARED, &dev->dev, dev_name(&dev->dev),
+			       devflags);
 	if (IS_ERR(hcd)) {
 		ret_status = -ENODEV;
 		goto cleanup3;
@@ -392,8 +367,8 @@ static int isp1760_plat_probe(struct platform_device *pdev)
 	}
 
 	hcd = isp1760_register(mem_res->start, mem_size, irq_res->start,
-			       irqflags, -ENOENT,
-			       &pdev->dev, dev_name(&pdev->dev), devflags);
+			       irqflags, &pdev->dev, dev_name(&pdev->dev),
+			       devflags);
 
 	platform_set_drvdata(pdev, hcd);
 
