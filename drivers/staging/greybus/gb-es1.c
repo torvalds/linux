@@ -184,6 +184,28 @@ static struct urb *next_free_urb(struct es1_ap_dev *es1, gfp_t gfp_mask)
 	return urb;
 }
 
+static void free_urb(struct es1_ap_dev *es1, struct urb *urb)
+{
+	unsigned long flags;
+	int i;
+	/*
+	 * See if this was an urb in our pool, if so mark it "free", otherwise
+	 * we need to free it ourselves.
+	 */
+	spin_lock_irqsave(&es1->cport_out_urb_lock, flags);
+	for (i = 0; i < NUM_CPORT_OUT_URB; ++i) {
+		if (urb == es1->cport_out_urb[i]) {
+			es1->cport_out_urb_busy[i] = false;
+			urb = NULL;
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&es1->cport_out_urb_lock, flags);
+
+	/* If urb is not NULL, then we need to free this urb */
+	usb_free_urb(urb);
+}
+
 /*
  * Returns an opaque cookie value if successful, or a pointer coded
  * error otherwise.  If the caller wishes to cancel the in-flight
@@ -238,6 +260,7 @@ static void *buffer_send(struct greybus_host_device *hd, u16 cport_id,
 	retval = usb_submit_urb(urb, gfp_mask);
 	if (retval) {
 		pr_err("error %d submitting URB\n", retval);
+		free_urb(es1, urb);
 		return ERR_PTR(retval);
 	}
 
@@ -413,10 +436,8 @@ static void cport_out_callback(struct urb *urb)
 {
 	struct greybus_host_device *hd = urb->context;
 	struct es1_ap_dev *es1 = hd_to_es1(hd);
-	unsigned long flags;
 	int status = check_urb_status(urb);
 	u8 *data = urb->transfer_buffer + 1;
-	int i;
 
 	/*
 	 * Tell the submitter that the buffer send (attempt) is
@@ -426,23 +447,7 @@ static void cport_out_callback(struct urb *urb)
 	data = urb->transfer_buffer + 1;
 	greybus_data_sent(hd, data, status);
 
-	/*
-	 * See if this was an urb in our pool, if so mark it "free", otherwise
-	 * we need to free it ourselves.
-	 */
-	spin_lock_irqsave(&es1->cport_out_urb_lock, flags);
-	for (i = 0; i < NUM_CPORT_OUT_URB; ++i) {
-		if (urb == es1->cport_out_urb[i]) {
-			es1->cport_out_urb_busy[i] = false;
-			urb = NULL;
-			break;
-		}
-	}
-	spin_unlock_irqrestore(&es1->cport_out_urb_lock, flags);
-
-	/* If urb is not NULL, then we need to free this urb */
-	usb_free_urb(urb);
-
+	free_urb(es1, urb);
 	/*
 	 * Rest assured Greg, this craziness is getting fixed.
 	 *
