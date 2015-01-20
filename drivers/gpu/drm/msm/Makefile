@@ -1,7 +1,4 @@
 ccflags-y := -Iinclude/drm -Idrivers/gpu/drm/msm
-ifeq (, $(findstring -W,$(EXTRA_CFLAGS)))
-	ccflags-y += -Werror
-endif
 
 msm-y := \
 	adreno/adreno_device.o \
