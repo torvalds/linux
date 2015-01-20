@@ -31,13 +31,9 @@
 #endif
 
 #if defined(CONFIG_OF) && defined(CONFIG_OF_IRQ)
-struct isp1760 {
-	struct usb_hcd *hcd;
-};
-
 static int of_isp1760_probe(struct platform_device *dev)
 {
-	struct isp1760 *drvdata;
+	struct usb_hcd *hcd;
 	struct device_node *dp = dev->dev.of_node;
 	struct resource *res;
 	struct resource memory;
@@ -47,23 +43,15 @@ static int of_isp1760_probe(struct platform_device *dev)
 	unsigned int devflags = 0;
 	u32 bus_width = 0;
 
-	drvdata = kzalloc(sizeof(*drvdata), GFP_KERNEL);
-	if (!drvdata)
-		return -ENOMEM;
-
 	ret = of_address_to_resource(dp, 0, &memory);
-	if (ret) {
-		ret = -ENXIO;
-		goto free_data;
-	}
+	if (ret)
+		return -ENXIO;
 
 	res_len = resource_size(&memory);
 
 	res = request_mem_region(memory.start, res_len, dev_name(&dev->dev));
-	if (!res) {
-		ret = -EBUSY;
-		goto free_data;
-	}
+	if (!res)
+		return -EBUSY;
 
 	virq = irq_of_parse_and_map(dp, 0);
 	if (!virq) {
@@ -91,34 +79,30 @@ static int of_isp1760_probe(struct platform_device *dev)
 	if (of_get_property(dp, "dreq-polarity", NULL) != NULL)
 		devflags |= ISP1760_FLAG_DREQ_POL_HIGH;
 
-	drvdata->hcd = isp1760_register(memory.start, res_len, virq,
-					IRQF_SHARED, &dev->dev,
-					dev_name(&dev->dev), devflags);
-	if (IS_ERR(drvdata->hcd)) {
-		ret = PTR_ERR(drvdata->hcd);
+	hcd = isp1760_register(memory.start, res_len, virq, IRQF_SHARED,
+			       &dev->dev, dev_name(&dev->dev), devflags);
+	if (IS_ERR(hcd)) {
+		ret = PTR_ERR(hcd);
 		goto release_reg;
 	}
 
-	platform_set_drvdata(dev, drvdata);
+	platform_set_drvdata(dev, hcd);
 	return ret;
 
 release_reg:
 	release_mem_region(memory.start, res_len);
-free_data:
-	kfree(drvdata);
 	return ret;
 }
 
 static int of_isp1760_remove(struct platform_device *dev)
 {
-	struct isp1760 *drvdata = platform_get_drvdata(dev);
+	struct usb_hcd *hcd = platform_get_drvdata(dev);
 
-	usb_remove_hcd(drvdata->hcd);
-	iounmap(drvdata->hcd->regs);
-	release_mem_region(drvdata->hcd->rsrc_start, drvdata->hcd->rsrc_len);
-	usb_put_hcd(drvdata->hcd);
+	usb_remove_hcd(hcd);
+	iounmap(hcd->regs);
+	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
+	usb_put_hcd(hcd);
 
-	kfree(drvdata);
 	return 0;
 }
 
