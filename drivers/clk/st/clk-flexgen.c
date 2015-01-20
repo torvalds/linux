@@ -138,16 +138,27 @@ static int flexgen_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct flexgen *flexgen = to_flexgen(hw);
 	struct clk_hw *pdiv_hw = &flexgen->pdiv.hw;
 	struct clk_hw *fdiv_hw = &flexgen->fdiv.hw;
-	unsigned long primary_div = 0;
+	unsigned long div = 0;
 	int ret = 0;
 
 	pdiv_hw->clk = hw->clk;
 	fdiv_hw->clk = hw->clk;
 
-	primary_div = clk_best_div(parent_rate, rate);
+	div = clk_best_div(parent_rate, rate);
 
-	clk_divider_ops.set_rate(fdiv_hw, parent_rate, parent_rate);
-	ret = clk_divider_ops.set_rate(pdiv_hw, rate, rate * primary_div);
+	/*
+	* pdiv is mainly targeted for low freq results, while fdiv
+	* should be used for div <= 64. The other way round can
+	* lead to 'duty cycle' issues.
+	*/
+
+	if (div <= 64) {
+		clk_divider_ops.set_rate(pdiv_hw, parent_rate, parent_rate);
+		ret = clk_divider_ops.set_rate(fdiv_hw, rate, rate * div);
+	} else {
+		clk_divider_ops.set_rate(fdiv_hw, parent_rate, parent_rate);
+		ret = clk_divider_ops.set_rate(pdiv_hw, rate, rate * div);
+	}
 
 	return ret;
 }
