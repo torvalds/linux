@@ -403,8 +403,7 @@ static int __init fdt_find_uefi_params(unsigned long node, const char *uname,
 	u64 val;
 	int i, len;
 
-	if (depth != 1 ||
-	    (strcmp(uname, "chosen") != 0 && strcmp(uname, "chosen@0") != 0))
+	if (depth != 1 || strcmp(uname, "chosen") != 0)
 		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(dt_params); i++) {
