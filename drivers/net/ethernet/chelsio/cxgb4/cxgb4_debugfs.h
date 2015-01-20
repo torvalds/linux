@@ -39,6 +39,19 @@
 
 #define FILE_DATA(_file) ((_file)->f_path.dentry->d_inode)
 
+#define DEFINE_SIMPLE_DEBUGFS_FILE(name) \
+static int name##_open(struct inode *inode, struct file *file) \
+{ \
+	return single_open(file, name##_show, inode->i_private); \
+} \
+static const struct file_operations name##_debugfs_fops = { \
+	.owner   = THIS_MODULE, \
+	.open    = name##_open, \
+	.read    = seq_read, \
+	.llseek  = seq_lseek, \
+	.release = single_release \
+}
+
 struct t4_debugfs_entry {
 	const char *name;
 	const struct file_operations *ops;
@@ -53,6 +66,11 @@ struct seq_tab {
 	unsigned char skip_first; /* whether the first line is a header */
 	char data[0];             /* the table data */
 };
+
+static inline unsigned int hex2val(char c)
+{
+	return isdigit(c) ? c - '0' : tolower(c) - 'a' + 10;
+}
 
 struct seq_tab *seq_open_tab(struct file *f, unsigned int rows,
 			     unsigned int width, unsigned int have_header,

@@ -1038,6 +1038,16 @@ int t4_config_rss_range(struct adapter *adapter, int mbox, unsigned int viid,
 			int start, int n, const u16 *rspq, unsigned int nrspq);
 int t4_config_glbl_rss(struct adapter *adapter, int mbox, unsigned int mode,
 		       unsigned int flags);
+int t4_read_rss(struct adapter *adapter, u16 *entries);
+void t4_read_rss_key(struct adapter *adapter, u32 *key);
+void t4_write_rss_key(struct adapter *adap, const u32 *key, int idx);
+void t4_read_rss_pf_config(struct adapter *adapter, unsigned int index,
+			   u32 *valp);
+void t4_read_rss_vf_config(struct adapter *adapter, unsigned int index,
+			   u32 *vfl, u32 *vfh);
+u32 t4_read_rss_pf_map(struct adapter *adapter);
+u32 t4_read_rss_pf_mask(struct adapter *adapter);
+
 int t4_mc_read(struct adapter *adap, int idx, u32 addr, __be32 *data,
 	       u64 *parity);
 int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data,

@@ -2200,6 +2200,147 @@ int t4_config_glbl_rss(struct adapter *adapter, int mbox, unsigned int mode,
 	return t4_wr_mbox(adapter, mbox, &c, sizeof(c), NULL);
 }
 
+/* Read an RSS table row */
+static int rd_rss_row(struct adapter *adap, int row, u32 *val)
+{
+	t4_write_reg(adap, TP_RSS_LKP_TABLE_A, 0xfff00000 | row);
+	return t4_wait_op_done_val(adap, TP_RSS_LKP_TABLE_A, LKPTBLROWVLD_F, 1,
+				   5, 0, val);
+}
+
+/**
+ *	t4_read_rss - read the contents of the RSS mapping table
+ *	@adapter: the adapter
+ *	@map: holds the contents of the RSS mapping table
+ *
+ *	Reads the contents of the RSS hash->queue mapping table.
+ */
+int t4_read_rss(struct adapter *adapter, u16 *map)
+{
+	u32 val;
+	int i, ret;
+
+	for (i = 0; i < RSS_NENTRIES / 2; ++i) {
+		ret = rd_rss_row(adapter, i, &val);
+		if (ret)
+			return ret;
+		*map++ = LKPTBLQUEUE0_G(val);
+		*map++ = LKPTBLQUEUE1_G(val);
+	}
+	return 0;
+}
+
+/**
+ *	t4_read_rss_key - read the global RSS key
+ *	@adap: the adapter
+ *	@key: 10-entry array holding the 320-bit RSS key
+ *
+ *	Reads the global 320-bit RSS key.
+ */
+void t4_read_rss_key(struct adapter *adap, u32 *key)
+{
+	t4_read_indirect(adap, TP_PIO_ADDR_A, TP_PIO_DATA_A, key, 10,
+			 TP_RSS_SECRET_KEY0_A);
+}
+
+/**
+ *	t4_write_rss_key - program one of the RSS keys
+ *	@adap: the adapter
+ *	@key: 10-entry array holding the 320-bit RSS key
+ *	@idx: which RSS key to write
+ *
+ *	Writes one of the RSS keys with the given 320-bit value.  If @idx is
+ *	0..15 the corresponding entry in the RSS key table is written,
+ *	otherwise the global RSS key is written.
+ */
+void t4_write_rss_key(struct adapter *adap, const u32 *key, int idx)
+{
+	t4_write_indirect(adap, TP_PIO_ADDR_A, TP_PIO_DATA_A, key, 10,
+			  TP_RSS_SECRET_KEY0_A);
+	if (idx >= 0 && idx < 16)
+		t4_write_reg(adap, TP_RSS_CONFIG_VRT_A,
+			     KEYWRADDR_V(idx) | KEYWREN_F);
+}
+
+/**
+ *	t4_read_rss_pf_config - read PF RSS Configuration Table
+ *	@adapter: the adapter
+ *	@index: the entry in the PF RSS table to read
+ *	@valp: where to store the returned value
+ *
+ *	Reads the PF RSS Configuration Table at the specified index and returns
+ *	the value found there.
+ */
+void t4_read_rss_pf_config(struct adapter *adapter, unsigned int index,
+			   u32 *valp)
+{
+	t4_read_indirect(adapter, TP_PIO_ADDR_A, TP_PIO_DATA_A,
+			 valp, 1, TP_RSS_PF0_CONFIG_A + index);
+}
+
+/**
+ *	t4_read_rss_vf_config - read VF RSS Configuration Table
+ *	@adapter: the adapter
+ *	@index: the entry in the VF RSS table to read
+ *	@vfl: where to store the returned VFL
+ *	@vfh: where to store the returned VFH
+ *
+ *	Reads the VF RSS Configuration Table at the specified index and returns
+ *	the (VFL, VFH) values found there.
+ */
+void t4_read_rss_vf_config(struct adapter *adapter, unsigned int index,
+			   u32 *vfl, u32 *vfh)
+{
+	u32 vrt, mask, data;
+
+	mask = VFWRADDR_V(VFWRADDR_M);
+	data = VFWRADDR_V(index);
+
+	/* Request that the index'th VF Table values be read into VFL/VFH.
+	 */
+	vrt = t4_read_reg(adapter, TP_RSS_CONFIG_VRT_A);
+	vrt &= ~(VFRDRG_F | VFWREN_F | KEYWREN_F | mask);
+	vrt |= data | VFRDEN_F;
+	t4_write_reg(adapter, TP_RSS_CONFIG_VRT_A, vrt);
+
+	/* Grab the VFL/VFH values ...
+	 */
+	t4_read_indirect(adapter, TP_PIO_ADDR_A, TP_PIO_DATA_A,
+			 vfl, 1, TP_RSS_VFL_CONFIG_A);
+	t4_read_indirect(adapter, TP_PIO_ADDR_A, TP_PIO_DATA_A,
+			 vfh, 1, TP_RSS_VFH_CONFIG_A);
+}
+
+/**
+ *	t4_read_rss_pf_map - read PF RSS Map
+ *	@adapter: the adapter
+ *
+ *	Reads the PF RSS Map register and returns its value.
+ */
+u32 t4_read_rss_pf_map(struct adapter *adapter)
+{
+	u32 pfmap;
+
+	t4_read_indirect(adapter, TP_PIO_ADDR_A, TP_PIO_DATA_A,
+			 &pfmap, 1, TP_RSS_PF_MAP_A);
+	return pfmap;
+}
+
+/**
+ *	t4_read_rss_pf_mask - read PF RSS Mask
+ *	@adapter: the adapter
+ *
+ *	Reads the PF RSS Mask register and returns its value.
+ */
+u32 t4_read_rss_pf_mask(struct adapter *adapter)
+{
+	u32 pfmask;
+
+	t4_read_indirect(adapter, TP_PIO_ADDR_A, TP_PIO_DATA_A,
+			 &pfmask, 1, TP_RSS_PF_MSK_A);
+	return pfmask;
+}
+
 /**
  *	t4_tp_get_tcp_stats - read TP's TCP MIB counters
  *	@adap: the adapter
