@@ -604,7 +604,7 @@ bool comedi_is_subdevice_running(struct comedi_subdevice *s)
 {
 	unsigned runflags = comedi_get_subdevice_runflags(s);
 
-	return (runflags & SRF_RUNNING) ? true : false;
+	return (runflags & COMEDI_SRF_RUNNING) ? true : false;
 }
 EXPORT_SYMBOL_GPL(comedi_is_subdevice_running);
 
@@ -612,14 +612,14 @@ static bool comedi_is_subdevice_in_error(struct comedi_subdevice *s)
 {
 	unsigned runflags = comedi_get_subdevice_runflags(s);
 
-	return (runflags & SRF_ERROR) ? true : false;
+	return (runflags & COMEDI_SRF_ERROR) ? true : false;
 }
 
 static bool comedi_is_subdevice_idle(struct comedi_subdevice *s)
 {
 	unsigned runflags = comedi_get_subdevice_runflags(s);
 
-	return (runflags & (SRF_ERROR | SRF_RUNNING)) ? false : true;
+	return (runflags & COMEDI_SRF_BUSY_MASK) ? false : true;
 }
 
 /**
@@ -634,7 +634,7 @@ void *comedi_alloc_spriv(struct comedi_subdevice *s, size_t size)
 {
 	s->private = kzalloc(size, GFP_KERNEL);
 	if (s->private)
-		s->runflags |= SRF_FREE_SPRIV;
+		s->runflags |= COMEDI_SRF_FREE_SPRIV;
 	return s->private;
 }
 EXPORT_SYMBOL_GPL(comedi_alloc_spriv);
@@ -647,7 +647,7 @@ static void do_become_nonbusy(struct comedi_device *dev,
 {
 	struct comedi_async *async = s->async;
 
-	comedi_set_subdevice_runflags(s, SRF_RUNNING, 0);
+	comedi_set_subdevice_runflags(s, COMEDI_SRF_RUNNING, 0);
 	if (async) {
 		comedi_buf_reset(s);
 		async->inttrig = NULL;
@@ -1634,10 +1634,13 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 	if (async->cmd.flags & CMDF_WAKE_EOS)
 		async->cb_mask |= COMEDI_CB_EOS;
 
-	comedi_set_subdevice_runflags(s, SRF_ERROR | SRF_RUNNING, SRF_RUNNING);
+	comedi_set_subdevice_runflags(s, COMEDI_SRF_BUSY_MASK,
+				      COMEDI_SRF_RUNNING);
 
-	/* set s->busy _after_ setting SRF_RUNNING flag to avoid race with
-	 * comedi_read() or comedi_write() */
+	/*
+	 * Set s->busy _after_ setting COMEDI_SRF_RUNNING flag to avoid
+	 * race with comedi_read() or comedi_write().
+	 */
 	s->busy = file;
 	ret = s->do_cmd(dev, s);
 	if (ret == 0)
@@ -2591,18 +2594,21 @@ void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 		return;
 
 	if (s->async->events & COMEDI_CB_CANCEL_MASK)
-		runflags_mask |= SRF_RUNNING;
+		runflags_mask |= COMEDI_SRF_RUNNING;
 
 	/*
 	 * Remember if an error event has occurred, so an error
 	 * can be returned the next time the user does a read().
 	 */
 	if (s->async->events & COMEDI_CB_ERROR_MASK) {
-		runflags_mask |= SRF_ERROR;
-		runflags |= SRF_ERROR;
+		runflags_mask |= COMEDI_SRF_ERROR;
+		runflags |= COMEDI_SRF_ERROR;
 	}
 	if (runflags_mask) {
-		/*sets SRF_ERROR and SRF_RUNNING together atomically */
+		/*
+		 * Sets COMEDI_SRF_ERROR and COMEDI_SRF_RUNNING together
+		 * atomically.
+		 */
 		comedi_set_subdevice_runflags(s, runflags_mask, runflags);
 	}
 
