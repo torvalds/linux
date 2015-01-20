@@ -193,7 +193,6 @@ struct boardtype {
 	const char *name;	/*  board name */
 	char cardtype;		/*  0=1710& co. 2=1713, ... */
 	int n_aichan;		/*  num of A/D chans */
-	int n_aichand;		/*  num of A/D chans in diff mode */
 	int n_aochan;		/*  num of D/A chans */
 	const struct comedi_lrange *rangelist_ai;	/*  rangelist for A/D */
 	const char *rangecode_ai;	/*  range codes for programming */
@@ -201,6 +200,7 @@ struct boardtype {
 	unsigned int ai_ns_min;	/*  max sample speed of card v ns */
 	unsigned int fifo_half_size;	/*  size of FIFO/2 */
 	unsigned int has_irq:1;
+	unsigned int has_diff_ai:1;
 	unsigned int has_di_do:1;
 	unsigned int has_counter:1;
 };
@@ -210,7 +210,6 @@ static const struct boardtype boardtypes[] = {
 		.name		= "pci1710",
 		.cardtype	= TYPE_PCI171X,
 		.n_aichan	= 16,
-		.n_aichand	= 8,
 		.n_aochan	= 2,
 		.rangelist_ai	= &range_pci1710_3,
 		.rangecode_ai	= range_codes_pci1710_3,
@@ -218,6 +217,7 @@ static const struct boardtype boardtypes[] = {
 		.ai_ns_min	= 10000,
 		.fifo_half_size	= 2048,
 		.has_irq	= 1,
+		.has_diff_ai	= 1,
 		.has_di_do	= 1,
 		.has_counter	= 1,
 	},
@@ -225,7 +225,6 @@ static const struct boardtype boardtypes[] = {
 		.name		= "pci1710hg",
 		.cardtype	= TYPE_PCI171X,
 		.n_aichan	= 16,
-		.n_aichand	= 8,
 		.n_aochan	= 2,
 		.rangelist_ai	= &range_pci1710hg,
 		.rangecode_ai	= range_codes_pci1710hg,
@@ -233,6 +232,7 @@ static const struct boardtype boardtypes[] = {
 		.ai_ns_min	= 10000,
 		.fifo_half_size	= 2048,
 		.has_irq	= 1,
+		.has_diff_ai	= 1,
 		.has_di_do	= 1,
 		.has_counter	= 1,
 	},
@@ -254,12 +254,12 @@ static const struct boardtype boardtypes[] = {
 		.name		= "pci1713",
 		.cardtype	= TYPE_PCI1713,
 		.n_aichan	= 32,
-		.n_aichand	= 16,
 		.rangelist_ai	= &range_pci1710_3,
 		.rangecode_ai	= range_codes_pci1710_3,
 		.ai_ns_min	= 10000,
 		.fifo_half_size	= 2048,
 		.has_irq	= 1,
+		.has_diff_ai	= 1,
 	},
 	[BOARD_PCI1720] = {
 		.name		= "pci1720",
@@ -1126,7 +1126,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		s = &dev->subdevices[subdev];
 		s->type = COMEDI_SUBD_AI;
 		s->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_GROUND;
-		if (this_board->n_aichand)
+		if (this_board->has_diff_ai)
 			s->subdev_flags |= SDF_DIFF;
 		s->n_chan = this_board->n_aichan;
 		s->maxdata = 0x0fff;
