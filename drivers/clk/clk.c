@@ -1833,6 +1833,7 @@ out_unlock:
 out:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(clk_set_phase);
 
 /**
  * clk_get_phase - return the phase shift of a clock signal
@@ -1855,6 +1856,7 @@ int clk_get_phase(struct clk *clk)
 out:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(clk_get_phase);
 
 /**
  * __clk_init - initialize the data structures in a struct clk
