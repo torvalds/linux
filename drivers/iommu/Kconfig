@@ -313,6 +313,7 @@ config IPMMU_VMSA
 	depends on ARM_LPAE
 	depends on ARCH_SHMOBILE || COMPILE_TEST
 	select IOMMU_API
+	select IOMMU_IO_PGTABLE_LPAE
 	select ARM_DMA_USE_IOMMU
 	help
 	  Support for the Renesas VMSA-compatible IPMMU Renesas found in the
