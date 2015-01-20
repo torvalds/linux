@@ -58,15 +58,6 @@
  */
 #define RBIO_CACHE_READY_BIT	3
 
-/*
- * bbio and raid_map is managed by the caller, so we shouldn't free
- * them here. And besides that, all rbios with this flag should not
- * be cached, because we need raid_map to check the rbios' stripe
- * is the same or not, but it is very likely that the caller has
- * free raid_map, so don't cache those rbios.
- */
-#define RBIO_HOLD_BBIO_MAP_BIT	4
-
 #define RBIO_CACHE_SIZE 1024
 
 enum btrfs_rbio_ops {
@@ -834,19 +825,6 @@ done_nolock:
 		remove_rbio_from_cache(rbio);
 }
 
-static inline void
-__free_bbio(struct btrfs_bio *bbio, int need)
-{
-	if (need)
-		kfree(bbio);
-}
-
-static inline void free_bbio(struct btrfs_raid_bio *rbio)
-{
-	__free_bbio(rbio->bbio,
-		    !test_bit(RBIO_HOLD_BBIO_MAP_BIT, &rbio->flags));
-}
-
 static void __free_raid_bio(struct btrfs_raid_bio *rbio)
 {
 	int i;
@@ -866,8 +844,7 @@ static void __free_raid_bio(struct btrfs_raid_bio *rbio)
 		}
 	}
 
-	free_bbio(rbio);
-
+	btrfs_put_bbio(rbio->bbio);
 	kfree(rbio);
 }
 
@@ -1774,7 +1751,7 @@ int raid56_parity_write(struct btrfs_root *root, struct bio *bio,
 
 	rbio = alloc_rbio(root, bbio, stripe_len);
 	if (IS_ERR(rbio)) {
-		__free_bbio(bbio, 1);
+		btrfs_put_bbio(bbio);
 		return PTR_ERR(rbio);
 	}
 	bio_list_add(&rbio->bio_list, bio);
@@ -1990,8 +1967,7 @@ cleanup:
 
 cleanup_io:
 	if (rbio->operation == BTRFS_RBIO_READ_REBUILD) {
-		if (err == 0 &&
-		    !test_bit(RBIO_HOLD_BBIO_MAP_BIT, &rbio->flags))
+		if (err == 0)
 			cache_rbio_pages(rbio);
 		else
 			clear_bit(RBIO_CACHE_READY_BIT, &rbio->flags);
@@ -2153,7 +2129,8 @@ int raid56_parity_recover(struct btrfs_root *root, struct bio *bio,
 
 	rbio = alloc_rbio(root, bbio, stripe_len);
 	if (IS_ERR(rbio)) {
-		__free_bbio(bbio, generic_io);
+		if (generic_io)
+			btrfs_put_bbio(bbio);
 		return PTR_ERR(rbio);
 	}
 
@@ -2164,7 +2141,8 @@ int raid56_parity_recover(struct btrfs_root *root, struct bio *bio,
 	rbio->faila = find_logical_bio_stripe(rbio, bio);
 	if (rbio->faila == -1) {
 		BUG();
-		__free_bbio(bbio, generic_io);
+		if (generic_io)
+			btrfs_put_bbio(bbio);
 		kfree(rbio);
 		return -EIO;
 	}
@@ -2173,7 +2151,7 @@ int raid56_parity_recover(struct btrfs_root *root, struct bio *bio,
 		btrfs_bio_counter_inc_noblocked(root->fs_info);
 		rbio->generic_bio_cnt = 1;
 	} else {
-		set_bit(RBIO_HOLD_BBIO_MAP_BIT, &rbio->flags);
+		btrfs_get_bbio(bbio);
 	}
 
 	/*

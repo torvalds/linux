@@ -295,6 +295,7 @@ typedef void (btrfs_bio_end_io_t) (struct btrfs_bio *bio, int err);
 #define BTRFS_BIO_ORIG_BIO_SUBMITTED	(1 << 0)
 
 struct btrfs_bio {
+	atomic_t refs;
 	atomic_t stripes_pending;
 	struct btrfs_fs_info *fs_info;
 	bio_end_io_t *end_io;
@@ -394,13 +395,8 @@ struct btrfs_balance_control {
 
 int btrfs_account_dev_extents_size(struct btrfs_device *device, u64 start,
 				   u64 end, u64 *length);
-
-#define btrfs_bio_size(total_stripes, real_stripes)		\
-	(sizeof(struct btrfs_bio) +				\
-	 (sizeof(struct btrfs_bio_stripe) * (total_stripes)) +	\
-	 (sizeof(int) * (real_stripes)) +			\
-	 (sizeof(u64) * (real_stripes)))
-
+void btrfs_get_bbio(struct btrfs_bio *bbio);
+void btrfs_put_bbio(struct btrfs_bio *bbio);
 int btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 		    u64 logical, u64 *length,
 		    struct btrfs_bio **bbio_ret, int mirror_num);

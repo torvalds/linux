@@ -4901,6 +4901,37 @@ static void sort_parity_stripes(struct btrfs_bio *bbio, int num_stripes)
 	}
 }
 
+static struct btrfs_bio *alloc_btrfs_bio(int total_stripes, int real_stripes)
+{
+	struct btrfs_bio *bbio = kzalloc(
+		sizeof(struct btrfs_bio) +
+		sizeof(struct btrfs_bio_stripe) * (total_stripes) +
+		sizeof(int) * (real_stripes) +
+		sizeof(u64) * (real_stripes),
+		GFP_NOFS);
+	if (!bbio)
+		return NULL;
+
+	atomic_set(&bbio->error, 0);
+	atomic_set(&bbio->refs, 1);
+
+	return bbio;
+}
+
+void btrfs_get_bbio(struct btrfs_bio *bbio)
+{
+	WARN_ON(!atomic_read(&bbio->refs));
+	atomic_inc(&bbio->refs);
+}
+
+void btrfs_put_bbio(struct btrfs_bio *bbio)
+{
+	if (!bbio)
+		return;
+	if (atomic_dec_and_test(&bbio->refs))
+		kfree(bbio);
+}
+
 static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 			     u64 logical, u64 *length,
 			     struct btrfs_bio **bbio_ret,
@@ -5052,7 +5083,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 			 * is not left of the left cursor
 			 */
 			ret = -EIO;
-			kfree(tmp_bbio);
+			btrfs_put_bbio(tmp_bbio);
 			goto out;
 		}
 
@@ -5087,11 +5118,11 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 		} else {
 			WARN_ON(1);
 			ret = -EIO;
-			kfree(tmp_bbio);
+			btrfs_put_bbio(tmp_bbio);
 			goto out;
 		}
 
-		kfree(tmp_bbio);
+		btrfs_put_bbio(tmp_bbio);
 	} else if (mirror_num > map->num_stripes) {
 		mirror_num = 0;
 	}
@@ -5213,13 +5244,11 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 		tgtdev_indexes = num_stripes;
 	}
 
-	bbio = kzalloc(btrfs_bio_size(num_alloc_stripes, tgtdev_indexes),
-		       GFP_NOFS);
+	bbio = alloc_btrfs_bio(num_alloc_stripes, tgtdev_indexes);
 	if (!bbio) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	atomic_set(&bbio->error, 0);
 	if (dev_replace_is_ongoing)
 		bbio->tgtdev_map = (int *)(bbio->stripes + num_alloc_stripes);
 
@@ -5558,7 +5587,7 @@ static inline void btrfs_end_bbio(struct btrfs_bio *bbio, struct bio *bio, int e
 		bio_endio_nodec(bio, err);
 	else
 		bio_endio(bio, err);
-	kfree(bbio);
+	btrfs_put_bbio(bbio);
 }
 
 static void btrfs_end_bio(struct bio *bio, int err)
