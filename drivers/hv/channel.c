@@ -73,14 +73,14 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 	unsigned long flags;
 	int ret, t, err = 0;
 
-	spin_lock_irqsave(&newchannel->sc_lock, flags);
+	spin_lock_irqsave(&newchannel->lock, flags);
 	if (newchannel->state == CHANNEL_OPEN_STATE) {
 		newchannel->state = CHANNEL_OPENING_STATE;
 	} else {
-		spin_unlock_irqrestore(&newchannel->sc_lock, flags);
+		spin_unlock_irqrestore(&newchannel->lock, flags);
 		return -EINVAL;
 	}
-	spin_unlock_irqrestore(&newchannel->sc_lock, flags);
+	spin_unlock_irqrestore(&newchannel->lock, flags);
 
 	newchannel->onchannel_callback = onchannelcallback;
 	newchannel->channel_callback_context = context;
