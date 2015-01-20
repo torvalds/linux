@@ -2177,7 +2177,7 @@ static const struct hc_driver isp1760_hc_driver = {
 	.clear_tt_buffer_complete	= isp1760_clear_tt_buffer_complete,
 };
 
-int __init init_kmem_once(void)
+int __init isp1760_init_kmem_once(void)
 {
 	urb_listitem_cachep = kmem_cache_create("isp1760_urb_listitem",
 			sizeof(struct urb_listitem), 0, SLAB_TEMPORARY |
@@ -2204,7 +2204,7 @@ int __init init_kmem_once(void)
 	return 0;
 }
 
-void deinit_kmem_cache(void)
+void isp1760_deinit_kmem_cache(void)
 {
 	kmem_cache_destroy(qtd_cachep);
 	kmem_cache_destroy(qh_cachep);

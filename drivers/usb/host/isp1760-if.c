@@ -301,7 +301,7 @@ static int __init isp1760_init(void)
 {
 	int ret, any_ret = -ENODEV;
 
-	init_kmem_once();
+	isp1760_init_kmem_once();
 
 	ret = platform_driver_register(&isp1760_plat_driver);
 	if (!ret)
@@ -313,7 +313,7 @@ static int __init isp1760_init(void)
 #endif
 
 	if (any_ret)
-		deinit_kmem_cache();
+		isp1760_deinit_kmem_cache();
 	return any_ret;
 }
 module_init(isp1760_init);
@@ -324,6 +324,6 @@ static void __exit isp1760_exit(void)
 #ifdef CONFIG_PCI
 	pci_unregister_driver(&isp1761_pci_driver);
 #endif
-	deinit_kmem_cache();
+	isp1760_deinit_kmem_cache();
 }
 module_exit(isp1760_exit);
