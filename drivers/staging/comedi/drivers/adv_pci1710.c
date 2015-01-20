@@ -426,9 +426,10 @@ static int pci171x_ai_eoc(struct comedi_device *dev,
 	return -EBUSY;
 }
 
-static int pci171x_insn_read_ai(struct comedi_device *dev,
+static int pci171x_ai_insn_read(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	struct pci1710_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
@@ -644,9 +645,6 @@ static int pci1720_ao_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-==============================================================================
-*/
 static int pci171x_ai_cancel(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
@@ -873,9 +871,6 @@ static int pci171x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-/*
-==============================================================================
-*/
 static int pci171x_ai_cmdtest(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_cmd *cmd)
@@ -1067,21 +1062,21 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 
 	if (this_board->n_aichan) {
 		s = &dev->subdevices[subdev];
-		s->type = COMEDI_SUBD_AI;
-		s->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_GROUND;
+		s->type		= COMEDI_SUBD_AI;
+		s->subdev_flags	= SDF_READABLE | SDF_COMMON | SDF_GROUND;
 		if (this_board->has_diff_ai)
-			s->subdev_flags |= SDF_DIFF;
-		s->n_chan = this_board->n_aichan;
-		s->maxdata = 0x0fff;
-		s->range_table = this_board->rangelist_ai;
-		s->insn_read = pci171x_insn_read_ai;
+			s->subdev_flags	|= SDF_DIFF;
+		s->n_chan	= this_board->n_aichan;
+		s->maxdata	= 0x0fff;
+		s->range_table	= this_board->rangelist_ai;
+		s->insn_read	= pci171x_ai_insn_read;
 		if (dev->irq) {
 			dev->read_subdev = s;
-			s->subdev_flags |= SDF_CMD_READ;
-			s->len_chanlist = s->n_chan;
-			s->do_cmdtest = pci171x_ai_cmdtest;
-			s->do_cmd = pci171x_ai_cmd;
-			s->cancel = pci171x_ai_cancel;
+			s->subdev_flags	|= SDF_CMD_READ;
+			s->len_chanlist	= s->n_chan;
+			s->do_cmdtest	= pci171x_ai_cmdtest;
+			s->do_cmd	= pci171x_ai_cmd;
+			s->cancel	= pci171x_ai_cancel;
 		}
 		subdev++;
 	}
