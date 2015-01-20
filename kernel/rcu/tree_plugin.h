@@ -520,10 +520,6 @@ static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp)
 	WARN_ON_ONCE(rnp->qsmask);
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-
-#endif /* #ifdef CONFIG_HOTPLUG_CPU */
-
 /*
  * Check for a quiescent state from the current CPU.  When a task blocks,
  * the task is recorded in the corresponding CPU's rcu_node structure,
