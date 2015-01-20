@@ -142,8 +142,8 @@ static int isp1761_pci_probe(struct pci_dev *dev,
 	pci_set_master(dev);
 
 	dev->dev.dma_mask = NULL;
-	ret = isp1760_register(&dev->resource[3], dev->irq, IRQF_SHARED,
-			       &dev->dev, devflags);
+	ret = isp1760_register(&dev->resource[3], dev->irq, 0, &dev->dev,
+			       devflags);
 	if (ret < 0)
 		goto error;
 
@@ -190,7 +190,7 @@ static struct pci_driver isp1761_pci_driver = {
 
 static int isp1760_plat_probe(struct platform_device *pdev)
 {
-	unsigned long irqflags = IRQF_SHARED;
+	unsigned long irqflags;
 	unsigned int devflags = 0;
 	struct resource *mem_res;
 	struct resource *irq_res;
@@ -203,8 +203,7 @@ static int isp1760_plat_probe(struct platform_device *pdev)
 		pr_warning("isp1760: IRQ resource not available\n");
 		return -ENODEV;
 	}
-
-	irqflags |= irq_res->flags & IRQF_TRIGGER_MASK;
+	irqflags = irq_res->flags & IRQF_TRIGGER_MASK;
 
 	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
 		struct device_node *dp = pdev->dev.of_node;

@@ -43,8 +43,8 @@ int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
 	if (IS_ERR(isp->regs))
 		return PTR_ERR(isp->regs);
 
-	ret = isp1760_hcd_register(&isp->hcd, isp->regs, mem, irq, irqflags,
-				   dev, devflags);
+	ret = isp1760_hcd_register(&isp->hcd, isp->regs, mem, irq,
+				   irqflags | IRQF_SHARED, dev, devflags);
 	if (ret < 0)
 		return ret;
 
