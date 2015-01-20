@@ -79,13 +79,6 @@ struct btrfs_raid_bio {
 	struct btrfs_fs_info *fs_info;
 	struct btrfs_bio *bbio;
 
-	/*
-	 * logical block numbers for the start of each stripe
-	 * The last one or two are p/q.  These are sorted,
-	 * so raid_map[0] is the start of our full stripe
-	 */
-	u64 *raid_map;
-
 	/* while we're doing rmw on a stripe
 	 * we put it into a hash table so we can
 	 * lock the stripe and merge more rbios
@@ -303,7 +296,7 @@ static void cache_rbio_pages(struct btrfs_raid_bio *rbio)
  */
 static int rbio_bucket(struct btrfs_raid_bio *rbio)
 {
-	u64 num = rbio->raid_map[0];
+	u64 num = rbio->bbio->raid_map[0];
 
 	/*
 	 * we shift down quite a bit.  We're using byte
@@ -606,8 +599,8 @@ static int rbio_can_merge(struct btrfs_raid_bio *last,
 	    test_bit(RBIO_CACHE_BIT, &cur->flags))
 		return 0;
 
-	if (last->raid_map[0] !=
-	    cur->raid_map[0])
+	if (last->bbio->raid_map[0] !=
+	    cur->bbio->raid_map[0])
 		return 0;
 
 	/* we can't merge with different operations */
@@ -689,7 +682,7 @@ static noinline int lock_stripe_add(struct btrfs_raid_bio *rbio)
 	spin_lock_irqsave(&h->lock, flags);
 	list_for_each_entry(cur, &h->hash_list, hash_list) {
 		walk++;
-		if (cur->raid_map[0] == rbio->raid_map[0]) {
+		if (cur->bbio->raid_map[0] == rbio->bbio->raid_map[0]) {
 			spin_lock(&cur->bio_list_lock);
 
 			/* can we steal this cached rbio's pages? */
@@ -842,18 +835,16 @@ done_nolock:
 }
 
 static inline void
-__free_bbio_and_raid_map(struct btrfs_bio *bbio, u64 *raid_map, int need)
+__free_bbio(struct btrfs_bio *bbio, int need)
 {
-	if (need) {
-		kfree(raid_map);
+	if (need)
 		kfree(bbio);
-	}
 }
 
-static inline void free_bbio_and_raid_map(struct btrfs_raid_bio *rbio)
+static inline void free_bbio(struct btrfs_raid_bio *rbio)
 {
-	__free_bbio_and_raid_map(rbio->bbio, rbio->raid_map,
-			!test_bit(RBIO_HOLD_BBIO_MAP_BIT, &rbio->flags));
+	__free_bbio(rbio->bbio,
+		    !test_bit(RBIO_HOLD_BBIO_MAP_BIT, &rbio->flags));
 }
 
 static void __free_raid_bio(struct btrfs_raid_bio *rbio)
@@ -875,7 +866,7 @@ static void __free_raid_bio(struct btrfs_raid_bio *rbio)
 		}
 	}
 
-	free_bbio_and_raid_map(rbio);
+	free_bbio(rbio);
 
 	kfree(rbio);
 }
@@ -985,8 +976,7 @@ static unsigned long rbio_nr_pages(unsigned long stripe_len, int nr_stripes)
  * this does not allocate any pages for rbio->pages.
  */
 static struct btrfs_raid_bio *alloc_rbio(struct btrfs_root *root,
-			  struct btrfs_bio *bbio, u64 *raid_map,
-			  u64 stripe_len)
+			  struct btrfs_bio *bbio, u64 stripe_len)
 {
 	struct btrfs_raid_bio *rbio;
 	int nr_data = 0;
@@ -1007,7 +997,6 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_root *root,
 	INIT_LIST_HEAD(&rbio->stripe_cache);
 	INIT_LIST_HEAD(&rbio->hash_list);
 	rbio->bbio = bbio;
-	rbio->raid_map = raid_map;
 	rbio->fs_info = root->fs_info;
 	rbio->stripe_len = stripe_len;
 	rbio->nr_pages = num_pages;
@@ -1028,7 +1017,7 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_root *root,
 	rbio->bio_pages = p + sizeof(struct page *) * num_pages;
 	rbio->dbitmap = p + sizeof(struct page *) * num_pages * 2;
 
-	if (raid_map[real_stripes - 1] == RAID6_Q_STRIPE)
+	if (bbio->raid_map[real_stripes - 1] == RAID6_Q_STRIPE)
 		nr_data = real_stripes - 2;
 	else
 		nr_data = real_stripes - 1;
@@ -1182,7 +1171,7 @@ static void index_rbio_pages(struct btrfs_raid_bio *rbio)
 	spin_lock_irq(&rbio->bio_list_lock);
 	bio_list_for_each(bio, &rbio->bio_list) {
 		start = (u64)bio->bi_iter.bi_sector << 9;
-		stripe_offset = start - rbio->raid_map[0];
+		stripe_offset = start - rbio->bbio->raid_map[0];
 		page_index = stripe_offset >> PAGE_CACHE_SHIFT;
 
 		for (i = 0; i < bio->bi_vcnt; i++) {
@@ -1402,7 +1391,7 @@ static int find_logical_bio_stripe(struct btrfs_raid_bio *rbio,
 	logical <<= 9;
 
 	for (i = 0; i < rbio->nr_data; i++) {
-		stripe_start = rbio->raid_map[i];
+		stripe_start = rbio->bbio->raid_map[i];
 		if (logical >= stripe_start &&
 		    logical < stripe_start + rbio->stripe_len) {
 			return i;
@@ -1776,17 +1765,16 @@ static void btrfs_raid_unplug(struct blk_plug_cb *cb, bool from_schedule)
  * our main entry point for writes from the rest of the FS.
  */
 int raid56_parity_write(struct btrfs_root *root, struct bio *bio,
-			struct btrfs_bio *bbio, u64 *raid_map,
-			u64 stripe_len)
+			struct btrfs_bio *bbio, u64 stripe_len)
 {
 	struct btrfs_raid_bio *rbio;
 	struct btrfs_plug_cb *plug = NULL;
 	struct blk_plug_cb *cb;
 	int ret;
 
-	rbio = alloc_rbio(root, bbio, raid_map, stripe_len);
+	rbio = alloc_rbio(root, bbio, stripe_len);
 	if (IS_ERR(rbio)) {
-		__free_bbio_and_raid_map(bbio, raid_map, 1);
+		__free_bbio(bbio, 1);
 		return PTR_ERR(rbio);
 	}
 	bio_list_add(&rbio->bio_list, bio);
@@ -1885,7 +1873,7 @@ static void __raid_recover_end_io(struct btrfs_raid_bio *rbio)
 		}
 
 		/* all raid6 handling here */
-		if (rbio->raid_map[rbio->real_stripes - 1] ==
+		if (rbio->bbio->raid_map[rbio->real_stripes - 1] ==
 		    RAID6_Q_STRIPE) {
 
 			/*
@@ -1922,8 +1910,9 @@ static void __raid_recover_end_io(struct btrfs_raid_bio *rbio)
 			 * here due to a crc mismatch and we can't give them the
 			 * data they want
 			 */
-			if (rbio->raid_map[failb] == RAID6_Q_STRIPE) {
-				if (rbio->raid_map[faila] == RAID5_P_STRIPE) {
+			if (rbio->bbio->raid_map[failb] == RAID6_Q_STRIPE) {
+				if (rbio->bbio->raid_map[faila] ==
+				    RAID5_P_STRIPE) {
 					err = -EIO;
 					goto cleanup;
 				}
@@ -1934,7 +1923,7 @@ static void __raid_recover_end_io(struct btrfs_raid_bio *rbio)
 				goto pstripe;
 			}
 
-			if (rbio->raid_map[failb] == RAID5_P_STRIPE) {
+			if (rbio->bbio->raid_map[failb] == RAID5_P_STRIPE) {
 				raid6_datap_recov(rbio->real_stripes,
 						  PAGE_SIZE, faila, pointers);
 			} else {
@@ -2156,15 +2145,15 @@ cleanup:
  * of the drive.
  */
 int raid56_parity_recover(struct btrfs_root *root, struct bio *bio,
-			  struct btrfs_bio *bbio, u64 *raid_map,
-			  u64 stripe_len, int mirror_num, int generic_io)
+			  struct btrfs_bio *bbio, u64 stripe_len,
+			  int mirror_num, int generic_io)
 {
 	struct btrfs_raid_bio *rbio;
 	int ret;
 
-	rbio = alloc_rbio(root, bbio, raid_map, stripe_len);
+	rbio = alloc_rbio(root, bbio, stripe_len);
 	if (IS_ERR(rbio)) {
-		__free_bbio_and_raid_map(bbio, raid_map, generic_io);
+		__free_bbio(bbio, generic_io);
 		return PTR_ERR(rbio);
 	}
 
@@ -2175,7 +2164,7 @@ int raid56_parity_recover(struct btrfs_root *root, struct bio *bio,
 	rbio->faila = find_logical_bio_stripe(rbio, bio);
 	if (rbio->faila == -1) {
 		BUG();
-		__free_bbio_and_raid_map(bbio, raid_map, generic_io);
+		__free_bbio(bbio, generic_io);
 		kfree(rbio);
 		return -EIO;
 	}
@@ -2240,14 +2229,14 @@ static void read_rebuild_work(struct btrfs_work *work)
 
 struct btrfs_raid_bio *
 raid56_parity_alloc_scrub_rbio(struct btrfs_root *root, struct bio *bio,
-			       struct btrfs_bio *bbio, u64 *raid_map,
-			       u64 stripe_len, struct btrfs_device *scrub_dev,
+			       struct btrfs_bio *bbio, u64 stripe_len,
+			       struct btrfs_device *scrub_dev,
 			       unsigned long *dbitmap, int stripe_nsectors)
 {
 	struct btrfs_raid_bio *rbio;
 	int i;
 
-	rbio = alloc_rbio(root, bbio, raid_map, stripe_len);
+	rbio = alloc_rbio(root, bbio, stripe_len);
 	if (IS_ERR(rbio))
 		return NULL;
 	bio_list_add(&rbio->bio_list, bio);
@@ -2279,10 +2268,10 @@ void raid56_parity_add_scrub_pages(struct btrfs_raid_bio *rbio,
 	int stripe_offset;
 	int index;
 
-	ASSERT(logical >= rbio->raid_map[0]);
-	ASSERT(logical + PAGE_SIZE <= rbio->raid_map[0] +
+	ASSERT(logical >= rbio->bbio->raid_map[0]);
+	ASSERT(logical + PAGE_SIZE <= rbio->bbio->raid_map[0] +
 				rbio->stripe_len * rbio->nr_data);
-	stripe_offset = (int)(logical - rbio->raid_map[0]);
+	stripe_offset = (int)(logical - rbio->bbio->raid_map[0]);
 	index = stripe_offset >> PAGE_CACHE_SHIFT;
 	rbio->bio_pages[index] = page;
 }

@@ -66,7 +66,6 @@ struct scrub_ctx;
 struct scrub_recover {
 	atomic_t		refs;
 	struct btrfs_bio	*bbio;
-	u64			*raid_map;
 	u64			map_length;
 };
 
@@ -857,7 +856,6 @@ static inline void scrub_put_recover(struct scrub_recover *recover)
 {
 	if (atomic_dec_and_test(&recover->refs)) {
 		kfree(recover->bbio);
-		kfree(recover->raid_map);
 		kfree(recover);
 	}
 }
@@ -1296,12 +1294,12 @@ out:
 	return 0;
 }
 
-static inline int scrub_nr_raid_mirrors(struct btrfs_bio *bbio, u64 *raid_map)
+static inline int scrub_nr_raid_mirrors(struct btrfs_bio *bbio)
 {
-	if (raid_map) {
+	if (bbio->raid_map) {
 		int real_stripes = bbio->num_stripes - bbio->num_tgtdevs;
 
-		if (raid_map[real_stripes - 1] == RAID6_Q_STRIPE)
+		if (bbio->raid_map[real_stripes - 1] == RAID6_Q_STRIPE)
 			return 3;
 		else
 			return 2;
@@ -1347,7 +1345,6 @@ static int scrub_setup_recheck_block(struct scrub_ctx *sctx,
 {
 	struct scrub_recover *recover;
 	struct btrfs_bio *bbio;
-	u64 *raid_map;
 	u64 sublen;
 	u64 mapped_length;
 	u64 stripe_offset;
@@ -1368,35 +1365,31 @@ static int scrub_setup_recheck_block(struct scrub_ctx *sctx,
 		sublen = min_t(u64, length, PAGE_SIZE);
 		mapped_length = sublen;
 		bbio = NULL;
-		raid_map = NULL;
 
 		/*
 		 * with a length of PAGE_SIZE, each returned stripe
 		 * represents one mirror
 		 */
 		ret = btrfs_map_sblock(fs_info, REQ_GET_READ_MIRRORS, logical,
-				       &mapped_length, &bbio, 0, &raid_map);
+				       &mapped_length, &bbio, 0, 1);
 		if (ret || !bbio || mapped_length < sublen) {
 			kfree(bbio);
-			kfree(raid_map);
 			return -EIO;
 		}
 
 		recover = kzalloc(sizeof(struct scrub_recover), GFP_NOFS);
 		if (!recover) {
 			kfree(bbio);
-			kfree(raid_map);
 			return -ENOMEM;
 		}
 
 		atomic_set(&recover->refs, 1);
 		recover->bbio = bbio;
-		recover->raid_map = raid_map;
 		recover->map_length = mapped_length;
 
 		BUG_ON(page_index >= SCRUB_PAGES_PER_RD_BIO);
 
-		nmirrors = scrub_nr_raid_mirrors(bbio, raid_map);
+		nmirrors = scrub_nr_raid_mirrors(bbio);
 		for (mirror_index = 0; mirror_index < nmirrors;
 		     mirror_index++) {
 			struct scrub_block *sblock;
@@ -1420,7 +1413,7 @@ leave_nomem:
 			sblock->pagev[page_index] = page;
 			page->logical = logical;
 
-			scrub_stripe_index_and_offset(logical, raid_map,
+			scrub_stripe_index_and_offset(logical, bbio->raid_map,
 						      mapped_length,
 						      bbio->num_stripes -
 						      bbio->num_tgtdevs,
@@ -1469,7 +1462,7 @@ static void scrub_bio_wait_endio(struct bio *bio, int error)
 
 static inline int scrub_is_page_on_raid56(struct scrub_page *page)
 {
-	return page->recover && page->recover->raid_map;
+	return page->recover && page->recover->bbio->raid_map;
 }
 
 static int scrub_submit_raid56_bio_wait(struct btrfs_fs_info *fs_info,
@@ -1486,7 +1479,6 @@ static int scrub_submit_raid56_bio_wait(struct btrfs_fs_info *fs_info,
 	bio->bi_end_io = scrub_bio_wait_endio;
 
 	ret = raid56_parity_recover(fs_info->fs_root, bio, page->recover->bbio,
-				    page->recover->raid_map,
 				    page->recover->map_length,
 				    page->mirror_num, 0);
 	if (ret)
@@ -2716,7 +2708,6 @@ static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
 	struct btrfs_raid_bio *rbio;
 	struct scrub_page *spage;
 	struct btrfs_bio *bbio = NULL;
-	u64 *raid_map = NULL;
 	u64 length;
 	int ret;
 
@@ -2727,8 +2718,8 @@ static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
 	length = sparity->logic_end - sparity->logic_start + 1;
 	ret = btrfs_map_sblock(sctx->dev_root->fs_info, WRITE,
 			       sparity->logic_start,
-			       &length, &bbio, 0, &raid_map);
-	if (ret || !bbio || !raid_map)
+			       &length, &bbio, 0, 1);
+	if (ret || !bbio || !bbio->raid_map)
 		goto bbio_out;
 
 	bio = btrfs_io_bio_alloc(GFP_NOFS, 0);
@@ -2740,8 +2731,7 @@ static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
 	bio->bi_end_io = scrub_parity_bio_endio;
 
 	rbio = raid56_parity_alloc_scrub_rbio(sctx->dev_root, bio, bbio,
-					      raid_map, length,
-					      sparity->scrub_dev,
+					      length, sparity->scrub_dev,
 					      sparity->dbitmap,
 					      sparity->nsectors);
 	if (!rbio)
@@ -2759,7 +2749,6 @@ rbio_out:
 	bio_put(bio);
 bbio_out:
 	kfree(bbio);
-	kfree(raid_map);
 	bitmap_or(sparity->ebitmap, sparity->ebitmap, sparity->dbitmap,
 		  sparity->nsectors);
 	spin_lock(&sctx->stat_lock);
