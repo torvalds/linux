@@ -489,14 +489,6 @@ static inline int virtio_pci_find_capability(struct pci_dev *dev, u8 cfg_type,
 	return 0;
 }
 
-static void virtio_pci_release_dev(struct device *_d)
-{
-	struct virtio_device *vdev = dev_to_virtio(_d);
-	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
-
-	kfree(vp_dev);
-}
-
 /* This is part of the ABI.  Don't screw with it. */
 static inline void check_offsets(void)
 {
