@@ -126,18 +126,21 @@ cfs_hash_nl_unlock(union cfs_hash_lock *lock, int exclusive) {}
 
 static inline void
 cfs_hash_spin_lock(union cfs_hash_lock *lock, int exclusive)
+	__acquires(&lock->spin)
 {
 	spin_lock(&lock->spin);
 }
 
 static inline void
 cfs_hash_spin_unlock(union cfs_hash_lock *lock, int exclusive)
+	__releases(&lock->spin)
 {
 	spin_unlock(&lock->spin);
 }
 
 static inline void
 cfs_hash_rw_lock(union cfs_hash_lock *lock, int exclusive)
+	__acquires(&lock->rw)
 {
 	if (!exclusive)
 		read_lock(&lock->rw);
@@ -147,6 +150,7 @@ cfs_hash_rw_lock(union cfs_hash_lock *lock, int exclusive)
 
 static inline void
 cfs_hash_rw_unlock(union cfs_hash_lock *lock, int exclusive)
+	__releases(&lock->rw)
 {
 	if (!exclusive)
 		read_unlock(&lock->rw);
