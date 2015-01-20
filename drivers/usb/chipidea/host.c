@@ -43,6 +43,20 @@ struct ehci_ci_priv {
 	struct regulator *reg_vbus;
 };
 
+/* This function is used to override WKCN, WKDN, and WKOC */
+static void ci_ehci_override_wakeup_flag(struct ehci_hcd *ehci,
+		u32 __iomem *reg, u32 flags, bool set)
+{
+	u32 val = ehci_readl(ehci, reg);
+
+	if (set)
+		val |= flags;
+	else
+		val &= ~flags;
+
+	ehci_writel(ehci, val, reg);
+}
+
 static int ehci_ci_portpower(struct usb_hcd *hcd, int portnum, bool enable)
 {
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
@@ -147,6 +161,8 @@ static int ci_imx_ehci_hub_control(
 	u32		temp;
 	unsigned long	flags;
 	int		retval = 0;
+	struct device *dev = hcd->self.controller;
+	struct ci_hdrc *ci = dev_get_drvdata(dev);
 
 	status_reg = &ehci->regs->port_status[(wIndex & 0xff) - 1];
 
@@ -170,6 +186,14 @@ static int ci_imx_ehci_hub_control(
 		if (ehci_handshake(ehci, status_reg, PORT_SUSPEND,
 						PORT_SUSPEND, 5000))
 			ehci_err(ehci, "timeout waiting for SUSPEND\n");
+
+		if (ci->platdata->flags & CI_HDRC_IMX_IS_HSIC) {
+			if (ci->platdata->notify_event)
+				ci->platdata->notify_event
+					(ci, CI_HDRC_IMX_HSIC_SUSPEND_EVENT);
+			ci_ehci_override_wakeup_flag(ehci, status_reg,
+				PORT_WKDISC_E | PORT_WKCONN_E, false);
+		}
 
 		spin_unlock_irqrestore(&ehci->lock, flags);
 		if (ehci_port_speed(ehci, temp) ==
@@ -280,6 +304,11 @@ static int host_start(struct ci_hdrc *ci)
 			hcd->self.otg_port = 1;
 		}
 	}
+
+	if (ci->platdata->notify_event &&
+		(ci->platdata->flags & CI_HDRC_IMX_IS_HSIC))
+		ci->platdata->notify_event
+			(ci, CI_HDRC_IMX_HSIC_ACTIVE_EVENT);
 
 	return ret;
 
@@ -401,6 +430,8 @@ static int ci_ehci_bus_suspend(struct usb_hcd *hcd)
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	int port;
 	u32 tmp;
+	struct device *dev = hcd->self.controller;
+	struct ci_hdrc *ci = dev_get_drvdata(dev);
 
 	int ret = orig_bus_suspend(hcd);
 
@@ -430,6 +461,19 @@ static int ci_ehci_bus_suspend(struct usb_hcd *hcd)
 			 * It needs a short delay between set RS bit and PHCD.
 			 */
 			usleep_range(150, 200);
+
+			/*
+			 * If a transaction is in progress, there may be
+			 * a delay in suspending the port. Poll until the
+			 * port is suspended.
+			 */
+			if (ehci_handshake(ehci, reg, PORT_SUSPEND,
+							PORT_SUSPEND, 5000))
+				ehci_err(ehci, "timeout waiting for SUSPEND\n");
+
+			if (ci->platdata->flags & CI_HDRC_IMX_IS_HSIC)
+				ci_ehci_override_wakeup_flag(ehci, reg,
+					PORT_WKDISC_E | PORT_WKCONN_E, false);
 
 			if (hcd->usb_phy && test_bit(port, &ehci->bus_suspended)
 				&& (ehci_port_speed(ehci, portsc) ==
