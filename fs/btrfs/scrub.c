@@ -1114,35 +1114,21 @@ nodatasum_case:
 		success = 1;
 		for (page_num = 0; page_num < sblock_bad->page_count;
 		     page_num++) {
-			int sub_success;
+			struct scrub_block *sblock_other = NULL;
 
-			sub_success = 0;
 			for (mirror_index = 0;
 			     mirror_index < BTRFS_MAX_MIRRORS &&
 			     sblocks_for_recheck[mirror_index].page_count > 0;
 			     mirror_index++) {
-				struct scrub_block *sblock_other =
-					sblocks_for_recheck + mirror_index;
-				struct scrub_page *page_other =
-					sblock_other->pagev[page_num];
-
-				if (!page_other->io_error) {
-					ret = scrub_write_page_to_dev_replace(
-							sblock_other, page_num);
-					if (ret == 0) {
-						/* succeeded for this page */
-						sub_success = 1;
-						break;
-					} else {
-						btrfs_dev_replace_stats_inc(
-							&sctx->dev_root->
-							fs_info->dev_replace.
-							num_write_errors);
-					}
+				if (!sblocks_for_recheck[mirror_index].
+				    pagev[page_num]->io_error) {
+					sblock_other = sblocks_for_recheck +
+						       mirror_index;
+					break;
 				}
 			}
 
-			if (!sub_success) {
+			if (!sblock_other) {
 				/*
 				 * did not find a mirror to fetch the page
 				 * from. scrub_write_page_to_dev_replace()
@@ -1150,13 +1136,17 @@ nodatasum_case:
 				 * filling the block with zeros before
 				 * submitting the write request
 				 */
+				sblock_other = sblock_bad;
 				success = 0;
-				ret = scrub_write_page_to_dev_replace(
-						sblock_bad, page_num);
-				if (ret)
-					btrfs_dev_replace_stats_inc(
-						&sctx->dev_root->fs_info->
-						dev_replace.num_write_errors);
+			}
+
+			if (scrub_write_page_to_dev_replace(sblock_other,
+							    page_num) != 0) {
+				btrfs_dev_replace_stats_inc(
+					&sctx->dev_root->
+					fs_info->dev_replace.
+					num_write_errors);
+				success = 0;
 			}
 		}
 
