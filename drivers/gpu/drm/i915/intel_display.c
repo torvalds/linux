@@ -7602,7 +7602,7 @@ static void ironlake_get_plane_config(struct intel_crtc *crtc,
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 val, base, offset;
-	int pipe = crtc->pipe, plane = crtc->plane;
+	int pipe = crtc->pipe;
 	int fourcc, pixel_format;
 	int aligned_height;
 	struct drm_framebuffer *fb;
@@ -7613,7 +7613,7 @@ static void ironlake_get_plane_config(struct intel_crtc *crtc,
 		return;
 	}
 
-	val = I915_READ(DSPCNTR(plane));
+	val = I915_READ(DSPCNTR(pipe));
 
 	if (INTEL_INFO(dev)->gen >= 4)
 		if (val & DISPPLANE_TILED)
@@ -7624,14 +7624,14 @@ static void ironlake_get_plane_config(struct intel_crtc *crtc,
 	fb->pixel_format = fourcc;
 	fb->bits_per_pixel = drm_format_plane_cpp(fourcc, 0) * 8;
 
-	base = I915_READ(DSPSURF(plane)) & 0xfffff000;
+	base = I915_READ(DSPSURF(pipe)) & 0xfffff000;
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
-		offset = I915_READ(DSPOFFSET(plane));
+		offset = I915_READ(DSPOFFSET(pipe));
 	} else {
 		if (plane_config->tiling)
-			offset = I915_READ(DSPTILEOFF(plane));
+			offset = I915_READ(DSPTILEOFF(pipe));
 		else
-			offset = I915_READ(DSPLINOFF(plane));
+			offset = I915_READ(DSPLINOFF(pipe));
 	}
 	plane_config->base = base;
 
@@ -7647,8 +7647,8 @@ static void ironlake_get_plane_config(struct intel_crtc *crtc,
 
 	plane_config->size = PAGE_ALIGN(fb->pitches[0] * aligned_height);
 
-	DRM_DEBUG_KMS("pipe/plane %d/%d with fb: size=%dx%d@%d, offset=%x, pitch %d, size 0x%x\n",
-		      pipe, plane, fb->width, fb->height, fb->bits_per_pixel,
+	DRM_DEBUG_KMS("pipe %d with fb: size=%dx%d@%d, offset=%x, pitch %d, size 0x%x\n",
+		      pipe, fb->width, fb->height, fb->bits_per_pixel,
 		      base, fb->pitches[0], plane_config->size);
 
 	crtc->base.primary->fb = fb;
