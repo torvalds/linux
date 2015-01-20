@@ -164,7 +164,7 @@ static const struct comedi_lrange range_pci17x1 = {
 
 static const char range_codes_pci17x1[] = { 0x00, 0x01, 0x02, 0x03, 0x04 };
 
-static const struct comedi_lrange range_pci1720 = {
+static const struct comedi_lrange pci1720_ao_range = {
 	4, {
 		UNI_RANGE(5),
 		UNI_RANGE(10),
@@ -173,7 +173,7 @@ static const struct comedi_lrange range_pci1720 = {
 	}
 };
 
-static const struct comedi_lrange range_pci171x_da = {
+static const struct comedi_lrange pci171x_ao_range = {
 	2, {
 		UNI_RANGE(5),
 		UNI_RANGE(10)
@@ -195,7 +195,6 @@ struct boardtype {
 	int n_aichan;		/*  num of A/D chans */
 	const struct comedi_lrange *rangelist_ai;	/*  rangelist for A/D */
 	const char *rangecode_ai;	/*  range codes for programming */
-	const struct comedi_lrange *rangelist_ao;	/*  rangelist for D/A */
 	unsigned int has_irq:1;
 	unsigned int has_large_fifo:1;	/* 4K or 1K FIFO */
 	unsigned int has_diff_ai:1;
@@ -211,7 +210,6 @@ static const struct boardtype boardtypes[] = {
 		.n_aichan	= 16,
 		.rangelist_ai	= &range_pci1710_3,
 		.rangecode_ai	= range_codes_pci1710_3,
-		.rangelist_ao	= &range_pci171x_da,
 		.has_irq	= 1,
 		.has_large_fifo	= 1,
 		.has_diff_ai	= 1,
@@ -225,7 +223,6 @@ static const struct boardtype boardtypes[] = {
 		.n_aichan	= 16,
 		.rangelist_ai	= &range_pci1710hg,
 		.rangecode_ai	= range_codes_pci1710hg,
-		.rangelist_ao	= &range_pci171x_da,
 		.has_irq	= 1,
 		.has_large_fifo	= 1,
 		.has_diff_ai	= 1,
@@ -239,7 +236,6 @@ static const struct boardtype boardtypes[] = {
 		.n_aichan	= 16,
 		.rangelist_ai	= &range_pci17x1,
 		.rangecode_ai	= range_codes_pci17x1,
-		.rangelist_ao	= &range_pci171x_da,
 		.has_irq	= 1,
 		.has_ao		= 1,
 		.has_di_do	= 1,
@@ -258,7 +254,6 @@ static const struct boardtype boardtypes[] = {
 	[BOARD_PCI1720] = {
 		.name		= "pci1720",
 		.cardtype	= TYPE_PCI1720,
-		.rangelist_ao	= &range_pci1720,
 		.has_ao		= 1,
 	},
 	[BOARD_PCI1731] = {
@@ -1071,14 +1066,15 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		s->type		= COMEDI_SUBD_AO;
 		s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
 		s->maxdata	= 0x0fff;
-		s->range_table	= board->rangelist_ao;
 		switch (board->cardtype) {
 		case TYPE_PCI1720:
 			s->n_chan	= 4;
+			s->range_table	= &pci1720_ao_range;
 			s->insn_write	= pci1720_ao_insn_write;
 			break;
 		default:
 			s->n_chan	= 2;
+			s->range_table	= &pci171x_ao_range;
 			s->insn_write	= pci171x_ao_insn_write;
 			break;
 		}
