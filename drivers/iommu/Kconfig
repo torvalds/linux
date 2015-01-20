@@ -23,7 +23,8 @@ config OF_IOMMU
 
 config FSL_PAMU
 	bool "Freescale IOMMU support"
-	depends on PPC_E500MC
+	depends on PPC32
+	depends on PPC_E500MC || COMPILE_TEST
 	select IOMMU_API
 	select GENERIC_ALLOCATOR
 	help
@@ -34,7 +35,8 @@ config FSL_PAMU
 # MSM IOMMU support
 config MSM_IOMMU
 	bool "MSM IOMMU Support"
-	depends on ARCH_MSM8X60 || ARCH_MSM8960
+	depends on ARM
+	depends on ARCH_MSM8X60 || ARCH_MSM8960 || COMPILE_TEST
 	select IOMMU_API
 	help
 	  Support for the IOMMUs found on certain Qualcomm SOCs.
@@ -145,7 +147,8 @@ config IRQ_REMAP
 # OMAP IOMMU support
 config OMAP_IOMMU
 	bool "OMAP IOMMU Support"
-	depends on ARCH_OMAP2PLUS && MMU
+	depends on ARM && MMU
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	select IOMMU_API
 
 config OMAP_IOMMU_DEBUG
