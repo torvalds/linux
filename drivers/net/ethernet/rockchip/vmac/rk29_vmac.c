@@ -1393,7 +1393,7 @@ void vmac_tx_timeout(struct net_device *dev)
 
 	spin_unlock_irqrestore(&ap->lock, flags);
 }
-#if 0
+
 static void create_multicast_filter(struct net_device *dev,
 	unsigned long *bitmask)
 {
@@ -1500,7 +1500,6 @@ static void vmac_set_multicast_list(struct net_device *dev)
 	spin_unlock_irqrestore(&ap->lock, flags);
 #endif
 }
-#endif
 
 static struct ethtool_ops vmac_ethtool_ops = {
 	.get_settings		= vmacether_get_settings,
@@ -1517,7 +1516,7 @@ static const struct net_device_ops vmac_netdev_ops = {
 	.ndo_do_ioctl		= vmac_ioctl,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_tx_timeout		= vmac_tx_timeout,
-	//.ndo_set_multicast_list = vmac_set_multicast_list,
+	.ndo_set_rx_mode	= vmac_set_multicast_list,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= eth_change_mtu,
 };
