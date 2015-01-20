@@ -1036,8 +1036,9 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	if (!is_metadata && !have_csum) {
 		struct scrub_fixup_nodatasum *fixup_nodatasum;
 
-nodatasum_case:
 		WARN_ON(sctx->is_dev_replace);
+
+nodatasum_case:
 
 		/*
 		 * !is_metadata and !have_csum, this means that the data
