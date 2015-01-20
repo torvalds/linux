@@ -27,40 +27,11 @@
 #include <asm/cacheflush.h>
 
 #include "isp1760-hcd.h"
+#include "isp1760-regs.h"
 
 static struct kmem_cache *qtd_cachep;
 static struct kmem_cache *qh_cachep;
 static struct kmem_cache *urb_listitem_cachep;
-
-enum queue_head_types {
-	QH_CONTROL,
-	QH_BULK,
-	QH_INTERRUPT,
-	QH_END
-};
-
-struct isp1760_hcd {
-	struct usb_hcd		*hcd;
-
-	u32 hcs_params;
-	spinlock_t		lock;
-	struct isp1760_slotinfo	atl_slots[32];
-	int			atl_done_map;
-	struct isp1760_slotinfo	int_slots[32];
-	int			int_done_map;
-	struct isp1760_memory_chunk memory_pool[BLOCKS];
-	struct list_head	qh_list[QH_END];
-
-	/* periodic schedule support */
-#define	DEFAULT_I_TDPS		1024
-	unsigned		periodic_size;
-	unsigned		i_thresh;
-	unsigned long		reset_done;
-	unsigned long		next_statechange;
-	unsigned int		devflags;
-
-	struct gpio_desc	*rst_gpio;
-};
 
 typedef void (packet_enqueue)(struct usb_hcd *hcd, struct isp1760_qh *qh,
 		struct isp1760_qtd *qtd);
@@ -70,32 +41,79 @@ static inline struct isp1760_hcd *hcd_to_priv(struct usb_hcd *hcd)
 	return *(struct isp1760_hcd **)hcd->hcd_priv;
 }
 
-/* Section 2.2 Host Controller Capability Registers */
-#define HC_LENGTH(p)		(((p)>>00)&0x00ff)	/* bits 7:0 */
-#define HC_VERSION(p)		(((p)>>16)&0xffff)	/* bits 31:16 */
-#define HCS_INDICATOR(p)	((p)&(1 << 16))	/* true: has port indicators */
-#define HCS_PPC(p)		((p)&(1 << 4))	/* true: port power control */
-#define HCS_N_PORTS(p)		(((p)>>0)&0xf)	/* bits 3:0, ports on HC */
-#define HCC_ISOC_CACHE(p)       ((p)&(1 << 7))  /* true: can cache isoc frame */
-#define HCC_ISOC_THRES(p)       (((p)>>4)&0x7)  /* bits 6:4, uframes cached */
+/* urb state*/
+#define DELETE_URB		(0x0008)
+#define NO_TRANSFER_ACTIVE	(0xffffffff)
 
-/* Section 2.3 Host Controller Operational Registers */
-#define CMD_LRESET	(1<<7)		/* partial reset (no ports, etc) */
-#define CMD_RESET	(1<<1)		/* reset HC not bus */
-#define CMD_RUN		(1<<0)		/* start/stop HC */
-#define STS_PCD		(1<<2)		/* port change detect */
-#define FLAG_CF		(1<<0)		/* true: we'll support "high speed" */
+/* Philips Proprietary Transfer Descriptor (PTD) */
+typedef __u32 __bitwise __dw;
+struct ptd {
+	__dw dw0;
+	__dw dw1;
+	__dw dw2;
+	__dw dw3;
+	__dw dw4;
+	__dw dw5;
+	__dw dw6;
+	__dw dw7;
+};
+#define PTD_OFFSET		0x0400
+#define ISO_PTD_OFFSET		0x0400
+#define INT_PTD_OFFSET		0x0800
+#define ATL_PTD_OFFSET		0x0c00
+#define PAYLOAD_OFFSET		0x1000
 
-#define PORT_OWNER	(1<<13)		/* true: companion hc owns this port */
-#define PORT_POWER	(1<<12)		/* true: has power (see PPC) */
-#define PORT_USB11(x) (((x) & (3 << 10)) == (1 << 10))	/* USB 1.1 device */
-#define PORT_RESET	(1<<8)		/* reset port */
-#define PORT_SUSPEND	(1<<7)		/* suspend port */
-#define PORT_RESUME	(1<<6)		/* resume it */
-#define PORT_PE		(1<<2)		/* port enable */
-#define PORT_CSC	(1<<1)		/* connect status change */
-#define PORT_CONNECT	(1<<0)		/* device connected */
-#define PORT_RWC_BITS   (PORT_CSC)
+
+/* ATL */
+/* DW0 */
+#define DW0_VALID_BIT			1
+#define FROM_DW0_VALID(x)		((x) & 0x01)
+#define TO_DW0_LENGTH(x)		(((u32) x) << 3)
+#define TO_DW0_MAXPACKET(x)		(((u32) x) << 18)
+#define TO_DW0_MULTI(x)			(((u32) x) << 29)
+#define TO_DW0_ENDPOINT(x)		(((u32)	x) << 31)
+/* DW1 */
+#define TO_DW1_DEVICE_ADDR(x)		(((u32) x) << 3)
+#define TO_DW1_PID_TOKEN(x)		(((u32) x) << 10)
+#define DW1_TRANS_BULK			((u32) 2 << 12)
+#define DW1_TRANS_INT			((u32) 3 << 12)
+#define DW1_TRANS_SPLIT			((u32) 1 << 14)
+#define DW1_SE_USB_LOSPEED		((u32) 2 << 16)
+#define TO_DW1_PORT_NUM(x)		(((u32) x) << 18)
+#define TO_DW1_HUB_NUM(x)		(((u32) x) << 25)
+/* DW2 */
+#define TO_DW2_DATA_START_ADDR(x)	(((u32) x) << 8)
+#define TO_DW2_RL(x)			((x) << 25)
+#define FROM_DW2_RL(x)			(((x) >> 25) & 0xf)
+/* DW3 */
+#define FROM_DW3_NRBYTESTRANSFERRED(x)		((x) & 0x7fff)
+#define FROM_DW3_SCS_NRBYTESTRANSFERRED(x)	((x) & 0x07ff)
+#define TO_DW3_NAKCOUNT(x)		((x) << 19)
+#define FROM_DW3_NAKCOUNT(x)		(((x) >> 19) & 0xf)
+#define TO_DW3_CERR(x)			((x) << 23)
+#define FROM_DW3_CERR(x)		(((x) >> 23) & 0x3)
+#define TO_DW3_DATA_TOGGLE(x)		((x) << 25)
+#define FROM_DW3_DATA_TOGGLE(x)		(((x) >> 25) & 0x1)
+#define TO_DW3_PING(x)			((x) << 26)
+#define FROM_DW3_PING(x)		(((x) >> 26) & 0x1)
+#define DW3_ERROR_BIT			(1 << 28)
+#define DW3_BABBLE_BIT			(1 << 29)
+#define DW3_HALT_BIT			(1 << 30)
+#define DW3_ACTIVE_BIT			(1 << 31)
+#define FROM_DW3_ACTIVE(x)		(((x) >> 31) & 0x01)
+
+#define INT_UNDERRUN			(1 << 2)
+#define INT_BABBLE			(1 << 1)
+#define INT_EXACT			(1 << 0)
+
+#define SETUP_PID	(2)
+#define IN_PID		(1)
+#define OUT_PID		(0)
+
+/* Errata 1 */
+#define RL_COUNTER	(0)
+#define NAK_COUNTER	(0)
+#define ERR_COUNTER	(2)
 
 struct isp1760_qtd {
 	u8 packet_type;

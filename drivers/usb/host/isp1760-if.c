@@ -19,6 +19,7 @@
 #include <linux/usb/hcd.h>
 
 #include "isp1760-hcd.h"
+#include "isp1760-regs.h"
 
 #ifdef CONFIG_PCI
 #include <linux/pci.h>
