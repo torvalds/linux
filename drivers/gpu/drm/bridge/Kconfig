@@ -8,5 +8,6 @@ config DRM_PTN3460
 	depends on DRM
 	depends on OF
 	select DRM_KMS_HELPER
+	select DRM_PANEL
 	---help---
 	  ptn3460 eDP-LVDS bridge chip driver.

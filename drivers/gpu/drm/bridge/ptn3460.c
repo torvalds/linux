@@ -19,6 +19,9 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
+#include <linux/of_graph.h>
+
+#include <drm/drm_panel.h>
 
 #include "bridge/ptn3460.h"
 
@@ -38,6 +41,7 @@ struct ptn3460_bridge {
 	struct i2c_client *client;
 	struct drm_bridge bridge;
 	struct edid *edid;
+	struct drm_panel *panel;
 	int gpio_pd_n;
 	int gpio_rst_n;
 	u32 edid_emulation;
@@ -137,6 +141,11 @@ static void ptn3460_pre_enable(struct drm_bridge *bridge)
 		gpio_set_value(ptn_bridge->gpio_rst_n, 1);
 	}
 
+	if (drm_panel_prepare(ptn_bridge->panel)) {
+		DRM_ERROR("failed to prepare panel\n");
+		return;
+	}
+
 	/*
 	 * There's a bug in the PTN chip where it falsely asserts hotplug before
 	 * it is fully functional. We're forced to wait for the maximum start up
@@ -153,6 +162,12 @@ static void ptn3460_pre_enable(struct drm_bridge *bridge)
 
 static void ptn3460_enable(struct drm_bridge *bridge)
 {
+	struct ptn3460_bridge *ptn_bridge = bridge_to_ptn3460(bridge);
+
+	if (drm_panel_enable(ptn_bridge->panel)) {
+		DRM_ERROR("failed to enable panel\n");
+		return;
+	}
 }
 
 static void ptn3460_disable(struct drm_bridge *bridge)
@@ -164,6 +179,11 @@ static void ptn3460_disable(struct drm_bridge *bridge)
 
 	ptn_bridge->enabled = false;
 
+	if (drm_panel_disable(ptn_bridge->panel)) {
+		DRM_ERROR("failed to disable panel\n");
+		return;
+	}
+
 	if (gpio_is_valid(ptn_bridge->gpio_rst_n))
 		gpio_set_value(ptn_bridge->gpio_rst_n, 1);
 
@@ -173,6 +193,12 @@ static void ptn3460_disable(struct drm_bridge *bridge)
 
 static void ptn3460_post_disable(struct drm_bridge *bridge)
 {
+	struct ptn3460_bridge *ptn_bridge = bridge_to_ptn3460(bridge);
+
+	if (drm_panel_unprepare(ptn_bridge->panel)) {
+		DRM_ERROR("failed to unprepare panel\n");
+		return;
+	}
 }
 
 static int ptn3460_get_modes(struct drm_connector *connector)
@@ -267,6 +293,9 @@ int ptn3460_bridge_attach(struct drm_bridge *bridge)
 	drm_mode_connector_attach_encoder(&ptn_bridge->connector,
 							bridge->encoder);
 
+	if (ptn_bridge->panel)
+		drm_panel_attach(ptn_bridge->panel, &ptn_bridge->connector);
+
 	return ret;
 }
 
@@ -283,11 +312,23 @@ static int ptn3460_probe(struct i2c_client *client,
 {
 	struct device *dev = &client->dev;
 	struct ptn3460_bridge *ptn_bridge;
+	struct device_node *endpoint, *panel_node;
 	int ret;
 
 	ptn_bridge = devm_kzalloc(dev, sizeof(*ptn_bridge), GFP_KERNEL);
 	if (!ptn_bridge) {
 		return -ENOMEM;
+	}
+
+	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
+	if (endpoint) {
+		panel_node = of_graph_get_remote_port_parent(endpoint);
+		if (panel_node) {
+			ptn_bridge->panel = of_drm_find_panel(panel_node);
+			of_node_put(panel_node);
+			if (!ptn_bridge->panel)
+				return -EPROBE_DEFER;
+		}
 	}
 
 	ptn_bridge->client = client;
@@ -327,6 +368,7 @@ static int ptn3460_probe(struct i2c_client *client,
 	}
 
 	ptn_bridge->bridge.funcs = &ptn3460_bridge_funcs;
+	ptn_bridge->bridge.of_node = dev->of_node;
 	ret = drm_bridge_add(&ptn_bridge->bridge);
 	if (ret) {
 		DRM_ERROR("Failed to add bridge\n");
