@@ -108,7 +108,7 @@ static void virthba_slave_destroy(struct scsi_device *scsidev);
 static int process_incoming_rsps(void *);
 static int virthba_serverup(struct virtpci_dev *virtpcidev);
 static int virthba_serverdown(struct virtpci_dev *virtpcidev, u32 state);
-static void doDiskAddRemove(struct work_struct *work);
+static void do_disk_add_remove(struct work_struct *work);
 static void virthba_serverdown_complete(struct work_struct *work);
 static ssize_t info_debugfs_read(struct file *file, char __user *buf,
 				 size_t len, loff_t *offset);
@@ -344,7 +344,7 @@ static unsigned short dar_work_queue_sched;
 }
 
 static inline void
-SendDiskAddRemove(struct diskaddremove *dar)
+send_disk_add_remove(struct diskaddremove *dar)
 {
 	struct scsi_device *sdev;
 	int error;
@@ -371,7 +371,7 @@ SendDiskAddRemove(struct diskaddremove *dar)
 /* dar_work_queue Handler Thread                     */
 /*****************************************************/
 static void
-doDiskAddRemove(struct work_struct *work)
+do_disk_add_remove(struct work_struct *work)
 {
 	struct diskaddremove *dar;
 	struct diskaddremove *tmphead;
@@ -386,7 +386,7 @@ doDiskAddRemove(struct work_struct *work)
 	while (tmphead) {
 		dar = tmphead;
 		tmphead = dar->next;
-		SendDiskAddRemove(dar);
+		send_disk_add_remove(dar);
 		i++;
 	}
 }
@@ -1672,7 +1672,7 @@ virthba_mod_init(void)
 				    virthba_debugfs_dir, NULL,
 				    &debugfs_enable_ints_fops);
 		/* Initialize dar_work_queue */
-		INIT_WORK(&dar_work_queue, doDiskAddRemove);
+		INIT_WORK(&dar_work_queue, do_disk_add_remove);
 		spin_lock_init(&dar_work_queue_lock);
 
 		/* clear out array */
