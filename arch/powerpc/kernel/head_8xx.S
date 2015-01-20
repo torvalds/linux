@@ -850,23 +850,21 @@ _GLOBAL(set_context)
 	 */
 	li	r5, (swapper_pg_dir-PAGE_OFFSET)@l
 	sub	r4, r4, r5
+	tophys	(r4, r4)
 #ifdef CONFIG_8xx_CPU6
 	lis	r6, cpu6_errata_word@h
 	ori	r6, r6, cpu6_errata_word@l
-	tophys	(r4, r4)
 	li	r7, 0x3f80
 	stw	r7, 12(r6)
 	lwz	r7, 12(r6)
+#endif
 	mtspr	SPRN_M_TW, r4		/* Update pointeur to level 1 table */
+#ifdef CONFIG_8xx_CPU6
 	li	r7, 0x3380
 	stw	r7, 12(r6)
 	lwz	r7, 12(r6)
-        mtspr   SPRN_M_CASID, r3             /* Update context */
-#else
-        mtspr   SPRN_M_CASID,r3		/* Update context */
-	tophys	(r4, r4)
-	mtspr	SPRN_M_TW, r4		/* and pgd */
 #endif
+	mtspr	SPRN_M_CASID, r3	/* Update context */
 	SYNC
 	blr
 
