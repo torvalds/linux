@@ -44,6 +44,9 @@ static int __init hi6220_sysconf(void)
         writel(BIT(8), base + reset_offset);
         writel(BIT(8), base + pclk_offset);
 
+	/*unreset microSD*/
+	writel(readl(base+0x304) | 0x6, base + 0x304);
+
         iounmap(base);
 
         return 0;
