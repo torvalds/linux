@@ -634,6 +634,7 @@ config SOC_VF610
 	select ARM_GIC
 	select PINCTRL_VF610
 	select PL310_ERRATA_769419 if CACHE_L2X0
+	select SMP_ON_UP if SMP
 
 	help
 	  This enable support for Freescale Vybrid VF610 processor.
