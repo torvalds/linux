@@ -677,19 +677,16 @@ static void
 sync_rcu_preempt_exp_init(struct rcu_state *rsp, struct rcu_node *rnp)
 {
 	unsigned long flags;
-	int must_wait = 0;
 
 	raw_spin_lock_irqsave(&rnp->lock, flags);
 	smp_mb__after_unlock_lock();
 	if (!rcu_preempt_has_tasks(rnp)) {
 		raw_spin_unlock_irqrestore(&rnp->lock, flags);
+		rcu_report_exp_rnp(rsp, rnp, false); /* No tasks, report. */
 	} else {
 		rnp->exp_tasks = rnp->blkd_tasks.next;
 		rcu_initiate_boost(rnp, flags);  /* releases rnp->lock */
-		must_wait = 1;
 	}
-	if (!must_wait)
-		rcu_report_exp_rnp(rsp, rnp, false); /* Don't wake self. */
 }
 
 /**
