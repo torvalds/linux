@@ -2838,11 +2838,21 @@ __call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu),
 
 		if (cpu != -1)
 			rdp = per_cpu_ptr(rsp->rda, cpu);
-		offline = !__call_rcu_nocb(rdp, head, lazy, flags);
-		WARN_ON_ONCE(offline);
-		/* _call_rcu() is illegal on offline CPU; leak the callback. */
-		local_irq_restore(flags);
-		return;
+		if (likely(rdp->mynode)) {
+			/* Post-boot, so this should be for a no-CBs CPU. */
+			offline = !__call_rcu_nocb(rdp, head, lazy, flags);
+			WARN_ON_ONCE(offline);
+			/* Offline CPU, _call_rcu() illegal, leak callback.  */
+			local_irq_restore(flags);
+			return;
+		}
+		/*
+		 * Very early boot, before rcu_init().  Initialize if needed
+		 * and then drop through to queue the callback.
+		 */
+		BUG_ON(cpu != -1);
+		if (!likely(rdp->nxtlist))
+			init_default_callback_list(rdp);
 	}
 	ACCESS_ONCE(rdp->qlen) = rdp->qlen + 1;
 	if (lazy)
