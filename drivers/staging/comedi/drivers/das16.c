@@ -523,7 +523,7 @@ static void das16_interrupt(struct comedi_device *dev)
 	devpriv->adc_byte_count -= num_bytes;
 
 	/* re-enable dma */
-	if ((async->events & COMEDI_CB_EOA) == 0) {
+	if (!(async->events & COMEDI_CB_CANCEL_MASK)) {
 		struct comedi_isadma_desc *nxt_desc = &dma->desc[dma->cur_dma];
 
 		nxt_desc->size = nxt_desc->maxsize;
