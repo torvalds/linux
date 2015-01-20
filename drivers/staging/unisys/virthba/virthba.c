@@ -463,7 +463,7 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	int rsp;
 	int i;
 	irq_handler_t handler = virthba_isr;
-	struct channel_header __iomem *pChannelHeader;
+	struct channel_header __iomem *channel_header;
 	struct signal_queue_header __iomem *pqhdr;
 	u64 mask;
 
@@ -587,10 +587,10 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	DBGINF("starting rsp thread -- queueinfo: 0x%p, threadinfo: 0x%p.\n",
 	       virthbainfo->chinfo.queueinfo, &virthbainfo->chinfo.threadinfo);
 
-	pChannelHeader = virthbainfo->chinfo.queueinfo->chan;
+	channel_header = virthbainfo->chinfo.queueinfo->chan;
 	pqhdr = (struct signal_queue_header __iomem *)
-		((char __iomem *)pChannelHeader +
-		 readq(&pChannelHeader->ch_space_offset)) + IOCHAN_FROM_IOPART;
+		((char __iomem *)channel_header +
+		 readq(&channel_header->ch_space_offset)) + IOCHAN_FROM_IOPART;
 	virthbainfo->flags_addr = &pqhdr->features;
 
 	if (!uisthread_start(&virthbainfo->chinfo.threadinfo,
