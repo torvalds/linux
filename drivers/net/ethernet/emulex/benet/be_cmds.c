@@ -3756,6 +3756,7 @@ int be_cmd_config_qos(struct be_adapter *adapter, u32 max_rate, u16 link_speed,
 	be_reset_nic_desc(&nic_desc);
 	nic_desc.pf_num = adapter->pf_number;
 	nic_desc.vf_num = domain;
+	nic_desc.bw_min = 0;
 	if (lancer_chip(adapter)) {
 		nic_desc.hdr.desc_type = NIC_RESOURCE_DESC_TYPE_V0;
 		nic_desc.hdr.desc_len = RESOURCE_DESC_SIZE_V0;
