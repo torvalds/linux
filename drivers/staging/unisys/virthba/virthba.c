@@ -419,10 +419,10 @@ process_disk_notify(struct Scsi_Host *shost, struct uiscmdrsp *cmdrsp)
 /* Probe Remove Functions                            */
 /*****************************************************/
 static irqreturn_t
-virthba_ISR(int irq, void *dev_id)
+virthba_isr(int irq, void *dev_id)
 {
 	struct virthba_info *virthbainfo = (struct virthba_info *)dev_id;
-	struct channel_header __iomem *pChannelHeader;
+	struct channel_header __iomem *channel_header;
 	struct signal_queue_header __iomem *pqhdr;
 	u64 mask;
 	unsigned long long rc1;
@@ -430,23 +430,23 @@ virthba_ISR(int irq, void *dev_id)
 	if (virthbainfo == NULL)
 		return IRQ_NONE;
 	virthbainfo->interrupts_rcvd++;
-	pChannelHeader = virthbainfo->chinfo.queueinfo->chan;
-	if (((readq(&pChannelHeader->features)
+	channel_header = virthbainfo->chinfo.queueinfo->chan;
+	if (((readq(&channel_header->features)
 	      & ULTRA_IO_IOVM_IS_OK_WITH_DRIVER_DISABLING_INTS) != 0) &&
-	     ((readq(&pChannelHeader->features) &
+	     ((readq(&channel_header->features) &
 		 ULTRA_IO_DRIVER_DISABLES_INTS) !=
 		0)) {
 		virthbainfo->interrupts_disabled++;
 		mask = ~ULTRA_CHANNEL_ENABLE_INTS;
 		rc1 = uisqueue_interlocked_and(virthbainfo->flags_addr, mask);
 	}
-	if (spar_signalqueue_empty(pChannelHeader, IOCHAN_FROM_IOPART)) {
+	if (spar_signalqueue_empty(channel_header, IOCHAN_FROM_IOPART)) {
 		virthbainfo->interrupts_notme++;
 		return IRQ_NONE;
 	}
 	pqhdr = (struct signal_queue_header __iomem *)
-		((char __iomem *)pChannelHeader +
-		 readq(&pChannelHeader->ch_space_offset)) + IOCHAN_FROM_IOPART;
+		((char __iomem *)channel_header +
+		 readq(&channel_header->ch_space_offset)) + IOCHAN_FROM_IOPART;
 	writeq(readq(&pqhdr->num_irq_received) + 1,
 	       &pqhdr->num_irq_received);
 	atomic_set(&virthbainfo->interrupt_rcvd, 1);
@@ -462,7 +462,7 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	struct virthba_info *virthbainfo;
 	int rsp;
 	int i;
-	irq_handler_t handler = virthba_ISR;
+	irq_handler_t handler = virthba_isr;
 	struct channel_header __iomem *pChannelHeader;
 	struct signal_queue_header __iomem *pqhdr;
 	u64 mask;
