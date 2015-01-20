@@ -332,6 +332,12 @@ config CHARGER_MAX14577
 	  Say Y to enable support for the battery charger control sysfs and
 	  platform data of MAX14577/77836 MUICs.
 
+config CHARGER_MAX77693
+	tristate "Maxim MAX77693 battery charger driver"
+	depends on MFD_MAX77693
+	help
+	  Say Y to enable support for the Maxim MAX77693 battery charger.
+
 config CHARGER_MAX8997
 	tristate "Maxim MAX8997/MAX8966 PMIC battery charger driver"
 	depends on MFD_MAX8997 && REGULATOR_MAX8997
