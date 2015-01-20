@@ -247,9 +247,9 @@ int hdmi_modeset_init(struct hdmi *hdmi,
 	return 0;
 
 fail:
-	/* bridge/connector are normally destroyed by drm: */
+	/* bridge is normally destroyed by drm: */
 	if (hdmi->bridge) {
-		hdmi->bridge->funcs->destroy(hdmi->bridge);
+		hdmi_bridge_destroy(hdmi->bridge);
 		hdmi->bridge = NULL;
 	}
 	if (hdmi->connector) {

@@ -176,24 +176,11 @@ static void ptn3460_post_disable(struct drm_bridge *bridge)
 {
 }
 
-static void ptn3460_bridge_destroy(struct drm_bridge *bridge)
-{
-	struct ptn3460_bridge *ptn_bridge = bridge_to_ptn3460(bridge);
-
-	drm_bridge_cleanup(bridge);
-	if (gpio_is_valid(ptn_bridge->gpio_pd_n))
-		gpio_free(ptn_bridge->gpio_pd_n);
-	if (gpio_is_valid(ptn_bridge->gpio_rst_n))
-		gpio_free(ptn_bridge->gpio_rst_n);
-	/* Nothing else to free, we've got devm allocated memory */
-}
-
 static struct drm_bridge_funcs ptn3460_bridge_funcs = {
 	.pre_enable = ptn3460_pre_enable,
 	.enable = ptn3460_enable,
 	.disable = ptn3460_disable,
 	.post_disable = ptn3460_post_disable,
-	.destroy = ptn3460_bridge_destroy,
 };
 
 static int ptn3460_get_modes(struct drm_connector *connector)
@@ -314,7 +301,7 @@ int ptn3460_init(struct drm_device *dev, struct drm_encoder *encoder,
 	}
 
 	ptn_bridge->bridge.funcs = &ptn3460_bridge_funcs;
-	ret = drm_bridge_init(dev, &ptn_bridge->bridge);
+	ret = drm_bridge_attach(dev, &ptn_bridge->bridge);
 	if (ret) {
 		DRM_ERROR("Failed to initialize bridge with drm\n");
 		goto err;
@@ -343,3 +330,15 @@ err:
 	return ret;
 }
 EXPORT_SYMBOL(ptn3460_init);
+
+void ptn3460_destroy(struct drm_bridge *bridge)
+{
+	struct ptn3460_bridge *ptn_bridge = bridge->driver_private;
+
+	if (gpio_is_valid(ptn_bridge->gpio_pd_n))
+		gpio_free(ptn_bridge->gpio_pd_n);
+	if (gpio_is_valid(ptn_bridge->gpio_rst_n))
+		gpio_free(ptn_bridge->gpio_rst_n);
+	/* Nothing else to free, we've got devm allocated memory */
+}
+EXPORT_SYMBOL(ptn3460_destroy);
