@@ -697,7 +697,7 @@ static void pci1710_handle_every_sample(struct comedi_device *dev,
 }
 
 static int move_block_from_fifo(struct comedi_device *dev,
-				struct comedi_subdevice *s, int n, int turn)
+				struct comedi_subdevice *s, int n)
 {
 	unsigned int val;
 	int ret;
@@ -739,13 +739,13 @@ static void pci1710_handle_fifo(struct comedi_device *dev,
 	nsamples = devpriv->max_samples;
 	if (comedi_samples_to_bytes(s, nsamples) >= s->async->prealloc_bufsz) {
 		m = comedi_bytes_to_samples(s, s->async->prealloc_bufsz);
-		if (move_block_from_fifo(dev, s, m, 0))
+		if (move_block_from_fifo(dev, s, m))
 			return;
 		nsamples -= m;
 	}
 
 	if (nsamples) {
-		if (move_block_from_fifo(dev, s, nsamples, 1))
+		if (move_block_from_fifo(dev, s, nsamples))
 			return;
 	}
 
