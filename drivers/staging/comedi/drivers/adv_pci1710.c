@@ -198,7 +198,6 @@ struct boardtype {
 	int n_aochan;		/*  num of D/A chans */
 	int n_dichan;		/*  num of DI chans */
 	int n_dochan;		/*  num of DO chans */
-	int n_counter;		/*  num of counters */
 	int ai_maxdata;		/*  resolution of A/D */
 	int ao_maxdata;		/*  resolution of D/A */
 	const struct comedi_lrange *rangelist_ai;	/*  rangelist for A/D */
@@ -206,6 +205,7 @@ struct boardtype {
 	const struct comedi_lrange *rangelist_ao;	/*  rangelist for D/A */
 	unsigned int ai_ns_min;	/*  max sample speed of card v ns */
 	unsigned int fifo_half_size;	/*  size of FIFO/2 */
+	unsigned int has_counter:1;
 };
 
 static const struct boardtype boardtypes[] = {
@@ -218,7 +218,6 @@ static const struct boardtype boardtypes[] = {
 		.n_aochan	= 2,
 		.n_dichan	= 16,
 		.n_dochan	= 16,
-		.n_counter	= 1,
 		.ai_maxdata	= 0x0fff,
 		.ao_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pci1710_3,
@@ -226,6 +225,7 @@ static const struct boardtype boardtypes[] = {
 		.rangelist_ao	= &range_pci171x_da,
 		.ai_ns_min	= 10000,
 		.fifo_half_size	= 2048,
+		.has_counter	= 1,
 	},
 	[BOARD_PCI1710HG] = {
 		.name		= "pci1710hg",
@@ -236,7 +236,6 @@ static const struct boardtype boardtypes[] = {
 		.n_aochan	= 2,
 		.n_dichan	= 16,
 		.n_dochan	= 16,
-		.n_counter	= 1,
 		.ai_maxdata	= 0x0fff,
 		.ao_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pci1710hg,
@@ -244,6 +243,7 @@ static const struct boardtype boardtypes[] = {
 		.rangelist_ao	= &range_pci171x_da,
 		.ai_ns_min	= 10000,
 		.fifo_half_size	= 2048,
+		.has_counter	= 1,
 	},
 	[BOARD_PCI1711] = {
 		.name		= "pci1711",
@@ -253,7 +253,6 @@ static const struct boardtype boardtypes[] = {
 		.n_aochan	= 2,
 		.n_dichan	= 16,
 		.n_dochan	= 16,
-		.n_counter	= 1,
 		.ai_maxdata	= 0x0fff,
 		.ao_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pci17x1,
@@ -261,6 +260,7 @@ static const struct boardtype boardtypes[] = {
 		.rangelist_ao	= &range_pci171x_da,
 		.ai_ns_min	= 10000,
 		.fifo_half_size	= 512,
+		.has_counter	= 1,
 	},
 	[BOARD_PCI1713] = {
 		.name		= "pci1713",
@@ -1122,7 +1122,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		n_subdevices++;
 	if (this_board->n_dochan)
 		n_subdevices++;
-	if (this_board->n_counter)
+	if (this_board->has_counter)
 		n_subdevices++;
 
 	ret = comedi_alloc_subdevices(dev, n_subdevices);
@@ -1205,12 +1205,11 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		subdev++;
 	}
 
-	if (this_board->n_counter) {
+	if (this_board->has_counter) {
 		s = &dev->subdevices[subdev];
 		s->type = COMEDI_SUBD_COUNTER;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-		s->n_chan = this_board->n_counter;
-		s->len_chanlist = this_board->n_counter;
+		s->n_chan = 1;
 		s->maxdata = 0xffff;
 		s->range_table = &range_unknown;
 		s->insn_read = pci171x_insn_counter_read;
