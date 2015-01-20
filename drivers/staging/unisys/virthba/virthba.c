@@ -196,7 +196,7 @@ struct virthba_info {
 	struct virtdisk_info head;
 };
 
-/* Work Data for DARWorkQ */
+/* Work Data for dar_work_queue */
 struct diskaddremove {
 	u8 add;			/* 0-remove, 1-add */
 	struct Scsi_Host *shost; /* Scsi Host for this virthba instance */
@@ -321,26 +321,26 @@ del_scsipending_entry(struct virthba_info *vhbainfo, uintptr_t del)
 	return sent;
 }
 
-/* DARWorkQ (Disk Add/Remove) */
-static struct work_struct DARWorkQ;
-static struct diskaddremove *DARWorkQHead;
-static spinlock_t DARWorkQLock;
-static unsigned short DARWorkQSched;
+/* dar_work_queue (Disk Add/Remove) */
+static struct work_struct dar_work_queue;
+static struct diskaddremove *dar_work_queue_head;
+static spinlock_t dar_work_queue_lock;
+static unsigned short dar_work_queue_sched;
 #define QUEUE_DISKADDREMOVE(dar) { \
-	spin_lock_irqsave(&DARWorkQLock, flags); \
-	if (!DARWorkQHead) { \
-		DARWorkQHead = dar; \
+	spin_lock_irqsave(&dar_work_queue_lock, flags); \
+	if (!dar_work_queue_head) { \
+		dar_work_queue_head = dar; \
 		dar->next = NULL; \
 	} \
 	else { \
-		dar->next = DARWorkQHead; \
-		DARWorkQHead = dar; \
+		dar->next = dar_work_queue_head; \
+		dar_work_queue_head = dar; \
 	} \
-	if (!DARWorkQSched) { \
-		schedule_work(&DARWorkQ); \
-		DARWorkQSched = 1; \
+	if (!dar_work_queue_sched) { \
+		schedule_work(&dar_work_queue); \
+		dar_work_queue_sched = 1; \
 	} \
-	spin_unlock_irqrestore(&DARWorkQLock, flags); \
+	spin_unlock_irqrestore(&dar_work_queue_lock, flags); \
 }
 
 static inline void
@@ -368,7 +368,7 @@ SendDiskAddRemove(struct diskaddremove *dar)
 }
 
 /*****************************************************/
-/* DARWorkQ Handler Thread                           */
+/* dar_work_queue Handler Thread                     */
 /*****************************************************/
 static void
 doDiskAddRemove(struct work_struct *work)
@@ -378,11 +378,11 @@ doDiskAddRemove(struct work_struct *work)
 	int i = 0;
 	unsigned long flags;
 
-	spin_lock_irqsave(&DARWorkQLock, flags);
-	tmphead = DARWorkQHead;
-	DARWorkQHead = NULL;
-	DARWorkQSched = 0;
-	spin_unlock_irqrestore(&DARWorkQLock, flags);
+	spin_lock_irqsave(&dar_work_queue_lock, flags);
+	tmphead = dar_work_queue_head;
+	dar_work_queue_head = NULL;
+	dar_work_queue_sched = 0;
+	spin_unlock_irqrestore(&dar_work_queue_lock, flags);
 	while (tmphead) {
 		dar = tmphead;
 		tmphead = dar->next;
@@ -392,7 +392,7 @@ doDiskAddRemove(struct work_struct *work)
 }
 
 /*****************************************************/
-/* Routine to add entry to DARWorkQ                  */
+/* Routine to add entry to dar_work_queue            */
 /*****************************************************/
 static void
 process_disk_notify(struct Scsi_Host *shost, struct uiscmdrsp *cmdrsp)
@@ -1671,8 +1671,8 @@ virthba_mod_init(void)
 				    virthba_debugfs_dir, NULL,
 				    &debugfs_enable_ints_fops);
 		/* Initialize dar_work_queue */
-		INIT_WORK(&DARWorkQ, doDiskAddRemove);
-		spin_lock_init(&DARWorkQLock);
+		INIT_WORK(&dar_work_queue, doDiskAddRemove);
+		spin_lock_init(&dar_work_queue_lock);
 
 		/* clear out array */
 		for (i = 0; i < VIRTHBASOPENMAX; i++)
