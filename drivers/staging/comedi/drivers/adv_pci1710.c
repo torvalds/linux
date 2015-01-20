@@ -196,8 +196,6 @@ struct boardtype {
 	int n_aichan;		/*  num of A/D chans */
 	int n_aichand;		/*  num of A/D chans in diff mode */
 	int n_aochan;		/*  num of D/A chans */
-	int n_dichan;		/*  num of DI chans */
-	int n_dochan;		/*  num of DO chans */
 	int ai_maxdata;		/*  resolution of A/D */
 	int ao_maxdata;		/*  resolution of D/A */
 	const struct comedi_lrange *rangelist_ai;	/*  rangelist for A/D */
@@ -205,6 +203,7 @@ struct boardtype {
 	const struct comedi_lrange *rangelist_ao;	/*  rangelist for D/A */
 	unsigned int ai_ns_min;	/*  max sample speed of card v ns */
 	unsigned int fifo_half_size;	/*  size of FIFO/2 */
+	unsigned int has_di_do:1;
 	unsigned int has_counter:1;
 };
 
@@ -216,8 +215,6 @@ static const struct boardtype boardtypes[] = {
 		.n_aichan	= 16,
 		.n_aichand	= 8,
 		.n_aochan	= 2,
-		.n_dichan	= 16,
-		.n_dochan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.ao_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pci1710_3,
@@ -225,6 +222,7 @@ static const struct boardtype boardtypes[] = {
 		.rangelist_ao	= &range_pci171x_da,
 		.ai_ns_min	= 10000,
 		.fifo_half_size	= 2048,
+		.has_di_do	= 1,
 		.has_counter	= 1,
 	},
 	[BOARD_PCI1710HG] = {
@@ -234,8 +232,6 @@ static const struct boardtype boardtypes[] = {
 		.n_aichan	= 16,
 		.n_aichand	= 8,
 		.n_aochan	= 2,
-		.n_dichan	= 16,
-		.n_dochan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.ao_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pci1710hg,
@@ -243,6 +239,7 @@ static const struct boardtype boardtypes[] = {
 		.rangelist_ao	= &range_pci171x_da,
 		.ai_ns_min	= 10000,
 		.fifo_half_size	= 2048,
+		.has_di_do	= 1,
 		.has_counter	= 1,
 	},
 	[BOARD_PCI1711] = {
@@ -251,8 +248,6 @@ static const struct boardtype boardtypes[] = {
 		.cardtype	= TYPE_PCI171X,
 		.n_aichan	= 16,
 		.n_aochan	= 2,
-		.n_dichan	= 16,
-		.n_dochan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.ao_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pci17x1,
@@ -260,6 +255,7 @@ static const struct boardtype boardtypes[] = {
 		.rangelist_ao	= &range_pci171x_da,
 		.ai_ns_min	= 10000,
 		.fifo_half_size	= 512,
+		.has_di_do	= 1,
 		.has_counter	= 1,
 	},
 	[BOARD_PCI1713] = {
@@ -286,13 +282,12 @@ static const struct boardtype boardtypes[] = {
 		.have_irq	= 1,
 		.cardtype	= TYPE_PCI171X,
 		.n_aichan	= 16,
-		.n_dichan	= 16,
-		.n_dochan	= 16,
 		.ai_maxdata	= 0x0fff,
 		.rangelist_ai	= &range_pci17x1,
 		.rangecode_ai	= range_codes_pci17x1,
 		.ai_ns_min	= 10000,
 		.fifo_half_size	= 512,
+		.has_di_do	= 1,
 	},
 };
 
@@ -1118,10 +1113,8 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		n_subdevices++;
 	if (this_board->n_aochan)
 		n_subdevices++;
-	if (this_board->n_dichan)
-		n_subdevices++;
-	if (this_board->n_dochan)
-		n_subdevices++;
+	if (this_board->has_di_do)
+		n_subdevices += 2;
 	if (this_board->has_counter)
 		n_subdevices++;
 
@@ -1181,25 +1174,21 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		subdev++;
 	}
 
-	if (this_board->n_dichan) {
+	if (this_board->has_di_do) {
 		s = &dev->subdevices[subdev];
 		s->type = COMEDI_SUBD_DI;
 		s->subdev_flags = SDF_READABLE;
-		s->n_chan = this_board->n_dichan;
+		s->n_chan = 16;
 		s->maxdata = 1;
-		s->len_chanlist = this_board->n_dichan;
 		s->range_table = &range_digital;
 		s->insn_bits = pci171x_insn_bits_di;
 		subdev++;
-	}
 
-	if (this_board->n_dochan) {
 		s = &dev->subdevices[subdev];
 		s->type = COMEDI_SUBD_DO;
 		s->subdev_flags = SDF_WRITABLE;
-		s->n_chan = this_board->n_dochan;
+		s->n_chan = 16;
 		s->maxdata = 1;
-		s->len_chanlist = this_board->n_dochan;
 		s->range_table = &range_digital;
 		s->insn_bits = pci171x_insn_bits_do;
 		subdev++;
