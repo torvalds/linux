@@ -84,10 +84,10 @@ struct isp1760_hcd {
 	struct gpio_desc	*rst_gpio;
 };
 
-/* exports for if */
-int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
-		     struct device *dev, unsigned int devflags);
-void isp1760_unregister(struct device *dev);
+int isp1760_hcd_register(struct isp1760_hcd *priv, void __iomem *regs,
+			 struct resource *mem, int irq, unsigned long irqflags,
+			 struct device *dev, unsigned int devflags);
+void isp1760_hcd_unregister(struct isp1760_hcd *priv);
 
 int isp1760_init_kmem_once(void);
 void isp1760_deinit_kmem_cache(void);

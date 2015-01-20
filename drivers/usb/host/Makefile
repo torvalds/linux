@@ -5,7 +5,7 @@
 # tell define_trace.h where to find the xhci trace header
 CFLAGS_xhci-trace.o := -I$(src)
 
-isp1760-y := isp1760-hcd.o isp1760-if.o
+isp1760-y := isp1760-core.o isp1760-hcd.o isp1760-if.o
 
 fhci-y := fhci-hcd.o fhci-hub.o fhci-q.o
 fhci-y += fhci-mem.o fhci-tds.o fhci-sched.o

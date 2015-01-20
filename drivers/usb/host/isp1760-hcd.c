@@ -2232,30 +2232,20 @@ void isp1760_deinit_kmem_cache(void)
 	kmem_cache_destroy(urb_listitem_cachep);
 }
 
-int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
-		     struct device *dev, unsigned int devflags)
+int isp1760_hcd_register(struct isp1760_hcd *priv, void __iomem *regs,
+			 struct resource *mem, int irq, unsigned long irqflags,
+			 struct device *dev, unsigned int devflags)
 {
-	struct usb_hcd *hcd = NULL;
-	struct isp1760_hcd *priv;
+	struct usb_hcd *hcd;
 	int ret;
-
-	if (usb_disabled())
-		return -ENODEV;
-
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
-	/* prevent usb-core allocating DMA pages */
-	dev->dma_mask = NULL;
 
 	hcd = usb_create_hcd(&isp1760_hc_driver, dev, dev_name(dev));
 	if (!hcd)
 		return -ENOMEM;
 
-	priv->hcd = hcd;
 	*(struct isp1760_hcd **)hcd->hcd_priv = priv;
 
+	priv->hcd = hcd;
 	priv->devflags = devflags;
 
 	priv->rst_gpio = devm_gpiod_get_optional(dev, NULL, GPIOD_OUT_HIGH);
@@ -2265,22 +2255,17 @@ int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
 	}
 
 	init_memory(priv);
-	hcd->regs = devm_ioremap_resource(dev, mem);
-	if (IS_ERR(hcd->regs)) {
-		ret = PTR_ERR(hcd->regs);
-		goto error;
-	}
 
 	hcd->irq = irq;
+	hcd->regs = regs;
 	hcd->rsrc_start = mem->start;
 	hcd->rsrc_len = resource_size(mem);
 
 	ret = usb_add_hcd(hcd, irq, irqflags);
 	if (ret)
 		goto error;
-	device_wakeup_enable(hcd->self.controller);
 
-	dev_set_drvdata(dev, priv);
+	device_wakeup_enable(hcd->self.controller);
 
 	return 0;
 
@@ -2289,15 +2274,8 @@ error:
 	return ret;
 }
 
-void isp1760_unregister(struct device *dev)
+void isp1760_hcd_unregister(struct isp1760_hcd *priv)
 {
-	struct isp1760_hcd *priv = dev_get_drvdata(dev);
-	struct usb_hcd *hcd = priv->hcd;
-
-	usb_remove_hcd(hcd);
-	usb_put_hcd(hcd);
+	usb_remove_hcd(priv->hcd);
+	usb_put_hcd(priv->hcd);
 }
-
-MODULE_DESCRIPTION("Driver for the ISP1760 USB-controller from NXP");
-MODULE_AUTHOR("Sebastian Siewior <bigeasy@linuxtronix.de>");
-MODULE_LICENSE("GPL v2");
