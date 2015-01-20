@@ -666,14 +666,12 @@ static void pci1710_handle_every_sample(struct comedi_device *dev,
 	if (status & Status_FE) {
 		dev_dbg(dev->class_dev, "A/D FIFO empty (%4x)\n", status);
 		s->async->events |= COMEDI_CB_ERROR;
-		comedi_handle_events(dev, s);
 		return;
 	}
 	if (status & Status_FF) {
 		dev_dbg(dev->class_dev,
 			"A/D FIFO Full status (Fatal Error!) (%4x)\n", status);
 		s->async->events |= COMEDI_CB_ERROR;
-		comedi_handle_events(dev, s);
 		return;
 	}
 
@@ -696,8 +694,6 @@ static void pci1710_handle_every_sample(struct comedi_device *dev,
 	}
 
 	outb(0, dev->iobase + PCI171x_CLRINT);	/*  clear our INT request */
-
-	comedi_handle_events(dev, s);
 }
 
 static int move_block_from_fifo(struct comedi_device *dev,
@@ -731,14 +727,12 @@ static void pci1710_handle_fifo(struct comedi_device *dev,
 	if (!(m & Status_FH)) {
 		dev_dbg(dev->class_dev, "A/D FIFO not half full! (%4x)\n", m);
 		s->async->events |= COMEDI_CB_ERROR;
-		comedi_handle_events(dev, s);
 		return;
 	}
 	if (m & Status_FF) {
 		dev_dbg(dev->class_dev,
 			"A/D FIFO Full status (Fatal Error!) (%4x)\n", m);
 		s->async->events |= COMEDI_CB_ERROR;
-		comedi_handle_events(dev, s);
 		return;
 	}
 
@@ -758,12 +752,10 @@ static void pci1710_handle_fifo(struct comedi_device *dev,
 	if (cmd->stop_src == TRIG_COUNT &&
 	    s->async->scans_done >= cmd->stop_arg) {
 		s->async->events |= COMEDI_CB_EOA;
-		comedi_handle_events(dev, s);
 		return;
 	}
 	outb(0, dev->iobase + PCI171x_CLRINT);	/*  clear our INT request */
 
-	comedi_handle_events(dev, s);
 }
 
 static irqreturn_t interrupt_service_pci1710(int irq, void *d)
@@ -801,6 +793,8 @@ static irqreturn_t interrupt_service_pci1710(int irq, void *d)
 		pci1710_handle_every_sample(dev, s);
 	else
 		pci1710_handle_fifo(dev, s);
+
+	comedi_handle_events(dev, s);
 
 	return IRQ_HANDLED;
 }
