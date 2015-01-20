@@ -466,41 +466,30 @@ static int pci171x_insn_read_ai(struct comedi_device *dev,
 	return ret ? ret : insn->n;
 }
 
-/*
-==============================================================================
-*/
-static int pci171x_insn_write_ao(struct comedi_device *dev,
+static int pci171x_ao_insn_write(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct pci1710_private *devpriv = dev->private;
-	unsigned int val;
-	int n, chan, range, ofs;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
+	unsigned int reg = chan ? PCI171x_DA2 : PCI171x_DA1;
+	unsigned int val = s->readback[chan];
+	int i;
 
-	chan = CR_CHAN(insn->chanspec);
-	range = CR_RANGE(insn->chanspec);
-	if (chan) {
-		devpriv->da_ranges &= 0xfb;
-		devpriv->da_ranges |= (range << 2);
-		outw(devpriv->da_ranges, dev->iobase + PCI171x_DAREF);
-		ofs = PCI171x_DA2;
-	} else {
-		devpriv->da_ranges &= 0xfe;
-		devpriv->da_ranges |= range;
-		outw(devpriv->da_ranges, dev->iobase + PCI171x_DAREF);
-		ofs = PCI171x_DA1;
-	}
-	val = s->readback[chan];
+	devpriv->da_ranges &= ~(1 << (chan << 1));
+	devpriv->da_ranges |= (range << (chan << 1));
+	outw(devpriv->da_ranges, dev->iobase + PCI171x_DAREF);
 
-	for (n = 0; n < insn->n; n++) {
-		val = data[n];
-		outw(val, dev->iobase + ofs);
+	for (i = 0; i < insn->n; i++) {
+		val = data[i];
+		outw(val, dev->iobase + reg);
 	}
 
 	s->readback[chan] = val;
 
-	return n;
-
+	return insn->n;
 }
 
 /*
@@ -1121,7 +1110,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 			break;
 		default:
 			s->n_chan = 2;
-			s->insn_write = pci171x_insn_write_ao;
+			s->insn_write = pci171x_ao_insn_write;
 			break;
 		}
 
