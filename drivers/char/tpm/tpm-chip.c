@@ -125,7 +125,7 @@ struct tpm_chip *tpmm_chip_alloc(struct device *dev,
 	else
 		chip->dev.devt = MKDEV(MAJOR(tpm_devt), chip->dev_num);
 
-	dev_set_name(&chip->dev, chip->devname);
+	dev_set_name(&chip->dev, "%s", chip->devname);
 
 	device_initialize(&chip->dev);
 
