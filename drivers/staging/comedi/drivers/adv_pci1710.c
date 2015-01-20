@@ -720,7 +720,6 @@ static void pci1710_handle_fifo(struct comedi_device *dev,
 {
 	struct pci1710_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int nsamples;
 	unsigned int m;
 
 	m = inw(dev->iobase + PCI171x_STATUS);
@@ -736,18 +735,8 @@ static void pci1710_handle_fifo(struct comedi_device *dev,
 		return;
 	}
 
-	nsamples = devpriv->max_samples;
-	if (comedi_samples_to_bytes(s, nsamples) >= s->async->prealloc_bufsz) {
-		m = comedi_bytes_to_samples(s, s->async->prealloc_bufsz);
-		if (move_block_from_fifo(dev, s, m))
-			return;
-		nsamples -= m;
-	}
-
-	if (nsamples) {
-		if (move_block_from_fifo(dev, s, nsamples))
-			return;
-	}
+	if (move_block_from_fifo(dev, s, devpriv->max_samples))
+		return;
 
 	if (cmd->stop_src == TRIG_COUNT &&
 	    s->async->scans_done >= cmd->stop_arg) {
