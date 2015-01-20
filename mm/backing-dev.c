@@ -37,17 +37,6 @@ LIST_HEAD(bdi_list);
 /* bdi_wq serves all asynchronous writeback tasks */
 struct workqueue_struct *bdi_wq;
 
-static void bdi_lock_two(struct bdi_writeback *wb1, struct bdi_writeback *wb2)
-{
-	if (wb1 < wb2) {
-		spin_lock(&wb1->list_lock);
-		spin_lock_nested(&wb2->list_lock, 1);
-	} else {
-		spin_lock(&wb2->list_lock);
-		spin_lock_nested(&wb1->list_lock, 1);
-	}
-}
-
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -352,18 +341,18 @@ EXPORT_SYMBOL(bdi_register_dev);
  */
 static void bdi_wb_shutdown(struct backing_dev_info *bdi)
 {
-	if (!bdi_cap_writeback_dirty(bdi))
+	/* Make sure nobody queues further work */
+	spin_lock_bh(&bdi->wb_lock);
+	if (!test_and_clear_bit(BDI_registered, &bdi->state)) {
+		spin_unlock_bh(&bdi->wb_lock);
 		return;
+	}
+	spin_unlock_bh(&bdi->wb_lock);
 
 	/*
 	 * Make sure nobody finds us on the bdi_list anymore
 	 */
 	bdi_remove_from_list(bdi);
-
-	/* Make sure nobody queues further work */
-	spin_lock_bh(&bdi->wb_lock);
-	clear_bit(BDI_registered, &bdi->state);
-	spin_unlock_bh(&bdi->wb_lock);
 
 	/*
 	 * Drain work list and shutdown the delayed_work.  At this point,
@@ -372,37 +361,22 @@ static void bdi_wb_shutdown(struct backing_dev_info *bdi)
 	 */
 	mod_delayed_work(bdi_wq, &bdi->wb.dwork, 0);
 	flush_delayed_work(&bdi->wb.dwork);
-	WARN_ON(!list_empty(&bdi->work_list));
-	WARN_ON(delayed_work_pending(&bdi->wb.dwork));
 }
 
 /*
- * This bdi is going away now, make sure that no super_blocks point to it
+ * Called when the device behind @bdi has been removed or ejected.
+ *
+ * We can't really do much here except for reducing the dirty ratio at
+ * the moment.  In the future we should be able to set a flag so that
+ * the filesystem can handle errors at mark_inode_dirty time instead
+ * of only at writeback time.
  */
-static void bdi_prune_sb(struct backing_dev_info *bdi)
-{
-	struct super_block *sb;
-
-	spin_lock(&sb_lock);
-	list_for_each_entry(sb, &super_blocks, s_list) {
-		if (sb->s_bdi == bdi)
-			sb->s_bdi = &default_backing_dev_info;
-	}
-	spin_unlock(&sb_lock);
-}
-
 void bdi_unregister(struct backing_dev_info *bdi)
 {
-	if (bdi->dev) {
-		bdi_set_min_ratio(bdi, 0);
-		trace_writeback_bdi_unregister(bdi);
-		bdi_prune_sb(bdi);
+	if (WARN_ON_ONCE(!bdi->dev))
+		return;
 
-		bdi_wb_shutdown(bdi);
-		bdi_debug_unregister(bdi);
-		device_unregister(bdi->dev);
-		bdi->dev = NULL;
-	}
+	bdi_set_min_ratio(bdi, 0);
 }
 EXPORT_SYMBOL(bdi_unregister);
 
@@ -471,37 +445,19 @@ void bdi_destroy(struct backing_dev_info *bdi)
 {
 	int i;
 
-	/*
-	 * Splice our entries to the default_backing_dev_info.  This
-	 * condition shouldn't happen.  @wb must be empty at this point and
-	 * dirty inodes on it might cause other issues.  This workaround is
-	 * added by ce5f8e779519 ("writeback: splice dirty inode entries to
-	 * default bdi on bdi_destroy()") without root-causing the issue.
-	 *
-	 * http://lkml.kernel.org/g/1253038617-30204-11-git-send-email-jens.axboe@oracle.com
-	 * http://thread.gmane.org/gmane.linux.file-systems/35341/focus=35350
-	 *
-	 * We should probably add WARN_ON() to find out whether it still
-	 * happens and track it down if so.
-	 */
-	if (bdi_has_dirty_io(bdi)) {
-		struct bdi_writeback *dst = &default_backing_dev_info.wb;
+	bdi_wb_shutdown(bdi);
 
-		bdi_lock_two(&bdi->wb, dst);
-		list_splice(&bdi->wb.b_dirty, &dst->b_dirty);
-		list_splice(&bdi->wb.b_io, &dst->b_io);
-		list_splice(&bdi->wb.b_more_io, &dst->b_more_io);
-		spin_unlock(&bdi->wb.list_lock);
-		spin_unlock(&dst->list_lock);
-	}
-
-	bdi_unregister(bdi);
-
+	WARN_ON(!list_empty(&bdi->work_list));
 	WARN_ON(delayed_work_pending(&bdi->wb.dwork));
+
+	if (bdi->dev) {
+		bdi_debug_unregister(bdi);
+		device_unregister(bdi->dev);
+		bdi->dev = NULL;
+	}
 
 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++)
 		percpu_counter_destroy(&bdi->bdi_stat[i]);
-
 	fprop_local_destroy_percpu(&bdi->completions);
 }
 EXPORT_SYMBOL(bdi_destroy);
