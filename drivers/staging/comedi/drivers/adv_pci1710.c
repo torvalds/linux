@@ -492,19 +492,17 @@ static int pci171x_ao_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-==============================================================================
-*/
-static int pci171x_insn_bits_di(struct comedi_device *dev,
+static int pci171x_di_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	data[1] = inw(dev->iobase + PCI171x_DI);
 
 	return insn->n;
 }
 
-static int pci171x_insn_bits_do(struct comedi_device *dev,
+static int pci171x_do_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn,
 				unsigned int *data)
@@ -1122,21 +1120,21 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 
 	if (this_board->has_di_do) {
 		s = &dev->subdevices[subdev];
-		s->type = COMEDI_SUBD_DI;
-		s->subdev_flags = SDF_READABLE;
-		s->n_chan = 16;
-		s->maxdata = 1;
-		s->range_table = &range_digital;
-		s->insn_bits = pci171x_insn_bits_di;
+		s->type		= COMEDI_SUBD_DI;
+		s->subdev_flags	= SDF_READABLE;
+		s->n_chan	= 16;
+		s->maxdata	= 1;
+		s->range_table	= &range_digital;
+		s->insn_bits	= pci171x_di_insn_bits;
 		subdev++;
 
 		s = &dev->subdevices[subdev];
-		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags = SDF_WRITABLE;
-		s->n_chan = 16;
-		s->maxdata = 1;
-		s->range_table = &range_digital;
-		s->insn_bits = pci171x_insn_bits_do;
+		s->type		= COMEDI_SUBD_DO;
+		s->subdev_flags	= SDF_WRITABLE;
+		s->n_chan	= 16;
+		s->maxdata	= 1;
+		s->range_table	= &range_digital;
+		s->insn_bits	= pci171x_do_insn_bits;
 		subdev++;
 	}
 
