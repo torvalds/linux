@@ -62,7 +62,7 @@ struct isp1760_ep {
  * connected: Tracks gadget driver bus connection state
  */
 struct isp1760_udc {
-#if CONFIG_USB_ISP1761_UDC
+#ifdef CONFIG_USB_ISP1761_UDC
 	struct isp1760_device *isp;
 
 	int irq;
@@ -87,7 +87,7 @@ struct isp1760_udc {
 #endif
 };
 
-#if CONFIG_USB_ISP1761_UDC
+#ifdef CONFIG_USB_ISP1761_UDC
 int isp1760_udc_register(struct isp1760_device *isp, int irq,
 			 unsigned long irqflags);
 void isp1760_udc_unregister(struct isp1760_device *isp);

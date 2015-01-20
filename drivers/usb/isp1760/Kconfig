@@ -1,6 +1,6 @@
 config USB_ISP1760
 	tristate "NXP ISP 1760/1761 support"
-	depends on USB
+	depends on USB || USB_GADGET
 	help
 	  Say Y or M here if your system as an ISP1760 USB host controller
 	  or an ISP1761 USB dual-role controller.
@@ -14,9 +14,46 @@ config USB_ISP1760
 	  To compile this driver as a module, choose M here: the
 	  module will be called isp1760.
 
+config USB_ISP1760_HCD
+	bool
+
 config USB_ISP1761_UDC
-	boolean "NXP ISP1761 USB Device Controller"
-	depends on USB_ISP1760 && USB_GADGET
+	bool
+
+if USB_ISP1760
+
+choice
+	bool "ISP1760 Mode Selection"
+	default USB_ISP1760_DUAL_ROLE if (USB && USB_GADGET)
+	default USB_ISP1760_HOST_ROLE if (USB && !USB_GADGET)
+	default USB_ISP1760_GADGET_ROLE if (!USB && USB_GADGET)
+
+config USB_ISP1760_HOST_ROLE
+	bool "Host only mode"
+	depends on USB=y || USB=USB_ISP1760
+	select USB_ISP1760_HCD
 	help
-	   The NXP ISP1761 is a dual-role high-speed USB host and device
-	   controller.
+	  Select this if you want to use the ISP1760 in host mode only. The
+	  gadget function will be disabled.
+
+config USB_ISP1760_GADGET_ROLE
+	bool "Gadget only mode"
+	depends on USB_GADGET=y || USB_GADGET=USB_ISP1760
+	select USB_ISP1761_UDC
+	help
+	  Select this if you want to use the ISP1760 in peripheral mode only.
+	  The host function will be disabled.
+
+config USB_ISP1760_DUAL_ROLE
+	bool "Dual Role mode"
+	depends on USB=y || USB=USB_ISP1760
+	depends on USB_GADGET=y || USB_GADGET=USB_ISP1760
+	select USB_ISP1760_HCD
+	select USB_ISP1761_UDC
+	help
+	  Select this if you want to use the ISP1760 in both host and
+	  peripheral modes.
+
+endchoice
+
+endif
