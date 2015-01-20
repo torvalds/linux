@@ -360,6 +360,8 @@ static void toneport_setup(struct usb_line6_toneport *toneport)
 
 	if (toneport_has_led(toneport->type))
 		toneport_update_led(&usbdev->dev);
+
+	mod_timer(&toneport->timer, jiffies + TONEPORT_PCM_DELAY * HZ);
 }
 
 /*
@@ -389,6 +391,9 @@ static int toneport_init(struct usb_interface *interface,
 {
 	int err;
 	struct usb_line6_toneport *toneport =  (struct usb_line6_toneport *) line6;
+
+	setup_timer(&toneport->timer, toneport_start_pcm,
+		    (unsigned long)toneport);
 
 	line6->disconnect = line6_toneport_disconnect;
 
@@ -434,10 +439,6 @@ static int toneport_init(struct usb_interface *interface,
 	}
 
 	toneport_setup(toneport);
-
-	setup_timer(&toneport->timer, toneport_start_pcm,
-		    (unsigned long)toneport);
-	mod_timer(&toneport->timer, jiffies + TONEPORT_PCM_DELAY * HZ);
 
 	/* register audio system: */
 	return snd_card_register(line6->card);
