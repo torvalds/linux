@@ -39,6 +39,10 @@
 #define GPC_PGC_CPU_PDNSCR	0x2a8
 #define GPC_PGC_SW2ISO_SHIFT	0x8
 #define GPC_PGC_SW_SHIFT	0x0
+#define GPC_PGC_DISP_PGCR_OFFSET	0x240
+#define GPC_PGC_DISP_PUPSCR_OFFSET	0x244
+#define GPC_PGC_DISP_PDNSCR_OFFSET	0x248
+#define GPC_PGC_DISP_SR_OFFSET		0x24c
 #define GPC_M4_LPSR		0x2c
 #define GPC_M4_LPSR_M4_SLEEPING_SHIFT	4
 #define GPC_M4_LPSR_M4_SLEEPING_MASK	0x1
@@ -58,11 +62,17 @@
 #define GPU_VPU_PUP_REQ		BIT(1)
 #define GPU_VPU_PDN_REQ		BIT(0)
 
-#define GPC_CLK_MAX		6
+#define GPC_CLK_MAX		10
 
 struct pu_domain {
 	struct generic_pm_domain base;
 	struct regulator *reg;
+	struct clk *clk[GPC_CLK_MAX];
+	int num_clks;
+};
+
+struct disp_domain {
+	struct generic_pm_domain base;
 	struct clk *clk[GPC_CLK_MAX];
 	int num_clks;
 };
@@ -579,6 +589,62 @@ static int imx6q_pm_pu_power_on(struct generic_pm_domain *genpd)
 	return 0;
 }
 
+static int imx_pm_dispmix_on(struct generic_pm_domain *genpd)
+{
+	struct disp_domain *disp = container_of(genpd, struct disp_domain, base);
+	u32 val = readl_relaxed(gpc_base + GPC_CNTR);
+	int i;
+
+	if ((cpu_is_imx6sl() &&
+		imx_get_soc_revision() >= IMX_CHIP_REVISION_1_2) || cpu_is_imx6sx()) {
+
+		/* Enable reset clocks for all devices in the disp domain */
+		for (i = 0; i < disp->num_clks; i++)
+			clk_prepare_enable(disp->clk[i]);
+
+		writel_relaxed(0x0, gpc_base + GPC_PGC_DISP_PGCR_OFFSET);
+		writel_relaxed(0x20 | val, gpc_base + GPC_CNTR);
+		while (readl_relaxed(gpc_base + GPC_CNTR) & 0x20)
+			;
+
+		writel_relaxed(0x1, gpc_base + GPC_PGC_DISP_SR_OFFSET);
+
+		/* Disable reset clocks for all devices in the disp domain */
+		for (i = 0; i < disp->num_clks; i++)
+			clk_disable_unprepare(disp->clk[i]);
+	}
+	return 0;
+}
+
+static int imx_pm_dispmix_off(struct generic_pm_domain *genpd)
+{
+	struct disp_domain *disp = container_of(genpd, struct disp_domain, base);
+	u32 val = readl_relaxed(gpc_base + GPC_CNTR);
+	int i;
+
+	if ((cpu_is_imx6sl() &&
+		imx_get_soc_revision() >= IMX_CHIP_REVISION_1_2) || cpu_is_imx6sx()) {
+
+		/* Enable reset clocks for all devices in the disp domain */
+		for (i = 0; i < disp->num_clks; i++)
+			clk_prepare_enable(disp->clk[i]);
+
+		writel_relaxed(0xFFFFFFFF,
+				gpc_base + GPC_PGC_DISP_PUPSCR_OFFSET);
+		writel_relaxed(0xFFFFFFFF,
+				gpc_base + GPC_PGC_DISP_PDNSCR_OFFSET);
+		writel_relaxed(0x1, gpc_base + GPC_PGC_DISP_PGCR_OFFSET);
+		writel_relaxed(0x10 | val, gpc_base + GPC_CNTR);
+		while (readl_relaxed(gpc_base + GPC_CNTR) & 0x10)
+			;
+
+		/* Disable reset clocks for all devices in the disp domain */
+		for (i = 0; i < disp->num_clks; i++)
+			clk_disable_unprepare(disp->clk[i]);
+	}
+	return 0;
+}
+
 static struct generic_pm_domain imx6q_arm_domain = {
 	.name = "ARM",
 };
@@ -593,14 +659,18 @@ static struct pu_domain imx6q_pu_domain = {
 	},
 };
 
-static struct generic_pm_domain imx6sl_display_domain = {
-	.name = "DISPLAY",
+static struct disp_domain imx6s_display_domain = {
+	.base = {
+		.name = "DISPLAY",
+		.power_off = imx_pm_dispmix_off,
+		.power_on = imx_pm_dispmix_on,
+	},
 };
 
 static struct generic_pm_domain *imx_gpc_domains[] = {
 	&imx6q_arm_domain,
 	&imx6q_pu_domain.base,
-	&imx6sl_display_domain,
+	&imx6s_display_domain.base,
 };
 
 static struct genpd_onecell_data imx_gpc_onecell_data = {
@@ -611,36 +681,58 @@ static struct genpd_onecell_data imx_gpc_onecell_data = {
 static int imx_gpc_genpd_init(struct device *dev, struct regulator *pu_reg)
 {
 	struct clk *clk;
-	int i;
+	bool is_off;
+	int pu_clks, disp_clks;
+	int i = 0, k = 0;
 
 	imx6q_pu_domain.reg = pu_reg;
 
-	for (i = 0; ; i++) {
+	if ((cpu_is_imx6sl() &&
+			imx_get_soc_revision() >= IMX_CHIP_REVISION_1_2)) {
+		pu_clks = 2 ;
+		disp_clks = 6;
+	} else if (cpu_is_imx6sx()) {
+		pu_clks = 1;
+		disp_clks = 7;
+	} else {
+		pu_clks = GPC_CLK_MAX;
+		disp_clks = 0;
+	}
+
+	/* Get pu domain clks */
+	for (i = 0; i < pu_clks ; i++) {
 		clk = of_clk_get(dev->of_node, i);
 		if (IS_ERR(clk))
 			break;
-		if (i >= GPC_CLK_MAX) {
-			dev_err(dev, "more than %d clocks\n", GPC_CLK_MAX);
-			goto clk_err;
-		}
 		imx6q_pu_domain.clk[i] = clk;
 	}
 	imx6q_pu_domain.num_clks = i;
 
-	/* Enable power always in case bootloader disabled it. */
-	imx6q_pm_pu_power_on(&imx6q_pu_domain.base);
+	/* Get disp domain clks */
+	for (k = 0, i = pu_clks; i < pu_clks + disp_clks ; i++, k++) {
+		clk = of_clk_get(dev->of_node, i);
+		if (IS_ERR(clk))
+			break;
+		imx6s_display_domain.clk[k] = clk;
+	}
+	imx6s_display_domain.num_clks = k;
 
-	if (!IS_ENABLED(CONFIG_PM_GENERIC_DOMAINS))
-		return 0;
+	is_off = IS_ENABLED(CONFIG_PM);
+	if (is_off) {
+		_imx6q_pm_pu_power_off(&imx6q_pu_domain.base);
+	} else {
+		/*
+		 * Enable power if compiled without CONFIG_PM in case the
+		 * bootloader disabled it.
+		 */
+		imx6q_pm_pu_power_on(&imx6q_pu_domain.base);
+	}
 
-	pm_genpd_init(&imx6q_pu_domain.base, NULL, false);
+	pm_genpd_init(&imx6q_pu_domain.base, NULL, is_off);
+	pm_genpd_init(&imx6s_display_domain.base, NULL, is_off);
+
 	return of_genpd_add_provider_onecell(dev->of_node,
 					     &imx_gpc_onecell_data);
-
-clk_err:
-	while (i--)
-		clk_put(imx6q_pu_domain.clk[i]);
-	return -EINVAL;
 }
 
 static int imx_gpc_probe(struct platform_device *pdev)
