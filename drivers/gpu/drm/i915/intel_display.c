@@ -2316,7 +2316,7 @@ unsigned long intel_gen4_compute_page_offset(int *x, int *y,
 	}
 }
 
-static int intel_format_to_fourcc(int format)
+static int i9xx_format_to_fourcc(int format)
 {
 	switch (format) {
 	case DISPPLANE_8BPP:
@@ -6569,7 +6569,7 @@ static void i9xx_get_plane_config(struct intel_crtc *crtc,
 			plane_config->tiling = I915_TILING_X;
 
 	pixel_format = val & DISPPLANE_PIXFORMAT_MASK;
-	fourcc = intel_format_to_fourcc(pixel_format);
+	fourcc = i9xx_format_to_fourcc(pixel_format);
 	fb->pixel_format = fourcc;
 	fb->bits_per_pixel = drm_format_plane_cpp(fourcc, 0) * 8;
 
@@ -7621,7 +7621,7 @@ static void ironlake_get_plane_config(struct intel_crtc *crtc,
 			plane_config->tiling = I915_TILING_X;
 
 	pixel_format = val & DISPPLANE_PIXFORMAT_MASK;
-	fourcc = intel_format_to_fourcc(pixel_format);
+	fourcc = i9xx_format_to_fourcc(pixel_format);
 	fb->pixel_format = fourcc;
 	fb->bits_per_pixel = drm_format_plane_cpp(fourcc, 0) * 8;
 
