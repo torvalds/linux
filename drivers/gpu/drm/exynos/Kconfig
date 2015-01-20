@@ -13,10 +13,9 @@ config DRM_EXYNOS
 	  If M is selected the module will be called exynosdrm.
 
 config DRM_EXYNOS_IOMMU
-	bool "EXYNOS DRM IOMMU Support"
+	bool
 	depends on DRM_EXYNOS && EXYNOS_IOMMU && ARM_DMA_USE_IOMMU
-	help
-	  Choose this option if you want to use IOMMU feature for DRM.
+	default y
 
 config DRM_EXYNOS_DMABUF
 	bool "EXYNOS DRM DMABUF"
