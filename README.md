@@ -17,6 +17,7 @@ Table of Contents
 =================
 
   * [ToleranUX](#toleranux)
+      * [Subsidiary but equal repositories](#subsidiary-but-equal-repositories)
       * [News and TODO](#news-and-todo)
       * [How to contribute](#how-to-contribute)
   * [The ToleranUX Philosophy](#the-toleranux-philosophy)
@@ -72,6 +73,14 @@ ToleranUX
 As did [GitHub remove the problematic "Meritocracy" rug from their office](http://readwrite.com/2014/01/24/github-meritocracy-rug), so now do we literally *pull the rug* from under the tyrannical and Patriarchal feet of Linus Torvalds.  In light of the continued reign of [Linus Torvalds](https://en.wikipedia.org/wiki/Linus_Torvalds) as the immature, unprofessional, quick-to-anger, non-inclusive, white, cisgendered and male project ~~leader~~ dictator of the (in)famous [Linux kernel](http://geekfeminism.wikia.com/wiki/Linux), the Feminist Software Foundation has forked where no feminist has forked and **reclaimed** the software bits to **all people**.
 
 **This is the world's first operating system kernel by FEMINISTS, for FEMINISTS.  Women and gay men with internalised misogyny/homophobia who are here to concern troll and [sealion](http://rationalwiki.org/wiki/Sealioning) are not welcome.**
+
+### Subsidiary but equal repositories
+
+The following repos are part of the wider, curvy **ToleranUX** project.  Contributors are encouraged to also to share their fight in our common, intersectional goal of dismantling Toxic Meritocracy in FOSS software.
+
+* [`ToleranUX-coreutils`, implemented as a diversified fork of BusyBox](https://github.com/rektm8/Tolerant-Utils)
+* [`ProgressiveV``, the overseer of runtime privilege](https://github.com/rektm8/ProgressiveV)
+* [`kprivcheck`, kernel module for privilege checking](https://github.com/saatanaperkele/kprivcheck)
 
 ### News and TODO
 
