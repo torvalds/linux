@@ -568,6 +568,8 @@ int line6_probe(struct usb_interface *interface,
 	return 0;
 
  err_destruct:
+	if (line6->disconnect)
+		line6->disconnect(interface);
 	snd_card_free(card);
  err_put:
 	return ret;
