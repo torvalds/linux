@@ -370,13 +370,11 @@ static void toneport_setup(struct usb_line6_toneport *toneport)
 static void line6_toneport_disconnect(struct usb_interface *interface)
 {
 	struct usb_line6_toneport *toneport;
-	u16 idProduct;
 
 	toneport = usb_get_intfdata(interface);
 	del_timer_sync(&toneport->timer);
-	idProduct = le16_to_cpu(toneport->line6.usbdev->descriptor.idProduct);
 
-	if (toneport_has_led(idProduct)) {
+	if (toneport_has_led(toneport->type)) {
 		device_remove_file(&interface->dev, &dev_attr_led_red);
 		device_remove_file(&interface->dev, &dev_attr_led_green);
 	}
