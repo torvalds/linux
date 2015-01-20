@@ -1769,8 +1769,9 @@ static int vxlan6_xmit_skb(struct vxlan_sock *vs,
 
 	skb_set_inner_protocol(skb, htons(ETH_P_TEB));
 
-	udp_tunnel6_xmit_skb(vs->sock, dst, skb, dev, saddr, daddr, prio,
-			     ttl, src_port, dst_port);
+	udp_tunnel6_xmit_skb(dst, skb, dev, saddr, daddr, prio,
+			     ttl, src_port, dst_port,
+			     udp_get_no_check6_tx(vs->sock->sk));
 	return 0;
 err:
 	dst_release(dst);
@@ -1848,8 +1849,9 @@ int vxlan_xmit_skb(struct vxlan_sock *vs,
 
 	skb_set_inner_protocol(skb, htons(ETH_P_TEB));
 
-	return udp_tunnel_xmit_skb(vs->sock, rt, skb, src, dst, tos,
-				   ttl, df, src_port, dst_port, xnet);
+	return udp_tunnel_xmit_skb(rt, skb, src, dst, tos,
+				   ttl, df, src_port, dst_port, xnet,
+				   vs->sock->sk->sk_no_check_tx);
 }
 EXPORT_SYMBOL_GPL(vxlan_xmit_skb);
 
