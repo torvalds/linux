@@ -12,119 +12,16 @@
 #include <linux/usb.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <linux/usb/isp1760.h>
 #include <linux/usb/hcd.h>
 
 #include "isp1760-hcd.h"
 
-#if defined(CONFIG_OF) && defined(CONFIG_OF_IRQ)
-#include <linux/slab.h>
-#include <linux/of.h>
-#include <linux/of_platform.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
-#endif
-
 #ifdef CONFIG_PCI
 #include <linux/pci.h>
-#endif
-
-#if defined(CONFIG_OF) && defined(CONFIG_OF_IRQ)
-static int of_isp1760_probe(struct platform_device *dev)
-{
-	struct usb_hcd *hcd;
-	struct device_node *dp = dev->dev.of_node;
-	struct resource *res;
-	struct resource memory;
-	int virq;
-	resource_size_t res_len;
-	int ret;
-	unsigned int devflags = 0;
-	u32 bus_width = 0;
-
-	ret = of_address_to_resource(dp, 0, &memory);
-	if (ret)
-		return -ENXIO;
-
-	res_len = resource_size(&memory);
-
-	res = request_mem_region(memory.start, res_len, dev_name(&dev->dev));
-	if (!res)
-		return -EBUSY;
-
-	virq = irq_of_parse_and_map(dp, 0);
-	if (!virq) {
-		ret = -ENODEV;
-		goto release_reg;
-	}
-
-	if (of_device_is_compatible(dp, "nxp,usb-isp1761"))
-		devflags |= ISP1760_FLAG_ISP1761;
-
-	/* Some systems wire up only 16 of the 32 data lines */
-	of_property_read_u32(dp, "bus-width", &bus_width);
-	if (bus_width == 16)
-		devflags |= ISP1760_FLAG_BUS_WIDTH_16;
-
-	if (of_get_property(dp, "port1-otg", NULL) != NULL)
-		devflags |= ISP1760_FLAG_OTG_EN;
-
-	if (of_get_property(dp, "analog-oc", NULL) != NULL)
-		devflags |= ISP1760_FLAG_ANALOG_OC;
-
-	if (of_get_property(dp, "dack-polarity", NULL) != NULL)
-		devflags |= ISP1760_FLAG_DACK_POL_HIGH;
-
-	if (of_get_property(dp, "dreq-polarity", NULL) != NULL)
-		devflags |= ISP1760_FLAG_DREQ_POL_HIGH;
-
-	hcd = isp1760_register(memory.start, res_len, virq, IRQF_SHARED,
-			       &dev->dev, dev_name(&dev->dev), devflags);
-	if (IS_ERR(hcd)) {
-		ret = PTR_ERR(hcd);
-		goto release_reg;
-	}
-
-	platform_set_drvdata(dev, hcd);
-	return ret;
-
-release_reg:
-	release_mem_region(memory.start, res_len);
-	return ret;
-}
-
-static int of_isp1760_remove(struct platform_device *dev)
-{
-	struct usb_hcd *hcd = platform_get_drvdata(dev);
-
-	usb_remove_hcd(hcd);
-	iounmap(hcd->regs);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
-	usb_put_hcd(hcd);
-
-	return 0;
-}
-
-static const struct of_device_id of_isp1760_match[] = {
-	{
-		.compatible = "nxp,usb-isp1760",
-	},
-	{
-		.compatible = "nxp,usb-isp1761",
-	},
-	{ },
-};
-MODULE_DEVICE_TABLE(of, of_isp1760_match);
-
-static struct platform_driver isp1760_of_driver = {
-	.driver = {
-		.name = "nxp-isp1760",
-		.of_match_table = of_isp1760_match,
-	},
-	.probe          = of_isp1760_probe,
-	.remove         = of_isp1760_remove,
-};
 #endif
 
 #ifdef CONFIG_PCI
@@ -304,26 +201,23 @@ static struct pci_driver isp1761_pci_driver = {
 
 static int isp1760_plat_probe(struct platform_device *pdev)
 {
-	int ret = 0;
-	struct usb_hcd *hcd;
+	unsigned long irqflags = IRQF_SHARED;
+	unsigned int devflags = 0;
 	struct resource *mem_res;
 	struct resource *irq_res;
 	resource_size_t mem_size;
-	struct isp1760_platform_data *priv = dev_get_platdata(&pdev->dev);
-	unsigned int devflags = 0;
-	unsigned long irqflags = IRQF_SHARED;
+	struct usb_hcd *hcd;
+	int ret;
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem_res) {
 		pr_warning("isp1760: Memory resource not available\n");
-		ret = -ENODEV;
-		goto out;
+		return -ENODEV;
 	}
 	mem_size = resource_size(mem_res);
 	if (!request_mem_region(mem_res->start, mem_size, "isp1760")) {
 		pr_warning("isp1760: Cannot reserve the memory resource\n");
-		ret = -EBUSY;
-		goto out;
+		return -EBUSY;
 	}
 
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
@@ -335,39 +229,63 @@ static int isp1760_plat_probe(struct platform_device *pdev)
 
 	irqflags |= irq_res->flags & IRQF_TRIGGER_MASK;
 
-	if (priv) {
-		if (priv->is_isp1761)
+	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
+		struct device_node *dp = pdev->dev.of_node;
+		u32 bus_width = 0;
+
+		if (of_device_is_compatible(dp, "nxp,usb-isp1761"))
 			devflags |= ISP1760_FLAG_ISP1761;
-		if (priv->bus_width_16)
+
+		/* Some systems wire up only 16 of the 32 data lines */
+		of_property_read_u32(dp, "bus-width", &bus_width);
+		if (bus_width == 16)
 			devflags |= ISP1760_FLAG_BUS_WIDTH_16;
-		if (priv->port1_otg)
+
+		if (of_property_read_bool(dp, "port1-otg"))
 			devflags |= ISP1760_FLAG_OTG_EN;
-		if (priv->analog_oc)
+
+		if (of_property_read_bool(dp, "analog-oc"))
 			devflags |= ISP1760_FLAG_ANALOG_OC;
-		if (priv->dack_polarity_high)
+
+		if (of_property_read_bool(dp, "dack-polarity"))
 			devflags |= ISP1760_FLAG_DACK_POL_HIGH;
-		if (priv->dreq_polarity_high)
+
+		if (of_property_read_bool(dp, "dreq-polarity"))
+			devflags |= ISP1760_FLAG_DREQ_POL_HIGH;
+	} else if (dev_get_platdata(&pdev->dev)) {
+		struct isp1760_platform_data *pdata =
+			dev_get_platdata(&pdev->dev);
+
+		if (pdata->is_isp1761)
+			devflags |= ISP1760_FLAG_ISP1761;
+		if (pdata->bus_width_16)
+			devflags |= ISP1760_FLAG_BUS_WIDTH_16;
+		if (pdata->port1_otg)
+			devflags |= ISP1760_FLAG_OTG_EN;
+		if (pdata->analog_oc)
+			devflags |= ISP1760_FLAG_ANALOG_OC;
+		if (pdata->dack_polarity_high)
+			devflags |= ISP1760_FLAG_DACK_POL_HIGH;
+		if (pdata->dreq_polarity_high)
 			devflags |= ISP1760_FLAG_DREQ_POL_HIGH;
 	}
 
 	hcd = isp1760_register(mem_res->start, mem_size, irq_res->start,
 			       irqflags, &pdev->dev, dev_name(&pdev->dev),
 			       devflags);
-
-	platform_set_drvdata(pdev, hcd);
-
 	if (IS_ERR(hcd)) {
 		pr_warning("isp1760: Failed to register the HCD device\n");
-		ret = -ENODEV;
+		ret = PTR_ERR(hcd);
 		goto cleanup;
 	}
 
+	platform_set_drvdata(pdev, hcd);
+
 	pr_info("ISP1760 USB device initialised\n");
-	return ret;
+	return 0;
 
 cleanup:
 	release_mem_region(mem_res->start, mem_size);
-out:
 	return ret;
 }
 
@@ -383,11 +301,21 @@ static int isp1760_plat_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id isp1760_of_match[] = {
+	{ .compatible = "nxp,usb-isp1760", },
+	{ .compatible = "nxp,usb-isp1761", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, isp1760_of_match);
+#endif
+
 static struct platform_driver isp1760_plat_driver = {
 	.probe	= isp1760_plat_probe,
 	.remove	= isp1760_plat_remove,
 	.driver	= {
 		.name	= "isp1760",
+		.of_match_table = of_match_ptr(isp1760_of_match),
 	},
 };
 
@@ -400,11 +328,6 @@ static int __init isp1760_init(void)
 	ret = platform_driver_register(&isp1760_plat_driver);
 	if (!ret)
 		any_ret = 0;
-#if defined(CONFIG_OF) && defined(CONFIG_OF_IRQ)
-	ret = platform_driver_register(&isp1760_of_driver);
-	if (!ret)
-		any_ret = 0;
-#endif
 #ifdef CONFIG_PCI
 	ret = pci_register_driver(&isp1761_pci_driver);
 	if (!ret)
@@ -420,9 +343,6 @@ module_init(isp1760_init);
 static void __exit isp1760_exit(void)
 {
 	platform_driver_unregister(&isp1760_plat_driver);
-#if defined(CONFIG_OF) && defined(CONFIG_OF_IRQ)
-	platform_driver_unregister(&isp1760_of_driver);
-#endif
 #ifdef CONFIG_PCI
 	pci_unregister_driver(&isp1761_pci_driver);
 #endif
