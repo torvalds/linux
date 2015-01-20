@@ -197,7 +197,6 @@ struct boardtype {
 	const struct comedi_lrange *rangelist_ai;	/*  rangelist for A/D */
 	const char *rangecode_ai;	/*  range codes for programming */
 	const struct comedi_lrange *rangelist_ao;	/*  rangelist for D/A */
-	unsigned int ai_ns_min;	/*  max sample speed of card v ns */
 	unsigned int fifo_half_size;	/*  size of FIFO/2 */
 	unsigned int has_irq:1;
 	unsigned int has_diff_ai:1;
@@ -214,7 +213,6 @@ static const struct boardtype boardtypes[] = {
 		.rangelist_ai	= &range_pci1710_3,
 		.rangecode_ai	= range_codes_pci1710_3,
 		.rangelist_ao	= &range_pci171x_da,
-		.ai_ns_min	= 10000,
 		.fifo_half_size	= 2048,
 		.has_irq	= 1,
 		.has_diff_ai	= 1,
@@ -229,7 +227,6 @@ static const struct boardtype boardtypes[] = {
 		.rangelist_ai	= &range_pci1710hg,
 		.rangecode_ai	= range_codes_pci1710hg,
 		.rangelist_ao	= &range_pci171x_da,
-		.ai_ns_min	= 10000,
 		.fifo_half_size	= 2048,
 		.has_irq	= 1,
 		.has_diff_ai	= 1,
@@ -244,7 +241,6 @@ static const struct boardtype boardtypes[] = {
 		.rangelist_ai	= &range_pci17x1,
 		.rangecode_ai	= range_codes_pci17x1,
 		.rangelist_ao	= &range_pci171x_da,
-		.ai_ns_min	= 10000,
 		.fifo_half_size	= 512,
 		.has_irq	= 1,
 		.has_di_do	= 1,
@@ -256,7 +252,6 @@ static const struct boardtype boardtypes[] = {
 		.n_aichan	= 32,
 		.rangelist_ai	= &range_pci1710_3,
 		.rangecode_ai	= range_codes_pci1710_3,
-		.ai_ns_min	= 10000,
 		.fifo_half_size	= 2048,
 		.has_irq	= 1,
 		.has_diff_ai	= 1,
@@ -273,7 +268,6 @@ static const struct boardtype boardtypes[] = {
 		.n_aichan	= 16,
 		.rangelist_ai	= &range_pci17x1,
 		.rangecode_ai	= range_codes_pci17x1,
-		.ai_ns_min	= 10000,
 		.fifo_half_size	= 512,
 		.has_irq	= 1,
 		.has_di_do	= 1,
@@ -928,7 +922,6 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_cmd *cmd)
 {
-	const struct boardtype *this_board = dev->board_ptr;
 	struct pci1710_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int arg;
@@ -961,8 +954,7 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 
 	if (cmd->convert_src == TRIG_TIMER)
-		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
-						 this_board->ai_ns_min);
+		err |= cfc_check_trigger_arg_min(&cmd->convert_arg, 10000);
 	else	/* TRIG_FOLLOW */
 		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
 
