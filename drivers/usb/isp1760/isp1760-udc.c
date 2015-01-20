@@ -1488,6 +1488,9 @@ void isp1760_udc_unregister(struct isp1760_device *isp)
 {
 	struct isp1760_udc *udc = &isp->udc;
 
+	if (!udc->isp)
+		return;
+
 	usb_del_gadget_udc(&udc->gadget);
 
 	free_irq(udc->irq, udc);

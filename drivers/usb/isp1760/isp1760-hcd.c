@@ -2226,6 +2226,9 @@ error:
 
 void isp1760_hcd_unregister(struct isp1760_hcd *priv)
 {
+	if (!priv->hcd)
+		return;
+
 	usb_remove_hcd(priv->hcd);
 	usb_put_hcd(priv->hcd);
 }

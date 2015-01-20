@@ -112,9 +112,15 @@ int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
 		     struct device *dev, unsigned int devflags)
 {
 	struct isp1760_device *isp;
+	bool udc_disabled = !(devflags & ISP1760_FLAG_ISP1761);
 	int ret;
 
-	if (usb_disabled())
+	/*
+	 * If neither the HCD not the UDC is enabled return an error, as no
+	 * device would be registered.
+	 */
+	if ((!IS_ENABLED(CONFIG_USB_ISP1760_HCD) || usb_disabled()) &&
+	    (!IS_ENABLED(CONFIG_USB_ISP1761_UDC) || udc_disabled))
 		return -ENODEV;
 
 	/* prevent usb-core allocating DMA pages */
@@ -137,12 +143,14 @@ int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
 
 	isp1760_init_core(isp);
 
-	ret = isp1760_hcd_register(&isp->hcd, isp->regs, mem, irq,
-				   irqflags | IRQF_SHARED, dev);
-	if (ret < 0)
-		return ret;
+	if (IS_ENABLED(CONFIG_USB_ISP1760_HCD) && !usb_disabled()) {
+		ret = isp1760_hcd_register(&isp->hcd, isp->regs, mem, irq,
+					   irqflags | IRQF_SHARED, dev);
+		if (ret < 0)
+			return ret;
+	}
 
-	if (devflags & ISP1760_FLAG_ISP1761) {
+	if (IS_ENABLED(CONFIG_USB_ISP1761_UDC) && !udc_disabled) {
 		ret = isp1760_udc_register(isp, irq, irqflags | IRQF_SHARED |
 					   IRQF_DISABLED);
 		if (ret < 0) {
@@ -160,9 +168,7 @@ void isp1760_unregister(struct device *dev)
 {
 	struct isp1760_device *isp = dev_get_drvdata(dev);
 
-	if (isp->devflags & ISP1760_FLAG_ISP1761)
-		isp1760_udc_unregister(isp);
-
+	isp1760_udc_unregister(isp);
 	isp1760_hcd_unregister(&isp->hcd);
 }
 
