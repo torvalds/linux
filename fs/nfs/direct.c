@@ -259,18 +259,11 @@ ssize_t nfs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter, loff_t 
 	if (!IS_SWAPFILE(inode))
 		return 0;
 
-#ifndef CONFIG_NFS_SWAP
-	dprintk("NFS: nfs_direct_IO (%pD) off/no(%Ld/%lu) EINVAL\n",
-			iocb->ki_filp, (long long) pos, iter->nr_segs);
-
-	return -EINVAL;
-#else
 	VM_BUG_ON(iocb->ki_nbytes != PAGE_SIZE);
 
 	if (rw == READ)
 		return nfs_file_direct_read(iocb, iter, pos);
 	return nfs_file_direct_write(iocb, iter, pos);
-#endif /* CONFIG_NFS_SWAP */
 }
 
 static void nfs_direct_release_pages(struct page **pages, unsigned int npages)
