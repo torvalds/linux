@@ -85,23 +85,20 @@ static struct nvec_chip *nvec_power_handle;
 static const struct mfd_cell nvec_devices[] = {
 	{
 		.name = "nvec-kbd",
-		.id = 1,
 	},
 	{
 		.name = "nvec-mouse",
-		.id = 1,
+	},
+	{
+		.name = "nvec-power",
+		.id = 0,
 	},
 	{
 		.name = "nvec-power",
 		.id = 1,
-	},
-	{
-		.name = "nvec-power",
-		.id = 2,
 	},
 	{
 		.name = "nvec-paz00",
-		.id = 1,
 	},
 };
 
@@ -891,7 +888,7 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 		nvec_msg_free(nvec, msg);
 	}
 
-	ret = mfd_add_devices(nvec->dev, -1, nvec_devices,
+	ret = mfd_add_devices(nvec->dev, 0, nvec_devices,
 			      ARRAY_SIZE(nvec_devices), NULL, 0, NULL);
 	if (ret)
 		dev_err(nvec->dev, "error adding subdevices\n");
