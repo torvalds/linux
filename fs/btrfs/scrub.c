@@ -250,8 +250,7 @@ static void scrub_recheck_block_checksum(struct btrfs_fs_info *fs_info,
 					 const u8 *csum, u64 generation,
 					 u16 csum_size);
 static int scrub_repair_block_from_good_copy(struct scrub_block *sblock_bad,
-					     struct scrub_block *sblock_good,
-					     int force_write);
+					     struct scrub_block *sblock_good);
 static int scrub_repair_page_from_good_copy(struct scrub_block *sblock_bad,
 					    struct scrub_block *sblock_good,
 					    int page_num, int force_write);
@@ -1098,15 +1097,13 @@ nodatasum_case:
 		    sblock_other->no_io_error_seen) {
 			if (sctx->is_dev_replace) {
 				scrub_write_block_to_dev_replace(sblock_other);
-			} else {
-				int force_write = is_metadata || have_csum;
-
-				ret = scrub_repair_block_from_good_copy(
-						sblock_bad, sblock_other,
-						force_write);
-			}
-			if (0 == ret)
 				goto corrected_error;
+			} else {
+				ret = scrub_repair_block_from_good_copy(
+						sblock_bad, sblock_other);
+				if (!ret)
+					goto corrected_error;
+			}
 		}
 	}
 
@@ -1619,8 +1616,7 @@ static void scrub_recheck_block_checksum(struct btrfs_fs_info *fs_info,
 }
 
 static int scrub_repair_block_from_good_copy(struct scrub_block *sblock_bad,
-					     struct scrub_block *sblock_good,
-					     int force_write)
+					     struct scrub_block *sblock_good)
 {
 	int page_num;
 	int ret = 0;
@@ -1630,8 +1626,7 @@ static int scrub_repair_block_from_good_copy(struct scrub_block *sblock_bad,
 
 		ret_sub = scrub_repair_page_from_good_copy(sblock_bad,
 							   sblock_good,
-							   page_num,
-							   force_write);
+							   page_num, 1);
 		if (ret_sub)
 			ret = ret_sub;
 	}
