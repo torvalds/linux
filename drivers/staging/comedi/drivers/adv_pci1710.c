@@ -714,9 +714,6 @@ static void pci1710_handle_every_sample(struct comedi_device *dev,
 	comedi_handle_events(dev, s);
 }
 
-/*
-==============================================================================
-*/
 static int move_block_from_fifo(struct comedi_device *dev,
 				struct comedi_subdevice *s, int n, int turn)
 {
@@ -786,9 +783,6 @@ static void pci1710_handle_fifo(struct comedi_device *dev,
 	comedi_handle_events(dev, s);
 }
 
-/*
-==============================================================================
-*/
 static irqreturn_t interrupt_service_pci1710(int irq, void *d)
 {
 	struct comedi_device *dev = d;
@@ -945,9 +939,6 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
-/*
-==============================================================================
-*/
 static int pci171x_reset(struct comedi_device *dev)
 {
 	const struct boardtype *board = dev->board_ptr;
@@ -975,9 +966,6 @@ static int pci171x_reset(struct comedi_device *dev)
 	return 0;
 }
 
-/*
-==============================================================================
-*/
 static int pci1720_reset(struct comedi_device *dev)
 {
 	struct pci1710_private *devpriv = dev->private;
@@ -995,9 +983,6 @@ static int pci1720_reset(struct comedi_device *dev)
 	return 0;
 }
 
-/*
-==============================================================================
-*/
 static int pci1710_reset(struct comedi_device *dev)
 {
 	const struct boardtype *board = dev->board_ptr;
