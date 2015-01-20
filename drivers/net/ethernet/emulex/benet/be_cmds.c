@@ -4092,7 +4092,7 @@ int be_cmd_set_logical_link_config(struct be_adapter *adapter,
 	int status;
 
 	if (BEx_chip(adapter) || lancer_chip(adapter))
-		return 0;
+		return -EOPNOTSUPP;
 
 	spin_lock_bh(&adapter->mcc_lock);
 
