@@ -2076,8 +2076,7 @@ struct drm_i915_cmd_table {
 #define IS_HSW_EARLY_SDV(dev)	(IS_HASWELL(dev) && \
 				 (INTEL_DEVID(dev) & 0xFF00) == 0x0C00)
 #define IS_BDW_ULT(dev)		(IS_BROADWELL(dev) && \
-				 ((INTEL_DEVID(dev) & 0xf) == 0x2  || \
-				 (INTEL_DEVID(dev) & 0xf) == 0x6 || \
+				 ((INTEL_DEVID(dev) & 0xf) == 0x6 ||	\
 				 (INTEL_DEVID(dev) & 0xf) == 0xe))
 #define IS_HSW_ULT(dev)		(IS_HASWELL(dev) && \
 				 (INTEL_DEVID(dev) & 0xFF00) == 0x0A00)
