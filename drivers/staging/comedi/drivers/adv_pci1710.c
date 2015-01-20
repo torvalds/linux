@@ -532,10 +532,7 @@ static void pci171x_start_pacer(struct comedi_device *dev,
 	}
 }
 
-/*
-==============================================================================
-*/
-static int pci171x_insn_counter_read(struct comedi_device *dev,
+static int pci171x_counter_insn_read(struct comedi_device *dev,
 				     struct comedi_subdevice *s,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
@@ -556,10 +553,7 @@ static int pci171x_insn_counter_read(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-==============================================================================
-*/
-static int pci171x_insn_counter_write(struct comedi_device *dev,
+static int pci171x_counter_insn_write(struct comedi_device *dev,
 				      struct comedi_subdevice *s,
 				      struct comedi_insn *insn,
 				      unsigned int *data)
@@ -586,10 +580,7 @@ static int pci171x_insn_counter_write(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-==============================================================================
-*/
-static int pci171x_insn_counter_config(struct comedi_device *dev,
+static int pci171x_counter_insn_config(struct comedi_device *dev,
 				       struct comedi_subdevice *s,
 				       struct comedi_insn *insn,
 				       unsigned int *data)
@@ -1151,14 +1142,14 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 
 	if (this_board->has_counter) {
 		s = &dev->subdevices[subdev];
-		s->type = COMEDI_SUBD_COUNTER;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-		s->n_chan = 1;
-		s->maxdata = 0xffff;
-		s->range_table = &range_unknown;
-		s->insn_read = pci171x_insn_counter_read;
-		s->insn_write = pci171x_insn_counter_write;
-		s->insn_config = pci171x_insn_counter_config;
+		s->type		= COMEDI_SUBD_COUNTER;
+		s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+		s->n_chan	= 1;
+		s->maxdata	= 0xffff;
+		s->range_table	= &range_unknown;
+		s->insn_read	= pci171x_counter_insn_read;
+		s->insn_write	= pci171x_counter_insn_write;
+		s->insn_config	= pci171x_counter_insn_config;
 		subdev++;
 	}
 
