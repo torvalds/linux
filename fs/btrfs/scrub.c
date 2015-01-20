@@ -1256,19 +1256,16 @@ out:
 
 static inline int scrub_nr_raid_mirrors(struct btrfs_bio *bbio)
 {
-	if (bbio->raid_map) {
-		int real_stripes = bbio->num_stripes - bbio->num_tgtdevs;
-
-		if (bbio->raid_map[real_stripes - 1] == RAID6_Q_STRIPE)
-			return 3;
-		else
-			return 2;
-	} else {
+	if (bbio->map_type & BTRFS_BLOCK_GROUP_RAID5)
+		return 2;
+	else if (bbio->map_type & BTRFS_BLOCK_GROUP_RAID6)
+		return 3;
+	else
 		return (int)bbio->num_stripes;
-	}
 }
 
-static inline void scrub_stripe_index_and_offset(u64 logical, u64 *raid_map,
+static inline void scrub_stripe_index_and_offset(u64 logical, u64 map_type,
+						 u64 *raid_map,
 						 u64 mapped_length,
 						 int nstripes, int mirror,
 						 int *stripe_index,
@@ -1276,7 +1273,7 @@ static inline void scrub_stripe_index_and_offset(u64 logical, u64 *raid_map,
 {
 	int i;
 
-	if (raid_map) {
+	if (map_type & (BTRFS_BLOCK_GROUP_RAID5 | BTRFS_BLOCK_GROUP_RAID6)) {
 		/* RAID5/6 */
 		for (i = 0; i < nstripes; i++) {
 			if (raid_map[i] == RAID6_Q_STRIPE ||
@@ -1350,6 +1347,7 @@ static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 		BUG_ON(page_index >= SCRUB_PAGES_PER_RD_BIO);
 
 		nmirrors = min(scrub_nr_raid_mirrors(bbio), BTRFS_MAX_MIRRORS);
+
 		for (mirror_index = 0; mirror_index < nmirrors;
 		     mirror_index++) {
 			struct scrub_block *sblock;
@@ -1370,7 +1368,9 @@ leave_nomem:
 			sblock->pagev[page_index] = page;
 			page->logical = logical;
 
-			scrub_stripe_index_and_offset(logical, bbio->raid_map,
+			scrub_stripe_index_and_offset(logical,
+						      bbio->map_type,
+						      bbio->raid_map,
 						      mapped_length,
 						      bbio->num_stripes -
 						      bbio->num_tgtdevs,
@@ -1419,7 +1419,9 @@ static void scrub_bio_wait_endio(struct bio *bio, int error)
 
 static inline int scrub_is_page_on_raid56(struct scrub_page *page)
 {
-	return page->recover && page->recover->bbio->raid_map;
+	return page->recover &&
+	       (page->recover->bbio->map_type & (BTRFS_BLOCK_GROUP_RAID5 |
+	       BTRFS_BLOCK_GROUP_RAID6));
 }
 
 static int scrub_submit_raid56_bio_wait(struct btrfs_fs_info *fs_info,

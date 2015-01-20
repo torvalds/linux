@@ -994,10 +994,12 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_root *root,
 	rbio->bio_pages = p + sizeof(struct page *) * num_pages;
 	rbio->dbitmap = p + sizeof(struct page *) * num_pages * 2;
 
-	if (bbio->raid_map[real_stripes - 1] == RAID6_Q_STRIPE)
+	if (bbio->map_type & BTRFS_BLOCK_GROUP_RAID5)
+		nr_data = real_stripes - 1;
+	else if (bbio->map_type & BTRFS_BLOCK_GROUP_RAID6)
 		nr_data = real_stripes - 2;
 	else
-		nr_data = real_stripes - 1;
+		BUG();
 
 	rbio->nr_data = nr_data;
 	return rbio;
@@ -1850,9 +1852,7 @@ static void __raid_recover_end_io(struct btrfs_raid_bio *rbio)
 		}
 
 		/* all raid6 handling here */
-		if (rbio->bbio->raid_map[rbio->real_stripes - 1] ==
-		    RAID6_Q_STRIPE) {
-
+		if (rbio->bbio->map_type & BTRFS_BLOCK_GROUP_RAID6) {
 			/*
 			 * single failure, rebuild from parity raid5
 			 * style

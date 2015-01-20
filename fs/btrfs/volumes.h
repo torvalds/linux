@@ -298,6 +298,7 @@ struct btrfs_bio {
 	atomic_t refs;
 	atomic_t stripes_pending;
 	struct btrfs_fs_info *fs_info;
+	u64 map_type; /* get from map_lookup->type */
 	bio_end_io_t *end_io;
 	struct bio *orig_bio;
 	unsigned long flags;
