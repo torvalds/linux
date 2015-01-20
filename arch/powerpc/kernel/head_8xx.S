@@ -326,16 +326,15 @@ InstructionTLBMiss:
 	ori	r11, r11, (swapper_pg_dir-PAGE_OFFSET)@l
 3:
 #endif
-	/* Extract level 1 index */
-	rlwinm	r10, r10, 32 - ((PAGE_SHIFT - 2) << 1), (PAGE_SHIFT - 2) << 1, 29
-	lwzx	r11, r10, r11	/* Get the level 1 entry */
-	rlwinm	r10, r11,0,0,19	/* Extract page descriptor page address */
+	/* Insert level 1 index */
+	rlwimi	r11, r10, 32 - ((PAGE_SHIFT - 2) << 1), (PAGE_SHIFT - 2) << 1, 29
+	lwz	r11, 0(r11)	/* Get the level 1 entry */
 
 	/* Load the MI_TWC with the attributes for this "segment." */
 	MTSPR_CPU6(SPRN_MI_TWC, r11, r3)	/* Set segment attributes */
-	mfspr	r11, SPRN_SRR0	/* Get effective address of fault */
+	rlwinm	r11, r11,0,0,19	/* Extract page descriptor page address */
 	/* Extract level 2 index */
-	rlwinm	r11, r11, 32 - (PAGE_SHIFT - 2), 32 - PAGE_SHIFT, 29
+	rlwinm	r10, r10, 32 - (PAGE_SHIFT - 2), 32 - PAGE_SHIFT, 29
 	lwzx	r10, r10, r11	/* Get the pte */
 
 #ifdef CONFIG_SWAP
@@ -380,13 +379,12 @@ DataStoreTLBMiss:
 	lis	r11, (swapper_pg_dir-PAGE_OFFSET)@h
 	ori	r11, r11, (swapper_pg_dir-PAGE_OFFSET)@l
 3:
-	/* Extract level 1 index */
-	rlwinm	r10, r10, 32 - ((PAGE_SHIFT - 2) << 1), (PAGE_SHIFT - 2) << 1, 29
-	lwzx	r11, r10, r11	/* Get the level 1 entry */
+	/* Insert level 1 index */
+	rlwimi	r11, r10, 32 - ((PAGE_SHIFT - 2) << 1), (PAGE_SHIFT - 2) << 1, 29
+	lwz	r11, 0(r11)	/* Get the level 1 entry */
 
 	/* We have a pte table, so load fetch the pte from the table.
 	 */
-	mfspr	r10, SPRN_MD_EPN	/* Get address of fault */
 	/* Extract level 2 index */
 	rlwinm	r10, r10, 32 - (PAGE_SHIFT - 2), 32 - PAGE_SHIFT, 29
 	rlwimi	r10, r11, 0, 0, 32 - PAGE_SHIFT - 1	/* Add level 2 base */
@@ -512,16 +510,14 @@ FixupDAR:/* Entry point for dcbx workaround. */
 	beq-	3f		/* Branch if user space */
 	lis	r11, (swapper_pg_dir-PAGE_OFFSET)@h
 	ori	r11, r11, (swapper_pg_dir-PAGE_OFFSET)@l
-	/* Extract level 1 index */
-3:	rlwinm	r10, r10, 32 - ((PAGE_SHIFT - 2) << 1), (PAGE_SHIFT - 2) << 1, 29
-	lwzx	r11, r10, r11	/* Get the level 1 entry */
-	rlwinm	r10, r11,0,0,19	/* Extract page descriptor page address */
-	mfspr	r11, SPRN_SRR0	/* Get effective address of fault */
-	/* Extract level 2 index */
-	rlwinm	r11, r11, 32 - (PAGE_SHIFT - 2), 32 - PAGE_SHIFT, 29
-	lwzx	r11, r10, r11	/* Get the pte */
+	/* Insert level 1 index */
+3:	rlwimi	r11, r10, 32 - ((PAGE_SHIFT - 2) << 1), (PAGE_SHIFT - 2) << 1, 29
+	lwz	r11, 0(r11)	/* Get the level 1 entry */
+	rlwinm	r11, r11,0,0,19	/* Extract page descriptor page address */
+	/* Insert level 2 index */
+	rlwimi	r11, r10, 32 - (PAGE_SHIFT - 2), 32 - PAGE_SHIFT, 29
+	lwz	r11, 0(r11)	/* Get the pte */
 	/* concat physical page address(r11) and page offset(r10) */
-	mfspr	r10, SPRN_SRR0
 	rlwimi	r11, r10, 0, 32 - PAGE_SHIFT, 31
 	lwz	r11,0(r11)
 /* Check if it really is a dcbx instruction. */
