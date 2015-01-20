@@ -174,9 +174,8 @@ static inline void snd_uart16550_add_timer(struct snd_uart16550 *uart)
 {
 	if (!uart->timer_running) {
 		/* timer 38600bps * 10bit * 16byte */
-		uart->buffer_timer.expires = jiffies + (HZ+255)/256;
+		mod_timer(&uart->buffer_timer, jiffies + (HZ + 255) / 256);
 		uart->timer_running = 1;
-		add_timer(&uart->buffer_timer);
 	}
 }
 
@@ -830,9 +829,8 @@ static int snd_uart16550_create(struct snd_card *card,
 	uart->prev_in = 0;
 	uart->rstatus = 0;
 	memset(uart->prev_status, 0x80, sizeof(unsigned char) * SNDRV_SERIAL_MAX_OUTS);
-	init_timer(&uart->buffer_timer);
-	uart->buffer_timer.function = snd_uart16550_buffer_timer;
-	uart->buffer_timer.data = (unsigned long)uart;
+	setup_timer(&uart->buffer_timer, snd_uart16550_buffer_timer,
+		    (unsigned long)uart);
 	uart->timer_running = 0;
 
 	/* Register device */
