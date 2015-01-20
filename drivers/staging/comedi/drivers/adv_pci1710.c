@@ -276,31 +276,6 @@ struct pci1710_private {
 					 * internal state */
 };
 
-static int pci171x_ai_dropout(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      unsigned int chan,
-			      unsigned int val)
-{
-	const struct boardtype *board = dev->board_ptr;
-	struct pci1710_private *devpriv = dev->private;
-
-	if (!board->is_pci1713) {
-		/*
-		 * The upper 4 bits of the 16-bit sample are the channel number
-		 * that the sample was acquired from. Verify that this channel
-		 * number matches the expected channel number.
-		 */
-		val >>= 12;
-		if (val != devpriv->act_chanlist[chan]) {
-			dev_err(dev->class_dev,
-				"A/D data droput: received from channel %d, expected %d\n",
-				val, devpriv->act_chanlist[chan]);
-			return -ENODATA;
-		}
-	}
-	return 0;
-}
-
 static int pci171x_ai_check_chanlist(struct comedi_device *dev,
 				     struct comedi_subdevice *s,
 				     struct comedi_cmd *cmd)
@@ -416,6 +391,35 @@ static int pci171x_ai_eoc(struct comedi_device *dev,
 	return -EBUSY;
 }
 
+static int pci171x_ai_read_sample(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  unsigned int cur_chan,
+				  unsigned int *val)
+{
+	const struct boardtype *board = dev->board_ptr;
+	struct pci1710_private *devpriv = dev->private;
+	unsigned int sample;
+	unsigned int chan;
+
+	sample = inw(dev->iobase + PCI171x_AD_DATA);
+	if (!board->is_pci1713) {
+		/*
+		 * The upper 4 bits of the 16-bit sample are the channel number
+		 * that the sample was acquired from. Verify that this channel
+		 * number matches the expected channel number.
+		 */
+		chan = sample >> 12;
+		if (chan != devpriv->act_chanlist[cur_chan]) {
+			dev_err(dev->class_dev,
+				"A/D data droput: received from channel %d, expected %d\n",
+				chan, devpriv->act_chanlist[cur_chan]);
+			return -ENODATA;
+		}
+	}
+	*val = sample & s->maxdata;
+	return 0;
+}
+
 static int pci171x_ai_insn_read(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn,
@@ -443,12 +447,11 @@ static int pci171x_ai_insn_read(struct comedi_device *dev,
 		if (ret)
 			break;
 
-		val = inw(dev->iobase + PCI171x_AD_DATA);
-		ret = pci171x_ai_dropout(dev, s, chan, val);
+		ret = pci171x_ai_read_sample(dev, s, chan, &val);
 		if (ret)
 			break;
 
-		data[i] = val & s->maxdata;
+		data[i] = val;
 	}
 
 	outb(0, dev->iobase + PCI171x_CLRFIFO);
@@ -677,14 +680,12 @@ static void pci1710_handle_every_sample(struct comedi_device *dev,
 	outb(0, dev->iobase + PCI171x_CLRINT);	/*  clear our INT request */
 
 	for (; !(inw(dev->iobase + PCI171x_STATUS) & Status_FE);) {
-		val = inw(dev->iobase + PCI171x_AD_DATA);
-		ret = pci171x_ai_dropout(dev, s, s->async->cur_chan, val);
+		ret = pci171x_ai_read_sample(dev, s, s->async->cur_chan, &val);
 		if (ret) {
 			s->async->events |= COMEDI_CB_ERROR;
 			break;
 		}
 
-		val &= s->maxdata;
 		comedi_buf_write_samples(s, &val, 1);
 
 		if (cmd->stop_src == TRIG_COUNT &&
@@ -707,15 +708,12 @@ static int move_block_from_fifo(struct comedi_device *dev,
 	int i;
 
 	for (i = 0; i < n; i++) {
-		val = inw(dev->iobase + PCI171x_AD_DATA);
-
-		ret = pci171x_ai_dropout(dev, s, s->async->cur_chan, val);
+		ret = pci171x_ai_read_sample(dev, s, s->async->cur_chan, &val);
 		if (ret) {
 			s->async->events |= COMEDI_CB_ERROR;
 			return ret;
 		}
 
-		val &= s->maxdata;
 		comedi_buf_write_samples(s, &val, 1);
 	}
 	return 0;
