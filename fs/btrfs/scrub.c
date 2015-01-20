@@ -235,10 +235,7 @@ static void scrub_pending_bio_dec(struct scrub_ctx *sctx);
 static void scrub_pending_trans_workers_inc(struct scrub_ctx *sctx);
 static void scrub_pending_trans_workers_dec(struct scrub_ctx *sctx);
 static int scrub_handle_errored_block(struct scrub_block *sblock_to_check);
-static int scrub_setup_recheck_block(struct scrub_ctx *sctx,
-				     struct btrfs_fs_info *fs_info,
-				     struct scrub_block *original_sblock,
-				     u64 length, u64 logical,
+static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 				     struct scrub_block *sblocks_for_recheck);
 static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 				struct scrub_block *sblock, int is_metadata,
@@ -960,8 +957,7 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	}
 
 	/* setup the context, map the logical blocks and alloc the pages */
-	ret = scrub_setup_recheck_block(sctx, fs_info, sblock_to_check, length,
-					logical, sblocks_for_recheck);
+	ret = scrub_setup_recheck_block(sblock_to_check, sblocks_for_recheck);
 	if (ret) {
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.read_errors++;
@@ -1301,19 +1297,20 @@ static inline void scrub_stripe_index_and_offset(u64 logical, u64 *raid_map,
 	}
 }
 
-static int scrub_setup_recheck_block(struct scrub_ctx *sctx,
-				     struct btrfs_fs_info *fs_info,
-				     struct scrub_block *original_sblock,
-				     u64 length, u64 logical,
+static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 				     struct scrub_block *sblocks_for_recheck)
 {
+	struct scrub_ctx *sctx = original_sblock->sctx;
+	struct btrfs_fs_info *fs_info = sctx->dev_root->fs_info;
+	u64 length = original_sblock->page_count * PAGE_SIZE;
+	u64 logical = original_sblock->pagev[0]->logical;
 	struct scrub_recover *recover;
 	struct btrfs_bio *bbio;
 	u64 sublen;
 	u64 mapped_length;
 	u64 stripe_offset;
 	int stripe_index;
-	int page_index;
+	int page_index = 0;
 	int mirror_index;
 	int nmirrors;
 	int ret;
@@ -1324,7 +1321,6 @@ static int scrub_setup_recheck_block(struct scrub_ctx *sctx,
 	 * the recheck procedure
 	 */
 
-	page_index = 0;
 	while (length > 0) {
 		sublen = min_t(u64, length, PAGE_SIZE);
 		mapped_length = sublen;
@@ -1353,14 +1349,11 @@ static int scrub_setup_recheck_block(struct scrub_ctx *sctx,
 
 		BUG_ON(page_index >= SCRUB_PAGES_PER_RD_BIO);
 
-		nmirrors = scrub_nr_raid_mirrors(bbio);
+		nmirrors = min(scrub_nr_raid_mirrors(bbio), BTRFS_MAX_MIRRORS);
 		for (mirror_index = 0; mirror_index < nmirrors;
 		     mirror_index++) {
 			struct scrub_block *sblock;
 			struct scrub_page *page;
-
-			if (mirror_index >= BTRFS_MAX_MIRRORS)
-				break;
 
 			sblock = sblocks_for_recheck + mirror_index;
 			sblock->sctx = sctx;
