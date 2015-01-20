@@ -503,15 +503,6 @@ static int isp1760_hc_setup(struct usb_hcd *hcd)
 
 	reg_write32(hcd->regs, HC_INTERRUPT_ENABLE, INTERRUPT_ENABLE_MASK);
 
-	/*
-	 * PORT 1 Control register of the ISP1760 is the OTG control
-	 * register on ISP1761. Since there is no OTG or device controller
-	 * support in this driver, we use port 1 as a "normal" USB host port on
-	 * both chips.
-	 */
-	reg_write32(hcd->regs, HC_PORT1_CTRL, PORT1_POWER | PORT1_INIT2);
-	mdelay(10);
-
 	priv->hcs_params = reg_read32(hcd->regs, HC_HCSPARAMS);
 
 	return priv_init(hcd);

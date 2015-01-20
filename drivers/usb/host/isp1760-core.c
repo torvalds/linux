@@ -67,6 +67,14 @@ static void isp1760_init_core(struct isp1760_device *isp)
 	isp1760_write32(isp->regs, HC_HW_MODE_CTRL, hwmode);
 	isp1760_write32(isp->regs, HC_HW_MODE_CTRL, hwmode);
 
+	/*
+	 * PORT 1 Control register of the ISP1760 is the OTG control register on
+	 * ISP1761. Since there is no OTG or device controller support in this
+	 * driver, we use port 1 as a "normal" USB host port on both chips.
+	 */
+	isp1760_write32(isp->regs, HC_PORT1_CTRL, PORT1_POWER | PORT1_INIT2);
+	usleep_range(10000, 11000);
+
 	dev_info(isp->dev, "bus width: %u, oc: %s\n",
 		 isp->devflags & ISP1760_FLAG_BUS_WIDTH_16 ? 16 : 32,
 		 isp->devflags & ISP1760_FLAG_ANALOG_OC ? "analog" : "digital");
