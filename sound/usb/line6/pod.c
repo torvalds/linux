@@ -401,25 +401,16 @@ static struct snd_kcontrol_new pod_control_monitor = {
 */
 static void line6_pod_disconnect(struct usb_interface *interface)
 {
-	struct usb_line6_pod *pod;
+	struct usb_line6_pod *pod = usb_get_intfdata(interface);
+	struct device *dev = &interface->dev;
 
-	if (interface == NULL)
-		return;
-	pod = usb_get_intfdata(interface);
+	/* remove sysfs entries: */
+	device_remove_file(dev, &dev_attr_device_id);
+	device_remove_file(dev, &dev_attr_firmware_version);
+	device_remove_file(dev, &dev_attr_serial_number);
 
-	if (pod != NULL) {
-		struct device *dev = &interface->dev;
-
-		if (dev != NULL) {
-			/* remove sysfs entries: */
-			device_remove_file(dev, &dev_attr_device_id);
-			device_remove_file(dev, &dev_attr_firmware_version);
-			device_remove_file(dev, &dev_attr_serial_number);
-		}
-
-		del_timer_sync(&pod->startup_timer);
-		cancel_work_sync(&pod->startup_work);
-	}
+	del_timer_sync(&pod->startup_timer);
+	cancel_work_sync(&pod->startup_work);
 }
 
 /*
@@ -455,9 +446,6 @@ static int pod_init(struct usb_interface *interface,
 
 	init_timer(&pod->startup_timer);
 	INIT_WORK(&pod->startup_work, pod_startup4);
-
-	if ((interface == NULL) || (pod == NULL))
-		return -ENODEV;
 
 	/* create sysfs entries: */
 	err = pod_create_files2(&interface->dev);

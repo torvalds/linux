@@ -214,12 +214,7 @@ static void line6_variax_disconnect(struct usb_interface *interface)
 {
 	struct usb_line6_variax *variax;
 
-	if (!interface)
-		return;
-
 	variax = usb_get_intfdata(interface);
-	if (!variax)
-		return;
 
 	del_timer(&variax->startup_timer1);
 	del_timer(&variax->startup_timer2);
@@ -243,9 +238,6 @@ static int variax_init(struct usb_interface *interface,
 	init_timer(&variax->startup_timer1);
 	init_timer(&variax->startup_timer2);
 	INIT_WORK(&variax->startup_work, variax_startup6);
-
-	if ((interface == NULL) || (variax == NULL))
-		return -ENODEV;
 
 	/* initialize USB buffers: */
 	variax->buffer_activate = kmemdup(variax_activate,

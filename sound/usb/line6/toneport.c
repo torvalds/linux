@@ -370,9 +370,6 @@ static void line6_toneport_disconnect(struct usb_interface *interface)
 	struct usb_line6_toneport *toneport;
 	u16 idProduct;
 
-	if (interface == NULL)
-		return;
-
 	toneport = usb_get_intfdata(interface);
 	del_timer_sync(&toneport->timer);
 	idProduct = le16_to_cpu(toneport->line6.usbdev->descriptor.idProduct);
@@ -392,9 +389,6 @@ static int toneport_init(struct usb_interface *interface,
 {
 	int err;
 	struct usb_line6_toneport *toneport =  (struct usb_line6_toneport *) line6;
-
-	if ((interface == NULL) || (toneport == NULL))
-		return -ENODEV;
 
 	line6->disconnect = line6_toneport_disconnect;
 

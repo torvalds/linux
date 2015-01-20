@@ -90,11 +90,7 @@ static struct line6_pcm_properties podhd_pcm_properties = {
 static int podhd_init(struct usb_interface *interface,
 		      struct usb_line6 *line6)
 {
-	struct usb_line6_podhd *podhd = (struct usb_line6_podhd *) line6;
 	int err;
-
-	if ((interface == NULL) || (podhd == NULL))
-		return -ENODEV;
 
 	/* initialize MIDI subsystem: */
 	err = line6_init_midi(line6);
