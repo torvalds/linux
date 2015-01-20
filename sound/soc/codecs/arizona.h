@@ -77,6 +77,8 @@ struct arizona_priv {
 	int num_inputs;
 	unsigned int in_pending;
 
+	unsigned int out_up_pending;
+	unsigned int out_up_delay;
 	unsigned int out_down_pending;
 	unsigned int out_down_delay;
 
