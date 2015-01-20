@@ -299,17 +299,6 @@ struct comedi_device {
 
 void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s);
 
-/* we can expand the number of bits used to encode devices/subdevices into
- the minor number soon, after more distros support > 8 bit minor numbers
- (like after Debian Etch gets released) */
-enum comedi_minor_bits {
-	COMEDI_DEVICE_MINOR_MASK = 0xf,
-	COMEDI_SUBDEVICE_MINOR_MASK = 0xf0
-};
-
-static const unsigned COMEDI_SUBDEVICE_MINOR_SHIFT = 4;
-static const unsigned COMEDI_SUBDEVICE_MINOR_OFFSET = 1;
-
 struct comedi_device *comedi_dev_get_from_minor(unsigned minor);
 int comedi_dev_put(struct comedi_device *dev);
 
