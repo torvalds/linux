@@ -878,6 +878,11 @@
 		rockchip,grf = <&grf>;
 	};
 
+	cpufreq {
+		compatible = "rockchip,rk3368-cpufreq";
+		rockchip,grf = <&grf>;
+	};
+
 	dvfs {
 
 		vd_arm: vd_arm {
