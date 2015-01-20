@@ -454,11 +454,12 @@ static int pcl818_ai_eoc(struct comedi_device *dev,
 	return -EBUSY;
 }
 
-static bool pcl818_ai_dropout(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      unsigned int chan)
+static bool pcl818_ai_write_sample(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   unsigned int chan, unsigned int val)
 {
 	struct pcl818_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int expected_chan;
 
 	expected_chan = devpriv->act_chanlist[devpriv->act_chanlist_pos];
@@ -469,16 +470,10 @@ static bool pcl818_ai_dropout(struct comedi_device *dev,
 			(devpriv->usefifo) ? "FIFO" : "IRQ",
 			chan, expected_chan);
 		s->async->events |= COMEDI_CB_ERROR;
-		return true;
+		return false;
 	}
-	return false;
-}
 
-static bool pcl818_ai_next_chan(struct comedi_device *dev,
-				struct comedi_subdevice *s)
-{
-	struct pcl818_private *devpriv = dev->private;
-	struct comedi_cmd *cmd = &s->async->cmd;
+	comedi_buf_write_samples(s, &val, 1);
 
 	devpriv->act_chanlist_pos++;
 	if (devpriv->act_chanlist_pos >= devpriv->act_chanlist_len)
@@ -506,13 +501,7 @@ static void pcl818_handle_eoc(struct comedi_device *dev,
 	}
 
 	val = pcl818_ai_get_sample(dev, s, &chan);
-
-	if (pcl818_ai_dropout(dev, s, chan))
-		return;
-
-	comedi_buf_write_samples(s, &val, 1);
-
-	pcl818_ai_next_chan(dev, s);
+	pcl818_ai_write_sample(dev, s, chan, val);
 }
 
 static void pcl818_handle_dma(struct comedi_device *dev,
@@ -535,13 +524,7 @@ static void pcl818_handle_dma(struct comedi_device *dev,
 		val = ptr[i];
 		chan = val & 0xf;
 		val = (val >> 4) & s->maxdata;
-
-		if (pcl818_ai_dropout(dev, s, chan))
-			break;
-
-		comedi_buf_write_samples(s, &val, 1);
-
-		if (!pcl818_ai_next_chan(dev, s))
+		if (!pcl818_ai_write_sample(dev, s, chan, val))
 			break;
 	}
 }
@@ -576,13 +559,7 @@ static void pcl818_handle_fifo(struct comedi_device *dev,
 
 	for (i = 0; i < len; i++) {
 		val = pcl818_ai_get_fifo_sample(dev, s, &chan);
-
-		if (pcl818_ai_dropout(dev, s, chan))
-			break;
-
-		comedi_buf_write_samples(s, &val, 1);
-
-		if (!pcl818_ai_next_chan(dev, s))
+		if (!pcl818_ai_write_sample(dev, s, chan, val))
 			break;
 	}
 }
