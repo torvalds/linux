@@ -3891,6 +3891,7 @@ static void gen9_disable_rps(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	I915_WRITE(GEN6_RC_CONTROL, 0);
+	I915_WRITE(GEN9_PG_ENABLE, 0);
 }
 
 static void gen6_disable_rps(struct drm_device *dev)
@@ -4080,6 +4081,10 @@ static void gen9_enable_rc6(struct drm_device *dev)
 	I915_WRITE(GEN6_RC_SLEEP, 0);
 	I915_WRITE(GEN6_RC6_THRESHOLD, 37500); /* 37.5/125ms per EI */
 
+	/* 2c: Program Coarse Power Gating Policies. */
+	I915_WRITE(GEN9_MEDIA_PG_IDLE_HYSTERESIS, 25);
+	I915_WRITE(GEN9_RENDER_PG_IDLE_HYSTERESIS, 25);
+
 	/* 3a: Enable RC6 */
 	if (intel_enable_rc6(dev) & INTEL_RC6_ENABLE)
 		rc6_mask = GEN6_RC_CTL_RC6_ENABLE;
@@ -4088,6 +4093,9 @@ static void gen9_enable_rc6(struct drm_device *dev)
 	I915_WRITE(GEN6_RC_CONTROL, GEN6_RC_CTL_HW_ENABLE |
 				   GEN6_RC_CTL_EI_MODE(1) |
 				   rc6_mask);
+
+	/* 3b: Enable Coarse Power Gating only when RC6 is enabled */
+	I915_WRITE(GEN9_PG_ENABLE, (rc6_mask & GEN6_RC_CTL_RC6_ENABLE) ? 3 : 0);
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 
