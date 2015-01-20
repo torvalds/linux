@@ -456,20 +456,10 @@ int line6_probe(struct usb_interface *interface,
 		const struct line6_properties *properties,
 		int (*private_init)(struct usb_interface *, struct usb_line6 *))
 {
-	struct usb_device *usbdev;
+	struct usb_device *usbdev = interface_to_usbdev(interface);
 	struct snd_card *card;
 	int interface_number;
 	int ret;
-
-	if (!interface) {
-		ret = -ENODEV;
-		goto err_put;
-	}
-	usbdev = interface_to_usbdev(interface);
-	if (!usbdev) {
-		ret = -ENODEV;
-		goto err_put;
-	}
 
 	/* we don't handle multiple configurations */
 	if (usbdev->descriptor.bNumConfigurations != 1) {
