@@ -1508,7 +1508,12 @@ unhash_session(struct nfsd4_session *ses)
 static int
 STALE_CLIENTID(clientid_t *clid, struct nfsd_net *nn)
 {
-	if (clid->cl_boot == nn->boot_time)
+	/*
+	 * We're assuming the clid was not given out from a boot
+	 * precisely 2^32 (about 136 years) before this one.  That seems
+	 * a safe assumption:
+	 */
+	if (clid->cl_boot == (u32)nn->boot_time)
 		return 0;
 	dprintk("NFSD stale clientid (%08x/%08x) boot_time %08lx\n",
 		clid->cl_boot, clid->cl_id, nn->boot_time);
