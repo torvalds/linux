@@ -85,29 +85,6 @@ static void _rtl92ee_enable_bcn_sub_func(struct ieee80211_hw *hw)
 	_rtl92ee_set_bcn_ctrl_reg(hw, 0, BIT(1));
 }
 
-static void _rtl92ee_return_beacon_queue_skb(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
-	struct rtl8192_tx_ring *ring = &rtlpci->tx_ring[BEACON_QUEUE];
-	unsigned long flags;
-
-	spin_lock_irqsave(&rtlpriv->locks.irq_th_lock, flags);
-	while (skb_queue_len(&ring->queue)) {
-		struct rtl_tx_buffer_desc *entry =
-						&ring->buffer_desc[ring->idx];
-		struct sk_buff *skb = __skb_dequeue(&ring->queue);
-
-		pci_unmap_single(rtlpci->pdev,
-				 rtlpriv->cfg->ops->get_desc(
-				 (u8 *)entry, true, HW_DESC_TXBUFF_ADDR),
-				 skb->len, PCI_DMA_TODEVICE);
-		kfree_skb(skb);
-		ring->idx = (ring->idx + 1) % ring->entries;
-	}
-	spin_unlock_irqrestore(&rtlpriv->locks.irq_th_lock, flags);
-}
-
 static void _rtl92ee_disable_bcn_sub_func(struct ieee80211_hw *hw)
 {
 	_rtl92ee_set_bcn_ctrl_reg(hw, BIT(1), 0);
@@ -402,9 +379,6 @@ static void _rtl92ee_download_rsvd_page(struct ieee80211_hw *hw)
 		bcnvalid_reg = rtl_read_byte(rtlpriv, REG_DWBCN0_CTRL + 2);
 		rtl_write_byte(rtlpriv, REG_DWBCN0_CTRL + 2,
 			       bcnvalid_reg | BIT(0));
-
-		/* Return Beacon TCB */
-		_rtl92ee_return_beacon_queue_skb(hw);
 
 		/* download rsvd page */
 		rtl92ee_set_fw_rsvdpagepkt(hw, false);
