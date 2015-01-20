@@ -880,6 +880,14 @@ static void __init rk3288_clk_init(struct device_node *np)
 		pr_warn("%s: could not register clock hclk_vcodec_pre: %ld\n",
 			__func__, PTR_ERR(clk));
 
+	/* Watchdog pclk is controlled by RK3288_SGRF_SOC_CON0[1]. */
+	clk = clk_register_fixed_factor(NULL, "pclk_wdt", "pclk_pd_alive", 0, 1, 1);
+	if (IS_ERR(clk))
+		pr_warn("%s: could not register clock pclk_wdt: %ld\n",
+			__func__, PTR_ERR(clk));
+	else
+		rockchip_clk_add_lookup(clk, PCLK_WDT);
+
 	rockchip_clk_register_plls(rk3288_pll_clks,
 				   ARRAY_SIZE(rk3288_pll_clks),
 				   RK3288_GRF_SOC_STATUS1);
