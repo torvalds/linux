@@ -79,7 +79,7 @@ struct scrub_page {
 	u64			logical;
 	u64			physical;
 	u64			physical_for_dev_replace;
-	atomic_t		ref_count;
+	atomic_t		refs;
 	struct {
 		unsigned int	mirror_num:8;
 		unsigned int	have_csum:1;
@@ -112,7 +112,7 @@ struct scrub_block {
 	struct scrub_page	*pagev[SCRUB_MAX_PAGES_PER_BLOCK];
 	int			page_count;
 	atomic_t		outstanding_pages;
-	atomic_t		ref_count; /* free mem on transition to zero */
+	atomic_t		refs; /* free mem on transition to zero */
 	struct scrub_ctx	*sctx;
 	struct scrub_parity	*sparity;
 	struct {
@@ -141,7 +141,7 @@ struct scrub_parity {
 
 	int			stripe_len;
 
-	atomic_t		ref_count;
+	atomic_t		refs;
 
 	struct list_head	spages;
 
@@ -1313,7 +1313,7 @@ static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 	int ret;
 
 	/*
-	 * note: the two members ref_count and outstanding_pages
+	 * note: the two members refs and outstanding_pages
 	 * are not used (and not set) in the blocks that are used for
 	 * the recheck procedure
 	 */
@@ -2026,12 +2026,12 @@ static int scrub_checksum_super(struct scrub_block *sblock)
 
 static void scrub_block_get(struct scrub_block *sblock)
 {
-	atomic_inc(&sblock->ref_count);
+	atomic_inc(&sblock->refs);
 }
 
 static void scrub_block_put(struct scrub_block *sblock)
 {
-	if (atomic_dec_and_test(&sblock->ref_count)) {
+	if (atomic_dec_and_test(&sblock->refs)) {
 		int i;
 
 		if (sblock->sparity)
@@ -2045,12 +2045,12 @@ static void scrub_block_put(struct scrub_block *sblock)
 
 static void scrub_page_get(struct scrub_page *spage)
 {
-	atomic_inc(&spage->ref_count);
+	atomic_inc(&spage->refs);
 }
 
 static void scrub_page_put(struct scrub_page *spage)
 {
-	if (atomic_dec_and_test(&spage->ref_count)) {
+	if (atomic_dec_and_test(&spage->refs)) {
 		if (spage->page)
 			__free_page(spage->page);
 		kfree(spage);
@@ -2176,7 +2176,7 @@ static int scrub_pages(struct scrub_ctx *sctx, u64 logical, u64 len,
 
 	/* one ref inside this function, plus one for each page added to
 	 * a bio later on */
-	atomic_set(&sblock->ref_count, 1);
+	atomic_set(&sblock->refs, 1);
 	sblock->sctx = sctx;
 	sblock->no_io_error_seen = 1;
 
@@ -2469,7 +2469,7 @@ static int scrub_pages_for_parity(struct scrub_parity *sparity,
 
 	/* one ref inside this function, plus one for each page added to
 	 * a bio later on */
-	atomic_set(&sblock->ref_count, 1);
+	atomic_set(&sblock->refs, 1);
 	sblock->sctx = sctx;
 	sblock->no_io_error_seen = 1;
 	sblock->sparity = sparity;
@@ -2721,12 +2721,12 @@ static inline int scrub_calc_parity_bitmap_len(int nsectors)
 
 static void scrub_parity_get(struct scrub_parity *sparity)
 {
-	atomic_inc(&sparity->ref_count);
+	atomic_inc(&sparity->refs);
 }
 
 static void scrub_parity_put(struct scrub_parity *sparity)
 {
-	if (!atomic_dec_and_test(&sparity->ref_count))
+	if (!atomic_dec_and_test(&sparity->refs))
 		return;
 
 	scrub_parity_check_and_repair(sparity);
@@ -2776,7 +2776,7 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 	sparity->scrub_dev = sdev;
 	sparity->logic_start = logic_start;
 	sparity->logic_end = logic_end;
-	atomic_set(&sparity->ref_count, 1);
+	atomic_set(&sparity->refs, 1);
 	INIT_LIST_HEAD(&sparity->spages);
 	sparity->dbitmap = sparity->bitmap;
 	sparity->ebitmap = (void *)sparity->bitmap + bitmap_len;
