@@ -411,7 +411,7 @@ bool is_emmc_exist (struct amlsd_host* host) // is eMMC/tSD exist
 {
     print_tmp("host->storage_flag=%d, POR_BOOT_VALUE=%d\n", host->storage_flag, POR_BOOT_VALUE);
     if ((host->storage_flag == EMMC_BOOT_FLAG) || (host->storage_flag == SPI_EMMC_FLAG)
-            || (((host->storage_flag == 0)  || (host->storage_flag == -1)) && (POR_EMMC_BOOT() || POR_SPI_BOOT()))) {
+            || (((host->storage_flag == 0)  || (host->storage_flag == -1)) && (POR_CARD_BOOT() || POR_EMMC_BOOT() || POR_SPI_BOOT()))) {
         return true;
     }
 
