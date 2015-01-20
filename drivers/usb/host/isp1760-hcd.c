@@ -44,11 +44,11 @@ struct isp1760_hcd {
 
 	u32 hcs_params;
 	spinlock_t		lock;
-	struct slotinfo		atl_slots[32];
+	struct isp1760_slotinfo	atl_slots[32];
 	int			atl_done_map;
-	struct slotinfo		int_slots[32];
+	struct isp1760_slotinfo	int_slots[32];
 	int			int_done_map;
-	struct memory_chunk memory_pool[BLOCKS];
+	struct isp1760_memory_chunk memory_pool[BLOCKS];
 	struct list_head	qh_list[QH_END];
 
 	/* periodic schedule support */
@@ -743,8 +743,9 @@ static void qtd_free(struct isp1760_qtd *qtd)
 }
 
 static void start_bus_transfer(struct usb_hcd *hcd, u32 ptd_offset, int slot,
-				struct slotinfo *slots, struct isp1760_qtd *qtd,
-				struct isp1760_qh *qh, struct ptd *ptd)
+				struct isp1760_slotinfo *slots,
+				struct isp1760_qtd *qtd, struct isp1760_qh *qh,
+				struct ptd *ptd)
 {
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
 	int skip_map;
@@ -857,7 +858,7 @@ static void enqueue_qtds(struct usb_hcd *hcd, struct isp1760_qh *qh)
 {
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
 	int ptd_offset;
-	struct slotinfo *slots;
+	struct isp1760_slotinfo *slots;
 	int curr_slot, free_slot;
 	int n;
 	struct ptd ptd;
@@ -1097,7 +1098,7 @@ static void handle_done_ptds(struct usb_hcd *hcd)
 	struct isp1760_qh *qh;
 	int slot;
 	int state;
-	struct slotinfo *slots;
+	struct isp1760_slotinfo *slots;
 	u32 ptd_offset;
 	struct isp1760_qtd *qtd;
 	int modified;

@@ -103,7 +103,7 @@ struct ptd {
 #define ATL_PTD_OFFSET		0x0c00
 #define PAYLOAD_OFFSET		0x1000
 
-struct slotinfo {
+struct isp1760_slotinfo {
 	struct isp1760_qh *qh;
 	struct isp1760_qtd *qtd;
 	unsigned long timestamp;
@@ -125,7 +125,7 @@ struct slotinfo {
 #define ISP1760_FLAG_INTR_EDGE_TRIG	0x00000100 /* Interrupt edge triggered */
 
 /* chip memory management */
-struct memory_chunk {
+struct isp1760_memory_chunk {
 	unsigned int start;
 	unsigned int size;
 	unsigned int free;
