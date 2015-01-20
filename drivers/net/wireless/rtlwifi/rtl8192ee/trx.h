@@ -542,6 +542,8 @@
 	LE_BITS_TO_4BYTE(__pdesc+8, 12, 4)
 #define GET_RX_DESC_RX_IS_QOS(__pdesc)			\
 	LE_BITS_TO_4BYTE(__pdesc+8, 16, 1)
+#define GET_RX_STATUS_DESC_RPT_SEL(__pdesc)		\
+	LE_BITS_TO_4BYTE(__pdesc+8, 28, 1)
 
 #define GET_RX_DESC_RXMCS(__pdesc)			\
 	LE_BITS_TO_4BYTE(__pdesc+12, 0, 7)
