@@ -1429,7 +1429,7 @@ static ssize_t enable_ints_write(struct file *file, const char __user *buffer,
 	int i, new_value;
 	struct virthba_info *virthbainfo;
 
-	u64 __iomem *Features_addr;
+	u64 __iomem *features_addr;
 	u64 mask;
 
 	if (count >= ARRAY_SIZE(buf))
@@ -1454,21 +1454,21 @@ static ssize_t enable_ints_write(struct file *file, const char __user *buffer,
 	for (i = 0; i < VIRTHBASOPENMAX; i++) {
 		if (virthbas_open[i].virthbainfo != NULL) {
 			virthbainfo = virthbas_open[i].virthbainfo;
-			Features_addr =
+			features_addr =
 				&virthbainfo->chinfo.queueinfo->chan->features;
 			if (new_value == 1) {
 				mask = ~(ULTRA_IO_CHANNEL_IS_POLLING |
 					 ULTRA_IO_DRIVER_DISABLES_INTS);
-				uisqueue_interlocked_and(Features_addr, mask);
+				uisqueue_interlocked_and(features_addr, mask);
 				mask = ULTRA_IO_DRIVER_ENABLES_INTS;
-				uisqueue_interlocked_or(Features_addr, mask);
+				uisqueue_interlocked_or(features_addr, mask);
 				rsltq_wait_usecs = 4000000;
 			} else {
 				mask = ~(ULTRA_IO_DRIVER_ENABLES_INTS |
 					 ULTRA_IO_DRIVER_DISABLES_INTS);
-				uisqueue_interlocked_and(Features_addr, mask);
+				uisqueue_interlocked_and(features_addr, mask);
 				mask = ULTRA_IO_CHANNEL_IS_POLLING;
-				uisqueue_interlocked_or(Features_addr, mask);
+				uisqueue_interlocked_or(features_addr, mask);
 				rsltq_wait_usecs = 4000;
 			}
 		}
