@@ -4353,13 +4353,15 @@ static noinline int setup_leaf_for_split(struct btrfs_trans_handle *trans,
 	path->search_for_split = 1;
 	ret = btrfs_search_slot(trans, root, &key, path, 0, 1);
 	path->search_for_split = 0;
+	if (ret > 0)
+		ret = -EAGAIN;
 	if (ret < 0)
 		goto err;
 
 	ret = -EAGAIN;
 	leaf = path->nodes[0];
-	/* if our item isn't there or got smaller, return now */
-	if (ret > 0 || item_size != btrfs_item_size_nr(leaf, path->slots[0]))
+	/* if our item isn't there, return now */
+	if (item_size != btrfs_item_size_nr(leaf, path->slots[0]))
 		goto err;
 
 	/* the leaf has  changed, it now has room.  return now */
