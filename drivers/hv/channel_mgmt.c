@@ -279,9 +279,6 @@ static void vmbus_process_offer(struct work_struct *work)
 	int ret;
 	unsigned long flags;
 
-	/* The next possible work is rescind handling */
-	INIT_WORK(&newchannel->work, vmbus_process_rescind_offer);
-
 	/* Make sure this is a new offer */
 	spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
 
@@ -341,7 +338,7 @@ static void vmbus_process_offer(struct work_struct *work)
 			if (channel->sc_creation_callback != NULL)
 				channel->sc_creation_callback(newchannel);
 
-			goto out;
+			goto done_init_rescind;
 		}
 
 		goto err_free_chan;
@@ -382,7 +379,14 @@ static void vmbus_process_offer(struct work_struct *work)
 		kfree(newchannel->device_obj);
 		goto err_free_chan;
 	}
-out:
+done_init_rescind:
+	spin_lock_irqsave(&newchannel->lock, flags);
+	/* The next possible work is rescind handling */
+	INIT_WORK(&newchannel->work, vmbus_process_rescind_offer);
+	/* Check if rescind offer was already received */
+	if (newchannel->rescind)
+		queue_work(newchannel->controlwq, &newchannel->work);
+	spin_unlock_irqrestore(&newchannel->lock, flags);
 	return;
 err_free_chan:
 	free_channel(newchannel);
@@ -520,6 +524,7 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 {
 	struct vmbus_channel_rescind_offer *rescind;
 	struct vmbus_channel *channel;
+	unsigned long flags;
 
 	rescind = (struct vmbus_channel_rescind_offer *)hdr;
 	channel = relid2channel(rescind->child_relid);
@@ -528,11 +533,20 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 		/* Just return here, no channel found */
 		return;
 
+	spin_lock_irqsave(&channel->lock, flags);
 	channel->rescind = true;
+	/*
+	 * channel->work.func != vmbus_process_rescind_offer means we are still
+	 * processing offer request and the rescind offer processing should be
+	 * postponed. It will be done at the very end of vmbus_process_offer()
+	 * as rescind flag is being checked there.
+	 */
+	if (channel->work.func == vmbus_process_rescind_offer)
+		/* work is initialized for vmbus_process_rescind_offer() from
+		 * vmbus_process_offer() where the channel got created */
+		queue_work(channel->controlwq, &channel->work);
 
-	/* work is initialized for vmbus_process_rescind_offer() from
-	 * vmbus_process_offer() where the channel got created */
-	queue_work(channel->controlwq, &channel->work);
+	spin_unlock_irqrestore(&channel->lock, flags);
 }
 
 /*
