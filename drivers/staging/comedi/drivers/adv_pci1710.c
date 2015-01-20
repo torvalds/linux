@@ -696,55 +696,49 @@ static void pci1710_handle_every_sample(struct comedi_device *dev,
 	outb(0, dev->iobase + PCI171x_CLRINT);	/*  clear our INT request */
 }
 
-static int move_block_from_fifo(struct comedi_device *dev,
-				struct comedi_subdevice *s, int n)
-{
-	unsigned int val;
-	int ret;
-	int i;
-
-	for (i = 0; i < n; i++) {
-		ret = pci171x_ai_read_sample(dev, s, s->async->cur_chan, &val);
-		if (ret) {
-			s->async->events |= COMEDI_CB_ERROR;
-			return ret;
-		}
-
-		comedi_buf_write_samples(s, &val, 1);
-	}
-	return 0;
-}
-
 static void pci1710_handle_fifo(struct comedi_device *dev,
 				struct comedi_subdevice *s)
 {
 	struct pci1710_private *devpriv = dev->private;
-	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int m;
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
+	unsigned int status;
+	int i;
 
-	m = inw(dev->iobase + PCI171x_STATUS);
-	if (!(m & Status_FH)) {
-		dev_dbg(dev->class_dev, "A/D FIFO not half full! (%4x)\n", m);
-		s->async->events |= COMEDI_CB_ERROR;
+	status = inw(dev->iobase + PCI171x_STATUS);
+	if (!(status & Status_FH)) {
+		dev_dbg(dev->class_dev, "A/D FIFO not half full!\n");
+		async->events |= COMEDI_CB_ERROR;
 		return;
 	}
-	if (m & Status_FF) {
+	if (status & Status_FF) {
 		dev_dbg(dev->class_dev,
-			"A/D FIFO Full status (Fatal Error!) (%4x)\n", m);
-		s->async->events |= COMEDI_CB_ERROR;
+			"A/D FIFO Full status (Fatal Error!)\n");
+		async->events |= COMEDI_CB_ERROR;
 		return;
 	}
 
-	if (move_block_from_fifo(dev, s, devpriv->max_samples))
-		return;
+	for (i = 0; i < devpriv->max_samples; i++) {
+		unsigned int val;
+		int ret;
 
-	if (cmd->stop_src == TRIG_COUNT &&
-	    s->async->scans_done >= cmd->stop_arg) {
-		s->async->events |= COMEDI_CB_EOA;
-		return;
+		ret = pci171x_ai_read_sample(dev, s, s->async->cur_chan, &val);
+		if (ret) {
+			s->async->events |= COMEDI_CB_ERROR;
+			break;
+		}
+
+		if (!comedi_buf_write_samples(s, &val, 1))
+			break;
+
+		if (cmd->stop_src == TRIG_COUNT &&
+		    async->scans_done >= cmd->stop_arg) {
+			async->events |= COMEDI_CB_EOA;
+			break;
+		}
 	}
+
 	outb(0, dev->iobase + PCI171x_CLRINT);	/*  clear our INT request */
-
 }
 
 static irqreturn_t interrupt_service_pci1710(int irq, void *d)
