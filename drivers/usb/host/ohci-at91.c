@@ -595,11 +595,11 @@ static int ohci_hcd_at91_drv_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 
 static int
-ohci_hcd_at91_drv_suspend(struct platform_device *pdev, pm_message_t mesg)
+ohci_hcd_at91_drv_suspend(struct device *dev)
 {
-	struct usb_hcd	*hcd = platform_get_drvdata(pdev);
+	struct usb_hcd	*hcd = dev_get_drvdata(dev);
 	struct ohci_hcd	*ohci = hcd_to_ohci(hcd);
-	bool		do_wakeup = device_may_wakeup(&pdev->dev);
+	bool		do_wakeup = device_may_wakeup(dev);
 	int		ret;
 
 	if (do_wakeup)
@@ -631,11 +631,11 @@ ohci_hcd_at91_drv_suspend(struct platform_device *pdev, pm_message_t mesg)
 	return ret;
 }
 
-static int ohci_hcd_at91_drv_resume(struct platform_device *pdev)
+static int ohci_hcd_at91_drv_resume(struct device *dev)
 {
-	struct usb_hcd	*hcd = platform_get_drvdata(pdev);
+	struct usb_hcd	*hcd = dev_get_drvdata(dev);
 
-	if (device_may_wakeup(&pdev->dev))
+	if (device_may_wakeup(dev))
 		disable_irq_wake(hcd->irq);
 
 	if (!clocked)
@@ -644,19 +644,18 @@ static int ohci_hcd_at91_drv_resume(struct platform_device *pdev)
 	ohci_resume(hcd, false);
 	return 0;
 }
-#else
-#define ohci_hcd_at91_drv_suspend NULL
-#define ohci_hcd_at91_drv_resume  NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(ohci_hcd_at91_pm_ops, ohci_hcd_at91_drv_suspend,
+					ohci_hcd_at91_drv_resume);
 
 static struct platform_driver ohci_hcd_at91_driver = {
 	.probe		= ohci_hcd_at91_drv_probe,
 	.remove		= ohci_hcd_at91_drv_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
-	.suspend	= ohci_hcd_at91_drv_suspend,
-	.resume		= ohci_hcd_at91_drv_resume,
 	.driver		= {
 		.name	= "at91_ohci",
+		.pm	= &ohci_hcd_at91_pm_ops,
 		.of_match_table	= of_match_ptr(at91_ohci_dt_ids),
 	},
 };
