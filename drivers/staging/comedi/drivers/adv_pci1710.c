@@ -636,35 +636,34 @@ static int pci171x_insn_counter_config(struct comedi_device *dev,
 	return 1;
 }
 
-/*
-==============================================================================
-*/
-static int pci1720_insn_write_ao(struct comedi_device *dev,
+static int pci1720_ao_insn_write(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct pci1710_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned int val;
-	int n, rangereg, chan;
+	int i;
 
-	chan = CR_CHAN(insn->chanspec);
-	rangereg = devpriv->da_ranges & (~(0x03 << (chan << 1)));
-	rangereg |= (CR_RANGE(insn->chanspec) << (chan << 1));
-	if (rangereg != devpriv->da_ranges) {
-		outb(rangereg, dev->iobase + PCI1720_RANGE);
-		devpriv->da_ranges = rangereg;
+	val = devpriv->da_ranges & (~(0x03 << (chan << 1)));
+	val |= (range << (chan << 1));
+	if (val != devpriv->da_ranges) {
+		outb(val, dev->iobase + PCI1720_RANGE);
+		devpriv->da_ranges = val;
 	}
-	val = s->readback[chan];
 
-	for (n = 0; n < insn->n; n++) {
-		val = data[n];
+	val = s->readback[chan];
+	for (i = 0; i < insn->n; i++) {
+		val = data[i];
 		outw(val, dev->iobase + PCI1720_DA0 + (chan << 1));
-		outb(0, dev->iobase + PCI1720_SYNCOUT);	/*  update outputs */
+		outb(0, dev->iobase + PCI1720_SYNCOUT);	/* update outputs */
 	}
 
 	s->readback[chan] = val;
 
-	return n;
+	return insn->n;
 }
 
 /*
@@ -1118,7 +1117,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		switch (this_board->cardtype) {
 		case TYPE_PCI1720:
 			s->n_chan = 4;
-			s->insn_write = pci1720_insn_write_ao;
+			s->insn_write = pci1720_ao_insn_write;
 			break;
 		default:
 			s->n_chan = 2;
