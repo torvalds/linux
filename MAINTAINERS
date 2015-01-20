@@ -6093,6 +6093,13 @@ F:	Documentation/devicetree/bindings/i2c/max6697.txt
 F:	drivers/hwmon/max6697.c
 F:	include/linux/platform_data/max6697.h
 
+MAXIM MUIC CHARGER DRIVERS FOR EXYNOS BASED BOARDS
+M:	Krzysztof Kozlowski <k.kozlowski@samsung.com>
+L:	linux-pm@vger.kernel.org
+S:	Supported
+F:	drivers/power/max14577_charger.c
+F:	drivers/power/max77693_charger.c
+
 MAXIRADIO FM RADIO RECEIVER DRIVER
 M:	Hans Verkuil <hverkuil@xs4all.nl>
 L:	linux-media@vger.kernel.org
