@@ -285,7 +285,6 @@ struct pci1710_private {
 	unsigned int act_chanlist[32];	/*  list of scanned channel */
 	unsigned char saved_seglen;	/* len of the non-repeating chanlist */
 	unsigned char da_ranges;	/*  copy of D/A outpit range register */
-	unsigned short ao_data[4];	/*  data output buffer */
 	unsigned int cnt0_write_wait;	/* after a write, wait for update of the
 					 * internal state */
 };
@@ -491,34 +490,17 @@ static int pci171x_insn_write_ao(struct comedi_device *dev,
 		outw(devpriv->da_ranges, dev->iobase + PCI171x_DAREF);
 		ofs = PCI171x_DA1;
 	}
-	val = devpriv->ao_data[chan];
+	val = s->readback[chan];
 
 	for (n = 0; n < insn->n; n++) {
 		val = data[n];
 		outw(val, dev->iobase + ofs);
 	}
 
-	devpriv->ao_data[chan] = val;
+	s->readback[chan] = val;
 
 	return n;
 
-}
-
-/*
-==============================================================================
-*/
-static int pci171x_insn_read_ao(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
-{
-	struct pci1710_private *devpriv = dev->private;
-	int n, chan;
-
-	chan = CR_CHAN(insn->chanspec);
-	for (n = 0; n < insn->n; n++)
-		data[n] = devpriv->ao_data[chan];
-
-	return n;
 }
 
 /*
@@ -672,7 +654,7 @@ static int pci1720_insn_write_ao(struct comedi_device *dev,
 		outb(rangereg, dev->iobase + PCI1720_RANGE);
 		devpriv->da_ranges = rangereg;
 	}
-	val = devpriv->ao_data[chan];
+	val = s->readback[chan];
 
 	for (n = 0; n < insn->n; n++) {
 		val = data[n];
@@ -680,7 +662,7 @@ static int pci1720_insn_write_ao(struct comedi_device *dev,
 		outb(0, dev->iobase + PCI1720_SYNCOUT);	/*  update outputs */
 	}
 
-	devpriv->ao_data[chan] = val;
+	s->readback[chan] = val;
 
 	return n;
 }
@@ -1012,9 +994,7 @@ static int pci171x_reset(struct comedi_device *dev)
 		/* set DACs to 0..5V */
 		outb(devpriv->da_ranges, dev->iobase + PCI171x_DAREF);
 		outw(0, dev->iobase + PCI171x_DA1); /* set DA outputs to 0V */
-		devpriv->ao_data[0] = 0x0000;
 		outw(0, dev->iobase + PCI171x_DA2);
-		devpriv->ao_data[1] = 0x0000;
 	}
 	outw(0, dev->iobase + PCI171x_DO);	/*  digital outputs to 0 */
 	outb(0, dev->iobase + PCI171x_CLRFIFO);	/*  clear FIFO */
@@ -1039,10 +1019,7 @@ static int pci1720_reset(struct comedi_device *dev)
 	outw(0x0800, dev->iobase + PCI1720_DA2);
 	outw(0x0800, dev->iobase + PCI1720_DA3);
 	outb(0, dev->iobase + PCI1720_SYNCOUT);	/*  update outputs */
-	devpriv->ao_data[0] = 0x0800;
-	devpriv->ao_data[1] = 0x0800;
-	devpriv->ao_data[2] = 0x0800;
-	devpriv->ao_data[3] = 0x0800;
+
 	return 0;
 }
 
@@ -1148,7 +1125,19 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 			s->insn_write = pci171x_insn_write_ao;
 			break;
 		}
-		s->insn_read = pci171x_insn_read_ao;
+
+		ret = comedi_alloc_subdev_readback(s);
+		if (ret)
+			return ret;
+
+		/* initialize the readback values to match the board reset */
+		if (this_board->cardtype == TYPE_PCI1720) {
+			int i;
+
+			for (i = 0; i < s->n_chan; i++)
+				s->readback[i] = 0x0800;
+		}
+
 		subdev++;
 	}
 
