@@ -24,9 +24,11 @@
 #include "isp1760-core.h"
 #include "isp1760-hcd.h"
 #include "isp1760-regs.h"
+#include "isp1760-udc.h"
 
 static void isp1760_init_core(struct isp1760_device *isp)
 {
+	u32 otgctrl;
 	u32 hwmode;
 
 	/* Low-level chip reset */
@@ -60,6 +62,17 @@ static void isp1760_init_core(struct isp1760_device *isp)
 		hwmode |= HW_INTR_EDGE_TRIG;
 
 	/*
+	 * The ISP1761 has a dedicated DC IRQ line but supports sharing the HC
+	 * IRQ line for both the host and device controllers. Hardcode IRQ
+	 * sharing for now and disable the DC interrupts globally to avoid
+	 * spurious interrupts during HCD registration.
+	 */
+	if (isp->devflags & ISP1760_FLAG_ISP1761) {
+		isp1760_write32(isp->regs, DC_MODE, 0);
+		hwmode |= HW_COMN_IRQ;
+	}
+
+	/*
 	 * We have to set this first in case we're in 16-bit mode.
 	 * Write it twice to ensure correct upper bits if switching
 	 * to 16-bit mode.
@@ -68,16 +81,31 @@ static void isp1760_init_core(struct isp1760_device *isp)
 	isp1760_write32(isp->regs, HC_HW_MODE_CTRL, hwmode);
 
 	/*
-	 * PORT 1 Control register of the ISP1760 is the OTG control register on
-	 * ISP1761. Since there is no OTG or device controller support in this
-	 * driver, we use port 1 as a "normal" USB host port on both chips.
+	 * PORT 1 Control register of the ISP1760 is the OTG control register
+	 * on ISP1761.
+	 *
+	 * TODO: Really support OTG. For now we configure port 1 in device mode
+	 * when OTG is requested.
 	 */
-	isp1760_write32(isp->regs, HC_PORT1_CTRL, PORT1_POWER | PORT1_INIT2);
-	usleep_range(10000, 11000);
+	if ((isp->devflags & ISP1760_FLAG_ISP1761) &&
+	    (isp->devflags & ISP1760_FLAG_OTG_EN))
+		otgctrl = ((HW_DM_PULLDOWN | HW_DP_PULLDOWN) << 16)
+			| HW_OTG_DISABLE;
+	else
+		otgctrl = (HW_SW_SEL_HC_DC << 16)
+			| (HW_VBUS_DRV | HW_SEL_CP_EXT);
+
+	isp1760_write32(isp->regs, HC_PORT1_CTRL, otgctrl);
 
 	dev_info(isp->dev, "bus width: %u, oc: %s\n",
 		 isp->devflags & ISP1760_FLAG_BUS_WIDTH_16 ? 16 : 32,
 		 isp->devflags & ISP1760_FLAG_ANALOG_OC ? "analog" : "digital");
+}
+
+void isp1760_set_pullup(struct isp1760_device *isp, bool enable)
+{
+	isp1760_write32(isp->regs, HW_OTG_CTRL_SET,
+			enable ? HW_DP_PULLUP : HW_DP_PULLUP << 16);
 }
 
 int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
@@ -114,6 +142,15 @@ int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
 	if (ret < 0)
 		return ret;
 
+	if (devflags & ISP1760_FLAG_ISP1761) {
+		ret = isp1760_udc_register(isp, irq, irqflags | IRQF_SHARED |
+					   IRQF_DISABLED);
+		if (ret < 0) {
+			isp1760_hcd_unregister(&isp->hcd);
+			return ret;
+		}
+	}
+
 	dev_set_drvdata(dev, isp);
 
 	return 0;
@@ -122,6 +159,9 @@ int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
 void isp1760_unregister(struct device *dev)
 {
 	struct isp1760_device *isp = dev_get_drvdata(dev);
+
+	if (isp->devflags & ISP1760_FLAG_ISP1761)
+		isp1760_udc_unregister(isp);
 
 	isp1760_hcd_unregister(&isp->hcd);
 }

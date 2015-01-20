@@ -19,6 +19,7 @@
 #include <linux/ioport.h>
 
 #include "isp1760-hcd.h"
+#include "isp1760-udc.h"
 
 struct device;
 struct gpio_desc;
@@ -45,11 +46,14 @@ struct isp1760_device {
 	struct gpio_desc *rst_gpio;
 
 	struct isp1760_hcd hcd;
+	struct isp1760_udc udc;
 };
 
 int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
 		     struct device *dev, unsigned int devflags);
 void isp1760_unregister(struct device *dev);
+
+void isp1760_set_pullup(struct isp1760_device *isp, bool enable);
 
 static inline u32 isp1760_read32(void __iomem *base, u32 reg)
 {
