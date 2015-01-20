@@ -1504,6 +1504,60 @@ static int iwl_trans_pcie_write_mem(struct iwl_trans *trans, u32 addr,
 	return ret;
 }
 
+static void iwl_trans_pcie_freeze_txq_timer(struct iwl_trans *trans,
+					    unsigned long txqs,
+					    bool freeze)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	int queue;
+
+	for_each_set_bit(queue, &txqs, BITS_PER_LONG) {
+		struct iwl_txq *txq = &trans_pcie->txq[queue];
+		unsigned long now;
+
+		spin_lock_bh(&txq->lock);
+
+		now = jiffies;
+
+		if (txq->frozen == freeze)
+			goto next_queue;
+
+		IWL_DEBUG_TX_QUEUES(trans, "%s TXQ %d\n",
+				    freeze ? "Freezing" : "Waking", queue);
+
+		txq->frozen = freeze;
+
+		if (txq->q.read_ptr == txq->q.write_ptr)
+			goto next_queue;
+
+		if (freeze) {
+			if (unlikely(time_after(now,
+						txq->stuck_timer.expires))) {
+				/*
+				 * The timer should have fired, maybe it is
+				 * spinning right now on the lock.
+				 */
+				goto next_queue;
+			}
+			/* remember how long until the timer fires */
+			txq->frozen_expiry_remainder =
+				txq->stuck_timer.expires - now;
+			del_timer(&txq->stuck_timer);
+			goto next_queue;
+		}
+
+		/*
+		 * Wake a non-empty queue -> arm timer with the
+		 * remainder before it froze
+		 */
+		mod_timer(&txq->stuck_timer,
+			  now + txq->frozen_expiry_remainder);
+
+next_queue:
+		spin_unlock_bh(&txq->lock);
+	}
+}
+
 #define IWL_FLUSH_WAIT_MS	2000
 
 static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans, u32 txq_bm)
@@ -1755,7 +1809,7 @@ static ssize_t iwl_dbgfs_tx_queue_read(struct file *file,
 	int ret;
 	size_t bufsz;
 
-	bufsz = sizeof(char) * 64 * trans->cfg->base_params->num_of_queues;
+	bufsz = sizeof(char) * 75 * trans->cfg->base_params->num_of_queues;
 
 	if (!trans_pcie->txq)
 		return -EAGAIN;
@@ -1768,11 +1822,11 @@ static ssize_t iwl_dbgfs_tx_queue_read(struct file *file,
 		txq = &trans_pcie->txq[cnt];
 		q = &txq->q;
 		pos += scnprintf(buf + pos, bufsz - pos,
-				"hwq %.2d: read=%u write=%u use=%d stop=%d need_update=%d%s\n",
+				"hwq %.2d: read=%u write=%u use=%d stop=%d need_update=%d frozen=%d%s\n",
 				cnt, q->read_ptr, q->write_ptr,
 				!!test_bit(cnt, trans_pcie->queue_used),
 				 !!test_bit(cnt, trans_pcie->queue_stopped),
-				 txq->need_update,
+				 txq->need_update, txq->frozen,
 				 (cnt == trans_pcie->cmd_queue ? " HCMD" : ""));
 	}
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
@@ -2348,6 +2402,7 @@ static const struct iwl_trans_ops trans_ops_pcie = {
 	.dbgfs_register = iwl_trans_pcie_dbgfs_register,
 
 	.wait_tx_queue_empty = iwl_trans_pcie_wait_txq_empty,
+	.freeze_txq_timer = iwl_trans_pcie_freeze_txq_timer,
 
 	.write8 = iwl_trans_pcie_write8,
 	.write32 = iwl_trans_pcie_write32,

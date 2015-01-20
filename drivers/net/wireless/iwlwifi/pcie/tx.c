@@ -929,7 +929,16 @@ error:
 
 static inline void iwl_pcie_txq_progress(struct iwl_txq *txq)
 {
+	lockdep_assert_held(&txq->lock);
+
 	if (!txq->wd_timeout)
+		return;
+
+	/*
+	 * station is asleep and we send data - that must
+	 * be uAPSD or PS-Poll. Don't rearm the timer.
+	 */
+	if (txq->frozen)
 		return;
 
 	/*
@@ -1264,6 +1273,9 @@ void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id,
 	u32 stts_addr = trans_pcie->scd_base_addr +
 			SCD_TX_STTS_QUEUE_OFFSET(txq_id);
 	static const u32 zero_val[4] = {};
+
+	trans_pcie->txq[txq_id].frozen_expiry_remainder = 0;
+	trans_pcie->txq[txq_id].frozen = false;
 
 	/*
 	 * Upon HW Rfkill - we stop the device, and then stop the queues
