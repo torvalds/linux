@@ -3897,11 +3897,11 @@ nfs4_set_delegation(struct nfs4_client *clp, struct svc_fh *fh,
 		status = nfs4_setlease(dp);
 		goto out;
 	}
-	atomic_inc(&fp->fi_delegees);
 	if (fp->fi_had_conflict) {
 		status = -EAGAIN;
 		goto out_unlock;
 	}
+	atomic_inc(&fp->fi_delegees);
 	hash_delegation_locked(dp, fp);
 	status = 0;
 out_unlock:

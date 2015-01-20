@@ -665,7 +665,7 @@ bool iwl_mvm_rx_diversity_allowed(struct iwl_mvm *mvm)
 	if (num_of_ant(mvm->fw->valid_rx_ant) == 1)
 		return false;
 
-	if (!mvm->cfg->rx_with_siso_diversity)
+	if (mvm->cfg->rx_with_siso_diversity)
 		return false;
 
 	ieee80211_iterate_active_interfaces_atomic(

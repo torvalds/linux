@@ -590,6 +590,7 @@ struct nvsp_message {
 
 
 #define NETVSC_RECEIVE_BUFFER_ID		0xcafe
+#define NETVSC_SEND_BUFFER_ID			0
 
 #define NETVSC_PACKET_SIZE                      4096
 
