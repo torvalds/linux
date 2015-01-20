@@ -1295,7 +1295,8 @@ drain_queue(struct virthba_info *virthbainfo, struct chaninfo *dc,
 			 * deletion
 			 */
 			scsicmd = del_scsipending_entry(virthbainfo,
-					(uintptr_t)cmdrsp->scsi.scsicmd);
+							(uintptr_t)
+							 cmdrsp->scsi.scsicmd);
 			if (!scsicmd)
 				break;
 			/* complete the orig cmd */
@@ -1314,7 +1315,8 @@ drain_queue(struct virthba_info *virthbainfo, struct chaninfo *dc,
 			process_disk_notify(shost, cmdrsp);
 		} else if (cmdrsp->cmdtype == CMD_VDISKMGMT_TYPE) {
 			if (!del_scsipending_entry(virthbainfo,
-				   (uintptr_t)cmdrsp->vdiskmgmt.scsicmd))
+						   (uintptr_t)
+						    cmdrsp->vdiskmgmt.scsicmd))
 				break;
 			complete_vdiskmgmt_command(cmdrsp);
 		} else
