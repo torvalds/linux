@@ -1211,8 +1211,13 @@ void __iwl_mvm_mac_stop(struct iwl_mvm *mvm)
 {
 	lockdep_assert_held(&mvm->mutex);
 
-	/* disallow low power states when the FW is down */
-	iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
+	/*
+	 * Disallow low power states when the FW is down by taking
+	 * the UCODE_DOWN ref. in case of ongoing hw restart the
+	 * ref is already taken, so don't take it again.
+	 */
+	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+		iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
 
 	/* async_handlers_wk is now blocked */
 
@@ -1229,6 +1234,12 @@ void __iwl_mvm_mac_stop(struct iwl_mvm *mvm)
 
 	/* the fw is stopped, the aux sta is dead: clean up driver state */
 	iwl_mvm_del_aux_sta(mvm);
+
+	/*
+	 * Clear IN_HW_RESTART flag when stopping the hw (as restart_complete()
+	 * won't be called in this case).
+	 */
+	clear_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status);
 
 	mvm->ucode_loaded = false;
 }
@@ -3554,18 +3565,16 @@ static void iwl_mvm_mac_flush(struct ieee80211_hw *hw,
 		msk |= mvmsta->tfd_queue_msk;
 	}
 
-	if (drop) {
-		if (iwl_mvm_flush_tx_path(mvm, msk, true))
-			IWL_ERR(mvm, "flush request fail\n");
-		mutex_unlock(&mvm->mutex);
-	} else {
-		mutex_unlock(&mvm->mutex);
+	msk &= ~BIT(vif->hw_queue[IEEE80211_AC_VO]);
 
-		/* this can take a while, and we may need/want other operations
-		 * to succeed while doing this, so do it without the mutex held
-		 */
-		iwl_trans_wait_tx_queue_empty(mvm->trans, msk);
-	}
+	if (iwl_mvm_flush_tx_path(mvm, msk, true))
+		IWL_ERR(mvm, "flush request fail\n");
+	mutex_unlock(&mvm->mutex);
+
+	/* this can take a while, and we may need/want other operations
+	 * to succeed while doing this, so do it without the mutex held
+	 */
+	iwl_trans_wait_tx_queue_empty(mvm->trans, msk);
 }
 
 const struct ieee80211_ops iwl_mvm_hw_ops = {
