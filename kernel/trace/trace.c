@@ -32,6 +32,7 @@
 #include <linux/splice.h>
 #include <linux/kdebug.h>
 #include <linux/string.h>
+#include <linux/mount.h>
 #include <linux/rwsem.h>
 #include <linux/slab.h>
 #include <linux/ctype.h>
@@ -6535,6 +6536,28 @@ init_tracer_tracefs(struct trace_array *tr, struct dentry *d_tracer)
 
 }
 
+static struct vfsmount *trace_automount(void *ingore)
+{
+	struct vfsmount *mnt;
+	struct file_system_type *type;
+
+	/*
+	 * To maintain backward compatibility for tools that mount
+	 * debugfs to get to the tracing facility, tracefs is automatically
+	 * mounted to the debugfs/tracing directory.
+	 */
+	type = get_fs_type("tracefs");
+	if (!type)
+		return NULL;
+	mnt = vfs_kern_mount(type, 0, "tracefs", NULL);
+	put_filesystem(type);
+	if (IS_ERR(mnt))
+		return NULL;
+	mntget(mnt);
+
+	return mnt;
+}
+
 /**
  * tracing_init_dentry - initialize top level trace array
  *
@@ -6546,14 +6569,21 @@ struct dentry *tracing_init_dentry(void)
 {
 	struct trace_array *tr = &global_trace;
 
+	/* The top level trace array uses  NULL as parent */
 	if (tr->dir)
-		return tr->dir;
+		return NULL;
 
 	if (WARN_ON(!debugfs_initialized()))
 		return ERR_PTR(-ENODEV);
 
-	tr->dir = debugfs_create_dir("tracing", NULL);
-
+	/*
+	 * As there may still be users that expect the tracing
+	 * files to exist in debugfs/tracing, we must automount
+	 * the tracefs file system there, so older tools still
+	 * work with the newer kerenl.
+	 */
+	tr->dir = debugfs_create_automount("tracing", NULL,
+					   trace_automount, NULL);
 	if (!tr->dir) {
 		pr_warn_once("Could not create debugfs directory 'tracing'\n");
 		return ERR_PTR(-ENOMEM);
