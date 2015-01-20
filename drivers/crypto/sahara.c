@@ -940,7 +940,7 @@ static int sahara_walk_and_recalc(struct scatterlist *sg, unsigned int nbytes)
 			break;
 		}
 		nbytes -= sg->length;
-		sg = scatterwalk_sg_next(sg);
+		sg = sg_next(sg);
 	}
 
 	return nbytes;

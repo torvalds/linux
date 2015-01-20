@@ -110,7 +110,7 @@ static int sg_count(struct scatterlist *sg_list)
 
 	while (!sg_is_last(sg)) {
 		sg_nents++;
-		sg = scatterwalk_sg_next(sg);
+		sg = sg_next(sg);
 	}
 
 	return sg_nents;

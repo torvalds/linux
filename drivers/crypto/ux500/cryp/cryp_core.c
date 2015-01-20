@@ -814,7 +814,7 @@ static int get_nents(struct scatterlist *sg, int nbytes)
 
 	while (nbytes > 0) {
 		nbytes -= sg->length;
-		sg = scatterwalk_sg_next(sg);
+		sg = sg_next(sg);
 		nents++;
 	}
 

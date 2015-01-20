@@ -87,8 +87,7 @@ static inline unsigned int ablkcipher_done_slow(struct ablkcipher_walk *walk,
 		if (n == len_this_page)
 			break;
 		n -= len_this_page;
-		scatterwalk_start(&walk->out, scatterwalk_sg_next(
-			walk->out.sg));
+		scatterwalk_start(&walk->out, sg_next(walk->out.sg));
 	}
 
 	return bsize;

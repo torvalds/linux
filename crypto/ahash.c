@@ -121,7 +121,7 @@ int crypto_hash_walk_done(struct crypto_hash_walk *walk, int err)
 	if (!walk->total)
 		return 0;
 
-	walk->sg = scatterwalk_sg_next(walk->sg);
+	walk->sg = sg_next(walk->sg);
 
 	return hash_walk_new_entry(walk);
 }
