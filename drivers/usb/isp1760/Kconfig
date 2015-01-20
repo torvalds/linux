@@ -1,0 +1,22 @@
+config USB_ISP1760
+	tristate "NXP ISP 1760/1761 support"
+	depends on USB
+	help
+	  Say Y or M here if your system as an ISP1760 USB host controller
+	  or an ISP1761 USB dual-role controller.
+
+	  This driver does not support isochronous transfers or OTG.
+	  This USB controller is usually attached to a non-DMA-Master
+	  capable bus. NXP's eval kit brings this chip on PCI card
+	  where the chip itself is behind a PLB to simulate such
+	  a bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called isp1760.
+
+config USB_ISP1761_UDC
+	boolean "NXP ISP1761 USB Device Controller"
+	depends on USB_ISP1760 && USB_GADGET
+	help
+	   The NXP ISP1761 is a dual-role high-speed USB host and device
+	   controller.

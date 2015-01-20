@@ -109,13 +109,6 @@ config USB_GR_UDC
           Select this to support Aeroflex Gaisler GRUSBDC cores from the GRLIB
 	  VHDL IP core library.
 
-config USB_ISP1761_UDC
-	boolean "NXP ISP1761 USB Device Controller"
-	depends on USB_ISP1760_HCD
-	help
-	   The NXP ISP1761 is a dual-role high-speed USB host and device
-	   controller.
-
 config USB_OMAP
 	tristate "OMAP USB Device Controller"
 	depends on ARCH_OMAP1
