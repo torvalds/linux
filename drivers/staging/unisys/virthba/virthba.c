@@ -1584,6 +1584,8 @@ virthba_serverdown_complete(struct work_struct *work)
 static int
 virthba_serverdown(struct virtpci_dev *virtpcidev, u32 state)
 {
+	int stat = 1;
+
 	struct virthba_info *virthbainfo =
 	    (struct virthba_info *)((struct Scsi_Host *)virtpcidev->scsi.
 				     scsihost)->hostdata;
@@ -1598,11 +1600,12 @@ virthba_serverdown(struct virtpci_dev *virtpcidev, u32 state)
 			   &virthbainfo->serverdown_completion);
 	} else if (virthbainfo->serverchangingstate) {
 		LOGERR("Server already processing change state message\n");
-		return 0;
-	} else
+		stat = 0;
+	} else {
 		LOGERR("Server already down, but another server down message received.");
+	}
 
-	return 1;
+	return stat;
 }
 
 /*****************************************************/
