@@ -277,15 +277,10 @@ static __init int match_config_table(efi_guid_t *guid,
 				     unsigned long table,
 				     efi_config_table_type_t *table_types)
 {
-	u8 str[EFI_VARIABLE_GUID_LEN + 1];
 	int i;
 
 	if (table_types) {
-		efi_guid_to_str(guid, str);
-
 		for (i = 0; efi_guidcmp(table_types[i].guid, NULL_GUID); i++) {
-			efi_guid_to_str(&table_types[i].guid, str);
-
 			if (!efi_guidcmp(*guid, table_types[i].guid)) {
 				*(table_types[i].ptr) = table;
 				pr_cont(" %s=0x%lx ",
