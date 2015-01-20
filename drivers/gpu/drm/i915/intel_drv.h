@@ -872,6 +872,8 @@ void intel_frontbuffer_flip(struct drm_device *dev,
 	intel_frontbuffer_flush(dev, frontbuffer_bits);
 }
 
+int intel_fb_align_height(struct drm_device *dev, int height,
+			  unsigned int tiling);
 void intel_fb_obj_flush(struct drm_i915_gem_object *obj, bool retire);
 
 

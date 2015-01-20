@@ -2188,11 +2188,12 @@ static bool need_vtd_wa(struct drm_device *dev)
 	return false;
 }
 
-static int intel_align_height(struct drm_device *dev, int height, bool tiled)
+int
+intel_fb_align_height(struct drm_device *dev, int height, unsigned int tiling)
 {
 	int tile_height;
 
-	tile_height = tiled ? (IS_GEN2(dev) ? 16 : 8) : 1;
+	tile_height = tiling ? (IS_GEN2(dev) ? 16 : 8) : 1;
 	return ALIGN(height, tile_height);
 }
 
@@ -6590,8 +6591,9 @@ static void i9xx_get_plane_config(struct intel_crtc *crtc,
 	val = I915_READ(DSPSTRIDE(pipe));
 	crtc->base.primary->fb->pitches[0] = val & 0xffffffc0;
 
-	aligned_height = intel_align_height(dev, crtc->base.primary->fb->height,
-					    plane_config->tiling);
+	aligned_height = intel_fb_align_height(dev,
+					       crtc->base.primary->fb->height,
+					       plane_config->tiling);
 
 	plane_config->size = PAGE_ALIGN(crtc->base.primary->fb->pitches[0] *
 					aligned_height);
@@ -7644,8 +7646,9 @@ static void ironlake_get_plane_config(struct intel_crtc *crtc,
 	val = I915_READ(DSPSTRIDE(pipe));
 	crtc->base.primary->fb->pitches[0] = val & 0xffffffc0;
 
-	aligned_height = intel_align_height(dev, crtc->base.primary->fb->height,
-					    plane_config->tiling);
+	aligned_height = intel_fb_align_height(dev,
+					       crtc->base.primary->fb->height,
+					       plane_config->tiling);
 
 	plane_config->size = PAGE_ALIGN(crtc->base.primary->fb->pitches[0] *
 					aligned_height);
@@ -12609,8 +12612,8 @@ static int intel_framebuffer_init(struct drm_device *dev,
 	if (mode_cmd->offsets[0] != 0)
 		return -EINVAL;
 
-	aligned_height = intel_align_height(dev, mode_cmd->height,
-					    obj->tiling_mode);
+	aligned_height = intel_fb_align_height(dev, mode_cmd->height,
+					       obj->tiling_mode);
 	/* FIXME drm helper for size checks (especially planar formats)? */
 	if (obj->base.size < aligned_height * mode_cmd->pitches[0])
 		return -EINVAL;
