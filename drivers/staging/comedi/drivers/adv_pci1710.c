@@ -197,8 +197,8 @@ struct boardtype {
 	const struct comedi_lrange *rangelist_ai;	/*  rangelist for A/D */
 	const char *rangecode_ai;	/*  range codes for programming */
 	const struct comedi_lrange *rangelist_ao;	/*  rangelist for D/A */
-	unsigned int fifo_half_size;	/*  size of FIFO/2 */
 	unsigned int has_irq:1;
+	unsigned int has_large_fifo:1;	/* 4K or 1K FIFO */
 	unsigned int has_diff_ai:1;
 	unsigned int has_di_do:1;
 	unsigned int has_counter:1;
@@ -213,8 +213,8 @@ static const struct boardtype boardtypes[] = {
 		.rangelist_ai	= &range_pci1710_3,
 		.rangecode_ai	= range_codes_pci1710_3,
 		.rangelist_ao	= &range_pci171x_da,
-		.fifo_half_size	= 2048,
 		.has_irq	= 1,
+		.has_large_fifo	= 1,
 		.has_diff_ai	= 1,
 		.has_di_do	= 1,
 		.has_counter	= 1,
@@ -227,8 +227,8 @@ static const struct boardtype boardtypes[] = {
 		.rangelist_ai	= &range_pci1710hg,
 		.rangecode_ai	= range_codes_pci1710hg,
 		.rangelist_ao	= &range_pci171x_da,
-		.fifo_half_size	= 2048,
 		.has_irq	= 1,
+		.has_large_fifo	= 1,
 		.has_diff_ai	= 1,
 		.has_di_do	= 1,
 		.has_counter	= 1,
@@ -241,7 +241,6 @@ static const struct boardtype boardtypes[] = {
 		.rangelist_ai	= &range_pci17x1,
 		.rangecode_ai	= range_codes_pci17x1,
 		.rangelist_ao	= &range_pci171x_da,
-		.fifo_half_size	= 512,
 		.has_irq	= 1,
 		.has_di_do	= 1,
 		.has_counter	= 1,
@@ -252,8 +251,8 @@ static const struct boardtype boardtypes[] = {
 		.n_aichan	= 32,
 		.rangelist_ai	= &range_pci1710_3,
 		.rangecode_ai	= range_codes_pci1710_3,
-		.fifo_half_size	= 2048,
 		.has_irq	= 1,
+		.has_large_fifo	= 1,
 		.has_diff_ai	= 1,
 	},
 	[BOARD_PCI1720] = {
@@ -268,13 +267,13 @@ static const struct boardtype boardtypes[] = {
 		.n_aichan	= 16,
 		.rangelist_ai	= &range_pci17x1,
 		.rangecode_ai	= range_codes_pci17x1,
-		.fifo_half_size	= 512,
 		.has_irq	= 1,
 		.has_di_do	= 1,
 	},
 };
 
 struct pci1710_private {
+	unsigned int max_samples;
 	unsigned int CntrlReg;	/*  Control register */
 	unsigned char ai_et;
 	unsigned int ai_et_CntrlReg;
@@ -786,7 +785,7 @@ static int move_block_from_fifo(struct comedi_device *dev,
 static void pci1710_handle_fifo(struct comedi_device *dev,
 				struct comedi_subdevice *s)
 {
-	const struct boardtype *this_board = dev->board_ptr;
+	struct pci1710_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int nsamples;
 	unsigned int m;
@@ -806,7 +805,7 @@ static void pci1710_handle_fifo(struct comedi_device *dev,
 		return;
 	}
 
-	nsamples = this_board->fifo_half_size;
+	nsamples = devpriv->max_samples;
 	if (comedi_samples_to_bytes(s, nsamples) >= s->async->prealloc_bufsz) {
 		m = comedi_bytes_to_samples(s, s->async->prealloc_bufsz);
 		if (move_block_from_fifo(dev, s, m, 0))
@@ -1187,6 +1186,9 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		s->insn_config = pci171x_insn_counter_config;
 		subdev++;
 	}
+
+	/* max_samples is half the FIFO size (2 bytes/sample) */
+	devpriv->max_samples = (this_board->has_large_fifo) ? 2048 : 512;
 
 	return 0;
 }
