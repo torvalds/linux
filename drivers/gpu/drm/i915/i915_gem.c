@@ -4884,25 +4884,18 @@ i915_gem_init_hw(struct drm_device *dev)
 	for (i = 0; i < NUM_L3_SLICES(dev); i++)
 		i915_gem_l3_remap(&dev_priv->ring[RCS], i);
 
-	/*
-	 * XXX: Contexts should only be initialized once. Doing a switch to the
-	 * default context switch however is something we'd like to do after
-	 * reset or thaw (the latter may not actually be necessary for HW, but
-	 * goes with our code better). Context switching requires rings (for
-	 * the do_switch), but before enabling PPGTT. So don't move this.
-	 */
+	ret = i915_ppgtt_init_hw(dev);
+	if (ret && ret != -EIO) {
+		DRM_ERROR("PPGTT enable failed %d\n", ret);
+		i915_gem_cleanup_ringbuffer(dev);
+	}
+
 	ret = i915_gem_context_enable(dev_priv);
 	if (ret && ret != -EIO) {
 		DRM_ERROR("Context enable failed %d\n", ret);
 		i915_gem_cleanup_ringbuffer(dev);
 
 		return ret;
-	}
-
-	ret = i915_ppgtt_init_hw(dev);
-	if (ret && ret != -EIO) {
-		DRM_ERROR("PPGTT enable failed %d\n", ret);
-		i915_gem_cleanup_ringbuffer(dev);
 	}
 
 	return ret;
