@@ -1,5 +1,5 @@
 /*
- * Line6 Pod HD
+ * Line 6 Pod HD
  *
  * Copyright (C) 2011 Stefan Hajnoczi <stefanha@gmail.com>
  *
@@ -28,7 +28,7 @@ enum {
 
 struct usb_line6_podhd {
 	/**
-		Generic Line6 USB data.
+		Generic Line 6 USB data.
 	*/
 	struct usb_line6 line6;
 };
@@ -205,5 +205,5 @@ static struct usb_driver podhd_driver = {
 
 module_usb_driver(podhd_driver);
 
-MODULE_DESCRIPTION("Line6 PODHD USB driver");
+MODULE_DESCRIPTION("Line 6 PODHD USB driver");
 MODULE_LICENSE("GPL");

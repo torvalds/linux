@@ -1,5 +1,5 @@
 /*
- * Line6 Linux USB driver - 0.9.1beta
+ * Line 6 Linux USB driver - 0.9.1beta
  *
  * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
@@ -26,10 +26,10 @@
 #include "usbdefs.h"
 
 #define DRIVER_AUTHOR  "Markus Grabner <grabner@icg.tugraz.at>"
-#define DRIVER_DESC    "Line6 USB Driver"
+#define DRIVER_DESC    "Line 6 USB Driver"
 
 /*
-	This is Line6's MIDI manufacturer ID.
+	This is Line 6's MIDI manufacturer ID.
 */
 const unsigned char line6_midi_id[] = {
 	0x00, 0x01, 0x0c
@@ -260,7 +260,7 @@ char *line6_alloc_sysex_buffer(struct usb_line6 *line6, int code1, int code2,
 EXPORT_SYMBOL_GPL(line6_alloc_sysex_buffer);
 
 /*
-	Notification of data received from the Line6 device.
+	Notification of data received from the Line 6 device.
 */
 static void line6_data_received(struct urb *urb)
 {
@@ -402,7 +402,7 @@ int line6_write_data(struct usb_line6 *line6, int address, void *data,
 EXPORT_SYMBOL_GPL(line6_write_data);
 
 /*
-	Read Line6 device serial number.
+	Read Line 6 device serial number.
 	(POD, TonePort, GuitarPort)
 */
 int line6_read_serial_number(struct usb_line6 *line6, int *serial_number)
@@ -468,7 +468,7 @@ int line6_probe(struct usb_interface *interface,
 	}
 
 	/* initialize device info: */
-	dev_info(&interface->dev, "Line6 %s found\n", properties->name);
+	dev_info(&interface->dev, "Line 6 %s found\n", properties->name);
 
 	/* query interface number */
 	interface_number = interface->cur_altsetting->desc.bInterfaceNumber;
@@ -514,7 +514,7 @@ int line6_probe(struct usb_interface *interface,
 	strcpy(card->id, line6->properties->id);
 	strcpy(card->driver, DRIVER_NAME);
 	strcpy(card->shortname, line6->properties->name);
-	sprintf(card->longname, "Line6 %s at USB %s", line6->properties->name,
+	sprintf(card->longname, "Line 6 %s at USB %s", line6->properties->name,
 		dev_name(line6->ifcdev));
 	card->private_data = line6;
 	card->private_free = line6_destruct;
@@ -562,7 +562,7 @@ int line6_probe(struct usb_interface *interface,
 
 	/* creation of additional special files should go here */
 
-	dev_info(&interface->dev, "Line6 %s now attached\n",
+	dev_info(&interface->dev, "Line 6 %s now attached\n",
 		 line6->properties->name);
 
 	return 0;
@@ -575,7 +575,7 @@ int line6_probe(struct usb_interface *interface,
 EXPORT_SYMBOL_GPL(line6_probe);
 
 /*
-	Line6 device disconnected.
+	Line 6 device disconnected.
 */
 void line6_disconnect(struct usb_interface *interface)
 {
@@ -606,7 +606,7 @@ void line6_disconnect(struct usb_interface *interface)
 	if (line6->disconnect)
 		line6->disconnect(interface);
 
-	dev_info(&interface->dev, "Line6 %s now disconnected\n",
+	dev_info(&interface->dev, "Line 6 %s now disconnected\n",
 		 line6->properties->name);
 
 	/* make sure the device isn't destructed twice: */
@@ -619,7 +619,7 @@ EXPORT_SYMBOL_GPL(line6_disconnect);
 #ifdef CONFIG_PM
 
 /*
-	Suspend Line6 device.
+	Suspend Line 6 device.
 */
 int line6_suspend(struct usb_interface *interface, pm_message_t message)
 {
@@ -641,7 +641,7 @@ int line6_suspend(struct usb_interface *interface, pm_message_t message)
 EXPORT_SYMBOL_GPL(line6_suspend);
 
 /*
-	Resume Line6 device.
+	Resume Line 6 device.
 */
 int line6_resume(struct usb_interface *interface)
 {

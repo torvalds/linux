@@ -1,5 +1,5 @@
 /*
- * Line6 Linux USB driver - 0.9.1beta
+ * Line 6 Linux USB driver - 0.9.1beta
  *
  * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
@@ -226,7 +226,7 @@ static int snd_line6_new_midi(struct usb_line6 *line6,
 	struct snd_rawmidi *rmidi;
 	int err;
 
-	err = snd_rawmidi_new(line6->card, "Line6 MIDI", 0, 1, 1, rmidi_ret);
+	err = snd_rawmidi_new(line6->card, "Line 6 MIDI", 0, 1, 1, rmidi_ret);
 	if (err < 0)
 		return err;
 
@@ -256,7 +256,7 @@ static void snd_line6_midi_free(struct snd_rawmidi *rmidi)
 }
 
 /*
-	Initialize the Line6 MIDI subsystem.
+	Initialize the Line 6 MIDI subsystem.
 */
 int line6_init_midi(struct usb_line6 *line6)
 {

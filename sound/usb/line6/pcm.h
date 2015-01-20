@@ -1,5 +1,5 @@
 /*
- * Line6 Linux USB driver - 0.9.1beta
+ * Line 6 Linux USB driver - 0.9.1beta
  *
  * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
@@ -26,7 +26,7 @@
 
 /*
 	number of USB frames per URB
-	The Line6 Windows driver always transmits two frames per packet, but
+	The Line 6 Windows driver always transmits two frames per packet, but
 	the Linux driver performs significantly better (i.e., lower latency)
 	with only one frame per packet.
 */
@@ -38,7 +38,7 @@
 #define LINE6_IMPULSE_DEFAULT_PERIOD 100
 
 /*
-	Get substream from Line6 PCM data structure
+	Get substream from Line 6 PCM data structure
 */
 #define get_substream(line6pcm, stream)	\
 		(line6pcm->pcm->streams[stream].substream)
@@ -46,7 +46,7 @@
 /*
 	PCM mode bits.
 
-	There are several features of the Line6 USB driver which require PCM
+	There are several features of the Line 6 USB driver which require PCM
 	data to be exchanged with the device:
 	*) PCM playback and capture via ALSA
 	*) software monitoring (for devices without hardware monitoring)
@@ -167,7 +167,7 @@ struct line6_pcm_properties {
 
 struct snd_line6_pcm {
 	/**
-		 Pointer back to the Line6 driver data structure.
+		 Pointer back to the Line 6 driver data structure.
 	*/
 	struct usb_line6 *line6;
 

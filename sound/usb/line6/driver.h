@@ -1,5 +1,5 @@
 /*
- * Line6 Linux USB driver - 0.9.1beta
+ * Line 6 Linux USB driver - 0.9.1beta
  *
  * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
@@ -25,7 +25,7 @@
 #define LINE6_MESSAGE_MAXLEN 256
 
 /*
-	Line6 MIDI control commands
+	Line 6 MIDI control commands
 */
 #define LINE6_PARAM_CHANGE   0xb0
 #define LINE6_PROGRAM_CHANGE 0xc0
@@ -61,7 +61,7 @@ static const int SYSEX_DATA_OFS = sizeof(line6_midi_id) + 3;
 static const int SYSEX_EXTRA_SIZE = sizeof(line6_midi_id) + 4;
 
 /**
-	 Common properties of Line6 devices.
+	 Common properties of Line 6 devices.
 */
 struct line6_properties {
 	/**
@@ -91,7 +91,7 @@ struct line6_properties {
 };
 
 /**
-	 Common data shared by all Line6 devices.
+	 Common data shared by all Line 6 devices.
 	 Corresponds to a pair of USB endpoints.
 */
 struct usb_line6 {
@@ -121,18 +121,18 @@ struct usb_line6 {
 	struct device *ifcdev;
 
 	/**
-		 Line6 sound card data structure.
+		 Line 6 sound card data structure.
 		 Each device has at least MIDI or PCM.
 	*/
 	struct snd_card *card;
 
 	/**
-		 Line6 PCM device data structure.
+		 Line 6 PCM device data structure.
 	*/
 	struct snd_line6_pcm *line6pcm;
 
 	/**
-		 Line6 MIDI device data structure.
+		 Line 6 MIDI device data structure.
 	*/
 	struct snd_line6_midi *line6midi;
 

@@ -4,7 +4,7 @@ config SND_USB_LINE6
 	select SND_PCM
 
 config SND_USB_POD
-	tristate "Line6 POD USB support"
+	tristate "Line 6 POD USB support"
 	select SND_USB_LINE6
 	help
 	  This is a driver for PODxt and other similar devices,
@@ -21,7 +21,7 @@ config SND_USB_POD
 	      re-amping)
 
 config SND_USB_PODHD
-	tristate "Line6 POD HD300/400/500 USB support"
+	tristate "Line 6 POD HD300/400/500 USB support"
 	select SND_USB_LINE6
 	help
 	  This is a driver for POD HD300, 400 and 500 devices.
