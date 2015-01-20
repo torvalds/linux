@@ -2,9 +2,8 @@
 #define _ISP1760_HCD_H_
 
 /* exports for if */
-int isp1760_register(phys_addr_t res_start, resource_size_t res_len, int irq,
-		     unsigned long irqflags, struct device *dev,
-		     unsigned int devflags);
+int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
+		     struct device *dev, unsigned int devflags);
 void isp1760_unregister(struct device *dev);
 
 int isp1760_init_kmem_once(void);

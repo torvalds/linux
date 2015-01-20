@@ -2211,9 +2211,8 @@ void isp1760_deinit_kmem_cache(void)
 	kmem_cache_destroy(urb_listitem_cachep);
 }
 
-int isp1760_register(phys_addr_t res_start, resource_size_t res_len, int irq,
-		     unsigned long irqflags, struct device *dev,
-		     unsigned int devflags)
+int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
+		     struct device *dev, unsigned int devflags)
 {
 	struct usb_hcd *hcd;
 	struct isp1760_hcd *priv;
@@ -2239,15 +2238,15 @@ int isp1760_register(phys_addr_t res_start, resource_size_t res_len, int irq,
 	}
 
 	init_memory(priv);
-	hcd->regs = ioremap(res_start, res_len);
+	hcd->regs = ioremap(mem->start, resource_size(mem));
 	if (!hcd->regs) {
 		ret = -EIO;
 		goto err_put;
 	}
 
 	hcd->irq = irq;
-	hcd->rsrc_start = res_start;
-	hcd->rsrc_len = res_len;
+	hcd->rsrc_start = mem->start;
+	hcd->rsrc_len = resource_size(mem);
 
 	ret = usb_add_hcd(hcd, irq, irqflags);
 	if (ret)
