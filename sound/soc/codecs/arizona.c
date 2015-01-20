@@ -734,6 +734,8 @@ int arizona_out_ev(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol,
 		   int event)
 {
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(w->codec);
+
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		switch (w->shift) {
@@ -746,6 +748,39 @@ int arizona_out_ev(struct snd_soc_dapm_widget *w,
 			msleep(17);
 			break;
 
+		default:
+			break;
+		}
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		switch (w->shift) {
+		case ARIZONA_OUT1L_ENA_SHIFT:
+		case ARIZONA_OUT1R_ENA_SHIFT:
+		case ARIZONA_OUT2L_ENA_SHIFT:
+		case ARIZONA_OUT2R_ENA_SHIFT:
+		case ARIZONA_OUT3L_ENA_SHIFT:
+		case ARIZONA_OUT3R_ENA_SHIFT:
+			priv->out_down_pending++;
+			priv->out_down_delay++;
+			break;
+		default:
+			break;
+		}
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		switch (w->shift) {
+		case ARIZONA_OUT1L_ENA_SHIFT:
+		case ARIZONA_OUT1R_ENA_SHIFT:
+		case ARIZONA_OUT2L_ENA_SHIFT:
+		case ARIZONA_OUT2R_ENA_SHIFT:
+		case ARIZONA_OUT3L_ENA_SHIFT:
+		case ARIZONA_OUT3R_ENA_SHIFT:
+			priv->out_down_pending--;
+			if (!priv->out_down_pending) {
+				msleep(priv->out_down_delay);
+				priv->out_down_delay = 0;
+			}
+			break;
 		default:
 			break;
 		}
@@ -772,6 +807,8 @@ int arizona_hp_ev(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_PRE_PMD:
 		val = 0;
 		break;
+	case SND_SOC_DAPM_POST_PMD:
+		return arizona_out_ev(w, kcontrol, event);
 	default:
 		return -EINVAL;
 	}
