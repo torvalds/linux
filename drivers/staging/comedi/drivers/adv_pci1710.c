@@ -193,13 +193,13 @@ struct boardtype {
 	const char *name;	/*  board name */
 	char cardtype;		/*  0=1710& co. 2=1713, ... */
 	int n_aichan;		/*  num of A/D chans */
-	int n_aochan;		/*  num of D/A chans */
 	const struct comedi_lrange *rangelist_ai;	/*  rangelist for A/D */
 	const char *rangecode_ai;	/*  range codes for programming */
 	const struct comedi_lrange *rangelist_ao;	/*  rangelist for D/A */
 	unsigned int has_irq:1;
 	unsigned int has_large_fifo:1;	/* 4K or 1K FIFO */
 	unsigned int has_diff_ai:1;
+	unsigned int has_ao:1;
 	unsigned int has_di_do:1;
 	unsigned int has_counter:1;
 };
@@ -209,13 +209,13 @@ static const struct boardtype boardtypes[] = {
 		.name		= "pci1710",
 		.cardtype	= TYPE_PCI171X,
 		.n_aichan	= 16,
-		.n_aochan	= 2,
 		.rangelist_ai	= &range_pci1710_3,
 		.rangecode_ai	= range_codes_pci1710_3,
 		.rangelist_ao	= &range_pci171x_da,
 		.has_irq	= 1,
 		.has_large_fifo	= 1,
 		.has_diff_ai	= 1,
+		.has_ao		= 1,
 		.has_di_do	= 1,
 		.has_counter	= 1,
 	},
@@ -223,13 +223,13 @@ static const struct boardtype boardtypes[] = {
 		.name		= "pci1710hg",
 		.cardtype	= TYPE_PCI171X,
 		.n_aichan	= 16,
-		.n_aochan	= 2,
 		.rangelist_ai	= &range_pci1710hg,
 		.rangecode_ai	= range_codes_pci1710hg,
 		.rangelist_ao	= &range_pci171x_da,
 		.has_irq	= 1,
 		.has_large_fifo	= 1,
 		.has_diff_ai	= 1,
+		.has_ao		= 1,
 		.has_di_do	= 1,
 		.has_counter	= 1,
 	},
@@ -237,11 +237,11 @@ static const struct boardtype boardtypes[] = {
 		.name		= "pci1711",
 		.cardtype	= TYPE_PCI171X,
 		.n_aichan	= 16,
-		.n_aochan	= 2,
 		.rangelist_ai	= &range_pci17x1,
 		.rangecode_ai	= range_codes_pci17x1,
 		.rangelist_ao	= &range_pci171x_da,
 		.has_irq	= 1,
+		.has_ao		= 1,
 		.has_di_do	= 1,
 		.has_counter	= 1,
 	},
@@ -258,8 +258,8 @@ static const struct boardtype boardtypes[] = {
 	[BOARD_PCI1720] = {
 		.name		= "pci1720",
 		.cardtype	= TYPE_PCI1720,
-		.n_aochan	= 4,
 		.rangelist_ao	= &range_pci1720,
+		.has_ao		= 1,
 	},
 	[BOARD_PCI1731] = {
 		.name		= "pci1731",
@@ -1008,15 +1008,13 @@ static int pci171x_reset(struct comedi_device *dev)
 	outb(0, dev->iobase + PCI171x_CLRINT);	/*  clear INT request */
 	pci171x_start_pacer(dev, false);
 	devpriv->da_ranges = 0;
-	if (this_board->n_aochan) {
+	if (this_board->has_ao) {
 		/* set DACs to 0..5V */
 		outb(devpriv->da_ranges, dev->iobase + PCI171x_DAREF);
 		outw(0, dev->iobase + PCI171x_DA1); /* set DA outputs to 0V */
 		devpriv->ao_data[0] = 0x0000;
-		if (this_board->n_aochan > 1) {
-			outw(0, dev->iobase + PCI171x_DA2);
-			devpriv->ao_data[1] = 0x0000;
-		}
+		outw(0, dev->iobase + PCI171x_DA2);
+		devpriv->ao_data[1] = 0x0000;
 	}
 	outw(0, dev->iobase + PCI171x_DO);	/*  digital outputs to 0 */
 	outb(0, dev->iobase + PCI171x_CLRFIFO);	/*  clear FIFO */
@@ -1091,7 +1089,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 	n_subdevices = 0;
 	if (this_board->n_aichan)
 		n_subdevices++;
-	if (this_board->n_aochan)
+	if (this_board->has_ao)
 		n_subdevices++;
 	if (this_board->has_di_do)
 		n_subdevices += 2;
@@ -1134,19 +1132,19 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		subdev++;
 	}
 
-	if (this_board->n_aochan) {
+	if (this_board->has_ao) {
 		s = &dev->subdevices[subdev];
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = this_board->n_aochan;
 		s->maxdata = 0x0fff;
-		s->len_chanlist = this_board->n_aochan;
 		s->range_table = this_board->rangelist_ao;
 		switch (this_board->cardtype) {
 		case TYPE_PCI1720:
+			s->n_chan = 4;
 			s->insn_write = pci1720_insn_write_ao;
 			break;
 		default:
+			s->n_chan = 2;
 			s->insn_write = pci171x_insn_write_ao;
 			break;
 		}
