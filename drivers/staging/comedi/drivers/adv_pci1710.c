@@ -191,7 +191,6 @@ enum pci1710_boardid {
 
 struct boardtype {
 	const char *name;	/*  board name */
-	char have_irq;		/*  1=card support IRQ */
 	char cardtype;		/*  0=1710& co. 2=1713, ... */
 	int n_aichan;		/*  num of A/D chans */
 	int n_aichand;		/*  num of A/D chans in diff mode */
@@ -203,6 +202,7 @@ struct boardtype {
 	const struct comedi_lrange *rangelist_ao;	/*  rangelist for D/A */
 	unsigned int ai_ns_min;	/*  max sample speed of card v ns */
 	unsigned int fifo_half_size;	/*  size of FIFO/2 */
+	unsigned int has_irq:1;
 	unsigned int has_di_do:1;
 	unsigned int has_counter:1;
 };
@@ -210,7 +210,6 @@ struct boardtype {
 static const struct boardtype boardtypes[] = {
 	[BOARD_PCI1710] = {
 		.name		= "pci1710",
-		.have_irq	= 1,
 		.cardtype	= TYPE_PCI171X,
 		.n_aichan	= 16,
 		.n_aichand	= 8,
@@ -222,12 +221,12 @@ static const struct boardtype boardtypes[] = {
 		.rangelist_ao	= &range_pci171x_da,
 		.ai_ns_min	= 10000,
 		.fifo_half_size	= 2048,
+		.has_irq	= 1,
 		.has_di_do	= 1,
 		.has_counter	= 1,
 	},
 	[BOARD_PCI1710HG] = {
 		.name		= "pci1710hg",
-		.have_irq	= 1,
 		.cardtype	= TYPE_PCI171X,
 		.n_aichan	= 16,
 		.n_aichand	= 8,
@@ -239,12 +238,12 @@ static const struct boardtype boardtypes[] = {
 		.rangelist_ao	= &range_pci171x_da,
 		.ai_ns_min	= 10000,
 		.fifo_half_size	= 2048,
+		.has_irq	= 1,
 		.has_di_do	= 1,
 		.has_counter	= 1,
 	},
 	[BOARD_PCI1711] = {
 		.name		= "pci1711",
-		.have_irq	= 1,
 		.cardtype	= TYPE_PCI171X,
 		.n_aichan	= 16,
 		.n_aochan	= 2,
@@ -255,12 +254,12 @@ static const struct boardtype boardtypes[] = {
 		.rangelist_ao	= &range_pci171x_da,
 		.ai_ns_min	= 10000,
 		.fifo_half_size	= 512,
+		.has_irq	= 1,
 		.has_di_do	= 1,
 		.has_counter	= 1,
 	},
 	[BOARD_PCI1713] = {
 		.name		= "pci1713",
-		.have_irq	= 1,
 		.cardtype	= TYPE_PCI1713,
 		.n_aichan	= 32,
 		.n_aichand	= 16,
@@ -269,6 +268,7 @@ static const struct boardtype boardtypes[] = {
 		.rangecode_ai	= range_codes_pci1710_3,
 		.ai_ns_min	= 10000,
 		.fifo_half_size	= 2048,
+		.has_irq	= 1,
 	},
 	[BOARD_PCI1720] = {
 		.name		= "pci1720",
@@ -279,7 +279,6 @@ static const struct boardtype boardtypes[] = {
 	},
 	[BOARD_PCI1731] = {
 		.name		= "pci1731",
-		.have_irq	= 1,
 		.cardtype	= TYPE_PCI171X,
 		.n_aichan	= 16,
 		.ai_maxdata	= 0x0fff,
@@ -287,6 +286,7 @@ static const struct boardtype boardtypes[] = {
 		.rangecode_ai	= range_codes_pci17x1,
 		.ai_ns_min	= 10000,
 		.fifo_half_size	= 512,
+		.has_irq	= 1,
 		.has_di_do	= 1,
 	},
 };
@@ -1124,7 +1124,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 
 	pci1710_reset(dev);
 
-	if (this_board->have_irq && pcidev->irq) {
+	if (this_board->has_irq && pcidev->irq) {
 		ret = request_irq(pcidev->irq, interrupt_service_pci1710,
 				  IRQF_SHARED, dev->board_name, dev);
 		if (ret == 0)
