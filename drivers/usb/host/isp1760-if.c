@@ -85,8 +85,9 @@ static int isp1761_pci_probe(struct pci_dev *dev,
 	chip_addr = ioremap_nocache(pci_mem_phy0,memlength);
 	if (!chip_addr) {
 		printk(KERN_ERR "Error ioremap failed\n");
+		release_mem_region(pci_mem_phy0, memlength);
 		ret_status = -ENOMEM;
-		goto cleanup3;
+		goto cleanup2;
 	}
 
 	/* bad pci latencies can contribute to overruns */
@@ -114,6 +115,7 @@ static int isp1761_pci_probe(struct pci_dev *dev,
 	}
 
 	iounmap(chip_addr);
+	release_mem_region(pci_mem_phy0, memlength);
 
 	/* Host Controller presence is detected by writing to scratch register
 	 * and reading back and checking the contents are same or not
@@ -121,7 +123,7 @@ static int isp1761_pci_probe(struct pci_dev *dev,
 	if (reg_data != 0xFACE) {
 		dev_err(&dev->dev, "scratch register mismatch %x\n", reg_data);
 		ret_status = -ENOMEM;
-		goto cleanup3;
+		goto cleanup2;
 	}
 
 	pci_set_master(dev);
@@ -132,20 +134,14 @@ static int isp1761_pci_probe(struct pci_dev *dev,
 	reg_data |= 0x900;
 	writel(reg_data, iobase + PLX_INT_CSR_REG);
 
-	dev->dev.dma_mask = NULL;
-	ret_status = isp1760_register(&dev->resource[3], dev->irq, IRQF_SHARED,
-				      &dev->dev, devflags);
-	if (ret_status < 0)
-		goto cleanup3;
-
 	/* done with PLX IO access */
 	iounmap(iobase);
 	release_mem_region(nxp_pci_io_base, iolength);
 
-	return 0;
+	dev->dev.dma_mask = NULL;
+	return isp1760_register(&dev->resource[3], dev->irq, IRQF_SHARED,
+				&dev->dev, devflags);
 
-cleanup3:
-	release_mem_region(pci_mem_phy0, memlength);
 cleanup2:
 	iounmap(iobase);
 cleanup1:
@@ -193,25 +189,14 @@ static int isp1760_plat_probe(struct platform_device *pdev)
 	unsigned int devflags = 0;
 	struct resource *mem_res;
 	struct resource *irq_res;
-	resource_size_t mem_size;
 	int ret;
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem_res) {
-		pr_warning("isp1760: Memory resource not available\n");
-		return -ENODEV;
-	}
-	mem_size = resource_size(mem_res);
-	if (!request_mem_region(mem_res->start, mem_size, "isp1760")) {
-		pr_warning("isp1760: Cannot reserve the memory resource\n");
-		return -EBUSY;
-	}
 
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq_res) {
 		pr_warning("isp1760: IRQ resource not available\n");
-		ret = -ENODEV;
-		goto cleanup;
+		return -ENODEV;
 	}
 
 	irqflags |= irq_res->flags & IRQF_TRIGGER_MASK;
@@ -260,14 +245,10 @@ static int isp1760_plat_probe(struct platform_device *pdev)
 	ret = isp1760_register(mem_res, irq_res->start, irqflags, &pdev->dev,
 			       devflags);
 	if (ret < 0)
-		goto cleanup;
+		return ret;
 
 	pr_info("ISP1760 USB device initialised\n");
 	return 0;
-
-cleanup:
-	release_mem_region(mem_res->start, mem_size);
-	return ret;
 }
 
 static int isp1760_plat_remove(struct platform_device *pdev)

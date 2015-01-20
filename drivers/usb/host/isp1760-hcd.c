@@ -2234,14 +2234,14 @@ int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
 	priv->rst_gpio = devm_gpiod_get_optional(dev, NULL, GPIOD_OUT_HIGH);
 	if (IS_ERR(priv->rst_gpio)) {
 		ret = PTR_ERR(priv->rst_gpio);
-		goto err_put;
+		goto error;
 	}
 
 	init_memory(priv);
-	hcd->regs = ioremap(mem->start, resource_size(mem));
-	if (!hcd->regs) {
-		ret = -EIO;
-		goto err_put;
+	hcd->regs = devm_ioremap_resource(dev, mem);
+	if (IS_ERR(hcd->regs)) {
+		ret = PTR_ERR(hcd->regs);
+		goto error;
 	}
 
 	hcd->irq = irq;
@@ -2250,19 +2250,15 @@ int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
 
 	ret = usb_add_hcd(hcd, irq, irqflags);
 	if (ret)
-		goto err_unmap;
+		goto error;
 	device_wakeup_enable(hcd->self.controller);
 
 	dev_set_drvdata(dev, hcd);
 
 	return 0;
 
-err_unmap:
-	iounmap(hcd->regs);
-
-err_put:
+error:
 	usb_put_hcd(hcd);
-
 	return ret;
 }
 
@@ -2271,8 +2267,6 @@ void isp1760_unregister(struct device *dev)
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 
 	usb_remove_hcd(hcd);
-	iounmap(hcd->regs);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
 }
 
