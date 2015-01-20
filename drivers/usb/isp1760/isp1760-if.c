@@ -126,9 +126,6 @@ static int isp1761_pci_probe(struct pci_dev *dev,
 	unsigned int devflags = 0;
 	int ret;
 
-	if (usb_disabled())
-		return -ENODEV;
-
 	if (!dev->irq)
 		return -ENODEV;
 
