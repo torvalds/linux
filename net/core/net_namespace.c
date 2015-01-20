@@ -202,6 +202,7 @@ int peernet2id(struct net *net, struct net *peer)
 
 	return id >= 0 ? id : NETNSA_NSID_NOT_ASSIGNED;
 }
+EXPORT_SYMBOL(peernet2id);
 
 struct net *get_net_ns_by_id(struct net *net, int id)
 {

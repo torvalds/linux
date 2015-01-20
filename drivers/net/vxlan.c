@@ -339,6 +339,11 @@ static int vxlan_fdb_info(struct sk_buff *skb, struct vxlan_dev *vxlan,
 	ndm->ndm_flags = fdb->flags;
 	ndm->ndm_type = RTN_UNICAST;
 
+	if (!net_eq(dev_net(vxlan->dev), vxlan->net) &&
+	    nla_put_s32(skb, NDA_NDM_IFINDEX_NETNSID,
+			peernet2id(vxlan->net, dev_net(vxlan->dev))))
+		goto nla_put_failure;
+
 	if (send_eth && nla_put(skb, NDA_LLADDR, ETH_ALEN, &fdb->eth_addr))
 		goto nla_put_failure;
 
