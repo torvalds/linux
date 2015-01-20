@@ -257,7 +257,7 @@ struct intel_plane_state {
 	bool hides_primary;
 };
 
-struct intel_plane_config {
+struct intel_initial_plane_config {
 	unsigned int tiling;
 	int size;
 	u32 base;
@@ -468,7 +468,7 @@ struct intel_crtc {
 	uint32_t cursor_size;
 	uint32_t cursor_base;
 
-	struct intel_plane_config plane_config;
+	struct intel_initial_plane_config plane_config;
 	struct intel_crtc_state *config;
 	struct intel_crtc_state *new_config;
 	bool new_enabled;

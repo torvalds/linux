@@ -531,7 +531,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 	struct intel_framebuffer *fb = NULL;
 	struct drm_crtc *crtc;
 	struct intel_crtc *intel_crtc;
-	struct intel_plane_config *plane_config = NULL;
+	struct intel_initial_plane_config *plane_config = NULL;
 	unsigned int max_size = 0;
 
 	if (!i915.fastboot)

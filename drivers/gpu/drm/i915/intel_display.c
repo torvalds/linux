@@ -2363,8 +2363,9 @@ static int skl_format_to_fourcc(int format, bool rgb_order, bool alpha)
 	}
 }
 
-static bool intel_alloc_plane_obj(struct intel_crtc *crtc,
-				  struct intel_plane_config *plane_config)
+static bool
+intel_alloc_plane_obj(struct intel_crtc *crtc,
+		      struct intel_initial_plane_config *plane_config)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_gem_object *obj = NULL;
@@ -2408,8 +2409,9 @@ out_unref_obj:
 	return false;
 }
 
-static void intel_find_plane_obj(struct intel_crtc *intel_crtc,
-				 struct intel_plane_config *plane_config)
+static void
+intel_find_plane_obj(struct intel_crtc *intel_crtc,
+		     struct intel_initial_plane_config *plane_config)
 {
 	struct drm_device *dev = intel_crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -6571,8 +6573,9 @@ static void vlv_crtc_clock_get(struct intel_crtc *crtc,
 	pipe_config->port_clock = clock.dot / 5;
 }
 
-static void i9xx_get_plane_config(struct intel_crtc *crtc,
-				  struct intel_plane_config *plane_config)
+static void
+i9xx_get_initial_plane_config(struct intel_crtc *crtc,
+			      struct intel_initial_plane_config *plane_config)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -7599,8 +7602,9 @@ static void skylake_get_pfit_config(struct intel_crtc *crtc,
 	}
 }
 
-static void skylake_get_plane_config(struct intel_crtc *crtc,
-				      struct intel_plane_config *plane_config)
+static void
+skylake_get_initial_plane_config(struct intel_crtc *crtc,
+				 struct intel_initial_plane_config *plane_config)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -7691,8 +7695,9 @@ static void ironlake_get_pfit_config(struct intel_crtc *crtc,
 	}
 }
 
-static void ironlake_get_plane_config(struct intel_crtc *crtc,
-				      struct intel_plane_config *plane_config)
+static void
+ironlake_get_initial_plane_config(struct intel_crtc *crtc,
+				  struct intel_initial_plane_config *plane_config)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -12764,7 +12769,8 @@ static void intel_init_display(struct drm_device *dev)
 
 	if (INTEL_INFO(dev)->gen >= 9) {
 		dev_priv->display.get_pipe_config = haswell_get_pipe_config;
-		dev_priv->display.get_plane_config = skylake_get_plane_config;
+		dev_priv->display.get_initial_plane_config =
+			skylake_get_initial_plane_config;
 		dev_priv->display.crtc_compute_clock =
 			haswell_crtc_compute_clock;
 		dev_priv->display.crtc_enable = haswell_crtc_enable;
@@ -12774,7 +12780,8 @@ static void intel_init_display(struct drm_device *dev)
 			skylake_update_primary_plane;
 	} else if (HAS_DDI(dev)) {
 		dev_priv->display.get_pipe_config = haswell_get_pipe_config;
-		dev_priv->display.get_plane_config = ironlake_get_plane_config;
+		dev_priv->display.get_initial_plane_config =
+			ironlake_get_initial_plane_config;
 		dev_priv->display.crtc_compute_clock =
 			haswell_crtc_compute_clock;
 		dev_priv->display.crtc_enable = haswell_crtc_enable;
@@ -12784,7 +12791,8 @@ static void intel_init_display(struct drm_device *dev)
 			ironlake_update_primary_plane;
 	} else if (HAS_PCH_SPLIT(dev)) {
 		dev_priv->display.get_pipe_config = ironlake_get_pipe_config;
-		dev_priv->display.get_plane_config = ironlake_get_plane_config;
+		dev_priv->display.get_initial_plane_config =
+			ironlake_get_initial_plane_config;
 		dev_priv->display.crtc_compute_clock =
 			ironlake_crtc_compute_clock;
 		dev_priv->display.crtc_enable = ironlake_crtc_enable;
@@ -12794,7 +12802,8 @@ static void intel_init_display(struct drm_device *dev)
 			ironlake_update_primary_plane;
 	} else if (IS_VALLEYVIEW(dev)) {
 		dev_priv->display.get_pipe_config = i9xx_get_pipe_config;
-		dev_priv->display.get_plane_config = i9xx_get_plane_config;
+		dev_priv->display.get_initial_plane_config =
+			i9xx_get_initial_plane_config;
 		dev_priv->display.crtc_compute_clock = i9xx_crtc_compute_clock;
 		dev_priv->display.crtc_enable = valleyview_crtc_enable;
 		dev_priv->display.crtc_disable = i9xx_crtc_disable;
@@ -12803,7 +12812,8 @@ static void intel_init_display(struct drm_device *dev)
 			i9xx_update_primary_plane;
 	} else {
 		dev_priv->display.get_pipe_config = i9xx_get_pipe_config;
-		dev_priv->display.get_plane_config = i9xx_get_plane_config;
+		dev_priv->display.get_initial_plane_config =
+			i9xx_get_initial_plane_config;
 		dev_priv->display.crtc_compute_clock = i9xx_crtc_compute_clock;
 		dev_priv->display.crtc_enable = i9xx_crtc_enable;
 		dev_priv->display.crtc_disable = i9xx_crtc_disable;
@@ -13175,8 +13185,8 @@ void intel_modeset_init(struct drm_device *dev)
 		 * can even allow for smooth boot transitions if the BIOS
 		 * fb is large enough for the active pipe configuration.
 		 */
-		if (dev_priv->display.get_plane_config) {
-			dev_priv->display.get_plane_config(crtc,
+		if (dev_priv->display.get_initial_plane_config) {
+			dev_priv->display.get_initial_plane_config(crtc,
 							   &crtc->plane_config);
 			/*
 			 * If the fb is shared between multiple heads, we'll
