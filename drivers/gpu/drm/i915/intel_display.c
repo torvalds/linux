@@ -6554,9 +6554,10 @@ static void i9xx_get_plane_config(struct intel_crtc *crtc,
 	int pipe = crtc->pipe, plane = crtc->plane;
 	int fourcc, pixel_format;
 	int aligned_height;
+	struct drm_framebuffer *fb;
 
-	crtc->base.primary->fb = kzalloc(sizeof(struct intel_framebuffer), GFP_KERNEL);
-	if (!crtc->base.primary->fb) {
+	fb = kzalloc(sizeof(struct intel_framebuffer), GFP_KERNEL);
+	if (!fb) {
 		DRM_DEBUG_KMS("failed to alloc fb\n");
 		return;
 	}
@@ -6569,9 +6570,8 @@ static void i9xx_get_plane_config(struct intel_crtc *crtc,
 
 	pixel_format = val & DISPPLANE_PIXFORMAT_MASK;
 	fourcc = intel_format_to_fourcc(pixel_format);
-	crtc->base.primary->fb->pixel_format = fourcc;
-	crtc->base.primary->fb->bits_per_pixel =
-		drm_format_plane_cpp(fourcc, 0) * 8;
+	fb->pixel_format = fourcc;
+	fb->bits_per_pixel = drm_format_plane_cpp(fourcc, 0) * 8;
 
 	if (INTEL_INFO(dev)->gen >= 4) {
 		if (plane_config->tiling)
@@ -6585,26 +6585,22 @@ static void i9xx_get_plane_config(struct intel_crtc *crtc,
 	plane_config->base = base;
 
 	val = I915_READ(PIPESRC(pipe));
-	crtc->base.primary->fb->width = ((val >> 16) & 0xfff) + 1;
-	crtc->base.primary->fb->height = ((val >> 0) & 0xfff) + 1;
+	fb->width = ((val >> 16) & 0xfff) + 1;
+	fb->height = ((val >> 0) & 0xfff) + 1;
 
 	val = I915_READ(DSPSTRIDE(pipe));
-	crtc->base.primary->fb->pitches[0] = val & 0xffffffc0;
+	fb->pitches[0] = val & 0xffffffc0;
 
-	aligned_height = intel_fb_align_height(dev,
-					       crtc->base.primary->fb->height,
+	aligned_height = intel_fb_align_height(dev, fb->height,
 					       plane_config->tiling);
 
-	plane_config->size = PAGE_ALIGN(crtc->base.primary->fb->pitches[0] *
-					aligned_height);
+	plane_config->size = PAGE_ALIGN(fb->pitches[0] * aligned_height);
 
 	DRM_DEBUG_KMS("pipe/plane %d/%d with fb: size=%dx%d@%d, offset=%x, pitch %d, size 0x%x\n",
-		      pipe, plane, crtc->base.primary->fb->width,
-		      crtc->base.primary->fb->height,
-		      crtc->base.primary->fb->bits_per_pixel, base,
-		      crtc->base.primary->fb->pitches[0],
-		      plane_config->size);
+		      pipe, plane, fb->width, fb->height, fb->bits_per_pixel,
+		      base, fb->pitches[0], plane_config->size);
 
+	crtc->base.primary->fb = fb;
 }
 
 static void chv_crtc_clock_get(struct intel_crtc *crtc,
@@ -7609,9 +7605,10 @@ static void ironlake_get_plane_config(struct intel_crtc *crtc,
 	int pipe = crtc->pipe, plane = crtc->plane;
 	int fourcc, pixel_format;
 	int aligned_height;
+	struct drm_framebuffer *fb;
 
-	crtc->base.primary->fb = kzalloc(sizeof(struct intel_framebuffer), GFP_KERNEL);
-	if (!crtc->base.primary->fb) {
+	fb = kzalloc(sizeof(struct intel_framebuffer), GFP_KERNEL);
+	if (!fb) {
 		DRM_DEBUG_KMS("failed to alloc fb\n");
 		return;
 	}
@@ -7624,9 +7621,8 @@ static void ironlake_get_plane_config(struct intel_crtc *crtc,
 
 	pixel_format = val & DISPPLANE_PIXFORMAT_MASK;
 	fourcc = intel_format_to_fourcc(pixel_format);
-	crtc->base.primary->fb->pixel_format = fourcc;
-	crtc->base.primary->fb->bits_per_pixel =
-		drm_format_plane_cpp(fourcc, 0) * 8;
+	fb->pixel_format = fourcc;
+	fb->bits_per_pixel = drm_format_plane_cpp(fourcc, 0) * 8;
 
 	base = I915_READ(DSPSURF(plane)) & 0xfffff000;
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
@@ -7640,25 +7636,22 @@ static void ironlake_get_plane_config(struct intel_crtc *crtc,
 	plane_config->base = base;
 
 	val = I915_READ(PIPESRC(pipe));
-	crtc->base.primary->fb->width = ((val >> 16) & 0xfff) + 1;
-	crtc->base.primary->fb->height = ((val >> 0) & 0xfff) + 1;
+	fb->width = ((val >> 16) & 0xfff) + 1;
+	fb->height = ((val >> 0) & 0xfff) + 1;
 
 	val = I915_READ(DSPSTRIDE(pipe));
-	crtc->base.primary->fb->pitches[0] = val & 0xffffffc0;
+	fb->pitches[0] = val & 0xffffffc0;
 
-	aligned_height = intel_fb_align_height(dev,
-					       crtc->base.primary->fb->height,
+	aligned_height = intel_fb_align_height(dev, fb->height,
 					       plane_config->tiling);
 
-	plane_config->size = PAGE_ALIGN(crtc->base.primary->fb->pitches[0] *
-					aligned_height);
+	plane_config->size = PAGE_ALIGN(fb->pitches[0] * aligned_height);
 
 	DRM_DEBUG_KMS("pipe/plane %d/%d with fb: size=%dx%d@%d, offset=%x, pitch %d, size 0x%x\n",
-		      pipe, plane, crtc->base.primary->fb->width,
-		      crtc->base.primary->fb->height,
-		      crtc->base.primary->fb->bits_per_pixel, base,
-		      crtc->base.primary->fb->pitches[0],
-		      plane_config->size);
+		      pipe, plane, fb->width, fb->height, fb->bits_per_pixel,
+		      base, fb->pitches[0], plane_config->size);
+
+	crtc->base.primary->fb = fb;
 }
 
 static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
