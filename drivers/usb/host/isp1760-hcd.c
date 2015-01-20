@@ -40,6 +40,8 @@ enum queue_head_types {
 };
 
 struct isp1760_hcd {
+	struct usb_hcd		*hcd;
+
 	u32 hcs_params;
 	spinlock_t		lock;
 	struct slotinfo		atl_slots[32];
@@ -65,7 +67,7 @@ typedef void (packet_enqueue)(struct usb_hcd *hcd, struct isp1760_qh *qh,
 
 static inline struct isp1760_hcd *hcd_to_priv(struct usb_hcd *hcd)
 {
-	return (struct isp1760_hcd *) (hcd->hcd_priv);
+	return *(struct isp1760_hcd **)hcd->hcd_priv;
 }
 
 /* Section 2.2 Host Controller Capability Registers */
@@ -2161,7 +2163,7 @@ static void isp1760_clear_tt_buffer_complete(struct usb_hcd *hcd,
 static const struct hc_driver isp1760_hc_driver = {
 	.description		= "isp1760-hcd",
 	.product_desc		= "NXP ISP1760 USB Host Controller",
-	.hcd_priv_size		= sizeof(struct isp1760_hcd),
+	.hcd_priv_size		= sizeof(struct isp1760_hcd *),
 	.irq			= isp1760_irq,
 	.flags			= HCD_MEMORY | HCD_USB2,
 	.reset			= isp1760_hc_setup,
@@ -2214,12 +2216,16 @@ void isp1760_deinit_kmem_cache(void)
 int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
 		     struct device *dev, unsigned int devflags)
 {
-	struct usb_hcd *hcd;
+	struct usb_hcd *hcd = NULL;
 	struct isp1760_hcd *priv;
 	int ret;
 
 	if (usb_disabled())
 		return -ENODEV;
+
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
 
 	/* prevent usb-core allocating DMA pages */
 	dev->dma_mask = NULL;
@@ -2228,7 +2234,9 @@ int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
 	if (!hcd)
 		return -ENOMEM;
 
-	priv = hcd_to_priv(hcd);
+	priv->hcd = hcd;
+	*(struct isp1760_hcd **)hcd->hcd_priv = priv;
+
 	priv->devflags = devflags;
 
 	priv->rst_gpio = devm_gpiod_get_optional(dev, NULL, GPIOD_OUT_HIGH);
@@ -2253,7 +2261,7 @@ int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
 		goto error;
 	device_wakeup_enable(hcd->self.controller);
 
-	dev_set_drvdata(dev, hcd);
+	dev_set_drvdata(dev, priv);
 
 	return 0;
 
@@ -2264,7 +2272,8 @@ error:
 
 void isp1760_unregister(struct device *dev)
 {
-	struct usb_hcd *hcd = dev_get_drvdata(dev);
+	struct isp1760_hcd *priv = dev_get_drvdata(dev);
+	struct usb_hcd *hcd = priv->hcd;
 
 	usb_remove_hcd(hcd);
 	usb_put_hcd(hcd);
