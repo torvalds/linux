@@ -35,10 +35,13 @@
 
 #define EXT_ACC           0xe4
 
+#define host_to_priv(host) container_of((host)->pdata, struct sh_mobile_sdhi, mmc_data)
+
 struct sh_mobile_sdhi_of_data {
 	unsigned long tmio_flags;
 	unsigned long capabilities;
 	unsigned long capabilities2;
+	enum dma_slave_buswidth dma_buswidth;
 	dma_addr_t dma_rx_offset;
 };
 
@@ -58,6 +61,7 @@ static const struct sh_mobile_sdhi_of_data of_rcar_gen2_compatible = {
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_WRPROTECT_DISABLE |
 			  TMIO_MMC_CLK_ACTUAL,
 	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ,
+	.dma_buswidth	= DMA_SLAVE_BUSWIDTH_4_BYTES,
 	.dma_rx_offset	= 0x2000,
 };
 
@@ -84,16 +88,43 @@ struct sh_mobile_sdhi {
 	struct tmio_mmc_dma dma_priv;
 };
 
+static void sh_mobile_sdhi_sdbuf_width(struct tmio_mmc_host *host, int width)
+{
+	u32 val;
+
+	/*
+	 * see also
+	 *	sh_mobile_sdhi_of_data :: dma_buswidth
+	 */
+	switch (sd_ctrl_read16(host, CTL_VERSION)) {
+	case 0x490C:
+		val = (width == 32) ? 0x0001 : 0x0000;
+		break;
+	case 0xCB0D:
+		val = (width == 32) ? 0x0000 : 0x0001;
+		break;
+	default:
+		/* nothing to do */
+		return;
+	}
+
+	sd_ctrl_write16(host, EXT_ACC, val);
+}
+
 static int sh_mobile_sdhi_clk_enable(struct platform_device *pdev, unsigned int *f)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	struct tmio_mmc_host *host = mmc_priv(mmc);
-	struct sh_mobile_sdhi *priv = container_of(host->pdata, struct sh_mobile_sdhi, mmc_data);
+	struct sh_mobile_sdhi *priv = host_to_priv(host);
 	int ret = clk_prepare_enable(priv->clk);
 	if (ret < 0)
 		return ret;
 
 	*f = clk_get_rate(priv->clk);
+
+	/* enable 16bit data access on SDBUF as default */
+	sh_mobile_sdhi_sdbuf_width(host, 16);
+
 	return 0;
 }
 
@@ -101,7 +132,7 @@ static void sh_mobile_sdhi_clk_disable(struct platform_device *pdev)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	struct tmio_mmc_host *host = mmc_priv(mmc);
-	struct sh_mobile_sdhi *priv = container_of(host->pdata, struct sh_mobile_sdhi, mmc_data);
+	struct sh_mobile_sdhi *priv = host_to_priv(host);
 	clk_disable_unprepare(priv->clk);
 }
 
@@ -113,7 +144,7 @@ static int sh_mobile_sdhi_wait_idle(struct tmio_mmc_host *host)
 		udelay(1);
 
 	if (!timeout) {
-		dev_warn(host->pdata->dev, "timeout waiting for SD bus idle\n");
+		dev_warn(&host->pdev->dev, "timeout waiting for SD bus idle\n");
 		return -EBUSY;
 	}
 
@@ -156,14 +187,13 @@ static int sh_mobile_sdhi_multi_io_quirk(struct mmc_card *card,
 	return blk_size;
 }
 
-static void sh_mobile_sdhi_cd_wakeup(const struct platform_device *pdev)
+static void sh_mobile_sdhi_enable_dma(struct tmio_mmc_host *host, bool enable)
 {
-	mmc_detect_change(platform_get_drvdata(pdev), msecs_to_jiffies(100));
-}
+	sd_ctrl_write16(host, CTL_DMA_ENABLE, enable ? 2 : 0);
 
-static const struct sh_mobile_sdhi_ops sdhi_ops = {
-	.cd_wakeup = sh_mobile_sdhi_cd_wakeup,
-};
+	/* enable 32bit access if DMA mode if possibile */
+	sh_mobile_sdhi_sdbuf_width(host, enable ? 32 : 16);
+}
 
 static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 {
@@ -177,7 +207,6 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	int irq, ret, i = 0;
 	bool multiplexed_isr = true;
 	struct tmio_mmc_dma *dma_priv;
-	u16 ver;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -192,26 +221,31 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	mmc_data = &priv->mmc_data;
 	dma_priv = &priv->dma_priv;
 
-	if (p) {
-		if (p->init) {
-			ret = p->init(pdev, &sdhi_ops);
-			if (ret)
-				return ret;
-		}
-	}
-
 	priv->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk)) {
 		ret = PTR_ERR(priv->clk);
 		dev_err(&pdev->dev, "cannot get clock: %d\n", ret);
-		goto eclkget;
+		goto eprobe;
 	}
 
-	mmc_data->clk_enable = sh_mobile_sdhi_clk_enable;
-	mmc_data->clk_disable = sh_mobile_sdhi_clk_disable;
+	host = tmio_mmc_host_alloc(pdev);
+	if (!host) {
+		ret = -ENOMEM;
+		goto eprobe;
+	}
+
+	host->dma		= dma_priv;
+	host->write16_hook	= sh_mobile_sdhi_write16_hook;
+	host->clk_enable	= sh_mobile_sdhi_clk_enable;
+	host->clk_disable	= sh_mobile_sdhi_clk_disable;
+	host->multi_io_quirk	= sh_mobile_sdhi_multi_io_quirk;
+	/* SD control register space size is 0x100, 0x200 for bus_shift=1 */
+	if (resource_size(res) > 0x100)
+		host->bus_shift = 1;
+	else
+		host->bus_shift = 0;
+
 	mmc_data->capabilities = MMC_CAP_MMC_HIGHSPEED;
-	mmc_data->write16_hook = sh_mobile_sdhi_write16_hook;
-	mmc_data->multi_io_quirk = sh_mobile_sdhi_multi_io_quirk;
 	if (p) {
 		mmc_data->flags = p->tmio_flags;
 		mmc_data->ocr_mask = p->tmio_ocr_mask;
@@ -231,11 +265,10 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 			dma_priv->slave_id_rx = p->dma_slave_rx;
 		}
 	}
-
-	dma_priv->alignment_shift = 1; /* 2-byte alignment */
 	dma_priv->filter = shdma_chan_filter;
+	dma_priv->enable = sh_mobile_sdhi_enable_dma;
 
-	mmc_data->dma = dma_priv;
+	mmc_data->alignment_shift = 1; /* 2-byte alignment */
 
 	/*
 	 * All SDHI blocks support 2-byte and larger block sizes in 4-bit
@@ -258,33 +291,18 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	 */
 	mmc_data->flags |= TMIO_MMC_SDIO_STATUS_QUIRK;
 
-	/*
-	 * All SDHI have DMA control register
-	 */
-	mmc_data->flags |= TMIO_MMC_HAVE_CTL_DMA_REG;
-
 	if (of_id && of_id->data) {
 		const struct sh_mobile_sdhi_of_data *of_data = of_id->data;
 		mmc_data->flags |= of_data->tmio_flags;
 		mmc_data->capabilities |= of_data->capabilities;
 		mmc_data->capabilities2 |= of_data->capabilities2;
-		dma_priv->dma_rx_offset = of_data->dma_rx_offset;
+		mmc_data->dma_rx_offset = of_data->dma_rx_offset;
+		dma_priv->dma_buswidth = of_data->dma_buswidth;
 	}
 
-	/* SD control register space size is 0x100, 0x200 for bus_shift=1 */
-	mmc_data->bus_shift = resource_size(res) >> 9;
-
-	ret = tmio_mmc_host_probe(&host, pdev, mmc_data);
+	ret = tmio_mmc_host_probe(host, mmc_data);
 	if (ret < 0)
-		goto eprobe;
-
-	/*
-	 * FIXME:
-	 * this Workaround can be more clever method
-	 */
-	ver = sd_ctrl_read16(host, CTL_VERSION);
-	if (ver == 0xCB0D)
-		sd_ctrl_write16(host, EXT_ACC, 1);
+		goto efree;
 
 	/*
 	 * Allow one or more specific (named) ISRs or
@@ -351,10 +369,9 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 
 eirq:
 	tmio_mmc_host_remove(host);
+efree:
+	tmio_mmc_host_free(host);
 eprobe:
-eclkget:
-	if (p && p->cleanup)
-		p->cleanup(pdev);
 	return ret;
 }
 
@@ -362,12 +379,8 @@ static int sh_mobile_sdhi_remove(struct platform_device *pdev)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	struct tmio_mmc_host *host = mmc_priv(mmc);
-	struct sh_mobile_sdhi_info *p = pdev->dev.platform_data;
 
 	tmio_mmc_host_remove(host);
-
-	if (p && p->cleanup)
-		p->cleanup(pdev);
 
 	return 0;
 }
