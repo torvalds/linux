@@ -3667,7 +3667,6 @@ int be_update_queues(struct be_adapter *adapter)
 static int be_setup(struct be_adapter *adapter)
 {
 	struct device *dev = &adapter->pdev->dev;
-	u32 tx_fc, rx_fc;
 	int status;
 
 	be_setup_init(adapter);
@@ -3717,11 +3716,14 @@ static int be_setup(struct be_adapter *adapter)
 
 	be_cmd_get_acpi_wol_cap(adapter);
 
-	be_cmd_get_flow_control(adapter, &tx_fc, &rx_fc);
+	status = be_cmd_set_flow_control(adapter, adapter->tx_fc,
+					 adapter->rx_fc);
+	if (status)
+		be_cmd_get_flow_control(adapter, &adapter->tx_fc,
+					&adapter->rx_fc);
 
-	if (rx_fc != adapter->rx_fc || tx_fc != adapter->tx_fc)
-		be_cmd_set_flow_control(adapter, adapter->tx_fc,
-					adapter->rx_fc);
+	dev_info(&adapter->pdev->dev, "HW Flow control - TX:%d RX:%d\n",
+		 adapter->tx_fc, adapter->rx_fc);
 
 	if (be_physfn(adapter))
 		be_cmd_set_logical_link_config(adapter,
