@@ -1320,7 +1320,7 @@ static __init int init_kprobe_trace(void)
 		return -EINVAL;
 
 	d_tracer = tracing_init_dentry();
-	if (!d_tracer)
+	if (IS_ERR(d_tracer))
 		return 0;
 
 	entry = debugfs_create_file("kprobe_events", 0644, d_tracer,
