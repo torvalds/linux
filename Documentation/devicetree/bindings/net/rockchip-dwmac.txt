@@ -33,6 +33,7 @@ Required properties:
 Optional properties:
  - tx_delay: Delay value for TXD timing. Range value is 0~0x7F, 0x30 as default.
  - rx_delay: Delay value for RXD timing. Range value is 0~0x7F, 0x10 as default.
+ - phy-supply: phandle to a regulator if the PHY needs one
 
 Example:
 
