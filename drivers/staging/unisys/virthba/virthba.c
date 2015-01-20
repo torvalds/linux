@@ -990,7 +990,6 @@ virthba_queue_command_lck(struct scsi_cmnd *scsicmd,
 		sgl = scsi_sglist(scsicmd);
 
 		for_each_sg(sgl, sg, scsi_sg_count(scsicmd), i) {
-
 			cmdrsp->scsi.gpi_list[i].address = sg_phys(sg);
 			cmdrsp->scsi.gpi_list[i].length = sg->length;
 			if ((i != 0) && (sg->offset != 0))
@@ -1208,7 +1207,6 @@ do_scsi_nolinuxstat(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
 			bufind += sg[i].length;
 		}
 	} else {
-
 		vdisk = &((struct virthba_info *)scsidev->host->hostdata)->head;
 		for ( ; vdisk->next; vdisk = vdisk->next) {
 			if ((scsidev->channel != vdisk->channel) ||
@@ -1656,7 +1654,6 @@ virthba_mod_init(void)
 		POSTCODE_LINUX_3(VHBA_CREATE_FAILURE_PC, error,
 				 POSTCODE_SEVERITY_ERR);
 	} else {
-
 		/* create the debugfs directories and entries */
 		virthba_debugfs_dir = debugfs_create_dir("virthba", NULL);
 		debugfs_create_file("info", S_IRUSR, virthba_debugfs_dir,
@@ -1747,7 +1744,6 @@ virthba_mod_exit(void)
 
 	debugfs_remove_recursive(virthba_debugfs_dir);
 	LOGINF("Leaving virthba_mod_exit\n");
-
 }
 
 /* specify function to be run at module insertion time */
