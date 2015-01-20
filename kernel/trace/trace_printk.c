@@ -5,7 +5,6 @@
  *
  */
 #include <linux/seq_file.h>
-#include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
 #include <linux/ftrace.h>
@@ -15,7 +14,6 @@
 #include <linux/ctype.h>
 #include <linux/list.h>
 #include <linux/slab.h>
-#include <linux/fs.h>
 
 #include "trace.h"
 

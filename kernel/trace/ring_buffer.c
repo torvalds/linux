@@ -9,7 +9,6 @@
 #include <linux/trace_seq.h>
 #include <linux/spinlock.h>
 #include <linux/irq_work.h>
-#include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/hardirq.h>
 #include <linux/kthread.h>	/* for self test */
@@ -23,7 +22,6 @@
 #include <linux/hash.h>
 #include <linux/list.h>
 #include <linux/cpu.h>
-#include <linux/fs.h>
 
 #include <asm/local.h>
 

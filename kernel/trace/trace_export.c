@@ -6,12 +6,10 @@
 #include <linux/stringify.h>
 #include <linux/kallsyms.h>
 #include <linux/seq_file.h>
-#include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/ftrace.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/fs.h>
 
 #include "trace_output.h"
 
