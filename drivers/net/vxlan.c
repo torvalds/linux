@@ -270,12 +270,13 @@ static struct vxlan_sock *vxlan_find_sock(struct net *net, sa_family_t family,
 					  __be16 port, u32 flags)
 {
 	struct vxlan_sock *vs;
-	u32 match_flags = flags & VXLAN_F_UNSHAREABLE;
+
+	flags &= VXLAN_F_RCV_FLAGS;
 
 	hlist_for_each_entry_rcu(vs, vs_head(net, port), hlist) {
 		if (inet_sk(vs->sock->sk)->inet_sport == port &&
 		    inet_sk(vs->sock->sk)->sk.sk_family == family &&
-		    (vs->flags & VXLAN_F_UNSHAREABLE) == match_flags)
+		    vs->flags == flags)
 			return vs;
 	}
 	return NULL;
@@ -1674,7 +1675,7 @@ static bool route_shortcircuit(struct net_device *dev, struct sk_buff *skb)
 	return false;
 }
 
-static void vxlan_build_gbp_hdr(struct vxlanhdr *vxh, struct vxlan_sock *vs,
+static void vxlan_build_gbp_hdr(struct vxlanhdr *vxh, u32 vxflags,
 				struct vxlan_metadata *md)
 {
 	struct vxlanhdr_gbp *gbp;
@@ -1692,21 +1693,20 @@ static void vxlan_build_gbp_hdr(struct vxlanhdr *vxh, struct vxlan_sock *vs,
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
-static int vxlan6_xmit_skb(struct vxlan_sock *vs,
-			   struct dst_entry *dst, struct sk_buff *skb,
+static int vxlan6_xmit_skb(struct dst_entry *dst, struct sk_buff *skb,
 			   struct net_device *dev, struct in6_addr *saddr,
 			   struct in6_addr *daddr, __u8 prio, __u8 ttl,
 			   __be16 src_port, __be16 dst_port,
-			   struct vxlan_metadata *md, bool xnet)
+			   struct vxlan_metadata *md, bool xnet, u32 vxflags)
 {
 	struct vxlanhdr *vxh;
 	int min_headroom;
 	int err;
-	bool udp_sum = !udp_get_no_check6_tx(vs->sock->sk);
+	bool udp_sum = !(vxflags & VXLAN_F_UDP_ZERO_CSUM6_TX);
 	int type = udp_sum ? SKB_GSO_UDP_TUNNEL_CSUM : SKB_GSO_UDP_TUNNEL;
 	u16 hdrlen = sizeof(struct vxlanhdr);
 
-	if ((vs->flags & VXLAN_F_REMCSUM_TX) &&
+	if ((vxflags & VXLAN_F_REMCSUM_TX) &&
 	    skb->ip_summed == CHECKSUM_PARTIAL) {
 		int csum_start = skb_checksum_start_offset(skb);
 
@@ -1764,14 +1764,14 @@ static int vxlan6_xmit_skb(struct vxlan_sock *vs,
 		}
 	}
 
-	if (vs->flags & VXLAN_F_GBP)
-		vxlan_build_gbp_hdr(vxh, vs, md);
+	if (vxflags & VXLAN_F_GBP)
+		vxlan_build_gbp_hdr(vxh, vxflags, md);
 
 	skb_set_inner_protocol(skb, htons(ETH_P_TEB));
 
 	udp_tunnel6_xmit_skb(dst, skb, dev, saddr, daddr, prio,
 			     ttl, src_port, dst_port,
-			     udp_get_no_check6_tx(vs->sock->sk));
+			     !!(vxflags & VXLAN_F_UDP_ZERO_CSUM6_TX));
 	return 0;
 err:
 	dst_release(dst);
@@ -1779,20 +1779,19 @@ err:
 }
 #endif
 
-int vxlan_xmit_skb(struct vxlan_sock *vs,
-		   struct rtable *rt, struct sk_buff *skb,
+int vxlan_xmit_skb(struct rtable *rt, struct sk_buff *skb,
 		   __be32 src, __be32 dst, __u8 tos, __u8 ttl, __be16 df,
 		   __be16 src_port, __be16 dst_port,
-		   struct vxlan_metadata *md, bool xnet)
+		   struct vxlan_metadata *md, bool xnet, u32 vxflags)
 {
 	struct vxlanhdr *vxh;
 	int min_headroom;
 	int err;
-	bool udp_sum = !vs->sock->sk->sk_no_check_tx;
+	bool udp_sum = !!(vxflags & VXLAN_F_UDP_CSUM);
 	int type = udp_sum ? SKB_GSO_UDP_TUNNEL_CSUM : SKB_GSO_UDP_TUNNEL;
 	u16 hdrlen = sizeof(struct vxlanhdr);
 
-	if ((vs->flags & VXLAN_F_REMCSUM_TX) &&
+	if ((vxflags & VXLAN_F_REMCSUM_TX) &&
 	    skb->ip_summed == CHECKSUM_PARTIAL) {
 		int csum_start = skb_checksum_start_offset(skb);
 
@@ -1844,14 +1843,14 @@ int vxlan_xmit_skb(struct vxlan_sock *vs,
 		}
 	}
 
-	if (vs->flags & VXLAN_F_GBP)
-		vxlan_build_gbp_hdr(vxh, vs, md);
+	if (vxflags & VXLAN_F_GBP)
+		vxlan_build_gbp_hdr(vxh, vxflags, md);
 
 	skb_set_inner_protocol(skb, htons(ETH_P_TEB));
 
 	return udp_tunnel_xmit_skb(rt, skb, src, dst, tos,
 				   ttl, df, src_port, dst_port, xnet,
-				   vs->sock->sk->sk_no_check_tx);
+				   !(vxflags & VXLAN_F_UDP_CSUM));
 }
 EXPORT_SYMBOL_GPL(vxlan_xmit_skb);
 
@@ -1983,10 +1982,11 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		md.vni = htonl(vni << 8);
 		md.gbp = skb->mark;
 
-		err = vxlan_xmit_skb(vxlan->vn_sock, rt, skb,
-				     fl4.saddr, dst->sin.sin_addr.s_addr,
-				     tos, ttl, df, src_port, dst_port, &md,
-				     !net_eq(vxlan->net, dev_net(vxlan->dev)));
+		err = vxlan_xmit_skb(rt, skb, fl4.saddr,
+				     dst->sin.sin_addr.s_addr, tos, ttl, df,
+				     src_port, dst_port, &md,
+				     !net_eq(vxlan->net, dev_net(vxlan->dev)),
+				     vxlan->flags);
 		if (err < 0) {
 			/* skb is already freed. */
 			skb = NULL;
@@ -2042,10 +2042,10 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		md.vni = htonl(vni << 8);
 		md.gbp = skb->mark;
 
-		err = vxlan6_xmit_skb(vxlan->vn_sock, ndst, skb,
-				      dev, &fl6.saddr, &fl6.daddr, 0, ttl,
-				      src_port, dst_port, &md,
-				      !net_eq(vxlan->net, dev_net(vxlan->dev)));
+		err = vxlan6_xmit_skb(ndst, skb, dev, &fl6.saddr, &fl6.daddr,
+				      0, ttl, src_port, dst_port, &md,
+				      !net_eq(vxlan->net, dev_net(vxlan->dev)),
+				      vxlan->flags);
 #endif
 	}
 
@@ -2517,15 +2517,11 @@ static struct socket *vxlan_create_sock(struct net *net, bool ipv6,
 
 	if (ipv6) {
 		udp_conf.family = AF_INET6;
-		udp_conf.use_udp6_tx_checksums =
-		    !(flags & VXLAN_F_UDP_ZERO_CSUM6_TX);
 		udp_conf.use_udp6_rx_checksums =
 		    !(flags & VXLAN_F_UDP_ZERO_CSUM6_RX);
 	} else {
 		udp_conf.family = AF_INET;
 		udp_conf.local_ip.s_addr = INADDR_ANY;
-		udp_conf.use_udp_checksums =
-		    !!(flags & VXLAN_F_UDP_CSUM);
 	}
 
 	udp_conf.local_udp_port = port;
@@ -2569,7 +2565,7 @@ static struct vxlan_sock *vxlan_socket_create(struct net *net, __be16 port,
 	atomic_set(&vs->refcnt, 1);
 	vs->rcv = rcv;
 	vs->data = data;
-	vs->flags = flags;
+	vs->flags = (flags & VXLAN_F_RCV_FLAGS);
 
 	/* Initialize the vxlan udp offloads structure */
 	vs->udp_offloads.port = port;

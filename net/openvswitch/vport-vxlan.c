@@ -252,12 +252,10 @@ static int vxlan_tnl_send(struct vport *vport, struct sk_buff *skb)
 	md.vni = htonl(be64_to_cpu(tun_key->tun_id) << 8);
 	md.gbp = vxlan_ext_gbp(skb);
 
-	err = vxlan_xmit_skb(vxlan_port->vs, rt, skb,
-			     fl.saddr, tun_key->ipv4_dst,
+	err = vxlan_xmit_skb(rt, skb, fl.saddr, tun_key->ipv4_dst,
 			     tun_key->ipv4_tos, tun_key->ipv4_ttl, df,
 			     src_port, dst_port,
-			     &md,
-			     false);
+			     &md, false, vxlan_port->exts);
 	if (err < 0)
 		ip_rt_put(rt);
 	return err;

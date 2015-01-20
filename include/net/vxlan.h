@@ -129,8 +129,12 @@ struct vxlan_sock {
 #define VXLAN_F_REMCSUM_RX		0x400
 #define VXLAN_F_GBP			0x800
 
-/* These flags must match in order for a socket to be shareable */
-#define VXLAN_F_UNSHAREABLE		VXLAN_F_GBP
+/* Flags that are used in the receive patch. These flags must match in
+ * order for a socket to be shareable
+ */
+#define VXLAN_F_RCV_FLAGS		(VXLAN_F_GBP |			\
+					 VXLAN_F_UDP_ZERO_CSUM6_RX |	\
+					 VXLAN_F_REMCSUM_RX)
 
 struct vxlan_sock *vxlan_sock_add(struct net *net, __be16 port,
 				  vxlan_rcv_t *rcv, void *data,
@@ -138,11 +142,10 @@ struct vxlan_sock *vxlan_sock_add(struct net *net, __be16 port,
 
 void vxlan_sock_release(struct vxlan_sock *vs);
 
-int vxlan_xmit_skb(struct vxlan_sock *vs,
-		   struct rtable *rt, struct sk_buff *skb,
+int vxlan_xmit_skb(struct rtable *rt, struct sk_buff *skb,
 		   __be32 src, __be32 dst, __u8 tos, __u8 ttl, __be16 df,
 		   __be16 src_port, __be16 dst_port, struct vxlan_metadata *md,
-		   bool xnet);
+		   bool xnet, u32 vxflags);
 
 static inline netdev_features_t vxlan_features_check(struct sk_buff *skb,
 						     netdev_features_t features)
