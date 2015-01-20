@@ -110,9 +110,10 @@ static int virthba_serverdown(struct virtpci_dev *virtpcidev, u32 state);
 static void doDiskAddRemove(struct work_struct *work);
 static void virthba_serverdown_complete(struct work_struct *work);
 static ssize_t info_debugfs_read(struct file *file, char __user *buf,
-			size_t len, loff_t *offset);
+				 size_t len, loff_t *offset);
 static ssize_t enable_ints_write(struct file *file,
-			const char __user *buffer, size_t count, loff_t *ppos);
+				 const char __user *buffer, size_t count,
+				 loff_t *ppos);
 
 /*****************************************************/
 /* Globals                                           */
@@ -994,17 +995,17 @@ virthba_queue_command_lck(struct scsi_cmnd *scsicmd,
 			cmdrsp->scsi.gpi_list[i].length = sg->length;
 			if ((i != 0) && (sg->offset != 0))
 				LOGINF("Offset on a sg_entry other than zero =<<%d>>.\n",
-				     sg->offset);
+				       sg->offset);
 		}
 
 		if (sg_failed) {
 			LOGERR("Start sg_list dump (entries %d, bufflen %d)...\n",
-			     scsi_sg_count(scsicmd), cmdrsp->scsi.bufflen);
+			       scsi_sg_count(scsicmd), cmdrsp->scsi.bufflen);
 			for_each_sg(sgl, sg, scsi_sg_count(scsicmd), i) {
 				LOGERR("   Entry(%d): page->[0x%p], phys->[0x%Lx], off(%d), len(%d)\n",
-				     i, sg_page(sg),
-				     (unsigned long long)sg_phys(sg),
-				     sg->offset, sg->length);
+				       i, sg_page(sg),
+				       (unsigned long long)sg_phys(sg),
+				       sg->offset, sg->length);
 			}
 			LOGERR("Done sg_list dump.\n");
 			/* BUG(); ***** For now, let it fail in uissd
@@ -1148,8 +1149,8 @@ do_scsi_linuxstat(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
 			if (atomic_read(&vdisk->error_count) ==
 			    VIRTHBA_ERROR_COUNT) {
 				LOGERR("Throtling SCSICMD errors disk <%d:%d:%d:%llu>\n",
-				     scsidev->host->host_no, scsidev->id,
-				     scsidev->channel, scsidev->lun);
+				       scsidev->host->host_no, scsidev->id,
+				       scsidev->channel, scsidev->lun);
 			}
 			atomic_set(&vdisk->ios_threshold, IOS_ERROR_THRESHOLD);
 		}
@@ -1198,7 +1199,7 @@ do_scsi_nolinuxstat(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
 		sg = scsi_sglist(scsicmd);
 		for (i = 0; i < scsi_sg_count(scsicmd); i++) {
 			DBGVER("copying OUT OF buf into 0x%p %d\n",
-			     sg_page(sg + i), sg[i].length);
+			       sg_page(sg + i), sg[i].length);
 			thispage_orig = kmap_atomic(sg_page(sg + i));
 			thispage = (void *)((unsigned long)thispage_orig |
 					     sg[i].offset);
@@ -1267,7 +1268,7 @@ complete_taskmgmt_command(struct uiscmdrsp *cmdrsp)
 
 static void
 drain_queue(struct virthba_info *virthbainfo, struct chaninfo *dc,
-		struct uiscmdrsp *cmdrsp)
+	    struct uiscmdrsp *cmdrsp)
 {
 	unsigned long flags;
 	int qrslt = 0;
@@ -1277,7 +1278,7 @@ drain_queue(struct virthba_info *virthbainfo, struct chaninfo *dc,
 	while (1) {
 		spin_lock_irqsave(&virthbainfo->chinfo.insertlock, flags);
 		if (!spar_channel_client_acquire_os(dc->queueinfo->chan,
-						     "vhba")) {
+						    "vhba")) {
 			spin_unlock_irqrestore(&virthbainfo->chinfo.insertlock,
 					       flags);
 			virthbainfo->acquire_failed_cnt++;
@@ -1347,7 +1348,7 @@ process_incoming_rsps(void *v)
 	while (1) {
 		wait_event_interruptible_timeout(virthbainfo->rsp_queue,
 			 (atomic_read(&virthbainfo->interrupt_rcvd) == 1),
-					 usecs_to_jiffies(rsltq_wait_usecs));
+				      usecs_to_jiffies(rsltq_wait_usecs));
 		atomic_set(&virthbainfo->interrupt_rcvd, 0);
 		/* drain queue */
 		drain_queue(virthbainfo, dc, cmdrsp);
@@ -1367,7 +1368,7 @@ process_incoming_rsps(void *v)
 /*****************************************************/
 
 static ssize_t info_debugfs_read(struct file *file,
-			char __user *buf, size_t len, loff_t *offset)
+				 char __user *buf, size_t len, loff_t *offset)
 {
 	ssize_t bytes_read = 0;
 	int str_pos = 0;
@@ -1418,8 +1419,8 @@ static ssize_t info_debugfs_read(struct file *file,
 	return bytes_read;
 }
 
-static ssize_t enable_ints_write(struct file *file,
-			const char __user *buffer, size_t count, loff_t *ppos)
+static ssize_t enable_ints_write(struct file *file, const char __user *buffer,
+				 size_t count, loff_t *ppos)
 {
 	char buf[4];
 	int i, new_value;
@@ -1659,13 +1660,13 @@ virthba_mod_init(void)
 		/* create the debugfs directories and entries */
 		virthba_debugfs_dir = debugfs_create_dir("virthba", NULL);
 		debugfs_create_file("info", S_IRUSR, virthba_debugfs_dir,
-				NULL, &debugfs_info_fops);
+				    NULL, &debugfs_info_fops);
 		debugfs_create_u32("rqwait_usecs", S_IRUSR | S_IWUSR,
-				virthba_debugfs_dir, &rsltq_wait_usecs);
+				   virthba_debugfs_dir, &rsltq_wait_usecs);
 		debugfs_create_file("enable_ints", S_IWUSR,
-				virthba_debugfs_dir, NULL,
-				&debugfs_enable_ints_fops);
-		/* Initialize DARWorkQ */
+				    virthba_debugfs_dir, NULL,
+				    &debugfs_enable_ints_fops);
+		/* Initialize dar_work_queue */
 		INIT_WORK(&DARWorkQ, doDiskAddRemove);
 		spin_lock_init(&DARWorkQLock);
 
