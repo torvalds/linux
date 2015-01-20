@@ -166,6 +166,7 @@ struct virtdisk_info {
 	atomic_t error_count;
 	struct virtdisk_info *next;
 };
+
 /* Each Scsi_Host has a host_data area that contains this struct. */
 struct virthba_info {
 	struct Scsi_Host *scsihost;
@@ -1534,7 +1535,7 @@ virthba_serverdown_complete(struct work_struct *work)
 	/* Fail Commands that weren't completed */
 	spin_lock_irqsave(&virthbainfo->privlock, flags);
 	for (i = 0; i < MAX_PENDING_REQUESTS; i++) {
-		pendingdel = &(virthbainfo->pending[i]);
+		pendingdel = &virthbainfo->pending[i];
 		switch (pendingdel->cmdtype) {
 		case CMD_SCSI_TYPE:
 			scsicmd = (struct scsi_cmnd *)pendingdel->sent;
