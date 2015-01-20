@@ -329,12 +329,9 @@ InstructionTLBMiss:
 	/* Extract level 1 index */
 	rlwinm	r10, r10, 32 - ((PAGE_SHIFT - 2) << 1), (PAGE_SHIFT - 2) << 1, 29
 	lwzx	r11, r10, r11	/* Get the level 1 entry */
-	rlwinm.	r10, r11,0,0,19	/* Extract page descriptor page address */
-	beq	2f		/* If zero, don't try to find a pte */
+	rlwinm	r10, r11,0,0,19	/* Extract page descriptor page address */
 
-	/* We have a pte table, so load the MI_TWC with the attributes
-	 * for this "segment."
-	 */
+	/* Load the MI_TWC with the attributes for this "segment." */
 	MTSPR_CPU6(SPRN_MI_TWC, r11, r3)	/* Set segment attributes */
 	mfspr	r11, SPRN_SRR0	/* Get effective address of fault */
 	/* Extract level 2 index */
@@ -342,13 +339,11 @@ InstructionTLBMiss:
 	lwzx	r10, r10, r11	/* Get the pte */
 
 #ifdef CONFIG_SWAP
-	andi.	r11, r10, _PAGE_ACCESSED | _PAGE_PRESENT
-	cmpwi	cr0, r11, _PAGE_ACCESSED | _PAGE_PRESENT
-	li	r11, RPN_PATTERN
-	bne-	cr0, 2f
-#else
-	li	r11, RPN_PATTERN
+	rlwinm	r11, r10, 32-5, _PAGE_PRESENT
+	and	r11, r11, r10
+	rlwimi	r10, r11, 0, _PAGE_PRESENT
 #endif
+	li	r11, RPN_PATTERN
 	/* The Linux PTE won't go exactly into the MMU TLB.
 	 * Software indicator bits 21 and 28 must be clear.
 	 * Software indicator bits 24, 25, 26, and 27 must be
@@ -366,21 +361,6 @@ InstructionTLBMiss:
 	mfspr	r10, SPRN_SPRG_SCRATCH2
 	EXCEPTION_EPILOG_0
 	rfi
-2:
-	mfspr	r10, SPRN_SRR1
-	/* clear all error bits as TLB Miss
-	 * sets a few unconditionally
-	*/
-	rlwinm	r10, r10, 0, 0xffff
-	mtspr	SPRN_SRR1, r10
-
-	/* Restore registers */
-#ifdef CONFIG_8xx_CPU6
-	mfspr	r3, SPRN_DAR
-	mtspr	SPRN_DAR, r11	/* Tag DAR */
-#endif
-	mfspr	r10, SPRN_SPRG_SCRATCH2
-	b	InstructionTLBError1
 
 	. = 0x1200
 DataStoreTLBMiss:
@@ -403,8 +383,6 @@ DataStoreTLBMiss:
 	/* Extract level 1 index */
 	rlwinm	r10, r10, 32 - ((PAGE_SHIFT - 2) << 1), (PAGE_SHIFT - 2) << 1, 29
 	lwzx	r11, r10, r11	/* Get the level 1 entry */
-	rlwinm.	r10, r11,0,0,19	/* Extract page descriptor page address */
-	beq	2f		/* If zero, don't try to find a pte */
 
 	/* We have a pte table, so load fetch the pte from the table.
 	 */
@@ -447,7 +425,7 @@ DataStoreTLBMiss:
 	 * set.  All other Linux PTE bits control the behavior
 	 * of the MMU.
 	 */
-2:	li	r11, RPN_PATTERN
+	li	r11, RPN_PATTERN
 	rlwimi	r10, r11, 0, 24, 28	/* Set 24-27, clear 28 */
 	MTSPR_CPU6(SPRN_MD_RPN, r10, r3)	/* Update TLB entry */
 
@@ -466,10 +444,7 @@ DataStoreTLBMiss:
  */
 	. = 0x1300
 InstructionTLBError:
-	EXCEPTION_PROLOG_0
-InstructionTLBError1:
-	EXCEPTION_PROLOG_1
-	EXCEPTION_PROLOG_2
+	EXCEPTION_PROLOG
 	mr	r4,r12
 	mr	r5,r9
 	andis.	r10,r5,0x4000
