@@ -40,8 +40,8 @@ enum klp_state {
  * @old_addr:	a hint conveying at what address the old function
  *		can be found (optional, vmlinux patches only)
  * @kobj:	kobject for sysfs resources
- * @fops:	ftrace operations structure
  * @state:	tracks function-level patch application state
+ * @stack_node:	list node for klp_ops func_stack list
  */
 struct klp_func {
 	/* external */
@@ -59,8 +59,8 @@ struct klp_func {
 
 	/* internal */
 	struct kobject kobj;
-	struct ftrace_ops *fops;
 	enum klp_state state;
+	struct list_head stack_node;
 };
 
 /**
