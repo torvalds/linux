@@ -250,7 +250,7 @@ static void iwl_mvm_tdls_sta_deinit(struct iwl_mvm *mvm,
 
 	/* disable the TDLS STA-specific queues */
 	sta_msk = mvmsta->tfd_queue_msk;
-	for_each_set_bit(i, &sta_msk, sizeof(sta_msk))
+	for_each_set_bit(i, &sta_msk, sizeof(sta_msk) * BITS_PER_BYTE)
 		iwl_mvm_disable_txq(mvm, i, 0);
 }
 
@@ -464,7 +464,7 @@ void iwl_mvm_sta_drained_wk(struct work_struct *wk)
 		if (mvm->tfd_drained[sta_id]) {
 			unsigned long i, msk = mvm->tfd_drained[sta_id];
 
-			for_each_set_bit(i, &msk, sizeof(msk))
+			for_each_set_bit(i, &msk, sizeof(msk) * BITS_PER_BYTE)
 				iwl_mvm_disable_txq(mvm, i, 0);
 
 			mvm->tfd_drained[sta_id] = 0;
