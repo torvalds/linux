@@ -26,6 +26,7 @@
 #include <asm/unaligned.h>
 #include <asm/cacheflush.h>
 
+#include "isp1760-core.h"
 #include "isp1760-hcd.h"
 #include "isp1760-regs.h"
 
@@ -160,12 +161,12 @@ struct urb_listitem {
  */
 static u32 reg_read32(void __iomem *base, u32 reg)
 {
-	return readl(base + reg);
+	return isp1760_read32(base, reg);
 }
 
 static void reg_write32(void __iomem *base, u32 reg, u32 val)
 {
-	writel(val, base + reg);
+	isp1760_write32(base, reg, val);
 }
 
 /*
@@ -466,37 +467,6 @@ static int isp1760_hc_setup(struct usb_hcd *hcd)
 	int result;
 	u32 scratch, hwmode;
 
-	/* low-level chip reset */
-	if (priv->rst_gpio) {
-		gpiod_set_value_cansleep(priv->rst_gpio, 1);
-		mdelay(50);
-		gpiod_set_value_cansleep(priv->rst_gpio, 0);
-	}
-
-	/* Setup HW Mode Control: This assumes a level active-low interrupt */
-	hwmode = HW_DATA_BUS_32BIT;
-
-	if (priv->devflags & ISP1760_FLAG_BUS_WIDTH_16)
-		hwmode &= ~HW_DATA_BUS_32BIT;
-	if (priv->devflags & ISP1760_FLAG_ANALOG_OC)
-		hwmode |= HW_ANA_DIGI_OC;
-	if (priv->devflags & ISP1760_FLAG_DACK_POL_HIGH)
-		hwmode |= HW_DACK_POL_HIGH;
-	if (priv->devflags & ISP1760_FLAG_DREQ_POL_HIGH)
-		hwmode |= HW_DREQ_POL_HIGH;
-	if (priv->devflags & ISP1760_FLAG_INTR_POL_HIGH)
-		hwmode |= HW_INTR_HIGH_ACT;
-	if (priv->devflags & ISP1760_FLAG_INTR_EDGE_TRIG)
-		hwmode |= HW_INTR_EDGE_TRIG;
-
-	/*
-	 * We have to set this first in case we're in 16-bit mode.
-	 * Write it twice to ensure correct upper bits if switching
-	 * to 16-bit mode.
-	 */
-	reg_write32(hcd->regs, HC_HW_MODE_CTRL, hwmode);
-	reg_write32(hcd->regs, HC_HW_MODE_CTRL, hwmode);
-
 	reg_write32(hcd->regs, HC_SCRATCH_REG, 0xdeadbabe);
 	/* Change bus pattern */
 	scratch = reg_read32(hcd->regs, HC_CHIP_ID_REG);
@@ -506,18 +476,18 @@ static int isp1760_hc_setup(struct usb_hcd *hcd)
 		return -ENODEV;
 	}
 
-	/* pre reset */
+	/*
+	 * The RESET_HC bit in the SW_RESET register is supposed to reset the
+	 * host controller without touching the CPU interface registers, but at
+	 * least on the ISP1761 it seems to behave as the RESET_ALL bit and
+	 * reset the whole device. We thus can't use it here, so let's reset
+	 * the host controller through the EHCI USB Command register. The device
+	 * has been reset in core code anyway, so this shouldn't matter.
+	 */
 	reg_write32(hcd->regs, HC_BUFFER_STATUS_REG, 0);
 	reg_write32(hcd->regs, HC_ATL_PTD_SKIPMAP_REG, NO_TRANSFER_ACTIVE);
 	reg_write32(hcd->regs, HC_INT_PTD_SKIPMAP_REG, NO_TRANSFER_ACTIVE);
 	reg_write32(hcd->regs, HC_ISO_PTD_SKIPMAP_REG, NO_TRANSFER_ACTIVE);
-
-	/* reset */
-	reg_write32(hcd->regs, HC_RESET_REG, SW_RESET_RESET_ALL);
-	mdelay(100);
-
-	reg_write32(hcd->regs, HC_RESET_REG, SW_RESET_RESET_HC);
-	mdelay(100);
 
 	result = ehci_reset(hcd);
 	if (result)
@@ -525,12 +495,8 @@ static int isp1760_hc_setup(struct usb_hcd *hcd)
 
 	/* Step 11 passed */
 
-	dev_info(hcd->self.controller, "bus width: %d, oc: %s\n",
-			   (priv->devflags & ISP1760_FLAG_BUS_WIDTH_16) ?
-			   16 : 32, (priv->devflags & ISP1760_FLAG_ANALOG_OC) ?
-			   "analog" : "digital");
-
 	/* ATL reset */
+	hwmode = reg_read32(hcd->regs, HC_HW_MODE_CTRL) & ~ALL_ATX_RESET;
 	reg_write32(hcd->regs, HC_HW_MODE_CTRL, hwmode | ALL_ATX_RESET);
 	mdelay(10);
 	reg_write32(hcd->regs, HC_HW_MODE_CTRL, hwmode);
@@ -2234,7 +2200,7 @@ void isp1760_deinit_kmem_cache(void)
 
 int isp1760_hcd_register(struct isp1760_hcd *priv, void __iomem *regs,
 			 struct resource *mem, int irq, unsigned long irqflags,
-			 struct device *dev, unsigned int devflags)
+			 struct device *dev)
 {
 	struct usb_hcd *hcd;
 	int ret;
@@ -2246,13 +2212,6 @@ int isp1760_hcd_register(struct isp1760_hcd *priv, void __iomem *regs,
 	*(struct isp1760_hcd **)hcd->hcd_priv = priv;
 
 	priv->hcd = hcd;
-	priv->devflags = devflags;
-
-	priv->rst_gpio = devm_gpiod_get_optional(dev, NULL, GPIOD_OUT_HIGH);
-	if (IS_ERR(priv->rst_gpio)) {
-		ret = PTR_ERR(priv->rst_gpio);
-		goto error;
-	}
 
 	init_memory(priv);
 

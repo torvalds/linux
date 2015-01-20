@@ -3,7 +3,6 @@
 
 #include <linux/spinlock.h>
 
-struct gpio_desc;
 struct isp1760_qh;
 struct isp1760_qtd;
 struct resource;
@@ -26,20 +25,6 @@ struct usb_hcd;
 #define BLOCKS (BLOCK_1_NUM + BLOCK_2_NUM + BLOCK_3_NUM)
 #define MAX_PAYLOAD_SIZE BLOCK_3_SIZE
 #define PAYLOAD_AREA_SIZE 0xf000
-
-/*
- * Device flags that can vary from board to board.  All of these
- * indicate the most "atypical" case, so that a devflags of 0 is
- * a sane default configuration.
- */
-#define ISP1760_FLAG_BUS_WIDTH_16	0x00000002 /* 16-bit data bus width */
-#define ISP1760_FLAG_OTG_EN		0x00000004 /* Port 1 supports OTG */
-#define ISP1760_FLAG_ANALOG_OC		0x00000008 /* Analog overcurrent */
-#define ISP1760_FLAG_DACK_POL_HIGH	0x00000010 /* DACK active high */
-#define ISP1760_FLAG_DREQ_POL_HIGH	0x00000020 /* DREQ active high */
-#define ISP1760_FLAG_ISP1761		0x00000040 /* Chip is ISP1761 */
-#define ISP1760_FLAG_INTR_POL_HIGH	0x00000080 /* Interrupt polarity active high */
-#define ISP1760_FLAG_INTR_EDGE_TRIG	0x00000100 /* Interrupt edge triggered */
 
 struct isp1760_slotinfo {
 	struct isp1760_qh *qh;
@@ -79,14 +64,11 @@ struct isp1760_hcd {
 	unsigned		i_thresh;
 	unsigned long		reset_done;
 	unsigned long		next_statechange;
-	unsigned int		devflags;
-
-	struct gpio_desc	*rst_gpio;
 };
 
 int isp1760_hcd_register(struct isp1760_hcd *priv, void __iomem *regs,
 			 struct resource *mem, int irq, unsigned long irqflags,
-			 struct device *dev, unsigned int devflags);
+			 struct device *dev);
 void isp1760_hcd_unregister(struct isp1760_hcd *priv);
 
 int isp1760_init_kmem_once(void);
