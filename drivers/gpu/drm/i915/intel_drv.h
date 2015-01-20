@@ -258,7 +258,7 @@ struct intel_plane_state {
 };
 
 struct intel_plane_config {
-	bool tiled;
+	unsigned int tiling;
 	int size;
 	u32 base;
 };

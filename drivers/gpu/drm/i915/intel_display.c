@@ -2352,10 +2352,9 @@ static bool intel_alloc_plane_obj(struct intel_crtc *crtc,
 	if (!obj)
 		return false;
 
-	if (plane_config->tiled) {
-		obj->tiling_mode = I915_TILING_X;
+	obj->tiling_mode = plane_config->tiling;
+	if (obj->tiling_mode == I915_TILING_X)
 		obj->stride = crtc->base.primary->fb->pitches[0];
-	}
 
 	mode_cmd.pixel_format = crtc->base.primary->fb->pixel_format;
 	mode_cmd.width = crtc->base.primary->fb->width;
@@ -6565,7 +6564,7 @@ static void i9xx_get_plane_config(struct intel_crtc *crtc,
 
 	if (INTEL_INFO(dev)->gen >= 4)
 		if (val & DISPPLANE_TILED)
-			plane_config->tiled = true;
+			plane_config->tiling = I915_TILING_X;
 
 	pixel_format = val & DISPPLANE_PIXFORMAT_MASK;
 	fourcc = intel_format_to_fourcc(pixel_format);
@@ -6574,7 +6573,7 @@ static void i9xx_get_plane_config(struct intel_crtc *crtc,
 		drm_format_plane_cpp(fourcc, 0) * 8;
 
 	if (INTEL_INFO(dev)->gen >= 4) {
-		if (plane_config->tiled)
+		if (plane_config->tiling)
 			offset = I915_READ(DSPTILEOFF(plane));
 		else
 			offset = I915_READ(DSPLINOFF(plane));
@@ -6592,7 +6591,7 @@ static void i9xx_get_plane_config(struct intel_crtc *crtc,
 	crtc->base.primary->fb->pitches[0] = val & 0xffffffc0;
 
 	aligned_height = intel_align_height(dev, crtc->base.primary->fb->height,
-					    plane_config->tiled);
+					    plane_config->tiling);
 
 	plane_config->size = PAGE_ALIGN(crtc->base.primary->fb->pitches[0] *
 					aligned_height);
@@ -7619,7 +7618,7 @@ static void ironlake_get_plane_config(struct intel_crtc *crtc,
 
 	if (INTEL_INFO(dev)->gen >= 4)
 		if (val & DISPPLANE_TILED)
-			plane_config->tiled = true;
+			plane_config->tiling = I915_TILING_X;
 
 	pixel_format = val & DISPPLANE_PIXFORMAT_MASK;
 	fourcc = intel_format_to_fourcc(pixel_format);
@@ -7631,7 +7630,7 @@ static void ironlake_get_plane_config(struct intel_crtc *crtc,
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		offset = I915_READ(DSPOFFSET(plane));
 	} else {
-		if (plane_config->tiled)
+		if (plane_config->tiling)
 			offset = I915_READ(DSPTILEOFF(plane));
 		else
 			offset = I915_READ(DSPLINOFF(plane));
@@ -7646,7 +7645,7 @@ static void ironlake_get_plane_config(struct intel_crtc *crtc,
 	crtc->base.primary->fb->pitches[0] = val & 0xffffffc0;
 
 	aligned_height = intel_align_height(dev, crtc->base.primary->fb->height,
-					    plane_config->tiled);
+					    plane_config->tiling);
 
 	plane_config->size = PAGE_ALIGN(crtc->base.primary->fb->pitches[0] *
 					aligned_height);
