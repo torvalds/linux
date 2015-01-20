@@ -865,10 +865,10 @@ static int msm_ps_hold_restart(struct notifier_block *nb, unsigned long action,
 
 static void msm_pinctrl_setup_pm_reset(struct msm_pinctrl *pctrl)
 {
-	int i = 0;
+	int i;
 	const struct msm_function *func = pctrl->soc->functions;
 
-	for (; i <= pctrl->soc->nfunctions; i++)
+	for (i = 0; i < pctrl->soc->nfunctions; i++)
 		if (!strcmp(func[i].name, "ps_hold")) {
 			pctrl->restart_nb.notifier_call = msm_ps_hold_restart;
 			pctrl->restart_nb.priority = 128;
