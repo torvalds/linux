@@ -37,6 +37,8 @@
 
 #include <linux/export.h>
 
+#define FILE_DATA(_file) ((_file)->f_path.dentry->d_inode)
+
 struct t4_debugfs_entry {
 	const char *name;
 	const struct file_operations *ops;
@@ -60,5 +62,6 @@ int t4_setup_debugfs(struct adapter *adap);
 void add_debugfs_files(struct adapter *adap,
 		       struct t4_debugfs_entry *files,
 		       unsigned int nfiles);
+int mem_open(struct inode *inode, struct file *file);
 
 #endif

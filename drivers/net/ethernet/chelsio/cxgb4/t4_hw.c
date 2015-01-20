@@ -835,8 +835,8 @@ static int flash_wait_op(struct adapter *adapter, int attempts, int delay)
  *	(i.e., big-endian), otherwise as 32-bit words in the platform's
  *	natural endianess.
  */
-static int t4_read_flash(struct adapter *adapter, unsigned int addr,
-			 unsigned int nwords, u32 *data, int byte_oriented)
+int t4_read_flash(struct adapter *adapter, unsigned int addr,
+		  unsigned int nwords, u32 *data, int byte_oriented)
 {
 	int ret;
 
@@ -1237,6 +1237,30 @@ out:
 	else
 		ret = t4_get_fw_version(adap, &adap->params.fw_vers);
 	return ret;
+}
+
+/**
+ *	t4_fwcache - firmware cache operation
+ *	@adap: the adapter
+ *	@op  : the operation (flush or flush and invalidate)
+ */
+int t4_fwcache(struct adapter *adap, enum fw_params_param_dev_fwcache op)
+{
+	struct fw_params_cmd c;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_vfn =
+		cpu_to_be32(FW_CMD_OP_V(FW_PARAMS_CMD) |
+			    FW_CMD_REQUEST_F | FW_CMD_WRITE_F |
+			    FW_PARAMS_CMD_PFN_V(adap->fn) |
+			    FW_PARAMS_CMD_VFN_V(0));
+	c.retval_len16 = cpu_to_be32(FW_LEN16(c));
+	c.param[0].mnem =
+		cpu_to_be32(FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+			    FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_FWCACHE));
+	c.param[0].val = (__force __be32)op;
+
+	return t4_wr_mbox(adap, adap->mbox, &c, sizeof(c), NULL);
 }
 
 #define ADVERT_MASK (FW_PORT_CAP_SPEED_100M | FW_PORT_CAP_SPEED_1G |\

@@ -434,6 +434,51 @@ static const struct file_operations devlog_fops = {
 	.release = seq_release_private
 };
 
+static ssize_t flash_read(struct file *file, char __user *buf, size_t count,
+			  loff_t *ppos)
+{
+	loff_t pos = *ppos;
+	loff_t avail = FILE_DATA(file)->i_size;
+	struct adapter *adap = file->private_data;
+
+	if (pos < 0)
+		return -EINVAL;
+	if (pos >= avail)
+		return 0;
+	if (count > avail - pos)
+		count = avail - pos;
+
+	while (count) {
+		size_t len;
+		int ret, ofst;
+		u8 data[256];
+
+		ofst = pos & 3;
+		len = min(count + ofst, sizeof(data));
+		ret = t4_read_flash(adap, pos - ofst, (len + 3) / 4,
+				    (u32 *)data, 1);
+		if (ret)
+			return ret;
+
+		len -= ofst;
+		if (copy_to_user(buf, data + ofst, len))
+			return -EFAULT;
+
+		buf += len;
+		pos += len;
+		count -= len;
+	}
+	count = pos - *ppos;
+	*ppos = pos;
+	return count;
+}
+
+static const struct file_operations flash_debugfs_fops = {
+	.owner   = THIS_MODULE,
+	.open    = mem_open,
+	.read    = flash_read,
+};
+
 static inline void tcamxy2valmask(u64 x, u64 y, u8 *addr, u64 *mask)
 {
 	*mask = x | y;
@@ -579,6 +624,21 @@ static const struct file_operations clip_tbl_debugfs_fops = {
 };
 #endif
 
+int mem_open(struct inode *inode, struct file *file)
+{
+	unsigned int mem;
+	struct adapter *adap;
+
+	file->private_data = inode->i_private;
+
+	mem = (uintptr_t)file->private_data & 0x3;
+	adap = file->private_data - mem;
+
+	(void)t4_fwcache(adap, FW_PARAM_DEV_FWCACHE_FLUSH);
+
+	return 0;
+}
+
 static ssize_t mem_read(struct file *file, char __user *buf, size_t count,
 			loff_t *ppos)
 {
@@ -616,13 +676,18 @@ static ssize_t mem_read(struct file *file, char __user *buf, size_t count,
 	*ppos = pos + count;
 	return count;
 }
-
 static const struct file_operations mem_debugfs_fops = {
 	.owner   = THIS_MODULE,
 	.open    = simple_open,
 	.read    = mem_read,
 	.llseek  = default_llseek,
 };
+
+static void set_debugfs_file_size(struct dentry *de, loff_t size)
+{
+	if (!IS_ERR(de) && de->d_inode)
+		de->d_inode->i_size = size;
+}
 
 static void add_debugfs_mem(struct adapter *adap, const char *name,
 			    unsigned int idx, unsigned int size_mb)
@@ -655,6 +720,7 @@ int t4_setup_debugfs(struct adapter *adap)
 {
 	int i;
 	u32 size;
+	struct dentry *de;
 
 	static struct t4_debugfs_entry t4_debugfs_files[] = {
 		{ "cim_la", &cim_la_fops, S_IRUSR, 0 },
@@ -697,5 +763,10 @@ int t4_setup_debugfs(struct adapter *adap)
 					EXT_MEM1_SIZE_G(size));
 		}
 	}
+
+	de = debugfs_create_file("flash", S_IRUSR, adap->debugfs_root, adap,
+				 &flash_debugfs_fops);
+	set_debugfs_file_size(de, adap->params.sf_size);
+
 	return 0;
 }
