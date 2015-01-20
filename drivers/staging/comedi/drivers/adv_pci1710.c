@@ -293,11 +293,16 @@ static int pci171x_ai_dropout(struct comedi_device *dev,
 	struct pci1710_private *devpriv = dev->private;
 
 	if (!board->is_pci1713) {
-		if ((val & 0xf000) != devpriv->act_chanlist[chan]) {
+		/*
+		 * The upper 4 bits of the 16-bit sample are the channel number
+		 * that the sample was acquired from. Verify that this channel
+		 * number matches the expected channel number.
+		 */
+		val >>= 12;
+		if (val != devpriv->act_chanlist[chan]) {
 			dev_err(dev->class_dev,
 				"A/D data droput: received from channel %d, expected %d\n",
-				(val >> 12) & 0xf,
-				(devpriv->act_chanlist[chan] >> 12) & 0xf);
+				val, devpriv->act_chanlist[chan]);
 			return -ENODATA;
 		}
 	}
@@ -386,13 +391,10 @@ static void setup_channel_list(struct comedi_device *dev,
 		if (CR_AREF(chanlist[i]) == AREF_DIFF)
 			range |= 0x0020;
 		outw(range, dev->iobase + PCI171x_RANGE); /* select gain */
-		devpriv->act_chanlist[i] =
-			(CR_CHAN(chanlist[i]) << 12) & 0xf000;
+		devpriv->act_chanlist[i] = CR_CHAN(chanlist[i]);
 	}
-	for ( ; i < n_chan; i++) { /* store remainder of channel list */
-		devpriv->act_chanlist[i] =
-			(CR_CHAN(chanlist[i]) << 12) & 0xf000;
-	}
+	for ( ; i < n_chan; i++)	/* store remainder of channel list */
+		devpriv->act_chanlist[i] = CR_CHAN(chanlist[i]);
 
 	devpriv->ai_et_MuxVal =
 		CR_CHAN(chanlist[0]) | (CR_CHAN(chanlist[seglen - 1]) << 8);
