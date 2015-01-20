@@ -4876,18 +4876,17 @@ static inline int parity_smaller(u64 a, u64 b)
 }
 
 /* Bubble-sort the stripe set to put the parity/syndrome stripes last */
-static void sort_parity_stripes(struct btrfs_bio *bbio, u64 *raid_map)
+static void sort_parity_stripes(struct btrfs_bio *bbio, u64 *raid_map,
+				int num_stripes)
 {
 	struct btrfs_bio_stripe s;
-	int real_stripes = bbio->num_stripes - bbio->num_tgtdevs;
 	int i;
 	u64 l;
 	int again = 1;
-	int m;
 
 	while (again) {
 		again = 0;
-		for (i = 0; i < real_stripes - 1; i++) {
+		for (i = 0; i < num_stripes - 1; i++) {
 			if (parity_smaller(raid_map[i], raid_map[i+1])) {
 				s = bbio->stripes[i];
 				l = raid_map[i];
@@ -4895,13 +4894,6 @@ static void sort_parity_stripes(struct btrfs_bio *bbio, u64 *raid_map)
 				raid_map[i] = raid_map[i+1];
 				bbio->stripes[i+1] = s;
 				raid_map[i+1] = l;
-
-				if (bbio->tgtdev_map) {
-					m = bbio->tgtdev_map[i];
-					bbio->tgtdev_map[i] =
-							bbio->tgtdev_map[i + 1];
-					bbio->tgtdev_map[i + 1] = m;
-				}
 
 				again = 1;
 			}
@@ -5340,6 +5332,9 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 	if (rw & (REQ_WRITE | REQ_GET_READ_MIRRORS))
 		max_errors = btrfs_chunk_max_errors(map);
 
+	if (raid_map)
+		sort_parity_stripes(bbio, raid_map, num_stripes);
+
 	tgtdev_indexes = 0;
 	if (dev_replace_is_ongoing && (rw & (REQ_WRITE | REQ_DISCARD)) &&
 	    dev_replace->tgtdev != NULL) {
@@ -5443,10 +5438,9 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 		bbio->stripes[0].physical = physical_to_patch_in_first_stripe;
 		bbio->mirror_num = map->num_stripes + 1;
 	}
-	if (raid_map) {
-		sort_parity_stripes(bbio, raid_map);
+
+	if (raid_map_ret)
 		*raid_map_ret = raid_map;
-	}
 out:
 	if (dev_replace_is_ongoing)
 		btrfs_dev_replace_unlock(dev_replace);
