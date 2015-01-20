@@ -29,7 +29,7 @@
 
 static void __init ape6evm_add_standard_devices(void)
 {
-
+#ifndef CONFIG_COMMON_CLK
 	struct clk *parent;
 	struct clk *mp;
 
@@ -43,6 +43,7 @@ static void __init ape6evm_add_standard_devices(void)
 	clk_set_parent(mp, parent);
 	clk_put(parent);
 	clk_put(mp);
+#endif
 
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
