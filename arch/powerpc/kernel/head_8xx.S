@@ -529,9 +529,6 @@ DARFixed:/* Return from dcbx instruction bug workaround */
  /* define if you don't want to use self modifying code */
 #define NO_SELF_MODIFYING_CODE
 FixupDAR:/* Entry point for dcbx workaround. */
-#ifdef CONFIG_8xx_CPU6
-	mtspr	SPRN_DAR, r3
-#endif
 	mtspr	SPRN_SPRG_SCRATCH2, r10
 	/* fetch instruction from memory. */
 	mfspr	r10, SPRN_SRR0
@@ -548,9 +545,6 @@ FixupDAR:/* Entry point for dcbx workaround. */
 	/* Extract level 2 index */
 	rlwinm	r11, r11, 32 - (PAGE_SHIFT - 2), 32 - PAGE_SHIFT, 29
 	lwzx	r11, r10, r11	/* Get the pte */
-#ifdef CONFIG_8xx_CPU6
-	mfspr	r3, SPRN_DAR
-#endif
 	/* concat physical page address(r11) and page offset(r10) */
 	mfspr	r10, SPRN_SRR0
 	rlwimi	r11, r10, 0, 32 - PAGE_SHIFT, 31
