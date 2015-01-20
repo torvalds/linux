@@ -695,7 +695,7 @@ RGA2_set_reg_color_palette(RK_U8 *base, struct rga2_req *msg)
     p = p + (x_off>>shift) + y_off*src_stride;
 
 
-    *bRGA_SRC_BASE0 = (RK_U32)p;
+    *bRGA_SRC_BASE0 = (unsigned long)p;
 
 	reg = ((reg & (~m_RGA2_SRC_INFO_SW_SRC_FMT)) | (s_RGA2_SRC_INFO_SW_SRC_FMT((msg->palette_mode | 0xc))));
     reg = ((reg & (~m_RGA2_SRC_INFO_SW_SW_CP_ENDAIN)) | (s_RGA2_SRC_INFO_SW_SW_CP_ENDAIN(msg->endian_mode & 1)));
@@ -767,7 +767,6 @@ RGA2_set_reg_update_palette_table(RK_U8 *base, struct rga2_req *msg)
     bRGA_FADING_CTRL = (RK_U32 *)(base + RGA2_FADING_CTRL_OFFSET);
 
     *bRGA_FADING_CTRL = msg->fading_g_value << 8;
-   // *bRGA_MASK_BASE = (RK_U32)msg->LUT_addr;
     *bRGA_MASK_BASE = (RK_U32)msg->pat.yrgb_addr;
 }
 

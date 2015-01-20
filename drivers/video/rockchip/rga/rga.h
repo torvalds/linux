@@ -117,10 +117,10 @@ enum
 
 typedef struct rga_img_info_t
 {
-    unsigned int yrgb_addr;      /* yrgb    mem addr         */
-    unsigned int uv_addr;        /* cb/cr   mem addr         */
-    unsigned int v_addr;         /* cr      mem addr         */
-    unsigned int format;         //definition by RK_FORMAT
+    unsigned long yrgb_addr;      /* yrgb    mem addr         */
+    unsigned long uv_addr;        /* cb/cr   mem addr         */
+    unsigned long v_addr;         /* cr      mem addr         */
+    unsigned long format;         //definition by RK_FORMAT
 
     unsigned short act_w;
     unsigned short act_h;
@@ -181,7 +181,7 @@ typedef struct RGB
 typedef struct MMU
 {
     unsigned char mmu_en;
-    uint32_t base_addr;
+    unsigned long base_addr;
     uint32_t mmu_flag;     /* [0] mmu enable [1] src_flush [2] dst_flush [3] CMD_flush [4~5] page size*/
 } MMU;
 
@@ -232,8 +232,8 @@ struct rga_req {
     rga_img_info_t dst;             /* dst image info */
     rga_img_info_t pat;             /* patten image info */
 
-    uint32_t rop_mask_addr;         /* rop4 mask addr */
-    uint32_t LUT_addr;              /* LUT addr */
+    unsigned long rop_mask_addr;         /* rop4 mask addr */
+    unsigned long LUT_addr;              /* LUT addr */
 
     RECT clip;                      /* dst clip window default value is dst_vir */
                                     /* value from [0, w-1] / [0, h-1]*/
@@ -392,6 +392,7 @@ typedef struct rga_service_info {
 
     uint32_t            cmd_buff[28*8];/* cmd_buff for rga */
     uint32_t            *pre_scale_buf;
+    unsigned long       *pre_scale_buf_virtual;
     atomic_t            int_disable;     /* 0 int enable 1 int disable  */
     atomic_t            cmd_num;
     atomic_t            rga_working;

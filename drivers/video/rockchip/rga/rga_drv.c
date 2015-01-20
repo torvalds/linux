@@ -251,11 +251,11 @@ static void rga_dump(void)
 		printk("task_running %d\n", running);
 		list_for_each_entry_safe(reg, reg_tmp, &session->waiting, session_link)
         {
-			printk("waiting register set 0x%.8x\n", (unsigned int)reg);
+			printk("waiting register set 0x%.lu\n", (unsigned long)reg);
 		}
 		list_for_each_entry_safe(reg, reg_tmp, &session->running, session_link)
         {
-			printk("running register set 0x%.8x\n", (unsigned int)reg);
+			printk("running register set 0x%.lu\n", (unsigned long)reg);
 		}
 	}
 }
@@ -317,6 +317,7 @@ static void rga_power_off_work(struct work_struct *work)
 		mutex_unlock(&rga_service.lock);
 	} else {
 		/* Come back later if the device is busy... */
+
 		rga_queue_power_off_work();
 	}
 }
@@ -450,11 +451,8 @@ static void rga_copy_reg(struct rga_reg *reg, uint32_t offset)
     reg_p = (uint32_t *)reg->cmd_reg;
 
     for(i=0; i<32; i++)
-    {
         cmd_buf[i] = reg_p[i];
-    }
 
-    dsb();
 }
 
 
@@ -636,8 +634,12 @@ static void rga_try_set_reg(void)
             rga_copy_reg(reg, 0);
             rga_reg_from_wait_to_run(reg);
 
+            #ifdef CONFIG_ARM
             dmac_flush_range(&rga_service.cmd_buff[0], &rga_service.cmd_buff[28]);
             outer_flush_range(virt_to_phys(&rga_service.cmd_buff[0]),virt_to_phys(&rga_service.cmd_buff[28]));
+            #elif defined(CONFIG_ARM64)
+            __dma_flush_range(&rga_service.cmd_buff[0], &rga_service.cmd_buff[28]);
+            #endif
 
             #if defined(CONFIG_ARCH_RK30)
             rga_soft_reset();
@@ -816,7 +818,7 @@ static int rga_convert_dma_buf(struct rga_req *req)
 
     req->sg_src  = NULL;
     req->sg_dst  = NULL;
-    
+
 	  src_offset = req->line_draw_info.flag;
 	  dst_offset = req->line_draw_info.line_width;
 
@@ -1343,11 +1345,13 @@ static int __init rga_init(void)
 {
 	int ret;
     uint32_t *mmu_buf;
+    unsigned long *mmu_buf_virtual;
     uint32_t i;
     uint32_t *buf_p;
 
     /* malloc pre scale mid buf mmu table */
     mmu_buf = kzalloc(1024*8, GFP_KERNEL);
+    mmu_buf_virtual = kzalloc(1024*2*sizeof(unsigned long), GFP_KERNEL);
     if(mmu_buf == NULL) {
         printk(KERN_ERR "RGA get Pre Scale buff failed. \n");
         return -1;
@@ -1360,14 +1364,16 @@ static int __init rga_init(void)
             printk(KERN_ERR "RGA init pre scale buf falied\n");
             return -ENOMEM;
         }
-        mmu_buf[i] = virt_to_phys((void *)((uint32_t)buf_p));
+        mmu_buf[i] = virt_to_phys((void *)((unsigned long)buf_p));
+        mmu_buf_virtual[i] = (unsigned long)buf_p;
     }
 
     rga_service.pre_scale_buf = (uint32_t *)mmu_buf;
+    rga_service.pre_scale_buf_virtual = (unsigned long *)mmu_buf_virtual;
 
     buf_p = kmalloc(1024*256, GFP_KERNEL);
     rga_mmu_buf.buf_virtual = buf_p;
-    rga_mmu_buf.buf = (uint32_t *)virt_to_phys((void *)((uint32_t)buf_p));
+    rga_mmu_buf.buf = (uint32_t *)virt_to_phys((void *)((unsigned long)buf_p));
     rga_mmu_buf.front = 0;
     rga_mmu_buf.back = 64*1024;
     rga_mmu_buf.size = 64*1024;
@@ -1418,9 +1424,9 @@ static void __exit rga_exit(void)
 
     for(i=0; i<1024; i++)
     {
-        if((uint32_t *)rga_service.pre_scale_buf[i] != NULL)
+        if((unsigned long)rga_service.pre_scale_buf_virtual[i])
         {
-            __free_page((void *)rga_service.pre_scale_buf[i]);
+            __free_page((void *)rga_service.pre_scale_buf_virtual[i]);
         }
     }
 

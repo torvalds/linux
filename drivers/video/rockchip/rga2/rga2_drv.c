@@ -56,8 +56,6 @@
 #define CONFIG_RGA_IOMMU
 #endif
 
-
-
 #define RGA2_TEST_FLUSH_TIME 0
 #define RGA2_INFO_BUS_ERROR 1
 
@@ -137,11 +135,11 @@ static void print_info(struct rga2_req *req)
 {
     printk("render_mode=%d bitblt_mode=%d rotate_mode=%.8x\n",
             req->render_mode, req->bitblt_mode, req->rotate_mode);
-    printk("src : y=%.8x uv=%.8x v=%.8x format=%d aw=%d ah=%d vw=%d vh=%d xoff=%d yoff=%d \n",
+    printk("src : y=%.llx uv=%.llx v=%.llx format=%d aw=%d ah=%d vw=%d vh=%d xoff=%d yoff=%d \n",
             req->src.yrgb_addr, req->src.uv_addr, req->src.v_addr, req->src.format,
             req->src.act_w, req->src.act_h, req->src.vir_w, req->src.vir_h,
             req->src.x_offset, req->src.y_offset);
-    printk("dst : y=%.8x uv=%.8x v=%.8x format=%d aw=%d ah=%d vw=%d vh=%d xoff=%d yoff=%d \n",
+    printk("dst : y=%llx uv=%llx v=%llx format=%d aw=%d ah=%d vw=%d vh=%d xoff=%d yoff=%d \n",
             req->dst.yrgb_addr, req->dst.uv_addr, req->dst.v_addr, req->dst.format,
             req->dst.act_w, req->dst.act_h, req->dst.vir_w, req->dst.vir_h,
             req->dst.x_offset, req->dst.y_offset);
@@ -156,12 +154,16 @@ static void print_info(struct rga2_req *req)
 
 static inline void rga2_write(u32 b, u32 r)
 {
-	__raw_writel(b, rga2_drvdata->rga_base + r);
+	//__raw_writel(b, rga2_drvdata->rga_base + r);
+
+    *((volatile unsigned int *)(rga2_drvdata->rga_base + r)) = b;
 }
 
 static inline u32 rga2_read(u32 r)
 {
-	return __raw_readl(rga2_drvdata->rga_base + r);
+	//return __raw_readl(rga2_drvdata->rga_base + r);
+
+    return *((volatile unsigned int *)(rga2_drvdata->rga_base + r));
 }
 
 static void rga2_soft_reset(void)
@@ -169,7 +171,7 @@ static void rga2_soft_reset(void)
 	u32 i;
 	u32 reg;
 
-	rga2_write(1, RGA2_SYS_CTRL); //RGA_SYS_CTRL
+	rga2_write((1 << 3) | (1 << 4), RGA2_SYS_CTRL); //RGA_SYS_CTRL
 
 	for(i = 0; i < RGA2_RESET_TIMEOUT; i++)
 	{
@@ -194,48 +196,6 @@ static void rga2_dump(void)
 	running = atomic_read(&rga2_service.total_running);
 	printk("rga total_running %d\n", running);
 
-    #if 0
-
-    /* Dump waiting list info */
-    if (!list_empty(&rga_service.waiting))
-    {
-        list_head	*next;
-
-        next = &rga_service.waiting;
-
-        printk("rga_service dump waiting list\n");
-
-        do
-        {
-            reg = list_entry(next->next, struct rga_reg, status_link);
-            running = atomic_read(&reg->session->task_running);
-            num_done = atomic_read(&reg->session->num_done);
-            printk("rga session pid %d, done %d, running %d\n", reg->session->pid, num_done, running);
-            next = next->next;
-        }
-        while(!list_empty(next));
-    }
-
-    /* Dump running list info */
-    if (!list_empty(&rga_service.running))
-    {
-        printk("rga_service dump running list\n");
-
-        list_head	*next;
-
-        next = &rga_service.running;
-        do
-        {
-            reg = list_entry(next->next, struct rga_reg, status_link);
-            running = atomic_read(&reg->session->task_running);
-            num_done = atomic_read(&reg->session->num_done);
-            printk("rga session pid %d, done %d, running %d:\n", reg->session->pid, num_done, running);
-            next = next->next;
-        }
-        while(!list_empty(next));
-    }
-    #endif
-
 	list_for_each_entry_safe(session, session_tmp, &rga2_service.session, list_session)
     {
 		printk("session pid %d:\n", session->pid);
@@ -243,11 +203,11 @@ static void rga2_dump(void)
 		printk("task_running %d\n", running);
 		list_for_each_entry_safe(reg, reg_tmp, &session->waiting, session_link)
         {
-			printk("waiting register set 0x%.8x\n", (unsigned int)reg);
+			printk("waiting register set 0x%.lu\n", (unsigned long)reg);
 		}
 		list_for_each_entry_safe(reg, reg_tmp, &session->running, session_link)
         {
-			printk("running register set 0x%.8x\n", (unsigned int)reg);
+			printk("running register set 0x%.lu\n", (unsigned long)reg);
 		}
 	}
 }
@@ -272,7 +232,6 @@ static void rga2_power_on(void)
 		return;
 
     clk_prepare_enable(rga2_drvdata->rga2);
-    clk_prepare_enable(rga2_drvdata->pd_rga2);
 	clk_prepare_enable(rga2_drvdata->aclk_rga2);
 	clk_prepare_enable(rga2_drvdata->hclk_rga2);
 	//clk_enable(rga2_drvdata->pd_rga2);
@@ -299,7 +258,7 @@ static void rga2_power_off(void)
 
 	//clk_disable(rga2_drvdata->pd_rga2);
     clk_disable_unprepare(rga2_drvdata->rga2);
-    clk_disable_unprepare(rga2_drvdata->pd_rga2);
+    //clk_disable_unprepare(rga2_drvdata->pd_rga2);
 	clk_disable_unprepare(rga2_drvdata->aclk_rga2);
 	clk_disable_unprepare(rga2_drvdata->hclk_rga2);
 	wake_unlock(&rga2_drvdata->wake_lock);
@@ -435,9 +394,7 @@ static void rga2_copy_reg(struct rga2_reg *reg, uint32_t offset)
     uint32_t *reg_p;
 
     if(atomic_read(&reg->session->task_running) != 0)
-    {
         printk(KERN_ERR "task_running is no zero\n");
-    }
 
     atomic_add(1, &rga2_service.cmd_num);
 	atomic_add(1, &reg->session->task_running);
@@ -446,11 +403,7 @@ static void rga2_copy_reg(struct rga2_reg *reg, uint32_t offset)
     reg_p = (uint32_t *)reg->cmd_reg;
 
     for(i=0; i<32; i++)
-    {
         cmd_buf[i] = reg_p[i];
-    }
-
-    dsb();
 }
 
 
@@ -551,23 +504,22 @@ static void rga2_try_set_reg(void)
             rga2_copy_reg(reg, 0);
             rga2_reg_from_wait_to_run(reg);
 
+            #ifdef CONFIG_ARM
             dmac_flush_range(&rga2_service.cmd_buff[0], &rga2_service.cmd_buff[32]);
             outer_flush_range(virt_to_phys(&rga2_service.cmd_buff[0]),virt_to_phys(&rga2_service.cmd_buff[32]));
-
-            #if defined(CONFIG_ARCH_RK30)
-            rga2_soft_reset();
+            #elif defined(CONFIG_ARM64)
+            __dma_flush_range(&rga2_service.cmd_buff[0], &rga2_service.cmd_buff[32]);
             #endif
 
+            rga2_soft_reset();
+
             rga2_write(0x0, RGA2_SYS_CTRL);
-            //rga2_write(0, RGA_MMU_CTRL);
 
             /* CMD buff */
             rga2_write(virt_to_phys(rga2_service.cmd_buff), RGA2_CMD_BASE);
 
 #if RGA2_TEST
-            if(rga2_flag)
-            {
-                //printk(KERN_DEBUG "cmd_addr = %.8x\n", rga_read(RGA_CMD_ADDR));
+            if(rga2_flag) {
                 uint32_t i, *p;
                 p = rga2_service.cmd_buff;
                 printk("CMD_REG\n");
@@ -583,7 +535,7 @@ static void rga2_try_set_reg(void)
             rga2_write(rga2_read(RGA2_INT)|(0x1<<10)|(0x1<<8), RGA2_INT);
 
             #if RGA2_TEST_TIME
-            rga_start = ktime_get();
+            rga2_start = ktime_get();
             #endif
 
             /* Start proc */
@@ -652,25 +604,7 @@ static void rga2_del_running_list_timeout(void)
         atomic_sub(1, &reg->session->task_running);
         atomic_sub(1, &rga2_service.total_running);
 
-        //printk("RGA soft reset for timeout process\n");
         rga2_soft_reset();
-
-
-        #if 0
-        printk("RGA_INT is %.8x\n", rga_read(RGA_INT));
-        printk("reg->session->task_running = %d\n", atomic_read(&reg->session->task_running));
-        printk("rga_service.total_running  = %d\n", atomic_read(&rga_service.total_running));
-
-        print_info(&reg->req);
-
-        {
-            uint32_t *p, i;
-            p = reg->cmd_reg;
-            for (i=0; i<7; i++)
-                printk("%.8x %.8x %.8x %.8x\n", p[0 + i*4], p[1+i*4], p[2 + i*4], p[3 + i*4]);
-
-        }
-        #endif
 
         if(list_empty(&reg->session->waiting))
         {
@@ -855,9 +789,7 @@ static int rga2_blit_sync(rga2_session *session, struct rga2_req *req)
 
     ret = rga2_blit(session, req);
     if(ret < 0)
-    {
         return ret;
-    }
 
     ret_timeout = wait_event_timeout(session->wait, atomic_read(&session->done), RGA2_TIMEOUT_DELAY);
 
@@ -993,6 +925,114 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 	return ret;
 }
 
+static long compat_rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
+{
+    struct rga2_req req;
+    struct rga_req req_rga;
+	int ret = 0;
+    rga2_session *session;
+
+    memset(&req, 0x0, sizeof(req));
+
+    mutex_lock(&rga2_service.mutex);
+
+    session = (rga2_session *)file->private_data;
+
+    #if RGA2_TEST_MSG
+    printk("use compat_rga_ioctl\n");
+    #endif
+
+	if (NULL == session) {
+        printk("%s [%d] rga thread session is null\n",__FUNCTION__,__LINE__);
+        mutex_unlock(&rga2_service.mutex);
+		return -EINVAL;
+	}
+
+    memset(&req, 0x0, sizeof(req));
+
+	switch (cmd) {
+        case RGA_BLIT_SYNC:
+    		if (unlikely(copy_from_user(&req_rga, compat_ptr((compat_uptr_t)arg), sizeof(struct rga_req))))
+            {
+        		ERR("copy_from_user failed\n");
+        		ret = -EFAULT;
+                break;
+        	}
+
+            RGA_MSG_2_RGA2_MSG(&req_rga, &req);
+
+            ret = rga2_blit_sync(session, &req);
+            break;
+		case RGA_BLIT_ASYNC:
+    		if (unlikely(copy_from_user(&req_rga, compat_ptr((compat_uptr_t)arg), sizeof(struct rga_req))))
+            {
+        		ERR("copy_from_user failed\n");
+        		ret = -EFAULT;
+                break;
+        	}
+
+            RGA_MSG_2_RGA2_MSG(&req_rga, &req);
+
+            if((atomic_read(&rga2_service.total_running) > 8))
+            {
+			    ret = rga2_blit_sync(session, &req);
+            }
+            else
+            {
+                ret = rga2_blit_async(session, &req);
+            }
+			break;
+		case RGA2_BLIT_SYNC:
+    		if (unlikely(copy_from_user(&req, compat_ptr((compat_uptr_t)arg), sizeof(struct rga2_req))))
+            {
+        		ERR("copy_from_user failed\n");
+        		ret = -EFAULT;
+                break;
+        	}
+            ret = rga2_blit_sync(session, &req);
+            break;
+		case RGA2_BLIT_ASYNC:
+    		if (unlikely(copy_from_user(&req, compat_ptr((compat_uptr_t)arg), sizeof(struct rga2_req))))
+            {
+        		ERR("copy_from_user failed\n");
+        		ret = -EFAULT;
+                break;
+        	}
+
+            if((atomic_read(&rga2_service.total_running) > 16))
+            {
+			    ret = rga2_blit_sync(session, &req);
+            }
+            else
+            {
+                ret = rga2_blit_async(session, &req);
+            }
+			break;
+        case RGA_FLUSH:
+		case RGA2_FLUSH:
+			ret = rga2_flush(session, arg);
+			break;
+        case RGA_GET_RESULT:
+        case RGA2_GET_RESULT:
+            ret = rga2_get_result(session, arg);
+            break;
+        case RGA_GET_VERSION:
+        case RGA2_GET_VERSION:
+            ret = copy_to_user((void *)arg, RGA2_VERSION, sizeof(RGA2_VERSION));
+            //ret = 0;
+            break;
+		default:
+			ERR("unknown ioctl cmd!\n");
+			ret = -EINVAL;
+			break;
+	}
+
+	mutex_unlock(&rga2_service.mutex);
+
+	return ret;
+}
+
+
 
 long rga2_ioctl_kernel(struct rga_req *req_rga)
 {
@@ -1102,6 +1142,7 @@ struct file_operations rga2_fops = {
 	.open		= rga2_open,
 	.release	= rga2_release,
 	.unlocked_ioctl		= rga_ioctl,
+	.compat_ioctl		= compat_rga_ioctl,
 };
 
 static struct miscdevice rga2_dev ={
@@ -1111,7 +1152,7 @@ static struct miscdevice rga2_dev ={
 };
 
 static const struct of_device_id rockchip_rga_dt_ids[] = {
-	{ .compatible = "rockchip,rk3288-rga2", },
+	{ .compatible = "rockchip,rk3368-rga2", },
 	{},
 };
 
@@ -1246,10 +1287,12 @@ static int __init rga2_init(void)
     /* malloc pre scale mid buf mmu table */
     buf_p = kmalloc(1024*256, GFP_KERNEL);
     rga2_mmu_buf.buf_virtual = buf_p;
-    rga2_mmu_buf.buf = (uint32_t *)virt_to_phys((void *)((uint32_t)buf_p));
+    rga2_mmu_buf.buf = (uint32_t *)virt_to_phys((void *)((unsigned long)buf_p));
     rga2_mmu_buf.front = 0;
     rga2_mmu_buf.back = 64*1024;
     rga2_mmu_buf.size = 64*1024;
+
+    rga2_mmu_buf.pages = kmalloc(32768 * sizeof(struct page *), GFP_KERNEL);
 
 	if ((ret = platform_driver_register(&rga2_driver)) != 0)
 	{
@@ -1297,16 +1340,6 @@ static void __exit rga2_exit(void)
 
 #if RGA2_TEST_CASE
 
-extern struct fb_info * rk_get_fb(int fb_id);
-EXPORT_SYMBOL(rk_get_fb);
-
-extern void rk_direct_fb_show(struct fb_info * fbi);
-EXPORT_SYMBOL(rk_direct_fb_show);
-
-//unsigned int src_buf[4096*2304*3/2];
-//unsigned int dst_buf[3840*2304*3/2];
-//unsigned int tmp_buf[1920*1080 * 2];
-
 void rga2_test_0(void)
 {
     struct rga2_req req;
@@ -1333,10 +1366,15 @@ void rga2_test_0(void)
     //fb = rk_get_fb(0);
 
     memset(&req, 0, sizeof(struct rga2_req));
-    src = kmalloc(4096*2304*3/2, GFP_KERNEL);
-    dst = kmalloc(3840*2160*3/2, GFP_KERNEL);
+    src = kmalloc(800*480*4, GFP_KERNEL);
+    dst = kmalloc(800*480*4, GFP_KERNEL);
 
-    //memset(src, 0x80, 4096*2304*4);
+    printk("\n********************************\n");
+    printk("************ RGA2_TEST ************\n");
+    printk("********************************\n\n");
+
+    memset(src, 0x80, 800*480*4);
+    memset(dst, 0x0, 800*480*4);
 
     //dmac_flush_range(&src, &src[800*480*4]);
     //outer_flush_range(virt_to_phys(&src),virt_to_phys(&src[800*480*4]));
@@ -1354,39 +1392,39 @@ void rga2_test_0(void)
 
     i = j = 0;
 
-    printk("\n********************************\n");
-    printk("************ RGA2_TEST ************\n");
-    printk("********************************\n\n");
 
+
+    #if 0
     req.pat.act_w = 16;
     req.pat.act_h = 16;
     req.pat.vir_w = 16;
     req.pat.vir_h = 16;
     req.pat.yrgb_addr = virt_to_phys(src);
-    req.render_mode = update_palette_table_mode;
+    req.render_mode = 0;
     rga2_blit_sync(&session, &req);
+    #endif
 
-    req.src.act_w  = 4096;
-    req.src.act_h = 2304;
+    req.src.act_w  = 320;
+    req.src.act_h = 240;
 
-    req.src.vir_w  = 4096;
-    req.src.vir_h = 2304;
-    req.src.yrgb_addr = (uint32_t)0;//virt_to_phys(src);
-    req.src.uv_addr = (uint32_t)virt_to_phys(src);
+    req.src.vir_w  = 320;
+    req.src.vir_h = 240;
+    req.src.yrgb_addr = 0;//(uint32_t)virt_to_phys(src);
+    req.src.uv_addr = (unsigned long)virt_to_phys(src);
     req.src.v_addr = 0;
-    req.src.format = RGA2_FORMAT_YCbCr_420_SP;
+    req.src.format = RGA2_FORMAT_RGBA_8888;
 
-    req.dst.act_w  = 3840;
-    req.dst.act_h = 2160;
+    req.dst.act_w  = 320;
+    req.dst.act_h = 240;
     req.dst.x_offset = 0;
     req.dst.y_offset = 0;
 
-    req.dst.vir_w = 3840;
-    req.dst.vir_h = 2160;
+    req.dst.vir_w = 320;
+    req.dst.vir_h = 240;
 
     req.dst.yrgb_addr = 0;//((uint32_t)virt_to_phys(dst));
-    req.dst.uv_addr = ((uint32_t)virt_to_phys(dst));
-    req.dst.format = RGA2_FORMAT_YCbCr_420_SP;
+    req.dst.uv_addr = (unsigned long)virt_to_phys(dst);
+    req.dst.format = RGA2_FORMAT_RGBA_8888;
 
     //dst = dst0;
 
@@ -1409,36 +1447,9 @@ void rga2_test_0(void)
 
     rga2_blit_sync(&session, &req);
 
-    #if 0
-    fb->var.bits_per_pixel = 32;
-
-    fb->var.xres = 1280;
-    fb->var.yres = 800;
-
-    fb->var.red.length = 8;
-    fb->var.red.offset = 0;
-    fb->var.red.msb_right = 0;
-
-    fb->var.green.length = 8;
-    fb->var.green.offset = 8;
-    fb->var.green.msb_right = 0;
-
-    fb->var.blue.length = 8;
-
-    fb->var.blue.offset = 16;
-    fb->var.blue.msb_right = 0;
-
-    fb->var.transp.length = 8;
-    fb->var.transp.offset = 24;
-    fb->var.transp.msb_right = 0;
-
-    fb->var.nonstd &= (~0xff);
-    fb->var.nonstd |= 1;
-
-    fb->fix.smem_start = virt_to_phys(dst);
-
-    rk_direct_fb_show(fb);
-    #endif
+    for(j=0; j<100; j++) {
+        printk("%.8x\n", dst[j]);
+    }
 
     if(src)
         kfree(src);
