@@ -61,7 +61,8 @@ dtb-$(CONFIG_ARCH_BCM_5301X) += \
 	bcm4708-netgear-r6250.dtb \
 	bcm4708-netgear-r6300-v2.dtb \
 	bcm47081-asus-rt-n18u.dtb \
-	bcm47081-buffalo-wzr-600dhp2.dtb
+	bcm47081-buffalo-wzr-600dhp2.dtb \
+	bcm47081-buffalo-wzr-900dhp.dtb
 dtb-$(CONFIG_ARCH_BCM_63XX) += bcm963138dvt.dtb
 dtb-$(CONFIG_ARCH_BCM_CYGNUS) += bcm911360_entphn.dtb \
 	bcm911360k.dtb \
