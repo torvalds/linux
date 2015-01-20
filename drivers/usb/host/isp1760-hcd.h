@@ -4,7 +4,7 @@
 /* exports for if */
 int isp1760_register(phys_addr_t res_start, resource_size_t res_len, int irq,
 		     unsigned long irqflags, struct device *dev,
-		     const char *busname, unsigned int devflags);
+		     unsigned int devflags);
 void isp1760_unregister(struct device *dev);
 
 int isp1760_init_kmem_once(void);

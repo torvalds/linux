@@ -134,8 +134,7 @@ static int isp1761_pci_probe(struct pci_dev *dev,
 
 	dev->dev.dma_mask = NULL;
 	ret_status = isp1760_register(pci_mem_phy0, memlength, dev->irq,
-				      IRQF_SHARED, &dev->dev,
-				      dev_name(&dev->dev), devflags);
+				      IRQF_SHARED, &dev->dev, devflags);
 	if (ret_status < 0)
 		goto cleanup3;
 
@@ -259,8 +258,7 @@ static int isp1760_plat_probe(struct platform_device *pdev)
 	}
 
 	ret = isp1760_register(mem_res->start, mem_size, irq_res->start,
-			       irqflags, &pdev->dev, dev_name(&pdev->dev),
-			       devflags);
+			       irqflags, &pdev->dev, devflags);
 	if (ret < 0)
 		goto cleanup;
 

@@ -2213,7 +2213,7 @@ void isp1760_deinit_kmem_cache(void)
 
 int isp1760_register(phys_addr_t res_start, resource_size_t res_len, int irq,
 		     unsigned long irqflags, struct device *dev,
-		     const char *busname, unsigned int devflags)
+		     unsigned int devflags)
 {
 	struct usb_hcd *hcd;
 	struct isp1760_hcd *priv;
