@@ -410,7 +410,7 @@ static int klp_enable_func(struct klp_func *func)
 
 	func->state = KLP_ENABLED;
 
-	return ret;
+	return 0;
 
 err:
 	list_del_rcu(&func->stack_node);
