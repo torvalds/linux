@@ -1544,6 +1544,7 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
         struct dw_mci_board *brd = slot->host->pdata;
         struct dw_mci *host = slot->host;
         int gpio_cd = mmc_gpio_get_cd(mmc);
+	int force_jtag_bit, force_jtag_reg;
         int gpio_val;
 	int irq;
 
@@ -1553,18 +1554,28 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
 		irq = gpio_to_irq(gpio_cd);
 		if (gpio_is_valid(gpio_cd)) {
                         gpio_val = gpio_get_value(gpio_cd);
+			if (soc_is_rk3036()) {
+				force_jtag_bit = 11;
+				force_jtag_reg = RK312X_GRF_SOC_CON0;
+			} else if (soc_is_rk3126() || soc_is_rk3126b()) {
+				force_jtag_reg = RK312X_GRF_SOC_CON0;
+				force_jtag_bit = 8;
+			}
                         msleep(10);
                         if (gpio_val == gpio_get_value(gpio_cd)) {
                                 gpio_cd = gpio_get_value(gpio_cd) == 0 ? 1 : 0;
                                 if (gpio_cd == 0) {
                                         irq_set_irq_type(irq, IRQF_TRIGGER_LOW | IRQF_ONESHOT);
 					/* Enable force_jtag wihtout card in slot, ONLY for NCD-package */
-                                        grf_writel((0x1 << 24) | (1 << 8), RK312X_GRF_SOC_CON0);
+					grf_writel((0x1 << (force_jtag_bit + 16)) | (1 << force_jtag_bit), 
+							force_jtag_reg);
+
                                         dw_mci_ctrl_all_reset(host);
                                 } else {
 					irq_set_irq_type(irq, IRQF_TRIGGER_HIGH | IRQF_ONESHOT);
                                         /* Really card detected: SHOULD disable force_jtag */
-                                        grf_writel((0x1 << 24) | (0 << 8), RK312X_GRF_SOC_CON0);
+                                        grf_writel((0x1 << (force_jtag_bit + 16)) | (0 << force_jtag_bit),
+							force_jtag_reg);
                                 }
                         } else {
                                 /* Jitter */
