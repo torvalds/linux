@@ -51,11 +51,6 @@ Configuration options:
 #include "8253.h"
 #include "amcc_s5933.h"
 
-/* hardware types of the cards */
-#define TYPE_PCI171X	0
-#define TYPE_PCI1713	2
-#define TYPE_PCI1720	3
-
 #define PCI171x_AD_DATA	 0	/* R:   A/D data */
 #define PCI171x_SOFTTRG	 0	/* W:   soft trigger for A/D */
 #define PCI171x_RANGE	 2	/* W:   A/D gain/range register */
@@ -191,10 +186,11 @@ enum pci1710_boardid {
 
 struct boardtype {
 	const char *name;	/*  board name */
-	char cardtype;		/*  0=1710& co. 2=1713, ... */
 	int n_aichan;		/*  num of A/D chans */
 	const struct comedi_lrange *rangelist_ai;	/*  rangelist for A/D */
 	const char *rangecode_ai;	/*  range codes for programming */
+	unsigned int is_pci1713:1;
+	unsigned int is_pci1720:1;
 	unsigned int has_irq:1;
 	unsigned int has_large_fifo:1;	/* 4K or 1K FIFO */
 	unsigned int has_diff_ai:1;
@@ -206,7 +202,6 @@ struct boardtype {
 static const struct boardtype boardtypes[] = {
 	[BOARD_PCI1710] = {
 		.name		= "pci1710",
-		.cardtype	= TYPE_PCI171X,
 		.n_aichan	= 16,
 		.rangelist_ai	= &range_pci1710_3,
 		.rangecode_ai	= range_codes_pci1710_3,
@@ -219,7 +214,6 @@ static const struct boardtype boardtypes[] = {
 	},
 	[BOARD_PCI1710HG] = {
 		.name		= "pci1710hg",
-		.cardtype	= TYPE_PCI171X,
 		.n_aichan	= 16,
 		.rangelist_ai	= &range_pci1710hg,
 		.rangecode_ai	= range_codes_pci1710hg,
@@ -232,7 +226,6 @@ static const struct boardtype boardtypes[] = {
 	},
 	[BOARD_PCI1711] = {
 		.name		= "pci1711",
-		.cardtype	= TYPE_PCI171X,
 		.n_aichan	= 16,
 		.rangelist_ai	= &range_pci17x1,
 		.rangecode_ai	= range_codes_pci17x1,
@@ -243,22 +236,21 @@ static const struct boardtype boardtypes[] = {
 	},
 	[BOARD_PCI1713] = {
 		.name		= "pci1713",
-		.cardtype	= TYPE_PCI1713,
 		.n_aichan	= 32,
 		.rangelist_ai	= &range_pci1710_3,
 		.rangecode_ai	= range_codes_pci1710_3,
+		.is_pci1713	= 1,
 		.has_irq	= 1,
 		.has_large_fifo	= 1,
 		.has_diff_ai	= 1,
 	},
 	[BOARD_PCI1720] = {
 		.name		= "pci1720",
-		.cardtype	= TYPE_PCI1720,
+		.is_pci1720	= 1,
 		.has_ao		= 1,
 	},
 	[BOARD_PCI1731] = {
 		.name		= "pci1731",
-		.cardtype	= TYPE_PCI171X,
 		.n_aichan	= 16,
 		.rangelist_ai	= &range_pci17x1,
 		.rangecode_ai	= range_codes_pci17x1,
@@ -300,7 +292,7 @@ static int pci171x_ai_dropout(struct comedi_device *dev,
 	const struct boardtype *board = dev->board_ptr;
 	struct pci1710_private *devpriv = dev->private;
 
-	if (board->cardtype != TYPE_PCI1713) {
+	if (!board->is_pci1713) {
 		if ((val & 0xf000) != devpriv->act_chanlist[chan]) {
 			dev_err(dev->class_dev,
 				"A/D data droput: received from channel %d, expected %d\n",
@@ -643,20 +635,15 @@ static int pci1720_ao_insn_write(struct comedi_device *dev,
 static int pci171x_ai_cancel(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
-	const struct boardtype *board = dev->board_ptr;
 	struct pci1710_private *devpriv = dev->private;
 
-	switch (board->cardtype) {
-	default:
-		devpriv->CntrlReg &= Control_CNT0;
-		devpriv->CntrlReg |= Control_SW;
-		/* reset any operations */
-		outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
-		pci171x_start_pacer(dev, false);
-		outb(0, dev->iobase + PCI171x_CLRFIFO);
-		outb(0, dev->iobase + PCI171x_CLRINT);
-		break;
-	}
+	devpriv->CntrlReg &= Control_CNT0;
+	devpriv->CntrlReg |= Control_SW;
+	/* reset any operations */
+	outw(devpriv->CntrlReg, dev->iobase + PCI171x_CONTROL);
+	pci171x_start_pacer(dev, false);
+	outb(0, dev->iobase + PCI171x_CLRFIFO);
+	outb(0, dev->iobase + PCI171x_CLRINT);
 
 	return 0;
 }
@@ -982,12 +969,10 @@ static int pci1710_reset(struct comedi_device *dev)
 {
 	const struct boardtype *board = dev->board_ptr;
 
-	switch (board->cardtype) {
-	case TYPE_PCI1720:
+	if (board->is_pci1720)
 		return pci1720_reset(dev);
-	default:
-		return pci171x_reset(dev);
-	}
+
+	return pci171x_reset(dev);
 }
 
 static int pci1710_auto_attach(struct comedi_device *dev,
@@ -1066,17 +1051,14 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		s->type		= COMEDI_SUBD_AO;
 		s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
 		s->maxdata	= 0x0fff;
-		switch (board->cardtype) {
-		case TYPE_PCI1720:
+		if (board->is_pci1720) {
 			s->n_chan	= 4;
 			s->range_table	= &pci1720_ao_range;
 			s->insn_write	= pci1720_ao_insn_write;
-			break;
-		default:
+		} else {
 			s->n_chan	= 2;
 			s->range_table	= &pci171x_ao_range;
 			s->insn_write	= pci171x_ao_insn_write;
-			break;
 		}
 
 		ret = comedi_alloc_subdev_readback(s);
@@ -1084,7 +1066,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 			return ret;
 
 		/* initialize the readback values to match the board reset */
-		if (board->cardtype == TYPE_PCI1720) {
+		if (board->is_pci1720) {
 			int i;
 
 			for (i = 0; i < s->n_chan; i++)
