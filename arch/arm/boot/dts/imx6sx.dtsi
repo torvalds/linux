@@ -680,6 +680,12 @@
 				fsl,anatop = <&anatop>;
 			};
 
+			usbphy_nop1: usbphy_nop1 {
+				compatible = "usb-nop-xceiv";
+				clocks = <&clks IMX6SX_CLK_USBPHY1>;
+				clock-names = "main_clk";
+			};
+
 			snvs: snvs@020cc000 {
 				compatible = "fsl,sec-v4.0-mon", "syscon", "simple-mfd";
 				reg = <0x020cc000 0x4000>;
@@ -800,6 +806,7 @@
 				clocks = <&clks IMX6SX_CLK_USBOH3>;
 				fsl,usbmisc = <&usbmisc 2>;
 				phy_type = "hsic";
+				fsl,usbphy = <&usbphy_nop1>;
 				fsl,anatop = <&anatop>;
 				dr_mode = "host";
 				ahb-burst-config = <0x0>;

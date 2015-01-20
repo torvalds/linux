@@ -140,6 +140,32 @@
 			>;
 		};
 
+		pinctrl_usbh2_1: usbh2grp-1 {
+			fsl,pins = <
+				MX6QDL_PAD_RGMII_TXC__USB_H2_DATA      0x40013030
+				MX6QDL_PAD_RGMII_TX_CTL__USB_H2_STROBE 0x40013030
+			>;
+		};
+
+		pinctrl_usbh2_2: usbh2grp-2 {
+			fsl,pins = <
+				MX6QDL_PAD_RGMII_TX_CTL__USB_H2_STROBE 0x40017030
+			>;
+		};
+
+		pinctrl_usbh3_1: usbh3grp-1 {
+			fsl,pins = <
+				MX6QDL_PAD_RGMII_RX_CTL__USB_H3_DATA 0x40013030
+				MX6QDL_PAD_RGMII_RXC__USB_H3_STROBE  0x40013030
+			>;
+		};
+
+		pinctrl_usbh3_2: usbh3grp-2 {
+			fsl,pins = <
+				MX6QDL_PAD_RGMII_RXC__USB_H3_STROBE 0x40017030
+			>;
+		};
+
 		pinctrl_usdhc3: usdhc3grp {
 			fsl,pins = <
 				MX6QDL_PAD_SD3_CMD__SD3_CMD		0x17059
