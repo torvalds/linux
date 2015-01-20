@@ -2252,6 +2252,8 @@ struct usb_hcd *isp1760_register(phys_addr_t res_start, resource_size_t res_len,
 		goto err_unmap;
 	device_wakeup_enable(hcd->self.controller);
 
+	dev_set_drvdata(dev, hcd);
+
 	return hcd;
 
 err_unmap:

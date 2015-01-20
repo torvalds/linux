@@ -146,7 +146,6 @@ static int isp1761_pci_probe(struct pci_dev *dev,
 	iounmap(iobase);
 	release_mem_region(nxp_pci_io_base, iolength);
 
-	pci_set_drvdata(dev, hcd);
 	return 0;
 
 cleanup3:
@@ -271,8 +270,6 @@ static int isp1760_plat_probe(struct platform_device *pdev)
 		ret = PTR_ERR(hcd);
 		goto cleanup;
 	}
-
-	platform_set_drvdata(pdev, hcd);
 
 	pr_info("ISP1760 USB device initialised\n");
 	return 0;
