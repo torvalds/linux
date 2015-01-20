@@ -379,6 +379,11 @@ static int __klp_disable_patch(struct klp_patch *patch)
 	struct klp_object *obj;
 	int ret;
 
+	/* enforce stacking: only the last enabled patch can be disabled */
+	if (!list_is_last(&patch->list, &klp_patches) &&
+	    list_next_entry(patch, list)->state == KLP_ENABLED)
+		return -EBUSY;
+
 	pr_notice("disabling patch '%s'\n", patch->mod->name);
 
 	for (obj = patch->objs; obj->funcs; obj++) {
@@ -434,6 +439,11 @@ static int __klp_enable_patch(struct klp_patch *patch)
 
 	if (WARN_ON(patch->state != KLP_DISABLED))
 		return -EINVAL;
+
+	/* enforce stacking: only the first disabled patch can be enabled */
+	if (patch->list.prev != &klp_patches &&
+	    list_prev_entry(patch, list)->state == KLP_DISABLED)
+		return -EBUSY;
 
 	pr_notice_once("tainting kernel with TAINT_LIVEPATCH\n");
 	add_taint(TAINT_LIVEPATCH, LOCKDEP_STILL_OK);
