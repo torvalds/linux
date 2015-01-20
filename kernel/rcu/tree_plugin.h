@@ -2393,18 +2393,8 @@ void __init rcu_init_nohz(void)
 		pr_info("\tPoll for callbacks from no-CBs CPUs.\n");
 
 	for_each_rcu_flavor(rsp) {
-		for_each_cpu(cpu, rcu_nocb_mask) {
-			struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
-
-			/*
-			 * If there are early callbacks, they will need
-			 * to be moved to the nocb lists.
-			 */
-			WARN_ON_ONCE(rdp->nxttail[RCU_NEXT_TAIL] !=
-				     &rdp->nxtlist &&
-				     rdp->nxttail[RCU_NEXT_TAIL] != NULL);
-			init_nocb_callback_list(rdp);
-		}
+		for_each_cpu(cpu, rcu_nocb_mask)
+			init_nocb_callback_list(per_cpu_ptr(rsp->rda, cpu));
 		rcu_organize_nocb_kthreads(rsp);
 	}
 }
@@ -2541,6 +2531,16 @@ static bool init_nocb_callback_list(struct rcu_data *rdp)
 	if (!rcu_is_nocb_cpu(rdp->cpu))
 		return false;
 
+	/* If there are early-boot callbacks, move them to nocb lists. */
+	if (rdp->nxtlist) {
+		rdp->nocb_head = rdp->nxtlist;
+		rdp->nocb_tail = rdp->nxttail[RCU_NEXT_TAIL];
+		atomic_long_set(&rdp->nocb_q_count, rdp->qlen);
+		atomic_long_set(&rdp->nocb_q_count_lazy, rdp->qlen_lazy);
+		rdp->nxtlist = NULL;
+		rdp->qlen = 0;
+		rdp->qlen_lazy = 0;
+	}
 	rdp->nxttail[RCU_NEXT_TAIL] = NULL;
 	return true;
 }

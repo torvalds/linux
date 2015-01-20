@@ -2851,6 +2851,7 @@ __call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu),
 		 * and then drop through to queue the callback.
 		 */
 		BUG_ON(cpu != -1);
+		WARN_ON_ONCE(!rcu_is_watching());
 		if (!likely(rdp->nxtlist))
 			init_default_callback_list(rdp);
 	}
