@@ -5919,7 +5919,7 @@ static void rtl_hw_start_8411(struct rtl8169_private *tp)
 	rtl_w0w1_eri(tp, 0x0d4, ERIAR_MASK_0011, 0x0c00, 0x0000, ERIAR_EXGMAC);
 }
 
-static void rtl_hw_start_8168g_1(struct rtl8169_private *tp)
+static void rtl_hw_start_8168g(struct rtl8169_private *tp)
 {
 	void __iomem *ioaddr = tp->mmio_addr;
 	struct pci_dev *pdev = tp->pci_dev;
@@ -5954,6 +5954,24 @@ static void rtl_hw_start_8168g_1(struct rtl8169_private *tp)
 	rtl_pcie_state_l2l3_enable(tp, false);
 }
 
+static void rtl_hw_start_8168g_1(struct rtl8169_private *tp)
+{
+	void __iomem *ioaddr = tp->mmio_addr;
+	static const struct ephy_info e_info_8168g_1[] = {
+		{ 0x00, 0x0000,	0x0008 },
+		{ 0x0c, 0x37d0,	0x0820 },
+		{ 0x1e, 0x0000,	0x0001 },
+		{ 0x19, 0x8000,	0x0000 }
+	};
+
+	rtl_hw_start_8168g(tp);
+
+	/* disable aspm and clock request before access ephy */
+	RTL_W8(Config2, RTL_R8(Config2) & ~ClkReqEn);
+	RTL_W8(Config5, RTL_R8(Config5) & ~ASPM_en);
+	rtl_ephy_init(tp, e_info_8168g_1, ARRAY_SIZE(e_info_8168g_1));
+}
+
 static void rtl_hw_start_8168g_2(struct rtl8169_private *tp)
 {
 	void __iomem *ioaddr = tp->mmio_addr;
@@ -5964,7 +5982,7 @@ static void rtl_hw_start_8168g_2(struct rtl8169_private *tp)
 		{ 0x1e, 0xffff,	0x20eb }
 	};
 
-	rtl_hw_start_8168g_1(tp);
+	rtl_hw_start_8168g(tp);
 
 	/* disable aspm and clock request before access ephy */
 	RTL_W8(Config2, RTL_R8(Config2) & ~ClkReqEn);
@@ -5983,7 +6001,7 @@ static void rtl_hw_start_8411_2(struct rtl8169_private *tp)
 		{ 0x1e, 0x0000,	0x2000 }
 	};
 
-	rtl_hw_start_8168g_1(tp);
+	rtl_hw_start_8168g(tp);
 
 	/* disable aspm and clock request before access ephy */
 	RTL_W8(Config2, RTL_R8(Config2) & ~ClkReqEn);
@@ -6605,6 +6623,9 @@ static inline void rtl8169_mark_to_asic(struct RxDesc *desc, u32 rx_buf_sz)
 {
 	u32 eor = le32_to_cpu(desc->opts1) & RingEnd;
 
+	/* Force memory writes to complete before releasing descriptor */
+	dma_wmb();
+
 	desc->opts1 = cpu_to_le32(DescOwn | eor | rx_buf_sz);
 }
 
@@ -6612,7 +6633,6 @@ static inline void rtl8169_map_to_asic(struct RxDesc *desc, dma_addr_t mapping,
 				       u32 rx_buf_sz)
 {
 	desc->addr = cpu_to_le64(mapping);
-	wmb();
 	rtl8169_mark_to_asic(desc, rx_buf_sz);
 }
 
@@ -7073,15 +7093,17 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 
 	skb_tx_timestamp(skb);
 
-	wmb();
+	/* Force memory writes to complete before releasing descriptor */
+	dma_wmb();
 
 	/* Anti gcc 2.95.3 bugware (sic) */
 	status = opts[0] | len | (RingEnd * !((entry + 1) % NUM_TX_DESC));
 	txd->opts1 = cpu_to_le32(status);
 
-	tp->cur_tx += frags + 1;
-
+	/* Force all memory writes to complete before notifying device */
 	wmb();
+
+	tp->cur_tx += frags + 1;
 
 	RTL_W8(TxPoll, NPQ);
 
@@ -7181,10 +7203,15 @@ static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp)
 		struct ring_info *tx_skb = tp->tx_skb + entry;
 		u32 status;
 
-		rmb();
 		status = le32_to_cpu(tp->TxDescArray[entry].opts1);
 		if (status & DescOwn)
 			break;
+
+		/* This barrier is needed to keep us from reading
+		 * any other fields out of the Tx descriptor until
+		 * we know the status of DescOwn
+		 */
+		dma_rmb();
 
 		rtl8169_unmap_tx_skb(&tp->pci_dev->dev, tx_skb,
 				     tp->TxDescArray + entry);
@@ -7280,11 +7307,16 @@ static int rtl_rx(struct net_device *dev, struct rtl8169_private *tp, u32 budget
 		struct RxDesc *desc = tp->RxDescArray + entry;
 		u32 status;
 
-		rmb();
 		status = le32_to_cpu(desc->opts1) & tp->opts1_mask;
-
 		if (status & DescOwn)
 			break;
+
+		/* This barrier is needed to keep us from reading
+		 * any other fields out of the Rx descriptor until
+		 * we know the status of DescOwn
+		 */
+		dma_rmb();
+
 		if (unlikely(status & RxRES)) {
 			netif_info(tp, rx_err, dev, "Rx ERROR. status = %08x\n",
 				   status);
@@ -7346,7 +7378,6 @@ process_pkt:
 		}
 release_descriptor:
 		desc->opts2 = 0;
-		wmb();
 		rtl8169_mark_to_asic(desc, rx_buf_sz);
 	}
 

@@ -2871,6 +2871,8 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 	int bit;
 	u32 vdev_param;
 
+	vif->driver_flags |= IEEE80211_VIF_SUPPORTS_UAPSD;
+
 	mutex_lock(&ar->conf_mutex);
 
 	memset(arvif, 0, sizeof(*arvif));
@@ -5024,7 +5026,6 @@ int ath10k_mac_register(struct ath10k *ar)
 	ar->hw->flags = IEEE80211_HW_SIGNAL_DBM |
 			IEEE80211_HW_SUPPORTS_PS |
 			IEEE80211_HW_SUPPORTS_DYNAMIC_PS |
-			IEEE80211_HW_SUPPORTS_UAPSD |
 			IEEE80211_HW_MFP_CAPABLE |
 			IEEE80211_HW_REPORTS_TX_ACK_STATUS |
 			IEEE80211_HW_HAS_RATE_CONTROL |

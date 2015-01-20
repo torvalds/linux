@@ -523,6 +523,13 @@ void mesh_neighbour_update(struct ieee80211_sub_if_data *sdata,
 	    sdata->u.mesh.mshcfg.auto_open_plinks &&
 	    rssi_threshold_check(sdata, sta))
 		changed = mesh_plink_open(sta);
+	else if (sta->plink_state == NL80211_PLINK_LISTEN &&
+		 (sdata->u.mesh.user_mpm ||
+		  sdata->u.mesh.security & IEEE80211_MESH_SEC_AUTHED))
+		cfg80211_notify_new_peer_candidate(sdata->dev, hw_addr,
+						   elems->ie_start,
+						   elems->total_len,
+						   GFP_ATOMIC);
 
 	ieee80211_mps_frame_release(sta, elems);
 out:

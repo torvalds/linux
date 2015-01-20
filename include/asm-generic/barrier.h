@@ -42,6 +42,14 @@
 #define wmb()	mb()
 #endif
 
+#ifndef dma_rmb
+#define dma_rmb()	rmb()
+#endif
+
+#ifndef dma_wmb
+#define dma_wmb()	wmb()
+#endif
+
 #ifndef read_barrier_depends
 #define read_barrier_depends()		do { } while (0)
 #endif

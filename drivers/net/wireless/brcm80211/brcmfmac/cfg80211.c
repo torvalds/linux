@@ -2333,10 +2333,10 @@ brcmf_cfg80211_get_station(struct wiphy *wiphy, struct net_device *ndev,
 			brcmf_err("GET STA INFO failed, %d\n", err);
 			goto done;
 		}
-		sinfo->filled = STATION_INFO_INACTIVE_TIME;
+		sinfo->filled = BIT(NL80211_STA_INFO_INACTIVE_TIME);
 		sinfo->inactive_time = le32_to_cpu(sta_info_le.idle) * 1000;
 		if (le32_to_cpu(sta_info_le.flags) & BRCMF_STA_ASSOC) {
-			sinfo->filled |= STATION_INFO_CONNECTED_TIME;
+			sinfo->filled |= BIT(NL80211_STA_INFO_CONNECTED_TIME);
 			sinfo->connected_time = le32_to_cpu(sta_info_le.in);
 		}
 		brcmf_dbg(TRACE, "STA idle time : %d ms, connected time :%d sec\n",
@@ -2354,7 +2354,7 @@ brcmf_cfg80211_get_station(struct wiphy *wiphy, struct net_device *ndev,
 			brcmf_err("Could not get rate (%d)\n", err);
 			goto done;
 		} else {
-			sinfo->filled |= STATION_INFO_TX_BITRATE;
+			sinfo->filled |= BIT(NL80211_STA_INFO_TX_BITRATE);
 			sinfo->txrate.legacy = rate * 5;
 			brcmf_dbg(CONN, "Rate %d Mbps\n", rate / 2);
 		}
@@ -2369,7 +2369,7 @@ brcmf_cfg80211_get_station(struct wiphy *wiphy, struct net_device *ndev,
 				goto done;
 			} else {
 				rssi = le32_to_cpu(scb_val.val);
-				sinfo->filled |= STATION_INFO_SIGNAL;
+				sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
 				sinfo->signal = rssi;
 				brcmf_dbg(CONN, "RSSI %d dBm\n", rssi);
 			}
@@ -2396,7 +2396,7 @@ brcmf_cfg80211_get_station(struct wiphy *wiphy, struct net_device *ndev,
 				brcmf_dbg(CONN, "DTIM peroid %d\n",
 					  dtim_period);
 			}
-			sinfo->filled |= STATION_INFO_BSS_PARAM;
+			sinfo->filled |= BIT(NL80211_STA_INFO_BSS_PARAM);
 		}
 	} else
 		err = -EPERM;
@@ -4778,7 +4778,6 @@ brcmf_notify_connect_status_ap(struct brcmf_cfg80211_info *cfg,
 	if (((event == BRCMF_E_ASSOC_IND) || (event == BRCMF_E_REASSOC_IND)) &&
 	    (reason == BRCMF_E_STATUS_SUCCESS)) {
 		memset(&sinfo, 0, sizeof(sinfo));
-		sinfo.filled = STATION_INFO_ASSOC_REQ_IES;
 		if (!data) {
 			brcmf_err("No IEs present in ASSOC/REASSOC_IND");
 			return -EINVAL;

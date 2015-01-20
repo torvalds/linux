@@ -68,17 +68,24 @@ ieee80211_tdls_add_subband(struct ieee80211_sub_if_data *sdata,
 		ch = ieee80211_get_channel(sdata->local->hw.wiphy, i);
 		if (ch) {
 			/* we will be active on the channel */
-			u32 flags = IEEE80211_CHAN_DISABLED |
-				    IEEE80211_CHAN_NO_IR;
 			cfg80211_chandef_create(&chandef, ch,
-						NL80211_CHAN_HT20);
-			if (cfg80211_chandef_usable(sdata->local->hw.wiphy,
-						    &chandef, flags)) {
+						NL80211_CHAN_NO_HT);
+			if (cfg80211_reg_can_beacon(sdata->local->hw.wiphy,
+						    &chandef,
+						    sdata->wdev.iftype)) {
 				ch_cnt++;
+				/*
+				 * check if the next channel is also part of
+				 * this allowed range
+				 */
 				continue;
 			}
 		}
 
+		/*
+		 * we've reached the end of a range, with allowed channels
+		 * found
+		 */
 		if (ch_cnt) {
 			u8 *pos = skb_put(skb, 2);
 			*pos++ = ieee80211_frequency_to_channel(subband_start);
@@ -87,6 +94,15 @@ ieee80211_tdls_add_subband(struct ieee80211_sub_if_data *sdata,
 			subband_cnt++;
 			ch_cnt = 0;
 		}
+	}
+
+	/* all channels in the requested range are allowed - add them here */
+	if (ch_cnt) {
+		u8 *pos = skb_put(skb, 2);
+		*pos++ = ieee80211_frequency_to_channel(subband_start);
+		*pos++ = ch_cnt;
+
+		subband_cnt++;
 	}
 
 	return subband_cnt;
@@ -912,7 +928,7 @@ ieee80211_tdls_mgmt_setup(struct wiphy *wiphy, struct net_device *dev,
 		rcu_read_unlock();
 	}
 
-	ieee80211_flush_queues(local, sdata);
+	ieee80211_flush_queues(local, sdata, false);
 
 	ret = ieee80211_tdls_prep_mgmt_packet(wiphy, dev, peer, action_code,
 					      dialog_token, status_code,
@@ -952,7 +968,7 @@ ieee80211_tdls_mgmt_teardown(struct wiphy *wiphy, struct net_device *dev,
 	 */
 	ieee80211_stop_vif_queues(local, sdata,
 				  IEEE80211_QUEUE_STOP_REASON_TDLS_TEARDOWN);
-	ieee80211_flush_queues(local, sdata);
+	ieee80211_flush_queues(local, sdata, false);
 
 	ret = ieee80211_tdls_prep_mgmt_packet(wiphy, dev, peer, action_code,
 					      dialog_token, status_code,
@@ -1098,7 +1114,7 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 		 */
 		tasklet_kill(&local->tx_pending_tasklet);
 		/* flush a potentially queued teardown packet */
-		ieee80211_flush_queues(local, sdata);
+		ieee80211_flush_queues(local, sdata, false);
 
 		ret = sta_info_destroy_addr(sdata, peer);
 		break;

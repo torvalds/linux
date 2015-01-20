@@ -142,14 +142,14 @@ int wil_cid_fill_sinfo(struct wil6210_priv *wil, int cid,
 
 	sinfo->generation = wil->sinfo_gen;
 
-	sinfo->filled = STATION_INFO_RX_BYTES |
-			STATION_INFO_TX_BYTES |
-			STATION_INFO_RX_PACKETS |
-			STATION_INFO_TX_PACKETS |
-			STATION_INFO_RX_BITRATE |
-			STATION_INFO_TX_BITRATE |
-			STATION_INFO_RX_DROP_MISC |
-			STATION_INFO_TX_FAILED;
+	sinfo->filled = BIT(NL80211_STA_INFO_RX_BYTES) |
+			BIT(NL80211_STA_INFO_TX_BYTES) |
+			BIT(NL80211_STA_INFO_RX_PACKETS) |
+			BIT(NL80211_STA_INFO_TX_PACKETS) |
+			BIT(NL80211_STA_INFO_RX_BITRATE) |
+			BIT(NL80211_STA_INFO_TX_BITRATE) |
+			BIT(NL80211_STA_INFO_RX_DROP_MISC) |
+			BIT(NL80211_STA_INFO_TX_FAILED);
 
 	sinfo->txrate.flags = RATE_INFO_FLAGS_MCS | RATE_INFO_FLAGS_60G;
 	sinfo->txrate.mcs = le16_to_cpu(reply.evt.bf_mcs);
@@ -163,7 +163,7 @@ int wil_cid_fill_sinfo(struct wil6210_priv *wil, int cid,
 	sinfo->tx_failed = stats->tx_errors;
 
 	if (test_bit(wil_status_fwconnected, &wil->status)) {
-		sinfo->filled |= STATION_INFO_SIGNAL;
+		sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
 		sinfo->signal = reply.evt.sqi;
 	}
 
