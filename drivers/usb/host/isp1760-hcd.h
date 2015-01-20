@@ -2,10 +2,9 @@
 #define _ISP1760_HCD_H_
 
 /* exports for if */
-struct usb_hcd *isp1760_register(phys_addr_t res_start, resource_size_t res_len,
-				 int irq, unsigned long irqflags,
-				 struct device *dev, const char *busname,
-				 unsigned int devflags);
+int isp1760_register(phys_addr_t res_start, resource_size_t res_len, int irq,
+		     unsigned long irqflags, struct device *dev,
+		     const char *busname, unsigned int devflags);
 void isp1760_unregister(struct device *dev);
 
 int init_kmem_once(void);
@@ -111,9 +110,6 @@ struct slotinfo {
 	unsigned long timestamp;
 };
 
-
-typedef void (packet_enqueue)(struct usb_hcd *hcd, struct isp1760_qh *qh,
-		struct isp1760_qtd *qtd);
 
 /*
  * Device flags that can vary from board to board.  All of these

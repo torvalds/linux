@@ -31,7 +31,6 @@ static int isp1761_pci_probe(struct pci_dev *dev,
 	u8 latency, limit;
 	__u32 reg_data;
 	int retry_count;
-	struct usb_hcd *hcd;
 	unsigned int devflags = 0;
 	int ret_status = 0;
 
@@ -134,13 +133,11 @@ static int isp1761_pci_probe(struct pci_dev *dev,
 	writel(reg_data, iobase + PLX_INT_CSR_REG);
 
 	dev->dev.dma_mask = NULL;
-	hcd = isp1760_register(pci_mem_phy0, memlength, dev->irq,
-			       IRQF_SHARED, &dev->dev, dev_name(&dev->dev),
-			       devflags);
-	if (IS_ERR(hcd)) {
-		ret_status = -ENODEV;
+	ret_status = isp1760_register(pci_mem_phy0, memlength, dev->irq,
+				      IRQF_SHARED, &dev->dev,
+				      dev_name(&dev->dev), devflags);
+	if (ret_status < 0)
 		goto cleanup3;
-	}
 
 	/* done with PLX IO access */
 	iounmap(iobase);
@@ -198,7 +195,6 @@ static int isp1760_plat_probe(struct platform_device *pdev)
 	struct resource *mem_res;
 	struct resource *irq_res;
 	resource_size_t mem_size;
-	struct usb_hcd *hcd;
 	int ret;
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -262,14 +258,11 @@ static int isp1760_plat_probe(struct platform_device *pdev)
 			devflags |= ISP1760_FLAG_DREQ_POL_HIGH;
 	}
 
-	hcd = isp1760_register(mem_res->start, mem_size, irq_res->start,
+	ret = isp1760_register(mem_res->start, mem_size, irq_res->start,
 			       irqflags, &pdev->dev, dev_name(&pdev->dev),
 			       devflags);
-	if (IS_ERR(hcd)) {
-		pr_warning("isp1760: Failed to register the HCD device\n");
-		ret = PTR_ERR(hcd);
+	if (ret < 0)
 		goto cleanup;
-	}
 
 	pr_info("ISP1760 USB device initialised\n");
 	return 0;

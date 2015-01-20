@@ -60,6 +60,9 @@ struct isp1760_hcd {
 	struct gpio_desc	*rst_gpio;
 };
 
+typedef void (packet_enqueue)(struct usb_hcd *hcd, struct isp1760_qh *qh,
+		struct isp1760_qtd *qtd);
+
 static inline struct isp1760_hcd *hcd_to_priv(struct usb_hcd *hcd)
 {
 	return (struct isp1760_hcd *) (hcd->hcd_priv);
@@ -2208,24 +2211,23 @@ void deinit_kmem_cache(void)
 	kmem_cache_destroy(urb_listitem_cachep);
 }
 
-struct usb_hcd *isp1760_register(phys_addr_t res_start, resource_size_t res_len,
-				 int irq, unsigned long irqflags,
-				 struct device *dev, const char *busname,
-				 unsigned int devflags)
+int isp1760_register(phys_addr_t res_start, resource_size_t res_len, int irq,
+		     unsigned long irqflags, struct device *dev,
+		     const char *busname, unsigned int devflags)
 {
 	struct usb_hcd *hcd;
 	struct isp1760_hcd *priv;
 	int ret;
 
 	if (usb_disabled())
-		return ERR_PTR(-ENODEV);
+		return -ENODEV;
 
 	/* prevent usb-core allocating DMA pages */
 	dev->dma_mask = NULL;
 
 	hcd = usb_create_hcd(&isp1760_hc_driver, dev, dev_name(dev));
 	if (!hcd)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	priv = hcd_to_priv(hcd);
 	priv->devflags = devflags;
@@ -2254,7 +2256,7 @@ struct usb_hcd *isp1760_register(phys_addr_t res_start, resource_size_t res_len,
 
 	dev_set_drvdata(dev, hcd);
 
-	return hcd;
+	return 0;
 
 err_unmap:
 	 iounmap(hcd->regs);
@@ -2262,7 +2264,7 @@ err_unmap:
 err_put:
 	 usb_put_hcd(hcd);
 
-	 return ERR_PTR(ret);
+	 return ret;
 }
 
 void isp1760_unregister(struct device *dev)
