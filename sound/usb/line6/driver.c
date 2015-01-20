@@ -579,18 +579,9 @@ EXPORT_SYMBOL_GPL(line6_probe);
 */
 void line6_disconnect(struct usb_interface *interface)
 {
-	struct usb_line6 *line6;
-	struct usb_device *usbdev;
-	int interface_number;
+	struct usb_line6 *line6 = usb_get_intfdata(interface);
+	struct usb_device *usbdev = interface_to_usbdev(interface);
 
-	if (interface == NULL)
-		return;
-	usbdev = interface_to_usbdev(interface);
-	if (usbdev == NULL)
-		return;
-
-	interface_number = interface->cur_altsetting->desc.bInterfaceNumber;
-	line6 = usb_get_intfdata(interface);
 	if (!line6)
 		return;
 
