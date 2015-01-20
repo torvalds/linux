@@ -27,11 +27,14 @@
  *
  * The board supports interrupts on change of state of the digital inputs.
  * The sample data returned by the async command indicates which inputs
- * changed state:
+ * changed state and the current state of the inputs:
  *
- *	Bit 7 - IRQ Enable (1) / Disable (0)
- *	Bit 1 - Input 8-15 Changed State (1 = Changed, 0 = No Change)
- *	Bit 0 - Input 0-7 Changed State (1 = Changed, 0 = No Change)
+ *	Bit 23 - IRQ Enable (1) / Disable (0)
+ *	Bit 17 - Input 8-15 Changed State (1 = Changed, 0 = No Change)
+ *	Bit 16 - Input 0-7 Changed State (1 = Changed, 0 = No Change)
+ *	Bit 15 - Digital input 15
+ *	...
+ *	Bit 0  - Digital input 0
  */
 
 #include <linux/module.h>
@@ -51,17 +54,31 @@
 #define AIO_IIRO_16_STATUS_INPUT_8_15	BIT(1)
 #define AIO_IIRO_16_STATUS_INPUT_0_7	BIT(0)
 
+static unsigned int aio_iiro_16_read_inputs(struct comedi_device *dev)
+{
+	unsigned int val;
+
+	val = inb(dev->iobase + AIO_IIRO_16_INPUT_0_7);
+	val |= inb(dev->iobase + AIO_IIRO_16_INPUT_8_15) << 8;
+
+	return val;
+}
+
 static irqreturn_t aio_iiro_16_cos(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned int status;
+	unsigned int val;
 
 	status = inb(dev->iobase + AIO_IIRO_16_STATUS);
 	if (!(status & AIO_IIRO_16_STATUS_IRQE))
 		return IRQ_NONE;
 
-	comedi_buf_write_samples(s, &status, 1);
+	val = aio_iiro_16_read_inputs(dev);
+	val |= (status << 16);
+
+	comedi_buf_write_samples(s, &val, 1);
 	comedi_handle_events(dev, s);
 
 	return IRQ_HANDLED;
@@ -150,9 +167,7 @@ static int aio_iiro_16_di_insn_bits(struct comedi_device *dev,
 				    struct comedi_insn *insn,
 				    unsigned int *data)
 {
-	data[1] = 0;
-	data[1] |= inb(dev->iobase + AIO_IIRO_16_INPUT_0_7);
-	data[1] |= inb(dev->iobase + AIO_IIRO_16_INPUT_8_15) << 8;
+	data[1] = aio_iiro_16_read_inputs(dev);
 
 	return insn->n;
 }
@@ -207,7 +222,7 @@ static int aio_iiro_16_attach(struct comedi_device *dev,
 	s->insn_bits	= aio_iiro_16_di_insn_bits;
 	if (dev->irq) {
 		dev->read_subdev = s;
-		s->subdev_flags	|= SDF_CMD_READ;
+		s->subdev_flags	|= SDF_CMD_READ | SDF_LSAMPL;
 		s->len_chanlist	= 1;
 		s->do_cmdtest	= aio_iiro_16_cos_cmdtest;
 		s->do_cmd	= aio_iiro_16_cos_cmd;
