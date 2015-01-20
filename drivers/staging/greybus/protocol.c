@@ -20,6 +20,13 @@ static struct gb_protocol *_gb_protocol_find(u8 id, u8 major, u8 minor)
 {
 	struct gb_protocol *protocol;
 
+	/*
+	 * The protocols list is sorted first by protocol id (low to
+	 * high), then by major version (high to low), and finally
+	 * by minor version (high to low).  Searching only by
+	 * protocol id will produce the newest implemented version
+	 * of the protocol.
+	 */
 	list_for_each_entry(protocol, &gb_protocols, links) {
 		if (protocol->id < id)
 			continue;
@@ -50,34 +57,12 @@ int __gb_protocol_register(struct gb_protocol *protocol, struct module *module)
 
 	protocol->owner = module;
 
-	/*
-	 * The protocols list is sorted first by protocol id (low to
-	 * high), then by major version (high to low), and finally
-	 * by minor version (high to low).  Searching only by
-	 * protocol id will produce the newest implemented version
-	 * of the protocol.
-	 */
 	spin_lock_irq(&gb_protocols_lock);
 
-	list_for_each_entry(existing, &gb_protocols, links) {
-		if (existing->id < id)
-			continue;
-		if (existing->id > id)
-			break;
-
-		if (existing->major > major)
-			continue;
-		if (existing->major < major)
-			break;
-
-		if (existing->minor > minor)
-			continue;
-		if (existing->minor < minor)
-			break;
-
-		/* A matching protocol has already been registered */
+	/* check if the protocol already wos registered */
+	existing = _gb_protocol_find(id, major, minor);
+	if (existing) {
 		spin_unlock_irq(&gb_protocols_lock);
-
 		return -EEXIST;
 	}
 
