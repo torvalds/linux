@@ -2316,7 +2316,7 @@ unsigned long intel_gen4_compute_page_offset(int *x, int *y,
 	}
 }
 
-int intel_format_to_fourcc(int format)
+static int intel_format_to_fourcc(int format)
 {
 	switch (format) {
 	case DISPPLANE_8BPP:
