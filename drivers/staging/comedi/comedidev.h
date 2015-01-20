@@ -302,11 +302,6 @@ void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s);
 struct comedi_device *comedi_dev_get_from_minor(unsigned minor);
 int comedi_dev_put(struct comedi_device *dev);
 
-void init_polling(void);
-void cleanup_polling(void);
-void start_polling(struct comedi_device *);
-void stop_polling(struct comedi_device *);
-
 /* subdevice runflags */
 enum subdevice_runflags {
 	SRF_RT = 0x00000002,
