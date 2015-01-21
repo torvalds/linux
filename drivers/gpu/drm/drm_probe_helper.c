@@ -335,6 +335,24 @@ static void output_poll_execute(struct work_struct *work)
 		if (old_status != connector->status) {
 			const char *old, *new;
 
+			/*
+			 * The poll work sets force=false when calling detect so
+			 * that drivers can avoid to do disruptive tests (e.g.
+			 * when load detect cycles could cause flickering on
+			 * other, running displays). This bears the risk that we
+			 * flip-flop between unknown here in the poll work and
+			 * the real state when userspace forces a full detect
+			 * call after receiving a hotplug event due to this
+			 * change.
+			 *
+			 * Hence clamp an unknown detect status to the old
+			 * value.
+			 */
+			if (connector->status == connector_status_unknown) {
+				connector->status = old_status;
+				continue;
+			}
+
 			old = drm_get_connector_status_name(old_status);
 			new = drm_get_connector_status_name(connector->status);
 
