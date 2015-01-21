@@ -472,7 +472,7 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 		return -EIO;
 	}
 
-	hdrlen = 28; /*sizeof *headerp;*/
+	hdrlen = RPCRDMA_HDRLEN_MIN;
 	padlen = 0;
 
 	/*
@@ -748,7 +748,7 @@ rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 		}
 		return;
 	}
-	if (rep->rr_len < 28) {
+	if (rep->rr_len < RPCRDMA_HDRLEN_MIN) {
 		dprintk("RPC:       %s: short/invalid reply\n", __func__);
 		goto repost;
 	}
@@ -830,8 +830,9 @@ repost:
 		} else {
 			/* else ordinary inline */
 			rdmalen = 0;
-			iptr = (__be32 *)((unsigned char *)headerp + 28);
-			rep->rr_len -= 28; /*sizeof *headerp;*/
+			iptr = (__be32 *)((unsigned char *)headerp +
+							RPCRDMA_HDRLEN_MIN);
+			rep->rr_len -= RPCRDMA_HDRLEN_MIN;
 			status = rep->rr_len;
 		}
 		/* Fix up the rpc results for upper layer */
@@ -845,7 +846,8 @@ repost:
 		    headerp->rm_body.rm_chunks[2] != xdr_one ||
 		    req->rl_nchunks == 0)
 			goto badheader;
-		iptr = (__be32 *)((unsigned char *)headerp + 28);
+		iptr = (__be32 *)((unsigned char *)headerp +
+							RPCRDMA_HDRLEN_MIN);
 		rdmalen = rpcrdma_count_chunks(rep, req->rl_nchunks, 0, &iptr);
 		if (rdmalen < 0)
 			goto badheader;

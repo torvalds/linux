@@ -98,7 +98,10 @@ struct rpcrdma_msg {
 	} rm_body;
 };
 
-#define RPCRDMA_HDRLEN_MIN	28
+/*
+ * Smallest RPC/RDMA header: rm_xid through rm_type, then rm_nochunks
+ */
+#define RPCRDMA_HDRLEN_MIN	(sizeof(__be32) * 7)
 
 enum rpcrdma_errcode {
 	ERR_VERS = 1,
