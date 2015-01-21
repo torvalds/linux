@@ -311,17 +311,14 @@ errout:
 int br_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 	       struct net_device *dev, u32 filter_mask)
 {
-	int err = 0;
 	struct net_bridge_port *port = br_port_get_rtnl(dev);
 
 	if (!port && !(filter_mask & RTEXT_FILTER_BRVLAN) &&
 	    !(filter_mask & RTEXT_FILTER_BRVLAN_COMPRESSED))
-		goto out;
+		return 0;
 
-	err = br_fill_ifinfo(skb, port, pid, seq, RTM_NEWLINK, NLM_F_MULTI,
-			     filter_mask, dev);
-out:
-	return err;
+	return br_fill_ifinfo(skb, port, pid, seq, RTM_NEWLINK, NLM_F_MULTI,
+			      filter_mask, dev);
 }
 
 static int br_vlan_info(struct net_bridge *br, struct net_bridge_port *p,
