@@ -52,12 +52,16 @@ struct tgec_mdio_controller {
 static int xgmac_wait_until_free(struct device *dev,
 				 struct tgec_mdio_controller __iomem *regs)
 {
-	uint32_t status;
+	unsigned int timeout;
 
 	/* Wait till the bus is free */
-	status = spin_event_timeout(
-		!((ioread32be(&regs->mdio_stat)) & MDIO_STAT_BSY), TIMEOUT, 0);
-	if (!status) {
+	timeout = TIMEOUT;
+	while ((ioread32be(&regs->mdio_stat) & MDIO_STAT_BSY) && timeout) {
+		cpu_relax();
+		timeout--;
+	}
+
+	if (!timeout) {
 		dev_err(dev, "timeout waiting for bus to be free\n");
 		return -ETIMEDOUT;
 	}
@@ -71,12 +75,16 @@ static int xgmac_wait_until_free(struct device *dev,
 static int xgmac_wait_until_done(struct device *dev,
 				 struct tgec_mdio_controller __iomem *regs)
 {
-	uint32_t status;
+	unsigned int timeout;
 
 	/* Wait till the MDIO write is complete */
-	status = spin_event_timeout(
-		!((ioread32be(&regs->mdio_data)) & MDIO_DATA_BSY), TIMEOUT, 0);
-	if (!status) {
+	timeout = TIMEOUT;
+	while ((ioread32be(&regs->mdio_data) & MDIO_DATA_BSY) && timeout) {
+		cpu_relax();
+		timeout--;
+	}
+
+	if (!timeout) {
 		dev_err(dev, "timeout waiting for operation to complete\n");
 		return -ETIMEDOUT;
 	}
