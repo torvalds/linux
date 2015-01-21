@@ -400,6 +400,16 @@ static int bcm_sf2_sw_rst(struct bcm_sf2_priv *priv)
 	return 0;
 }
 
+static void bcm_sf2_intr_disable(struct bcm_sf2_priv *priv)
+{
+	intrl2_0_writel(priv, 0xffffffff, INTRL2_CPU_MASK_SET);
+	intrl2_0_writel(priv, 0xffffffff, INTRL2_CPU_CLEAR);
+	intrl2_0_writel(priv, 0, INTRL2_CPU_MASK_CLEAR);
+	intrl2_1_writel(priv, 0xffffffff, INTRL2_CPU_MASK_SET);
+	intrl2_1_writel(priv, 0xffffffff, INTRL2_CPU_CLEAR);
+	intrl2_1_writel(priv, 0, INTRL2_CPU_MASK_CLEAR);
+}
+
 static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 {
 	const char *reg_names[BCM_SF2_REGS_NUM] = BCM_SF2_REGS_NAME;
@@ -440,12 +450,7 @@ static int bcm_sf2_sw_setup(struct dsa_switch *ds)
 	}
 
 	/* Disable all interrupts and request them */
-	intrl2_0_writel(priv, 0xffffffff, INTRL2_CPU_MASK_SET);
-	intrl2_0_writel(priv, 0xffffffff, INTRL2_CPU_CLEAR);
-	intrl2_0_writel(priv, 0, INTRL2_CPU_MASK_CLEAR);
-	intrl2_1_writel(priv, 0xffffffff, INTRL2_CPU_MASK_SET);
-	intrl2_1_writel(priv, 0xffffffff, INTRL2_CPU_CLEAR);
-	intrl2_1_writel(priv, 0, INTRL2_CPU_MASK_CLEAR);
+	bcm_sf2_intr_disable(priv);
 
 	ret = request_irq(priv->irq0, bcm_sf2_switch_0_isr, 0,
 			  "switch_0", priv);
@@ -747,12 +752,7 @@ static int bcm_sf2_sw_suspend(struct dsa_switch *ds)
 	struct bcm_sf2_priv *priv = ds_to_priv(ds);
 	unsigned int port;
 
-	intrl2_0_writel(priv, 0xffffffff, INTRL2_CPU_MASK_SET);
-	intrl2_0_writel(priv, 0xffffffff, INTRL2_CPU_CLEAR);
-	intrl2_0_writel(priv, 0, INTRL2_CPU_MASK_CLEAR);
-	intrl2_1_writel(priv, 0xffffffff, INTRL2_CPU_MASK_SET);
-	intrl2_1_writel(priv, 0xffffffff, INTRL2_CPU_CLEAR);
-	intrl2_1_writel(priv, 0, INTRL2_CPU_MASK_CLEAR);
+	bcm_sf2_intr_disable(priv);
 
 	/* Disable all ports physically present including the IMP
 	 * port, the other ones have already been disabled during
