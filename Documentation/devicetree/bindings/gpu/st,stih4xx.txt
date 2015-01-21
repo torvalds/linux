@@ -83,6 +83,22 @@ sti-hda:
   - clock-names: names of the clocks listed in clocks property in the same
     order.
 
+sti-dvo:
+  Required properties:
+  must be a child of sti-tvout
+  - compatible: "st,stih<chip>-dvo"
+  - reg: Physical base address of the IP registers and length of memory mapped region.
+  - reg-names: names of the mapped memory regions listed in regs property in
+    the same order.
+  - clocks: from common clock binding: handle hardware IP needed clocks, the
+    number of clocks may depend of the SoC type.
+    See ../clocks/clock-bindings.txt for details.
+  - clock-names: names of the clocks listed in clocks property in the same
+    order.
+  - pinctrl-0: pin control handle
+  - pinctrl-name: names of the pin control to use
+  - sti,panel: phandle of the panel connected to the DVO output
+
 sti-hqvdp:
   must be a child of sti-display-subsystem
   Required properties:
@@ -197,6 +213,19 @@ Example:
 				reg-names	= "hda-reg", "video-dacs-ctrl";
 				clock-names	= "pix", "hddac";
 				clocks          = <&clockgen_c_vcc CLK_S_PIX_HD>, <&clockgen_c_vcc CLK_S_HDDAC>;
+			};
+
+			sti-dvo@8d00400 {
+				compatible	= "st,stih407-dvo";
+				reg		= <0x8d00400 0x200>;
+				reg-names	= "dvo-reg";
+				clock-names	= "dvo_pix", "dvo",
+						  "main_parent", "aux_parent";
+				clocks		= <&clk_s_d2_flexgen CLK_PIX_DVO>, <&clk_s_d2_flexgen CLK_DVO>,
+						  <&clk_s_d2_quadfs 0>, <&clk_s_d2_quadfs 1>;
+				pinctrl-names	= "default";
+				pinctrl-0	= <&pinctrl_dvo>;
+				sti,panel	= <&panel_dvo>;
 			};
 		};
 
