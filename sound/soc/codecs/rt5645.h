@@ -47,6 +47,7 @@
 #define RT5645_STO_DAC_MIXER			0x2a
 #define RT5645_MONO_DAC_MIXER			0x2b
 #define RT5645_DIG_MIXER			0x2c
+#define RT5650_A_DAC_SOUR			0x2d
 #define RT5645_DIG_INF1_DATA			0x2f
 /* Mixer - PDM */
 #define RT5645_PDM_OUT_CTRL			0x31
@@ -150,6 +151,8 @@
 #define RT5645_IL_CMD				0xdb
 #define RT5645_IL_CMD2				0xdc
 #define RT5645_IL_CMD3				0xdd
+#define RT5650_4BTN_IL_CMD1			0xdf
+#define RT5650_4BTN_IL_CMD2			0xe0
 #define RT5645_DRC1_HL_CTRL1			0xe7
 #define RT5645_DRC2_HL_CTRL1			0xe9
 #define RT5645_MUTI_DRC_CTRL1			0xea
@@ -471,6 +474,12 @@
 #define RT5645_M_DAC_L2_DAC_R_SFT		5
 #define RT5645_DAC_L2_DAC_R_VOL_MASK		(0x1 << 4)
 #define RT5645_DAC_L2_DAC_R_VOL_SFT		4
+
+/* Analog DAC1/2 Input Source Control (0x2d) */
+#define RT5650_A_DAC1_L_IN_SFT			3
+#define RT5650_A_DAC1_R_IN_SFT			2
+#define RT5650_A_DAC2_L_IN_SFT			1
+#define RT5650_A_DAC2_R_IN_SFT			0
 
 /* Digital Interface Data Control (0x2f) */
 #define RT5645_IF1_ADC2_IN_SEL			(0x1 << 15)
@@ -2175,6 +2184,11 @@ enum {
 	RT5645_DMIC_DATA_GPIO11,
 };
 
+enum {
+	CODEC_TYPE_RT5645,
+	CODEC_TYPE_RT5650,
+};
+
 struct rt5645_priv {
 	struct snd_soc_codec *codec;
 	struct rt5645_platform_data pdata;
@@ -2184,6 +2198,7 @@ struct rt5645_priv {
 	struct snd_soc_jack *mic_jack;
 	struct delayed_work jack_detect_work;
 
+	int codec_type;
 	int sysclk;
 	int sysclk_src;
 	int lrck[RT5645_AIFS];
