@@ -2960,8 +2960,7 @@ static int sh_eth_runtime_nop(struct device *dev)
 }
 
 static const struct dev_pm_ops sh_eth_dev_pm_ops = {
-	.runtime_suspend = sh_eth_runtime_nop,
-	.runtime_resume = sh_eth_runtime_nop,
+	SET_RUNTIME_PM_OPS(sh_eth_runtime_nop, sh_eth_runtime_nop, NULL)
 };
 #define SH_ETH_PM_OPS (&sh_eth_dev_pm_ops)
 #else
