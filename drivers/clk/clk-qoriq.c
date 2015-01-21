@@ -193,7 +193,7 @@ static void __init core_pll_init(struct device_node *np)
 	if (!subclks)
 		goto err_map;
 
-	onecell_data = kzalloc(sizeof(*onecell_data), GFP_KERNEL);
+	onecell_data = kmalloc(sizeof(*onecell_data), GFP_KERNEL);
 	if (!onecell_data)
 		goto err_clks;
 
