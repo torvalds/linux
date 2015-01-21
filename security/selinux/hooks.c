@@ -1907,12 +1907,10 @@ static int selinux_binder_transfer_file(struct task_struct *from, struct task_st
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct inode_security_struct *isec = inode->i_security;
 	struct common_audit_data ad;
-	struct selinux_audit_data sad = {0,};
 	int rc;
 
 	ad.type = LSM_AUDIT_DATA_PATH;
 	ad.u.path = file->f_path;
-	ad.selinux_audit_data = &sad;
 
 	if (sid != fsec->sid) {
 		rc = avc_has_perm(sid, fsec->sid,
