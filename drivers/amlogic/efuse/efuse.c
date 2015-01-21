@@ -260,14 +260,14 @@ static char *aml_efuse_mac(void)
 			buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
 
         mac_mask = buf[3] & 0xf0;
-        if ((0x00 == mac_mask)
+        if ((0x30 == mac_mask)
                 || ((0xa0 <= mac_mask) && (mac_mask <= 0xc0))) {
                 info.data_len = 16;
                 info.offset = 4;
                 efuse_read_item(buf, info.data_len,
                                 (loff_t*)&info.offset);
 
-                if (0x00 == mac_mask) {
+                if (0x30 == mac_mask) {
                         hwmac[9] = MACCHAR(buf[5]);
                 }
 
