@@ -121,7 +121,7 @@ static void __init core_mux_init(struct device_node *np)
 		cmux_clk->flags = CLKSEL_ADJUST;
 
 	rc = of_property_read_string_index(np, "clock-output-names",
-			0, &clk_name);
+					   0, &clk_name);
 	if (rc) {
 		pr_err("%s: read clock names error\n", np->name);
 		goto err_clk;
@@ -143,7 +143,7 @@ static void __init core_mux_init(struct device_node *np)
 	rc = of_clk_add_provider(np, of_clk_src_simple_get, clk);
 	if (rc) {
 		pr_err("Could not register clock provider for node:%s\n",
-			 np->name);
+		       np->name);
 		goto err_clk;
 	}
 	goto err_name;
@@ -206,7 +206,7 @@ static void __init core_pll_init(struct device_node *np)
 
 	for (i = 0; i < count; i++) {
 		rc = of_property_read_string_index(np, "clock-output-names",
-				i, &clk_name);
+						   i, &clk_name);
 		if (rc) {
 			pr_err("%s: could not get clock names\n", np->name);
 			goto err_cell;
@@ -238,7 +238,7 @@ static void __init core_pll_init(struct device_node *np)
 	rc = of_clk_add_provider(np, of_clk_src_onecell_get, onecell_data);
 	if (rc) {
 		pr_err("Could not register clk provider for node:%s\n",
-			 np->name);
+		       np->name);
 		goto err_cell;
 	}
 
