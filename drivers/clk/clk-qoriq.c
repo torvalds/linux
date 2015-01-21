@@ -7,6 +7,9 @@
  *
  * clock driver for Freescale QorIQ SoCs.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -163,7 +166,7 @@ static void __init core_pll_init(struct device_node *np)
 
 	base = of_iomap(np, 0);
 	if (!base) {
-		pr_err("clk-qoriq: iomap error\n");
+		pr_err("iomap error\n");
 		return;
 	}
 
@@ -253,7 +256,7 @@ static void __init sysclk_init(struct device_node *node)
 	u32 rate;
 
 	if (!np) {
-		pr_err("qoriq-clk: could not get parent node\n");
+		pr_err("could not get parent node\n");
 		return;
 	}
 
