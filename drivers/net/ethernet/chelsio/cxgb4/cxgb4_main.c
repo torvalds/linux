@@ -6290,7 +6290,7 @@ static int __init cxgb4_init_module(void)
 static void __exit cxgb4_cleanup_module(void)
 {
 #if IS_ENABLED(CONFIG_IPV6)
-	if (inet6addr_registered && list_empty(&adapter_list)) {
+	if (inet6addr_registered) {
 		unregister_inet6addr_notifier(&cxgb4_inet6addr_notifier);
 		inet6addr_registered = false;
 	}
