@@ -613,7 +613,7 @@ xfs_mount_reset_sbqflags(
 		return error;
 	}
 
-	xfs_mod_sb(tp, XFS_SB_QFLAGS);
+	xfs_mod_sb(tp);
 	return xfs_trans_commit(tp, 0);
 }
 
@@ -896,7 +896,7 @@ xfs_mountfs(
 	 * perform the update e.g. for the root filesystem.
 	 */
 	if (mp->m_update_flags && !(mp->m_flags & XFS_MOUNT_RDONLY)) {
-		error = xfs_mount_log_sb(mp, mp->m_update_flags);
+		error = xfs_mount_log_sb(mp);
 		if (error) {
 			xfs_warn(mp, "failed to write sb changes");
 			goto out_rtunmount;
@@ -1126,7 +1126,7 @@ xfs_log_sbcount(xfs_mount_t *mp)
 		return error;
 	}
 
-	xfs_mod_sb(tp, XFS_SB_IFREE | XFS_SB_ICOUNT | XFS_SB_FDBLOCKS);
+	xfs_mod_sb(tp);
 	xfs_trans_set_sync(tp);
 	error = xfs_trans_commit(tp, 0);
 	return error;
@@ -1429,15 +1429,10 @@ xfs_freesb(
  */
 int
 xfs_mount_log_sb(
-	xfs_mount_t	*mp,
-	__int64_t	fields)
+	struct xfs_mount	*mp)
 {
-	xfs_trans_t	*tp;
-	int		error;
-
-	ASSERT(fields & (XFS_SB_UNIT | XFS_SB_WIDTH | XFS_SB_UUID |
-			 XFS_SB_FEATURES2 | XFS_SB_BAD_FEATURES2 |
-			 XFS_SB_VERSIONNUM));
+	struct xfs_trans	*tp;
+	int			error;
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_SB_UNIT);
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_sb, 0, 0);
@@ -1445,9 +1440,8 @@ xfs_mount_log_sb(
 		xfs_trans_cancel(tp, 0);
 		return error;
 	}
-	xfs_mod_sb(tp, fields);
-	error = xfs_trans_commit(tp, 0);
-	return error;
+	xfs_mod_sb(tp);
+	return xfs_trans_commit(tp, 0);
 }
 
 /*

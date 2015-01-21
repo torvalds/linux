@@ -1258,7 +1258,7 @@ xfs_fs_remount(
 		 * might have some superblock changes to update.
 		 */
 		if (mp->m_update_flags) {
-			error = xfs_mount_log_sb(mp, mp->m_update_flags);
+			error = xfs_mount_log_sb(mp);
 			if (error) {
 				xfs_warn(mp, "failed to write sb changes");
 				return error;

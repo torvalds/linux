@@ -541,7 +541,7 @@ xfs_growfs_data_private(
 			saved_error = error;
 			continue;
 		}
-		xfs_sb_to_disk(XFS_BUF_TO_SBP(bp), &mp->m_sb, XFS_SB_ALL_BITS);
+		xfs_sb_to_disk(XFS_BUF_TO_SBP(bp), &mp->m_sb);
 
 		error = xfs_bwrite(bp);
 		xfs_buf_relse(bp);
@@ -780,9 +780,7 @@ xfs_fs_log_dummy(
 		xfs_trans_cancel(tp, 0);
 		return error;
 	}
-
-	/* log the UUID because it is an unchanging field */
-	xfs_mod_sb(tp, XFS_SB_UUID);
+	xfs_mod_sb(tp);
 	xfs_trans_set_sync(tp);
 	return xfs_trans_commit(tp, 0);
 }

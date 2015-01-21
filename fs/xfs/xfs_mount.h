@@ -378,7 +378,7 @@ extern void	xfs_unmountfs(xfs_mount_t *);
 extern int	xfs_mod_incore_sb(xfs_mount_t *, xfs_sb_field_t, int64_t, int);
 extern int	xfs_mod_incore_sb_batch(xfs_mount_t *, xfs_mod_sb_t *,
 			uint, int);
-extern int	xfs_mount_log_sb(xfs_mount_t *, __int64_t);
+extern int	xfs_mount_log_sb(xfs_mount_t *);
 extern struct xfs_buf *xfs_getsb(xfs_mount_t *, int);
 extern int	xfs_readsb(xfs_mount_t *, int);
 extern void	xfs_freesb(xfs_mount_t *);

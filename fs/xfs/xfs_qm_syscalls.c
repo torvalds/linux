@@ -92,8 +92,7 @@ xfs_qm_scall_quotaoff(
 		mutex_unlock(&q->qi_quotaofflock);
 
 		/* XXX what to do if error ? Revert back to old vals incore ? */
-		error = xfs_qm_write_sb_changes(mp, XFS_SB_QFLAGS);
-		return error;
+		return xfs_qm_write_sb_changes(mp);
 	}
 
 	dqtype = 0;
@@ -314,15 +313,12 @@ xfs_qm_scall_quotaon(
 {
 	int		error;
 	uint		qf;
-	__int64_t	sbflags;
 
 	flags &= (XFS_ALL_QUOTA_ACCT | XFS_ALL_QUOTA_ENFD);
 	/*
 	 * Switching on quota accounting must be done at mount time.
 	 */
 	flags &= ~(XFS_ALL_QUOTA_ACCT);
-
-	sbflags = 0;
 
 	if (flags == 0) {
 		xfs_debug(mp, "%s: zero flags, m_qflags=%x",
@@ -370,11 +366,10 @@ xfs_qm_scall_quotaon(
 	/*
 	 * There's nothing to change if it's the same.
 	 */
-	if ((qf & flags) == flags && sbflags == 0)
+	if ((qf & flags) == flags)
 		return -EEXIST;
-	sbflags |= XFS_SB_QFLAGS;
 
-	if ((error = xfs_qm_write_sb_changes(mp, sbflags)))
+	if ((error = xfs_qm_write_sb_changes(mp)))
 		return error;
 	/*
 	 * If we aren't trying to switch on quota enforcement, we are done.
@@ -801,7 +796,7 @@ xfs_qm_log_quotaoff(
 	mp->m_sb.sb_qflags = (mp->m_qflags & ~(flags)) & XFS_MOUNT_QUOTA_ALL;
 	spin_unlock(&mp->m_sb_lock);
 
-	xfs_mod_sb(tp, XFS_SB_QFLAGS);
+	xfs_mod_sb(tp);
 
 	/*
 	 * We have to make sure that the transaction is secure on disk before we
