@@ -1665,9 +1665,11 @@ static struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 
 	for (i = 0; i < ARRAY_SIZE(suffixes); i++) {
 		if (con_id)
-			snprintf(prop_name, 32, "%s-%s", con_id, suffixes[i]);
+			snprintf(prop_name, sizeof(prop_name), "%s-%s", con_id,
+							       suffixes[i]);
 		else
-			snprintf(prop_name, 32, "%s", suffixes[i]);
+			snprintf(prop_name, sizeof(prop_name), "%s",
+							       suffixes[i]);
 
 		desc = of_get_named_gpiod_flags(dev->of_node, prop_name, idx,
 						&of_flags);
