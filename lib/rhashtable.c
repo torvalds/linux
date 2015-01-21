@@ -585,6 +585,7 @@ bool rhashtable_remove(struct rhashtable *ht, struct rhash_head *obj)
 	struct rhash_head *he;
 	spinlock_t *lock;
 	unsigned int hash;
+	bool ret = false;
 
 	rcu_read_lock();
 	tbl = rht_dereference_rcu(ht->tbl, ht);
@@ -602,17 +603,16 @@ restart:
 		}
 
 		rcu_assign_pointer(*pprev, obj->next);
-		atomic_dec(&ht->nelems);
 
-		spin_unlock_bh(lock);
-
-		rhashtable_wakeup_worker(ht);
-
-		rcu_read_unlock();
-
-		return true;
+		ret = true;
+		break;
 	}
 
+	/* The entry may be linked in either 'tbl', 'future_tbl', or both.
+	 * 'future_tbl' only exists for a short period of time during
+	 * resizing. Thus traversing both is fine and the added cost is
+	 * very rare.
+	 */
 	if (tbl != rht_dereference_rcu(ht->future_tbl, ht)) {
 		spin_unlock_bh(lock);
 
@@ -625,9 +625,15 @@ restart:
 	}
 
 	spin_unlock_bh(lock);
+
+	if (ret) {
+		atomic_dec(&ht->nelems);
+		rhashtable_wakeup_worker(ht);
+	}
+
 	rcu_read_unlock();
 
-	return false;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(rhashtable_remove);
 
