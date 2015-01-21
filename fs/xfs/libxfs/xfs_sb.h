@@ -27,11 +27,12 @@ extern struct xfs_perag *xfs_perag_get_tag(struct xfs_mount *, xfs_agnumber_t,
 extern void	xfs_perag_put(struct xfs_perag *pag);
 extern int	xfs_initialize_perag_data(struct xfs_mount *, xfs_agnumber_t);
 
-extern void	xfs_sb_calc_crc(struct xfs_buf	*);
-extern void	xfs_mod_sb(struct xfs_trans *, __int64_t);
-extern void	xfs_sb_mount_common(struct xfs_mount *, struct xfs_sb *);
-extern void	xfs_sb_from_disk(struct xfs_sb *, struct xfs_dsb *);
-extern void	xfs_sb_to_disk(struct xfs_dsb *, struct xfs_sb *, __int64_t);
+extern void	xfs_sb_calc_crc(struct xfs_buf *bp);
+extern void	xfs_log_sb(struct xfs_trans *tp);
+extern int	xfs_sync_sb(struct xfs_mount *mp, bool wait);
+extern void	xfs_sb_mount_common(struct xfs_mount *mp, struct xfs_sb *sbp);
+extern void	xfs_sb_from_disk(struct xfs_sb *to, struct xfs_dsb *from);
+extern void	xfs_sb_to_disk(struct xfs_dsb *to, struct xfs_sb *from);
 extern void	xfs_sb_quota_from_disk(struct xfs_sb *sbp);
 
 #endif	/* __XFS_SB_H__ */

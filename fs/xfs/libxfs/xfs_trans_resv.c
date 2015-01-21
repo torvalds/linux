@@ -716,17 +716,6 @@ xfs_calc_clear_agi_bucket_reservation(
 }
 
 /*
- * Clearing the quotaflags in the superblock.
- *	the super block for changing quota flags: sector size
- */
-STATIC uint
-xfs_calc_qm_sbchange_reservation(
-	struct xfs_mount	*mp)
-{
-	return xfs_calc_buf_res(1, mp->m_sb.sb_sectsize);
-}
-
-/*
  * Adjusting quota limits.
  *    the xfs_disk_dquot_t: sizeof(struct xfs_disk_dquot)
  */
@@ -864,9 +853,6 @@ xfs_trans_resv_calc(
 	 * The following transactions are logged in logical format with
 	 * a default log count.
 	 */
-	resp->tr_qm_sbchange.tr_logres = xfs_calc_qm_sbchange_reservation(mp);
-	resp->tr_qm_sbchange.tr_logcount = XFS_DEFAULT_LOG_COUNT;
-
 	resp->tr_qm_setqlim.tr_logres = xfs_calc_qm_setqlim_reservation(mp);
 	resp->tr_qm_setqlim.tr_logcount = XFS_DEFAULT_LOG_COUNT;
 

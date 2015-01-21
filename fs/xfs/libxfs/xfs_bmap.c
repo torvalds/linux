@@ -1221,22 +1221,20 @@ xfs_bmap_add_attrfork(
 		goto bmap_cancel;
 	if (!xfs_sb_version_hasattr(&mp->m_sb) ||
 	   (!xfs_sb_version_hasattr2(&mp->m_sb) && version == 2)) {
-		__int64_t sbfields = 0;
+		bool log_sb = false;
 
 		spin_lock(&mp->m_sb_lock);
 		if (!xfs_sb_version_hasattr(&mp->m_sb)) {
 			xfs_sb_version_addattr(&mp->m_sb);
-			sbfields |= XFS_SB_VERSIONNUM;
+			log_sb = true;
 		}
 		if (!xfs_sb_version_hasattr2(&mp->m_sb) && version == 2) {
 			xfs_sb_version_addattr2(&mp->m_sb);
-			sbfields |= (XFS_SB_VERSIONNUM | XFS_SB_FEATURES2);
+			log_sb = true;
 		}
-		if (sbfields) {
-			spin_unlock(&mp->m_sb_lock);
-			xfs_mod_sb(tp, sbfields);
-		} else
-			spin_unlock(&mp->m_sb_lock);
+		spin_unlock(&mp->m_sb_lock);
+		if (log_sb)
+			xfs_log_sb(tp);
 	}
 
 	error = xfs_bmap_finish(&tp, &flist, &committed);
