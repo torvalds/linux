@@ -1215,10 +1215,14 @@ int labpc_common_attach(struct comedi_device *dev,
 			unsigned int irq, unsigned long isr_flags)
 {
 	const struct labpc_boardinfo *board = dev->board_ptr;
-	struct labpc_private *devpriv = dev->private;
+	struct labpc_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 	int i;
+
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
+	if (!devpriv)
+		return -ENOMEM;
 
 	if (dev->mmio) {
 		devpriv->read_byte = labpc_readb;

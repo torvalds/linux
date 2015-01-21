@@ -84,14 +84,9 @@ static const struct labpc_boardinfo labpc_boards[] = {
 
 static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	struct labpc_private *devpriv;
 	unsigned int irq = it->options[1];
 	unsigned int dma_chan = it->options[2];
 	int ret;
-
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
 
 	ret = comedi_request_region(dev, it->options[0], 0x20);
 	if (ret)
