@@ -908,8 +908,10 @@ static int tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 	if (is_itpm(pnp_dev))
 		itpm = true;
 
+#ifdef CONFIG_ACPI
 	if (pnp_acpi_device(pnp_dev))
 		acpi_dev_handle = pnp_acpi_device(pnp_dev)->handle;
+#endif
 
 	return tpm_tis_init(&pnp_dev->dev, acpi_dev_handle, start, len, irq);
 }
