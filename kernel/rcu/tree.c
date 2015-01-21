@@ -91,8 +91,10 @@ static const char *tp_##sname##_varname __used __tracepoint_string = sname##_var
 
 #define RCU_STATE_INITIALIZER(sname, sabbr, cr) \
 DEFINE_RCU_TPS(sname) \
+DEFINE_PER_CPU_SHARED_ALIGNED(struct rcu_data, sname##_data); \
 struct rcu_state sname##_state = { \
 	.level = { &sname##_state.node[0] }, \
+	.rda = &sname##_data, \
 	.call = cr, \
 	.fqs_state = RCU_GP_IDLE, \
 	.gpnum = 0UL - 300UL, \
@@ -104,8 +106,7 @@ struct rcu_state sname##_state = { \
 	.onoff_mutex = __MUTEX_INITIALIZER(sname##_state.onoff_mutex), \
 	.name = RCU_STATE_NAME(sname), \
 	.abbr = sabbr, \
-}; \
-DEFINE_PER_CPU_SHARED_ALIGNED(struct rcu_data, sname##_data)
+}
 
 RCU_STATE_INITIALIZER(rcu_sched, 's', call_rcu_sched);
 RCU_STATE_INITIALIZER(rcu_bh, 'b', call_rcu_bh);
@@ -3843,7 +3844,6 @@ static void __init rcu_init_one(struct rcu_state *rsp,
 		}
 	}
 
-	rsp->rda = rda;
 	init_waitqueue_head(&rsp->gp_wq);
 	rnp = rsp->level[rcu_num_lvls - 1];
 	for_each_possible_cpu(i) {
