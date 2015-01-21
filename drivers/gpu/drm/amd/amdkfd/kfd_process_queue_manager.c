@@ -128,7 +128,6 @@ static int create_cp_queue(struct process_queue_manager *pqm,
 	/* let DQM handle it*/
 	q_properties->vmid = 0;
 	q_properties->queue_id = qid;
-	q_properties->type = KFD_QUEUE_TYPE_COMPUTE;
 
 	retval = init_queue(q, *q_properties);
 	if (retval != 0)
@@ -167,8 +166,11 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	q = NULL;
 	kq = NULL;
 
-	pdd = kfd_get_process_device_data(dev, pqm->process, 1);
-	BUG_ON(!pdd);
+	pdd = kfd_get_process_device_data(dev, pqm->process);
+	if (!pdd) {
+		pr_err("Process device data doesn't exist\n");
+		return -1;
+	}
 
 	retval = find_available_queue_slot(pqm, qid);
 	if (retval != 0)
@@ -186,6 +188,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	}
 
 	switch (type) {
+	case KFD_QUEUE_TYPE_SDMA:
 	case KFD_QUEUE_TYPE_COMPUTE:
 		/* check if there is over subscription */
 		if ((sched_policy == KFD_SCHED_POLICY_HWS_NO_OVERSUBSCRIPTION) &&
@@ -273,8 +276,11 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 		dev = pqn->q->device;
 	BUG_ON(!dev);
 
-	pdd = kfd_get_process_device_data(dev, pqm->process, 1);
-	BUG_ON(!pdd);
+	pdd = kfd_get_process_device_data(dev, pqm->process);
+	if (!pdd) {
+		pr_err("Process device data doesn't exist\n");
+		return -1;
+	}
 
 	if (pqn->kq) {
 		/* destroy kernel queue (DIQ) */

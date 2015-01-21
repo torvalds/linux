@@ -192,6 +192,8 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 	if (args->queue_type == KFD_IOC_QUEUE_TYPE_COMPUTE ||
 		args->queue_type == KFD_IOC_QUEUE_TYPE_COMPUTE_AQL)
 		q_properties->type = KFD_QUEUE_TYPE_COMPUTE;
+	else if (args->queue_type == KFD_IOC_QUEUE_TYPE_SDMA)
+		q_properties->type = KFD_QUEUE_TYPE_SDMA;
 	else
 		return -ENOTSUPP;
 
@@ -258,8 +260,8 @@ static long kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 			p->pasid,
 			dev->id);
 
-	err = pqm_create_queue(&p->pqm, dev, filep, &q_properties, 0,
-				KFD_QUEUE_TYPE_COMPUTE, &queue_id);
+	err = pqm_create_queue(&p->pqm, dev, filep, &q_properties,
+				0, q_properties.type, &queue_id);
 	if (err != 0)
 		goto err_create_queue;
 

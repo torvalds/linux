@@ -46,9 +46,24 @@ static int set_pasid_vmid_mapping(struct device_queue_manager *dqm,
 static int create_compute_queue_nocpsch(struct device_queue_manager *dqm,
 					struct queue *q,
 					struct qcm_process_device *qpd);
+
 static int execute_queues_cpsch(struct device_queue_manager *dqm, bool lock);
 static int destroy_queues_cpsch(struct device_queue_manager *dqm, bool lock);
 
+static int create_sdma_queue_nocpsch(struct device_queue_manager *dqm,
+					struct queue *q,
+					struct qcm_process_device *qpd);
+
+static void deallocate_sdma_queue(struct device_queue_manager *dqm,
+				unsigned int sdma_queue_id);
+
+static inline
+enum KFD_MQD_TYPE get_mqd_type_from_queue_type(enum kfd_queue_type type)
+{
+	if (type == KFD_QUEUE_TYPE_SDMA)
+		return KFD_MQD_TYPE_CIK_SDMA;
+	return KFD_MQD_TYPE_CIK_CP;
+}
 
 static inline unsigned int get_pipes_num(struct device_queue_manager *dqm)
 {
@@ -75,7 +90,6 @@ get_sh_mem_bases_nybble_64(struct kfd_process_device *pdd)
 	nybble = (pdd->lds_base >> 60) & 0x0E;
 
 	return nybble;
-
 }
 
 static inline unsigned int get_sh_mem_bases_32(struct kfd_process_device *pdd)
@@ -190,7 +204,10 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 	*allocated_vmid = qpd->vmid;
 	q->properties.vmid = qpd->vmid;
 
-	retval = create_compute_queue_nocpsch(dqm, q, qpd);
+	if (q->properties.type == KFD_QUEUE_TYPE_COMPUTE)
+		retval = create_compute_queue_nocpsch(dqm, q, qpd);
+	if (q->properties.type == KFD_QUEUE_TYPE_SDMA)
+		retval = create_sdma_queue_nocpsch(dqm, q, qpd);
 
 	if (retval != 0) {
 		if (list_empty(&qpd->queues_list)) {
@@ -203,7 +220,8 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 
 	list_add(&q->list, &qpd->queues_list);
 	dqm->queue_count++;
-
+	if (q->properties.type == KFD_QUEUE_TYPE_SDMA)
+		dqm->sdma_queue_count++;
 	mutex_unlock(&dqm->lock);
 	return 0;
 }
@@ -280,8 +298,7 @@ static int destroy_queue_nocpsch(struct device_queue_manager *dqm,
 				struct queue *q)
 {
 	int retval;
-	struct mqd_manager *mqd;
-
+	struct mqd_manager *mqd, *mqd_sdma;
 	BUG_ON(!dqm || !q || !q->mqd || !qpd);
 
 	retval = 0;
@@ -295,6 +312,12 @@ static int destroy_queue_nocpsch(struct device_queue_manager *dqm,
 		goto out;
 	}
 
+	mqd_sdma = dqm->get_mqd_manager(dqm, KFD_MQD_TYPE_CIK_SDMA);
+	if (mqd_sdma == NULL) {
+		mutex_unlock(&dqm->lock);
+		return -ENOMEM;
+	}
+
 	retval = mqd->destroy_mqd(mqd, q->mqd,
 				KFD_PREEMPT_TYPE_WAVEFRONT,
 				QUEUE_PREEMPT_DEFAULT_TIMEOUT_MS,
@@ -303,7 +326,12 @@ static int destroy_queue_nocpsch(struct device_queue_manager *dqm,
 	if (retval != 0)
 		goto out;
 
-	deallocate_hqd(dqm, q);
+	if (q->properties.type == KFD_QUEUE_TYPE_COMPUTE)
+		deallocate_hqd(dqm, q);
+	else if (q->properties.type == KFD_QUEUE_TYPE_SDMA) {
+		dqm->sdma_queue_count--;
+		deallocate_sdma_queue(dqm, q->sdma_id);
+	}
 
 	mqd->uninit_mqd(mqd, q->mqd, q->mqd_mem_obj);
 
@@ -324,7 +352,7 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q)
 	BUG_ON(!dqm || !q || !q->mqd);
 
 	mutex_lock(&dqm->lock);
-	mqd = dqm->get_mqd_manager(dqm, KFD_MQD_TYPE_CIK_COMPUTE);
+	mqd = dqm->get_mqd_manager(dqm, q->properties.type);
 	if (mqd == NULL) {
 		mutex_unlock(&dqm->lock);
 		return -ENOMEM;
@@ -491,11 +519,8 @@ static int init_pipelines(struct device_queue_manager *dqm,
 	 * because it contains no data when there are no active queues.
 	 */
 
-	err = kfd2kgd->allocate_mem(dqm->dev->kgd,
-				CIK_HPD_EOP_BYTES * pipes_num,
-				PAGE_SIZE,
-				KFD_MEMPOOL_SYSTEM_WRITECOMBINE,
-				(struct kgd_mem **) &dqm->pipeline_mem);
+	err = kfd_gtt_sa_allocate(dqm->dev, CIK_HPD_EOP_BYTES * pipes_num,
+					&dqm->pipeline_mem);
 
 	if (err) {
 		pr_err("kfd: error allocate vidmem num pipes: %d\n",
@@ -510,8 +535,7 @@ static int init_pipelines(struct device_queue_manager *dqm,
 
 	mqd = dqm->get_mqd_manager(dqm, KFD_MQD_TYPE_CIK_COMPUTE);
 	if (mqd == NULL) {
-		kfd2kgd->free_mem(dqm->dev->kgd,
-				(struct kgd_mem *) dqm->pipeline_mem);
+		kfd_gtt_sa_free(dqm->dev, dqm->pipeline_mem);
 		return -ENOMEM;
 	}
 
@@ -526,7 +550,6 @@ static int init_pipelines(struct device_queue_manager *dqm,
 
 	return 0;
 }
-
 
 static int init_scheduler(struct device_queue_manager *dqm)
 {
@@ -557,6 +580,7 @@ static int initialize_nocpsch(struct device_queue_manager *dqm)
 	mutex_init(&dqm->lock);
 	INIT_LIST_HEAD(&dqm->queues);
 	dqm->queue_count = dqm->next_pipe_to_allocate = 0;
+	dqm->sdma_queue_count = 0;
 	dqm->allocated_queues = kcalloc(get_pipes_num(dqm),
 					sizeof(unsigned int), GFP_KERNEL);
 	if (!dqm->allocated_queues) {
@@ -568,6 +592,7 @@ static int initialize_nocpsch(struct device_queue_manager *dqm)
 		dqm->allocated_queues[i] = (1 << QUEUES_PER_PIPE) - 1;
 
 	dqm->vmid_bitmap = (1 << VMID_PER_DEVICE) - 1;
+	dqm->sdma_bitmap = (1 << CIK_SDMA_QUEUES) - 1;
 
 	init_scheduler(dqm);
 	return 0;
@@ -585,8 +610,7 @@ static void uninitialize_nocpsch(struct device_queue_manager *dqm)
 	for (i = 0 ; i < KFD_MQD_TYPE_MAX ; i++)
 		kfree(dqm->mqds[i]);
 	mutex_destroy(&dqm->lock);
-	kfd2kgd->free_mem(dqm->dev->kgd,
-			(struct kgd_mem *) dqm->pipeline_mem);
+	kfd_gtt_sa_free(dqm->dev, dqm->pipeline_mem);
 }
 
 static int start_nocpsch(struct device_queue_manager *dqm)
@@ -596,6 +620,77 @@ static int start_nocpsch(struct device_queue_manager *dqm)
 
 static int stop_nocpsch(struct device_queue_manager *dqm)
 {
+	return 0;
+}
+
+static int allocate_sdma_queue(struct device_queue_manager *dqm,
+				unsigned int *sdma_queue_id)
+{
+	int bit;
+
+	if (dqm->sdma_bitmap == 0)
+		return -ENOMEM;
+
+	bit = find_first_bit((unsigned long *)&dqm->sdma_bitmap,
+				CIK_SDMA_QUEUES);
+
+	clear_bit(bit, (unsigned long *)&dqm->sdma_bitmap);
+	*sdma_queue_id = bit;
+
+	return 0;
+}
+
+static void deallocate_sdma_queue(struct device_queue_manager *dqm,
+				unsigned int sdma_queue_id)
+{
+	if (sdma_queue_id < 0 || sdma_queue_id >= CIK_SDMA_QUEUES)
+		return;
+	set_bit(sdma_queue_id, (unsigned long *)&dqm->sdma_bitmap);
+}
+
+static void init_sdma_vm(struct device_queue_manager *dqm, struct queue *q,
+				struct qcm_process_device *qpd)
+{
+	uint32_t value = SDMA_ATC;
+
+	if (q->process->is_32bit_user_mode)
+		value |= SDMA_VA_PTR32 | get_sh_mem_bases_32(qpd_to_pdd(qpd));
+	else
+		value |= SDMA_VA_SHARED_BASE(get_sh_mem_bases_nybble_64(
+							qpd_to_pdd(qpd)));
+	q->properties.sdma_vm_addr = value;
+}
+
+static int create_sdma_queue_nocpsch(struct device_queue_manager *dqm,
+					struct queue *q,
+					struct qcm_process_device *qpd)
+{
+	struct mqd_manager *mqd;
+	int retval;
+
+	mqd = dqm->get_mqd_manager(dqm, KFD_MQD_TYPE_CIK_SDMA);
+	if (!mqd)
+		return -ENOMEM;
+
+	retval = allocate_sdma_queue(dqm, &q->sdma_id);
+	if (retval != 0)
+		return retval;
+
+	q->properties.sdma_queue_id = q->sdma_id % CIK_SDMA_QUEUES_PER_ENGINE;
+	q->properties.sdma_engine_id = q->sdma_id / CIK_SDMA_ENGINE_NUM;
+
+	pr_debug("kfd: sdma id is:    %d\n", q->sdma_id);
+	pr_debug("     sdma queue id: %d\n", q->properties.sdma_queue_id);
+	pr_debug("     sdma engine id: %d\n", q->properties.sdma_engine_id);
+
+	retval = mqd->init_mqd(mqd, &q->mqd, &q->mqd_mem_obj,
+				&q->gart_mqd_addr, &q->properties);
+	if (retval != 0) {
+		deallocate_sdma_queue(dqm, q->sdma_id);
+		return retval;
+	}
+
+	init_sdma_vm(dqm, q, qpd);
 	return 0;
 }
 
@@ -640,6 +735,7 @@ static int initialize_cpsch(struct device_queue_manager *dqm)
 	mutex_init(&dqm->lock);
 	INIT_LIST_HEAD(&dqm->queues);
 	dqm->queue_count = dqm->processes_count = 0;
+	dqm->sdma_queue_count = 0;
 	dqm->active_runlist = false;
 	retval = init_pipelines(dqm, get_pipes_num(dqm), 0);
 	if (retval != 0)
@@ -672,18 +768,14 @@ static int start_cpsch(struct device_queue_manager *dqm)
 	pr_debug("kfd: allocating fence memory\n");
 
 	/* allocate fence memory on the gart */
-	retval = kfd2kgd->allocate_mem(dqm->dev->kgd,
-					sizeof(*dqm->fence_addr),
-					32,
-					KFD_MEMPOOL_SYSTEM_WRITECOMBINE,
-					(struct kgd_mem **) &dqm->fence_mem);
+	retval = kfd_gtt_sa_allocate(dqm->dev, sizeof(*dqm->fence_addr),
+					&dqm->fence_mem);
 
 	if (retval != 0)
 		goto fail_allocate_vidmem;
 
 	dqm->fence_addr = dqm->fence_mem->cpu_ptr;
 	dqm->fence_gpu_addr = dqm->fence_mem->gpu_addr;
-
 	list_for_each_entry(node, &dqm->queues, list)
 		if (node->qpd->pqm->process && dqm->dev)
 			kfd_bind_process_to_device(dqm->dev,
@@ -712,8 +804,7 @@ static int stop_cpsch(struct device_queue_manager *dqm)
 		pdd = qpd_to_pdd(node->qpd);
 		pdd->bound = false;
 	}
-	kfd2kgd->free_mem(dqm->dev->kgd,
-			(struct kgd_mem *) dqm->fence_mem);
+	kfd_gtt_sa_free(dqm->dev, dqm->fence_mem);
 	pm_uninit(&dqm->packets);
 
 	return 0;
@@ -754,6 +845,14 @@ static void destroy_kernel_queue_cpsch(struct device_queue_manager *dqm,
 	mutex_unlock(&dqm->lock);
 }
 
+static void select_sdma_engine_id(struct queue *q)
+{
+	static int sdma_id;
+
+	q->sdma_id = sdma_id;
+	sdma_id = (sdma_id + 1) % 2;
+}
+
 static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 			struct qcm_process_device *qpd, int *allocate_vmid)
 {
@@ -769,7 +868,12 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 
 	mutex_lock(&dqm->lock);
 
-	mqd = dqm->get_mqd_manager(dqm, KFD_MQD_TYPE_CIK_CP);
+	if (q->properties.type == KFD_QUEUE_TYPE_SDMA)
+		select_sdma_engine_id(q);
+
+	mqd = dqm->get_mqd_manager(dqm,
+			get_mqd_type_from_queue_type(q->properties.type));
+
 	if (mqd == NULL) {
 		mutex_unlock(&dqm->lock);
 		return -ENOMEM;
@@ -785,6 +889,9 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 		dqm->queue_count++;
 		retval = execute_queues_cpsch(dqm, false);
 	}
+
+	if (q->properties.type == KFD_QUEUE_TYPE_SDMA)
+			dqm->sdma_queue_count++;
 
 out:
 	mutex_unlock(&dqm->lock);
@@ -809,6 +916,14 @@ static int fence_wait_timeout(unsigned int *fence_addr,
 	return 0;
 }
 
+static int destroy_sdma_queues(struct device_queue_manager *dqm,
+				unsigned int sdma_engine)
+{
+	return pm_send_unmap_queue(&dqm->packets, KFD_QUEUE_TYPE_SDMA,
+			KFD_PREEMPT_TYPE_FILTER_ALL_QUEUES, 0, false,
+			sdma_engine);
+}
+
 static int destroy_queues_cpsch(struct device_queue_manager *dqm, bool lock)
 {
 	int retval;
@@ -821,6 +936,15 @@ static int destroy_queues_cpsch(struct device_queue_manager *dqm, bool lock)
 		mutex_lock(&dqm->lock);
 	if (dqm->active_runlist == false)
 		goto out;
+
+	pr_debug("kfd: Before destroying queues, sdma queue count is : %u\n",
+		dqm->sdma_queue_count);
+
+	if (dqm->sdma_queue_count > 0) {
+		destroy_sdma_queues(dqm, 0);
+		destroy_sdma_queues(dqm, 1);
+	}
+
 	retval = pm_send_unmap_queue(&dqm->packets, KFD_QUEUE_TYPE_COMPUTE,
 			KFD_PREEMPT_TYPE_FILTER_ALL_QUEUES, 0, false, 0);
 	if (retval != 0)
@@ -892,12 +1016,15 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 
 	/* remove queue from list to prevent rescheduling after preemption */
 	mutex_lock(&dqm->lock);
-
-	mqd = dqm->get_mqd_manager(dqm, KFD_MQD_TYPE_CIK_CP);
+	mqd = dqm->get_mqd_manager(dqm,
+			get_mqd_type_from_queue_type(q->properties.type));
 	if (!mqd) {
 		retval = -ENOMEM;
 		goto failed;
 	}
+
+	if (q->properties.type == KFD_QUEUE_TYPE_SDMA)
+		dqm->sdma_queue_count--;
 
 	list_del(&q->list);
 	dqm->queue_count--;

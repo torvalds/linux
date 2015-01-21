@@ -97,11 +97,8 @@ static int pm_allocate_runlist_ib(struct packet_manager *pm,
 
 	pm_calc_rlib_size(pm, rl_buffer_size, is_over_subscription);
 
-	retval = kfd2kgd->allocate_mem(pm->dqm->dev->kgd,
-					*rl_buffer_size,
-					PAGE_SIZE,
-					KFD_MEMPOOL_SYSTEM_WRITECOMBINE,
-					(struct kgd_mem **) &pm->ib_buffer_obj);
+	retval = kfd_gtt_sa_allocate(pm->dqm->dev, *rl_buffer_size,
+					&pm->ib_buffer_obj);
 
 	if (retval != 0) {
 		pr_err("kfd: failed to allocate runlist IB\n");
@@ -557,8 +554,7 @@ void pm_release_ib(struct packet_manager *pm)
 
 	mutex_lock(&pm->lock);
 	if (pm->allocated) {
-		kfd2kgd->free_mem(pm->dqm->dev->kgd,
-				(struct kgd_mem *) pm->ib_buffer_obj);
+		kfd_gtt_sa_free(pm->dqm->dev, pm->ib_buffer_obj);
 		pm->allocated = false;
 	}
 	mutex_unlock(&pm->lock);
