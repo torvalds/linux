@@ -1812,10 +1812,6 @@ void ll_read_inode2(struct inode *inode, void *opaque)
 
 	/* OIDEBUG(inode); */
 
-	/* initializing backing dev info. */
-	inode->i_mapping->backing_dev_info = &s2lsi(inode->i_sb)->lsi_bdi;
-
-
 	if (S_ISREG(inode->i_mode)) {
 		struct ll_sb_info *sbi = ll_i2sbi(inode);
 
