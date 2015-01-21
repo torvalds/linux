@@ -504,7 +504,8 @@ dtb-$(CONFIG_ARCH_STI) += \
 	stih415-b2020.dtb \
 	stih416-b2000.dtb \
 	stih416-b2020.dtb \
-	stih416-b2020e.dtb
+	stih416-b2020e.dtb \
+	stih418-b2199.dtb
 dtb-$(CONFIG_MACH_SUN4I) += \
 	sun4i-a10-a1000.dtb \
 	sun4i-a10-ba10-tvbox.dtb \

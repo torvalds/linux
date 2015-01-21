@@ -1,12 +1,31 @@
 /*
- * Copyright (C) 2014 STMicroelectronics (R&D) Limited.
- * Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
+ * Copyright (C) 2015 STMicroelectronics (R&D) Limited.
+ * Author: Maxime Coquelin <maxime.coquelin@st.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+/dts-v1/;
+#include "stih418.dtsi"
 / {
+	model = "STiH418 B2199";
+	compatible = "st,stih418-b2199", "st,stih418";
+
+	chosen {
+		bootargs = "console=ttyAS0,115200 clk_ignore_unused";
+		linux,stdout-path = &sbc_serial0;
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x40000000 0xc0000000>;
+	};
+
+	aliases {
+		ttyAS0 = &sbc_serial0;
+	};
+
 	soc {
 		sbc_serial0: serial@9530000 {
 			status = "okay";
@@ -48,23 +67,12 @@
 		};
 
 		/* SSC11 to HDMI */
-		hdmiddc: i2c@9541000 {
+		i2c@9541000 {
 			status = "okay";
 			/* HDMI V1.3a supports Standard mode only */
 			clock-frequency = <100000>;
 			st,i2c-min-scl-pulse-width-us = <0>;
 			st,i2c-min-sda-pulse-width-us = <5>;
-		};
-
-		miphy28lp_phy: miphy28lp@9b22000 {
-
-			phy_port0: port@9b22000 {
-				st,osc-rdy;
-			};
-
-			phy_port1: port@9b2a000 {
-				st,osc-force-ext;
-			};
 		};
 	};
 };
