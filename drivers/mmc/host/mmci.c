@@ -430,7 +430,6 @@ static void mmci_init_sg(struct mmci_host *host, struct mmc_data *data)
 static void mmci_dma_setup(struct mmci_host *host)
 {
 	const char *rxname, *txname;
-	dma_cap_mask_t mask;
 	struct variant_data *variant = host->variant;
 
 	host->dma_rx_channel = dma_request_slave_channel(mmc_dev(host->mmc), "rx");
@@ -438,10 +437,6 @@ static void mmci_dma_setup(struct mmci_host *host)
 
 	/* initialize pre request cookie */
 	host->next_data.cookie = 1;
-
-	/* Try to acquire a generic DMA engine slave channel */
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
 
 	/*
 	 * If only an RX channel is specified, the driver will
