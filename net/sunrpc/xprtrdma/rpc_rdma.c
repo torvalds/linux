@@ -209,9 +209,11 @@ rpcrdma_create_chunks(struct rpc_rqst *rqst, struct xdr_buf *target,
 		if (cur_rchunk) {	/* read */
 			cur_rchunk->rc_discrim = xdr_one;
 			/* all read chunks have the same "position" */
-			cur_rchunk->rc_position = htonl(pos);
-			cur_rchunk->rc_target.rs_handle = htonl(seg->mr_rkey);
-			cur_rchunk->rc_target.rs_length = htonl(seg->mr_len);
+			cur_rchunk->rc_position = cpu_to_be32(pos);
+			cur_rchunk->rc_target.rs_handle =
+						cpu_to_be32(seg->mr_rkey);
+			cur_rchunk->rc_target.rs_length =
+						cpu_to_be32(seg->mr_len);
 			xdr_encode_hyper(
 					(__be32 *)&cur_rchunk->rc_target.rs_offset,
 					seg->mr_base);
@@ -222,8 +224,10 @@ rpcrdma_create_chunks(struct rpc_rqst *rqst, struct xdr_buf *target,
 			cur_rchunk++;
 			r_xprt->rx_stats.read_chunk_count++;
 		} else {		/* write/reply */
-			cur_wchunk->wc_target.rs_handle = htonl(seg->mr_rkey);
-			cur_wchunk->wc_target.rs_length = htonl(seg->mr_len);
+			cur_wchunk->wc_target.rs_handle =
+						cpu_to_be32(seg->mr_rkey);
+			cur_wchunk->wc_target.rs_length =
+						cpu_to_be32(seg->mr_len);
 			xdr_encode_hyper(
 					(__be32 *)&cur_wchunk->wc_target.rs_offset,
 					seg->mr_base);
@@ -257,7 +261,7 @@ rpcrdma_create_chunks(struct rpc_rqst *rqst, struct xdr_buf *target,
 		*iptr++ = xdr_zero;	/* encode a NULL reply chunk */
 	} else {
 		warray->wc_discrim = xdr_one;
-		warray->wc_nchunks = htonl(nchunks);
+		warray->wc_nchunks = cpu_to_be32(nchunks);
 		iptr = (__be32 *) cur_wchunk;
 		if (type == rpcrdma_writech) {
 			*iptr++ = xdr_zero; /* finish the write chunk list */
@@ -404,11 +408,11 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 
 	/* build RDMA header in private area at front */
 	headerp = (struct rpcrdma_msg *) req->rl_base;
-	/* don't htonl XID, it's already done in request */
+	/* don't byte-swap XID, it's already done in request */
 	headerp->rm_xid = rqst->rq_xid;
-	headerp->rm_vers = xdr_one;
-	headerp->rm_credit = htonl(r_xprt->rx_buf.rb_max_requests);
-	headerp->rm_type = htonl(RDMA_MSG);
+	headerp->rm_vers = rpcrdma_version;
+	headerp->rm_credit = cpu_to_be32(r_xprt->rx_buf.rb_max_requests);
+	headerp->rm_type = rdma_msg;
 
 	/*
 	 * Chunks needed for results?
@@ -482,11 +486,11 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 						RPCRDMA_INLINE_PAD_VALUE(rqst));
 
 		if (padlen) {
-			headerp->rm_type = htonl(RDMA_MSGP);
+			headerp->rm_type = rdma_msgp;
 			headerp->rm_body.rm_padded.rm_align =
-				htonl(RPCRDMA_INLINE_PAD_VALUE(rqst));
+				cpu_to_be32(RPCRDMA_INLINE_PAD_VALUE(rqst));
 			headerp->rm_body.rm_padded.rm_thresh =
-				htonl(RPCRDMA_INLINE_PAD_THRESH);
+				cpu_to_be32(RPCRDMA_INLINE_PAD_THRESH);
 			headerp->rm_body.rm_padded.rm_pempty[0] = xdr_zero;
 			headerp->rm_body.rm_padded.rm_pempty[1] = xdr_zero;
 			headerp->rm_body.rm_padded.rm_pempty[2] = xdr_zero;
@@ -570,7 +574,7 @@ rpcrdma_count_chunks(struct rpcrdma_rep *rep, unsigned int max, int wrchunk, __b
 	unsigned int i, total_len;
 	struct rpcrdma_write_chunk *cur_wchunk;
 
-	i = ntohl(**iptrp);	/* get array count */
+	i = be32_to_cpu(**iptrp);
 	if (i > max)
 		return -1;
 	cur_wchunk = (struct rpcrdma_write_chunk *) (*iptrp + 1);
@@ -582,11 +586,11 @@ rpcrdma_count_chunks(struct rpcrdma_rep *rep, unsigned int max, int wrchunk, __b
 			xdr_decode_hyper((__be32 *)&seg->rs_offset, &off);
 			dprintk("RPC:       %s: chunk %d@0x%llx:0x%x\n",
 				__func__,
-				ntohl(seg->rs_length),
+				be32_to_cpu(seg->rs_length),
 				(unsigned long long)off,
-				ntohl(seg->rs_handle));
+				be32_to_cpu(seg->rs_handle));
 		}
-		total_len += ntohl(seg->rs_length);
+		total_len += be32_to_cpu(seg->rs_length);
 		++cur_wchunk;
 	}
 	/* check and adjust for properly terminated write chunk */
@@ -749,9 +753,9 @@ rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 		goto repost;
 	}
 	headerp = (struct rpcrdma_msg *) rep->rr_base;
-	if (headerp->rm_vers != xdr_one) {
+	if (headerp->rm_vers != rpcrdma_version) {
 		dprintk("RPC:       %s: invalid version %d\n",
-			__func__, ntohl(headerp->rm_vers));
+			__func__, be32_to_cpu(headerp->rm_vers));
 		goto repost;
 	}
 
@@ -793,7 +797,7 @@ repost:
 	/* check for expected message types */
 	/* The order of some of these tests is important. */
 	switch (headerp->rm_type) {
-	case htonl(RDMA_MSG):
+	case rdma_msg:
 		/* never expect read chunks */
 		/* never expect reply chunks (two ways to check) */
 		/* never expect write chunks without having offered RDMA */
@@ -832,7 +836,7 @@ repost:
 		rpcrdma_inline_fixup(rqst, (char *)iptr, rep->rr_len, rdmalen);
 		break;
 
-	case htonl(RDMA_NOMSG):
+	case rdma_nomsg:
 		/* never expect read or write chunks, always reply chunks */
 		if (headerp->rm_body.rm_chunks[0] != xdr_zero ||
 		    headerp->rm_body.rm_chunks[1] != xdr_zero ||
@@ -853,7 +857,7 @@ badheader:
 		dprintk("%s: invalid rpcrdma reply header (type %d):"
 				" chunks[012] == %d %d %d"
 				" expected chunks <= %d\n",
-				__func__, ntohl(headerp->rm_type),
+				__func__, be32_to_cpu(headerp->rm_type),
 				headerp->rm_body.rm_chunks[0],
 				headerp->rm_body.rm_chunks[1],
 				headerp->rm_body.rm_chunks[2],
