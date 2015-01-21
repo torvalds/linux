@@ -148,12 +148,11 @@ struct amdtp_stream {
 	bool double_pcm_frames;
 
 	struct snd_rawmidi_substream *midi[AMDTP_MAX_CHANNELS_FOR_MIDI * 8];
+	int midi_fifo_limit;
+	int midi_fifo_used[AMDTP_MAX_CHANNELS_FOR_MIDI * 8];
 
 	/* quirk: fixed interval of dbc between previos/current packets. */
 	unsigned int tx_dbc_interval;
-
-	/* quirk: the first count of data blocks in an rx packet for MIDI */
-	unsigned int rx_blocks_for_midi;
 
 	bool callbacked;
 	wait_queue_head_t callback_wait;
