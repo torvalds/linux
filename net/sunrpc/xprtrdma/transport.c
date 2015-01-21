@@ -364,8 +364,7 @@ xprt_setup_rdma(struct xprt_create *args)
 	 * any inline data. Also specify any padding which will be provided
 	 * from a preregistered zero buffer.
 	 */
-	rc = rpcrdma_buffer_create(&new_xprt->rx_buf, new_ep, &new_xprt->rx_ia,
-				&new_xprt->rx_data);
+	rc = rpcrdma_buffer_create(new_xprt);
 	if (rc)
 		goto out3;
 

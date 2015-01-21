@@ -1161,9 +1161,11 @@ out_free:
 }
 
 int
-rpcrdma_buffer_create(struct rpcrdma_buffer *buf, struct rpcrdma_ep *ep,
-	struct rpcrdma_ia *ia, struct rpcrdma_create_data_internal *cdata)
+rpcrdma_buffer_create(struct rpcrdma_xprt *r_xprt)
 {
+	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
+	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
+	struct rpcrdma_create_data_internal *cdata = &r_xprt->rx_data;
 	char *p;
 	size_t len, rlen, wlen;
 	int i, rc;
@@ -1200,6 +1202,7 @@ rpcrdma_buffer_create(struct rpcrdma_buffer *buf, struct rpcrdma_ep *ep,
 	 * Register the zeroed pad buffer, if any.
 	 */
 	if (cdata->padding) {
+		struct rpcrdma_ep *ep = &r_xprt->rx_ep;
 		rc = rpcrdma_register_internal(ia, p, cdata->padding,
 					    &ep->rep_pad_mr, &ep->rep_pad);
 		if (rc)
