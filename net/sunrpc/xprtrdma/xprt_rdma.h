@@ -318,16 +318,16 @@ struct rpcrdma_stats {
  * during unmount.
  */
 struct rpcrdma_xprt {
-	struct rpc_xprt		xprt;
+	struct rpc_xprt		rx_xprt;
 	struct rpcrdma_ia	rx_ia;
 	struct rpcrdma_ep	rx_ep;
 	struct rpcrdma_buffer	rx_buf;
 	struct rpcrdma_create_data_internal rx_data;
-	struct delayed_work	rdma_connect;
+	struct delayed_work	rx_connect_worker;
 	struct rpcrdma_stats	rx_stats;
 };
 
-#define rpcx_to_rdmax(x) container_of(x, struct rpcrdma_xprt, xprt)
+#define rpcx_to_rdmax(x) container_of(x, struct rpcrdma_xprt, rx_xprt)
 #define rpcx_to_rdmad(x) (rpcx_to_rdmax(x)->rx_data)
 
 /* Setting this to 0 ensures interoperability with early servers.

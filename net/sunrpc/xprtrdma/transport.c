@@ -200,9 +200,9 @@ xprt_rdma_free_addresses(struct rpc_xprt *xprt)
 static void
 xprt_rdma_connect_worker(struct work_struct *work)
 {
-	struct rpcrdma_xprt *r_xprt =
-		container_of(work, struct rpcrdma_xprt, rdma_connect.work);
-	struct rpc_xprt *xprt = &r_xprt->xprt;
+	struct rpcrdma_xprt *r_xprt = container_of(work, struct rpcrdma_xprt,
+						   rx_connect_worker.work);
+	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
 	int rc = 0;
 
 	xprt_clear_connected(xprt);
@@ -235,7 +235,7 @@ xprt_rdma_destroy(struct rpc_xprt *xprt)
 
 	dprintk("RPC:       %s: called\n", __func__);
 
-	cancel_delayed_work_sync(&r_xprt->rdma_connect);
+	cancel_delayed_work_sync(&r_xprt->rx_connect_worker);
 
 	xprt_clear_connected(xprt);
 
@@ -374,7 +374,8 @@ xprt_setup_rdma(struct xprt_create *args)
 	 * connection loss notification is async. We also catch connection loss
 	 * when reaping receives.
 	 */
-	INIT_DELAYED_WORK(&new_xprt->rdma_connect, xprt_rdma_connect_worker);
+	INIT_DELAYED_WORK(&new_xprt->rx_connect_worker,
+			  xprt_rdma_connect_worker);
 	new_ep->rep_func = rpcrdma_conn_func;
 	new_ep->rep_xprt = xprt;
 
@@ -434,17 +435,17 @@ xprt_rdma_connect(struct rpc_xprt *xprt, struct rpc_task *task)
 
 	if (r_xprt->rx_ep.rep_connected != 0) {
 		/* Reconnect */
-		schedule_delayed_work(&r_xprt->rdma_connect,
-			xprt->reestablish_timeout);
+		schedule_delayed_work(&r_xprt->rx_connect_worker,
+				      xprt->reestablish_timeout);
 		xprt->reestablish_timeout <<= 1;
 		if (xprt->reestablish_timeout > RPCRDMA_MAX_REEST_TO)
 			xprt->reestablish_timeout = RPCRDMA_MAX_REEST_TO;
 		else if (xprt->reestablish_timeout < RPCRDMA_INIT_REEST_TO)
 			xprt->reestablish_timeout = RPCRDMA_INIT_REEST_TO;
 	} else {
-		schedule_delayed_work(&r_xprt->rdma_connect, 0);
+		schedule_delayed_work(&r_xprt->rx_connect_worker, 0);
 		if (!RPC_IS_ASYNC(task))
-			flush_delayed_work(&r_xprt->rdma_connect);
+			flush_delayed_work(&r_xprt->rx_connect_worker);
 	}
 }
 
