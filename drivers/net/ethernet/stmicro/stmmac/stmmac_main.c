@@ -1097,6 +1097,7 @@ static int init_dma_desc_rings(struct net_device *dev, gfp_t flags)
 
 	priv->dirty_tx = 0;
 	priv->cur_tx = 0;
+	netdev_reset_queue(priv->dev);
 
 	stmmac_clear_descriptors(priv);
 
@@ -1300,6 +1301,7 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 static void stmmac_tx_clean(struct stmmac_priv *priv)
 {
 	unsigned int txsize = priv->dma_tx_size;
+	unsigned int bytes_compl = 0, pkts_compl = 0;
 
 	spin_lock(&priv->tx_lock);
 
@@ -1356,6 +1358,8 @@ static void stmmac_tx_clean(struct stmmac_priv *priv)
 		priv->hw->mode->clean_desc3(priv, p);
 
 		if (likely(skb != NULL)) {
+			pkts_compl++;
+			bytes_compl += skb->len;
 			dev_consume_skb_any(skb);
 			priv->tx_skbuff[entry] = NULL;
 		}
@@ -1364,6 +1368,9 @@ static void stmmac_tx_clean(struct stmmac_priv *priv)
 
 		priv->dirty_tx++;
 	}
+
+	netdev_completed_queue(priv->dev, pkts_compl, bytes_compl);
+
 	if (unlikely(netif_queue_stopped(priv->dev) &&
 		     stmmac_tx_avail(priv) > STMMAC_TX_THRESH(priv))) {
 		netif_tx_lock(priv->dev);
@@ -1418,6 +1425,7 @@ static void stmmac_tx_err(struct stmmac_priv *priv)
 						     (i == txsize - 1));
 	priv->dirty_tx = 0;
 	priv->cur_tx = 0;
+	netdev_reset_queue(priv->dev);
 	priv->hw->dma->start_tx(priv->ioaddr);
 
 	priv->dev->stats.tx_errors++;
@@ -2050,6 +2058,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!priv->hwts_tx_en)
 		skb_tx_timestamp(skb);
 
+	netdev_sent_queue(dev, skb->len);
 	priv->hw->dma->enable_dma_transmission(priv->ioaddr);
 
 	spin_unlock(&priv->tx_lock);
