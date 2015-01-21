@@ -470,6 +470,8 @@ xprt_rdma_allocate(struct rpc_task *task, size_t size)
 	if (req == NULL)
 		return NULL;
 
+	if (req->rl_rdmabuf == NULL)
+		goto out_rdmabuf;
 	if (req->rl_sendbuf == NULL)
 		goto out_sendbuf;
 	if (size > req->rl_sendbuf->rg_size)
@@ -479,6 +481,13 @@ out:
 	dprintk("RPC:       %s: size %zd, request 0x%p\n", __func__, size, req);
 	req->rl_connect_cookie = 0;	/* our reserved value */
 	return req->rl_sendbuf->rg_base;
+
+out_rdmabuf:
+	min_size = RPCRDMA_INLINE_WRITE_THRESHOLD(task->tk_rqstp);
+	rb = rpcrdma_alloc_regbuf(&r_xprt->rx_ia, min_size, flags);
+	if (IS_ERR(rb))
+		goto out_fail;
+	req->rl_rdmabuf = rb;
 
 out_sendbuf:
 	/* XDR encoding and RPC/RDMA marshaling of this request has not

@@ -268,12 +268,10 @@ struct rpcrdma_req {
 	enum rpcrdma_chunktype	rl_rtype, rl_wtype;
 	struct rpcrdma_buffer *rl_buffer; /* home base for this structure */
 	struct rpcrdma_rep	*rl_reply;/* holder for reply buffer */
-	struct rpcrdma_mr_seg rl_segments[RPCRDMA_MAX_SEGS];/* chunk segments */
 	struct ib_sge	rl_send_iov[4];	/* for active requests */
+	struct rpcrdma_regbuf *rl_rdmabuf;
 	struct rpcrdma_regbuf *rl_sendbuf;
-	struct ib_sge	rl_iov;		/* for posting */
-	struct ib_mr	*rl_handle;	/* handle for mem in rl_iov */
-	char		rl_base[MAX_RPCRDMAHDR]; /* start of actual buffer */
+	struct rpcrdma_mr_seg rl_segments[RPCRDMA_MAX_SEGS];
 };
 
 static inline struct rpcrdma_req *

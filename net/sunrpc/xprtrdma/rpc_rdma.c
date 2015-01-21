@@ -294,7 +294,7 @@ ssize_t
 rpcrdma_marshal_chunks(struct rpc_rqst *rqst, ssize_t result)
 {
 	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
-	struct rpcrdma_msg *headerp = (struct rpcrdma_msg *)req->rl_base;
+	struct rpcrdma_msg *headerp = rdmab_to_msg(req->rl_rdmabuf);
 
 	if (req->rl_rtype != rpcrdma_noch)
 		result = rpcrdma_create_chunks(rqst, &rqst->rq_snd_buf,
@@ -406,8 +406,7 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	base = rqst->rq_svec[0].iov_base;
 	rpclen = rqst->rq_svec[0].iov_len;
 
-	/* build RDMA header in private area at front */
-	headerp = (struct rpcrdma_msg *) req->rl_base;
+	headerp = rdmab_to_msg(req->rl_rdmabuf);
 	/* don't byte-swap XID, it's already done in request */
 	headerp->rm_xid = rqst->rq_xid;
 	headerp->rm_vers = rpcrdma_version;
@@ -528,7 +527,7 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	dprintk("RPC:       %s: %s: hdrlen %zd rpclen %zd padlen %zd"
 		" headerp 0x%p base 0x%p lkey 0x%x\n",
 		__func__, transfertypes[req->rl_wtype], hdrlen, rpclen, padlen,
-		headerp, base, req->rl_iov.lkey);
+		headerp, base, rdmab_lkey(req->rl_rdmabuf));
 
 	/*
 	 * initialize send_iov's - normally only two: rdma chunk header and
@@ -537,9 +536,9 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	 * header and any write data. In all non-rdma cases, any following
 	 * data has been copied into the RPC header buffer.
 	 */
-	req->rl_send_iov[0].addr = req->rl_iov.addr;
+	req->rl_send_iov[0].addr = rdmab_addr(req->rl_rdmabuf);
 	req->rl_send_iov[0].length = hdrlen;
-	req->rl_send_iov[0].lkey = req->rl_iov.lkey;
+	req->rl_send_iov[0].lkey = rdmab_lkey(req->rl_rdmabuf);
 
 	req->rl_send_iov[1].addr = rdmab_addr(req->rl_sendbuf);
 	req->rl_send_iov[1].length = rpclen;

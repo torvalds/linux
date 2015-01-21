@@ -1078,30 +1078,14 @@ rpcrdma_ep_disconnect(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 static struct rpcrdma_req *
 rpcrdma_create_req(struct rpcrdma_xprt *r_xprt)
 {
-	struct rpcrdma_create_data_internal *cdata = &r_xprt->rx_data;
-	size_t wlen = cdata->inline_wsize;
-	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 	struct rpcrdma_req *req;
-	int rc;
 
-	rc = -ENOMEM;
-	req = kmalloc(sizeof(*req) + wlen, GFP_KERNEL);
+	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (req == NULL)
-		goto out;
-	memset(req, 0, sizeof(*req));
-
-	rc = rpcrdma_register_internal(ia, req->rl_base, wlen,
-				       &req->rl_handle, &req->rl_iov);
-	if (rc)
-		goto out_free;
+		return ERR_PTR(-ENOMEM);
 
 	req->rl_buffer = &r_xprt->rx_buf;
 	return req;
-
-out_free:
-	kfree(req);
-out:
-	return ERR_PTR(rc);
 }
 
 static struct rpcrdma_rep *
@@ -1333,7 +1317,7 @@ rpcrdma_destroy_req(struct rpcrdma_ia *ia, struct rpcrdma_req *req)
 		return;
 
 	rpcrdma_free_regbuf(ia, req->rl_sendbuf);
-	rpcrdma_deregister_internal(ia, req->rl_handle, &req->rl_iov);
+	rpcrdma_free_regbuf(ia, req->rl_rdmabuf);
 	kfree(req);
 }
 
