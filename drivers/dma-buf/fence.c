@@ -159,6 +159,9 @@ fence_wait_timeout(struct fence *fence, bool intr, signed long timeout)
 	if (WARN_ON(timeout < 0))
 		return -EINVAL;
 
+	if (timeout == 0)
+		return fence_is_signaled(fence);
+
 	trace_fence_wait_start(fence);
 	ret = fence->ops->wait(fence, intr, timeout);
 	trace_fence_wait_end(fence);
