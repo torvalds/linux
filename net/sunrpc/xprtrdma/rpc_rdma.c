@@ -572,6 +572,7 @@ rpcrdma_count_chunks(struct rpcrdma_rep *rep, unsigned int max, int wrchunk, __b
 {
 	unsigned int i, total_len;
 	struct rpcrdma_write_chunk *cur_wchunk;
+	char *base = (char *)rdmab_to_msg(rep->rr_rdmabuf);
 
 	i = be32_to_cpu(**iptrp);
 	if (i > max)
@@ -599,7 +600,7 @@ rpcrdma_count_chunks(struct rpcrdma_rep *rep, unsigned int max, int wrchunk, __b
 			return -1;
 		cur_wchunk = (struct rpcrdma_write_chunk *) w;
 	}
-	if ((char *) cur_wchunk > rep->rr_base + rep->rr_len)
+	if ((char *)cur_wchunk > base + rep->rr_len)
 		return -1;
 
 	*iptrp = (__be32 *) cur_wchunk;
@@ -753,7 +754,7 @@ rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 		dprintk("RPC:       %s: short/invalid reply\n", __func__);
 		goto repost;
 	}
-	headerp = (struct rpcrdma_msg *) rep->rr_base;
+	headerp = rdmab_to_msg(rep->rr_rdmabuf);
 	if (headerp->rm_vers != rpcrdma_version) {
 		dprintk("RPC:       %s: invalid version %d\n",
 			__func__, be32_to_cpu(headerp->rm_vers));

@@ -180,14 +180,12 @@ enum rpcrdma_chunktype {
 struct rpcrdma_buffer;
 
 struct rpcrdma_rep {
-	unsigned int	rr_len;		/* actual received reply length */
-	struct rpcrdma_buffer *rr_buffer; /* home base for this structure */
-	struct rpc_xprt	*rr_xprt;	/* needed for request/reply matching */
-	void (*rr_func)(struct rpcrdma_rep *);/* called by tasklet in softint */
-	struct list_head rr_list;	/* tasklet list */
-	struct ib_sge	rr_iov;		/* for posting */
-	struct ib_mr	*rr_handle;	/* handle for mem in rr_iov */
-	char	rr_base[MAX_RPCRDMAHDR]; /* minimal inline receive buffer */
+	unsigned int		rr_len;
+	struct rpcrdma_buffer	*rr_buffer;
+	struct rpc_xprt		*rr_xprt;
+	void			(*rr_func)(struct rpcrdma_rep *);
+	struct list_head	rr_list;
+	struct rpcrdma_regbuf	*rr_rdmabuf;
 };
 
 /*
