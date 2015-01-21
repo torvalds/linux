@@ -356,8 +356,8 @@ static void rk3288_vp8d_cfg_lf(struct rk3288_vpu_ctx *ctx)
 		/* delta mode */
 		for (i = 0; i < 4; i++)
 			vp8d_reg_write(vpu, &vp8d_lf_level[i],
-					clamp(0, 63, hdr->lf_hdr.level
-					+ hdr->sgmnt_hdr.lf_update[i]));
+					clamp(hdr->lf_hdr.level
+					+ hdr->sgmnt_hdr.lf_update[i], 0, 63));
 	}
 
 	reg = VDPU_REG_REF_PIC_FILT_SHARPNESS(hdr->lf_hdr.sharpness_level);
@@ -395,8 +395,9 @@ static void rk3288_vp8d_cfg_qp(struct rk3288_vpu_ctx *ctx)
 		/* delta mode */
 		for (i = 0; i < 4; i++)
 			vp8d_reg_write(vpu, &vp8d_quant[i],
-					clamp(0, 127, hdr->quant_hdr.y_ac_qi
-					+ hdr->sgmnt_hdr.quant_update[i]));
+					clamp(hdr->quant_hdr.y_ac_qi
+					+ hdr->sgmnt_hdr.quant_update[i],
+					0, 127));
 	}
 
 	vp8d_reg_write(vpu, &vp8d_quant_delta[0], hdr->quant_hdr.y_dc_delta);
