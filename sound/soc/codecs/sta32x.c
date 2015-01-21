@@ -26,6 +26,7 @@
 #include <linux/i2c.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#include <linux/gpio/consumer.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <sound/core.h>
@@ -151,6 +152,7 @@ struct sta32x_priv {
 	u32 coef_shadow[STA32X_COEF_COUNT];
 	struct delayed_work watchdog_work;
 	int shutdown;
+	struct gpio_desc *gpiod_nreset;
 	struct mutex coeff_lock;
 };
 
@@ -804,6 +806,16 @@ static int sta32x_hw_params(struct snd_pcm_substream *substream,
 
 	return 0;
 }
+
+static int sta32x_startup_sequence(struct sta32x_priv *sta32x)
+{
+	if (sta32x->gpiod_nreset) {
+		gpiod_set_value(sta32x->gpiod_nreset, 0);
+		mdelay(1);
+		gpiod_set_value(sta32x->gpiod_nreset, 1);
+		mdelay(1);
+	}
+
 	return 0;
 }
 
@@ -844,6 +856,7 @@ static int sta32x_set_bias_level(struct snd_soc_codec *codec,
 				return ret;
 			}
 
+			sta32x_startup_sequence(sta32x);
 			sta32x_cache_sync(codec);
 			sta32x_watchdog_start(sta32x);
 		}
@@ -861,6 +874,10 @@ static int sta32x_set_bias_level(struct snd_soc_codec *codec,
 				   STA32X_CONFF_PWDN | STA32X_CONFF_EAPD, 0);
 		msleep(300);
 		sta32x_watchdog_stop(sta32x);
+
+		if (sta32x->gpiod_nreset)
+			gpiod_set_value(sta32x->gpiod_nreset, 0);
+
 		regulator_bulk_disable(ARRAY_SIZE(sta32x->supplies),
 				       sta32x->supplies);
 		break;
@@ -899,6 +916,11 @@ static int sta32x_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
+	ret = sta32x_startup_sequence(sta32x);
+	if (ret < 0) {
+		dev_err(codec->dev, "Failed to startup device\n");
+		return ret;
+	}
 	/* set thermal warning adjustment and recovery */
 	if (!pdata->thermal_warning_recovery)
 		thermal |= STA32X_CONFA_TWAB;
@@ -999,6 +1021,19 @@ static int sta32x_i2c_probe(struct i2c_client *i2c,
 
 	mutex_init(&sta32x->coeff_lock);
 	sta32x->pdata = dev_get_platdata(dev);
+
+	/* GPIOs */
+	sta32x->gpiod_nreset = devm_gpiod_get(dev, "reset");
+	if (IS_ERR(sta32x->gpiod_nreset)) {
+		ret = PTR_ERR(sta32x->gpiod_nreset);
+		if (ret != -ENOENT && ret != -ENOSYS)
+			return ret;
+
+		sta32x->gpiod_nreset = NULL;
+	} else {
+		gpiod_direction_output(sta32x->gpiod_nreset, 0);
+	}
+
 	/* regulators */
 	for (i = 0; i < ARRAY_SIZE(sta32x->supplies); i++)
 		sta32x->supplies[i].supply = sta32x_supply_names[i];
