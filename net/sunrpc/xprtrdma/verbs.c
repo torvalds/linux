@@ -794,6 +794,14 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	ep->rep_attr.qp_type = IB_QPT_RC;
 	ep->rep_attr.port_num = ~0;
 
+	if (cdata->padding) {
+		ep->rep_padbuf = rpcrdma_alloc_regbuf(ia, cdata->padding,
+						      GFP_KERNEL);
+		if (IS_ERR(ep->rep_padbuf))
+			return PTR_ERR(ep->rep_padbuf);
+	} else
+		ep->rep_padbuf = NULL;
+
 	dprintk("RPC:       %s: requested max: dtos: send %d recv %d; "
 		"iovs: send %d recv %d\n",
 		__func__,
@@ -876,6 +884,7 @@ out2:
 		dprintk("RPC:       %s: ib_destroy_cq returned %i\n",
 			__func__, err);
 out1:
+	rpcrdma_free_regbuf(ia, ep->rep_padbuf);
 	return rc;
 }
 
@@ -902,11 +911,7 @@ rpcrdma_ep_destroy(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 		ia->ri_id->qp = NULL;
 	}
 
-	/* padding - could be done in rpcrdma_buffer_destroy... */
-	if (ep->rep_pad_mr) {
-		rpcrdma_deregister_internal(ia, ep->rep_pad_mr, &ep->rep_pad);
-		ep->rep_pad_mr = NULL;
-	}
+	rpcrdma_free_regbuf(ia, ep->rep_padbuf);
 
 	rpcrdma_clean_cq(ep->rep_attr.recv_cq);
 	rc = ib_destroy_cq(ep->rep_attr.recv_cq);
@@ -1220,12 +1225,10 @@ rpcrdma_buffer_create(struct rpcrdma_xprt *r_xprt)
 	 *   1.  arrays for send and recv pointers
 	 *   2.  arrays of struct rpcrdma_req to fill in pointers
 	 *   3.  array of struct rpcrdma_rep for replies
-	 *   4.  padding, if any
 	 * Send/recv buffers in req/rep need to be registered
 	 */
 	len = buf->rb_max_requests *
 		(sizeof(struct rpcrdma_req *) + sizeof(struct rpcrdma_rep *));
-	len += cdata->padding;
 
 	p = kzalloc(len, GFP_KERNEL);
 	if (p == NULL) {
@@ -1240,18 +1243,6 @@ rpcrdma_buffer_create(struct rpcrdma_xprt *r_xprt)
 	p = (char *) &buf->rb_send_bufs[buf->rb_max_requests];
 	buf->rb_recv_bufs = (struct rpcrdma_rep **) p;
 	p = (char *) &buf->rb_recv_bufs[buf->rb_max_requests];
-
-	/*
-	 * Register the zeroed pad buffer, if any.
-	 */
-	if (cdata->padding) {
-		struct rpcrdma_ep *ep = &r_xprt->rx_ep;
-		rc = rpcrdma_register_internal(ia, p, cdata->padding,
-					    &ep->rep_pad_mr, &ep->rep_pad);
-		if (rc)
-			goto out;
-	}
-	p += cdata->padding;
 
 	INIT_LIST_HEAD(&buf->rb_mws);
 	INIT_LIST_HEAD(&buf->rb_all);

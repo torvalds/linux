@@ -549,9 +549,9 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	if (padlen) {
 		struct rpcrdma_ep *ep = &r_xprt->rx_ep;
 
-		req->rl_send_iov[2].addr = ep->rep_pad.addr;
+		req->rl_send_iov[2].addr = rdmab_addr(ep->rep_padbuf);
 		req->rl_send_iov[2].length = padlen;
-		req->rl_send_iov[2].lkey = ep->rep_pad.lkey;
+		req->rl_send_iov[2].lkey = rdmab_lkey(ep->rep_padbuf);
 
 		req->rl_send_iov[3].addr = req->rl_send_iov[1].addr + rpclen;
 		req->rl_send_iov[3].length = rqst->rq_slen - rpclen;
