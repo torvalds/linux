@@ -154,7 +154,7 @@ rpcrdma_qp_async_error_upcall(struct ib_event *event, void *context)
 		event->device->name, context);
 	if (ep->rep_connected == 1) {
 		ep->rep_connected = -EIO;
-		ep->rep_func(ep);
+		rpcrdma_conn_func(ep);
 		wake_up_all(&ep->rep_connect_wait);
 	}
 }
@@ -169,7 +169,7 @@ rpcrdma_cq_async_error_upcall(struct ib_event *event, void *context)
 		event->device->name, context);
 	if (ep->rep_connected == 1) {
 		ep->rep_connected = -EIO;
-		ep->rep_func(ep);
+		rpcrdma_conn_func(ep);
 		wake_up_all(&ep->rep_connect_wait);
 	}
 }
@@ -474,7 +474,7 @@ connected:
 		dprintk("RPC:       %s: %sconnected\n",
 					__func__, connstate > 0 ? "" : "dis");
 		ep->rep_connected = connstate;
-		ep->rep_func(ep);
+		rpcrdma_conn_func(ep);
 		wake_up_all(&ep->rep_connect_wait);
 		/*FALLTHROUGH*/
 	default:

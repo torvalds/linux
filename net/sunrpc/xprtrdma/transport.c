@@ -376,8 +376,6 @@ xprt_setup_rdma(struct xprt_create *args)
 	 */
 	INIT_DELAYED_WORK(&new_xprt->rx_connect_worker,
 			  xprt_rdma_connect_worker);
-	new_ep->rep_func = rpcrdma_conn_func;
-	new_ep->rep_xprt = xprt;
 
 	xprt_rdma_format_addresses(xprt);
 	xprt->max_payload = rpcrdma_max_payload(new_xprt);

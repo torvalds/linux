@@ -695,7 +695,9 @@ rpcrdma_connect_worker(struct work_struct *work)
 {
 	struct rpcrdma_ep *ep =
 		container_of(work, struct rpcrdma_ep, rep_connect_worker.work);
-	struct rpc_xprt *xprt = ep->rep_xprt;
+	struct rpcrdma_xprt *r_xprt =
+		container_of(ep, struct rpcrdma_xprt, rx_ep);
+	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
 
 	spin_lock_bh(&xprt->transport_lock);
 	if (++xprt->connect_cookie == 0)	/* maintain a reserved value */

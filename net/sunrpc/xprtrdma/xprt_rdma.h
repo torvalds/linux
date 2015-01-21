@@ -87,8 +87,6 @@ struct rpcrdma_ep {
 	wait_queue_head_t 	rep_connect_wait;
 	struct ib_sge		rep_pad;	/* holds zeroed pad */
 	struct ib_mr		*rep_pad_mr;	/* holds zeroed pad */
-	void			(*rep_func)(struct rpcrdma_ep *);
-	struct rpc_xprt		*rep_xprt;	/* for rep_func */
 	struct rdma_conn_param	rep_remote_cma;
 	struct sockaddr_storage	rep_remote_addr;
 	struct delayed_work	rep_connect_worker;
