@@ -190,7 +190,7 @@ static int host1x_reloc_copy_from_user(struct host1x_reloc *dest,
 	if (err < 0)
 		return err;
 
-	err = get_user(dest->target.offset, &src->cmdbuf.offset);
+	err = get_user(dest->target.offset, &src->target.offset);
 	if (err < 0)
 		return err;
 
