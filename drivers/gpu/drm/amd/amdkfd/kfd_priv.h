@@ -104,7 +104,13 @@ enum cache_policy {
 	cache_policy_noncoherent
 };
 
+enum asic_family_type {
+	CHIP_KAVERI = 0,
+	CHIP_CARRIZO
+};
+
 struct kfd_device_info {
+	unsigned int asic_family;
 	unsigned int max_pasid_bits;
 	size_t ih_ring_entry_size;
 	uint8_t num_of_watch_points;
@@ -299,6 +305,11 @@ struct queue_properties {
 	uint32_t sdma_engine_id;
 	uint32_t sdma_queue_id;
 	uint32_t sdma_vm_addr;
+	/* Relevant only for VI */
+	uint64_t eop_ring_buffer_address;
+	uint32_t eop_ring_buffer_size;
+	uint64_t ctx_save_restore_area_address;
+	uint32_t ctx_save_restore_area_size;
 };
 
 /**
@@ -351,10 +362,10 @@ struct queue {
  * Please read the kfd_mqd_manager.h description.
  */
 enum KFD_MQD_TYPE {
-	KFD_MQD_TYPE_CIK_COMPUTE = 0, /* for no cp scheduling */
-	KFD_MQD_TYPE_CIK_HIQ, /* for hiq */
-	KFD_MQD_TYPE_CIK_CP, /* for cp queues and diq */
-	KFD_MQD_TYPE_CIK_SDMA, /* for sdma queues */
+	KFD_MQD_TYPE_COMPUTE = 0,	/* for no cp scheduling */
+	KFD_MQD_TYPE_HIQ,		/* for hiq */
+	KFD_MQD_TYPE_CP,		/* for cp queues and diq */
+	KFD_MQD_TYPE_SDMA,		/* for sdma queues */
 	KFD_MQD_TYPE_MAX
 };
 
@@ -562,6 +573,10 @@ void print_queue(struct queue *q);
 
 struct mqd_manager *mqd_manager_init(enum KFD_MQD_TYPE type,
 					struct kfd_dev *dev);
+struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
+		struct kfd_dev *dev);
+struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
+		struct kfd_dev *dev);
 struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev);
 void device_queue_manager_uninit(struct device_queue_manager *dqm);
 struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,

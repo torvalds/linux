@@ -48,7 +48,7 @@ static const struct kgd2kfd_calls kgd2kfd = {
 int sched_policy = KFD_SCHED_POLICY_HWS;
 module_param(sched_policy, int, 0444);
 MODULE_PARM_DESC(sched_policy,
-	"Kernel cmdline parameter that defines the amdkfd scheduling policy");
+	"Scheduling policy (0 = HWS (Default), 1 = HWS without over-subscription, 2 = Non-HWS (Used for debugging only)");
 
 int max_num_of_processes = KFD_MAX_NUM_OF_PROCESSES_DEFAULT;
 module_param(max_num_of_processes, int, 0444);

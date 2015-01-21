@@ -18,30 +18,27 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
+ *
  */
 
-/*
- * radeon_kfd.h defines the private interface between the
- * AMD kernel graphics drivers and the AMD KFD.
- */
+#include "kfd_kernel_queue.h"
 
-#ifndef RADEON_KFD_H_INCLUDED
-#define RADEON_KFD_H_INCLUDED
+static bool initialize_cik(struct kernel_queue *kq, struct kfd_dev *dev,
+			enum kfd_queue_type type, unsigned int queue_size);
+static void uninitialize_cik(struct kernel_queue *kq);
 
-#include <linux/types.h>
-#include "kgd_kfd_interface.h"
+void kernel_queue_init_cik(struct kernel_queue_ops *ops)
+{
+	ops->initialize = initialize_cik;
+	ops->uninitialize = uninitialize_cik;
+}
 
-struct radeon_device;
+static bool initialize_cik(struct kernel_queue *kq, struct kfd_dev *dev,
+			enum kfd_queue_type type, unsigned int queue_size)
+{
+	return true;
+}
 
-bool radeon_kfd_init(void);
-void radeon_kfd_fini(void);
-
-void radeon_kfd_suspend(struct radeon_device *rdev);
-int radeon_kfd_resume(struct radeon_device *rdev);
-void radeon_kfd_interrupt(struct radeon_device *rdev,
-			const void *ih_ring_entry);
-void radeon_kfd_device_probe(struct radeon_device *rdev);
-void radeon_kfd_device_init(struct radeon_device *rdev);
-void radeon_kfd_device_fini(struct radeon_device *rdev);
-
-#endif /* RADEON_KFD_H_INCLUDED */
+static void uninitialize_cik(struct kernel_queue *kq)
+{
+}

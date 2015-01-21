@@ -18,30 +18,39 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
+ *
  */
 
-/*
- * radeon_kfd.h defines the private interface between the
- * AMD kernel graphics drivers and the AMD KFD.
- */
+#include "kfd_kernel_queue.h"
 
-#ifndef RADEON_KFD_H_INCLUDED
-#define RADEON_KFD_H_INCLUDED
+static bool initialize_vi(struct kernel_queue *kq, struct kfd_dev *dev,
+			enum kfd_queue_type type, unsigned int queue_size);
+static void uninitialize_vi(struct kernel_queue *kq);
 
-#include <linux/types.h>
-#include "kgd_kfd_interface.h"
+void kernel_queue_init_vi(struct kernel_queue_ops *ops)
+{
+	ops->initialize = initialize_vi;
+	ops->uninitialize = uninitialize_vi;
+}
 
-struct radeon_device;
+static bool initialize_vi(struct kernel_queue *kq, struct kfd_dev *dev,
+			enum kfd_queue_type type, unsigned int queue_size)
+{
+	int retval;
 
-bool radeon_kfd_init(void);
-void radeon_kfd_fini(void);
+	retval = kfd_gtt_sa_allocate(dev, PAGE_SIZE, &kq->eop_mem);
+	if (retval != 0)
+		return false;
 
-void radeon_kfd_suspend(struct radeon_device *rdev);
-int radeon_kfd_resume(struct radeon_device *rdev);
-void radeon_kfd_interrupt(struct radeon_device *rdev,
-			const void *ih_ring_entry);
-void radeon_kfd_device_probe(struct radeon_device *rdev);
-void radeon_kfd_device_init(struct radeon_device *rdev);
-void radeon_kfd_device_fini(struct radeon_device *rdev);
+	kq->eop_gpu_addr = kq->eop_mem->gpu_addr;
+	kq->eop_kernel_addr = kq->eop_mem->cpu_ptr;
 
-#endif /* RADEON_KFD_H_INCLUDED */
+	memset(kq->eop_kernel_addr, 0, PAGE_SIZE);
+
+	return true;
+}
+
+static void uninitialize_vi(struct kernel_queue *kq)
+{
+	kfd_gtt_sa_free(kq->dev, kq->eop_mem);
+}

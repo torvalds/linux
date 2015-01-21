@@ -31,6 +31,14 @@
 #define MQD_SIZE_ALIGNED 768
 
 static const struct kfd_device_info kaveri_device_info = {
+	.asic_family = CHIP_KAVERI,
+	.max_pasid_bits = 16,
+	.ih_ring_entry_size = 4 * sizeof(uint32_t),
+	.mqd_size_aligned = MQD_SIZE_ALIGNED
+};
+
+static const struct kfd_device_info carrizo_device_info = {
+	.asic_family = CHIP_CARRIZO,
 	.max_pasid_bits = 16,
 	.ih_ring_entry_size = 4 * sizeof(uint32_t),
 	.num_of_watch_points = 4,
@@ -65,7 +73,7 @@ static const struct kfd_deviceid supported_devices[] = {
 	{ 0x1318, &kaveri_device_info },	/* Kaveri */
 	{ 0x131B, &kaveri_device_info },	/* Kaveri */
 	{ 0x131C, &kaveri_device_info },	/* Kaveri */
-	{ 0x131D, &kaveri_device_info },	/* Kaveri */
+	{ 0x131D, &kaveri_device_info }		/* Kaveri */
 };
 
 static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
@@ -245,7 +253,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		goto device_queue_manager_error;
 	}
 
-	if (kfd->dqm->start(kfd->dqm) != 0) {
+	if (kfd->dqm->ops.start(kfd->dqm) != 0) {
 		dev_err(kfd_device,
 			"Error starting queuen manager for device (%x:%x)\n",
 			kfd->pdev->vendor, kfd->pdev->device);
@@ -299,7 +307,7 @@ void kgd2kfd_suspend(struct kfd_dev *kfd)
 	BUG_ON(kfd == NULL);
 
 	if (kfd->init_complete) {
-		kfd->dqm->stop(kfd->dqm);
+		kfd->dqm->ops.stop(kfd->dqm);
 		amd_iommu_set_invalidate_ctx_cb(kfd->pdev, NULL);
 		amd_iommu_free_device(kfd->pdev);
 	}
@@ -320,7 +328,7 @@ int kgd2kfd_resume(struct kfd_dev *kfd)
 			return -ENXIO;
 		amd_iommu_set_invalidate_ctx_cb(kfd->pdev,
 						iommu_pasid_shutdown_callback);
-		kfd->dqm->start(kfd->dqm);
+		kfd->dqm->ops.start(kfd->dqm);
 	}
 
 	return 0;
@@ -503,7 +511,10 @@ int kfd_gtt_sa_free(struct kfd_dev *kfd, struct kfd_mem_obj *mem_obj)
 	unsigned int bit;
 
 	BUG_ON(!kfd);
-	BUG_ON(!mem_obj);
+
+	/* Act like kfree when trying to free a NULL object */
+	if (!mem_obj)
+		return 0;
 
 	pr_debug("kfd: free mem_obj = %p, range_start = %d, range_end = %d\n",
 			mem_obj, mem_obj->range_start, mem_obj->range_end);

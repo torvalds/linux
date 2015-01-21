@@ -18,30 +18,16 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
+ *
  */
 
-/*
- * radeon_kfd.h defines the private interface between the
- * AMD kernel graphics drivers and the AMD KFD.
- */
+#include <linux/printk.h>
+#include "kfd_priv.h"
+#include "kfd_mqd_manager.h"
 
-#ifndef RADEON_KFD_H_INCLUDED
-#define RADEON_KFD_H_INCLUDED
-
-#include <linux/types.h>
-#include "kgd_kfd_interface.h"
-
-struct radeon_device;
-
-bool radeon_kfd_init(void);
-void radeon_kfd_fini(void);
-
-void radeon_kfd_suspend(struct radeon_device *rdev);
-int radeon_kfd_resume(struct radeon_device *rdev);
-void radeon_kfd_interrupt(struct radeon_device *rdev,
-			const void *ih_ring_entry);
-void radeon_kfd_device_probe(struct radeon_device *rdev);
-void radeon_kfd_device_init(struct radeon_device *rdev);
-void radeon_kfd_device_fini(struct radeon_device *rdev);
-
-#endif /* RADEON_KFD_H_INCLUDED */
+struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
+					struct kfd_dev *dev)
+{
+	pr_warn("amdkfd: VI MQD is not currently supported\n");
+	return NULL;
+}

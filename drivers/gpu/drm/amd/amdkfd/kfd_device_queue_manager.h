@@ -46,7 +46,7 @@ struct device_process_node {
 };
 
 /**
- * struct device_queue_manager
+ * struct device_queue_manager_ops
  *
  * @create_queue: Queue creation routine.
  *
@@ -81,15 +81,9 @@ struct device_process_node {
  * @set_cache_memory_policy: Sets memory policy (cached/ non cached) for the
  * memory apertures.
  *
- * This struct is a base class for the kfd queues scheduler in the
- * device level. The device base class should expose the basic operations
- * for queue creation and queue destruction. This base class hides the
- * scheduling mode of the driver and the specific implementation of the
- * concrete device. This class is the only class in the queues scheduler
- * that configures the H/W.
  */
 
-struct device_queue_manager {
+struct device_queue_manager_ops {
 	int	(*create_queue)(struct device_queue_manager *dqm,
 				struct queue *q,
 				struct qcm_process_device *qpd,
@@ -124,7 +118,23 @@ struct device_queue_manager {
 					   enum cache_policy alternate_policy,
 					   void __user *alternate_aperture_base,
 					   uint64_t alternate_aperture_size);
+};
 
+/**
+ * struct device_queue_manager
+ *
+ * This struct is a base class for the kfd queues scheduler in the
+ * device level. The device base class should expose the basic operations
+ * for queue creation and queue destruction. This base class hides the
+ * scheduling mode of the driver and the specific implementation of the
+ * concrete device. This class is the only class in the queues scheduler
+ * that configures the H/W.
+ *
+ */
+
+struct device_queue_manager {
+	struct device_queue_manager_ops ops;
+	struct device_queue_manager_ops ops_asic_specific;
 
 	struct mqd_manager	*mqds[KFD_MQD_TYPE_MAX];
 	struct packet_manager	packets;
@@ -146,6 +156,14 @@ struct device_queue_manager {
 	bool			active_runlist;
 };
 
-
+void device_queue_manager_init_cik(struct device_queue_manager_ops *ops);
+void device_queue_manager_init_vi(struct device_queue_manager_ops *ops);
+void program_sh_mem_settings(struct device_queue_manager *dqm,
+					struct qcm_process_device *qpd);
+inline unsigned int get_sh_mem_bases_32(struct kfd_process_device *qpd);
+inline unsigned int get_sh_mem_bases_nybble_64(struct kfd_process_device *pdd);
+int init_pipelines(struct device_queue_manager *dqm,
+		unsigned int pipes_num, unsigned int first_pipe);
+inline unsigned int get_pipes_num(struct device_queue_manager *dqm);
 
 #endif /* KFD_DEVICE_QUEUE_MANAGER_H_ */
