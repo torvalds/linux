@@ -646,7 +646,6 @@ struct radeon_gart {
 	unsigned			num_cpu_pages;
 	unsigned			table_size;
 	struct page			**pages;
-	dma_addr_t			*pages_addr;
 	uint64_t			*pages_entry;
 	bool				ready;
 };
