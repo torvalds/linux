@@ -26,6 +26,7 @@ struct rcar_du_crtc {
 	struct drm_crtc crtc;
 
 	struct clk *clock;
+	struct clk *extclock;
 	unsigned int mmio_offset;
 	unsigned int index;
 	bool started;
