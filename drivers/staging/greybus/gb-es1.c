@@ -179,9 +179,7 @@ static struct urb *next_free_urb(struct es1_ap_dev *es1, gfp_t gfp_mask)
 	 */
 	dev_err(&es1->usb_dev->dev,
 		"No free CPort OUT urbs, having to dynamically allocate one!\n");
-	urb = usb_alloc_urb(0, gfp_mask);
-
-	return urb;
+	return usb_alloc_urb(0, gfp_mask);
 }
 
 static void free_urb(struct es1_ap_dev *es1, struct urb *urb)
