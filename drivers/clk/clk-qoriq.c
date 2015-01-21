@@ -56,7 +56,7 @@ static u8 cmux_get_parent(struct clk_hw *hw)
 	return clksel;
 }
 
-const struct clk_ops cmux_ops = {
+static const struct clk_ops cmux_ops = {
 	.get_parent = cmux_get_parent,
 	.set_parent = cmux_set_parent,
 };
