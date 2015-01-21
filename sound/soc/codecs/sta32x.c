@@ -554,16 +554,11 @@ static struct {
 };
 
 /* MCLK to fs clock ratios */
-static struct {
-	int ratio;
-	int mcs;
-} mclk_ratios[3][7] = {
-	{ { 768, 0 }, { 512, 1 }, { 384, 2 }, { 256, 3 },
-	  { 128, 4 }, { 576, 5 }, { 0, 0 } },
-	{ { 384, 2 }, { 256, 3 }, { 192, 4 }, { 128, 5 }, {64, 0 }, { 0, 0 } },
-	{ { 384, 2 }, { 256, 3 }, { 192, 4 }, { 128, 5 }, {64, 0 }, { 0, 0 } },
+static int mcs_ratio_table[3][7] = {
+	{ 768, 512, 384, 256, 128, 576, 0 },
+	{ 384, 256, 192, 128,  64,   0 },
+	{ 384, 256, 192, 128,  64,   0 },
 };
-
 
 /**
  * sta32x_set_dai_sysclk - configure MCLK
@@ -589,46 +584,10 @@ static int sta32x_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct sta32x_priv *sta32x = snd_soc_codec_get_drvdata(codec);
-	int i, j, ir, fs;
-	unsigned int rates = 0;
-	unsigned int rate_min = -1;
-	unsigned int rate_max = 0;
 
-	pr_debug("mclk=%u\n", freq);
+	dev_dbg(codec->dev, "mclk=%u\n", freq);
 	sta32x->mclk = freq;
 
-	if (sta32x->mclk) {
-		for (i = 0; i < ARRAY_SIZE(interpolation_ratios); i++) {
-			ir = interpolation_ratios[i].ir;
-			fs = interpolation_ratios[i].fs;
-			for (j = 0; mclk_ratios[ir][j].ratio; j++) {
-				if (mclk_ratios[ir][j].ratio * fs == freq) {
-					rates |= snd_pcm_rate_to_rate_bit(fs);
-					if (fs < rate_min)
-						rate_min = fs;
-					if (fs > rate_max)
-						rate_max = fs;
-					break;
-				}
-			}
-		}
-		/* FIXME: soc should support a rate list */
-		rates &= ~SNDRV_PCM_RATE_KNOT;
-
-		if (!rates) {
-			dev_err(codec->dev, "could not find a valid sample rate\n");
-			return -EINVAL;
-		}
-	} else {
-		/* enable all possible rates */
-		rates = STA32X_RATES;
-		rate_min = 32000;
-		rate_max = 192000;
-	}
-
-	codec_dai->driver->playback.rates = rates;
-	codec_dai->driver->playback.rate_min = rate_min;
-	codec_dai->driver->playback.rate_max = rate_max;
 	return 0;
 }
 
@@ -694,26 +653,44 @@ static int sta32x_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct sta32x_priv *sta32x = snd_soc_codec_get_drvdata(codec);
-	unsigned int rate;
-	int i, mcs = -1, ir = -1;
+	int i, mcs = -EINVAL, ir = -EINVAL;
 	unsigned int confa, confb;
+	unsigned int rate, ratio;
+	int ret;
+
+	if (!sta32x->mclk) {
+		dev_err(codec->dev,
+			"sta32x->mclk is unset. Unable to determine ratio\n");
+		return -EIO;
+	}
 
 	rate = params_rate(params);
-	pr_debug("rate: %u\n", rate);
-	for (i = 0; i < ARRAY_SIZE(interpolation_ratios); i++)
+	ratio = sta32x->mclk / rate;
+	dev_dbg(codec->dev, "rate: %u, ratio: %u\n", rate, ratio);
+
+	for (i = 0; i < ARRAY_SIZE(interpolation_ratios); i++) {
 		if (interpolation_ratios[i].fs == rate) {
 			ir = interpolation_ratios[i].ir;
 			break;
 		}
-	if (ir < 0)
+	}
+
+	if (ir < 0) {
+		dev_err(codec->dev, "Unsupported samplerate: %u\n", rate);
 		return -EINVAL;
-	for (i = 0; mclk_ratios[ir][i].ratio; i++)
-		if (mclk_ratios[ir][i].ratio * rate == sta32x->mclk) {
-			mcs = mclk_ratios[ir][i].mcs;
+	}
+
+	for (i = 0; i < 6; i++) {
+		if (mcs_ratio_table[ir][i] == ratio) {
+			mcs = i;
 			break;
 		}
-	if (mcs < 0)
+	}
+
+	if (mcs < 0) {
+		dev_err(codec->dev, "Unresolvable ratio: %u\n", ratio);
 		return -EINVAL;
+	}
 
 	confa = (ir << STA32X_CONFA_IR_SHIFT) |
 		(mcs << STA32X_CONFA_MCS_SHIFT);
