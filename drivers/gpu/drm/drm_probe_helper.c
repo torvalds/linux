@@ -103,6 +103,7 @@ static int drm_helper_probe_single_connector_modes_merge_bits(struct drm_connect
 	int count = 0;
 	int mode_flags = 0;
 	bool verbose_prune = true;
+	enum drm_connector_status old_status;
 
 	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
 
@@ -121,7 +122,33 @@ static int drm_helper_probe_single_connector_modes_merge_bits(struct drm_connect
 		if (connector->funcs->force)
 			connector->funcs->force(connector);
 	} else {
+		old_status = connector->status;
+
 		connector->status = connector->funcs->detect(connector, true);
+
+		/*
+		 * Normally either the driver's hpd code or the poll loop should
+		 * pick up any changes and fire the hotplug event. But if
+		 * userspace sneaks in a probe, we might miss a change. Hence
+		 * check here, and if anything changed start the hotplug code.
+		 */
+		if (old_status != connector->status) {
+			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %d to %d\n",
+				      connector->base.id,
+				      connector->name,
+				      old_status, connector->status);
+
+			/*
+			 * The hotplug event code might call into the fb
+			 * helpers, and so expects that we do not hold any
+			 * locks. Fire up the poll struct instead, it will
+			 * disable itself again.
+			 */
+			dev->mode_config.delayed_event = true;
+			if (dev->mode_config.poll_enabled)
+				schedule_delayed_work(&dev->mode_config.output_poll_work,
+						      0);
+		}
 	}
 
 	/* Re-enable polling in case the global poll config changed. */
@@ -274,10 +301,14 @@ static void output_poll_execute(struct work_struct *work)
 	struct drm_device *dev = container_of(delayed_work, struct drm_device, mode_config.output_poll_work);
 	struct drm_connector *connector;
 	enum drm_connector_status old_status;
-	bool repoll = false, changed = false;
+	bool repoll = false, changed;
+
+	/* Pick up any changes detected by the probe functions. */
+	changed = dev->mode_config.delayed_event;
+	dev->mode_config.delayed_event = false;
 
 	if (!drm_kms_helper_poll)
-		return;
+		goto out;
 
 	mutex_lock(&dev->mode_config.mutex);
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
@@ -319,6 +350,7 @@ static void output_poll_execute(struct work_struct *work)
 
 	mutex_unlock(&dev->mode_config.mutex);
 
+out:
 	if (changed)
 		drm_kms_helper_hotplug_event(dev);
 
