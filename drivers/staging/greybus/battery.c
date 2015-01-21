@@ -88,32 +88,8 @@ struct gb_battery_voltage_response {
 	__le32	voltage;
 };
 
-/*
- * This request only uses the connection field, and if successful,
- * fills in the major and minor protocol version of the target.
- */
-static int get_version(struct gb_battery *gb)
-{
-	struct gb_battery_proto_version_response version_response;
-	int retval;
-
-	retval = gb_operation_sync(gb->connection,
-				   GB_BATTERY_TYPE_PROTOCOL_VERSION,
-				   NULL, 0,
-				   &version_response, sizeof(version_response));
-	if (retval)
-		return retval;
-
-	if (version_response.major > GB_BATTERY_VERSION_MAJOR) {
-		pr_err("unsupported major version (%hhu > %hhu)\n",
-			version_response.major, GB_BATTERY_VERSION_MAJOR);
-		return -ENOTSUPP;
-	}
-
-	gb->version_major = version_response.major;
-	gb->version_minor = version_response.minor;
-	return 0;
-}
+/* Define get_version() routine */
+define_get_version(gb_battery, BATTERY);
 
 static int get_tech(struct gb_battery *gb)
 {

@@ -93,26 +93,8 @@ struct gb_usb_device {
 
 #define to_gb_usb_device(d) ((struct gb_usb_device*) d->hcd_priv)
 
-static int get_version(struct gb_usb_device *dev)
-{
-	struct gb_usb_proto_version_response response;
-	int ret;
-
-	ret = gb_operation_sync(dev->connection,
-				GB_USB_TYPE_PROTOCOL_VERSION,
-				NULL, 0, &response, sizeof(response));
-	if (ret)
-		return ret;
-
-	if (response.major > GB_USB_VERSION_MAJOR) {
-		pr_err("unsupported major version (%hhu > %hhu)\n",
-			response.major, GB_USB_VERSION_MAJOR);
-		return -ENOTSUPP;
-	}
-	dev->version_major = response.major;
-	dev->version_minor = response.minor;
-	return 0;
-}
+/* Define get_version() routine */
+define_get_version(gb_usb_device, USB);
 
 static void hcd_stop(struct usb_hcd *hcd)
 {

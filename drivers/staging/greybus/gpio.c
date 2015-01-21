@@ -113,29 +113,8 @@ struct gb_gpio_set_debounce_request {
 /* debounce response has no payload */
 
 
-/*
- * This request only uses the connection field, and if successful,
- * fills in the major and minor protocol version of the target.
- */
-static int gb_gpio_proto_version_operation(struct gb_gpio_controller *ggc)
-{
-	struct gb_gpio_proto_version_response response;
-	int ret;
-
-	ret = gb_operation_sync(ggc->connection, GB_GPIO_TYPE_PROTOCOL_VERSION,
-				NULL, 0, &response, sizeof(response));
-	if (ret)
-		return ret;
-
-	if (response.major > GB_GPIO_VERSION_MAJOR) {
-		pr_err("unsupported major version (%hhu > %hhu)\n",
-			response.major, GB_GPIO_VERSION_MAJOR);
-		return -ENOTSUPP;
-	}
-	ggc->version_major = response.major;
-	ggc->version_minor = response.minor;
-	return 0;
-}
+/* Define get_version() routine */
+define_get_version(gb_gpio_controller, GPIO);
 
 static int gb_gpio_line_count_operation(struct gb_gpio_controller *ggc)
 {
@@ -446,7 +425,7 @@ static int gb_gpio_controller_setup(struct gb_gpio_controller *gb_gpio_controlle
 	int ret;
 
 	/* First thing we need to do is check the version */
-	ret = gb_gpio_proto_version_operation(gb_gpio_controller);
+	ret = get_version(gb_gpio_controller);
 	if (ret)
 		;	/* return ret; */
 

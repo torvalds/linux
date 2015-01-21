@@ -14,6 +14,12 @@
 
 struct gb_operation;
 
+/* version request has no payload */
+struct gb_protocol_version_response {
+	__u8	major;
+	__u8	minor;
+};
+
 typedef int (*gb_connection_init_t)(struct gb_connection *);
 typedef void (*gb_connection_exit_t)(struct gb_connection *);
 typedef void (*gb_request_recv_t)(u8, struct gb_operation *);
@@ -45,6 +51,11 @@ int gb_protocol_deregister(struct gb_protocol *protocol);
 	__gb_protocol_register(protocol, THIS_MODULE)
 
 struct gb_protocol *gb_protocol_get(u8 id, u8 major, u8 minor);
+int gb_protocol_get_version(struct gb_connection *connection, int type,
+			    void *request, int request_size,
+			    struct gb_protocol_version_response *response,
+			    __u8 major);
+
 void gb_protocol_put(struct gb_protocol *protocol);
 
 /*
@@ -81,5 +92,28 @@ static void __exit protocol_exit(void)			\
 	gb_protocol_deregister(__protocol);		\
 }							\
 module_exit(protocol_exit);
+
+/*
+ * Macro to create get_version() routine for protocols
+ * @__device: name of the device struct
+ * @__protocol: name of protocol in CAPITALS
+ */
+#define define_get_version(__device, __protocol)	\
+static int get_version(struct __device *dev)		\
+{							\
+	struct gb_protocol_version_response response;	\
+	int retval;					\
+							\
+	retval = gb_protocol_get_version(dev->connection,			\
+					 GB_##__protocol##_TYPE_PROTOCOL_VERSION,\
+					 NULL, 0, &response,			\
+					 GB_##__protocol##_VERSION_MAJOR);	\
+	if (retval)					\
+		return retval;				\
+							\
+	dev->version_major = response.major;		\
+	dev->version_minor = response.minor;		\
+	return 0;					\
+}
 
 #endif /* __PROTOCOL_H */

@@ -131,33 +131,8 @@ static DEFINE_IDR(tty_minors);
 static DEFINE_MUTEX(table_lock);
 static atomic_t reference_count = ATOMIC_INIT(0);
 
-/*
- * This request only uses the connection field, and if successful,
- * fills in the major and minor protocol version of the target.
- */
-static int get_version(struct gb_tty *tty)
-{
-	struct gb_uart_proto_version_response response;
-	int ret;
-
-	ret = gb_operation_sync(tty->connection,
-				GB_UART_TYPE_PROTOCOL_VERSION,
-				NULL, 0, &response, sizeof(response));
-	if (ret)
-		return ret;
-
-	if (response.major > GB_UART_VERSION_MAJOR) {
-		pr_err("unsupported major version (%hhu > %hhu)\n",
-			response.major, GB_UART_VERSION_MAJOR);
-		return -ENOTSUPP;
-	}
-	tty->version_major = response.major;
-	tty->version_minor = response.minor;
-
-	pr_debug("%s: version_major = %u version_minor = %u\n",
-		__func__, tty->version_major, tty->version_minor);
-	return 0;
-}
+/* Define get_version() routine */
+define_get_version(gb_tty, UART);
 
 static int send_data(struct gb_tty *tty, u16 size, const u8 *data)
 {

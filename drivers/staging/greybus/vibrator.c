@@ -43,34 +43,8 @@ struct gb_vibrator_on_request {
 	__le16	timeout_ms;
 };
 
-/*
- * This request only uses the connection field, and if successful,
- * fills in the major and minor protocol version of the target.
- */
-static int get_version(struct gb_vibrator_device *vib)
-{
-	struct gb_connection *connection = vib->connection;
-	struct gb_vibrator_proto_version_response version_response;
-	int retval;
-
-	retval = gb_operation_sync(connection,
-				   GB_VIBRATOR_TYPE_PROTOCOL_VERSION,
-				   NULL, 0,
-				   &version_response, sizeof(version_response));
-	if (retval)
-		return retval;
-
-	if (version_response.major > GB_VIBRATOR_VERSION_MAJOR) {
-		dev_err(&connection->dev,
-			"unsupported major version (%hhu > %hhu)\n",
-			version_response.major, GB_VIBRATOR_VERSION_MAJOR);
-		return -ENOTSUPP;
-	}
-
-	vib->version_major = version_response.major;
-	vib->version_minor = version_response.minor;
-	return 0;
-}
+/* Define get_version() routine */
+define_get_version(gb_vibrator_device, VIBRATOR);
 
 static int turn_on(struct gb_vibrator_device *vib, u16 timeout_ms)
 {

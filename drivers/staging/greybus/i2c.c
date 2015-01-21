@@ -87,30 +87,8 @@ struct gb_i2c_transfer_response {
 	__u8				data[0];	/* inbound data */
 };
 
-/*
- * This request only uses the connection field, and if successful,
- * fills in the major and minor protocol version of the target.
- */
-static int gb_i2c_proto_version_operation(struct gb_i2c_device *gb_i2c_dev)
-{
-	struct gb_i2c_proto_version_response response;
-	int ret;
-
-	ret = gb_operation_sync(gb_i2c_dev->connection,
-				GB_I2C_TYPE_PROTOCOL_VERSION,
-				NULL, 0, &response, sizeof(response));
-	if (ret)
-		return ret;
-
-	if (response.major > GB_I2C_VERSION_MAJOR) {
-		pr_err("unsupported major version (%hhu > %hhu)\n",
-			response.major, GB_I2C_VERSION_MAJOR);
-		return -ENOTSUPP;
-	}
-	gb_i2c_dev->version_major = response.major;
-	gb_i2c_dev->version_minor = response.minor;
-	return 0;
-}
+/* Define get_version() routine */
+define_get_version(gb_i2c_device, I2C);
 
 /*
  * Map Greybus i2c functionality bits into Linux ones
@@ -361,7 +339,7 @@ static int gb_i2c_device_setup(struct gb_i2c_device *gb_i2c_dev)
 	int ret;
 
 	/* First thing we need to do is check the version */
-	ret = gb_i2c_proto_version_operation(gb_i2c_dev);
+	ret = get_version(gb_i2c_dev);
 	if (ret)
 		return ret;
 

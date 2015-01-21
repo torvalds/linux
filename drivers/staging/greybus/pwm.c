@@ -79,30 +79,8 @@ struct gb_pwm_disable_request {
 	__u8	which;
 };
 
-/*
- * This request only uses the connection field, and if successful,
- * fills in the major and minor protocol version of the target.
- */
-static int gb_pwm_proto_version_operation(struct gb_pwm_chip *pwmc)
-{
-	struct gb_pwm_proto_version_response response;
-	int ret;
-
-	ret = gb_operation_sync(pwmc->connection, GB_PWM_TYPE_PROTOCOL_VERSION,
-				NULL, 0, &response, sizeof(response));
-
-	if (ret)
-		return ret;
-
-	if (response.major > GB_PWM_VERSION_MAJOR) {
-		pr_err("unsupported major version (%hhu > %hhu)\n",
-			response.major, GB_PWM_VERSION_MAJOR);
-		return -ENOTSUPP;
-	}
-	pwmc->version_major = response.major;
-	pwmc->version_minor = response.minor;
-	return 0;
-}
+/* Define get_version() routine */
+define_get_version(gb_pwm_chip, PWM);
 
 static int gb_pwm_count_operation(struct gb_pwm_chip *pwmc)
 {
@@ -269,7 +247,7 @@ static int gb_pwm_connection_init(struct gb_connection *connection)
 	connection->private = pwmc;
 
 	/* Check for compatible protocol version */
-	ret = gb_pwm_proto_version_operation(pwmc);
+	ret = get_version(pwmc);
 	if (ret)
 		goto out_err;
 
