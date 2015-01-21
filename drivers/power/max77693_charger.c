@@ -612,12 +612,8 @@ static int max77693_reg_init(struct max77693_charger *chg)
 	if (ret)
 		return ret;
 
-	ret = max77693_set_charge_input_threshold_volt(chg,
+	return max77693_set_charge_input_threshold_volt(chg,
 			chg->charge_input_threshold_volt);
-	if (ret)
-		return ret;
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
