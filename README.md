@@ -409,3 +409,5 @@ Coding Style
 
 Variables can be declared in any style, CamelCase, some_variable or even FoooBaRvaLue, if a variable wants to be redeclared, we shall let it.
 
+
+I added a new branch of m(ai)st((re)(ress)) so as to not force wom*n and oth*rg*nd*rkin to not feel as they must conform to the accepted branch as mistress, a woman who has power over others, including other wom*n (Yes the 2nd t farthest from first( but there's nothing wrond with last) is intentional. It points out how mysoginistic and irrespectful the term of mistress is.)
