@@ -1075,6 +1075,69 @@ rpcrdma_ep_disconnect(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 	}
 }
 
+static struct rpcrdma_req *
+rpcrdma_create_req(struct rpcrdma_xprt *r_xprt)
+{
+	struct rpcrdma_create_data_internal *cdata = &r_xprt->rx_data;
+	size_t wlen = 1 << fls(cdata->inline_wsize +
+			       sizeof(struct rpcrdma_req));
+	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
+	struct rpcrdma_req *req;
+	int rc;
+
+	rc = -ENOMEM;
+	req = kmalloc(wlen, GFP_KERNEL);
+	if (req == NULL)
+		goto out;
+	memset(req, 0, sizeof(struct rpcrdma_req));
+
+	rc = rpcrdma_register_internal(ia, req->rl_base, wlen -
+				       offsetof(struct rpcrdma_req, rl_base),
+				       &req->rl_handle, &req->rl_iov);
+	if (rc)
+		goto out_free;
+
+	req->rl_size = wlen - sizeof(struct rpcrdma_req);
+	req->rl_buffer = &r_xprt->rx_buf;
+	return req;
+
+out_free:
+	kfree(req);
+out:
+	return ERR_PTR(rc);
+}
+
+static struct rpcrdma_rep *
+rpcrdma_create_rep(struct rpcrdma_xprt *r_xprt)
+{
+	struct rpcrdma_create_data_internal *cdata = &r_xprt->rx_data;
+	size_t rlen = 1 << fls(cdata->inline_rsize +
+			       sizeof(struct rpcrdma_rep));
+	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
+	struct rpcrdma_rep *rep;
+	int rc;
+
+	rc = -ENOMEM;
+	rep = kmalloc(rlen, GFP_KERNEL);
+	if (rep == NULL)
+		goto out;
+	memset(rep, 0, sizeof(struct rpcrdma_rep));
+
+	rc = rpcrdma_register_internal(ia, rep->rr_base, rlen -
+				       offsetof(struct rpcrdma_rep, rr_base),
+				       &rep->rr_handle, &rep->rr_iov);
+	if (rc)
+		goto out_free;
+
+	rep->rr_buffer = &r_xprt->rx_buf;
+	return rep;
+
+out_free:
+	kfree(rep);
+out:
+	return ERR_PTR(rc);
+}
+
 static int
 rpcrdma_init_fmrs(struct rpcrdma_ia *ia, struct rpcrdma_buffer *buf)
 {
@@ -1167,7 +1230,7 @@ rpcrdma_buffer_create(struct rpcrdma_xprt *r_xprt)
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 	struct rpcrdma_create_data_internal *cdata = &r_xprt->rx_data;
 	char *p;
-	size_t len, rlen, wlen;
+	size_t len;
 	int i, rc;
 
 	buf->rb_max_requests = cdata->max_requests;
@@ -1227,66 +1290,53 @@ rpcrdma_buffer_create(struct rpcrdma_xprt *r_xprt)
 		break;
 	}
 
-	/*
-	 * Allocate/init the request/reply buffers. Doing this
-	 * using kmalloc for now -- one for each buf.
-	 */
-	wlen = 1 << fls(cdata->inline_wsize + sizeof(struct rpcrdma_req));
-	rlen = 1 << fls(cdata->inline_rsize + sizeof(struct rpcrdma_rep));
-	dprintk("RPC:       %s: wlen = %zu, rlen = %zu\n",
-		__func__, wlen, rlen);
-
 	for (i = 0; i < buf->rb_max_requests; i++) {
 		struct rpcrdma_req *req;
 		struct rpcrdma_rep *rep;
 
-		req = kmalloc(wlen, GFP_KERNEL);
-		if (req == NULL) {
+		req = rpcrdma_create_req(r_xprt);
+		if (IS_ERR(req)) {
 			dprintk("RPC:       %s: request buffer %d alloc"
 				" failed\n", __func__, i);
-			rc = -ENOMEM;
+			rc = PTR_ERR(req);
 			goto out;
 		}
-		memset(req, 0, sizeof(struct rpcrdma_req));
 		buf->rb_send_bufs[i] = req;
-		buf->rb_send_bufs[i]->rl_buffer = buf;
 
-		rc = rpcrdma_register_internal(ia, req->rl_base,
-				wlen - offsetof(struct rpcrdma_req, rl_base),
-				&buf->rb_send_bufs[i]->rl_handle,
-				&buf->rb_send_bufs[i]->rl_iov);
-		if (rc)
-			goto out;
-
-		buf->rb_send_bufs[i]->rl_size = wlen -
-						sizeof(struct rpcrdma_req);
-
-		rep = kmalloc(rlen, GFP_KERNEL);
-		if (rep == NULL) {
+		rep = rpcrdma_create_rep(r_xprt);
+		if (IS_ERR(rep)) {
 			dprintk("RPC:       %s: reply buffer %d alloc failed\n",
 				__func__, i);
-			rc = -ENOMEM;
+			rc = PTR_ERR(rep);
 			goto out;
 		}
-		memset(rep, 0, sizeof(struct rpcrdma_rep));
 		buf->rb_recv_bufs[i] = rep;
-		buf->rb_recv_bufs[i]->rr_buffer = buf;
-
-		rc = rpcrdma_register_internal(ia, rep->rr_base,
-				rlen - offsetof(struct rpcrdma_rep, rr_base),
-				&buf->rb_recv_bufs[i]->rr_handle,
-				&buf->rb_recv_bufs[i]->rr_iov);
-		if (rc)
-			goto out;
-
 	}
-	dprintk("RPC:       %s: max_requests %d\n",
-		__func__, buf->rb_max_requests);
-	/* done */
+
 	return 0;
 out:
 	rpcrdma_buffer_destroy(buf);
 	return rc;
+}
+
+static void
+rpcrdma_destroy_rep(struct rpcrdma_ia *ia, struct rpcrdma_rep *rep)
+{
+	if (!rep)
+		return;
+
+	rpcrdma_deregister_internal(ia, rep->rr_handle, &rep->rr_iov);
+	kfree(rep);
+}
+
+static void
+rpcrdma_destroy_req(struct rpcrdma_ia *ia, struct rpcrdma_req *req)
+{
+	if (!req)
+		return;
+
+	rpcrdma_deregister_internal(ia, req->rl_handle, &req->rl_iov);
+	kfree(req);
 }
 
 static void
@@ -1344,18 +1394,10 @@ rpcrdma_buffer_destroy(struct rpcrdma_buffer *buf)
 	dprintk("RPC:       %s: entering\n", __func__);
 
 	for (i = 0; i < buf->rb_max_requests; i++) {
-		if (buf->rb_recv_bufs && buf->rb_recv_bufs[i]) {
-			rpcrdma_deregister_internal(ia,
-					buf->rb_recv_bufs[i]->rr_handle,
-					&buf->rb_recv_bufs[i]->rr_iov);
-			kfree(buf->rb_recv_bufs[i]);
-		}
-		if (buf->rb_send_bufs && buf->rb_send_bufs[i]) {
-			rpcrdma_deregister_internal(ia,
-					buf->rb_send_bufs[i]->rl_handle,
-					&buf->rb_send_bufs[i]->rl_iov);
-			kfree(buf->rb_send_bufs[i]);
-		}
+		if (buf->rb_recv_bufs)
+			rpcrdma_destroy_rep(ia, buf->rb_recv_bufs[i]);
+		if (buf->rb_send_bufs)
+			rpcrdma_destroy_req(ia, buf->rb_send_bufs[i]);
 	}
 
 	switch (ia->ri_memreg_strategy) {
