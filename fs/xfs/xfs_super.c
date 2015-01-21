@@ -1257,13 +1257,13 @@ xfs_fs_remount(
 		 * If this is the first remount to writeable state we
 		 * might have some superblock changes to update.
 		 */
-		if (mp->m_update_flags) {
-			error = xfs_mount_log_sb(mp);
+		if (mp->m_update_sb) {
+			error = xfs_sync_sb(mp, false);
 			if (error) {
 				xfs_warn(mp, "failed to write sb changes");
 				return error;
 			}
-			mp->m_update_flags = 0;
+			mp->m_update_sb = false;
 		}
 
 		/*
@@ -1293,8 +1293,9 @@ xfs_fs_remount(
 
 /*
  * Second stage of a freeze. The data is already frozen so we only
- * need to take care of the metadata. Once that's done write a dummy
- * record to dirty the log in case of a crash while frozen.
+ * need to take care of the metadata. Once that's done sync the superblock
+ * to the log to dirty it in case of a crash while frozen. This ensures that we
+ * will recover the unlinked inode lists on the next mount.
  */
 STATIC int
 xfs_fs_freeze(
@@ -1304,7 +1305,7 @@ xfs_fs_freeze(
 
 	xfs_save_resvblks(mp);
 	xfs_quiesce_attr(mp);
-	return xfs_fs_log_dummy(mp);
+	return xfs_sync_sb(mp, true);
 }
 
 STATIC int

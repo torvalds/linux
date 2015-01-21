@@ -408,11 +408,11 @@ xfs_update_alignment(xfs_mount_t *mp)
 		if (xfs_sb_version_hasdalign(sbp)) {
 			if (sbp->sb_unit != mp->m_dalign) {
 				sbp->sb_unit = mp->m_dalign;
-				mp->m_update_flags |= XFS_SB_UNIT;
+				mp->m_update_sb = true;
 			}
 			if (sbp->sb_width != mp->m_swidth) {
 				sbp->sb_width = mp->m_swidth;
-				mp->m_update_flags |= XFS_SB_WIDTH;
+				mp->m_update_sb = true;
 			}
 		} else {
 			xfs_warn(mp,
@@ -583,38 +583,19 @@ int
 xfs_mount_reset_sbqflags(
 	struct xfs_mount	*mp)
 {
-	int			error;
-	struct xfs_trans	*tp;
-
 	mp->m_qflags = 0;
 
-	/*
-	 * It is OK to look at sb_qflags here in mount path,
-	 * without m_sb_lock.
-	 */
+	/* It is OK to look at sb_qflags in the mount path without m_sb_lock. */
 	if (mp->m_sb.sb_qflags == 0)
 		return 0;
 	spin_lock(&mp->m_sb_lock);
 	mp->m_sb.sb_qflags = 0;
 	spin_unlock(&mp->m_sb_lock);
 
-	/*
-	 * If the fs is readonly, let the incore superblock run
-	 * with quotas off but don't flush the update out to disk
-	 */
-	if (mp->m_flags & XFS_MOUNT_RDONLY)
+	if (!xfs_fs_writable(mp, SB_FREEZE_WRITE))
 		return 0;
 
-	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_SBCHANGE);
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_qm_sbchange, 0, 0);
-	if (error) {
-		xfs_trans_cancel(tp, 0);
-		xfs_alert(mp, "%s: Superblock update failed!", __func__);
-		return error;
-	}
-
-	xfs_mod_sb(tp);
-	return xfs_trans_commit(tp, 0);
+	return xfs_sync_sb(mp, false);
 }
 
 __uint64_t
@@ -678,7 +659,7 @@ xfs_mountfs(
 		xfs_warn(mp, "correcting sb_features alignment problem");
 		sbp->sb_features2 |= sbp->sb_bad_features2;
 		sbp->sb_bad_features2 = sbp->sb_features2;
-		mp->m_update_flags |= XFS_SB_FEATURES2 | XFS_SB_BAD_FEATURES2;
+		mp->m_update_sb = true;
 
 		/*
 		 * Re-check for ATTR2 in case it was found in bad_features2
@@ -692,17 +673,17 @@ xfs_mountfs(
 	if (xfs_sb_version_hasattr2(&mp->m_sb) &&
 	   (mp->m_flags & XFS_MOUNT_NOATTR2)) {
 		xfs_sb_version_removeattr2(&mp->m_sb);
-		mp->m_update_flags |= XFS_SB_FEATURES2;
+		mp->m_update_sb = true;
 
 		/* update sb_versionnum for the clearing of the morebits */
 		if (!sbp->sb_features2)
-			mp->m_update_flags |= XFS_SB_VERSIONNUM;
+			mp->m_update_sb = true;
 	}
 
 	/* always use v2 inodes by default now */
 	if (!(mp->m_sb.sb_versionnum & XFS_SB_VERSION_NLINKBIT)) {
 		mp->m_sb.sb_versionnum |= XFS_SB_VERSION_NLINKBIT;
-		mp->m_update_flags |= XFS_SB_VERSIONNUM;
+		mp->m_update_sb = true;
 	}
 
 	/*
@@ -895,8 +876,8 @@ xfs_mountfs(
 	 * the next remount into writeable mode.  Otherwise we would never
 	 * perform the update e.g. for the root filesystem.
 	 */
-	if (mp->m_update_flags && !(mp->m_flags & XFS_MOUNT_RDONLY)) {
-		error = xfs_mount_log_sb(mp);
+	if (mp->m_update_sb && !(mp->m_flags & XFS_MOUNT_RDONLY)) {
+		error = xfs_sync_sb(mp, false);
 		if (error) {
 			xfs_warn(mp, "failed to write sb changes");
 			goto out_rtunmount;
@@ -1103,9 +1084,6 @@ xfs_fs_writable(
 int
 xfs_log_sbcount(xfs_mount_t *mp)
 {
-	xfs_trans_t	*tp;
-	int		error;
-
 	/* allow this to proceed during the freeze sequence... */
 	if (!xfs_fs_writable(mp, SB_FREEZE_COMPLETE))
 		return 0;
@@ -1119,17 +1097,7 @@ xfs_log_sbcount(xfs_mount_t *mp)
 	if (!xfs_sb_version_haslazysbcount(&mp->m_sb))
 		return 0;
 
-	tp = _xfs_trans_alloc(mp, XFS_TRANS_SB_COUNT, KM_SLEEP);
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_sb, 0, 0);
-	if (error) {
-		xfs_trans_cancel(tp, 0);
-		return error;
-	}
-
-	xfs_mod_sb(tp);
-	xfs_trans_set_sync(tp);
-	error = xfs_trans_commit(tp, 0);
-	return error;
+	return xfs_sync_sb(mp, true);
 }
 
 /*
@@ -1420,28 +1388,6 @@ xfs_freesb(
 	xfs_buf_lock(bp);
 	mp->m_sb_bp = NULL;
 	xfs_buf_relse(bp);
-}
-
-/*
- * Used to log changes to the superblock unit and width fields which could
- * be altered by the mount options, as well as any potential sb_features2
- * fixup. Only the first superblock is updated.
- */
-int
-xfs_mount_log_sb(
-	struct xfs_mount	*mp)
-{
-	struct xfs_trans	*tp;
-	int			error;
-
-	tp = xfs_trans_alloc(mp, XFS_TRANS_SB_UNIT);
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_sb, 0, 0);
-	if (error) {
-		xfs_trans_cancel(tp, 0);
-		return error;
-	}
-	xfs_mod_sb(tp);
-	return xfs_trans_commit(tp, 0);
 }
 
 /*

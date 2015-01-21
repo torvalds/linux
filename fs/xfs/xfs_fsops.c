@@ -756,35 +756,6 @@ out:
 	return 0;
 }
 
-/*
- * Dump a transaction into the log that contains no real change. This is needed
- * to be able to make the log dirty or stamp the current tail LSN into the log
- * during the covering operation.
- *
- * We cannot use an inode here for this - that will push dirty state back up
- * into the VFS and then periodic inode flushing will prevent log covering from
- * making progress. Hence we log a field in the superblock instead and use a
- * synchronous transaction to ensure the superblock is immediately unpinned
- * and can be written back.
- */
-int
-xfs_fs_log_dummy(
-	xfs_mount_t	*mp)
-{
-	xfs_trans_t	*tp;
-	int		error;
-
-	tp = _xfs_trans_alloc(mp, XFS_TRANS_DUMMY1, KM_SLEEP);
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_sb, 0, 0);
-	if (error) {
-		xfs_trans_cancel(tp, 0);
-		return error;
-	}
-	xfs_mod_sb(tp);
-	xfs_trans_set_sync(tp);
-	return xfs_trans_commit(tp, 0);
-}
-
 int
 xfs_fs_goingdown(
 	xfs_mount_t	*mp,

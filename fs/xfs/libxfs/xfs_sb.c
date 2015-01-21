@@ -753,14 +753,13 @@ xfs_initialize_perag_data(
 }
 
 /*
- * xfs_mod_sb() can be used to copy arbitrary changes to the
- * in-core superblock into the superblock buffer to be logged.
- * It does not provide the higher level of locking that is
- * needed to protect the in-core superblock from concurrent
- * access.
+ * xfs_log_sb() can be used to copy arbitrary changes to the in-core superblock
+ * into the superblock buffer to be logged.  It does not provide the higher
+ * level of locking that is needed to protect the in-core superblock from
+ * concurrent access.
  */
 void
-xfs_mod_sb(
+xfs_log_sb(
 	struct xfs_trans	*tp)
 {
 	struct xfs_mount	*mp = tp->t_mountp;
@@ -769,4 +768,36 @@ xfs_mod_sb(
 	xfs_sb_to_disk(XFS_BUF_TO_SBP(bp), &mp->m_sb);
 	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_SB_BUF);
 	xfs_trans_log_buf(tp, bp, 0, sizeof(struct xfs_dsb));
+}
+
+/*
+ * xfs_sync_sb
+ *
+ * Sync the superblock to disk.
+ *
+ * Note that the caller is responsible for checking the frozen state of the
+ * filesystem. This procedure uses the non-blocking transaction allocator and
+ * thus will allow modifications to a frozen fs. This is required because this
+ * code can be called during the process of freezing where use of the high-level
+ * allocator would deadlock.
+ */
+int
+xfs_sync_sb(
+	struct xfs_mount	*mp,
+	bool			wait)
+{
+	struct xfs_trans	*tp;
+	int			error;
+
+	tp = _xfs_trans_alloc(mp, XFS_TRANS_SB_CHANGE, KM_SLEEP);
+	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_sb, 0, 0);
+	if (error) {
+		xfs_trans_cancel(tp, 0);
+		return error;
+	}
+
+	xfs_log_sb(tp);
+	if (wait)
+		xfs_trans_set_sync(tp);
+	return xfs_trans_commit(tp, 0);
 }

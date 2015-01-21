@@ -33,6 +33,7 @@
 #include "xfs_fsops.h"
 #include "xfs_cksum.h"
 #include "xfs_sysfs.h"
+#include "xfs_sb.h"
 
 kmem_zone_t	*xfs_log_ticket_zone;
 
@@ -1290,9 +1291,20 @@ xfs_log_worker(
 	struct xfs_mount	*mp = log->l_mp;
 
 	/* dgc: errors ignored - not fatal and nowhere to report them */
-	if (xfs_log_need_covered(mp))
-		xfs_fs_log_dummy(mp);
-	else
+	if (xfs_log_need_covered(mp)) {
+		/*
+		 * Dump a transaction into the log that contains no real change.
+		 * This is needed to stamp the current tail LSN into the log
+		 * during the covering operation.
+		 *
+		 * We cannot use an inode here for this - that will push dirty
+		 * state back up into the VFS and then periodic inode flushing
+		 * will prevent log covering from making progress. Hence we
+		 * synchronously log the superblock instead to ensure the
+		 * superblock is immediately unpinned and can be written back.
+		 */
+		xfs_sync_sb(mp, true);
+	} else
 		xfs_log_force(mp, 0);
 
 	/* start pushing all the metadata that is currently dirty */

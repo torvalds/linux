@@ -92,7 +92,7 @@ xfs_qm_scall_quotaoff(
 		mutex_unlock(&q->qi_quotaofflock);
 
 		/* XXX what to do if error ? Revert back to old vals incore ? */
-		return xfs_qm_write_sb_changes(mp);
+		return xfs_sync_sb(mp, false);
 	}
 
 	dqtype = 0;
@@ -369,7 +369,8 @@ xfs_qm_scall_quotaon(
 	if ((qf & flags) == flags)
 		return -EEXIST;
 
-	if ((error = xfs_qm_write_sb_changes(mp)))
+	error = xfs_sync_sb(mp, false);
+	if (error)
 		return error;
 	/*
 	 * If we aren't trying to switch on quota enforcement, we are done.
@@ -796,7 +797,7 @@ xfs_qm_log_quotaoff(
 	mp->m_sb.sb_qflags = (mp->m_qflags & ~(flags)) & XFS_MOUNT_QUOTA_ALL;
 	spin_unlock(&mp->m_sb_lock);
 
-	xfs_mod_sb(tp);
+	xfs_log_sb(tp);
 
 	/*
 	 * We have to make sure that the transaction is secure on disk before we
