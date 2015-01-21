@@ -290,7 +290,7 @@ static void cik_sdma_rlc_stop(struct radeon_device *rdev)
  *
  * Halt or unhalt the async dma engines (CIK).
  */
-void cik_sdma_ctx_switch_enable(struct radeon_device *rdev, bool enable)
+static void cik_sdma_ctx_switch_enable(struct radeon_device *rdev, bool enable)
 {
 	uint32_t reg_offset, value;
 	int i;
