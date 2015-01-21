@@ -94,7 +94,7 @@ static void __init core_mux_init(struct device_node *np)
 	for (i = 0; i < count; i++)
 		parent_names[i] = of_clk_get_parent_name(np, i);
 
-	cmux_clk = kzalloc(sizeof(struct cmux_clk), GFP_KERNEL);
+	cmux_clk = kzalloc(sizeof(*cmux_clk), GFP_KERNEL);
 	if (!cmux_clk) {
 		pr_err("%s: could not allocate cmux_clk\n", __func__);
 		goto err_name;
@@ -198,7 +198,7 @@ static void __init core_pll_init(struct device_node *np)
 		goto err_map;
 	}
 
-	onecell_data = kzalloc(sizeof(struct clk_onecell_data), GFP_KERNEL);
+	onecell_data = kzalloc(sizeof(*onecell_data), GFP_KERNEL);
 	if (!onecell_data) {
 		pr_err("%s: could not allocate onecell_data\n", __func__);
 		goto err_clks;
