@@ -15,7 +15,8 @@ obj-$(CONFIG_PPC32)	+= div64.o copy_32.o
 
 obj-$(CONFIG_PPC64)	+= copypage_64.o copyuser_64.o \
 			   usercopy_64.o mem_64.o hweight_64.o \
-			   copyuser_power7.o string_64.o copypage_power7.o
+			   copyuser_power7.o string_64.o copypage_power7.o \
+			   memcmp_64.o
 ifeq ($(CONFIG_GENERIC_CSUM),)
 obj-y			+= checksum_$(CONFIG_WORD_SIZE).o
 obj-$(CONFIG_PPC64)	+= checksum_wrappers_64.o
