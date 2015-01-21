@@ -700,10 +700,10 @@ static int sta32x_hw_params(struct snd_pcm_substream *substream,
 
 	switch (params_width(params)) {
 	case 24:
-		pr_debug("24bit\n");
+		dev_dbg(codec->dev, "24bit\n");
 		/* fall through */
 	case 32:
-		pr_debug("24bit or 32bit\n");
+		dev_dbg(codec->dev, "24bit or 32bit\n");
 		switch (sta32x->format) {
 		case SND_SOC_DAIFMT_I2S:
 			confb |= 0x0;
@@ -718,7 +718,7 @@ static int sta32x_hw_params(struct snd_pcm_substream *substream,
 
 		break;
 	case 20:
-		pr_debug("20bit\n");
+		dev_dbg(codec->dev, "20bit\n");
 		switch (sta32x->format) {
 		case SND_SOC_DAIFMT_I2S:
 			confb |= 0x4;
@@ -733,7 +733,7 @@ static int sta32x_hw_params(struct snd_pcm_substream *substream,
 
 		break;
 	case 18:
-		pr_debug("18bit\n");
+		dev_dbg(codec->dev, "18bit\n");
 		switch (sta32x->format) {
 		case SND_SOC_DAIFMT_I2S:
 			confb |= 0x8;
@@ -748,7 +748,7 @@ static int sta32x_hw_params(struct snd_pcm_substream *substream,
 
 		break;
 	case 16:
-		pr_debug("16bit\n");
+		dev_dbg(codec->dev, "16bit\n");
 		switch (sta32x->format) {
 		case SND_SOC_DAIFMT_I2S:
 			confb |= 0x0;
@@ -808,7 +808,7 @@ static int sta32x_set_bias_level(struct snd_soc_codec *codec,
 	int ret;
 	struct sta32x_priv *sta32x = snd_soc_codec_get_drvdata(codec);
 
-	pr_debug("level = %d\n", level);
+	dev_dbg(codec->dev, "level = %d\n", level);
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 		break;
