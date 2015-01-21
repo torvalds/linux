@@ -1,5 +1,6 @@
 menuconfig PM_DEVFREQ
 	bool "Generic Dynamic Voltage and Frequency Scaling (DVFS) support"
+	select SRCU
 	help
 	  A device may have a list of frequencies and voltages available.
 	  devfreq, a generic DVFS framework can be registered for a device

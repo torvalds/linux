@@ -26,6 +26,7 @@ config KVM
 	select KVM_ARM_HOST
 	select KVM_ARM_VGIC
 	select KVM_ARM_TIMER
+	select SRCU
 	---help---
 	  Support hosting virtualized guest machines.
 
