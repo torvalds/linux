@@ -196,7 +196,7 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 	int num, ret;
 	const struct property *prop;
 	const __be32 *val;
-	u32 nr, i, j;
+	u32 nr, j, i = 0;
 
 	cpu_dev = get_cpu_device(0);
 	if (!cpu_dev) {
