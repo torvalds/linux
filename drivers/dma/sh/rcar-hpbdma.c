@@ -600,7 +600,7 @@ static int hpb_dmae_probe(struct platform_device *pdev)
 	dma_dev->src_addr_widths = widths;
 	dma_dev->dst_addr_widths = widths;
 	dma_dev->directions = BIT(DMA_MEM_TO_DEV) | BIT(DMA_DEV_TO_MEM);
-	dma_dev->residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
+	dma_dev->residue_granularity = DMA_RESIDUE_GRANULARITY_DESCRIPTOR;
 
 	hpbdev->shdma_dev.ops = &hpb_dmae_ops;
 	hpbdev->shdma_dev.desc_size = sizeof(struct hpb_desc);
