@@ -13,8 +13,7 @@
   more details.
 
   You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+  this program; if not, see <http://www.gnu.org/licenses/>.
 
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
@@ -38,30 +37,29 @@
 
 struct e1000_hw;
 
-#define E1000_DEV_ID_82576_VF                 0x10CA
-#define E1000_DEV_ID_I350_VF                  0x1520
-#define E1000_REVISION_0 0
-#define E1000_REVISION_1 1
-#define E1000_REVISION_2 2
-#define E1000_REVISION_3 3
-#define E1000_REVISION_4 4
+#define E1000_DEV_ID_82576_VF		0x10CA
+#define E1000_DEV_ID_I350_VF		0x1520
+#define E1000_REVISION_0	0
+#define E1000_REVISION_1	1
+#define E1000_REVISION_2	2
+#define E1000_REVISION_3	3
+#define E1000_REVISION_4	4
 
-#define E1000_FUNC_0     0
-#define E1000_FUNC_1     1
+#define E1000_FUNC_0	0
+#define E1000_FUNC_1	1
 
-/*
- * Receive Address Register Count
+/* Receive Address Register Count
  * Number of high/low register pairs in the RAR.  The RAR (Receive Address
  * Registers) holds the directed and multicast addresses that we monitor.
  * These entries are also used for MAC-based filtering.
  */
-#define E1000_RAR_ENTRIES_VF      1
+#define E1000_RAR_ENTRIES_VF	1
 
 /* Receive Descriptor - Advanced */
 union e1000_adv_rx_desc {
 	struct {
-		u64 pkt_addr;             /* Packet buffer address */
-		u64 hdr_addr;             /* Header buffer address */
+		u64 pkt_addr; /* Packet buffer address */
+		u64 hdr_addr; /* Header buffer address */
 	} read;
 	struct {
 		struct {
@@ -69,53 +67,53 @@ union e1000_adv_rx_desc {
 				u32 data;
 				struct {
 					u16 pkt_info; /* RSS/Packet type */
-					u16 hdr_info; /* Split Header,
-					               * hdr buffer length */
+					/* Split Header, hdr buffer length */
+					u16 hdr_info;
 				} hs_rss;
 			} lo_dword;
 			union {
-				u32 rss;          /* RSS Hash */
+				u32 rss; /* RSS Hash */
 				struct {
-					u16 ip_id;    /* IP id */
-					u16 csum;     /* Packet Checksum */
+					u16 ip_id; /* IP id */
+					u16 csum;  /* Packet Checksum */
 				} csum_ip;
 			} hi_dword;
 		} lower;
 		struct {
-			u32 status_error;     /* ext status/error */
-			u16 length;           /* Packet length */
-			u16 vlan;             /* VLAN tag */
+			u32 status_error; /* ext status/error */
+			u16 length; /* Packet length */
+			u16 vlan;   /* VLAN tag */
 		} upper;
 	} wb;  /* writeback */
 };
 
-#define E1000_RXDADV_HDRBUFLEN_MASK      0x7FE0
-#define E1000_RXDADV_HDRBUFLEN_SHIFT     5
+#define E1000_RXDADV_HDRBUFLEN_MASK	0x7FE0
+#define E1000_RXDADV_HDRBUFLEN_SHIFT	5
 
 /* Transmit Descriptor - Advanced */
 union e1000_adv_tx_desc {
 	struct {
-		u64 buffer_addr;    /* Address of descriptor's data buf */
+		u64 buffer_addr; /* Address of descriptor's data buf */
 		u32 cmd_type_len;
 		u32 olinfo_status;
 	} read;
 	struct {
-		u64 rsvd;       /* Reserved */
+		u64 rsvd; /* Reserved */
 		u32 nxtseq_seed;
 		u32 status;
 	} wb;
 };
 
 /* Adv Transmit Descriptor Config Masks */
-#define E1000_ADVTXD_DTYP_CTXT    0x00200000 /* Advanced Context Descriptor */
-#define E1000_ADVTXD_DTYP_DATA    0x00300000 /* Advanced Data Descriptor */
-#define E1000_ADVTXD_DCMD_EOP     0x01000000 /* End of Packet */
-#define E1000_ADVTXD_DCMD_IFCS    0x02000000 /* Insert FCS (Ethernet CRC) */
-#define E1000_ADVTXD_DCMD_RS      0x08000000 /* Report Status */
-#define E1000_ADVTXD_DCMD_DEXT    0x20000000 /* Descriptor extension (1=Adv) */
-#define E1000_ADVTXD_DCMD_VLE     0x40000000 /* VLAN pkt enable */
-#define E1000_ADVTXD_DCMD_TSE     0x80000000 /* TCP Seg enable */
-#define E1000_ADVTXD_PAYLEN_SHIFT    14 /* Adv desc PAYLEN shift */
+#define E1000_ADVTXD_DTYP_CTXT	0x00200000 /* Advanced Context Descriptor */
+#define E1000_ADVTXD_DTYP_DATA	0x00300000 /* Advanced Data Descriptor */
+#define E1000_ADVTXD_DCMD_EOP	0x01000000 /* End of Packet */
+#define E1000_ADVTXD_DCMD_IFCS	0x02000000 /* Insert FCS (Ethernet CRC) */
+#define E1000_ADVTXD_DCMD_RS	0x08000000 /* Report Status */
+#define E1000_ADVTXD_DCMD_DEXT	0x20000000 /* Descriptor extension (1=Adv) */
+#define E1000_ADVTXD_DCMD_VLE	0x40000000 /* VLAN pkt enable */
+#define E1000_ADVTXD_DCMD_TSE	0x80000000 /* TCP Seg enable */
+#define E1000_ADVTXD_PAYLEN_SHIFT	14 /* Adv desc PAYLEN shift */
 
 /* Context descriptors */
 struct e1000_adv_tx_context_desc {
@@ -125,11 +123,11 @@ struct e1000_adv_tx_context_desc {
 	u32 mss_l4len_idx;
 };
 
-#define E1000_ADVTXD_MACLEN_SHIFT    9  /* Adv ctxt desc mac len shift */
-#define E1000_ADVTXD_TUCMD_IPV4    0x00000400  /* IP Packet Type: 1=IPv4 */
-#define E1000_ADVTXD_TUCMD_L4T_TCP 0x00000800  /* L4 Packet TYPE of TCP */
-#define E1000_ADVTXD_L4LEN_SHIFT     8  /* Adv ctxt L4LEN shift */
-#define E1000_ADVTXD_MSS_SHIFT      16  /* Adv ctxt MSS shift */
+#define E1000_ADVTXD_MACLEN_SHIFT	9  /* Adv ctxt desc mac len shift */
+#define E1000_ADVTXD_TUCMD_IPV4		0x00000400 /* IP Packet Type: 1=IPv4 */
+#define E1000_ADVTXD_TUCMD_L4T_TCP	0x00000800 /* L4 Packet TYPE of TCP */
+#define E1000_ADVTXD_L4LEN_SHIFT	8  /* Adv ctxt L4LEN shift */
+#define E1000_ADVTXD_MSS_SHIFT		16 /* Adv ctxt MSS shift */
 
 enum e1000_mac_type {
 	e1000_undefined = 0,
@@ -261,6 +259,5 @@ struct e1000_hw {
 /* These functions must be implemented by drivers */
 void e1000_rlpml_set_vf(struct e1000_hw *, u16);
 void e1000_init_function_pointers_vf(struct e1000_hw *hw);
-
 
 #endif /* _E1000_VF_H_ */
