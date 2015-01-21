@@ -54,18 +54,14 @@ NI manuals:
 */
 
 #include <linux/module.h>
+
 #include "../comedidev.h"
-
-#include <linux/delay.h>
-
-#include "8253.h"
-#include "8255.h"
-#include "comedi_fc.h"
-#include "ni_labpc.h"
 
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
+
+#include "ni_labpc.h"
 
 static const struct labpc_boardinfo labpc_cs_boards[] = {
 	{
