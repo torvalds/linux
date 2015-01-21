@@ -34,6 +34,7 @@ struct nfsd4_layout_ops {
 };
 
 extern const struct nfsd4_layout_ops *nfsd4_layout_ops[];
+extern const struct nfsd4_layout_ops bl_layout_ops;
 
 __be32 nfsd4_preprocess_layout_stateid(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *cstate, stateid_t *stateid,

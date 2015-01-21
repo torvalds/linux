@@ -26,6 +26,7 @@ static struct nfsd4_callback_ops nfsd4_cb_layout_ops;
 static const struct lock_manager_operations nfsd4_layouts_lm_ops;
 
 const struct nfsd4_layout_ops *nfsd4_layout_ops[LAYOUT_TYPE_MAX] =  {
+	[LAYOUT_BLOCK_VOLUME]	= &bl_layout_ops,
 };
 
 /* pNFS device ID to export fsid mapping */
@@ -115,8 +116,15 @@ nfsd4_set_deviceid(struct nfsd4_deviceid *id, const struct svc_fh *fhp,
 
 void nfsd4_setup_layout_type(struct svc_export *exp)
 {
+	struct super_block *sb = exp->ex_path.mnt->mnt_sb;
+
 	if (exp->ex_flags & NFSEXP_NOPNFS)
 		return;
+
+	if (sb->s_export_op->get_uuid &&
+	    sb->s_export_op->map_blocks &&
+	    sb->s_export_op->commit_blocks)
+		exp->ex_layout_type = LAYOUT_BLOCK_VOLUME;
 }
 
 static void
