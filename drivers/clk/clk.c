@@ -1652,6 +1652,36 @@ void __clk_reparent(struct clk *clk, struct clk *new_parent)
 }
 
 /**
+ * clk_has_parent - check if a clock is a possible parent for another
+ * @clk: clock source
+ * @parent: parent clock source
+ *
+ * This function can be used in drivers that need to check that a clock can be
+ * the parent of another without actually changing the parent.
+ *
+ * Returns true if @parent is a possible parent for @clk, false otherwise.
+ */
+bool clk_has_parent(struct clk *clk, struct clk *parent)
+{
+	unsigned int i;
+
+	/* NULL clocks should be nops, so return success if either is NULL. */
+	if (!clk || !parent)
+		return true;
+
+	/* Optimize for the case where the parent is already the parent. */
+	if (clk->parent == parent)
+		return true;
+
+	for (i = 0; i < clk->num_parents; i++)
+		if (strcmp(clk->parent_names[i], parent->name) == 0)
+			return true;
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(clk_has_parent);
+
+/**
  * clk_set_parent - switch the parent of a mux clk
  * @clk: the mux clk whose input we are switching
  * @parent: the new input to clk
