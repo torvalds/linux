@@ -973,7 +973,11 @@ xfs_bmap_local_to_extents(
 	*firstblock = args.fsbno;
 	bp = xfs_btree_get_bufl(args.mp, tp, args.fsbno, 0);
 
-	/* initialise the block and copy the data */
+	/*
+	 * Initialise the block and copy the data
+	 *
+	 * Note: init_fn must set the buffer log item type correctly!
+	 */
 	init_fn(tp, bp, ip, ifp);
 
 	/* account for the change in fork size and log everything */
