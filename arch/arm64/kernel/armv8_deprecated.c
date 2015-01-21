@@ -548,6 +548,79 @@ static struct insn_emulation_ops cp15_barrier_ops = {
 	.set_hw_mode = cp15_barrier_set_hw_mode,
 };
 
+static int setend_set_hw_mode(bool enable)
+{
+	if (!cpu_supports_mixed_endian_el0())
+		return -EINVAL;
+
+	if (enable)
+		config_sctlr_el1(SCTLR_EL1_SED, 0);
+	else
+		config_sctlr_el1(0, SCTLR_EL1_SED);
+	return 0;
+}
+
+static int compat_setend_handler(struct pt_regs *regs, u32 big_endian)
+{
+	char *insn;
+
+	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, regs, regs->pc);
+
+	if (big_endian) {
+		insn = "setend be";
+		regs->pstate |= COMPAT_PSR_E_BIT;
+	} else {
+		insn = "setend le";
+		regs->pstate &= ~COMPAT_PSR_E_BIT;
+	}
+
+	trace_instruction_emulation(insn, regs->pc);
+	pr_warn_ratelimited("\"%s\" (%ld) uses deprecated setend instruction at 0x%llx\n",
+			current->comm, (unsigned long)current->pid, regs->pc);
+
+	return 0;
+}
+
+static int a32_setend_handler(struct pt_regs *regs, u32 instr)
+{
+	int rc = compat_setend_handler(regs, (instr >> 9) & 1);
+	regs->pc += 4;
+	return rc;
+}
+
+static int t16_setend_handler(struct pt_regs *regs, u32 instr)
+{
+	int rc = compat_setend_handler(regs, (instr >> 3) & 1);
+	regs->pc += 2;
+	return rc;
+}
+
+static struct undef_hook setend_hooks[] = {
+	{
+		.instr_mask	= 0xfffffdff,
+		.instr_val	= 0xf1010000,
+		.pstate_mask	= COMPAT_PSR_MODE_MASK,
+		.pstate_val	= COMPAT_PSR_MODE_USR,
+		.fn		= a32_setend_handler,
+	},
+	{
+		/* Thumb mode */
+		.instr_mask	= 0x0000fff7,
+		.instr_val	= 0x0000b650,
+		.pstate_mask	= (COMPAT_PSR_T_BIT | COMPAT_PSR_MODE_MASK),
+		.pstate_val	= (COMPAT_PSR_T_BIT | COMPAT_PSR_MODE_USR),
+		.fn		= t16_setend_handler,
+	},
+	{}
+};
+
+static struct insn_emulation_ops setend_ops = {
+	.name = "setend",
+	.status = INSN_DEPRECATED,
+	.hooks = setend_hooks,
+	.set_hw_mode = setend_set_hw_mode,
+};
+
 static int insn_cpu_hotplug_notify(struct notifier_block *b,
 			      unsigned long action, void *hcpu)
 {
@@ -572,6 +645,13 @@ static int __init armv8_deprecated_init(void)
 
 	if (IS_ENABLED(CONFIG_CP15_BARRIER_EMULATION))
 		register_insn_emulation(&cp15_barrier_ops);
+
+	if (IS_ENABLED(CONFIG_SETEND_EMULATION)) {
+		if(system_supports_mixed_endian_el0())
+			register_insn_emulation(&setend_ops);
+		else
+			pr_info("setend instruction emulation is not supported on the system");
+	}
 
 	register_cpu_notifier(&insn_cpu_hotplug_notifier);
 	register_insn_emulation_sysctl(ctl_abi);
