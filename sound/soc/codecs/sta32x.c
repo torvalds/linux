@@ -187,37 +187,32 @@ static const char *sta32x_limiter_release_rate[] = {
 	"0.5116", "0.1370", "0.0744", "0.0499", "0.0360", "0.0299",
 	"0.0264", "0.0208", "0.0198", "0.0172", "0.0147", "0.0137",
 	"0.0134", "0.0117", "0.0110", "0.0104" };
-
-static const unsigned int sta32x_limiter_ac_attack_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
+static DECLARE_TLV_DB_RANGE(sta32x_limiter_ac_attack_tlv,
 	0, 7, TLV_DB_SCALE_ITEM(-1200, 200, 0),
 	8, 16, TLV_DB_SCALE_ITEM(300, 100, 0),
-};
+);
 
-static const unsigned int sta32x_limiter_ac_release_tlv[] = {
-	TLV_DB_RANGE_HEAD(5),
+static DECLARE_TLV_DB_RANGE(sta32x_limiter_ac_release_tlv,
 	0, 0, TLV_DB_SCALE_ITEM(TLV_DB_GAIN_MUTE, 0, 0),
 	1, 1, TLV_DB_SCALE_ITEM(-2900, 0, 0),
 	2, 2, TLV_DB_SCALE_ITEM(-2000, 0, 0),
 	3, 8, TLV_DB_SCALE_ITEM(-1400, 200, 0),
 	8, 16, TLV_DB_SCALE_ITEM(-700, 100, 0),
-};
+);
 
-static const unsigned int sta32x_limiter_drc_attack_tlv[] = {
-	TLV_DB_RANGE_HEAD(3),
+static DECLARE_TLV_DB_RANGE(sta32x_limiter_drc_attack_tlv,
 	0, 7, TLV_DB_SCALE_ITEM(-3100, 200, 0),
 	8, 13, TLV_DB_SCALE_ITEM(-1600, 100, 0),
 	14, 16, TLV_DB_SCALE_ITEM(-1000, 300, 0),
-};
+);
 
-static const unsigned int sta32x_limiter_drc_release_tlv[] = {
-	TLV_DB_RANGE_HEAD(5),
+static DECLARE_TLV_DB_RANGE(sta32x_limiter_drc_release_tlv,
 	0, 0, TLV_DB_SCALE_ITEM(TLV_DB_GAIN_MUTE, 0, 0),
 	1, 2, TLV_DB_SCALE_ITEM(-3800, 200, 0),
 	3, 4, TLV_DB_SCALE_ITEM(-3300, 200, 0),
 	5, 12, TLV_DB_SCALE_ITEM(-3000, 200, 0),
 	13, 16, TLV_DB_SCALE_ITEM(-1500, 300, 0),
-};
+);
 
 static SOC_ENUM_SINGLE_DECL(sta32x_drc_ac_enum,
 			    STA32X_CONFD, STA32X_CONFD_DRC_SHIFT,
