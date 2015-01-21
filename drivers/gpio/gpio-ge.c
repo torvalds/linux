@@ -76,9 +76,12 @@ static int __init gef_gpio_probe(struct platform_device *pdev)
 	}
 
 	/* Setup pointers to chip functions */
-	bgc->gc.label = kstrdup(pdev->dev.of_node->full_name, GFP_KERNEL);
-	if (!bgc->gc.label)
+	bgc->gc.label = devm_kstrdup(&pdev->dev, pdev->dev.of_node->full_name,
+				     GFP_KERNEL);
+	if (!bgc->gc.label) {
+		ret = -ENOMEM;
 		goto err0;
+	}
 
 	bgc->gc.base = -1;
 	bgc->gc.ngpio = (u16)(uintptr_t)of_id->data;
@@ -88,11 +91,9 @@ static int __init gef_gpio_probe(struct platform_device *pdev)
 	/* This function adds a memory mapped GPIO chip */
 	ret = gpiochip_add(&bgc->gc);
 	if (ret)
-		goto err1;
+		goto err0;
 
 	return 0;
-err1:
-	kfree(bgc->gc.label);
 err0:
 	iounmap(regs);
 	pr_err("%s: GPIO chip registration failed\n",
