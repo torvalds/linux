@@ -61,11 +61,11 @@ static DEFINE_MUTEX(scm_lock);
  * to access the buffers in a safe manner.
  */
 struct scm_command {
-	u32	len;
-	u32	buf_offset;
-	u32	resp_hdr_offset;
-	u32	id;
-	u32	buf[0];
+	__le32 len;
+	__le32 buf_offset;
+	__le32 resp_hdr_offset;
+	__le32 id;
+	__le32 buf[0];
 };
 
 /**
@@ -75,9 +75,9 @@ struct scm_command {
  * @is_complete: indicates if the command has finished processing
  */
 struct scm_response {
-	u32	len;
-	u32	buf_offset;
-	u32	is_complete;
+	__le32 len;
+	__le32 buf_offset;
+	__le32 is_complete;
 };
 
 /**
@@ -95,12 +95,14 @@ static struct scm_command *alloc_scm_command(size_t cmd_size, size_t resp_size)
 	struct scm_command *cmd;
 	size_t len = sizeof(*cmd) + sizeof(struct scm_response) + cmd_size +
 		resp_size;
+	u32 offset;
 
 	cmd = kzalloc(PAGE_ALIGN(len), GFP_KERNEL);
 	if (cmd) {
-		cmd->len = len;
-		cmd->buf_offset = offsetof(struct scm_command, buf);
-		cmd->resp_hdr_offset = cmd->buf_offset + cmd_size;
+		cmd->len = cpu_to_le32(len);
+		offset = offsetof(struct scm_command, buf);
+		cmd->buf_offset = cpu_to_le32(offset);
+		cmd->resp_hdr_offset = cpu_to_le32(offset + cmd_size);
 	}
 	return cmd;
 }
@@ -125,7 +127,7 @@ static inline void free_scm_command(struct scm_command *cmd)
 static inline struct scm_response *scm_command_to_response(
 		const struct scm_command *cmd)
 {
-	return (void *)cmd + cmd->resp_hdr_offset;
+	return (void *)cmd + le32_to_cpu(cmd->resp_hdr_offset);
 }
 
 /**
@@ -147,7 +149,7 @@ static inline void *scm_get_command_buffer(const struct scm_command *cmd)
  */
 static inline void *scm_get_response_buffer(const struct scm_response *rsp)
 {
-	return (void *)rsp + rsp->buf_offset;
+	return (void *)rsp + le32_to_cpu(rsp->buf_offset);
 }
 
 static int scm_remap_error(int err)
@@ -259,7 +261,7 @@ int scm_call(u32 svc_id, u32 cmd_id, const void *cmd_buf, size_t cmd_len,
 	if (!cmd)
 		return -ENOMEM;
 
-	cmd->id = (svc_id << 10) | cmd_id;
+	cmd->id = cpu_to_le32((svc_id << 10) | cmd_id);
 	if (cmd_buf)
 		memcpy(scm_get_command_buffer(cmd), cmd_buf, cmd_len);
 
