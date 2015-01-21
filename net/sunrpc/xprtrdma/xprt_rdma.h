@@ -248,7 +248,6 @@ struct rpcrdma_req {
  */
 struct rpcrdma_buffer {
 	spinlock_t	rb_lock;	/* protects indexes */
-	atomic_t	rb_credits;	/* most recent server credits */
 	int		rb_max_requests;/* client max requests */
 	struct list_head rb_mws;	/* optional memory windows/fmrs/frmrs */
 	struct list_head rb_all;

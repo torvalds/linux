@@ -736,7 +736,7 @@ rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 	struct rpc_xprt *xprt = rep->rr_xprt;
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 	__be32 *iptr;
-	int rdmalen, status;
+	int credits, rdmalen, status;
 	unsigned long cwnd;
 
 	/* Check status. If bad, signal disconnect and return rep to pool */
@@ -871,8 +871,14 @@ badheader:
 		break;
 	}
 
+	credits = be32_to_cpu(headerp->rm_credit);
+	if (credits == 0)
+		credits = 1;	/* don't deadlock */
+	else if (credits > r_xprt->rx_buf.rb_max_requests)
+		credits = r_xprt->rx_buf.rb_max_requests;
+
 	cwnd = xprt->cwnd;
-	xprt->cwnd = atomic_read(&r_xprt->rx_buf.rb_credits) << RPC_CWNDSHIFT;
+	xprt->cwnd = credits << RPC_CWNDSHIFT;
 	if (xprt->cwnd > cwnd)
 		xprt_release_rqst_cong(rqst->rq_task);
 
