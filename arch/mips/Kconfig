@@ -54,6 +54,7 @@ config MIPS
 	select CPU_PM if CPU_IDLE
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_BINFMT_ELF_STATE
+	select SYSCTL_EXCEPTION_TRACE
 
 menu "Machine selection"
 
