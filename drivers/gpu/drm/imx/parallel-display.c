@@ -130,8 +130,8 @@ static void imx_pd_encoder_commit(struct drm_encoder *encoder)
 }
 
 static void imx_pd_encoder_mode_set(struct drm_encoder *encoder,
-			 struct drm_display_mode *mode,
-			 struct drm_display_mode *adjusted_mode)
+			 struct drm_display_mode *orig_mode,
+			 struct drm_display_mode *mode)
 {
 }
 
@@ -257,6 +257,8 @@ static void imx_pd_unbind(struct device *dev, struct device *master,
 
 	imxpd->encoder.funcs->destroy(&imxpd->encoder);
 	imxpd->connector.funcs->destroy(&imxpd->connector);
+
+	kfree(imxpd->edid);
 }
 
 static const struct component_ops imx_pd_ops = {
@@ -272,6 +274,7 @@ static int imx_pd_probe(struct platform_device *pdev)
 static int imx_pd_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &imx_pd_ops);
+
 	return 0;
 }
 

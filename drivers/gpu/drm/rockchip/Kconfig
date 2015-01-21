@@ -15,3 +15,13 @@ config DRM_ROCKCHIP
 	  management to userspace. This driver does not provide
 	  2D or 3D acceleration; acceleration is performed by other
 	  IP found on the SoC.
+
+config ROCKCHIP_DW_HDMI
+        tristate "Rockchip specific extensions for Synopsys DW HDMI"
+        depends on DRM_ROCKCHIP
+        select DRM_DW_HDMI
+        help
+	  This selects support for Rockchip SoC specific extensions
+	  for the Synopsys DesignWare HDMI driver. If you want to
+	  enable HDMI on RK3288 based SoC, you should selet this
+	  option.

@@ -163,7 +163,7 @@ static void imx_ldb_encoder_prepare(struct drm_encoder *encoder)
 {
 	struct imx_ldb_channel *imx_ldb_ch = enc_to_imx_ldb_ch(encoder);
 	struct imx_ldb *ldb = imx_ldb_ch->ldb;
-	struct drm_display_mode *mode = &encoder->crtc->mode;
+	struct drm_display_mode *mode = &encoder->crtc->hwmode;
 	u32 pixel_fmt;
 	unsigned long serial_clk;
 	unsigned long di_clk = mode->clock * 1000;
@@ -241,8 +241,8 @@ static void imx_ldb_encoder_commit(struct drm_encoder *encoder)
 }
 
 static void imx_ldb_encoder_mode_set(struct drm_encoder *encoder,
-			 struct drm_display_mode *mode,
-			 struct drm_display_mode *adjusted_mode)
+			 struct drm_display_mode *orig_mode,
+			 struct drm_display_mode *mode)
 {
 	struct imx_ldb_channel *imx_ldb_ch = enc_to_imx_ldb_ch(encoder);
 	struct imx_ldb *ldb = imx_ldb_ch->ldb;
@@ -574,6 +574,8 @@ static void imx_ldb_unbind(struct device *dev, struct device *master,
 
 		channel->connector.funcs->destroy(&channel->connector);
 		channel->encoder.funcs->destroy(&channel->encoder);
+
+		kfree(channel->edid);
 	}
 }
 
