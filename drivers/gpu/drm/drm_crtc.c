@@ -3810,7 +3810,7 @@ static struct drm_property *property_create_range(struct drm_device *dev,
 }
 
 /**
- * drm_property_create_range - create a new ranged property type
+ * drm_property_create_range - create a new unsigned ranged property type
  * @dev: drm device
  * @flags: flags specifying the property type
  * @name: name of the property
@@ -3821,8 +3821,8 @@ static struct drm_property *property_create_range(struct drm_device *dev,
  * object with drm_object_attach_property. The returned property object must be
  * freed with drm_property_destroy.
  *
- * Userspace is allowed to set any integer value in the (min, max) range
- * inclusive.
+ * Userspace is allowed to set any unsigned integer value in the (min, max)
+ * range inclusive.
  *
  * Returns:
  * A pointer to the newly created property on success, NULL on failure.
@@ -3836,6 +3836,24 @@ struct drm_property *drm_property_create_range(struct drm_device *dev, int flags
 }
 EXPORT_SYMBOL(drm_property_create_range);
 
+/**
+ * drm_property_create_signed_range - create a new signed ranged property type
+ * @dev: drm device
+ * @flags: flags specifying the property type
+ * @name: name of the property
+ * @min: minimum value of the property
+ * @max: maximum value of the property
+ *
+ * This creates a new generic drm property which can then be attached to a drm
+ * object with drm_object_attach_property. The returned property object must be
+ * freed with drm_property_destroy.
+ *
+ * Userspace is allowed to set any signed integer value in the (min, max)
+ * range inclusive.
+ *
+ * Returns:
+ * A pointer to the newly created property on success, NULL on failure.
+ */
 struct drm_property *drm_property_create_signed_range(struct drm_device *dev,
 					 int flags, const char *name,
 					 int64_t min, int64_t max)
@@ -3845,12 +3863,32 @@ struct drm_property *drm_property_create_signed_range(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_property_create_signed_range);
 
+/**
+ * drm_property_create_object - create a new object property type
+ * @dev: drm device
+ * @flags: flags specifying the property type
+ * @name: name of the property
+ * @type: object type from DRM_MODE_OBJECT_* defines
+ *
+ * This creates a new generic drm property which can then be attached to a drm
+ * object with drm_object_attach_property. The returned property object must be
+ * freed with drm_property_destroy.
+ *
+ * Userspace is only allowed to set this to any property value of the given
+ * @type. Only useful for atomic properties, which is enforced.
+ *
+ * Returns:
+ * A pointer to the newly created property on success, NULL on failure.
+ */
 struct drm_property *drm_property_create_object(struct drm_device *dev,
 					 int flags, const char *name, uint32_t type)
 {
 	struct drm_property *property;
 
 	flags |= DRM_MODE_PROP_OBJECT;
+
+	if (WARN_ON(!(flags & DRM_MODE_PROP_ATOMIC)))
+		return NULL;
 
 	property = drm_property_create(dev, flags, name, 1);
 	if (!property)
@@ -3861,6 +3899,28 @@ struct drm_property *drm_property_create_object(struct drm_device *dev,
 	return property;
 }
 EXPORT_SYMBOL(drm_property_create_object);
+
+/**
+ * drm_property_create_bool - create a new boolean property type
+ * @dev: drm device
+ * @flags: flags specifying the property type
+ * @name: name of the property
+ *
+ * This creates a new generic drm property which can then be attached to a drm
+ * object with drm_object_attach_property. The returned property object must be
+ * freed with drm_property_destroy.
+ *
+ * This is implemented as a ranged property with only {0, 1} as valid values.
+ *
+ * Returns:
+ * A pointer to the newly created property on success, NULL on failure.
+ */
+struct drm_property *drm_property_create_bool(struct drm_device *dev, int flags,
+					 const char *name)
+{
+	return drm_property_create_range(dev, flags, name, 0, 1);
+}
+EXPORT_SYMBOL(drm_property_create_bool);
 
 /**
  * drm_property_add_enum - add a possible value to an enumeration property
