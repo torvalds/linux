@@ -50,6 +50,84 @@ static const struct file_operations tracefs_file_operations = {
 	.llseek =	noop_llseek,
 };
 
+static struct tracefs_dir_ops {
+	int (*mkdir)(const char *name);
+	int (*rmdir)(const char *name);
+} tracefs_ops;
+
+static char *get_dname(struct dentry *dentry)
+{
+	const char *dname;
+	char *name;
+	int len = dentry->d_name.len;
+
+	dname = dentry->d_name.name;
+	name = kmalloc(len + 1, GFP_KERNEL);
+	if (!name)
+		return NULL;
+	memcpy(name, dname, len);
+	name[len] = 0;
+	return name;
+}
+
+static int tracefs_syscall_mkdir(struct inode *inode, struct dentry *dentry, umode_t mode)
+{
+	char *name;
+	int ret;
+
+	name = get_dname(dentry);
+	if (!name)
+		return -ENOMEM;
+
+	/*
+	 * The mkdir call can call the generic functions that create
+	 * the files within the tracefs system. It is up to the individual
+	 * mkdir routine to handle races.
+	 */
+	mutex_unlock(&inode->i_mutex);
+	ret = tracefs_ops.mkdir(name);
+	mutex_lock(&inode->i_mutex);
+
+	kfree(name);
+
+	return ret;
+}
+
+static int tracefs_syscall_rmdir(struct inode *inode, struct dentry *dentry)
+{
+	char *name;
+	int ret;
+
+	name = get_dname(dentry);
+	if (!name)
+		return -ENOMEM;
+
+	/*
+	 * The rmdir call can call the generic functions that create
+	 * the files within the tracefs system. It is up to the individual
+	 * rmdir routine to handle races.
+	 * This time we need to unlock not only the parent (inode) but
+	 * also the directory that is being deleted.
+	 */
+	mutex_unlock(&inode->i_mutex);
+	mutex_unlock(&dentry->d_inode->i_mutex);
+
+	ret = tracefs_ops.rmdir(name);
+
+	mutex_lock_nested(&inode->i_mutex, I_MUTEX_PARENT);
+	mutex_lock(&dentry->d_inode->i_mutex);
+
+	kfree(name);
+
+	return ret;
+}
+
+static const struct inode_operations tracefs_dir_inode_operations = {
+	.lookup		= simple_lookup,
+	.mkdir		= tracefs_syscall_mkdir,
+	.rmdir		= tracefs_syscall_rmdir,
+};
+
 static struct inode *tracefs_get_inode(struct super_block *sb)
 {
 	struct inode *inode = new_inode(sb);
@@ -334,6 +412,31 @@ struct dentry *tracefs_create_file(const char *name, umode_t mode,
 	return end_creating(dentry);
 }
 
+static struct dentry *__create_dir(const char *name, struct dentry *parent,
+				   const struct inode_operations *ops)
+{
+	struct dentry *dentry = start_creating(name, parent);
+	struct inode *inode;
+
+	if (IS_ERR(dentry))
+		return NULL;
+
+	inode = tracefs_get_inode(dentry->d_sb);
+	if (unlikely(!inode))
+		return failed_creating(dentry);
+
+	inode->i_mode = S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO;
+	inode->i_op = ops;
+	inode->i_fop = &simple_dir_operations;
+
+	/* directory inodes start off with i_nlink == 2 (for "." entry) */
+	inc_nlink(inode);
+	d_instantiate(dentry, inode);
+	inc_nlink(dentry->d_parent->d_inode);
+	fsnotify_mkdir(dentry->d_parent->d_inode, dentry);
+	return end_creating(dentry);
+}
+
 /**
  * tracefs_create_dir - create a directory in the tracefs filesystem
  * @name: a pointer to a string containing the name of the directory to
@@ -353,26 +456,44 @@ struct dentry *tracefs_create_file(const char *name, umode_t mode,
  */
 struct dentry *tracefs_create_dir(const char *name, struct dentry *parent)
 {
-	struct dentry *dentry = start_creating(name, parent);
-	struct inode *inode;
+	return __create_dir(name, parent, &simple_dir_inode_operations);
+}
 
-	if (IS_ERR(dentry))
+/**
+ * tracefs_create_instance_dir - create the tracing instances directory
+ * @name: The name of the instances directory to create
+ * @parent: The parent directory that the instances directory will exist
+ * @mkdir: The function to call when a mkdir is performed.
+ * @rmdir: The function to call when a rmdir is performed.
+ *
+ * Only one instances directory is allowed.
+ *
+ * The instances directory is special as it allows for mkdir and rmdir to
+ * to be done by userspace. When a mkdir or rmdir is performed, the inode
+ * locks are released and the methhods passed in (@mkdir and @rmdir) are
+ * called without locks and with the name of the directory being created
+ * within the instances directory.
+ *
+ * Returns the dentry of the instances directory.
+ */
+struct dentry *tracefs_create_instance_dir(const char *name, struct dentry *parent,
+					  int (*mkdir)(const char *name),
+					  int (*rmdir)(const char *name))
+{
+	struct dentry *dentry;
+
+	/* Only allow one instance of the instances directory. */
+	if (WARN_ON(tracefs_ops.mkdir || tracefs_ops.rmdir))
 		return NULL;
 
-	inode = tracefs_get_inode(dentry->d_sb);
-	if (unlikely(!inode))
-		return failed_creating(dentry);
+	dentry = __create_dir(name, parent, &tracefs_dir_inode_operations);
+	if (!dentry)
+		return NULL;
 
-	inode->i_mode = S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO;
-	inode->i_op = &simple_dir_inode_operations;
-	inode->i_fop = &simple_dir_operations;
+	tracefs_ops.mkdir = mkdir;
+	tracefs_ops.rmdir = rmdir;
 
-	/* directory inodes start off with i_nlink == 2 (for "." entry) */
-	inc_nlink(inode);
-	d_instantiate(dentry, inode);
-	inc_nlink(dentry->d_parent->d_inode);
-	fsnotify_mkdir(dentry->d_parent->d_inode, dentry);
-	return end_creating(dentry);
+	return dentry;
 }
 
 static inline int tracefs_positive(struct dentry *dentry)

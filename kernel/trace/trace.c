@@ -6292,7 +6292,7 @@ static void free_trace_buffers(struct trace_array *tr)
 #endif
 }
 
-static int new_instance_create(const char *name)
+static int instance_mkdir(const char *name)
 {
 	struct trace_array *tr;
 	int ret;
@@ -6362,7 +6362,7 @@ static int new_instance_create(const char *name)
 
 }
 
-static int instance_delete(const char *name)
+static int instance_rmdir(const char *name)
 {
 	struct trace_array *tr;
 	int found = 0;
@@ -6403,78 +6403,13 @@ static int instance_delete(const char *name)
 	return ret;
 }
 
-static int instance_mkdir (struct inode *inode, struct dentry *dentry, umode_t mode)
-{
-	struct dentry *parent;
-	int ret;
-
-	/* Paranoid: Make sure the parent is the "instances" directory */
-	parent = hlist_entry(inode->i_dentry.first, struct dentry, d_u.d_alias);
-	if (WARN_ON_ONCE(parent != trace_instance_dir))
-		return -ENOENT;
-
-	/*
-	 * The inode mutex is locked, but tracefs_create_dir() will also
-	 * take the mutex. As the instances directory can not be destroyed
-	 * or changed in any other way, it is safe to unlock it, and
-	 * let the dentry try. If two users try to make the same dir at
-	 * the same time, then the new_instance_create() will determine the
-	 * winner.
-	 */
-	mutex_unlock(&inode->i_mutex);
-
-	ret = new_instance_create(dentry->d_iname);
-
-	mutex_lock(&inode->i_mutex);
-
-	return ret;
-}
-
-static int instance_rmdir(struct inode *inode, struct dentry *dentry)
-{
-	struct dentry *parent;
-	int ret;
-
-	/* Paranoid: Make sure the parent is the "instances" directory */
-	parent = hlist_entry(inode->i_dentry.first, struct dentry, d_u.d_alias);
-	if (WARN_ON_ONCE(parent != trace_instance_dir))
-		return -ENOENT;
-
-	/* The caller did a dget() on dentry */
-	mutex_unlock(&dentry->d_inode->i_mutex);
-
-	/*
-	 * The inode mutex is locked, but tracefs_create_dir() will also
-	 * take the mutex. As the instances directory can not be destroyed
-	 * or changed in any other way, it is safe to unlock it, and
-	 * let the dentry try. If two users try to make the same dir at
-	 * the same time, then the instance_delete() will determine the
-	 * winner.
-	 */
-	mutex_unlock(&inode->i_mutex);
-
-	ret = instance_delete(dentry->d_iname);
-
-	mutex_lock_nested(&inode->i_mutex, I_MUTEX_PARENT);
-	mutex_lock(&dentry->d_inode->i_mutex);
-
-	return ret;
-}
-
-static const struct inode_operations instance_dir_inode_operations = {
-	.lookup		= simple_lookup,
-	.mkdir		= instance_mkdir,
-	.rmdir		= instance_rmdir,
-};
-
 static __init void create_trace_instances(struct dentry *d_tracer)
 {
-	trace_instance_dir = tracefs_create_dir("instances", d_tracer);
+	trace_instance_dir = tracefs_create_instance_dir("instances", d_tracer,
+							 instance_mkdir,
+							 instance_rmdir);
 	if (WARN_ON(!trace_instance_dir))
 		return;
-
-	/* Hijack the dir inode operations, to allow mkdir */
-	trace_instance_dir->d_inode->i_op = &instance_dir_inode_operations;
 }
 
 static void
