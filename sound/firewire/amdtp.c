@@ -21,7 +21,19 @@
 #define CYCLES_PER_SECOND	8000
 #define TICKS_PER_SECOND	(TICKS_PER_CYCLE * CYCLES_PER_SECOND)
 
-#define TRANSFER_DELAY_TICKS	0x2e00 /* 479.17 µs */
+/*
+ * Nominally 3125 bytes/second, but the MIDI port's clock might be
+ * 1% too slow, and the bus clock 100 ppm too fast.
+ */
+#define MIDI_BYTES_PER_SECOND	3093
+
+/*
+ * Several devices look only at the first eight data blocks.
+ * In any case, this is more than enough for the MIDI data rate.
+ */
+#define MAX_MIDI_RX_BLOCKS	8
+
+#define TRANSFER_DELAY_TICKS	0x2e00 /* 479.17 Âµs */
 
 /* isochronous header parameters */
 #define ISO_DATA_LENGTH_SHIFT	16
@@ -77,8 +89,6 @@ int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
 	init_waitqueue_head(&s->callback_wait);
 	s->callbacked = false;
 	s->sync_slave = NULL;
-
-	s->rx_blocks_for_midi = UINT_MAX;
 
 	return 0;
 }
@@ -222,6 +232,14 @@ sfc_found:
 	for (i = 0; i < pcm_channels; i++)
 		s->pcm_positions[i] = i;
 	s->midi_position = s->pcm_channels;
+
+	/*
+	 * We do not know the actual MIDI FIFO size of most devices.  Just
+	 * assume two bytes, i.e., one byte can be received over the bus while
+	 * the previous one is transmitted over MIDI.
+	 * (The value here is adjusted for midi_ratelimit_per_packet().)
+	 */
+	s->midi_fifo_limit = rate - MIDI_BYTES_PER_SECOND * s->syt_interval + 1;
 }
 EXPORT_SYMBOL(amdtp_stream_set_parameters);
 
@@ -463,6 +481,36 @@ static void amdtp_fill_pcm_silence(struct amdtp_stream *s,
 	}
 }
 
+/*
+ * To avoid sending MIDI bytes at too high a rate, assume that the receiving
+ * device has a FIFO, and track how much it is filled.  This values increases
+ * by one whenever we send one byte in a packet, but the FIFO empties at
+ * a constant rate independent of our packet rate.  One packet has syt_interval
+ * samples, so the number of bytes that empty out of the FIFO, per packet(!),
+ * is MIDI_BYTES_PER_SECOND * syt_interval / sample_rate.  To avoid storing
+ * fractional values, the values in midi_fifo_used[] are measured in bytes
+ * multiplied by the sample rate.
+ */
+static bool midi_ratelimit_per_packet(struct amdtp_stream *s, unsigned int port)
+{
+	int used;
+
+	used = s->midi_fifo_used[port];
+	if (used == 0) /* common shortcut */
+		return true;
+
+	used -= MIDI_BYTES_PER_SECOND * s->syt_interval;
+	used = max(used, 0);
+	s->midi_fifo_used[port] = used;
+
+	return used < s->midi_fifo_limit;
+}
+
+static void midi_rate_use_one_byte(struct amdtp_stream *s, unsigned int port)
+{
+	s->midi_fifo_used[port] += amdtp_rate_table[s->sfc];
+}
+
 static void amdtp_fill_midi(struct amdtp_stream *s,
 			    __be32 *buffer, unsigned int frames)
 {
@@ -470,16 +518,21 @@ static void amdtp_fill_midi(struct amdtp_stream *s,
 	u8 *b;
 
 	for (f = 0; f < frames; f++) {
-		buffer[s->midi_position] = 0;
 		b = (u8 *)&buffer[s->midi_position];
 
 		port = (s->data_block_counter + f) % 8;
-		if ((f >= s->rx_blocks_for_midi) ||
-		    (s->midi[port] == NULL) ||
-		    (snd_rawmidi_transmit(s->midi[port], b + 1, 1) <= 0))
-			b[0] = 0x80;
-		else
+		if (f < MAX_MIDI_RX_BLOCKS &&
+		    midi_ratelimit_per_packet(s, port) &&
+		    s->midi[port] != NULL &&
+		    snd_rawmidi_transmit(s->midi[port], &b[1], 1) == 1) {
+			midi_rate_use_one_byte(s, port);
 			b[0] = 0x81;
+		} else {
+			b[0] = 0x80;
+			b[1] = 0;
+		}
+		b[2] = 0;
+		b[3] = 0;
 
 		buffer += s->data_block_quadlets;
 	}
