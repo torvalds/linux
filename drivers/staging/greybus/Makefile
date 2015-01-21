@@ -22,6 +22,7 @@ obj-m += gb-phy.o
 obj-m += gb-vibrator.o
 obj-m += gb-battery.o
 obj-m += gb-es1.o
+obj-m += gb-es2.o
 
 KERNELVER		?= $(shell uname -r)
 KERNELDIR 		?= /lib/modules/$(KERNELVER)/build
