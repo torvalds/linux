@@ -1003,6 +1003,7 @@
 		clocks = <&clk_vdpu>, <&hclk_vdpu>;
 		clock-names = "aclk_vcodec", "hclk_vcodec";
 		name = "vpu_service";
+		dev_mode = <0>;
 		//status = "disabled";
 	};
 
@@ -1014,6 +1015,7 @@
 		interrupt-names = "irq_dec";
 		clocks = <&aclk_hevc>, <&hclk_hevc>, <&clk_hevc_core>, <&clk_hevc_cabac>;
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core", "clk_cabac";
+		dev_mode = <1>;
 		name = "hevc_service";
 		//status = "disabled";
 	};

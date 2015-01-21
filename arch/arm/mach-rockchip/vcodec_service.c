@@ -334,7 +334,7 @@ typedef struct vpu_reg {
 #if defined(CONFIG_VCODEC_MMU)
 	struct list_head mem_region_list;
 #endif
-	unsigned long *reg;
+	u32 *reg;
 } vpu_reg;
 
 typedef struct vpu_device {
@@ -515,10 +515,21 @@ static void vcodec_enter_mode(struct vpu_subdev_data *data)
 	u32 raw = 0;
 	struct vpu_service_info *pservice = data->pservice;
 	struct vpu_subdev_data *subdata, *n;
-	if (pservice->subcnt < 2 || pservice->curr_mode == data->mode) {
-		pservice->prev_mode = pservice->curr_mode;
+	if (pservice->subcnt < 2) {
+#if defined(CONFIG_VCODEC_MMU)
+		if (data->mmu_dev && !test_bit(MMU_ACTIVATED, &data->state)) {
+			set_bit(MMU_ACTIVATED, &data->state);
+			BUG_ON(!pservice->enabled);
+			if (pservice->enabled)
+				rockchip_iovmm_activate(data->dev);
+		}
+#endif
 		return;
 	}
+
+	if (pservice->curr_mode == data->mode)
+		return;
+
 	vpu_debug(3, "vcodec enter mode %d\n", data->mode);
 #if defined(CONFIG_VCODEC_MMU)
 	list_for_each_entry_safe(subdata, n, &pservice->subdev_list, lnk_service) {
@@ -570,18 +581,17 @@ static int vpu_get_clk(struct vpu_service_info *pservice)
 #if VCODEC_CLOCK_ENABLE
 	switch (pservice->dev_id) {
 	case VCODEC_DEVICE_ID_HEVC:
-		pservice->clk_cabac = devm_clk_get(pservice->dev, "clk_cabac");
-		if (IS_ERR(pservice->clk_cabac)) {
-			dev_err(pservice->dev, "failed on clk_get clk_cabac\n");
-			return -1;
-		}
-
 		pservice->pd_video = devm_clk_get(pservice->dev, "pd_hevc");
 		if (IS_ERR(pservice->pd_video)) {
 			dev_err(pservice->dev, "failed on clk_get pd_hevc\n");
 			return -1;
 		}
 	case VCODEC_DEVICE_ID_COMBO:
+		pservice->clk_cabac = devm_clk_get(pservice->dev, "clk_cabac");
+		if (IS_ERR(pservice->clk_cabac)) {
+			dev_err(pservice->dev, "failed on clk_get clk_cabac\n");
+			pservice->clk_cabac = NULL;
+		}
 		pservice->clk_core = devm_clk_get(pservice->dev, "clk_core");
 		if (IS_ERR(pservice->clk_core)) {
 			dev_err(pservice->dev, "failed on clk_get clk_core\n");
@@ -664,11 +674,11 @@ static void vpu_reset(struct vpu_subdev_data *data)
 	pservice->reg_resev = NULL;
 
 #if defined(CONFIG_VCODEC_MMU)
-	if (data->mmu_dev && !test_bit(MMU_ACTIVATED, &data->state)) {
-		set_bit(MMU_ACTIVATED, &data->state);
+	if (data->mmu_dev && test_bit(MMU_ACTIVATED, &data->state)) {
+		clear_bit(MMU_ACTIVATED, &data->state);
 		BUG_ON(!pservice->enabled);
 		if (pservice->enabled)
-			rockchip_iovmm_activate(data->dev);
+			rockchip_iovmm_deactivate(data->dev);
 	}
 #endif
 }
@@ -796,13 +806,13 @@ static void vpu_service_power_on(struct vpu_service_info *pservice)
 
 static inline bool reg_check_rmvb_wmv(vpu_reg *reg)
 {
-	unsigned long type = (reg->reg[3] & 0xF0000000) >> 28;
+	u32 type = (reg->reg[3] & 0xF0000000) >> 28;
 	return ((type == 8) || (type == 4));
 }
 
 static inline bool reg_check_interlace(vpu_reg *reg)
 {
-	unsigned long type = (reg->reg[3] & (1 << 23));
+	u32 type = (reg->reg[3] & (1 << 23));
 	return (type > 0);
 }
 
@@ -1055,7 +1065,7 @@ static vpu_reg *reg_init(struct vpu_subdev_data *data,
 	reg->type = session->type;
 	reg->size = size;
 	reg->freq = VPU_FREQ_DEFAULT;
-	reg->reg = (unsigned long *)&reg[1];
+	reg->reg = (u32 *)&reg[1];
 	INIT_LIST_HEAD(&reg->session_link);
 	INIT_LIST_HEAD(&reg->status_link);
 
