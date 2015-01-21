@@ -54,12 +54,6 @@ struct gb_gpio_controller {
 
 #define	GB_GPIO_DEBOUNCE_USEC_DEFAULT	0	/* microseconds */
 
-/* version request has no payload */
-struct gb_gpio_proto_version_response {
-	__u8	major;
-	__u8	minor;
-};
-
 /* line count request has no payload */
 struct gb_gpio_line_count_response {
 	__u8	count;

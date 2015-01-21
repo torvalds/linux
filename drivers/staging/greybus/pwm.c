@@ -41,12 +41,6 @@ struct gb_pwm_chip {
 #define	GB_PWM_TYPE_DISABLE		0x08
 #define	GB_PWM_TYPE_RESPONSE		0x80	/* OR'd with rest */
 
-/* version request has no payload */
-struct gb_pwm_proto_version_response {
-	__u8	major;
-	__u8	minor;
-};
-
 /* pwm count request has no payload */
 struct gb_pwm_count_response {
 	__u8	count;

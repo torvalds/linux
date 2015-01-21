@@ -48,11 +48,6 @@
 #define GB_UART_TYPE_SERIAL_STATE		0x07	/* Unsolicited data */
 #define GB_UART_TYPE_RESPONSE			0x80	/* OR'd with rest */
 
-struct gb_uart_proto_version_response {
-	__u8	major;
-	__u8	minor;
-};
-
 struct gb_uart_send_data_request {
 	__le16	size;
 	__u8	data[0];

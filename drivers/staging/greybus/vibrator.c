@@ -34,11 +34,6 @@ struct gb_vibrator_device {
 #define	GB_VIBRATOR_TYPE_OFF			0x03
 #define	GB_VIBRATOR_TYPE_RESPONSE		0x80	/* OR'd with rest */
 
-struct gb_vibrator_proto_version_response {
-	__u8	major;
-	__u8	minor;
-};
-
 struct gb_vibrator_on_request {
 	__le16	timeout_ms;
 };

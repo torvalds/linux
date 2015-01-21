@@ -43,11 +43,6 @@ struct gb_battery {
 #define GB_BATTERY_TYPE_CAPACITY		0x09	// TODO - POWER_SUPPLY_PROP_CURRENT_MAX
 #define GB_BATTERY_TYPE_SHUTDOWN_TEMP		0x0a	// TODO - POWER_SUPPLY_PROP_TEMP_ALERT_MAX
 
-struct gb_battery_proto_version_response {
-	__u8	major;
-	__u8	minor;
-};
-
 /* Should match up with battery types in linux/power_supply.h */
 #define GB_BATTERY_TECH_UNKNOWN			0x0000
 #define GB_BATTERY_TECH_NiMH			0x0001

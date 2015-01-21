@@ -42,12 +42,6 @@ struct gb_i2c_device {
 #define	GB_I2C_RETRIES_DEFAULT		3
 #define	GB_I2C_TIMEOUT_DEFAULT		1000	/* milliseconds */
 
-/* version request has no payload */
-struct gb_i2c_proto_version_response {
-	__u8	major;
-	__u8	minor;
-};
-
 /* functionality request has no payload */
 struct gb_i2c_functionality_response {
 	__le32	functionality;

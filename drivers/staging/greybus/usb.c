@@ -31,11 +31,6 @@
 #define GB_USB_TYPE_GET_FRAME_NUMBER	0x08
 #define GB_USB_TYPE_HUB_STATUS_DATA	0x09
 
-struct gb_usb_proto_version_response {
-	__u8	major;
-	__u8	minor;
-};
-
 struct gb_usb_urb_enqueue_request {
 	__le32 pipe;
 	__le32 transfer_flags;
