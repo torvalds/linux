@@ -260,7 +260,9 @@ void rhashtable_destroy(struct rhashtable *ht);
 	     next = !rht_is_a_nulls(pos) ?				    \
 		       rht_dereference_bucket(pos->next, tbl, hash) : NULL; \
 	     (!rht_is_a_nulls(pos)) && rht_entry(tpos, pos, member);	    \
-	     pos = next)
+	     pos = next,						    \
+	     next = !rht_is_a_nulls(pos) ?				    \
+		       rht_dereference_bucket(pos->next, tbl, hash) : NULL)
 
 /**
  * rht_for_each_rcu_continue - continue iterating over rcu hash chain
