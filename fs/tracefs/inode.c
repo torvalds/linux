@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
+#include <linux/kobject.h>
 #include <linux/namei.h>
 #include <linux/tracefs.h>
 #include <linux/fsnotify.h>
@@ -509,9 +510,15 @@ bool tracefs_initialized(void)
 	return tracefs_registered;
 }
 
+static struct kobject *trace_kobj;
+
 static int __init tracefs_init(void)
 {
 	int retval;
+
+	trace_kobj = kobject_create_and_add("tracing", kernel_kobj);
+	if (!trace_kobj)
+		return -EINVAL;
 
 	retval = register_filesystem(&trace_fs_type);
 	if (!retval)
