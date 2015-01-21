@@ -1041,10 +1041,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		ieee80211_max_network_latency;
 	result = pm_qos_add_notifier(PM_QOS_NETWORK_LATENCY,
 				     &local->network_latency_notifier);
-	if (result) {
-		rtnl_lock();
+	if (result)
 		goto fail_pm_qos;
-	}
 
 #ifdef CONFIG_INET
 	local->ifa_notifier.notifier_call = ieee80211_ifa_changed;
@@ -1072,15 +1070,15 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
  fail_ifa:
 	pm_qos_remove_notifier(PM_QOS_NETWORK_LATENCY,
 			       &local->network_latency_notifier);
-	rtnl_lock();
 #endif
  fail_pm_qos:
-	ieee80211_led_exit(local);
+	rtnl_lock();
+	rate_control_deinitialize(local);
 	ieee80211_remove_interfaces(local);
  fail_rate:
 	rtnl_unlock();
+	ieee80211_led_exit(local);
 	ieee80211_wep_free(local);
-	sta_info_stop(local);
 	destroy_workqueue(local->workqueue);
  fail_workqueue:
 	wiphy_unregister(local->hw.wiphy);
@@ -1175,6 +1173,8 @@ void ieee80211_free_hw(struct ieee80211_hw *hw)
 	idr_destroy(&local->ack_status_frames);
 
 	kfree(rcu_access_pointer(local->tx_latency));
+
+	sta_info_stop(local);
 
 	wiphy_free(local->hw.wiphy);
 }
