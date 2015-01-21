@@ -1780,8 +1780,16 @@ void radeon_test_syncing(struct radeon_device *rdev);
 /*
  * MMU Notifier
  */
+#if defined(CONFIG_MMU_NOTIFIER)
 int radeon_mn_register(struct radeon_bo *bo, unsigned long addr);
 void radeon_mn_unregister(struct radeon_bo *bo);
+#else
+static inline int radeon_mn_register(struct radeon_bo *bo, unsigned long addr)
+{
+	return -ENODEV;
+}
+static inline void radeon_mn_unregister(struct radeon_bo *bo) {}
+#endif
 
 /*
  * Debugfs
