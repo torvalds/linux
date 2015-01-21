@@ -1828,6 +1828,61 @@ rpcrdma_deregister_internal(struct rpcrdma_ia *ia,
 	return rc;
 }
 
+/**
+ * rpcrdma_alloc_regbuf - kmalloc and register memory for SEND/RECV buffers
+ * @ia: controlling rpcrdma_ia
+ * @size: size of buffer to be allocated, in bytes
+ * @flags: GFP flags
+ *
+ * Returns pointer to private header of an area of internally
+ * registered memory, or an ERR_PTR. The registered buffer follows
+ * the end of the private header.
+ *
+ * xprtrdma uses a regbuf for posting an outgoing RDMA SEND, or for
+ * receiving the payload of RDMA RECV operations. regbufs are not
+ * used for RDMA READ/WRITE operations, thus are registered only for
+ * LOCAL access.
+ */
+struct rpcrdma_regbuf *
+rpcrdma_alloc_regbuf(struct rpcrdma_ia *ia, size_t size, gfp_t flags)
+{
+	struct rpcrdma_regbuf *rb;
+	int rc;
+
+	rc = -ENOMEM;
+	rb = kmalloc(sizeof(*rb) + size, flags);
+	if (rb == NULL)
+		goto out;
+
+	rb->rg_size = size;
+	rb->rg_owner = NULL;
+	rc = rpcrdma_register_internal(ia, rb->rg_base, size,
+				       &rb->rg_mr, &rb->rg_iov);
+	if (rc)
+		goto out_free;
+
+	return rb;
+
+out_free:
+	kfree(rb);
+out:
+	return ERR_PTR(rc);
+}
+
+/**
+ * rpcrdma_free_regbuf - deregister and free registered buffer
+ * @ia: controlling rpcrdma_ia
+ * @rb: regbuf to be deregistered and freed
+ */
+void
+rpcrdma_free_regbuf(struct rpcrdma_ia *ia, struct rpcrdma_regbuf *rb)
+{
+	if (rb) {
+		rpcrdma_deregister_internal(ia, rb->rg_mr, &rb->rg_iov);
+		kfree(rb);
+	}
+}
+
 /*
  * Wrappers for chunk registration, shared by read/write chunk code.
  */
