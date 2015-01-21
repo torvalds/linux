@@ -327,6 +327,9 @@ long reservation_object_wait_timeout_rcu(struct reservation_object *obj,
 	unsigned seq, shared_count, i = 0;
 	long ret = timeout;
 
+	if (!timeout)
+		return reservation_object_test_signaled_rcu(obj, wait_all);
+
 retry:
 	fence = NULL;
 	shared_count = 0;
