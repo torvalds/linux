@@ -276,6 +276,7 @@ static void ahci_platform_put_resources(struct device *dev, void *res)
 		if (hpriv->target_pwrs && hpriv->target_pwrs[c])
 			regulator_put(hpriv->target_pwrs[c]);
 
+	kfree(hpriv->target_pwrs);
 }
 
 static int ahci_platform_get_phy(struct ahci_host_priv *hpriv, u32 port,
@@ -412,7 +413,7 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev)
 		goto err_out;
 	}
 	sz = hpriv->nports * sizeof(*hpriv->target_pwrs);
-	hpriv->target_pwrs = devm_kzalloc(dev, sz, GFP_KERNEL);
+	hpriv->target_pwrs = kzalloc(sz, GFP_KERNEL);
 	if (!hpriv->target_pwrs) {
 		rc = -ENOMEM;
 		goto err_out;
