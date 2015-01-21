@@ -85,7 +85,7 @@ static void __init core_mux_init(struct device_node *np)
 		pr_err("%s: get clock count error\n", np->name);
 		return;
 	}
-	parent_names = kzalloc((sizeof(char *) * count), GFP_KERNEL);
+	parent_names = kcalloc(count, sizeof(char *), GFP_KERNEL);
 	if (!parent_names) {
 		pr_err("%s: could not allocate parent_names\n", __func__);
 		return;
@@ -192,7 +192,7 @@ static void __init core_pll_init(struct device_node *np)
 		goto err_map;
 	}
 
-	subclks = kzalloc(sizeof(struct clk *) * count, GFP_KERNEL);
+	subclks = kcalloc(count, sizeof(struct clk *), GFP_KERNEL);
 	if (!subclks) {
 		pr_err("%s: could not allocate subclks\n", __func__);
 		goto err_map;
