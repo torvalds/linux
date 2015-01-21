@@ -337,6 +337,9 @@ struct iwl_mvm_vif_bf_data {
  * @beacon_skb: the skb used to hold the AP/GO beacon template
  * @smps_requests: the SMPS requests of differents parts of the driver,
  *	combined on update to yield the overall request to mac80211.
+ * @beacon_stats: beacon statistics, containing the # of received beacons,
+ *	# of received beacons accumulated over FW restart, and the current
+ *	average signal of beacons retrieved from the firmware
  */
 struct iwl_mvm_vif {
 	u16 id;
@@ -353,6 +356,11 @@ struct iwl_mvm_vif {
 	bool low_latency;
 	bool ps_disabled;
 	struct iwl_mvm_vif_bf_data bf_data;
+
+	struct {
+		u32 num_beacons, accu_num_beacons;
+		u8 avg_signal;
+	} beacon_stats;
 
 	u32 ap_beacon_time;
 
@@ -963,7 +971,7 @@ void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 int iwl_mvm_rx_statistics(struct iwl_mvm *mvm,
 			  struct iwl_rx_cmd_buffer *rxb,
 			  struct iwl_device_cmd *cmd);
-int iwl_mvm_request_statistics(struct iwl_mvm *mvm);
+int iwl_mvm_request_statistics(struct iwl_mvm *mvm, bool clear);
 void iwl_mvm_accu_radio_stats(struct iwl_mvm *mvm);
 
 /* NVM */

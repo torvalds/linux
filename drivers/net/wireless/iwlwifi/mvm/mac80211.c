@@ -1322,6 +1322,11 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
+	/* make sure that beacon statistics don't go backwards with FW reset */
+	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+		mvmvif->beacon_stats.accu_num_beacons +=
+			mvmvif->beacon_stats.num_beacons;
+
 	/* Allocate resources for the MAC context, and add it to the fw  */
 	ret = iwl_mvm_mac_ctxt_init(mvm, vif);
 	if (ret)
@@ -1815,6 +1820,11 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 
 	if (changes & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
+			/* clear statistics to get clean beacon counter */
+			iwl_mvm_request_statistics(mvm, true);
+			memset(&mvmvif->beacon_stats, 0,
+			       sizeof(mvmvif->beacon_stats));
+
 			/* add quota for this interface */
 			ret = iwl_mvm_update_quotas(mvm, NULL);
 			if (ret) {
@@ -3597,7 +3607,7 @@ static int iwl_mvm_mac_get_survey(struct ieee80211_hw *hw, int idx,
 	mutex_lock(&mvm->mutex);
 
 	if (mvm->ucode_loaded) {
-		ret = iwl_mvm_request_statistics(mvm);
+		ret = iwl_mvm_request_statistics(mvm, false);
 		if (ret)
 			goto out;
 	}
@@ -3625,6 +3635,46 @@ static int iwl_mvm_mac_get_survey(struct ieee80211_hw *hw, int idx,
  out:
 	mutex_unlock(&mvm->mutex);
 	return ret;
+}
+
+static void iwl_mvm_mac_sta_statistics(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif,
+				       struct ieee80211_sta *sta,
+				       struct station_info *sinfo)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+
+	if (!(mvm->fw->ucode_capa.capa[0] &
+				IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS))
+		return;
+
+	/* if beacon filtering isn't on mac80211 does it anyway */
+	if (!(vif->driver_flags & IEEE80211_VIF_BEACON_FILTER))
+		return;
+
+	if (!vif->bss_conf.assoc)
+		return;
+
+	mutex_lock(&mvm->mutex);
+
+	if (mvmvif->ap_sta_id != mvmsta->sta_id)
+		goto unlock;
+
+	if (iwl_mvm_request_statistics(mvm, false))
+		goto unlock;
+
+	sinfo->rx_beacon = mvmvif->beacon_stats.num_beacons +
+			   mvmvif->beacon_stats.accu_num_beacons;
+	sinfo->filled |= BIT(NL80211_STA_INFO_BEACON_RX);
+	if (mvmvif->beacon_stats.avg_signal) {
+		/* firmware only reports a value after RXing a few beacons */
+		sinfo->rx_beacon_signal_avg = mvmvif->beacon_stats.avg_signal;
+		sinfo->filled |= BIT(NL80211_STA_INFO_BEACON_SIGNAL_AVG);
+	}
+ unlock:
+	mutex_unlock(&mvm->mutex);
 }
 
 const struct ieee80211_ops iwl_mvm_hw_ops = {
@@ -3694,4 +3744,5 @@ const struct ieee80211_ops iwl_mvm_hw_ops = {
 	.set_default_unicast_key = iwl_mvm_set_default_unicast_key,
 #endif
 	.get_survey = iwl_mvm_mac_get_survey,
+	.sta_statistics = iwl_mvm_mac_sta_statistics,
 };

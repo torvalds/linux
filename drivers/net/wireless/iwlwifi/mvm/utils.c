@@ -643,9 +643,11 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	ieee80211_request_smps(vif, smps_mode);
 }
 
-int iwl_mvm_request_statistics(struct iwl_mvm *mvm)
+int iwl_mvm_request_statistics(struct iwl_mvm *mvm, bool clear)
 {
-	struct iwl_statistics_cmd scmd = {};
+	struct iwl_statistics_cmd scmd = {
+		.flags = clear ? cpu_to_le32(IWL_STATISTICS_FLG_CLEAR) : 0,
+	};
 	struct iwl_host_cmd cmd = {
 		.id = STATISTICS_CMD,
 		.len[0] = sizeof(scmd),
@@ -660,6 +662,9 @@ int iwl_mvm_request_statistics(struct iwl_mvm *mvm)
 
 	iwl_mvm_handle_rx_statistics(mvm, cmd.resp_pkt);
 	iwl_free_resp(&cmd);
+
+	if (clear)
+		iwl_mvm_accu_radio_stats(mvm);
 
 	return 0;
 }

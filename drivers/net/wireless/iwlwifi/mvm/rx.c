@@ -427,6 +427,7 @@ struct iwl_mvm_stat_data {
 	struct iwl_mvm *mvm;
 	__le32 mac_id;
 	__s8 beacon_filter_average_energy;
+	struct mvm_statistics_general_v8 *general;
 };
 
 static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
@@ -440,6 +441,17 @@ static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
 	int hyst = vif->bss_conf.cqm_rssi_hyst;
 	u16 id = le32_to_cpu(data->mac_id);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	/* This doesn't need the MAC ID check since it's not taking the
+	 * data copied into the "data" struct, but rather the data from
+	 * the notification directly.
+	 */
+	if (data->general) {
+		mvmvif->beacon_stats.num_beacons =
+			le32_to_cpu(data->general->beacon_counter[mvmvif->id]);
+		mvmvif->beacon_stats.avg_signal =
+			-data->general->beacon_average_energy[mvmvif->id];
+	}
 
 	if (mvmvif->id != id)
 		return;
@@ -525,6 +537,8 @@ void iwl_mvm_handle_rx_statistics(struct iwl_mvm *mvm,
 			le64_to_cpu(stats->general.on_time_rf);
 		mvm->radio_stats.on_time_scan =
 			le64_to_cpu(stats->general.on_time_scan);
+
+		data.general = &stats->general;
 	} else {
 		struct iwl_notif_statistics_v8 *stats = (void *)&pkt->data;
 
