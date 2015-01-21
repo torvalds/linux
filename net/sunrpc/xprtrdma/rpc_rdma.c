@@ -766,7 +766,8 @@ rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 		spin_unlock(&xprt->transport_lock);
 		dprintk("RPC:       %s: reply 0x%p failed "
 			"to match any request xid 0x%08x len %d\n",
-			__func__, rep, headerp->rm_xid, rep->rr_len);
+			__func__, rep, be32_to_cpu(headerp->rm_xid),
+			rep->rr_len);
 repost:
 		r_xprt->rx_stats.bad_reply_count++;
 		rep->rr_func = rpcrdma_reply_handler;
@@ -782,13 +783,14 @@ repost:
 		spin_unlock(&xprt->transport_lock);
 		dprintk("RPC:       %s: duplicate reply 0x%p to RPC "
 			"request 0x%p: xid 0x%08x\n", __func__, rep, req,
-			headerp->rm_xid);
+			be32_to_cpu(headerp->rm_xid));
 		goto repost;
 	}
 
 	dprintk("RPC:       %s: reply 0x%p completes request 0x%p\n"
 		"                   RPC request 0x%p xid 0x%08x\n",
-			__func__, rep, req, rqst, headerp->rm_xid);
+			__func__, rep, req, rqst,
+			be32_to_cpu(headerp->rm_xid));
 
 	/* from here on, the reply is no longer an orphan */
 	req->rl_reply = rep;
