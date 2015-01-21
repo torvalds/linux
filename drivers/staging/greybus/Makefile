@@ -17,6 +17,12 @@ gb-phy-y :=	gpb.o		\
 		i2c.o	\
 		usb.o
 
+# Prefix all modules with gb-
+gb-vibrator-y := vibrator.o
+gb-battery-y := battery.o
+gb-es1-y := es1.o
+gb-es2-y := es2.o
+
 obj-m += greybus.o
 obj-m += gb-phy.o
 obj-m += gb-vibrator.o
