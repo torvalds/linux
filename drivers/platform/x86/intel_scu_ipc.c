@@ -43,10 +43,9 @@
 /*
  * IPC register summary
  *
- * IPC register blocks are memory mapped at fixed address of 0xFF11C000
+ * IPC register blocks are memory mapped at fixed address of PCI BAR 0.
  * To read or write information to the SCU, driver writes to IPC-1 memory
- * mapped registers (base address 0xFF11C000). The following is the IPC
- * mechanism
+ * mapped registers. The following is the IPC mechanism
  *
  * 1. IA core cDMI interface claims this transaction and converts it to a
  *    Transaction Layer Packet (TLP) message which is sent across the cDMI.
@@ -69,34 +68,26 @@
 
 /* intel scu ipc driver data */
 struct intel_scu_ipc_pdata_t {
-	u32 ipc_base;
 	u32 i2c_base;
-	u32 ipc_len;
 	u32 i2c_len;
 	u8 irq_mode;
 };
 
 static struct intel_scu_ipc_pdata_t intel_scu_ipc_lincroft_pdata = {
-	.ipc_base = 0xff11c000,
 	.i2c_base = 0xff12b000,
-	.ipc_len = 0x100,
 	.i2c_len = 0x10,
 	.irq_mode = 0,
 };
 
 /* Penwell and Cloverview */
 static struct intel_scu_ipc_pdata_t intel_scu_ipc_penwell_pdata = {
-	.ipc_base = 0xff11c000,
 	.i2c_base = 0xff12b000,
-	.ipc_len = 0x100,
 	.i2c_len = 0x10,
 	.irq_mode = 1,
 };
 
 static struct intel_scu_ipc_pdata_t intel_scu_ipc_tangier_pdata = {
-	.ipc_base = 0xff009000,
 	.i2c_base  = 0xff00d000,
-	.ipc_len  = 0x100,
 	.i2c_len = 0x10,
 	.irq_mode = 0,
 };
@@ -572,7 +563,7 @@ static int ipc_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	int err;
 	struct intel_scu_ipc_pdata_t *pdata;
-	resource_size_t pci_resource;
+	resource_size_t base;
 
 	if (ipcdev.pdev)		/* We support only one SCU */
 		return -EBUSY;
@@ -590,8 +581,8 @@ static int ipc_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (err)
 		return err;
 
-	pci_resource = pci_resource_start(dev, 0);
-	if (!pci_resource)
+	base = pci_resource_start(dev, 0);
+	if (!base)
 		return -ENOMEM;
 
 	init_completion(&ipcdev.cmd_complete);
@@ -599,7 +590,7 @@ static int ipc_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (request_irq(dev->irq, ioc, 0, "intel_scu_ipc", &ipcdev))
 		return -EBUSY;
 
-	ipcdev.ipc_base = ioremap_nocache(pdata->ipc_base, pdata->ipc_len);
+	ipcdev.ipc_base = ioremap_nocache(base, pci_resource_len(dev, 0));
 	if (!ipcdev.ipc_base)
 		return -ENOMEM;
 
