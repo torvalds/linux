@@ -262,7 +262,6 @@ struct rpcrdma_mr_seg {		/* chunk descriptors */
 };
 
 struct rpcrdma_req {
-	size_t 		rl_size;	/* actual length of buffer */
 	unsigned int	rl_niovs;	/* 0, 2 or 4 */
 	unsigned int	rl_nchunks;	/* non-zero if chunks */
 	unsigned int	rl_connect_cookie;	/* retry detection */
@@ -271,13 +270,20 @@ struct rpcrdma_req {
 	struct rpcrdma_rep	*rl_reply;/* holder for reply buffer */
 	struct rpcrdma_mr_seg rl_segments[RPCRDMA_MAX_SEGS];/* chunk segments */
 	struct ib_sge	rl_send_iov[4];	/* for active requests */
+	struct rpcrdma_regbuf *rl_sendbuf;
 	struct ib_sge	rl_iov;		/* for posting */
 	struct ib_mr	*rl_handle;	/* handle for mem in rl_iov */
 	char		rl_base[MAX_RPCRDMAHDR]; /* start of actual buffer */
-	__u32 		rl_xdr_buf[0];	/* start of returned rpc rq_buffer */
 };
-#define rpcr_to_rdmar(r) \
-	container_of((r)->rq_buffer, struct rpcrdma_req, rl_xdr_buf[0])
+
+static inline struct rpcrdma_req *
+rpcr_to_rdmar(struct rpc_rqst *rqst)
+{
+	struct rpcrdma_regbuf *rb = container_of(rqst->rq_buffer,
+						 struct rpcrdma_regbuf,
+						 rg_base[0]);
+	return rb->rg_owner;
+}
 
 /*
  * struct rpcrdma_buffer -- holds list/queue of pre-registered memory for

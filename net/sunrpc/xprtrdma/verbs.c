@@ -1079,25 +1079,22 @@ static struct rpcrdma_req *
 rpcrdma_create_req(struct rpcrdma_xprt *r_xprt)
 {
 	struct rpcrdma_create_data_internal *cdata = &r_xprt->rx_data;
-	size_t wlen = 1 << fls(cdata->inline_wsize +
-			       sizeof(struct rpcrdma_req));
+	size_t wlen = cdata->inline_wsize;
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 	struct rpcrdma_req *req;
 	int rc;
 
 	rc = -ENOMEM;
-	req = kmalloc(wlen, GFP_KERNEL);
+	req = kmalloc(sizeof(*req) + wlen, GFP_KERNEL);
 	if (req == NULL)
 		goto out;
-	memset(req, 0, sizeof(struct rpcrdma_req));
+	memset(req, 0, sizeof(*req));
 
-	rc = rpcrdma_register_internal(ia, req->rl_base, wlen -
-				       offsetof(struct rpcrdma_req, rl_base),
+	rc = rpcrdma_register_internal(ia, req->rl_base, wlen,
 				       &req->rl_handle, &req->rl_iov);
 	if (rc)
 		goto out_free;
 
-	req->rl_size = wlen - sizeof(struct rpcrdma_req);
 	req->rl_buffer = &r_xprt->rx_buf;
 	return req;
 
@@ -1121,7 +1118,7 @@ rpcrdma_create_rep(struct rpcrdma_xprt *r_xprt)
 	rep = kmalloc(rlen, GFP_KERNEL);
 	if (rep == NULL)
 		goto out;
-	memset(rep, 0, sizeof(struct rpcrdma_rep));
+	memset(rep, 0, sizeof(*rep));
 
 	rc = rpcrdma_register_internal(ia, rep->rr_base, rlen -
 				       offsetof(struct rpcrdma_rep, rr_base),
@@ -1335,6 +1332,7 @@ rpcrdma_destroy_req(struct rpcrdma_ia *ia, struct rpcrdma_req *req)
 	if (!req)
 		return;
 
+	rpcrdma_free_regbuf(ia, req->rl_sendbuf);
 	rpcrdma_deregister_internal(ia, req->rl_handle, &req->rl_iov);
 	kfree(req);
 }
@@ -1729,8 +1727,6 @@ rpcrdma_recv_buffer_get(struct rpcrdma_req *req)
 	struct rpcrdma_buffer *buffers = req->rl_buffer;
 	unsigned long flags;
 
-	if (req->rl_iov.length == 0)	/* special case xprt_rdma_allocate() */
-		buffers = ((struct rpcrdma_req *) buffers)->rl_buffer;
 	spin_lock_irqsave(&buffers->rb_lock, flags);
 	if (buffers->rb_recv_index < buffers->rb_max_requests) {
 		req->rl_reply = buffers->rb_recv_bufs[buffers->rb_recv_index];

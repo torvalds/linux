@@ -541,9 +541,9 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	req->rl_send_iov[0].length = hdrlen;
 	req->rl_send_iov[0].lkey = req->rl_iov.lkey;
 
-	req->rl_send_iov[1].addr = req->rl_iov.addr + (base - req->rl_base);
+	req->rl_send_iov[1].addr = rdmab_addr(req->rl_sendbuf);
 	req->rl_send_iov[1].length = rpclen;
-	req->rl_send_iov[1].lkey = req->rl_iov.lkey;
+	req->rl_send_iov[1].lkey = rdmab_lkey(req->rl_sendbuf);
 
 	req->rl_niovs = 2;
 
@@ -556,7 +556,7 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 
 		req->rl_send_iov[3].addr = req->rl_send_iov[1].addr + rpclen;
 		req->rl_send_iov[3].length = rqst->rq_slen - rpclen;
-		req->rl_send_iov[3].lkey = req->rl_iov.lkey;
+		req->rl_send_iov[3].lkey = rdmab_lkey(req->rl_sendbuf);
 
 		req->rl_niovs = 4;
 	}
