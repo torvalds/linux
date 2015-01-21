@@ -29,7 +29,7 @@ static const char *xen_hypercall_names[] = {
 	N(vcpu_op),
 	N(set_segment_base),
 	N(mmuext_op),
-	N(acm_op),
+	N(xsm_op),
 	N(nmi_op),
 	N(sched_op),
 	N(callback_op),
