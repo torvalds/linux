@@ -14,9 +14,12 @@
 #include <linux/suspend.h>
 #include <linux/sched.h>
 #include <linux/proc_fs.h>
+#include <linux/genalloc.h>
 #include <linux/interrupt.h>
 #include <linux/sysfs.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/clk/at91_pmc.h>
@@ -31,6 +34,11 @@
 
 #include "generic.h"
 #include "pm.h"
+
+static struct {
+	unsigned long uhp_udp_mask;
+	int memctrl;
+} at91_pm_data;
 
 static void (*at91_pm_standby)(void);
 
@@ -71,17 +79,9 @@ static int at91_pm_verify_clocks(void)
 	scsr = at91_pmc_read(AT91_PMC_SCSR);
 
 	/* USB must not be using PLLB */
-	if (cpu_is_at91rm9200()) {
-		if ((scsr & (AT91RM9200_PMC_UHP | AT91RM9200_PMC_UDP)) != 0) {
-			pr_err("AT91: PM - Suspend-to-RAM with USB still active\n");
-			return 0;
-		}
-	} else if (cpu_is_at91sam9260() || cpu_is_at91sam9261() || cpu_is_at91sam9263()
-			|| cpu_is_at91sam9g20() || cpu_is_at91sam9g10()) {
-		if ((scsr & (AT91SAM926x_PMC_UHP | AT91SAM926x_PMC_UDP)) != 0) {
-			pr_err("AT91: PM - Suspend-to-RAM with USB still active\n");
-			return 0;
-		}
+	if ((scsr & at91_pm_data.uhp_udp_mask) != 0) {
+		pr_err("AT91: PM - Suspend-to-RAM with USB still active\n");
+		return 0;
 	}
 
 	/* PCK0..PCK3 must be disabled, or configured to use clk32k */
@@ -149,18 +149,13 @@ static int at91_pm_enter(suspend_state_t state)
 			 * turning off the main oscillator; reverse on wakeup.
 			 */
 			if (slow_clock) {
-				int memctrl = AT91_MEMCTRL_SDRAMC;
-
-				if (cpu_is_at91rm9200())
-					memctrl = AT91_MEMCTRL_MC;
-				else if (cpu_is_at91sam9g45())
-					memctrl = AT91_MEMCTRL_DDRSDR;
 #ifdef CONFIG_AT91_SLOW_CLOCK
 				/* copy slow_clock handler to SRAM, and call it */
 				memcpy(slow_clock, at91_slow_clock, at91_slow_clock_sz);
 #endif
 				slow_clock(at91_pmc_base, at91_ramc_base[0],
-					   at91_ramc_base[1], memctrl);
+					   at91_ramc_base[1],
+					   at91_pm_data.memctrl);
 				break;
 			} else {
 				pr_info("AT91: PM - no slow clock mode enabled ...\n");
@@ -229,23 +224,85 @@ void at91_pm_set_standby(void (*at91_standby)(void))
 	}
 }
 
-static int __init at91_pm_init(void)
+#ifdef CONFIG_AT91_SLOW_CLOCK
+static void __init at91_pm_sram_init(void)
+{
+	struct gen_pool *sram_pool;
+	phys_addr_t sram_pbase;
+	unsigned long sram_base;
+	struct device_node *node;
+	struct platform_device *pdev;
+
+	node = of_find_compatible_node(NULL, NULL, "mmio-sram");
+	if (!node) {
+		pr_warn("%s: failed to find sram node!\n", __func__);
+		return;
+	}
+
+	pdev = of_find_device_by_node(node);
+	if (!pdev) {
+		pr_warn("%s: failed to find sram device!\n", __func__);
+		goto put_node;
+	}
+
+	sram_pool = dev_get_gen_pool(&pdev->dev);
+	if (!sram_pool) {
+		pr_warn("%s: sram pool unavailable!\n", __func__);
+		goto put_node;
+	}
+
+	sram_base = gen_pool_alloc(sram_pool, at91_slow_clock_sz);
+	if (!sram_base) {
+		pr_warn("%s: unable to alloc ocram!\n", __func__);
+		goto put_node;
+	}
+
+	sram_pbase = gen_pool_virt_to_phys(sram_pool, sram_base);
+	slow_clock = __arm_ioremap_exec(sram_pbase, at91_slow_clock_sz, false);
+
+put_node:
+	of_node_put(node);
+}
+#endif
+
+
+static void __init at91_pm_init(void)
 {
 #ifdef CONFIG_AT91_SLOW_CLOCK
-	slow_clock = (void *) (AT91_IO_VIRT_BASE - at91_slow_clock_sz);
+	at91_pm_sram_init();
 #endif
 
 	pr_info("AT91: Power Management%s\n", (slow_clock ? " (with slow clock mode)" : ""));
 
-	/* AT91RM9200 SDRAM low-power mode cannot be used with self-refresh. */
-	if (cpu_is_at91rm9200())
-		at91_ramc_write(0, AT91RM9200_SDRAMC_LPR, 0);
-	
 	if (at91_cpuidle_device.dev.platform_data)
 		platform_device_register(&at91_cpuidle_device);
 
 	suspend_set_ops(&at91_pm_ops);
-
-	return 0;
 }
-arch_initcall(at91_pm_init);
+
+void __init at91_rm9200_pm_init(void)
+{
+	/*
+	 * AT91RM9200 SDRAM low-power mode cannot be used with self-refresh.
+	 */
+	at91_ramc_write(0, AT91RM9200_SDRAMC_LPR, 0);
+
+	at91_pm_data.uhp_udp_mask = AT91RM9200_PMC_UHP | AT91RM9200_PMC_UDP;
+	at91_pm_data.memctrl = AT91_MEMCTRL_MC;
+
+	at91_pm_init();
+}
+
+void __init at91_sam9260_pm_init(void)
+{
+	at91_pm_data.memctrl = AT91_MEMCTRL_SDRAMC;
+	at91_pm_data.uhp_udp_mask = AT91SAM926x_PMC_UHP | AT91SAM926x_PMC_UDP;
+	return at91_pm_init();
+}
+
+void __init at91_sam9g45_pm_init(void)
+{
+	at91_pm_data.uhp_udp_mask = AT91SAM926x_PMC_UHP;
+	at91_pm_data.memctrl = AT91_MEMCTRL_DDRSDR;
+	return at91_pm_init();
+}
