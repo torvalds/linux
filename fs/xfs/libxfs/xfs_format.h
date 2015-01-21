@@ -151,10 +151,13 @@ typedef struct xfs_sb {
 	__uint32_t	sb_features2;	/* additional feature bits */
 
 	/*
-	 * bad features2 field as a result of failing to pad the sb
-	 * structure to 64 bits. Some machines will be using this field
-	 * for features2 bits. Easiest just to mark it bad and not use
-	 * it for anything else.
+	 * bad features2 field as a result of failing to pad the sb structure to
+	 * 64 bits. Some machines will be using this field for features2 bits.
+	 * Easiest just to mark it bad and not use it for anything else.
+	 *
+	 * This is not kept up to date in memory; it is always overwritten by
+	 * the value in sb_features2 when formatting the incore superblock to
+	 * the disk buffer.
 	 */
 	__uint32_t	sb_bad_features2;
 
@@ -453,13 +456,11 @@ static inline void xfs_sb_version_addattr2(struct xfs_sb *sbp)
 {
 	sbp->sb_versionnum |= XFS_SB_VERSION_MOREBITSBIT;
 	sbp->sb_features2 |= XFS_SB_VERSION2_ATTR2BIT;
-	sbp->sb_bad_features2 |= XFS_SB_VERSION2_ATTR2BIT;
 }
 
 static inline void xfs_sb_version_removeattr2(struct xfs_sb *sbp)
 {
 	sbp->sb_features2 &= ~XFS_SB_VERSION2_ATTR2BIT;
-	sbp->sb_bad_features2 &= ~XFS_SB_VERSION2_ATTR2BIT;
 	if (!sbp->sb_features2)
 		sbp->sb_versionnum &= ~XFS_SB_VERSION_MOREBITSBIT;
 }
@@ -475,7 +476,6 @@ static inline void xfs_sb_version_addprojid32bit(struct xfs_sb *sbp)
 {
 	sbp->sb_versionnum |= XFS_SB_VERSION_MOREBITSBIT;
 	sbp->sb_features2 |= XFS_SB_VERSION2_PROJID32BIT;
-	sbp->sb_bad_features2 |= XFS_SB_VERSION2_PROJID32BIT;
 }
 
 /*

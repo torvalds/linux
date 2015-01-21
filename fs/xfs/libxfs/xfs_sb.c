@@ -497,7 +497,6 @@ xfs_sb_to_disk(
 	to->sb_fdblocks = cpu_to_be64(from->sb_fdblocks);
 	to->sb_frextents = cpu_to_be64(from->sb_frextents);
 
-
 	to->sb_flags = from->sb_flags;
 	to->sb_shared_vn = from->sb_shared_vn;
 	to->sb_inoalignmt = cpu_to_be32(from->sb_inoalignmt);
@@ -507,6 +506,13 @@ xfs_sb_to_disk(
 	to->sb_logsectlog = from->sb_logsectlog;
 	to->sb_logsectsize = cpu_to_be16(from->sb_logsectsize);
 	to->sb_logsunit = cpu_to_be32(from->sb_logsunit);
+
+	/*
+	 * We need to ensure that bad_features2 always matches features2.
+	 * Hence we enforce that here rather than having to remember to do it
+	 * everywhere else that updates features2.
+	 */
+	from->sb_bad_features2 = from->sb_features2;
 	to->sb_features2 = cpu_to_be32(from->sb_features2);
 	to->sb_bad_features2 = cpu_to_be32(from->sb_bad_features2);
 

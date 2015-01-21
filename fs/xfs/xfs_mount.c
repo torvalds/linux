@@ -640,25 +640,24 @@ xfs_mountfs(
 	xfs_sb_mount_common(mp, sbp);
 
 	/*
-	 * Check for a mismatched features2 values.  Older kernels
-	 * read & wrote into the wrong sb offset for sb_features2
-	 * on some platforms due to xfs_sb_t not being 64bit size aligned
-	 * when sb_features2 was added, which made older superblock
-	 * reading/writing routines swap it as a 64-bit value.
+	 * Check for a mismatched features2 values.  Older kernels read & wrote
+	 * into the wrong sb offset for sb_features2 on some platforms due to
+	 * xfs_sb_t not being 64bit size aligned when sb_features2 was added,
+	 * which made older superblock reading/writing routines swap it as a
+	 * 64-bit value.
 	 *
 	 * For backwards compatibility, we make both slots equal.
 	 *
-	 * If we detect a mismatched field, we OR the set bits into the
-	 * existing features2 field in case it has already been modified; we
-	 * don't want to lose any features.  We then update the bad location
-	 * with the ORed value so that older kernels will see any features2
-	 * flags, and mark the two fields as needing updates once the
-	 * transaction subsystem is online.
+	 * If we detect a mismatched field, we OR the set bits into the existing
+	 * features2 field in case it has already been modified; we don't want
+	 * to lose any features.  We then update the bad location with the ORed
+	 * value so that older kernels will see any features2 flags. The
+	 * superblock writeback code ensures the new sb_features2 is copied to
+	 * sb_bad_features2 before it is logged or written to disk.
 	 */
 	if (xfs_sb_has_mismatched_features2(sbp)) {
 		xfs_warn(mp, "correcting sb_features alignment problem");
 		sbp->sb_features2 |= sbp->sb_bad_features2;
-		sbp->sb_bad_features2 = sbp->sb_features2;
 		mp->m_update_sb = true;
 
 		/*
