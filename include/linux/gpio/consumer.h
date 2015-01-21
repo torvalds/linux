@@ -110,6 +110,7 @@ struct fwnode_handle;
 struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 					 const char *propname);
 struct gpio_desc *devm_get_gpiod_from_child(struct device *dev,
+					    const char *con_id,
 					    struct fwnode_handle *child);
 #else /* CONFIG_GPIOLIB */
 
