@@ -738,7 +738,7 @@ static void vnt_fill_txkey(struct vnt_usb_send_context *tx_context,
 
 		mic_hdr->id = 0x59;
 		mic_hdr->payload_len = cpu_to_be16(payload_len);
-		memcpy(mic_hdr->mic_addr2, hdr->addr2, ETH_ALEN);
+		ether_addr_copy(mic_hdr->mic_addr2, hdr->addr2);
 
 		ieee80211_get_key_tx_seq(tx_key, &seq);
 
