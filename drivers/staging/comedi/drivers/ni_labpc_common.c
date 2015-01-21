@@ -400,10 +400,10 @@ static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd,
 		switch (cmd->flags & CMDF_ROUND_MASK) {
 		default:
 		case CMDF_ROUND_NEAREST:
-			devpriv->divisor_a0 =
-			    (convert_period + (base_period / 2)) / base_period;
-			devpriv->divisor_b1 =
-			    (scan_period + (base_period / 2)) / base_period;
+			devpriv->divisor_a0 = DIV_ROUND_CLOSEST(convert_period,
+								base_period);
+			devpriv->divisor_b1 = DIV_ROUND_CLOSEST(scan_period,
+								base_period);
 			break;
 		case CMDF_ROUND_UP:
 			devpriv->divisor_a0 = DIV_ROUND_UP(convert_period,
