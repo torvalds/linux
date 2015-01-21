@@ -10,12 +10,12 @@ greybus-y :=	core.o		\
 		operation.o
 
 gb-phy-y :=	gpb.o		\
-		sdio-gb.o	\
-		uart-gb.o	\
-		pwm-gb.o	\
-		gpio-gb.o	\
-		i2c-gb.o	\
-		usb-gb.o
+		sdio.o	\
+		uart.o	\
+		pwm.o	\
+		gpio.o	\
+		i2c.o	\
+		usb.o
 
 obj-m += greybus.o
 obj-m += gb-phy.o
