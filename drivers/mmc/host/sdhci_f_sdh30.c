@@ -141,7 +141,7 @@ static int sdhci_f_sdh30_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	host->ioaddr = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(host->ioaddr)) {
-		ret = PTR_ERR(host);
+		ret = PTR_ERR(host->ioaddr);
 		goto err;
 	}
 
