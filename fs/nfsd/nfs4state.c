@@ -683,7 +683,7 @@ static void nfs4_put_deleg_lease(struct nfs4_file *fp)
 	spin_unlock(&fp->fi_lock);
 
 	if (filp) {
-		vfs_setlease(filp, F_UNLCK, NULL, NULL);
+		vfs_setlease(filp, F_UNLCK, NULL, (void **)&fp);
 		fput(filp);
 	}
 }
