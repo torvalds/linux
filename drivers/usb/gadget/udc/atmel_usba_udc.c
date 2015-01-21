@@ -264,14 +264,17 @@ static void usba_init_debugfs(struct usba_udc *udc)
 		goto err_root;
 	udc->debugfs_root = root;
 
-	regs = debugfs_create_file("regs", 0400, root, udc, &regs_dbg_fops);
-	if (!regs)
-		goto err_regs;
-
 	regs_resource = platform_get_resource(udc->pdev, IORESOURCE_MEM,
 				CTRL_IOMEM_ID);
-	regs->d_inode->i_size = resource_size(regs_resource);
-	udc->debugfs_regs = regs;
+
+	if (regs_resource) {
+		regs = debugfs_create_file_size("regs", 0400, root, udc,
+						&regs_dbg_fops,
+						resource_size(regs_resource));
+		if (!regs)
+			goto err_regs;
+		udc->debugfs_regs = regs;
+	}
 
 	usba_ep_init_debugfs(udc, to_usba_ep(udc->gadget.ep0));
 

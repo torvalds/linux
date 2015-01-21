@@ -91,12 +91,9 @@ static const struct file_operations mem_debugfs_fops = {
 static void add_debugfs_mem(struct adapter *adap, const char *name,
 			    unsigned int idx, unsigned int size_mb)
 {
-	struct dentry *de;
-
-	de = debugfs_create_file(name, S_IRUSR, adap->debugfs_root,
-				 (void *)adap + idx, &mem_debugfs_fops);
-	if (de && de->d_inode)
-		de->d_inode->i_size = size_mb << 20;
+	debugfs_create_file_size(name, S_IRUSR, adap->debugfs_root,
+				 (void *)adap + idx, &mem_debugfs_fops,
+				 size_mb << 20);
 }
 
 /* Add an array of Debug FS files.
