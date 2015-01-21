@@ -54,7 +54,7 @@ static struct div4_clk div4_clks[] = {
 	{ "m2", "pll1", CPG_FRQCRA,  0 },
 	{ "zx", "pll1", CPG_FRQCRB, 12 },
 	{ "hp", "pll1", CPG_FRQCRB,  4 },
-	{ NULL, 0, 0, 0 },
+	{ NULL, NULL, 0, 0 },
 };
 
 static const struct clk_div_table div4_div_table[] = {
