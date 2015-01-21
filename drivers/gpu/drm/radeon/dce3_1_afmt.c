@@ -226,9 +226,7 @@ void dce3_1_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *m
 	radeon_audio_enable(rdev, dig->afmt->pin, 0);
 
 	radeon_audio_set_dto(encoder, mode->clock);
-
-	WREG32(HDMI0_VBI_PACKET_CONTROL + offset,
-	       HDMI0_NULL_SEND); /* send null packets when required */
+	radeon_audio_set_vbi_packet(encoder);
 
 	WREG32(HDMI0_AUDIO_CRC_CONTROL + offset, 0x1000);
 
@@ -251,11 +249,6 @@ void dce3_1_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *m
 		radeon_audio_write_speaker_allocation(encoder);
 		radeon_audio_write_sad_regs(encoder);
 	}
-
-	WREG32(HDMI0_VBI_PACKET_CONTROL + offset,
-	       HDMI0_NULL_SEND | /* send null packets when required */
-	       HDMI0_GC_SEND | /* send general control packets */
-	       HDMI0_GC_CONT); /* send general control packets every frame */
 
 	/* TODO: HDMI0_AUDIO_INFO_UPDATE */
 	WREG32(HDMI0_INFOFRAME_CONTROL0 + offset,

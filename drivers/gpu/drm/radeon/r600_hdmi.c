@@ -329,6 +329,17 @@ void r600_hdmi_audio_set_dto(struct radeon_device *rdev,
 	}
 }
 
+void r600_set_vbi_packet(struct drm_encoder *encoder, u32 offset)
+{
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
+
+	WREG32_OR(HDMI0_VBI_PACKET_CONTROL + offset,
+		HDMI0_NULL_SEND |	/* send null packets when required */
+		HDMI0_GC_SEND |		/* send general control packets */
+		HDMI0_GC_CONT);		/* send general control packets every frame */
+}
+
 /*
  * update the info frames with the data from the current display mode
  */
@@ -356,6 +367,7 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	radeon_audio_enable(rdev, dig->afmt->pin, 0);
 
 	radeon_audio_set_dto(encoder, mode->clock);
+	radeon_audio_set_vbi_packet(encoder);
 
 	WREG32_P(HDMI0_AUDIO_PACKET_CONTROL + offset,
 		 HDMI0_AUDIO_SAMPLE_SEND | /* send audio packets */
@@ -366,11 +378,6 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 		   HDMI0_AUDIO_DELAY_EN_MASK |
 		   HDMI0_AUDIO_PACKETS_PER_LINE_MASK |
 		   HDMI0_60958_CS_UPDATE));
-
-	WREG32_OR(HDMI0_VBI_PACKET_CONTROL + offset,
-		  HDMI0_NULL_SEND | /* send null packets when required */
-		  HDMI0_GC_SEND | /* send general control packets */
-		  HDMI0_GC_CONT); /* send general control packets every frame */
 
 	WREG32_OR(HDMI0_INFOFRAME_CONTROL0 + offset,
 		  HDMI0_AVI_INFO_SEND | /* enable AVI info frames */

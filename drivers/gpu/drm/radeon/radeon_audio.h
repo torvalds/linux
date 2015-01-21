@@ -57,6 +57,7 @@ struct radeon_audio_funcs
 		struct radeon_crtc *crtc, unsigned int clock);
 	void (*update_acr)(struct drm_encoder *encoder, long offset,
 		const struct radeon_hdmi_acr *acr);
+	void (*set_vbi_packet)(struct drm_encoder *encoder, u32 offset);
 };
 
 int radeon_audio_init(struct radeon_device *rdev);
@@ -79,5 +80,6 @@ void radeon_audio_set_dto(struct drm_encoder *encoder, unsigned int clock);
 void radeon_update_avi_infoframe(struct drm_encoder *encoder, void *buffer,
 	size_t size);
 void radeon_audio_update_acr(struct drm_encoder *encoder, unsigned int clock);
+void radeon_audio_set_vbi_packet(struct drm_encoder *encoder);
 
 #endif

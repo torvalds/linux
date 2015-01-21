@@ -289,6 +289,17 @@ void dce4_dp_audio_set_dto(struct radeon_device *rdev,
 	WREG32(DCCG_AUDIO_DTO1_MODULE, rdev->clock.max_pixel_clock * 10);
 }
 
+void dce4_set_vbi_packet(struct drm_encoder *encoder, u32 offset)
+{
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
+
+	WREG32(HDMI_VBI_PACKET_CONTROL + offset,
+		HDMI_NULL_SEND |	/* send null packets when required */
+		HDMI_GC_SEND |		/* send general control packets */
+		HDMI_GC_CONT);		/* send general control packets every frame */
+}
+
 /*
  * update the info frames with the data from the current display mode
  */
@@ -325,9 +336,7 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	radeon_audio_enable(rdev, dig->afmt->pin, 0);
 
 	radeon_audio_set_dto(encoder, mode->clock);
-
-	WREG32(HDMI_VBI_PACKET_CONTROL + offset,
-	       HDMI_NULL_SEND); /* send null packets when required */
+	radeon_audio_set_vbi_packet(encoder);
 
 	WREG32(AFMT_AUDIO_CRC_CONTROL + offset, 0x1000);
 
@@ -359,11 +368,6 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	}
 
 	WREG32(HDMI_CONTROL + offset, val);
-
-	WREG32(HDMI_VBI_PACKET_CONTROL + offset,
-	       HDMI_NULL_SEND | /* send null packets when required */
-	       HDMI_GC_SEND | /* send general control packets */
-	       HDMI_GC_CONT); /* send general control packets every frame */
 
 	WREG32(HDMI_INFOFRAME_CONTROL0 + offset,
 	       HDMI_AUDIO_INFO_SEND | /* enable audio info frames (frames won't be set until audio is enabled) */

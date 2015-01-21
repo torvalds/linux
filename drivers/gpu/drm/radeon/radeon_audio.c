@@ -85,6 +85,8 @@ void dce3_2_hdmi_update_acr(struct drm_encoder *encoder, long offset,
 	const struct radeon_hdmi_acr *acr);
 void evergreen_hdmi_update_acr(struct drm_encoder *encoder, long offset,
 	const struct radeon_hdmi_acr *acr);
+void r600_set_vbi_packet(struct drm_encoder *encoder, u32 offset);
+void dce4_set_vbi_packet(struct drm_encoder *encoder, u32 offset);
 
 static const u32 pin_offsets[7] =
 {
@@ -140,6 +142,7 @@ static struct radeon_audio_funcs r600_hdmi_funcs = {
 	.get_pin = r600_audio_get_pin,
 	.set_dto = r600_hdmi_audio_set_dto,
 	.update_acr = r600_hdmi_update_acr,
+	.set_vbi_packet = r600_set_vbi_packet,
 };
 
 static struct radeon_audio_funcs dce32_hdmi_funcs = {
@@ -148,6 +151,7 @@ static struct radeon_audio_funcs dce32_hdmi_funcs = {
 	.write_speaker_allocation = dce3_2_afmt_hdmi_write_speaker_allocation,
 	.set_dto = dce3_2_audio_set_dto,
 	.update_acr = dce3_2_hdmi_update_acr,
+	.set_vbi_packet = r600_set_vbi_packet,
 };
 
 static struct radeon_audio_funcs dce32_dp_funcs = {
@@ -164,6 +168,7 @@ static struct radeon_audio_funcs dce4_hdmi_funcs = {
 	.write_latency_fields = dce4_afmt_write_latency_fields,
 	.set_dto = dce4_hdmi_audio_set_dto,
 	.update_acr = evergreen_hdmi_update_acr,
+	.set_vbi_packet = dce4_set_vbi_packet,
 };
 
 static struct radeon_audio_funcs dce4_dp_funcs = {
@@ -182,6 +187,7 @@ static struct radeon_audio_funcs dce6_hdmi_funcs = {
 	.write_latency_fields = dce6_afmt_write_latency_fields,
 	.set_dto = dce6_hdmi_audio_set_dto,
 	.update_acr = evergreen_hdmi_update_acr,
+	.set_vbi_packet = dce4_set_vbi_packet,
 };
 
 static struct radeon_audio_funcs dce6_dp_funcs = {
@@ -555,4 +561,16 @@ void radeon_audio_update_acr(struct drm_encoder *encoder, unsigned int clock)
 
 	if (radeon_encoder->audio && radeon_encoder->audio->update_acr)
 		radeon_encoder->audio->update_acr(encoder, dig->afmt->offset, acr);
+}
+
+void radeon_audio_set_vbi_packet(struct drm_encoder *encoder)
+{
+    struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+    struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+
+	if (!dig || !dig->afmt)
+		return;
+
+	if (radeon_encoder->audio && radeon_encoder->audio->set_vbi_packet)
+		radeon_encoder->audio->set_vbi_packet(encoder, dig->afmt->offset);
 }
