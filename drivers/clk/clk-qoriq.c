@@ -86,19 +86,16 @@ static void __init core_mux_init(struct device_node *np)
 		return;
 	}
 	parent_names = kcalloc(count, sizeof(char *), GFP_KERNEL);
-	if (!parent_names) {
-		pr_err("%s: could not allocate parent_names\n", __func__);
+	if (!parent_names)
 		return;
-	}
 
 	for (i = 0; i < count; i++)
 		parent_names[i] = of_clk_get_parent_name(np, i);
 
 	cmux_clk = kzalloc(sizeof(*cmux_clk), GFP_KERNEL);
-	if (!cmux_clk) {
-		pr_err("%s: could not allocate cmux_clk\n", __func__);
+	if (!cmux_clk)
 		goto err_name;
-	}
+
 	cmux_clk->reg = of_iomap(np, 0);
 	if (!cmux_clk->reg) {
 		pr_err("%s: could not map register\n", __func__);
@@ -193,16 +190,12 @@ static void __init core_pll_init(struct device_node *np)
 	}
 
 	subclks = kcalloc(count, sizeof(struct clk *), GFP_KERNEL);
-	if (!subclks) {
-		pr_err("%s: could not allocate subclks\n", __func__);
+	if (!subclks)
 		goto err_map;
-	}
 
 	onecell_data = kzalloc(sizeof(*onecell_data), GFP_KERNEL);
-	if (!onecell_data) {
-		pr_err("%s: could not allocate onecell_data\n", __func__);
+	if (!onecell_data)
 		goto err_clks;
-	}
 
 	for (i = 0; i < count; i++) {
 		rc = of_property_read_string_index(np, "clock-output-names",
