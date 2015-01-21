@@ -477,7 +477,8 @@ static void r4k_tlb_configure(void)
 	write_c0_wired(0);
 	if (current_cpu_type() == CPU_R10000 ||
 	    current_cpu_type() == CPU_R12000 ||
-	    current_cpu_type() == CPU_R14000)
+	    current_cpu_type() == CPU_R14000 ||
+	    current_cpu_type() == CPU_R16000)
 		write_c0_framemask(0);
 
 	if (cpu_has_rixi) {

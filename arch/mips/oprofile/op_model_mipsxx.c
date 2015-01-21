@@ -296,6 +296,7 @@ static inline int n_counters(void)
 
 	case CPU_R12000:
 	case CPU_R14000:
+	case CPU_R16000:
 		counters = 4;
 		break;
 
@@ -409,6 +410,10 @@ static int __init mipsxx_init(void)
 	case CPU_R12000:
 	case CPU_R14000:
 		op_model_mipsxx_ops.cpu_type = "mips/r12000";
+		break;
+
+	case CPU_R16000:
+		op_model_mipsxx_ops.cpu_type = "mips/r16000";
 		break;
 
 	case CPU_SB1:
