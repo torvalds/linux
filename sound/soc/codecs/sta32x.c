@@ -24,6 +24,8 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio/consumer.h>
@@ -893,14 +895,48 @@ static int sta32x_probe(struct snd_soc_codec *codec)
 		dev_err(codec->dev, "Failed to startup device\n");
 		return ret;
 	}
-	/* set thermal warning adjustment and recovery */
+
+	/* CONFA */
 	if (!pdata->thermal_warning_recovery)
 		thermal |= STA32X_CONFA_TWAB;
 	if (!pdata->thermal_warning_adjustment)
 		thermal |= STA32X_CONFA_TWRB;
+	if (!pdata->fault_detect_recovery)
+		thermal |= STA32X_CONFA_FDRB;
 	regmap_update_bits(sta32x->regmap, STA32X_CONFA,
-			   STA32X_CONFA_TWAB | STA32X_CONFA_TWRB,
+			   STA32X_CONFA_TWAB | STA32X_CONFA_TWRB |
+			   STA32X_CONFA_FDRB,
 			   thermal);
+
+	/* CONFC */
+	regmap_update_bits(sta32x->regmap, STA32X_CONFC,
+			   STA32X_CONFC_CSZ_MASK,
+			   pdata->drop_compensation_ns
+				<< STA32X_CONFC_CSZ_SHIFT);
+
+	/* CONFE */
+	regmap_update_bits(sta32x->regmap, STA32X_CONFE,
+			   STA32X_CONFE_MPCV,
+			   pdata->max_power_use_mpcc ?
+				STA32X_CONFE_MPCV : 0);
+	regmap_update_bits(sta32x->regmap, STA32X_CONFE,
+			   STA32X_CONFE_MPC,
+			   pdata->max_power_correction ?
+				STA32X_CONFE_MPC : 0);
+	regmap_update_bits(sta32x->regmap, STA32X_CONFE,
+			   STA32X_CONFE_AME,
+			   pdata->am_reduction_mode ?
+				STA32X_CONFE_AME : 0);
+	regmap_update_bits(sta32x->regmap, STA32X_CONFE,
+			   STA32X_CONFE_PWMS,
+			   pdata->odd_pwm_speed_mode ?
+				STA32X_CONFE_PWMS : 0);
+
+	/*  CONFF */
+	regmap_update_bits(sta32x->regmap, STA32X_CONFF,
+			   STA32X_CONFF_IDE,
+			   pdata->invalid_input_detect_mute ?
+				STA32X_CONFF_IDE : 0);
 
 	/* select output configuration  */
 	regmap_update_bits(sta32x->regmap, STA32X_CONFF,
@@ -977,7 +1013,66 @@ static const struct regmap_config sta32x_regmap = {
 	.rd_table =		&sta32x_read_regs,
 	.volatile_table =	&sta32x_volatile_regs,
 };
+
+#ifdef CONFIG_OF
+static const struct of_device_id st32x_dt_ids[] = {
+	{ .compatible = "st,sta32x", },
+	{ }
 };
+MODULE_DEVICE_TABLE(of, st32x_dt_ids);
+
+static int sta32x_probe_dt(struct device *dev, struct sta32x_priv *sta32x)
+{
+	struct device_node *np = dev->of_node;
+	struct sta32x_platform_data *pdata;
+	u16 tmp;
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
+
+	of_property_read_u8(np, "st,output-conf",
+			    &pdata->output_conf);
+	of_property_read_u8(np, "st,ch1-output-mapping",
+			    &pdata->ch1_output_mapping);
+	of_property_read_u8(np, "st,ch2-output-mapping",
+			    &pdata->ch2_output_mapping);
+	of_property_read_u8(np, "st,ch3-output-mapping",
+			    &pdata->ch3_output_mapping);
+
+	if (of_get_property(np, "st,thermal-warning-recovery", NULL))
+		pdata->thermal_warning_recovery = 1;
+	if (of_get_property(np, "st,thermal-warning-adjustment", NULL))
+		pdata->thermal_warning_adjustment = 1;
+	if (of_get_property(np, "st,needs_esd_watchdog", NULL))
+		pdata->needs_esd_watchdog = 1;
+
+	tmp = 140;
+	of_property_read_u16(np, "st,drop-compensation-ns", &tmp);
+	pdata->drop_compensation_ns = clamp_t(u16, tmp, 0, 300) / 20;
+
+	/* CONFE */
+	if (of_get_property(np, "st,max-power-use-mpcc", NULL))
+		pdata->max_power_use_mpcc = 1;
+
+	if (of_get_property(np, "st,max-power-correction", NULL))
+		pdata->max_power_correction = 1;
+
+	if (of_get_property(np, "st,am-reduction-mode", NULL))
+		pdata->am_reduction_mode = 1;
+
+	if (of_get_property(np, "st,odd-pwm-speed-mode", NULL))
+		pdata->odd_pwm_speed_mode = 1;
+
+	/* CONFF */
+	if (of_get_property(np, "st,invalid-input-detect-mute", NULL))
+		pdata->invalid_input_detect_mute = 1;
+
+	sta32x->pdata = pdata;
+
+	return 0;
+}
+#endif
 
 static int sta32x_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
@@ -993,6 +1088,14 @@ static int sta32x_i2c_probe(struct i2c_client *i2c,
 
 	mutex_init(&sta32x->coeff_lock);
 	sta32x->pdata = dev_get_platdata(dev);
+
+#ifdef CONFIG_OF
+	if (dev->of_node) {
+		ret = sta32x_probe_dt(dev, sta32x);
+		if (ret < 0)
+			return ret;
+	}
+#endif
 
 	/* GPIOs */
 	sta32x->gpiod_nreset = devm_gpiod_get(dev, "reset");
@@ -1051,6 +1154,7 @@ static struct i2c_driver sta32x_i2c_driver = {
 	.driver = {
 		.name = "sta32x",
 		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(st32x_dt_ids),
 	},
 	.probe =    sta32x_i2c_probe,
 	.remove =   sta32x_i2c_remove,
