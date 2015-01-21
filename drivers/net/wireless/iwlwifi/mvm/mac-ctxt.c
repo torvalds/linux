@@ -244,6 +244,7 @@ static void iwl_mvm_mac_sta_hw_queues_iter(void *_data,
 unsigned long iwl_mvm_get_used_hw_queues(struct iwl_mvm *mvm,
 					 struct ieee80211_vif *exclude_vif)
 {
+	u8 sta_id;
 	struct iwl_mvm_hw_queues_iface_iterator_data data = {
 		.exclude_vif = exclude_vif,
 		.used_hw_queues =
@@ -263,6 +264,13 @@ unsigned long iwl_mvm_get_used_hw_queues(struct iwl_mvm *mvm,
 	ieee80211_iterate_stations_atomic(mvm->hw,
 					  iwl_mvm_mac_sta_hw_queues_iter,
 					  &data);
+
+	/*
+	 * Some TDLS stations may be removed but are in the process of being
+	 * drained. Don't touch their queues.
+	 */
+	for_each_set_bit(sta_id, mvm->sta_drained, IWL_MVM_STATION_COUNT)
+		data.used_hw_queues |= mvm->tfd_drained[sta_id];
 
 	return data.used_hw_queues;
 }
