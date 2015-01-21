@@ -368,10 +368,6 @@ static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd,
 			     enum scan_mode mode)
 {
 	struct labpc_private *devpriv = dev->private;
-	/* max value for 16 bit counter in mode 2 */
-	const int max_counter_value = 0x10000;
-	/* min value for 16 bit counter in mode 2 */
-	const int min_counter_value = 2;
 	unsigned int base_period;
 	unsigned int scan_period;
 	unsigned int convert_period;
@@ -388,11 +384,10 @@ static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd,
 		 * clock speed on convert and scan counters)
 		 */
 		devpriv->divisor_b0 = (scan_period - 1) /
-		    (I8254_OSC_BASE_2MHZ * max_counter_value) + 1;
-		if (devpriv->divisor_b0 < min_counter_value)
-			devpriv->divisor_b0 = min_counter_value;
-		if (devpriv->divisor_b0 > max_counter_value)
-			devpriv->divisor_b0 = max_counter_value;
+		    (I8254_OSC_BASE_2MHZ * 0x10000) + 1;
+
+		cfc_check_trigger_arg_min(&devpriv->divisor_b0, 2);
+		cfc_check_trigger_arg_max(&devpriv->divisor_b0, 0x10000);
 
 		base_period = I8254_OSC_BASE_2MHZ * devpriv->divisor_b0;
 
@@ -417,14 +412,10 @@ static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd,
 			break;
 		}
 		/*  make sure a0 and b1 values are acceptable */
-		if (devpriv->divisor_a0 < min_counter_value)
-			devpriv->divisor_a0 = min_counter_value;
-		if (devpriv->divisor_a0 > max_counter_value)
-			devpriv->divisor_a0 = max_counter_value;
-		if (devpriv->divisor_b1 < min_counter_value)
-			devpriv->divisor_b1 = min_counter_value;
-		if (devpriv->divisor_b1 > max_counter_value)
-			devpriv->divisor_b1 = max_counter_value;
+		cfc_check_trigger_arg_min(&devpriv->divisor_a0, 2);
+		cfc_check_trigger_arg_max(&devpriv->divisor_a0, 0x10000);
+		cfc_check_trigger_arg_min(&devpriv->divisor_b1, 2);
+		cfc_check_trigger_arg_max(&devpriv->divisor_b1, 0x10000);
 		/*  write corrected timings to command */
 		labpc_set_ai_convert_period(cmd, mode,
 					    base_period * devpriv->divisor_a0);
