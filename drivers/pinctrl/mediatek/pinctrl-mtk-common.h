@@ -16,10 +16,16 @@
 #define __PINCTRL_MTK_COMMON_H
 
 #include <linux/pinctrl/pinctrl.h>
-#include <linux/spinlock.h>
 #include <linux/regmap.h>
 
 #define NO_EINT_SUPPORT    255
+#define MTK_CHIP_TYPE_BASE     0
+#define MTK_CHIP_TYPE_PMIC     1
+#define MT_EDGE_SENSITIVE           0
+#define MT_LEVEL_SENSITIVE          1
+#define EINT_DBNC_SET_DBNC_BITS     4
+#define EINT_DBNC_RST_BIT           (0x1 << 1)
+#define EINT_DBNC_SET_EN            (0x1 << 0)
 
 struct mtk_desc_function {
 	const char *name;
@@ -115,6 +121,27 @@ struct mtk_pin_drv_grp {
 		.grp = _grp,	\
 	}
 
+struct mtk_eint_offsets {
+	const char *name;
+	unsigned int  stat;
+	unsigned int  ack;
+	unsigned int  mask;
+	unsigned int  mask_set;
+	unsigned int  mask_clr;
+	unsigned int  sens;
+	unsigned int  sens_set;
+	unsigned int  sens_clr;
+	unsigned int  pol;
+	unsigned int  pol_set;
+	unsigned int  pol_clr;
+	unsigned int  dom_en;
+	unsigned int  dbnc_ctrl;
+	unsigned int  dbnc_set;
+	unsigned int  dbnc_clr;
+	u8  port_mask;
+	u8  ports;
+};
+
 /**
  * struct mtk_pinctrl_devdata - Provide HW GPIO related data.
  * @pins: An array describing all pins the pin controller affects.
@@ -165,6 +192,10 @@ struct mtk_pinctrl_devdata {
 	unsigned char  port_shf;
 	unsigned char  port_mask;
 	unsigned char  port_align;
+	unsigned char	chip_type;
+	struct mtk_eint_offsets eint_offsets;
+	unsigned int	ap_num;
+	unsigned int	db_cnt;
 };
 
 struct mtk_pinctrl {
@@ -177,6 +208,8 @@ struct mtk_pinctrl {
 	const char          **grp_names;
 	struct pinctrl_dev      *pctl_dev;
 	const struct mtk_pinctrl_devdata  *devdata;
+	void __iomem		*eint_reg_base;
+	struct irq_domain	*domain;
 };
 
 int mtk_pctrl_init(struct platform_device *pdev,
