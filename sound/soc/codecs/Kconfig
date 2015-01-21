@@ -581,6 +581,7 @@ config SND_SOC_SSM4567
 
 config SND_SOC_STA32X
 	tristate
+	select REGMAP_I2C
 
 config SND_SOC_STA350
 	tristate "STA350 speaker amplifier"
