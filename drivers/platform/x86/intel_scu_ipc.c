@@ -176,21 +176,21 @@ static inline u32 ipc_data_readl(u32 offset) /* Read ipc u32 data */
 /* Wait till scu status is busy */
 static inline int busy_loop(void)
 {
-	u32 status = 0;
-	u32 loop_count = 0;
+	u32 status = ipc_read_status();
+	u32 loop_count = 100000;
 
-	status = ipc_read_status();
-	while (status & 1) {
+	/* break if scu doesn't reset busy bit after huge retry */
+	while ((status & BIT(0)) && --loop_count) {
 		udelay(1); /* scu processing time is in few u secods */
 		status = ipc_read_status();
-		loop_count++;
-		/* break if scu doesn't reset busy bit after huge retry */
-		if (loop_count > 100000) {
-			dev_err(&ipcdev.pdev->dev, "IPC timed out");
-			return -ETIMEDOUT;
-		}
 	}
-	if ((status >> 1) & 1)
+
+	if (status & BIT(0)) {
+		dev_err(&ipcdev.pdev->dev, "IPC timed out");
+		return -ETIMEDOUT;
+	}
+
+	if (status & BIT(1))
 		return -EIO;
 
 	return 0;
@@ -208,8 +208,7 @@ static inline int ipc_wait_for_interrupt(void)
 	}
 
 	status = ipc_read_status();
-
-	if ((status >> 1) & 1)
+	if (status & BIT(1))
 		return -EIO;
 
 	return 0;
