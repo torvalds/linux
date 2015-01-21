@@ -210,10 +210,7 @@ struct rpcrdma_mw {
  */
 
 struct rpcrdma_mr_seg {		/* chunk descriptors */
-	union {				/* chunk memory handles */
-		struct ib_mr	*rl_mr;		/* if registered directly */
-		struct rpcrdma_mw *rl_mw;	/* if registered from region */
-	} mr_chunk;
+	struct rpcrdma_mw *rl_mw;	/* registered MR */
 	u64		mr_base;	/* registration result */
 	u32		mr_rkey;	/* registration result */
 	u32		mr_len;		/* length of chunk or segment */
