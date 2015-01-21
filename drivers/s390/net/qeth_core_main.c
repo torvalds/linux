@@ -2021,10 +2021,36 @@ void qeth_prepare_control_data(struct qeth_card *card, int len,
 }
 EXPORT_SYMBOL_GPL(qeth_prepare_control_data);
 
+/**
+ * qeth_send_control_data() -	send control command to the card
+ * @card:			qeth_card structure pointer
+ * @len:			size of the command buffer
+ * @iob:			qeth_cmd_buffer pointer
+ * @reply_cb:			callback function pointer
+ * @cb_card:			pointer to the qeth_card structure
+ * @cb_reply:			pointer to the qeth_reply structure
+ * @cb_cmd:			pointer to the original iob for non-IPA
+ *				commands, or to the qeth_ipa_cmd structure
+ *				for the IPA commands.
+ * @reply_param:		private pointer passed to the callback
+ *
+ * Returns the value of the `return_code' field of the response
+ * block returned from the hardware, or other error indication.
+ * Value of zero indicates successful execution of the command.
+ *
+ * Callback function gets called one or more times, with cb_cmd
+ * pointing to the response returned by the hardware. Callback
+ * function must return non-zero if more reply blocks are expected,
+ * and zero if the last or only reply block is received. Callback
+ * function can get the value of the reply_param pointer from the
+ * field 'param' of the structure qeth_reply.
+ */
+
 int qeth_send_control_data(struct qeth_card *card, int len,
 		struct qeth_cmd_buffer *iob,
-		int (*reply_cb)(struct qeth_card *, struct qeth_reply *,
-			unsigned long),
+		int (*reply_cb)(struct qeth_card *cb_card,
+				struct qeth_reply *cb_reply,
+				unsigned long cb_cmd),
 		void *reply_param)
 {
 	int rc;
@@ -2931,6 +2957,12 @@ void qeth_prepare_ipa_cmd(struct qeth_card *card, struct qeth_cmd_buffer *iob,
 	       &card->token.ulp_connection_r, QETH_MPC_TOKEN_LENGTH);
 }
 EXPORT_SYMBOL_GPL(qeth_prepare_ipa_cmd);
+
+/**
+ * qeth_send_ipa_cmd() - send an IPA command
+ *
+ * See qeth_send_control_data() for explanation of the arguments.
+ */
 
 int qeth_send_ipa_cmd(struct qeth_card *card, struct qeth_cmd_buffer *iob,
 		int (*reply_cb)(struct qeth_card *, struct qeth_reply*,
