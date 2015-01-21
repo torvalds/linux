@@ -867,7 +867,7 @@ static const struct snd_soc_dai_ops sta32x_dai_ops = {
 };
 
 static struct snd_soc_dai_driver sta32x_dai = {
-	.name = "STA32X",
+	.name = "sta32x-hifi",
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 2,
