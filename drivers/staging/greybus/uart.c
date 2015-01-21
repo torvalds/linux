@@ -38,14 +38,14 @@
 #define GB_UART_VERSION_MINOR		0x01
 
 /* Greybus UART request types */
-#define GB_UART_REQ_INVALID			0x00
-#define GB_UART_REQ_PROTOCOL_VERSION		0x01
-#define GB_UART_REQ_SEND_DATA			0x02
-#define GB_UART_REQ_RECEIVE_DATA		0x03	/* Unsolicited data */
-#define GB_UART_REQ_SET_LINE_CODING		0x04
-#define GB_UART_REQ_SET_CONTROL_LINE_STATE	0x05
-#define GB_UART_REQ_SET_BREAK			0x06
-#define GB_UART_REQ_SERIAL_STATE		0x07	/* Unsolicited data */
+#define GB_UART_TYPE_INVALID			0x00
+#define GB_UART_TYPE_PROTOCOL_VERSION		0x01
+#define GB_UART_TYPE_SEND_DATA			0x02
+#define GB_UART_TYPE_RECEIVE_DATA		0x03	/* Unsolicited data */
+#define GB_UART_TYPE_SET_LINE_CODING		0x04
+#define GB_UART_TYPE_SET_CONTROL_LINE_STATE	0x05
+#define GB_UART_TYPE_SET_BREAK			0x06
+#define GB_UART_TYPE_SERIAL_STATE		0x07	/* Unsolicited data */
 #define GB_UART_TYPE_RESPONSE			0x80	/* OR'd with rest */
 
 struct gb_uart_proto_version_response {
@@ -141,7 +141,7 @@ static int get_version(struct gb_tty *tty)
 	int ret;
 
 	ret = gb_operation_sync(tty->connection,
-				GB_UART_REQ_PROTOCOL_VERSION,
+				GB_UART_TYPE_PROTOCOL_VERSION,
 				NULL, 0, &response, sizeof(response));
 	if (ret)
 		return ret;
@@ -173,7 +173,7 @@ static int send_data(struct gb_tty *tty, u16 size, const u8 *data)
 
 	request->size = cpu_to_le16(size);
 	memcpy(&request->data[0], data, size);
-	retval = gb_operation_sync(tty->connection, GB_UART_REQ_SEND_DATA,
+	retval = gb_operation_sync(tty->connection, GB_UART_TYPE_SEND_DATA,
 				   request, sizeof(*request) + size, NULL, 0);
 
 	kfree(request);
@@ -186,7 +186,7 @@ static int send_line_coding(struct gb_tty *tty)
 
 	memcpy(&request.line_coding, &tty->line_coding,
 	       sizeof(tty->line_coding));
-	return gb_operation_sync(tty->connection, GB_UART_REQ_SET_LINE_CODING,
+	return gb_operation_sync(tty->connection, GB_UART_TYPE_SET_LINE_CODING,
 				 &request, sizeof(request), NULL, 0);
 }
 
@@ -196,7 +196,7 @@ static int send_control(struct gb_tty *tty, u16 control)
 
 	request.control = cpu_to_le16(control);
 	return gb_operation_sync(tty->connection,
-				 GB_UART_REQ_SET_CONTROL_LINE_STATE,
+				 GB_UART_TYPE_SET_CONTROL_LINE_STATE,
 				 &request, sizeof(request), NULL, 0);
 }
 
@@ -211,7 +211,7 @@ static int send_break(struct gb_tty *tty, u8 state)
 	}
 
 	request.state = state;
-	return gb_operation_sync(tty->connection, GB_UART_REQ_SET_BREAK,
+	return gb_operation_sync(tty->connection, GB_UART_TYPE_SET_BREAK,
 				 &request, sizeof(request), NULL, 0);
 }
 
