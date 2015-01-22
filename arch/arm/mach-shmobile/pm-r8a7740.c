@@ -9,9 +9,13 @@
  * for more details.
  */
 #include <linux/console.h>
+#include <linux/io.h>
 #include <linux/suspend.h>
+
 #include "common.h"
 #include "pm-rmobile.h"
+
+#define SYSC_BASE	IOMEM(0xe6180000)
 
 #if defined(CONFIG_PM) && !defined(CONFIG_ARCH_MULTIPLATFORM)
 static int r8a7740_pd_a3sm_suspend(void)
@@ -45,41 +49,51 @@ static int r8a7740_pd_d4_suspend(void)
 static struct rmobile_pm_domain r8a7740_pm_domains[] = {
 	{
 		.genpd.name	= "A4LC",
+		.base		= SYSC_BASE,
 		.bit_shift	= 1,
 	}, {
 		.genpd.name	= "A4MP",
+		.base		= SYSC_BASE,
 		.bit_shift	= 2,
 	}, {
 		.genpd.name	= "D4",
+		.base		= SYSC_BASE,
 		.bit_shift	= 3,
 		.gov		= &pm_domain_always_on_gov,
 		.suspend	= r8a7740_pd_d4_suspend,
 	}, {
 		.genpd.name	= "A4R",
+		.base		= SYSC_BASE,
 		.bit_shift	= 5,
 	}, {
 		.genpd.name	= "A3RV",
+		.base		= SYSC_BASE,
 		.bit_shift	= 6,
 	}, {
 		.genpd.name	= "A4S",
+		.base		= SYSC_BASE,
 		.bit_shift	= 10,
 		.no_debug	= true,
 	}, {
 		.genpd.name	= "A3SP",
+		.base		= SYSC_BASE,
 		.bit_shift	= 11,
 		.gov		= &pm_domain_always_on_gov,
 		.no_debug	= true,
 		.suspend	= r8a7740_pd_a3sp_suspend,
 	}, {
 		.genpd.name	= "A3SM",
+		.base		= SYSC_BASE,
 		.bit_shift	= 12,
 		.gov		= &pm_domain_always_on_gov,
 		.suspend	= r8a7740_pd_a3sm_suspend,
 	}, {
 		.genpd.name	= "A3SG",
+		.base		= SYSC_BASE,
 		.bit_shift	= 13,
 	}, {
 		.genpd.name	= "A4SU",
+		.base		= SYSC_BASE,
 		.bit_shift	= 20,
 	},
 };
