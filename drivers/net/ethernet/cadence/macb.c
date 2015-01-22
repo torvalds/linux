@@ -2205,7 +2205,7 @@ static void macb_probe_queues(void __iomem *mem,
 			(*num_queues)++;
 }
 
-static int __init macb_probe(struct platform_device *pdev)
+static int macb_probe(struct platform_device *pdev)
 {
 	struct macb_platform_data *pdata;
 	struct resource *regs;
@@ -2444,7 +2444,7 @@ err_out:
 	return err;
 }
 
-static int __exit macb_remove(struct platform_device *pdev)
+static int macb_remove(struct platform_device *pdev)
 {
 	struct net_device *dev;
 	struct macb *bp;
@@ -2507,7 +2507,8 @@ static int macb_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(macb_pm_ops, macb_suspend, macb_resume);
 
 static struct platform_driver macb_driver = {
-	.remove		= __exit_p(macb_remove),
+	.probe		= macb_probe,
+	.remove		= macb_remove,
 	.driver		= {
 		.name		= "macb",
 		.of_match_table	= of_match_ptr(macb_dt_ids),
@@ -2515,7 +2516,7 @@ static struct platform_driver macb_driver = {
 	},
 };
 
-module_platform_driver_probe(macb_driver, macb_probe);
+module_platform_driver(macb_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Cadence MACB/GEM Ethernet driver");
