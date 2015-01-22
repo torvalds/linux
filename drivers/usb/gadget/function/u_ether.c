@@ -417,7 +417,7 @@ static void rx_fill(struct eth_dev *dev, gfp_t gfp_flags)
 	spin_lock_irqsave(&dev->req_lock, flags);
 	while (!list_empty(&dev->rx_reqs)) {
 		/* break the nexus of continuous completion and re-submission*/
-		if (++req_cnt > qlen(dev->gadget))
+		if (++req_cnt > qlen(dev->gadget, dev->qmult))
 			break;
 
 		req = container_of(dev->rx_reqs.next,
@@ -745,7 +745,7 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 	if (gadget_is_dualspeed(dev->gadget) &&
 			 (dev->gadget->speed == USB_SPEED_HIGH)) {
 		dev->tx_qlen++;
-		if (dev->tx_qlen == (qmult/2)) {
+		if (dev->tx_qlen == (dev->qmult/2)) {
 			req->no_interrupt = 0;
 			dev->tx_qlen = 0;
 		} else {
