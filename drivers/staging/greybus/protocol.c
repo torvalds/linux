@@ -70,7 +70,7 @@ int __gb_protocol_register(struct gb_protocol *protocol, struct module *module)
 	 * We need to insert the protocol here, before the existing one
 	 * (or before the head if we searched the whole list)
 	 */
-	list_add_tail(&protocol->links, &existing->links);
+	list_add_tail(&protocol->links, &gb_protocols);
 	spin_unlock_irq(&gb_protocols_lock);
 
 	pr_info("Registered %s protocol.\n", protocol->name);
