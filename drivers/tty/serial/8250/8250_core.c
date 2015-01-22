@@ -2549,6 +2549,15 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 				  port->uartclk / 16);
 	quot = serial8250_get_divisor(up, baud, &frac);
 
+	/*
+	 * Ok, we're now changing the port state.  Do it with
+	 * interrupts disabled.
+	 */
+	serial8250_rpm_get(up);
+	spin_lock_irqsave(&port->lock, flags);
+
+	up->lcr = cval;					/* Save computed LCR */
+
 	if (up->capabilities & UART_CAP_FIFO && port->fifosize > 1) {
 		/* NOTE: If fifo_bug is not set, a user can set RX_trigger. */
 		if ((baud < 2400 && !up->dma) || up->fifo_bug) {
@@ -2570,15 +2579,6 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 		if (termios->c_cflag & CRTSCTS)
 			up->mcr |= UART_MCR_AFE;
 	}
-
-	/*
-	 * Ok, we're now changing the port state.  Do it with
-	 * interrupts disabled.
-	 */
-	serial8250_rpm_get(up);
-	spin_lock_irqsave(&port->lock, flags);
-
-	up->lcr = cval;					/* Save computed LCR */
 
 	/*
 	 * Update the per-port timeout.
