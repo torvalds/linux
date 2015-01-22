@@ -1584,7 +1584,7 @@ cfs_hash_for_each_relax(struct cfs_hash *hs, cfs_hash_for_each_cb_t func,
 
 	stop_on_change = cfs_hash_with_rehash_key(hs) ||
 			 !cfs_hash_with_no_itemref(hs) ||
-			 CFS_HOP(hs, put_locked) == NULL;
+			 hs->hs_ops->hs_put_locked == NULL;
 	cfs_hash_lock(hs, 0);
 	LASSERT(!cfs_hash_is_rehashing(hs));
 
@@ -1639,9 +1639,9 @@ cfs_hash_for_each_nolock(struct cfs_hash *hs,
 	    !cfs_hash_with_no_itemref(hs))
 		return -EOPNOTSUPP;
 
-	if (CFS_HOP(hs, get) == NULL ||
-	    (CFS_HOP(hs, put) == NULL &&
-	     CFS_HOP(hs, put_locked) == NULL))
+	if (hs->hs_ops->hs_get == NULL ||
+	    (hs->hs_ops->hs_put == NULL &&
+	     hs->hs_ops->hs_put_locked == NULL))
 		return -EOPNOTSUPP;
 
 	cfs_hash_for_each_enter(hs);
@@ -1671,9 +1671,9 @@ cfs_hash_for_each_empty(struct cfs_hash *hs,
 	if (cfs_hash_with_no_lock(hs))
 		return -EOPNOTSUPP;
 
-	if (CFS_HOP(hs, get) == NULL ||
-	    (CFS_HOP(hs, put) == NULL &&
-	     CFS_HOP(hs, put_locked) == NULL))
+	if (hs->hs_ops->hs_get == NULL ||
+	    (hs->hs_ops->hs_put == NULL &&
+	     hs->hs_ops->hs_put_locked == NULL))
 		return -EOPNOTSUPP;
 
 	cfs_hash_for_each_enter(hs);
