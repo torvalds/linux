@@ -5009,6 +5009,7 @@ static int fixup_tree_root_location(struct btrfs_root *root,
 	struct btrfs_root *new_root;
 	struct btrfs_root_ref *ref;
 	struct extent_buffer *leaf;
+	struct btrfs_key key;
 	int ret;
 	int err = 0;
 
@@ -5019,9 +5020,12 @@ static int fixup_tree_root_location(struct btrfs_root *root,
 	}
 
 	err = -ENOENT;
-	ret = btrfs_find_item(root->fs_info->tree_root, path,
-				BTRFS_I(dir)->root->root_key.objectid,
-				location->objectid, BTRFS_ROOT_REF_KEY, NULL);
+	key.objectid = BTRFS_I(dir)->root->root_key.objectid;
+	key.type = BTRFS_ROOT_REF_KEY;
+	key.offset = location->objectid;
+
+	ret = btrfs_search_slot(NULL, root->fs_info->tree_root, &key, path,
+				0, 0);
 	if (ret) {
 		if (ret < 0)
 			err = ret;

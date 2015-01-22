@@ -1630,6 +1630,8 @@ struct btrfs_root *btrfs_get_fs_root(struct btrfs_fs_info *fs_info,
 				     bool check_ref)
 {
 	struct btrfs_root *root;
+	struct btrfs_path *path;
+	struct btrfs_key key;
 	int ret;
 
 	if (location->objectid == BTRFS_ROOT_TREE_OBJECTID)
@@ -1669,8 +1671,17 @@ again:
 	if (ret)
 		goto fail;
 
-	ret = btrfs_find_item(fs_info->tree_root, NULL, BTRFS_ORPHAN_OBJECTID,
-			location->objectid, BTRFS_ORPHAN_ITEM_KEY, NULL);
+	path = btrfs_alloc_path();
+	if (!path) {
+		ret = -ENOMEM;
+		goto fail;
+	}
+	key.objectid = BTRFS_ORPHAN_OBJECTID;
+	key.type = BTRFS_ORPHAN_ITEM_KEY;
+	key.offset = location->objectid;
+
+	ret = btrfs_search_slot(NULL, fs_info->tree_root, &key, path, 0, 0);
+	btrfs_free_path(path);
 	if (ret < 0)
 		goto fail;
 	if (ret == 0)
