@@ -269,12 +269,31 @@ static void pwm_samsung_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	spin_unlock_irqrestore(&samsung_pwm_lock, flags);
 }
 
+static void pwm_samsung_manual_update(struct samsung_pwm_chip *chip,
+				      struct pwm_device *pwm)
+{
+	unsigned int tcon_chan = to_tcon_channel(pwm->hwpwm);
+	u32 tcon;
+	unsigned long flags;
+
+	spin_lock_irqsave(&samsung_pwm_lock, flags);
+
+	tcon = readl(chip->base + REG_TCON);
+	tcon |= TCON_MANUALUPDATE(tcon_chan);
+	writel(tcon, chip->base + REG_TCON);
+
+	tcon &= ~TCON_MANUALUPDATE(tcon_chan);
+	writel(tcon, chip->base + REG_TCON);
+
+	spin_unlock_irqrestore(&samsung_pwm_lock, flags);
+}
+
 static int pwm_samsung_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			      int duty_ns, int period_ns)
 {
 	struct samsung_pwm_chip *our_chip = to_samsung_pwm_chip(chip);
 	struct samsung_pwm_channel *chan = pwm_get_chip_data(pwm);
-	u32 tin_ns = chan->tin_ns, tcnt, tcmp;
+	u32 tin_ns = chan->tin_ns, tcnt, tcmp, oldtcmp;
 
 	/*
 	 * We currently avoid using 64bit arithmetic by using the
@@ -288,6 +307,7 @@ static int pwm_samsung_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		return 0;
 
 	tcnt = readl(our_chip->base + REG_TCNTB(pwm->hwpwm));
+	oldtcmp = readl(our_chip->base + REG_TCMPB(pwm->hwpwm));
 
 	/* We need tick count for calculation, not last tick. */
 	++tcnt;
@@ -334,6 +354,15 @@ static int pwm_samsung_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	/* Update PWM registers. */
 	writel(tcnt, our_chip->base + REG_TCNTB(pwm->hwpwm));
 	writel(tcmp, our_chip->base + REG_TCMPB(pwm->hwpwm));
+
+	/* In case the PWM is currently at 100% duty, force a manual update
+	 * to prevent the signal staying high in the pwm is disabled shortly
+	 * afer this update (before it autoreloaded the new values) .
+	 */
+	if (oldtcmp == (u32) -1) {
+		dev_dbg(our_chip->chip.dev, "Forcing manual update");
+		pwm_samsung_manual_update(our_chip, pwm);
+	}
 
 	chan->period_ns = period_ns;
 	chan->tin_ns = tin_ns;
