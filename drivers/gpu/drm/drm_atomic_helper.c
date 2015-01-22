@@ -330,6 +330,12 @@ mode_fixup(struct drm_atomic_state *state)
 	return 0;
 }
 
+static bool
+needs_modeset(struct drm_crtc_state *state)
+{
+	return state->mode_changed || state->active_changed;
+}
+
 /**
  * drm_atomic_helper_check - validate state object for modeset changes
  * @dev: DRM device
@@ -404,12 +410,27 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 		crtc = state->crtcs[i];
 		crtc_state = state->crtc_states[i];
 
-		if (!crtc || !crtc_state->mode_changed)
+		if (!crtc)
 			continue;
 
-		DRM_DEBUG_KMS("[CRTC:%d] needs full modeset, enable: %c\n",
+		/*
+		 * We must set ->active_changed after walking connectors for
+		 * otherwise an update that only changes active would result in
+		 * a full modeset because update_connector_routing force that.
+		 */
+		if (crtc->state->active != crtc_state->active) {
+			DRM_DEBUG_KMS("[CRTC:%d] active changed\n",
+				      crtc->base.id);
+			crtc_state->active_changed = true;
+		}
+
+		if (!needs_modeset(crtc_state))
+			continue;
+
+		DRM_DEBUG_KMS("[CRTC:%d] needs all connectors, enable: %c, active: %c\n",
 			      crtc->base.id,
-			      crtc_state->enable ? 'y' : 'n');
+			      crtc_state->enable ? 'y' : 'n',
+			      crtc_state->active ? 'y' : 'n');
 
 		ret = drm_atomic_add_affected_connectors(state, crtc);
 		if (ret != 0)
@@ -545,6 +566,7 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 		struct drm_connector *connector;
 		struct drm_encoder_helper_funcs *funcs;
 		struct drm_encoder *encoder;
+		struct drm_crtc_state *old_crtc_state;
 
 		old_conn_state = old_state->connector_states[i];
 		connector = old_state->connectors[i];
@@ -552,6 +574,11 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 		/* Shut down everything that's in the changeset and currently
 		 * still on. So need to check the old, saved state. */
 		if (!old_conn_state || !old_conn_state->crtc)
+			continue;
+
+		old_crtc_state = old_state->crtc_states[drm_crtc_index(old_conn_state->crtc)];
+
+		if (!old_crtc_state->active)
 			continue;
 
 		encoder = old_conn_state->best_encoder;
@@ -586,11 +613,16 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 	for (i = 0; i < ncrtcs; i++) {
 		struct drm_crtc_helper_funcs *funcs;
 		struct drm_crtc *crtc;
+		struct drm_crtc_state *old_crtc_state;
 
 		crtc = old_state->crtcs[i];
+		old_crtc_state = old_state->crtc_states[i];
 
 		/* Shut down everything that needs a full modeset. */
-		if (!crtc || !crtc->state->mode_changed)
+		if (!crtc || !needs_modeset(crtc->state))
+			continue;
+
+		if (!old_crtc_state->active)
 			continue;
 
 		funcs = crtc->helper_private;
@@ -697,6 +729,9 @@ crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
 		mode = &new_crtc_state->mode;
 		adjusted_mode = &new_crtc_state->adjusted_mode;
 
+		if (!new_crtc_state->mode_changed)
+			continue;
+
 		/*
 		 * Each encoder has at most one connector (since we always steal
 		 * it away), so we won't call call mode_set hooks twice.
@@ -749,7 +784,10 @@ void drm_atomic_helper_commit_post_planes(struct drm_device *dev,
 		crtc = old_state->crtcs[i];
 
 		/* Need to filter out CRTCs where only planes change. */
-		if (!crtc || !crtc->state->mode_changed)
+		if (!crtc || !needs_modeset(crtc->state))
+			continue;
+
+		if (!crtc->state->active)
 			continue;
 
 		funcs = crtc->helper_private;
@@ -766,6 +804,9 @@ void drm_atomic_helper_commit_post_planes(struct drm_device *dev,
 		connector = old_state->connectors[i];
 
 		if (!connector || !connector->state->best_encoder)
+			continue;
+
+		if (!connector->state->crtc->state->active)
 			continue;
 
 		encoder = connector->state->best_encoder;
@@ -1518,6 +1559,7 @@ retry:
 		WARN_ON(set->num_connectors);
 
 		crtc_state->enable = false;
+		crtc_state->active = false;
 
 		ret = drm_atomic_set_crtc_for_plane(primary_state, NULL);
 		if (ret != 0)
@@ -1532,6 +1574,7 @@ retry:
 	WARN_ON(!set->num_connectors);
 
 	crtc_state->enable = true;
+	crtc_state->active = true;
 	drm_mode_copy(&crtc_state->mode, set->mode);
 
 	ret = drm_atomic_set_crtc_for_plane(primary_state, crtc);
@@ -1894,6 +1937,7 @@ drm_atomic_helper_crtc_duplicate_state(struct drm_crtc *crtc)
 
 	if (state) {
 		state->mode_changed = false;
+		state->active_changed = false;
 		state->planes_changed = false;
 		state->event = NULL;
 	}

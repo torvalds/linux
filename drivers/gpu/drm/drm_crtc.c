@@ -691,6 +691,10 @@ int drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *crtc,
 	if (cursor)
 		cursor->possible_crtcs = 1 << drm_crtc_index(crtc);
 
+	if (drm_core_check_feature(dev, DRIVER_ATOMIC)) {
+		drm_object_attach_property(&crtc->base, config->prop_active, 0);
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL(drm_crtc_init_with_planes);
@@ -1480,6 +1484,12 @@ static int drm_mode_create_standard_properties(struct drm_device *dev)
 	if (!prop)
 		return -ENOMEM;
 	dev->mode_config.prop_crtc_id = prop;
+
+	prop = drm_property_create_bool(dev, DRM_MODE_PROP_ATOMIC,
+			"ACTIVE");
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_active = prop;
 
 	return 0;
 }

@@ -241,7 +241,13 @@ int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 		struct drm_crtc_state *state, struct drm_property *property,
 		uint64_t val)
 {
-	if (crtc->funcs->atomic_set_property)
+	struct drm_device *dev = crtc->dev;
+	struct drm_mode_config *config = &dev->mode_config;
+
+	/* FIXME: Mode prop is missing, which also controls ->enable. */
+	if (property == config->prop_active) {
+		state->active = val;
+	} else if (crtc->funcs->atomic_set_property)
 		return crtc->funcs->atomic_set_property(crtc, state, property, val);
 	return -EINVAL;
 }
@@ -282,6 +288,13 @@ static int drm_atomic_crtc_check(struct drm_crtc *crtc,
 	 *
 	 * TODO: Add generic modeset state checks once we support those.
 	 */
+
+	if (state->active && !state->enable) {
+		DRM_DEBUG_KMS("[CRTC:%d] active without enabled\n",
+			      crtc->base.id);
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -976,7 +989,8 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 			if (!crtc)
 				continue;
 
-			if (crtc_state->mode_changed) {
+			if (crtc_state->mode_changed ||
+			    crtc_state->active_changed) {
 				DRM_DEBUG_KMS("[CRTC:%d] requires full modeset\n",
 					      crtc->base.id);
 				return -EINVAL;

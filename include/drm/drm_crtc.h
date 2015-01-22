@@ -253,6 +253,7 @@ struct drm_atomic_state;
  * @enable: whether the CRTC should be enabled, gates all other state
  * @active: whether the CRTC is actively displaying (used for DPMS)
  * @mode_changed: for use by helpers and drivers when computing state updates
+ * @active_changed: for use by helpers and drivers when computing state updates
  * @plane_mask: bitmask of (1 << drm_plane_index(plane)) of attached planes
  * @last_vblank_count: for helpers and drivers to capture the vblank of the
  * 	update to ensure framebuffer cleanup isn't done too early
@@ -278,6 +279,7 @@ struct drm_crtc_state {
 	/* computed state bits used by helpers and drivers */
 	bool planes_changed : 1;
 	bool mode_changed : 1;
+	bool active_changed : 1;
 
 	/* attached planes bitmask:
 	 * WARNING: transitional helpers do not maintain plane_mask so
@@ -1113,6 +1115,7 @@ struct drm_mode_config {
 	struct drm_property *prop_crtc_h;
 	struct drm_property *prop_fb_id;
 	struct drm_property *prop_crtc_id;
+	struct drm_property *prop_active;
 
 	/* DVI-I properties */
 	struct drm_property *dvi_i_subconnector_property;
