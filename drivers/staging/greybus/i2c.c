@@ -230,7 +230,7 @@ gb_i2c_transfer_request(struct gb_connection *connection,
 	return operation;
 }
 
-static void gb_i2c_transfer_response(struct i2c_msg *msgs, u32 msg_count,
+static void gb_i2c_decode_response(struct i2c_msg *msgs, u32 msg_count,
 				struct gb_i2c_transfer_response *response)
 {
 	struct i2c_msg *msg = msgs;
@@ -273,7 +273,7 @@ static int gb_i2c_transfer_operation(struct gb_i2c_device *gb_i2c_dev,
 		struct gb_i2c_transfer_response *response;
 
 		response = operation->response->payload;
-		gb_i2c_transfer_response(msgs, msg_count, response);
+		gb_i2c_decode_response(msgs, msg_count, response);
 		ret = msg_count;
 	} else if (!gb_i2c_expected_transfer_error(ret)) {
 		pr_err("transfer operation failed (%d)\n", ret);
