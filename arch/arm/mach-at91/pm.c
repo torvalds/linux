@@ -306,3 +306,10 @@ void __init at91_sam9g45_pm_init(void)
 	at91_pm_data.memctrl = AT91_MEMCTRL_DDRSDR;
 	return at91_pm_init();
 }
+
+void __init at91_sam9x5_pm_init(void)
+{
+	at91_pm_data.uhp_udp_mask = AT91SAM926x_PMC_UHP | AT91SAM926x_PMC_UDP;
+	at91_pm_data.memctrl = AT91_MEMCTRL_DDRSDR;
+	return at91_pm_init();
+}

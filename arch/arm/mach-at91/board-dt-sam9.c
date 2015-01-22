@@ -61,3 +61,23 @@ DT_MACHINE_START(at91sam9g45_dt, "Atmel AT91SAM9G45")
 	.init_machine	= sam9g45_dt_device_init,
 	.dt_compat	= at91_9g45_board_compat,
 MACHINE_END
+
+static void __init sam9x5_dt_device_init(void)
+{
+	at91_sam9x5_pm_init();
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+}
+
+static const char *at91_9x5_board_compat[] __initconst = {
+	"atmel,at91sam9x5",
+	"atmel,at91sam9n12",
+	NULL
+};
+
+DT_MACHINE_START(at91sam9x5_dt, "Atmel AT91SAM9")
+	/* Maintainer: Atmel */
+	.map_io		= at91_map_io,
+	.init_early	= at91_dt_initialize,
+	.init_machine	= sam9x5_dt_device_init,
+	.dt_compat	= at91_9x5_board_compat,
+MACHINE_END
