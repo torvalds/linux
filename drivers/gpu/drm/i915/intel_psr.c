@@ -142,6 +142,7 @@ static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
 	struct drm_device *dev = dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t aux_clock_divider;
+	uint32_t aux_data_reg, aux_ctl_reg;
 	int precharge = 0x3;
 	static const uint8_t aux_msg[] = {
 		[0] = DP_AUX_NATIVE_WRITE << 4,
@@ -164,16 +165,34 @@ static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
 		drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG,
 				   DP_PSR_ENABLE & ~DP_PSR_MAIN_LINK_ACTIVE);
 
+	aux_data_reg = (INTEL_INFO(dev)->gen >= 9) ?
+				DPA_AUX_CH_DATA1 : EDP_PSR_AUX_DATA1(dev);
+	aux_ctl_reg = (INTEL_INFO(dev)->gen >= 9) ?
+				DPA_AUX_CH_CTL : EDP_PSR_AUX_CTL(dev);
+
 	/* Setup AUX registers */
 	for (i = 0; i < sizeof(aux_msg); i += 4)
-		I915_WRITE(EDP_PSR_AUX_DATA1(dev) + i,
+		I915_WRITE(aux_data_reg + i,
 			   intel_dp_pack_aux(&aux_msg[i], sizeof(aux_msg) - i));
 
-	I915_WRITE(EDP_PSR_AUX_CTL(dev),
+	if (INTEL_INFO(dev)->gen >= 9) {
+		uint32_t val;
+
+		val = I915_READ(aux_ctl_reg);
+		val &= ~DP_AUX_CH_CTL_TIME_OUT_MASK;
+		val |= DP_AUX_CH_CTL_TIME_OUT_1600us;
+		val &= ~DP_AUX_CH_CTL_MESSAGE_SIZE_MASK;
+		val |= (sizeof(aux_msg) << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT);
+		/* Use hardcoded data values for PSR */
+		val &= ~DP_AUX_CH_CTL_PSR_DATA_AUX_REG_SKL;
+		I915_WRITE(aux_ctl_reg, val);
+	} else {
+		I915_WRITE(aux_ctl_reg,
 		   DP_AUX_CH_CTL_TIME_OUT_400us |
 		   (sizeof(aux_msg) << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
 		   (precharge << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT) |
 		   (aux_clock_divider << DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT));
+	}
 }
 
 static void vlv_psr_enable_source(struct intel_dp *intel_dp)
@@ -351,6 +370,9 @@ void intel_psr_enable(struct intel_dp *intel_dp)
 
 		/* Enable PSR on the panel */
 		hsw_psr_enable_sink(intel_dp);
+
+		if (INTEL_INFO(dev)->gen >= 9)
+			intel_psr_activate(intel_dp);
 	} else {
 		vlv_psr_setup_vsc(intel_dp);
 
