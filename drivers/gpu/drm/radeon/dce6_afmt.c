@@ -192,17 +192,14 @@ void dce6_afmt_write_speaker_allocation(struct drm_encoder *encoder)
 	kfree(sadb);
 }
 
-void dce6_afmt_write_sad_regs(struct drm_encoder *encoder)
+void dce6_afmt_write_sad_regs(struct drm_encoder *encoder,
+	struct cea_sad *sads, int sad_count)
 {
-	struct radeon_device *rdev = encoder->dev->dev_private;
+	u32 offset;
+	int i;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
-	u32 offset;
-	struct drm_connector *connector;
-	struct radeon_connector *radeon_connector = NULL;
-	struct cea_sad *sads;
-	int i, sad_count;
-
+	struct radeon_device *rdev = encoder->dev->dev_private;
 	static const u16 eld_reg_to_type[][2] = {
 		{ AZ_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR0, HDMI_AUDIO_CODING_TYPE_PCM },
 		{ AZ_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR1, HDMI_AUDIO_CODING_TYPE_AC3 },
@@ -222,25 +219,6 @@ void dce6_afmt_write_sad_regs(struct drm_encoder *encoder)
 		return;
 
 	offset = dig->afmt->pin->offset;
-
-	list_for_each_entry(connector, &encoder->dev->mode_config.connector_list, head) {
-		if (connector->encoder == encoder) {
-			radeon_connector = to_radeon_connector(connector);
-			break;
-		}
-	}
-
-	if (!radeon_connector) {
-		DRM_ERROR("Couldn't find encoder's connector\n");
-		return;
-	}
-
-	sad_count = drm_edid_to_sad(radeon_connector_edid(connector), &sads);
-	if (sad_count <= 0) {
-		DRM_ERROR("Couldn't read SADs: %d\n", sad_count);
-		return;
-	}
-	BUG_ON(!sads);
 
 	for (i = 0; i < ARRAY_SIZE(eld_reg_to_type); i++) {
 		u32 value = 0;
@@ -270,8 +248,6 @@ void dce6_afmt_write_sad_regs(struct drm_encoder *encoder)
 
 		WREG32_ENDPOINT(offset, eld_reg_to_type[i][0], value);
 	}
-
-	kfree(sads);
 }
 
 void dce6_audio_enable(struct radeon_device *rdev,

@@ -41,7 +41,8 @@ struct radeon_audio_basic_funcs
 
 struct radeon_audio_funcs
 {
-	/* TODO: add mode depended audio interface */
+	void (*write_sad_regs)(struct drm_encoder *encoder,
+		struct cea_sad *sads, int sad_count);
 };
 
 int radeon_audio_init(struct radeon_device *rdev);
@@ -51,5 +52,6 @@ u32 radeon_audio_endpoint_rreg(struct radeon_device *rdev,
 	u32 offset, u32 reg);
 void radeon_audio_endpoint_wreg(struct radeon_device *rdev,
 	u32 offset,	u32 reg, u32 v);
+void radeon_audio_write_sad_regs(struct drm_encoder *encoder);
 
 #endif

@@ -29,11 +29,11 @@
 #include <drm/radeon_drm.h>
 #include "radeon.h"
 #include "radeon_asic.h"
+#include "radeon_audio.h"
 #include "evergreend.h"
 #include "atom.h"
 
 extern void dce6_afmt_write_speaker_allocation(struct drm_encoder *encoder);
-extern void dce6_afmt_write_sad_regs(struct drm_encoder *encoder);
 extern void dce6_afmt_select_pin(struct drm_encoder *encoder);
 extern void dce6_afmt_write_latency_fields(struct drm_encoder *encoder,
 					   struct drm_display_mode *mode);
@@ -168,14 +168,11 @@ static void dce4_afmt_write_speaker_allocation(struct drm_encoder *encoder)
 	kfree(sadb);
 }
 
-static void evergreen_hdmi_write_sad_regs(struct drm_encoder *encoder)
+void evergreen_hdmi_write_sad_regs(struct drm_encoder *encoder,
+	struct cea_sad *sads, int sad_count)
 {
+	int i;
 	struct radeon_device *rdev = encoder->dev->dev_private;
-	struct drm_connector *connector;
-	struct radeon_connector *radeon_connector = NULL;
-	struct cea_sad *sads;
-	int i, sad_count;
-
 	static const u16 eld_reg_to_type[][2] = {
 		{ AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR0, HDMI_AUDIO_CODING_TYPE_PCM },
 		{ AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR1, HDMI_AUDIO_CODING_TYPE_AC3 },
@@ -190,25 +187,6 @@ static void evergreen_hdmi_write_sad_regs(struct drm_encoder *encoder)
 		{ AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR11, HDMI_AUDIO_CODING_TYPE_MLP },
 		{ AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR13, HDMI_AUDIO_CODING_TYPE_WMA_PRO },
 	};
-
-	list_for_each_entry(connector, &encoder->dev->mode_config.connector_list, head) {
-		if (connector->encoder == encoder) {
-			radeon_connector = to_radeon_connector(connector);
-			break;
-		}
-	}
-
-	if (!radeon_connector) {
-		DRM_ERROR("Couldn't find encoder's connector\n");
-		return;
-	}
-
-	sad_count = drm_edid_to_sad(radeon_connector_edid(connector), &sads);
-	if (sad_count <= 0) {
-		DRM_ERROR("Couldn't read SADs: %d\n", sad_count);
-		return;
-	}
-	BUG_ON(!sads);
 
 	for (i = 0; i < ARRAY_SIZE(eld_reg_to_type); i++) {
 		u32 value = 0;
@@ -236,10 +214,8 @@ static void evergreen_hdmi_write_sad_regs(struct drm_encoder *encoder)
 
 		value |= SUPPORTED_FREQUENCIES_STEREO(stereo_freqs);
 
-		WREG32(eld_reg_to_type[i][0], value);
+		WREG32_ENDPOINT(0, eld_reg_to_type[i][0], value);
 	}
-
-	kfree(sads);
 }
 
 /*
@@ -454,12 +430,12 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 
 	if (ASIC_IS_DCE6(rdev)) {
 		dce6_afmt_select_pin(encoder);
-		dce6_afmt_write_sad_regs(encoder);
 		dce6_afmt_write_latency_fields(encoder, mode);
 	} else {
-		evergreen_hdmi_write_sad_regs(encoder);
 		dce4_afmt_write_latency_fields(encoder, mode);
 	}
+
+	radeon_audio_write_sad_regs(encoder);
 
 	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode);
 	if (err < 0) {

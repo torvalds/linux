@@ -24,6 +24,7 @@
 #include <drm/drmP.h>
 #include "radeon.h"
 #include "radeon_asic.h"
+#include "radeon_audio.h"
 #include "r600d.h"
 
 static void dce3_2_afmt_write_speaker_allocation(struct drm_encoder *encoder)
@@ -67,14 +68,11 @@ static void dce3_2_afmt_write_speaker_allocation(struct drm_encoder *encoder)
 	kfree(sadb);
 }
 
-static void dce3_2_afmt_write_sad_regs(struct drm_encoder *encoder)
+void dce3_2_afmt_write_sad_regs(struct drm_encoder *encoder,
+	struct cea_sad *sads, int sad_count)
 {
+	int i;
 	struct radeon_device *rdev = encoder->dev->dev_private;
-	struct drm_connector *connector;
-	struct radeon_connector *radeon_connector = NULL;
-	struct cea_sad *sads;
-	int i, sad_count;
-
 	static const u16 eld_reg_to_type[][2] = {
 		{ AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR0, HDMI_AUDIO_CODING_TYPE_PCM },
 		{ AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR1, HDMI_AUDIO_CODING_TYPE_AC3 },
@@ -89,25 +87,6 @@ static void dce3_2_afmt_write_sad_regs(struct drm_encoder *encoder)
 		{ AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR11, HDMI_AUDIO_CODING_TYPE_MLP },
 		{ AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR13, HDMI_AUDIO_CODING_TYPE_WMA_PRO },
 	};
-
-	list_for_each_entry(connector, &encoder->dev->mode_config.connector_list, head) {
-		if (connector->encoder == encoder) {
-			radeon_connector = to_radeon_connector(connector);
-			break;
-		}
-	}
-
-	if (!radeon_connector) {
-		DRM_ERROR("Couldn't find encoder's connector\n");
-		return;
-	}
-
-	sad_count = drm_edid_to_sad(radeon_connector->edid, &sads);
-	if (sad_count <= 0) {
-		DRM_ERROR("Couldn't read SADs: %d\n", sad_count);
-		return;
-	}
-	BUG_ON(!sads);
 
 	for (i = 0; i < ARRAY_SIZE(eld_reg_to_type); i++) {
 		u32 value = 0;
@@ -135,10 +114,8 @@ static void dce3_2_afmt_write_sad_regs(struct drm_encoder *encoder)
 
 		value |= SUPPORTED_FREQUENCIES_STEREO(stereo_freqs);
 
-		WREG32(eld_reg_to_type[i][0], value);
+		WREG32_ENDPOINT(0, eld_reg_to_type[i][0], value);
 	}
-
-	kfree(sads);
 }
 
 /*
@@ -191,7 +168,7 @@ void dce3_1_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *m
 
 	if (ASIC_IS_DCE32(rdev)) {
 		dce3_2_afmt_write_speaker_allocation(encoder);
-		dce3_2_afmt_write_sad_regs(encoder);
+		radeon_audio_write_sad_regs(encoder);
 	}
 
 	WREG32(HDMI0_ACR_PACKET_CONTROL + offset,

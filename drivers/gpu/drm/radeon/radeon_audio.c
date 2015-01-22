@@ -35,6 +35,12 @@ void dce6_audio_enable(struct radeon_device *rdev, struct r600_audio_pin *pin,
 u32 dce6_endpoint_rreg(struct radeon_device *rdev, u32 offset, u32 reg);
 void dce6_endpoint_wreg(struct radeon_device *rdev,
 		u32 offset, u32 reg, u32 v);
+void dce3_2_afmt_write_sad_regs(struct drm_encoder *encoder,
+		struct cea_sad *sads, int sad_count);
+void evergreen_hdmi_write_sad_regs(struct drm_encoder *encoder,
+		struct cea_sad *sads, int sad_count);
+void dce6_afmt_write_sad_regs(struct drm_encoder *encoder,
+		struct cea_sad *sads, int sad_count);
 
 static const u32 pin_offsets[7] =
 {
@@ -73,14 +79,44 @@ static struct radeon_audio_basic_funcs dce6_funcs = {
 	.endpoint_wreg = dce6_endpoint_wreg,
 };
 
+static struct radeon_audio_funcs dce32_hdmi_funcs = {
+	.write_sad_regs = dce3_2_afmt_write_sad_regs,
+};
+
+static struct radeon_audio_funcs dce32_dp_funcs = {
+	.write_sad_regs = dce3_2_afmt_write_sad_regs,
+};
+
+static struct radeon_audio_funcs dce4_hdmi_funcs = {
+	.write_sad_regs = evergreen_hdmi_write_sad_regs,
+};
+
+static struct radeon_audio_funcs dce4_dp_funcs = {
+	.write_sad_regs = evergreen_hdmi_write_sad_regs,
+};
+
+static struct radeon_audio_funcs dce6_hdmi_funcs = {
+	.write_sad_regs = dce6_afmt_write_sad_regs,
+};
+
+static struct radeon_audio_funcs dce6_dp_funcs = {
+	.write_sad_regs = dce6_afmt_write_sad_regs,
+};
+
 static void radeon_audio_interface_init(struct radeon_device *rdev)
 {
 	if (ASIC_IS_DCE6(rdev)) {
 		rdev->audio.funcs = &dce6_funcs;
+		rdev->audio.hdmi_funcs = &dce6_hdmi_funcs;
+		rdev->audio.dp_funcs = &dce6_dp_funcs;
 	} else if (ASIC_IS_DCE4(rdev)) {
 		rdev->audio.funcs = &dce4_funcs;
+		rdev->audio.hdmi_funcs = &dce4_hdmi_funcs;
+		rdev->audio.dp_funcs = &dce4_dp_funcs;
 	} else {
 		rdev->audio.funcs = &dce32_funcs;
+		rdev->audio.hdmi_funcs = &dce32_hdmi_funcs;
+		rdev->audio.dp_funcs = &dce32_dp_funcs;
 	}
 }
 
@@ -181,4 +217,40 @@ void radeon_audio_endpoint_wreg(struct radeon_device *rdev, u32 offset,
 {
 	if (rdev->audio.funcs->endpoint_wreg)
 		rdev->audio.funcs->endpoint_wreg(rdev, offset, reg, v);
+}
+
+void radeon_audio_write_sad_regs(struct drm_encoder *encoder)
+{
+	struct radeon_encoder *radeon_encoder;
+	struct drm_connector *connector;
+	struct radeon_connector *radeon_connector = NULL;
+	struct cea_sad *sads;
+	int sad_count;
+
+	list_for_each_entry(connector,
+		&encoder->dev->mode_config.connector_list, head) {
+		if (connector->encoder == encoder) {
+			radeon_connector = to_radeon_connector(connector);
+			break;
+		}
+	}
+
+	if (!radeon_connector) {
+		DRM_ERROR("Couldn't find encoder's connector\n");
+		return;
+	}
+
+	sad_count = drm_edid_to_sad(radeon_connector_edid(connector), &sads);
+	if (sad_count <= 0) {
+		DRM_ERROR("Couldn't read SADs: %d\n", sad_count);
+		return;
+	}
+	BUG_ON(!sads);
+
+	radeon_encoder = to_radeon_encoder(encoder);
+
+	if (radeon_encoder->audio && radeon_encoder->audio->write_sad_regs)
+		radeon_encoder->audio->write_sad_regs(encoder, sads, sad_count);
+
+	kfree(sads);
 }
