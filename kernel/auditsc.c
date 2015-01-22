@@ -1846,6 +1846,7 @@ void __audit_inode(struct filename *name, const struct dentry *dentry,
 	/* The struct filename _must_ have a populated ->name */
 	BUG_ON(!name->name);
 #endif
+
 	/*
 	 * If we have a pointer to an audit_names entry already, then we can
 	 * just use it directly if the type is correct.
@@ -1863,7 +1864,17 @@ void __audit_inode(struct filename *name, const struct dentry *dentry,
 	}
 
 	list_for_each_entry_reverse(n, &context->names_list, list) {
-		if (!n->name || strcmp(n->name->name, name->name))
+		if (n->ino) {
+			/* valid inode number, use that for the comparison */
+			if (n->ino != inode->i_ino ||
+			    n->dev != inode->i_sb->s_dev)
+				continue;
+		} else if (n->name) {
+			/* inode number has not been set, check the name */
+			if (strcmp(n->name->name, name->name))
+				continue;
+		} else
+			/* no inode and no name (?!) ... this is odd ... */
 			continue;
 
 		/* match the correct record type */
@@ -1936,11 +1947,16 @@ void __audit_inode_child(const struct inode *parent,
 
 	/* look for a parent entry first */
 	list_for_each_entry(n, &context->names_list, list) {
-		if (!n->name || n->type != AUDIT_TYPE_PARENT)
+		if (!n->name ||
+		    (n->type != AUDIT_TYPE_PARENT &&
+		     n->type != AUDIT_TYPE_UNKNOWN))
 			continue;
 
-		if (n->ino == parent->i_ino &&
-		    !audit_compare_dname_path(dname, n->name->name, n->name_len)) {
+		if (n->ino == parent->i_ino && n->dev == parent->i_sb->s_dev &&
+		    !audit_compare_dname_path(dname,
+					      n->name->name, n->name_len)) {
+			if (n->type == AUDIT_TYPE_UNKNOWN)
+				n->type = AUDIT_TYPE_PARENT;
 			found_parent = n;
 			break;
 		}
@@ -1949,11 +1965,8 @@ void __audit_inode_child(const struct inode *parent,
 	/* is there a matching child entry? */
 	list_for_each_entry(n, &context->names_list, list) {
 		/* can only match entries that have a name */
-		if (!n->name || n->type != type)
-			continue;
-
-		/* if we found a parent, make sure this one is a child of it */
-		if (found_parent && (n->name != found_parent->name))
+		if (!n->name ||
+		    (n->type != type && n->type != AUDIT_TYPE_UNKNOWN))
 			continue;
 
 		if (!strcmp(dname, n->name->name) ||
@@ -1961,6 +1974,8 @@ void __audit_inode_child(const struct inode *parent,
 						found_parent ?
 						found_parent->name_len :
 						AUDIT_NAME_FULL)) {
+			if (n->type == AUDIT_TYPE_UNKNOWN)
+				n->type = type;
 			found_child = n;
 			break;
 		}
@@ -1989,6 +2004,7 @@ void __audit_inode_child(const struct inode *parent,
 			found_child->name_put = false;
 		}
 	}
+
 	if (inode)
 		audit_copy_inode(found_child, dentry, inode);
 	else
