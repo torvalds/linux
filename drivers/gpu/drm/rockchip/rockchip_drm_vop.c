@@ -420,6 +420,11 @@ static void vop_enable(struct drm_crtc *crtc)
 		goto err_disable_aclk;
 	}
 
+	/*
+	 * At here, vop clock & iommu is enable, R/W vop regs would be safe.
+	 */
+	vop->is_enabled = true;
+
 	spin_lock(&vop->reg_lock);
 
 	VOP_CTRL_SET(vop, standby, 0);
@@ -429,8 +434,6 @@ static void vop_enable(struct drm_crtc *crtc)
 	enable_irq(vop->irq);
 
 	drm_vblank_on(vop->drm_dev, vop->pipe);
-
-	vop->is_enabled = true;
 
 	return;
 
@@ -462,6 +465,8 @@ static void vop_disable(struct drm_crtc *crtc)
 	VOP_CTRL_SET(vop, standby, 1);
 
 	spin_unlock(&vop->reg_lock);
+
+	vop->is_enabled = false;
 	/*
 	 * disable dclk to stop frame scan, so we can safely detach iommu,
 	 */
@@ -471,8 +476,6 @@ static void vop_disable(struct drm_crtc *crtc)
 
 	clk_disable(vop->aclk);
 	clk_disable(vop->hclk);
-
-	vop->is_enabled = false;
 }
 
 /*
