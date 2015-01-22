@@ -1,0 +1,4 @@
+nvkm-y += nvkm/subdev/bar/base.o
+nvkm-y += nvkm/subdev/bar/nv50.o
+nvkm-y += nvkm/subdev/bar/gf100.o
+nvkm-y += nvkm/subdev/bar/gk20a.o

@@ -41,7 +41,7 @@
 #include "disp.h"
 
 #include <subdev/bios/pll.h>
-#include <subdev/clock.h>
+#include <subdev/clk.h>
 
 static int
 nv04_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
@@ -112,12 +112,12 @@ static void nv_crtc_calc_state_ext(struct drm_crtc *crtc, struct drm_display_mod
 {
 	struct drm_device *dev = crtc->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_bios *bios = nvkm_bios(&drm->device);
-	struct nouveau_clock *clk = nvkm_clock(&drm->device);
+	struct nvkm_bios *bios = nvxx_bios(&drm->device);
+	struct nvkm_clk *clk = nvxx_clk(&drm->device);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nv04_mode_state *state = &nv04_display(dev)->mode_reg;
 	struct nv04_crtc_reg *regp = &state->crtc_reg[nv_crtc->index];
-	struct nouveau_pll_vals *pv = &regp->pllvals;
+	struct nvkm_pll_vals *pv = &regp->pllvals;
 	struct nvbios_pll pll_lim;
 
 	if (nvbios_pll_parse(bios, nv_crtc->index ? PLL_VPLL1 : PLL_VPLL0,

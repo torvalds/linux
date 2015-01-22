@@ -5,7 +5,7 @@
 
 struct nouveau_channel;
 struct nouveau_fence;
-struct nouveau_vma;
+struct nvkm_vma;
 
 struct nouveau_bo {
 	struct ttm_buffer_object bo;
@@ -78,7 +78,6 @@ int  nouveau_bo_unpin(struct nouveau_bo *);
 int  nouveau_bo_map(struct nouveau_bo *);
 void nouveau_bo_unmap(struct nouveau_bo *);
 void nouveau_bo_placement_set(struct nouveau_bo *, u32 type, u32 busy);
-u16  nouveau_bo_rd16(struct nouveau_bo *, unsigned index);
 void nouveau_bo_wr16(struct nouveau_bo *, unsigned index, u16 val);
 u32  nouveau_bo_rd32(struct nouveau_bo *, unsigned index);
 void nouveau_bo_wr32(struct nouveau_bo *, unsigned index, u32 val);
@@ -88,12 +87,12 @@ int  nouveau_bo_validate(struct nouveau_bo *, bool interruptible,
 void nouveau_bo_sync_for_device(struct nouveau_bo *nvbo);
 void nouveau_bo_sync_for_cpu(struct nouveau_bo *nvbo);
 
-struct nouveau_vma *
-nouveau_bo_vma_find(struct nouveau_bo *, struct nouveau_vm *);
+struct nvkm_vma *
+nouveau_bo_vma_find(struct nouveau_bo *, struct nvkm_vm *);
 
-int  nouveau_bo_vma_add(struct nouveau_bo *, struct nouveau_vm *,
-			struct nouveau_vma *);
-void nouveau_bo_vma_del(struct nouveau_bo *, struct nouveau_vma *);
+int  nouveau_bo_vma_add(struct nouveau_bo *, struct nvkm_vm *,
+			struct nvkm_vma *);
+void nouveau_bo_vma_del(struct nouveau_bo *, struct nvkm_vma *);
 
 /* TODO: submit equivalent to TTM generic API upstream? */
 static inline void __iomem *
