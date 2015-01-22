@@ -228,6 +228,8 @@ iwl_mvm_tdls_cs_state_str(enum iwl_mvm_tdls_cs_state state)
 		return "IDLE";
 	case IWL_MVM_TDLS_SW_REQ_SENT:
 		return "REQ SENT";
+	case IWL_MVM_TDLS_SW_RESP_RCVD:
+		return "RESP RECEIVED";
 	case IWL_MVM_TDLS_SW_REQ_RCVD:
 		return "REQ RECEIVED";
 	case IWL_MVM_TDLS_SW_ACTIVE:
@@ -325,17 +327,27 @@ iwl_mvm_tdls_check_action(struct iwl_mvm *mvm,
 			ret = -EINVAL;
 		break;
 	case IWL_MVM_TDLS_SW_REQ_SENT:
+		/* only allow requests from the same peer */
+		if (!same_peer)
+			ret = -EBUSY;
+		else if (type == TDLS_SEND_CHAN_SW_RESP_AND_MOVE_CH &&
+			 !peer_initiator)
+			/*
+			 * We received a ch-switch request while an outgoing
+			 * one is pending. Allow it if the peer is the link
+			 * initiator.
+			 */
+			ret = -EBUSY;
+		else if (type == TDLS_SEND_CHAN_SW_REQ)
+			/* wait for idle before sending another request */
+			ret = -EBUSY;
+		break;
+	case IWL_MVM_TDLS_SW_RESP_RCVD:
 		/*
-		 * We received a ch-switch request while an outgoing one is
-		 * pending. Allow it to proceed if the other peer is the same
-		 * one we sent to, and we are not the link initiator.
+		 * we are waiting for the FW to give an "active" notification,
+		 * so ignore requests in the meantime
 		 */
-		if (type == TDLS_SEND_CHAN_SW_RESP_AND_MOVE_CH) {
-			if (!same_peer)
-				ret = -EBUSY;
-			else if (!peer_initiator) /* we are the initiator */
-				ret = -EBUSY;
-		}
+		ret = -EBUSY;
 		break;
 	case IWL_MVM_TDLS_SW_REQ_RCVD:
 		/* as above, allow the link initiator to proceed */
@@ -349,9 +361,12 @@ iwl_mvm_tdls_check_action(struct iwl_mvm *mvm,
 		}
 		break;
 	case IWL_MVM_TDLS_SW_ACTIVE:
-		/* we don't allow initiations during active channel switch */
-		if (type == TDLS_SEND_CHAN_SW_REQ)
-			ret = -EINVAL;
+		/*
+		 * the only valid request when active is a request to return
+		 * to the base channel by the current off-channel peer
+		 */
+		if (type != TDLS_MOVE_CH || !same_peer)
+			ret = -EBUSY;
 		break;
 	}
 
@@ -473,6 +488,8 @@ iwl_mvm_tdls_config_channel_switch(struct iwl_mvm *mvm,
 					     type == TDLS_SEND_CHAN_SW_REQ ?
 					     IWL_MVM_TDLS_SW_REQ_SENT :
 					     IWL_MVM_TDLS_SW_REQ_RCVD);
+	} else {
+		iwl_mvm_tdls_update_cs_state(mvm, IWL_MVM_TDLS_SW_RESP_RCVD);
 	}
 
 out:
@@ -657,12 +674,15 @@ iwl_mvm_tdls_recv_channel_switch(struct ieee80211_hw *hw,
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	enum iwl_tdls_channel_switch_type type;
 	unsigned int delay;
+	const char *action_str =
+		params->action_code == WLAN_TDLS_CHANNEL_SWITCH_REQUEST ?
+		"REQ" : "RESP";
 
 	mutex_lock(&mvm->mutex);
 
 	IWL_DEBUG_TDLS(mvm,
-		       "Received TDLS ch switch action %d from %pM status %d\n",
-		       params->action_code, params->sta->addr, params->status);
+		       "Received TDLS ch switch action %s from %pM status %d\n",
+		       action_str, params->sta->addr, params->status);
 
 	/*
 	 * we got a non-zero status from a peer we were switching to - move to
