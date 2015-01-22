@@ -163,8 +163,8 @@ gb_i2c_fill_transfer_op(struct gb_i2c_transfer_op *op, struct i2c_msg *msg)
 }
 
 static struct gb_operation *
-gb_i2c_transfer_request(struct gb_connection *connection,
-				struct i2c_msg *msgs, u32 msg_count)
+gb_i2c_operation_create(struct gb_connection *connection,
+			struct i2c_msg *msgs, u32 msg_count)
 {
 	struct gb_i2c_transfer_request *request;
 	struct gb_operation *operation;
@@ -264,7 +264,7 @@ static int gb_i2c_transfer_operation(struct gb_i2c_device *gb_i2c_dev,
 	struct gb_operation *operation;
 	int ret;
 
-	operation = gb_i2c_transfer_request(connection, msgs, msg_count);
+	operation = gb_i2c_operation_create(connection, msgs, msg_count);
 	if (!operation)
 		return -ENOMEM;
 
