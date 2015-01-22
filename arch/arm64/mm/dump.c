@@ -14,13 +14,17 @@
  * of the License.
  */
 #include <linux/debugfs.h>
+#include <linux/errno.h>
 #include <linux/fs.h>
+#include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
 
 #include <asm/fixmap.h>
+#include <asm/memory.h>
 #include <asm/pgtable.h>
+#include <asm/pgtable-hwdef.h>
 
 #define LOWEST_ADDR	(UL(0xffffffffffffffff) << VA_BITS)
 
