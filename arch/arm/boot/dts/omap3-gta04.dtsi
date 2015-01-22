@@ -242,6 +242,7 @@
 			compatible = "ti,twl4030-audio";
 			ti,enable-vibra = <1>;
 			codec {
+				ti,ramp_delay_value = <3>;
 			};
 		};
 
