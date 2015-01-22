@@ -704,13 +704,6 @@ uint oid_rt_get_thermal_meter_hdl(struct oid_par_priv *poid_par_priv)
 	return RNDIS_STATUS_SUCCESS;
 }
 
-/*--------------------------------------------------------------------------*/
-static u32 mp_query_drv_var(struct _adapter *padapter, u8 offset, u32 var)
-{
-	return var;
-}
-
-/*------------------------------------------------------------------------*/
 uint oid_rt_pro_read_efuse_hdl(struct oid_par_priv *poid_par_priv)
 {
 	struct _adapter *Adapter = (struct _adapter *)
