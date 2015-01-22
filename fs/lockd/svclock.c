@@ -57,8 +57,8 @@ static DEFINE_SPINLOCK(nlm_blocked_lock);
 static const char *nlmdbg_cookie2a(const struct nlm_cookie *cookie)
 {
 	/*
-	 * We can get away with a static buffer because we're only
-	 * called with BKL held.
+	 * We can get away with a static buffer because this is only called
+	 * from lockd, which is single-threaded.
 	 */
 	static char buf[2*NLM_MAXCOOKIELEN+1];
 	unsigned int i, len = sizeof(buf);
