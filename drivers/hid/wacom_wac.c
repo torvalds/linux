@@ -760,6 +760,12 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 			input_report_key(input, BTN_7, (data[4] & 0x40));  /* Left   */
 			input_report_key(input, BTN_8, (data[4] & 0x80));  /* Down   */
 			input_report_key(input, BTN_0, (data[3] & 0x01));  /* Center */
+
+			if (data[4] | (data[3] & 0x01)) {
+				input_report_abs(input, ABS_MISC, PAD_DEVICE_ID);
+			} else {
+				input_report_abs(input, ABS_MISC, 0);
+			}
 		} else if (features->type >= INTUOS5S && features->type <= INTUOSPL) {
 			int i;
 
