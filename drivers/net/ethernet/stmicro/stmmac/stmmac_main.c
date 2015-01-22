@@ -1454,7 +1454,11 @@ static void stmmac_dma_interrupt(struct stmmac_priv *priv)
 		/* Try to bump up the dma threshold on this failure */
 		if (unlikely(tc != SF_DMA_MODE) && (tc <= 256)) {
 			tc += 64;
-			priv->hw->dma->dma_mode(priv->ioaddr, tc, SF_DMA_MODE);
+			if (priv->plat->force_thresh_dma_mode)
+				priv->hw->dma->dma_mode(priv->ioaddr, tc, tc);
+			else
+				priv->hw->dma->dma_mode(priv->ioaddr, tc,
+					SF_DMA_MODE);
 			priv->xstats.threshold = tc;
 		}
 	} else if (unlikely(status == tx_hard_error))
