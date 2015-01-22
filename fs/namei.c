@@ -2373,13 +2373,17 @@ static int
 filename_mountpoint(int dfd, struct filename *s, struct path *path,
 			unsigned int flags)
 {
-	int error = path_mountpoint(dfd, s->name, path, flags | LOOKUP_RCU);
+	int error;
+	if (IS_ERR(s))
+		return PTR_ERR(s);
+	error = path_mountpoint(dfd, s->name, path, flags | LOOKUP_RCU);
 	if (unlikely(error == -ECHILD))
 		error = path_mountpoint(dfd, s->name, path, flags);
 	if (unlikely(error == -ESTALE))
 		error = path_mountpoint(dfd, s->name, path, flags | LOOKUP_REVAL);
 	if (likely(!error))
 		audit_inode(s, path->dentry, 0);
+	putname(s);
 	return error;
 }
 
@@ -2401,27 +2405,14 @@ int
 user_path_mountpoint_at(int dfd, const char __user *name, unsigned int flags,
 			struct path *path)
 {
-	struct filename *s = getname(name);
-	int error;
-	if (IS_ERR(s))
-		return PTR_ERR(s);
-	error = filename_mountpoint(dfd, s, path, flags);
-	putname(s);
-	return error;
+	return filename_mountpoint(dfd, getname(name), path, flags);
 }
 
 int
 kern_path_mountpoint(int dfd, const char *name, struct path *path,
 			unsigned int flags)
 {
-	struct filename *s = getname_kernel(name);
-	int retval = PTR_ERR(s);
-
-	if (!IS_ERR(s)) {
-		retval = filename_mountpoint(dfd, s, path, flags);
-		putname(s);
-	}
-	return retval;
+	return filename_mountpoint(dfd, getname_kernel(name), path, flags);
 }
 EXPORT_SYMBOL(kern_path_mountpoint);
 
