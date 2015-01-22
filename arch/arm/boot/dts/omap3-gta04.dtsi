@@ -377,8 +377,8 @@
 };
 
 &charger {
-	bb_uvolt = <3200000>;
-	bb_uamp = <150>;
+	ti,bb-uvolt = <3200000>;
+	ti,bb-uamp = <150>;
 };
 
 /* spare */
