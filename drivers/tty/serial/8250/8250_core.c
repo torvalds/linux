@@ -1376,9 +1376,11 @@ static void serial8250_start_tx(struct uart_port *port)
 	struct uart_8250_port *up = up_to_u8250p(port);
 
 	serial8250_rpm_get_tx(up);
-	if (up->dma && !up->dma->tx_dma(up)) {
+
+	if (up->dma && !up->dma->tx_dma(up))
 		return;
-	} else if (!(up->ier & UART_IER_THRI)) {
+
+	if (!(up->ier & UART_IER_THRI)) {
 		up->ier |= UART_IER_THRI;
 		serial_port_out(port, UART_IER, up->ier);
 
