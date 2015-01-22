@@ -459,6 +459,14 @@ struct ovs_key_nd {
  * a wildcarded match. Omitting attribute is treated as wildcarding all
  * corresponding fields. Optional for all requests. If not present,
  * all flow key bits are exact match bits.
+ * @OVS_FLOW_ATTR_UFID: A value between 1-16 octets specifying a unique
+ * identifier for the flow. Causes the flow to be indexed by this value rather
+ * than the value of the %OVS_FLOW_ATTR_KEY attribute. Optional for all
+ * requests. Present in notifications if the flow was created with this
+ * attribute.
+ * @OVS_FLOW_ATTR_UFID_FLAGS: A 32-bit value of OR'd %OVS_UFID_F_*
+ * flags that provide alternative semantics for flow installation and
+ * retrieval. Optional for all requests.
  *
  * These attributes follow the &struct ovs_header within the Generic Netlink
  * payload for %OVS_FLOW_* commands.
@@ -474,10 +482,22 @@ enum ovs_flow_attr {
 	OVS_FLOW_ATTR_MASK,      /* Sequence of OVS_KEY_ATTR_* attributes. */
 	OVS_FLOW_ATTR_PROBE,     /* Flow operation is a feature probe, error
 				  * logging should be suppressed. */
+	OVS_FLOW_ATTR_UFID,      /* Variable length unique flow identifier. */
+	OVS_FLOW_ATTR_UFID_FLAGS,/* u32 of OVS_UFID_F_*. */
 	__OVS_FLOW_ATTR_MAX
 };
 
 #define OVS_FLOW_ATTR_MAX (__OVS_FLOW_ATTR_MAX - 1)
+
+/**
+ * Omit attributes for notifications.
+ *
+ * If a datapath request contains an %OVS_UFID_F_OMIT_* flag, then the datapath
+ * may omit the corresponding %OVS_FLOW_ATTR_* from the response.
+ */
+#define OVS_UFID_F_OMIT_KEY      (1 << 0)
+#define OVS_UFID_F_OMIT_MASK     (1 << 1)
+#define OVS_UFID_F_OMIT_ACTIONS  (1 << 2)
 
 /**
  * enum ovs_sample_attr - Attributes for %OVS_ACTION_ATTR_SAMPLE action.

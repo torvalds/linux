@@ -1180,6 +1180,59 @@ free_newmask:
 	return err;
 }
 
+static size_t get_ufid_len(const struct nlattr *attr, bool log)
+{
+	size_t len;
+
+	if (!attr)
+		return 0;
+
+	len = nla_len(attr);
+	if (len < 1 || len > MAX_UFID_LENGTH) {
+		OVS_NLERR(log, "ufid size %u bytes exceeds the range (1, %d)",
+			  nla_len(attr), MAX_UFID_LENGTH);
+		return 0;
+	}
+
+	return len;
+}
+
+/* Initializes 'flow->ufid', returning true if 'attr' contains a valid UFID,
+ * or false otherwise.
+ */
+bool ovs_nla_get_ufid(struct sw_flow_id *sfid, const struct nlattr *attr,
+		      bool log)
+{
+	sfid->ufid_len = get_ufid_len(attr, log);
+	if (sfid->ufid_len)
+		memcpy(sfid->ufid, nla_data(attr), sfid->ufid_len);
+
+	return sfid->ufid_len;
+}
+
+int ovs_nla_get_identifier(struct sw_flow_id *sfid, const struct nlattr *ufid,
+			   const struct sw_flow_key *key, bool log)
+{
+	struct sw_flow_key *new_key;
+
+	if (ovs_nla_get_ufid(sfid, ufid, log))
+		return 0;
+
+	/* If UFID was not provided, use unmasked key. */
+	new_key = kmalloc(sizeof(*new_key), GFP_KERNEL);
+	if (!new_key)
+		return -ENOMEM;
+	memcpy(new_key, key, sizeof(*key));
+	sfid->unmasked_key = new_key;
+
+	return 0;
+}
+
+u32 ovs_nla_get_ufid_flags(const struct nlattr *attr)
+{
+	return attr ? nla_get_u32(attr) : 0;
+}
+
 /**
  * ovs_nla_get_flow_metadata - parses Netlink attributes into a flow key.
  * @key: Receives extracted in_port, priority, tun_key and skb_mark.
@@ -1450,9 +1503,20 @@ int ovs_nla_put_key(const struct sw_flow_key *swkey,
 }
 
 /* Called with ovs_mutex or RCU read lock. */
-int ovs_nla_put_unmasked_key(const struct sw_flow *flow, struct sk_buff *skb)
+int ovs_nla_put_identifier(const struct sw_flow *flow, struct sk_buff *skb)
 {
-	return ovs_nla_put_key(&flow->unmasked_key, &flow->unmasked_key,
+	if (ovs_identifier_is_ufid(&flow->id))
+		return nla_put(skb, OVS_FLOW_ATTR_UFID, flow->id.ufid_len,
+			       flow->id.ufid);
+
+	return ovs_nla_put_key(flow->id.unmasked_key, flow->id.unmasked_key,
+			       OVS_FLOW_ATTR_KEY, false, skb);
+}
+
+/* Called with ovs_mutex or RCU read lock. */
+int ovs_nla_put_masked_key(const struct sw_flow *flow, struct sk_buff *skb)
+{
+	return ovs_nla_put_key(&flow->mask->key, &flow->key,
 				OVS_FLOW_ATTR_KEY, false, skb);
 }
 
