@@ -178,6 +178,20 @@ ipv6:
 			return false;
 		}
 	}
+	case htons(ETH_P_TIPC): {
+		struct {
+			__be32 pre[3];
+			__be32 srcnode;
+		} *hdr, _hdr;
+		hdr = __skb_header_pointer(skb, nhoff, sizeof(_hdr), data, hlen, &_hdr);
+		if (!hdr)
+			return false;
+		flow->src = hdr->srcnode;
+		flow->dst = 0;
+		flow->n_proto = proto;
+		flow->thoff = (u16)nhoff;
+		return true;
+	}
 	case htons(ETH_P_FCOE):
 		flow->thoff = (u16)(nhoff + FCOE_HEADER_LEN);
 		/* fall through */
