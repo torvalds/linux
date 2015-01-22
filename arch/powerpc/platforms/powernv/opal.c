@@ -667,7 +667,13 @@ static void __init opal_dump_region_init(void)
 
 	/* Register kernel log buffer */
 	addr = log_buf_addr_get();
+	if (addr == NULL)
+		return;
+
 	size = log_buf_len_get();
+	if (size == 0)
+		return;
+
 	rc = opal_register_dump_region(OPAL_DUMP_REGION_LOG_BUF,
 				       __pa(addr), size);
 	/* Don't warn if this is just an older OPAL that doesn't
