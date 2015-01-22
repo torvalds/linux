@@ -1177,6 +1177,9 @@ int tegra_dc_state_setup_clock(struct tegra_dc *dc,
 {
 	struct tegra_dc_state *state = to_dc_state(crtc_state);
 
+	if (!clk_has_parent(dc->clk, clk))
+		return -EINVAL;
+
 	state->clk = clk;
 	state->pclk = pclk;
 	state->div = div;
