@@ -7066,7 +7066,8 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 	 * However when using service discovery, the value 127 will be
 	 * returned when the RSSI is not available.
 	 */
-	if (rssi == HCI_RSSI_INVALID && !hdev->discovery.report_invalid_rssi)
+	if (rssi == HCI_RSSI_INVALID && !hdev->discovery.report_invalid_rssi &&
+	    link_type == ACL_LINK)
 		rssi = 0;
 
 	bacpy(&ev->addr.bdaddr, bdaddr);
