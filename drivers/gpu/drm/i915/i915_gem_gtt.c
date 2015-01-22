@@ -375,7 +375,7 @@ static void gen8_ppgtt_insert_entries(struct i915_address_space *vm,
 	pt_vaddr = NULL;
 
 	for_each_sg_page(pages->sgl, &sg_iter, pages->nents, 0) {
-		if (WARN_ON(pdpe >= GEN8_LEGACY_PDPS))
+		if (WARN_ON(pdpe >= GEN8_LEGACY_PDPES))
 			break;
 
 		if (pt_vaddr == NULL)
@@ -486,7 +486,7 @@ bail:
 static int gen8_ppgtt_allocate_page_tables(struct i915_hw_ppgtt *ppgtt,
 					   const int max_pdp)
 {
-	struct page **pt_pages[GEN8_LEGACY_PDPS];
+	struct page **pt_pages[GEN8_LEGACY_PDPES];
 	int i, ret;
 
 	for (i = 0; i < max_pdp; i++) {
@@ -537,7 +537,7 @@ static int gen8_ppgtt_allocate_page_directories(struct i915_hw_ppgtt *ppgtt,
 		return -ENOMEM;
 
 	ppgtt->num_pd_pages = 1 << get_order(max_pdp << PAGE_SHIFT);
-	BUG_ON(ppgtt->num_pd_pages > GEN8_LEGACY_PDPS);
+	BUG_ON(ppgtt->num_pd_pages > GEN8_LEGACY_PDPES);
 
 	return 0;
 }
