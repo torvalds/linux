@@ -585,16 +585,10 @@ static int flow_mask_insert(struct flow_table *tbl, struct sw_flow *flow,
 }
 
 /* Must be called with OVS mutex held. */
-int ovs_flow_tbl_insert(struct flow_table *table, struct sw_flow *flow,
-			const struct sw_flow_mask *mask)
+static void flow_key_insert(struct flow_table *table, struct sw_flow *flow)
 {
 	struct table_instance *new_ti = NULL;
 	struct table_instance *ti;
-	int err;
-
-	err = flow_mask_insert(table, flow, mask);
-	if (err)
-		return err;
 
 	flow->hash = flow_hash(&flow->key, flow->mask->range.start,
 			flow->mask->range.end);
@@ -613,6 +607,19 @@ int ovs_flow_tbl_insert(struct flow_table *table, struct sw_flow *flow,
 		table_instance_destroy(ti, true);
 		table->last_rehash = jiffies;
 	}
+}
+
+/* Must be called with OVS mutex held. */
+int ovs_flow_tbl_insert(struct flow_table *table, struct sw_flow *flow,
+			const struct sw_flow_mask *mask)
+{
+	int err;
+
+	err = flow_mask_insert(table, flow, mask);
+	if (err)
+		return err;
+	flow_key_insert(table, flow);
+
 	return 0;
 }
 
