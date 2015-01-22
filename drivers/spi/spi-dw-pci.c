@@ -82,14 +82,14 @@ static int spi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * clock rate, FIFO depth.
 	 */
 	if (desc) {
+		dws->num_cs = desc->num_cs;
+		dws->bus_num = desc->bus_num;
+
 		if (desc->setup) {
 			ret = desc->setup(dws);
 			if (ret)
 				return ret;
 		}
-
-		dws->num_cs = desc->num_cs;
-		dws->bus_num = desc->bus_num;
 	} else {
 		return -ENODEV;
 	}
