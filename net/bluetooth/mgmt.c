@@ -4691,9 +4691,16 @@ static int set_bredr(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		 * Dual-mode controllers shall operate with the public
 		 * address as its identity address for BR/EDR and LE. So
 		 * reject the attempt to create an invalid configuration.
+		 *
+		 * The same restrictions applies when secure connections
+		 * has been enabled. For BR/EDR this is a controller feature
+		 * while for LE it is a host stack feature. This means that
+		 * switching BR/EDR back on when secure connections has been
+		 * enabled is not a supported transaction.
 		 */
 		if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags) &&
-		    bacmp(&hdev->static_addr, BDADDR_ANY)) {
+		    (bacmp(&hdev->static_addr, BDADDR_ANY) ||
+		     test_bit(HCI_SC_ENABLED, &hdev->dev_flags))) {
 			err = cmd_status(sk, hdev->id, MGMT_OP_SET_BREDR,
 					 MGMT_STATUS_REJECTED);
 			goto unlock;
