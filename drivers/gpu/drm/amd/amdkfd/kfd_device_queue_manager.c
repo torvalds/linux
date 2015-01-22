@@ -587,7 +587,7 @@ static int allocate_sdma_queue(struct device_queue_manager *dqm,
 static void deallocate_sdma_queue(struct device_queue_manager *dqm,
 				unsigned int sdma_queue_id)
 {
-	if (sdma_queue_id < 0 || sdma_queue_id >= CIK_SDMA_QUEUES)
+	if (sdma_queue_id >= CIK_SDMA_QUEUES)
 		return;
 	set_bit(sdma_queue_id, (unsigned long *)&dqm->sdma_bitmap);
 }
