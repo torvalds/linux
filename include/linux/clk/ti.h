@@ -15,6 +15,7 @@
 #ifndef __LINUX_CLK_TI_H__
 #define __LINUX_CLK_TI_H__
 
+#include <linux/clk-provider.h>
 #include <linux/clkdev.h>
 
 /**
