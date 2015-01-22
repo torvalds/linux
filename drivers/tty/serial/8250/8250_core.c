@@ -2413,7 +2413,26 @@ static void serial8250_shutdown(struct uart_port *port)
 		serial8250_do_shutdown(port);
 }
 
-static unsigned int serial8250_get_divisor(struct uart_8250_port *up, unsigned int baud)
+/*
+ * XR17V35x UARTs have an extra fractional divisor register (DLD)
+ * Calculate divisor with extra 4-bit fractional portion
+ */
+static unsigned int xr17v35x_get_divisor(struct uart_8250_port *up,
+					 unsigned int baud,
+					 unsigned int *frac)
+{
+	struct uart_port *port = &up->port;
+	unsigned int quot_16;
+
+	quot_16 = DIV_ROUND_CLOSEST(port->uartclk, baud);
+	*frac = quot_16 & 0x0f;
+
+	return quot_16 >> 4;
+}
+
+static unsigned int serial8250_get_divisor(struct uart_8250_port *up,
+					   unsigned int baud,
+					   unsigned int *frac)
 {
 	struct uart_port *port = &up->port;
 	unsigned int quot;
@@ -2421,6 +2440,7 @@ static unsigned int serial8250_get_divisor(struct uart_8250_port *up, unsigned i
 	/*
 	 * Handle magic divisors for baud rates above baud_base on
 	 * SMSC SuperIO chips.
+	 *
 	 */
 	if ((port->flags & UPF_MAGIC_MULTIPLIER) &&
 	    baud == (port->uartclk/4))
@@ -2428,6 +2448,8 @@ static unsigned int serial8250_get_divisor(struct uart_8250_port *up, unsigned i
 	else if ((port->flags & UPF_MAGIC_MULTIPLIER) &&
 		 baud == (port->uartclk/8))
 		quot = 0x8002;
+	else if (up->port.type == PORT_XR17V35X)
+		quot = xr17v35x_get_divisor(up, baud, frac);
 	else
 		quot = uart_get_divisor(port, baud);
 
@@ -2479,7 +2501,7 @@ static unsigned char serial8250_compute_lcr(struct uart_8250_port *up,
 }
 
 void serial8250_set_divisor(struct uart_port *port, unsigned int baud,
-			    unsigned int quot)
+			    unsigned int quot, unsigned int quot_frac)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
 
@@ -2503,23 +2525,9 @@ void serial8250_set_divisor(struct uart_port *port, unsigned int baud,
 
 	serial_dl_write(up, quot);
 
-	/*
-	 * XR17V35x UARTs have an extra fractional divisor register (DLD)
-	 *
-	 * We need to recalculate all of the registers, because DLM and DLL
-	 * are already rounded to a whole integer.
-	 *
-	 * When recalculating we use a 32x clock instead of a 16x clock to
-	 * allow 1-bit for rounding in the fractional part.
-	 */
-	if (up->port.type == PORT_XR17V35X) {
-		unsigned int baud_x32 = (port->uartclk * 2) / baud;
-		u16 quot = baud_x32 / 32;
-		u8 quot_frac = DIV_ROUND_CLOSEST(baud_x32 % 32, 2);
-
-		serial_dl_write(up, quot);
-		serial_port_out(port, 0x2, quot_frac & 0xf);
-	}
+	/* XR17V35x UARTs have an extra fractional divisor register (DLD) */
+	if (up->port.type == PORT_XR17V35X)
+		serial_port_out(port, 0x2, quot_frac);
 }
 
 void
@@ -2529,7 +2537,7 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	struct uart_8250_port *up = up_to_u8250p(port);
 	unsigned char cval;
 	unsigned long flags;
-	unsigned int baud, quot;
+	unsigned int baud, quot, frac = 0;
 
 	cval = serial8250_compute_lcr(up, termios->c_cflag);
 
@@ -2539,7 +2547,7 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	baud = uart_get_baud_rate(port, termios, old,
 				  port->uartclk / 16 / 0xffff,
 				  port->uartclk / 16);
-	quot = serial8250_get_divisor(up, baud);
+	quot = serial8250_get_divisor(up, baud, &frac);
 
 	if (up->capabilities & UART_CAP_FIFO && port->fifosize > 1) {
 		/* NOTE: If fifo_bug is not set, a user can set RX_trigger. */
@@ -2636,7 +2644,7 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 			serial_port_out(port, UART_EFR, efr);
 	}
 
-	serial8250_set_divisor(port, baud, quot);
+	serial8250_set_divisor(port, baud, quot, frac);
 
 	/*
 	 * LCR DLAB must be set to enable 64-byte FIFO mode. If the FCR
