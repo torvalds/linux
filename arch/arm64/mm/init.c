@@ -35,6 +35,7 @@
 #include <linux/efi.h>
 
 #include <asm/fixmap.h>
+#include <asm/memory.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/sizes.h>
@@ -296,8 +297,8 @@ void __init mem_init(void)
 		  "    vmemmap : 0x%16lx - 0x%16lx   (%6ld GB maximum)\n"
 		  "              0x%16lx - 0x%16lx   (%6ld MB actual)\n"
 #endif
-		  "    PCI I/O : 0x%16lx - 0x%16lx   (%6ld MB)\n"
 		  "    fixed   : 0x%16lx - 0x%16lx   (%6ld KB)\n"
+		  "    PCI I/O : 0x%16lx - 0x%16lx   (%6ld MB)\n"
 		  "    modules : 0x%16lx - 0x%16lx   (%6ld MB)\n"
 		  "    memory  : 0x%16lx - 0x%16lx   (%6ld MB)\n"
 		  "      .init : 0x%p" " - 0x%p" "   (%6ld KB)\n"
@@ -310,8 +311,8 @@ void __init mem_init(void)
 		  MLM((unsigned long)virt_to_page(PAGE_OFFSET),
 		      (unsigned long)virt_to_page(high_memory)),
 #endif
-		  MLM((unsigned long)PCI_IOBASE, (unsigned long)PCI_IOBASE + SZ_16M),
 		  MLK(FIXADDR_START, FIXADDR_TOP),
+		  MLM(PCI_IO_START, PCI_IO_END),
 		  MLM(MODULES_VADDR, MODULES_END),
 		  MLM(PAGE_OFFSET, (unsigned long)high_memory),
 		  MLK_ROUNDUP(__init_begin, __init_end),
