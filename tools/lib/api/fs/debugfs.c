@@ -100,7 +100,7 @@ out:
 	return debugfs_mountpoint;
 }
 
-int debugfs__strerror_open(int err, char *buf, size_t size)
+int debugfs__strerror_open(int err, char *buf, size_t size, const char *filename)
 {
 	char sbuf[128];
 
@@ -114,9 +114,9 @@ int debugfs__strerror_open(int err, char *buf, size_t size)
 		break;
 	case EACCES:
 		snprintf(buf, size,
-			 "Error:\tNo permissions to read %s/tracing/events/raw_syscalls\n"
+			 "Error:\tNo permissions to read %s/%s\n"
 			 "Hint:\tTry 'sudo mount -o remount,mode=755 %s'\n",
-			 debugfs_mountpoint, debugfs_mountpoint);
+			 debugfs_mountpoint, filename, debugfs_mountpoint);
 		break;
 	default:
 		snprintf(buf, size, "%s", strerror_r(err, sbuf, sizeof(sbuf)));

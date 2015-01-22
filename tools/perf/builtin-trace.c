@@ -2056,7 +2056,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (trace->trace_syscalls &&
 	    perf_evlist__add_syscall_newtp(evlist, trace__sys_enter,
 					   trace__sys_exit))
-		goto out_error_tp;
+		goto out_error_raw_syscalls;
 
 	if (trace->trace_syscalls)
 		perf_evlist__add_vfs_getname(evlist);
@@ -2210,7 +2210,8 @@ out:
 	char errbuf[BUFSIZ];
 
 out_error_tp:
-	debugfs__strerror_open(errno, errbuf, sizeof(errbuf));
+out_error_raw_syscalls:
+	debugfs__strerror_open(errno, errbuf, sizeof(errbuf), "tracing/events/raw_syscalls");
 	goto out_error;
 
 out_error_mmap:
