@@ -352,7 +352,7 @@ int pamu_config_ppaace(int liodn, phys_addr_t win_addr, phys_addr_t win_size,
 	unsigned long fspi;
 
 	if ((win_size & (win_size - 1)) || win_size < PAMU_PAGE_SIZE) {
-		pr_debug("window size too small or not a power of two %llx\n", win_size);
+		pr_debug("window size too small or not a power of two %pa\n", &win_size);
 		return -EINVAL;
 	}
 
@@ -1121,8 +1121,7 @@ static int __init fsl_pamu_probe(struct platform_device *pdev)
 	spaact = (void *)ppaact + (PAGE_SIZE << get_order(PAACT_SIZE));
 	omt = (void *)spaact + (PAGE_SIZE << get_order(SPAACT_SIZE));
 
-	dev_dbg(&pdev->dev, "ppaact virt=%p phys=0x%llx\n", ppaact,
-		(unsigned long long) ppaact_phys);
+	dev_dbg(&pdev->dev, "ppaact virt=%p phys=%pa\n", ppaact, &ppaact_phys);
 
 	/* Check to see if we need to implement the work-around on this SOC */
 
@@ -1138,7 +1137,7 @@ static int __init fsl_pamu_probe(struct platform_device *pdev)
 
 	if (csd_port_id) {
 		dev_dbg(&pdev->dev, "creating coherency subdomain at address "
-			"0x%llx, size %zu, port id 0x%08x", ppaact_phys,
+			"%pa, size %zu, port id 0x%08x", &ppaact_phys,
 			mem_size, csd_port_id);
 
 		ret = create_csd(ppaact_phys, mem_size, csd_port_id);
