@@ -27,11 +27,6 @@ static struct selftest_results {
 	int failed;
 } selftest_results;
 
-#define NO_OF_NODES 3
-static struct device_node *nodes[NO_OF_NODES];
-static int last_node_index;
-static bool selftest_live_tree;
-
 #define selftest(result, fmt, ...) ({ \
 	bool failed = !(result); \
 	if (failed) { \
@@ -830,13 +825,6 @@ static int attach_node_and_children(struct device_node *np)
 		return 0;
 	}
 
-	/* Children of the root need to be remembered for removal */
-	if (np->parent == of_root) {
-		if (WARN_ON(last_node_index >= NO_OF_NODES))
-			return -EINVAL;
-		nodes[last_node_index++] = np;
-	}
-
 	child = np->child;
 	np->child = NULL;
 
@@ -899,10 +887,7 @@ static int __init selftest_data_add(void)
 	}
 
 	if (!of_root) {
-		/* enabling flag for removing nodes */
-		selftest_live_tree = true;
 		of_root = selftest_data_node;
-
 		for_each_of_allnodes(np)
 			__of_attach_node_sysfs(np);
 		of_aliases = of_find_node_by_path("/aliases");
