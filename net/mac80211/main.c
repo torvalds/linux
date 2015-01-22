@@ -658,7 +658,6 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 	bool have_wep = !(IS_ERR(local->wep_tx_tfm) ||
 			  IS_ERR(local->wep_rx_tfm));
 	bool have_mfp = local->hw.flags & IEEE80211_HW_MFP_CAPABLE;
-	const struct ieee80211_cipher_scheme *cs = local->hw.cipher_schemes;
 	int n_suites = 0, r = 0, w = 0;
 	u32 *suites;
 	static const u32 cipher_suites[] = {
@@ -672,12 +671,38 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 		WLAN_CIPHER_SUITE_AES_CMAC
 	};
 
-	/* Driver specifies the ciphers, we have nothing to do... */
-	if (local->hw.wiphy->cipher_suites && have_wep)
-		return 0;
+	if (local->hw.flags & IEEE80211_HW_SW_CRYPTO_CONTROL ||
+	    local->hw.wiphy->cipher_suites) {
+		/* If the driver advertises, or doesn't support SW crypto,
+		 * we only need to remove WEP if necessary.
+		 */
+		if (have_wep)
+			return 0;
 
-	/* Set up cipher suites if driver relies on mac80211 cipher defs */
-	if (!local->hw.wiphy->cipher_suites && !cs) {
+		/* well if it has _no_ ciphers ... fine */
+		if (!local->hw.wiphy->n_cipher_suites)
+			return 0;
+
+		/* Driver provides cipher suites, but we need to exclude WEP */
+		suites = kmemdup(local->hw.wiphy->cipher_suites,
+				 sizeof(u32) * local->hw.wiphy->n_cipher_suites,
+				 GFP_KERNEL);
+		if (!suites)
+			return -ENOMEM;
+
+		for (r = 0; r < local->hw.wiphy->n_cipher_suites; r++) {
+			u32 suite = local->hw.wiphy->cipher_suites[r];
+
+			if (suite == WLAN_CIPHER_SUITE_WEP40 ||
+			    suite == WLAN_CIPHER_SUITE_WEP104)
+				continue;
+			suites[w++] = suite;
+		}
+	} else if (!local->hw.cipher_schemes) {
+		/* If the driver doesn't have cipher schemes, there's nothing
+		 * else to do other than assign the (software supported and
+		 * perhaps offloaded) cipher suites.
+		 */
 		local->hw.wiphy->cipher_suites = cipher_suites;
 		local->hw.wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
 
@@ -689,12 +714,16 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 			local->hw.wiphy->n_cipher_suites -= 2;
 		}
 
+		/* not dynamically allocated, so just return */
 		return 0;
-	}
+	} else {
+		const struct ieee80211_cipher_scheme *cs;
 
-	if (!local->hw.wiphy->cipher_suites) {
-		/*
-		 * Driver specifies cipher schemes only
+		cs = local->hw.cipher_schemes;
+
+		/* Driver specifies cipher schemes only (but not cipher suites
+		 * including the schemes)
+		 *
 		 * We start counting ciphers defined by schemes, TKIP and CCMP
 		 */
 		n_suites = local->hw.n_cipher_schemes + 2;
@@ -724,22 +753,6 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 
 		for (r = 0; r < local->hw.n_cipher_schemes; r++)
 			suites[w++] = cs[r].cipher;
-	} else {
-		/* Driver provides cipher suites, but we need to exclude WEP */
-		suites = kmemdup(local->hw.wiphy->cipher_suites,
-				 sizeof(u32) * local->hw.wiphy->n_cipher_suites,
-				 GFP_KERNEL);
-		if (!suites)
-			return -ENOMEM;
-
-		for (r = 0; r < local->hw.wiphy->n_cipher_suites; r++) {
-			u32 suite = local->hw.wiphy->cipher_suites[r];
-
-			if (suite == WLAN_CIPHER_SUITE_WEP40 ||
-			    suite == WLAN_CIPHER_SUITE_WEP104)
-				continue;
-			suites[w++] = suite;
-		}
 	}
 
 	local->hw.wiphy->cipher_suites = suites;
