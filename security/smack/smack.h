@@ -248,6 +248,7 @@ struct smack_known *smk_find_entry(const char *);
 /*
  * Shared data.
  */
+extern int smack_enabled;
 extern int smack_cipso_direct;
 extern int smack_cipso_mapped;
 extern struct smack_known *smack_net_ambient;
@@ -296,6 +297,16 @@ static inline struct smack_known *smk_of_inode(const struct inode *isp)
 static inline struct smack_known *smk_of_task(const struct task_smack *tsp)
 {
 	return tsp->smk_task;
+}
+
+static inline struct smack_known *smk_of_task_struct(const struct task_struct *t)
+{
+	struct smack_known *skp;
+
+	rcu_read_lock();
+	skp = smk_of_task(__task_cred(t)->security);
+	rcu_read_unlock();
+	return skp;
 }
 
 /*
