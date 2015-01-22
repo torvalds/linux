@@ -230,8 +230,8 @@ void tipc_node_link_up(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 	n_ptr->action_flags |= TIPC_NOTIFY_LINK_UP;
 	n_ptr->link_id = l_ptr->peer_bearer_id << 16 | l_ptr->bearer_id;
 
-	pr_info("Established link <%s> on network plane %c\n",
-		l_ptr->name, l_ptr->net_plane);
+	pr_debug("Established link <%s> on network plane %c\n",
+		 l_ptr->name, l_ptr->net_plane);
 
 	if (!active[0]) {
 		active[0] = active[1] = l_ptr;
@@ -239,7 +239,7 @@ void tipc_node_link_up(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 		goto exit;
 	}
 	if (l_ptr->priority < active[0]->priority) {
-		pr_info("New link <%s> becomes standby\n", l_ptr->name);
+		pr_debug("New link <%s> becomes standby\n", l_ptr->name);
 		goto exit;
 	}
 	tipc_link_dup_queue_xmit(active[0], l_ptr);
@@ -247,9 +247,9 @@ void tipc_node_link_up(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 		active[0] = l_ptr;
 		goto exit;
 	}
-	pr_info("Old link <%s> becomes standby\n", active[0]->name);
+	pr_debug("Old link <%s> becomes standby\n", active[0]->name);
 	if (active[1] != active[0])
-		pr_info("Old link <%s> becomes standby\n", active[1]->name);
+		pr_debug("Old link <%s> becomes standby\n", active[1]->name);
 	active[0] = active[1] = l_ptr;
 exit:
 	/* Leave room for changeover header when returning 'mtu' to users: */
@@ -297,12 +297,12 @@ void tipc_node_link_down(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 	n_ptr->link_id = l_ptr->peer_bearer_id << 16 | l_ptr->bearer_id;
 
 	if (!tipc_link_is_active(l_ptr)) {
-		pr_info("Lost standby link <%s> on network plane %c\n",
-			l_ptr->name, l_ptr->net_plane);
+		pr_debug("Lost standby link <%s> on network plane %c\n",
+			 l_ptr->name, l_ptr->net_plane);
 		return;
 	}
-	pr_info("Lost link <%s> on network plane %c\n",
-		l_ptr->name, l_ptr->net_plane);
+	pr_debug("Lost link <%s> on network plane %c\n",
+		 l_ptr->name, l_ptr->net_plane);
 
 	active = &n_ptr->active_links[0];
 	if (active[0] == l_ptr)
@@ -380,8 +380,8 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 	char addr_string[16];
 	u32 i;
 
-	pr_info("Lost contact with %s\n",
-		tipc_addr_string_fill(addr_string, n_ptr->addr));
+	pr_debug("Lost contact with %s\n",
+		 tipc_addr_string_fill(addr_string, n_ptr->addr));
 
 	/* Flush broadcast link info associated with lost node */
 	if (n_ptr->bclink.recv_permitted) {
