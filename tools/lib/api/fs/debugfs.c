@@ -106,6 +106,13 @@ int debugfs__strerror_open(int err, char *buf, size_t size, const char *filename
 
 	switch (err) {
 	case ENOENT:
+		if (debugfs_found) {
+			snprintf(buf, size,
+				 "Error:\tFile %s/%s not found.\n"
+				 "Hint:\tPerhaps this kernel misses some CONFIG_ setting to enable this feature?.\n",
+				 debugfs_mountpoint, filename);
+			break;
+		}
 		snprintf(buf, size, "%s",
 			 "Error:\tUnable to find debugfs\n"
 			 "Hint:\tWas your kernel compiled with debugfs support?\n"
