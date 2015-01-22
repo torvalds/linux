@@ -998,6 +998,26 @@ static struct tnode *fib_find_node(struct trie *t, u32 key)
 	return n;
 }
 
+/* Return the first fib alias matching TOS with
+ * priority less than or equal to PRIO.
+ */
+static struct fib_alias *fib_find_alias(struct list_head *fah, u8 tos, u32 prio)
+{
+	struct fib_alias *fa;
+
+	if (!fah)
+		return NULL;
+
+	list_for_each_entry(fa, fah, fa_list) {
+		if (fa->fa_tos > tos)
+			continue;
+		if (fa->fa_info->fib_priority >= prio || fa->fa_tos < tos)
+			return fa;
+	}
+
+	return NULL;
+}
+
 static void trie_rebalance(struct trie *t, struct tnode *tn)
 {
 	struct tnode *tp;
