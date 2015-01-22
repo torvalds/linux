@@ -2062,8 +2062,15 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		perf_evlist__add_vfs_getname(evlist);
 
 	if ((trace->trace_pgfaults & TRACE_PFMAJ) &&
-	    perf_evlist__add_pgfault(evlist, PERF_COUNT_SW_PAGE_FAULTS_MAJ))
+	    perf_evlist__add_pgfault(evlist, PERF_COUNT_SW_PAGE_FAULTS_MAJ)) {
+		/*
+		 * FIXME: This one needs better error handling, as by now we
+		 * already checked that debugfs is mounted and that we have access to it,
+		 * so probably the case is that something is busted wrt this specific
+		 * software event, ditto for the next gotos to out_error_tp...
+		 */
 		goto out_error_tp;
+	}
 
 	if ((trace->trace_pgfaults & TRACE_PFMIN) &&
 	    perf_evlist__add_pgfault(evlist, PERF_COUNT_SW_PAGE_FAULTS_MIN))
@@ -2203,7 +2210,7 @@ out:
 	char errbuf[BUFSIZ];
 
 out_error_tp:
-	perf_evlist__strerror_tp(evlist, errno, errbuf, sizeof(errbuf));
+	debugfs__strerror_open(errno, errbuf, sizeof(errbuf));
 	goto out_error;
 
 out_error_mmap:

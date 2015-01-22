@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -97,4 +98,30 @@ char *debugfs_mount(const char *mountpoint)
 	strncpy(debugfs_mountpoint, mountpoint, sizeof(debugfs_mountpoint));
 out:
 	return debugfs_mountpoint;
+}
+
+int debugfs__strerror_open(int err, char *buf, size_t size)
+{
+	char sbuf[128];
+
+	switch (err) {
+	case ENOENT:
+		snprintf(buf, size, "%s",
+			 "Error:\tUnable to find debugfs\n"
+			 "Hint:\tWas your kernel compiled with debugfs support?\n"
+			 "Hint:\tIs the debugfs filesystem mounted?\n"
+			 "Hint:\tTry 'sudo mount -t debugfs nodev /sys/kernel/debug'");
+		break;
+	case EACCES:
+		snprintf(buf, size,
+			 "Error:\tNo permissions to read %s/tracing/events/raw_syscalls\n"
+			 "Hint:\tTry 'sudo mount -o remount,mode=755 %s'\n",
+			 debugfs_mountpoint, debugfs_mountpoint);
+		break;
+	default:
+		snprintf(buf, size, "%s", strerror_r(err, sbuf, sizeof(sbuf)));
+		break;
+	}
+
+	return 0;
 }
