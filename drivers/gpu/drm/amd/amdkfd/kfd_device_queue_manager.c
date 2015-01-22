@@ -588,7 +588,7 @@ static int init_scheduler(struct device_queue_manager *dqm)
 
 	pr_debug("kfd: In %s\n", __func__);
 
-	retval = init_pipelines(dqm, get_pipes_num(dqm), KFD_DQM_FIRST_PIPE);
+	retval = init_pipelines(dqm, get_pipes_num(dqm), get_first_pipe(dqm));
 	if (retval != 0)
 		return retval;
 
