@@ -4822,6 +4822,61 @@ static void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate)
 	DRM_DEBUG_KMS("eDP Refresh Rate set to : %dHz\n", refresh_rate);
 }
 
+void intel_edp_drrs_enable(struct intel_dp *intel_dp)
+{
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_crtc *crtc = dig_port->base.base.crtc;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
+	if (!intel_crtc->config->has_drrs) {
+		DRM_DEBUG_KMS("Panel doesn't support DRRS\n");
+		return;
+	}
+
+	mutex_lock(&dev_priv->drrs.mutex);
+	if (WARN_ON(dev_priv->drrs.dp)) {
+		DRM_ERROR("DRRS already enabled\n");
+		goto unlock;
+	}
+
+	dev_priv->drrs.busy_frontbuffer_bits = 0;
+
+	dev_priv->drrs.dp = intel_dp;
+
+unlock:
+	mutex_unlock(&dev_priv->drrs.mutex);
+}
+
+void intel_edp_drrs_disable(struct intel_dp *intel_dp)
+{
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_crtc *crtc = dig_port->base.base.crtc;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
+	if (!intel_crtc->config->has_drrs)
+		return;
+
+	mutex_lock(&dev_priv->drrs.mutex);
+	if (!dev_priv->drrs.dp) {
+		mutex_unlock(&dev_priv->drrs.mutex);
+		return;
+	}
+
+	if (dev_priv->drrs.refresh_rate_type == DRRS_LOW_RR)
+		intel_dp_set_drrs_state(dev_priv->dev,
+			intel_dp->attached_connector->panel.
+			fixed_mode->vrefresh);
+
+	dev_priv->drrs.dp = NULL;
+	mutex_unlock(&dev_priv->drrs.mutex);
+
+	cancel_delayed_work_sync(&dev_priv->drrs.work);
+}
+
 static void intel_edp_drrs_downclock_work(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
