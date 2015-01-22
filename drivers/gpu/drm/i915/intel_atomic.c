@@ -200,3 +200,38 @@ intel_connector_atomic_get_property(struct drm_connector *connector,
 
 	return -EINVAL;
 }
+
+/*
+ * intel_crtc_duplicate_state - duplicate crtc state
+ * @crtc: drm crtc
+ *
+ * Allocates and returns a copy of the crtc state (both common and
+ * Intel-specific) for the specified crtc.
+ *
+ * Returns: The newly allocated crtc state, or NULL on failure.
+ */
+struct drm_crtc_state *
+intel_crtc_duplicate_state(struct drm_crtc *crtc)
+{
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
+	if (WARN_ON(!intel_crtc->config))
+		return kzalloc(sizeof(*intel_crtc->config), GFP_KERNEL);
+
+	return kmemdup(intel_crtc->config, sizeof(*intel_crtc->config),
+		       GFP_KERNEL);
+}
+
+/**
+ * intel_crtc_destroy_state - destroy crtc state
+ * @crtc: drm crtc
+ *
+ * Destroys the crtc state (both common and Intel-specific) for the
+ * specified crtc.
+ */
+void
+intel_crtc_destroy_state(struct drm_crtc *crtc,
+			  struct drm_crtc_state *state)
+{
+	drm_atomic_helper_crtc_destroy_state(crtc, state);
+}
