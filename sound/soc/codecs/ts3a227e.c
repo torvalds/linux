@@ -79,6 +79,10 @@ static const int ts3a227e_buttons[] = {
 /* TS3A227E_REG_SETTING_2 0x05 */
 #define KP_ENABLE 0x04
 
+/* TS3A227E_REG_SETTING_3 0x06 */
+#define MICBIAS_SETTING_SFT (3)
+#define MICBIAS_SETTING_MASK (0x7 << MICBIAS_SETTING_SFT)
+
 /* TS3A227E_REG_ACCESSORY_STATUS  0x0b */
 #define TYPE_3_POLE 0x01
 #define TYPE_4_POLE_OMTP 0x02
@@ -248,6 +252,21 @@ static const struct regmap_config ts3a227e_regmap_config = {
 	.num_reg_defaults = ARRAY_SIZE(ts3a227e_reg_defaults),
 };
 
+static int ts3a227e_parse_dt(struct ts3a227e *ts3a227e, struct device_node *np)
+{
+	u32 micbias;
+	int err;
+
+	err = of_property_read_u32(np, "ti,micbias", &micbias);
+	if (!err) {
+		regmap_update_bits(ts3a227e->regmap, TS3A227E_REG_SETTING_3,
+			MICBIAS_SETTING_MASK,
+			(micbias & 0x07) << MICBIAS_SETTING_SFT);
+	}
+
+	return 0;
+}
+
 static int ts3a227e_i2c_probe(struct i2c_client *i2c,
 			      const struct i2c_device_id *id)
 {
@@ -264,6 +283,14 @@ static int ts3a227e_i2c_probe(struct i2c_client *i2c,
 	ts3a227e->regmap = devm_regmap_init_i2c(i2c, &ts3a227e_regmap_config);
 	if (IS_ERR(ts3a227e->regmap))
 		return PTR_ERR(ts3a227e->regmap);
+
+	if (dev->of_node) {
+		ret = ts3a227e_parse_dt(ts3a227e, dev->of_node);
+		if (ret) {
+			dev_err(dev, "Failed to parse device tree: %d\n", ret);
+			return ret;
+		}
+	}
 
 	ret = devm_request_threaded_irq(dev, i2c->irq, NULL, ts3a227e_interrupt,
 					IRQF_TRIGGER_LOW | IRQF_ONESHOT,
