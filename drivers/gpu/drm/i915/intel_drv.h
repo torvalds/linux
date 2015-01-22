@@ -945,6 +945,14 @@ int intel_prepare_plane_fb(struct drm_plane *plane,
 			   struct drm_framebuffer *fb);
 void intel_cleanup_plane_fb(struct drm_plane *plane,
 			    struct drm_framebuffer *fb);
+int intel_plane_atomic_get_property(struct drm_plane *plane,
+				    const struct drm_plane_state *state,
+				    struct drm_property *property,
+				    uint64_t *val);
+int intel_plane_atomic_set_property(struct drm_plane *plane,
+				    struct drm_plane_state *state,
+				    struct drm_property *property,
+				    uint64_t val);
 
 /* shared dpll functions */
 struct intel_shared_dpll *intel_crtc_to_shared_dpll(struct intel_crtc *crtc);

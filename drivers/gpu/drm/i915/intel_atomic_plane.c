@@ -177,3 +177,61 @@ const struct drm_plane_helper_funcs intel_plane_helper_funcs = {
 	.atomic_update = intel_plane_atomic_update,
 };
 
+/**
+ * intel_plane_atomic_get_property - fetch plane property value
+ * @plane: plane to fetch property for
+ * @state: state containing the property value
+ * @property: property to look up
+ * @val: pointer to write property value into
+ *
+ * The DRM core does not store shadow copies of properties for
+ * atomic-capable drivers.  This entrypoint is used to fetch
+ * the current value of a driver-specific plane property.
+ */
+int
+intel_plane_atomic_get_property(struct drm_plane *plane,
+				const struct drm_plane_state *state,
+				struct drm_property *property,
+				uint64_t *val)
+{
+	struct drm_mode_config *config = &plane->dev->mode_config;
+
+	if (property == config->rotation_property) {
+		*val = state->rotation;
+	} else {
+		DRM_DEBUG_KMS("Unknown plane property '%s'\n", property->name);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
+ * intel_plane_atomic_set_property - set plane property value
+ * @plane: plane to set property for
+ * @state: state to update property value in
+ * @property: property to set
+ * @val: value to set property to
+ *
+ * Writes the specified property value for a plane into the provided atomic
+ * state object.
+ *
+ * Returns 0 on success, -EINVAL on unrecognized properties
+ */
+int
+intel_plane_atomic_set_property(struct drm_plane *plane,
+				struct drm_plane_state *state,
+				struct drm_property *property,
+				uint64_t val)
+{
+	struct drm_mode_config *config = &plane->dev->mode_config;
+
+	if (property == config->rotation_property) {
+		state->rotation = val;
+	} else {
+		DRM_DEBUG_KMS("Unknown plane property '%s'\n", property->name);
+		return -EINVAL;
+	}
+
+	return 0;
+}

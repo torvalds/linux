@@ -12054,6 +12054,8 @@ const struct drm_plane_funcs intel_plane_funcs = {
 	.disable_plane = drm_plane_helper_disable,
 	.destroy = intel_plane_destroy,
 	.set_property = intel_plane_set_property,
+	.atomic_get_property = intel_plane_atomic_get_property,
+	.atomic_set_property = intel_plane_atomic_set_property,
 	.atomic_duplicate_state = intel_plane_duplicate_state,
 	.atomic_destroy_state = intel_plane_destroy_state,
 
