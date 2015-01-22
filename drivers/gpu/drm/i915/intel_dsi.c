@@ -197,15 +197,15 @@ static void intel_dsi_enable(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
-	enum port port = intel_dsi_pipe_to_port(intel_crtc->pipe);
+	enum port port;
 
 	DRM_DEBUG_KMS("\n");
 
-	if (is_cmd_mode(intel_dsi))
-		I915_WRITE(MIPI_MAX_RETURN_PKT_SIZE(port), 8 * 4);
-	else {
+	if (is_cmd_mode(intel_dsi)) {
+		for_each_dsi_port(port, intel_dsi->ports)
+			I915_WRITE(MIPI_MAX_RETURN_PKT_SIZE(port), 8 * 4);
+	} else {
 		msleep(20); /* XXX */
 		for_each_dsi_port(port, intel_dsi->ports)
 			dpi_send_cmd(intel_dsi, TURN_ON, DPI_LP_MODE_EN, port);
