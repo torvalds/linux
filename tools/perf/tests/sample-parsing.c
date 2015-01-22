@@ -110,7 +110,7 @@ static bool samples_same(const struct perf_sample *s1,
 
 	if (type & PERF_SAMPLE_STACK_USER) {
 		COMP(user_stack.size);
-		if (memcmp(s1->user_stack.data, s1->user_stack.data,
+		if (memcmp(s1->user_stack.data, s2->user_stack.data,
 			   s1->user_stack.size)) {
 			pr_debug("Samples differ at 'user_stack'\n");
 			return false;
