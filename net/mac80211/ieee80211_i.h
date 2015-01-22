@@ -1886,6 +1886,36 @@ void __ieee80211_flush_queues(struct ieee80211_local *local,
 			      struct ieee80211_sub_if_data *sdata,
 			      unsigned int queues, bool drop);
 
+static inline bool ieee80211_can_run_worker(struct ieee80211_local *local)
+{
+	/*
+	 * If quiescing is set, we are racing with __ieee80211_suspend.
+	 * __ieee80211_suspend flushes the workers after setting quiescing,
+	 * and we check quiescing / suspended before enqueing new workers.
+	 * We should abort the worker to avoid the races below.
+	 */
+	if (local->quiescing)
+		return false;
+
+	/*
+	 * We might already be suspended if the following scenario occurs:
+	 * __ieee80211_suspend		Control path
+	 *
+	 *				if (local->quiescing)
+	 *					return;
+	 * local->quiescing = true;
+	 * flush_workqueue();
+	 *				queue_work(...);
+	 * local->suspended = true;
+	 * local->quiescing = false;
+	 *				worker starts running...
+	 */
+	if (local->suspended)
+		return false;
+
+	return true;
+}
+
 void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 			 u16 transaction, u16 auth_alg, u16 status,
 			 const u8 *extra, size_t extra_len, const u8 *bssid,
