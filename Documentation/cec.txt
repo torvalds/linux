@@ -1,0 +1,318 @@
+CEC Kernel Support
+==================
+
+The CEC framework provides a unified kernel interface for use with HDMI CEC
+hardware. It is designed to handle a multiple variants of hardware. Adding to
+the flexibility of the framework it enables to set which parts of the CEC
+protocol processing is handled by the hardware, by the driver and by the
+userspace application.
+
+
+The CEC Protocol
+----------------
+
+The CEC protocol enables cosumer electronic devices to communicate with each
+other through the HDMI connection. The protocol uses logical addresses in the
+communication. The logical address is strictly connected with the functionality
+provided by the device. The TV acting as the communication hub is always
+assigned address 0. The physicall addressis determined by physical connection
+between devices.
+
+The protocol enables control of compatible devices with a single remote.
+Synchronous power on/standby, instant playback with changing the content source
+on the TV.
+
+The Kernel Interface
+====================
+
+CEC Adaptor
+-----------
+
+#define CEC_LOG_ADDR_INVALID 0xff
+
+/* The maximum number of logical addresses one device can be assigned to.
+ * The CEC 2.0 spec allows for only 2 logical addresses at the moment. The
+ * Analog Devices CEC hardware supports 3. So let's go wild and go for 4. */
+#define CEC_MAX_LOG_ADDRS 4
+
+/* The "Primary Device Type" */
+#define CEC_PRIM_DEVTYPE_TV		0
+#define CEC_PRIM_DEVTYPE_RECORD		1
+#define CEC_PRIM_DEVTYPE_TUNER		3
+#define CEC_PRIM_DEVTYPE_PLAYBACK	4
+#define CEC_PRIM_DEVTYPE_AUDIOSYSTEM	5
+#define CEC_PRIM_DEVTYPE_SWITCH		6
+#define CEC_PRIM_DEVTYPE_VIDEOPROC	7
+
+/* The "All Device Types" flags (CEC 2.0) */
+#define CEC_FL_ALL_DEVTYPE_TV		(1 << 7)
+#define CEC_FL_ALL_DEVTYPE_RECORD	(1 << 6)
+#define CEC_FL_ALL_DEVTYPE_TUNER	(1 << 5)
+#define CEC_FL_ALL_DEVTYPE_PLAYBACK	(1 << 4)
+#define CEC_FL_ALL_DEVTYPE_AUDIOSYSTEM	(1 << 3)
+#define CEC_FL_ALL_DEVTYPE_SWITCH	(1 << 2)
+/* And if you wondering what happened to VIDEOPROC devices: those should
+ * be mapped to a SWITCH. */
+
+/* The logical address types that the CEC device wants to claim */
+#define CEC_LOG_ADDR_TYPE_TV		0
+#define CEC_LOG_ADDR_TYPE_RECORD	1
+#define CEC_LOG_ADDR_TYPE_TUNER		2
+#define CEC_LOG_ADDR_TYPE_PLAYBACK	3
+#define CEC_LOG_ADDR_TYPE_AUDIOSYSTEM	4
+#define CEC_LOG_ADDR_TYPE_SPECIFIC	5
+#define CEC_LOG_ADDR_TYPE_UNREGISTERED	6
+/* Switches should use UNREGISTERED.
+ * Video processors should use SPECIFIC. */
+
+/* The CEC version */
+#define CEC_VERSION_1_4B		5
+#define CEC_VERSION_2_0			6
+
+struct cec_adapter {
+	/* internal fields removed */
+
+	u16 phys_addr;
+	u32 capabilities;
+	u8 version;
+	u8 num_log_addrs;
+	u8 prim_device[CEC_MAX_LOG_ADDRS];
+	u8 log_addr_type[CEC_MAX_LOG_ADDRS];
+	u8 log_addr[CEC_MAX_LOG_ADDRS];
+
+	int (*adap_enable)(struct cec_adapter *adap, bool enable);
+	int (*adap_log_addr)(struct cec_adapter *adap, u8 logical_addr);
+	int (*adap_transmit)(struct cec_adapter *adap, struct cec_msg *msg);
+	void (*adap_transmit_timed_out)(struct cec_adapter *adap);
+
+	int (*received_tv)(struct cec_adapter *adap, struct cec_msg *msg);
+	int (*received_record)(struct cec_adapter *adap, struct cec_msg *msg);
+	int (*received_tuner)(struct cec_adapter *adap, struct cec_msg *msg);
+	int (*received_playback)(struct cec_adapter *adap, struct cec_msg *msg);
+	int (*received_audiosystem)(struct cec_adapter *adap, struct cec_msg *msg);
+	int (*received_switch)(struct cec_adapter *adap, struct cec_msg *msg);
+	int (*received_videoproc)(struct cec_adapter *adap, struct cec_msg *msg);
+	int (*received)(struct cec_adapter *adap, struct cec_msg *msg);
+};
+
+int cec_create_adapter(struct cec_adapter *adap, u32 caps);
+void cec_delete_adapter(struct cec_adapter *adap);
+int cec_transmit_msg(struct cec_adapter *adap, struct cec_data *data, bool block);
+
+/* Called by the adapter */
+void cec_adap_transmit_done(struct cec_adapter *adap, u32 status);
+void cec_adap_received_msg(struct cec_adapter *adap, struct cec_msg *msg);
+
+
+The device type defines are defined by the CEC standard.
+
+The cec_adapter structure represents the adapter. It has a number of
+operations that have to be implemented in the driver: adap_enable() enables
+or disables the physical adapter, adap_log_addr() tells the driver which
+logical address should be configured. This may be called multiple times
+to configure multiple logical addresses. Calling adap_enable(false) or
+adap_log_addr(CEC_LOG_ADDR_INVALID) will clear all configured logical
+addresses.
+
+The adap_transmit op will setup the hardware to send out the given CEC message.
+This will return without waiting for the transmission to finish. The
+adap_transmit_timed_out() function is called when the current transmission timed
+out and the hardware needs to be informed of this (the hardware should go back
+from transmitter to receiver mode).
+
+The adapter driver will also call into the adapter: it should call
+cec_transmit_done() when a cec transfer was finalized and cec_received_msg()
+when a new message was received.
+
+When a message is received the corresponding received() op is called depending
+on the logical address it is received on. If the message is not handled by
+that the received op is called as fallback. The driver can hook into these ops
+and do whatever it needs to do in order to respond to the message.
+
+The driver has to call cec_create_adapter to initialize the structure. If
+the 'caps' argument is non-zero, then it will also create a /dev/cecX
+device node to allow userspace to interact with the CEC device. Userspace
+can request those capabilities with the CEC_G_CAPS ioctl.
+
+In order for a CEC adapter to be configured it needs a physical address.
+This is normally assigned by the driver. It is either 0.0.0.0 for a TV (aka
+video receiver) or it is derived from the EDID that the source received
+from the sink. This is normally set by the driver before enabling the CEC
+adapter, or it is set from userspace in the case of CEC USB dongles (although
+embedded systems might also want to set this manually).
+
+After enabling the CEC adapter it has to be configured. The CEC adapter has
+to be informed for which CEC device types a logical address has to be found.
+The CEC framework will attempt to find such logical addresses. If none are
+found, then it will fall back to logical address Unregistered (15).
+
+When a CEC message is received the CEC framework will take care of the CEC
+core messages CEC_OP_GET_CEC_VERSION, CEC_OP_GIVE_PHYS_ADDR and CEC_OP_ABORT.
+Then it will call the received() op (if set), and finally it will queue it
+for handling by userspace if create_devnode was true, or send back
+FEATURE_ABORT if create_devnode was false.
+
+Drivers can also use the cec_transmit_msg() call to transmit a message. This
+can either be fire-and-forget (the CEC framework will queue up messages in a
+transmit queue), or a blocking wait until there is either an error or a
+reply to the message.
+
+
+The Userspace API
+=================
+
+CEC communication
+-----------------
+
+This is the main message struct:
+
+struct cec_msg {
+	__u32 len;
+	__u8  msg[16];
+	__u32 status;
+	/* If non-zero, then wait for a reply with this opcode.
+	   If there was an error when sending the msg or FeatureAbort
+	   was returned, then reply is set to 0.
+	   If reply is non-zero upon return, then len/msg are set to
+	   the received message.
+	   If reply is zero upon return and status has the CEC_TX_STATUS_FEATURE_ABORT
+	   bit set, then len/msg are set to the received feature abort message.
+	   If reply is zero upon return and status has the CEC_TX_STATUS_REPLY_TIMEOUT
+	   bit set, then no reply was seen at all.
+	   This field is ignored with CEC_RECEIVE.
+	   If reply is non-zero for CEC_TRANSMIT and the message is a broadcast,
+	   then -EINVAL is returned.
+	   if reply is non-zero, then timeout is set to 1000 (the required maximum
+	   response time).
+	 */
+	__u8  reply;
+	/* timeout (in ms) is used to timeout CEC_RECEIVE.
+	   Set to 0 if you want to wait forever. */
+	__u32 timeout;
+	struct timespec ts;
+};
+
+16 bytes for the message, the length of the message, a status value
+in case of errors. Optionally you can request the CEC framework to
+wait after transmitting the message until the 'reply' message is
+returned (or Feature Abort). This is done asynchronously, i.e. it
+does not require that the reply comes right after the transmit, but
+other messages in between are allowed.
+
+#define CEC_TRANSMIT		_IOWR('a', 1, struct cec_msg)
+#define CEC_RECEIVE		_IOWR('a', 2, struct cec_msg)
+
+With CEC_TRANSMIT you can transmit a message, either blocking or
+non-blocking. With CEC_RECEIVE you can dequeue a pending received
+message from the internal queue or wait for a message to arrive
+(if called in blocking mode).
+
+
+/* Userspace has to configure the adapter state (enable/disable) */
+#define CEC_CAP_STATE		(1 << 0)
+/* Userspace has to configure the physical address */
+#define CEC_CAP_PHYS_ADDR	(1 << 1)
+/* Userspace has to configure the logical addresses */
+#define CEC_CAP_LOG_ADDRS	(1 << 2)
+/* Userspace can transmit messages */
+#define CEC_CAP_TRANSMIT	(1 << 3)
+/* Userspace can receive messages */
+#define CEC_CAP_RECEIVE		(1 << 4)
+
+struct cec_caps {
+	__u32 available_log_addrs;
+	__u32 capabilities;
+};
+
+#define CEC_G_CAPS			_IOR('a', 0, struct cec_caps)
+
+Obtain some of the CEC adapter capabilities: the number of logical addresses
+that the adapter can configure and what can be controlled from userspace.
+
+/*
+   Enable/disable the adapter. The S_ADAP_STATE ioctl is not available
+   unless CEC_CAP_STATE is set.
+ */
+#define CEC_G_ADAP_STATE	_IOR('a', 5, __u32)
+#define CEC_S_ADAP_STATE	_IOW('a', 6, __u32)
+
+/*
+   phys_addr is either 0 (if this is the CEC root device)
+   or a valid physical address obtained from the sink's EDID
+   as read by this CEC device (if this is a source device)
+   or a physical address obtained and modified from a sink
+   EDID and used for a sink CEC device.
+   If nothing is connected, then phys_addr is 0xffff.
+   See HDMI 1.4b, section 8.7 (Physical Address).
+
+   The S_ADAP_PHYS_ADDR ioctl is not available unless CEC_CAP_PHYS_ADDR
+   is set.
+ */
+#define CEC_G_ADAP_PHYS_ADDR	_IOR('a', 7, __u16)
+#define CEC_S_ADAP_PHYS_ADDR	_IOW('a', 8, __u16)
+
+struct cec_log_addrs {
+	__u8 cec_version;
+	__u8 num_log_addrs;
+	__u8 primary_device_type[CEC_MAX_LOG_ADDRS];
+	__u8 log_addr_type[CEC_MAX_LOG_ADDRS];
+	__u8 log_addr[CEC_MAX_LOG_ADDRS];
+
+	/* CEC 2.0 */
+	__u8 all_device_types;
+	__u8 features[CEC_MAX_LOG_ADDRS][12];
+};
+
+/*
+   Configure the CEC adapter.
+
+   The cec_version determines which CEC version should be followed.
+
+   It will try to claim num_log_addrs devices. The log_addr_type array has
+   the logical address type that needs to be claimed for that device, and
+   the log_addr array will receive the actual logical address that was
+   claimed for that device or 0xff if no address could be claimed.
+
+   The primary_device_type contains the primary device for each logical
+   address.
+
+   For CEC 2.0 devices the all_device_types parameter to use with the
+   Report Features command, and 'features' contains the remaining parameters
+   (RC Profile and Device Features) to use in Report Features.
+
+   An error is returned if the adapter is disabled or if there
+   is no physical address assigned or if cec_version is unknown.
+
+   If no logical address of one or more of the given types could be claimed,
+   then log_addr will be set to CEC_LOG_ADDR_INVALID.
+
+   If no logical address could be claimed at all, then num_log_addrs will
+   be set to 1, log_addr_type[0] to UNREGISTERED and log_addr[0] to 0xf.
+
+   The S_ADAP_LOG_ADDRS ioctl is not available unless CEC_CAP_LOG_ADDRS
+   is set.
+ */
+#define CEC_G_ADAP_LOG_ADDRS	_IOR('a', 3, struct cec_log_addrs)
+#define CEC_S_ADAP_LOG_ADDRS	_IOWR('a', 4, struct cec_log_addrs)
+
+The event ioctl is used to get a single struct cec_event if it was
+previously posted by the driver by the cec_post_event function.
+
+#define CEC_G_EVENT		_IOWR('a', 9, struct cec_event)
+
+Remote control handling
+-----------------------
+
+The CEC framework provides two ways of handling the key messages of remote
+control. In the first case, the CEC framework will handle these messages and
+provide the keypressed via the RC framework. In the second case the messages
+related to the key down/up events are not parsed by the framework and are
+passed to the userspace as raw messages.
+
+Switching between these modes is done with a special ioctl.
+
+#define CEC_G_KEY_PASSTHROUGH	_IOR('a', 10, __u8)
+#define CEC_S_KEY_PASSTHROUGH	_IOW('a', 11, __u8)
+#define CEC_KEY_PASSTHROUGH_DISABLE	0
+#define CEC_KEY_PASSTHROUGH_ENABLE	1
+

@@ -15,6 +15,11 @@ if MEDIA_SUPPORT
 
 comment "Multimedia core support"
 
+config CEC
+	tristate "CEC API (EXPERIMENTAL)"
+	---help---
+	  Enable the CEC API.
+
 #
 # Multimedia support - automatically enable V4L2 and DVB core
 #
