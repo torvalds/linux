@@ -2413,8 +2413,9 @@ static void serial8250_shutdown(struct uart_port *port)
 		serial8250_do_shutdown(port);
 }
 
-static unsigned int serial8250_get_divisor(struct uart_port *port, unsigned int baud)
+static unsigned int serial8250_get_divisor(struct uart_8250_port *up, unsigned int baud)
 {
+	struct uart_port *port = &up->port;
 	unsigned int quot;
 
 	/*
@@ -2429,6 +2430,12 @@ static unsigned int serial8250_get_divisor(struct uart_port *port, unsigned int 
 		quot = 0x8002;
 	else
 		quot = uart_get_divisor(port, baud);
+
+	/*
+	 * Oxford Semi 952 rev B workaround
+	 */
+	if (up->bugs & UART_BUG_QUOT && (quot & 0xff) == 0)
+		quot++;
 
 	return quot;
 }
@@ -2478,13 +2485,7 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	baud = uart_get_baud_rate(port, termios, old,
 				  port->uartclk / 16 / 0xffff,
 				  port->uartclk / 16);
-	quot = serial8250_get_divisor(port, baud);
-
-	/*
-	 * Oxford Semi 952 rev B workaround
-	 */
-	if (up->bugs & UART_BUG_QUOT && (quot & 0xff) == 0)
-		quot++;
+	quot = serial8250_get_divisor(up, baud);
 
 	if (up->capabilities & UART_CAP_FIFO && port->fifosize > 1) {
 		/* NOTE: If fifo_bug is not set, a user can set RX_trigger. */
