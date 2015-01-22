@@ -68,7 +68,12 @@ EXPORT_SYMBOL(writeback_in_progress);
 
 struct backing_dev_info *inode_to_bdi(struct inode *inode)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb;
+
+	if (!inode)
+		return &noop_backing_dev_info;
+
+	sb = inode->i_sb;
 #ifdef CONFIG_BLOCK
 	if (sb_is_blkdev_sb(sb))
 		return blk_get_backing_dev_info(I_BDEV(inode));
