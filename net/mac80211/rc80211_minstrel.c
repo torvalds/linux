@@ -263,12 +263,12 @@ static inline unsigned int
 minstrel_get_retry_count(struct minstrel_rate *mr,
 			 struct ieee80211_tx_info *info)
 {
-	unsigned int retry = mr->adjusted_retry_count;
+	u8 retry = mr->adjusted_retry_count;
 
 	if (info->control.use_rts)
-		retry = max(2U, min(mr->stats.retry_count_rtscts, retry));
+		retry = max_t(u8, 2, min(mr->stats.retry_count_rtscts, retry));
 	else if (info->control.use_cts_prot)
-		retry = max(2U, min(mr->retry_count_cts, retry));
+		retry = max_t(u8, 2, min(mr->retry_count_cts, retry));
 	return retry;
 }
 

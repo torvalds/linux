@@ -856,16 +856,16 @@ mwifiex_parse_htinfo(struct mwifiex_private *priv, u8 tx_htinfo,
 			/* HT or VHT */
 			switch (tx_htinfo & (BIT(3) | BIT(2))) {
 			case 0:
-				/* This will be 20MHz */
+				rate->bw = RATE_INFO_BW_20;
 				break;
 			case (BIT(2)):
-				rate->flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
+				rate->bw = RATE_INFO_BW_40;
 				break;
 			case (BIT(3)):
-				rate->flags |= RATE_INFO_FLAGS_80_MHZ_WIDTH;
+				rate->bw = RATE_INFO_BW_80;
 				break;
 			case (BIT(3) | BIT(2)):
-				rate->flags |= RATE_INFO_FLAGS_160_MHZ_WIDTH;
+				rate->bw = RATE_INFO_BW_160;
 				break;
 			}
 
@@ -885,8 +885,9 @@ mwifiex_parse_htinfo(struct mwifiex_private *priv, u8 tx_htinfo,
 		if ((tx_htinfo & BIT(0)) && (priv->tx_rate < 16)) {
 			rate->mcs = priv->tx_rate;
 			rate->flags |= RATE_INFO_FLAGS_MCS;
+			rate->bw = RATE_INFO_BW_20;
 			if (tx_htinfo & BIT(1))
-				rate->flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
+				rate->bw = RATE_INFO_BW_40;
 			if (tx_htinfo & BIT(2))
 				rate->flags |= RATE_INFO_FLAGS_SHORT_GI;
 		}
@@ -910,10 +911,10 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 {
 	u32 rate;
 
-	sinfo->filled = STATION_INFO_RX_BYTES | STATION_INFO_TX_BYTES |
-			STATION_INFO_RX_PACKETS | STATION_INFO_TX_PACKETS |
-			STATION_INFO_TX_BITRATE |
-			STATION_INFO_SIGNAL | STATION_INFO_SIGNAL_AVG;
+	sinfo->filled = BIT(NL80211_STA_INFO_RX_BYTES) | BIT(NL80211_STA_INFO_TX_BYTES) |
+			BIT(NL80211_STA_INFO_RX_PACKETS) | BIT(NL80211_STA_INFO_TX_PACKETS) |
+			BIT(NL80211_STA_INFO_TX_BITRATE) |
+			BIT(NL80211_STA_INFO_SIGNAL) | BIT(NL80211_STA_INFO_SIGNAL_AVG);
 
 	/* Get signal information from the firmware */
 	if (mwifiex_send_cmd(priv, HostCmd_CMD_RSSI_INFO,
@@ -944,7 +945,7 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 	sinfo->txrate.legacy = rate * 5;
 
 	if (priv->bss_mode == NL80211_IFTYPE_STATION) {
-		sinfo->filled |= STATION_INFO_BSS_PARAM;
+		sinfo->filled |= BIT(NL80211_STA_INFO_BSS_PARAM);
 		sinfo->bss_param.flags = 0;
 		if (priv->curr_bss_params.bss_descriptor.cap_info_bitmap &
 						WLAN_CAPABILITY_SHORT_PREAMBLE)
@@ -1037,10 +1038,11 @@ mwifiex_cfg80211_dump_survey(struct wiphy *wiphy, struct net_device *dev,
 	survey->channel = ieee80211_get_channel(wiphy,
 	    ieee80211_channel_to_frequency(pchan_stats[idx].chan_num, band));
 	survey->filled = SURVEY_INFO_NOISE_DBM |
-		SURVEY_INFO_CHANNEL_TIME | SURVEY_INFO_CHANNEL_TIME_BUSY;
+			 SURVEY_INFO_TIME |
+			 SURVEY_INFO_TIME_BUSY;
 	survey->noise = pchan_stats[idx].noise;
-	survey->channel_time = pchan_stats[idx].cca_scan_dur;
-	survey->channel_time_busy = pchan_stats[idx].cca_busy_dur;
+	survey->time = pchan_stats[idx].cca_scan_dur;
+	survey->time_busy = pchan_stats[idx].cca_busy_dur;
 
 	return 0;
 }

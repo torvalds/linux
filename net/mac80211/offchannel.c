@@ -121,7 +121,7 @@ void ieee80211_offchannel_stop_vifs(struct ieee80211_local *local)
 	ieee80211_stop_queues_by_reason(&local->hw, IEEE80211_MAX_QUEUE_MAP,
 					IEEE80211_QUEUE_STOP_REASON_OFFCHANNEL,
 					false);
-	ieee80211_flush_queues(local, NULL);
+	ieee80211_flush_queues(local, NULL, false);
 
 	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata, &local->interfaces, list) {
@@ -398,7 +398,7 @@ void ieee80211_sw_roc_work(struct work_struct *work)
 		ieee80211_roc_notify_destroy(roc, !roc->abort);
 
 		if (started && !on_channel) {
-			ieee80211_flush_queues(local, NULL);
+			ieee80211_flush_queues(local, NULL, false);
 
 			local->tmp_channel = NULL;
 			ieee80211_hw_config(local, 0);

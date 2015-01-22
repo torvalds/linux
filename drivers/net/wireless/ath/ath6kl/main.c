@@ -488,7 +488,6 @@ void ath6kl_connect_ap_mode_sta(struct ath6kl_vif *vif, u16 aid, u8 *mac_addr,
 
 	sinfo.assoc_req_ies = ies;
 	sinfo.assoc_req_ies_len = ies_len;
-	sinfo.filled |= STATION_INFO_ASSOC_REQ_IES;
 
 	cfg80211_new_sta(vif->ndev, mac_addr, &sinfo, GFP_KERNEL);
 

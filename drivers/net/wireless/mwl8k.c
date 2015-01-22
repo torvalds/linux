@@ -3098,14 +3098,14 @@ static void mwl8k_update_survey(struct mwl8k_priv *priv,
 
 	cca_cnt = ioread32(priv->regs + NOK_CCA_CNT_REG);
 	cca_cnt /= 1000; /* uSecs to mSecs */
-	survey->channel_time_busy = (u64) cca_cnt;
+	survey->time_busy = (u64) cca_cnt;
 
 	rx_rdy = ioread32(priv->regs + BBU_RXRDY_CNT_REG);
 	rx_rdy /= 1000; /* uSecs to mSecs */
-	survey->channel_time_rx = (u64) rx_rdy;
+	survey->time_rx = (u64) rx_rdy;
 
 	priv->channel_time = jiffies - priv->channel_time;
-	survey->channel_time = jiffies_to_msecs(priv->channel_time);
+	survey->time = jiffies_to_msecs(priv->channel_time);
 
 	survey->channel = channel;
 
@@ -3115,9 +3115,9 @@ static void mwl8k_update_survey(struct mwl8k_priv *priv,
 	survey->noise = nf * -1;
 
 	survey->filled = SURVEY_INFO_NOISE_DBM |
-			 SURVEY_INFO_CHANNEL_TIME |
-			 SURVEY_INFO_CHANNEL_TIME_BUSY |
-			 SURVEY_INFO_CHANNEL_TIME_RX;
+			 SURVEY_INFO_TIME |
+			 SURVEY_INFO_TIME_BUSY |
+			 SURVEY_INFO_TIME_RX;
 }
 
 /*
