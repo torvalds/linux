@@ -180,7 +180,7 @@ struct kfd2kgd_calls {
 
 	int (*hqd_sdma_load)(struct kgd_dev *kgd, void *mqd);
 
-	bool (*hqd_is_occupies)(struct kgd_dev *kgd, uint64_t queue_address,
+	bool (*hqd_is_occupied)(struct kgd_dev *kgd, uint64_t queue_address,
 				uint32_t pipe_id, uint32_t queue_id);
 
 	int (*hqd_destroy)(struct kgd_dev *kgd, uint32_t reset_type,
