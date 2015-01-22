@@ -1400,15 +1400,6 @@ int intel_plane_restore(struct drm_plane *plane)
 				  plane->state->src_w, plane->state->src_h);
 }
 
-static const struct drm_plane_funcs intel_sprite_plane_funcs = {
-	.update_plane = drm_plane_helper_update,
-	.disable_plane = drm_plane_helper_disable,
-	.destroy = intel_plane_destroy,
-	.set_property = intel_plane_set_property,
-	.atomic_duplicate_state = intel_plane_duplicate_state,
-	.atomic_destroy_state = intel_plane_destroy_state,
-};
-
 static uint32_t ilk_plane_formats[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_YUYV,
@@ -1549,7 +1540,7 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 	intel_plane->commit_plane = intel_commit_sprite_plane;
 	possible_crtcs = (1 << pipe);
 	ret = drm_universal_plane_init(dev, &intel_plane->base, possible_crtcs,
-				       &intel_sprite_plane_funcs,
+				       &intel_plane_funcs,
 				       plane_formats, num_plane_formats,
 				       DRM_PLANE_TYPE_OVERLAY);
 	if (ret) {

@@ -12049,7 +12049,7 @@ void intel_plane_destroy(struct drm_plane *plane)
 	kfree(intel_plane);
 }
 
-static const struct drm_plane_funcs intel_primary_plane_funcs = {
+const struct drm_plane_funcs intel_plane_funcs = {
 	.update_plane = drm_plane_helper_update,
 	.disable_plane = drm_plane_helper_disable,
 	.destroy = intel_plane_destroy,
@@ -12096,7 +12096,7 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 	}
 
 	drm_universal_plane_init(dev, &primary->base, 0,
-				 &intel_primary_plane_funcs,
+				 &intel_plane_funcs,
 				 intel_primary_formats, num_formats,
 				 DRM_PLANE_TYPE_PRIMARY);
 
@@ -12224,15 +12224,6 @@ update:
 		intel_crtc_update_cursor(crtc, state->visible);
 }
 
-static const struct drm_plane_funcs intel_cursor_plane_funcs = {
-	.update_plane = drm_plane_helper_update,
-	.disable_plane = drm_plane_helper_disable,
-	.destroy = intel_plane_destroy,
-	.set_property = intel_plane_set_property,
-	.atomic_duplicate_state = intel_plane_duplicate_state,
-	.atomic_destroy_state = intel_plane_destroy_state,
-};
-
 static struct drm_plane *intel_cursor_plane_create(struct drm_device *dev,
 						   int pipe)
 {
@@ -12258,7 +12249,7 @@ static struct drm_plane *intel_cursor_plane_create(struct drm_device *dev,
 	cursor->commit_plane = intel_commit_cursor_plane;
 
 	drm_universal_plane_init(dev, &cursor->base, 0,
-				 &intel_cursor_plane_funcs,
+				 &intel_plane_funcs,
 				 intel_cursor_formats,
 				 ARRAY_SIZE(intel_cursor_formats),
 				 DRM_PLANE_TYPE_CURSOR);
