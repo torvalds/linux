@@ -1976,29 +1976,31 @@ static int sh_eth_set_ringparam(struct net_device *ndev,
 		sh_eth_write(ndev, 0, EDTRR);
 		sh_eth_write(ndev, 0, EDRRR);
 		synchronize_irq(ndev->irq);
-	}
 
-	/* Free all the skbuffs in the Rx queue. */
-	sh_eth_ring_free(ndev);
-	/* Free DMA buffer */
-	sh_eth_free_dma_buffer(mdp);
+		/* Free all the skbuffs in the Rx queue. */
+		sh_eth_ring_free(ndev);
+		/* Free DMA buffer */
+		sh_eth_free_dma_buffer(mdp);
+	}
 
 	/* Set new parameters */
 	mdp->num_rx_ring = ring->rx_pending;
 	mdp->num_tx_ring = ring->tx_pending;
 
-	ret = sh_eth_ring_init(ndev);
-	if (ret < 0) {
-		netdev_err(ndev, "%s: sh_eth_ring_init failed.\n", __func__);
-		return ret;
-	}
-	ret = sh_eth_dev_init(ndev, false);
-	if (ret < 0) {
-		netdev_err(ndev, "%s: sh_eth_dev_init failed.\n", __func__);
-		return ret;
-	}
-
 	if (netif_running(ndev)) {
+		ret = sh_eth_ring_init(ndev);
+		if (ret < 0) {
+			netdev_err(ndev, "%s: sh_eth_ring_init failed.\n",
+				   __func__);
+			return ret;
+		}
+		ret = sh_eth_dev_init(ndev, false);
+		if (ret < 0) {
+			netdev_err(ndev, "%s: sh_eth_dev_init failed.\n",
+				   __func__);
+			return ret;
+		}
+
 		sh_eth_write(ndev, mdp->cd->eesipr_value, EESIPR);
 		/* Setting the Rx mode will start the Rx process. */
 		sh_eth_write(ndev, EDRRR_R, EDRRR);
