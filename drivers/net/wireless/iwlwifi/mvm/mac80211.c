@@ -2427,25 +2427,35 @@ static void iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	unsigned long txqs = 0, tids = 0;
 	int tid;
+
+	spin_lock_bh(&mvmsta->lock);
+	for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++) {
+		struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
+
+		if (tid_data->state != IWL_AGG_ON &&
+		    tid_data->state != IWL_EMPTYING_HW_QUEUE_DELBA)
+			continue;
+
+		__set_bit(tid_data->txq_id, &txqs);
+
+		if (iwl_mvm_tid_queued(tid_data) == 0)
+			continue;
+
+		__set_bit(tid, &tids);
+	}
 
 	switch (cmd) {
 	case STA_NOTIFY_SLEEP:
 		if (atomic_read(&mvm->pending_frames[mvmsta->sta_id]) > 0)
 			ieee80211_sta_block_awake(hw, sta, true);
-		spin_lock_bh(&mvmsta->lock);
-		for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++) {
-			struct iwl_mvm_tid_data *tid_data;
 
-			tid_data = &mvmsta->tid_data[tid];
-			if (tid_data->state != IWL_AGG_ON &&
-			    tid_data->state != IWL_EMPTYING_HW_QUEUE_DELBA)
-				continue;
-			if (iwl_mvm_tid_queued(tid_data) == 0)
-				continue;
+		for_each_set_bit(tid, &tids, IWL_MAX_TID_COUNT)
 			ieee80211_sta_set_buffered(sta, tid, true);
-		}
-		spin_unlock_bh(&mvmsta->lock);
+
+		if (txqs)
+			iwl_trans_freeze_txq_timer(mvm->trans, txqs, true);
 		/*
 		 * The fw updates the STA to be asleep. Tx packets on the Tx
 		 * queues to this station will not be transmitted. The fw will
@@ -2455,11 +2465,15 @@ static void iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
 	case STA_NOTIFY_AWAKE:
 		if (WARN_ON(mvmsta->sta_id == IWL_MVM_STATION_COUNT))
 			break;
+
+		if (txqs)
+			iwl_trans_freeze_txq_timer(mvm->trans, txqs, false);
 		iwl_mvm_sta_modify_ps_wake(mvm, sta);
 		break;
 	default:
 		break;
 	}
+	spin_unlock_bh(&mvmsta->lock);
 }
 
 static void iwl_mvm_sta_pre_rcu_remove(struct ieee80211_hw *hw,
