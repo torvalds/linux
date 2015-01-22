@@ -255,7 +255,7 @@ static noinline int test_btrfs_get_extent(void)
 		goto out;
 	}
 
-	root->node = alloc_dummy_extent_buffer(0, 4096);
+	root->node = alloc_dummy_extent_buffer(NULL, 4096);
 	if (!root->node) {
 		test_msg("Couldn't allocate dummy buffer\n");
 		goto out;
@@ -843,7 +843,7 @@ static int test_hole_first(void)
 		goto out;
 	}
 
-	root->node = alloc_dummy_extent_buffer(0, 4096);
+	root->node = alloc_dummy_extent_buffer(NULL, 4096);
 	if (!root->node) {
 		test_msg("Couldn't allocate dummy buffer\n");
 		goto out;
