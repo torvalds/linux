@@ -1362,32 +1362,6 @@ out_unlock:
 	return ret;
 }
 
-int intel_plane_set_property(struct drm_plane *plane,
-			     struct drm_property *prop,
-			     uint64_t val)
-{
-	struct drm_device *dev = plane->dev;
-	uint64_t old_val;
-	int ret = -ENOENT;
-
-	if (prop == dev->mode_config.rotation_property) {
-		/* exactly one rotation angle please */
-		if (hweight32(val & 0xf) != 1)
-			return -EINVAL;
-
-		if (plane->state->rotation == val)
-			return 0;
-
-		old_val = plane->state->rotation;
-		plane->state->rotation = val;
-		ret = intel_plane_restore(plane);
-		if (ret)
-			plane->state->rotation = old_val;
-	}
-
-	return ret;
-}
-
 int intel_plane_restore(struct drm_plane *plane)
 {
 	if (!plane->crtc || !plane->fb)

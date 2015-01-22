@@ -118,6 +118,15 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 	intel_crtc = to_intel_crtc(crtc);
 
 	/*
+	 * Both crtc and plane->crtc could be NULL if we're updating a
+	 * property while the plane is disabled.  We don't actually have
+	 * anything driver-specific we need to test in that case, so
+	 * just return success.
+	 */
+	if (!crtc)
+		return 0;
+
+	/*
 	 * The original src/dest coordinates are stored in state->base, but
 	 * we want to keep another copy internal to our driver that we can
 	 * clip/modify ourselves.
