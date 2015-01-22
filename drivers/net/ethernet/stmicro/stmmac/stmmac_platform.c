@@ -235,6 +235,9 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 			of_property_read_bool(np, "snps,fixed-burst");
 		dma_cfg->mixed_burst =
 			of_property_read_bool(np, "snps,mixed-burst");
+		of_property_read_u32(np, "snps,burst_len", &dma_cfg->burst_len);
+		if (dma_cfg->burst_len < 0 || dma_cfg->burst_len > 256)
+			dma_cfg->burst_len = 0;
 	}
 	plat->force_thresh_dma_mode = of_property_read_bool(np, "snps,force_thresh_dma_mode");
 	if (plat->force_thresh_dma_mode) {
