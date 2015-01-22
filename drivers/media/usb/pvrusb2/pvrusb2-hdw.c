@@ -4290,9 +4290,8 @@ static int state_eval_encoder_config(struct pvr2_hdw *hdw)
 				   the encoder. */
 				if (!hdw->state_encoder_waitok) {
 					hdw->encoder_wait_timer.expires =
-						jiffies +
-						(HZ * TIME_MSEC_ENCODER_WAIT
-						 / 1000);
+						jiffies + msecs_to_jiffies(
+						TIME_MSEC_ENCODER_WAIT);
 					add_timer(&hdw->encoder_wait_timer);
 				}
 			}
@@ -4415,8 +4414,8 @@ static int state_eval_encoder_run(struct pvr2_hdw *hdw)
 		if (pvr2_encoder_start(hdw) < 0) return !0;
 		hdw->state_encoder_run = !0;
 		if (!hdw->state_encoder_runok) {
-			hdw->encoder_run_timer.expires =
-				jiffies + (HZ * TIME_MSEC_ENCODER_OK / 1000);
+			hdw->encoder_run_timer.expires = jiffies +
+				 msecs_to_jiffies(TIME_MSEC_ENCODER_OK);
 			add_timer(&hdw->encoder_run_timer);
 		}
 	}
@@ -4507,9 +4506,8 @@ static int state_eval_decoder_run(struct pvr2_hdw *hdw)
 				   but before we did the pending check. */
 				if (!hdw->state_decoder_quiescent) {
 					hdw->quiescent_timer.expires =
-						jiffies +
-						(HZ * TIME_MSEC_DECODER_WAIT
-						 / 1000);
+						jiffies + msecs_to_jiffies(
+						TIME_MSEC_DECODER_WAIT);
 					add_timer(&hdw->quiescent_timer);
 				}
 			}
@@ -4533,9 +4531,8 @@ static int state_eval_decoder_run(struct pvr2_hdw *hdw)
 		hdw->state_decoder_run = !0;
 		if (hdw->decoder_client_id == PVR2_CLIENT_ID_SAA7115) {
 			hdw->decoder_stabilization_timer.expires =
-				jiffies +
-				(HZ * TIME_MSEC_DECODER_STABILIZATION_WAIT /
-				 1000);
+				jiffies + msecs_to_jiffies(
+				TIME_MSEC_DECODER_STABILIZATION_WAIT);
 			add_timer(&hdw->decoder_stabilization_timer);
 		} else {
 			hdw->state_decoder_ready = !0;
