@@ -4817,20 +4817,40 @@ static void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate)
 		I915_WRITE(reg, val);
 	}
 
-	/*
-	 * mutex taken to ensure that there is no race between differnt
-	 * drrs calls trying to update refresh rate. This scenario may occur
-	 * in future when idleness detection based DRRS in kernel and
-	 * possible calls from user space to set differnt RR are made.
-	 */
+	dev_priv->drrs.refresh_rate_type = index;
+
+	DRM_DEBUG_KMS("eDP Refresh Rate set to : %dHz\n", refresh_rate);
+}
+
+static void intel_edp_drrs_downclock_work(struct work_struct *work)
+{
+	struct drm_i915_private *dev_priv =
+		container_of(work, typeof(*dev_priv), drrs.work.work);
+	struct intel_dp *intel_dp;
 
 	mutex_lock(&dev_priv->drrs.mutex);
 
-	dev_priv->drrs.refresh_rate_type = index;
+	intel_dp = dev_priv->drrs.dp;
+
+	if (!intel_dp)
+		goto unlock;
+
+	/*
+	 * The delayed work can race with an invalidate hence we need to
+	 * recheck.
+	 */
+
+	if (dev_priv->drrs.busy_frontbuffer_bits)
+		goto unlock;
+
+	if (dev_priv->drrs.refresh_rate_type != DRRS_LOW_RR)
+		intel_dp_set_drrs_state(dev_priv->dev,
+			intel_dp->attached_connector->panel.
+			downclock_mode->vrefresh);
+
+unlock:
 
 	mutex_unlock(&dev_priv->drrs.mutex);
-
-	DRM_DEBUG_KMS("eDP Refresh Rate set to : %dHz\n", refresh_rate);
 }
 
 static struct drm_display_mode *
@@ -4859,6 +4879,8 @@ intel_dp_drrs_init(struct intel_connector *intel_connector,
 		DRM_DEBUG_KMS("DRRS not supported\n");
 		return NULL;
 	}
+
+	INIT_DELAYED_WORK(&dev_priv->drrs.work, intel_edp_drrs_downclock_work);
 
 	mutex_init(&dev_priv->drrs.mutex);
 
