@@ -599,7 +599,7 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 			encoder->bridge->funcs->disable(encoder->bridge);
 
 		/* Right function depends upon target state. */
-		if (connector->state->crtc)
+		if (connector->state->crtc && funcs->prepare)
 			funcs->prepare(encoder);
 		else if (funcs->disable)
 			funcs->disable(encoder);
@@ -628,7 +628,7 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 		funcs = crtc->helper_private;
 
 		/* Right function depends upon target state. */
-		if (crtc->state->enable)
+		if (crtc->state->enable && funcs->prepare)
 			funcs->prepare(crtc);
 		else if (funcs->disable)
 			funcs->disable(crtc);
@@ -792,8 +792,12 @@ void drm_atomic_helper_commit_post_planes(struct drm_device *dev,
 
 		funcs = crtc->helper_private;
 
-		if (crtc->state->enable)
-			funcs->commit(crtc);
+		if (crtc->state->enable) {
+			if (funcs->enable)
+				funcs->enable(crtc);
+			else
+				funcs->commit(crtc);
+		}
 	}
 
 	for (i = 0; i < old_state->num_connector; i++) {
@@ -819,7 +823,10 @@ void drm_atomic_helper_commit_post_planes(struct drm_device *dev,
 		if (encoder->bridge)
 			encoder->bridge->funcs->pre_enable(encoder->bridge);
 
-		funcs->commit(encoder);
+		if (funcs->enable)
+			funcs->enable(encoder);
+		else
+			funcs->commit(encoder);
 
 		if (encoder->bridge)
 			encoder->bridge->funcs->enable(encoder->bridge);
