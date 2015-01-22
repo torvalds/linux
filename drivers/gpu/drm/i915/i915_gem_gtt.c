@@ -1032,11 +1032,14 @@ alloc:
 		goto alloc;
 	}
 
+	if (ret)
+		return ret;
+
 	if (ppgtt->node.start < dev_priv->gtt.mappable_end)
 		DRM_DEBUG("Forced to use aperture for PDEs\n");
 
 	ppgtt->num_pd_entries = GEN6_PPGTT_PD_ENTRIES;
-	return ret;
+	return 0;
 }
 
 static int gen6_ppgtt_allocate_page_tables(struct i915_hw_ppgtt *ppgtt)
