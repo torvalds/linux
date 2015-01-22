@@ -2063,18 +2063,12 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 
 	if ((trace->trace_pgfaults & TRACE_PFMAJ) &&
 	    perf_evlist__add_pgfault(evlist, PERF_COUNT_SW_PAGE_FAULTS_MAJ)) {
-		/*
-		 * FIXME: This one needs better error handling, as by now we
-		 * already checked that debugfs is mounted and that we have access to it,
-		 * so probably the case is that something is busted wrt this specific
-		 * software event, ditto for the next gotos to out_error_tp...
-		 */
-		goto out_error_tp;
+		goto out_error_mem;
 	}
 
 	if ((trace->trace_pgfaults & TRACE_PFMIN) &&
 	    perf_evlist__add_pgfault(evlist, PERF_COUNT_SW_PAGE_FAULTS_MIN))
-		goto out_error_tp;
+		goto out_error_mem;
 
 	if (trace->sched &&
 		perf_evlist__add_newtp(evlist, "sched", "sched_stat_runtime",
@@ -2225,6 +2219,9 @@ out_error:
 	fprintf(trace->output, "%s\n", errbuf);
 	goto out_delete_evlist;
 }
+out_error_mem:
+	fprintf(trace->output, "Not enough memory to run!\n");
+	goto out_delete_evlist;
 }
 
 static int trace__replay(struct trace *trace)
