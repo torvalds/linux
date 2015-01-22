@@ -1224,7 +1224,7 @@ static const struct of_device_id fsl_of_pamu_ids[] = {
 	{},
 };
 
-static struct platform_driver fsl_of_pamu_driver = {
+static struct platform_driver fsl_of_pamu_driver __initdata = {
 	.driver = {
 		.name = "fsl-of-pamu",
 	},
