@@ -269,7 +269,7 @@ void __init create_pgd_mapping(struct mm_struct *mm, phys_addr_t phys,
 			       pgprot_t prot)
 {
 	__create_mapping(mm, pgd_offset(mm, virt), phys, virt, size, prot,
-				early_alloc);
+				late_alloc);
 }
 
 static void create_mapping_late(phys_addr_t phys, unsigned long virt,

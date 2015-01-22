@@ -382,7 +382,6 @@ void __init setup_arch(char **cmdline_p)
 	paging_init();
 	request_standard_resources();
 
-	efi_virtmap_init();
 	early_ioremap_reset();
 
 	unflatten_device_tree();
