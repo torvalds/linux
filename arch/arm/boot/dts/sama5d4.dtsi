@@ -273,7 +273,7 @@
 		};
 
 		nand0: nand@80000000 {
-			compatible = "atmel,at91rm9200-nand";
+			compatible = "atmel,sama5d4-nand", "atmel,at91rm9200-nand";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
