@@ -1752,11 +1752,10 @@ static int nfc_send_command(struct atmel_nand_host *host,
 		cmd, addr, cycle0);
 
 	timeout = jiffies + msecs_to_jiffies(NFC_TIME_OUT_MS);
-	while (nfc_cmd_readl(NFCADDR_CMD_NFCBUSY, host->nfc->base_cmd_regs)
-			& NFCADDR_CMD_NFCBUSY) {
+	while (nfc_readl(host->nfc->hsmc_regs, SR) & NFC_SR_BUSY) {
 		if (time_after(jiffies, timeout)) {
 			dev_err(host->dev,
-				"Time out to wait CMD_NFCBUSY ready!\n");
+				"Time out to wait for NFC ready!\n");
 			return -ETIMEDOUT;
 		}
 	}
