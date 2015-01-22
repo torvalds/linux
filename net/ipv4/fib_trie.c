@@ -961,12 +961,12 @@ static struct tnode *fib_find_node(struct trie *t, u32 key)
 		 * prefix plus zeros for the bits in the cindex. The index
 		 * is the difference between the key and this value.  From
 		 * this we can actually derive several pieces of data.
-		 *   if !(index >> bits)
-		 *     we know the value is cindex
-		 *   else
+		 *   if (index & (~0ul << bits))
 		 *     we have a mismatch in skip bits and failed
+		 *   else
+		 *     we know the value is cindex
 		 */
-		if (index >> n->bits)
+		if (index & (~0ul << n->bits))
 			return NULL;
 
 		/* we have found a leaf. Prefixes have already been compared */
@@ -1301,12 +1301,12 @@ int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
 		 * prefix plus zeros for the "bits" in the prefix. The index
 		 * is the difference between the key and this value.  From
 		 * this we can actually derive several pieces of data.
-		 *   if !(index >> bits)
-		 *     we know the value is child index
-		 *   else
+		 *   if (index & (~0ul << bits))
 		 *     we have a mismatch in skip bits and failed
+		 *   else
+		 *     we know the value is cindex
 		 */
-		if (index >> n->bits)
+		if (index & (~0ul << n->bits))
 			break;
 
 		/* we have found a leaf. Prefixes have already been compared */
