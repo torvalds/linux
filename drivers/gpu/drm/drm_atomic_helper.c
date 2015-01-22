@@ -591,6 +591,9 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 
 		funcs = encoder->helper_private;
 
+		DRM_DEBUG_KMS("disabling [ENCODER:%d:%s]\n",
+			      encoder->base.id, encoder->name);
+
 		/*
 		 * Each encoder has at most one connector (since we always steal
 		 * it away), so we won't call call disable hooks twice.
@@ -626,6 +629,10 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 			continue;
 
 		funcs = crtc->helper_private;
+
+		DRM_DEBUG_KMS("disabling [CRTC:%d]\n",
+			      crtc->base.id);
+
 
 		/* Right function depends upon target state. */
 		if (crtc->state->enable && funcs->prepare)
@@ -707,8 +714,12 @@ crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
 
 		funcs = crtc->helper_private;
 
-		if (crtc->state->enable)
+		if (crtc->state->enable) {
+			DRM_DEBUG_KMS("modeset on [CRTC:%d]\n",
+				      crtc->base.id);
+
 			funcs->mode_set_nofb(crtc);
+		}
 	}
 
 	for (i = 0; i < old_state->num_connector; i++) {
@@ -731,6 +742,9 @@ crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
 
 		if (!new_crtc_state->mode_changed)
 			continue;
+
+		DRM_DEBUG_KMS("modeset on [ENCODER:%d:%s]\n",
+			      encoder->base.id, encoder->name);
 
 		/*
 		 * Each encoder has at most one connector (since we always steal
@@ -793,6 +807,9 @@ void drm_atomic_helper_commit_post_planes(struct drm_device *dev,
 		funcs = crtc->helper_private;
 
 		if (crtc->state->enable) {
+			DRM_DEBUG_KMS("enabling [CRTC:%d]\n",
+				      crtc->base.id);
+
 			if (funcs->enable)
 				funcs->enable(crtc);
 			else
@@ -815,6 +832,9 @@ void drm_atomic_helper_commit_post_planes(struct drm_device *dev,
 
 		encoder = connector->state->best_encoder;
 		funcs = encoder->helper_private;
+
+		DRM_DEBUG_KMS("enabling [ENCODER:%d:%s]\n",
+			      encoder->base.id, encoder->name);
 
 		/*
 		 * Each encoder has at most one connector (since we always steal
