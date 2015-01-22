@@ -45,13 +45,6 @@ static int __init rtc_hctosys(void)
 
 	}
 
-	err = rtc_valid_tm(&tm);
-	if (err) {
-		dev_err(rtc->dev.parent,
-			"hctosys: invalid date/time\n");
-		goto err_invalid;
-	}
-
 	tv64.tv_sec = rtc_tm_to_time64(&tm);
 
 	err = do_settimeofday64(&tv64);
@@ -63,7 +56,6 @@ static int __init rtc_hctosys(void)
 		tm.tm_hour, tm.tm_min, tm.tm_sec,
 		(long long) tv64.tv_sec);
 
-err_invalid:
 err_read:
 	rtc_class_close(rtc);
 
