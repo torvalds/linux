@@ -40,7 +40,7 @@ static void __init rm9200_dt_device_init(void)
 
 
 
-static const char *at91rm9200_dt_board_compat[] __initdata = {
+static const char *at91rm9200_dt_board_compat[] __initconst = {
 	"atmel,at91rm9200",
 	NULL
 };

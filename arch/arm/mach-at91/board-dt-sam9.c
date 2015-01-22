@@ -30,7 +30,7 @@ static void __init sam9_dt_device_init(void)
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
-static const char *at91_dt_board_compat[] __initdata = {
+static const char *at91_dt_board_compat[] __initconst = {
 	"atmel,at91sam9",
 	NULL
 };
