@@ -6262,14 +6262,16 @@ static int powered_update_hci(struct hci_dev *hdev)
 
 	if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags) &&
 	    !lmp_host_ssp_capable(hdev)) {
-		u8 ssp = 1;
+		u8 mode = 0x01;
 
-		hci_req_add(&req, HCI_OP_WRITE_SSP_MODE, 1, &ssp);
-	}
+		hci_req_add(&req, HCI_OP_WRITE_SSP_MODE, sizeof(mode), &mode);
 
-	if (bredr_sc_enabled(hdev) && !lmp_host_sc_capable(hdev)) {
-		u8 sc = 0x01;
-		hci_req_add(&req, HCI_OP_WRITE_SC_SUPPORT, sizeof(sc), &sc);
+		if (bredr_sc_enabled(hdev) && !lmp_host_sc_capable(hdev)) {
+			u8 support = 0x01;
+
+			hci_req_add(&req, HCI_OP_WRITE_SC_SUPPORT,
+				    sizeof(support), &support);
+		}
 	}
 
 	if (test_bit(HCI_LE_ENABLED, &hdev->dev_flags) &&

@@ -609,6 +609,7 @@ static void hci_init2_req(struct hci_request *req, unsigned long opt)
 
 		if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags)) {
 			u8 mode = 0x01;
+
 			hci_req_add(req, HCI_OP_WRITE_SSP_MODE,
 				    sizeof(mode), &mode);
 		} else {
@@ -870,8 +871,10 @@ static void hci_init4_req(struct hci_request *req, unsigned long opt)
 		hci_req_add(req, HCI_OP_READ_SYNC_TRAIN_PARAMS, 0, NULL);
 
 	/* Enable Secure Connections if supported and configured */
-	if (bredr_sc_enabled(hdev)) {
+	if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags) &&
+	    bredr_sc_enabled(hdev)) {
 		u8 support = 0x01;
+
 		hci_req_add(req, HCI_OP_WRITE_SC_SUPPORT,
 			    sizeof(support), &support);
 	}
