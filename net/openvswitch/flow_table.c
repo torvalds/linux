@@ -357,9 +357,11 @@ int ovs_flow_tbl_flush(struct flow_table *flow_table)
 	return 0;
 }
 
-static u32 flow_hash(const struct sw_flow_key *key, int key_start,
-		     int key_end)
+static u32 flow_hash(const struct sw_flow_key *key,
+		     const struct sw_flow_key_range *range)
 {
+	int key_start = range->start;
+	int key_end = range->end;
 	const u32 *hash_key = (const u32 *)((const u8 *)key + key_start);
 	int hash_u32s = (key_end - key_start) >> 2;
 
@@ -395,9 +397,9 @@ static bool cmp_key(const struct sw_flow_key *key1,
 
 static bool flow_cmp_masked_key(const struct sw_flow *flow,
 				const struct sw_flow_key *key,
-				int key_start, int key_end)
+				const struct sw_flow_key_range *range)
 {
-	return cmp_key(&flow->key, key, key_start, key_end);
+	return cmp_key(&flow->key, key, range->start, range->end);
 }
 
 bool ovs_flow_cmp_unmasked_key(const struct sw_flow *flow,
@@ -416,18 +418,15 @@ static struct sw_flow *masked_flow_lookup(struct table_instance *ti,
 {
 	struct sw_flow *flow;
 	struct hlist_head *head;
-	int key_start = mask->range.start;
-	int key_end = mask->range.end;
 	u32 hash;
 	struct sw_flow_key masked_key;
 
 	ovs_flow_mask_key(&masked_key, unmasked, mask);
-	hash = flow_hash(&masked_key, key_start, key_end);
+	hash = flow_hash(&masked_key, &mask->range);
 	head = find_bucket(ti, hash);
 	hlist_for_each_entry_rcu(flow, head, hash_node[ti->node_ver]) {
 		if (flow->mask == mask && flow->hash == hash &&
-		    flow_cmp_masked_key(flow, &masked_key,
-					  key_start, key_end))
+		    flow_cmp_masked_key(flow, &masked_key, &mask->range))
 			return flow;
 	}
 	return NULL;
@@ -590,8 +589,7 @@ static void flow_key_insert(struct flow_table *table, struct sw_flow *flow)
 	struct table_instance *new_ti = NULL;
 	struct table_instance *ti;
 
-	flow->hash = flow_hash(&flow->key, flow->mask->range.start,
-			flow->mask->range.end);
+	flow->hash = flow_hash(&flow->key, &flow->mask->range);
 	ti = ovsl_dereference(table->ti);
 	table_instance_insert(ti, flow);
 	table->count++;
