@@ -31,16 +31,6 @@
 #include <mach/serial.h>
 #include <mach/cputype.h>
 
-static inline unsigned int serial_read_reg(struct plat_serial8250_port *up,
-					   int offset)
-{
-	offset <<= up->regshift;
-
-	WARN_ONCE(!up->membase, "unmapped read: uart[%d]\n", offset);
-
-	return (unsigned int)__raw_readl(up->membase + offset);
-}
-
 static inline void serial_write_reg(struct plat_serial8250_port *p, int offset,
 				    int value)
 {
