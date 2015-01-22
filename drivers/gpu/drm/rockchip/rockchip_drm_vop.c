@@ -81,7 +81,7 @@ struct vop {
 	struct drm_crtc crtc;
 	struct device *dev;
 	struct drm_device *drm_dev;
-	unsigned int dpms;
+	bool is_enabled;
 
 	int connector_type;
 	int connector_out_mode;
@@ -387,6 +387,9 @@ static void vop_enable(struct drm_crtc *crtc)
 	struct vop *vop = to_vop(crtc);
 	int ret;
 
+	if (vop->is_enabled)
+		return;
+
 	ret = clk_enable(vop->hclk);
 	if (ret < 0) {
 		dev_err(vop->dev, "failed to enable hclk - %d\n", ret);
@@ -427,6 +430,8 @@ static void vop_enable(struct drm_crtc *crtc)
 
 	drm_vblank_on(vop->drm_dev, vop->pipe);
 
+	vop->is_enabled = true;
+
 	return;
 
 err_disable_aclk:
@@ -440,6 +445,9 @@ err_disable_hclk:
 static void vop_disable(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
+
+	if (!vop->is_enabled)
+		return;
 
 	drm_vblank_off(crtc->dev, vop->pipe);
 
@@ -463,6 +471,8 @@ static void vop_disable(struct drm_crtc *crtc)
 
 	clk_disable(vop->aclk);
 	clk_disable(vop->hclk);
+
+	vop->is_enabled = false;
 }
 
 /*
@@ -742,7 +752,7 @@ static int vop_crtc_enable_vblank(struct drm_crtc *crtc)
 	struct vop *vop = to_vop(crtc);
 	unsigned long flags;
 
-	if (vop->dpms != DRM_MODE_DPMS_ON)
+	if (!vop->is_enabled)
 		return -EPERM;
 
 	spin_lock_irqsave(&vop->irq_lock, flags);
@@ -759,8 +769,9 @@ static void vop_crtc_disable_vblank(struct drm_crtc *crtc)
 	struct vop *vop = to_vop(crtc);
 	unsigned long flags;
 
-	if (vop->dpms != DRM_MODE_DPMS_ON)
+	if (!vop->is_enabled)
 		return;
+
 	spin_lock_irqsave(&vop->irq_lock, flags);
 	vop_mask_write(vop, INTR_CTRL0, FS_INTR_MASK, FS_INTR_EN(0));
 	spin_unlock_irqrestore(&vop->irq_lock, flags);
@@ -773,14 +784,7 @@ static const struct rockchip_crtc_funcs private_crtc_funcs = {
 
 static void vop_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
-	struct vop *vop = to_vop(crtc);
-
 	DRM_DEBUG_KMS("crtc[%d] mode[%d]\n", crtc->base.id, mode);
-
-	if (vop->dpms == mode) {
-		DRM_DEBUG_KMS("desired dpms mode is same as previous one.\n");
-		return;
-	}
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
@@ -795,8 +799,6 @@ static void vop_crtc_dpms(struct drm_crtc *crtc, int mode)
 		DRM_DEBUG_KMS("unspecified mode %d\n", mode);
 		break;
 	}
-
-	vop->dpms = mode;
 }
 
 static void vop_crtc_prepare(struct drm_crtc *crtc)
@@ -934,9 +936,9 @@ static int vop_crtc_page_flip(struct drm_crtc *crtc,
 	struct drm_framebuffer *old_fb = crtc->primary->fb;
 	int ret;
 
-	/* when the page flip is requested, crtc's dpms should be on */
-	if (vop->dpms > DRM_MODE_DPMS_ON) {
-		DRM_DEBUG("failed page flip request at dpms[%d].\n", vop->dpms);
+	/* when the page flip is requested, crtc should be on */
+	if (!vop->is_enabled) {
+		DRM_DEBUG("page flip request rejected because crtc is off.\n");
 		return 0;
 	}
 
@@ -1302,7 +1304,7 @@ static int vop_initial(struct vop *vop)
 
 	clk_disable(vop->hclk);
 
-	vop->dpms = DRM_MODE_DPMS_OFF;
+	vop->is_enabled = false;
 
 	return 0;
 
