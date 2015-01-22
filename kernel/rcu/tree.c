@@ -1196,9 +1196,10 @@ static void print_other_cpu_stall(struct rcu_state *rsp, unsigned long gpnum)
 		} else {
 			j = jiffies;
 			gpa = ACCESS_ONCE(rsp->gp_activity);
-			pr_err("All QSes seen, last %s kthread activity %ld (%ld-%ld), jiffies_till_next_fqs=%ld\n",
+			pr_err("All QSes seen, last %s kthread activity %ld (%ld-%ld), jiffies_till_next_fqs=%ld, root ->qsmask %#lx\n",
 			       rsp->name, j - gpa, j, gpa,
-			       jiffies_till_next_fqs);
+			       jiffies_till_next_fqs,
+			       rcu_get_root(rsp)->qsmask);
 			/* In this case, the current CPU might be at fault. */
 			sched_show_task(current);
 		}
