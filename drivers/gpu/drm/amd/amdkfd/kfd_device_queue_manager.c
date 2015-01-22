@@ -62,12 +62,6 @@ enum KFD_MQD_TYPE get_mqd_type_from_queue_type(enum kfd_queue_type type)
 	return KFD_MQD_TYPE_CP;
 }
 
-inline unsigned int get_pipes_num(struct device_queue_manager *dqm)
-{
-	BUG_ON(!dqm || !dqm->dev);
-	return dqm->dev->shared_resources.compute_pipe_count;
-}
-
 static inline unsigned int get_first_pipe(struct device_queue_manager *dqm)
 {
 	BUG_ON(!dqm);
@@ -77,25 +71,6 @@ static inline unsigned int get_first_pipe(struct device_queue_manager *dqm)
 static inline unsigned int get_pipes_num_cpsch(void)
 {
 	return PIPE_PER_ME_CP_SCHEDULING;
-}
-
-inline unsigned int
-get_sh_mem_bases_nybble_64(struct kfd_process_device *pdd)
-{
-	uint32_t nybble;
-
-	nybble = (pdd->lds_base >> 60) & 0x0E;
-
-	return nybble;
-}
-
-inline unsigned int get_sh_mem_bases_32(struct kfd_process_device *pdd)
-{
-	unsigned int shared_base;
-
-	shared_base = (pdd->lds_base >> 16) & 0xFF;
-
-	return shared_base;
 }
 
 void program_sh_mem_settings(struct device_queue_manager *dqm,
@@ -336,7 +311,8 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q)
 	BUG_ON(!dqm || !q || !q->mqd);
 
 	mutex_lock(&dqm->lock);
-	mqd = dqm->ops.get_mqd_manager(dqm, q->properties.type);
+	mqd = dqm->ops.get_mqd_manager(dqm,
+			get_mqd_type_from_queue_type(q->properties.type));
 	if (mqd == NULL) {
 		mutex_unlock(&dqm->lock);
 		return -ENOMEM;
