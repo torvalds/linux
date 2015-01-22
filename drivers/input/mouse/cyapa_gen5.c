@@ -2557,7 +2557,9 @@ static bool cyapa_gen5_irq_cmd_handler(struct cyapa *cyapa)
 			 * trackpad device when booting/rebooting
 			 * their chrome book.
 			 */
-			length = *gen5_pip->resp_len;
+			length = 0;
+			if (gen5_pip->resp_len)
+				length = *gen5_pip->resp_len;
 			cyapa_empty_pip_output_data(cyapa,
 					gen5_pip->resp_data,
 					&length,
