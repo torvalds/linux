@@ -752,7 +752,7 @@ static void resize(struct trie *t, struct tnode *tn)
 {
 	struct tnode *tp = node_parent(tn), *n = NULL;
 	struct tnode __rcu **cptr;
-	int max_work;
+	int max_work = MAX_WORK;
 
 	pr_debug("In tnode_resize %p inflate_threshold=%d threshold=%d\n",
 		 tn, inflate_threshold, halve_threshold);
@@ -775,8 +775,7 @@ static void resize(struct trie *t, struct tnode *tn)
 	/* Double as long as the resulting node has a number of
 	 * nonempty nodes that are above the threshold.
 	 */
-	max_work = MAX_WORK;
-	while (should_inflate(tp, tn) && max_work--) {
+	while (should_inflate(tp, tn) && max_work) {
 		if (inflate(t, tn)) {
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 			this_cpu_inc(t->stats->resize_node_skipped);
@@ -784,6 +783,7 @@ static void resize(struct trie *t, struct tnode *tn)
 			break;
 		}
 
+		max_work--;
 		tn = rtnl_dereference(*cptr);
 	}
 
@@ -794,8 +794,7 @@ static void resize(struct trie *t, struct tnode *tn)
 	/* Halve as long as the number of empty children in this
 	 * node is above threshold.
 	 */
-	max_work = MAX_WORK;
-	while (should_halve(tp, tn) && max_work--) {
+	while (should_halve(tp, tn) && max_work) {
 		if (halve(t, tn)) {
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 			this_cpu_inc(t->stats->resize_node_skipped);
@@ -803,6 +802,7 @@ static void resize(struct trie *t, struct tnode *tn)
 			break;
 		}
 
+		max_work--;
 		tn = rtnl_dereference(*cptr);
 	}
 
