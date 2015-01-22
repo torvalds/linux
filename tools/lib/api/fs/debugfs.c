@@ -125,3 +125,12 @@ int debugfs__strerror_open(int err, char *buf, size_t size, const char *filename
 
 	return 0;
 }
+
+int debugfs__strerror_open_tp(int err, char *buf, size_t size, const char *sys, const char *name)
+{
+	char path[PATH_MAX];
+
+	snprintf(path, PATH_MAX, "tracing/events/%s/%s", sys, name ?: "*");
+
+	return debugfs__strerror_open(err, buf, size, path);
+}

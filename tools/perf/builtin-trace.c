@@ -2071,9 +2071,9 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		goto out_error_mem;
 
 	if (trace->sched &&
-		perf_evlist__add_newtp(evlist, "sched", "sched_stat_runtime",
-				trace__sched_stat_runtime))
-		goto out_error_tp;
+	    perf_evlist__add_newtp(evlist, "sched", "sched_stat_runtime",
+				   trace__sched_stat_runtime))
+		goto out_error_sched_stat_runtime;
 
 	err = perf_evlist__create_maps(evlist, &trace->opts.target);
 	if (err < 0) {
@@ -2203,9 +2203,12 @@ out:
 {
 	char errbuf[BUFSIZ];
 
-out_error_tp:
+out_error_sched_stat_runtime:
+	debugfs__strerror_open_tp(errno, errbuf, sizeof(errbuf), "sched", "sched_stat_runtime");
+	goto out_error;
+
 out_error_raw_syscalls:
-	debugfs__strerror_open(errno, errbuf, sizeof(errbuf), "tracing/events/raw_syscalls");
+	debugfs__strerror_open_tp(errno, errbuf, sizeof(errbuf), "raw_syscalls", "sys_(enter|exit)");
 	goto out_error;
 
 out_error_mmap:
