@@ -461,10 +461,8 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 			     0, upcall_info->cmd);
 	upcall->dp_ifindex = dp_ifindex;
 
-	nla = nla_nest_start(user_skb, OVS_PACKET_ATTR_KEY);
-	err = ovs_nla_put_flow(key, key, user_skb);
+	err = ovs_nla_put_key(key, key, OVS_PACKET_ATTR_KEY, false, user_skb);
 	BUG_ON(err);
-	nla_nest_end(user_skb, nla);
 
 	if (upcall_info->userdata)
 		__nla_put(user_skb, OVS_PACKET_ATTR_USERDATA,
@@ -676,37 +674,6 @@ static size_t ovs_flow_cmd_msg_size(const struct sw_flow_actions *acts)
 }
 
 /* Called with ovs_mutex or RCU read lock. */
-static int ovs_flow_cmd_fill_match(const struct sw_flow *flow,
-				   struct sk_buff *skb)
-{
-	struct nlattr *nla;
-	int err;
-
-	/* Fill flow key. */
-	nla = nla_nest_start(skb, OVS_FLOW_ATTR_KEY);
-	if (!nla)
-		return -EMSGSIZE;
-
-	err = ovs_nla_put_flow(&flow->unmasked_key, &flow->unmasked_key, skb);
-	if (err)
-		return err;
-
-	nla_nest_end(skb, nla);
-
-	/* Fill flow mask. */
-	nla = nla_nest_start(skb, OVS_FLOW_ATTR_MASK);
-	if (!nla)
-		return -EMSGSIZE;
-
-	err = ovs_nla_put_flow(&flow->key, &flow->mask->key, skb);
-	if (err)
-		return err;
-
-	nla_nest_end(skb, nla);
-	return 0;
-}
-
-/* Called with ovs_mutex or RCU read lock. */
 static int ovs_flow_cmd_fill_stats(const struct sw_flow *flow,
 				   struct sk_buff *skb)
 {
@@ -787,7 +754,11 @@ static int ovs_flow_cmd_fill_info(const struct sw_flow *flow, int dp_ifindex,
 
 	ovs_header->dp_ifindex = dp_ifindex;
 
-	err = ovs_flow_cmd_fill_match(flow, skb);
+	err = ovs_nla_put_unmasked_key(flow, skb);
+	if (err)
+		goto error;
+
+	err = ovs_nla_put_mask(flow, skb);
 	if (err)
 		goto error;
 
