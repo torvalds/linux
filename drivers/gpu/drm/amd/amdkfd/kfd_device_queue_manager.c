@@ -1114,8 +1114,11 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 	switch (dev->device_info->asic_family) {
 	case CHIP_CARRIZO:
 		device_queue_manager_init_vi(&dqm->ops_asic_specific);
+		break;
+
 	case CHIP_KAVERI:
 		device_queue_manager_init_cik(&dqm->ops_asic_specific);
+		break;
 	}
 
 	if (dqm->ops.initialize(dqm) != 0) {
