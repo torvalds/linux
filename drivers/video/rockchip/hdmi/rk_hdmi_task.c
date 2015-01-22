@@ -185,6 +185,7 @@ void hdmi_work(struct work_struct *work)
 	struct delayed_work *delay_work =
 	    container_of(work, struct delayed_work, work);
 	struct hdmi *hdmi = container_of(delay_work, struct hdmi, delay_work);
+	int command = hdmi->command;
 
 	mutex_lock(&work_mutex);
 	/* Process hdmi command */
@@ -279,6 +280,11 @@ void hdmi_work(struct work_struct *work)
 			if (hdmi->uboot_logo) {
 				hdmi->state = CONFIG_AUDIO;
 			}
+
+			/* whether switch resolution */
+			if (command == HDMI_CONFIG_VIDEO)
+				kobject_uevent_env(&hdmi->ddev->dev->kobj,
+						   KOBJ_CHANGE, envp);
 			break;
 		case CONFIG_VIDEO:
 			hdmi->display = HDMI_DISABLE;
