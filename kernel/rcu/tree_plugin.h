@@ -76,6 +76,9 @@ static void __init rcu_bootup_announce_oddness(void)
 		pr_info("\tAdditional per-CPU info printed with stalls.\n");
 	if (NUM_RCU_LVL_4 != 0)
 		pr_info("\tFour-level hierarchy is enabled.\n");
+	if (CONFIG_RCU_FANOUT_LEAF != 16)
+		pr_info("\tBuild-time adjustment of leaf fanout to %d.\n",
+			CONFIG_RCU_FANOUT_LEAF);
 	if (rcu_fanout_leaf != CONFIG_RCU_FANOUT_LEAF)
 		pr_info("\tBoot-time adjustment of leaf fanout to %d.\n", rcu_fanout_leaf);
 	if (nr_cpu_ids != NR_CPUS)
