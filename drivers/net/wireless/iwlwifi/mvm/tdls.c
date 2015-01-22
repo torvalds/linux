@@ -64,6 +64,8 @@
 #include <linux/etherdevice.h>
 #include "mvm.h"
 #include "time-event.h"
+#include "iwl-io.h"
+#include "iwl-prph.h"
 
 #define TU_TO_US(x) (x * 1024)
 #define TU_TO_MS(x) (TU_TO_US(x) / 1000)
@@ -250,6 +252,11 @@ static void iwl_mvm_tdls_update_cs_state(struct iwl_mvm *mvm,
 		       iwl_mvm_tdls_cs_state_str(state));
 	mvm->tdls_cs.state = state;
 
+	/* we only send requests to our switching peer - update sent time */
+	if (state == IWL_MVM_TDLS_SW_REQ_SENT)
+		mvm->tdls_cs.peer.sent_timestamp =
+			iwl_read_prph(mvm->trans, DEVICE_SYSTEM_TIME_REG);
+
 	if (state == IWL_MVM_TDLS_SW_IDLE)
 		mvm->tdls_cs.cur_sta_id = IWL_MVM_STATION_COUNT;
 }
@@ -302,7 +309,7 @@ out:
 static int
 iwl_mvm_tdls_check_action(struct iwl_mvm *mvm,
 			  enum iwl_tdls_channel_switch_type type,
-			  const u8 *peer, bool peer_initiator)
+			  const u8 *peer, bool peer_initiator, u32 timestamp)
 {
 	bool same_peer = false;
 	int ret = 0;
@@ -341,6 +348,9 @@ iwl_mvm_tdls_check_action(struct iwl_mvm *mvm,
 		else if (type == TDLS_SEND_CHAN_SW_REQ)
 			/* wait for idle before sending another request */
 			ret = -EBUSY;
+		else if (timestamp <= mvm->tdls_cs.peer.sent_timestamp)
+			/* we got a stale response - ignore it */
+			ret = -EINVAL;
 		break;
 	case IWL_MVM_TDLS_SW_RESP_RCVD:
 		/*
@@ -399,7 +409,8 @@ iwl_mvm_tdls_config_channel_switch(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	ret = iwl_mvm_tdls_check_action(mvm, type, peer, peer_initiator);
+	ret = iwl_mvm_tdls_check_action(mvm, type, peer, peer_initiator,
+					timestamp);
 	if (ret)
 		return ret;
 

@@ -798,6 +798,9 @@ struct iwl_mvm {
 			struct cfg80211_chan_def chandef;
 			struct sk_buff *skb; /* ch sw template */
 			u32 ch_sw_tm_ie;
+
+			/* timestamp of last ch-sw request sent (GP2 time) */
+			u32 sent_timestamp;
 		} peer;
 	} tdls_cs;
 
