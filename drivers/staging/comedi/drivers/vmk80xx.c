@@ -558,7 +558,7 @@ static int vmk80xx_cnt_insn_config(struct comedi_device *dev,
 	int n;
 
 	insn_cmd = data[0];
-	if (insn_cmd != INSN_CONFIG_RESET && insn_cmd != GPCT_RESET)
+	if (insn_cmd != INSN_CONFIG_RESET)
 		return -EINVAL;
 
 	down(&devpriv->limit_sem);
