@@ -764,6 +764,9 @@ struct drm_plane_state {
 	uint32_t src_x, src_y;
 	uint32_t src_h, src_w;
 
+	/* Plane rotation */
+	unsigned int rotation;
+
 	struct drm_atomic_state *state;
 };
 
