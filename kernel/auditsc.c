@@ -1882,44 +1882,10 @@ out_alloc:
 	n = audit_alloc_name(context, AUDIT_TYPE_UNKNOWN);
 	if (!n)
 		return;
-	/* unfortunately, while we may have a path name to record with the
-	 * inode, we can't always rely on the string lasting until the end of
-	 * the syscall so we need to create our own copy, it may fail due to
-	 * memory allocation issues, but we do our best */
-	if (name) {
-		/* we can't use getname_kernel() due to size limits */
-		size_t len = strlen(name->name) + 1;
-		struct filename *new = __getname();
+	if (name)
+		/* no need to set ->name_put as the original will cleanup */
+		n->name = name;
 
-		if (unlikely(!new))
-			goto out;
-
-		if (len <= (PATH_MAX - sizeof(*new))) {
-			new->name = (char *)(new) + sizeof(*new);
-			new->separate = false;
-		} else if (len <= PATH_MAX) {
-			/* this looks odd, but is due to final_putname() */
-			struct filename *new2;
-
-			new2 = kmalloc(sizeof(*new2), GFP_KERNEL);
-			if (unlikely(!new2)) {
-				__putname(new);
-				goto out;
-			}
-			new2->name = (char *)new;
-			new2->separate = true;
-			new = new2;
-		} else {
-			/* we should never get here, but let's be safe */
-			__putname(new);
-			goto out;
-		}
-		strlcpy((char *)new->name, name->name, len);
-		new->uptr = NULL;
-		new->aname = n;
-		n->name = new;
-		n->name_put = true;
-	}
 out:
 	if (parent) {
 		n->name_len = n->name ? parent_len(n->name->name) : AUDIT_NAME_FULL;
