@@ -3267,6 +3267,27 @@ serial8250_console_write(struct console *co, const char *s, unsigned int count)
 	else
 		serial_port_out(port, UART_IER, 0);
 
+	/* check scratch reg to see if port powered off during system sleep */
+	if (up->canary && (up->canary != serial_port_in(port, UART_SCR))) {
+		struct ktermios termios;
+		unsigned int baud, quot, frac = 0;
+
+		termios.c_cflag = port->cons->cflag;
+		if (port->state->port.tty && termios.c_cflag == 0)
+			termios.c_cflag = port->state->port.tty->termios.c_cflag;
+
+		baud = uart_get_baud_rate(port, &termios, NULL,
+					  port->uartclk / 16 / 0xffff,
+					  port->uartclk / 16);
+		quot = serial8250_get_divisor(up, baud, &frac);
+
+		serial8250_set_divisor(port, baud, quot, frac);
+		serial_port_out(port, UART_LCR, up->lcr);
+		serial_port_out(port, UART_MCR, UART_MCR_DTR | UART_MCR_RTS);
+
+		up->canary = 0;
+	}
+
 	uart_console_write(port, s, count, serial8250_console_putchar);
 
 	/*
@@ -3417,7 +3438,17 @@ int __init early_serial_setup(struct uart_port *port)
  */
 void serial8250_suspend_port(int line)
 {
-	uart_suspend_port(&serial8250_reg, &serial8250_ports[line].port);
+	struct uart_8250_port *up = &serial8250_ports[line];
+	struct uart_port *port = &up->port;
+
+	if (!console_suspend_enabled && uart_console(port) &&
+	    port->type != PORT_8250) {
+		unsigned char canary = 0xa5;
+		serial_out(up, UART_SCR, canary);
+		up->canary = canary;
+	}
+
+	uart_suspend_port(&serial8250_reg, port);
 }
 
 /**
@@ -3430,6 +3461,8 @@ void serial8250_resume_port(int line)
 {
 	struct uart_8250_port *up = &serial8250_ports[line];
 	struct uart_port *port = &up->port;
+
+	up->canary = 0;
 
 	if (up->capabilities & UART_NATSEMI) {
 		/* Ensure it's still in high speed mode */
