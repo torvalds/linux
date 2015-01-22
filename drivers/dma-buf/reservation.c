@@ -402,8 +402,6 @@ reservation_object_test_signaled_single(struct fence *passed_fence)
 	int ret = 1;
 
 	if (!test_bit(FENCE_FLAG_SIGNALED_BIT, &lfence->flags)) {
-		int ret;
-
 		fence = fence_get_rcu(lfence);
 		if (!fence)
 			return -1;
