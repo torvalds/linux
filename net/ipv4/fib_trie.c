@@ -1954,16 +1954,10 @@ static void trie_collect_stats(struct trie *t, struct trie_stat *s)
 			hlist_for_each_entry_rcu(li, &n->list, hlist)
 				++s->prefixes;
 		} else {
-			unsigned long i;
-
 			s->tnodes++;
 			if (n->bits < MAX_STAT_DEPTH)
 				s->nodesizes[n->bits]++;
-
-			for (i = tnode_child_length(n); i--;) {
-				if (!rcu_access_pointer(n->child[i]))
-					s->nullpointers++;
-			}
+			s->nullpointers += n->empty_children;
 		}
 	}
 	rcu_read_unlock();
