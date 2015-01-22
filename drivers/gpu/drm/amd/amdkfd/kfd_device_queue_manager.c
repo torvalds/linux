@@ -301,6 +301,11 @@ static int destroy_queue_nocpsch(struct device_queue_manager *dqm,
 		}
 		dqm->sdma_queue_count--;
 		deallocate_sdma_queue(dqm, q->sdma_id);
+	} else {
+		pr_debug("q->properties.type is invalid (%d)\n",
+				q->properties.type);
+		retval = -EINVAL;
+		goto out;
 	}
 
 	retval = mqd->destroy_mqd(mqd, q->mqd,
