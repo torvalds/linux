@@ -551,41 +551,35 @@ static int vmk80xx_cnt_insn_config(struct comedi_device *dev,
 				   unsigned int *data)
 {
 	struct vmk80xx_private *devpriv = dev->private;
-	unsigned int insn_cmd;
-	int chan;
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	int cmd;
 	int reg;
-	int n;
-
-	insn_cmd = data[0];
-	if (insn_cmd != INSN_CONFIG_RESET)
-		return -EINVAL;
+	int ret;
 
 	down(&devpriv->limit_sem);
-
-	chan = CR_CHAN(insn->chanspec);
-
-	if (devpriv->model == VMK8055_MODEL) {
-		if (!chan) {
-			cmd = VMK8055_CMD_RST_CNT1;
-			reg = VMK8055_CNT1_REG;
+	switch (data[0]) {
+	case INSN_CONFIG_RESET:
+		if (devpriv->model == VMK8055_MODEL) {
+			if (!chan) {
+				cmd = VMK8055_CMD_RST_CNT1;
+				reg = VMK8055_CNT1_REG;
+			} else {
+				cmd = VMK8055_CMD_RST_CNT2;
+				reg = VMK8055_CNT2_REG;
+			}
+			devpriv->usb_tx_buf[reg] = 0x00;
 		} else {
-			cmd = VMK8055_CMD_RST_CNT2;
-			reg = VMK8055_CNT2_REG;
+			cmd = VMK8061_CMD_RST_CNT;
 		}
-
-		devpriv->usb_tx_buf[reg] = 0x00;
-	} else {
-		cmd = VMK8061_CMD_RST_CNT;
+		ret = vmk80xx_write_packet(dev, cmd);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
 	}
-
-	for (n = 0; n < insn->n; n++)
-		if (vmk80xx_write_packet(dev, cmd))
-			break;
-
 	up(&devpriv->limit_sem);
 
-	return n;
+	return ret ? ret : insn->n;
 }
 
 static int vmk80xx_cnt_insn_write(struct comedi_device *dev,
