@@ -122,6 +122,9 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 		return -EINVAL;
 
 	bpf_size = bpf_num_ops * sizeof(*bpf_ops);
+	if (bpf_size != nla_len(tb[TCA_ACT_BPF_OPS]))
+		return -EINVAL;
+
 	bpf_ops = kzalloc(bpf_size, GFP_KERNEL);
 	if (!bpf_ops)
 		return -ENOMEM;
