@@ -509,7 +509,6 @@ struct intel_plane {
 	struct drm_i915_gem_object *obj;
 	bool can_scale;
 	int max_downscale;
-	unsigned int rotation;
 
 	/* Since we need to change the watermarks before/after
 	 * enabling/disabling the planes, we need to store the parameters here
@@ -517,6 +516,12 @@ struct intel_plane {
 	 * for the watermark calculations. Currently only Haswell uses this.
 	 */
 	struct intel_plane_wm_parameters wm;
+
+	/*
+	 * NOTE: Do not place new plane state fields here (e.g., when adding
+	 * new plane properties).  New runtime state should now be placed in
+	 * the intel_plane_state structure and accessed via drm_plane->state.
+	 */
 
 	void (*update_plane)(struct drm_plane *plane,
 			     struct drm_crtc *crtc,
@@ -1235,6 +1240,7 @@ void intel_pre_disable_primary(struct drm_crtc *crtc);
 void intel_tv_init(struct drm_device *dev);
 
 /* intel_atomic.c */
+struct intel_plane_state *intel_create_plane_state(struct drm_plane *plane);
 struct drm_plane_state *intel_plane_duplicate_state(struct drm_plane *plane);
 void intel_plane_destroy_state(struct drm_plane *plane,
 			       struct drm_plane_state *state);

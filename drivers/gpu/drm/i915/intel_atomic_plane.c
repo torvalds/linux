@@ -37,31 +37,58 @@
 #include "intel_drv.h"
 
 /**
+ * intel_create_plane_state - create plane state object
+ * @plane: drm plane
+ *
+ * Allocates a fresh plane state for the given plane and sets some of
+ * the state values to sensible initial values.
+ *
+ * Returns: A newly allocated plane state, or NULL on failure
+ */
+struct intel_plane_state *
+intel_create_plane_state(struct drm_plane *plane)
+{
+	struct intel_plane_state *state;
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return NULL;
+
+	state->base.plane = plane;
+	state->base.rotation = BIT(DRM_ROTATE_0);
+
+	return state;
+}
+
+/**
  * intel_plane_duplicate_state - duplicate plane state
  * @plane: drm plane
  *
  * Allocates and returns a copy of the plane state (both common and
  * Intel-specific) for the specified plane.
  *
- * Returns: The newly allocated plane state, or NULL or failure.
+ * Returns: The newly allocated plane state, or NULL on failure.
  */
 struct drm_plane_state *
 intel_plane_duplicate_state(struct drm_plane *plane)
 {
-	struct intel_plane_state *state;
+	struct drm_plane_state *state;
+	struct intel_plane_state *intel_state;
 
-	if (plane->state)
-		state = kmemdup(plane->state, sizeof(*state), GFP_KERNEL);
+	if (WARN_ON(!plane->state))
+		intel_state = intel_create_plane_state(plane);
 	else
-		state = kzalloc(sizeof(*state), GFP_KERNEL);
+		intel_state = kmemdup(plane->state, sizeof(*intel_state),
+				      GFP_KERNEL);
 
-	if (!state)
+	if (!intel_state)
 		return NULL;
 
-	if (state->base.fb)
-		drm_framebuffer_reference(state->base.fb);
+	state = &intel_state->base;
+	if (state->fb)
+		drm_framebuffer_reference(state->fb);
 
-	return &state->base;
+	return state;
 }
 
 /**
