@@ -917,27 +917,20 @@ static void leaf_push_suffix(struct tnode *l)
 
 static void remove_leaf_info(struct tnode *l, struct leaf_info *old)
 {
-	struct hlist_node *prev;
-
-	/* record the location of the pointer to this object */
-	prev = rtnl_dereference(hlist_pprev_rcu(&old->hlist));
+	/* record the location of the previous list_info entry */
+	struct hlist_node **pprev = old->hlist.pprev;
+	struct leaf_info *li = hlist_entry(pprev, typeof(*li), hlist.next);
 
 	/* remove the leaf info from the list */
 	hlist_del_rcu(&old->hlist);
 
-	/* if we emptied the list this leaf will be freed and we can sort
-	 * out parent suffix lengths as a part of trie_rebalance
-	 */
-	if (hlist_empty(&l->list))
+	/* only access li if it is pointing at the last valid hlist_node */
+	if (hlist_empty(&l->list) || (*pprev))
 		return;
 
-	/* if we removed the tail then we need to update slen */
-	if (!rcu_access_pointer(hlist_next_rcu(prev))) {
-		struct leaf_info *li = hlist_entry(prev, typeof(*li), hlist);
-
-		l->slen = KEYLENGTH - li->plen;
-		leaf_pull_suffix(l);
-	}
+	/* update the trie with the latest suffix length */
+	l->slen = KEYLENGTH - li->plen;
+	leaf_pull_suffix(l);
 }
 
 static void insert_leaf_info(struct tnode *l, struct leaf_info *new)
@@ -961,7 +954,7 @@ static void insert_leaf_info(struct tnode *l, struct leaf_info *new)
 	}
 
 	/* if we added to the tail node then we need to update slen */
-	if (!rcu_access_pointer(hlist_next_rcu(&new->hlist))) {
+	if (l->slen < (KEYLENGTH - new->plen)) {
 		l->slen = KEYLENGTH - new->plen;
 		leaf_push_suffix(l);
 	}
@@ -1613,6 +1606,7 @@ static int trie_flush_leaf(struct tnode *l)
 	struct hlist_head *lih = &l->list;
 	struct hlist_node *tmp;
 	struct leaf_info *li = NULL;
+	unsigned char plen = KEYLENGTH;
 
 	hlist_for_each_entry_safe(li, tmp, lih, hlist) {
 		found += trie_flush_list(&li->falh);
@@ -1620,8 +1614,14 @@ static int trie_flush_leaf(struct tnode *l)
 		if (list_empty(&li->falh)) {
 			hlist_del_rcu(&li->hlist);
 			free_leaf_info(li);
+			continue;
 		}
+
+		plen = li->plen;
 	}
+
+	l->slen = KEYLENGTH - plen;
+
 	return found;
 }
 
@@ -1700,13 +1700,22 @@ int fib_table_flush(struct fib_table *tb)
 	for (l = trie_firstleaf(t); l; l = trie_nextleaf(l)) {
 		found += trie_flush_leaf(l);
 
-		if (ll && hlist_empty(&ll->list))
-			trie_leaf_remove(t, ll);
+		if (ll) {
+			if (hlist_empty(&ll->list))
+				trie_leaf_remove(t, ll);
+			else
+				leaf_pull_suffix(ll);
+		}
+
 		ll = l;
 	}
 
-	if (ll && hlist_empty(&ll->list))
-		trie_leaf_remove(t, ll);
+	if (ll) {
+		if (hlist_empty(&ll->list))
+			trie_leaf_remove(t, ll);
+		else
+			leaf_pull_suffix(ll);
+	}
 
 	pr_debug("trie_flush found=%d\n", found);
 	return found;
