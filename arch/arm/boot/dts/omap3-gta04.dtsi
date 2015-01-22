@@ -428,16 +428,12 @@
 	regulator-max-microvolt = <3150000>;
 };
 
-/* Needed to power the DPI pins */
-&vpll2 {
-	regulator-always-on;
-};
-
 &dss {
 	pinctrl-names = "default";
 	pinctrl-0 = < &dss_dpi_pins >;
 
 	status = "okay";
+	vdds_dsi-supply = <&vpll2>;
 
 	port {
 		dpi_out: endpoint {
