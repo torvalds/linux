@@ -1316,8 +1316,10 @@ static int sh_eth_dev_init(struct net_device *ndev, bool start)
 		     RFLR);
 
 	sh_eth_write(ndev, sh_eth_read(ndev, EESR), EESR);
-	if (start)
+	if (start) {
+		mdp->irq_enabled = true;
 		sh_eth_write(ndev, mdp->cd->eesipr_value, EESIPR);
+	}
 
 	/* PAUSE Prohibition */
 	val = (sh_eth_read(ndev, ECMR) & ECMR_DM) |
@@ -1653,7 +1655,12 @@ static irqreturn_t sh_eth_interrupt(int irq, void *netdev)
 	if (intr_status & (EESR_RX_CHECK | cd->tx_check | cd->eesr_err_check))
 		ret = IRQ_HANDLED;
 	else
-		goto other_irq;
+		goto out;
+
+	if (!likely(mdp->irq_enabled)) {
+		sh_eth_write(ndev, 0, EESIPR);
+		goto out;
+	}
 
 	if (intr_status & EESR_RX_CHECK) {
 		if (napi_schedule_prep(&mdp->napi)) {
@@ -1684,7 +1691,7 @@ static irqreturn_t sh_eth_interrupt(int irq, void *netdev)
 		sh_eth_error(ndev, intr_status);
 	}
 
-other_irq:
+out:
 	spin_unlock(&mdp->lock);
 
 	return ret;
@@ -1712,7 +1719,8 @@ static int sh_eth_poll(struct napi_struct *napi, int budget)
 	napi_complete(napi);
 
 	/* Reenable Rx interrupts */
-	sh_eth_write(ndev, mdp->cd->eesipr_value, EESIPR);
+	if (mdp->irq_enabled)
+		sh_eth_write(ndev, mdp->cd->eesipr_value, EESIPR);
 out:
 	return budget - quota;
 }
@@ -1970,12 +1978,20 @@ static int sh_eth_set_ringparam(struct net_device *ndev,
 	if (netif_running(ndev)) {
 		netif_device_detach(ndev);
 		netif_tx_disable(ndev);
-		/* Disable interrupts by clearing the interrupt mask. */
+
+		/* Serialise with the interrupt handler and NAPI, then
+		 * disable interrupts.  We have to clear the
+		 * irq_enabled flag first to ensure that interrupts
+		 * won't be re-enabled.
+		 */
+		mdp->irq_enabled = false;
+		synchronize_irq(ndev->irq);
+		napi_synchronize(&mdp->napi);
 		sh_eth_write(ndev, 0x0000, EESIPR);
+
 		/* Stop the chip's Tx and Rx processes. */
 		sh_eth_write(ndev, 0, EDTRR);
 		sh_eth_write(ndev, 0, EDRRR);
-		synchronize_irq(ndev->irq);
 
 		/* Free all the skbuffs in the Rx queue. */
 		sh_eth_ring_free(ndev);
@@ -2001,6 +2017,7 @@ static int sh_eth_set_ringparam(struct net_device *ndev,
 			return ret;
 		}
 
+		mdp->irq_enabled = true;
 		sh_eth_write(ndev, mdp->cd->eesipr_value, EESIPR);
 		/* Setting the Rx mode will start the Rx process. */
 		sh_eth_write(ndev, EDRRR_R, EDRRR);
@@ -2184,7 +2201,13 @@ static int sh_eth_close(struct net_device *ndev)
 
 	netif_stop_queue(ndev);
 
-	/* Disable interrupts by clearing the interrupt mask. */
+	/* Serialise with the interrupt handler and NAPI, then disable
+	 * interrupts.  We have to clear the irq_enabled flag first to
+	 * ensure that interrupts won't be re-enabled.
+	 */
+	mdp->irq_enabled = false;
+	synchronize_irq(ndev->irq);
+	napi_disable(&mdp->napi);
 	sh_eth_write(ndev, 0x0000, EESIPR);
 
 	/* Stop the chip's Tx and Rx processes. */
@@ -2200,8 +2223,6 @@ static int sh_eth_close(struct net_device *ndev)
 	}
 
 	free_irq(ndev->irq, ndev);
-
-	napi_disable(&mdp->napi);
 
 	/* Free all the skbuffs in the Rx queue. */
 	sh_eth_ring_free(ndev);
