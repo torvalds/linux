@@ -559,9 +559,6 @@ static int ap_probe(struct usb_interface *interface,
 			 usb_rcvintpipe(udev, es1->svc_endpoint),
 			 es1->svc_buffer, ES1_SVC_MSG_SIZE, svc_in_callback,
 			 hd, svc_interval);
-	retval = usb_submit_urb(es1->svc_urb, GFP_KERNEL);
-	if (retval)
-		goto error;
 
 	/* Allocate buffers for our cport in messages and start them up */
 	for (i = 0; i < NUM_CPORT_IN_URB; ++i) {
@@ -597,6 +594,11 @@ static int ap_probe(struct usb_interface *interface,
 		es1->cport_out_urb[i] = urb;
 		es1->cport_out_urb_busy[i] = false;	/* just to be anal */
 	}
+
+	/* Start up our svc urb, which allows events to start flowing */
+	retval = usb_submit_urb(es1->svc_urb, GFP_KERNEL);
+	if (retval)
+		goto error;
 
 	return 0;
 error:
