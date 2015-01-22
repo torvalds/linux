@@ -180,6 +180,11 @@ static int cls_bpf_modify_existing(struct net *net, struct tcf_proto *tp,
 	}
 
 	bpf_size = bpf_len * sizeof(*bpf_ops);
+	if (bpf_size != nla_len(tb[TCA_BPF_OPS])) {
+		ret = -EINVAL;
+		goto errout;
+	}
+
 	bpf_ops = kzalloc(bpf_size, GFP_KERNEL);
 	if (bpf_ops == NULL) {
 		ret = -ENOMEM;
