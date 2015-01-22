@@ -356,7 +356,7 @@ EXPORT_SYMBOL_GPL(greybus_svc_in);
 
 int gb_ap_init(void)
 {
-	ap_workqueue = alloc_workqueue("greybus_ap", 0, 1);
+	ap_workqueue = alloc_ordered_workqueue("greybus_ap", 0);
 	if (!ap_workqueue)
 		return -ENOMEM;
 
