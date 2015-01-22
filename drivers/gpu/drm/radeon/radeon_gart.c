@@ -165,6 +165,19 @@ int radeon_gart_table_vram_pin(struct radeon_device *rdev)
 		radeon_bo_unpin(rdev->gart.robj);
 	radeon_bo_unreserve(rdev->gart.robj);
 	rdev->gart.table_addr = gpu_addr;
+
+	if (!r) {
+		int i;
+
+		/* We might have dropped some GART table updates while it wasn't
+		 * mapped, restore all entries
+		 */
+		for (i = 0; i < rdev->gart.num_gpu_pages; i++)
+			radeon_gart_set_page(rdev, i, rdev->gart.pages_entry[i]);
+		mb();
+		radeon_gart_tlb_flush(rdev);
+	}
+
 	return r;
 }
 
