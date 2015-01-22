@@ -377,6 +377,10 @@
 	status = "disabled";
 };
 
+&twl_keypad {
+	status = "disabled";
+};
+
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart1_pins>;
