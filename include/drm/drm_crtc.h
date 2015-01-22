@@ -909,6 +909,7 @@ struct drm_bridge {
  * struct struct drm_atomic_state - the global state object for atomic updates
  * @dev: parent DRM device
  * @allow_modeset: allow full modeset
+ * @legacy_cursor_update: hint to enforce legacy cursor ioctl semantics
  * @planes: pointer to array of plane pointers
  * @plane_states: pointer to array of plane states pointers
  * @crtcs: pointer to array of CRTC pointers
@@ -921,6 +922,7 @@ struct drm_bridge {
 struct drm_atomic_state {
 	struct drm_device *dev;
 	bool allow_modeset : 1;
+	bool legacy_cursor_update : 1;
 	struct drm_plane **planes;
 	struct drm_plane_state **plane_states;
 	struct drm_crtc **crtcs;
