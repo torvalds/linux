@@ -565,10 +565,14 @@ static int init_pipelines(struct device_queue_manager *dqm,
 
 	for (i = 0; i < pipes_num; i++) {
 		inx = i + first_pipe;
+		/*
+		 * HPD buffer on GTT is allocated by amdkfd, no need to waste
+		 * space in GTT for pipelines we don't initialize
+		 */
 		pipe_hpd_addr = dqm->pipelines_addr + i * CIK_HPD_EOP_BYTES;
 		pr_debug("kfd: pipeline address %llX\n", pipe_hpd_addr);
 		/* = log2(bytes/4)-1 */
-		kfd2kgd->init_pipeline(dqm->dev->kgd, i,
+		kfd2kgd->init_pipeline(dqm->dev->kgd, inx,
 				CIK_HPD_EOP_BYTES_LOG2 - 3, pipe_hpd_addr);
 	}
 
