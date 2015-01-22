@@ -2440,16 +2440,12 @@ static unsigned int serial8250_get_divisor(struct uart_8250_port *up, unsigned i
 	return quot;
 }
 
-void
-serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
-		          struct ktermios *old)
+static unsigned char serial8250_compute_lcr(struct uart_8250_port *up,
+					    tcflag_t c_cflag)
 {
-	struct uart_8250_port *up = up_to_u8250p(port);
 	unsigned char cval;
-	unsigned long flags;
-	unsigned int baud, quot;
 
-	switch (termios->c_cflag & CSIZE) {
+	switch (c_cflag & CSIZE) {
 	case CS5:
 		cval = UART_LCR_WLEN5;
 		break;
@@ -2465,19 +2461,33 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 		break;
 	}
 
-	if (termios->c_cflag & CSTOPB)
+	if (c_cflag & CSTOPB)
 		cval |= UART_LCR_STOP;
-	if (termios->c_cflag & PARENB) {
+	if (c_cflag & PARENB) {
 		cval |= UART_LCR_PARITY;
 		if (up->bugs & UART_BUG_PARITY)
 			up->fifo_bug = true;
 	}
-	if (!(termios->c_cflag & PARODD))
+	if (!(c_cflag & PARODD))
 		cval |= UART_LCR_EPAR;
 #ifdef CMSPAR
-	if (termios->c_cflag & CMSPAR)
+	if (c_cflag & CMSPAR)
 		cval |= UART_LCR_SPAR;
 #endif
+
+	return cval;
+}
+
+void
+serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
+		          struct ktermios *old)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+	unsigned char cval;
+	unsigned long flags;
+	unsigned int baud, quot;
+
+	cval = serial8250_compute_lcr(up, termios->c_cflag);
 
 	/*
 	 * Ask the core to calculate the divisor for us.
