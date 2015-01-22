@@ -1237,15 +1237,17 @@ static int gen8_emit_flush(struct intel_ringbuffer *ringbuf,
 
 	cmd = MI_FLUSH_DW + 1;
 
-	if (ring == &dev_priv->ring[VCS]) {
-		if (invalidate_domains & I915_GEM_GPU_DOMAINS)
-			cmd |= MI_INVALIDATE_TLB | MI_INVALIDATE_BSD |
-				MI_FLUSH_DW_STORE_INDEX |
-				MI_FLUSH_DW_OP_STOREDW;
-	} else {
-		if (invalidate_domains & I915_GEM_DOMAIN_RENDER)
-			cmd |= MI_INVALIDATE_TLB | MI_FLUSH_DW_STORE_INDEX |
-				MI_FLUSH_DW_OP_STOREDW;
+	/* We always require a command barrier so that subsequent
+	 * commands, such as breadcrumb interrupts, are strictly ordered
+	 * wrt the contents of the write cache being flushed to memory
+	 * (and thus being coherent from the CPU).
+	 */
+	cmd |= MI_FLUSH_DW_STORE_INDEX | MI_FLUSH_DW_OP_STOREDW;
+
+	if (invalidate_domains & I915_GEM_GPU_DOMAINS) {
+		cmd |= MI_INVALIDATE_TLB;
+		if (ring == &dev_priv->ring[VCS])
+			cmd |= MI_INVALIDATE_BSD;
 	}
 
 	intel_logical_ring_emit(ringbuf, cmd);
