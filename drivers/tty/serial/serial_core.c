@@ -2008,23 +2008,24 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *uport)
 	}
 	put_device(tty_dev);
 
-	if (console_suspend_enabled || !uart_console(uport))
-		uport->suspended = 1;
+	/* Nothing to do if the console is not suspending */
+	if (!console_suspend_enabled && uart_console(uport))
+		goto unlock;
+
+	uport->suspended = 1;
 
 	if (port->flags & ASYNC_INITIALIZED) {
 		const struct uart_ops *ops = uport->ops;
 		int tries;
 
-		if (console_suspend_enabled || !uart_console(uport)) {
-			set_bit(ASYNCB_SUSPENDED, &port->flags);
-			clear_bit(ASYNCB_INITIALIZED, &port->flags);
+		set_bit(ASYNCB_SUSPENDED, &port->flags);
+		clear_bit(ASYNCB_INITIALIZED, &port->flags);
 
-			spin_lock_irq(&uport->lock);
-			ops->stop_tx(uport);
-			ops->set_mctrl(uport, 0);
-			ops->stop_rx(uport);
-			spin_unlock_irq(&uport->lock);
-		}
+		spin_lock_irq(&uport->lock);
+		ops->stop_tx(uport);
+		ops->set_mctrl(uport, 0);
+		ops->stop_rx(uport);
+		spin_unlock_irq(&uport->lock);
 
 		/*
 		 * Wait for the transmitter to empty.
@@ -2036,19 +2037,17 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *uport)
 				drv->dev_name,
 				drv->tty_driver->name_base + uport->line);
 
-		if (console_suspend_enabled || !uart_console(uport))
-			ops->shutdown(uport);
+		ops->shutdown(uport);
 	}
 
 	/*
 	 * Disable the console device before suspending.
 	 */
-	if (console_suspend_enabled && uart_console(uport))
+	if (uart_console(uport))
 		console_stop(uport->cons);
 
-	if (console_suspend_enabled || !uart_console(uport))
-		uart_change_pm(state, UART_PM_STATE_OFF);
-
+	uart_change_pm(state, UART_PM_STATE_OFF);
+unlock:
 	mutex_unlock(&port->mutex);
 
 	return 0;
