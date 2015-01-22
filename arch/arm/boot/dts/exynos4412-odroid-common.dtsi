@@ -469,6 +469,13 @@
 		       };
 		};
 	};
+
+	hdmi_cec: hdmi-cec {
+		samsung,pins = "gpx3-6";
+		samsung,pin-function = <3>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <0>;
+	};
 };
 
 &ppmu_dmc0 {
