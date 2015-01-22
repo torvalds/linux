@@ -152,12 +152,13 @@ static const struct i2c_device_id sx150x_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, sx150x_id);
 
-static const struct of_device_id sx150x_dt_id[] = {
+static const struct of_device_id sx150x_of_match[] = {
 	{ .compatible = "semtech,sx1508q" },
 	{ .compatible = "semtech,sx1509q" },
 	{ .compatible = "semtech,sx1506q" },
 	{},
 };
+MODULE_DEVICE_TABLE(of, sx150x_of_match);
 
 static s32 sx150x_i2c_write(struct i2c_client *client, u8 reg, u8 val)
 {
@@ -484,8 +485,10 @@ static void sx150x_init_chip(struct sx150x_chip *chip,
 	chip->gpio_chip.base             = pdata->gpio_base;
 	chip->gpio_chip.can_sleep        = true;
 	chip->gpio_chip.ngpio            = chip->dev_cfg->ngpios;
+#ifdef CONFIG_OF_GPIO
 	chip->gpio_chip.of_node          = client->dev.of_node;
 	chip->gpio_chip.of_gpio_n_cells  = 2;
+#endif
 	if (pdata->oscio_is_gpo)
 		++chip->gpio_chip.ngpio;
 
@@ -681,7 +684,7 @@ static struct i2c_driver sx150x_driver = {
 	.driver = {
 		.name = "sx150x",
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(sx150x_dt_id),
+		.of_match_table = of_match_ptr(sx150x_of_match),
 	},
 	.probe    = sx150x_probe,
 	.remove   = sx150x_remove,
