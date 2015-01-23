@@ -105,6 +105,12 @@ static int exynos_pd_power_off(struct generic_pm_domain *domain)
 	return exynos_pd_power(domain, false);
 }
 
+static __init int exynos_pd_init_platform_dev(struct device *dev, void *data)
+{
+	dev_pm_domain_attach(dev, true);
+	return 0;
+}
+
 static __init int exynos4_pm_init_power_domain(void)
 {
 	struct platform_device *pdev;
@@ -189,6 +195,7 @@ no_clk:
 		of_node_put(np);
 	}
 
-	return 0;
+	return bus_for_each_dev(&platform_bus_type, NULL, NULL,
+				exynos_pd_init_platform_dev);
 }
 arch_initcall(exynos4_pm_init_power_domain);
