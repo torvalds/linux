@@ -4149,25 +4149,14 @@ static int hpsa_scsi_queue_command(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 	return hpsa_ciss_submit(h, c, cmd, scsi3addr);
 }
 
-static int do_not_scan_if_controller_locked_up(struct ctlr_info *h)
+static void hpsa_scan_complete(struct ctlr_info *h)
 {
 	unsigned long flags;
 
-	/*
-	 * Don't let rescans be initiated on a controller known
-	 * to be locked up.  If the controller locks up *during*
-	 * a rescan, that thread is probably hosed, but at least
-	 * we can prevent new rescan threads from piling up on a
-	 * locked up controller.
-	 */
-	if (unlikely(lockup_detected(h))) {
-		spin_lock_irqsave(&h->scan_lock, flags);
-		h->scan_finished = 1;
-		wake_up_all(&h->scan_wait_queue);
-		spin_unlock_irqrestore(&h->scan_lock, flags);
-		return 1;
-	}
-	return 0;
+	spin_lock_irqsave(&h->scan_lock, flags);
+	h->scan_finished = 1;
+	wake_up_all(&h->scan_wait_queue);
+	spin_unlock_irqrestore(&h->scan_lock, flags);
 }
 
 static void hpsa_scan_start(struct Scsi_Host *sh)
@@ -4175,8 +4164,14 @@ static void hpsa_scan_start(struct Scsi_Host *sh)
 	struct ctlr_info *h = shost_to_hba(sh);
 	unsigned long flags;
 
-	if (do_not_scan_if_controller_locked_up(h))
-		return;
+	/*
+	 * Don't let rescans be initiated on a controller known to be locked
+	 * up.  If the controller locks up *during* a rescan, that thread is
+	 * probably hosed, but at least we can prevent new rescan threads from
+	 * piling up on a locked up controller.
+	 */
+	if (unlikely(lockup_detected(h)))
+		return hpsa_scan_complete(h);
 
 	/* wait until any scan already in progress is finished. */
 	while (1) {
@@ -4194,15 +4189,12 @@ static void hpsa_scan_start(struct Scsi_Host *sh)
 	h->scan_finished = 0; /* mark scan as in progress */
 	spin_unlock_irqrestore(&h->scan_lock, flags);
 
-	if (do_not_scan_if_controller_locked_up(h))
-		return;
+	if (unlikely(lockup_detected(h)))
+		return hpsa_scan_complete(h);
 
 	hpsa_update_scsi_devices(h, h->scsi_host->host_no);
 
-	spin_lock_irqsave(&h->scan_lock, flags);
-	h->scan_finished = 1; /* mark scan as finished. */
-	wake_up_all(&h->scan_wait_queue);
-	spin_unlock_irqrestore(&h->scan_lock, flags);
+	hpsa_scan_complete(h);
 }
 
 static int hpsa_change_queue_depth(struct scsi_device *sdev, int qdepth)
