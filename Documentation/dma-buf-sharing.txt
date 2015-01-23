@@ -49,25 +49,26 @@ The dma_buf buffer sharing API usage contains the following steps:
    The buffer exporter announces its wish to export a buffer. In this, it
    connects its own private buffer data, provides implementation for operations
    that can be performed on the exported dma_buf, and flags for the file
-   associated with this buffer.
+   associated with this buffer. All these fields are filled in struct
+   dma_buf_export_info, defined via the DEFINE_DMA_BUF_EXPORT_INFO macro.
 
    Interface:
-      struct dma_buf *dma_buf_export_named(void *priv, struct dma_buf_ops *ops,
-				     size_t size, int flags,
-				     const char *exp_name)
+      DEFINE_DMA_BUF_EXPORT_INFO(exp_info)
+      struct dma_buf *dma_buf_export(struct dma_buf_export_info *exp_info)
 
-   If this succeeds, dma_buf_export_named allocates a dma_buf structure, and
+   If this succeeds, dma_buf_export allocates a dma_buf structure, and
    returns a pointer to the same. It also associates an anonymous file with this
    buffer, so it can be exported. On failure to allocate the dma_buf object,
    it returns NULL.
 
-   'exp_name' is the name of exporter - to facilitate information while
-   debugging.
+   'exp_name' in struct dma_buf_export_info is the name of exporter - to
+   facilitate information while debugging. It is set to KBUILD_MODNAME by
+   default, so exporters don't have to provide a specific name, if they don't
+   wish to.
 
-   Exporting modules which do not wish to provide any specific name may use the
-   helper define 'dma_buf_export()', with the same arguments as above, but
-   without the last argument; a KBUILD_MODNAME pre-processor directive will be
-   inserted in place of 'exp_name' instead.
+   DEFINE_DMA_BUF_EXPORT_INFO macro defines the struct dma_buf_export_info,
+   zeroes it out and pre-populates exp_name in it.
+
 
 2. Userspace gets a handle to pass around to potential buffer-users
 
