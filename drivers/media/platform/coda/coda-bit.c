@@ -1822,6 +1822,7 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 			memset(&ctx->frame_metas[decoded_idx], 0,
 			       sizeof(struct coda_buffer_meta));
 			ctx->frame_metas[decoded_idx].sequence = val;
+			ctx->sequence_offset++;
 		}
 		mutex_unlock(&ctx->bitstream_mutex);
 
