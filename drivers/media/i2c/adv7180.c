@@ -302,37 +302,54 @@ static int adv7180_g_input_status(struct v4l2_subdev *sd, u32 *status)
 	return ret;
 }
 
+static int adv7180_program_std(struct adv7180_state *state)
+{
+	int ret;
+
+	if (state->autodetect) {
+		ret = adv7180_write(state, ADV7180_REG_INPUT_CONTROL,
+				    ADV7180_INPUT_CONTROL_AD_PAL_BG_NTSC_J_SECAM
+				    | state->input);
+		if (ret < 0)
+			return ret;
+
+		__adv7180_status(state, NULL, &state->curr_norm);
+	} else {
+		ret = v4l2_std_to_adv7180(state->curr_norm);
+		if (ret < 0)
+			return ret;
+
+		ret = adv7180_write(state, ADV7180_REG_INPUT_CONTROL,
+				    ret | state->input);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int adv7180_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 {
 	struct adv7180_state *state = to_state(sd);
 	int ret = mutex_lock_interruptible(&state->mutex);
+
 	if (ret)
 		return ret;
 
 	/* all standards -> autodetect */
 	if (std == V4L2_STD_ALL) {
-		ret = adv7180_write(state, ADV7180_REG_INPUT_CONTROL,
-				    ADV7180_INPUT_CONTROL_AD_PAL_BG_NTSC_J_SECAM
-				    | state->input);
-		if (ret < 0)
-			goto out;
-
-		__adv7180_status(state, NULL, &state->curr_norm);
 		state->autodetect = true;
 	} else {
+		/* Make sure we can support this std */
 		ret = v4l2_std_to_adv7180(std);
-		if (ret < 0)
-			goto out;
-
-		ret = adv7180_write(state, ADV7180_REG_INPUT_CONTROL,
-				    ret | state->input);
 		if (ret < 0)
 			goto out;
 
 		state->curr_norm = std;
 		state->autodetect = false;
 	}
-	ret = 0;
+
+	ret = adv7180_program_std(state);
 out:
 	mutex_unlock(&state->mutex);
 	return ret;
@@ -546,30 +563,10 @@ static int init_device(struct adv7180_state *state)
 	adv7180_write(state, ADV7180_REG_PWR_MAN, ADV7180_PWR_MAN_RES);
 	usleep_range(2000, 10000);
 
-	/* Initialize adv7180 */
-	/* Enable autodetection */
-	if (state->autodetect) {
-		ret = adv7180_write(state, ADV7180_REG_INPUT_CONTROL,
-				ADV7180_INPUT_CONTROL_AD_PAL_BG_NTSC_J_SECAM
-					      | state->input);
-		if (ret < 0)
-			goto out_unlock;
+	ret = adv7180_program_std(state);
+	if (ret)
+		goto out_unlock;
 
-		ret = adv7180_write(state, ADV7180_REG_AUTODETECT_ENABLE,
-					      ADV7180_AUTODETECT_DEFAULT);
-		if (ret < 0)
-			goto out_unlock;
-	} else {
-		ret = v4l2_std_to_adv7180(state->curr_norm);
-		if (ret < 0)
-			goto out_unlock;
-
-		ret = adv7180_write(state, ADV7180_REG_INPUT_CONTROL,
-					      ret | state->input);
-		if (ret < 0)
-			goto out_unlock;
-
-	}
 	/* ITU-R BT.656-4 compatible */
 	ret = adv7180_write(state, ADV7180_REG_EXTENDED_OUTPUT_CONTROL,
 			ADV7180_EXTENDED_OUTPUT_CONTROL_NTSCDIS);
