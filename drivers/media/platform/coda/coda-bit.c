@@ -1565,6 +1565,7 @@ static int coda_prepare_decode(struct coda_ctx *ctx)
 	struct vb2_buffer *dst_buf;
 	struct coda_dev *dev = ctx->dev;
 	struct coda_q_data *q_data_dst;
+	struct coda_buffer_meta *meta;
 	u32 reg_addr, reg_stride;
 
 	dst_buf = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
@@ -1643,12 +1644,12 @@ static int coda_prepare_decode(struct coda_ctx *ctx)
 		coda_write(dev, ctx->iram_info.axi_sram_use,
 				CODA7_REG_BIT_AXI_SRAM_USE);
 
-	if (ctx->codec->src_fourcc == V4L2_PIX_FMT_JPEG) {
-		struct coda_buffer_meta *meta;
+	meta = list_first_entry_or_null(&ctx->buffer_meta_list,
+					struct coda_buffer_meta, list);
+
+	if (meta && ctx->codec->src_fourcc == V4L2_PIX_FMT_JPEG) {
 
 		/* If this is the last buffer in the bitstream, add padding */
-		meta = list_first_entry(&ctx->buffer_meta_list,
-				      struct coda_buffer_meta, list);
 		if (meta->end == (ctx->bitstream_fifo.kfifo.in &
 				  ctx->bitstream_fifo.kfifo.mask)) {
 			static unsigned char buf[512];
