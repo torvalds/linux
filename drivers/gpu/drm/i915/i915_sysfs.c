@@ -281,7 +281,7 @@ static struct bin_attribute dpf_attrs_1 = {
 	.private = (void *)1
 };
 
-static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
+static ssize_t gt_act_freq_mhz_show(struct device *kdev,
 				    struct device_attribute *attr, char *buf)
 {
 	struct drm_minor *minor = dev_to_drm_minor(kdev);
@@ -298,6 +298,36 @@ static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
 		u32 freq;
 		freq = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 		ret = vlv_gpu_freq(dev_priv, (freq >> 8) & 0xff);
+	} else {
+		u32 rpstat = I915_READ(GEN6_RPSTAT1);
+		if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+			ret = (rpstat & HSW_CAGF_MASK) >> HSW_CAGF_SHIFT;
+		else
+			ret = (rpstat & GEN6_CAGF_MASK) >> GEN6_CAGF_SHIFT;
+		ret *= GT_FREQUENCY_MULTIPLIER;
+	}
+	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	intel_runtime_pm_put(dev_priv);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", ret);
+}
+
+static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct drm_minor *minor = dev_to_drm_minor(kdev);
+	struct drm_device *dev = minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+
+	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
+
+	intel_runtime_pm_get(dev_priv);
+
+	mutex_lock(&dev_priv->rps.hw_lock);
+	if (IS_VALLEYVIEW(dev_priv->dev)) {
+		ret = vlv_gpu_freq(dev_priv, dev_priv->rps.cur_freq);
 	} else {
 		ret = dev_priv->rps.cur_freq * GT_FREQUENCY_MULTIPLIER;
 	}
@@ -460,6 +490,7 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 
 }
 
+static DEVICE_ATTR(gt_act_freq_mhz, S_IRUGO, gt_act_freq_mhz_show, NULL);
 static DEVICE_ATTR(gt_cur_freq_mhz, S_IRUGO, gt_cur_freq_mhz_show, NULL);
 static DEVICE_ATTR(gt_max_freq_mhz, S_IRUGO | S_IWUSR, gt_max_freq_mhz_show, gt_max_freq_mhz_store);
 static DEVICE_ATTR(gt_min_freq_mhz, S_IRUGO | S_IWUSR, gt_min_freq_mhz_show, gt_min_freq_mhz_store);
@@ -510,6 +541,7 @@ static ssize_t gt_rp_mhz_show(struct device *kdev, struct device_attribute *attr
 }
 
 static const struct attribute *gen6_attrs[] = {
+	&dev_attr_gt_act_freq_mhz.attr,
 	&dev_attr_gt_cur_freq_mhz.attr,
 	&dev_attr_gt_max_freq_mhz.attr,
 	&dev_attr_gt_min_freq_mhz.attr,
@@ -520,6 +552,7 @@ static const struct attribute *gen6_attrs[] = {
 };
 
 static const struct attribute *vlv_attrs[] = {
+	&dev_attr_gt_act_freq_mhz.attr,
 	&dev_attr_gt_cur_freq_mhz.attr,
 	&dev_attr_gt_max_freq_mhz.attr,
 	&dev_attr_gt_min_freq_mhz.attr,
