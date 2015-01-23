@@ -304,15 +304,16 @@ static ssize_t set_temp_crit_hyst(struct device *dev,
 				  const char *buf, size_t count)
 {
 	struct jc42_data *data = dev_get_drvdata(dev);
-	unsigned long val;
+	long val;
 	int diff, hyst;
 	int err;
 	int ret = count;
 
-	if (kstrtoul(buf, 10, &val) < 0)
+	if (kstrtol(buf, 10, &val) < 0)
 		return -EINVAL;
 
-	val = clamp_val(val, 0, JC42_TEMP_MAX);
+	val = clamp_val(val, (data->extended ? JC42_TEMP_MIN_EXTENDED :
+			      JC42_TEMP_MIN) - 6000, JC42_TEMP_MAX);
 	diff = jc42_temp_from_reg(data->temp[t_crit]) - val;
 
 	hyst = 0;
