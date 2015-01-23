@@ -879,7 +879,7 @@ static void i915_digport_work_func(struct work_struct *work)
 		container_of(work, struct drm_i915_private, dig_port_work);
 	u32 long_port_mask, short_port_mask;
 	struct intel_digital_port *intel_dig_port;
-	int i, ret;
+	int i;
 	u32 old_bits = 0;
 
 	spin_lock_irq(&dev_priv->irq_lock);
@@ -903,9 +903,11 @@ static void i915_digport_work_func(struct work_struct *work)
 			valid = true;
 
 		if (valid) {
+			enum irqreturn ret;
+
 			ret = intel_dig_port->hpd_pulse(intel_dig_port, long_hpd);
-			if (ret == true) {
-				/* if we get true fallback to old school hpd */
+			if (ret == IRQ_NONE) {
+				/* fall back to old school hpd */
 				old_bits |= (1 << intel_dig_port->base.hpd_pin);
 			}
 		}

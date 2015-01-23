@@ -4421,7 +4421,7 @@ intel_dp_hot_plug(struct intel_encoder *intel_encoder)
 	return;
 }
 
-bool
+enum irqreturn
 intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 {
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
@@ -4429,7 +4429,7 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum intel_display_power_domain power_domain;
-	bool ret = true;
+	enum irqreturn ret = IRQ_NONE;
 
 	if (intel_dig_port->base.type != INTEL_OUTPUT_EDP)
 		intel_dig_port->base.type = INTEL_OUTPUT_DISPLAYPORT;
@@ -4488,7 +4488,9 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 			drm_modeset_unlock(&dev->mode_config.connection_mutex);
 		}
 	}
-	ret = false;
+
+	ret = IRQ_HANDLED;
+
 	goto put_power;
 mst_fail:
 	/* if we were in MST mode, and device is not there get out of MST mode */
