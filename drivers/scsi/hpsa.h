@@ -207,6 +207,7 @@ struct ctlr_info {
 	atomic_t firmware_flash_in_progress;
 	u32 __percpu *lockup_detected;
 	struct delayed_work monitor_ctlr_work;
+	struct delayed_work rescan_ctlr_work;
 	int remove_in_progress;
 	/* Address of h->q[x] is passed to intr handler to know which queue */
 	u8 q[MAX_REPLY_QUEUES];
@@ -251,6 +252,7 @@ struct ctlr_info {
 	int	acciopath_status;
 	int	raid_offload_debug;
 	struct workqueue_struct *resubmit_wq;
+	struct workqueue_struct *rescan_ctlr_wq;
 };
 
 struct offline_device_entry {
