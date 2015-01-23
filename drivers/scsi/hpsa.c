@@ -507,8 +507,8 @@ static inline int is_logical_dev_addr_mode(unsigned char scsi3addr[])
 	return (scsi3addr[3] & 0xC0) == 0x40;
 }
 
-static const char *raid_label[] = { "0", "4", "1(1+0)", "5", "5+1", "ADG",
-	"1(ADM)", "UNKNOWN"
+static const char * const raid_label[] = { "0", "4", "1(+0)", "5", "5+1", "6",
+	"1(+0)ADM", "UNKNOWN"
 };
 #define HPSA_RAID_0	0
 #define HPSA_RAID_4	1
