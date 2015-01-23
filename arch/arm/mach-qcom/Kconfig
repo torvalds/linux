@@ -1,9 +1,8 @@
 menuconfig ARCH_QCOM
 	bool "Qualcomm Support" if ARCH_MULTI_V7
-	select ARCH_REQUIRE_GPIOLIB
+	select ARCH_SUPPORTS_BIG_ENDIAN
 	select ARM_GIC
 	select ARM_AMBA
-	select CLKSRC_OF
 	select PINCTRL
 	select QCOM_SCM if SMP
 	help
