@@ -939,7 +939,6 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 
 	clk_disable(q->clk);
 	clk_disable(q->clk_en);
-	dev_info(dev, "QuadSPI SPI NOR flash driver\n");
 	return 0;
 
 last_init_failed:
@@ -954,7 +953,6 @@ irq_failed:
 clk_failed:
 	clk_disable_unprepare(q->clk_en);
 map_failed:
-	dev_err(dev, "Freescale QuadSPI probe failed\n");
 	return ret;
 }
 
