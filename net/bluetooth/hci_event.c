@@ -525,9 +525,7 @@ static void hci_cc_write_sc_support(struct hci_dev *hdev, struct sk_buff *skb)
 			hdev->features[1][0] &= ~LMP_HOST_SC;
 	}
 
-	if (test_bit(HCI_MGMT, &hdev->dev_flags))
-		mgmt_sc_enable_complete(hdev, sent->support, status);
-	else if (!status) {
+	if (!test_bit(HCI_MGMT, &hdev->dev_flags) && !status) {
 		if (sent->support)
 			set_bit(HCI_SC_ENABLED, &hdev->dev_flags);
 		else

@@ -4741,11 +4741,57 @@ unlock:
 	return err;
 }
 
+static void sc_enable_complete(struct hci_dev *hdev, u8 status, u16 opcode)
+{
+	struct pending_cmd *cmd;
+	struct mgmt_mode *cp;
+
+	BT_DBG("%s status %u", hdev->name, status);
+
+	hci_dev_lock(hdev);
+
+	cmd = mgmt_pending_find(MGMT_OP_SET_SECURE_CONN, hdev);
+	if (!cmd)
+		goto unlock;
+
+	if (status) {
+		cmd_status(cmd->sk, cmd->index, cmd->opcode,
+			   mgmt_status(status));
+		goto remove;
+	}
+
+	cp = cmd->param;
+
+	switch (cp->val) {
+	case 0x00:
+		clear_bit(HCI_SC_ENABLED, &hdev->dev_flags);
+		clear_bit(HCI_SC_ONLY, &hdev->dev_flags);
+		break;
+	case 0x01:
+		set_bit(HCI_SC_ENABLED, &hdev->dev_flags);
+		clear_bit(HCI_SC_ONLY, &hdev->dev_flags);
+		break;
+	case 0x02:
+		set_bit(HCI_SC_ENABLED, &hdev->dev_flags);
+		set_bit(HCI_SC_ONLY, &hdev->dev_flags);
+		break;
+	}
+
+	send_settings_rsp(cmd->sk, MGMT_OP_SET_SECURE_CONN, hdev);
+	new_settings(hdev, cmd->sk);
+
+remove:
+	mgmt_pending_remove(cmd);
+unlock:
+	hci_dev_unlock(hdev);
+}
+
 static int set_secure_conn(struct sock *sk, struct hci_dev *hdev,
 			   void *data, u16 len)
 {
 	struct mgmt_mode *cp = data;
 	struct pending_cmd *cmd;
+	struct hci_request req;
 	u8 val;
 	int err;
 
@@ -4814,16 +4860,13 @@ static int set_secure_conn(struct sock *sk, struct hci_dev *hdev,
 		goto failed;
 	}
 
-	err = hci_send_cmd(hdev, HCI_OP_WRITE_SC_SUPPORT, 1, &val);
+	hci_req_init(&req, hdev);
+	hci_req_add(&req, HCI_OP_WRITE_SC_SUPPORT, 1, &val);
+	err = hci_req_run(&req, sc_enable_complete);
 	if (err < 0) {
 		mgmt_pending_remove(cmd);
 		goto failed;
 	}
-
-	if (cp->val == 0x02)
-		set_bit(HCI_SC_ONLY, &hdev->dev_flags);
-	else
-		clear_bit(HCI_SC_ONLY, &hdev->dev_flags);
 
 failed:
 	hci_dev_unlock(hdev);
@@ -6999,43 +7042,6 @@ void mgmt_ssp_enable_complete(struct hci_dev *hdev, u8 enable, u8 status)
 	}
 
 	hci_req_run(&req, NULL);
-}
-
-void mgmt_sc_enable_complete(struct hci_dev *hdev, u8 enable, u8 status)
-{
-	struct cmd_lookup match = { NULL, hdev };
-	bool changed = false;
-
-	if (status) {
-		u8 mgmt_err = mgmt_status(status);
-
-		if (enable) {
-			if (test_and_clear_bit(HCI_SC_ENABLED,
-					       &hdev->dev_flags))
-				new_settings(hdev, NULL);
-			clear_bit(HCI_SC_ONLY, &hdev->dev_flags);
-		}
-
-		mgmt_pending_foreach(MGMT_OP_SET_SECURE_CONN, hdev,
-				     cmd_status_rsp, &mgmt_err);
-		return;
-	}
-
-	if (enable) {
-		changed = !test_and_set_bit(HCI_SC_ENABLED, &hdev->dev_flags);
-	} else {
-		changed = test_and_clear_bit(HCI_SC_ENABLED, &hdev->dev_flags);
-		clear_bit(HCI_SC_ONLY, &hdev->dev_flags);
-	}
-
-	mgmt_pending_foreach(MGMT_OP_SET_SECURE_CONN, hdev,
-			     settings_rsp, &match);
-
-	if (changed)
-		new_settings(hdev, match.sk);
-
-	if (match.sk)
-		sock_put(match.sk);
 }
 
 static void sk_lookup(struct pending_cmd *cmd, void *data)
