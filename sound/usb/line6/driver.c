@@ -413,16 +413,6 @@ int line6_read_serial_number(struct usb_line6 *line6, int *serial_number)
 EXPORT_SYMBOL_GPL(line6_read_serial_number);
 
 /*
-	No operation (i.e., unsupported).
-*/
-ssize_t line6_nop_read(struct device *dev, struct device_attribute *attr,
-		       char *buf)
-{
-	return 0;
-}
-EXPORT_SYMBOL_GPL(line6_nop_read);
-
-/*
 	Card destructor.
 */
 static void line6_destruct(struct snd_card *card)
