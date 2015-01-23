@@ -235,6 +235,7 @@ struct coda_ctx {
 	u32				frame_mem_ctrl;
 	int				display_idx;
 	struct dentry			*debugfs_entry;
+	bool				use_bit;
 };
 
 extern int coda_debug;
