@@ -5812,8 +5812,12 @@ static int hpsa_kdump_hard_reset_controller(struct pci_dev *pdev)
 	 */
 
 	rc = hpsa_lookup_board_id(pdev, &board_id);
-	if (rc < 0 || !ctlr_is_resettable(board_id)) {
-		dev_warn(&pdev->dev, "Not resetting device.\n");
+	if (rc < 0) {
+		dev_warn(&pdev->dev, "Board ID not found\n");
+		return rc;
+	}
+	if (!ctlr_is_resettable(board_id)) {
+		dev_warn(&pdev->dev, "Controller not resettable\n");
 		return -ENODEV;
 	}
 
@@ -6295,7 +6299,7 @@ static int hpsa_pci_init(struct ctlr_info *h)
 
 	prod_index = hpsa_lookup_board_id(h->pdev, &h->board_id);
 	if (prod_index < 0)
-		return -ENODEV;
+		return prod_index;
 	h->product_name = products[prod_index].product_name;
 	h->access = *(products[prod_index].access);
 
