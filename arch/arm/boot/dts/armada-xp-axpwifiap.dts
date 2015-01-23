@@ -3,8 +3,8 @@
  *
  * Note: this board is shipped with a new generation boot loader that
  * remaps internal registers at 0xf1000000. Therefore, if earlyprintk
- * is used, the CONFIG_DEBUG_MVEBU_UART_ALTERNATE option should be
- * used.
+ * is used, the CONFIG_DEBUG_MVEBU_UART0_ALTERNATE option or the
+ * CONFIG_DEBUG_MVEBU_UART1_ALTERNATE option should be used.
  *
  * Copyright (C) 2013 Marvell
  *
@@ -60,10 +60,12 @@
 		};
 
 		internal-regs {
+			/* UART0 */
 			serial@12000 {
 				status = "okay";
 			};
 
+			/* UART1 */
 			serial@12100 {
 				status = "okay";
 			};

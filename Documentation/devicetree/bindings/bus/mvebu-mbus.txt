@@ -6,8 +6,8 @@ Required properties:
 - compatible:	 Should be set to one of the following:
 		 marvell,armada370-mbus
 		 marvell,armadaxp-mbus
-		 marvell,armada370-mbus
-		 marvell,armadaxp-mbus
+		 marvell,armada375-mbus
+		 marvell,armada380-mbus
 		 marvell,kirkwood-mbus
 		 marvell,dove-mbus
 		 marvell,orion5x-88f5281-mbus

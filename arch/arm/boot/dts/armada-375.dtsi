@@ -63,7 +63,7 @@
 	};
 
 	soc {
-		compatible = "marvell,armada375-mbus", "marvell,armada370-mbus", "simple-bus";
+		compatible = "marvell,armada375-mbus", "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <1>;
 		controller = <&mbusc>;
