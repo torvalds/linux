@@ -226,9 +226,8 @@ int snd_line6_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
 	struct snd_pcm_substream *s;
-	int err;
+	int err = 0;
 
-	spin_lock(&line6pcm->lock_trigger);
 	clear_bit(LINE6_INDEX_PREPARED, &line6pcm->flags);
 
 	snd_pcm_group_for_each_entry(s, substream) {
@@ -237,32 +236,23 @@ int snd_line6_trigger(struct snd_pcm_substream *substream, int cmd)
 		switch (s->stream) {
 		case SNDRV_PCM_STREAM_PLAYBACK:
 			err = snd_line6_playback_trigger(line6pcm, cmd);
-
-			if (err < 0) {
-				spin_unlock(&line6pcm->lock_trigger);
-				return err;
-			}
-
 			break;
 
 		case SNDRV_PCM_STREAM_CAPTURE:
 			err = snd_line6_capture_trigger(line6pcm, cmd);
-
-			if (err < 0) {
-				spin_unlock(&line6pcm->lock_trigger);
-				return err;
-			}
-
 			break;
 
 		default:
 			dev_err(line6pcm->line6->ifcdev,
 				"Unknown stream direction %d\n", s->stream);
+			err = -EINVAL;
+			break;
 		}
+		if (err < 0)
+			break;
 	}
 
-	spin_unlock(&line6pcm->lock_trigger);
-	return 0;
+	return err;
 }
 
 /* control info callback */
@@ -427,7 +417,6 @@ int line6_init_pcm(struct usb_line6 *line6,
 
 	spin_lock_init(&line6pcm->lock_audio_out);
 	spin_lock_init(&line6pcm->lock_audio_in);
-	spin_lock_init(&line6pcm->lock_trigger);
 	line6pcm->impulse_period = LINE6_IMPULSE_DEFAULT_PERIOD;
 
 	line6->line6pcm = line6pcm;

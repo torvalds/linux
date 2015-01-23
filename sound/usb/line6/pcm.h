@@ -308,11 +308,6 @@ struct snd_line6_pcm {
 	spinlock_t lock_audio_in;
 
 	/**
-		 Spin lock to protect trigger.
-	*/
-	spinlock_t lock_trigger;
-
-	/**
 		 PCM playback volume (left and right).
 	*/
 	int volume_playback[2];
