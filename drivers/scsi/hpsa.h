@@ -235,7 +235,6 @@ struct ctlr_info {
 	spinlock_t offline_device_lock;
 	struct list_head offline_device_list;
 	int	acciopath_status;
-	int	drv_req_rescan;	/* flag for driver to request rescan event */
 	int	raid_offload_debug;
 };
 
