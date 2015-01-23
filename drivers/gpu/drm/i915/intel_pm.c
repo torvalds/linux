@@ -6615,28 +6615,34 @@ static int chv_freq_opcode(struct drm_i915_private *dev_priv, int val)
 	return DIV_ROUND_CLOSEST(val * 2 * mul, czclk_freq) * 2;
 }
 
+int intel_gpu_freq(struct drm_i915_private *dev_priv, int val)
+{
+	if (IS_CHERRYVIEW(dev_priv->dev))
+		return chv_gpu_freq(dev_priv, val);
+	else if (IS_VALLEYVIEW(dev_priv->dev))
+		return byt_gpu_freq(dev_priv, val);
+	else
+		return val * GT_FREQUENCY_MULTIPLIER;
+}
+
 int vlv_gpu_freq(struct drm_i915_private *dev_priv, int val)
 {
-	int ret = -1;
+	return intel_gpu_freq(dev_priv, val);
+}
 
+int intel_freq_opcode(struct drm_i915_private *dev_priv, int val)
+{
 	if (IS_CHERRYVIEW(dev_priv->dev))
-		ret = chv_gpu_freq(dev_priv, val);
+		return chv_freq_opcode(dev_priv, val);
 	else if (IS_VALLEYVIEW(dev_priv->dev))
-		ret = byt_gpu_freq(dev_priv, val);
-
-	return ret;
+		return byt_freq_opcode(dev_priv, val);
+	else
+		return val / GT_FREQUENCY_MULTIPLIER;
 }
 
 int vlv_freq_opcode(struct drm_i915_private *dev_priv, int val)
 {
-	int ret = -1;
-
-	if (IS_CHERRYVIEW(dev_priv->dev))
-		ret = chv_freq_opcode(dev_priv, val);
-	else if (IS_VALLEYVIEW(dev_priv->dev))
-		ret = byt_freq_opcode(dev_priv, val);
-
-	return ret;
+	return intel_freq_opcode(dev_priv, val);
 }
 
 void intel_pm_setup(struct drm_device *dev)
