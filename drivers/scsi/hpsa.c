@@ -4064,11 +4064,14 @@ static int hpsa_register_scsi(struct ctlr_info *h)
 	sh->max_cmd_len = MAX_COMMAND_SIZE;
 	sh->max_lun = HPSA_MAX_LUN;
 	sh->max_id = HPSA_MAX_LUN;
-	sh->can_queue = h->nr_cmds;
+	sh->can_queue = h->nr_cmds -
+			HPSA_CMDS_RESERVED_FOR_ABORTS -
+			HPSA_CMDS_RESERVED_FOR_DRIVER -
+			HPSA_MAX_CONCURRENT_PASSTHRUS;
 	if (h->hba_mode_enabled)
 		sh->cmd_per_lun = 7;
 	else
-		sh->cmd_per_lun = h->nr_cmds;
+		sh->cmd_per_lun = sh->can_queue;
 	sh->sg_tablesize = h->maxsgentries;
 	h->scsi_host = sh;
 	sh->hostdata[0] = (unsigned long) h;

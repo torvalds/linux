@@ -115,6 +115,8 @@ struct ctlr_info {
 	void __iomem *vaddr;
 	unsigned long paddr;
 	int 	nr_cmds; /* Number of commands allowed on this controller */
+#define HPSA_CMDS_RESERVED_FOR_ABORTS 2
+#define HPSA_CMDS_RESERVED_FOR_DRIVER 1
 	struct CfgTable __iomem *cfgtable;
 	int	interrupts_enabled;
 	int 	max_commands;
