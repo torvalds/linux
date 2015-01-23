@@ -978,8 +978,8 @@ static int dgap_parsefile(char **in)
 				brd->u.board.conc1++;
 
 			conc_type = dgap_gettok(in);
-			if (conc_type == 0 || conc_type != CX ||
-			    conc_type != EPC) {
+			if (conc_type == 0 || (conc_type != CX &&
+			    conc_type != EPC)) {
 				pr_err("failed to set a type of concentratros");
 				return -1;
 			}
@@ -1019,8 +1019,8 @@ static int dgap_parsefile(char **in)
 				brd->u.board.module1++;
 
 			module_type = dgap_gettok(in);
-			if (module_type == 0 || module_type != PORTS ||
-			    module_type != MODEM) {
+			if (module_type == 0 || (module_type != PORTS &&
+			    module_type != MODEM)) {
 				pr_err("failed to set a type of module");
 				return -1;
 			}
