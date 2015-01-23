@@ -1586,6 +1586,10 @@ static void ath10k_peer_assoc_h_vht(struct ath10k *ar,
 		return;
 
 	arg->peer_flags |= WMI_PEER_VHT;
+
+	if (ar->hw->conf.chandef.chan->band == IEEE80211_BAND_2GHZ)
+		arg->peer_flags |= WMI_PEER_VHT_2G;
+
 	arg->peer_vht_caps = vht_cap->cap;
 
 	ampdu_factor = (vht_cap->cap &
@@ -1664,7 +1668,12 @@ static void ath10k_peer_assoc_h_phymode(struct ath10k *ar,
 
 	switch (ar->hw->conf.chandef.chan->band) {
 	case IEEE80211_BAND_2GHZ:
-		if (sta->ht_cap.ht_supported) {
+		if (sta->vht_cap.vht_supported) {
+			if (sta->bandwidth == IEEE80211_STA_RX_BW_40)
+				phymode = MODE_11AC_VHT40;
+			else
+				phymode = MODE_11AC_VHT20;
+		} else if (sta->ht_cap.ht_supported) {
 			if (sta->bandwidth == IEEE80211_STA_RX_BW_40)
 				phymode = MODE_11NG_HT40;
 			else
@@ -5301,7 +5310,8 @@ int ath10k_mac_register(struct ath10k *ar)
 		band->bitrates = ath10k_g_rates;
 		band->ht_cap = ht_cap;
 
-		/* vht is not supported in 2.4 GHz */
+		/* Enable the VHT support at 2.4 GHz */
+		band->vht_cap = vht_cap;
 
 		ar->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = band;
 	}
