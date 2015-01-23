@@ -441,7 +441,7 @@ static inline void debug_deactivate(struct hrtimer *timer)
 }
 
 #if defined(CONFIG_NO_HZ_COMMON) || defined(CONFIG_HIGH_RES_TIMERS)
-ktime_t __hrtimer_get_next_event(struct hrtimer_cpu_base *cpu_base)
+static ktime_t __hrtimer_get_next_event(struct hrtimer_cpu_base *cpu_base)
 {
 	struct hrtimer_clock_base *base = cpu_base->clock_base;
 	ktime_t expires, expires_next = { .tv64 = KTIME_MAX };
