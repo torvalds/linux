@@ -1643,6 +1643,14 @@ static int __init i915_init(void)
 #endif
 	}
 
+	/*
+	 * FIXME: Note that we're lying to the DRM core here so that we can get access
+	 * to the atomic ioctl and the atomic properties.  Only plane operations on
+	 * a single CRTC will actually work.
+	 */
+	if (i915.nuclear_pageflip)
+		driver.driver_features |= DRIVER_ATOMIC;
+
 	return drm_pci_init(&driver, &i915_pci_driver);
 }
 
