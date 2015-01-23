@@ -2032,48 +2032,6 @@ out:
 }
 
 /**
- * __clk_register - register a clock and return a cookie.
- *
- * Same as clk_register, except that the .clk field inside hw shall point to a
- * preallocated (generally statically allocated) struct clk. None of the fields
- * of the struct clk need to be initialized.
- *
- * The data pointed to by .init and .clk field shall NOT be marked as init
- * data.
- *
- * __clk_register is only exposed via clk-private.h and is intended for use with
- * very large numbers of clocks that need to be statically initialized.  It is
- * a layering violation to include clk-private.h from any code which implements
- * a clock's .ops; as such any statically initialized clock data MUST be in a
- * separate C file from the logic that implements its operations.  Returns 0
- * on success, otherwise an error code.
- */
-struct clk *__clk_register(struct device *dev, struct clk_hw *hw)
-{
-	int ret;
-	struct clk *clk;
-
-	clk = hw->clk;
-	clk->name = hw->init->name;
-	clk->ops = hw->init->ops;
-	clk->hw = hw;
-	clk->flags = hw->init->flags;
-	clk->parent_names = hw->init->parent_names;
-	clk->num_parents = hw->init->num_parents;
-	if (dev && dev->driver)
-		clk->owner = dev->driver->owner;
-	else
-		clk->owner = NULL;
-
-	ret = __clk_init(dev, clk);
-	if (ret)
-		return ERR_PTR(ret);
-
-	return clk;
-}
-EXPORT_SYMBOL_GPL(__clk_register);
-
-/**
  * clk_register - allocate a new clock, register it and return an opaque cookie
  * @dev: device that is registering this clock
  * @hw: link to hardware-specific clock data
