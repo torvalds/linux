@@ -1764,7 +1764,7 @@ static void complete_scsi_command(struct CommandList *cp)
 	unsigned long sense_data_size;
 
 	ei = cp->err_info;
-	cmd = (struct scsi_cmnd *) cp->scsi_cmd;
+	cmd = cp->scsi_cmd;
 	h = cp->h;
 	dev = cmd->device->hostdata;
 
@@ -4466,7 +4466,7 @@ static int hpsa_send_reset_as_abort_ioaccel2(struct ctlr_info *h,
 	unsigned char *psa = &phys_scsi3addr[0];
 
 	/* Get a pointer to the hpsa logical device. */
-	scmd = (struct scsi_cmnd *) abort->scsi_cmd;
+	scmd = abort->scsi_cmd;
 	dev = (struct hpsa_scsi_dev_t *)(scmd->device->hostdata);
 	if (dev == NULL) {
 		dev_warn(&h->pdev->dev,
@@ -4604,7 +4604,7 @@ static int hpsa_eh_abort_handler(struct scsi_cmnd *sc)
 	}
 	hpsa_get_tag(h, abort, &taglower, &tagupper);
 	ml += sprintf(msg+ml, "Tag:0x%08x:%08x ", tagupper, taglower);
-	as  = (struct scsi_cmnd *) abort->scsi_cmd;
+	as  = abort->scsi_cmd;
 	if (as != NULL)
 		ml += sprintf(msg+ml, "Command:0x%x SN:0x%lx ",
 			as->cmnd[0], as->serial_number);
