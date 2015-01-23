@@ -39,6 +39,18 @@
 - vtmu-supply: This entry is optional and provides the regulator node supplying
 		voltage to TMU. If needed this entry can be placed inside
 		board/platform specific dts file.
+Following properties are mandatory (depending on SoC):
+- samsung,tmu_gain: Gain value for internal TMU operation.
+- samsung,tmu_reference_voltage: Value of TMU IP block's reference voltage
+- samsung,tmu_noise_cancel_mode: Mode for noise cancellation
+- samsung,tmu_efuse_value: Default level of temperature - it is needed when
+			   in factory fusing produced wrong value
+- samsung,tmu_min_efuse_value: Minimum temperature fused value
+- samsung,tmu_max_efuse_value: Maximum temperature fused value
+- samsung,tmu_first_point_trim: First point trimming value
+- samsung,tmu_second_point_trim: Second point trimming value
+- samsung,tmu_default_temp_offset: Default temperature offset
+- samsung,tmu_cal_type: Callibration type
 
 Example 1):
 
@@ -51,6 +63,7 @@ Example 1):
 		clock-names = "tmu_apbif";
 		status = "disabled";
 		vtmu-supply = <&tmu_regulator_node>;
+		#include "exynos4412-tmu-sensor-conf.dtsi"
 	};
 
 Example 2):
@@ -70,6 +83,7 @@ Example 3): (In case of Exynos5420 "with misplaced TRIMINFO register")
 		interrupts = <0 184 0>;
 		clocks = <&clock 318>, <&clock 318>;
 		clock-names = "tmu_apbif", "tmu_triminfo_apbif";
+		#include "exynos4412-tmu-sensor-conf.dtsi"
 	};
 
 	tmu_cpu3: tmu@1006c000 {
@@ -78,6 +92,7 @@ Example 3): (In case of Exynos5420 "with misplaced TRIMINFO register")
 		interrupts = <0 185 0>;
 		clocks = <&clock 318>, <&clock 319>;
 		clock-names = "tmu_apbif", "tmu_triminfo_apbif";
+		#include "exynos4412-tmu-sensor-conf.dtsi"
 	};
 
 	tmu_gpu: tmu@100a0000 {
@@ -86,6 +101,7 @@ Example 3): (In case of Exynos5420 "with misplaced TRIMINFO register")
 		interrupts = <0 215 0>;
 		clocks = <&clock 319>, <&clock 318>;
 		clock-names = "tmu_apbif", "tmu_triminfo_apbif";
+		#include "exynos4412-tmu-sensor-conf.dtsi"
 	};
 
 Note: For multi-instance tmu each instance should have an alias correctly
