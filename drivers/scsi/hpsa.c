@@ -1480,13 +1480,17 @@ static int hpsa_allocate_sg_chain_blocks(struct ctlr_info *h)
 
 	h->cmd_sg_list = kzalloc(sizeof(*h->cmd_sg_list) * h->nr_cmds,
 				GFP_KERNEL);
-	if (!h->cmd_sg_list)
+	if (!h->cmd_sg_list) {
+		dev_err(&h->pdev->dev, "Failed to allocate SG list\n");
 		return -ENOMEM;
+	}
 	for (i = 0; i < h->nr_cmds; i++) {
 		h->cmd_sg_list[i] = kmalloc(sizeof(*h->cmd_sg_list[i]) *
 						h->chainsize, GFP_KERNEL);
-		if (!h->cmd_sg_list[i])
+		if (!h->cmd_sg_list[i]) {
+			dev_err(&h->pdev->dev, "Failed to allocate cmd SG\n");
 			goto clean;
+		}
 	}
 	return 0;
 
