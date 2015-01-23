@@ -31,6 +31,7 @@
 #include <linux/aio.h>
 #include <linux/mmu_context.h>
 #include <linux/poll.h>
+#include <linux/eventfd.h>
 
 #include "u_fs.h"
 #include "u_f.h"
@@ -153,6 +154,8 @@ struct ffs_io_data {
 
 	struct usb_ep *ep;
 	struct usb_request *req;
+
+	struct ffs_data *ffs;
 };
 
 struct ffs_desc_helper {
@@ -674,6 +677,9 @@ static void ffs_user_copy_worker(struct work_struct *work)
 
 	aio_complete(io_data->kiocb, ret, ret);
 
+	if (io_data->ffs->ffs_eventfd && !io_data->kiocb->ki_eventfd)
+		eventfd_signal(io_data->ffs->ffs_eventfd, 1);
+
 	usb_ep_free_request(io_data->ep, io_data->req);
 
 	io_data->kiocb->private = NULL;
@@ -827,6 +833,7 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 			io_data->buf = data;
 			io_data->ep = ep->ep;
 			io_data->req = req;
+			io_data->ffs = epfile->ffs;
 
 			req->context  = io_data;
 			req->complete = ffs_epfile_async_io_complete;
@@ -1510,6 +1517,9 @@ static void ffs_data_clear(struct ffs_data *ffs)
 	if (ffs->epfiles)
 		ffs_epfiles_destroy(ffs->epfiles, ffs->eps_count);
 
+	if (ffs->ffs_eventfd)
+		eventfd_ctx_put(ffs->ffs_eventfd);
+
 	kfree(ffs->raw_descs_data);
 	kfree(ffs->raw_strings);
 	kfree(ffs->stringtabs);
@@ -2169,7 +2179,8 @@ static int __ffs_data_got_descs(struct ffs_data *ffs,
 			      FUNCTIONFS_HAS_HS_DESC |
 			      FUNCTIONFS_HAS_SS_DESC |
 			      FUNCTIONFS_HAS_MS_OS_DESC |
-			      FUNCTIONFS_VIRTUAL_ADDR)) {
+			      FUNCTIONFS_VIRTUAL_ADDR |
+			      FUNCTIONFS_EVENTFD)) {
 			ret = -ENOSYS;
 			goto error;
 		}
@@ -2178,6 +2189,20 @@ static int __ffs_data_got_descs(struct ffs_data *ffs,
 		break;
 	default:
 		goto error;
+	}
+
+	if (flags & FUNCTIONFS_EVENTFD) {
+		if (len < 4)
+			goto error;
+		ffs->ffs_eventfd =
+			eventfd_ctx_fdget((int)get_unaligned_le32(data));
+		if (IS_ERR(ffs->ffs_eventfd)) {
+			ret = PTR_ERR(ffs->ffs_eventfd);
+			ffs->ffs_eventfd = NULL;
+			goto error;
+		}
+		data += 4;
+		len  -= 4;
 	}
 
 	/* Read fs_count, hs_count and ss_count (if present) */
@@ -2454,6 +2479,8 @@ static void __ffs_event_add(struct ffs_data *ffs,
 	pr_vdebug("adding event %d\n", type);
 	ffs->ev.types[ffs->ev.count++] = type;
 	wake_up_locked(&ffs->ev.waitq);
+	if (ffs->ffs_eventfd)
+		eventfd_signal(ffs->ffs_eventfd, 1);
 }
 
 static void ffs_event_add(struct ffs_data *ffs,

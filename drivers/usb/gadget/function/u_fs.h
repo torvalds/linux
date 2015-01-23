@@ -272,6 +272,7 @@ struct ffs_data {
 		kgid_t				gid;
 	}				file_perms;
 
+	struct eventfd_ctx *ffs_eventfd;
 	bool no_disconnect;
 	struct work_struct reset_work;
 
