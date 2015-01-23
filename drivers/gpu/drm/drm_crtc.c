@@ -764,8 +764,8 @@ static void drm_mode_remove(struct drm_connector *connector,
 /**
  * drm_display_info_set_bus_formats - set the supported bus formats
  * @info: display info to store bus formats in
- * @fmts: array containing the supported bus formats
- * @nfmts: the number of entries in the fmts array
+ * @formats: array containing the supported bus formats
+ * @num_formats: the number of entries in the fmts array
  *
  * Store the supported bus formats in display info structure.
  * See MEDIA_BUS_FMT_* definitions in include/uapi/linux/media-bus-format.h for
