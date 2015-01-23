@@ -91,7 +91,7 @@ void line6_unlink_audio_in_urbs(struct snd_line6_pcm *line6pcm)
 {
 	unsigned int i;
 
-	for (i = LINE6_ISO_BUFFERS; i--;) {
+	for (i = 0; i < LINE6_ISO_BUFFERS; i++) {
 		if (test_bit(i, &line6pcm->active_urb_in)) {
 			if (!test_and_set_bit(i, &line6pcm->unlink_urb_in)) {
 				struct urb *u = line6pcm->urb_audio_in[i];
@@ -114,7 +114,7 @@ void line6_wait_clear_audio_in_urbs(struct snd_line6_pcm *line6pcm)
 
 	do {
 		alive = 0;
-		for (i = LINE6_ISO_BUFFERS; i--;) {
+		for (i = 0; i < LINE6_ISO_BUFFERS; i++) {
 			if (test_bit(i, &line6pcm->active_urb_in))
 				alive++;
 		}

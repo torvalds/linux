@@ -273,7 +273,7 @@ static int snd_line6_control_playback_get(struct snd_kcontrol *kcontrol,
 	int i;
 	struct snd_line6_pcm *line6pcm = snd_kcontrol_chip(kcontrol);
 
-	for (i = 2; i--;)
+	for (i = 0; i < 2; i++)
 		ucontrol->value.integer.value[i] = line6pcm->volume_playback[i];
 
 	return 0;
@@ -286,7 +286,7 @@ static int snd_line6_control_playback_put(struct snd_kcontrol *kcontrol,
 	int i, changed = 0;
 	struct snd_line6_pcm *line6pcm = snd_kcontrol_chip(kcontrol);
 
-	for (i = 2; i--;)
+	for (i = 0; i < 2; i++)
 		if (line6pcm->volume_playback[i] !=
 		    ucontrol->value.integer.value[i]) {
 			line6pcm->volume_playback[i] =
@@ -330,7 +330,7 @@ static void line6_cleanup_pcm(struct snd_pcm *pcm)
 	int i;
 	struct snd_line6_pcm *line6pcm = snd_pcm_chip(pcm);
 
-	for (i = LINE6_ISO_BUFFERS; i--;) {
+	for (i = 0; i < LINE6_ISO_BUFFERS; i++) {
 		if (line6pcm->urb_audio_out[i]) {
 			usb_kill_urb(line6pcm->urb_audio_out[i]);
 			usb_free_urb(line6pcm->urb_audio_out[i]);
