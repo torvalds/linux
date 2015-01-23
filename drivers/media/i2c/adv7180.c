@@ -30,6 +30,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 #include <linux/mutex.h>
+#include <linux/delay.h>
 
 #define ADV7180_REG_INPUT_CONTROL			0x0000
 #define ADV7180_INPUT_CONTROL_AD_PAL_BG_NTSC_J_SECAM	0x00
@@ -523,6 +524,9 @@ static int init_device(struct adv7180_state *state)
 
 	mutex_lock(&state->mutex);
 
+	adv7180_write(state, ADV7180_REG_PWR_MAN, ADV7180_PWR_MAN_RES);
+	usleep_range(2000, 10000);
+
 	/* Initialize adv7180 */
 	/* Enable autodetection */
 	if (state->autodetect) {
@@ -692,14 +696,14 @@ static int adv7180_resume(struct device *dev)
 	struct adv7180_state *state = to_state(sd);
 	int ret;
 
-	if (state->powered) {
-		ret = adv7180_set_power(state, true);
-		if (ret)
-			return ret;
-	}
 	ret = init_device(state);
 	if (ret < 0)
 		return ret;
+
+	ret = adv7180_set_power(state, state->powered);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
