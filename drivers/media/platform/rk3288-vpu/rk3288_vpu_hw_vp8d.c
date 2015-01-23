@@ -629,10 +629,11 @@ static void rk3288_vp8d_cfg_buffers(struct rk3288_vpu_ctx *ctx)
 	/* set segment map address */
 	reg = 0;
 	reg = VDPU_REG_FWD_PIC1_SEGMENT_BASE(ctx->hw.vp8d.segment_map.dma);
-	if (hdr->sgmnt_hdr.flags & V4L2_VP8_SEGMNT_HDR_FLAG_ENABLED)
+	if (hdr->sgmnt_hdr.flags & V4L2_VP8_SEGMNT_HDR_FLAG_ENABLED) {
 		reg |= VDPU_REG_FWD_PIC1_SEGMENT_E;
-	if (hdr->sgmnt_hdr.flags & V4L2_VP8_SEGMNT_HDR_FLAG_UPDATE_MAP)
-		reg |= VDPU_REG_FWD_PIC1_SEGMENT_UPD_E;
+		if (hdr->sgmnt_hdr.flags & V4L2_VP8_SEGMNT_HDR_FLAG_UPDATE_MAP)
+			reg |= VDPU_REG_FWD_PIC1_SEGMENT_UPD_E;
+	}
 	vdpu_write_relaxed(vpu, reg, VDPU_REG_FWD_PIC(0));
 
 	/* set output frame buffer address */
