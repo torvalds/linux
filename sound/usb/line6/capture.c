@@ -141,12 +141,6 @@ void line6_capture_check_period(struct snd_line6_pcm *line6pcm, int length)
 	}
 }
 
-void line6_free_capture_buffer(struct snd_line6_pcm *line6pcm)
-{
-	kfree(line6pcm->in.buffer);
-	line6pcm->in.buffer = NULL;
-}
-
 /*
  * Callback for completed capture URB.
  */

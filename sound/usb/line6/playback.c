@@ -290,12 +290,6 @@ int line6_submit_audio_out_all_urbs(struct snd_line6_pcm *line6pcm)
 	return 0;
 }
 
-void line6_free_playback_buffer(struct snd_line6_pcm *line6pcm)
-{
-	kfree(line6pcm->out.buffer);
-	line6pcm->out.buffer = NULL;
-}
-
 /*
 	Callback for completed playback URB.
 */

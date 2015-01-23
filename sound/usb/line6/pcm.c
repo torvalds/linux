@@ -132,6 +132,27 @@ static void line6_wait_clear_audio_urbs(struct snd_line6_pcm *line6pcm,
 			"timeout: still %d active urbs..\n", alive);
 }
 
+static int line6_alloc_stream_buffer(struct snd_line6_pcm *line6pcm,
+				     struct line6_pcm_stream *pcms)
+{
+	/* Invoked multiple times in a row so allocate once only */
+	if (pcms->buffer)
+		return 0;
+
+	pcms->buffer = kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS *
+			       line6pcm->max_packet_size, GFP_KERNEL);
+	if (!pcms->buffer)
+		return -ENOMEM;
+	return 0;
+}
+
+static void line6_free_stream_buffer(struct snd_line6_pcm *line6pcm,
+				     struct line6_pcm_stream *pcms)
+{
+	kfree(pcms->buffer);
+	pcms->buffer = NULL;
+}
+
 static bool test_flags(unsigned long flags0, unsigned long flags1,
 		       unsigned long mask)
 {
@@ -153,17 +174,9 @@ int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int channels)
 	line6pcm->prev_fbuf = NULL;
 
 	if (test_flags(flags_old, flags_new, LINE6_BITS_CAPTURE_BUFFER)) {
-		/* Invoked multiple times in a row so allocate once only */
-		if (!line6pcm->in.buffer) {
-			line6pcm->in.buffer =
-				kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS *
-					line6pcm->max_packet_size, GFP_KERNEL);
-			if (!line6pcm->in.buffer) {
-				err = -ENOMEM;
-				goto pcm_acquire_error;
-			}
-		}
-
+		err = line6_alloc_stream_buffer(line6pcm, &line6pcm->in);
+		if (err < 0)
+			goto pcm_acquire_error;
 		flags_final |= channels & LINE6_BITS_CAPTURE_BUFFER;
 	}
 
@@ -190,17 +203,9 @@ int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int channels)
 	}
 
 	if (test_flags(flags_old, flags_new, LINE6_BITS_PLAYBACK_BUFFER)) {
-		/* Invoked multiple times in a row so allocate once only */
-		if (!line6pcm->out.buffer) {
-			line6pcm->out.buffer =
-				kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS *
-					line6pcm->max_packet_size, GFP_KERNEL);
-			if (!line6pcm->out.buffer) {
-				err = -ENOMEM;
-				goto pcm_acquire_error;
-			}
-		}
-
+		err = line6_alloc_stream_buffer(line6pcm, &line6pcm->out);
+		if (err < 0)
+			goto pcm_acquire_error;
 		flags_final |= channels & LINE6_BITS_PLAYBACK_BUFFER;
 	}
 
@@ -248,7 +253,7 @@ int line6_pcm_release(struct snd_line6_pcm *line6pcm, int channels)
 
 	if (test_flags(flags_new, flags_old, LINE6_BITS_CAPTURE_BUFFER)) {
 		line6_wait_clear_audio_urbs(line6pcm, &line6pcm->in);
-		line6_free_capture_buffer(line6pcm);
+		line6_free_stream_buffer(line6pcm, &line6pcm->in);
 	}
 
 	if (test_flags(flags_new, flags_old, LINE6_BITS_PLAYBACK_STREAM))
@@ -256,7 +261,7 @@ int line6_pcm_release(struct snd_line6_pcm *line6pcm, int channels)
 
 	if (test_flags(flags_new, flags_old, LINE6_BITS_PLAYBACK_BUFFER)) {
 		line6_wait_clear_audio_urbs(line6pcm, &line6pcm->out);
-		line6_free_playback_buffer(line6pcm);
+		line6_free_stream_buffer(line6pcm, &line6pcm->out);
 	}
 
 	return 0;
