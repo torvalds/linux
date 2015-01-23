@@ -10574,6 +10574,7 @@ F:	drivers/pci/*xen*
 
 XEN BLOCK SUBSYSTEM
 M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+M:	Roger Pau Monné <roger.pau@citrix.com>
 L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 S:	Supported
 F:	drivers/block/xen-blkback/*
