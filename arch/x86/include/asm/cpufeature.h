@@ -12,7 +12,7 @@
 #include <asm/disabled-features.h>
 #endif
 
-#define NCAPINTS	11	/* N 32-bit words worth of info */
+#define NCAPINTS	13	/* N 32-bit words worth of info */
 #define NBUGINTS	1	/* N 32-bit bug flags */
 
 /*
@@ -226,6 +226,7 @@
 #define X86_FEATURE_ERMS	( 9*32+ 9) /* Enhanced REP MOVSB/STOSB */
 #define X86_FEATURE_INVPCID	( 9*32+10) /* Invalidate Processor Context ID */
 #define X86_FEATURE_RTM		( 9*32+11) /* Restricted Transactional Memory */
+#define X86_FEATURE_CQM		( 9*32+12) /* Cache QoS Monitoring */
 #define X86_FEATURE_MPX		( 9*32+14) /* Memory Protection Extension */
 #define X86_FEATURE_AVX512F	( 9*32+16) /* AVX-512 Foundation */
 #define X86_FEATURE_RDSEED	( 9*32+18) /* The RDSEED instruction */
@@ -241,6 +242,12 @@
 #define X86_FEATURE_XSAVEC	(10*32+ 1) /* XSAVEC */
 #define X86_FEATURE_XGETBV1	(10*32+ 2) /* XGETBV with ECX = 1 */
 #define X86_FEATURE_XSAVES	(10*32+ 3) /* XSAVES/XRSTORS */
+
+/* Intel-defined CPU QoS Sub-leaf, CPUID level 0x0000000F:0 (edx), word 11 */
+#define X86_FEATURE_CQM_LLC	(11*32+ 1) /* LLC QoS if 1 */
+
+/* Intel-defined CPU QoS Sub-leaf, CPUID level 0x0000000F:1 (edx), word 12 */
+#define X86_FEATURE_CQM_OCCUP_LLC (12*32+ 0) /* LLC occupancy monitoring if 1 */
 
 /*
  * BUG word(s)
