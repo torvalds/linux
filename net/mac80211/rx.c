@@ -2310,12 +2310,12 @@ ieee80211_rx_h_data(struct ieee80211_rx_data *rx)
 		return RX_DROP_MONITOR;
 
 	if (rx->sta) {
-		/* The security index has the same property as needed
+		/* The seqno index has the same property as needed
 		 * for the rx_msdu field, i.e. it is IEEE80211_NUM_TIDS
 		 * for non-QoS-data frames. Here we know it's a data
 		 * frame, so count MSDUs.
 		 */
-		rx->sta->rx_msdu[rx->security_idx]++;
+		rx->sta->rx_msdu[rx->seqno_idx]++;
 	}
 
 	/*
