@@ -6416,11 +6416,8 @@ static int hpsa_init_reset_devices(struct pci_dev *pdev)
 	 * "performant mode".  Or, it might be 640x, which can't reset
 	 * due to concerns about shared bbwc between 6402/6404 pair.
 	 */
-	if (rc) {
-		if (rc != -ENOTSUPP) /* just try to do the kdump anyhow. */
-			rc = -ENODEV;
+	if (rc)
 		goto out_disable;
-	}
 
 	/* Now try to get the controller to respond to a no-op */
 	dev_warn(&pdev->dev, "Waiting for controller to respond to no-op\n");
