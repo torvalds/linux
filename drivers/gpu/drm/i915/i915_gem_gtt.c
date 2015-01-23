@@ -1145,7 +1145,7 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 
 	ppgtt->base.clear_range(&ppgtt->base, 0, ppgtt->base.total, true);
 
-	DRM_DEBUG_DRIVER("Allocated pde space (%ldM) at GTT entry: %lx\n",
+	DRM_DEBUG_DRIVER("Allocated pde space (%lldM) at GTT entry: %llx\n",
 			 ppgtt->node.size >> 20,
 			 ppgtt->node.start / PAGE_SIZE);
 
@@ -1713,8 +1713,8 @@ void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj)
 
 static void i915_gtt_color_adjust(struct drm_mm_node *node,
 				  unsigned long color,
-				  unsigned long *start,
-				  unsigned long *end)
+				  u64 *start,
+				  u64 *end)
 {
 	if (node->color != color)
 		*start += 4096;
