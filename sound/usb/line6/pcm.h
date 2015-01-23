@@ -165,6 +165,49 @@ struct line6_pcm_properties {
 	int bytes_per_frame;
 };
 
+struct line6_pcm_stream {
+	/* allocated URBs */
+	struct urb *urbs[LINE6_ISO_BUFFERS];
+
+	/* Temporary buffer;
+	 * Since the packet size is not known in advance, this buffer is
+	 * large enough to store maximum size packets.
+	 */
+	unsigned char *buffer;
+
+	/* Free frame position in the buffer. */
+	snd_pcm_uframes_t pos;
+
+	/* Count processed bytes;
+	 * This is modulo period size (to determine when a period is finished).
+	 */
+	unsigned bytes;
+
+	/* Counter to create desired sample rate */
+	unsigned count;
+
+	/* period size in bytes */
+	unsigned period;
+
+	/* Processed frame position in the buffer;
+	 * The contents of the ring buffer have been consumed by the USB
+	 * subsystem (i.e., sent to the USB device) up to this position.
+	 */
+	snd_pcm_uframes_t pos_done;
+
+	/* Bit mask of active URBs */
+	unsigned long active_urbs;
+
+	/* Bit mask of URBs currently being unlinked */
+	unsigned long unlink_urbs;
+
+	/* Spin lock to protect updates of the buffer positions (not contents)
+	 */
+	spinlock_t lock;
+
+	int last_frame;
+};
+
 struct snd_line6_pcm {
 	/**
 		 Pointer back to the Line 6 driver data structure.
@@ -181,29 +224,9 @@ struct snd_line6_pcm {
 	*/
 	struct snd_pcm *pcm;
 
-	/**
-		 URBs for audio playback.
-	*/
-	struct urb *urb_audio_out[LINE6_ISO_BUFFERS];
-
-	/**
-		 URBs for audio capture.
-	*/
-	struct urb *urb_audio_in[LINE6_ISO_BUFFERS];
-
-	/**
-		 Temporary buffer for playback.
-		 Since the packet size is not known in advance, this buffer is
-		 large enough to store maximum size packets.
-	*/
-	unsigned char *buffer_out;
-
-	/**
-		 Temporary buffer for capture.
-		 Since the packet size is not known in advance, this buffer is
-		 large enough to store maximum size packets.
-	*/
-	unsigned char *buffer_in;
+	/* Capture and playback streams */
+	struct line6_pcm_stream in;
+	struct line6_pcm_stream out;
 
 	/**
 		 Previously captured frame (for software monitoring).
@@ -216,96 +239,9 @@ struct snd_line6_pcm {
 	int prev_fsize;
 
 	/**
-		 Free frame position in the playback buffer.
-	*/
-	snd_pcm_uframes_t pos_out;
-
-	/**
-		 Count processed bytes for playback.
-		 This is modulo period size (to determine when a period is
-		 finished).
-	*/
-	unsigned bytes_out;
-
-	/**
-		 Counter to create desired playback sample rate.
-	*/
-	unsigned count_out;
-
-	/**
-		 Playback period size in bytes
-	*/
-	unsigned period_out;
-
-	/**
-		 Processed frame position in the playback buffer.
-		 The contents of the output ring buffer have been consumed by
-		 the USB subsystem (i.e., sent to the USB device) up to this
-		 position.
-	*/
-	snd_pcm_uframes_t pos_out_done;
-
-	/**
-		 Count processed bytes for capture.
-		 This is modulo period size (to determine when a period is
-		 finished).
-	*/
-	unsigned bytes_in;
-
-	/**
-		 Counter to create desired capture sample rate.
-	*/
-	unsigned count_in;
-
-	/**
-		 Capture period size in bytes
-	*/
-	unsigned period_in;
-
-	/**
-		 Processed frame position in the capture buffer.
-		 The contents of the output ring buffer have been consumed by
-		 the USB subsystem (i.e., sent to the USB device) up to this
-		 position.
-	*/
-	snd_pcm_uframes_t pos_in_done;
-
-	/**
-		 Bit mask of active playback URBs.
-	*/
-	unsigned long active_urb_out;
-
-	/**
 		 Maximum size of USB packet.
 	*/
 	int max_packet_size;
-
-	/**
-		 Bit mask of active capture URBs.
-	*/
-	unsigned long active_urb_in;
-
-	/**
-		 Bit mask of playback URBs currently being unlinked.
-	*/
-	unsigned long unlink_urb_out;
-
-	/**
-		 Bit mask of capture URBs currently being unlinked.
-	*/
-	unsigned long unlink_urb_in;
-
-	/**
-		 Spin lock to protect updates of the playback buffer positions (not
-		 contents!)
-	*/
-	spinlock_t lock_audio_out;
-
-	/**
-		 Spin lock to protect updates of the capture buffer positions (not
-		 contents!)
-	*/
-	spinlock_t lock_audio_in;
 
 	/**
 		 PCM playback volume (left and right).
@@ -336,8 +272,6 @@ struct snd_line6_pcm {
 		 Several status bits (see LINE6_BIT_*).
 	*/
 	unsigned long flags;
-
-	int last_frame_in, last_frame_out;
 };
 
 extern int line6_init_pcm(struct usb_line6 *line6,

@@ -112,11 +112,11 @@ int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int channels)
 
 	if (test_flags(flags_old, flags_new, LINE6_BITS_CAPTURE_BUFFER)) {
 		/* Invoked multiple times in a row so allocate once only */
-		if (!line6pcm->buffer_in) {
-			line6pcm->buffer_in =
+		if (!line6pcm->in.buffer) {
+			line6pcm->in.buffer =
 				kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS *
 					line6pcm->max_packet_size, GFP_KERNEL);
-			if (!line6pcm->buffer_in) {
+			if (!line6pcm->in.buffer) {
 				err = -ENOMEM;
 				goto pcm_acquire_error;
 			}
@@ -131,13 +131,13 @@ int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int channels)
 		   a bug, we therefore report an error if capturing is restarted
 		   too soon.
 		 */
-		if (line6pcm->active_urb_in || line6pcm->unlink_urb_in) {
+		if (line6pcm->in.active_urbs || line6pcm->in.unlink_urbs) {
 			dev_err(line6pcm->line6->ifcdev, "Device not yet ready\n");
 			err = -EBUSY;
 			goto pcm_acquire_error;
 		}
 
-		line6pcm->count_in = 0;
+		line6pcm->in.count = 0;
 		line6pcm->prev_fsize = 0;
 		err = line6_submit_audio_in_all_urbs(line6pcm);
 
@@ -149,11 +149,11 @@ int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int channels)
 
 	if (test_flags(flags_old, flags_new, LINE6_BITS_PLAYBACK_BUFFER)) {
 		/* Invoked multiple times in a row so allocate once only */
-		if (!line6pcm->buffer_out) {
-			line6pcm->buffer_out =
+		if (!line6pcm->out.buffer) {
+			line6pcm->out.buffer =
 				kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS *
 					line6pcm->max_packet_size, GFP_KERNEL);
-			if (!line6pcm->buffer_out) {
+			if (!line6pcm->out.buffer) {
 				err = -ENOMEM;
 				goto pcm_acquire_error;
 			}
@@ -166,12 +166,12 @@ int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int channels)
 		/*
 		  See comment above regarding PCM restart.
 		*/
-		if (line6pcm->active_urb_out || line6pcm->unlink_urb_out) {
+		if (line6pcm->out.active_urbs || line6pcm->out.unlink_urbs) {
 			dev_err(line6pcm->line6->ifcdev, "Device not yet ready\n");
 			return -EBUSY;
 		}
 
-		line6pcm->count_out = 0;
+		line6pcm->out.count = 0;
 		err = line6_submit_audio_out_all_urbs(line6pcm);
 
 		if (err < 0)
@@ -331,13 +331,13 @@ static void line6_cleanup_pcm(struct snd_pcm *pcm)
 	struct snd_line6_pcm *line6pcm = snd_pcm_chip(pcm);
 
 	for (i = 0; i < LINE6_ISO_BUFFERS; i++) {
-		if (line6pcm->urb_audio_out[i]) {
-			usb_kill_urb(line6pcm->urb_audio_out[i]);
-			usb_free_urb(line6pcm->urb_audio_out[i]);
+		if (line6pcm->out.urbs[i]) {
+			usb_kill_urb(line6pcm->out.urbs[i]);
+			usb_free_urb(line6pcm->out.urbs[i]);
 		}
-		if (line6pcm->urb_audio_in[i]) {
-			usb_kill_urb(line6pcm->urb_audio_in[i]);
-			usb_free_urb(line6pcm->urb_audio_in[i]);
+		if (line6pcm->in.urbs[i]) {
+			usb_kill_urb(line6pcm->in.urbs[i]);
+			usb_free_urb(line6pcm->in.urbs[i]);
 		}
 	}
 	kfree(line6pcm);
@@ -415,8 +415,8 @@ int line6_init_pcm(struct usb_line6 *line6,
 			usb_maxpacket(line6->usbdev,
 				usb_sndisocpipe(line6->usbdev, ep_write), 1));
 
-	spin_lock_init(&line6pcm->lock_audio_out);
-	spin_lock_init(&line6pcm->lock_audio_in);
+	spin_lock_init(&line6pcm->out.lock);
+	spin_lock_init(&line6pcm->in.lock);
 	line6pcm->impulse_period = LINE6_IMPULSE_DEFAULT_PERIOD;
 
 	line6->line6pcm = line6pcm;
@@ -464,13 +464,13 @@ int snd_line6_prepare(struct snd_pcm_substream *substream)
 	}
 
 	if (!test_and_set_bit(LINE6_INDEX_PREPARED, &line6pcm->flags)) {
-		line6pcm->count_out = 0;
-		line6pcm->pos_out = 0;
-		line6pcm->pos_out_done = 0;
-		line6pcm->bytes_out = 0;
-		line6pcm->count_in = 0;
-		line6pcm->pos_in_done = 0;
-		line6pcm->bytes_in = 0;
+		line6pcm->out.count = 0;
+		line6pcm->out.pos = 0;
+		line6pcm->out.pos_done = 0;
+		line6pcm->out.bytes = 0;
+		line6pcm->in.count = 0;
+		line6pcm->in.pos_done = 0;
+		line6pcm->in.bytes = 0;
 	}
 
 	return 0;
