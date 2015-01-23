@@ -4097,8 +4097,15 @@ static int hpsa_scsi_queue_command(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 		dev_err(&h->pdev->dev, "cmd_alloc returned NULL!\n");
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
+	if (unlikely(lockup_detected(h))) {
+		cmd->result = DID_ERROR << 16;
+		cmd_free(h, c);
+		cmd->scsi_done(cmd);
+		return 0;
+	}
 
-	/* Call alternate submit routine for I/O accelerated commands.
+	/*
+	 * Call alternate submit routine for I/O accelerated commands.
 	 * Retries always go down the normal I/O path.
 	 */
 	if (likely(cmd->retries == 0 &&
