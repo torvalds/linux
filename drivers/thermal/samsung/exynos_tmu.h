@@ -23,8 +23,7 @@
 #ifndef _EXYNOS_TMU_H
 #define _EXYNOS_TMU_H
 #include <linux/cpu_cooling.h>
-
-#include "exynos_thermal_common.h"
+#include <dt-bindings/thermal/thermal_exynos.h>
 
 enum soc_type {
 	SOC_ARCH_EXYNOS3250 = 1,
@@ -36,38 +35,9 @@ enum soc_type {
 	SOC_ARCH_EXYNOS5420_TRIMINFO,
 	SOC_ARCH_EXYNOS5440,
 };
-#include <dt-bindings/thermal/thermal_exynos.h>
 
 /**
  * struct exynos_tmu_platform_data
- * @threshold: basic temperature for generating interrupt
- *	       25 <= threshold <= 125 [unit: degree Celsius]
- * @threshold_falling: differntial value for setting threshold
- *		       of temperature falling interrupt.
- * @trigger_levels: array for each interrupt levels
- *	[unit: degree Celsius]
- *	0: temperature for trigger_level0 interrupt
- *	   condition for trigger_level0 interrupt:
- *		current temperature > threshold + trigger_levels[0]
- *	1: temperature for trigger_level1 interrupt
- *	   condition for trigger_level1 interrupt:
- *		current temperature > threshold + trigger_levels[1]
- *	2: temperature for trigger_level2 interrupt
- *	   condition for trigger_level2 interrupt:
- *		current temperature > threshold + trigger_levels[2]
- *	3: temperature for trigger_level3 interrupt
- *	   condition for trigger_level3 interrupt:
- *		current temperature > threshold + trigger_levels[3]
- * @trigger_type: defines the type of trigger. Possible values are,
- *	THROTTLE_ACTIVE trigger type
- *	THROTTLE_PASSIVE trigger type
- *	SW_TRIP trigger type
- *	HW_TRIP
- * @trigger_enable[]: array to denote which trigger levels are enabled.
- *	1 = enable trigger_level[] interrupt,
- *	0 = disable trigger_level[] interrupt
- * @max_trigger_level: max trigger level supported by the TMU
- * @non_hw_trigger_levels: number of defined non-hardware trigger levels
  * @gain: gain of amplifier in the positive-TC generator block
  *	0 < gain <= 15
  * @reference_voltage: reference voltage of amplifier
@@ -79,21 +49,12 @@ enum soc_type {
  * @efuse_value: platform defined fuse value
  * @min_efuse_value: minimum valid trimming data
  * @max_efuse_value: maximum valid trimming data
- * @first_point_trim: temp value of the first point trimming
- * @second_point_trim: temp value of the second point trimming
  * @default_temp_offset: default temperature offset in case of no trimming
  * @cal_type: calibration type for temperature
  *
  * This structure is required for configuration of exynos_tmu driver.
  */
 struct exynos_tmu_platform_data {
-	u8 threshold;
-	u8 threshold_falling;
-	u8 trigger_levels[MAX_TRIP_COUNT];
-	enum trigger_type trigger_type[MAX_TRIP_COUNT];
-	bool trigger_enable[MAX_TRIP_COUNT];
-	u8 max_trigger_level;
-	u8 non_hw_trigger_levels;
 	u8 gain;
 	u8 reference_voltage;
 	u8 noise_cancel_mode;
@@ -109,25 +70,5 @@ struct exynos_tmu_platform_data {
 	u32 cal_type;
 	u32 cal_mode;
 };
-
-/**
- * struct exynos_tmu_init_data
- * @tmu_count: number of TMU instances.
- * @tmu_data: platform data of all TMU instances.
- * This structure is required to store data for multi-instance exynos tmu
- * driver.
- */
-struct exynos_tmu_init_data {
-	int tmu_count;
-	struct exynos_tmu_platform_data tmu_data[];
-};
-
-extern struct exynos_tmu_init_data const exynos3250_default_tmu_data;
-extern struct exynos_tmu_init_data const exynos4210_default_tmu_data;
-extern struct exynos_tmu_init_data const exynos4412_default_tmu_data;
-extern struct exynos_tmu_init_data const exynos5250_default_tmu_data;
-extern struct exynos_tmu_init_data const exynos5260_default_tmu_data;
-extern struct exynos_tmu_init_data const exynos5420_default_tmu_data;
-extern struct exynos_tmu_init_data const exynos5440_default_tmu_data;
 
 #endif /* _EXYNOS_TMU_H */
