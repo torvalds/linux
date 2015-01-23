@@ -568,6 +568,10 @@
 	status = "okay";
 };
 
+&jpeg {
+	status = "okay";
+};
+
 &mshc_0 {
 	#address-cells = <1>;
 	#size-cells = <0>;
