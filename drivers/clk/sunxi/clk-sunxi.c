@@ -119,6 +119,8 @@ static long sun6i_ahb1_clk_round(unsigned long rate, u8 *divp, u8 *pre_divp,
 }
 
 static long sun6i_ahb1_clk_determine_rate(struct clk_hw *hw, unsigned long rate,
+					  unsigned long min_rate,
+					  unsigned long max_rate,
 					  unsigned long *best_parent_rate,
 					  struct clk_hw **best_parent_clk)
 {
