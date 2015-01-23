@@ -261,8 +261,9 @@ struct intern_transform {
 	} link[8];
 };
 
-/*  JR3 force/torque sensor data definition. For more information see sensor and */
-/*  hardware manuals. */
+/*  JR3 force/torque sensor data definition. For more information see sensor
+ *  and hardware manuals.
+ */
 
 struct jr3_channel {
 	/*  Raw_channels is the area used to store the raw data coming from */
