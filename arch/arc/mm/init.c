@@ -43,6 +43,8 @@ void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 {
 	arc_mem_sz = size & PAGE_MASK;
 	pr_info("Memory size set via devicetree %ldM\n", TO_MB(arc_mem_sz));
+
+	BUG_ON(base != CONFIG_LINUX_LINK_BASE);
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
