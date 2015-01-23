@@ -498,6 +498,7 @@ int snd_soc_test_bits(struct snd_soc_codec *codec, unsigned int reg,
 				unsigned int mask, unsigned int value);
 
 #ifdef CONFIG_SND_SOC_AC97_BUS
+struct snd_ac97 *snd_soc_alloc_ac97_codec(struct snd_soc_codec *codec);
 struct snd_ac97 *snd_soc_new_ac97_codec(struct snd_soc_codec *codec);
 void snd_soc_free_ac97_codec(struct snd_ac97 *ac97);
 
