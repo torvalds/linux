@@ -6424,7 +6424,7 @@ static int hpsa_init_reset_devices(struct pci_dev *pdev)
 		goto out_disable;
 
 	/* Now try to get the controller to respond to a no-op */
-	dev_warn(&pdev->dev, "Waiting for controller to respond to no-op\n");
+	dev_info(&pdev->dev, "Waiting for controller to respond to no-op\n");
 	for (i = 0; i < HPSA_POST_RESET_NOOP_RETRIES; i++) {
 		if (hpsa_noop(pdev) == 0)
 			break;
