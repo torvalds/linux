@@ -5610,7 +5610,7 @@ static int hpsa_message(struct pci_dev *pdev, unsigned char opcode,
 	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (err) {
 		iounmap(vaddr);
-		return -ENOMEM;
+		return err;
 	}
 
 	cmd = pci_alloc_consistent(pdev, cmd_sz, &paddr64);
