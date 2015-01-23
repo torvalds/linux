@@ -46,6 +46,11 @@ struct hpsa_scsi_dev_t {
 	unsigned char model[16];        /* bytes 16-31 of inquiry data */
 	unsigned char raid_level;	/* from inquiry page 0xC1 */
 	unsigned char volume_offline;	/* discovered via TUR or VPD */
+	u16 queue_depth;		/* max queue_depth for this device */
+	atomic_t ioaccel_cmds_out;	/* Only used for physical devices
+					 * counts commands sent to physical
+					 * device via "ioaccel" path.
+					 */
 	u32 ioaccel_handle;
 	int offload_config;		/* I/O accel RAID offload configured */
 	int offload_enabled;		/* I/O accel RAID offload enabled */
@@ -54,6 +59,15 @@ struct hpsa_scsi_dev_t {
 					 */
 	struct raid_map_data raid_map;	/* I/O accelerator RAID map */
 
+	/*
+	 * Pointers from logical drive map indices to the phys drives that
+	 * make those logical drives.  Note, multiple logical drives may
+	 * share physical drives.  You can have for instance 5 physical
+	 * drives with 3 logical drives each using those same 5 physical
+	 * disks. We need these pointers for counting i/o's out to physical
+	 * devices in order to honor physical device queue depth limits.
+	 */
+	struct hpsa_scsi_dev_t *phys_disk[RAID_MAP_MAX_ENTRIES];
 };
 
 struct reply_queue_buffer {

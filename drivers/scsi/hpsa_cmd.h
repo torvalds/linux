@@ -240,6 +240,10 @@ struct ReportLUNdata {
 
 struct ext_report_lun_entry {
 	u8 lunid[8];
+#define GET_BMIC_BUS(lunid) ((lunid)[7] & 0x3F)
+#define GET_BMIC_LEVEL_TWO_TARGET(lunid) ((lunid)[6])
+#define GET_BMIC_DRIVE_NUMBER(lunid) (((GET_BMIC_BUS((lunid)) - 1) << 8) + \
+			GET_BMIC_LEVEL_TWO_TARGET((lunid)))
 	u8 wwid[8];
 	u8 device_type;
 	u8 device_flags;
@@ -268,6 +272,7 @@ struct SenseSubsystem_info {
 #define HPSA_CACHE_FLUSH 0x01	/* C2 was already being used by HPSA */
 #define BMIC_FLASH_FIRMWARE 0xF7
 #define BMIC_SENSE_CONTROLLER_PARAMETERS 0x64
+#define BMIC_IDENTIFY_PHYSICAL_DEVICE 0x15
 
 /* Command List Structure */
 union SCSI3Addr {
@@ -405,6 +410,17 @@ struct CommandList {
 	struct completion *waiting;
 	void   *scsi_cmd;
 	struct work_struct work;
+
+	/*
+	 * For commands using either of the two "ioaccel" paths to
+	 * bypass the RAID stack and go directly to the physical disk
+	 * phys_disk is a pointer to the hpsa_scsi_dev_t to which the
+	 * i/o is destined.  We need to store that here because the command
+	 * may potentially encounter TASK SET FULL and need to be resubmitted
+	 * For "normal" i/o's not using the "ioaccel" paths, phys_disk is
+	 * not used.
+	 */
+	struct hpsa_scsi_dev_t *phys_disk;
 } __aligned(COMMANDLIST_ALIGNMENT);
 
 /* Max S/G elements in I/O accelerator command */
@@ -639,6 +655,138 @@ struct hpsa_pci_info {
 	unsigned char	dev_fn;
 	unsigned short	domain;
 	u32		board_id;
+};
+
+struct bmic_identify_physical_device {
+	u8    scsi_bus;          /* SCSI Bus number on controller */
+	u8    scsi_id;           /* SCSI ID on this bus */
+	__le16 block_size;	     /* sector size in bytes */
+	__le32 total_blocks;	     /* number for sectors on drive */
+	__le32 reserved_blocks;   /* controller reserved (RIS) */
+	u8    model[40];         /* Physical Drive Model */
+	u8    serial_number[40]; /* Drive Serial Number */
+	u8    firmware_revision[8]; /* drive firmware revision */
+	u8    scsi_inquiry_bits; /* inquiry byte 7 bits */
+	u8    compaq_drive_stamp; /* 0 means drive not stamped */
+	u8    last_failure_reason;
+#define BMIC_LAST_FAILURE_TOO_SMALL_IN_LOAD_CONFIG		0x01
+#define BMIC_LAST_FAILURE_ERROR_ERASING_RIS			0x02
+#define BMIC_LAST_FAILURE_ERROR_SAVING_RIS			0x03
+#define BMIC_LAST_FAILURE_FAIL_DRIVE_COMMAND			0x04
+#define BMIC_LAST_FAILURE_MARK_BAD_FAILED			0x05
+#define BMIC_LAST_FAILURE_MARK_BAD_FAILED_IN_FINISH_REMAP	0x06
+#define BMIC_LAST_FAILURE_TIMEOUT				0x07
+#define BMIC_LAST_FAILURE_AUTOSENSE_FAILED			0x08
+#define BMIC_LAST_FAILURE_MEDIUM_ERROR_1			0x09
+#define BMIC_LAST_FAILURE_MEDIUM_ERROR_2			0x0a
+#define BMIC_LAST_FAILURE_NOT_READY_BAD_SENSE			0x0b
+#define BMIC_LAST_FAILURE_NOT_READY				0x0c
+#define BMIC_LAST_FAILURE_HARDWARE_ERROR			0x0d
+#define BMIC_LAST_FAILURE_ABORTED_COMMAND			0x0e
+#define BMIC_LAST_FAILURE_WRITE_PROTECTED			0x0f
+#define BMIC_LAST_FAILURE_SPIN_UP_FAILURE_IN_RECOVER		0x10
+#define BMIC_LAST_FAILURE_REBUILD_WRITE_ERROR			0x11
+#define BMIC_LAST_FAILURE_TOO_SMALL_IN_HOT_PLUG			0x12
+#define BMIC_LAST_FAILURE_BUS_RESET_RECOVERY_ABORTED		0x13
+#define BMIC_LAST_FAILURE_REMOVED_IN_HOT_PLUG			0x14
+#define BMIC_LAST_FAILURE_INIT_REQUEST_SENSE_FAILED		0x15
+#define BMIC_LAST_FAILURE_INIT_START_UNIT_FAILED		0x16
+#define BMIC_LAST_FAILURE_INQUIRY_FAILED			0x17
+#define BMIC_LAST_FAILURE_NON_DISK_DEVICE			0x18
+#define BMIC_LAST_FAILURE_READ_CAPACITY_FAILED			0x19
+#define BMIC_LAST_FAILURE_INVALID_BLOCK_SIZE			0x1a
+#define BMIC_LAST_FAILURE_HOT_PLUG_REQUEST_SENSE_FAILED		0x1b
+#define BMIC_LAST_FAILURE_HOT_PLUG_START_UNIT_FAILED		0x1c
+#define BMIC_LAST_FAILURE_WRITE_ERROR_AFTER_REMAP		0x1d
+#define BMIC_LAST_FAILURE_INIT_RESET_RECOVERY_ABORTED		0x1e
+#define BMIC_LAST_FAILURE_DEFERRED_WRITE_ERROR			0x1f
+#define BMIC_LAST_FAILURE_MISSING_IN_SAVE_RIS			0x20
+#define BMIC_LAST_FAILURE_WRONG_REPLACE				0x21
+#define BMIC_LAST_FAILURE_GDP_VPD_INQUIRY_FAILED		0x22
+#define BMIC_LAST_FAILURE_GDP_MODE_SENSE_FAILED			0x23
+#define BMIC_LAST_FAILURE_DRIVE_NOT_IN_48BIT_MODE		0x24
+#define BMIC_LAST_FAILURE_DRIVE_TYPE_MIX_IN_HOT_PLUG		0x25
+#define BMIC_LAST_FAILURE_DRIVE_TYPE_MIX_IN_LOAD_CFG		0x26
+#define BMIC_LAST_FAILURE_PROTOCOL_ADAPTER_FAILED		0x27
+#define BMIC_LAST_FAILURE_FAULTY_ID_BAY_EMPTY			0x28
+#define BMIC_LAST_FAILURE_FAULTY_ID_BAY_OCCUPIED		0x29
+#define BMIC_LAST_FAILURE_FAULTY_ID_INVALID_BAY			0x2a
+#define BMIC_LAST_FAILURE_WRITE_RETRIES_FAILED			0x2b
+
+#define BMIC_LAST_FAILURE_SMART_ERROR_REPORTED			0x37
+#define BMIC_LAST_FAILURE_PHY_RESET_FAILED			0x38
+#define BMIC_LAST_FAILURE_ONLY_ONE_CTLR_CAN_SEE_DRIVE		0x40
+#define BMIC_LAST_FAILURE_KC_VOLUME_FAILED			0x41
+#define BMIC_LAST_FAILURE_UNEXPECTED_REPLACEMENT		0x42
+#define BMIC_LAST_FAILURE_OFFLINE_ERASE				0x80
+#define BMIC_LAST_FAILURE_OFFLINE_TOO_SMALL			0x81
+#define BMIC_LAST_FAILURE_OFFLINE_DRIVE_TYPE_MIX		0x82
+#define BMIC_LAST_FAILURE_OFFLINE_ERASE_COMPLETE		0x83
+
+	u8     flags;
+	u8     more_flags;
+	u8     scsi_lun;          /* SCSI LUN for phys drive */
+	u8     yet_more_flags;
+	u8     even_more_flags;
+	__le32 spi_speed_rules;/* SPI Speed data:Ultra disable diagnose */
+	u8     phys_connector[2];         /* connector number on controller */
+	u8     phys_box_on_bus;  /* phys enclosure this drive resides */
+	u8     phys_bay_in_box;  /* phys drv bay this drive resides */
+	__le32 rpm;              /* Drive rotational speed in rpm */
+	u8     device_type;       /* type of drive */
+	u8     sata_version;     /* only valid when drive_type is SATA */
+	__le64 big_total_block_count;
+	__le64 ris_starting_lba;
+	__le32 ris_size;
+	u8     wwid[20];
+	u8     controller_phy_map[32];
+	__le16 phy_count;
+	u8     phy_connected_dev_type[256];
+	u8     phy_to_drive_bay_num[256];
+	__le16 phy_to_attached_dev_index[256];
+	u8     box_index;
+	u8     reserved;
+	__le16 extra_physical_drive_flags;
+#define BMIC_PHYS_DRIVE_SUPPORTS_GAS_GAUGE(idphydrv) \
+	(idphydrv->extra_physical_drive_flags & (1 << 10))
+	u8     negotiated_link_rate[256];
+	u8     phy_to_phy_map[256];
+	u8     redundant_path_present_map;
+	u8     redundant_path_failure_map;
+	u8     active_path_number;
+	__le16 alternate_paths_phys_connector[8];
+	u8     alternate_paths_phys_box_on_port[8];
+	u8     multi_lun_device_lun_count;
+	u8     minimum_good_fw_revision[8];
+	u8     unique_inquiry_bytes[20];
+	u8     current_temperature_degreesC;
+	u8     temperature_threshold_degreesC;
+	u8     max_temperature_degreesC;
+	u8     logical_blocks_per_phys_block_exp; /* phyblocksize = 512*2^exp */
+	__le16 current_queue_depth_limit;
+	u8     switch_name[10];
+	__le16 switch_port;
+	u8     alternate_paths_switch_name[40];
+	u8     alternate_paths_switch_port[8];
+	__le16 power_on_hours; /* valid only if gas gauge supported */
+	__le16 percent_endurance_used; /* valid only if gas gauge supported. */
+#define BMIC_PHYS_DRIVE_SSD_WEAROUT(idphydrv) \
+	((idphydrv->percent_endurance_used & 0x80) || \
+	 (idphydrv->percent_endurance_used > 10000))
+	u8     drive_authentication;
+#define BMIC_PHYS_DRIVE_AUTHENTICATED(idphydrv) \
+	(idphydrv->drive_authentication == 0x80)
+	u8     smart_carrier_authentication;
+#define BMIC_SMART_CARRIER_AUTHENTICATION_SUPPORTED(idphydrv) \
+	(idphydrv->smart_carrier_authentication != 0x0)
+#define BMIC_SMART_CARRIER_AUTHENTICATED(idphydrv) \
+	(idphydrv->smart_carrier_authentication == 0x01)
+	u8     smart_carrier_app_fw_version;
+	u8     smart_carrier_bootloader_fw_version;
+	u8     encryption_key_name[64];
+	__le32 misc_drive_flags;
+	__le16 dek_index;
+	u8     padding[112];
 };
 
 #pragma pack()
