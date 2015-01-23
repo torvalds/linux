@@ -673,24 +673,26 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 
 	old->c1 = new->c1 - old->c1;
 
-	if ((new->aperf > old->aperf) && (new->mperf > old->mperf)) {
-		old->aperf = new->aperf - old->aperf;
-		old->mperf = new->mperf - old->mperf;
-	} else {
+	if (has_aperf) {
+		if ((new->aperf > old->aperf) && (new->mperf > old->mperf)) {
+			old->aperf = new->aperf - old->aperf;
+			old->mperf = new->mperf - old->mperf;
+		} else {
 
-		if (!aperf_mperf_unstable) {
-			fprintf(stderr, "%s: APERF or MPERF went backwards *\n", progname);
-			fprintf(stderr, "* Frequency results do not cover entire interval *\n");
-			fprintf(stderr, "* fix this by running Linux-2.6.30 or later *\n");
+			if (!aperf_mperf_unstable) {
+				fprintf(stderr, "%s: APERF or MPERF went backwards *\n", progname);
+				fprintf(stderr, "* Frequency results do not cover entire interval *\n");
+				fprintf(stderr, "* fix this by running Linux-2.6.30 or later *\n");
 
-			aperf_mperf_unstable = 1;
+				aperf_mperf_unstable = 1;
+			}
+			/*
+			 * mperf delta is likely a huge "positive" number
+			 * can not use it for calculating c0 time
+			 */
+			skip_c0 = 1;
+			skip_c1 = 1;
 		}
-		/*
-		 * mperf delta is likely a huge "positive" number
-		 * can not use it for calculating c0 time
-		 */
-		skip_c0 = 1;
-		skip_c1 = 1;
 	}
 
 
@@ -2244,14 +2246,11 @@ void check_cpuid()
 	has_epb = ecx & (1 << 3);
 
 	if (verbose)
-		fprintf(stderr, "CPUID(6): %s%s%s%s\n",
-			has_aperf ? "APERF" : "No APERF!",
-			do_dts ? ", DTS" : "",
-			do_ptm ? ", PTM": "",
-			has_epb ? ", EPB": "");
-
-	if (!has_aperf)
-		errx(-1, "No APERF");
+		fprintf(stderr, "CPUID(6): %sAPERF, %sDTS, %sPTM, %sEPB\n",
+			has_aperf ? "" : "No ",
+			do_dts ? "" : "No ",
+			do_ptm ? "" : "No ",
+			has_epb ? "" : "No ");
 
 	do_nhm_platform_info = do_nhm_cstates = do_smi = has_nhm_msrs(family, model);
 	do_snb_cstates = has_snb_msrs(family, model);
@@ -2632,7 +2631,7 @@ int main(int argc, char **argv)
 	cmdline(argc, argv);
 
 	if (verbose)
-		fprintf(stderr, "turbostat v3.8 14-Aug 2014"
+		fprintf(stderr, "turbostat v3.9 23-Jan, 2015"
 			" - Len Brown <lenb@kernel.org>\n");
 
 	turbostat_init();
