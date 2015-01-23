@@ -37,7 +37,8 @@ static void change_volume(struct urb *urb_out, int volume[],
 		buf_end = p + urb_out->transfer_buffer_length / sizeof(*p);
 
 		for (; p < buf_end; ++p) {
-			*p = (*p * volume[chn & 1]) >> 8;
+			int val = (*p * volume[chn & 1]) >> 8;
+			*p = clamp(val, 0x7fff, -0x8000);
 			++chn;
 		}
 	} else if (bytes_per_frame == 6) {
@@ -51,6 +52,7 @@ static void change_volume(struct urb *urb_out, int volume[],
 
 			val = p[0] + (p[1] << 8) + ((signed char)p[2] << 16);
 			val = (val * volume[chn & 1]) >> 8;
+			val = clamp(val, 0x7fffff, -0x800000);
 			p[0] = val;
 			p[1] = val >> 8;
 			p[2] = val >> 16;
@@ -118,8 +120,10 @@ static void add_monitor_signal(struct urb *urb_out, unsigned char *signal,
 		po = (short *)urb_out->transfer_buffer;
 		buf_end = po + urb_out->transfer_buffer_length / sizeof(*po);
 
-		for (; po < buf_end; ++pi, ++po)
-			*po += (*pi * volume) >> 8;
+		for (; po < buf_end; ++pi, ++po) {
+			int val = *po + ((*pi * volume) >> 8);
+			*po = clamp(val, 0x7fff, -0x8000);
+		}
 	}
 
 	/*
