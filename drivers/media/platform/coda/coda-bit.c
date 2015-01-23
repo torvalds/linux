@@ -718,6 +718,7 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 	struct vb2_buffer *buf;
 	int gamma, ret, value;
 	u32 dst_fourcc;
+	int num_fb;
 	u32 stride;
 
 	q_data_src = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
@@ -983,12 +984,14 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 			v4l2_err(v4l2_dev, "failed to allocate framebuffers\n");
 			goto out;
 		}
+		num_fb = 2;
 		stride = q_data_src->bytesperline;
 	} else {
 		ctx->num_internal_frames = 0;
+		num_fb = 0;
 		stride = 0;
 	}
-	coda_write(dev, ctx->num_internal_frames, CODA_CMD_SET_FRAME_BUF_NUM);
+	coda_write(dev, num_fb, CODA_CMD_SET_FRAME_BUF_NUM);
 	coda_write(dev, stride, CODA_CMD_SET_FRAME_BUF_STRIDE);
 
 	if (dev->devtype->product == CODA_7541) {
