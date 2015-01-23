@@ -179,7 +179,8 @@ static void __init probe_page_size_mask(void)
 	if (cpu_has_pge) {
 		set_in_cr4(X86_CR4_PGE);
 		__supported_pte_mask |= _PAGE_GLOBAL;
-	}
+	} else
+		__supported_pte_mask &= ~_PAGE_GLOBAL;
 }
 
 #ifdef CONFIG_X86_32
