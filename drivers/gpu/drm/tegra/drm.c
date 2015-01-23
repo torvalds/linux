@@ -879,8 +879,18 @@ static int tegra_debugfs_framebuffers(struct seq_file *s, void *data)
 	return 0;
 }
 
+static int tegra_debugfs_iova(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *)s->private;
+	struct drm_device *drm = node->minor->dev;
+	struct tegra_drm *tegra = drm->dev_private;
+
+	return drm_mm_dump_table(s, &tegra->mm);
+}
+
 static struct drm_info_list tegra_debugfs_list[] = {
 	{ "framebuffers", tegra_debugfs_framebuffers, 0 },
+	{ "iova", tegra_debugfs_iova, 0 },
 };
 
 static int tegra_debugfs_init(struct drm_minor *minor)
