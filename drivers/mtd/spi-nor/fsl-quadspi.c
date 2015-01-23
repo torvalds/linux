@@ -890,24 +890,24 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 
 		ret = of_modalias_node(np, modalias, sizeof(modalias));
 		if (ret < 0)
-			goto map_failed;
+			goto irq_failed;
 
 		ret = of_property_read_u32(np, "spi-max-frequency",
 				&q->clk_rate);
 		if (ret < 0)
-			goto map_failed;
+			goto irq_failed;
 
 		/* set the chip address for READID */
 		fsl_qspi_set_base_addr(q, nor);
 
 		ret = spi_nor_scan(nor, modalias, SPI_NOR_QUAD);
 		if (ret)
-			goto map_failed;
+			goto irq_failed;
 
 		ppdata.of_node = np;
 		ret = mtd_device_parse_register(mtd, NULL, &ppdata, NULL, 0);
 		if (ret)
-			goto map_failed;
+			goto irq_failed;
 
 		/* Set the correct NOR size now. */
 		if (q->nor_size == 0) {
