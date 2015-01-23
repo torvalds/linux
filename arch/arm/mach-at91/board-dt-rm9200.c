@@ -33,9 +33,9 @@ static void __init at91rm9200_dt_timer_init(void)
 
 static void __init rm9200_dt_device_init(void)
 {
-	at91_rm9200_pm_init();
-
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+
+	at91_rm9200_pm_init();
 }
 
 
