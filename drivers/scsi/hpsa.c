@@ -6526,7 +6526,8 @@ static void hpsa_free_irqs(struct ctlr_info *h)
 		h->q[i] = 0;
 }
 
-static int hpsa_request_irq(struct ctlr_info *h,
+/* returns 0 on success; cleans up and returns -Enn on error */
+static int hpsa_request_irqs(struct ctlr_info *h,
 	irqreturn_t (*msixhandler)(int, void *),
 	irqreturn_t (*intxhandler)(int, void *))
 {
@@ -6934,7 +6935,7 @@ reinit_after_soft_reset:
 	/* make sure the board interrupts are off */
 	h->access.set_intr_mask(h, HPSA_INTR_OFF);
 
-	if (hpsa_request_irq(h, do_hpsa_intr_msi, do_hpsa_intr_intx))
+	if (hpsa_request_irqs(h, do_hpsa_intr_msi, do_hpsa_intr_intx))
 		goto clean2;
 	dev_info(&pdev->dev, "%s: <0x%x> at IRQ %d%s using DAC\n",
 	       h->devname, pdev->device,
@@ -6970,11 +6971,11 @@ reinit_after_soft_reset:
 		h->access.set_intr_mask(h, HPSA_INTR_OFF);
 		spin_unlock_irqrestore(&h->lock, flags);
 		hpsa_free_irqs(h);
-		rc = hpsa_request_irq(h, hpsa_msix_discard_completions,
+		rc = hpsa_request_irqs(h, hpsa_msix_discard_completions,
 					hpsa_intx_discard_completions);
 		if (rc) {
-			dev_warn(&h->pdev->dev, "Failed to request_irq after "
-				"soft reset.\n");
+			dev_warn(&h->pdev->dev,
+				"Failed to request_irq after soft reset.\n");
 			goto clean4;
 		}
 
