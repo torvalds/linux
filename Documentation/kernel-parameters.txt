@@ -970,6 +970,18 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 		smh	Use ARM semihosting calls for early console.
 
+		s3c2410,<addr>
+		s3c2412,<addr>
+		s3c2440,<addr>
+		s3c6400,<addr>
+		s5pv210,<addr>
+		exynos4210,<addr>
+			Use early console provided by serial driver available
+			on Samsung SoCs, requires selecting proper type and
+			a correct base address of the selected UART port. The
+			serial port must already be setup and configured.
+			Options are not yet supported.
+
 	earlyprintk=	[X86,SH,BLACKFIN,ARM,M68k]
 			earlyprintk=vga
 			earlyprintk=efi
