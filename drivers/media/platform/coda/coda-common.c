@@ -2174,6 +2174,7 @@ static int coda_probe(struct platform_device *pdev)
 	if (!dev->iram.vaddr) {
 		dev_warn(&pdev->dev, "unable to alloc iram\n");
 	} else {
+		memset(dev->iram.vaddr, 0, dev->iram.size);
 		dev->iram.blob.data = dev->iram.vaddr;
 		dev->iram.blob.size = dev->iram.size;
 		dev->iram.dentry = debugfs_create_blob("iram", 0644,
