@@ -25,7 +25,7 @@ struct intel_cqm_state {
 static DEFINE_PER_CPU(struct intel_cqm_state, cqm_state);
 
 /*
- * Protects cache_cgroups.
+ * Protects cache_cgroups and cqm_rmid_lru.
  */
 static DEFINE_MUTEX(cache_mutex);
 
@@ -64,36 +64,120 @@ static u64 __rmid_read(unsigned long rmid)
 	return val;
 }
 
-static unsigned long *cqm_rmid_bitmap;
+struct cqm_rmid_entry {
+	u64 rmid;
+	struct list_head list;
+};
+
+/*
+ * A least recently used list of RMIDs.
+ *
+ * Oldest entry at the head, newest (most recently used) entry at the
+ * tail. This list is never traversed, it's only used to keep track of
+ * the lru order. That is, we only pick entries of the head or insert
+ * them on the tail.
+ *
+ * All entries on the list are 'free', and their RMIDs are not currently
+ * in use. To mark an RMID as in use, remove its entry from the lru
+ * list.
+ *
+ * This list is protected by cache_mutex.
+ */
+static LIST_HEAD(cqm_rmid_lru);
+
+/*
+ * We use a simple array of pointers so that we can lookup a struct
+ * cqm_rmid_entry in O(1). This alleviates the callers of __get_rmid()
+ * and __put_rmid() from having to worry about dealing with struct
+ * cqm_rmid_entry - they just deal with rmids, i.e. integers.
+ *
+ * Once this array is initialized it is read-only. No locks are required
+ * to access it.
+ *
+ * All entries for all RMIDs can be looked up in the this array at all
+ * times.
+ */
+static struct cqm_rmid_entry **cqm_rmid_ptrs;
+
+static inline struct cqm_rmid_entry *__rmid_entry(int rmid)
+{
+	struct cqm_rmid_entry *entry;
+
+	entry = cqm_rmid_ptrs[rmid];
+	WARN_ON(entry->rmid != rmid);
+
+	return entry;
+}
 
 /*
  * Returns < 0 on fail.
+ *
+ * We expect to be called with cache_mutex held.
  */
 static int __get_rmid(void)
 {
-	return bitmap_find_free_region(cqm_rmid_bitmap, cqm_max_rmid, 0);
+	struct cqm_rmid_entry *entry;
+
+	lockdep_assert_held(&cache_mutex);
+
+	if (list_empty(&cqm_rmid_lru))
+		return -EAGAIN;
+
+	entry = list_first_entry(&cqm_rmid_lru, struct cqm_rmid_entry, list);
+	list_del(&entry->list);
+
+	return entry->rmid;
 }
 
 static void __put_rmid(int rmid)
 {
-	bitmap_release_region(cqm_rmid_bitmap, rmid, 0);
+	struct cqm_rmid_entry *entry;
+
+	lockdep_assert_held(&cache_mutex);
+
+	entry = __rmid_entry(rmid);
+
+	list_add_tail(&entry->list, &cqm_rmid_lru);
 }
 
 static int intel_cqm_setup_rmid_cache(void)
 {
-	cqm_rmid_bitmap = kmalloc(sizeof(long) * BITS_TO_LONGS(cqm_max_rmid), GFP_KERNEL);
-	if (!cqm_rmid_bitmap)
+	struct cqm_rmid_entry *entry;
+	int r;
+
+	cqm_rmid_ptrs = kmalloc(sizeof(struct cqm_rmid_entry *) *
+				(cqm_max_rmid + 1), GFP_KERNEL);
+	if (!cqm_rmid_ptrs)
 		return -ENOMEM;
 
-	bitmap_zero(cqm_rmid_bitmap, cqm_max_rmid);
+	for (r = 0; r <= cqm_max_rmid; r++) {
+		struct cqm_rmid_entry *entry;
+
+		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+		if (!entry)
+			goto fail;
+
+		INIT_LIST_HEAD(&entry->list);
+		entry->rmid = r;
+		cqm_rmid_ptrs[r] = entry;
+
+		list_add_tail(&entry->list, &cqm_rmid_lru);
+	}
 
 	/*
 	 * RMID 0 is special and is always allocated. It's used for all
 	 * tasks that are not monitored.
 	 */
-	bitmap_allocate_region(cqm_rmid_bitmap, 0, 0);
+	entry = __rmid_entry(0);
+	list_del(&entry->list);
 
 	return 0;
+fail:
+	while (r--)
+		kfree(cqm_rmid_ptrs[r]);
+
+	kfree(cqm_rmid_ptrs);
+	return -ENOMEM;
 }
 
 /*
