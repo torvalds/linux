@@ -1323,6 +1323,10 @@ static void coda_stop_streaming(struct vb2_queue *q)
 	if (!ctx->streamon_out && !ctx->streamon_cap) {
 		struct coda_buffer_meta *meta;
 
+		if (ctx->ops->seq_end_work) {
+			queue_work(dev->workqueue, &ctx->seq_end_work);
+			flush_work(&ctx->seq_end_work);
+		}
 		mutex_lock(&ctx->bitstream_mutex);
 		while (!list_empty(&ctx->buffer_meta_list)) {
 			meta = list_first_entry(&ctx->buffer_meta_list,
@@ -1333,6 +1337,7 @@ static void coda_stop_streaming(struct vb2_queue *q)
 		mutex_unlock(&ctx->bitstream_mutex);
 		kfifo_init(&ctx->bitstream_fifo,
 			ctx->bitstream.vaddr, ctx->bitstream.size);
+		ctx->initialized = 0;
 		ctx->runcounter = 0;
 		ctx->aborting = 0;
 	}
