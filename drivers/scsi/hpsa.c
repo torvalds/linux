@@ -5689,30 +5689,22 @@ static int hpsa_controller_hard_reset(struct pci_dev *pdev,
 		 * the controller, place the interface device in D3 then to D0,
 		 * this causes a secondary PCI reset which will reset the
 		 * controller." */
-		int pos;
-		u16 pmcsr;
 
-		pos = pci_find_capability(pdev, PCI_CAP_ID_PM);
-		if (pos == 0) {
-			dev_err(&pdev->dev,
-				"hpsa_reset_controller: "
-				"PCI PM not supported\n");
-			return -ENODEV;
-		}
+		int rc = 0;
+
 		dev_info(&pdev->dev, "using PCI PM to reset controller\n");
+
 		/* enter the D3hot power management state */
-		pci_read_config_word(pdev, pos + PCI_PM_CTRL,
-					(__force u16 *)&pmcsr);
-		pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
-		pmcsr |= (__force u16) PCI_D3hot;
-		pci_write_config_word(pdev, pos + PCI_PM_CTRL, pmcsr);
+		rc = pci_set_power_state(pdev, PCI_D3hot);
+		if (rc)
+			return rc;
 
 		msleep(500);
 
 		/* enter the D0 power management state */
-		pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
-		pmcsr |= (__force u16) PCI_D0;
-		pci_write_config_word(pdev, pos + PCI_PM_CTRL, pmcsr);
+		rc = pci_set_power_state(pdev, PCI_D0);
+		if (rc)
+			return rc;
 
 		/*
 		 * The P600 requires a small delay when changing states.
