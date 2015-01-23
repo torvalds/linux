@@ -708,11 +708,12 @@ static void __init opal_irq_init(struct device_node *dn)
 
 	/* Get interrupt property */
 	irqs = of_get_property(opal_node, "opal-interrupts", &irqlen);
-	pr_debug("Found %d interrupts reserved for OPAL\n",
-		 irqs ? (irqlen / 4) : 0);
+	opal_irq_count = irqs ? (irqlen / 4) : 0;
+	pr_debug("Found %d interrupts reserved for OPAL\n", opal_irq_count);
+	if (!opal_irq_count)
+		return;
 
 	/* Install interrupt handlers */
-	opal_irq_count = irqlen / 4;
 	opal_irqs = kzalloc(opal_irq_count * sizeof(unsigned int), GFP_KERNEL);
 	for (i = 0; irqs && i < opal_irq_count; i++, irqs++) {
 		unsigned int irq, virq;
