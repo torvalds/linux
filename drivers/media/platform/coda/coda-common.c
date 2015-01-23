@@ -37,6 +37,7 @@
 #include <media/v4l2-mem2mem.h>
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-dma-contig.h>
+#include <media/videobuf2-vmalloc.h>
 
 #include "coda.h"
 
@@ -1121,6 +1122,7 @@ static int coda_queue_setup(struct vb2_queue *vq,
 	*nplanes = 1;
 	sizes[0] = size;
 
+	/* Set to vb2-dma-contig allocator context, ignored by vb2-vmalloc */
 	alloc_ctxs[0] = ctx->dev->alloc_ctx;
 
 	v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
@@ -1567,8 +1569,8 @@ int coda_decoder_queue_init(void *priv, struct vb2_queue *src_vq,
 	int ret;
 
 	src_vq->type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
-	src_vq->io_modes = VB2_DMABUF | VB2_MMAP;
-	src_vq->mem_ops = &vb2_dma_contig_memops;
+	src_vq->io_modes = VB2_DMABUF | VB2_MMAP | VB2_USERPTR;
+	src_vq->mem_ops = &vb2_vmalloc_memops;
 
 	ret = coda_queue_init(priv, src_vq);
 	if (ret)
