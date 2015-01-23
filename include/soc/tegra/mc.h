@@ -40,6 +40,7 @@ struct tegra_mc_client {
 };
 
 struct tegra_smmu_swgroup {
+	const char *name;
 	unsigned int swgroup;
 	unsigned int reg;
 };
