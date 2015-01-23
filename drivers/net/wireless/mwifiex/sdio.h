@@ -256,6 +256,7 @@ struct sdio_mmc_card {
 
 	u8 *mp_regs;
 	u8 auto_tdls;
+	bool can_ext_scan;
 
 	struct mwifiex_sdio_mpa_tx mpa_tx;
 	struct mwifiex_sdio_mpa_rx mpa_rx;
@@ -273,6 +274,7 @@ struct mwifiex_sdio_device {
 	u32 mp_tx_agg_buf_size;
 	u32 mp_rx_agg_buf_size;
 	u8 auto_tdls;
+	bool can_ext_scan;
 };
 
 static const struct mwifiex_sdio_card_reg mwifiex_reg_sd87xx = {
@@ -417,6 +419,7 @@ static const struct mwifiex_sdio_device mwifiex_sdio_sd8786 = {
 	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_16K,
 	.supports_fw_dump = false,
 	.auto_tdls = false,
+	.can_ext_scan = false,
 };
 
 static const struct mwifiex_sdio_device mwifiex_sdio_sd8787 = {
@@ -431,6 +434,7 @@ static const struct mwifiex_sdio_device mwifiex_sdio_sd8787 = {
 	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_16K,
 	.supports_fw_dump = false,
 	.auto_tdls = false,
+	.can_ext_scan = true,
 };
 
 static const struct mwifiex_sdio_device mwifiex_sdio_sd8797 = {
@@ -445,6 +449,7 @@ static const struct mwifiex_sdio_device mwifiex_sdio_sd8797 = {
 	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_16K,
 	.supports_fw_dump = false,
 	.auto_tdls = false,
+	.can_ext_scan = true,
 };
 
 static const struct mwifiex_sdio_device mwifiex_sdio_sd8897 = {
@@ -459,6 +464,7 @@ static const struct mwifiex_sdio_device mwifiex_sdio_sd8897 = {
 	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_32K,
 	.supports_fw_dump = true,
 	.auto_tdls = false,
+	.can_ext_scan = true,
 };
 
 static const struct mwifiex_sdio_device mwifiex_sdio_sd8887 = {
@@ -473,6 +479,7 @@ static const struct mwifiex_sdio_device mwifiex_sdio_sd8887 = {
 	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_32K,
 	.supports_fw_dump = false,
 	.auto_tdls = true,
+	.can_ext_scan = true,
 };
 
 static const struct mwifiex_sdio_device mwifiex_sdio_sd8801 = {
@@ -487,6 +494,7 @@ static const struct mwifiex_sdio_device mwifiex_sdio_sd8801 = {
 	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_16K,
 	.supports_fw_dump = false,
 	.auto_tdls = false,
+	.can_ext_scan = true,
 };
 
 /*

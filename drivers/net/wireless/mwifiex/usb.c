@@ -799,16 +799,19 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 	case USB8897_PID_2:
 		adapter->tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K;
 		strcpy(adapter->fw_name, USB8897_DEFAULT_FW_NAME);
+		adapter->ext_scan = true;
 		break;
 	case USB8766_PID_1:
 	case USB8766_PID_2:
 		adapter->tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K;
 		strcpy(adapter->fw_name, USB8766_DEFAULT_FW_NAME);
+		adapter->ext_scan = true;
 		break;
 	case USB8801_PID_1:
 	case USB8801_PID_2:
 		adapter->tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K;
 		strcpy(adapter->fw_name, USB8801_DEFAULT_FW_NAME);
+		adapter->ext_scan = false;
 		break;
 	case USB8797_PID_1:
 	case USB8797_PID_2:
