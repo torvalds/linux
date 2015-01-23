@@ -666,7 +666,7 @@ static int wm9712_soc_probe(struct snd_soc_codec *codec)
 	struct wm9712_priv *wm9712 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0;
 
-	wm9712->ac97 = snd_soc_new_ac97_codec(codec);
+	wm9712->ac97 = snd_soc_alloc_ac97_codec(codec);
 	if (IS_ERR(wm9712->ac97)) {
 		ret = PTR_ERR(wm9712->ac97);
 		dev_err(codec->dev, "Failed to register AC97 codec: %d\n", ret);
@@ -675,15 +675,19 @@ static int wm9712_soc_probe(struct snd_soc_codec *codec)
 
 	ret = wm9712_reset(codec, 0);
 	if (ret < 0)
-		goto reset_err;
+		goto err_put_device;
+
+	ret = device_add(&wm9712->ac97->dev);
+	if (ret)
+		goto err_put_device;
 
 	/* set alc mux to none */
 	ac97_write(codec, AC97_VIDEO, ac97_read(codec, AC97_VIDEO) | 0x3000);
 
 	return 0;
 
-reset_err:
-	snd_soc_free_ac97_codec(wm9712->ac97);
+err_put_device:
+	put_device(&wm9712->ac97->dev);
 	return ret;
 }
 
