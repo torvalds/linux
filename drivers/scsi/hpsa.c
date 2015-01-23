@@ -821,19 +821,21 @@ static void dial_up_lockup_detection_on_fw_flash_complete(struct ctlr_info *h,
 static void enqueue_cmd_and_start_io(struct ctlr_info *h,
 	struct CommandList *c)
 {
+	dial_down_lockup_detection_during_fw_flash(h, c);
+	atomic_inc(&h->commands_outstanding);
 	switch (c->cmd_type) {
 	case CMD_IOACCEL1:
 		set_ioaccel1_performant_mode(h, c);
+		writel(c->busaddr, h->vaddr + SA5_REQUEST_PORT_OFFSET);
 		break;
 	case CMD_IOACCEL2:
 		set_ioaccel2_performant_mode(h, c);
+		writel(c->busaddr, h->vaddr + IOACCEL2_INBOUND_POSTQ_32);
 		break;
 	default:
 		set_performant_mode(h, c);
+		h->access.submit_command(h, c);
 	}
-	dial_down_lockup_detection_during_fw_flash(h, c);
-	atomic_inc(&h->commands_outstanding);
-	h->access.submit_command(h, c);
 }
 
 static inline int is_hba_lunid(unsigned char scsi3addr[])
