@@ -206,27 +206,27 @@ struct raid_map_disk_data {
 };
 
 struct raid_map_data {
-	u32   structure_size;		/* Size of entire structure in bytes */
-	u32   volume_blk_size;		/* bytes / block in the volume */
-	u64   volume_blk_cnt;		/* logical blocks on the volume */
+	__le32   structure_size;	/* Size of entire structure in bytes */
+	__le32   volume_blk_size;	/* bytes / block in the volume */
+	__le64   volume_blk_cnt;	/* logical blocks on the volume */
 	u8    phys_blk_shift;		/* Shift factor to convert between
 					 * units of logical blocks and physical
 					 * disk blocks */
 	u8    parity_rotation_shift;	/* Shift factor to convert between units
 					 * of logical stripes and physical
 					 * stripes */
-	u16   strip_size;		/* blocks used on each disk / stripe */
-	u64   disk_starting_blk;	/* First disk block used in volume */
-	u64   disk_blk_cnt;		/* disk blocks used by volume / disk */
-	u16   data_disks_per_row;	/* data disk entries / row in the map */
-	u16   metadata_disks_per_row;	/* mirror/parity disk entries / row
+	__le16   strip_size;		/* blocks used on each disk / stripe */
+	__le64   disk_starting_blk;	/* First disk block used in volume */
+	__le64   disk_blk_cnt;		/* disk blocks used by volume / disk */
+	__le16   data_disks_per_row;	/* data disk entries / row in the map */
+	__le16   metadata_disks_per_row;/* mirror/parity disk entries / row
 					 * in the map */
-	u16   row_cnt;			/* rows in each layout map */
-	u16   layout_map_count;		/* layout maps (1 map per mirror/parity
+	__le16   row_cnt;		/* rows in each layout map */
+	__le16   layout_map_count;	/* layout maps (1 map per mirror/parity
 					 * group) */
-	u16   flags;			/* Bit 0 set if encryption enabled */
+	__le16   flags;			/* Bit 0 set if encryption enabled */
 #define RAID_MAP_FLAG_ENCRYPT_ON  0x01
-	u16   dekindex;			/* Data encryption key index. */
+	__le16   dekindex;		/* Data encryption key index. */
 	u8    reserved[16];
 	struct raid_map_disk_data data[RAID_MAP_MAX_ENTRIES];
 };
@@ -313,8 +313,8 @@ union LUNAddr {
 struct CommandListHeader {
 	u8              ReplyQueue;
 	u8              SGList;
-	u16             SGTotal;
-	u64		tag;
+	__le16          SGTotal;
+	__le64		tag;
 	union LUNAddr     LUN;
 };
 
@@ -338,14 +338,14 @@ struct RequestBlock {
 };
 
 struct ErrDescriptor {
-	u64 Addr;
-	u32  Len;
+	__le64 Addr;
+	__le32 Len;
 };
 
 struct SGDescriptor {
-	u64 Addr;
-	u32  Len;
-	u32  Ext;
+	__le64 Addr;
+	__le32 Len;
+	__le32 Ext;
 };
 
 union MoreErrInfo {
@@ -420,7 +420,7 @@ struct CommandList {
  */
 #define IOACCEL1_COMMANDLIST_ALIGNMENT 128
 struct io_accel1_cmd {
-	u16 dev_handle;			/* 0x00 - 0x01 */
+	__le16 dev_handle;		/* 0x00 - 0x01 */
 	u8  reserved1;			/* 0x02 */
 	u8  function;			/* 0x03 */
 	u8  reserved2[8];		/* 0x04 - 0x0B */
@@ -430,20 +430,20 @@ struct io_accel1_cmd {
 	u8  reserved4;			/* 0x13 */
 	u8  sgl_offset;			/* 0x14 */
 	u8  reserved5[7];		/* 0x15 - 0x1B */
-	u32 transfer_len;		/* 0x1C - 0x1F */
+	__le32 transfer_len;		/* 0x1C - 0x1F */
 	u8  reserved6[4];		/* 0x20 - 0x23 */
-	u16 io_flags;			/* 0x24 - 0x25 */
+	__le16 io_flags;		/* 0x24 - 0x25 */
 	u8  reserved7[14];		/* 0x26 - 0x33 */
 	u8  LUN[8];			/* 0x34 - 0x3B */
-	u32 control;			/* 0x3C - 0x3F */
+	__le32 control;			/* 0x3C - 0x3F */
 	u8  CDB[16];			/* 0x40 - 0x4F */
 	u8  reserved8[16];		/* 0x50 - 0x5F */
-	u16 host_context_flags;		/* 0x60 - 0x61 */
-	u16 timeout_sec;		/* 0x62 - 0x63 */
+	__le16 host_context_flags;	/* 0x60 - 0x61 */
+	__le16 timeout_sec;		/* 0x62 - 0x63 */
 	u8  ReplyQueue;			/* 0x64 */
 	u8  reserved9[3];		/* 0x65 - 0x67 */
-	u64 tag;			/* 0x68 - 0x6F */
-	u64 host_addr;			/* 0x70 - 0x77 */
+	__le64 tag;			/* 0x68 - 0x6F */
+	__le64 host_addr;		/* 0x70 - 0x77 */
 	u8  CISS_LUN[8];		/* 0x78 - 0x7F */
 	struct SGDescriptor SG[IOACCEL1_MAXSGENTRIES];
 } __aligned(IOACCEL1_COMMANDLIST_ALIGNMENT);
@@ -470,8 +470,8 @@ struct io_accel1_cmd {
 #define IOACCEL1_BUSADDR_CMDTYPE        0x00000060
 
 struct ioaccel2_sg_element {
-	u64 address;
-	u32 length;
+	__le64 address;
+	__le32 length;
 	u8 reserved[3];
 	u8 chain_indicator;
 #define IOACCEL2_CHAIN 0x80
@@ -526,20 +526,20 @@ struct io_accel2_cmd {
 					     /*     0=off, 1=on */
 	u8  reply_queue;		/* Reply Queue ID */
 	u8  reserved1;			/* Reserved */
-	u32 scsi_nexus;			/* Device Handle */
-	u32 Tag;			/* cciss tag, lower 4 bytes only */
-	u32 tweak_lower;		/* Encryption tweak, lower 4 bytes */
+	__le32 scsi_nexus;		/* Device Handle */
+	__le32 Tag;			/* cciss tag, lower 4 bytes only */
+	__le32 tweak_lower;		/* Encryption tweak, lower 4 bytes */
 	u8  cdb[16];			/* SCSI Command Descriptor Block */
 	u8  cciss_lun[8];		/* 8 byte SCSI address */
-	u32 data_len;			/* Total bytes to transfer */
+	__le32 data_len;		/* Total bytes to transfer */
 	u8  cmd_priority_task_attr;	/* priority and task attrs */
 #define IOACCEL2_PRIORITY_MASK 0x78
 #define IOACCEL2_ATTR_MASK 0x07
 	u8  sg_count;			/* Number of sg elements */
-	u16 dekindex;			/* Data encryption key index */
-	u64 err_ptr;			/* Error Pointer */
-	u32 err_len;			/* Error Length*/
-	u32 tweak_upper;		/* Encryption tweak, upper 4 bytes */
+	__le16 dekindex;		/* Data encryption key index */
+	__le64 err_ptr;			/* Error Pointer */
+	__le32 err_len;			/* Error Length*/
+	__le32 tweak_upper;		/* Encryption tweak, upper 4 bytes */
 	struct ioaccel2_sg_element sg[IOACCEL2_MAXSGENTRIES];
 	struct io_accel2_scsi_response error_data;
 } __aligned(IOACCEL2_COMMANDLIST_ALIGNMENT);
@@ -563,18 +563,18 @@ struct hpsa_tmf_struct {
 	u8 reserved1;		/* byte 3 Reserved */
 	u32 it_nexus;		/* SCSI I-T Nexus */
 	u8 lun_id[8];		/* LUN ID for TMF request */
-	u64 tag;		/* cciss tag associated w/ request */
-	u64 abort_tag;		/* cciss tag of SCSI cmd or task to abort */
-	u64 error_ptr;		/* Error Pointer */
-	u32 error_len;		/* Error Length */
+	__le64 tag;		/* cciss tag associated w/ request */
+	__le64 abort_tag;	/* cciss tag of SCSI cmd or TMF to abort */
+	__le64 error_ptr;		/* Error Pointer */
+	__le32 error_len;		/* Error Length */
 };
 
 /* Configuration Table Structure */
 struct HostWrite {
-	u32 TransportRequest;
-	u32 command_pool_addr_hi;
-	u32 CoalIntDelay;
-	u32 CoalIntCount;
+	__le32		TransportRequest;
+	__le32		command_pool_addr_hi;
+	__le32		CoalIntDelay;
+	__le32		CoalIntCount;
 };
 
 #define SIMPLE_MODE     0x02
@@ -585,54 +585,54 @@ struct HostWrite {
 #define DRIVER_SUPPORT_UA_ENABLE        0x00000001
 
 struct CfgTable {
-	u8            Signature[4];
-	u32		SpecValence;
-	u32           TransportSupport;
-	u32           TransportActive;
-	struct 		HostWrite HostWrite;
-	u32           CmdsOutMax;
-	u32           BusTypes;
-	u32           TransMethodOffset;
-	u8            ServerName[16];
-	u32           HeartBeat;
-	u32           driver_support;
-#define			ENABLE_SCSI_PREFETCH 0x100
-#define			ENABLE_UNIT_ATTN 0x01
-	u32	 	MaxScatterGatherElements;
-	u32		MaxLogicalUnits;
-	u32		MaxPhysicalDevices;
-	u32		MaxPhysicalDrivesPerLogicalUnit;
-	u32		MaxPerformantModeCommands;
-	u32		MaxBlockFetch;
-	u32		PowerConservationSupport;
-	u32		PowerConservationEnable;
-	u32		TMFSupportFlags;
+	u8		Signature[4];
+	__le32		SpecValence;
+	__le32		TransportSupport;
+	__le32		TransportActive;
+	struct HostWrite HostWrite;
+	__le32		CmdsOutMax;
+	__le32		BusTypes;
+	__le32		TransMethodOffset;
+	u8		ServerName[16];
+	__le32		HeartBeat;
+	__le32		driver_support;
+#define			ENABLE_SCSI_PREFETCH		0x100
+#define			ENABLE_UNIT_ATTN		0x01
+	__le32		MaxScatterGatherElements;
+	__le32		MaxLogicalUnits;
+	__le32		MaxPhysicalDevices;
+	__le32		MaxPhysicalDrivesPerLogicalUnit;
+	__le32		MaxPerformantModeCommands;
+	__le32		MaxBlockFetch;
+	__le32		PowerConservationSupport;
+	__le32		PowerConservationEnable;
+	__le32		TMFSupportFlags;
 	u8		TMFTagMask[8];
 	u8		reserved[0x78 - 0x70];
-	u32		misc_fw_support; /* offset 0x78 */
-#define			MISC_FW_DOORBELL_RESET (0x02)
-#define			MISC_FW_DOORBELL_RESET2 (0x010)
-#define			MISC_FW_RAID_OFFLOAD_BASIC (0x020)
-#define			MISC_FW_EVENT_NOTIFY (0x080)
+	__le32		misc_fw_support;		/* offset 0x78 */
+#define			MISC_FW_DOORBELL_RESET		0x02
+#define			MISC_FW_DOORBELL_RESET2		0x010
+#define			MISC_FW_RAID_OFFLOAD_BASIC	0x020
+#define			MISC_FW_EVENT_NOTIFY		0x080
 	u8		driver_version[32];
-	u32             max_cached_write_size;
-	u8              driver_scratchpad[16];
-	u32             max_error_info_length;
-	u32		io_accel_max_embedded_sg_count;
-	u32		io_accel_request_size_offset;
-	u32		event_notify;
-#define HPSA_EVENT_NOTIFY_ACCEL_IO_PATH_STATE_CHANGE (1 << 30)
-#define HPSA_EVENT_NOTIFY_ACCEL_IO_PATH_CONFIG_CHANGE (1 << 31)
-	u32		clear_event_notify;
+	__le32		max_cached_write_size;
+	u8		driver_scratchpad[16];
+	__le32		max_error_info_length;
+	__le32		io_accel_max_embedded_sg_count;
+	__le32		io_accel_request_size_offset;
+	__le32		event_notify;
+#define		HPSA_EVENT_NOTIFY_ACCEL_IO_PATH_STATE_CHANGE (1 << 30)
+#define		HPSA_EVENT_NOTIFY_ACCEL_IO_PATH_CONFIG_CHANGE (1 << 31)
+	__le32		clear_event_notify;
 };
 
 #define NUM_BLOCKFETCH_ENTRIES 8
 struct TransTable_struct {
-	u32            BlockFetch[NUM_BLOCKFETCH_ENTRIES];
-	u32            RepQSize;
-	u32            RepQCount;
-	u32            RepQCtrAddrLow32;
-	u32            RepQCtrAddrHigh32;
+	__le32		BlockFetch[NUM_BLOCKFETCH_ENTRIES];
+	__le32		RepQSize;
+	__le32		RepQCount;
+	__le32		RepQCtrAddrLow32;
+	__le32		RepQCtrAddrHigh32;
 #define MAX_REPLY_QUEUES 64
 	struct vals32  RepQAddr[MAX_REPLY_QUEUES];
 };
