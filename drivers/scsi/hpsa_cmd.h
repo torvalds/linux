@@ -404,6 +404,7 @@ struct CommandList {
 	long			   cmdindex;
 	struct completion *waiting;
 	void   *scsi_cmd;
+	struct work_struct work;
 } __aligned(COMMANDLIST_ALIGNMENT);
 
 /* Max S/G elements in I/O accelerator command */
