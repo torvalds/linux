@@ -1431,9 +1431,10 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 		height = val & CODA7_PICHEIGHT_MASK;
 	}
 
-	if (width > q_data_dst->width || height > q_data_dst->height) {
+	if (width > q_data_dst->bytesperline || height > q_data_dst->height) {
 		v4l2_err(&dev->v4l2_dev, "stream is %dx%d, not %dx%d\n",
-			 width, height, q_data_dst->width, q_data_dst->height);
+			 width, height, q_data_dst->bytesperline,
+			 q_data_dst->height);
 		return -EINVAL;
 	}
 
