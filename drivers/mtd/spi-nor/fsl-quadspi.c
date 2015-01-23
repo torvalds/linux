@@ -798,37 +798,30 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 	/* find the resources */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "QuadSPI");
 	q->iobase = devm_ioremap_resource(dev, res);
-	if (IS_ERR(q->iobase)) {
-		ret = PTR_ERR(q->iobase);
-		goto map_failed;
-	}
+	if (IS_ERR(q->iobase))
+		return PTR_ERR(q->iobase);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					"QuadSPI-memory");
 	q->ahb_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(q->ahb_base)) {
-		ret = PTR_ERR(q->ahb_base);
-		goto map_failed;
-	}
+	if (IS_ERR(q->ahb_base))
+		return PTR_ERR(q->ahb_base);
+
 	q->memmap_phy = res->start;
 
 	/* find the clocks */
 	q->clk_en = devm_clk_get(dev, "qspi_en");
-	if (IS_ERR(q->clk_en)) {
-		ret = PTR_ERR(q->clk_en);
-		goto map_failed;
-	}
+	if (IS_ERR(q->clk_en))
+		return PTR_ERR(q->clk_en);
 
 	q->clk = devm_clk_get(dev, "qspi");
-	if (IS_ERR(q->clk)) {
-		ret = PTR_ERR(q->clk);
-		goto map_failed;
-	}
+	if (IS_ERR(q->clk))
+		return PTR_ERR(q->clk);
 
 	ret = clk_prepare_enable(q->clk_en);
 	if (ret) {
 		dev_err(dev, "can not enable the qspi_en clock\n");
-		goto map_failed;
+		return ret;
 	}
 
 	ret = clk_prepare_enable(q->clk);
@@ -952,7 +945,6 @@ irq_failed:
 	clk_disable_unprepare(q->clk);
 clk_failed:
 	clk_disable_unprepare(q->clk_en);
-map_failed:
 	return ret;
 }
 
