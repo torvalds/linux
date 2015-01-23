@@ -79,7 +79,7 @@ static inline bool is_shared_bank(int bank)
 	return (bank == 4);
 }
 
-static const char * const bank4_names(struct threshold_block *b)
+static const char *bank4_names(const struct threshold_block *b)
 {
 	switch (b->address) {
 	/* MSR4_MISC0 */
