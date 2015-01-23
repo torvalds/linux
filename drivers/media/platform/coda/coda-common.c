@@ -1689,7 +1689,8 @@ static int coda_open(struct file *file)
 			v4l2_err(&dev->v4l2_dev, "failed to allocate parabuf");
 			goto err_dma_alloc;
 		}
-
+	}
+	if (ctx->use_bit && ctx->inst_type == CODA_INST_DECODER) {
 		ctx->bitstream.size = CODA_MAX_FRAME_SIZE;
 		ctx->bitstream.vaddr = dma_alloc_writecombine(
 				&dev->plat_dev->dev, ctx->bitstream.size,
