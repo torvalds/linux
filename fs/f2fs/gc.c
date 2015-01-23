@@ -356,11 +356,8 @@ static void add_gc_inode(struct gc_inode_list *gc_list, struct inode *inode)
 	}
 	new_ie = f2fs_kmem_cache_alloc(inode_entry_slab, GFP_NOFS);
 	new_ie->inode = inode;
-retry:
-	if (radix_tree_insert(&gc_list->iroot, inode->i_ino, new_ie)) {
-		cond_resched();
-		goto retry;
-	}
+
+	f2fs_radix_tree_insert(&gc_list->iroot, inode->i_ino, new_ie);
 	list_add_tail(&new_ie->list, &gc_list->ilist);
 }
 
