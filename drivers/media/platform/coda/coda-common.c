@@ -921,7 +921,8 @@ static void coda_pic_run_work(struct work_struct *work)
 		ctx->ops->finish_run(ctx);
 	}
 
-	if (ctx->aborting || (!ctx->streamon_cap && !ctx->streamon_out))
+	if ((ctx->aborting || (!ctx->streamon_cap && !ctx->streamon_out)) &&
+	    ctx->ops->seq_end_work)
 		queue_work(dev->workqueue, &ctx->seq_end_work);
 
 	mutex_unlock(&dev->coda_mutex);
@@ -1627,7 +1628,8 @@ static int coda_open(struct file *file)
 	ctx->ops = ctx->cvd->ops;
 	init_completion(&ctx->completion);
 	INIT_WORK(&ctx->pic_run_work, coda_pic_run_work);
-	INIT_WORK(&ctx->seq_end_work, ctx->ops->seq_end_work);
+	if (ctx->ops->seq_end_work)
+		INIT_WORK(&ctx->seq_end_work, ctx->ops->seq_end_work);
 	v4l2_fh_init(&ctx->fh, video_devdata(file));
 	file->private_data = &ctx->fh;
 	v4l2_fh_add(&ctx->fh);
@@ -1748,7 +1750,7 @@ static int coda_release(struct file *file)
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 
 	/* In case the instance was not running, we still need to call SEQ_END */
-	if (ctx->initialized) {
+	if (ctx->initialized && ctx->ops->seq_end_work) {
 		queue_work(dev->workqueue, &ctx->seq_end_work);
 		flush_work(&ctx->seq_end_work);
 	}
