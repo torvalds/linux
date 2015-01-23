@@ -15,6 +15,7 @@ gb-phy-y :=	gpb.o		\
 		pwm.o	\
 		gpio.o	\
 		i2c.o	\
+		spi.o	\
 		usb.o
 
 # Prefix all modules with gb-

@@ -45,8 +45,14 @@ static int __init gpbridge_init(void)
 		pr_err("error initializing usb protocol\n");
 		goto error_i2c;
 	}
+	if (gb_spi_protocol_init()) {
+		pr_err("error initializing usb protocol\n");
+		goto error_spi;
+	}
 	return 0;
 
+error_spi:
+	gb_i2c_protocol_exit();
 error_i2c:
 	gb_usb_protocol_exit();
 error_usb:
@@ -63,6 +69,7 @@ error_gpio:
 
 static void __exit gpbridge_exit(void)
 {
+	gb_spi_protocol_exit();
 	gb_i2c_protocol_exit();
 	gb_usb_protocol_exit();
 	gb_sdio_protocol_exit();
