@@ -40,14 +40,9 @@ struct snd_line6_midi {
 	int num_active_send_urbs;
 
 	/**
-		 Spin lock to protect updates of send_urb.
-	*/
-	spinlock_t send_urb_lock;
-
-	/**
 		 Spin lock to protect MIDI buffer handling.
 	*/
-	spinlock_t midi_transmit_lock;
+	spinlock_t lock;
 
 	/**
 		 Wait queue for MIDI transmission.

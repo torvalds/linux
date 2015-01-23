@@ -45,11 +45,8 @@ static void line6_midi_transmit(struct snd_rawmidi_substream *substream)
 	    line6_rawmidi_substream_midi(substream)->line6;
 	struct snd_line6_midi *line6midi = line6->line6midi;
 	struct midi_buffer *mb = &line6midi->midibuf_out;
-	unsigned long flags;
 	unsigned char chunk[LINE6_FALLBACK_MAXPACKETSIZE];
 	int req, done;
-
-	spin_lock_irqsave(&line6->line6midi->midi_transmit_lock, flags);
 
 	for (;;) {
 		req = min(line6_midibuf_bytes_free(mb), line6->max_packet_size);
@@ -71,8 +68,6 @@ static void line6_midi_transmit(struct snd_rawmidi_substream *substream)
 
 		send_midi_async(line6, chunk, done);
 	}
-
-	spin_unlock_irqrestore(&line6->line6midi->midi_transmit_lock, flags);
 }
 
 /*
@@ -92,7 +87,7 @@ static void midi_sent(struct urb *urb)
 	if (status == -ESHUTDOWN)
 		return;
 
-	spin_lock_irqsave(&line6->line6midi->send_urb_lock, flags);
+	spin_lock_irqsave(&line6->line6midi->lock, flags);
 	num = --line6->line6midi->num_active_send_urbs;
 
 	if (num == 0) {
@@ -103,12 +98,12 @@ static void midi_sent(struct urb *urb)
 	if (num == 0)
 		wake_up(&line6->line6midi->send_wait);
 
-	spin_unlock_irqrestore(&line6->line6midi->send_urb_lock, flags);
+	spin_unlock_irqrestore(&line6->line6midi->lock, flags);
 }
 
 /*
 	Send an asynchronous MIDI message.
-	Assumes that line6->line6midi->send_urb_lock is held
+	Assumes that line6->line6midi->lock is held
 	(i.e., this function is serialized).
 */
 static int send_midi_async(struct usb_line6 *line6, unsigned char *data,
@@ -166,12 +161,12 @@ static void line6_midi_output_trigger(struct snd_rawmidi_substream *substream,
 	    line6_rawmidi_substream_midi(substream)->line6;
 
 	line6->line6midi->substream_transmit = substream;
-	spin_lock_irqsave(&line6->line6midi->send_urb_lock, flags);
+	spin_lock_irqsave(&line6->line6midi->lock, flags);
 
 	if (line6->line6midi->num_active_send_urbs == 0)
 		line6_midi_transmit(substream);
 
-	spin_unlock_irqrestore(&line6->line6midi->send_urb_lock, flags);
+	spin_unlock_irqrestore(&line6->line6midi->lock, flags);
 }
 
 static void line6_midi_output_drain(struct snd_rawmidi_substream *substream)
@@ -281,8 +276,7 @@ int line6_init_midi(struct usb_line6 *line6)
 	rmidi->private_free = snd_line6_midi_free;
 
 	init_waitqueue_head(&line6midi->send_wait);
-	spin_lock_init(&line6midi->send_urb_lock);
-	spin_lock_init(&line6midi->midi_transmit_lock);
+	spin_lock_init(&line6midi->lock);
 	line6midi->line6 = line6;
 
 	err = line6_midibuf_init(&line6midi->midibuf_in, MIDI_BUFFER_SIZE, 0);
