@@ -612,11 +612,14 @@ Type: vm ioctl
 Parameters: none
 Returns: 0 on success, -1 on error
 
-Creates an interrupt controller model in the kernel.  On x86, creates a virtual
-ioapic, a virtual PIC (two PICs, nested), and sets up future vcpus to have a
-local APIC.  IRQ routing for GSIs 0-15 is set to both PIC and IOAPIC; GSI 16-23
-only go to the IOAPIC.  On ARM/arm64, a GIC is
-created. On s390, a dummy irq routing table is created.
+Creates an interrupt controller model in the kernel.
+On x86, creates a virtual ioapic, a virtual PIC (two PICs, nested), and sets up
+future vcpus to have a local APIC.  IRQ routing for GSIs 0-15 is set to both
+PIC and IOAPIC; GSI 16-23 only go to the IOAPIC.
+On ARM/arm64, a GICv2 is created. Any other GIC versions require the usage of
+KVM_CREATE_DEVICE, which also supports creating a GICv2.  Using
+KVM_CREATE_DEVICE is preferred over KVM_CREATE_IRQCHIP for GICv2.
+On s390, a dummy irq routing table is created.
 
 Note that on s390 the KVM_CAP_S390_IRQCHIP vm capability needs to be enabled
 before KVM_CREATE_IRQCHIP can be used.

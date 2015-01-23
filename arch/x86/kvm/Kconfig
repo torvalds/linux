@@ -39,6 +39,7 @@ config KVM
 	select PERF_EVENTS
 	select HAVE_KVM_MSI
 	select HAVE_KVM_CPU_RELAX_INTERCEPT
+	select KVM_GENERIC_DIRTYLOG_READ_PROTECT
 	select KVM_VFIO
 	---help---
 	  Support hosting fully virtualized guest machines using hardware
