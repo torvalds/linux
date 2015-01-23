@@ -160,6 +160,12 @@ static void invoke_rcu_callbacks(struct rcu_state *rsp, struct rcu_data *rdp);
 static int kthread_prio = CONFIG_RCU_KTHREAD_PRIO;
 module_param(kthread_prio, int, 0644);
 
+/* Delay in jiffies for grace-period initialization delays. */
+static int gp_init_delay = IS_ENABLED(CONFIG_RCU_TORTURE_TEST_SLOW_INIT)
+				? CONFIG_RCU_TORTURE_TEST_SLOW_INIT_DELAY
+				: 0;
+module_param(gp_init_delay, int, 0644);
+
 /*
  * Track the rcutorture test sequence number and the update version
  * number within a given test.  The rcutorture_testseq is incremented
@@ -1769,6 +1775,10 @@ static int rcu_gp_init(struct rcu_state *rsp)
 		raw_spin_unlock_irq(&rnp->lock);
 		cond_resched_rcu_qs();
 		ACCESS_ONCE(rsp->gp_activity) = jiffies;
+		if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_SLOW_INIT) &&
+		    gp_init_delay > 0 &&
+		    !(rsp->gpnum % (rcu_num_nodes * 10)))
+			schedule_timeout_uninterruptible(gp_init_delay);
 	}
 
 	mutex_unlock(&rsp->onoff_mutex);
