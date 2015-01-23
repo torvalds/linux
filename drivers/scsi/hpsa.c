@@ -211,6 +211,7 @@ static struct CommandList *cmd_special_alloc(struct ctlr_info *h);
 static int fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 	void *buff, size_t size, u16 page_code, unsigned char *scsi3addr,
 	int cmd_type);
+static void hpsa_free_cmd_pool(struct ctlr_info *h);
 #define VPD_PAGE (1 << 8)
 
 static int hpsa_scsi_queue_command(struct Scsi_Host *h, struct scsi_cmnd *cmd);
@@ -6471,9 +6472,12 @@ static int hpsa_allocate_cmd_pool(struct ctlr_info *h)
 	    || (h->cmd_pool == NULL)
 	    || (h->errinfo_pool == NULL)) {
 		dev_err(&h->pdev->dev, "out of memory in %s", __func__);
-		return -ENOMEM;
+		goto clean_up;
 	}
 	return 0;
+clean_up:
+	hpsa_free_cmd_pool(h);
+	return -ENOMEM;
 }
 
 static void hpsa_free_cmd_pool(struct ctlr_info *h)
