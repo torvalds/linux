@@ -178,7 +178,6 @@ void bcma_core_chipcommon_init(struct bcma_drv_cc *cc)
 u32 bcma_chipco_watchdog_timer_set(struct bcma_drv_cc *cc, u32 ticks)
 {
 	u32 maxt;
-	enum bcma_clkmode clkmode;
 
 	maxt = bcma_chipco_watchdog_get_max_timer(cc);
 	if (cc->capabilities & BCMA_CC_CAP_PMU) {
@@ -188,8 +187,13 @@ u32 bcma_chipco_watchdog_timer_set(struct bcma_drv_cc *cc, u32 ticks)
 			ticks = maxt;
 		bcma_cc_write32(cc, BCMA_CC_PMU_WATCHDOG, ticks);
 	} else {
-		clkmode = ticks ? BCMA_CLKMODE_FAST : BCMA_CLKMODE_DYNAMIC;
-		bcma_core_set_clockmode(cc->core, clkmode);
+		struct bcma_bus *bus = cc->core->bus;
+
+		if (bus->chipinfo.id != BCMA_CHIP_ID_BCM4707 &&
+		    bus->chipinfo.id != BCMA_CHIP_ID_BCM53018)
+			bcma_core_set_clockmode(cc->core,
+						ticks ? BCMA_CLKMODE_FAST : BCMA_CLKMODE_DYNAMIC);
+
 		if (ticks > maxt)
 			ticks = maxt;
 		/* instant NMI */
