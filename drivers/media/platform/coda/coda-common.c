@@ -592,7 +592,11 @@ static int coda_try_fmt_vid_out(struct file *file, void *priv,
 	if (ret < 0)
 		return ret;
 
-	if (!f->fmt.pix.colorspace) {
+	switch (f->fmt.pix.colorspace) {
+	case V4L2_COLORSPACE_REC709:
+	case V4L2_COLORSPACE_JPEG:
+		break;
+	default:
 		if (f->fmt.pix.pixelformat == V4L2_PIX_FMT_JPEG)
 			f->fmt.pix.colorspace = V4L2_COLORSPACE_JPEG;
 		else
