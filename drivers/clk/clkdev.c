@@ -19,6 +19,7 @@
 #include <linux/mutex.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
+#include <linux/clk-provider.h>
 #include <linux/of.h>
 
 #include "clk.h"
@@ -53,7 +54,7 @@ struct clk *of_clk_get_by_clkspec(struct of_phandle_args *clkspec)
 	return clk;
 }
 
-struct clk *of_clk_get(struct device_node *np, int index)
+static struct clk *__of_clk_get(struct device_node *np, int index)
 {
 	struct of_phandle_args clkspec;
 	struct clk *clk;
@@ -69,20 +70,24 @@ struct clk *of_clk_get(struct device_node *np, int index)
 
 	clk = of_clk_get_by_clkspec(&clkspec);
 	of_node_put(clkspec.np);
+
+	return clk;
+}
+
+struct clk *of_clk_get(struct device_node *np, int index)
+{
+	struct clk *clk = __of_clk_get(np, index);
+
+	if (!IS_ERR(clk))
+		clk = __clk_create_clk(__clk_get_hw(clk), np->full_name, NULL);
+
 	return clk;
 }
 EXPORT_SYMBOL(of_clk_get);
 
-/**
- * of_clk_get_by_name() - Parse and lookup a clock referenced by a device node
- * @np: pointer to clock consumer node
- * @name: name of consumer's clock input, or NULL for the first clock reference
- *
- * This function parses the clocks and clock-names properties,
- * and uses them to look up the struct clk from the registered list of clock
- * providers.
- */
-struct clk *of_clk_get_by_name(struct device_node *np, const char *name)
+static struct clk *__of_clk_get_by_name(struct device_node *np,
+					const char *dev_id,
+					const char *name)
 {
 	struct clk *clk = ERR_PTR(-ENOENT);
 
@@ -97,9 +102,11 @@ struct clk *of_clk_get_by_name(struct device_node *np, const char *name)
 		 */
 		if (name)
 			index = of_property_match_string(np, "clock-names", name);
-		clk = of_clk_get(np, index);
-		if (!IS_ERR(clk))
+		clk = __of_clk_get(np, index);
+		if (!IS_ERR(clk)) {
+			clk = __clk_create_clk(__clk_get_hw(clk), dev_id, name);
 			break;
+		}
 		else if (name && index >= 0) {
 			if (PTR_ERR(clk) != -EPROBE_DEFER)
 				pr_err("ERROR: could not get clock %s:%s(%i)\n",
@@ -119,7 +126,33 @@ struct clk *of_clk_get_by_name(struct device_node *np, const char *name)
 
 	return clk;
 }
+
+/**
+ * of_clk_get_by_name() - Parse and lookup a clock referenced by a device node
+ * @np: pointer to clock consumer node
+ * @name: name of consumer's clock input, or NULL for the first clock reference
+ *
+ * This function parses the clocks and clock-names properties,
+ * and uses them to look up the struct clk from the registered list of clock
+ * providers.
+ */
+struct clk *of_clk_get_by_name(struct device_node *np, const char *name)
+{
+	if (!np)
+		return ERR_PTR(-ENOENT);
+
+	return __of_clk_get_by_name(np, np->full_name, name);
+}
 EXPORT_SYMBOL(of_clk_get_by_name);
+
+#else /* defined(CONFIG_OF) && defined(CONFIG_COMMON_CLK) */
+
+static struct clk *__of_clk_get_by_name(struct device_node *np,
+					const char *dev_id,
+					const char *name)
+{
+	return ERR_PTR(-ENOENT);
+}
 #endif
 
 /*
@@ -168,14 +201,29 @@ static struct clk_lookup *clk_find(const char *dev_id, const char *con_id)
 struct clk *clk_get_sys(const char *dev_id, const char *con_id)
 {
 	struct clk_lookup *cl;
+	struct clk *clk = NULL;
 
 	mutex_lock(&clocks_mutex);
+
 	cl = clk_find(dev_id, con_id);
-	if (cl && !__clk_get(cl->clk))
+	if (!cl)
+		goto out;
+
+	if (!__clk_get(cl->clk)) {
 		cl = NULL;
+		goto out;
+	}
+
+#if defined(CONFIG_COMMON_CLK)
+	clk = __clk_create_clk(__clk_get_hw(cl->clk), dev_id, con_id);
+#else
+	clk = cl->clk;
+#endif
+
+out:
 	mutex_unlock(&clocks_mutex);
 
-	return cl ? cl->clk : ERR_PTR(-ENOENT);
+	return cl ? clk : ERR_PTR(-ENOENT);
 }
 EXPORT_SYMBOL(clk_get_sys);
 
@@ -185,10 +233,8 @@ struct clk *clk_get(struct device *dev, const char *con_id)
 	struct clk *clk;
 
 	if (dev) {
-		clk = of_clk_get_by_name(dev->of_node, con_id);
-		if (!IS_ERR(clk))
-			return clk;
-		if (PTR_ERR(clk) == -EPROBE_DEFER)
+		clk = __of_clk_get_by_name(dev->of_node, dev_id, con_id);
+		if (!IS_ERR(clk) || PTR_ERR(clk) == -EPROBE_DEFER)
 			return clk;
 	}
 

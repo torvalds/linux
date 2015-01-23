@@ -37,6 +37,15 @@ static HLIST_HEAD(clk_root_list);
 static HLIST_HEAD(clk_orphan_list);
 static LIST_HEAD(clk_notifier_list);
 
+static long clk_core_get_accuracy(struct clk_core *clk);
+static unsigned long clk_core_get_rate(struct clk_core *clk);
+static int clk_core_get_phase(struct clk_core *clk);
+static bool clk_core_is_prepared(struct clk_core *clk);
+static bool clk_core_is_enabled(struct clk_core *clk);
+static unsigned long clk_core_round_rate_nolock(struct clk_core *clk,
+						unsigned long rate);
+static struct clk_core *clk_core_lookup(const char *name);
+
 /***           locking             ***/
 static void clk_prepare_lock(void)
 {
@@ -114,7 +123,8 @@ static struct hlist_head *orphan_list[] = {
 	NULL,
 };
 
-static void clk_summary_show_one(struct seq_file *s, struct clk *c, int level)
+static void clk_summary_show_one(struct seq_file *s, struct clk_core *c,
+				 int level)
 {
 	if (!c)
 		return;
@@ -122,14 +132,14 @@ static void clk_summary_show_one(struct seq_file *s, struct clk *c, int level)
 	seq_printf(s, "%*s%-*s %11d %12d %11lu %10lu %-3d\n",
 		   level * 3 + 1, "",
 		   30 - level * 3, c->name,
-		   c->enable_count, c->prepare_count, clk_get_rate(c),
-		   clk_get_accuracy(c), clk_get_phase(c));
+		   c->enable_count, c->prepare_count, clk_core_get_rate(c),
+		   clk_core_get_accuracy(c), clk_core_get_phase(c));
 }
 
-static void clk_summary_show_subtree(struct seq_file *s, struct clk *c,
+static void clk_summary_show_subtree(struct seq_file *s, struct clk_core *c,
 				     int level)
 {
-	struct clk *child;
+	struct clk_core *child;
 
 	if (!c)
 		return;
@@ -142,7 +152,7 @@ static void clk_summary_show_subtree(struct seq_file *s, struct clk *c,
 
 static int clk_summary_show(struct seq_file *s, void *data)
 {
-	struct clk *c;
+	struct clk_core *c;
 	struct hlist_head **lists = (struct hlist_head **)s->private;
 
 	seq_puts(s, "   clock                         enable_cnt  prepare_cnt        rate   accuracy   phase\n");
@@ -172,7 +182,7 @@ static const struct file_operations clk_summary_fops = {
 	.release	= single_release,
 };
 
-static void clk_dump_one(struct seq_file *s, struct clk *c, int level)
+static void clk_dump_one(struct seq_file *s, struct clk_core *c, int level)
 {
 	if (!c)
 		return;
@@ -180,14 +190,14 @@ static void clk_dump_one(struct seq_file *s, struct clk *c, int level)
 	seq_printf(s, "\"%s\": { ", c->name);
 	seq_printf(s, "\"enable_count\": %d,", c->enable_count);
 	seq_printf(s, "\"prepare_count\": %d,", c->prepare_count);
-	seq_printf(s, "\"rate\": %lu", clk_get_rate(c));
-	seq_printf(s, "\"accuracy\": %lu", clk_get_accuracy(c));
-	seq_printf(s, "\"phase\": %d", clk_get_phase(c));
+	seq_printf(s, "\"rate\": %lu", clk_core_get_rate(c));
+	seq_printf(s, "\"accuracy\": %lu", clk_core_get_accuracy(c));
+	seq_printf(s, "\"phase\": %d", clk_core_get_phase(c));
 }
 
-static void clk_dump_subtree(struct seq_file *s, struct clk *c, int level)
+static void clk_dump_subtree(struct seq_file *s, struct clk_core *c, int level)
 {
-	struct clk *child;
+	struct clk_core *child;
 
 	if (!c)
 		return;
@@ -204,7 +214,7 @@ static void clk_dump_subtree(struct seq_file *s, struct clk *c, int level)
 
 static int clk_dump(struct seq_file *s, void *data)
 {
-	struct clk *c;
+	struct clk_core *c;
 	bool first_node = true;
 	struct hlist_head **lists = (struct hlist_head **)s->private;
 
@@ -240,7 +250,7 @@ static const struct file_operations clk_dump_fops = {
 	.release	= single_release,
 };
 
-static int clk_debug_create_one(struct clk *clk, struct dentry *pdentry)
+static int clk_debug_create_one(struct clk_core *clk, struct dentry *pdentry)
 {
 	struct dentry *d;
 	int ret = -ENOMEM;
@@ -315,7 +325,7 @@ out:
  * initialized.  Otherwise it bails out early since the debugfs clk tree
  * will be created lazily by clk_debug_init as part of a late_initcall.
  */
-static int clk_debug_register(struct clk *clk)
+static int clk_debug_register(struct clk_core *clk)
 {
 	int ret = 0;
 
@@ -340,7 +350,7 @@ unlock:
  * debugfs clk tree if clk->dentry points to debugfs created by
  * clk_debug_register in __clk_init.
  */
-static void clk_debug_unregister(struct clk *clk)
+static void clk_debug_unregister(struct clk_core *clk)
 {
 	mutex_lock(&clk_debug_lock);
 	hlist_del_init(&clk->debug_node);
@@ -354,8 +364,9 @@ struct dentry *clk_debugfs_add_file(struct clk_hw *hw, char *name, umode_t mode,
 {
 	struct dentry *d = NULL;
 
-	if (hw->clk->dentry)
-		d = debugfs_create_file(name, mode, hw->clk->dentry, data, fops);
+	if (hw->core->dentry)
+		d = debugfs_create_file(name, mode, hw->core->dentry, data,
+					fops);
 
 	return d;
 }
@@ -375,7 +386,7 @@ EXPORT_SYMBOL_GPL(clk_debugfs_add_file);
  */
 static int __init clk_debug_init(void)
 {
-	struct clk *clk;
+	struct clk_core *clk;
 	struct dentry *d;
 
 	rootdir = debugfs_create_dir("clk", NULL);
@@ -414,19 +425,20 @@ static int __init clk_debug_init(void)
 }
 late_initcall(clk_debug_init);
 #else
-static inline int clk_debug_register(struct clk *clk) { return 0; }
-static inline void clk_debug_reparent(struct clk *clk, struct clk *new_parent)
+static inline int clk_debug_register(struct clk_core *clk) { return 0; }
+static inline void clk_debug_reparent(struct clk_core *clk,
+				      struct clk_core *new_parent)
 {
 }
-static inline void clk_debug_unregister(struct clk *clk)
+static inline void clk_debug_unregister(struct clk_core *clk)
 {
 }
 #endif
 
 /* caller must hold prepare_lock */
-static void clk_unprepare_unused_subtree(struct clk *clk)
+static void clk_unprepare_unused_subtree(struct clk_core *clk)
 {
-	struct clk *child;
+	struct clk_core *child;
 
 	hlist_for_each_entry(child, &clk->children, child_node)
 		clk_unprepare_unused_subtree(child);
@@ -437,7 +449,7 @@ static void clk_unprepare_unused_subtree(struct clk *clk)
 	if (clk->flags & CLK_IGNORE_UNUSED)
 		return;
 
-	if (__clk_is_prepared(clk)) {
+	if (clk_core_is_prepared(clk)) {
 		if (clk->ops->unprepare_unused)
 			clk->ops->unprepare_unused(clk->hw);
 		else if (clk->ops->unprepare)
@@ -446,9 +458,9 @@ static void clk_unprepare_unused_subtree(struct clk *clk)
 }
 
 /* caller must hold prepare_lock */
-static void clk_disable_unused_subtree(struct clk *clk)
+static void clk_disable_unused_subtree(struct clk_core *clk)
 {
-	struct clk *child;
+	struct clk_core *child;
 	unsigned long flags;
 
 	hlist_for_each_entry(child, &clk->children, child_node)
@@ -467,7 +479,7 @@ static void clk_disable_unused_subtree(struct clk *clk)
 	 * sequence.  call .disable_unused if available, otherwise fall
 	 * back to .disable
 	 */
-	if (__clk_is_enabled(clk)) {
+	if (clk_core_is_enabled(clk)) {
 		if (clk->ops->disable_unused)
 			clk->ops->disable_unused(clk->hw);
 		else if (clk->ops->disable)
@@ -488,7 +500,7 @@ __setup("clk_ignore_unused", clk_ignore_unused_setup);
 
 static int clk_disable_unused(void)
 {
-	struct clk *clk;
+	struct clk_core *clk;
 
 	if (clk_ignore_unused) {
 		pr_warn("clk: Not disabling unused clocks\n");
@@ -519,48 +531,65 @@ late_initcall_sync(clk_disable_unused);
 
 const char *__clk_get_name(struct clk *clk)
 {
-	return !clk ? NULL : clk->name;
+	return !clk ? NULL : clk->core->name;
 }
 EXPORT_SYMBOL_GPL(__clk_get_name);
 
 struct clk_hw *__clk_get_hw(struct clk *clk)
 {
-	return !clk ? NULL : clk->hw;
+	return !clk ? NULL : clk->core->hw;
 }
 EXPORT_SYMBOL_GPL(__clk_get_hw);
 
 u8 __clk_get_num_parents(struct clk *clk)
 {
-	return !clk ? 0 : clk->num_parents;
+	return !clk ? 0 : clk->core->num_parents;
 }
 EXPORT_SYMBOL_GPL(__clk_get_num_parents);
 
 struct clk *__clk_get_parent(struct clk *clk)
 {
-	return !clk ? NULL : clk->parent;
+	if (!clk)
+		return NULL;
+
+	/* TODO: Create a per-user clk and change callers to call clk_put */
+	return !clk->core->parent ? NULL : clk->core->parent->hw->clk;
 }
 EXPORT_SYMBOL_GPL(__clk_get_parent);
 
-struct clk *clk_get_parent_by_index(struct clk *clk, u8 index)
+static struct clk_core *clk_core_get_parent_by_index(struct clk_core *clk,
+							 u8 index)
 {
 	if (!clk || index >= clk->num_parents)
 		return NULL;
 	else if (!clk->parents)
-		return __clk_lookup(clk->parent_names[index]);
+		return clk_core_lookup(clk->parent_names[index]);
 	else if (!clk->parents[index])
 		return clk->parents[index] =
-			__clk_lookup(clk->parent_names[index]);
+			clk_core_lookup(clk->parent_names[index]);
 	else
 		return clk->parents[index];
+}
+
+struct clk *clk_get_parent_by_index(struct clk *clk, u8 index)
+{
+	struct clk_core *parent;
+
+	if (!clk)
+		return NULL;
+
+	parent = clk_core_get_parent_by_index(clk->core, index);
+
+	return !parent ? NULL : parent->hw->clk;
 }
 EXPORT_SYMBOL_GPL(clk_get_parent_by_index);
 
 unsigned int __clk_get_enable_count(struct clk *clk)
 {
-	return !clk ? 0 : clk->enable_count;
+	return !clk ? 0 : clk->core->enable_count;
 }
 
-unsigned long __clk_get_rate(struct clk *clk)
+static unsigned long clk_core_get_rate_nolock(struct clk_core *clk)
 {
 	unsigned long ret;
 
@@ -580,9 +609,17 @@ unsigned long __clk_get_rate(struct clk *clk)
 out:
 	return ret;
 }
+
+unsigned long __clk_get_rate(struct clk *clk)
+{
+	if (!clk)
+		return 0;
+
+	return clk_core_get_rate_nolock(clk->core);
+}
 EXPORT_SYMBOL_GPL(__clk_get_rate);
 
-static unsigned long __clk_get_accuracy(struct clk *clk)
+static unsigned long __clk_get_accuracy(struct clk_core *clk)
 {
 	if (!clk)
 		return 0;
@@ -592,11 +629,11 @@ static unsigned long __clk_get_accuracy(struct clk *clk)
 
 unsigned long __clk_get_flags(struct clk *clk)
 {
-	return !clk ? 0 : clk->flags;
+	return !clk ? 0 : clk->core->flags;
 }
 EXPORT_SYMBOL_GPL(__clk_get_flags);
 
-bool __clk_is_prepared(struct clk *clk)
+static bool clk_core_is_prepared(struct clk_core *clk)
 {
 	int ret;
 
@@ -617,7 +654,15 @@ out:
 	return !!ret;
 }
 
-bool __clk_is_enabled(struct clk *clk)
+bool __clk_is_prepared(struct clk *clk)
+{
+	if (!clk)
+		return false;
+
+	return clk_core_is_prepared(clk->core);
+}
+
+static bool clk_core_is_enabled(struct clk_core *clk)
 {
 	int ret;
 
@@ -637,12 +682,21 @@ bool __clk_is_enabled(struct clk *clk)
 out:
 	return !!ret;
 }
+
+bool __clk_is_enabled(struct clk *clk)
+{
+	if (!clk)
+		return false;
+
+	return clk_core_is_enabled(clk->core);
+}
 EXPORT_SYMBOL_GPL(__clk_is_enabled);
 
-static struct clk *__clk_lookup_subtree(const char *name, struct clk *clk)
+static struct clk_core *__clk_lookup_subtree(const char *name,
+					     struct clk_core *clk)
 {
-	struct clk *child;
-	struct clk *ret;
+	struct clk_core *child;
+	struct clk_core *ret;
 
 	if (!strcmp(clk->name, name))
 		return clk;
@@ -656,10 +710,10 @@ static struct clk *__clk_lookup_subtree(const char *name, struct clk *clk)
 	return NULL;
 }
 
-struct clk *__clk_lookup(const char *name)
+static struct clk_core *clk_core_lookup(const char *name)
 {
-	struct clk *root_clk;
-	struct clk *ret;
+	struct clk_core *root_clk;
+	struct clk_core *ret;
 
 	if (!name)
 		return NULL;
@@ -696,32 +750,32 @@ clk_mux_determine_rate_flags(struct clk_hw *hw, unsigned long rate,
 			     struct clk_hw **best_parent_p,
 			     unsigned long flags)
 {
-	struct clk *clk = hw->clk, *parent, *best_parent = NULL;
+	struct clk_core *core = hw->core, *parent, *best_parent = NULL;
 	int i, num_parents;
 	unsigned long parent_rate, best = 0;
 
 	/* if NO_REPARENT flag set, pass through to current parent */
-	if (clk->flags & CLK_SET_RATE_NO_REPARENT) {
-		parent = clk->parent;
-		if (clk->flags & CLK_SET_RATE_PARENT)
-			best = __clk_round_rate(parent, rate);
+	if (core->flags & CLK_SET_RATE_NO_REPARENT) {
+		parent = core->parent;
+		if (core->flags & CLK_SET_RATE_PARENT)
+			best = clk_core_round_rate_nolock(parent, rate);
 		else if (parent)
-			best = __clk_get_rate(parent);
+			best = clk_core_get_rate_nolock(parent);
 		else
-			best = __clk_get_rate(clk);
+			best = clk_core_get_rate_nolock(core);
 		goto out;
 	}
 
 	/* find the parent that can provide the fastest rate <= rate */
-	num_parents = clk->num_parents;
+	num_parents = core->num_parents;
 	for (i = 0; i < num_parents; i++) {
-		parent = clk_get_parent_by_index(clk, i);
+		parent = clk_core_get_parent_by_index(core, i);
 		if (!parent)
 			continue;
-		if (clk->flags & CLK_SET_RATE_PARENT)
-			parent_rate = __clk_round_rate(parent, rate);
+		if (core->flags & CLK_SET_RATE_PARENT)
+			parent_rate = clk_core_round_rate_nolock(parent, rate);
 		else
-			parent_rate = __clk_get_rate(parent);
+			parent_rate = clk_core_get_rate_nolock(parent);
 		if (mux_is_better_rate(rate, parent_rate, best, flags)) {
 			best_parent = parent;
 			best = parent_rate;
@@ -734,6 +788,13 @@ out:
 	*best_parent_rate = best;
 
 	return best;
+}
+
+struct clk *__clk_lookup(const char *name)
+{
+	struct clk_core *core = clk_core_lookup(name);
+
+	return !core ? NULL : core->hw->clk;
 }
 
 /*
@@ -762,7 +823,7 @@ EXPORT_SYMBOL_GPL(__clk_mux_determine_rate_closest);
 
 /***        clk api        ***/
 
-void __clk_unprepare(struct clk *clk)
+static void clk_core_unprepare(struct clk_core *clk)
 {
 	if (!clk)
 		return;
@@ -778,7 +839,7 @@ void __clk_unprepare(struct clk *clk)
 	if (clk->ops->unprepare)
 		clk->ops->unprepare(clk->hw);
 
-	__clk_unprepare(clk->parent);
+	clk_core_unprepare(clk->parent);
 }
 
 /**
@@ -798,12 +859,12 @@ void clk_unprepare(struct clk *clk)
 		return;
 
 	clk_prepare_lock();
-	__clk_unprepare(clk);
+	clk_core_unprepare(clk->core);
 	clk_prepare_unlock();
 }
 EXPORT_SYMBOL_GPL(clk_unprepare);
 
-int __clk_prepare(struct clk *clk)
+static int clk_core_prepare(struct clk_core *clk)
 {
 	int ret = 0;
 
@@ -811,14 +872,14 @@ int __clk_prepare(struct clk *clk)
 		return 0;
 
 	if (clk->prepare_count == 0) {
-		ret = __clk_prepare(clk->parent);
+		ret = clk_core_prepare(clk->parent);
 		if (ret)
 			return ret;
 
 		if (clk->ops->prepare) {
 			ret = clk->ops->prepare(clk->hw);
 			if (ret) {
-				__clk_unprepare(clk->parent);
+				clk_core_unprepare(clk->parent);
 				return ret;
 			}
 		}
@@ -845,15 +906,18 @@ int clk_prepare(struct clk *clk)
 {
 	int ret;
 
+	if (!clk)
+		return 0;
+
 	clk_prepare_lock();
-	ret = __clk_prepare(clk);
+	ret = clk_core_prepare(clk->core);
 	clk_prepare_unlock();
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(clk_prepare);
 
-static void __clk_disable(struct clk *clk)
+static void clk_core_disable(struct clk_core *clk)
 {
 	if (!clk)
 		return;
@@ -867,7 +931,15 @@ static void __clk_disable(struct clk *clk)
 	if (clk->ops->disable)
 		clk->ops->disable(clk->hw);
 
-	__clk_disable(clk->parent);
+	clk_core_disable(clk->parent);
+}
+
+static void __clk_disable(struct clk *clk)
+{
+	if (!clk)
+		return;
+
+	clk_core_disable(clk->core);
 }
 
 /**
@@ -895,7 +967,7 @@ void clk_disable(struct clk *clk)
 }
 EXPORT_SYMBOL_GPL(clk_disable);
 
-static int __clk_enable(struct clk *clk)
+static int clk_core_enable(struct clk_core *clk)
 {
 	int ret = 0;
 
@@ -906,7 +978,7 @@ static int __clk_enable(struct clk *clk)
 		return -ESHUTDOWN;
 
 	if (clk->enable_count == 0) {
-		ret = __clk_enable(clk->parent);
+		ret = clk_core_enable(clk->parent);
 
 		if (ret)
 			return ret;
@@ -914,7 +986,7 @@ static int __clk_enable(struct clk *clk)
 		if (clk->ops->enable) {
 			ret = clk->ops->enable(clk->hw);
 			if (ret) {
-				__clk_disable(clk->parent);
+				clk_core_disable(clk->parent);
 				return ret;
 			}
 		}
@@ -922,6 +994,14 @@ static int __clk_enable(struct clk *clk)
 
 	clk->enable_count++;
 	return 0;
+}
+
+static int __clk_enable(struct clk *clk)
+{
+	if (!clk)
+		return 0;
+
+	return clk_core_enable(clk->core);
 }
 
 /**
@@ -950,17 +1030,11 @@ int clk_enable(struct clk *clk)
 }
 EXPORT_SYMBOL_GPL(clk_enable);
 
-/**
- * __clk_round_rate - round the given rate for a clk
- * @clk: round the rate of this clock
- * @rate: the rate which is to be rounded
- *
- * Caller must hold prepare_lock.  Useful for clk_ops such as .set_rate
- */
-unsigned long __clk_round_rate(struct clk *clk, unsigned long rate)
+static unsigned long clk_core_round_rate_nolock(struct clk_core *clk,
+						unsigned long rate)
 {
 	unsigned long parent_rate = 0;
-	struct clk *parent;
+	struct clk_core *parent;
 	struct clk_hw *parent_hw;
 
 	if (!clk)
@@ -977,9 +1051,24 @@ unsigned long __clk_round_rate(struct clk *clk, unsigned long rate)
 	} else if (clk->ops->round_rate)
 		return clk->ops->round_rate(clk->hw, rate, &parent_rate);
 	else if (clk->flags & CLK_SET_RATE_PARENT)
-		return __clk_round_rate(clk->parent, rate);
+		return clk_core_round_rate_nolock(clk->parent, rate);
 	else
 		return clk->rate;
+}
+
+/**
+ * __clk_round_rate - round the given rate for a clk
+ * @clk: round the rate of this clock
+ * @rate: the rate which is to be rounded
+ *
+ * Caller must hold prepare_lock.  Useful for clk_ops such as .set_rate
+ */
+unsigned long __clk_round_rate(struct clk *clk, unsigned long rate)
+{
+	if (!clk)
+		return 0;
+
+	return clk_core_round_rate_nolock(clk->core, rate);
 }
 EXPORT_SYMBOL_GPL(__clk_round_rate);
 
@@ -996,8 +1085,11 @@ long clk_round_rate(struct clk *clk, unsigned long rate)
 {
 	unsigned long ret;
 
+	if (!clk)
+		return 0;
+
 	clk_prepare_lock();
-	ret = __clk_round_rate(clk, rate);
+	ret = clk_core_round_rate_nolock(clk->core, rate);
 	clk_prepare_unlock();
 
 	return ret;
@@ -1018,22 +1110,21 @@ EXPORT_SYMBOL_GPL(clk_round_rate);
  * called if all went well, or NOTIFY_STOP or NOTIFY_BAD immediately if
  * a driver returns that.
  */
-static int __clk_notify(struct clk *clk, unsigned long msg,
+static int __clk_notify(struct clk_core *clk, unsigned long msg,
 		unsigned long old_rate, unsigned long new_rate)
 {
 	struct clk_notifier *cn;
 	struct clk_notifier_data cnd;
 	int ret = NOTIFY_DONE;
 
-	cnd.clk = clk;
 	cnd.old_rate = old_rate;
 	cnd.new_rate = new_rate;
 
 	list_for_each_entry(cn, &clk_notifier_list, node) {
-		if (cn->clk == clk) {
+		if (cn->clk->core == clk) {
+			cnd.clk = cn->clk;
 			ret = srcu_notifier_call_chain(&cn->notifier_head, msg,
 					&cnd);
-			break;
 		}
 	}
 
@@ -1051,10 +1142,10 @@ static int __clk_notify(struct clk *clk, unsigned long msg,
  *
  * Caller must hold prepare_lock.
  */
-static void __clk_recalc_accuracies(struct clk *clk)
+static void __clk_recalc_accuracies(struct clk_core *clk)
 {
 	unsigned long parent_accuracy = 0;
-	struct clk *child;
+	struct clk_core *child;
 
 	if (clk->parent)
 		parent_accuracy = clk->parent->accuracy;
@@ -1069,16 +1160,7 @@ static void __clk_recalc_accuracies(struct clk *clk)
 		__clk_recalc_accuracies(child);
 }
 
-/**
- * clk_get_accuracy - return the accuracy of clk
- * @clk: the clk whose accuracy is being returned
- *
- * Simply returns the cached accuracy of the clk, unless
- * CLK_GET_ACCURACY_NOCACHE flag is set, which means a recalc_rate will be
- * issued.
- * If clk is NULL then returns 0.
- */
-long clk_get_accuracy(struct clk *clk)
+static long clk_core_get_accuracy(struct clk_core *clk)
 {
 	unsigned long accuracy;
 
@@ -1091,9 +1173,27 @@ long clk_get_accuracy(struct clk *clk)
 
 	return accuracy;
 }
+
+/**
+ * clk_get_accuracy - return the accuracy of clk
+ * @clk: the clk whose accuracy is being returned
+ *
+ * Simply returns the cached accuracy of the clk, unless
+ * CLK_GET_ACCURACY_NOCACHE flag is set, which means a recalc_rate will be
+ * issued.
+ * If clk is NULL then returns 0.
+ */
+long clk_get_accuracy(struct clk *clk)
+{
+	if (!clk)
+		return 0;
+
+	return clk_core_get_accuracy(clk->core);
+}
 EXPORT_SYMBOL_GPL(clk_get_accuracy);
 
-static unsigned long clk_recalc(struct clk *clk, unsigned long parent_rate)
+static unsigned long clk_recalc(struct clk_core *clk,
+				unsigned long parent_rate)
 {
 	if (clk->ops->recalc_rate)
 		return clk->ops->recalc_rate(clk->hw, parent_rate);
@@ -1114,11 +1214,11 @@ static unsigned long clk_recalc(struct clk *clk, unsigned long parent_rate)
  *
  * Caller must hold prepare_lock.
  */
-static void __clk_recalc_rates(struct clk *clk, unsigned long msg)
+static void __clk_recalc_rates(struct clk_core *clk, unsigned long msg)
 {
 	unsigned long old_rate;
 	unsigned long parent_rate = 0;
-	struct clk *child;
+	struct clk_core *child;
 
 	old_rate = clk->rate;
 
@@ -1138,6 +1238,22 @@ static void __clk_recalc_rates(struct clk *clk, unsigned long msg)
 		__clk_recalc_rates(child, msg);
 }
 
+static unsigned long clk_core_get_rate(struct clk_core *clk)
+{
+	unsigned long rate;
+
+	clk_prepare_lock();
+
+	if (clk && (clk->flags & CLK_GET_RATE_NOCACHE))
+		__clk_recalc_rates(clk, 0);
+
+	rate = clk_core_get_rate_nolock(clk);
+	clk_prepare_unlock();
+
+	return rate;
+}
+EXPORT_SYMBOL_GPL(clk_core_get_rate);
+
 /**
  * clk_get_rate - return the rate of clk
  * @clk: the clk whose rate is being returned
@@ -1148,21 +1264,15 @@ static void __clk_recalc_rates(struct clk *clk, unsigned long msg)
  */
 unsigned long clk_get_rate(struct clk *clk)
 {
-	unsigned long rate;
+	if (!clk)
+		return 0;
 
-	clk_prepare_lock();
-
-	if (clk && (clk->flags & CLK_GET_RATE_NOCACHE))
-		__clk_recalc_rates(clk, 0);
-
-	rate = __clk_get_rate(clk);
-	clk_prepare_unlock();
-
-	return rate;
+	return clk_core_get_rate(clk->core);
 }
 EXPORT_SYMBOL_GPL(clk_get_rate);
 
-static int clk_fetch_parent_index(struct clk *clk, struct clk *parent)
+static int clk_fetch_parent_index(struct clk_core *clk,
+				  struct clk_core *parent)
 {
 	int i;
 
@@ -1176,7 +1286,7 @@ static int clk_fetch_parent_index(struct clk *clk, struct clk *parent)
 	/*
 	 * find index of new parent clock using cached parent ptrs,
 	 * or if not yet cached, use string name comparison and cache
-	 * them now to avoid future calls to __clk_lookup.
+	 * them now to avoid future calls to clk_core_lookup.
 	 */
 	for (i = 0; i < clk->num_parents; i++) {
 		if (clk->parents[i] == parent)
@@ -1186,7 +1296,7 @@ static int clk_fetch_parent_index(struct clk *clk, struct clk *parent)
 			continue;
 
 		if (!strcmp(clk->parent_names[i], parent->name)) {
-			clk->parents[i] = __clk_lookup(parent->name);
+			clk->parents[i] = clk_core_lookup(parent->name);
 			return i;
 		}
 	}
@@ -1194,7 +1304,7 @@ static int clk_fetch_parent_index(struct clk *clk, struct clk *parent)
 	return -EINVAL;
 }
 
-static void clk_reparent(struct clk *clk, struct clk *new_parent)
+static void clk_reparent(struct clk_core *clk, struct clk_core *new_parent)
 {
 	hlist_del(&clk->child_node);
 
@@ -1211,10 +1321,11 @@ static void clk_reparent(struct clk *clk, struct clk *new_parent)
 	clk->parent = new_parent;
 }
 
-static struct clk *__clk_set_parent_before(struct clk *clk, struct clk *parent)
+static struct clk_core *__clk_set_parent_before(struct clk_core *clk,
+					   struct clk_core *parent)
 {
 	unsigned long flags;
-	struct clk *old_parent = clk->parent;
+	struct clk_core *old_parent = clk->parent;
 
 	/*
 	 * Migrate prepare state between parents and prevent race with
@@ -1234,9 +1345,9 @@ static struct clk *__clk_set_parent_before(struct clk *clk, struct clk *parent)
 	 * See also: Comment for clk_set_parent() below.
 	 */
 	if (clk->prepare_count) {
-		__clk_prepare(parent);
-		clk_enable(parent);
-		clk_enable(clk);
+		clk_core_prepare(parent);
+		clk_core_enable(parent);
+		clk_core_enable(clk);
 	}
 
 	/* update the clk tree topology */
@@ -1247,25 +1358,27 @@ static struct clk *__clk_set_parent_before(struct clk *clk, struct clk *parent)
 	return old_parent;
 }
 
-static void __clk_set_parent_after(struct clk *clk, struct clk *parent,
-		struct clk *old_parent)
+static void __clk_set_parent_after(struct clk_core *core,
+				   struct clk_core *parent,
+				   struct clk_core *old_parent)
 {
 	/*
 	 * Finish the migration of prepare state and undo the changes done
 	 * for preventing a race with clk_enable().
 	 */
-	if (clk->prepare_count) {
-		clk_disable(clk);
-		clk_disable(old_parent);
-		__clk_unprepare(old_parent);
+	if (core->prepare_count) {
+		clk_core_disable(core);
+		clk_core_disable(old_parent);
+		clk_core_unprepare(old_parent);
 	}
 }
 
-static int __clk_set_parent(struct clk *clk, struct clk *parent, u8 p_index)
+static int __clk_set_parent(struct clk_core *clk, struct clk_core *parent,
+			    u8 p_index)
 {
 	unsigned long flags;
 	int ret = 0;
-	struct clk *old_parent;
+	struct clk_core *old_parent;
 
 	old_parent = __clk_set_parent_before(clk, parent);
 
@@ -1279,9 +1392,9 @@ static int __clk_set_parent(struct clk *clk, struct clk *parent, u8 p_index)
 		clk_enable_unlock(flags);
 
 		if (clk->prepare_count) {
-			clk_disable(clk);
-			clk_disable(parent);
-			__clk_unprepare(parent);
+			clk_core_disable(clk);
+			clk_core_disable(parent);
+			clk_core_unprepare(parent);
 		}
 		return ret;
 	}
@@ -1307,9 +1420,10 @@ static int __clk_set_parent(struct clk *clk, struct clk *parent, u8 p_index)
  *
  * Caller must hold prepare_lock.
  */
-static int __clk_speculate_rates(struct clk *clk, unsigned long parent_rate)
+static int __clk_speculate_rates(struct clk_core *clk,
+				 unsigned long parent_rate)
 {
-	struct clk *child;
+	struct clk_core *child;
 	unsigned long new_rate;
 	int ret = NOTIFY_DONE;
 
@@ -1335,10 +1449,10 @@ out:
 	return ret;
 }
 
-static void clk_calc_subtree(struct clk *clk, unsigned long new_rate,
-			     struct clk *new_parent, u8 p_index)
+static void clk_calc_subtree(struct clk_core *clk, unsigned long new_rate,
+			     struct clk_core *new_parent, u8 p_index)
 {
-	struct clk *child;
+	struct clk_core *child;
 
 	clk->new_rate = new_rate;
 	clk->new_parent = new_parent;
@@ -1358,10 +1472,11 @@ static void clk_calc_subtree(struct clk *clk, unsigned long new_rate,
  * calculate the new rates returning the topmost clock that has to be
  * changed.
  */
-static struct clk *clk_calc_new_rates(struct clk *clk, unsigned long rate)
+static struct clk_core *clk_calc_new_rates(struct clk_core *clk,
+					   unsigned long rate)
 {
-	struct clk *top = clk;
-	struct clk *old_parent, *parent;
+	struct clk_core *top = clk;
+	struct clk_core *old_parent, *parent;
 	struct clk_hw *parent_hw;
 	unsigned long best_parent_rate = 0;
 	unsigned long new_rate;
@@ -1382,7 +1497,7 @@ static struct clk *clk_calc_new_rates(struct clk *clk, unsigned long rate)
 		new_rate = clk->ops->determine_rate(clk->hw, rate,
 						    &best_parent_rate,
 						    &parent_hw);
-		parent = parent_hw ? parent_hw->clk : NULL;
+		parent = parent_hw ? parent_hw->core : NULL;
 	} else if (clk->ops->round_rate) {
 		new_rate = clk->ops->round_rate(clk->hw, rate,
 						&best_parent_rate);
@@ -1430,9 +1545,10 @@ out:
  * so that in case of an error we can walk down the whole tree again and
  * abort the change.
  */
-static struct clk *clk_propagate_rate_change(struct clk *clk, unsigned long event)
+static struct clk_core *clk_propagate_rate_change(struct clk_core *clk,
+						  unsigned long event)
 {
-	struct clk *child, *tmp_clk, *fail_clk = NULL;
+	struct clk_core *child, *tmp_clk, *fail_clk = NULL;
 	int ret = NOTIFY_DONE;
 
 	if (clk->rate == clk->new_rate)
@@ -1467,14 +1583,14 @@ static struct clk *clk_propagate_rate_change(struct clk *clk, unsigned long even
  * walk down a subtree and set the new rates notifying the rate
  * change on the way
  */
-static void clk_change_rate(struct clk *clk)
+static void clk_change_rate(struct clk_core *clk)
 {
-	struct clk *child;
+	struct clk_core *child;
 	struct hlist_node *tmp;
 	unsigned long old_rate;
 	unsigned long best_parent_rate = 0;
 	bool skip_set_rate = false;
-	struct clk *old_parent;
+	struct clk_core *old_parent;
 
 	old_rate = clk->rate;
 
@@ -1545,7 +1661,7 @@ static void clk_change_rate(struct clk *clk)
  */
 int clk_set_rate(struct clk *clk, unsigned long rate)
 {
-	struct clk *top, *fail_clk;
+	struct clk_core *top, *fail_clk;
 	int ret = 0;
 
 	if (!clk)
@@ -1558,13 +1674,14 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	if (rate == clk_get_rate(clk))
 		goto out;
 
-	if ((clk->flags & CLK_SET_RATE_GATE) && clk->prepare_count) {
+	if ((clk->core->flags & CLK_SET_RATE_GATE) &&
+	    clk->core->prepare_count) {
 		ret = -EBUSY;
 		goto out;
 	}
 
 	/* calculate new rates and get the topmost changed clock */
-	top = clk_calc_new_rates(clk, rate);
+	top = clk_calc_new_rates(clk->core, rate);
 	if (!top) {
 		ret = -EINVAL;
 		goto out;
@@ -1615,11 +1732,11 @@ EXPORT_SYMBOL_GPL(clk_get_parent);
  *
  * For single-parent clocks without .get_parent, first check to see if the
  * .parents array exists, and if so use it to avoid an expensive tree
- * traversal.  If .parents does not exist then walk the tree with __clk_lookup.
+ * traversal.  If .parents does not exist then walk the tree.
  */
-static struct clk *__clk_init_parent(struct clk *clk)
+static struct clk_core *__clk_init_parent(struct clk_core *clk)
 {
-	struct clk *ret = NULL;
+	struct clk_core *ret = NULL;
 	u8 index;
 
 	/* handle the trivial cases */
@@ -1629,7 +1746,7 @@ static struct clk *__clk_init_parent(struct clk *clk)
 
 	if (clk->num_parents == 1) {
 		if (IS_ERR_OR_NULL(clk->parent))
-			clk->parent = __clk_lookup(clk->parent_names[0]);
+			clk->parent = clk_core_lookup(clk->parent_names[0]);
 		ret = clk->parent;
 		goto out;
 	}
@@ -1643,8 +1760,8 @@ static struct clk *__clk_init_parent(struct clk *clk)
 
 	/*
 	 * Do our best to cache parent clocks in clk->parents.  This prevents
-	 * unnecessary and expensive calls to __clk_lookup.  We don't set
-	 * clk->parent here; that is done by the calling function
+	 * unnecessary and expensive lookups.  We don't set clk->parent here;
+	 * that is done by the calling function.
 	 */
 
 	index = clk->ops->get_parent(clk->hw);
@@ -1654,13 +1771,14 @@ static struct clk *__clk_init_parent(struct clk *clk)
 			kcalloc(clk->num_parents, sizeof(struct clk *),
 					GFP_KERNEL);
 
-	ret = clk_get_parent_by_index(clk, index);
+	ret = clk_core_get_parent_by_index(clk, index);
 
 out:
 	return ret;
 }
 
-void __clk_reparent(struct clk *clk, struct clk *new_parent)
+static void clk_core_reparent(struct clk_core *clk,
+				  struct clk_core *new_parent)
 {
 	clk_reparent(clk, new_parent);
 	__clk_recalc_accuracies(clk);
@@ -1679,42 +1797,29 @@ void __clk_reparent(struct clk *clk, struct clk *new_parent)
  */
 bool clk_has_parent(struct clk *clk, struct clk *parent)
 {
+	struct clk_core *core, *parent_core;
 	unsigned int i;
 
 	/* NULL clocks should be nops, so return success if either is NULL. */
 	if (!clk || !parent)
 		return true;
 
+	core = clk->core;
+	parent_core = parent->core;
+
 	/* Optimize for the case where the parent is already the parent. */
-	if (clk->parent == parent)
+	if (core->parent == parent_core)
 		return true;
 
-	for (i = 0; i < clk->num_parents; i++)
-		if (strcmp(clk->parent_names[i], parent->name) == 0)
+	for (i = 0; i < core->num_parents; i++)
+		if (strcmp(core->parent_names[i], parent_core->name) == 0)
 			return true;
 
 	return false;
 }
 EXPORT_SYMBOL_GPL(clk_has_parent);
 
-/**
- * clk_set_parent - switch the parent of a mux clk
- * @clk: the mux clk whose input we are switching
- * @parent: the new input to clk
- *
- * Re-parent clk to use parent as its new input source.  If clk is in
- * prepared state, the clk will get enabled for the duration of this call. If
- * that's not acceptable for a specific clk (Eg: the consumer can't handle
- * that, the reparenting is glitchy in hardware, etc), use the
- * CLK_SET_PARENT_GATE flag to allow reparenting only when clk is unprepared.
- *
- * After successfully changing clk's parent clk_set_parent will update the
- * clk topology, sysfs topology and propagate rate recalculation via
- * __clk_recalc_rates.
- *
- * Returns 0 on success, -EERROR otherwise.
- */
-int clk_set_parent(struct clk *clk, struct clk *parent)
+static int clk_core_set_parent(struct clk_core *clk, struct clk_core *parent)
 {
 	int ret = 0;
 	int p_index = 0;
@@ -1774,6 +1879,31 @@ out:
 
 	return ret;
 }
+
+/**
+ * clk_set_parent - switch the parent of a mux clk
+ * @clk: the mux clk whose input we are switching
+ * @parent: the new input to clk
+ *
+ * Re-parent clk to use parent as its new input source.  If clk is in
+ * prepared state, the clk will get enabled for the duration of this call. If
+ * that's not acceptable for a specific clk (Eg: the consumer can't handle
+ * that, the reparenting is glitchy in hardware, etc), use the
+ * CLK_SET_PARENT_GATE flag to allow reparenting only when clk is unprepared.
+ *
+ * After successfully changing clk's parent clk_set_parent will update the
+ * clk topology, sysfs topology and propagate rate recalculation via
+ * __clk_recalc_rates.
+ *
+ * Returns 0 on success, -EERROR otherwise.
+ */
+int clk_set_parent(struct clk *clk, struct clk *parent)
+{
+	if (!clk)
+		return 0;
+
+	return clk_core_set_parent(clk->core, parent ? parent->core : NULL);
+}
 EXPORT_SYMBOL_GPL(clk_set_parent);
 
 /**
@@ -1810,13 +1940,13 @@ int clk_set_phase(struct clk *clk, int degrees)
 
 	clk_prepare_lock();
 
-	if (!clk->ops->set_phase)
+	if (!clk->core->ops->set_phase)
 		goto out_unlock;
 
-	ret = clk->ops->set_phase(clk->hw, degrees);
+	ret = clk->core->ops->set_phase(clk->core->hw, degrees);
 
 	if (!ret)
-		clk->phase = degrees;
+		clk->core->phase = degrees;
 
 out_unlock:
 	clk_prepare_unlock();
@@ -1826,14 +1956,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(clk_set_phase);
 
-/**
- * clk_get_phase - return the phase shift of a clock signal
- * @clk: clock signal source
- *
- * Returns the phase shift of a clock node in degrees, otherwise returns
- * -EERROR.
- */
-int clk_get_phase(struct clk *clk)
+static int clk_core_get_phase(struct clk_core *clk)
 {
 	int ret = 0;
 
@@ -1850,26 +1973,44 @@ out:
 EXPORT_SYMBOL_GPL(clk_get_phase);
 
 /**
+ * clk_get_phase - return the phase shift of a clock signal
+ * @clk: clock signal source
+ *
+ * Returns the phase shift of a clock node in degrees, otherwise returns
+ * -EERROR.
+ */
+int clk_get_phase(struct clk *clk)
+{
+	if (!clk)
+		return 0;
+
+	return clk_core_get_phase(clk->core);
+}
+
+/**
  * __clk_init - initialize the data structures in a struct clk
  * @dev:	device initializing this clk, placeholder for now
  * @clk:	clk being initialized
  *
- * Initializes the lists in struct clk, queries the hardware for the
+ * Initializes the lists in struct clk_core, queries the hardware for the
  * parent and rate and sets them both.
  */
-int __clk_init(struct device *dev, struct clk *clk)
+int __clk_init(struct device *dev, struct clk *clk_user)
 {
 	int i, ret = 0;
-	struct clk *orphan;
+	struct clk_core *orphan;
 	struct hlist_node *tmp2;
+	struct clk_core *clk;
 
-	if (!clk)
+	if (!clk_user)
 		return -EINVAL;
+
+	clk = clk_user->core;
 
 	clk_prepare_lock();
 
 	/* check to see if a clock with this name is already registered */
-	if (__clk_lookup(clk->name)) {
+	if (clk_core_lookup(clk->name)) {
 		pr_debug("%s: clk %s already initialized\n",
 				__func__, clk->name);
 		ret = -EEXIST;
@@ -1921,7 +2062,7 @@ int __clk_init(struct device *dev, struct clk *clk)
 		clk->parents = kcalloc(clk->num_parents, sizeof(struct clk *),
 					GFP_KERNEL);
 		/*
-		 * __clk_lookup returns NULL for parents that have not been
+		 * clk_core_lookup returns NULL for parents that have not been
 		 * clk_init'd; thus any access to clk->parents[] must check
 		 * for a NULL pointer.  We can always perform lazy lookups for
 		 * missing parents later on.
@@ -1929,7 +2070,7 @@ int __clk_init(struct device *dev, struct clk *clk)
 		if (clk->parents)
 			for (i = 0; i < clk->num_parents; i++)
 				clk->parents[i] =
-					__clk_lookup(clk->parent_names[i]);
+					clk_core_lookup(clk->parent_names[i]);
 	}
 
 	clk->parent = __clk_init_parent(clk);
@@ -1985,7 +2126,7 @@ int __clk_init(struct device *dev, struct clk *clk)
 	 */
 	if (clk->ops->recalc_rate)
 		clk->rate = clk->ops->recalc_rate(clk->hw,
-				__clk_get_rate(clk->parent));
+				clk_core_get_rate_nolock(clk->parent));
 	else if (clk->parent)
 		clk->rate = clk->parent->rate;
 	else
@@ -1999,13 +2140,13 @@ int __clk_init(struct device *dev, struct clk *clk)
 		if (orphan->num_parents && orphan->ops->get_parent) {
 			i = orphan->ops->get_parent(orphan->hw);
 			if (!strcmp(clk->name, orphan->parent_names[i]))
-				__clk_reparent(orphan, clk);
+				clk_core_reparent(orphan, clk);
 			continue;
 		}
 
 		for (i = 0; i < orphan->num_parents; i++)
 			if (!strcmp(clk->name, orphan->parent_names[i])) {
-				__clk_reparent(orphan, clk);
+				clk_core_reparent(orphan, clk);
 				break;
 			}
 	 }
@@ -2031,6 +2172,26 @@ out:
 	return ret;
 }
 
+struct clk *__clk_create_clk(struct clk_hw *hw, const char *dev_id,
+			     const char *con_id)
+{
+	struct clk *clk;
+
+	/* This is to allow this function to be chained to others */
+	if (!hw || IS_ERR(hw))
+		return (struct clk *) hw;
+
+	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
+	if (!clk)
+		return ERR_PTR(-ENOMEM);
+
+	clk->core = hw->core;
+	clk->dev_id = dev_id;
+	clk->con_id = con_id;
+
+	return clk;
+}
+
 /**
  * clk_register - allocate a new clock, register it and return an opaque cookie
  * @dev: device that is registering this clock
@@ -2045,7 +2206,7 @@ out:
 struct clk *clk_register(struct device *dev, struct clk_hw *hw)
 {
 	int i, ret;
-	struct clk *clk;
+	struct clk_core *clk;
 
 	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
 	if (!clk) {
@@ -2066,7 +2227,7 @@ struct clk *clk_register(struct device *dev, struct clk_hw *hw)
 	clk->hw = hw;
 	clk->flags = hw->init->flags;
 	clk->num_parents = hw->init->num_parents;
-	hw->clk = clk;
+	hw->core = clk;
 
 	/* allocate local copy in case parent_names is __initdata */
 	clk->parent_names = kcalloc(clk->num_parents, sizeof(char *),
@@ -2090,10 +2251,19 @@ struct clk *clk_register(struct device *dev, struct clk_hw *hw)
 		}
 	}
 
-	ret = __clk_init(dev, clk);
-	if (!ret)
-		return clk;
+	hw->clk = __clk_create_clk(hw, NULL, NULL);
+	if (IS_ERR(hw->clk)) {
+		pr_err("%s: could not allocate per-user clk\n", __func__);
+		ret = PTR_ERR(hw->clk);
+		goto fail_parent_names_copy;
+	}
 
+	ret = __clk_init(dev, hw->clk);
+	if (!ret)
+		return hw->clk;
+
+	kfree(hw->clk);
+	hw->clk = NULL;
 fail_parent_names_copy:
 	while (--i >= 0)
 		kfree(clk->parent_names[i]);
@@ -2113,7 +2283,7 @@ EXPORT_SYMBOL_GPL(clk_register);
  */
 static void __clk_release(struct kref *ref)
 {
-	struct clk *clk = container_of(ref, struct clk, ref);
+	struct clk_core *clk = container_of(ref, struct clk_core, ref);
 	int i = clk->num_parents;
 
 	kfree(clk->parents);
@@ -2171,12 +2341,13 @@ void clk_unregister(struct clk *clk)
 	if (!clk || WARN_ON_ONCE(IS_ERR(clk)))
 		return;
 
-	clk_debug_unregister(clk);
+	clk_debug_unregister(clk->core);
 
 	clk_prepare_lock();
 
-	if (clk->ops == &clk_nodrv_ops) {
-		pr_err("%s: unregistered clock: %s\n", __func__, clk->name);
+	if (clk->core->ops == &clk_nodrv_ops) {
+		pr_err("%s: unregistered clock: %s\n", __func__,
+		       clk->core->name);
 		return;
 	}
 	/*
@@ -2184,24 +2355,25 @@ void clk_unregister(struct clk *clk)
 	 * a reference to this clock.
 	 */
 	flags = clk_enable_lock();
-	clk->ops = &clk_nodrv_ops;
+	clk->core->ops = &clk_nodrv_ops;
 	clk_enable_unlock(flags);
 
-	if (!hlist_empty(&clk->children)) {
-		struct clk *child;
+	if (!hlist_empty(&clk->core->children)) {
+		struct clk_core *child;
 		struct hlist_node *t;
 
 		/* Reparent all children to the orphan list. */
-		hlist_for_each_entry_safe(child, t, &clk->children, child_node)
-			clk_set_parent(child, NULL);
+		hlist_for_each_entry_safe(child, t, &clk->core->children,
+					  child_node)
+			clk_core_set_parent(child, NULL);
 	}
 
-	hlist_del_init(&clk->child_node);
+	hlist_del_init(&clk->core->child_node);
 
-	if (clk->prepare_count)
+	if (clk->core->prepare_count)
 		pr_warn("%s: unregistering prepared clock: %s\n",
-					__func__, clk->name);
-	kref_put(&clk->ref, __clk_release);
+					__func__, clk->core->name);
+	kref_put(&clk->core->ref, __clk_release);
 
 	clk_prepare_unlock();
 }
@@ -2269,28 +2441,37 @@ EXPORT_SYMBOL_GPL(devm_clk_unregister);
  */
 int __clk_get(struct clk *clk)
 {
-	if (clk) {
-		if (!try_module_get(clk->owner))
+	struct clk_core *core = !clk ? NULL : clk->core;
+
+	if (core) {
+		if (!try_module_get(core->owner))
 			return 0;
 
-		kref_get(&clk->ref);
+		kref_get(&core->ref);
 	}
 	return 1;
 }
 
-void __clk_put(struct clk *clk)
+static void clk_core_put(struct clk_core *core)
 {
 	struct module *owner;
 
-	if (!clk || WARN_ON_ONCE(IS_ERR(clk)))
-		return;
+	owner = core->owner;
 
 	clk_prepare_lock();
-	owner = clk->owner;
-	kref_put(&clk->ref, __clk_release);
+	kref_put(&core->ref, __clk_release);
 	clk_prepare_unlock();
 
 	module_put(owner);
+}
+
+void __clk_put(struct clk *clk)
+{
+	if (!clk || WARN_ON_ONCE(IS_ERR(clk)))
+		return;
+
+	clk_core_put(clk->core);
+	kfree(clk);
 }
 
 /***        clk rate change notifiers        ***/
@@ -2345,7 +2526,7 @@ int clk_notifier_register(struct clk *clk, struct notifier_block *nb)
 
 	ret = srcu_notifier_chain_register(&cn->notifier_head, nb);
 
-	clk->notifier_count++;
+	clk->core->notifier_count++;
 
 out:
 	clk_prepare_unlock();
@@ -2382,7 +2563,7 @@ int clk_notifier_unregister(struct clk *clk, struct notifier_block *nb)
 	if (cn->clk == clk) {
 		ret = srcu_notifier_chain_unregister(&cn->notifier_head, nb);
 
-		clk->notifier_count--;
+		clk->core->notifier_count--;
 
 		/* XXX the notifier code should handle this better */
 		if (!cn->notifier_head.head) {
