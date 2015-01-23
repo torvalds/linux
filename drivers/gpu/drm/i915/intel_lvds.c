@@ -532,6 +532,7 @@ static const struct drm_connector_funcs intel_lvds_connector_funcs = {
 	.detect = intel_lvds_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = intel_lvds_set_property,
+	.atomic_get_property = intel_connector_atomic_get_property,
 	.destroy = intel_lvds_destroy,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };

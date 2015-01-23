@@ -1254,6 +1254,10 @@ int intel_atomic_check(struct drm_device *dev,
 int intel_atomic_commit(struct drm_device *dev,
 			struct drm_atomic_state *state,
 			bool async);
+int intel_connector_atomic_get_property(struct drm_connector *connector,
+					const struct drm_connector_state *state,
+					struct drm_property *property,
+					uint64_t *val);
 
 /* intel_atomic_plane.c */
 struct intel_plane_state *intel_create_plane_state(struct drm_plane *plane);
