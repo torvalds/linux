@@ -12439,6 +12439,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_encoder *encoder;
+	struct drm_connector *connector;
 	bool dpd_is_edp = false;
 
 	intel_lvds_init(dev);
@@ -12568,6 +12569,37 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 	if (SUPPORTS_TV(dev))
 		intel_tv_init(dev);
+
+	/*
+	 * FIXME:  We don't have full atomic support yet, but we want to be
+	 * able to enable/test plane updates via the atomic interface in the
+	 * meantime.  However as soon as we flip DRIVER_ATOMIC on, the DRM core
+	 * will take some atomic codepaths to lookup properties during
+	 * drmModeGetConnector() that unconditionally dereference
+	 * connector->state.
+	 *
+	 * We create a dummy connector state here for each connector to ensure
+	 * the DRM core doesn't try to dereference a NULL connector->state.
+	 * The actual connector properties will never be updated or contain
+	 * useful information, but since we're doing this specifically for
+	 * testing/debug of the plane operations (and only when a specific
+	 * kernel module option is given), that shouldn't really matter.
+	 *
+	 * Once atomic support for crtc's + connectors lands, this loop should
+	 * be removed since we'll be setting up real connector state, which
+	 * will contain Intel-specific properties.
+	 */
+	if (drm_core_check_feature(dev, DRIVER_ATOMIC)) {
+		list_for_each_entry(connector,
+				    &dev->mode_config.connector_list,
+				    head) {
+			if (!WARN_ON(connector->state)) {
+				connector->state =
+					kzalloc(sizeof(*connector->state),
+						GFP_KERNEL);
+			}
+		}
+	}
 
 	intel_psr_init(dev);
 

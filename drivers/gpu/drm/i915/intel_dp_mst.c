@@ -26,6 +26,7 @@
 #include <drm/drmP.h>
 #include "i915_drv.h"
 #include "intel_drv.h"
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 
@@ -314,6 +315,7 @@ static const struct drm_connector_funcs intel_dp_mst_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = intel_dp_mst_set_property,
 	.destroy = intel_dp_mst_connector_destroy,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static int intel_dp_mst_get_modes(struct drm_connector *connector)

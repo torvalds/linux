@@ -31,6 +31,7 @@
 #include <linux/notifier.h>
 #include <linux/reboot.h>
 #include <drm/drmP.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
@@ -4402,6 +4403,7 @@ static const struct drm_connector_funcs intel_dp_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = intel_dp_set_property,
 	.destroy = intel_dp_connector_destroy,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static const struct drm_connector_helper_funcs intel_dp_connector_helper_funcs = {

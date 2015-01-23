@@ -27,6 +27,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <drm/drmP.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include "intel_drv.h"
 #include <drm/i915_drm.h>
@@ -390,6 +391,7 @@ static const struct drm_connector_funcs intel_dvo_connector_funcs = {
 	.detect = intel_dvo_detect,
 	.destroy = intel_dvo_destroy,
 	.fill_modes = drm_helper_probe_single_connector_modes,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static const struct drm_connector_helper_funcs intel_dvo_connector_helper_funcs = {
