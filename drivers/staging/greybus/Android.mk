@@ -2,13 +2,15 @@
 
 $(PRODUCT_OUT)/ramdisk.img: build-greybus
 
+GREYBUS_MODULE_OUT_PATH := $(PRODUCT_OUT)/root/lib/modules
+
 include $(CLEAR_VARS)
 GREYBUS_SRC_PATH := $(ANDROID_BUILD_TOP)/external/greybus/
 LOCAL_PATH := $(GREYBUS_SRC_PATH)
 LOCAL_SRC_FILES := greybus.ko
 LOCAL_MODULE := $(LOCAL_SRC_FILES)
 LOCAL_MODULE_CLASS := EXECUTABLES
-LOCAL_MODULE_PATH := $(PRODUCT_OUT)/root/lib/modules
+LOCAL_MODULE_PATH := $(GREYBUS_MODULE_OUT_PATH)
 $(LOCAL_PATH)/$(LOCAL_SRC_FILES): build-greybus
 include $(BUILD_PREBUILT)
 
@@ -26,5 +28,5 @@ build-greybus: android_kernel
 	make clean -C $(GREYBUS_SRC_PATH)
 	cd $(GREYBUS_SRC_PATH) &&\
 	$(MAKE) -j$(MAKE_JOBS) CROSS_COMPILE=$(KERNEL_TOOLS_PREFIX) $(ARGS)
-	mkdir -p $(PRODUCT_OUT)/root/lib/modules
-	cp $(GREYBUS_SRC_PATH)/greybus.ko $(PRODUCT_OUT)/root/lib/modules
+	mkdir -p $(GREYBUS_MODULE_OUT_PATH)
+	cp $(GREYBUS_SRC_PATH)/greybus.ko $(GREYBUS_MODULE_OUT_PATH)
