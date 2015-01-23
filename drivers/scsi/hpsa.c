@@ -3456,8 +3456,6 @@ static void set_encrypt_ioaccel2(struct ctlr_info *h,
 	struct raid_map_data *map = &dev->raid_map;
 	u64 first_block;
 
-	BUG_ON(!(dev->offload_config && dev->offload_enabled));
-
 	/* Are we doing encryption on this device */
 	if (!(le16_to_cpu(map->flags) & RAID_MAP_FLAG_ENCRYPT_ON))
 		return;
@@ -3687,8 +3685,6 @@ static int hpsa_scsi_ioaccel_raid_map(struct ctlr_info *h,
 	u64 tmpdiv;
 #endif
 	int offload_to_mirror;
-
-	BUG_ON(!(dev->offload_config && dev->offload_enabled));
 
 	/* check for valid opcode, get LBA and block count */
 	switch (cmd->cmnd[0]) {
