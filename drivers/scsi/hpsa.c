@@ -2034,7 +2034,7 @@ static int hpsa_scsi_do_inquiry(struct ctlr_info *h, unsigned char *scsi3addr,
 
 	c = cmd_alloc(h);
 
-	if (c == NULL) {			/* trouble... */
+	if (c == NULL) {
 		dev_warn(&h->pdev->dev, "cmd_alloc returned NULL!\n");
 		return -ENOMEM;
 	}
@@ -3807,68 +3807,14 @@ static int hpsa_scsi_ioaccel_raid_map(struct ctlr_info *h,
 						dev->scsi3addr);
 }
 
-/* Running in struct Scsi_Host->host_lock less mode */
-static int hpsa_scsi_queue_command(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
+/* Submit commands down the "normal" RAID stack path */
+static int hpsa_ciss_submit(struct ctlr_info *h,
+	struct CommandList *c, struct scsi_cmnd *cmd,
+	unsigned char scsi3addr[])
 {
-	struct ctlr_info *h;
-	struct hpsa_scsi_dev_t *dev;
-	unsigned char scsi3addr[8];
-	struct CommandList *c;
-	int rc = 0;
-
-	/* Get the ptr to our adapter structure out of cmd->host. */
-	h = sdev_to_hba(cmd->device);
-	dev = cmd->device->hostdata;
-	if (!dev) {
-		cmd->result = DID_NO_CONNECT << 16;
-		cmd->scsi_done(cmd);
-		return 0;
-	}
-	memcpy(scsi3addr, dev->scsi3addr, sizeof(scsi3addr));
-
-	if (unlikely(lockup_detected(h))) {
-		cmd->result = DID_ERROR << 16;
-		cmd->scsi_done(cmd);
-		return 0;
-	}
-	c = cmd_alloc(h);
-	if (c == NULL) {			/* trouble... */
-		dev_err(&h->pdev->dev, "cmd_alloc returned NULL!\n");
-		return SCSI_MLQUEUE_HOST_BUSY;
-	}
-
-	/* Fill in the command list header */
-	/* save c in case we have to abort it  */
 	cmd->host_scribble = (unsigned char *) c;
-
 	c->cmd_type = CMD_SCSI;
 	c->scsi_cmd = cmd;
-
-	/* Call alternate submit routine for I/O accelerated commands.
-	 * Retries always go down the normal I/O path.
-	 */
-	if (likely(cmd->retries == 0 &&
-		cmd->request->cmd_type == REQ_TYPE_FS &&
-		h->acciopath_status)) {
-		if (dev->offload_enabled) {
-			rc = hpsa_scsi_ioaccel_raid_map(h, c);
-			if (rc == 0)
-				return 0; /* Sent on ioaccel path */
-			if (rc < 0) {   /* scsi_dma_map failed. */
-				cmd_free(h, c);
-				return SCSI_MLQUEUE_HOST_BUSY;
-			}
-		} else if (dev->ioaccel_handle) {
-			rc = hpsa_scsi_ioaccel_direct_map(h, c);
-			if (rc == 0)
-				return 0; /* Sent on direct map path */
-			if (rc < 0) {   /* scsi_dma_map failed. */
-				cmd_free(h, c);
-				return SCSI_MLQUEUE_HOST_BUSY;
-			}
-		}
-	}
-
 	c->Header.ReplyQueue = 0;  /* unused in simple mode */
 	memcpy(&c->Header.LUN.LunAddrBytes[0], &scsi3addr[0], 8);
 	c->Header.tag = cpu_to_le64((c->cmdindex << DIRECT_LOOKUP_SHIFT));
@@ -3925,6 +3871,68 @@ static int hpsa_scsi_queue_command(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 	enqueue_cmd_and_start_io(h, c);
 	/* the cmd'll come back via intr handler in complete_scsi_command()  */
 	return 0;
+}
+
+/* Running in struct Scsi_Host->host_lock less mode */
+static int hpsa_scsi_queue_command(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
+{
+	struct ctlr_info *h;
+	struct hpsa_scsi_dev_t *dev;
+	unsigned char scsi3addr[8];
+	struct CommandList *c;
+	int rc = 0;
+
+	/* Get the ptr to our adapter structure out of cmd->host. */
+	h = sdev_to_hba(cmd->device);
+	dev = cmd->device->hostdata;
+	if (!dev) {
+		cmd->result = DID_NO_CONNECT << 16;
+		cmd->scsi_done(cmd);
+		return 0;
+	}
+	memcpy(scsi3addr, dev->scsi3addr, sizeof(scsi3addr));
+
+	if (unlikely(lockup_detected(h))) {
+		cmd->result = DID_ERROR << 16;
+		cmd->scsi_done(cmd);
+		return 0;
+	}
+	c = cmd_alloc(h);
+	if (c == NULL) {			/* trouble... */
+		dev_err(&h->pdev->dev, "cmd_alloc returned NULL!\n");
+		return SCSI_MLQUEUE_HOST_BUSY;
+	}
+
+	/* Call alternate submit routine for I/O accelerated commands.
+	 * Retries always go down the normal I/O path.
+	 */
+	if (likely(cmd->retries == 0 &&
+		cmd->request->cmd_type == REQ_TYPE_FS &&
+		h->acciopath_status)) {
+
+		cmd->host_scribble = (unsigned char *) c;
+		c->cmd_type = CMD_SCSI;
+		c->scsi_cmd = cmd;
+
+		if (dev->offload_enabled) {
+			rc = hpsa_scsi_ioaccel_raid_map(h, c);
+			if (rc == 0)
+				return 0; /* Sent on ioaccel path */
+			if (rc < 0) {   /* scsi_dma_map failed. */
+				cmd_free(h, c);
+				return SCSI_MLQUEUE_HOST_BUSY;
+			}
+		} else if (dev->ioaccel_handle) {
+			rc = hpsa_scsi_ioaccel_direct_map(h, c);
+			if (rc == 0)
+				return 0; /* Sent on direct map path */
+			if (rc < 0) {   /* scsi_dma_map failed. */
+				cmd_free(h, c);
+				return SCSI_MLQUEUE_HOST_BUSY;
+			}
+		}
+	}
+	return hpsa_ciss_submit(h, c, cmd, scsi3addr);
 }
 
 static int do_not_scan_if_controller_locked_up(struct ctlr_info *h)
