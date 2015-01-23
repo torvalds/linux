@@ -1125,7 +1125,7 @@ static void encode_close(struct xdr_stream *xdr, const struct nfs_closeargs *arg
 {
 	encode_op_hdr(xdr, OP_CLOSE, decode_close_maxsz, hdr);
 	encode_nfs4_seqid(xdr, arg->seqid);
-	encode_nfs4_stateid(xdr, arg->stateid);
+	encode_nfs4_stateid(xdr, &arg->stateid);
 }
 
 static void encode_commit(struct xdr_stream *xdr, const struct nfs_commitargs *args, struct compound_hdr *hdr)
@@ -1530,7 +1530,7 @@ static void encode_open_confirm(struct xdr_stream *xdr, const struct nfs_open_co
 static void encode_open_downgrade(struct xdr_stream *xdr, const struct nfs_closeargs *arg, struct compound_hdr *hdr)
 {
 	encode_op_hdr(xdr, OP_OPEN_DOWNGRADE, decode_open_downgrade_maxsz, hdr);
-	encode_nfs4_stateid(xdr, arg->stateid);
+	encode_nfs4_stateid(xdr, &arg->stateid);
 	encode_nfs4_seqid(xdr, arg->seqid);
 	encode_share_access(xdr, arg->fmode);
 }

@@ -389,7 +389,7 @@ struct nfs_open_confirmres {
 struct nfs_closeargs {
 	struct nfs4_sequence_args	seq_args;
 	struct nfs_fh *         fh;
-	nfs4_stateid *		stateid;
+	nfs4_stateid 		stateid;
 	struct nfs_seqid *	seqid;
 	fmode_t			fmode;
 	const u32 *		bitmask;
