@@ -939,15 +939,43 @@ static int coda_job_ready(void *m2m_priv)
 		return 0;
 	}
 
-	if (ctx->hold ||
-	    ((ctx->inst_type == CODA_INST_DECODER) &&
-	     !v4l2_m2m_num_src_bufs_ready(ctx->fh.m2m_ctx) &&
-	     (coda_get_bitstream_payload(ctx) < 512) &&
-	     !(ctx->bit_stream_param & CODA_BIT_STREAM_END_FLAG))) {
-		v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
-			 "%d: not ready: not enough bitstream data.\n",
-			 ctx->idx);
-		return 0;
+	if (ctx->inst_type == CODA_INST_DECODER) {
+		struct list_head *meta;
+		bool stream_end;
+		int num_metas;
+		int src_bufs;
+
+		if (ctx->hold && !v4l2_m2m_num_src_bufs_ready(ctx->fh.m2m_ctx)) {
+			v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
+				 "%d: not ready: on hold for more buffers.\n",
+				 ctx->idx);
+			return 0;
+		}
+
+		stream_end = ctx->bit_stream_param &
+			     CODA_BIT_STREAM_END_FLAG;
+
+		num_metas = 0;
+		list_for_each(meta, &ctx->buffer_meta_list)
+			num_metas++;
+
+		src_bufs = v4l2_m2m_num_src_bufs_ready(ctx->fh.m2m_ctx);
+
+		if (!stream_end && (num_metas + src_bufs) < 2) {
+			v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
+				 "%d: not ready: need 2 buffers available (%d, %d)\n",
+				 ctx->idx, num_metas, src_bufs);
+			return 0;
+		}
+
+
+		if (!v4l2_m2m_num_src_bufs_ready(ctx->fh.m2m_ctx) &&
+		    !stream_end && (coda_get_bitstream_payload(ctx) < 512)) {
+			v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
+				 "%d: not ready: not enough bitstream data (%d).\n",
+				 ctx->idx, coda_get_bitstream_payload(ctx));
+			return 0;
+		}
 	}
 
 	if (ctx->aborting) {
