@@ -272,7 +272,11 @@ struct blk_queue_tag {
 	int max_depth;			/* what we will send to device */
 	int real_max_depth;		/* what the array can hold */
 	atomic_t refcnt;		/* map can be shared */
+	int alloc_policy;		/* tag allocation policy */
+	int next_tag;			/* next tag */
 };
+#define BLK_TAG_ALLOC_FIFO 0 /* allocate starting from 0 */
+#define BLK_TAG_ALLOC_RR 1 /* allocate starting from last allocated tag */
 
 #define BLK_SCSI_MAX_CMDS	(256)
 #define BLK_SCSI_CMD_PER_LONG	(BLK_SCSI_MAX_CMDS / (sizeof(long) * 8))
@@ -1139,11 +1143,11 @@ static inline bool blk_needs_flush_plug(struct task_struct *tsk)
 extern int blk_queue_start_tag(struct request_queue *, struct request *);
 extern struct request *blk_queue_find_tag(struct request_queue *, int);
 extern void blk_queue_end_tag(struct request_queue *, struct request *);
-extern int blk_queue_init_tags(struct request_queue *, int, struct blk_queue_tag *);
+extern int blk_queue_init_tags(struct request_queue *, int, struct blk_queue_tag *, int);
 extern void blk_queue_free_tags(struct request_queue *);
 extern int blk_queue_resize_tags(struct request_queue *, int);
 extern void blk_queue_invalidate_tags(struct request_queue *);
-extern struct blk_queue_tag *blk_init_tags(int);
+extern struct blk_queue_tag *blk_init_tags(int, int);
 extern void blk_free_tags(struct blk_queue_tag *);
 
 static inline struct request *blk_map_queue_find_tag(struct blk_queue_tag *bqt,
@@ -1162,7 +1166,7 @@ extern int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 extern int blkdev_issue_write_same(struct block_device *bdev, sector_t sector,
 		sector_t nr_sects, gfp_t gfp_mask, struct page *page);
 extern int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
-			sector_t nr_sects, gfp_t gfp_mask);
+		sector_t nr_sects, gfp_t gfp_mask, bool discard);
 static inline int sb_issue_discard(struct super_block *sb, sector_t block,
 		sector_t nr_blocks, gfp_t gfp_mask, unsigned long flags)
 {
@@ -1176,7 +1180,7 @@ static inline int sb_issue_zeroout(struct super_block *sb, sector_t block,
 	return blkdev_issue_zeroout(sb->s_bdev,
 				    block << (sb->s_blocksize_bits - 9),
 				    nr_blocks << (sb->s_blocksize_bits - 9),
-				    gfp_mask);
+				    gfp_mask, true);
 }
 
 extern int blk_verify_command(unsigned char *cmd, fmode_t has_write_perm);
