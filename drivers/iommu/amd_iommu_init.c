@@ -2120,9 +2120,14 @@ static int __init iommu_go_to_state(enum iommu_init_state state)
 #ifdef CONFIG_IRQ_REMAP
 int __init amd_iommu_prepare(void)
 {
+	int ret;
+
 	amd_iommu_irq_remap = true;
 
-	return iommu_go_to_state(IOMMU_ACPI_FINISHED);
+	ret = iommu_go_to_state(IOMMU_ACPI_FINISHED);
+	if (ret)
+		return ret;
+	return amd_iommu_irq_remap ? 0 : -ENODEV;
 }
 
 int __init amd_iommu_enable(void)
