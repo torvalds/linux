@@ -818,4 +818,8 @@
 		clock-names = "ppmu";
 		status = "disabled";
 	};
+
+	tmu: tmu@100C0000 {
+		#include "exynos4412-tmu-sensor-conf.dtsi"
+	};
 };
