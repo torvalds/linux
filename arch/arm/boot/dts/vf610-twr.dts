@@ -123,7 +123,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1>;
 	bus-width = <4>;
-	cd-gpios = <&gpio5 6 GPIO_ACTIVE_LOW>;
+	cd-gpios = <&gpio4 6 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 

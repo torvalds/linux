@@ -9,14 +9,10 @@
  *
  */
 /dts-v1/;
-#include "imx6q.dtsi"
+#include "imx6dl.dtsi"
 #include "imx6qdl-udoo.dtsi"
 
 / {
-	model = "Udoo i.MX6 Quad Board";
-	compatible = "udoo,imx6q-udoo", "fsl,imx6q";
-};
-
-&sata {
-	status = "okay";
+	model = "Udoo i.MX6 Dual-lite Board";
+	compatible = "udoo,imx6dl-udoo", "fsl,imx6dl";
 };
