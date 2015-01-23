@@ -1693,8 +1693,6 @@ static int coda_release(struct file *file)
 	v4l2_dbg(1, coda_debug, &dev->v4l2_dev, "Releasing instance %p\n",
 		 ctx);
 
-	debugfs_remove_recursive(ctx->debugfs_entry);
-
 	if (ctx->inst_type == CODA_INST_DECODER)
 		coda_bit_stream_end_flag(ctx);
 
@@ -1728,6 +1726,7 @@ static int coda_release(struct file *file)
 	clear_bit(ctx->idx, &dev->instance_mask);
 	if (ctx->ops->release)
 		ctx->ops->release(ctx);
+	debugfs_remove_recursive(ctx->debugfs_entry);
 	kfree(ctx);
 
 	return 0;
