@@ -134,6 +134,7 @@ void drm_atomic_state_clear(struct drm_atomic_state *state)
 
 		connector->funcs->atomic_destroy_state(connector,
 						       state->connector_states[i]);
+		state->connector_states[i] = NULL;
 	}
 
 	for (i = 0; i < config->num_crtc; i++) {
@@ -144,6 +145,7 @@ void drm_atomic_state_clear(struct drm_atomic_state *state)
 
 		crtc->funcs->atomic_destroy_state(crtc,
 						  state->crtc_states[i]);
+		state->crtc_states[i] = NULL;
 	}
 
 	for (i = 0; i < config->num_total_plane; i++) {
@@ -154,6 +156,7 @@ void drm_atomic_state_clear(struct drm_atomic_state *state)
 
 		plane->funcs->atomic_destroy_state(plane,
 						   state->plane_states[i]);
+		state->plane_states[i] = NULL;
 	}
 }
 EXPORT_SYMBOL(drm_atomic_state_clear);
