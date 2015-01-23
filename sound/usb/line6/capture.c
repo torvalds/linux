@@ -85,58 +85,6 @@ int line6_submit_audio_in_all_urbs(struct snd_line6_pcm *line6pcm)
 }
 
 /*
-	Unlink all currently active capture URBs.
-*/
-void line6_unlink_audio_in_urbs(struct snd_line6_pcm *line6pcm)
-{
-	unsigned int i;
-
-	for (i = 0; i < LINE6_ISO_BUFFERS; i++) {
-		if (test_bit(i, &line6pcm->in.active_urbs)) {
-			if (!test_and_set_bit(i, &line6pcm->in.unlink_urbs)) {
-				struct urb *u = line6pcm->in.urbs[i];
-
-				usb_unlink_urb(u);
-			}
-		}
-	}
-}
-
-/*
-	Wait until unlinking of all currently active capture URBs has been
-	finished.
-*/
-void line6_wait_clear_audio_in_urbs(struct snd_line6_pcm *line6pcm)
-{
-	int timeout = HZ;
-	unsigned int i;
-	int alive;
-
-	do {
-		alive = 0;
-		for (i = 0; i < LINE6_ISO_BUFFERS; i++) {
-			if (test_bit(i, &line6pcm->in.active_urbs))
-				alive++;
-		}
-		if (!alive)
-			break;
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
-	} while (--timeout > 0);
-	if (alive)
-		snd_printk(KERN_ERR "timeout: still %d active urbs..\n", alive);
-}
-
-/*
-	Unlink all currently active capture URBs, and wait for finishing.
-*/
-void line6_unlink_wait_clear_audio_in_urbs(struct snd_line6_pcm *line6pcm)
-{
-	line6_unlink_audio_in_urbs(line6pcm);
-	line6_wait_clear_audio_in_urbs(line6pcm);
-}
-
-/*
 	Copy data into ALSA capture buffer.
 */
 void line6_capture_copy(struct snd_line6_pcm *line6pcm, char *fbuf, int fsize)

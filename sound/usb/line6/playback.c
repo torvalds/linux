@@ -290,58 +290,6 @@ int line6_submit_audio_out_all_urbs(struct snd_line6_pcm *line6pcm)
 	return 0;
 }
 
-/*
-	Unlink all currently active playback URBs.
-*/
-void line6_unlink_audio_out_urbs(struct snd_line6_pcm *line6pcm)
-{
-	unsigned int i;
-
-	for (i = 0; i < LINE6_ISO_BUFFERS; i++) {
-		if (test_bit(i, &line6pcm->out.active_urbs)) {
-			if (!test_and_set_bit(i, &line6pcm->out.unlink_urbs)) {
-				struct urb *u = line6pcm->out.urbs[i];
-
-				usb_unlink_urb(u);
-			}
-		}
-	}
-}
-
-/*
-	Wait until unlinking of all currently active playback URBs has been
-	finished.
-*/
-void line6_wait_clear_audio_out_urbs(struct snd_line6_pcm *line6pcm)
-{
-	int timeout = HZ;
-	unsigned int i;
-	int alive;
-
-	do {
-		alive = 0;
-		for (i = 0; i < LINE6_ISO_BUFFERS; i++) {
-			if (test_bit(i, &line6pcm->out.active_urbs))
-				alive++;
-		}
-		if (!alive)
-			break;
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
-	} while (--timeout > 0);
-	if (alive)
-		snd_printk(KERN_ERR "timeout: still %d active urbs..\n", alive);
-}
-
-/*
-	Unlink all currently active playback URBs, and wait for finishing.
-*/
-void line6_unlink_wait_clear_audio_out_urbs(struct snd_line6_pcm *line6pcm)
-{
-	line6_unlink_audio_out_urbs(line6pcm);
-	line6_wait_clear_audio_out_urbs(line6pcm);
-}
-
 void line6_free_playback_buffer(struct snd_line6_pcm *line6pcm)
 {
 	kfree(line6pcm->out.buffer);

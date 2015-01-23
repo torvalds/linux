@@ -90,6 +90,47 @@ static int snd_line6_impulse_period_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
+/*
+	Unlink all currently active URBs.
+*/
+static void line6_unlink_audio_urbs(struct snd_line6_pcm *line6pcm,
+				    struct line6_pcm_stream *pcms)
+{
+	int i;
+
+	for (i = 0; i < LINE6_ISO_BUFFERS; i++) {
+		if (test_bit(i, &pcms->active_urbs)) {
+			if (!test_and_set_bit(i, &pcms->unlink_urbs))
+				usb_unlink_urb(pcms->urbs[i]);
+		}
+	}
+}
+
+/*
+	Wait until unlinking of all currently active URBs has been finished.
+*/
+static void line6_wait_clear_audio_urbs(struct snd_line6_pcm *line6pcm,
+					struct line6_pcm_stream *pcms)
+{
+	int timeout = HZ;
+	int i;
+	int alive;
+
+	do {
+		alive = 0;
+		for (i = 0; i < LINE6_ISO_BUFFERS; i++) {
+			if (test_bit(i, &pcms->active_urbs))
+				alive++;
+		}
+		if (!alive)
+			break;
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(1);
+	} while (--timeout > 0);
+	if (alive)
+		snd_printk(KERN_ERR "timeout: still %d active urbs..\n", alive);
+}
+
 static bool test_flags(unsigned long flags0, unsigned long flags1,
 		       unsigned long mask)
 {
@@ -202,18 +243,18 @@ int line6_pcm_release(struct snd_line6_pcm *line6pcm, int channels)
 	} while (cmpxchg(&line6pcm->flags, flags_old, flags_new) != flags_old);
 
 	if (test_flags(flags_new, flags_old, LINE6_BITS_CAPTURE_STREAM))
-		line6_unlink_audio_in_urbs(line6pcm);
+		line6_unlink_audio_urbs(line6pcm, &line6pcm->in);
 
 	if (test_flags(flags_new, flags_old, LINE6_BITS_CAPTURE_BUFFER)) {
-		line6_wait_clear_audio_in_urbs(line6pcm);
+		line6_wait_clear_audio_urbs(line6pcm, &line6pcm->in);
 		line6_free_capture_buffer(line6pcm);
 	}
 
 	if (test_flags(flags_new, flags_old, LINE6_BITS_PLAYBACK_STREAM))
-		line6_unlink_audio_out_urbs(line6pcm);
+		line6_unlink_audio_urbs(line6pcm, &line6pcm->out);
 
 	if (test_flags(flags_new, flags_old, LINE6_BITS_PLAYBACK_BUFFER)) {
-		line6_wait_clear_audio_out_urbs(line6pcm);
+		line6_wait_clear_audio_urbs(line6pcm, &line6pcm->out);
 		line6_free_playback_buffer(line6pcm);
 	}
 
@@ -325,21 +366,24 @@ static struct snd_kcontrol_new line6_controls[] = {
 /*
 	Cleanup the PCM device.
 */
-static void line6_cleanup_pcm(struct snd_pcm *pcm)
+static void cleanup_urbs(struct line6_pcm_stream *pcms)
 {
 	int i;
-	struct snd_line6_pcm *line6pcm = snd_pcm_chip(pcm);
 
 	for (i = 0; i < LINE6_ISO_BUFFERS; i++) {
-		if (line6pcm->out.urbs[i]) {
-			usb_kill_urb(line6pcm->out.urbs[i]);
-			usb_free_urb(line6pcm->out.urbs[i]);
-		}
-		if (line6pcm->in.urbs[i]) {
-			usb_kill_urb(line6pcm->in.urbs[i]);
-			usb_free_urb(line6pcm->in.urbs[i]);
+		if (pcms->urbs[i]) {
+			usb_kill_urb(pcms->urbs[i]);
+			usb_free_urb(pcms->urbs[i]);
 		}
 	}
+}
+
+static void line6_cleanup_pcm(struct snd_pcm *pcm)
+{
+	struct snd_line6_pcm *line6pcm = snd_pcm_chip(pcm);
+
+	cleanup_urbs(&line6pcm->out);
+	cleanup_urbs(&line6pcm->in);
 	kfree(line6pcm);
 }
 
@@ -374,8 +418,10 @@ static int snd_line6_new_pcm(struct usb_line6 *line6, struct snd_pcm **pcm_ret)
 */
 void line6_pcm_disconnect(struct snd_line6_pcm *line6pcm)
 {
-	line6_unlink_wait_clear_audio_out_urbs(line6pcm);
-	line6_unlink_wait_clear_audio_in_urbs(line6pcm);
+	line6_unlink_audio_urbs(line6pcm, &line6pcm->out);
+	line6_unlink_audio_urbs(line6pcm, &line6pcm->in);
+	line6_wait_clear_audio_urbs(line6pcm, &line6pcm->out);
+	line6_wait_clear_audio_urbs(line6pcm, &line6pcm->in);
 }
 
 /*
@@ -451,15 +497,17 @@ int snd_line6_prepare(struct snd_pcm_substream *substream)
 
 	switch (substream->stream) {
 	case SNDRV_PCM_STREAM_PLAYBACK:
-		if ((line6pcm->flags & LINE6_BITS_PLAYBACK_STREAM) == 0)
-			line6_unlink_wait_clear_audio_out_urbs(line6pcm);
-
+		if ((line6pcm->flags & LINE6_BITS_PLAYBACK_STREAM) == 0) {
+			line6_unlink_audio_urbs(line6pcm, &line6pcm->out);
+			line6_wait_clear_audio_urbs(line6pcm, &line6pcm->out);
+		}
 		break;
 
 	case SNDRV_PCM_STREAM_CAPTURE:
-		if ((line6pcm->flags & LINE6_BITS_CAPTURE_STREAM) == 0)
-			line6_unlink_wait_clear_audio_in_urbs(line6pcm);
-
+		if ((line6pcm->flags & LINE6_BITS_CAPTURE_STREAM) == 0) {
+			line6_unlink_audio_urbs(line6pcm, &line6pcm->in);
+			line6_wait_clear_audio_urbs(line6pcm, &line6pcm->in);
+		}
 		break;
 	}
 
