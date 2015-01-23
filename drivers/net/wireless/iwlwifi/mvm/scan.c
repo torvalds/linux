@@ -1683,10 +1683,10 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 
 	band = &mvm->nvm_data->bands[IEEE80211_BAND_2GHZ];
 	for (i = 0; i < band->n_channels; i++, j++)
-		scan_config->channel_array[j] = band->channels[i].center_freq;
+		scan_config->channel_array[j] = band->channels[i].hw_value;
 	band = &mvm->nvm_data->bands[IEEE80211_BAND_5GHZ];
 	for (i = 0; i < band->n_channels; i++, j++)
-		scan_config->channel_array[j] = band->channels[i].center_freq;
+		scan_config->channel_array[j] = band->channels[i].hw_value;
 
 	cmd.data[0] = scan_config;
 	cmd.len[0] = cmd_size;
