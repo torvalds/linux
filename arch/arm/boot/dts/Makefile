@@ -297,14 +297,14 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-sabresd.dtb \
 	imx6q-sbc6x.dtb \
 	imx6q-tbs2910.dtb \
-	imx6q-udoo.dtb \
-	imx6q-wandboard.dtb \
-	imx6q-wandboard-revb1.dtb \
 	imx6q-tx6q-1010.dtb \
 	imx6q-tx6q-1010-comtft.dtb \
 	imx6q-tx6q-1020.dtb \
 	imx6q-tx6q-1020-comtft.dtb \
-	imx6q-tx6q-1110.dtb
+	imx6q-tx6q-1110.dtb \
+	imx6q-udoo.dtb \
+	imx6q-wandboard.dtb \
+	imx6q-wandboard-revb1.dtb
 dtb-$(CONFIG_SOC_IMX6SL) += \
 	imx6sl-evk.dtb
 dtb-$(CONFIG_SOC_IMX6SX) += \
