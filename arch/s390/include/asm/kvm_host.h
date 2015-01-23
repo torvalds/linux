@@ -35,11 +35,13 @@
 #define KVM_NR_IRQCHIPS 1
 #define KVM_IRQCHIP_NUM_PINS 4096
 
-#define SIGP_CTRL_C	0x00800000
+#define SIGP_CTRL_C		0x80
+#define SIGP_CTRL_SCN_MASK	0x3f
 
 struct sca_entry {
-	atomic_t ctrl;
-	__u32	reserved;
+	__u8	reserved0;
+	__u8	sigp_ctrl;
+	__u16	reserved[3];
 	__u64	sda;
 	__u64	reserved2[2];
 } __attribute__((packed));
@@ -132,7 +134,9 @@ struct kvm_s390_sie_block {
 	__u8	reserved60;		/* 0x0060 */
 	__u8	ecb;			/* 0x0061 */
 	__u8    ecb2;                   /* 0x0062 */
-	__u8    reserved63[1];          /* 0x0063 */
+#define ECB3_AES 0x04
+#define ECB3_DEA 0x08
+	__u8    ecb3;			/* 0x0063 */
 	__u32	scaol;			/* 0x0064 */
 	__u8	reserved68[4];		/* 0x0068 */
 	__u32	todpr;			/* 0x006c */
@@ -378,13 +382,10 @@ struct kvm_s390_interrupt_info {
 		struct kvm_s390_emerg_info emerg;
 		struct kvm_s390_extcall_info extcall;
 		struct kvm_s390_prefix_info prefix;
+		struct kvm_s390_stop_info stop;
 		struct kvm_s390_mchk_info mchk;
 	};
 };
-
-/* for local_interrupt.action_flags */
-#define ACTION_STORE_ON_STOP		(1<<0)
-#define ACTION_STOP_ON_STOP		(1<<1)
 
 struct kvm_s390_irq_payload {
 	struct kvm_s390_io_info io;
@@ -393,6 +394,7 @@ struct kvm_s390_irq_payload {
 	struct kvm_s390_emerg_info emerg;
 	struct kvm_s390_extcall_info extcall;
 	struct kvm_s390_prefix_info prefix;
+	struct kvm_s390_stop_info stop;
 	struct kvm_s390_mchk_info mchk;
 };
 
@@ -401,7 +403,6 @@ struct kvm_s390_local_interrupt {
 	struct kvm_s390_float_interrupt *float_int;
 	wait_queue_head_t *wq;
 	atomic_t *cpuflags;
-	unsigned int action_bits;
 	DECLARE_BITMAP(sigp_emerg_pending, KVM_MAX_VCPUS);
 	struct kvm_s390_irq_payload irq;
 	unsigned long pending_irqs;
@@ -470,7 +471,6 @@ struct kvm_vcpu_arch {
 	};
 	struct gmap *gmap;
 	struct kvm_guestdbg_info_arch guestdbg;
-#define KVM_S390_PFAULT_TOKEN_INVALID	(-1UL)
 	unsigned long pfault_token;
 	unsigned long pfault_select;
 	unsigned long pfault_compare;
@@ -507,10 +507,14 @@ struct s390_io_adapter {
 struct kvm_s390_crypto {
 	struct kvm_s390_crypto_cb *crycb;
 	__u32 crycbd;
+	__u8 aes_kw;
+	__u8 dea_kw;
 };
 
 struct kvm_s390_crypto_cb {
-	__u8    reserved00[128];                /* 0x0000 */
+	__u8    reserved00[72];                 /* 0x0000 */
+	__u8    dea_wrapping_key_mask[24];      /* 0x0048 */
+	__u8    aes_wrapping_key_mask[32];      /* 0x0060 */
 };
 
 struct kvm_arch{
@@ -523,12 +527,14 @@ struct kvm_arch{
 	int use_irqchip;
 	int use_cmma;
 	int user_cpu_state_ctrl;
+	int user_sigp;
 	struct s390_io_adapter *adapters[MAX_S390_IO_ADAPTERS];
 	wait_queue_head_t ipte_wq;
 	int ipte_lock_count;
 	struct mutex ipte_mutex;
 	spinlock_t start_stop_lock;
 	struct kvm_s390_crypto crypto;
+	u64 epoch;
 };
 
 #define KVM_HVA_ERR_BAD		(-1UL)

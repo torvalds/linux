@@ -7021,15 +7021,13 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	return r;
 }
 
-int kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
+void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 {
-	int r;
 	struct msr_data msr;
 	struct kvm *kvm = vcpu->kvm;
 
-	r = vcpu_load(vcpu);
-	if (r)
-		return r;
+	if (vcpu_load(vcpu))
+		return;
 	msr.data = 0x0;
 	msr.index = MSR_IA32_TSC;
 	msr.host_initiated = true;
@@ -7038,8 +7036,6 @@ int kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 
 	schedule_delayed_work(&kvm->arch.kvmclock_sync_work,
 					KVMCLOCK_SYNC_PERIOD);
-
-	return r;
 }
 
 void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)

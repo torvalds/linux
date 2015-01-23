@@ -228,11 +228,13 @@ int s390int_to_s390irq(struct kvm_s390_interrupt *s390int,
 			struct kvm_s390_irq *s390irq);
 
 /* implemented in interrupt.c */
-int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu);
+int kvm_s390_vcpu_has_irq(struct kvm_vcpu *vcpu, int exclude_stop);
 int psw_extint_disabled(struct kvm_vcpu *vcpu);
 void kvm_s390_destroy_adapters(struct kvm *kvm);
-int kvm_s390_si_ext_call_pending(struct kvm_vcpu *vcpu);
+int kvm_s390_ext_call_pending(struct kvm_vcpu *vcpu);
 extern struct kvm_device_ops kvm_flic_ops;
+int kvm_s390_is_stop_irq_pending(struct kvm_vcpu *vcpu);
+void kvm_s390_clear_stop_irq(struct kvm_vcpu *vcpu);
 
 /* implemented in guestdbg.c */
 void kvm_s390_backup_guest_per_regs(struct kvm_vcpu *vcpu);

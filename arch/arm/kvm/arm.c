@@ -249,9 +249,8 @@ out:
 	return ERR_PTR(err);
 }
 
-int kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
+void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 {
-	return 0;
 }
 
 void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
