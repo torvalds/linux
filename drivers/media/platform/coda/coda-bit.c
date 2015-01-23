@@ -1666,6 +1666,9 @@ static int coda_prepare_decode(struct coda_ctx *ctx)
 
 	coda_kfifo_sync_to_device_full(ctx);
 
+	/* Clear decode success flag */
+	coda_write(dev, 0, CODA_RET_DEC_PIC_SUCCESS);
+
 	coda_command_async(ctx, CODA_COMMAND_PIC_RUN);
 
 	return 0;
