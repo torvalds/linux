@@ -674,6 +674,7 @@ static int coda_s_fmt_vid_out(struct file *file, void *priv,
 
 	ctx->colorspace = f->fmt.pix.colorspace;
 
+	memset(&f_cap, 0, sizeof(f_cap));
 	f_cap.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	coda_g_fmt(file, priv, &f_cap);
 	f_cap.fmt.pix.width = f->fmt.pix.width;
