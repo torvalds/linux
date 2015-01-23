@@ -133,7 +133,8 @@ int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int channels)
 		 */
 		if (line6pcm->active_urb_in | line6pcm->unlink_urb_in) {
 			dev_err(line6pcm->line6->ifcdev, "Device not yet ready\n");
-			return -EBUSY;
+			err = -EBUSY;
+			goto pcm_acquire_error;
 		}
 
 		line6pcm->count_in = 0;
