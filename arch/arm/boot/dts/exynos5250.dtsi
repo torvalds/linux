@@ -58,11 +58,14 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu@0 {
+		cpu0: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a15";
 			reg = <0>;
 			clock-frequency = <1700000000>;
+			cooling-min-level = <15>;
+			cooling-max-level = <9>;
+			#cooling-cells = <2>; /* min followed by max */
 		};
 		cpu@1 {
 			device_type = "cpu";
@@ -247,6 +250,21 @@
 		interrupts = <0 65 0>;
 		clocks = <&clock CLK_TMU>;
 		clock-names = "tmu_apbif";
+	};
+
+	thermal-zones {
+		cpu_thermal: cpu-thermal {
+			cooling-maps {
+				map0 {
+				     /* Corresponds to 800MHz at freq_table */
+				     cooling-device = <&cpu0 9 9>;
+				};
+				map1 {
+				     /* Corresponds to 200MHz at freq_table */
+				     cooling-device = <&cpu0 15 15>;
+			       };
+		       };
+		};
 	};
 
 	serial@12C00000 {
