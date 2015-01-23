@@ -6508,6 +6508,8 @@ static void hpsa_free_irqs(struct ctlr_info *h)
 		irq_set_affinity_hint(h->intr[i], NULL);
 		free_irq(h->intr[i], &h->q[i]);
 	}
+	for (; i < MAX_REPLY_QUEUES; i++)
+		h->q[i] = 0;
 }
 
 static int hpsa_request_irq(struct ctlr_info *h,
@@ -6525,10 +6527,25 @@ static int hpsa_request_irq(struct ctlr_info *h,
 
 	if (h->intr_mode == PERF_MODE_INT && h->msix_vector > 0) {
 		/* If performant mode and MSI-X, use multiple reply queues */
-		for (i = 0; i < h->msix_vector; i++)
+		for (i = 0; i < h->msix_vector; i++) {
 			rc = request_irq(h->intr[i], msixhandler,
 					0, h->devname,
 					&h->q[i]);
+			if (rc) {
+				int j;
+
+				dev_err(&h->pdev->dev,
+					"failed to get irq %d for %s\n",
+				       h->intr[i], h->devname);
+				for (j = 0; j < i; j++) {
+					free_irq(h->intr[j], &h->q[j]);
+					h->q[j] = 0;
+				}
+				for (; j < MAX_REPLY_QUEUES; j++)
+					h->q[j] = 0;
+				return rc;
+			}
+		}
 		hpsa_irq_affinity_hints(h);
 	} else {
 		/* Use single reply pool */
