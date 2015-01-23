@@ -507,39 +507,20 @@ int line6_probe(struct usb_interface *interface,
 	int interface_number;
 	int ret;
 
-	/* we don't handle multiple configurations */
-	if (usbdev->descriptor.bNumConfigurations != 1) {
-		ret = -ENODEV;
-		goto err_put;
-	}
-
-	/* initialize device info: */
-	dev_info(&interface->dev, "Line 6 %s found\n", properties->name);
-
-	/* query interface number */
-	interface_number = interface->cur_altsetting->desc.bInterfaceNumber;
-
-	ret = usb_set_interface(usbdev, interface_number,
-			properties->altsetting);
+	ret = snd_card_new(&interface->dev,
+			   SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
+			   THIS_MODULE, 0, &card);
 	if (ret < 0) {
-		dev_err(&interface->dev, "set_interface failed\n");
-		goto err_put;
+		kfree(line6);
+		return ret;
 	}
 
 	/* store basic data: */
+	line6->card = card;
 	line6->properties = properties;
 	line6->usbdev = usbdev;
 	line6->ifcdev = &interface->dev;
 
-	line6_get_interval(line6);
-
-	ret = snd_card_new(line6->ifcdev,
-			   SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
-			   THIS_MODULE, 0, &card);
-	if (ret < 0)
-		goto err_put;
-
-	line6->card = card;
 	strcpy(card->id, line6->properties->id);
 	strcpy(card->driver, DRIVER_NAME);
 	strcpy(card->shortname, line6->properties->name);
@@ -553,16 +534,37 @@ int line6_probe(struct usb_interface *interface,
 	/* increment reference counters: */
 	usb_get_dev(usbdev);
 
+	/* we don't handle multiple configurations */
+	if (usbdev->descriptor.bNumConfigurations != 1) {
+		ret = -ENODEV;
+		goto error;
+	}
+
+	/* initialize device info: */
+	dev_info(&interface->dev, "Line 6 %s found\n", properties->name);
+
+	/* query interface number */
+	interface_number = interface->cur_altsetting->desc.bInterfaceNumber;
+
+	ret = usb_set_interface(usbdev, interface_number,
+			properties->altsetting);
+	if (ret < 0) {
+		dev_err(&interface->dev, "set_interface failed\n");
+		goto error;
+	}
+
+	line6_get_interval(line6);
+
 	if (properties->capabilities & LINE6_CAP_CONTROL) {
 		ret = line6_init_cap_control(line6);
 		if (ret < 0)
-			goto err_destruct;
+			goto error;
 	}
 
 	/* initialize device data based on device: */
 	ret = private_init(interface, line6);
 	if (ret < 0)
-		goto err_destruct;
+		goto error;
 
 	/* creation of additional special files should go here */
 
@@ -571,11 +573,10 @@ int line6_probe(struct usb_interface *interface,
 
 	return 0;
 
- err_destruct:
+ error:
 	if (line6->disconnect)
 		line6->disconnect(interface);
 	snd_card_free(card);
- err_put:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(line6_probe);
