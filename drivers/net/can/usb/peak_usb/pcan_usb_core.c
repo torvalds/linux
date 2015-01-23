@@ -37,6 +37,8 @@ MODULE_LICENSE("GPL v2");
 static struct usb_device_id peak_usb_table[] = {
 	{USB_DEVICE(PCAN_USB_VENDOR_ID, PCAN_USB_PRODUCT_ID)},
 	{USB_DEVICE(PCAN_USB_VENDOR_ID, PCAN_USBPRO_PRODUCT_ID)},
+	{USB_DEVICE(PCAN_USB_VENDOR_ID, PCAN_USBFD_PRODUCT_ID)},
+	{USB_DEVICE(PCAN_USB_VENDOR_ID, PCAN_USBPROFD_PRODUCT_ID)},
 	{} /* Terminating entry */
 };
 
@@ -46,6 +48,8 @@ MODULE_DEVICE_TABLE(usb, peak_usb_table);
 static const struct peak_usb_adapter *const peak_usb_adapters_list[] = {
 	&pcan_usb,
 	&pcan_usb_pro,
+	&pcan_usb_fd,
+	&pcan_usb_pro_fd,
 };
 
 /*
