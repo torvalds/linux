@@ -234,12 +234,13 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 		line6pcm->out.pos += urb_frames;
 		if (line6pcm->out.pos >= runtime->buffer_size)
 			line6pcm->out.pos -= runtime->buffer_size;
+
+		change_volume(urb_out, line6pcm->volume_playback,
+			      bytes_per_frame);
 	} else {
 		memset(urb_out->transfer_buffer, 0,
 		       urb_out->transfer_buffer_length);
 	}
-
-	change_volume(urb_out, line6pcm->volume_playback, bytes_per_frame);
 
 	if (line6pcm->prev_fbuf != NULL) {
 		if (line6pcm->flags & LINE6_BITS_PCM_IMPULSE) {
