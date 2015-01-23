@@ -3921,6 +3921,9 @@ static int hpsa_scsi_ioaccel_raid_map(struct ctlr_info *h,
 		return IO_ACCEL_INELIGIBLE;
 	}
 
+	if (unlikely(map_index >= RAID_MAP_MAX_ENTRIES))
+		return IO_ACCEL_INELIGIBLE;
+
 	c->phys_disk = dev->phys_disk[map_index];
 
 	disk_handle = dd[map_index].ioaccel_handle;
