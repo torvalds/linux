@@ -2469,8 +2469,7 @@ static int macb_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int macb_suspend(struct device *dev)
+static int __maybe_unused macb_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct net_device *netdev = platform_get_drvdata(pdev);
@@ -2487,7 +2486,7 @@ static int macb_suspend(struct device *dev)
 	return 0;
 }
 
-static int macb_resume(struct device *dev)
+static int __maybe_unused macb_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct net_device *netdev = platform_get_drvdata(pdev);
@@ -2502,7 +2501,6 @@ static int macb_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(macb_pm_ops, macb_suspend, macb_resume);
 
