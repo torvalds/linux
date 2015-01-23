@@ -89,7 +89,7 @@ static int init_display(struct fbtft_par *par)
 	return 0;
 }
 
-void reset(struct fbtft_par *par)
+static void reset(struct fbtft_par *par)
 {
 	if (par->gpio.reset == -1)
 		return;
