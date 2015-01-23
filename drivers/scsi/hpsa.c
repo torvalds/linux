@@ -6948,8 +6948,9 @@ reinit_after_soft_reset:
 	dev_info(&pdev->dev, "%s: <0x%x> at IRQ %d%s using DAC\n",
 	       h->devname, pdev->device,
 	       h->intr[h->intr_mode], dac ? "" : " not");
-	if (hpsa_allocate_cmd_pool(h))
-		goto clean4;
+	rc = hpsa_allocate_cmd_pool(h);
+	if (rc)
+		goto clean2_and_free_irqs;
 	if (hpsa_allocate_sg_chain_blocks(h))
 		goto clean4;
 	init_waitqueue_head(&h->scan_wait_queue);
@@ -7038,6 +7039,7 @@ reinit_after_soft_reset:
 clean4:
 	hpsa_free_sg_chain_blocks(h);
 	hpsa_free_cmd_pool(h);
+clean2_and_free_irqs:
 	hpsa_free_irqs(h);
 clean2:
 clean1:
