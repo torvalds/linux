@@ -1042,8 +1042,8 @@ static void stage2_wp_range(struct kvm *kvm, phys_addr_t addr, phys_addr_t end)
 		/*
 		 * Release kvm_mmu_lock periodically if the memory region is
 		 * large. Otherwise, we may see kernel panics with
-		 * CONFIG_DETECT_HUNG_TASK, CONFIG_LOCK_DETECTOR,
-		 * CONFIG_LOCK_DEP. Additionally, holding the lock too long
+		 * CONFIG_DETECT_HUNG_TASK, CONFIG_LOCKUP_DETECTOR,
+		 * CONFIG_LOCKDEP. Additionally, holding the lock too long
 		 * will also starve other vCPUs.
 		 */
 		if (need_resched() || spin_needbreak(&kvm->mmu_lock))
