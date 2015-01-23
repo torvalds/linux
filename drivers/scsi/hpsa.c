@@ -6130,8 +6130,10 @@ static int hpsa_find_cfgtables(struct ctlr_info *h)
 		return rc;
 	h->cfgtable = remap_pci_mem(pci_resource_start(h->pdev,
 		       cfg_base_addr_index) + cfg_offset, sizeof(*h->cfgtable));
-	if (!h->cfgtable)
+	if (!h->cfgtable) {
+		dev_err(&h->pdev->dev, "Failed mapping cfgtable\n");
 		return -ENOMEM;
+	}
 	rc = write_driver_ver_to_cfgtable(h->cfgtable);
 	if (rc)
 		return rc;
