@@ -106,7 +106,7 @@ int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int channels)
 		flags_new = flags_old | channels;
 	} while (cmpxchg(&line6pcm->flags, flags_old, flags_new) != flags_old);
 
-	flags_final = flags_old;
+	flags_final = 0;
 
 	line6pcm->prev_fbuf = NULL;
 
@@ -120,9 +120,9 @@ int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int channels)
 				err = -ENOMEM;
 				goto pcm_acquire_error;
 			}
-
-			flags_final |= channels & LINE6_BITS_CAPTURE_BUFFER;
 		}
+
+		flags_final |= channels & LINE6_BITS_CAPTURE_BUFFER;
 	}
 
 	if (test_flags(flags_old, flags_new, LINE6_BITS_CAPTURE_STREAM)) {
@@ -157,9 +157,9 @@ int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int channels)
 				err = -ENOMEM;
 				goto pcm_acquire_error;
 			}
-
-			flags_final |= channels & LINE6_BITS_PLAYBACK_BUFFER;
 		}
+
+		flags_final |= channels & LINE6_BITS_PLAYBACK_BUFFER;
 	}
 
 	if (test_flags(flags_old, flags_new, LINE6_BITS_PLAYBACK_STREAM)) {
@@ -187,7 +187,7 @@ pcm_acquire_error:
 	   If not all requested resources/streams could be obtained, release
 	   those which were successfully obtained (if any).
 	*/
-	line6_pcm_release(line6pcm, flags_final & channels);
+	line6_pcm_release(line6pcm, flags_final);
 	return err;
 }
 EXPORT_SYMBOL_GPL(line6_pcm_acquire);
