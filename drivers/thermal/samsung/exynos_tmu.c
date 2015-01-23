@@ -916,13 +916,6 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 
 	sensor_conf->trip_data.trigger_falling = pdata->threshold_falling;
 
-	sensor_conf->cooling_data.freq_clip_count = pdata->freq_tab_count;
-	for (i = 0; i < pdata->freq_tab_count; i++) {
-		sensor_conf->cooling_data.freq_data[i].freq_clip_max =
-					pdata->freq_tab[i].freq_clip_max;
-		sensor_conf->cooling_data.freq_data[i].temp_level =
-					pdata->freq_tab[i].temp_level;
-	}
 	sensor_conf->dev = &pdev->dev;
 	/* Register the sensor with thermal management interface */
 	ret = exynos_register_thermal(sensor_conf);
