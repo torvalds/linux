@@ -3236,6 +3236,17 @@ out:
 	kfree(id_phys);
 }
 
+static void hpsa_set_sg_descriptor(struct SGDescriptor *desc,
+				   struct scatterlist *sg)
+{
+	u64 addr64 = (u64) sg_dma_address(sg);
+	unsigned int len = sg_dma_len(sg);
+
+	desc->Addr = cpu_to_le64(addr64);
+	desc->Len = cpu_to_le32(len);
+	desc->Ext = 0;
+}
+
 /*
  * hpsa_scatter_gather takes a struct scsi_cmnd, (cmd), and does the pci
  * dma mapping  and fills in the scatter gather entries of the
@@ -3245,9 +3256,7 @@ static int hpsa_scatter_gather(struct ctlr_info *h,
 		struct CommandList *cp,
 		struct scsi_cmnd *cmd)
 {
-	unsigned int len;
 	struct scatterlist *sg;
-	u64 addr64;
 	int use_sg, i, sg_index, chained;
 	struct SGDescriptor *curr_sg;
 
@@ -3270,13 +3279,11 @@ static int hpsa_scatter_gather(struct ctlr_info *h,
 			curr_sg = h->cmd_sg_list[cp->cmdindex];
 			sg_index = 0;
 		}
-		addr64 = (u64) sg_dma_address(sg);
-		len  = sg_dma_len(sg);
-		curr_sg->Addr = cpu_to_le64(addr64);
-		curr_sg->Len = cpu_to_le32(len);
-		curr_sg->Ext = cpu_to_le32(0);
+		hpsa_set_sg_descriptor(curr_sg, sg);
 		curr_sg++;
 	}
+
+	/* Back the pointer up to the last entry and mark it as "last". */
 	(--curr_sg)->Ext = cpu_to_le32(HPSA_SG_LAST);
 
 	if (use_sg + chained > h->maxSG)
