@@ -67,6 +67,8 @@ struct peak_usb_adapter {
 	int (*dev_stop)(struct peak_usb_device *dev);
 	int (*dev_restart_async)(struct peak_usb_device *dev, struct urb *urb,
 					u8 *buf);
+	int (*do_get_berr_counter)(const struct net_device *netdev,
+				   struct can_berr_counter *bec);
 	u8 ep_msg_in;
 	u8 ep_msg_out[PCAN_USB_MAX_CHANNEL];
 	u8 ts_used_bits;
