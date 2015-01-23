@@ -6674,6 +6674,9 @@ static void hpsa_ack_ctlr_events(struct ctlr_info *h)
 	int i;
 	char *event_type;
 
+	if (!(h->fw_support & MISC_FW_EVENT_NOTIFY))
+		return;
+
 	/* Ask the controller to clear the events we're handling. */
 	if ((h->transMethod & (CFGTBL_Trans_io_accel1
 			| CFGTBL_Trans_io_accel2)) &&
