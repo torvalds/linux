@@ -375,22 +375,19 @@ struct ErrorInfo {
 #define CMD_IOACCEL1	0x04
 #define CMD_IOACCEL2	0x05
 
-#define DIRECT_LOOKUP_SHIFT 5
-#define DIRECT_LOOKUP_BIT 0x10
+#define DIRECT_LOOKUP_SHIFT 4
 #define DIRECT_LOOKUP_MASK (~((1 << DIRECT_LOOKUP_SHIFT) - 1))
 
 #define HPSA_ERROR_BIT          0x02
 struct ctlr_info; /* defined in hpsa.h */
-/* The size of this structure needs to be divisible by 32
- * on all architectures because low 5 bits of the addresses
+/* The size of this structure needs to be divisible by 128
+ * on all architectures.  The low 4 bits of the addresses
  * are used as follows:
  *
  * bit 0: to device, used to indicate "performant mode" command
  *        from device, indidcates error status.
  * bit 1-3: to device, indicates block fetch table entry for
  *          reducing DMA in fetching commands from host memory.
- * bit 4: used to indicate whether tag is "direct lookup" (index),
- *        or a bus address.
  */
 
 #define COMMANDLIST_ALIGNMENT 128
@@ -405,7 +402,6 @@ struct CommandList {
 	struct ctlr_info	   *h;
 	int			   cmd_type;
 	long			   cmdindex;
-	struct list_head list;
 	struct completion *waiting;
 	void   *scsi_cmd;
 } __aligned(COMMANDLIST_ALIGNMENT);
