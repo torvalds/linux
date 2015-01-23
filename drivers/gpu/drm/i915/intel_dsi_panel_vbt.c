@@ -28,6 +28,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/i915_drm.h>
+#include <drm/drm_panel.h>
 #include <linux/slab.h>
 #include <video/mipi_display.h>
 #include <asm/intel-mid.h>
@@ -36,6 +37,16 @@
 #include "intel_drv.h"
 #include "intel_dsi.h"
 #include "intel_dsi_cmd.h"
+
+struct vbt_panel {
+	struct drm_panel panel;
+	struct intel_dsi *intel_dsi;
+};
+
+static inline struct vbt_panel *to_vbt_panel(struct drm_panel *panel)
+{
+	return container_of(panel, struct vbt_panel, panel);
+}
 
 #define MIPI_TRANSFER_MODE_SHIFT	0
 #define MIPI_VIRTUAL_CHANNEL_SHIFT	1
@@ -272,14 +283,103 @@ static void generic_exec_sequence(struct intel_dsi *intel_dsi, const u8 *data)
 	}
 }
 
-static bool generic_init(struct intel_dsi_device *dsi)
+static int vbt_panel_prepare(struct drm_panel *panel)
 {
-	struct intel_dsi *intel_dsi = container_of(dsi, struct intel_dsi, dev);
+	struct vbt_panel *vbt_panel = to_vbt_panel(panel);
+	struct intel_dsi *intel_dsi = vbt_panel->intel_dsi;
+	struct drm_device *dev = intel_dsi->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	const u8 *sequence;
+
+	sequence = dev_priv->vbt.dsi.sequence[MIPI_SEQ_ASSERT_RESET];
+	generic_exec_sequence(intel_dsi, sequence);
+
+	sequence = dev_priv->vbt.dsi.sequence[MIPI_SEQ_INIT_OTP];
+	generic_exec_sequence(intel_dsi, sequence);
+
+	return 0;
+}
+
+static int vbt_panel_unprepare(struct drm_panel *panel)
+{
+	struct vbt_panel *vbt_panel = to_vbt_panel(panel);
+	struct intel_dsi *intel_dsi = vbt_panel->intel_dsi;
+	struct drm_device *dev = intel_dsi->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	const u8 *sequence;
+
+	sequence = dev_priv->vbt.dsi.sequence[MIPI_SEQ_DEASSERT_RESET];
+	generic_exec_sequence(intel_dsi, sequence);
+
+	return 0;
+}
+
+static int vbt_panel_enable(struct drm_panel *panel)
+{
+	struct vbt_panel *vbt_panel = to_vbt_panel(panel);
+	struct intel_dsi *intel_dsi = vbt_panel->intel_dsi;
+	struct drm_device *dev = intel_dsi->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	const u8 *sequence;
+
+	sequence = dev_priv->vbt.dsi.sequence[MIPI_SEQ_DISPLAY_ON];
+	generic_exec_sequence(intel_dsi, sequence);
+
+	return 0;
+}
+
+static int vbt_panel_disable(struct drm_panel *panel)
+{
+	struct vbt_panel *vbt_panel = to_vbt_panel(panel);
+	struct intel_dsi *intel_dsi = vbt_panel->intel_dsi;
+	struct drm_device *dev = intel_dsi->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	const u8 *sequence;
+
+	sequence = dev_priv->vbt.dsi.sequence[MIPI_SEQ_DISPLAY_OFF];
+	generic_exec_sequence(intel_dsi, sequence);
+
+	return 0;
+}
+
+static int vbt_panel_get_modes(struct drm_panel *panel)
+{
+	struct vbt_panel *vbt_panel = to_vbt_panel(panel);
+	struct intel_dsi *intel_dsi = vbt_panel->intel_dsi;
+	struct drm_device *dev = intel_dsi->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_display_mode *mode;
+
+	if (!panel->connector)
+		return 0;
+
+	mode = drm_mode_duplicate(dev, dev_priv->vbt.lfp_lvds_vbt_mode);
+	if (!mode)
+		return 0;
+
+	mode->type |= DRM_MODE_TYPE_PREFERRED;
+
+	drm_mode_probed_add(panel->connector, mode);
+
+	return 1;
+}
+
+static const struct drm_panel_funcs vbt_panel_funcs = {
+	.disable = vbt_panel_disable,
+	.unprepare = vbt_panel_unprepare,
+	.prepare = vbt_panel_prepare,
+	.enable = vbt_panel_enable,
+	.get_modes = vbt_panel_get_modes,
+};
+
+struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
+{
 	struct drm_device *dev = intel_dsi->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct mipi_config *mipi_config = dev_priv->vbt.dsi.config;
 	struct mipi_pps_data *pps = dev_priv->vbt.dsi.pps;
 	struct drm_display_mode *mode = dev_priv->vbt.lfp_lvds_vbt_mode;
+	struct vbt_panel *vbt_panel;
 	u32 bits_per_pixel = 24;
 	u32 tlpx_ns, extra_byte_count, bitrate, tlpx_ui;
 	u32 ui_num, ui_den;
@@ -346,7 +446,7 @@ static bool generic_init(struct intel_dsi_device *dsi)
 			if (mipi_config->target_burst_mode_freq <
 								computed_ddr) {
 				DRM_ERROR("Burst mode freq is less than computed\n");
-				return false;
+				return NULL;
 			}
 
 			burst_mode_ratio = DIV_ROUND_UP(
@@ -356,7 +456,7 @@ static bool generic_init(struct intel_dsi_device *dsi)
 			pclk = DIV_ROUND_UP(pclk * burst_mode_ratio, 100);
 		} else {
 			DRM_ERROR("Burst mode target is not set\n");
-			return false;
+			return NULL;
 		}
 	} else
 		burst_mode_ratio = 100;
@@ -557,71 +657,13 @@ static bool generic_init(struct intel_dsi_device *dsi)
 	intel_dsi->panel_off_delay = pps->panel_off_delay / 10;
 	intel_dsi->panel_pwr_cycle_delay = pps->panel_power_cycle_delay / 10;
 
-	return true;
+	/* This is cheating a bit with the cleanup. */
+	vbt_panel = devm_kzalloc(dev->dev, sizeof(*vbt_panel), GFP_KERNEL);
+
+	vbt_panel->intel_dsi = intel_dsi;
+	drm_panel_init(&vbt_panel->panel);
+	vbt_panel->panel.funcs = &vbt_panel_funcs;
+	drm_panel_add(&vbt_panel->panel);
+
+	return &vbt_panel->panel;
 }
-
-static void generic_panel_reset(struct intel_dsi_device *dsi)
-{
-	struct intel_dsi *intel_dsi = container_of(dsi, struct intel_dsi, dev);
-	struct drm_device *dev = intel_dsi->base.base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	char *sequence = dev_priv->vbt.dsi.sequence[MIPI_SEQ_ASSERT_RESET];
-
-	generic_exec_sequence(intel_dsi, sequence);
-
-	sequence = dev_priv->vbt.dsi.sequence[MIPI_SEQ_INIT_OTP];
-	generic_exec_sequence(intel_dsi, sequence);
-}
-
-static void generic_disable_panel_power(struct intel_dsi_device *dsi)
-{
-	struct intel_dsi *intel_dsi = container_of(dsi, struct intel_dsi, dev);
-	struct drm_device *dev = intel_dsi->base.base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	char *sequence = dev_priv->vbt.dsi.sequence[MIPI_SEQ_DEASSERT_RESET];
-
-	generic_exec_sequence(intel_dsi, sequence);
-}
-
-static void generic_enable(struct intel_dsi_device *dsi)
-{
-	struct intel_dsi *intel_dsi = container_of(dsi, struct intel_dsi, dev);
-	struct drm_device *dev = intel_dsi->base.base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	char *sequence = dev_priv->vbt.dsi.sequence[MIPI_SEQ_DISPLAY_ON];
-
-	generic_exec_sequence(intel_dsi, sequence);
-}
-
-static void generic_disable(struct intel_dsi_device *dsi)
-{
-	struct intel_dsi *intel_dsi = container_of(dsi, struct intel_dsi, dev);
-	struct drm_device *dev = intel_dsi->base.base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	char *sequence = dev_priv->vbt.dsi.sequence[MIPI_SEQ_DISPLAY_OFF];
-
-	generic_exec_sequence(intel_dsi, sequence);
-}
-
-static struct drm_display_mode *generic_get_modes(struct intel_dsi_device *dsi)
-{
-	struct intel_dsi *intel_dsi = container_of(dsi, struct intel_dsi, dev);
-	struct drm_device *dev = intel_dsi->base.base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	dev_priv->vbt.lfp_lvds_vbt_mode->type |= DRM_MODE_TYPE_PREFERRED;
-	return dev_priv->vbt.lfp_lvds_vbt_mode;
-}
-
-struct intel_dsi_dev_ops vbt_generic_dsi_display_ops = {
-	.init = generic_init,
-	.panel_reset = generic_panel_reset,
-	.disable_panel_power = generic_disable_panel_power,
-	.enable = generic_enable,
-	.disable = generic_disable,
-	.get_modes = generic_get_modes,
-};

@@ -28,18 +28,20 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/i915_drm.h>
+#include <drm/drm_panel.h>
 #include <linux/slab.h>
 #include "i915_drv.h"
 #include "intel_drv.h"
 #include "intel_dsi.h"
 #include "intel_dsi_cmd.h"
 
-/* the sub-encoders aka panel drivers */
-static const struct intel_dsi_device intel_dsi_devices[] = {
+static const struct {
+	u16 panel_id;
+	struct drm_panel * (*init)(struct intel_dsi *intel_dsi, u16 panel_id);
+} intel_dsi_drivers[] = {
 	{
 		.panel_id = MIPI_DSI_GENERIC_PANEL_ID,
-		.name = "vbt-generic-dsi-vid-mode-display",
-		.dev_ops = &vbt_generic_dsi_display_ops,
+		.init = vbt_panel_init,
 	},
 };
 
@@ -215,8 +217,7 @@ static void intel_dsi_enable(struct intel_encoder *encoder)
 			dpi_send_cmd(intel_dsi, TURN_ON, DPI_LP_MODE_EN, port);
 		msleep(100);
 
-		if (intel_dsi->dev.dev_ops->enable)
-			intel_dsi->dev.dev_ops->enable(&intel_dsi->dev);
+		drm_panel_enable(intel_dsi->panel);
 
 		for_each_dsi_port(port, intel_dsi->ports)
 			wait_for_dsi_fifo_empty(intel_dsi, port);
@@ -256,8 +257,7 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 
 	msleep(intel_dsi->panel_on_delay);
 
-	if (intel_dsi->dev.dev_ops->panel_reset)
-		intel_dsi->dev.dev_ops->panel_reset(&intel_dsi->dev);
+	drm_panel_prepare(intel_dsi->panel);
 
 	for_each_dsi_port(port, intel_dsi->ports)
 		wait_for_dsi_fifo_empty(intel_dsi, port);
@@ -330,8 +330,7 @@ static void intel_dsi_disable(struct intel_encoder *encoder)
 	}
 	/* if disable packets are sent before sending shutdown packet then in
 	 * some next enable sequence send turn on packet error is observed */
-	if (intel_dsi->dev.dev_ops->disable)
-		intel_dsi->dev.dev_ops->disable(&intel_dsi->dev);
+	drm_panel_disable(intel_dsi->panel);
 
 	for_each_dsi_port(port, intel_dsi->ports)
 		wait_for_dsi_fifo_empty(intel_dsi, port);
@@ -396,8 +395,7 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder)
 	val &= ~DPOUNIT_CLOCK_GATE_DISABLE;
 	I915_WRITE(DSPCLK_GATE_D, val);
 
-	if (intel_dsi->dev.dev_ops->disable_panel_power)
-		intel_dsi->dev.dev_ops->disable_panel_power(&intel_dsi->dev);
+	drm_panel_unprepare(intel_dsi->panel);
 
 	msleep(intel_dsi->panel_off_delay);
 	msleep(intel_dsi->panel_pwr_cycle_delay);
@@ -761,7 +759,7 @@ static int intel_dsi_get_modes(struct drm_connector *connector)
 	return 1;
 }
 
-static void intel_dsi_destroy(struct drm_connector *connector)
+static void intel_dsi_connector_destroy(struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 
@@ -771,8 +769,20 @@ static void intel_dsi_destroy(struct drm_connector *connector)
 	kfree(connector);
 }
 
+static void intel_dsi_encoder_destroy(struct drm_encoder *encoder)
+{
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
+
+	if (intel_dsi->panel) {
+		drm_panel_detach(intel_dsi->panel);
+		/* XXX: Logically this call belongs in the panel driver. */
+		drm_panel_remove(intel_dsi->panel);
+	}
+	intel_encoder_destroy(encoder);
+}
+
 static const struct drm_encoder_funcs intel_dsi_funcs = {
-	.destroy = intel_encoder_destroy,
+	.destroy = intel_dsi_encoder_destroy,
 };
 
 static const struct drm_connector_helper_funcs intel_dsi_connector_helper_funcs = {
@@ -784,7 +794,7 @@ static const struct drm_connector_helper_funcs intel_dsi_connector_helper_funcs 
 static const struct drm_connector_funcs intel_dsi_connector_funcs = {
 	.dpms = intel_connector_dpms,
 	.detect = intel_dsi_detect,
-	.destroy = intel_dsi_destroy,
+	.destroy = intel_dsi_connector_destroy,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.atomic_get_property = intel_connector_atomic_get_property,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
@@ -797,9 +807,8 @@ void intel_dsi_init(struct drm_device *dev)
 	struct drm_encoder *encoder;
 	struct intel_connector *intel_connector;
 	struct drm_connector *connector;
-	struct drm_display_mode *fixed_mode = NULL;
+	struct drm_display_mode *scan, *fixed_mode = NULL;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	const struct intel_dsi_device *dsi;
 	unsigned int i;
 
 	DRM_DEBUG_KMS("\n");
@@ -856,15 +865,14 @@ void intel_dsi_init(struct drm_device *dev)
 		intel_dsi->ports = (1 << PORT_C);
 	}
 
-	for (i = 0; i < ARRAY_SIZE(intel_dsi_devices); i++) {
-		dsi = &intel_dsi_devices[i];
-		intel_dsi->dev = *dsi;
-
-		if (dsi->dev_ops->init(&intel_dsi->dev))
+	for (i = 0; i < ARRAY_SIZE(intel_dsi_drivers); i++) {
+		intel_dsi->panel = intel_dsi_drivers[i].init(intel_dsi,
+							     intel_dsi_drivers[i].panel_id);
+		if (intel_dsi->panel)
 			break;
 	}
 
-	if (i == ARRAY_SIZE(intel_dsi_devices)) {
+	if (!intel_dsi->panel) {
 		DRM_DEBUG_KMS("no device found\n");
 		goto err;
 	}
@@ -884,13 +892,23 @@ void intel_dsi_init(struct drm_device *dev)
 
 	drm_connector_register(connector);
 
-	fixed_mode = dsi->dev_ops->get_modes(&intel_dsi->dev);
+	drm_panel_attach(intel_dsi->panel, connector);
+
+	mutex_lock(&dev->mode_config.mutex);
+	drm_panel_get_modes(intel_dsi->panel);
+	list_for_each_entry(scan, &connector->probed_modes, head) {
+		if ((scan->type & DRM_MODE_TYPE_PREFERRED)) {
+			fixed_mode = drm_mode_duplicate(dev, scan);
+			break;
+		}
+	}
+	mutex_unlock(&dev->mode_config.mutex);
+
 	if (!fixed_mode) {
 		DRM_DEBUG_KMS("no fixed mode\n");
 		goto err;
 	}
 
-	fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
 	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
 
 	return;
