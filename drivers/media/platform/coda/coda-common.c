@@ -1304,7 +1304,7 @@ static void coda_stop_streaming(struct vb2_queue *q)
 
 		coda_bit_stream_end_flag(ctx);
 
-		ctx->isequence = 0;
+		ctx->qsequence = 0;
 
 		while ((buf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx)))
 			v4l2_m2m_buf_done(buf, VB2_BUF_STATE_ERROR);

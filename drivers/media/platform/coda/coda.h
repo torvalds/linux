@@ -198,7 +198,6 @@ struct coda_ctx {
 	int				initialized;
 	int				streamon_out;
 	int				streamon_cap;
-	u32				isequence;
 	u32				qsequence;
 	u32				osequence;
 	u32				sequence_offset;
