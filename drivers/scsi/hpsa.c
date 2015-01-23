@@ -3107,7 +3107,8 @@ out:
 	kfree(logdev_list);
 }
 
-/* hpsa_scatter_gather takes a struct scsi_cmnd, (cmd), and does the pci
+/*
+ * hpsa_scatter_gather takes a struct scsi_cmnd, (cmd), and does the pci
  * dma mapping  and fills in the scatter gather entries of the
  * hpsa command, cp.
  */
@@ -3165,7 +3166,7 @@ static int hpsa_scatter_gather(struct ctlr_info *h,
 sglist_finished:
 
 	cp->Header.SGList = (u8) use_sg;   /* no. SGs contig in this cmd */
-	cp->Header.SGTotal = cpu_to_le16(use_sg); /* total sgs in this cmd list */
+	cp->Header.SGTotal = cpu_to_le16(use_sg); /* total sgs in cmd list */
 	return 0;
 }
 
@@ -6162,6 +6163,15 @@ static void hpsa_get_max_perf_mode_cmds(struct ctlr_info *h)
 	}
 }
 
+/* If the controller reports that the total max sg entries is greater than 512,
+ * then we know that chained SG blocks work.  (Original smart arrays did not
+ * support chained SG blocks and would return zero for max sg entries.)
+ */
+static int hpsa_supports_chained_sg_blocks(struct ctlr_info *h)
+{
+	return h->maxsgentries > 512;
+}
+
 /* Interrogate the hardware for some limits:
  * max commands, max SG elements without chaining, and with chaining,
  * SG chain block size, etc.
@@ -6172,18 +6182,20 @@ static void hpsa_find_board_params(struct ctlr_info *h)
 	h->nr_cmds = h->max_commands - 4; /* Allow room for some ioctls */
 	h->maxsgentries = readl(&(h->cfgtable->MaxScatterGatherElements));
 	h->fw_support = readl(&(h->cfgtable->misc_fw_support));
-	/*
-	 * Limit in-command s/g elements to 32 save dma'able memory.
-	 * Howvever spec says if 0, use 31
-	 */
-	h->max_cmd_sg_entries = 31;
-	if (h->maxsgentries > 512) {
+	if (hpsa_supports_chained_sg_blocks(h)) {
+		/* Limit in-command s/g elements to 32 save dma'able memory. */
 		h->max_cmd_sg_entries = 32;
 		h->chainsize = h->maxsgentries - h->max_cmd_sg_entries;
 		h->maxsgentries--; /* save one for chain pointer */
 	} else {
-		h->chainsize = 0;
+		/*
+		 * Original smart arrays supported at most 31 s/g entries
+		 * embedded inline in the command (trying to use more
+		 * would lock up the controller)
+		 */
+		h->max_cmd_sg_entries = 31;
 		h->maxsgentries = 31; /* default to traditional values */
+		h->chainsize = 0;
 	}
 
 	/* Find out what task management functions are supported and cache */
