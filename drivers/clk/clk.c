@@ -428,9 +428,6 @@ static void clk_unprepare_unused_subtree(struct clk *clk)
 {
 	struct clk *child;
 
-	if (!clk)
-		return;
-
 	hlist_for_each_entry(child, &clk->children, child_node)
 		clk_unprepare_unused_subtree(child);
 
@@ -453,9 +450,6 @@ static void clk_disable_unused_subtree(struct clk *clk)
 {
 	struct clk *child;
 	unsigned long flags;
-
-	if (!clk)
-		goto out;
 
 	hlist_for_each_entry(child, &clk->children, child_node)
 		clk_disable_unused_subtree(child);
@@ -482,9 +476,6 @@ static void clk_disable_unused_subtree(struct clk *clk)
 
 unlock_out:
 	clk_enable_unlock(flags);
-
-out:
-	return;
 }
 
 static bool clk_ignore_unused;
