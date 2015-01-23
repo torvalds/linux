@@ -1275,6 +1275,8 @@ static void perf_group_attach(struct perf_event *event)
 	if (group_leader == event)
 		return;
 
+	WARN_ON_ONCE(group_leader->ctx != event->ctx);
+
 	if (group_leader->group_flags & PERF_GROUP_SOFTWARE &&
 			!is_software_event(event))
 		group_leader->group_flags &= ~PERF_GROUP_SOFTWARE;
@@ -1296,6 +1298,10 @@ static void
 list_del_event(struct perf_event *event, struct perf_event_context *ctx)
 {
 	struct perf_cpu_context *cpuctx;
+
+	WARN_ON_ONCE(event->ctx != ctx);
+	lockdep_assert_held(&ctx->lock);
+
 	/*
 	 * We can have double detach due to exit/hot-unplug + close.
 	 */
@@ -1380,6 +1386,8 @@ static void perf_group_detach(struct perf_event *event)
 
 		/* Inherit group flags from the previous leader */
 		sibling->group_flags = event->group_flags;
+
+		WARN_ON_ONCE(sibling->ctx != event->ctx);
 	}
 
 out:
@@ -1442,6 +1450,10 @@ event_sched_out(struct perf_event *event,
 {
 	u64 tstamp = perf_event_time(event);
 	u64 delta;
+
+	WARN_ON_ONCE(event->ctx != ctx);
+	lockdep_assert_held(&ctx->lock);
+
 	/*
 	 * An event which could not be activated because of
 	 * filter mismatch still needs to have its timings
@@ -7822,14 +7834,19 @@ static void perf_free_event(struct perf_event *event,
 
 	put_event(parent);
 
+	raw_spin_lock_irq(&ctx->lock);
 	perf_group_detach(event);
 	list_del_event(event, ctx);
+	raw_spin_unlock_irq(&ctx->lock);
 	free_event(event);
 }
 
 /*
- * free an unexposed, unused context as created by inheritance by
+ * Free an unexposed, unused context as created by inheritance by
  * perf_event_init_task below, used by fork() in case of fail.
+ *
+ * Not all locks are strictly required, but take them anyway to be nice and
+ * help out with the lockdep assertions.
  */
 void perf_event_free_task(struct task_struct *task)
 {
