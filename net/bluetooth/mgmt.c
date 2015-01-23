@@ -3633,9 +3633,15 @@ unlock:
 static int add_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 			       void *data, u16 len)
 {
+	struct mgmt_addr_info *addr = data;
 	int err;
 
 	BT_DBG("%s ", hdev->name);
+
+	if (!bdaddr_type_is_valid(addr->type))
+		return cmd_complete(sk, hdev->id, MGMT_OP_ADD_REMOTE_OOB_DATA,
+				    MGMT_STATUS_INVALID_PARAMS, addr,
+				    sizeof(*addr));
 
 	hci_dev_lock(hdev);
 
