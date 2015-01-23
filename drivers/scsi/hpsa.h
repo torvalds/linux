@@ -479,9 +479,6 @@ static bool SA5_performant_intr_pending(struct ctlr_info *h)
 	if (!register_value)
 		return false;
 
-	if (h->msi_vector || h->msix_vector)
-		return true;
-
 	/* Read outbound doorbell to flush */
 	register_value = readl(h->vaddr + SA5_OUTDB_STATUS);
 	return register_value & SA5_OUTDB_STATUS_PERF_BIT;
