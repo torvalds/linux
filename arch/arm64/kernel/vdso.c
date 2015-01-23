@@ -85,28 +85,21 @@ int aarch32_setup_vectors_page(struct linux_binprm *bprm, int uses_interp)
 {
 	struct mm_struct *mm = current->mm;
 	unsigned long addr = AARCH32_VECTORS_BASE;
-	static struct vm_special_mapping spec = {
-		.name	= "[vectors]",
-		.pages	= vectors_page,
-
-	};
-	void *ret;
+	int ret;
 
 	down_write(&mm->mmap_sem);
 	current->mm->context.vdso = (void *)addr;
 
 	/* Map vectors page at the high address. */
-	ret = _install_special_mapping(mm, addr, PAGE_SIZE,
-				       VM_READ|VM_EXEC|VM_MAYREAD|VM_MAYEXEC,
-				       &spec);
+	ret = install_special_mapping(mm, addr, PAGE_SIZE,
+				      VM_READ|VM_EXEC|VM_MAYREAD|VM_MAYEXEC,
+				      vectors_page);
 
 	up_write(&mm->mmap_sem);
 
-	return PTR_ERR_OR_ZERO(ret);
+	return ret;
 }
 #endif /* CONFIG_COMPAT */
-
-static struct vm_special_mapping vdso_spec[2];
 
 static int __init vdso_init(void)
 {
@@ -134,17 +127,6 @@ static int __init vdso_init(void)
 	/* Grab the vDSO data page. */
 	vdso_pagelist[i] = virt_to_page(vdso_data);
 
-	/* Populate the special mapping structures */
-	vdso_spec[0] = (struct vm_special_mapping) {
-		.name	= "[vdso]",
-		.pages	= vdso_pagelist,
-	};
-
-	vdso_spec[1] = (struct vm_special_mapping) {
-		.name	= "[vvar]",
-		.pages	= vdso_pagelist + vdso_pages,
-	};
-
 	return 0;
 }
 arch_initcall(vdso_init);
@@ -154,7 +136,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 {
 	struct mm_struct *mm = current->mm;
 	unsigned long vdso_base, vdso_text_len, vdso_mapping_len;
-	void *ret;
+	int ret;
 
 	vdso_text_len = vdso_pages << PAGE_SHIFT;
 	/* Be sure to map the data page */
@@ -163,23 +145,23 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 	down_write(&mm->mmap_sem);
 	vdso_base = get_unmapped_area(NULL, 0, vdso_mapping_len, 0, 0);
 	if (IS_ERR_VALUE(vdso_base)) {
-		ret = ERR_PTR(vdso_base);
+		ret = vdso_base;
 		goto up_fail;
 	}
 	mm->context.vdso = (void *)vdso_base;
 
-	ret = _install_special_mapping(mm, vdso_base, vdso_text_len,
-				       VM_READ|VM_EXEC|
-				       VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
-				       &vdso_spec[0]);
-	if (IS_ERR(ret))
+	ret = install_special_mapping(mm, vdso_base, vdso_text_len,
+				      VM_READ|VM_EXEC|
+				      VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
+				      vdso_pagelist);
+	if (ret)
 		goto up_fail;
 
 	vdso_base += vdso_text_len;
-	ret = _install_special_mapping(mm, vdso_base, PAGE_SIZE,
-				       VM_READ|VM_MAYREAD,
-				       &vdso_spec[1]);
-	if (IS_ERR(ret))
+	ret = install_special_mapping(mm, vdso_base, PAGE_SIZE,
+				      VM_READ|VM_MAYREAD,
+				      vdso_pagelist + vdso_pages);
+	if (ret)
 		goto up_fail;
 
 	up_write(&mm->mmap_sem);
@@ -188,7 +170,35 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 up_fail:
 	mm->context.vdso = NULL;
 	up_write(&mm->mmap_sem);
-	return PTR_ERR(ret);
+	return ret;
+}
+
+const char *arch_vma_name(struct vm_area_struct *vma)
+{
+	unsigned long vdso_text;
+
+	if (!vma->vm_mm)
+		return NULL;
+
+	vdso_text = (unsigned long)vma->vm_mm->context.vdso;
+
+	/*
+	 * We can re-use the vdso pointer in mm_context_t for identifying
+	 * the vectors page for compat applications. The vDSO will always
+	 * sit above TASK_UNMAPPED_BASE and so we don't need to worry about
+	 * it conflicting with the vectors base.
+	 */
+	if (vma->vm_start == vdso_text) {
+#ifdef CONFIG_COMPAT
+		if (vma->vm_start == AARCH32_VECTORS_BASE)
+			return "[vectors]";
+#endif
+		return "[vdso]";
+	} else if (vma->vm_start == (vdso_text + (vdso_pages << PAGE_SHIFT))) {
+		return "[vvar]";
+	}
+
+	return NULL;
 }
 
 /*
