@@ -5105,35 +5105,6 @@ static void check_ioctl_unit_attention(struct ctlr_info *h,
 		(void) check_for_unit_attention(h, c);
 }
 
-static int increment_passthru_count(struct ctlr_info *h)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&h->passthru_count_lock, flags);
-	if (h->passthru_count >= HPSA_MAX_CONCURRENT_PASSTHRUS) {
-		spin_unlock_irqrestore(&h->passthru_count_lock, flags);
-		return -1;
-	}
-	h->passthru_count++;
-	spin_unlock_irqrestore(&h->passthru_count_lock, flags);
-	return 0;
-}
-
-static void decrement_passthru_count(struct ctlr_info *h)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&h->passthru_count_lock, flags);
-	if (h->passthru_count <= 0) {
-		spin_unlock_irqrestore(&h->passthru_count_lock, flags);
-		/* not expecting to get here. */
-		dev_warn(&h->pdev->dev, "Bug detected, passthru_count seems to be incorrect.\n");
-		return;
-	}
-	h->passthru_count--;
-	spin_unlock_irqrestore(&h->passthru_count_lock, flags);
-}
-
 /*
  * ioctl
  */
@@ -5156,16 +5127,16 @@ static int hpsa_ioctl(struct scsi_device *dev, int cmd, void __user *arg)
 	case CCISS_GETDRIVVER:
 		return hpsa_getdrivver_ioctl(h, argp);
 	case CCISS_PASSTHRU:
-		if (increment_passthru_count(h))
+		if (atomic_dec_if_positive(&h->passthru_cmds_avail) < 0)
 			return -EAGAIN;
 		rc = hpsa_passthru_ioctl(h, argp);
-		decrement_passthru_count(h);
+		atomic_inc(&h->passthru_cmds_avail);
 		return rc;
 	case CCISS_BIG_PASSTHRU:
-		if (increment_passthru_count(h))
+		if (atomic_dec_if_positive(&h->passthru_cmds_avail) < 0)
 			return -EAGAIN;
 		rc = hpsa_big_passthru_ioctl(h, argp);
-		decrement_passthru_count(h);
+		atomic_inc(&h->passthru_cmds_avail);
 		return rc;
 	default:
 		return -ENOTTY;
@@ -6852,7 +6823,7 @@ reinit_after_soft_reset:
 	spin_lock_init(&h->lock);
 	spin_lock_init(&h->offline_device_lock);
 	spin_lock_init(&h->scan_lock);
-	spin_lock_init(&h->passthru_count_lock);
+	atomic_set(&h->passthru_cmds_avail, HPSA_MAX_CONCURRENT_PASSTHRUS);
 
 	h->resubmit_wq = alloc_workqueue("hpsa", WQ_MEM_RECLAIM, 0);
 	if (!h->resubmit_wq) {

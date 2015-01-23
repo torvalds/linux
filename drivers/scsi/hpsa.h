@@ -183,8 +183,7 @@ struct ctlr_info {
 
 	/* cap concurrent passthrus at some reasonable maximum */
 #define HPSA_MAX_CONCURRENT_PASSTHRUS (10)
-	spinlock_t passthru_count_lock; /* protects passthru_count */
-	int passthru_count;
+	atomic_t passthru_cmds_avail;
 
 	/*
 	 * Performant mode completion buffers
