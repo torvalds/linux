@@ -131,7 +131,7 @@ int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int channels)
 		   a bug, we therefore report an error if capturing is restarted
 		   too soon.
 		 */
-		if (line6pcm->active_urb_in | line6pcm->unlink_urb_in) {
+		if (line6pcm->active_urb_in || line6pcm->unlink_urb_in) {
 			dev_err(line6pcm->line6->ifcdev, "Device not yet ready\n");
 			err = -EBUSY;
 			goto pcm_acquire_error;
@@ -166,7 +166,7 @@ int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int channels)
 		/*
 		  See comment above regarding PCM restart.
 		*/
-		if (line6pcm->active_urb_out | line6pcm->unlink_urb_out) {
+		if (line6pcm->active_urb_out || line6pcm->unlink_urb_out) {
 			dev_err(line6pcm->line6->ifcdev, "Device not yet ready\n");
 			return -EBUSY;
 		}
