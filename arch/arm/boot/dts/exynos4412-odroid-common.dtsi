@@ -445,6 +445,11 @@
 	i2c@138E0000 {
 		status = "okay";
 	};
+
+	tmu@100C0000 {
+		vtmu-supply = <&ldo10_reg>;
+		status = "okay";
+	};
 };
 
 &ppmu_dmc0 {
