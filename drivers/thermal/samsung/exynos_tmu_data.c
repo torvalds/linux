@@ -47,15 +47,6 @@ struct exynos_tmu_init_data const exynos4210_default_tmu_data = {
 		.first_point_trim = 25,
 		.second_point_trim = 85,
 		.default_temp_offset = 50,
-		.freq_tab[0] = {
-			.freq_clip_max = 800 * 1000,
-			.temp_level = 85,
-			},
-		.freq_tab[1] = {
-			.freq_clip_max = 200 * 1000,
-			.temp_level = 100,
-		},
-		.freq_tab_count = 2,
 		.type = SOC_ARCH_EXYNOS4210,
 		},
 	},
@@ -87,16 +78,7 @@ struct exynos_tmu_init_data const exynos4210_default_tmu_data = {
 	.max_efuse_value = 100, \
 	.first_point_trim = 25, \
 	.second_point_trim = 85, \
-	.default_temp_offset = 50, \
-	.freq_tab[0] = { \
-		.freq_clip_max = 800 * 1000, \
-		.temp_level = 70, \
-	}, \
-	.freq_tab[1] = { \
-		.freq_clip_max = 400 * 1000, \
-		.temp_level = 95, \
-	}, \
-	.freq_tab_count = 2
+	.default_temp_offset = 50
 
 struct exynos_tmu_init_data const exynos3250_default_tmu_data = {
 	.tmu_data = {
@@ -133,16 +115,7 @@ struct exynos_tmu_init_data const exynos3250_default_tmu_data = {
 	.max_efuse_value = 100, \
 	.first_point_trim = 25, \
 	.second_point_trim = 85, \
-	.default_temp_offset = 50, \
-	.freq_tab[0] = { \
-		.freq_clip_max = 1400 * 1000, \
-		.temp_level = 70, \
-	}, \
-	.freq_tab[1] = { \
-		.freq_clip_max = 400 * 1000, \
-		.temp_level = 95, \
-	}, \
-	.freq_tab_count = 2
+	.default_temp_offset = 50
 
 struct exynos_tmu_init_data const exynos4412_default_tmu_data = {
 	.tmu_data = {
@@ -189,16 +162,7 @@ struct exynos_tmu_init_data const exynos5250_default_tmu_data = {
 	.max_efuse_value = 100, \
 	.first_point_trim = 25, \
 	.second_point_trim = 85, \
-	.default_temp_offset = 50, \
-	.freq_tab[0] = { \
-		.freq_clip_max = 800 * 1000, \
-		.temp_level = 85, \
-	}, \
-	.freq_tab[1] = { \
-		.freq_clip_max = 200 * 1000, \
-		.temp_level = 103, \
-	}, \
-	.freq_tab_count = 2, \
+	.default_temp_offset = 50,
 
 #define EXYNOS5260_TMU_DATA \
 	__EXYNOS5260_TMU_DATA \

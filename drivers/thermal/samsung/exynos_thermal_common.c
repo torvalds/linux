@@ -133,47 +133,62 @@ static int exynos_get_crit_temp(struct thermal_zone_device *thermal,
 static int exynos_bind(struct thermal_zone_device *thermal,
 			struct thermal_cooling_device *cdev)
 {
-	int ret = 0, i, tab_size, level;
-	struct freq_clip_table *tab_ptr, *clip_data;
 	struct exynos_thermal_zone *th_zone = thermal->devdata;
 	struct thermal_sensor_conf *data = th_zone->sensor_conf;
+	struct device_node *child, *gchild, *np;
+	struct of_phandle_args cooling_spec;
+	unsigned long max, state = 0;
+	int ret = 0, i = 0;
 
-	tab_ptr = (struct freq_clip_table *)data->cooling_data.freq_data;
-	tab_size = data->cooling_data.freq_clip_count;
-
-	if (tab_ptr == NULL || tab_size == 0)
+	/*
+	 * Below code is necessary to skip binding when cpufreq's
+	 * frequency table is not yet initialized.
+	 */
+	cdev->ops->get_max_state(cdev, &state);
+	if (!state && !th_zone->cool_dev_size) {
+		th_zone->cool_dev_size = 1;
+		th_zone->cool_dev[0] = cdev;
+		th_zone->bind = false;
 		return 0;
-
-	/* find the cooling device registered*/
-	for (i = 0; i < th_zone->cool_dev_size; i++)
-		if (cdev == th_zone->cool_dev[i])
-			break;
-
-	/* No matching cooling device */
-	if (i == th_zone->cool_dev_size)
-		return 0;
-
-	/* Bind the thermal zone to the cpufreq cooling device */
-	for (i = 0; i < tab_size; i++) {
-		clip_data = (struct freq_clip_table *)&(tab_ptr[i]);
-		level = cpufreq_cooling_get_level(0, clip_data->freq_clip_max);
-		if (level == THERMAL_CSTATE_INVALID)
-			return 0;
-		switch (GET_ZONE(i)) {
-		case MONITOR_ZONE:
-		case WARN_ZONE:
-			if (thermal_zone_bind_cooling_device(thermal, i, cdev,
-								level, 0)) {
-				dev_err(data->dev,
-					"error unbinding cdev inst=%d\n", i);
-				ret = -EINVAL;
-			}
-			th_zone->bind = true;
-			break;
-		default:
-			ret = -EINVAL;
-		}
 	}
+
+	np = of_find_node_by_path("/thermal-zones/cpu-thermal");
+	if (!np) {
+		pr_err("failed to find thmerla-zones/cpu-thermal node\n");
+		return -ENOENT;
+	}
+
+	child = of_get_child_by_name(np, "cooling-maps");
+
+	for_each_child_of_node(child, gchild) {
+		ret = of_parse_phandle_with_args(gchild, "cooling-device",
+						 "#cooling-cells",
+						 0, &cooling_spec);
+		if (ret < 0) {
+			pr_err("missing cooling_device property\n");
+			goto end;
+		}
+
+		if (cooling_spec.args_count < 2) {
+			ret = -EINVAL;
+			goto end;
+		}
+
+		max = cooling_spec.args[0];
+		if (thermal_zone_bind_cooling_device(thermal, i, cdev,
+						     max, 0)) {
+			dev_err(data->dev,
+				"thermal error unbinding cdev inst=%d\n", i);
+
+			ret = -EINVAL;
+			goto end;
+		}
+		i++;
+	}
+	th_zone->bind = true;
+end:
+	of_node_put(child);
+	of_node_put(np);
 
 	return ret;
 }
@@ -182,16 +197,12 @@ static int exynos_bind(struct thermal_zone_device *thermal,
 static int exynos_unbind(struct thermal_zone_device *thermal,
 			struct thermal_cooling_device *cdev)
 {
-	int ret = 0, i, tab_size;
+	int ret = 0, i;
 	struct exynos_thermal_zone *th_zone = thermal->devdata;
 	struct thermal_sensor_conf *data = th_zone->sensor_conf;
+	struct device_node *child, *gchild, *np;
 
-	if (th_zone->bind == false)
-		return 0;
-
-	tab_size = data->cooling_data.freq_clip_count;
-
-	if (tab_size == 0)
+	if (th_zone->bind == false || !th_zone->cool_dev_size)
 		return 0;
 
 	/* find the cooling device registered*/
@@ -203,23 +214,30 @@ static int exynos_unbind(struct thermal_zone_device *thermal,
 	if (i == th_zone->cool_dev_size)
 		return 0;
 
-	/* Bind the thermal zone to the cpufreq cooling device */
-	for (i = 0; i < tab_size; i++) {
-		switch (GET_ZONE(i)) {
-		case MONITOR_ZONE:
-		case WARN_ZONE:
-			if (thermal_zone_unbind_cooling_device(thermal, i,
-								cdev)) {
-				dev_err(data->dev,
-					"error unbinding cdev inst=%d\n", i);
-				ret = -EINVAL;
-			}
-			th_zone->bind = false;
-			break;
-		default:
-			ret = -EINVAL;
-		}
+	np = of_find_node_by_path("/thermal-zones/cpu-thermal");
+	if (!np) {
+		pr_err("failed to find thmerla-zones/cpu-thermal node\n");
+		return -ENOENT;
 	}
+
+	child = of_get_child_by_name(np, "cooling-maps");
+
+	i = 0;
+	for_each_child_of_node(child, gchild) {
+		if (thermal_zone_unbind_cooling_device(thermal, i,
+						       cdev)) {
+			dev_err(data->dev,
+				"error unbinding cdev inst=%d\n", i);
+			ret = -EINVAL;
+			goto end;
+		}
+		i++;
+	}
+	th_zone->bind = false;
+end:
+	of_node_put(child);
+	of_node_put(np);
+
 	return ret;
 }
 

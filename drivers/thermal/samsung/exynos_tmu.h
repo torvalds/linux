@@ -83,9 +83,6 @@ enum soc_type {
  * @second_point_trim: temp value of the second point trimming
  * @default_temp_offset: default temperature offset in case of no trimming
  * @cal_type: calibration type for temperature
- * @freq_clip_table: Table representing frequency reduction percentage.
- * @freq_tab_count: Count of the above table as frequency reduction may
- *	applicable to only some of the trigger levels.
  *
  * This structure is required for configuration of exynos_tmu driver.
  */
@@ -111,8 +108,6 @@ struct exynos_tmu_platform_data {
 	enum soc_type type;
 	u32 cal_type;
 	u32 cal_mode;
-	struct freq_clip_table freq_tab[4];
-	unsigned int freq_tab_count;
 };
 
 /**
