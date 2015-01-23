@@ -4343,6 +4343,10 @@ static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd)
 	h = sdev_to_hba(scsicmd->device);
 	if (h == NULL) /* paranoia */
 		return FAILED;
+
+	if (lockup_detected(h))
+		return FAILED;
+
 	dev = scsicmd->device->hostdata;
 	if (!dev) {
 		dev_err(&h->pdev->dev, "hpsa_eh_device_reset_handler: "
@@ -4564,6 +4568,9 @@ static int hpsa_eh_abort_handler(struct scsi_cmnd *sc)
 	h = sdev_to_hba(sc->device);
 	if (WARN(h == NULL,
 			"ABORT REQUEST FAILED, Controller lookup failed.\n"))
+		return FAILED;
+
+	if (lockup_detected(h))
 		return FAILED;
 
 	/* Check that controller supports some kind of task abort */
