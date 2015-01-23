@@ -1319,8 +1319,10 @@ static void coda_seq_end_work(struct work_struct *work)
 
 static void coda_bit_release(struct coda_ctx *ctx)
 {
+	mutex_lock(&ctx->buffer_mutex);
 	coda_free_framebuffers(ctx);
 	coda_free_context_buffers(ctx);
+	mutex_unlock(&ctx->buffer_mutex);
 }
 
 const struct coda_context_ops coda_bit_encode_ops = {
