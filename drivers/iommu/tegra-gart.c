@@ -395,7 +395,7 @@ static int tegra_gart_probe(struct platform_device *pdev)
 	do_gart_setup(gart, NULL);
 
 	gart_handle = gart;
-	bus_set_iommu(&platform_bus_type, &gart_iommu_ops);
+
 	return 0;
 }
 
