@@ -177,7 +177,7 @@ comment "Video decoders"
 
 config VIDEO_ADV7180
 	tristate "Analog Devices ADV7180 decoder"
-	depends on VIDEO_V4L2 && I2C
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
 	---help---
 	  Support for the Analog Devices ADV7180 video decoder.
 

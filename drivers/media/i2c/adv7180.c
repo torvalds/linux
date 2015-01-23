@@ -124,6 +124,7 @@
 struct adv7180_state {
 	struct v4l2_ctrl_handler ctrl_hdl;
 	struct v4l2_subdev	sd;
+	struct media_pad	pad;
 	struct mutex		mutex; /* mutual excl. when accessing chip */
 	int			irq;
 	v4l2_std_id		curr_norm;
@@ -441,13 +442,14 @@ static void adv7180_exit_controls(struct adv7180_state *state)
 	v4l2_ctrl_handler_free(&state->ctrl_hdl);
 }
 
-static int adv7180_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned int index,
-				 u32 *code)
+static int adv7180_enum_mbus_code(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_fh *fh,
+				  struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (index > 0)
+	if (code->index != 0)
 		return -EINVAL;
 
-	*code = MEDIA_BUS_FMT_YUYV8_2X8;
+	code->code = MEDIA_BUS_FMT_YUYV8_2X8;
 
 	return 0;
 }
@@ -464,6 +466,20 @@ static int adv7180_mbus_fmt(struct v4l2_subdev *sd,
 	fmt->height = state->curr_norm & V4L2_STD_525_60 ? 480 : 576;
 
 	return 0;
+}
+
+static int adv7180_get_pad_format(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_fh *fh,
+				  struct v4l2_subdev_format *format)
+{
+	return adv7180_mbus_fmt(sd, &format->format);
+}
+
+static int adv7180_set_pad_format(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_fh *fh,
+				  struct v4l2_subdev_format *format)
+{
+	return adv7180_mbus_fmt(sd, &format->format);
 }
 
 static int adv7180_g_mbus_config(struct v4l2_subdev *sd,
@@ -485,10 +501,6 @@ static const struct v4l2_subdev_video_ops adv7180_video_ops = {
 	.querystd = adv7180_querystd,
 	.g_input_status = adv7180_g_input_status,
 	.s_routing = adv7180_s_routing,
-	.enum_mbus_fmt = adv7180_enum_mbus_fmt,
-	.try_mbus_fmt = adv7180_mbus_fmt,
-	.g_mbus_fmt = adv7180_mbus_fmt,
-	.s_mbus_fmt = adv7180_mbus_fmt,
 	.g_mbus_config = adv7180_g_mbus_config,
 };
 
@@ -496,9 +508,16 @@ static const struct v4l2_subdev_core_ops adv7180_core_ops = {
 	.s_power = adv7180_s_power,
 };
 
+static const struct v4l2_subdev_pad_ops adv7180_pad_ops = {
+	.enum_mbus_code = adv7180_enum_mbus_code,
+	.set_fmt = adv7180_set_pad_format,
+	.get_fmt = adv7180_get_pad_format,
+};
+
 static const struct v4l2_subdev_ops adv7180_ops = {
 	.core = &adv7180_core_ops,
 	.video = &adv7180_video_ops,
+	.pad = &adv7180_pad_ops,
 };
 
 static irqreturn_t adv7180_irq(int irq, void *devid)
@@ -627,20 +646,28 @@ static int adv7180_probe(struct i2c_client *client,
 	state->input = 0;
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &adv7180_ops);
+	sd->flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
 
 	ret = adv7180_init_controls(state);
 	if (ret)
 		goto err_unreg_subdev;
-	ret = init_device(state);
+
+	state->pad.flags = MEDIA_PAD_FL_SOURCE;
+	sd->entity.flags |= MEDIA_ENT_T_V4L2_SUBDEV_DECODER;
+	ret = media_entity_init(&sd->entity, 1, &state->pad, 0);
 	if (ret)
 		goto err_free_ctrl;
+
+	ret = init_device(state);
+	if (ret)
+		goto err_media_entity_cleanup;
 
 	if (state->irq) {
 		ret = request_threaded_irq(client->irq, NULL, adv7180_irq,
 					   IRQF_ONESHOT | IRQF_TRIGGER_FALLING,
 					   KBUILD_MODNAME, state);
 		if (ret)
-			goto err_free_ctrl;
+			goto err_media_entity_cleanup;
 	}
 
 	ret = v4l2_async_register_subdev(sd);
@@ -652,6 +679,8 @@ static int adv7180_probe(struct i2c_client *client,
 err_free_irq:
 	if (state->irq > 0)
 		free_irq(client->irq, state);
+err_media_entity_cleanup:
+	media_entity_cleanup(&sd->entity);
 err_free_ctrl:
 	adv7180_exit_controls(state);
 err_unreg_subdev:
@@ -669,6 +698,7 @@ static int adv7180_remove(struct i2c_client *client)
 	if (state->irq > 0)
 		free_irq(client->irq, state);
 
+	media_entity_cleanup(&sd->entity);
 	adv7180_exit_controls(state);
 	mutex_destroy(&state->mutex);
 	return 0;
