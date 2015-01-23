@@ -4,3 +4,4 @@
 [PATCHv3 0/8] devfreq: Add generic exynos memory-bus frequency driver
 [PATCH v6 00/18] thermal: exynos: Thermal code rework to use device tree
 [PATCH v5 00/18] Exynos SYSMMU (IOMMU) integration with DT and DMA-mapping subsystem
+[PATCH v4 0/2] serial: samsung: add support for early console
