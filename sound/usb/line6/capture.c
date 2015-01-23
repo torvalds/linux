@@ -297,18 +297,6 @@ static int snd_line6_capture_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
 
-	/* -- Florian Demski [FD] */
-	/* don't ask me why, but this fixes the bug on my machine */
-	if (line6pcm == NULL) {
-		if (substream->pcm == NULL)
-			return -ENOMEM;
-		if (substream->pcm->private_data == NULL)
-			return -ENOMEM;
-		substream->private_data = substream->pcm->private_data;
-		line6pcm = snd_pcm_substream_chip(substream);
-	}
-	/* -- [FD] end */
-
 	ret = line6_pcm_acquire(line6pcm, LINE6_BIT_PCM_ALSA_CAPTURE_BUFFER);
 
 	if (ret < 0)
