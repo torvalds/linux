@@ -18,10 +18,13 @@
 #include <linux/cpufreq.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
+#include <linux/cpu_cooling.h>
+#include <linux/cpu.h>
 
 #include "exynos-cpufreq.h"
 
 static struct exynos_dvfs_info *exynos_info;
+static struct thermal_cooling_device *cdev;
 static struct regulator *arm_regulator;
 static unsigned int locking_frequency;
 
@@ -156,6 +159,7 @@ static struct cpufreq_driver exynos_driver = {
 
 static int exynos_cpufreq_probe(struct platform_device *pdev)
 {
+	struct device_node *cpus, *np;
 	int ret = -EINVAL;
 
 	exynos_info = kzalloc(sizeof(*exynos_info), GFP_KERNEL);
@@ -198,9 +202,36 @@ static int exynos_cpufreq_probe(struct platform_device *pdev)
 	/* Done here as we want to capture boot frequency */
 	locking_frequency = clk_get_rate(exynos_info->cpu_clk) / 1000;
 
-	if (!cpufreq_register_driver(&exynos_driver))
-		return 0;
+	ret = cpufreq_register_driver(&exynos_driver);
+	if (ret)
+		goto err_cpufreq_reg;
 
+	cpus = of_find_node_by_path("/cpus");
+	if (!cpus) {
+		pr_err("failed to find cpus node\n");
+		return 0;
+	}
+
+	np = of_get_next_child(cpus, NULL);
+	if (!np) {
+		pr_err("failed to find cpus child node\n");
+		of_node_put(cpus);
+		return 0;
+	}
+
+	if (of_find_property(np, "#cooling-cells", NULL)) {
+		cdev = of_cpufreq_cooling_register(np,
+						   cpu_present_mask);
+		if (IS_ERR(cdev))
+			pr_err("running cpufreq without cooling device: %ld\n",
+			       PTR_ERR(cdev));
+	}
+	of_node_put(np);
+	of_node_put(cpus);
+
+	return 0;
+
+err_cpufreq_reg:
 	dev_err(&pdev->dev, "failed to register cpufreq driver\n");
 	regulator_put(arm_regulator);
 err_vdd_arm:
