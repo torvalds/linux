@@ -400,10 +400,59 @@ out:
 	return ret;
 }
 
-void iwl_mvm_fw_dbg_collect(struct iwl_mvm *mvm)
+static void iwl_mvm_get_shared_mem_conf(struct iwl_mvm *mvm)
 {
+	struct iwl_host_cmd cmd = {
+		.id = SHARED_MEM_CFG,
+		.flags = CMD_WANT_SKB,
+		.data = { NULL, },
+		.len = { 0, },
+	};
+	struct iwl_rx_packet *pkt;
+	struct iwl_shared_mem_cfg *mem_cfg;
+	u32 i;
+
 	lockdep_assert_held(&mvm->mutex);
 
+	if (WARN_ON(iwl_mvm_send_cmd(mvm, &cmd)))
+		return;
+
+	pkt = cmd.resp_pkt;
+	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
+		IWL_ERR(mvm, "Bad return from SHARED_MEM_CFG (0x%08X)\n",
+			pkt->hdr.flags);
+		goto exit;
+	}
+
+	mem_cfg = (void *)pkt->data;
+
+	mvm->shared_mem_cfg.shared_mem_addr =
+		le32_to_cpu(mem_cfg->shared_mem_addr);
+	mvm->shared_mem_cfg.shared_mem_size =
+		le32_to_cpu(mem_cfg->shared_mem_size);
+	mvm->shared_mem_cfg.sample_buff_addr =
+		le32_to_cpu(mem_cfg->sample_buff_addr);
+	mvm->shared_mem_cfg.sample_buff_size =
+		le32_to_cpu(mem_cfg->sample_buff_size);
+	mvm->shared_mem_cfg.txfifo_addr = le32_to_cpu(mem_cfg->txfifo_addr);
+	for (i = 0; i < ARRAY_SIZE(mvm->shared_mem_cfg.txfifo_size); i++)
+		mvm->shared_mem_cfg.txfifo_size[i] =
+			le32_to_cpu(mem_cfg->txfifo_size[i]);
+	for (i = 0; i < ARRAY_SIZE(mvm->shared_mem_cfg.rxfifo_size); i++)
+		mvm->shared_mem_cfg.rxfifo_size[i] =
+			le32_to_cpu(mem_cfg->rxfifo_size[i]);
+	mvm->shared_mem_cfg.page_buff_addr =
+		le32_to_cpu(mem_cfg->page_buff_addr);
+	mvm->shared_mem_cfg.page_buff_size =
+		le32_to_cpu(mem_cfg->page_buff_size);
+	IWL_DEBUG_INFO(mvm, "SHARED MEM CFG: got memory offsets/sizes\n");
+
+exit:
+	iwl_free_resp(&cmd);
+}
+
+void iwl_mvm_fw_dbg_collect(struct iwl_mvm *mvm)
+{
 	/* stop recording */
 	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
 		iwl_set_bits_prph(mvm->trans, MON_BUFF_SAMPLE_CTL, 0x100);
@@ -412,11 +461,7 @@ void iwl_mvm_fw_dbg_collect(struct iwl_mvm *mvm)
 		iwl_write_prph(mvm->trans, DBGC_OUT_CTRL, 0);
 	}
 
-	iwl_mvm_fw_error_dump(mvm);
-
-	/* start recording again */
-	WARN_ON_ONCE(mvm->fw->dbg_dest_tlv &&
-		     iwl_mvm_start_fw_dbg_conf(mvm, mvm->fw_dbg_conf));
+	schedule_work(&mvm->fw_error_dump_wk);
 }
 
 int iwl_mvm_start_fw_dbg_conf(struct iwl_mvm *mvm, enum iwl_fw_dbg_conf conf_id)
@@ -452,6 +497,35 @@ int iwl_mvm_start_fw_dbg_conf(struct iwl_mvm *mvm, enum iwl_fw_dbg_conf conf_id)
 
 	mvm->fw_dbg_conf = conf_id;
 	return ret;
+}
+
+static int iwl_mvm_config_ltr_v1(struct iwl_mvm *mvm)
+{
+	struct iwl_ltr_config_cmd_v1 cmd_v1 = {
+		.flags = cpu_to_le32(LTR_CFG_FLAG_FEATURE_ENABLE),
+	};
+
+	if (!mvm->trans->ltr_enabled)
+		return 0;
+
+	return iwl_mvm_send_cmd_pdu(mvm, LTR_CONFIG, 0,
+				    sizeof(cmd_v1), &cmd_v1);
+}
+
+static int iwl_mvm_config_ltr(struct iwl_mvm *mvm)
+{
+	struct iwl_ltr_config_cmd cmd = {
+		.flags = cpu_to_le32(LTR_CFG_FLAG_FEATURE_ENABLE),
+	};
+
+	if (!mvm->trans->ltr_enabled)
+		return 0;
+
+	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_HDC_PHASE_0))
+		return iwl_mvm_config_ltr_v1(mvm);
+
+	return iwl_mvm_send_cmd_pdu(mvm, LTR_CONFIG, 0,
+				    sizeof(cmd), &cmd);
 }
 
 int iwl_mvm_up(struct iwl_mvm *mvm)
@@ -500,6 +574,8 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		IWL_ERR(mvm, "Failed to start RT ucode: %d\n", ret);
 		goto error;
 	}
+
+	iwl_mvm_get_shared_mem_conf(mvm);
 
 	ret = iwl_mvm_sf_update(mvm, NULL, false);
 	if (ret)
@@ -557,14 +633,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	/* Initialize tx backoffs to the minimal possible */
 	iwl_mvm_tt_tx_backoff(mvm, 0);
 
-	if (mvm->trans->ltr_enabled) {
-		struct iwl_ltr_config_cmd cmd = {
-			.flags = cpu_to_le32(LTR_CFG_FLAG_FEATURE_ENABLE),
-		};
-
-		WARN_ON(iwl_mvm_send_cmd_pdu(mvm, LTR_CONFIG, 0,
-					     sizeof(cmd), &cmd));
-	}
+	WARN_ON(iwl_mvm_config_ltr(mvm));
 
 	ret = iwl_mvm_power_update_device(mvm);
 	if (ret)

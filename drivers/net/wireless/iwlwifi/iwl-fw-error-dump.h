@@ -134,6 +134,27 @@ struct iwl_fw_error_dump_txcmd {
 	u8 data[];
 } __packed;
 
+/**
+ * struct iwl_fw_error_dump_fifo - RX/TX FIFO data
+ * @fifo_num: number of FIFO (starting from 0)
+ * @available_bytes: num of bytes available in FIFO (may be less than FIFO size)
+ * @wr_ptr: position of write pointer
+ * @rd_ptr: position of read pointer
+ * @fence_ptr: position of fence pointer
+ * @fence_mode: the current mode of the fence (before locking) -
+ *	0=follow RD pointer ; 1 = freeze
+ * @data: all of the FIFO's data
+ */
+struct iwl_fw_error_dump_fifo {
+	__le32 fifo_num;
+	__le32 available_bytes;
+	__le32 wr_ptr;
+	__le32 rd_ptr;
+	__le32 fence_ptr;
+	__le32 fence_mode;
+	u8 data[];
+} __packed;
+
 enum iwl_fw_error_dump_family {
 	IWL_FW_ERROR_DUMP_FAMILY_7 = 7,
 	IWL_FW_ERROR_DUMP_FAMILY_8 = 8,

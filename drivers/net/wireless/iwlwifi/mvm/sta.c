@@ -250,8 +250,8 @@ static void iwl_mvm_tdls_sta_deinit(struct iwl_mvm *mvm,
 
 	/* disable the TDLS STA-specific queues */
 	sta_msk = mvmsta->tfd_queue_msk;
-	for_each_set_bit(i, &sta_msk, sizeof(sta_msk))
-		iwl_mvm_disable_txq(mvm, i);
+	for_each_set_bit(i, &sta_msk, sizeof(sta_msk) * BITS_PER_BYTE)
+		iwl_mvm_disable_txq(mvm, i, 0);
 }
 
 int iwl_mvm_add_sta(struct iwl_mvm *mvm,
@@ -464,8 +464,8 @@ void iwl_mvm_sta_drained_wk(struct work_struct *wk)
 		if (mvm->tfd_drained[sta_id]) {
 			unsigned long i, msk = mvm->tfd_drained[sta_id];
 
-			for_each_set_bit(i, &msk, sizeof(msk))
-				iwl_mvm_disable_txq(mvm, i);
+			for_each_set_bit(i, &msk, sizeof(msk) * BITS_PER_BYTE)
+				iwl_mvm_disable_txq(mvm, i, 0);
 
 			mvm->tfd_drained[sta_id] = 0;
 			IWL_DEBUG_TDLS(mvm, "Drained sta %d, with queues %ld\n",
@@ -1058,7 +1058,7 @@ int iwl_mvm_sta_tx_agg_stop(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 		iwl_mvm_sta_tx_agg(mvm, sta, tid, txq_id, false);
 
-		iwl_mvm_disable_txq(mvm, txq_id);
+		iwl_mvm_disable_txq(mvm, txq_id, 0);
 		return 0;
 	case IWL_AGG_STARTING:
 	case IWL_EMPTYING_HW_QUEUE_ADDBA:
@@ -1116,7 +1116,7 @@ int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 		iwl_mvm_sta_tx_agg(mvm, sta, tid, txq_id, false);
 
-		iwl_mvm_disable_txq(mvm, tid_data->txq_id);
+		iwl_mvm_disable_txq(mvm, tid_data->txq_id, 0);
 	}
 
 	mvm->queue_to_mac80211[tid_data->txq_id] =
@@ -1196,6 +1196,7 @@ static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
 		break;
 	case WLAN_CIPHER_SUITE_WEP104:
 		key_flags |= cpu_to_le16(STA_KEY_FLG_WEP_13BYTES);
+		/* fall through */
 	case WLAN_CIPHER_SUITE_WEP40:
 		key_flags |= cpu_to_le16(STA_KEY_FLG_WEP);
 		memcpy(cmd.key + 3, keyconf->key, keyconf->keylen);

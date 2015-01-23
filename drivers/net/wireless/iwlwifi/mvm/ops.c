@@ -234,6 +234,8 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 
 	RX_HANDLER(SCAN_REQUEST_CMD, iwl_mvm_rx_scan_response, false),
 	RX_HANDLER(SCAN_COMPLETE_NOTIFICATION, iwl_mvm_rx_scan_complete, true),
+	RX_HANDLER(SCAN_ITERATION_COMPLETE,
+		   iwl_mvm_rx_scan_offload_iter_complete_notif, false),
 	RX_HANDLER(SCAN_OFFLOAD_COMPLETE,
 		   iwl_mvm_rx_scan_offload_complete_notif, true),
 	RX_HANDLER(MATCH_FOUND_NOTIFICATION, iwl_mvm_rx_scan_offload_results,
@@ -268,6 +270,7 @@ static const char *const iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(MGMT_MCAST_KEY),
 	CMD(TX_CMD),
 	CMD(TXPATH_FLUSH),
+	CMD(SHARED_MEM_CFG),
 	CMD(MAC_CONTEXT_CMD),
 	CMD(TIME_EVENT_CMD),
 	CMD(TIME_EVENT_NOTIFICATION),
@@ -818,9 +821,20 @@ static void iwl_mvm_fw_error_dump_wk(struct work_struct *work)
 	struct iwl_mvm *mvm =
 		container_of(work, struct iwl_mvm, fw_error_dump_wk);
 
+	if (iwl_mvm_ref_sync(mvm, IWL_MVM_REF_FW_DBG_COLLECT))
+		return;
+
 	mutex_lock(&mvm->mutex);
 	iwl_mvm_fw_error_dump(mvm);
+
+	/* start recording again if the firmware is not crashed */
+	WARN_ON_ONCE((!test_bit(STATUS_FW_ERROR, &mvm->trans->status)) &&
+		      mvm->fw->dbg_dest_tlv &&
+		      iwl_mvm_start_fw_dbg_conf(mvm, mvm->fw_dbg_conf));
+
 	mutex_unlock(&mvm->mutex);
+
+	iwl_mvm_unref(mvm, IWL_MVM_REF_FW_DBG_COLLECT);
 }
 
 void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
