@@ -553,11 +553,6 @@ static int init_device(struct i2c_client *client, struct adv7180_state *state)
 
 	/* register for interrupts */
 	if (state->irq > 0) {
-		ret = request_threaded_irq(state->irq, NULL, adv7180_irq,
-					   IRQF_ONESHOT, KBUILD_MODNAME, state);
-		if (ret)
-			return ret;
-
 		ret = i2c_smbus_write_byte_data(client, ADV7180_ADI_CTRL_REG,
 						ADV7180_ADI_CTRL_IRQ_SPACE);
 		if (ret < 0)
@@ -597,7 +592,6 @@ static int init_device(struct i2c_client *client, struct adv7180_state *state)
 	return 0;
 
 err:
-	free_irq(state->irq, state);
 	return ret;
 }
 
@@ -633,6 +627,13 @@ static int adv7180_probe(struct i2c_client *client,
 	ret = init_device(client, state);
 	if (ret)
 		goto err_free_ctrl;
+
+	if (state->irq) {
+		ret = request_threaded_irq(client->irq, NULL, adv7180_irq,
+					   IRQF_ONESHOT, KBUILD_MODNAME, state);
+		if (ret)
+			goto err_free_ctrl;
+	}
 
 	ret = v4l2_async_register_subdev(sd);
 	if (ret)
