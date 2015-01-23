@@ -3672,14 +3672,6 @@ static int add_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 		u8 *rand192, *hash192;
 		u8 status;
 
-		if (cp->addr.type != BDADDR_BREDR) {
-			err = cmd_complete(sk, hdev->id,
-					   MGMT_OP_ADD_REMOTE_OOB_DATA,
-					   MGMT_STATUS_INVALID_PARAMS,
-					   &cp->addr, sizeof(cp->addr));
-			goto unlock;
-		}
-
 		if (bdaddr_type_is_le(cp->addr.type)) {
 			rand192 = NULL;
 			hash192 = NULL;
