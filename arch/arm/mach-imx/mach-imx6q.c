@@ -329,7 +329,7 @@ static void __init imx6q_opp_check_speed_grading(struct device *cpu_dev)
 			if (dev_pm_opp_disable(cpu_dev, 852000000))
 				pr_warn("failed to disable 852 MHz OPP\n");
 	}
-
+	iounmap(base);
 put_node:
 	of_node_put(np);
 }

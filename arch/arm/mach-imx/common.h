@@ -70,6 +70,10 @@ void imx_set_soc_revision(unsigned int rev);
 unsigned int imx_get_soc_revision(void);
 void imx_init_revision_from_anatop(void);
 struct device *imx_soc_device_init(void);
+void imx6_enable_rbc(bool enable);
+void imx_gpc_set_arm_power_in_lpm(bool power_off);
+void imx_gpc_set_arm_power_up_timing(u32 sw2iso, u32 sw);
+void imx_gpc_set_arm_power_down_timing(u32 sw2iso, u32 sw);
 
 enum mxc_cpu_pwr_mode {
 	WAIT_CLOCKED,		/* wfi only */
