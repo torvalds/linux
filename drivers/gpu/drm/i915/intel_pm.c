@@ -3883,7 +3883,7 @@ void valleyview_set_rps(struct drm_device *dev, u8 val)
 	I915_WRITE(GEN6_PMINTRMSK, gen6_rps_pm_mask(dev_priv, val));
 
 	dev_priv->rps.cur_freq = val;
-	trace_intel_gpu_freq_change(vlv_gpu_freq(dev_priv, val));
+	trace_intel_gpu_freq_change(intel_gpu_freq(dev_priv, val));
 }
 
 static void gen9_disable_rps(struct drm_device *dev)
@@ -4619,22 +4619,22 @@ static void valleyview_init_gt_powersave(struct drm_device *dev)
 	dev_priv->rps.max_freq = valleyview_rps_max_freq(dev_priv);
 	dev_priv->rps.rp0_freq = dev_priv->rps.max_freq;
 	DRM_DEBUG_DRIVER("max GPU freq: %d MHz (%u)\n",
-			 vlv_gpu_freq(dev_priv, dev_priv->rps.max_freq),
+			 intel_gpu_freq(dev_priv, dev_priv->rps.max_freq),
 			 dev_priv->rps.max_freq);
 
 	dev_priv->rps.efficient_freq = valleyview_rps_rpe_freq(dev_priv);
 	DRM_DEBUG_DRIVER("RPe GPU freq: %d MHz (%u)\n",
-			 vlv_gpu_freq(dev_priv, dev_priv->rps.efficient_freq),
+			 intel_gpu_freq(dev_priv, dev_priv->rps.efficient_freq),
 			 dev_priv->rps.efficient_freq);
 
 	dev_priv->rps.rp1_freq = valleyview_rps_guar_freq(dev_priv);
 	DRM_DEBUG_DRIVER("RP1(Guar Freq) GPU freq: %d MHz (%u)\n",
-			 vlv_gpu_freq(dev_priv, dev_priv->rps.rp1_freq),
+			 intel_gpu_freq(dev_priv, dev_priv->rps.rp1_freq),
 			 dev_priv->rps.rp1_freq);
 
 	dev_priv->rps.min_freq = valleyview_rps_min_freq(dev_priv);
 	DRM_DEBUG_DRIVER("min GPU freq: %d MHz (%u)\n",
-			 vlv_gpu_freq(dev_priv, dev_priv->rps.min_freq),
+			 intel_gpu_freq(dev_priv, dev_priv->rps.min_freq),
 			 dev_priv->rps.min_freq);
 
 	/* Preserve min/max settings in case of re-init */
@@ -4688,22 +4688,22 @@ static void cherryview_init_gt_powersave(struct drm_device *dev)
 	dev_priv->rps.max_freq = cherryview_rps_max_freq(dev_priv);
 	dev_priv->rps.rp0_freq = dev_priv->rps.max_freq;
 	DRM_DEBUG_DRIVER("max GPU freq: %d MHz (%u)\n",
-			 vlv_gpu_freq(dev_priv, dev_priv->rps.max_freq),
+			 intel_gpu_freq(dev_priv, dev_priv->rps.max_freq),
 			 dev_priv->rps.max_freq);
 
 	dev_priv->rps.efficient_freq = cherryview_rps_rpe_freq(dev_priv);
 	DRM_DEBUG_DRIVER("RPe GPU freq: %d MHz (%u)\n",
-			 vlv_gpu_freq(dev_priv, dev_priv->rps.efficient_freq),
+			 intel_gpu_freq(dev_priv, dev_priv->rps.efficient_freq),
 			 dev_priv->rps.efficient_freq);
 
 	dev_priv->rps.rp1_freq = cherryview_rps_guar_freq(dev_priv);
 	DRM_DEBUG_DRIVER("RP1(Guar) GPU freq: %d MHz (%u)\n",
-			 vlv_gpu_freq(dev_priv, dev_priv->rps.rp1_freq),
+			 intel_gpu_freq(dev_priv, dev_priv->rps.rp1_freq),
 			 dev_priv->rps.rp1_freq);
 
 	dev_priv->rps.min_freq = cherryview_rps_min_freq(dev_priv);
 	DRM_DEBUG_DRIVER("min GPU freq: %d MHz (%u)\n",
-			 vlv_gpu_freq(dev_priv, dev_priv->rps.min_freq),
+			 intel_gpu_freq(dev_priv, dev_priv->rps.min_freq),
 			 dev_priv->rps.min_freq);
 
 	WARN_ONCE((dev_priv->rps.max_freq |
@@ -4807,11 +4807,11 @@ static void cherryview_enable_rps(struct drm_device *dev)
 
 	dev_priv->rps.cur_freq = (val >> 8) & 0xff;
 	DRM_DEBUG_DRIVER("current GPU freq: %d MHz (%u)\n",
-			 vlv_gpu_freq(dev_priv, dev_priv->rps.cur_freq),
+			 intel_gpu_freq(dev_priv, dev_priv->rps.cur_freq),
 			 dev_priv->rps.cur_freq);
 
 	DRM_DEBUG_DRIVER("setting GPU freq to %d MHz (%u)\n",
-			 vlv_gpu_freq(dev_priv, dev_priv->rps.efficient_freq),
+			 intel_gpu_freq(dev_priv, dev_priv->rps.efficient_freq),
 			 dev_priv->rps.efficient_freq);
 
 	valleyview_set_rps(dev_priv->dev, dev_priv->rps.efficient_freq);
@@ -4891,11 +4891,11 @@ static void valleyview_enable_rps(struct drm_device *dev)
 
 	dev_priv->rps.cur_freq = (val >> 8) & 0xff;
 	DRM_DEBUG_DRIVER("current GPU freq: %d MHz (%u)\n",
-			 vlv_gpu_freq(dev_priv, dev_priv->rps.cur_freq),
+			 intel_gpu_freq(dev_priv, dev_priv->rps.cur_freq),
 			 dev_priv->rps.cur_freq);
 
 	DRM_DEBUG_DRIVER("setting GPU freq to %d MHz (%u)\n",
-			 vlv_gpu_freq(dev_priv, dev_priv->rps.efficient_freq),
+			 intel_gpu_freq(dev_priv, dev_priv->rps.efficient_freq),
 			 dev_priv->rps.efficient_freq);
 
 	valleyview_set_rps(dev_priv->dev, dev_priv->rps.efficient_freq);
@@ -6625,11 +6625,6 @@ int intel_gpu_freq(struct drm_i915_private *dev_priv, int val)
 		return val * GT_FREQUENCY_MULTIPLIER;
 }
 
-int vlv_gpu_freq(struct drm_i915_private *dev_priv, int val)
-{
-	return intel_gpu_freq(dev_priv, val);
-}
-
 int intel_freq_opcode(struct drm_i915_private *dev_priv, int val)
 {
 	if (IS_CHERRYVIEW(dev_priv->dev))
@@ -6638,11 +6633,6 @@ int intel_freq_opcode(struct drm_i915_private *dev_priv, int val)
 		return byt_freq_opcode(dev_priv, val);
 	else
 		return val / GT_FREQUENCY_MULTIPLIER;
-}
-
-int vlv_freq_opcode(struct drm_i915_private *dev_priv, int val)
-{
-	return intel_freq_opcode(dev_priv, val);
 }
 
 void intel_pm_setup(struct drm_device *dev)

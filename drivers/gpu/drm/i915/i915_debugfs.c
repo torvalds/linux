@@ -1113,7 +1113,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 			reqf >>= 24;
 		else
 			reqf >>= 25;
-		reqf *= GT_FREQUENCY_MULTIPLIER;
+		reqf = intel_gpu_freq(dev_priv, reqf);
 
 		rpmodectl = I915_READ(GEN6_RP_CONTROL);
 		rpinclimit = I915_READ(GEN6_RP_UP_THRESHOLD);
@@ -1130,7 +1130,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 			cagf = (rpstat & HSW_CAGF_MASK) >> HSW_CAGF_SHIFT;
 		else
 			cagf = (rpstat & GEN6_CAGF_MASK) >> GEN6_CAGF_SHIFT;
-		cagf *= GT_FREQUENCY_MULTIPLIER;
+		cagf = intel_gpu_freq(dev_priv, cagf);
 
 		intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 		mutex_unlock(&dev->struct_mutex);
@@ -1178,18 +1178,18 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 
 		max_freq = (rp_state_cap & 0xff0000) >> 16;
 		seq_printf(m, "Lowest (RPN) frequency: %dMHz\n",
-			   max_freq * GT_FREQUENCY_MULTIPLIER);
+			   intel_gpu_freq(dev_priv, max_freq));
 
 		max_freq = (rp_state_cap & 0xff00) >> 8;
 		seq_printf(m, "Nominal (RP1) frequency: %dMHz\n",
-			   max_freq * GT_FREQUENCY_MULTIPLIER);
+			   intel_gpu_freq(dev_priv, max_freq));
 
 		max_freq = rp_state_cap & 0xff;
 		seq_printf(m, "Max non-overclocked (RP0) frequency: %dMHz\n",
-			   max_freq * GT_FREQUENCY_MULTIPLIER);
+			   intel_gpu_freq(dev_priv, max_freq));
 
 		seq_printf(m, "Max overclocked frequency: %dMHz\n",
-			   dev_priv->rps.max_freq * GT_FREQUENCY_MULTIPLIER);
+			   intel_gpu_freq(dev_priv, dev_priv->rps.max_freq));
 	} else if (IS_VALLEYVIEW(dev)) {
 		u32 freq_sts;
 
@@ -1199,16 +1199,17 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		seq_printf(m, "DDR freq: %d MHz\n", dev_priv->mem_freq);
 
 		seq_printf(m, "max GPU freq: %d MHz\n",
-			   vlv_gpu_freq(dev_priv, dev_priv->rps.max_freq));
+			   intel_gpu_freq(dev_priv, dev_priv->rps.max_freq));
 
 		seq_printf(m, "min GPU freq: %d MHz\n",
-			   vlv_gpu_freq(dev_priv, dev_priv->rps.min_freq));
+			   intel_gpu_freq(dev_priv, dev_priv->rps.min_freq));
 
-		seq_printf(m, "efficient (RPe) frequency: %d MHz\n",
-			   vlv_gpu_freq(dev_priv, dev_priv->rps.efficient_freq));
+		seq_printf(m,
+			   "efficient (RPe) frequency: %d MHz\n",
+			   intel_gpu_freq(dev_priv, dev_priv->rps.efficient_freq));
 
 		seq_printf(m, "current GPU freq: %d MHz\n",
-			   vlv_gpu_freq(dev_priv, (freq_sts >> 8) & 0xff));
+			   intel_gpu_freq(dev_priv, (freq_sts >> 8) & 0xff));
 		mutex_unlock(&dev_priv->rps.hw_lock);
 	} else {
 		seq_puts(m, "no P-state info available\n");
@@ -1677,7 +1678,7 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 				       GEN6_PCODE_READ_MIN_FREQ_TABLE,
 				       &ia_freq);
 		seq_printf(m, "%d\t\t%d\t\t\t\t%d\n",
-			   gpu_freq * GT_FREQUENCY_MULTIPLIER,
+			   intel_gpu_freq(dev_priv, gpu_freq),
 			   ((ia_freq >> 0) & 0xff) * 100,
 			   ((ia_freq >> 8) & 0xff) * 100);
 	}
@@ -4119,10 +4120,7 @@ i915_max_freq_get(void *data, u64 *val)
 	if (ret)
 		return ret;
 
-	if (IS_VALLEYVIEW(dev))
-		*val = vlv_gpu_freq(dev_priv, dev_priv->rps.max_freq_softlimit);
-	else
-		*val = dev_priv->rps.max_freq_softlimit * GT_FREQUENCY_MULTIPLIER;
+	*val = intel_gpu_freq(dev_priv, dev_priv->rps.max_freq_softlimit);
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return 0;
@@ -4151,12 +4149,12 @@ i915_max_freq_set(void *data, u64 val)
 	 * Turbo will still be enabled, but won't go above the set value.
 	 */
 	if (IS_VALLEYVIEW(dev)) {
-		val = vlv_freq_opcode(dev_priv, val);
+		val = intel_freq_opcode(dev_priv, val);
 
 		hw_max = dev_priv->rps.max_freq;
 		hw_min = dev_priv->rps.min_freq;
 	} else {
-		do_div(val, GT_FREQUENCY_MULTIPLIER);
+		val = intel_freq_opcode(dev_priv, val);
 
 		rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
 		hw_max = dev_priv->rps.max_freq;
@@ -4200,10 +4198,7 @@ i915_min_freq_get(void *data, u64 *val)
 	if (ret)
 		return ret;
 
-	if (IS_VALLEYVIEW(dev))
-		*val = vlv_gpu_freq(dev_priv, dev_priv->rps.min_freq_softlimit);
-	else
-		*val = dev_priv->rps.min_freq_softlimit * GT_FREQUENCY_MULTIPLIER;
+	*val = intel_gpu_freq(dev_priv, dev_priv->rps.min_freq_softlimit);
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return 0;
@@ -4232,12 +4227,12 @@ i915_min_freq_set(void *data, u64 val)
 	 * Turbo will still be enabled, but won't go below the set value.
 	 */
 	if (IS_VALLEYVIEW(dev)) {
-		val = vlv_freq_opcode(dev_priv, val);
+		val = intel_freq_opcode(dev_priv, val);
 
 		hw_max = dev_priv->rps.max_freq;
 		hw_min = dev_priv->rps.min_freq;
 	} else {
-		do_div(val, GT_FREQUENCY_MULTIPLIER);
+		val = intel_freq_opcode(dev_priv, val);
 
 		rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
 		hw_max = dev_priv->rps.max_freq;
