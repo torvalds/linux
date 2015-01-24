@@ -1294,8 +1294,8 @@ struct ieee80211_vif *wdev_to_ieee80211_vif(struct wireless_dev *wdev);
  * @IEEE80211_KEY_FLAG_PAIRWISE: Set by mac80211, this flag indicates
  *	that the key is pairwise rather then a shared key.
  * @IEEE80211_KEY_FLAG_SW_MGMT_TX: This flag should be set by the driver for a
- *	CCMP key if it requires CCMP encryption of management frames (MFP) to
- *	be done in software.
+ *	CCMP/GCMP key if it requires CCMP/GCMP encryption of management frames
+ *	(MFP) to be done in software.
  * @IEEE80211_KEY_FLAG_PUT_IV_SPACE: This flag should be set by the driver
  *	if space should be prepared for the IV, but the IV
  *	itself should not be generated. Do not set together with
@@ -1310,7 +1310,7 @@ struct ieee80211_vif *wdev_to_ieee80211_vif(struct wireless_dev *wdev);
  *	RX, if your crypto engine can't deal with TX you can also set the
  *	%IEEE80211_KEY_FLAG_SW_MGMT_TX flag to encrypt such frames in SW.
  * @IEEE80211_KEY_FLAG_GENERATE_IV_MGMT: This flag should be set by the
- *	driver for a CCMP key to indicate that is requires IV generation
+ *	driver for a CCMP/GCMP key to indicate that is requires IV generation
  *	only for managment frames (MFP).
  * @IEEE80211_KEY_FLAG_RESERVE_TAILROOM: This flag should be set by the
  *	driver for a key to indicate that sufficient tailroom must always
@@ -4098,6 +4098,8 @@ void ieee80211_aes_cmac_calculate_k1_k2(struct ieee80211_key_conf *keyconf,
  *	reverse order than in packet)
  * @aes_cmac: PN data, most significant byte first (big endian,
  *	reverse order than in packet)
+ * @gcmp: PN data, most significant byte first (big endian,
+ *	reverse order than in packet)
  */
 struct ieee80211_key_seq {
 	union {
@@ -4111,6 +4113,9 @@ struct ieee80211_key_seq {
 		struct {
 			u8 pn[6];
 		} aes_cmac;
+		struct {
+			u8 pn[6];
+		} gcmp;
 	};
 };
 
@@ -4135,7 +4140,7 @@ void ieee80211_get_key_tx_seq(struct ieee80211_key_conf *keyconf,
  * ieee80211_get_key_rx_seq - get key RX sequence counter
  *
  * @keyconf: the parameter passed with the set key
- * @tid: The TID, or -1 for the management frame value (CCMP only);
+ * @tid: The TID, or -1 for the management frame value (CCMP/GCMP only);
  *	the value on TID 0 is also used for non-QoS frames. For
  *	CMAC, only TID 0 is valid.
  * @seq: buffer to receive the sequence data
@@ -4171,7 +4176,7 @@ void ieee80211_set_key_tx_seq(struct ieee80211_key_conf *keyconf,
  * ieee80211_set_key_rx_seq - set key RX sequence counter
  *
  * @keyconf: the parameter passed with the set key
- * @tid: The TID, or -1 for the management frame value (CCMP only);
+ * @tid: The TID, or -1 for the management frame value (CCMP/GCMP only);
  *	the value on TID 0 is also used for non-QoS frames. For
  *	CMAC, only TID 0 is valid.
  * @seq: new sequence data

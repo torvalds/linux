@@ -666,6 +666,8 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 		WLAN_CIPHER_SUITE_WEP104,
 		WLAN_CIPHER_SUITE_TKIP,
 		WLAN_CIPHER_SUITE_CCMP,
+		WLAN_CIPHER_SUITE_GCMP,
+		WLAN_CIPHER_SUITE_GCMP_256,
 
 		/* keep last -- depends on hw flags! */
 		WLAN_CIPHER_SUITE_AES_CMAC
@@ -724,9 +726,10 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 		/* Driver specifies cipher schemes only (but not cipher suites
 		 * including the schemes)
 		 *
-		 * We start counting ciphers defined by schemes, TKIP and CCMP
+		 * We start counting ciphers defined by schemes, TKIP, CCMP,
+		 * GCMP, and GCMP-256
 		 */
-		n_suites = local->hw.n_cipher_schemes + 2;
+		n_suites = local->hw.n_cipher_schemes + 4;
 
 		/* check if we have WEP40 and WEP104 */
 		if (have_wep)
@@ -742,6 +745,8 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 
 		suites[w++] = WLAN_CIPHER_SUITE_CCMP;
 		suites[w++] = WLAN_CIPHER_SUITE_TKIP;
+		suites[w++] = WLAN_CIPHER_SUITE_GCMP;
+		suites[w++] = WLAN_CIPHER_SUITE_GCMP_256;
 
 		if (have_wep) {
 			suites[w++] = WLAN_CIPHER_SUITE_WEP40;

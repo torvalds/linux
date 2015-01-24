@@ -105,6 +105,13 @@ static ssize_t key_tx_spec_read(struct file *file, char __user *userbuf,
 				(u8)(pn >> 40), (u8)(pn >> 32), (u8)(pn >> 24),
 				(u8)(pn >> 16), (u8)(pn >> 8), (u8)pn);
 		break;
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		pn = atomic64_read(&key->u.gcmp.tx_pn);
+		len = scnprintf(buf, sizeof(buf), "%02x%02x%02x%02x%02x%02x\n",
+				(u8)(pn >> 40), (u8)(pn >> 32), (u8)(pn >> 24),
+				(u8)(pn >> 16), (u8)(pn >> 8), (u8)pn);
+		break;
 	default:
 		return 0;
 	}
@@ -151,6 +158,17 @@ static ssize_t key_rx_spec_read(struct file *file, char __user *userbuf,
 			       rpn[3], rpn[4], rpn[5]);
 		len = p - buf;
 		break;
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		for (i = 0; i < IEEE80211_NUM_TIDS + 1; i++) {
+			rpn = key->u.gcmp.rx_pn[i];
+			p += scnprintf(p, sizeof(buf)+buf-p,
+				       "%02x%02x%02x%02x%02x%02x\n",
+				       rpn[0], rpn[1], rpn[2],
+				       rpn[3], rpn[4], rpn[5]);
+		}
+		len = p - buf;
+		break;
 	default:
 		return 0;
 	}
@@ -172,6 +190,10 @@ static ssize_t key_replays_read(struct file *file, char __user *userbuf,
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 		len = scnprintf(buf, sizeof(buf), "%u\n",
 				key->u.aes_cmac.replays);
+		break;
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		len = scnprintf(buf, sizeof(buf), "%u\n", key->u.gcmp.replays);
 		break;
 	default:
 		return 0;

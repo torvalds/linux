@@ -95,6 +95,17 @@ struct ieee80211_key {
 			u32 icverrors; /* dot11RSNAStatsCMACICVErrors */
 		} aes_cmac;
 		struct {
+			atomic64_t tx_pn;
+			/* Last received packet number. The first
+			 * IEEE80211_NUM_TIDS counters are used with Data
+			 * frames and the last counter is used with Robust
+			 * Management frames.
+			 */
+			u8 rx_pn[IEEE80211_NUM_TIDS + 1][IEEE80211_GCMP_PN_LEN];
+			struct crypto_aead *tfm;
+			u32 replays; /* dot11RSNAStatsGCMPReplays */
+		} gcmp;
+		struct {
 			/* generic cipher scheme */
 			u8 rx_pn[IEEE80211_NUM_TIDS + 1][MAX_PN_LEN];
 		} gen;
