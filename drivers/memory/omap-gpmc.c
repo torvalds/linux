@@ -668,7 +668,7 @@ static void gpmc_cs_set_name(int cs, const char *name)
 	gpmc->name = name;
 }
 
-const char *gpmc_cs_get_name(int cs)
+static const char *gpmc_cs_get_name(int cs)
 {
 	struct gpmc_cs_data *gpmc = &gpmc_cs[cs];
 
