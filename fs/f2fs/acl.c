@@ -396,7 +396,7 @@ int f2fs_init_acl(struct inode *inode, struct inode *dir, struct page *ipage,
 		posix_acl_release(default_acl);
 	}
 	if (acl) {
-		if (error)
+		if (!error)
 			error = __f2fs_set_acl(inode, ACL_TYPE_ACCESS, acl,
 					       ipage);
 		posix_acl_release(acl);
