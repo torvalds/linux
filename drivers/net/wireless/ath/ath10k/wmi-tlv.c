@@ -1512,6 +1512,78 @@ ath10k_wmi_tlv_op_gen_vdev_install_key(struct ath10k *ar,
 	return skb;
 }
 
+static void *ath10k_wmi_tlv_put_uapsd_ac(struct ath10k *ar, void *ptr,
+					 const struct wmi_sta_uapsd_auto_trig_arg *arg)
+{
+	struct wmi_sta_uapsd_auto_trig_param *ac;
+	struct wmi_tlv *tlv;
+
+	tlv = ptr;
+	tlv->tag = __cpu_to_le16(WMI_TLV_TAG_STRUCT_STA_UAPSD_AUTO_TRIG_PARAM);
+	tlv->len = __cpu_to_le16(sizeof(*ac));
+	ac = (void *)tlv->value;
+
+	ac->wmm_ac = __cpu_to_le32(arg->wmm_ac);
+	ac->user_priority = __cpu_to_le32(arg->user_priority);
+	ac->service_interval = __cpu_to_le32(arg->service_interval);
+	ac->suspend_interval = __cpu_to_le32(arg->suspend_interval);
+	ac->delay_interval = __cpu_to_le32(arg->delay_interval);
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI,
+		   "wmi tlv vdev sta uapsd auto trigger ac %d prio %d svc int %d susp int %d delay int %d\n",
+		   ac->wmm_ac, ac->user_priority, ac->service_interval,
+		   ac->suspend_interval, ac->delay_interval);
+
+	return ptr + sizeof(*tlv) + sizeof(*ac);
+}
+
+static struct sk_buff *
+ath10k_wmi_tlv_op_gen_vdev_sta_uapsd(struct ath10k *ar, u32 vdev_id,
+				     const u8 peer_addr[ETH_ALEN],
+				     const struct wmi_sta_uapsd_auto_trig_arg *args,
+				     u32 num_ac)
+{
+	struct wmi_sta_uapsd_auto_trig_cmd_fixed_param *cmd;
+	struct wmi_sta_uapsd_auto_trig_param *ac;
+	struct wmi_tlv *tlv;
+	struct sk_buff *skb;
+	size_t len;
+	size_t ac_tlv_len;
+	void *ptr;
+	int i;
+
+	ac_tlv_len = num_ac * (sizeof(*tlv) + sizeof(*ac));
+	len = sizeof(*tlv) + sizeof(*cmd) +
+	      sizeof(*tlv) + ac_tlv_len;
+	skb = ath10k_wmi_alloc_skb(ar, len);
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	ptr = (void *)skb->data;
+	tlv = ptr;
+	tlv->tag = __cpu_to_le16(WMI_TLV_TAG_STRUCT_STA_UAPSD_AUTO_TRIG_CMD);
+	tlv->len = __cpu_to_le16(sizeof(*cmd));
+	cmd = (void *)tlv->value;
+	cmd->vdev_id = __cpu_to_le32(vdev_id);
+	cmd->num_ac = __cpu_to_le32(num_ac);
+	ether_addr_copy(cmd->peer_macaddr.addr, peer_addr);
+
+	ptr += sizeof(*tlv);
+	ptr += sizeof(*cmd);
+
+	tlv = ptr;
+	tlv->tag = __cpu_to_le16(WMI_TLV_TAG_ARRAY_STRUCT);
+	tlv->len = __cpu_to_le16(ac_tlv_len);
+	ac = (void *)tlv->value;
+
+	ptr += sizeof(*tlv);
+	for (i = 0; i < num_ac; i++)
+		ptr = ath10k_wmi_tlv_put_uapsd_ac(ar, ptr, &args[i]);
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi tlv vdev sta uapsd auto trigger\n");
+	return skb;
+}
+
 static struct sk_buff *
 ath10k_wmi_tlv_op_gen_peer_create(struct ath10k *ar, u32 vdev_id,
 				  const u8 peer_addr[ETH_ALEN])
@@ -2523,6 +2595,7 @@ static const struct wmi_ops wmi_tlv_ops = {
 	.gen_bcn_tmpl = ath10k_wmi_tlv_op_gen_bcn_tmpl,
 	.gen_prb_tmpl = ath10k_wmi_tlv_op_gen_prb_tmpl,
 	.gen_p2p_go_bcn_ie = ath10k_wmi_tlv_op_gen_p2p_go_bcn_ie,
+	.gen_vdev_sta_uapsd = ath10k_wmi_tlv_op_gen_vdev_sta_uapsd,
 };
 
 /************/
