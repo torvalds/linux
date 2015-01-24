@@ -44,6 +44,7 @@ enum nfs4_client_state {
 #define NFS4_RENEW_TIMEOUT		0x01
 #define NFS4_RENEW_DELEGATION_CB	0x02
 
+struct nfs_seqid_counter;
 struct nfs4_minor_version_ops {
 	u32	minor_version;
 	unsigned init_caps;
@@ -56,6 +57,8 @@ struct nfs4_minor_version_ops {
 			struct nfs_fsinfo *);
 	void	(*free_lock_state)(struct nfs_server *,
 			struct nfs4_lock_state *);
+	struct nfs_seqid *
+		(*alloc_seqid)(struct nfs_seqid_counter *, gfp_t);
 	const struct rpc_call_ops *call_sync_ops;
 	const struct nfs4_state_recovery_ops *reboot_recovery_ops;
 	const struct nfs4_state_recovery_ops *nograce_recovery_ops;

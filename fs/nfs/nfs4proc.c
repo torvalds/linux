@@ -977,6 +977,7 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct dentry *dentry,
 	struct dentry *parent = dget_parent(dentry);
 	struct inode *dir = parent->d_inode;
 	struct nfs_server *server = NFS_SERVER(dir);
+	struct nfs_seqid *(*alloc_seqid)(struct nfs_seqid_counter *, gfp_t);
 	struct nfs4_opendata *p;
 
 	p = kzalloc(sizeof(*p), gfp_mask);
@@ -987,7 +988,8 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct dentry *dentry,
 	if (IS_ERR(p->f_label))
 		goto err_free_p;
 
-	p->o_arg.seqid = nfs_alloc_seqid(&sp->so_seqid, gfp_mask);
+	alloc_seqid = server->nfs_client->cl_mvops->alloc_seqid;
+	p->o_arg.seqid = alloc_seqid(&sp->so_seqid, gfp_mask);
 	if (IS_ERR(p->o_arg.seqid))
 		goto err_free_label;
 	nfs_sb_active(dentry->d_sb);
@@ -2751,6 +2753,7 @@ static bool nfs4_roc(struct inode *inode)
 int nfs4_do_close(struct nfs4_state *state, gfp_t gfp_mask, int wait)
 {
 	struct nfs_server *server = NFS_SERVER(state->inode);
+	struct nfs_seqid *(*alloc_seqid)(struct nfs_seqid_counter *, gfp_t);
 	struct nfs4_closedata *calldata;
 	struct nfs4_state_owner *sp = state->owner;
 	struct rpc_task *task;
@@ -2778,7 +2781,8 @@ int nfs4_do_close(struct nfs4_state *state, gfp_t gfp_mask, int wait)
 	calldata->state = state;
 	calldata->arg.fh = NFS_FH(state->inode);
 	/* Serialization for the sequence id */
-	calldata->arg.seqid = nfs_alloc_seqid(&state->owner->so_seqid, gfp_mask);
+	alloc_seqid = server->nfs_client->cl_mvops->alloc_seqid;
+	calldata->arg.seqid = alloc_seqid(&state->owner->so_seqid, gfp_mask);
 	if (IS_ERR(calldata->arg.seqid))
 		goto out_free_calldata;
 	calldata->arg.fmode = 0;
@@ -8414,6 +8418,7 @@ static const struct nfs4_minor_version_ops nfs_v4_0_minor_ops = {
 	.match_stateid = nfs4_match_stateid,
 	.find_root_sec = nfs4_find_root_sec,
 	.free_lock_state = nfs4_release_lockowner,
+	.alloc_seqid = nfs_alloc_seqid,
 	.call_sync_ops = &nfs40_call_sync_ops,
 	.reboot_recovery_ops = &nfs40_reboot_recovery_ops,
 	.nograce_recovery_ops = &nfs40_nograce_recovery_ops,
@@ -8422,6 +8427,12 @@ static const struct nfs4_minor_version_ops nfs_v4_0_minor_ops = {
 };
 
 #if defined(CONFIG_NFS_V4_1)
+static struct nfs_seqid *
+nfs_alloc_no_seqid(struct nfs_seqid_counter *arg1, gfp_t arg2)
+{
+	return NULL;
+}
+
 static const struct nfs4_minor_version_ops nfs_v4_1_minor_ops = {
 	.minor_version = 1,
 	.init_caps = NFS_CAP_READDIRPLUS
@@ -8435,6 +8446,7 @@ static const struct nfs4_minor_version_ops nfs_v4_1_minor_ops = {
 	.match_stateid = nfs41_match_stateid,
 	.find_root_sec = nfs41_find_root_sec,
 	.free_lock_state = nfs41_free_lock_state,
+	.alloc_seqid = nfs_alloc_no_seqid,
 	.call_sync_ops = &nfs41_call_sync_ops,
 	.reboot_recovery_ops = &nfs41_reboot_recovery_ops,
 	.nograce_recovery_ops = &nfs41_nograce_recovery_ops,
@@ -8461,6 +8473,7 @@ static const struct nfs4_minor_version_ops nfs_v4_2_minor_ops = {
 	.find_root_sec = nfs41_find_root_sec,
 	.free_lock_state = nfs41_free_lock_state,
 	.call_sync_ops = &nfs41_call_sync_ops,
+	.alloc_seqid = nfs_alloc_no_seqid,
 	.reboot_recovery_ops = &nfs41_reboot_recovery_ops,
 	.nograce_recovery_ops = &nfs41_nograce_recovery_ops,
 	.state_renewal_ops = &nfs41_state_renewal_ops,
