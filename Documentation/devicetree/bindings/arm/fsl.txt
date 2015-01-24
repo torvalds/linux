@@ -124,3 +124,11 @@ Example:
 		compatible = "fsl,ls1021a-dcfg";
 		reg = <0x0 0x1ee0000 0x0 0x10000>;
 	};
+
+Freescale LS2085A SoC Device Tree Bindings
+------------------------------------------
+
+LS2085A ARMv8 based Simulator model
+Required root node properties:
+    - compatible = "fsl,ls2085a-simu", "fsl,ls2085a";
+
