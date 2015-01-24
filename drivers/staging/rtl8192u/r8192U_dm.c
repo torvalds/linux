@@ -406,9 +406,8 @@ static void dm_check_rate_adaptive(struct net_device *dev)
 
 			ratr_value = targetRATR;
 			RT_TRACE(COMP_RATE, "currentRATR = %x, targetRATR = %x\n", currentRATR, targetRATR);
-			if (priv->rf_type == RF_1T2R) {
+			if (priv->rf_type == RF_1T2R)
 				ratr_value &= ~(RATE_ALL_OFDM_2SS);
-			}
 			write_nic_dword(dev, RATR0, ratr_value);
 			write_nic_byte(dev, UFWP, 1);
 
@@ -436,9 +435,8 @@ static void dm_bandwidth_autoswitch(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if (priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20 || !priv->ieee80211->bandwidth_auto_switch.bautoswitch_enable) {
+	if (priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20 || !priv->ieee80211->bandwidth_auto_switch.bautoswitch_enable)
 		return;
-	}
 	if (priv->ieee80211->bandwidth_auto_switch.bforced_tx20Mhz == false) { /* If send packets in 40 Mhz in 20/40 */
 		if (priv->undecorated_smoothed_pwdb <= priv->ieee80211->bandwidth_auto_switch.threshold_40Mhzto20Mhz)
 			priv->ieee80211->bandwidth_auto_switch.bforced_tx20Mhz = true;
@@ -532,9 +530,8 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 		tx_cmd.Length = 4;
 		tx_cmd.Value = Value;
 		rtStatus = SendTxCommandPacket(dev, &tx_cmd, 12);
-		if (rtStatus == RT_STATUS_FAILURE) {
+		if (rtStatus == RT_STATUS_FAILURE)
 			RT_TRACE(COMP_POWER_TRACKING, "Set configuration with tx cmd queue fail!\n");
-		}
 		mdelay(1);
 		/*DbgPrint("hi, vivi, strange\n");*/
 		for (i = 0; i <= 30; i++) {
@@ -574,9 +571,8 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 				break;
 			}
 
-			for (k = 0; k < 5; k++) {
+			for (k = 0; k < 5; k++)
 				Avg_TSSI_Meas_from_driver += tmp_report[k];
-			}
 
 			Avg_TSSI_Meas_from_driver = Avg_TSSI_Meas_from_driver*100/5;
 			RT_TRACE(COMP_POWER_TRACKING, "Avg_TSSI_Meas_from_driver = %d\n", Avg_TSSI_Meas_from_driver);
@@ -599,56 +595,55 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 				RT_TRACE(COMP_POWER_TRACKING, "priv->cck_present_attentuation_difference = %d\n", priv->cck_present_attentuation_difference);
 				RT_TRACE(COMP_POWER_TRACKING, "priv->cck_present_attentuation = %d\n", priv->cck_present_attentuation);
 				return;
-			} else {
-				if (Avg_TSSI_Meas_from_driver < TSSI_13dBm - E_FOR_TX_POWER_TRACK) {
-					if (priv->rfa_txpowertrackingindex > 0) {
-						priv->rfa_txpowertrackingindex--;
-						if (priv->rfa_txpowertrackingindex_real > 4) {
-							priv->rfa_txpowertrackingindex_real--;
-							rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance, bMaskDWord, priv->txbbgain_table[priv->rfa_txpowertrackingindex_real].txbbgain_value);
-						}
-					}
-				} else {
-					if (priv->rfa_txpowertrackingindex < 36) {
-						priv->rfa_txpowertrackingindex++;
-						priv->rfa_txpowertrackingindex_real++;
-						rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance, bMaskDWord, priv->txbbgain_table[priv->rfa_txpowertrackingindex_real].txbbgain_value);
-
-					}
-				}
-				priv->cck_present_attentuation_difference
-					= priv->rfa_txpowertrackingindex - priv->rfa_txpowertracking_default;
-
-				if (priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20)
-					priv->cck_present_attentuation
-						= priv->cck_present_attentuation_20Mdefault + priv->cck_present_attentuation_difference;
-				else
-					priv->cck_present_attentuation
-						= priv->cck_present_attentuation_40Mdefault + priv->cck_present_attentuation_difference;
-
-				if (priv->cck_present_attentuation > -1 && priv->cck_present_attentuation < 23) {
-					if (priv->ieee80211->current_network.channel == 14 && !priv->bcck_in_ch14) {
-						priv->bcck_in_ch14 = TRUE;
-						dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
-					} else if (priv->ieee80211->current_network.channel != 14 && priv->bcck_in_ch14) {
-						priv->bcck_in_ch14 = FALSE;
-						dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
-					} else
-						dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
-				}
-				RT_TRACE(COMP_POWER_TRACKING, "priv->rfa_txpowertrackingindex = %d\n", priv->rfa_txpowertrackingindex);
-				RT_TRACE(COMP_POWER_TRACKING, "priv->rfa_txpowertrackingindex_real = %d\n", priv->rfa_txpowertrackingindex_real);
-				RT_TRACE(COMP_POWER_TRACKING, "priv->cck_present_attentuation_difference = %d\n", priv->cck_present_attentuation_difference);
-				RT_TRACE(COMP_POWER_TRACKING, "priv->cck_present_attentuation = %d\n", priv->cck_present_attentuation);
-
-				if (priv->cck_present_attentuation_difference <= -12 || priv->cck_present_attentuation_difference >= 24) {
-					priv->ieee80211->bdynamic_txpower_enable = TRUE;
-					write_nic_byte(dev, 0x1ba, 0);
-					RT_TRACE(COMP_POWER_TRACKING, "tx power track--->limited\n");
-					return;
-				}
-
 			}
+			if (Avg_TSSI_Meas_from_driver < TSSI_13dBm - E_FOR_TX_POWER_TRACK) {
+				if (priv->rfa_txpowertrackingindex > 0) {
+					priv->rfa_txpowertrackingindex--;
+					if (priv->rfa_txpowertrackingindex_real > 4) {
+						priv->rfa_txpowertrackingindex_real--;
+						rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance, bMaskDWord, priv->txbbgain_table[priv->rfa_txpowertrackingindex_real].txbbgain_value);
+					}
+				}
+			} else {
+				if (priv->rfa_txpowertrackingindex < 36) {
+					priv->rfa_txpowertrackingindex++;
+					priv->rfa_txpowertrackingindex_real++;
+					rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance, bMaskDWord, priv->txbbgain_table[priv->rfa_txpowertrackingindex_real].txbbgain_value);
+
+				}
+			}
+			priv->cck_present_attentuation_difference
+				= priv->rfa_txpowertrackingindex - priv->rfa_txpowertracking_default;
+
+			if (priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20)
+				priv->cck_present_attentuation
+					= priv->cck_present_attentuation_20Mdefault + priv->cck_present_attentuation_difference;
+			else
+				priv->cck_present_attentuation
+					= priv->cck_present_attentuation_40Mdefault + priv->cck_present_attentuation_difference;
+
+			if (priv->cck_present_attentuation > -1 && priv->cck_present_attentuation < 23) {
+				if (priv->ieee80211->current_network.channel == 14 && !priv->bcck_in_ch14) {
+					priv->bcck_in_ch14 = TRUE;
+					dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
+				} else if (priv->ieee80211->current_network.channel != 14 && priv->bcck_in_ch14) {
+					priv->bcck_in_ch14 = FALSE;
+					dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
+				} else
+					dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
+			}
+			RT_TRACE(COMP_POWER_TRACKING, "priv->rfa_txpowertrackingindex = %d\n", priv->rfa_txpowertrackingindex);
+			RT_TRACE(COMP_POWER_TRACKING, "priv->rfa_txpowertrackingindex_real = %d\n", priv->rfa_txpowertrackingindex_real);
+			RT_TRACE(COMP_POWER_TRACKING, "priv->cck_present_attentuation_difference = %d\n", priv->cck_present_attentuation_difference);
+			RT_TRACE(COMP_POWER_TRACKING, "priv->cck_present_attentuation = %d\n", priv->cck_present_attentuation);
+
+			if (priv->cck_present_attentuation_difference <= -12 || priv->cck_present_attentuation_difference >= 24) {
+				priv->ieee80211->bdynamic_txpower_enable = TRUE;
+				write_nic_byte(dev, 0x1ba, 0);
+				RT_TRACE(COMP_POWER_TRACKING, "tx power track--->limited\n");
+				return;
+			}
+
 			write_nic_byte(dev, 0x1ba, 0);
 			Avg_TSSI_Meas_from_driver = 0;
 			for (k = 0; k < 5; k++)
@@ -1318,12 +1313,9 @@ static void dm_CheckTXPowerTracking_TSSI(struct net_device *dev)
 
 	if (!priv->btxpower_tracking)
 		return;
-	else {
-		if ((tx_power_track_counter % 30 == 0) && (tx_power_track_counter != 0)) {
-			queue_delayed_work(priv->priv_wq, &priv->txpower_tracking_wq, 0);
-		}
-		tx_power_track_counter++;
-	}
+	if ((tx_power_track_counter % 30 == 0) && (tx_power_track_counter != 0))
+		queue_delayed_work(priv->priv_wq, &priv->txpower_tracking_wq, 0);
+	tx_power_track_counter++;
 }
 
 static void dm_CheckTXPowerTracking_ThermalMeter(struct net_device *dev)
@@ -1333,11 +1325,9 @@ static void dm_CheckTXPowerTracking_ThermalMeter(struct net_device *dev)
 	/*DbgPrint("dm_CheckTXPowerTracking()\n");*/
 	if (!priv->btxpower_tracking)
 		return;
-	else {
-		if (priv->txpower_count  <= 2) {
-			priv->txpower_count++;
-			return;
-		}
+	if (priv->txpower_count  <= 2) {
+		priv->txpower_count++;
+		return;
 	}
 
 	if (!TM_Trigger) {
@@ -1352,11 +1342,10 @@ static void dm_CheckTXPowerTracking_ThermalMeter(struct net_device *dev)
 		rtl8192_phy_SetRFReg(dev, RF90_PATH_A, 0x02, bMask12Bits, 0x4f);
 		TM_Trigger = 1;
 		return;
-	} else {
-		/*DbgPrint("Schedule TxPowerTrackingWorkItem\n");*/
-			queue_delayed_work(priv->priv_wq, &priv->txpower_tracking_wq, 0);
-		TM_Trigger = 0;
 	}
+	/*DbgPrint("Schedule TxPowerTrackingWorkItem\n");*/
+		queue_delayed_work(priv->priv_wq, &priv->txpower_tracking_wq, 0);
+	TM_Trigger = 0;
 }
 
 static void dm_check_txpower_tracking(struct net_device *dev)
@@ -1828,15 +1817,14 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 	DM_DigTable.RssiHighThresh, DM_DigTable.Dig_State);*/
 	/* 1. When RSSI decrease, We have to judge if it is smaller than a threshold
 		  and then execute the step below. */
-	if ((priv->undecorated_smoothed_pwdb <= dm_digtable.rssi_low_thresh)) {
+	if (priv->undecorated_smoothed_pwdb <= dm_digtable.rssi_low_thresh) {
 		/* 2008/02/05 MH When we execute silent reset, the DIG PHY parameters
 		   will be reset to init value. We must prevent the condition. */
 		if (dm_digtable.dig_state == DM_STA_DIG_OFF &&
 		    (priv->reset_count == reset_cnt)) {
 			return;
-		} else {
-			reset_cnt = priv->reset_count;
 		}
+		reset_cnt = priv->reset_count;
 
 		/* If DIG is off, DIG high power state must reset. */
 		dm_digtable.dig_highpwr_state = DM_STA_DIG_MAX;
@@ -1878,19 +1866,18 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 
 	/* 2. When RSSI increase, We have to judge if it is larger than a threshold
 		  and then execute the step below.  */
-	if ((priv->undecorated_smoothed_pwdb >= dm_digtable.rssi_high_thresh)) {
+	if (priv->undecorated_smoothed_pwdb >= dm_digtable.rssi_high_thresh) {
 		u8 reset_flag = 0;
 
 		if (dm_digtable.dig_state == DM_STA_DIG_ON &&
 			(priv->reset_count == reset_cnt)) {
 			dm_ctrl_initgain_byrssi_highpwr(dev);
 			return;
-		} else {
-			if (priv->reset_count != reset_cnt)
-				reset_flag = 1;
-
-			reset_cnt = priv->reset_count;
 		}
+		if (priv->reset_count != reset_cnt)
+			reset_flag = 1;
+
+		reset_cnt = priv->reset_count;
 
 		dm_digtable.dig_state = DM_STA_DIG_ON;
 		/*DbgPrint("DIG ON\n\r");*/
@@ -1983,8 +1970,7 @@ static void dm_ctrl_initgain_byrssi_highpwr(
 		if (dm_digtable.dig_highpwr_state == DM_STA_DIG_ON &&
 			(priv->reset_count == reset_cnt_highpwr))
 			return;
-		else
-			dm_digtable.dig_highpwr_state = DM_STA_DIG_ON;
+		dm_digtable.dig_highpwr_state = DM_STA_DIG_ON;
 
 		/* 3.1 Higher PD_TH for OFDM for high power state. */
 		if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) {
@@ -2000,8 +1986,7 @@ static void dm_ctrl_initgain_byrssi_highpwr(
 		if (dm_digtable.dig_highpwr_state == DM_STA_DIG_OFF &&
 			(priv->reset_count == reset_cnt_highpwr))
 			return;
-		else
-			dm_digtable.dig_highpwr_state = DM_STA_DIG_OFF;
+		dm_digtable.dig_highpwr_state = DM_STA_DIG_OFF;
 
 		if (priv->undecorated_smoothed_pwdb < dm_digtable.rssi_high_power_lowthresh &&
 			 priv->undecorated_smoothed_pwdb >= dm_digtable.rssi_high_thresh) {
@@ -2098,7 +2083,7 @@ static void dm_pd_th(
 		if (dm_digtable.cur_connect_state == DIG_CONNECT) {
 			if (dm_digtable.rssi_val >= dm_digtable.rssi_high_power_highthresh)
 				dm_digtable.curpd_thstate = DIG_PD_AT_HIGH_POWER;
-			else if ((dm_digtable.rssi_val <= dm_digtable.rssi_low_thresh))
+			else if (dm_digtable.rssi_val <= dm_digtable.rssi_low_thresh)
 				dm_digtable.curpd_thstate = DIG_PD_AT_LOW_POWER;
 			else if ((dm_digtable.rssi_val >= dm_digtable.rssi_high_thresh) &&
 					(dm_digtable.rssi_val < dm_digtable.rssi_high_power_lowthresh))
@@ -2180,9 +2165,9 @@ static	void dm_cs_ratio(
 
 	if (dm_digtable.pre_connect_state == dm_digtable.cur_connect_state) {
 		if (dm_digtable.cur_connect_state == DIG_CONNECT) {
-			if ((dm_digtable.rssi_val <= dm_digtable.rssi_low_thresh))
+			if (dm_digtable.rssi_val <= dm_digtable.rssi_low_thresh)
 				dm_digtable.curcs_ratio_state = DIG_CS_RATIO_LOWER;
-			else if ((dm_digtable.rssi_val >= dm_digtable.rssi_high_thresh))
+			else if (dm_digtable.rssi_val >= dm_digtable.rssi_high_thresh)
 				dm_digtable.curcs_ratio_state = DIG_CS_RATIO_HIGHER;
 			else
 				dm_digtable.curcs_ratio_state = dm_digtable.precs_ratio_state;
@@ -3085,11 +3070,10 @@ static void dm_dynamic_txpower(struct net_device *dev)
 				priv->bDynamicTxHighPower = false;
 
 			/* low power state check */
-			if (priv->undecorated_smoothed_pwdb < 35) {
+			if (priv->undecorated_smoothed_pwdb < 35)
 				priv->bDynamicTxLowPower = true;
-			} else if (priv->undecorated_smoothed_pwdb >= 40) {
+			else if (priv->undecorated_smoothed_pwdb >= 40)
 				priv->bDynamicTxLowPower = false;
-			}
 		}
 	} else {
 		/*pHalData->bTXPowerCtrlforNearFarRange = !pHalData->bTXPowerCtrlforNearFarRange;*/
@@ -3140,7 +3124,6 @@ static void dm_send_rssi_tofw(struct net_device *dev)
 	 * 0x1e0(byte) to notify driver.
 	 */
 	write_nic_byte(dev, DRIVER_RSSI, (u8)priv->undecorated_smoothed_pwdb);
-	return;
 }
 
 /*---------------------------Define function prototype------------------------*/
