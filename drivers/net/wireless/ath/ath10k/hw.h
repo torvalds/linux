@@ -34,6 +34,43 @@
 #define QCA988X_HW_2_0_BOARD_DATA_FILE	"board.bin"
 #define QCA988X_HW_2_0_PATCH_LOAD_ADDR	0x1234
 
+/* QCA6174 target BMI version signatures */
+#define QCA6174_HW_1_0_VERSION		0x05000000
+#define QCA6174_HW_1_1_VERSION		0x05000001
+#define QCA6174_HW_1_3_VERSION		0x05000003
+#define QCA6174_HW_2_1_VERSION		0x05010000
+#define QCA6174_HW_3_0_VERSION		0x05020000
+
+enum qca6174_pci_rev {
+	QCA6174_PCI_REV_1_1 = 0x11,
+	QCA6174_PCI_REV_1_3 = 0x13,
+	QCA6174_PCI_REV_2_0 = 0x20,
+	QCA6174_PCI_REV_3_0 = 0x30,
+};
+
+enum qca6174_chip_id_rev {
+	QCA6174_HW_1_0_CHIP_ID_REV = 0,
+	QCA6174_HW_1_1_CHIP_ID_REV = 1,
+	QCA6174_HW_1_3_CHIP_ID_REV = 2,
+	QCA6174_HW_2_1_CHIP_ID_REV = 4,
+	QCA6174_HW_2_2_CHIP_ID_REV = 5,
+	QCA6174_HW_3_0_CHIP_ID_REV = 8,
+	QCA6174_HW_3_1_CHIP_ID_REV = 9,
+	QCA6174_HW_3_2_CHIP_ID_REV = 10,
+};
+
+#define QCA6174_HW_2_1_FW_DIR		"ath10k/QCA6174/hw2.1"
+#define QCA6174_HW_2_1_FW_FILE		"firmware.bin"
+#define QCA6174_HW_2_1_OTP_FILE		"otp.bin"
+#define QCA6174_HW_2_1_BOARD_DATA_FILE	"board.bin"
+#define QCA6174_HW_2_1_PATCH_LOAD_ADDR	0x1234
+
+#define QCA6174_HW_3_0_FW_DIR		"ath10k/QCA6174/hw3.0"
+#define QCA6174_HW_3_0_FW_FILE		"firmware.bin"
+#define QCA6174_HW_3_0_OTP_FILE		"otp.bin"
+#define QCA6174_HW_3_0_BOARD_DATA_FILE	"board.bin"
+#define QCA6174_HW_3_0_PATCH_LOAD_ADDR	0x1234
+
 #define ATH10K_FW_API2_FILE		"firmware-2.bin"
 #define ATH10K_FW_API3_FILE		"firmware-3.bin"
 
@@ -80,6 +117,37 @@ enum ath10k_fw_wmi_op_version {
 	/* keep last */
 	ATH10K_FW_WMI_OP_VERSION_MAX,
 };
+
+enum ath10k_hw_rev {
+	ATH10K_HW_QCA988X,
+	ATH10K_HW_QCA6174,
+};
+
+struct ath10k_hw_regs {
+	u32 rtc_state_cold_reset_mask;
+	u32 rtc_soc_base_address;
+	u32 rtc_wmac_base_address;
+	u32 soc_core_base_address;
+	u32 ce_wrapper_base_address;
+	u32 ce0_base_address;
+	u32 ce1_base_address;
+	u32 ce2_base_address;
+	u32 ce3_base_address;
+	u32 ce4_base_address;
+	u32 ce5_base_address;
+	u32 ce6_base_address;
+	u32 ce7_base_address;
+	u32 soc_reset_control_si0_rst_mask;
+	u32 soc_reset_control_ce_rst_mask;
+	u32 soc_chip_id_address;
+	u32 scratch_3_address;
+};
+
+extern const struct ath10k_hw_regs qca988x_regs;
+extern const struct ath10k_hw_regs qca6174_regs;
+
+#define QCA_REV_988X(ar) ((ar)->hw_rev == ATH10K_HW_QCA988X)
+#define QCA_REV_6174(ar) ((ar)->hw_rev == ATH10K_HW_QCA6174)
 
 /* Known pecularities:
  *  - current FW doesn't support raw rx mode (last tested v599)
@@ -225,7 +293,7 @@ struct ath10k_pktlog_hdr {
 /* as of IP3.7.1 */
 #define RTC_STATE_V_ON				3
 
-#define RTC_STATE_COLD_RESET_MASK		0x00000400
+#define RTC_STATE_COLD_RESET_MASK		ar->regs->rtc_state_cold_reset_mask
 #define RTC_STATE_V_LSB				0
 #define RTC_STATE_V_MASK			0x00000007
 #define RTC_STATE_ADDRESS			0x0000
@@ -234,12 +302,12 @@ struct ath10k_pktlog_hdr {
 #define PCIE_SOC_WAKE_RESET			0x00000000
 #define SOC_GLOBAL_RESET_ADDRESS		0x0008
 
-#define RTC_SOC_BASE_ADDRESS			0x00004000
-#define RTC_WMAC_BASE_ADDRESS			0x00005000
+#define RTC_SOC_BASE_ADDRESS			ar->regs->rtc_soc_base_address
+#define RTC_WMAC_BASE_ADDRESS			ar->regs->rtc_wmac_base_address
 #define MAC_COEX_BASE_ADDRESS			0x00006000
 #define BT_COEX_BASE_ADDRESS			0x00007000
 #define SOC_PCIE_BASE_ADDRESS			0x00008000
-#define SOC_CORE_BASE_ADDRESS			0x00009000
+#define SOC_CORE_BASE_ADDRESS			ar->regs->soc_core_base_address
 #define WLAN_UART_BASE_ADDRESS			0x0000c000
 #define WLAN_SI_BASE_ADDRESS			0x00010000
 #define WLAN_GPIO_BASE_ADDRESS			0x00014000
@@ -248,23 +316,23 @@ struct ath10k_pktlog_hdr {
 #define EFUSE_BASE_ADDRESS			0x00030000
 #define FPGA_REG_BASE_ADDRESS			0x00039000
 #define WLAN_UART2_BASE_ADDRESS			0x00054c00
-#define CE_WRAPPER_BASE_ADDRESS			0x00057000
-#define CE0_BASE_ADDRESS			0x00057400
-#define CE1_BASE_ADDRESS			0x00057800
-#define CE2_BASE_ADDRESS			0x00057c00
-#define CE3_BASE_ADDRESS			0x00058000
-#define CE4_BASE_ADDRESS			0x00058400
-#define CE5_BASE_ADDRESS			0x00058800
-#define CE6_BASE_ADDRESS			0x00058c00
-#define CE7_BASE_ADDRESS			0x00059000
+#define CE_WRAPPER_BASE_ADDRESS			ar->regs->ce_wrapper_base_address
+#define CE0_BASE_ADDRESS			ar->regs->ce0_base_address
+#define CE1_BASE_ADDRESS			ar->regs->ce1_base_address
+#define CE2_BASE_ADDRESS			ar->regs->ce2_base_address
+#define CE3_BASE_ADDRESS			ar->regs->ce3_base_address
+#define CE4_BASE_ADDRESS			ar->regs->ce4_base_address
+#define CE5_BASE_ADDRESS			ar->regs->ce5_base_address
+#define CE6_BASE_ADDRESS			ar->regs->ce6_base_address
+#define CE7_BASE_ADDRESS			ar->regs->ce7_base_address
 #define DBI_BASE_ADDRESS			0x00060000
 #define WLAN_ANALOG_INTF_PCIE_BASE_ADDRESS	0x0006c000
 #define PCIE_LOCAL_BASE_ADDRESS			0x00080000
 
 #define SOC_RESET_CONTROL_ADDRESS		0x00000000
 #define SOC_RESET_CONTROL_OFFSET		0x00000000
-#define SOC_RESET_CONTROL_SI0_RST_MASK		0x00000001
-#define SOC_RESET_CONTROL_CE_RST_MASK		0x00040000
+#define SOC_RESET_CONTROL_SI0_RST_MASK		ar->regs->soc_reset_control_si0_rst_mask
+#define SOC_RESET_CONTROL_CE_RST_MASK		ar->regs->soc_reset_control_ce_rst_mask
 #define SOC_RESET_CONTROL_CPU_WARM_RST_MASK	0x00000040
 #define SOC_CPU_CLOCK_OFFSET			0x00000020
 #define SOC_CPU_CLOCK_STANDARD_LSB		0
@@ -278,7 +346,7 @@ struct ath10k_pktlog_hdr {
 #define SOC_LF_TIMER_CONTROL0_ADDRESS		0x00000050
 #define SOC_LF_TIMER_CONTROL0_ENABLE_MASK	0x00000004
 
-#define SOC_CHIP_ID_ADDRESS			0x000000ec
+#define SOC_CHIP_ID_ADDRESS			ar->regs->soc_chip_id_address
 #define SOC_CHIP_ID_REV_LSB			8
 #define SOC_CHIP_ID_REV_MASK			0x00000f00
 
@@ -334,7 +402,7 @@ struct ath10k_pktlog_hdr {
 #define PCIE_INTR_ENABLE_ADDRESS		0x0008
 #define PCIE_INTR_CAUSE_ADDRESS			0x000c
 #define PCIE_INTR_CLR_ADDRESS			0x0014
-#define SCRATCH_3_ADDRESS			0x0030
+#define SCRATCH_3_ADDRESS			ar->regs->scratch_3_address
 #define CPU_INTR_ADDRESS			0x0010
 
 /* Firmware indications to the Host via SCRATCH_3 register. */

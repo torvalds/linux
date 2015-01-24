@@ -9,7 +9,8 @@ ath10k_core-y += mac.o \
 		 txrx.o \
 		 wmi.o \
 		 wmi-tlv.o \
-		 bmi.o
+		 bmi.o \
+		 hw.o
 
 ath10k_core-$(CONFIG_ATH10K_DEBUGFS) += spectral.o
 ath10k_core-$(CONFIG_NL80211_TESTMODE) += testmode.o

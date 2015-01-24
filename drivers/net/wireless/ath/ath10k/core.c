@@ -57,6 +57,34 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 			.board_ext_size = QCA988X_BOARD_EXT_DATA_SZ,
 		},
 	},
+	{
+		.id = QCA6174_HW_2_1_VERSION,
+		.name = "qca6174 hw2.1",
+		.patch_load_addr = QCA6174_HW_2_1_PATCH_LOAD_ADDR,
+		.uart_pin = 6,
+		.fw = {
+			.dir = QCA6174_HW_2_1_FW_DIR,
+			.fw = QCA6174_HW_2_1_FW_FILE,
+			.otp = QCA6174_HW_2_1_OTP_FILE,
+			.board = QCA6174_HW_2_1_BOARD_DATA_FILE,
+			.board_size = QCA6174_BOARD_DATA_SZ,
+			.board_ext_size = QCA6174_BOARD_EXT_DATA_SZ,
+		},
+	},
+	{
+		.id = QCA6174_HW_3_0_VERSION,
+		.name = "qca6174 hw3.0",
+		.patch_load_addr = QCA6174_HW_3_0_PATCH_LOAD_ADDR,
+		.uart_pin = 6,
+		.fw = {
+			.dir = QCA6174_HW_3_0_FW_DIR,
+			.fw = QCA6174_HW_3_0_FW_FILE,
+			.otp = QCA6174_HW_3_0_OTP_FILE,
+			.board = QCA6174_HW_3_0_BOARD_DATA_FILE,
+			.board_size = QCA6174_BOARD_DATA_SZ,
+			.board_ext_size = QCA6174_BOARD_EXT_DATA_SZ,
+		},
+	},
 };
 
 static void ath10k_send_suspend_complete(struct ath10k *ar)
@@ -1308,6 +1336,7 @@ EXPORT_SYMBOL(ath10k_core_unregister);
 
 struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 				  enum ath10k_bus bus,
+				  enum ath10k_hw_rev hw_rev,
 				  const struct ath10k_hif_ops *hif_ops)
 {
 	struct ath10k *ar;
@@ -1320,8 +1349,23 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 	ar->ath_common.priv = ar;
 	ar->ath_common.hw = ar->hw;
 	ar->dev = dev;
+	ar->hw_rev = hw_rev;
 	ar->hif.ops = hif_ops;
 	ar->hif.bus = bus;
+
+	switch (hw_rev) {
+	case ATH10K_HW_QCA988X:
+		ar->regs = &qca988x_regs;
+		break;
+	case ATH10K_HW_QCA6174:
+		ar->regs = &qca6174_regs;
+		break;
+	default:
+		ath10k_err(ar, "unsupported core hardware revision %d\n",
+			   hw_rev);
+		ret = -ENOTSUPP;
+		goto err_free_mac;
+	}
 
 	init_completion(&ar->scan.started);
 	init_completion(&ar->scan.completed);

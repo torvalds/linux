@@ -471,6 +471,7 @@ struct ath10k {
 	struct device *dev;
 	u8 mac_addr[ETH_ALEN];
 
+	enum ath10k_hw_rev hw_rev;
 	u32 chip_id;
 	u32 target_version;
 	u8 fw_version_major;
@@ -486,9 +487,6 @@ struct ath10k {
 
 	DECLARE_BITMAP(fw_features, ATH10K_FW_FEATURE_COUNT);
 
-	struct targetdef *targetdef;
-	struct hostdef *hostdef;
-
 	bool p2p;
 
 	struct {
@@ -498,6 +496,7 @@ struct ath10k {
 
 	struct completion target_suspend;
 
+	const struct ath10k_hw_regs *regs;
 	struct ath10k_bmi bmi;
 	struct ath10k_wmi wmi;
 	struct ath10k_htc htc;
@@ -662,6 +661,7 @@ struct ath10k {
 
 struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 				  enum ath10k_bus bus,
+				  enum ath10k_hw_rev hw_rev,
 				  const struct ath10k_hif_ops *hif_ops);
 void ath10k_core_destroy(struct ath10k *ar);
 
