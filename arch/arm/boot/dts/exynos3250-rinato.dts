@@ -131,6 +131,7 @@
 &hsotg {
 	vusb_d-supply = <&ldo15_reg>;
 	vusb_a-supply = <&ldo12_reg>;
+	dr_mode = "peripheral";
 	status = "okay";
 };
 

@@ -181,6 +181,7 @@
 };
 
 &hsotg {
+	dr_mode = "peripheral";
 	status = "okay";
 };
 
