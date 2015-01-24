@@ -620,7 +620,7 @@ static int i40e_set_settings(struct net_device *netdev,
 			return -EAGAIN;
 		}
 
-		status = i40e_update_link_info(hw, true);
+		status = i40e_aq_get_link_info(hw, true, NULL, NULL);
 		if (status)
 			netdev_info(netdev, "Updating link info failed with error %d\n",
 				    status);
@@ -766,7 +766,7 @@ static int i40e_set_pauseparam(struct net_device *netdev,
 		err = -EAGAIN;
 	}
 	if (aq_failures & I40E_SET_FC_AQ_FAIL_UPDATE) {
-		netdev_info(netdev, "Set fc failed on the update_link_info call with error %d and status %d\n",
+		netdev_info(netdev, "Set fc failed on the get_link_info call with error %d and status %d\n",
 			    status, hw->aq.asq_last_status);
 		err = -EAGAIN;
 	}

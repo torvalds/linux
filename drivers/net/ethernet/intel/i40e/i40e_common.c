@@ -1297,14 +1297,14 @@ enum i40e_status_code i40e_set_fc(struct i40e_hw *hw, u8 *aq_failures,
 			*aq_failures |= I40E_SET_FC_AQ_FAIL_SET;
 	}
 	/* Update the link info */
-	status = i40e_update_link_info(hw, true);
+	status = i40e_aq_get_link_info(hw, true, NULL, NULL);
 	if (status) {
 		/* Wait a little bit (on 40G cards it sometimes takes a really
 		 * long time for link to come back from the atomic reset)
 		 * and try once more
 		 */
 		msleep(1000);
-		status = i40e_update_link_info(hw, true);
+		status = i40e_aq_get_link_info(hw, true, NULL, NULL);
 	}
 	if (status)
 		*aq_failures |= I40E_SET_FC_AQ_FAIL_UPDATE;
@@ -1448,35 +1448,6 @@ i40e_status i40e_aq_get_link_info(struct i40e_hw *hw,
 	hw->phy.get_link_info = false;
 
 aq_get_link_info_exit:
-	return status;
-}
-
-/**
- * i40e_update_link_info
- * @hw: pointer to the hw struct
- * @enable_lse: enable/disable LinkStatusEvent reporting
- *
- * Returns the link status of the adapter
- **/
-i40e_status i40e_update_link_info(struct i40e_hw *hw, bool enable_lse)
-{
-	struct i40e_aq_get_phy_abilities_resp abilities;
-	i40e_status status;
-
-	status = i40e_aq_get_link_info(hw, enable_lse, NULL, NULL);
-	if (status)
-		return status;
-
-	status = i40e_aq_get_phy_capabilities(hw, false, false,
-					      &abilities, NULL);
-	if (status)
-		return status;
-
-	if (abilities.abilities & I40E_AQ_PHY_AN_ENABLED)
-		hw->phy.link_info.an_enabled = true;
-	else
-		hw->phy.link_info.an_enabled = false;
-
 	return status;
 }
 
