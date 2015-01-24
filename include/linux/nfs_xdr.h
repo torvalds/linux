@@ -416,9 +416,9 @@ struct nfs_lock_args {
 	struct nfs_fh *		fh;
 	struct file_lock *	fl;
 	struct nfs_seqid *	lock_seqid;
-	nfs4_stateid *		lock_stateid;
+	nfs4_stateid		lock_stateid;
 	struct nfs_seqid *	open_seqid;
-	nfs4_stateid *		open_stateid;
+	nfs4_stateid		open_stateid;
 	struct nfs_lowner	lock_owner;
 	unsigned char		block : 1;
 	unsigned char		reclaim : 1;
@@ -437,7 +437,7 @@ struct nfs_locku_args {
 	struct nfs_fh *		fh;
 	struct file_lock *	fl;
 	struct nfs_seqid *	seqid;
-	nfs4_stateid *		stateid;
+	nfs4_stateid 		stateid;
 };
 
 struct nfs_locku_res {

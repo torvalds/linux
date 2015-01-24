@@ -5393,7 +5393,6 @@ static struct nfs4_unlockdata *nfs4_alloc_unlockdata(struct file_lock *fl,
 	p->arg.fl = &p->fl;
 	p->arg.seqid = seqid;
 	p->res.seqid = seqid;
-	p->arg.stateid = &lsp->ls_stateid;
 	p->lsp = lsp;
 	atomic_inc(&lsp->ls_count);
 	/* Ensure we don't close file until we're done freeing locks! */
@@ -5428,6 +5427,9 @@ static void nfs4_locku_done(struct rpc_task *task, void *data)
 		case -NFS4ERR_OLD_STATEID:
 		case -NFS4ERR_STALE_STATEID:
 		case -NFS4ERR_EXPIRED:
+			if (!nfs4_stateid_match(&calldata->arg.stateid,
+						&calldata->lsp->ls_stateid))
+				rpc_restart_call_prepare(task);
 			break;
 		default:
 			if (nfs4_async_handle_error(task, calldata->server,
@@ -5443,6 +5445,7 @@ static void nfs4_locku_prepare(struct rpc_task *task, void *data)
 
 	if (nfs_wait_on_sequence(calldata->arg.seqid, task) != 0)
 		goto out_wait;
+	nfs4_stateid_copy(&calldata->arg.stateid, &calldata->lsp->ls_stateid);
 	if (test_bit(NFS_LOCK_INITIALIZED, &calldata->lsp->ls_flags) == 0) {
 		/* Note: exit _without_ running nfs4_locku_done */
 		goto out_no_action;
@@ -5584,7 +5587,6 @@ static struct nfs4_lockdata *nfs4_alloc_lockdata(struct file_lock *fl,
 	p->arg.lock_seqid = nfs_alloc_seqid(&lsp->ls_seqid, gfp_mask);
 	if (IS_ERR(p->arg.lock_seqid))
 		goto out_free_seqid;
-	p->arg.lock_stateid = &lsp->ls_stateid;
 	p->arg.lock_owner.clientid = server->nfs_client->cl_clientid;
 	p->arg.lock_owner.id = lsp->ls_seqid.owner_id;
 	p->arg.lock_owner.s_dev = server->s_dev;
@@ -5615,11 +5617,15 @@ static void nfs4_lock_prepare(struct rpc_task *task, void *calldata)
 		if (nfs_wait_on_sequence(data->arg.open_seqid, task) != 0) {
 			goto out_release_lock_seqid;
 		}
-		data->arg.open_stateid = &state->open_stateid;
+		nfs4_stateid_copy(&data->arg.open_stateid,
+				&state->open_stateid);
 		data->arg.new_lock_owner = 1;
 		data->res.open_seqid = data->arg.open_seqid;
-	} else
+	} else {
 		data->arg.new_lock_owner = 0;
+		nfs4_stateid_copy(&data->arg.lock_stateid,
+				&data->lsp->ls_stateid);
+	}
 	if (!nfs4_valid_open_stateid(state)) {
 		data->rpc_status = -EBADF;
 		task->tk_action = NULL;
@@ -5651,7 +5657,8 @@ static void nfs4_lock_done(struct rpc_task *task, void *calldata)
 		return;
 
 	data->rpc_status = task->tk_status;
-	if (task->tk_status == 0) {
+	switch (task->tk_status) {
+	case 0:
 		renew_lease(NFS_SERVER(data->ctx->dentry->d_inode),
 				data->timestamp);
 		if (data->arg.new_lock_owner != 0) {
@@ -5660,6 +5667,18 @@ static void nfs4_lock_done(struct rpc_task *task, void *calldata)
 			set_bit(NFS_LOCK_INITIALIZED, &lsp->ls_flags);
 		} else if (!nfs4_update_lock_stateid(lsp, &data->res.stateid))
 			rpc_restart_call_prepare(task);
+		break;
+	case -NFS4ERR_BAD_STATEID:
+	case -NFS4ERR_OLD_STATEID:
+	case -NFS4ERR_STALE_STATEID:
+	case -NFS4ERR_EXPIRED:
+		if (data->arg.new_lock_owner != 0) {
+			if (!nfs4_stateid_match(&data->arg.open_stateid,
+						&lsp->ls_state->open_stateid))
+				rpc_restart_call_prepare(task);
+		} else if (!nfs4_stateid_match(&data->arg.lock_stateid,
+						&lsp->ls_stateid))
+				rpc_restart_call_prepare(task);
 	}
 	dprintk("%s: done, ret = %d!\n", __func__, data->rpc_status);
 }
