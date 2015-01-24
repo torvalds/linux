@@ -184,7 +184,7 @@ config TEGRA20_APB_DMA
 
 config S3C24XX_DMAC
 	tristate "Samsung S3C24XX DMA support"
-	depends on ARCH_S3C24XX && !S3C24XX_DMA
+	depends on ARCH_S3C24XX
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help

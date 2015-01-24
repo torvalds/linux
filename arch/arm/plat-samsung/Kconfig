@@ -236,27 +236,12 @@ config S3C_SETUP_CAMIF
 	help
 	  Compile in common setup code for S3C CAMIF devices
 
-# DMA
-
-config S3C_DMA
-	bool
-	help
-	  Internal configuration for S3C DMA core
-
 config SAMSUNG_PM_GPIO
 	bool
 	default y if GPIO_SAMSUNG && PM
 	help
 	  Include legacy GPIO power management code for platforms not using
 	  pinctrl-samsung driver.
-
-config SAMSUNG_DMADEV
-	bool "Use legacy Samsung DMA abstraction"
-	depends on CPU_S5PV210 || ARCH_S3C64XX
-	select DMADEVICES
-	default y
-	help
-	  Use DMA device engine for PL330 DMAC.
 
 endif
 
