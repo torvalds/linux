@@ -2145,6 +2145,7 @@ static void ath10k_tx_h_nwifi(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * used only for CQM purposes (e.g. hostapd station keepalive ping) so
 	 * it is safe to downgrade to NullFunc.
 	 */
+	hdr = (void *)skb->data;
 	if (ieee80211_is_qos_nullfunc(hdr->frame_control)) {
 		hdr->frame_control &= ~__cpu_to_le16(IEEE80211_STYPE_QOS_DATA);
 		cb->htt.tid = HTT_DATA_TX_EXT_TID_NON_QOS_MCAST_BCAST;
