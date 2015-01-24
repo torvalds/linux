@@ -394,7 +394,8 @@ static inline void ccmp_hdr2pn(u8 *pn, u8 *hdr)
 }
 
 
-static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
+static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb,
+			    unsigned int mic_len)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_key *key = tx->key;
@@ -425,7 +426,7 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	if (info->control.hw_key)
 		tail = 0;
 	else
-		tail = IEEE80211_CCMP_MIC_LEN;
+		tail = mic_len;
 
 	if (WARN_ON(skb_tailroom(skb) < tail ||
 		    skb_headroom(skb) < IEEE80211_CCMP_HDR_LEN))
@@ -460,21 +461,22 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	pos += IEEE80211_CCMP_HDR_LEN;
 	ccmp_special_blocks(skb, pn, b_0, aad);
 	ieee80211_aes_ccm_encrypt(key->u.ccmp.tfm, b_0, aad, pos, len,
-				  skb_put(skb, IEEE80211_CCMP_MIC_LEN));
+				  skb_put(skb, mic_len), mic_len);
 
 	return 0;
 }
 
 
 ieee80211_tx_result
-ieee80211_crypto_ccmp_encrypt(struct ieee80211_tx_data *tx)
+ieee80211_crypto_ccmp_encrypt(struct ieee80211_tx_data *tx,
+			      unsigned int mic_len)
 {
 	struct sk_buff *skb;
 
 	ieee80211_tx_set_protected(tx);
 
 	skb_queue_walk(&tx->skbs, skb) {
-		if (ccmp_encrypt_skb(tx, skb) < 0)
+		if (ccmp_encrypt_skb(tx, skb, mic_len) < 0)
 			return TX_DROP;
 	}
 
@@ -483,7 +485,8 @@ ieee80211_crypto_ccmp_encrypt(struct ieee80211_tx_data *tx)
 
 
 ieee80211_rx_result
-ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
+ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx,
+			      unsigned int mic_len)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)rx->skb->data;
 	int hdrlen;
@@ -500,8 +503,7 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
 	    !ieee80211_is_robust_mgmt_frame(skb))
 		return RX_CONTINUE;
 
-	data_len = skb->len - hdrlen - IEEE80211_CCMP_HDR_LEN -
-		   IEEE80211_CCMP_MIC_LEN;
+	data_len = skb->len - hdrlen - IEEE80211_CCMP_HDR_LEN - mic_len;
 	if (!rx->sta || data_len < 0)
 		return RX_DROP_UNUSABLE;
 
@@ -532,14 +534,14 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
 			    key->u.ccmp.tfm, b_0, aad,
 			    skb->data + hdrlen + IEEE80211_CCMP_HDR_LEN,
 			    data_len,
-			    skb->data + skb->len - IEEE80211_CCMP_MIC_LEN))
+			    skb->data + skb->len - mic_len, mic_len))
 			return RX_DROP_UNUSABLE;
 	}
 
 	memcpy(key->u.ccmp.rx_pn[queue], pn, IEEE80211_CCMP_PN_LEN);
 
 	/* Remove CCMP header and MIC */
-	if (pskb_trim(skb, skb->len - IEEE80211_CCMP_MIC_LEN))
+	if (pskb_trim(skb, skb->len - mic_len))
 		return RX_DROP_UNUSABLE;
 	memmove(skb->data + IEEE80211_CCMP_HDR_LEN, skb->data, hdrlen);
 	skb_pull(skb, IEEE80211_CCMP_HDR_LEN);

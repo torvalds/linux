@@ -1650,7 +1650,12 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 		result = ieee80211_crypto_tkip_decrypt(rx);
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
-		result = ieee80211_crypto_ccmp_decrypt(rx);
+		result = ieee80211_crypto_ccmp_decrypt(
+			rx, IEEE80211_CCMP_MIC_LEN);
+		break;
+	case WLAN_CIPHER_SUITE_CCMP_256:
+		result = ieee80211_crypto_ccmp_decrypt(
+			rx, IEEE80211_CCMP_256_MIC_LEN);
 		break;
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 		result = ieee80211_crypto_aes_cmac_decrypt(rx);
@@ -1785,7 +1790,9 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
 		/* This is the first fragment of a new frame. */
 		entry = ieee80211_reassemble_add(rx->sdata, frag, seq,
 						 rx->seqno_idx, &(rx->skb));
-		if (rx->key && rx->key->conf.cipher == WLAN_CIPHER_SUITE_CCMP &&
+		if (rx->key &&
+		    (rx->key->conf.cipher == WLAN_CIPHER_SUITE_CCMP ||
+		     rx->key->conf.cipher == WLAN_CIPHER_SUITE_CCMP_256) &&
 		    ieee80211_has_protected(fc)) {
 			int queue = rx->security_idx;
 			/* Store CCMP PN so that we can verify that the next
@@ -1814,7 +1821,9 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
 		int i;
 		u8 pn[IEEE80211_CCMP_PN_LEN], *rpn;
 		int queue;
-		if (!rx->key || rx->key->conf.cipher != WLAN_CIPHER_SUITE_CCMP)
+		if (!rx->key ||
+		    (rx->key->conf.cipher != WLAN_CIPHER_SUITE_CCMP &&
+		     rx->key->conf.cipher != WLAN_CIPHER_SUITE_CCMP_256))
 			return RX_DROP_UNUSABLE;
 		memcpy(pn, entry->last_pn, IEEE80211_CCMP_PN_LEN);
 		for (i = IEEE80211_CCMP_PN_LEN - 1; i >= 0; i--) {

@@ -626,6 +626,7 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 				tx->key = NULL;
 			break;
 		case WLAN_CIPHER_SUITE_CCMP:
+		case WLAN_CIPHER_SUITE_CCMP_256:
 		case WLAN_CIPHER_SUITE_GCMP:
 		case WLAN_CIPHER_SUITE_GCMP_256:
 			if (!ieee80211_is_data_present(hdr->frame_control) &&
@@ -1013,7 +1014,11 @@ ieee80211_tx_h_encrypt(struct ieee80211_tx_data *tx)
 	case WLAN_CIPHER_SUITE_TKIP:
 		return ieee80211_crypto_tkip_encrypt(tx);
 	case WLAN_CIPHER_SUITE_CCMP:
-		return ieee80211_crypto_ccmp_encrypt(tx);
+		return ieee80211_crypto_ccmp_encrypt(
+			tx, IEEE80211_CCMP_MIC_LEN);
+	case WLAN_CIPHER_SUITE_CCMP_256:
+		return ieee80211_crypto_ccmp_encrypt(
+			tx, IEEE80211_CCMP_256_MIC_LEN);
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 		return ieee80211_crypto_aes_cmac_encrypt(tx);
 	case WLAN_CIPHER_SUITE_GCMP:

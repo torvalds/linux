@@ -94,6 +94,7 @@ static ssize_t key_tx_spec_read(struct file *file, char __user *userbuf,
 				key->u.tkip.tx.iv16);
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP_256:
 		pn = atomic64_read(&key->u.ccmp.tx_pn);
 		len = scnprintf(buf, sizeof(buf), "%02x%02x%02x%02x%02x%02x\n",
 				(u8)(pn >> 40), (u8)(pn >> 32), (u8)(pn >> 24),
@@ -141,6 +142,7 @@ static ssize_t key_rx_spec_read(struct file *file, char __user *userbuf,
 		len = p - buf;
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP_256:
 		for (i = 0; i < IEEE80211_NUM_TIDS + 1; i++) {
 			rpn = key->u.ccmp.rx_pn[i];
 			p += scnprintf(p, sizeof(buf)+buf-p,
@@ -185,6 +187,7 @@ static ssize_t key_replays_read(struct file *file, char __user *userbuf,
 
 	switch (key->conf.cipher) {
 	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP_256:
 		len = scnprintf(buf, sizeof(buf), "%u\n", key->u.ccmp.replays);
 		break;
 	case WLAN_CIPHER_SUITE_AES_CMAC:

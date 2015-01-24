@@ -666,6 +666,7 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 		WLAN_CIPHER_SUITE_WEP104,
 		WLAN_CIPHER_SUITE_TKIP,
 		WLAN_CIPHER_SUITE_CCMP,
+		WLAN_CIPHER_SUITE_CCMP_256,
 		WLAN_CIPHER_SUITE_GCMP,
 		WLAN_CIPHER_SUITE_GCMP_256,
 
@@ -727,9 +728,9 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 		 * including the schemes)
 		 *
 		 * We start counting ciphers defined by schemes, TKIP, CCMP,
-		 * GCMP, and GCMP-256
+		 * CCMP-256, GCMP, and GCMP-256
 		 */
-		n_suites = local->hw.n_cipher_schemes + 4;
+		n_suites = local->hw.n_cipher_schemes + 5;
 
 		/* check if we have WEP40 and WEP104 */
 		if (have_wep)
@@ -744,6 +745,7 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 			return -ENOMEM;
 
 		suites[w++] = WLAN_CIPHER_SUITE_CCMP;
+		suites[w++] = WLAN_CIPHER_SUITE_CCMP_256;
 		suites[w++] = WLAN_CIPHER_SUITE_TKIP;
 		suites[w++] = WLAN_CIPHER_SUITE_GCMP;
 		suites[w++] = WLAN_CIPHER_SUITE_GCMP_256;
