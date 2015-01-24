@@ -37,12 +37,12 @@ static void ath10k_htt_txrx_compl_task(unsigned long ptr);
 static void ath10k_htt_rx_ring_free(struct ath10k_htt *htt)
 {
 	struct sk_buff *skb;
-	struct ath10k_skb_cb *cb;
+	struct ath10k_skb_rxcb *cb;
 	int i;
 
 	for (i = 0; i < htt->rx_ring.fill_cnt; i++) {
 		skb = htt->rx_ring.netbufs_ring[i];
-		cb = ATH10K_SKB_CB(skb);
+		cb = ATH10K_SKB_RXCB(skb);
 		dma_unmap_single(htt->ar->dev, cb->paddr,
 				 skb->len + skb_tailroom(skb),
 				 DMA_FROM_DEVICE);
@@ -86,7 +86,7 @@ static int __ath10k_htt_rx_ring_fill_n(struct ath10k_htt *htt, int num)
 			goto fail;
 		}
 
-		ATH10K_SKB_CB(skb)->paddr = paddr;
+		ATH10K_SKB_RXCB(skb)->paddr = paddr;
 		htt->rx_ring.netbufs_ring[idx] = skb;
 		htt->rx_ring.paddrs_ring[idx] = __cpu_to_le32(paddr);
 		htt->rx_ring.fill_cnt++;
@@ -168,7 +168,7 @@ static void ath10k_htt_rx_ring_clean_up(struct ath10k_htt *htt)
 		if (!skb)
 			continue;
 
-		dma_unmap_single(htt->ar->dev, ATH10K_SKB_CB(skb)->paddr,
+		dma_unmap_single(htt->ar->dev, ATH10K_SKB_RXCB(skb)->paddr,
 				 skb->len + skb_tailroom(skb),
 				 DMA_FROM_DEVICE);
 		dev_kfree_skb_any(skb);
@@ -224,7 +224,7 @@ static inline struct sk_buff *ath10k_htt_rx_netbuf_pop(struct ath10k_htt *htt)
 	htt->rx_ring.fill_cnt--;
 
 	dma_unmap_single(htt->ar->dev,
-			 ATH10K_SKB_CB(msdu)->paddr,
+			 ATH10K_SKB_RXCB(msdu)->paddr,
 			 msdu->len + skb_tailroom(msdu),
 			 DMA_FROM_DEVICE);
 	ath10k_dbg_dump(ar, ATH10K_DBG_HTT_DUMP, NULL, "htt rx netbuf pop: ",
