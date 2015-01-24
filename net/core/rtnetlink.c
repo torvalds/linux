@@ -2172,8 +2172,11 @@ replay:
 			goto out;
 		}
 
-		if (link_net)
+		if (link_net) {
 			err = dev_change_net_namespace(dev, dest_net, ifname);
+			if (err < 0)
+				unregister_netdevice(dev);
+		}
 out:
 		if (link_net)
 			put_net(link_net);
