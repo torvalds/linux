@@ -368,12 +368,19 @@ static void bcma_unregister_cores(struct bcma_bus *bus)
 	struct bcma_device *core, *tmp;
 
 	list_for_each_entry_safe(core, tmp, &bus->cores, list) {
+		if (!core->dev_registered)
+			continue;
 		list_del(&core->list);
-		if (core->dev_registered)
-			device_unregister(&core->dev);
+		device_unregister(&core->dev);
 	}
 	if (bus->hosttype == BCMA_HOSTTYPE_SOC)
 		platform_device_unregister(bus->drv_cc.watchdog);
+
+	/* Now noone uses internally-handled cores, we can free them */
+	list_for_each_entry_safe(core, tmp, &bus->cores, list) {
+		list_del(&core->list);
+		kfree(core);
+	}
 }
 
 int bcma_bus_register(struct bcma_bus *bus)
@@ -467,7 +474,6 @@ int bcma_bus_register(struct bcma_bus *bus)
 
 void bcma_bus_unregister(struct bcma_bus *bus)
 {
-	struct bcma_device *cores[3];
 	int err;
 
 	err = bcma_gpio_unregister(&bus->drv_cc);
@@ -478,15 +484,7 @@ void bcma_bus_unregister(struct bcma_bus *bus)
 
 	bcma_core_chipcommon_b_free(&bus->drv_cc_b);
 
-	cores[0] = bcma_find_core(bus, BCMA_CORE_MIPS_74K);
-	cores[1] = bcma_find_core(bus, BCMA_CORE_PCIE);
-	cores[2] = bcma_find_core(bus, BCMA_CORE_4706_MAC_GBIT_COMMON);
-
 	bcma_unregister_cores(bus);
-
-	kfree(cores[2]);
-	kfree(cores[1]);
-	kfree(cores[0]);
 }
 
 /*
