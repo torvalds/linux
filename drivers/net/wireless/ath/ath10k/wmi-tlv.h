@@ -1409,6 +1409,25 @@ struct wmi_tlv_p2p_go_bcn_ie {
 	__le32 ie_len;
 } __packed;
 
+enum wmi_tlv_diag_item_type {
+	WMI_TLV_DIAG_ITEM_TYPE_FW_EVENT,
+	WMI_TLV_DIAG_ITEM_TYPE_FW_LOG,
+	WMI_TLV_DIAG_ITEM_TYPE_FW_DEBUG_MSG,
+};
+
+struct wmi_tlv_diag_item {
+	u8 type;
+	u8 reserved;
+	__le16 len;
+	__le32 timestamp;
+	__le32 code;
+	u8 payload[0];
+} __packed;
+
+struct wmi_tlv_diag_data_ev {
+	__le32 num_items;
+} __packed;
+
 void ath10k_wmi_tlv_attach(struct ath10k *ar);
 
 #endif
