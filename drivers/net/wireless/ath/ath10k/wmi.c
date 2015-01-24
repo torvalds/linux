@@ -1680,12 +1680,9 @@ int ath10k_wmi_event_debug_mesg(struct ath10k *ar, struct sk_buff *skb)
 	return 0;
 }
 
-void ath10k_wmi_pull_pdev_stats(const struct wmi_pdev_stats *src,
-				struct ath10k_fw_stats_pdev *dst)
+void ath10k_wmi_pull_pdev_stats_base(const struct wmi_pdev_stats_base *src,
+				     struct ath10k_fw_stats_pdev *dst)
 {
-	const struct wal_dbg_tx_stats *tx = &src->wal.tx;
-	const struct wal_dbg_rx_stats *rx = &src->wal.rx;
-
 	dst->ch_noise_floor = __le32_to_cpu(src->chan_nf);
 	dst->tx_frame_count = __le32_to_cpu(src->tx_frame_count);
 	dst->rx_frame_count = __le32_to_cpu(src->rx_frame_count);
@@ -1693,44 +1690,63 @@ void ath10k_wmi_pull_pdev_stats(const struct wmi_pdev_stats *src,
 	dst->cycle_count = __le32_to_cpu(src->cycle_count);
 	dst->phy_err_count = __le32_to_cpu(src->phy_err_count);
 	dst->chan_tx_power = __le32_to_cpu(src->chan_tx_pwr);
+}
 
-	dst->comp_queued = __le32_to_cpu(tx->comp_queued);
-	dst->comp_delivered = __le32_to_cpu(tx->comp_delivered);
-	dst->msdu_enqued = __le32_to_cpu(tx->msdu_enqued);
-	dst->mpdu_enqued = __le32_to_cpu(tx->mpdu_enqued);
-	dst->wmm_drop = __le32_to_cpu(tx->wmm_drop);
-	dst->local_enqued = __le32_to_cpu(tx->local_enqued);
-	dst->local_freed = __le32_to_cpu(tx->local_freed);
-	dst->hw_queued = __le32_to_cpu(tx->hw_queued);
-	dst->hw_reaped = __le32_to_cpu(tx->hw_reaped);
-	dst->underrun = __le32_to_cpu(tx->underrun);
-	dst->tx_abort = __le32_to_cpu(tx->tx_abort);
-	dst->mpdus_requed = __le32_to_cpu(tx->mpdus_requed);
-	dst->tx_ko = __le32_to_cpu(tx->tx_ko);
-	dst->data_rc = __le32_to_cpu(tx->data_rc);
-	dst->self_triggers = __le32_to_cpu(tx->self_triggers);
-	dst->sw_retry_failure = __le32_to_cpu(tx->sw_retry_failure);
-	dst->illgl_rate_phy_err = __le32_to_cpu(tx->illgl_rate_phy_err);
-	dst->pdev_cont_xretry = __le32_to_cpu(tx->pdev_cont_xretry);
-	dst->pdev_tx_timeout = __le32_to_cpu(tx->pdev_tx_timeout);
-	dst->pdev_resets = __le32_to_cpu(tx->pdev_resets);
-	dst->phy_underrun = __le32_to_cpu(tx->phy_underrun);
-	dst->txop_ovf = __le32_to_cpu(tx->txop_ovf);
+void ath10k_wmi_pull_pdev_stats_tx(const struct wmi_pdev_stats_tx *src,
+				   struct ath10k_fw_stats_pdev *dst)
+{
+	dst->comp_queued = __le32_to_cpu(src->comp_queued);
+	dst->comp_delivered = __le32_to_cpu(src->comp_delivered);
+	dst->msdu_enqued = __le32_to_cpu(src->msdu_enqued);
+	dst->mpdu_enqued = __le32_to_cpu(src->mpdu_enqued);
+	dst->wmm_drop = __le32_to_cpu(src->wmm_drop);
+	dst->local_enqued = __le32_to_cpu(src->local_enqued);
+	dst->local_freed = __le32_to_cpu(src->local_freed);
+	dst->hw_queued = __le32_to_cpu(src->hw_queued);
+	dst->hw_reaped = __le32_to_cpu(src->hw_reaped);
+	dst->underrun = __le32_to_cpu(src->underrun);
+	dst->tx_abort = __le32_to_cpu(src->tx_abort);
+	dst->mpdus_requed = __le32_to_cpu(src->mpdus_requed);
+	dst->tx_ko = __le32_to_cpu(src->tx_ko);
+	dst->data_rc = __le32_to_cpu(src->data_rc);
+	dst->self_triggers = __le32_to_cpu(src->self_triggers);
+	dst->sw_retry_failure = __le32_to_cpu(src->sw_retry_failure);
+	dst->illgl_rate_phy_err = __le32_to_cpu(src->illgl_rate_phy_err);
+	dst->pdev_cont_xretry = __le32_to_cpu(src->pdev_cont_xretry);
+	dst->pdev_tx_timeout = __le32_to_cpu(src->pdev_tx_timeout);
+	dst->pdev_resets = __le32_to_cpu(src->pdev_resets);
+	dst->phy_underrun = __le32_to_cpu(src->phy_underrun);
+	dst->txop_ovf = __le32_to_cpu(src->txop_ovf);
+}
 
-	dst->mid_ppdu_route_change = __le32_to_cpu(rx->mid_ppdu_route_change);
-	dst->status_rcvd = __le32_to_cpu(rx->status_rcvd);
-	dst->r0_frags = __le32_to_cpu(rx->r0_frags);
-	dst->r1_frags = __le32_to_cpu(rx->r1_frags);
-	dst->r2_frags = __le32_to_cpu(rx->r2_frags);
-	dst->r3_frags = __le32_to_cpu(rx->r3_frags);
-	dst->htt_msdus = __le32_to_cpu(rx->htt_msdus);
-	dst->htt_mpdus = __le32_to_cpu(rx->htt_mpdus);
-	dst->loc_msdus = __le32_to_cpu(rx->loc_msdus);
-	dst->loc_mpdus = __le32_to_cpu(rx->loc_mpdus);
-	dst->oversize_amsdu = __le32_to_cpu(rx->oversize_amsdu);
-	dst->phy_errs = __le32_to_cpu(rx->phy_errs);
-	dst->phy_err_drop = __le32_to_cpu(rx->phy_err_drop);
-	dst->mpdu_errs = __le32_to_cpu(rx->mpdu_errs);
+void ath10k_wmi_pull_pdev_stats_rx(const struct wmi_pdev_stats_rx *src,
+				   struct ath10k_fw_stats_pdev *dst)
+{
+	dst->mid_ppdu_route_change = __le32_to_cpu(src->mid_ppdu_route_change);
+	dst->status_rcvd = __le32_to_cpu(src->status_rcvd);
+	dst->r0_frags = __le32_to_cpu(src->r0_frags);
+	dst->r1_frags = __le32_to_cpu(src->r1_frags);
+	dst->r2_frags = __le32_to_cpu(src->r2_frags);
+	dst->r3_frags = __le32_to_cpu(src->r3_frags);
+	dst->htt_msdus = __le32_to_cpu(src->htt_msdus);
+	dst->htt_mpdus = __le32_to_cpu(src->htt_mpdus);
+	dst->loc_msdus = __le32_to_cpu(src->loc_msdus);
+	dst->loc_mpdus = __le32_to_cpu(src->loc_mpdus);
+	dst->oversize_amsdu = __le32_to_cpu(src->oversize_amsdu);
+	dst->phy_errs = __le32_to_cpu(src->phy_errs);
+	dst->phy_err_drop = __le32_to_cpu(src->phy_err_drop);
+	dst->mpdu_errs = __le32_to_cpu(src->mpdu_errs);
+}
+
+void ath10k_wmi_pull_pdev_stats_extra(const struct wmi_pdev_stats_extra *src,
+				      struct ath10k_fw_stats_pdev *dst)
+{
+	dst->ack_rx_bad = __le32_to_cpu(src->ack_rx_bad);
+	dst->rts_bad = __le32_to_cpu(src->rts_bad);
+	dst->rts_good = __le32_to_cpu(src->rts_good);
+	dst->fcs_bad = __le32_to_cpu(src->fcs_bad);
+	dst->no_beacons = __le32_to_cpu(src->no_beacons);
+	dst->mib_int_count = __le32_to_cpu(src->mib_int_count);
 }
 
 void ath10k_wmi_pull_peer_stats(const struct wmi_peer_stats *src,
@@ -1768,7 +1784,10 @@ static int ath10k_wmi_main_op_pull_fw_stats(struct ath10k *ar,
 		if (!dst)
 			continue;
 
-		ath10k_wmi_pull_pdev_stats(src, dst);
+		ath10k_wmi_pull_pdev_stats_base(&src->base, dst);
+		ath10k_wmi_pull_pdev_stats_tx(&src->tx, dst);
+		ath10k_wmi_pull_pdev_stats_rx(&src->rx, dst);
+
 		list_add_tail(&dst->list, &stats->pdevs);
 	}
 
@@ -1820,14 +1839,10 @@ static int ath10k_wmi_10x_op_pull_fw_stats(struct ath10k *ar,
 		if (!dst)
 			continue;
 
-		ath10k_wmi_pull_pdev_stats(&src->old, dst);
-
-		dst->ack_rx_bad = __le32_to_cpu(src->ack_rx_bad);
-		dst->rts_bad = __le32_to_cpu(src->rts_bad);
-		dst->rts_good = __le32_to_cpu(src->rts_good);
-		dst->fcs_bad = __le32_to_cpu(src->fcs_bad);
-		dst->no_beacons = __le32_to_cpu(src->no_beacons);
-		dst->mib_int_count = __le32_to_cpu(src->mib_int_count);
+		ath10k_wmi_pull_pdev_stats_base(&src->base, dst);
+		ath10k_wmi_pull_pdev_stats_tx(&src->tx, dst);
+		ath10k_wmi_pull_pdev_stats_rx(&src->rx, dst);
+		ath10k_wmi_pull_pdev_stats_extra(&src->extra, dst);
 
 		list_add_tail(&dst->list, &stats->pdevs);
 	}
