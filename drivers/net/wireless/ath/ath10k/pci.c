@@ -2126,6 +2126,7 @@ static void ath10k_msi_err_tasklet(unsigned long data)
 		return;
 	}
 
+	ath10k_pci_irq_disable(ar);
 	ath10k_pci_fw_crashed_clear(ar);
 	ath10k_pci_fw_crashed_dump(ar);
 }
@@ -2195,6 +2196,7 @@ static void ath10k_pci_tasklet(unsigned long data)
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 
 	if (ath10k_pci_has_fw_crashed(ar)) {
+		ath10k_pci_irq_disable(ar);
 		ath10k_pci_fw_crashed_clear(ar);
 		ath10k_pci_fw_crashed_dump(ar);
 		return;
