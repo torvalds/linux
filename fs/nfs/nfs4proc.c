@@ -1297,6 +1297,23 @@ no_delegation:
 	return ret;
 }
 
+static bool nfs4_update_lock_stateid(struct nfs4_lock_state *lsp,
+		const nfs4_stateid *stateid)
+{
+	struct nfs4_state *state = lsp->ls_state;
+	bool ret = false;
+
+	spin_lock(&state->state_lock);
+	if (!nfs4_stateid_match_other(stateid, &lsp->ls_stateid))
+		goto out_noupdate;
+	if (!nfs4_stateid_is_newer(stateid, &lsp->ls_stateid))
+		goto out_noupdate;
+	nfs4_stateid_copy(&lsp->ls_stateid, stateid);
+	ret = true;
+out_noupdate:
+	spin_unlock(&state->state_lock);
+	return ret;
+}
 
 static void nfs4_return_incompatible_delegation(struct inode *inode, fmode_t fmode)
 {
@@ -5403,9 +5420,9 @@ static void nfs4_locku_done(struct rpc_task *task, void *data)
 		return;
 	switch (task->tk_status) {
 		case 0:
-			nfs4_stateid_copy(&calldata->lsp->ls_stateid,
-					&calldata->res.stateid);
 			renew_lease(calldata->server, calldata->timestamp);
+			nfs4_update_lock_stateid(calldata->lsp,
+					&calldata->res.stateid);
 			break;
 		case -NFS4ERR_BAD_STATEID:
 		case -NFS4ERR_OLD_STATEID:
@@ -5626,6 +5643,7 @@ out_wait:
 static void nfs4_lock_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_lockdata *data = calldata;
+	struct nfs4_lock_state *lsp = data->lsp;
 
 	dprintk("%s: begin!\n", __func__);
 
@@ -5633,18 +5651,16 @@ static void nfs4_lock_done(struct rpc_task *task, void *calldata)
 		return;
 
 	data->rpc_status = task->tk_status;
-	if (data->arg.new_lock_owner != 0) {
-		if (data->rpc_status == 0)
-			nfs_confirm_seqid(&data->lsp->ls_seqid, 0);
-		else
-			goto out;
+	if (task->tk_status == 0) {
+		renew_lease(NFS_SERVER(data->ctx->dentry->d_inode),
+				data->timestamp);
+		if (data->arg.new_lock_owner != 0) {
+			nfs_confirm_seqid(&lsp->ls_seqid, 0);
+			nfs4_stateid_copy(&lsp->ls_stateid, &data->res.stateid);
+			set_bit(NFS_LOCK_INITIALIZED, &lsp->ls_flags);
+		} else if (!nfs4_update_lock_stateid(lsp, &data->res.stateid))
+			rpc_restart_call_prepare(task);
 	}
-	if (data->rpc_status == 0) {
-		nfs4_stateid_copy(&data->lsp->ls_stateid, &data->res.stateid);
-		set_bit(NFS_LOCK_INITIALIZED, &data->lsp->ls_flags);
-		renew_lease(NFS_SERVER(data->ctx->dentry->d_inode), data->timestamp);
-	}
-out:
 	dprintk("%s: done, ret = %d!\n", __func__, data->rpc_status);
 }
 
