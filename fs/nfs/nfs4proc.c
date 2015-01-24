@@ -5611,7 +5611,7 @@ static void nfs4_lock_prepare(struct rpc_task *task, void *calldata)
 	if (nfs_wait_on_sequence(data->arg.lock_seqid, task) != 0)
 		goto out_wait;
 	/* Do we need to do an open_to_lock_owner? */
-	if (!(data->arg.lock_seqid->sequence->flags & NFS_SEQID_CONFIRMED)) {
+	if (!test_bit(NFS_LOCK_INITIALIZED, &data->lsp->ls_flags)) {
 		if (nfs_wait_on_sequence(data->arg.open_seqid, task) != 0) {
 			goto out_release_lock_seqid;
 		}
