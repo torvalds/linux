@@ -5420,9 +5420,10 @@ static void nfs4_locku_done(struct rpc_task *task, void *data)
 	switch (task->tk_status) {
 		case 0:
 			renew_lease(calldata->server, calldata->timestamp);
-			nfs4_update_lock_stateid(calldata->lsp,
-					&calldata->res.stateid);
-			break;
+			do_vfs_lock(calldata->fl.fl_file, &calldata->fl);
+			if (nfs4_update_lock_stateid(calldata->lsp,
+					&calldata->res.stateid))
+				break;
 		case -NFS4ERR_BAD_STATEID:
 		case -NFS4ERR_OLD_STATEID:
 		case -NFS4ERR_STALE_STATEID:
@@ -5661,6 +5662,13 @@ static void nfs4_lock_done(struct rpc_task *task, void *calldata)
 	case 0:
 		renew_lease(NFS_SERVER(data->ctx->dentry->d_inode),
 				data->timestamp);
+		if (data->arg.new_lock) {
+			data->fl.fl_flags &= ~(FL_SLEEP | FL_ACCESS);
+			if (do_vfs_lock(data->fl.fl_file, &data->fl) < 0) {
+				rpc_restart_call_prepare(task);
+				break;
+			}
+		}
 		if (data->arg.new_lock_owner != 0) {
 			nfs_confirm_seqid(&lsp->ls_seqid, 0);
 			nfs4_stateid_copy(&lsp->ls_stateid, &data->res.stateid);
@@ -5760,7 +5768,8 @@ static int _nfs4_do_setlk(struct nfs4_state *state, int cmd, struct file_lock *f
 		if (recovery_type == NFS_LOCK_RECLAIM)
 			data->arg.reclaim = NFS_LOCK_RECLAIM;
 		nfs4_set_sequence_privileged(&data->arg.seq_args);
-	}
+	} else
+		data->arg.new_lock = 1;
 	task = rpc_run_task(&task_setup_data);
 	if (IS_ERR(task))
 		return PTR_ERR(task);
@@ -5884,10 +5893,8 @@ static int nfs41_lock_expired(struct nfs4_state *state, struct file_lock *reques
 
 static int _nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
 {
-	struct nfs4_state_owner *sp = state->owner;
 	struct nfs_inode *nfsi = NFS_I(state->inode);
 	unsigned char fl_flags = request->fl_flags;
-	unsigned int seq;
 	int status = -ENOLCK;
 
 	if ((fl_flags & FL_POSIX) &&
@@ -5907,25 +5914,11 @@ static int _nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock 
 		/* ...but avoid races with delegation recall... */
 		request->fl_flags = fl_flags & ~FL_SLEEP;
 		status = do_vfs_lock(request->fl_file, request);
-		goto out_unlock;
+		up_read(&nfsi->rwsem);
+		goto out;
 	}
-	seq = raw_seqcount_begin(&sp->so_reclaim_seqcount);
 	up_read(&nfsi->rwsem);
 	status = _nfs4_do_setlk(state, cmd, request, NFS_LOCK_NEW);
-	if (status != 0)
-		goto out;
-	down_read(&nfsi->rwsem);
-	if (read_seqcount_retry(&sp->so_reclaim_seqcount, seq)) {
-		status = -NFS4ERR_DELAY;
-		goto out_unlock;
-	}
-	/* Note: we always want to sleep here! */
-	request->fl_flags = fl_flags | FL_SLEEP;
-	if (do_vfs_lock(request->fl_file, request) < 0)
-		printk(KERN_WARNING "NFS: %s: VFS is out of sync with lock "
-			"manager!\n", __func__);
-out_unlock:
-	up_read(&nfsi->rwsem);
 out:
 	request->fl_flags = fl_flags;
 	return status;
