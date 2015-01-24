@@ -153,6 +153,15 @@
 #define GPMC_CONFIG1_FCLK_DIV4          (GPMC_CONFIG1_FCLK_DIV(3))
 #define GPMC_CONFIG7_CSVALID		(1 << 6)
 
+#define GPMC_CONFIG7_BASEADDRESS_MASK	0x3f
+#define GPMC_CONFIG7_CSVALID_MASK	BIT(6)
+#define GPMC_CONFIG7_MASKADDRESS_OFFSET	8
+#define GPMC_CONFIG7_MASKADDRESS_MASK	(0xf << GPMC_CONFIG7_MASKADDRESS_OFFSET)
+/* All CONFIG7 bits except reserved bits */
+#define GPMC_CONFIG7_MASK		(GPMC_CONFIG7_BASEADDRESS_MASK | \
+					 GPMC_CONFIG7_CSVALID_MASK |     \
+					 GPMC_CONFIG7_MASKADDRESS_MASK)
+
 #define GPMC_DEVICETYPE_NOR		0
 #define GPMC_DEVICETYPE_NAND		2
 #define GPMC_CONFIG_WRITEPROTECT	0x00000010
@@ -586,12 +595,15 @@ static int gpmc_cs_set_memconf(int cs, u32 base, u32 size)
 	if (base & (size - 1))
 		return -EINVAL;
 
+	base >>= GPMC_CHUNK_SHIFT;
 	mask = (1 << GPMC_SECTION_SHIFT) - size;
+	mask >>= GPMC_CHUNK_SHIFT;
+	mask <<= GPMC_CONFIG7_MASKADDRESS_OFFSET;
+
 	l = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG7);
-	l &= ~0x3f;
-	l = (base >> GPMC_CHUNK_SHIFT) & 0x3f;
-	l &= ~(0x0f << 8);
-	l |= ((mask >> GPMC_CHUNK_SHIFT) & 0x0f) << 8;
+	l &= ~GPMC_CONFIG7_MASK;
+	l |= base & GPMC_CONFIG7_BASEADDRESS_MASK;
+	l |= mask & GPMC_CONFIG7_MASKADDRESS_MASK;
 	l |= GPMC_CONFIG7_CSVALID;
 	gpmc_cs_write_reg(cs, GPMC_CS_CONFIG7, l);
 
