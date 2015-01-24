@@ -1328,12 +1328,11 @@ struct ath10k_htt {
 
 	unsigned int prefetch_len;
 
-	/* Protects access to %pending_tx, %used_msdu_ids */
+	/* Protects access to pending_tx, num_pending_tx */
 	spinlock_t tx_lock;
 	int max_num_pending_tx;
 	int num_pending_tx;
-	struct sk_buff **pending_tx;
-	unsigned long *used_msdu_ids; /* bitmap */
+	struct idr pending_tx;
 	wait_queue_head_t empty_tx_wq;
 	struct dma_pool *tx_pool;
 
@@ -1424,7 +1423,7 @@ int ath10k_htt_h2t_aggr_cfg_msg(struct ath10k_htt *htt,
 				u8 max_subfrms_amsdu);
 
 void __ath10k_htt_tx_dec_pending(struct ath10k_htt *htt);
-int ath10k_htt_tx_alloc_msdu_id(struct ath10k_htt *htt);
+int ath10k_htt_tx_alloc_msdu_id(struct ath10k_htt *htt, struct sk_buff *skb);
 void ath10k_htt_tx_free_msdu_id(struct ath10k_htt *htt, u16 msdu_id);
 int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *);
 int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *);
