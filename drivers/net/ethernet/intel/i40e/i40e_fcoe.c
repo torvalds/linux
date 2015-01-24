@@ -1502,6 +1502,12 @@ void i40e_fcoe_config_netdev(struct net_device *netdev, struct i40e_vsi *vsi)
 	strlcpy(netdev->name, "fcoe%d", IFNAMSIZ-1);
 	netdev->mtu = FCOE_MTU;
 	SET_NETDEV_DEV(netdev, &pf->pdev->dev);
+	/* set different dev_port value 1 for FCoE netdev than the default
+	 * zero dev_port value for PF netdev, this helps biosdevname user
+	 * tool to differentiate them correctly while both attached to the
+	 * same PCI function.
+	 */
+	netdev->dev_port = 1;
 	i40e_add_filter(vsi, hw->mac.san_addr, 0, false, false);
 	i40e_add_filter(vsi, (u8[6]) FC_FCOE_FLOGI_MAC, 0, false, false);
 	i40e_add_filter(vsi, FIP_ALL_FCOE_MACS, 0, false, false);
