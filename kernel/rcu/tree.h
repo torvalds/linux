@@ -456,8 +456,6 @@ struct rcu_state {
 	long qlen;				/* Total number of callbacks. */
 	/* End of fields guarded by orphan_lock. */
 
-	struct mutex onoff_mutex;		/* Coordinate hotplug & GPs. */
-
 	struct mutex barrier_mutex;		/* Guards barrier fields. */
 	atomic_t barrier_cpu_count;		/* # CPUs waiting on. */
 	struct completion barrier_completion;	/* Wake at barrier end. */
