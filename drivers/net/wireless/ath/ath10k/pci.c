@@ -2544,18 +2544,6 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 		goto err_release;
 	}
 
-	chip_id = ath10k_pci_soc_read32(ar, SOC_CHIP_ID_ADDRESS);
-	if (chip_id == 0xffffffff) {
-		ath10k_err(ar, "failed to get chip id\n");
-		goto err_sleep;
-	}
-
-	if (!ath10k_pci_chip_is_supported(pdev->device, chip_id)) {
-		ath10k_err(ar, "device %04x with chip_id %08x isn't supported\n",
-			   pdev->device, chip_id);
-		goto err_sleep;
-	}
-
 	ret = ath10k_pci_alloc_pipes(ar);
 	if (ret) {
 		ath10k_err(ar, "failed to allocate copy engine pipes: %d\n",
@@ -2580,6 +2568,24 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 	if (ret) {
 		ath10k_warn(ar, "failed to request irqs: %d\n", ret);
 		goto err_deinit_irq;
+	}
+
+	ret = ath10k_pci_chip_reset(ar);
+	if (ret) {
+		ath10k_err(ar, "failed to reset chip: %d\n", ret);
+		goto err_free_irq;
+	}
+
+	chip_id = ath10k_pci_soc_read32(ar, SOC_CHIP_ID_ADDRESS);
+	if (chip_id == 0xffffffff) {
+		ath10k_err(ar, "failed to get chip id\n");
+		goto err_free_irq;
+	}
+
+	if (!ath10k_pci_chip_is_supported(pdev->device, chip_id)) {
+		ath10k_err(ar, "device %04x with chip_id %08x isn't supported\n",
+			   pdev->device, chip_id);
+		goto err_sleep;
 	}
 
 	ath10k_pci_sleep(ar);
