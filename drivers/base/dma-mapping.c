@@ -287,7 +287,7 @@ void *dma_common_pages_remap(struct page **pages, size_t size,
 
 	area->pages = pages;
 
-	if (map_vm_area(area, prot, pages)) {
+	if (map_vm_area(area, prot, &pages)) {
 		vunmap(area->addr);
 		return NULL;
 	}

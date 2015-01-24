@@ -251,7 +251,7 @@ static void psci_sys_poweroff(void)
  * PSCI Function IDs for v0.2+ are well defined so use
  * standard values.
  */
-static int psci_0_2_init(struct device_node *np)
+static int __init psci_0_2_init(struct device_node *np)
 {
 	int err, ver;
 
@@ -312,7 +312,7 @@ out_put_node:
 /*
  * PSCI < v0.2 get PSCI Function IDs via DT.
  */
-static int psci_0_1_init(struct device_node *np)
+static int __init psci_0_1_init(struct device_node *np)
 {
 	u32 id;
 	int err;
@@ -450,6 +450,7 @@ static int cpu_psci_cpu_kill(unsigned int cpu)
 	return 0;
 }
 #endif
+#endif
 
 #ifdef CONFIG_ARM64_CPU_SUSPEND
 static int cpu_psci_cpu_suspend(unsigned long index)
@@ -465,6 +466,7 @@ static int cpu_psci_cpu_suspend(unsigned long index)
 
 const struct cpu_operations cpu_psci_ops = {
 	.name		= "psci",
+#ifdef CONFIG_SMP
 	.cpu_init	= cpu_psci_cpu_init,
 	.cpu_prepare	= cpu_psci_cpu_prepare,
 	.cpu_boot	= cpu_psci_cpu_boot,
@@ -473,9 +475,9 @@ const struct cpu_operations cpu_psci_ops = {
 	.cpu_die	= cpu_psci_cpu_die,
 	.cpu_kill	= cpu_psci_cpu_kill,
 #endif
+#endif
 #ifdef CONFIG_ARM64_CPU_SUSPEND
 	.cpu_suspend	= cpu_psci_cpu_suspend,
 #endif
 };
 
-#endif

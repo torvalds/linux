@@ -38,8 +38,12 @@
 
 #define KERNEL_RAM_VADDR	(PAGE_OFFSET + TEXT_OFFSET)
 
-#if (KERNEL_RAM_VADDR & 0xfffff) != 0x80000
-#error KERNEL_RAM_VADDR must start at 0xXXX80000
+#if (TEXT_OFFSET & 0xfff) != 0
+#error TEXT_OFFSET must be at least 4KB aligned
+#elif (PAGE_OFFSET & 0x1fffff) != 0
+#error PAGE_OFFSET must be at least 2MB aligned
+#elif TEXT_OFFSET > 0x1fffff
+#error TEXT_OFFSET must be less than 2MB
 #endif
 
 	.macro	pgtbl, ttb0, ttb1, virt_to_phys
@@ -368,10 +372,6 @@ ENTRY(__boot_cpu_mode)
 	.long	0
 	.popsection
 
-	.align	3
-2:	.quad	.
-	.quad	PAGE_OFFSET
-
 #ifdef CONFIG_SMP
 	.align	3
 1:	.quad	.
@@ -596,13 +596,6 @@ __create_page_tables:
 	sub	x6, x6, #1			// inclusive range
 	create_block_map x0, x7, x3, x5, x6
 1:
-	/*
-	 * Create the pgd entry for the fixed mappings.
-	 */
-	ldr	x5, =FIXADDR_TOP		// Fixed mapping virtual address
-	add	x0, x26, #2 * PAGE_SIZE		// section table address
-	create_pgd_entry x26, x0, x5, x6, x7
-
 	/*
 	 * Since the page tables have been populated with non-cacheable
 	 * accesses (MMU disabled), invalidate the idmap and swapper page
