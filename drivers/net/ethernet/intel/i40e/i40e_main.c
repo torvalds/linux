@@ -2940,7 +2940,7 @@ void i40e_irq_dynamic_enable(struct i40e_vsi *vsi, int vector)
 /**
  * i40e_irq_dynamic_disable - Disable default interrupt generation settings
  * @vsi: pointer to a vsi
- * @vector: enable a particular Hw Interrupt vector
+ * @vector: disable a particular Hw Interrupt vector
  **/
 void i40e_irq_dynamic_disable(struct i40e_vsi *vsi, int vector)
 {
