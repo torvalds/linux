@@ -596,6 +596,8 @@ int i40evf_setup_rx_descriptors(struct i40e_ring *rx_ring)
 	if (!rx_ring->rx_bi)
 		goto err;
 
+		u64_stats_init(rx_ring->syncp);
+
 	/* Round up to nearest 4K */
 	rx_ring->size = ring_is_16byte_desc_enabled(rx_ring)
 		? rx_ring->count * sizeof(union i40e_16byte_rx_desc)
