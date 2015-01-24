@@ -1067,6 +1067,8 @@ void write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 		goto out;
 	if (unlikely(f2fs_cp_error(sbi)))
 		goto out;
+	if (f2fs_readonly(sbi->sb))
+		goto out;
 	if (block_operations(sbi))
 		goto out;
 
