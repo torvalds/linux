@@ -24,6 +24,7 @@
 #include "debugfs_key.h"
 #include "aes_ccm.h"
 #include "aes_cmac.h"
+#include "aes_gmac.h"
 #include "aes_gcm.h"
 
 
@@ -166,6 +167,8 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 	case WLAN_CIPHER_SUITE_CCMP_256:
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
 	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_GCMP_256:
 		/* all of these we can do in software - if driver can */
@@ -440,6 +443,25 @@ ieee80211_key_alloc(u32 cipher, int idx, size_t key_len,
 			return ERR_PTR(err);
 		}
 		break;
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+		key->conf.iv_len = 0;
+		key->conf.icv_len = sizeof(struct ieee80211_mmie_16);
+		if (seq)
+			for (j = 0; j < IEEE80211_GMAC_PN_LEN; j++)
+				key->u.aes_gmac.rx_pn[j] =
+					seq[IEEE80211_GMAC_PN_LEN - j - 1];
+		/* Initialize AES key state here as an optimization so that
+		 * it does not need to be initialized for every packet.
+		 */
+		key->u.aes_gmac.tfm =
+			ieee80211_aes_gmac_key_setup(key_data, key_len);
+		if (IS_ERR(key->u.aes_gmac.tfm)) {
+			err = PTR_ERR(key->u.aes_gmac.tfm);
+			kfree(key);
+			return ERR_PTR(err);
+		}
+		break;
 	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_GCMP_256:
 		key->conf.iv_len = IEEE80211_GCMP_HDR_LEN;
@@ -488,6 +510,10 @@ static void ieee80211_key_free_common(struct ieee80211_key *key)
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
 		ieee80211_aes_cmac_key_free(key->u.aes_cmac.tfm);
+		break;
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+		ieee80211_aes_gmac_key_free(key->u.aes_gmac.tfm);
 		break;
 	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_GCMP_256:
@@ -819,6 +845,16 @@ void ieee80211_get_key_tx_seq(struct ieee80211_key_conf *keyconf,
 		seq->ccmp.pn[1] = pn64 >> 32;
 		seq->ccmp.pn[0] = pn64 >> 40;
 		break;
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+		pn64 = atomic64_read(&key->u.aes_gmac.tx_pn);
+		seq->ccmp.pn[5] = pn64;
+		seq->ccmp.pn[4] = pn64 >> 8;
+		seq->ccmp.pn[3] = pn64 >> 16;
+		seq->ccmp.pn[2] = pn64 >> 24;
+		seq->ccmp.pn[1] = pn64 >> 32;
+		seq->ccmp.pn[0] = pn64 >> 40;
+		break;
 	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_GCMP_256:
 		pn64 = atomic64_read(&key->u.gcmp.tx_pn);
@@ -867,6 +903,13 @@ void ieee80211_get_key_rx_seq(struct ieee80211_key_conf *keyconf,
 		pn = key->u.aes_cmac.rx_pn;
 		memcpy(seq->aes_cmac.pn, pn, IEEE80211_CMAC_PN_LEN);
 		break;
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+		if (WARN_ON(tid != 0))
+			return;
+		pn = key->u.aes_gmac.rx_pn;
+		memcpy(seq->aes_gmac.pn, pn, IEEE80211_GMAC_PN_LEN);
+		break;
 	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_GCMP_256:
 		if (WARN_ON(tid < -1 || tid >= IEEE80211_NUM_TIDS))
@@ -913,6 +956,16 @@ void ieee80211_set_key_tx_seq(struct ieee80211_key_conf *keyconf,
 		       ((u64)seq->aes_cmac.pn[1] << 32) |
 		       ((u64)seq->aes_cmac.pn[0] << 40);
 		atomic64_set(&key->u.aes_cmac.tx_pn, pn64);
+		break;
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+		pn64 = (u64)seq->aes_gmac.pn[5] |
+		       ((u64)seq->aes_gmac.pn[4] << 8) |
+		       ((u64)seq->aes_gmac.pn[3] << 16) |
+		       ((u64)seq->aes_gmac.pn[2] << 24) |
+		       ((u64)seq->aes_gmac.pn[1] << 32) |
+		       ((u64)seq->aes_gmac.pn[0] << 40);
+		atomic64_set(&key->u.aes_gmac.tx_pn, pn64);
 		break;
 	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_GCMP_256:
@@ -962,6 +1015,13 @@ void ieee80211_set_key_rx_seq(struct ieee80211_key_conf *keyconf,
 			return;
 		pn = key->u.aes_cmac.rx_pn;
 		memcpy(pn, seq->aes_cmac.pn, IEEE80211_CMAC_PN_LEN);
+		break;
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+		if (WARN_ON(tid != 0))
+			return;
+		pn = key->u.aes_gmac.rx_pn;
+		memcpy(pn, seq->aes_gmac.pn, IEEE80211_GMAC_PN_LEN);
 		break;
 	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_GCMP_256:

@@ -673,6 +673,8 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 		/* keep last -- depends on hw flags! */
 		WLAN_CIPHER_SUITE_AES_CMAC,
 		WLAN_CIPHER_SUITE_BIP_CMAC_256,
+		WLAN_CIPHER_SUITE_BIP_GMAC_128,
+		WLAN_CIPHER_SUITE_BIP_GMAC_256,
 	};
 
 	if (local->hw.flags & IEEE80211_HW_SW_CRYPTO_CONTROL ||
@@ -711,7 +713,7 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 		local->hw.wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
 
 		if (!have_mfp)
-			local->hw.wiphy->n_cipher_suites -= 2;
+			local->hw.wiphy->n_cipher_suites -= 4;
 
 		if (!have_wep) {
 			local->hw.wiphy->cipher_suites += 2;
@@ -737,9 +739,11 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 		if (have_wep)
 			n_suites += 2;
 
-		/* check if we have AES_CMAC, BIP-CMAC-256 */
+		/* check if we have AES_CMAC, BIP-CMAC-256, BIP-GMAC-128,
+		 * BIP-GMAC-256
+		 */
 		if (have_mfp)
-			n_suites += 2;
+			n_suites += 4;
 
 		suites = kmalloc(sizeof(u32) * n_suites, GFP_KERNEL);
 		if (!suites)
@@ -759,6 +763,8 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 		if (have_mfp) {
 			suites[w++] = WLAN_CIPHER_SUITE_AES_CMAC;
 			suites[w++] = WLAN_CIPHER_SUITE_BIP_CMAC_256;
+			suites[w++] = WLAN_CIPHER_SUITE_BIP_GMAC_128;
+			suites[w++] = WLAN_CIPHER_SUITE_BIP_GMAC_256;
 		}
 
 		for (r = 0; r < local->hw.n_cipher_schemes; r++)

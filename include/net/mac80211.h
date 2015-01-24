@@ -4098,6 +4098,8 @@ void ieee80211_aes_cmac_calculate_k1_k2(struct ieee80211_key_conf *keyconf,
  *	reverse order than in packet)
  * @aes_cmac: PN data, most significant byte first (big endian,
  *	reverse order than in packet)
+ * @aes_gmac: PN data, most significant byte first (big endian,
+ *	reverse order than in packet)
  * @gcmp: PN data, most significant byte first (big endian,
  *	reverse order than in packet)
  */
@@ -4113,6 +4115,9 @@ struct ieee80211_key_seq {
 		struct {
 			u8 pn[6];
 		} aes_cmac;
+		struct {
+			u8 pn[6];
+		} aes_gmac;
 		struct {
 			u8 pn[6];
 		} gcmp;

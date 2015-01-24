@@ -17,6 +17,7 @@ mac80211-y := \
 	aes_ccm.o \
 	aes_gcm.o \
 	aes_cmac.o \
+	aes_gmac.o \
 	cfg.o \
 	ethtool.o \
 	rx.o \

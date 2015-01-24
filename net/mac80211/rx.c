@@ -1671,6 +1671,10 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
 		result = ieee80211_crypto_aes_cmac_256_decrypt(rx);
 		break;
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+		result = ieee80211_crypto_aes_gmac_decrypt(rx);
+		break;
 	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_GCMP_256:
 		result = ieee80211_crypto_gcmp_decrypt(rx);
