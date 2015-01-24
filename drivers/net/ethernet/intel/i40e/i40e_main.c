@@ -2591,7 +2591,12 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 	ring->tail = hw->hw_addr + I40E_QRX_TAIL(pf_q);
 	writel(0, ring->tail);
 
-	i40e_alloc_rx_buffers(ring, I40E_DESC_UNUSED(ring));
+	if (ring_is_ps_enabled(ring)) {
+		i40e_alloc_rx_headers(ring);
+		i40e_alloc_rx_buffers_ps(ring, I40E_DESC_UNUSED(ring));
+	} else {
+		i40e_alloc_rx_buffers_1buf(ring, I40E_DESC_UNUSED(ring));
+	}
 
 	return 0;
 }
@@ -7300,7 +7305,7 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	pf->flags = I40E_FLAG_RX_CSUM_ENABLED |
 		    I40E_FLAG_MSI_ENABLED     |
 		    I40E_FLAG_MSIX_ENABLED    |
-		    I40E_FLAG_RX_1BUF_ENABLED;
+		    I40E_FLAG_RX_PS_ENABLED;
 
 	/* Set default ITR */
 	pf->rx_itr_default = I40E_ITR_DYNAMIC | I40E_ITR_RX_DEF;

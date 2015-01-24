@@ -920,7 +920,7 @@ static void i40evf_configure(struct i40evf_adapter *adapter)
 	for (i = 0; i < adapter->num_active_queues; i++) {
 		struct i40e_ring *ring = adapter->rx_rings[i];
 
-		i40evf_alloc_rx_buffers(ring, ring->count);
+		i40evf_alloc_rx_buffers_1buf(ring, ring->count);
 		ring->next_to_use = ring->count - 1;
 		writel(ring->next_to_use, ring->tail);
 	}
