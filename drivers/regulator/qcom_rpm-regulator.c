@@ -227,9 +227,11 @@ static int rpm_reg_set_mV_sel(struct regulator_dev *rdev,
 		return uV;
 
 	mutex_lock(&vreg->lock);
-	vreg->uV = uV;
 	if (vreg->is_enabled)
-		ret = rpm_reg_write(vreg, req, vreg->uV / 1000);
+		ret = rpm_reg_write(vreg, req, uV / 1000);
+
+	if (!ret)
+		vreg->uV = uV;
 	mutex_unlock(&vreg->lock);
 
 	return ret;
@@ -252,9 +254,11 @@ static int rpm_reg_set_uV_sel(struct regulator_dev *rdev,
 		return uV;
 
 	mutex_lock(&vreg->lock);
-	vreg->uV = uV;
 	if (vreg->is_enabled)
-		ret = rpm_reg_write(vreg, req, vreg->uV);
+		ret = rpm_reg_write(vreg, req, uV);
+
+	if (!ret)
+		vreg->uV = uV;
 	mutex_unlock(&vreg->lock);
 
 	return ret;
