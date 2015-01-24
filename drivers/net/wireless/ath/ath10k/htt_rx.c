@@ -813,7 +813,7 @@ static void ath10k_htt_rx_h_mactime(struct ath10k *ar,
 	 *
 	 * FIXME: Can we get/compute 64bit TSF?
 	 */
-	status->mactime = __le32_to_cpu(rxd->ppdu_end.tsf_timestamp);
+	status->mactime = __le32_to_cpu(rxd->ppdu_end.common.tsf_timestamp);
 	status->flag |= RX_FLAG_MACTIME_END;
 }
 
