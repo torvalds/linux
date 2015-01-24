@@ -149,19 +149,8 @@ static struct pci_driver i5500_temp_driver = {
 	.probe = i5500_temp_probe,
 };
 
-static int __init i5500_temp_init(void)
-{
-	return pci_register_driver(&i5500_temp_driver);
-}
-
-static void __exit i5500_temp_exit(void)
-{
-	pci_unregister_driver(&i5500_temp_driver);
-}
+module_pci_driver(i5500_temp_driver);
 
 MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("Intel 5500/5520/X58 chipset thermal sensor driver");
 MODULE_LICENSE("GPL");
-
-module_init(i5500_temp_init)
-module_exit(i5500_temp_exit)
