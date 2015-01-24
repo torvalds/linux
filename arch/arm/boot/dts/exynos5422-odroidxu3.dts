@@ -18,7 +18,7 @@
 	compatible = "hardkernel,odroid-xu3", "samsung,exynos5800", "samsung,exynos5";
 
 	memory {
-		reg = <0x40000000 0x80000000>;
+		reg = <0x40000000 0x7EA00000>;
 	};
 
 	chosen {
