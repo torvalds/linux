@@ -647,6 +647,7 @@ static int ieee80211_get_mmie_keyidx(struct sk_buff *skb)
 {
 	struct ieee80211_mgmt *hdr = (struct ieee80211_mgmt *) skb->data;
 	struct ieee80211_mmie *mmie;
+	struct ieee80211_mmie_16 *mmie16;
 
 	if (skb->len < 24 + sizeof(*mmie) || !is_multicast_ether_addr(hdr->da))
 		return -1;
@@ -656,11 +657,18 @@ static int ieee80211_get_mmie_keyidx(struct sk_buff *skb)
 
 	mmie = (struct ieee80211_mmie *)
 		(skb->data + skb->len - sizeof(*mmie));
-	if (mmie->element_id != WLAN_EID_MMIE ||
-	    mmie->length != sizeof(*mmie) - 2)
-		return -1;
+	if (mmie->element_id == WLAN_EID_MMIE &&
+	    mmie->length == sizeof(*mmie) - 2)
+		return le16_to_cpu(mmie->key_id);
 
-	return le16_to_cpu(mmie->key_id);
+	mmie16 = (struct ieee80211_mmie_16 *)
+		(skb->data + skb->len - sizeof(*mmie16));
+	if (skb->len >= 24 + sizeof(*mmie16) &&
+	    mmie16->element_id == WLAN_EID_MMIE &&
+	    mmie16->length == sizeof(*mmie16) - 2)
+		return le16_to_cpu(mmie16->key_id);
+
+	return -1;
 }
 
 static int iwl80211_get_cs_keyid(const struct ieee80211_cipher_scheme *cs,
@@ -1659,6 +1667,9 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 		break;
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 		result = ieee80211_crypto_aes_cmac_decrypt(rx);
+		break;
+	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
+		result = ieee80211_crypto_aes_cmac_256_decrypt(rx);
 		break;
 	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_GCMP_256:

@@ -1017,6 +1017,15 @@ struct ieee80211_mmie {
 	u8 mic[8];
 } __packed;
 
+/* Management MIC information element (IEEE 802.11w) for GMAC and CMAC-256 */
+struct ieee80211_mmie_16 {
+	u8 element_id;
+	u8 length;
+	__le16 key_id;
+	u8 sequence_number[6];
+	u8 mic[16];
+} __packed;
+
 struct ieee80211_vendor_ie {
 	u8 element_id;
 	u8 len;
