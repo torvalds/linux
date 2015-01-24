@@ -260,8 +260,6 @@ i40e_status i40e_init_nvm(struct i40e_hw *hw);
 i40e_status i40e_acquire_nvm(struct i40e_hw *hw,
 				      enum i40e_aq_resource_access_type access);
 void i40e_release_nvm(struct i40e_hw *hw);
-i40e_status i40e_read_nvm_srrd(struct i40e_hw *hw, u16 offset,
-					 u16 *data);
 i40e_status i40e_read_nvm_word(struct i40e_hw *hw, u16 offset,
 					 u16 *data);
 i40e_status i40e_read_nvm_buffer(struct i40e_hw *hw, u16 offset,
