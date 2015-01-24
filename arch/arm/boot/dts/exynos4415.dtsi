@@ -131,36 +131,43 @@
 		pd_cam: cam-power-domain@10024000 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10024000 0x20>;
+			#power-domain-cells = <0>;
 		};
 
 		pd_tv: tv-power-domain@10024020 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10024020 0x20>;
+			#power-domain-cells = <0>;
 		};
 
 		pd_mfc: mfc-power-domain@10024040 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10024040 0x20>;
+			#power-domain-cells = <0>;
 		};
 
 		pd_g3d: g3d-power-domain@10024060 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10024060 0x20>;
+			#power-domain-cells = <0>;
 		};
 
 		pd_lcd0: lcd0-power-domain@10024080 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x10024080 0x20>;
+			#power-domain-cells = <0>;
 		};
 
 		pd_isp0: isp0-power-domain@100240A0 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x100240A0 0x20>;
+			#power-domain-cells = <0>;
 		};
 
 		pd_isp1: isp1-power-domain@100240E0 {
 			compatible = "samsung,exynos4210-pd";
 			reg = <0x100240E0 0x20>;
+			#power-domain-cells = <0>;
 		};
 
 		cmu: clock-controller@10030000 {
