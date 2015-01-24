@@ -2566,28 +2566,25 @@ static void dm_rxpath_sel_byrssi(struct net_device *dev)
 						cck_rx_ver2_sec_index = cck_rx_ver2_max_index;
 						tmp_cck_max_pwdb = cur_cck_pwdb;
 						cck_rx_ver2_max_index = i;
-					} else if (cur_cck_pwdb == tmp_cck_max_pwdb) { /* let sec and min point to the different index */
+					} else if (cur_cck_pwdb == tmp_cck_max_pwdb) {
+						/* let sec and min point to the different index */
 						tmp_cck_sec_pwdb = cur_cck_pwdb;
 						cck_rx_ver2_sec_index = i;
 					} else if ((cur_cck_pwdb < tmp_cck_max_pwdb) && (cur_cck_pwdb > tmp_cck_sec_pwdb)) {
 						tmp_cck_sec_pwdb = cur_cck_pwdb;
 						cck_rx_ver2_sec_index = i;
-					} else if (cur_cck_pwdb == tmp_cck_sec_pwdb) {
-						if (tmp_cck_sec_pwdb == tmp_cck_min_pwdb) { /* let sec and min point to the different index */
-							tmp_cck_sec_pwdb = cur_cck_pwdb;
-							cck_rx_ver2_sec_index = i;
-						} else {
-							/*  This case we don't need to set any index */
-						}
+					} else if (cur_cck_pwdb == tmp_cck_sec_pwdb && tmp_cck_sec_pwdb == tmp_cck_min_pwdb) {
+						/* let sec and min point to the different index */
+						tmp_cck_sec_pwdb = cur_cck_pwdb;
+						cck_rx_ver2_sec_index = i;
+						/* otherwise we don't need to set any index */
 					} else if ((cur_cck_pwdb < tmp_cck_sec_pwdb) && (cur_cck_pwdb > tmp_cck_min_pwdb)) {
 						/*  This case we don't need to set any index */
-					} else if (cur_cck_pwdb == tmp_cck_min_pwdb) {
-						if (tmp_cck_sec_pwdb == tmp_cck_min_pwdb) { /*  let sec and min point to the different index */
-							tmp_cck_min_pwdb = cur_cck_pwdb;
-							cck_rx_ver2_min_index = i;
-						} else {
-							/*  This case we don't need to set any index */
-						}
+					} else if (cur_cck_pwdb == tmp_cck_min_pwdb && tmp_cck_sec_pwdb == tmp_cck_min_pwdb) {
+						/*  let sec and min point to the different index */
+						tmp_cck_min_pwdb = cur_cck_pwdb;
+						cck_rx_ver2_min_index = i;
+						/* otherwise we don't need to set any index */
 					} else if (cur_cck_pwdb < tmp_cck_min_pwdb) {
 						tmp_cck_min_pwdb = cur_cck_pwdb;
 						cck_rx_ver2_min_index = i;
