@@ -34,6 +34,7 @@
 #include "pnfs.h"
 #include "iostat.h"
 #include "nfs4trace.h"
+#include "delegation.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PNFS
 #define PNFS_LAYOUTGET_RETRY_TIMEOUT (120*HZ)
@@ -954,30 +955,45 @@ pnfs_commit_and_return_layout(struct inode *inode)
 
 bool pnfs_roc(struct inode *ino)
 {
+	struct nfs_inode *nfsi = NFS_I(ino);
+	struct nfs_open_context *ctx;
+	struct nfs4_state *state;
 	struct pnfs_layout_hdr *lo;
 	struct pnfs_layout_segment *lseg, *tmp;
 	LIST_HEAD(tmp_list);
 	bool found = false;
 
 	spin_lock(&ino->i_lock);
-	lo = NFS_I(ino)->layout;
+	lo = nfsi->layout;
 	if (!lo || !test_and_clear_bit(NFS_LAYOUT_ROC, &lo->plh_flags) ||
 	    test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags))
-		goto out_nolayout;
+		goto out_noroc;
+
+	/* Don't return layout if we hold a delegation */
+	if (nfs4_check_delegation(ino, FMODE_READ))
+		goto out_noroc;
+
+	list_for_each_entry(ctx, &nfsi->open_files, list) {
+		state = ctx->state;
+		/* Don't return layout if there is open file state */
+		if (state != NULL && state->state != 0)
+			goto out_noroc;
+	}
+
 	list_for_each_entry_safe(lseg, tmp, &lo->plh_segs, pls_list)
 		if (test_bit(NFS_LSEG_ROC, &lseg->pls_flags)) {
 			mark_lseg_invalid(lseg, &tmp_list);
 			found = true;
 		}
 	if (!found)
-		goto out_nolayout;
+		goto out_noroc;
 	lo->plh_block_lgets++;
 	pnfs_get_layout_hdr(lo); /* matched in pnfs_roc_release */
 	spin_unlock(&ino->i_lock);
 	pnfs_free_lseg_list(&tmp_list);
 	return true;
 
-out_nolayout:
+out_noroc:
 	spin_unlock(&ino->i_lock);
 	return false;
 }

@@ -275,6 +275,11 @@ void nfs4_mark_deviceid_unavailable(struct nfs4_deviceid_node *node);
 bool nfs4_test_deviceid_unavailable(struct nfs4_deviceid_node *node);
 void nfs4_deviceid_purge_client(const struct nfs_client *);
 
+static inline bool nfs_have_layout(struct inode *inode)
+{
+	return NFS_I(inode)->layout != NULL;
+}
+
 static inline struct nfs4_deviceid_node *
 nfs4_get_deviceid(struct nfs4_deviceid_node *d)
 {
@@ -426,6 +431,11 @@ static inline void nfs4_print_deviceid(const struct nfs4_deviceid *dev_id)
 }
 #endif /* NFS_DEBUG */
 #else  /* CONFIG_NFS_V4_1 */
+
+static inline bool nfs_have_layout(struct inode *inode)
+{
+	return false;
+}
 
 static inline void pnfs_destroy_all_layouts(struct nfs_client *clp)
 {

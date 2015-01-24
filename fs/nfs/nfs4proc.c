@@ -2714,45 +2714,10 @@ static const struct rpc_call_ops nfs4_close_ops = {
 	.rpc_release = nfs4_free_closedata,
 };
 
-static bool nfs4_state_has_opener(struct nfs4_state *state)
-{
-	/* first check existing openers */
-	if (test_bit(NFS_O_RDONLY_STATE, &state->flags) != 0 &&
-	    state->n_rdonly != 0)
-		return true;
-
-	if (test_bit(NFS_O_WRONLY_STATE, &state->flags) != 0 &&
-	    state->n_wronly != 0)
-		return true;
-
-	if (test_bit(NFS_O_RDWR_STATE, &state->flags) != 0 &&
-	    state->n_rdwr != 0)
-		return true;
-
-	return false;
-}
-
 static bool nfs4_roc(struct inode *inode)
 {
-	struct nfs_inode *nfsi = NFS_I(inode);
-	struct nfs_open_context *ctx;
-	struct nfs4_state *state;
-
-	spin_lock(&inode->i_lock);
-	list_for_each_entry(ctx, &nfsi->open_files, list) {
-		state = ctx->state;
-		if (state == NULL)
-			continue;
-		if (nfs4_state_has_opener(state)) {
-			spin_unlock(&inode->i_lock);
-			return false;
-		}
-	}
-	spin_unlock(&inode->i_lock);
-
-	if (nfs4_check_delegation(inode, FMODE_READ))
+	if (!nfs_have_layout(inode))
 		return false;
-
 	return pnfs_roc(inode);
 }
 
