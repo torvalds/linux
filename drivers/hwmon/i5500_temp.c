@@ -90,7 +90,7 @@ static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO, show_thresh, NULL, 0xEE);
 static SENSOR_DEVICE_ATTR(temp1_crit_alarm, S_IRUGO, show_alarm, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp1_max_alarm, S_IRUGO, show_alarm, NULL, 1);
 
-static struct attribute *i5500_temp_attributes[] = {
+static struct attribute *i5500_temp_attrs[] = {
 	&dev_attr_temp1_input.attr,
 	&sensor_dev_attr_temp1_crit.dev_attr.attr,
 	&sensor_dev_attr_temp1_max_hyst.dev_attr.attr,
@@ -100,14 +100,7 @@ static struct attribute *i5500_temp_attributes[] = {
 	NULL
 };
 
-static const struct attribute_group i5500_temp_group = {
-	.attrs = i5500_temp_attributes,
-};
-
-static const struct attribute_group *i5500_temp_groups[] = {
-	&i5500_temp_group,
-	NULL
-};
+ATTRIBUTE_GROUPS(i5500_temp);
 
 static const struct pci_device_id i5500_temp_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x3438) },
@@ -133,7 +126,7 @@ static int i5500_temp_probe(struct pci_dev *pdev,
 	pci_read_config_byte(pdev, REG_TSFSC, &tsfsc);
 	pci_read_config_dword(pdev, REG_TSTIMER, &tstimer);
 	if (tsfsc == 0x7F && tstimer == 0x07D30D40) {
-		dev_warn(&pdev->dev, "Sensor seems to be disabled\n");
+		dev_notice(&pdev->dev, "Sensor seems to be disabled\n");
 		return -ENODEV;
 	}
 
