@@ -573,45 +573,28 @@ static phys_addr_t ipmmu_iova_to_phys(struct iommu_domain *io_domain,
 }
 
 static int ipmmu_find_utlbs(struct ipmmu_vmsa_device *mmu, struct device *dev,
-			    unsigned int **_utlbs)
+			    unsigned int *utlbs, unsigned int num_utlbs)
 {
-	unsigned int *utlbs;
 	unsigned int i;
-	int count;
 
-	count = of_count_phandle_with_args(dev->of_node, "iommus",
-					   "#iommu-cells");
-	if (count < 0)
-		return -EINVAL;
-
-	utlbs = kcalloc(count, sizeof(*utlbs), GFP_KERNEL);
-	if (!utlbs)
-		return -ENOMEM;
-
-	for (i = 0; i < count; ++i) {
+	for (i = 0; i < num_utlbs; ++i) {
 		struct of_phandle_args args;
 		int ret;
 
 		ret = of_parse_phandle_with_args(dev->of_node, "iommus",
 						 "#iommu-cells", i, &args);
 		if (ret < 0)
-			goto error;
+			return ret;
 
 		of_node_put(args.np);
 
 		if (args.np != mmu->dev->of_node || args.args_count != 1)
-			goto error;
+			return -EINVAL;
 
 		utlbs[i] = args.args[0];
 	}
 
-	*_utlbs = utlbs;
-
-	return count;
-
-error:
-	kfree(utlbs);
-	return -EINVAL;
+	return 0;
 }
 
 static int ipmmu_add_device(struct device *dev)
@@ -619,10 +602,10 @@ static int ipmmu_add_device(struct device *dev)
 	struct ipmmu_vmsa_archdata *archdata;
 	struct ipmmu_vmsa_device *mmu;
 	struct iommu_group *group = NULL;
-	unsigned int *utlbs = NULL;
+	unsigned int *utlbs;
 	unsigned int i;
-	int num_utlbs = 0;
-	int ret;
+	int num_utlbs;
+	int ret = -ENODEV;
 
 	if (dev->archdata.iommu) {
 		dev_warn(dev, "IOMMU driver already assigned to device %s\n",
@@ -631,11 +614,21 @@ static int ipmmu_add_device(struct device *dev)
 	}
 
 	/* Find the master corresponding to the device. */
+
+	num_utlbs = of_count_phandle_with_args(dev->of_node, "iommus",
+					       "#iommu-cells");
+	if (num_utlbs < 0)
+		return -ENODEV;
+
+	utlbs = kcalloc(num_utlbs, sizeof(*utlbs), GFP_KERNEL);
+	if (!utlbs)
+		return -ENOMEM;
+
 	spin_lock(&ipmmu_devices_lock);
 
 	list_for_each_entry(mmu, &ipmmu_devices, list) {
-		num_utlbs = ipmmu_find_utlbs(mmu, dev, &utlbs);
-		if (num_utlbs) {
+		ret = ipmmu_find_utlbs(mmu, dev, utlbs, num_utlbs);
+		if (!ret) {
 			/*
 			 * TODO Take a reference to the MMU to protect
 			 * against device removal.
@@ -646,7 +639,7 @@ static int ipmmu_add_device(struct device *dev)
 
 	spin_unlock(&ipmmu_devices_lock);
 
-	if (num_utlbs <= 0)
+	if (ret < 0)
 		return -ENODEV;
 
 	for (i = 0; i < num_utlbs; ++i) {
