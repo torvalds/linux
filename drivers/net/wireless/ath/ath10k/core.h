@@ -99,6 +99,7 @@ struct ath10k_skb_cb {
 
 struct ath10k_skb_rxcb {
 	dma_addr_t paddr;
+	struct hlist_node hlist;
 };
 
 static inline struct ath10k_skb_cb *ATH10K_SKB_CB(struct sk_buff *skb)
@@ -113,6 +114,9 @@ static inline struct ath10k_skb_rxcb *ATH10K_SKB_RXCB(struct sk_buff *skb)
 	BUILD_BUG_ON(sizeof(struct ath10k_skb_rxcb) > sizeof(skb->cb));
 	return (struct ath10k_skb_rxcb *)skb->cb;
 }
+
+#define ATH10K_RXCB_SKB(rxcb) \
+		container_of((void *)rxcb, struct sk_buff, cb)
 
 static inline u32 host_interest_item_address(u32 item_offset)
 {
