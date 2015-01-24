@@ -5517,6 +5517,7 @@ static int nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock *
 	struct nfs_seqid *seqid;
 	struct nfs4_lock_state *lsp;
 	struct rpc_task *task;
+	struct nfs_seqid *(*alloc_seqid)(struct nfs_seqid_counter *, gfp_t);
 	int status = 0;
 	unsigned char fl_flags = request->fl_flags;
 
@@ -5540,7 +5541,8 @@ static int nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock *
 	lsp = request->fl_u.nfs4_fl.owner;
 	if (test_bit(NFS_LOCK_INITIALIZED, &lsp->ls_flags) == 0)
 		goto out;
-	seqid = nfs_alloc_seqid(&lsp->ls_seqid, GFP_KERNEL);
+	alloc_seqid = NFS_SERVER(inode)->nfs_client->cl_mvops->alloc_seqid;
+	seqid = alloc_seqid(&lsp->ls_seqid, GFP_KERNEL);
 	status = -ENOMEM;
 	if (IS_ERR(seqid))
 		goto out;
@@ -5575,6 +5577,7 @@ static struct nfs4_lockdata *nfs4_alloc_lockdata(struct file_lock *fl,
 	struct nfs4_lockdata *p;
 	struct inode *inode = lsp->ls_state->inode;
 	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_seqid *(*alloc_seqid)(struct nfs_seqid_counter *, gfp_t);
 
 	p = kzalloc(sizeof(*p), gfp_mask);
 	if (p == NULL)
@@ -5585,7 +5588,8 @@ static struct nfs4_lockdata *nfs4_alloc_lockdata(struct file_lock *fl,
 	p->arg.open_seqid = nfs_alloc_seqid(&lsp->ls_state->owner->so_seqid, gfp_mask);
 	if (IS_ERR(p->arg.open_seqid))
 		goto out_free;
-	p->arg.lock_seqid = nfs_alloc_seqid(&lsp->ls_seqid, gfp_mask);
+	alloc_seqid = server->nfs_client->cl_mvops->alloc_seqid;
+	p->arg.lock_seqid = alloc_seqid(&lsp->ls_seqid, gfp_mask);
 	if (IS_ERR(p->arg.lock_seqid))
 		goto out_free_seqid;
 	p->arg.lock_owner.clientid = server->nfs_client->cl_clientid;
