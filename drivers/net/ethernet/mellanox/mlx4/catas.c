@@ -122,8 +122,14 @@ static void mlx4_handle_error_state(struct mlx4_dev_persistent *persist)
 	int err = 0;
 
 	mlx4_enter_error_state(persist);
-	err = mlx4_restart_one(persist->pdev);
-	mlx4_info(persist->dev, "mlx4_restart_one was ended, ret=%d\n", err);
+	mutex_lock(&persist->interface_state_mutex);
+	if (persist->interface_state & MLX4_INTERFACE_STATE_UP &&
+	    !(persist->interface_state & MLX4_INTERFACE_STATE_DELETION)) {
+		err = mlx4_restart_one(persist->pdev);
+		mlx4_info(persist->dev, "mlx4_restart_one was ended, ret=%d\n",
+			  err);
+	}
+	mutex_unlock(&persist->interface_state_mutex);
 }
 
 static void dump_err_buf(struct mlx4_dev *dev)
@@ -211,6 +217,9 @@ void mlx4_stop_catas_poll(struct mlx4_dev *dev)
 		iounmap(priv->catas_err.map);
 		priv->catas_err.map = NULL;
 	}
+
+	if (dev->persist->interface_state & MLX4_INTERFACE_STATE_DELETION)
+		flush_workqueue(dev->persist->catas_wq);
 }
 
 int  mlx4_catas_init(struct mlx4_dev *dev)

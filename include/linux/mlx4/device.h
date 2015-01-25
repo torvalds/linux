@@ -416,6 +416,11 @@ enum {
 	MLX4_DEVICE_STATE_INTERNAL_ERROR	= 1 << 1,
 };
 
+enum {
+	MLX4_INTERFACE_STATE_UP		= 1 << 0,
+	MLX4_INTERFACE_STATE_DELETION	= 1 << 1,
+};
+
 #define MSTR_SM_CHANGE_MASK (MLX4_EQ_PORT_INFO_MSTR_SM_SL_CHANGE_MASK | \
 			     MLX4_EQ_PORT_INFO_MSTR_SM_LID_CHANGE_MASK)
 
@@ -760,6 +765,8 @@ struct mlx4_dev_persistent {
 	struct workqueue_struct *catas_wq;
 	struct mutex	device_state_mutex; /* protect HW state */
 	u8		state;
+	struct mutex	interface_state_mutex; /* protect SW state */
+	u8	interface_state;
 };
 
 struct mlx4_dev {

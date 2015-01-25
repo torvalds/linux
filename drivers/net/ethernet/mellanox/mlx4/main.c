@@ -3114,6 +3114,7 @@ static int mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_drvdata(pdev, dev->persist);
 	priv->pci_dev_data = id->driver_data;
 	mutex_init(&dev->persist->device_state_mutex);
+	mutex_init(&dev->persist->interface_state_mutex);
 
 	ret =  __mlx4_init_one(pdev, id->driver_data, priv);
 	if (ret) {
@@ -3232,7 +3233,17 @@ static void mlx4_remove_one(struct pci_dev *pdev)
 	struct mlx4_dev  *dev  = persist->dev;
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
-	mlx4_unload_one(pdev);
+	mutex_lock(&persist->interface_state_mutex);
+	persist->interface_state |= MLX4_INTERFACE_STATE_DELETION;
+	mutex_unlock(&persist->interface_state_mutex);
+
+	/* device marked to be under deletion running now without the lock
+	 * letting other tasks to be terminated
+	 */
+	if (persist->interface_state & MLX4_INTERFACE_STATE_UP)
+		mlx4_unload_one(pdev);
+	else
+		mlx4_info(dev, "%s: interface is down\n", __func__);
 	mlx4_catas_end(dev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
