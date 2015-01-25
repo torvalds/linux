@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2015 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -32,34 +32,6 @@ MODULE_PARM_DESC(no_fw_recovery, " disable automatic FW error recovery");
 static bool no_fw_load = true;
 module_param(no_fw_load, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(no_fw_load, " do not download FW, use one in on-card flash.");
-
-static unsigned int tx_interframe_timeout =
-		WIL6210_ITR_TX_INTERFRAME_TIMEOUT_DEFAULT;
-
-module_param(tx_interframe_timeout, uint, S_IRUGO);
-MODULE_PARM_DESC(tx_interframe_timeout,
-		 " Interrupt moderation TX interframe timeout, usecs.");
-
-static unsigned int rx_interframe_timeout =
-		WIL6210_ITR_RX_INTERFRAME_TIMEOUT_DEFAULT;
-
-module_param(rx_interframe_timeout, uint, S_IRUGO);
-MODULE_PARM_DESC(rx_interframe_timeout,
-		 " Interrupt moderation RX interframe timeout, usecs.");
-
-static unsigned int tx_max_burst_duration =
-		WIL6210_ITR_TX_MAX_BURST_DURATION_DEFAULT;
-
-module_param(tx_max_burst_duration, uint, S_IRUGO);
-MODULE_PARM_DESC(tx_max_burst_duration,
-		 " Interrupt moderation TX max burst duration, usecs.");
-
-static unsigned int rx_max_burst_duration =
-		WIL6210_ITR_RX_MAX_BURST_DURATION_DEFAULT;
-
-module_param(rx_max_burst_duration, uint, S_IRUGO);
-MODULE_PARM_DESC(rx_max_burst_duration,
-		 " Interrupt moderation RX max burst duration, usecs.");
 
 /* if not set via modparam, will be set to default value of 1/8 of
  * rx ring size during init flow
@@ -463,10 +435,10 @@ int wil_priv_init(struct wil6210_priv *wil)
 		goto out_wmi_wq;
 
 	wil->last_fw_recovery = jiffies;
-	wil->tx_interframe_timeout = tx_interframe_timeout;
-	wil->rx_interframe_timeout = rx_interframe_timeout;
-	wil->tx_max_burst_duration = tx_max_burst_duration;
-	wil->rx_max_burst_duration = rx_max_burst_duration;
+	wil->tx_interframe_timeout = WIL6210_ITR_TX_INTERFRAME_TIMEOUT_DEFAULT;
+	wil->rx_interframe_timeout = WIL6210_ITR_RX_INTERFRAME_TIMEOUT_DEFAULT;
+	wil->tx_max_burst_duration = WIL6210_ITR_TX_MAX_BURST_DURATION_DEFAULT;
+	wil->rx_max_burst_duration = WIL6210_ITR_RX_MAX_BURST_DURATION_DEFAULT;
 
 	if (rx_ring_overflow_thrsh == WIL6210_RX_HIGH_TRSH_INIT)
 		rx_ring_overflow_thrsh = WIL6210_RX_HIGH_TRSH_DEFAULT;
