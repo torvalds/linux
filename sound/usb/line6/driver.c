@@ -418,11 +418,7 @@ EXPORT_SYMBOL_GPL(line6_read_serial_number);
 static void line6_destruct(struct snd_card *card)
 {
 	struct usb_line6 *line6 = card->private_data;
-	struct usb_device *usbdev;
-
-	if (!line6)
-		return;
-	usbdev = line6->usbdev;
+	struct usb_device *usbdev = line6->usbdev;
 
 	/* free buffer memory first: */
 	kfree(line6->buffer_message);
@@ -430,9 +426,6 @@ static void line6_destruct(struct snd_card *card)
 
 	/* then free URBs: */
 	usb_free_urb(line6->urb_listen);
-
-	/* free interface data: */
-	kfree(line6);
 
 	/* decrement reference counters: */
 	usb_put_dev(usbdev);
@@ -489,24 +482,27 @@ static int line6_init_cap_control(struct usb_line6 *line6)
 */
 int line6_probe(struct usb_interface *interface,
 		const struct usb_device_id *id,
-		struct usb_line6 *line6,
 		const struct line6_properties *properties,
-		int (*private_init)(struct usb_line6 *, const struct usb_device_id *id))
+		int (*private_init)(struct usb_line6 *, const struct usb_device_id *id),
+		size_t data_size)
 {
 	struct usb_device *usbdev = interface_to_usbdev(interface);
 	struct snd_card *card;
+	struct usb_line6 *line6;
 	int interface_number;
 	int ret;
 
+	if (WARN_ON(data_size < sizeof(*line6)))
+		return -EINVAL;
+
 	ret = snd_card_new(&interface->dev,
 			   SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
-			   THIS_MODULE, 0, &card);
-	if (ret < 0) {
-		kfree(line6);
+			   THIS_MODULE, data_size, &card);
+	if (ret < 0)
 		return ret;
-	}
 
 	/* store basic data: */
+	line6 = card->private_data;
 	line6->card = card;
 	line6->properties = properties;
 	line6->usbdev = usbdev;
@@ -517,7 +513,6 @@ int line6_probe(struct usb_interface *interface,
 	strcpy(card->shortname, line6->properties->name);
 	sprintf(card->longname, "Line 6 %s at USB %s", line6->properties->name,
 		dev_name(line6->ifcdev));
-	card->private_data = line6;
 	card->private_free = line6_destruct;
 
 	usb_set_intfdata(interface, line6);

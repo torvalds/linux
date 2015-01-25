@@ -177,14 +177,9 @@ static const struct line6_properties podhd_properties_table[] = {
 static int podhd_probe(struct usb_interface *interface,
 		       const struct usb_device_id *id)
 {
-	struct usb_line6_podhd *podhd;
-
-	podhd = kzalloc(sizeof(*podhd), GFP_KERNEL);
-	if (!podhd)
-		return -ENODEV;
-	return line6_probe(interface, id, &podhd->line6,
+	return line6_probe(interface, id,
 			   &podhd_properties_table[id->driver_info],
-			   podhd_init);
+			   podhd_init, sizeof(struct usb_line6_podhd));
 }
 
 static struct usb_driver podhd_driver = {

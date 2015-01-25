@@ -591,14 +591,9 @@ static const struct line6_properties pod_properties_table[] = {
 static int pod_probe(struct usb_interface *interface,
 		     const struct usb_device_id *id)
 {
-	struct usb_line6_pod *pod;
-
-	pod = kzalloc(sizeof(*pod), GFP_KERNEL);
-	if (!pod)
-		return -ENODEV;
-	return line6_probe(interface, id, &pod->line6,
+	return line6_probe(interface, id,
 			   &pod_properties_table[id->driver_info],
-			   pod_init);
+			   pod_init, sizeof(struct usb_line6_pod));
 }
 
 static struct usb_driver pod_driver = {

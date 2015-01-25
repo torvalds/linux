@@ -558,14 +558,9 @@ static const struct line6_properties toneport_properties_table[] = {
 static int toneport_probe(struct usb_interface *interface,
 			  const struct usb_device_id *id)
 {
-	struct usb_line6_toneport *toneport;
-
-	toneport = kzalloc(sizeof(*toneport), GFP_KERNEL);
-	if (!toneport)
-		return -ENODEV;
-	return line6_probe(interface, id, &toneport->line6,
+	return line6_probe(interface, id,
 			   &toneport_properties_table[id->driver_info],
-			   toneport_init);
+			   toneport_init, sizeof(struct usb_line6_toneport));
 }
 
 static struct usb_driver toneport_driver = {

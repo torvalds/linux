@@ -296,14 +296,9 @@ static const struct line6_properties variax_properties_table[] = {
 static int variax_probe(struct usb_interface *interface,
 			const struct usb_device_id *id)
 {
-	struct usb_line6_variax *variax;
-
-	variax = kzalloc(sizeof(*variax), GFP_KERNEL);
-	if (!variax)
-		return -ENODEV;
-	return line6_probe(interface, id, &variax->line6,
+	return line6_probe(interface, id,
 			   &variax_properties_table[id->driver_info],
-			   variax_init);
+			   variax_init, sizeof(struct usb_line6_variax));
 }
 
 static struct usb_driver variax_driver = {

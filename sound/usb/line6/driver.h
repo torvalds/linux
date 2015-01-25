@@ -181,9 +181,9 @@ extern int line6_write_data(struct usb_line6 *line6, int address, void *data,
 
 int line6_probe(struct usb_interface *interface,
 		const struct usb_device_id *id,
-		struct usb_line6 *line6,
 		const struct line6_properties *properties,
-		int (*private_init)(struct usb_line6 *, const struct usb_device_id *id));
+		int (*private_init)(struct usb_line6 *, const struct usb_device_id *id),
+		size_t data_size);
 
 void line6_disconnect(struct usb_interface *interface);
 
