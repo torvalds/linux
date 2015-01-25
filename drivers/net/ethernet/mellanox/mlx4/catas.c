@@ -42,8 +42,8 @@ enum {
 
 
 
-static int internal_err_reset = 1;
-module_param(internal_err_reset, int, 0644);
+int mlx4_internal_err_reset = 1;
+module_param_named(internal_err_reset, mlx4_internal_err_reset,  int, 0644);
 MODULE_PARM_DESC(internal_err_reset,
 		 "Reset device on internal errors if non-zero"
 		 " (default 1, in SRIOV mode default is 0)");
@@ -92,7 +92,7 @@ void mlx4_enter_error_state(struct mlx4_dev_persistent *persist)
 	int err;
 	struct mlx4_dev *dev;
 
-	if (!internal_err_reset)
+	if (!mlx4_internal_err_reset)
 		return;
 
 	mutex_lock(&persist->device_state_mutex);
@@ -110,6 +110,7 @@ void mlx4_enter_error_state(struct mlx4_dev_persistent *persist)
 
 	/* At that step HW was already reset, now notify clients */
 	mlx4_dispatch_event(dev, MLX4_DEV_EVENT_CATASTROPHIC_ERROR, 0);
+	mlx4_cmd_wake_completions(dev);
 	return;
 
 out:
@@ -157,7 +158,7 @@ static void poll_catas(unsigned long dev_ptr)
 	return;
 
 internal_err:
-	if (internal_err_reset)
+	if (mlx4_internal_err_reset)
 		queue_work(dev->persist->catas_wq, &dev->persist->catas_work);
 }
 
@@ -177,7 +178,7 @@ void mlx4_start_catas_poll(struct mlx4_dev *dev)
 
 	/*If we are in SRIOV the default of the module param must be 0*/
 	if (mlx4_is_mfunc(dev))
-		internal_err_reset = 0;
+		mlx4_internal_err_reset = 0;
 
 	INIT_LIST_HEAD(&priv->catas_err.list);
 	init_timer(&priv->catas_err.timer);

@@ -1318,6 +1318,9 @@ out:
 	mutex_unlock(&priv->mcg_table.mutex);
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
+	if (err && dev->persist->state & MLX4_DEVICE_STATE_INTERNAL_ERROR)
+		/* In case device is under an error, return success as a closing command */
+		err = 0;
 	return err;
 }
 
