@@ -500,6 +500,8 @@ enum {
 #define  B43_BCMA_IOCTL_PHY_BW_10MHZ	0x00000000	/* 10 MHz bandwidth, 40 MHz PHY */
 #define  B43_BCMA_IOCTL_PHY_BW_20MHZ	0x00000040	/* 20 MHz bandwidth, 80 MHz PHY */
 #define  B43_BCMA_IOCTL_PHY_BW_40MHZ	0x00000080	/* 40 MHz bandwidth, 160 MHz PHY */
+#define  B43_BCMA_IOCTL_PHY_BW_80MHZ	0x000000C0	/* 80 MHz bandwidth */
+#define B43_BCMA_IOCTL_DAC		0x00000300	/* Highspeed DAC mode control field */
 #define B43_BCMA_IOCTL_GMODE		0x00002000	/* G Mode Enable */
 
 /* BCMA 802.11 core specific IO status (BCMA_IOST) flags */

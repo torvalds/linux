@@ -1262,6 +1262,23 @@ static void b43_bcma_wireless_core_reset(struct b43_wldev *dev, bool gmode)
 		flags |= B43_BCMA_IOCTL_GMODE;
 	b43_device_enable(dev, flags);
 
+	if (dev->phy.type == B43_PHYTYPE_AC) {
+		u16 tmp;
+
+		tmp = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
+		tmp &= ~B43_BCMA_IOCTL_DAC;
+		tmp |= 0x100;
+		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, tmp);
+
+		tmp = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
+		tmp &= ~B43_BCMA_IOCTL_PHY_CLKEN;
+		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, tmp);
+
+		tmp = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
+		tmp |= B43_BCMA_IOCTL_PHY_CLKEN;
+		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, tmp);
+	}
+
 	bcma_core_set_clockmode(dev->dev->bdev, BCMA_CLKMODE_FAST);
 	b43_bcma_phy_reset(dev);
 	bcma_core_pll_ctl(dev->dev->bdev, req, status, true);
