@@ -34,37 +34,12 @@ static struct vfsmount *debugfs_mount;
 static int debugfs_mount_count;
 static bool debugfs_registered;
 
-static struct inode *debugfs_get_inode(struct super_block *sb, umode_t mode, dev_t dev,
-				       void *data, const struct file_operations *fops)
-
+static struct inode *debugfs_get_inode(struct super_block *sb)
 {
 	struct inode *inode = new_inode(sb);
-
 	if (inode) {
 		inode->i_ino = get_next_ino();
-		inode->i_mode = mode;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-		switch (mode & S_IFMT) {
-		default:
-			init_special_inode(inode, mode, dev);
-			break;
-		case S_IFREG:
-			inode->i_fop = fops ? fops : &debugfs_file_operations;
-			inode->i_private = data;
-			break;
-		case S_IFLNK:
-			inode->i_op = &debugfs_link_operations;
-			inode->i_private = data;
-			break;
-		case S_IFDIR:
-			inode->i_op = &simple_dir_inode_operations;
-			inode->i_fop = &simple_dir_operations;
-
-			/* directory inodes start off with i_nlink == 2
-			 * (for "." entry) */
-			inc_nlink(inode);
-			break;
-		}
 	}
 	return inode;
 }
@@ -334,10 +309,13 @@ struct dentry *debugfs_create_file(const char *name, umode_t mode,
 	if (IS_ERR(dentry))
 		return NULL;
 
-	inode = debugfs_get_inode(dentry->d_sb, mode, 0, data, fops);
+	inode = debugfs_get_inode(dentry->d_sb);
 	if (unlikely(!inode))
 		return end_creating(dentry, -ENOMEM);
 
+	inode->i_mode = mode;
+	inode->i_fop = fops ? fops : &debugfs_file_operations;
+	inode->i_private = data;
 	d_instantiate(dentry, inode);
 	dget(dentry);
 	fsnotify_create(dentry->d_parent->d_inode, dentry);
@@ -371,12 +349,16 @@ struct dentry *debugfs_create_dir(const char *name, struct dentry *parent)
 	if (IS_ERR(dentry))
 		return NULL;
 
-	inode = debugfs_get_inode(dentry->d_sb,
-				  S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO,
-				  0, NULL, NULL);
+	inode = debugfs_get_inode(dentry->d_sb);
 	if (unlikely(!inode))
 		return end_creating(dentry, -ENOMEM);
 
+	inode->i_mode = S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO;
+	inode->i_op = &simple_dir_inode_operations;
+	inode->i_fop = &simple_dir_operations;
+
+	/* directory inodes start off with i_nlink == 2 (for "." entry) */
+	inc_nlink(inode);
 	d_instantiate(dentry, inode);
 	dget(dentry);
 	inc_nlink(dentry->d_parent->d_inode);
@@ -423,12 +405,14 @@ struct dentry *debugfs_create_symlink(const char *name, struct dentry *parent,
 		return NULL;
 	}
 
-	inode = debugfs_get_inode(dentry->d_sb, S_IFLNK | S_IRWXUGO, 0,
-				  link, NULL);
+	inode = debugfs_get_inode(dentry->d_sb);
 	if (unlikely(!inode)) {
 		kfree(link);
 		return end_creating(dentry, -ENOMEM);
 	}
+	inode->i_mode = S_IFLNK | S_IRWXUGO;
+	inode->i_op = &debugfs_link_operations;
+	inode->i_private = link;
 	d_instantiate(dentry, inode);
 	dget(dentry);
 	return end_creating(dentry, 0);
