@@ -749,6 +749,8 @@ struct mlx4_dev_persistent {
 	struct mlx4_dev	       *dev;
 	int                     nvfs[MLX4_MAX_PORTS + 1];
 	int			num_vfs;
+	enum mlx4_port_type curr_port_type[MLX4_MAX_PORTS + 1];
+	enum mlx4_port_type curr_port_poss_type[MLX4_MAX_PORTS + 1];
 };
 
 struct mlx4_dev {

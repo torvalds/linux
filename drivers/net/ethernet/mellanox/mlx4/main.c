@@ -3109,17 +3109,33 @@ static int mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	return ret;
 }
 
+static void mlx4_clean_dev(struct mlx4_dev *dev)
+{
+	struct mlx4_dev_persistent *persist = dev->persist;
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	memset(priv, 0, sizeof(*priv));
+	priv->dev.persist = persist;
+}
+
 static void mlx4_unload_one(struct pci_dev *pdev)
 {
 	struct mlx4_dev_persistent *persist = pci_get_drvdata(pdev);
 	struct mlx4_dev  *dev  = persist->dev;
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	int               pci_dev_data;
-	int p;
+	int p, i;
 	int active_vfs = 0;
 
 	if (priv->removed)
 		return;
+
+	/* saving current ports type for further use */
+	for (i = 0; i < dev->caps.num_ports; i++) {
+		dev->persist->curr_port_type[i] = dev->caps.port_type[i + 1];
+		dev->persist->curr_port_poss_type[i] = dev->caps.
+						       possible_type[i + 1];
+	}
 
 	pci_dev_data = priv->pci_dev_data;
 
@@ -3191,7 +3207,7 @@ static void mlx4_unload_one(struct pci_dev *pdev)
 	kfree(dev->caps.qp1_proxy);
 	kfree(dev->dev_vfs);
 
-	memset(priv, 0, sizeof(*priv));
+	mlx4_clean_dev(dev);
 	priv->pci_dev_data = pci_dev_data;
 	priv->removed = 1;
 }
@@ -3208,6 +3224,25 @@ static void mlx4_remove_one(struct pci_dev *pdev)
 	kfree(dev->persist);
 	kfree(priv);
 	pci_set_drvdata(pdev, NULL);
+}
+
+static int restore_current_port_types(struct mlx4_dev *dev,
+				      enum mlx4_port_type *types,
+				      enum mlx4_port_type *poss_types)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	int err, i;
+
+	mlx4_stop_sense(dev);
+
+	mutex_lock(&priv->port_mutex);
+	for (i = 0; i < dev->caps.num_ports; i++)
+		dev->caps.possible_type[i + 1] = poss_types[i];
+	err = mlx4_change_port_types(dev, types);
+	mlx4_start_sense(dev);
+	mutex_unlock(&priv->port_mutex);
+
+	return err;
 }
 
 int mlx4_restart_one(struct pci_dev *pdev)
@@ -3229,6 +3264,12 @@ int mlx4_restart_one(struct pci_dev *pdev)
 			 __func__, pci_name(pdev), err);
 		return err;
 	}
+
+	err = restore_current_port_types(dev, dev->persist->curr_port_type,
+					 dev->persist->curr_port_poss_type);
+	if (err)
+		mlx4_err(dev, "could not restore original port types (%d)\n",
+			 err);
 
 	return err;
 }
