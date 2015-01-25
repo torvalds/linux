@@ -28,7 +28,7 @@ typedef struct snd_seq_real_time snd_seq_real_time_t;
 typedef union snd_seq_timestamp snd_seq_timestamp_t;
 
 /* maximum number of queues */
-#define SNDRV_SEQ_MAX_QUEUES		8
+#define SNDRV_SEQ_MAX_QUEUES		32
 
 /* max number of concurrent clients */
 #define SNDRV_SEQ_MAX_CLIENTS 		192
