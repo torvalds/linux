@@ -1262,6 +1262,7 @@ static int gen8_emit_flush_render(struct intel_ringbuffer *ringbuf,
 {
 	struct intel_engine_cs *ring = ringbuf->ring;
 	u32 scratch_addr = ring->scratch.gtt_offset + 2 * CACHELINE_BYTES;
+	bool vf_flush_wa;
 	u32 flags = 0;
 	int ret;
 
@@ -1283,9 +1284,25 @@ static int gen8_emit_flush_render(struct intel_ringbuffer *ringbuf,
 		flags |= PIPE_CONTROL_GLOBAL_GTT_IVB;
 	}
 
-	ret = intel_logical_ring_begin(ringbuf, ctx, 6);
+	/*
+	 * On GEN9+ Before VF_CACHE_INVALIDATE we need to emit a NULL pipe
+	 * control.
+	 */
+	vf_flush_wa = INTEL_INFO(ring->dev)->gen >= 9 &&
+		      flags & PIPE_CONTROL_VF_CACHE_INVALIDATE;
+
+	ret = intel_logical_ring_begin(ringbuf, ctx, vf_flush_wa ? 12 : 6);
 	if (ret)
 		return ret;
+
+	if (vf_flush_wa) {
+		intel_logical_ring_emit(ringbuf, GFX_OP_PIPE_CONTROL(6));
+		intel_logical_ring_emit(ringbuf, 0);
+		intel_logical_ring_emit(ringbuf, 0);
+		intel_logical_ring_emit(ringbuf, 0);
+		intel_logical_ring_emit(ringbuf, 0);
+		intel_logical_ring_emit(ringbuf, 0);
+	}
 
 	intel_logical_ring_emit(ringbuf, GFX_OP_PIPE_CONTROL(6));
 	intel_logical_ring_emit(ringbuf, flags);
