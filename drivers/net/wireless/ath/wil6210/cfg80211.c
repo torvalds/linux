@@ -858,6 +858,7 @@ static void wil_wiphy_init(struct wiphy *wiphy)
 	wiphy->cipher_suites = wil_cipher_suites;
 	wiphy->n_cipher_suites = ARRAY_SIZE(wil_cipher_suites);
 	wiphy->mgmt_stypes = wil_mgmt_stypes;
+	wiphy->features |= NL80211_FEATURE_SK_TX_STATUS;
 }
 
 struct wireless_dev *wil_cfg80211_init(struct device *dev)

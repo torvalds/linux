@@ -1121,6 +1121,22 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	return NET_XMIT_DROP;
 }
 
+static inline bool wil_need_txstat(struct sk_buff *skb)
+{
+	struct ethhdr *eth = (void *)skb->data;
+
+	return is_unicast_ether_addr(eth->h_dest) && skb->sk &&
+	       (skb_shinfo(skb)->tx_flags & SKBTX_WIFI_STATUS);
+}
+
+static inline void wil_consume_skb(struct sk_buff *skb, bool acked)
+{
+	if (unlikely(wil_need_txstat(skb)))
+		skb_complete_wifi_ack(skb, acked);
+	else
+		acked ? dev_consume_skb_any(skb) : dev_kfree_skb_any(skb);
+}
+
 /**
  * Clean up transmitted skb's from the Tx VRING
  *
@@ -1199,8 +1215,7 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 					ndev->stats.tx_errors++;
 					stats->tx_errors++;
 				}
-
-				dev_kfree_skb_any(skb);
+				wil_consume_skb(skb, d->dma.error == 0);
 			}
 			memset(ctx, 0, sizeof(*ctx));
 			/* There is no need to touch HW descriptor:
