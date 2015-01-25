@@ -64,7 +64,6 @@ struct snd_seq_port_callback {
 	int (*unuse)(void *private_data, struct snd_seq_port_subscribe *info);
 	int (*event_input)(struct snd_seq_event *ev, int direct, void *private_data, int atomic, int hop);
 	void (*private_free)(void *private_data);
-	unsigned int callback_all;	/* call subscribe callbacks at each connection/disconnection */
 	/*...*/
 };
 

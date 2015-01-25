@@ -1279,7 +1279,6 @@ static int snd_seq_ioctl_create_port(struct snd_seq_client *client,
 				port->owner = callback->owner;
 			port->private_data = callback->private_data;
 			port->private_free = callback->private_free;
-			port->callback_all = callback->callback_all;
 			port->event_input = callback->event_input;
 			port->c_src.open = callback->subscribe;
 			port->c_src.close = callback->unsubscribe;
