@@ -75,6 +75,7 @@
 #include "iwl-trans.h"
 #include "iwl-csr.h"
 #include "iwl-prph.h"
+#include "iwl-scd.h"
 #include "iwl-agn-hw.h"
 #include "iwl-fw-error-dump.h"
 #include "internal.h"

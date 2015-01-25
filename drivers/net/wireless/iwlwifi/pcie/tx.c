@@ -892,6 +892,10 @@ int iwl_pcie_tx_init(struct iwl_trans *trans)
 		}
 	}
 
+	if (trans->cfg->base_params->num_of_queues > 20)
+		iwl_set_bits_prph(trans, SCD_GP_CTRL,
+				  SCD_GP_CTRL_ENABLE_31_QUEUES);
+
 	return 0;
 error:
 	/*Upon error, free only if we allocated something */
