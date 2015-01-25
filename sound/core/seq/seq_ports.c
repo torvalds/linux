@@ -134,7 +134,7 @@ struct snd_seq_client_port *snd_seq_create_port(struct snd_seq_client *client,
 	if (snd_BUG_ON(!client))
 		return NULL;
 
-	if (client->num_ports >= SNDRV_SEQ_MAX_PORTS - 1) {
+	if (client->num_ports >= SNDRV_SEQ_MAX_PORTS) {
 		pr_warn("ALSA: seq: too many ports for client %d\n", client->number);
 		return NULL;
 	}
