@@ -40,10 +40,7 @@ enum {
 	MLX4_CATAS_POLL_INTERVAL	= 5 * HZ,
 };
 
-static DEFINE_SPINLOCK(catas_lock);
 
-static LIST_HEAD(catas_list);
-static struct work_struct catas_work;
 
 static int internal_err_reset = 1;
 module_param(internal_err_reset, int, 0644);
@@ -77,13 +74,9 @@ static void poll_catas(unsigned long dev_ptr)
 			dump_err_buf(dev);
 			mlx4_dispatch_event(dev, MLX4_DEV_EVENT_CATASTROPHIC_ERROR, 0);
 
-			if (internal_err_reset) {
-				spin_lock(&catas_lock);
-				list_add(&priv->catas_err.list, &catas_list);
-				spin_unlock(&catas_lock);
-
-				queue_work(mlx4_wq, &catas_work);
-			}
+			if (internal_err_reset)
+				queue_work(dev->persist->catas_wq,
+					   &dev->persist->catas_work);
 		}
 	} else
 		mod_timer(&priv->catas_err.timer,
@@ -92,34 +85,23 @@ static void poll_catas(unsigned long dev_ptr)
 
 static void catas_reset(struct work_struct *work)
 {
-	struct mlx4_priv *priv, *tmppriv;
-	struct mlx4_dev *dev;
-	struct mlx4_dev_persistent *persist;
-
-	LIST_HEAD(tlist);
+	struct mlx4_dev_persistent *persist =
+		container_of(work, struct mlx4_dev_persistent,
+			     catas_work);
+	struct pci_dev *pdev = persist->pdev;
 	int ret;
 
-	spin_lock_irq(&catas_lock);
-	list_splice_init(&catas_list, &tlist);
-	spin_unlock_irq(&catas_lock);
+	/* If the device is off-line, we cannot reset it */
+	if (pci_channel_offline(pdev))
+		return;
 
-	list_for_each_entry_safe(priv, tmppriv, &tlist, catas_err.list) {
-		struct pci_dev *pdev = priv->dev.persist->pdev;
-
-		/* If the device is off-line, we cannot reset it */
-		if (pci_channel_offline(pdev))
-			continue;
-
-		ret = mlx4_restart_one(priv->dev.persist->pdev);
-		/* 'priv' now is not valid */
-		if (ret)
-			pr_err("mlx4 %s: Reset failed (%d)\n",
-			       pci_name(pdev), ret);
-		else {
-			persist  = pci_get_drvdata(pdev);
-			mlx4_dbg(persist->dev, "Reset succeeded\n");
-		}
-	}
+	ret = mlx4_restart_one(pdev);
+	/* 'priv' now is not valid */
+	if (ret)
+		pr_err("mlx4 %s: Reset failed (%d)\n",
+		       pci_name(pdev), ret);
+	else
+		mlx4_dbg(persist->dev, "Reset succeeded\n");
 }
 
 void mlx4_start_catas_poll(struct mlx4_dev *dev)
@@ -158,15 +140,26 @@ void mlx4_stop_catas_poll(struct mlx4_dev *dev)
 
 	del_timer_sync(&priv->catas_err.timer);
 
-	if (priv->catas_err.map)
+	if (priv->catas_err.map) {
 		iounmap(priv->catas_err.map);
-
-	spin_lock_irq(&catas_lock);
-	list_del(&priv->catas_err.list);
-	spin_unlock_irq(&catas_lock);
+		priv->catas_err.map = NULL;
+	}
 }
 
-void  __init mlx4_catas_init(void)
+int  mlx4_catas_init(struct mlx4_dev *dev)
 {
-	INIT_WORK(&catas_work, catas_reset);
+	INIT_WORK(&dev->persist->catas_work, catas_reset);
+	dev->persist->catas_wq = create_singlethread_workqueue("mlx4_health");
+	if (!dev->persist->catas_wq)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void mlx4_catas_end(struct mlx4_dev *dev)
+{
+	if (dev->persist->catas_wq) {
+		destroy_workqueue(dev->persist->catas_wq);
+		dev->persist->catas_wq = NULL;
+	}
 }
