@@ -4544,6 +4544,12 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 			unsupported = 1;
 		break;
 #endif
+#ifdef CONFIG_B43_PHY_AC
+	case B43_PHYTYPE_AC:
+		if (phy_rev > 1)
+			unsupported = 1;
+		break;
+#endif
 	default:
 		unsupported = 1;
 	}
@@ -4638,6 +4644,10 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 		break;
 	case B43_PHYTYPE_LCN:
 		if (radio_id != 0x2064)
+			unsupported = 1;
+		break;
+	case B43_PHYTYPE_AC:
+		if (radio_id != 0x2069)
 			unsupported = 1;
 		break;
 	default:
