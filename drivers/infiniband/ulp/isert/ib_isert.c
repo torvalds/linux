@@ -2275,7 +2275,7 @@ isert_put_text_rsp(struct iscsi_cmd *cmd, struct iscsi_conn *conn)
 	}
 	isert_init_send_wr(isert_conn, isert_cmd, send_wr);
 
-	isert_dbg("conn %p Text Reject\n", isert_conn);
+	isert_dbg("conn %p Text Response\n", isert_conn);
 
 	return isert_post_response(isert_conn, isert_cmd);
 }
