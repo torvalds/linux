@@ -495,6 +495,10 @@ int line6_probe(struct usb_interface *interface,
 	if (WARN_ON(data_size < sizeof(*line6)))
 		return -EINVAL;
 
+	/* we don't handle multiple configurations */
+	if (usbdev->descriptor.bNumConfigurations != 1)
+		return -ENODEV;
+
 	ret = snd_card_new(&interface->dev,
 			   SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
 			   THIS_MODULE, data_size, &card);
@@ -508,10 +512,10 @@ int line6_probe(struct usb_interface *interface,
 	line6->usbdev = usbdev;
 	line6->ifcdev = &interface->dev;
 
-	strcpy(card->id, line6->properties->id);
+	strcpy(card->id, properties->id);
 	strcpy(card->driver, DRIVER_NAME);
-	strcpy(card->shortname, line6->properties->name);
-	sprintf(card->longname, "Line 6 %s at USB %s", line6->properties->name,
+	strcpy(card->shortname, properties->name);
+	sprintf(card->longname, "Line 6 %s at USB %s", properties->name,
 		dev_name(line6->ifcdev));
 	card->private_free = line6_destruct;
 
@@ -520,12 +524,6 @@ int line6_probe(struct usb_interface *interface,
 	/* increment reference counters: */
 	usb_get_dev(usbdev);
 
-	/* we don't handle multiple configurations */
-	if (usbdev->descriptor.bNumConfigurations != 1) {
-		ret = -ENODEV;
-		goto error;
-	}
-
 	/* initialize device info: */
 	dev_info(&interface->dev, "Line 6 %s found\n", properties->name);
 
@@ -533,7 +531,7 @@ int line6_probe(struct usb_interface *interface,
 	interface_number = interface->cur_altsetting->desc.bInterfaceNumber;
 
 	ret = usb_set_interface(usbdev, interface_number,
-			properties->altsetting);
+				properties->altsetting);
 	if (ret < 0) {
 		dev_err(&interface->dev, "set_interface failed\n");
 		goto error;
@@ -555,7 +553,7 @@ int line6_probe(struct usb_interface *interface,
 	/* creation of additional special files should go here */
 
 	dev_info(&interface->dev, "Line 6 %s now attached\n",
-		 line6->properties->name);
+		 properties->name);
 
 	return 0;
 
