@@ -70,7 +70,7 @@ static void poll_catas(unsigned long dev_ptr)
 
 	if (readl(priv->catas_err.map)) {
 		/* If the device is off-line, we cannot try to recover it */
-		if (pci_channel_offline(dev->pdev))
+		if (pci_channel_offline(dev->persist->pdev))
 			mod_timer(&priv->catas_err.timer,
 				  round_jiffies(jiffies + MLX4_CATAS_POLL_INTERVAL));
 		else {
@@ -94,6 +94,7 @@ static void catas_reset(struct work_struct *work)
 {
 	struct mlx4_priv *priv, *tmppriv;
 	struct mlx4_dev *dev;
+	struct mlx4_dev_persistent *persist;
 
 	LIST_HEAD(tlist);
 	int ret;
@@ -103,20 +104,20 @@ static void catas_reset(struct work_struct *work)
 	spin_unlock_irq(&catas_lock);
 
 	list_for_each_entry_safe(priv, tmppriv, &tlist, catas_err.list) {
-		struct pci_dev *pdev = priv->dev.pdev;
+		struct pci_dev *pdev = priv->dev.persist->pdev;
 
 		/* If the device is off-line, we cannot reset it */
 		if (pci_channel_offline(pdev))
 			continue;
 
-		ret = mlx4_restart_one(priv->dev.pdev);
+		ret = mlx4_restart_one(priv->dev.persist->pdev);
 		/* 'priv' now is not valid */
 		if (ret)
 			pr_err("mlx4 %s: Reset failed (%d)\n",
 			       pci_name(pdev), ret);
 		else {
-			dev  = pci_get_drvdata(pdev);
-			mlx4_dbg(dev, "Reset succeeded\n");
+			persist  = pci_get_drvdata(pdev);
+			mlx4_dbg(persist->dev, "Reset succeeded\n");
 		}
 	}
 }
@@ -134,7 +135,7 @@ void mlx4_start_catas_poll(struct mlx4_dev *dev)
 	init_timer(&priv->catas_err.timer);
 	priv->catas_err.map = NULL;
 
-	addr = pci_resource_start(dev->pdev, priv->fw.catas_bar) +
+	addr = pci_resource_start(dev->persist->pdev, priv->fw.catas_bar) +
 		priv->fw.catas_offset;
 
 	priv->catas_err.map = ioremap(addr, priv->fw.catas_size * 4);

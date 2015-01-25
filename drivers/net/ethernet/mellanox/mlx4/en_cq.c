@@ -70,10 +70,10 @@ int mlx4_en_create_cq(struct mlx4_en_priv *priv,
 	/* Allocate HW buffers on provided NUMA node.
 	 * dev->numa_node is used in mtt range allocation flow.
 	 */
-	set_dev_node(&mdev->dev->pdev->dev, node);
+	set_dev_node(&mdev->dev->persist->pdev->dev, node);
 	err = mlx4_alloc_hwq_res(mdev->dev, &cq->wqres,
 				cq->buf_size, 2 * PAGE_SIZE);
-	set_dev_node(&mdev->dev->pdev->dev, mdev->dev->numa_node);
+	set_dev_node(&mdev->dev->persist->pdev->dev, mdev->dev->numa_node);
 	if (err)
 		goto err_cq;
 

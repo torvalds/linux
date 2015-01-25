@@ -221,16 +221,17 @@ extern int mlx4_debug_level;
 #define mlx4_dbg(mdev, format, ...)					\
 do {									\
 	if (mlx4_debug_level)						\
-		dev_printk(KERN_DEBUG, &(mdev)->pdev->dev, format,	\
+		dev_printk(KERN_DEBUG,					\
+			   &(mdev)->persist->pdev->dev, format,		\
 			   ##__VA_ARGS__);				\
 } while (0)
 
 #define mlx4_err(mdev, format, ...)					\
-	dev_err(&(mdev)->pdev->dev, format, ##__VA_ARGS__)
+	dev_err(&(mdev)->persist->pdev->dev, format, ##__VA_ARGS__)
 #define mlx4_info(mdev, format, ...)					\
-	dev_info(&(mdev)->pdev->dev, format, ##__VA_ARGS__)
+	dev_info(&(mdev)->persist->pdev->dev, format, ##__VA_ARGS__)
 #define mlx4_warn(mdev, format, ...)					\
-	dev_warn(&(mdev)->pdev->dev, format, ##__VA_ARGS__)
+	dev_warn(&(mdev)->persist->pdev->dev, format, ##__VA_ARGS__)
 
 extern int mlx4_log_num_mgm_entry_size;
 extern int log_mtts_per_seg;

@@ -2457,7 +2457,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	netif_set_real_num_tx_queues(dev, prof->tx_ring_num);
 	netif_set_real_num_rx_queues(dev, prof->rx_ring_num);
 
-	SET_NETDEV_DEV(dev, &mdev->dev->pdev->dev);
+	SET_NETDEV_DEV(dev, &mdev->dev->persist->pdev->dev);
 	dev->dev_port = port - 1;
 
 	/*
