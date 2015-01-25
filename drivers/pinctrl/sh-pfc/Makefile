@@ -3,6 +3,7 @@ ifeq ($(CONFIG_GPIO_SH_PFC),y)
 sh-pfc-objs			+= gpio.o
 endif
 obj-$(CONFIG_PINCTRL_SH_PFC)	+= sh-pfc.o
+obj-$(CONFIG_PINCTRL_PFC_EMEV2)	+= pfc-emev2.o
 obj-$(CONFIG_PINCTRL_PFC_R8A73A4)	+= pfc-r8a73a4.o
 obj-$(CONFIG_PINCTRL_PFC_R8A7740)	+= pfc-r8a7740.o
 obj-$(CONFIG_PINCTRL_PFC_R8A7778)	+= pfc-r8a7778.o
