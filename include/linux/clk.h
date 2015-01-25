@@ -302,6 +302,18 @@ long clk_round_rate(struct clk *clk, unsigned long rate);
 int clk_set_rate(struct clk *clk, unsigned long rate);
 
 /**
+ * clk_has_parent - check if a clock is a possible parent for another
+ * @clk: clock source
+ * @parent: parent clock source
+ *
+ * This function can be used in drivers that need to check that a clock can be
+ * the parent of another without actually changing the parent.
+ *
+ * Returns true if @parent is a possible parent for @clk, false otherwise.
+ */
+bool clk_has_parent(struct clk *clk, struct clk *parent);
+
+/**
  * clk_set_parent - set the parent clock source for this clock
  * @clk: clock source
  * @parent: parent clock source
@@ -372,6 +384,11 @@ static inline int clk_set_rate(struct clk *clk, unsigned long rate)
 static inline long clk_round_rate(struct clk *clk, unsigned long rate)
 {
 	return 0;
+}
+
+static inline bool clk_has_parent(struct clk *clk, struct clk *parent)
+{
+	return true;
 }
 
 static inline int clk_set_parent(struct clk *clk, struct clk *parent)
