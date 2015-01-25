@@ -1133,12 +1133,13 @@ int wmi_rx_chain_add(struct wil6210_priv *wil, struct vring *vring)
 	return rc;
 }
 
-int wmi_get_temperature(struct wil6210_priv *wil, u32 *t_m, u32 *t_r)
+int wmi_get_temperature(struct wil6210_priv *wil, u32 *t_bb, u32 *t_rf)
 {
 	int rc;
 	struct wmi_temp_sense_cmd cmd = {
-		.measure_marlon_m_en = cpu_to_le32(!!t_m),
-		.measure_marlon_r_en = cpu_to_le32(!!t_r),
+		.measure_baseband_en = cpu_to_le32(!!t_bb),
+		.measure_rf_en = cpu_to_le32(!!t_rf),
+		.measure_mode = cpu_to_le32(TEMPERATURE_MEASURE_NOW),
 	};
 	struct {
 		struct wil6210_mbox_hdr_wmi wmi;
@@ -1150,10 +1151,10 @@ int wmi_get_temperature(struct wil6210_priv *wil, u32 *t_m, u32 *t_r)
 	if (rc)
 		return rc;
 
-	if (t_m)
-		*t_m = le32_to_cpu(reply.evt.marlon_m_t1000);
-	if (t_r)
-		*t_r = le32_to_cpu(reply.evt.marlon_r_t1000);
+	if (t_bb)
+		*t_bb = le32_to_cpu(reply.evt.baseband_t1000);
+	if (t_rf)
+		*t_rf = le32_to_cpu(reply.evt.rf_t1000);
 
 	return 0;
 }
