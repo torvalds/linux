@@ -257,16 +257,30 @@ static int comm_pending(struct mlx4_dev *dev)
 	return (swab32(status) >> 31) != priv->cmd.comm_toggle;
 }
 
-static void mlx4_comm_cmd_post(struct mlx4_dev *dev, u8 cmd, u16 param)
+static int mlx4_comm_cmd_post(struct mlx4_dev *dev, u8 cmd, u16 param)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	u32 val;
+
+	/* To avoid writing to unknown addresses after the device state was
+	 * changed to internal error and the function was rest,
+	 * check the INTERNAL_ERROR flag which is updated under
+	 * device_state_mutex lock.
+	 */
+	mutex_lock(&dev->persist->device_state_mutex);
+
+	if (dev->persist->state & MLX4_DEVICE_STATE_INTERNAL_ERROR) {
+		mutex_unlock(&dev->persist->device_state_mutex);
+		return -EIO;
+	}
 
 	priv->cmd.comm_toggle ^= 1;
 	val = param | (cmd << 16) | (priv->cmd.comm_toggle << 31);
 	__raw_writel((__force u32) cpu_to_be32(val),
 		     &priv->mfunc.comm->slave_write);
 	mmiowb();
+	mutex_unlock(&dev->persist->device_state_mutex);
+	return 0;
 }
 
 static int mlx4_comm_cmd_poll(struct mlx4_dev *dev, u8 cmd, u16 param,
@@ -286,7 +300,13 @@ static int mlx4_comm_cmd_poll(struct mlx4_dev *dev, u8 cmd, u16 param,
 
 	/* Write command */
 	down(&priv->cmd.poll_sem);
-	mlx4_comm_cmd_post(dev, cmd, param);
+	if (mlx4_comm_cmd_post(dev, cmd, param)) {
+		/* Only in case the device state is INTERNAL_ERROR,
+		 * mlx4_comm_cmd_post returns with an error
+		 */
+		err = mlx4_status_to_errno(CMD_STAT_INTERNAL_ERR);
+		goto out;
+	}
 
 	end = msecs_to_jiffies(timeout) + jiffies;
 	while (comm_pending(dev) && time_before(jiffies, end))
@@ -298,18 +318,23 @@ static int mlx4_comm_cmd_poll(struct mlx4_dev *dev, u8 cmd, u16 param,
 		 * is MLX4_DELAY_RESET_SLAVE*/
 		if ((MLX4_COMM_CMD_RESET == cmd)) {
 			err = MLX4_DELAY_RESET_SLAVE;
+			goto out;
 		} else {
-			mlx4_warn(dev, "Communication channel timed out\n");
-			err = -ETIMEDOUT;
+			mlx4_warn(dev, "Communication channel command 0x%x timed out\n",
+				  cmd);
+			err = mlx4_status_to_errno(CMD_STAT_INTERNAL_ERR);
 		}
 	}
 
+	if (err)
+		mlx4_enter_error_state(dev->persist);
+out:
 	up(&priv->cmd.poll_sem);
 	return err;
 }
 
-static int mlx4_comm_cmd_wait(struct mlx4_dev *dev, u8 op,
-			      u16 param, unsigned long timeout)
+static int mlx4_comm_cmd_wait(struct mlx4_dev *dev, u8 vhcr_cmd,
+			      u16 param, u16 op, unsigned long timeout)
 {
 	struct mlx4_cmd *cmd = &mlx4_priv(dev)->cmd;
 	struct mlx4_cmd_context *context;
@@ -327,32 +352,47 @@ static int mlx4_comm_cmd_wait(struct mlx4_dev *dev, u8 op,
 
 	reinit_completion(&context->done);
 
-	mlx4_comm_cmd_post(dev, op, param);
+	if (mlx4_comm_cmd_post(dev, vhcr_cmd, param)) {
+		/* Only in case the device state is INTERNAL_ERROR,
+		 * mlx4_comm_cmd_post returns with an error
+		 */
+		err = mlx4_status_to_errno(CMD_STAT_INTERNAL_ERR);
+		goto out;
+	}
 
 	if (!wait_for_completion_timeout(&context->done,
 					 msecs_to_jiffies(timeout))) {
-		mlx4_warn(dev, "communication channel command 0x%x timed out\n",
-			  op);
-		err = -EBUSY;
-		goto out;
+		mlx4_warn(dev, "communication channel command 0x%x (op=0x%x) timed out\n",
+			  vhcr_cmd, op);
+		goto out_reset;
 	}
 
 	err = context->result;
 	if (err && context->fw_status != CMD_STAT_MULTI_FUNC_REQ) {
 		mlx4_err(dev, "command 0x%x failed: fw status = 0x%x\n",
-			 op, context->fw_status);
-		goto out;
+			 vhcr_cmd, context->fw_status);
+		if (mlx4_closing_cmd_fatal_error(op, context->fw_status))
+			goto out_reset;
 	}
 
-out:
 	/* wait for comm channel ready
 	 * this is necessary for prevention the race
 	 * when switching between event to polling mode
+	 * Skipping this section in case the device is in FATAL_ERROR state,
+	 * In this state, no commands are sent via the comm channel until
+	 * the device has returned from reset.
 	 */
-	end = msecs_to_jiffies(timeout) + jiffies;
-	while (comm_pending(dev) && time_before(jiffies, end))
-		cond_resched();
+	if (!(dev->persist->state & MLX4_DEVICE_STATE_INTERNAL_ERROR)) {
+		end = msecs_to_jiffies(timeout) + jiffies;
+		while (comm_pending(dev) && time_before(jiffies, end))
+			cond_resched();
+	}
+	goto out;
 
+out_reset:
+	err = mlx4_status_to_errno(CMD_STAT_INTERNAL_ERR);
+	mlx4_enter_error_state(dev->persist);
+out:
 	spin_lock(&cmd->context_lock);
 	context->next = cmd->free_head;
 	cmd->free_head = context - cmd->context;
@@ -363,10 +403,13 @@ out:
 }
 
 int mlx4_comm_cmd(struct mlx4_dev *dev, u8 cmd, u16 param,
-		  unsigned long timeout)
+		  u16 op, unsigned long timeout)
 {
+	if (dev->persist->state & MLX4_DEVICE_STATE_INTERNAL_ERROR)
+		return mlx4_status_to_errno(CMD_STAT_INTERNAL_ERR);
+
 	if (mlx4_priv(dev)->cmd.use_events)
-		return mlx4_comm_cmd_wait(dev, cmd, param, timeout);
+		return mlx4_comm_cmd_wait(dev, cmd, param, op, timeout);
 	return mlx4_comm_cmd_poll(dev, cmd, param, timeout);
 }
 
@@ -502,8 +545,11 @@ static int mlx4_slave_cmd(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 			}
 			ret = mlx4_status_to_errno(vhcr->status);
 		}
+		if (ret &&
+		    dev->persist->state & MLX4_DEVICE_STATE_INTERNAL_ERROR)
+			ret = mlx4_internal_err_ret_value(dev, op, op_modifier);
 	} else {
-		ret = mlx4_comm_cmd(dev, MLX4_COMM_CMD_VHCR_POST, 0,
+		ret = mlx4_comm_cmd(dev, MLX4_COMM_CMD_VHCR_POST, 0, op,
 				    MLX4_COMM_TIME + timeout);
 		if (!ret) {
 			if (out_is_imm) {
@@ -517,9 +563,14 @@ static int mlx4_slave_cmd(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 				}
 			}
 			ret = mlx4_status_to_errno(vhcr->status);
-		} else
-			mlx4_err(dev, "failed execution of VHCR_POST command opcode 0x%x\n",
-				 op);
+		} else {
+			if (dev->persist->state &
+			    MLX4_DEVICE_STATE_INTERNAL_ERROR)
+				ret = mlx4_internal_err_ret_value(dev, op,
+								  op_modifier);
+			else
+				mlx4_err(dev, "failed execution of VHCR_POST command opcode 0x%x\n", op);
+		}
 	}
 
 	mutex_unlock(&priv->cmd.slave_cmd_mutex);
@@ -1559,8 +1610,10 @@ static int mlx4_master_process_vhcr(struct mlx4_dev *dev, int slave,
 				      ALIGN(sizeof(struct mlx4_vhcr_cmd),
 					    MLX4_ACCESS_MEM_ALIGN), 1);
 		if (ret) {
-			mlx4_err(dev, "%s: Failed reading vhcr ret: 0x%x\n",
-				 __func__, ret);
+			if (!(dev->persist->state &
+			    MLX4_DEVICE_STATE_INTERNAL_ERROR))
+				mlx4_err(dev, "%s: Failed reading vhcr ret: 0x%x\n",
+					 __func__, ret);
 			kfree(vhcr);
 			return ret;
 		}
@@ -1599,11 +1652,14 @@ static int mlx4_master_process_vhcr(struct mlx4_dev *dev, int slave,
 			goto out_status;
 		}
 
-		if (mlx4_ACCESS_MEM(dev, inbox->dma, slave,
-				    vhcr->in_param,
-				    MLX4_MAILBOX_SIZE, 1)) {
-			mlx4_err(dev, "%s: Failed reading inbox (cmd:0x%x)\n",
-				 __func__, cmd->opcode);
+		ret = mlx4_ACCESS_MEM(dev, inbox->dma, slave,
+				      vhcr->in_param,
+				      MLX4_MAILBOX_SIZE, 1);
+		if (ret) {
+			if (!(dev->persist->state &
+			    MLX4_DEVICE_STATE_INTERNAL_ERROR))
+				mlx4_err(dev, "%s: Failed reading inbox (cmd:0x%x)\n",
+					 __func__, cmd->opcode);
 			vhcr_cmd->status = CMD_STAT_INTERNAL_ERR;
 			goto out_status;
 		}
@@ -1651,8 +1707,9 @@ static int mlx4_master_process_vhcr(struct mlx4_dev *dev, int slave,
 	}
 
 	if (err) {
-		mlx4_warn(dev, "vhcr command:0x%x slave:%d failed with error:%d, status %d\n",
-			  vhcr->op, slave, vhcr->errno, err);
+		if (!(dev->persist->state & MLX4_DEVICE_STATE_INTERNAL_ERROR))
+			mlx4_warn(dev, "vhcr command:0x%x slave:%d failed with error:%d, status %d\n",
+				  vhcr->op, slave, vhcr->errno, err);
 		vhcr_cmd->status = mlx4_errno_to_status(err);
 		goto out_status;
 	}
@@ -1667,7 +1724,9 @@ static int mlx4_master_process_vhcr(struct mlx4_dev *dev, int slave,
 			/* If we failed to write back the outbox after the
 			 *command was successfully executed, we must fail this
 			 * slave, as it is now in undefined state */
-			mlx4_err(dev, "%s:Failed writing outbox\n", __func__);
+			if (!(dev->persist->state &
+			    MLX4_DEVICE_STATE_INTERNAL_ERROR))
+				mlx4_err(dev, "%s:Failed writing outbox\n", __func__);
 			goto out;
 		}
 	}

@@ -1484,7 +1484,8 @@ static void mlx4_slave_exit(struct mlx4_dev *dev)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
 	mutex_lock(&priv->cmd.slave_cmd_mutex);
-	if (mlx4_comm_cmd(dev, MLX4_COMM_CMD_RESET, 0, MLX4_COMM_TIME))
+	if (mlx4_comm_cmd(dev, MLX4_COMM_CMD_RESET, 0, MLX4_COMM_CMD_NA_OP,
+			  MLX4_COMM_TIME))
 		mlx4_warn(dev, "Failed to close slave function\n");
 	mutex_unlock(&priv->cmd.slave_cmd_mutex);
 }
@@ -1648,7 +1649,7 @@ static int mlx4_init_slave(struct mlx4_dev *dev)
 	mlx4_reset_vf_support(dev);
 	mlx4_warn(dev, "Sending reset\n");
 	ret_from_reset = mlx4_comm_cmd(dev, MLX4_COMM_CMD_RESET, 0,
-				       MLX4_COMM_TIME);
+				       MLX4_COMM_CMD_NA_OP, MLX4_COMM_TIME);
 	/* if we are in the middle of flr the slave will try
 	 * NUM_OF_RESET_RETRIES times before leaving.*/
 	if (ret_from_reset) {
@@ -1673,22 +1674,23 @@ static int mlx4_init_slave(struct mlx4_dev *dev)
 
 	mlx4_warn(dev, "Sending vhcr0\n");
 	if (mlx4_comm_cmd(dev, MLX4_COMM_CMD_VHCR0, dma >> 48,
-						    MLX4_COMM_TIME))
+			     MLX4_COMM_CMD_NA_OP, MLX4_COMM_TIME))
 		goto err;
 	if (mlx4_comm_cmd(dev, MLX4_COMM_CMD_VHCR1, dma >> 32,
-						    MLX4_COMM_TIME))
+			     MLX4_COMM_CMD_NA_OP, MLX4_COMM_TIME))
 		goto err;
 	if (mlx4_comm_cmd(dev, MLX4_COMM_CMD_VHCR2, dma >> 16,
-						    MLX4_COMM_TIME))
+			     MLX4_COMM_CMD_NA_OP, MLX4_COMM_TIME))
 		goto err;
-	if (mlx4_comm_cmd(dev, MLX4_COMM_CMD_VHCR_EN, dma, MLX4_COMM_TIME))
+	if (mlx4_comm_cmd(dev, MLX4_COMM_CMD_VHCR_EN, dma,
+			  MLX4_COMM_CMD_NA_OP, MLX4_COMM_TIME))
 		goto err;
 
 	mutex_unlock(&priv->cmd.slave_cmd_mutex);
 	return 0;
 
 err:
-	mlx4_comm_cmd(dev, MLX4_COMM_CMD_RESET, 0, 0);
+	mlx4_comm_cmd(dev, MLX4_COMM_CMD_RESET, 0, MLX4_COMM_CMD_NA_OP, 0);
 err_offline:
 	mutex_unlock(&priv->cmd.slave_cmd_mutex);
 	return -EIO;
