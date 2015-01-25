@@ -41,6 +41,8 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 	s8 eventmask[BRCMF_EVENTING_MASK_LEN];
 	u8 buf[BRCMF_DCMD_SMLEN];
 	struct brcmf_join_pref_params join_pref_params[2];
+	struct brcmf_rev_info_le revinfo;
+	struct brcmf_rev_info *ri;
 	char *ptr;
 	s32 err;
 
@@ -48,11 +50,35 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 	err = brcmf_fil_iovar_data_get(ifp, "cur_etheraddr", ifp->mac_addr,
 				       sizeof(ifp->mac_addr));
 	if (err < 0) {
-		brcmf_err("Retreiving cur_etheraddr failed, %d\n",
-			  err);
+		brcmf_err("Retreiving cur_etheraddr failed, %d\n", err);
 		goto done;
 	}
 	memcpy(ifp->drvr->mac, ifp->mac_addr, sizeof(ifp->drvr->mac));
+
+	err = brcmf_fil_cmd_data_get(ifp, BRCMF_C_GET_REVINFO,
+				     &revinfo, sizeof(revinfo));
+	if (err < 0) {
+		brcmf_err("retrieving revision info failed, %d\n", err);
+	} else {
+		ri = &ifp->drvr->revinfo;
+		ri->vendorid = le32_to_cpu(revinfo.vendorid);
+		ri->deviceid = le32_to_cpu(revinfo.deviceid);
+		ri->radiorev = le32_to_cpu(revinfo.radiorev);
+		ri->chiprev = le32_to_cpu(revinfo.chiprev);
+		ri->corerev = le32_to_cpu(revinfo.corerev);
+		ri->boardid = le32_to_cpu(revinfo.boardid);
+		ri->boardvendor = le32_to_cpu(revinfo.boardvendor);
+		ri->boardrev = le32_to_cpu(revinfo.boardrev);
+		ri->driverrev = le32_to_cpu(revinfo.driverrev);
+		ri->ucoderev = le32_to_cpu(revinfo.ucoderev);
+		ri->bus = le32_to_cpu(revinfo.bus);
+		ri->chipnum = le32_to_cpu(revinfo.chipnum);
+		ri->phytype = le32_to_cpu(revinfo.phytype);
+		ri->phyrev = le32_to_cpu(revinfo.phyrev);
+		ri->anarev = le32_to_cpu(revinfo.anarev);
+		ri->chippkg = le32_to_cpu(revinfo.chippkg);
+		ri->nvramrev = le32_to_cpu(revinfo.nvramrev);
+	}
 
 	/* query for 'ver' to get version info from firmware */
 	memset(buf, 0, sizeof(buf));

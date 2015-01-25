@@ -71,6 +71,27 @@ struct brcmf_proto;	/* device communication protocol info */
 struct brcmf_cfg80211_dev; /* cfg80211 device info */
 struct brcmf_fws_info; /* firmware signalling info */
 
+/* see struct brcmf_rev_info_le in fwil_types.h */
+struct brcmf_rev_info {
+	u32 vendorid;
+	u32 deviceid;
+	u32 radiorev;
+	u32 chiprev;
+	u32 corerev;
+	u32 boardid;
+	u32 boardvendor;
+	u32 boardrev;
+	u32 driverrev;
+	u32 ucoderev;
+	u32 bus;
+	u32 chipnum;
+	u32 phytype;
+	u32 phyrev;
+	u32 anarev;
+	u32 chippkg;
+	u32 nvramrev;
+};
+
 /* Common structure for module and instance linkage */
 struct brcmf_pub {
 	/* Linkage ponters */
@@ -104,6 +125,7 @@ struct brcmf_pub {
 	u32 feat_flags;
 	u32 chip_quirks;
 
+	struct brcmf_rev_info revinfo;
 #ifdef DEBUG
 	struct dentry *dbgfs_dir;
 #endif

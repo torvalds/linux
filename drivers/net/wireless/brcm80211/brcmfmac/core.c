@@ -948,7 +948,6 @@ int brcmf_bus_start(struct device *dev)
 	struct brcmf_pub *drvr = bus_if->drvr;
 	struct brcmf_if *ifp;
 	struct brcmf_if *p2p_ifp;
-	struct brcmf_rev_info_le revinfo;
 
 	brcmf_dbg(TRACE, "\n");
 
@@ -974,17 +973,10 @@ int brcmf_bus_start(struct device *dev)
 
 	/* assure we have chipid before feature attach */
 	if (!bus_if->chip) {
-		ret = brcmf_fil_cmd_data_get(ifp, BRCMF_C_GET_REVINFO, &revinfo,
-					     sizeof(revinfo));
-		if (ret < 0) {
-			brcmf_err("no chipid determined - device may malfunction\n");
-		} else {
-			bus_if->chip = le32_to_cpu(revinfo.chipnum);
-			bus_if->chiprev = le32_to_cpu(revinfo.chiprev);
-			brcmf_dbg(INFO, "firmware revinfo: chip %x (%d) rev %d\n",
-				  bus_if->chip, bus_if->chip,
-				  bus_if->chiprev);
-		}
+		bus_if->chip = drvr->revinfo.chipnum;
+		bus_if->chiprev = drvr->revinfo.chiprev;
+		brcmf_dbg(INFO, "firmware revinfo: chip %x (%d) rev %d\n",
+			  bus_if->chip, bus_if->chip, bus_if->chiprev);
 	}
 	brcmf_feat_attach(drvr);
 
