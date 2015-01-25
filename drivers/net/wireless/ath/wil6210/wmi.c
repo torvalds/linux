@@ -566,7 +566,6 @@ static void wil_addba_tx_cid(struct wil6210_priv *wil, u8 cid, u16 wsize)
 
 static void wmi_evt_linkup(struct wil6210_priv *wil, int id, void *d, int len)
 {
-	struct net_device *ndev = wil_to_ndev(wil);
 	struct wmi_data_port_open_event *evt = d;
 	u8 cid = evt->cid;
 
@@ -580,7 +579,6 @@ static void wmi_evt_linkup(struct wil6210_priv *wil, int id, void *d, int len)
 	wil->sta[cid].data_port_open = true;
 	if (agg_wsize >= 0)
 		wil_addba_tx_cid(wil, cid, agg_wsize);
-	netif_carrier_on(ndev);
 }
 
 static void wmi_evt_linkdown(struct wil6210_priv *wil, int id, void *d, int len)

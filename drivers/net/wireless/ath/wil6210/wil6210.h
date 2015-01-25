@@ -649,8 +649,6 @@ void wil_priv_deinit(struct wil6210_priv *wil);
 int wil_reset(struct wil6210_priv *wil);
 void wil_fw_error_recovery(struct wil6210_priv *wil);
 void wil_set_recovery_state(struct wil6210_priv *wil, int state);
-void wil_link_on(struct wil6210_priv *wil);
-void wil_link_off(struct wil6210_priv *wil);
 int wil_up(struct wil6210_priv *wil);
 int __wil_up(struct wil6210_priv *wil);
 int wil_down(struct wil6210_priv *wil);

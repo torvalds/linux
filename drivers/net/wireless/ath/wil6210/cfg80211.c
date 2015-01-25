@@ -454,6 +454,7 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 
 	rc = wmi_send(wil, WMI_CONNECT_CMDID, &conn, sizeof(conn));
 	if (rc == 0) {
+		netif_carrier_on(ndev);
 		/* Connect can take lots of time */
 		mod_timer(&wil->connect_timer,
 			  jiffies + msecs_to_jiffies(2000));
@@ -757,12 +758,12 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 
 	wil->secure_pcp = info->privacy;
 
+	netif_carrier_on(ndev);
+
 	rc = wmi_pcp_start(wil, info->beacon_interval, wmi_nettype,
 			   channel->hw_value);
 	if (rc)
-		goto out;
-
-	netif_carrier_on(ndev);
+		netif_carrier_off(ndev);
 
 out:
 	mutex_unlock(&wil->mutex);
@@ -777,6 +778,7 @@ static int wil_cfg80211_stop_ap(struct wiphy *wiphy,
 
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
+	netif_carrier_off(ndev);
 	wil_set_recovery_state(wil, fw_recovery_idle);
 
 	mutex_lock(&wil->mutex);

@@ -248,7 +248,9 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
-		wil_link_off(wil);
+		netif_tx_stop_all_queues(ndev);
+		netif_carrier_off(ndev);
+
 		if (test_bit(wil_status_fwconnected, wil->status)) {
 			clear_bit(wil_status_fwconnected, wil->status);
 			cfg80211_disconnected(ndev, reason_code,
@@ -395,6 +397,8 @@ static void wil_connect_worker(struct work_struct *work)
 	int rc;
 	struct wil6210_priv *wil = container_of(work, struct wil6210_priv,
 						connect_worker);
+	struct net_device *ndev = wil_to_ndev(wil);
+
 	int cid = wil->pending_connect_cid;
 	int ringid = wil_find_free_vring(wil);
 
@@ -409,7 +413,7 @@ static void wil_connect_worker(struct work_struct *work)
 	wil->pending_connect_cid = -1;
 	if (rc == 0) {
 		wil->sta[cid].status = wil_sta_connected;
-		wil_link_on(wil);
+		netif_tx_wake_all_queues(ndev);
 	} else {
 		wil->sta[cid].status = wil_sta_unused;
 	}
@@ -739,28 +743,6 @@ void wil_fw_error_recovery(struct wil6210_priv *wil)
 	wil_dbg_misc(wil, "starting fw error recovery\n");
 	wil->recovery_state = fw_recovery_pending;
 	schedule_work(&wil->fw_error_worker);
-}
-
-void wil_link_on(struct wil6210_priv *wil)
-{
-	struct net_device *ndev = wil_to_ndev(wil);
-
-	wil_dbg_misc(wil, "%s()\n", __func__);
-
-	netif_carrier_on(ndev);
-	wil_dbg_misc(wil, "netif_tx_wake : link on\n");
-	netif_tx_wake_all_queues(ndev);
-}
-
-void wil_link_off(struct wil6210_priv *wil)
-{
-	struct net_device *ndev = wil_to_ndev(wil);
-
-	wil_dbg_misc(wil, "%s()\n", __func__);
-
-	netif_tx_stop_all_queues(ndev);
-	wil_dbg_misc(wil, "netif_tx_stop : link off\n");
-	netif_carrier_off(ndev);
 }
 
 int __wil_up(struct wil6210_priv *wil)

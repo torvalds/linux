@@ -174,7 +174,7 @@ void *wil_if_alloc(struct device *dev, void __iomem *csr)
 	netif_napi_add(ndev, &wil->napi_tx, wil6210_netdev_poll_tx,
 		       WIL6210_NAPI_BUDGET);
 
-	wil_link_off(wil);
+	netif_tx_stop_all_queues(ndev);
 
 	return wil;
 
@@ -216,8 +216,6 @@ int wil_if_add(struct wil6210_priv *wil)
 		dev_err(&ndev->dev, "Failed to register netdev: %d\n", rc);
 		return rc;
 	}
-
-	wil_link_off(wil);
 
 	return 0;
 }
