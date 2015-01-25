@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2015 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -773,7 +773,6 @@ out:
 static int wil_cfg80211_stop_ap(struct wiphy *wiphy,
 				struct net_device *ndev)
 {
-	int rc, rc1;
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 
 	wil_dbg_misc(wil, "%s()\n", __func__);
@@ -783,14 +782,17 @@ static int wil_cfg80211_stop_ap(struct wiphy *wiphy,
 
 	mutex_lock(&wil->mutex);
 
-	rc = wmi_pcp_stop(wil);
+	wmi_pcp_stop(wil);
 
 	__wil_down(wil);
-	rc1 = __wil_up(wil);
+	__wil_up(wil);
 
 	mutex_unlock(&wil->mutex);
 
-	return min(rc, rc1);
+	/* some functions above might fail (e.g. __wil_up). Nevertheless, we
+	 * return success because AP has stopped
+	 */
+	return 0;
 }
 
 static int wil_cfg80211_del_station(struct wiphy *wiphy,
