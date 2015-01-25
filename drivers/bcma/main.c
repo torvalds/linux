@@ -402,6 +402,13 @@ int bcma_bus_register(struct bcma_bus *bus)
 		bcma_core_chipcommon_early_init(&bus->drv_cc);
 	}
 
+	/* Early init PCIE core */
+	core = bcma_find_core(bus, BCMA_CORE_PCIE);
+	if (core) {
+		bus->drv_pci[0].core = core;
+		bcma_core_pci_early_init(&bus->drv_pci[0]);
+	}
+
 	/* Cores providing flash access go before SPROM init */
 	list_for_each_entry(core, &bus->cores, list) {
 		if (bcma_is_core_needed_early(core->id.id))
