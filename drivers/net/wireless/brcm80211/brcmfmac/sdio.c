@@ -515,7 +515,6 @@ struct brcmf_sdio {
 	bool txoff;		/* Transmit flow-controlled */
 	struct brcmf_sdio_count sdcnt;
 	bool sr_enabled; /* SaveRestore enabled */
-	bool sleeping; /* SDIO bus sleeping */
 
 	u8 tx_hdrlen;		/* sdio bus header length for tx packet */
 	bool txglom;		/* host tx glomming enable flag */
@@ -1014,12 +1013,12 @@ brcmf_sdio_bus_sleep(struct brcmf_sdio *bus, bool sleep, bool pendok)
 
 	brcmf_dbg(SDIO, "Enter: request %s currently %s\n",
 		  (sleep ? "SLEEP" : "WAKE"),
-		  (bus->sleeping ? "SLEEP" : "WAKE"));
+		  (bus->sdiodev->sleeping ? "SLEEP" : "WAKE"));
 
 	/* If SR is enabled control bus state with KSO */
 	if (bus->sr_enabled) {
 		/* Done if we're already in the requested state */
-		if (sleep == bus->sleeping)
+		if (sleep == bus->sdiodev->sleeping)
 			goto end;
 
 		/* Going to sleep */
@@ -1051,12 +1050,7 @@ brcmf_sdio_bus_sleep(struct brcmf_sdio *bus, bool sleep, bool pendok)
 			bus->idlecount = 0;
 			err = brcmf_sdio_kso_control(bus, true);
 		}
-		if (!err) {
-			/* Change state */
-			bus->sleeping = sleep;
-			brcmf_dbg(SDIO, "new state %s\n",
-				  (sleep ? "SLEEP" : "WAKE"));
-		} else {
+		if (err) {
 			brcmf_err("error while changing bus sleep state %d\n",
 				  err);
 			goto done;
@@ -1071,6 +1065,11 @@ end:
 	} else {
 		brcmf_sdio_clkctl(bus, CLK_AVAIL, pendok);
 	}
+	bus->sdiodev->sleeping = sleep;
+	if (sleep)
+		wake_up(&bus->sdiodev->idle_wait);
+	brcmf_dbg(SDIO, "new state %s\n",
+		  (sleep ? "SLEEP" : "WAKE"));
 done:
 	brcmf_dbg(SDIO, "Exit: err=%d\n", err);
 	return err;
@@ -4215,7 +4214,6 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	bus->idleclock = BRCMF_IDLE_ACTIVE;
 
 	/* SR state */
-	bus->sleeping = false;
 	bus->sr_enabled = false;
 
 	brcmf_sdio_debugfs_create(bus);

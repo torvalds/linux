@@ -1045,7 +1045,9 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 		bus_if->wowl_supported = true;
 #endif
 
+	sdiodev->sleeping = false;
 	atomic_set(&sdiodev->suspend, false);
+	init_waitqueue_head(&sdiodev->idle_wait);
 
 	brcmf_dbg(SDIO, "F2 found, calling brcmf_sdiod_probe...\n");
 	err = brcmf_sdiod_probe(sdiodev);
@@ -1107,12 +1109,23 @@ void brcmf_sdio_wowl_config(struct device *dev, bool enabled)
 #ifdef CONFIG_PM_SLEEP
 static int brcmf_ops_sdio_suspend(struct device *dev)
 {
-	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
-	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
+	struct brcmf_bus *bus_if;
+	struct brcmf_sdio_dev *sdiodev;
 	mmc_pm_flag_t sdio_flags;
 
 	brcmf_dbg(SDIO, "Enter\n");
 
+	bus_if = dev_get_drvdata(dev);
+	sdiodev = bus_if->bus_priv.sdio;
+
+	/* wait for watchdog to go idle */
+	if (wait_event_timeout(sdiodev->idle_wait, sdiodev->sleeping,
+			       msecs_to_jiffies(3 * BRCMF_WD_POLL_MS)) == 0) {
+		brcmf_err("bus still active\n");
+		return -EBUSY;
+	}
+	/* disable watchdog */
+	brcmf_sdio_wd_timer(sdiodev->bus, 0);
 	atomic_set(&sdiodev->suspend, true);
 
 	if (sdiodev->wowl_enabled) {
@@ -1124,9 +1137,6 @@ static int brcmf_ops_sdio_suspend(struct device *dev)
 		if (sdio_set_host_pm_flags(sdiodev->func[1], sdio_flags))
 			brcmf_err("Failed to set pm_flags %x\n", sdio_flags);
 	}
-
-	brcmf_sdio_wd_timer(sdiodev->bus, 0);
-
 	return 0;
 }
 
