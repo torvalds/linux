@@ -3183,13 +3183,32 @@ static int be_clear(struct be_adapter *adapter)
 	return 0;
 }
 
+static int be_if_create(struct be_adapter *adapter, u32 *if_handle,
+			u32 cap_flags, u32 vf)
+{
+	u32 en_flags;
+	int status;
+
+	en_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
+		   BE_IF_FLAGS_MULTICAST | BE_IF_FLAGS_PASS_L3L4_ERRORS |
+		   BE_IF_FLAGS_RSS;
+
+	en_flags &= cap_flags;
+
+	status = be_cmd_if_create(adapter, cap_flags, en_flags,
+				  if_handle, vf);
+
+	return status;
+}
+
 static int be_vfs_if_create(struct be_adapter *adapter)
 {
 	struct be_resources res = {0};
 	struct be_vf_cfg *vf_cfg;
-	u32 cap_flags, en_flags, vf;
-	int status = 0;
+	u32 cap_flags, vf;
+	int status;
 
+	/* If a FW profile exists, then cap_flags are updated */
 	cap_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
 		    BE_IF_FLAGS_MULTICAST;
 
@@ -3201,18 +3220,13 @@ static int be_vfs_if_create(struct be_adapter *adapter)
 				cap_flags = res.if_cap_flags;
 		}
 
-		/* If a FW profile exists, then cap_flags are updated */
-		en_flags = cap_flags & (BE_IF_FLAGS_UNTAGGED |
-					BE_IF_FLAGS_BROADCAST |
-					BE_IF_FLAGS_MULTICAST);
-		status =
-		    be_cmd_if_create(adapter, cap_flags, en_flags,
-				     &vf_cfg->if_handle, vf + 1);
+		status = be_if_create(adapter, &vf_cfg->if_handle,
+				      cap_flags, vf + 1);
 		if (status)
-			goto err;
+			return status;
 	}
-err:
-	return status;
+
+	return 0;
 }
 
 static int be_vf_setup_init(struct be_adapter *adapter)
@@ -3653,7 +3667,6 @@ int be_update_queues(struct be_adapter *adapter)
 static int be_setup(struct be_adapter *adapter)
 {
 	struct device *dev = &adapter->pdev->dev;
-	u32 tx_fc, rx_fc, en_flags;
 	int status;
 
 	be_setup_init(adapter);
@@ -3669,13 +3682,8 @@ static int be_setup(struct be_adapter *adapter)
 	if (status)
 		goto err;
 
-	en_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
-		   BE_IF_FLAGS_MULTICAST | BE_IF_FLAGS_PASS_L3L4_ERRORS;
-	if (adapter->function_caps & BE_FUNCTION_CAPS_RSS)
-		en_flags |= BE_IF_FLAGS_RSS;
-	en_flags = en_flags & be_if_cap_flags(adapter);
-	status = be_cmd_if_create(adapter, be_if_cap_flags(adapter), en_flags,
-				  &adapter->if_handle, 0);
+	status = be_if_create(adapter, &adapter->if_handle,
+			      be_if_cap_flags(adapter), 0);
 	if (status)
 		goto err;
 
@@ -3708,11 +3716,14 @@ static int be_setup(struct be_adapter *adapter)
 
 	be_cmd_get_acpi_wol_cap(adapter);
 
-	be_cmd_get_flow_control(adapter, &tx_fc, &rx_fc);
+	status = be_cmd_set_flow_control(adapter, adapter->tx_fc,
+					 adapter->rx_fc);
+	if (status)
+		be_cmd_get_flow_control(adapter, &adapter->tx_fc,
+					&adapter->rx_fc);
 
-	if (rx_fc != adapter->rx_fc || tx_fc != adapter->tx_fc)
-		be_cmd_set_flow_control(adapter, adapter->tx_fc,
-					adapter->rx_fc);
+	dev_info(&adapter->pdev->dev, "HW Flow control - TX:%d RX:%d\n",
+		 adapter->tx_fc, adapter->rx_fc);
 
 	if (be_physfn(adapter))
 		be_cmd_set_logical_link_config(adapter,
@@ -3751,7 +3762,7 @@ static char flash_cookie[2][16] = {"*** SE FLAS", "H DIRECTORY *** "};
 
 static bool phy_flashing_required(struct be_adapter *adapter)
 {
-	return (adapter->phy.phy_type == TN_8022 &&
+	return (adapter->phy.phy_type == PHY_TYPE_TN_8022 &&
 		adapter->phy.interface_type == PHY_TYPE_BASET_10GB);
 }
 
@@ -5057,6 +5068,10 @@ static int be_resume(struct pci_dev *pdev)
 	pci_restore_state(pdev);
 
 	status = be_fw_wait_ready(adapter);
+	if (status)
+		return status;
+
+	status = be_cmd_reset_function(adapter);
 	if (status)
 		return status;
 

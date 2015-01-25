@@ -1161,7 +1161,167 @@ struct be_cmd_resp_get_beacon_state {
 	u8 rsvd0[3];
 } __packed;
 
+/* Flashrom related descriptors */
+#define MAX_FLASH_COMP			32
+
+#define OPTYPE_ISCSI_ACTIVE		0
+#define OPTYPE_REDBOOT			1
+#define OPTYPE_BIOS			2
+#define OPTYPE_PXE_BIOS			3
+#define OPTYPE_FCOE_BIOS		8
+#define OPTYPE_ISCSI_BACKUP		9
+#define OPTYPE_FCOE_FW_ACTIVE		10
+#define OPTYPE_FCOE_FW_BACKUP		11
+#define OPTYPE_NCSI_FW			13
+#define OPTYPE_REDBOOT_DIR		18
+#define OPTYPE_REDBOOT_CONFIG		19
+#define OPTYPE_SH_PHY_FW		21
+#define OPTYPE_FLASHISM_JUMPVECTOR	22
+#define OPTYPE_UFI_DIR			23
+#define OPTYPE_PHY_FW			99
+
+#define FLASH_BIOS_IMAGE_MAX_SIZE_g2	262144  /* Max OPTION ROM image sz */
+#define FLASH_REDBOOT_IMAGE_MAX_SIZE_g2	262144  /* Max Redboot image sz    */
+#define FLASH_IMAGE_MAX_SIZE_g2		1310720 /* Max firmware image size */
+
+#define FLASH_NCSI_IMAGE_MAX_SIZE_g3	262144
+#define FLASH_PHY_FW_IMAGE_MAX_SIZE_g3	262144
+#define FLASH_BIOS_IMAGE_MAX_SIZE_g3	524288  /* Max OPTION ROM image sz */
+#define FLASH_REDBOOT_IMAGE_MAX_SIZE_g3	1048576 /* Max Redboot image sz    */
+#define FLASH_IMAGE_MAX_SIZE_g3		2097152 /* Max firmware image size */
+
+/* Offsets for components on Flash. */
+#define FLASH_REDBOOT_START_g2			0
+#define FLASH_FCoE_BIOS_START_g2		524288
+#define FLASH_iSCSI_PRIMARY_IMAGE_START_g2	1048576
+#define FLASH_iSCSI_BACKUP_IMAGE_START_g2	2359296
+#define FLASH_FCoE_PRIMARY_IMAGE_START_g2	3670016
+#define FLASH_FCoE_BACKUP_IMAGE_START_g2	4980736
+#define FLASH_iSCSI_BIOS_START_g2		7340032
+#define FLASH_PXE_BIOS_START_g2			7864320
+
+#define FLASH_REDBOOT_START_g3			262144
+#define FLASH_PHY_FW_START_g3			1310720
+#define FLASH_iSCSI_PRIMARY_IMAGE_START_g3	2097152
+#define FLASH_iSCSI_BACKUP_IMAGE_START_g3	4194304
+#define FLASH_FCoE_PRIMARY_IMAGE_START_g3	6291456
+#define FLASH_FCoE_BACKUP_IMAGE_START_g3	8388608
+#define FLASH_iSCSI_BIOS_START_g3		12582912
+#define FLASH_PXE_BIOS_START_g3			13107200
+#define FLASH_FCoE_BIOS_START_g3		13631488
+#define FLASH_NCSI_START_g3			15990784
+
+#define IMAGE_NCSI			16
+#define IMAGE_OPTION_ROM_PXE		32
+#define IMAGE_OPTION_ROM_FCoE		33
+#define IMAGE_OPTION_ROM_ISCSI		34
+#define IMAGE_FLASHISM_JUMPVECTOR	48
+#define IMAGE_FIRMWARE_iSCSI		160
+#define IMAGE_FIRMWARE_FCoE		162
+#define IMAGE_FIRMWARE_BACKUP_iSCSI	176
+#define IMAGE_FIRMWARE_BACKUP_FCoE	178
+#define IMAGE_FIRMWARE_PHY		192
+#define IMAGE_REDBOOT_DIR		208
+#define IMAGE_REDBOOT_CONFIG		209
+#define IMAGE_UFI_DIR			210
+#define IMAGE_BOOT_CODE			224
+
+struct controller_id {
+	u32 vendor;
+	u32 device;
+	u32 subvendor;
+	u32 subdevice;
+};
+
+struct flash_comp {
+	unsigned long offset;
+	int optype;
+	int size;
+	int img_type;
+};
+
+struct image_hdr {
+	u32 imageid;
+	u32 imageoffset;
+	u32 imagelength;
+	u32 image_checksum;
+	u8 image_version[32];
+};
+
+struct flash_file_hdr_g2 {
+	u8 sign[32];
+	u32 cksum;
+	u32 antidote;
+	struct controller_id cont_id;
+	u32 file_len;
+	u32 chunk_num;
+	u32 total_chunks;
+	u32 num_imgs;
+	u8 build[24];
+};
+
+struct flash_file_hdr_g3 {
+	u8 sign[52];
+	u8 ufi_version[4];
+	u32 file_len;
+	u32 cksum;
+	u32 antidote;
+	u32 num_imgs;
+	u8 build[24];
+	u8 asic_type_rev;
+	u8 rsvd[31];
+};
+
+struct flash_section_hdr {
+	u32 format_rev;
+	u32 cksum;
+	u32 antidote;
+	u32 num_images;
+	u8 id_string[128];
+	u32 rsvd[4];
+} __packed;
+
+struct flash_section_hdr_g2 {
+	u32 format_rev;
+	u32 cksum;
+	u32 antidote;
+	u32 build_num;
+	u8 id_string[128];
+	u32 rsvd[8];
+} __packed;
+
+struct flash_section_entry {
+	u32 type;
+	u32 offset;
+	u32 pad_size;
+	u32 image_size;
+	u32 cksum;
+	u32 entry_point;
+	u16 optype;
+	u16 rsvd0;
+	u32 rsvd1;
+	u8 ver_data[32];
+} __packed;
+
+struct flash_section_info {
+	u8 cookie[32];
+	struct flash_section_hdr fsec_hdr;
+	struct flash_section_entry fsec_entry[32];
+} __packed;
+
+struct flash_section_info_g2 {
+	u8 cookie[32];
+	struct flash_section_hdr_g2 fsec_hdr;
+	struct flash_section_entry fsec_entry[32];
+} __packed;
+
 /****************** Firmware Flash ******************/
+#define FLASHROM_OPER_FLASH		1
+#define FLASHROM_OPER_SAVE		2
+#define FLASHROM_OPER_REPORT		4
+#define FLASHROM_OPER_PHY_FLASH		9
+#define FLASHROM_OPER_PHY_SAVE		10
+
 struct flashrom_params {
 	u32 op_code;
 	u32 op_type;
@@ -1366,6 +1526,7 @@ enum {
 	PHY_TYPE_QSFP,
 	PHY_TYPE_KR4_40GB,
 	PHY_TYPE_KR2_20GB,
+	PHY_TYPE_TN_8022,
 	PHY_TYPE_DISABLED = 255
 };
 
@@ -1429,6 +1590,20 @@ struct be_cmd_req_set_qos {
 };
 
 /*********************** Controller Attributes ***********************/
+struct mgmt_hba_attribs {
+	u32 rsvd0[24];
+	u8 controller_model_number[32];
+	u32 rsvd1[79];
+	u8 rsvd2[3];
+	u8 phy_port;
+	u32 rsvd3[13];
+} __packed;
+
+struct mgmt_controller_attrib {
+	struct mgmt_hba_attribs hba_attribs;
+	u32 rsvd0[10];
+} __packed;
+
 struct be_cmd_req_cntl_attribs {
 	struct be_cmd_req_hdr hdr;
 };

@@ -573,7 +573,7 @@ static int lancer_wait_ready(struct be_adapter *adapter)
 {
 #define SLIPORT_READY_TIMEOUT 30
 	u32 sliport_status;
-	int status = 0, i;
+	int i;
 
 	for (i = 0; i < SLIPORT_READY_TIMEOUT; i++) {
 		sliport_status = ioread32(adapter->db + SLIPORT_STATUS_OFFSET);
@@ -584,9 +584,9 @@ static int lancer_wait_ready(struct be_adapter *adapter)
 	}
 
 	if (i == SLIPORT_READY_TIMEOUT)
-		status = -1;
+		return sliport_status ? : -1;
 
-	return status;
+	return 0;
 }
 
 static bool lancer_provisioning_error(struct be_adapter *adapter)
@@ -624,7 +624,7 @@ int lancer_test_and_set_rdy_state(struct be_adapter *adapter)
 			iowrite32(SLI_PORT_CONTROL_IP_MASK,
 				  adapter->db + SLIPORT_CONTROL_OFFSET);
 
-			/* check adapter has corrected the error */
+			/* check if adapter has corrected the error */
 			status = lancer_wait_ready(adapter);
 			sliport_status = ioread32(adapter->db +
 						  SLIPORT_STATUS_OFFSET);
@@ -655,7 +655,11 @@ int be_fw_wait_ready(struct be_adapter *adapter)
 
 	if (lancer_chip(adapter)) {
 		status = lancer_wait_ready(adapter);
-		return status;
+		if (status) {
+			stage = status;
+			goto err;
+		}
+		return 0;
 	}
 
 	do {
@@ -671,7 +675,8 @@ int be_fw_wait_ready(struct be_adapter *adapter)
 		timeout += 2;
 	} while (timeout < 60);
 
-	dev_err(dev, "POST timeout; stage=0x%x\n", stage);
+err:
+	dev_err(dev, "POST timeout; stage=%#x\n", stage);
 	return -1;
 }
 
@@ -3751,6 +3756,7 @@ int be_cmd_config_qos(struct be_adapter *adapter, u32 max_rate, u16 link_speed,
 	be_reset_nic_desc(&nic_desc);
 	nic_desc.pf_num = adapter->pf_number;
 	nic_desc.vf_num = domain;
+	nic_desc.bw_min = 0;
 	if (lancer_chip(adapter)) {
 		nic_desc.hdr.desc_type = NIC_RESOURCE_DESC_TYPE_V0;
 		nic_desc.hdr.desc_len = RESOURCE_DESC_SIZE_V0;
@@ -4092,7 +4098,7 @@ int be_cmd_set_logical_link_config(struct be_adapter *adapter,
 	int status;
 
 	if (BEx_chip(adapter) || lancer_chip(adapter))
-		return 0;
+		return -EOPNOTSUPP;
 
 	spin_lock_bh(&adapter->mcc_lock);
 
