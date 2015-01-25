@@ -120,10 +120,11 @@ static void omap8250_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	 */
 	lcr = serial_in(up, UART_LCR);
 	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
-	if (mctrl & TIOCM_RTS)
-		serial_out(up, UART_EFR, priv->efr);
+	if ((mctrl & TIOCM_RTS) && (port->status & UPSTAT_AUTORTS))
+		priv->efr |= UART_EFR_RTS;
 	else
-		serial_out(up, UART_EFR, priv->efr & ~UART_EFR_RTS);
+		priv->efr &= ~UART_EFR_RTS;
+	serial_out(up, UART_EFR, priv->efr);
 	serial_out(up, UART_LCR, lcr);
 }
 
@@ -272,10 +273,7 @@ static void omap8250_restore_regs(struct uart_8250_port *up)
 	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
 	serial_dl_write(up, priv->quot);
 
-	if (up->port.mctrl & TIOCM_RTS)
-		serial_out(up, UART_EFR, priv->efr);
-	else
-		serial_out(up, UART_EFR, priv->efr & ~UART_EFR_RTS);
+	serial_out(up, UART_EFR, priv->efr);
 
 	/* Configure flow control */
 	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
@@ -424,9 +422,9 @@ static void omap_8250_set_termios(struct uart_port *port,
 	up->port.status &= ~(UPSTAT_AUTOCTS | UPSTAT_AUTORTS | UPSTAT_AUTOXOFF);
 
 	if (termios->c_cflag & CRTSCTS && up->port.flags & UPF_HARD_FLOW) {
-		/* Enable AUTORTS and AUTOCTS */
+		/* Enable AUTOCTS (autoRTS is enabled when RTS is raised) */
 		up->port.status |= UPSTAT_AUTOCTS | UPSTAT_AUTORTS;
-		priv->efr |= UART_EFR_CTS | UART_EFR_RTS;
+		priv->efr |= UART_EFR_CTS;
 	} else	if (up->port.flags & UPF_SOFT_FLOW) {
 		/*
 		 * IXON Flag:
