@@ -110,10 +110,10 @@ config POWER_RESET_RESTART
 	  user presses a key. u-boot then boots into Linux.
 
 config POWER_RESET_ST
-	bool "ST restart power-off driver"
+	bool "ST restart driver"
 	depends on ARCH_STI
 	help
-	  Power off and reset support for STMicroelectronics boards.
+	  Reset support for STMicroelectronics boards.
 
 config POWER_RESET_VERSATILE
 	bool "ARM Versatile family reboot driver"
