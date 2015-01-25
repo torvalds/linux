@@ -17,8 +17,9 @@ static const __u8 root_hub_hub_des[] =
 	0x09,			/*  __u8  bLength; */
 	0x29,			/*  __u8  bDescriptorType; Hub-descriptor */
 	0x02,			/*  __u8  bNbrPorts; */
-	0x0a,			/* __u16  wHubCharacteristics; */
-	0x00,			/*   (per-port OC, no power switching) */
+	HUB_CHAR_NO_LPSM |	/* __u16  wHubCharacteristics; */
+		HUB_CHAR_INDV_PORT_OCPM, /* (per-port OC, no power switching) */
+	0x00,
 	0x01,			/*  __u8  bPwrOn2pwrGood; 2ms */
 	0x00,			/*  __u8  bHubContrCurrent; 0 mA */
 	0x00,			/*  __u8  DeviceRemovable; *** 7 Ports max */
