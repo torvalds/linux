@@ -241,8 +241,8 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	spin_lock_init(&mdev->uar_lock);
 
 	mdev->dev = dev;
-	mdev->dma_device = &(dev->pdev->dev);
-	mdev->pdev = dev->pdev;
+	mdev->dma_device = &dev->persist->pdev->dev;
+	mdev->pdev = dev->persist->pdev;
 	mdev->device_up = false;
 
 	mdev->LSO_support = !!(dev->caps.flags & (1 << 15));

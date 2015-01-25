@@ -208,6 +208,10 @@ enum {
 	MLX4_QUERY_FUNC_FLAGS_A0_RES_QP		= 1LL << 1
 };
 
+enum {
+	MLX4_VF_CAP_FLAG_RESET			= 1 << 0
+};
+
 /* bit enums for an 8-bit flags field indicating special use
  * QPs which require special handling in qp_reserve_range.
  * Currently, this only includes QPs used by the ETH interface,
@@ -411,6 +415,16 @@ enum {
 	MLX4_EQ_PORT_INFO_MSTR_SM_SL_CHANGE_MASK	= 1 << 4,
 };
 
+enum {
+	MLX4_DEVICE_STATE_UP			= 1 << 0,
+	MLX4_DEVICE_STATE_INTERNAL_ERROR	= 1 << 1,
+};
+
+enum {
+	MLX4_INTERFACE_STATE_UP		= 1 << 0,
+	MLX4_INTERFACE_STATE_DELETION	= 1 << 1,
+};
+
 #define MSTR_SM_CHANGE_MASK (MLX4_EQ_PORT_INFO_MSTR_SM_SL_CHANGE_MASK | \
 			     MLX4_EQ_PORT_INFO_MSTR_SM_LID_CHANGE_MASK)
 
@@ -535,6 +549,7 @@ struct mlx4_caps {
 	u8			alloc_res_qp_mask;
 	u32			dmfs_high_rate_qpn_base;
 	u32			dmfs_high_rate_qpn_range;
+	u32			vf_caps;
 };
 
 struct mlx4_buf_list {
@@ -744,8 +759,23 @@ struct mlx4_vf_dev {
 	u8			n_ports;
 };
 
-struct mlx4_dev {
+struct mlx4_dev_persistent {
 	struct pci_dev	       *pdev;
+	struct mlx4_dev	       *dev;
+	int                     nvfs[MLX4_MAX_PORTS + 1];
+	int			num_vfs;
+	enum mlx4_port_type curr_port_type[MLX4_MAX_PORTS + 1];
+	enum mlx4_port_type curr_port_poss_type[MLX4_MAX_PORTS + 1];
+	struct work_struct      catas_work;
+	struct workqueue_struct *catas_wq;
+	struct mutex	device_state_mutex; /* protect HW state */
+	u8		state;
+	struct mutex	interface_state_mutex; /* protect SW state */
+	u8	interface_state;
+};
+
+struct mlx4_dev {
+	struct mlx4_dev_persistent *persist;
 	unsigned long		flags;
 	unsigned long		num_slaves;
 	struct mlx4_caps	caps;
@@ -754,13 +784,11 @@ struct mlx4_dev {
 	struct radix_tree_root	qp_table_tree;
 	u8			rev_id;
 	char			board_id[MLX4_BOARD_ID_LEN];
-	int			num_vfs;
 	int			numa_node;
 	int			oper_log_mgm_entry_size;
 	u64			regid_promisc_array[MLX4_MAX_PORTS + 1];
 	u64			regid_allmulti_array[MLX4_MAX_PORTS + 1];
 	struct mlx4_vf_dev     *dev_vfs;
-	int                     nvfs[MLX4_MAX_PORTS + 1];
 };
 
 struct mlx4_eqe {

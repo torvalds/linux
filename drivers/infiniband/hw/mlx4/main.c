@@ -198,7 +198,7 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 
 	props->vendor_id	   = be32_to_cpup((__be32 *) (out_mad->data + 36)) &
 		0xffffff;
-	props->vendor_part_id	   = dev->dev->pdev->device;
+	props->vendor_part_id	   = dev->dev->persist->pdev->device;
 	props->hw_ver		   = be32_to_cpup((__be32 *) (out_mad->data + 32));
 	memcpy(&props->sys_image_guid, out_mad->data +	4, 8);
 
@@ -1375,7 +1375,7 @@ static ssize_t show_hca(struct device *device, struct device_attribute *attr,
 {
 	struct mlx4_ib_dev *dev =
 		container_of(device, struct mlx4_ib_dev, ib_dev.dev);
-	return sprintf(buf, "MT%d\n", dev->dev->pdev->device);
+	return sprintf(buf, "MT%d\n", dev->dev->persist->pdev->device);
 }
 
 static ssize_t show_fw_ver(struct device *device, struct device_attribute *attr,
@@ -1937,7 +1937,8 @@ static void init_pkeys(struct mlx4_ib_dev *ibdev)
 	int i;
 
 	if (mlx4_is_master(ibdev->dev)) {
-		for (slave = 0; slave <= ibdev->dev->num_vfs; ++slave) {
+		for (slave = 0; slave <= ibdev->dev->persist->num_vfs;
+		     ++slave) {
 			for (port = 1; port <= ibdev->dev->caps.num_ports; ++port) {
 				for (i = 0;
 				     i < ibdev->dev->phys_caps.pkey_phys_table_len[port];
@@ -1994,7 +1995,7 @@ static void mlx4_ib_alloc_eqs(struct mlx4_dev *dev, struct mlx4_ib_dev *ibdev)
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB) {
 		for (j = 0; j < eq_per_port; j++) {
 			snprintf(name, sizeof(name), "mlx4-ib-%d-%d@%s",
-				 i, j, dev->pdev->bus->name);
+				 i, j, dev->persist->pdev->bus->name);
 			/* Set IRQ for specific name (per ring) */
 			if (mlx4_assign_eq(dev, name, NULL,
 					   &ibdev->eq_table[eq])) {
@@ -2058,7 +2059,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 
 	ibdev = (struct mlx4_ib_dev *) ib_alloc_device(sizeof *ibdev);
 	if (!ibdev) {
-		dev_err(&dev->pdev->dev, "Device struct alloc failed\n");
+		dev_err(&dev->persist->pdev->dev,
+			"Device struct alloc failed\n");
 		return NULL;
 	}
 
@@ -2085,7 +2087,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->num_ports		= num_ports;
 	ibdev->ib_dev.phys_port_cnt     = ibdev->num_ports;
 	ibdev->ib_dev.num_comp_vectors	= dev->caps.num_comp_vectors;
-	ibdev->ib_dev.dma_device	= &dev->pdev->dev;
+	ibdev->ib_dev.dma_device	= &dev->persist->pdev->dev;
 
 	if (dev->caps.userspace_caps)
 		ibdev->ib_dev.uverbs_abi_ver = MLX4_IB_UVERBS_ABI_VERSION;
@@ -2236,7 +2238,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 				sizeof(long),
 				GFP_KERNEL);
 		if (!ibdev->ib_uc_qpns_bitmap) {
-			dev_err(&dev->pdev->dev, "bit map alloc failed\n");
+			dev_err(&dev->persist->pdev->dev,
+				"bit map alloc failed\n");
 			goto err_steer_qp_release;
 		}
 
