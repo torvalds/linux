@@ -103,7 +103,6 @@ config POWER_RESET_QNAP
 
 config POWER_RESET_RESTART
 	bool "Restart power-off driver"
-	depends on ARM
 	help
 	  Some boards don't actually have the ability to power off.
 	  Instead they restart, and u-boot holds the SoC until the

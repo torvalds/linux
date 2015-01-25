@@ -16,7 +16,6 @@
 #include <linux/of_platform.h>
 #include <linux/module.h>
 #include <linux/reboot.h>
-#include <asm/system_misc.h>
 
 static void restart_poweroff_do_poweroff(void)
 {
