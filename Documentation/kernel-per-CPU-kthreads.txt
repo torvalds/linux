@@ -190,14 +190,16 @@ To reduce its OS jitter, do any of the following:
 		on each CPU, including cs_dbs_timer() and od_dbs_timer().
 		WARNING:  Please check your CPU specifications to
 		make sure that this is safe on your particular system.
-	d.	It is not possible to entirely get rid of OS jitter
-		from vmstat_update() on CONFIG_SMP=y systems, but you
-		can decrease its frequency by writing a large value
-		to /proc/sys/vm/stat_interval.	The default value is
-		HZ, for an interval of one second.  Of course, larger
-		values will make your virtual-memory statistics update
-		more slowly.  Of course, you can also run your workload
-		at a real-time priority, thus preempting vmstat_update(),
+	d.	As of v3.18, Christoph Lameter's on-demand vmstat workers
+		commit prevents OS jitter due to vmstat_update() on
+		CONFIG_SMP=y systems.  Before v3.18, is not possible
+		to entirely get rid of the OS jitter, but you can
+		decrease its frequency by writing a large value to
+		/proc/sys/vm/stat_interval.  The default value is HZ,
+		for an interval of one second.	Of course, larger values
+		will make your virtual-memory statistics update more
+		slowly.  Of course, you can also run your workload at
+		a real-time priority, thus preempting vmstat_update(),
 		but if your workload is CPU-bound, this is a bad idea.
 		However, there is an RFC patch from Christoph Lameter
 		(based on an earlier one from Gilad Ben-Yossef) that
