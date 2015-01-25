@@ -45,8 +45,8 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 #define WIL6210_MEM_SIZE (2*1024*1024UL)
 
 #define WIL_TX_Q_LEN_DEFAULT		(4000)
-#define WIL_RX_RING_SIZE_ORDER_DEFAULT	(9)
-#define WIL_TX_RING_SIZE_ORDER_DEFAULT	(9)
+#define WIL_RX_RING_SIZE_ORDER_DEFAULT	(10)
+#define WIL_TX_RING_SIZE_ORDER_DEFAULT	(10)
 /* limit ring size in range [32..32k] */
 #define WIL_RING_SIZE_ORDER_MIN	(5)
 #define WIL_RING_SIZE_ORDER_MAX	(15)
