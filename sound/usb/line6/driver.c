@@ -488,9 +488,10 @@ static int line6_init_cap_control(struct usb_line6 *line6)
 	Probe USB device.
 */
 int line6_probe(struct usb_interface *interface,
+		const struct usb_device_id *id,
 		struct usb_line6 *line6,
 		const struct line6_properties *properties,
-		int (*private_init)(struct usb_interface *, struct usb_line6 *))
+		int (*private_init)(struct usb_line6 *, const struct usb_device_id *id))
 {
 	struct usb_device *usbdev = interface_to_usbdev(interface);
 	struct snd_card *card;
@@ -552,7 +553,7 @@ int line6_probe(struct usb_interface *interface,
 	}
 
 	/* initialize device data based on device: */
-	ret = private_init(interface, line6);
+	ret = private_init(line6, id);
 	if (ret < 0)
 		goto error;
 
@@ -565,7 +566,7 @@ int line6_probe(struct usb_interface *interface,
 
  error:
 	if (line6->disconnect)
-		line6->disconnect(interface);
+		line6->disconnect(line6);
 	snd_card_free(card);
 	return ret;
 }
@@ -592,7 +593,7 @@ void line6_disconnect(struct usb_interface *interface)
 	if (line6->line6pcm)
 		line6_pcm_disconnect(line6->line6pcm);
 	if (line6->disconnect)
-		line6->disconnect(interface);
+		line6->disconnect(line6);
 
 	dev_info(&interface->dev, "Line 6 %s now disconnected\n",
 		 line6->properties->name);

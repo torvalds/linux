@@ -87,8 +87,8 @@ static struct line6_pcm_properties podhd_pcm_properties = {
 /*
 	Try to init POD HD device.
 */
-static int podhd_init(struct usb_interface *interface,
-		      struct usb_line6 *line6)
+static int podhd_init(struct usb_line6 *line6,
+		      const struct usb_device_id *id)
 {
 	int err;
 
@@ -182,7 +182,7 @@ static int podhd_probe(struct usb_interface *interface,
 	podhd = kzalloc(sizeof(*podhd), GFP_KERNEL);
 	if (!podhd)
 		return -ENODEV;
-	return line6_probe(interface, &podhd->line6,
+	return line6_probe(interface, id, &podhd->line6,
 			   &podhd_properties_table[id->driver_info],
 			   podhd_init);
 }

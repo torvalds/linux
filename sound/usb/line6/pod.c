@@ -399,10 +399,10 @@ static struct snd_kcontrol_new pod_control_monitor = {
 /*
 	POD device disconnected.
 */
-static void line6_pod_disconnect(struct usb_interface *interface)
+static void line6_pod_disconnect(struct usb_line6 *line6)
 {
-	struct usb_line6_pod *pod = usb_get_intfdata(interface);
-	struct device *dev = &interface->dev;
+	struct usb_line6_pod *pod = (struct usb_line6_pod *)line6;
+	struct device *dev = line6->ifcdev;
 
 	/* remove sysfs entries: */
 	device_remove_file(dev, &dev_attr_device_id);
@@ -435,8 +435,8 @@ static int pod_create_files2(struct device *dev)
 /*
 	 Try to init POD device.
 */
-static int pod_init(struct usb_interface *interface,
-		    struct usb_line6 *line6)
+static int pod_init(struct usb_line6 *line6,
+		    const struct usb_device_id *id)
 {
 	int err;
 	struct usb_line6_pod *pod = (struct usb_line6_pod *) line6;
@@ -448,7 +448,7 @@ static int pod_init(struct usb_interface *interface,
 	INIT_WORK(&pod->startup_work, pod_startup4);
 
 	/* create sysfs entries: */
-	err = pod_create_files2(&interface->dev);
+	err = pod_create_files2(line6->ifcdev);
 	if (err < 0)
 		return err;
 
@@ -596,7 +596,7 @@ static int pod_probe(struct usb_interface *interface,
 	pod = kzalloc(sizeof(*pod), GFP_KERNEL);
 	if (!pod)
 		return -ENODEV;
-	return line6_probe(interface, &pod->line6,
+	return line6_probe(interface, id, &pod->line6,
 			   &pod_properties_table[id->driver_info],
 			   pod_init);
 }

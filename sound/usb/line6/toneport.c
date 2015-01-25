@@ -387,11 +387,11 @@ static void toneport_setup(struct usb_line6_toneport *toneport)
 /*
 	Toneport device disconnected.
 */
-static void line6_toneport_disconnect(struct usb_interface *interface)
+static void line6_toneport_disconnect(struct usb_line6 *line6)
 {
-	struct usb_line6_toneport *toneport;
+	struct usb_line6_toneport *toneport =
+		(struct usb_line6_toneport *)line6;
 
-	toneport = usb_get_intfdata(interface);
 	del_timer_sync(&toneport->timer);
 
 	if (toneport_has_led(toneport->type))
@@ -402,12 +402,13 @@ static void line6_toneport_disconnect(struct usb_interface *interface)
 /*
 	 Try to init Toneport device.
 */
-static int toneport_init(struct usb_interface *interface,
-			 struct usb_line6 *line6)
+static int toneport_init(struct usb_line6 *line6,
+			 const struct usb_device_id *id)
 {
 	int err;
 	struct usb_line6_toneport *toneport =  (struct usb_line6_toneport *) line6;
 
+	toneport->type = id->driver_info;
 	setup_timer(&toneport->timer, toneport_start_pcm,
 		    (unsigned long)toneport);
 
@@ -562,8 +563,7 @@ static int toneport_probe(struct usb_interface *interface,
 	toneport = kzalloc(sizeof(*toneport), GFP_KERNEL);
 	if (!toneport)
 		return -ENODEV;
-	toneport->type = id->driver_info;
-	return line6_probe(interface, &toneport->line6,
+	return line6_probe(interface, id, &toneport->line6,
 			   &toneport_properties_table[id->driver_info],
 			   toneport_init);
 }
