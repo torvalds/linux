@@ -421,8 +421,11 @@ static void omap_8250_set_termios(struct uart_port *port,
 
 	priv->efr = 0;
 	up->mcr &= ~(UART_MCR_RTS | UART_MCR_XONANY);
+	up->port.status &= ~(UPSTAT_AUTOCTS | UPSTAT_AUTORTS | UPSTAT_AUTOXOFF);
+
 	if (termios->c_cflag & CRTSCTS && up->port.flags & UPF_HARD_FLOW) {
 		/* Enable AUTORTS and AUTOCTS */
+		up->port.status |= UPSTAT_AUTOCTS | UPSTAT_AUTORTS;
 		priv->efr |= UART_EFR_CTS | UART_EFR_RTS;
 	} else	if (up->port.flags & UPF_SOFT_FLOW) {
 		/*
@@ -438,8 +441,10 @@ static void omap_8250_set_termios(struct uart_port *port,
 		 * Enable XON/XOFF flow control on output.
 		 * Transmit XON1, XOFF1
 		 */
-		if (termios->c_iflag & IXOFF)
+		if (termios->c_iflag & IXOFF) {
+			up->port.status |= UPSTAT_AUTOXOFF;
 			priv->efr |= OMAP_UART_SW_TX;
+		}
 
 		/*
 		 * IXANY Flag:

@@ -179,14 +179,6 @@ static int uart_port_startup(struct tty_struct *tty, struct uart_state *state,
 			if (tty->termios.c_cflag & CBAUD)
 				uart_set_mctrl(uport, TIOCM_RTS | TIOCM_DTR);
 		}
-
-		spin_lock_irq(&uport->lock);
-		if (uart_cts_enabled(uport) &&
-		    !(uport->ops->get_mctrl(uport) & TIOCM_CTS))
-			uport->hw_stopped = 1;
-		else
-			uport->hw_stopped = 0;
-		spin_unlock_irq(&uport->lock);
 	}
 
 	/*
@@ -442,6 +434,7 @@ static void uart_change_speed(struct tty_struct *tty, struct uart_state *state,
 {
 	struct uart_port *uport = state->uart_port;
 	struct ktermios *termios;
+	int hw_stopped;
 
 	/*
 	 * If we have no tty, termios, or the port does not exist,
@@ -466,6 +459,18 @@ static void uart_change_speed(struct tty_struct *tty, struct uart_state *state,
 		uport->status &= ~UPSTAT_DCD_ENABLE;
 	else
 		uport->status |= UPSTAT_DCD_ENABLE;
+
+	/* reset sw-assisted CTS flow control based on (possibly) new mode */
+	hw_stopped = uport->hw_stopped;
+	uport->hw_stopped = uart_softcts_mode(uport) &&
+				!(uport->ops->get_mctrl(uport) & TIOCM_CTS);
+	if (uport->hw_stopped) {
+		if (!hw_stopped)
+			uport->ops->stop_tx(uport);
+	} else {
+		if (hw_stopped)
+			__uart_start(tty);
+	}
 	spin_unlock_irq(&uport->lock);
 }
 
@@ -619,22 +624,22 @@ static void uart_throttle(struct tty_struct *tty)
 {
 	struct uart_state *state = tty->driver_data;
 	struct uart_port *port = state->uart_port;
-	upf_t mask = 0;
+	upstat_t mask = 0;
 
 	if (I_IXOFF(tty))
-		mask |= UPF_SOFT_FLOW;
+		mask |= UPSTAT_AUTOXOFF;
 	if (tty->termios.c_cflag & CRTSCTS)
-		mask |= UPF_HARD_FLOW;
+		mask |= UPSTAT_AUTORTS;
 
-	if (port->flags & mask) {
+	if (port->status & mask) {
 		port->ops->throttle(port);
-		mask &= ~port->flags;
+		mask &= ~port->status;
 	}
 
-	if (mask & UPF_SOFT_FLOW)
+	if (mask & UPSTAT_AUTOXOFF)
 		uart_send_xchar(tty, STOP_CHAR(tty));
 
-	if (mask & UPF_HARD_FLOW)
+	if (mask & UPSTAT_AUTORTS)
 		uart_clear_mctrl(port, TIOCM_RTS);
 }
 
@@ -642,22 +647,22 @@ static void uart_unthrottle(struct tty_struct *tty)
 {
 	struct uart_state *state = tty->driver_data;
 	struct uart_port *port = state->uart_port;
-	upf_t mask = 0;
+	upstat_t mask = 0;
 
 	if (I_IXOFF(tty))
-		mask |= UPF_SOFT_FLOW;
+		mask |= UPSTAT_AUTOXOFF;
 	if (tty->termios.c_cflag & CRTSCTS)
-		mask |= UPF_HARD_FLOW;
+		mask |= UPSTAT_AUTORTS;
 
-	if (port->flags & mask) {
+	if (port->status & mask) {
 		port->ops->unthrottle(port);
-		mask &= ~port->flags;
+		mask &= ~port->status;
 	}
 
-	if (mask & UPF_SOFT_FLOW)
+	if (mask & UPSTAT_AUTOXOFF)
 		uart_send_xchar(tty, START_CHAR(tty));
 
-	if (mask & UPF_HARD_FLOW)
+	if (mask & UPSTAT_AUTORTS)
 		uart_set_mctrl(port, TIOCM_RTS);
 }
 
@@ -1350,30 +1355,6 @@ static void uart_set_termios(struct tty_struct *tty,
 		if (!(cflag & CRTSCTS) || !test_bit(TTY_THROTTLED, &tty->flags))
 			mask |= TIOCM_RTS;
 		uart_set_mctrl(uport, mask);
-	}
-
-	/*
-	 * If the port is doing h/w assisted flow control, do nothing.
-	 * We assume that port->hw_stopped has never been set.
-	 */
-	if (uport->flags & UPF_HARD_FLOW)
-		return;
-
-	/* Handle turning off CRTSCTS */
-	if ((old_termios->c_cflag & CRTSCTS) && !(cflag & CRTSCTS)) {
-		spin_lock_irq(&uport->lock);
-		uport->hw_stopped = 0;
-		__uart_start(tty);
-		spin_unlock_irq(&uport->lock);
-	}
-	/* Handle turning on CRTSCTS */
-	else if (!(old_termios->c_cflag & CRTSCTS) && (cflag & CRTSCTS)) {
-		spin_lock_irq(&uport->lock);
-		if (!(uport->ops->get_mctrl(uport) & TIOCM_CTS)) {
-			uport->hw_stopped = 1;
-			uport->ops->stop_tx(uport);
-		}
-		spin_unlock_irq(&uport->lock);
 	}
 }
 
@@ -2855,7 +2836,7 @@ void uart_handle_cts_change(struct uart_port *uport, unsigned int status)
 
 	uport->icount.cts++;
 
-	if (uart_cts_enabled(uport)) {
+	if (uart_softcts_mode(uport)) {
 		if (uport->hw_stopped) {
 			if (status) {
 				uport->hw_stopped = 0;
@@ -2868,6 +2849,7 @@ void uart_handle_cts_change(struct uart_port *uport, unsigned int status)
 				uport->ops->stop_tx(uport);
 			}
 		}
+
 	}
 }
 EXPORT_SYMBOL_GPL(uart_handle_cts_change);

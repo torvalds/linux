@@ -1053,8 +1053,11 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	serial_out(up, UART_TI752_TCR, OMAP_UART_TCR_TRIG);
 
+	up->port.status &= ~(UPSTAT_AUTOCTS | UPSTAT_AUTORTS | UPSTAT_AUTOXOFF);
+
 	if (termios->c_cflag & CRTSCTS && up->port.flags & UPF_HARD_FLOW) {
 		/* Enable AUTORTS and AUTOCTS */
+		up->port.status |= UPSTAT_AUTOCTS | UPSTAT_AUTORTS;
 		up->efr |= UART_EFR_CTS | UART_EFR_RTS;
 
 		/* Ensure MCR RTS is asserted */
@@ -1081,8 +1084,10 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 		 * Enable XON/XOFF flow control on output.
 		 * Transmit XON1, XOFF1
 		 */
-		if (termios->c_iflag & IXOFF)
+		if (termios->c_iflag & IXOFF) {
+			up->port.status |= UPSTAT_AUTOXOFF;
 			up->efr |= OMAP_UART_SW_TX;
+		}
 
 		/*
 		 * IXANY Flag:
