@@ -26,4 +26,4 @@ struct st21nfcb_nfc_platform_data {
 	unsigned int irq_polarity;
 };
 
-#endif /* _ST21NFCA_HCI_H_ */
+#endif /* _ST21NFCB_NCI_H_ */
