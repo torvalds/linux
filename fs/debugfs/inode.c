@@ -89,8 +89,9 @@ static int debugfs_mknod(struct inode *dir, struct dentry *dentry,
 	return error;
 }
 
-static int debugfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
+static int debugfs_mkdir(struct dentry *dentry, umode_t mode)
 {
+	struct inode *dir = dentry->d_parent->d_inode;
 	int res;
 
 	mode = (mode & (S_IRWXUGO | S_ISVTX)) | S_IFDIR;
@@ -102,16 +103,18 @@ static int debugfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	return res;
 }
 
-static int debugfs_link(struct inode *dir, struct dentry *dentry, umode_t mode,
+static int debugfs_link(struct dentry *dentry, umode_t mode,
 			void *data)
 {
+	struct inode *dir = dentry->d_parent->d_inode;
 	mode = (mode & S_IALLUGO) | S_IFLNK;
 	return debugfs_mknod(dir, dentry, mode, 0, data, NULL);
 }
 
-static int debugfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
+static int debugfs_create(struct dentry *dentry, umode_t mode,
 			  void *data, const struct file_operations *fops)
 {
+	struct inode *dir = dentry->d_parent->d_inode;
 	int res;
 
 	mode = (mode & S_IALLUGO) | S_IFREG;
@@ -329,16 +332,14 @@ static struct dentry *__create_file(const char *name, umode_t mode,
 	if (!IS_ERR(dentry)) {
 		switch (mode & S_IFMT) {
 		case S_IFDIR:
-			error = debugfs_mkdir(parent->d_inode, dentry, mode);
+			error = debugfs_mkdir(dentry, mode);
 
 			break;
 		case S_IFLNK:
-			error = debugfs_link(parent->d_inode, dentry, mode,
-					     data);
+			error = debugfs_link(dentry, mode, data);
 			break;
 		default:
-			error = debugfs_create(parent->d_inode, dentry, mode,
-					       data, fops);
+			error = debugfs_create(dentry, mode, data, fops);
 			break;
 		}
 		dput(dentry);
