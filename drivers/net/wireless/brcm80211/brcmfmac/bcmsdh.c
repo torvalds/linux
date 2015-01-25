@@ -97,25 +97,6 @@ static void brcmf_sdiod_dummy_irqhandler(struct sdio_func *func)
 {
 }
 
-static bool brcmf_sdiod_pm_resume_error(struct brcmf_sdio_dev *sdiodev)
-{
-	bool is_err = false;
-#ifdef CONFIG_PM_SLEEP
-	is_err = atomic_read(&sdiodev->suspend);
-#endif
-	return is_err;
-}
-
-static void brcmf_sdiod_pm_resume_wait(struct brcmf_sdio_dev *sdiodev,
-				       wait_queue_head_t *wq)
-{
-#ifdef CONFIG_PM_SLEEP
-	int retry = 0;
-	while (atomic_read(&sdiodev->suspend) && retry++ != 30)
-		wait_event_timeout(*wq, false, HZ/100);
-#endif
-}
-
 int brcmf_sdiod_intr_register(struct brcmf_sdio_dev *sdiodev)
 {
 	int ret = 0;
@@ -243,10 +224,6 @@ static int brcmf_sdiod_request_data(struct brcmf_sdio_dev *sdiodev, u8 fn,
 
 	brcmf_dbg(SDIO, "rw=%d, func=%d, addr=0x%05x, nbytes=%d\n",
 		  write, fn, addr, regsz);
-
-	brcmf_sdiod_pm_resume_wait(sdiodev, &sdiodev->request_word_wait);
-	if (brcmf_sdiod_pm_resume_error(sdiodev))
-		return -EIO;
 
 	/* only allow byte access on F0 */
 	if (WARN_ON(regsz > 1 && !fn))
@@ -462,10 +439,6 @@ static int brcmf_sdiod_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
 	unsigned int req_sz;
 	int err;
 
-	brcmf_sdiod_pm_resume_wait(sdiodev, &sdiodev->request_buffer_wait);
-	if (brcmf_sdiod_pm_resume_error(sdiodev))
-		return -EIO;
-
 	/* Single skb use the standard mmc interface */
 	req_sz = pkt->len + 3;
 	req_sz &= (uint)~3;
@@ -515,10 +488,6 @@ static int brcmf_sdiod_sglist_rw(struct brcmf_sdio_dev *sdiodev, uint fn,
 
 	if (!pktlist->qlen)
 		return -EINVAL;
-
-	brcmf_sdiod_pm_resume_wait(sdiodev, &sdiodev->request_buffer_wait);
-	if (brcmf_sdiod_pm_resume_error(sdiodev))
-		return -EIO;
 
 	target_list = pktlist;
 	/* for host with broken sg support, prepare a page aligned list */
@@ -1077,8 +1046,6 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 #endif
 
 	atomic_set(&sdiodev->suspend, false);
-	init_waitqueue_head(&sdiodev->request_word_wait);
-	init_waitqueue_head(&sdiodev->request_buffer_wait);
 
 	brcmf_dbg(SDIO, "F2 found, calling brcmf_sdiod_probe...\n");
 	err = brcmf_sdiod_probe(sdiodev);

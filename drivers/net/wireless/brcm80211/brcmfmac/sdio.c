@@ -2609,6 +2609,21 @@ static int brcmf_sdio_intr_rstatus(struct brcmf_sdio *bus)
 	return ret;
 }
 
+static int brcmf_sdio_pm_resume_wait(struct brcmf_sdio_dev *sdiodev)
+{
+#ifdef CONFIG_PM_SLEEP
+	int retry;
+
+	/* Wait for possible resume to complete */
+	retry = 0;
+	while ((atomic_read(&sdiodev->suspend)) && (retry++ != 50))
+		msleep(20);
+	if (atomic_read(&sdiodev->suspend))
+		return -EIO;
+#endif
+	return 0;
+}
+
 static void brcmf_sdio_dpc(struct brcmf_sdio *bus)
 {
 	u32 newstatus = 0;
@@ -2618,6 +2633,9 @@ static void brcmf_sdio_dpc(struct brcmf_sdio *bus)
 	int err = 0;
 
 	brcmf_dbg(TRACE, "Enter\n");
+
+	if (brcmf_sdio_pm_resume_wait(bus->sdiodev))
+		return;
 
 	sdio_claim_host(bus->sdiodev->func[1]);
 
