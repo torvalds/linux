@@ -656,8 +656,7 @@ static const struct file_operations omapdriver_fops = {
 };
 
 static struct drm_driver omap_drm_driver = {
-	.driver_features = DRIVER_HAVE_IRQ | DRIVER_MODESET | DRIVER_GEM
-			 | DRIVER_PRIME,
+	.driver_features = DRIVER_MODESET | DRIVER_GEM  | DRIVER_PRIME,
 	.load = dev_load,
 	.unload = dev_unload,
 	.open = dev_open,
@@ -668,10 +667,6 @@ static struct drm_driver omap_drm_driver = {
 	.get_vblank_counter = drm_vblank_count,
 	.enable_vblank = omap_irq_enable_vblank,
 	.disable_vblank = omap_irq_disable_vblank,
-	.irq_preinstall = omap_irq_preinstall,
-	.irq_postinstall = omap_irq_postinstall,
-	.irq_uninstall = omap_irq_uninstall,
-	.irq_handler = omap_irq_handler,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init = omap_debugfs_init,
 	.debugfs_cleanup = omap_debugfs_cleanup,
