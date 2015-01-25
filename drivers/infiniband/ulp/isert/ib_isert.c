@@ -3320,7 +3320,8 @@ static int __init isert_init(void)
 {
 	int ret;
 
-	isert_comp_wq = alloc_workqueue("isert_comp_wq", 0, 0);
+	isert_comp_wq = alloc_workqueue("isert_comp_wq",
+					WQ_UNBOUND | WQ_HIGHPRI, 0);
 	if (!isert_comp_wq) {
 		isert_err("Unable to allocate isert_comp_wq\n");
 		ret = -ENOMEM;
