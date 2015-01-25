@@ -579,7 +579,7 @@ static void vmbus_onmessage_work(struct work_struct *work)
 	kfree(ctx);
 }
 
-void hv_process_timer_expiration(struct hv_message *msg, int cpu)
+static void hv_process_timer_expiration(struct hv_message *msg, int cpu)
 {
 	struct clock_event_device *dev = hv_context.clk_evt[cpu];
 
