@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Qualcomm Atheros, Inc.
+ * Copyright (c) 2014-2015 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -292,6 +292,7 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	u16 agg_timeout = req->ba_timeout;
 	u16 status = WLAN_STATUS_SUCCESS;
 	u16 ssn = req->ba_seq_ctrl >> 4;
+	struct wil_tid_ampdu_rx *r;
 	int rc;
 
 	might_sleep();
@@ -328,11 +329,10 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 		return;
 
 	/* apply */
+	r = wil_tid_ampdu_rx_alloc(wil, agg_wsize, ssn);
 	spin_lock_bh(&sta->tid_rx_lock);
-
 	wil_tid_ampdu_rx_free(wil, sta->tid_rx[tid]);
-	sta->tid_rx[tid] = wil_tid_ampdu_rx_alloc(wil, agg_wsize, ssn);
-
+	sta->tid_rx[tid] = r;
 	spin_unlock_bh(&sta->tid_rx_lock);
 }
 
