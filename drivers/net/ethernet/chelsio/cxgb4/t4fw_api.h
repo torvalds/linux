@@ -1062,6 +1062,7 @@ enum fw_params_param_dev {
 	FW_PARAMS_PARAM_DEV_MAXORDIRD_QP = 0x13, /* max supported QP IRD/ORD */
 	FW_PARAMS_PARAM_DEV_MAXIRD_ADAPTER = 0x14, /* max supported adap IRD */
 	FW_PARAMS_PARAM_DEV_ULPTX_MEMWRITE_DSGL = 0x17,
+	FW_PARAMS_PARAM_DEV_FWCACHE = 0x18,
 };
 
 /*
@@ -1119,6 +1120,11 @@ enum fw_params_param_dmaq {
 	FW_PARAMS_PARAM_DMAQ_EQ_CMPLIQID_CTRL = 0x11,
 	FW_PARAMS_PARAM_DMAQ_EQ_SCHEDCLASS_ETH = 0x12,
 	FW_PARAMS_PARAM_DMAQ_EQ_DCBPRIO_ETH = 0x13,
+};
+
+enum fw_params_param_dev_fwcache {
+	FW_PARAM_DEV_FWCACHE_FLUSH      = 0x00,
+	FW_PARAM_DEV_FWCACHE_FLUSHINV   = 0x01,
 };
 
 #define FW_PARAMS_MNEM_S	24

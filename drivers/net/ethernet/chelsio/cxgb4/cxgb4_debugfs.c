@@ -36,6 +36,7 @@
 #include <linux/debugfs.h>
 #include <linux/string_helpers.h>
 #include <linux/sort.h>
+#include <linux/ctype.h>
 
 #include "cxgb4.h"
 #include "t4_regs.h"
@@ -434,6 +435,51 @@ static const struct file_operations devlog_fops = {
 	.release = seq_release_private
 };
 
+static ssize_t flash_read(struct file *file, char __user *buf, size_t count,
+			  loff_t *ppos)
+{
+	loff_t pos = *ppos;
+	loff_t avail = FILE_DATA(file)->i_size;
+	struct adapter *adap = file->private_data;
+
+	if (pos < 0)
+		return -EINVAL;
+	if (pos >= avail)
+		return 0;
+	if (count > avail - pos)
+		count = avail - pos;
+
+	while (count) {
+		size_t len;
+		int ret, ofst;
+		u8 data[256];
+
+		ofst = pos & 3;
+		len = min(count + ofst, sizeof(data));
+		ret = t4_read_flash(adap, pos - ofst, (len + 3) / 4,
+				    (u32 *)data, 1);
+		if (ret)
+			return ret;
+
+		len -= ofst;
+		if (copy_to_user(buf, data + ofst, len))
+			return -EFAULT;
+
+		buf += len;
+		pos += len;
+		count -= len;
+	}
+	count = pos - *ppos;
+	*ppos = pos;
+	return count;
+}
+
+static const struct file_operations flash_debugfs_fops = {
+	.owner   = THIS_MODULE,
+	.open    = mem_open,
+	.read    = flash_read,
+};
+
 static inline void tcamxy2valmask(u64 x, u64 y, u8 *addr, u64 *mask)
 {
 	*mask = x | y;
@@ -579,6 +625,422 @@ static const struct file_operations clip_tbl_debugfs_fops = {
 };
 #endif
 
+/*RSS Table.
+ */
+
+static int rss_show(struct seq_file *seq, void *v, int idx)
+{
+	u16 *entry = v;
+
+	seq_printf(seq, "%4d:  %4u  %4u  %4u  %4u  %4u  %4u  %4u  %4u\n",
+		   idx * 8, entry[0], entry[1], entry[2], entry[3], entry[4],
+		   entry[5], entry[6], entry[7]);
+	return 0;
+}
+
+static int rss_open(struct inode *inode, struct file *file)
+{
+	int ret;
+	struct seq_tab *p;
+	struct adapter *adap = inode->i_private;
+
+	p = seq_open_tab(file, RSS_NENTRIES / 8, 8 * sizeof(u16), 0, rss_show);
+	if (!p)
+		return -ENOMEM;
+
+	ret = t4_read_rss(adap, (u16 *)p->data);
+	if (ret)
+		seq_release_private(inode, file);
+
+	return ret;
+}
+
+static const struct file_operations rss_debugfs_fops = {
+	.owner   = THIS_MODULE,
+	.open    = rss_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release_private
+};
+
+/* RSS Configuration.
+ */
+
+/* Small utility function to return the strings "yes" or "no" if the supplied
+ * argument is non-zero.
+ */
+static const char *yesno(int x)
+{
+	static const char *yes = "yes";
+	static const char *no = "no";
+
+	return x ? yes : no;
+}
+
+static int rss_config_show(struct seq_file *seq, void *v)
+{
+	struct adapter *adapter = seq->private;
+	static const char * const keymode[] = {
+		"global",
+		"global and per-VF scramble",
+		"per-PF and per-VF scramble",
+		"per-VF and per-VF scramble",
+	};
+	u32 rssconf;
+
+	rssconf = t4_read_reg(adapter, TP_RSS_CONFIG_A);
+	seq_printf(seq, "TP_RSS_CONFIG: %#x\n", rssconf);
+	seq_printf(seq, "  Tnl4TupEnIpv6: %3s\n", yesno(rssconf &
+							TNL4TUPENIPV6_F));
+	seq_printf(seq, "  Tnl2TupEnIpv6: %3s\n", yesno(rssconf &
+							TNL2TUPENIPV6_F));
+	seq_printf(seq, "  Tnl4TupEnIpv4: %3s\n", yesno(rssconf &
+							TNL4TUPENIPV4_F));
+	seq_printf(seq, "  Tnl2TupEnIpv4: %3s\n", yesno(rssconf &
+							TNL2TUPENIPV4_F));
+	seq_printf(seq, "  TnlTcpSel:     %3s\n", yesno(rssconf & TNLTCPSEL_F));
+	seq_printf(seq, "  TnlIp6Sel:     %3s\n", yesno(rssconf & TNLIP6SEL_F));
+	seq_printf(seq, "  TnlVrtSel:     %3s\n", yesno(rssconf & TNLVRTSEL_F));
+	seq_printf(seq, "  TnlMapEn:      %3s\n", yesno(rssconf & TNLMAPEN_F));
+	seq_printf(seq, "  OfdHashSave:   %3s\n", yesno(rssconf &
+							OFDHASHSAVE_F));
+	seq_printf(seq, "  OfdVrtSel:     %3s\n", yesno(rssconf & OFDVRTSEL_F));
+	seq_printf(seq, "  OfdMapEn:      %3s\n", yesno(rssconf & OFDMAPEN_F));
+	seq_printf(seq, "  OfdLkpEn:      %3s\n", yesno(rssconf & OFDLKPEN_F));
+	seq_printf(seq, "  Syn4TupEnIpv6: %3s\n", yesno(rssconf &
+							SYN4TUPENIPV6_F));
+	seq_printf(seq, "  Syn2TupEnIpv6: %3s\n", yesno(rssconf &
+							SYN2TUPENIPV6_F));
+	seq_printf(seq, "  Syn4TupEnIpv4: %3s\n", yesno(rssconf &
+							SYN4TUPENIPV4_F));
+	seq_printf(seq, "  Syn2TupEnIpv4: %3s\n", yesno(rssconf &
+							SYN2TUPENIPV4_F));
+	seq_printf(seq, "  Syn4TupEnIpv6: %3s\n", yesno(rssconf &
+							SYN4TUPENIPV6_F));
+	seq_printf(seq, "  SynIp6Sel:     %3s\n", yesno(rssconf & SYNIP6SEL_F));
+	seq_printf(seq, "  SynVrt6Sel:    %3s\n", yesno(rssconf & SYNVRTSEL_F));
+	seq_printf(seq, "  SynMapEn:      %3s\n", yesno(rssconf & SYNMAPEN_F));
+	seq_printf(seq, "  SynLkpEn:      %3s\n", yesno(rssconf & SYNLKPEN_F));
+	seq_printf(seq, "  ChnEn:         %3s\n", yesno(rssconf &
+							CHANNELENABLE_F));
+	seq_printf(seq, "  PrtEn:         %3s\n", yesno(rssconf &
+							PORTENABLE_F));
+	seq_printf(seq, "  TnlAllLkp:     %3s\n", yesno(rssconf &
+							TNLALLLOOKUP_F));
+	seq_printf(seq, "  VrtEn:         %3s\n", yesno(rssconf &
+							VIRTENABLE_F));
+	seq_printf(seq, "  CngEn:         %3s\n", yesno(rssconf &
+							CONGESTIONENABLE_F));
+	seq_printf(seq, "  HashToeplitz:  %3s\n", yesno(rssconf &
+							HASHTOEPLITZ_F));
+	seq_printf(seq, "  Udp4En:        %3s\n", yesno(rssconf & UDPENABLE_F));
+	seq_printf(seq, "  Disable:       %3s\n", yesno(rssconf & DISABLE_F));
+
+	seq_puts(seq, "\n");
+
+	rssconf = t4_read_reg(adapter, TP_RSS_CONFIG_TNL_A);
+	seq_printf(seq, "TP_RSS_CONFIG_TNL: %#x\n", rssconf);
+	seq_printf(seq, "  MaskSize:      %3d\n", MASKSIZE_G(rssconf));
+	seq_printf(seq, "  MaskFilter:    %3d\n", MASKFILTER_G(rssconf));
+	if (CHELSIO_CHIP_VERSION(adapter->params.chip) > CHELSIO_T5) {
+		seq_printf(seq, "  HashAll:     %3s\n",
+			   yesno(rssconf & HASHALL_F));
+		seq_printf(seq, "  HashEth:     %3s\n",
+			   yesno(rssconf & HASHETH_F));
+	}
+	seq_printf(seq, "  UseWireCh:     %3s\n", yesno(rssconf & USEWIRECH_F));
+
+	seq_puts(seq, "\n");
+
+	rssconf = t4_read_reg(adapter, TP_RSS_CONFIG_OFD_A);
+	seq_printf(seq, "TP_RSS_CONFIG_OFD: %#x\n", rssconf);
+	seq_printf(seq, "  MaskSize:      %3d\n", MASKSIZE_G(rssconf));
+	seq_printf(seq, "  RRCplMapEn:    %3s\n", yesno(rssconf &
+							RRCPLMAPEN_F));
+	seq_printf(seq, "  RRCplQueWidth: %3d\n", RRCPLQUEWIDTH_G(rssconf));
+
+	seq_puts(seq, "\n");
+
+	rssconf = t4_read_reg(adapter, TP_RSS_CONFIG_SYN_A);
+	seq_printf(seq, "TP_RSS_CONFIG_SYN: %#x\n", rssconf);
+	seq_printf(seq, "  MaskSize:      %3d\n", MASKSIZE_G(rssconf));
+	seq_printf(seq, "  UseWireCh:     %3s\n", yesno(rssconf & USEWIRECH_F));
+
+	seq_puts(seq, "\n");
+
+	rssconf = t4_read_reg(adapter, TP_RSS_CONFIG_VRT_A);
+	seq_printf(seq, "TP_RSS_CONFIG_VRT: %#x\n", rssconf);
+	if (CHELSIO_CHIP_VERSION(adapter->params.chip) > CHELSIO_T5) {
+		seq_printf(seq, "  KeyWrAddrX:     %3d\n",
+			   KEYWRADDRX_G(rssconf));
+		seq_printf(seq, "  KeyExtend:      %3s\n",
+			   yesno(rssconf & KEYEXTEND_F));
+	}
+	seq_printf(seq, "  VfRdRg:        %3s\n", yesno(rssconf & VFRDRG_F));
+	seq_printf(seq, "  VfRdEn:        %3s\n", yesno(rssconf & VFRDEN_F));
+	seq_printf(seq, "  VfPerrEn:      %3s\n", yesno(rssconf & VFPERREN_F));
+	seq_printf(seq, "  KeyPerrEn:     %3s\n", yesno(rssconf & KEYPERREN_F));
+	seq_printf(seq, "  DisVfVlan:     %3s\n", yesno(rssconf &
+							DISABLEVLAN_F));
+	seq_printf(seq, "  EnUpSwt:       %3s\n", yesno(rssconf & ENABLEUP0_F));
+	seq_printf(seq, "  HashDelay:     %3d\n", HASHDELAY_G(rssconf));
+	if (CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5)
+		seq_printf(seq, "  VfWrAddr:      %3d\n", VFWRADDR_G(rssconf));
+	seq_printf(seq, "  KeyMode:       %s\n", keymode[KEYMODE_G(rssconf)]);
+	seq_printf(seq, "  VfWrEn:        %3s\n", yesno(rssconf & VFWREN_F));
+	seq_printf(seq, "  KeyWrEn:       %3s\n", yesno(rssconf & KEYWREN_F));
+	seq_printf(seq, "  KeyWrAddr:     %3d\n", KEYWRADDR_G(rssconf));
+
+	seq_puts(seq, "\n");
+
+	rssconf = t4_read_reg(adapter, TP_RSS_CONFIG_CNG_A);
+	seq_printf(seq, "TP_RSS_CONFIG_CNG: %#x\n", rssconf);
+	seq_printf(seq, "  ChnCount3:     %3s\n", yesno(rssconf & CHNCOUNT3_F));
+	seq_printf(seq, "  ChnCount2:     %3s\n", yesno(rssconf & CHNCOUNT2_F));
+	seq_printf(seq, "  ChnCount1:     %3s\n", yesno(rssconf & CHNCOUNT1_F));
+	seq_printf(seq, "  ChnCount0:     %3s\n", yesno(rssconf & CHNCOUNT0_F));
+	seq_printf(seq, "  ChnUndFlow3:   %3s\n", yesno(rssconf &
+							CHNUNDFLOW3_F));
+	seq_printf(seq, "  ChnUndFlow2:   %3s\n", yesno(rssconf &
+							CHNUNDFLOW2_F));
+	seq_printf(seq, "  ChnUndFlow1:   %3s\n", yesno(rssconf &
+							CHNUNDFLOW1_F));
+	seq_printf(seq, "  ChnUndFlow0:   %3s\n", yesno(rssconf &
+							CHNUNDFLOW0_F));
+	seq_printf(seq, "  RstChn3:       %3s\n", yesno(rssconf & RSTCHN3_F));
+	seq_printf(seq, "  RstChn2:       %3s\n", yesno(rssconf & RSTCHN2_F));
+	seq_printf(seq, "  RstChn1:       %3s\n", yesno(rssconf & RSTCHN1_F));
+	seq_printf(seq, "  RstChn0:       %3s\n", yesno(rssconf & RSTCHN0_F));
+	seq_printf(seq, "  UpdVld:        %3s\n", yesno(rssconf & UPDVLD_F));
+	seq_printf(seq, "  Xoff:          %3s\n", yesno(rssconf & XOFF_F));
+	seq_printf(seq, "  UpdChn3:       %3s\n", yesno(rssconf & UPDCHN3_F));
+	seq_printf(seq, "  UpdChn2:       %3s\n", yesno(rssconf & UPDCHN2_F));
+	seq_printf(seq, "  UpdChn1:       %3s\n", yesno(rssconf & UPDCHN1_F));
+	seq_printf(seq, "  UpdChn0:       %3s\n", yesno(rssconf & UPDCHN0_F));
+	seq_printf(seq, "  Queue:         %3d\n", QUEUE_G(rssconf));
+
+	return 0;
+}
+
+DEFINE_SIMPLE_DEBUGFS_FILE(rss_config);
+
+/* RSS Secret Key.
+ */
+
+static int rss_key_show(struct seq_file *seq, void *v)
+{
+	u32 key[10];
+
+	t4_read_rss_key(seq->private, key);
+	seq_printf(seq, "%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x\n",
+		   key[9], key[8], key[7], key[6], key[5], key[4], key[3],
+		   key[2], key[1], key[0]);
+	return 0;
+}
+
+static int rss_key_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rss_key_show, inode->i_private);
+}
+
+static ssize_t rss_key_write(struct file *file, const char __user *buf,
+			     size_t count, loff_t *pos)
+{
+	int i, j;
+	u32 key[10];
+	char s[100], *p;
+	struct adapter *adap = FILE_DATA(file)->i_private;
+
+	if (count > sizeof(s) - 1)
+		return -EINVAL;
+	if (copy_from_user(s, buf, count))
+		return -EFAULT;
+	for (i = count; i > 0 && isspace(s[i - 1]); i--)
+		;
+	s[i] = '\0';
+
+	for (p = s, i = 9; i >= 0; i--) {
+		key[i] = 0;
+		for (j = 0; j < 8; j++, p++) {
+			if (!isxdigit(*p))
+				return -EINVAL;
+			key[i] = (key[i] << 4) | hex2val(*p);
+		}
+	}
+
+	t4_write_rss_key(adap, key, -1);
+	return count;
+}
+
+static const struct file_operations rss_key_debugfs_fops = {
+	.owner   = THIS_MODULE,
+	.open    = rss_key_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = single_release,
+	.write   = rss_key_write
+};
+
+/* PF RSS Configuration.
+ */
+
+struct rss_pf_conf {
+	u32 rss_pf_map;
+	u32 rss_pf_mask;
+	u32 rss_pf_config;
+};
+
+static int rss_pf_config_show(struct seq_file *seq, void *v, int idx)
+{
+	struct rss_pf_conf *pfconf;
+
+	if (v == SEQ_START_TOKEN) {
+		/* use the 0th entry to dump the PF Map Index Size */
+		pfconf = seq->private + offsetof(struct seq_tab, data);
+		seq_printf(seq, "PF Map Index Size = %d\n\n",
+			   LKPIDXSIZE_G(pfconf->rss_pf_map));
+
+		seq_puts(seq, "     RSS              PF   VF    Hash Tuple Enable         Default\n");
+		seq_puts(seq, "     Enable       IPF Mask Mask  IPv6      IPv4      UDP   Queue\n");
+		seq_puts(seq, " PF  Map Chn Prt  Map Size Size  Four Two  Four Two  Four  Ch1  Ch0\n");
+	} else {
+		#define G_PFnLKPIDX(map, n) \
+			(((map) >> PF1LKPIDX_S*(n)) & PF0LKPIDX_M)
+		#define G_PFnMSKSIZE(mask, n) \
+			(((mask) >> PF1MSKSIZE_S*(n)) & PF1MSKSIZE_M)
+
+		pfconf = v;
+		seq_printf(seq, "%3d  %3s %3s %3s  %3d  %3d  %3d   %3s %3s   %3s %3s   %3s  %3d  %3d\n",
+			   idx,
+			   yesno(pfconf->rss_pf_config & MAPENABLE_F),
+			   yesno(pfconf->rss_pf_config & CHNENABLE_F),
+			   yesno(pfconf->rss_pf_config & PRTENABLE_F),
+			   G_PFnLKPIDX(pfconf->rss_pf_map, idx),
+			   G_PFnMSKSIZE(pfconf->rss_pf_mask, idx),
+			   IVFWIDTH_G(pfconf->rss_pf_config),
+			   yesno(pfconf->rss_pf_config & IP6FOURTUPEN_F),
+			   yesno(pfconf->rss_pf_config & IP6TWOTUPEN_F),
+			   yesno(pfconf->rss_pf_config & IP4FOURTUPEN_F),
+			   yesno(pfconf->rss_pf_config & IP4TWOTUPEN_F),
+			   yesno(pfconf->rss_pf_config & UDPFOURTUPEN_F),
+			   CH1DEFAULTQUEUE_G(pfconf->rss_pf_config),
+			   CH0DEFAULTQUEUE_G(pfconf->rss_pf_config));
+
+		#undef G_PFnLKPIDX
+		#undef G_PFnMSKSIZE
+	}
+	return 0;
+}
+
+static int rss_pf_config_open(struct inode *inode, struct file *file)
+{
+	struct adapter *adapter = inode->i_private;
+	struct seq_tab *p;
+	u32 rss_pf_map, rss_pf_mask;
+	struct rss_pf_conf *pfconf;
+	int pf;
+
+	p = seq_open_tab(file, 8, sizeof(*pfconf), 1, rss_pf_config_show);
+	if (!p)
+		return -ENOMEM;
+
+	pfconf = (struct rss_pf_conf *)p->data;
+	rss_pf_map = t4_read_rss_pf_map(adapter);
+	rss_pf_mask = t4_read_rss_pf_mask(adapter);
+	for (pf = 0; pf < 8; pf++) {
+		pfconf[pf].rss_pf_map = rss_pf_map;
+		pfconf[pf].rss_pf_mask = rss_pf_mask;
+		t4_read_rss_pf_config(adapter, pf, &pfconf[pf].rss_pf_config);
+	}
+	return 0;
+}
+
+static const struct file_operations rss_pf_config_debugfs_fops = {
+	.owner   = THIS_MODULE,
+	.open    = rss_pf_config_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release_private
+};
+
+/* VF RSS Configuration.
+ */
+
+struct rss_vf_conf {
+	u32 rss_vf_vfl;
+	u32 rss_vf_vfh;
+};
+
+static int rss_vf_config_show(struct seq_file *seq, void *v, int idx)
+{
+	if (v == SEQ_START_TOKEN) {
+		seq_puts(seq, "     RSS                     Hash Tuple Enable\n");
+		seq_puts(seq, "     Enable   IVF  Dis  Enb  IPv6      IPv4      UDP    Def  Secret Key\n");
+		seq_puts(seq, " VF  Chn Prt  Map  VLAN  uP  Four Two  Four Two  Four   Que  Idx       Hash\n");
+	} else {
+		struct rss_vf_conf *vfconf = v;
+
+		seq_printf(seq, "%3d  %3s %3s  %3d   %3s %3s   %3s %3s   %3s  %3s   %3s  %4d  %3d %#10x\n",
+			   idx,
+			   yesno(vfconf->rss_vf_vfh & VFCHNEN_F),
+			   yesno(vfconf->rss_vf_vfh & VFPRTEN_F),
+			   VFLKPIDX_G(vfconf->rss_vf_vfh),
+			   yesno(vfconf->rss_vf_vfh & VFVLNEX_F),
+			   yesno(vfconf->rss_vf_vfh & VFUPEN_F),
+			   yesno(vfconf->rss_vf_vfh & VFIP4FOURTUPEN_F),
+			   yesno(vfconf->rss_vf_vfh & VFIP6TWOTUPEN_F),
+			   yesno(vfconf->rss_vf_vfh & VFIP4FOURTUPEN_F),
+			   yesno(vfconf->rss_vf_vfh & VFIP4TWOTUPEN_F),
+			   yesno(vfconf->rss_vf_vfh & ENABLEUDPHASH_F),
+			   DEFAULTQUEUE_G(vfconf->rss_vf_vfh),
+			   KEYINDEX_G(vfconf->rss_vf_vfh),
+			   vfconf->rss_vf_vfl);
+	}
+	return 0;
+}
+
+static int rss_vf_config_open(struct inode *inode, struct file *file)
+{
+	struct adapter *adapter = inode->i_private;
+	struct seq_tab *p;
+	struct rss_vf_conf *vfconf;
+	int vf;
+
+	p = seq_open_tab(file, 128, sizeof(*vfconf), 1, rss_vf_config_show);
+	if (!p)
+		return -ENOMEM;
+
+	vfconf = (struct rss_vf_conf *)p->data;
+	for (vf = 0; vf < 128; vf++) {
+		t4_read_rss_vf_config(adapter, vf, &vfconf[vf].rss_vf_vfl,
+				      &vfconf[vf].rss_vf_vfh);
+	}
+	return 0;
+}
+
+static const struct file_operations rss_vf_config_debugfs_fops = {
+	.owner   = THIS_MODULE,
+	.open    = rss_vf_config_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release_private
+};
+
+int mem_open(struct inode *inode, struct file *file)
+{
+	unsigned int mem;
+	struct adapter *adap;
+
+	file->private_data = inode->i_private;
+
+	mem = (uintptr_t)file->private_data & 0x3;
+	adap = file->private_data - mem;
+
+	(void)t4_fwcache(adap, FW_PARAM_DEV_FWCACHE_FLUSH);
+
+	return 0;
+}
+
 static ssize_t mem_read(struct file *file, char __user *buf, size_t count,
 			loff_t *ppos)
 {
@@ -616,13 +1078,18 @@ static ssize_t mem_read(struct file *file, char __user *buf, size_t count,
 	*ppos = pos + count;
 	return count;
 }
-
 static const struct file_operations mem_debugfs_fops = {
 	.owner   = THIS_MODULE,
 	.open    = simple_open,
 	.read    = mem_read,
 	.llseek  = default_llseek,
 };
+
+static void set_debugfs_file_size(struct dentry *de, loff_t size)
+{
+	if (!IS_ERR(de) && de->d_inode)
+		de->d_inode->i_size = size;
+}
 
 static void add_debugfs_mem(struct adapter *adap, const char *name,
 			    unsigned int idx, unsigned int size_mb)
@@ -655,6 +1122,7 @@ int t4_setup_debugfs(struct adapter *adap)
 {
 	int i;
 	u32 size;
+	struct dentry *de;
 
 	static struct t4_debugfs_entry t4_debugfs_files[] = {
 		{ "cim_la", &cim_la_fops, S_IRUSR, 0 },
@@ -662,6 +1130,11 @@ int t4_setup_debugfs(struct adapter *adap)
 		{ "devlog", &devlog_fops, S_IRUSR, 0 },
 		{ "l2t", &t4_l2t_fops, S_IRUSR, 0},
 		{ "mps_tcam", &mps_tcam_debugfs_fops, S_IRUSR, 0 },
+		{ "rss", &rss_debugfs_fops, S_IRUSR, 0 },
+		{ "rss_config", &rss_config_debugfs_fops, S_IRUSR, 0 },
+		{ "rss_key", &rss_key_debugfs_fops, S_IRUSR, 0 },
+		{ "rss_pf_config", &rss_pf_config_debugfs_fops, S_IRUSR, 0 },
+		{ "rss_vf_config", &rss_vf_config_debugfs_fops, S_IRUSR, 0 },
 #if IS_ENABLED(CONFIG_IPV6)
 		{ "clip_tbl", &clip_tbl_debugfs_fops, S_IRUSR, 0 },
 #endif
@@ -697,5 +1170,10 @@ int t4_setup_debugfs(struct adapter *adap)
 					EXT_MEM1_SIZE_G(size));
 		}
 	}
+
+	de = debugfs_create_file("flash", S_IRUSR, adap->debugfs_root, adap,
+				 &flash_debugfs_fops);
+	set_debugfs_file_size(de, adap->params.sf_size);
+
 	return 0;
 }

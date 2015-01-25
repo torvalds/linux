@@ -1678,6 +1678,408 @@
 #define QUEUENUMBER_S    0
 #define QUEUENUMBER_V(x) ((x) << QUEUENUMBER_S)
 
+#define TP_RSS_CONFIG_A 0x7df0
+
+#define TNL4TUPENIPV6_S    31
+#define TNL4TUPENIPV6_V(x) ((x) << TNL4TUPENIPV6_S)
+#define TNL4TUPENIPV6_F    TNL4TUPENIPV6_V(1U)
+
+#define TNL2TUPENIPV6_S    30
+#define TNL2TUPENIPV6_V(x) ((x) << TNL2TUPENIPV6_S)
+#define TNL2TUPENIPV6_F    TNL2TUPENIPV6_V(1U)
+
+#define TNL4TUPENIPV4_S    29
+#define TNL4TUPENIPV4_V(x) ((x) << TNL4TUPENIPV4_S)
+#define TNL4TUPENIPV4_F    TNL4TUPENIPV4_V(1U)
+
+#define TNL2TUPENIPV4_S    28
+#define TNL2TUPENIPV4_V(x) ((x) << TNL2TUPENIPV4_S)
+#define TNL2TUPENIPV4_F    TNL2TUPENIPV4_V(1U)
+
+#define TNLTCPSEL_S    27
+#define TNLTCPSEL_V(x) ((x) << TNLTCPSEL_S)
+#define TNLTCPSEL_F    TNLTCPSEL_V(1U)
+
+#define TNLIP6SEL_S    26
+#define TNLIP6SEL_V(x) ((x) << TNLIP6SEL_S)
+#define TNLIP6SEL_F    TNLIP6SEL_V(1U)
+
+#define TNLVRTSEL_S    25
+#define TNLVRTSEL_V(x) ((x) << TNLVRTSEL_S)
+#define TNLVRTSEL_F    TNLVRTSEL_V(1U)
+
+#define TNLMAPEN_S    24
+#define TNLMAPEN_V(x) ((x) << TNLMAPEN_S)
+#define TNLMAPEN_F    TNLMAPEN_V(1U)
+
+#define OFDHASHSAVE_S    19
+#define OFDHASHSAVE_V(x) ((x) << OFDHASHSAVE_S)
+#define OFDHASHSAVE_F    OFDHASHSAVE_V(1U)
+
+#define OFDVRTSEL_S    18
+#define OFDVRTSEL_V(x) ((x) << OFDVRTSEL_S)
+#define OFDVRTSEL_F    OFDVRTSEL_V(1U)
+
+#define OFDMAPEN_S    17
+#define OFDMAPEN_V(x) ((x) << OFDMAPEN_S)
+#define OFDMAPEN_F    OFDMAPEN_V(1U)
+
+#define OFDLKPEN_S    16
+#define OFDLKPEN_V(x) ((x) << OFDLKPEN_S)
+#define OFDLKPEN_F    OFDLKPEN_V(1U)
+
+#define SYN4TUPENIPV6_S    15
+#define SYN4TUPENIPV6_V(x) ((x) << SYN4TUPENIPV6_S)
+#define SYN4TUPENIPV6_F    SYN4TUPENIPV6_V(1U)
+
+#define SYN2TUPENIPV6_S    14
+#define SYN2TUPENIPV6_V(x) ((x) << SYN2TUPENIPV6_S)
+#define SYN2TUPENIPV6_F    SYN2TUPENIPV6_V(1U)
+
+#define SYN4TUPENIPV4_S    13
+#define SYN4TUPENIPV4_V(x) ((x) << SYN4TUPENIPV4_S)
+#define SYN4TUPENIPV4_F    SYN4TUPENIPV4_V(1U)
+
+#define SYN2TUPENIPV4_S    12
+#define SYN2TUPENIPV4_V(x) ((x) << SYN2TUPENIPV4_S)
+#define SYN2TUPENIPV4_F    SYN2TUPENIPV4_V(1U)
+
+#define SYNIP6SEL_S    11
+#define SYNIP6SEL_V(x) ((x) << SYNIP6SEL_S)
+#define SYNIP6SEL_F    SYNIP6SEL_V(1U)
+
+#define SYNVRTSEL_S    10
+#define SYNVRTSEL_V(x) ((x) << SYNVRTSEL_S)
+#define SYNVRTSEL_F    SYNVRTSEL_V(1U)
+
+#define SYNMAPEN_S    9
+#define SYNMAPEN_V(x) ((x) << SYNMAPEN_S)
+#define SYNMAPEN_F    SYNMAPEN_V(1U)
+
+#define SYNLKPEN_S    8
+#define SYNLKPEN_V(x) ((x) << SYNLKPEN_S)
+#define SYNLKPEN_F    SYNLKPEN_V(1U)
+
+#define CHANNELENABLE_S    7
+#define CHANNELENABLE_V(x) ((x) << CHANNELENABLE_S)
+#define CHANNELENABLE_F    CHANNELENABLE_V(1U)
+
+#define PORTENABLE_S    6
+#define PORTENABLE_V(x) ((x) << PORTENABLE_S)
+#define PORTENABLE_F    PORTENABLE_V(1U)
+
+#define TNLALLLOOKUP_S    5
+#define TNLALLLOOKUP_V(x) ((x) << TNLALLLOOKUP_S)
+#define TNLALLLOOKUP_F    TNLALLLOOKUP_V(1U)
+
+#define VIRTENABLE_S    4
+#define VIRTENABLE_V(x) ((x) << VIRTENABLE_S)
+#define VIRTENABLE_F    VIRTENABLE_V(1U)
+
+#define CONGESTIONENABLE_S    3
+#define CONGESTIONENABLE_V(x) ((x) << CONGESTIONENABLE_S)
+#define CONGESTIONENABLE_F    CONGESTIONENABLE_V(1U)
+
+#define HASHTOEPLITZ_S    2
+#define HASHTOEPLITZ_V(x) ((x) << HASHTOEPLITZ_S)
+#define HASHTOEPLITZ_F    HASHTOEPLITZ_V(1U)
+
+#define UDPENABLE_S    1
+#define UDPENABLE_V(x) ((x) << UDPENABLE_S)
+#define UDPENABLE_F    UDPENABLE_V(1U)
+
+#define DISABLE_S    0
+#define DISABLE_V(x) ((x) << DISABLE_S)
+#define DISABLE_F    DISABLE_V(1U)
+
+#define TP_RSS_CONFIG_TNL_A 0x7df4
+
+#define MASKSIZE_S    28
+#define MASKSIZE_M    0xfU
+#define MASKSIZE_V(x) ((x) << MASKSIZE_S)
+#define MASKSIZE_G(x) (((x) >> MASKSIZE_S) & MASKSIZE_M)
+
+#define MASKFILTER_S    16
+#define MASKFILTER_M    0x7ffU
+#define MASKFILTER_V(x) ((x) << MASKFILTER_S)
+#define MASKFILTER_G(x) (((x) >> MASKFILTER_S) & MASKFILTER_M)
+
+#define USEWIRECH_S    0
+#define USEWIRECH_V(x) ((x) << USEWIRECH_S)
+#define USEWIRECH_F    USEWIRECH_V(1U)
+
+#define HASHALL_S    2
+#define HASHALL_V(x) ((x) << HASHALL_S)
+#define HASHALL_F    HASHALL_V(1U)
+
+#define HASHETH_S    1
+#define HASHETH_V(x) ((x) << HASHETH_S)
+#define HASHETH_F    HASHETH_V(1U)
+
+#define TP_RSS_CONFIG_OFD_A 0x7df8
+
+#define RRCPLMAPEN_S    20
+#define RRCPLMAPEN_V(x) ((x) << RRCPLMAPEN_S)
+#define RRCPLMAPEN_F    RRCPLMAPEN_V(1U)
+
+#define RRCPLQUEWIDTH_S    16
+#define RRCPLQUEWIDTH_M    0xfU
+#define RRCPLQUEWIDTH_V(x) ((x) << RRCPLQUEWIDTH_S)
+#define RRCPLQUEWIDTH_G(x) (((x) >> RRCPLQUEWIDTH_S) & RRCPLQUEWIDTH_M)
+
+#define TP_RSS_CONFIG_SYN_A 0x7dfc
+#define TP_RSS_CONFIG_VRT_A 0x7e00
+
+#define VFRDRG_S    25
+#define VFRDRG_V(x) ((x) << VFRDRG_S)
+#define VFRDRG_F    VFRDRG_V(1U)
+
+#define VFRDEN_S    24
+#define VFRDEN_V(x) ((x) << VFRDEN_S)
+#define VFRDEN_F    VFRDEN_V(1U)
+
+#define VFPERREN_S    23
+#define VFPERREN_V(x) ((x) << VFPERREN_S)
+#define VFPERREN_F    VFPERREN_V(1U)
+
+#define KEYPERREN_S    22
+#define KEYPERREN_V(x) ((x) << KEYPERREN_S)
+#define KEYPERREN_F    KEYPERREN_V(1U)
+
+#define DISABLEVLAN_S    21
+#define DISABLEVLAN_V(x) ((x) << DISABLEVLAN_S)
+#define DISABLEVLAN_F    DISABLEVLAN_V(1U)
+
+#define ENABLEUP0_S    20
+#define ENABLEUP0_V(x) ((x) << ENABLEUP0_S)
+#define ENABLEUP0_F    ENABLEUP0_V(1U)
+
+#define HASHDELAY_S    16
+#define HASHDELAY_M    0xfU
+#define HASHDELAY_V(x) ((x) << HASHDELAY_S)
+#define HASHDELAY_G(x) (((x) >> HASHDELAY_S) & HASHDELAY_M)
+
+#define VFWRADDR_S    8
+#define VFWRADDR_M    0x7fU
+#define VFWRADDR_V(x) ((x) << VFWRADDR_S)
+#define VFWRADDR_G(x) (((x) >> VFWRADDR_S) & VFWRADDR_M)
+
+#define KEYMODE_S    6
+#define KEYMODE_M    0x3U
+#define KEYMODE_V(x) ((x) << KEYMODE_S)
+#define KEYMODE_G(x) (((x) >> KEYMODE_S) & KEYMODE_M)
+
+#define VFWREN_S    5
+#define VFWREN_V(x) ((x) << VFWREN_S)
+#define VFWREN_F    VFWREN_V(1U)
+
+#define KEYWREN_S    4
+#define KEYWREN_V(x) ((x) << KEYWREN_S)
+#define KEYWREN_F    KEYWREN_V(1U)
+
+#define KEYWRADDR_S    0
+#define KEYWRADDR_M    0xfU
+#define KEYWRADDR_V(x) ((x) << KEYWRADDR_S)
+#define KEYWRADDR_G(x) (((x) >> KEYWRADDR_S) & KEYWRADDR_M)
+
+#define KEYWRADDRX_S    30
+#define KEYWRADDRX_M    0x3U
+#define KEYWRADDRX_V(x) ((x) << KEYWRADDRX_S)
+#define KEYWRADDRX_G(x) (((x) >> KEYWRADDRX_S) & KEYWRADDRX_M)
+
+#define KEYEXTEND_S    26
+#define KEYEXTEND_V(x) ((x) << KEYEXTEND_S)
+#define KEYEXTEND_F    KEYEXTEND_V(1U)
+
+#define LKPIDXSIZE_S    24
+#define LKPIDXSIZE_M    0x3U
+#define LKPIDXSIZE_V(x) ((x) << LKPIDXSIZE_S)
+#define LKPIDXSIZE_G(x) (((x) >> LKPIDXSIZE_S) & LKPIDXSIZE_M)
+
+#define TP_RSS_VFL_CONFIG_A 0x3a
+#define TP_RSS_VFH_CONFIG_A 0x3b
+
+#define ENABLEUDPHASH_S    31
+#define ENABLEUDPHASH_V(x) ((x) << ENABLEUDPHASH_S)
+#define ENABLEUDPHASH_F    ENABLEUDPHASH_V(1U)
+
+#define VFUPEN_S    30
+#define VFUPEN_V(x) ((x) << VFUPEN_S)
+#define VFUPEN_F    VFUPEN_V(1U)
+
+#define VFVLNEX_S    28
+#define VFVLNEX_V(x) ((x) << VFVLNEX_S)
+#define VFVLNEX_F    VFVLNEX_V(1U)
+
+#define VFPRTEN_S    27
+#define VFPRTEN_V(x) ((x) << VFPRTEN_S)
+#define VFPRTEN_F    VFPRTEN_V(1U)
+
+#define VFCHNEN_S    26
+#define VFCHNEN_V(x) ((x) << VFCHNEN_S)
+#define VFCHNEN_F    VFCHNEN_V(1U)
+
+#define DEFAULTQUEUE_S    16
+#define DEFAULTQUEUE_M    0x3ffU
+#define DEFAULTQUEUE_G(x) (((x) >> DEFAULTQUEUE_S) & DEFAULTQUEUE_M)
+
+#define VFIP6TWOTUPEN_S    6
+#define VFIP6TWOTUPEN_V(x) ((x) << VFIP6TWOTUPEN_S)
+#define VFIP6TWOTUPEN_F    VFIP6TWOTUPEN_V(1U)
+
+#define VFIP4FOURTUPEN_S    5
+#define VFIP4FOURTUPEN_V(x) ((x) << VFIP4FOURTUPEN_S)
+#define VFIP4FOURTUPEN_F    VFIP4FOURTUPEN_V(1U)
+
+#define VFIP4TWOTUPEN_S    4
+#define VFIP4TWOTUPEN_V(x) ((x) << VFIP4TWOTUPEN_S)
+#define VFIP4TWOTUPEN_F    VFIP4TWOTUPEN_V(1U)
+
+#define KEYINDEX_S    0
+#define KEYINDEX_M    0xfU
+#define KEYINDEX_G(x) (((x) >> KEYINDEX_S) & KEYINDEX_M)
+
+#define MAPENABLE_S    31
+#define MAPENABLE_V(x) ((x) << MAPENABLE_S)
+#define MAPENABLE_F    MAPENABLE_V(1U)
+
+#define CHNENABLE_S    30
+#define CHNENABLE_V(x) ((x) << CHNENABLE_S)
+#define CHNENABLE_F    CHNENABLE_V(1U)
+
+#define PRTENABLE_S    29
+#define PRTENABLE_V(x) ((x) << PRTENABLE_S)
+#define PRTENABLE_F    PRTENABLE_V(1U)
+
+#define UDPFOURTUPEN_S    28
+#define UDPFOURTUPEN_V(x) ((x) << UDPFOURTUPEN_S)
+#define UDPFOURTUPEN_F    UDPFOURTUPEN_V(1U)
+
+#define IP6FOURTUPEN_S    27
+#define IP6FOURTUPEN_V(x) ((x) << IP6FOURTUPEN_S)
+#define IP6FOURTUPEN_F    IP6FOURTUPEN_V(1U)
+
+#define IP6TWOTUPEN_S    26
+#define IP6TWOTUPEN_V(x) ((x) << IP6TWOTUPEN_S)
+#define IP6TWOTUPEN_F    IP6TWOTUPEN_V(1U)
+
+#define IP4FOURTUPEN_S    25
+#define IP4FOURTUPEN_V(x) ((x) << IP4FOURTUPEN_S)
+#define IP4FOURTUPEN_F    IP4FOURTUPEN_V(1U)
+
+#define IP4TWOTUPEN_S    24
+#define IP4TWOTUPEN_V(x) ((x) << IP4TWOTUPEN_S)
+#define IP4TWOTUPEN_F    IP4TWOTUPEN_V(1U)
+
+#define IVFWIDTH_S    20
+#define IVFWIDTH_M    0xfU
+#define IVFWIDTH_V(x) ((x) << IVFWIDTH_S)
+#define IVFWIDTH_G(x) (((x) >> IVFWIDTH_S) & IVFWIDTH_M)
+
+#define CH1DEFAULTQUEUE_S    10
+#define CH1DEFAULTQUEUE_M    0x3ffU
+#define CH1DEFAULTQUEUE_V(x) ((x) << CH1DEFAULTQUEUE_S)
+#define CH1DEFAULTQUEUE_G(x) (((x) >> CH1DEFAULTQUEUE_S) & CH1DEFAULTQUEUE_M)
+
+#define CH0DEFAULTQUEUE_S    0
+#define CH0DEFAULTQUEUE_M    0x3ffU
+#define CH0DEFAULTQUEUE_V(x) ((x) << CH0DEFAULTQUEUE_S)
+#define CH0DEFAULTQUEUE_G(x) (((x) >> CH0DEFAULTQUEUE_S) & CH0DEFAULTQUEUE_M)
+
+#define VFLKPIDX_S    8
+#define VFLKPIDX_M    0xffU
+#define VFLKPIDX_G(x) (((x) >> VFLKPIDX_S) & VFLKPIDX_M)
+
+#define TP_RSS_CONFIG_CNG_A 0x7e04
+#define TP_RSS_SECRET_KEY0_A 0x40
+#define TP_RSS_PF0_CONFIG_A 0x30
+#define TP_RSS_PF_MAP_A 0x38
+#define TP_RSS_PF_MSK_A 0x39
+
+#define PF1LKPIDX_S    3
+
+#define PF0LKPIDX_M    0x7U
+
+#define PF1MSKSIZE_S    4
+#define PF1MSKSIZE_M    0xfU
+
+#define CHNCOUNT3_S    31
+#define CHNCOUNT3_V(x) ((x) << CHNCOUNT3_S)
+#define CHNCOUNT3_F    CHNCOUNT3_V(1U)
+
+#define CHNCOUNT2_S    30
+#define CHNCOUNT2_V(x) ((x) << CHNCOUNT2_S)
+#define CHNCOUNT2_F    CHNCOUNT2_V(1U)
+
+#define CHNCOUNT1_S    29
+#define CHNCOUNT1_V(x) ((x) << CHNCOUNT1_S)
+#define CHNCOUNT1_F    CHNCOUNT1_V(1U)
+
+#define CHNCOUNT0_S    28
+#define CHNCOUNT0_V(x) ((x) << CHNCOUNT0_S)
+#define CHNCOUNT0_F    CHNCOUNT0_V(1U)
+
+#define CHNUNDFLOW3_S    27
+#define CHNUNDFLOW3_V(x) ((x) << CHNUNDFLOW3_S)
+#define CHNUNDFLOW3_F    CHNUNDFLOW3_V(1U)
+
+#define CHNUNDFLOW2_S    26
+#define CHNUNDFLOW2_V(x) ((x) << CHNUNDFLOW2_S)
+#define CHNUNDFLOW2_F    CHNUNDFLOW2_V(1U)
+
+#define CHNUNDFLOW1_S    25
+#define CHNUNDFLOW1_V(x) ((x) << CHNUNDFLOW1_S)
+#define CHNUNDFLOW1_F    CHNUNDFLOW1_V(1U)
+
+#define CHNUNDFLOW0_S    24
+#define CHNUNDFLOW0_V(x) ((x) << CHNUNDFLOW0_S)
+#define CHNUNDFLOW0_F    CHNUNDFLOW0_V(1U)
+
+#define RSTCHN3_S    19
+#define RSTCHN3_V(x) ((x) << RSTCHN3_S)
+#define RSTCHN3_F    RSTCHN3_V(1U)
+
+#define RSTCHN2_S    18
+#define RSTCHN2_V(x) ((x) << RSTCHN2_S)
+#define RSTCHN2_F    RSTCHN2_V(1U)
+
+#define RSTCHN1_S    17
+#define RSTCHN1_V(x) ((x) << RSTCHN1_S)
+#define RSTCHN1_F    RSTCHN1_V(1U)
+
+#define RSTCHN0_S    16
+#define RSTCHN0_V(x) ((x) << RSTCHN0_S)
+#define RSTCHN0_F    RSTCHN0_V(1U)
+
+#define UPDVLD_S    15
+#define UPDVLD_V(x) ((x) << UPDVLD_S)
+#define UPDVLD_F    UPDVLD_V(1U)
+
+#define XOFF_S    14
+#define XOFF_V(x) ((x) << XOFF_S)
+#define XOFF_F    XOFF_V(1U)
+
+#define UPDCHN3_S    13
+#define UPDCHN3_V(x) ((x) << UPDCHN3_S)
+#define UPDCHN3_F    UPDCHN3_V(1U)
+
+#define UPDCHN2_S    12
+#define UPDCHN2_V(x) ((x) << UPDCHN2_S)
+#define UPDCHN2_F    UPDCHN2_V(1U)
+
+#define UPDCHN1_S    11
+#define UPDCHN1_V(x) ((x) << UPDCHN1_S)
+#define UPDCHN1_F    UPDCHN1_V(1U)
+
+#define UPDCHN0_S    10
+#define UPDCHN0_V(x) ((x) << UPDCHN0_S)
+#define UPDCHN0_F    UPDCHN0_V(1U)
+
+#define QUEUE_S    0
+#define QUEUE_M    0x3ffU
+#define QUEUE_V(x) ((x) << QUEUE_S)
+#define QUEUE_G(x) (((x) >> QUEUE_S) & QUEUE_M)
+
 #define MPS_TRC_INT_CAUSE_A	0x985c
 
 #define MISCPERR_S    8
