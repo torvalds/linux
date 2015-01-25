@@ -925,6 +925,9 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Free up any pending old buffers before queueing new ones. */
 	free_old_xmit_skbs(sq);
 
+	/* timestamp packet in software */
+	skb_tx_timestamp(skb);
+
 	/* Try to transmit */
 	err = xmit_skb(sq, skb);
 
@@ -1376,6 +1379,7 @@ static const struct ethtool_ops virtnet_ethtool_ops = {
 	.get_ringparam = virtnet_get_ringparam,
 	.set_channels = virtnet_set_channels,
 	.get_channels = virtnet_get_channels,
+	.get_ts_info = ethtool_op_get_ts_info,
 };
 
 #define MIN_MTU 68

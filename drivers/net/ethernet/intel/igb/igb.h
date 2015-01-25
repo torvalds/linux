@@ -343,6 +343,9 @@ struct hwmon_buff {
 	};
 #endif
 
+#define IGB_N_EXTTS	2
+#define IGB_N_PEROUT	2
+#define IGB_N_SDP	4
 #define IGB_RETA_SIZE	128
 
 /* board specific private data structure */
@@ -438,6 +441,12 @@ struct igb_adapter {
 	struct timecounter tc;
 	u32 tx_hwtstamp_timeouts;
 	u32 rx_hwtstamp_cleared;
+
+	struct ptp_pin_desc sdp_config[IGB_N_SDP];
+	struct {
+		struct timespec start;
+		struct timespec period;
+	} perout[IGB_N_PEROUT];
 
 	char fw_version[32];
 #ifdef CONFIG_IGB_HWMON
