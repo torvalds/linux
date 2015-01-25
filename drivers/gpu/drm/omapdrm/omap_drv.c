@@ -502,6 +502,7 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 {
 	struct omap_drm_platform_data *pdata = dev->dev->platform_data;
 	struct omap_drm_private *priv;
+	unsigned int i;
 	int ret;
 
 	DBG("load: dev=%p", dev);
@@ -529,9 +530,13 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 		return ret;
 	}
 
+	/* Initialize vblank handling, start with all CRTCs disabled. */
 	ret = drm_vblank_init(dev, priv->num_crtcs);
 	if (ret)
 		dev_warn(dev->dev, "could not init vblank\n");
+
+	for (i = 0; i < priv->num_crtcs; i++)
+		drm_crtc_vblank_off(priv->crtcs[i]);
 
 	priv->fbdev = omap_fbdev_init(dev);
 	if (!priv->fbdev) {

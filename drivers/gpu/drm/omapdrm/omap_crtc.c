@@ -76,6 +76,7 @@ struct omap_crtc {
 	 */
 	enum omap_page_flip_state flip_state;
 	struct drm_pending_vblank_event *flip_event;
+	wait_queue_head_t flip_wait;
 	struct work_struct flip_work;
 
 	struct completion completion;
@@ -309,6 +310,61 @@ static void omap_crtc_complete_page_flip(struct drm_crtc *crtc,
 	}
 
 	omap_crtc->flip_state = state;
+
+	if (state == OMAP_PAGE_FLIP_IDLE)
+		wake_up(&omap_crtc->flip_wait);
+}
+
+static bool omap_crtc_page_flip_pending(struct drm_crtc *crtc)
+{
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	unsigned long flags;
+	bool pending;
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+	pending = omap_crtc->flip_state != OMAP_PAGE_FLIP_IDLE;
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	return pending;
+}
+
+static void omap_crtc_wait_page_flip(struct drm_crtc *crtc)
+{
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	bool cancelled = false;
+	unsigned long flags;
+
+	/*
+	 * If we're still waiting for the GEM async operation to complete just
+	 * cancel the page flip, as we're holding the CRTC mutex preventing the
+	 * page flip work handler from queueing the page flip.
+	 *
+	 * We can't release the reference to the frame buffer here as the async
+	 * operation doesn't keep its own reference to the buffer. We'll just
+	 * let the page flip work queue handle that.
+	 */
+	spin_lock_irqsave(&dev->event_lock, flags);
+	if (omap_crtc->flip_state == OMAP_PAGE_FLIP_WAIT) {
+		omap_crtc_complete_page_flip(crtc, OMAP_PAGE_FLIP_CANCELLED);
+		cancelled = true;
+	}
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	if (cancelled)
+		return;
+
+	if (wait_event_timeout(omap_crtc->flip_wait,
+			       !omap_crtc_page_flip_pending(crtc),
+			       msecs_to_jiffies(50)))
+		return;
+
+	dev_warn(crtc->dev->dev, "page flip timeout!\n");
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+	omap_crtc_complete_page_flip(crtc, OMAP_PAGE_FLIP_IDLE);
+	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 
 static void omap_crtc_error_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
@@ -455,26 +511,39 @@ static void omap_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct omap_drm_private *priv = crtc->dev->dev_private;
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	bool enabled = (mode == DRM_MODE_DPMS_ON);
+	bool enable = (mode == DRM_MODE_DPMS_ON);
 	int i;
 
 	DBG("%s: %d", omap_crtc->name, mode);
 
-	if (enabled == omap_crtc->enabled)
+	if (enable == omap_crtc->enabled)
 		return;
+
+	if (!enable) {
+		omap_crtc_wait_page_flip(crtc);
+		dispc_runtime_get();
+		drm_crtc_vblank_off(crtc);
+		dispc_runtime_put();
+	}
 
 	/* Enable/disable all planes associated with the CRTC. */
 	for (i = 0; i < priv->num_planes; i++) {
 		struct drm_plane *plane = priv->planes[i];
 
 		if (plane->crtc == crtc)
-			WARN_ON(omap_plane_set_enable(plane, enabled));
+			WARN_ON(omap_plane_set_enable(plane, enable));
 	}
 
-	omap_crtc->enabled = enabled;
+	omap_crtc->enabled = enable;
 
 	omap_crtc_setup(crtc);
 	omap_crtc_flush(crtc);
+
+	if (enable) {
+		dispc_runtime_get();
+		drm_crtc_vblank_on(crtc);
+		dispc_runtime_put();
+	}
 }
 
 static bool omap_crtc_mode_fixup(struct drm_crtc *crtc,
@@ -709,6 +778,7 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 	crtc = &omap_crtc->base;
 
 	INIT_WORK(&omap_crtc->flip_work, page_flip_worker);
+	init_waitqueue_head(&omap_crtc->flip_wait);
 
 	INIT_LIST_HEAD(&omap_crtc->pending_unpins);
 
