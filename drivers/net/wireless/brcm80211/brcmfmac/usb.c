@@ -1263,6 +1263,8 @@ static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo)
 		ret = brcmf_usb_bus_setup(devinfo);
 		if (ret)
 			goto fail;
+		/* we are done */
+		return 0;
 	}
 	bus->chip = bus_pub->devid;
 	bus->chiprev = bus_pub->chiprev;
