@@ -576,7 +576,7 @@ brcmf_usb_state_change(struct brcmf_usbdev_info *devinfo, int state)
 		brcmf_bus_change_state(bcmf_bus, BRCMF_BUS_DOWN);
 	} else if (state == BRCMFMAC_USB_STATE_UP) {
 		brcmf_dbg(USB, "DBUS is up\n");
-		brcmf_bus_change_state(bcmf_bus, BRCMF_BUS_DATA);
+		brcmf_bus_change_state(bcmf_bus, BRCMF_BUS_UP);
 	} else {
 		brcmf_dbg(USB, "DBUS current state=%d\n", state);
 	}

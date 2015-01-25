@@ -155,6 +155,13 @@
 /* watchdog polling interval in ms */
 #define BRCMF_WD_POLL_MS	10
 
+/* The state of the bus */
+enum brcmf_sdio_state {
+	BRCMF_STATE_DOWN,	/* Device available, still initialising */
+	BRCMF_STATE_DATA,	/* Ready for data transfers, DPC enabled */
+	BRCMF_STATE_NOMEDIUM	/* No medium access to dongle possible */
+};
+
 struct brcmf_sdreg {
 	int func;
 	int offset;
@@ -187,6 +194,7 @@ struct brcmf_sdio_dev {
 	char fw_name[BRCMF_FW_PATH_LEN + BRCMF_FW_NAME_LEN];
 	char nvram_name[BRCMF_FW_PATH_LEN + BRCMF_FW_NAME_LEN];
 	bool wowl_enabled;
+	enum brcmf_sdio_state state;
 };
 
 /* sdio core registers */

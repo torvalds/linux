@@ -197,7 +197,7 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 	brcmf_dbg(DATA, "Enter, idx=%d\n", ifp->bssidx);
 
 	/* Can the device send data? */
-	if (drvr->bus_if->state != BRCMF_BUS_DATA) {
+	if (drvr->bus_if->state != BRCMF_BUS_UP) {
 		brcmf_err("xmit rejected state=%d\n", drvr->bus_if->state);
 		netif_stop_queue(ndev);
 		dev_kfree_skb(skb);
@@ -637,7 +637,7 @@ static int brcmf_netdev_open(struct net_device *ndev)
 	brcmf_dbg(TRACE, "Enter, idx=%d\n", ifp->bssidx);
 
 	/* If bus is not ready, can't continue */
-	if (bus_if->state != BRCMF_BUS_DATA) {
+	if (bus_if->state != BRCMF_BUS_UP) {
 		brcmf_err("failed bus is not ready\n");
 		return -EAGAIN;
 	}
@@ -964,7 +964,7 @@ int brcmf_bus_start(struct device *dev)
 		p2p_ifp = NULL;
 
 	/* signal bus ready */
-	brcmf_bus_change_state(bus_if, BRCMF_BUS_DATA);
+	brcmf_bus_change_state(bus_if, BRCMF_BUS_UP);
 
 	/* Bus is ready, do any initialization */
 	ret = brcmf_c_preinit_dcmds(ifp);

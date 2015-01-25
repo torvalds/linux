@@ -269,6 +269,12 @@ static int brcmf_sdiod_request_data(struct brcmf_sdio_dev *sdiodev, u8 fn,
 	return ret;
 }
 
+static void brcmf_sdiod_nomedium_state(struct brcmf_sdio_dev *sdiodev)
+{
+	sdiodev->state = BRCMF_STATE_NOMEDIUM;
+	brcmf_bus_change_state(sdiodev->bus_if, BRCMF_BUS_DOWN);
+}
+
 static int brcmf_sdiod_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
 				   u8 regsz, void *data, bool write)
 {
@@ -276,7 +282,7 @@ static int brcmf_sdiod_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
 	s32 retry = 0;
 	int ret;
 
-	if (sdiodev->bus_if->state == BRCMF_BUS_NOMEDIUM)
+	if (sdiodev->state == BRCMF_STATE_NOMEDIUM)
 		return -ENOMEDIUM;
 
 	/*
@@ -302,7 +308,7 @@ static int brcmf_sdiod_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
 		 retry++ < SDIOH_API_ACCESS_RETRY_LIMIT);
 
 	if (ret == -ENOMEDIUM)
-		brcmf_bus_change_state(sdiodev->bus_if, BRCMF_BUS_NOMEDIUM);
+		brcmf_sdiod_nomedium_state(sdiodev);
 	else if (ret != 0) {
 		/*
 		 * SleepCSR register access can fail when
@@ -325,7 +331,7 @@ brcmf_sdiod_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev, u32 address)
 	int err = 0, i;
 	u8 addr[3];
 
-	if (sdiodev->bus_if->state == BRCMF_BUS_NOMEDIUM)
+	if (sdiodev->state == BRCMF_STATE_NOMEDIUM)
 		return -ENOMEDIUM;
 
 	addr[0] = (address >> 8) & SBSDIO_SBADDRLOW_MASK;
@@ -454,7 +460,7 @@ static int brcmf_sdiod_buffrw(struct brcmf_sdio_dev *sdiodev, uint fn,
 		err = sdio_readsb(sdiodev->func[fn], ((u8 *)(pkt->data)), addr,
 				  req_sz);
 	if (err == -ENOMEDIUM)
-		brcmf_bus_change_state(sdiodev->bus_if, BRCMF_BUS_NOMEDIUM);
+		brcmf_sdiod_nomedium_state(sdiodev);
 	return err;
 }
 
@@ -589,8 +595,7 @@ static int brcmf_sdiod_sglist_rw(struct brcmf_sdio_dev *sdiodev, uint fn,
 
 		ret = mmc_cmd.error ? mmc_cmd.error : mmc_dat.error;
 		if (ret == -ENOMEDIUM) {
-			brcmf_bus_change_state(sdiodev->bus_if,
-					       BRCMF_BUS_NOMEDIUM);
+			brcmf_sdiod_nomedium_state(sdiodev);
 			break;
 		} else if (ret != 0) {
 			brcmf_err("CMD53 sg block %s failed %d\n",

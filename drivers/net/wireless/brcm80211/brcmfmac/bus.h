@@ -33,11 +33,8 @@
 
 /* The level of bus communication with the dongle */
 enum brcmf_bus_state {
-	BRCMF_BUS_UNKNOWN,	/* Not determined yet */
-	BRCMF_BUS_NOMEDIUM,	/* No medium access to dongle */
 	BRCMF_BUS_DOWN,		/* Not ready for frame transfers */
-	BRCMF_BUS_LOAD,		/* Download access only (CPU reset) */
-	BRCMF_BUS_DATA		/* Ready for frame transfers */
+	BRCMF_BUS_UP		/* Ready for frame transfers */
 };
 
 /* The level of bus communication with the dongle */
@@ -188,18 +185,9 @@ void brcmf_bus_wowl_config(struct brcmf_bus *bus, bool enabled)
 		bus->ops->wowl_config(bus->dev, enabled);
 }
 
-static inline bool brcmf_bus_ready(struct brcmf_bus *bus)
-{
-	return bus->state == BRCMF_BUS_LOAD || bus->state == BRCMF_BUS_DATA;
-}
-
 static inline void brcmf_bus_change_state(struct brcmf_bus *bus,
 					  enum brcmf_bus_state new_state)
 {
-	/* NOMEDIUM is permanent */
-	if (bus->state == BRCMF_BUS_NOMEDIUM)
-		return;
-
 	brcmf_dbg(TRACE, "%d -> %d\n", bus->state, new_state);
 	bus->state = new_state;
 }

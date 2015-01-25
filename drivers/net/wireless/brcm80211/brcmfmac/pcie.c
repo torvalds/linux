@@ -1828,7 +1828,7 @@ static int brcmf_pcie_resume(struct pci_dev *pdev)
 				goto cleanup;
 			brcmf_dbg(PCIE, "Hot resume, continue....\n");
 			brcmf_pcie_select_core(devinfo, BCMA_CORE_PCIE2);
-			brcmf_bus_change_state(bus, BRCMF_BUS_DATA);
+			brcmf_bus_change_state(bus, BRCMF_BUS_UP);
 			brcmf_pcie_intr_enable(devinfo);
 			return 0;
 		}
