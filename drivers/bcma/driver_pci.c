@@ -226,11 +226,9 @@ void bcma_core_pci_init(struct bcma_drv_pci *pc)
 	if (pc->setup_done)
 		return;
 
-#ifdef CONFIG_BCMA_DRIVER_PCI_HOSTMODE
 	pc->hostmode = bcma_core_pci_is_in_hostmode(pc);
 	if (pc->hostmode)
 		bcma_core_pci_hostmode_init(pc);
-#endif /* CONFIG_BCMA_DRIVER_PCI_HOSTMODE */
 
 	if (!pc->hostmode)
 		bcma_core_pci_clientmode_init(pc);
