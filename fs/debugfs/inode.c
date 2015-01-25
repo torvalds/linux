@@ -69,21 +69,6 @@ static struct inode *debugfs_get_inode(struct super_block *sb, umode_t mode, dev
 	return inode;
 }
 
-/* SMP-safe */
-static int debugfs_mknod(struct dentry *dentry,
-			 umode_t mode, void *data,
-			 const struct file_operations *fops)
-{
-	struct inode *inode;
-
-	inode = debugfs_get_inode(dentry->d_sb, mode, 0, data, fops);
-	if (unlikely(!inode))
-		return -EPERM;
-	d_instantiate(dentry, inode);
-	dget(dentry);
-	return 0;
-}
-
 static inline int debugfs_positive(struct dentry *dentry)
 {
 	return dentry->d_inode && !d_unhashed(dentry);
@@ -339,7 +324,7 @@ struct dentry *debugfs_create_file(const char *name, umode_t mode,
 				   const struct file_operations *fops)
 {
 	struct dentry *dentry;
-	int error;
+	struct inode *inode;
 
 	if (!(mode & S_IFMT))
 		mode |= S_IFREG;
@@ -349,10 +334,14 @@ struct dentry *debugfs_create_file(const char *name, umode_t mode,
 	if (IS_ERR(dentry))
 		return NULL;
 
-	error = debugfs_mknod(dentry, mode, data, fops);
-	if (!error)
-		fsnotify_create(dentry->d_parent->d_inode, dentry);
-	return end_creating(dentry, error);
+	inode = debugfs_get_inode(dentry->d_sb, mode, 0, data, fops);
+	if (unlikely(!inode))
+		return end_creating(dentry, -ENOMEM);
+
+	d_instantiate(dentry, inode);
+	dget(dentry);
+	fsnotify_create(dentry->d_parent->d_inode, dentry);
+	return end_creating(dentry, 0);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_file);
 
@@ -377,18 +366,22 @@ EXPORT_SYMBOL_GPL(debugfs_create_file);
 struct dentry *debugfs_create_dir(const char *name, struct dentry *parent)
 {
 	struct dentry *dentry = start_creating(name, parent);
-	int error;
+	struct inode *inode;
 
 	if (IS_ERR(dentry))
 		return NULL;
 
-	error = debugfs_mknod(dentry, S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO,
-			      NULL, NULL);
-	if (!error) {
-		inc_nlink(dentry->d_parent->d_inode);
-		fsnotify_mkdir(dentry->d_parent->d_inode, dentry);
-	}
-	return end_creating(dentry, error);
+	inode = debugfs_get_inode(dentry->d_sb,
+				  S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO,
+				  0, NULL, NULL);
+	if (unlikely(!inode))
+		return end_creating(dentry, -ENOMEM);
+
+	d_instantiate(dentry, inode);
+	dget(dentry);
+	inc_nlink(dentry->d_parent->d_inode);
+	fsnotify_mkdir(dentry->d_parent->d_inode, dentry);
+	return end_creating(dentry, 0);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_dir);
 
@@ -419,25 +412,26 @@ struct dentry *debugfs_create_symlink(const char *name, struct dentry *parent,
 				      const char *target)
 {
 	struct dentry *dentry;
-	char *link;
-	int error;
-
-	link = kstrdup(target, GFP_KERNEL);
+	struct inode *inode;
+	char *link = kstrdup(target, GFP_KERNEL);
 	if (!link)
 		return NULL;
 
 	dentry = start_creating(name, parent);
-
 	if (IS_ERR(dentry)) {
 		kfree(link);
 		return NULL;
 	}
 
-	error = debugfs_mknod(dentry, S_IFLNK | S_IRWXUGO, link, NULL);
-	if (error)
+	inode = debugfs_get_inode(dentry->d_sb, S_IFLNK | S_IRWXUGO, 0,
+				  link, NULL);
+	if (unlikely(!inode)) {
 		kfree(link);
-
-	return end_creating(dentry, error);
+		return end_creating(dentry, -ENOMEM);
+	}
+	d_instantiate(dentry, inode);
+	dget(dentry);
+	return end_creating(dentry, 0);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_symlink);
 
