@@ -208,6 +208,10 @@ enum {
 	MLX4_QUERY_FUNC_FLAGS_A0_RES_QP		= 1LL << 1
 };
 
+enum {
+	MLX4_VF_CAP_FLAG_RESET			= 1 << 0
+};
+
 /* bit enums for an 8-bit flags field indicating special use
  * QPs which require special handling in qp_reserve_range.
  * Currently, this only includes QPs used by the ETH interface,
@@ -545,6 +549,7 @@ struct mlx4_caps {
 	u8			alloc_res_qp_mask;
 	u32			dmfs_high_rate_qpn_base;
 	u32			dmfs_high_rate_qpn_range;
+	u32			vf_caps;
 };
 
 struct mlx4_buf_list {

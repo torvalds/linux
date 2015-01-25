@@ -429,8 +429,14 @@ void mlx4_master_handle_slave_flr(struct work_struct *work)
 		if (MLX4_COMM_CMD_FLR == slave_state[i].last_cmd) {
 			mlx4_dbg(dev, "mlx4_handle_slave_flr: clean slave: %d\n",
 				 i);
-
-			mlx4_delete_all_resources_for_slave(dev, i);
+			/* In case of 'Reset flow' FLR can be generated for
+			 * a slave before mlx4_load_one is done.
+			 * make sure interface is up before trying to delete
+			 * slave resources which weren't allocated yet.
+			 */
+			if (dev->persist->interface_state &
+			    MLX4_INTERFACE_STATE_UP)
+				mlx4_delete_all_resources_for_slave(dev, i);
 			/*return the slave to running mode*/
 			spin_lock_irqsave(&priv->mfunc.master.slave_state_lock, flags);
 			slave_state[i].last_cmd = MLX4_COMM_CMD_RESET;

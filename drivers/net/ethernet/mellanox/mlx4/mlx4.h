@@ -85,7 +85,9 @@ enum {
 	MLX4_CLR_INT_SIZE	= 0x00008,
 	MLX4_SLAVE_COMM_BASE	= 0x0,
 	MLX4_COMM_PAGESIZE	= 0x1000,
-	MLX4_CLOCK_SIZE		= 0x00008
+	MLX4_CLOCK_SIZE		= 0x00008,
+	MLX4_COMM_CHAN_CAPS	= 0x8,
+	MLX4_COMM_CHAN_FLAGS	= 0xc
 };
 
 enum {
@@ -120,6 +122,8 @@ enum mlx4_mpt_state {
 };
 
 #define MLX4_COMM_TIME		10000
+#define MLX4_COMM_OFFLINE_TIME_OUT 30000
+
 enum {
 	MLX4_COMM_CMD_RESET,
 	MLX4_COMM_CMD_VHCR0,
@@ -1162,6 +1166,7 @@ enum {
 int mlx4_cmd_init(struct mlx4_dev *dev);
 void mlx4_cmd_cleanup(struct mlx4_dev *dev, int cleanup_mask);
 int mlx4_multi_func_init(struct mlx4_dev *dev);
+int mlx4_ARM_COMM_CHANNEL(struct mlx4_dev *dev);
 void mlx4_multi_func_cleanup(struct mlx4_dev *dev);
 void mlx4_cmd_event(struct mlx4_dev *dev, u16 token, u8 status, u64 out_param);
 int mlx4_cmd_use_events(struct mlx4_dev *dev);

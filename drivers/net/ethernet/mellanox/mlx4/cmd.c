@@ -42,6 +42,7 @@
 #include <linux/mlx4/device.h>
 #include <linux/semaphore.h>
 #include <rdma/ib_smi.h>
+#include <linux/delay.h>
 
 #include <asm/io.h>
 
@@ -729,7 +730,7 @@ int __mlx4_cmd(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 EXPORT_SYMBOL_GPL(__mlx4_cmd);
 
 
-static int mlx4_ARM_COMM_CHANNEL(struct mlx4_dev *dev)
+int mlx4_ARM_COMM_CHANNEL(struct mlx4_dev *dev)
 {
 	return mlx4_cmd(dev, 0, 0, 0, MLX4_CMD_ARM_COMM_CHANNEL,
 			MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
@@ -1945,8 +1946,11 @@ static void mlx4_master_do_cmd(struct mlx4_dev *dev, int slave, u8 cmd,
 		break;
 	case MLX4_COMM_CMD_VHCR_POST:
 		if ((slave_state[slave].last_cmd != MLX4_COMM_CMD_VHCR_EN) &&
-		    (slave_state[slave].last_cmd != MLX4_COMM_CMD_VHCR_POST))
+		    (slave_state[slave].last_cmd != MLX4_COMM_CMD_VHCR_POST)) {
+			mlx4_warn(dev, "slave:%d is out of sync, cmd=0x%x, last command=0x%x, reset is needed\n",
+				  slave, cmd, slave_state[slave].last_cmd);
 			goto reset_slave;
+		}
 
 		mutex_lock(&priv->cmd.slave_cmd_mutex);
 		if (mlx4_master_process_vhcr(dev, slave, NULL)) {
@@ -1980,7 +1984,18 @@ static void mlx4_master_do_cmd(struct mlx4_dev *dev, int slave, u8 cmd,
 
 reset_slave:
 	/* cleanup any slave resources */
-	mlx4_delete_all_resources_for_slave(dev, slave);
+	if (dev->persist->interface_state & MLX4_INTERFACE_STATE_UP)
+		mlx4_delete_all_resources_for_slave(dev, slave);
+
+	if (cmd != MLX4_COMM_CMD_RESET) {
+		mlx4_warn(dev, "Turn on internal error to force reset, slave=%d, cmd=0x%x\n",
+			  slave, cmd);
+		/* Turn on internal error letting slave reset itself immeditaly,
+		 * otherwise it might take till timeout on command is passed
+		 */
+		reply |= ((u32)COMM_CHAN_EVENT_INTERNAL_ERR);
+	}
+
 	spin_lock_irqsave(&priv->mfunc.master.slave_state_lock, flags);
 	if (!slave_state[slave].is_slave_going_down)
 		slave_state[slave].last_cmd = MLX4_COMM_CMD_RESET;
@@ -2056,17 +2071,28 @@ void mlx4_master_comm_channel(struct work_struct *work)
 static int sync_toggles(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
-	int wr_toggle;
-	int rd_toggle;
+	u32 wr_toggle;
+	u32 rd_toggle;
 	unsigned long end;
 
-	wr_toggle = swab32(readl(&priv->mfunc.comm->slave_write)) >> 31;
-	end = jiffies + msecs_to_jiffies(5000);
+	wr_toggle = swab32(readl(&priv->mfunc.comm->slave_write));
+	if (wr_toggle == 0xffffffff)
+		end = jiffies + msecs_to_jiffies(30000);
+	else
+		end = jiffies + msecs_to_jiffies(5000);
 
 	while (time_before(jiffies, end)) {
-		rd_toggle = swab32(readl(&priv->mfunc.comm->slave_read)) >> 31;
-		if (rd_toggle == wr_toggle) {
-			priv->cmd.comm_toggle = rd_toggle;
+		rd_toggle = swab32(readl(&priv->mfunc.comm->slave_read));
+		if (wr_toggle == 0xffffffff || rd_toggle == 0xffffffff) {
+			/* PCI might be offline */
+			msleep(100);
+			wr_toggle = swab32(readl(&priv->mfunc.comm->
+					   slave_write));
+			continue;
+		}
+
+		if (rd_toggle >> 31 == wr_toggle >> 31) {
+			priv->cmd.comm_toggle = rd_toggle >> 31;
 			return 0;
 		}
 
@@ -2172,13 +2198,6 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 		if (mlx4_init_resource_tracker(dev))
 			goto err_thread;
 
-		err = mlx4_ARM_COMM_CHANNEL(dev);
-		if (err) {
-			mlx4_err(dev, " Failed to arm comm channel eq: %x\n",
-				 err);
-			goto err_resource;
-		}
-
 	} else {
 		err = sync_toggles(dev);
 		if (err) {
@@ -2188,8 +2207,6 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 	}
 	return 0;
 
-err_resource:
-	mlx4_free_resource_tracker(dev, RES_TR_FREE_ALL);
 err_thread:
 	flush_workqueue(priv->mfunc.master.comm_wq);
 	destroy_workqueue(priv->mfunc.master.comm_wq);
@@ -2266,6 +2283,27 @@ err:
 	return -ENOMEM;
 }
 
+void mlx4_report_internal_err_comm_event(struct mlx4_dev *dev)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	int slave;
+	u32 slave_read;
+
+	/* Report an internal error event to all
+	 * communication channels.
+	 */
+	for (slave = 0; slave < dev->num_slaves; slave++) {
+		slave_read = swab32(readl(&priv->mfunc.comm[slave].slave_read));
+		slave_read |= (u32)COMM_CHAN_EVENT_INTERNAL_ERR;
+		__raw_writel((__force u32)cpu_to_be32(slave_read),
+			     &priv->mfunc.comm[slave].slave_read);
+		/* Make sure that our comm channel write doesn't
+		 * get mixed in with writes from another CPU.
+		 */
+		mmiowb();
+	}
+}
+
 void mlx4_multi_func_cleanup(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -2281,6 +2319,7 @@ void mlx4_multi_func_cleanup(struct mlx4_dev *dev)
 		kfree(priv->mfunc.master.slave_state);
 		kfree(priv->mfunc.master.vf_admin);
 		kfree(priv->mfunc.master.vf_oper);
+		dev->num_slaves = 0;
 	}
 
 	iounmap(priv->mfunc.comm);

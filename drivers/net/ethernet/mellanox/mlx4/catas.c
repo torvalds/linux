@@ -45,8 +45,7 @@ enum {
 int mlx4_internal_err_reset = 1;
 module_param_named(internal_err_reset, mlx4_internal_err_reset,  int, 0644);
 MODULE_PARM_DESC(internal_err_reset,
-		 "Reset device on internal errors if non-zero"
-		 " (default 1, in SRIOV mode default is 0)");
+		 "Reset device on internal errors if non-zero (default 1)");
 
 static int read_vendor_id(struct mlx4_dev *dev)
 {
@@ -71,6 +70,9 @@ static int mlx4_reset_master(struct mlx4_dev *dev)
 {
 	int err = 0;
 
+	if (mlx4_is_master(dev))
+		mlx4_report_internal_err_comm_event(dev);
+
 	if (!pci_channel_offline(dev->persist->pdev)) {
 		err = read_vendor_id(dev);
 		/* If PCI can't be accessed to read vendor ID we assume that its
@@ -87,6 +89,81 @@ static int mlx4_reset_master(struct mlx4_dev *dev)
 	return err;
 }
 
+static int mlx4_reset_slave(struct mlx4_dev *dev)
+{
+#define COM_CHAN_RST_REQ_OFFSET 0x10
+#define COM_CHAN_RST_ACK_OFFSET 0x08
+
+	u32 comm_flags;
+	u32 rst_req;
+	u32 rst_ack;
+	unsigned long end;
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	if (pci_channel_offline(dev->persist->pdev))
+		return 0;
+
+	comm_flags = swab32(readl((__iomem char *)priv->mfunc.comm +
+				  MLX4_COMM_CHAN_FLAGS));
+	if (comm_flags == 0xffffffff) {
+		mlx4_err(dev, "VF reset is not needed\n");
+		return 0;
+	}
+
+	if (!(dev->caps.vf_caps & MLX4_VF_CAP_FLAG_RESET)) {
+		mlx4_err(dev, "VF reset is not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	rst_req = (comm_flags & (u32)(1 << COM_CHAN_RST_REQ_OFFSET)) >>
+		COM_CHAN_RST_REQ_OFFSET;
+	rst_ack = (comm_flags & (u32)(1 << COM_CHAN_RST_ACK_OFFSET)) >>
+		COM_CHAN_RST_ACK_OFFSET;
+	if (rst_req != rst_ack) {
+		mlx4_err(dev, "Communication channel isn't sync, fail to send reset\n");
+		return -EIO;
+	}
+
+	rst_req ^= 1;
+	mlx4_warn(dev, "VF is sending reset request to Firmware\n");
+	comm_flags = rst_req << COM_CHAN_RST_REQ_OFFSET;
+	__raw_writel((__force u32)cpu_to_be32(comm_flags),
+		     (__iomem char *)priv->mfunc.comm + MLX4_COMM_CHAN_FLAGS);
+	/* Make sure that our comm channel write doesn't
+	 * get mixed in with writes from another CPU.
+	 */
+	mmiowb();
+
+	end = msecs_to_jiffies(MLX4_COMM_TIME) + jiffies;
+	while (time_before(jiffies, end)) {
+		comm_flags = swab32(readl((__iomem char *)priv->mfunc.comm +
+					  MLX4_COMM_CHAN_FLAGS));
+		rst_ack = (comm_flags & (u32)(1 << COM_CHAN_RST_ACK_OFFSET)) >>
+			COM_CHAN_RST_ACK_OFFSET;
+
+		/* Reading rst_req again since the communication channel can
+		 * be reset at any time by the PF and all its bits will be
+		 * set to zero.
+		 */
+		rst_req = (comm_flags & (u32)(1 << COM_CHAN_RST_REQ_OFFSET)) >>
+			COM_CHAN_RST_REQ_OFFSET;
+
+		if (rst_ack == rst_req) {
+			mlx4_warn(dev, "VF Reset succeed\n");
+			return 0;
+		}
+		cond_resched();
+	}
+	mlx4_err(dev, "Fail to send reset over the communication channel\n");
+	return -ETIMEDOUT;
+}
+
+static int mlx4_comm_internal_err(u32 slave_read)
+{
+	return (u32)COMM_CHAN_EVENT_INTERNAL_ERR ==
+		(slave_read & (u32)COMM_CHAN_EVENT_INTERNAL_ERR) ? 1 : 0;
+}
+
 void mlx4_enter_error_state(struct mlx4_dev_persistent *persist)
 {
 	int err;
@@ -101,7 +178,10 @@ void mlx4_enter_error_state(struct mlx4_dev_persistent *persist)
 
 	dev = persist->dev;
 	mlx4_err(dev, "device is going to be reset\n");
-	err = mlx4_reset_master(dev);
+	if (mlx4_is_slave(dev))
+		err = mlx4_reset_slave(dev);
+	else
+		err = mlx4_reset_master(dev);
 	BUG_ON(err != 0);
 
 	dev->persist->state |= MLX4_DEVICE_STATE_INTERNAL_ERROR;
@@ -148,8 +228,15 @@ static void poll_catas(unsigned long dev_ptr)
 {
 	struct mlx4_dev *dev = (struct mlx4_dev *) dev_ptr;
 	struct mlx4_priv *priv = mlx4_priv(dev);
+	u32 slave_read;
 
-	if (readl(priv->catas_err.map)) {
+	if (mlx4_is_slave(dev)) {
+		slave_read = swab32(readl(&priv->mfunc.comm->slave_read));
+		if (mlx4_comm_internal_err(slave_read)) {
+			mlx4_warn(dev, "Internal error detected on the communication channel\n");
+			goto internal_err;
+		}
+	} else if (readl(priv->catas_err.map)) {
 		dump_err_buf(dev);
 		goto internal_err;
 	}
@@ -182,22 +269,21 @@ void mlx4_start_catas_poll(struct mlx4_dev *dev)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	phys_addr_t addr;
 
-	/*If we are in SRIOV the default of the module param must be 0*/
-	if (mlx4_is_mfunc(dev))
-		mlx4_internal_err_reset = 0;
-
 	INIT_LIST_HEAD(&priv->catas_err.list);
 	init_timer(&priv->catas_err.timer);
 	priv->catas_err.map = NULL;
 
-	addr = pci_resource_start(dev->persist->pdev, priv->fw.catas_bar) +
-		priv->fw.catas_offset;
+	if (!mlx4_is_slave(dev)) {
+		addr = pci_resource_start(dev->persist->pdev,
+					  priv->fw.catas_bar) +
+					  priv->fw.catas_offset;
 
-	priv->catas_err.map = ioremap(addr, priv->fw.catas_size * 4);
-	if (!priv->catas_err.map) {
-		mlx4_warn(dev, "Failed to map internal error buffer at 0x%llx\n",
-			  (unsigned long long) addr);
-		return;
+		priv->catas_err.map = ioremap(addr, priv->fw.catas_size * 4);
+		if (!priv->catas_err.map) {
+			mlx4_warn(dev, "Failed to map internal error buffer at 0x%llx\n",
+				  (unsigned long long)addr);
+			return;
+		}
 	}
 
 	priv->catas_err.timer.data     = (unsigned long) dev;
