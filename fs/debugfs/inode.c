@@ -175,6 +175,18 @@ static const struct super_operations debugfs_super_operations = {
 	.show_options	= debugfs_show_options,
 };
 
+static struct vfsmount *debugfs_automount(struct path *path)
+{
+	struct vfsmount *(*f)(void *);
+	f = (struct vfsmount *(*)(void *))path->dentry->d_fsdata;
+	return f(path->dentry->d_inode->i_private);
+}
+
+static const struct dentry_operations debugfs_dops = {
+	.d_delete = always_delete_dentry,
+	.d_automount = debugfs_automount,
+};
+
 static int debug_fill_super(struct super_block *sb, void *data, int silent)
 {
 	static struct tree_descr debug_files[] = {{""}};
@@ -199,6 +211,7 @@ static int debug_fill_super(struct super_block *sb, void *data, int silent)
 		goto fail;
 
 	sb->s_op = &debugfs_super_operations;
+	sb->s_d_op = &debugfs_dops;
 
 	debugfs_apply_options(sb);
 
@@ -366,6 +379,41 @@ struct dentry *debugfs_create_dir(const char *name, struct dentry *parent)
 	return end_creating(dentry);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_dir);
+
+/**
+ * debugfs_create_automount - create automount point in the debugfs filesystem
+ * @name: a pointer to a string containing the name of the file to create.
+ * @parent: a pointer to the parent dentry for this file.  This should be a
+ *          directory dentry if set.  If this parameter is NULL, then the
+ *          file will be created in the root of the debugfs filesystem.
+ * @f: function to be called when pathname resolution steps on that one.
+ * @data: opaque argument to pass to f().
+ *
+ * @f should return what ->d_automount() would.
+ */
+struct dentry *debugfs_create_automount(const char *name,
+					struct dentry *parent,
+					struct vfsmount *(*f)(void *),
+					void *data)
+{
+	struct dentry *dentry = start_creating(name, parent);
+	struct inode *inode;
+
+	if (IS_ERR(dentry))
+		return NULL;
+
+	inode = debugfs_get_inode(dentry->d_sb);
+	if (unlikely(!inode))
+		return failed_creating(dentry);
+
+	inode->i_mode = S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO;
+	inode->i_flags |= S_AUTOMOUNT;
+	inode->i_private = data;
+	dentry->d_fsdata = (void *)f;
+	d_instantiate(dentry, inode);
+	return end_creating(dentry);
+}
+EXPORT_SYMBOL(debugfs_create_automount);
 
 /**
  * debugfs_create_symlink- create a symbolic link in the debugfs filesystem
