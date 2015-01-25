@@ -57,10 +57,10 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 
 	err = brcmf_fil_cmd_data_get(ifp, BRCMF_C_GET_REVINFO,
 				     &revinfo, sizeof(revinfo));
+	ri = &ifp->drvr->revinfo;
 	if (err < 0) {
 		brcmf_err("retrieving revision info failed, %d\n", err);
 	} else {
-		ri = &ifp->drvr->revinfo;
 		ri->vendorid = le32_to_cpu(revinfo.vendorid);
 		ri->deviceid = le32_to_cpu(revinfo.deviceid);
 		ri->radiorev = le32_to_cpu(revinfo.radiorev);
@@ -79,6 +79,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 		ri->chippkg = le32_to_cpu(revinfo.chippkg);
 		ri->nvramrev = le32_to_cpu(revinfo.nvramrev);
 	}
+	ri->result = err;
 
 	/* query for 'ver' to get version info from firmware */
 	memset(buf, 0, sizeof(buf));

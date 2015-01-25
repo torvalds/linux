@@ -71,8 +71,16 @@ struct brcmf_proto;	/* device communication protocol info */
 struct brcmf_cfg80211_dev; /* cfg80211 device info */
 struct brcmf_fws_info; /* firmware signalling info */
 
-/* see struct brcmf_rev_info_le in fwil_types.h */
+/*
+ * struct brcmf_rev_info
+ *
+ * The result field stores the error code of the
+ * revision info request from firmware. For the
+ * other fields see struct brcmf_rev_info_le in
+ * fwil_types.h
+ */
 struct brcmf_rev_info {
+	int result;
 	u32 vendorid;
 	u32 deviceid;
 	u32 radiorev;
