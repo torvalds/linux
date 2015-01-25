@@ -267,10 +267,11 @@ char *brcmu_boardrev_str(u32 brev, char *buf)
 	char c;
 
 	if (brev < 0x100) {
-		snprintf(buf, 8, "%d.%d", (brev & 0xf0) >> 4, brev & 0xf);
+		snprintf(buf, BRCMU_BOARDREV_LEN, "%d.%d",
+			 (brev & 0xf0) >> 4, brev & 0xf);
 	} else {
 		c = (brev & 0xf000) == 0x1000 ? 'P' : 'A';
-		snprintf(buf, 8, "%c%03x", c, brev & 0xfff);
+		snprintf(buf, BRCMU_BOARDREV_LEN, "%c%03x", c, brev & 0xfff);
 	}
 	return buf;
 }

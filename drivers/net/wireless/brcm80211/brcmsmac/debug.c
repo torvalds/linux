@@ -78,7 +78,7 @@ int brcms_debugfs_hardware_read(struct seq_file *s, void *data)
 	struct brcms_hardware *hw = drvr->wlc->hw;
 	struct bcma_device *core = hw->d11core;
 	struct bcma_bus *bus = core->bus;
-	char boardrev[10];
+	char boardrev[BRCMU_BOARDREV_LEN];
 
 	seq_printf(s, "chipnum 0x%x\n"
 		   "chiprev 0x%x\n"
