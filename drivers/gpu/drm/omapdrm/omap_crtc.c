@@ -28,6 +28,13 @@
 
 #define to_omap_crtc(x) container_of(x, struct omap_crtc, base)
 
+enum omap_page_flip_state {
+	OMAP_PAGE_FLIP_IDLE,
+	OMAP_PAGE_FLIP_WAIT,
+	OMAP_PAGE_FLIP_QUEUED,
+	OMAP_PAGE_FLIP_CANCELLED,
+};
+
 struct omap_crtc {
 	struct drm_crtc base;
 
@@ -55,16 +62,19 @@ struct omap_crtc {
 	struct list_head pending_unpins;
 
 	/*
-	 * The flip_pending flag indicates if a page flip has been queued and
-	 * hasn't completed yet. The flip event, if any, is stored in
-	 * flip_event.
+	 * flip_state flag indicates the current page flap state: IDLE if no
+	 * page queue has been submitted, WAIT when waiting for GEM async
+	 * completion, QUEUED when the page flip has been queued to the hardware
+	 * or CANCELLED when the CRTC is turned off before the flip gets queued
+	 * to the hardware. The flip event, if any, is stored in flip_event. The
+	 * flip_wait wait queue is used to wait for page flip completion.
 	 *
 	 * The flip_work work queue handles page flip requests without caring
 	 * about what context the GEM async callback is called from. Possibly we
 	 * should just make omap_gem always call the cb from the worker so we
 	 * don't have to care about this.
 	 */
-	bool flip_pending;
+	enum omap_page_flip_state flip_state;
 	struct drm_pending_vblank_event *flip_event;
 	struct work_struct flip_work;
 
@@ -285,6 +295,22 @@ void omap_crtc_cancel_page_flip(struct drm_crtc *crtc, struct drm_file *file)
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 
+/* Must be called with dev->event_lock locked. */
+static void omap_crtc_complete_page_flip(struct drm_crtc *crtc,
+					 enum omap_page_flip_state state)
+{
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+
+	if (omap_crtc->flip_event) {
+		drm_send_vblank_event(dev, omap_crtc->pipe,
+				      omap_crtc->flip_event);
+		omap_crtc->flip_event = NULL;
+	}
+
+	omap_crtc->flip_state = state;
+}
+
 static void omap_crtc_error_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
 {
 	struct omap_crtc *omap_crtc =
@@ -312,16 +338,9 @@ static void omap_crtc_vblank_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
 	DBG("%s: apply done", omap_crtc->name);
 	__omap_irq_unregister(dev, &omap_crtc->vblank_irq);
 
-	spin_lock_irqsave(&dev->event_lock, flags);
-
 	/* wakeup userspace */
-	if (omap_crtc->flip_event)
-		drm_send_vblank_event(dev, omap_crtc->pipe,
-				      omap_crtc->flip_event);
-
-	omap_crtc->flip_event = NULL;
-	omap_crtc->flip_pending = false;
-
+	spin_lock_irqsave(&dev->event_lock, flags);
+	omap_crtc_complete_page_flip(&omap_crtc->base, OMAP_PAGE_FLIP_IDLE);
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	complete(&omap_crtc->completion);
@@ -533,16 +552,41 @@ static void page_flip_worker(struct work_struct *work)
 			container_of(work, struct omap_crtc, flip_work);
 	struct drm_crtc *crtc = &omap_crtc->base;
 	struct drm_display_mode *mode = &crtc->mode;
+	struct drm_device *dev = crtc->dev;
+	struct drm_framebuffer *fb;
 	struct drm_gem_object *bo;
+	unsigned long flags;
+	bool queue_flip;
 
 	drm_modeset_lock(&crtc->mutex, NULL);
-	omap_plane_mode_set(crtc->primary, crtc, crtc->primary->fb,
-			    0, 0, mode->hdisplay, mode->vdisplay,
-			    crtc->x, crtc->y, mode->hdisplay, mode->vdisplay);
-	omap_crtc_flush(crtc);
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+	/*
+	 * The page flip could have been cancelled while waiting for the GEM
+	 * async operation to complete. Don't queue the flip in that case.
+	 */
+	if (omap_crtc->flip_state == OMAP_PAGE_FLIP_WAIT) {
+		omap_crtc->flip_state = OMAP_PAGE_FLIP_QUEUED;
+		queue_flip = true;
+	} else {
+		omap_crtc->flip_state = OMAP_PAGE_FLIP_IDLE;
+		queue_flip = false;
+	}
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	fb = crtc->primary->fb;
+
+	if (queue_flip) {
+		omap_plane_mode_set(crtc->primary, crtc, fb,
+				    0, 0, mode->hdisplay, mode->vdisplay,
+				    crtc->x, crtc->y, mode->hdisplay,
+				    mode->vdisplay);
+		omap_crtc_flush(crtc);
+	}
+
 	drm_modeset_unlock(&crtc->mutex);
 
-	bo = omap_framebuffer_bo(crtc->primary->fb, 0);
+	bo = omap_framebuffer_bo(fb, 0);
 	drm_gem_object_unreference_unlocked(bo);
 	drm_framebuffer_unreference(crtc->primary->fb);
 }
@@ -573,14 +617,14 @@ static int omap_crtc_page_flip(struct drm_crtc *crtc,
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 
-	if (omap_crtc->flip_pending) {
+	if (omap_crtc->flip_state != OMAP_PAGE_FLIP_IDLE) {
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 		dev_err(dev->dev, "already a pending flip\n");
 		return -EBUSY;
 	}
 
 	omap_crtc->flip_event = event;
-	omap_crtc->flip_pending = true;
+	omap_crtc->flip_state = OMAP_PAGE_FLIP_WAIT;
 	primary->fb = fb;
 	drm_framebuffer_reference(fb);
 
