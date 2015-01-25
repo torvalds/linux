@@ -70,23 +70,18 @@ static struct inode *debugfs_get_inode(struct super_block *sb, umode_t mode, dev
 }
 
 /* SMP-safe */
-static int debugfs_mknod(struct inode *dir, struct dentry *dentry,
-			 umode_t mode, dev_t dev, void *data,
+static int debugfs_mknod(struct dentry *dentry,
+			 umode_t mode, void *data,
 			 const struct file_operations *fops)
 {
 	struct inode *inode;
-	int error = -EPERM;
 
-	if (dentry->d_inode)
-		return -EEXIST;
-
-	inode = debugfs_get_inode(dir->i_sb, mode, dev, data, fops);
-	if (inode) {
-		d_instantiate(dentry, inode);
-		dget(dentry);
-		error = 0;
-	}
-	return error;
+	inode = debugfs_get_inode(dentry->d_sb, mode, 0, data, fops);
+	if (unlikely(!inode))
+		return -EPERM;
+	d_instantiate(dentry, inode);
+	dget(dentry);
+	return 0;
 }
 
 static int debugfs_mkdir(struct dentry *dentry, umode_t mode)
@@ -95,7 +90,7 @@ static int debugfs_mkdir(struct dentry *dentry, umode_t mode)
 	int res;
 
 	mode = (mode & (S_IRWXUGO | S_ISVTX)) | S_IFDIR;
-	res = debugfs_mknod(dir, dentry, mode, 0, NULL, NULL);
+	res = debugfs_mknod(dentry, mode, NULL, NULL);
 	if (!res) {
 		inc_nlink(dir);
 		fsnotify_mkdir(dir, dentry);
@@ -110,7 +105,7 @@ static int debugfs_create(struct dentry *dentry, umode_t mode,
 	int res;
 
 	mode = (mode & S_IALLUGO) | S_IFREG;
-	res = debugfs_mknod(dir, dentry, mode, 0, data, fops);
+	res = debugfs_mknod(dentry, mode, data, fops);
 	if (!res)
 		fsnotify_create(dir, dentry);
 	return res;
@@ -458,8 +453,7 @@ struct dentry *debugfs_create_symlink(const char *name, struct dentry *parent,
 		return NULL;
 	}
 
-	error = debugfs_mknod(dentry->d_parent->d_inode, dentry,
-			      S_IFLNK | S_IRWXUGO, 0, link, NULL);
+	error = debugfs_mknod(dentry, S_IFLNK | S_IRWXUGO, link, NULL);
 	if (error)
 		kfree(link);
 
