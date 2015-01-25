@@ -147,7 +147,6 @@ static void iwl_pcie_free_dma_ptr(struct iwl_trans *trans,
 static void iwl_pcie_txq_stuck_timer(unsigned long data)
 {
 	struct iwl_txq *txq = (void *)data;
-	struct iwl_queue *q = &txq->q;
 	struct iwl_trans_pcie *trans_pcie = txq->trans_pcie;
 	struct iwl_trans *trans = iwl_trans_pcie_get_trans(trans_pcie);
 	u32 scd_sram_addr = trans_pcie->scd_base_addr +
@@ -197,11 +196,6 @@ static void iwl_pcie_txq_stuck_timer(unsigned long data)
 				(TFD_QUEUE_SIZE_MAX - 1),
 			iwl_read_prph(trans, SCD_QUEUE_WRPTR(i)));
 	}
-
-	for (i = q->read_ptr; i != q->write_ptr;
-	     i = iwl_queue_inc_wrap(i))
-		IWL_ERR(trans, "scratch %d = 0x%08x\n", i,
-			le32_to_cpu(txq->scratchbufs[i].scratch));
 
 	iwl_force_nmi(trans);
 }
