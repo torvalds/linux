@@ -13,7 +13,6 @@
 #include <linux/reboot.h>
 #include <linux/regmap.h>
 #include <linux/of.h>
-#include <asm/system_misc.h>
 
 #define INTEGRATOR_HDR_CTRL_OFFSET	0x0C
 #define INTEGRATOR_HDR_LOCK_OFFSET	0x14
@@ -69,7 +68,8 @@ static const struct of_device_id versatile_reboot_of_match[] = {
 	{},
 };
 
-static void versatile_reboot(enum reboot_mode mode, const char *cmd)
+static int versatile_reboot(struct notifier_block *this, unsigned long mode,
+			    void *cmd)
 {
 	/* Unlock the reset register */
 	/* Then hit reset on the different machines */
@@ -113,12 +113,20 @@ static void versatile_reboot(enum reboot_mode mode, const char *cmd)
 		break;
 	}
 	dsb();
+
+	return NOTIFY_DONE;
 }
+
+static struct notifier_block versatile_reboot_nb = {
+	.notifier_call = versatile_reboot,
+	.priority = 192,
+};
 
 static int __init versatile_reboot_probe(void)
 {
 	const struct of_device_id *reboot_id;
 	struct device_node *np;
+	int err;
 
 	np = of_find_matching_node_and_match(NULL, versatile_reboot_of_match,
 						 &reboot_id);
@@ -130,7 +138,10 @@ static int __init versatile_reboot_probe(void)
 	if (IS_ERR(syscon_regmap))
 		return PTR_ERR(syscon_regmap);
 
-	arm_pm_restart = versatile_reboot;
+	err = register_restart_handler(&versatile_reboot_nb);
+	if (err)
+		return err;
+
 	pr_info("versatile reboot driver registered\n");
 	return 0;
 }
