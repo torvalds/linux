@@ -275,8 +275,8 @@ static ssize_t  amvideocap_YUV_to_RGB(struct amvideocap_private *priv, u32 cur_i
     ge2d_config.src_para.x_rev = 0;
     ge2d_config.src_para.y_rev = 0;
     ge2d_config.src_para.color = 0;
-    ge2d_config.src_para.top = input_x;
-    ge2d_config.src_para.left = input_y;
+    ge2d_config.src_para.left = input_x;
+    ge2d_config.src_para.top = input_y;
     ge2d_config.src_para.width = input_width;
     ge2d_config.src_para.height = input_height;
 
