@@ -411,6 +411,11 @@ enum {
 	MLX4_EQ_PORT_INFO_MSTR_SM_SL_CHANGE_MASK	= 1 << 4,
 };
 
+enum {
+	MLX4_DEVICE_STATE_UP			= 1 << 0,
+	MLX4_DEVICE_STATE_INTERNAL_ERROR	= 1 << 1,
+};
+
 #define MSTR_SM_CHANGE_MASK (MLX4_EQ_PORT_INFO_MSTR_SM_SL_CHANGE_MASK | \
 			     MLX4_EQ_PORT_INFO_MSTR_SM_LID_CHANGE_MASK)
 
@@ -753,6 +758,8 @@ struct mlx4_dev_persistent {
 	enum mlx4_port_type curr_port_poss_type[MLX4_MAX_PORTS + 1];
 	struct work_struct      catas_work;
 	struct workqueue_struct *catas_wq;
+	struct mutex	device_state_mutex; /* protect HW state */
+	u8		state;
 };
 
 struct mlx4_dev {
