@@ -405,6 +405,7 @@ int wil_priv_init(struct wil6210_priv *wil)
 	mutex_init(&wil->wmi_mutex);
 	mutex_init(&wil->back_rx_mutex);
 	mutex_init(&wil->back_tx_mutex);
+	mutex_init(&wil->probe_client_mutex);
 
 	init_completion(&wil->wmi_ready);
 	init_completion(&wil->wmi_call);
@@ -419,10 +420,12 @@ int wil_priv_init(struct wil6210_priv *wil)
 	INIT_WORK(&wil->fw_error_worker, wil_fw_error_worker);
 	INIT_WORK(&wil->back_rx_worker, wil_back_rx_worker);
 	INIT_WORK(&wil->back_tx_worker, wil_back_tx_worker);
+	INIT_WORK(&wil->probe_client_worker, wil_probe_client_worker);
 
 	INIT_LIST_HEAD(&wil->pending_wmi_ev);
 	INIT_LIST_HEAD(&wil->back_rx_pending);
 	INIT_LIST_HEAD(&wil->back_tx_pending);
+	INIT_LIST_HEAD(&wil->probe_client_pending);
 	spin_lock_init(&wil->wmi_ev_lock);
 	init_waitqueue_head(&wil->wq);
 
@@ -485,6 +488,8 @@ void wil_priv_deinit(struct wil6210_priv *wil)
 	cancel_work_sync(&wil->back_rx_worker);
 	wil_back_tx_flush(wil);
 	cancel_work_sync(&wil->back_tx_worker);
+	wil_probe_client_flush(wil);
+	cancel_work_sync(&wil->probe_client_worker);
 	destroy_workqueue(wil->wq_service);
 	destroy_workqueue(wil->wmi_wq);
 }

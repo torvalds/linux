@@ -808,6 +808,96 @@ static int wil_cfg80211_del_station(struct wiphy *wiphy,
 	return 0;
 }
 
+/* probe_client handling */
+static void wil_probe_client_handle(struct wil6210_priv *wil,
+				    struct wil_probe_client_req *req)
+{
+	struct net_device *ndev = wil_to_ndev(wil);
+	struct wil_sta_info *sta = &wil->sta[req->cid];
+	/* assume STA is alive if it is still connected,
+	 * else FW will disconnect it
+	 */
+	bool alive = (sta->status == wil_sta_connected);
+
+	cfg80211_probe_status(ndev, sta->addr, req->cookie, alive, GFP_KERNEL);
+}
+
+static struct list_head *next_probe_client(struct wil6210_priv *wil)
+{
+	struct list_head *ret = NULL;
+
+	mutex_lock(&wil->probe_client_mutex);
+
+	if (!list_empty(&wil->probe_client_pending)) {
+		ret = wil->probe_client_pending.next;
+		list_del(ret);
+	}
+
+	mutex_unlock(&wil->probe_client_mutex);
+
+	return ret;
+}
+
+void wil_probe_client_worker(struct work_struct *work)
+{
+	struct wil6210_priv *wil = container_of(work, struct wil6210_priv,
+						probe_client_worker);
+	struct wil_probe_client_req *req;
+	struct list_head *lh;
+
+	while ((lh = next_probe_client(wil)) != NULL) {
+		req = list_entry(lh, struct wil_probe_client_req, list);
+
+		wil_probe_client_handle(wil, req);
+		kfree(req);
+	}
+}
+
+void wil_probe_client_flush(struct wil6210_priv *wil)
+{
+	struct wil_probe_client_req *req, *t;
+
+	wil_dbg_misc(wil, "%s()\n", __func__);
+
+	mutex_lock(&wil->probe_client_mutex);
+
+	list_for_each_entry_safe(req, t, &wil->probe_client_pending, list) {
+		list_del(&req->list);
+		kfree(req);
+	}
+
+	mutex_unlock(&wil->probe_client_mutex);
+}
+
+static int wil_cfg80211_probe_client(struct wiphy *wiphy,
+				     struct net_device *dev,
+				     const u8 *peer, u64 *cookie)
+{
+	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+	struct wil_probe_client_req *req;
+	int cid = wil_find_cid(wil, peer);
+
+	wil_dbg_misc(wil, "%s(%pM => CID %d)\n", __func__, peer, cid);
+
+	if (cid < 0)
+		return -ENOLINK;
+
+	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	if (!req)
+		return -ENOMEM;
+
+	req->cid = cid;
+	req->cookie = cid;
+
+	mutex_lock(&wil->probe_client_mutex);
+	list_add_tail(&req->list, &wil->probe_client_pending);
+	mutex_unlock(&wil->probe_client_mutex);
+
+	*cookie = req->cookie;
+	queue_work(wil->wq_service, &wil->probe_client_worker);
+	return 0;
+}
+
 static struct cfg80211_ops wil_cfg80211_ops = {
 	.scan = wil_cfg80211_scan,
 	.connect = wil_cfg80211_connect,
@@ -827,6 +917,7 @@ static struct cfg80211_ops wil_cfg80211_ops = {
 	.start_ap = wil_cfg80211_start_ap,
 	.stop_ap = wil_cfg80211_stop_ap,
 	.del_station = wil_cfg80211_del_station,
+	.probe_client = wil_cfg80211_probe_client,
 };
 
 static void wil_wiphy_init(struct wiphy *wiphy)
