@@ -27,9 +27,6 @@
 typedef struct snd_seq_real_time snd_seq_real_time_t;
 typedef union snd_seq_timestamp snd_seq_timestamp_t;
 
-/* maximum number of events dequeued per schedule interval */
-#define SNDRV_SEQ_MAX_DEQUEUE		50
-
 /* maximum number of queues */
 #define SNDRV_SEQ_MAX_QUEUES		8
 
@@ -41,9 +38,6 @@ typedef union snd_seq_timestamp snd_seq_timestamp_t;
 
 /* max number of events in memory pool */
 #define SNDRV_SEQ_MAX_EVENTS		2000
-
-/* default number of events in memory chunk */
-#define SNDRV_SEQ_DEFAULT_CHUNK_EVENTS	64
 
 /* default number of events in memory pool */
 #define SNDRV_SEQ_DEFAULT_EVENTS	500
