@@ -118,18 +118,6 @@ static int st21nfca_hci_load_session(struct nfc_hci_dev *hdev)
 		NFC_HCI_TERMINAL_HOST_ID, 0
 	};
 
-	skb_pipe_list = alloc_skb(ST21NFCA_HCI_LLC_MAX_SIZE, GFP_KERNEL);
-	if (!skb_pipe_list) {
-		r = -ENOMEM;
-		goto free_list;
-	}
-
-	skb_pipe_info = alloc_skb(ST21NFCA_HCI_LLC_MAX_SIZE, GFP_KERNEL);
-	if (!skb_pipe_info) {
-		r = -ENOMEM;
-		goto free_info;
-	}
-
 	/* On ST21NFCA device pipes number are dynamics
 	 * A maximum of 16 pipes can be created at the same time
 	 * If pipes are already created, hci_dev_up will fail.
@@ -212,7 +200,6 @@ static int st21nfca_hci_load_session(struct nfc_hci_dev *hdev)
 	memcpy(hdev->init_data.gates, st21nfca_gates, sizeof(st21nfca_gates));
 free_info:
 	kfree_skb(skb_pipe_info);
-free_list:
 	kfree_skb(skb_pipe_list);
 	return r;
 }
