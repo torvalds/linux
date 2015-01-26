@@ -831,8 +831,6 @@ static int das16_ai_insn_read(struct comedi_device *dev,
 	int ret;
 	int i;
 
-	das16_ai_disable(dev);
-
 	/* set multiplexer */
 	outb(chan | (chan << 4), dev->iobase + DAS16_MUX_REG);
 
