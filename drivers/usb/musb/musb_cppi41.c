@@ -549,9 +549,14 @@ static int cppi41_dma_channel_abort(struct dma_channel *channel)
 		csr &= ~MUSB_TXCSR_DMAENAB;
 		musb_writew(epio, MUSB_TXCSR, csr);
 	} else {
+		cppi41_set_autoreq_mode(cppi41_channel, EP_MODE_AUTOREQ_NONE);
+
 		csr = musb_readw(epio, MUSB_RXCSR);
 		csr &= ~(MUSB_RXCSR_H_REQPKT | MUSB_RXCSR_DMAENAB);
 		musb_writew(epio, MUSB_RXCSR, csr);
+
+		/* wait to drain cppi dma pipe line */
+		udelay(50);
 
 		csr = musb_readw(epio, MUSB_RXCSR);
 		if (csr & MUSB_RXCSR_RXPKTRDY) {
@@ -566,13 +571,14 @@ static int cppi41_dma_channel_abort(struct dma_channel *channel)
 		tdbit <<= 16;
 
 	do {
-		musb_writel(musb->ctrl_base, USB_TDOWN, tdbit);
+		if (is_tx)
+			musb_writel(musb->ctrl_base, USB_TDOWN, tdbit);
 		ret = dmaengine_terminate_all(cppi41_channel->dc);
 	} while (ret == -EAGAIN);
 
-	musb_writel(musb->ctrl_base, USB_TDOWN, tdbit);
-
 	if (is_tx) {
+		musb_writel(musb->ctrl_base, USB_TDOWN, tdbit);
+
 		csr = musb_readw(epio, MUSB_TXCSR);
 		if (csr & MUSB_TXCSR_TXPKTRDY) {
 			csr |= MUSB_TXCSR_FLUSHFIFO;
