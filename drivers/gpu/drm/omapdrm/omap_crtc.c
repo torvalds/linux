@@ -54,18 +54,21 @@ struct omap_crtc {
 	/* list of framebuffers to unpin */
 	struct list_head pending_unpins;
 
-	/* if there is a pending flip, these will be non-null: */
-	struct drm_pending_vblank_event *event;
-	struct drm_framebuffer *old_fb;
+	/*
+	 * The flip_pending flag indicates if a page flip has been queued and
+	 * hasn't completed yet. The flip event, if any, is stored in
+	 * flip_event.
+	 *
+	 * The flip_work work queue handles page flip requests without caring
+	 * about what context the GEM async callback is called from. Possibly we
+	 * should just make omap_gem always call the cb from the worker so we
+	 * don't have to care about this.
+	 */
+	bool flip_pending;
+	struct drm_pending_vblank_event *flip_event;
+	struct work_struct flip_work;
 
 	struct completion completion;
-
-	/* for handling page flips without caring about what
-	 * the callback is called from.  Possibly we should just
-	 * make omap_gem always call the cb from the worker so
-	 * we don't have to care about this..
-	 */
-	struct work_struct page_flip_work;
 
 	bool ignore_digit_sync_lost;
 };
@@ -293,11 +296,12 @@ static void omap_crtc_vblank_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
 	spin_lock_irqsave(&dev->event_lock, flags);
 
 	/* wakeup userspace */
-	if (omap_crtc->event)
-		drm_send_vblank_event(dev, omap_crtc->pipe, omap_crtc->event);
+	if (omap_crtc->flip_event)
+		drm_send_vblank_event(dev, omap_crtc->pipe,
+				      omap_crtc->flip_event);
 
-	omap_crtc->event = NULL;
-	omap_crtc->old_fb = NULL;
+	omap_crtc->flip_event = NULL;
+	omap_crtc->flip_pending = false;
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
@@ -507,7 +511,7 @@ static int omap_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 static void page_flip_worker(struct work_struct *work)
 {
 	struct omap_crtc *omap_crtc =
-			container_of(work, struct omap_crtc, page_flip_work);
+			container_of(work, struct omap_crtc, flip_work);
 	struct drm_crtc *crtc = &omap_crtc->base;
 	struct drm_display_mode *mode = &crtc->mode;
 	struct drm_gem_object *bo;
@@ -531,7 +535,7 @@ static void page_flip_cb(void *arg)
 	struct omap_drm_private *priv = crtc->dev->dev_private;
 
 	/* avoid assumptions about what ctxt we are called from: */
-	queue_work(priv->wq, &omap_crtc->page_flip_work);
+	queue_work(priv->wq, &omap_crtc->flip_work);
 }
 
 static int omap_crtc_page_flip(struct drm_crtc *crtc,
@@ -550,15 +554,16 @@ static int omap_crtc_page_flip(struct drm_crtc *crtc,
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 
-	if (omap_crtc->old_fb) {
+	if (omap_crtc->flip_pending) {
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 		dev_err(dev->dev, "already a pending flip\n");
 		return -EBUSY;
 	}
 
-	omap_crtc->event = event;
-	omap_crtc->old_fb = primary->fb = fb;
-	drm_framebuffer_reference(omap_crtc->old_fb);
+	omap_crtc->flip_event = event;
+	omap_crtc->flip_pending = true;
+	primary->fb = fb;
+	drm_framebuffer_reference(fb);
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
@@ -640,7 +645,7 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 
 	crtc = &omap_crtc->base;
 
-	INIT_WORK(&omap_crtc->page_flip_work, page_flip_worker);
+	INIT_WORK(&omap_crtc->flip_work, page_flip_worker);
 
 	INIT_LIST_HEAD(&omap_crtc->pending_unpins);
 
