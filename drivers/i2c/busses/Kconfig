@@ -467,8 +467,7 @@ config I2C_DESIGNWARE_PCI
 
 config I2C_DESIGNWARE_BAYTRAIL
 	bool "Intel Baytrail I2C semaphore support"
-	depends on I2C_DESIGNWARE_PLATFORM
-	select IOSF_MBI
+	depends on I2C_DESIGNWARE_PLATFORM && IOSF_MBI && ACPI
 	help
 	  This driver enables managed host access to the PMIC I2C bus on select
 	  Intel BayTrail platforms using the X-Powers AXP288 PMIC. It allows
