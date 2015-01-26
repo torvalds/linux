@@ -707,6 +707,7 @@ static int block_alloc_fixed(struct sst_dsp *dsp, struct sst_block_allocator *ba
 	struct list_head *block_list)
 {
 	struct sst_mem_block *block, *tmp;
+	struct sst_block_allocator ba_tmp = *ba;
 	u32 end = ba->offset + ba->size, block_end;
 	int err;
 
@@ -731,9 +732,9 @@ static int block_alloc_fixed(struct sst_dsp *dsp, struct sst_block_allocator *ba
 		if (ba->offset >= block->offset && ba->offset < block_end) {
 
 			/* align ba to block boundary */
-			ba->size -= block_end - ba->offset;
-			ba->offset = block_end;
-			err = block_alloc_contiguous(dsp, ba, block_list);
+			ba_tmp.size -= block_end - ba->offset;
+			ba_tmp.offset = block_end;
+			err = block_alloc_contiguous(dsp, &ba_tmp, block_list);
 			if (err < 0)
 				return -ENOMEM;
 
@@ -768,10 +769,10 @@ static int block_alloc_fixed(struct sst_dsp *dsp, struct sst_block_allocator *ba
 			list_move(&block->list, &dsp->used_block_list);
 			list_add(&block->module_list, block_list);
 			/* align ba to block boundary */
-			ba->size -= block_end - ba->offset;
-			ba->offset = block_end;
+			ba_tmp.size -= block_end - ba->offset;
+			ba_tmp.offset = block_end;
 
-			err = block_alloc_contiguous(dsp, ba, block_list);
+			err = block_alloc_contiguous(dsp, &ba_tmp, block_list);
 			if (err < 0)
 				return -ENOMEM;
 

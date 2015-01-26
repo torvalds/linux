@@ -9,7 +9,6 @@ ad	Avionic Design GmbH
 adapteva	Adapteva, Inc.
 adi	Analog Devices, Inc.
 aeroflexgaisler	Aeroflex Gaisler AB
-ak	Asahi Kasei Corp.
 allwinner	Allwinner Technology Co., Ltd.
 altr	Altera Corp.
 amcc	Applied Micro Circuits Corporation (APM, formally AMCC)
@@ -20,6 +19,7 @@ amstaos	AMS-Taos Inc.
 apm	Applied Micro Circuits Corporation (APM)
 arm	ARM Ltd.
 armadeus	ARMadeus Systems SARL
+asahi-kasei	Asahi Kasei Corp.
 atmel	Atmel Corporation
 auo	AU Optronics Corporation
 avago	Avago Technologies
@@ -127,6 +127,7 @@ pixcir  PIXCIR MICROELECTRONICS Co., Ltd
 powervr	PowerVR (deprecated, use img)
 qca	Qualcomm Atheros, Inc.
 qcom	Qualcomm Technologies, Inc
+qemu	QEMU, a generic and open source machine emulator and virtualizer
 qnap	QNAP Systems, Inc.
 radxa	Radxa
 raidsonic	RaidSonic Technology GmbH
@@ -168,6 +169,7 @@ usi	Universal Scientific Industrial Co., Ltd.
 v3	V3 Semiconductor
 variscite	Variscite Ltd.
 via	VIA Technologies, Inc.
+virtio	Virtual I/O Device Specification, developed by the OASIS consortium
 voipac	Voipac Technologies s.r.o.
 winbond Winbond Electronics corp.
 wlf	Wolfson Microelectronics
