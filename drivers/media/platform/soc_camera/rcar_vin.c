@@ -826,72 +826,36 @@ static void rcar_vin_wait_stop_streaming(struct rcar_vin_priv *priv)
 	}
 }
 
-static void rcar_vin_videobuf_release(struct vb2_buffer *vb)
-{
-	struct soc_camera_device *icd = soc_camera_from_vb2q(vb->vb2_queue);
-	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
-	struct rcar_vin_priv *priv = ici->priv;
-	unsigned int i;
-	int buf_in_use = 0;
-
-	spin_lock_irq(&priv->lock);
-
-	/* Is the buffer in use by the VIN hardware? */
-	for (i = 0; i < MAX_BUFFER_NUM; i++) {
-		if (priv->queue_buf[i] == vb) {
-			buf_in_use = 1;
-			break;
-		}
-	}
-
-	if (buf_in_use) {
-		rcar_vin_wait_stop_streaming(priv);
-
-		/*
-		 * Capturing has now stopped. The buffer we have been asked
-		 * to release could be any of the current buffers in use, so
-		 * release all buffers that are in use by HW
-		 */
-		for (i = 0; i < MAX_BUFFER_NUM; i++) {
-			if (priv->queue_buf[i]) {
-				vb2_buffer_done(priv->queue_buf[i],
-					VB2_BUF_STATE_ERROR);
-				priv->queue_buf[i] = NULL;
-			}
-		}
-	} else {
-		list_del_init(to_buf_list(vb));
-	}
-
-	spin_unlock_irq(&priv->lock);
-}
-
-static int rcar_vin_videobuf_init(struct vb2_buffer *vb)
-{
-	INIT_LIST_HEAD(to_buf_list(vb));
-	return 0;
-}
-
 static void rcar_vin_stop_streaming(struct vb2_queue *vq)
 {
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct rcar_vin_priv *priv = ici->priv;
 	struct list_head *buf_head, *tmp;
+	int i;
 
 	spin_lock_irq(&priv->lock);
-
 	rcar_vin_wait_stop_streaming(priv);
-	list_for_each_safe(buf_head, tmp, &priv->capture)
-		list_del_init(buf_head);
 
+	for (i = 0; i < MAX_BUFFER_NUM; i++) {
+		if (priv->queue_buf[i]) {
+			vb2_buffer_done(priv->queue_buf[i],
+					VB2_BUF_STATE_ERROR);
+			priv->queue_buf[i] = NULL;
+		}
+	}
+
+	list_for_each_safe(buf_head, tmp, &priv->capture) {
+		vb2_buffer_done(&list_entry(buf_head,
+					struct rcar_vin_buffer, list)->vb,
+				VB2_BUF_STATE_ERROR);
+		list_del_init(buf_head);
+	}
 	spin_unlock_irq(&priv->lock);
 }
 
 static struct vb2_ops rcar_vin_vb2_ops = {
 	.queue_setup	= rcar_vin_videobuf_setup,
-	.buf_init	= rcar_vin_videobuf_init,
-	.buf_cleanup	= rcar_vin_videobuf_release,
 	.buf_queue	= rcar_vin_videobuf_queue,
 	.stop_streaming	= rcar_vin_stop_streaming,
 	.wait_prepare	= vb2_ops_wait_prepare,
