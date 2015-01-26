@@ -2439,7 +2439,8 @@ static int aml_sdhc_probe(struct platform_device *pdev)
         list_add_tail(&pdata->sibling, &host->sibling);
 
         /*Register card detect irq : plug in & unplug*/
-        if(pdata->irq_in && pdata->irq_out){
+        if ((0 == (pdata->caps & MMC_CAP_NONREMOVABLE))
+                        && (pdata->irq_in && pdata->irq_out)) {
             pdata->irq_init(pdata);
             ret = request_threaded_irq(pdata->irq_in+INT_GPIO_0,
                     (irq_handler_t)aml_sd_irq_cd, aml_irq_cd_thread,
@@ -2467,8 +2468,10 @@ static int aml_sdhc_probe(struct platform_device *pdev)
     return 0;
 
 fail_cd_irq_in:
-    if(pdata->irq_in)
-        free_irq(pdata->irq_in, pdata);
+    if (0 == (pdata->caps & MMC_CAP_NONREMOVABLE)) {
+            if(pdata->irq_in)
+                    free_irq(pdata->irq_in, pdata);
+    }
 probe_free_host:
     list_for_each_entry(pdata, &host->sibling, sibling){
         mmc = pdata->mmc;
