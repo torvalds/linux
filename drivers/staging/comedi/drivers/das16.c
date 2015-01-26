@@ -443,7 +443,6 @@ struct das16_private_struct {
 	unsigned long		adc_byte_count;
 	unsigned int		divisor1;
 	unsigned int		divisor2;
-	struct comedi_lrange	*user_ao_range_table;
 	struct timer_list	timer;
 	short			timer_running;
 	unsigned long		extra_iobase;
@@ -987,13 +986,42 @@ static const struct comedi_lrange *das16_ai_range(struct comedi_device *dev,
 	return das16_ai_bip_lranges[pg_type];
 }
 
+static const struct comedi_lrange *das16_ao_range(struct comedi_device *dev,
+						  struct comedi_subdevice *s,
+						  struct comedi_devconfig *it)
+{
+	unsigned int min = it->options[6];
+	unsigned int max = it->options[7];
+
+	/* get any user-defined output range */
+	if (min || max) {
+		struct comedi_lrange *lrange;
+		struct comedi_krange *krange;
+
+		/* allocate single-range range table */
+		lrange = comedi_alloc_spriv(s,
+					    sizeof(*lrange) + sizeof(*krange));
+		if (!lrange)
+			return &range_unknown;
+
+		/* initialize ao range */
+		lrange->length = 1;
+		krange = lrange->range;
+		krange->min = min;
+		krange->max = max;
+		krange->flags = UNIT_volt;
+
+		return lrange;
+	}
+
+	return &range_unknown;
+}
+
 static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct das16_board *board = dev->board_ptr;
 	struct das16_private_struct *devpriv;
 	struct comedi_subdevice *s;
-	struct comedi_lrange *lrange;
-	struct comedi_krange *krange;
 	unsigned int status;
 	int ret;
 
@@ -1050,22 +1078,6 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	das16_alloc_dma(dev, it->options[2]);
 
-	/* get any user-defined output range */
-	if (it->options[6] || it->options[7]) {
-		/* allocate single-range range table */
-		lrange = kzalloc(sizeof(*lrange) + sizeof(*krange), GFP_KERNEL);
-		if (!lrange)
-			return -ENOMEM;
-
-		/* initialize ao range */
-		devpriv->user_ao_range_table = lrange;
-		lrange->length = 1;
-		krange = devpriv->user_ao_range_table->range;
-		krange->min = it->options[6];
-		krange->max = it->options[7];
-		krange->flags = UNIT_volt;
-	}
-
 	ret = comedi_alloc_subdevices(dev, 4 + board->has_8255);
 	if (ret)
 		return ret;
@@ -1103,7 +1115,7 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->subdev_flags	= SDF_WRITABLE;
 		s->n_chan	= 2;
 		s->maxdata	= 0x0fff;
-		s->range_table	= devpriv->user_ao_range_table;
+		s->range_table	= das16_ao_range(dev, s, it);
 		s->insn_write	= das16_ao_insn_write;
 
 		ret = comedi_alloc_subdev_readback(s);
@@ -1165,7 +1177,6 @@ static void das16_detach(struct comedi_device *dev)
 		if (dev->iobase)
 			das16_reset(dev);
 		das16_free_dma(dev);
-		kfree(devpriv->user_ao_range_table);
 
 		if (devpriv->extra_iobase)
 			release_region(devpriv->extra_iobase,
