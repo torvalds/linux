@@ -167,7 +167,6 @@
 #define NoMod	    ((u64)1 << 47)  /* Mod field is ignored */
 #define Intercept   ((u64)1 << 48)  /* Has valid intercept field */
 #define CheckPerm   ((u64)1 << 49)  /* Has valid check_perm field */
-#define NoBigReal   ((u64)1 << 50)  /* No big real mode */
 #define PrivUD      ((u64)1 << 51)  /* #UD instead of #GP on CPL > 0 */
 #define NearBranch  ((u64)1 << 52)  /* Near branches */
 #define No16	    ((u64)1 << 53)  /* No 16 bit operand */
@@ -4246,6 +4245,7 @@ static const struct opcode opcode_map_0f_38[256] = {
 #undef GP
 #undef EXT
 #undef MD
+#undef ID
 
 #undef D2bv
 #undef D2bvIP
