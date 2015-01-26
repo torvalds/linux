@@ -880,4 +880,17 @@ struct iscsit_global {
 	struct iscsi_portal_group	*discovery_tpg;
 };
 
+static inline u32 session_get_next_ttt(struct iscsi_session *session)
+{
+	u32 ttt;
+
+	spin_lock_bh(&session->ttt_lock);
+	ttt = session->targ_xfer_tag++;
+	if (ttt == 0xFFFFFFFF)
+		ttt = session->targ_xfer_tag++;
+	spin_unlock_bh(&session->ttt_lock);
+
+	return ttt;
+}
+
 #endif /* ISCSI_TARGET_CORE_H */
