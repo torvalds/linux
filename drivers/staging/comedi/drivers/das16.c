@@ -440,7 +440,6 @@ struct das16_private_struct {
 	struct comedi_isadma	*dma;
 	unsigned int		clockbase;
 	unsigned int		ctrl_reg;
-	unsigned long		adc_byte_count;
 	unsigned int		divisor1;
 	unsigned int		divisor2;
 	struct timer_list	timer;
@@ -458,8 +457,9 @@ static void das16_interrupt(struct comedi_device *dev)
 	struct comedi_isadma *dma = devpriv->dma;
 	struct comedi_isadma_desc *desc = &dma->desc[dma->cur_dma];
 	unsigned long spin_flags;
+	unsigned int residue;
+	unsigned int nbytes;
 	unsigned int nsamples;
-	int num_bytes, residue;
 
 	spin_lock_irqsave(&dev->spinlock, spin_flags);
 	if (!(devpriv->ctrl_reg & DAS16_CTRL_DMAE)) {
@@ -475,35 +475,32 @@ static void das16_interrupt(struct comedi_device *dev)
 	residue = comedi_isadma_disable_on_sample(desc->chan,
 						  comedi_bytes_per_sample(s));
 
-	/*  figure out how many points to read */
+	/* figure out how many samples to read */
 	if (residue > desc->size) {
 		dev_err(dev->class_dev, "residue > transfer size!\n");
-		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		num_bytes = 0;
-	} else
-		num_bytes = desc->size - residue;
-
-	if (cmd->stop_src == TRIG_COUNT &&
-					num_bytes >= devpriv->adc_byte_count) {
-		num_bytes = devpriv->adc_byte_count;
-		async->events |= COMEDI_CB_EOA;
+		async->events |= COMEDI_CB_ERROR;
+		nbytes = 0;
+	} else {
+		nbytes = desc->size - residue;
 	}
+	nsamples = comedi_bytes_to_samples(s, nbytes);
 
-	dma->cur_dma = 1 - dma->cur_dma;
-	devpriv->adc_byte_count -= num_bytes;
+	/* restart DMA if more samples are needed */
+	if (nsamples && nsamples < comedi_nsamples_left(s, nsamples + 1)) {
+		struct comedi_isadma_desc *nxt_desc;
 
-	/* re-enable dma */
-	if (!(async->events & COMEDI_CB_CANCEL_MASK)) {
-		struct comedi_isadma_desc *nxt_desc = &dma->desc[dma->cur_dma];
-
+		dma->cur_dma = 1 - dma->cur_dma;
+		nxt_desc = &dma->desc[dma->cur_dma];
 		nxt_desc->size = nxt_desc->maxsize;
 		comedi_isadma_program(nxt_desc);
 	}
 
 	spin_unlock_irqrestore(&dev->spinlock, spin_flags);
 
-	nsamples = comedi_bytes_to_samples(s, num_bytes);
 	comedi_buf_write_samples(s, desc->virt_addr, nsamples);
+
+	if (cmd->stop_src == TRIG_COUNT && async->scans_done >= cmd->stop_arg)
+		async->events |= COMEDI_CB_EOA;
 
 	comedi_handle_events(dev, s);
 }
@@ -687,8 +684,6 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 			 "isa dma transfers cannot be performed with CMDF_PRIORITY, aborting\n");
 		return -1;
 	}
-
-	devpriv->adc_byte_count = cmd->stop_arg * comedi_bytes_per_scan(s);
 
 	if (devpriv->can_burst)
 		outb(DAS1600_CONV_DISABLE, dev->iobase + DAS1600_CONV_REG);
