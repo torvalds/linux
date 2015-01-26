@@ -63,7 +63,7 @@ struct vpfe_standard {
 	int frame_format;
 };
 
-const struct vpfe_standard vpfe_standards[] = {
+static const struct vpfe_standard vpfe_standards[] = {
 	{V4L2_STD_525_60, 720, 480, {11, 10}, 1},
 	{V4L2_STD_625_50, 720, 576, {54, 59}, 1},
 };
@@ -2024,7 +2024,6 @@ err:
 		list_del(&buf->list);
 		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_QUEUED);
 	}
-	spin_unlock_irqrestore(&vpfe->dma_queue_lock, flags);
 
 	return ret;
 }
@@ -2199,7 +2198,7 @@ static long vpfe_ioctl_default(struct file *file, void *priv,
 
 	switch (cmd) {
 	case VIDIOC_AM437X_CCDC_CFG:
-		ret = vpfe_ccdc_set_params(&vpfe->ccdc, param);
+		ret = vpfe_ccdc_set_params(&vpfe->ccdc, (void __user *)param);
 		if (ret) {
 			vpfe_dbg(2, vpfe,
 				"Error setting parameters in CCDC\n");
