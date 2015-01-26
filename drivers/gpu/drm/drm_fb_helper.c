@@ -145,6 +145,31 @@ int drm_fb_helper_add_one_connector(struct drm_fb_helper *fb_helper, struct drm_
 }
 EXPORT_SYMBOL(drm_fb_helper_add_one_connector);
 
+static void remove_from_modeset(struct drm_mode_set *set,
+		struct drm_connector *connector)
+{
+	int i, j;
+
+	for (i = 0; i < set->num_connectors; i++) {
+		if (set->connectors[i] == connector)
+			break;
+	}
+
+	if (i == set->num_connectors)
+		return;
+
+	for (j = i + 1; j < set->num_connectors; j++) {
+		set->connectors[j - 1] = set->connectors[j];
+	}
+	set->num_connectors--;
+
+	/* because i915 is pissy about this..
+	 * TODO maybe need to makes sure we set it back to !=NULL somewhere?
+	 */
+	if (set->num_connectors == 0)
+		set->fb = NULL;
+}
+
 int drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
 				       struct drm_connector *connector)
 {
@@ -167,6 +192,11 @@ int drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
 	}
 	fb_helper->connector_count--;
 	kfree(fb_helper_connector);
+
+	/* also cleanup dangling references to the connector: */
+	for (i = 0; i < fb_helper->crtc_count; i++)
+		remove_from_modeset(&fb_helper->crtc_info[i].mode_set, connector);
+
 	return 0;
 }
 EXPORT_SYMBOL(drm_fb_helper_remove_one_connector);
