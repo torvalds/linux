@@ -448,6 +448,28 @@ struct das16_private_struct {
 	unsigned int		timer_running:1;
 };
 
+static void das16_ai_setup_dma(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       unsigned int unread_samples)
+{
+	struct das16_private_struct *devpriv = dev->private;
+	struct comedi_isadma *dma = devpriv->dma;
+	struct comedi_isadma_desc *desc = &dma->desc[dma->cur_dma];
+	unsigned int max_samples = comedi_bytes_to_samples(s, desc->maxsize);
+	unsigned int nsamples;
+
+	/*
+	 * Determine dma size based on the buffer size plus the number of
+	 * unread samples and the number of samples remaining in the command.
+	 */
+	nsamples = comedi_nsamples_left(s, max_samples + unread_samples);
+	if (nsamples > unread_samples) {
+		nsamples -= unread_samples;
+		desc->size = comedi_samples_to_bytes(s, nsamples);
+		comedi_isadma_program(desc);
+	}
+}
+
 static void das16_interrupt(struct comedi_device *dev)
 {
 	struct das16_private_struct *devpriv = dev->private;
@@ -486,13 +508,9 @@ static void das16_interrupt(struct comedi_device *dev)
 	nsamples = comedi_bytes_to_samples(s, nbytes);
 
 	/* restart DMA if more samples are needed */
-	if (nsamples && nsamples < comedi_nsamples_left(s, nsamples + 1)) {
-		struct comedi_isadma_desc *nxt_desc;
-
+	if (nsamples) {
 		dma->cur_dma = 1 - dma->cur_dma;
-		nxt_desc = &dma->desc[dma->cur_dma];
-		nxt_desc->size = nxt_desc->maxsize;
-		comedi_isadma_program(nxt_desc);
+		das16_ai_setup_dma(dev, s, nsamples);
 	}
 
 	spin_unlock_irqrestore(&dev->spinlock, spin_flags);
@@ -672,7 +690,6 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 	const struct das16_board *board = dev->board_ptr;
 	struct das16_private_struct *devpriv = dev->private;
 	struct comedi_isadma *dma = devpriv->dma;
-	struct comedi_isadma_desc *desc = &dma->desc[0];
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int byte;
@@ -721,8 +738,7 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* set up dma transfer */
 	dma->cur_dma = 0;
-	desc->size = desc->maxsize;
-	comedi_isadma_program(desc);
+	das16_ai_setup_dma(dev, s, 0);
 
 	/*  set up timer */
 	spin_lock_irqsave(&dev->spinlock, flags);
