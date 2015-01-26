@@ -858,7 +858,7 @@ static int sci_handle_fifo_overrun(struct uart_port *port)
 		tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 		tty_flip_buffer_push(tport);
 
-		dev_notice(port->dev, "overrun error\n");
+		dev_dbg(port->dev, "overrun error\n");
 		copied++;
 	}
 
