@@ -684,9 +684,13 @@ static __always_inline int __linearize(struct x86_emulate_ctxt *ctxt,
 		}
 		if (addr.ea > lim)
 			goto bad;
-		*max_size = min_t(u64, ~0u, (u64)lim + 1 - addr.ea);
-		if (size > *max_size)
-			goto bad;
+		if (lim == 0xffffffff)
+			*max_size = ~0u;
+		else {
+			*max_size = (u64)lim + 1 - addr.ea;
+			if (size > *max_size)
+				goto bad;
+		}
 		la &= (u32)-1;
 		break;
 	}
