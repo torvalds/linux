@@ -99,19 +99,31 @@ extern void paging_init(void);
 
 #define htw_stop()							\
 do {									\
+	unsigned long flags;						\
+									\
 	if (cpu_has_htw) {						\
-		write_c0_pwctl(read_c0_pwctl() &			\
-			       ~(1 << MIPS_PWCTL_PWEN_SHIFT));		\
-		back_to_back_c0_hazard();				\
+		local_irq_save(flags);					\
+		if(!raw_current_cpu_data.htw_seq++) {			\
+			write_c0_pwctl(read_c0_pwctl() &		\
+				       ~(1 << MIPS_PWCTL_PWEN_SHIFT));	\
+			back_to_back_c0_hazard();			\
+		}							\
+		local_irq_restore(flags);				\
 	}								\
 } while(0)
 
 #define htw_start()							\
 do {									\
+	unsigned long flags;						\
+									\
 	if (cpu_has_htw) {						\
-		write_c0_pwctl(read_c0_pwctl() |			\
-			       (1 << MIPS_PWCTL_PWEN_SHIFT));		\
-		back_to_back_c0_hazard();				\
+		local_irq_save(flags);					\
+		if (!--raw_current_cpu_data.htw_seq) {			\
+			write_c0_pwctl(read_c0_pwctl() |		\
+				       (1 << MIPS_PWCTL_PWEN_SHIFT));	\
+			back_to_back_c0_hazard();			\
+		}							\
+		local_irq_restore(flags);				\
 	}								\
 } while(0)
 
