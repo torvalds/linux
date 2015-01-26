@@ -874,6 +874,7 @@ static int gpiod_export_link(struct device *dev, const char *name,
 		if (tdev != NULL) {
 			status = sysfs_create_link(&dev->kobj, &tdev->kobj,
 						name);
+			put_device(tdev);
 		} else {
 			status = -ENODEV;
 		}
