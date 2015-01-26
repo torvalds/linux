@@ -112,10 +112,10 @@ get_root_bridge_busnr_callback(struct acpi_resource *resource, void *data)
 	if (ACPI_FAILURE(status))
 		return AE_OK;
 
-	if ((address.address_length > 0) &&
+	if ((address.address.address_length > 0) &&
 	    (address.resource_type == ACPI_BUS_NUMBER_RANGE)) {
-		res->start = address.minimum;
-		res->end = address.minimum + address.address_length - 1;
+		res->start = address.address.minimum;
+		res->end = address.address.minimum + address.address.address_length - 1;
 	}
 
 	return AE_OK;
