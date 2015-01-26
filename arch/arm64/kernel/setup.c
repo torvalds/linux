@@ -278,6 +278,19 @@ static void __init setup_processor(void)
 	if (block && !(block & 0x8))
 		elf_hwcap |= HWCAP_CRC32;
 
+	block = (features >> 20) & 0xf;
+	if (!(block & 0x8)) {
+		switch (block) {
+		default:
+		case 2:
+			elf_hwcap |= HWCAP_ATOMICS;
+		case 1:
+			/* RESERVED */
+		case 0:
+			break;
+		}
+	}
+
 #ifdef CONFIG_COMPAT
 	/*
 	 * ID_ISAR5_EL1 carries similar information as above, but pertaining to
@@ -457,6 +470,7 @@ static const char *hwcap_str[] = {
 	"sha1",
 	"sha2",
 	"crc32",
+	"atomics",
 	NULL
 };
 
