@@ -2205,12 +2205,15 @@ static int em_cmpxchg(struct x86_emulate_ctxt *ctxt)
 	fastop(ctxt, em_cmp);
 
 	if (ctxt->eflags & EFLG_ZF) {
-		/* Success: write back to memory. */
+		/* Success: write back to memory; no update of EAX */
+		ctxt->src.type = OP_NONE;
 		ctxt->dst.val = ctxt->src.orig_val;
 	} else {
 		/* Failure: write the value we saw to EAX. */
-		ctxt->dst.type = OP_REG;
-		ctxt->dst.addr.reg = reg_rmw(ctxt, VCPU_REGS_RAX);
+		ctxt->src.type = OP_REG;
+		ctxt->src.addr.reg = reg_rmw(ctxt, VCPU_REGS_RAX);
+		ctxt->src.val = ctxt->dst.orig_val;
+		/* Create write-cycle to dest by writing the same value */
 		ctxt->dst.val = ctxt->dst.orig_val;
 	}
 	return X86EMUL_CONTINUE;
@@ -4157,7 +4160,7 @@ static const struct opcode twobyte_table[256] = {
 	F(DstMem | SrcReg | Src2CL | ModRM, em_shrd),
 	GD(0, &group15), F(DstReg | SrcMem | ModRM, em_imul),
 	/* 0xB0 - 0xB7 */
-	I2bv(DstMem | SrcReg | ModRM | Lock | PageTable, em_cmpxchg),
+	I2bv(DstMem | SrcReg | ModRM | Lock | PageTable | SrcWrite, em_cmpxchg),
 	I(DstReg | SrcMemFAddr | ModRM | Src2SS, em_lseg),
 	F(DstMem | SrcReg | ModRM | BitOp | Lock, em_btr),
 	I(DstReg | SrcMemFAddr | ModRM | Src2FS, em_lseg),
