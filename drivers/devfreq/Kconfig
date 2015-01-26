@@ -97,4 +97,6 @@ config ARM_TEGRA_DEVFREQ
          It reads ACTMON counters of memory controllers and adjusts the
          operating frequencies and voltages with OPP support.
 
+source "drivers/devfreq/event/Kconfig"
+
 endif # PM_DEVFREQ
