@@ -66,26 +66,26 @@ static inline block_t limit_free_user_blocks(struct f2fs_sb_info *sbi)
 	return (long)(reclaimable_user_blocks * LIMIT_FREE_BLOCK) / 100;
 }
 
-static inline long increase_sleep_time(struct f2fs_gc_kthread *gc_th, long wait)
+static inline void increase_sleep_time(struct f2fs_gc_kthread *gc_th,
+								long *wait)
 {
-	if (wait == gc_th->no_gc_sleep_time)
-		return wait;
+	if (*wait == gc_th->no_gc_sleep_time)
+		return;
 
-	wait += gc_th->min_sleep_time;
-	if (wait > gc_th->max_sleep_time)
-		wait = gc_th->max_sleep_time;
-	return wait;
+	*wait += gc_th->min_sleep_time;
+	if (*wait > gc_th->max_sleep_time)
+		*wait = gc_th->max_sleep_time;
 }
 
-static inline long decrease_sleep_time(struct f2fs_gc_kthread *gc_th, long wait)
+static inline void decrease_sleep_time(struct f2fs_gc_kthread *gc_th,
+								long *wait)
 {
-	if (wait == gc_th->no_gc_sleep_time)
-		wait = gc_th->max_sleep_time;
+	if (*wait == gc_th->no_gc_sleep_time)
+		*wait = gc_th->max_sleep_time;
 
-	wait -= gc_th->min_sleep_time;
-	if (wait <= gc_th->min_sleep_time)
-		wait = gc_th->min_sleep_time;
-	return wait;
+	*wait -= gc_th->min_sleep_time;
+	if (*wait <= gc_th->min_sleep_time)
+		*wait = gc_th->min_sleep_time;
 }
 
 static inline bool has_enough_invalid_blocks(struct f2fs_sb_info *sbi)

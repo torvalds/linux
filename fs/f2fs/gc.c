@@ -44,7 +44,7 @@ static int gc_thread_func(void *data)
 			break;
 
 		if (sbi->sb->s_writers.frozen >= SB_FREEZE_WRITE) {
-			wait_ms = increase_sleep_time(gc_th, wait_ms);
+			increase_sleep_time(gc_th, &wait_ms);
 			continue;
 		}
 
@@ -65,15 +65,15 @@ static int gc_thread_func(void *data)
 			continue;
 
 		if (!is_idle(sbi)) {
-			wait_ms = increase_sleep_time(gc_th, wait_ms);
+			increase_sleep_time(gc_th, &wait_ms);
 			mutex_unlock(&sbi->gc_mutex);
 			continue;
 		}
 
 		if (has_enough_invalid_blocks(sbi))
-			wait_ms = decrease_sleep_time(gc_th, wait_ms);
+			decrease_sleep_time(gc_th, &wait_ms);
 		else
-			wait_ms = increase_sleep_time(gc_th, wait_ms);
+			increase_sleep_time(gc_th, &wait_ms);
 
 		stat_inc_bggc_count(sbi);
 
