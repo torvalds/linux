@@ -173,9 +173,7 @@ struct am_net_private {
 //	int pmt;
 //	currently not used in the driver
 	unsigned int irq_mask;
-	struct tasklet_struct st_tasklet;
-	struct tasklet_struct rt_tasklet;
-	unsigned long status;	
+
 	/* Frequently used values: keep some adjacent for cache effect. */
 	spinlock_t lock;
 	unsigned int rx_buf_sz;	/* Based on MTU+slack. */
