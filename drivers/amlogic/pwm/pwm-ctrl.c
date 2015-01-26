@@ -28,6 +28,10 @@ struct pwm_ctrl {
 	int duty0,duty1;
 };
 
+#define FREQ_MIN 10         // 10Hz
+#define FREQ_MAX 1000000    // 1MHz
+#define DUTY_MAX 1024       // Duty cycle Max
+
 //[*]------------------------------------------------------------------------------------------------------------------
 //
 // driver sysfs attribute define
@@ -43,15 +47,15 @@ static	ssize_t set_enable0	(struct device *dev, struct device_attribute *attr, c
 
 	mutex_lock(&ctrl->mutex);
     if(val) {
-    	ctrl->pwm0_status = 1;
 		pwm_disable(ctrl->pwm0);
 		pwm_config(ctrl->pwm0, ctrl->duty0, ctrl->freq0);
     	pwm_enable(ctrl->pwm0);
+    	ctrl->pwm0_status = 1;
     }
     else {
+    	ctrl->pwm0_status = 0;
     	pwm_disable(ctrl->pwm0);
 		pwm_config(ctrl->pwm0, 0, ctrl->freq0);
-    	ctrl->pwm0_status = 0;
     }
 	mutex_unlock(&ctrl->mutex);
 
@@ -75,24 +79,22 @@ static	ssize_t set_duty0	(struct device *dev, struct device_attribute *attr, con
 
     if(!(sscanf(buf, "%u\n", &val)))	return	-EINVAL;
 
-	if((val > 100)||(val < 0)){
+	if((val > DUTY_MAX)||(val < 0)){
 		dev_err(dev, "PWM_0 : Invalid param. Duty cycle range is 0 to 100 \n");
 		return count;
 	}
-
 	dev_info(dev, "PWM_0 : %s [%d] \n",__FUNCTION__,val);
-
-	mutex_lock(&ctrl->mutex);
 	ctrl->duty0 = val;
 
+	mutex_lock(&ctrl->mutex);
     if(ctrl->pwm0_status){
 		pwm_disable(ctrl->pwm0);
 		pwm_config(ctrl->pwm0, ctrl->duty0, ctrl->freq0);
     	pwm_enable(ctrl->pwm0);
     }
     else {
-		pwm_disable(ctrl->pwm0);
 		pwm_config(ctrl->pwm0, 0, ctrl->freq0);
+		pwm_disable(ctrl->pwm0);
     }
 	mutex_unlock(&ctrl->mutex);
 	
@@ -115,24 +117,22 @@ static	ssize_t set_freq0	(struct device *dev, struct device_attribute *attr, con
 
     if(!(sscanf(buf, "%u\n", &val)))	return	-EINVAL;
 
-	if((val < 0)){
-		dev_err(dev, "PWM_0 : Invalid param. Duty cycle range is 0 to 100 \n");
+	if((val < FREQ_MIN)||(val > FREQ_MAX)){
+		dev_err(dev, "PWM_0 : Invalid param. Frequency range is 10Hz to 1MHz \n");
 		return count;
 	}
-
 	dev_info(dev, "PWM_0 : %s [%d] \n",__FUNCTION__,val);
-
-	mutex_lock(&ctrl->mutex);
 	ctrl->freq0 = val;
 
+	mutex_lock(&ctrl->mutex);
     if(ctrl->pwm0_status){
 		pwm_disable(ctrl->pwm0);
 		pwm_config(ctrl->pwm0, ctrl->duty0, ctrl->freq0);
     	pwm_enable(ctrl->pwm0);
     }
     else {
-		pwm_disable(ctrl->pwm0);
 		pwm_config(ctrl->pwm0, 0, ctrl->freq0);
+		pwm_disable(ctrl->pwm0);
     }
 	mutex_unlock(&ctrl->mutex);
 	
@@ -176,13 +176,12 @@ static	ssize_t set_enable1	(struct device *dev, struct device_attribute *attr, c
 	mutex_lock(&ctrl->mutex);
     if(val) {
     	ctrl->pwm1_status = 1;
-		pwm_disable(ctrl->pwm1);
 		pwm_config(ctrl->pwm1, ctrl->duty1, ctrl->freq1);
     	pwm_enable(ctrl->pwm1);
     }
     else {
-    	pwm_disable(ctrl->pwm1);
 		pwm_config(ctrl->pwm1, 0, ctrl->freq1);
+    	pwm_disable(ctrl->pwm1);
     	ctrl->pwm1_status = 0;
     }
 	mutex_unlock(&ctrl->mutex);
@@ -207,23 +206,22 @@ static	ssize_t set_duty1	(struct device *dev, struct device_attribute *attr, con
 
     if(!(sscanf(buf, "%u\n", &val)))	return	-EINVAL;
 
-	if((val > 100)||(val < 0)){
+	if((val > DUTY_MAX)||(val < 0)){
 		dev_err(dev, "PWM_1 : Invalid param. Duty cycle range is 0 to 100 \n");
 		return count;
 	}
 	dev_info(dev, "PWM_1 : %s [%d] \n",__FUNCTION__,val);
-
-	mutex_lock(&ctrl->mutex);
 	ctrl->duty1 = val;
 
+	mutex_lock(&ctrl->mutex);
     if(ctrl->pwm1_status){
 		pwm_disable(ctrl->pwm1);
 		pwm_config(ctrl->pwm1, ctrl->duty1, ctrl->freq1);
     	pwm_enable(ctrl->pwm1);
     }
     else {
-		pwm_disable(ctrl->pwm1);
 		pwm_config(ctrl->pwm1, 0, ctrl->freq1);
+		pwm_disable(ctrl->pwm1);
     }
 	mutex_unlock(&ctrl->mutex);
 	
@@ -246,22 +244,22 @@ static	ssize_t set_freq1	(struct device *dev, struct device_attribute *attr, con
 
     if(!(sscanf(buf, "%u\n", &val)))	return	-EINVAL;
 
-	if((val < 10)||(val > 1000000)){
-		dev_err(dev, "PWM_1 : Invalid param. Duty cycle range is 10 to 1MHz \n");
+	if((val < FREQ_MIN)||(val > FREQ_MAX)){
+		dev_err(dev, "PWM_1 : Invalid param. Frequency range is 10Hz to 1MHz \n");
 		return count;
 	}
 	dev_info(dev, "PWM_1 : %s [%d] \n",__FUNCTION__,val);
-	mutex_lock(&ctrl->mutex);
 	ctrl->freq1 = val;
 
+	mutex_lock(&ctrl->mutex);
     if(ctrl->pwm1_status){
 		pwm_disable(ctrl->pwm1);
 		pwm_config(ctrl->pwm1, ctrl->duty1, ctrl->freq1);
     	pwm_enable(ctrl->pwm1);
     }
     else {
-		pwm_disable(ctrl->pwm1);
 		pwm_config(ctrl->pwm1, 0, ctrl->freq1);
+		pwm_disable(ctrl->pwm1);
     }
 	mutex_unlock(&ctrl->mutex);
 	
