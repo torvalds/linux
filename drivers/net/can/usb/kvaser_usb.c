@@ -690,9 +690,7 @@ static void kvaser_usb_rx_error(const struct kvaser_usb *dev,
 		}
 
 		new_state = CAN_STATE_ERROR_PASSIVE;
-	}
-
-	if (status == M16C_STATE_BUS_ERROR) {
+	} else if (status & M16C_STATE_BUS_ERROR) {
 		if ((priv->can.state < CAN_STATE_ERROR_WARNING) &&
 		    ((txerr >= 96) || (rxerr >= 96))) {
 			cf->can_id |= CAN_ERR_CRTL;
@@ -702,7 +700,8 @@ static void kvaser_usb_rx_error(const struct kvaser_usb *dev,
 
 			priv->can.can_stats.error_warning++;
 			new_state = CAN_STATE_ERROR_WARNING;
-		} else if (priv->can.state > CAN_STATE_ERROR_ACTIVE) {
+		} else if ((priv->can.state > CAN_STATE_ERROR_ACTIVE) &&
+			   ((txerr < 96) && (rxerr < 96))) {
 			cf->can_id |= CAN_ERR_PROT;
 			cf->data[2] = CAN_ERR_PROT_ACTIVE;
 
