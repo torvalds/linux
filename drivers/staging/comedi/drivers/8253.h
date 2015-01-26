@@ -44,9 +44,11 @@ static inline void i8253_cascade_ns_to_timer(int i8253_osc_base,
 	unsigned int start;
 	unsigned int ns_low, ns_high;
 	static const unsigned int max_count = 0x10000;
-	/* exit early if everything is already correct (this can save time
+	/*
+	 * exit early if everything is already correct (this can save time
 	 * since this function may be called repeatedly during command tests
-	 * and execution) */
+	 * and execution)
+	 */
 	div1 = *d1 ? *d1 : max_count;
 	div2 = *d2 ? *d2 : max_count;
 	divider = div1 * div2;
@@ -120,7 +122,8 @@ static inline void i8253_cascade_ns_to_timer(int i8253_osc_base,
 }
 
 #ifndef CMDTEST
-/* i8254_load programs 8254 counter chip.  It should also work for the 8253.
+/*
+ * i8254_load programs 8254 counter chip.  It should also work for the 8253.
  * base_address is the lowest io address
  * for the chip (the address of counter 0).
  * counter_number is the counter you want to load (0,1 or 2)
@@ -274,7 +277,8 @@ static inline void i8254_mm_write(void __iomem *base_address,
 	writeb(byte, base_address + (counter_number << regshift));
 }
 
-/* Set counter mode, should work for 8253 also.
+/*
+ * Set counter mode, should work for 8253 also.
  * Note: the 'mode' value is different to that for i8254_load() and comes
  * from the INSN_CONFIG_8254_SET_MODE command:
  *   I8254_MODE0, I8254_MODE1, ..., I8254_MODE5
