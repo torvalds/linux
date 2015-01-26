@@ -34,14 +34,8 @@
 
 #include "coresight-etm.h"
 
-#ifdef CONFIG_CORESIGHT_SOURCE_ETM_DEFAULT_ENABLE
-static int boot_enable = 1;
-#else
 static int boot_enable;
-#endif
-module_param_named(
-	boot_enable, boot_enable, int, S_IRUGO
-);
+module_param_named(boot_enable, boot_enable, int, S_IRUGO);
 
 /* The number of ETM/PTM currently registered */
 static int etm_count;
