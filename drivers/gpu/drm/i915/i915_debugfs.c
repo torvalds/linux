@@ -1220,6 +1220,41 @@ out:
 	return ret;
 }
 
+static int i915_hangcheck_info(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = m->private;
+	struct drm_i915_private *dev_priv = to_i915(node->minor->dev);
+	struct intel_engine_cs *ring;
+	int i;
+
+	if (!i915.enable_hangcheck) {
+		seq_printf(m, "Hangcheck disabled\n");
+		return 0;
+	}
+
+	if (delayed_work_pending(&dev_priv->gpu_error.hangcheck_work)) {
+		seq_printf(m, "Hangcheck active, fires in %dms\n",
+			   jiffies_to_msecs(dev_priv->gpu_error.hangcheck_work.timer.expires -
+					    jiffies));
+	} else
+		seq_printf(m, "Hangcheck inactive\n");
+
+	for_each_ring(ring, dev_priv, i) {
+		seq_printf(m, "%s:\n", ring->name);
+		seq_printf(m, "\tseqno = %x [current %x]\n",
+			   ring->hangcheck.seqno, ring->get_seqno(ring, false));
+		seq_printf(m, "\taction = %d\n", ring->hangcheck.action);
+		seq_printf(m, "\tscore = %d\n", ring->hangcheck.score);
+		seq_printf(m, "\tACTHD = 0x%08llx [current 0x%08llx]\n",
+			   (long long)ring->hangcheck.acthd,
+			   (long long)intel_ring_get_active_head(ring));
+		seq_printf(m, "\tmax ACTHD = 0x%08llx\n",
+			   (long long)ring->hangcheck.max_acthd);
+	}
+
+	return 0;
+}
+
 static int ironlake_drpc_info(struct seq_file *m)
 {
 	struct drm_info_node *node = m->private;
@@ -4402,6 +4437,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_hws_vebox", i915_hws_info, 0, (void *)VECS},
 	{"i915_gem_batch_pool", i915_gem_batch_pool_info, 0},
 	{"i915_frequency_info", i915_frequency_info, 0},
+	{"i915_hangcheck_info", i915_hangcheck_info, 0},
 	{"i915_drpc_info", i915_drpc_info, 0},
 	{"i915_emon_status", i915_emon_status, 0},
 	{"i915_ring_freq_table", i915_ring_freq_table, 0},
