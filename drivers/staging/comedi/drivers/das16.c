@@ -451,17 +451,6 @@ struct das16_private_struct {
 	unsigned int		can_burst:1;
 };
 
-static void das16_ai_disable(struct comedi_device *dev)
-{
-	struct das16_private_struct *devpriv = dev->private;
-
-	/* disable interrupts, dma and pacer clocked conversions */
-	devpriv->ctrl_reg &= ~(DAS16_CTRL_INTE |
-			       DAS16_CTRL_DMAE |
-			       DAS16_CTRL_PACING_MASK);
-	outb(devpriv->ctrl_reg, dev->iobase + DAS16_CTRL_REG);
-}
-
 static void das16_interrupt(struct comedi_device *dev)
 {
 	struct das16_private_struct *devpriv = dev->private;
@@ -772,7 +761,11 @@ static int das16_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	spin_lock_irqsave(&dev->spinlock, flags);
 
-	das16_ai_disable(dev);
+	/* disable interrupts, dma and pacer clocked conversions */
+	devpriv->ctrl_reg &= ~(DAS16_CTRL_INTE | DAS16_CTRL_DMAE |
+			       DAS16_CTRL_PACING_MASK);
+	outb(devpriv->ctrl_reg, dev->iobase + DAS16_CTRL_REG);
+
 	comedi_isadma_disable(dma->chan);
 
 	/*  disable SW timer */
