@@ -4963,6 +4963,11 @@ static void emulator_write_gpr(struct x86_emulate_ctxt *ctxt, unsigned reg, ulon
 	kvm_register_write(emul_to_vcpu(ctxt), reg, val);
 }
 
+static void emulator_set_nmi_mask(struct x86_emulate_ctxt *ctxt, bool masked)
+{
+	kvm_x86_ops->set_nmi_mask(emul_to_vcpu(ctxt), masked);
+}
+
 static const struct x86_emulate_ops emulate_ops = {
 	.read_gpr            = emulator_read_gpr,
 	.write_gpr           = emulator_write_gpr,
@@ -4998,6 +5003,7 @@ static const struct x86_emulate_ops emulate_ops = {
 	.put_fpu             = emulator_put_fpu,
 	.intercept           = emulator_intercept,
 	.get_cpuid           = emulator_get_cpuid,
+	.set_nmi_mask        = emulator_set_nmi_mask,
 };
 
 static void toggle_interruptibility(struct kvm_vcpu *vcpu, u32 mask)
