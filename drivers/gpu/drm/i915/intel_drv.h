@@ -248,9 +248,13 @@ struct intel_plane_state {
 	struct drm_rect src;
 	struct drm_rect dst;
 	struct drm_rect clip;
-	struct drm_rect orig_src;
-	struct drm_rect orig_dst;
 	bool visible;
+
+	/*
+	 * used only for sprite planes to determine when to implicitly
+	 * enable/disable the primary plane
+	 */
+	bool hides_primary;
 };
 
 struct intel_plane_config {
@@ -415,6 +419,32 @@ struct skl_pipe_wm {
 	uint32_t linetime;
 };
 
+/*
+ * Tracking of operations that need to be performed at the beginning/end of an
+ * atomic commit, outside the atomic section where interrupts are disabled.
+ * These are generally operations that grab mutexes or might otherwise sleep
+ * and thus can't be run with interrupts disabled.
+ */
+struct intel_crtc_atomic_commit {
+	/* vblank evasion */
+	bool evade;
+	unsigned start_vbl_count;
+
+	/* Sleepable operations to perform before commit */
+	bool wait_for_flips;
+	bool disable_fbc;
+	bool pre_disable_primary;
+	bool update_wm;
+	unsigned disabled_planes;
+
+	/* Sleepable operations to perform after commit */
+	unsigned fb_bits;
+	bool wait_vblank;
+	bool update_fbc;
+	bool post_enable_primary;
+	unsigned update_sprite_watermarks;
+};
+
 struct intel_crtc {
 	struct drm_crtc base;
 	enum pipe pipe;
@@ -468,6 +498,8 @@ struct intel_crtc {
 
 	int scanline_offset;
 	struct intel_mmio_flip mmio_flip;
+
+	struct intel_crtc_atomic_commit atomic;
 };
 
 struct intel_plane_wm_parameters {
@@ -485,10 +517,6 @@ struct intel_plane {
 	struct drm_i915_gem_object *obj;
 	bool can_scale;
 	int max_downscale;
-	int crtc_x, crtc_y;
-	unsigned int crtc_w, crtc_h;
-	uint32_t src_x, src_y;
-	uint32_t src_w, src_h;
 	unsigned int rotation;
 
 	/* Since we need to change the watermarks before/after
@@ -542,6 +570,7 @@ struct cxsr_latency {
 #define to_intel_encoder(x) container_of(x, struct intel_encoder, base)
 #define to_intel_framebuffer(x) container_of(x, struct intel_framebuffer, base)
 #define to_intel_plane(x) container_of(x, struct intel_plane, base)
+#define to_intel_plane_state(x) container_of(x, struct intel_plane_state, base)
 #define intel_fb_obj(x) (x ? to_intel_framebuffer(x)->obj : NULL)
 
 struct intel_hdmi {
@@ -874,6 +903,8 @@ void intel_fb_obj_flush(struct drm_i915_gem_object *obj, bool retire);
 void intel_init_audio(struct drm_device *dev);
 void intel_audio_codec_enable(struct intel_encoder *encoder);
 void intel_audio_codec_disable(struct intel_encoder *encoder);
+void i915_audio_component_init(struct drm_i915_private *dev_priv);
+void i915_audio_component_cleanup(struct drm_i915_private *dev_priv);
 
 /* intel_display.c */
 bool intel_has_pending_fb_unpin(struct drm_device *dev);
@@ -1021,6 +1052,7 @@ int intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		       uint32_t src_x, uint32_t src_y,
 		       uint32_t src_w, uint32_t src_h);
 int intel_disable_plane(struct drm_plane *plane);
+void intel_plane_destroy(struct drm_plane *plane);
 
 /* intel_dp_mst.c */
 int intel_dp_mst_encoder_init(struct intel_digital_port *intel_dig_port, int conn_id);
@@ -1214,8 +1246,16 @@ int intel_sprite_get_colorkey(struct drm_device *dev, void *data,
 bool intel_pipe_update_start(struct intel_crtc *crtc,
 			     uint32_t *start_vbl_count);
 void intel_pipe_update_end(struct intel_crtc *crtc, u32 start_vbl_count);
+void intel_post_enable_primary(struct drm_crtc *crtc);
+void intel_pre_disable_primary(struct drm_crtc *crtc);
 
 /* intel_tv.c */
 void intel_tv_init(struct drm_device *dev);
+
+/* intel_atomic.c */
+struct drm_plane_state *intel_plane_duplicate_state(struct drm_plane *plane);
+void intel_plane_destroy_state(struct drm_plane *plane,
+			       struct drm_plane_state *state);
+extern const struct drm_plane_helper_funcs intel_plane_helper_funcs;
 
 #endif /* __INTEL_DRV_H__ */

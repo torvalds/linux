@@ -5202,6 +5202,9 @@ enum punit_power_well {
 #define COMMON_SLICE_CHICKEN2			0x7014
 # define GEN8_CSC2_SBE_VUE_CACHE_CONSERVATIVE	(1<<0)
 
+#define HIZ_CHICKEN				0x7018
+# define CHV_HZ_8X8_MODE_IN_1X			(1<<15)
+
 #define GEN7_L3SQCREG1				0xB010
 #define  VLV_B0_WA_L3SQCREG1_VALUE		0x00D30000
 
@@ -6167,6 +6170,7 @@ enum punit_power_well {
 #define  HSW_ROW_CHICKEN3_L3_GLOBAL_ATOMICS_DISABLE    (1 << 6)
 
 #define HALF_SLICE_CHICKEN3		0xe184
+#define   HSW_SAMPLE_C_PERFORMANCE	(1<<9)
 #define   GEN8_CENTROID_PIXEL_OPT_DIS	(1<<8)
 #define   GEN8_SAMPLER_POWER_BYPASS_DIS	(1<<1)
 

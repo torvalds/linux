@@ -143,7 +143,6 @@ static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t aux_clock_divider;
 	int precharge = 0x3;
-	bool only_standby = dev_priv->vbt.psr.full_link;
 	static const uint8_t aux_msg[] = {
 		[0] = DP_AUX_NATIVE_WRITE << 4,
 		[1] = DP_SET_POWER >> 8,
@@ -157,16 +156,13 @@ static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
 
 	aux_clock_divider = intel_dp->get_aux_clock_divider(intel_dp, 0);
 
-	if (IS_BROADWELL(dev) && dig_port->port != PORT_A)
-		only_standby = true;
-
 	/* Enable PSR in sink */
-	if (intel_dp->psr_dpcd[1] & DP_PSR_NO_TRAIN_ON_EXIT || only_standby)
-		drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG,
-				   DP_PSR_ENABLE & ~DP_PSR_MAIN_LINK_ACTIVE);
-	else
+	if (dev_priv->psr.link_standby)
 		drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG,
 				   DP_PSR_ENABLE | DP_PSR_MAIN_LINK_ACTIVE);
+	else
+		drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG,
+				   DP_PSR_ENABLE & ~DP_PSR_MAIN_LINK_ACTIVE);
 
 	/* Setup AUX registers */
 	for (i = 0; i < sizeof(aux_msg); i += 4)
@@ -226,12 +222,8 @@ static void hsw_psr_enable_source(struct intel_dp *intel_dp)
 			       dev_priv->vbt.psr.idle_frames + 1 : 2;
 	uint32_t val = 0x0;
 	const uint32_t link_entry_time = EDP_PSR_MIN_LINK_ENTRY_TIME_8_LINES;
-	bool only_standby = false;
 
-	if (IS_BROADWELL(dev) && dig_port->port != PORT_A)
-		only_standby = true;
-
-	if (intel_dp->psr_dpcd[1] & DP_PSR_NO_TRAIN_ON_EXIT || only_standby) {
+	if (dev_priv->psr.link_standby) {
 		val |= EDP_PSR_LINK_STANDBY;
 		val |= EDP_PSR_TP2_TP3_TIME_0us;
 		val |= EDP_PSR_TP1_TIME_0us;
@@ -270,22 +262,19 @@ static bool intel_psr_match_conditions(struct intel_dp *intel_dp)
 		return false;
 	}
 
-	/* Below limitations aren't valid for Broadwell */
-	if (IS_BROADWELL(dev))
-		goto out;
-
-	if (I915_READ(HSW_STEREO_3D_CTL(intel_crtc->config.cpu_transcoder)) &
-	    S3D_ENABLE) {
+	if (IS_HASWELL(dev) &&
+	    I915_READ(HSW_STEREO_3D_CTL(intel_crtc->config.cpu_transcoder)) &
+		      S3D_ENABLE) {
 		DRM_DEBUG_KMS("PSR condition failed: Stereo 3D is Enabled\n");
 		return false;
 	}
 
-	if (intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE) {
+	if (IS_HASWELL(dev) &&
+	    intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE) {
 		DRM_DEBUG_KMS("PSR condition failed: Interlaced is Enabled\n");
 		return false;
 	}
 
- out:
 	dev_priv->psr.source_ok = true;
 	return true;
 }
@@ -343,6 +332,13 @@ void intel_psr_enable(struct intel_dp *intel_dp)
 
 	if (!intel_psr_match_conditions(intel_dp))
 		goto unlock;
+
+	/* First we check VBT, but we must respect sink and source
+	 * known restrictions */
+	dev_priv->psr.link_standby = dev_priv->vbt.psr.full_link;
+	if ((intel_dp->psr_dpcd[1] & DP_PSR_NO_TRAIN_ON_EXIT) ||
+	    (IS_BROADWELL(dev) && intel_dig_port->port != PORT_A))
+		dev_priv->psr.link_standby = true;
 
 	dev_priv->psr.busy_frontbuffer_bits = 0;
 
@@ -620,13 +616,11 @@ void intel_psr_flush(struct drm_device *dev,
 
 	/*
 	 * On Valleyview and Cherryview we don't use hardware tracking so
-	 * sprite plane updates or cursor moves don't result in a PSR
+	 * any plane updates or cursor moves don't result in a PSR
 	 * invalidating. Which means we need to manually fake this in
 	 * software for all flushes, not just when we've seen a preceding
 	 * invalidation through frontbuffer rendering. */
-	if (!HAS_DDI(dev) &&
-	    ((frontbuffer_bits & INTEL_FRONTBUFFER_SPRITE(pipe)) ||
-	     (frontbuffer_bits & INTEL_FRONTBUFFER_CURSOR(pipe))))
+	if (!HAS_DDI(dev))
 		intel_psr_exit(dev);
 
 	if (!dev_priv->psr.active && !dev_priv->psr.busy_frontbuffer_bits)

@@ -3773,7 +3773,7 @@ go_again:
 				intel_dp_stop_link_train(intel_dp);
 			}
 
-			DRM_DEBUG_KMS("got esi %02x %02x %02x\n", esi[0], esi[1], esi[2]);
+			DRM_DEBUG_KMS("got esi %3ph\n", esi);
 			ret = drm_dp_mst_hpd_irq(&intel_dp->mst_mgr, esi, &handled);
 
 			if (handled) {
@@ -3789,7 +3789,7 @@ go_again:
 
 				bret = intel_dp_get_sink_irq_esi(intel_dp, esi);
 				if (bret == true) {
-					DRM_DEBUG_KMS("got esi2 %02x %02x %02x\n", esi[0], esi[1], esi[2]);
+					DRM_DEBUG_KMS("got esi2 %3ph\n", esi);
 					goto go_again;
 				}
 			} else

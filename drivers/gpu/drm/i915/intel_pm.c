@@ -4681,8 +4681,7 @@ static void cherryview_enable_rps(struct drm_device *dev)
 		I915_WRITE(RING_MAX_IDLE(ring->mmio_base), 10);
 	I915_WRITE(GEN6_RC_SLEEP, 0);
 
-	/* TO threshold set to 1750 us ( 0x557 * 1.28 us) */
-	I915_WRITE(GEN6_RC6_THRESHOLD, 0x557);
+	I915_WRITE(GEN6_RC6_THRESHOLD, 50000); /* 50/125ms per EI */
 
 	/* allows RC6 residency counter to work */
 	I915_WRITE(VLV_COUNTER_CONTROL,
@@ -4696,7 +4695,7 @@ static void cherryview_enable_rps(struct drm_device *dev)
 	/* 3: Enable RC6 */
 	if ((intel_enable_rc6(dev) & INTEL_RC6_ENABLE) &&
 						(pcbr >> VLV_PCBR_ADDR_SHIFT))
-		rc6_mode = GEN7_RC_CTL_TO_MODE;
+		rc6_mode = GEN6_RC_CTL_EI_MODE(1);
 
 	I915_WRITE(GEN6_RC_CONTROL, rc6_mode);
 
@@ -5973,6 +5972,10 @@ static void haswell_init_clock_gating(struct drm_device *dev)
 	 */
 	I915_WRITE(GEN7_GT_MODE,
 		   _MASKED_FIELD(GEN6_WIZ_HASHING_MASK, GEN6_WIZ_HASHING_16x4));
+
+	/* WaSampleCChickenBitEnable:hsw */
+	I915_WRITE(HALF_SLICE_CHICKEN3,
+		   _MASKED_BIT_ENABLE(HSW_SAMPLE_C_PERFORMANCE));
 
 	/* WaSwitchSolVfFArbitrationPriority:hsw */
 	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) | HSW_ECOCHK_ARB_PRIO_SOL);

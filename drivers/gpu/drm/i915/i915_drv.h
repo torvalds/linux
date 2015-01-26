@@ -55,7 +55,7 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20141219"
+#define DRIVER_DATE		"20150117"
 
 #undef WARN_ON
 /* Many gcc seem to no see through this and fall over :( */
@@ -83,7 +83,7 @@
 	int __ret_warn_on = !!(condition);				\
 	if (unlikely(__ret_warn_on)) {					\
 		if (i915.verbose_state_checks)				\
-			__WARN_printf(format);				\
+			WARN(1, format);				\
 		else 							\
 			DRM_ERROR(format);				\
 	}								\
@@ -94,7 +94,7 @@
 	int __ret_warn_on = !!(condition);				\
 	if (unlikely(__ret_warn_on)) {					\
 		if (i915.verbose_state_checks)				\
-			__WARN_printf("WARN_ON(" #condition ")\n");	\
+			WARN(1, "WARN_ON(" #condition ")\n");		\
 		else 							\
 			DRM_ERROR("WARN_ON(" #condition ")\n");		\
 	}								\
@@ -678,6 +678,11 @@ struct i915_ctx_hang_stats {
 	/* Time when this context was last blamed for a GPU reset */
 	unsigned long guilty_ts;
 
+	/* If the contexts causes a second GPU hang within this time,
+	 * it is permanently banned from submitting any more work.
+	 */
+	unsigned long ban_period_seconds;
+
 	/* This context is banned to submit more work */
 	bool banned;
 };
@@ -784,6 +789,7 @@ struct i915_psr {
 	bool active;
 	struct delayed_work work;
 	unsigned busy_frontbuffer_bits;
+	bool link_standby;
 };
 
 enum intel_pch {
@@ -1409,7 +1415,6 @@ struct intel_vbt_data {
 		bool present;
 		bool active_low_pwm;
 		u8 min_brightness;	/* min_brightness/255 of max */
-		u8 controller;		/* brightness controller number */
 	} backlight;
 
 	/* MIPI DSI */
@@ -1768,6 +1773,9 @@ struct drm_i915_private {
 	struct drm_property *broadcast_rgb_property;
 	struct drm_property *force_audio_property;
 
+	/* hda/i915 audio component */
+	bool audio_component_registered;
+
 	uint32_t hw_context_size;
 	struct list_head context_list;
 
@@ -1851,6 +1859,11 @@ struct drm_i915_private {
 static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 {
 	return dev->dev_private;
+}
+
+static inline struct drm_i915_private *dev_to_i915(struct device *dev)
+{
+	return to_i915(dev_get_drvdata(dev));
 }
 
 /* Iterate over initialised rings */
@@ -2892,6 +2905,10 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file);
 int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 				   struct drm_file *file);
+int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
+				    struct drm_file *file_priv);
+int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
+				    struct drm_file *file_priv);
 
 /* i915_gem_evict.c */
 int __must_check i915_gem_evict_something(struct drm_device *dev,

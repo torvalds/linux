@@ -153,12 +153,6 @@ int i915_mutex_lock_interruptible(struct drm_device *dev)
 	return 0;
 }
 
-static inline bool
-i915_gem_object_is_inactive(struct drm_i915_gem_object *obj)
-{
-	return i915_gem_obj_bound_any(obj) && !obj->active;
-}
-
 int
 i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *file)
@@ -1487,18 +1481,10 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto unref;
 
-	if (read_domains & I915_GEM_DOMAIN_GTT) {
+	if (read_domains & I915_GEM_DOMAIN_GTT)
 		ret = i915_gem_object_set_to_gtt_domain(obj, write_domain != 0);
-
-		/* Silently promote "you're not bound, there was nothing to do"
-		 * to success, since the client was just asking us to
-		 * make sure everything was done.
-		 */
-		if (ret == -EINVAL)
-			ret = 0;
-	} else {
+	else
 		ret = i915_gem_object_set_to_cpu_domain(obj, write_domain != 0);
-	}
 
 unref:
 	drm_gem_object_unreference(&obj->base);
@@ -1563,6 +1549,12 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	struct drm_gem_object *obj;
 	unsigned long addr;
 
+	if (args->flags & ~(I915_MMAP_WC))
+		return -EINVAL;
+
+	if (args->flags & I915_MMAP_WC && !cpu_has_pat)
+		return -ENODEV;
+
 	obj = drm_gem_object_lookup(dev, file, args->handle);
 	if (obj == NULL)
 		return -ENOENT;
@@ -1578,6 +1570,19 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	addr = vm_mmap(obj->filp, 0, args->size,
 		       PROT_READ | PROT_WRITE, MAP_SHARED,
 		       args->offset);
+	if (args->flags & I915_MMAP_WC) {
+		struct mm_struct *mm = current->mm;
+		struct vm_area_struct *vma;
+
+		down_write(&mm->mmap_sem);
+		vma = find_vma(mm, addr);
+		if (vma)
+			vma->vm_page_prot =
+				pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
+		else
+			addr = -ENOMEM;
+		up_write(&mm->mmap_sem);
+	}
 	drm_gem_object_unreference_unlocked(obj);
 	if (IS_ERR((void *)addr))
 		return addr;
@@ -2529,7 +2534,8 @@ static bool i915_context_is_banned(struct drm_i915_private *dev_priv,
 	if (ctx->hang_stats.banned)
 		return true;
 
-	if (elapsed <= DRM_I915_CTX_BAN_PERIOD) {
+	if (ctx->hang_stats.ban_period_seconds &&
+	    elapsed <= ctx->hang_stats.ban_period_seconds) {
 		if (!i915_gem_context_is_default(ctx)) {
 			DRM_DEBUG("context hanging too fast, banning!\n");
 			return true;
@@ -3698,14 +3704,9 @@ i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj,
 int
 i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 {
-	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
-	struct i915_vma *vma = i915_gem_obj_to_ggtt(obj);
 	uint32_t old_write_domain, old_read_domains;
+	struct i915_vma *vma;
 	int ret;
-
-	/* Not valid to be called on unbound objects. */
-	if (vma == NULL)
-		return -EINVAL;
 
 	if (obj->base.write_domain == I915_GEM_DOMAIN_GTT)
 		return 0;
@@ -3715,6 +3716,19 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 		return ret;
 
 	i915_gem_object_retire(obj);
+
+	/* Flush and acquire obj->pages so that we are coherent through
+	 * direct access in memory with previous cached writes through
+	 * shmemfs and that our cache domain tracking remains valid.
+	 * For example, if the obj->filp was moved to swap without us
+	 * being notified and releasing the pages, we would mistakenly
+	 * continue to assume that the obj remained out of the CPU cached
+	 * domain.
+	 */
+	ret = i915_gem_object_get_pages(obj);
+	if (ret)
+		return ret;
+
 	i915_gem_object_flush_cpu_write_domain(obj, false);
 
 	/* Serialise direct access to this object with the barriers for
@@ -3746,9 +3760,10 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 					    old_write_domain);
 
 	/* And bump the LRU for this access */
-	if (i915_gem_object_is_inactive(obj))
+	vma = i915_gem_obj_to_ggtt(obj);
+	if (vma && drm_mm_node_allocated(&vma->node) && !obj->active)
 		list_move_tail(&vma->mm_list,
-			       &dev_priv->gtt.base.inactive_list);
+			       &to_i915(obj->base.dev)->gtt.base.inactive_list);
 
 	return 0;
 }
