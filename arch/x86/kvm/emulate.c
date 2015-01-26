@@ -125,6 +125,7 @@
 #define RMExt       (4<<15)     /* Opcode extension in ModRM r/m if mod == 3 */
 #define Escape      (5<<15)     /* Escape to coprocessor instruction */
 #define InstrDual   (6<<15)     /* Alternate instruction decoding of mod == 3 */
+#define ModeDual    (7<<15)     /* Different instruction for 32/64 bit */
 #define Sse         (1<<18)     /* SSE Vector instruction */
 /* Generic ModRM decode. */
 #define ModRM       (1<<19)
@@ -215,6 +216,7 @@ struct opcode {
 		const struct gprefix *gprefix;
 		const struct escape *esc;
 		const struct instr_dual *idual;
+		const struct mode_dual *mdual;
 		void (*fastop)(struct fastop *fake);
 	} u;
 	int (*check_perm)(struct x86_emulate_ctxt *ctxt);
@@ -240,6 +242,11 @@ struct escape {
 struct instr_dual {
 	struct opcode mod012;
 	struct opcode mod3;
+};
+
+struct mode_dual {
+	struct opcode mode32;
+	struct opcode mode64;
 };
 
 /* EFLAGS bit definitions. */
@@ -3530,6 +3537,12 @@ static int em_clflush(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_movsxd(struct x86_emulate_ctxt *ctxt)
+{
+	ctxt->dst.val = (s32) ctxt->src.val;
+	return X86EMUL_CONTINUE;
+}
+
 static bool valid_cr(int nr)
 {
 	switch (nr) {
@@ -3729,6 +3742,7 @@ static int check_perm_out(struct x86_emulate_ctxt *ctxt)
 #define G(_f, _g) { .flags = ((_f) | Group | ModRM), .u.group = (_g) }
 #define GD(_f, _g) { .flags = ((_f) | GroupDual | ModRM), .u.gdual = (_g) }
 #define ID(_f, _i) { .flags = ((_f) | InstrDual | ModRM), .u.idual = (_i) }
+#define MD(_f, _m) { .flags = ((_f) | ModeDual), .u.mdual = (_m) }
 #define E(_f, _e) { .flags = ((_f) | Escape | ModRM), .u.esc = (_e) }
 #define I(_f, _e) { .flags = (_f), .u.execute = (_e) }
 #define F(_f, _e) { .flags = (_f) | Fastop, .u.fastop = (_e) }
@@ -3973,6 +3987,10 @@ static const struct instr_dual instr_dual_0f_c3 = {
 	I(DstMem | SrcReg | ModRM | No16 | Mov, em_mov), N
 };
 
+static const struct mode_dual mode_dual_63 = {
+	N, I(DstReg | SrcMem32 | ModRM | Mov, em_movsxd)
+};
+
 static const struct opcode opcode_table[256] = {
 	/* 0x00 - 0x07 */
 	F6ALU(Lock, em_add),
@@ -4007,7 +4025,7 @@ static const struct opcode opcode_table[256] = {
 	/* 0x60 - 0x67 */
 	I(ImplicitOps | Stack | No64, em_pusha),
 	I(ImplicitOps | Stack | No64, em_popa),
-	N, D(DstReg | SrcMem32 | ModRM | Mov) /* movsxd (x86/64) */ ,
+	N, MD(ModRM, &mode_dual_63),
 	N, N, N, N,
 	/* 0x68 - 0x6F */
 	I(SrcImm | Mov | Stack, em_push),
@@ -4227,6 +4245,7 @@ static const struct opcode opcode_map_0f_38[256] = {
 #undef I
 #undef GP
 #undef EXT
+#undef MD
 
 #undef D2bv
 #undef D2bvIP
@@ -4616,6 +4635,12 @@ done_prefixes:
 			else
 				opcode = opcode.u.idual->mod012;
 			break;
+		case ModeDual:
+			if (ctxt->mode == X86EMUL_MODE_PROT64)
+				opcode = opcode.u.mdual->mode64;
+			else
+				opcode = opcode.u.mdual->mode32;
+			break;
 		default:
 			return EMULATION_FAILED;
 		}
@@ -4956,11 +4981,6 @@ special_insn:
 		goto threebyte_insn;
 
 	switch (ctxt->b) {
-	case 0x63:		/* movsxd */
-		if (ctxt->mode != X86EMUL_MODE_PROT64)
-			goto cannot_emulate;
-		ctxt->dst.val = (s32) ctxt->src.val;
-		break;
 	case 0x70 ... 0x7f: /* jcc (short) */
 		if (test_cc(ctxt->b, ctxt->eflags))
 			rc = jmp_rel(ctxt, ctxt->src.val);
