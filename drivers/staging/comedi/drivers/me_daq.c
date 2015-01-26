@@ -174,7 +174,7 @@ struct me_private_data {
 
 static inline void sleep(unsigned sec)
 {
-	current->state = TASK_INTERRUPTIBLE;
+	__set_current_state(TASK_INTERRUPTIBLE);
 	schedule_timeout(sec * HZ);
 }
 

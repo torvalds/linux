@@ -780,7 +780,7 @@ static void long_sleep(int ms)
 	if (in_interrupt()) {
 		mdelay(ms);
 	} else {
-		current->state = TASK_INTERRUPTIBLE;
+		__set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout((ms * HZ + 999) / 1000);
 	}
 }
