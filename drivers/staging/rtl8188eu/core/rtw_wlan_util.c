@@ -931,6 +931,8 @@ int rtw_check_bcn_info(struct adapter  *Adapter, u8 *pframe, u32 packet_len)
 	}
 
 	bssid = kzalloc(sizeof(struct wlan_bssid_ex), GFP_ATOMIC);
+	if (!bssid)
+		return _FAIL;
 
 	subtype = GetFrameSubType(pframe) >> 4;
 
