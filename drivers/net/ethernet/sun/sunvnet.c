@@ -1637,16 +1637,9 @@ static void vnet_port_free_tx_bufs(struct vnet_port *port)
 	int i;
 
 	dr = &port->vio.drings[VIO_DRIVER_TX_RING];
-	if (dr->base) {
-		ldc_free_exp_dring(port->vio.lp, dr->base,
-				   (dr->entry_size * dr->num_entries),
-				   dr->cookies, dr->ncookies);
-		dr->base = NULL;
-		dr->entry_size = 0;
-		dr->num_entries = 0;
-		dr->pending = 0;
-		dr->ncookies = 0;
-	}
+
+	if (dr->base == NULL)
+		return;
 
 	for (i = 0; i < VNET_TX_RING_SIZE; i++) {
 		struct vio_net_desc *d;
@@ -1666,6 +1659,14 @@ static void vnet_port_free_tx_bufs(struct vnet_port *port)
 		port->tx_bufs[i].skb = NULL;
 		d->hdr.state = VIO_DESC_FREE;
 	}
+	ldc_free_exp_dring(port->vio.lp, dr->base,
+			   (dr->entry_size * dr->num_entries),
+			   dr->cookies, dr->ncookies);
+	dr->base = NULL;
+	dr->entry_size = 0;
+	dr->num_entries = 0;
+	dr->pending = 0;
+	dr->ncookies = 0;
 }
 
 static int vnet_port_alloc_tx_ring(struct vnet_port *port)
