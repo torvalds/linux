@@ -463,12 +463,15 @@ xprt_rdma_allocate(struct rpc_task *task, size_t size)
 	struct rpcrdma_regbuf *rb;
 	struct rpcrdma_req *req;
 	size_t min_size;
-	gfp_t flags = task->tk_flags & RPC_TASK_SWAPPER ?
-						GFP_ATOMIC : GFP_NOFS;
+	gfp_t flags;
 
 	req = rpcrdma_buffer_get(&r_xprt->rx_buf);
 	if (req == NULL)
 		return NULL;
+
+	flags = GFP_NOIO | __GFP_NOWARN;
+	if (RPC_IS_SWAPPER(task))
+		flags = __GFP_MEMALLOC | GFP_NOWAIT | __GFP_NOWARN;
 
 	if (req->rl_rdmabuf == NULL)
 		goto out_rdmabuf;
