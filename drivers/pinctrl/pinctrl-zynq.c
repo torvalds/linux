@@ -357,7 +357,7 @@ static const unsigned int gpio0_50_pins[] = {50};
 static const unsigned int gpio0_51_pins[] = {51};
 static const unsigned int gpio0_52_pins[] = {52};
 static const unsigned int gpio0_53_pins[] = {53};
-static const unsigned int usb0_0_pins[] = {28, 19, 30, 31, 32, 33, 34, 35, 36,
+static const unsigned int usb0_0_pins[] = {28, 29, 30, 31, 32, 33, 34, 35, 36,
 					   37, 38, 39};
 static const unsigned int usb1_0_pins[] = {40, 41, 42, 43, 44, 45, 46, 47, 48,
 					   49, 50, 51};
