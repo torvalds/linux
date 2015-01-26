@@ -22,6 +22,54 @@
  * more details.
  */
 
+/*
+ * Driver: addi_apci_1032
+ * Description: ADDI-DATA APCI-1032 Digital Input Board
+ * Author: ADDI-DATA GmbH <info@addi-data.com>,
+ *   H Hartley Sweeten <hsweeten@visionengravers.com>
+ * Status: untested
+ * Devices: [ADDI-DATA] APCI-1032 (addi_apci_1032)
+ *
+ * Configuration options:
+ *   None; devices are configured automatically.
+ *
+ * This driver models the APCI-1032 as a 32-channel, digital input subdevice
+ * plus an additional digital input subdevice to handle change-of-state (COS)
+ * interrupts (if an interrupt handler can be set up successfully).
+ *
+ * The COS subdevice supports comedi asynchronous read commands.
+ *
+ * Change-Of-State (COS) interrupt configuration:
+ *
+ * Channels 0 to 15 are interruptible. These channels can be configured
+ * to generate interrupts based on AND/OR logic for the desired channels.
+ *
+ *   OR logic:
+ *   - reacts to rising or falling edges
+ *   - interrupt is generated when any enabled channel meets the desired
+ *     interrupt condition
+ *
+ *   AND logic:
+ *   - reacts to changes in level of the selected inputs
+ *   - interrupt is generated when all enabled channels meet the desired
+ *     interrupt condition
+ *   - after an interrupt, a change in level must occur on the selected
+ *     inputs to release the IRQ logic
+ *
+ * The COS subdevice must be configured before setting up a comedi
+ * asynchronous command:
+ *
+ *   data[0] : INSN_CONFIG_DIGITAL_TRIG
+ *   data[1] : trigger number (= 0)
+ *   data[2] : configuration operation:
+ *             - COMEDI_DIGITAL_TRIG_DISABLE = no interrupts
+ *             - COMEDI_DIGITAL_TRIG_ENABLE_EDGES = OR (edge) interrupts
+ *             - COMEDI_DIGITAL_TRIG_ENABLE_LEVELS = AND (level) interrupts
+ *   data[3] : left-shift for data[4] and data[5]
+ *   data[4] : rising-edge/high level channels
+ *   data[5] : falling-edge/low level channels
+ */
+
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
@@ -62,36 +110,6 @@ static int apci1032_reset(struct comedi_device *dev)
 	return 0;
 }
 
-/*
- * Change-Of-State (COS) interrupt configuration
- *
- * Channels 0 to 15 are interruptible. These channels can be configured
- * to generate interrupts based on AND/OR logic for the desired channels.
- *
- *	OR logic
- *		- reacts to rising or falling edges
- *		- interrupt is generated when any enabled channel
- *		  meet the desired interrupt condition
- *
- *	AND logic
- *		- reacts to changes in level of the selected inputs
- *		- interrupt is generated when all enabled channels
- *		  meet the desired interrupt condition
- *		- after an interrupt, a change in level must occur on
- *		  the selected inputs to release the IRQ logic
- *
- * The COS interrupt must be configured before it can be enabled.
- *
- *	data[0] : INSN_CONFIG_DIGITAL_TRIG
- *	data[1] : trigger number (= 0)
- *	data[2] : configuration operation:
- *	          COMEDI_DIGITAL_TRIG_DISABLE = no interrupts
- *	          COMEDI_DIGITAL_TRIG_ENABLE_EDGES = OR (edge) interrupts
- *	          COMEDI_DIGITAL_TRIG_ENABLE_LEVELS = AND (level) interrupts
- *	data[3] : left-shift for data[4] and data[5]
- *	data[4] : rising-edge/high level channels
- *	data[5] : falling-edge/low level channels
- */
 static int apci1032_cos_insn_config(struct comedi_device *dev,
 				    struct comedi_subdevice *s,
 				    struct comedi_insn *insn,
