@@ -923,6 +923,11 @@ static int aml_is_card_insert (struct amlsd_platform * pdata)
 {
 	int ret=0;
 
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+        if (pdata->caps & MMC_CAP_NONREMOVABLE)
+                return 1;
+#endif
+
 	if(pdata->gpio_cd)
 		ret = amlogic_get_value(pdata->gpio_cd, MODULE_NAME); // 1: no inserted  0: inserted
     // sdio_err("card %s\n", ret?"OUT":"IN");
