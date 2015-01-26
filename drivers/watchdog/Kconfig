@@ -1015,6 +1015,8 @@ config W83627HF_WDT
 		NCT6775
 		NCT6776
 		NCT6779
+		NCT6791
+		NCT6792
 
 	  This watchdog simply watches your kernel to make sure it doesn't
 	  freeze, and if it does, it reboots your computer after a certain
