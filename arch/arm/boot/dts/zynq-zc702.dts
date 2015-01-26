@@ -309,7 +309,7 @@
 
 		conf-tx {
 			pins = "MIO48";
-			bias-disable = <0>;
+			bias-disable;
 		};
 	};
 };
