@@ -116,14 +116,6 @@ do {									\
 } while(0)
 
 
-#define htw_reset()							\
-do {									\
-	if (cpu_has_htw) {						\
-		htw_stop();						\
-		htw_start();						\
-	}								\
-} while(0)
-
 extern void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
 	pte_t pteval);
 
@@ -155,12 +147,13 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
 {
 	pte_t null = __pte(0);
 
+	htw_stop();
 	/* Preserve global status for the pair */
 	if (ptep_buddy(ptep)->pte_low & _PAGE_GLOBAL)
 		null.pte_low = null.pte_high = _PAGE_GLOBAL;
 
 	set_pte_at(mm, addr, ptep, null);
-	htw_reset();
+	htw_start();
 }
 #else
 
@@ -190,6 +183,7 @@ static inline void set_pte(pte_t *ptep, pte_t pteval)
 
 static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
+	htw_stop();
 #if !defined(CONFIG_CPU_R3000) && !defined(CONFIG_CPU_TX39XX)
 	/* Preserve global status for the pair */
 	if (pte_val(*ptep_buddy(ptep)) & _PAGE_GLOBAL)
@@ -197,7 +191,7 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
 	else
 #endif
 		set_pte_at(mm, addr, ptep, __pte(0));
-	htw_reset();
+	htw_start();
 }
 #endif
 
