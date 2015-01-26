@@ -195,18 +195,19 @@ static void pn544_hci_i2c_platform_init(struct pn544_i2c_phy *phy)
 	nfc_info(&phy->i2c_dev->dev, "Detecting nfc_en polarity\n");
 
 	/* Disable fw download */
-	gpio_set_value(phy->gpio_fw, 0);
+	gpio_set_value_cansleep(phy->gpio_fw, 0);
 
 	for (polarity = 0; polarity < 2; polarity++) {
 		phy->en_polarity = polarity;
 		retry = 3;
 		while (retry--) {
 			/* power off */
-			gpio_set_value(phy->gpio_en, !phy->en_polarity);
+			gpio_set_value_cansleep(phy->gpio_en,
+						!phy->en_polarity);
 			usleep_range(10000, 15000);
 
 			/* power on */
-			gpio_set_value(phy->gpio_en, phy->en_polarity);
+			gpio_set_value_cansleep(phy->gpio_en, phy->en_polarity);
 			usleep_range(10000, 15000);
 
 			/* send reset */
@@ -225,13 +226,14 @@ static void pn544_hci_i2c_platform_init(struct pn544_i2c_phy *phy)
 		"Could not detect nfc_en polarity, fallback to active high\n");
 
 out:
-	gpio_set_value(phy->gpio_en, !phy->en_polarity);
+	gpio_set_value_cansleep(phy->gpio_en, !phy->en_polarity);
 }
 
 static void pn544_hci_i2c_enable_mode(struct pn544_i2c_phy *phy, int run_mode)
 {
-	gpio_set_value(phy->gpio_fw, run_mode == PN544_FW_MODE ? 1 : 0);
-	gpio_set_value(phy->gpio_en, phy->en_polarity);
+	gpio_set_value_cansleep(phy->gpio_fw,
+				run_mode == PN544_FW_MODE ? 1 : 0);
+	gpio_set_value_cansleep(phy->gpio_en, phy->en_polarity);
 	usleep_range(10000, 15000);
 
 	phy->run_mode = run_mode;
@@ -254,14 +256,14 @@ static void pn544_hci_i2c_disable(void *phy_id)
 {
 	struct pn544_i2c_phy *phy = phy_id;
 
-	gpio_set_value(phy->gpio_fw, 0);
-	gpio_set_value(phy->gpio_en, !phy->en_polarity);
+	gpio_set_value_cansleep(phy->gpio_fw, 0);
+	gpio_set_value_cansleep(phy->gpio_en, !phy->en_polarity);
 	usleep_range(10000, 15000);
 
-	gpio_set_value(phy->gpio_en, phy->en_polarity);
+	gpio_set_value_cansleep(phy->gpio_en, phy->en_polarity);
 	usleep_range(10000, 15000);
 
-	gpio_set_value(phy->gpio_en, !phy->en_polarity);
+	gpio_set_value_cansleep(phy->gpio_en, !phy->en_polarity);
 	usleep_range(10000, 15000);
 
 	phy->powered = 0;
