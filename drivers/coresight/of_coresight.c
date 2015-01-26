@@ -117,7 +117,7 @@ struct coresight_platform_data *of_get_coresight_platform_data(
 	struct coresight_platform_data *pdata;
 	struct of_endpoint endpoint, rendpoint;
 	struct device *rdev;
-	struct device_node *cpu;
+	struct device_node *dn;
 	struct device_node *ep = NULL;
 	struct device_node *rparent = NULL;
 	struct device_node *rport = NULL;
@@ -186,14 +186,16 @@ struct coresight_platform_data *of_get_coresight_platform_data(
 
 	/* Affinity defaults to CPU0 */
 	pdata->cpu = 0;
-	cpu = of_parse_phandle(node, "cpu", 0);
-	if (cpu) {
-		const u32 *mpidr;
+	dn = of_parse_phandle(node, "cpu", 0);
+	if (dn) {
+		const u32 *cell;
 		int len, index;
+		u64 hwid;
 
-		mpidr = of_get_property(cpu, "reg", &len);
-		if (mpidr && len == 4) {
-			index = get_logical_index(be32_to_cpup(mpidr));
+		cell = of_get_property(dn, "reg", &len);
+		if (cell) {
+			hwid = of_read_number(cell, of_n_addr_cells(dn));
+			index = get_logical_index(hwid);
 			if (index != -EINVAL)
 				pdata->cpu = index;
 		}
