@@ -62,12 +62,6 @@ enum KFD_MQD_TYPE get_mqd_type_from_queue_type(enum kfd_queue_type type)
 	return KFD_MQD_TYPE_CP;
 }
 
-inline unsigned int get_pipes_num(struct device_queue_manager *dqm)
-{
-	BUG_ON(!dqm || !dqm->dev);
-	return dqm->dev->shared_resources.compute_pipe_count;
-}
-
 static inline unsigned int get_first_pipe(struct device_queue_manager *dqm)
 {
 	BUG_ON(!dqm);
@@ -77,25 +71,6 @@ static inline unsigned int get_first_pipe(struct device_queue_manager *dqm)
 static inline unsigned int get_pipes_num_cpsch(void)
 {
 	return PIPE_PER_ME_CP_SCHEDULING;
-}
-
-inline unsigned int
-get_sh_mem_bases_nybble_64(struct kfd_process_device *pdd)
-{
-	uint32_t nybble;
-
-	nybble = (pdd->lds_base >> 60) & 0x0E;
-
-	return nybble;
-}
-
-inline unsigned int get_sh_mem_bases_32(struct kfd_process_device *pdd)
-{
-	unsigned int shared_base;
-
-	shared_base = (pdd->lds_base >> 16) & 0xFF;
-
-	return shared_base;
 }
 
 void program_sh_mem_settings(struct device_queue_manager *dqm,
@@ -301,6 +276,11 @@ static int destroy_queue_nocpsch(struct device_queue_manager *dqm,
 		}
 		dqm->sdma_queue_count--;
 		deallocate_sdma_queue(dqm, q->sdma_id);
+	} else {
+		pr_debug("q->properties.type is invalid (%d)\n",
+				q->properties.type);
+		retval = -EINVAL;
+		goto out;
 	}
 
 	retval = mqd->destroy_mqd(mqd, q->mqd,
@@ -331,7 +311,8 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q)
 	BUG_ON(!dqm || !q || !q->mqd);
 
 	mutex_lock(&dqm->lock);
-	mqd = dqm->ops.get_mqd_manager(dqm, q->properties.type);
+	mqd = dqm->ops.get_mqd_manager(dqm,
+			get_mqd_type_from_queue_type(q->properties.type));
 	if (mqd == NULL) {
 		mutex_unlock(&dqm->lock);
 		return -ENOMEM;
@@ -587,7 +568,7 @@ static int allocate_sdma_queue(struct device_queue_manager *dqm,
 static void deallocate_sdma_queue(struct device_queue_manager *dqm,
 				unsigned int sdma_queue_id)
 {
-	if (sdma_queue_id < 0 || sdma_queue_id >= CIK_SDMA_QUEUES)
+	if (sdma_queue_id >= CIK_SDMA_QUEUES)
 		return;
 	set_bit(sdma_queue_id, (unsigned long *)&dqm->sdma_bitmap);
 }
@@ -1114,8 +1095,11 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 	switch (dev->device_info->asic_family) {
 	case CHIP_CARRIZO:
 		device_queue_manager_init_vi(&dqm->ops_asic_specific);
+		break;
+
 	case CHIP_KAVERI:
 		device_queue_manager_init_cik(&dqm->ops_asic_specific);
+		break;
 	}
 
 	if (dqm->ops.initialize(dqm) != 0) {

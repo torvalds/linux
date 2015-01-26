@@ -141,8 +141,6 @@ static int kfd_ioctl_get_version(struct file *filep, struct kfd_process *p,
 static int set_queue_properties_from_user(struct queue_properties *q_properties,
 				struct kfd_ioctl_create_queue_args *args)
 {
-	void *tmp;
-
 	if (args->queue_percentage > KFD_MAX_QUEUE_PERCENTAGE) {
 		pr_err("kfd: queue percentage must be between 0 to KFD_MAX_QUEUE_PERCENTAGE\n");
 		return -EINVAL;
@@ -180,16 +178,18 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 		return -EFAULT;
 	}
 
-	tmp = (void *)(uintptr_t)args->eop_buffer_address;
-	if (tmp != NULL &&
-		!access_ok(VERIFY_WRITE, tmp, sizeof(uint32_t))) {
+	if (args->eop_buffer_address &&
+		!access_ok(VERIFY_WRITE,
+			(const void __user *) args->eop_buffer_address,
+			sizeof(uint32_t))) {
 		pr_debug("kfd: can't access eop buffer");
 		return -EFAULT;
 	}
 
-	tmp = (void *)(uintptr_t)args->ctx_save_restore_address;
-	if (tmp != NULL &&
-		!access_ok(VERIFY_WRITE, tmp, sizeof(uint32_t))) {
+	if (args->ctx_save_restore_address &&
+		!access_ok(VERIFY_WRITE,
+			(const void __user *) args->ctx_save_restore_address,
+			sizeof(uint32_t))) {
 		pr_debug("kfd: can't access ctx save restore buffer");
 		return -EFAULT;
 	}

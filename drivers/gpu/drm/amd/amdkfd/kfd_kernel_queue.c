@@ -288,8 +288,11 @@ struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 	switch (dev->device_info->asic_family) {
 	case CHIP_CARRIZO:
 		kernel_queue_init_vi(&kq->ops_asic_specific);
+		break;
+
 	case CHIP_KAVERI:
 		kernel_queue_init_cik(&kq->ops_asic_specific);
+		break;
 	}
 
 	if (kq->ops.initialize(kq, dev, type, KFD_KERNEL_QUEUE_SIZE) == false) {
