@@ -638,8 +638,6 @@ static struct radeon_asic rs600_asic = {
 		.wait_for_vblank = &avivo_wait_for_vblank,
 		.set_backlight_level = &atombios_set_backlight_level,
 		.get_backlight_level = &atombios_get_backlight_level,
-		.hdmi_enable = &r600_hdmi_enable,
-		.hdmi_setmode = &r600_hdmi_setmode,
 	},
 	.copy = {
 		.blit = &r100_copy_blit,
@@ -706,8 +704,6 @@ static struct radeon_asic rs690_asic = {
 		.wait_for_vblank = &avivo_wait_for_vblank,
 		.set_backlight_level = &atombios_set_backlight_level,
 		.get_backlight_level = &atombios_get_backlight_level,
-		.hdmi_enable = &r600_hdmi_enable,
-		.hdmi_setmode = &r600_hdmi_setmode,
 	},
 	.copy = {
 		.blit = &r100_copy_blit,
@@ -935,8 +931,6 @@ static struct radeon_asic r600_asic = {
 		.wait_for_vblank = &avivo_wait_for_vblank,
 		.set_backlight_level = &atombios_set_backlight_level,
 		.get_backlight_level = &atombios_get_backlight_level,
-		.hdmi_enable = &r600_hdmi_enable,
-		.hdmi_setmode = &r600_hdmi_setmode,
 	},
 	.copy = {
 		.blit = &r600_copy_cpdma,
@@ -1021,8 +1015,6 @@ static struct radeon_asic rv6xx_asic = {
 		.wait_for_vblank = &avivo_wait_for_vblank,
 		.set_backlight_level = &atombios_set_backlight_level,
 		.get_backlight_level = &atombios_get_backlight_level,
-		.hdmi_enable = &r600_hdmi_enable,
-		.hdmi_setmode = &r600_hdmi_setmode,
 	},
 	.copy = {
 		.blit = &r600_copy_cpdma,
@@ -1112,8 +1104,6 @@ static struct radeon_asic rs780_asic = {
 		.wait_for_vblank = &avivo_wait_for_vblank,
 		.set_backlight_level = &atombios_set_backlight_level,
 		.get_backlight_level = &atombios_get_backlight_level,
-		.hdmi_enable = &r600_hdmi_enable,
-		.hdmi_setmode = &r600_hdmi_setmode,
 	},
 	.copy = {
 		.blit = &r600_copy_cpdma,
@@ -1216,8 +1206,6 @@ static struct radeon_asic rv770_asic = {
 		.wait_for_vblank = &avivo_wait_for_vblank,
 		.set_backlight_level = &atombios_set_backlight_level,
 		.get_backlight_level = &atombios_get_backlight_level,
-		.hdmi_enable = &r600_hdmi_enable,
-		.hdmi_setmode = &dce3_1_hdmi_setmode,
 	},
 	.copy = {
 		.blit = &r600_copy_cpdma,
@@ -1334,8 +1322,6 @@ static struct radeon_asic evergreen_asic = {
 		.wait_for_vblank = &dce4_wait_for_vblank,
 		.set_backlight_level = &atombios_set_backlight_level,
 		.get_backlight_level = &atombios_get_backlight_level,
-		.hdmi_enable = &evergreen_hdmi_enable,
-		.hdmi_setmode = &evergreen_hdmi_setmode,
 	},
 	.copy = {
 		.blit = &r600_copy_cpdma,
@@ -1426,8 +1412,6 @@ static struct radeon_asic sumo_asic = {
 		.wait_for_vblank = &dce4_wait_for_vblank,
 		.set_backlight_level = &atombios_set_backlight_level,
 		.get_backlight_level = &atombios_get_backlight_level,
-		.hdmi_enable = &evergreen_hdmi_enable,
-		.hdmi_setmode = &evergreen_hdmi_setmode,
 	},
 	.copy = {
 		.blit = &r600_copy_cpdma,
@@ -1517,8 +1501,6 @@ static struct radeon_asic btc_asic = {
 		.wait_for_vblank = &dce4_wait_for_vblank,
 		.set_backlight_level = &atombios_set_backlight_level,
 		.get_backlight_level = &atombios_get_backlight_level,
-		.hdmi_enable = &evergreen_hdmi_enable,
-		.hdmi_setmode = &evergreen_hdmi_setmode,
 	},
 	.copy = {
 		.blit = &r600_copy_cpdma,
@@ -1663,8 +1645,6 @@ static struct radeon_asic cayman_asic = {
 		.wait_for_vblank = &dce4_wait_for_vblank,
 		.set_backlight_level = &atombios_set_backlight_level,
 		.get_backlight_level = &atombios_get_backlight_level,
-		.hdmi_enable = &evergreen_hdmi_enable,
-		.hdmi_setmode = &evergreen_hdmi_setmode,
 	},
 	.copy = {
 		.blit = &r600_copy_cpdma,
@@ -1766,8 +1746,6 @@ static struct radeon_asic trinity_asic = {
 		.wait_for_vblank = &dce4_wait_for_vblank,
 		.set_backlight_level = &atombios_set_backlight_level,
 		.get_backlight_level = &atombios_get_backlight_level,
-		.hdmi_enable = &evergreen_hdmi_enable,
-		.hdmi_setmode = &evergreen_hdmi_setmode,
 	},
 	.copy = {
 		.blit = &r600_copy_cpdma,
@@ -1899,8 +1877,6 @@ static struct radeon_asic si_asic = {
 		.wait_for_vblank = &dce4_wait_for_vblank,
 		.set_backlight_level = &atombios_set_backlight_level,
 		.get_backlight_level = &atombios_get_backlight_level,
-		.hdmi_enable = &evergreen_hdmi_enable,
-		.hdmi_setmode = &evergreen_hdmi_setmode,
 	},
 	.copy = {
 		.blit = &r600_copy_cpdma,
@@ -1953,6 +1929,10 @@ static struct radeon_asic si_asic = {
 		.debugfs_print_current_performance_level = &si_dpm_debugfs_print_current_performance_level,
 		.force_performance_level = &si_dpm_force_performance_level,
 		.vblank_too_short = &ni_dpm_vblank_too_short,
+		.fan_ctrl_set_mode = &si_fan_ctrl_set_mode,
+		.fan_ctrl_get_mode = &si_fan_ctrl_get_mode,
+		.get_fan_speed_percent = &si_fan_ctrl_get_fan_speed_percent,
+		.set_fan_speed_percent = &si_fan_ctrl_set_fan_speed_percent,
 	},
 	.pflip = {
 		.page_flip = &evergreen_page_flip,
@@ -2062,8 +2042,6 @@ static struct radeon_asic ci_asic = {
 		.wait_for_vblank = &dce4_wait_for_vblank,
 		.set_backlight_level = &atombios_set_backlight_level,
 		.get_backlight_level = &atombios_get_backlight_level,
-		.hdmi_enable = &evergreen_hdmi_enable,
-		.hdmi_setmode = &evergreen_hdmi_setmode,
 	},
 	.copy = {
 		.blit = &cik_copy_cpdma,
@@ -2118,6 +2096,10 @@ static struct radeon_asic ci_asic = {
 		.force_performance_level = &ci_dpm_force_performance_level,
 		.vblank_too_short = &ci_dpm_vblank_too_short,
 		.powergate_uvd = &ci_dpm_powergate_uvd,
+		.fan_ctrl_set_mode = &ci_fan_ctrl_set_mode,
+		.fan_ctrl_get_mode = &ci_fan_ctrl_get_mode,
+		.get_fan_speed_percent = &ci_fan_ctrl_get_fan_speed_percent,
+		.set_fan_speed_percent = &ci_fan_ctrl_set_fan_speed_percent,
 	},
 	.pflip = {
 		.page_flip = &evergreen_page_flip,
@@ -2169,8 +2151,6 @@ static struct radeon_asic kv_asic = {
 		.wait_for_vblank = &dce4_wait_for_vblank,
 		.set_backlight_level = &atombios_set_backlight_level,
 		.get_backlight_level = &atombios_get_backlight_level,
-		.hdmi_enable = &evergreen_hdmi_enable,
-		.hdmi_setmode = &evergreen_hdmi_setmode,
 	},
 	.copy = {
 		.blit = &cik_copy_cpdma,

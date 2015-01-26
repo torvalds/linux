@@ -576,12 +576,6 @@ int radeon_bo_list_validate(struct radeon_device *rdev,
 	return 0;
 }
 
-int radeon_bo_fbdev_mmap(struct radeon_bo *bo,
-			     struct vm_area_struct *vma)
-{
-	return ttm_fbdev_mmap(vma, &bo->tbo);
-}
-
 int radeon_bo_get_surface_reg(struct radeon_bo *bo)
 {
 	struct radeon_device *rdev = bo->rdev;
