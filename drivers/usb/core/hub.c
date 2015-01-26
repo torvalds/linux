@@ -4886,7 +4886,7 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 static void port_event(struct usb_hub *hub, int port1)
 		__must_hold(&port_dev->status_lock)
 {
-	int connect_change, reset_device = 0;
+	int connect_change;
 	struct usb_port *port_dev = hub->ports[port1 - 1];
 	struct usb_device *udev = port_dev->child;
 	struct usb_device *hdev = hub->hdev;
@@ -4974,30 +4974,14 @@ static void port_event(struct usb_hub *hub, int port1)
 			if (hub_port_reset(hub, port1, NULL,
 					HUB_BH_RESET_TIME, true) < 0)
 				hub_port_disable(hub, port1, 1);
-		} else
-			reset_device = 1;
-	}
-
-	/*
-	 * On disconnect USB3 protocol ports transit from U0 to
-	 * SS.Inactive to Rx.Detect. If this happens a warm-
-	 * reset is not needed, but a (re)connect may happen
-	 * before hub_wq runs and sees the disconnect, and the
-	 * device may be an unknown state.
-	 *
-	 * If the port went through SS.Inactive without hub_wq
-	 * seeing it the C_LINK_STATE change flag will be set,
-	 * and we reset the dev to put it in a known state.
-	 */
-	if (reset_device || (udev && hub_is_superspeed(hub->hdev)
-				&& (portchange & USB_PORT_STAT_C_LINK_STATE)
-				&& (portstatus & USB_PORT_STAT_CONNECTION))) {
-		usb_unlock_port(port_dev);
-		usb_lock_device(udev);
-		usb_reset_device(udev);
-		usb_unlock_device(udev);
-		usb_lock_port(port_dev);
-		connect_change = 0;
+		} else {
+			usb_unlock_port(port_dev);
+			usb_lock_device(udev);
+			usb_reset_device(udev);
+			usb_unlock_device(udev);
+			usb_lock_port(port_dev);
+			connect_change = 0;
+		}
 	}
 
 	if (connect_change)
