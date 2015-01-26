@@ -68,13 +68,12 @@ static inline struct tegra_sor *to_sor(struct tegra_output *output)
 	return container_of(output, struct tegra_sor, output);
 }
 
-static inline unsigned long tegra_sor_readl(struct tegra_sor *sor,
-					    unsigned long offset)
+static inline u32 tegra_sor_readl(struct tegra_sor *sor, unsigned long offset)
 {
 	return readl(sor->regs + (offset << 2));
 }
 
-static inline void tegra_sor_writel(struct tegra_sor *sor, unsigned long value,
+static inline void tegra_sor_writel(struct tegra_sor *sor, u32 value,
 				    unsigned long offset)
 {
 	writel(value, sor->regs + (offset << 2));
@@ -83,9 +82,9 @@ static inline void tegra_sor_writel(struct tegra_sor *sor, unsigned long value,
 static int tegra_sor_dp_train_fast(struct tegra_sor *sor,
 				   struct drm_dp_link *link)
 {
-	unsigned long value;
 	unsigned int i;
 	u8 pattern;
+	u32 value;
 	int err;
 
 	/* setup lane parameters */
@@ -202,7 +201,7 @@ static void tegra_sor_update(struct tegra_sor *sor)
 
 static int tegra_sor_setup_pwm(struct tegra_sor *sor, unsigned long timeout)
 {
-	unsigned long value;
+	u32 value;
 
 	value = tegra_sor_readl(sor, SOR_PWM_DIV);
 	value &= ~SOR_PWM_DIV_MASK;
@@ -281,7 +280,7 @@ static int tegra_sor_wakeup(struct tegra_sor *sor)
 
 static int tegra_sor_power_up(struct tegra_sor *sor, unsigned long timeout)
 {
-	unsigned long value;
+	u32 value;
 
 	value = tegra_sor_readl(sor, SOR_PWR);
 	value |= SOR_PWR_TRIGGER | SOR_PWR_NORMAL_STATE_PU;
@@ -791,8 +790,8 @@ static void tegra_sor_encoder_mode_set(struct drm_encoder *encoder,
 	struct tegra_sor_config config;
 	struct drm_dp_link link;
 	struct drm_dp_aux *aux;
-	unsigned long value;
 	int err = 0;
+	u32 value;
 
 	mutex_lock(&sor->lock);
 
