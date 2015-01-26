@@ -1345,7 +1345,8 @@ struct i915_gpu_error {
 	/* Hang gpu twice in this window and your context gets banned */
 #define DRM_I915_CTX_BAN_PERIOD DIV_ROUND_UP(8*DRM_I915_HANGCHECK_PERIOD, 1000)
 
-	struct timer_list hangcheck_timer;
+	struct workqueue_struct *hangcheck_wq;
+	struct delayed_work hangcheck_work;
 
 	/* For reset and error_state handling. */
 	spinlock_t lock;
