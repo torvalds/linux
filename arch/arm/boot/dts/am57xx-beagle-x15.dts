@@ -556,3 +556,7 @@
 &omap_dwc3_2 {
 	extcon = <&extcon_usb2>;
 };
+
+&usb2 {
+	dr_mode = "peripheral";
+};
