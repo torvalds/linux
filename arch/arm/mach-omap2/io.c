@@ -545,10 +545,12 @@ void __init ti814x_init_early(void)
 	omap2_set_globals_cm(OMAP2_L4_IO_ADDRESS(TI81XX_PRCM_BASE), NULL);
 	omap3xxx_check_revision();
 	ti81xx_check_features();
+	am33xx_prm_init();
+	am33xx_cm_init();
 	omap3xxx_voltagedomains_init();
 	omap3xxx_powerdomains_init();
 	ti81xx_clockdomains_init();
-	omap3xxx_hwmod_init();
+	ti81xx_hwmod_init();
 	omap_hwmod_init_postsetup();
 	if (of_have_populated_dt())
 		omap_clk_soc_init = ti81xx_dt_clk_init;
@@ -564,10 +566,12 @@ void __init ti816x_init_early(void)
 	omap2_set_globals_cm(OMAP2_L4_IO_ADDRESS(TI81XX_PRCM_BASE), NULL);
 	omap3xxx_check_revision();
 	ti81xx_check_features();
+	am33xx_prm_init();
+	am33xx_cm_init();
 	omap3xxx_voltagedomains_init();
 	omap3xxx_powerdomains_init();
 	ti81xx_clockdomains_init();
-	omap3xxx_hwmod_init();
+	ti81xx_hwmod_init();
 	omap_hwmod_init_postsetup();
 	if (of_have_populated_dt())
 		omap_clk_soc_init = ti81xx_dt_clk_init;
