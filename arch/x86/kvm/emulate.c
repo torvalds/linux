@@ -741,19 +741,26 @@ static int assign_eip_far(struct x86_emulate_ctxt *ctxt, ulong dst,
 			  const struct desc_struct *cs_desc)
 {
 	enum x86emul_mode mode = ctxt->mode;
+	int rc;
 
 #ifdef CONFIG_X86_64
-	if (ctxt->mode >= X86EMUL_MODE_PROT32 && cs_desc->l) {
-		u64 efer = 0;
+	if (ctxt->mode >= X86EMUL_MODE_PROT16) {
+		if (cs_desc->l) {
+			u64 efer = 0;
 
-		ctxt->ops->get_msr(ctxt, MSR_EFER, &efer);
-		if (efer & EFER_LMA)
-			mode = X86EMUL_MODE_PROT64;
+			ctxt->ops->get_msr(ctxt, MSR_EFER, &efer);
+			if (efer & EFER_LMA)
+				mode = X86EMUL_MODE_PROT64;
+		} else
+			mode = X86EMUL_MODE_PROT32; /* temporary value */
 	}
 #endif
 	if (mode == X86EMUL_MODE_PROT16 || mode == X86EMUL_MODE_PROT32)
 		mode = cs_desc->d ? X86EMUL_MODE_PROT32 : X86EMUL_MODE_PROT16;
-	return assign_eip(ctxt, dst, mode);
+	rc = assign_eip(ctxt, dst, mode);
+	if (rc == X86EMUL_CONTINUE)
+		ctxt->mode = mode;
+	return rc;
 }
 
 static inline int jmp_rel(struct x86_emulate_ctxt *ctxt, int rel)
@@ -3062,6 +3069,7 @@ static int em_call_far(struct x86_emulate_ctxt *ctxt)
 	struct desc_struct old_desc, new_desc;
 	const struct x86_emulate_ops *ops = ctxt->ops;
 	int cpl = ctxt->ops->cpl(ctxt);
+	enum x86emul_mode prev_mode = ctxt->mode;
 
 	old_eip = ctxt->_eip;
 	ops->get_segment(ctxt, &old_cs, &old_desc, NULL, VCPU_SREG_CS);
@@ -3085,11 +3093,14 @@ static int em_call_far(struct x86_emulate_ctxt *ctxt)
 	rc = em_push(ctxt);
 	/* If we failed, we tainted the memory, but the very least we should
 	   restore cs */
-	if (rc != X86EMUL_CONTINUE)
+	if (rc != X86EMUL_CONTINUE) {
+		pr_warn_once("faulting far call emulation tainted memory\n");
 		goto fail;
+	}
 	return rc;
 fail:
 	ops->set_segment(ctxt, old_cs, &old_desc, 0, VCPU_SREG_CS);
+	ctxt->mode = prev_mode;
 	return rc;
 
 }
