@@ -481,12 +481,6 @@ static const struct of_device_id sh_pfc_of_table[] = {
 		.data = &r8a7791_pinmux_info,
 	},
 #endif
-#ifdef CONFIG_PINCTRL_PFC_SH7372
-	{
-		.compatible = "renesas,pfc-sh7372",
-		.data = &sh7372_pinmux_info,
-	},
-#endif
 #ifdef CONFIG_PINCTRL_PFC_SH73A0
 	{
 		.compatible = "renesas,pfc-sh73a0",
@@ -614,9 +608,6 @@ static const struct platform_device_id sh_pfc_id_table[] = {
 #endif
 #ifdef CONFIG_PINCTRL_PFC_SH7269
 	{ "pfc-sh7269", (kernel_ulong_t)&sh7269_pinmux_info },
-#endif
-#ifdef CONFIG_PINCTRL_PFC_SH7372
-	{ "pfc-sh7372", (kernel_ulong_t)&sh7372_pinmux_info },
 #endif
 #ifdef CONFIG_PINCTRL_PFC_SH73A0
 	{ "pfc-sh73a0", (kernel_ulong_t)&sh73a0_pinmux_info },
