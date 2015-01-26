@@ -226,6 +226,10 @@
 	    it in some digital video standard, with appropriate embedded timing
 	    signals.</entry>
 	  </row>
+	  <row>
+	    <entry><constant>MEDIA_ENT_T_V4L2_SUBDEV_TUNER</constant></entry>
+	    <entry>TV and/or radio tuner</entry>
+	  </row>
 	</tbody>
       </tgroup>
     </table>

@@ -157,6 +157,7 @@ applications. -->
 	<date>2015-02-13</date>
 	<authorinitials>mcc</authorinitials>
 	<revremark>Fix documentation for media controller device nodes and add support for DVB device nodes.
+Add support for Tuner sub-device.
 	</revremark>
       </revision>
       <revision>
