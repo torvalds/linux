@@ -559,8 +559,8 @@ static void pcl812_ai_setup_dma(struct comedi_device *dev,
 	 * unread samples and the number of samples remaining in the command.
 	 */
 	nsamples = comedi_nsamples_left(s, max_samples + unread_samples);
-	if (nsamples > max_samples) {
-		nsamples -= max_samples;
+	if (nsamples > unread_samples) {
+		nsamples -= unread_samples;
 		desc->size = comedi_samples_to_bytes(s, nsamples);
 		comedi_isadma_program(desc);
 	}
