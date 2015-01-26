@@ -1380,6 +1380,7 @@ typedef struct CHANNEL_INFO_Tag
     DRAM_TYPE     mem_type; // =DRAM_MAX, channel invalid
     uint32        ddr_speed_bin;    // used for ddr3 only
     uint32        ddr_capability_per_die;  // one chip cs capability
+    uint32        dtt_cs;  //data training cs
 }CH_INFO,*pCH_INFO;
 
 struct ddr_freq_t {
@@ -1716,6 +1717,7 @@ static void ddr_get_datatraing_addr(uint32 *pdtar)
     uint32          bank;
     uint32          bw;
     uint32          conf;
+    uint32          cap1;
 
     for(ch=0,chCnt=0;ch<CH_MAX;ch++)
     {
@@ -1723,6 +1725,7 @@ static void ddr_get_datatraing_addr(uint32 *pdtar)
         {
             chCnt++;
         }
+        p_ddr_ch[ch]->dtt_cs = 0;
     }
 
     // caculate aglined physical address
@@ -1752,7 +1755,23 @@ static void ddr_get_datatraing_addr(uint32 *pdtar)
             socAddr[1] = addr + strideSize;
         }
         ddr_print("socAddr[0]=0x%x, socAddr[1]=0x%x\n", socAddr[0], socAddr[1]);
-        if((stride >= 0x10) && (stride <= 0x13))  // 3GB stride
+	 if(stride < 4)
+	 {
+	 	 cap1 = (1 << (READ_ROW_INFO(1,0)+READ_COL_INFO(1)+READ_BK_INFO(1)+READ_BW_INFO(1)));
+	        if(READ_CS_INFO(1) > 1)
+	        {
+	            cap1 += cap1 >> (READ_ROW_INFO(1,0)-READ_ROW_INFO(1,1));
+	        }
+	        if(READ_CH_ROW_INFO(1))
+	        {
+	            cap1 = cap1*3/4;
+	        }
+		 chAddr[0] = addr;
+		 chAddr[1] = cap1 - PAGE_SIZE;
+		 if(READ_CS_INFO(1) > 1)
+		         p_ddr_ch[1]->dtt_cs = 1;
+	 }
+        else if((stride >= 0x10) && (stride <= 0x13))  // 3GB stride
         {
             //conver to ch addr
             if(addr < 0x40000000)
@@ -1790,13 +1809,13 @@ static void ddr_get_datatraing_addr(uint32 *pdtar)
                 chAddr[1] = socAddr[1] - halfCap;
             }
         }
-        ddr_print("chAddr[0]=0x%x, chAddr[1]=0x%x\n", chAddr[0], chAddr[1]);
     }
     else
     {
         chAddr[0] = addr;
         chAddr[1] = addr;
     }
+    ddr_print("chAddr[0]=0x%x, chAddr[1]=0x%x\n", chAddr[0], chAddr[1]);
 
     for(ch=0,chCnt=0;ch<CH_MAX;ch++)
     {
@@ -1994,7 +2013,10 @@ static uint32 __sramfunc ddr_data_training_trigger(uint32 ch)
     // clear DTDONE status
     pPHY_Reg->PIR |= CLRSR;
     cs = ((pPHY_Reg->PGCR>>18) & 0xF);
-    pPHY_Reg->PGCR = (pPHY_Reg->PGCR & (~(0xF<<18))) | (1<<18);  //use cs0 dtt
+    if(DATA(ddr_ch[ch]).dtt_cs == 0)
+            pPHY_Reg->PGCR = (pPHY_Reg->PGCR & (~(0xF<<18))) | (1<<18);  //use cs0 dtt
+    else
+            pPHY_Reg->PGCR = (pPHY_Reg->PGCR & (~(0xF<<18))) | (2<<18);  //use cs1 dtt
     // trigger DTT
     pPHY_Reg->PIR |= INIT | QSTRN | LOCKBYP | ZCALBYP | CLRSR | ICPC;
     return cs;
@@ -2004,25 +2026,39 @@ static uint32 __sramfunc ddr_data_training_trigger(uint32 ch)
 //!0 DTT失败
 static uint32 __sramfunc ddr_data_training(uint32 ch, uint32 cs)
 {
-    uint32        i,byte;
+    uint32        i,byte=2,cs_msk;
     pDDR_REG_T    pDDR_Reg = DATA(ddr_ch[ch]).pDDR_Reg;
     pDDRPHY_REG_T pPHY_Reg = DATA(ddr_ch[ch]).pPHY_Reg;
-    
+
+    if(DATA(ddr_ch[ch]).dtt_cs == 0){
+        cs_msk = 1;
+    }else{
+        cs_msk = 2;
+    }
     // wait echo byte DTDONE
-    while((pPHY_Reg->DATX8[0].DXGSR[0] & 1) != 1);
-    while((pPHY_Reg->DATX8[1].DXGSR[0] & 1) != 1);
+    while((pPHY_Reg->DATX8[0].DXGSR[0] & cs_msk) != cs_msk);
+    while((pPHY_Reg->DATX8[1].DXGSR[0] & cs_msk) != cs_msk);
     if(!(pDDR_Reg->PPCFG & 1))
     {
-        while((pPHY_Reg->DATX8[2].DXGSR[0] & 1) != 1);
-        while((pPHY_Reg->DATX8[3].DXGSR[0] & 1) != 1);
+        while((pPHY_Reg->DATX8[2].DXGSR[0] & cs_msk) != cs_msk);
+        while((pPHY_Reg->DATX8[3].DXGSR[0] & cs_msk) != cs_msk);
         byte=4;
     }
     pPHY_Reg->PGCR = (pPHY_Reg->PGCR & (~(0xF<<18))) | (cs<<18);  //restore cs
-    for(i=0;i<byte;i++)
-    {
-        pPHY_Reg->DATX8[i].DXDQSTR = (pPHY_Reg->DATX8[i].DXDQSTR & (~((0x7<<3)|(0x3<<14))))
-                                      | ((pPHY_Reg->DATX8[i].DXDQSTR & 0x7)<<3)
-                                      | (((pPHY_Reg->DATX8[i].DXDQSTR>>12) & 0x3)<<14);
+    if(DATA(ddr_ch[ch]).dtt_cs == 0){
+        for(i=0;i<byte;i++)
+        {
+            pPHY_Reg->DATX8[i].DXDQSTR = (pPHY_Reg->DATX8[i].DXDQSTR & (~((0x7<<3)|(0x3<<14))))\
+                                          | ((pPHY_Reg->DATX8[i].DXDQSTR & 0x7)<<3)\
+                                          | (((pPHY_Reg->DATX8[i].DXDQSTR>>12) & 0x3)<<14);
+        }
+    }else{
+        for(i=0;i<byte;i++)
+        {
+            pPHY_Reg->DATX8[i].DXDQSTR = (pPHY_Reg->DATX8[i].DXDQSTR & (~((0x7<<0)|(0x3<<12))))\
+                                          | ((pPHY_Reg->DATX8[i].DXDQSTR>>3) & 0x7)\
+                                          | (((pPHY_Reg->DATX8[i].DXDQSTR>>14) & 0x3)<<12);
+        }
     }
     // send some auto refresh to complement the lost while DTT，//测到1个CS的DTT最长时间是10.7us。最多补2次刷新
     if(cs > 1)
@@ -2055,6 +2091,7 @@ static uint32 __sramfunc ddr_data_training(uint32 ch, uint32 cs)
         return 0;
     }
 }
+
 
 static void __sramfunc ddr_set_dll_bypass(uint32 ch, uint32 freq)
 {
@@ -4499,7 +4536,7 @@ static int ddr_init(uint32 dram_speed_bin, uint32 freq)
     struct clk *clk;
     uint32 ch,cap=0,cs_cap;
 
-    ddr_print("version 1.00 20140603 \n");
+    ddr_print("version 1.00 20150126 \n");
 
     p_ddr_reg = kern_to_pie(rockchip_pie_chunk, &DATA(ddr_reg));
     p_ddr_set_pll = fn_to_pie(rockchip_pie_chunk, &FUNC(ddr_set_pll));
