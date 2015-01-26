@@ -2951,6 +2951,19 @@ static int ethernet_probe(struct platform_device *pdev)
 		amlogic_gpio_request(reset_pin_num, OWNER_NAME);
 	}
 
+        ret = of_property_read_bool(pdev->dev.of_node, "disable_phyrefclk");
+        if (ret) {
+                int clk_25mout;
+                /* disable pinmux for phy clock 25MHz */
+                aml_clr_reg32_mask(P_PERIPHS_PIN_MUX_6, 1 << 8);
+                clk_25mout = amlogic_gpio_name_map_num("DIF_TTL_3_N");
+                amlogic_disable_pullup(clk_25mout, OWNER_NAME);
+                amlogic_gpio_direction_input(clk_25mout, OWNER_NAME);
+
+                /* disable clock generation for phy */
+                aml_write_reg32(P_PREG_ETH_REG0,
+                                aml_read_reg32(P_PREG_ETH_REG0) & ~(1 << 10));
+        }
 #endif
 	printk(DRV_NAME "init(dbg[%p]=%d)\n", (&g_debug), g_debug);
 	switch_mod_gate_by_name("ethernet",1);
