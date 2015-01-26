@@ -21,7 +21,6 @@ extern void shmobile_smp_scu_cpu_die(unsigned int cpu);
 extern int shmobile_smp_scu_cpu_kill(unsigned int cpu);
 struct clk;
 extern int shmobile_clk_init(void);
-extern void shmobile_handle_irq_intc(struct pt_regs *);
 extern struct platform_suspend_ops shmobile_suspend_ops;
 struct cpuidle_driver;
 extern void shmobile_cpuidle_set_driver(struct cpuidle_driver *drv);

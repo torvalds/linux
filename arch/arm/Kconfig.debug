@@ -821,12 +821,11 @@ choice
 		  via SCIF2 on Renesas R-Car E2 (R8A7794).
 
 	config DEBUG_RMOBILE_SCIFA0
-		bool "Kernel low-level debugging messages via SCIFA0 on R8A73A4/SH7372"
-		depends on ARCH_R8A73A4 || ARCH_SH7372
+		bool "Kernel low-level debugging messages via SCIFA0 on R8A73A4"
+		depends on ARCH_R8A73A4
 		help
 		  Say Y here if you want kernel low-level debugging support
-		  via SCIFA0 on Renesas R-Mobile APE6 (R8A73A4) or SH-Mobile
-		  AP4 (SH7372).
+		  via SCIFA0 on Renesas R-Mobile APE6 (R8A73A4).
 
 	config DEBUG_RMOBILE_SCIFA1
 		bool "Kernel low-level debugging messages via SCIFA1 on R8A7740"

@@ -92,13 +92,6 @@ if ARCH_SHMOBILE_LEGACY
 
 comment "Renesas ARM SoCs System Type"
 
-config ARCH_SH7372
-	bool "SH-Mobile AP4 (SH7372)"
-	select ARCH_RMOBILE
-	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select ARM_CPU_SUSPEND if PM || CPU_IDLE
-	select SH_INTC
-
 config ARCH_SH73A0
 	bool "SH-Mobile AG5 (R8A73A00)"
 	select ARCH_RMOBILE
