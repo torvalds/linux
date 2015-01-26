@@ -443,7 +443,6 @@ struct das16_private_struct {
 	unsigned long		adc_byte_count;
 	unsigned int		divisor1;
 	unsigned int		divisor2;
-	struct comedi_lrange	*user_ai_range_table;
 	struct comedi_lrange	*user_ao_range_table;
 	struct timer_list	timer;
 	short			timer_running;
@@ -952,6 +951,42 @@ static void das16_free_dma(struct comedi_device *dev)
 	}
 }
 
+static const struct comedi_lrange *das16_ai_range(struct comedi_device *dev,
+						  struct comedi_subdevice *s,
+						  struct comedi_devconfig *it,
+						  unsigned int pg_type,
+						  unsigned int status)
+{
+	unsigned int min = it->options[4];
+	unsigned int max = it->options[5];
+
+	/* get any user-defined input range */
+	if (pg_type == das16_pg_none && (min || max)) {
+		struct comedi_lrange *lrange;
+		struct comedi_krange *krange;
+
+		/* allocate single-range range table */
+		lrange = comedi_alloc_spriv(s,
+					    sizeof(*lrange) + sizeof(*krange));
+		if (!lrange)
+			return &range_unknown;
+
+		/* initialize ai range */
+		lrange->length = 1;
+		krange = lrange->range;
+		krange->min = min;
+		krange->max = max;
+		krange->flags = UNIT_volt;
+
+		return lrange;
+	}
+
+	/* use software programmable range */
+	if (status & DAS16_STATUS_UNIPOLAR)
+		return das16_ai_uni_lranges[pg_type];
+	return das16_ai_bip_lranges[pg_type];
+}
+
 static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct das16_board *board = dev->board_ptr;
@@ -1015,23 +1050,6 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	das16_alloc_dma(dev, it->options[2]);
 
-	/* get any user-defined input range */
-	if (board->ai_pg == das16_pg_none &&
-	    (it->options[4] || it->options[5])) {
-		/* allocate single-range range table */
-		lrange = kzalloc(sizeof(*lrange) + sizeof(*krange), GFP_KERNEL);
-		if (!lrange)
-			return -ENOMEM;
-
-		/* initialize ai range */
-		devpriv->user_ai_range_table = lrange;
-		lrange->length = 1;
-		krange = devpriv->user_ai_range_table->range;
-		krange->min = it->options[4];
-		krange->max = it->options[5];
-		krange->flags = UNIT_volt;
-	}
-
 	/* get any user-defined output range */
 	if (it->options[6] || it->options[7]) {
 		/* allocate single-range range table */
@@ -1067,13 +1085,7 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 	s->len_chanlist	= s->n_chan;
 	s->maxdata	= board->ai_maxdata;
-	if (devpriv->user_ai_range_table) { /*  user defined ai range */
-		s->range_table	= devpriv->user_ai_range_table;
-	} else if (status & DAS16_STATUS_UNIPOLAR) {
-		s->range_table	= das16_ai_uni_lranges[board->ai_pg];
-	} else {
-		s->range_table	= das16_ai_bip_lranges[board->ai_pg];
-	}
+	s->range_table	= das16_ai_range(dev, s, it, board->ai_pg, status);
 	s->insn_read	= das16_ai_insn_read;
 	if (devpriv->dma) {
 		dev->read_subdev = s;
@@ -1153,7 +1165,6 @@ static void das16_detach(struct comedi_device *dev)
 		if (dev->iobase)
 			das16_reset(dev);
 		das16_free_dma(dev);
-		kfree(devpriv->user_ai_range_table);
 		kfree(devpriv->user_ao_range_table);
 
 		if (devpriv->extra_iobase)
