@@ -1008,6 +1008,7 @@ static int ican3_handle_cevtind(struct ican3_dev *mod, struct ican3_msg *msg)
 		if (status & SR_BS) {
 			state = CAN_STATE_BUS_OFF;
 			cf->can_id |= CAN_ERR_BUSOFF;
+			mod->can.can_stats.bus_off++;
 			can_bus_off(dev);
 		} else if (status & SR_ES) {
 			if (rxerr >= 128 || txerr >= 128)
