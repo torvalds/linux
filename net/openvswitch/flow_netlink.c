@@ -1180,6 +1180,59 @@ free_newmask:
 	return err;
 }
 
+static size_t get_ufid_len(const struct nlattr *attr, bool log)
+{
+	size_t len;
+
+	if (!attr)
+		return 0;
+
+	len = nla_len(attr);
+	if (len < 1 || len > MAX_UFID_LENGTH) {
+		OVS_NLERR(log, "ufid size %u bytes exceeds the range (1, %d)",
+			  nla_len(attr), MAX_UFID_LENGTH);
+		return 0;
+	}
+
+	return len;
+}
+
+/* Initializes 'flow->ufid', returning true if 'attr' contains a valid UFID,
+ * or false otherwise.
+ */
+bool ovs_nla_get_ufid(struct sw_flow_id *sfid, const struct nlattr *attr,
+		      bool log)
+{
+	sfid->ufid_len = get_ufid_len(attr, log);
+	if (sfid->ufid_len)
+		memcpy(sfid->ufid, nla_data(attr), sfid->ufid_len);
+
+	return sfid->ufid_len;
+}
+
+int ovs_nla_get_identifier(struct sw_flow_id *sfid, const struct nlattr *ufid,
+			   const struct sw_flow_key *key, bool log)
+{
+	struct sw_flow_key *new_key;
+
+	if (ovs_nla_get_ufid(sfid, ufid, log))
+		return 0;
+
+	/* If UFID was not provided, use unmasked key. */
+	new_key = kmalloc(sizeof(*new_key), GFP_KERNEL);
+	if (!new_key)
+		return -ENOMEM;
+	memcpy(new_key, key, sizeof(*key));
+	sfid->unmasked_key = new_key;
+
+	return 0;
+}
+
+u32 ovs_nla_get_ufid_flags(const struct nlattr *attr)
+{
+	return attr ? nla_get_u32(attr) : 0;
+}
+
 /**
  * ovs_nla_get_flow_metadata - parses Netlink attributes into a flow key.
  * @key: Receives extracted in_port, priority, tun_key and skb_mark.
@@ -1216,12 +1269,12 @@ int ovs_nla_get_flow_metadata(const struct nlattr *attr,
 	return metadata_from_nlattrs(&match, &attrs, a, false, log);
 }
 
-int ovs_nla_put_flow(const struct sw_flow_key *swkey,
-		     const struct sw_flow_key *output, struct sk_buff *skb)
+static int __ovs_nla_put_key(const struct sw_flow_key *swkey,
+			     const struct sw_flow_key *output, bool is_mask,
+			     struct sk_buff *skb)
 {
 	struct ovs_key_ethernet *eth_key;
 	struct nlattr *nla, *encap;
-	bool is_mask = (swkey != output);
 
 	if (nla_put_u32(skb, OVS_KEY_ATTR_RECIRC_ID, output->recirc_id))
 		goto nla_put_failure;
@@ -1429,6 +1482,49 @@ unencap:
 
 nla_put_failure:
 	return -EMSGSIZE;
+}
+
+int ovs_nla_put_key(const struct sw_flow_key *swkey,
+		    const struct sw_flow_key *output, int attr, bool is_mask,
+		    struct sk_buff *skb)
+{
+	int err;
+	struct nlattr *nla;
+
+	nla = nla_nest_start(skb, attr);
+	if (!nla)
+		return -EMSGSIZE;
+	err = __ovs_nla_put_key(swkey, output, is_mask, skb);
+	if (err)
+		return err;
+	nla_nest_end(skb, nla);
+
+	return 0;
+}
+
+/* Called with ovs_mutex or RCU read lock. */
+int ovs_nla_put_identifier(const struct sw_flow *flow, struct sk_buff *skb)
+{
+	if (ovs_identifier_is_ufid(&flow->id))
+		return nla_put(skb, OVS_FLOW_ATTR_UFID, flow->id.ufid_len,
+			       flow->id.ufid);
+
+	return ovs_nla_put_key(flow->id.unmasked_key, flow->id.unmasked_key,
+			       OVS_FLOW_ATTR_KEY, false, skb);
+}
+
+/* Called with ovs_mutex or RCU read lock. */
+int ovs_nla_put_masked_key(const struct sw_flow *flow, struct sk_buff *skb)
+{
+	return ovs_nla_put_key(&flow->mask->key, &flow->key,
+				OVS_FLOW_ATTR_KEY, false, skb);
+}
+
+/* Called with ovs_mutex or RCU read lock. */
+int ovs_nla_put_mask(const struct sw_flow *flow, struct sk_buff *skb)
+{
+	return ovs_nla_put_key(&flow->key, &flow->mask->key,
+				OVS_FLOW_ATTR_MASK, true, skb);
 }
 
 #define MAX_ACTIONS_BUFSIZE	(32 * 1024)
