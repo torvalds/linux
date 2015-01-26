@@ -34,7 +34,7 @@ extern "C" {
  */
 
 /** version of rk_ext on mali_ko, aka. rk_ko_ver. */
-#define RK_KO_VER   (2)
+#define RK_KO_VER   (3)
 
 /* ---------------------------------------------------------------------------------------------------------
  *  Types and Structures Definition

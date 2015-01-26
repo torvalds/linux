@@ -5,3 +5,7 @@ r5p0-01rel0-1-x@0
 
 r5p0-01rel0-2-x@0
 	支持 mali_so 来获取 rk_ko_ver.
+	
+r5p0-01rel0-3-x@0
+	在 mali_control_timer_callback_chain 中使用 mod_timer, 而不再是 add_timer.
+
