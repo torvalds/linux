@@ -1929,9 +1929,9 @@ static int adm_detach(struct drbd_device *device, int force)
 	retcode = drbd_request_state(device, NS(disk, D_FAILED));
 	drbd_md_put_buffer(device);
 	/* D_FAILED will transition to DISKLESS. */
+	drbd_resume_io(device);
 	ret = wait_event_interruptible(device->misc_wait,
 			device->state.disk != D_FAILED);
-	drbd_resume_io(device);
 	if ((int)retcode == (int)SS_IS_DISKLESS)
 		retcode = SS_NOTHING_TO_DO;
 	if (ret)
