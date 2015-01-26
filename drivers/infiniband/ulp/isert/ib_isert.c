@@ -1351,17 +1351,19 @@ isert_handle_text_cmd(struct isert_conn *isert_conn, struct isert_cmd *isert_cmd
 	struct iscsi_conn *conn = isert_conn->conn;
 	u32 payload_length = ntoh24(hdr->dlength);
 	int rc;
-	unsigned char *text_in;
+	unsigned char *text_in = NULL;
 
 	rc = iscsit_setup_text_cmd(conn, cmd, hdr);
 	if (rc < 0)
 		return rc;
 
-	text_in = kzalloc(payload_length, GFP_KERNEL);
-	if (!text_in) {
-		isert_err("Unable to allocate text_in of payload_length: %u\n",
-			  payload_length);
-		return -ENOMEM;
+	if (payload_length) {
+		text_in = kzalloc(payload_length, GFP_KERNEL);
+		if (!text_in) {
+			isert_err("Unable to allocate text_in of payload_length: %u\n",
+				  payload_length);
+			return -ENOMEM;
+		}
 	}
 	cmd->text_in_ptr = text_in;
 
