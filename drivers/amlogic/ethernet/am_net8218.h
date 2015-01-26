@@ -44,10 +44,6 @@
 //131072/1536~=85;
 #define TX_RING_SIZE 	16384	// 512, 32768
 #define RX_RING_SIZE 	32768  	// 4096, 65536
-#define TX_THROT		TX_RING_SIZE / 2	// how many tx packets per tasklet
-#define RX_THROT		RX_RING_SIZE / 2	// how many rx packets per tasklet
-#define TX_THROTL		8		// lower limit that you can set on TX
-#define RX_THROTL		8		// lower limit that you can set on RX
 #define CACHE_LINE 32
 #define IS_CACHE_ALIGNED(x)		(!((unsigned long )x &(CACHE_LINE-1)))
 #define CACHE_HEAD_ALIGNED(x)	((x-CACHE_LINE) & (~(CACHE_LINE-1)))
@@ -173,7 +169,9 @@ struct am_net_private {
 //	int pmt;
 //	currently not used in the driver
 	unsigned int irq_mask;
-
+	struct tasklet_struct st_tasklet;
+	struct tasklet_struct rt_tasklet;
+	unsigned long status;	
 	/* Frequently used values: keep some adjacent for cache effect. */
 	spinlock_t lock;
 	unsigned int rx_buf_sz;	/* Based on MTU+slack. */
