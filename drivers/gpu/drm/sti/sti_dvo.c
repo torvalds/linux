@@ -91,6 +91,7 @@ struct sti_dvo {
 	struct dvo_config *config;
 	bool enabled;
 	struct drm_encoder *encoder;
+	struct drm_bridge *bridge;
 };
 
 struct sti_dvo_connector {
@@ -272,19 +273,12 @@ static void sti_dvo_bridge_nope(struct drm_bridge *bridge)
 	/* do nothing */
 }
 
-static void sti_dvo_brigde_destroy(struct drm_bridge *bridge)
-{
-	drm_bridge_cleanup(bridge);
-	kfree(bridge);
-}
-
 static const struct drm_bridge_funcs sti_dvo_bridge_funcs = {
 	.pre_enable = sti_dvo_pre_enable,
 	.enable = sti_dvo_bridge_nope,
 	.disable = sti_dvo_disable,
 	.post_disable = sti_dvo_bridge_nope,
 	.mode_set = sti_dvo_set_mode,
-	.destroy = sti_dvo_brigde_destroy,
 };
 
 static int sti_dvo_connector_get_modes(struct drm_connector *connector)
@@ -416,8 +410,21 @@ static int sti_dvo_bind(struct device *dev, struct device *master, void *data)
 		return -ENOMEM;
 
 	bridge->driver_private = dvo;
-	drm_bridge_init(drm_dev, bridge, &sti_dvo_bridge_funcs);
+	bridge->funcs = &sti_dvo_bridge_funcs;
+	bridge->of_node = dvo->dev.of_node;
+	err = drm_bridge_add(bridge);
+	if (err) {
+		DRM_ERROR("Failed to add bridge\n");
+		return err;
+	}
 
+	err = drm_bridge_attach(drm_dev, bridge);
+	if (err) {
+		DRM_ERROR("Failed to attach bridge\n");
+		return err;
+	}
+
+	dvo->bridge = bridge;
 	encoder->bridge = bridge;
 	connector->encoder = encoder;
 	dvo->encoder = encoder;
@@ -446,7 +453,7 @@ static int sti_dvo_bind(struct device *dev, struct device *master, void *data)
 err_sysfs:
 	drm_connector_unregister(drm_connector);
 err_connector:
-	drm_bridge_cleanup(bridge);
+	drm_bridge_remove(bridge);
 	drm_connector_cleanup(drm_connector);
 	return -EINVAL;
 }
@@ -454,7 +461,9 @@ err_connector:
 static void sti_dvo_unbind(struct device *dev,
 			   struct device *master, void *data)
 {
-	/* do nothing */
+	struct sti_dvo *dvo = dev_get_drvdata(dev);
+
+	drm_bridge_remove(dvo->bridge);
 }
 
 static const struct component_ops sti_dvo_ops = {
