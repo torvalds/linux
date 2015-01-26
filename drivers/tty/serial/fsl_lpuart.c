@@ -455,6 +455,15 @@ static int lpuart_dma_rx(struct lpuart_port *sport)
 	return 0;
 }
 
+static void lpuart_flush_buffer(struct uart_port *port)
+{
+	struct lpuart_port *sport = container_of(port, struct lpuart_port, port);
+	if (sport->lpuart_dma_tx_use) {
+		dmaengine_terminate_all(sport->dma_tx_chan);
+		sport->dma_tx_in_progress = 0;
+	}
+}
+
 static void lpuart_dma_rx_complete(void *arg)
 {
 	struct lpuart_port *sport = arg;
@@ -1496,6 +1505,7 @@ static struct uart_ops lpuart_pops = {
 	.release_port	= lpuart_release_port,
 	.config_port	= lpuart_config_port,
 	.verify_port	= lpuart_verify_port,
+	.flush_buffer	= lpuart_flush_buffer,
 };
 
 static struct uart_ops lpuart32_pops = {
@@ -1514,6 +1524,7 @@ static struct uart_ops lpuart32_pops = {
 	.release_port	= lpuart_release_port,
 	.config_port	= lpuart_config_port,
 	.verify_port	= lpuart_verify_port,
+	.flush_buffer	= lpuart_flush_buffer,
 };
 
 static struct lpuart_port *lpuart_ports[UART_NR];
