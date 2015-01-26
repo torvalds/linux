@@ -3066,7 +3066,7 @@ static int bond_open(struct net_device *bond_dev)
 			    slave != rcu_access_pointer(bond->curr_active_slave)) {
 				bond_set_slave_inactive_flags(slave,
 							      BOND_SLAVE_NOTIFY_NOW);
-			} else {
+			} else if (BOND_MODE(bond) != BOND_MODE_8023AD) {
 				bond_set_slave_active_flags(slave,
 							    BOND_SLAVE_NOTIFY_NOW);
 			}
