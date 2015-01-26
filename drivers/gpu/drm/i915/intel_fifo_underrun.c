@@ -341,7 +341,7 @@ bool intel_set_pch_fifo_underrun_reporting(struct drm_i915_private *dev_priv,
 }
 
 /**
- * intel_pch_fifo_underrun_irq_handler - handle PCH fifo underrun interrupt
+ * intel_cpu_fifo_underrun_irq_handler - handle CPU fifo underrun interrupt
  * @dev_priv: i915 device instance
  * @pipe: (CPU) pipe to set state for
  *
