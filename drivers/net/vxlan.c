@@ -341,8 +341,8 @@ static int vxlan_fdb_info(struct sk_buff *skb, struct vxlan_dev *vxlan,
 	ndm->ndm_type = RTN_UNICAST;
 
 	if (!net_eq(dev_net(vxlan->dev), vxlan->net) &&
-	    nla_put_s32(skb, NDA_NDM_IFINDEX_NETNSID,
-			peernet2id(vxlan->net, dev_net(vxlan->dev))))
+	    nla_put_s32(skb, NDA_LINK_NETNSID,
+			peernet2id(dev_net(vxlan->dev), vxlan->net)))
 		goto nla_put_failure;
 
 	if (send_eth && nla_put(skb, NDA_LLADDR, ETH_ALEN, &fdb->eth_addr))
@@ -385,6 +385,7 @@ static inline size_t vxlan_nlmsg_size(void)
 		+ nla_total_size(sizeof(__be16)) /* NDA_PORT */
 		+ nla_total_size(sizeof(__be32)) /* NDA_VNI */
 		+ nla_total_size(sizeof(__u32)) /* NDA_IFINDEX */
+		+ nla_total_size(sizeof(__s32)) /* NDA_LINK_NETNSID */
 		+ nla_total_size(sizeof(struct nda_cacheinfo));
 }
 
