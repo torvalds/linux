@@ -103,20 +103,21 @@
 						compatible = "fixed-clock";
 					};
 
-					main_pll: main_pll {
-						#address-cells = <1>;
-						#size-cells = <0>;
+					l4_mp_clk: l4_mp_clk {
 						#clock-cells = <0>;
-						compatible = "altr,socfpga-pll-clock";
-						clocks = <&osc1>;
+						compatible = "fixed-clock";
+						clock-frequency = <200000000>;
 					};
 
-					periph_pll: periph_pll {
-						#address-cells = <1>;
-						#size-cells = <0>;
+					sdmmc_clk: sdmmc_clk {
 						#clock-cells = <0>;
-						compatible = "altr,socfpga-pll-clock";
-						clocks = <&osc1>;
+						compatible = "fixed-clock";
+					};
+
+					mpu_periph_clk: mpu_periph_clk {
+						#clock-cells = <0>;
+						compatible = "fixed-clock";
+						clock-frequency = <200000000>;
 					};
 				};
 		};
@@ -280,6 +281,8 @@
 			reg = <0xff808000 0x1000>;
 			interrupts = <0 98 IRQ_TYPE_LEVEL_HIGH>;
 			fifo-depth = <0x400>;
+			clocks = <&l4_mp_clk>, <&sdmmc_clk>;
+			clock-names = "biu", "ciu";
 		};
 
 		ocram: sram@ffe00000 {
@@ -303,28 +306,32 @@
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0xffffc600 0x100>;
 			interrupts = <1 13 0xf04>;
+			clocks = <&mpu_periph_clk>;
 		};
 
 		timer0: timer0@ffc02700 {
-			compatible = "snps,dw-apb-timer";
+			compatible = "snps,dw-apb-timer-sp";
 			interrupts = <0 115 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0xffc02700 0x100>;
+			clock-frequency = <100000000>;
 		};
 
 		timer1: timer1@ffc02800 {
-			compatible = "snps,dw-apb-timer";
+			compatible = "snps,dw-apb-timer-sp";
 			interrupts = <0 116 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0xffc02800 0x100>;
+			clock-frequency = <100000000>;
 		};
 
 		timer2: timer2@ffd00000 {
-			compatible = "snps,dw-apb-timer";
+			compatible = "snps,dw-apb-timer-osc";
 			interrupts = <0 117 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0xffd00000 0x100>;
+			clock-frequency = <100000000>;
 		};
 
 		timer3: timer3@ffd00100 {
-			compatible = "snps,dw-apb-timer";
+			compatible = "snps,dw-apb-timer-osc";
 			interrupts = <0 118 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0xffd01000 0x100>;
 		};
@@ -335,6 +342,7 @@
 			interrupts = <0 110 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			status = "disabled";
 		};
 
 		uart1: serial1@ffc02100 {
@@ -343,6 +351,8 @@
 			interrupts = <0 111 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			clock-frequency = <100000000>;
+			status = "disabled";
 		};
 
 		usbphy0: usbphy@0 {

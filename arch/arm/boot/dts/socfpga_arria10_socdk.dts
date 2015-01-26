@@ -126,7 +126,7 @@
 			};
 		};
 
-		serial0@ffc02000 {
+		serial1@ffc02100 {
 			status = "okay";
 		};
 
