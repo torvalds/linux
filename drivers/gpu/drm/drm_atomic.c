@@ -1259,7 +1259,9 @@ retry:
 				goto fail;
 			}
 
-			if (get_user(prop_value, prop_values_ptr + copied_props)) {
+			if (copy_from_user(&prop_value,
+					   prop_values_ptr + copied_props,
+					   sizeof(prop_value))) {
 				ret = -EFAULT;
 				goto fail;
 			}

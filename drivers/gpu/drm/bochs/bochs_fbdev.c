@@ -207,12 +207,22 @@ int bochs_fbdev_init(struct bochs_device *bochs)
 	if (ret)
 		return ret;
 
-	drm_fb_helper_single_add_all_connectors(&bochs->fb.helper);
+	ret = drm_fb_helper_single_add_all_connectors(&bochs->fb.helper);
+	if (ret)
+		goto fini;
+
 	drm_helper_disable_unused_functions(bochs->dev);
-	drm_fb_helper_initial_config(&bochs->fb.helper, 32);
+
+	ret = drm_fb_helper_initial_config(&bochs->fb.helper, 32);
+	if (ret)
+		goto fini;
 
 	bochs->fb.initialized = true;
 	return 0;
+
+fini:
+	drm_fb_helper_fini(&bochs->fb.helper);
+	return ret;
 }
 
 void bochs_fbdev_fini(struct bochs_device *bochs)
