@@ -642,9 +642,6 @@ source "kernel/power/Kconfig"
 config ARCH_SUSPEND_POSSIBLE
 	def_bool y
 
-config ARM64_CPU_SUSPEND
-	def_bool PM_SLEEP
-
 endmenu
 
 menu "CPU Power Management"
