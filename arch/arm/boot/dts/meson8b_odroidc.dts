@@ -935,6 +935,7 @@
                 reset_pin_enable = <0>;
                 reset_pin = "GPI0H_4";
                 reset_delay = <100>;
+                disable_phyrefclk;
         };
 
     leds {
