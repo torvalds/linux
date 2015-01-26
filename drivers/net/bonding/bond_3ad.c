@@ -2219,8 +2219,10 @@ static int bond_3ad_rx_indication(struct lacpdu *lacpdu, struct slave *slave,
 		switch (lacpdu->subtype) {
 		case AD_TYPE_LACPDU:
 			ret = RX_HANDLER_CONSUMED;
-			netdev_dbg(slave->bond->dev, "Received LACPDU on port %d\n",
-				   port->actor_port_number);
+			netdev_dbg(slave->bond->dev,
+				   "Received LACPDU on port %d slave %s\n",
+				   port->actor_port_number,
+				   slave->dev->name);
 			/* Protect against concurrent state machines */
 			spin_lock(&slave->bond->mode_lock);
 			ad_rx_machine(lacpdu, port);
@@ -2312,7 +2314,10 @@ void bond_3ad_adapter_duplex_changed(struct slave *slave)
 	port->actor_admin_port_key &= ~AD_DUPLEX_KEY_MASKS;
 	port->actor_oper_port_key = port->actor_admin_port_key |=
 		__get_duplex(port);
-	netdev_dbg(slave->bond->dev, "Port %d changed duplex\n", port->actor_port_number);
+	netdev_dbg(slave->bond->dev, "Port %d slave %s changed duplex\n",
+		   port->actor_port_number, slave->dev->name);
+	if (port->actor_oper_port_key & AD_DUPLEX_KEY_MASKS)
+		port->sm_vars |= AD_PORT_LACP_ENABLED;
 	/* there is no need to reselect a new aggregator, just signal the
 	 * state machines to reinitialize
 	 */
