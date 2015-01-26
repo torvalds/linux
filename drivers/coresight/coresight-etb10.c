@@ -454,7 +454,7 @@ static int etb_probe(struct amba_device *adev, const struct amba_id *id)
 	if (ret)
 		return ret;
 
-	drvdata->buffer_depth =  etb_get_buffer_depth(drvdata);
+	drvdata->buffer_depth = etb_get_buffer_depth(drvdata);
 	clk_disable_unprepare(drvdata->clk);
 
 	if (drvdata->buffer_depth < 0)

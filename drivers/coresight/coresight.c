@@ -498,7 +498,7 @@ static int coresight_orphan_match(struct device *dev, void *data)
 	 * Circle throuch all the connection of that component.  If we find
 	 * an orphan connection whose name matches @csdev, link it.
 	 */
-	for (i = 0; i < i_csdev->nr_outport; i++)	{
+	for (i = 0; i < i_csdev->nr_outport; i++) {
 		conn = &i_csdev->conns[i];
 
 		/* We have found at least one orphan connection */
