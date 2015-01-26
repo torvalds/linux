@@ -537,6 +537,29 @@ static void das16_timer_interrupt(unsigned long arg)
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
+static void das16_ai_set_mux_range(struct comedi_device *dev,
+				   unsigned int first_chan,
+				   unsigned int last_chan,
+				   unsigned int range)
+{
+	const struct das16_board *board = dev->board_ptr;
+
+	/* set multiplexer */
+	outb(first_chan | (last_chan << 4), dev->iobase + DAS16_MUX_REG);
+
+	/* some boards do not have programmable gain */
+	if (board->ai_pg == das16_pg_none)
+		return;
+
+	/*
+	 * Set gain (this is also burst rate register but according to
+	 * computer boards manual, burst rate does nothing, even on
+	 * keithley cards).
+	 */
+	outb((das16_gainlists[board->ai_pg])[range],
+	     dev->iobase + DAS16_GAIN_REG);
+}
+
 static int das16_ai_check_chanlist(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_cmd *cmd)
@@ -687,14 +710,15 @@ static unsigned int das16_set_pacer(struct comedi_device *dev, unsigned int ns,
 
 static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	const struct das16_board *board = dev->board_ptr;
 	struct das16_private_struct *devpriv = dev->private;
 	struct comedi_isadma *dma = devpriv->dma;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
+	unsigned int first_chan = CR_CHAN(cmd->chanlist[0]);
+	unsigned int last_chan = CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1]);
+	unsigned int range = CR_RANGE(cmd->chanlist[0]);
 	unsigned int byte;
 	unsigned long flags;
-	int range;
 
 	if (cmd->flags & CMDF_PRIORITY) {
 		dev_err(dev->class_dev,
@@ -705,19 +729,8 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (devpriv->can_burst)
 		outb(DAS1600_CONV_DISABLE, dev->iobase + DAS1600_CONV_REG);
 
-	/*  set scan limits */
-	byte = CR_CHAN(cmd->chanlist[0]);
-	byte |= CR_CHAN(cmd->chanlist[cmd->chanlist_len - 1]) << 4;
-	outb(byte, dev->iobase + DAS16_MUX_REG);
-
-	/* set gain (this is also burst rate register but according to
-	 * computer boards manual, burst rate does nothing, even on
-	 * keithley cards) */
-	if (board->ai_pg != das16_pg_none) {
-		range = CR_RANGE(cmd->chanlist[0]);
-		outb((das16_gainlists[board->ai_pg])[range],
-		     dev->iobase + DAS16_GAIN_REG);
-	}
+	/* set mux and range for chanlist scan */
+	das16_ai_set_mux_range(dev, first_chan, last_chan, range);
 
 	/* set counter mode and counts */
 	cmd->convert_arg = das16_set_pacer(dev, cmd->convert_arg, cmd->flags);
@@ -826,21 +839,14 @@ static int das16_ai_insn_read(struct comedi_device *dev,
 			      struct comedi_insn *insn,
 			      unsigned int *data)
 {
-	const struct das16_board *board = dev->board_ptr;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned int val;
 	int ret;
 	int i;
 
-	/* set multiplexer */
-	outb(chan | (chan << 4), dev->iobase + DAS16_MUX_REG);
-
-	/* set gain */
-	if (board->ai_pg != das16_pg_none) {
-		outb((das16_gainlists[board->ai_pg])[range],
-		     dev->iobase + DAS16_GAIN_REG);
-	}
+	/* set mux and range for single channel */
+	das16_ai_set_mux_range(dev, chan, chan, range);
 
 	for (i = 0; i < insn->n; i++) {
 		/* trigger conversion */
