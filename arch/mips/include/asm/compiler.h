@@ -17,9 +17,9 @@
 #endif
 
 #ifndef CONFIG_CPU_MICROMIPS
-#define GCC_OFF12_ASM() "R"
+#define GCC_OFF_SMALL_ASM() "R"
 #elif __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 9)
-#define GCC_OFF12_ASM() "ZC"
+#define GCC_OFF_SMALL_ASM() "ZC"
 #else
 #error "microMIPS compilation unsupported with GCC older than 4.9"
 #endif

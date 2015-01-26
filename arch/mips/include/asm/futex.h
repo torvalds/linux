@@ -45,8 +45,8 @@
 		"	"__UA_ADDR "\t2b, 4b			\n"	\
 		"	.previous				\n"	\
 		: "=r" (ret), "=&r" (oldval),				\
-		  "=" GCC_OFF12_ASM() (*uaddr)				\
-		: "0" (0), GCC_OFF12_ASM() (*uaddr), "Jr" (oparg),	\
+		  "=" GCC_OFF_SMALL_ASM() (*uaddr)				\
+		: "0" (0), GCC_OFF_SMALL_ASM() (*uaddr), "Jr" (oparg),	\
 		  "i" (-EFAULT)						\
 		: "memory");						\
 	} else if (cpu_has_llsc) {					\
@@ -74,8 +74,8 @@
 		"	"__UA_ADDR "\t2b, 4b			\n"	\
 		"	.previous				\n"	\
 		: "=r" (ret), "=&r" (oldval),				\
-		  "=" GCC_OFF12_ASM() (*uaddr)				\
-		: "0" (0), GCC_OFF12_ASM() (*uaddr), "Jr" (oparg),	\
+		  "=" GCC_OFF_SMALL_ASM() (*uaddr)				\
+		: "0" (0), GCC_OFF_SMALL_ASM() (*uaddr), "Jr" (oparg),	\
 		  "i" (-EFAULT)						\
 		: "memory");						\
 	} else								\
@@ -174,8 +174,8 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 		"	"__UA_ADDR "\t1b, 4b				\n"
 		"	"__UA_ADDR "\t2b, 4b				\n"
 		"	.previous					\n"
-		: "+r" (ret), "=&r" (val), "=" GCC_OFF12_ASM() (*uaddr)
-		: GCC_OFF12_ASM() (*uaddr), "Jr" (oldval), "Jr" (newval),
+		: "+r" (ret), "=&r" (val), "=" GCC_OFF_SMALL_ASM() (*uaddr)
+		: GCC_OFF_SMALL_ASM() (*uaddr), "Jr" (oldval), "Jr" (newval),
 		  "i" (-EFAULT)
 		: "memory");
 	} else if (cpu_has_llsc) {
@@ -203,8 +203,8 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 		"	"__UA_ADDR "\t1b, 4b				\n"
 		"	"__UA_ADDR "\t2b, 4b				\n"
 		"	.previous					\n"
-		: "+r" (ret), "=&r" (val), "=" GCC_OFF12_ASM() (*uaddr)
-		: GCC_OFF12_ASM() (*uaddr), "Jr" (oldval), "Jr" (newval),
+		: "+r" (ret), "=&r" (val), "=" GCC_OFF_SMALL_ASM() (*uaddr)
+		: GCC_OFF_SMALL_ASM() (*uaddr), "Jr" (oldval), "Jr" (newval),
 		  "i" (-EFAULT)
 		: "memory");
 	} else
