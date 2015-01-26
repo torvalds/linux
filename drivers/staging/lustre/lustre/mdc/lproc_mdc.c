@@ -106,6 +106,8 @@ static ssize_t mdc_kuc_write(struct file *file,
 		/* for mockup below */ 2 * cfs_size_round(sizeof(*hai));
 
 	OBD_ALLOC(lh, len);
+	if (!lh)
+		return -ENOMEM;
 
 	lh->kuc_magic = KUC_MAGIC;
 	lh->kuc_transport = KUC_TRANSPORT_HSM;
