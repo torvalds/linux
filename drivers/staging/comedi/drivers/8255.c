@@ -48,31 +48,6 @@
  * I/O port base address can be found in the output of 'lspci -v'.
  */
 
-/*
-   This file contains an exported subdevice for driving an 8255.
-
-   To use this subdevice as part of another driver, you need to
-   set up the subdevice in the attach function of the driver by
-   calling:
-
-     subdev_8255_init(device, subdevice, io_function, iobase)
-
-   device and subdevice are pointers to the device and subdevice
-   structures.  io_function will be called to provide the
-   low-level input/output to the device, i.e., actual register
-   access.  io_function will be called with the value of iobase
-   as the last parameter.  If the 8255 device is mapped as 4
-   consecutive I/O ports, you can use NULL for io_function
-   and the I/O port base for iobase, and an internal function will
-   handle the register access.
-
-   In addition, if the main driver handles interrupts, you can
-   enable commands on the subdevice by calling subdev_8255_init_irq()
-   instead.  Then, when you get an interrupt that is likely to be
-   from the 8255, you should call subdev_8255_interrupt(), which
-   will copy the latched value to a Comedi buffer.
- */
-
 #include <linux/module.h>
 #include "../comedidev.h"
 
@@ -218,6 +193,33 @@ static int __subdev_8255_init(struct comedi_device *dev,
 	return 0;
 }
 
+/**
+ * subdev_8255_init - initialize DIO subdevice for driving I/O mapped 8255
+ * @dev: comedi device owning subdevice
+ * @s: comedi subdevice to initialize
+ * @io: (optional) register I/O call-back function
+ * @regbase: offset of 8255 registers from dev->iobase, or call-back context
+ *
+ * Initializes a comedi subdevice as a DIO subdevice driving an 8255 chip.
+ *
+ * If the optional I/O call-back function is provided, its prototype is of
+ * the following form:
+ *
+ *   int my_8255_callback(struct comedi_device *dev,
+ *                        struct comedi_subdevice *s, int dir, int port,
+ *                        int data, unsigned long regbase);
+ *
+ * where 'dev', 's', and 'regbase' match the values passed to this function,
+ * 'port' is the 8255 port number 0 to 3 (including the control port), 'dir'
+ * is the direction (0 for read, 1 for write) and 'data' is the value to be
+ * written.  It should return 0 if writing or the value read if reading.
+ *
+ * If the optional I/O call-back function is not provided, an internal
+ * call-back function is used which uses consecutive I/O port addresses
+ * starting at dev->iobase + regbase.
+ *
+ * Return: -ENOMEM if failed to allocate memory, zero on success.
+ */
 int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
 		     int (*io)(struct comedi_device *,
 			       int, int, int, unsigned long),
@@ -227,6 +229,33 @@ int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
 }
 EXPORT_SYMBOL_GPL(subdev_8255_init);
 
+/**
+ * subdev_8255_mm_init - initialize DIO subdevice for driving mmio-mapped 8255
+ * @dev: comedi device owning subdevice
+ * @s: comedi subdevice to initialize
+ * @io: (optional) register I/O call-back function
+ * @regbase: offset of 8255 registers from dev->mmio, or call-back context
+ *
+ * Initializes a comedi subdevice as a DIO subdevice driving an 8255 chip.
+ *
+ * If the optional I/O call-back function is provided, its prototype is of
+ * the following form:
+ *
+ *   int my_8255_callback(struct comedi_device *dev,
+ *                        struct comedi_subdevice *s, int dir, int port,
+ *                        int data, unsigned long regbase);
+ *
+ * where 'dev', 's', and 'regbase' match the values passed to this function,
+ * 'port' is the 8255 port number 0 to 3 (including the control port), 'dir'
+ * is the direction (0 for read, 1 for write) and 'data' is the value to be
+ * written.  It should return 0 if writing or the value read if reading.
+ *
+ * If the optional I/O call-back function is not provided, an internal
+ * call-back function is used which uses consecutive MMIO virtual addresses
+ * starting at dev->mmio + regbase.
+ *
+ * Return: -ENOMEM if failed to allocate memory, zero on success.
+ */
 int subdev_8255_mm_init(struct comedi_device *dev, struct comedi_subdevice *s,
 			int (*io)(struct comedi_device *,
 				  int, int, int, unsigned long),
