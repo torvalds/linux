@@ -123,7 +123,7 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 	struct i915_vma *vma;
 	int pin_count = 0;
 
-	seq_printf(m, "%pK: %s%s%s %8zdKiB %02x %02x %u %u %u%s%s%s",
+	seq_printf(m, "%pK: %s%s%s %8zdKiB %02x %02x %x %x %x%s%s%s",
 		   &obj->base,
 		   get_pin_flag(obj),
 		   get_tiling_flag(obj),
@@ -569,7 +569,7 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 				struct intel_engine_cs *ring =
 					i915_gem_request_get_ring(work->flip_queued_req);
 
-				seq_printf(m, "Flip queued on %s at seqno %u, next seqno %u [current breadcrumb %u], completed? %d\n",
+				seq_printf(m, "Flip queued on %s at seqno %x, next seqno %x [current breadcrumb %x], completed? %d\n",
 					   ring->name,
 					   i915_gem_request_get_seqno(work->flip_queued_req),
 					   dev_priv->next_seqno,
@@ -658,7 +658,7 @@ static int i915_gem_request_info(struct seq_file *m, void *data)
 		list_for_each_entry(gem_request,
 				    &ring->request_list,
 				    list) {
-			seq_printf(m, "    %d @ %d\n",
+			seq_printf(m, "    %x @ %d\n",
 				   gem_request->seqno,
 				   (int) (jiffies - gem_request->emitted_jiffies));
 		}
@@ -676,7 +676,7 @@ static void i915_ring_seqno_info(struct seq_file *m,
 				 struct intel_engine_cs *ring)
 {
 	if (ring->get_seqno) {
-		seq_printf(m, "Current sequence (%s): %u\n",
+		seq_printf(m, "Current sequence (%s): %x\n",
 			   ring->name, ring->get_seqno(ring, false));
 	}
 }
