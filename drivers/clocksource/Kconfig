@@ -18,6 +18,9 @@ config CLKBLD_I8253
 config CLKSRC_MMIO
 	bool
 
+config DIGICOLOR_TIMER
+	bool
+
 config DW_APB_TIMER
 	bool
 
