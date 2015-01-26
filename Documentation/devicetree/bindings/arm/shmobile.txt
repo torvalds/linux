@@ -61,8 +61,6 @@ Boards:
     compatible = "renesas,kzm9g-reference", "renesas,sh73a0"
   - Lager (RTP0RC7790SEB00010S)
     compatible = "renesas,lager", "renesas,r8a7790"
-  - Mackerel (R0P7372LC0016RL, AP4 EVM 2nd)
-    compatible = "renesas,mackerel"
   - Marzen
     compatible = "renesas,marzen", "renesas,r8a7779"
 
