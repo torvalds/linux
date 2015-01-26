@@ -89,6 +89,7 @@ struct rockchip_iomux {
  * @reg_pull: optional separate register for additional pull settings
  * @clk: clock of the gpio bank
  * @irq: interrupt of the gpio bank
+ * @saved_enables: Saved content of GPIO_INTEN at suspend time.
  * @pin_base: first pin number
  * @nr_pins: number of pins in this bank
  * @name: name of the bank
@@ -107,6 +108,7 @@ struct rockchip_pin_bank {
 	struct regmap			*regmap_pull;
 	struct clk			*clk;
 	int				irq;
+	u32				saved_enables;
 	u32				pin_base;
 	u8				nr_pins;
 	char				*name;
@@ -1396,22 +1398,13 @@ static void rockchip_irq_demux(unsigned int irq, struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_get_chip(irq);
 	struct rockchip_pin_bank *bank = irq_get_handler_data(irq);
-	u32 polarity = 0, data = 0;
 	u32 pend;
-	bool edge_changed = false;
-	unsigned long flags;
 
 	dev_dbg(bank->drvdata->dev, "got irq for bank %s\n", bank->name);
 
 	chained_irq_enter(chip, desc);
 
 	pend = readl_relaxed(bank->reg_base + GPIO_INT_STATUS);
-
-	if (bank->toggle_edge_mode) {
-		polarity = readl_relaxed(bank->reg_base +
-					 GPIO_INT_POLARITY);
-		data = readl_relaxed(bank->reg_base + GPIO_EXT_PORT);
-	}
 
 	while (pend) {
 		unsigned int virq;
@@ -1432,27 +1425,31 @@ static void rockchip_irq_demux(unsigned int irq, struct irq_desc *desc)
 		 * needs manual intervention.
 		 */
 		if (bank->toggle_edge_mode & BIT(irq)) {
-			if (data & BIT(irq))
-				polarity &= ~BIT(irq);
-			else
-				polarity |= BIT(irq);
+			u32 data, data_old, polarity;
+			unsigned long flags;
 
-			edge_changed = true;
+			data = readl_relaxed(bank->reg_base + GPIO_EXT_PORT);
+			do {
+				spin_lock_irqsave(&bank->slock, flags);
+
+				polarity = readl_relaxed(bank->reg_base +
+							 GPIO_INT_POLARITY);
+				if (data & BIT(irq))
+					polarity &= ~BIT(irq);
+				else
+					polarity |= BIT(irq);
+				writel(polarity,
+				       bank->reg_base + GPIO_INT_POLARITY);
+
+				spin_unlock_irqrestore(&bank->slock, flags);
+
+				data_old = data;
+				data = readl_relaxed(bank->reg_base +
+						     GPIO_EXT_PORT);
+			} while ((data & BIT(irq)) != (data_old & BIT(irq)));
 		}
 
 		generic_handle_irq(virq);
-	}
-
-	if (bank->toggle_edge_mode && edge_changed) {
-		/* Interrupt params should only be set with ints disabled */
-		spin_lock_irqsave(&bank->slock, flags);
-
-		data = readl_relaxed(bank->reg_base + GPIO_INTEN);
-		writel_relaxed(0, bank->reg_base + GPIO_INTEN);
-		writel(polarity, bank->reg_base + GPIO_INT_POLARITY);
-		writel(data, bank->reg_base + GPIO_INTEN);
-
-		spin_unlock_irqrestore(&bank->slock, flags);
 	}
 
 	chained_irq_exit(chip, desc);
@@ -1543,6 +1540,51 @@ static int rockchip_irq_set_type(struct irq_data *d, unsigned int type)
 	return 0;
 }
 
+static void rockchip_irq_suspend(struct irq_data *d)
+{
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
+	struct rockchip_pin_bank *bank = gc->private;
+
+	bank->saved_enables = irq_reg_readl(gc, GPIO_INTEN);
+	irq_reg_writel(gc, gc->wake_active, GPIO_INTEN);
+}
+
+static void rockchip_irq_resume(struct irq_data *d)
+{
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
+	struct rockchip_pin_bank *bank = gc->private;
+
+	irq_reg_writel(gc, bank->saved_enables, GPIO_INTEN);
+}
+
+static void rockchip_irq_disable(struct irq_data *d)
+{
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
+	u32 val;
+
+	irq_gc_lock(gc);
+
+	val = irq_reg_readl(gc, GPIO_INTEN);
+	val &= ~d->mask;
+	irq_reg_writel(gc, val, GPIO_INTEN);
+
+	irq_gc_unlock(gc);
+}
+
+static void rockchip_irq_enable(struct irq_data *d)
+{
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
+	u32 val;
+
+	irq_gc_lock(gc);
+
+	val = irq_reg_readl(gc, GPIO_INTEN);
+	val |= d->mask;
+	irq_reg_writel(gc, val, GPIO_INTEN);
+
+	irq_gc_unlock(gc);
+}
+
 static int rockchip_interrupts_register(struct platform_device *pdev,
 						struct rockchip_pinctrl *info)
 {
@@ -1581,12 +1623,16 @@ static int rockchip_interrupts_register(struct platform_device *pdev,
 		gc = irq_get_domain_generic_chip(bank->domain, 0);
 		gc->reg_base = bank->reg_base;
 		gc->private = bank;
-		gc->chip_types[0].regs.mask = GPIO_INTEN;
+		gc->chip_types[0].regs.mask = GPIO_INTMASK;
 		gc->chip_types[0].regs.ack = GPIO_PORTS_EOI;
 		gc->chip_types[0].chip.irq_ack = irq_gc_ack_set_bit;
-		gc->chip_types[0].chip.irq_mask = irq_gc_mask_clr_bit;
-		gc->chip_types[0].chip.irq_unmask = irq_gc_mask_set_bit;
+		gc->chip_types[0].chip.irq_mask = irq_gc_mask_set_bit;
+		gc->chip_types[0].chip.irq_unmask = irq_gc_mask_clr_bit;
+		gc->chip_types[0].chip.irq_enable = rockchip_irq_enable;
+		gc->chip_types[0].chip.irq_disable = rockchip_irq_disable;
 		gc->chip_types[0].chip.irq_set_wake = irq_gc_set_wake;
+		gc->chip_types[0].chip.irq_suspend = rockchip_irq_suspend;
+		gc->chip_types[0].chip.irq_resume = rockchip_irq_resume;
 		gc->chip_types[0].chip.irq_set_type = rockchip_irq_set_type;
 		gc->wake_enabled = IRQ_MSK(bank->nr_pins);
 

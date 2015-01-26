@@ -610,7 +610,7 @@ static void cpsw_set_promiscious(struct net_device *ndev, bool enable)
 
 			/* Clear all mcast from ALE */
 			cpsw_ale_flush_multicast(ale, ALE_ALL_PORTS <<
-						 priv->host_port);
+						 priv->host_port, -1);
 
 			/* Flood All Unicast Packets to Host port */
 			cpsw_ale_control_set(ale, 0, ALE_P0_UNI_FLOOD, 1);
@@ -634,6 +634,12 @@ static void cpsw_set_promiscious(struct net_device *ndev, bool enable)
 static void cpsw_ndo_set_rx_mode(struct net_device *ndev)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
+	int vid;
+
+	if (priv->data.dual_emac)
+		vid = priv->slaves[priv->emac_port].port_vlan;
+	else
+		vid = priv->data.default_vlan;
 
 	if (ndev->flags & IFF_PROMISC) {
 		/* Enable promiscuous mode */
@@ -649,7 +655,8 @@ static void cpsw_ndo_set_rx_mode(struct net_device *ndev)
 	cpsw_ale_set_allmulti(priv->ale, priv->ndev->flags & IFF_ALLMULTI);
 
 	/* Clear all mcast from ALE */
-	cpsw_ale_flush_multicast(priv->ale, ALE_ALL_PORTS << priv->host_port);
+	cpsw_ale_flush_multicast(priv->ale, ALE_ALL_PORTS << priv->host_port,
+				 vid);
 
 	if (!netdev_mc_empty(ndev)) {
 		struct netdev_hw_addr *ha;
@@ -757,6 +764,14 @@ requeue:
 static irqreturn_t cpsw_interrupt(int irq, void *dev_id)
 {
 	struct cpsw_priv *priv = dev_id;
+	int value = irq - priv->irqs_table[0];
+
+	/* NOTICE: Ending IRQ here. The trick with the 'value' variable above
+	 * is to make sure we will always write the correct value to the EOI
+	 * register. Namely 0 for RX_THRESH Interrupt, 1 for RX Interrupt, 2
+	 * for TX Interrupt and 3 for MISC Interrupt.
+	 */
+	cpdma_ctlr_eoi(priv->dma, value);
 
 	cpsw_intr_disable(priv);
 	if (priv->irq_enabled == true) {
@@ -786,8 +801,6 @@ static int cpsw_poll(struct napi_struct *napi, int budget)
 	int			num_tx, num_rx;
 
 	num_tx = cpdma_chan_process(priv->txch, 128);
-	if (num_tx)
-		cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_TX);
 
 	num_rx = cpdma_chan_process(priv->rxch, budget);
 	if (num_rx < budget) {
@@ -795,7 +808,6 @@ static int cpsw_poll(struct napi_struct *napi, int budget)
 
 		napi_complete(napi);
 		cpsw_intr_enable(priv);
-		cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_RX);
 		prim_cpsw = cpsw_get_slave_priv(priv, 0);
 		if (prim_cpsw->irq_enabled == false) {
 			prim_cpsw->irq_enabled = true;
@@ -1310,8 +1322,6 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	napi_enable(&priv->napi);
 	cpdma_ctlr_start(priv->dma);
 	cpsw_intr_enable(priv);
-	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_RX);
-	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_TX);
 
 	prim_cpsw = cpsw_get_slave_priv(priv, 0);
 	if (prim_cpsw->irq_enabled == false) {
@@ -1578,9 +1588,6 @@ static void cpsw_ndo_tx_timeout(struct net_device *ndev)
 	cpdma_chan_start(priv->txch);
 	cpdma_ctlr_int_ctrl(priv->dma, true);
 	cpsw_intr_enable(priv);
-	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_RX);
-	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_TX);
-
 }
 
 static int cpsw_ndo_set_mac_address(struct net_device *ndev, void *p)
@@ -1620,9 +1627,6 @@ static void cpsw_ndo_poll_controller(struct net_device *ndev)
 	cpsw_interrupt(ndev->irq, priv);
 	cpdma_ctlr_int_ctrl(priv->dma, true);
 	cpsw_intr_enable(priv);
-	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_RX);
-	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_TX);
-
 }
 #endif
 
@@ -1630,16 +1634,24 @@ static inline int cpsw_add_vlan_ale_entry(struct cpsw_priv *priv,
 				unsigned short vid)
 {
 	int ret;
-	int unreg_mcast_mask;
+	int unreg_mcast_mask = 0;
+	u32 port_mask;
 
-	if (priv->ndev->flags & IFF_ALLMULTI)
-		unreg_mcast_mask = ALE_ALL_PORTS;
-	else
-		unreg_mcast_mask = ALE_PORT_1 | ALE_PORT_2;
+	if (priv->data.dual_emac) {
+		port_mask = (1 << (priv->emac_port + 1)) | ALE_PORT_HOST;
 
-	ret = cpsw_ale_add_vlan(priv->ale, vid,
-				ALE_ALL_PORTS << priv->host_port,
-				0, ALE_ALL_PORTS << priv->host_port,
+		if (priv->ndev->flags & IFF_ALLMULTI)
+			unreg_mcast_mask = port_mask;
+	} else {
+		port_mask = ALE_ALL_PORTS;
+
+		if (priv->ndev->flags & IFF_ALLMULTI)
+			unreg_mcast_mask = ALE_ALL_PORTS;
+		else
+			unreg_mcast_mask = ALE_PORT_1 | ALE_PORT_2;
+	}
+
+	ret = cpsw_ale_add_vlan(priv->ale, vid, port_mask, 0, port_mask,
 				unreg_mcast_mask << priv->host_port);
 	if (ret != 0)
 		return ret;
@@ -1650,8 +1662,7 @@ static inline int cpsw_add_vlan_ale_entry(struct cpsw_priv *priv,
 		goto clean_vid;
 
 	ret = cpsw_ale_add_mcast(priv->ale, priv->ndev->broadcast,
-				 ALE_ALL_PORTS << priv->host_port,
-				 ALE_VLAN, vid, 0);
+				 port_mask, ALE_VLAN, vid, 0);
 	if (ret != 0)
 		goto clean_vlan_ucast;
 	return 0;
