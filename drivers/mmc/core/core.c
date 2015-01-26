@@ -437,7 +437,10 @@ static void mmc_wait_for_req_done(struct mmc_host *host,
 	u32 timeout = 0;
 
 	if (!mrq->cmd->data) {
-		timeout = 500;
+		if (mrq->cmd->opcode == MMC_ERASE || (mrq->cmd->opcode == MMC_SEND_STATUS))
+			timeout = 2500000;
+		else
+			timeout = 500;
 	} else {
 		timeout = mrq->cmd->data->blocks * mrq->cmd->data->blksz * 500;
 		if(!timeout)
