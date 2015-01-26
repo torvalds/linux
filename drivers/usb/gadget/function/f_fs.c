@@ -1611,10 +1611,10 @@ static int ffs_epfiles_create(struct ffs_data *ffs)
 		mutex_init(&epfile->mutex);
 		init_waitqueue_head(&epfile->wait);
 		if (ffs->user_flags & FUNCTIONFS_VIRTUAL_ADDR)
-			sprintf(epfiles->name, "ep%02x", ffs->eps_addrmap[i]);
+			sprintf(epfile->name, "ep%02x", ffs->eps_addrmap[i]);
 		else
-			sprintf(epfiles->name, "ep%u", i);
-		epfile->dentry = ffs_sb_create_file(ffs->sb, epfiles->name,
+			sprintf(epfile->name, "ep%u", i);
+		epfile->dentry = ffs_sb_create_file(ffs->sb, epfile->name,
 						 epfile,
 						 &ffs_epfile_operations);
 		if (unlikely(!epfile->dentry)) {
