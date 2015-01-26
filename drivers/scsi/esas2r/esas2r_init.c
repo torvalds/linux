@@ -813,12 +813,13 @@ static void esas2r_init_pci_cfg_space(struct esas2r_adapter *a)
 		pci_read_config_word(a->pcid, pcie_cap_reg + PCI_EXP_DEVCTL,
 				     &devcontrol);
 
-		if ((devcontrol & PCI_EXP_DEVCTL_READRQ) > 0x2000) {
+		if ((devcontrol & PCI_EXP_DEVCTL_READRQ) >
+		     PCI_EXP_DEVCTL_READRQ_512B) {
 			esas2r_log(ESAS2R_LOG_INFO,
 				   "max read request size > 512B");
 
 			devcontrol &= ~PCI_EXP_DEVCTL_READRQ;
-			devcontrol |= 0x2000;
+			devcontrol |= PCI_EXP_DEVCTL_READRQ_512B;
 			pci_write_config_word(a->pcid,
 					      pcie_cap_reg + PCI_EXP_DEVCTL,
 					      devcontrol);
