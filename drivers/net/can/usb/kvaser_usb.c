@@ -654,11 +654,6 @@ static void kvaser_usb_rx_error(const struct kvaser_usb *dev,
 	priv = dev->nets[channel];
 	stats = &priv->netdev->stats;
 
-	if (status & M16C_STATE_BUS_RESET) {
-		kvaser_usb_unlink_tx_urbs(priv);
-		return;
-	}
-
 	skb = alloc_can_err_skb(priv->netdev, &cf);
 	if (!skb) {
 		stats->rx_dropped++;
@@ -669,7 +664,7 @@ static void kvaser_usb_rx_error(const struct kvaser_usb *dev,
 
 	netdev_dbg(priv->netdev, "Error status: 0x%02x\n", status);
 
-	if (status & M16C_STATE_BUS_OFF) {
+	if (status & (M16C_STATE_BUS_OFF | M16C_STATE_BUS_RESET)) {
 		cf->can_id |= CAN_ERR_BUSOFF;
 
 		priv->can.can_stats.bus_off++;
