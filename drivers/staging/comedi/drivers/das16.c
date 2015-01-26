@@ -444,9 +444,9 @@ struct das16_private_struct {
 	unsigned int		divisor1;
 	unsigned int		divisor2;
 	struct timer_list	timer;
-	short			timer_running;
 	unsigned long		extra_iobase;
 	unsigned int		can_burst:1;
+	unsigned int		timer_running:1;
 };
 
 static void das16_interrupt(struct comedi_device *dev)
