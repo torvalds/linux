@@ -451,23 +451,6 @@ struct das16_private_struct {
 	unsigned int		can_burst:1;
 };
 
-static void das16_ai_enable(struct comedi_device *dev,
-			    unsigned int mode, unsigned int src)
-{
-	struct das16_private_struct *devpriv = dev->private;
-
-	devpriv->ctrl_reg &= ~(DAS16_CTRL_INTE |
-			       DAS16_CTRL_DMAE |
-			       DAS16_CTRL_PACING_MASK);
-	devpriv->ctrl_reg |= mode;
-
-	if (src == TRIG_EXT)
-		devpriv->ctrl_reg |= DAS16_CTRL_EXT_PACER;
-	else
-		devpriv->ctrl_reg |= DAS16_CTRL_INT_PACER;
-	outb(devpriv->ctrl_reg, dev->iobase + DAS16_CTRL_REG);
-}
-
 static void das16_ai_disable(struct comedi_device *dev)
 {
 	struct das16_private_struct *devpriv = dev->private;
@@ -765,7 +748,14 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->timer.expires = jiffies + timer_period();
 	add_timer(&devpriv->timer);
 
-	das16_ai_enable(dev, DAS16_CTRL_DMAE, cmd->convert_src);
+	/* enable DMA interrupt with external or internal pacing */
+	devpriv->ctrl_reg &= ~(DAS16_CTRL_INTE | DAS16_CTRL_PACING_MASK);
+	devpriv->ctrl_reg |= DAS16_CTRL_DMAE;
+	if (cmd->convert_src == TRIG_EXT)
+		devpriv->ctrl_reg |= DAS16_CTRL_EXT_PACER;
+	else
+		devpriv->ctrl_reg |= DAS16_CTRL_INT_PACER;
+	outb(devpriv->ctrl_reg, dev->iobase + DAS16_CTRL_REG);
 
 	if (devpriv->can_burst)
 		outb(0, dev->iobase + DAS1600_CONV_REG);
