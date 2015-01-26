@@ -3397,7 +3397,7 @@ iscsit_build_sendtargets_response(struct iscsi_cmd *cmd,
 	unsigned char buf[ISCSI_IQN_LEN+12]; /* iqn + "TargetName=" + \0 */
 	unsigned char *text_in = cmd->text_in_ptr, *text_ptr = NULL;
 
-	buffer_len = max(conn->conn_ops->MaxRecvDataSegmentLength,
+	buffer_len = min(conn->conn_ops->MaxRecvDataSegmentLength,
 			 SENDTARGETS_BUF_LIMIT);
 
 	payload = kzalloc(buffer_len, GFP_KERNEL);
