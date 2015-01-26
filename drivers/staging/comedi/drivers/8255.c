@@ -264,10 +264,9 @@ int subdev_8255_mm_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	return __subdev_8255_init(dev, s, io, regbase, true);
 }
 EXPORT_SYMBOL_GPL(subdev_8255_mm_init);
+
 /*
-
-   Start of the 8255 standalone device
-
+ * Start of the 8255 standalone device
  */
 
 static int dev_8255_attach(struct comedi_device *dev,
