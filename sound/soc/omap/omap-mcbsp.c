@@ -434,7 +434,7 @@ static int omap_mcbsp_dai_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 	case SND_SOC_DAIFMT_CBM_CFS:
 		/* McBSP slave. FS clock as output */
 		regs->srgr2	|= FSGM;
-		regs->pcr0	|= FSXM;
+		regs->pcr0	|= FSXM | FSRM;
 		break;
 	case SND_SOC_DAIFMT_CBM_CFM:
 		/* McBSP slave */

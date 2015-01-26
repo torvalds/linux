@@ -1362,9 +1362,9 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	}
 
 	ssi_private->irq = platform_get_irq(pdev, 0);
-	if (!ssi_private->irq) {
+	if (ssi_private->irq < 0) {
 		dev_err(&pdev->dev, "no irq for node %s\n", np->full_name);
-		return -ENXIO;
+		return ssi_private->irq;
 	}
 
 	/* Are the RX and the TX clocks locked? */
