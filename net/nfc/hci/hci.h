@@ -85,8 +85,6 @@ int nfc_hci_hcp_message_tx(struct nfc_hci_dev *hdev, u8 pipe,
 			   data_exchange_cb_t cb, void *cb_context,
 			   unsigned long completion_delay);
 
-u8 nfc_hci_pipe2gate(struct nfc_hci_dev *hdev, u8 pipe);
-
 void nfc_hci_hcp_message_rx(struct nfc_hci_dev *hdev, u8 pipe, u8 type,
 			    u8 instruction, struct sk_buff *skb);
 
