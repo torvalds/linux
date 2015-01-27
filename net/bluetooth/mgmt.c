@@ -131,6 +131,9 @@ static const u16 mgmt_events[] = {
 
 #define CACHE_TIMEOUT	msecs_to_jiffies(2 * 1000)
 
+#define ZERO_KEY "\x00\x00\x00\x00\x00\x00\x00\x00" \
+		 "\x00\x00\x00\x00\x00\x00\x00\x00"
+
 struct pending_cmd {
 	struct list_head list;
 	u16 opcode;
@@ -3673,6 +3676,18 @@ static int add_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 		u8 status;
 
 		if (bdaddr_type_is_le(cp->addr.type)) {
+			/* Enforce zero-valued 192-bit parameters as
+			 * long as legacy SMP OOB isn't implemented.
+			 */
+			if (memcmp(cp->rand192, ZERO_KEY, 16) ||
+			    memcmp(cp->hash192, ZERO_KEY, 16)) {
+				err = cmd_complete(sk, hdev->id,
+						   MGMT_OP_ADD_REMOTE_OOB_DATA,
+						   MGMT_STATUS_INVALID_PARAMS,
+						   addr, sizeof(*addr));
+				goto unlock;
+			}
+
 			rand192 = NULL;
 			hash192 = NULL;
 		} else {
