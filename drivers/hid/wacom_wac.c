@@ -2089,8 +2089,14 @@ int wacom_setup_pentouch_input_capabilities(struct input_dev *input_dev,
 	wacom_abs_set_axis(input_dev, wacom_wac);
 
 	switch (features->type) {
+	case GRAPHIRE_BT:
+		__clear_bit(ABS_MISC, input_dev->absbit);
+
 	case WACOM_MO:
 	case WACOM_G4:
+		input_set_abs_params(input_dev, ABS_DISTANCE, 0,
+					      features->distance_max,
+					      0, 0);
 		/* fall through */
 
 	case GRAPHIRE:
@@ -2109,52 +2115,14 @@ int wacom_setup_pentouch_input_capabilities(struct input_dev *input_dev,
 		__set_bit(INPUT_PROP_POINTER, input_dev->propbit);
 		break;
 
-	case GRAPHIRE_BT:
-		__clear_bit(ABS_MISC, input_dev->absbit);
-		input_set_abs_params(input_dev, ABS_DISTANCE, 0,
-					      features->distance_max,
-					      0, 0);
-
-		input_set_capability(input_dev, EV_REL, REL_WHEEL);
-
-		__set_bit(BTN_LEFT, input_dev->keybit);
-		__set_bit(BTN_RIGHT, input_dev->keybit);
-		__set_bit(BTN_MIDDLE, input_dev->keybit);
-
-		__set_bit(BTN_TOOL_RUBBER, input_dev->keybit);
-		__set_bit(BTN_TOOL_PEN, input_dev->keybit);
-		__set_bit(BTN_TOOL_MOUSE, input_dev->keybit);
-		__set_bit(BTN_STYLUS, input_dev->keybit);
-		__set_bit(BTN_STYLUS2, input_dev->keybit);
-
-		__set_bit(INPUT_PROP_POINTER, input_dev->propbit);
-		break;
-
 	case WACOM_24HD:
-		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
-		input_abs_set_res(input_dev, ABS_Z, 287);
-		input_set_abs_params(input_dev, ABS_THROTTLE, 0, 71, 0, 0);
-		/* fall through */
-
 	case DTK:
-		__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
-
-		wacom_setup_cintiq(wacom_wac);
-		break;
-
 	case WACOM_22HD:
 	case WACOM_21UX2:
 	case WACOM_BEE:
 	case CINTIQ:
-		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
-		input_abs_set_res(input_dev, ABS_Z, 287);
-
-		__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
-
-		wacom_setup_cintiq(wacom_wac);
-		break;
-
 	case WACOM_13HD:
+	case CINTIQ_HYBRID:
 		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
 		input_abs_set_res(input_dev, ABS_Z, 287);
 		__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
@@ -2164,6 +2132,10 @@ int wacom_setup_pentouch_input_capabilities(struct input_dev *input_dev,
 	case INTUOS3:
 	case INTUOS3L:
 	case INTUOS3S:
+	case INTUOS4:
+	case INTUOS4WL:
+	case INTUOS4L:
+	case INTUOS4S:
 		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
 		input_abs_set_res(input_dev, ABS_Z, 287);
 		/* fall through */
@@ -2200,17 +2172,6 @@ int wacom_setup_pentouch_input_capabilities(struct input_dev *input_dev,
 			                     0, features->y_max, 0, 0);
 			input_mt_init_slots(input_dev, features->touch_max, INPUT_MT_POINTER);
 		}
-		break;
-
-	case INTUOS4:
-	case INTUOS4WL:
-	case INTUOS4L:
-	case INTUOS4S:
-		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
-		input_abs_set_res(input_dev, ABS_Z, 287);
-		wacom_setup_intuos(wacom_wac);
-
-		__set_bit(INPUT_PROP_POINTER, input_dev->propbit);
 		break;
 
 	case WACOM_24HDT:
@@ -2307,14 +2268,6 @@ int wacom_setup_pentouch_input_capabilities(struct input_dev *input_dev,
 					      features->distance_max,
 					      0, 0);
 		}
-		break;
-
-	case CINTIQ_HYBRID:
-		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
-		input_abs_set_res(input_dev, ABS_Z, 287);
-		__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
-
-		wacom_setup_cintiq(wacom_wac);
 		break;
 	}
 	return 0;
