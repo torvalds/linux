@@ -2036,7 +2036,8 @@ void trace_printk_init_buffers(void)
 
 	/* trace_printk() is for debug use only. Don't use it in production. */
 
-	pr_warning("\n**********************************************************\n");
+	pr_warning("\n");
+	pr_warning("**********************************************************\n");
 	pr_warning("**   NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE   **\n");
 	pr_warning("**                                                      **\n");
 	pr_warning("** trace_printk() being used. Allocating extra memory.  **\n");
