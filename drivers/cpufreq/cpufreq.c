@@ -203,7 +203,7 @@ struct cpufreq_policy *cpufreq_cpu_get(unsigned int cpu)
 	struct cpufreq_policy *policy = NULL;
 	unsigned long flags;
 
-	if (cpufreq_disabled() || (cpu >= nr_cpu_ids))
+	if (cpu >= nr_cpu_ids)
 		return NULL;
 
 	if (!down_read_trylock(&cpufreq_rwsem))
@@ -230,9 +230,6 @@ EXPORT_SYMBOL_GPL(cpufreq_cpu_get);
 
 void cpufreq_cpu_put(struct cpufreq_policy *policy)
 {
-	if (cpufreq_disabled())
-		return;
-
 	kobject_put(&policy->kobj);
 	up_read(&cpufreq_rwsem);
 }
