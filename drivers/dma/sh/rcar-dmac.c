@@ -325,6 +325,8 @@ static void rcar_dmac_chan_start_xfer(struct rcar_dmac_chan *chan)
 		rcar_dmac_chan_write(chan, RCAR_DMARS, chan->mid_rid);
 
 	if (desc->hwdescs.use) {
+		struct rcar_dmac_xfer_chunk *chunk;
+
 		dev_dbg(chan->chan.device->dev,
 			"chan%u: queue desc %p: %u@%pad\n",
 			chan->index, desc, desc->nchunks, &desc->hwdescs.dma);
@@ -339,6 +341,18 @@ static void rcar_dmac_chan_start_xfer(struct rcar_dmac_chan *chan)
 		rcar_dmac_chan_write(chan, RCAR_DMACHCRB,
 				     RCAR_DMACHCRB_DCNT(desc->nchunks - 1) |
 				     RCAR_DMACHCRB_DRST);
+
+		/*
+		 * Errata: When descriptor memory is accessed through an IOMMU
+		 * the DMADAR register isn't initialized automatically from the
+		 * first descriptor at beginning of transfer by the DMAC like it
+		 * should. Initialize it manually with the destination address
+		 * of the first chunk.
+		 */
+		chunk = list_first_entry(&desc->chunks,
+					 struct rcar_dmac_xfer_chunk, node);
+		rcar_dmac_chan_write(chan, RCAR_DMADAR,
+				     chunk->dst_addr & 0xffffffff);
 
 		/*
 		 * Program the descriptor stage interrupt to occur after the end
