@@ -1774,8 +1774,8 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 		MLX4_PUT(inbox, parser_params,	INIT_HCA_VXLAN_OFFSET);
 	}
 
-	err = mlx4_cmd(dev, mailbox->dma, 0, 0, MLX4_CMD_INIT_HCA, 10000,
-		       MLX4_CMD_NATIVE);
+	err = mlx4_cmd(dev, mailbox->dma, 0, 0, MLX4_CMD_INIT_HCA,
+		       MLX4_CMD_TIME_CLASS_C, MLX4_CMD_NATIVE);
 
 	if (err)
 		mlx4_err(dev, "INIT_HCA returns %d\n", err);
@@ -2029,7 +2029,7 @@ int mlx4_CLOSE_PORT_wrapper(struct mlx4_dev *dev, int slave,
 	if (dev->caps.port_mask[port] != MLX4_PORT_TYPE_IB) {
 		if (priv->mfunc.master.init_port_ref[port] == 1) {
 			err = mlx4_cmd(dev, 0, port, 0, MLX4_CMD_CLOSE_PORT,
-				       1000, MLX4_CMD_NATIVE);
+				       MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
 			if (err)
 				return err;
 		}
@@ -2040,7 +2040,7 @@ int mlx4_CLOSE_PORT_wrapper(struct mlx4_dev *dev, int slave,
 			if (!priv->mfunc.master.qp0_state[port].qp0_active &&
 			    priv->mfunc.master.qp0_state[port].port_active) {
 				err = mlx4_cmd(dev, 0, port, 0, MLX4_CMD_CLOSE_PORT,
-					       1000, MLX4_CMD_NATIVE);
+					       MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
 				if (err)
 					return err;
 				priv->mfunc.master.slave_state[slave].init_port_mask &= ~(1 << port);
@@ -2055,15 +2055,15 @@ int mlx4_CLOSE_PORT_wrapper(struct mlx4_dev *dev, int slave,
 
 int mlx4_CLOSE_PORT(struct mlx4_dev *dev, int port)
 {
-	return mlx4_cmd(dev, 0, port, 0, MLX4_CMD_CLOSE_PORT, 1000,
-			MLX4_CMD_WRAPPED);
+	return mlx4_cmd(dev, 0, port, 0, MLX4_CMD_CLOSE_PORT,
+			MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
 }
 EXPORT_SYMBOL_GPL(mlx4_CLOSE_PORT);
 
 int mlx4_CLOSE_HCA(struct mlx4_dev *dev, int panic)
 {
-	return mlx4_cmd(dev, 0, 0, panic, MLX4_CMD_CLOSE_HCA, 1000,
-			MLX4_CMD_NATIVE);
+	return mlx4_cmd(dev, 0, 0, panic, MLX4_CMD_CLOSE_HCA,
+			MLX4_CMD_TIME_CLASS_C, MLX4_CMD_NATIVE);
 }
 
 struct mlx4_config_dev {
@@ -2202,7 +2202,8 @@ int mlx4_SET_ICM_SIZE(struct mlx4_dev *dev, u64 icm_size, u64 *aux_pages)
 int mlx4_NOP(struct mlx4_dev *dev)
 {
 	/* Input modifier of 0x1f means "finish as soon as possible." */
-	return mlx4_cmd(dev, 0, 0x1f, 0, MLX4_CMD_NOP, 100, MLX4_CMD_NATIVE);
+	return mlx4_cmd(dev, 0, 0x1f, 0, MLX4_CMD_NOP, MLX4_CMD_TIME_CLASS_A,
+			MLX4_CMD_NATIVE);
 }
 
 int mlx4_get_phys_port_id(struct mlx4_dev *dev)
