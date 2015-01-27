@@ -1649,7 +1649,7 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 					dw_hdmi_irq, IRQF_SHARED,
 					dev_name(dev), hdmi);
 	if (ret)
-		return ret;
+		goto err_iahb;
 
 	/*
 	 * To prevent overflows in HDMI_IH_FC_STAT2, set the clk regenerator
