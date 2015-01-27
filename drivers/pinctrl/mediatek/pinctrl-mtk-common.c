@@ -32,6 +32,7 @@
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 #include <linux/delay.h>
+#include <linux/interrupt.h>
 #include <dt-bindings/pinctrl/mt65xx.h>
 
 #include "../core.h"
@@ -111,6 +112,19 @@ static void mtk_pconf_set_ies_smt(struct mtk_pinctrl *pctl, unsigned pin,
 {
 	unsigned int reg_addr, offset;
 	unsigned int bit;
+	int ret;
+
+	/*
+	 * Due to some pins are irregular, their input enable and smt
+	 * control register are discontinuous, but they are mapping together.
+	 * So we need this special handle.
+	 */
+	if (pctl->devdata->spec_ies_smt_set) {
+		ret = pctl->devdata->spec_ies_smt_set(mtk_get_regmap(pctl, pin),
+			pin, pctl->devdata->port_align, value);
+		if (!ret)
+			return;
+	}
 
 	bit = BIT(pin & 0xf);
 

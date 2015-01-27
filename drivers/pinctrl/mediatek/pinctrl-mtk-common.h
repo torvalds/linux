@@ -154,6 +154,11 @@ struct mtk_eint_offsets {
  *  up/down bit, R0 and R1 resistor bit, so they need special pull setting.
  *  If special setting is success, this should return 0, otherwise it should
  *  return non-zero value.
+ * @spec_ies_smt_set: Some pins are irregular, their input enable and smt
+ * control register are discontinuous, but they are mapping together. That
+ * means when user set smt, input enable is set at the same time. So they
+ * also need special control. If special control is success, this should
+ * return 0, otherwise return non-zero value.
  *
  * @dir_offset: The direction register offset.
  * @pullen_offset: The pull-up/pull-down enable register offset.
@@ -177,6 +182,8 @@ struct mtk_pinctrl_devdata {
 	unsigned int	n_pin_drv_grps;
 	int (*spec_pull_set)(struct regmap *reg, unsigned int pin,
 			unsigned char align, bool isup, unsigned int arg);
+	int (*spec_ies_smt_set)(struct regmap *reg, unsigned int pin,
+			unsigned char align, int value);
 	unsigned int dir_offset;
 	unsigned int ies_offset;
 	unsigned int smt_offset;
