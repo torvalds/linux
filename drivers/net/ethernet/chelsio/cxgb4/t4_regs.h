@@ -2553,7 +2553,23 @@
 #define IBQDBGEN_V(x) ((x) << IBQDBGEN_S)
 #define IBQDBGEN_F    IBQDBGEN_V(1U)
 
+#define CIM_OBQ_DBG_CFG_A 0x7b64
+
+#define OBQDBGADDR_S    16
+#define OBQDBGADDR_M    0xfffU
+#define OBQDBGADDR_V(x) ((x) << OBQDBGADDR_S)
+#define OBQDBGADDR_G(x) (((x) >> OBQDBGADDR_S) & OBQDBGADDR_M)
+
+#define OBQDBGBUSY_S    1
+#define OBQDBGBUSY_V(x) ((x) << OBQDBGBUSY_S)
+#define OBQDBGBUSY_F    OBQDBGBUSY_V(1U)
+
+#define OBQDBGEN_S    0
+#define OBQDBGEN_V(x) ((x) << OBQDBGEN_S)
+#define OBQDBGEN_F    OBQDBGEN_V(1U)
+
 #define CIM_IBQ_DBG_DATA_A 0x7b68
+#define CIM_OBQ_DBG_DATA_A 0x7b6c
 
 #define UPDBGLARDEN_S		1
 #define UPDBGLARDEN_V(x)	((x) << UPDBGLARDEN_S)

@@ -104,6 +104,17 @@ struct seq_tab *seq_open_tab(struct file *f, unsigned int rows,
 	return p;
 }
 
+/* Trim the size of a seq_tab to the supplied number of rows.  The operation is
+ * irreversible.
+ */
+static int seq_tab_trim(struct seq_tab *p, unsigned int new_rows)
+{
+	if (new_rows > p->rows)
+		return -EINVAL;
+	p->rows = new_rows;
+	return 0;
+}
+
 static int cim_la_show(struct seq_file *seq, void *v, int idx)
 {
 	if (v == SEQ_START_TOKEN)
@@ -270,6 +281,35 @@ static int cim_ibq_open(struct inode *inode, struct file *file)
 static const struct file_operations cim_ibq_fops = {
 	.owner   = THIS_MODULE,
 	.open    = cim_ibq_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release_private
+};
+
+static int cim_obq_open(struct inode *inode, struct file *file)
+{
+	int ret;
+	struct seq_tab *p;
+	unsigned int qid = (uintptr_t)inode->i_private & 7;
+	struct adapter *adap = inode->i_private - qid;
+
+	p = seq_open_tab(file, 6 * CIM_OBQ_SIZE, 4 * sizeof(u32), 0, cimq_show);
+	if (!p)
+		return -ENOMEM;
+
+	ret = t4_read_cim_obq(adap, qid, (u32 *)p->data, 6 * CIM_OBQ_SIZE * 4);
+	if (ret < 0) {
+		seq_release_private(inode, file);
+	} else {
+		seq_tab_trim(p, ret / 4);
+		ret = 0;
+	}
+	return ret;
+}
+
+static const struct file_operations cim_obq_fops = {
+	.owner   = THIS_MODULE,
+	.open    = cim_obq_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
 	.release = seq_release_private
@@ -1388,14 +1428,31 @@ int t4_setup_debugfs(struct adapter *adap)
 		{ "ibq_sge0", &cim_ibq_fops, S_IRUSR, 3 },
 		{ "ibq_sge1", &cim_ibq_fops, S_IRUSR, 4 },
 		{ "ibq_ncsi", &cim_ibq_fops, S_IRUSR, 5 },
+		{ "obq_ulp0", &cim_obq_fops, S_IRUSR, 0 },
+		{ "obq_ulp1", &cim_obq_fops, S_IRUSR, 1 },
+		{ "obq_ulp2", &cim_obq_fops, S_IRUSR, 2 },
+		{ "obq_ulp3", &cim_obq_fops, S_IRUSR, 3 },
+		{ "obq_sge",  &cim_obq_fops, S_IRUSR, 4 },
+		{ "obq_ncsi", &cim_obq_fops, S_IRUSR, 5 },
 #if IS_ENABLED(CONFIG_IPV6)
 		{ "clip_tbl", &clip_tbl_debugfs_fops, S_IRUSR, 0 },
 #endif
 	};
 
+	/* Debug FS nodes common to all T5 and later adapters.
+	 */
+	static struct t4_debugfs_entry t5_debugfs_files[] = {
+		{ "obq_sge_rx_q0", &cim_obq_fops, S_IRUSR, 6 },
+		{ "obq_sge_rx_q1", &cim_obq_fops, S_IRUSR, 7 },
+	};
+
 	add_debugfs_files(adap,
 			  t4_debugfs_files,
 			  ARRAY_SIZE(t4_debugfs_files));
+	if (!is_t4(adap->params.chip))
+		add_debugfs_files(adap,
+				  t5_debugfs_files,
+				  ARRAY_SIZE(t5_debugfs_files));
 
 	i = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
 	if (i & EDRAM0_ENABLE_F) {
