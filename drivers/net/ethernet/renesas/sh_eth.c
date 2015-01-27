@@ -2174,6 +2174,10 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 				 skb->len + 2);
 	txdesc->addr = dma_map_single(&ndev->dev, skb->data, skb->len,
 				      DMA_TO_DEVICE);
+	if (dma_mapping_error(&ndev->dev, txdesc->addr)) {
+		kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
 	txdesc->buffer_length = skb->len;
 
 	if (entry >= mdp->num_tx_ring - 1)
