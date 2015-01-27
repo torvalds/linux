@@ -29,6 +29,7 @@ Required properties:
     - "renesas,scifa" for generic SCIFA compatible UART.
     - "renesas,scifb" for generic SCIFB compatible UART.
     - "renesas,hscif" for generic HSCIF compatible UART.
+    - "renesas,sci" for generic SCI compatible UART.
 
     When compatible with the generic version, nodes must list the
     SoC-specific version corresponding to the platform first followed by the
