@@ -63,8 +63,10 @@ struct nfc_hci_ops {
 };
 
 /* Pipes */
-#define NFC_HCI_INVALID_PIPE	0x80
 #define NFC_HCI_DO_NOT_CREATE_PIPE	0x81
+#define NFC_HCI_INVALID_PIPE	0x80
+#define NFC_HCI_INVALID_GATE	0xFF
+#define NFC_HCI_INVALID_HOST	0x80
 #define NFC_HCI_LINK_MGMT_PIPE	0x00
 #define NFC_HCI_ADMIN_PIPE	0x01
 
@@ -73,7 +75,13 @@ struct nfc_hci_gate {
 	u8 pipe;
 };
 
+struct nfc_hci_pipe {
+	u8 gate;
+	u8 dest_host;
+};
+
 #define NFC_HCI_MAX_CUSTOM_GATES	50
+#define NFC_HCI_MAX_PIPES		127
 struct nfc_hci_init_data {
 	u8 gate_count;
 	struct nfc_hci_gate gates[NFC_HCI_MAX_CUSTOM_GATES];
@@ -125,6 +133,7 @@ struct nfc_hci_dev {
 	void *clientdata;
 
 	u8 gate2pipe[NFC_HCI_MAX_GATES];
+	struct nfc_hci_pipe pipes[NFC_HCI_MAX_PIPES];
 
 	u8 sw_romlib;
 	u8 sw_patch;
@@ -167,6 +176,8 @@ void *nfc_hci_get_clientdata(struct nfc_hci_dev *hdev);
 void nfc_hci_driver_failure(struct nfc_hci_dev *hdev, int err);
 
 int nfc_hci_result_to_errno(u8 result);
+void nfc_hci_reset_pipes(struct nfc_hci_dev *dev);
+void nfc_hci_reset_pipes_per_host(struct nfc_hci_dev *hdev, u8 host);
 
 /* Host IDs */
 #define NFC_HCI_HOST_CONTROLLER_ID	0x00

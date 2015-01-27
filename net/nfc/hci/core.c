@@ -46,6 +46,32 @@ int nfc_hci_result_to_errno(u8 result)
 }
 EXPORT_SYMBOL(nfc_hci_result_to_errno);
 
+void nfc_hci_reset_pipes(struct nfc_hci_dev *hdev)
+{
+	int i = 0;
+
+	for (i = 0; i < NFC_HCI_MAX_PIPES; i++) {
+		hdev->pipes[i].gate = NFC_HCI_INVALID_GATE;
+		hdev->pipes[i].dest_host = NFC_HCI_INVALID_HOST;
+	}
+	memset(hdev->gate2pipe, NFC_HCI_INVALID_PIPE, sizeof(hdev->gate2pipe));
+}
+EXPORT_SYMBOL(nfc_hci_reset_pipes);
+
+void nfc_hci_reset_pipes_per_host(struct nfc_hci_dev *hdev, u8 host)
+{
+	int i = 0;
+
+	for (i = 0; i < NFC_HCI_MAX_PIPES; i++) {
+		if (hdev->pipes[i].dest_host != host)
+			continue;
+
+		hdev->pipes[i].gate = NFC_HCI_INVALID_GATE;
+		hdev->pipes[i].dest_host = NFC_HCI_INVALID_HOST;
+	}
+}
+EXPORT_SYMBOL(nfc_hci_reset_pipes_per_host);
+
 static void nfc_hci_msg_tx_work(struct work_struct *work)
 {
 	struct nfc_hci_dev *hdev = container_of(work, struct nfc_hci_dev,
@@ -168,7 +194,7 @@ void nfc_hci_cmd_received(struct nfc_hci_dev *hdev, u8 pipe, u8 cmd,
 			  struct sk_buff *skb)
 {
 	int r = 0;
-	u8 gate = nfc_hci_pipe2gate(hdev, pipe);
+	u8 gate = hdev->pipes[pipe].gate;
 	u8 local_gate, new_pipe;
 	u8 gate_opened = 0x00;
 
@@ -330,9 +356,9 @@ void nfc_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 			    struct sk_buff *skb)
 {
 	int r = 0;
-	u8 gate = nfc_hci_pipe2gate(hdev, pipe);
+	u8 gate = hdev->pipes[pipe].gate;
 
-	if (gate == 0xff) {
+	if (gate == NFC_HCI_INVALID_GATE) {
 		pr_err("Discarded event %x to unopened pipe %x\n", event, pipe);
 		goto exit;
 	}
@@ -573,7 +599,7 @@ static int hci_dev_down(struct nfc_dev *nfc_dev)
 	if (hdev->ops->close)
 		hdev->ops->close(hdev);
 
-	memset(hdev->gate2pipe, NFC_HCI_INVALID_PIPE, sizeof(hdev->gate2pipe));
+	nfc_hci_reset_pipes(hdev);
 
 	return 0;
 }
@@ -932,7 +958,7 @@ struct nfc_hci_dev *nfc_hci_allocate_device(struct nfc_hci_ops *ops,
 
 	nfc_set_drvdata(hdev->ndev, hdev);
 
-	memset(hdev->gate2pipe, NFC_HCI_INVALID_PIPE, sizeof(hdev->gate2pipe));
+	nfc_hci_reset_pipes(hdev);
 
 	hdev->quirks = quirks;
 
