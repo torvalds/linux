@@ -95,7 +95,6 @@ enum { MEM_EDC0, MEM_EDC1, MEM_MC, MEM_MC0 = MEM_MC, MEM_MC1 };
 enum {
 	MEMWIN_APERTURE = 2048,
 	MEMWIN_BASE     = 0x1b800,
-	MEMWIN_CSIOSTOR = 6,		/* PCI-e Memory Window access */
 };
 
 /* Slow path handlers */
