@@ -1456,7 +1456,6 @@ int __pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 		gpd_data = gpd_data_new;
 		dev->power.subsys_data->domain_data = &gpd_data->base;
 	}
-	gpd_data->refcount++;
 	if (td)
 		gpd_data->td = *td;
 
@@ -1504,7 +1503,6 @@ int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 {
 	struct generic_pm_domain_data *gpd_data;
 	struct pm_domain_data *pdd;
-	bool remove = false;
 	int ret = 0;
 
 	dev_dbg(dev, "%s()\n", __func__);
@@ -1533,10 +1531,7 @@ int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 	pdd = dev->power.subsys_data->domain_data;
 	list_del_init(&pdd->list_node);
 	gpd_data = to_gpd_data(pdd);
-	if (--gpd_data->refcount == 0) {
-		dev->power.subsys_data->domain_data = NULL;
-		remove = true;
-	}
+	dev->power.subsys_data->domain_data = NULL;
 
 	spin_unlock_irq(&dev->power.lock);
 
@@ -1547,8 +1542,7 @@ int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 	genpd_release_lock(genpd);
 
 	dev_pm_put_subsys_data(dev);
-	if (remove)
-		genpd_free_dev_data(dev, gpd_data);
+	genpd_free_dev_data(dev, gpd_data);
 
 	return 0;
 
