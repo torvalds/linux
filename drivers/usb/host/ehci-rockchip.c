@@ -478,7 +478,7 @@ static int __init ehci_rk_init(void)
 	ehci_init_driver(&rk_ehci_hc_driver, &rk_overrides);
 
 	/*
-	 * Work-around: RK3288 do not support OHCI controller, so our
+	 * Walk around: RK3288 do not support OHCI controller, so our
 	 * vendor-spec ehci driver has to prevent handing off this port to
 	 * OHCI by standard ehci-hub driver, put PORT_OWNER back to 0 manually.
 	 */
