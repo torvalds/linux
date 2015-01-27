@@ -364,7 +364,7 @@ libcfs_lnd2str(int lnd)
 		return nf->nf_name;
 
 	str = libcfs_next_nidstring();
-	snprintf(str, LNET_NIDSTR_SIZE, "?%u?", lnd);
+	snprintf(str, LNET_NIDSTR_SIZE, "?%d?", lnd);
 	return str;
 }
 EXPORT_SYMBOL(libcfs_lnd2str);
@@ -390,11 +390,11 @@ libcfs_net2str(__u32 net)
 	char	     *str = libcfs_next_nidstring();
 
 	if (nf == NULL)
-		snprintf(str, LNET_NIDSTR_SIZE, "<%u:%u>", lnd, num);
+		snprintf(str, LNET_NIDSTR_SIZE, "<%d:%d>", lnd, num);
 	else if (num == 0)
 		snprintf(str, LNET_NIDSTR_SIZE, "%s", nf->nf_name);
 	else
-		snprintf(str, LNET_NIDSTR_SIZE, "%s%u", nf->nf_name, num);
+		snprintf(str, LNET_NIDSTR_SIZE, "%s%d", nf->nf_name, num);
 
 	return str;
 }
@@ -418,7 +418,7 @@ libcfs_nid2str(lnet_nid_t nid)
 	str = libcfs_next_nidstring();
 
 	if (nf == NULL)
-		snprintf(str, LNET_NIDSTR_SIZE, "%x@<%u:%u>", addr, lnd, nnum);
+		snprintf(str, LNET_NIDSTR_SIZE, "%x@<%d:%d>", addr, lnd, nnum);
 	else {
 		nf->nf_addr2str(addr, str);
 		nob = strlen(str);
@@ -426,7 +426,7 @@ libcfs_nid2str(lnet_nid_t nid)
 			snprintf(str + nob, LNET_NIDSTR_SIZE - nob, "@%s",
 				 nf->nf_name);
 		else
-			snprintf(str + nob, LNET_NIDSTR_SIZE - nob, "@%s%u",
+			snprintf(str + nob, LNET_NIDSTR_SIZE - nob, "@%s%d",
 				 nf->nf_name, nnum);
 	}
 
