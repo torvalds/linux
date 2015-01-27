@@ -145,7 +145,8 @@ static void dump_dev_cap_flags2(struct mlx4_dev *dev, u64 flags)
 		[16] = "CONFIG DEV support",
 		[17] = "Asymmetric EQs support",
 		[18] = "More than 80 VFs support",
-		[19] = "Performance optimized for limited rule configuration flow steering support"
+		[19] = "Performance optimized for limited rule configuration flow steering support",
+		[20] = "Recoverable error events support"
 	};
 	int i;
 
@@ -859,6 +860,8 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	MLX4_GET(field32, outbox, QUERY_DEV_CAP_ETH_BACKPL_OFFSET);
 	if (field32 & (1 << 0))
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_ETH_BACKPL_AN_REP;
+	if (field32 & (1 << 7))
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_RECOVERABLE_ERROR_EVENT;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_FW_REASSIGN_MAC);
 	if (field & 1<<6)
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_REASSIGN_MAC_EN;
@@ -1562,6 +1565,7 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 #define INIT_HCA_VXLAN_OFFSET		 0x0c
 #define INIT_HCA_CACHELINE_SZ_OFFSET	 0x0e
 #define INIT_HCA_FLAGS_OFFSET		 0x014
+#define INIT_HCA_RECOVERABLE_ERROR_EVENT_OFFSET 0x018
 #define INIT_HCA_QPC_OFFSET		 0x020
 #define	 INIT_HCA_QPC_BASE_OFFSET	 (INIT_HCA_QPC_OFFSET + 0x10)
 #define	 INIT_HCA_LOG_QP_OFFSET		 (INIT_HCA_QPC_OFFSET + 0x17)
@@ -1667,6 +1671,9 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 		/* User still need to know to support CQE > 32B */
 		dev->caps.userspace_caps |= MLX4_USER_DEV_CAP_LARGE_CQE;
 	}
+
+	if (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_RECOVERABLE_ERROR_EVENT)
+		*(inbox + INIT_HCA_RECOVERABLE_ERROR_EVENT_OFFSET / 4) |= cpu_to_be32(1 << 31);
 
 	/* QPC/EEC/CQC/EQC/RDMARC attributes */
 

@@ -200,7 +200,8 @@ enum {
 	MLX4_DEV_CAP_FLAG2_CONFIG_DEV		= 1LL <<  16,
 	MLX4_DEV_CAP_FLAG2_SYS_EQS		= 1LL <<  17,
 	MLX4_DEV_CAP_FLAG2_80_VFS		= 1LL <<  18,
-	MLX4_DEV_CAP_FLAG2_FS_A0		= 1LL <<  19
+	MLX4_DEV_CAP_FLAG2_FS_A0		= 1LL <<  19,
+	MLX4_DEV_CAP_FLAG2_RECOVERABLE_ERROR_EVENT = 1LL << 20
 };
 
 enum {
@@ -280,12 +281,18 @@ enum mlx4_event {
 	MLX4_EVENT_TYPE_FATAL_WARNING	   = 0x1b,
 	MLX4_EVENT_TYPE_FLR_EVENT	   = 0x1c,
 	MLX4_EVENT_TYPE_PORT_MNG_CHG_EVENT = 0x1d,
+	MLX4_EVENT_TYPE_RECOVERABLE_ERROR_EVENT  = 0x3e,
 	MLX4_EVENT_TYPE_NONE		   = 0xff,
 };
 
 enum {
 	MLX4_PORT_CHANGE_SUBTYPE_DOWN	= 1,
 	MLX4_PORT_CHANGE_SUBTYPE_ACTIVE	= 4
+};
+
+enum {
+	MLX4_RECOVERABLE_ERROR_EVENT_SUBTYPE_BAD_CABLE		= 1,
+	MLX4_RECOVERABLE_ERROR_EVENT_SUBTYPE_UNSUPPORTED_CABLE	= 2,
 };
 
 enum {
@@ -860,6 +867,11 @@ struct mlx4_eqe {
 				} __packed tbl_change_info;
 			} params;
 		} __packed port_mgmt_change;
+		struct {
+			u8 reserved[3];
+			u8 port;
+			u32 reserved1[5];
+		} __packed bad_cable;
 	}			event;
 	u8			slave_id;
 	u8			reserved3[2];
