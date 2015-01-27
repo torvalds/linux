@@ -198,7 +198,7 @@ static ssize_t ad2s1210_show_fclkin(struct device *dev,
 {
 	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
 
-	return sprintf(buf, "%d\n", st->fclkin);
+	return sprintf(buf, "%u\n", st->fclkin);
 }
 
 static ssize_t ad2s1210_store_fclkin(struct device *dev,
@@ -237,7 +237,7 @@ static ssize_t ad2s1210_show_fexcit(struct device *dev,
 {
 	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
 
-	return sprintf(buf, "%d\n", st->fexcit);
+	return sprintf(buf, "%u\n", st->fexcit);
 }
 
 static ssize_t ad2s1210_store_fexcit(struct device *dev,
