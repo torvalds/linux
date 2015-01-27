@@ -29,6 +29,7 @@
 struct usb_reset_data {
 	void __iomem			*reg;
 	spinlock_t			*lock;
+	struct clk			*clk;
 	struct reset_controller_dev	rcdev;
 };
 
@@ -41,12 +42,14 @@ static int sunxi_usb_reset_assert(struct reset_controller_dev *rcdev,
 	unsigned long flags;
 	u32 reg;
 
+	clk_prepare_enable(data->clk);
 	spin_lock_irqsave(data->lock, flags);
 
 	reg = readl(data->reg);
 	writel(reg & ~BIT(id), data->reg);
 
 	spin_unlock_irqrestore(data->lock, flags);
+	clk_disable_unprepare(data->clk);
 
 	return 0;
 }
@@ -60,12 +63,14 @@ static int sunxi_usb_reset_deassert(struct reset_controller_dev *rcdev,
 	unsigned long flags;
 	u32 reg;
 
+	clk_prepare_enable(data->clk);
 	spin_lock_irqsave(data->lock, flags);
 
 	reg = readl(data->reg);
 	writel(reg | BIT(id), data->reg);
 
 	spin_unlock_irqrestore(data->lock, flags);
+	clk_disable_unprepare(data->clk);
 
 	return 0;
 }
@@ -84,6 +89,7 @@ static struct reset_control_ops sunxi_usb_reset_ops = {
 struct usb_clk_data {
 	u32 clk_mask;
 	u32 reset_mask;
+	bool reset_needs_clk;
 };
 
 static void __init sunxi_usb_clk_setup(struct device_node *node,
@@ -146,6 +152,15 @@ static void __init sunxi_usb_clk_setup(struct device_node *node,
 	if (!reset_data)
 		return;
 
+	if (data->reset_needs_clk) {
+		reset_data->clk = of_clk_get(node, 0);
+		if (IS_ERR(reset_data->clk)) {
+			pr_err("Could not get clock for reset controls\n");
+			kfree(reset_data);
+			return;
+		}
+	}
+
 	reset_data->reg = reg;
 	reset_data->lock = lock;
 	reset_data->rcdev.nr_resets = __fls(data->reset_mask) + 1;
@@ -188,3 +203,31 @@ static void __init sun6i_a31_usb_setup(struct device_node *node)
 	sunxi_usb_clk_setup(node, &sun6i_a31_usb_clk_data, &sun4i_a10_usb_lock);
 }
 CLK_OF_DECLARE(sun6i_a31_usb, "allwinner,sun6i-a31-usb-clk", sun6i_a31_usb_setup);
+
+static const struct usb_clk_data sun9i_a80_usb_mod_data __initconst = {
+	.clk_mask = BIT(6) | BIT(5) | BIT(4) | BIT(3) | BIT(2) | BIT(1),
+	.reset_mask = BIT(19) | BIT(18) | BIT(17),
+	.reset_needs_clk = 1,
+};
+
+static DEFINE_SPINLOCK(a80_usb_mod_lock);
+
+static void __init sun9i_a80_usb_mod_setup(struct device_node *node)
+{
+	sunxi_usb_clk_setup(node, &sun9i_a80_usb_mod_data, &a80_usb_mod_lock);
+}
+CLK_OF_DECLARE(sun9i_a80_usb_mod, "allwinner,sun9i-a80-usb-mod-clk", sun9i_a80_usb_mod_setup);
+
+static const struct usb_clk_data sun9i_a80_usb_phy_data __initconst = {
+	.clk_mask = BIT(10) | BIT(5) | BIT(4) | BIT(3) | BIT(2) | BIT(1),
+	.reset_mask = BIT(21) | BIT(20) | BIT(19) | BIT(18) | BIT(17),
+	.reset_needs_clk = 1,
+};
+
+static DEFINE_SPINLOCK(a80_usb_phy_lock);
+
+static void __init sun9i_a80_usb_phy_setup(struct device_node *node)
+{
+	sunxi_usb_clk_setup(node, &sun9i_a80_usb_phy_data, &a80_usb_phy_lock);
+}
+CLK_OF_DECLARE(sun9i_a80_usb_phy, "allwinner,sun9i-a80-usb-phy-clk", sun9i_a80_usb_phy_setup);
