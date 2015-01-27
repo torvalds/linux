@@ -1,5 +1,5 @@
 /*
- *  Setup code for SAMA5 Evaluation Kits with Device Tree support
+ *  Setup code for SAMA5
  *
  *  Copyright (C) 2013 Atmel,
  *                2013 Ludovic Desroches <ludovic.desroches@atmel.com>

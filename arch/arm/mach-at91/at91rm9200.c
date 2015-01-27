@@ -1,5 +1,5 @@
 /*
- *  Setup code for AT91RM9200 Evaluation Kits with Device Tree support
+ *  Setup code for AT91RM9200
  *
  *  Copyright (C) 2011 Atmel,
  *                2011 Nicolas Ferre <nicolas.ferre@atmel.com>
