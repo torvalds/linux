@@ -178,6 +178,7 @@ my $checkout;
 my $localversion;
 my $iteration = 0;
 my $successes = 0;
+my $stty;
 
 my $bisect_good;
 my $bisect_bad;
@@ -1349,6 +1350,9 @@ sub open_console {
 
     my $flags;
 
+    # save terminal settings
+    $stty = `stty -g`;
+
     my $pid = open($fp, "$console|") or
 	dodie "Can't open console $console";
 
@@ -1368,6 +1372,9 @@ sub close_console {
 
     print "closing!\n";
     close($fp);
+
+    # restore terminal settings
+    system("stty $stty");
 }
 
 sub start_monitor {
