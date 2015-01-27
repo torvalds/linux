@@ -66,6 +66,10 @@
 	interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
 };
 
+&dspi1 {
+	interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
+};
+
 &edma0 {
 	interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
 			<GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;

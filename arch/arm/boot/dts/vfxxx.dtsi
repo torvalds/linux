@@ -139,6 +139,17 @@
 				status = "disabled";
 			};
 
+			dspi1: dspi1@4002d000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,vf610-dspi";
+				reg = <0x4002d000 0x1000>;
+				clocks = <&clks VF610_CLK_DSPI1>;
+				clock-names = "dspi";
+				spi-num-chipselects = <5>;
+				status = "disabled";
+			};
+
 			sai2: sai@40031000 {
 				compatible = "fsl,vf610-sai";
 				reg = <0x40031000 0x1000>;
