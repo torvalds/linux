@@ -37,6 +37,11 @@ static LIST_HEAD(cpufreq_policy_list);
 #define for_each_policy(__policy)				\
 	list_for_each_entry(__policy, &cpufreq_policy_list, policy_list)
 
+/* Iterate over governors */
+static LIST_HEAD(cpufreq_governor_list);
+#define for_each_governor(__governor)				\
+	list_for_each_entry(__governor, &cpufreq_governor_list, governor_list)
+
 /**
  * The "cpufreq driver" - the arch- or hardware-dependent low
  * level driver of CPUFreq support, and its spinlock. This lock
@@ -99,7 +104,6 @@ void disable_cpufreq(void)
 {
 	off = 1;
 }
-static LIST_HEAD(cpufreq_governor_list);
 static DEFINE_MUTEX(cpufreq_governor_mutex);
 
 bool have_governor_per_policy(void)
@@ -434,7 +438,7 @@ static struct cpufreq_governor *find_governor(const char *str_governor)
 {
 	struct cpufreq_governor *t;
 
-	list_for_each_entry(t, &cpufreq_governor_list, governor_list)
+	for_each_governor(t)
 		if (!strncasecmp(str_governor, t->name, CPUFREQ_NAME_LEN))
 			return t;
 
@@ -636,7 +640,7 @@ static ssize_t show_scaling_available_governors(struct cpufreq_policy *policy,
 		goto out;
 	}
 
-	list_for_each_entry(t, &cpufreq_governor_list, governor_list) {
+	for_each_governor(t) {
 		if (i >= (ssize_t) ((PAGE_SIZE / sizeof(char))
 		    - (CPUFREQ_NAME_LEN + 2)))
 			goto out;
