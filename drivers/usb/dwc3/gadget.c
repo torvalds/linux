@@ -2518,7 +2518,7 @@ static void dwc3_gadget_interrupt(struct dwc3 *dwc,
 		dev_vdbg(dwc->dev, "Overflow\n");
 		break;
 	default:
-		dev_dbg(dwc->dev, "UNKNOWN IRQ %d\n", event->type);
+		dev_WARN(dwc->dev, "UNKNOWN IRQ %d\n", event->type);
 	}
 }
 
