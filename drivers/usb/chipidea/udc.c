@@ -1989,8 +1989,12 @@ void ci_hdrc_gadget_connect(struct usb_gadget *gadget, int is_active)
 
 static int udc_id_switch_for_device(struct ci_hdrc *ci)
 {
-	if (ci->is_otg)
-		/* Clear and enable BSV irq */
+	if (!ci->is_otg)
+		return 0;
+
+	/* Clear and enable BSV irq for peripheral or OTG B-device */
+	if (!ci_otg_is_fsm_mode(ci) ||
+			ci->fsm.otg->state <= OTG_STATE_B_HOST)
 		hw_write_otgsc(ci, OTGSC_BSVIS | OTGSC_BSVIE,
 					OTGSC_BSVIS | OTGSC_BSVIE);
 
@@ -1999,11 +2003,14 @@ static int udc_id_switch_for_device(struct ci_hdrc *ci)
 
 static void udc_id_switch_for_host(struct ci_hdrc *ci)
 {
+	if (!ci->is_otg)
+		return;
 	/*
-	 * host doesn't care B_SESSION_VALID event
+	 * Host or OTG A-device doesn't care B_SESSION_VALID event
 	 * so clear and disbale BSV irq
 	 */
-	if (ci->is_otg)
+	if (!ci_otg_is_fsm_mode(ci) ||
+			ci->fsm.otg->state > OTG_STATE_B_HOST)
 		hw_write_otgsc(ci, OTGSC_BSVIE | OTGSC_BSVIS, OTGSC_BSVIS);
 }
 
