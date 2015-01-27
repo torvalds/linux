@@ -901,7 +901,9 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 				index = be32_to_cpu(smp->attr_mod);
 				if (port < 1 || port > dev->caps.num_ports)
 					return -EINVAL;
-				table = kcalloc(dev->caps.pkey_table_len[port], sizeof *table, GFP_KERNEL);
+				table = kcalloc((dev->caps.pkey_table_len[port] / 32) + 1,
+						sizeof(*table) * 32, GFP_KERNEL);
+
 				if (!table)
 					return -ENOMEM;
 				/* need to get the full pkey table because the paravirtualized
