@@ -288,10 +288,12 @@ static int32_t dwc_otg_hcd_disconnect_cb(void *p)
 	hprt0.d32 = DWC_READ_REG32(dwc_otg_hcd->core_if->host_if->hprt0);
 	/* In some case, we don't disconnect a usb device, but
 	 * disconnect intr was triggered, so check hprt0 here. */
-	if ((!hprt0.b.prtenchng)
+	if (((!hprt0.b.prtenchng)
 	    && (!hprt0.b.prtconndet)
-	    && hprt0.b.prtconnsts) {
-		DWC_PRINTF("%s: hprt0 = 0x%08x\n", __func__, hprt0.d32);
+	    && hprt0.b.prtconnsts)
+	    || !hprt0.b.prtenchng) {
+		DWC_PRINTF("%s: Invalid disconnect interrupt "
+		           "hprt0 = 0x%08x\n", __func__, hprt0.d32);
 		return 1;
 	}
 	/*
