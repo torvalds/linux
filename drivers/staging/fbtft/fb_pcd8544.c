@@ -59,14 +59,14 @@ static int init_display(struct fbtft_par *par)
 						  */
 
 	/* H=1 Temperature control */
-	write_reg(par, 0x04 | (tc & 0x3)); /* 
+	write_reg(par, 0x04 | (tc & 0x3)); /*
 	                         2:1  1
 	                         1:x  TC1 - Temperature Coefficient: 0x10
 							 0:x  TC0
 						  */
 
 	/* H=1 Bias system */
-	write_reg(par, 0x10 | (bs & 0x7)); /* 
+	write_reg(par, 0x10 | (bs & 0x7)); /*
 	                         4:1  1
 	                         3:0  0
 							 2:x  BS2 - Bias System
@@ -82,7 +82,7 @@ static int init_display(struct fbtft_par *par)
 						  */
 
 	/* H=0 Display control */
-	write_reg(par, 0x08 | 4); /* 
+	write_reg(par, 0x08 | 4); /*
 	                         3:1  1
 	                         2:1  D  - DE: 10=normal mode
 							 1:0  0
