@@ -306,8 +306,17 @@ static void scrub_pending_bio_inc(struct scrub_ctx *sctx)
 
 static void scrub_pending_bio_dec(struct scrub_ctx *sctx)
 {
+	struct btrfs_fs_info *fs_info = sctx->dev_root->fs_info;
+
+	/*
+	 * Hold the scrub_lock while doing the wakeup to ensure the
+	 * sctx (and its wait queue list_wait) isn't destroyed/freed
+	 * during the wakeup.
+	 */
+	mutex_lock(&fs_info->scrub_lock);
 	atomic_dec(&sctx->bios_in_flight);
 	wake_up(&sctx->list_wait);
+	mutex_unlock(&fs_info->scrub_lock);
 }
 
 static void __scrub_blocked_if_needed(struct btrfs_fs_info *fs_info)
@@ -379,10 +388,15 @@ static void scrub_pending_trans_workers_dec(struct scrub_ctx *sctx)
 	mutex_lock(&fs_info->scrub_lock);
 	atomic_dec(&fs_info->scrubs_running);
 	atomic_dec(&fs_info->scrubs_paused);
-	mutex_unlock(&fs_info->scrub_lock);
 	atomic_dec(&sctx->workers_pending);
 	wake_up(&fs_info->scrub_pause_wait);
+	/*
+	 * Hold the scrub_lock while doing the wakeup to ensure the
+	 * sctx (and its wait queue list_wait) isn't destroyed/freed
+	 * during the wakeup.
+	 */
 	wake_up(&sctx->list_wait);
+	mutex_unlock(&fs_info->scrub_lock);
 }
 
 static void scrub_free_csums(struct scrub_ctx *sctx)
