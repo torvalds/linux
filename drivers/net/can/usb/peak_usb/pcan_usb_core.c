@@ -43,7 +43,7 @@ static struct usb_device_id peak_usb_table[] = {
 MODULE_DEVICE_TABLE(usb, peak_usb_table);
 
 /* List of supported PCAN-USB adapters (NULL terminated list) */
-static struct peak_usb_adapter *peak_usb_adapters_list[] = {
+static const struct peak_usb_adapter *const peak_usb_adapters_list[] = {
 	&pcan_usb,
 	&pcan_usb_pro,
 };
@@ -64,7 +64,7 @@ void pcan_dump_mem(char *prompt, void *p, int l)
  * initialize a time_ref object with usb adapter own settings
  */
 void peak_usb_init_time_ref(struct peak_time_ref *time_ref,
-			    struct peak_usb_adapter *adapter)
+			    const struct peak_usb_adapter *adapter)
 {
 	if (time_ref) {
 		memset(time_ref, 0, sizeof(struct peak_time_ref));
@@ -708,7 +708,7 @@ static const struct net_device_ops peak_usb_netdev_ops = {
  * create one device which is attached to CAN controller #ctrl_idx of the
  * usb adapter.
  */
-static int peak_usb_create_dev(struct peak_usb_adapter *peak_usb_adapter,
+static int peak_usb_create_dev(const struct peak_usb_adapter *peak_usb_adapter,
 			       struct usb_interface *intf, int ctrl_idx)
 {
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
@@ -856,7 +856,7 @@ static int peak_usb_probe(struct usb_interface *intf,
 {
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
 	const u16 usb_id_product = le16_to_cpu(usb_dev->descriptor.idProduct);
-	struct peak_usb_adapter *peak_usb_adapter = NULL;
+	const struct peak_usb_adapter *peak_usb_adapter = NULL;
 	int i, err = -ENOMEM;
 
 	usb_dev = interface_to_usbdev(intf);

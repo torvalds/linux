@@ -78,15 +78,15 @@ struct peak_usb_adapter {
 	int sizeof_dev_private;
 };
 
-extern struct peak_usb_adapter pcan_usb;
-extern struct peak_usb_adapter pcan_usb_pro;
+extern const struct peak_usb_adapter pcan_usb;
+extern const struct peak_usb_adapter pcan_usb_pro;
 
 struct peak_time_ref {
 	struct timeval tv_host_0, tv_host;
 	u32 ts_dev_1, ts_dev_2;
 	u64 ts_total;
 	u32 tick_count;
-	struct peak_usb_adapter *adapter;
+	const struct peak_usb_adapter *adapter;
 };
 
 struct peak_tx_urb_context {
@@ -102,7 +102,7 @@ struct peak_tx_urb_context {
 /* PEAK-System USB device */
 struct peak_usb_device {
 	struct can_priv can;
-	struct peak_usb_adapter *adapter;
+	const struct peak_usb_adapter *adapter;
 	unsigned int ctrl_idx;
 	u32 state;
 
@@ -134,7 +134,7 @@ void pcan_dump_mem(char *prompt, void *p, int l);
 
 /* common timestamp management */
 void peak_usb_init_time_ref(struct peak_time_ref *time_ref,
-			    struct peak_usb_adapter *adapter);
+			    const struct peak_usb_adapter *adapter);
 void peak_usb_update_ts_now(struct peak_time_ref *time_ref, u32 ts_now);
 void peak_usb_set_ts_now(struct peak_time_ref *time_ref, u32 ts_now);
 void peak_usb_get_ts_tv(struct peak_time_ref *time_ref, u32 ts,
