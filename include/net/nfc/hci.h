@@ -51,7 +51,7 @@ struct nfc_hci_ops {
 	int (*tm_send)(struct nfc_hci_dev *hdev, struct sk_buff *skb);
 	int (*check_presence)(struct nfc_hci_dev *hdev,
 			      struct nfc_target *target);
-	int (*event_received)(struct nfc_hci_dev *hdev, u8 gate, u8 event,
+	int (*event_received)(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 			      struct sk_buff *skb);
 	int (*fw_download)(struct nfc_hci_dev *hdev, const char *firmware_name);
 	int (*discover_se)(struct nfc_hci_dev *dev);

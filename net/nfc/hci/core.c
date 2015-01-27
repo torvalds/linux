@@ -338,7 +338,7 @@ void nfc_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 	}
 
 	if (hdev->ops->event_received) {
-		r = hdev->ops->event_received(hdev, gate, event, skb);
+		r = hdev->ops->event_received(hdev, pipe, event, skb);
 		if (r <= 0)
 			goto exit_noskb;
 	}
