@@ -2980,7 +2980,9 @@ static struct smiapp_platform_data *smiapp_get_pdata(struct device *dev)
 	struct property *prop;
 	__be32 *val;
 	uint32_t asize;
+#ifdef CONFIG_OF
 	unsigned int i;
+#endif
 	int rval;
 
 	if (!dev->of_node)
@@ -3057,8 +3059,10 @@ static struct smiapp_platform_data *smiapp_get_pdata(struct device *dev)
 	if (IS_ERR(val))
 		goto out_err;
 
+#ifdef CONFIG_OF
 	for (i = 0; i < asize; i++)
 		pdata->op_sys_clock[i] = of_read_number(val + i * 2, 2);
+#endif
 
 	for (; asize > 0; asize--)
 		dev_dbg(dev, "freq %d: %lld\n", asize - 1,
