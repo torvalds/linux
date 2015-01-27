@@ -929,11 +929,6 @@ static int rcar_dmac_alloc_chan_resources(struct dma_chan *chan)
 	struct rcar_dmac_chan *rchan = to_rcar_dmac_chan(chan);
 	int ret;
 
-	INIT_LIST_HEAD(&rchan->desc.free);
-	INIT_LIST_HEAD(&rchan->desc.pending);
-	INIT_LIST_HEAD(&rchan->desc.active);
-	INIT_LIST_HEAD(&rchan->desc.done);
-	INIT_LIST_HEAD(&rchan->desc.wait);
 	INIT_LIST_HEAD(&rchan->desc.chunks_free);
 	INIT_LIST_HEAD(&rchan->desc.pages);
 
@@ -970,11 +965,11 @@ static void rcar_dmac_free_chan_resources(struct dma_chan *chan)
 		rchan->mid_rid = -EINVAL;
 	}
 
-	list_splice(&rchan->desc.free, &list);
-	list_splice(&rchan->desc.pending, &list);
-	list_splice(&rchan->desc.active, &list);
-	list_splice(&rchan->desc.done, &list);
-	list_splice(&rchan->desc.wait, &list);
+	list_splice_init(&rchan->desc.free, &list);
+	list_splice_init(&rchan->desc.pending, &list);
+	list_splice_init(&rchan->desc.active, &list);
+	list_splice_init(&rchan->desc.done, &list);
+	list_splice_init(&rchan->desc.wait, &list);
 
 	list_for_each_entry(desc, &list, node)
 		rcar_dmac_realloc_hwdesc(rchan, desc, 0);
@@ -1518,6 +1513,12 @@ static int rcar_dmac_chan_probe(struct rcar_dmac *dmac,
 	rchan->mid_rid = -EINVAL;
 
 	spin_lock_init(&rchan->lock);
+
+	INIT_LIST_HEAD(&rchan->desc.free);
+	INIT_LIST_HEAD(&rchan->desc.pending);
+	INIT_LIST_HEAD(&rchan->desc.active);
+	INIT_LIST_HEAD(&rchan->desc.done);
+	INIT_LIST_HEAD(&rchan->desc.wait);
 
 	/* Request the channel interrupt. */
 	sprintf(pdev_irqname, "ch%u", index);
