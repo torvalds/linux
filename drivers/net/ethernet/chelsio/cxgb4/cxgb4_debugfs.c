@@ -239,6 +239,42 @@ static const struct file_operations cim_qcfg_fops = {
 	.release = single_release,
 };
 
+static int cimq_show(struct seq_file *seq, void *v, int idx)
+{
+	const u32 *p = v;
+
+	seq_printf(seq, "%#06x: %08x %08x %08x %08x\n", idx * 16, p[0], p[1],
+		   p[2], p[3]);
+	return 0;
+}
+
+static int cim_ibq_open(struct inode *inode, struct file *file)
+{
+	int ret;
+	struct seq_tab *p;
+	unsigned int qid = (uintptr_t)inode->i_private & 7;
+	struct adapter *adap = inode->i_private - qid;
+
+	p = seq_open_tab(file, CIM_IBQ_SIZE, 4 * sizeof(u32), 0, cimq_show);
+	if (!p)
+		return -ENOMEM;
+
+	ret = t4_read_cim_ibq(adap, qid, (u32 *)p->data, CIM_IBQ_SIZE * 4);
+	if (ret < 0)
+		seq_release_private(inode, file);
+	else
+		ret = 0;
+	return ret;
+}
+
+static const struct file_operations cim_ibq_fops = {
+	.owner   = THIS_MODULE,
+	.open    = cim_ibq_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release_private
+};
+
 /* Firmware Device Log dump. */
 static const char * const devlog_level_strings[] = {
 	[FW_DEVLOG_LEVEL_EMERG]		= "EMERG",
@@ -1346,6 +1382,12 @@ int t4_setup_debugfs(struct adapter *adap)
 		{ "rss_pf_config", &rss_pf_config_debugfs_fops, S_IRUSR, 0 },
 		{ "rss_vf_config", &rss_vf_config_debugfs_fops, S_IRUSR, 0 },
 		{ "sge_qinfo", &sge_qinfo_debugfs_fops, S_IRUSR, 0 },
+		{ "ibq_tp0",  &cim_ibq_fops, S_IRUSR, 0 },
+		{ "ibq_tp1",  &cim_ibq_fops, S_IRUSR, 1 },
+		{ "ibq_ulp",  &cim_ibq_fops, S_IRUSR, 2 },
+		{ "ibq_sge0", &cim_ibq_fops, S_IRUSR, 3 },
+		{ "ibq_sge1", &cim_ibq_fops, S_IRUSR, 4 },
+		{ "ibq_ncsi", &cim_ibq_fops, S_IRUSR, 5 },
 #if IS_ENABLED(CONFIG_IPV6)
 		{ "clip_tbl", &clip_tbl_debugfs_fops, S_IRUSR, 0 },
 #endif

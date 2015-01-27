@@ -4526,6 +4526,48 @@ void t4_read_cimq_cfg(struct adapter *adap, u16 *base, u16 *size, u16 *thres)
 }
 
 /**
+ *	t4_read_cim_ibq - read the contents of a CIM inbound queue
+ *	@adap: the adapter
+ *	@qid: the queue index
+ *	@data: where to store the queue contents
+ *	@n: capacity of @data in 32-bit words
+ *
+ *	Reads the contents of the selected CIM queue starting at address 0 up
+ *	to the capacity of @data.  @n must be a multiple of 4.  Returns < 0 on
+ *	error and the number of 32-bit words actually read on success.
+ */
+int t4_read_cim_ibq(struct adapter *adap, unsigned int qid, u32 *data, size_t n)
+{
+	int i, err, attempts;
+	unsigned int addr;
+	const unsigned int nwords = CIM_IBQ_SIZE * 4;
+
+	if (qid > 5 || (n & 3))
+		return -EINVAL;
+
+	addr = qid * nwords;
+	if (n > nwords)
+		n = nwords;
+
+	/* It might take 3-10ms before the IBQ debug read access is allowed.
+	 * Wait for 1 Sec with a delay of 1 usec.
+	 */
+	attempts = 1000000;
+
+	for (i = 0; i < n; i++, addr++) {
+		t4_write_reg(adap, CIM_IBQ_DBG_CFG_A, IBQDBGADDR_V(addr) |
+			     IBQDBGEN_F);
+		err = t4_wait_op_done(adap, CIM_IBQ_DBG_CFG_A, IBQDBGBUSY_F, 0,
+				      attempts, 1);
+		if (err)
+			return err;
+		*data++ = t4_read_reg(adap, CIM_IBQ_DBG_DATA_A);
+	}
+	t4_write_reg(adap, CIM_IBQ_DBG_CFG_A, 0);
+	return i;
+}
+
+/**
  *	t4_cim_read - read a block from CIM internal address space
  *	@adap: the adapter
  *	@addr: the start address within the CIM address space

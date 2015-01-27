@@ -2538,6 +2538,23 @@
 #define HOSTWRITE_V(x)	((x) << HOSTWRITE_S)
 #define HOSTWRITE_F	HOSTWRITE_V(1U)
 
+#define CIM_IBQ_DBG_CFG_A 0x7b60
+
+#define IBQDBGADDR_S    16
+#define IBQDBGADDR_M    0xfffU
+#define IBQDBGADDR_V(x) ((x) << IBQDBGADDR_S)
+#define IBQDBGADDR_G(x) (((x) >> IBQDBGADDR_S) & IBQDBGADDR_M)
+
+#define IBQDBGBUSY_S    1
+#define IBQDBGBUSY_V(x) ((x) << IBQDBGBUSY_S)
+#define IBQDBGBUSY_F    IBQDBGBUSY_V(1U)
+
+#define IBQDBGEN_S    0
+#define IBQDBGEN_V(x) ((x) << IBQDBGEN_S)
+#define IBQDBGEN_F    IBQDBGEN_V(1U)
+
+#define CIM_IBQ_DBG_DATA_A 0x7b68
+
 #define UPDBGLARDEN_S		1
 #define UPDBGLARDEN_V(x)	((x) << UPDBGLARDEN_S)
 #define UPDBGLARDEN_F		UPDBGLARDEN_V(1U)
