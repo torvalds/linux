@@ -380,6 +380,68 @@ static const struct file_operations pm_stats_debugfs_fops = {
 	.write   = pm_stats_clear
 };
 
+/* Format a value in a unit that differs from the value's native unit by the
+ * given factor.
+ */
+static char *unit_conv(char *buf, size_t len, unsigned int val,
+		       unsigned int factor)
+{
+	unsigned int rem = val % factor;
+
+	if (rem == 0) {
+		snprintf(buf, len, "%u", val / factor);
+	} else {
+		while (rem % 10 == 0)
+			rem /= 10;
+		snprintf(buf, len, "%u.%u", val / factor, rem);
+	}
+	return buf;
+}
+
+static int clk_show(struct seq_file *seq, void *v)
+{
+	char buf[32];
+	struct adapter *adap = seq->private;
+	unsigned int cclk_ps = 1000000000 / adap->params.vpd.cclk;  /* in ps */
+	u32 res = t4_read_reg(adap, TP_TIMER_RESOLUTION_A);
+	unsigned int tre = TIMERRESOLUTION_G(res);
+	unsigned int dack_re = DELAYEDACKRESOLUTION_G(res);
+	unsigned long long tp_tick_us = (cclk_ps << tre) / 1000000; /* in us */
+
+	seq_printf(seq, "Core clock period: %s ns\n",
+		   unit_conv(buf, sizeof(buf), cclk_ps, 1000));
+	seq_printf(seq, "TP timer tick: %s us\n",
+		   unit_conv(buf, sizeof(buf), (cclk_ps << tre), 1000000));
+	seq_printf(seq, "TCP timestamp tick: %s us\n",
+		   unit_conv(buf, sizeof(buf),
+			     (cclk_ps << TIMESTAMPRESOLUTION_G(res)), 1000000));
+	seq_printf(seq, "DACK tick: %s us\n",
+		   unit_conv(buf, sizeof(buf), (cclk_ps << dack_re), 1000000));
+	seq_printf(seq, "DACK timer: %u us\n",
+		   ((cclk_ps << dack_re) / 1000000) *
+		   t4_read_reg(adap, TP_DACK_TIMER_A));
+	seq_printf(seq, "Retransmit min: %llu us\n",
+		   tp_tick_us * t4_read_reg(adap, TP_RXT_MIN_A));
+	seq_printf(seq, "Retransmit max: %llu us\n",
+		   tp_tick_us * t4_read_reg(adap, TP_RXT_MAX_A));
+	seq_printf(seq, "Persist timer min: %llu us\n",
+		   tp_tick_us * t4_read_reg(adap, TP_PERS_MIN_A));
+	seq_printf(seq, "Persist timer max: %llu us\n",
+		   tp_tick_us * t4_read_reg(adap, TP_PERS_MAX_A));
+	seq_printf(seq, "Keepalive idle timer: %llu us\n",
+		   tp_tick_us * t4_read_reg(adap, TP_KEEP_IDLE_A));
+	seq_printf(seq, "Keepalive interval: %llu us\n",
+		   tp_tick_us * t4_read_reg(adap, TP_KEEP_INTVL_A));
+	seq_printf(seq, "Initial SRTT: %llu us\n",
+		   tp_tick_us * INITSRTT_G(t4_read_reg(adap, TP_INIT_SRTT_A)));
+	seq_printf(seq, "FINWAIT2 timer: %llu us\n",
+		   tp_tick_us * t4_read_reg(adap, TP_FINWAIT2_TIMER_A));
+
+	return 0;
+}
+
+DEFINE_SIMPLE_DEBUGFS_FILE(clk);
+
 /* Firmware Device Log dump. */
 static const char * const devlog_level_strings[] = {
 	[FW_DEVLOG_LEVEL_EMERG]		= "EMERG",
@@ -1478,6 +1540,7 @@ int t4_setup_debugfs(struct adapter *adap)
 	static struct t4_debugfs_entry t4_debugfs_files[] = {
 		{ "cim_la", &cim_la_fops, S_IRUSR, 0 },
 		{ "cim_qcfg", &cim_qcfg_fops, S_IRUSR, 0 },
+		{ "clk", &clk_debugfs_fops, S_IRUSR, 0 },
 		{ "devlog", &devlog_fops, S_IRUSR, 0 },
 		{ "l2t", &t4_l2t_fops, S_IRUSR, 0},
 		{ "mps_tcam", &mps_tcam_debugfs_fops, S_IRUSR, 0 },

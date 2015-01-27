@@ -1203,12 +1203,35 @@
 #define TIMERRESOLUTION_M    0xffU
 #define TIMERRESOLUTION_G(x) (((x) >> TIMERRESOLUTION_S) & TIMERRESOLUTION_M)
 
+#define TIMESTAMPRESOLUTION_S    8
+#define TIMESTAMPRESOLUTION_M    0xffU
+#define TIMESTAMPRESOLUTION_G(x) \
+	(((x) >> TIMESTAMPRESOLUTION_S) & TIMESTAMPRESOLUTION_M)
+
 #define DELAYEDACKRESOLUTION_S    0
 #define DELAYEDACKRESOLUTION_M    0xffU
 #define DELAYEDACKRESOLUTION_G(x) \
 	(((x) >> DELAYEDACKRESOLUTION_S) & DELAYEDACKRESOLUTION_M)
 
 #define TP_SHIFT_CNT_A 0x7dc0
+#define TP_RXT_MIN_A 0x7d98
+#define TP_RXT_MAX_A 0x7d9c
+#define TP_PERS_MIN_A 0x7da0
+#define TP_PERS_MAX_A 0x7da4
+#define TP_KEEP_IDLE_A 0x7da8
+#define TP_KEEP_INTVL_A 0x7dac
+#define TP_INIT_SRTT_A 0x7db0
+#define TP_DACK_TIMER_A 0x7db4
+#define TP_FINWAIT2_TIMER_A 0x7db8
+
+#define INITSRTT_S    0
+#define INITSRTT_M    0xffffU
+#define INITSRTT_G(x) (((x) >> INITSRTT_S) & INITSRTT_M)
+
+#define PERSMAX_S    0
+#define PERSMAX_M    0x3fffffffU
+#define PERSMAX_V(x) ((x) << PERSMAX_S)
+#define PERSMAX_G(x) (((x) >> PERSMAX_S) & PERSMAX_M)
 
 #define SYNSHIFTMAX_S    24
 #define SYNSHIFTMAX_M    0xffU
