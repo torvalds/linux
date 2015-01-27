@@ -22,11 +22,8 @@
 #include <mach/cpu.h>
 #include <mach/at91_dbgu.h>
 
-#include "soc.h"
 #include "generic.h"
 #include "pm.h"
-
-struct at91_init_soc __initdata at91_boot_soc;
 
 struct at91_socinfo at91_soc_initdata;
 EXPORT_SYMBOL(at91_soc_initdata);
@@ -60,7 +57,6 @@ static void __init soc_detect(u32 dbgu_base)
 		at91_soc_initdata.type = AT91_SOC_RM9200;
 		if (at91_soc_initdata.subtype == AT91_SOC_SUBTYPE_UNKNOWN)
 			at91_soc_initdata.subtype = AT91_SOC_RM9200_BGA;
-		at91_boot_soc = at91rm9200_soc;
 		break;
 
 	case ARCH_ID_AT91SAM9260:
@@ -106,7 +102,6 @@ static void __init soc_detect(u32 dbgu_base)
 		at91_soc_initdata.exid = __raw_readl(AT91_IO_P2V(dbgu_base) + AT91_DBGU_EXID);
 		if (at91_soc_initdata.exid & ARCH_EXID_SAMA5D3) {
 			at91_soc_initdata.type = AT91_SOC_SAMA5D3;
-			at91_boot_soc = sama5d3_soc;
 		}
 		break;
 	}
@@ -199,10 +194,8 @@ static void __init alt_soc_detect(u32 dbgu_base)
 		at91_soc_initdata.exid = __raw_readl(AT91_ALT_IO_P2V(dbgu_base) + AT91_DBGU_EXID);
 		if (at91_soc_initdata.exid & ARCH_EXID_SAMA5D3) {
 			at91_soc_initdata.type = AT91_SOC_SAMA5D3;
-			at91_boot_soc = sama5d3_soc;
 		} else if (at91_soc_initdata.exid & ARCH_EXID_SAMA5D4) {
 			at91_soc_initdata.type = AT91_SOC_SAMA5D4;
-			at91_boot_soc = sama5d4_soc;
 		}
 		break;
 	}
