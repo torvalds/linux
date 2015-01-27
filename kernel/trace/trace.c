@@ -5815,26 +5815,9 @@ static __init int register_snapshot_cmd(void)
 static inline __init int register_snapshot_cmd(void) { return 0; }
 #endif /* defined(CONFIG_TRACER_SNAPSHOT) && defined(CONFIG_DYNAMIC_FTRACE) */
 
-static struct dentry *tracing_init_dentry_tr(struct trace_array *tr)
+static struct dentry *tracing_get_dentry(struct trace_array *tr)
 {
-	if (tr->dir)
-		return tr->dir;
-
-	if (!debugfs_initialized())
-		return ERR_PTR(-ENODEV);
-
-	if (tr->flags & TRACE_ARRAY_FL_GLOBAL)
-		tr->dir = debugfs_create_dir("tracing", NULL);
-
-	if (!tr->dir)
-		pr_warn_once("Could not create debugfs directory 'tracing'\n");
-
 	return tr->dir;
-}
-
-struct dentry *tracing_init_dentry(void)
-{
-	return tracing_init_dentry_tr(&global_trace);
 }
 
 static struct dentry *tracing_dentry_percpu(struct trace_array *tr, int cpu)
@@ -5844,7 +5827,7 @@ static struct dentry *tracing_dentry_percpu(struct trace_array *tr, int cpu)
 	if (tr->percpu_dir)
 		return tr->percpu_dir;
 
-	d_tracer = tracing_init_dentry_tr(tr);
+	d_tracer = tracing_get_dentry(tr);
 	if (IS_ERR(d_tracer))
 		return NULL;
 
@@ -6047,7 +6030,7 @@ static struct dentry *trace_options_init_dentry(struct trace_array *tr)
 	if (tr->options)
 		return tr->options;
 
-	d_tracer = tracing_init_dentry_tr(tr);
+	d_tracer = tracing_get_dentry(tr);
 	if (IS_ERR(d_tracer))
 		return NULL;
 
@@ -6532,6 +6515,33 @@ init_tracer_debugfs(struct trace_array *tr, struct dentry *d_tracer)
 
 }
 
+/**
+ * tracing_init_dentry - initialize top level trace array
+ *
+ * This is called when creating files or directories in the tracing
+ * directory. It is called via fs_initcall() by any of the boot up code
+ * and expects to return the dentry of the top level tracing directory.
+ */
+struct dentry *tracing_init_dentry(void)
+{
+	struct trace_array *tr = &global_trace;
+
+	if (tr->dir)
+		return tr->dir;
+
+	if (WARN_ON(!debugfs_initialized()))
+		return ERR_PTR(-ENODEV);
+
+	tr->dir = debugfs_create_dir("tracing", NULL);
+
+	if (!tr->dir) {
+		pr_warn_once("Could not create debugfs directory 'tracing'\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	return tr->dir;
+}
+
 static __init int tracer_init_debugfs(void)
 {
 	struct dentry *d_tracer;
@@ -6771,7 +6781,6 @@ __init static int tracer_alloc_buffers(void)
 {
 	int ring_buf_size;
 	int ret = -ENOMEM;
-
 
 	if (!alloc_cpumask_var(&tracing_buffer_mask, GFP_KERNEL))
 		goto out;
