@@ -29,6 +29,6 @@ build-greybus: android_kernel
 	cd $(GREYBUS_SRC_PATH) &&\
 	$(MAKE) -j$(MAKE_JOBS) CROSS_COMPILE=$(KERNEL_TOOLS_PREFIX) $(ARGS)
 	mkdir -p $(GREYBUS_MODULE_OUT_PATH)
-	ko=`find $$GREYBUS_SRC_PATH -type f -name *.ko`;\
+	ko=`find $(GREYBUS_SRC_PATH) -type f -name "*.ko"`;\
 	for i in $$ko; do $(KERNEL_TOOLCHAIN_PATH)strip --strip-unneeded $$i;\
 	mv $$i $(GREYBUS_MODULE_OUT_PATH)/; done;
