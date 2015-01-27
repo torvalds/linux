@@ -655,8 +655,8 @@ static void rcar_dmac_realloc_hwdesc(struct rcar_dmac_chan *chan,
 		return;
 
 	if (desc->hwdescs.mem) {
-		dma_free_coherent(NULL, desc->hwdescs.size, desc->hwdescs.mem,
-				   desc->hwdescs.dma);
+		dma_free_coherent(chan->chan.device->dev, desc->hwdescs.size,
+				  desc->hwdescs.mem, desc->hwdescs.dma);
 		desc->hwdescs.mem = NULL;
 		desc->hwdescs.size = 0;
 	}
@@ -664,8 +664,8 @@ static void rcar_dmac_realloc_hwdesc(struct rcar_dmac_chan *chan,
 	if (!size)
 		return;
 
-	desc->hwdescs.mem = dma_alloc_coherent(NULL, size, &desc->hwdescs.dma,
-					       GFP_NOWAIT);
+	desc->hwdescs.mem = dma_alloc_coherent(chan->chan.device->dev, size,
+					       &desc->hwdescs.dma, GFP_NOWAIT);
 	if (!desc->hwdescs.mem)
 		return;
 
