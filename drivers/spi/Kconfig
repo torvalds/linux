@@ -292,7 +292,6 @@ config SPI_FSL_SPI
 
 config SPI_FSL_DSPI
 	tristate "Freescale DSPI controller"
-	select SPI_BITBANG
 	select REGMAP_MMIO
 	depends on SOC_VF610 || COMPILE_TEST
 	help
