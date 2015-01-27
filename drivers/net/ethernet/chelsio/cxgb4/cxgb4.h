@@ -1054,6 +1054,8 @@ int t4_mc_read(struct adapter *adap, int idx, u32 addr, __be32 *data,
 	       u64 *parity);
 int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data,
 		u64 *parity);
+void t4_pmtx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[]);
+void t4_pmrx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[]);
 int t4_read_cim_ibq(struct adapter *adap, unsigned int qid, u32 *data,
 		    size_t n);
 int t4_read_cim_obq(struct adapter *adap, unsigned int qid, u32 *data,

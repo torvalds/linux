@@ -315,6 +315,71 @@ static const struct file_operations cim_obq_fops = {
 	.release = seq_release_private
 };
 
+/* Show the PM memory stats.  These stats include:
+ *
+ * TX:
+ *   Read: memory read operation
+ *   Write Bypass: cut-through
+ *   Bypass + mem: cut-through and save copy
+ *
+ * RX:
+ *   Read: memory read
+ *   Write Bypass: cut-through
+ *   Flush: payload trim or drop
+ */
+static int pm_stats_show(struct seq_file *seq, void *v)
+{
+	static const char * const tx_pm_stats[] = {
+		"Read:", "Write bypass:", "Write mem:", "Bypass + mem:"
+	};
+	static const char * const rx_pm_stats[] = {
+		"Read:", "Write bypass:", "Write mem:", "Flush:"
+	};
+
+	int i;
+	u32 tx_cnt[PM_NSTATS], rx_cnt[PM_NSTATS];
+	u64 tx_cyc[PM_NSTATS], rx_cyc[PM_NSTATS];
+	struct adapter *adap = seq->private;
+
+	t4_pmtx_get_stats(adap, tx_cnt, tx_cyc);
+	t4_pmrx_get_stats(adap, rx_cnt, rx_cyc);
+
+	seq_printf(seq, "%13s %10s  %20s\n", " ", "Tx pcmds", "Tx bytes");
+	for (i = 0; i < PM_NSTATS - 1; i++)
+		seq_printf(seq, "%-13s %10u  %20llu\n",
+			   tx_pm_stats[i], tx_cnt[i], tx_cyc[i]);
+
+	seq_printf(seq, "%13s %10s  %20s\n", " ", "Rx pcmds", "Rx bytes");
+	for (i = 0; i < PM_NSTATS - 1; i++)
+		seq_printf(seq, "%-13s %10u  %20llu\n",
+			   rx_pm_stats[i], rx_cnt[i], rx_cyc[i]);
+	return 0;
+}
+
+static int pm_stats_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, pm_stats_show, inode->i_private);
+}
+
+static ssize_t pm_stats_clear(struct file *file, const char __user *buf,
+			      size_t count, loff_t *pos)
+{
+	struct adapter *adap = FILE_DATA(file)->i_private;
+
+	t4_write_reg(adap, PM_RX_STAT_CONFIG_A, 0);
+	t4_write_reg(adap, PM_TX_STAT_CONFIG_A, 0);
+	return count;
+}
+
+static const struct file_operations pm_stats_debugfs_fops = {
+	.owner   = THIS_MODULE,
+	.open    = pm_stats_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = single_release,
+	.write   = pm_stats_clear
+};
+
 /* Firmware Device Log dump. */
 static const char * const devlog_level_strings[] = {
 	[FW_DEVLOG_LEVEL_EMERG]		= "EMERG",
@@ -1434,6 +1499,7 @@ int t4_setup_debugfs(struct adapter *adap)
 		{ "obq_ulp3", &cim_obq_fops, S_IRUSR, 3 },
 		{ "obq_sge",  &cim_obq_fops, S_IRUSR, 4 },
 		{ "obq_ncsi", &cim_obq_fops, S_IRUSR, 5 },
+		{ "pm_stats", &pm_stats_debugfs_fops, S_IRUSR, 0 },
 #if IS_ENABLED(CONFIG_IPV6)
 		{ "clip_tbl", &clip_tbl_debugfs_fops, S_IRUSR, 0 },
 #endif

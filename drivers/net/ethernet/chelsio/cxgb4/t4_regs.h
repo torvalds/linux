@@ -1380,6 +1380,12 @@
 #define PBL_BOUND_ERR_CH0_F    PBL_BOUND_ERR_CH0_V(1U)
 
 #define PM_RX_INT_CAUSE_A	0x8fdc
+#define PM_RX_STAT_CONFIG_A 0x8fc8
+#define PM_RX_STAT_COUNT_A 0x8fcc
+#define PM_RX_STAT_LSB_A 0x8fd0
+#define PM_RX_DBG_CTRL_A 0x8fd0
+#define PM_RX_DBG_DATA_A 0x8fd4
+#define PM_RX_DBG_STAT_MSB_A 0x10013
 
 #define PMRX_FRAMING_ERROR_F	0x003ffff0U
 
@@ -1404,6 +1410,12 @@
 #define PMRX_E_PCMD_PAR_ERROR_F    PMRX_E_PCMD_PAR_ERROR_V(1U)
 
 #define PM_TX_INT_CAUSE_A	0x8ffc
+#define PM_TX_STAT_CONFIG_A 0x8fe8
+#define PM_TX_STAT_COUNT_A 0x8fec
+#define PM_TX_STAT_LSB_A 0x8ff0
+#define PM_TX_DBG_CTRL_A 0x8ff0
+#define PM_TX_DBG_DATA_A 0x8ff4
+#define PM_TX_DBG_STAT_MSB_A 0x1001a
 
 #define PCMD_LEN_OVFL0_S    31
 #define PCMD_LEN_OVFL0_V(x) ((x) << PCMD_LEN_OVFL0_S)

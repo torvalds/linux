@@ -2512,6 +2512,60 @@ void t4_load_mtus(struct adapter *adap, const unsigned short *mtus,
 }
 
 /**
+ *	t4_pmtx_get_stats - returns the HW stats from PMTX
+ *	@adap: the adapter
+ *	@cnt: where to store the count statistics
+ *	@cycles: where to store the cycle statistics
+ *
+ *	Returns performance statistics from PMTX.
+ */
+void t4_pmtx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[])
+{
+	int i;
+	u32 data[2];
+
+	for (i = 0; i < PM_NSTATS; i++) {
+		t4_write_reg(adap, PM_TX_STAT_CONFIG_A, i + 1);
+		cnt[i] = t4_read_reg(adap, PM_TX_STAT_COUNT_A);
+		if (is_t4(adap->params.chip)) {
+			cycles[i] = t4_read_reg64(adap, PM_TX_STAT_LSB_A);
+		} else {
+			t4_read_indirect(adap, PM_TX_DBG_CTRL_A,
+					 PM_TX_DBG_DATA_A, data, 2,
+					 PM_TX_DBG_STAT_MSB_A);
+			cycles[i] = (((u64)data[0] << 32) | data[1]);
+		}
+	}
+}
+
+/**
+ *	t4_pmrx_get_stats - returns the HW stats from PMRX
+ *	@adap: the adapter
+ *	@cnt: where to store the count statistics
+ *	@cycles: where to store the cycle statistics
+ *
+ *	Returns performance statistics from PMRX.
+ */
+void t4_pmrx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[])
+{
+	int i;
+	u32 data[2];
+
+	for (i = 0; i < PM_NSTATS; i++) {
+		t4_write_reg(adap, PM_RX_STAT_CONFIG_A, i + 1);
+		cnt[i] = t4_read_reg(adap, PM_RX_STAT_COUNT_A);
+		if (is_t4(adap->params.chip)) {
+			cycles[i] = t4_read_reg64(adap, PM_RX_STAT_LSB_A);
+		} else {
+			t4_read_indirect(adap, PM_RX_DBG_CTRL_A,
+					 PM_RX_DBG_DATA_A, data, 2,
+					 PM_RX_DBG_STAT_MSB_A);
+			cycles[i] = (((u64)data[0] << 32) | data[1]);
+		}
+	}
+}
+
+/**
  *	get_mps_bg_map - return the buffer groups associated with a port
  *	@adap: the adapter
  *	@idx: the port index
