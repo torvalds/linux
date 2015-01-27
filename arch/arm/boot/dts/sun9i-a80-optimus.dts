@@ -54,6 +54,11 @@
 	model = "Merrii A80 Optimus Board";
 	compatible = "merrii,a80-optimus", "allwinner,sun9i-a80";
 
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart4;
+	};
+
 	chosen {
 		bootargs = "earlyprintk console=ttyS0,115200";
 	};

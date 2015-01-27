@@ -19,6 +19,14 @@
 	model = "Merrii A20 Hummingbird";
 	compatible = "merrii,a20-hummingbird", "allwinner,sun7i-a20";
 
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart2;
+		serial2 = &uart3;
+		serial3 = &uart4;
+		serial4 = &uart5;
+	};
+
 	soc@01c00000 {
 		mmc0: mmc@01c0f000 {
 			pinctrl-names = "default";

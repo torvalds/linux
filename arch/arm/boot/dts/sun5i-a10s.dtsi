@@ -18,10 +18,6 @@
 
 	aliases {
 		ethernet0 = &emac;
-		serial0 = &uart0;
-		serial1 = &uart1;
-		serial2 = &uart2;
-		serial3 = &uart3;
 	};
 
 	chosen {
@@ -390,8 +386,8 @@
 			reg-names = "phy_ctrl", "pmu1";
 			clocks = <&usb_clk 8>;
 			clock-names = "usb_phy";
-			resets = <&usb_clk 1>;
-			reset-names = "usb1_reset";
+			resets = <&usb_clk 0>, <&usb_clk 1>;
+			reset-names = "usb0_reset", "usb1_reset";
 			status = "disabled";
 		};
 
