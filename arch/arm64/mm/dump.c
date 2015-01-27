@@ -249,10 +249,12 @@ static void walk_pmd(struct pg_state *st, pud_t *pud, unsigned long start)
 
 	for (i = 0; i < PTRS_PER_PMD; i++, pmd++) {
 		addr = start + i * PMD_SIZE;
-		if (pmd_none(*pmd) || pmd_sect(*pmd) || pmd_bad(*pmd))
+		if (pmd_none(*pmd) || pmd_sect(*pmd)) {
 			note_page(st, addr, 3, pmd_val(*pmd));
-		else
+		} else {
+			BUG_ON(pmd_bad(*pmd));
 			walk_pte(st, pmd, addr);
+		}
 	}
 }
 
@@ -264,10 +266,12 @@ static void walk_pud(struct pg_state *st, pgd_t *pgd, unsigned long start)
 
 	for (i = 0; i < PTRS_PER_PUD; i++, pud++) {
 		addr = start + i * PUD_SIZE;
-		if (pud_none(*pud) || pud_sect(*pud) || pud_bad(*pud))
+		if (pud_none(*pud) || pud_sect(*pud)) {
 			note_page(st, addr, 2, pud_val(*pud));
-		else
+		} else {
+			BUG_ON(pud_bad(*pud));
 			walk_pmd(st, pud, addr);
+		}
 	}
 }
 
@@ -279,10 +283,12 @@ static void walk_pgd(struct pg_state *st, struct mm_struct *mm, unsigned long st
 
 	for (i = 0; i < PTRS_PER_PGD; i++, pgd++) {
 		addr = start + i * PGDIR_SIZE;
-		if (pgd_none(*pgd) || pgd_bad(*pgd))
+		if (pgd_none(*pgd)) {
 			note_page(st, addr, 1, pgd_val(*pgd));
-		else
+		} else {
+			BUG_ON(pgd_bad(*pgd));
 			walk_pud(st, pgd, addr);
+		}
 	}
 }
 
