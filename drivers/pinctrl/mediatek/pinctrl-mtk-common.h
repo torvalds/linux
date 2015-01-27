@@ -131,6 +131,9 @@ struct mtk_eint_offsets {
 	unsigned int  sens;
 	unsigned int  sens_set;
 	unsigned int  sens_clr;
+	unsigned int  soft;
+	unsigned int  soft_set;
+	unsigned int  soft_clr;
 	unsigned int  pol;
 	unsigned int  pol_set;
 	unsigned int  pol_clr;
@@ -217,6 +220,7 @@ struct mtk_pinctrl {
 	const struct mtk_pinctrl_devdata  *devdata;
 	void __iomem		*eint_reg_base;
 	struct irq_domain	*domain;
+	int			*eint_dual_edges;
 };
 
 int mtk_pctrl_init(struct platform_device *pdev,
