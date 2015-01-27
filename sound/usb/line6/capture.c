@@ -231,15 +231,6 @@ static int snd_line6_capture_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-/* capture pointer callback */
-static snd_pcm_uframes_t
-snd_line6_capture_pointer(struct snd_pcm_substream *substream)
-{
-	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
-
-	return line6pcm->in.pos_done;
-}
-
 /* capture operators */
 struct snd_pcm_ops snd_line6_capture_ops = {
 	.open = snd_line6_capture_open,
@@ -249,7 +240,7 @@ struct snd_pcm_ops snd_line6_capture_ops = {
 	.hw_free = snd_line6_hw_free,
 	.prepare = snd_line6_prepare,
 	.trigger = snd_line6_trigger,
-	.pointer = snd_line6_capture_pointer,
+	.pointer = snd_line6_pointer,
 };
 
 int line6_create_audio_in_urbs(struct snd_line6_pcm *line6pcm)

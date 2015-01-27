@@ -214,6 +214,7 @@ extern int snd_line6_prepare(struct snd_pcm_substream *substream);
 extern int snd_line6_hw_params(struct snd_pcm_substream *substream,
 			       struct snd_pcm_hw_params *hw_params);
 extern int snd_line6_hw_free(struct snd_pcm_substream *substream);
+extern snd_pcm_uframes_t snd_line6_pointer(struct snd_pcm_substream *substream);
 extern void line6_pcm_disconnect(struct snd_line6_pcm *line6pcm);
 extern int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int type);
 extern void line6_pcm_release(struct snd_line6_pcm *line6pcm, int type);
