@@ -1467,8 +1467,9 @@ int __pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 		goto out;
 	}
 
-	if (genpd->attach_dev)
-		genpd->attach_dev(genpd, dev);
+	ret = genpd->attach_dev ? genpd->attach_dev(genpd, dev) : 0;
+	if (ret)
+		goto out;
 
 	genpd->device_count++;
 	genpd->max_off_time_changed = true;
