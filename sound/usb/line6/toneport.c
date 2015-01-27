@@ -182,16 +182,23 @@ static int snd_toneport_monitor_put(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_line6_pcm *line6pcm = snd_kcontrol_chip(kcontrol);
+	int err;
 
 	if (ucontrol->value.integer.value[0] == line6pcm->volume_monitor)
 		return 0;
 
 	line6pcm->volume_monitor = ucontrol->value.integer.value[0];
 
-	if (line6pcm->volume_monitor > 0)
-		line6_pcm_acquire(line6pcm, LINE6_STREAM_MONITOR);
-	else
+	if (line6pcm->volume_monitor > 0) {
+		err = line6_pcm_acquire(line6pcm, LINE6_STREAM_MONITOR);
+		if (err < 0) {
+			line6pcm->volume_monitor = 0;
+			line6_pcm_release(line6pcm, LINE6_STREAM_MONITOR);
+			return err;
+		}
+	} else {
 		line6_pcm_release(line6pcm, LINE6_STREAM_MONITOR);
+	}
 
 	return 1;
 }
