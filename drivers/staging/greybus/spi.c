@@ -180,7 +180,7 @@ gb_spi_operation_create(struct gb_connection *connection,
 		return NULL;
 
 	request = operation->request->payload;
-	request->count = count;
+	request->count = cpu_to_le16(count);
 	request->mode = dev->mode;
 	request->chip_select = dev->chip_select;
 
@@ -189,7 +189,7 @@ gb_spi_operation_create(struct gb_connection *connection,
 
 	/* Fill in the transfers array */
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
-		gb_xfer->speed_hz = cpu_to_le16(xfer->speed_hz);
+		gb_xfer->speed_hz = cpu_to_le32(xfer->speed_hz);
 		gb_xfer->len = cpu_to_le32(xfer->len);
 		gb_xfer->delay_usecs = cpu_to_le16(xfer->delay_usecs);
 		gb_xfer->cs_change = xfer->cs_change;
@@ -335,7 +335,7 @@ static int gb_spi_chipselect_operation(struct gb_spi *spi)
 	if (ret)
 		return ret;
 
-	spi->num_chipselect = le32_to_cpu(response.num_chipselect);
+	spi->num_chipselect = le16_to_cpu(response.num_chipselect);
 
 	return 0;
 }
