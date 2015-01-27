@@ -134,11 +134,11 @@ static void add_monitor_signal(struct urb *urb_out, unsigned char *signal,
 
 /*
 	Find a free URB, prepare audio data, and submit URB.
+	must be called in line6pcm->out.lock context
 */
 static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 {
 	int index;
-	unsigned long flags;
 	int i, urb_size, urb_frames;
 	int ret;
 	const int bytes_per_frame = line6pcm->properties->bytes_per_frame;
@@ -149,12 +149,10 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 	    (USB_INTERVALS_PER_SECOND / LINE6_ISO_INTERVAL);
 	struct urb *urb_out;
 
-	spin_lock_irqsave(&line6pcm->out.lock, flags);
 	index =
 	    find_first_zero_bit(&line6pcm->out.active_urbs, LINE6_ISO_BUFFERS);
 
 	if (index < 0 || index >= LINE6_ISO_BUFFERS) {
-		spin_unlock_irqrestore(&line6pcm->out.lock, flags);
 		dev_err(line6pcm->line6->ifcdev, "no free URB found\n");
 		return -EINVAL;
 	}
@@ -187,7 +185,6 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 
 	if (urb_size == 0) {
 		/* can't determine URB size */
-		spin_unlock_irqrestore(&line6pcm->out.lock, flags);
 		dev_err(line6pcm->line6->ifcdev, "driver bug: urb_size = 0\n");
 		return -EINVAL;
 	}
@@ -242,7 +239,8 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 		       urb_out->transfer_buffer_length);
 	}
 
-	if (line6pcm->prev_fbuf != NULL) {
+	spin_lock_nested(&line6pcm->in.lock, SINGLE_DEPTH_NESTING);
+	if (line6pcm->prev_fbuf) {
 		if (line6pcm->flags & LINE6_BITS_PCM_IMPULSE) {
 			create_impulse_test_signal(line6pcm, urb_out,
 						   bytes_per_frame);
@@ -266,6 +264,7 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 						   bytes_per_frame);
 		}
 	}
+	spin_unlock(&line6pcm->in.lock);
 
 	ret = usb_submit_urb(urb_out, GFP_ATOMIC);
 
@@ -275,7 +274,6 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 		dev_err(line6pcm->line6->ifcdev,
 			"URB out #%d submission failed (%d)\n", index, ret);
 
-	spin_unlock_irqrestore(&line6pcm->out.lock, flags);
 	return 0;
 }
 
@@ -284,15 +282,18 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 */
 int line6_submit_audio_out_all_urbs(struct snd_line6_pcm *line6pcm)
 {
-	int ret, i;
+	unsigned long flags;
+	int ret = 0, i;
 
+	spin_lock_irqsave(&line6pcm->out.lock, flags);
 	for (i = 0; i < LINE6_ISO_BUFFERS; ++i) {
 		ret = submit_audio_out_urb(line6pcm);
 		if (ret < 0)
-			return ret;
+			break;
 	}
 
-	return 0;
+	spin_unlock_irqrestore(&line6pcm->out.lock, flags);
+	return ret;
 }
 
 /*
@@ -346,8 +347,6 @@ static void audio_out_callback(struct urb *urb)
 	if (test_and_clear_bit(index, &line6pcm->out.unlink_urbs))
 		shutdown = 1;
 
-	spin_unlock_irqrestore(&line6pcm->out.lock, flags);
-
 	if (!shutdown) {
 		submit_audio_out_urb(line6pcm);
 
@@ -356,10 +355,13 @@ static void audio_out_callback(struct urb *urb)
 			line6pcm->out.bytes += length;
 			if (line6pcm->out.bytes >= line6pcm->out.period) {
 				line6pcm->out.bytes %= line6pcm->out.period;
+				spin_unlock(&line6pcm->out.lock);
 				snd_pcm_period_elapsed(substream);
+				spin_lock(&line6pcm->out.lock);
 			}
 		}
 	}
+	spin_unlock_irqrestore(&line6pcm->out.lock, flags);
 }
 
 /* open playback callback */

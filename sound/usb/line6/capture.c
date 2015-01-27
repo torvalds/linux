@@ -20,21 +20,19 @@
 
 /*
 	Find a free URB and submit it.
+	must be called in line6pcm->in.lock context
 */
 static int submit_audio_in_urb(struct snd_line6_pcm *line6pcm)
 {
 	int index;
-	unsigned long flags;
 	int i, urb_size;
 	int ret;
 	struct urb *urb_in;
 
-	spin_lock_irqsave(&line6pcm->in.lock, flags);
 	index =
 	    find_first_zero_bit(&line6pcm->in.active_urbs, LINE6_ISO_BUFFERS);
 
 	if (index < 0 || index >= LINE6_ISO_BUFFERS) {
-		spin_unlock_irqrestore(&line6pcm->in.lock, flags);
 		dev_err(line6pcm->line6->ifcdev, "no free URB found\n");
 		return -EINVAL;
 	}
@@ -64,7 +62,6 @@ static int submit_audio_in_urb(struct snd_line6_pcm *line6pcm)
 		dev_err(line6pcm->line6->ifcdev,
 			"URB in #%d submission failed (%d)\n", index, ret);
 
-	spin_unlock_irqrestore(&line6pcm->in.lock, flags);
 	return 0;
 }
 
@@ -73,15 +70,18 @@ static int submit_audio_in_urb(struct snd_line6_pcm *line6pcm)
 */
 int line6_submit_audio_in_all_urbs(struct snd_line6_pcm *line6pcm)
 {
-	int ret, i;
+	unsigned long flags;
+	int ret = 0, i;
 
+	spin_lock_irqsave(&line6pcm->in.lock, flags);
 	for (i = 0; i < LINE6_ISO_BUFFERS; ++i) {
 		ret = submit_audio_in_urb(line6pcm);
 		if (ret < 0)
-			return ret;
+			break;
 	}
 
-	return 0;
+	spin_unlock_irqrestore(&line6pcm->in.lock, flags);
+	return ret;
 }
 
 /*
@@ -137,7 +137,9 @@ void line6_capture_check_period(struct snd_line6_pcm *line6pcm, int length)
 	line6pcm->in.bytes += length;
 	if (line6pcm->in.bytes >= line6pcm->in.period) {
 		line6pcm->in.bytes %= line6pcm->in.period;
+		spin_unlock(&line6pcm->in.lock);
 		snd_pcm_period_elapsed(substream);
+		spin_lock(&line6pcm->in.lock);
 	}
 }
 
@@ -196,8 +198,6 @@ static void audio_in_callback(struct urb *urb)
 	if (test_and_clear_bit(index, &line6pcm->in.unlink_urbs))
 		shutdown = 1;
 
-	spin_unlock_irqrestore(&line6pcm->in.lock, flags);
-
 	if (!shutdown) {
 		submit_audio_in_urb(line6pcm);
 
@@ -206,6 +206,8 @@ static void audio_in_callback(struct urb *urb)
 				     &line6pcm->flags))
 				line6_capture_check_period(line6pcm, length);
 	}
+
+	spin_unlock_irqrestore(&line6pcm->in.lock, flags);
 }
 
 /* open capture callback */
