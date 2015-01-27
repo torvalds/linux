@@ -435,8 +435,7 @@ static int __init mipsxx_init(void)
 
 	if (get_c0_perfcount_int)
 		perfcount_irq = get_c0_perfcount_int();
-	else if ((cp0_perfcount_irq >= 0) &&
-		 (cp0_compare_irq != cp0_perfcount_irq))
+	else if (cp0_perfcount_irq >= 0)
 		perfcount_irq = MIPS_CPU_IRQ_BASE + cp0_perfcount_irq;
 	else
 		perfcount_irq = -1;

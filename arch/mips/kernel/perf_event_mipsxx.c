@@ -1615,8 +1615,7 @@ init_hw_perf_events(void)
 
 	if (get_c0_perfcount_int)
 		irq = get_c0_perfcount_int();
-	else if ((cp0_perfcount_irq >= 0) &&
-		 (cp0_compare_irq != cp0_perfcount_irq))
+	else if (cp0_perfcount_irq >= 0)
 		irq = MIPS_CPU_IRQ_BASE + cp0_perfcount_irq;
 	else
 		irq = -1;
