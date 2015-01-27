@@ -319,7 +319,7 @@ static void __init at91_pm_init(void)
 	suspend_set_ops(&at91_pm_ops);
 }
 
-void __init at91_rm9200_pm_init(void)
+void __init at91rm9200_pm_init(void)
 {
 	at91_dt_ramc();
 
@@ -334,7 +334,7 @@ void __init at91_rm9200_pm_init(void)
 	at91_pm_init();
 }
 
-void __init at91_sam9260_pm_init(void)
+void __init at91sam9260_pm_init(void)
 {
 	at91_dt_ramc();
 	at91_pm_data.memctrl = AT91_MEMCTRL_SDRAMC;
@@ -342,7 +342,7 @@ void __init at91_sam9260_pm_init(void)
 	return at91_pm_init();
 }
 
-void __init at91_sam9g45_pm_init(void)
+void __init at91sam9g45_pm_init(void)
 {
 	at91_dt_ramc();
 	at91_pm_data.uhp_udp_mask = AT91SAM926x_PMC_UHP;
@@ -350,7 +350,7 @@ void __init at91_sam9g45_pm_init(void)
 	return at91_pm_init();
 }
 
-void __init at91_sam9x5_pm_init(void)
+void __init at91sam9x5_pm_init(void)
 {
 	at91_dt_ramc();
 	at91_pm_data.uhp_udp_mask = AT91SAM926x_PMC_UHP | AT91SAM926x_PMC_UDP;

@@ -43,13 +43,13 @@ static void __init at91rm9200_dt_timer_init(void)
 	at91rm9200_timer_init();
 }
 
-static void __init rm9200_dt_device_init(void)
+static void __init at91rm9200_dt_device_init(void)
 {
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 
 	arm_pm_idle = at91rm9200_idle;
 	arm_pm_restart = at91rm9200_restart;
-	at91_rm9200_pm_init();
+	at91rm9200_pm_init();
 }
 
 
@@ -59,9 +59,9 @@ static const char *at91rm9200_dt_board_compat[] __initconst = {
 	NULL
 };
 
-DT_MACHINE_START(at91rm9200_dt, "Atmel AT91RM9200 (Device Tree)")
+DT_MACHINE_START(at91rm9200_dt, "Atmel AT91RM9200")
 	.init_time      = at91rm9200_dt_timer_init,
 	.map_io		= at91_map_io,
-	.init_machine	= rm9200_dt_device_init,
+	.init_machine	= at91rm9200_dt_device_init,
 	.dt_compat	= at91rm9200_dt_board_compat,
 MACHINE_END
