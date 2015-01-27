@@ -166,9 +166,7 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 		struct usb_iso_packet_descriptor *fout =
 		    &urb_out->iso_frame_desc[i];
 
-		if (line6pcm->flags & LINE6_BITS_CAPTURE_STREAM)
-			fsize = line6pcm->prev_fsize;
-
+		fsize = line6pcm->prev_fsize;
 		if (fsize == 0) {
 			int n;
 
@@ -263,6 +261,8 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 						   line6pcm->volume_monitor,
 						   bytes_per_frame);
 		}
+		line6pcm->prev_fbuf = NULL;
+		line6pcm->prev_fsize = 0;
 	}
 	spin_unlock(&line6pcm->in.lock);
 

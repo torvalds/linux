@@ -171,8 +171,6 @@ int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int channels)
 
 	flags_final = 0;
 
-	line6pcm->prev_fbuf = NULL;
-
 	if (test_flags(flags_old, flags_new, LINE6_BITS_CAPTURE_BUFFER)) {
 		err = line6_alloc_stream_buffer(line6pcm, &line6pcm->in);
 		if (err < 0)
@@ -193,7 +191,6 @@ int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int channels)
 		}
 
 		line6pcm->in.count = 0;
-		line6pcm->prev_fsize = 0;
 		err = line6_submit_audio_in_all_urbs(line6pcm);
 
 		if (err < 0)
@@ -248,8 +245,11 @@ int line6_pcm_release(struct snd_line6_pcm *line6pcm, int channels)
 		flags_new = flags_old & ~channels;
 	} while (cmpxchg(&line6pcm->flags, flags_old, flags_new) != flags_old);
 
-	if (test_flags(flags_new, flags_old, LINE6_BITS_CAPTURE_STREAM))
+	if (test_flags(flags_new, flags_old, LINE6_BITS_CAPTURE_STREAM)) {
 		line6_unlink_audio_urbs(line6pcm, &line6pcm->in);
+		line6pcm->prev_fbuf = NULL;
+		line6pcm->prev_fsize = 0;
+	}
 
 	if (test_flags(flags_new, flags_old, LINE6_BITS_CAPTURE_BUFFER)) {
 		line6_wait_clear_audio_urbs(line6pcm, &line6pcm->in);
