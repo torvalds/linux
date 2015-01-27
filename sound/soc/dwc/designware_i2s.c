@@ -613,9 +613,7 @@ static struct platform_driver dw_i2s_driver = {
 	.remove		= dw_i2s_remove,
 	.driver		= {
 		.name	= "designware-i2s",
-#ifdef CONFIG_OF
 		.of_match_table = of_match_ptr(dw_i2s_of_match),
-#endif
 	},
 };
 
