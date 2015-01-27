@@ -481,7 +481,14 @@ temp_show(struct device *dev, struct device_attribute *attr, char *buf)
 	if (ret)
 		return ret;
 
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+        /* Fake workaround to return the temperature
+         * as millidegree Celsius
+         */
+	return sprintf(buf, "%ld\n", temperature * 1000);
+#else
 	return sprintf(buf, "%ld\n", temperature);
+#endif
 }
 
 static ssize_t
