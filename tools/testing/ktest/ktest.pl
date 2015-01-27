@@ -1534,9 +1534,13 @@ sub fail {
 
 sub run_command {
     my ($command, $redirect) = @_;
+    my $start_time;
+    my $end_time;
     my $dolog = 0;
     my $dord = 0;
     my $pid;
+
+    $start_time = time;
 
     $command =~ s/\$SSH_USER/$ssh_user/g;
     $command =~ s/\$MACHINE/$machine/g;
@@ -1569,6 +1573,15 @@ sub run_command {
     close(CMD);
     close(LOG) if ($dolog);
     close(RD)  if ($dord);
+
+    $end_time = time;
+    my $delta = $end_time - $start_time;
+
+    if ($delta == 1) {
+	doprint "[1 second] ";
+    } else {
+	doprint "[$delta seconds] ";
+    }
 
     if ($failed) {
 	doprint "FAILED!\n";
