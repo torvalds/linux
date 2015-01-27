@@ -15,6 +15,7 @@
 /dts-v1/;
 #include "exynos3250.dtsi"
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "Samsung Monk board";
@@ -37,9 +38,7 @@
 		compatible = "gpio-keys";
 
 		power_key {
-			interrupt-parent = <&gpx2>;
-			interrupts = <7 0>;
-			gpios = <&gpx2 7 1>;
+			gpios = <&gpx2 7 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
 			label = "power key";
 			debounce-interval = <10>;
@@ -132,6 +131,16 @@
 		pulldown-ohm = <100000>;
 		io-channels = <&adc 1>;
 	};
+};
+
+&exynos_usbphy {
+	status = "okay";
+};
+
+&hsotg {
+	vusb_d-supply = <&ldo15_reg>;
+	vusb_a-supply = <&ldo12_reg>;
+	status = "okay";
 };
 
 &i2c_0 {
