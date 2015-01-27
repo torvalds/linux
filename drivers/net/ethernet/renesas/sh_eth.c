@@ -396,6 +396,9 @@ static const u16 sh_eth_offset_fast_sh3_sh2[SH_ETH_MAX_REGISTER_OFFSET] = {
 	[TSU_ADRL31]	= 0x01fc,
 };
 
+static void sh_eth_rcv_snd_disable(struct net_device *ndev);
+static struct net_device_stats *sh_eth_get_stats(struct net_device *ndev);
+
 static bool sh_eth_is_gether(struct sh_eth_private *mdp)
 {
 	return mdp->reg_offset == sh_eth_offset_gigabit;
@@ -1358,6 +1361,33 @@ static int sh_eth_dev_init(struct net_device *ndev, bool start)
 	return ret;
 }
 
+static void sh_eth_dev_exit(struct net_device *ndev)
+{
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+	int i;
+
+	/* Deactivate all TX descriptors, so DMA should stop at next
+	 * packet boundary if it's currently running
+	 */
+	for (i = 0; i < mdp->num_tx_ring; i++)
+		mdp->tx_ring[i].status &= ~cpu_to_edmac(mdp, TD_TACT);
+
+	/* Disable TX FIFO egress to MAC */
+	sh_eth_rcv_snd_disable(ndev);
+
+	/* Stop RX DMA at next packet boundary */
+	sh_eth_write(ndev, 0, EDRRR);
+
+	/* Aside from TX DMA, we can't tell when the hardware is
+	 * really stopped, so we need to reset to make sure.
+	 * Before doing that, wait for long enough to *probably*
+	 * finish transmitting the last packet and poll stats.
+	 */
+	msleep(2); /* max frame time at 10 Mbps < 1250 us */
+	sh_eth_get_stats(ndev);
+	sh_eth_reset(ndev);
+}
+
 /* free Tx skb function */
 static int sh_eth_txfree(struct net_device *ndev)
 {
@@ -1986,9 +2016,7 @@ static int sh_eth_set_ringparam(struct net_device *ndev,
 		napi_synchronize(&mdp->napi);
 		sh_eth_write(ndev, 0x0000, EESIPR);
 
-		/* Stop the chip's Tx and Rx processes. */
-		sh_eth_write(ndev, 0, EDTRR);
-		sh_eth_write(ndev, 0, EDRRR);
+		sh_eth_dev_exit(ndev);
 
 		/* Free all the skbuffs in the Rx queue. */
 		sh_eth_ring_free(ndev);
@@ -2207,11 +2235,8 @@ static int sh_eth_close(struct net_device *ndev)
 	napi_disable(&mdp->napi);
 	sh_eth_write(ndev, 0x0000, EESIPR);
 
-	/* Stop the chip's Tx and Rx processes. */
-	sh_eth_write(ndev, 0, EDTRR);
-	sh_eth_write(ndev, 0, EDRRR);
+	sh_eth_dev_exit(ndev);
 
-	sh_eth_get_stats(ndev);
 	/* PHY Disconnect */
 	if (mdp->phydev) {
 		phy_stop(mdp->phydev);
