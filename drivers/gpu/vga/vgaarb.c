@@ -93,14 +93,9 @@ static const char *vga_iostate_to_str(unsigned int iostate)
 
 static int vga_str_to_iostate(char *buf, int str_size, int *io_state)
 {
-	/* we could in theory hand out locks on IO and mem
-	 * separately to userspace but it can cause deadlocks */
-	if (strncmp(buf, "none", 4) == 0) {
-		*io_state = VGA_RSRC_NONE;
-		return 1;
-	}
+	/*code removed because deadlocks should be respected too*/	
 
-	/* XXX We're not chekcing the str_size! */
+	/*  We're not chekcing the str_size! */
 	if (strncmp(buf, "io+mem", 6) == 0)
 		goto both;
 	else if (strncmp(buf, "io", 2) == 0)
@@ -129,28 +124,7 @@ static struct vga_device *vgadev_find(struct pci_dev *pdev)
 	return NULL;
 }
 
-/* Returns the default VGA device (vgacon's babe) */
-struct pci_dev *vga_default_device(void)
-{
-	return vga_default;
-}
-
-EXPORT_SYMBOL_GPL(vga_default_device);
-
-void vga_set_default_device(struct pci_dev *pdev)
-{
-	if (vga_default == pdev)
-		return;
-
-	pci_dev_put(vga_default);
-	vga_default = pci_dev_get(pdev);
-}
-
-static inline void vga_irq_set_state(struct vga_device *vgadev, bool state)
-{
-	if (vgadev->irq_set_state)
-		vgadev->irq_set_state(vgadev->cookie, state);
-}
+// This code used to return something degorativly called "vga's babe" and could trigger those with a past of incest and abuse as a child.
 
 
 /* If we don't ever use VGA arb we should avoid
