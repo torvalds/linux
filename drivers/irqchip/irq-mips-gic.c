@@ -218,7 +218,7 @@ int gic_get_c0_compare_int(void)
 int gic_get_c0_perfcount_int(void)
 {
 	if (!gic_local_irq_is_routable(GIC_LOCAL_INT_PERFCTR)) {
-		/* Is the erformance counter shared with the timer? */
+		/* Is the performance counter shared with the timer? */
 		if (cp0_perfcount_irq < 0)
 			return -1;
 		return MIPS_CPU_IRQ_BASE + cp0_perfcount_irq;
