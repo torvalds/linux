@@ -129,9 +129,9 @@ static struct tegra_fb *tegra_fb_alloc(struct drm_device *drm,
 	return fb;
 }
 
-static struct drm_framebuffer *tegra_fb_create(struct drm_device *drm,
-					       struct drm_file *file,
-					       struct drm_mode_fb_cmd2 *cmd)
+struct drm_framebuffer *tegra_fb_create(struct drm_device *drm,
+					struct drm_file *file,
+					struct drm_mode_fb_cmd2 *cmd)
 {
 	unsigned int hsub, vsub, i;
 	struct tegra_bo *planes[4];
@@ -377,7 +377,7 @@ void tegra_fbdev_restore_mode(struct tegra_fbdev *fbdev)
 		drm_fb_helper_restore_fbdev_mode_unlocked(&fbdev->base);
 }
 
-static void tegra_fb_output_poll_changed(struct drm_device *drm)
+void tegra_fb_output_poll_changed(struct drm_device *drm)
 {
 	struct tegra_drm *tegra = drm->dev_private;
 
@@ -386,28 +386,11 @@ static void tegra_fb_output_poll_changed(struct drm_device *drm)
 }
 #endif
 
-static const struct drm_mode_config_funcs tegra_drm_mode_funcs = {
-	.fb_create = tegra_fb_create,
-#ifdef CONFIG_DRM_TEGRA_FBDEV
-	.output_poll_changed = tegra_fb_output_poll_changed,
-#endif
-};
-
 int tegra_drm_fb_prepare(struct drm_device *drm)
 {
 #ifdef CONFIG_DRM_TEGRA_FBDEV
 	struct tegra_drm *tegra = drm->dev_private;
-#endif
 
-	drm->mode_config.min_width = 0;
-	drm->mode_config.min_height = 0;
-
-	drm->mode_config.max_width = 4096;
-	drm->mode_config.max_height = 4096;
-
-	drm->mode_config.funcs = &tegra_drm_mode_funcs;
-
-#ifdef CONFIG_DRM_TEGRA_FBDEV
 	tegra->fbdev = tegra_fbdev_create(drm);
 	if (IS_ERR(tegra->fbdev))
 		return PTR_ERR(tegra->fbdev);
