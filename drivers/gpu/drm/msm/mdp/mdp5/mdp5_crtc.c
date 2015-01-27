@@ -298,8 +298,6 @@ static void mdp5_crtc_enable(struct drm_crtc *crtc)
 	mdp5_enable(mdp5_kms);
 	mdp_irq_register(&mdp5_kms->base, &mdp5_crtc->err);
 
-	crtc_flush_all(crtc);
-
 	mdp5_crtc->enabled = true;
 }
 
@@ -618,7 +616,6 @@ void mdp5_crtc_set_intf(struct drm_crtc *crtc, int intf,
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
-	uint32_t flush_mask = 0;
 	uint32_t intf_sel;
 	unsigned long flags;
 
@@ -657,10 +654,6 @@ void mdp5_crtc_set_intf(struct drm_crtc *crtc, int intf,
 
 	DBG("%s: intf_sel=%08x", mdp5_crtc->name, intf_sel);
 	mdp5_ctl_set_intf(mdp5_crtc->ctl, intf);
-	flush_mask |= mdp5_ctl_get_flush(mdp5_crtc->ctl);
-	flush_mask |= mdp5_lm_get_flush(mdp5_crtc->lm);
-
-	crtc_flush(crtc, flush_mask);
 }
 
 int mdp5_crtc_get_lm(struct drm_crtc *crtc)
