@@ -1373,12 +1373,6 @@ static void dw_hdmi_bridge_enable(struct drm_bridge *bridge)
 	dw_hdmi_poweron(hdmi);
 }
 
-static void dw_hdmi_bridge_destroy(struct drm_bridge *bridge)
-{
-	drm_bridge_cleanup(bridge);
-	kfree(bridge);
-}
-
 static void dw_hdmi_bridge_nop(struct drm_bridge *bridge)
 {
 	/* do nothing */
@@ -1468,7 +1462,6 @@ struct drm_bridge_funcs dw_hdmi_bridge_funcs = {
 	.post_disable = dw_hdmi_bridge_nop,
 	.mode_set = dw_hdmi_bridge_mode_set,
 	.mode_fixup = dw_hdmi_bridge_mode_fixup,
-	.destroy = dw_hdmi_bridge_destroy,
 };
 
 static irqreturn_t dw_hdmi_hardirq(int irq, void *dev_id)
@@ -1531,8 +1524,8 @@ static int dw_hdmi_register(struct drm_device *drm, struct dw_hdmi *hdmi)
 
 	hdmi->bridge = bridge;
 	bridge->driver_private = hdmi;
-
-	ret = drm_bridge_init(drm, bridge, &dw_hdmi_bridge_funcs);
+	bridge->funcs = &dw_hdmi_bridge_funcs;
+	ret = drm_bridge_attach(drm, bridge);
 	if (ret) {
 		DRM_ERROR("Failed to initialize bridge with drm\n");
 		return -EINVAL;
