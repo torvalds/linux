@@ -347,7 +347,7 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_steps_calibheight
 KernelVersion:	3.19
 Contact:	linux-iio@vger.kernel.org
 Description:
-		Height of the user (in centimeters) used by some pedometers
+		Height of the user (in meters) used by some pedometers
 		to compute the stride length, distance, speed and activity
 		type.
 
