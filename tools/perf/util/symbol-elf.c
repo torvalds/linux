@@ -859,10 +859,9 @@ int dso__load_sym(struct dso *dso, struct map *map,
 		/* Reject ARM ELF "mapping symbols": these aren't unique and
 		 * don't identify functions, so will confuse the profile
 		 * output: */
-		if (ehdr.e_machine == EM_ARM) {
-			if (!strcmp(elf_name, "$a") ||
-			    !strcmp(elf_name, "$d") ||
-			    !strcmp(elf_name, "$t"))
+		if (ehdr.e_machine == EM_ARM || ehdr.e_machine == EM_AARCH64) {
+			if (elf_name[0] == '$' && strchr("adtx", elf_name[1])
+			    && (elf_name[2] == '\0' || elf_name[2] == '.'))
 				continue;
 		}
 
