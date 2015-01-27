@@ -36,7 +36,7 @@
 #define TXBUFLEN       (84*6)
 #define DEFAULT_GAMMA  "40" /* gamma is used to control contrast in this driver */
 
-static unsigned tc = 0;
+static unsigned tc;
 module_param(tc, uint, 0);
 MODULE_PARM_DESC(tc, "TC[1:0] Temperature coefficient: 0-3 (default: 0)");
 
