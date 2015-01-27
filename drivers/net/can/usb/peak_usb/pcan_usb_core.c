@@ -46,7 +46,6 @@ MODULE_DEVICE_TABLE(usb, peak_usb_table);
 static struct peak_usb_adapter *peak_usb_adapters_list[] = {
 	&pcan_usb,
 	&pcan_usb_pro,
-	NULL,
 };
 
 /*
@@ -857,17 +856,18 @@ static int peak_usb_probe(struct usb_interface *intf,
 {
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
 	const u16 usb_id_product = le16_to_cpu(usb_dev->descriptor.idProduct);
-	struct peak_usb_adapter *peak_usb_adapter, **pp;
+	struct peak_usb_adapter *peak_usb_adapter = NULL;
 	int i, err = -ENOMEM;
 
 	usb_dev = interface_to_usbdev(intf);
 
 	/* get corresponding PCAN-USB adapter */
-	for (pp = peak_usb_adapters_list; *pp; pp++)
-		if ((*pp)->device_id == usb_id_product)
+	for (i = 0; i < ARRAY_SIZE(peak_usb_adapters_list); i++)
+		if (peak_usb_adapters_list[i]->device_id == usb_id_product) {
+			peak_usb_adapter = peak_usb_adapters_list[i];
 			break;
+		}
 
-	peak_usb_adapter = *pp;
 	if (!peak_usb_adapter) {
 		/* should never come except device_id bad usage in this file */
 		pr_err("%s: didn't find device id. 0x%x in devices list\n",
