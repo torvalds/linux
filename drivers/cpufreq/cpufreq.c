@@ -31,6 +31,12 @@
 #include <linux/tick.h>
 #include <trace/events/power.h>
 
+/* Macros to iterate over lists */
+/* Iterate over online CPUs policies */
+static LIST_HEAD(cpufreq_policy_list);
+#define for_each_policy(__policy)				\
+	list_for_each_entry(__policy, &cpufreq_policy_list, policy_list)
+
 /**
  * The "cpufreq driver" - the arch- or hardware-dependent low
  * level driver of CPUFreq support, and its spinlock. This lock
@@ -41,7 +47,6 @@ static DEFINE_PER_CPU(struct cpufreq_policy *, cpufreq_cpu_data);
 static DEFINE_PER_CPU(struct cpufreq_policy *, cpufreq_cpu_data_fallback);
 static DEFINE_RWLOCK(cpufreq_driver_lock);
 DEFINE_MUTEX(cpufreq_governor_lock);
-static LIST_HEAD(cpufreq_policy_list);
 
 /* This one keeps track of the previously set governor of a removed CPU */
 static DEFINE_PER_CPU(char[CPUFREQ_NAME_LEN], cpufreq_cpu_governor);
@@ -1113,7 +1118,7 @@ static int __cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 
 	/* Check if this cpu was hot-unplugged earlier and has siblings */
 	read_lock_irqsave(&cpufreq_driver_lock, flags);
-	list_for_each_entry(policy, &cpufreq_policy_list, policy_list) {
+	for_each_policy(policy) {
 		if (cpumask_test_cpu(cpu, policy->related_cpus)) {
 			read_unlock_irqrestore(&cpufreq_driver_lock, flags);
 			ret = cpufreq_add_policy_cpu(policy, cpu, dev);
@@ -1647,7 +1652,7 @@ void cpufreq_suspend(void)
 
 	pr_debug("%s: Suspending Governors\n", __func__);
 
-	list_for_each_entry(policy, &cpufreq_policy_list, policy_list) {
+	for_each_policy(policy) {
 		if (__cpufreq_governor(policy, CPUFREQ_GOV_STOP))
 			pr_err("%s: Failed to stop governor for policy: %p\n",
 				__func__, policy);
@@ -1681,7 +1686,7 @@ void cpufreq_resume(void)
 
 	pr_debug("%s: Resuming Governors\n", __func__);
 
-	list_for_each_entry(policy, &cpufreq_policy_list, policy_list) {
+	for_each_policy(policy) {
 		if (cpufreq_driver->resume && cpufreq_driver->resume(policy))
 			pr_err("%s: Failed to resume driver: %p\n", __func__,
 				policy);
@@ -2324,7 +2329,7 @@ static int cpufreq_boost_set_sw(int state)
 	struct cpufreq_policy *policy;
 	int ret = -EINVAL;
 
-	list_for_each_entry(policy, &cpufreq_policy_list, policy_list) {
+	for_each_policy(policy) {
 		freq_table = cpufreq_frequency_get_table(policy->cpu);
 		if (freq_table) {
 			ret = cpufreq_frequency_table_cpuinfo(policy,
