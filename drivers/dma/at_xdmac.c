@@ -1136,9 +1136,14 @@ static int at_xdmac_device_pause(struct dma_chan *chan)
 
 	dev_dbg(chan2dev(chan), "%s\n", __func__);
 
+	if (test_and_set_bit(AT_XDMAC_CHAN_IS_PAUSED, &atchan->status))
+		return 0;
+
 	spin_lock_bh(&atchan->lock);
 	at_xdmac_write(atxdmac, AT_XDMAC_GRWS, atchan->mask);
-	set_bit(AT_XDMAC_CHAN_IS_PAUSED, &atchan->status);
+	while (at_xdmac_chan_read(atchan, AT_XDMAC_CC)
+	       & (AT_XDMAC_CC_WRIP | AT_XDMAC_CC_RDIP))
+		cpu_relax();
 	spin_unlock_bh(&atchan->lock);
 
 	return 0;
