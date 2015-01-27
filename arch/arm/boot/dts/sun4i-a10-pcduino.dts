@@ -47,8 +47,12 @@
  */
 
 /dts-v1/;
-/include/ "sun4i-a10.dtsi"
-/include/ "sunxi-common-regulators.dtsi"
+#include "sun4i-a10.dtsi"
+#include "sunxi-common-regulators.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "LinkSprite pcDuino";
@@ -60,6 +64,22 @@
 			pinctrl-0 = <&emac_pins_a>;
 			phy = <&phy1>;
 			status = "okay";
+		};
+
+		pinctrl@01c20800 {
+			led_pins_pcduino: led_pins@0 {
+				allwinner,pins = "PH15", "PH16";
+				allwinner,function = "gpio_out";
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
+			key_pins_pcduino: key_pins@0 {
+				allwinner,pins = "PH17", "PH18", "PH19";
+				allwinner,function = "gpio_in";
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
 		};
 
 		mdio@01c0b080 {
@@ -75,7 +95,7 @@
 			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_reference_design>;
 			vmmc-supply = <&reg_vcc3v3>;
 			bus-width = <4>;
-			cd-gpios = <&pio 7 1 0>; /* PH1 */
+			cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
 			cd-inverted;
 			status = "okay";
 		};
@@ -121,6 +141,48 @@
 				interrupt-controller;
 				#interrupt-cells = <1>;
 			};
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&led_pins_pcduino>;
+
+		tx {
+			label = "pcduino:green:tx";
+			gpios = <&pio 7 15 GPIO_ACTIVE_LOW>;
+		};
+
+		rx {
+			label = "pcduino:green:rx";
+			gpios = <&pio 7 16 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&key_pins_pcduino>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		button@0 {
+			label = "Key Back";
+			linux,code = <KEY_BACK>;
+			gpios = <&pio 7 17 GPIO_ACTIVE_LOW>;
+		};
+
+		button@1 {
+			label = "Key Home";
+			linux,code = <KEY_HOME>;
+			gpios = <&pio 7 18 GPIO_ACTIVE_LOW>;
+		};
+
+		button@2 {
+			label = "Key Menu";
+			linux,code = <KEY_MENU>;
+			gpios = <&pio 7 19 GPIO_ACTIVE_LOW>;
 		};
 	};
 

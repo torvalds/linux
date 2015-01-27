@@ -48,8 +48,12 @@
  */
 
 /dts-v1/;
-/include/ "sun7i-a20.dtsi"
-/include/ "sunxi-common-regulators.dtsi"
+#include "sun7i-a20.dtsi"
+#include "sunxi-common-regulators.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "LeMaker Banana Pi";
@@ -67,7 +71,7 @@
 			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_bananapi>;
 			vmmc-supply = <&reg_vcc3v3>;
 			bus-width = <4>;
-			cd-gpios = <&pio 7 10 0>; /* PH10 */
+			cd-gpios = <&pio 7 10 GPIO_ACTIVE_HIGH>; /* PH10 */
 			cd-inverted;
 			status = "okay";
 		};
@@ -102,22 +106,22 @@
 			mmc0_cd_pin_bananapi: mmc0_cd_pin@0 {
 				allwinner,pins = "PH10";
 				allwinner,function = "gpio_in";
-				allwinner,drive = <0>;
-				allwinner,pull = <1>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 			};
 
 			gmac_power_pin_bananapi: gmac_power_pin@0 {
 				allwinner,pins = "PH23";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			led_pins_bananapi: led_pins@0 {
 				allwinner,pins = "PH24";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 		};
 
@@ -154,7 +158,7 @@
 				compatible = "x-powers,axp209";
 				reg = <0x34>;
 				interrupt-parent = <&nmi_intc>;
-				interrupts = <0 8>;
+				interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
 
 				interrupt-controller;
 				#interrupt-cells = <1>;
@@ -188,7 +192,7 @@
 
 		green {
 			label = "bananapi:green:usr";
-			gpios = <&pio 7 24 0>;
+			gpios = <&pio 7 24 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -209,6 +213,6 @@
 		regulator-max-microvolt = <3300000>;
 		startup-delay-us = <100000>;
 		enable-active-high;
-		gpio = <&pio 7 23 0>;
+		gpio = <&pio 7 23 GPIO_ACTIVE_HIGH>;
 	};
 };

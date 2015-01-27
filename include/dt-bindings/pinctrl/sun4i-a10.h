@@ -1,7 +1,7 @@
 /*
- * Copyright 2014 Open Source Support GmbH
+ * Copyright 2014 Maxime Ripard
  *
- * David Lanzendörfer <david.lanzendoerfer@o2s.ch>
+ * Maxime Ripard <maxime.ripard@free-electrons.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -47,80 +47,16 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/dts-v1/;
-#include "sun4i-a10.dtsi"
-#include "sunxi-common-regulators.dtsi"
+#ifndef __DT_BINDINGS_PINCTRL_SUN4I_A10_H_
+#define __DT_BINDINGS_PINCTRL_SUN4I_A10_H_
 
-#include <dt-bindings/gpio/gpio.h>
+#define SUN4I_PINCTRL_10_MA	0
+#define SUN4I_PINCTRL_20_MA	1
+#define SUN4I_PINCTRL_30_MA	2
+#define SUN4I_PINCTRL_40_MA	3
 
-/ {
-	model = "INet-97F Rev 02";
-	compatible = "primux,inet97fv2", "allwinner,sun4i-a10";
+#define SUN4I_PINCTRL_NO_PULL	0
+#define SUN4I_PINCTRL_PULL_UP	1
+#define SUN4I_PINCTRL_PULL_DOWN	2
 
-	aliases {
-		serial0 = &uart0;
-	};
-
-	soc@01c00000 {
-		mmc0: mmc@01c0f000 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_reference_design>;
-			vmmc-supply = <&reg_vcc3v3>;
-			bus-width = <4>;
-			cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
-			cd-inverted;
-			status = "okay";
-		};
-
-		uart0: serial@01c28000 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&uart0_pins_a>;
-			status = "okay";
-		};
-
-		usbphy: phy@01c13400 {
-			usb1_vbus-supply = <&reg_usb1_vbus>;
-			usb2_vbus-supply = <&reg_usb2_vbus>;
-			status = "okay";
-		};
-
-		ehci0: usb@01c14000 {
-			status = "okay";
-		};
-
-		ohci0: usb@01c14400 {
-			status = "okay";
-		};
-
-		ehci1: usb@01c1c000 {
-			status = "okay";
-		};
-
-		ohci1: usb@01c1c400 {
-			status = "okay";
-		};
-
-		i2c0: i2c@01c2ac00 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&i2c0_pins_a>;
-			status = "okay";
-
-			axp209: pmic@34 {
-				compatible = "x-powers,axp209";
-				reg = <0x34>;
-				interrupts = <0>;
-
-				interrupt-controller;
-				#interrupt-cells = <1>;
-			};
-		};
-	};
-
-	reg_usb1_vbus: usb1-vbus {
-		status = "okay";
-	};
-
-	reg_usb2_vbus: usb2-vbus {
-		status = "okay";
-	};
-};
+#endif /* __DT_BINDINGS_PINCTRL_SUN4I_A10_H_ */
