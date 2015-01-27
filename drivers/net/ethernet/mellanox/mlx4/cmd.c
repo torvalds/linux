@@ -1221,7 +1221,7 @@ static struct mlx4_cmd_info cmd_info[] = {
 	{
 		.opcode = MLX4_CMD_HW2SW_EQ,
 		.has_inbox = false,
-		.has_outbox = true,
+		.has_outbox = false,
 		.out_is_imm = false,
 		.encode_slave_id = true,
 		.verify = NULL,

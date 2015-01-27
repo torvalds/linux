@@ -4677,7 +4677,6 @@ static void rem_slave_eqs(struct mlx4_dev *dev, int slave)
 	int state;
 	LIST_HEAD(tlist);
 	int eqn;
-	struct mlx4_cmd_mailbox *mailbox;
 
 	err = move_all_busy(dev, slave, RES_EQ);
 	if (err)
@@ -4703,20 +4702,13 @@ static void rem_slave_eqs(struct mlx4_dev *dev, int slave)
 					break;
 
 				case RES_EQ_HW:
-					mailbox = mlx4_alloc_cmd_mailbox(dev);
-					if (IS_ERR(mailbox)) {
-						cond_resched();
-						continue;
-					}
-					err = mlx4_cmd_box(dev, slave, 0,
-							   eqn & 0xff, 0,
-							   MLX4_CMD_HW2SW_EQ,
-							   MLX4_CMD_TIME_CLASS_A,
-							   MLX4_CMD_NATIVE);
+					err = mlx4_cmd(dev, slave, eqn & 0xff,
+						       1, MLX4_CMD_HW2SW_EQ,
+						       MLX4_CMD_TIME_CLASS_A,
+						       MLX4_CMD_NATIVE);
 					if (err)
 						mlx4_dbg(dev, "rem_slave_eqs: failed to move slave %d eqs %d to SW ownership\n",
 							 slave, eqn);
-					mlx4_free_cmd_mailbox(dev, mailbox);
 					atomic_dec(&eq->mtt->ref_count);
 					state = RES_EQ_RESERVED;
 					break;
