@@ -17,6 +17,7 @@
 #include <linux/gpio.h>
 #include <linux/gpio-pxa.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/irqchip/chained_irq.h>
@@ -26,8 +27,6 @@
 #include <linux/platform_device.h>
 #include <linux/syscore_ops.h>
 #include <linux/slab.h>
-
-#include <mach/irqs.h>
 
 /*
  * We handle the GPIOs by banks, each bank covers up to 32 GPIOs with
@@ -629,19 +628,18 @@ static int pxa_gpio_probe(struct platform_device *pdev)
 	}
 
 	if (!use_of) {
-#ifdef CONFIG_ARCH_PXA
-		irq = gpio_to_irq(0);
-		irq_set_chip_and_handler(irq, &pxa_muxed_gpio_chip,
-					 handle_edge_irq);
-		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
-		irq_set_chained_handler(IRQ_GPIO0, pxa_gpio_demux_handler);
-
-		irq = gpio_to_irq(1);
-		irq_set_chip_and_handler(irq, &pxa_muxed_gpio_chip,
-					 handle_edge_irq);
-		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
-		irq_set_chained_handler(IRQ_GPIO1, pxa_gpio_demux_handler);
-#endif
+		if (irq0 > 0) {
+			irq = gpio_to_irq(0);
+			irq_set_chip_and_handler(irq, &pxa_muxed_gpio_chip,
+						 handle_edge_irq);
+			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+		}
+		if (irq1 > 0) {
+			irq = gpio_to_irq(1);
+			irq_set_chip_and_handler(irq, &pxa_muxed_gpio_chip,
+						 handle_edge_irq);
+			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+		}
 
 		for (irq  = gpio_to_irq(gpio_offset);
 			irq <= gpio_to_irq(pxa_last_gpio); irq++) {
@@ -649,12 +647,12 @@ static int pxa_gpio_probe(struct platform_device *pdev)
 						 handle_edge_irq);
 			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 		}
-	} else {
-		if (irq0 > 0)
-			irq_set_chained_handler(irq0, pxa_gpio_demux_handler);
-		if (irq1 > 0)
-			irq_set_chained_handler(irq1, pxa_gpio_demux_handler);
 	}
+
+	if (irq0 > 0)
+		irq_set_chained_handler(irq0, pxa_gpio_demux_handler);
+	if (irq1 > 0)
+		irq_set_chained_handler(irq1, pxa_gpio_demux_handler);
 
 	irq_set_chained_handler(irq_mux, pxa_gpio_demux_handler);
 	return 0;
