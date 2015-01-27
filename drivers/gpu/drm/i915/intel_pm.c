@@ -3799,8 +3799,8 @@ static void vlv_set_rps_idle(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 
-	/* Latest VLV doesn't need to force the gfx clock */
-	if (dev->pdev->revision >= 0xd) {
+	/* CHV and latest VLV don't need to force the gfx clock */
+	if (IS_CHERRYVIEW(dev) || dev->pdev->revision >= 0xd) {
 		valleyview_set_rps(dev_priv->dev, dev_priv->rps.min_freq_softlimit);
 		return;
 	}
@@ -3839,9 +3839,7 @@ void gen6_rps_idle(struct drm_i915_private *dev_priv)
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 	if (dev_priv->rps.enabled) {
-		if (IS_CHERRYVIEW(dev))
-			valleyview_set_rps(dev_priv->dev, dev_priv->rps.min_freq_softlimit);
-		else if (IS_VALLEYVIEW(dev))
+		if (IS_VALLEYVIEW(dev))
 			vlv_set_rps_idle(dev_priv);
 		else
 			gen6_set_rps(dev_priv->dev, dev_priv->rps.min_freq_softlimit);
