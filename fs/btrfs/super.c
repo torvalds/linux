@@ -1000,10 +1000,20 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 			 */
 			if (fs_info->pending_changes == 0)
 				return 0;
+			/*
+			 * A non-blocking test if the fs is frozen. We must not
+			 * start a new transaction here otherwise a deadlock
+			 * happens. The pending operations are delayed to the
+			 * next commit after thawing.
+			 */
+			if (__sb_start_write(sb, SB_FREEZE_WRITE, false))
+				__sb_end_write(sb, SB_FREEZE_WRITE);
+			else
+				return 0;
 			trans = btrfs_start_transaction(root, 0);
-		} else {
-			return PTR_ERR(trans);
 		}
+		if (IS_ERR(trans))
+			return PTR_ERR(trans);
 	}
 	return btrfs_commit_transaction(trans, root);
 }

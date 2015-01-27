@@ -29,10 +29,9 @@
 /**
  * omap_control_pcie_pcs - set the PCS delay count
  * @dev: the control module device
- * @id: index of the pcie PHY (should be 1 or 2)
  * @delay: 8 bit delay value
  */
-void omap_control_pcie_pcs(struct device *dev, u8 id, u8 delay)
+void omap_control_pcie_pcs(struct device *dev, u8 delay)
 {
 	u32 val;
 	struct omap_control_phy	*control_phy;
@@ -55,8 +54,8 @@ void omap_control_pcie_pcs(struct device *dev, u8 id, u8 delay)
 
 	val = readl(control_phy->pcie_pcs);
 	val &= ~(OMAP_CTRL_PCIE_PCS_MASK <<
-		(id * OMAP_CTRL_PCIE_PCS_DELAY_COUNT_SHIFT));
-	val |= delay << (id * OMAP_CTRL_PCIE_PCS_DELAY_COUNT_SHIFT);
+		OMAP_CTRL_PCIE_PCS_DELAY_COUNT_SHIFT);
+	val |= (delay << OMAP_CTRL_PCIE_PCS_DELAY_COUNT_SHIFT);
 	writel(val, control_phy->pcie_pcs);
 }
 EXPORT_SYMBOL_GPL(omap_control_pcie_pcs);

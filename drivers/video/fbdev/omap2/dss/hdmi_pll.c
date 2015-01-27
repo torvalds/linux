@@ -132,7 +132,6 @@ static const struct dss_pll_hw dss_omap4_hdmi_pll_hw = {
 	.mX_max = 127,
 	.fint_min = 500000,
 	.fint_max = 2500000,
-	.clkdco_max = 1800000000,
 
 	.clkdco_min = 500000000,
 	.clkdco_low = 1000000000,
@@ -156,7 +155,6 @@ static const struct dss_pll_hw dss_omap5_hdmi_pll_hw = {
 	.mX_max = 127,
 	.fint_min = 620000,
 	.fint_max = 2500000,
-	.clkdco_max = 1800000000,
 
 	.clkdco_min = 750000000,
 	.clkdco_low = 1500000000,

@@ -386,9 +386,7 @@ void adreno_gpu_cleanup(struct adreno_gpu *gpu)
 			msm_gem_put_iova(gpu->memptrs_bo, gpu->base.id);
 		drm_gem_object_unreference(gpu->memptrs_bo);
 	}
-	if (gpu->pm4)
-		release_firmware(gpu->pm4);
-	if (gpu->pfp)
-		release_firmware(gpu->pfp);
+	release_firmware(gpu->pm4);
+	release_firmware(gpu->pfp);
 	msm_gpu_cleanup(&gpu->base);
 }

@@ -1744,8 +1744,7 @@ static void choose_tunnel_offload_mode(struct mlx4_dev *dev,
 				       struct mlx4_dev_cap *dev_cap)
 {
 	if (dev->caps.steering_mode == MLX4_STEERING_MODE_DEVICE_MANAGED &&
-	    dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_VXLAN_OFFLOADS &&
-	    dev->caps.dmfs_high_steer_mode != MLX4_STEERING_DMFS_A0_STATIC)
+	    dev_cap->flags2 & MLX4_DEV_CAP_FLAG2_VXLAN_OFFLOADS)
 		dev->caps.tunnel_offload_mode = MLX4_TUNNEL_OFFLOAD_MODE_VXLAN;
 	else
 		dev->caps.tunnel_offload_mode = MLX4_TUNNEL_OFFLOAD_MODE_NONE;
@@ -1829,7 +1828,7 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 		err = mlx4_dev_cap(dev, &dev_cap);
 		if (err) {
 			mlx4_err(dev, "QUERY_DEV_CAP command failed, aborting\n");
-			goto err_stop_fw;
+			return err;
 		}
 
 		choose_steering_mode(dev, &dev_cap);
@@ -1860,7 +1859,7 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 					     &init_hca);
 		if ((long long) icm_size < 0) {
 			err = icm_size;
-			goto err_stop_fw;
+			return err;
 		}
 
 		dev->caps.max_fmr_maps = (1 << (32 - ilog2(dev->caps.num_mpts))) - 1;
@@ -1874,7 +1873,7 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 
 		err = mlx4_init_icm(dev, &dev_cap, &init_hca, icm_size);
 		if (err)
-			goto err_stop_fw;
+			return err;
 
 		err = mlx4_INIT_HCA(dev, &init_hca);
 		if (err) {
@@ -1886,7 +1885,7 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 			err = mlx4_query_func(dev, &dev_cap);
 			if (err < 0) {
 				mlx4_err(dev, "QUERY_FUNC command failed, aborting.\n");
-				goto err_stop_fw;
+				goto err_close;
 			} else if (err & MLX4_QUERY_FUNC_NUM_SYS_EQS) {
 				dev->caps.num_eqs = dev_cap.max_eqs;
 				dev->caps.reserved_eqs = dev_cap.reserved_eqs;
@@ -2006,11 +2005,6 @@ err_free_icm:
 	if (!mlx4_is_slave(dev))
 		mlx4_free_icms(dev);
 
-err_stop_fw:
-	if (!mlx4_is_slave(dev)) {
-		mlx4_UNMAP_FA(dev);
-		mlx4_free_icm(dev, priv->fw.fw_icm, 0);
-	}
 	return err;
 }
 

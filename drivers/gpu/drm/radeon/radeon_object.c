@@ -529,9 +529,6 @@ int radeon_bo_list_validate(struct radeon_device *rdev,
 			u32 current_domain =
 				radeon_mem_type_to_domain(bo->tbo.mem.mem_type);
 
-			WARN_ONCE(bo->gem_base.dumb,
-				  "GPU use of dumb buffer is illegal.\n");
-
 			/* Check if this buffer will be moved and don't move it
 			 * if we have moved too many buffers for this IB already.
 			 *

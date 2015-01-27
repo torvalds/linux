@@ -475,7 +475,8 @@ static int mlx4_en_tunnel_steer_add(struct mlx4_en_priv *priv, unsigned char *ad
 {
 	int err;
 
-	if (priv->mdev->dev->caps.tunnel_offload_mode != MLX4_TUNNEL_OFFLOAD_MODE_VXLAN)
+	if (priv->mdev->dev->caps.tunnel_offload_mode != MLX4_TUNNEL_OFFLOAD_MODE_VXLAN ||
+	    priv->mdev->dev->caps.dmfs_high_steer_mode == MLX4_STEERING_DMFS_A0_STATIC)
 		return 0; /* do nothing */
 
 	err = mlx4_tunnel_steer_add(priv->mdev->dev, addr, priv->port, qpn,
@@ -2365,9 +2366,11 @@ static void mlx4_en_del_vxlan_port(struct  net_device *dev,
 	queue_work(priv->mdev->workqueue, &priv->vxlan_del_task);
 }
 
-static bool mlx4_en_gso_check(struct sk_buff *skb, struct net_device *dev)
+static netdev_features_t mlx4_en_features_check(struct sk_buff *skb,
+						struct net_device *dev,
+						netdev_features_t features)
 {
-	return vxlan_gso_check(skb);
+	return vxlan_features_check(skb, features);
 }
 #endif
 
@@ -2400,7 +2403,7 @@ static const struct net_device_ops mlx4_netdev_ops = {
 #ifdef CONFIG_MLX4_EN_VXLAN
 	.ndo_add_vxlan_port	= mlx4_en_add_vxlan_port,
 	.ndo_del_vxlan_port	= mlx4_en_del_vxlan_port,
-	.ndo_gso_check		= mlx4_en_gso_check,
+	.ndo_features_check	= mlx4_en_features_check,
 #endif
 };
 
@@ -2434,7 +2437,7 @@ static const struct net_device_ops mlx4_netdev_ops_master = {
 #ifdef CONFIG_MLX4_EN_VXLAN
 	.ndo_add_vxlan_port	= mlx4_en_add_vxlan_port,
 	.ndo_del_vxlan_port	= mlx4_en_del_vxlan_port,
-	.ndo_gso_check		= mlx4_en_gso_check,
+	.ndo_features_check	= mlx4_en_features_check,
 #endif
 };
 
