@@ -465,7 +465,6 @@ static bool mdio_bus_phy_may_suspend(struct phy_device *phydev)
 
 static int mdio_bus_suspend(struct device *dev)
 {
-	struct phy_driver *phydrv = to_phy_driver(dev->driver);
 	struct phy_device *phydev = to_phy_device(dev);
 
 	/* We must stop the state machine manually, otherwise it stops out of
@@ -479,19 +478,18 @@ static int mdio_bus_suspend(struct device *dev)
 	if (!mdio_bus_phy_may_suspend(phydev))
 		return 0;
 
-	return phydrv->suspend(phydev);
+	return phy_suspend(phydev);
 }
 
 static int mdio_bus_resume(struct device *dev)
 {
-	struct phy_driver *phydrv = to_phy_driver(dev->driver);
 	struct phy_device *phydev = to_phy_device(dev);
 	int ret;
 
 	if (!mdio_bus_phy_may_suspend(phydev))
 		goto no_resume;
 
-	ret = phydrv->resume(phydev);
+	ret = phy_resume(phydev);
 	if (ret < 0)
 		return ret;
 
