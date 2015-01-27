@@ -443,9 +443,13 @@ static bool mdio_bus_phy_may_suspend(struct phy_device *phydev)
 	if (!drv || !phydrv->suspend)
 		return false;
 
-	/* PHY not attached? May suspend. */
+	/* PHY not attached? May suspend if the PHY has not already been
+	 * suspended as part of a prior call to phy_disconnect() ->
+	 * phy_detach() -> phy_suspend() because the parent netdev might be the
+	 * MDIO bus driver and clock gated at this point.
+	 */
 	if (!netdev)
-		return true;
+		return !phydev->suspended;
 
 	/* Don't suspend PHY if the attched netdev parent may wakeup.
 	 * The parent may point to a PCI device, as in tg3 driver.
@@ -465,7 +469,6 @@ static bool mdio_bus_phy_may_suspend(struct phy_device *phydev)
 
 static int mdio_bus_suspend(struct device *dev)
 {
-	struct phy_driver *phydrv = to_phy_driver(dev->driver);
 	struct phy_device *phydev = to_phy_device(dev);
 
 	/* We must stop the state machine manually, otherwise it stops out of
@@ -479,19 +482,18 @@ static int mdio_bus_suspend(struct device *dev)
 	if (!mdio_bus_phy_may_suspend(phydev))
 		return 0;
 
-	return phydrv->suspend(phydev);
+	return phy_suspend(phydev);
 }
 
 static int mdio_bus_resume(struct device *dev)
 {
-	struct phy_driver *phydrv = to_phy_driver(dev->driver);
 	struct phy_device *phydev = to_phy_device(dev);
 	int ret;
 
 	if (!mdio_bus_phy_may_suspend(phydev))
 		goto no_resume;
 
-	ret = phydrv->resume(phydev);
+	ret = phy_resume(phydev);
 	if (ret < 0)
 		return ret;
 
