@@ -18,9 +18,6 @@
 extern void __init at91_map_io(void);
 extern void __init at91_alt_map_io(void);
 
- /* Processors */
-extern void __init at91_dt_initialize(void);
-
  /* Timer */
 extern void at91rm9200_timer_init(void);
 

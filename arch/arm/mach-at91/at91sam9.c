@@ -41,7 +41,6 @@ static const char *at91_dt_board_compat[] __initconst = {
 DT_MACHINE_START(at91sam_dt, "Atmel AT91SAM (Device Tree)")
 	/* Maintainer: Atmel */
 	.map_io		= at91_map_io,
-	.init_early	= at91_dt_initialize,
 	.init_machine	= sam9_dt_device_init,
 	.dt_compat	= at91_dt_board_compat,
 MACHINE_END
@@ -62,7 +61,6 @@ static const char *at91_9g45_board_compat[] __initconst = {
 DT_MACHINE_START(at91sam9g45_dt, "Atmel AT91SAM9G45")
 	/* Maintainer: Atmel */
 	.map_io		= at91_map_io,
-	.init_early	= at91_dt_initialize,
 	.init_machine	= sam9g45_dt_device_init,
 	.dt_compat	= at91_9g45_board_compat,
 MACHINE_END
@@ -84,7 +82,6 @@ static const char *at91_9x5_board_compat[] __initconst = {
 DT_MACHINE_START(at91sam9x5_dt, "Atmel AT91SAM9")
 	/* Maintainer: Atmel */
 	.map_io		= at91_map_io,
-	.init_early	= at91_dt_initialize,
 	.init_machine	= sam9x5_dt_device_init,
 	.dt_compat	= at91_9x5_board_compat,
 MACHINE_END

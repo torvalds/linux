@@ -28,9 +28,6 @@
 struct at91_socinfo at91_soc_initdata;
 EXPORT_SYMBOL(at91_soc_initdata);
 
-void __iomem *at91_ramc_base[2];
-EXPORT_SYMBOL_GPL(at91_ramc_base);
-
 static struct map_desc at91_io_desc __initdata __maybe_unused = {
 	.virtual	= (unsigned long)AT91_VA_BASE_SYS,
 	.pfn		= __phys_to_pfn(AT91_BASE_SYS),
@@ -330,46 +327,4 @@ void __init at91_ioremap_matrix(u32 base_addr)
 	at91_matrix_base = ioremap(base_addr, 512);
 	if (!at91_matrix_base)
 		panic(pr_fmt("Impossible to ioremap at91_matrix_base\n"));
-}
-
-static struct of_device_id ramc_ids[] = {
-	{ .compatible = "atmel,at91rm9200-sdramc", .data = at91rm9200_standby },
-	{ .compatible = "atmel,at91sam9260-sdramc", .data = at91sam9_sdram_standby },
-	{ .compatible = "atmel,at91sam9g45-ddramc", .data = at91_ddr_standby },
-	{ .compatible = "atmel,sama5d3-ddramc", .data = at91_ddr_standby },
-	{ /*sentinel*/ }
-};
-
-static void at91_dt_ramc(void)
-{
-	struct device_node *np;
-	const struct of_device_id *of_id;
-	int idx = 0;
-	const void *standby = NULL;
-
-	for_each_matching_node_and_match(np, ramc_ids, &of_id) {
-		at91_ramc_base[idx] = of_iomap(np, 0);
-		if (!at91_ramc_base[idx])
-			panic(pr_fmt("unable to map ramc[%d] cpu registers\n"), idx);
-
-		if (!standby)
-			standby = of_id->data;
-
-		idx++;
-	}
-
-	if (!idx)
-		panic(pr_fmt("unable to find compatible ram controller node in dtb\n"));
-
-	if (!standby) {
-		pr_warn("ramc no standby function available\n");
-		return;
-	}
-
-	at91_pm_set_standby(standby);
-}
-
-void __init at91_dt_initialize(void)
-{
-	at91_dt_ramc();
 }
