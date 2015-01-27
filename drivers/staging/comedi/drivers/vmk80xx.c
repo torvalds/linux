@@ -42,10 +42,9 @@
 #include <linux/input.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
-#include <linux/usb.h>
 #include <linux/uaccess.h>
 
-#include "../comedidev.h"
+#include "../comedi_usb.h"
 
 enum {
 	DEVICE_VMK8055,
