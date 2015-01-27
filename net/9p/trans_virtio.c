@@ -504,7 +504,10 @@ static ssize_t p9_mount_tag_show(struct device *dev,
 	vdev = dev_to_virtio(dev);
 	chan = vdev->priv;
 
-	return snprintf(buf, chan->tag_len + 1, "%s", chan->tag);
+	memcpy(buf, chan->tag, chan->tag_len);
+	buf[chan->tag_len] = 0;
+
+	return chan->tag_len + 1;
 }
 
 static DEVICE_ATTR(mount_tag, 0444, p9_mount_tag_show, NULL);
