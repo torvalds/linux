@@ -354,6 +354,7 @@ struct usb_bus {
 					 * Does the host controller use PIO
 					 * for control transfers?
 					 */
+	struct otg_fsm *otg_fsm;	/* usb otg finite state machine */
 	u8 otg_port;			/* 0, or number of OTG/HNP port */
 	unsigned is_b_host:1;		/* true during some HNP roleswitches */
 	unsigned b_hnp_enable:1;	/* OTG: did A-Host enable HNP? */
