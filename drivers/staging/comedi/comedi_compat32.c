@@ -410,12 +410,11 @@ static int compat_insn(struct file *file, unsigned long arg)
 }
 
 /*
- * Process untranslated ioctl.
+ * compat_ioctl file operation.
  *
  * Returns -ENOIOCTLCMD for unrecognised ioctl codes.
  */
-static inline int raw_ioctl(struct file *file, unsigned int cmd,
-			    unsigned long arg)
+long comedi_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int rc;
 
@@ -461,14 +460,4 @@ static inline int raw_ioctl(struct file *file, unsigned int cmd,
 		break;
 	}
 	return rc;
-}
-
-/*
- * compat_ioctl file operation.
- *
- * Returns -ENOIOCTLCMD for unrecognised ioctl codes.
- */
-long comedi_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
-{
-	return raw_ioctl(file, cmd, arg);
 }
