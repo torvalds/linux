@@ -438,13 +438,6 @@ void __init paging_init(void)
 	map_mem();
 	fixup_executable();
 
-	/*
-	 * Finally flush the caches and tlb to ensure that we're in a
-	 * consistent state.
-	 */
-	flush_cache_all();
-	flush_tlb_all();
-
 	/* allocate the zero page. */
 	zero_page = early_alloc(PAGE_SIZE);
 
