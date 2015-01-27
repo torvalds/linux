@@ -180,6 +180,11 @@ static int cls_bpf_modify_existing(struct net *net, struct tcf_proto *tp,
 	}
 
 	bpf_size = bpf_len * sizeof(*bpf_ops);
+	if (bpf_size != nla_len(tb[TCA_BPF_OPS])) {
+		ret = -EINVAL;
+		goto errout;
+	}
+
 	bpf_ops = kzalloc(bpf_size, GFP_KERNEL);
 	if (bpf_ops == NULL) {
 		ret = -ENOMEM;
@@ -215,15 +220,21 @@ static u32 cls_bpf_grab_new_handle(struct tcf_proto *tp,
 				   struct cls_bpf_head *head)
 {
 	unsigned int i = 0x80000000;
+	u32 handle;
 
 	do {
 		if (++head->hgen == 0x7FFFFFFF)
 			head->hgen = 1;
 	} while (--i > 0 && cls_bpf_get(tp, head->hgen));
-	if (i == 0)
-		pr_err("Insufficient number of handles\n");
 
-	return i;
+	if (unlikely(i == 0)) {
+		pr_err("Insufficient number of handles\n");
+		handle = 0;
+	} else {
+		handle = head->hgen;
+	}
+
+	return handle;
 }
 
 static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
