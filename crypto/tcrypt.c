@@ -250,19 +250,19 @@ static void sg_init_aead(struct scatterlist *sg, char *xbuf[XBUFSIZE],
 	int np = (buflen + PAGE_SIZE - 1)/PAGE_SIZE;
 	int k, rem;
 
-	np = (np > XBUFSIZE) ? XBUFSIZE : np;
-	rem = buflen % PAGE_SIZE;
 	if (np > XBUFSIZE) {
 		rem = PAGE_SIZE;
 		np = XBUFSIZE;
+	} else {
+		rem = buflen % PAGE_SIZE;
 	}
+
 	sg_init_table(sg, np);
-	for (k = 0; k < np; ++k) {
-		if (k == (np-1))
-			sg_set_buf(&sg[k], xbuf[k], rem);
-		else
-			sg_set_buf(&sg[k], xbuf[k], PAGE_SIZE);
-	}
+	np--;
+	for (k = 0; k < np; k++)
+		sg_set_buf(&sg[k], xbuf[k], PAGE_SIZE);
+
+	sg_set_buf(&sg[k], xbuf[k], rem);
 }
 
 static void test_aead_speed(const char *algo, int enc, unsigned int secs,
