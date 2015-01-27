@@ -27,11 +27,15 @@
 
 #define COMEDI32_CHANINFO _IOR(CIO, 3, struct comedi32_chaninfo_struct)
 #define COMEDI32_RANGEINFO _IOR(CIO, 8, struct comedi32_rangeinfo_struct)
-/* N.B. COMEDI32_CMD and COMEDI_CMD ought to use _IOWR, not _IOR.
- * It's too late to change it now, but it only affects the command number. */
+/*
+ * N.B. COMEDI32_CMD and COMEDI_CMD ought to use _IOWR, not _IOR.
+ * It's too late to change it now, but it only affects the command number.
+ */
 #define COMEDI32_CMD _IOR(CIO, 9, struct comedi32_cmd_struct)
-/* N.B. COMEDI32_CMDTEST and COMEDI_CMDTEST ought to use _IOWR, not _IOR.
- * It's too late to change it now, but it only affects the command number. */
+/*
+ * N.B. COMEDI32_CMDTEST and COMEDI_CMDTEST ought to use _IOWR, not _IOR.
+ * It's too late to change it now, but it only affects the command number.
+ */
 #define COMEDI32_CMDTEST _IOR(CIO, 10, struct comedi32_cmd_struct)
 #define COMEDI32_INSNLIST _IOR(CIO, 11, struct comedi32_insnlist_struct)
 #define COMEDI32_INSN _IOR(CIO, 12, struct comedi32_insn_struct)
@@ -215,10 +219,12 @@ static int put_compat_cmd(struct comedi32_cmd_struct __user *cmd32,
 	int err;
 	unsigned int temp;
 
-	/* Copy back most of cmd structure. */
-	/* Assume the pointer values are already valid. */
-	/* (Could use ptr_to_compat() to set them, but that wasn't implemented
-	 * until kernel version 2.6.11.) */
+	/*
+	 * Copy back most of cmd structure.
+	 *
+	 * Assume the pointer values are already valid.
+	 * (Could use ptr_to_compat() to set them.)
+	 */
 	if (!access_ok(VERIFY_READ, cmd, sizeof(*cmd)) ||
 	    !access_ok(VERIFY_WRITE, cmd32, sizeof(*cmd32)))
 		return -EFAULT;
@@ -403,8 +409,11 @@ static int compat_insn(struct file *file, unsigned long arg)
 	return translated_ioctl(file, COMEDI_INSN, (unsigned long)insn);
 }
 
-/* Process untranslated ioctl. */
-/* Returns -ENOIOCTLCMD for unrecognised ioctl codes. */
+/*
+ * Process untranslated ioctl.
+ *
+ * Returns -ENOIOCTLCMD for unrecognised ioctl codes.
+ */
 static inline int raw_ioctl(struct file *file, unsigned int cmd,
 			    unsigned long arg)
 {
@@ -454,8 +463,11 @@ static inline int raw_ioctl(struct file *file, unsigned int cmd,
 	return rc;
 }
 
-/* compat_ioctl file operation. */
-/* Returns -ENOIOCTLCMD for unrecognised ioctl codes. */
+/*
+ * compat_ioctl file operation.
+ *
+ * Returns -ENOIOCTLCMD for unrecognised ioctl codes.
+ */
 long comedi_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	return raw_ioctl(file, cmd, arg);
