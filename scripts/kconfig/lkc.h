@@ -21,9 +21,7 @@ static inline char *bind_textdomain_codeset(const char *dn, char *c) { return c;
 extern "C" {
 #endif
 
-#define P(name,type,arg)	extern type name arg
 #include "lkc_proto.h"
-#undef P
 
 #define SRCTREE "srctree"
 
