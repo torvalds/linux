@@ -72,6 +72,8 @@ struct tcm_vhost_cmd {
 	int tvc_vq_desc;
 	/* virtio-scsi initiator task attribute */
 	int tvc_task_attr;
+	/* virtio-scsi response incoming iovecs */
+	int tvc_in_iovs;
 	/* virtio-scsi initiator data direction */
 	enum dma_data_direction tvc_data_direction;
 	/* Expected data transfer length from virtio-scsi header */
@@ -87,8 +89,8 @@ struct tcm_vhost_cmd {
 	struct scatterlist *tvc_sgl;
 	struct scatterlist *tvc_prot_sgl;
 	struct page **tvc_upages;
-	/* Pointer to response */
-	struct virtio_scsi_cmd_resp __user *tvc_resp;
+	/* Pointer to response header iovec */
+	struct iovec *tvc_resp_iov;
 	/* Pointer to vhost_scsi for our device */
 	struct vhost_scsi *tvc_vhost;
 	/* Pointer to vhost_virtqueue for the cmd */
@@ -682,6 +684,7 @@ static void vhost_scsi_complete_cmd_work(struct vhost_work *work)
 	struct tcm_vhost_cmd *cmd;
 	struct llist_node *llnode;
 	struct se_cmd *se_cmd;
+	struct iov_iter iov_iter;
 	int ret, vq;
 
 	bitmap_zero(signal, VHOST_SCSI_MAX_VQ);
@@ -703,8 +706,11 @@ static void vhost_scsi_complete_cmd_work(struct vhost_work *work)
 						 se_cmd->scsi_sense_length);
 		memcpy(v_rsp.sense, cmd->tvc_sense_buf,
 		       se_cmd->scsi_sense_length);
-		ret = copy_to_user(cmd->tvc_resp, &v_rsp, sizeof(v_rsp));
-		if (likely(ret == 0)) {
+
+		iov_iter_init(&iov_iter, READ, cmd->tvc_resp_iov,
+			      cmd->tvc_in_iovs, sizeof(v_rsp));
+		ret = copy_to_iter(&v_rsp, sizeof(v_rsp), &iov_iter);
+		if (likely(ret == sizeof(v_rsp))) {
 			struct vhost_scsi_virtqueue *q;
 			vhost_add_used(cmd->tvc_vq, cmd->tvc_vq_desc, 0);
 			q = container_of(cmd->tvc_vq, struct vhost_scsi_virtqueue, vq);
@@ -1159,7 +1165,8 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 
 		cmd->tvc_vhost = vs;
 		cmd->tvc_vq = vq;
-		cmd->tvc_resp = vq->iov[out].iov_base;
+		cmd->tvc_resp_iov = &vq->iov[out];
+		cmd->tvc_in_iovs = in;
 
 		pr_debug("vhost_scsi got command opcode: %#02x, lun: %d\n",
 			cmd->tvc_cdb[0], cmd->tvc_lun);
