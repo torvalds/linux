@@ -344,14 +344,7 @@ static int genpd_dev_pm_qos_notifier(struct notifier_block *nb,
 	struct device *dev;
 
 	gpd_data = container_of(nb, struct generic_pm_domain_data, nb);
-
-	mutex_lock(&gpd_data->lock);
 	dev = gpd_data->base.dev;
-	if (!dev) {
-		mutex_unlock(&gpd_data->lock);
-		return NOTIFY_DONE;
-	}
-	mutex_unlock(&gpd_data->lock);
 
 	for (;;) {
 		struct generic_pm_domain *genpd;
@@ -1392,16 +1385,12 @@ static struct generic_pm_domain_data *genpd_alloc_dev_data(struct device *dev)
 	if (!gpd_data)
 		return NULL;
 
-	mutex_init(&gpd_data->lock);
-	gpd_data->nb.notifier_call = genpd_dev_pm_qos_notifier;
-	dev_pm_qos_add_notifier(dev, &gpd_data->nb);
 	return gpd_data;
 }
 
 static void genpd_free_dev_data(struct device *dev,
 				struct generic_pm_domain_data *gpd_data)
 {
-	dev_pm_qos_remove_notifier(dev, &gpd_data->nb);
 	kfree(gpd_data);
 }
 
@@ -1414,7 +1403,7 @@ static void genpd_free_dev_data(struct device *dev,
 int __pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 			  struct gpd_timing_data *td)
 {
-	struct generic_pm_domain_data *gpd_data_new, *gpd_data = NULL;
+	struct generic_pm_domain_data *gpd_data;
 	int ret = 0;
 
 	dev_dbg(dev, "%s()\n", __func__);
@@ -1422,8 +1411,8 @@ int __pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 	if (IS_ERR_OR_NULL(genpd) || IS_ERR_OR_NULL(dev))
 		return -EINVAL;
 
-	gpd_data_new = genpd_alloc_dev_data(dev);
-	if (!gpd_data_new)
+	gpd_data = genpd_alloc_dev_data(dev);
+	if (!gpd_data)
 		return -ENOMEM;
 
 	genpd_acquire_lock(genpd);
@@ -1445,7 +1434,6 @@ int __pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 		goto out;
 	}
 
-	gpd_data = gpd_data_new;
 	dev->power.subsys_data->domain_data = &gpd_data->base;
 
 	if (td)
@@ -1461,19 +1449,20 @@ int __pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 	genpd->device_count++;
 	genpd->max_off_time_changed = true;
 
-	mutex_lock(&gpd_data->lock);
 	gpd_data->base.dev = dev;
 	list_add_tail(&gpd_data->base.list_node, &genpd->dev_list);
 	gpd_data->need_restore = -1;
 	gpd_data->td.constraint_changed = true;
 	gpd_data->td.effective_constraint_ns = -1;
-	mutex_unlock(&gpd_data->lock);
+	gpd_data->nb.notifier_call = genpd_dev_pm_qos_notifier;
 
  out:
 	genpd_release_lock(genpd);
 
-	if (gpd_data != gpd_data_new)
-		genpd_free_dev_data(dev, gpd_data_new);
+	if (ret)
+		genpd_free_dev_data(dev, gpd_data);
+	else
+		dev_pm_qos_add_notifier(dev, &gpd_data->nb);
 
 	return ret;
 }
@@ -1509,6 +1498,11 @@ int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 	    ||  pd_to_genpd(dev->pm_domain) != genpd)
 		return -EINVAL;
 
+	/* The above validation also means we have existing domain_data. */
+	pdd = dev->power.subsys_data->domain_data;
+	gpd_data = to_gpd_data(pdd);
+	dev_pm_qos_remove_notifier(dev, &gpd_data->nb);
+
 	genpd_acquire_lock(genpd);
 
 	if (genpd->prepared_count > 0) {
@@ -1525,16 +1519,12 @@ int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 	spin_lock_irq(&dev->power.lock);
 
 	dev->pm_domain = NULL;
-	pdd = dev->power.subsys_data->domain_data;
 	list_del_init(&pdd->list_node);
-	gpd_data = to_gpd_data(pdd);
 	dev->power.subsys_data->domain_data = NULL;
 
 	spin_unlock_irq(&dev->power.lock);
 
-	mutex_lock(&gpd_data->lock);
 	pdd->dev = NULL;
-	mutex_unlock(&gpd_data->lock);
 
 	genpd_release_lock(genpd);
 
@@ -1545,6 +1535,7 @@ int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 
  out:
 	genpd_release_lock(genpd);
+	dev_pm_qos_add_notifier(dev, &gpd_data->nb);
 
 	return ret;
 }
