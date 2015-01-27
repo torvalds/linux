@@ -442,7 +442,10 @@ static int __init mipsxx_init(void)
 
 	if (perfcount_irq >= 0)
 		return request_irq(perfcount_irq, mipsxx_perfcount_int,
-			0, "Perfcounter", save_perf_irq);
+				   IRQF_PERCPU | IRQF_NOBALANCING |
+				   IRQF_NO_THREAD | IRQF_NO_SUSPEND |
+				   IRQF_SHARED,
+				   "Perfcounter", save_perf_irq);
 
 	return 0;
 }
