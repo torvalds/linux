@@ -209,7 +209,8 @@ void nfc_hci_cmd_received(struct nfc_hci_dev *hdev, u8 pipe, u8 cmd,
 
 		local_gate = skb->data[3];
 		new_pipe = skb->data[4];
-		nfc_hci_send_response(hdev, gate, NFC_HCI_ANY_OK, NULL, 0);
+		nfc_hci_hcp_message_tx(hdev, pipe, NFC_HCI_HCP_RESPONSE,
+				       NFC_HCI_ANY_OK, NULL, 0, NULL, NULL, 0);
 
 		/* save the new created pipe and bind with local gate,
 		 * the description for skb->data[3] is destination gate id
@@ -223,11 +224,14 @@ void nfc_hci_cmd_received(struct nfc_hci_dev *hdev, u8 pipe, u8 cmd,
 		 * open it
 		 */
 		if (gate != 0xff)
-			nfc_hci_send_response(hdev, gate, NFC_HCI_ANY_OK,
-					      &gate_opened, 1);
+			nfc_hci_hcp_message_tx(hdev, pipe, NFC_HCI_HCP_RESPONSE,
+					       NFC_HCI_ANY_OK, &gate_opened, 1,
+					       NULL, NULL, 0);
 		break;
 	case NFC_HCI_ADM_NOTIFY_ALL_PIPE_CLEARED:
-		nfc_hci_send_response(hdev, gate, NFC_HCI_ANY_OK, NULL, 0);
+		nfc_hci_hcp_message_tx(hdev, pipe, NFC_HCI_HCP_RESPONSE,
+				       NFC_HCI_ANY_OK, NULL, 0, NULL, NULL, 0);
+
 		break;
 	default:
 		pr_info("Discarded unknown cmd %x to gate %x\n", cmd, gate);

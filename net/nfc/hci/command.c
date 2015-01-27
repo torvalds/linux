@@ -116,23 +116,6 @@ int nfc_hci_send_event(struct nfc_hci_dev *hdev, u8 gate, u8 event,
 }
 EXPORT_SYMBOL(nfc_hci_send_event);
 
-int nfc_hci_send_response(struct nfc_hci_dev *hdev, u8 gate, u8 response,
-			  const u8 *param, size_t param_len)
-{
-	u8 pipe;
-
-	pr_debug("\n");
-
-	pipe = hdev->gate2pipe[gate];
-	if (pipe == NFC_HCI_INVALID_PIPE)
-		return -EADDRNOTAVAIL;
-
-	return nfc_hci_hcp_message_tx(hdev, pipe, NFC_HCI_HCP_RESPONSE,
-				      response, param, param_len, NULL, NULL,
-				      0);
-}
-EXPORT_SYMBOL(nfc_hci_send_response);
-
 /*
  * Execute an hci command sent to gate.
  * skb will contain response data if success. skb can be NULL if you are not
