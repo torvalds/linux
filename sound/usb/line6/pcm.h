@@ -54,109 +54,33 @@
 	However, from the device's point of view, there is just a single
 	capture and playback stream, which must be shared between these
 	subsystems. It is therefore necessary to maintain the state of the
-	subsystems with respect to PCM usage. We define several constants of
-	the form LINE6_BIT_PCM_<subsystem>_<direction>_<resource> with the
-	following meanings:
-	*) <subsystem> is one of
-	-) ALSA: PCM playback and capture via ALSA
-	-) MONITOR: software monitoring
-	-) IMPULSE: optional impulse response measurement
-	*) <direction> is one of
-	-) PLAYBACK: audio output (from host to device)
-	-) CAPTURE: audio input (from device to host)
-	*) <resource> is one of
-	-) BUFFER: buffer required by PCM data stream
-	-) STREAM: actual PCM data stream
+	subsystems with respect to PCM usage.
 
-	The subsystems call line6_pcm_acquire() to acquire the (shared)
-	resources needed for a particular operation (e.g., allocate the buffer
-	for ALSA playback or start the capture stream for software monitoring).
-	When a resource is no longer needed, it is released by calling
-	line6_pcm_release(). Buffer allocation and stream startup are handled
-	separately to allow the ALSA kernel driver to perform them at
-	appropriate places (since the callback which starts a PCM stream is not
-	allowed to sleep).
+	We define two bit flags, "opened" and "running", for each playback
+	or capture stream.  Both can contain the bit flag corresponding to
+	LINE6_STREAM_* type,
+	  LINE6_STREAM_PCM = ALSA PCM playback or capture
+	  LINE6_STREAM_MONITOR = software monitoring
+	  IMPULSE = optional impulse response measurement
+	The opened flag indicates whether the buffer is allocated while
+	the running flag indicates whether the stream is running.
+
+	For monitor or impulse operations, the driver needs to call
+	snd_line6_duplex_acquire() or snd_line6_duplex_release() with the
+	appropriate LINE6_STREAM_* flag.
 */
+
+/* stream types */
 enum {
-	/* individual bit indices: */
-	LINE6_INDEX_PCM_ALSA_PLAYBACK_BUFFER,
-	LINE6_INDEX_PCM_ALSA_PLAYBACK_STREAM,
-	LINE6_INDEX_PCM_ALSA_CAPTURE_BUFFER,
-	LINE6_INDEX_PCM_ALSA_CAPTURE_STREAM,
-	LINE6_INDEX_PCM_MONITOR_PLAYBACK_BUFFER,
-	LINE6_INDEX_PCM_MONITOR_PLAYBACK_STREAM,
-	LINE6_INDEX_PCM_MONITOR_CAPTURE_BUFFER,
-	LINE6_INDEX_PCM_MONITOR_CAPTURE_STREAM,
-	LINE6_INDEX_PCM_IMPULSE_PLAYBACK_BUFFER,
-	LINE6_INDEX_PCM_IMPULSE_PLAYBACK_STREAM,
-	LINE6_INDEX_PCM_IMPULSE_CAPTURE_BUFFER,
-	LINE6_INDEX_PCM_IMPULSE_CAPTURE_STREAM,
-	LINE6_INDEX_PAUSE_PLAYBACK,
-	LINE6_INDEX_PREPARED,
+	LINE6_STREAM_PCM,
+	LINE6_STREAM_MONITOR,
+	LINE6_STREAM_IMPULSE,
+};
 
-#define LINE6_BIT(x) LINE6_BIT_ ## x = 1 << LINE6_INDEX_ ## x
-
-	/* individual bit masks: */
-	LINE6_BIT(PCM_ALSA_PLAYBACK_BUFFER),
-	LINE6_BIT(PCM_ALSA_PLAYBACK_STREAM),
-	LINE6_BIT(PCM_ALSA_CAPTURE_BUFFER),
-	LINE6_BIT(PCM_ALSA_CAPTURE_STREAM),
-	LINE6_BIT(PCM_MONITOR_PLAYBACK_BUFFER),
-	LINE6_BIT(PCM_MONITOR_PLAYBACK_STREAM),
-	LINE6_BIT(PCM_MONITOR_CAPTURE_BUFFER),
-	LINE6_BIT(PCM_MONITOR_CAPTURE_STREAM),
-	LINE6_BIT(PCM_IMPULSE_PLAYBACK_BUFFER),
-	LINE6_BIT(PCM_IMPULSE_PLAYBACK_STREAM),
-	LINE6_BIT(PCM_IMPULSE_CAPTURE_BUFFER),
-	LINE6_BIT(PCM_IMPULSE_CAPTURE_STREAM),
-	LINE6_BIT(PAUSE_PLAYBACK),
-	LINE6_BIT(PREPARED),
-
-	/* combined bit masks (by operation): */
-	LINE6_BITS_PCM_ALSA_BUFFER =
-	    LINE6_BIT_PCM_ALSA_PLAYBACK_BUFFER |
-	    LINE6_BIT_PCM_ALSA_CAPTURE_BUFFER,
-
-	LINE6_BITS_PCM_ALSA_STREAM =
-	    LINE6_BIT_PCM_ALSA_PLAYBACK_STREAM |
-	    LINE6_BIT_PCM_ALSA_CAPTURE_STREAM,
-
-	LINE6_BITS_PCM_MONITOR =
-	    LINE6_BIT_PCM_MONITOR_PLAYBACK_BUFFER |
-	    LINE6_BIT_PCM_MONITOR_PLAYBACK_STREAM |
-	    LINE6_BIT_PCM_MONITOR_CAPTURE_BUFFER |
-	    LINE6_BIT_PCM_MONITOR_CAPTURE_STREAM,
-
-	LINE6_BITS_PCM_IMPULSE =
-	    LINE6_BIT_PCM_IMPULSE_PLAYBACK_BUFFER |
-	    LINE6_BIT_PCM_IMPULSE_PLAYBACK_STREAM |
-	    LINE6_BIT_PCM_IMPULSE_CAPTURE_BUFFER |
-	    LINE6_BIT_PCM_IMPULSE_CAPTURE_STREAM,
-
-	/* combined bit masks (by direction): */
-	LINE6_BITS_PLAYBACK_BUFFER =
-	    LINE6_BIT_PCM_IMPULSE_PLAYBACK_BUFFER |
-	    LINE6_BIT_PCM_ALSA_PLAYBACK_BUFFER |
-	    LINE6_BIT_PCM_MONITOR_PLAYBACK_BUFFER,
-
-	LINE6_BITS_PLAYBACK_STREAM =
-	    LINE6_BIT_PCM_IMPULSE_PLAYBACK_STREAM |
-	    LINE6_BIT_PCM_ALSA_PLAYBACK_STREAM |
-	    LINE6_BIT_PCM_MONITOR_PLAYBACK_STREAM,
-
-	LINE6_BITS_CAPTURE_BUFFER =
-	    LINE6_BIT_PCM_IMPULSE_CAPTURE_BUFFER |
-	    LINE6_BIT_PCM_ALSA_CAPTURE_BUFFER |
-	    LINE6_BIT_PCM_MONITOR_CAPTURE_BUFFER,
-
-	LINE6_BITS_CAPTURE_STREAM =
-	    LINE6_BIT_PCM_IMPULSE_CAPTURE_STREAM |
-	    LINE6_BIT_PCM_ALSA_CAPTURE_STREAM |
-	    LINE6_BIT_PCM_MONITOR_CAPTURE_STREAM,
-
-	LINE6_BITS_STREAM =
-	    LINE6_BITS_PLAYBACK_STREAM |
-	    LINE6_BITS_CAPTURE_STREAM
+/* misc bit flags for PCM operation */
+enum {
+	LINE6_FLAG_PAUSE_PLAYBACK,
+	LINE6_FLAG_PREPARED,
 };
 
 struct line6_pcm_properties {
@@ -205,6 +129,12 @@ struct line6_pcm_stream {
 	 */
 	spinlock_t lock;
 
+	/* Bit flags for operational stream types */
+	unsigned long opened;
+
+	/* Bit flags for running stream types */
+	unsigned long running;
+
 	int last_frame;
 };
 
@@ -223,6 +153,9 @@ struct snd_line6_pcm {
 		 ALSA pcm stream
 	*/
 	struct snd_pcm *pcm;
+
+	/* protection to state changes of in/out streams */
+	struct mutex state_mutex;
 
 	/* Capture and playback streams */
 	struct line6_pcm_stream in;
@@ -269,7 +202,7 @@ struct snd_line6_pcm {
 	int impulse_count;
 
 	/**
-		 Several status bits (see LINE6_BIT_*).
+		 Several status bits (see LINE6_FLAG_*).
 	*/
 	unsigned long flags;
 };
@@ -278,8 +211,11 @@ extern int line6_init_pcm(struct usb_line6 *line6,
 			  struct line6_pcm_properties *properties);
 extern int snd_line6_trigger(struct snd_pcm_substream *substream, int cmd);
 extern int snd_line6_prepare(struct snd_pcm_substream *substream);
+extern int snd_line6_hw_params(struct snd_pcm_substream *substream,
+			       struct snd_pcm_hw_params *hw_params);
+extern int snd_line6_hw_free(struct snd_pcm_substream *substream);
 extern void line6_pcm_disconnect(struct snd_line6_pcm *line6pcm);
-extern int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int channels);
-extern int line6_pcm_release(struct snd_line6_pcm *line6pcm, int channels);
+extern int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int type);
+extern void line6_pcm_release(struct snd_line6_pcm *line6pcm, int type);
 
 #endif

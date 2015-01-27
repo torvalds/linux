@@ -51,9 +51,9 @@ static int snd_line6_impulse_volume_put(struct snd_kcontrol *kcontrol,
 
 	line6pcm->impulse_volume = value;
 	if (value > 0)
-		line6_pcm_acquire(line6pcm, LINE6_BITS_PCM_IMPULSE);
+		line6_pcm_acquire(line6pcm, LINE6_STREAM_IMPULSE);
 	else
-		line6_pcm_release(line6pcm, LINE6_BITS_PCM_IMPULSE);
+		line6_pcm_release(line6pcm, LINE6_STREAM_IMPULSE);
 	return 1;
 }
 
@@ -132,175 +132,225 @@ static void line6_wait_clear_audio_urbs(struct snd_line6_pcm *line6pcm,
 			"timeout: still %d active urbs..\n", alive);
 }
 
-static int line6_alloc_stream_buffer(struct snd_line6_pcm *line6pcm,
-				     struct line6_pcm_stream *pcms)
+static inline struct line6_pcm_stream *
+get_stream(struct snd_line6_pcm *line6pcm, int direction)
+{
+	return (direction == SNDRV_PCM_STREAM_PLAYBACK) ?
+		&line6pcm->out : &line6pcm->in;
+}
+
+/* allocate a buffer if not opened yet;
+ * call this in line6pcm.state_change mutex
+ */
+static int line6_buffer_acquire(struct snd_line6_pcm *line6pcm,
+				struct line6_pcm_stream *pstr, int type)
 {
 	/* Invoked multiple times in a row so allocate once only */
-	if (pcms->buffer)
-		return 0;
-
-	pcms->buffer = kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS *
-			       line6pcm->max_packet_size, GFP_KERNEL);
-	if (!pcms->buffer)
-		return -ENOMEM;
+	if (!test_and_set_bit(type, &pstr->opened) && !pstr->buffer) {
+		pstr->buffer = kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS *
+				       line6pcm->max_packet_size, GFP_KERNEL);
+		if (!pstr->buffer)
+			return -ENOMEM;
+	}
 	return 0;
 }
 
-static void line6_free_stream_buffer(struct snd_line6_pcm *line6pcm,
-				     struct line6_pcm_stream *pcms)
+/* free a buffer if all streams are closed;
+ * call this in line6pcm.state_change mutex
+ */
+static void line6_buffer_release(struct snd_line6_pcm *line6pcm,
+				 struct line6_pcm_stream *pstr, int type)
 {
-	kfree(pcms->buffer);
-	pcms->buffer = NULL;
-}
 
-static bool test_flags(unsigned long flags0, unsigned long flags1,
-		       unsigned long mask)
-{
-	return ((flags0 & mask) == 0) && ((flags1 & mask) != 0);
-}
-
-int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int channels)
-{
-	unsigned long flags_old, flags_new, flags_final;
-	int err;
-
-	do {
-		flags_old = ACCESS_ONCE(line6pcm->flags);
-		flags_new = flags_old | channels;
-	} while (cmpxchg(&line6pcm->flags, flags_old, flags_new) != flags_old);
-
-	flags_final = 0;
-
-	if (test_flags(flags_old, flags_new, LINE6_BITS_CAPTURE_BUFFER)) {
-		err = line6_alloc_stream_buffer(line6pcm, &line6pcm->in);
-		if (err < 0)
-			goto pcm_acquire_error;
-		flags_final |= channels & LINE6_BITS_CAPTURE_BUFFER;
+	clear_bit(type, &pstr->opened);
+	if (!pstr->opened) {
+		line6_wait_clear_audio_urbs(line6pcm, pstr);
+		kfree(pstr->buffer);
+		pstr->buffer = NULL;
 	}
+}
 
-	if (test_flags(flags_old, flags_new, LINE6_BITS_CAPTURE_STREAM)) {
-		/*
-		   Waiting for completion of active URBs in the stop handler is
-		   a bug, we therefore report an error if capturing is restarted
-		   too soon.
-		 */
-		if (line6pcm->in.active_urbs || line6pcm->in.unlink_urbs) {
-			dev_err(line6pcm->line6->ifcdev, "Device not yet ready\n");
-			err = -EBUSY;
-			goto pcm_acquire_error;
+/* start a PCM stream */
+static int line6_stream_start(struct snd_line6_pcm *line6pcm, int direction,
+			      int type)
+{
+	unsigned long flags;
+	struct line6_pcm_stream *pstr = get_stream(line6pcm, direction);
+	int ret = 0;
+
+	spin_lock_irqsave(&pstr->lock, flags);
+	if (!test_and_set_bit(type, &pstr->running)) {
+		if (pstr->active_urbs || pstr->unlink_urbs) {
+			ret = -EBUSY;
+			goto error;
 		}
 
-		line6pcm->in.count = 0;
-		err = line6_submit_audio_in_all_urbs(line6pcm);
-
-		if (err < 0)
-			goto pcm_acquire_error;
-
-		flags_final |= channels & LINE6_BITS_CAPTURE_STREAM;
+		pstr->count = 0;
+		/* Submit all currently available URBs */
+		if (direction == SNDRV_PCM_STREAM_PLAYBACK)
+			ret = line6_submit_audio_out_all_urbs(line6pcm);
+		else
+			ret = line6_submit_audio_in_all_urbs(line6pcm);
 	}
-
-	if (test_flags(flags_old, flags_new, LINE6_BITS_PLAYBACK_BUFFER)) {
-		err = line6_alloc_stream_buffer(line6pcm, &line6pcm->out);
-		if (err < 0)
-			goto pcm_acquire_error;
-		flags_final |= channels & LINE6_BITS_PLAYBACK_BUFFER;
-	}
-
-	if (test_flags(flags_old, flags_new, LINE6_BITS_PLAYBACK_STREAM)) {
-		/*
-		  See comment above regarding PCM restart.
-		*/
-		if (line6pcm->out.active_urbs || line6pcm->out.unlink_urbs) {
-			dev_err(line6pcm->line6->ifcdev, "Device not yet ready\n");
-			return -EBUSY;
-		}
-
-		line6pcm->out.count = 0;
-		err = line6_submit_audio_out_all_urbs(line6pcm);
-
-		if (err < 0)
-			goto pcm_acquire_error;
-
-		flags_final |= channels & LINE6_BITS_PLAYBACK_STREAM;
-	}
-
-	return 0;
-
-pcm_acquire_error:
-	/*
-	   If not all requested resources/streams could be obtained, release
-	   those which were successfully obtained (if any).
-	*/
-	line6_pcm_release(line6pcm, flags_final);
-	return err;
+ error:
+	if (ret < 0)
+		clear_bit(type, &pstr->running);
+	spin_unlock_irqrestore(&pstr->lock, flags);
+	return ret;
 }
-EXPORT_SYMBOL_GPL(line6_pcm_acquire);
 
-int line6_pcm_release(struct snd_line6_pcm *line6pcm, int channels)
+/* stop a PCM stream; this doesn't sync with the unlinked URBs */
+static void line6_stream_stop(struct snd_line6_pcm *line6pcm, int direction,
+			  int type)
 {
-	unsigned long flags_old, flags_new;
+	unsigned long flags;
+	struct line6_pcm_stream *pstr = get_stream(line6pcm, direction);
 
-	do {
-		flags_old = ACCESS_ONCE(line6pcm->flags);
-		flags_new = flags_old & ~channels;
-	} while (cmpxchg(&line6pcm->flags, flags_old, flags_new) != flags_old);
-
-	if (test_flags(flags_new, flags_old, LINE6_BITS_CAPTURE_STREAM)) {
-		line6_unlink_audio_urbs(line6pcm, &line6pcm->in);
-		line6pcm->prev_fbuf = NULL;
-		line6pcm->prev_fsize = 0;
+	spin_lock_irqsave(&pstr->lock, flags);
+	clear_bit(type, &pstr->running);
+	if (!pstr->running) {
+		line6_unlink_audio_urbs(line6pcm, pstr);
+		if (direction == SNDRV_PCM_STREAM_CAPTURE) {
+			line6pcm->prev_fbuf = NULL;
+			line6pcm->prev_fsize = 0;
+		}
 	}
-
-	if (test_flags(flags_new, flags_old, LINE6_BITS_CAPTURE_BUFFER)) {
-		line6_wait_clear_audio_urbs(line6pcm, &line6pcm->in);
-		line6_free_stream_buffer(line6pcm, &line6pcm->in);
-	}
-
-	if (test_flags(flags_new, flags_old, LINE6_BITS_PLAYBACK_STREAM))
-		line6_unlink_audio_urbs(line6pcm, &line6pcm->out);
-
-	if (test_flags(flags_new, flags_old, LINE6_BITS_PLAYBACK_BUFFER)) {
-		line6_wait_clear_audio_urbs(line6pcm, &line6pcm->out);
-		line6_free_stream_buffer(line6pcm, &line6pcm->out);
-	}
-
-	return 0;
+	spin_unlock_irqrestore(&pstr->lock, flags);
 }
-EXPORT_SYMBOL_GPL(line6_pcm_release);
 
-/* trigger callback */
+/* common PCM trigger callback */
 int snd_line6_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
 	struct snd_pcm_substream *s;
-	int err = 0;
+	int err;
 
-	clear_bit(LINE6_INDEX_PREPARED, &line6pcm->flags);
+	clear_bit(LINE6_FLAG_PREPARED, &line6pcm->flags);
 
 	snd_pcm_group_for_each_entry(s, substream) {
 		if (s->pcm->card != substream->pcm->card)
 			continue;
-		switch (s->stream) {
-		case SNDRV_PCM_STREAM_PLAYBACK:
-			err = snd_line6_playback_trigger(line6pcm, cmd);
+
+		switch (cmd) {
+		case SNDRV_PCM_TRIGGER_START:
+		case SNDRV_PCM_TRIGGER_RESUME:
+			err = line6_stream_start(line6pcm, s->stream,
+						 LINE6_STREAM_PCM);
+			if (err < 0)
+				return err;
 			break;
 
-		case SNDRV_PCM_STREAM_CAPTURE:
-			err = snd_line6_capture_trigger(line6pcm, cmd);
+		case SNDRV_PCM_TRIGGER_STOP:
+		case SNDRV_PCM_TRIGGER_SUSPEND:
+			line6_stream_stop(line6pcm, s->stream,
+					  LINE6_STREAM_PCM);
+			break;
+
+		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+			if (s->stream != SNDRV_PCM_STREAM_PLAYBACK)
+				return -EINVAL;
+			set_bit(LINE6_FLAG_PAUSE_PLAYBACK, &line6pcm->flags);
+			break;
+
+		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+			if (s->stream != SNDRV_PCM_STREAM_PLAYBACK)
+				return -EINVAL;
+			clear_bit(LINE6_FLAG_PAUSE_PLAYBACK, &line6pcm->flags);
 			break;
 
 		default:
-			dev_err(line6pcm->line6->ifcdev,
-				"Unknown stream direction %d\n", s->stream);
-			err = -EINVAL;
-			break;
+			return -EINVAL;
 		}
-		if (err < 0)
-			break;
 	}
 
-	return err;
+	return 0;
 }
+
+/* Acquire and start duplex streams:
+ * type is either LINE6_STREAM_IMPULSE or LINE6_STREAM_MONITOR
+ */
+int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int type)
+{
+	struct line6_pcm_stream *pstr;
+	int ret = 0, dir;
+
+	mutex_lock(&line6pcm->state_mutex);
+	for (dir = 0; dir < 2; dir++) {
+		pstr = get_stream(line6pcm, dir);
+		ret = line6_buffer_acquire(line6pcm, pstr, type);
+		if (ret < 0)
+			goto error;
+		if (!pstr->running)
+			line6_wait_clear_audio_urbs(line6pcm, pstr);
+	}
+	for (dir = 0; dir < 2; dir++) {
+		ret = line6_stream_start(line6pcm, dir, type);
+		if (ret < 0)
+			goto error;
+	}
+ error:
+	mutex_unlock(&line6pcm->state_mutex);
+	if (ret < 0)
+		line6_pcm_release(line6pcm, type);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(line6_pcm_acquire);
+
+/* Stop and release duplex streams */
+void line6_pcm_release(struct snd_line6_pcm *line6pcm, int type)
+{
+	struct line6_pcm_stream *pstr;
+	int dir;
+
+	mutex_lock(&line6pcm->state_mutex);
+	for (dir = 0; dir < 2; dir++)
+		line6_stream_stop(line6pcm, dir, type);
+	for (dir = 0; dir < 2; dir++) {
+		pstr = get_stream(line6pcm, dir);
+		line6_buffer_release(line6pcm, pstr, type);
+	}
+	mutex_unlock(&line6pcm->state_mutex);
+}
+EXPORT_SYMBOL_GPL(line6_pcm_release);
+
+/* common PCM hw_params callback */
+int snd_line6_hw_params(struct snd_pcm_substream *substream,
+			struct snd_pcm_hw_params *hw_params)
+{
+	int ret;
+	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
+	struct line6_pcm_stream *pstr = get_stream(line6pcm, substream->stream);
+
+	mutex_lock(&line6pcm->state_mutex);
+	ret = line6_buffer_acquire(line6pcm, pstr, LINE6_STREAM_PCM);
+	if (ret < 0)
+		goto error;
+
+	ret = snd_pcm_lib_malloc_pages(substream,
+				       params_buffer_bytes(hw_params));
+	if (ret < 0) {
+		line6_buffer_release(line6pcm, pstr, LINE6_STREAM_PCM);
+		goto error;
+	}
+
+	pstr->period = params_period_bytes(hw_params);
+ error:
+	mutex_unlock(&line6pcm->state_mutex);
+	return ret;
+}
+
+/* common PCM hw_free callback */
+int snd_line6_hw_free(struct snd_pcm_substream *substream)
+{
+	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
+	struct line6_pcm_stream *pstr = get_stream(line6pcm, substream->stream);
+
+	mutex_lock(&line6pcm->state_mutex);
+	line6_buffer_release(line6pcm, pstr, LINE6_STREAM_PCM);
+	mutex_unlock(&line6pcm->state_mutex);
+	return snd_pcm_lib_free_pages(substream);
+}
+
 
 /* control info callback */
 static int snd_line6_control_playback_info(struct snd_kcontrol *kcontrol,
@@ -454,6 +504,7 @@ int line6_init_pcm(struct usb_line6 *line6,
 	if (!line6pcm)
 		return -ENOMEM;
 
+	mutex_init(&line6pcm->state_mutex);
 	line6pcm->pcm = pcm;
 	line6pcm->properties = properties;
 	line6pcm->volume_playback[0] = line6pcm->volume_playback[1] = 255;
@@ -500,24 +551,13 @@ EXPORT_SYMBOL_GPL(line6_init_pcm);
 int snd_line6_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
+	struct line6_pcm_stream *pstr = get_stream(line6pcm, substream->stream);
 
-	switch (substream->stream) {
-	case SNDRV_PCM_STREAM_PLAYBACK:
-		if ((line6pcm->flags & LINE6_BITS_PLAYBACK_STREAM) == 0) {
-			line6_unlink_audio_urbs(line6pcm, &line6pcm->out);
-			line6_wait_clear_audio_urbs(line6pcm, &line6pcm->out);
-		}
-		break;
+	mutex_lock(&line6pcm->state_mutex);
+	if (!pstr->running)
+		line6_wait_clear_audio_urbs(line6pcm, pstr);
 
-	case SNDRV_PCM_STREAM_CAPTURE:
-		if ((line6pcm->flags & LINE6_BITS_CAPTURE_STREAM) == 0) {
-			line6_unlink_audio_urbs(line6pcm, &line6pcm->in);
-			line6_wait_clear_audio_urbs(line6pcm, &line6pcm->in);
-		}
-		break;
-	}
-
-	if (!test_and_set_bit(LINE6_INDEX_PREPARED, &line6pcm->flags)) {
+	if (!test_and_set_bit(LINE6_FLAG_PREPARED, &line6pcm->flags)) {
 		line6pcm->out.count = 0;
 		line6pcm->out.pos = 0;
 		line6pcm->out.pos_done = 0;
@@ -527,5 +567,6 @@ int snd_line6_prepare(struct snd_pcm_substream *substream)
 		line6pcm->in.bytes = 0;
 	}
 
+	mutex_unlock(&line6pcm->state_mutex);
 	return 0;
 }

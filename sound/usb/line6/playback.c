@@ -194,8 +194,8 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 	urb_out->transfer_buffer_length = urb_size;
 	urb_out->context = line6pcm;
 
-	if (test_bit(LINE6_INDEX_PCM_ALSA_PLAYBACK_STREAM, &line6pcm->flags) &&
-	    !test_bit(LINE6_INDEX_PAUSE_PLAYBACK, &line6pcm->flags)) {
+	if (test_bit(LINE6_STREAM_PCM, &line6pcm->out.running) &&
+	    !test_bit(LINE6_FLAG_PAUSE_PLAYBACK, &line6pcm->flags)) {
 		struct snd_pcm_runtime *runtime =
 		    get_substream(line6pcm, SNDRV_PCM_STREAM_PLAYBACK)->runtime;
 
@@ -239,11 +239,10 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 
 	spin_lock_nested(&line6pcm->in.lock, SINGLE_DEPTH_NESTING);
 	if (line6pcm->prev_fbuf) {
-		if (line6pcm->flags & LINE6_BITS_PCM_IMPULSE) {
+		if (test_bit(LINE6_STREAM_IMPULSE, &line6pcm->out.running)) {
 			create_impulse_test_signal(line6pcm, urb_out,
 						   bytes_per_frame);
-			if (line6pcm->flags &
-			    LINE6_BIT_PCM_ALSA_CAPTURE_STREAM) {
+			if (test_bit(LINE6_STREAM_PCM, &line6pcm->in.running)) {
 				line6_capture_copy(line6pcm,
 						   urb_out->transfer_buffer,
 						   urb_out->
@@ -252,11 +251,8 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 					urb_out->transfer_buffer_length);
 			}
 		} else {
-			if (!
-			    (line6pcm->line6->
-			     properties->capabilities & LINE6_CAP_HWMON)
-			    && (line6pcm->flags & LINE6_BITS_PLAYBACK_STREAM)
-			    && (line6pcm->flags & LINE6_BITS_CAPTURE_STREAM))
+			if (!(line6pcm->line6->properties->capabilities & LINE6_CAP_HWMON)
+			    && line6pcm->out.running && line6pcm->in.running)
 				add_monitor_signal(urb_out, line6pcm->prev_fbuf,
 						   line6pcm->volume_monitor,
 						   bytes_per_frame);
@@ -279,20 +275,18 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 
 /*
 	Submit all currently available playback URBs.
-*/
+	must be called in line6pcm->out.lock context
+ */
 int line6_submit_audio_out_all_urbs(struct snd_line6_pcm *line6pcm)
 {
-	unsigned long flags;
 	int ret = 0, i;
 
-	spin_lock_irqsave(&line6pcm->out.lock, flags);
 	for (i = 0; i < LINE6_ISO_BUFFERS; ++i) {
 		ret = submit_audio_out_urb(line6pcm);
 		if (ret < 0)
 			break;
 	}
 
-	spin_unlock_irqrestore(&line6pcm->out.lock, flags);
 	return ret;
 }
 
@@ -326,7 +320,7 @@ static void audio_out_callback(struct urb *urb)
 
 	spin_lock_irqsave(&line6pcm->out.lock, flags);
 
-	if (test_bit(LINE6_INDEX_PCM_ALSA_PLAYBACK_STREAM, &line6pcm->flags)) {
+	if (test_bit(LINE6_STREAM_PCM, &line6pcm->out.running)) {
 		struct snd_pcm_runtime *runtime = substream->runtime;
 
 		line6pcm->out.pos_done +=
@@ -350,8 +344,7 @@ static void audio_out_callback(struct urb *urb)
 	if (!shutdown) {
 		submit_audio_out_urb(line6pcm);
 
-		if (test_bit(LINE6_INDEX_PCM_ALSA_PLAYBACK_STREAM,
-			     &line6pcm->flags)) {
+		if (test_bit(LINE6_STREAM_PCM, &line6pcm->out.running)) {
 			line6pcm->out.bytes += length;
 			if (line6pcm->out.bytes >= line6pcm->out.period) {
 				line6pcm->out.bytes %= line6pcm->out.period;
@@ -387,79 +380,6 @@ static int snd_line6_playback_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-/* hw_params playback callback */
-static int snd_line6_playback_hw_params(struct snd_pcm_substream *substream,
-					struct snd_pcm_hw_params *hw_params)
-{
-	int ret;
-	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
-
-	ret = line6_pcm_acquire(line6pcm, LINE6_BIT_PCM_ALSA_PLAYBACK_BUFFER);
-
-	if (ret < 0)
-		return ret;
-
-	ret = snd_pcm_lib_malloc_pages(substream,
-				       params_buffer_bytes(hw_params));
-	if (ret < 0) {
-		line6_pcm_release(line6pcm, LINE6_BIT_PCM_ALSA_PLAYBACK_BUFFER);
-		return ret;
-	}
-
-	line6pcm->out.period = params_period_bytes(hw_params);
-	return 0;
-}
-
-/* hw_free playback callback */
-static int snd_line6_playback_hw_free(struct snd_pcm_substream *substream)
-{
-	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
-
-	line6_pcm_release(line6pcm, LINE6_BIT_PCM_ALSA_PLAYBACK_BUFFER);
-	return snd_pcm_lib_free_pages(substream);
-}
-
-/* trigger playback callback */
-int snd_line6_playback_trigger(struct snd_line6_pcm *line6pcm, int cmd)
-{
-	int err;
-
-	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_START:
-	case SNDRV_PCM_TRIGGER_RESUME:
-		err = line6_pcm_acquire(line6pcm,
-					LINE6_BIT_PCM_ALSA_PLAYBACK_STREAM);
-
-		if (err < 0)
-			return err;
-
-		break;
-
-	case SNDRV_PCM_TRIGGER_STOP:
-	case SNDRV_PCM_TRIGGER_SUSPEND:
-		err = line6_pcm_release(line6pcm,
-					LINE6_BIT_PCM_ALSA_PLAYBACK_STREAM);
-
-		if (err < 0)
-			return err;
-
-		break;
-
-	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		set_bit(LINE6_INDEX_PAUSE_PLAYBACK, &line6pcm->flags);
-		break;
-
-	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		clear_bit(LINE6_INDEX_PAUSE_PLAYBACK, &line6pcm->flags);
-		break;
-
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 /* playback pointer callback */
 static snd_pcm_uframes_t
 snd_line6_playback_pointer(struct snd_pcm_substream *substream)
@@ -474,8 +394,8 @@ struct snd_pcm_ops snd_line6_playback_ops = {
 	.open = snd_line6_playback_open,
 	.close = snd_line6_playback_close,
 	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = snd_line6_playback_hw_params,
-	.hw_free = snd_line6_playback_hw_free,
+	.hw_params = snd_line6_hw_params,
+	.hw_free = snd_line6_hw_free,
 	.prepare = snd_line6_prepare,
 	.trigger = snd_line6_trigger,
 	.pointer = snd_line6_playback_pointer,

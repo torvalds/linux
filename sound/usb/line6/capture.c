@@ -67,20 +67,18 @@ static int submit_audio_in_urb(struct snd_line6_pcm *line6pcm)
 
 /*
 	Submit all currently available capture URBs.
+	must be called in line6pcm->in.lock context
 */
 int line6_submit_audio_in_all_urbs(struct snd_line6_pcm *line6pcm)
 {
-	unsigned long flags;
 	int ret = 0, i;
 
-	spin_lock_irqsave(&line6pcm->in.lock, flags);
 	for (i = 0; i < LINE6_ISO_BUFFERS; ++i) {
 		ret = submit_audio_in_urb(line6pcm);
 		if (ret < 0)
 			break;
 	}
 
-	spin_unlock_irqrestore(&line6pcm->in.lock, flags);
 	return ret;
 }
 
@@ -187,10 +185,10 @@ static void audio_in_callback(struct urb *urb)
 		line6pcm->prev_fbuf = fbuf;
 		line6pcm->prev_fsize = fsize;
 
-		if (!(line6pcm->flags & LINE6_BITS_PCM_IMPULSE))
-			if (test_bit(LINE6_INDEX_PCM_ALSA_CAPTURE_STREAM,
-				     &line6pcm->flags) && (fsize > 0))
-				line6_capture_copy(line6pcm, fbuf, fsize);
+		if (!test_bit(LINE6_STREAM_IMPULSE, &line6pcm->in.running) &&
+		    test_bit(LINE6_STREAM_PCM, &line6pcm->in.running) &&
+		    fsize > 0)
+			line6_capture_copy(line6pcm, fbuf, fsize);
 	}
 
 	clear_bit(index, &line6pcm->in.active_urbs);
@@ -201,10 +199,9 @@ static void audio_in_callback(struct urb *urb)
 	if (!shutdown) {
 		submit_audio_in_urb(line6pcm);
 
-		if (!(line6pcm->flags & LINE6_BITS_PCM_IMPULSE))
-			if (test_bit(LINE6_INDEX_PCM_ALSA_CAPTURE_STREAM,
-				     &line6pcm->flags))
-				line6_capture_check_period(line6pcm, length);
+		if (!test_bit(LINE6_STREAM_IMPULSE, &line6pcm->in.running) &&
+		    test_bit(LINE6_STREAM_PCM, &line6pcm->in.running))
+			line6_capture_check_period(line6pcm, length);
 	}
 
 	spin_unlock_irqrestore(&line6pcm->in.lock, flags);
@@ -234,71 +231,6 @@ static int snd_line6_capture_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-/* hw_params capture callback */
-static int snd_line6_capture_hw_params(struct snd_pcm_substream *substream,
-				       struct snd_pcm_hw_params *hw_params)
-{
-	int ret;
-	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
-
-	ret = line6_pcm_acquire(line6pcm, LINE6_BIT_PCM_ALSA_CAPTURE_BUFFER);
-
-	if (ret < 0)
-		return ret;
-
-	ret = snd_pcm_lib_malloc_pages(substream,
-				       params_buffer_bytes(hw_params));
-	if (ret < 0) {
-		line6_pcm_release(line6pcm, LINE6_BIT_PCM_ALSA_CAPTURE_BUFFER);
-		return ret;
-	}
-
-	line6pcm->in.period = params_period_bytes(hw_params);
-	return 0;
-}
-
-/* hw_free capture callback */
-static int snd_line6_capture_hw_free(struct snd_pcm_substream *substream)
-{
-	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
-
-	line6_pcm_release(line6pcm, LINE6_BIT_PCM_ALSA_CAPTURE_BUFFER);
-	return snd_pcm_lib_free_pages(substream);
-}
-
-/* trigger callback */
-int snd_line6_capture_trigger(struct snd_line6_pcm *line6pcm, int cmd)
-{
-	int err;
-
-	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_START:
-	case SNDRV_PCM_TRIGGER_RESUME:
-		err = line6_pcm_acquire(line6pcm,
-					LINE6_BIT_PCM_ALSA_CAPTURE_STREAM);
-
-		if (err < 0)
-			return err;
-
-		break;
-
-	case SNDRV_PCM_TRIGGER_STOP:
-	case SNDRV_PCM_TRIGGER_SUSPEND:
-		err = line6_pcm_release(line6pcm,
-					LINE6_BIT_PCM_ALSA_CAPTURE_STREAM);
-
-		if (err < 0)
-			return err;
-
-		break;
-
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 /* capture pointer callback */
 static snd_pcm_uframes_t
 snd_line6_capture_pointer(struct snd_pcm_substream *substream)
@@ -313,8 +245,8 @@ struct snd_pcm_ops snd_line6_capture_ops = {
 	.open = snd_line6_capture_open,
 	.close = snd_line6_capture_close,
 	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = snd_line6_capture_hw_params,
-	.hw_free = snd_line6_capture_hw_free,
+	.hw_params = snd_line6_hw_params,
+	.hw_free = snd_line6_hw_free,
 	.prepare = snd_line6_prepare,
 	.trigger = snd_line6_trigger,
 	.pointer = snd_line6_capture_pointer,
