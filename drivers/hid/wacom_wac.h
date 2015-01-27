@@ -13,7 +13,7 @@
 #include <linux/hid.h>
 
 /* maximum packet length for USB devices */
-#define WACOM_PKGLEN_MAX	68
+#define WACOM_PKGLEN_MAX	192
 
 #define WACOM_NAME_MAX		64
 
@@ -37,6 +37,7 @@
 /* wacom data size per MT contact */
 #define WACOM_BYTES_PER_MT_PACKET	11
 #define WACOM_BYTES_PER_24HDT_PACKET	14
+#define WACOM_BYTES_PER_QHDTHID_PACKET	 6
 
 /* device IDs */
 #define STYLUS_DEVICE_ID	0x02
@@ -58,6 +59,8 @@
 #define WACOM_REPORT_TPCMT		13
 #define WACOM_REPORT_TPCMT2		3
 #define WACOM_REPORT_TPCHID		15
+#define WACOM_REPORT_CINTIQ		16
+#define WACOM_REPORT_CINTIQPAD		17
 #define WACOM_REPORT_TPCST		16
 #define WACOM_REPORT_DTUS		17
 #define WACOM_REPORT_TPC1FGE		18
@@ -109,6 +112,7 @@ enum {
 	WACOM_22HD,
 	DTK,
 	WACOM_24HD,
+	WACOM_27QHD,
 	CINTIQ_HYBRID,
 	CINTIQ,
 	WACOM_BEE,
@@ -117,6 +121,7 @@ enum {
 	WIRELESS,
 	BAMBOO_PT,
 	WACOM_24HDT,
+	WACOM_27QHDT,
 	TABLETPC,   /* add new TPC below */
 	TABLETPCE,
 	TABLETPC2FG,

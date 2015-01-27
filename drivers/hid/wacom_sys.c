@@ -403,6 +403,9 @@ static int wacom_query_tablet_data(struct hid_device *hdev,
 		else if (features->type == WACOM_24HDT || features->type == CINTIQ_HYBRID) {
 			return wacom_set_device_mode(hdev, 18, 3, 2);
 		}
+		else if (features->type == WACOM_27QHDT) {
+			return wacom_set_device_mode(hdev, 131, 3, 2);
+		}
 	} else if (features->device_type == BTN_TOOL_PEN) {
 		if (features->type <= BAMBOO_PT && features->type != WIRELESS) {
 			return wacom_set_device_mode(hdev, 2, 2, 2);
