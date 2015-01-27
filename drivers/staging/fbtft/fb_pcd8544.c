@@ -117,10 +117,10 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 
 	fbtft_par_dbg(DEBUG_WRITE_VMEM, par, "%s()\n", __func__);
 
-	for (x=0;x<84;x++) {
-		for (y=0;y<6;y++) {
+	for (x=0; x<84; x++) {
+		for (y=0; y<6; y++) {
 			*buf = 0x00;
-			for (i=0;i<8;i++) {
+			for (i=0; i<8; i++) {
 				*buf |= (vmem16[(y*8+i)*84+x] ? 1 : 0) << i;
 			}
 			buf++;
