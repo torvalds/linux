@@ -249,6 +249,9 @@ void nfc_hci_cmd_received(struct nfc_hci_dev *hdev, u8 pipe, u8 cmd,
 		break;
 	}
 
+	if (hdev->ops->cmd_received)
+		hdev->ops->cmd_received(hdev, pipe, cmd, skb);
+
 exit:
 	nfc_hci_hcp_message_tx(hdev, pipe, NFC_HCI_HCP_RESPONSE,
 			       status, NULL, 0, NULL, NULL, 0);

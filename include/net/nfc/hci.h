@@ -53,6 +53,8 @@ struct nfc_hci_ops {
 			      struct nfc_target *target);
 	int (*event_received)(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 			      struct sk_buff *skb);
+	void (*cmd_received)(struct nfc_hci_dev *hdev, u8 pipe, u8 cmd,
+			    struct sk_buff *skb);
 	int (*fw_download)(struct nfc_hci_dev *hdev, const char *firmware_name);
 	int (*discover_se)(struct nfc_hci_dev *dev);
 	int (*enable_se)(struct nfc_hci_dev *dev, u32 se_idx);
@@ -229,6 +231,12 @@ void nfc_hci_reset_pipes_per_host(struct nfc_hci_dev *hdev, u8 host);
 #define NFC_HCI_EVT_HCI_END_OF_OPERATION	0x01
 #define NFC_HCI_EVT_POST_DATA			0x02
 #define NFC_HCI_EVT_HOT_PLUG			0x03
+
+/* Generic commands */
+#define NFC_HCI_ANY_SET_PARAMETER	0x01
+#define NFC_HCI_ANY_GET_PARAMETER	0x02
+#define NFC_HCI_ANY_OPEN_PIPE		0x03
+#define NFC_HCI_ANY_CLOSE_PIPE		0x04
 
 /* Reader RF gates events */
 #define NFC_HCI_EVT_READER_REQUESTED	0x10
