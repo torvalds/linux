@@ -214,7 +214,6 @@ int mlx4_bf_alloc(struct mlx4_dev *dev, struct mlx4_bf *bf, int node)
 		list_add(&uar->bf_list, &priv->bf_list);
 	}
 
-	bf->uar = uar;
 	idx = ffz(uar->free_bf_bmap);
 	uar->free_bf_bmap |= 1 << idx;
 	bf->uar = uar;
