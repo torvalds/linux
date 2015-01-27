@@ -72,6 +72,9 @@
 #define TP_ADC_SELECT(x)	((x) << 3)
 #define ADC_CHAN_SELECT(x)	((x) << 0)  /* 3 bits */
 
+/* on sun6i, bits 3~6 are left shifted by 1 to 4~7 */
+#define SUN6I_TP_MODE_EN(x)	((x) << 5)
+
 /* TP_CTRL2 bits */
 #define TP_SENSITIVE_ADJUST(x)	((x) << 28) /* 4 bits */
 #define TP_MODE_SELECT(x)	((x) << 26) /* 2 bits */
@@ -113,6 +116,8 @@ struct sun4i_ts_data {
 	unsigned int irq;
 	bool ignore_fifo_data;
 	int temp_data;
+	int temp_offset;
+	int temp_step;
 };
 
 static void sun4i_ts_irq_handle_input(struct sun4i_ts_data *ts, u32 reg_val)
@@ -188,17 +193,7 @@ static int sun4i_get_temp(const struct sun4i_ts_data *ts, long *temp)
 	if (ts->temp_data == -1)
 		return -EAGAIN;
 
-	/*
-	 * The user manuals do not contain the formula for calculating
-	 * the temperature. The formula used here is from the AXP209,
-	 * which is designed by X-Powers, an affiliate of Allwinner:
-	 *
-	 *     temperature = -144.7 + (value * 0.1)
-	 *
-	 * This should be replaced with the correct one if such information
-	 * becomes available.
-	 */
-	*temp = (ts->temp_data - 1447) * 100;
+	*temp = (ts->temp_data - ts->temp_offset) * ts->temp_step;
 
 	return 0;
 }
@@ -249,6 +244,7 @@ static int sun4i_ts_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	struct device *hwmon;
 	int error;
+	u32 reg;
 	bool ts_attached;
 
 	ts = devm_kzalloc(dev, sizeof(struct sun4i_ts_data), GFP_KERNEL);
@@ -258,6 +254,25 @@ static int sun4i_ts_probe(struct platform_device *pdev)
 	ts->dev = dev;
 	ts->ignore_fifo_data = true;
 	ts->temp_data = -1;
+	if (of_device_is_compatible(np, "allwinner,sun6i-a31-ts")) {
+		/* Allwinner SDK has temperature = -271 + (value / 6) (C) */
+		ts->temp_offset = 1626;
+		ts->temp_step = 167;
+	} else {
+		/*
+		 * The user manuals do not contain the formula for calculating
+		 * the temperature. The formula used here is from the AXP209,
+		 * which is designed by X-Powers, an affiliate of Allwinner:
+		 *
+		 *     temperature = -144.7 + (value * 0.1)
+		 *
+		 * Allwinner does not have any documentation whatsoever for
+		 * this hardware. Moreover, it is claimed that the sensor
+		 * is inaccurate and cannot work properly.
+		 */
+		ts->temp_offset = 1447;
+		ts->temp_step = 100;
+	}
 
 	ts_attached = of_property_read_bool(np, "allwinner,ts-attached");
 	if (ts_attached) {
@@ -314,8 +329,12 @@ static int sun4i_ts_probe(struct platform_device *pdev)
 	 * Set stylus up debounce to aprox 10 ms, enable debounce, and
 	 * finally enable tp mode.
 	 */
-	writel(STYLUS_UP_DEBOUN(5) | STYLUS_UP_DEBOUN_EN(1) | TP_MODE_EN(1),
-	       ts->base + TP_CTRL1);
+	reg = STYLUS_UP_DEBOUN(5) | STYLUS_UP_DEBOUN_EN(1);
+	if (of_device_is_compatible(np, "allwinner,sun4i-a10-ts"))
+		reg |= TP_MODE_EN(1);
+	else
+		reg |= SUN6I_TP_MODE_EN(1);
+	writel(reg, ts->base + TP_CTRL1);
 
 	/*
 	 * The thermal core does not register hwmon devices for DT-based
@@ -364,6 +383,7 @@ static int sun4i_ts_remove(struct platform_device *pdev)
 
 static const struct of_device_id sun4i_ts_of_match[] = {
 	{ .compatible = "allwinner,sun4i-a10-ts", },
+	{ .compatible = "allwinner,sun6i-a31-ts", },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, sun4i_ts_of_match);
