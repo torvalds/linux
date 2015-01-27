@@ -14,6 +14,7 @@
 
 #include <asm/irq.h>
 
+#define PXA_ISA_IRQ(x)	(x)
 #define PXA_IRQ(x)	(NR_IRQS_LEGACY + (x))
 
 #define IRQ_SSP3	PXA_IRQ(0)	/* SSP3 service request */
