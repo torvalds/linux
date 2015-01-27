@@ -300,6 +300,7 @@ static int host_start(struct ci_hdrc *ci)
 		ci->hcd = hcd;
 
 		if (ci_otg_is_fsm_mode(ci)) {
+			hcd->self.otg_fsm = &ci->fsm;
 			otg->host = &hcd->self;
 			hcd->self.otg_port = 1;
 		}
