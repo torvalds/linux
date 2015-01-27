@@ -28,6 +28,7 @@
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/ktime.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_cmnd.h>
@@ -605,7 +606,7 @@ static long pdc_detect_pll_input_clock(struct ata_host *host)
 	void __iomem *mmio_base = host->iomap[PDC_MMIO_BAR];
 	u32 scr;
 	long start_count, end_count;
-	struct timeval start_time, end_time;
+	ktime_t start_time, end_time;
 	long pll_clock, usec_elapsed;
 
 	/* Start the test mode */
@@ -616,14 +617,14 @@ static long pdc_detect_pll_input_clock(struct ata_host *host)
 
 	/* Read current counter value */
 	start_count = pdc_read_counter(host);
-	do_gettimeofday(&start_time);
+	start_time = ktime_get();
 
 	/* Let the counter run for 100 ms. */
 	mdelay(100);
 
 	/* Read the counter values again */
 	end_count = pdc_read_counter(host);
-	do_gettimeofday(&end_time);
+	end_time = ktime_get();
 
 	/* Stop the test mode */
 	scr = ioread32(mmio_base + PDC_SYS_CTL);
@@ -632,8 +633,7 @@ static long pdc_detect_pll_input_clock(struct ata_host *host)
 	ioread32(mmio_base + PDC_SYS_CTL); /* flush */
 
 	/* calculate the input clock in Hz */
-	usec_elapsed = (end_time.tv_sec - start_time.tv_sec) * 1000000 +
-		(end_time.tv_usec - start_time.tv_usec);
+	usec_elapsed = (long) ktime_us_delta(end_time, start_time);
 
 	pll_clock = ((start_count - end_count) & 0x3fffffff) / 100 *
 		(100000000 / usec_elapsed);
