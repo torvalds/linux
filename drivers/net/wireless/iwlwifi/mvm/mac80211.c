@@ -544,7 +544,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 
 	ret = iwl_mvm_mac_ctxt_add(mvm, vif);
 	if (ret)
-		goto out_release;
+		goto out_remove_mac;
 
 	/*
 	 * Update power state on the new interface. Admittedly, based on
