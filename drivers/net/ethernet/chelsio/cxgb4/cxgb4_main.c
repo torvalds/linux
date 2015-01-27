@@ -2500,8 +2500,8 @@ static int closest_thres(const struct sge *s, int thres)
 /*
  * Return a queue's interrupt hold-off time in us.  0 means no timer.
  */
-static unsigned int qtimer_val(const struct adapter *adap,
-			       const struct sge_rspq *q)
+unsigned int qtimer_val(const struct adapter *adap,
+			const struct sge_rspq *q)
 {
 	unsigned int idx = q->intr_params >> 1;
 

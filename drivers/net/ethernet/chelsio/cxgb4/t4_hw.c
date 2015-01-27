@@ -2512,6 +2512,60 @@ void t4_load_mtus(struct adapter *adap, const unsigned short *mtus,
 }
 
 /**
+ *	t4_pmtx_get_stats - returns the HW stats from PMTX
+ *	@adap: the adapter
+ *	@cnt: where to store the count statistics
+ *	@cycles: where to store the cycle statistics
+ *
+ *	Returns performance statistics from PMTX.
+ */
+void t4_pmtx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[])
+{
+	int i;
+	u32 data[2];
+
+	for (i = 0; i < PM_NSTATS; i++) {
+		t4_write_reg(adap, PM_TX_STAT_CONFIG_A, i + 1);
+		cnt[i] = t4_read_reg(adap, PM_TX_STAT_COUNT_A);
+		if (is_t4(adap->params.chip)) {
+			cycles[i] = t4_read_reg64(adap, PM_TX_STAT_LSB_A);
+		} else {
+			t4_read_indirect(adap, PM_TX_DBG_CTRL_A,
+					 PM_TX_DBG_DATA_A, data, 2,
+					 PM_TX_DBG_STAT_MSB_A);
+			cycles[i] = (((u64)data[0] << 32) | data[1]);
+		}
+	}
+}
+
+/**
+ *	t4_pmrx_get_stats - returns the HW stats from PMRX
+ *	@adap: the adapter
+ *	@cnt: where to store the count statistics
+ *	@cycles: where to store the cycle statistics
+ *
+ *	Returns performance statistics from PMRX.
+ */
+void t4_pmrx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[])
+{
+	int i;
+	u32 data[2];
+
+	for (i = 0; i < PM_NSTATS; i++) {
+		t4_write_reg(adap, PM_RX_STAT_CONFIG_A, i + 1);
+		cnt[i] = t4_read_reg(adap, PM_RX_STAT_COUNT_A);
+		if (is_t4(adap->params.chip)) {
+			cycles[i] = t4_read_reg64(adap, PM_RX_STAT_LSB_A);
+		} else {
+			t4_read_indirect(adap, PM_RX_DBG_CTRL_A,
+					 PM_RX_DBG_DATA_A, data, 2,
+					 PM_RX_DBG_STAT_MSB_A);
+			cycles[i] = (((u64)data[0] << 32) | data[1]);
+		}
+	}
+}
+
+/**
  *	get_mps_bg_map - return the buffer groups associated with a port
  *	@adap: the adapter
  *	@idx: the port index
@@ -4523,6 +4577,91 @@ void t4_read_cimq_cfg(struct adapter *adap, u16 *base, u16 *size, u16 *thres)
 		*base++ = CIMQBASE_G(v) * 256;
 		*size++ = CIMQSIZE_G(v) * 256;
 	}
+}
+
+/**
+ *	t4_read_cim_ibq - read the contents of a CIM inbound queue
+ *	@adap: the adapter
+ *	@qid: the queue index
+ *	@data: where to store the queue contents
+ *	@n: capacity of @data in 32-bit words
+ *
+ *	Reads the contents of the selected CIM queue starting at address 0 up
+ *	to the capacity of @data.  @n must be a multiple of 4.  Returns < 0 on
+ *	error and the number of 32-bit words actually read on success.
+ */
+int t4_read_cim_ibq(struct adapter *adap, unsigned int qid, u32 *data, size_t n)
+{
+	int i, err, attempts;
+	unsigned int addr;
+	const unsigned int nwords = CIM_IBQ_SIZE * 4;
+
+	if (qid > 5 || (n & 3))
+		return -EINVAL;
+
+	addr = qid * nwords;
+	if (n > nwords)
+		n = nwords;
+
+	/* It might take 3-10ms before the IBQ debug read access is allowed.
+	 * Wait for 1 Sec with a delay of 1 usec.
+	 */
+	attempts = 1000000;
+
+	for (i = 0; i < n; i++, addr++) {
+		t4_write_reg(adap, CIM_IBQ_DBG_CFG_A, IBQDBGADDR_V(addr) |
+			     IBQDBGEN_F);
+		err = t4_wait_op_done(adap, CIM_IBQ_DBG_CFG_A, IBQDBGBUSY_F, 0,
+				      attempts, 1);
+		if (err)
+			return err;
+		*data++ = t4_read_reg(adap, CIM_IBQ_DBG_DATA_A);
+	}
+	t4_write_reg(adap, CIM_IBQ_DBG_CFG_A, 0);
+	return i;
+}
+
+/**
+ *	t4_read_cim_obq - read the contents of a CIM outbound queue
+ *	@adap: the adapter
+ *	@qid: the queue index
+ *	@data: where to store the queue contents
+ *	@n: capacity of @data in 32-bit words
+ *
+ *	Reads the contents of the selected CIM queue starting at address 0 up
+ *	to the capacity of @data.  @n must be a multiple of 4.  Returns < 0 on
+ *	error and the number of 32-bit words actually read on success.
+ */
+int t4_read_cim_obq(struct adapter *adap, unsigned int qid, u32 *data, size_t n)
+{
+	int i, err;
+	unsigned int addr, v, nwords;
+	int cim_num_obq = is_t4(adap->params.chip) ?
+				CIM_NUM_OBQ : CIM_NUM_OBQ_T5;
+
+	if ((qid > (cim_num_obq - 1)) || (n & 3))
+		return -EINVAL;
+
+	t4_write_reg(adap, CIM_QUEUE_CONFIG_REF_A, OBQSELECT_F |
+		     QUENUMSELECT_V(qid));
+	v = t4_read_reg(adap, CIM_QUEUE_CONFIG_CTRL_A);
+
+	addr = CIMQBASE_G(v) * 64;    /* muliple of 256 -> muliple of 4 */
+	nwords = CIMQSIZE_G(v) * 64;  /* same */
+	if (n > nwords)
+		n = nwords;
+
+	for (i = 0; i < n; i++, addr++) {
+		t4_write_reg(adap, CIM_OBQ_DBG_CFG_A, OBQDBGADDR_V(addr) |
+			     OBQDBGEN_F);
+		err = t4_wait_op_done(adap, CIM_OBQ_DBG_CFG_A, OBQDBGBUSY_F, 0,
+				      2, 1);
+		if (err)
+			return err;
+		*data++ = t4_read_reg(adap, CIM_OBQ_DBG_DATA_A);
+	}
+	t4_write_reg(adap, CIM_OBQ_DBG_CFG_A, 0);
+	return i;
 }
 
 /**

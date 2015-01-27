@@ -1029,6 +1029,8 @@ int cxgb4_t4_bar2_sge_qregs(struct adapter *adapter,
 		      u64 *pbar2_qoffset,
 		      unsigned int *pbar2_qid);
 
+unsigned int qtimer_val(const struct adapter *adap,
+			const struct sge_rspq *q);
 int t4_init_sge_params(struct adapter *adapter);
 int t4_init_tp_params(struct adapter *adap);
 int t4_filter_field_shift(const struct adapter *adap, int filter_sel);
@@ -1052,6 +1054,12 @@ int t4_mc_read(struct adapter *adap, int idx, u32 addr, __be32 *data,
 	       u64 *parity);
 int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data,
 		u64 *parity);
+void t4_pmtx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[]);
+void t4_pmrx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[]);
+int t4_read_cim_ibq(struct adapter *adap, unsigned int qid, u32 *data,
+		    size_t n);
+int t4_read_cim_obq(struct adapter *adap, unsigned int qid, u32 *data,
+		    size_t n);
 int t4_cim_read(struct adapter *adap, unsigned int addr, unsigned int n,
 		unsigned int *valp);
 int t4_cim_write(struct adapter *adap, unsigned int addr, unsigned int n,

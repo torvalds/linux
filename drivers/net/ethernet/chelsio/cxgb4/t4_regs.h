@@ -1203,12 +1203,35 @@
 #define TIMERRESOLUTION_M    0xffU
 #define TIMERRESOLUTION_G(x) (((x) >> TIMERRESOLUTION_S) & TIMERRESOLUTION_M)
 
+#define TIMESTAMPRESOLUTION_S    8
+#define TIMESTAMPRESOLUTION_M    0xffU
+#define TIMESTAMPRESOLUTION_G(x) \
+	(((x) >> TIMESTAMPRESOLUTION_S) & TIMESTAMPRESOLUTION_M)
+
 #define DELAYEDACKRESOLUTION_S    0
 #define DELAYEDACKRESOLUTION_M    0xffU
 #define DELAYEDACKRESOLUTION_G(x) \
 	(((x) >> DELAYEDACKRESOLUTION_S) & DELAYEDACKRESOLUTION_M)
 
 #define TP_SHIFT_CNT_A 0x7dc0
+#define TP_RXT_MIN_A 0x7d98
+#define TP_RXT_MAX_A 0x7d9c
+#define TP_PERS_MIN_A 0x7da0
+#define TP_PERS_MAX_A 0x7da4
+#define TP_KEEP_IDLE_A 0x7da8
+#define TP_KEEP_INTVL_A 0x7dac
+#define TP_INIT_SRTT_A 0x7db0
+#define TP_DACK_TIMER_A 0x7db4
+#define TP_FINWAIT2_TIMER_A 0x7db8
+
+#define INITSRTT_S    0
+#define INITSRTT_M    0xffffU
+#define INITSRTT_G(x) (((x) >> INITSRTT_S) & INITSRTT_M)
+
+#define PERSMAX_S    0
+#define PERSMAX_M    0x3fffffffU
+#define PERSMAX_V(x) ((x) << PERSMAX_S)
+#define PERSMAX_G(x) (((x) >> PERSMAX_S) & PERSMAX_M)
 
 #define SYNSHIFTMAX_S    24
 #define SYNSHIFTMAX_M    0xffU
@@ -1380,6 +1403,12 @@
 #define PBL_BOUND_ERR_CH0_F    PBL_BOUND_ERR_CH0_V(1U)
 
 #define PM_RX_INT_CAUSE_A	0x8fdc
+#define PM_RX_STAT_CONFIG_A 0x8fc8
+#define PM_RX_STAT_COUNT_A 0x8fcc
+#define PM_RX_STAT_LSB_A 0x8fd0
+#define PM_RX_DBG_CTRL_A 0x8fd0
+#define PM_RX_DBG_DATA_A 0x8fd4
+#define PM_RX_DBG_STAT_MSB_A 0x10013
 
 #define PMRX_FRAMING_ERROR_F	0x003ffff0U
 
@@ -1404,6 +1433,12 @@
 #define PMRX_E_PCMD_PAR_ERROR_F    PMRX_E_PCMD_PAR_ERROR_V(1U)
 
 #define PM_TX_INT_CAUSE_A	0x8ffc
+#define PM_TX_STAT_CONFIG_A 0x8fe8
+#define PM_TX_STAT_COUNT_A 0x8fec
+#define PM_TX_STAT_LSB_A 0x8ff0
+#define PM_TX_DBG_CTRL_A 0x8ff0
+#define PM_TX_DBG_DATA_A 0x8ff4
+#define PM_TX_DBG_STAT_MSB_A 0x1001a
 
 #define PCMD_LEN_OVFL0_S    31
 #define PCMD_LEN_OVFL0_V(x) ((x) << PCMD_LEN_OVFL0_S)
@@ -2537,6 +2572,39 @@
 #define HOSTWRITE_S	16
 #define HOSTWRITE_V(x)	((x) << HOSTWRITE_S)
 #define HOSTWRITE_F	HOSTWRITE_V(1U)
+
+#define CIM_IBQ_DBG_CFG_A 0x7b60
+
+#define IBQDBGADDR_S    16
+#define IBQDBGADDR_M    0xfffU
+#define IBQDBGADDR_V(x) ((x) << IBQDBGADDR_S)
+#define IBQDBGADDR_G(x) (((x) >> IBQDBGADDR_S) & IBQDBGADDR_M)
+
+#define IBQDBGBUSY_S    1
+#define IBQDBGBUSY_V(x) ((x) << IBQDBGBUSY_S)
+#define IBQDBGBUSY_F    IBQDBGBUSY_V(1U)
+
+#define IBQDBGEN_S    0
+#define IBQDBGEN_V(x) ((x) << IBQDBGEN_S)
+#define IBQDBGEN_F    IBQDBGEN_V(1U)
+
+#define CIM_OBQ_DBG_CFG_A 0x7b64
+
+#define OBQDBGADDR_S    16
+#define OBQDBGADDR_M    0xfffU
+#define OBQDBGADDR_V(x) ((x) << OBQDBGADDR_S)
+#define OBQDBGADDR_G(x) (((x) >> OBQDBGADDR_S) & OBQDBGADDR_M)
+
+#define OBQDBGBUSY_S    1
+#define OBQDBGBUSY_V(x) ((x) << OBQDBGBUSY_S)
+#define OBQDBGBUSY_F    OBQDBGBUSY_V(1U)
+
+#define OBQDBGEN_S    0
+#define OBQDBGEN_V(x) ((x) << OBQDBGEN_S)
+#define OBQDBGEN_F    OBQDBGEN_V(1U)
+
+#define CIM_IBQ_DBG_DATA_A 0x7b68
+#define CIM_OBQ_DBG_DATA_A 0x7b6c
 
 #define UPDBGLARDEN_S		1
 #define UPDBGLARDEN_V(x)	((x) << UPDBGLARDEN_S)

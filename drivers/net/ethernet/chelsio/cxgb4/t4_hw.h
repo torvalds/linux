@@ -48,6 +48,7 @@ enum {
 	NMTUS          = 16,    /* size of MTU table */
 	NCCTRL_WIN     = 32,    /* # of congestion control windows */
 	L2T_SIZE       = 4096,  /* # of L2T entries */
+	PM_NSTATS      = 5,     /* # of PM stats */
 	MBOX_LEN       = 64,    /* mailbox size in bytes */
 	TRACE_LEN      = 112,   /* length of trace data and mask */
 	FILTER_OPT_LEN = 36,    /* filter tuple width for optional components */
@@ -60,6 +61,8 @@ enum {
 	CIM_NUM_OBQ    = 6,     /* # of CIM OBQs */
 	CIM_NUM_OBQ_T5 = 8,     /* # of CIM OBQs for T5 adapter */
 	CIMLA_SIZE     = 2048,  /* # of 32-bit words in CIM LA */
+	CIM_IBQ_SIZE   = 128,   /* # of 128-bit words in a CIM IBQ */
+	CIM_OBQ_SIZE   = 128,   /* # of 128-bit words in a CIM OBQ */
 };
 
 enum {

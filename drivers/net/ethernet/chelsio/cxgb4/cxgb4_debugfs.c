@@ -104,6 +104,17 @@ struct seq_tab *seq_open_tab(struct file *f, unsigned int rows,
 	return p;
 }
 
+/* Trim the size of a seq_tab to the supplied number of rows.  The operation is
+ * irreversible.
+ */
+static int seq_tab_trim(struct seq_tab *p, unsigned int new_rows)
+{
+	if (new_rows > p->rows)
+		return -EINVAL;
+	p->rows = new_rows;
+	return 0;
+}
+
 static int cim_la_show(struct seq_file *seq, void *v, int idx)
 {
 	if (v == SEQ_START_TOKEN)
@@ -238,6 +249,198 @@ static const struct file_operations cim_qcfg_fops = {
 	.llseek  = seq_lseek,
 	.release = single_release,
 };
+
+static int cimq_show(struct seq_file *seq, void *v, int idx)
+{
+	const u32 *p = v;
+
+	seq_printf(seq, "%#06x: %08x %08x %08x %08x\n", idx * 16, p[0], p[1],
+		   p[2], p[3]);
+	return 0;
+}
+
+static int cim_ibq_open(struct inode *inode, struct file *file)
+{
+	int ret;
+	struct seq_tab *p;
+	unsigned int qid = (uintptr_t)inode->i_private & 7;
+	struct adapter *adap = inode->i_private - qid;
+
+	p = seq_open_tab(file, CIM_IBQ_SIZE, 4 * sizeof(u32), 0, cimq_show);
+	if (!p)
+		return -ENOMEM;
+
+	ret = t4_read_cim_ibq(adap, qid, (u32 *)p->data, CIM_IBQ_SIZE * 4);
+	if (ret < 0)
+		seq_release_private(inode, file);
+	else
+		ret = 0;
+	return ret;
+}
+
+static const struct file_operations cim_ibq_fops = {
+	.owner   = THIS_MODULE,
+	.open    = cim_ibq_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release_private
+};
+
+static int cim_obq_open(struct inode *inode, struct file *file)
+{
+	int ret;
+	struct seq_tab *p;
+	unsigned int qid = (uintptr_t)inode->i_private & 7;
+	struct adapter *adap = inode->i_private - qid;
+
+	p = seq_open_tab(file, 6 * CIM_OBQ_SIZE, 4 * sizeof(u32), 0, cimq_show);
+	if (!p)
+		return -ENOMEM;
+
+	ret = t4_read_cim_obq(adap, qid, (u32 *)p->data, 6 * CIM_OBQ_SIZE * 4);
+	if (ret < 0) {
+		seq_release_private(inode, file);
+	} else {
+		seq_tab_trim(p, ret / 4);
+		ret = 0;
+	}
+	return ret;
+}
+
+static const struct file_operations cim_obq_fops = {
+	.owner   = THIS_MODULE,
+	.open    = cim_obq_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release_private
+};
+
+/* Show the PM memory stats.  These stats include:
+ *
+ * TX:
+ *   Read: memory read operation
+ *   Write Bypass: cut-through
+ *   Bypass + mem: cut-through and save copy
+ *
+ * RX:
+ *   Read: memory read
+ *   Write Bypass: cut-through
+ *   Flush: payload trim or drop
+ */
+static int pm_stats_show(struct seq_file *seq, void *v)
+{
+	static const char * const tx_pm_stats[] = {
+		"Read:", "Write bypass:", "Write mem:", "Bypass + mem:"
+	};
+	static const char * const rx_pm_stats[] = {
+		"Read:", "Write bypass:", "Write mem:", "Flush:"
+	};
+
+	int i;
+	u32 tx_cnt[PM_NSTATS], rx_cnt[PM_NSTATS];
+	u64 tx_cyc[PM_NSTATS], rx_cyc[PM_NSTATS];
+	struct adapter *adap = seq->private;
+
+	t4_pmtx_get_stats(adap, tx_cnt, tx_cyc);
+	t4_pmrx_get_stats(adap, rx_cnt, rx_cyc);
+
+	seq_printf(seq, "%13s %10s  %20s\n", " ", "Tx pcmds", "Tx bytes");
+	for (i = 0; i < PM_NSTATS - 1; i++)
+		seq_printf(seq, "%-13s %10u  %20llu\n",
+			   tx_pm_stats[i], tx_cnt[i], tx_cyc[i]);
+
+	seq_printf(seq, "%13s %10s  %20s\n", " ", "Rx pcmds", "Rx bytes");
+	for (i = 0; i < PM_NSTATS - 1; i++)
+		seq_printf(seq, "%-13s %10u  %20llu\n",
+			   rx_pm_stats[i], rx_cnt[i], rx_cyc[i]);
+	return 0;
+}
+
+static int pm_stats_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, pm_stats_show, inode->i_private);
+}
+
+static ssize_t pm_stats_clear(struct file *file, const char __user *buf,
+			      size_t count, loff_t *pos)
+{
+	struct adapter *adap = FILE_DATA(file)->i_private;
+
+	t4_write_reg(adap, PM_RX_STAT_CONFIG_A, 0);
+	t4_write_reg(adap, PM_TX_STAT_CONFIG_A, 0);
+	return count;
+}
+
+static const struct file_operations pm_stats_debugfs_fops = {
+	.owner   = THIS_MODULE,
+	.open    = pm_stats_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = single_release,
+	.write   = pm_stats_clear
+};
+
+/* Format a value in a unit that differs from the value's native unit by the
+ * given factor.
+ */
+static char *unit_conv(char *buf, size_t len, unsigned int val,
+		       unsigned int factor)
+{
+	unsigned int rem = val % factor;
+
+	if (rem == 0) {
+		snprintf(buf, len, "%u", val / factor);
+	} else {
+		while (rem % 10 == 0)
+			rem /= 10;
+		snprintf(buf, len, "%u.%u", val / factor, rem);
+	}
+	return buf;
+}
+
+static int clk_show(struct seq_file *seq, void *v)
+{
+	char buf[32];
+	struct adapter *adap = seq->private;
+	unsigned int cclk_ps = 1000000000 / adap->params.vpd.cclk;  /* in ps */
+	u32 res = t4_read_reg(adap, TP_TIMER_RESOLUTION_A);
+	unsigned int tre = TIMERRESOLUTION_G(res);
+	unsigned int dack_re = DELAYEDACKRESOLUTION_G(res);
+	unsigned long long tp_tick_us = (cclk_ps << tre) / 1000000; /* in us */
+
+	seq_printf(seq, "Core clock period: %s ns\n",
+		   unit_conv(buf, sizeof(buf), cclk_ps, 1000));
+	seq_printf(seq, "TP timer tick: %s us\n",
+		   unit_conv(buf, sizeof(buf), (cclk_ps << tre), 1000000));
+	seq_printf(seq, "TCP timestamp tick: %s us\n",
+		   unit_conv(buf, sizeof(buf),
+			     (cclk_ps << TIMESTAMPRESOLUTION_G(res)), 1000000));
+	seq_printf(seq, "DACK tick: %s us\n",
+		   unit_conv(buf, sizeof(buf), (cclk_ps << dack_re), 1000000));
+	seq_printf(seq, "DACK timer: %u us\n",
+		   ((cclk_ps << dack_re) / 1000000) *
+		   t4_read_reg(adap, TP_DACK_TIMER_A));
+	seq_printf(seq, "Retransmit min: %llu us\n",
+		   tp_tick_us * t4_read_reg(adap, TP_RXT_MIN_A));
+	seq_printf(seq, "Retransmit max: %llu us\n",
+		   tp_tick_us * t4_read_reg(adap, TP_RXT_MAX_A));
+	seq_printf(seq, "Persist timer min: %llu us\n",
+		   tp_tick_us * t4_read_reg(adap, TP_PERS_MIN_A));
+	seq_printf(seq, "Persist timer max: %llu us\n",
+		   tp_tick_us * t4_read_reg(adap, TP_PERS_MAX_A));
+	seq_printf(seq, "Keepalive idle timer: %llu us\n",
+		   tp_tick_us * t4_read_reg(adap, TP_KEEP_IDLE_A));
+	seq_printf(seq, "Keepalive interval: %llu us\n",
+		   tp_tick_us * t4_read_reg(adap, TP_KEEP_INTVL_A));
+	seq_printf(seq, "Initial SRTT: %llu us\n",
+		   tp_tick_us * INITSRTT_G(t4_read_reg(adap, TP_INIT_SRTT_A)));
+	seq_printf(seq, "FINWAIT2 timer: %llu us\n",
+		   tp_tick_us * t4_read_reg(adap, TP_FINWAIT2_TIMER_A));
+
+	return 0;
+}
+
+DEFINE_SIMPLE_DEBUGFS_FILE(clk);
 
 /* Firmware Device Log dump. */
 static const char * const devlog_level_strings[] = {
@@ -1026,6 +1229,216 @@ static const struct file_operations rss_vf_config_debugfs_fops = {
 	.release = seq_release_private
 };
 
+static int sge_qinfo_show(struct seq_file *seq, void *v)
+{
+	struct adapter *adap = seq->private;
+	int eth_entries = DIV_ROUND_UP(adap->sge.ethqsets, 4);
+	int toe_entries = DIV_ROUND_UP(adap->sge.ofldqsets, 4);
+	int rdma_entries = DIV_ROUND_UP(adap->sge.rdmaqs, 4);
+	int ciq_entries = DIV_ROUND_UP(adap->sge.rdmaciqs, 4);
+	int ctrl_entries = DIV_ROUND_UP(MAX_CTRL_QUEUES, 4);
+	int i, r = (uintptr_t)v - 1;
+	int toe_idx = r - eth_entries;
+	int rdma_idx = toe_idx - toe_entries;
+	int ciq_idx = rdma_idx - rdma_entries;
+	int ctrl_idx =  ciq_idx - ciq_entries;
+	int fq_idx =  ctrl_idx - ctrl_entries;
+
+	if (r)
+		seq_putc(seq, '\n');
+
+#define S3(fmt_spec, s, v) \
+do { \
+	seq_printf(seq, "%-12s", s); \
+	for (i = 0; i < n; ++i) \
+		seq_printf(seq, " %16" fmt_spec, v); \
+		seq_putc(seq, '\n'); \
+} while (0)
+#define S(s, v) S3("s", s, v)
+#define T(s, v) S3("u", s, tx[i].v)
+#define R(s, v) S3("u", s, rx[i].v)
+
+	if (r < eth_entries) {
+		int base_qset = r * 4;
+		const struct sge_eth_rxq *rx = &adap->sge.ethrxq[base_qset];
+		const struct sge_eth_txq *tx = &adap->sge.ethtxq[base_qset];
+		int n = min(4, adap->sge.ethqsets - 4 * r);
+
+		S("QType:", "Ethernet");
+		S("Interface:",
+		  rx[i].rspq.netdev ? rx[i].rspq.netdev->name : "N/A");
+		T("TxQ ID:", q.cntxt_id);
+		T("TxQ size:", q.size);
+		T("TxQ inuse:", q.in_use);
+		T("TxQ CIDX:", q.cidx);
+		T("TxQ PIDX:", q.pidx);
+#ifdef CONFIG_CXGB4_DCB
+		T("DCB Prio:", dcb_prio);
+		S3("u", "DCB PGID:",
+		   (ethqset2pinfo(adap, base_qset + i)->dcb.pgid >>
+		    4*(7-tx[i].dcb_prio)) & 0xf);
+		S3("u", "DCB PFC:",
+		   (ethqset2pinfo(adap, base_qset + i)->dcb.pfcen >>
+		    1*(7-tx[i].dcb_prio)) & 0x1);
+#endif
+		R("RspQ ID:", rspq.abs_id);
+		R("RspQ size:", rspq.size);
+		R("RspQE size:", rspq.iqe_len);
+		R("RspQ CIDX:", rspq.cidx);
+		R("RspQ Gen:", rspq.gen);
+		S3("u", "Intr delay:", qtimer_val(adap, &rx[i].rspq));
+		S3("u", "Intr pktcnt:",
+		   adap->sge.counter_val[rx[i].rspq.pktcnt_idx]);
+		R("FL ID:", fl.cntxt_id);
+		R("FL size:", fl.size - 8);
+		R("FL pend:", fl.pend_cred);
+		R("FL avail:", fl.avail);
+		R("FL PIDX:", fl.pidx);
+		R("FL CIDX:", fl.cidx);
+	} else if (toe_idx < toe_entries) {
+		const struct sge_ofld_rxq *rx = &adap->sge.ofldrxq[toe_idx * 4];
+		const struct sge_ofld_txq *tx = &adap->sge.ofldtxq[toe_idx * 4];
+		int n = min(4, adap->sge.ofldqsets - 4 * toe_idx);
+
+		S("QType:", "TOE");
+		T("TxQ ID:", q.cntxt_id);
+		T("TxQ size:", q.size);
+		T("TxQ inuse:", q.in_use);
+		T("TxQ CIDX:", q.cidx);
+		T("TxQ PIDX:", q.pidx);
+		R("RspQ ID:", rspq.abs_id);
+		R("RspQ size:", rspq.size);
+		R("RspQE size:", rspq.iqe_len);
+		R("RspQ CIDX:", rspq.cidx);
+		R("RspQ Gen:", rspq.gen);
+		S3("u", "Intr delay:", qtimer_val(adap, &rx[i].rspq));
+		S3("u", "Intr pktcnt:",
+		   adap->sge.counter_val[rx[i].rspq.pktcnt_idx]);
+		R("FL ID:", fl.cntxt_id);
+		R("FL size:", fl.size - 8);
+		R("FL pend:", fl.pend_cred);
+		R("FL avail:", fl.avail);
+		R("FL PIDX:", fl.pidx);
+		R("FL CIDX:", fl.cidx);
+	} else if (rdma_idx < rdma_entries) {
+		const struct sge_ofld_rxq *rx =
+				&adap->sge.rdmarxq[rdma_idx * 4];
+		int n = min(4, adap->sge.rdmaqs - 4 * rdma_idx);
+
+		S("QType:", "RDMA-CPL");
+		R("RspQ ID:", rspq.abs_id);
+		R("RspQ size:", rspq.size);
+		R("RspQE size:", rspq.iqe_len);
+		R("RspQ CIDX:", rspq.cidx);
+		R("RspQ Gen:", rspq.gen);
+		S3("u", "Intr delay:", qtimer_val(adap, &rx[i].rspq));
+		S3("u", "Intr pktcnt:",
+		   adap->sge.counter_val[rx[i].rspq.pktcnt_idx]);
+		R("FL ID:", fl.cntxt_id);
+		R("FL size:", fl.size - 8);
+		R("FL pend:", fl.pend_cred);
+		R("FL avail:", fl.avail);
+		R("FL PIDX:", fl.pidx);
+		R("FL CIDX:", fl.cidx);
+	} else if (ciq_idx < ciq_entries) {
+		const struct sge_ofld_rxq *rx = &adap->sge.rdmaciq[ciq_idx * 4];
+		int n = min(4, adap->sge.rdmaciqs - 4 * ciq_idx);
+
+		S("QType:", "RDMA-CIQ");
+		R("RspQ ID:", rspq.abs_id);
+		R("RspQ size:", rspq.size);
+		R("RspQE size:", rspq.iqe_len);
+		R("RspQ CIDX:", rspq.cidx);
+		R("RspQ Gen:", rspq.gen);
+		S3("u", "Intr delay:", qtimer_val(adap, &rx[i].rspq));
+		S3("u", "Intr pktcnt:",
+		   adap->sge.counter_val[rx[i].rspq.pktcnt_idx]);
+	} else if (ctrl_idx < ctrl_entries) {
+		const struct sge_ctrl_txq *tx = &adap->sge.ctrlq[ctrl_idx * 4];
+		int n = min(4, adap->params.nports - 4 * ctrl_idx);
+
+		S("QType:", "Control");
+		T("TxQ ID:", q.cntxt_id);
+		T("TxQ size:", q.size);
+		T("TxQ inuse:", q.in_use);
+		T("TxQ CIDX:", q.cidx);
+		T("TxQ PIDX:", q.pidx);
+	} else if (fq_idx == 0) {
+		const struct sge_rspq *evtq = &adap->sge.fw_evtq;
+
+		seq_printf(seq, "%-12s %16s\n", "QType:", "FW event queue");
+		seq_printf(seq, "%-12s %16u\n", "RspQ ID:", evtq->abs_id);
+		seq_printf(seq, "%-12s %16u\n", "RspQ size:", evtq->size);
+		seq_printf(seq, "%-12s %16u\n", "RspQE size:", evtq->iqe_len);
+		seq_printf(seq, "%-12s %16u\n", "RspQ CIDX:", evtq->cidx);
+		seq_printf(seq, "%-12s %16u\n", "RspQ Gen:", evtq->gen);
+		seq_printf(seq, "%-12s %16u\n", "Intr delay:",
+			   qtimer_val(adap, evtq));
+		seq_printf(seq, "%-12s %16u\n", "Intr pktcnt:",
+			   adap->sge.counter_val[evtq->pktcnt_idx]);
+	}
+#undef R
+#undef T
+#undef S
+#undef S3
+return 0;
+}
+
+static int sge_queue_entries(const struct adapter *adap)
+{
+	return DIV_ROUND_UP(adap->sge.ethqsets, 4) +
+	       DIV_ROUND_UP(adap->sge.ofldqsets, 4) +
+	       DIV_ROUND_UP(adap->sge.rdmaqs, 4) +
+	       DIV_ROUND_UP(adap->sge.rdmaciqs, 4) +
+	       DIV_ROUND_UP(MAX_CTRL_QUEUES, 4) + 1;
+}
+
+static void *sge_queue_start(struct seq_file *seq, loff_t *pos)
+{
+	int entries = sge_queue_entries(seq->private);
+
+	return *pos < entries ? (void *)((uintptr_t)*pos + 1) : NULL;
+}
+
+static void sge_queue_stop(struct seq_file *seq, void *v)
+{
+}
+
+static void *sge_queue_next(struct seq_file *seq, void *v, loff_t *pos)
+{
+	int entries = sge_queue_entries(seq->private);
+
+	++*pos;
+	return *pos < entries ? (void *)((uintptr_t)*pos + 1) : NULL;
+}
+
+static const struct seq_operations sge_qinfo_seq_ops = {
+	.start = sge_queue_start,
+	.next  = sge_queue_next,
+	.stop  = sge_queue_stop,
+	.show  = sge_qinfo_show
+};
+
+static int sge_qinfo_open(struct inode *inode, struct file *file)
+{
+	int res = seq_open(file, &sge_qinfo_seq_ops);
+
+	if (!res) {
+		struct seq_file *seq = file->private_data;
+
+		seq->private = inode->i_private;
+	}
+	return res;
+}
+
+static const struct file_operations sge_qinfo_debugfs_fops = {
+	.owner   = THIS_MODULE,
+	.open    = sge_qinfo_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release,
+};
+
 int mem_open(struct inode *inode, struct file *file)
 {
 	unsigned int mem;
@@ -1127,6 +1540,7 @@ int t4_setup_debugfs(struct adapter *adap)
 	static struct t4_debugfs_entry t4_debugfs_files[] = {
 		{ "cim_la", &cim_la_fops, S_IRUSR, 0 },
 		{ "cim_qcfg", &cim_qcfg_fops, S_IRUSR, 0 },
+		{ "clk", &clk_debugfs_fops, S_IRUSR, 0 },
 		{ "devlog", &devlog_fops, S_IRUSR, 0 },
 		{ "l2t", &t4_l2t_fops, S_IRUSR, 0},
 		{ "mps_tcam", &mps_tcam_debugfs_fops, S_IRUSR, 0 },
@@ -1135,14 +1549,39 @@ int t4_setup_debugfs(struct adapter *adap)
 		{ "rss_key", &rss_key_debugfs_fops, S_IRUSR, 0 },
 		{ "rss_pf_config", &rss_pf_config_debugfs_fops, S_IRUSR, 0 },
 		{ "rss_vf_config", &rss_vf_config_debugfs_fops, S_IRUSR, 0 },
+		{ "sge_qinfo", &sge_qinfo_debugfs_fops, S_IRUSR, 0 },
+		{ "ibq_tp0",  &cim_ibq_fops, S_IRUSR, 0 },
+		{ "ibq_tp1",  &cim_ibq_fops, S_IRUSR, 1 },
+		{ "ibq_ulp",  &cim_ibq_fops, S_IRUSR, 2 },
+		{ "ibq_sge0", &cim_ibq_fops, S_IRUSR, 3 },
+		{ "ibq_sge1", &cim_ibq_fops, S_IRUSR, 4 },
+		{ "ibq_ncsi", &cim_ibq_fops, S_IRUSR, 5 },
+		{ "obq_ulp0", &cim_obq_fops, S_IRUSR, 0 },
+		{ "obq_ulp1", &cim_obq_fops, S_IRUSR, 1 },
+		{ "obq_ulp2", &cim_obq_fops, S_IRUSR, 2 },
+		{ "obq_ulp3", &cim_obq_fops, S_IRUSR, 3 },
+		{ "obq_sge",  &cim_obq_fops, S_IRUSR, 4 },
+		{ "obq_ncsi", &cim_obq_fops, S_IRUSR, 5 },
+		{ "pm_stats", &pm_stats_debugfs_fops, S_IRUSR, 0 },
 #if IS_ENABLED(CONFIG_IPV6)
 		{ "clip_tbl", &clip_tbl_debugfs_fops, S_IRUSR, 0 },
 #endif
 	};
 
+	/* Debug FS nodes common to all T5 and later adapters.
+	 */
+	static struct t4_debugfs_entry t5_debugfs_files[] = {
+		{ "obq_sge_rx_q0", &cim_obq_fops, S_IRUSR, 6 },
+		{ "obq_sge_rx_q1", &cim_obq_fops, S_IRUSR, 7 },
+	};
+
 	add_debugfs_files(adap,
 			  t4_debugfs_files,
 			  ARRAY_SIZE(t4_debugfs_files));
+	if (!is_t4(adap->params.chip))
+		add_debugfs_files(adap,
+				  t5_debugfs_files,
+				  ARRAY_SIZE(t5_debugfs_files));
 
 	i = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
 	if (i & EDRAM0_ENABLE_F) {
