@@ -1123,6 +1123,7 @@ static void sh_eth_ring_format(struct net_device *ndev)
 	int rx_ringsize = sizeof(*rxdesc) * mdp->num_rx_ring;
 	int tx_ringsize = sizeof(*txdesc) * mdp->num_tx_ring;
 	int skbuff_size = mdp->rx_buf_sz + SH_ETH_RX_ALIGN - 1;
+	dma_addr_t dma_addr;
 
 	mdp->cur_rx = 0;
 	mdp->cur_tx = 0;
@@ -1136,7 +1137,6 @@ static void sh_eth_ring_format(struct net_device *ndev)
 		/* skb */
 		mdp->rx_skbuff[i] = NULL;
 		skb = netdev_alloc_skb(ndev, skbuff_size);
-		mdp->rx_skbuff[i] = skb;
 		if (skb == NULL)
 			break;
 		sh_eth_set_receive_align(skb);
@@ -1145,9 +1145,15 @@ static void sh_eth_ring_format(struct net_device *ndev)
 		rxdesc = &mdp->rx_ring[i];
 		/* The size of the buffer is a multiple of 16 bytes. */
 		rxdesc->buffer_length = ALIGN(mdp->rx_buf_sz, 16);
-		dma_map_single(&ndev->dev, skb->data, rxdesc->buffer_length,
-			       DMA_FROM_DEVICE);
-		rxdesc->addr = virt_to_phys(skb->data);
+		dma_addr = dma_map_single(&ndev->dev, skb->data,
+					  rxdesc->buffer_length,
+					  DMA_FROM_DEVICE);
+		if (dma_mapping_error(&ndev->dev, dma_addr)) {
+			kfree_skb(skb);
+			break;
+		}
+		mdp->rx_skbuff[i] = skb;
+		rxdesc->addr = dma_addr;
 		rxdesc->status = cpu_to_edmac(mdp, RD_RACT | RD_RFP);
 
 		/* Rx descriptor address set */
@@ -1432,6 +1438,7 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 	u16 pkt_len = 0;
 	u32 desc_status;
 	int skbuff_size = mdp->rx_buf_sz + SH_ETH_RX_ALIGN - 1;
+	dma_addr_t dma_addr;
 
 	boguscnt = min(boguscnt, *quota);
 	limit = boguscnt;
@@ -1479,9 +1486,9 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 			mdp->rx_skbuff[entry] = NULL;
 			if (mdp->cd->rpadir)
 				skb_reserve(skb, NET_IP_ALIGN);
-			dma_sync_single_for_cpu(&ndev->dev, rxdesc->addr,
-						ALIGN(mdp->rx_buf_sz, 16),
-						DMA_FROM_DEVICE);
+			dma_unmap_single(&ndev->dev, rxdesc->addr,
+					 ALIGN(mdp->rx_buf_sz, 16),
+					 DMA_FROM_DEVICE);
 			skb_put(skb, pkt_len);
 			skb->protocol = eth_type_trans(skb, ndev);
 			netif_receive_skb(skb);
@@ -1501,15 +1508,20 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 
 		if (mdp->rx_skbuff[entry] == NULL) {
 			skb = netdev_alloc_skb(ndev, skbuff_size);
-			mdp->rx_skbuff[entry] = skb;
 			if (skb == NULL)
 				break;	/* Better luck next round. */
 			sh_eth_set_receive_align(skb);
-			dma_map_single(&ndev->dev, skb->data,
-				       rxdesc->buffer_length, DMA_FROM_DEVICE);
+			dma_addr = dma_map_single(&ndev->dev, skb->data,
+						  rxdesc->buffer_length,
+						  DMA_FROM_DEVICE);
+			if (dma_mapping_error(&ndev->dev, dma_addr)) {
+				kfree_skb(skb);
+				break;
+			}
+			mdp->rx_skbuff[entry] = skb;
 
 			skb_checksum_none_assert(skb);
-			rxdesc->addr = virt_to_phys(skb->data);
+			rxdesc->addr = dma_addr;
 		}
 		if (entry >= mdp->num_rx_ring - 1)
 			rxdesc->status |=
