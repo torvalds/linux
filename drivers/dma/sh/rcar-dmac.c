@@ -1593,6 +1593,7 @@ static int rcar_dmac_probe(struct platform_device *pdev)
 		DMA_SLAVE_BUSWIDTH_2_BYTES | DMA_SLAVE_BUSWIDTH_4_BYTES |
 		DMA_SLAVE_BUSWIDTH_8_BYTES | DMA_SLAVE_BUSWIDTH_16_BYTES |
 		DMA_SLAVE_BUSWIDTH_32_BYTES | DMA_SLAVE_BUSWIDTH_64_BYTES;
+	unsigned int channels_offset = 0;
 	struct dma_device *engine;
 	struct rcar_dmac *dmac;
 	struct resource *mem;
@@ -1611,6 +1612,19 @@ static int rcar_dmac_probe(struct platform_device *pdev)
 	ret = rcar_dmac_parse_of(&pdev->dev, dmac);
 	if (ret < 0)
 		return ret;
+
+	/*
+	 * A still unconfirmed hardware bug prevents the IPMMU microTLB 0 to be
+	 * flushed correctly, resulting in memory corruption. DMAC 0 channel 0
+	 * is connected to microTLB 0 on currently supported platforms, so we
+	 * can't use it with the IPMMU. As the IOMMU API operates at the device
+	 * level we can't disable it selectively, so ignore channel 0 for now if
+	 * the device is part of an IOMMU group.
+	 */
+	if (pdev->dev.iommu_group) {
+		dmac->n_channels--;
+		channels_offset = 1;
+	}
 
 	dmac->channels = devm_kcalloc(&pdev->dev, dmac->n_channels,
 				      sizeof(*dmac->channels), GFP_KERNEL);
@@ -1662,7 +1676,8 @@ static int rcar_dmac_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&dmac->engine.channels);
 
 	for (i = 0; i < dmac->n_channels; ++i) {
-		ret = rcar_dmac_chan_probe(dmac, &dmac->channels[i], i);
+		ret = rcar_dmac_chan_probe(dmac, &dmac->channels[i],
+					   i + channels_offset);
 		if (ret < 0)
 			goto error;
 	}
