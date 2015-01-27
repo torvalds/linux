@@ -1380,18 +1380,30 @@ EXPORT_SYMBOL_GPL(pm_genpd_syscore_poweron);
 static struct generic_pm_domain_data *genpd_alloc_dev_data(struct device *dev)
 {
 	struct generic_pm_domain_data *gpd_data;
+	int ret;
+
+	ret = dev_pm_get_subsys_data(dev);
+	if (ret)
+		return ERR_PTR(ret);
 
 	gpd_data = kzalloc(sizeof(*gpd_data), GFP_KERNEL);
-	if (!gpd_data)
-		return NULL;
+	if (!gpd_data) {
+		ret = -ENOMEM;
+		goto err_put;
+	}
 
 	return gpd_data;
+
+ err_put:
+	dev_pm_put_subsys_data(dev);
+	return ERR_PTR(ret);
 }
 
 static void genpd_free_dev_data(struct device *dev,
 				struct generic_pm_domain_data *gpd_data)
 {
 	kfree(gpd_data);
+	dev_pm_put_subsys_data(dev);
 }
 
 /**
@@ -1412,8 +1424,8 @@ int __pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 		return -EINVAL;
 
 	gpd_data = genpd_alloc_dev_data(dev);
-	if (!gpd_data)
-		return -ENOMEM;
+	if (IS_ERR(gpd_data))
+		return PTR_ERR(gpd_data);
 
 	genpd_acquire_lock(genpd);
 
@@ -1421,10 +1433,6 @@ int __pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 		ret = -EAGAIN;
 		goto out;
 	}
-
-	ret = dev_pm_get_subsys_data(dev);
-	if (ret)
-		goto out;
 
 	spin_lock_irq(&dev->power.lock);
 
@@ -1528,7 +1536,6 @@ int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 
 	genpd_release_lock(genpd);
 
-	dev_pm_put_subsys_data(dev);
 	genpd_free_dev_data(dev, gpd_data);
 
 	return 0;
