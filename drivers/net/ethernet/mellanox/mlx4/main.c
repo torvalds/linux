@@ -797,6 +797,7 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 	dev->caps.num_mpts		= 1 << hca_param.log_mpt_sz;
 	dev->caps.num_eqs		= func_cap.max_eq;
 	dev->caps.reserved_eqs		= func_cap.reserved_eq;
+	dev->caps.reserved_lkey		= func_cap.reserved_lkey;
 	dev->caps.num_pds               = MLX4_NUM_PDS;
 	dev->caps.num_mgms              = 0;
 	dev->caps.num_amgms             = 0;

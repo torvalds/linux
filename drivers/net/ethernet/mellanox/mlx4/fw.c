@@ -260,6 +260,7 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 #define QUERY_FUNC_CAP_MCG_QUOTA_OFFSET_DEP	0x28
 #define QUERY_FUNC_CAP_MAX_EQ_OFFSET		0x2c
 #define QUERY_FUNC_CAP_RESERVED_EQ_OFFSET	0x30
+#define QUERY_FUNC_CAP_QP_RESD_LKEY_OFFSET	0x48
 
 #define QUERY_FUNC_CAP_QP_QUOTA_OFFSET		0x50
 #define QUERY_FUNC_CAP_CQ_QUOTA_OFFSET		0x54
@@ -274,6 +275,7 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 #define QUERY_FUNC_CAP_FLAG_RDMA		0x40
 #define QUERY_FUNC_CAP_FLAG_ETH			0x80
 #define QUERY_FUNC_CAP_FLAG_QUOTAS		0x10
+#define QUERY_FUNC_CAP_FLAG_RESD_LKEY		0x08
 #define QUERY_FUNC_CAP_FLAG_VALID_MAILBOX	0x04
 
 #define QUERY_FUNC_CAP_EXTRA_FLAGS_BF_QP_ALLOC_FLAG	(1UL << 31)
@@ -345,9 +347,12 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 	} else if (vhcr->op_modifier == 0) {
 		struct mlx4_active_ports actv_ports =
 			mlx4_get_active_ports(dev, slave);
-		/* enable rdma and ethernet interfaces, and new quota locations */
+		/* enable rdma and ethernet interfaces, new quota locations,
+		 * and reserved lkey
+		 */
 		field = (QUERY_FUNC_CAP_FLAG_ETH | QUERY_FUNC_CAP_FLAG_RDMA |
-			 QUERY_FUNC_CAP_FLAG_QUOTAS | QUERY_FUNC_CAP_FLAG_VALID_MAILBOX);
+			 QUERY_FUNC_CAP_FLAG_QUOTAS | QUERY_FUNC_CAP_FLAG_VALID_MAILBOX |
+			 QUERY_FUNC_CAP_FLAG_RESD_LKEY);
 		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_FLAGS_OFFSET);
 
 		field = min(
@@ -412,6 +417,9 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 		size = QUERY_FUNC_CAP_EXTRA_FLAGS_BF_QP_ALLOC_FLAG |
 			QUERY_FUNC_CAP_EXTRA_FLAGS_A0_QP_ALLOC_FLAG;
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_EXTRA_FLAGS_OFFSET);
+
+		size = dev->caps.reserved_lkey + ((slave << 8) & 0xFF00);
+		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_QP_RESD_LKEY_OFFSET);
 	} else
 		err = -EINVAL;
 
@@ -503,6 +511,13 @@ int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u8 gen_or_port,
 
 		MLX4_GET(size, outbox, QUERY_FUNC_CAP_RESERVED_EQ_OFFSET);
 		func_cap->reserved_eq = size & 0xFFFFFF;
+
+		if (func_cap->flags & QUERY_FUNC_CAP_FLAG_RESD_LKEY) {
+			MLX4_GET(size, outbox, QUERY_FUNC_CAP_QP_RESD_LKEY_OFFSET);
+			func_cap->reserved_lkey = size;
+		} else {
+			func_cap->reserved_lkey = 0;
+		}
 
 		func_cap->extra_flags = 0;
 
