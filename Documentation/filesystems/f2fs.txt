@@ -199,6 +199,10 @@ Files in /sys/fs/f2fs/<devname>
 			      checkpoint is triggered, and issued during the
 			      checkpoint. By default, it is disabled with 0.
 
+ trim_sections                This parameter controls the number of sections
+                              to be trimmed out in batch mode when FITRIM
+                              conducts. 32 sections is set by default.
+
  ipu_policy                   This parameter controls the policy of in-place
                               updates in f2fs. There are five policies:
                                0x01: F2FS_IPU_FORCE, 0x02: F2FS_IPU_SSR,

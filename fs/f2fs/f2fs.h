@@ -105,6 +105,10 @@ enum {
 	CP_DISCARD,
 };
 
+#define DEF_BATCHED_TRIM_SECTIONS	32
+#define BATCHED_TRIM_SEGMENTS(sbi)	\
+		(SM_I(sbi)->trim_sections * (sbi)->segs_per_sec)
+
 struct cp_control {
 	int reason;
 	__u64 trim_start;
@@ -447,6 +451,9 @@ struct f2fs_sm_info {
 	struct list_head discard_list;		/* 4KB discard list */
 	int nr_discards;			/* # of discards in the list */
 	int max_discards;			/* max. discards to be issued */
+
+	/* for batched trimming */
+	unsigned int trim_sections;		/* # of sections to trim */
 
 	struct list_head sit_entry_set;	/* sit entry set list */
 
