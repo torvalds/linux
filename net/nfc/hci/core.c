@@ -193,51 +193,65 @@ exit:
 void nfc_hci_cmd_received(struct nfc_hci_dev *hdev, u8 pipe, u8 cmd,
 			  struct sk_buff *skb)
 {
-	int r = 0;
 	u8 gate = hdev->pipes[pipe].gate;
-	u8 local_gate, new_pipe;
-	u8 gate_opened = 0x00;
+	u8 status = NFC_HCI_ANY_OK;
+	struct hci_create_pipe_resp *create_info;
+	struct hci_delete_pipe_noti *delete_info;
+	struct hci_all_pipe_cleared_noti *cleared_info;
 
 	pr_debug("from gate %x pipe %x cmd %x\n", gate, pipe, cmd);
 
 	switch (cmd) {
 	case NFC_HCI_ADM_NOTIFY_PIPE_CREATED:
 		if (skb->len != 5) {
-			r = -EPROTO;
-			break;
+			status = NFC_HCI_ANY_E_NOK;
+			goto exit;
 		}
+		create_info = (struct hci_create_pipe_resp *)skb->data;
 
-		local_gate = skb->data[3];
-		new_pipe = skb->data[4];
-		nfc_hci_hcp_message_tx(hdev, pipe, NFC_HCI_HCP_RESPONSE,
-				       NFC_HCI_ANY_OK, NULL, 0, NULL, NULL, 0);
-
-		/* save the new created pipe and bind with local gate,
+		/* Save the new created pipe and bind with local gate,
 		 * the description for skb->data[3] is destination gate id
 		 * but since we received this cmd from host controller, we
 		 * are the destination and it is our local gate
 		 */
-		hdev->gate2pipe[local_gate] = new_pipe;
+		hdev->gate2pipe[create_info->dest_gate] = create_info->pipe;
+		hdev->pipes[create_info->pipe].gate = create_info->dest_gate;
+		hdev->pipes[create_info->pipe].dest_host =
+							create_info->src_host;
 		break;
 	case NFC_HCI_ANY_OPEN_PIPE:
-		/* if the pipe is already created, we allow remote host to
-		 * open it
-		 */
-		if (gate != 0xff)
-			nfc_hci_hcp_message_tx(hdev, pipe, NFC_HCI_HCP_RESPONSE,
-					       NFC_HCI_ANY_OK, &gate_opened, 1,
-					       NULL, NULL, 0);
+		if (gate == NFC_HCI_INVALID_GATE) {
+			status = NFC_HCI_ANY_E_NOK;
+			goto exit;
+		}
+		break;
+	case NFC_HCI_ADM_NOTIFY_PIPE_DELETED:
+		if (skb->len != 1) {
+			status = NFC_HCI_ANY_E_NOK;
+			goto exit;
+		}
+		delete_info = (struct hci_delete_pipe_noti *)skb->data;
+
+		hdev->pipes[delete_info->pipe].gate = NFC_HCI_INVALID_GATE;
+		hdev->pipes[delete_info->pipe].dest_host = NFC_HCI_INVALID_HOST;
 		break;
 	case NFC_HCI_ADM_NOTIFY_ALL_PIPE_CLEARED:
-		nfc_hci_hcp_message_tx(hdev, pipe, NFC_HCI_HCP_RESPONSE,
-				       NFC_HCI_ANY_OK, NULL, 0, NULL, NULL, 0);
+		if (skb->len != 1) {
+			status = NFC_HCI_ANY_E_NOK;
+			goto exit;
+		}
+		cleared_info = (struct hci_all_pipe_cleared_noti *)skb->data;
 
+		nfc_hci_reset_pipes_per_host(hdev, cleared_info->host);
 		break;
 	default:
 		pr_info("Discarded unknown cmd %x to gate %x\n", cmd, gate);
-		r = -EINVAL;
 		break;
 	}
+
+exit:
+	nfc_hci_hcp_message_tx(hdev, pipe, NFC_HCI_HCP_RESPONSE,
+			       status, NULL, 0, NULL, NULL, 0);
 
 	kfree_skb(skb);
 }

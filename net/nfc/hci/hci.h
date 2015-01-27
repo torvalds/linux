@@ -65,6 +65,14 @@ struct hci_create_pipe_resp {
 	u8 pipe;
 } __packed;
 
+struct hci_delete_pipe_noti {
+	u8 pipe;
+} __packed;
+
+struct hci_all_pipe_cleared_noti {
+	u8 host;
+} __packed;
+
 #define NFC_HCI_FRAGMENT	0x7f
 
 #define HCP_HEADER(type, instr) ((((type) & 0x03) << 6) | ((instr) & 0x3f))
