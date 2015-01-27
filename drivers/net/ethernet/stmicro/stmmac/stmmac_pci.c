@@ -212,6 +212,8 @@ static int stmmac_pci_probe(struct pci_dev *pdev,
 	} else
 		stmmac_default_data(plat);
 
+	pci_enable_msi(pdev);
+
 	priv = stmmac_dvr_probe(&pdev->dev, plat, pcim_iomap_table(pdev)[i]);
 	if (IS_ERR(priv)) {
 		dev_err(&pdev->dev, "%s: main driver probe failed\n", __func__);
