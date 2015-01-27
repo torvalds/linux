@@ -986,8 +986,8 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 		offset += txlen;
 	} while (true);
 
-	dev_dbg(adapter->dev, "info: FW download over, size %d bytes\n",
-		offset);
+	dev_notice(adapter->dev,
+		   "info: FW download over, size %d bytes\n", offset);
 
 	ret = 0;
 done:
@@ -1958,8 +1958,8 @@ static void mwifiex_sdio_card_reset_work(struct mwifiex_adapter *adapter)
 
 	pr_err("Resetting card...\n");
 	mmc_remove_host(target);
-	/* 20ms delay is based on experiment with sdhci controller */
-	mdelay(20);
+	/* 200ms delay is based on experiment with sdhci controller */
+	mdelay(200);
 	target->rescan_entered = 0; /* rescan non-removable cards */
 	mmc_add_host(target);
 }
@@ -2022,6 +2022,8 @@ static void mwifiex_sdio_fw_dump_work(struct work_struct *work)
 	enum rdwr_status stat;
 	u32 memory_size;
 	static char *env[] = { "DRIVER=mwifiex_sdio", "EVENT=fw_dump", NULL };
+
+	mwifiex_dump_drv_info(adapter);
 
 	if (!card->supports_fw_dump)
 		return;
@@ -2166,6 +2168,99 @@ static void mwifiex_sdio_fw_dump(struct mwifiex_adapter *adapter)
 	schedule_work(&adapter->iface_work);
 }
 
+/* Function to dump SDIO function registers and SDIO scratch registers in case
+ * of FW crash
+ */
+static int
+mwifiex_sdio_reg_dump(struct mwifiex_adapter *adapter, char *drv_buf)
+{
+	char *p = drv_buf;
+	struct sdio_mmc_card *cardp = adapter->card;
+	int ret = 0;
+	u8 count, func, data, index = 0, size = 0;
+	u8 reg, reg_start, reg_end;
+	char buf[256], *ptr;
+
+	if (!p)
+		return 0;
+
+	dev_info(adapter->dev, "SDIO register DUMP START\n");
+
+	mwifiex_pm_wakeup_card(adapter);
+
+	sdio_claim_host(cardp->func);
+
+	for (count = 0; count < 5; count++) {
+		memset(buf, 0, sizeof(buf));
+		ptr = buf;
+
+		switch (count) {
+		case 0:
+			/* Read the registers of SDIO function0 */
+			func = count;
+			reg_start = 0;
+			reg_end = 9;
+			break;
+		case 1:
+			/* Read the registers of SDIO function1 */
+			func = count;
+			reg_start = cardp->reg->func1_dump_reg_start;
+			reg_end = cardp->reg->func1_dump_reg_end;
+			break;
+		case 2:
+			index = 0;
+			func = 1;
+			reg_start = cardp->reg->func1_spec_reg_table[index++];
+			size = cardp->reg->func1_spec_reg_num;
+			reg_end = cardp->reg->func1_spec_reg_table[size-1];
+			break;
+		default:
+			/* Read the scratch registers of SDIO function1 */
+			if (count == 4)
+				mdelay(100);
+			func = 1;
+			reg_start = cardp->reg->func1_scratch_reg;
+			reg_end = reg_start + MWIFIEX_SDIO_SCRATCH_SIZE;
+		}
+
+		if (count != 2)
+			ptr += sprintf(ptr, "SDIO Func%d (%#x-%#x): ",
+				       func, reg_start, reg_end);
+		else
+			ptr += sprintf(ptr, "SDIO Func%d: ", func);
+
+		for (reg = reg_start; reg <= reg_end;) {
+			if (func == 0)
+				data = sdio_f0_readb(cardp->func, reg, &ret);
+			else
+				data = sdio_readb(cardp->func, reg, &ret);
+
+			if (count == 2)
+				ptr += sprintf(ptr, "(%#x) ", reg);
+			if (!ret) {
+				ptr += sprintf(ptr, "%02x ", data);
+			} else {
+				ptr += sprintf(ptr, "ERR");
+				break;
+			}
+
+			if (count == 2 && reg < reg_end)
+				reg = cardp->reg->func1_spec_reg_table[index++];
+			else
+				reg++;
+		}
+
+		dev_info(adapter->dev, "%s\n", buf);
+		p += sprintf(p, "%s\n", buf);
+	}
+
+	sdio_release_host(cardp->func);
+
+	dev_info(adapter->dev, "SDIO register DUMP END\n");
+
+	return p - drv_buf;
+}
+
 static struct mwifiex_if_ops sdio_ops = {
 	.init_if = mwifiex_init_sdio,
 	.cleanup_if = mwifiex_cleanup_sdio,
@@ -2188,6 +2283,7 @@ static struct mwifiex_if_ops sdio_ops = {
 	.card_reset = mwifiex_sdio_card_reset,
 	.iface_work = mwifiex_sdio_work,
 	.fw_dump = mwifiex_sdio_fw_dump,
+	.reg_dump = mwifiex_sdio_reg_dump,
 };
 
 /*

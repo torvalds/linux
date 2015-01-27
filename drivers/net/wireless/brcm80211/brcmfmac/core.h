@@ -29,8 +29,6 @@
 /* For supporting multiple interfaces */
 #define BRCMF_MAX_IFS	16
 
-#define DOT11_MAX_DEFAULT_KEYS	4
-
 /* Small, medium and maximum buffer size for dcmd
  */
 #define BRCMF_DCMD_SMLEN	256
@@ -167,7 +165,7 @@ struct brcmf_skb_reorder_data {
 	u8 *reorder;
 };
 
-int brcmf_netdev_wait_pend8021x(struct net_device *ndev);
+int brcmf_netdev_wait_pend8021x(struct brcmf_if *ifp);
 
 /* Return pointer to interface name */
 char *brcmf_ifname(struct brcmf_pub *drvr, int idx);

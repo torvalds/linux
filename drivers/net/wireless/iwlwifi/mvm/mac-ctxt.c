@@ -208,8 +208,10 @@ u32 iwl_mvm_mac_get_queues_mask(struct ieee80211_vif *vif)
 	if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
 		return BIT(IWL_MVM_OFFCHANNEL_QUEUE);
 
-	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
-		qmask |= BIT(vif->hw_queue[ac]);
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+		if (vif->hw_queue[ac] != IEEE80211_INVAL_HW_QUEUE)
+			qmask |= BIT(vif->hw_queue[ac]);
+	}
 
 	if (vif->type == NL80211_IFTYPE_AP)
 		qmask |= BIT(vif->cab_queue);
@@ -496,14 +498,14 @@ void iwl_mvm_mac_ctxt_release(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_P2P_DEVICE:
-		iwl_mvm_disable_txq(mvm, IWL_MVM_OFFCHANNEL_QUEUE);
+		iwl_mvm_disable_txq(mvm, IWL_MVM_OFFCHANNEL_QUEUE, 0);
 		break;
 	case NL80211_IFTYPE_AP:
-		iwl_mvm_disable_txq(mvm, vif->cab_queue);
+		iwl_mvm_disable_txq(mvm, vif->cab_queue, 0);
 		/* fall through */
 	default:
 		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
-			iwl_mvm_disable_txq(mvm, vif->hw_queue[ac]);
+			iwl_mvm_disable_txq(mvm, vif->hw_queue[ac], 0);
 	}
 }
 
@@ -975,7 +977,7 @@ static int iwl_mvm_mac_ctxt_send_beacon(struct iwl_mvm *mvm,
 	beacon_cmd.tx.tx_flags = cpu_to_le32(tx_flags);
 
 	mvm->mgmt_last_antenna_idx =
-		iwl_mvm_next_antenna(mvm, mvm->fw->valid_tx_ant,
+		iwl_mvm_next_antenna(mvm, iwl_mvm_get_valid_tx_ant(mvm),
 				     mvm->mgmt_last_antenna_idx);
 
 	beacon_cmd.tx.rate_n_flags =

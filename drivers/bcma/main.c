@@ -268,6 +268,18 @@ void bcma_prepare_core(struct bcma_bus *bus, struct bcma_device *core)
 	}
 }
 
+void bcma_init_bus(struct bcma_bus *bus)
+{
+	mutex_lock(&bcma_buses_mutex);
+	bus->num = bcma_bus_next_num++;
+	mutex_unlock(&bcma_buses_mutex);
+
+	INIT_LIST_HEAD(&bus->cores);
+	bus->nr_cores = 0;
+
+	bcma_detect_chip(bus);
+}
+
 static void bcma_register_core(struct bcma_bus *bus, struct bcma_device *core)
 {
 	int err;
@@ -368,10 +380,6 @@ int bcma_bus_register(struct bcma_bus *bus)
 {
 	int err;
 	struct bcma_device *core;
-
-	mutex_lock(&bcma_buses_mutex);
-	bus->num = bcma_bus_next_num++;
-	mutex_unlock(&bcma_buses_mutex);
 
 	/* Scan for devices (cores) */
 	err = bcma_bus_scan(bus);
@@ -481,35 +489,20 @@ void bcma_bus_unregister(struct bcma_bus *bus)
 	kfree(cores[0]);
 }
 
-int __init bcma_bus_early_register(struct bcma_bus *bus,
-				   struct bcma_device *core_cc,
-				   struct bcma_device *core_mips)
+/*
+ * This is a special version of bus registration function designed for SoCs.
+ * It scans bus and performs basic initialization of main cores only.
+ * Please note it requires memory allocation, however it won't try to sleep.
+ */
+int __init bcma_bus_early_register(struct bcma_bus *bus)
 {
 	int err;
 	struct bcma_device *core;
-	struct bcma_device_id match;
 
-	match.manuf = BCMA_MANUF_BCM;
-	match.id = bcma_cc_core_id(bus);
-	match.class = BCMA_CL_SIM;
-	match.rev = BCMA_ANY_REV;
-
-	/* Scan for chip common core */
-	err = bcma_bus_scan_early(bus, &match, core_cc);
+	/* Scan for devices (cores) */
+	err = bcma_bus_scan(bus);
 	if (err) {
-		bcma_err(bus, "Failed to scan for common core: %d\n", err);
-		return -1;
-	}
-
-	match.manuf = BCMA_MANUF_MIPS;
-	match.id = BCMA_CORE_MIPS_74K;
-	match.class = BCMA_CL_SIM;
-	match.rev = BCMA_ANY_REV;
-
-	/* Scan for mips core */
-	err = bcma_bus_scan_early(bus, &match, core_mips);
-	if (err) {
-		bcma_err(bus, "Failed to scan for mips core: %d\n", err);
+		bcma_err(bus, "Failed to scan bus: %d\n", err);
 		return -1;
 	}
 

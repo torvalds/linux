@@ -251,6 +251,7 @@ enum wl12xx_vif_flags {
 	WLVIF_FLAG_AP_PROBE_RESP_SET,
 	WLVIF_FLAG_IN_USE,
 	WLVIF_FLAG_ACTIVE,
+	WLVIF_FLAG_BEACON_DISABLED,
 };
 
 struct wl12xx_vif;
@@ -434,6 +435,8 @@ struct wl12xx_vif {
 
 	bool wmm_enabled;
 
+	bool radar_enabled;
+
 	/* Rx Streaming */
 	struct work_struct rx_streaming_enable_work;
 	struct work_struct rx_streaming_disable_work;
@@ -462,6 +465,10 @@ struct wl12xx_vif {
 
 	/* work for canceling ROC after pending auth reply */
 	struct delayed_work pending_auth_complete_work;
+
+	/* update rate conrol */
+	enum ieee80211_sta_rx_bandwidth rc_update_bw;
+	struct work_struct rc_update_work;
 
 	/*
 	 * total freed FW packets on the link.

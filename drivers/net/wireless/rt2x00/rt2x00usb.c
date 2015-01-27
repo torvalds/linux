@@ -274,7 +274,7 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	 * Schedule the delayed work for reading the TX status
 	 * from the device.
 	 */
-	if (!test_bit(REQUIRE_TXSTATUS_FIFO, &rt2x00dev->cap_flags) ||
+	if (!rt2x00_has_cap_flag(rt2x00dev, REQUIRE_TXSTATUS_FIFO) ||
 	    !kfifo_is_empty(&rt2x00dev->txstatus_fifo))
 		queue_work(rt2x00dev->workqueue, &rt2x00dev->txdone_work);
 }
@@ -456,7 +456,7 @@ static bool rt2x00usb_flush_entry(struct queue_entry *entry, void *data)
 	 * Kill guardian urb (if required by driver).
 	 */
 	if ((entry->queue->qid == QID_BEACON) &&
-	    (test_bit(REQUIRE_BEACON_GUARD, &rt2x00dev->cap_flags)))
+	    (rt2x00_has_cap_flag(rt2x00dev, REQUIRE_BEACON_GUARD)))
 		usb_kill_urb(bcn_priv->guardian_urb);
 
 	return false;
@@ -655,7 +655,7 @@ static int rt2x00usb_alloc_entries(struct data_queue *queue)
 	 * then we are done.
 	 */
 	if (queue->qid != QID_BEACON ||
-	    !test_bit(REQUIRE_BEACON_GUARD, &rt2x00dev->cap_flags))
+	    !rt2x00_has_cap_flag(rt2x00dev, REQUIRE_BEACON_GUARD))
 		return 0;
 
 	for (i = 0; i < queue->limit; i++) {
@@ -690,7 +690,7 @@ static void rt2x00usb_free_entries(struct data_queue *queue)
 	 * then we are done.
 	 */
 	if (queue->qid != QID_BEACON ||
-	    !test_bit(REQUIRE_BEACON_GUARD, &rt2x00dev->cap_flags))
+	    !rt2x00_has_cap_flag(rt2x00dev, REQUIRE_BEACON_GUARD))
 		return;
 
 	for (i = 0; i < queue->limit; i++) {

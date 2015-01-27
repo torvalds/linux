@@ -586,6 +586,7 @@ struct wmi_vring_ba_en_cmd {
 	u8 ringid;
 	u8 agg_max_wsize;
 	__le16 ba_timeout;
+	u8 amsdu;
 } __packed;
 
 /*
@@ -1052,14 +1053,23 @@ struct wmi_scan_complete_event {
 enum wmi_vring_ba_status {
 	WMI_BA_AGREED			= 0,
 	WMI_BA_NON_AGREED		= 1,
+	/* BA_EN in middle of teardown flow */
+	WMI_BA_TD_WIP			= 2,
+	/* BA_DIS or BA_EN in middle of BA SETUP flow */
+	WMI_BA_SETUP_WIP		= 3,
+	/* BA_EN when the BA session is already active */
+	WMI_BA_SESSION_ACTIVE		= 4,
+	/* BA_DIS when the BA session is not active */
+	WMI_BA_SESSION_NOT_ACTIVE	= 5,
 };
 
 struct wmi_vring_ba_status_event {
-	__le16 status;
+	__le16 status; /* enum wmi_vring_ba_status */
 	u8 reserved[2];
 	u8 ringid;
 	u8 agg_wsize;
 	__le16 ba_timeout;
+	u8 amsdu;
 } __packed;
 
 /*

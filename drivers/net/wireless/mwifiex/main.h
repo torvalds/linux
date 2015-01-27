@@ -41,6 +41,8 @@
 #include "util.h"
 #include "fw.h"
 #include "pcie.h"
+#include "usb.h"
+#include "sdio.h"
 
 extern const char driver_version[];
 
@@ -136,6 +138,8 @@ enum {
 /* Threshold for tx_timeout_cnt before we trigger a card reset */
 #define TX_TIMEOUT_THRESHOLD	6
 
+#define MWIFIEX_DRV_INFO_SIZE_MAX 0x40000
+
 struct mwifiex_dbg {
 	u32 num_cmd_host_to_card_failure;
 	u32 num_cmd_sleep_cfm_host_to_card_failure;
@@ -161,7 +165,6 @@ struct mwifiex_dbg {
 enum MWIFIEX_HARDWARE_STATUS {
 	MWIFIEX_HW_STATUS_READY,
 	MWIFIEX_HW_STATUS_INITIALIZING,
-	MWIFIEX_HW_STATUS_FW_READY,
 	MWIFIEX_HW_STATUS_INIT_DONE,
 	MWIFIEX_HW_STATUS_RESET,
 	MWIFIEX_HW_STATUS_CLOSING,
@@ -413,6 +416,7 @@ struct mwifiex_roc_cfg {
 };
 
 #define MWIFIEX_FW_DUMP_IDX		0xff
+#define MWIFIEX_DRV_INFO_IDX		20
 #define FW_DUMP_MAX_NAME_LEN		8
 #define FW_DUMP_HOST_READY		0xEE
 #define FW_DUMP_DONE			0xFF
@@ -582,6 +586,8 @@ struct mwifiex_private {
 	struct idr ack_status_frames;
 	/* spin lock for ack status */
 	spinlock_t ack_status_lock;
+	/** rx histogram data */
+	struct mwifiex_histogram_data *hist_data;
 };
 
 enum mwifiex_ba_status {
@@ -717,6 +723,7 @@ struct mwifiex_if_ops {
 	int (*dnld_fw) (struct mwifiex_adapter *, struct mwifiex_fw_image *);
 	void (*card_reset) (struct mwifiex_adapter *);
 	void (*fw_dump)(struct mwifiex_adapter *);
+	int (*reg_dump)(struct mwifiex_adapter *, char *);
 	int (*clean_pcie_ring) (struct mwifiex_adapter *adapter);
 	void (*iface_work)(struct work_struct *work);
 	void (*submit_rem_rx_urbs)(struct mwifiex_adapter *adapter);
@@ -823,6 +830,7 @@ struct mwifiex_adapter {
 	u16 gen_null_pkt;
 	u16 pps_uapsd_mode;
 	u32 pm_wakeup_fw_try;
+	struct timer_list wakeup_timer;
 	u8 is_hs_configured;
 	struct mwifiex_hs_config_param hs_cfg;
 	u8 hs_activated;
@@ -865,6 +873,8 @@ struct mwifiex_adapter {
 	struct memory_type_mapping *mem_type_mapping_tbl;
 	u8 num_mem_types;
 	u8 curr_mem_idx;
+	void *drv_info_dump;
+	u32 drv_info_size;
 	bool scan_chan_gap_enabled;
 	struct sk_buff_head rx_data_q;
 	struct mwifiex_chan_stats *chan_stats;
@@ -1324,6 +1334,8 @@ void mwifiex_process_tdls_action_frame(struct mwifiex_private *priv,
 				       u8 *buf, int len);
 int mwifiex_tdls_oper(struct mwifiex_private *priv, const u8 *peer, u8 action);
 int mwifiex_get_tdls_link_status(struct mwifiex_private *priv, const u8 *mac);
+int mwifiex_get_tdls_list(struct mwifiex_private *priv,
+			  struct tdls_peer_info *buf);
 void mwifiex_disable_all_tdls_links(struct mwifiex_private *priv);
 bool mwifiex_is_bss_in_11ac_mode(struct mwifiex_private *priv);
 u8 mwifiex_get_center_freq_index(struct mwifiex_private *priv, u8 band,
@@ -1347,6 +1359,16 @@ void mwifiex_parse_tx_status_event(struct mwifiex_private *priv,
 struct sk_buff *
 mwifiex_clone_skb_for_tx_status(struct mwifiex_private *priv,
 				struct sk_buff *skb, u8 flag, u64 *cookie);
+
+void mwifiex_hist_data_set(struct mwifiex_private *priv, u8 rx_rate, s8 snr,
+			   s8 nflr);
+void mwifiex_hist_data_reset(struct mwifiex_private *priv);
+void mwifiex_hist_data_add(struct mwifiex_private *priv,
+			   u8 rx_rate, s8 snr, s8 nflr);
+u8 mwifiex_adjust_data_rate(struct mwifiex_private *priv,
+			    u8 rx_rate, u8 ht_info);
+
+void mwifiex_dump_drv_info(struct mwifiex_adapter *adapter);
 
 #ifdef CONFIG_DEBUG_FS
 void mwifiex_debugfs_init(void);

@@ -509,3 +509,21 @@ u32 mwifiex_get_supported_rates(struct mwifiex_private *priv, u8 *rates)
 
 	return k;
 }
+
+u8 mwifiex_adjust_data_rate(struct mwifiex_private *priv,
+			    u8 rx_rate, u8 rate_info)
+{
+	u8 rate_index = 0;
+
+	/* HT40 */
+	if ((rate_info & BIT(0)) && (rate_info & BIT(1)))
+		rate_index = MWIFIEX_RATE_INDEX_MCS0 +
+			     MWIFIEX_BW20_MCS_NUM + rx_rate;
+	else if (rate_info & BIT(0)) /* HT20 */
+		rate_index = MWIFIEX_RATE_INDEX_MCS0 + rx_rate;
+	else
+		rate_index = (rx_rate > MWIFIEX_RATE_INDEX_OFDM0) ?
+			      rx_rate - 1 : rx_rate;
+
+	return rate_index;
+}

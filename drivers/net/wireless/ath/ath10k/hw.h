@@ -37,6 +37,9 @@
 #define ATH10K_FW_API2_FILE		"firmware-2.bin"
 #define ATH10K_FW_API3_FILE		"firmware-3.bin"
 
+/* added support for ATH10K_FW_IE_WMI_OP_VERSION */
+#define ATH10K_FW_API4_FILE		"firmware-4.bin"
+
 #define ATH10K_FW_UTF_FILE		"utf.bin"
 
 /* includes also the null byte */
@@ -58,6 +61,24 @@ enum ath10k_fw_ie_type {
 	ATH10K_FW_IE_FEATURES = 2,
 	ATH10K_FW_IE_FW_IMAGE = 3,
 	ATH10K_FW_IE_OTP_IMAGE = 4,
+
+	/* WMI "operations" interface version, 32 bit value. Supported from
+	 * FW API 4 and above.
+	 */
+	ATH10K_FW_IE_WMI_OP_VERSION = 5,
+};
+
+enum ath10k_fw_wmi_op_version {
+	ATH10K_FW_WMI_OP_VERSION_UNSET = 0,
+
+	ATH10K_FW_WMI_OP_VERSION_MAIN = 1,
+	ATH10K_FW_WMI_OP_VERSION_10_1 = 2,
+	ATH10K_FW_WMI_OP_VERSION_10_2 = 3,
+	ATH10K_FW_WMI_OP_VERSION_TLV = 4,
+	ATH10K_FW_WMI_OP_VERSION_10_2_4 = 5,
+
+	/* keep last */
+	ATH10K_FW_WMI_OP_VERSION_MAX,
 };
 
 /* Known pecularities:
@@ -161,6 +182,15 @@ struct ath10k_pktlog_hdr {
 #define TARGET_10X_VOW_CONFIG			0
 #define TARGET_10X_NUM_MSDU_DESC		(1024 + 400)
 #define TARGET_10X_MAX_FRAG_ENTRIES		0
+
+/* Target specific defines for WMI-TLV firmware */
+#define TARGET_TLV_NUM_VDEVS			3
+#define TARGET_TLV_NUM_STATIONS			32
+#define TARGET_TLV_NUM_PEERS			((TARGET_TLV_NUM_STATIONS) + \
+						 (TARGET_TLV_NUM_VDEVS) + \
+						 2)
+#define TARGET_TLV_NUM_TIDS			((TARGET_TLV_NUM_PEERS) * 2)
+#define TARGET_TLV_NUM_MSDU_DESC		(1024 + 32)
 
 /* Number of Copy Engines supported */
 #define CE_COUNT 8

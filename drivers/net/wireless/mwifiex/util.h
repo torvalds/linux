@@ -20,6 +20,8 @@
 #ifndef _MWIFIEX_UTIL_H_
 #define _MWIFIEX_UTIL_H_
 
+struct mwifiex_private;
+
 struct mwifiex_dma_mapping {
 	dma_addr_t addr;
 	size_t len;
@@ -31,6 +33,21 @@ struct mwifiex_cb {
 		struct mwifiex_rxinfo rx_info;
 		struct mwifiex_txinfo tx_info;
 	};
+};
+
+/* size/addr for mwifiex_debug_info */
+#define item_size(n)		(FIELD_SIZEOF(struct mwifiex_debug_info, n))
+#define item_addr(n)		(offsetof(struct mwifiex_debug_info, n))
+
+/* size/addr for struct mwifiex_adapter */
+#define adapter_item_size(n)	(FIELD_SIZEOF(struct mwifiex_adapter, n))
+#define adapter_item_addr(n)	(offsetof(struct mwifiex_adapter, n))
+
+struct mwifiex_debug_data {
+	char name[32];		/* variable/array name */
+	u32 size;		/* size of the variable/array */
+	size_t addr;		/* address of the variable/array */
+	int num;		/* number of variables in an array */
 };
 
 static inline struct mwifiex_rxinfo *MWIFIEX_SKB_RXCB(struct sk_buff *skb)
@@ -72,5 +89,8 @@ static inline dma_addr_t MWIFIEX_SKB_DMA_ADDR(struct sk_buff *skb)
 
 	return mapping.addr;
 }
+
+int mwifiex_debug_info_to_buffer(struct mwifiex_private *priv, char *buf,
+				 struct mwifiex_debug_info *info);
 
 #endif /* !_MWIFIEX_UTIL_H_ */

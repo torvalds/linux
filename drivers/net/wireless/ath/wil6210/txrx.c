@@ -463,7 +463,7 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	 * and in case of error drop the packet
 	 * higher stack layers will handle retransmission (if required)
 	 */
-	if (d->dma.status & RX_DMA_STATUS_L4_IDENT) {
+	if (d->dma.status & RX_DMA_STATUS_L4I) {
 		/* L4 protocol identified, csum calculated */
 		if ((d->dma.error & RX_DMA_ERROR_L4_ERR) == 0)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -581,14 +581,8 @@ void wil_rx_handle(struct wil6210_priv *wil, int *quota)
 			skb->protocol = htons(ETH_P_802_2);
 			wil_netif_rx_any(skb, ndev);
 		} else {
-			struct ethhdr *eth = (void *)skb->data;
-
 			skb->protocol = eth_type_trans(skb, ndev);
-
-			if (is_unicast_ether_addr(eth->h_dest))
-				wil_rx_reorder(wil, skb);
-			else
-				wil_netif_rx_any(skb, ndev);
+			wil_rx_reorder(wil, skb);
 		}
 	}
 	wil_rx_refill(wil, v->size);
@@ -645,7 +639,7 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 		.vring_cfg = {
 			.tx_sw_ring = {
 				.max_mpdu_size =
-					cpu_to_le16(mtu_max + ETH_HLEN),
+					cpu_to_le16(wil_mtu2macbuf(mtu_max)),
 				.ring_size = cpu_to_le16(size),
 			},
 			.ringid = id,
@@ -653,7 +647,7 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 			.encap_trans_type = WMI_VRING_ENC_TYPE_802_3,
 			.mac_ctrl = 0,
 			.to_resolution = 0,
-			.agg_max_wsize = 16,
+			.agg_max_wsize = 0,
 			.schd_params = {
 				.priority = cpu_to_le16(0),
 				.timeslot_us = cpu_to_le16(0xfff),
@@ -701,6 +695,8 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 	vring->hwtail = le32_to_cpu(reply.cmd.tx_vring_tail_ptr);
 
 	txdata->enabled = 1;
+	if (wil->sta[cid].data_port_open && (agg_wsize >= 0))
+		wil_addba_tx_request(wil, id, agg_wsize);
 
 	return 0;
  out_free:
@@ -713,6 +709,7 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 void wil_vring_fini_tx(struct wil6210_priv *wil, int id)
 {
 	struct vring *vring = &wil->vring_tx[id];
+	struct vring_tx_data *txdata = &wil->vring_tx_data[id];
 
 	WARN_ON(!mutex_is_locked(&wil->mutex));
 
@@ -723,10 +720,11 @@ void wil_vring_fini_tx(struct wil6210_priv *wil, int id)
 
 	/* make sure NAPI won't touch this vring */
 	wil->vring_tx_data[id].enabled = 0;
-	if (test_bit(wil_status_napi_en, &wil->status))
+	if (test_bit(wil_status_napi_en, wil->status))
 		napi_synchronize(&wil->napi_tx);
 
 	wil_vring_free(wil, vring, 1);
+	memset(txdata, 0, sizeof(*txdata));
 }
 
 static struct vring *wil_find_tx_vring(struct wil6210_priv *wil,
@@ -773,6 +771,38 @@ static void wil_set_da_for_vring(struct wil6210_priv *wil,
 
 static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 			struct sk_buff *skb);
+
+static struct vring *wil_find_tx_vring_sta(struct wil6210_priv *wil,
+					   struct sk_buff *skb)
+{
+	struct vring *v;
+	int i;
+	u8 cid;
+
+	/* In the STA mode, it is expected to have only 1 VRING
+	 * for the AP we connected to.
+	 * find 1-st vring and see whether it is eligible for data
+	 */
+	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
+		v = &wil->vring_tx[i];
+		if (!v->va)
+			continue;
+
+		cid = wil->vring2cid_tid[i][0];
+		if (!wil->sta[cid].data_port_open &&
+		    (skb->protocol != cpu_to_be16(ETH_P_PAE)))
+			break;
+
+		wil_dbg_txrx(wil, "Tx -> ring %d\n", i);
+
+		return v;
+	}
+
+	wil_dbg_txrx(wil, "Tx while no vrings active?\n");
+
+	return NULL;
+}
+
 /*
  * Find 1-st vring and return it; set dest address for this vring in skb
  * duplicate skb and send it to other active vrings
@@ -1034,14 +1064,14 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	int rc;
 
 	wil_dbg_txrx(wil, "%s()\n", __func__);
-	if (!test_bit(wil_status_fwready, &wil->status)) {
+	if (!test_bit(wil_status_fwready, wil->status)) {
 		if (!pr_once_fw) {
 			wil_err(wil, "FW not ready\n");
 			pr_once_fw = true;
 		}
 		goto drop;
 	}
-	if (!test_bit(wil_status_fwconnected, &wil->status)) {
+	if (!test_bit(wil_status_fwconnected, wil->status)) {
 		wil_err(wil, "FW not connected\n");
 		goto drop;
 	}
@@ -1052,15 +1082,19 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	pr_once_fw = false;
 
 	/* find vring */
-	if (is_unicast_ether_addr(eth->h_dest))
-		vring = wil_find_tx_vring(wil, skb);
-	else
-		vring = wil_tx_bcast(wil, skb);
+	if (wil->wdev->iftype == NL80211_IFTYPE_STATION) {
+		/* in STA mode (ESS), all to same VRING */
+		vring = wil_find_tx_vring_sta(wil, skb);
+	} else { /* direct communication, find matching VRING */
+		if (is_unicast_ether_addr(eth->h_dest))
+			vring = wil_find_tx_vring(wil, skb);
+		else
+			vring = wil_tx_bcast(wil, skb);
+	}
 	if (!vring) {
 		wil_dbg_txrx(wil, "No Tx VRING found for %pM\n", eth->h_dest);
 		goto drop;
 	}
-
 	/* set up vring entry */
 	rc = wil_tx_vring(wil, vring, skb);
 

@@ -96,11 +96,4 @@ struct fw_data {
 	u8 data[1];
 };
 
-/* This function is called after the card has woken up. */
-static inline int
-mwifiex_pm_wakeup_card_complete(struct mwifiex_adapter *adapter)
-{
-	return 0;
-}
-
 #endif /*_MWIFIEX_USB_H */

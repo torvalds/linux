@@ -139,7 +139,7 @@ void wlcore_event_channel_switch(struct wl1271 *wl,
 	wl1271_debug(DEBUG_EVENT, "%s: roles=0x%lx success=%d",
 		     __func__, roles_bitmap, success);
 
-	wl12xx_for_each_wlvif_sta(wl, wlvif) {
+	wl12xx_for_each_wlvif(wl, wlvif) {
 		if (wlvif->role_id == WL12XX_INVALID_ROLE_ID ||
 		    !test_bit(wlvif->role_id , &roles_bitmap))
 			continue;
@@ -150,8 +150,13 @@ void wlcore_event_channel_switch(struct wl1271 *wl,
 
 		vif = wl12xx_wlvif_to_vif(wlvif);
 
-		ieee80211_chswitch_done(vif, success);
-		cancel_delayed_work(&wlvif->channel_switch_work);
+		if (wlvif->bss_type == BSS_TYPE_STA_BSS) {
+			ieee80211_chswitch_done(vif, success);
+			cancel_delayed_work(&wlvif->channel_switch_work);
+		} else {
+			set_bit(WLVIF_FLAG_BEACON_DISABLED, &wlvif->flags);
+			ieee80211_csa_finish(vif);
+		}
 	}
 }
 EXPORT_SYMBOL_GPL(wlcore_event_channel_switch);

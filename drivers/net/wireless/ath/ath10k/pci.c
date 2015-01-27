@@ -64,6 +64,14 @@ static const struct pci_device_id ath10k_pci_id_table[] = {
 	{0}
 };
 
+static const struct ath10k_pci_supp_chip ath10k_pci_supp_chips[] = {
+	/* QCA988X pre 2.0 chips are not supported because they need some nasty
+	 * hacks. ath10k doesn't have them and these devices crash horribly
+	 * because of that.
+	 */
+	{ QCA988X_2_0_DEVICE_ID, QCA988X_HW_2_0_CHIP_ID_REV },
+};
+
 static void ath10k_pci_buffer_cleanup(struct ath10k *ar);
 static int ath10k_pci_cold_reset(struct ath10k *ar);
 static int ath10k_pci_warm_reset(struct ath10k *ar);
@@ -2476,6 +2484,23 @@ static void ath10k_pci_release(struct ath10k *ar)
 	pci_disable_device(pdev);
 }
 
+static bool ath10k_pci_chip_is_supported(u32 dev_id, u32 chip_id)
+{
+	const struct ath10k_pci_supp_chip *supp_chip;
+	int i;
+	u32 rev_id = MS(chip_id, SOC_CHIP_ID_REV);
+
+	for (i = 0; i < ARRAY_SIZE(ath10k_pci_supp_chips); i++) {
+		supp_chip = &ath10k_pci_supp_chips[i];
+
+		if (supp_chip->dev_id == dev_id &&
+		    supp_chip->rev_id == rev_id)
+			return true;
+	}
+
+	return false;
+}
+
 static int ath10k_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *pci_dev)
 {
@@ -2518,6 +2543,12 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 	chip_id = ath10k_pci_soc_read32(ar, SOC_CHIP_ID_ADDRESS);
 	if (chip_id == 0xffffffff) {
 		ath10k_err(ar, "failed to get chip id\n");
+		goto err_sleep;
+	}
+
+	if (!ath10k_pci_chip_is_supported(pdev->device, chip_id)) {
+		ath10k_err(ar, "device %04x with chip_id %08x isn't supported\n",
+			   pdev->device, chip_id);
 		goto err_sleep;
 	}
 

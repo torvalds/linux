@@ -90,6 +90,10 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code)
 	priv->is_data_rate_auto = true;
 	priv->data_rate = 0;
 
+	if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA ||
+	     GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) && priv->hist_data)
+		mwifiex_hist_data_reset(priv);
+
 	if (priv->bss_mode == NL80211_IFTYPE_ADHOC) {
 		priv->adhoc_state = ADHOC_IDLE;
 		priv->adhoc_is_link_sensed = false;
@@ -308,6 +312,8 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 					adapter->ps_state = PS_STATE_AWAKE;
 					adapter->pm_wakeup_card_req = false;
 					adapter->pm_wakeup_fw_try = false;
+					mod_timer(&adapter->wakeup_timer,
+						  jiffies + (HZ*3));
 					break;
 				}
 				if (!mwifiex_send_null_packet
@@ -322,6 +328,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		adapter->ps_state = PS_STATE_AWAKE;
 		adapter->pm_wakeup_card_req = false;
 		adapter->pm_wakeup_fw_try = false;
+		del_timer_sync(&adapter->wakeup_timer);
 
 		break;
 

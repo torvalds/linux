@@ -44,6 +44,9 @@
 
 #define MWIFIEX_SDIO_BYTE_MODE_MASK	0x80000000
 
+#define MWIFIEX_MAX_FUNC2_REG_NUM	13
+#define MWIFIEX_SDIO_SCRATCH_SIZE	10
+
 #define SDIO_MPA_ADDR_BASE		0x1000
 #define CTRL_PORT			0
 #define CTRL_PORT_MASK			0x0001
@@ -219,6 +222,11 @@ struct mwifiex_sdio_card_reg {
 	u8 fw_dump_ctrl;
 	u8 fw_dump_start;
 	u8 fw_dump_end;
+	u8 func1_dump_reg_start;
+	u8 func1_dump_reg_end;
+	u8 func1_scratch_reg;
+	u8 func1_spec_reg_num;
+	u8 func1_spec_reg_table[MWIFIEX_MAX_FUNC2_REG_NUM];
 };
 
 struct sdio_mmc_card {
@@ -291,6 +299,11 @@ static const struct mwifiex_sdio_card_reg mwifiex_reg_sd87xx = {
 	.rd_len_p0_l = 0x08,
 	.rd_len_p0_u = 0x09,
 	.card_misc_cfg_reg = 0x6c,
+	.func1_dump_reg_start = 0x0,
+	.func1_dump_reg_end = 0x9,
+	.func1_scratch_reg = 0x60,
+	.func1_spec_reg_num = 5,
+	.func1_spec_reg_table = {0x28, 0x30, 0x34, 0x38, 0x3c},
 };
 
 static const struct mwifiex_sdio_card_reg mwifiex_reg_sd8897 = {
@@ -335,6 +348,12 @@ static const struct mwifiex_sdio_card_reg mwifiex_reg_sd8897 = {
 	.fw_dump_ctrl = 0xe2,
 	.fw_dump_start = 0xe3,
 	.fw_dump_end = 0xea,
+	.func1_dump_reg_start = 0x0,
+	.func1_dump_reg_end = 0xb,
+	.func1_scratch_reg = 0xc0,
+	.func1_spec_reg_num = 8,
+	.func1_spec_reg_table = {0x4C, 0x50, 0x54, 0x55, 0x58,
+				 0x59, 0x5c, 0x5d},
 };
 
 static const struct mwifiex_sdio_card_reg mwifiex_reg_sd8887 = {
@@ -376,6 +395,13 @@ static const struct mwifiex_sdio_card_reg mwifiex_reg_sd8887 = {
 	.cmd_cfg_1 = 0xc5,
 	.cmd_cfg_2 = 0xc6,
 	.cmd_cfg_3 = 0xc7,
+	.func1_dump_reg_start = 0x10,
+	.func1_dump_reg_end = 0x17,
+	.func1_scratch_reg = 0x90,
+	.func1_spec_reg_num = 13,
+	.func1_spec_reg_table = {0x08, 0x58, 0x5C, 0x5D, 0x60,
+				 0x61, 0x62, 0x64, 0x65, 0x66,
+				 0x68, 0x69, 0x6a},
 };
 
 static const struct mwifiex_sdio_device mwifiex_sdio_sd8786 = {

@@ -193,11 +193,15 @@ void iwl_force_nmi(struct iwl_trans *trans)
 	 * DEVICE_SET_NMI_8000B_REG - is used.
 	 */
 	if ((trans->cfg->device_family != IWL_DEVICE_FAMILY_8000) ||
-	    (CSR_HW_REV_STEP(trans->hw_rev) == SILICON_A_STEP))
-		iwl_write_prph(trans, DEVICE_SET_NMI_REG, DEVICE_SET_NMI_VAL);
-	else
+	    (CSR_HW_REV_STEP(trans->hw_rev) == SILICON_A_STEP)) {
+		iwl_write_prph(trans, DEVICE_SET_NMI_REG,
+			       DEVICE_SET_NMI_VAL_DRV);
+		iwl_write_prph(trans, DEVICE_SET_NMI_REG,
+			       DEVICE_SET_NMI_VAL_HW);
+	} else {
 		iwl_write_prph(trans, DEVICE_SET_NMI_8000B_REG,
 			       DEVICE_SET_NMI_8000B_VAL);
+	}
 }
 IWL_EXPORT_SYMBOL(iwl_force_nmi);
 

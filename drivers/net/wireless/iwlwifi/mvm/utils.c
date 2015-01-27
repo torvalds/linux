@@ -533,47 +533,46 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, u16 ssn,
 			const struct iwl_trans_txq_scd_cfg *cfg)
 {
-	if (iwl_mvm_is_dqa_supported(mvm)) {
-		struct iwl_scd_txq_cfg_cmd cmd = {
-			.scd_queue = queue,
-			.enable = 1,
-			.window = cfg->frame_limit,
-			.sta_id = cfg->sta_id,
-			.ssn = cpu_to_le16(ssn),
-			.tx_fifo = cfg->fifo,
-			.aggregate = cfg->aggregate,
-			.flags = IWL_SCD_FLAGS_DQA_ENABLED,
-			.tid = cfg->tid,
-			.control = IWL_SCD_CONTROL_SET_SSN,
-		};
-		int ret = iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, 0,
-					       sizeof(cmd), &cmd);
-		if (ret)
-			IWL_ERR(mvm,
-				"Failed to configure queue %d on FIFO %d\n",
-				queue, cfg->fifo);
+	struct iwl_scd_txq_cfg_cmd cmd = {
+		.scd_queue = queue,
+		.enable = 1,
+		.window = cfg->frame_limit,
+		.sta_id = cfg->sta_id,
+		.ssn = cpu_to_le16(ssn),
+		.tx_fifo = cfg->fifo,
+		.aggregate = cfg->aggregate,
+		.tid = cfg->tid,
+	};
+
+	if (!iwl_mvm_is_scd_cfg_supported(mvm)) {
+		iwl_trans_txq_enable_cfg(mvm->trans, queue, ssn, cfg);
+		return;
 	}
 
-	iwl_trans_txq_enable_cfg(mvm->trans, queue, ssn,
-				 iwl_mvm_is_dqa_supported(mvm) ? NULL : cfg);
+	iwl_trans_txq_enable_cfg(mvm->trans, queue, ssn, NULL);
+	WARN(iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, 0, sizeof(cmd), &cmd),
+	     "Failed to configure queue %d on FIFO %d\n", queue, cfg->fifo);
 }
 
-void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue)
+void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, u8 flags)
 {
-	iwl_trans_txq_disable(mvm->trans, queue,
-			      !iwl_mvm_is_dqa_supported(mvm));
+	struct iwl_scd_txq_cfg_cmd cmd = {
+		.scd_queue = queue,
+		.enable = 0,
+	};
+	int ret;
 
-	if (iwl_mvm_is_dqa_supported(mvm)) {
-		struct iwl_scd_txq_cfg_cmd cmd = {
-			.scd_queue = queue,
-			.enable = 0,
-		};
-		int ret = iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, CMD_ASYNC,
-					       sizeof(cmd), &cmd);
-		if (ret)
-			IWL_ERR(mvm, "Failed to disable queue %d (ret=%d)\n",
-				queue, ret);
+	if (!iwl_mvm_is_scd_cfg_supported(mvm)) {
+		iwl_trans_txq_disable(mvm->trans, queue, true);
+		return;
 	}
+
+	iwl_trans_txq_disable(mvm->trans, queue, false);
+	ret = iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, flags,
+				   sizeof(cmd), &cmd);
+	if (ret)
+		IWL_ERR(mvm, "Failed to disable queue %d (ret=%d)\n",
+			queue, ret);
 }
 
 /**
@@ -620,7 +619,7 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	lockdep_assert_held(&mvm->mutex);
 
 	/* SMPS is irrelevant for NICs that don't have at least 2 RX antenna */
-	if (num_of_ant(mvm->fw->valid_rx_ant) == 1)
+	if (num_of_ant(iwl_mvm_get_valid_rx_ant(mvm)) == 1)
 		return;
 
 	if (vif->type == NL80211_IFTYPE_AP)
@@ -662,7 +661,7 @@ bool iwl_mvm_rx_diversity_allowed(struct iwl_mvm *mvm)
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (num_of_ant(mvm->fw->valid_rx_ant) == 1)
+	if (num_of_ant(iwl_mvm_get_valid_rx_ant(mvm)) == 1)
 		return false;
 
 	if (mvm->cfg->rx_with_siso_diversity)

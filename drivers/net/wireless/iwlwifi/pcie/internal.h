@@ -318,6 +318,11 @@ struct iwl_trans_pcie {
 	/*protect hw register */
 	spinlock_t reg_lock;
 	bool cmd_in_flight;
+	bool ref_cmd_in_flight;
+
+	/* protect ref counter */
+	spinlock_t ref_lock;
+	u32 ref_count;
 
 	dma_addr_t fw_mon_phys;
 	struct page *fw_mon_page;
@@ -380,6 +385,9 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 			    struct sk_buff_head *skbs);
 void iwl_trans_pcie_tx_reset(struct iwl_trans *trans);
+
+void iwl_trans_pcie_ref(struct iwl_trans *trans);
+void iwl_trans_pcie_unref(struct iwl_trans *trans);
 
 static inline u16 iwl_pcie_tfd_tb_get_len(struct iwl_tfd *tfd, u8 idx)
 {
