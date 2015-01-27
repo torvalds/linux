@@ -468,7 +468,7 @@ bool regmap_reg_in_ranges(unsigned int reg,
  *
  * @reg: Offset of the register within the regmap bank
  * @lsb: lsb of the register field.
- * @reg: msb of the register field.
+ * @msb: msb of the register field.
  * @id_size: port size if it has some ports
  * @id_offset: address offset for each ports
  */
