@@ -45,13 +45,12 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/input.h>
-#include <linux/usb.h>
 #include <linux/fcntl.h>
 #include <linux/compiler.h>
 #include <asm/unaligned.h>
 
 #include "comedi_fc.h"
-#include "../comedidev.h"
+#include "../comedi_usb.h"
 
 /* timeout for the USB-transfer in ms*/
 #define BULK_TIMEOUT 1000
