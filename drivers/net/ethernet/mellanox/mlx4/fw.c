@@ -1897,6 +1897,36 @@ out:
 	return err;
 }
 
+static int mlx4_hca_core_clock_update(struct mlx4_dev *dev)
+{
+	struct mlx4_cmd_mailbox *mailbox;
+	__be32 *outbox;
+	int err;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox)) {
+		mlx4_warn(dev, "hca_core_clock mailbox allocation failed\n");
+		return PTR_ERR(mailbox);
+	}
+	outbox = mailbox->buf;
+
+	err = mlx4_cmd_box(dev, 0, mailbox->dma, 0, 0,
+			   MLX4_CMD_QUERY_HCA,
+			   MLX4_CMD_TIME_CLASS_B,
+			   !mlx4_is_slave(dev));
+	if (err) {
+		mlx4_warn(dev, "hca_core_clock update failed\n");
+		goto out;
+	}
+
+	MLX4_GET(dev->caps.hca_core_clock, outbox, QUERY_HCA_CORE_CLOCK_OFFSET);
+
+out:
+	mlx4_free_cmd_mailbox(dev, mailbox);
+
+	return err;
+}
+
 /* for IB-type ports only in SRIOV mode. Checks that both proxy QP0
  * and real QP0 are active, so that the paravirtualized QP0 is ready
  * to operate */
@@ -2000,6 +2030,9 @@ int mlx4_INIT_PORT(struct mlx4_dev *dev, int port)
 	} else
 		err = mlx4_cmd(dev, 0, port, 0, MLX4_CMD_INIT_PORT,
 			       MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
+
+	if (!err)
+		mlx4_hca_core_clock_update(dev);
 
 	return err;
 }
