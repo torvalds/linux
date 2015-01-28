@@ -1372,7 +1372,7 @@ static int enic_poll_msix_rq(struct napi_struct *napi, int budget)
 	int err;
 
 	if (!enic_poll_lock_napi(&enic->rq[rq]))
-		return work_done;
+		return budget;
 	/* Service RQ
 	 */
 

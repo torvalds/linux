@@ -1799,7 +1799,9 @@ static int rcar_vin_querycap(struct soc_camera_host *ici,
 			     struct v4l2_capability *cap)
 {
 	strlcpy(cap->card, "R_Car_VIN", sizeof(cap->card));
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
+	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
+
 	return 0;
 }
 

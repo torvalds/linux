@@ -27,13 +27,18 @@ struct genl_info;
  * @maxattr: maximum number of attributes supported
  * @netnsok: set to true if the family can handle network
  *	namespaces and should be presented in all of them
+ * @parallel_ops: operations can be called in parallel and aren't
+ *	synchronized by the core genetlink code
  * @pre_doit: called before an operation's doit callback, it may
  *	do additional, common, filtering and return an error
  * @post_doit: called after an operation's doit callback, it may
  *	undo operations done by pre_doit, for example release locks
  * @mcast_bind: a socket bound to the given multicast group (which
  *	is given as the offset into the groups array)
- * @mcast_unbind: a socket was unbound from the given multicast group
+ * @mcast_unbind: a socket was unbound from the given multicast group.
+ *	Note that unbind() will not be called symmetrically if the
+ *	generic netlink family is removed while there are still open
+ *	sockets.
  * @attrbuf: buffer to store parsed attributes
  * @family_list: family list
  * @mcgrps: multicast groups used by this family (private)

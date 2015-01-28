@@ -1533,45 +1533,40 @@ static void reg_call_notifier(struct wiphy *wiphy,
 
 static bool reg_wdev_chan_valid(struct wiphy *wiphy, struct wireless_dev *wdev)
 {
-	struct ieee80211_channel *ch;
 	struct cfg80211_chan_def chandef;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
-	bool ret = true;
+	enum nl80211_iftype iftype;
 
 	wdev_lock(wdev);
+	iftype = wdev->iftype;
 
+	/* make sure the interface is active */
 	if (!wdev->netdev || !netif_running(wdev->netdev))
-		goto out;
+		goto wdev_inactive_unlock;
 
-	switch (wdev->iftype) {
+	switch (iftype) {
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_P2P_GO:
 		if (!wdev->beacon_interval)
-			goto out;
-
-		ret = cfg80211_reg_can_beacon(wiphy,
-					      &wdev->chandef, wdev->iftype);
+			goto wdev_inactive_unlock;
+		chandef = wdev->chandef;
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		if (!wdev->ssid_len)
-			goto out;
-
-		ret = cfg80211_reg_can_beacon(wiphy,
-					      &wdev->chandef, wdev->iftype);
+			goto wdev_inactive_unlock;
+		chandef = wdev->chandef;
 		break;
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
 		if (!wdev->current_bss ||
 		    !wdev->current_bss->pub.channel)
-			goto out;
+			goto wdev_inactive_unlock;
 
-		ch = wdev->current_bss->pub.channel;
-		if (rdev->ops->get_channel &&
-		    !rdev_get_channel(rdev, wdev, &chandef))
-			ret = cfg80211_chandef_usable(wiphy, &chandef,
-						      IEEE80211_CHAN_DISABLED);
-		else
-			ret = !(ch->flags & IEEE80211_CHAN_DISABLED);
+		if (!rdev->ops->get_channel ||
+		    rdev_get_channel(rdev, wdev, &chandef))
+			cfg80211_chandef_create(&chandef,
+						wdev->current_bss->pub.channel,
+						NL80211_CHAN_NO_HT);
 		break;
 	case NL80211_IFTYPE_MONITOR:
 	case NL80211_IFTYPE_AP_VLAN:
@@ -1584,9 +1579,26 @@ static bool reg_wdev_chan_valid(struct wiphy *wiphy, struct wireless_dev *wdev)
 		break;
 	}
 
-out:
 	wdev_unlock(wdev);
-	return ret;
+
+	switch (iftype) {
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_P2P_GO:
+	case NL80211_IFTYPE_ADHOC:
+		return cfg80211_reg_can_beacon(wiphy, &chandef, iftype);
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_P2P_CLIENT:
+		return cfg80211_chandef_usable(wiphy, &chandef,
+					       IEEE80211_CHAN_DISABLED);
+	default:
+		break;
+	}
+
+	return true;
+
+wdev_inactive_unlock:
+	wdev_unlock(wdev);
+	return true;
 }
 
 static void reg_leave_invalid_chans(struct wiphy *wiphy)
