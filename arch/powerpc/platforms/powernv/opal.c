@@ -208,7 +208,7 @@ static int __init opal_register_exception_handlers(void)
 	 * start catching/handling HMI directly in Linux.
 	 */
 	if (!opal_check_token(OPAL_HANDLE_HMI)) {
-		pr_info("opal: Old firmware detected, OPAL handles HMIs.\n");
+		pr_info("Old firmware detected, OPAL handles HMIs.\n");
 		opal_register_exception_handler(
 				OPAL_HYPERVISOR_MAINTENANCE_HANDLER,
 				0, glue);
@@ -709,7 +709,7 @@ static int __init opal_init(void)
 
 	opal_node = of_find_node_by_path("/ibm,opal");
 	if (!opal_node) {
-		pr_warn("opal: Node not found\n");
+		pr_warn("Device node not found\n");
 		return -ENODEV;
 	}
 
@@ -732,7 +732,7 @@ static int __init opal_init(void)
 
 	/* Find all OPAL interrupts and request them */
 	irqs = of_get_property(opal_node, "opal-interrupts", &irqlen);
-	pr_debug("opal: Found %d interrupts reserved for OPAL\n",
+	pr_debug("Found %d interrupts reserved for OPAL\n",
 		 irqs ? (irqlen / 4) : 0);
 	opal_irq_count = irqlen / 4;
 	opal_irqs = kzalloc(opal_irq_count * sizeof(unsigned int), GFP_KERNEL);
@@ -740,13 +740,13 @@ static int __init opal_init(void)
 		unsigned int hwirq = be32_to_cpup(irqs);
 		unsigned int irq = irq_create_mapping(NULL, hwirq);
 		if (irq == NO_IRQ) {
-			pr_warning("opal: Failed to map irq 0x%x\n", hwirq);
+			pr_warning("Failed to map irq 0x%x\n", hwirq);
 			continue;
 		}
 		rc = request_irq(irq, opal_interrupt, 0, "opal", NULL);
 		if (rc)
-			pr_warning("opal: Error %d requesting irq %d"
-				   " (0x%x)\n", rc, irq, hwirq);
+			pr_warning("Error %d requesting irq %d (0x%x)\n",
+				    rc, irq, hwirq);
 		opal_irqs[i] = irq;
 	}
 
