@@ -1352,8 +1352,6 @@ struct i915_gpu_error {
 	spinlock_t lock;
 	/* Protected by the above dev->gpu_error.lock. */
 	struct drm_i915_error_state *first_error;
-	struct work_struct work;
-
 
 	unsigned long missed_irq_rings;
 

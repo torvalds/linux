@@ -3969,6 +3969,17 @@ i915_wedged_set(void *data, u64 val)
 	struct drm_device *dev = data;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	/*
+	 * There is no safeguard against this debugfs entry colliding
+	 * with the hangcheck calling same i915_handle_error() in
+	 * parallel, causing an explosion. For now we assume that the
+	 * test harness is responsible enough not to inject gpu hangs
+	 * while it is writing to 'i915_wedged'
+	 */
+
+	if (i915_reset_in_progress(&dev_priv->gpu_error))
+		return -EAGAIN;
+
 	intel_runtime_pm_get(dev_priv);
 
 	i915_handle_error(dev, val,

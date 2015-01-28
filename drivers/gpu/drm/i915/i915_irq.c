@@ -2421,19 +2421,15 @@ static void i915_error_wake_up(struct drm_i915_private *dev_priv,
 }
 
 /**
- * i915_error_work_func - do process context error handling work
- * @work: work struct
+ * i915_reset_and_wakeup - do process context error handling work
  *
  * Fire an error uevent so userspace can see that a hang or error
  * was detected.
  */
-static void i915_error_work_func(struct work_struct *work)
+static void i915_reset_and_wakeup(struct drm_device *dev)
 {
-	struct i915_gpu_error *error = container_of(work, struct i915_gpu_error,
-						    work);
-	struct drm_i915_private *dev_priv =
-		container_of(error, struct drm_i915_private, gpu_error);
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct i915_gpu_error *error = &dev_priv->gpu_error;
 	char *error_event[] = { I915_ERROR_UEVENT "=1", NULL };
 	char *reset_event[] = { I915_RESET_UEVENT "=1", NULL };
 	char *reset_done_event[] = { I915_ERROR_UEVENT "=0", NULL };
@@ -2600,10 +2596,10 @@ static void i915_report_and_clear_eir(struct drm_device *dev)
 }
 
 /**
- * i915_handle_error - handle an error interrupt
+ * i915_handle_error - handle a gpu error
  * @dev: drm device
  *
- * Do some basic checking of regsiter state at error interrupt time and
+ * Do some basic checking of regsiter state at error time and
  * dump it to the syslog.  Also call i915_capture_error_state() to make
  * sure we get a record and make it available in debugfs.  Fire a uevent
  * so userspace knows something bad happened (should trigger collection
@@ -2615,6 +2611,9 @@ void i915_handle_error(struct drm_device *dev, bool wedged,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	va_list args;
 	char error_msg[80];
+
+	if (WARN_ON(mutex_is_locked(&dev_priv->dev->struct_mutex)))
+		return;
 
 	va_start(args, fmt);
 	vscnprintf(error_msg, sizeof(error_msg), fmt, args);
@@ -2628,9 +2627,9 @@ void i915_handle_error(struct drm_device *dev, bool wedged,
 				&dev_priv->gpu_error.reset_counter);
 
 		/*
-		 * Wakeup waiting processes so that the reset work function
-		 * i915_error_work_func doesn't deadlock trying to grab various
-		 * locks. By bumping the reset counter first, the woken
+		 * Wakeup waiting processes so that the reset function
+		 * i915_reset_and_wakeup doesn't deadlock trying to grab
+		 * various locks. By bumping the reset counter first, the woken
 		 * processes will see a reset in progress and back off,
 		 * releasing their locks and then wait for the reset completion.
 		 * We must do this for _all_ gpu waiters that might hold locks
@@ -2643,13 +2642,7 @@ void i915_handle_error(struct drm_device *dev, bool wedged,
 		i915_error_wake_up(dev_priv, false);
 	}
 
-	/*
-	 * Our reset work can grab modeset locks (since it needs to reset the
-	 * state of outstanding pagelips). Hence it must not be run on our own
-	 * dev-priv->wq work queue for otherwise the flush_work in the pageflip
-	 * code will deadlock.
-	 */
-	schedule_work(&dev_priv->gpu_error.work);
+	i915_reset_and_wakeup(dev);
 }
 
 /* Called from drm generic code, passed 'crtc' which
@@ -4345,7 +4338,6 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 
 	INIT_WORK(&dev_priv->hotplug_work, i915_hotplug_work_func);
 	INIT_WORK(&dev_priv->dig_port_work, i915_digport_work_func);
-	INIT_WORK(&dev_priv->gpu_error.work, i915_error_work_func);
 	INIT_WORK(&dev_priv->rps.work, gen6_pm_rps_work);
 	INIT_WORK(&dev_priv->l3_parity.error_work, ivybridge_parity_work);
 
