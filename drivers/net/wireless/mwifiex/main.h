@@ -577,6 +577,7 @@ struct mwifiex_private {
 	unsigned long csa_expire_time;
 	u8 del_list_idx;
 	bool hs2_enabled;
+	struct mwifiex_uap_bss_param bss_cfg;
 	struct station_parameters *sta_params;
 	struct sk_buff_head tdls_txq;
 	u8 check_tdls_tx;
