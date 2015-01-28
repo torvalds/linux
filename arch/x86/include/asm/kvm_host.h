@@ -802,6 +802,31 @@ struct kvm_x86_ops {
 	int (*check_nested_events)(struct kvm_vcpu *vcpu, bool external_intr);
 
 	void (*sched_in)(struct kvm_vcpu *kvm, int cpu);
+
+	/*
+	 * Arch-specific dirty logging hooks. These hooks are only supposed to
+	 * be valid if the specific arch has hardware-accelerated dirty logging
+	 * mechanism. Currently only for PML on VMX.
+	 *
+	 *  - slot_enable_log_dirty:
+	 *	called when enabling log dirty mode for the slot.
+	 *  - slot_disable_log_dirty:
+	 *	called when disabling log dirty mode for the slot.
+	 *	also called when slot is created with log dirty disabled.
+	 *  - flush_log_dirty:
+	 *	called before reporting dirty_bitmap to userspace.
+	 *  - enable_log_dirty_pt_masked:
+	 *	called when reenabling log dirty for the GFNs in the mask after
+	 *	corresponding bits are cleared in slot->dirty_bitmap.
+	 */
+	void (*slot_enable_log_dirty)(struct kvm *kvm,
+				      struct kvm_memory_slot *slot);
+	void (*slot_disable_log_dirty)(struct kvm *kvm,
+				       struct kvm_memory_slot *slot);
+	void (*flush_log_dirty)(struct kvm *kvm);
+	void (*enable_log_dirty_pt_masked)(struct kvm *kvm,
+					   struct kvm_memory_slot *slot,
+					   gfn_t offset, unsigned long mask);
 };
 
 struct kvm_arch_async_pf {
