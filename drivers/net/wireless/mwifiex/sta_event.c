@@ -516,6 +516,11 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		mwifiex_parse_tx_status_event(priv, adapter->event_body);
 		break;
 
+	case EVENT_CHANNEL_REPORT_RDY:
+		dev_dbg(adapter->dev, "event: Channel Report\n");
+		ret = mwifiex_11h_handle_chanrpt_ready(priv,
+						       adapter->event_skb);
+		break;
 	default:
 		dev_dbg(adapter->dev, "event: unknown event id: %#x\n",
 			eventcause);

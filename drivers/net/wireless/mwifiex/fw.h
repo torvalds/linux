@@ -158,6 +158,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_POWER_GROUP        (PROPRIETARY_TLV_BASE_ID + 84)
 #define TLV_TYPE_BSS_SCAN_RSP       (PROPRIETARY_TLV_BASE_ID + 86)
 #define TLV_TYPE_BSS_SCAN_INFO      (PROPRIETARY_TLV_BASE_ID + 87)
+#define TLV_TYPE_CHANRPT_11H_BASIC  (PROPRIETARY_TLV_BASE_ID + 91)
 #define TLV_TYPE_UAP_RETRY_LIMIT    (PROPRIETARY_TLV_BASE_ID + 93)
 #define TLV_TYPE_WAPI_IE            (PROPRIETARY_TLV_BASE_ID + 94)
 #define TLV_TYPE_UAP_MGMT_FRAME     (PROPRIETARY_TLV_BASE_ID + 104)
@@ -494,6 +495,7 @@ enum P2P_MODES {
 #define EVENT_HOSTWAKE_STAIE		0x0000004d
 #define EVENT_CHANNEL_SWITCH_ANN        0x00000050
 #define EVENT_TDLS_GENERIC_EVENT        0x00000052
+#define EVENT_CHANNEL_REPORT_RDY        0x00000054
 #define EVENT_EXT_SCAN_REPORT           0x00000058
 #define EVENT_REMAIN_ON_CHAN_EXPIRED    0x0000005f
 #define EVENT_TX_STATUS_REPORT		0x00000074
@@ -1228,6 +1230,13 @@ struct host_cmd_ds_chan_rpt_req {
 	__le32 msec_dwell_time;
 } __packed;
 
+struct host_cmd_ds_chan_rpt_event {
+	__le32 result;
+	__le64 start_tsf;
+	__le32 duration;
+	u8 tlvbuf[0];
+} __packed;
+
 struct mwifiex_fixed_bcn_param {
 	__le64 timestamp;
 	__le16 beacon_period;
@@ -1802,6 +1811,20 @@ struct mwifiex_ie_types_rssi_threshold {
 	struct mwifiex_ie_types_header header;
 	u8 abs_value;
 	u8 evt_freq;
+} __packed;
+
+struct meas_rpt_map {
+	u8 rssi:3;
+	u8 unmeasured:1;
+	u8 radar:1;
+	u8 unidentified_sig:1;
+	u8 ofdm_preamble:1;
+	u8 bss:1;
+} __packed;
+
+struct mwifiex_ie_types_chan_rpt_data {
+	struct mwifiex_ie_types_header header;
+	struct meas_rpt_map map;
 } __packed;
 
 struct host_cmd_ds_802_11_subsc_evt {

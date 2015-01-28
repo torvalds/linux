@@ -215,7 +215,11 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 		adapter->ps_state = PS_STATE_AWAKE;
 		adapter->pm_wakeup_card_req = false;
 		adapter->pm_wakeup_fw_try = false;
+		break;
 
+	case EVENT_CHANNEL_REPORT_RDY:
+		dev_dbg(adapter->dev, "event: Channel Report\n");
+		mwifiex_11h_handle_chanrpt_ready(priv, adapter->event_skb);
 		break;
 	default:
 		dev_dbg(adapter->dev, "event: unknown event id: %#x\n",

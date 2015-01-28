@@ -165,3 +165,54 @@ void mwifiex_abort_cac(struct mwifiex_private *priv)
 				   NL80211_RADAR_CAC_ABORTED, GFP_KERNEL);
 	}
 }
+
+/* This function handles channel report event from FW during CAC period.
+ * If radar is detected during CAC, driver indicates the same to cfg80211
+ * and also cancels ongoing delayed work.
+ */
+int mwifiex_11h_handle_chanrpt_ready(struct mwifiex_private *priv,
+				     struct sk_buff *skb)
+{
+	struct host_cmd_ds_chan_rpt_event *rpt_event;
+	struct mwifiex_ie_types_chan_rpt_data *rpt;
+	u8 *evt_buf;
+	u16 event_len, tlv_len;
+
+	rpt_event = (void *)(skb->data + sizeof(u32));
+	event_len = skb->len - (sizeof(struct host_cmd_ds_chan_rpt_event)+
+				sizeof(u32));
+
+	if (le32_to_cpu(rpt_event->result) != HostCmd_RESULT_OK) {
+		dev_err(priv->adapter->dev, "Error in channel report event\n");
+		return -1;
+	}
+
+	evt_buf = (void *)&rpt_event->tlvbuf;
+
+	while (event_len >= sizeof(struct mwifiex_ie_types_header)) {
+		rpt = (void *)&rpt_event->tlvbuf;
+		tlv_len = le16_to_cpu(rpt->header.len);
+
+		switch (le16_to_cpu(rpt->header.type)) {
+		case TLV_TYPE_CHANRPT_11H_BASIC:
+			if (rpt->map.radar) {
+				dev_notice(priv->adapter->dev,
+					   "RADAR Detected on channel %d!\n",
+					    priv->dfs_chandef.chan->hw_value);
+				cancel_delayed_work_sync(&priv->dfs_cac_work);
+				cfg80211_cac_event(priv->netdev,
+						   &priv->dfs_chandef,
+						   NL80211_RADAR_DETECTED,
+						   GFP_KERNEL);
+			}
+			break;
+		default:
+			break;
+		}
+
+		evt_buf += (tlv_len + sizeof(rpt->header));
+		event_len -= (tlv_len + sizeof(rpt->header));
+	}
+
+	return 0;
+}

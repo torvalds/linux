@@ -1384,6 +1384,8 @@ void mwifiex_clean_auto_tdls(struct mwifiex_private *priv);
 int mwifiex_cmd_issue_chan_report_request(struct mwifiex_private *priv,
 					  struct host_cmd_ds_command *cmd,
 					  void *data_buf);
+int mwifiex_11h_handle_chanrpt_ready(struct mwifiex_private *priv,
+				     struct sk_buff *skb);
 
 void mwifiex_parse_tx_status_event(struct mwifiex_private *priv,
 				   void *event_body);
