@@ -353,6 +353,7 @@ unsigned mtd_mmap_capabilities(struct mtd_info *mtd)
 		return NOMMU_MAP_COPY;
 	}
 }
+EXPORT_SYMBOL_GPL(mtd_mmap_capabilities);
 #endif
 
 /**
