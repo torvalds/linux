@@ -848,6 +848,24 @@ TRACE_EVENT(kvm_track_tsc,
 
 #endif /* CONFIG_X86_64 */
 
+/*
+ * Tracepoint for PML full VMEXIT.
+ */
+TRACE_EVENT(kvm_pml_full,
+	TP_PROTO(unsigned int vcpu_id),
+	TP_ARGS(vcpu_id),
+
+	TP_STRUCT__entry(
+		__field(	unsigned int,	vcpu_id			)
+	),
+
+	TP_fast_assign(
+		__entry->vcpu_id		= vcpu_id;
+	),
+
+	TP_printk("vcpu %d: PML full", __entry->vcpu_id)
+);
+
 TRACE_EVENT(kvm_ple_window,
 	TP_PROTO(bool grow, unsigned int vcpu_id, int new, int old),
 	TP_ARGS(grow, vcpu_id, new, old),

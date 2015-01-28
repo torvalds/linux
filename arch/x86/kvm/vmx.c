@@ -101,6 +101,9 @@ module_param(nested, bool, S_IRUGO);
 
 static u64 __read_mostly host_xss;
 
+static bool __read_mostly enable_pml = 1;
+module_param_named(pml, enable_pml, bool, S_IRUGO);
+
 #define KVM_GUEST_CR0_MASK (X86_CR0_NW | X86_CR0_CD)
 #define KVM_VM_CR0_ALWAYS_ON_UNRESTRICTED_GUEST (X86_CR0_WP | X86_CR0_NE)
 #define KVM_VM_CR0_ALWAYS_ON						\
@@ -516,6 +519,10 @@ struct vcpu_vmx {
 	/* Dynamic PLE window. */
 	int ple_window;
 	bool ple_window_dirty;
+
+	/* Support for PML */
+#define PML_ENTITY_NUM		512
+	struct page *pml_pg;
 };
 
 enum segment_cache_field {
@@ -1066,6 +1073,11 @@ static inline bool cpu_has_vmx_shadow_vmcs(void)
 
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
 		SECONDARY_EXEC_SHADOW_VMCS;
+}
+
+static inline bool cpu_has_vmx_pml(void)
+{
+	return vmcs_config.cpu_based_2nd_exec_ctrl & SECONDARY_EXEC_ENABLE_PML;
 }
 
 static inline bool report_flexpriority(void)
@@ -2924,7 +2936,8 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 			SECONDARY_EXEC_APIC_REGISTER_VIRT |
 			SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY |
 			SECONDARY_EXEC_SHADOW_VMCS |
-			SECONDARY_EXEC_XSAVES;
+			SECONDARY_EXEC_XSAVES |
+			SECONDARY_EXEC_ENABLE_PML;
 		if (adjust_vmx_controls(min2, opt2,
 					MSR_IA32_VMX_PROCBASED_CTLS2,
 					&_cpu_based_2nd_exec_control) < 0)
@@ -4355,6 +4368,9 @@ static u32 vmx_secondary_exec_control(struct vcpu_vmx *vmx)
 	   a current VMCS12
 	*/
 	exec_control &= ~SECONDARY_EXEC_SHADOW_VMCS;
+	/* PML is enabled/disabled in creating/destorying vcpu */
+	exec_control &= ~SECONDARY_EXEC_ENABLE_PML;
+
 	return exec_control;
 }
 
@@ -5942,6 +5958,20 @@ static __init int hardware_setup(void)
 
 	update_ple_window_actual_max();
 
+	/*
+	 * Only enable PML when hardware supports PML feature, and both EPT
+	 * and EPT A/D bit features are enabled -- PML depends on them to work.
+	 */
+	if (!enable_ept || !enable_ept_ad_bits || !cpu_has_vmx_pml())
+		enable_pml = 0;
+
+	if (!enable_pml) {
+		kvm_x86_ops->slot_enable_log_dirty = NULL;
+		kvm_x86_ops->slot_disable_log_dirty = NULL;
+		kvm_x86_ops->flush_log_dirty = NULL;
+		kvm_x86_ops->enable_log_dirty_pt_masked = NULL;
+	}
+
 	return alloc_kvm_area();
 
 out7:
@@ -6971,6 +7001,31 @@ static bool vmx_test_pir(struct kvm_vcpu *vcpu, int vector)
 	return pi_test_pir(vector, &vmx->pi_desc);
 }
 
+static int handle_pml_full(struct kvm_vcpu *vcpu)
+{
+	unsigned long exit_qualification;
+
+	trace_kvm_pml_full(vcpu->vcpu_id);
+
+	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
+
+	/*
+	 * PML buffer FULL happened while executing iret from NMI,
+	 * "blocked by NMI" bit has to be set before next VM entry.
+	 */
+	if (!(to_vmx(vcpu)->idt_vectoring_info & VECTORING_INFO_VALID_MASK) &&
+			cpu_has_virtual_nmis() &&
+			(exit_qualification & INTR_INFO_UNBLOCK_NMI))
+		vmcs_set_bits(GUEST_INTERRUPTIBILITY_INFO,
+				GUEST_INTR_STATE_NMI);
+
+	/*
+	 * PML buffer already flushed at beginning of VMEXIT. Nothing to do
+	 * here.., and there's no userspace involvement needed for PML.
+	 */
+	return 1;
+}
+
 /*
  * The exit handlers return 1 if the exit was handled fully and guest execution
  * may resume.  Otherwise they set the kvm_run parameter to indicate what needs
@@ -7019,6 +7074,7 @@ static int (*const kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[EXIT_REASON_INVVPID]                 = handle_invvpid,
 	[EXIT_REASON_XSAVES]                  = handle_xsaves,
 	[EXIT_REASON_XRSTORS]                 = handle_xrstors,
+	[EXIT_REASON_PML_FULL]		      = handle_pml_full,
 };
 
 static const int kvm_vmx_max_exit_handlers =
@@ -7325,6 +7381,89 @@ static void vmx_get_exit_info(struct kvm_vcpu *vcpu, u64 *info1, u64 *info2)
 	*info2 = vmcs_read32(VM_EXIT_INTR_INFO);
 }
 
+static int vmx_enable_pml(struct vcpu_vmx *vmx)
+{
+	struct page *pml_pg;
+	u32 exec_control;
+
+	pml_pg = alloc_page(GFP_KERNEL | __GFP_ZERO);
+	if (!pml_pg)
+		return -ENOMEM;
+
+	vmx->pml_pg = pml_pg;
+
+	vmcs_write64(PML_ADDRESS, page_to_phys(vmx->pml_pg));
+	vmcs_write16(GUEST_PML_INDEX, PML_ENTITY_NUM - 1);
+
+	exec_control = vmcs_read32(SECONDARY_VM_EXEC_CONTROL);
+	exec_control |= SECONDARY_EXEC_ENABLE_PML;
+	vmcs_write32(SECONDARY_VM_EXEC_CONTROL, exec_control);
+
+	return 0;
+}
+
+static void vmx_disable_pml(struct vcpu_vmx *vmx)
+{
+	u32 exec_control;
+
+	ASSERT(vmx->pml_pg);
+	__free_page(vmx->pml_pg);
+	vmx->pml_pg = NULL;
+
+	exec_control = vmcs_read32(SECONDARY_VM_EXEC_CONTROL);
+	exec_control &= ~SECONDARY_EXEC_ENABLE_PML;
+	vmcs_write32(SECONDARY_VM_EXEC_CONTROL, exec_control);
+}
+
+static void vmx_flush_pml_buffer(struct vcpu_vmx *vmx)
+{
+	struct kvm *kvm = vmx->vcpu.kvm;
+	u64 *pml_buf;
+	u16 pml_idx;
+
+	pml_idx = vmcs_read16(GUEST_PML_INDEX);
+
+	/* Do nothing if PML buffer is empty */
+	if (pml_idx == (PML_ENTITY_NUM - 1))
+		return;
+
+	/* PML index always points to next available PML buffer entity */
+	if (pml_idx >= PML_ENTITY_NUM)
+		pml_idx = 0;
+	else
+		pml_idx++;
+
+	pml_buf = page_address(vmx->pml_pg);
+	for (; pml_idx < PML_ENTITY_NUM; pml_idx++) {
+		u64 gpa;
+
+		gpa = pml_buf[pml_idx];
+		WARN_ON(gpa & (PAGE_SIZE - 1));
+		mark_page_dirty(kvm, gpa >> PAGE_SHIFT);
+	}
+
+	/* reset PML index */
+	vmcs_write16(GUEST_PML_INDEX, PML_ENTITY_NUM - 1);
+}
+
+/*
+ * Flush all vcpus' PML buffer and update logged GPAs to dirty_bitmap.
+ * Called before reporting dirty_bitmap to userspace.
+ */
+static void kvm_flush_pml_buffers(struct kvm *kvm)
+{
+	int i;
+	struct kvm_vcpu *vcpu;
+	/*
+	 * We only need to kick vcpu out of guest mode here, as PML buffer
+	 * is flushed at beginning of all VMEXITs, and it's obvious that only
+	 * vcpus running in guest are possible to have unflushed GPAs in PML
+	 * buffer.
+	 */
+	kvm_for_each_vcpu(i, vcpu, kvm)
+		kvm_vcpu_kick(vcpu);
+}
+
 /*
  * The guest has exited.  See if we can fix it or if we need userspace
  * assistance.
@@ -7334,6 +7473,16 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 exit_reason = vmx->exit_reason;
 	u32 vectoring_info = vmx->idt_vectoring_info;
+
+	/*
+	 * Flush logged GPAs PML buffer, this will make dirty_bitmap more
+	 * updated. Another good is, in kvm_vm_ioctl_get_dirty_log, before
+	 * querying dirty_bitmap, we only need to kick all vcpus out of guest
+	 * mode as if vcpus is in root mode, the PML buffer must has been
+	 * flushed already.
+	 */
+	if (enable_pml)
+		vmx_flush_pml_buffer(vmx);
 
 	/* If guest state is invalid, start emulating */
 	if (vmx->emulation_required)
@@ -7981,6 +8130,8 @@ static void vmx_free_vcpu(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
+	if (enable_pml)
+		vmx_disable_pml(vmx);
 	free_vpid(vmx);
 	leave_guest_mode(vcpu);
 	vmx_load_vmcs01(vcpu);
@@ -8050,6 +8201,18 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 
 	vmx->nested.current_vmptr = -1ull;
 	vmx->nested.current_vmcs12 = NULL;
+
+	/*
+	 * If PML is turned on, failure on enabling PML just results in failure
+	 * of creating the vcpu, therefore we can simplify PML logic (by
+	 * avoiding dealing with cases, such as enabling PML partially on vcpus
+	 * for the guest, etc.
+	 */
+	if (enable_pml) {
+		err = vmx_enable_pml(vmx);
+		if (err)
+			goto free_vmcs;
+	}
 
 	return &vmx->vcpu;
 
@@ -9492,6 +9655,31 @@ static void vmx_sched_in(struct kvm_vcpu *vcpu, int cpu)
 		shrink_ple_window(vcpu);
 }
 
+static void vmx_slot_enable_log_dirty(struct kvm *kvm,
+				     struct kvm_memory_slot *slot)
+{
+	kvm_mmu_slot_leaf_clear_dirty(kvm, slot);
+	kvm_mmu_slot_largepage_remove_write_access(kvm, slot);
+}
+
+static void vmx_slot_disable_log_dirty(struct kvm *kvm,
+				       struct kvm_memory_slot *slot)
+{
+	kvm_mmu_slot_set_dirty(kvm, slot);
+}
+
+static void vmx_flush_log_dirty(struct kvm *kvm)
+{
+	kvm_flush_pml_buffers(kvm);
+}
+
+static void vmx_enable_log_dirty_pt_masked(struct kvm *kvm,
+					   struct kvm_memory_slot *memslot,
+					   gfn_t offset, unsigned long mask)
+{
+	kvm_mmu_clear_dirty_pt_masked(kvm, memslot, offset, mask);
+}
+
 static struct kvm_x86_ops vmx_x86_ops = {
 	.cpu_has_kvm_support = cpu_has_kvm_support,
 	.disabled_by_bios = vmx_disabled_by_bios,
@@ -9601,6 +9789,11 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.check_nested_events = vmx_check_nested_events,
 
 	.sched_in = vmx_sched_in,
+
+	.slot_enable_log_dirty = vmx_slot_enable_log_dirty,
+	.slot_disable_log_dirty = vmx_slot_disable_log_dirty,
+	.flush_log_dirty = vmx_flush_log_dirty,
+	.enable_log_dirty_pt_masked = vmx_enable_log_dirty_pt_masked,
 };
 
 static int __init vmx_init(void)
