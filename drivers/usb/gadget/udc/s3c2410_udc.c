@@ -1434,6 +1434,7 @@ static int s3c2410_udc_set_selfpowered(struct usb_gadget *gadget, int value)
 
 	dprintk(DEBUG_NORMAL, "%s()\n", __func__);
 
+	gadget->is_selfpowered = (value != 0);
 	if (value)
 		udc->devstatus |= (1 << USB_DEVICE_SELF_POWERED);
 	else
