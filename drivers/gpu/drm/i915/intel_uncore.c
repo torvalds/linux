@@ -131,7 +131,6 @@ fw_domains_get(struct drm_i915_private *dev_priv, enum forcewake_domains fw_doma
 	for_each_fw_domain_mask(d, fw_domains, dev_priv, id) {
 		fw_domain_wait_ack_clear(d);
 		fw_domain_get(d);
-		fw_domain_posting_read(d);
 		fw_domain_wait_ack(d);
 	}
 }
