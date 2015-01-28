@@ -108,8 +108,8 @@
 #define PCM512x_RQML_SHIFT 4
 
 /* Page 0, Register 4 - PLL */
-#define PCM512x_PLCE       (1 << 0)
-#define PCM512x_RLCE_SHIFT 0
+#define PCM512x_PLLE       (1 << 0)
+#define PCM512x_PLLE_SHIFT 0
 #define PCM512x_PLCK       (1 << 4)
 #define PCM512x_PLCK_SHIFT 4
 
@@ -152,7 +152,7 @@
 /* Page 0, Register 65 - Digital mute enables */
 #define PCM512x_ACTL_SHIFT 2
 #define PCM512x_AMLE_SHIFT 1
-#define PCM512x_AMLR_SHIFT 0
+#define PCM512x_AMRE_SHIFT 0
 
 /* Page 1, Register 2 - analog volume control */
 #define PCM512x_RAGN_SHIFT 0

@@ -277,7 +277,7 @@ SOC_ENUM("Auto Mute Time Right", pcm512x_autom_r),
 SOC_SINGLE("Auto Mute Mono Switch", PCM512x_DIGITAL_MUTE_3,
 	   PCM512x_ACTL_SHIFT, 1, 0),
 SOC_DOUBLE("Auto Mute Switch", PCM512x_DIGITAL_MUTE_3, PCM512x_AMLE_SHIFT,
-	   PCM512x_AMLR_SHIFT, 1, 0),
+	   PCM512x_AMRE_SHIFT, 1, 0),
 
 SOC_ENUM("Volume Ramp Down Rate", pcm512x_vndf),
 SOC_ENUM("Volume Ramp Down Step", pcm512x_vnds),
