@@ -6537,9 +6537,10 @@ F:	include/uapi/linux/netrom.h
 F:	net/netrom/
 
 NETWORK BLOCK DEVICE (NBD)
-M:	Paul Clements <Paul.Clements@steeleye.com>
+M:	Markus Pargmann <mpa@pengutronix.de>
 S:	Maintained
 L:	nbd-general@lists.sourceforge.net
+T:	git git://git.pengutronix.de/git/mpa/linux-nbd.git
 F:	Documentation/blockdev/nbd.txt
 F:	drivers/block/nbd.c
 F:	include/linux/nbd.h
