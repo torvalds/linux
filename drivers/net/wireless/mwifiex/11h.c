@@ -240,3 +240,40 @@ int mwifiex_11h_handle_radar_detected(struct mwifiex_private *priv,
 
 	return 0;
 }
+
+/* This is work queue function for channel switch handling.
+ * This function takes care of updating new channel definitin to
+ * bss config structure, restart AP and indicate channel switch success
+ * to cfg80211.
+ */
+void mwifiex_dfs_chan_sw_work_queue(struct work_struct *work)
+{
+	struct mwifiex_uap_bss_param *bss_cfg;
+	struct delayed_work *delayed_work =
+			container_of(work, struct delayed_work, work);
+	struct mwifiex_private *priv =
+			container_of(delayed_work, struct mwifiex_private,
+				     dfs_chan_sw_work);
+
+	if (WARN_ON(!priv))
+		return;
+
+	bss_cfg = &priv->bss_cfg;
+	if (!bss_cfg->beacon_period) {
+		dev_err(priv->adapter->dev,
+			"channel switch: AP already stopped\n");
+		return;
+	}
+
+	mwifiex_uap_set_channel(bss_cfg, priv->dfs_chandef);
+
+	if (mwifiex_config_start_uap(priv, bss_cfg)) {
+		dev_dbg(priv->adapter->dev,
+			"Failed to start AP after channel switch\n");
+		return;
+	}
+
+	dev_notice(priv->adapter->dev,
+		   "indicating channel switch completion to kernel\n");
+	cfg80211_ch_switch_notify(priv->netdev, &priv->dfs_chandef);
+}

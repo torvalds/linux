@@ -2399,7 +2399,7 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 	struct mwifiex_private *priv;
 	struct net_device *dev;
 	void *mdev_priv;
-	char dfs_cac_str[MWIFIEX_MAX_WQ_LEN];
+	char dfs_cac_str[MWIFIEX_MAX_WQ_LEN], dfs_chsw_str[MWIFIEX_MAX_WQ_LEN];
 
 	if (!adapter)
 		return ERR_PTR(-EFAULT);
@@ -2582,6 +2582,24 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 
 	INIT_DELAYED_WORK(&priv->dfs_cac_work, mwifiex_dfs_cac_work_queue);
 
+	strcpy(dfs_chsw_str, "MWIFIEX_DFS_CHSW");
+	strcat(dfs_chsw_str, name);
+	priv->dfs_chan_sw_workqueue = alloc_workqueue(dfs_chsw_str,
+						      WQ_HIGHPRI | WQ_UNBOUND |
+						      WQ_MEM_RECLAIM, 1);
+	if (!priv->dfs_chan_sw_workqueue) {
+		wiphy_err(wiphy, "cannot register virtual network device\n");
+		free_netdev(dev);
+		priv->bss_mode = NL80211_IFTYPE_UNSPECIFIED;
+		priv->netdev = NULL;
+		memset(&priv->wdev, 0, sizeof(priv->wdev));
+		priv->wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
+		return ERR_PTR(-ENOMEM);
+	}
+
+	INIT_DELAYED_WORK(&priv->dfs_chan_sw_work,
+			  mwifiex_dfs_chan_sw_work_queue);
+
 	sema_init(&priv->async_sem, 1);
 
 	dev_dbg(adapter->dev, "info: %s: Marvell 802.11 Adapter\n", dev->name);
@@ -2637,6 +2655,11 @@ int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 		priv->dfs_cac_workqueue = NULL;
 	}
 
+	if (priv->dfs_chan_sw_workqueue) {
+		flush_workqueue(priv->dfs_chan_sw_workqueue);
+		destroy_workqueue(priv->dfs_chan_sw_workqueue);
+		priv->dfs_chan_sw_workqueue = NULL;
+	}
 	/* Clear the priv in adapter */
 	priv->netdev->ieee80211_ptr = NULL;
 	priv->netdev = NULL;
@@ -3116,6 +3139,62 @@ mwifiex_cfg80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int
+mwifiex_cfg80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
+				struct cfg80211_csa_settings *params)
+{
+	struct ieee_types_header *chsw_ie;
+	struct ieee80211_channel_sw_ie *channel_sw;
+	int chsw_msec;
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+
+	if (priv->adapter->scan_processing) {
+		dev_err(priv->adapter->dev,
+			"radar detection: scan in process...\n");
+		return -EBUSY;
+	}
+
+	if (priv->wdev.cac_started)
+		return -EBUSY;
+
+	if (cfg80211_chandef_identical(&params->chandef,
+				       &priv->dfs_chandef))
+		return -EINVAL;
+
+	chsw_ie = (void *)cfg80211_find_ie(WLAN_EID_CHANNEL_SWITCH,
+					   params->beacon_csa.tail,
+					   params->beacon_csa.tail_len);
+	if (!chsw_ie) {
+		dev_err(priv->adapter->dev,
+			"Could not parse channel switch announcement IE\n");
+		return -EINVAL;
+	}
+
+	channel_sw = (void *)(chsw_ie + 1);
+	if (channel_sw->mode) {
+		if (netif_carrier_ok(priv->netdev))
+			netif_carrier_off(priv->netdev);
+		mwifiex_stop_net_dev_queue(priv->netdev, priv->adapter);
+	}
+
+	if (mwifiex_del_mgmt_ies(priv))
+		wiphy_err(wiphy, "Failed to delete mgmt IEs!\n");
+
+	if (mwifiex_set_mgmt_ies(priv, &params->beacon_csa)) {
+		wiphy_err(wiphy, "%s: setting mgmt ies failed\n", __func__);
+		return -EFAULT;
+	}
+
+	memcpy(&priv->dfs_chandef, &params->chandef, sizeof(priv->dfs_chandef));
+	memcpy(&priv->beacon_after, &params->beacon_after,
+	       sizeof(priv->beacon_after));
+
+	chsw_msec = max(channel_sw->count * priv->bss_cfg.beacon_period, 100);
+	queue_delayed_work(priv->dfs_chan_sw_workqueue, &priv->dfs_chan_sw_work,
+			   msecs_to_jiffies(chsw_msec));
+	return 0;
+}
+
+static int
 mwifiex_cfg80211_start_radar_detection(struct wiphy *wiphy,
 				       struct net_device *dev,
 				       struct cfg80211_chan_def *chandef,
@@ -3210,6 +3289,7 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.add_station = mwifiex_cfg80211_add_station,
 	.change_station = mwifiex_cfg80211_change_station,
 	.start_radar_detection = mwifiex_cfg80211_start_radar_detection,
+	.channel_switch = mwifiex_cfg80211_channel_switch,
 };
 
 #ifdef CONFIG_PM
@@ -3313,7 +3393,8 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 	wiphy->flags |= WIPHY_FLAG_HAVE_AP_SME |
 			WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD |
 			WIPHY_FLAG_AP_UAPSD |
-			WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
+			WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
+			WIPHY_FLAG_HAS_CHANNEL_SWITCH;
 
 	if (ISSUPP_TDLS_ENABLED(adapter->fw_cap_info))
 		wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS |

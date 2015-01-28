@@ -591,6 +591,10 @@ struct mwifiex_private {
 	struct cfg80211_chan_def dfs_chandef;
 	struct workqueue_struct *dfs_cac_workqueue;
 	struct delayed_work dfs_cac_work;
+	struct timer_list dfs_chan_switch_timer;
+	struct workqueue_struct *dfs_chan_sw_workqueue;
+	struct delayed_work dfs_chan_sw_work;
+	struct cfg80211_beacon_data beacon_after;
 };
 
 enum mwifiex_ba_status {
@@ -1394,6 +1398,7 @@ struct sk_buff *
 mwifiex_clone_skb_for_tx_status(struct mwifiex_private *priv,
 				struct sk_buff *skb, u8 flag, u64 *cookie);
 void mwifiex_dfs_cac_work_queue(struct work_struct *work);
+void mwifiex_dfs_chan_sw_work_queue(struct work_struct *work);
 void mwifiex_abort_cac(struct mwifiex_private *priv);
 int mwifiex_11h_handle_radar_detected(struct mwifiex_private *priv,
 				      struct sk_buff *skb);

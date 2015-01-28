@@ -325,6 +325,7 @@ static int mwifiex_uap_set_head_tail_ies(struct mwifiex_private *priv,
 {
 	struct mwifiex_ie *gen_ie;
 	struct ieee_types_header *rsn_ie = NULL, *wpa_ie = NULL;
+	struct ieee_types_header *chsw_ie = NULL;
 	u16 gen_idx = MWIFIEX_AUTO_IDX_MASK, ie_len = 0;
 	const u8 *vendor_ie;
 
@@ -356,9 +357,18 @@ static int mwifiex_uap_set_head_tail_ies(struct mwifiex_private *priv,
 			ie_len += wpa_ie->len + 2;
 			gen_ie->ie_length = cpu_to_le16(ie_len);
 		}
+
+		chsw_ie = (void *)cfg80211_find_ie(WLAN_EID_CHANNEL_SWITCH,
+						   info->tail, info->tail_len);
+		if (chsw_ie) {
+			memcpy(gen_ie->ie_buffer + ie_len,
+			       chsw_ie, chsw_ie->len + 2);
+			ie_len += chsw_ie->len + 2;
+			gen_ie->ie_length = cpu_to_le16(ie_len);
+		}
 	}
 
-	if (rsn_ie || wpa_ie) {
+	if (rsn_ie || wpa_ie || chsw_ie) {
 		if (mwifiex_update_uap_custom_ie(priv, gen_ie, &gen_idx, NULL,
 						 NULL, NULL, NULL)) {
 			kfree(gen_ie);
