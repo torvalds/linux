@@ -44,7 +44,7 @@ static const char line6_request_version[] = {
 	0xf0, 0x7e, 0x7f, 0x06, 0x01, 0xf7
 };
 
-/**
+/*
 	 Class for asynchronous messages.
 */
 struct message {

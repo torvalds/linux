@@ -27,9 +27,7 @@ enum {
 };
 
 struct usb_line6_podhd {
-	/**
-		Generic Line 6 USB data.
-	*/
+	/* Generic Line 6 USB data */
 	struct usb_line6 line6;
 };
 

@@ -42,30 +42,20 @@ enum {
 };
 
 struct usb_line6_variax {
-	/**
-		Generic Line 6 USB data.
-	*/
+	/* Generic Line 6 USB data */
 	struct usb_line6 line6;
 
-	/**
-		Buffer for activation code.
-	*/
+	/* Buffer for activation code */
 	unsigned char *buffer_activate;
 
-	/**
-		Handler for device initializaton.
-	*/
+	/* Handler for device initialization */
 	struct work_struct startup_work;
 
-	/**
-		Timers for device initializaton.
-	*/
+	/* Timers for device initialization */
 	struct timer_list startup_timer1;
 	struct timer_list startup_timer2;
 
-	/**
-		Current progress in startup procedure.
-	*/
+	/* Current progress in startup procedure */
 	int startup_progress;
 };
 

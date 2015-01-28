@@ -58,44 +58,28 @@ enum {
 };
 
 struct usb_line6_pod {
-	/**
-		Generic Line 6 USB data.
-	*/
+	/* Generic Line 6 USB data */
 	struct usb_line6 line6;
 
-	/**
-		Instrument monitor level.
-	*/
+	/* Instrument monitor level */
 	int monitor_level;
 
-	/**
-		Timer for device initializaton.
-	*/
+	/* Timer for device initialization */
 	struct timer_list startup_timer;
 
-	/**
-		Work handler for device initializaton.
-	*/
+	/* Work handler for device initialization */
 	struct work_struct startup_work;
 
-	/**
-		Current progress in startup procedure.
-	*/
+	/* Current progress in startup procedure */
 	int startup_progress;
 
-	/**
-		Serial number of device.
-	*/
+	/* Serial number of device */
 	int serial_number;
 
-	/**
-		Firmware version (x 100).
-	*/
+	/* Firmware version (x 100) */
 	int firmware_version;
 
-	/**
-		Device ID.
-	*/
+	/* Device ID */
 	int device_id;
 };
 

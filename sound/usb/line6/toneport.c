@@ -43,34 +43,22 @@ struct toneport_led {
 };
 
 struct usb_line6_toneport {
-	/**
-		Generic Line 6 USB data.
-	*/
+	/* Generic Line 6 USB data */
 	struct usb_line6 line6;
 
-	/**
-		Source selector.
-	*/
+	/* Source selector */
 	int source;
 
-	/**
-		Serial number of device.
-	*/
+	/* Serial number of device */
 	int serial_number;
 
-	/**
-		Firmware version (x 100).
-	*/
+	/* Firmware version (x 100) */
 	int firmware_version;
 
-	/**
-		 Timer for delayed PCM startup.
-	*/
+	/* Timer for delayed PCM startup */
 	struct timer_list timer;
 
-	/**
-		 Device type.
-	*/
+	/* Device type */
 	enum line6_device_type type;
 
 	/* LED instances */

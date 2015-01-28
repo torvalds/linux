@@ -60,26 +60,20 @@ extern const unsigned char line6_midi_id[3];
 static const int SYSEX_DATA_OFS = sizeof(line6_midi_id) + 3;
 static const int SYSEX_EXTRA_SIZE = sizeof(line6_midi_id) + 4;
 
-/**
+/*
 	 Common properties of Line 6 devices.
 */
 struct line6_properties {
-	/**
-		 Card id string (maximum 16 characters).
-		 This can be used to address the device in ALSA programs as
-		 "default:CARD=<id>"
-	*/
+	/* Card id string (maximum 16 characters).
+	 * This can be used to address the device in ALSA programs as
+	 * "default:CARD=<id>"
+	 */
 	const char *id;
 
-	/**
-		 Card short name (maximum 32 characters).
-	*/
+	/* Card short name (maximum 32 characters) */
 	const char *name;
 
-	/**
-		 Bit vector defining this device's capabilities in the
-		 line6usb driver.
-	*/
+	/* Bit vector defining this device's capabilities in line6usb driver */
 	int capabilities;
 
 	int altsetting;
@@ -90,70 +84,47 @@ struct line6_properties {
 	unsigned ep_audio_w;
 };
 
-/**
+/*
 	 Common data shared by all Line 6 devices.
 	 Corresponds to a pair of USB endpoints.
 */
 struct usb_line6 {
-	/**
-		 USB device.
-	*/
+	/* USB device */
 	struct usb_device *usbdev;
 
-	/**
-		 Properties.
-	*/
+	/* Properties */
 	const struct line6_properties *properties;
 
-	/**
-		 Interval (ms).
-	*/
+	/* Interval (ms) */
 	int interval;
 
-	/**
-		 Maximum size of USB packet.
-	*/
+	/* Maximum size of USB packet */
 	int max_packet_size;
 
-	/**
-		 Device representing the USB interface.
-	*/
+	/* Device representing the USB interface */
 	struct device *ifcdev;
 
-	/**
-		 Line 6 sound card data structure.
-		 Each device has at least MIDI or PCM.
-	*/
+	/* Line 6 sound card data structure.
+	 * Each device has at least MIDI or PCM.
+	 */
 	struct snd_card *card;
 
-	/**
-		 Line 6 PCM device data structure.
-	*/
+	/* Line 6 PCM device data structure */
 	struct snd_line6_pcm *line6pcm;
 
-	/**
-		 Line 6 MIDI device data structure.
-	*/
+	/* Line 6 MIDI device data structure */
 	struct snd_line6_midi *line6midi;
 
-	/**
-		 URB for listening to PODxt Pro control endpoint.
-	*/
+	/* URB for listening to PODxt Pro control endpoint */
 	struct urb *urb_listen;
 
-	/**
-		 Buffer for listening to PODxt Pro control endpoint.
-	*/
+	/* Buffer for listening to PODxt Pro control endpoint */
 	unsigned char *buffer_listen;
 
-	/**
-		 Buffer for message to be processed.
-	*/
+	/* Buffer for message to be processed */
 	unsigned char *buffer_message;
 
-	/**
-		 Length of message to be processed.
-	*/
+	/* Length of message to be processed */
 	int message_length;
 
 	void (*process_message)(struct usb_line6 *);

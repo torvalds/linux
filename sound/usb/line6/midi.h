@@ -19,44 +19,28 @@
 #define MIDI_BUFFER_SIZE 1024
 
 struct snd_line6_midi {
-	/**
-		 Pointer back to the Line 6 driver data structure.
-	*/
+	/* Pointer back to the Line 6 driver data structure */
 	struct usb_line6 *line6;
 
-	/**
-		 MIDI substream for receiving (or NULL if not active).
-	*/
+	/* MIDI substream for receiving (or NULL if not active) */
 	struct snd_rawmidi_substream *substream_receive;
 
-	/**
-		 MIDI substream for transmitting (or NULL if not active).
-	*/
+	/* MIDI substream for transmitting (or NULL if not active) */
 	struct snd_rawmidi_substream *substream_transmit;
 
-	/**
-		 Number of currently active MIDI send URBs.
-	*/
+	/* Number of currently active MIDI send URBs */
 	int num_active_send_urbs;
 
-	/**
-		 Spin lock to protect MIDI buffer handling.
-	*/
+	/* Spin lock to protect MIDI buffer handling */
 	spinlock_t lock;
 
-	/**
-		 Wait queue for MIDI transmission.
-	*/
+	/* Wait queue for MIDI transmission */
 	wait_queue_head_t send_wait;
 
-	/**
-		 Buffer for incoming MIDI stream.
-	*/
+	/* Buffer for incoming MIDI stream */
 	struct midi_buffer midibuf_in;
 
-	/**
-		 Buffer for outgoing MIDI stream.
-	*/
+	/* Buffer for outgoing MIDI stream */
 	struct midi_buffer midibuf_out;
 };
 
