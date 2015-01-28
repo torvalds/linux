@@ -1383,6 +1383,7 @@ EXPORT_SYMBOL_GPL(vb2_qbuf);
  */
 static int __vb2_wait_for_done_vb(struct vb2_queue *q, int nonblocking)
 {
+	int count = 0;
 	/*
 	 * All operations on vb_done_list are performed under done_lock
 	 * spinlock protection. However, buffers may be removed from
@@ -1424,18 +1425,33 @@ static int __vb2_wait_for_done_vb(struct vb2_queue *q, int nonblocking)
 		 * All locks have been released, it is safe to sleep now.
 		 */
 		dprintk(3, "Will sleep waiting for buffers\n");
+		/*
 		ret = wait_event_interruptible(q->done_wq,
 				!list_empty(&q->done_list) || !q->streaming);
+		*/
+
+		ret = wait_event_interruptible_timeout(q->done_wq,
+				!list_empty(&q->done_list) || !q->streaming, msecs_to_jiffies(500));
 
 		/*
 		 * We need to reevaluate both conditions again after reacquiring
 		 * the locks or return an error if one occurred.
 		 */
 		call_qop(q, wait_finish, q);
+		/*
 		if (ret) {
 			dprintk(1, "Sleep was interrupted\n");
 			return ret;
 		}
+		*/
+		if (ret < 0) {
+ 			dprintk(1, "Sleep was interrupted\n");
+ 			return ret;
+		} else if (ret == 0) {
+			count ++;
+			if(count >= 5)
+				return -EIO;
+ 		}
 	}
 	return 0;
 }
