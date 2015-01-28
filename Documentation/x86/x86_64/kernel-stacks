@@ -40,9 +40,11 @@ An IST is selected by a non-zero value in the IST field of an
 interrupt-gate descriptor.  When an interrupt occurs and the hardware
 loads such a descriptor, the hardware automatically sets the new stack
 pointer based on the IST value, then invokes the interrupt handler.  If
-software wants to allow nested IST interrupts then the handler must
-adjust the IST values on entry to and exit from the interrupt handler.
-(This is occasionally done, e.g. for debug exceptions.)
+the interrupt came from user mode, then the interrupt handler prologue
+will switch back to the per-thread stack.  If software wants to allow
+nested IST interrupts then the handler must adjust the IST values on
+entry to and exit from the interrupt handler.  (This is occasionally
+done, e.g. for debug exceptions.)
 
 Events with different IST codes (i.e. with different stacks) can be
 nested.  For example, a debug interrupt can safely be interrupted by an
