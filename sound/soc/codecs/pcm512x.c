@@ -464,6 +464,7 @@ static int pcm512x_dai_startup(struct snd_pcm_substream *substream,
 
 	switch (pcm512x->fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBM_CFS:
 		return pcm512x_dai_startup_master(substream, dai);
 
 	case SND_SOC_DAIFMT_CBS_CFS:
@@ -970,6 +971,8 @@ static int pcm512x_hw_params(struct snd_pcm_substream *substream,
 	struct pcm512x_priv *pcm512x = snd_soc_codec_get_drvdata(codec);
 	int alen;
 	int gpio;
+	int clock_output;
+	int master_mode;
 	int ret;
 
 	dev_dbg(codec->dev, "hw_params %u Hz, %u channels\n",
@@ -1018,6 +1021,12 @@ static int pcm512x_hw_params(struct snd_pcm_substream *substream,
 		}
 		return 0;
 	case SND_SOC_DAIFMT_CBM_CFM:
+		clock_output = PCM512x_BCKO | PCM512x_LRKO;
+		master_mode = PCM512x_RLRK | PCM512x_RBCK;
+		break;
+	case SND_SOC_DAIFMT_CBM_CFS:
+		clock_output = PCM512x_BCKO;
+		master_mode = PCM512x_RBCK;
 		break;
 	default:
 		return -EINVAL;
@@ -1114,7 +1123,7 @@ static int pcm512x_hw_params(struct snd_pcm_substream *substream,
 
 	ret = regmap_update_bits(pcm512x->regmap, PCM512x_BCLK_LRCLK_CFG,
 				 PCM512x_BCKP | PCM512x_BCKO | PCM512x_LRKO,
-				 PCM512x_BCKO | PCM512x_LRKO);
+				 clock_output);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to enable clock output: %d\n", ret);
 		return ret;
@@ -1122,7 +1131,7 @@ static int pcm512x_hw_params(struct snd_pcm_substream *substream,
 
 	ret = regmap_update_bits(pcm512x->regmap, PCM512x_MASTER_MODE,
 				 PCM512x_RLRK | PCM512x_RBCK,
-				 PCM512x_RLRK | PCM512x_RBCK);
+				 master_mode);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to enable master mode: %d\n", ret);
 		return ret;
