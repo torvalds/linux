@@ -1205,22 +1205,34 @@ static void ar9003_hw_manual_peak_cal(struct ath_hw *ah, u8 chain, bool is_2g)
 	int offset[8] = {0}, total = 0, test;
 	int agc_out, i;
 
+	/*
+	 * Turn off LNA/SW.
+	 */
 	REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_GAINSTAGES(chain),
 		      AR_PHY_65NM_RXRF_GAINSTAGES_RX_OVERRIDE, 0x1);
 	REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_GAINSTAGES(chain),
 		      AR_PHY_65NM_RXRF_GAINSTAGES_LNAON_CALDC, 0x0);
-	if (is_2g)
-		REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_GAINSTAGES(chain),
-			      AR_PHY_65NM_RXRF_GAINSTAGES_LNA2G_GAIN_OVR, 0x0);
-	else
-		REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_GAINSTAGES(chain),
-			      AR_PHY_65NM_RXRF_GAINSTAGES_LNA5G_GAIN_OVR, 0x0);
 
+	if (AR_SREV_9003_PCOEM(ah) || AR_SREV_9330_11(ah)) {
+		if (is_2g)
+			REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_GAINSTAGES(chain),
+				      AR_PHY_65NM_RXRF_GAINSTAGES_LNA2G_GAIN_OVR, 0x0);
+		else
+			REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_GAINSTAGES(chain),
+				      AR_PHY_65NM_RXRF_GAINSTAGES_LNA5G_GAIN_OVR, 0x0);
+	}
+
+	/*
+	 * Turn off RXON.
+	 */
 	REG_RMW_FIELD(ah, AR_PHY_65NM_RXTX2(chain),
 		      AR_PHY_65NM_RXTX2_RXON_OVR, 0x1);
 	REG_RMW_FIELD(ah, AR_PHY_65NM_RXTX2(chain),
 		      AR_PHY_65NM_RXTX2_RXON, 0x0);
 
+	/*
+	 * Turn on AGC for cal.
+	 */
 	REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_AGC(chain),
 		      AR_PHY_65NM_RXRF_AGC_AGC_OVERRIDE, 0x1);
 	REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_AGC(chain),
@@ -1228,10 +1240,11 @@ static void ar9003_hw_manual_peak_cal(struct ath_hw *ah, u8 chain, bool is_2g)
 	REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_AGC(chain),
 		      AR_PHY_65NM_RXRF_AGC_AGC_CAL_OVR, 0x1);
 
-	if (AR_SREV_9330_11(ah)) {
+	if (AR_SREV_9330_11(ah))
 		REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_AGC(chain),
 			      AR_PHY_65NM_RXRF_AGC_AGC2G_CALDAC_OVR, 0x0);
-	} else {
+
+	if (AR_SREV_9003_PCOEM(ah)) {
 		if (is_2g)
 			REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_AGC(chain),
 				      AR_PHY_65NM_RXRF_AGC_AGC2G_DBDAC_OVR, 0x0);
@@ -1266,10 +1279,19 @@ static void ar9003_hw_manual_peak_cal(struct ath_hw *ah, u8 chain, bool is_2g)
 		REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_AGC(chain),
 			      AR_PHY_65NM_RXRF_AGC_AGC5G_CALDAC_OVR, total);
 
+	/*
+	 * Turn on LNA.
+	 */
 	REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_GAINSTAGES(chain),
 		      AR_PHY_65NM_RXRF_GAINSTAGES_RX_OVERRIDE, 0);
+	/*
+	 * Turn off RXON.
+	 */
 	REG_RMW_FIELD(ah, AR_PHY_65NM_RXTX2(chain),
 		      AR_PHY_65NM_RXTX2_RXON_OVR, 0);
+	/*
+	 * Turn off peak detect calibration.
+	 */
 	REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_AGC(chain),
 		      AR_PHY_65NM_RXRF_AGC_AGC_CAL_OVR, 0);
 }
