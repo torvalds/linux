@@ -23,6 +23,8 @@
 
 #include "ahci.h"
 
+#define DRV_NAME  "st_ahci"
+
 #define ST_AHCI_OOBR			0xbc
 #define ST_AHCI_OOBR_WE			BIT(31)
 #define ST_AHCI_OOBR_CWMIN_SHIFT	24
@@ -140,6 +142,10 @@ static const struct ata_port_info st_ahci_port_info = {
 	.port_ops       = &st_ahci_port_ops,
 };
 
+static struct scsi_host_template ahci_platform_sht = {
+	AHCI_SHT(DRV_NAME),
+};
+
 static int st_ahci_probe(struct platform_device *pdev)
 {
 	struct st_ahci_drv_data *drv_data;
@@ -166,7 +172,8 @@ static int st_ahci_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	err = ahci_platform_init_host(pdev, hpriv, &st_ahci_port_info);
+	err = ahci_platform_init_host(pdev, hpriv, &st_ahci_port_info,
+				      &ahci_platform_sht);
 	if (err) {
 		ahci_platform_disable_resources(hpriv);
 		return err;
@@ -229,7 +236,7 @@ MODULE_DEVICE_TABLE(of, st_ahci_match);
 
 static struct platform_driver st_ahci_driver = {
 	.driver = {
-		.name = "st_ahci",
+		.name = DRV_NAME,
 		.pm = &st_ahci_pm_ops,
 		.of_match_table = of_match_ptr(st_ahci_match),
 	},

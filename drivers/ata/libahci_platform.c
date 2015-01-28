@@ -35,10 +35,6 @@ struct ata_port_operations ahci_platform_ops = {
 };
 EXPORT_SYMBOL_GPL(ahci_platform_ops);
 
-static struct scsi_host_template ahci_platform_sht = {
-	AHCI_SHT("ahci_platform"),
-};
-
 /**
  * ahci_platform_enable_phys - Enable PHYs
  * @hpriv: host private area to store config values
@@ -494,6 +490,7 @@ EXPORT_SYMBOL_GPL(ahci_platform_get_resources);
  * @pdev: platform device pointer for the host
  * @hpriv: ahci-host private data for the host
  * @pi_template: template for the ata_port_info to use
+ * @sht: scsi_host_template to use when registering
  *
  * This function does all the usual steps needed to bring up an
  * ahci-platform host, note any necessary resources (ie clks, phys, etc.)
@@ -504,7 +501,8 @@ EXPORT_SYMBOL_GPL(ahci_platform_get_resources);
  */
 int ahci_platform_init_host(struct platform_device *pdev,
 			    struct ahci_host_priv *hpriv,
-			    const struct ata_port_info *pi_template)
+			    const struct ata_port_info *pi_template,
+			    struct scsi_host_template *sht)
 {
 	struct device *dev = &pdev->dev;
 	struct ata_port_info pi = *pi_template;
@@ -588,7 +586,7 @@ int ahci_platform_init_host(struct platform_device *pdev,
 	ahci_init_controller(host);
 	ahci_print_info(host, "platform");
 
-	return ahci_host_activate(host, irq, &ahci_platform_sht);
+	return ahci_host_activate(host, irq, sht);
 }
 EXPORT_SYMBOL_GPL(ahci_platform_init_host);
 

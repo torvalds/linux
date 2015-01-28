@@ -28,6 +28,8 @@
 #include <linux/libata.h>
 #include "ahci.h"
 
+#define DRV_NAME "ahci-imx"
+
 enum {
 	/* Timer 1-ms Register */
 	IMX_TIMER1MS				= 0x00e0,
@@ -520,6 +522,10 @@ static u32 imx_ahci_parse_props(struct device *dev,
 	return reg_value;
 }
 
+static struct scsi_host_template ahci_platform_sht = {
+	AHCI_SHT(DRV_NAME),
+};
+
 static int imx_ahci_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -616,7 +622,8 @@ static int imx_ahci_probe(struct platform_device *pdev)
 	reg_val = clk_get_rate(imxpriv->ahb_clk) / 1000;
 	writel(reg_val, hpriv->mmio + IMX_TIMER1MS);
 
-	ret = ahci_platform_init_host(pdev, hpriv, &ahci_imx_port_info);
+	ret = ahci_platform_init_host(pdev, hpriv, &ahci_imx_port_info,
+				      &ahci_platform_sht);
 	if (ret)
 		goto disable_sata;
 
@@ -674,7 +681,7 @@ static struct platform_driver imx_ahci_driver = {
 	.probe = imx_ahci_probe,
 	.remove = ata_platform_remove_one,
 	.driver = {
-		.name = "ahci-imx",
+		.name = DRV_NAME,
 		.of_match_table = imx_ahci_of_match,
 		.pm = &ahci_imx_pm_ops,
 	},

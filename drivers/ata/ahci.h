@@ -354,6 +354,10 @@ extern int ahci_ignore_sss;
 extern struct device_attribute *ahci_shost_attrs[];
 extern struct device_attribute *ahci_sdev_attrs[];
 
+/*
+ * This must be instantiated by the edge drivers.  Read the comments
+ * for ATA_BASE_SHT
+ */
 #define AHCI_SHT(drv_name)						\
 	ATA_NCQ_SHT(drv_name),						\
 	.can_queue		= AHCI_MAX_CMDS - 1,			\
