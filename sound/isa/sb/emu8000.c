@@ -30,7 +30,7 @@
 #include <sound/core.h>
 #include <sound/emu8000.h>
 #include <sound/emu8000_reg.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/init.h>
 #include <sound/control.h>
 #include <sound/initval.h>

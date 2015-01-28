@@ -28,7 +28,7 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/moduleparam.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/pci.h>
 #include <linux/stringify.h>
 #include <linux/module.h>

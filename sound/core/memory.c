@@ -22,7 +22,7 @@
 
 #include <linux/export.h>
 #include <linux/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <sound/core.h>
 
 /**
