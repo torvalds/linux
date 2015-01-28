@@ -69,7 +69,7 @@ struct insn {
 	const insn_byte_t *next_byte;
 };
 
-#define MAX_INSN_SIZE	16
+#define MAX_INSN_SIZE	15
 
 #define X86_MODRM_MOD(modrm) (((modrm) & 0xc0) >> 6)
 #define X86_MODRM_REG(modrm) (((modrm) & 0x38) >> 3)
