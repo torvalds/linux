@@ -674,10 +674,7 @@ EXPORT_SYMBOL(dasd_enable_device);
 unsigned int dasd_global_profile_level = DASD_PROFILE_OFF;
 
 #ifdef CONFIG_DASD_PROFILE
-static struct dasd_profile_info dasd_global_profile_data;
 struct dasd_profile dasd_global_profile = {
-	.dentry = NULL,
-	.data = &dasd_global_profile_data,
 	.lock = __SPIN_LOCK_UNLOCKED(dasd_global_profile.lock),
 };
 static struct dentry *dasd_debugfs_global_entry;
@@ -701,7 +698,7 @@ static void dasd_profile_start(struct dasd_block *block,
 				break;
 
 	spin_lock(&dasd_global_profile.lock);
-	if (dasd_global_profile_level) {
+	if (dasd_global_profile.data) {
 		dasd_global_profile.data->dasd_io_nr_req[counter]++;
 		if (rq_data_dir(req) == READ)
 			dasd_global_profile.data->dasd_read_nr_req[counter]++;
@@ -832,7 +829,7 @@ static void dasd_profile_end(struct dasd_block *block,
 	dasd_profile_counter(endtime, endtime_ind);
 
 	spin_lock(&dasd_global_profile.lock);
-	if (dasd_global_profile_level) {
+	if (dasd_global_profile.data) {
 		dasd_profile_end_add_data(dasd_global_profile.data,
 					  cqr->startdev != block->base,
 					  cqr->cpmode == 1,
@@ -882,11 +879,6 @@ void dasd_profile_reset(struct dasd_profile *profile)
 	memset(data, 0, sizeof(*data));
 	getnstimeofday(&data->starttod);
 	spin_unlock_bh(&profile->lock);
-}
-
-void dasd_global_profile_reset(void)
-{
-	dasd_profile_reset(&dasd_global_profile);
 }
 
 int dasd_profile_on(struct dasd_profile *profile)
@@ -956,12 +948,20 @@ static ssize_t dasd_stats_write(struct file *file,
 		dasd_profile_reset(prof);
 	} else if (strncmp(str, "on", 2) == 0) {
 		rc = dasd_profile_on(prof);
-		if (!rc)
-			rc = user_len;
+		if (rc)
+			goto out;
+		rc = user_len;
+		if (prof == &dasd_global_profile) {
+			dasd_profile_reset(prof);
+			dasd_global_profile_level = DASD_PROFILE_GLOBAL_ONLY;
+		}
 	} else if (strncmp(str, "off", 3) == 0) {
+		if (prof == &dasd_global_profile)
+			dasd_global_profile_level = DASD_PROFILE_OFF;
 		dasd_profile_off(prof);
 	} else
 		rc = -EINVAL;
+out:
 	vfree(buffer);
 	return rc;
 }
@@ -1051,59 +1051,6 @@ static const struct file_operations dasd_stats_raw_fops = {
 	.write		= dasd_stats_write,
 };
 
-static ssize_t dasd_stats_global_write(struct file *file,
-				       const char __user *user_buf,
-				       size_t user_len, loff_t *pos)
-{
-	char *buffer, *str;
-	ssize_t rc;
-
-	if (user_len > 65536)
-		user_len = 65536;
-	buffer = dasd_get_user_string(user_buf, user_len);
-	if (IS_ERR(buffer))
-		return PTR_ERR(buffer);
-	str = skip_spaces(buffer);
-	rc = user_len;
-	if (strncmp(str, "reset", 5) == 0) {
-		dasd_global_profile_reset();
-	} else if (strncmp(str, "on", 2) == 0) {
-		dasd_global_profile_reset();
-		dasd_global_profile_level = DASD_PROFILE_GLOBAL_ONLY;
-	} else if (strncmp(str, "off", 3) == 0) {
-		dasd_global_profile_level = DASD_PROFILE_OFF;
-	} else
-		rc = -EINVAL;
-	vfree(buffer);
-	return rc;
-}
-
-static int dasd_stats_global_show(struct seq_file *m, void *v)
-{
-	if (!dasd_global_profile_level) {
-		seq_puts(m, "disabled\n");
-		return 0;
-	}
-	spin_lock_bh(&dasd_global_profile.lock);
-	dasd_stats_seq_print(m, dasd_global_profile.data);
-	spin_unlock_bh(&dasd_global_profile.lock);
-	return 0;
-}
-
-static int dasd_stats_global_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, dasd_stats_global_show, NULL);
-}
-
-static const struct file_operations dasd_stats_global_fops = {
-	.owner		= THIS_MODULE,
-	.open		= dasd_stats_global_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= dasd_stats_global_write,
-};
-
 static void dasd_profile_init(struct dasd_profile *profile,
 			      struct dentry *base_dentry)
 {
@@ -1132,19 +1079,16 @@ static void dasd_profile_exit(struct dasd_profile *profile)
 static void dasd_statistics_removeroot(void)
 {
 	dasd_global_profile_level = DASD_PROFILE_OFF;
-	debugfs_remove(dasd_global_profile.dentry);
-	dasd_global_profile.dentry = NULL;
+	dasd_profile_exit(&dasd_global_profile);
 	debugfs_remove(dasd_debugfs_global_entry);
 	debugfs_remove(dasd_debugfs_root_entry);
 }
 
 static void dasd_statistics_createroot(void)
 {
-	umode_t mode;
 	struct dentry *pde;
 
 	dasd_debugfs_root_entry = NULL;
-	dasd_debugfs_global_entry = NULL;
 	pde = debugfs_create_dir("dasd", NULL);
 	if (!pde || IS_ERR(pde))
 		goto error;
@@ -1153,13 +1097,7 @@ static void dasd_statistics_createroot(void)
 	if (!pde || IS_ERR(pde))
 		goto error;
 	dasd_debugfs_global_entry = pde;
-
-	mode = (S_IRUSR | S_IWUSR | S_IFREG);
-	pde = debugfs_create_file("statistics", mode, dasd_debugfs_global_entry,
-				  NULL, &dasd_stats_global_fops);
-	if (!pde || IS_ERR(pde))
-		goto error;
-	dasd_global_profile.dentry = pde;
+	dasd_profile_init(&dasd_global_profile, dasd_debugfs_global_entry);
 	return;
 
 error:

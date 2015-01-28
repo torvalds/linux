@@ -728,7 +728,6 @@ int dasd_device_is_ro(struct dasd_device *);
 void dasd_profile_reset(struct dasd_profile *);
 int dasd_profile_on(struct dasd_profile *);
 void dasd_profile_off(struct dasd_profile *);
-void dasd_global_profile_reset(void);
 char *dasd_get_user_string(const char __user *, size_t);
 
 /* externals in dasd_devmap.c */

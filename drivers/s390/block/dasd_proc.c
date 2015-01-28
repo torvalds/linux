@@ -212,15 +212,15 @@ static int dasd_stats_proc_show(struct seq_file *m, void *v)
 	struct dasd_profile_info *prof;
 	int factor;
 
-	/* check for active profiling */
-	if (!dasd_global_profile_level) {
+	spin_lock_bh(&dasd_global_profile.lock);
+	prof = dasd_global_profile.data;
+	if (!prof) {
+		spin_unlock_bh(&dasd_global_profile.lock);
 		seq_printf(m, "Statistics are off - they might be "
 				    "switched on using 'echo set on > "
 				    "/proc/dasd/statistics'\n");
 		return 0;
 	}
-	spin_lock_bh(&dasd_global_profile.lock);
-	prof = dasd_global_profile.data;
 
 	/* prevent counter 'overflow' on output */
 	for (factor = 1; (prof->dasd_io_reqs / factor) > 9999999;
@@ -293,14 +293,19 @@ static ssize_t dasd_stats_proc_write(struct file *file,
 				dasd_stats_all_block_off();
 				goto out_error;
 			}
-			dasd_global_profile_reset();
+			rc = dasd_profile_on(&dasd_global_profile);
+			if (rc) {
+				dasd_stats_all_block_off();
+				goto out_error;
+			}
+			dasd_profile_reset(&dasd_global_profile);
 			dasd_global_profile_level = DASD_PROFILE_ON;
 			pr_info("The statistics feature has been switched "
 				"on\n");
 		} else if (strcmp(str, "off") == 0) {
-			/* switch off and reset statistics profiling */
+			/* switch off statistics profiling */
 			dasd_global_profile_level = DASD_PROFILE_OFF;
-			dasd_global_profile_reset();
+			dasd_profile_off(&dasd_global_profile);
 			dasd_stats_all_block_off();
 			pr_info("The statistics feature has been switched "
 				"off\n");
@@ -308,7 +313,7 @@ static ssize_t dasd_stats_proc_write(struct file *file,
 			goto out_parse_error;
 	} else if (strncmp(str, "reset", 5) == 0) {
 		/* reset the statistics */
-		dasd_global_profile_reset();
+		dasd_profile_reset(&dasd_global_profile);
 		dasd_stats_all_block_reset();
 		pr_info("The statistics have been reset\n");
 	} else
