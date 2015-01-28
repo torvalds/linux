@@ -301,6 +301,12 @@ static void ubiblock_do_work(struct work_struct *work)
 	struct request *req = blk_mq_rq_from_pdu(pdu);
 
 	blk_mq_start_request(req);
+
+	/*
+	 * It is safe to ignore the return value of blk_rq_map_sg() because
+	 * the number of sg entries is limited to UBI_MAX_SG_COUNT
+	 * and ubi_read_sg() will check that limit.
+	 */
 	blk_rq_map_sg(req->q, req, pdu->usgl.sg);
 
 	ret = ubiblock_read(pdu);
