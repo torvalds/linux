@@ -358,15 +358,8 @@ void s3c24xx_serial_start_tx(struct uart_port *port)
 			s3c24xx_serial_rx_disable(port);
 
 		tx_enabled(port) = 1;
-		if (!ourport->dma || !ourport->dma->tx_chan) {
-			if (s3c24xx_serial_has_interrupt_mask(port))
-				__clear_bit(S3C64XX_UINTM_TXD,
-						portaddrl(port, S3C64XX_UINTM));
-			else
-				enable_irq(ourport->tx_irq);
-
+		if (!ourport->dma || !ourport->dma->tx_chan)
 			s3c24xx_serial_start_tx_pio(ourport);
-		}
 	}
 
 	if (ourport->dma && ourport->dma->tx_chan) {
