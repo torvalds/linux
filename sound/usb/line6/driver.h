@@ -157,13 +157,11 @@ struct usb_line6 {
 	int message_length;
 
 	void (*process_message)(struct usb_line6 *);
-	void (*disconnect)(struct usb_interface *);
+	void (*disconnect)(struct usb_line6 *line6);
 };
 
 extern char *line6_alloc_sysex_buffer(struct usb_line6 *line6, int code1,
 				      int code2, int size);
-extern ssize_t line6_nop_read(struct device *dev,
-			      struct device_attribute *attr, char *buf);
 extern int line6_read_data(struct usb_line6 *line6, int address, void *data,
 			   size_t datalen);
 extern int line6_read_serial_number(struct usb_line6 *line6,
@@ -182,9 +180,11 @@ extern int line6_write_data(struct usb_line6 *line6, int address, void *data,
 			    size_t datalen);
 
 int line6_probe(struct usb_interface *interface,
-		struct usb_line6 *line6,
+		const struct usb_device_id *id,
 		const struct line6_properties *properties,
-		int (*private_init)(struct usb_interface *, struct usb_line6 *));
+		int (*private_init)(struct usb_line6 *, const struct usb_device_id *id),
+		size_t data_size);
+
 void line6_disconnect(struct usb_interface *interface);
 
 #ifdef CONFIG_PM

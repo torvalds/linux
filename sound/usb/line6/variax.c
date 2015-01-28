@@ -210,16 +210,9 @@ static void line6_variax_process_message(struct usb_line6 *line6)
 /*
 	Variax destructor.
 */
-static void line6_variax_disconnect(struct usb_interface *interface)
+static void line6_variax_disconnect(struct usb_line6 *line6)
 {
-	struct usb_line6_variax *variax;
-
-	if (!interface)
-		return;
-
-	variax = usb_get_intfdata(interface);
-	if (!variax)
-		return;
+	struct usb_line6_variax *variax = (struct usb_line6_variax *)line6;
 
 	del_timer(&variax->startup_timer1);
 	del_timer(&variax->startup_timer2);
@@ -231,8 +224,8 @@ static void line6_variax_disconnect(struct usb_interface *interface)
 /*
 	 Try to init workbench device.
 */
-static int variax_init(struct usb_interface *interface,
-		       struct usb_line6 *line6)
+static int variax_init(struct usb_line6 *line6,
+		       const struct usb_device_id *id)
 {
 	struct usb_line6_variax *variax = (struct usb_line6_variax *) line6;
 	int err;
@@ -243,9 +236,6 @@ static int variax_init(struct usb_interface *interface,
 	init_timer(&variax->startup_timer1);
 	init_timer(&variax->startup_timer2);
 	INIT_WORK(&variax->startup_work, variax_startup6);
-
-	if ((interface == NULL) || (variax == NULL))
-		return -ENODEV;
 
 	/* initialize USB buffers: */
 	variax->buffer_activate = kmemdup(variax_activate,
@@ -306,14 +296,9 @@ static const struct line6_properties variax_properties_table[] = {
 static int variax_probe(struct usb_interface *interface,
 			const struct usb_device_id *id)
 {
-	struct usb_line6_variax *variax;
-
-	variax = kzalloc(sizeof(*variax), GFP_KERNEL);
-	if (!variax)
-		return -ENODEV;
-	return line6_probe(interface, &variax->line6,
+	return line6_probe(interface, id,
 			   &variax_properties_table[id->driver_info],
-			   variax_init);
+			   variax_init, sizeof(struct usb_line6_variax));
 }
 
 static struct usb_driver variax_driver = {

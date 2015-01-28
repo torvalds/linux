@@ -413,26 +413,12 @@ int line6_read_serial_number(struct usb_line6 *line6, int *serial_number)
 EXPORT_SYMBOL_GPL(line6_read_serial_number);
 
 /*
-	No operation (i.e., unsupported).
-*/
-ssize_t line6_nop_read(struct device *dev, struct device_attribute *attr,
-		       char *buf)
-{
-	return 0;
-}
-EXPORT_SYMBOL_GPL(line6_nop_read);
-
-/*
 	Card destructor.
 */
 static void line6_destruct(struct snd_card *card)
 {
 	struct usb_line6 *line6 = card->private_data;
-	struct usb_device *usbdev;
-
-	if (!line6)
-		return;
-	usbdev = line6->usbdev;
+	struct usb_device *usbdev = line6->usbdev;
 
 	/* free buffer memory first: */
 	kfree(line6->buffer_message);
@@ -441,31 +427,102 @@ static void line6_destruct(struct snd_card *card)
 	/* then free URBs: */
 	usb_free_urb(line6->urb_listen);
 
-	/* free interface data: */
-	kfree(line6);
-
 	/* decrement reference counters: */
 	usb_put_dev(usbdev);
+}
+
+/* get data from endpoint descriptor (see usb_maxpacket): */
+static void line6_get_interval(struct usb_line6 *line6)
+{
+	struct usb_device *usbdev = line6->usbdev;
+	struct usb_host_endpoint *ep;
+	unsigned pipe = usb_rcvintpipe(usbdev, line6->properties->ep_ctrl_r);
+	unsigned epnum = usb_pipeendpoint(pipe);
+
+	ep = usbdev->ep_in[epnum];
+	if (ep) {
+		line6->interval = ep->desc.bInterval;
+		line6->max_packet_size = le16_to_cpu(ep->desc.wMaxPacketSize);
+	} else {
+		dev_err(line6->ifcdev,
+			"endpoint not available, using fallback values");
+		line6->interval = LINE6_FALLBACK_INTERVAL;
+		line6->max_packet_size = LINE6_FALLBACK_MAXPACKETSIZE;
+	}
+}
+
+static int line6_init_cap_control(struct usb_line6 *line6)
+{
+	int ret;
+
+	/* initialize USB buffers: */
+	line6->buffer_listen = kmalloc(LINE6_BUFSIZE_LISTEN, GFP_KERNEL);
+	if (!line6->buffer_listen)
+		return -ENOMEM;
+
+	line6->buffer_message = kmalloc(LINE6_MESSAGE_MAXLEN, GFP_KERNEL);
+	if (!line6->buffer_message)
+		return -ENOMEM;
+
+	line6->urb_listen = usb_alloc_urb(0, GFP_KERNEL);
+	if (!line6->urb_listen)
+		return -ENOMEM;
+
+	ret = line6_start_listen(line6);
+	if (ret < 0) {
+		dev_err(line6->ifcdev, "cannot start listening: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 /*
 	Probe USB device.
 */
 int line6_probe(struct usb_interface *interface,
-		struct usb_line6 *line6,
+		const struct usb_device_id *id,
 		const struct line6_properties *properties,
-		int (*private_init)(struct usb_interface *, struct usb_line6 *))
+		int (*private_init)(struct usb_line6 *, const struct usb_device_id *id),
+		size_t data_size)
 {
 	struct usb_device *usbdev = interface_to_usbdev(interface);
 	struct snd_card *card;
+	struct usb_line6 *line6;
 	int interface_number;
 	int ret;
 
+	if (WARN_ON(data_size < sizeof(*line6)))
+		return -EINVAL;
+
 	/* we don't handle multiple configurations */
-	if (usbdev->descriptor.bNumConfigurations != 1) {
-		ret = -ENODEV;
-		goto err_put;
-	}
+	if (usbdev->descriptor.bNumConfigurations != 1)
+		return -ENODEV;
+
+	ret = snd_card_new(&interface->dev,
+			   SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
+			   THIS_MODULE, data_size, &card);
+	if (ret < 0)
+		return ret;
+
+	/* store basic data: */
+	line6 = card->private_data;
+	line6->card = card;
+	line6->properties = properties;
+	line6->usbdev = usbdev;
+	line6->ifcdev = &interface->dev;
+
+	strcpy(card->id, properties->id);
+	strcpy(card->driver, DRIVER_NAME);
+	strcpy(card->shortname, properties->name);
+	sprintf(card->longname, "Line 6 %s at USB %s", properties->name,
+		dev_name(line6->ifcdev));
+	card->private_free = line6_destruct;
+
+	usb_set_intfdata(interface, line6);
+
+	/* increment reference counters: */
+	usb_get_dev(usbdev);
 
 	/* initialize device info: */
 	dev_info(&interface->dev, "Line 6 %s found\n", properties->name);
@@ -474,102 +531,36 @@ int line6_probe(struct usb_interface *interface,
 	interface_number = interface->cur_altsetting->desc.bInterfaceNumber;
 
 	ret = usb_set_interface(usbdev, interface_number,
-			properties->altsetting);
+				properties->altsetting);
 	if (ret < 0) {
 		dev_err(&interface->dev, "set_interface failed\n");
-		goto err_put;
+		goto error;
 	}
 
-	/* store basic data: */
-	line6->properties = properties;
-	line6->usbdev = usbdev;
-	line6->ifcdev = &interface->dev;
-
-	/* get data from endpoint descriptor (see usb_maxpacket): */
-	{
-		struct usb_host_endpoint *ep;
-		unsigned pipe = usb_rcvintpipe(usbdev, properties->ep_ctrl_r);
-		unsigned epnum = usb_pipeendpoint(pipe);
-		ep = usbdev->ep_in[epnum];
-
-		if (ep != NULL) {
-			line6->interval = ep->desc.bInterval;
-			line6->max_packet_size =
-			    le16_to_cpu(ep->desc.wMaxPacketSize);
-		} else {
-			line6->interval = LINE6_FALLBACK_INTERVAL;
-			line6->max_packet_size = LINE6_FALLBACK_MAXPACKETSIZE;
-			dev_err(line6->ifcdev,
-				"endpoint not available, using fallback values");
-		}
-	}
-
-	ret = snd_card_new(line6->ifcdev,
-			   SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
-			   THIS_MODULE, 0, &card);
-	if (ret < 0)
-		goto err_put;
-
-	line6->card = card;
-	strcpy(card->id, line6->properties->id);
-	strcpy(card->driver, DRIVER_NAME);
-	strcpy(card->shortname, line6->properties->name);
-	sprintf(card->longname, "Line 6 %s at USB %s", line6->properties->name,
-		dev_name(line6->ifcdev));
-	card->private_data = line6;
-	card->private_free = line6_destruct;
-
-	usb_set_intfdata(interface, line6);
-
-	/* increment reference counters: */
-	usb_get_dev(usbdev);
+	line6_get_interval(line6);
 
 	if (properties->capabilities & LINE6_CAP_CONTROL) {
-		/* initialize USB buffers: */
-		line6->buffer_listen =
-		    kmalloc(LINE6_BUFSIZE_LISTEN, GFP_KERNEL);
-		if (line6->buffer_listen == NULL) {
-			ret = -ENOMEM;
-			goto err_destruct;
-		}
-
-		line6->buffer_message =
-		    kmalloc(LINE6_MESSAGE_MAXLEN, GFP_KERNEL);
-		if (line6->buffer_message == NULL) {
-			ret = -ENOMEM;
-			goto err_destruct;
-		}
-
-		line6->urb_listen = usb_alloc_urb(0, GFP_KERNEL);
-
-		if (line6->urb_listen == NULL) {
-			ret = -ENOMEM;
-			goto err_destruct;
-		}
-
-		ret = line6_start_listen(line6);
-		if (ret < 0) {
-			dev_err(&interface->dev, "%s: usb_submit_urb failed\n",
-				__func__);
-			goto err_destruct;
-		}
+		ret = line6_init_cap_control(line6);
+		if (ret < 0)
+			goto error;
 	}
 
 	/* initialize device data based on device: */
-	ret = private_init(interface, line6);
+	ret = private_init(line6, id);
 	if (ret < 0)
-		goto err_destruct;
+		goto error;
 
 	/* creation of additional special files should go here */
 
 	dev_info(&interface->dev, "Line 6 %s now attached\n",
-		 line6->properties->name);
+		 properties->name);
 
 	return 0;
 
- err_destruct:
+ error:
+	if (line6->disconnect)
+		line6->disconnect(line6);
 	snd_card_free(card);
- err_put:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(line6_probe);
@@ -579,32 +570,23 @@ EXPORT_SYMBOL_GPL(line6_probe);
 */
 void line6_disconnect(struct usb_interface *interface)
 {
-	struct usb_line6 *line6;
-	struct usb_device *usbdev;
-	int interface_number;
+	struct usb_line6 *line6 = usb_get_intfdata(interface);
+	struct usb_device *usbdev = interface_to_usbdev(interface);
 
-	if (interface == NULL)
-		return;
-	usbdev = interface_to_usbdev(interface);
-	if (usbdev == NULL)
-		return;
-
-	interface_number = interface->cur_altsetting->desc.bInterfaceNumber;
-	line6 = usb_get_intfdata(interface);
 	if (!line6)
+		return;
+
+	if (WARN_ON(usbdev != line6->usbdev))
 		return;
 
 	if (line6->urb_listen != NULL)
 		line6_stop_listen(line6);
 
-	if (usbdev != line6->usbdev)
-		dev_err(line6->ifcdev, "driver bug: inconsistent usb device\n");
-
 	snd_card_disconnect(line6->card);
 	if (line6->line6pcm)
 		line6_pcm_disconnect(line6->line6pcm);
 	if (line6->disconnect)
-		line6->disconnect(interface);
+		line6->disconnect(line6);
 
 	dev_info(&interface->dev, "Line 6 %s now disconnected\n",
 		 line6->properties->name);

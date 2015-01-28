@@ -54,115 +54,88 @@
 	However, from the device's point of view, there is just a single
 	capture and playback stream, which must be shared between these
 	subsystems. It is therefore necessary to maintain the state of the
-	subsystems with respect to PCM usage. We define several constants of
-	the form LINE6_BIT_PCM_<subsystem>_<direction>_<resource> with the
-	following meanings:
-	*) <subsystem> is one of
-	-) ALSA: PCM playback and capture via ALSA
-	-) MONITOR: software monitoring
-	-) IMPULSE: optional impulse response measurement
-	*) <direction> is one of
-	-) PLAYBACK: audio output (from host to device)
-	-) CAPTURE: audio input (from device to host)
-	*) <resource> is one of
-	-) BUFFER: buffer required by PCM data stream
-	-) STREAM: actual PCM data stream
+	subsystems with respect to PCM usage.
 
-	The subsystems call line6_pcm_acquire() to acquire the (shared)
-	resources needed for a particular operation (e.g., allocate the buffer
-	for ALSA playback or start the capture stream for software monitoring).
-	When a resource is no longer needed, it is released by calling
-	line6_pcm_release(). Buffer allocation and stream startup are handled
-	separately to allow the ALSA kernel driver to perform them at
-	appropriate places (since the callback which starts a PCM stream is not
-	allowed to sleep).
+	We define two bit flags, "opened" and "running", for each playback
+	or capture stream.  Both can contain the bit flag corresponding to
+	LINE6_STREAM_* type,
+	  LINE6_STREAM_PCM = ALSA PCM playback or capture
+	  LINE6_STREAM_MONITOR = software monitoring
+	  IMPULSE = optional impulse response measurement
+	The opened flag indicates whether the buffer is allocated while
+	the running flag indicates whether the stream is running.
+
+	For monitor or impulse operations, the driver needs to call
+	snd_line6_duplex_acquire() or snd_line6_duplex_release() with the
+	appropriate LINE6_STREAM_* flag.
 */
+
+/* stream types */
 enum {
-	/* individual bit indices: */
-	LINE6_INDEX_PCM_ALSA_PLAYBACK_BUFFER,
-	LINE6_INDEX_PCM_ALSA_PLAYBACK_STREAM,
-	LINE6_INDEX_PCM_ALSA_CAPTURE_BUFFER,
-	LINE6_INDEX_PCM_ALSA_CAPTURE_STREAM,
-	LINE6_INDEX_PCM_MONITOR_PLAYBACK_BUFFER,
-	LINE6_INDEX_PCM_MONITOR_PLAYBACK_STREAM,
-	LINE6_INDEX_PCM_MONITOR_CAPTURE_BUFFER,
-	LINE6_INDEX_PCM_MONITOR_CAPTURE_STREAM,
-	LINE6_INDEX_PCM_IMPULSE_PLAYBACK_BUFFER,
-	LINE6_INDEX_PCM_IMPULSE_PLAYBACK_STREAM,
-	LINE6_INDEX_PCM_IMPULSE_CAPTURE_BUFFER,
-	LINE6_INDEX_PCM_IMPULSE_CAPTURE_STREAM,
-	LINE6_INDEX_PAUSE_PLAYBACK,
-	LINE6_INDEX_PREPARED,
+	LINE6_STREAM_PCM,
+	LINE6_STREAM_MONITOR,
+	LINE6_STREAM_IMPULSE,
+};
 
-#define LINE6_BIT(x) LINE6_BIT_ ## x = 1 << LINE6_INDEX_ ## x
-
-	/* individual bit masks: */
-	LINE6_BIT(PCM_ALSA_PLAYBACK_BUFFER),
-	LINE6_BIT(PCM_ALSA_PLAYBACK_STREAM),
-	LINE6_BIT(PCM_ALSA_CAPTURE_BUFFER),
-	LINE6_BIT(PCM_ALSA_CAPTURE_STREAM),
-	LINE6_BIT(PCM_MONITOR_PLAYBACK_BUFFER),
-	LINE6_BIT(PCM_MONITOR_PLAYBACK_STREAM),
-	LINE6_BIT(PCM_MONITOR_CAPTURE_BUFFER),
-	LINE6_BIT(PCM_MONITOR_CAPTURE_STREAM),
-	LINE6_BIT(PCM_IMPULSE_PLAYBACK_BUFFER),
-	LINE6_BIT(PCM_IMPULSE_PLAYBACK_STREAM),
-	LINE6_BIT(PCM_IMPULSE_CAPTURE_BUFFER),
-	LINE6_BIT(PCM_IMPULSE_CAPTURE_STREAM),
-	LINE6_BIT(PAUSE_PLAYBACK),
-	LINE6_BIT(PREPARED),
-
-	/* combined bit masks (by operation): */
-	LINE6_BITS_PCM_ALSA_BUFFER =
-	    LINE6_BIT_PCM_ALSA_PLAYBACK_BUFFER |
-	    LINE6_BIT_PCM_ALSA_CAPTURE_BUFFER,
-
-	LINE6_BITS_PCM_ALSA_STREAM =
-	    LINE6_BIT_PCM_ALSA_PLAYBACK_STREAM |
-	    LINE6_BIT_PCM_ALSA_CAPTURE_STREAM,
-
-	LINE6_BITS_PCM_MONITOR =
-	    LINE6_BIT_PCM_MONITOR_PLAYBACK_BUFFER |
-	    LINE6_BIT_PCM_MONITOR_PLAYBACK_STREAM |
-	    LINE6_BIT_PCM_MONITOR_CAPTURE_BUFFER |
-	    LINE6_BIT_PCM_MONITOR_CAPTURE_STREAM,
-
-	LINE6_BITS_PCM_IMPULSE =
-	    LINE6_BIT_PCM_IMPULSE_PLAYBACK_BUFFER |
-	    LINE6_BIT_PCM_IMPULSE_PLAYBACK_STREAM |
-	    LINE6_BIT_PCM_IMPULSE_CAPTURE_BUFFER |
-	    LINE6_BIT_PCM_IMPULSE_CAPTURE_STREAM,
-
-	/* combined bit masks (by direction): */
-	LINE6_BITS_PLAYBACK_BUFFER =
-	    LINE6_BIT_PCM_IMPULSE_PLAYBACK_BUFFER |
-	    LINE6_BIT_PCM_ALSA_PLAYBACK_BUFFER |
-	    LINE6_BIT_PCM_MONITOR_PLAYBACK_BUFFER,
-
-	LINE6_BITS_PLAYBACK_STREAM =
-	    LINE6_BIT_PCM_IMPULSE_PLAYBACK_STREAM |
-	    LINE6_BIT_PCM_ALSA_PLAYBACK_STREAM |
-	    LINE6_BIT_PCM_MONITOR_PLAYBACK_STREAM,
-
-	LINE6_BITS_CAPTURE_BUFFER =
-	    LINE6_BIT_PCM_IMPULSE_CAPTURE_BUFFER |
-	    LINE6_BIT_PCM_ALSA_CAPTURE_BUFFER |
-	    LINE6_BIT_PCM_MONITOR_CAPTURE_BUFFER,
-
-	LINE6_BITS_CAPTURE_STREAM =
-	    LINE6_BIT_PCM_IMPULSE_CAPTURE_STREAM |
-	    LINE6_BIT_PCM_ALSA_CAPTURE_STREAM |
-	    LINE6_BIT_PCM_MONITOR_CAPTURE_STREAM,
-
-	LINE6_BITS_STREAM =
-	    LINE6_BITS_PLAYBACK_STREAM |
-	    LINE6_BITS_CAPTURE_STREAM
+/* misc bit flags for PCM operation */
+enum {
+	LINE6_FLAG_PAUSE_PLAYBACK,
+	LINE6_FLAG_PREPARED,
 };
 
 struct line6_pcm_properties {
 	struct snd_pcm_hardware snd_line6_playback_hw, snd_line6_capture_hw;
 	struct snd_pcm_hw_constraint_ratdens snd_line6_rates;
 	int bytes_per_frame;
+};
+
+struct line6_pcm_stream {
+	/* allocated URBs */
+	struct urb *urbs[LINE6_ISO_BUFFERS];
+
+	/* Temporary buffer;
+	 * Since the packet size is not known in advance, this buffer is
+	 * large enough to store maximum size packets.
+	 */
+	unsigned char *buffer;
+
+	/* Free frame position in the buffer. */
+	snd_pcm_uframes_t pos;
+
+	/* Count processed bytes;
+	 * This is modulo period size (to determine when a period is finished).
+	 */
+	unsigned bytes;
+
+	/* Counter to create desired sample rate */
+	unsigned count;
+
+	/* period size in bytes */
+	unsigned period;
+
+	/* Processed frame position in the buffer;
+	 * The contents of the ring buffer have been consumed by the USB
+	 * subsystem (i.e., sent to the USB device) up to this position.
+	 */
+	snd_pcm_uframes_t pos_done;
+
+	/* Bit mask of active URBs */
+	unsigned long active_urbs;
+
+	/* Bit mask of URBs currently being unlinked */
+	unsigned long unlink_urbs;
+
+	/* Spin lock to protect updates of the buffer positions (not contents)
+	 */
+	spinlock_t lock;
+
+	/* Bit flags for operational stream types */
+	unsigned long opened;
+
+	/* Bit flags for running stream types */
+	unsigned long running;
+
+	int last_frame;
 };
 
 struct snd_line6_pcm {
@@ -181,29 +154,12 @@ struct snd_line6_pcm {
 	*/
 	struct snd_pcm *pcm;
 
-	/**
-		 URBs for audio playback.
-	*/
-	struct urb *urb_audio_out[LINE6_ISO_BUFFERS];
+	/* protection to state changes of in/out streams */
+	struct mutex state_mutex;
 
-	/**
-		 URBs for audio capture.
-	*/
-	struct urb *urb_audio_in[LINE6_ISO_BUFFERS];
-
-	/**
-		 Temporary buffer for playback.
-		 Since the packet size is not known in advance, this buffer is
-		 large enough to store maximum size packets.
-	*/
-	unsigned char *buffer_out;
-
-	/**
-		 Temporary buffer for capture.
-		 Since the packet size is not known in advance, this buffer is
-		 large enough to store maximum size packets.
-	*/
-	unsigned char *buffer_in;
+	/* Capture and playback streams */
+	struct line6_pcm_stream in;
+	struct line6_pcm_stream out;
 
 	/**
 		 Previously captured frame (for software monitoring).
@@ -216,101 +172,9 @@ struct snd_line6_pcm {
 	int prev_fsize;
 
 	/**
-		 Free frame position in the playback buffer.
-	*/
-	snd_pcm_uframes_t pos_out;
-
-	/**
-		 Count processed bytes for playback.
-		 This is modulo period size (to determine when a period is
-		 finished).
-	*/
-	unsigned bytes_out;
-
-	/**
-		 Counter to create desired playback sample rate.
-	*/
-	unsigned count_out;
-
-	/**
-		 Playback period size in bytes
-	*/
-	unsigned period_out;
-
-	/**
-		 Processed frame position in the playback buffer.
-		 The contents of the output ring buffer have been consumed by
-		 the USB subsystem (i.e., sent to the USB device) up to this
-		 position.
-	*/
-	snd_pcm_uframes_t pos_out_done;
-
-	/**
-		 Count processed bytes for capture.
-		 This is modulo period size (to determine when a period is
-		 finished).
-	*/
-	unsigned bytes_in;
-
-	/**
-		 Counter to create desired capture sample rate.
-	*/
-	unsigned count_in;
-
-	/**
-		 Capture period size in bytes
-	*/
-	unsigned period_in;
-
-	/**
-		 Processed frame position in the capture buffer.
-		 The contents of the output ring buffer have been consumed by
-		 the USB subsystem (i.e., sent to the USB device) up to this
-		 position.
-	*/
-	snd_pcm_uframes_t pos_in_done;
-
-	/**
-		 Bit mask of active playback URBs.
-	*/
-	unsigned long active_urb_out;
-
-	/**
 		 Maximum size of USB packet.
 	*/
 	int max_packet_size;
-
-	/**
-		 Bit mask of active capture URBs.
-	*/
-	unsigned long active_urb_in;
-
-	/**
-		 Bit mask of playback URBs currently being unlinked.
-	*/
-	unsigned long unlink_urb_out;
-
-	/**
-		 Bit mask of capture URBs currently being unlinked.
-	*/
-	unsigned long unlink_urb_in;
-
-	/**
-		 Spin lock to protect updates of the playback buffer positions (not
-		 contents!)
-	*/
-	spinlock_t lock_audio_out;
-
-	/**
-		 Spin lock to protect updates of the capture buffer positions (not
-		 contents!)
-	*/
-	spinlock_t lock_audio_in;
-
-	/**
-		 Spin lock to protect trigger.
-	*/
-	spinlock_t lock_trigger;
 
 	/**
 		 PCM playback volume (left and right).
@@ -338,19 +202,21 @@ struct snd_line6_pcm {
 	int impulse_count;
 
 	/**
-		 Several status bits (see LINE6_BIT_*).
+		 Several status bits (see LINE6_FLAG_*).
 	*/
 	unsigned long flags;
-
-	int last_frame_in, last_frame_out;
 };
 
 extern int line6_init_pcm(struct usb_line6 *line6,
 			  struct line6_pcm_properties *properties);
 extern int snd_line6_trigger(struct snd_pcm_substream *substream, int cmd);
 extern int snd_line6_prepare(struct snd_pcm_substream *substream);
+extern int snd_line6_hw_params(struct snd_pcm_substream *substream,
+			       struct snd_pcm_hw_params *hw_params);
+extern int snd_line6_hw_free(struct snd_pcm_substream *substream);
+extern snd_pcm_uframes_t snd_line6_pointer(struct snd_pcm_substream *substream);
 extern void line6_pcm_disconnect(struct snd_line6_pcm *line6pcm);
-extern int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int channels);
-extern int line6_pcm_release(struct snd_line6_pcm *line6pcm, int channels);
+extern int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int type);
+extern void line6_pcm_release(struct snd_line6_pcm *line6pcm, int type);
 
 #endif
