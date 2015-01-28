@@ -444,9 +444,12 @@ dtb-$(CONFIG_ARCH_REALVIEW) += \
 dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3066a-bqcurie2.dtb \
 	rk3066a-marsboard.dtb \
+	rk3066a-rayeager.dtb \
 	rk3188-radxarock.dtb \
 	rk3288-evb-act8846.dtb \
-	rk3288-evb-rk808.dtb
+	rk3288-evb-rk808.dtb \
+	rk3288-firefly-beta.dtb \
+	rk3288-firefly.dtb
 dtb-$(CONFIG_ARCH_S3C24XX) += \
 	s3c2416-smdk2416.dtb
 dtb-$(CONFIG_ARCH_S3C64XX) += \
