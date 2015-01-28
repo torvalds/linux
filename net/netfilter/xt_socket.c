@@ -35,16 +35,6 @@
 #include <net/netfilter/nf_conntrack.h>
 #endif
 
-void
-xt_socket_put_sk(struct sock *sk)
-{
-	if (sk->sk_state == TCP_TIME_WAIT)
-		inet_twsk_put(inet_twsk(sk));
-	else
-		sock_put(sk);
-}
-EXPORT_SYMBOL(xt_socket_put_sk);
-
 static int
 extract_icmp4_fields(const struct sk_buff *skb,
 		    u8 *protocol,

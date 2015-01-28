@@ -1605,7 +1605,7 @@ static struct sock *qtaguid_find_sk(const struct sk_buff *skb,
 		 * "struct inet_timewait_sock" which is missing fields.
 		 */
 		if (sk->sk_state  == TCP_TIME_WAIT) {
-			xt_socket_put_sk(sk);
+			sock_gen_put(sk);
 			sk = NULL;
 		}
 	}
@@ -1803,7 +1803,7 @@ static bool qtaguid_mt(const struct sk_buff *skb, struct xt_action_param *par)
 
 put_sock_ret_res:
 	if (got_sock)
-		xt_socket_put_sk(sk);
+		sock_gen_put(sk);
 	if (set_sk_callback_lock)
 		read_unlock_bh(&sk->sk_callback_lock);
 ret_res:
