@@ -198,6 +198,11 @@ my $patchcheck_start;
 my $patchcheck_cherry;
 my $patchcheck_end;
 
+my $build_time;
+my $install_time;
+my $reboot_time;
+my $test_time;
+
 # set when a test is something other that just building or install
 # which would require more options.
 my $buildonly = 1;
@@ -553,6 +558,66 @@ sub get_mandatory_config {
 	$entered_configs{$config} = ${ans};
 	last;
     }
+}
+
+sub show_time {
+    my ($time) = @_;
+
+    my $hours = 0;
+    my $minutes = 0;
+
+    if ($time > 3600) {
+	$hours = int($time / 3600);
+	$time -= $hours * 3600;
+    }
+    if ($time > 60) {
+	$minutes = int($time / 60);
+	$time -= $minutes * 60;
+    }
+
+    if ($hours > 0) {
+	doprint "$hours hour";
+	doprint "s" if ($hours > 1);
+	doprint " ";
+    }
+
+    if ($minutes > 0) {
+	doprint "$minutes minute";
+	doprint "s" if ($minutes > 1);
+	doprint " ";
+    }
+
+    doprint "$time second";
+    doprint "s" if ($time != 1);
+}
+
+sub print_times {
+    doprint "\n";
+    if ($build_time) {
+	doprint "Build time:   ";
+	show_time($build_time);
+	doprint "\n";
+    }
+    if ($install_time) {
+	doprint "Install time: ";
+	show_time($install_time);
+	doprint "\n";
+    }
+    if ($reboot_time) {
+	doprint "Reboot time:  ";
+	show_time($reboot_time);
+	doprint "\n";
+    }
+    if ($test_time) {
+	doprint "Test time:    ";
+	show_time($test_time);
+	doprint "\n";
+    }
+    # reset for iterations like bisect
+    $build_time = 0;
+    $install_time = 0;
+    $reboot_time = 0;
+    $test_time = 0;
 }
 
 sub get_mandatory_configs {
@@ -1786,6 +1851,8 @@ sub monitor {
     my $skip_call_trace = 0;
     my $loops;
 
+    my $start_time = time;
+
     wait_for_monitor 5;
 
     my $line;
@@ -1910,6 +1977,9 @@ sub monitor {
 	}
     }
 
+    my $end_time = time;
+    $reboot_time = $end_time - $start_time;
+
     close(DMESG);
 
     if ($bug) {
@@ -1958,6 +2028,8 @@ sub install {
 
     return if ($no_install);
 
+    my $start_time = time;
+
     if (defined($pre_install)) {
 	my $cp_pre_install = eval_kernel_version $pre_install;
 	run_command "$cp_pre_install" or
@@ -1989,6 +2061,8 @@ sub install {
     if (!$install_mods) {
 	do_post_install;
 	doprint "No modules needed\n";
+	my $end_time = time;
+	$install_time = $end_time - $start_time;
 	return;
     }
 
@@ -2016,6 +2090,9 @@ sub install {
     run_ssh "rm -f /tmp/$modtar";
 
     do_post_install;
+
+    my $end_time = time;
+    $install_time = $end_time - $start_time;
 }
 
 sub get_version {
@@ -2228,6 +2305,8 @@ sub build {
 
     unlink $buildlog;
 
+    my $start_time = time;
+
     # Failed builds should not reboot the target
     my $save_no_reboot = $no_reboot;
     $no_reboot = 1;
@@ -2312,6 +2391,9 @@ sub build {
     }
 
     $no_reboot = $save_no_reboot;
+
+    my $end_time = time;
+    $build_time = $end_time - $start_time;
 
     return 1;
 }
@@ -2403,6 +2485,8 @@ sub do_run_test {
     my $bug = 0;
     my $bug_ignored = 0;
 
+    my $start_time = time;
+
     wait_for_monitor 1;
 
     doprint "run test $run_test\n";
@@ -2468,6 +2552,9 @@ sub do_run_test {
 
     waitpid $child_pid, 0;
     $child_exit = $?;
+
+    my $end_time = time;
+    $test_time = $end_time - $start_time;
 
     if (!$bug && $in_bisect) {
 	if (defined($bisect_ret_good)) {
@@ -2775,6 +2862,7 @@ sub bisect {
     do {
 	$result = run_bisect $type;
 	$test = run_git_bisect "git bisect $result";
+	print_times;
     } while ($test);
 
     run_command "git bisect log" or
@@ -3188,6 +3276,7 @@ sub config_bisect {
 
     do {
 	$ret = run_config_bisect \%good_configs, \%bad_configs;
+	print_times;
     } while (!$ret);
 
     return $ret if ($ret < 0);
@@ -3317,10 +3406,12 @@ sub patchcheck {
 	    do_run_test or $failed = 1;
 	}
 	end_monitor;
-	return 0 if ($failed);
-
+	if ($failed) {
+	    print_times;
+	    return 0;
+	}
 	patchcheck_reboot;
-
+	print_times;
     }
     $in_patchcheck = 0;
     success $i;
@@ -4020,6 +4111,11 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 
     $iteration = $i;
 
+    $build_time = 0;
+    $install_time = 0;
+    $reboot_time = 0;
+    $test_time = 0;
+
     undef %force_config;
 
     my $makecmd = set_test_option("MAKE_CMD", $i);
@@ -4183,8 +4279,13 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 	    do_run_test or $failed = 1;
 	}
 	end_monitor;
-	next if ($failed);
+	if ($failed) {
+	    print_times;
+	    next;
+	}
     }
+
+    print_times;
 
     success $i;
 }
