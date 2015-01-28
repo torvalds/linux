@@ -900,10 +900,13 @@
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9485))
 #define AR_SREV_9565(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9565))
+#define AR_SREV_9003_PCOEM(_ah) \
+	(AR_SREV_9462(_ah) || AR_SREV_9485(_ah) || AR_SREV_9565(_ah))
 #else
 #define AR_SREV_9462(_ah) 0
 #define AR_SREV_9485(_ah) 0
 #define AR_SREV_9565(_ah) 0
+#define AR_SREV_9003_PCOEM(_ah) 0
 #endif
 
 #define AR_SREV_9485_11_OR_LATER(_ah) \
