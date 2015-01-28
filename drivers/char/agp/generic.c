@@ -98,17 +98,6 @@ void agp_alloc_page_array(size_t size, struct agp_memory *mem)
 }
 EXPORT_SYMBOL(agp_alloc_page_array);
 
-void agp_free_page_array(struct agp_memory *mem)
-{
-	if (is_vmalloc_addr(mem->pages)) {
-		vfree(mem->pages);
-	} else {
-		kfree(mem->pages);
-	}
-}
-EXPORT_SYMBOL(agp_free_page_array);
-
-
 static struct agp_memory *agp_create_user_memory(unsigned long num_agp_pages)
 {
 	struct agp_memory *new;
