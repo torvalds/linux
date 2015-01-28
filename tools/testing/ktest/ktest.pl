@@ -2105,7 +2105,7 @@ sub get_version {
     $have_version = 1;
 }
 
-sub start_monitor_and_boot {
+sub start_monitor_and_install {
     # Make sure the stable kernel has finished booting
 
     # Install bisects, don't need console
@@ -2656,7 +2656,7 @@ sub run_bisect_test {
 	dodie "Failed on build" if $failed;
 
 	# Now boot the box
-	start_monitor_and_boot or $failed = 1;
+	start_monitor_and_install or $failed = 1;
 
 	if ($type ne "boot") {
 	    if ($failed && $bisect_skip) {
@@ -3400,7 +3400,7 @@ sub patchcheck {
 
 	my $failed = 0;
 
-	start_monitor_and_boot or $failed = 1;
+	start_monitor_and_install or $failed = 1;
 
 	if (!$failed && $type ne "boot"){
 	    do_run_test or $failed = 1;
@@ -3864,7 +3864,7 @@ sub make_min_config {
 	my $failed = 0;
 	build "oldconfig" or $failed = 1;
 	if (!$failed) {
-		start_monitor_and_boot or $failed = 1;
+		start_monitor_and_install or $failed = 1;
 
 		if ($type eq "test" && !$failed) {
 		    do_run_test or $failed = 1;
@@ -4273,7 +4273,7 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 
     if ($test_type ne "build") {
 	my $failed = 0;
-	start_monitor_and_boot or $failed = 1;
+	start_monitor_and_install or $failed = 1;
 
 	if (!$failed && $test_type ne "boot" && defined($run_test)) {
 	    do_run_test or $failed = 1;
