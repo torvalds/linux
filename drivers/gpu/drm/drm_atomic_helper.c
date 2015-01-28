@@ -2050,6 +2050,26 @@ void drm_atomic_helper_crtc_reset(struct drm_crtc *crtc)
 EXPORT_SYMBOL(drm_atomic_helper_crtc_reset);
 
 /**
+ * __drm_atomic_helper_crtc_duplicate_state - copy atomic CRTC state
+ * @crtc: CRTC object
+ * @state: atomic CRTC state
+ *
+ * Copies atomic state from a CRTC's current state and resets inferred values.
+ * This is useful for drivers that subclass the CRTC state.
+ */
+void __drm_atomic_helper_crtc_duplicate_state(struct drm_crtc *crtc,
+					      struct drm_crtc_state *state)
+{
+	memcpy(state, crtc->state, sizeof(*state));
+
+	state->mode_changed = false;
+	state->active_changed = false;
+	state->planes_changed = false;
+	state->event = NULL;
+}
+EXPORT_SYMBOL(__drm_atomic_helper_crtc_duplicate_state);
+
+/**
  * drm_atomic_helper_crtc_duplicate_state - default state duplicate hook
  * @crtc: drm CRTC
  *
@@ -2064,18 +2084,33 @@ drm_atomic_helper_crtc_duplicate_state(struct drm_crtc *crtc)
 	if (WARN_ON(!crtc->state))
 		return NULL;
 
-	state = kmemdup(crtc->state, sizeof(*crtc->state), GFP_KERNEL);
-
-	if (state) {
-		state->mode_changed = false;
-		state->active_changed = false;
-		state->planes_changed = false;
-		state->event = NULL;
-	}
+	state = kmalloc(sizeof(*state), GFP_KERNEL);
+	if (state)
+		__drm_atomic_helper_crtc_duplicate_state(crtc, state);
 
 	return state;
 }
 EXPORT_SYMBOL(drm_atomic_helper_crtc_duplicate_state);
+
+/**
+ * __drm_atomic_helper_crtc_destroy_state - release CRTC state
+ * @crtc: CRTC object
+ * @state: CRTC state object to release
+ *
+ * Releases all resources stored in the CRTC state without actually freeing
+ * the memory of the CRTC state. This is useful for drivers that subclass the
+ * CRTC state.
+ */
+void __drm_atomic_helper_crtc_destroy_state(struct drm_crtc *crtc,
+					    struct drm_crtc_state *state)
+{
+	/*
+	 * This is currently a placeholder so that drivers that subclass the
+	 * state will automatically do the right thing if code is ever added
+	 * to this function.
+	 */
+}
+EXPORT_SYMBOL(__drm_atomic_helper_crtc_destroy_state);
 
 /**
  * drm_atomic_helper_crtc_destroy_state - default state destroy hook
@@ -2088,6 +2123,7 @@ EXPORT_SYMBOL(drm_atomic_helper_crtc_duplicate_state);
 void drm_atomic_helper_crtc_destroy_state(struct drm_crtc *crtc,
 					  struct drm_crtc_state *state)
 {
+	__drm_atomic_helper_crtc_destroy_state(crtc, state);
 	kfree(state);
 }
 EXPORT_SYMBOL(drm_atomic_helper_crtc_destroy_state);
@@ -2113,6 +2149,24 @@ void drm_atomic_helper_plane_reset(struct drm_plane *plane)
 EXPORT_SYMBOL(drm_atomic_helper_plane_reset);
 
 /**
+ * __drm_atomic_helper_plane_duplicate_state - copy atomic plane state
+ * @plane: plane object
+ * @state: atomic plane state
+ *
+ * Copies atomic state from a plane's current state. This is useful for
+ * drivers that subclass the plane state.
+ */
+void __drm_atomic_helper_plane_duplicate_state(struct drm_plane *plane,
+					       struct drm_plane_state *state)
+{
+	memcpy(state, plane->state, sizeof(*state));
+
+	if (state->fb)
+		drm_framebuffer_reference(state->fb);
+}
+EXPORT_SYMBOL(__drm_atomic_helper_plane_duplicate_state);
+
+/**
  * drm_atomic_helper_plane_duplicate_state - default state duplicate hook
  * @plane: drm plane
  *
@@ -2127,14 +2181,30 @@ drm_atomic_helper_plane_duplicate_state(struct drm_plane *plane)
 	if (WARN_ON(!plane->state))
 		return NULL;
 
-	state = kmemdup(plane->state, sizeof(*plane->state), GFP_KERNEL);
-
-	if (state && state->fb)
-		drm_framebuffer_reference(state->fb);
+	state = kmalloc(sizeof(*state), GFP_KERNEL);
+	if (state)
+		__drm_atomic_helper_plane_duplicate_state(plane, state);
 
 	return state;
 }
 EXPORT_SYMBOL(drm_atomic_helper_plane_duplicate_state);
+
+/**
+ * __drm_atomic_helper_plane_destroy_state - release plane state
+ * @plane: plane object
+ * @state: plane state object to release
+ *
+ * Releases all resources stored in the plane state without actually freeing
+ * the memory of the plane state. This is useful for drivers that subclass the
+ * plane state.
+ */
+void __drm_atomic_helper_plane_destroy_state(struct drm_plane *plane,
+					     struct drm_plane_state *state)
+{
+	if (state->fb)
+		drm_framebuffer_unreference(state->fb);
+}
+EXPORT_SYMBOL(__drm_atomic_helper_plane_destroy_state);
 
 /**
  * drm_atomic_helper_plane_destroy_state - default state destroy hook
@@ -2147,9 +2217,7 @@ EXPORT_SYMBOL(drm_atomic_helper_plane_duplicate_state);
 void drm_atomic_helper_plane_destroy_state(struct drm_plane *plane,
 					   struct drm_plane_state *state)
 {
-	if (state->fb)
-		drm_framebuffer_unreference(state->fb);
-
+	__drm_atomic_helper_plane_destroy_state(plane, state);
 	kfree(state);
 }
 EXPORT_SYMBOL(drm_atomic_helper_plane_destroy_state);
@@ -2173,6 +2241,22 @@ void drm_atomic_helper_connector_reset(struct drm_connector *connector)
 EXPORT_SYMBOL(drm_atomic_helper_connector_reset);
 
 /**
+ * __drm_atomic_helper_connector_duplicate_state - copy atomic connector state
+ * @connector: connector object
+ * @state: atomic connector state
+ *
+ * Copies atomic state from a connector's current state. This is useful for
+ * drivers that subclass the connector state.
+ */
+void
+__drm_atomic_helper_connector_duplicate_state(struct drm_connector *connector,
+					    struct drm_connector_state *state)
+{
+	memcpy(state, connector->state, sizeof(*state));
+}
+EXPORT_SYMBOL(__drm_atomic_helper_connector_duplicate_state);
+
+/**
  * drm_atomic_helper_connector_duplicate_state - default state duplicate hook
  * @connector: drm connector
  *
@@ -2182,12 +2266,39 @@ EXPORT_SYMBOL(drm_atomic_helper_connector_reset);
 struct drm_connector_state *
 drm_atomic_helper_connector_duplicate_state(struct drm_connector *connector)
 {
+	struct drm_connector_state *state;
+
 	if (WARN_ON(!connector->state))
 		return NULL;
 
-	return kmemdup(connector->state, sizeof(*connector->state), GFP_KERNEL);
+	state = kmalloc(sizeof(*state), GFP_KERNEL);
+	if (state)
+		__drm_atomic_helper_connector_duplicate_state(connector, state);
+
+	return state;
 }
 EXPORT_SYMBOL(drm_atomic_helper_connector_duplicate_state);
+
+/**
+ * __drm_atomic_helper_connector_destroy_state - release connector state
+ * @connector: connector object
+ * @state: connector state object to release
+ *
+ * Releases all resources stored in the connector state without actually
+ * freeing the memory of the connector state. This is useful for drivers that
+ * subclass the connector state.
+ */
+void
+__drm_atomic_helper_connector_destroy_state(struct drm_connector *connector,
+					    struct drm_connector_state *state)
+{
+	/*
+	 * This is currently a placeholder so that drivers that subclass the
+	 * state will automatically do the right thing if code is ever added
+	 * to this function.
+	 */
+}
+EXPORT_SYMBOL(__drm_atomic_helper_connector_destroy_state);
 
 /**
  * drm_atomic_helper_connector_destroy_state - default state destroy hook
@@ -2200,6 +2311,7 @@ EXPORT_SYMBOL(drm_atomic_helper_connector_duplicate_state);
 void drm_atomic_helper_connector_destroy_state(struct drm_connector *connector,
 					  struct drm_connector_state *state)
 {
+	__drm_atomic_helper_connector_destroy_state(connector, state);
 	kfree(state);
 }
 EXPORT_SYMBOL(drm_atomic_helper_connector_destroy_state);
