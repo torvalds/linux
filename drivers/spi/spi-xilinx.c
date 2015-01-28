@@ -116,6 +116,10 @@ static unsigned int xspi_read32_be(void __iomem *addr)
 
 static void xilinx_spi_tx(struct xilinx_spi *xspi)
 {
+	if (!xspi->tx_ptr) {
+		xspi->write_fn(0, xspi->regs + XSPI_TXD_OFFSET);
+		return;
+	}
 	xspi->write_fn(*(u32 *)(xspi->tx_ptr), xspi->regs + XSPI_TXD_OFFSET);
 	xspi->tx_ptr += xspi->bits_per_word / 8;
 }
@@ -230,10 +234,7 @@ static void xilinx_spi_fill_tx_fifo(struct xilinx_spi *xspi, int n_words)
 	xspi->remaining_bytes -= n_words * xspi->bits_per_word / 8;
 
 	while (n_words--)
-		if (xspi->tx_ptr)
-			xilinx_spi_tx(xspi);
-		else
-			xspi->write_fn(0, xspi->regs + XSPI_TXD_OFFSET);
+		xilinx_spi_tx(xspi);
 	return;
 }
 
