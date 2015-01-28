@@ -535,8 +535,8 @@ static unsigned long __init xen_get_max_pages(void)
 	return min(max_pages, MAX_DOMAIN_PAGES);
 }
 
-static void xen_align_and_add_e820_region(phys_addr_t start, phys_addr_t size,
-					  int type)
+static void __init xen_align_and_add_e820_region(phys_addr_t start,
+						 phys_addr_t size, int type)
 {
 	phys_addr_t end = start + size;
 
@@ -549,7 +549,7 @@ static void xen_align_and_add_e820_region(phys_addr_t start, phys_addr_t size,
 	e820_add_region(start, end - start, type);
 }
 
-void xen_ignore_unusable(struct e820entry *list, size_t map_size)
+static void __init xen_ignore_unusable(struct e820entry *list, size_t map_size)
 {
 	struct e820entry *entry;
 	unsigned int i;
