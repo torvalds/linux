@@ -574,7 +574,6 @@ static struct platform_driver lcc_msm8960_driver = {
 	.remove		= lcc_msm8960_remove,
 	.driver		= {
 		.name	= "lcc-msm8960",
-		.owner	= THIS_MODULE,
 		.of_match_table = lcc_msm8960_match_table,
 	},
 };
