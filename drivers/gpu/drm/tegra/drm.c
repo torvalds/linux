@@ -172,6 +172,10 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 	 */
 	drm->irq_enabled = true;
 
+	/* syncpoints are used for full 32-bit hardware VBLANK counters */
+	drm->vblank_disable_immediate = true;
+	drm->max_vblank_count = 0xffffffff;
+
 	err = drm_vblank_init(drm, drm->mode_config.num_crtc);
 	if (err < 0)
 		goto device;
@@ -813,12 +817,12 @@ static struct drm_crtc *tegra_crtc_from_pipe(struct drm_device *drm,
 static u32 tegra_drm_get_vblank_counter(struct drm_device *drm, int pipe)
 {
 	struct drm_crtc *crtc = tegra_crtc_from_pipe(drm, pipe);
+	struct tegra_dc *dc = to_tegra_dc(crtc);
 
 	if (!crtc)
 		return 0;
 
-	/* TODO: implement real hardware counter using syncpoints */
-	return drm_crtc_vblank_count(crtc);
+	return tegra_dc_get_vblank_counter(dc);
 }
 
 static int tegra_drm_enable_vblank(struct drm_device *drm, int pipe)

@@ -906,6 +906,15 @@ static int tegra_dc_add_planes(struct drm_device *drm, struct tegra_dc *dc)
 	return 0;
 }
 
+u32 tegra_dc_get_vblank_counter(struct tegra_dc *dc)
+{
+	if (dc->syncpt)
+		return host1x_syncpt_read(dc->syncpt);
+
+	/* fallback to software emulated VBLANK counter */
+	return drm_crtc_vblank_count(&dc->base);
+}
+
 void tegra_dc_enable_vblank(struct tegra_dc *dc)
 {
 	unsigned long value, flags;
@@ -1632,7 +1641,6 @@ static int tegra_dc_init(struct host1x_client *client)
 	struct tegra_drm *tegra = drm->dev_private;
 	struct drm_plane *primary = NULL;
 	struct drm_plane *cursor = NULL;
-	unsigned int syncpt;
 	u32 value;
 	int err;
 
@@ -1701,13 +1709,15 @@ static int tegra_dc_init(struct host1x_client *client)
 	}
 
 	/* initialize display controller */
-	if (dc->pipe)
-		syncpt = SYNCPT_VBLANK1;
-	else
-		syncpt = SYNCPT_VBLANK0;
+	if (dc->syncpt) {
+		u32 syncpt = host1x_syncpt_id(dc->syncpt);
 
-	tegra_dc_writel(dc, 0x00000100, DC_CMD_GENERAL_INCR_SYNCPT_CNTRL);
-	tegra_dc_writel(dc, 0x100 | syncpt, DC_CMD_CONT_SYNCPT_VSYNC);
+		value = SYNCPT_CNTRL_NO_STALL;
+		tegra_dc_writel(dc, value, DC_CMD_GENERAL_INCR_SYNCPT_CNTRL);
+
+		value = SYNCPT_VSYNC_ENABLE | syncpt;
+		tegra_dc_writel(dc, value, DC_CMD_CONT_SYNCPT_VSYNC);
+	}
 
 	value = WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT | WIN_A_OF_INT;
 	tegra_dc_writel(dc, value, DC_CMD_INT_TYPE);
@@ -1875,6 +1885,7 @@ static int tegra_dc_parse_dt(struct tegra_dc *dc)
 
 static int tegra_dc_probe(struct platform_device *pdev)
 {
+	unsigned long flags = HOST1X_SYNCPT_CLIENT_MANAGED;
 	const struct of_device_id *id;
 	struct resource *regs;
 	struct tegra_dc *dc;
@@ -1966,6 +1977,10 @@ static int tegra_dc_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	dc->syncpt = host1x_syncpt_request(&pdev->dev, flags);
+	if (!dc->syncpt)
+		dev_warn(&pdev->dev, "failed to allocate syncpoint\n");
+
 	platform_set_drvdata(pdev, dc);
 
 	return 0;
@@ -1975,6 +1990,8 @@ static int tegra_dc_remove(struct platform_device *pdev)
 {
 	struct tegra_dc *dc = platform_get_drvdata(pdev);
 	int err;
+
+	host1x_syncpt_free(dc->syncpt);
 
 	err = host1x_client_unregister(&dc->client);
 	if (err < 0) {
