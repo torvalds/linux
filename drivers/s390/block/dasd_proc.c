@@ -219,7 +219,8 @@ static int dasd_stats_proc_show(struct seq_file *m, void *v)
 				    "/proc/dasd/statistics'\n");
 		return 0;
 	}
-	prof = &dasd_global_profile_data;
+	spin_lock_bh(&dasd_global_profile.lock);
+	prof = dasd_global_profile.data;
 
 	/* prevent counter 'overflow' on output */
 	for (factor = 1; (prof->dasd_io_reqs / factor) > 9999999;
@@ -255,6 +256,7 @@ static int dasd_stats_proc_show(struct seq_file *m, void *v)
 	dasd_statistics_array(m, prof->dasd_io_time3, factor);
 	seq_printf(m, "# of req in chanq at enqueuing (1..32) \n");
 	dasd_statistics_array(m, prof->dasd_io_nr_req, factor);
+	spin_unlock_bh(&dasd_global_profile.lock);
 #else
 	seq_printf(m, "Statistics are not activated in this kernel\n");
 #endif

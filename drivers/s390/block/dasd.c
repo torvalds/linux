@@ -674,8 +674,12 @@ EXPORT_SYMBOL(dasd_enable_device);
 unsigned int dasd_global_profile_level = DASD_PROFILE_OFF;
 
 #ifdef CONFIG_DASD_PROFILE
-struct dasd_profile_info dasd_global_profile_data;
-static struct dentry *dasd_global_profile_dentry;
+static struct dasd_profile_info dasd_global_profile_data;
+struct dasd_profile dasd_global_profile = {
+	.dentry = NULL,
+	.data = &dasd_global_profile_data,
+	.lock = __SPIN_LOCK_UNLOCKED(dasd_global_profile.lock),
+};
 static struct dentry *dasd_debugfs_global_entry;
 
 /*
@@ -696,11 +700,13 @@ static void dasd_profile_start(struct dasd_block *block,
 			if (++counter >= 31)
 				break;
 
+	spin_lock(&dasd_global_profile.lock);
 	if (dasd_global_profile_level) {
-		dasd_global_profile_data.dasd_io_nr_req[counter]++;
+		dasd_global_profile.data->dasd_io_nr_req[counter]++;
 		if (rq_data_dir(req) == READ)
-			dasd_global_profile_data.dasd_read_nr_req[counter]++;
+			dasd_global_profile.data->dasd_read_nr_req[counter]++;
 	}
+	spin_unlock(&dasd_global_profile.lock);
 
 	spin_lock(&block->profile.lock);
 	if (block->profile.data) {
@@ -825,8 +831,9 @@ static void dasd_profile_end(struct dasd_block *block,
 	dasd_profile_counter(irqtime / sectors, irqtimeps_ind);
 	dasd_profile_counter(endtime, endtime_ind);
 
+	spin_lock(&dasd_global_profile.lock);
 	if (dasd_global_profile_level) {
-		dasd_profile_end_add_data(&dasd_global_profile_data,
+		dasd_profile_end_add_data(dasd_global_profile.data,
 					  cqr->startdev != block->base,
 					  cqr->cpmode == 1,
 					  rq_data_dir(req) == READ,
@@ -835,6 +842,7 @@ static void dasd_profile_end(struct dasd_block *block,
 					  irqtime_ind, irqtimeps_ind,
 					  endtime_ind);
 	}
+	spin_unlock(&dasd_global_profile.lock);
 
 	spin_lock(&block->profile.lock);
 	if (block->profile.data)
@@ -878,8 +886,7 @@ void dasd_profile_reset(struct dasd_profile *profile)
 
 void dasd_global_profile_reset(void)
 {
-	memset(&dasd_global_profile_data, 0, sizeof(dasd_global_profile_data));
-	getnstimeofday(&dasd_global_profile_data.starttod);
+	dasd_profile_reset(&dasd_global_profile);
 }
 
 int dasd_profile_on(struct dasd_profile *profile)
@@ -1077,7 +1084,9 @@ static int dasd_stats_global_show(struct seq_file *m, void *v)
 		seq_puts(m, "disabled\n");
 		return 0;
 	}
-	dasd_stats_seq_print(m, &dasd_global_profile_data);
+	spin_lock_bh(&dasd_global_profile.lock);
+	dasd_stats_seq_print(m, dasd_global_profile.data);
+	spin_unlock_bh(&dasd_global_profile.lock);
 	return 0;
 }
 
@@ -1123,8 +1132,8 @@ static void dasd_profile_exit(struct dasd_profile *profile)
 static void dasd_statistics_removeroot(void)
 {
 	dasd_global_profile_level = DASD_PROFILE_OFF;
-	debugfs_remove(dasd_global_profile_dentry);
-	dasd_global_profile_dentry = NULL;
+	debugfs_remove(dasd_global_profile.dentry);
+	dasd_global_profile.dentry = NULL;
 	debugfs_remove(dasd_debugfs_global_entry);
 	debugfs_remove(dasd_debugfs_root_entry);
 }
@@ -1136,7 +1145,6 @@ static void dasd_statistics_createroot(void)
 
 	dasd_debugfs_root_entry = NULL;
 	dasd_debugfs_global_entry = NULL;
-	dasd_global_profile_dentry = NULL;
 	pde = debugfs_create_dir("dasd", NULL);
 	if (!pde || IS_ERR(pde))
 		goto error;
@@ -1151,7 +1159,7 @@ static void dasd_statistics_createroot(void)
 				  NULL, &dasd_stats_global_fops);
 	if (!pde || IS_ERR(pde))
 		goto error;
-	dasd_global_profile_dentry = pde;
+	dasd_global_profile.dentry = pde;
 	return;
 
 error:

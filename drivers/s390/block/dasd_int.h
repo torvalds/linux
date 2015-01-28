@@ -651,7 +651,7 @@ dasd_check_blocksize(int bsize)
 #define DASD_PROFILE_GLOBAL_ONLY 2
 
 extern debug_info_t *dasd_debug_area;
-extern struct dasd_profile_info dasd_global_profile_data;
+extern struct dasd_profile dasd_global_profile;
 extern unsigned int dasd_global_profile_level;
 extern const struct block_device_operations dasd_device_operations;
 
