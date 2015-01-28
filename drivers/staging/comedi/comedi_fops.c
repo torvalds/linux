@@ -347,8 +347,7 @@ static int resize_async_buffer(struct comedi_device *dev,
 		return -EBUSY;
 	}
 
-	/* make sure buffer is an integral number of pages
-	 * (we round up) */
+	/* make sure buffer is an integral number of pages (we round up) */
 	new_size = (new_size + PAGE_SIZE - 1) & PAGE_MASK;
 
 	retval = comedi_buf_alloc(dev, s, new_size);
@@ -671,7 +670,7 @@ void *comedi_alloc_spriv(struct comedi_subdevice *s, size_t size)
 EXPORT_SYMBOL_GPL(comedi_alloc_spriv);
 
 /*
-   This function restores a subdevice to an idle state.
+ * This function restores a subdevice to an idle state.
  */
 static void do_become_nonbusy(struct comedi_device *dev,
 			      struct comedi_subdevice *s)
@@ -1162,8 +1161,10 @@ static int check_insn_config_length(struct comedi_insn *insn,
 		if (insn->n == 6)
 			return 0;
 		break;
-		/* by default we allow the insn since we don't have checks for
-		 * all possible cases yet */
+		/*
+		 * by default we allow the insn since we don't have checks for
+		 * all possible cases yet
+		 */
 	default:
 		pr_warn("No check for data length of config insn id %i is implemented\n",
 			data[0]);
@@ -1314,9 +1315,11 @@ static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
 			if (insn->n != 2) {
 				ret = -EINVAL;
 			} else {
-				/* Most drivers ignore the base channel in
+				/*
+				 * Most drivers ignore the base channel in
 				 * insn->chanspec.  Fix this here if
-				 * the subdevice has <= 32 channels.  */
+				 * the subdevice has <= 32 channels.
+				 */
 				unsigned int orig_mask = data[0];
 				unsigned int shift = 0;
 
@@ -1977,8 +1980,10 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 
 	mutex_lock(&dev->mutex);
 
-	/* Device config is special, because it must work on
-	 * an unconfigured device. */
+	/*
+	 * Device config is special, because it must work on
+	 * an unconfigured device.
+	 */
 	if (cmd == COMEDI_DEVCONFIG) {
 		if (minor >= COMEDI_NUM_BOARD_MINORS) {
 			/* Device config not appropriate on non-board minors. */
@@ -1990,8 +1995,10 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 		if (rc == 0) {
 			if (arg == 0 &&
 			    dev->minor >= comedi_num_legacy_minors) {
-				/* Successfully unconfigured a dynamically
-				 * allocated device.  Try and remove it. */
+				/*
+				 * Successfully unconfigured a dynamically
+				 * allocated device.  Try and remove it.
+				 */
 				if (comedi_clear_board_dev(dev)) {
 					mutex_unlock(&dev->mutex);
 					comedi_free_board_dev(dev);
