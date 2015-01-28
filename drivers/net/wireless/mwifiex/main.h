@@ -1261,8 +1261,6 @@ int mwifiex_remain_on_chan_cfg(struct mwifiex_private *priv, u16 action,
 			       struct ieee80211_channel *chan,
 			       unsigned int duration);
 
-int mwifiex_set_bss_role(struct mwifiex_private *priv, u8 bss_role);
-
 int mwifiex_get_stats_info(struct mwifiex_private *priv,
 			   struct mwifiex_ds_get_stats *log);
 
