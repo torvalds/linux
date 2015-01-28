@@ -1583,6 +1583,24 @@ config SERIAL_MEN_Z135
 	  This driver can also be build as a module. If so, the module will be called
 	  men_z135_uart.ko
 
+config SERIAL_SPRD
+	tristate "Support for Spreadtrum serial"
+	depends on ARCH_SPRD
+	select SERIAL_CORE
+	help
+	  This enables the driver for the Spreadtrum's serial.
+
+config SERIAL_SPRD_CONSOLE
+	bool "Spreadtrum UART console support"
+	depends on SERIAL_SPRD=y
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
+	help
+	  Support for early debug console using Spreadtrum's serial. This enables
+	  the console before standard serial driver is probed. This is enabled
+	  with "earlycon" on the kernel command line. The console is
+	  enabled when early_param is processed.
+
 endmenu
 
 config SERIAL_MCTRL_GPIO

@@ -252,4 +252,7 @@
 /* Conexant Digicolor */
 #define PORT_DIGICOLOR	110
 
+/* SPRD SERIAL  */
+#define PORT_SPRD	111
+
 #endif /* _UAPILINUX_SERIAL_CORE_H */
