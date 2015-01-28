@@ -432,7 +432,7 @@ static void iwl_mvm_dump_umac_error_log(struct iwl_mvm *mvm)
 			mvm->status, table.valid);
 	}
 
-	IWL_ERR(mvm, "0x%08X | %-28s\n", table.error_id,
+	IWL_ERR(mvm, "0x%08X | %s\n", table.error_id,
 		desc_lookup(table.error_id));
 	IWL_ERR(mvm, "0x%08X | umac branchlink1\n", table.blink1);
 	IWL_ERR(mvm, "0x%08X | umac branchlink2\n", table.blink2);
