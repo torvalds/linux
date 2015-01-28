@@ -10,6 +10,12 @@
 extern const char xen_hypervisor_callback[];
 extern const char xen_failsafe_callback[];
 
+void xen_sysenter_target(void);
+#ifdef CONFIG_X86_64
+void xen_syscall_target(void);
+void xen_syscall32_target(void);
+#endif
+
 extern void *xen_initial_gdt;
 
 struct trap_info;

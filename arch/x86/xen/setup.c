@@ -32,16 +32,6 @@
 #include "p2m.h"
 #include "mmu.h"
 
-/* These are code, but not functions.  Defined in entry.S */
-extern const char xen_hypervisor_callback[];
-extern const char xen_failsafe_callback[];
-#ifdef CONFIG_X86_64
-extern asmlinkage void nmi(void);
-#endif
-extern void xen_sysenter_target(void);
-extern void xen_syscall_target(void);
-extern void xen_syscall32_target(void);
-
 /* Amount of extra memory space we add to the e820 ranges */
 struct xen_memory_region xen_extra_mem[XEN_EXTRA_MEM_MAX_REGIONS] __initdata;
 
