@@ -1681,8 +1681,6 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 
 	if (GET_BSS_ROLE(priv) != MWIFIEX_BSS_ROLE_UAP)
 		return -1;
-	if (mwifiex_set_mgmt_ies(priv, &params->beacon))
-		return -1;
 
 	bss_cfg = kzalloc(sizeof(struct mwifiex_uap_bss_param), GFP_KERNEL);
 	if (!bss_cfg)
@@ -1782,6 +1780,9 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 		kfree(bss_cfg);
 		return -1;
 	}
+
+	if (mwifiex_set_mgmt_ies(priv, &params->beacon))
+		return -1;
 
 	memcpy(&priv->bss_cfg, bss_cfg, sizeof(priv->bss_cfg));
 	kfree(bss_cfg);
