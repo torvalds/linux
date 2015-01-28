@@ -761,6 +761,11 @@ int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, u16 cmd_no,
 		if (mwifiex_cmd_uap_sta_deauth(priv, cmd, data_buf))
 			return -1;
 		break;
+	case HostCmd_CMD_CHAN_REPORT_REQUEST:
+		if (mwifiex_cmd_issue_chan_report_request(priv, cmd_buf,
+							  data_buf))
+			return -1;
+		break;
 	default:
 		dev_err(priv->adapter->dev,
 			"PREP_CMD: unknown cmd %#x\n", cmd_no);

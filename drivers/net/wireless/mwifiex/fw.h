@@ -336,6 +336,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_11N_ADDBA_RSP                     0x00cf
 #define HostCmd_CMD_11N_DELBA                         0x00d0
 #define HostCmd_CMD_RECONFIGURE_TX_BUFF               0x00d9
+#define HostCmd_CMD_CHAN_REPORT_REQUEST               0x00dd
 #define HostCmd_CMD_AMSDU_AGGR_CTRL                   0x00df
 #define HostCmd_CMD_TXPWR_CFG                         0x00d1
 #define HostCmd_CMD_TX_RATE_CFG                       0x00d6
@@ -1216,6 +1217,17 @@ struct host_cmd_ds_tdls_oper {
 	u8 peer_mac[ETH_ALEN];
 } __packed;
 
+struct mwifiex_chan_desc {
+	__le16 start_freq;
+	u8 chan_width;
+	u8 chan_num;
+} __packed;
+
+struct host_cmd_ds_chan_rpt_req {
+	struct mwifiex_chan_desc chan_desc;
+	__le32 msec_dwell_time;
+} __packed;
+
 struct mwifiex_fixed_bcn_param {
 	__le64 timestamp;
 	__le16 beacon_period;
@@ -1904,6 +1916,7 @@ struct host_cmd_ds_command {
 		struct host_cmd_11ac_vht_cfg vht_cfg;
 		struct host_cmd_ds_coalesce_cfg coalesce_cfg;
 		struct host_cmd_ds_tdls_oper tdls_oper;
+		struct host_cmd_ds_chan_rpt_req chan_rpt_req;
 	} params;
 } __packed;
 

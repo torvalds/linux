@@ -588,6 +588,9 @@ struct mwifiex_private {
 	spinlock_t ack_status_lock;
 	/** rx histogram data */
 	struct mwifiex_histogram_data *hist_data;
+	struct cfg80211_chan_def dfs_chandef;
+	struct workqueue_struct *dfs_cac_workqueue;
+	struct delayed_work dfs_cac_work;
 };
 
 enum mwifiex_ba_status {
@@ -754,6 +757,8 @@ struct mwifiex_adapter {
 	struct work_struct main_work;
 	struct workqueue_struct *rx_workqueue;
 	struct work_struct rx_work;
+	struct workqueue_struct *dfs_workqueue;
+	struct work_struct dfs_work;
 	bool rx_work_enabled;
 	bool rx_processing;
 	bool delay_main_work;
@@ -1376,6 +1381,9 @@ void mwifiex_check_auto_tdls(unsigned long context);
 void mwifiex_add_auto_tdls_peer(struct mwifiex_private *priv, const u8 *mac);
 void mwifiex_setup_auto_tdls_timer(struct mwifiex_private *priv);
 void mwifiex_clean_auto_tdls(struct mwifiex_private *priv);
+int mwifiex_cmd_issue_chan_report_request(struct mwifiex_private *priv,
+					  struct host_cmd_ds_command *cmd,
+					  void *data_buf);
 
 void mwifiex_parse_tx_status_event(struct mwifiex_private *priv,
 				   void *event_body);
@@ -1383,6 +1391,8 @@ void mwifiex_parse_tx_status_event(struct mwifiex_private *priv,
 struct sk_buff *
 mwifiex_clone_skb_for_tx_status(struct mwifiex_private *priv,
 				struct sk_buff *skb, u8 flag, u64 *cookie);
+void mwifiex_dfs_cac_work_queue(struct work_struct *work);
+void mwifiex_abort_cac(struct mwifiex_private *priv);
 
 void mwifiex_hist_data_set(struct mwifiex_private *priv, u8 rx_rate, s8 snr,
 			   s8 nflr);

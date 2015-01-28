@@ -108,6 +108,8 @@
 #define MWIFIEX_MAX_UAP_NUM		1
 #define MWIFIEX_MAX_P2P_NUM		1
 
+#define MWIFIEX_A_BAND_START_FREQ	5000
+
 enum mwifiex_bss_type {
 	MWIFIEX_BSS_TYPE_STA = 0,
 	MWIFIEX_BSS_TYPE_UAP = 1,
@@ -242,4 +244,8 @@ struct mwifiex_iface_comb {
 	u8 p2p_intf;
 };
 
+struct mwifiex_radar_params {
+	struct cfg80211_chan_def *chandef;
+	u32 cac_time_ms;
+} __packed;
 #endif /* !_MWIFIEX_DECL_H_ */

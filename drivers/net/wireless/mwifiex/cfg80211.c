@@ -1651,6 +1651,8 @@ static int mwifiex_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 
+	mwifiex_abort_cac(priv);
+
 	if (mwifiex_del_mgmt_ies(priv))
 		wiphy_err(wiphy, "Failed to delete mgmt IEs!\n");
 
@@ -2383,6 +2385,7 @@ mwifiex_setup_ht_caps(struct ieee80211_sta_ht_cap *ht_info,
 	ht_info->mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
 }
 
+#define MWIFIEX_MAX_WQ_LEN  30
 /*
  *  create a new virtual interface with the given name
  */
@@ -2396,6 +2399,7 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 	struct mwifiex_private *priv;
 	struct net_device *dev;
 	void *mdev_priv;
+	char dfs_cac_str[MWIFIEX_MAX_WQ_LEN];
 
 	if (!adapter)
 		return ERR_PTR(-EFAULT);
@@ -2560,6 +2564,24 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 		return ERR_PTR(-EFAULT);
 	}
 
+	strcpy(dfs_cac_str, "MWIFIEX_DFS_CAC");
+	strcat(dfs_cac_str, name);
+	priv->dfs_cac_workqueue = alloc_workqueue(dfs_cac_str,
+						  WQ_HIGHPRI |
+						  WQ_MEM_RECLAIM |
+						  WQ_UNBOUND, 1);
+	if (!priv->dfs_cac_workqueue) {
+		wiphy_err(wiphy, "cannot register virtual network device\n");
+		free_netdev(dev);
+		priv->bss_mode = NL80211_IFTYPE_UNSPECIFIED;
+		priv->netdev = NULL;
+		memset(&priv->wdev, 0, sizeof(priv->wdev));
+		priv->wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
+		return ERR_PTR(-ENOMEM);
+	}
+
+	INIT_DELAYED_WORK(&priv->dfs_cac_work, mwifiex_dfs_cac_work_queue);
+
 	sema_init(&priv->async_sem, 1);
 
 	dev_dbg(adapter->dev, "info: %s: Marvell 802.11 Adapter\n", dev->name);
@@ -2608,6 +2630,12 @@ int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 
 	if (wdev->netdev->reg_state == NETREG_REGISTERED)
 		unregister_netdevice(wdev->netdev);
+
+	if (priv->dfs_cac_workqueue) {
+		flush_workqueue(priv->dfs_cac_workqueue);
+		destroy_workqueue(priv->dfs_cac_workqueue);
+		priv->dfs_cac_workqueue = NULL;
+	}
 
 	/* Clear the priv in adapter */
 	priv->netdev->ieee80211_ptr = NULL;
@@ -3088,6 +3116,36 @@ mwifiex_cfg80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int
+mwifiex_cfg80211_start_radar_detection(struct wiphy *wiphy,
+				       struct net_device *dev,
+				       struct cfg80211_chan_def *chandef,
+				       u32 cac_time_ms)
+{
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+	struct mwifiex_radar_params radar_params;
+
+	if (priv->adapter->scan_processing) {
+		dev_err(priv->adapter->dev,
+			"radar detection: scan already in process...\n");
+		return -EBUSY;
+	}
+
+	memset(&radar_params, 0, sizeof(struct mwifiex_radar_params));
+	radar_params.chandef = chandef;
+	radar_params.cac_time_ms = cac_time_ms;
+
+	memcpy(&priv->dfs_chandef, chandef, sizeof(priv->dfs_chandef));
+
+	if (mwifiex_send_cmd(priv, HostCmd_CMD_CHAN_REPORT_REQUEST,
+			     HostCmd_ACT_GEN_SET, 0, &radar_params, true))
+		return -1;
+
+	queue_delayed_work(priv->dfs_cac_workqueue, &priv->dfs_cac_work,
+			   msecs_to_jiffies(cac_time_ms));
+	return 0;
+}
+
+static int
 mwifiex_cfg80211_change_station(struct wiphy *wiphy, struct net_device *dev,
 				const u8 *mac,
 				struct station_parameters *params)
@@ -3151,6 +3209,7 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.tdls_oper = mwifiex_cfg80211_tdls_oper,
 	.add_station = mwifiex_cfg80211_add_station,
 	.change_station = mwifiex_cfg80211_change_station,
+	.start_radar_detection = mwifiex_cfg80211_start_radar_detection,
 };
 
 #ifdef CONFIG_PM

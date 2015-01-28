@@ -99,3 +99,69 @@ void mwifiex_11h_process_join(struct mwifiex_private *priv, u8 **buffer,
 		bss_desc->cap_info_bitmap &= ~WLAN_CAPABILITY_SPECTRUM_MGMT;
 	}
 }
+
+/* This is DFS CAC work queue function.
+ * This delayed work emits CAC finished event for cfg80211 if
+ * CAC was started earlier.
+ */
+void mwifiex_dfs_cac_work_queue(struct work_struct *work)
+{
+	struct cfg80211_chan_def chandef;
+	struct delayed_work *delayed_work =
+			container_of(work, struct delayed_work, work);
+	struct mwifiex_private *priv =
+			container_of(delayed_work, struct mwifiex_private,
+				     dfs_cac_work);
+
+	if (WARN_ON(!priv))
+		return;
+
+	chandef = priv->dfs_chandef;
+	if (priv->wdev.cac_started) {
+		dev_dbg(priv->adapter->dev,
+			"CAC timer finished; No radar detected\n");
+		cfg80211_cac_event(priv->netdev, &chandef,
+				   NL80211_RADAR_CAC_FINISHED,
+				   GFP_KERNEL);
+	}
+}
+
+/* This function prepares channel report request command to FW for
+ * starting radar detection.
+ */
+int mwifiex_cmd_issue_chan_report_request(struct mwifiex_private *priv,
+					  struct host_cmd_ds_command *cmd,
+					  void *data_buf)
+{
+	struct host_cmd_ds_chan_rpt_req *cr_req = &cmd->params.chan_rpt_req;
+	struct mwifiex_radar_params *radar_params = (void *)data_buf;
+
+	cmd->command = cpu_to_le16(HostCmd_CMD_CHAN_REPORT_REQUEST);
+	cmd->size = cpu_to_le16(S_DS_GEN);
+	le16_add_cpu(&cmd->size, sizeof(struct host_cmd_ds_chan_rpt_req));
+
+	cr_req->chan_desc.start_freq = cpu_to_le16(MWIFIEX_A_BAND_START_FREQ);
+	cr_req->chan_desc.chan_num = radar_params->chandef->chan->hw_value;
+	cr_req->chan_desc.chan_width = radar_params->chandef->width;
+	cr_req->msec_dwell_time = cpu_to_le32(radar_params->cac_time_ms);
+
+	dev_dbg(priv->adapter->dev,
+		"11h: issuing DFS Radar check for channel=%d\n",
+		radar_params->chandef->chan->hw_value);
+
+	return 0;
+}
+
+/* This function is to abort ongoing CAC upon stopping AP operations
+ * or during unload.
+ */
+void mwifiex_abort_cac(struct mwifiex_private *priv)
+{
+	if (priv->wdev.cac_started) {
+		dev_dbg(priv->adapter->dev,
+			"Aborting delayed work for CAC.\n");
+		cancel_delayed_work_sync(&priv->dfs_cac_work);
+		cfg80211_cac_event(priv->netdev, &priv->dfs_chandef,
+				   NL80211_RADAR_CAC_ABORTED, GFP_KERNEL);
+	}
+}
