@@ -2767,7 +2767,6 @@ static void btusb_disconnect(struct usb_interface *intf)
 	else if (data->isoc)
 		usb_driver_release_interface(&btusb_driver, data->isoc);
 
-	btusb_free_frags(data);
 	hci_free_dev(hdev);
 }
 
