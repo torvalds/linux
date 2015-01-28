@@ -702,6 +702,9 @@ static int rt5677_set_dsp_vad(struct snd_soc_codec *codec, bool on)
 	static bool activity;
 	int ret;
 
+	if (!IS_ENABLED(CONFIG_SND_SOC_RT5677_SPI))
+		return -ENXIO;
+
 	if (on && !activity) {
 		activity = true;
 
