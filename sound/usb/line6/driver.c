@@ -22,7 +22,6 @@
 #include "driver.h"
 #include "midi.h"
 #include "playback.h"
-#include "revision.h"
 #include "usbdefs.h"
 
 #define DRIVER_AUTHOR  "Markus Grabner <grabner@icg.tugraz.at>"
