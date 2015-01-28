@@ -72,6 +72,7 @@ assert_device_not_suspended(struct drm_i915_private *dev_priv)
 static inline void
 fw_domain_reset(const struct intel_uncore_forcewake_domain *d)
 {
+	WARN_ON(d->reg_set == 0);
 	__raw_i915_write32(d->i915, d->reg_set, d->val_reset);
 }
 
@@ -165,6 +166,8 @@ fw_domains_reset(struct drm_i915_private *dev_priv, enum forcewake_domains fw_do
 {
 	struct intel_uncore_forcewake_domain *d;
 	enum forcewake_domain_id id;
+
+	WARN_ON(dev_priv->uncore.fw_domains == 0);
 
 	for_each_fw_domain_mask(d, fw_domains, dev_priv, id)
 		fw_domain_reset(d);
@@ -321,13 +324,9 @@ void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore)
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-static void __intel_uncore_early_sanitize(struct drm_device *dev,
-					  bool restore_forcewake)
+static void intel_uncore_ellc_detect(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (HAS_FPGA_DBG_UNCLAIMED(dev))
-		__raw_i915_write32(dev_priv, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
 
 	if ((IS_HASWELL(dev) || IS_BROADWELL(dev)) &&
 	    (__raw_i915_read32(dev_priv, HSW_EDRAM_PRESENT) == 1)) {
@@ -339,6 +338,15 @@ static void __intel_uncore_early_sanitize(struct drm_device *dev,
 		dev_priv->ellc_size = 128;
 		DRM_INFO("Found %zuMB of eLLC\n", dev_priv->ellc_size);
 	}
+}
+
+static void __intel_uncore_early_sanitize(struct drm_device *dev,
+					  bool restore_forcewake)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (HAS_FPGA_DBG_UNCLAIMED(dev))
+		__raw_i915_write32(dev_priv, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
 
 	/* clear out old GT FIFO errors */
 	if (IS_GEN6(dev) || IS_GEN7(dev))
@@ -982,13 +990,13 @@ static void fw_domain_init(struct drm_i915_private *dev_priv,
 	setup_timer(&d->timer, intel_uncore_fw_release_timer, (unsigned long)d);
 
 	dev_priv->uncore.fw_domains |= (1 << domain_id);
+
+	fw_domain_reset(d);
 }
 
-void intel_uncore_init(struct drm_device *dev)
+static void intel_uncore_fw_domains_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	__intel_uncore_early_sanitize(dev, false);
 
 	if (IS_GEN9(dev)) {
 		dev_priv->uncore.funcs.force_wake_get = fw_domains_get;
@@ -1035,8 +1043,13 @@ void intel_uncore_init(struct drm_device *dev)
 		dev_priv->uncore.funcs.force_wake_put =
 			fw_domains_put_with_fifo;
 
+		/* We need to init first for ECOBUS access and then
+		 * determine later if we want to reinit, in case of MT access is
+		 * not working
+		 */
 		fw_domain_init(dev_priv, FW_DOMAIN_ID_RENDER,
 			       FORCEWAKE_MT, FORCEWAKE_MT_ACK);
+
 		mutex_lock(&dev->struct_mutex);
 		fw_domains_get_with_thread_status(dev_priv, FORCEWAKE_ALL);
 		ecobus = __raw_i915_read32(dev_priv, ECOBUS);
@@ -1057,6 +1070,15 @@ void intel_uncore_init(struct drm_device *dev)
 		fw_domain_init(dev_priv, FW_DOMAIN_ID_RENDER,
 			       FORCEWAKE, FORCEWAKE_ACK);
 	}
+}
+
+void intel_uncore_init(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	intel_uncore_ellc_detect(dev);
+	intel_uncore_fw_domains_init(dev);
+	__intel_uncore_early_sanitize(dev, false);
 
 	switch (INTEL_INFO(dev)->gen) {
 	default:
