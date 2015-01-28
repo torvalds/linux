@@ -425,8 +425,8 @@ static void tegra_plane_reset(struct drm_plane *plane)
 {
 	struct tegra_plane_state *state;
 
-	if (plane->state && plane->state->fb)
-		drm_framebuffer_unreference(plane->state->fb);
+	if (plane->state)
+		__drm_atomic_helper_plane_destroy_state(plane, plane->state);
 
 	kfree(plane->state);
 	plane->state = NULL;
@@ -443,12 +443,14 @@ static struct drm_plane_state *tegra_plane_atomic_duplicate_state(struct drm_pla
 	struct tegra_plane_state *state = to_tegra_plane_state(plane->state);
 	struct tegra_plane_state *copy;
 
-	copy = kmemdup(state, sizeof(*state), GFP_KERNEL);
+	copy = kmalloc(sizeof(*copy), GFP_KERNEL);
 	if (!copy)
 		return NULL;
 
-	if (copy->base.fb)
-		drm_framebuffer_reference(copy->base.fb);
+	__drm_atomic_helper_plane_duplicate_state(plane, &copy->base);
+	copy->tiling = state->tiling;
+	copy->format = state->format;
+	copy->swap = state->swap;
 
 	return &copy->base;
 }
@@ -456,9 +458,7 @@ static struct drm_plane_state *tegra_plane_atomic_duplicate_state(struct drm_pla
 static void tegra_plane_atomic_destroy_state(struct drm_plane *plane,
 					     struct drm_plane_state *state)
 {
-	if (state->fb)
-		drm_framebuffer_unreference(state->fb);
-
+	__drm_atomic_helper_plane_destroy_state(plane, state);
 	kfree(state);
 }
 
@@ -1002,6 +1002,9 @@ static void tegra_crtc_reset(struct drm_crtc *crtc)
 {
 	struct tegra_dc_state *state;
 
+	if (crtc->state)
+		__drm_atomic_helper_crtc_destroy_state(crtc, crtc->state);
+
 	kfree(crtc->state);
 	crtc->state = NULL;
 
@@ -1018,14 +1021,15 @@ tegra_crtc_atomic_duplicate_state(struct drm_crtc *crtc)
 	struct tegra_dc_state *state = to_dc_state(crtc->state);
 	struct tegra_dc_state *copy;
 
-	copy = kmemdup(state, sizeof(*state), GFP_KERNEL);
+	copy = kmalloc(sizeof(*copy), GFP_KERNEL);
 	if (!copy)
 		return NULL;
 
-	copy->base.mode_changed = false;
-	copy->base.active_changed = false;
-	copy->base.planes_changed = false;
-	copy->base.event = NULL;
+	__drm_atomic_helper_crtc_duplicate_state(crtc, &copy->base);
+	copy->clk = state->clk;
+	copy->pclk = state->pclk;
+	copy->div = state->div;
+	copy->planes = state->planes;
 
 	return &copy->base;
 }
@@ -1033,6 +1037,7 @@ tegra_crtc_atomic_duplicate_state(struct drm_crtc *crtc)
 static void tegra_crtc_atomic_destroy_state(struct drm_crtc *crtc,
 					    struct drm_crtc_state *state)
 {
+	__drm_atomic_helper_crtc_destroy_state(crtc, state);
 	kfree(state);
 }
 
