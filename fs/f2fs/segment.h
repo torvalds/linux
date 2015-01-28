@@ -460,7 +460,7 @@ static inline bool has_not_enough_free_secs(struct f2fs_sb_info *sbi, int freed)
 	int node_secs = get_blocktype_secs(sbi, F2FS_DIRTY_NODES);
 	int dent_secs = get_blocktype_secs(sbi, F2FS_DIRTY_DENTS);
 
-	if (unlikely(sbi->por_doing))
+	if (unlikely(is_sbi_flag_set(sbi, SBI_POR_DOING)))
 		return false;
 
 	return (free_sections(sbi) + freed) <= (node_secs + 2 * dent_secs +
@@ -599,13 +599,13 @@ static inline void check_block_count(struct f2fs_sb_info *sbi,
 static inline void check_seg_range(struct f2fs_sb_info *sbi, unsigned int segno)
 {
 	if (segno > TOTAL_SEGS(sbi) - 1)
-		sbi->need_fsck = true;
+		set_sbi_flag(sbi, SBI_NEED_FSCK);
 }
 
 static inline void verify_block_addr(struct f2fs_sb_info *sbi, block_t blk_addr)
 {
 	if (blk_addr < SEG0_BLKADDR(sbi) || blk_addr >= MAX_BLKADDR(sbi))
-		sbi->need_fsck = true;
+		set_sbi_flag(sbi, SBI_NEED_FSCK);
 }
 
 /*
@@ -616,11 +616,11 @@ static inline void check_block_count(struct f2fs_sb_info *sbi,
 {
 	/* check segment usage */
 	if (GET_SIT_VBLOCKS(raw_sit) > sbi->blocks_per_seg)
-		sbi->need_fsck = true;
+		set_sbi_flag(sbi, SBI_NEED_FSCK);
 
 	/* check boundary of a given segment number */
 	if (segno > TOTAL_SEGS(sbi) - 1)
-		sbi->need_fsck = true;
+		set_sbi_flag(sbi, SBI_NEED_FSCK);
 }
 #endif
 

@@ -508,7 +508,7 @@ int recover_fsync_data(struct f2fs_sb_info *sbi)
 	INIT_LIST_HEAD(&inode_list);
 
 	/* step #1: find fsynced inode numbers */
-	sbi->por_doing = true;
+	set_sbi_flag(sbi, SBI_POR_DOING);
 
 	/* prevent checkpoint */
 	mutex_lock(&sbi->cp_mutex);
@@ -541,7 +541,7 @@ out:
 		truncate_inode_pages_final(META_MAPPING(sbi));
 	}
 
-	sbi->por_doing = false;
+	clear_sbi_flag(sbi, SBI_POR_DOING);
 	if (err) {
 		discard_next_dnode(sbi, blkaddr);
 

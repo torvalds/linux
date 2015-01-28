@@ -184,13 +184,13 @@ TRACE_EVENT(f2fs_sync_fs,
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
-		__field(int,	dirty)
+		__field(bool,	dirty)
 		__field(int,	wait)
 	),
 
 	TP_fast_assign(
 		__entry->dev	= sb->s_dev;
-		__entry->dirty	= F2FS_SB(sb)->s_dirty;
+		__entry->dirty	= is_sbi_flag_set(F2FS_SB(sb), SBI_IS_DIRTY);
 		__entry->wait	= wait;
 	),
 

@@ -28,7 +28,7 @@
 	do {								\
 		if (unlikely(condition)) {				\
 			WARN_ON(1);					\
-			sbi->need_fsck = true;				\
+			set_sbi_flag(sbi, SBI_NEED_FSCK);		\
 		}							\
 	} while (0)
 #define f2fs_down_write(x, y)	down_write(x)
@@ -519,14 +519,20 @@ struct inode_management {
 	unsigned long ino_num;			/* number of entries */
 };
 
+/* For s_flag in struct f2fs_sb_info */
+enum {
+	SBI_IS_DIRTY,				/* dirty flag for checkpoint */
+	SBI_IS_CLOSE,				/* specify unmounting */
+	SBI_NEED_FSCK,				/* need fsck.f2fs to fix */
+	SBI_POR_DOING,				/* recovery is doing or not */
+};
+
 struct f2fs_sb_info {
 	struct super_block *sb;			/* pointer to VFS super block */
 	struct proc_dir_entry *s_proc;		/* proc entry */
 	struct buffer_head *raw_super_buf;	/* buffer head of raw sb */
 	struct f2fs_super_block *raw_super;	/* raw super block pointer */
-	int s_dirty;				/* dirty flag for checkpoint */
-	bool need_fsck;				/* need fsck.f2fs to fix */
-	bool s_closing;				/* specify unmounting */
+	int s_flag;				/* flags for sbi */
 
 	/* for node-related operations */
 	struct f2fs_nm_info *nm_info;		/* node manager */
@@ -546,7 +552,6 @@ struct f2fs_sb_info {
 	struct rw_semaphore cp_rwsem;		/* blocking FS operations */
 	struct rw_semaphore node_write;		/* locking node writes */
 	struct mutex writepages;		/* mutex for writepages() */
-	bool por_doing;				/* recovery is doing or not */
 	wait_queue_head_t cp_wait;
 
 	struct inode_management im[MAX_INO_ENTRY];      /* manage inode cache */
@@ -699,14 +704,19 @@ static inline struct address_space *NODE_MAPPING(struct f2fs_sb_info *sbi)
 	return sbi->node_inode->i_mapping;
 }
 
-static inline void F2FS_SET_SB_DIRT(struct f2fs_sb_info *sbi)
+static inline bool is_sbi_flag_set(struct f2fs_sb_info *sbi, unsigned int type)
 {
-	sbi->s_dirty = 1;
+	return sbi->s_flag & (0x01 << type);
 }
 
-static inline void F2FS_RESET_SB_DIRT(struct f2fs_sb_info *sbi)
+static inline void set_sbi_flag(struct f2fs_sb_info *sbi, unsigned int type)
 {
-	sbi->s_dirty = 0;
+	sbi->s_flag |= (0x01 << type);
+}
+
+static inline void clear_sbi_flag(struct f2fs_sb_info *sbi, unsigned int type)
+{
+	sbi->s_flag &= ~(0x01 << type);
 }
 
 static inline unsigned long long cur_cp_version(struct f2fs_checkpoint *cp)
@@ -818,7 +828,7 @@ static inline void dec_valid_block_count(struct f2fs_sb_info *sbi,
 static inline void inc_page_count(struct f2fs_sb_info *sbi, int count_type)
 {
 	atomic_inc(&sbi->nr_pages[count_type]);
-	F2FS_SET_SB_DIRT(sbi);
+	set_sbi_flag(sbi, SBI_IS_DIRTY);
 }
 
 static inline void inode_inc_dirty_pages(struct inode *inode)
