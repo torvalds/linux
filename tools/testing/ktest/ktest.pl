@@ -1410,23 +1410,71 @@ sub dodie {
     die @_, "\n";
 }
 
-sub open_console {
-    my ($fp) = @_;
+sub create_pty {
+    my ($ptm, $pts) = @_;
+    my $tmp;
+    my $TIOCSPTLCK = 0x40045431;
+    my $TIOCGPTN = 0x80045430;
 
-    my $flags;
+    sysopen($ptm, "/dev/ptmx", O_RDWR | O_NONBLOCK) or
+	dodie "Cant open /dev/ptmx";
+
+    # unlockpt()
+    $tmp = pack("i", 0);
+    ioctl($ptm, $TIOCSPTLCK, $tmp) or
+	dodie "ioctl TIOCSPTLCK for /dev/ptmx failed";
+
+    # ptsname()
+    ioctl($ptm, $TIOCGPTN, $tmp) or
+	dodie "ioctl TIOCGPTN for /dev/ptmx failed";
+    $tmp = unpack("i", $tmp);
+
+    sysopen($pts, "/dev/pts/$tmp", O_RDWR | O_NONBLOCK) or
+	dodie "Can't open /dev/pts/$tmp";
+}
+
+sub exec_console {
+    my ($ptm, $pts) = @_;
+
+    close($ptm);
+
+    close(\*STDIN);
+    close(\*STDOUT);
+    close(\*STDERR);
+
+    open(\*STDIN, '<&', $pts);
+    open(\*STDOUT, '>&', $pts);
+    open(\*STDERR, '>&', $pts);
+
+    close($pts);
+
+    exec $console or
+	dodie "Can't open console $console";
+}
+
+sub open_console {
+    my ($ptm) = @_;
+    my $pts = \*PTSFD;
+    my $pid;
 
     # save terminal settings
     $stty = `stty -g`;
 
-    my $pid = open($fp, "$console|") or
-	dodie "Can't open console $console";
+    create_pty($ptm, $pts);
 
-    $flags = fcntl($fp, F_GETFL, 0) or
-	dodie "Can't get flags for the socket: $!";
-    $flags = fcntl($fp, F_SETFL, $flags | O_NONBLOCK) or
-	dodie "Can't set flags for the socket: $!";
+    $pid = fork;
+
+    if (!$pid) {
+	# child
+	exec_console($ptm, $pts)
+    }
+
+    # parent
+    close($pts);
 
     return $pid;
+
+    open(PTSFD, "Stop perl from warning about single use of PTSFD");
 }
 
 sub close_console {
