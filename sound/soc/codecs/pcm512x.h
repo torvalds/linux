@@ -37,6 +37,8 @@
 #define PCM512x_DSP_GPIO_INPUT    (PCM512x_PAGE_BASE(0) +  10)
 #define PCM512x_MASTER_MODE       (PCM512x_PAGE_BASE(0) +  12)
 #define PCM512x_PLL_REF           (PCM512x_PAGE_BASE(0) +  13)
+#define PCM512x_DAC_REF           (PCM512x_PAGE_BASE(0) +  14)
+#define PCM512x_SYNCHRONIZE       (PCM512x_PAGE_BASE(0) +  19)
 #define PCM512x_PLL_COEFF_0       (PCM512x_PAGE_BASE(0) +  20)
 #define PCM512x_PLL_COEFF_1       (PCM512x_PAGE_BASE(0) +  21)
 #define PCM512x_PLL_COEFF_2       (PCM512x_PAGE_BASE(0) +  22)
@@ -119,8 +121,47 @@
 #define PCM512x_DEMP       (1 << 4)
 #define PCM512x_DEMP_SHIFT 4
 
+/* Page 0, Register 9 - BCK, LRCLK configuration */
+#define PCM512x_LRKO       (1 << 0)
+#define PCM512x_LRKO_SHIFT 0
+#define PCM512x_BCKO       (1 << 4)
+#define PCM512x_BCKO_SHIFT 4
+#define PCM512x_BCKP       (1 << 5)
+#define PCM512x_BCKP_SHIFT 5
+
+/* Page 0, Register 12 - Master mode BCK, LRCLK reset */
+#define PCM512x_RLRK       (1 << 0)
+#define PCM512x_RLRK_SHIFT 0
+#define PCM512x_RBCK       (1 << 1)
+#define PCM512x_RBCK_SHIFT 1
+
 /* Page 0, Register 13 - PLL reference */
-#define PCM512x_SREF (1 << 4)
+#define PCM512x_SREF        (7 << 4)
+#define PCM512x_SREF_SHIFT  4
+#define PCM512x_SREF_SCK    (0 << 4)
+#define PCM512x_SREF_BCK    (1 << 4)
+#define PCM512x_SREF_GPIO   (3 << 4)
+
+/* Page 0, Register 14 - DAC reference */
+#define PCM512x_SDAC        (7 << 4)
+#define PCM512x_SDAC_SHIFT  4
+#define PCM512x_SDAC_MCK    (0 << 4)
+#define PCM512x_SDAC_PLL    (1 << 4)
+#define PCM512x_SDAC_SCK    (3 << 4)
+#define PCM512x_SDAC_BCK    (4 << 4)
+
+/* Page 0, Register 19 - synchronize */
+#define PCM512x_RQSY        (1 << 0)
+#define PCM512x_RQSY_RESUME (0 << 0)
+#define PCM512x_RQSY_HALT   (1 << 0)
+
+/* Page 0, Register 34 - fs speed mode */
+#define PCM512x_FSSP        (3 << 0)
+#define PCM512x_FSSP_SHIFT  0
+#define PCM512x_FSSP_48KHZ  (0 << 0)
+#define PCM512x_FSSP_96KHZ  (1 << 0)
+#define PCM512x_FSSP_192KHZ (2 << 0)
+#define PCM512x_FSSP_384KHZ (3 << 0)
 
 /* Page 0, Register 37 - Error detection */
 #define PCM512x_IPLK (1 << 0)
@@ -130,6 +171,20 @@
 #define PCM512x_IDSK (1 << 4)
 #define PCM512x_IDBK (1 << 5)
 #define PCM512x_IDFS (1 << 6)
+
+/* Page 0, Register 40 - I2S configuration */
+#define PCM512x_ALEN       (3 << 0)
+#define PCM512x_ALEN_SHIFT 0
+#define PCM512x_ALEN_16    (0 << 0)
+#define PCM512x_ALEN_20    (1 << 0)
+#define PCM512x_ALEN_24    (2 << 0)
+#define PCM512x_ALEN_32    (3 << 0)
+#define PCM512x_AFMT       (3 << 4)
+#define PCM512x_AFMT_SHIFT 4
+#define PCM512x_AFMT_I2S   (0 << 4)
+#define PCM512x_AFMT_DSP   (1 << 4)
+#define PCM512x_AFMT_RTJ   (2 << 4)
+#define PCM512x_AFMT_LTJ   (3 << 4)
 
 /* Page 0, Register 42 - DAC routing */
 #define PCM512x_AUPR_SHIFT 0
