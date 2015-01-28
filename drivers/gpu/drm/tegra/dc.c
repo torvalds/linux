@@ -1289,9 +1289,7 @@ static void tegra_crtc_atomic_flush(struct drm_crtc *crtc)
 static const struct drm_crtc_helper_funcs tegra_crtc_helper_funcs = {
 	.disable = tegra_crtc_disable,
 	.mode_fixup = tegra_crtc_mode_fixup,
-	.mode_set = drm_helper_crtc_mode_set,
 	.mode_set_nofb = tegra_crtc_mode_set_nofb,
-	.mode_set_base = drm_helper_crtc_mode_set_base,
 	.prepare = tegra_crtc_prepare,
 	.commit = tegra_crtc_commit,
 	.atomic_check = tegra_crtc_atomic_check,
