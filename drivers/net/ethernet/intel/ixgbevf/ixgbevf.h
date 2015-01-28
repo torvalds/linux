@@ -436,6 +436,7 @@ struct ixgbevf_adapter {
 	bool link_up;
 
 	spinlock_t mbx_lock;
+	unsigned long last_reset;
 
 	struct work_struct watchdog_task;
 };
