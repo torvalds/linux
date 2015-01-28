@@ -88,6 +88,7 @@ struct xilinx_spi {
 	const u8 *tx_ptr;	/* pointer in the Rx buffer */
 	int remaining_bytes;	/* the number of bytes left to transfer */
 	u8 bits_per_word;
+	int buffer_size;	/* buffer size in words */
 	unsigned int (*read_fn)(void __iomem *);
 	void (*write_fn)(u32, void __iomem *);
 	void (*tx_fn)(struct xilinx_spi *);
@@ -221,24 +222,16 @@ static int xilinx_spi_setup_transfer(struct spi_device *spi,
 	return 0;
 }
 
-static int xilinx_spi_fill_tx_fifo(struct xilinx_spi *xspi)
+static void xilinx_spi_fill_tx_fifo(struct xilinx_spi *xspi, int n_words)
 {
-	u8 sr;
-	int n_words = 0;
+	xspi->remaining_bytes -= n_words * xspi->bits_per_word / 8;
 
-	/* Fill the Tx FIFO with as many bytes as possible */
-	sr = xspi->read_fn(xspi->regs + XSPI_SR_OFFSET);
-	while ((sr & XSPI_SR_TX_FULL_MASK) == 0 && xspi->remaining_bytes > 0) {
+	while (n_words--)
 		if (xspi->tx_ptr)
 			xspi->tx_fn(xspi);
 		else
 			xspi->write_fn(0, xspi->regs + XSPI_TXD_OFFSET);
-		xspi->remaining_bytes -= xspi->bits_per_word / 8;
-		sr = xspi->read_fn(xspi->regs + XSPI_SR_OFFSET);
-		n_words++;
-	}
-
-	return n_words;
+	return;
 }
 
 static int xilinx_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
@@ -265,7 +258,10 @@ static int xilinx_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 		u16 cr;
 		int n_words;
 
-		n_words = xilinx_spi_fill_tx_fifo(xspi);
+		n_words = (xspi->remaining_bytes * 8) / xspi->bits_per_word;
+		n_words = min(n_words, xspi->buffer_size);
+
+		xilinx_spi_fill_tx_fifo(xspi, n_words);
 
 		/* Start the transfer by not inhibiting the transmitter any
 		 * longer
@@ -320,6 +316,28 @@ static irqreturn_t xilinx_spi_irq(int irq, void *dev_id)
 	}
 
 	return IRQ_HANDLED;
+}
+
+static int xilinx_spi_find_buffer_size(struct xilinx_spi *xspi)
+{
+	u8 sr;
+	int n_words = 0;
+
+	/*
+	 * Before the buffer_size detection we reset the core
+	 * to make sure we start with a clean state.
+	 */
+	xspi->write_fn(XIPIF_V123B_RESET_MASK,
+		xspi->regs + XIPIF_V123B_RESETR_OFFSET);
+
+	/* Fill the Tx FIFO with as many words as possible */
+	do {
+		xspi->write_fn(0, xspi->regs + XSPI_TXD_OFFSET);
+		sr = xspi->read_fn(xspi->regs + XSPI_SR_OFFSET);
+		n_words++;
+	} while (!(sr & XSPI_SR_TX_FULL_MASK));
+
+	return n_words;
 }
 
 static const struct of_device_id xilinx_spi_of_match[] = {
@@ -412,6 +430,8 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto put_master;
 	}
+
+	xspi->buffer_size = xilinx_spi_find_buffer_size(xspi);
 
 	/* SPI controller initializations */
 	xspi_init_hw(xspi);
