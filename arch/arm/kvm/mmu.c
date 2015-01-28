@@ -1081,7 +1081,7 @@ void kvm_mmu_wp_memory_region(struct kvm *kvm, int slot)
 }
 
 /**
- * kvm_arch_mmu_write_protect_pt_masked() - write protect dirty pages
+ * kvm_mmu_write_protect_pt_masked() - write protect dirty pages
  * @kvm:	The KVM pointer
  * @slot:	The memory slot associated with mask
  * @gfn_offset:	The gfn offset in memory slot
@@ -1091,7 +1091,7 @@ void kvm_mmu_wp_memory_region(struct kvm *kvm, int slot)
  * Walks bits set in mask write protects the associated pte's. Caller must
  * acquire kvm_mmu_lock.
  */
-void kvm_arch_mmu_write_protect_pt_masked(struct kvm *kvm,
+static void kvm_mmu_write_protect_pt_masked(struct kvm *kvm,
 		struct kvm_memory_slot *slot,
 		gfn_t gfn_offset, unsigned long mask)
 {
@@ -1100,6 +1100,20 @@ void kvm_arch_mmu_write_protect_pt_masked(struct kvm *kvm,
 	phys_addr_t end = (base_gfn + __fls(mask) + 1) << PAGE_SHIFT;
 
 	stage2_wp_range(kvm, start, end);
+}
+
+/*
+ * kvm_arch_mmu_enable_log_dirty_pt_masked - enable dirty logging for selected
+ * dirty pages.
+ *
+ * It calls kvm_mmu_write_protect_pt_masked to write protect selected pages to
+ * enable dirty logging for them.
+ */
+void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
+		struct kvm_memory_slot *slot,
+		gfn_t gfn_offset, unsigned long mask)
+{
+	kvm_mmu_write_protect_pt_masked(kvm, slot, gfn_offset, mask);
 }
 
 static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,

@@ -1059,7 +1059,7 @@ int kvm_get_dirty_log_protect(struct kvm *kvm,
 		dirty_bitmap_buffer[i] = mask;
 
 		offset = i * BITS_PER_LONG;
-		kvm_arch_mmu_write_protect_pt_masked(kvm, memslot, offset,
+		kvm_arch_mmu_enable_log_dirty_pt_masked(kvm, memslot, offset,
 								mask);
 	}
 
