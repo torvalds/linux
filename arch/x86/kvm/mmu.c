@@ -4408,14 +4408,13 @@ void kvm_mmu_setup(struct kvm_vcpu *vcpu)
 	init_kvm_mmu(vcpu);
 }
 
-void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot)
+void kvm_mmu_slot_remove_write_access(struct kvm *kvm,
+				      struct kvm_memory_slot *memslot)
 {
-	struct kvm_memory_slot *memslot;
 	gfn_t last_gfn;
 	int i;
 	bool flush = false;
 
-	memslot = id_to_memslot(kvm->memslots, slot);
 	last_gfn = memslot->base_gfn + memslot->npages - 1;
 
 	spin_lock(&kvm->mmu_lock);
