@@ -1365,10 +1365,10 @@ static int net2280_set_selfpowered(struct usb_gadget *_gadget, int value)
 	tmp = readl(&dev->usb->usbctl);
 	if (value) {
 		tmp |= BIT(SELF_POWERED_STATUS);
-		dev->selfpowered = 1;
+		_gadget->is_selfpowered = 1;
 	} else {
 		tmp &= ~BIT(SELF_POWERED_STATUS);
-		dev->selfpowered = 0;
+		_gadget->is_selfpowered = 0;
 	}
 	writel(tmp, &dev->usb->usbctl);
 	spin_unlock_irqrestore(&dev->lock, flags);
@@ -2611,7 +2611,7 @@ static void handle_stat0_irqs_superspeed(struct net2280 *dev,
 		switch (r.bRequestType) {
 		case (USB_DIR_IN | USB_TYPE_STANDARD | USB_RECIP_DEVICE):
 			status = dev->wakeup_enable ? 0x02 : 0x00;
-			if (dev->selfpowered)
+			if (dev->gadget.is_selfpowered)
 				status |= BIT(0);
 			status |= (dev->u1_enable << 2 | dev->u2_enable << 3 |
 							dev->ltm_enable << 4);

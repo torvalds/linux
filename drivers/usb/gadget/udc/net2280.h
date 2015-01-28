@@ -164,7 +164,6 @@ struct net2280 {
 					u2_enable:1,
 					ltm_enable:1,
 					wakeup_enable:1,
-					selfpowered:1,
 					addressed_state:1,
 					bug7734_patched:1;
 	u16				chiprev;
