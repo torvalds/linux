@@ -1640,8 +1640,14 @@ static bool ar9003_hw_init_cal_soc(struct ath_hw *ah,
 
 skip_tx_iqcal:
 	if (run_agc_cal || !(ah->ah_flags & AH_FASTCC)) {
-		if (AR_SREV_9330_11(ah))
-			ar9003_hw_manual_peak_cal(ah, 0, IS_CHAN_2GHZ(chan));
+		if (AR_SREV_9330_11(ah) || AR_SREV_9531(ah) || AR_SREV_9550(ah)) {
+			for (i = 0; i < AR9300_MAX_CHAINS; i++) {
+				if (!(ah->rxchainmask & (1 << i)))
+					continue;
+				ar9003_hw_manual_peak_cal(ah, i,
+							  IS_CHAN_2GHZ(chan));
+			}
+		}
 
 		/*
 		 * For non-AR9550 chips, we just trigger AGC calibration
