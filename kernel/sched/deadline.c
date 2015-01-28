@@ -1094,6 +1094,7 @@ static void task_dead_dl(struct task_struct *p)
 	 * Since we are TASK_DEAD we won't slip out of the domain!
 	 */
 	raw_spin_lock_irq(&dl_b->lock);
+	/* XXX we should retain the bw until 0-lag */
 	dl_b->total_bw -= p->dl.dl_bw;
 	raw_spin_unlock_irq(&dl_b->lock);
 
@@ -1614,8 +1615,8 @@ static void cancel_dl_timer(struct rq *rq, struct task_struct *p)
 
 static void switched_from_dl(struct rq *rq, struct task_struct *p)
 {
+	/* XXX we should retain the bw until 0-lag */
 	cancel_dl_timer(rq, p);
-
 	__dl_clear_params(p);
 
 	/*
