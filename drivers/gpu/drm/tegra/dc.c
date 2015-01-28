@@ -1164,6 +1164,18 @@ static int tegra_dc_set_timings(struct tegra_dc *dc,
 	return 0;
 }
 
+/**
+ * tegra_dc_state_setup_clock - check clock settings and store them in atomic
+ *     state
+ * @dc: display controller
+ * @crtc_state: CRTC atomic state
+ * @clk: parent clock for display controller
+ * @pclk: pixel clock
+ * @div: shift clock divider
+ *
+ * Returns:
+ * 0 on success or a negative error-code on failure.
+ */
 int tegra_dc_state_setup_clock(struct tegra_dc *dc,
 			       struct drm_crtc_state *crtc_state,
 			       struct clk *clk, unsigned long pclk,
