@@ -105,6 +105,7 @@ static const struct reg_default pcm512x_reg_defaults[] = {
 	{ PCM512x_VCOM_CTRL_2,       0x01 },
 	{ PCM512x_BCLK_LRCLK_CFG,    0x00 },
 	{ PCM512x_MASTER_MODE,       0x7c },
+	{ PCM512x_GPIO_DACIN,        0x00 },
 	{ PCM512x_GPIO_PLLIN,        0x00 },
 	{ PCM512x_SYNCHRONIZE,       0x10 },
 	{ PCM512x_PLL_COEFF_0,       0x00 },
@@ -138,6 +139,7 @@ static bool pcm512x_readable(struct device *dev, unsigned int reg)
 	case PCM512x_MASTER_MODE:
 	case PCM512x_PLL_REF:
 	case PCM512x_DAC_REF:
+	case PCM512x_GPIO_DACIN:
 	case PCM512x_GPIO_PLLIN:
 	case PCM512x_SYNCHRONIZE:
 	case PCM512x_PLL_COEFF_0:
@@ -659,6 +661,37 @@ done:
 	return 0;
 }
 
+static unsigned long pcm512x_pllin_dac_rate(struct snd_soc_dai *dai,
+					    unsigned long osr_rate,
+					    unsigned long pllin_rate)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	struct pcm512x_priv *pcm512x = snd_soc_codec_get_drvdata(codec);
+	unsigned long dac_rate;
+
+	if (!pcm512x->pll_out)
+		return 0; /* no PLL to bypass, force SCK as DAC input */
+
+	if (pllin_rate % osr_rate)
+		return 0; /* futile, quit early */
+
+	/* run DAC no faster than 6144000 Hz */
+	for (dac_rate = rounddown(6144000, osr_rate);
+	     dac_rate;
+	     dac_rate -= osr_rate) {
+
+		if (pllin_rate / dac_rate > 128)
+			return 0; /* DAC divider would be too big */
+
+		if (!(pllin_rate % dac_rate))
+			return dac_rate;
+
+		dac_rate -= osr_rate;
+	}
+
+	return 0;
+}
+
 static int pcm512x_set_dividers(struct snd_soc_dai *dai,
 				struct snd_pcm_hw_params *params)
 {
@@ -672,6 +705,7 @@ static int pcm512x_set_dividers(struct snd_soc_dai *dai,
 	unsigned long bclk_rate;
 	unsigned long sample_rate;
 	unsigned long osr_rate;
+	unsigned long dacsrc_rate;
 	int bclk_div;
 	int lrclk_div;
 	int dsp_div;
@@ -679,11 +713,10 @@ static int pcm512x_set_dividers(struct snd_soc_dai *dai,
 	unsigned long dac_rate;
 	int ncp_div;
 	int osr_div;
-	unsigned long dac_mul;
-	unsigned long sck_mul;
 	int ret;
 	int idac;
 	int fssp;
+	int gpio;
 
 	lrclk_div = snd_soc_params_to_frame_size(params);
 	if (lrclk_div == 0) {
@@ -772,31 +805,72 @@ static int pcm512x_set_dividers(struct snd_soc_dai *dai,
 	/* run DSP no faster than 50 MHz */
 	dsp_div = mck_rate > 50000000 ? 2 : 1;
 
-	/* run DAC no faster than 6144000 Hz */
-	dac_mul = 6144000 / osr_rate;
-	sck_mul = sck_rate / osr_rate;
-	for (; dac_mul; dac_mul--) {
-		if (!(sck_mul % dac_mul))
-			break;
-	}
-	if (!dac_mul) {
-		dev_err(dev, "Failed to find DAC rate\n");
-		return -EINVAL;
+	dac_rate = pcm512x_pllin_dac_rate(dai, osr_rate, pllin_rate);
+	if (dac_rate) {
+		/* the desired clock rate is "compatible" with the pll input
+		 * clock, so use that clock as dac input instead of the pll
+		 * output clock since the pll will introduce jitter and thus
+		 * noise.
+		 */
+		dev_dbg(dev, "using pll input as dac input\n");
+		ret = regmap_update_bits(pcm512x->regmap, PCM512x_DAC_REF,
+					 PCM512x_SDAC, PCM512x_SDAC_GPIO);
+		if (ret != 0) {
+			dev_err(codec->dev,
+				"Failed to set gpio as dacref: %d\n", ret);
+			return ret;
+		}
+
+		gpio = PCM512x_GREF_GPIO1 + pcm512x->pll_in - 1;
+		ret = regmap_update_bits(pcm512x->regmap, PCM512x_GPIO_DACIN,
+					 PCM512x_GREF, gpio);
+		if (ret != 0) {
+			dev_err(codec->dev,
+				"Failed to set gpio %d as dacin: %d\n",
+				pcm512x->pll_in, ret);
+			return ret;
+		}
+
+		dacsrc_rate = pllin_rate;
+	} else {
+		/* run DAC no faster than 6144000 Hz */
+		unsigned long dac_mul = 6144000 / osr_rate;
+		unsigned long sck_mul = sck_rate / osr_rate;
+
+		for (; dac_mul; dac_mul--) {
+			if (!(sck_mul % dac_mul))
+				break;
+		}
+		if (!dac_mul) {
+			dev_err(dev, "Failed to find DAC rate\n");
+			return -EINVAL;
+		}
+
+		dac_rate = dac_mul * osr_rate;
+		dev_dbg(dev, "dac_rate %lu sample_rate %lu\n",
+			dac_rate, sample_rate);
+
+		ret = regmap_update_bits(pcm512x->regmap, PCM512x_DAC_REF,
+					 PCM512x_SDAC, PCM512x_SDAC_SCK);
+		if (ret != 0) {
+			dev_err(codec->dev,
+				"Failed to set sck as dacref: %d\n", ret);
+			return ret;
+		}
+
+		dacsrc_rate = sck_rate;
 	}
 
-	dac_rate = dac_mul * osr_rate;
-	dev_dbg(dev, "dac_rate %lu sample_rate %lu\n", dac_rate, sample_rate);
-
-	dac_div = DIV_ROUND_CLOSEST(sck_rate, dac_rate);
+	dac_div = DIV_ROUND_CLOSEST(dacsrc_rate, dac_rate);
 	if (dac_div > 128) {
 		dev_err(dev, "Failed to find DAC divider\n");
 		return -EINVAL;
 	}
 
-	ncp_div = DIV_ROUND_CLOSEST(sck_rate / dac_div, 1536000);
-	if (ncp_div > 128 || sck_rate / dac_div / ncp_div > 2048000) {
+	ncp_div = DIV_ROUND_CLOSEST(dacsrc_rate / dac_div, 1536000);
+	if (ncp_div > 128 || dacsrc_rate / dac_div / ncp_div > 2048000) {
 		/* run NCP no faster than 2048000 Hz, but why? */
-		ncp_div = DIV_ROUND_UP(sck_rate / dac_div, 2048000);
+		ncp_div = DIV_ROUND_UP(dacsrc_rate / dac_div, 2048000);
 		if (ncp_div > 128) {
 			dev_err(dev, "Failed to find NCP divider\n");
 			return -EINVAL;
@@ -1010,13 +1084,6 @@ static int pcm512x_hw_params(struct snd_pcm_substream *substream,
 	ret = pcm512x_set_dividers(dai, params);
 	if (ret != 0)
 		return ret;
-
-	ret = regmap_update_bits(pcm512x->regmap, PCM512x_DAC_REF,
-				 PCM512x_SDAC, PCM512x_SDAC_SCK);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set sck as dacref: %d\n", ret);
-		return ret;
-	}
 
 	if (pcm512x->pll_out) {
 		ret = regmap_update_bits(pcm512x->regmap, PCM512x_PLL_REF,

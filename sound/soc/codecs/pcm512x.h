@@ -38,6 +38,7 @@
 #define PCM512x_MASTER_MODE       (PCM512x_PAGE_BASE(0) +  12)
 #define PCM512x_PLL_REF           (PCM512x_PAGE_BASE(0) +  13)
 #define PCM512x_DAC_REF           (PCM512x_PAGE_BASE(0) +  14)
+#define PCM512x_GPIO_DACIN        (PCM512x_PAGE_BASE(0) +  16)
 #define PCM512x_GPIO_PLLIN        (PCM512x_PAGE_BASE(0) +  18)
 #define PCM512x_SYNCHRONIZE       (PCM512x_PAGE_BASE(0) +  19)
 #define PCM512x_PLL_COEFF_0       (PCM512x_PAGE_BASE(0) +  20)
@@ -162,8 +163,9 @@
 #define PCM512x_SDAC_PLL    (1 << 4)
 #define PCM512x_SDAC_SCK    (3 << 4)
 #define PCM512x_SDAC_BCK    (4 << 4)
+#define PCM512x_SDAC_GPIO   (5 << 4)
 
-/* Page 0, Register 18 - GPIO source for PLL */
+/* Page 0, Register 16, 18 - GPIO source for DAC, PLL */
 #define PCM512x_GREF        (7 << 0)
 #define PCM512x_GREF_SHIFT  0
 #define PCM512x_GREF_GPIO1  (0 << 0)
