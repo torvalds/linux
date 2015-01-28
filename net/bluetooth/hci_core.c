@@ -2151,6 +2151,26 @@ static void hci_power_off(struct work_struct *work)
 	smp_unregister(hdev);
 }
 
+static void hci_error_reset(struct work_struct *work)
+{
+	struct hci_dev *hdev = container_of(work, struct hci_dev, error_reset);
+
+	BT_DBG("%s", hdev->name);
+
+	if (hdev->hw_error)
+		hdev->hw_error(hdev, hdev->hw_error_code);
+	else
+		BT_ERR("%s hardware error 0x%2.2x", hdev->name,
+		       hdev->hw_error_code);
+
+	if (hci_dev_do_close(hdev))
+		return;
+
+	smp_unregister(hdev);
+
+	hci_dev_do_open(hdev);
+}
+
 static void hci_discov_off(struct work_struct *work)
 {
 	struct hci_dev *hdev;
@@ -2943,6 +2963,7 @@ struct hci_dev *hci_alloc_dev(void)
 	INIT_WORK(&hdev->cmd_work, hci_cmd_work);
 	INIT_WORK(&hdev->tx_work, hci_tx_work);
 	INIT_WORK(&hdev->power_on, hci_power_on);
+	INIT_WORK(&hdev->error_reset, hci_error_reset);
 
 	INIT_DELAYED_WORK(&hdev->power_off, hci_power_off);
 	INIT_DELAYED_WORK(&hdev->discov_off, hci_discov_off);

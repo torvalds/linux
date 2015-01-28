@@ -232,6 +232,7 @@ struct hci_dev {
 	__u16		conn_info_min_age;
 	__u16		conn_info_max_age;
 	__u8		ssp_debug_mode;
+	__u8		hw_error_code;
 	__u32		clock;
 
 	__u16		devid_source;
@@ -293,6 +294,7 @@ struct hci_dev {
 
 	struct work_struct	power_on;
 	struct delayed_work	power_off;
+	struct work_struct	error_reset;
 
 	__u16			discov_timeout;
 	struct delayed_work	discov_off;
@@ -369,6 +371,7 @@ struct hci_dev {
 	int (*setup)(struct hci_dev *hdev);
 	int (*send)(struct hci_dev *hdev, struct sk_buff *skb);
 	void (*notify)(struct hci_dev *hdev, unsigned int evt);
+	void (*hw_error)(struct hci_dev *hdev, u8 code);
 	int (*set_bdaddr)(struct hci_dev *hdev, const bdaddr_t *bdaddr);
 };
 
