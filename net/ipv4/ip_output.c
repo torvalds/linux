@@ -1465,6 +1465,7 @@ static DEFINE_PER_CPU(struct inet_sock, unicast_sock) = {
 		.sk_wmem_alloc	= ATOMIC_INIT(1),
 		.sk_allocation	= GFP_ATOMIC,
 		.sk_flags	= (1UL << SOCK_USE_WRITE_QUEUE),
+		.sk_pacing_rate = ~0U,
 	},
 	.pmtudisc	= IP_PMTUDISC_WANT,
 	.uc_ttl		= -1,
