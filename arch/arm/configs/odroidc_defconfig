@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm 3.10.65 Kernel Configuration
+# Linux/arm 3.10.66 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -3699,7 +3699,7 @@ CONFIG_RTS5139_DEBUG=y
 CONFIG_USB_SERIAL_QUATECH2=m
 # CONFIG_VT6656 is not set
 CONFIG_ZSMALLOC=y
-CONFIG_ZRAM=y
+CONFIG_ZRAM=m
 CONFIG_ZRAM_DEBUG=y
 CONFIG_USB_ENESTORAGE=m
 # CONFIG_BCM_WIMAX is not set
