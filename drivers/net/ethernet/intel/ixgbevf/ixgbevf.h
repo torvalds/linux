@@ -367,8 +367,6 @@ struct ixgbevf_adapter {
 	/* this field must be first, see ixgbevf_process_skb_fields */
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 
-	struct timer_list watchdog_timer;
-	struct work_struct reset_task;
 	struct ixgbevf_q_vector *q_vector[MAX_MSIX_Q_VECTORS];
 
 	/* Interrupt Throttle Rate */
@@ -398,8 +396,7 @@ struct ixgbevf_adapter {
 	 * thus the additional *_CAPABLE flags.
 	 */
 	u32 flags;
-#define IXGBE_FLAG_IN_WATCHDOG_TASK             (u32)(1)
-
+#define IXGBEVF_FLAG_RESET_REQUESTED		(u32)(1)
 #define IXGBEVF_FLAG_QUEUE_RESET_REQUESTED	(u32)(1 << 2)
 
 	struct msix_entry *msix_entries;
@@ -435,10 +432,11 @@ struct ixgbevf_adapter {
 	u32 link_speed;
 	bool link_up;
 
+	struct timer_list service_timer;
+	struct work_struct service_task;
+
 	spinlock_t mbx_lock;
 	unsigned long last_reset;
-
-	struct work_struct watchdog_task;
 };
 
 enum ixbgevf_state_t {
@@ -447,7 +445,8 @@ enum ixbgevf_state_t {
 	__IXGBEVF_DOWN,
 	__IXGBEVF_DISABLED,
 	__IXGBEVF_REMOVING,
-	__IXGBEVF_WORK_INIT,
+	__IXGBEVF_SERVICE_SCHED,
+	__IXGBEVF_SERVICE_INITED,
 };
 
 enum ixgbevf_boards {
