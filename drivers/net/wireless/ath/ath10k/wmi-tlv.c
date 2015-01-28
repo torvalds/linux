@@ -1636,6 +1636,50 @@ ath10k_wmi_tlv_op_gen_vdev_wmm_conf(struct ath10k *ar, u32 vdev_id,
 }
 
 static struct sk_buff *
+ath10k_wmi_tlv_op_gen_sta_keepalive(struct ath10k *ar,
+				    const struct wmi_sta_keepalive_arg *arg)
+{
+	struct wmi_tlv_sta_keepalive_cmd *cmd;
+	struct wmi_sta_keepalive_arp_resp *arp;
+	struct sk_buff *skb;
+	struct wmi_tlv *tlv;
+	void *ptr;
+	size_t len;
+
+	len = sizeof(*tlv) + sizeof(*cmd) +
+	      sizeof(*tlv) + sizeof(*arp);
+	skb = ath10k_wmi_alloc_skb(ar, len);
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	ptr = (void *)skb->data;
+	tlv = ptr;
+	tlv->tag = __cpu_to_le16(WMI_TLV_TAG_STRUCT_STA_KEEPALIVE_CMD);
+	tlv->len = __cpu_to_le16(sizeof(*cmd));
+	cmd = (void *)tlv->value;
+	cmd->vdev_id = __cpu_to_le32(arg->vdev_id);
+	cmd->enabled = __cpu_to_le32(arg->enabled);
+	cmd->method = __cpu_to_le32(arg->method);
+	cmd->interval = __cpu_to_le32(arg->interval);
+
+	ptr += sizeof(*tlv);
+	ptr += sizeof(*cmd);
+
+	tlv = ptr;
+	tlv->tag = __cpu_to_le16(WMI_TLV_TAG_STRUCT_STA_KEEPALVE_ARP_RESPONSE);
+	tlv->len = __cpu_to_le16(sizeof(*arp));
+	arp = (void *)tlv->value;
+
+	arp->src_ip4_addr = arg->src_ip4_addr;
+	arp->dest_ip4_addr = arg->dest_ip4_addr;
+	ether_addr_copy(arp->dest_mac_addr.addr, arg->dest_mac_addr);
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi tlv sta keepalive vdev %d enabled %d method %d inverval %d\n",
+		   arg->vdev_id, arg->enabled, arg->method, arg->interval);
+	return skb;
+}
+
+static struct sk_buff *
 ath10k_wmi_tlv_op_gen_peer_create(struct ath10k *ar, u32 vdev_id,
 				  const u8 peer_addr[ETH_ALEN])
 {
@@ -2634,6 +2678,7 @@ static const struct wmi_ops wmi_tlv_ops = {
 	.gen_prb_tmpl = ath10k_wmi_tlv_op_gen_prb_tmpl,
 	.gen_p2p_go_bcn_ie = ath10k_wmi_tlv_op_gen_p2p_go_bcn_ie,
 	.gen_vdev_sta_uapsd = ath10k_wmi_tlv_op_gen_vdev_sta_uapsd,
+	.gen_sta_keepalive = ath10k_wmi_tlv_op_gen_sta_keepalive,
 };
 
 /************/

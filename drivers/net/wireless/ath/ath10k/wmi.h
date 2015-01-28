@@ -4680,6 +4680,16 @@ struct wmi_sta_keepalive_cmd {
 	struct wmi_sta_keepalive_arp_resp arp_resp;
 } __packed;
 
+struct wmi_sta_keepalive_arg {
+	u32 vdev_id;
+	u32 enabled;
+	u32 method;
+	u32 interval;
+	__be32 src_ip4_addr;
+	__be32 dest_ip4_addr;
+	const u8 dest_mac_addr[ETH_ALEN];
+};
+
 enum wmi_force_fw_hang_type {
 	WMI_FORCE_FW_HANG_ASSERT = 1,
 	WMI_FORCE_FW_HANG_NO_DETECT,

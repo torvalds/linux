@@ -1432,6 +1432,13 @@ struct wmi_tlv_diag_data_ev {
 	__le32 num_items;
 } __packed;
 
+struct wmi_tlv_sta_keepalive_cmd {
+	__le32 vdev_id;
+	__le32 enabled;
+	__le32 method; /* WMI_STA_KEEPALIVE_METHOD_ */
+	__le32 interval; /* in seconds */
+} __packed;
+
 void ath10k_wmi_tlv_attach(struct ath10k *ar);
 
 #endif

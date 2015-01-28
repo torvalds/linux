@@ -143,6 +143,8 @@ struct wmi_ops {
 					      const u8 peer_addr[ETH_ALEN],
 					      const struct wmi_sta_uapsd_auto_trig_arg *args,
 					      u32 num_ac);
+	struct sk_buff *(*gen_sta_keepalive)(struct ath10k *ar,
+					     const struct wmi_sta_keepalive_arg *arg);
 };
 
 int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id);
@@ -1032,6 +1034,24 @@ ath10k_wmi_p2p_go_bcn_ie(struct ath10k *ar, u32 vdev_id, const u8 *p2p_ie)
 		return PTR_ERR(skb);
 
 	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->p2p_go_set_beacon_ie);
+}
+
+static inline int
+ath10k_wmi_sta_keepalive(struct ath10k *ar,
+			 const struct wmi_sta_keepalive_arg *arg)
+{
+	struct sk_buff *skb;
+	u32 cmd_id;
+
+	if (!ar->wmi.ops->gen_sta_keepalive)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_sta_keepalive(ar, arg);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	cmd_id = ar->wmi.cmd->sta_keepalive_cmd;
+	return ath10k_wmi_cmd_send(ar, skb, cmd_id);
 }
 
 #endif
