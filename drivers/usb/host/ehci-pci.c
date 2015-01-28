@@ -42,6 +42,20 @@ static inline bool is_intel_quark_x1000(struct pci_dev *pdev)
 		pdev->device == PCI_DEVICE_ID_INTEL_QUARK_X1000_SOC;
 }
 
+static const struct pci_device_id ci_hdrc_pci_id_table[] = {
+	{ PCI_DEVICE(0x153F, 0x1004), },
+	{ PCI_DEVICE(0x153F, 0x1006), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0811), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0829), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0xe006), },
+	{}
+};
+
+static inline bool is_ci_hdrc_pci(struct pci_dev *pdev)
+{
+	return !!pci_match_id(ci_hdrc_pci_id_table, pdev);
+}
+
 /*
  * 0x84 is the offset of in/out threshold register,
  * and it is the same offset as the register of 'hostpc'.
@@ -352,6 +366,13 @@ static const struct ehci_driver_overrides pci_overrides __initconst = {
 
 /*-------------------------------------------------------------------------*/
 
+static int ehci_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+{
+	if (is_ci_hdrc_pci(pdev))
+		return -ENODEV;
+	return usb_hcd_pci_probe(pdev, id);
+}
+
 /* PCI driver selection metadata; PCI hotplugging uses this */
 static const struct pci_device_id pci_ids [] = { {
 	/* handle any USB 2.0 EHCI controller */
@@ -370,7 +391,7 @@ static struct pci_driver ehci_pci_driver = {
 	.name =		(char *) hcd_name,
 	.id_table =	pci_ids,
 
-	.probe =	usb_hcd_pci_probe,
+	.probe =	ehci_pci_probe,
 	.remove =	usb_hcd_pci_remove,
 	.shutdown = 	usb_hcd_pci_shutdown,
 
