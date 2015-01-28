@@ -165,6 +165,11 @@ config ARCH_EXYNOS7
 	help
 	  This enables support for Samsung Exynos7 SoC family
 
+config ARCH_FSL_LS2085A
+	bool "Freescale LS2085A SOC"
+	help
+	  This enables support for Freescale LS2085A SOC.
+
 config ARCH_MEDIATEK
 	bool "Mediatek MT65xx & MT81xx ARMv8 SoC"
 	select ARM_GIC
@@ -203,11 +208,6 @@ config ARCH_TEGRA_132_SOC
 	  ARMv8 CPU.  The Tegra132 SoC is similar to the Tegra124 SoC,
 	  but contains an NVIDIA Denver CPU complex in place of
 	  Tegra124's "4+1" Cortex-A15 CPU complex.
-
-config ARCH_FSL_LS2085A
-	bool "Freescale LS2085A SOC"
-	help
-	  This enables support for Freescale LS2085A SOC.
 
 config ARCH_THUNDER
 	bool "Cavium Inc. Thunder SoC Family"
