@@ -151,6 +151,19 @@ config HW_RANDOM_IXP4XX
 
 	  If unsure, say Y.
 
+config HW_RANDOM_MESON
+	tristate "Meson Random Number Generator support"
+	depends on HW_RANDOM && PLAT_MESON && !ARCH_MESON3
+	default HW_RANDOM
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on Amlogic Meson SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called omap-rng.
+
+	  If unsure, say Y.
+
 config HW_RANDOM_OMAP
 	tristate "OMAP Random Number Generator support"
 	depends on HW_RANDOM && (ARCH_OMAP16XX || ARCH_OMAP2)
