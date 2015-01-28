@@ -1162,7 +1162,7 @@ mwifiex_set_bss_role(struct mwifiex_private *priv, u8 bss_role)
 	mwifiex_send_cmd(priv, HostCmd_CMD_SET_BSS_MODE,
 			 HostCmd_ACT_GEN_SET, 0, NULL, true);
 
-	return mwifiex_sta_init_cmd(priv, false);
+	return mwifiex_sta_init_cmd(priv, false, false);
 }
 
 /*

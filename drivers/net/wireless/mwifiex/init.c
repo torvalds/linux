@@ -552,7 +552,8 @@ int mwifiex_init_fw(struct mwifiex_adapter *adapter)
 
 	for (i = 0; i < adapter->priv_num; i++) {
 		if (adapter->priv[i]) {
-			ret = mwifiex_sta_init_cmd(adapter->priv[i], first_sta);
+			ret = mwifiex_sta_init_cmd(adapter->priv[i], first_sta,
+						   true);
 			if (ret == -1)
 				return -1;
 

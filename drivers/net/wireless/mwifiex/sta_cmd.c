@@ -1911,6 +1911,8 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
  *
  * This is called after firmware download to bring the card to
  * working state.
+ * Function is also called during reinitialization of virtual
+ * interfaces.
  *
  * The following commands are issued sequentially -
  *      - Set PCI-Express host buffer configuration (PCIE only)
@@ -1925,7 +1927,7 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
  *      - Set 11d control
  *      - Set MAC control (this must be the last command to initialize firmware)
  */
-int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta)
+int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 	int ret;
@@ -2059,9 +2061,6 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta)
 				"11D: failed to enable 11D\n");
 	}
 
-	/* set last_init_cmd before sending the command */
-	priv->adapter->last_init_cmd = HostCmd_CMD_11N_CFG;
-
 	/* Send cmd to FW to configure 11n specific configuration
 	 * (Short GI, Channel BW, Green field support etc.) for transmit
 	 */
@@ -2069,7 +2068,11 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta)
 	ret = mwifiex_send_cmd(priv, HostCmd_CMD_11N_CFG,
 			       HostCmd_ACT_GEN_SET, 0, &tx_cfg, true);
 
-	ret = -EINPROGRESS;
+	if (init) {
+		/* set last_init_cmd before sending the command */
+		priv->adapter->last_init_cmd = HostCmd_CMD_11N_CFG;
+		ret = -EINPROGRESS;
+	}
 
 	return ret;
 }
