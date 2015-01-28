@@ -1164,26 +1164,6 @@ static int tegra_dc_set_timings(struct tegra_dc *dc,
 	return 0;
 }
 
-int tegra_dc_setup_clock(struct tegra_dc *dc, struct clk *parent,
-			 unsigned long pclk, unsigned int div)
-{
-	u32 value;
-	int err;
-
-	err = clk_set_parent(dc->clk, parent);
-	if (err < 0) {
-		dev_err(dc->dev, "failed to set parent clock: %d\n", err);
-		return err;
-	}
-
-	DRM_DEBUG_KMS("rate: %lu, div: %u\n", clk_get_rate(dc->clk), div);
-
-	value = SHIFT_CLK_DIVIDER(div) | PIXEL_CLK_DIVIDER_PCD1;
-	tegra_dc_writel(dc, value, DC_DISP_DISP_CLOCK_CONTROL);
-
-	return 0;
-}
-
 int tegra_dc_state_setup_clock(struct tegra_dc *dc,
 			       struct drm_crtc_state *crtc_state,
 			       struct clk *clk, unsigned long pclk,
