@@ -122,7 +122,6 @@ struct at91_udc {
 	unsigned			req_pending:1;
 	unsigned			wait_for_addr_ack:1;
 	unsigned			wait_for_config_ack:1;
-	unsigned			selfpowered:1;
 	unsigned			active_suspend:1;
 	u8				addr;
 	struct at91_udc_data		board;
