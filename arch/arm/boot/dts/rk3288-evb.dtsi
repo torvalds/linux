@@ -104,6 +104,10 @@
 	status = "okay";
 };
 
+&hdmi {
+	status = "okay";
+};
+
 &sdmmc {
 	bus-width = <4>;
 	cap-mmc-highspeed;
@@ -117,6 +121,10 @@
 };
 
 &i2c0 {
+	status = "okay";
+};
+
+&i2c5 {
 	status = "okay";
 };
 
@@ -185,5 +193,21 @@
 };
 
 &usb_host1 {
+	status = "okay";
+};
+
+&vopb {
+	status = "okay";
+};
+
+&vopb_mmu {
+	status = "okay";
+};
+
+&vopl {
+	status = "okay";
+};
+
+&vopl_mmu {
 	status = "okay";
 };
