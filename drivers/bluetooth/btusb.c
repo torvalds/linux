@@ -280,8 +280,9 @@ static const struct usb_device_id blacklist_table[] = {
 #define BTUSB_DID_ISO_RESUME	4
 #define BTUSB_BOOTLOADER	5
 #define BTUSB_DOWNLOADING	6
-#define BTUSB_BOOTING		7
+#define BTUSB_FIRMWARE_LOADED	7
 #define BTUSB_FIRMWARE_FAILED	8
+#define BTUSB_BOOTING		9
 
 struct btusb_data {
 	struct hci_dev       *hdev;
@@ -1788,7 +1789,9 @@ static int btusb_recv_event_intel(struct hci_dev *hdev, struct sk_buff *skb)
 			if (skb->data[3] != 0x00)
 				test_bit(BTUSB_FIRMWARE_FAILED, &data->flags);
 
-			if (test_and_clear_bit(BTUSB_DOWNLOADING, &data->flags))
+			if (test_and_clear_bit(BTUSB_DOWNLOADING,
+					       &data->flags) &&
+			    test_bit(BTUSB_FIRMWARE_LOADED, &data->flags))
 				wake_up_interruptible(&hdev->req_wait_q);
 		}
 
@@ -2150,6 +2153,8 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 
 		fw_ptr += cmd_len;
 	}
+
+	set_bit(BTUSB_FIRMWARE_LOADED, &data->flags);
 
 	/* Before switching the device into operational mode and with that
 	 * booting the loaded firmware, wait for the bootloader notification
