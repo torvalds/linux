@@ -567,7 +567,7 @@ struct mwifiex_private {
 	u16 beacon_idx;
 	u16 proberesp_idx;
 	u16 assocresp_idx;
-	u16 rsn_idx;
+	u16 gen_idx;
 	u8 ap_11n_enabled;
 	u8 ap_11ac_enabled;
 	u32 mgmt_frame_mask;
