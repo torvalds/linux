@@ -69,6 +69,7 @@
 #include <asm/irq.h>
 #include <asm/page.h>
 
+#include "cpsw.h"
 #include "davinci_cpdma.h"
 
 static int debug_level;
@@ -1838,7 +1839,7 @@ davinci_emac_of_get_pdata(struct platform_device *pdev, struct emac_priv *priv)
 	if (!is_valid_ether_addr(pdata->mac_addr)) {
 		mac_addr = of_get_mac_address(np);
 		if (mac_addr)
-			memcpy(pdata->mac_addr, mac_addr, ETH_ALEN);
+			ether_addr_copy(pdata->mac_addr, mac_addr);
 	}
 
 	of_property_read_u32(np, "ti,davinci-ctrl-reg-offset",
@@ -1877,6 +1878,22 @@ davinci_emac_of_get_pdata(struct platform_device *pdev, struct emac_priv *priv)
 	pdev->dev.platform_data = pdata;
 
 	return  pdata;
+}
+
+static int davinci_emac_try_get_mac(struct platform_device *pdev,
+				    int instance, u8 *mac_addr)
+{
+	int error = -EINVAL;
+
+	if (!pdev->dev.of_node)
+		return error;
+
+	if (of_device_is_compatible(pdev->dev.of_node, "ti,dm816-emac"))
+		error = cpsw_am33xx_cm_get_macid(&pdev->dev, 0x30,
+						 instance,
+						 mac_addr);
+
+	return error;
 }
 
 /**
@@ -2008,6 +2025,10 @@ static int davinci_emac_probe(struct platform_device *pdev)
 		goto no_cpdma_chan;
 	}
 	ndev->irq = res->start;
+
+	rc = davinci_emac_try_get_mac(pdev, res_ctrl ? 0 : 1, priv->mac_addr);
+	if (!rc)
+		ether_addr_copy(ndev->dev_addr, priv->mac_addr);
 
 	if (!is_valid_ether_addr(priv->mac_addr)) {
 		/* Use random MAC if none passed */
