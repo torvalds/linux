@@ -21,12 +21,18 @@
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#include <linux/gcd.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/pcm_params.h>
 #include <sound/tlv.h>
 
 #include "pcm512x.h"
+
+#define DIV_ROUND_DOWN_ULL(ll, d) \
+	({ unsigned long long _tmp = (ll); do_div(_tmp, d); _tmp; })
+#define DIV_ROUND_CLOSEST_ULL(ll, d) \
+	({ unsigned long long _tmp = (ll)+(d)/2; do_div(_tmp, d); _tmp; })
 
 #define PCM512x_NUM_SUPPLIES 3
 static const char * const pcm512x_supply_names[PCM512x_NUM_SUPPLIES] = {
@@ -41,6 +47,13 @@ struct pcm512x_priv {
 	struct regulator_bulk_data supplies[PCM512x_NUM_SUPPLIES];
 	struct notifier_block supply_nb[PCM512x_NUM_SUPPLIES];
 	int fmt;
+	int pll_in;
+	int pll_out;
+	int pll_r;
+	int pll_j;
+	int pll_d;
+	int pll_p;
+	unsigned long real_pll;
 };
 
 /*
@@ -92,7 +105,13 @@ static const struct reg_default pcm512x_reg_defaults[] = {
 	{ PCM512x_VCOM_CTRL_2,       0x01 },
 	{ PCM512x_BCLK_LRCLK_CFG,    0x00 },
 	{ PCM512x_MASTER_MODE,       0x7c },
+	{ PCM512x_GPIO_PLLIN,        0x00 },
 	{ PCM512x_SYNCHRONIZE,       0x10 },
+	{ PCM512x_PLL_COEFF_0,       0x00 },
+	{ PCM512x_PLL_COEFF_1,       0x00 },
+	{ PCM512x_PLL_COEFF_2,       0x00 },
+	{ PCM512x_PLL_COEFF_3,       0x00 },
+	{ PCM512x_PLL_COEFF_4,       0x00 },
 	{ PCM512x_DSP_CLKDIV,        0x00 },
 	{ PCM512x_DAC_CLKDIV,        0x00 },
 	{ PCM512x_NCP_CLKDIV,        0x00 },
@@ -119,6 +138,7 @@ static bool pcm512x_readable(struct device *dev, unsigned int reg)
 	case PCM512x_MASTER_MODE:
 	case PCM512x_PLL_REF:
 	case PCM512x_DAC_REF:
+	case PCM512x_GPIO_PLLIN:
 	case PCM512x_SYNCHRONIZE:
 	case PCM512x_PLL_COEFF_0:
 	case PCM512x_PLL_COEFF_1:
@@ -160,6 +180,7 @@ static bool pcm512x_readable(struct device *dev, unsigned int reg)
 	case PCM512x_RATE_DET_2:
 	case PCM512x_RATE_DET_3:
 	case PCM512x_RATE_DET_4:
+	case PCM512x_CLOCK_STATUS:
 	case PCM512x_ANALOG_MUTE_DET:
 	case PCM512x_GPIN:
 	case PCM512x_DIGITAL_MUTE_DET:
@@ -171,6 +192,8 @@ static bool pcm512x_readable(struct device *dev, unsigned int reg)
 	case PCM512x_VCOM_CTRL_1:
 	case PCM512x_VCOM_CTRL_2:
 	case PCM512x_CRAM_CTRL:
+	case PCM512x_FLEX_A:
+	case PCM512x_FLEX_B:
 		return true;
 	default:
 		/* There are 256 raw register addresses */
@@ -187,6 +210,7 @@ static bool pcm512x_volatile(struct device *dev, unsigned int reg)
 	case PCM512x_RATE_DET_2:
 	case PCM512x_RATE_DET_3:
 	case PCM512x_RATE_DET_4:
+	case PCM512x_CLOCK_STATUS:
 	case PCM512x_ANALOG_MUTE_DET:
 	case PCM512x_GPIN:
 	case PCM512x_DIGITAL_MUTE_DET:
@@ -330,6 +354,38 @@ static const struct snd_pcm_hw_constraint_list constraints_slave = {
 	.list  = pcm512x_dai_rates,
 };
 
+static const struct snd_interval pcm512x_dai_ranges_64bpf[] = {
+	{
+		.min = 8000,
+		.max = 195312,
+	}, {
+		.min = 250000,
+		.max = 390625,
+	},
+};
+
+static struct snd_pcm_hw_constraint_ranges constraints_64bpf = {
+	.count  = ARRAY_SIZE(pcm512x_dai_ranges_64bpf),
+	.ranges = pcm512x_dai_ranges_64bpf,
+};
+
+static int pcm512x_hw_rule_rate(struct snd_pcm_hw_params *params,
+				struct snd_pcm_hw_rule *rule)
+{
+	struct snd_pcm_hw_constraint_ranges *r = rule->private;
+	int frame_size;
+
+	frame_size = snd_soc_params_to_frame_size(params);
+	if (frame_size < 0)
+		return frame_size;
+
+	if (frame_size != 64)
+		return 0;
+
+	return snd_interval_ranges(hw_param_interval(params, rule->var),
+				   r->count, r->ranges, r->mask);
+}
+
 static int pcm512x_dai_startup_master(struct snd_pcm_substream *substream,
 				      struct snd_soc_dai *dai)
 {
@@ -344,6 +400,14 @@ static int pcm512x_dai_startup_master(struct snd_pcm_substream *substream,
 			PTR_ERR(pcm512x->sclk));
 		return PTR_ERR(pcm512x->sclk);
 	}
+
+	if (pcm512x->pll_out)
+		return snd_pcm_hw_rule_add(substream->runtime, 0,
+					   SNDRV_PCM_HW_PARAM_RATE,
+					   pcm512x_hw_rule_rate,
+					   (void *)&constraints_64bpf,
+					   SNDRV_PCM_HW_PARAM_FRAME_BITS,
+					   SNDRV_PCM_HW_PARAM_CHANNELS, -1);
 
 	constraints_no_pll = devm_kzalloc(dev, sizeof(*constraints_no_pll),
 					  GFP_KERNEL);
@@ -445,12 +509,164 @@ static int pcm512x_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
+static unsigned long pcm512x_find_sck(struct snd_soc_dai *dai,
+				      unsigned long bclk_rate)
+{
+	struct device *dev = dai->dev;
+	unsigned long sck_rate;
+	int pow2;
+
+	/* 64 MHz <= pll_rate <= 100 MHz, VREF mode */
+	/* 16 MHz <= sck_rate <=  25 MHz, VREF mode */
+
+	/* select sck_rate as a multiple of bclk_rate but still with
+	 * as many factors of 2 as possible, as that makes it easier
+	 * to find a fast DAC rate
+	 */
+	pow2 = 1 << fls((25000000 - 16000000) / bclk_rate);
+	for (; pow2; pow2 >>= 1) {
+		sck_rate = rounddown(25000000, bclk_rate * pow2);
+		if (sck_rate >= 16000000)
+			break;
+	}
+	if (!pow2) {
+		dev_err(dev, "Impossible to generate a suitable SCK\n");
+		return 0;
+	}
+
+	dev_dbg(dev, "sck_rate %lu\n", sck_rate);
+	return sck_rate;
+}
+
+/* pll_rate = pllin_rate * R * J.D / P
+ * 1 <= R <= 16
+ * 1 <= J <= 63
+ * 0 <= D <= 9999
+ * 1 <= P <= 15
+ * 64 MHz <= pll_rate <= 100 MHz
+ * if D == 0
+ *     1 MHz <= pllin_rate / P <= 20 MHz
+ * else if D > 0
+ *     6.667 MHz <= pllin_rate / P <= 20 MHz
+ *     4 <= J <= 11
+ *     R = 1
+ */
+static int pcm512x_find_pll_coeff(struct snd_soc_dai *dai,
+				  unsigned long pllin_rate,
+				  unsigned long pll_rate)
+{
+	struct device *dev = dai->dev;
+	struct snd_soc_codec *codec = dai->codec;
+	struct pcm512x_priv *pcm512x = snd_soc_codec_get_drvdata(codec);
+	unsigned long common;
+	int R, J, D, P;
+	unsigned long K; /* 10000 * J.D */
+	unsigned long num;
+	unsigned long den;
+
+	common = gcd(pll_rate, pllin_rate);
+	dev_dbg(dev, "pll %lu pllin %lu common %lu\n",
+		pll_rate, pllin_rate, common);
+	num = pll_rate / common;
+	den = pllin_rate / common;
+
+	/* pllin_rate / P (or here, den) cannot be greater than 20 MHz */
+	if (pllin_rate / den > 20000000 && num < 8) {
+		num *= 20000000 / (pllin_rate / den);
+		den *= 20000000 / (pllin_rate / den);
+	}
+	dev_dbg(dev, "num / den = %lu / %lu\n", num, den);
+
+	P = den;
+	if (den <= 15 && num <= 16 * 63
+	    && 1000000 <= pllin_rate / P && pllin_rate / P <= 20000000) {
+		/* Try the case with D = 0 */
+		D = 0;
+		/* factor 'num' into J and R, such that R <= 16 and J <= 63 */
+		for (R = 16; R; R--) {
+			if (num % R)
+				continue;
+			J = num / R;
+			if (J == 0 || J > 63)
+				continue;
+
+			dev_dbg(dev, "R * J / P = %d * %d / %d\n", R, J, P);
+			pcm512x->real_pll = pll_rate;
+			goto done;
+		}
+		/* no luck */
+	}
+
+	R = 1;
+
+	if (num > 0xffffffffUL / 10000)
+		goto fallback;
+
+	/* Try to find an exact pll_rate using the D > 0 case */
+	common = gcd(10000 * num, den);
+	num = 10000 * num / common;
+	den /= common;
+	dev_dbg(dev, "num %lu den %lu common %lu\n", num, den, common);
+
+	for (P = den; P <= 15; P++) {
+		if (pllin_rate / P < 6667000 || 200000000 < pllin_rate / P)
+			continue;
+		if (num * P % den)
+			continue;
+		K = num * P / den;
+		/* J == 12 is ok if D == 0 */
+		if (K < 40000 || K > 120000)
+			continue;
+
+		J = K / 10000;
+		D = K % 10000;
+		dev_dbg(dev, "J.D / P = %d.%04d / %d\n", J, D, P);
+		pcm512x->real_pll = pll_rate;
+		goto done;
+	}
+
+	/* Fall back to an approximate pll_rate */
+
+fallback:
+	/* find smallest possible P */
+	P = DIV_ROUND_UP(pllin_rate, 20000000);
+	if (!P)
+		P = 1;
+	else if (P > 15) {
+		dev_err(dev, "Need a slower clock as pll-input\n");
+		return -EINVAL;
+	}
+	if (pllin_rate / P < 6667000) {
+		dev_err(dev, "Need a faster clock as pll-input\n");
+		return -EINVAL;
+	}
+	K = DIV_ROUND_CLOSEST_ULL(10000ULL * pll_rate * P, pllin_rate);
+	if (K < 40000)
+		K = 40000;
+	/* J == 12 is ok if D == 0 */
+	if (K > 120000)
+		K = 120000;
+	J = K / 10000;
+	D = K % 10000;
+	dev_dbg(dev, "J.D / P ~ %d.%04d / %d\n", J, D, P);
+	pcm512x->real_pll = DIV_ROUND_DOWN_ULL((u64)K * pllin_rate, 10000 * P);
+
+done:
+	pcm512x->pll_r = R;
+	pcm512x->pll_j = J;
+	pcm512x->pll_d = D;
+	pcm512x->pll_p = P;
+	return 0;
+}
+
 static int pcm512x_set_dividers(struct snd_soc_dai *dai,
 				struct snd_pcm_hw_params *params)
 {
 	struct device *dev = dai->dev;
 	struct snd_soc_codec *codec = dai->codec;
 	struct pcm512x_priv *pcm512x = snd_soc_codec_get_drvdata(codec);
+	unsigned long pllin_rate = 0;
+	unsigned long pll_rate;
 	unsigned long sck_rate;
 	unsigned long mck_rate;
 	unsigned long bclk_rate;
@@ -475,11 +691,74 @@ static int pcm512x_set_dividers(struct snd_soc_dai *dai,
 		return -EINVAL;
 	}
 
-	sck_rate = clk_get_rate(pcm512x->sclk);
-	bclk_div = params->rate_den * 64 / lrclk_div;
-	bclk_rate = DIV_ROUND_CLOSEST(sck_rate, bclk_div);
+	if (!pcm512x->pll_out) {
+		sck_rate = clk_get_rate(pcm512x->sclk);
+		bclk_div = params->rate_den * 64 / lrclk_div;
+		bclk_rate = DIV_ROUND_CLOSEST(sck_rate, bclk_div);
 
-	mck_rate = sck_rate;
+		mck_rate = sck_rate;
+	} else {
+		ret = snd_soc_params_to_bclk(params);
+		if (ret < 0) {
+			dev_err(dev, "Failed to find suitable BCLK: %d\n", ret);
+			return ret;
+		}
+		if (ret == 0) {
+			dev_err(dev, "No BCLK?\n");
+			return -EINVAL;
+		}
+		bclk_rate = ret;
+
+		pllin_rate = clk_get_rate(pcm512x->sclk);
+
+		sck_rate = pcm512x_find_sck(dai, bclk_rate);
+		if (!sck_rate)
+			return -EINVAL;
+		pll_rate = 4 * sck_rate;
+
+		ret = pcm512x_find_pll_coeff(dai, pllin_rate, pll_rate);
+		if (ret != 0)
+			return ret;
+
+		ret = regmap_write(pcm512x->regmap,
+				   PCM512x_PLL_COEFF_0, pcm512x->pll_p - 1);
+		if (ret != 0) {
+			dev_err(dev, "Failed to write PLL P: %d\n", ret);
+			return ret;
+		}
+
+		ret = regmap_write(pcm512x->regmap,
+				   PCM512x_PLL_COEFF_1, pcm512x->pll_j);
+		if (ret != 0) {
+			dev_err(dev, "Failed to write PLL J: %d\n", ret);
+			return ret;
+		}
+
+		ret = regmap_write(pcm512x->regmap,
+				   PCM512x_PLL_COEFF_2, pcm512x->pll_d >> 8);
+		if (ret != 0) {
+			dev_err(dev, "Failed to write PLL D msb: %d\n", ret);
+			return ret;
+		}
+
+		ret = regmap_write(pcm512x->regmap,
+				   PCM512x_PLL_COEFF_3, pcm512x->pll_d & 0xff);
+		if (ret != 0) {
+			dev_err(dev, "Failed to write PLL D lsb: %d\n", ret);
+			return ret;
+		}
+
+		ret = regmap_write(pcm512x->regmap,
+				   PCM512x_PLL_COEFF_4, pcm512x->pll_r - 1);
+		if (ret != 0) {
+			dev_err(dev, "Failed to write PLL R: %d\n", ret);
+			return ret;
+		}
+
+		mck_rate = pcm512x->real_pll;
+
+		bclk_div = DIV_ROUND_CLOSEST(sck_rate, bclk_rate);
+	}
 
 	if (bclk_div > 128) {
 		dev_err(dev, "Failed to find BCLK divider\n");
@@ -616,6 +895,7 @@ static int pcm512x_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = dai->codec;
 	struct pcm512x_priv *pcm512x = snd_soc_codec_get_drvdata(codec);
 	int alen;
+	int gpio;
 	int ret;
 
 	dev_dbg(codec->dev, "hw_params %u Hz, %u channels\n",
@@ -676,26 +956,55 @@ static int pcm512x_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	ret = regmap_update_bits(pcm512x->regmap, PCM512x_ERROR_DETECT,
-				 PCM512x_IDFS | PCM512x_IDBK
-				 | PCM512x_IDSK | PCM512x_IDCH
-				 | PCM512x_IDCM | PCM512x_DCAS
-				 | PCM512x_IPLK,
-				 PCM512x_IDFS | PCM512x_IDBK
-				 | PCM512x_IDSK | PCM512x_IDCH
-				 | PCM512x_DCAS | PCM512x_IPLK);
-	if (ret != 0) {
-		dev_err(codec->dev,
-			"Failed to ignore auto-clock failures: %d\n",
-			ret);
-		return ret;
-	}
+	if (pcm512x->pll_out) {
+		ret = regmap_write(pcm512x->regmap, PCM512x_FLEX_A, 0x11);
+		if (ret != 0) {
+			dev_err(codec->dev, "Failed to set FLEX_A: %d\n", ret);
+			return ret;
+		}
 
-	ret = regmap_update_bits(pcm512x->regmap, PCM512x_PLL_EN,
-				 PCM512x_PLLE, 0);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to disable pll: %d\n", ret);
-		return ret;
+		ret = regmap_write(pcm512x->regmap, PCM512x_FLEX_B, 0xff);
+		if (ret != 0) {
+			dev_err(codec->dev, "Failed to set FLEX_B: %d\n", ret);
+			return ret;
+		}
+
+		ret = regmap_update_bits(pcm512x->regmap, PCM512x_ERROR_DETECT,
+					 PCM512x_IDFS | PCM512x_IDBK
+					 | PCM512x_IDSK | PCM512x_IDCH
+					 | PCM512x_IDCM | PCM512x_DCAS
+					 | PCM512x_IPLK,
+					 PCM512x_IDFS | PCM512x_IDBK
+					 | PCM512x_IDSK | PCM512x_IDCH
+					 | PCM512x_DCAS);
+		if (ret != 0) {
+			dev_err(codec->dev,
+				"Failed to ignore auto-clock failures: %d\n",
+				ret);
+			return ret;
+		}
+	} else {
+		ret = regmap_update_bits(pcm512x->regmap, PCM512x_ERROR_DETECT,
+					 PCM512x_IDFS | PCM512x_IDBK
+					 | PCM512x_IDSK | PCM512x_IDCH
+					 | PCM512x_IDCM | PCM512x_DCAS
+					 | PCM512x_IPLK,
+					 PCM512x_IDFS | PCM512x_IDBK
+					 | PCM512x_IDSK | PCM512x_IDCH
+					 | PCM512x_DCAS | PCM512x_IPLK);
+		if (ret != 0) {
+			dev_err(codec->dev,
+				"Failed to ignore auto-clock failures: %d\n",
+				ret);
+			return ret;
+		}
+
+		ret = regmap_update_bits(pcm512x->regmap, PCM512x_PLL_EN,
+					 PCM512x_PLLE, 0);
+		if (ret != 0) {
+			dev_err(codec->dev, "Failed to disable pll: %d\n", ret);
+			return ret;
+		}
 	}
 
 	ret = pcm512x_set_dividers(dai, params);
@@ -707,6 +1016,33 @@ static int pcm512x_hw_params(struct snd_pcm_substream *substream,
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set sck as dacref: %d\n", ret);
 		return ret;
+	}
+
+	if (pcm512x->pll_out) {
+		ret = regmap_update_bits(pcm512x->regmap, PCM512x_PLL_REF,
+					 PCM512x_SREF, PCM512x_SREF_GPIO);
+		if (ret != 0) {
+			dev_err(codec->dev,
+				"Failed to set gpio as pllref: %d\n", ret);
+			return ret;
+		}
+
+		gpio = PCM512x_GREF_GPIO1 + pcm512x->pll_in - 1;
+		ret = regmap_update_bits(pcm512x->regmap, PCM512x_GPIO_PLLIN,
+					 PCM512x_GREF, gpio);
+		if (ret != 0) {
+			dev_err(codec->dev,
+				"Failed to set gpio %d as pllin: %d\n",
+				pcm512x->pll_in, ret);
+			return ret;
+		}
+
+		ret = regmap_update_bits(pcm512x->regmap, PCM512x_PLL_EN,
+					 PCM512x_PLLE, PCM512x_PLLE);
+		if (ret != 0) {
+			dev_err(codec->dev, "Failed to enable pll: %d\n", ret);
+			return ret;
+		}
 	}
 
 	ret = regmap_update_bits(pcm512x->regmap, PCM512x_BCLK_LRCLK_CFG,
@@ -723,6 +1059,45 @@ static int pcm512x_hw_params(struct snd_pcm_substream *substream,
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to enable master mode: %d\n", ret);
 		return ret;
+	}
+
+	if (pcm512x->pll_out) {
+		gpio = PCM512x_G1OE << (pcm512x->pll_out - 1);
+		ret = regmap_update_bits(pcm512x->regmap, PCM512x_GPIO_EN,
+					 gpio, gpio);
+		if (ret != 0) {
+			dev_err(codec->dev, "Failed to enable gpio %d: %d\n",
+				pcm512x->pll_out, ret);
+			return ret;
+		}
+
+		gpio = PCM512x_GPIO_OUTPUT_1 + pcm512x->pll_out - 1;
+		ret = regmap_update_bits(pcm512x->regmap, gpio,
+					 PCM512x_GxSL, PCM512x_GxSL_PLLCK);
+		if (ret != 0) {
+			dev_err(codec->dev, "Failed to output pll on %d: %d\n",
+				ret, pcm512x->pll_out);
+			return ret;
+		}
+
+		gpio = PCM512x_G1OE << (4 - 1);
+		ret = regmap_update_bits(pcm512x->regmap, PCM512x_GPIO_EN,
+					 gpio, gpio);
+		if (ret != 0) {
+			dev_err(codec->dev, "Failed to enable gpio %d: %d\n",
+				4, ret);
+			return ret;
+		}
+
+		gpio = PCM512x_GPIO_OUTPUT_1 + 4 - 1;
+		ret = regmap_update_bits(pcm512x->regmap, gpio,
+					 PCM512x_GxSL, PCM512x_GxSL_PLLLK);
+		if (ret != 0) {
+			dev_err(codec->dev,
+				"Failed to output pll lock on %d: %d\n",
+				ret, 4);
+			return ret;
+		}
 	}
 
 	ret = regmap_update_bits(pcm512x->regmap, PCM512x_SYNCHRONIZE,
@@ -815,6 +1190,7 @@ int pcm512x_probe(struct device *dev, struct regmap *regmap)
 {
 	struct pcm512x_priv *pcm512x;
 	int i, ret;
+	u32 val;
 
 	pcm512x = devm_kzalloc(dev, sizeof(struct pcm512x_priv), GFP_KERNEL);
 	if (!pcm512x)
@@ -891,6 +1267,42 @@ int pcm512x_probe(struct device *dev, struct regmap *regmap)
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	pm_runtime_idle(dev);
+
+#ifdef CONFIG_OF
+	if (dev->of_node) {
+		const struct device_node *np = dev->of_node;
+
+		if (of_property_read_u32(np, "pll-in", &val) >= 0) {
+			if (val > 6) {
+				dev_err(dev, "Invalid pll-in\n");
+				ret = -EINVAL;
+				goto err_clk;
+			}
+			pcm512x->pll_in = val;
+		}
+
+		if (of_property_read_u32(np, "pll-out", &val) >= 0) {
+			if (val > 6) {
+				dev_err(dev, "Invalid pll-out\n");
+				ret = -EINVAL;
+				goto err_clk;
+			}
+			pcm512x->pll_out = val;
+		}
+
+		if (!pcm512x->pll_in != !pcm512x->pll_out) {
+			dev_err(dev,
+				"Error: both pll-in and pll-out, or none\n");
+			ret = -EINVAL;
+			goto err_clk;
+		}
+		if (pcm512x->pll_in && pcm512x->pll_in == pcm512x->pll_out) {
+			dev_err(dev, "Error: pll-in == pll-out\n");
+			ret = -EINVAL;
+			goto err_clk;
+		}
+	}
+#endif
 
 	ret = snd_soc_register_codec(dev, &pcm512x_codec_driver,
 				    &pcm512x_dai, 1);

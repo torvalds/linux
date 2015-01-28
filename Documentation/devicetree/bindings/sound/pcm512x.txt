@@ -17,9 +17,16 @@ Required properties:
 Optional properties:
 
   - clocks : A clock specifier for the clock connected as SCLK.  If this
-    is absent the device will be configured to clock from BCLK.
+    is absent the device will be configured to clock from BCLK.  If pll-in
+    and pll-out are specified in addition to a clock, the device is
+    configured to accept clock input on a specified gpio pin.
 
-Example:
+  - pll-in, pll-out : gpio pins used to connect the pll using <1>
+    through <6>.  The device will be configured for clock input on the
+    given pll-in pin and PLL output on the given pll-out pin.  An
+    external connection from the pll-out pin to the SCLK pin is assumed.
+
+Examples:
 
 	pcm5122: pcm5122@4c {
 		compatible = "ti,pcm5122";
@@ -28,4 +35,18 @@ Example:
 		AVDD-supply = <&reg_3v3_analog>;
 		DVDD-supply = <&reg_1v8>;
 		CPVDD-supply = <&reg_3v3>;
+	};
+
+
+	pcm5142: pcm5142@4c {
+		compatible = "ti,pcm5142";
+		reg = <0x4c>;
+
+		AVDD-supply = <&reg_3v3_analog>;
+		DVDD-supply = <&reg_1v8>;
+		CPVDD-supply = <&reg_3v3>;
+
+		clocks = <&sck>;
+		pll-in = <3>;
+		pll-out = <6>;
 	};
