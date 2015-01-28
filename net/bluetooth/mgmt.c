@@ -4818,6 +4818,7 @@ static int set_secure_conn(struct sock *sk, struct hci_dev *hdev,
 				  MGMT_STATUS_NOT_SUPPORTED);
 
 	if (test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags) &&
+	    lmp_sc_capable(hdev) &&
 	    !test_bit(HCI_SSP_ENABLED, &hdev->dev_flags))
 		return cmd_status(sk, hdev->id, MGMT_OP_SET_SECURE_CONN,
 				  MGMT_STATUS_REJECTED);
