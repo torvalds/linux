@@ -989,6 +989,7 @@ usba_udc_set_selfpowered(struct usb_gadget *gadget, int is_selfpowered)
 	struct usba_udc *udc = to_usba_udc(gadget);
 	unsigned long flags;
 
+	gadget->is_selfpowered = (is_selfpowered != 0);
 	spin_lock_irqsave(&udc->lock, flags);
 	if (is_selfpowered)
 		udc->devstatus |= 1 << USB_DEVICE_SELF_POWERED;
