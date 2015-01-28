@@ -113,6 +113,18 @@ static void comedi_dev_kref_release(struct kref *kref)
 	kfree(dev);
 }
 
+/**
+ * comedi_dev_put - release a use of a comedi device structure
+ * @dev: comedi_device struct
+ *
+ * Must be called when a user of a comedi device is finished with it.
+ * When the last user of the comedi device calls this function, the
+ * comedi device is destroyed.
+ *
+ * Return 1 if the comedi device is destroyed by this call or dev is
+ * NULL, otherwise return 0.  Callers must not assume the comedi
+ * device is still valid if this function returns 0.
+ */
 int comedi_dev_put(struct comedi_device *dev)
 {
 	if (dev)
@@ -220,6 +232,18 @@ static struct comedi_device *comedi_dev_get_from_subdevice_minor(unsigned minor)
 	return dev;
 }
 
+/**
+ * comedi_dev_get_from_minor - get comedi device by minor device number
+ * @minor: minor device number
+ *
+ * Finds the comedi device associated by the minor device number, if any,
+ * and increments its reference count.  The comedi device is prevented from
+ * being freed until a matching call is made to comedi_dev_put().
+ *
+ * Return a pointer to the comedi device if it exists, with its usage
+ * reference incremented.  Return NULL if no comedi device exists with the
+ * specified minor device number.
+ */
 struct comedi_device *comedi_dev_get_from_minor(unsigned minor)
 {
 	if (minor < COMEDI_NUM_BOARD_MINORS)
@@ -600,6 +624,13 @@ static unsigned comedi_get_subdevice_runflags(struct comedi_subdevice *s)
 	return runflags;
 }
 
+/**
+ * comedi_is_subdevice_running - check if async command running on subdevice
+ * @s: comedi_subdevice struct
+ *
+ * Return true if an asynchronous comedi command is active on the comedi
+ * subdevice, else return false.
+ */
 bool comedi_is_subdevice_running(struct comedi_subdevice *s)
 {
 	unsigned runflags = comedi_get_subdevice_runflags(s);
@@ -2584,6 +2615,17 @@ static const struct file_operations comedi_fops = {
 	.llseek = noop_llseek,
 };
 
+/**
+ * comedi_event - handle events for asynchronous comedi command
+ * @dev: comedi_device struct
+ * @s: comedi_subdevice struct associated with dev
+ * Context: interrupt (usually), s->spin_lock spin-lock not held
+ *
+ * If an asynchronous comedi command is active on the subdevice, process
+ * any COMEDI_CB_... event flags that have been set, usually by an
+ * interrupt handler.  These may change the run state of the asynchronous
+ * command, wake a task, and/or send a SIGIO signal.
+ */
 void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct comedi_async *async = s->async;
