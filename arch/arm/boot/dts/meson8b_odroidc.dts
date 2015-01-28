@@ -73,6 +73,11 @@
         #address-cells = <0>;
     };
 
+            meson-rng {
+                    compatible = "amlogic,meson-rng";
+                    status = "ok";
+            };
+
     vpu{
                 compatible = "amlogic,vpu";
                 dev_name = "vpu";
