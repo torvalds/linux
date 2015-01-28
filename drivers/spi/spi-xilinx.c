@@ -22,6 +22,8 @@
 #include <linux/spi/xilinx_spi.h>
 #include <linux/io.h>
 
+#define XILINX_SPI_MAX_CS	32
+
 #define XILINX_SPI_NAME "xilinx_spi"
 
 /* Register definitions as per "OPB Serial Peripheral Interface (SPI) (v1.00e)
@@ -344,6 +346,11 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 	if (!num_cs) {
 		dev_err(&pdev->dev,
 			"Missing slave select configuration data\n");
+		return -EINVAL;
+	}
+
+	if (num_cs > XILINX_SPI_MAX_CS) {
+		dev_err(&pdev->dev, "Invalid number of spi slaves\n");
 		return -EINVAL;
 	}
 
