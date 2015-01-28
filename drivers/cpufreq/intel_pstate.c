@@ -338,6 +338,22 @@ static void __init intel_pstate_debug_expose_params(void)
 		return sprintf(buf, "%u\n", limits.object);		\
 	}
 
+static ssize_t show_turbo_pct(struct kobject *kobj,
+				struct attribute *attr, char *buf)
+{
+	struct cpudata *cpu;
+	int total, no_turbo, turbo_pct;
+	uint32_t turbo_fp;
+
+	cpu = all_cpu_data[0];
+
+	total = cpu->pstate.turbo_pstate - cpu->pstate.min_pstate + 1;
+	no_turbo = cpu->pstate.max_pstate - cpu->pstate.min_pstate + 1;
+	turbo_fp = div_fp(int_tofp(no_turbo), int_tofp(total));
+	turbo_pct = 100 - fp_toint(mul_fp(turbo_fp, int_tofp(100)));
+	return sprintf(buf, "%u\n", turbo_pct);
+}
+
 static ssize_t show_no_turbo(struct kobject *kobj,
 			     struct attribute *attr, char *buf)
 {
@@ -418,11 +434,13 @@ show_one(min_perf_pct, min_perf_pct);
 define_one_global_rw(no_turbo);
 define_one_global_rw(max_perf_pct);
 define_one_global_rw(min_perf_pct);
+define_one_global_ro(turbo_pct);
 
 static struct attribute *intel_pstate_attributes[] = {
 	&no_turbo.attr,
 	&max_perf_pct.attr,
 	&min_perf_pct.attr,
+	&turbo_pct.attr,
 	NULL
 };
 
