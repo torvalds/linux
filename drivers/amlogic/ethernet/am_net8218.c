@@ -340,23 +340,21 @@ static int free_ringdesc(struct net_device *dev)
 // rt_tasklet
 __attribute__((flatten)) void net_rt_update_status(unsigned long dev_instance)
 {
-	unsigned long status;
 	struct net_device *dev = (struct net_device *)dev_instance;
 	struct am_net_private *np = netdev_priv(dev);
-	status = np->status;
-	if (likely(status & NOR_INTR_EN)) {	//Normal Interrupts Process
-		if (likely(status & RX_INTR_EN)) {	//Receive Interrupt Process
+	if (likely(np->status & NOR_INTR_EN)) {	//Normal Interrupts Process
+		if (likely(np->status & RX_INTR_EN)) {	//Receive Interrupt Process
 			writel((1 << 6 | 1 << 16), (void*)(np->base_addr + ETH_DMA_5_Status));
 			tasklet_schedule(&np->rx_tasklet);
 		}
-		if (likely(status & TX_INTR_EN)) {	//Transmit Interrupt Process
+		if (likely(np->status & TX_INTR_EN)) {	//Transmit Interrupt Process
 			writel(1,(void*)(np->base_addr + ETH_DMA_1_Tr_Poll_Demand));
 			netif_wake_queue(dev);
 			writel((1 << 0 | 1 << 16),(void*)(np->base_addr + ETH_DMA_5_Status));
 			tasklet_schedule(&np->tx_tasklet);
 		}
 	}
-	tasklet_schedule(&np->st_tasklet);
+	tasklet_schedule(&np->st_tasklet);	// net_update_stats()
 }
  
 // This tasklet does all the error checks
@@ -594,7 +592,7 @@ __attribute__((flatten)) void net_taskletrx(unsigned long dev_instance)
 				skb_put(rx->skb, len);
 				rx->skb->dev = dev;
 				rx->skb->protocol = eth_type_trans(rx->skb, dev);
-				/*we have checked in hardware; we not need check again */
+				/*we have checked in hardware; we do not need to check again */
 				rx->skb->ip_summed = ip_summed;
 				rx->buf_dma = 0;
 				netif_rx(rx->skb);
@@ -743,15 +741,10 @@ static int aml_mac_init(struct net_device *ndev)
 // below waits for mac to reset
 	for (k=0;(readl((void*)(np->base_addr + ETH_DMA_6_Operation_Mode)) & 1) && k<1000;k++) udelay(1);
 	writel(0x00100800,(void*)(np->base_addr + ETH_DMA_0_Bus_Mode));
-
 	printk("--1--write mac add to:");
-
 	data_dump(ndev->dev_addr, 6);
-
 	printk("--2--write mac add to:");
-
 	data_dump(ndev->dev_addr, 6);
-
 	write_mac_addr(ndev, ndev->dev_addr);
 	val = 0xc80c |		//8<<8 | 8<<17; //tx and rx all 8bit mode;
 	      1 << 10 | 1 << 24;		//checksum offload enabled
@@ -961,7 +954,6 @@ static int reset_mac(struct net_device *dev)
 	tmp = readl((void*)(np->base_addr + ETH_MAC_6_Flow_Control));
 	tmp |= (1 << 1) | (1 << 0);
 	writel(tmp, (void*)(np->base_addr + ETH_MAC_6_Flow_Control));
-
 	tmp = readl((void*)(np->base_addr + ETH_DMA_6_Operation_Mode));
 	tmp |= (1 << 1); /*start receive*/
 	writel(tmp, (void*)(np->base_addr + ETH_DMA_6_Operation_Mode));
@@ -1117,17 +1109,13 @@ static int netdev_close(struct net_device *dev)
  * @return
  */
 /* --------------------------------------------------------------------------*/
-static int start_tx(struct sk_buff *skb, struct net_device *dev)
+static int __attribute__((flatten)) start_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct am_net_private *np = netdev_priv(dev);
 	int tmp;
 	struct _tx_desc *tx;
 	unsigned long flags;
 	dev->trans_start = jiffies;
-	if (np->first_tx) {
-		if(new_maclogic == 1)
-			read_macreg();
-	}
 // test removing these since won't get scheduled if not running
 //	if (!running) {
 //		return -1;
@@ -1179,11 +1167,7 @@ static int start_tx(struct sk_buff *skb, struct net_device *dev)
 		tmp = readl((void*)(np->base_addr + ETH_DMA_6_Operation_Mode));
 		tmp |= (7 << 14) | (1 << 13);
 		writel(tmp, (void*)(np->base_addr + ETH_DMA_6_Operation_Mode));
-	} else {
-		//ETH_DMA_1_Tr_Poll_Demand
-	//	writel(1,(void*)(np->base_addr + ETH_DMA_1_Tr_Poll_Demand));
-	}
-
+	} 
 	writel(1,(void*)(np->base_addr + ETH_DMA_1_Tr_Poll_Demand));
 	writel(np->irq_mask, (void*)(np->base_addr + ETH_DMA_7_Interrupt_Enable));	
 	spin_unlock_irqrestore(&np->lock, flags);
