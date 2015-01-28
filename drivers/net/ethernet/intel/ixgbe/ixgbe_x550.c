@@ -1300,6 +1300,28 @@ mac_reset_top:
 	return status;
 }
 
+/** ixgbe_set_ethertype_anti_spoofing_X550 - Enable/Disable Ethertype
+ *	anti-spoofing
+ *  @hw:  pointer to hardware structure
+ *  @enable: enable or disable switch for Ethertype anti-spoofing
+ *  @vf: Virtual Function pool - VF Pool to set for Ethertype anti-spoofing
+ **/
+void ixgbe_set_ethertype_anti_spoofing_X550(struct ixgbe_hw *hw, bool enable,
+					    int vf)
+{
+	int vf_target_reg = vf >> 3;
+	int vf_target_shift = vf % 8 + IXGBE_SPOOF_ETHERTYPEAS_SHIFT;
+	u32 pfvfspoof;
+
+	pfvfspoof = IXGBE_READ_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg));
+	if (enable)
+		pfvfspoof |= (1 << vf_target_shift);
+	else
+		pfvfspoof &= ~(1 << vf_target_shift);
+
+	IXGBE_WRITE_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg), pfvfspoof);
+}
+
 #define X550_COMMON_MAC \
 	.init_hw			= &ixgbe_init_hw_generic, \
 	.start_hw			= &ixgbe_start_hw_X540, \
@@ -1334,6 +1356,8 @@ mac_reset_top:
 	.init_uta_tables		= &ixgbe_init_uta_tables_generic, \
 	.set_mac_anti_spoofing		= &ixgbe_set_mac_anti_spoofing, \
 	.set_vlan_anti_spoofing		= &ixgbe_set_vlan_anti_spoofing, \
+	.set_ethertype_anti_spoofing	= \
+				&ixgbe_set_ethertype_anti_spoofing_X550, \
 	.acquire_swfw_sync		= &ixgbe_acquire_swfw_sync_X540, \
 	.release_swfw_sync		= &ixgbe_release_swfw_sync_X540, \
 	.disable_rx_buff		= &ixgbe_disable_rx_buff_generic, \
