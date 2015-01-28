@@ -90,25 +90,6 @@ found:
 }
 #endif /* CONFIG_SSB_PCMCIAHOST */
 
-#ifdef CONFIG_SSB_SDIOHOST
-struct ssb_bus *ssb_sdio_func_to_bus(struct sdio_func *func)
-{
-	struct ssb_bus *bus;
-
-	ssb_buses_lock();
-	list_for_each_entry(bus, &buses, list) {
-		if (bus->bustype == SSB_BUSTYPE_SDIO &&
-		    bus->host_sdio == func)
-			goto found;
-	}
-	bus = NULL;
-found:
-	ssb_buses_unlock();
-
-	return bus;
-}
-#endif /* CONFIG_SSB_SDIOHOST */
-
 int ssb_for_each_bus_call(unsigned long data,
 			  int (*func)(struct ssb_bus *bus, unsigned long data))
 {
