@@ -36,6 +36,9 @@
 #include "amp.h"
 #include "smp.h"
 
+#define ZERO_KEY "\x00\x00\x00\x00\x00\x00\x00\x00" \
+		 "\x00\x00\x00\x00\x00\x00\x00\x00"
+
 /* Handle HCI Event packets */
 
 static void hci_cc_inquiry_cancel(struct hci_dev *hdev, struct sk_buff *skb)
@@ -3862,6 +3865,16 @@ static u8 bredr_oob_data_present(struct hci_conn *conn)
 
 	data = hci_find_remote_oob_data(hdev, &conn->dst, BDADDR_BREDR);
 	if (!data)
+		return 0x00;
+
+	/* When Secure Connections Only mode is enabled, then the P-256
+	 * values are required. If they are not available, then do not
+	 * declare that OOB data is present.
+	 */
+	if (bredr_sc_enabled(hdev) &&
+	    test_bit(HCI_SC_ONLY, &hdev->dev_flags) &&
+	    (!memcmp(data->rand256, ZERO_KEY, 16) ||
+	     !memcmp(data->hash256, ZERO_KEY, 16)))
 		return 0x00;
 
 	if (conn->out || test_bit(HCI_CONN_REMOTE_OOB, &conn->flags))
