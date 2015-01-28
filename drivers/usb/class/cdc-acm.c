@@ -1091,6 +1091,7 @@ static int acm_probe(struct usb_interface *intf,
 	unsigned long quirks;
 	int num_rx_buf;
 	int i;
+	unsigned int elength = 0;
 	int combined_interfaces = 0;
 	struct device *tty_dev;
 	int rv = -ENOMEM;
@@ -1136,9 +1137,12 @@ static int acm_probe(struct usb_interface *intf,
 			dev_err(&intf->dev, "skipping garbage\n");
 			goto next_desc;
 		}
+		elength = buffer[0];
 
 		switch (buffer[2]) {
 		case USB_CDC_UNION_TYPE: /* we've found it */
+			if (elength < sizeof(struct usb_cdc_union_desc))
+				goto next_desc;
 			if (union_header) {
 				dev_err(&intf->dev, "More than one "
 					"union descriptor, skipping ...\n");
@@ -1147,29 +1151,36 @@ static int acm_probe(struct usb_interface *intf,
 			union_header = (struct usb_cdc_union_desc *)buffer;
 			break;
 		case USB_CDC_COUNTRY_TYPE: /* export through sysfs*/
+			if (elength < sizeof(struct usb_cdc_country_functional_desc))
+				goto next_desc;
 			cfd = (struct usb_cdc_country_functional_desc *)buffer;
 			break;
 		case USB_CDC_HEADER_TYPE: /* maybe check version */
 			break; /* for now we ignore it */
 		case USB_CDC_ACM_TYPE:
+			if (elength < 4)
+				goto next_desc;
 			ac_management_function = buffer[3];
 			break;
 		case USB_CDC_CALL_MANAGEMENT_TYPE:
+			if (elength < 5)
+				goto next_desc;
 			call_management_function = buffer[3];
 			call_interface_num = buffer[4];
 			break;
 		default:
-			/* there are LOTS more CDC descriptors that
+			/*
+			 * there are LOTS more CDC descriptors that
 			 * could legitimately be found here.
 			 */
 			dev_dbg(&intf->dev, "Ignoring descriptor: "
-					"type %02x, length %d\n",
-					buffer[2], buffer[0]);
+					"type %02x, length %ud\n",
+					buffer[2], elength);
 			break;
 		}
 next_desc:
-		buflen -= buffer[0];
-		buffer += buffer[0];
+		buflen -= elength;
+		buffer += elength;
 	}
 
 	if (!union_header) {
