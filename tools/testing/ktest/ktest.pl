@@ -178,7 +178,7 @@ my $checkout;
 my $localversion;
 my $iteration = 0;
 my $successes = 0;
-my $stty;
+my $stty_orig;
 
 my $bisect_good;
 my $bisect_bad;
@@ -1458,7 +1458,11 @@ sub open_console {
     my $pid;
 
     # save terminal settings
-    $stty = `stty -g`;
+    $stty_orig = `stty -g`;
+
+    # place terminal in cbreak mode so that stdin can be read one character at
+    # a time without having to wait for a newline
+    system("stty -icanon -echo -icrnl");
 
     create_pty($ptm, $pts);
 
@@ -1487,7 +1491,7 @@ sub close_console {
     close($fp);
 
     # restore terminal settings
-    system("stty $stty");
+    system("stty $stty_orig");
 }
 
 sub start_monitor {
@@ -1827,7 +1831,9 @@ sub wait_for_input
 {
     my ($fp, $time) = @_;
     my $rin;
-    my $ready;
+    my $rout;
+    my $nr;
+    my $buf;
     my $line;
     my $ch;
 
@@ -1837,21 +1843,36 @@ sub wait_for_input
 
     $rin = '';
     vec($rin, fileno($fp), 1) = 1;
-    ($ready, $time) = select($rin, undef, undef, $time);
+    vec($rin, fileno(\*STDIN), 1) = 1;
 
-    $line = "";
+    while (1) {
+	$nr = select($rout=$rin, undef, undef, $time);
 
-    # try to read one char at a time
-    while (sysread $fp, $ch, 1) {
-	$line .= $ch;
-	last if ($ch eq "\n");
+	if ($nr <= 0) {
+	    return undef;
+	}
+
+	# copy data from stdin to the console
+	if (vec($rout, fileno(\*STDIN), 1) == 1) {
+	    sysread(\*STDIN, $buf, 1000);
+	    syswrite($fp, $buf, 1000);
+	    next;
+	}
+
+	$line = "";
+
+	# try to read one char at a time
+	while (sysread $fp, $ch, 1) {
+	    $line .= $ch;
+	    last if ($ch eq "\n");
+	}
+
+	if (!length($line)) {
+	    return undef;
+	}
+
+	return $line;
     }
-
-    if (!length($line)) {
-	return undef;
-    }
-
-    return $line;
 }
 
 sub reboot_to {
