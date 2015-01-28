@@ -1890,4 +1890,14 @@ sdio{
 		pinctrl-0 = <&dvb_fe_pins>;
 	};
 
+/// ***************************************************************************************
+///	-	RNG
+//$$ MODULE="RNG"
+//$$ DEVICE="meson-rng"
+//$$ L2 PROP_STR = "status"
+	meson-rng{
+		compatible = "amlogic,meson-rng";
+		status = "ok";
+	};
+
 }; /* end of / */

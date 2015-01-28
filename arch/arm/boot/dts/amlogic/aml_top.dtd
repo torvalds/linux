@@ -413,6 +413,16 @@ sub_file /arch/arm/mach-meson8/aml_pin.dtd
 sub_file /arch/arm/mach-meson6/aml_pin.dtd
 #endif
 
+/// ***************************************************************************************
+///	-	RNG
+//$$ MODULE="RNG"
+//$$ DEVICE="meson-rng"
+//$$ L2 PROP_STR = "status"
+	meson-rng{
+		compatible = "amlogic,meson-rng";
+		status = "ok";
+	};
+
 #the end of dtd file
 }; /* end of / */
 #endif
