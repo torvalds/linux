@@ -567,10 +567,11 @@ static irqreturn_t hip04_mac_interrupt(int irq, void *dev_id)
 	writel_relaxed(DEF_INT_MASK, priv->base + PPE_RINT);
 
 	if (unlikely(ists & DEF_INT_ERR)) {
-		if (ists & (RCV_NOBUF | RCV_DROP))
+		if (ists & (RCV_NOBUF | RCV_DROP)) {
 			stats->rx_errors++;
 			stats->rx_dropped++;
 			netdev_err(ndev, "rx drop\n");
+		}
 		if (ists & TX_DROP) {
 			stats->tx_dropped++;
 			netdev_err(ndev, "tx drop\n");
