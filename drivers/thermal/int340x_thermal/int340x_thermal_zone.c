@@ -33,8 +33,17 @@ static int int340x_thermal_get_zone_temp(struct thermal_zone_device *zone,
 	if (ACPI_FAILURE(status))
 		return -EIO;
 
-	/* _TMP returns the temperature in tenths of degrees Kelvin */
-	*temp = DECI_KELVIN_TO_MILLICELSIUS(tmp);
+	if (d->lpat_table) {
+		int conv_temp;
+
+		conv_temp = acpi_lpat_raw_to_temp(d->lpat_table, (int)tmp);
+		if (conv_temp < 0)
+			return conv_temp;
+
+		*temp = (unsigned long)conv_temp * 10;
+	} else
+		/* _TMP returns the temperature in tenths of degrees Kelvin */
+		*temp = DECI_KELVIN_TO_MILLICELSIUS(tmp);
 
 	return 0;
 }
@@ -227,6 +236,8 @@ struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 		int34x_thermal_zone->act_trips[i].id = trip_cnt++;
 		int34x_thermal_zone->act_trips[i].valid = true;
 	}
+	int34x_thermal_zone->lpat_table = acpi_lpat_get_conversion_table(
+								adev->handle);
 
 	int34x_thermal_zone->zone = thermal_zone_device_register(
 						acpi_device_bid(adev),
@@ -237,11 +248,13 @@ struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 						0, 0);
 	if (IS_ERR(int34x_thermal_zone->zone)) {
 		ret = PTR_ERR(int34x_thermal_zone->zone);
-		goto free_mem;
+		goto free_lpat;
 	}
 
 	return int34x_thermal_zone;
 
+free_lpat:
+	acpi_lpat_free_conversion_table(int34x_thermal_zone->lpat_table);
 free_mem:
 	kfree(int34x_thermal_zone);
 	return ERR_PTR(ret);
@@ -252,6 +265,7 @@ void int340x_thermal_zone_remove(struct int34x_thermal_zone
 				 *int34x_thermal_zone)
 {
 	thermal_zone_device_unregister(int34x_thermal_zone->zone);
+	acpi_lpat_free_conversion_table(int34x_thermal_zone->lpat_table);
 	kfree(int34x_thermal_zone);
 }
 EXPORT_SYMBOL_GPL(int340x_thermal_zone_remove);

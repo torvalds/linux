@@ -16,6 +16,8 @@
 #ifndef __INT340X_THERMAL_ZONE_H__
 #define __INT340X_THERMAL_ZONE_H__
 
+#include <acpi/acpi_lpat.h>
+
 #define INT340X_THERMAL_MAX_ACT_TRIP_COUNT	10
 
 struct active_trip {
@@ -38,6 +40,7 @@ struct int34x_thermal_zone {
 	struct thermal_zone_device *zone;
 	struct thermal_zone_device_ops *override_ops;
 	void *priv_data;
+	struct acpi_lpat_conversion_table *lpat_table;
 };
 
 struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *,
