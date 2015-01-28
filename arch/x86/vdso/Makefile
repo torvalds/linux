@@ -205,4 +205,4 @@ $(vdso_img_insttargets): install_%: $(obj)/%.dbg $(MODLIB)/vdso FORCE
 PHONY += vdso_install $(vdso_img_insttargets)
 vdso_install: $(vdso_img_insttargets) FORCE
 
-clean-files := vdso32-syscall* vdso32-sysenter* vdso32-int80*
+clean-files := vdso32-syscall* vdso32-sysenter* vdso32-int80* vdso64*
