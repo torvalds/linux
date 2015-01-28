@@ -64,7 +64,7 @@ static unsigned long xen_remap_mfn __initdata = INVALID_P2M_ENTRY;
  */
 #define EXTRA_MEM_RATIO		(10)
 
-static void __init xen_add_extra_mem(u64 start, u64 size)
+static void __init xen_add_extra_mem(phys_addr_t start, phys_addr_t size)
 {
 	int i;
 
@@ -87,10 +87,10 @@ static void __init xen_add_extra_mem(u64 start, u64 size)
 	memblock_reserve(start, size);
 }
 
-static void __init xen_del_extra_mem(u64 start, u64 size)
+static void __init xen_del_extra_mem(phys_addr_t start, phys_addr_t size)
 {
 	int i;
-	u64 start_r, size_r;
+	phys_addr_t start_r, size_r;
 
 	for (i = 0; i < XEN_EXTRA_MEM_MAX_REGIONS; i++) {
 		start_r = xen_extra_mem[i].start;
@@ -257,7 +257,7 @@ static void __init xen_set_identity_and_release_chunk(unsigned long start_pfn,
 static void __init xen_update_mem_tables(unsigned long pfn, unsigned long mfn)
 {
 	struct mmu_update update = {
-		.ptr = ((unsigned long long)mfn << PAGE_SHIFT) | MMU_MACHPHYS_UPDATE,
+		.ptr = ((uint64_t)mfn << PAGE_SHIFT) | MMU_MACHPHYS_UPDATE,
 		.val = pfn
 	};
 
@@ -535,14 +535,15 @@ static unsigned long __init xen_get_max_pages(void)
 	return min(max_pages, MAX_DOMAIN_PAGES);
 }
 
-static void xen_align_and_add_e820_region(u64 start, u64 size, int type)
+static void xen_align_and_add_e820_region(phys_addr_t start, phys_addr_t size,
+					  int type)
 {
-	u64 end = start + size;
+	phys_addr_t end = start + size;
 
 	/* Align RAM regions to page boundaries. */
 	if (type == E820_RAM) {
 		start = PAGE_ALIGN(start);
-		end &= ~((u64)PAGE_SIZE - 1);
+		end &= ~((phys_addr_t)PAGE_SIZE - 1);
 	}
 
 	e820_add_region(start, end - start, type);
@@ -567,7 +568,7 @@ char * __init xen_memory_setup(void)
 	static struct e820entry map[E820MAX] __initdata;
 
 	unsigned long max_pfn = xen_start_info->nr_pages;
-	unsigned long long mem_end;
+	phys_addr_t mem_end;
 	int rc;
 	struct xen_memory_map memmap;
 	unsigned long max_pages;
@@ -642,16 +643,16 @@ char * __init xen_memory_setup(void)
 			  extra_pages);
 	i = 0;
 	while (i < memmap.nr_entries) {
-		u64 addr = map[i].addr;
-		u64 size = map[i].size;
+		phys_addr_t addr = map[i].addr;
+		phys_addr_t size = map[i].size;
 		u32 type = map[i].type;
 
 		if (type == E820_RAM) {
 			if (addr < mem_end) {
 				size = min(size, mem_end - addr);
 			} else if (extra_pages) {
-				size = min(size, (u64)extra_pages * PAGE_SIZE);
-				extra_pages -= size / PAGE_SIZE;
+				size = min(size, PFN_PHYS(extra_pages));
+				extra_pages -= PFN_DOWN(size);
 				xen_add_extra_mem(addr, size);
 				xen_max_p2m_pfn = PFN_DOWN(addr + size);
 			} else
