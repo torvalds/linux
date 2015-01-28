@@ -997,8 +997,10 @@ static void tegra_crtc_reset(struct drm_crtc *crtc)
 	crtc->state = NULL;
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	if (state)
+	if (state) {
 		crtc->state = &state->base;
+		crtc->state->crtc = crtc;
+	}
 }
 
 static struct drm_crtc_state *
