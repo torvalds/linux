@@ -924,9 +924,11 @@ static const struct pinconf_generic_params zynq_dt_params[] = {
 	{"io-standard", PIN_CONFIG_IOSTANDARD, zynq_iostd_lvcmos18},
 };
 
+#ifdef CONFIG_DEBUG_FS
 static const struct pin_config_item zynq_conf_items[ARRAY_SIZE(zynq_dt_params)] = {
 	PCONFDUMP(PIN_CONFIG_IOSTANDARD, "IO-standard", NULL, true),
 };
+#endif
 
 static unsigned int zynq_pinconf_iostd_get(u32 reg)
 {
@@ -1101,7 +1103,9 @@ static struct pinctrl_desc zynq_desc = {
 	.confops = &zynq_pinconf_ops,
 	.num_custom_params = ARRAY_SIZE(zynq_dt_params),
 	.custom_params = zynq_dt_params,
+#ifdef CONFIG_DEBUG_FS
 	.custom_conf_items = zynq_conf_items,
+#endif
 	.owner = THIS_MODULE,
 };
 
