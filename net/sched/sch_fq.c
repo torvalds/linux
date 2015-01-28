@@ -1,7 +1,7 @@
 /*
  * net/sched/sch_fq.c Fair Queue Packet Scheduler (per flow pacing)
  *
- *  Copyright (C) 2013 Eric Dumazet <edumazet@google.com>
+ *  Copyright (C) 2013-2015 Eric Dumazet <edumazet@google.com>
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
@@ -471,7 +471,7 @@ begin:
 		goto out;
 
 	rate = q->flow_max_rate;
-	if (skb->sk && skb->sk->sk_state != TCP_TIME_WAIT)
+	if (skb->sk)
 		rate = min(skb->sk->sk_pacing_rate, rate);
 
 	if (rate != ~0U) {
