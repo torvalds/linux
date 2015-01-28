@@ -78,6 +78,8 @@ dtb-$(CONFIG_ARCH_BRCMSTB) += \
 dtb-$(CONFIG_ARCH_DAVINCI) += \
 	da850-enbw-cmc.dtb \
 	da850-evm.dtb
+dtb-$(CONFIG_ARCH_DIGICOLOR) += \
+	cx92755_equinox.dtb
 dtb-$(CONFIG_ARCH_EFM32) += \
 	efm32gg-dk3750.dtb
 dtb-$(CONFIG_ARCH_EXYNOS3) += \
