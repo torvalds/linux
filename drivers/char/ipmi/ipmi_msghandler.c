@@ -1483,14 +1483,10 @@ static inline void format_lan_msg(struct ipmi_smi_msg   *smi_msg,
 	smi_msg->msgid = msgid;
 }
 
-static void smi_send(ipmi_smi_t intf, struct ipmi_smi_handlers *handlers,
-		     struct ipmi_smi_msg *smi_msg, int priority)
+static struct ipmi_smi_msg *smi_add_send_msg(ipmi_smi_t intf,
+					     struct ipmi_smi_msg *smi_msg,
+					     int priority)
 {
-	int run_to_completion = intf->run_to_completion;
-	unsigned long flags;
-
-	if (!run_to_completion)
-		spin_lock_irqsave(&intf->xmit_msgs_lock, flags);
 	if (intf->curr_msg) {
 		if (priority > 0)
 			list_add_tail(&smi_msg->link, &intf->hp_xmit_msgs);
@@ -1500,8 +1496,25 @@ static void smi_send(ipmi_smi_t intf, struct ipmi_smi_handlers *handlers,
 	} else {
 		intf->curr_msg = smi_msg;
 	}
-	if (!run_to_completion)
+
+	return smi_msg;
+}
+
+
+static void smi_send(ipmi_smi_t intf, struct ipmi_smi_handlers *handlers,
+		     struct ipmi_smi_msg *smi_msg, int priority)
+{
+	int run_to_completion = intf->run_to_completion;
+
+	if (run_to_completion) {
+		smi_msg = smi_add_send_msg(intf, smi_msg, priority);
+	} else {
+		unsigned long flags;
+
+		spin_lock_irqsave(&intf->xmit_msgs_lock, flags);
+		smi_msg = smi_add_send_msg(intf, smi_msg, priority);
 		spin_unlock_irqrestore(&intf->xmit_msgs_lock, flags);
+	}
 
 	if (smi_msg)
 		handlers->sender(intf->send_info, smi_msg);
