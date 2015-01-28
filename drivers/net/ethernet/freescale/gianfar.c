@@ -764,7 +764,7 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 	u32 *tx_queues, *rx_queues;
 	unsigned short mode, poll_mode;
 
-	if (!np || !of_device_is_available(np))
+	if (!np)
 		return -ENODEV;
 
 	if (of_device_is_compatible(np, "fsl,etsec2")) {
