@@ -534,6 +534,8 @@ enum P2P_MODES {
 
 #define MWIFIEX_FW_V15		   15
 
+#define MWIFIEX_MASTER_RADAR_DET_MASK BIT(1)
+
 struct mwifiex_ie_types_header {
 	__le16 type;
 	__le16 len;

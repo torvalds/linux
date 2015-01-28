@@ -152,6 +152,8 @@ int mwifiex_init_priv(struct mwifiex_private *priv)
 	priv->check_tdls_tx = false;
 	memcpy(priv->tos_to_tid_inv, tos_to_tid_inv, MAX_NUM_TID);
 
+	mwifiex_init_11h_params(priv);
+
 	return mwifiex_add_bss_prio_tbl(priv);
 }
 

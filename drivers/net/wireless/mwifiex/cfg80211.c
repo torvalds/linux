@@ -1742,6 +1742,18 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 
 	mwifiex_set_wmm_params(priv, bss_cfg, params);
 
+	if (mwifiex_is_11h_active(priv) &&
+	    !cfg80211_chandef_dfs_required(wiphy, &params->chandef,
+					   priv->bss_mode)) {
+		dev_dbg(priv->adapter->dev, "Disable 11h extensions in FW\n");
+		if (mwifiex_11h_activate(priv, false)) {
+			dev_err(priv->adapter->dev,
+				"Failed to disable 11h extensions!!");
+			return -1;
+		}
+		priv->state_11h.is_11h_active = true;
+	}
+
 	if (mwifiex_config_start_uap(priv, bss_cfg)) {
 		wiphy_err(wiphy, "Failed to start AP\n");
 		kfree(bss_cfg);
@@ -3207,6 +3219,16 @@ mwifiex_cfg80211_start_radar_detection(struct wiphy *wiphy,
 		dev_err(priv->adapter->dev,
 			"radar detection: scan already in process...\n");
 		return -EBUSY;
+	}
+
+	if (!mwifiex_is_11h_active(priv)) {
+		dev_dbg(priv->adapter->dev, "Enable 11h extensions in FW\n");
+		if (mwifiex_11h_activate(priv, true)) {
+			dev_err(priv->adapter->dev,
+				"Failed to activate 11h extensions!!");
+			return -1;
+		}
+		priv->state_11h.is_11h_active = true;
 	}
 
 	memset(&radar_params, 0, sizeof(struct mwifiex_radar_params));

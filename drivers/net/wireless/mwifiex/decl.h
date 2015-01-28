@@ -248,4 +248,9 @@ struct mwifiex_radar_params {
 	struct cfg80211_chan_def *chandef;
 	u32 cac_time_ms;
 } __packed;
+
+struct mwifiex_11h_intf_state {
+	bool is_11h_enabled;
+	bool is_11h_active;
+} __packed;
 #endif /* !_MWIFIEX_DECL_H_ */

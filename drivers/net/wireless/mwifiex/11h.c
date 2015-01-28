@@ -21,6 +21,16 @@
 #include "fw.h"
 
 
+void mwifiex_init_11h_params(struct mwifiex_private *priv)
+{
+	priv->state_11h.is_11h_enabled = true;
+	priv->state_11h.is_11h_active = false;
+}
+
+inline int mwifiex_is_11h_active(struct mwifiex_private *priv)
+{
+	return priv->state_11h.is_11h_active;
+}
 /* This function appends 11h info to a buffer while joining an
  * infrastructure BSS
  */
@@ -69,9 +79,13 @@ mwifiex_11h_process_infra_join(struct mwifiex_private *priv, u8 **buffer,
 }
 
 /* Enable or disable the 11h extensions in the firmware */
-static int mwifiex_11h_activate(struct mwifiex_private *priv, bool flag)
+int mwifiex_11h_activate(struct mwifiex_private *priv, bool flag)
 {
 	u32 enable = flag;
+
+	/* enable master mode radar detection on AP interface */
+	if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) && enable)
+		enable |= MWIFIEX_MASTER_RADAR_DET_MASK;
 
 	return mwifiex_send_cmd(priv, HostCmd_CMD_802_11_SNMP_MIB,
 				HostCmd_ACT_GEN_SET, DOT11H_I, &enable, true);
@@ -91,11 +105,13 @@ void mwifiex_11h_process_join(struct mwifiex_private *priv, u8 **buffer,
 		 * bit
 		 */
 		mwifiex_11h_activate(priv, true);
+		priv->state_11h.is_11h_active = true;
 		bss_desc->cap_info_bitmap |= WLAN_CAPABILITY_SPECTRUM_MGMT;
 		mwifiex_11h_process_infra_join(priv, buffer, bss_desc);
 	} else {
 		/* Deactivate 11h functions in the firmware */
 		mwifiex_11h_activate(priv, false);
+		priv->state_11h.is_11h_active = false;
 		bss_desc->cap_info_bitmap &= ~WLAN_CAPABILITY_SPECTRUM_MGMT;
 	}
 }

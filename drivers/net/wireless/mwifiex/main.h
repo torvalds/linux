@@ -595,6 +595,7 @@ struct mwifiex_private {
 	struct workqueue_struct *dfs_chan_sw_workqueue;
 	struct delayed_work dfs_chan_sw_work;
 	struct cfg80211_beacon_data beacon_after;
+	struct mwifiex_11h_intf_state state_11h;
 };
 
 enum mwifiex_ba_status {
@@ -1336,6 +1337,10 @@ int mwifiex_config_start_uap(struct mwifiex_private *priv,
 			     struct mwifiex_uap_bss_param *bss_cfg);
 void mwifiex_uap_del_sta_data(struct mwifiex_private *priv,
 			      struct mwifiex_sta_node *node);
+
+void mwifiex_init_11h_params(struct mwifiex_private *priv);
+int mwifiex_is_11h_active(struct mwifiex_private *priv);
+int mwifiex_11h_activate(struct mwifiex_private *priv, bool flag);
 
 void mwifiex_11h_process_join(struct mwifiex_private *priv, u8 **buffer,
 			      struct mwifiex_bssdescriptor *bss_desc);
