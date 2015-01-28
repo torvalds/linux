@@ -1640,6 +1640,8 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	hci_conn_hash_flush(hdev);
 	hci_dev_unlock(hdev);
 
+	smp_unregister(hdev);
+
 	hci_notify(hdev, HCI_DEV_DOWN);
 
 	if (hdev->flush)
@@ -2147,8 +2149,6 @@ static void hci_power_off(struct work_struct *work)
 	BT_DBG("%s", hdev->name);
 
 	hci_dev_do_close(hdev);
-
-	smp_unregister(hdev);
 }
 
 static void hci_error_reset(struct work_struct *work)
@@ -2165,8 +2165,6 @@ static void hci_error_reset(struct work_struct *work)
 
 	if (hci_dev_do_close(hdev))
 		return;
-
-	smp_unregister(hdev);
 
 	hci_dev_do_open(hdev);
 }
@@ -3136,8 +3134,6 @@ void hci_unregister_dev(struct hci_dev *hdev)
 		rfkill_unregister(hdev->rfkill);
 		rfkill_destroy(hdev->rfkill);
 	}
-
-	smp_unregister(hdev);
 
 	device_del(&hdev->dev);
 
