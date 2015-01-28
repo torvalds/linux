@@ -4,6 +4,7 @@ config IOMMU_API
 
 menuconfig IOMMU_SUPPORT
 	bool "IOMMU Hardware Support"
+	depends on MMU
 	default y
 	---help---
 	  Say Y here if you want to compile device drivers for IO Memory
@@ -144,7 +145,7 @@ config IRQ_REMAP
 # OMAP IOMMU support
 config OMAP_IOMMU
 	bool "OMAP IOMMU Support"
-	depends on ARCH_OMAP2PLUS
+	depends on ARCH_OMAP2PLUS && MMU
 	select IOMMU_API
 
 config OMAP_IOMMU_DEBUG
@@ -191,7 +192,7 @@ config TEGRA_IOMMU_SMMU
 
 config EXYNOS_IOMMU
 	bool "Exynos IOMMU Support"
-	depends on ARCH_EXYNOS && ARM
+	depends on ARCH_EXYNOS && ARM && MMU
 	select IOMMU_API
 	select ARM_DMA_USE_IOMMU
 	help
@@ -220,7 +221,7 @@ config SHMOBILE_IPMMU_TLB
 config SHMOBILE_IOMMU
 	bool "IOMMU for Renesas IPMMU/IPMMUI"
 	default n
-	depends on ARM
+	depends on ARM && MMU
 	depends on ARCH_SHMOBILE || COMPILE_TEST
 	select IOMMU_API
 	select ARM_DMA_USE_IOMMU
@@ -309,6 +310,7 @@ config SPAPR_TCE_IOMMU
 config ARM_SMMU
 	bool "ARM Ltd. System MMU (SMMU) Support"
 	depends on ARM64 || (ARM_LPAE && OF)
+	depends on MMU
 	select IOMMU_API
 	select ARM_DMA_USE_IOMMU if ARM
 	help
