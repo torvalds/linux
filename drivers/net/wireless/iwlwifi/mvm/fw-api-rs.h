@@ -330,6 +330,14 @@ enum {
 #define LQ_SS_BFER_ALLOWED_POS		2
 #define LQ_SS_BFER_ALLOWED		(1 << LQ_SS_BFER_ALLOWED_POS)
 
+/* Bit 3: Force BFER or STBC for testing
+ * If this is set:
+ * If BFER is allowed then force the ucode to choose BFER else
+ * If STBC is allowed then force the ucode to choose STBC over SISO
+ */
+#define LQ_SS_FORCE_POS			3
+#define LQ_SS_FORCE			(1 << LQ_SS_FORCE_POS)
+
 /* Bit 31: ss_params field is valid. Used for FW backward compatibility
  * with other drivers which don't support the ss_params API yet
  */

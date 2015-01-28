@@ -240,6 +240,13 @@ enum rs_column {
 	RS_COLUMN_INVALID,
 };
 
+enum rs_ss_force_opt {
+	RS_SS_FORCE_NONE = 0,
+	RS_SS_FORCE_STBC,
+	RS_SS_FORCE_BFER,
+	RS_SS_FORCE_SISO,
+};
+
 /* Packet stats per rate */
 struct rs_rate_stats {
 	u64 success;
@@ -323,6 +330,9 @@ struct iwl_lq_sta {
 
 	/* tx power reduce for this sta */
 	int tpc_reduce;
+
+	/* force STBC/BFER/SISO for testing */
+	enum rs_ss_force_opt ss_force;
 
 	/* persistent fields - initialized only once - keep last! */
 	struct lq_sta_pers {
