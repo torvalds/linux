@@ -42,18 +42,18 @@ const struct comedi_lrange range_unknown = { 1, {{0, 1000000, UNIT_none} } };
 EXPORT_SYMBOL_GPL(range_unknown);
 
 /*
-	COMEDI_RANGEINFO
-	range information ioctl
-
-	arg:
-		pointer to rangeinfo structure
-
-	reads:
-		range info structure
-
-	writes:
-		n struct comedi_krange structures to rangeinfo->range_ptr
-*/
+ * COMEDI_RANGEINFO ioctl
+ * range information
+ *
+ * arg:
+ *	pointer to comedi_rangeinfo structure
+ *
+ * reads:
+ *	comedi_rangeinfo structure
+ *
+ * writes:
+ *	array of comedi_krange structures to rangeinfo->range_ptr pointer
+ */
 int do_rangeinfo_ioctl(struct comedi_device *dev,
 		       struct comedi_rangeinfo __user *arg)
 {
