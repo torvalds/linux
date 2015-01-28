@@ -88,6 +88,8 @@ static u64 get_async_ev_mask(struct mlx4_dev *dev)
 	u64 async_ev_mask = MLX4_ASYNC_EVENT_MASK;
 	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_PORT_MNG_CHG_EV)
 		async_ev_mask |= (1ull << MLX4_EVENT_TYPE_PORT_MNG_CHG_EVENT);
+	if (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_RECOVERABLE_ERROR_EVENT)
+		async_ev_mask |= (1ull << MLX4_EVENT_TYPE_RECOVERABLE_ERROR_EVENT);
 
 	return async_ev_mask;
 }
@@ -736,6 +738,26 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 					    (unsigned long) eqe);
 			break;
 
+		case MLX4_EVENT_TYPE_RECOVERABLE_ERROR_EVENT:
+			switch (eqe->subtype) {
+			case MLX4_RECOVERABLE_ERROR_EVENT_SUBTYPE_BAD_CABLE:
+				mlx4_warn(dev, "Bad cable detected on port %u\n",
+					  eqe->event.bad_cable.port);
+				break;
+			case MLX4_RECOVERABLE_ERROR_EVENT_SUBTYPE_UNSUPPORTED_CABLE:
+				mlx4_warn(dev, "Unsupported cable detected\n");
+				break;
+			default:
+				mlx4_dbg(dev,
+					 "Unhandled recoverable error event detected: %02x(%02x) on EQ %d at index %u. owner=%x, nent=0x%x, ownership=%s\n",
+					 eqe->type, eqe->subtype, eq->eqn,
+					 eq->cons_index, eqe->owner, eq->nent,
+					 !!(eqe->owner & 0x80) ^
+					 !!(eq->cons_index & eq->nent) ? "HW" : "SW");
+				break;
+			}
+			break;
+
 		case MLX4_EVENT_TYPE_EEC_CATAS_ERROR:
 		case MLX4_EVENT_TYPE_ECC_DETECT:
 		default:
@@ -846,12 +868,10 @@ static int mlx4_SW2HW_EQ(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox,
 			MLX4_CMD_WRAPPED);
 }
 
-static int mlx4_HW2SW_EQ(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox,
-			 int eq_num)
+static int mlx4_HW2SW_EQ(struct mlx4_dev *dev,  int eq_num)
 {
-	return mlx4_cmd_box(dev, 0, mailbox->dma, eq_num,
-			    0, MLX4_CMD_HW2SW_EQ, MLX4_CMD_TIME_CLASS_A,
-			    MLX4_CMD_WRAPPED);
+	return mlx4_cmd(dev, 0, eq_num, 1, MLX4_CMD_HW2SW_EQ,
+			MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
 }
 
 static int mlx4_num_eq_uar(struct mlx4_dev *dev)
@@ -1024,7 +1044,6 @@ static void mlx4_free_eq(struct mlx4_dev *dev,
 			 struct mlx4_eq *eq)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
-	struct mlx4_cmd_mailbox *mailbox;
 	int err;
 	int i;
 	/* CX3 is capable of extending the CQE/EQE from 32 to 64 bytes, with
@@ -1032,24 +1051,10 @@ static void mlx4_free_eq(struct mlx4_dev *dev,
 	 */
 	int npages = PAGE_ALIGN(dev->caps.eqe_size  * eq->nent) / PAGE_SIZE;
 
-	mailbox = mlx4_alloc_cmd_mailbox(dev);
-	if (IS_ERR(mailbox))
-		return;
-
-	err = mlx4_HW2SW_EQ(dev, mailbox, eq->eqn);
+	err = mlx4_HW2SW_EQ(dev, eq->eqn);
 	if (err)
 		mlx4_warn(dev, "HW2SW_EQ failed (%d)\n", err);
 
-	if (0) {
-		mlx4_dbg(dev, "Dumping EQ context %02x:\n", eq->eqn);
-		for (i = 0; i < sizeof (struct mlx4_eq_context) / 4; ++i) {
-			if (i % 4 == 0)
-				pr_cont("[%02x] ", i * 4);
-			pr_cont(" %08x", be32_to_cpup(mailbox->buf + i * 4));
-			if ((i + 1) % 4 == 0)
-				pr_cont("\n");
-		}
-	}
 	synchronize_irq(eq->irq);
 	tasklet_disable(&eq->tasklet_ctx.task);
 
@@ -1061,7 +1066,6 @@ static void mlx4_free_eq(struct mlx4_dev *dev,
 
 	kfree(eq->page_list);
 	mlx4_bitmap_free(&priv->eq_table.bitmap, eq->eqn, MLX4_USE_RR);
-	mlx4_free_cmd_mailbox(dev, mailbox);
 }
 
 static void mlx4_free_irqs(struct mlx4_dev *dev)

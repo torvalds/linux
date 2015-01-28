@@ -196,6 +196,7 @@ struct mlx4_vhcr {
 struct mlx4_vhcr_cmd {
 	__be64 in_param;
 	__be32 in_modifier;
+	u32 reserved1;
 	__be64 out_param;
 	__be16 token;
 	u16 reserved;
