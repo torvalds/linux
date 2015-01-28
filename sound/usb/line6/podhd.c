@@ -25,11 +25,6 @@ enum {
 	LINE6_PODHD500_1,
 };
 
-struct usb_line6_podhd {
-	/* Generic Line 6 USB data */
-	struct usb_line6 line6;
-};
-
 #define PODHD_BYTES_PER_FRAME 6	/* 24bit audio (stereo) */
 
 static struct snd_ratden podhd_ratden = {
@@ -176,7 +171,7 @@ static int podhd_probe(struct usb_interface *interface,
 {
 	return line6_probe(interface, id,
 			   &podhd_properties_table[id->driver_info],
-			   podhd_init, sizeof(struct usb_line6_podhd));
+			   podhd_init, sizeof(struct usb_line6));
 }
 
 static struct usb_driver podhd_driver = {
