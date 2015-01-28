@@ -68,13 +68,6 @@
 #include "dvb_demux.h"
 #include "dvb_net.h"
 
-static int dvb_net_debug;
-module_param(dvb_net_debug, int, 0444);
-MODULE_PARM_DESC(dvb_net_debug, "enable debug messages");
-
-#define dprintk(x...) do { if (dvb_net_debug) printk(x); } while (0)
-
-
 static inline __u32 iov_crc32( __u32 c, struct kvec *iov, unsigned int cnt )
 {
 	unsigned int j;
@@ -312,9 +305,9 @@ static int handle_ule_extensions( struct dvb_net_priv *p )
 			return l;	/* Stop extension header processing and discard SNDU. */
 		total_ext_len += l;
 #ifdef ULE_DEBUG
-		dprintk("handle_ule_extensions: ule_next_hdr=%p, ule_sndu_type=%i, "
-			"l=%i, total_ext_len=%i\n", p->ule_next_hdr,
-			(int) p->ule_sndu_type, l, total_ext_len);
+		pr_debug("ule_next_hdr=%p, ule_sndu_type=%i, l=%i, total_ext_len=%i\n",
+			 p->ule_next_hdr, (int)p->ule_sndu_type,
+			 l, total_ext_len);
 #endif
 
 	} while (p->ule_sndu_type < ETH_P_802_3_MIN);
@@ -697,8 +690,8 @@ static void dvb_net_ule( struct net_device *dev, const u8 *buf, size_t buf_len )
 
 					if (drop) {
 #ifdef ULE_DEBUG
-						dprintk("Dropping SNDU: MAC destination address does not match: dest addr: %pM, dev addr: %pM\n",
-							priv->ule_skb->data, dev->dev_addr);
+						netdev_dbg(dev, "Dropping SNDU: MAC destination address does not match: dest addr: %pM, dev addr: %pM\n",
+							   priv->ule_skb->data, dev->dev_addr);
 #endif
 						dev_kfree_skb(priv->ule_skb);
 						goto sndu_done;
@@ -961,8 +954,7 @@ static int dvb_net_filter_sec_set(struct net_device *dev,
 	(*secfilter)->filter_mask[10] = mac_mask[1];
 	(*secfilter)->filter_mask[11]=mac_mask[0];
 
-	dprintk("%s: filter mac=%pM\n", dev->name, mac);
-	dprintk("%s: filter mask=%pM\n", dev->name, mac_mask);
+	netdev_dbg(dev, "filter mac=%pM mask=%pM\n", mac, mac_mask);
 
 	return 0;
 }
@@ -974,7 +966,7 @@ static int dvb_net_feed_start(struct net_device *dev)
 	struct dmx_demux *demux = priv->demux;
 	unsigned char *mac = (unsigned char *) dev->dev_addr;
 
-	dprintk("%s: rx_mode %i\n", __func__, priv->rx_mode);
+	netdev_dbg(dev, "rx_mode %i\n", priv->rx_mode);
 	mutex_lock(&priv->mutex);
 	if (priv->tsfeed || priv->secfeed || priv->secfilter || priv->multi_secfilter[0])
 		printk("%s: BUG %d\n", __func__, __LINE__);
@@ -984,7 +976,7 @@ static int dvb_net_feed_start(struct net_device *dev)
 	priv->tsfeed = NULL;
 
 	if (priv->feedtype == DVB_NET_FEEDTYPE_MPE) {
-		dprintk("%s: alloc secfeed\n", __func__);
+		netdev_dbg(dev, "alloc secfeed\n");
 		ret=demux->allocate_section_feed(demux, &priv->secfeed,
 					 dvb_net_sec_callback);
 		if (ret<0) {
@@ -1002,38 +994,38 @@ static int dvb_net_feed_start(struct net_device *dev)
 		}
 
 		if (priv->rx_mode != RX_MODE_PROMISC) {
-			dprintk("%s: set secfilter\n", __func__);
+			netdev_dbg(dev, "set secfilter\n");
 			dvb_net_filter_sec_set(dev, &priv->secfilter, mac, mask_normal);
 		}
 
 		switch (priv->rx_mode) {
 		case RX_MODE_MULTI:
 			for (i = 0; i < priv->multi_num; i++) {
-				dprintk("%s: set multi_secfilter[%d]\n", __func__, i);
+				netdev_dbg(dev, "set multi_secfilter[%d]\n", i);
 				dvb_net_filter_sec_set(dev, &priv->multi_secfilter[i],
 						       priv->multi_macs[i], mask_normal);
 			}
 			break;
 		case RX_MODE_ALL_MULTI:
 			priv->multi_num=1;
-			dprintk("%s: set multi_secfilter[0]\n", __func__);
+			netdev_dbg(dev, "set multi_secfilter[0]\n");
 			dvb_net_filter_sec_set(dev, &priv->multi_secfilter[0],
 					       mac_allmulti, mask_allmulti);
 			break;
 		case RX_MODE_PROMISC:
 			priv->multi_num=0;
-			dprintk("%s: set secfilter\n", __func__);
+			netdev_dbg(dev, "set secfilter\n");
 			dvb_net_filter_sec_set(dev, &priv->secfilter, mac, mask_promisc);
 			break;
 		}
 
-		dprintk("%s: start filtering\n", __func__);
+		netdev_dbg(dev, "start filtering\n");
 		priv->secfeed->start_filtering(priv->secfeed);
 	} else if (priv->feedtype == DVB_NET_FEEDTYPE_ULE) {
 		struct timespec timeout = { 0, 10000000 }; // 10 msec
 
 		/* we have payloads encapsulated in TS */
-		dprintk("%s: alloc tsfeed\n", __func__);
+		netdev_dbg(dev, "alloc tsfeed\n");
 		ret = demux->allocate_ts_feed(demux, &priv->tsfeed, dvb_net_ts_callback);
 		if (ret < 0) {
 			printk("%s: could not allocate ts feed\n", dev->name);
@@ -1057,7 +1049,7 @@ static int dvb_net_feed_start(struct net_device *dev)
 			goto error;
 		}
 
-		dprintk("%s: start filtering\n", __func__);
+		netdev_dbg(dev, "start filtering\n");
 		priv->tsfeed->start_filtering(priv->tsfeed);
 	} else
 		ret = -EINVAL;
@@ -1072,17 +1064,16 @@ static int dvb_net_feed_stop(struct net_device *dev)
 	struct dvb_net_priv *priv = netdev_priv(dev);
 	int i, ret = 0;
 
-	dprintk("%s\n", __func__);
 	mutex_lock(&priv->mutex);
 	if (priv->feedtype == DVB_NET_FEEDTYPE_MPE) {
 		if (priv->secfeed) {
 			if (priv->secfeed->is_filtering) {
-				dprintk("%s: stop secfeed\n", __func__);
+				netdev_dbg(dev, "stop secfeed\n");
 				priv->secfeed->stop_filtering(priv->secfeed);
 			}
 
 			if (priv->secfilter) {
-				dprintk("%s: release secfilter\n", __func__);
+				netdev_dbg(dev, "release secfilter\n");
 				priv->secfeed->release_filter(priv->secfeed,
 							      priv->secfilter);
 				priv->secfilter=NULL;
@@ -1090,8 +1081,8 @@ static int dvb_net_feed_stop(struct net_device *dev)
 
 			for (i=0; i<priv->multi_num; i++) {
 				if (priv->multi_secfilter[i]) {
-					dprintk("%s: release multi_filter[%d]\n",
-						__func__, i);
+					netdev_dbg(dev, "release multi_filter[%d]\n",
+						   i);
 					priv->secfeed->release_filter(priv->secfeed,
 								      priv->multi_secfilter[i]);
 					priv->multi_secfilter[i] = NULL;
@@ -1105,7 +1096,7 @@ static int dvb_net_feed_stop(struct net_device *dev)
 	} else if (priv->feedtype == DVB_NET_FEEDTYPE_ULE) {
 		if (priv->tsfeed) {
 			if (priv->tsfeed->is_filtering) {
-				dprintk("%s: stop tsfeed\n", __func__);
+				netdev_dbg(dev, "stop tsfeed\n");
 				priv->tsfeed->stop_filtering(priv->tsfeed);
 			}
 			priv->demux->release_ts_feed(priv->demux, priv->tsfeed);
@@ -1145,16 +1136,16 @@ static void wq_set_multicast_list (struct work_struct *work)
 	netif_addr_lock_bh(dev);
 
 	if (dev->flags & IFF_PROMISC) {
-		dprintk("%s: promiscuous mode\n", dev->name);
+		netdev_dbg(dev, "promiscuous mode\n");
 		priv->rx_mode = RX_MODE_PROMISC;
 	} else if ((dev->flags & IFF_ALLMULTI)) {
-		dprintk("%s: allmulti mode\n", dev->name);
+		netdev_dbg(dev, "allmulti mode\n");
 		priv->rx_mode = RX_MODE_ALL_MULTI;
 	} else if (!netdev_mc_empty(dev)) {
 		struct netdev_hw_addr *ha;
 
-		dprintk("%s: set_mc_list, %d entries\n",
-			dev->name, netdev_mc_count(dev));
+		netdev_dbg(dev, "set_mc_list, %d entries\n",
+			   netdev_mc_count(dev));
 
 		priv->rx_mode = RX_MODE_MULTI;
 		priv->multi_num = 0;
