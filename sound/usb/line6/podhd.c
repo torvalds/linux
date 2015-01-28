@@ -17,7 +17,6 @@
 
 #include "driver.h"
 #include "pcm.h"
-#include "usbdefs.h"
 
 enum {
 	LINE6_PODHD300,

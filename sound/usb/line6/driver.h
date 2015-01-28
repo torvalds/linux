@@ -20,6 +20,12 @@
 
 #define DRIVER_NAME "line6usb"
 
+#define USB_INTERVALS_PER_SECOND 1000
+
+/* Fallback USB interval and max packet size values */
+#define LINE6_FALLBACK_INTERVAL 10
+#define LINE6_FALLBACK_MAXPACKETSIZE 16
+
 #define LINE6_TIMEOUT 1
 #define LINE6_BUFSIZE_LISTEN 32
 #define LINE6_MESSAGE_MAXLEN 256
@@ -82,6 +88,16 @@ struct line6_properties {
 	unsigned ep_ctrl_w;
 	unsigned ep_audio_r;
 	unsigned ep_audio_w;
+};
+
+/* Capability bits */
+enum {
+	/* device supports settings parameter via USB */
+	LINE6_CAP_CONTROL =	1 << 0,
+	/* device supports PCM input/output via USB */
+	LINE6_CAP_PCM =		1 << 1,
+	/* device support hardware monitoring */
+	LINE6_CAP_HWMON =	1 << 2,
 };
 
 /*

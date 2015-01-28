@@ -17,7 +17,6 @@
 
 #include "driver.h"
 #include "midi.h"
-#include "usbdefs.h"
 
 #define line6_rawmidi_substream_midi(substream) \
 	((struct snd_line6_midi *)((substream)->rmidi->private_data))

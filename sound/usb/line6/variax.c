@@ -17,7 +17,6 @@
 #include <sound/core.h>
 
 #include "driver.h"
-#include "usbdefs.h"
 
 #define VARIAX_STARTUP_DELAY1 1000
 #define VARIAX_STARTUP_DELAY3 100

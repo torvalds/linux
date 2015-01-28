@@ -19,7 +19,6 @@
 #include <sound/pcm.h>
 
 #include "driver.h"
-#include "usbdefs.h"
 
 /* number of URBs */
 #define LINE6_ISO_BUFFERS	2

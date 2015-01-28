@@ -22,7 +22,6 @@
 #include "driver.h"
 #include "midi.h"
 #include "playback.h"
-#include "usbdefs.h"
 
 #define DRIVER_AUTHOR  "Markus Grabner <grabner@icg.tugraz.at>"
 #define DRIVER_DESC    "Line 6 USB Driver"

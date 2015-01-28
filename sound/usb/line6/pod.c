@@ -21,7 +21,6 @@
 #include "capture.h"
 #include "driver.h"
 #include "playback.h"
-#include "usbdefs.h"
 
 /*
 	Locate name in binary program dump

@@ -21,7 +21,6 @@
 #include "capture.h"
 #include "driver.h"
 #include "playback.h"
-#include "usbdefs.h"
 
 enum line6_device_type {
 	LINE6_GUITARPORT,
