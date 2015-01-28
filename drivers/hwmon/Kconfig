@@ -574,6 +574,16 @@ config SENSORS_IIO_HWMON
 	  for those channels specified in the map.  This map can be provided
 	  either via platform data or the device tree bindings.
 
+config SENSORS_I5500
+	tristate "Intel 5500/5520/X58 temperature sensor"
+	depends on X86 && PCI
+	help
+	  If you say yes here you get support for the temperature
+	  sensor inside the Intel 5500, 5520 and X58 chipsets.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called i5500_temp.
+
 config SENSORS_CORETEMP
 	tristate "Intel Core/Core2/Atom temperature sensor"
 	depends on X86
