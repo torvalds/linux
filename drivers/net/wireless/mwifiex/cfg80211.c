@@ -1677,7 +1677,6 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 {
 	struct mwifiex_uap_bss_param *bss_cfg;
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
-	u8 config_bands = 0;
 
 	if (GET_BSS_ROLE(priv) != MWIFIEX_BSS_ROLE_UAP)
 		return -1;
@@ -1697,6 +1696,11 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 		memcpy(bss_cfg->ssid.ssid, params->ssid, params->ssid_len);
 		bss_cfg->ssid.ssid_len = params->ssid_len;
 	}
+	if (params->inactivity_timeout > 0) {
+		/* sta_ao_timer/ps_sta_ao_timer is in unit of 100ms */
+		bss_cfg->sta_ao_timer = 10 * params->inactivity_timeout;
+		bss_cfg->ps_sta_ao_timer = 10 * params->inactivity_timeout;
+	}
 
 	switch (params->hidden_ssid) {
 	case NL80211_HIDDEN_SSID_NOT_IN_USE:
@@ -1712,31 +1716,7 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	bss_cfg->channel = ieee80211_frequency_to_channel(
-				params->chandef.chan->center_freq);
-
-	/* Set appropriate bands */
-	if (params->chandef.chan->band == IEEE80211_BAND_2GHZ) {
-		bss_cfg->band_cfg = BAND_CONFIG_BG;
-		config_bands = BAND_B | BAND_G;
-
-		if (params->chandef.width > NL80211_CHAN_WIDTH_20_NOHT)
-			config_bands |= BAND_GN;
-	} else {
-		bss_cfg->band_cfg = BAND_CONFIG_A;
-		config_bands = BAND_A;
-
-		if (params->chandef.width > NL80211_CHAN_WIDTH_20_NOHT)
-			config_bands |= BAND_AN;
-
-		if (params->chandef.width > NL80211_CHAN_WIDTH_40)
-			config_bands |= BAND_AAC;
-	}
-
-	if (!((config_bands | priv->adapter->fw_bands) &
-	      ~priv->adapter->fw_bands))
-		priv->adapter->config_bands = config_bands;
-
+	mwifiex_uap_set_channel(bss_cfg, params->chandef);
 	mwifiex_set_uap_rates(bss_cfg, params);
 
 	if (mwifiex_set_secure_params(priv, bss_cfg, params)) {
@@ -1760,23 +1740,8 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 
 	mwifiex_set_wmm_params(priv, bss_cfg, params);
 
-	if (params->inactivity_timeout > 0) {
-		/* sta_ao_timer/ps_sta_ao_timer is in unit of 100ms */
-		bss_cfg->sta_ao_timer = 10 * params->inactivity_timeout;
-		bss_cfg->ps_sta_ao_timer = 10 * params->inactivity_timeout;
-	}
-
-	if (mwifiex_send_cmd(priv, HostCmd_CMD_UAP_BSS_STOP,
-			     HostCmd_ACT_GEN_SET, 0, NULL, true)) {
-		wiphy_err(wiphy, "Failed to stop the BSS\n");
-		kfree(bss_cfg);
-		return -1;
-	}
-
-	if (mwifiex_send_cmd(priv, HostCmd_CMD_UAP_SYS_CONFIG,
-			     HostCmd_ACT_GEN_SET,
-			     UAP_BSS_PARAMS_I, bss_cfg, false)) {
-		wiphy_err(wiphy, "Failed to set the SSID\n");
+	if (mwifiex_config_start_uap(priv, bss_cfg)) {
+		wiphy_err(wiphy, "Failed to start AP\n");
 		kfree(bss_cfg);
 		return -1;
 	}
@@ -1786,23 +1751,6 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 
 	memcpy(&priv->bss_cfg, bss_cfg, sizeof(priv->bss_cfg));
 	kfree(bss_cfg);
-
-	if (mwifiex_send_cmd(priv, HostCmd_CMD_UAP_BSS_START,
-			     HostCmd_ACT_GEN_SET, 0, NULL, false)) {
-		wiphy_err(wiphy, "Failed to start the BSS\n");
-		return -1;
-	}
-
-	if (priv->sec_info.wep_enabled)
-		priv->curr_pkt_filter |= HostCmd_ACT_MAC_WEP_ENABLE;
-	else
-		priv->curr_pkt_filter &= ~HostCmd_ACT_MAC_WEP_ENABLE;
-
-	if (mwifiex_send_cmd(priv, HostCmd_CMD_MAC_CONTROL,
-			     HostCmd_ACT_GEN_SET, 0,
-			     &priv->curr_pkt_filter, true))
-		return -1;
-
 	return 0;
 }
 
