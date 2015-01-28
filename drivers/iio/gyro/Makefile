@@ -16,6 +16,8 @@ itg3200-y               := itg3200_core.o
 itg3200-$(CONFIG_IIO_BUFFER) += itg3200_buffer.o
 obj-$(CONFIG_ITG3200)   += itg3200.o
 
+obj-$(CONFIG_IIO_SSP_SENSORS_COMMONS) += ssp_gyro_sensor.o
+
 obj-$(CONFIG_IIO_ST_GYRO_3AXIS) += st_gyro.o
 st_gyro-y := st_gyro_core.o
 st_gyro-$(CONFIG_IIO_BUFFER) += st_gyro_buffer.o
