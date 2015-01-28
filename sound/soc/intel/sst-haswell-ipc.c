@@ -277,7 +277,6 @@ struct sst_hsw {
 	/* FW config */
 	struct sst_hsw_ipc_fw_ready fw_ready;
 	struct sst_hsw_ipc_fw_version version;
-	struct sst_module *scratch;
 	bool fw_done;
 	struct sst_fw *sst_fw;
 
@@ -2105,7 +2104,6 @@ void sst_hsw_dsp_free(struct device *dev, struct sst_pdata *pdata)
 	dma_free_coherent(hsw->dsp->dma_dev, SST_HSW_DX_CONTEXT_SIZE,
 			hsw->dx_context, hsw->dx_context_paddr);
 	sst_dsp_free(hsw->dsp);
-	kfree(hsw->scratch);
 	kthread_stop(hsw->tx_thread);
 	kfree(hsw->msg);
 }
