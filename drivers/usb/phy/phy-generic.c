@@ -64,11 +64,12 @@ static int nop_set_suspend(struct usb_phy *x, int suspend)
 
 static void nop_reset_set(struct usb_phy_generic *nop, int asserted)
 {
-	if (nop->gpiod_reset)
-		gpiod_set_value(nop->gpiod_reset, asserted);
+	if (!nop->gpiod_reset)
+		return;
 
-	if (!asserted)
-		usleep_range(10000, 20000);
+	gpiod_direction_output(nop->gpiod_reset, !asserted);
+	usleep_range(10000, 20000);
+	gpiod_set_value(nop->gpiod_reset, asserted);
 }
 
 /* interface to regulator framework */
