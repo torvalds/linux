@@ -110,8 +110,10 @@
          1) set CONFIG_CAMSYS_DRV disable as default,enable in defconfig file if needed.
 *v0.0x1a.0:
 		 1) vpu_node changed from "vpu_service" to "rockchip,vpu_sub"
+*v0.0x1b.0:
+		 1) use of_find_node_by_name to get vpu node instead of of_find_compatible_node 
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,0x1a,0)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,0x1b,0)
 
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"

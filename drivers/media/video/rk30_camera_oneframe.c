@@ -289,8 +289,10 @@ static u32 CHIP_NAME;
 		 1. Vpu_service compatible has change ,fix it.
 *v0.1.c:
 		 1. setting cif capture en bit can't stop cif really,reset cif instead.
+*v0.1.d:
+		 1. use of_find_node_by_name to get vpu node instead of of_find_compatible_node 
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0xc)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0xd)
 static int version = RK_CAM_VERSION_CODE;
 module_param(version, int, S_IRUGO);
 
