@@ -172,8 +172,8 @@ static void exynos_report_trigger(struct exynos_tmu_data *p)
 	unsigned long temp;
 	unsigned int i;
 
-	if (!p) {
-		pr_err("Wrong temperature configuration data\n");
+	if (!tz) {
+		pr_err("No thermal zone device defined\n");
 		return;
 	}
 
