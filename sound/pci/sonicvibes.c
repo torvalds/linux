@@ -30,6 +30,7 @@
 #include <linux/gameport.h>
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
+#include <linux/io.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -38,8 +39,6 @@
 #include <sound/mpu401.h>
 #include <sound/opl3.h>
 #include <sound/initval.h>
-
-#include <asm/io.h>
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("S3 SonicVibes PCI");

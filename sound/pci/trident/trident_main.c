@@ -36,6 +36,7 @@
 #include <linux/gameport.h>
 #include <linux/dma-mapping.h>
 #include <linux/export.h>
+#include <linux/io.h>
 
 #include <sound/core.h>
 #include <sound/info.h>
@@ -43,8 +44,6 @@
 #include <sound/tlv.h>
 #include "trident.h"
 #include <sound/asoundef.h>
-
-#include <asm/io.h>
 
 static int snd_trident_pcm_mixer_build(struct snd_trident *trident,
 				       struct snd_trident_voice * voice,

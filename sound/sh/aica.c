@@ -35,12 +35,12 @@
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/workqueue.h>
+#include <linux/io.h>
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/pcm.h>
 #include <sound/initval.h>
 #include <sound/info.h>
-#include <asm/io.h>
 #include <asm/dma.h>
 #include <mach/sysasic.h>
 #include "aica.h"

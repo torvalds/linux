@@ -31,12 +31,12 @@
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
+#include <linux/io.h>
 #include <sound/core.h>
 #include <sound/wss.h>
 #include <sound/pcm_params.h>
 #include <sound/tlv.h>
 
-#include <asm/io.h>
 #include <asm/dma.h>
 #include <asm/irq.h>
 

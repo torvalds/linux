@@ -29,7 +29,7 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/dma.h>
 #include <sound/core.h>
 #include <sound/wss.h>

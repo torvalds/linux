@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/module.h>
+#include <linux/io.h>
 
 #include <sound/core.h>
 #include <sound/control.h>
@@ -36,7 +37,6 @@
 #include <sound/asoundef.h>
 #include <sound/mpu401.h>
 
-#include <asm/io.h>
 #include <asm/byteorder.h>
 
 /*

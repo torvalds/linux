@@ -29,6 +29,7 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/vmalloc.h>
+#include <linux/io.h>
 
 #include <sound/core.h>
 #include <sound/info.h>
@@ -37,8 +38,6 @@
 #include <sound/pcm_params.h>
 #include <sound/asoundef.h>
 #include <sound/initval.h>
-
-#include <asm/io.h>
 
 /* note, two last pcis should be equal, it is not a bug */
 

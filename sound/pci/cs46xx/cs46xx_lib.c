@@ -57,6 +57,7 @@
 #include <linux/module.h>
 #include <linux/firmware.h>
 #include <linux/vmalloc.h>
+#include <linux/io.h>
 
 #include <sound/core.h>
 #include <sound/control.h>
@@ -64,8 +65,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include "cs46xx.h"
-
-#include <asm/io.h>
 
 #include "cs46xx_lib.h"
 #include "dsp_spos.h"

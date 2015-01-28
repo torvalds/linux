@@ -65,7 +65,7 @@
  * - power management? (card can do voice wakeup according to datasheet!!)
  */
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/gameport.h>

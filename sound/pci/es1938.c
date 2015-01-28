@@ -55,6 +55,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
+#include <linux/io.h>
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/pcm.h>
@@ -62,8 +63,6 @@
 #include <sound/mpu401.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
-
-#include <asm/io.h>
 
 MODULE_AUTHOR("Jaromir Koutek <miri@punknet.cz>");
 MODULE_DESCRIPTION("ESS Solo-1");

@@ -24,7 +24,7 @@
 #include <linux/firmware.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <sound/core.h>
 #include "pcxhr.h"
 #include "pcxhr_mixer.h"

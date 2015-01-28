@@ -23,8 +23,8 @@
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include <linux/pci.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <sound/core.h>
 #include "mixart.h"
 #include "mixart_hwdep.h"

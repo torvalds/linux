@@ -33,7 +33,7 @@
  *
  */
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/dma.h>
 #include <linux/init.h>
 #include <linux/time.h>

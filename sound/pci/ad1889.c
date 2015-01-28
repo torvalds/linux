@@ -40,13 +40,12 @@
 #include <linux/compiler.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/io.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/initval.h>
 #include <sound/ac97_codec.h>
-
-#include <asm/io.h>
 
 #include "ad1889.h"
 #include "ac97/ac97_id.h"

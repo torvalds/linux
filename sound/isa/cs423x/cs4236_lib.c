@@ -79,7 +79,7 @@
  *
  */
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/time.h>

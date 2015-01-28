@@ -26,6 +26,7 @@
 #include <linux/time.h>
 #include <linux/pm_qos.h>
 #include <linux/aio.h>
+#include <linux/io.h>
 #include <linux/dma-mapping.h>
 #include <sound/core.h>
 #include <sound/control.h>
@@ -34,7 +35,6 @@
 #include <sound/pcm_params.h>
 #include <sound/timer.h>
 #include <sound/minors.h>
-#include <asm/io.h>
 
 /*
  *  Compatibility

@@ -44,6 +44,7 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/dma-mapping.h>
+#include <linux/io.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -52,7 +53,6 @@
 #include <sound/initval.h>
 #include <sound/info.h>
 
-#include <asm/io.h>
 #include <asm/hardware.h>
 #include <asm/parisc-device.h>
 

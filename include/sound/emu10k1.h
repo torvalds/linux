@@ -33,8 +33,8 @@
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include <linux/firmware.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <uapi/sound/emu10k1.h>
 
 /* ------------------- DEFINES -------------------- */

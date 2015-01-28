@@ -28,6 +28,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/firmware.h>
+#include <linux/io.h>
 
 #include <sound/core.h>
 #include <sound/info.h>
@@ -35,8 +36,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
-
-#include <asm/io.h>
 
 // ----------------------------------------------------------------------------
 // Debug Stuff

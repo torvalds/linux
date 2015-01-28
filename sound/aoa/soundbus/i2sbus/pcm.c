@@ -6,7 +6,7 @@
  * GPL v2, can be found in COPYING.
  */
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <sound/core.h>
