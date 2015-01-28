@@ -35,7 +35,7 @@ static struct snd_ratden podhd_ratden = {
 };
 
 static struct line6_pcm_properties podhd_pcm_properties = {
-	.snd_line6_playback_hw = {
+	.playback_hw = {
 				  .info = (SNDRV_PCM_INFO_MMAP |
 					   SNDRV_PCM_INFO_INTERLEAVED |
 					   SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -53,7 +53,7 @@ static struct line6_pcm_properties podhd_pcm_properties = {
 				  .period_bytes_max = 8192,
 				  .periods_min = 1,
 				  .periods_max = 1024},
-	.snd_line6_capture_hw = {
+	.capture_hw = {
 				 .info = (SNDRV_PCM_INFO_MMAP |
 					  SNDRV_PCM_INFO_INTERLEAVED |
 					  SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -70,7 +70,7 @@ static struct line6_pcm_properties podhd_pcm_properties = {
 				 .period_bytes_max = 8192,
 				 .periods_min = 1,
 				 .periods_max = 1024},
-	.snd_line6_rates = {
+	.rates = {
 			    .nrats = 1,
 			    .rats = &podhd_ratden},
 	.bytes_per_frame = PODHD_BYTES_PER_FRAME

@@ -148,10 +148,10 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 	int ret;
 	const int bytes_per_frame = line6pcm->properties->bytes_per_frame;
 	const int frame_increment =
-	    line6pcm->properties->snd_line6_rates.rats[0].num_min;
+		line6pcm->properties->rates.rats[0].num_min;
 	const int frame_factor =
-	    line6pcm->properties->snd_line6_rates.rats[0].den *
-	    (USB_INTERVALS_PER_SECOND / LINE6_ISO_INTERVAL);
+		line6pcm->properties->rates.rats[0].den *
+		(USB_INTERVALS_PER_SECOND / LINE6_ISO_INTERVAL);
 	struct urb *urb_out;
 
 	index =
@@ -370,12 +370,11 @@ static int snd_line6_playback_open(struct snd_pcm_substream *substream)
 	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
 
 	err = snd_pcm_hw_constraint_ratdens(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
-					    (&line6pcm->
-					     properties->snd_line6_rates));
+					    &line6pcm->properties->rates);
 	if (err < 0)
 		return err;
 
-	runtime->hw = line6pcm->properties->snd_line6_playback_hw;
+	runtime->hw = line6pcm->properties->playback_hw;
 	return 0;
 }
 

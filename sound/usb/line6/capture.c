@@ -216,12 +216,11 @@ static int snd_line6_capture_open(struct snd_pcm_substream *substream)
 
 	err = snd_pcm_hw_constraint_ratdens(runtime, 0,
 					    SNDRV_PCM_HW_PARAM_RATE,
-					    (&line6pcm->
-					     properties->snd_line6_rates));
+					    &line6pcm->properties->rates);
 	if (err < 0)
 		return err;
 
-	runtime->hw = line6pcm->properties->snd_line6_capture_hw;
+	runtime->hw = line6pcm->properties->capture_hw;
 	return 0;
 }
 
