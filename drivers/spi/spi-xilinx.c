@@ -173,8 +173,11 @@ static void xspi_init_hw(struct xilinx_spi *xspi)
 	xspi->write_fn(XSPI_INTR_TX_EMPTY,
 			regs_base + XIPIF_V123B_IIER_OFFSET);
 	/* Enable the global IPIF interrupt */
-	xspi->write_fn(XIPIF_V123B_GINTR_ENABLE,
-		regs_base + XIPIF_V123B_DGIER_OFFSET);
+	if (xspi->irq >= 0)
+		xspi->write_fn(XIPIF_V123B_GINTR_ENABLE,
+			regs_base + XIPIF_V123B_DGIER_OFFSET);
+	else
+		xspi->write_fn(0, regs_base + XIPIF_V123B_DGIER_OFFSET);
 	/* Deselect the slave on the SPI bus */
 	xspi->write_fn(0xffff, regs_base + XSPI_SSR_OFFSET);
 	/* Disable the transmitter, enable Manual Slave Select Assertion,
@@ -264,7 +267,12 @@ static int xilinx_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 							~XSPI_CR_TRANS_INHIBIT;
 		xspi->write_fn(cr, xspi->regs + XSPI_CR_OFFSET);
 
-		wait_for_completion(&xspi->done);
+		if (xspi->irq >= 0)
+			wait_for_completion(&xspi->done);
+		else
+			while (!(xspi->read_fn(xspi->regs + XSPI_SR_OFFSET) &
+						XSPI_SR_TX_EMPTY_MASK))
+				;
 
 		/* A transmit has just completed. Process received data and
 		 * check for more data to transmit. Always inhibit the
@@ -419,20 +427,17 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 
 	xspi->buffer_size = xilinx_spi_find_buffer_size(xspi);
 
-	/* SPI controller initializations */
-	xspi_init_hw(xspi);
-
 	xspi->irq = platform_get_irq(pdev, 0);
-	if (xspi->irq < 0) {
-		ret = xspi->irq;
-		goto put_master;
+	if (xspi->irq >= 0) {
+		/* Register for SPI Interrupt */
+		ret = devm_request_irq(&pdev->dev, xspi->irq, xilinx_spi_irq, 0,
+				dev_name(&pdev->dev), xspi);
+		if (ret)
+			goto put_master;
 	}
 
-	/* Register for SPI Interrupt */
-	ret = devm_request_irq(&pdev->dev, xspi->irq, xilinx_spi_irq, 0,
-			       dev_name(&pdev->dev), xspi);
-	if (ret)
-		goto put_master;
+	/* SPI controller initializations */
+	xspi_init_hw(xspi);
 
 	ret = spi_bitbang_start(&xspi->bitbang);
 	if (ret) {
