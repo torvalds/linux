@@ -199,14 +199,64 @@ static void ixgbevf_unmap_and_free_tx_resource(struct ixgbevf_ring *tx_ring,
 	/* tx_buffer must be completely set up in the transmit path */
 }
 
-#define IXGBE_MAX_TXD_PWR	14
-#define IXGBE_MAX_DATA_PER_TXD	(1 << IXGBE_MAX_TXD_PWR)
+static u64 ixgbevf_get_tx_completed(struct ixgbevf_ring *ring)
+{
+	return ring->stats.packets;
+}
 
-/* Tx Descriptors needed, worst case */
-#define TXD_USE_COUNT(S) DIV_ROUND_UP((S), IXGBE_MAX_DATA_PER_TXD)
-#define DESC_NEEDED (MAX_SKB_FRAGS + 4)
+static u32 ixgbevf_get_tx_pending(struct ixgbevf_ring *ring)
+{
+	struct ixgbevf_adapter *adapter = netdev_priv(ring->netdev);
+	struct ixgbe_hw *hw = &adapter->hw;
 
-static void ixgbevf_tx_timeout(struct net_device *netdev);
+	u32 head = IXGBE_READ_REG(hw, IXGBE_VFTDH(ring->reg_idx));
+	u32 tail = IXGBE_READ_REG(hw, IXGBE_VFTDT(ring->reg_idx));
+
+	if (head != tail)
+		return (head < tail) ?
+			tail - head : (tail + ring->count - head);
+
+	return 0;
+}
+
+static inline bool ixgbevf_check_tx_hang(struct ixgbevf_ring *tx_ring)
+{
+	u32 tx_done = ixgbevf_get_tx_completed(tx_ring);
+	u32 tx_done_old = tx_ring->tx_stats.tx_done_old;
+	u32 tx_pending = ixgbevf_get_tx_pending(tx_ring);
+
+	clear_check_for_tx_hang(tx_ring);
+
+	/* Check for a hung queue, but be thorough. This verifies
+	 * that a transmit has been completed since the previous
+	 * check AND there is at least one packet pending. The
+	 * ARMED bit is set to indicate a potential hang.
+	 */
+	if ((tx_done_old == tx_done) && tx_pending) {
+		/* make sure it is true for two checks in a row */
+		return test_and_set_bit(__IXGBEVF_HANG_CHECK_ARMED,
+					&tx_ring->state);
+	}
+	/* reset the countdown */
+	clear_bit(__IXGBEVF_HANG_CHECK_ARMED, &tx_ring->state);
+
+	/* update completed stats and continue */
+	tx_ring->tx_stats.tx_done_old = tx_done;
+
+	return false;
+}
+
+/**
+ * ixgbevf_tx_timeout - Respond to a Tx Hang
+ * @netdev: network interface device structure
+ **/
+static void ixgbevf_tx_timeout(struct net_device *netdev)
+{
+	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
+
+	/* Do the reset outside of interrupt context */
+	schedule_work(&adapter->reset_task);
+}
 
 /**
  * ixgbevf_clean_tx_irq - Reclaim resources after transmit completes
@@ -310,6 +360,37 @@ static bool ixgbevf_clean_tx_irq(struct ixgbevf_q_vector *q_vector,
 	u64_stats_update_end(&tx_ring->syncp);
 	q_vector->tx.total_bytes += total_bytes;
 	q_vector->tx.total_packets += total_packets;
+
+	if (check_for_tx_hang(tx_ring) && ixgbevf_check_tx_hang(tx_ring)) {
+		struct ixgbe_hw *hw = &adapter->hw;
+		union ixgbe_adv_tx_desc *eop_desc;
+
+		eop_desc = tx_ring->tx_buffer_info[i].next_to_watch;
+
+		pr_err("Detected Tx Unit Hang\n"
+		       "  Tx Queue             <%d>\n"
+		       "  TDH, TDT             <%x>, <%x>\n"
+		       "  next_to_use          <%x>\n"
+		       "  next_to_clean        <%x>\n"
+		       "tx_buffer_info[next_to_clean]\n"
+		       "  next_to_watch        <%p>\n"
+		       "  eop_desc->wb.status  <%x>\n"
+		       "  time_stamp           <%lx>\n"
+		       "  jiffies              <%lx>\n",
+		       tx_ring->queue_index,
+		       IXGBE_READ_REG(hw, IXGBE_VFTDH(tx_ring->reg_idx)),
+		       IXGBE_READ_REG(hw, IXGBE_VFTDT(tx_ring->reg_idx)),
+		       tx_ring->next_to_use, i,
+		       eop_desc, (eop_desc ? eop_desc->wb.status : 0),
+		       tx_ring->tx_buffer_info[i].time_stamp, jiffies);
+
+		netif_stop_subqueue(tx_ring->netdev, tx_ring->queue_index);
+
+		/* schedule immediate reset if we believe we hung */
+		schedule_work(&adapter->reset_task);
+
+		return true;
+	}
 
 #define TX_WAKE_THRESHOLD (DESC_NEEDED * 2)
 	if (unlikely(total_packets && netif_carrier_ok(tx_ring->netdev) &&
@@ -1479,6 +1560,8 @@ static void ixgbevf_configure_tx_ring(struct ixgbevf_adapter *adapter,
 	txdctl |= (1 << 8) |    /* HTHRESH = 1 */
 		  32;          /* PTHRESH = 32 */
 
+	clear_bit(__IXGBEVF_HANG_CHECK_ARMED, &ring->state);
+
 	IXGBE_WRITE_REG(hw, IXGBE_VFTXDCTL(reg_idx), txdctl);
 
 	/* poll to verify queue is enabled */
@@ -2643,6 +2726,12 @@ static void ixgbevf_watchdog(unsigned long data)
 	if (test_bit(__IXGBEVF_DOWN, &adapter->state))
 		goto watchdog_short_circuit;
 
+	/* Force detection of hung controller */
+	if (netif_carrier_ok(adapter->netdev)) {
+		for (i = 0; i < adapter->num_tx_queues; i++)
+			set_check_for_tx_hang(adapter->tx_ring[i]);
+	}
+
 	/* get one bit for every active tx/rx interrupt vector */
 	for (i = 0; i < adapter->num_msix_vectors - NON_Q_VECTORS; i++) {
 		struct ixgbevf_q_vector *qv = adapter->q_vector[i];
@@ -2654,18 +2743,6 @@ static void ixgbevf_watchdog(unsigned long data)
 
 watchdog_short_circuit:
 	schedule_work(&adapter->watchdog_task);
-}
-
-/**
- * ixgbevf_tx_timeout - Respond to a Tx Hang
- * @netdev: network interface device structure
- **/
-static void ixgbevf_tx_timeout(struct net_device *netdev)
-{
-	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
-
-	/* Do the reset outside of interrupt context */
-	schedule_work(&adapter->reset_task);
 }
 
 static void ixgbevf_reset_task(struct work_struct *work)
