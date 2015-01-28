@@ -1394,8 +1394,8 @@ static int tegra_hdmi_exit(struct host1x_client *client)
 
 	tegra_output_exit(&hdmi->output);
 
-	clk_disable_unprepare(hdmi->clk);
 	reset_control_assert(hdmi->rst);
+	clk_disable_unprepare(hdmi->clk);
 
 	regulator_disable(hdmi->vdd);
 	regulator_disable(hdmi->pll);
