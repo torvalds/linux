@@ -487,7 +487,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_REMAIN_ON_CHAN_EXPIRED:
 		dev_dbg(adapter->dev, "event: Remain on channel expired\n");
-		cfg80211_remain_on_channel_expired(priv->wdev,
+		cfg80211_remain_on_channel_expired(&priv->wdev,
 						   priv->roc_cfg.cookie,
 						   &priv->roc_cfg.chan,
 						   GFP_ATOMIC);

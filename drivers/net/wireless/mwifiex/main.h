@@ -547,7 +547,7 @@ struct mwifiex_private {
 	u32 curr_bcn_size;
 	/* spin lock for beacon buffer */
 	spinlock_t curr_bcn_buf_lock;
-	struct wireless_dev *wdev;
+	struct wireless_dev wdev;
 	struct mwifiex_chan_freq_power cfp;
 	char version_str[128];
 #ifdef CONFIG_DEBUG_FS

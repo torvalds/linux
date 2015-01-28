@@ -219,7 +219,7 @@ static int mwifiex_process_country_ie(struct mwifiex_private *priv,
 
 	if (!strncmp(priv->adapter->country_code, &country_ie[2], 2)) {
 		rcu_read_unlock();
-		wiphy_dbg(priv->wdev->wiphy,
+		wiphy_dbg(priv->wdev.wiphy,
 			  "11D: skip setting domain info in FW\n");
 		return 0;
 	}

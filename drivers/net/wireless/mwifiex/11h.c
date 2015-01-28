@@ -39,7 +39,7 @@ mwifiex_11h_process_infra_join(struct mwifiex_private *priv, u8 **buffer,
 		return;
 
 	radio_type = mwifiex_band_to_radio_type((u8) bss_desc->bss_band);
-	sband = priv->wdev->wiphy->bands[radio_type];
+	sband = priv->wdev.wiphy->bands[radio_type];
 
 	cap = (struct mwifiex_ie_types_pwr_capability *)*buffer;
 	cap->header.type = cpu_to_le16(WLAN_EID_PWR_CAPABILITY);
