@@ -2476,6 +2476,26 @@ static void rcu_cleanup_dead_rnp(struct rcu_node *rnp_leaf)
 }
 
 /*
+ * The CPU is exiting the idle loop into the arch_cpu_idle_dead()
+ * function.  We now remove it from the rcu_node tree's ->qsmaskinit
+ * bit masks.
+ */
+static void rcu_cleanup_dying_idle_cpu(int cpu, struct rcu_state *rsp)
+{
+	unsigned long flags;
+	unsigned long mask;
+	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
+	struct rcu_node *rnp = rdp->mynode;  /* Outgoing CPU's rdp & rnp. */
+
+	/* Remove outgoing CPU from mask in the leaf rcu_node structure. */
+	mask = rdp->grpmask;
+	raw_spin_lock_irqsave(&rnp->lock, flags);
+	smp_mb__after_unlock_lock();	/* Enforce GP memory-order guarantee. */
+	rnp->qsmaskinitnext &= ~mask;
+	raw_spin_unlock_irqrestore(&rnp->lock, flags);
+}
+
+/*
  * The CPU has been completely removed, and some other CPU is reporting
  * this fact from process context.  Do the remainder of the cleanup,
  * including orphaning the outgoing CPU's RCU callbacks, and also
@@ -2485,7 +2505,6 @@ static void rcu_cleanup_dead_rnp(struct rcu_node *rnp_leaf)
 static void rcu_cleanup_dead_cpu(int cpu, struct rcu_state *rsp)
 {
 	unsigned long flags;
-	unsigned long mask;
 	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
 	struct rcu_node *rnp = rdp->mynode;  /* Outgoing CPU's rdp & rnp. */
 
@@ -2497,13 +2516,6 @@ static void rcu_cleanup_dead_cpu(int cpu, struct rcu_state *rsp)
 	rcu_send_cbs_to_orphanage(cpu, rsp, rnp, rdp);
 	rcu_adopt_orphan_cbs(rsp, flags);
 	raw_spin_unlock_irqrestore(&rsp->orphan_lock, flags);
-
-	/* Remove outgoing CPU from mask in the leaf rcu_node structure. */
-	mask = rdp->grpmask;
-	raw_spin_lock_irqsave(&rnp->lock, flags);
-	smp_mb__after_unlock_lock();	/* Enforce GP memory-order guarantee. */
-	rnp->qsmaskinitnext &= ~mask;
-	raw_spin_unlock_irqrestore(&rnp->lock, flags);
 
 	WARN_ONCE(rdp->qlen != 0 || rdp->nxtlist != NULL,
 		  "rcu_cleanup_dead_cpu: Callbacks on offline CPU %d: qlen=%lu, nxtlist=%p\n",
@@ -2517,6 +2529,10 @@ static void rcu_cleanup_dying_cpu(struct rcu_state *rsp)
 }
 
 static void __maybe_unused rcu_cleanup_dead_rnp(struct rcu_node *rnp_leaf)
+{
+}
+
+static void rcu_cleanup_dying_idle_cpu(int cpu, struct rcu_state *rsp)
 {
 }
 
@@ -3733,8 +3749,8 @@ static void rcu_prepare_cpu(int cpu)
 /*
  * Handle CPU online/offline notification events.
  */
-static int rcu_cpu_notify(struct notifier_block *self,
-				    unsigned long action, void *hcpu)
+int rcu_cpu_notify(struct notifier_block *self,
+		   unsigned long action, void *hcpu)
 {
 	long cpu = (long)hcpu;
 	struct rcu_data *rdp = per_cpu_ptr(rcu_state_p->rda, cpu);
@@ -3759,6 +3775,11 @@ static int rcu_cpu_notify(struct notifier_block *self,
 	case CPU_DYING_FROZEN:
 		for_each_rcu_flavor(rsp)
 			rcu_cleanup_dying_cpu(rsp);
+		break;
+	case CPU_DYING_IDLE:
+		for_each_rcu_flavor(rsp) {
+			rcu_cleanup_dying_idle_cpu(cpu, rsp);
+		}
 		break;
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
