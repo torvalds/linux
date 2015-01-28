@@ -296,7 +296,7 @@ static int apci1500_di_inttrig_start(struct comedi_device *dev,
 	unsigned int pa_mode = Z8536_PAB_MODE_PMS_DISABLE;
 	unsigned int pb_mode = Z8536_PAB_MODE_PMS_DISABLE;
 	unsigned int pa_trig = trig_num & 0x01;
-	unsigned int pb_trig = trig_num & 0x02;
+	unsigned int pb_trig = (trig_num >> 1) & 0x01;
 	bool valid_trig = false;
 	unsigned int val;
 
