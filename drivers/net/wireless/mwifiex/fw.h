@@ -495,6 +495,7 @@ enum P2P_MODES {
 #define EVENT_HOSTWAKE_STAIE		0x0000004d
 #define EVENT_CHANNEL_SWITCH_ANN        0x00000050
 #define EVENT_TDLS_GENERIC_EVENT        0x00000052
+#define EVENT_RADAR_DETECTED		0x00000053
 #define EVENT_CHANNEL_REPORT_RDY        0x00000054
 #define EVENT_EXT_SCAN_REPORT           0x00000058
 #define EVENT_REMAIN_ON_CHAN_EXPIRED    0x0000005f
@@ -1811,6 +1812,25 @@ struct mwifiex_ie_types_rssi_threshold {
 	struct mwifiex_ie_types_header header;
 	u8 abs_value;
 	u8 evt_freq;
+} __packed;
+
+#define MWIFIEX_DFS_REC_HDR_LEN		8
+#define MWIFIEX_DFS_REC_HDR_NUM		10
+#define MWIFIEX_BIN_COUNTER_LEN		7
+
+struct mwifiex_radar_det_event {
+	__le32 detect_count;
+	u8 reg_domain;  /*1=fcc, 2=etsi, 3=mic*/
+	u8 det_type;  /*0=none, 1=pw(chirp), 2=pri(radar)*/
+	__le16 pw_chirp_type;
+	u8 pw_chirp_idx;
+	u8 pw_value;
+	u8 pri_radar_type;
+	u8 pri_bincnt;
+	u8 bin_counter[MWIFIEX_BIN_COUNTER_LEN];
+	u8 num_dfs_records;
+	u8 dfs_record_hdr[MWIFIEX_DFS_REC_HDR_NUM][MWIFIEX_DFS_REC_HDR_LEN];
+	__le32 passed;
 } __packed;
 
 struct meas_rpt_map {

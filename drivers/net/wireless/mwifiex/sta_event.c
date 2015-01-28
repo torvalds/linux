@@ -521,6 +521,11 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		ret = mwifiex_11h_handle_chanrpt_ready(priv,
 						       adapter->event_skb);
 		break;
+	case EVENT_RADAR_DETECTED:
+		dev_dbg(adapter->dev, "event: Radar detected\n");
+		ret = mwifiex_11h_handle_radar_detected(priv,
+							adapter->event_skb);
+		break;
 	default:
 		dev_dbg(adapter->dev, "event: unknown event id: %#x\n",
 			eventcause);

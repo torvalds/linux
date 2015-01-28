@@ -1395,6 +1395,8 @@ mwifiex_clone_skb_for_tx_status(struct mwifiex_private *priv,
 				struct sk_buff *skb, u8 flag, u64 *cookie);
 void mwifiex_dfs_cac_work_queue(struct work_struct *work);
 void mwifiex_abort_cac(struct mwifiex_private *priv);
+int mwifiex_11h_handle_radar_detected(struct mwifiex_private *priv,
+				      struct sk_buff *skb);
 
 void mwifiex_hist_data_set(struct mwifiex_private *priv, u8 rx_rate, s8 snr,
 			   s8 nflr);
