@@ -952,7 +952,7 @@ static void tegra_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 	}
 
 	tegra_hdmi_writel(hdmi,
-			  SOR_SEQ_CTL_PU_PC(0) |
+			  SOR_SEQ_PU_PC(0) |
 			  SOR_SEQ_PU_PC_ALT(0) |
 			  SOR_SEQ_PD_PC(8) |
 			  SOR_SEQ_PD_PC_ALT(8),
