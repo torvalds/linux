@@ -354,6 +354,17 @@ static ssize_t show_turbo_pct(struct kobject *kobj,
 	return sprintf(buf, "%u\n", turbo_pct);
 }
 
+static ssize_t show_num_pstates(struct kobject *kobj,
+				struct attribute *attr, char *buf)
+{
+	struct cpudata *cpu;
+	int total;
+
+	cpu = all_cpu_data[0];
+	total = cpu->pstate.turbo_pstate - cpu->pstate.min_pstate + 1;
+	return sprintf(buf, "%u\n", total);
+}
+
 static ssize_t show_no_turbo(struct kobject *kobj,
 			     struct attribute *attr, char *buf)
 {
@@ -435,12 +446,14 @@ define_one_global_rw(no_turbo);
 define_one_global_rw(max_perf_pct);
 define_one_global_rw(min_perf_pct);
 define_one_global_ro(turbo_pct);
+define_one_global_ro(num_pstates);
 
 static struct attribute *intel_pstate_attributes[] = {
 	&no_turbo.attr,
 	&max_perf_pct.attr,
 	&min_perf_pct.attr,
 	&turbo_pct.attr,
+	&num_pstates.attr,
 	NULL
 };
 
