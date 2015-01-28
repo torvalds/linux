@@ -78,6 +78,8 @@ struct wmi_ops {
 						  const struct wmi_vdev_spectral_conf_arg *arg);
 	struct sk_buff *(*gen_vdev_spectral_enable)(struct ath10k *ar, u32 vdev_id,
 						    u32 trigger, u32 enable);
+	struct sk_buff *(*gen_vdev_wmm_conf)(struct ath10k *ar, u32 vdev_id,
+					     const struct wmi_wmm_params_all_arg *arg);
 	struct sk_buff *(*gen_peer_create)(struct ath10k *ar, u32 vdev_id,
 					   const u8 peer_addr[ETH_ALEN]);
 	struct sk_buff *(*gen_peer_delete)(struct ath10k *ar, u32 vdev_id,
@@ -597,6 +599,21 @@ ath10k_wmi_vdev_sta_uapsd(struct ath10k *ar, u32 vdev_id,
 		return PTR_ERR(skb);
 
 	cmd_id = ar->wmi.cmd->sta_uapsd_auto_trig_cmdid;
+	return ath10k_wmi_cmd_send(ar, skb, cmd_id);
+}
+
+static inline int
+ath10k_wmi_vdev_wmm_conf(struct ath10k *ar, u32 vdev_id,
+			 const struct wmi_wmm_params_all_arg *arg)
+{
+	struct sk_buff *skb;
+	u32 cmd_id;
+
+	skb = ar->wmi.ops->gen_vdev_wmm_conf(ar, vdev_id, arg);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	cmd_id = ar->wmi.cmd->vdev_set_wmm_params_cmdid;
 	return ath10k_wmi_cmd_send(ar, skb, cmd_id);
 }
 

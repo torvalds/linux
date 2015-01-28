@@ -551,6 +551,7 @@ struct wmi_cmd_map {
 	u32 gpio_config_cmdid;
 	u32 gpio_output_cmdid;
 	u32 pdev_get_temperature_cmdid;
+	u32 vdev_set_wmm_params_cmdid;
 };
 
 /*
