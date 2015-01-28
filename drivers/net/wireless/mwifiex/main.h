@@ -553,7 +553,6 @@ struct mwifiex_private {
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dfs_dev_dir;
 #endif
-	u8 nick_name[16];
 	u16 current_key_index;
 	struct semaphore async_sem;
 	struct cfg80211_scan_request *scan_request;
