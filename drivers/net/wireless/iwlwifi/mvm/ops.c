@@ -870,7 +870,10 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 	 * If WoWLAN fw asserted, don't restart either, mac80211
 	 * can't recover this since we're already half suspended.
 	 */
-	if (test_and_set_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
+	if (!mvm->restart_fw && fw_error) {
+		schedule_work(&mvm->fw_error_dump_wk);
+	} else if (test_and_set_bit(IWL_MVM_STATUS_IN_HW_RESTART,
+				    &mvm->status)) {
 		struct iwl_mvm_reprobe *reprobe;
 
 		IWL_ERR(mvm,
@@ -894,16 +897,13 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 		reprobe->dev = mvm->trans->dev;
 		INIT_WORK(&reprobe->work, iwl_mvm_reprobe_wk);
 		schedule_work(&reprobe->work);
-	} else if (mvm->cur_ucode == IWL_UCODE_REGULAR &&
-		   (!fw_error || mvm->restart_fw)) {
+	} else if (mvm->cur_ucode == IWL_UCODE_REGULAR) {
 		/* don't let the transport/FW power down */
 		iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
 
 		if (fw_error && mvm->restart_fw > 0)
 			mvm->restart_fw--;
 		ieee80211_restart_hw(mvm->hw);
-	} else if (fw_error) {
-		schedule_work(&mvm->fw_error_dump_wk);
 	}
 }
 
