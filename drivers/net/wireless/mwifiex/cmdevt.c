@@ -1582,9 +1582,7 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 		le16_to_cpu(hw_spec->hw_if_version),
 		le16_to_cpu(hw_spec->version));
 
-	if (priv->curr_addr[0] == 0xff)
-		memmove(priv->curr_addr, hw_spec->permanent_addr, ETH_ALEN);
-
+	ether_addr_copy(priv->adapter->perm_addr, hw_spec->permanent_addr);
 	adapter->region_code = le16_to_cpu(hw_spec->region_code);
 
 	for (i = 0; i < MWIFIEX_MAX_REGION_CODE; i++)

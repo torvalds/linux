@@ -737,6 +737,7 @@ struct mwifiex_adapter {
 	int winner;
 	struct device *dev;
 	struct wiphy *wiphy;
+	u8 perm_addr[ETH_ALEN];
 	bool surprise_removed;
 	u32 fw_release_number;
 	u16 init_wait_q_woken;
