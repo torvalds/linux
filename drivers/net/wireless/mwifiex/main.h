@@ -730,6 +730,8 @@ struct mwifiex_if_ops {
 
 struct mwifiex_adapter {
 	u8 iface_type;
+	struct mwifiex_iface_comb iface_limit;
+	struct mwifiex_iface_comb curr_iface_comb;
 	struct mwifiex_private *priv[MWIFIEX_MAX_BSS_NUM];
 	u8 priv_num;
 	const struct firmware *firmware;
@@ -1142,6 +1144,25 @@ mwifiex_get_priv(struct mwifiex_adapter *adapter,
 		if (adapter->priv[i]) {
 			if (bss_role == MWIFIEX_BSS_ROLE_ANY ||
 			    GET_BSS_ROLE(adapter->priv[i]) == bss_role)
+				break;
+		}
+	}
+
+	return ((i < adapter->priv_num) ? adapter->priv[i] : NULL);
+}
+
+/*
+ * This function returns the first available unused private structure pointer.
+ */
+static inline struct mwifiex_private *
+mwifiex_get_unused_priv(struct mwifiex_adapter *adapter)
+{
+	int i;
+
+	for (i = 0; i < adapter->priv_num; i++) {
+		if (adapter->priv[i]) {
+			if (adapter->priv[i]->bss_mode ==
+			    NL80211_IFTYPE_UNSPECIFIED)
 				break;
 		}
 	}

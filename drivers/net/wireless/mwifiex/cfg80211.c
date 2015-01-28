@@ -2185,11 +2185,18 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 	case NL80211_IFTYPE_UNSPECIFIED:
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
-		priv = adapter->priv[MWIFIEX_BSS_TYPE_STA];
-		if (priv->bss_mode) {
+		if (adapter->curr_iface_comb.sta_intf ==
+		    adapter->iface_limit.sta_intf) {
 			wiphy_err(wiphy,
 				  "cannot create multiple sta/adhoc ifaces\n");
 			return ERR_PTR(-EINVAL);
+		}
+
+		priv = mwifiex_get_unused_priv(adapter);
+		if (!priv) {
+			wiphy_err(wiphy,
+				  "could not get free private struct\n");
+			return ERR_PTR(-EFAULT);
 		}
 
 		priv->wdev.wiphy = wiphy;
@@ -2208,11 +2215,18 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 
 		break;
 	case NL80211_IFTYPE_AP:
-		priv = adapter->priv[MWIFIEX_BSS_TYPE_UAP];
-
-		if (priv->bss_mode) {
-			wiphy_err(wiphy, "Can't create multiple AP interfaces");
+		if (adapter->curr_iface_comb.uap_intf ==
+		    adapter->iface_limit.uap_intf) {
+			wiphy_err(wiphy,
+				  "cannot create multiple AP ifaces\n");
 			return ERR_PTR(-EINVAL);
+		}
+
+		priv = mwifiex_get_unused_priv(adapter);
+		if (!priv) {
+			wiphy_err(wiphy,
+				  "could not get free private struct\n");
+			return ERR_PTR(-EFAULT);
 		}
 
 		priv->wdev.wiphy = wiphy;
@@ -2228,15 +2242,21 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
-		priv = adapter->priv[MWIFIEX_BSS_TYPE_P2P];
-
-		if (priv->bss_mode) {
-			wiphy_err(wiphy, "Can't create multiple P2P ifaces");
+		if (adapter->curr_iface_comb.p2p_intf ==
+		    adapter->iface_limit.p2p_intf) {
+			wiphy_err(wiphy,
+				  "cannot create multiple P2P ifaces\n");
 			return ERR_PTR(-EINVAL);
 		}
 
-		priv->wdev.wiphy = wiphy;
+		priv = mwifiex_get_unused_priv(adapter);
+		if (!priv) {
+			wiphy_err(wiphy,
+				  "could not get free private struct\n");
+			return ERR_PTR(-EFAULT);
+		}
 
+		priv->wdev.wiphy = wiphy;
 		/* At start-up, wpa_supplicant tries to change the interface
 		 * to NL80211_IFTYPE_STATION if it is not managed mode.
 		 */
@@ -2329,6 +2349,23 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 	mwifiex_dev_debugfs_init(priv);
 #endif
 
+	switch (type) {
+	case NL80211_IFTYPE_UNSPECIFIED:
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_ADHOC:
+		adapter->curr_iface_comb.sta_intf++;
+		break;
+	case NL80211_IFTYPE_AP:
+		adapter->curr_iface_comb.uap_intf++;
+		break;
+	case NL80211_IFTYPE_P2P_CLIENT:
+		adapter->curr_iface_comb.p2p_intf++;
+		break;
+	default:
+		wiphy_err(wiphy, "type not supported\n");
+		return ERR_PTR(-EINVAL);
+	}
+
 	return &priv->wdev;
 }
 EXPORT_SYMBOL_GPL(mwifiex_add_virtual_intf);
@@ -2339,12 +2376,13 @@ EXPORT_SYMBOL_GPL(mwifiex_add_virtual_intf);
 int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(wdev->netdev);
+	struct mwifiex_adapter *adapter = priv->adapter;
 
 #ifdef CONFIG_DEBUG_FS
 	mwifiex_dev_debugfs_remove(priv);
 #endif
 
-	mwifiex_stop_net_dev_queue(priv->netdev, priv->adapter);
+	mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 
 	if (netif_carrier_ok(priv->netdev))
 		netif_carrier_off(priv->netdev);
@@ -2358,6 +2396,24 @@ int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 	priv->wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
 
 	priv->media_connected = false;
+
+	switch (priv->bss_mode) {
+	case NL80211_IFTYPE_UNSPECIFIED:
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_ADHOC:
+		adapter->curr_iface_comb.sta_intf++;
+		break;
+	case NL80211_IFTYPE_AP:
+		adapter->curr_iface_comb.uap_intf++;
+		break;
+	case NL80211_IFTYPE_P2P_CLIENT:
+	case NL80211_IFTYPE_P2P_GO:
+		adapter->curr_iface_comb.p2p_intf++;
+		break;
+	default:
+		dev_err(adapter->dev, "del_virtual_intf: type not supported\n");
+		break;
+	}
 
 	priv->bss_mode = NL80211_IFTYPE_UNSPECIFIED;
 

@@ -104,6 +104,10 @@
 /* Rate index for OFDM 0 */
 #define MWIFIEX_RATE_INDEX_OFDM0   4
 
+#define MWIFIEX_MAX_STA_NUM		1
+#define MWIFIEX_MAX_UAP_NUM		1
+#define MWIFIEX_MAX_P2P_NUM		1
+
 enum mwifiex_bss_type {
 	MWIFIEX_BSS_TYPE_STA = 0,
 	MWIFIEX_BSS_TYPE_UAP = 1,
@@ -230,6 +234,12 @@ struct mwifiex_histogram_data {
 	atomic_t noise_flr[MWIFIEX_MAX_NOISE_FLR];
 	atomic_t sig_str[MWIFIEX_MAX_SIG_STRENGTH];
 	atomic_t num_samples;
+};
+
+struct mwifiex_iface_comb {
+	u8 sta_intf;
+	u8 uap_intf;
+	u8 p2p_intf;
 };
 
 #endif /* !_MWIFIEX_DECL_H_ */
