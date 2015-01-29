@@ -144,6 +144,7 @@ struct device_queue_manager {
 	unsigned int		processes_count;
 	unsigned int		queue_count;
 	unsigned int		sdma_queue_count;
+	unsigned int		total_queue_count;
 	unsigned int		next_pipe_to_allocate;
 	unsigned int		*allocated_queues;
 	unsigned int		sdma_bitmap;

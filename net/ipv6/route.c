@@ -1242,12 +1242,16 @@ restart:
 		rt = net->ipv6.ip6_null_entry;
 	else if (rt->dst.error) {
 		rt = net->ipv6.ip6_null_entry;
-	} else if (rt == net->ipv6.ip6_null_entry) {
+		goto out;
+	}
+
+	if (rt == net->ipv6.ip6_null_entry) {
 		fn = fib6_backtrack(fn, &fl6->saddr);
 		if (fn)
 			goto restart;
 	}
 
+out:
 	dst_hold(&rt->dst);
 
 	read_unlock_bh(&table->tb6_lock);

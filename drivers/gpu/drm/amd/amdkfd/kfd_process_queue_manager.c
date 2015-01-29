@@ -54,11 +54,11 @@ static int find_available_queue_slot(struct process_queue_manager *pqm,
 	pr_debug("kfd: in %s\n", __func__);
 
 	found = find_first_zero_bit(pqm->queue_slot_bitmap,
-			max_num_of_queues_per_process);
+			KFD_MAX_NUM_OF_QUEUES_PER_PROCESS);
 
 	pr_debug("kfd: the new slot id %lu\n", found);
 
-	if (found >= max_num_of_queues_per_process) {
+	if (found >= KFD_MAX_NUM_OF_QUEUES_PER_PROCESS) {
 		pr_info("amdkfd: Can not open more queues for process with pasid %d\n",
 				pqm->process->pasid);
 		return -ENOMEM;
@@ -76,7 +76,7 @@ int pqm_init(struct process_queue_manager *pqm, struct kfd_process *p)
 
 	INIT_LIST_HEAD(&pqm->queues);
 	pqm->queue_slot_bitmap =
-			kzalloc(DIV_ROUND_UP(max_num_of_queues_per_process,
+			kzalloc(DIV_ROUND_UP(KFD_MAX_NUM_OF_QUEUES_PER_PROCESS,
 					BITS_PER_BYTE), GFP_KERNEL);
 	if (pqm->queue_slot_bitmap == NULL)
 		return -ENOMEM;
@@ -206,6 +206,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 		pqn->kq = NULL;
 		retval = dev->dqm->ops.create_queue(dev->dqm, q, &pdd->qpd,
 						&q->properties.vmid);
+		pr_debug("DQM returned %d for create_queue\n", retval);
 		print_queue(q);
 		break;
 	case KFD_QUEUE_TYPE_DIQ:
@@ -226,7 +227,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	}
 
 	if (retval != 0) {
-		pr_err("kfd: error dqm create queue\n");
+		pr_debug("Error dqm create queue\n");
 		goto err_create_queue;
 	}
 
@@ -245,7 +246,10 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 err_create_queue:
 	kfree(pqn);
 err_allocate_pqn:
+	/* check if queues list is empty unregister process from device */
 	clear_bit(*qid, pqm->queue_slot_bitmap);
+	if (list_empty(&pqm->queues))
+		dev->dqm->ops.unregister_process(dev->dqm, &pdd->qpd);
 	return retval;
 }
 

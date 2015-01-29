@@ -405,6 +405,40 @@ static struct regulator_ops s2mps14_reg_ops;
 	.enable_mask	= S2MPS14_ENABLE_MASK			\
 }
 
+#define regulator_desc_s2mps13_buck7(num, min, step, min_sel) {	\
+	.name		= "BUCK"#num,				\
+	.id		= S2MPS13_BUCK##num,			\
+	.ops		= &s2mps14_reg_ops,			\
+	.type		= REGULATOR_VOLTAGE,			\
+	.owner		= THIS_MODULE,				\
+	.min_uV		= min,					\
+	.uV_step	= step,					\
+	.linear_min_sel	= min_sel,				\
+	.n_voltages	= S2MPS14_BUCK_N_VOLTAGES,		\
+	.ramp_delay	= S2MPS13_BUCK_RAMP_DELAY,		\
+	.vsel_reg	= S2MPS13_REG_B1OUT + (num) * 2 - 1,	\
+	.vsel_mask	= S2MPS14_BUCK_VSEL_MASK,		\
+	.enable_reg	= S2MPS13_REG_B1CTRL + (num - 1) * 2,	\
+	.enable_mask	= S2MPS14_ENABLE_MASK			\
+}
+
+#define regulator_desc_s2mps13_buck8_10(num, min, step, min_sel) {	\
+	.name		= "BUCK"#num,				\
+	.id		= S2MPS13_BUCK##num,			\
+	.ops		= &s2mps14_reg_ops,			\
+	.type		= REGULATOR_VOLTAGE,			\
+	.owner		= THIS_MODULE,				\
+	.min_uV		= min,					\
+	.uV_step	= step,					\
+	.linear_min_sel	= min_sel,				\
+	.n_voltages	= S2MPS14_BUCK_N_VOLTAGES,		\
+	.ramp_delay	= S2MPS13_BUCK_RAMP_DELAY,		\
+	.vsel_reg	= S2MPS13_REG_B1OUT + (num) * 2 - 1,	\
+	.vsel_mask	= S2MPS14_BUCK_VSEL_MASK,		\
+	.enable_reg	= S2MPS13_REG_B1CTRL + (num) * 2 - 1,	\
+	.enable_mask	= S2MPS14_ENABLE_MASK			\
+}
+
 static const struct regulator_desc s2mps13_regulators[] = {
 	regulator_desc_s2mps13_ldo(1,  MIN_800_MV,  STEP_12_5_MV, 0x00),
 	regulator_desc_s2mps13_ldo(2,  MIN_1400_MV, STEP_50_MV,   0x0C),
@@ -452,10 +486,10 @@ static const struct regulator_desc s2mps13_regulators[] = {
 	regulator_desc_s2mps13_buck(4,  MIN_500_MV,  STEP_6_25_MV, 0x10),
 	regulator_desc_s2mps13_buck(5,  MIN_500_MV,  STEP_6_25_MV, 0x10),
 	regulator_desc_s2mps13_buck(6,  MIN_500_MV,  STEP_6_25_MV, 0x10),
-	regulator_desc_s2mps13_buck(7,  MIN_500_MV,  STEP_6_25_MV, 0x10),
-	regulator_desc_s2mps13_buck(8,  MIN_1000_MV, STEP_12_5_MV, 0x20),
-	regulator_desc_s2mps13_buck(9,  MIN_1000_MV, STEP_12_5_MV, 0x20),
-	regulator_desc_s2mps13_buck(10, MIN_500_MV,  STEP_6_25_MV, 0x10),
+	regulator_desc_s2mps13_buck7(7,  MIN_500_MV,  STEP_6_25_MV, 0x10),
+	regulator_desc_s2mps13_buck8_10(8,  MIN_1000_MV, STEP_12_5_MV, 0x20),
+	regulator_desc_s2mps13_buck8_10(9,  MIN_1000_MV, STEP_12_5_MV, 0x20),
+	regulator_desc_s2mps13_buck8_10(10, MIN_500_MV,  STEP_6_25_MV, 0x10),
 };
 
 static int s2mps14_regulator_enable(struct regulator_dev *rdev)

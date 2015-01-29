@@ -1171,6 +1171,7 @@ struct btrfs_space_info {
 	struct percpu_counter total_bytes_pinned;
 
 	struct list_head list;
+	/* Protected by the spinlock 'lock'. */
 	struct list_head ro_bgs;
 
 	struct rw_semaphore groups_sem;

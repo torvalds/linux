@@ -183,16 +183,15 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	kfd->shared_resources = *gpu_resources;
 
 	/* calculate max size of mqds needed for queues */
-	size = max_num_of_processes *
-		max_num_of_queues_per_process *
-		kfd->device_info->mqd_size_aligned;
+	size = max_num_of_queues_per_device *
+			kfd->device_info->mqd_size_aligned;
 
 	/*
 	 * calculate max size of runlist packet.
 	 * There can be only 2 packets at once
 	 */
-	size += (max_num_of_processes * sizeof(struct pm4_map_process) +
-		max_num_of_processes * max_num_of_queues_per_process *
+	size += (KFD_MAX_NUM_OF_PROCESSES * sizeof(struct pm4_map_process) +
+		max_num_of_queues_per_device *
 		sizeof(struct pm4_map_queues) + sizeof(struct pm4_runlist)) * 2;
 
 	/* Add size of HIQ & DIQ */
