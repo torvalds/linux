@@ -1942,6 +1942,15 @@ static const struct file_operations snd_timer_f_ops =
 	.fasync = 	snd_timer_user_fasync,
 };
 
+/* unregister the system timer */
+static void snd_timer_free_all(void)
+{
+	struct snd_timer *timer, *n;
+
+	list_for_each_entry_safe(timer, n, &snd_timer_list, device_list)
+		snd_timer_free(timer);
+}
+
 /*
  *  ENTRY functions
  */
@@ -1955,25 +1964,28 @@ static int __init alsa_timer_init(void)
 			      "system timer");
 #endif
 
-	if ((err = snd_timer_register_system()) < 0)
+	err = snd_timer_register_system();
+	if (err < 0) {
 		pr_err("ALSA: unable to register system timer (%i)\n", err);
-	if ((err = snd_register_device(SNDRV_DEVICE_TYPE_TIMER, NULL, 0,
-				       &snd_timer_f_ops, NULL, "timer")) < 0)
+		return err;
+	}
+
+	err = snd_register_device(SNDRV_DEVICE_TYPE_TIMER, NULL, 0,
+				  &snd_timer_f_ops, NULL, "timer");
+	if (err < 0) {
 		pr_err("ALSA: unable to register timer device (%i)\n", err);
+		snd_timer_free_all();
+		return err;
+	}
+
 	snd_timer_proc_init();
 	return 0;
 }
 
 static void __exit alsa_timer_exit(void)
 {
-	struct list_head *p, *n;
-
 	snd_unregister_device(SNDRV_DEVICE_TYPE_TIMER, NULL, 0);
-	/* unregister the system timer */
-	list_for_each_safe(p, n, &snd_timer_list) {
-		struct snd_timer *timer = list_entry(p, struct snd_timer, device_list);
-		snd_timer_free(timer);
-	}
+	snd_timer_free_all();
 	snd_timer_proc_done();
 #ifdef SNDRV_OSS_INFO_DEV_TIMERS
 	snd_oss_info_unregister(SNDRV_OSS_INFO_DEV_TIMERS, SNDRV_CARDS - 1);
