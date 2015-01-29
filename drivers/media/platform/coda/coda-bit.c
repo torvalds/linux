@@ -30,6 +30,8 @@
 #include <media/videobuf2-vmalloc.h>
 
 #include "coda.h"
+#define CREATE_TRACE_POINTS
+#include "trace.h"
 
 #define CODA_PARA_BUF_SIZE	(10 * 1024)
 #define CODA7_PS_BUF_SIZE	0x28000
@@ -88,15 +90,21 @@ static void coda_command_async(struct coda_ctx *ctx, int cmd)
 	coda_write(dev, ctx->params.codec_mode, CODA_REG_BIT_RUN_COD_STD);
 	coda_write(dev, ctx->params.codec_mode_aux, CODA7_REG_BIT_RUN_AUX_STD);
 
+	trace_coda_bit_run(ctx, cmd);
+
 	coda_write(dev, cmd, CODA_REG_BIT_RUN_COMMAND);
 }
 
 static int coda_command_sync(struct coda_ctx *ctx, int cmd)
 {
 	struct coda_dev *dev = ctx->dev;
+	int ret;
 
 	coda_command_async(ctx, cmd);
-	return coda_wait_timeout(dev);
+	ret = coda_wait_timeout(dev);
+	trace_coda_bit_done(ctx);
+
+	return ret;
 }
 
 int coda_hw_reset(struct coda_ctx *ctx)
@@ -265,6 +273,8 @@ void coda_fill_bitstream(struct coda_ctx *ctx, bool streaming)
 					    ctx->bitstream_fifo.kfifo.mask;
 				list_add_tail(&meta->list,
 					      &ctx->buffer_meta_list);
+
+				trace_coda_bit_queue(ctx, src_buf, meta);
 			}
 
 			v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
@@ -1240,6 +1250,8 @@ static int coda_prepare_encode(struct coda_ctx *ctx)
 		coda_write(dev, ctx->iram_info.axi_sram_use,
 				CODA7_REG_BIT_AXI_SRAM_USE);
 
+	trace_coda_enc_pic_run(ctx, src_buf);
+
 	coda_command_async(ctx, CODA_COMMAND_PIC_RUN);
 
 	return 0;
@@ -1253,6 +1265,8 @@ static void coda_finish_encode(struct coda_ctx *ctx)
 
 	src_buf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
 	dst_buf = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
+
+	trace_coda_enc_pic_done(ctx, dst_buf);
 
 	/* Get results from the coda */
 	start_ptr = coda_read(dev, CODA_CMD_ENC_PIC_BB_START);
@@ -1743,6 +1757,8 @@ static int coda_prepare_decode(struct coda_ctx *ctx)
 	/* Clear decode success flag */
 	coda_write(dev, 0, CODA_RET_DEC_PIC_SUCCESS);
 
+	trace_coda_dec_pic_run(ctx, meta);
+
 	coda_command_async(ctx, CODA_COMMAND_PIC_RUN);
 
 	return 0;
@@ -1903,6 +1919,8 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 		}
 		mutex_unlock(&ctx->bitstream_mutex);
 
+		trace_coda_dec_pic_done(ctx, &ctx->frame_metas[decoded_idx]);
+
 		val = coda_read(dev, CODA_RET_DEC_PIC_TYPE) & 0x7;
 		if (val == 0)
 			ctx->frame_types[decoded_idx] = V4L2_BUF_FLAG_KEYFRAME;
@@ -1941,6 +1959,8 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 		meta = &ctx->frame_metas[ctx->display_idx];
 		dst_buf->v4l2_buf.timecode = meta->timecode;
 		dst_buf->v4l2_buf.timestamp = meta->timestamp;
+
+		trace_coda_dec_rot_done(ctx, meta, dst_buf);
 
 		switch (q_data_dst->fourcc) {
 		case V4L2_PIX_FMT_YUV420:
@@ -1999,6 +2019,8 @@ irqreturn_t coda_irq_handler(int irq, void *data)
 		mutex_unlock(&dev->coda_mutex);
 		return IRQ_HANDLED;
 	}
+
+	trace_coda_bit_done(ctx);
 
 	if (ctx->aborting) {
 		v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,

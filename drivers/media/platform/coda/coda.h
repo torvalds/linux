@@ -12,6 +12,9 @@
  * (at your option) any later version.
  */
 
+#ifndef __CODA_H__
+#define __CODA_H__
+
 #include <linux/debugfs.h>
 #include <linux/irqreturn.h>
 #include <linux/mutex.h>
@@ -294,3 +297,5 @@ extern const struct coda_context_ops coda_bit_encode_ops;
 extern const struct coda_context_ops coda_bit_decode_ops;
 
 irqreturn_t coda_irq_handler(int irq, void *data);
+
+#endif /* __CODA_H__ */
