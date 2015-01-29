@@ -28,6 +28,7 @@
 #include <asm/kvm_mmio.h>
 #include <asm/kvm_asm.h>
 #include <asm/kvm_emulate.h>
+#include <asm/virt.h>
 
 #include "trace.h"
 
@@ -598,6 +599,9 @@ int create_hyp_mappings(void *from, void *to)
 	unsigned long start = KERN_TO_HYP((unsigned long)from);
 	unsigned long end = KERN_TO_HYP((unsigned long)to);
 
+	if (is_kernel_in_hyp_mode())
+		return 0;
+
 	start = start & PAGE_MASK;
 	end = PAGE_ALIGN(end);
 
@@ -629,6 +633,9 @@ int create_hyp_io_mappings(void *from, void *to, phys_addr_t phys_addr)
 {
 	unsigned long start = KERN_TO_HYP((unsigned long)from);
 	unsigned long end = KERN_TO_HYP((unsigned long)to);
+
+	if (is_kernel_in_hyp_mode())
+		return 0;
 
 	/* Check for a valid kernel IO mapping */
 	if (!is_vmalloc_addr(from) || !is_vmalloc_addr(to - 1))
