@@ -628,11 +628,9 @@ bool kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
 	ASSERT(target);
 	switch (short_hand) {
 	case APIC_DEST_NOSHORT:
-		if (dest_mode == 0)
-			/* Physical mode. */
+		if (dest_mode == APIC_DEST_PHYSICAL)
 			return kvm_apic_match_physical_addr(target, dest);
 		else
-			/* Logical mode. */
 			return kvm_apic_match_logical_addr(target, dest);
 	case APIC_DEST_SELF:
 		return target == source;
@@ -677,7 +675,7 @@ bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
 
 	ret = true;
 
-	if (irq->dest_mode == 0) { /* physical mode */
+	if (irq->dest_mode == APIC_DEST_PHYSICAL) {
 		if (irq->dest_id >= ARRAY_SIZE(map->phys_map))
 			goto out;
 
