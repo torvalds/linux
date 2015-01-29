@@ -219,8 +219,9 @@ struct dentry_operations {
 #define DCACHE_WHITEOUT_TYPE		0x00100000 /* Whiteout dentry (stop pathwalk) */
 #define DCACHE_DIRECTORY_TYPE		0x00200000 /* Normal directory */
 #define DCACHE_AUTODIR_TYPE		0x00300000 /* Lookupless directory (presumed automount) */
-#define DCACHE_SYMLINK_TYPE		0x00400000 /* Symlink (or fallthru to such) */
-#define DCACHE_FILE_TYPE		0x00500000 /* Other file type (or fallthru to such) */
+#define DCACHE_REGULAR_TYPE		0x00400000 /* Regular file type (or fallthru to such) */
+#define DCACHE_SPECIAL_TYPE		0x00500000 /* Other file type (or fallthru to such) */
+#define DCACHE_SYMLINK_TYPE		0x00600000 /* Symlink (or fallthru to such) */
 
 #define DCACHE_MAY_FREE			0x00800000
 #define DCACHE_FALLTHRU			0x01000000 /* Fall through to lower layer */
@@ -455,9 +456,19 @@ static inline bool d_is_symlink(const struct dentry *dentry)
 	return __d_entry_type(dentry) == DCACHE_SYMLINK_TYPE;
 }
 
+static inline bool d_is_reg(const struct dentry *dentry)
+{
+	return __d_entry_type(dentry) == DCACHE_REGULAR_TYPE;
+}
+
+static inline bool d_is_special(const struct dentry *dentry)
+{
+	return __d_entry_type(dentry) == DCACHE_SPECIAL_TYPE;
+}
+
 static inline bool d_is_file(const struct dentry *dentry)
 {
-	return __d_entry_type(dentry) == DCACHE_FILE_TYPE;
+	return d_is_reg(dentry) || d_is_special(dentry);
 }
 
 static inline bool d_is_negative(const struct dentry *dentry)
