@@ -360,9 +360,6 @@ static void iwl_mvm_cleanup_iterator(void *data, u8 *mac,
 	mvmvif->uploaded = false;
 	mvmvif->ap_sta_id = IWL_MVM_STATION_COUNT;
 
-	/* does this make sense at all? */
-	mvmvif->color++;
-
 	spin_lock_bh(&mvm->time_event_lock);
 	iwl_mvm_te_clear_data(mvm, &mvmvif->time_event_data);
 	spin_unlock_bh(&mvm->time_event_lock);
