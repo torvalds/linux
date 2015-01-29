@@ -8,9 +8,10 @@ Required properties:
 - compatible : contains "mmc-pwrseq-simple".
 
 Optional properties:
-- reset-gpios : contains a GPIO specifier. The reset GPIO is asserted at
-	initialization and prior we start the power up procedure of the card. It
-	will be de-asserted right after the power has been provided to the card.
+- reset-gpios : contains a list of GPIO specifiers. The reset GPIOs are asserted
+	at initialization and prior we start the power up procedure of the card.
+	They will be de-asserted right after the power has been provided to the
+	card.
 
 Example:
 
