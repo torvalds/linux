@@ -855,10 +855,11 @@ static int pcan_usb_probe(struct usb_interface *intf)
 /*
  * describe the PCAN-USB adapter
  */
-struct peak_usb_adapter pcan_usb = {
+const struct peak_usb_adapter pcan_usb = {
 	.name = "PCAN-USB",
 	.device_id = PCAN_USB_PRODUCT_ID,
 	.ctrl_count = 1,
+	.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES | CAN_CTRLMODE_LISTENONLY,
 	.clock = {
 		.freq = PCAN_USB_CRYSTAL_HZ / 2 ,
 	},
