@@ -133,6 +133,12 @@ static unsigned long alchemy_clk_cpu_recalc(struct clk_hw *hw,
 	return t;
 }
 
+void __init alchemy_set_lpj(void)
+{
+	preset_lpj = alchemy_clk_cpu_recalc(NULL, ALCHEMY_ROOTCLK_RATE);
+	preset_lpj /= 2 * HZ;
+}
+
 static struct clk_ops alchemy_clkops_cpu = {
 	.recalc_rate	= alchemy_clk_cpu_recalc,
 };
