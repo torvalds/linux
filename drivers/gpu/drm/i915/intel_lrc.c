@@ -732,8 +732,8 @@ void intel_execlists_retire_requests(struct intel_engine_cs *ring)
 			intel_lr_context_unpin(ring, ctx);
 		intel_runtime_pm_put(dev_priv);
 		i915_gem_context_unreference(ctx);
-		i915_gem_request_unreference(req);
 		list_del(&req->execlist_link);
+		i915_gem_request_unreference(req);
 	}
 }
 
