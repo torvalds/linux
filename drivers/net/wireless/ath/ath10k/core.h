@@ -285,10 +285,8 @@ struct ath10k_vif {
 	u32 aid;
 	u8 bssid[ETH_ALEN];
 
-	struct work_struct wep_key_work;
 	struct ieee80211_key_conf *wep_keys[WMI_MAX_KEY_INDEX + 1];
-	u8 def_wep_key_idx;
-	u8 def_wep_key_newidx;
+	s8 def_wep_key_idx;
 
 	u16 tx_seq_no;
 
