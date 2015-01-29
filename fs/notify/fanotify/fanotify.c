@@ -116,7 +116,7 @@ static bool fanotify_should_send_event(struct fsnotify_mark *inode_mark,
 
 	/* sorry, fanotify only gives a damn about files and dirs */
 	if (!d_is_reg(path->dentry) &&
-	    !d_is_dir(path->dentry))
+	    !d_can_lookup(path->dentry))
 		return false;
 
 	if (inode_mark && vfsmnt_mark) {
