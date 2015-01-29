@@ -217,6 +217,13 @@ struct ti_dt_clk {
 /* Maximum number of clock memmaps */
 #define CLK_MAX_MEMMAPS			4
 
+/* Static memmap indices */
+enum {
+	TI_CLKM_CM = 0,
+	TI_CLKM_PRM,
+	TI_CLKM_SCRM,
+};
+
 typedef void (*ti_of_clk_init_cb_t)(struct clk_hw *, struct device_node *);
 
 /**
@@ -347,5 +354,10 @@ extern const struct clk_hw_omap_ops clkhwops_iclk_wait;
 extern const struct clk_hw_omap_ops clkhwops_omap3430es2_iclk_ssi_wait;
 extern const struct clk_hw_omap_ops clkhwops_omap3430es2_iclk_dss_usbhost_wait;
 extern const struct clk_hw_omap_ops clkhwops_omap3430es2_iclk_hsotgusb_wait;
+
+int omap3430_clk_legacy_init(void);
+int omap3430es1_clk_legacy_init(void);
+int omap36xx_clk_legacy_init(void);
+int am35xx_clk_legacy_init(void);
 
 #endif
