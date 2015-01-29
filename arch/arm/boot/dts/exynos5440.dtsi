@@ -219,6 +219,7 @@
 		interrupts = <0 58 0>;
 		clocks = <&clock CLK_B_125>;
 		clock-names = "tmu_apbif";
+		#include "exynos5440-tmu-sensor-conf.dtsi"
 	};
 
 	tmuctrl_1: tmuctrl@16011C {
@@ -227,6 +228,7 @@
 		interrupts = <0 58 0>;
 		clocks = <&clock CLK_B_125>;
 		clock-names = "tmu_apbif";
+		#include "exynos5440-tmu-sensor-conf.dtsi"
 	};
 
 	tmuctrl_2: tmuctrl@160120 {
@@ -235,6 +237,22 @@
 		interrupts = <0 58 0>;
 		clocks = <&clock CLK_B_125>;
 		clock-names = "tmu_apbif";
+		#include "exynos5440-tmu-sensor-conf.dtsi"
+	};
+
+	thermal-zones {
+		cpu0_thermal: cpu0-thermal {
+			thermal-sensors = <&tmuctrl_0>;
+			#include "exynos5440-trip-points.dtsi"
+		};
+		cpu1_thermal: cpu1-thermal {
+		       thermal-sensors = <&tmuctrl_1>;
+		       #include "exynos5440-trip-points.dtsi"
+		};
+		cpu2_thermal: cpu2-thermal {
+		       thermal-sensors = <&tmuctrl_2>;
+		       #include "exynos5440-trip-points.dtsi"
+		};
 	};
 
 	sata@210000 {

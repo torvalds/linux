@@ -663,6 +663,10 @@
 		status = "disabled";
 	};
 
+	tmu: tmu@100C0000 {
+		#include "exynos4412-tmu-sensor-conf.dtsi"
+	};
+
 	ppmu_dmc0: ppmu_dmc0@106a0000 {
 		compatible = "samsung,exynos-ppmu";
 		reg = <0x106a0000 0x2000>;
