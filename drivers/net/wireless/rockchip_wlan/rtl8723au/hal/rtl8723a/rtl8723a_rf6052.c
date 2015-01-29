@@ -184,6 +184,21 @@ rtl8192c_PHY_RF6052SetBandwidth(
 
 }
 
+#define MGN_2M 0x04
+s8 tx_power_extra_bias(
+	IN	u8				RFPath,
+	IN	u8				Rate,	
+	IN	HT_CHANNEL_WIDTH	BandWidth,	
+	IN	u8				Channel
+	)
+{
+	s8 bias = 0;
+
+	if (Rate == MGN_2M)
+		bias = -9;
+
+	return bias;
+}
 
 /*-----------------------------------------------------------------------------
  * Function:	PHY_RF6052SetCckTxPower
@@ -216,6 +231,7 @@ rtl8192c_PHY_RF6052SetCckTxPower(
 	BOOLEAN		TurboScanOff = _FALSE;
 	u8			idx1, idx2;
 	u8*			ptr;
+	s8 bias_2m;
 
 	// 2010/10/18 MH Accorsing to SD3 eechou's suggestion, we need to disable turbo scan for RU.
 	// Otherwise, external PA will be broken if power index > 0x20.
@@ -290,9 +306,20 @@ rtl8192c_PHY_RF6052SetCckTxPower(
 
 	for(idx1=RF_PATH_A; idx1<=RF_PATH_B; idx1++)
 	{
+		bias_2m = tx_power_extra_bias(idx1, MGN_2M, 0, 0);
 		ptr = (u8*)(&(TxAGC[idx1]));
 		for(idx2=0; idx2<4; idx2++)
 		{
+			if (idx2 == 1) /* 2M */
+			{
+				s16 value = *ptr + bias_2m;
+				if (value < 0)
+					value = 0;
+				else if (value > RF6052_MAX_TX_PWR)
+					value = RF6052_MAX_TX_PWR;
+
+				*ptr = (u8)value;
+			}
 			if(*ptr > RF6052_MAX_TX_PWR)
 				*ptr = RF6052_MAX_TX_PWR;
 			ptr++;
@@ -306,6 +333,8 @@ rtl8192c_PHY_RF6052SetCckTxPower(
 	tmpval = TxAGC[RF_PATH_A]>>8;
 	PHY_SetBBReg(Adapter, rTxAGC_B_CCK11_A_CCK2_11, 0xffffff00, tmpval);
 	//RTPRINT(FPHY, PHY_TXPWR, ("CCK PWR 2~11M (rf-A) = 0x%x (reg 0x%x)\n", tmpval, rTxAGC_B_CCK11_A_CCK2_11));
+	if (0)
+		DBG_871X("CCK PWR 2~11M (rf-A) = 0x%x (H3Bytes of reg 0x%x)\n", tmpval, rTxAGC_B_CCK11_A_CCK2_11);
 
 	// rf-B cck tx power
 	tmpval = TxAGC[RF_PATH_B]>>24;
@@ -313,8 +342,9 @@ rtl8192c_PHY_RF6052SetCckTxPower(
 	//RTPRINT(FPHY, PHY_TXPWR, ("CCK PWR 11M (rf-B) = 0x%x (reg 0x%x)\n", tmpval, rTxAGC_B_CCK11_A_CCK2_11));
 	tmpval = TxAGC[RF_PATH_B]&0x00ffffff;
 	PHY_SetBBReg(Adapter, rTxAGC_B_CCK1_55_Mcs32, 0xffffff00, tmpval);
-	//RTPRINT(FPHY, PHY_TXPWR, ("CCK PWR 1~5.5M (rf-B) = 0x%x (reg 0x%x)\n",
-	//	tmpval, rTxAGC_B_CCK1_55_Mcs32));
+	//RTPRINT(FPHY, PHY_TXPWR, ("CCK PWR 1~5.5M (rf-B) = 0x%x (reg 0x%x)\n", tmpval, rTxAGC_B_CCK1_55_Mcs32));
+	if (0)
+		DBG_871X("CCK PWR 1~5.5M (rf-B) = 0x%x (H3Bytes of reg 0x%x)\n", tmpval, rTxAGC_B_CCK1_55_Mcs32);
 
 }	/* PHY_RF6052SetCckTxPower */
 

@@ -1466,7 +1466,6 @@ typedef struct _BT_COEXIST_8723A
 	u8					bC2hBtInfoReqSent;
 	u8					bForceFwBtInfo;
 	u8					bForceA2dpSink;
-	u8					bBusyTrafficForCoex;
 //	u8					bForceLps;
 //	u8					bBtPwrSaveMode;
 	BTDM_8723A_2ANT			btdm2Ant;

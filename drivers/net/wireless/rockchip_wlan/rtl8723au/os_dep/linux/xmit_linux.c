@@ -422,7 +422,11 @@ _func_enter_;
 	if ( !rtw_mc2u_disable
 		&& check_fwstate(pmlmepriv, WIFI_AP_STATE) == _TRUE
 		&& ( IP_MCAST_MAC(pkt->data)
-			|| ICMPV6_MCAST_MAC(pkt->data) )
+			|| ICMPV6_MCAST_MAC(pkt->data)
+			#ifdef CONFIG_TX_BCAST2UNI
+			|| is_broadcast_mac_addr(pkt->data)
+			#endif
+			)
 		&& (padapter->registrypriv.wifi_spec == 0)
                 )
 	{

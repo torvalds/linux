@@ -249,7 +249,6 @@ void _8051Reset8723A(PADAPTER padapter)
 	DBG_871X("=====> _8051Reset8723A(): 8051 reset success .\n");
 }
 
-extern u8 g_fwdl_chksum_fail;
 static s32 polling_fwdl_chksum(_adapter *adapter, u32 min_cnt, u32 timeout_ms)
 {
 	s32 ret = _FAIL;
@@ -270,11 +269,8 @@ static s32 polling_fwdl_chksum(_adapter *adapter, u32 min_cnt, u32 timeout_ms)
 		goto exit;
 	}
 
-	if (g_fwdl_chksum_fail) {
-		DBG_871X("%s: fwdl test case: fwdl_chksum_fail\n", __FUNCTION__);
-		g_fwdl_chksum_fail--;
+	if (rtw_fwdl_test_trigger_chksum_fail())
 		goto exit;
-	}
 
 	ret = _SUCCESS;
 
@@ -285,7 +281,6 @@ exit:
 	return ret;
 }
 
-extern u8 g_fwdl_wintint_rdy_fail;
 static s32 _FWFreeToGo(_adapter *adapter, u32 min_cnt, u32 timeout_ms)
 {
 	s32 ret = _FAIL;
@@ -313,11 +308,8 @@ static s32 _FWFreeToGo(_adapter *adapter, u32 min_cnt, u32 timeout_ms)
 		goto exit;
 	}
 
-	if (g_fwdl_wintint_rdy_fail) {
-		DBG_871X("%s: fwdl test case: wintint_rdy_fail\n", __FUNCTION__);
-		g_fwdl_wintint_rdy_fail--;
+	if (rtw_fwdl_test_trigger_wintint_rdy_fail())
 		goto exit;
-	}
 
 	ret = _SUCCESS;
 
@@ -1385,6 +1377,20 @@ hal_ReadEFuse_WiFi(
 	// Copy from Efuse map to output pointer memory!!!
 	for (i=0; i<_size_byte; i++)
 		pbuf[i] = efuseTbl[_offset+i];
+
+#ifdef CONFIG_DEBUG
+if(1)
+{
+	DBG_871X("Efuse Realmap:\n");
+	for(i=0; i<_size_byte; i++)
+	{
+		if (i % 16 == 0)
+			printk("\n");
+		printk("%02X ", pbuf[i]);
+	}
+	printk("\n");
+}
+#endif
 
 	// Calculate Efuse utilization
 	EFUSE_GetEfuseDefinition(padapter, EFUSE_WIFI, TYPE_AVAILABLE_EFUSE_BYTES_TOTAL, &total, bPseudoTest);
@@ -4904,39 +4910,46 @@ _func_enter_;
 			break;
 
 		case HW_VAR_BASIC_RATE:
-			{
-				u16			BrateCfg = 0;
-				u8			RateIndex = 0;
+		{
+			struct mlme_ext_info *mlmext_info = &padapter->mlmeextpriv.mlmext_info;
+			u16 input_b = 0, masked = 0, ioted = 0, BrateCfg = 0;
+			u16 rrsr_2g_force_mask = (RRSR_11M|RRSR_5_5M|RRSR_1M);
+			u16 rrsr_2g_allow_mask = (RRSR_24M|RRSR_12M|RRSR_6M|RRSR_11M|RRSR_5_5M|RRSR_2M|RRSR_1M);
+			u8			RateIndex = 0;
 
-				// 2007.01.16, by Emily
-				// Select RRSR (in Legacy-OFDM and CCK)
-				// For 8190, we select only 24M, 12M, 6M, 11M, 5.5M, 2M, and 1M from the Basic rate.
-				// We do not use other rates.
-				HalSetBrateCfg(padapter, val, &BrateCfg);
+			HalSetBrateCfg(padapter, val, &BrateCfg);
+			input_b = BrateCfg;
 
-				//2011.03.30 add by Luke Lee
-				//CCK 2M ACK should be disabled for some BCM and Atheros AP IOT
-				//because CCK 2M has poor TXEVM
-				//CCK 5.5M & 11M ACK should be enabled for better performance
+			/* apply force and allow mask */
+			BrateCfg |= rrsr_2g_force_mask;
+			BrateCfg &= rrsr_2g_allow_mask;
+			masked = BrateCfg;
 
-				pHalData->BasicRateSet = BrateCfg = (BrateCfg |0xd) & 0x15d;
-				BrateCfg |= 0x01; // default enable 1M ACK rate
-				DBG_8192C("HW_VAR_BASIC_RATE: BrateCfg(%#x)\n", BrateCfg);
-
-				// Set RRSR rate table.
-				rtw_write8(padapter, REG_RRSR, BrateCfg&0xff);
-				rtw_write8(padapter, REG_RRSR+1, (BrateCfg>>8)&0xff);
-				rtw_write8(padapter, REG_RRSR+2, rtw_read8(padapter, REG_RRSR+2)&0xf0);
-
-				// Set RTS initial rate
-				while (BrateCfg > 0x1)
-				{
-					BrateCfg = (BrateCfg >> 1);
-					RateIndex++;
-				}
-				// Ziv - Check
-				rtw_write8(padapter, REG_INIRTS_RATE_SEL, RateIndex);
+			/* IOT consideration */
+			if (mlmext_info->assoc_AP_vendor == HT_IOT_PEER_CISCO) {
+				/* if peer is cisco and didn't use ofdm rate, we enable 6M ack */
+				if((BrateCfg & (RRSR_24M|RRSR_12M|RRSR_6M)) == 0)
+					BrateCfg |= RRSR_6M;
 			}
+			ioted = BrateCfg;
+
+			pHalData->BasicRateSet = BrateCfg;
+
+			DBG_8192C("HW_VAR_BASIC_RATE: %#x -> %#x -> %#x\n", input_b, masked, ioted);
+
+			// Set RRSR rate table.
+			rtw_write16(padapter, REG_RRSR, BrateCfg);
+			rtw_write8(padapter, REG_RRSR+2, rtw_read8(padapter, REG_RRSR+2)&0xf0);
+
+			// Set RTS initial rate
+			while (BrateCfg > 0x1)
+			{
+				BrateCfg = (BrateCfg >> 1);
+				RateIndex++;
+			}
+			// Ziv - Check
+			rtw_write8(padapter, REG_INIRTS_RATE_SEL, RateIndex);
+		}
 			break;
 
 		case HW_VAR_TXPAUSE:
@@ -5120,14 +5133,6 @@ _func_enter_;
 				if (bShortPreamble) regTmp |= 0x80;
 					rtw_write8(padapter, REG_RRSR+2, regTmp);
 			}
-			break;
-
-		case HW_VAR_SEC_CFG:
-#ifdef CONFIG_CONCURRENT_MODE
-			rtw_write8(padapter, REG_SECCFG, 0x0c|BIT(5));// enable tx enc and rx dec engine, and no key search for MC/BC
-#else
-			rtw_write8(padapter, REG_SECCFG, *val);
-#endif
 			break;
 
 		case HW_VAR_DM_FLAG:
@@ -5510,11 +5515,135 @@ _func_enter_;
 			rtw_write8(padapter, REG_TDECTRL+2, rtw_read8(padapter, REG_TDECTRL+2) | BIT0);
 			break;
 
+		case HW_VAR_MACID_SLEEP:
+		{
+			u32 reg_macid_sleep;
+			u8 bit_shift;
+			u8 id = *(u8*)val;
+			u32 val32;
+
+			if (id < 32) {
+				reg_macid_sleep = REG_MACID_SLEEP;
+				bit_shift = id;
+			} else {
+				rtw_warn_on(1);
+				break;
+			}
+
+			val32 = rtw_read32(padapter, reg_macid_sleep);
+			DBG_8192C(FUNC_ADPT_FMT ": [HW_VAR_MACID_SLEEP] macid=%d, org reg_0x%03x=0x%08X\n",
+				FUNC_ADPT_ARG(padapter), id, reg_macid_sleep, val32);
+
+			if (val32 & BIT(bit_shift))
+				break;
+
+			val32 |= BIT(bit_shift);
+			rtw_write32(padapter, reg_macid_sleep, val32);
+		}
+			break;
+
+		case HW_VAR_MACID_WAKEUP:
+		{
+			u32 reg_macid_sleep;
+			u8 bit_shift;
+			u8 id = *(u8*)val;
+			u32 val32;
+
+			if (id < 32) {
+				reg_macid_sleep = REG_MACID_SLEEP;
+				bit_shift = id;
+			} else {
+				rtw_warn_on(1);
+				break;
+			}
+
+			val32 = rtw_read32(padapter, reg_macid_sleep);
+			DBG_8192C(FUNC_ADPT_FMT ": [HW_VAR_MACID_WAKEUP] macid=%d, org reg_0x%03x=0x%08X\n",
+				FUNC_ADPT_ARG(padapter), id, reg_macid_sleep, val32);
+
+			if (!(val32 & BIT(bit_shift)))
+				break;
+
+			val32 &= ~BIT(bit_shift);
+			rtw_write32(padapter, reg_macid_sleep, val32);
+		}
+			break;
+
 		default:
+			SetHwReg(padapter, variable, val);
 			break;
 	}
 
 _func_exit_;
+}
+
+struct qinfo_8723a {
+	u32 head:8;
+	u32 pkt_num:8;
+	u32 tail:8;
+	u32 empty:1;
+	u32 ac:2;
+	u32 macid:5;
+};
+
+struct bcn_qinfo_8723a {
+	u16 head:8;
+	u16 pkt_num:8;
+};
+
+void dump_qinfo_8723a(void *sel, struct qinfo_8723a *info, const char *tag)
+{
+	//if (info->pkt_num)
+	DBG_871X_SEL_NL(sel, "%shead:0x%02x, tail:0x%02x, pkt_num:%u, empty:%u, macid:%u, ac:%u\n"
+		, tag ? tag : "", info->head, info->tail, info->pkt_num, info->empty, info->macid, info->ac
+	);
+}
+
+void dump_bcn_qinfo_8723a(void *sel, struct bcn_qinfo_8723a *info, const char *tag)
+{
+	//if (info->pkt_num)
+	DBG_871X_SEL_NL(sel, "%shead:0x%02x, pkt_num:%u\n"
+		, tag ? tag : "", info->head, info->pkt_num
+	);
+}
+
+void dump_mac_qinfo_8723a(void *sel, _adapter *adapter)
+{
+	u32 q0_info;
+	u32 q1_info;
+	u32 q2_info;
+	u32 q3_info;
+	u32 q4_info;
+	u32 q5_info;
+	u32 q6_info;
+	u32 q7_info;
+	u32 mg_q_info;
+	u32 hi_q_info;
+	u16 bcn_q_info;
+
+	q0_info = rtw_read32(adapter, REG_Q0_INFO);
+	q1_info = rtw_read32(adapter, REG_Q1_INFO);
+	q2_info = rtw_read32(adapter, REG_Q2_INFO);
+	q3_info = rtw_read32(adapter, REG_Q3_INFO);
+	q4_info = rtw_read32(adapter, REG_Q4_INFO);
+	q5_info = rtw_read32(adapter, REG_Q5_INFO);
+	q6_info = rtw_read32(adapter, REG_Q6_INFO);
+	q7_info = rtw_read32(adapter, REG_Q7_INFO);
+	mg_q_info = rtw_read32(adapter, REG_MGQ_INFO);
+	hi_q_info = rtw_read32(adapter, REG_HGQ_INFO);
+	bcn_q_info = rtw_read16(adapter, REG_BCNQ_INFO);
+
+	dump_qinfo_8723a(sel, (struct qinfo_8723a *)&q0_info, "Q0 ");
+	dump_qinfo_8723a(sel, (struct qinfo_8723a *)&q1_info, "Q1 ");
+	dump_qinfo_8723a(sel, (struct qinfo_8723a *)&q2_info, "Q2 ");
+	dump_qinfo_8723a(sel, (struct qinfo_8723a *)&q3_info, "Q3 ");
+	dump_qinfo_8723a(sel, (struct qinfo_8723a *)&q4_info, "Q4 ");
+	dump_qinfo_8723a(sel, (struct qinfo_8723a *)&q5_info, "Q5 ");
+	dump_qinfo_8723a(sel, (struct qinfo_8723a *)&q6_info, "Q6 ");
+	dump_qinfo_8723a(sel, (struct qinfo_8723a *)&q7_info, "Q7 ");
+	dump_qinfo_8723a(sel, (struct qinfo_8723a *)&mg_q_info, "MG ");
+	dump_qinfo_8723a(sel, (struct qinfo_8723a *)&hi_q_info, "HI ");
+	dump_bcn_qinfo_8723a(sel, (struct bcn_qinfo_8723a *)&bcn_q_info, "BCN ");
 }
 
 void GetHwReg8723A(PADAPTER padapter, u8 variable, u8 *val)
@@ -5616,15 +5745,45 @@ void GetHwReg8723A(PADAPTER padapter, u8 variable, u8 *val)
 			*val = pHalData->bMacPwrCtrlOn;
 			break;
 		case HW_VAR_CHK_HI_QUEUE_EMPTY:
-			*val = ((rtw_read32(padapter, REG_HGQ_INFORMATION)&0x0000ff00)==0) ? _TRUE:_FALSE;
+			*val = ((rtw_read32(padapter, REG_HGQ_INFO)&0x0000ff00)==0) ? _TRUE:_FALSE;
 			break;	
 		case HW_VAR_C2HEVT_CLEAR:
 			*val =  rtw_read8(padapter, REG_C2HEVT_CLEAR);
 			break;
 		case HW_VAR_C2HEVT_MSG_NORMAL:
 			*val =  rtw_read8(padapter, REG_C2HEVT_MSG_NORMAL);
-			break;	
+			break;
+		case HW_VAR_DUMP_MAC_QUEUE_INFO:
+			dump_mac_qinfo_8723a(val, padapter);
+			break;
+		default:
+			GetHwReg(padapter, variable, val);
+			break;
 	}
+}
+
+u8
+GetHalDefVar8723A(
+	IN	PADAPTER				Adapter,
+	IN	HAL_DEF_VARIABLE		eVariable,
+	IN	PVOID					pValue
+	)
+{
+	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(Adapter);
+	u8 bResult = _SUCCESS;
+
+	switch(eVariable) {
+
+	case HAL_DEF_MACID_SLEEP:
+		*(u8*)pValue = _TRUE; // support macid sleep
+		break;
+
+	default:
+		bResult = GetHalDefVar(Adapter, eVariable, pValue);
+		break;
+	}
+
+	return bResult;
 }
 
 #ifdef CONFIG_BT_COEXIST

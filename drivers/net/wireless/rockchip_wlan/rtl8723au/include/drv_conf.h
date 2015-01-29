@@ -71,6 +71,11 @@
 	#define CONFIG_USB_VENDOR_REQ_MUTEX
 #endif
 
+#define DYNAMIC_CAMID_ALLOC
+
+#ifndef CONFIG_RTW_HIQ_FILTER
+	#define CONFIG_RTW_HIQ_FILTER 1
+#endif
 
 //#include <rtl871x_byteorder.h>
 

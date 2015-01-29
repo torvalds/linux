@@ -40,6 +40,18 @@
 
 #define _HAL_INIT_C_
 
+#ifdef CONFIG_RF_GAIN_OFFSET
+#ifdef CONFIG_RTL8723A
+#define	RF_GAIN_OFFSET_ON			BIT0
+#define	REG_RF_BB_GAIN_OFFSET	0x7f
+#define	RF_GAIN_OFFSET_MASK		0xfffff
+#else
+#define	RF_GAIN_OFFSET_ON			BIT4
+#define	REG_RF_BB_GAIN_OFFSET	0x55
+#define	RF_GAIN_OFFSET_MASK		0xfffff
+#endif  //CONFIG_RTL8723A
+#endif //CONFIG_RF_GAIN_OFFSET
+
 void dump_chip_info(HAL_VERSION	ChipVersion)
 {
 	int cnt = 0;
@@ -396,6 +408,74 @@ exit:
 	return ret;
 }
 
+void SetHwReg(_adapter *adapter, u8 variable, u8 *val)
+{
+	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
+	DM_ODM_T *odm = &(hal_data->odmpriv);
+
+_func_enter_;
+
+	switch (variable) {
+	case HW_VAR_SEC_CFG:
+	{
+		#if defined(CONFIG_CONCURRENT_MODE) && !defined(DYNAMIC_CAMID_ALLOC)
+		// enable tx enc and rx dec engine, and no key search for MC/BC
+		rtw_write8(adapter, REG_SECCFG, SCR_NoSKMC|SCR_RxDecEnable|SCR_TxEncEnable);
+		#elif defined(DYNAMIC_CAMID_ALLOC)
+		u16 reg_scr;
+
+		reg_scr = rtw_read16(adapter, REG_SECCFG);
+		rtw_write16(adapter, REG_SECCFG, reg_scr|SCR_CHK_KEYID|SCR_RxDecEnable|SCR_TxEncEnable);
+		#else
+		rtw_write8(adapter, REG_SECCFG, *((u8*)val));
+		#endif
+	}
+		break;
+	case HW_VAR_SEC_DK_CFG:
+	{
+		struct security_priv *sec = &adapter->securitypriv;
+		u8 reg_scr = rtw_read8(adapter, REG_SECCFG);
+
+		if (val) /* Enable default key related setting */
+		{
+			reg_scr |= SCR_TXBCUSEDK;
+			if (sec->dot11AuthAlgrthm != dot11AuthAlgrthm_8021X)
+				reg_scr |= (SCR_RxUseDK|SCR_TxUseDK);
+		}
+		else /* Disable default key related setting */
+		{
+			reg_scr &= ~(SCR_RXBCUSEDK|SCR_TXBCUSEDK|SCR_RxUseDK|SCR_TxUseDK);
+		}
+
+		rtw_write8(adapter, REG_SECCFG, reg_scr);
+	}
+		break;
+	default:
+		if (0)
+		DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" variable(%d) not defined!\n",
+			FUNC_ADPT_ARG(adapter), variable);
+		break;
+	}
+
+_func_exit_;
+}
+
+void GetHwReg(_adapter *adapter, u8 variable, u8 *val)
+{
+	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
+	DM_ODM_T *odm = &(hal_data->odmpriv);
+
+_func_enter_;
+
+	switch (variable) {
+	default:
+		if (0)
+		DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" variable(%d) not defined!\n",
+			FUNC_ADPT_ARG(adapter), variable);
+		break;
+	}
+}
+
 u8
 SetHalDefVar(_adapter *adapter, HAL_DEF_VARIABLE variable, void *value)
 {
@@ -442,6 +522,9 @@ GetHalDefVar(_adapter *adapter, HAL_DEF_VARIABLE variable, void *value)
 	case HAL_DEF_DBG_DM_FUNC:
 		*((u32*)value) = pHalData->odmpriv.SupportAbility;
 		break;
+	case HAL_DEF_MACID_SLEEP:
+		*(u8*)value = _FALSE; // support macid sleep
+		break;
 	default:
 		DBG_871X_LEVEL(_drv_always_, "%s: [WARNING] HAL_DEF_VARIABLE(%d) not defined!\n", __FUNCTION__, variable);
 		bResult = _FAIL;
@@ -450,4 +533,282 @@ GetHalDefVar(_adapter *adapter, HAL_DEF_VARIABLE variable, void *value)
 
 	return bResult;
 }
+
+#ifdef CONFIG_RF_GAIN_OFFSET
+void rtw_bb_rf_gain_offset(_adapter *padapter)
+{
+	u8      value = padapter->eeprompriv.EEPROMRFGainOffset;
+	u8      tmp = 0x3e;
+	u32     res;
+
+	DBG_871X("+%s value: 0x%02x+\n", __func__, value);
+
+	if (value & RF_GAIN_OFFSET_ON) {
+		//DBG_871X("Offset RF Gain.\n");
+		//DBG_871X("Offset RF Gain.  padapter->eeprompriv.EEPROMRFGainVal=0x%x\n",padapter->eeprompriv.EEPROMRFGainVal);
+		if(padapter->eeprompriv.EEPROMRFGainVal != 0xff){
+#ifdef CONFIG_RTL8723A
+			res = rtw_hal_read_rfreg(padapter, RF_PATH_A, 0xd, 0xffffffff);
+			//DBG_871X("Offset RF Gain. reg 0xd=0x%x\n",res);
+			res &= 0xfff87fff;
+
+			res |= (padapter->eeprompriv.EEPROMRFGainVal & 0x0f)<< 15;
+			//DBG_871X("Offset RF Gain.    reg 0xd=0x%x\n",res);
+
+			rtw_hal_write_rfreg(padapter, RF_PATH_A, REG_RF_BB_GAIN_OFFSET, RF_GAIN_OFFSET_MASK, res);
+
+			res = rtw_hal_read_rfreg(padapter, RF_PATH_A, 0xe, 0xffffffff);
+			DBG_871X("Offset RF Gain. reg 0xe=0x%x\n",res);
+			res &= 0xfffffff0;
+
+			res |= (padapter->eeprompriv.EEPROMRFGainVal & 0x0f);
+			//DBG_871X("Offset RF Gain.    reg 0xe=0x%x\n",res);
+
+			rtw_hal_write_rfreg(padapter, RF_PATH_A, REG_RF_BB_GAIN_OFFSET, RF_GAIN_OFFSET_MASK, res);
+#else
+			res = rtw_hal_read_rfreg(padapter, RF_PATH_A, REG_RF_BB_GAIN_OFFSET, 0xffffffff);
+			DBG_871X("REG_RF_BB_GAIN_OFFSET=%x \n",res);
+			res &= 0xfff87fff;
+			res |= (padapter->eeprompriv.EEPROMRFGainVal & 0x0f)<< 15;
+			DBG_871X("write REG_RF_BB_GAIN_OFFSET=%x \n",res);
+			rtw_hal_write_rfreg(padapter, RF_PATH_A, REG_RF_BB_GAIN_OFFSET, RF_GAIN_OFFSET_MASK, res);
+#endif
+		}
+		else
+		{
+			//DBG_871X("Offset RF Gain.  padapter->eeprompriv.EEPROMRFGainVal=0x%x  != 0xff, didn't run Kfree\n",padapter->eeprompriv.EEPROMRFGainVal);
+		}
+	} else {
+		//DBG_871X("Using the default RF gain.\n");
+	}
+
+}
+#endif //CONFIG_RF_GAIN_OFFSET
+
+#ifdef CONFIG_EFUSE_CONFIG_FILE
+int check_phy_efuse_tx_power_info_valid(PADAPTER padapter) {
+	EEPROM_EFUSE_PRIV *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
+	u8* pContent = pEEPROM->efuse_eeprom_data;
+	int index = 0;
+	u16 tx_index_offset = 0x0000;
+
+	switch(padapter->chip_type) {
+		case RTL8723A:
+			tx_index_offset = EEPROM_CCK_TX_PWR_INX_8723A;
+		break;
+		default:
+			tx_index_offset = 0x0010;
+		break;
+	}
+	for (index = 0 ; index < 12 ; index++) {
+		if (pContent[tx_index_offset + index] == 0xFF) {
+			return _FALSE;
+		} 
+	}
+	DBG_871X("phy efuse with valid tx power info\n");
+	return _TRUE;
+}
+
+int check_phy_efuse_macaddr_info_valid(PADAPTER padapter) {
+
+	u8 val = 0;
+	u16 addr_offset = 0x0000;
+
+	switch(padapter->chip_type) {
+		case RTL8723A:
+			if (padapter->interface_type == RTW_USB) 
+			{
+				addr_offset = EEPROM_MAC_ADDR_8723AU;
+				DBG_871X("%s: interface is USB\n", __func__);
+			}
+			else if (padapter->interface_type == RTW_SDIO)
+			{
+				addr_offset = EEPROM_MAC_ADDR_8723AS;
+				DBG_871X("%s: interface is SDIO\n", __func__);
+			}
+			else if (padapter->interface_type == RTW_PCIE)
+			{
+				addr_offset = EEPROM_MAC_ADDR_8723AE;
+				DBG_871X("%s: interface is PCIE\n", __func__);
+			}
+		break;
+	}
+
+	if (addr_offset == 0x0000) {
+		DBG_871X("phy efuse MAC addr offset is 0!!\n");
+		return _FALSE;
+	} else {
+		rtw_efuse_map_read(padapter, addr_offset, 1, &val);
+	}
+
+	if (val == 0xFF) {
+		return _FALSE;
+	} else {
+		DBG_871X("phy efuse with valid MAC addr\n");
+		return _TRUE;
+	}
+}
+
+u32 Hal_readPGDataFromConfigFile(
+	PADAPTER	padapter,
+	struct file *fp)
+{
+	u32 i;
+	mm_segment_t fs;
+	u8 temp[3];
+	loff_t pos = 0;
+	EEPROM_EFUSE_PRIV *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
+	u8	*PROMContent = pEEPROM->efuse_eeprom_data;
+
+	temp[2] = 0; // add end of string '\0'
+
+	fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	for (i = 0 ; i < HWSET_MAX_SIZE ; i++) {
+		vfs_read(fp, temp, 2, &pos);
+		PROMContent[i] = simple_strtoul(temp, NULL, 16);
+		if ((i % EFUSE_FILE_COLUMN_NUM) == (EFUSE_FILE_COLUMN_NUM - 1)) {
+			//Filter the lates space char.
+			vfs_read(fp, temp, 1, &pos);
+			if (strchr(temp, ' ') == NULL) {
+				pos--;
+				vfs_read(fp, temp, 2, &pos);
+			}
+		} else {
+			pos += 1; // Filter the space character
+		}
+	}
+
+	set_fs(fs);
+	pEEPROM->bloadfile_fail_flag = _FALSE;
+
+#ifdef CONFIG_DEBUG
+	DBG_871X("Efuse configure file:\n");
+	for (i=0; i<HWSET_MAX_SIZE; i++)
+	{
+		if (i % 16 == 0)
+			printk("\n");
+
+		printk("%02X ", PROMContent[i]);
+	}
+	printk("\n");
+#endif
+
+	return _SUCCESS;
+}
+
+void Hal_ReadMACAddrFromFile(
+	PADAPTER		padapter,
+	struct file *fp)
+{
+	u32 i;
+	mm_segment_t fs;
+	u8 source_addr[18];
+	loff_t pos = 0;
+	u32	curtime = rtw_get_current_time();
+	EEPROM_EFUSE_PRIV *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
+	u8 *head, *end;
+
+	_rtw_memset(source_addr, 0, 18);
+	_rtw_memset(pEEPROM->mac_addr, 0, ETH_ALEN);
+
+	fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	DBG_871X("wifi mac address:\n");
+	vfs_read(fp, source_addr, 18, &pos);
+	source_addr[17] = ':';
+
+	head = end = source_addr;
+	for (i=0; i<ETH_ALEN; i++) {
+		while (end && (*end != ':') )
+			end++;
+
+		if (end && (*end == ':') )
+			*end = '\0';
+
+		pEEPROM->mac_addr[i] = simple_strtoul(head, NULL, 16 );
+
+		if (end) {
+			end++;
+			head = end;
+		}
+	}
+
+	set_fs(fs);
+	pEEPROM->bloadmac_fail_flag = _FALSE;
+
+	if (rtw_check_invalid_mac_address(pEEPROM->mac_addr) == _TRUE) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,33))
+		get_random_bytes(pEEPROM->mac_addr, ETH_ALEN);
+		pEEPROM->mac_addr[0] = 0x00;
+		pEEPROM->mac_addr[1] = 0xe0;
+		pEEPROM->mac_addr[2] = 0x4c;
+#else
+		pEEPROM->mac_addr[0] = 0x00;
+		pEEPROM->mac_addr[1] = 0xe0;
+		pEEPROM->mac_addr[2] = 0x4c;
+		pEEPROM->mac_addr[3] = (u8)(curtime & 0xff) ;
+		pEEPROM->mac_addr[4] = (u8)((curtime>>8) & 0xff) ;
+		pEEPROM->mac_addr[5] = (u8)((curtime>>16) & 0xff) ;
+#endif
+                DBG_871X("MAC Address from wifimac error is invalid, assign random MAC !!!\n");
+	}
+
+	DBG_871X("%s: Permanent Address = %02x-%02x-%02x-%02x-%02x-%02x\n",
+			__func__, pEEPROM->mac_addr[0], pEEPROM->mac_addr[1],
+			pEEPROM->mac_addr[2], pEEPROM->mac_addr[3],
+			pEEPROM->mac_addr[4], pEEPROM->mac_addr[5]);
+}
+
+void Hal_GetPhyEfuseMACAddr(PADAPTER padapter, u8* mac_addr) {
+	int i = 0;
+	u16 addr_offset = 0x0000;
+
+	switch(padapter->chip_type) {
+		case RTL8723A:
+			if (padapter->interface_type == RTW_USB) 
+			{
+				addr_offset = EEPROM_MAC_ADDR_8723AU;
+				DBG_871X("%s: interface is USB\n", __func__);
+			}
+			else if (padapter->interface_type == RTW_SDIO)
+			{
+				addr_offset = EEPROM_MAC_ADDR_8723AS;
+				DBG_871X("%s: interface is SDIO\n", __func__);
+			}
+			else if (padapter->interface_type == RTW_PCIE)
+			{
+				addr_offset = EEPROM_MAC_ADDR_8723AE;
+				DBG_871X("%s: interface is PCIE\n", __func__);
+			}
+		break;
+	}
+
+	rtw_efuse_map_read(padapter, addr_offset, ETH_ALEN, mac_addr);
+
+	if (rtw_check_invalid_mac_address(mac_addr) == _TRUE) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,33))
+		get_random_bytes(mac_addr, ETH_ALEN);
+		mac_addr[0] = 0x00;
+		mac_addr[1] = 0xe0;
+		mac_addr[2] = 0x4c;
+#else
+		mac_addr[0] = 0x00;
+		mac_addr[1] = 0xe0;
+		mac_addr[2] = 0x4c;
+		mac_addr[3] = (u8)(curtime & 0xff) ;
+		mac_addr[4] = (u8)((curtime>>8) & 0xff) ;
+		mac_addr[5] = (u8)((curtime>>16) & 0xff) ;
+#endif
+                DBG_871X("MAC Address from phy efuse error, assign random MAC !!!\n");
+	}
+
+	DBG_871X("%s: Permanent Address = %02x-%02x-%02x-%02x-%02x-%02x\n",
+			__func__, mac_addr[0], mac_addr[1], mac_addr[2],
+			mac_addr[3], mac_addr[4], mac_addr[5]);
+}
+#endif //CONFIG_EFUSE_CONFIG_FILE
+
 

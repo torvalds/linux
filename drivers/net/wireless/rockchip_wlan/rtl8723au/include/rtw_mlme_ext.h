@@ -599,8 +599,19 @@ void SetBWMode(_adapter *padapter, unsigned short bwmode, unsigned char channel_
 
 unsigned int decide_wait_for_beacon_timeout(unsigned int bcn_interval);
 void read_cam(_adapter *padapter ,u8 entry);
-void write_cam(_adapter *padapter, u8 entry, u16 ctrl, u8 *mac, u8 *key);
-void clear_cam_entry(_adapter *padapter, u8 entry);
+
+/* modify HW only */
+void _write_cam(_adapter *padapter, u8 entry, u16 ctrl, u8 *mac, u8 *key);
+void _clear_cam_entry(_adapter *padapter, u8 entry);
+void write_cam_from_cache(_adapter *adapter, u8 id);
+
+/* modify both HW and cache */
+void write_cam(_adapter *padapter, u8 id, u16 ctrl, u8 *mac, u8 *key);
+void clear_cam_entry(_adapter *padapter, u8 id);
+
+/* modify cache only */
+void write_cam_cache(_adapter *adapter, u8 id, u16 ctrl, u8 *mac, u8 *key);
+void clear_cam_cache(_adapter *adapter, u8 id);
 
 void invalidate_cam_all(_adapter *padapter);
 void CAM_empty_entry(PADAPTER Adapter, u8 ucIndex);
@@ -655,6 +666,8 @@ void rtw_get_current_ip_address(PADAPTER padapter, u8 *pcurrentip);
 void rtw_get_sec_iv(PADAPTER padapter, u8*pcur_dot11txpn, u8 *StaAddr);
 #endif
 
+u8 rtw_check_invalid_mac_address (u8 *mac_addr);
+
 //for sta/adhoc mode
 void update_sta_info(_adapter *padapter, struct sta_info *psta);
 unsigned int update_basic_rate(unsigned char *ptn, unsigned int ptn_sz);
@@ -671,7 +684,11 @@ unsigned int is_ap_in_tkip(_adapter *padapter);
 unsigned int is_ap_in_wep(_adapter *padapter);
 unsigned int should_forbid_n_rate(_adapter * padapter);
 
-extern uint rtw_get_camid(uint macid);
+s16 rtw_get_camid(_adapter *adapter, struct sta_info* sta, s16 kid);
+s16 rtw_camid_search(_adapter *adapter, u8 *addr, s16 kid);
+s16 rtw_camid_alloc(_adapter *adapter, struct sta_info *sta, u8 kid);
+void rtw_camid_free(_adapter *adapter, u8 cam_id);
+
 extern void rtw_alloc_macid(_adapter *padapter, struct sta_info *psta);
 extern void rtw_release_macid(_adapter *padapter, struct sta_info *psta);
 extern u8 rtw_search_max_mac_id(_adapter *padapter);
@@ -683,6 +700,7 @@ void report_del_sta_event(_adapter *padapter, unsigned char* MacAddr, unsigned s
 void report_add_sta_event(_adapter *padapter, unsigned char* MacAddr, int cam_idx);
 
 void beacon_timing_control(_adapter *padapter);
+u8 chk_bmc_sleepq_cmd(_adapter* padapter);
 extern u8 set_tx_beacon_cmd(_adapter*padapter);
 unsigned int setup_beacon_frame(_adapter *padapter, unsigned char *beacon_frame);
 void update_mgnt_tx_rate(_adapter *padapter, u8 rate);
@@ -708,6 +726,7 @@ void issue_auth(_adapter *padapter, struct sta_info *psta, unsigned short status
 void issue_probereq(_adapter *padapter, NDIS_802_11_SSID *pssid, u8 *da);
 s32 issue_probereq_ex(_adapter *padapter, NDIS_802_11_SSID *pssid, u8* da, int try_cnt, int wait_ms);
 int issue_nulldata(_adapter *padapter, unsigned char *da, unsigned int power_mode, int try_cnt, int wait_ms);
+s32 issue_nulldata_in_interrupt(PADAPTER padapter, u8 *da);
 int issue_qos_nulldata(_adapter *padapter, unsigned char *da, u16 tid, int try_cnt, int wait_ms);
 int issue_deauth(_adapter *padapter, unsigned char *da, unsigned short reason);
 int issue_deauth_ex(_adapter *padapter, u8 *da, unsigned short reason, int try_cnt, int wait_ms);
@@ -844,6 +863,7 @@ u8 add_ba_hdl(_adapter *padapter, unsigned char *pbuf);
 
 u8 mlme_evt_hdl(_adapter *padapter, unsigned char *pbuf);
 u8 h2c_msg_hdl(_adapter *padapter, unsigned char *pbuf);
+u8 chk_bmc_sleepq_hdl(_adapter *padapter, unsigned char *pbuf);
 u8 tx_beacon_hdl(_adapter *padapter, unsigned char *pbuf);
 u8 set_ch_hdl(_adapter *padapter, u8 *pbuf);
 u8 set_chplan_hdl(_adapter *padapter, unsigned char *pbuf);
@@ -925,6 +945,7 @@ struct cmd_hdl wlancmds[] =
 
 	GEN_MLME_EXT_HANDLER(sizeof(struct SetChannelSwitch_param), set_csa_hdl) /*61*/
 	GEN_MLME_EXT_HANDLER(sizeof(struct TDLSoption_param), tdls_hdl) /*62*/
+	GEN_MLME_EXT_HANDLER(0, chk_bmc_sleepq_hdl) /*63*/
 };
 
 #endif

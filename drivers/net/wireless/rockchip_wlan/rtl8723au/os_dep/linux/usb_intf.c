@@ -556,8 +556,9 @@ _func_enter_;
 	_rtw_mutex_init(&pdvobjpriv->setbw_mutex);
 	pdvobjpriv->processing_dev_remove = _FALSE;
 
-        _rtw_spinlock_init(&pdvobjpriv->lock);
+	_rtw_spinlock_init(&pdvobjpriv->lock);
 	pdvobjpriv->macid[1] = _TRUE; //macid=1 for bc/mc stainfo
+	_rtw_spinlock_init(&pdvobjpriv->cam_ctl.lock);
 
 	pdvobjpriv->pusbintf = usb_intf ;
 	pusbd = pdvobjpriv->pusbdev = interface_to_usbdev(usb_intf);
@@ -698,6 +699,7 @@ free_dvobj:
 		_rtw_mutex_free(&pdvobjpriv->h2c_fwcmd_mutex);
 		_rtw_mutex_free(&pdvobjpriv->setch_mutex);
 		_rtw_mutex_free(&pdvobjpriv->setbw_mutex);
+		_rtw_spinlock_free(&pdvobjpriv->cam_ctl.lock);
 		rtw_mfree((u8*)pdvobjpriv, sizeof(*pdvobjpriv));
 		pdvobjpriv = NULL;
 	}
@@ -730,6 +732,7 @@ _func_enter_;
 		_rtw_mutex_free(&dvobj->h2c_fwcmd_mutex);
 		_rtw_mutex_free(&dvobj->setch_mutex);
 		_rtw_mutex_free(&dvobj->setbw_mutex);
+		_rtw_spinlock_free(&dvobj->cam_ctl.lock);
 		rtw_mfree((u8*)dvobj, sizeof(*dvobj));
 	}
 	
@@ -2048,7 +2051,7 @@ _func_exit_;
 extern int console_suspend_enabled;
 #endif
 
-static int rtw_drv_entry(void)
+static int /*__init*/ rtw_drv_entry(void)
 {
 	int ret = 0;
 
@@ -2122,7 +2125,7 @@ exit:
 	return ret;
 }
 
-static void rtw_drv_halt(void)
+static void /*exit*/ rtw_drv_halt(void)
 {
 	DBG_871X_LEVEL(_drv_always_, "module exit start\n");
 

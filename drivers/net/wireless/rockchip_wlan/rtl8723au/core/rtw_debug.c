@@ -131,6 +131,36 @@ void rf_reg_dump(void *sel, _adapter *adapter)
 	}
 }
 
+static u8 fwdl_test_chksum_fail = 0;
+static u8 fwdl_test_wintint_rdy_fail = 0;
+
+bool rtw_fwdl_test_trigger_chksum_fail()
+{
+	if (fwdl_test_chksum_fail) {
+		DBG_871X_LEVEL(_drv_always_, "fwdl test case: trigger chksum_fail\n");
+		fwdl_test_chksum_fail--;
+		return _TRUE;
+	}
+	return _FALSE;
+}
+
+bool rtw_fwdl_test_trigger_wintint_rdy_fail()
+{
+	if (fwdl_test_wintint_rdy_fail) {
+		DBG_871X_LEVEL(_drv_always_, "fwdl test case: trigger wintint_rdy_fail\n");
+		fwdl_test_wintint_rdy_fail--;
+		return _TRUE;
+	}
+	return _FALSE;
+}
+
+static u32 g_wait_hiq_empty_ms = 0;
+
+u32 rtw_get_wait_hiq_empty_ms()
+{
+	return g_wait_hiq_empty_ms;
+}
+
 #ifdef CONFIG_PROC_DEBUG
 ssize_t proc_set_write_reg(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
 {
@@ -253,11 +283,30 @@ int proc_get_sec_info(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);	
-	struct security_priv *psecuritypriv = &padapter->securitypriv;
+	struct security_priv *sec = &padapter->securitypriv;
 
 	DBG_871X_SEL_NL(m, "auth_alg=0x%x, enc_alg=0x%x, auth_type=0x%x, enc_type=0x%x\n", 
-						psecuritypriv->dot11AuthAlgrthm, psecuritypriv->dot11PrivacyAlgrthm,
-						psecuritypriv->ndisauthtype, psecuritypriv->ndisencryptstatus);
+						sec->dot11AuthAlgrthm, sec->dot11PrivacyAlgrthm,
+						sec->ndisauthtype, sec->ndisencryptstatus);
+
+	DBG_871X_SEL_NL(m, "hw_decrypted=%d\n", sec->hw_decrypted);
+
+#ifdef DBG_SW_SEC_CNT
+	DBG_871X_SEL_NL(m, "wep_sw_enc_cnt=%llu, %llu, %llu\n"
+		, sec->wep_sw_enc_cnt_bc , sec->wep_sw_enc_cnt_mc, sec->wep_sw_enc_cnt_uc);
+	DBG_871X_SEL_NL(m, "wep_sw_dec_cnt=%llu, %llu, %llu\n"
+		, sec->wep_sw_dec_cnt_bc , sec->wep_sw_dec_cnt_mc, sec->wep_sw_dec_cnt_uc);
+
+	DBG_871X_SEL_NL(m, "tkip_sw_enc_cnt=%llu, %llu, %llu\n"
+		, sec->tkip_sw_enc_cnt_bc , sec->tkip_sw_enc_cnt_mc, sec->tkip_sw_enc_cnt_uc);	
+	DBG_871X_SEL_NL(m, "tkip_sw_dec_cnt=%llu, %llu, %llu\n"
+		, sec->tkip_sw_dec_cnt_bc , sec->tkip_sw_dec_cnt_mc, sec->tkip_sw_dec_cnt_uc);
+
+	DBG_871X_SEL_NL(m, "aes_sw_enc_cnt=%llu, %llu, %llu\n"
+		, sec->aes_sw_enc_cnt_bc , sec->aes_sw_enc_cnt_mc, sec->aes_sw_enc_cnt_uc);
+	DBG_871X_SEL_NL(m, "aes_sw_dec_cnt=%llu, %llu, %llu\n"
+		, sec->aes_sw_dec_cnt_bc , sec->aes_sw_dec_cnt_mc, sec->aes_sw_dec_cnt_uc);
+#endif /* DBG_SW_SEC_CNT */
 
 	return 0;
 }
@@ -901,7 +950,7 @@ int proc_get_best_channel(struct seq_file *m, void *v)
 			index_5G = i;
 	}	
 	
-	for (i=0; pmlmeext->channel_set[i].ChannelNum !=0; i++) {
+	for (i=0; (pmlmeext->channel_set[i].ChannelNum !=0) && (i < MAX_CHANNEL_NUM); i++) {
 		// 2.4G
 		if ( pmlmeext->channel_set[i].ChannelNum == 6 ) {
 			if ( pmlmeext->channel_set[i].rx_count < pmlmeext->channel_set[index_24G].rx_count ) {
@@ -1047,8 +1096,6 @@ ssize_t proc_set_sreset(struct file *file, const char __user *buffer, size_t cou
 }
 #endif /* DBG_CONFIG_ERROR_DETECT */
 
-u8 g_fwdl_chksum_fail = 0;
-u8 g_fwdl_wintint_rdy_fail = 0;
 ssize_t proc_set_fwdl_test_case(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
 {
 	struct net_device *dev = (struct net_device *)data;
@@ -1059,7 +1106,23 @@ ssize_t proc_set_fwdl_test_case(struct file *file, const char __user *buffer, si
 		return -EFAULT;
 
 	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) {		
-		int num = sscanf(tmp, "%hhu %hhu", &g_fwdl_chksum_fail, &g_fwdl_wintint_rdy_fail);
+		int num = sscanf(tmp, "%hhu %hhu", &fwdl_test_chksum_fail, &fwdl_test_wintint_rdy_fail);
+	}
+
+	return count;
+}
+
+ssize_t proc_set_wait_hiq_empty(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	char tmp[32];
+
+	if (count < 1)
+		return -EFAULT;
+
+	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) {
+		int num = sscanf(tmp, "%u", &g_wait_hiq_empty_ms);
 	}
 
 	return count;

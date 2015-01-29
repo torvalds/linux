@@ -1827,45 +1827,6 @@ Hal_CustomizeByCustomerID_8723AS(
 }
 
 #ifdef CONFIG_EFUSE_CONFIG_FILE
-static u32 Hal_readPGDataFromConfigFile(
-	PADAPTER	padapter)
-{
-	u32 i;
-	struct file *fp;
-	mm_segment_t fs;
-	u8 temp[3];
-	loff_t pos = 0;
-	EEPROM_EFUSE_PRIV *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
-	u8	*PROMContent = pEEPROM->efuse_eeprom_data;
-
-
-	temp[2] = 0; // add end of string '\0'
-
-	fp = filp_open("/system/etc/wifi/wifi_efuse.map", O_RDONLY, 0);
-	if (IS_ERR(fp)) {
-		pEEPROM->bloadfile_fail_flag = _TRUE;
-		DBG_871X("Error, Efuse configure file doesn't exist.\n");
-		return _FAIL;
-	}
-
-	fs = get_fs();
-	set_fs(KERNEL_DS);
-
-	DBG_871X("Efuse configure file:\n");
-	for (i=0; i<HWSET_MAX_SIZE_88E; i++) {
-		vfs_read(fp, temp, 2, &pos);
-		PROMContent[i] = simple_strtoul(temp, NULL, 16 );
-		pos += 1; // Filter the space character
-		DBG_871X("%02X \n", PROMContent[i]);
-	}
-	DBG_871X("\n");
-	set_fs(fs);
-
-	filp_close(fp, NULL);
-	pEEPROM->bloadfile_fail_flag = _FALSE;
-	return _SUCCESS;
-}
-
 static void
 Hal_ReadMACAddrFromFile_8723AS(
 	PADAPTER		padapter
@@ -1945,25 +1906,58 @@ readAdapterInfo(
 {
 	EEPROM_EFUSE_PRIV *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
 //	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
-	u8			hwinfo[HWSET_MAX_SIZE];
+	u8*			hwinfo = NULL;
+#ifdef CONFIG_EFUSE_CONFIG_FILE
+	struct file *fp = NULL;
+#endif
 
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("====> readpadapterInfo_8723S()\n"));
+
+	if (sizeof(pEEPROM->efuse_eeprom_data) < HWSET_MAX_SIZE)
+		DBG_871X("[WARNING] size of efuse_eeprom_data is less than HWSET_MAX_SIZE!\n");
+
+	hwinfo = pEEPROM->efuse_eeprom_data;
 
 	//
 	// This part read and parse the eeprom/efuse content
 	//
 	Hal_InitPGData(padapter, hwinfo);
-#ifdef CONFIG_EFUSE_CONFIG_FILE
-	Hal_readPGDataFromConfigFile(padapter, hwinfo);
-#endif
 
+	/* Check Tx power index info in phy efuse first to decide whether we need to read PG data from external config file or not */
+#ifdef CONFIG_EFUSE_CONFIG_FILE
+	if (check_phy_efuse_tx_power_info_valid(padapter) == _FALSE) {
+		fp = filp_open(EFUSE_MAP_PATH, O_RDONLY, 0);
+		if (fp == NULL || IS_ERR(fp)) {
+			DBG_871X("[WARNING] invalid phy efuse and no efuse file, use driver default!!\n");
+		} else {
+			Hal_readPGDataFromConfigFile(padapter, fp);
+			filp_close(fp, NULL);
+		}
+	}
+#endif //CONFIG_EFUSE_CONFIG_FILE	
+	
 	Hal_EfuseParseIDCode(padapter, hwinfo);
 	Hal_EfuseParsePIDVID_8723AS(padapter, hwinfo, pEEPROM->bautoload_fail_flag);
 
-	Hal_EfuseParseMACAddr_8723AS(padapter, hwinfo, pEEPROM->bautoload_fail_flag);
+	/* Check macaddr info in phy efuse to decide whether we need to get macaddr from external file or not */
 #ifdef CONFIG_EFUSE_CONFIG_FILE
-	Hal_ReadMACAddrFromFile_8723AS(padapter);
-#endif
+	if (check_phy_efuse_macaddr_info_valid(padapter) == _TRUE) {
+		DBG_871X("using phy efuse mac\n");
+		Hal_GetPhyEfuseMACAddr(padapter, pEEPROM->mac_addr);
+	} else {
+		fp = filp_open(WIFIMAC_PATH, O_RDONLY, 0);
+		if (fp == NULL || IS_ERR(fp)) {
+			DBG_871X("wifimac does not exist!!\n");
+			Hal_GetPhyEfuseMACAddr(padapter, pEEPROM->mac_addr);
+		} else {
+			Hal_ReadMACAddrFromFile(padapter, fp);
+			filp_close(fp, NULL);
+		}
+	}
+#else //CONFIG_EFUSE_CONFIG_FILE
+	Hal_EfuseParseMACAddr_8723AS(padapter, hwinfo, pEEPROM->bautoload_fail_flag);
+#endif //CONFIG_EFUSE_CONFIG_FILE
+
 	Hal_EfuseParseTxPowerInfo_8723A(padapter, hwinfo, pEEPROM->bautoload_fail_flag);
 	Hal_EfuseParseBTCoexistInfo_8723A(padapter, hwinfo, pEEPROM->bautoload_fail_flag);
 	Hal_EfuseParseEEPROMVer(padapter, hwinfo, pEEPROM->bautoload_fail_flag);
@@ -2157,7 +2151,7 @@ GetHalDefVar8723ASDIO(
 			*(( u32*)pValue) = MAX_AMPDU_FACTOR_64K;
 			break;
 		default:
-			bResult = GetHalDefVar(Adapter, eVariable, pValue);
+			bResult = GetHalDefVar8723A(Adapter, eVariable, pValue);
 			break;
 	}
 

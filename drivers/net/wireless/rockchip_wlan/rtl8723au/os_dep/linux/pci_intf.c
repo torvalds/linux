@@ -1161,6 +1161,9 @@ _func_enter_;
 	dvobj->macid[1] = _TRUE; //macid=1 for bc/mc stainfo
 
 	dvobj->processing_dev_remove = _FALSE;
+
+	_rtw_spinlock_init(&dvobj->cam_ctl.lock);
+
 	if ( (err = pci_enable_device(pdev)) != 0) {
 		DBG_871X(KERN_ERR "%s : Cannot enable new PCI device\n", pci_name(pdev));
 		goto free_dvobj;
@@ -1328,6 +1331,7 @@ free_dvobj:
 		_rtw_mutex_free(&dvobj->h2c_fwcmd_mutex);
 		_rtw_mutex_free(&dvobj->setch_mutex);
 		_rtw_mutex_free(&dvobj->setbw_mutex);
+		_rtw_spinlock_free(&dvobj->cam_ctl.lock);
 		rtw_mfree((u8*)dvobj, sizeof(*dvobj));
 		dvobj = NULL;
 	}
@@ -1359,6 +1363,7 @@ _func_enter_;
 		_rtw_mutex_free(&dvobj->h2c_fwcmd_mutex);
 		_rtw_mutex_free(&dvobj->setch_mutex);
 		_rtw_mutex_free(&dvobj->setbw_mutex);
+		_rtw_spinlock_free(&dvobj->cam_ctl.lock);
 		
 		rtw_mfree((u8*)dvobj, sizeof(*dvobj));
 	}
