@@ -761,13 +761,17 @@ i40evf_mac_filter *i40evf_add_filter(struct i40evf_adapter *adapter,
 				     u8 *macaddr)
 {
 	struct i40evf_mac_filter *f;
+	int count = 50;
 
 	if (!macaddr)
 		return NULL;
 
 	while (test_and_set_bit(__I40EVF_IN_CRITICAL_TASK,
-				&adapter->crit_section))
+				&adapter->crit_section)) {
 		udelay(1);
+		if (--count == 0)
+			return NULL;
+	}
 
 	f = i40evf_find_filter(adapter, macaddr);
 	if (!f) {
@@ -828,6 +832,7 @@ static void i40evf_set_rx_mode(struct net_device *netdev)
 	struct i40evf_mac_filter *f, *ftmp;
 	struct netdev_hw_addr *uca;
 	struct netdev_hw_addr *mca;
+	int count = 50;
 
 	/* add addr if not already in the filter list */
 	netdev_for_each_uc_addr(uca, netdev) {
@@ -838,8 +843,14 @@ static void i40evf_set_rx_mode(struct net_device *netdev)
 	}
 
 	while (test_and_set_bit(__I40EVF_IN_CRITICAL_TASK,
-				&adapter->crit_section))
+				&adapter->crit_section)) {
 		udelay(1);
+		if (--count == 0) {
+			dev_err(&adapter->pdev->dev,
+				"Failed to get lock in %s\n", __func__);
+			return;
+		}
+	}
 	/* remove filter if not in netdev list */
 	list_for_each_entry_safe(f, ftmp, &adapter->mac_filter_list, list) {
 		bool found = false;
