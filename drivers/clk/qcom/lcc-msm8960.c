@@ -547,7 +547,7 @@ static int lcc_msm8960_probe(struct platform_device *pdev)
 		return PTR_ERR(regmap);
 
 	/* Use the correct frequency plan depending on speed of PLL4 */
-	val = regmap_read(regmap, 0x4, &val);
+	regmap_read(regmap, 0x4, &val);
 	if (val == 0x12) {
 		slimbus_src.freq_tbl = clk_tbl_aif_osr_492;
 		mi2s_osr_src.freq_tbl = clk_tbl_aif_osr_492;
