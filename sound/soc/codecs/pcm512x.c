@@ -356,36 +356,37 @@ static const struct snd_pcm_hw_constraint_list constraints_slave = {
 	.list  = pcm512x_dai_rates,
 };
 
-static const struct snd_interval pcm512x_dai_ranges_64bpf[] = {
-	{
-		.min = 8000,
-		.max = 195312,
-	}, {
-		.min = 250000,
-		.max = 390625,
-	},
-};
-
-static struct snd_pcm_hw_constraint_ranges constraints_64bpf = {
-	.count  = ARRAY_SIZE(pcm512x_dai_ranges_64bpf),
-	.ranges = pcm512x_dai_ranges_64bpf,
-};
-
 static int pcm512x_hw_rule_rate(struct snd_pcm_hw_params *params,
 				struct snd_pcm_hw_rule *rule)
 {
-	struct snd_pcm_hw_constraint_ranges *r = rule->private;
+	struct snd_interval ranges[2];
 	int frame_size;
 
 	frame_size = snd_soc_params_to_frame_size(params);
 	if (frame_size < 0)
 		return frame_size;
 
-	if (frame_size != 64)
+	switch (frame_size) {
+	case 32:
+		/* No hole when the frame size is 32. */
 		return 0;
+	case 48:
+	case 64:
+		/* There is only one hole in the range of supported
+		 * rates, but it moves with the frame size.
+		 */
+		memset(ranges, 0, sizeof(ranges));
+		ranges[0].min = 8000;
+		ranges[0].max = 25000000 / frame_size / 2;
+		ranges[1].min = DIV_ROUND_UP(16000000, frame_size);
+		ranges[1].max = 384000;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	return snd_interval_ranges(hw_param_interval(params, rule->var),
-				   r->count, r->ranges, r->mask);
+				   ARRAY_SIZE(ranges), ranges, 0);
 }
 
 static int pcm512x_dai_startup_master(struct snd_pcm_substream *substream,
@@ -407,7 +408,7 @@ static int pcm512x_dai_startup_master(struct snd_pcm_substream *substream,
 		return snd_pcm_hw_rule_add(substream->runtime, 0,
 					   SNDRV_PCM_HW_PARAM_RATE,
 					   pcm512x_hw_rule_rate,
-					   (void *)&constraints_64bpf,
+					   NULL,
 					   SNDRV_PCM_HW_PARAM_FRAME_BITS,
 					   SNDRV_PCM_HW_PARAM_CHANNELS, -1);
 
