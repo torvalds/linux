@@ -25,6 +25,7 @@
 #include <linux/types.h>
 #include <linux/kvm_types.h>
 #include <asm/kvm.h>
+#include <asm/kvm_asm.h>
 #include <asm/kvm_mmio.h>
 
 #define __KVM_HAVE_ARCH_INTC_INITIALIZED
@@ -334,6 +335,7 @@ static inline void __cpu_init_hyp_mode(phys_addr_t boot_pgd_ptr,
 
 static inline void __cpu_init_stage2(void)
 {
+	kvm_call_hyp(__init_stage2_translation);
 }
 
 static inline void kvm_arch_hardware_disable(void) {}

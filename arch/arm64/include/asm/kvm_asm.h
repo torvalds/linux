@@ -45,6 +45,8 @@ extern u64 __vgic_v3_get_ich_vtr_el2(void);
 
 extern u32 __kvm_get_mdcr_el2(void);
 
+extern void __init_stage2_translation(void);
+
 #endif
 
 #endif /* __ARM_KVM_ASM_H__ */
