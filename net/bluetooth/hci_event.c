@@ -2671,7 +2671,8 @@ static void hci_remote_features_evt(struct hci_dev *hdev,
 	if (conn->state != BT_CONFIG)
 		goto unlock;
 
-	if (!ev->status && lmp_ssp_capable(hdev) && lmp_ssp_capable(conn)) {
+	if (!ev->status && lmp_ext_feat_capable(hdev) &&
+	    lmp_ext_feat_capable(conn)) {
 		struct hci_cp_read_remote_ext_features cp;
 		cp.handle = ev->handle;
 		cp.page = 0x01;
