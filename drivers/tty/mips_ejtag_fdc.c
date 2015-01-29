@@ -69,6 +69,9 @@
 #define REG_FDSTAT_TXE			BIT(1)	/* Tx Empty */
 #define REG_FDSTAT_TXF			BIT(0)	/* Tx Full */
 
+/* Default channel for the early console */
+#define CONSOLE_CHANNEL      1
+
 #define NUM_TTY_CHANNELS     16
 
 #define RX_BUF_SIZE 1024
@@ -1124,3 +1127,20 @@ static int __init mips_ejtag_fdc_init_console(void)
 	return mips_ejtag_fdc_console_init(&mips_ejtag_fdc_con);
 }
 console_initcall(mips_ejtag_fdc_init_console);
+
+#ifdef CONFIG_MIPS_EJTAG_FDC_EARLYCON
+static struct mips_ejtag_fdc_console mips_ejtag_fdc_earlycon = {
+	.cons	= {
+		.name	= "early_fdc",
+		.write	= mips_ejtag_fdc_console_write,
+		.flags	= CON_PRINTBUFFER | CON_BOOT,
+		.index	= CONSOLE_CHANNEL,
+	},
+	.lock	= __RAW_SPIN_LOCK_UNLOCKED(mips_ejtag_fdc_earlycon.lock),
+};
+
+int __init setup_early_fdc_console(void)
+{
+	return mips_ejtag_fdc_console_init(&mips_ejtag_fdc_earlycon);
+}
+#endif

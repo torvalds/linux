@@ -437,4 +437,17 @@ config MIPS_EJTAG_FDC_TTY
 
 	  If unsure, say N.
 
+config MIPS_EJTAG_FDC_EARLYCON
+	bool "Early FDC console"
+	depends on MIPS_EJTAG_FDC_TTY
+	help
+	  This registers a console on FDC channel 1 very early during boot (from
+	  MIPS arch code). This is useful for bring-up and debugging early boot
+	  issues.
+
+	  Do not enable unless there is a debug probe attached to drain the FDC
+	  TX FIFO.
+
+	  If unsure, say N.
+
 endif # TTY

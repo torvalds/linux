@@ -84,4 +84,15 @@ void mips_cdmm_driver_unregister(struct mips_cdmm_driver *);
 	module_driver(__mips_cdmm_driver, mips_cdmm_driver_register, \
 			mips_cdmm_driver_unregister)
 
+/* drivers/tty/mips_ejtag_fdc.c */
+
+#ifdef CONFIG_MIPS_EJTAG_FDC_EARLYCON
+int setup_early_fdc_console(void);
+#else
+static inline int setup_early_fdc_console(void)
+{
+	return -ENODEV;
+}
+#endif
+
 #endif /* __ASM_CDMM_H */
