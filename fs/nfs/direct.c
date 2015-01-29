@@ -212,6 +212,12 @@ static int nfs_direct_cmp_commit_data_verf(struct nfs_direct_req *dreq,
  */
 ssize_t nfs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter, loff_t pos)
 {
+	struct inode *inode = iocb->ki_filp->f_mapping->host;
+
+	/* we only support swap file calling nfs_direct_IO */
+	if (!IS_SWAPFILE(inode))
+		return 0;
+
 #ifndef CONFIG_NFS_SWAP
 	dprintk("NFS: nfs_direct_IO (%pD) off/no(%Ld/%lu) EINVAL\n",
 			iocb->ki_filp, (long long) pos, iter->nr_segs);
