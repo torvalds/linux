@@ -1,8 +1,35 @@
 Broadcom BCM2835 device tree bindings
 -------------------------------------------
 
-Boards with the BCM2835 SoC shall have the following properties:
+Raspberry Pi Model A
+Required root node properties:
+compatible = "raspberrypi,model-a", "brcm,bcm2835";
 
-Required root node property:
+Raspberry Pi Model A+
+Required root node properties:
+compatible = "raspberrypi,model-a-plus", "brcm,bcm2835";
 
+Raspberry Pi Model B
+Required root node properties:
+compatible = "raspberrypi,model-b", "brcm,bcm2835";
+
+Raspberry Pi Model B (no P5)
+early model B with I2C0 rather than I2C1 routed to the expansion header
+Required root node properties:
+compatible = "raspberrypi,model-b-i2c0", "brcm,bcm2835";
+
+Raspberry Pi Model B rev2
+Required root node properties:
+compatible = "raspberrypi,model-b-rev2", "brcm,bcm2835";
+
+Raspberry Pi Model B+
+Required root node properties:
+compatible = "raspberrypi,model-b-plus", "brcm,bcm2835";
+
+Raspberry Pi Compute Module
+Required root node properties:
+compatible = "raspberrypi,compute-module", "brcm,bcm2835";
+
+Generic BCM2835 board
+Required root node properties:
 compatible = "brcm,bcm2835";
