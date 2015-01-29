@@ -448,6 +448,34 @@ static const struct panel_desc auo_b133htn01 = {
 	},
 };
 
+static const struct drm_display_mode avic_tm070ddh03_mode = {
+	.clock = 51200,
+	.hdisplay = 1024,
+	.hsync_start = 1024 + 160,
+	.hsync_end = 1024 + 160 + 4,
+	.htotal = 1024 + 160 + 4 + 156,
+	.vdisplay = 600,
+	.vsync_start = 600 + 17,
+	.vsync_end = 600 + 17 + 1,
+	.vtotal = 600 + 17 + 1 + 17,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc avic_tm070ddh03 = {
+	.modes = &avic_tm070ddh03_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 154,
+		.height = 90,
+	},
+	.delay = {
+		.prepare = 20,
+		.enable = 200,
+		.disable = 200,
+	},
+};
+
 static const struct drm_display_mode chunghwa_claa101wa01a_mode = {
 	.clock = 72070,
 	.hdisplay = 1366,
@@ -564,6 +592,29 @@ static const struct panel_desc foxlink_fl500wvr00_a0t = {
 		.height = 65,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+};
+
+static const struct drm_display_mode giantplus_gpg482739qs5_mode = {
+	.clock = 9000,
+	.hdisplay = 480,
+	.hsync_start = 480 + 5,
+	.hsync_end = 480 + 5 + 1,
+	.htotal = 480 + 5 + 1 + 40,
+	.vdisplay = 272,
+	.vsync_start = 272 + 8,
+	.vsync_end = 272 + 8 + 1,
+	.vtotal = 272 + 8 + 1 + 8,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc giantplus_gpg482739qs5 = {
+	.modes = &giantplus_gpg482739qs5_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 95,
+		.height = 54,
+	},
 };
 
 static const struct drm_display_mode hannstar_hsd070pww1_mode = {
@@ -745,6 +796,9 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "auo,b133xtn01",
 		.data = &auo_b133xtn01,
 	}, {
+		.compatible = "avic,tm070ddh03",
+		.data = &avic_tm070ddh03,
+	}, {
 		.compatible = "chunghwa,claa101wa01a",
 		.data = &chunghwa_claa101wa01a
 	}, {
@@ -762,6 +816,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "foxlink,fl500wvr00-a0t",
 		.data = &foxlink_fl500wvr00_a0t,
+	}, {
+		.compatible = "giantplus,gpg482739qs5",
+		.data = &giantplus_gpg482739qs5
 	}, {
 		.compatible = "hannstar,hsd070pww1",
 		.data = &hannstar_hsd070pww1,

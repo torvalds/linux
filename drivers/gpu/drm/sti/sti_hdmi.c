@@ -463,19 +463,12 @@ static void sti_hdmi_bridge_nope(struct drm_bridge *bridge)
 	/* do nothing */
 }
 
-static void sti_hdmi_brigde_destroy(struct drm_bridge *bridge)
-{
-	drm_bridge_cleanup(bridge);
-	kfree(bridge);
-}
-
 static const struct drm_bridge_funcs sti_hdmi_bridge_funcs = {
 	.pre_enable = sti_hdmi_pre_enable,
 	.enable = sti_hdmi_bridge_nope,
 	.disable = sti_hdmi_disable,
 	.post_disable = sti_hdmi_bridge_nope,
 	.mode_set = sti_hdmi_set_mode,
-	.destroy = sti_hdmi_brigde_destroy,
 };
 
 static int sti_hdmi_connector_get_modes(struct drm_connector *connector)
@@ -635,7 +628,8 @@ static int sti_hdmi_bind(struct device *dev, struct device *master, void *data)
 		goto err_adapt;
 
 	bridge->driver_private = hdmi;
-	drm_bridge_init(drm_dev, bridge, &sti_hdmi_bridge_funcs);
+	bridge->funcs = &sti_hdmi_bridge_funcs;
+	drm_bridge_attach(drm_dev, bridge);
 
 	encoder->bridge = bridge;
 	connector->encoder = encoder;
@@ -667,7 +661,6 @@ static int sti_hdmi_bind(struct device *dev, struct device *master, void *data)
 err_sysfs:
 	drm_connector_unregister(drm_connector);
 err_connector:
-	drm_bridge_cleanup(bridge);
 	drm_connector_cleanup(drm_connector);
 err_adapt:
 	put_device(&hdmi->ddc_adapt->dev);

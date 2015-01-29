@@ -3,8 +3,8 @@ ptn3460 bridge bindings
 Required properties:
 	- compatible: "nxp,ptn3460"
 	- reg: i2c address of the bridge
-	- powerdown-gpio: OF device-tree gpio specification
-	- reset-gpio: OF device-tree gpio specification
+	- powerdown-gpio: OF device-tree gpio specification  for PD_N pin.
+	- reset-gpio: OF device-tree gpio specification for RST_N pin.
 	- edid-emulation: The EDID emulation entry to use
 		+-------+------------+------------------+
 		| Value | Resolution | Description      |
@@ -17,6 +17,11 @@ Required properties:
 		|   6   |  1600x900  | ChiMei M215HGE   |
 		+-------+------------+------------------+
 
+	- video interfaces: Device node can contain video interface port
+			    nodes for panel according to [1].
+
+[1]: Documentation/devicetree/bindings/media/video-interfaces.txt
+
 Example:
 	lvds-bridge@20 {
 		compatible = "nxp,ptn3460";
@@ -24,4 +29,11 @@ Example:
 		powerdown-gpio = <&gpy2 5 1 0 0>;
 		reset-gpio = <&gpx1 5 1 0 0>;
 		edid-emulation = <5>;
+		ports {
+			port@0 {
+				bridge_out: endpoint {
+					remote-endpoint = <&panel_in>;
+				};
+			};
+		};
 	};
