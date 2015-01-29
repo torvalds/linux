@@ -367,8 +367,7 @@ int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 	int err;
 
 	mutex_lock(&cq->resize_mutex);
-
-	if (entries < 1) {
+	if (entries < 1 || entries > dev->dev->caps.max_cqes) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -379,7 +378,7 @@ int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 		goto out;
 	}
 
-	if (entries > dev->dev->caps.max_cqes) {
+	if (entries > dev->dev->caps.max_cqes + 1) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -392,7 +391,7 @@ int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 		/* Can't be smaller than the number of outstanding CQEs */
 		outst_cqe = mlx4_ib_get_outstanding_cqes(cq);
 		if (entries < outst_cqe + 1) {
-			err = 0;
+			err = -EINVAL;
 			goto out;
 		}
 
