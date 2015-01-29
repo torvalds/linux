@@ -228,7 +228,7 @@ static const char *max77693_extcon_cable[] = {
 	[EXTCON_CABLE_SLOW_CHARGER]		= "Slow-charger",
 	[EXTCON_CABLE_CHARGE_DOWNSTREAM]	= "Charge-downstream",
 	[EXTCON_CABLE_MHL]			= "MHL",
-	[EXTCON_CABLE_MHL_TA]			= "MHL_TA",
+	[EXTCON_CABLE_MHL_TA]			= "MHL-TA",
 	[EXTCON_CABLE_JIG_USB_ON]		= "JIG-USB-ON",
 	[EXTCON_CABLE_JIG_USB_OFF]		= "JIG-USB-OFF",
 	[EXTCON_CABLE_JIG_UART_OFF]		= "JIG-UART-OFF",
@@ -823,19 +823,19 @@ static int max77693_muic_chg_handler(struct max77693_muic_info *info)
 		case MAX77693_MUIC_GND_MHL:
 		case MAX77693_MUIC_GND_MHL_VB:
 			/*
-			 * MHL cable with MHL_TA(USB/TA) cable
+			 * MHL cable with MHL-TA(USB/TA) cable
 			 * - MHL cable include two port(HDMI line and separate
 			 * micro-usb port. When the target connect MHL cable,
-			 * extcon driver check whether MHL_TA(USB/TA) cable is
-			 * connected. If MHL_TA cable is connected, extcon
+			 * extcon driver check whether MHL-TA(USB/TA) cable is
+			 * connected. If MHL-TA cable is connected, extcon
 			 * driver notify state to notifiee for charging battery.
 			 *
-			 * Features of 'MHL_TA(USB/TA) with MHL cable'
+			 * Features of 'MHL-TA(USB/TA) with MHL cable'
 			 * - Support MHL
 			 * - Support charging through micro-usb port without
 			 *   data connection
 			 */
-			extcon_set_cable_state(info->edev, "MHL_TA", attached);
+			extcon_set_cable_state(info->edev, "MHL-TA", attached);
 			if (!cable_attached)
 				extcon_set_cable_state(info->edev,
 						      "MHL", cable_attached);
