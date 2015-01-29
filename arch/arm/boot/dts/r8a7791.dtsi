@@ -874,19 +874,19 @@
 		};
 
 		/* Variable factor clocks */
-		sd1_clk: sd2_clk@e6150078 {
+		sd2_clk: sd2_clk@e6150078 {
 			compatible = "renesas,r8a7791-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0 0xe6150078 0 4>;
 			clocks = <&pll1_div2_clk>;
 			#clock-cells = <0>;
-			clock-output-names = "sd1";
+			clock-output-names = "sd2";
 		};
-		sd2_clk: sd3_clk@e615026c {
+		sd3_clk: sd3_clk@e615026c {
 			compatible = "renesas,r8a7791-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0 0xe615026c 0 4>;
 			clocks = <&pll1_div2_clk>;
 			#clock-cells = <0>;
-			clock-output-names = "sd2";
+			clock-output-names = "sd3";
 		};
 		mmc0_clk: mmc0_clk@e6150240 {
 			compatible = "renesas,r8a7791-div6-clock", "renesas,cpg-div6-clock";
@@ -1107,7 +1107,7 @@
 		mstp3_clks: mstp3_clks@e615013c {
 			compatible = "renesas,r8a7791-mstp-clocks", "renesas,cpg-mstp-clocks";
 			reg = <0 0xe615013c 0 4>, <0 0xe6150048 0 4>;
-			clocks = <&cp_clk>, <&sd2_clk>, <&sd1_clk>, <&cpg_clocks R8A7791_CLK_SD0>,
+			clocks = <&cp_clk>, <&sd3_clk>, <&sd2_clk>, <&cpg_clocks R8A7791_CLK_SD0>,
 				 <&mmc0_clk>, <&hp_clk>, <&mp_clk>, <&hp_clk>, <&mp_clk>, <&rclk_clk>,
 				 <&hp_clk>, <&hp_clk>;
 			#clock-cells = <1>;
