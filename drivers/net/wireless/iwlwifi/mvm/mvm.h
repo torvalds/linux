@@ -146,6 +146,19 @@ struct iwl_mvm_dump_ptrs {
 	u32 op_mode_len;
 };
 
+/**
+ * struct iwl_mvm_dump_desc - describes the dump
+ * @len: length of trig_desc->data
+ * @trig_desc: the description of the dump
+ */
+struct iwl_mvm_dump_desc {
+	size_t len;
+	/* must be last */
+	struct iwl_fw_error_dump_trigger_desc trig_desc;
+};
+
+extern struct iwl_mvm_dump_desc iwl_mvm_dump_desc_assert;
+
 struct iwl_mvm_phy_ctxt {
 	u16 id;
 	u16 color;
@@ -706,6 +719,7 @@ struct iwl_mvm {
 	s8 restart_fw;
 	u8 fw_dbg_conf;
 	struct delayed_work fw_dump_wk;
+	struct iwl_mvm_dump_desc *fw_dump_desc;
 
 #ifdef CONFIG_IWLWIFI_LEDS
 	struct led_classdev led;
@@ -1415,9 +1429,14 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm);
 
 int iwl_mvm_start_fw_dbg_conf(struct iwl_mvm *mvm, u8 id);
 int iwl_mvm_fw_dbg_collect(struct iwl_mvm *mvm, enum iwl_fw_dbg_trigger trig,
-			   unsigned int delay);
+			   const char *str, size_t len, unsigned int delay);
+int iwl_mvm_fw_dbg_collect_desc(struct iwl_mvm *mvm,
+				struct iwl_mvm_dump_desc *desc,
+				unsigned int delay);
+void iwl_mvm_free_fw_dump_desc(struct iwl_mvm *mvm);
 int iwl_mvm_fw_dbg_collect_trig(struct iwl_mvm *mvm,
-				struct iwl_fw_dbg_trigger_tlv *trigger);
+				struct iwl_fw_dbg_trigger_tlv *trigger,
+				const char *str, size_t len);
 
 static inline bool
 iwl_fw_dbg_trigger_vif_match(struct iwl_fw_dbg_trigger_tlv *trig,
@@ -1451,7 +1470,8 @@ iwl_fw_dbg_trigger_check_stop(struct iwl_mvm *mvm,
 static inline void
 iwl_fw_dbg_trigger_simple_stop(struct iwl_mvm *mvm,
 			       struct ieee80211_vif *vif,
-			       enum iwl_fw_dbg_trigger trig)
+			       enum iwl_fw_dbg_trigger trig,
+			       const char *str, size_t len)
 {
 	struct iwl_fw_dbg_trigger_tlv *trigger;
 
@@ -1462,7 +1482,7 @@ iwl_fw_dbg_trigger_simple_stop(struct iwl_mvm *mvm,
 	if (!iwl_fw_dbg_trigger_check_stop(mvm, vif, trigger))
 		return;
 
-	iwl_mvm_fw_dbg_collect_trig(mvm, trigger);
+	iwl_mvm_fw_dbg_collect_trig(mvm, trigger, str, len);
 }
 
 #endif /* __IWL_MVM_H__ */

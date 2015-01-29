@@ -82,6 +82,8 @@
  *	sections like this in a single file.
  * @IWL_FW_ERROR_DUMP_FH_REGS: range of FH registers
  * @IWL_FW_ERROR_DUMP_MEM: chunk of memory
+ * @IWL_FW_ERROR_DUMP_ERROR_INFO: description of what triggered this dump.
+ *	Structured as &struct iwl_fw_error_dump_trigger_desc.
  */
 enum iwl_fw_error_dump_type {
 	/* 0 is deprecated */
@@ -94,6 +96,7 @@ enum iwl_fw_error_dump_type {
 	IWL_FW_ERROR_DUMP_TXF = 7,
 	IWL_FW_ERROR_DUMP_FH_REGS = 8,
 	IWL_FW_ERROR_DUMP_MEM = 9,
+	IWL_FW_ERROR_DUMP_ERROR_INFO = 10,
 
 	IWL_FW_ERROR_DUMP_MAX,
 };
@@ -246,6 +249,16 @@ enum iwl_fw_dbg_trigger {
 
 	/* must be last */
 	FW_DBG_TRIGGER_MAX,
+};
+
+/**
+ * struct iwl_fw_error_dump_trigger_desc - describes the trigger condition
+ * @type: %enum iwl_fw_dbg_trigger
+ * @data: raw data about what happened
+ */
+struct iwl_fw_error_dump_trigger_desc {
+	__le32 type;
+	u8 data[];
 };
 
 #endif /* __fw_error_dump_h__ */

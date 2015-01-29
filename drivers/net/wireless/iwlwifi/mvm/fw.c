@@ -479,13 +479,20 @@ exit:
 	iwl_free_resp(&cmd);
 }
 
-int iwl_mvm_fw_dbg_collect(struct iwl_mvm *mvm, enum iwl_fw_dbg_trigger trig,
-			   unsigned int delay)
+int iwl_mvm_fw_dbg_collect_desc(struct iwl_mvm *mvm,
+				struct iwl_mvm_dump_desc *desc,
+				unsigned int delay)
 {
 	if (test_and_set_bit(IWL_MVM_STATUS_DUMPING_FW_LOG, &mvm->status))
 		return -EBUSY;
 
-	IWL_WARN(mvm, "Collecting data: trigger %d fired.\n", trig);
+	if (WARN_ON(mvm->fw_dump_desc))
+		iwl_mvm_free_fw_dump_desc(mvm);
+
+	IWL_WARN(mvm, "Collecting data: trigger %d fired.\n",
+		 le32_to_cpu(desc->trig_desc.type));
+
+	mvm->fw_dump_desc = desc;
 
 	/* stop recording */
 	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
@@ -501,8 +508,25 @@ int iwl_mvm_fw_dbg_collect(struct iwl_mvm *mvm, enum iwl_fw_dbg_trigger trig,
 	return 0;
 }
 
+int iwl_mvm_fw_dbg_collect(struct iwl_mvm *mvm, enum iwl_fw_dbg_trigger trig,
+			   const char *str, size_t len, unsigned int delay)
+{
+	struct iwl_mvm_dump_desc *desc;
+
+	desc = kzalloc(sizeof(*desc) + len, GFP_ATOMIC);
+	if (!desc)
+		return -ENOMEM;
+
+	desc->len = len;
+	desc->trig_desc.type = cpu_to_le32(trig);
+	memcpy(desc->trig_desc.data, str, len);
+
+	return iwl_mvm_fw_dbg_collect_desc(mvm, desc, delay);
+}
+
 int iwl_mvm_fw_dbg_collect_trig(struct iwl_mvm *mvm,
-				struct iwl_fw_dbg_trigger_tlv *trigger)
+				struct iwl_fw_dbg_trigger_tlv *trigger,
+				const char *str, size_t len)
 {
 	unsigned int delay = msecs_to_jiffies(le32_to_cpu(trigger->stop_delay));
 	u16 occurrences = le16_to_cpu(trigger->occurrences);
@@ -511,7 +535,8 @@ int iwl_mvm_fw_dbg_collect_trig(struct iwl_mvm *mvm,
 	if (!occurrences)
 		return 0;
 
-	ret = iwl_mvm_fw_dbg_collect(mvm, le32_to_cpu(trigger->id), delay);
+	ret = iwl_mvm_fw_dbg_collect(mvm, le32_to_cpu(trigger->id), str,
+				     len, delay);
 	if (ret)
 		return ret;
 
