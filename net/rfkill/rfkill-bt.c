@@ -660,12 +660,12 @@ static int rfkill_rk_probe(struct platform_device *pdev)
 fail_rfkill:
 	rfkill_destroy(rfkill->rfkill_dev);
 fail_alloc:
-    g_rfkill = NULL;
 
 	remove_proc_entry("btwrite", sleep_dir);
 	remove_proc_entry("lpm", sleep_dir);
 fail_gpio:
 
+        g_rfkill = NULL;
 	return ret;
 }
 
