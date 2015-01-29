@@ -419,4 +419,22 @@ config DA_CONSOLE
 	help
 	  This enables a console on a Dash channel.
 
+config MIPS_EJTAG_FDC_TTY
+	bool "MIPS EJTAG Fast Debug Channel TTY"
+	depends on MIPS_CDMM
+	help
+	  This enables a TTY and console on the MIPS EJTAG Fast Debug Channels,
+	  if they are present. This can be useful when working with an EJTAG
+	  probe which supports it, to get console output and a login prompt via
+	  EJTAG without needing to connect a serial cable.
+
+	  TTY devices are named e.g. ttyFDC3c2 (for FDC channel 2 of the FDC on
+	  CPU3).
+
+	  The console can be enabled with console=fdc1 (for FDC channel 1 on all
+	  CPUs). Do not use the console unless there is a debug probe attached
+	  to drain the FDC TX FIFO.
+
+	  If unsure, say N.
+
 endif # TTY
