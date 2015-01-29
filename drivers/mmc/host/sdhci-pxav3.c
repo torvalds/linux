@@ -118,8 +118,11 @@ static int mv_conf_mbus_windows(struct platform_device *pdev,
 	return 0;
 }
 
-static int armada_38x_quirks(struct sdhci_host *host)
+static int armada_38x_quirks(struct platform_device *pdev,
+			     struct sdhci_host *host)
 {
+	struct device_node *np = pdev->dev.of_node;
+
 	host->quirks |= SDHCI_QUIRK_MISSING_CAPS;
 	/*
 	 * According to erratum 'FE-2946959' both SDR50 and DDR50
@@ -129,6 +132,21 @@ static int armada_38x_quirks(struct sdhci_host *host)
 	 */
 	host->caps1 = sdhci_readl(host, SDHCI_CAPABILITIES_1);
 	host->caps1 &= ~(SDHCI_SUPPORT_SDR50 | SDHCI_SUPPORT_DDR50);
+
+	/*
+	 * According to erratum 'ERR-7878951' Armada 38x SDHCI
+	 * controller has different capabilities than the ones shown
+	 * in its registers
+	 */
+	host->caps = sdhci_readl(host, SDHCI_CAPABILITIES);
+	if (of_property_read_bool(np, "no-1-8-v")) {
+		host->caps &= ~SDHCI_CAN_VDD_180;
+		host->mmc->caps &= ~MMC_CAP_1_8V_DDR;
+	} else {
+		host->caps &= ~SDHCI_CAN_VDD_330;
+	}
+	host->caps1 &= ~(SDHCI_SUPPORT_SDR104 | SDHCI_USE_SDR50_TUNING);
+
 	return 0;
 }
 
@@ -332,17 +350,17 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 	if (!IS_ERR(pxa->clk_core))
 		clk_prepare_enable(pxa->clk_core);
 
+	/* enable 1/8V DDR capable */
+	host->mmc->caps |= MMC_CAP_1_8V_DDR;
+
 	if (of_device_is_compatible(np, "marvell,armada-380-sdhci")) {
-		ret = armada_38x_quirks(host);
+		ret = armada_38x_quirks(pdev, host);
 		if (ret < 0)
 			goto err_clk_get;
 		ret = mv_conf_mbus_windows(pdev, mv_mbus_dram_info());
 		if (ret < 0)
 			goto err_mbus_win;
 	}
-
-	/* enable 1/8V DDR capable */
-	host->mmc->caps |= MMC_CAP_1_8V_DDR;
 
 	match = of_match_device(of_match_ptr(sdhci_pxav3_of_match), &pdev->dev);
 	if (match) {
