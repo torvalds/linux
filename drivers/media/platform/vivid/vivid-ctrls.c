@@ -689,7 +689,7 @@ static const struct v4l2_ctrl_config vivid_ctrl_max_edid_blocks = {
 
 static const char * const vivid_ctrl_colorspace_strings[] = {
 	"SMPTE 170M",
-	"REC 709",
+	"Rec. 709",
 	"sRGB",
 	"AdobeRGB",
 	"BT.2020",
@@ -716,7 +716,7 @@ static const char * const vivid_ctrl_ycbcr_enc_strings[] = {
 	"xvYCC 601",
 	"xvYCC 709",
 	"sYCC",
-	"BT.2020 Non-Constant Luminance",
+	"BT.2020",
 	"BT.2020 Constant Luminance",
 	"SMPTE 240M",
 	NULL,
