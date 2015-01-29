@@ -578,18 +578,18 @@ static void apic_set_tpr(struct kvm_lapic *apic, u32 tpr)
 	apic_update_ppr(apic);
 }
 
-static int kvm_apic_broadcast(struct kvm_lapic *apic, u32 dest)
+static bool kvm_apic_broadcast(struct kvm_lapic *apic, u32 dest)
 {
 	return dest == (apic_x2apic_mode(apic) ?
 			X2APIC_BROADCAST : APIC_BROADCAST);
 }
 
-int kvm_apic_match_physical_addr(struct kvm_lapic *apic, u32 dest)
+static bool kvm_apic_match_physical_addr(struct kvm_lapic *apic, u32 dest)
 {
 	return kvm_apic_id(apic) == dest || kvm_apic_broadcast(apic, dest);
 }
 
-int kvm_apic_match_logical_addr(struct kvm_lapic *apic, u32 mda)
+static bool kvm_apic_match_logical_addr(struct kvm_lapic *apic, u32 mda)
 {
 	int result = 0;
 	u32 logical_id;
@@ -623,7 +623,7 @@ int kvm_apic_match_logical_addr(struct kvm_lapic *apic, u32 mda)
 	return result;
 }
 
-int kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
+bool kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
 			   int short_hand, unsigned int dest, int dest_mode)
 {
 	int result = 0;
