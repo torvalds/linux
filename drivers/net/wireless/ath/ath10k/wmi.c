@@ -956,30 +956,45 @@ err_pull:
 
 static void ath10k_wmi_tx_beacon_nowait(struct ath10k_vif *arvif)
 {
-	struct sk_buff *bcn;
+	struct ath10k *ar = arvif->ar;
 	struct ath10k_skb_cb *cb;
+	struct sk_buff *bcn;
 	int ret;
 
-	lockdep_assert_held(&arvif->ar->data_lock);
-
-	if (arvif->beacon == NULL)
-		return;
-
-	if (arvif->beacon_sent)
-		return;
+	spin_lock_bh(&ar->data_lock);
 
 	bcn = arvif->beacon;
-	cb = ATH10K_SKB_CB(bcn);
-	ret = ath10k_wmi_beacon_send_ref_nowait(arvif->ar, arvif->vdev_id,
-						bcn->data, bcn->len, cb->paddr,
-						cb->bcn.dtim_zero,
-						cb->bcn.deliver_cab);
-	if (ret)
-		return;
 
-	/* We need to retain the arvif->beacon reference for DMA unmapping and
-	 * freeing the skbuff later. */
-	arvif->beacon_sent = true;
+	if (!bcn)
+		goto unlock;
+
+	cb = ATH10K_SKB_CB(bcn);
+
+	switch (arvif->beacon_state) {
+	case ATH10K_BEACON_SENDING:
+	case ATH10K_BEACON_SENT:
+		break;
+	case ATH10K_BEACON_SCHEDULED:
+		arvif->beacon_state = ATH10K_BEACON_SENDING;
+		spin_unlock_bh(&ar->data_lock);
+
+		ret = ath10k_wmi_beacon_send_ref_nowait(arvif->ar,
+							arvif->vdev_id,
+							bcn->data, bcn->len,
+							cb->paddr,
+							cb->bcn.dtim_zero,
+							cb->bcn.deliver_cab);
+
+		spin_lock_bh(&ar->data_lock);
+
+		if (ret == 0)
+			arvif->beacon_state = ATH10K_BEACON_SENT;
+		else
+			arvif->beacon_state = ATH10K_BEACON_SCHEDULED;
+	}
+
+unlock:
+	spin_unlock_bh(&ar->data_lock);
 }
 
 static void ath10k_wmi_tx_beacons_iter(void *data, u8 *mac,
@@ -992,12 +1007,10 @@ static void ath10k_wmi_tx_beacons_iter(void *data, u8 *mac,
 
 static void ath10k_wmi_tx_beacons_nowait(struct ath10k *ar)
 {
-	spin_lock_bh(&ar->data_lock);
 	ieee80211_iterate_active_interfaces_atomic(ar->hw,
 						   IEEE80211_IFACE_ITER_NORMAL,
 						   ath10k_wmi_tx_beacons_iter,
 						   NULL);
-	spin_unlock_bh(&ar->data_lock);
 }
 
 static void ath10k_wmi_op_ep_tx_credits(struct ath10k *ar)
@@ -2459,9 +2472,19 @@ void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 		spin_lock_bh(&ar->data_lock);
 
 		if (arvif->beacon) {
-			if (!arvif->beacon_sent)
-				ath10k_warn(ar, "SWBA overrun on vdev %d\n",
+			switch (arvif->beacon_state) {
+			case ATH10K_BEACON_SENT:
+				break;
+			case ATH10K_BEACON_SCHEDULED:
+				ath10k_warn(ar, "SWBA overrun on vdev %d, skipped old beacon\n",
 					    arvif->vdev_id);
+				break;
+			case ATH10K_BEACON_SENDING:
+				ath10k_warn(ar, "SWBA overrun on vdev %d, skipped new beacon\n",
+					    arvif->vdev_id);
+				dev_kfree_skb(bcn);
+				goto skip;
+			}
 
 			ath10k_mac_vif_beacon_free(arvif);
 		}
@@ -2489,15 +2512,16 @@ void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 		}
 
 		arvif->beacon = bcn;
-		arvif->beacon_sent = false;
+		arvif->beacon_state = ATH10K_BEACON_SCHEDULED;
 
 		trace_ath10k_tx_hdr(ar, bcn->data, bcn->len);
 		trace_ath10k_tx_payload(ar, bcn->data, bcn->len);
 
-		ath10k_wmi_tx_beacon_nowait(arvif);
 skip:
 		spin_unlock_bh(&ar->data_lock);
 	}
+
+	ath10k_wmi_tx_beacons_nowait(ar);
 }
 
 void ath10k_wmi_event_tbttoffset_update(struct ath10k *ar, struct sk_buff *skb)

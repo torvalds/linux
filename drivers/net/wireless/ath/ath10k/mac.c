@@ -531,10 +531,14 @@ void ath10k_mac_vif_beacon_free(struct ath10k_vif *arvif)
 		dma_unmap_single(ar->dev, ATH10K_SKB_CB(arvif->beacon)->paddr,
 				 arvif->beacon->len, DMA_TO_DEVICE);
 
+	if (WARN_ON(arvif->beacon_state != ATH10K_BEACON_SCHEDULED &&
+		    arvif->beacon_state != ATH10K_BEACON_SENT))
+		return;
+
 	dev_kfree_skb_any(arvif->beacon);
 
 	arvif->beacon = NULL;
-	arvif->beacon_sent = false;
+	arvif->beacon_state = ATH10K_BEACON_SCHEDULED;
 }
 
 static void ath10k_mac_vif_beacon_cleanup(struct ath10k_vif *arvif)
