@@ -19,7 +19,7 @@ void ovl_cleanup(struct inode *wdir, struct dentry *wdentry)
 	int err;
 
 	dget(wdentry);
-	if (S_ISDIR(wdentry->d_inode->i_mode))
+	if (d_is_dir(wdentry))
 		err = ovl_do_rmdir(wdir, wdentry);
 	else
 		err = ovl_do_unlink(wdir, wdentry);
@@ -693,7 +693,7 @@ static int ovl_rename2(struct inode *olddir, struct dentry *old,
 	bool new_create = false;
 	bool cleanup_whiteout = false;
 	bool overwrite = !(flags & RENAME_EXCHANGE);
-	bool is_dir = S_ISDIR(old->d_inode->i_mode);
+	bool is_dir = d_is_dir(old);
 	bool new_is_dir = false;
 	struct dentry *opaquedir = NULL;
 	const struct cred *old_cred = NULL;
@@ -720,7 +720,7 @@ static int ovl_rename2(struct inode *olddir, struct dentry *old,
 		if (err)
 			goto out;
 
-		if (S_ISDIR(new->d_inode->i_mode))
+		if (d_is_dir(new))
 			new_is_dir = true;
 
 		new_type = ovl_path_type(new);

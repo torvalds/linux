@@ -574,7 +574,7 @@ static int cachefiles_daemon_cull(struct cachefiles_cache *cache, char *args)
 	/* extract the directory dentry from the cwd */
 	get_fs_pwd(current->fs, &path);
 
-	if (!S_ISDIR(path.dentry->d_inode->i_mode))
+	if (!d_is_dir(path.dentry))
 		goto notdir;
 
 	cachefiles_begin_secure(cache, &saved_cred);
@@ -646,7 +646,7 @@ static int cachefiles_daemon_inuse(struct cachefiles_cache *cache, char *args)
 	/* extract the directory dentry from the cwd */
 	get_fs_pwd(current->fs, &path);
 
-	if (!S_ISDIR(path.dentry->d_inode->i_mode))
+	if (!d_is_dir(path.dentry))
 		goto notdir;
 
 	cachefiles_begin_secure(cache, &saved_cred);

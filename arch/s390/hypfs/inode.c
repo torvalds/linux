@@ -74,7 +74,7 @@ static void hypfs_remove(struct dentry *dentry)
 	parent = dentry->d_parent;
 	mutex_lock(&parent->d_inode->i_mutex);
 	if (hypfs_positive(dentry)) {
-		if (S_ISDIR(dentry->d_inode->i_mode))
+		if (d_is_dir(dentry))
 			simple_rmdir(parent->d_inode, dentry);
 		else
 			simple_unlink(parent->d_inode, dentry);

@@ -1799,7 +1799,7 @@ static inline int may_rename(struct inode *old_dir,
 
 	old_dsec = old_dir->i_security;
 	old_isec = old_dentry->d_inode->i_security;
-	old_is_dir = S_ISDIR(old_dentry->d_inode->i_mode);
+	old_is_dir = d_is_dir(old_dentry);
 	new_dsec = new_dir->i_security;
 
 	ad.type = LSM_AUDIT_DATA_DENTRY;
@@ -1829,7 +1829,7 @@ static inline int may_rename(struct inode *old_dir,
 		return rc;
 	if (d_is_positive(new_dentry)) {
 		new_isec = new_dentry->d_inode->i_security;
-		new_is_dir = S_ISDIR(new_dentry->d_inode->i_mode);
+		new_is_dir = d_is_dir(new_dentry);
 		rc = avc_has_perm(sid, new_isec->sid,
 				  new_isec->sclass,
 				  (new_is_dir ? DIR__RMDIR : FILE__UNLINK), &ad);

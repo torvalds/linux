@@ -429,7 +429,7 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 	if (IS_ERR(result))
 		return result;
 
-	if (S_ISDIR(result->d_inode->i_mode)) {
+	if (d_is_dir(result)) {
 		/*
 		 * This request is for a directory.
 		 *
