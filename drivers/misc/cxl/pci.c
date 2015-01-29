@@ -317,7 +317,7 @@ static int init_implementation_adapter_regs(struct cxl *adapter, struct pci_dev 
 	u64 psl_dsnctl;
 	u64 chipid;
 
-	if (!(np = pnv_pci_to_phb_node(dev)))
+	if (!(np = pnv_pci_get_phb_node(dev)))
 		return -ENODEV;
 
 	while (np && !(prop = of_get_property(np, "ibm,chip-id", NULL)))
