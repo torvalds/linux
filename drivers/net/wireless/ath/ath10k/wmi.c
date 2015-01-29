@@ -956,6 +956,8 @@ err_pull:
 
 static void ath10k_wmi_tx_beacon_nowait(struct ath10k_vif *arvif)
 {
+	struct sk_buff *bcn;
+	struct ath10k_skb_cb *cb;
 	int ret;
 
 	lockdep_assert_held(&arvif->ar->data_lock);
@@ -966,7 +968,12 @@ static void ath10k_wmi_tx_beacon_nowait(struct ath10k_vif *arvif)
 	if (arvif->beacon_sent)
 		return;
 
-	ret = ath10k_wmi_beacon_send_ref_nowait(arvif);
+	bcn = arvif->beacon;
+	cb = ATH10K_SKB_CB(bcn);
+	ret = ath10k_wmi_beacon_send_ref_nowait(arvif->ar, arvif->vdev_id,
+						bcn->data, bcn->len, cb->paddr,
+						cb->bcn.dtim_zero,
+						cb->bcn.deliver_cab);
 	if (ret)
 		return;
 
@@ -4856,12 +4863,12 @@ ath10k_wmi_10_2_op_gen_pdev_get_temperature(struct ath10k *ar)
 
 /* This function assumes the beacon is already DMA mapped */
 static struct sk_buff *
-ath10k_wmi_op_gen_beacon_dma(struct ath10k_vif *arvif)
+ath10k_wmi_op_gen_beacon_dma(struct ath10k *ar, u32 vdev_id, const void *bcn,
+			     size_t bcn_len, u32 bcn_paddr, bool dtim_zero,
+			     bool deliver_cab)
 {
-	struct ath10k *ar = arvif->ar;
 	struct wmi_bcn_tx_ref_cmd *cmd;
 	struct sk_buff *skb;
-	struct sk_buff *beacon = arvif->beacon;
 	struct ieee80211_hdr *hdr;
 	u16 fc;
 
@@ -4869,22 +4876,22 @@ ath10k_wmi_op_gen_beacon_dma(struct ath10k_vif *arvif)
 	if (!skb)
 		return ERR_PTR(-ENOMEM);
 
-	hdr = (struct ieee80211_hdr *)beacon->data;
+	hdr = (struct ieee80211_hdr *)bcn;
 	fc = le16_to_cpu(hdr->frame_control);
 
 	cmd = (struct wmi_bcn_tx_ref_cmd *)skb->data;
-	cmd->vdev_id = __cpu_to_le32(arvif->vdev_id);
-	cmd->data_len = __cpu_to_le32(beacon->len);
-	cmd->data_ptr = __cpu_to_le32(ATH10K_SKB_CB(beacon)->paddr);
+	cmd->vdev_id = __cpu_to_le32(vdev_id);
+	cmd->data_len = __cpu_to_le32(bcn_len);
+	cmd->data_ptr = __cpu_to_le32(bcn_paddr);
 	cmd->msdu_id = 0;
 	cmd->frame_control = __cpu_to_le32(fc);
 	cmd->flags = 0;
 	cmd->antenna_mask = __cpu_to_le32(WMI_BCN_TX_REF_DEF_ANTENNA);
 
-	if (ATH10K_SKB_CB(beacon)->bcn.dtim_zero)
+	if (dtim_zero)
 		cmd->flags |= __cpu_to_le32(WMI_BCN_TX_REF_FLAG_DTIM_ZERO);
 
-	if (ATH10K_SKB_CB(beacon)->bcn.deliver_cab)
+	if (deliver_cab)
 		cmd->flags |= __cpu_to_le32(WMI_BCN_TX_REF_FLAG_DELIVER_CAB);
 
 	return skb;

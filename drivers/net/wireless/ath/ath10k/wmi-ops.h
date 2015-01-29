@@ -104,7 +104,10 @@ struct wmi_ops {
 					 u32 value);
 	struct sk_buff *(*gen_scan_chan_list)(struct ath10k *ar,
 					      const struct wmi_scan_chan_list_arg *arg);
-	struct sk_buff *(*gen_beacon_dma)(struct ath10k_vif *arvif);
+	struct sk_buff *(*gen_beacon_dma)(struct ath10k *ar, u32 vdev_id,
+					  const void *bcn, size_t bcn_len,
+					  u32 bcn_paddr, bool dtim_zero,
+					  bool deliver_cab);
 	struct sk_buff *(*gen_pdev_set_wmm)(struct ath10k *ar,
 					    const struct wmi_wmm_params_all_arg *arg);
 	struct sk_buff *(*gen_request_stats)(struct ath10k *ar,
@@ -768,16 +771,19 @@ ath10k_wmi_peer_assoc(struct ath10k *ar,
 }
 
 static inline int
-ath10k_wmi_beacon_send_ref_nowait(struct ath10k_vif *arvif)
+ath10k_wmi_beacon_send_ref_nowait(struct ath10k *ar, u32 vdev_id,
+				  const void *bcn, size_t bcn_len,
+				  u32 bcn_paddr, bool dtim_zero,
+				  bool deliver_cab)
 {
-	struct ath10k *ar = arvif->ar;
 	struct sk_buff *skb;
 	int ret;
 
 	if (!ar->wmi.ops->gen_beacon_dma)
 		return -EOPNOTSUPP;
 
-	skb = ar->wmi.ops->gen_beacon_dma(arvif);
+	skb = ar->wmi.ops->gen_beacon_dma(ar, vdev_id, bcn, bcn_len, bcn_paddr,
+					  dtim_zero, deliver_cab);
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 
