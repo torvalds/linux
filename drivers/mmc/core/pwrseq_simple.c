@@ -7,6 +7,7 @@
  *
  *  Simple MMC power sequence management
  */
+#include <linux/clk.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/device.h>
@@ -20,6 +21,8 @@
 
 struct mmc_pwrseq_simple {
 	struct mmc_pwrseq pwrseq;
+	bool clk_enabled;
+	struct clk *ext_clk;
 	int nr_gpios;
 	struct gpio_desc *reset_gpios[0];
 };
@@ -39,6 +42,11 @@ static void mmc_pwrseq_simple_pre_power_on(struct mmc_host *host)
 	struct mmc_pwrseq_simple *pwrseq = container_of(host->pwrseq,
 					struct mmc_pwrseq_simple, pwrseq);
 
+	if (!IS_ERR(pwrseq->ext_clk) && !pwrseq->clk_enabled) {
+		clk_prepare_enable(pwrseq->ext_clk);
+		pwrseq->clk_enabled = true;
+	}
+
 	mmc_pwrseq_simple_set_gpios_value(pwrseq, 1);
 }
 
@@ -48,6 +56,19 @@ static void mmc_pwrseq_simple_post_power_on(struct mmc_host *host)
 					struct mmc_pwrseq_simple, pwrseq);
 
 	mmc_pwrseq_simple_set_gpios_value(pwrseq, 0);
+}
+
+static void mmc_pwrseq_simple_power_off(struct mmc_host *host)
+{
+	struct mmc_pwrseq_simple *pwrseq = container_of(host->pwrseq,
+					struct mmc_pwrseq_simple, pwrseq);
+
+	mmc_pwrseq_simple_set_gpios_value(pwrseq, 1);
+
+	if (!IS_ERR(pwrseq->ext_clk) && pwrseq->clk_enabled) {
+		clk_disable_unprepare(pwrseq->ext_clk);
+		pwrseq->clk_enabled = false;
+	}
 }
 
 static void mmc_pwrseq_simple_free(struct mmc_host *host)
@@ -60,6 +81,9 @@ static void mmc_pwrseq_simple_free(struct mmc_host *host)
 		if (!IS_ERR(pwrseq->reset_gpios[i]))
 			gpiod_put(pwrseq->reset_gpios[i]);
 
+	if (!IS_ERR(pwrseq->ext_clk))
+		clk_put(pwrseq->ext_clk);
+
 	kfree(pwrseq);
 	host->pwrseq = NULL;
 }
@@ -67,7 +91,7 @@ static void mmc_pwrseq_simple_free(struct mmc_host *host)
 static struct mmc_pwrseq_ops mmc_pwrseq_simple_ops = {
 	.pre_power_on = mmc_pwrseq_simple_pre_power_on,
 	.post_power_on = mmc_pwrseq_simple_post_power_on,
-	.power_off = mmc_pwrseq_simple_pre_power_on,
+	.power_off = mmc_pwrseq_simple_power_off,
 	.free = mmc_pwrseq_simple_free,
 };
 
@@ -85,6 +109,13 @@ int mmc_pwrseq_simple_alloc(struct mmc_host *host, struct device *dev)
 	if (!pwrseq)
 		return -ENOMEM;
 
+	pwrseq->ext_clk = clk_get(dev, "ext_clock");
+	if (IS_ERR(pwrseq->ext_clk) &&
+	    PTR_ERR(pwrseq->ext_clk) != -ENOENT) {
+		ret = PTR_ERR(pwrseq->ext_clk);
+		goto free;
+	}
+
 	for (i = 0; i < nr_gpios; i++) {
 		pwrseq->reset_gpios[i] = gpiod_get_index(dev, "reset", i,
 							 GPIOD_OUT_HIGH);
@@ -96,7 +127,7 @@ int mmc_pwrseq_simple_alloc(struct mmc_host *host, struct device *dev)
 			while (--i)
 				gpiod_put(pwrseq->reset_gpios[i]);
 
-			goto free;
+			goto clk_put;
 		}
 	}
 
@@ -105,6 +136,9 @@ int mmc_pwrseq_simple_alloc(struct mmc_host *host, struct device *dev)
 	host->pwrseq = &pwrseq->pwrseq;
 
 	return 0;
+clk_put:
+	if (!IS_ERR(pwrseq->ext_clk))
+		clk_put(pwrseq->ext_clk);
 free:
 	kfree(pwrseq);
 	return ret;
