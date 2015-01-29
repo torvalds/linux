@@ -25,9 +25,28 @@
 
 #define __hyp_text __section(.hyp.text) notrace
 
-#define kern_hyp_va(v) (typeof(v))((unsigned long)(v) & HYP_PAGE_OFFSET_MASK)
-#define hyp_kern_va(v) (typeof(v))((unsigned long)(v) - HYP_PAGE_OFFSET \
-						      + PAGE_OFFSET)
+static inline unsigned long __kern_hyp_va(unsigned long v)
+{
+	asm volatile(ALTERNATIVE("and %0, %0, %1",
+				 "nop",
+				 ARM64_HAS_VIRT_HOST_EXTN)
+		     : "+r" (v) : "i" (HYP_PAGE_OFFSET_MASK));
+	return v;
+}
+
+#define kern_hyp_va(v) (typeof(v))(__kern_hyp_va((unsigned long)(v)))
+
+static inline unsigned long __hyp_kern_va(unsigned long v)
+{
+	u64 offset = PAGE_OFFSET - HYP_PAGE_OFFSET;
+	asm volatile(ALTERNATIVE("add %0, %0, %1",
+				 "nop",
+				 ARM64_HAS_VIRT_HOST_EXTN)
+		     : "+r" (v) : "r" (offset));
+	return v;
+}
+
+#define hyp_kern_va(v) (typeof(v))(__hyp_kern_va((unsigned long)(v)))
 
 /**
  * hyp_alternate_select - Generates patchable code sequences that are
