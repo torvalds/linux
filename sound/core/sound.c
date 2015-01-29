@@ -248,8 +248,9 @@ static int snd_kernel_minor(int type, struct snd_card *card, int dev)
  * @dev: the device index
  * @f_ops: the file operations
  * @private_data: user pointer for f_ops->open()
- * @name: the device file name
- * @device: the &struct device to link this new device to
+ * @device: the device to register, NULL to create a new one
+ * @parent: the &struct device to link this new device to (only for device=NULL)
+ * @name: the device file name (only for device=NULL)
  *
  * Registers an ALSA device file for the given card.
  * The operators have to be set in reg parameter.
@@ -258,14 +259,13 @@ static int snd_kernel_minor(int type, struct snd_card *card, int dev)
  */
 int snd_register_device_for_dev(int type, struct snd_card *card, int dev,
 				const struct file_operations *f_ops,
-				void *private_data,
-				const char *name, struct device *device)
+				void *private_data, struct device *device,
+				struct device *parent, const char *name)
 {
 	int minor;
+	int err = 0;
 	struct snd_minor *preg;
 
-	if (snd_BUG_ON(!name))
-		return -EINVAL;
 	preg = kmalloc(sizeof *preg, GFP_KERNEL);
 	if (preg == NULL)
 		return -ENOMEM;
@@ -284,23 +284,32 @@ int snd_register_device_for_dev(int type, struct snd_card *card, int dev,
 		minor = -EBUSY;
 #endif
 	if (minor < 0) {
-		mutex_unlock(&sound_mutex);
-		kfree(preg);
-		return minor;
-	}
-	snd_minors[minor] = preg;
-	preg->dev = device_create(sound_class, device, MKDEV(major, minor),
-				  private_data, "%s", name);
-	if (IS_ERR(preg->dev)) {
-		snd_minors[minor] = NULL;
-		mutex_unlock(&sound_mutex);
-		minor = PTR_ERR(preg->dev);
-		kfree(preg);
-		return minor;
+		err = minor;
+		goto error;
 	}
 
+	if (device) {
+		preg->created = false;
+		preg->dev = device;
+		device->devt = MKDEV(major, minor);
+		err = device_add(device);
+	} else {
+		preg->created = true;
+		preg->dev = device_create(sound_class, parent,
+					  MKDEV(major, minor), private_data,
+					  "%s", name);
+		if (IS_ERR(preg->dev))
+			err = PTR_ERR(preg->dev);
+	}
+	if (err < 0)
+		goto error;
+
+	snd_minors[minor] = preg;
+ error:
 	mutex_unlock(&sound_mutex);
-	return 0;
+	if (err < 0)
+		kfree(preg);
+	return err;
 }
 
 EXPORT_SYMBOL(snd_register_device_for_dev);
@@ -337,6 +346,7 @@ static int find_snd_minor(int type, struct snd_card *card, int dev)
 int snd_unregister_device(int type, struct snd_card *card, int dev)
 {
 	int minor;
+	struct snd_minor *preg;
 
 	mutex_lock(&sound_mutex);
 	minor = find_snd_minor(type, card, dev);
@@ -345,7 +355,11 @@ int snd_unregister_device(int type, struct snd_card *card, int dev)
 		return -EINVAL;
 	}
 
-	device_destroy(sound_class, MKDEV(major, minor));
+	preg = snd_minors[minor];
+	if (preg && !preg->created)
+		device_del(preg->dev);
+	else
+		device_destroy(sound_class, MKDEV(major, minor));
 
 	kfree(snd_minors[minor]);
 	snd_minors[minor] = NULL;

@@ -186,6 +186,7 @@ struct snd_minor {
 	int type;			/* SNDRV_DEVICE_TYPE_XXX */
 	int card;			/* card number */
 	int device;			/* device number */
+	bool created;
 	const struct file_operations *f_ops;	/* file operations */
 	void *private_data;		/* private data for f_ops->open */
 	struct device *dev;		/* device for sysfs */
@@ -206,12 +207,10 @@ extern struct class *sound_class;
 
 void snd_request_card(int card);
 
-int snd_register_device_for_dev(int type, struct snd_card *card,
-				int dev,
+int snd_register_device_for_dev(int type, struct snd_card *card, int dev,
 				const struct file_operations *f_ops,
-				void *private_data,
-				const char *name,
-				struct device *device);
+				void *private_data, struct device *device,
+				struct device *parent, const char *name);
 
 /**
  * snd_register_device - Register the ALSA device file for the card
@@ -236,8 +235,9 @@ static inline int snd_register_device(int type, struct snd_card *card, int dev,
 				      const char *name)
 {
 	return snd_register_device_for_dev(type, card, dev, f_ops,
-					   private_data, name,
-					   snd_card_get_device_link(card));
+					   private_data, NULL,
+					   snd_card_get_device_link(card),
+					   name);
 }
 
 int snd_unregister_device(int type, struct snd_card *card, int dev);

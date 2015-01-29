@@ -1115,7 +1115,7 @@ static int snd_pcm_dev_register(struct snd_device *device)
 		err = snd_register_device_for_dev(devtype, pcm->card,
 						  pcm->device,
 						  &snd_pcm_f_ops[cidx],
-						  pcm, str, dev);
+						  pcm, NULL, dev, str);
 		if (err < 0) {
 			list_del(&pcm->list);
 			mutex_unlock(&register_mutex);

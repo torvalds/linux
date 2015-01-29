@@ -433,7 +433,8 @@ static int snd_hwdep_dev_register(struct snd_device *device)
 		dev = snd_card_get_device_link(hwdep->card);
 	err = snd_register_device_for_dev(SNDRV_DEVICE_TYPE_HWDEP,
 					  hwdep->card, hwdep->device,
-					  &snd_hwdep_f_ops, hwdep, name, dev);
+					  &snd_hwdep_f_ops, hwdep,
+					  NULL, dev, name);
 	if (err < 0) {
 		dev_err(dev,
 			"unable to register hardware dependent device %i:%i\n",
