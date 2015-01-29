@@ -21,8 +21,12 @@
 #define MMA9551_APPID_AFE		0x06
 #define MMA9551_APPID_TILT		0x0B
 #define MMA9551_APPID_SLEEP_WAKE	0x12
-#define MMA9551_APPID_RESET		0x17
+#define MMA9551_APPID_PEDOMETER	        0x15
+#define MMA9551_APPID_RCS		0x17
 #define MMA9551_APPID_NONE		0xff
+
+/* Reset/Suspend/Clear application app masks */
+#define MMA9551_RSC_PED			BIT(21)
 
 #define MMA9551_AUTO_SUSPEND_DELAY_MS	2000
 
@@ -48,8 +52,18 @@ int mma9551_write_config_byte(struct i2c_client *client, u8 app_id,
 			      u16 reg, u8 val);
 int mma9551_read_status_byte(struct i2c_client *client, u8 app_id,
 			     u16 reg, u8 *val);
+int mma9551_read_config_word(struct i2c_client *client, u8 app_id,
+			    u16 reg, u16 *val);
+int mma9551_write_config_word(struct i2c_client *client, u8 app_id,
+			     u16 reg, u16 val);
 int mma9551_read_status_word(struct i2c_client *client, u8 app_id,
 			     u16 reg, u16 *val);
+int mma9551_read_config_words(struct i2c_client *client, u8 app_id,
+			     u16 reg, u8 len, u16 *buf);
+int mma9551_read_status_words(struct i2c_client *client, u8 app_id,
+			      u16 reg, u8 len, u16 *buf);
+int mma9551_write_config_words(struct i2c_client *client, u8 app_id,
+			       u16 reg, u8 len, u16 *buf);
 int mma9551_update_config_bits(struct i2c_client *client, u8 app_id,
 			       u16 reg, u8 mask, u8 val);
 int mma9551_gpio_config(struct i2c_client *client, enum mma9551_gpio_pin pin,
@@ -62,5 +76,6 @@ int mma9551_read_accel_chan(struct i2c_client *client,
 			    const struct iio_chan_spec *chan,
 			    int *val, int *val2);
 int mma9551_read_accel_scale(int *val, int *val2);
+int mma9551_app_reset(struct i2c_client *client, u32 app_mask);
 
 #endif /* _MMA9551_CORE_H_ */

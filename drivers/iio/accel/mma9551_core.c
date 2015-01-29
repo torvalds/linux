@@ -53,6 +53,11 @@
 #define MMA9551_AFE_Y_ACCEL_REG		0x02
 #define MMA9551_AFE_Z_ACCEL_REG		0x04
 
+/* Reset/Suspend/Clear application */
+#define MMA9551_RSC_RESET		0x00
+#define MMA9551_RSC_OFFSET(mask)	(3 - (ffs(mask) - 1) / 8)
+#define MMA9551_RSC_VAL(mask)		(mask >> (((ffs(mask) - 1) / 8) * 8))
+
 /*
  * A response is composed of:
  * - control registers: MB0-3
@@ -275,6 +280,64 @@ int mma9551_read_status_byte(struct i2c_client *client, u8 app_id,
 EXPORT_SYMBOL(mma9551_read_status_byte);
 
 /**
+ * mma9551_read_config_word() - read 1 config word
+ * @client:	I2C client
+ * @app_id:	Application ID
+ * @reg:	Application register
+ * @val:	Pointer to store value read
+ *
+ * Read one configuration word from the device using MMA955xL command format.
+ * Commands to the MMA955xL platform consist of a write followed by one or
+ * more reads.
+ *
+ * Locking note: This function must be called with the device lock held.
+ * Locking is not handled inside the function. Callers should ensure they
+ * serialize access to the HW.
+ *
+ * Returns: 0 on success, negative value on failure.
+ */
+int mma9551_read_config_word(struct i2c_client *client, u8 app_id,
+			    u16 reg, u16 *val)
+{
+	int ret;
+	__be16 v;
+
+	ret = mma9551_transfer(client, app_id, MMA9551_CMD_READ_CONFIG,
+			       reg, NULL, 0, (u8 *)&v, 2);
+	*val = be16_to_cpu(v);
+
+	return ret;
+}
+EXPORT_SYMBOL(mma9551_read_config_word);
+
+/**
+ * mma9551_write_config_word() - write 1 config word
+ * @client:	I2C client
+ * @app_id:	Application ID
+ * @reg:	Application register
+ * @val:	Value to write
+ *
+ * Write one configuration word from the device using MMA955xL command format.
+ * Commands to the MMA955xL platform consist of a write followed by one or
+ * more reads.
+ *
+ * Locking note: This function must be called with the device lock held.
+ * Locking is not handled inside the function. Callers should ensure they
+ * serialize access to the HW.
+ *
+ * Returns: 0 on success, negative value on failure.
+ */
+int mma9551_write_config_word(struct i2c_client *client, u8 app_id,
+			     u16 reg, u16 val)
+{
+	__be16 v = cpu_to_be16(val);
+
+	return mma9551_transfer(client, app_id, MMA9551_CMD_WRITE_CONFIG, reg,
+				(u8 *) &v, 2, NULL, 0);
+}
+EXPORT_SYMBOL(mma9551_write_config_word);
+
+/**
  * mma9551_read_status_word() - read 1 status word
  * @client:	I2C client
  * @app_id:	Application ID
@@ -304,6 +367,107 @@ int mma9551_read_status_word(struct i2c_client *client, u8 app_id,
 	return ret;
 }
 EXPORT_SYMBOL(mma9551_read_status_word);
+
+/**
+ * mma9551_read_config_words() - read multiple config words
+ * @client:	I2C client
+ * @app_id:	Application ID
+ * @reg:	Application register
+ * @len:	Length of array to read in bytes
+ * @val:	Array of words to read
+ *
+ * Read multiple configuration registers (word-sized registers).
+ *
+ * Locking note: This function must be called with the device lock held.
+ * Locking is not handled inside the function. Callers should ensure they
+ * serialize access to the HW.
+ *
+ * Returns: 0 on success, negative value on failure.
+ */
+int mma9551_read_config_words(struct i2c_client *client, u8 app_id,
+			     u16 reg, u8 len, u16 *buf)
+{
+	int ret, i;
+	int len_words = len / sizeof(u16);
+	__be16 be_buf[MMA9551_MAX_MAILBOX_DATA_REGS];
+
+	ret = mma9551_transfer(client, app_id, MMA9551_CMD_READ_CONFIG,
+			       reg, NULL, 0, (u8 *) be_buf, len);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < len_words; i++)
+		buf[i] = be16_to_cpu(be_buf[i]);
+
+	return 0;
+}
+EXPORT_SYMBOL(mma9551_read_config_words);
+
+/**
+ * mma9551_read_status_words() - read multiple status words
+ * @client:	I2C client
+ * @app_id:	Application ID
+ * @reg:	Application register
+ * @len:	Length of array to read in bytes
+ * @val:	Array of words to read
+ *
+ * Read multiple status registers (word-sized registers).
+ *
+ * Locking note: This function must be called with the device lock held.
+ * Locking is not handled inside the function. Callers should ensure they
+ * serialize access to the HW.
+ *
+ * Returns: 0 on success, negative value on failure.
+ */
+int mma9551_read_status_words(struct i2c_client *client, u8 app_id,
+			      u16 reg, u8 len, u16 *buf)
+{
+	int ret, i;
+	int len_words = len / sizeof(u16);
+	__be16 be_buf[MMA9551_MAX_MAILBOX_DATA_REGS];
+
+	ret = mma9551_transfer(client, app_id, MMA9551_CMD_READ_STATUS,
+			       reg, NULL, 0, (u8 *) be_buf, len);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < len_words; i++)
+		buf[i] = be16_to_cpu(be_buf[i]);
+
+	return 0;
+}
+EXPORT_SYMBOL(mma9551_read_status_words);
+
+/**
+ * mma9551_write_config_words() - write multiple config words
+ * @client:	I2C client
+ * @app_id:	Application ID
+ * @reg:	Application register
+ * @len:	Length of array to write in bytes
+ * @val:	Array of words to write
+ *
+ * Write multiple configuration registers (word-sized registers).
+ *
+ * Locking note: This function must be called with the device lock held.
+ * Locking is not handled inside the function. Callers should ensure they
+ * serialize access to the HW.
+ *
+ * Returns: 0 on success, negative value on failure.
+ */
+int mma9551_write_config_words(struct i2c_client *client, u8 app_id,
+			       u16 reg, u8 len, u16 *buf)
+{
+	int i;
+	int len_words = len / sizeof(u16);
+	__be16 be_buf[MMA9551_MAX_MAILBOX_DATA_REGS];
+
+	for (i = 0; i < len_words; i++)
+		be_buf[i] = cpu_to_be16(buf[i]);
+
+	return mma9551_transfer(client, app_id, MMA9551_CMD_WRITE_CONFIG,
+				reg, (u8 *) be_buf, len, NULL, 0);
+}
+EXPORT_SYMBOL(mma9551_write_config_words);
 
 /**
  * mma9551_update_config_bits() - update bits in register
@@ -608,6 +772,25 @@ int mma9551_read_accel_scale(int *val, int *val2)
 	return IIO_VAL_INT_PLUS_MICRO;
 }
 EXPORT_SYMBOL(mma9551_read_accel_scale);
+
+/**
+ * mma9551_app_reset() - reset application
+ * @client:	I2C client
+ * @app_mask:	Application to reset
+ *
+ * Reset the given application (using the Reset/Suspend/Clear
+ * Control Application)
+ *
+ * Returns: 0 on success, negative value on failure.
+ */
+int mma9551_app_reset(struct i2c_client *client, u32 app_mask)
+{
+	return mma9551_write_config_byte(client, MMA9551_APPID_RCS,
+					 MMA9551_RSC_RESET +
+					 MMA9551_RSC_OFFSET(app_mask),
+					 MMA9551_RSC_VAL(app_mask));
+}
+EXPORT_SYMBOL(mma9551_app_reset);
 
 MODULE_AUTHOR("Irina Tirdea <irina.tirdea@intel.com>");
 MODULE_AUTHOR("Vlad Dogaru <vlad.dogaru@intel.com>");
