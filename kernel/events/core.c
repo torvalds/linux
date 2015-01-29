@@ -947,7 +947,8 @@ static void put_ctx(struct perf_event_context *ctx)
  *	    perf_event::mmap_mutex
  *	    mmap_sem
  */
-static struct perf_event_context *perf_event_ctx_lock(struct perf_event *event)
+static struct perf_event_context *
+perf_event_ctx_lock_nested(struct perf_event *event, int nesting)
 {
 	struct perf_event_context *ctx;
 
@@ -960,7 +961,7 @@ again:
 	}
 	rcu_read_unlock();
 
-	mutex_lock(&ctx->mutex);
+	mutex_lock_nested(&ctx->mutex, nesting);
 	if (event->ctx != ctx) {
 		mutex_unlock(&ctx->mutex);
 		put_ctx(ctx);
@@ -968,6 +969,12 @@ again:
 	}
 
 	return ctx;
+}
+
+static inline struct perf_event_context *
+perf_event_ctx_lock(struct perf_event *event)
+{
+	return perf_event_ctx_lock_nested(event, 0);
 }
 
 static void perf_event_ctx_unlock(struct perf_event *event,
@@ -3572,7 +3579,7 @@ static void perf_remove_from_owner(struct perf_event *event)
  */
 static void put_event(struct perf_event *event)
 {
-	struct perf_event_context *ctx = event->ctx;
+	struct perf_event_context *ctx;
 
 	if (!atomic_long_dec_and_test(&event->refcount))
 		return;
@@ -3580,7 +3587,6 @@ static void put_event(struct perf_event *event)
 	if (!is_kernel_event(event))
 		perf_remove_from_owner(event);
 
-	WARN_ON_ONCE(ctx->parent_ctx);
 	/*
 	 * There are two ways this annotation is useful:
 	 *
@@ -3593,7 +3599,8 @@ static void put_event(struct perf_event *event)
 	 *     the last filedesc died, so there is no possibility
 	 *     to trigger the AB-BA case.
 	 */
-	mutex_lock_nested(&ctx->mutex, SINGLE_DEPTH_NESTING);
+	ctx = perf_event_ctx_lock_nested(event, SINGLE_DEPTH_NESTING);
+	WARN_ON_ONCE(ctx->parent_ctx);
 	perf_remove_from_context(event, true);
 	mutex_unlock(&ctx->mutex);
 
