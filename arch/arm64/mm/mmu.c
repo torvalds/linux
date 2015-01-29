@@ -26,6 +26,7 @@
 #include <linux/memblock.h>
 #include <linux/fs.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <linux/stop_machine.h>
 
 #include <asm/cputype.h>
@@ -159,8 +160,8 @@ static void alloc_init_pmd(struct mm_struct *mm, pud_t *pud,
 				flush_tlb_all();
 				if (pmd_table(old_pmd)) {
 					phys_addr_t table = __pa(pte_offset_map(&old_pmd, 0));
-					BUG_ON(alloc != early_alloc);
-					memblock_free(table, PAGE_SIZE);
+					if (!WARN_ON_ONCE(slab_is_available()))
+						memblock_free(table, PAGE_SIZE);
 				}
 			}
 		} else {
@@ -220,8 +221,8 @@ static void alloc_init_pud(struct mm_struct *mm, pgd_t *pgd,
 				flush_tlb_all();
 				if (pud_table(old_pud)) {
 					phys_addr_t table = __pa(pmd_offset(&old_pud, 0));
-					BUG_ON(alloc != early_alloc);
-					memblock_free(table, PAGE_SIZE);
+					if (!WARN_ON_ONCE(slab_is_available()))
+						memblock_free(table, PAGE_SIZE);
 				}
 			}
 		} else {
