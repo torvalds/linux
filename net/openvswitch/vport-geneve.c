@@ -212,7 +212,7 @@ static int geneve_tnl_send(struct vport *vport, struct sk_buff *skb)
 			      tun_key->ipv4_dst, tun_key->ipv4_tos,
 			      tun_key->ipv4_ttl, df, sport, dport,
 			      tun_key->tun_flags, vni, opts_len, opts,
-			      false);
+			      !!(tun_key->tun_flags & TUNNEL_CSUM), false);
 	if (err < 0)
 		ip_rt_put(rt);
 	return err;

@@ -90,7 +90,7 @@ int geneve_xmit_skb(struct geneve_sock *gs, struct rtable *rt,
 		    struct sk_buff *skb, __be32 src, __be32 dst, __u8 tos,
 		    __u8 ttl, __be16 df, __be16 src_port, __be16 dst_port,
 		    __be16 tun_flags, u8 vni[3], u8 opt_len, u8 *opt,
-		    bool xnet);
+		    bool csum, bool xnet);
 #endif /*ifdef CONFIG_INET */
 
 #endif /*ifdef__NET_GENEVE_H */

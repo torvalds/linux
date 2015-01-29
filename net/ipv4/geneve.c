@@ -107,13 +107,13 @@ int geneve_xmit_skb(struct geneve_sock *gs, struct rtable *rt,
 		    struct sk_buff *skb, __be32 src, __be32 dst, __u8 tos,
 		    __u8 ttl, __be16 df, __be16 src_port, __be16 dst_port,
 		    __be16 tun_flags, u8 vni[3], u8 opt_len, u8 *opt,
-		    bool xnet)
+		    bool csum, bool xnet)
 {
 	struct genevehdr *gnvh;
 	int min_headroom;
 	int err;
 
-	skb = udp_tunnel_handle_offloads(skb, !gs->sock->sk->sk_no_check_tx);
+	skb = udp_tunnel_handle_offloads(skb, csum);
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 
@@ -138,7 +138,7 @@ int geneve_xmit_skb(struct geneve_sock *gs, struct rtable *rt,
 
 	return udp_tunnel_xmit_skb(rt, skb, src, dst,
 				   tos, ttl, df, src_port, dst_port, xnet,
-				   gs->sock->sk->sk_no_check_tx);
+				   !csum);
 }
 EXPORT_SYMBOL_GPL(geneve_xmit_skb);
 
