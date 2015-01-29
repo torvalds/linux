@@ -80,6 +80,11 @@ void __init shmobile_init_delay(void)
 	 * to GIC being initialized from C and arch timer via DT */
 	if (of_machine_is_compatible("renesas,r8a73a4"))
 		has_arch_timer = false;
+
+	/* Non-multiplatform r8a7790 SoC cannot use arch timer due
+	 * to GIC being initialized from C and arch timer via DT */
+	if (of_machine_is_compatible("renesas,r8a7790"))
+		has_arch_timer = false;
 #endif
 
 	if (!has_arch_timer || !IS_ENABLED(CONFIG_ARM_ARCH_TIMER)) {
