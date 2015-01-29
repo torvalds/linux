@@ -214,7 +214,6 @@ static void usbduxsigma_ai_handle_urb(struct comedi_device *dev,
 	struct usbduxsigma_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
-	unsigned int dio_state;
 	uint32_t val;
 	int ret;
 	int i;
@@ -222,9 +221,6 @@ static void usbduxsigma_ai_handle_urb(struct comedi_device *dev,
 	devpriv->ai_counter--;
 	if (devpriv->ai_counter == 0) {
 		devpriv->ai_counter = devpriv->ai_timer;
-
-		/* get the state of the dio pins to allow external trigger */
-		dio_state = be32_to_cpu(devpriv->in_buf[0]);
 
 		/* get the data from the USB bus and hand it over to comedi */
 		for (i = 0; i < cmd->chanlist_len; i++) {
