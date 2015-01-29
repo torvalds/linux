@@ -207,6 +207,8 @@ extern struct class *sound_class;
 
 void snd_request_card(int card);
 
+void snd_device_initialize(struct device *dev, struct snd_card *card);
+
 int snd_register_device_for_dev(int type, struct snd_card *card, int dev,
 				const struct file_operations *f_ops,
 				void *private_data, struct device *device,
