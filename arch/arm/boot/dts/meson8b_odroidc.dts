@@ -970,4 +970,12 @@
         status = "ok";
     };
 
+	w1 {
+		compatible = "w1-gpio";
+		dev_name = "w1";
+        status = "ok";
+        gpios = "GPIOY_3";
+        // linux,open-drain; // .is_open_drain = 1;
+	};
+
 }; /* end of / */

@@ -2,6 +2,12 @@
 # Makefile for 1-wire bus master drivers.
 #
 
+ifeq ($(CONFIG_MACH_MESON8B_ODROIDC),y)
+    w1-gpio-objs  := w1-gpio-aml.o
+else
+    w1-gpio-objs  := w1-gpio.o
+endif
+
 obj-$(CONFIG_W1_MASTER_MATROX)		+= matrox_w1.o
 obj-$(CONFIG_W1_MASTER_DS2490)		+= ds2490.o
 obj-$(CONFIG_W1_MASTER_DS2482)		+= ds2482.o
