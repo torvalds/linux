@@ -38,6 +38,34 @@
 	ldp	x0, x1, [sp], #16
 .endm
 
+.macro do_el2_call
+	/*
+	 * Shuffle the parameters before calling the function
+	 * pointed to in x0. Assumes parameters in x[1,2,3].
+	 */
+	sub	sp, sp, #16
+	str	lr, [sp]
+	mov	lr, x0
+	mov	x0, x1
+	mov	x1, x2
+	mov	x2, x3
+	blr	lr
+	ldr	lr, [sp]
+	add	sp, sp, #16
+.endm
+
+ENTRY(__vhe_hyp_call)
+	do_el2_call
+	/*
+	 * We used to rely on having an exception return to get
+	 * an implicit isb. In the E2H case, we don't have it anymore.
+	 * rather than changing all the leaf functions, just do it here
+	 * before returning to the rest of the kernel.
+	 */
+	isb
+	ret
+ENDPROC(__vhe_hyp_call)
+	
 el1_sync:				// Guest trapped into EL2
 	save_x0_to_x3
 
@@ -58,19 +86,13 @@ el1_sync:				// Guest trapped into EL2
 	mrs	x0, vbar_el2
 	b	2f
 
-1:	stp	lr, xzr, [sp, #-16]!
-
+1:
 	/*
-	 * Compute the function address in EL2, and shuffle the parameters.
+	 * Perform the EL2 call
 	 */
 	kern_hyp_va	x0
-	mov	lr, x0
-	mov	x0, x1
-	mov	x1, x2
-	mov	x2, x3
-	blr	lr
+	do_el2_call
 
-	ldp	lr, xzr, [sp], #16
 2:	eret
 
 el1_trap:
