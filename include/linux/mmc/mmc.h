@@ -428,6 +428,11 @@ struct _mmc_csd {
 #define EXT_CSD_BKOPS_LEVEL_2		0x2
 
 /*
+ * BKOPS modes
+ */
+#define EXT_CSD_MANUAL_BKOPS_MASK	0x01
+
+/*
  * MMC_SWITCH access modes
  */
 

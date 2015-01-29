@@ -275,7 +275,7 @@ void mmc_start_bkops(struct mmc_card *card, bool from_exception)
 
 	BUG_ON(!card);
 
-	if (!card->ext_csd.bkops_en || mmc_card_doing_bkops(card))
+	if (!card->ext_csd.man_bkops_en || mmc_card_doing_bkops(card))
 		return;
 
 	err = mmc_read_bkops_status(card);
