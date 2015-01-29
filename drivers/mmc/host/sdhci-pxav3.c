@@ -118,6 +118,20 @@ static int mv_conf_mbus_windows(struct platform_device *pdev,
 	return 0;
 }
 
+static int armada_38x_quirks(struct sdhci_host *host)
+{
+	host->quirks |= SDHCI_QUIRK_MISSING_CAPS;
+	/*
+	 * According to erratum 'FE-2946959' both SDR50 and DDR50
+	 * modes require specific clock adjustments in SDIO3
+	 * Configuration register, if the adjustment is not done,
+	 * remove them from the capabilities.
+	 */
+	host->caps1 = sdhci_readl(host, SDHCI_CAPABILITIES_1);
+	host->caps1 &= ~(SDHCI_SUPPORT_SDR50 | SDHCI_SUPPORT_DDR50);
+	return 0;
+}
+
 static void pxav3_reset(struct sdhci_host *host, u8 mask)
 {
 	struct platform_device *pdev = to_platform_device(mmc_dev(host->mmc));
@@ -319,6 +333,9 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 		clk_prepare_enable(pxa->clk_core);
 
 	if (of_device_is_compatible(np, "marvell,armada-380-sdhci")) {
+		ret = armada_38x_quirks(host);
+		if (ret < 0)
+			goto err_clk_get;
 		ret = mv_conf_mbus_windows(pdev, mv_mbus_dram_info());
 		if (ret < 0)
 			goto err_mbus_win;
