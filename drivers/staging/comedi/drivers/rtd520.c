@@ -1027,8 +1027,6 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct rtd_private *devpriv = dev->private;
-	u32 overrun;
-	u16 status;
 
 	/* pacer stop source: SOFTWARE */
 	writel(0, dev->mmio + LAS0_PACER_STOP);
@@ -1036,8 +1034,6 @@ static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	writel(0, dev->mmio + LAS0_ADC_CONVERSION);
 	writew(0, dev->mmio + LAS0_IT);
 	devpriv->ai_count = 0;	/* stop and don't transfer any more */
-	status = readw(dev->mmio + LAS0_IT);
-	overrun = readl(dev->mmio + LAS0_OVERRUN) & 0xffff;
 	writel(0, dev->mmio + LAS0_ADC_FIFO_CLEAR);
 	return 0;
 }
