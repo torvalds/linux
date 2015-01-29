@@ -9,7 +9,7 @@
  * Standard functionality for the common clock API.  See Documentation/clk.txt
  */
 
-#include <linux/clk-private.h>
+#include <linux/clk-provider.h>
 #include <linux/clk/clk-conf.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -45,6 +45,43 @@ static bool clk_core_is_enabled(struct clk_core *clk);
 static unsigned long clk_core_round_rate_nolock(struct clk_core *clk,
 						unsigned long rate);
 static struct clk_core *clk_core_lookup(const char *name);
+
+/***    private data structures    ***/
+
+struct clk_core {
+	const char		*name;
+	const struct clk_ops	*ops;
+	struct clk_hw		*hw;
+	struct module		*owner;
+	struct clk_core		*parent;
+	const char		**parent_names;
+	struct clk_core		**parents;
+	u8			num_parents;
+	u8			new_parent_index;
+	unsigned long		rate;
+	unsigned long		new_rate;
+	struct clk_core		*new_parent;
+	struct clk_core		*new_child;
+	unsigned long		flags;
+	unsigned int		enable_count;
+	unsigned int		prepare_count;
+	unsigned long		accuracy;
+	int			phase;
+	struct hlist_head	children;
+	struct hlist_node	child_node;
+	struct hlist_node	debug_node;
+	unsigned int		notifier_count;
+#ifdef CONFIG_DEBUG_FS
+	struct dentry		*dentry;
+#endif
+	struct kref		ref;
+};
+
+struct clk {
+	struct clk_core	*core;
+	const char *dev_id;
+	const char *con_id;
+};
 
 /***           locking             ***/
 static void clk_prepare_lock(void)
@@ -1995,7 +2032,7 @@ int clk_get_phase(struct clk *clk)
  * Initializes the lists in struct clk_core, queries the hardware for the
  * parent and rate and sets them both.
  */
-int __clk_init(struct device *dev, struct clk *clk_user)
+static int __clk_init(struct device *dev, struct clk *clk_user)
 {
 	int i, ret = 0;
 	struct clk_core *orphan;
