@@ -34,7 +34,6 @@
 #include <au1000.h>
 
 extern void __init board_setup(void);
-extern void set_cpuspec(void);
 extern void __init alchemy_set_lpj(void);
 
 void __init plat_mem_setup(void)
