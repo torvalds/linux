@@ -822,7 +822,7 @@ static void destroy_kernel_queue_cpsch(struct device_queue_manager *dqm,
 	 * Unconditionally decrement this counter, regardless of the queue's
 	 * type.
 	 */
-	dqm->total_queue_count++;
+	dqm->total_queue_count--;
 	pr_debug("Total of %d queues are accountable so far\n",
 			dqm->total_queue_count);
 	mutex_unlock(&dqm->lock);
