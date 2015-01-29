@@ -240,27 +240,24 @@ int configfs_make_dirent(struct configfs_dirent * parent_sd,
 	return 0;
 }
 
-static int init_dir(struct inode * inode)
+static void init_dir(struct inode * inode)
 {
 	inode->i_op = &configfs_dir_inode_operations;
 	inode->i_fop = &configfs_dir_operations;
 
 	/* directory inodes start off with i_nlink == 2 (for "." entry) */
 	inc_nlink(inode);
-	return 0;
 }
 
-static int configfs_init_file(struct inode * inode)
+static void configfs_init_file(struct inode * inode)
 {
 	inode->i_size = PAGE_SIZE;
 	inode->i_fop = &configfs_file_operations;
-	return 0;
 }
 
-static int init_symlink(struct inode * inode)
+static void init_symlink(struct inode * inode)
 {
 	inode->i_op = &configfs_symlink_inode_operations;
-	return 0;
 }
 
 static int create_dir(struct config_item *k, struct dentry *d)

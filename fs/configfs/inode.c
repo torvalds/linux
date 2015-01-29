@@ -176,7 +176,7 @@ static void configfs_set_inode_lock_class(struct configfs_dirent *sd,
 
 #endif /* CONFIG_LOCKDEP */
 
-int configfs_create(struct dentry * dentry, umode_t mode, int (*init)(struct inode *))
+int configfs_create(struct dentry * dentry, umode_t mode, void (*init)(struct inode *))
 {
 	int error = 0;
 	struct inode *inode = NULL;
@@ -198,13 +198,7 @@ int configfs_create(struct dentry * dentry, umode_t mode, int (*init)(struct ino
 	p_inode->i_mtime = p_inode->i_ctime = CURRENT_TIME;
 	configfs_set_inode_lock_class(sd, inode);
 
-	if (init) {
-		error = init(inode);
-		if (error) {
-			iput(inode);
-			return error;
-		}
-	}
+	init(inode);
 	d_instantiate(dentry, inode);
 	if (S_ISDIR(mode) || S_ISLNK(mode))
 		dget(dentry);  /* pin link and directory dentries in core */

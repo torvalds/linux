@@ -69,7 +69,7 @@ extern struct kmem_cache *configfs_dir_cachep;
 extern int configfs_is_root(struct config_item *item);
 
 extern struct inode * configfs_new_inode(umode_t mode, struct configfs_dirent *, struct super_block *);
-extern int configfs_create(struct dentry *, umode_t mode, int (*init)(struct inode *));
+extern int configfs_create(struct dentry *, umode_t mode, void (*init)(struct inode *));
 
 extern int configfs_create_file(struct config_item *, const struct configfs_attribute *);
 extern int configfs_make_dirent(struct configfs_dirent *,
