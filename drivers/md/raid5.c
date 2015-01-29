@@ -296,12 +296,9 @@ static void do_release_stripe(struct r5conf *conf, struct stripe_head *sh,
 	BUG_ON(atomic_read(&conf->active_stripes)==0);
 	if (test_bit(STRIPE_HANDLE, &sh->state)) {
 		if (test_bit(STRIPE_DELAYED, &sh->state) &&
-		    !test_bit(STRIPE_PREREAD_ACTIVE, &sh->state)) {
+		    !test_bit(STRIPE_PREREAD_ACTIVE, &sh->state))
 			list_add_tail(&sh->lru, &conf->delayed_list);
-			if (atomic_read(&conf->preread_active_stripes)
-			    < IO_THRESHOLD)
-				md_wakeup_thread(conf->mddev->thread);
-		} else if (test_bit(STRIPE_BIT_DELAY, &sh->state) &&
+		else if (test_bit(STRIPE_BIT_DELAY, &sh->state) &&
 			   sh->bm_seq - conf->seq_write > 0)
 			list_add_tail(&sh->lru, &conf->bitmap_list);
 		else {
