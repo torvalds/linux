@@ -213,6 +213,13 @@ static inline void bictcp_update(struct bictcp *ca, u32 cwnd, u32 acked)
 	    (s32)(tcp_time_stamp - ca->last_time) <= HZ / 32)
 		return;
 
+	/* The CUBIC function can update ca->cnt at most once per jiffy.
+	 * On all cwnd reduction events, ca->epoch_start is set to 0,
+	 * which will force a recalculation of ca->cnt.
+	 */
+	if (ca->epoch_start && tcp_time_stamp == ca->last_time)
+		goto tcp_friendliness;
+
 	ca->last_cwnd = cwnd;
 	ca->last_time = tcp_time_stamp;
 
@@ -280,6 +287,7 @@ static inline void bictcp_update(struct bictcp *ca, u32 cwnd, u32 acked)
 	if (ca->last_max_cwnd == 0 && ca->cnt > 20)
 		ca->cnt = 20;	/* increase cwnd 5% per RTT */
 
+tcp_friendliness:
 	/* TCP Friendly */
 	if (tcp_friendliness) {
 		u32 scale = beta_scale;
