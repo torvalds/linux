@@ -35,10 +35,13 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu@900 {
+		cpu0: cpu@900 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <0x900>;
+			cooling-min-level = <4>;
+			cooling-max-level = <2>;
+			#cooling-cells = <2>; /* min followed by max */
 		};
 
 		cpu@901 {
