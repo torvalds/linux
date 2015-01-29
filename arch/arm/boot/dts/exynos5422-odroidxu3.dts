@@ -18,7 +18,7 @@
 	compatible = "hardkernel,odroid-xu3", "samsung,exynos5800", "samsung,exynos5";
 
 	memory {
-		reg = <0x40000000 0x80000000>;
+		reg = <0x40000000 0x7EA00000>;
 	};
 
 	chosen {
@@ -171,6 +171,13 @@
 					regulator-name = "tsp_io";
 					regulator-min-microvolt = <2800000>;
 					regulator-max-microvolt = <2800000>;
+					regulator-always-on;
+				};
+
+				ldo26_reg: LDO26 {
+					regulator-name = "vdd_ldo26";
+					regulator-min-microvolt = <3000000>;
+					regulator-max-microvolt = <3000000>;
 					regulator-always-on;
 				};
 
@@ -329,4 +336,36 @@
 
 &usbdrd_dwc3_1 {
 	dr_mode = "otg";
+};
+
+&i2c_0 {
+	status = "okay";
+
+	/* A15 cluster: VDD_ARM */
+	ina231@40 {
+		compatible = "ti,ina231";
+		reg = <0x40>;
+		shunt-resistor = <10000>;
+	};
+
+	/* memory: VDD_MEM */
+	ina231@41 {
+		compatible = "ti,ina231";
+		reg = <0x41>;
+		shunt-resistor = <10000>;
+	};
+
+	/* GPU: VDD_G3D */
+	ina231@44 {
+		compatible = "ti,ina231";
+		reg = <0x44>;
+		shunt-resistor = <10000>;
+	};
+
+	/* A7 cluster: VDD_KFC */
+	ina231@45 {
+		compatible = "ti,ina231";
+		reg = <0x45>;
+		shunt-resistor = <10000>;
+	};
 };
