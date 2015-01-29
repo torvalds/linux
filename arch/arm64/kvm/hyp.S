@@ -17,7 +17,9 @@
 
 #include <linux/linkage.h>
 
+#include <asm/alternative.h>
 #include <asm/assembler.h>
+#include <asm/cpufeature.h>
 
 /*
  * u64 kvm_call_hyp(void *hypfn, ...);
@@ -38,6 +40,11 @@
  * arch/arm64/kernel/hyp_stub.S.
  */
 ENTRY(kvm_call_hyp)
+alternative_if_not ARM64_HAS_VIRT_HOST_EXTN	
 	hvc	#0
 	ret
+alternative_else
+	b	__vhe_hyp_call
+	nop
+alternative_endif
 ENDPROC(kvm_call_hyp)
