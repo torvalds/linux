@@ -456,20 +456,23 @@ static const struct tpm_input_header tpm2_shutdown_header = {
  * @chip:		TPM chip to use.
  * @shutdown_type	shutdown type. The value is either
  *			TPM_SU_CLEAR or TPM_SU_STATE.
- *
- * 0 is returned when the operation is successful. If a negative number is
- * returned it remarks a POSIX error code. If a positive number is returned
- * it remarks a TPM error.
  */
-int tpm2_shutdown(struct tpm_chip *chip, u16 shutdown_type)
+void tpm2_shutdown(struct tpm_chip *chip, u16 shutdown_type)
 {
 	struct tpm2_cmd cmd;
+	int rc;
 
 	cmd.header.in = tpm2_shutdown_header;
-
 	cmd.params.startup_in.startup_type = cpu_to_be16(shutdown_type);
-	return tpm_transmit_cmd(chip, &cmd, sizeof(cmd),
-				"stopping the TPM");
+
+	rc = tpm_transmit_cmd(chip, &cmd, sizeof(cmd), "stopping the TPM");
+
+	/* In places where shutdown command is sent there's no much we can do
+	 * except print the error code on a system failure.
+	 */
+	if (rc < 0)
+		dev_warn(chip->pdev, "transmit returned %d while stopping the TPM",
+			 rc);
 }
 EXPORT_SYMBOL_GPL(tpm2_shutdown);
 
