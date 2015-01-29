@@ -112,6 +112,8 @@ void imx_gpcv2_pre_suspend(bool arm_power_off);
 void imx_gpcv2_post_resume(void);
 void imx_gpcv2_set_core1_pdn_pup_by_software(bool pdn);
 unsigned int imx_gpcv2_is_mf_mix_off(void);
+int imx_gpc_mf_power_on(unsigned int irq, unsigned int on);
+int imx_gpcv2_mf_power_on(unsigned int irq, unsigned int on);
 void __init imx_gpcv2_check_dt(void);
 void imx_gpcv2_set_lpm_mode(enum mxc_cpu_pwr_mode mode);
 void imx_gpcv2_set_cpu_power_gate_in_idle(bool pdn);
