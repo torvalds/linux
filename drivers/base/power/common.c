@@ -19,8 +19,8 @@
  * @dev: Device to handle.
  *
  * If power.subsys_data is NULL, point it to a new object, otherwise increment
- * its reference counter.  Return 1 if a new object has been created, otherwise
- * return 0 or error code.
+ * its reference counter.  Return 0 if new object has been created or refcount
+ * increased, otherwise negative error code.
  */
 int dev_pm_get_subsys_data(struct device *dev)
 {
