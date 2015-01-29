@@ -356,6 +356,9 @@ struct fm10k_hw;
 #define FM10K_QUEUE_DISABLE_TIMEOUT		100
 #define FM10K_RESET_TIMEOUT			150
 
+/* Maximum supported combined inner and outer header length for encapsulation */
+#define FM10K_TUNNEL_HEADER_LENGTH	184
+
 /* VF registers */
 #define FM10K_VFCTRL		0x00000
 #define FM10K_VFCTRL_RST			0x00000008
