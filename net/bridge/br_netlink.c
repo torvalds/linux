@@ -701,7 +701,7 @@ static size_t br_get_link_af_size(const struct net_device *dev)
 	return pv->num_vlans * nla_total_size(sizeof(struct bridge_vlan_info));
 }
 
-static struct rtnl_af_ops br_af_ops = {
+static struct rtnl_af_ops br_af_ops __read_mostly = {
 	.family			= AF_BRIDGE,
 	.get_link_af_size	= br_get_link_af_size,
 };
