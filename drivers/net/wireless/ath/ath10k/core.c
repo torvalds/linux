@@ -85,6 +85,21 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 			.board_ext_size = QCA6174_BOARD_EXT_DATA_SZ,
 		},
 	},
+	{
+		.id = QCA6174_HW_3_2_VERSION,
+		.name = "qca6174 hw3.2",
+		.patch_load_addr = QCA6174_HW_3_0_PATCH_LOAD_ADDR,
+		.uart_pin = 6,
+		.fw = {
+			/* uses same binaries as hw3.0 */
+			.dir = QCA6174_HW_3_0_FW_DIR,
+			.fw = QCA6174_HW_3_0_FW_FILE,
+			.otp = QCA6174_HW_3_0_OTP_FILE,
+			.board = QCA6174_HW_3_0_BOARD_DATA_FILE,
+			.board_size = QCA6174_BOARD_DATA_SZ,
+			.board_ext_size = QCA6174_BOARD_EXT_DATA_SZ,
+		},
+	},
 };
 
 static void ath10k_send_suspend_complete(struct ath10k *ar)
