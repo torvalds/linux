@@ -49,6 +49,11 @@ static void jump_label_bug(struct jump_entry *entry, struct insn *insn)
 	panic("Corrupted kernel text");
 }
 
+static struct insn orignop = {
+	.opcode = 0xc004,
+	.offset = JUMP_LABEL_NOP_OFFSET >> 1,
+};
+
 static void __jump_label_transform(struct jump_entry *entry,
 				   enum jump_label_type type,
 				   int init)
@@ -59,14 +64,16 @@ static void __jump_label_transform(struct jump_entry *entry,
 		jump_label_make_nop(entry, &old);
 		jump_label_make_branch(entry, &new);
 	} else {
-		if (init)
-			jump_label_make_nop(entry, &old);
-		else
-			jump_label_make_branch(entry, &old);
+		jump_label_make_branch(entry, &old);
 		jump_label_make_nop(entry, &new);
 	}
-	if (memcmp((void *)entry->code, &old, sizeof(old)))
-		jump_label_bug(entry, &old);
+	if (init) {
+		if (memcmp((void *)entry->code, &orignop, sizeof(orignop)))
+			jump_label_bug(entry, &old);
+	} else {
+		if (memcmp((void *)entry->code, &old, sizeof(old)))
+			jump_label_bug(entry, &old);
+	}
 	probe_kernel_write((void *)entry->code, &new, sizeof(new));
 }
 
