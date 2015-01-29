@@ -1643,6 +1643,8 @@ sub fail {
 	    $name = " ($test_name)";
 	}
 
+	print_times;
+
 	doprint "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
 	doprint "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
 	doprint "KTEST RESULT: TEST $i$name Failed: ", @_, "\n";
@@ -2493,6 +2495,8 @@ sub success {
     if (defined($test_name)) {
 	$name = " ($test_name)";
     }
+
+    print_times;
 
     doprint "\n\n*******************************************\n";
     doprint     "*******************************************\n";
