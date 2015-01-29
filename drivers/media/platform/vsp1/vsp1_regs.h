@@ -306,7 +306,7 @@
 #define VI6_DPR_BRU_ROUTE		0x204c
 #define VI6_DPR_ROUTE_FXA_MASK		(0xff << 8)
 #define VI6_DPR_ROUTE_FXA_SHIFT		16
-#define VI6_DPR_ROUTE_FP_MASK		(0xff << 8)
+#define VI6_DPR_ROUTE_FP_MASK		(0x3f << 8)
 #define VI6_DPR_ROUTE_FP_SHIFT		8
 #define VI6_DPR_ROUTE_RT_MASK		(0x3f << 0)
 #define VI6_DPR_ROUTE_RT_SHIFT		0
