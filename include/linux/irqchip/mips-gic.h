@@ -251,4 +251,5 @@ extern unsigned int plat_ipi_call_int_xlate(unsigned int);
 extern unsigned int plat_ipi_resched_int_xlate(unsigned int);
 extern int gic_get_c0_compare_int(void);
 extern int gic_get_c0_perfcount_int(void);
+extern int gic_get_c0_fdc_int(void);
 #endif /* __LINUX_IRQCHIP_MIPS_GIC_H */

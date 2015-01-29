@@ -227,6 +227,29 @@ int gic_get_c0_perfcount_int(void)
 				  GIC_LOCAL_TO_HWIRQ(GIC_LOCAL_INT_PERFCTR));
 }
 
+int gic_get_c0_fdc_int(void)
+{
+	if (!gic_local_irq_is_routable(GIC_LOCAL_INT_FDC)) {
+		/* Is the FDC IRQ even present? */
+		if (cp0_fdc_irq < 0)
+			return -1;
+		return MIPS_CPU_IRQ_BASE + cp0_fdc_irq;
+	}
+
+	/*
+	 * Some cores claim the FDC is routable but it doesn't actually seem to
+	 * be connected.
+	 */
+	switch (current_cpu_type()) {
+	case CPU_INTERAPTIV:
+	case CPU_PROAPTIV:
+		return -1;
+	}
+
+	return irq_create_mapping(gic_irq_domain,
+				  GIC_LOCAL_TO_HWIRQ(GIC_LOCAL_INT_FDC));
+}
+
 static void gic_handle_shared_int(void)
 {
 	unsigned int i, intr, virq;
