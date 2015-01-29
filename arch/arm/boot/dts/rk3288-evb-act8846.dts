@@ -22,6 +22,8 @@
 };
 
 &i2c0 {
+	clock-frequency = <400000>;
+
 	vdd_cpu: syr827@40 {
 		compatible = "silergy,syr827";
 		fcs,suspend-voltage-selector = <1>;
