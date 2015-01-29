@@ -956,17 +956,24 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	ckpt->cp_pack_start_sum = cpu_to_le32(1 + cp_payload_blks +
 			orphan_blocks);
 
-	if (cpc->reason == CP_UMOUNT) {
-		set_ckpt_flags(ckpt, CP_UMOUNT_FLAG);
+	if (__remain_node_summaries(cpc->reason))
 		ckpt->cp_pack_total_block_count = cpu_to_le32(F2FS_CP_PACKS+
 				cp_payload_blks + data_sum_blocks +
 				orphan_blocks + NR_CURSEG_NODE_TYPE);
-	} else {
-		clear_ckpt_flags(ckpt, CP_UMOUNT_FLAG);
+	else
 		ckpt->cp_pack_total_block_count = cpu_to_le32(F2FS_CP_PACKS +
 				cp_payload_blks + data_sum_blocks +
 				orphan_blocks);
-	}
+
+	if (cpc->reason == CP_UMOUNT)
+		set_ckpt_flags(ckpt, CP_UMOUNT_FLAG);
+	else
+		clear_ckpt_flags(ckpt, CP_UMOUNT_FLAG);
+
+	if (cpc->reason == CP_FASTBOOT)
+		set_ckpt_flags(ckpt, CP_FASTBOOT_FLAG);
+	else
+		clear_ckpt_flags(ckpt, CP_FASTBOOT_FLAG);
 
 	if (orphan_num)
 		set_ckpt_flags(ckpt, CP_ORPHAN_PRESENT_FLAG);
@@ -1010,7 +1017,7 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 	write_data_summaries(sbi, start_blk);
 	start_blk += data_sum_blocks;
-	if (cpc->reason == CP_UMOUNT) {
+	if (__remain_node_summaries(cpc->reason)) {
 		write_node_summaries(sbi, start_blk);
 		start_blk += NR_CURSEG_NODE_TYPE;
 	}

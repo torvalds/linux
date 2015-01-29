@@ -72,6 +72,7 @@
 #define show_cpreason(type)						\
 	__print_symbolic(type,						\
 		{ CP_UMOUNT,	"Umount" },				\
+		{ CP_FASTBOOT,	"Fastboot" },				\
 		{ CP_SYNC,	"Sync" },				\
 		{ CP_DISCARD,	"Discard" })
 

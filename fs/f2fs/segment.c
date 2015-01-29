@@ -1401,7 +1401,7 @@ static int read_normal_summaries(struct f2fs_sb_info *sbi, int type)
 		segno = le32_to_cpu(ckpt->cur_data_segno[type]);
 		blk_off = le16_to_cpu(ckpt->cur_data_blkoff[type -
 							CURSEG_HOT_DATA]);
-		if (is_set_ckpt_flags(ckpt, CP_UMOUNT_FLAG))
+		if (__exist_node_summaries(sbi))
 			blk_addr = sum_blk_addr(sbi, NR_CURSEG_TYPE, type);
 		else
 			blk_addr = sum_blk_addr(sbi, NR_CURSEG_DATA_TYPE, type);
@@ -1410,7 +1410,7 @@ static int read_normal_summaries(struct f2fs_sb_info *sbi, int type)
 							CURSEG_HOT_NODE]);
 		blk_off = le16_to_cpu(ckpt->cur_node_blkoff[type -
 							CURSEG_HOT_NODE]);
-		if (is_set_ckpt_flags(ckpt, CP_UMOUNT_FLAG))
+		if (__exist_node_summaries(sbi))
 			blk_addr = sum_blk_addr(sbi, NR_CURSEG_NODE_TYPE,
 							type - CURSEG_HOT_NODE);
 		else
@@ -1421,7 +1421,7 @@ static int read_normal_summaries(struct f2fs_sb_info *sbi, int type)
 	sum = (struct f2fs_summary_block *)page_address(new);
 
 	if (IS_NODESEG(type)) {
-		if (is_set_ckpt_flags(ckpt, CP_UMOUNT_FLAG)) {
+		if (__exist_node_summaries(sbi)) {
 			struct f2fs_summary *ns = &sum->entries[0];
 			int i;
 			for (i = 0; i < sbi->blocks_per_seg; i++, ns++) {
@@ -1470,7 +1470,7 @@ static int restore_curseg_summaries(struct f2fs_sb_info *sbi)
 		type = CURSEG_HOT_NODE;
 	}
 
-	if (is_set_ckpt_flags(F2FS_CKPT(sbi), CP_UMOUNT_FLAG))
+	if (__exist_node_summaries(sbi))
 		ra_meta_pages(sbi, sum_blk_addr(sbi, NR_CURSEG_TYPE, type),
 					NR_CURSEG_TYPE - type, META_CP);
 
@@ -1567,8 +1567,7 @@ void write_data_summaries(struct f2fs_sb_info *sbi, block_t start_blk)
 
 void write_node_summaries(struct f2fs_sb_info *sbi, block_t start_blk)
 {
-	if (is_set_ckpt_flags(F2FS_CKPT(sbi), CP_UMOUNT_FLAG))
-		write_normal_summaries(sbi, start_blk, CURSEG_HOT_NODE);
+	write_normal_summaries(sbi, start_blk, CURSEG_HOT_NODE);
 }
 
 int lookup_journal_in_cursum(struct f2fs_summary_block *sum, int type,

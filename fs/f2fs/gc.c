@@ -698,8 +698,7 @@ int f2fs_gc(struct f2fs_sb_info *sbi)
 		.iroot = RADIX_TREE_INIT(GFP_NOFS),
 	};
 
-	cpc.reason = test_opt(sbi, FASTBOOT) ? CP_UMOUNT : CP_SYNC;
-
+	cpc.reason = __get_cp_reason(sbi);
 gc_more:
 	if (unlikely(!(sbi->sb->s_flags & MS_ACTIVE)))
 		goto stop;

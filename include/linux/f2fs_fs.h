@@ -87,6 +87,7 @@ struct f2fs_super_block {
 /*
  * For checkpoint
  */
+#define CP_FASTBOOT_FLAG	0x00000020
 #define CP_FSCK_FLAG		0x00000010
 #define CP_ERROR_FLAG		0x00000008
 #define CP_COMPACT_SUM_FLAG	0x00000004
