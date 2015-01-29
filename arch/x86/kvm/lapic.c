@@ -599,7 +599,8 @@ static bool kvm_apic_match_logical_addr(struct kvm_lapic *apic, u32 mda)
 	logical_id = kvm_apic_get_reg(apic, APIC_LDR);
 
 	if (apic_x2apic_mode(apic))
-		return (logical_id & mda) != 0;
+		return ((logical_id >> 16) == (mda >> 16))
+		       && (logical_id & mda & 0xffff) != 0;
 
 	logical_id = GET_APIC_LOGICAL_ID(logical_id);
 
