@@ -85,6 +85,16 @@
 				clock-frequency = <100000>;
 			};
 
+			sdhci@d8000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&sdhci_pins>;
+				broken-cd;
+				no-1-8-v;
+				wp-inverted;
+				bus-width = <8>;
+				status = "okay";
+			};
+
 			serial@12000 {
 				status = "okay";
 			};
