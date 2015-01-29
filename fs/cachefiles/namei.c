@@ -323,7 +323,7 @@ try_again:
 		return 0;
 	}
 
-	if (!d_is_dir(cache->graveyard)) {
+	if (!d_can_lookup(cache->graveyard)) {
 		unlock_rename(cache->graveyard, dir);
 		cachefiles_io_error(cache, "Graveyard no longer a directory");
 		return -EIO;
@@ -539,7 +539,7 @@ lookup_again:
 			_debug("mkdir -> %p{%p{ino=%lu}}",
 			       next, next->d_inode, next->d_inode->i_ino);
 
-		} else if (!d_is_dir(next)) {
+		} else if (!d_can_lookup(next)) {
 			pr_err("inode %lu is not a directory\n",
 			       next->d_inode->i_ino);
 			ret = -ENOBUFS;
@@ -568,7 +568,7 @@ lookup_again:
 			_debug("create -> %p{%p{ino=%lu}}",
 			       next, next->d_inode, next->d_inode->i_ino);
 
-		} else if (!d_is_dir(next) &&
+		} else if (!d_can_lookup(next) &&
 			   !d_is_reg(next)
 			   ) {
 			pr_err("inode %lu is not a file or directory\n",
@@ -763,7 +763,7 @@ struct dentry *cachefiles_get_directory(struct cachefiles_cache *cache,
 	/* we need to make sure the subdir is a directory */
 	ASSERT(subdir->d_inode);
 
-	if (!d_is_dir(subdir)) {
+	if (!d_can_lookup(subdir)) {
 		pr_err("%s is not a directory\n", dirname);
 		ret = -EIO;
 		goto check_error;
