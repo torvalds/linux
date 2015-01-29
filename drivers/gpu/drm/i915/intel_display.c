@@ -11021,6 +11021,36 @@ out:
 	return pipe_config;
 }
 
+static int __intel_set_mode_setup_plls(struct drm_device *dev,
+				       unsigned modeset_pipes,
+				       unsigned disable_pipes)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	unsigned clear_pipes = modeset_pipes | disable_pipes;
+	struct intel_crtc *intel_crtc;
+	int ret = 0;
+
+	if (!dev_priv->display.crtc_compute_clock)
+		return 0;
+
+	ret = intel_shared_dpll_start_config(dev_priv, clear_pipes);
+	if (ret)
+		goto done;
+
+	for_each_intel_crtc_masked(dev, modeset_pipes, intel_crtc) {
+		struct intel_crtc_state *state = intel_crtc->new_config;
+		ret = dev_priv->display.crtc_compute_clock(intel_crtc,
+							   state);
+		if (ret) {
+			intel_shared_dpll_abort_config(dev_priv);
+			goto done;
+		}
+	}
+
+done:
+	return ret;
+}
+
 static int __intel_set_mode(struct drm_crtc *crtc,
 			    struct drm_display_mode *mode,
 			    int x, int y, struct drm_framebuffer *fb,
@@ -11058,23 +11088,9 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 		prepare_pipes &= ~disable_pipes;
 	}
 
-	if (dev_priv->display.crtc_compute_clock) {
-		unsigned clear_pipes = modeset_pipes | disable_pipes;
-
-		ret = intel_shared_dpll_start_config(dev_priv, clear_pipes);
-		if (ret)
-			goto done;
-
-		for_each_intel_crtc_masked(dev, modeset_pipes, intel_crtc) {
-			struct intel_crtc_state *state = intel_crtc->new_config;
-			ret = dev_priv->display.crtc_compute_clock(intel_crtc,
-								   state);
-			if (ret) {
-				intel_shared_dpll_abort_config(dev_priv);
-				goto done;
-			}
-		}
-	}
+	ret = __intel_set_mode_setup_plls(dev, modeset_pipes, disable_pipes);
+	if (ret)
+		goto done;
 
 	for_each_intel_crtc_masked(dev, disable_pipes, intel_crtc)
 		intel_crtc_disable(&intel_crtc->base);
