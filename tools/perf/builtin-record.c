@@ -208,7 +208,7 @@ static int process_buildids(struct record *rec)
 	struct perf_data_file *file  = &rec->file;
 	struct perf_session *session = rec->session;
 
-	u64 size = lseek(file->fd, 0, SEEK_CUR);
+	u64 size = lseek(perf_data_file__fd(file), 0, SEEK_CUR);
 	if (size == 0)
 		return 0;
 
@@ -334,6 +334,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	struct perf_data_file *file = &rec->file;
 	struct perf_session *session;
 	bool disabled = false, draining = false;
+	int fd;
 
 	rec->progname = argv[0];
 
@@ -348,6 +349,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		return -1;
 	}
 
+	fd = perf_data_file__fd(file);
 	rec->session = session;
 
 	record__init_features(rec);
@@ -372,12 +374,11 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		perf_header__clear_feat(&session->header, HEADER_GROUP_DESC);
 
 	if (file->is_pipe) {
-		err = perf_header__write_pipe(file->fd);
+		err = perf_header__write_pipe(fd);
 		if (err < 0)
 			goto out_child;
 	} else {
-		err = perf_session__write_header(session, rec->evlist,
-						 file->fd, false);
+		err = perf_session__write_header(session, rec->evlist, fd, false);
 		if (err < 0)
 			goto out_child;
 	}
@@ -409,7 +410,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 			 * return this more properly and also
 			 * propagate errors that now are calling die()
 			 */
-			err = perf_event__synthesize_tracing_data(tool, file->fd, rec->evlist,
+			err = perf_event__synthesize_tracing_data(tool,	fd, rec->evlist,
 								  process_synthesized_event);
 			if (err <= 0) {
 				pr_err("Couldn't record tracing data.\n");
@@ -545,8 +546,7 @@ out_child:
 
 		if (!rec->no_buildid)
 			process_buildids(rec);
-		perf_session__write_header(rec->session, rec->evlist,
-					   file->fd, true);
+		perf_session__write_header(rec->session, rec->evlist, fd, true);
 	}
 
 	if (!err && !quiet) {

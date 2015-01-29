@@ -343,6 +343,7 @@ static int __cmd_inject(struct perf_inject *inject)
 	int ret = -EINVAL;
 	struct perf_session *session = inject->session;
 	struct perf_data_file *file_out = &inject->output;
+	int fd = perf_data_file__fd(file_out);
 
 	signal(SIGINT, sig_handler);
 
@@ -376,7 +377,7 @@ static int __cmd_inject(struct perf_inject *inject)
 	}
 
 	if (!file_out->is_pipe)
-		lseek(file_out->fd, session->header.data_offset, SEEK_SET);
+		lseek(fd, session->header.data_offset, SEEK_SET);
 
 	ret = perf_session__process_events(session, &inject->tool);
 
@@ -385,7 +386,7 @@ static int __cmd_inject(struct perf_inject *inject)
 			perf_header__set_feat(&session->header,
 					      HEADER_BUILD_ID);
 		session->header.data_size = inject->bytes_written;
-		perf_session__write_header(session, session->evlist, file_out->fd, true);
+		perf_session__write_header(session, session->evlist, fd, true);
 	}
 
 	return ret;
