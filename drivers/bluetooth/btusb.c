@@ -2709,7 +2709,6 @@ static int btusb_probe(struct usb_interface *intf,
 
 	if (id->driver_info & BTUSB_INTEL) {
 		hdev->setup = btusb_setup_intel;
-		hdev->hw_error = btusb_hw_error_intel;
 		hdev->set_bdaddr = btusb_set_bdaddr_intel;
 	}
 
