@@ -76,7 +76,6 @@ extern int configfs_make_dirent(struct configfs_dirent *,
 				struct dentry *, void *, umode_t, int);
 extern int configfs_dirent_is_ready(struct configfs_dirent *);
 
-extern int configfs_add_file(struct dentry *, const struct configfs_attribute *, int);
 extern void configfs_hash_and_remove(struct dentry * dir, const char * name);
 
 extern const unsigned char * configfs_get_name(struct configfs_dirent *sd);
