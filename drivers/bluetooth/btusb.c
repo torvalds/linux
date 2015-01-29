@@ -259,14 +259,15 @@ static const struct usb_device_id blacklist_table[] = {
 	{ USB_DEVICE(0x16d3, 0x0002),
 	  .driver_info = BTUSB_SNIFFER | BTUSB_BROKEN_ISOC },
 
+	/* Marvell Bluetooth devices */
+	{ USB_DEVICE(0x1286, 0x2044), .driver_info = BTUSB_MARVELL },
+	{ USB_DEVICE(0x1286, 0x2046), .driver_info = BTUSB_MARVELL },
+
 	/* Intel Bluetooth device */
 	{ USB_DEVICE(0x8087, 0x07dc), .driver_info = BTUSB_INTEL },
 	{ USB_DEVICE(0x8087, 0x0a2a), .driver_info = BTUSB_INTEL },
 	{ USB_DEVICE(0x8087, 0x0a2b), .driver_info = BTUSB_INTEL_NEW },
 
-	/* Marvell device */
-	{ USB_DEVICE(0x1286, 0x2044), .driver_info = BTUSB_MARVELL },
-	{ USB_DEVICE(0x1286, 0x2046), .driver_info = BTUSB_MARVELL },
 
 	{ }	/* Terminating entry */
 };
