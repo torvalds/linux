@@ -861,10 +861,8 @@ static int rt286_hw_params(struct snd_pcm_substream *substream,
 		RT286_I2S_CTRL1, 0x0018, d_len_code << 3);
 	dev_dbg(codec->dev, "format val = 0x%x\n", val);
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		snd_soc_update_bits(codec, RT286_DAC_FORMAT, 0x407f, val);
-	else
-		snd_soc_update_bits(codec, RT286_ADC_FORMAT, 0x407f, val);
+	snd_soc_update_bits(codec, RT286_DAC_FORMAT, 0x407f, val);
+	snd_soc_update_bits(codec, RT286_ADC_FORMAT, 0x407f, val);
 
 	return 0;
 }

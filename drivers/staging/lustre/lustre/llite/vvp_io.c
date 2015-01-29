@@ -632,7 +632,7 @@ static int vvp_io_kernel_fault(struct vvp_fault_io *cfio)
 		return 0;
 	}
 
-	if (cfio->fault.ft_flags & VM_FAULT_SIGBUS) {
+	if (cfio->fault.ft_flags & (VM_FAULT_SIGBUS | VM_FAULT_SIGSEGV)) {
 		CDEBUG(D_PAGE, "got addr %p - SIGBUS\n", vmf->virtual_address);
 		return -EFAULT;
 	}
