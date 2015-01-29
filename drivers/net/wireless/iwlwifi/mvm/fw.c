@@ -217,8 +217,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	struct iwl_sf_region st_fwrd_space;
 
 	if (ucode_type == IWL_UCODE_REGULAR &&
-	    iwl_fw_dbg_conf_usniffer(mvm->fw, FW_DBG_CUSTOM) &&
-	    iwl_fw_dbg_conf_enabled(mvm->fw, FW_DBG_CUSTOM))
+	    iwl_fw_dbg_conf_usniffer(mvm->fw, FW_DBG_START_FROM_ALIVE))
 		fw = iwl_get_ucode_image(mvm, IWL_UCODE_REGULAR_USNIFFER);
 	else
 		fw = iwl_get_ucode_image(mvm, ucode_type);
@@ -480,8 +479,14 @@ exit:
 	iwl_free_resp(&cmd);
 }
 
-void iwl_mvm_fw_dbg_collect(struct iwl_mvm *mvm)
+int iwl_mvm_fw_dbg_collect(struct iwl_mvm *mvm, enum iwl_fw_dbg_trigger trig,
+			   unsigned int delay)
 {
+	if (test_and_set_bit(IWL_MVM_STATUS_DUMPING_FW_LOG, &mvm->status))
+		return -EBUSY;
+
+	IWL_WARN(mvm, "Collecting data: trigger %d fired.\n", trig);
+
 	/* stop recording */
 	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
 		iwl_set_bits_prph(mvm->trans, MON_BUFF_SAMPLE_CTL, 0x100);
@@ -491,10 +496,30 @@ void iwl_mvm_fw_dbg_collect(struct iwl_mvm *mvm)
 		udelay(100);
 	}
 
-	schedule_work(&mvm->fw_error_dump_wk);
+	queue_delayed_work(system_wq, &mvm->fw_dump_wk, delay);
+
+	return 0;
 }
 
-int iwl_mvm_start_fw_dbg_conf(struct iwl_mvm *mvm, enum iwl_fw_dbg_conf conf_id)
+int iwl_mvm_fw_dbg_collect_trig(struct iwl_mvm *mvm,
+				struct iwl_fw_dbg_trigger_tlv *trigger)
+{
+	unsigned int delay = msecs_to_jiffies(le32_to_cpu(trigger->stop_delay));
+	u16 occurrences = le16_to_cpu(trigger->occurrences);
+	int ret;
+
+	if (!occurrences)
+		return 0;
+
+	ret = iwl_mvm_fw_dbg_collect(mvm, le32_to_cpu(trigger->id), delay);
+	if (ret)
+		return ret;
+
+	trigger->occurrences = cpu_to_le16(occurrences - 1);
+	return 0;
+}
+
+int iwl_mvm_start_fw_dbg_conf(struct iwl_mvm *mvm, u8 conf_id)
 {
 	u8 *ptr;
 	int ret;
@@ -613,7 +638,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		IWL_ERR(mvm, "Failed to initialize Smart Fifo\n");
 
 	mvm->fw_dbg_conf = FW_DBG_INVALID;
-	iwl_mvm_start_fw_dbg_conf(mvm, FW_DBG_CUSTOM);
+	iwl_mvm_start_fw_dbg_conf(mvm, FW_DBG_START_FROM_ALIVE);
 
 	ret = iwl_send_tx_ant_cfg(mvm, iwl_mvm_get_valid_tx_ant(mvm));
 	if (ret)

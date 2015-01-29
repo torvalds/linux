@@ -75,6 +75,7 @@
 #include "iwl-trans.h"
 #include "iwl-notif-wait.h"
 #include "iwl-eeprom-parse.h"
+#include "iwl-fw-file.h"
 #include "sta.h"
 #include "fw-api.h"
 #include "constants.h"
@@ -703,8 +704,8 @@ struct iwl_mvm {
 
 	/* -1 for always, 0 for never, >0 for that many times */
 	s8 restart_fw;
-	struct work_struct fw_error_dump_wk;
-	enum iwl_fw_dbg_conf fw_dbg_conf;
+	u8 fw_dbg_conf;
+	struct delayed_work fw_dump_wk;
 
 #ifdef CONFIG_IWLWIFI_LEDS
 	struct led_classdev led;
@@ -840,6 +841,7 @@ enum iwl_mvm_status {
 	IWL_MVM_STATUS_IN_D0I3,
 	IWL_MVM_STATUS_ROC_AUX_RUNNING,
 	IWL_MVM_STATUS_D3_RECONFIG,
+	IWL_MVM_STATUS_DUMPING_FW_LOG,
 };
 
 static inline bool iwl_mvm_is_radio_killed(struct iwl_mvm *mvm)
@@ -1411,7 +1413,56 @@ struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm);
 void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error);
 void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm);
 
-int iwl_mvm_start_fw_dbg_conf(struct iwl_mvm *mvm, enum iwl_fw_dbg_conf id);
-void iwl_mvm_fw_dbg_collect(struct iwl_mvm *mvm);
+int iwl_mvm_start_fw_dbg_conf(struct iwl_mvm *mvm, u8 id);
+int iwl_mvm_fw_dbg_collect(struct iwl_mvm *mvm, enum iwl_fw_dbg_trigger trig,
+			   unsigned int delay);
+int iwl_mvm_fw_dbg_collect_trig(struct iwl_mvm *mvm,
+				struct iwl_fw_dbg_trigger_tlv *trigger);
+
+static inline bool
+iwl_fw_dbg_trigger_vif_match(struct iwl_fw_dbg_trigger_tlv *trig,
+			     struct ieee80211_vif *vif)
+{
+	u32 trig_vif = le32_to_cpu(trig->vif_type);
+
+	return trig_vif == IWL_FW_DBG_CONF_VIF_ANY || vif->type == trig_vif;
+}
+
+static inline bool
+iwl_fw_dbg_trigger_stop_conf_match(struct iwl_mvm *mvm,
+				   struct iwl_fw_dbg_trigger_tlv *trig)
+{
+	return ((trig->mode & IWL_FW_DBG_TRIGGER_STOP) &&
+		(mvm->fw_dbg_conf == FW_DBG_INVALID ||
+		(BIT(mvm->fw_dbg_conf) & le32_to_cpu(trig->stop_conf_ids))));
+}
+
+static inline bool
+iwl_fw_dbg_trigger_check_stop(struct iwl_mvm *mvm,
+			      struct ieee80211_vif *vif,
+			      struct iwl_fw_dbg_trigger_tlv *trig)
+{
+	if (vif && !iwl_fw_dbg_trigger_vif_match(trig, vif))
+		return false;
+
+	return iwl_fw_dbg_trigger_stop_conf_match(mvm, trig);
+}
+
+static inline void
+iwl_fw_dbg_trigger_simple_stop(struct iwl_mvm *mvm,
+			       struct ieee80211_vif *vif,
+			       enum iwl_fw_dbg_trigger trig)
+{
+	struct iwl_fw_dbg_trigger_tlv *trigger;
+
+	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, trig))
+		return;
+
+	trigger = iwl_fw_dbg_get_trigger(mvm->fw, trig);
+	if (!iwl_fw_dbg_trigger_check_stop(mvm, vif, trigger))
+		return;
+
+	iwl_mvm_fw_dbg_collect_trig(mvm, trigger);
+}
 
 #endif /* __IWL_MVM_H__ */

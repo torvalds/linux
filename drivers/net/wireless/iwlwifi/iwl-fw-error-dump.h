@@ -230,4 +230,22 @@ iwl_fw_error_next_data(struct iwl_fw_error_dump_data *data)
 	return (void *)(data->data + le32_to_cpu(data->len));
 }
 
+/**
+ * enum iwl_fw_dbg_trigger - triggers available
+ *
+ * @FW_DBG_TRIGGER_USER: trigger log collection by user
+ *	This should not be defined as a trigger to the driver, but a value the
+ *	driver should set to indicate that the trigger was initiated by the
+ *	user.
+ * @FW_DBG_TRIGGER_FW_ASSERT: trigger log collection when the firmware asserts
+ */
+enum iwl_fw_dbg_trigger {
+	FW_DBG_TRIGGER_INVALID = 0,
+	FW_DBG_TRIGGER_USER,
+	FW_DBG_TRIGGER_FW_ASSERT,
+
+	/* must be last */
+	FW_DBG_TRIGGER_MAX,
+};
+
 #endif /* __fw_error_dump_h__ */

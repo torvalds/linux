@@ -175,6 +175,8 @@ static void iwl_dealloc_ucode(struct iwl_drv *drv)
 	kfree(drv->fw.dbg_dest_tlv);
 	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg_conf_tlv); i++)
 		kfree(drv->fw.dbg_conf_tlv[i]);
+	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg_trigger_tlv); i++)
+		kfree(drv->fw.dbg_trigger_tlv[i]);
 
 	for (i = 0; i < IWL_UCODE_TYPE_MAX; i++)
 		iwl_free_fw_img(drv, drv->fw.img + i);
@@ -293,8 +295,10 @@ struct iwl_firmware_pieces {
 
 	/* FW debug data parsed for driver usage */
 	struct iwl_fw_dbg_dest_tlv *dbg_dest_tlv;
-	struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_MAX];
-	size_t dbg_conf_tlv_len[FW_DBG_MAX];
+	struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_CONF_MAX];
+	size_t dbg_conf_tlv_len[FW_DBG_CONF_MAX];
+	struct iwl_fw_dbg_trigger_tlv *dbg_trigger_tlv[FW_DBG_TRIGGER_MAX];
+	size_t dbg_trigger_tlv_len[FW_DBG_TRIGGER_MAX];
 };
 
 /*
@@ -914,6 +918,31 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			pieces->dbg_conf_tlv_len[conf->id] = tlv_len;
 			break;
 			}
+		case IWL_UCODE_TLV_FW_DBG_TRIGGER: {
+			struct iwl_fw_dbg_trigger_tlv *trigger =
+				(void *)tlv_data;
+			u32 trigger_id = le32_to_cpu(trigger->id);
+
+			if (trigger_id >= ARRAY_SIZE(drv->fw.dbg_trigger_tlv)) {
+				IWL_ERR(drv,
+					"Skip unknown trigger: %u\n",
+					trigger->id);
+				break;
+			}
+
+			if (pieces->dbg_trigger_tlv[trigger_id]) {
+				IWL_ERR(drv,
+					"Ignore duplicate dbg trigger %u\n",
+					trigger->id);
+				break;
+			}
+
+			IWL_INFO(drv, "Found debug trigger: %u\n", trigger->id);
+
+			pieces->dbg_trigger_tlv[trigger_id] = trigger;
+			pieces->dbg_trigger_tlv_len[trigger_id] = tlv_len;
+			break;
+			}
 		case IWL_UCODE_TLV_SEC_RT_USNIFFER:
 			usniffer_images = true;
 			iwl_store_ucode_sec(pieces, tlv_data,
@@ -1194,6 +1223,19 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 					drv->fw.dbg_conf_tlv_len[i],
 					GFP_KERNEL);
 			if (!drv->fw.dbg_conf_tlv[i])
+				goto out_free_fw;
+		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg_trigger_tlv); i++) {
+		if (pieces->dbg_trigger_tlv[i]) {
+			drv->fw.dbg_trigger_tlv_len[i] =
+				pieces->dbg_trigger_tlv_len[i];
+			drv->fw.dbg_trigger_tlv[i] =
+				kmemdup(pieces->dbg_trigger_tlv[i],
+					drv->fw.dbg_trigger_tlv_len[i],
+					GFP_KERNEL);
+			if (!drv->fw.dbg_trigger_tlv[i])
 				goto out_free_fw;
 		}
 	}

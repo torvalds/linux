@@ -66,6 +66,7 @@
 #define __iwl_fw_file_h__
 
 #include <linux/netdevice.h>
+#include <linux/nl80211.h>
 
 /* v1/v2 uCode file layout */
 struct iwl_ucode_header {
@@ -136,6 +137,7 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_FW_VERSION	= 36,
 	IWL_UCODE_TLV_FW_DBG_DEST	= 38,
 	IWL_UCODE_TLV_FW_DBG_CONF	= 39,
+	IWL_UCODE_TLV_FW_DBG_TRIGGER	= 40,
 };
 
 struct iwl_ucode_tlv {
@@ -458,44 +460,78 @@ struct iwl_fw_dbg_conf_hcmd {
 } __packed;
 
 /**
- * struct iwl_fw_dbg_trigger - a TLV that describes a debug configuration
+ * enum iwl_fw_dbg_trigger_mode - triggers functionalities
  *
- * @enabled: is this trigger enabled
- * @reserved:
- * @len: length, in bytes, of the %trigger field
- * @trigger: pointer to a trigger struct
+ * @IWL_FW_DBG_TRIGGER_START: when trigger occurs re-conf the dbg mechanism
+ * @IWL_FW_DBG_TRIGGER_STOP: when trigger occurs pull the dbg data
  */
-struct iwl_fw_dbg_trigger {
-	u8 enabled;
-	u8 reserved;
-	u8 len;
-	u8 trigger[0];
-} __packed;
-
-/**
- * enum iwl_fw_dbg_conf - configurations available
- *
- * @FW_DBG_CUSTOM: take this configuration from alive
- *	Note that the trigger is NO-OP for this configuration
- */
-enum iwl_fw_dbg_conf {
-	FW_DBG_CUSTOM = 0,
-
-	/* must be last */
-	FW_DBG_MAX,
-	FW_DBG_INVALID = 0xff,
+enum iwl_fw_dbg_trigger_mode {
+	IWL_FW_DBG_TRIGGER_START = BIT(0),
+	IWL_FW_DBG_TRIGGER_STOP = BIT(1),
 };
 
 /**
- * struct iwl_fw_dbg_conf_tlv - a TLV that describes a debug configuration
- *
- * @id: %enum iwl_fw_dbg_conf
+ * enum iwl_fw_dbg_trigger_vif_type - define the VIF type for a trigger
+ * @IWL_FW_DBG_CONF_VIF_ANY: any vif type
+ * @IWL_FW_DBG_CONF_VIF_IBSS: IBSS mode
+ * @IWL_FW_DBG_CONF_VIF_STATION: BSS mode
+ * @IWL_FW_DBG_CONF_VIF_AP: AP mode
+ * @IWL_FW_DBG_CONF_VIF_P2P_CLIENT: P2P Client mode
+ * @IWL_FW_DBG_CONF_VIF_P2P_GO: P2P GO mode
+ * @IWL_FW_DBG_CONF_VIF_P2P_DEVICE: P2P device
+ */
+enum iwl_fw_dbg_trigger_vif_type {
+	IWL_FW_DBG_CONF_VIF_ANY = NL80211_IFTYPE_UNSPECIFIED,
+	IWL_FW_DBG_CONF_VIF_IBSS = NL80211_IFTYPE_ADHOC,
+	IWL_FW_DBG_CONF_VIF_STATION = NL80211_IFTYPE_STATION,
+	IWL_FW_DBG_CONF_VIF_AP = NL80211_IFTYPE_AP,
+	IWL_FW_DBG_CONF_VIF_P2P_CLIENT = NL80211_IFTYPE_P2P_CLIENT,
+	IWL_FW_DBG_CONF_VIF_P2P_GO = NL80211_IFTYPE_P2P_GO,
+	IWL_FW_DBG_CONF_VIF_P2P_DEVICE = NL80211_IFTYPE_P2P_DEVICE,
+};
+
+/**
+ * struct iwl_fw_dbg_trigger_tlv - a TLV that describes the trigger
+ * @id: %enum iwl_fw_dbg_trigger
+ * @vif_type: %enum iwl_fw_dbg_trigger_vif_type
+ * @stop_conf_ids: bitmap of configurations this trigger relates to.
+ *	if the mode is %IWL_FW_DBG_TRIGGER_STOP, then if the bit corresponding
+ *	to the currently running configuration is set, the data should be
+ *	collected.
+ * @stop_delay: how many milliseconds to wait before collecting the data
+ *	after the STOP trigger fires.
+ * @mode: %enum iwl_fw_dbg_trigger_mode - can be stop / start of both
+ * @start_conf_id: if mode is %IWL_FW_DBG_TRIGGER_START, this defines what
+ *	configuration should be applied when the triggers kicks in.
+ * @occurrences: number of occurrences. 0 means the trigger will never fire.
+ */
+struct iwl_fw_dbg_trigger_tlv {
+	__le32 id;
+	__le32 vif_type;
+	__le32 stop_conf_ids;
+	__le32 stop_delay;
+	u8 mode;
+	u8 start_conf_id;
+	__le16 occurrences;
+	__le32 reserved[2];
+
+	u8 data[0];
+} __packed;
+
+#define FW_DBG_START_FROM_ALIVE	0
+#define FW_DBG_CONF_MAX		32
+#define FW_DBG_INVALID		0xff
+
+/**
+ * struct iwl_fw_dbg_conf_tlv - a TLV that describes a debug configuration.
+ * @id: conf id
  * @usniffer: should the uSniffer image be used
  * @num_of_hcmds: how many HCMDs to send are present here
  * @hcmd: a variable length host command to be sent to apply the configuration.
  *	If there is more than one HCMD to send, they will appear one after the
  *	other and be sent in the order that they appear in.
- * This parses IWL_UCODE_TLV_FW_DBG_CONF
+ * This parses IWL_UCODE_TLV_FW_DBG_CONF. The user can add up-to
+ * %FW_DBG_CONF_MAX configuration per run.
  */
 struct iwl_fw_dbg_conf_tlv {
 	u8 id;
@@ -503,8 +539,6 @@ struct iwl_fw_dbg_conf_tlv {
 	u8 reserved;
 	u8 num_of_hcmds;
 	struct iwl_fw_dbg_conf_hcmd hcmd;
-
-	/* struct iwl_fw_dbg_trigger sits after all variable length hcmds */
 } __packed;
 
 #endif  /* __iwl_fw_file_h__ */
