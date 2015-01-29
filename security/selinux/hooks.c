@@ -1822,12 +1822,12 @@ static inline int may_rename(struct inode *old_dir,
 
 	ad.u.dentry = new_dentry;
 	av = DIR__ADD_NAME | DIR__SEARCH;
-	if (new_dentry->d_inode)
+	if (d_is_positive(new_dentry))
 		av |= DIR__REMOVE_NAME;
 	rc = avc_has_perm(sid, new_dsec->sid, SECCLASS_DIR, av, &ad);
 	if (rc)
 		return rc;
-	if (new_dentry->d_inode) {
+	if (d_is_positive(new_dentry)) {
 		new_isec = new_dentry->d_inode->i_security;
 		new_is_dir = S_ISDIR(new_dentry->d_inode->i_mode);
 		rc = avc_has_perm(sid, new_isec->sid,
