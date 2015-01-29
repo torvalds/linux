@@ -428,6 +428,8 @@
  *
  * Refer to your MIPS R4xx0 manual, chapter 5 for explanation.
  */
+#define INTCTLB_IPFDC		23
+#define INTCTLF_IPFDC		(_ULCAST_(7) << INTCTLB_IPFDC)
 #define INTCTLB_IPPCI		26
 #define INTCTLF_IPPCI		(_ULCAST_(7) << INTCTLB_IPPCI)
 #define INTCTLB_IPTI		29
@@ -458,6 +460,8 @@
 #define	 CAUSEF_IP6		(_ULCAST_(1)   << 14)
 #define	 CAUSEB_IP7		15
 #define	 CAUSEF_IP7		(_ULCAST_(1)   << 15)
+#define	 CAUSEB_FDCI		21
+#define	 CAUSEF_FDCI		(_ULCAST_(1)   << 21)
 #define	 CAUSEB_IV		23
 #define	 CAUSEF_IV		(_ULCAST_(1)   << 23)
 #define	 CAUSEB_PCI		26
