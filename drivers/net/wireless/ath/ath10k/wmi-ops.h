@@ -116,7 +116,8 @@ struct wmi_ops {
 					     enum wmi_force_fw_hang_type type,
 					     u32 delay_ms);
 	struct sk_buff *(*gen_mgmt_tx)(struct ath10k *ar, struct sk_buff *skb);
-	struct sk_buff *(*gen_dbglog_cfg)(struct ath10k *ar, u32 module_enable);
+	struct sk_buff *(*gen_dbglog_cfg)(struct ath10k *ar, u32 module_enable,
+					  u32 log_level);
 	struct sk_buff *(*gen_pktlog_enable)(struct ath10k *ar, u32 filter);
 	struct sk_buff *(*gen_pktlog_disable)(struct ath10k *ar);
 	struct sk_buff *(*gen_pdev_set_quiet_mode)(struct ath10k *ar,
@@ -846,14 +847,14 @@ ath10k_wmi_force_fw_hang(struct ath10k *ar,
 }
 
 static inline int
-ath10k_wmi_dbglog_cfg(struct ath10k *ar, u32 module_enable)
+ath10k_wmi_dbglog_cfg(struct ath10k *ar, u32 module_enable, u32 log_level)
 {
 	struct sk_buff *skb;
 
 	if (!ar->wmi.ops->gen_dbglog_cfg)
 		return -EOPNOTSUPP;
 
-	skb = ar->wmi.ops->gen_dbglog_cfg(ar, module_enable);
+	skb = ar->wmi.ops->gen_dbglog_cfg(ar, module_enable, log_level);
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 

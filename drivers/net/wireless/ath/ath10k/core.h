@@ -350,6 +350,7 @@ struct ath10k_debug {
 
 	/* protected by conf_mutex */
 	u32 fw_dbglog_mask;
+	u32 fw_dbglog_level;
 	u32 pktlog_filter;
 	u32 reg_addr;
 	u32 nf_cal_period;

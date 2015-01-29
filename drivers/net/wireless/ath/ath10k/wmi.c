@@ -4991,7 +4991,8 @@ ath10k_wmi_op_gen_force_fw_hang(struct ath10k *ar,
 }
 
 static struct sk_buff *
-ath10k_wmi_op_gen_dbglog_cfg(struct ath10k *ar, u32 module_enable)
+ath10k_wmi_op_gen_dbglog_cfg(struct ath10k *ar, u32 module_enable,
+			     u32 log_level)
 {
 	struct wmi_dbglog_cfg_cmd *cmd;
 	struct sk_buff *skb;
@@ -5004,7 +5005,7 @@ ath10k_wmi_op_gen_dbglog_cfg(struct ath10k *ar, u32 module_enable)
 	cmd = (struct wmi_dbglog_cfg_cmd *)skb->data;
 
 	if (module_enable) {
-		cfg = SM(ATH10K_DBGLOG_LEVEL_VERBOSE,
+		cfg = SM(log_level,
 			 ATH10K_DBGLOG_CFG_LOG_LVL);
 	} else {
 		/* set back defaults, all modules with WARN level */
