@@ -194,11 +194,12 @@ static int process_buildids(struct record *rec)
 {
 	struct perf_data_file *file  = &rec->file;
 	struct perf_session *session = rec->session;
-	u64 start = session->header.data_offset;
 
 	u64 size = lseek(file->fd, 0, SEEK_CUR);
 	if (size == 0)
 		return 0;
+
+	file->size = size;
 
 	/*
 	 * During this process, it'll load kernel map and replace the
@@ -211,9 +212,7 @@ static int process_buildids(struct record *rec)
 	 */
 	symbol_conf.ignore_vmlinux_buildid = true;
 
-	return __perf_session__process_events(session, start,
-					      size - start,
-					      size, &build_id__mark_dso_hit_ops);
+	return perf_session__process_events(session, &build_id__mark_dso_hit_ops);
 }
 
 static void perf_event__synthesize_guest_os(struct machine *machine, void *data)
