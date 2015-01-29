@@ -1254,17 +1254,18 @@ static int mixer_bind(struct device *dev, struct device *manager, void *data)
 	struct drm_device *drm_dev = data;
 	int ret;
 
+	ret = mixer_initialize(ctx, drm_dev);
+	if (ret)
+		return ret;
+
 	ctx->crtc = exynos_drm_crtc_create(drm_dev, ctx->pipe,
 				     EXYNOS_DISPLAY_TYPE_HDMI,
 				     &mixer_crtc_ops, ctx);
 	if (IS_ERR(ctx->crtc)) {
+		mixer_ctx_remove(ctx);
 		ret = PTR_ERR(ctx->crtc);
 		goto free_ctx;
 	}
-
-	ret = mixer_initialize(ctx, drm_dev);
-	if (ret)
-		goto free_ctx;
 
 	return 0;
 
