@@ -148,6 +148,9 @@ static const struct {
 #ifdef HAVE_ZLIB_SUPPORT
 	{ "gz", gzip_decompress_to_file },
 #endif
+#ifdef HAVE_LZMA_SUPPORT
+	{ "xz", lzma_decompress_to_file },
+#endif
 	{ NULL, NULL },
 };
 
