@@ -354,6 +354,7 @@ fail:
 	netcp_unregister_module(module);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(netcp_register_module);
 
 static void netcp_release_module(struct netcp_device *netcp_device,
 				 struct netcp_module *module)
@@ -414,6 +415,7 @@ void netcp_unregister_module(struct netcp_module *module)
 
 	mutex_unlock(&netcp_modules_lock);
 }
+EXPORT_SYMBOL_GPL(netcp_unregister_module);
 
 void *netcp_module_get_intf_data(struct netcp_module *module,
 				 struct netcp_intf *intf)
@@ -425,6 +427,7 @@ void *netcp_module_get_intf_data(struct netcp_module *module,
 			return intf_modpriv->module_priv;
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(netcp_module_get_intf_data);
 
 /* Module TX and RX Hook management */
 struct netcp_hook_list {
@@ -459,6 +462,7 @@ int netcp_register_txhook(struct netcp_intf *netcp_priv, int order,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(netcp_register_txhook);
 
 int netcp_unregister_txhook(struct netcp_intf *netcp_priv, int order,
 			    netcp_hook_rtn *hook_rtn, void *hook_data)
@@ -480,6 +484,7 @@ int netcp_unregister_txhook(struct netcp_intf *netcp_priv, int order,
 	spin_unlock_irqrestore(&netcp_priv->lock, flags);
 	return -ENOENT;
 }
+EXPORT_SYMBOL_GPL(netcp_unregister_txhook);
 
 int netcp_register_rxhook(struct netcp_intf *netcp_priv, int order,
 			  netcp_hook_rtn *hook_rtn, void *hook_data)
@@ -1226,6 +1231,7 @@ int netcp_txpipe_close(struct netcp_tx_pipe *tx_pipe)
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(netcp_txpipe_close);
 
 int netcp_txpipe_open(struct netcp_tx_pipe *tx_pipe)
 {
@@ -1267,6 +1273,7 @@ err:
 	tx_pipe->dma_channel = NULL;
 	return ret;
 }
+EXPORT_SYMBOL_GPL(netcp_txpipe_open);
 
 int netcp_txpipe_init(struct netcp_tx_pipe *tx_pipe,
 		      struct netcp_device *netcp_device,
@@ -1278,6 +1285,7 @@ int netcp_txpipe_init(struct netcp_tx_pipe *tx_pipe,
 	tx_pipe->dma_queue_id = dma_queue_id;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(netcp_txpipe_init);
 
 static struct netcp_addr *netcp_addr_find(struct netcp_intf *netcp,
 					  const u8 *addr,

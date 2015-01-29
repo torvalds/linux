@@ -19,6 +19,7 @@
  */
 
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/of_mdio.h>
 #include <linux/of_address.h>
 #include <linux/if_vlan.h>
@@ -2154,3 +2155,7 @@ static void __exit keystone_gbe_exit(void)
 	netcp_unregister_module(&xgbe_module);
 }
 module_exit(keystone_gbe_exit);
+
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("TI NETCP ETHSS driver for Keystone SOCs");
+MODULE_AUTHOR("Sandeep Nair <sandeep_n@ti.com");
