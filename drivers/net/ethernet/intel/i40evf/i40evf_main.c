@@ -1480,9 +1480,11 @@ static void i40evf_reset_task(struct work_struct *work)
 	struct i40evf_adapter *adapter = container_of(work,
 						      struct i40evf_adapter,
 						      reset_task);
+	struct net_device *netdev = adapter->netdev;
 	struct i40e_hw *hw = &adapter->hw;
-	int i = 0, err;
+	struct i40evf_mac_filter *f;
 	uint32_t rstat_val;
+	int i = 0, err;
 
 	while (test_and_set_bit(__I40EVF_IN_CRITICAL_TASK,
 				&adapter->crit_section))
@@ -1527,7 +1529,11 @@ static void i40evf_reset_task(struct work_struct *work)
 
 		if (netif_running(adapter->netdev)) {
 			set_bit(__I40E_DOWN, &adapter->vsi.state);
-			i40evf_down(adapter);
+			i40evf_irq_disable(adapter);
+			i40evf_napi_disable_all(adapter);
+			netif_tx_disable(netdev);
+			netif_tx_stop_all_queues(netdev);
+			netif_carrier_off(netdev);
 			i40evf_free_traffic_irqs(adapter);
 			i40evf_free_all_tx_resources(adapter);
 			i40evf_free_all_rx_resources(adapter);
@@ -1559,22 +1565,37 @@ static void i40evf_reset_task(struct work_struct *work)
 continue_reset:
 	adapter->flags &= ~I40EVF_FLAG_RESET_PENDING;
 
-	i40evf_down(adapter);
+	i40evf_irq_disable(adapter);
+	i40evf_napi_disable_all(adapter);
+
+	netif_tx_disable(netdev);
+
+	netif_tx_stop_all_queues(netdev);
+
+	netif_carrier_off(netdev);
 	adapter->state = __I40EVF_RESETTING;
 
 	/* kill and reinit the admin queue */
 	if (i40evf_shutdown_adminq(hw))
-		dev_warn(&adapter->pdev->dev,
-			 "%s: Failed to destroy the Admin Queue resources\n",
-			 __func__);
+		dev_warn(&adapter->pdev->dev, "Failed to shut down adminq\n");
+	adapter->current_op = I40E_VIRTCHNL_OP_UNKNOWN;
 	err = i40evf_init_adminq(hw);
 	if (err)
-		dev_info(&adapter->pdev->dev, "%s: init_adminq failed: %d\n",
-			 __func__, err);
+		dev_info(&adapter->pdev->dev, "Failed to init adminq: %d\n",
+			 err);
 
-	adapter->aq_pending = 0;
-	adapter->aq_required = 0;
 	i40evf_map_queues(adapter);
+
+	/* re-add all MAC filters */
+	list_for_each_entry(f, &adapter->mac_filter_list, list) {
+		f->add = true;
+	}
+	/* re-add all VLAN filters */
+	list_for_each_entry(f, &adapter->vlan_filter_list, list) {
+		f->add = true;
+	}
+	adapter->aq_required = I40EVF_FLAG_AQ_ADD_MAC_FILTER;
+	adapter->aq_required |= I40EVF_FLAG_AQ_ADD_VLAN_FILTER;
 	clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
 
 	mod_timer(&adapter->watchdog_timer, jiffies + 2);
