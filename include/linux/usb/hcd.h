@@ -146,6 +146,8 @@ struct usb_hcd {
 	unsigned		amd_resume_bug:1; /* AMD remote wakeup quirk */
 	unsigned		can_do_streams:1; /* HC supports streams */
 	unsigned		tpl_support:1; /* OTG & EH TPL support */
+	unsigned		cant_recv_wakeups:1;
+			/* wakeup requests from downstream aren't received */
 
 	unsigned int		irq;		/* irq allocated */
 	void __iomem		*regs;		/* device memory/io */
