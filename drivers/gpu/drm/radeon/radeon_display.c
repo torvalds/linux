@@ -960,6 +960,9 @@ void radeon_compute_pll_avivo(struct radeon_pll *pll,
 	if (pll->flags & RADEON_PLL_USE_FRAC_FB_DIV &&
 	    pll->flags & RADEON_PLL_USE_REF_DIV)
 		ref_div_max = pll->reference_div;
+	else if (pll->flags & RADEON_PLL_PREFER_MINM_OVER_MAXP)
+		/* fix for problems on RS880 */
+		ref_div_max = min(pll->max_ref_div, 7u);
 	else
 		ref_div_max = pll->max_ref_div;
 
