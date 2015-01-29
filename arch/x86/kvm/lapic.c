@@ -591,42 +591,34 @@ static bool kvm_apic_match_physical_addr(struct kvm_lapic *apic, u32 dest)
 
 static bool kvm_apic_match_logical_addr(struct kvm_lapic *apic, u32 mda)
 {
-	int result = 0;
 	u32 logical_id;
 
 	if (kvm_apic_broadcast(apic, mda))
-		return 1;
+		return true;
 
-	if (apic_x2apic_mode(apic)) {
-		logical_id = kvm_apic_get_reg(apic, APIC_LDR);
-		return logical_id & mda;
-	}
+	logical_id = kvm_apic_get_reg(apic, APIC_LDR);
 
-	logical_id = GET_APIC_LOGICAL_ID(kvm_apic_get_reg(apic, APIC_LDR));
+	if (apic_x2apic_mode(apic))
+		return (logical_id & mda) != 0;
+
+	logical_id = GET_APIC_LOGICAL_ID(logical_id);
 
 	switch (kvm_apic_get_reg(apic, APIC_DFR)) {
 	case APIC_DFR_FLAT:
-		if (logical_id & mda)
-			result = 1;
-		break;
+		return (logical_id & mda) != 0;
 	case APIC_DFR_CLUSTER:
-		if (((logical_id >> 4) == (mda >> 0x4))
-		    && (logical_id & mda & 0xf))
-			result = 1;
-		break;
+		return ((logical_id >> 4) == (mda >> 4))
+		       && (logical_id & mda & 0xf) != 0;
 	default:
 		apic_debug("Bad DFR vcpu %d: %08x\n",
 			   apic->vcpu->vcpu_id, kvm_apic_get_reg(apic, APIC_DFR));
-		break;
+		return false;
 	}
-
-	return result;
 }
 
 bool kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
 			   int short_hand, unsigned int dest, int dest_mode)
 {
-	int result = 0;
 	struct kvm_lapic *target = vcpu->arch.apic;
 
 	apic_debug("target %p, source %p, dest 0x%x, "
@@ -638,27 +630,21 @@ bool kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
 	case APIC_DEST_NOSHORT:
 		if (dest_mode == 0)
 			/* Physical mode. */
-			result = kvm_apic_match_physical_addr(target, dest);
+			return kvm_apic_match_physical_addr(target, dest);
 		else
 			/* Logical mode. */
-			result = kvm_apic_match_logical_addr(target, dest);
-		break;
+			return kvm_apic_match_logical_addr(target, dest);
 	case APIC_DEST_SELF:
-		result = (target == source);
-		break;
+		return target == source;
 	case APIC_DEST_ALLINC:
-		result = 1;
-		break;
+		return true;
 	case APIC_DEST_ALLBUT:
-		result = (target != source);
-		break;
+		return target != source;
 	default:
 		apic_debug("kvm: apic: Bad dest shorthand value %x\n",
 			   short_hand);
-		break;
+		return false;
 	}
-
-	return result;
 }
 
 bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
