@@ -880,9 +880,22 @@ static int chv_gpio_request_enable(struct pinctrl_dev *pctldev,
 		value &= ~CHV_PADCTRL1_INVRXTX_MASK;
 		chv_writel(value, reg);
 
-		/* Switch to a GPIO mode */
 		reg = chv_padreg(pctrl, offset, CHV_PADCTRL0);
-		value = readl(reg) | CHV_PADCTRL0_GPIOEN;
+		value = readl(reg);
+
+		/*
+		 * If the pin is in HiZ mode (both TX and RX buffers are
+		 * disabled) we turn it to be input now.
+		 */
+		if ((value & CHV_PADCTRL0_GPIOCFG_MASK) ==
+		     (CHV_PADCTRL0_GPIOCFG_HIZ << CHV_PADCTRL0_GPIOCFG_SHIFT)) {
+			value &= ~CHV_PADCTRL0_GPIOCFG_MASK;
+			value |= CHV_PADCTRL0_GPIOCFG_GPI <<
+				CHV_PADCTRL0_GPIOCFG_SHIFT;
+		}
+
+		/* Switch to a GPIO mode */
+		value |= CHV_PADCTRL0_GPIOEN;
 		chv_writel(value, reg);
 	}
 
