@@ -1443,6 +1443,11 @@ static int snd_rawmidi_alloc_substreams(struct snd_rawmidi *rmidi,
 	return 0;
 }
 
+static void release_rawmidi_device(struct device *dev)
+{
+	kfree(container_of(dev, struct snd_rawmidi, dev));
+}
+
 /**
  * snd_rawmidi_new - create a rawmidi instance
  * @card: the card instance
@@ -1487,6 +1492,11 @@ int snd_rawmidi_new(struct snd_card *card, char *id, int device,
 
 	if (id != NULL)
 		strlcpy(rmidi->id, id, sizeof(rmidi->id));
+
+	snd_device_initialize(&rmidi->dev, card);
+	rmidi->dev.release = release_rawmidi_device;
+	dev_set_name(&rmidi->dev, "midiC%iD%i", card->number, device);
+
 	if ((err = snd_rawmidi_alloc_substreams(rmidi,
 						&rmidi->streams[SNDRV_RAWMIDI_STREAM_INPUT],
 						SNDRV_RAWMIDI_STREAM_INPUT,
@@ -1538,7 +1548,7 @@ static int snd_rawmidi_free(struct snd_rawmidi *rmidi)
 	snd_rawmidi_free_substreams(&rmidi->streams[SNDRV_RAWMIDI_STREAM_OUTPUT]);
 	if (rmidi->private_free)
 		rmidi->private_free(rmidi);
-	kfree(rmidi);
+	put_device(&rmidi->dev);
 	return 0;
 }
 
@@ -1571,12 +1581,12 @@ static int snd_rawmidi_dev_register(struct snd_device *device)
 		return -EBUSY;
 	}
 	list_add_tail(&rmidi->list, &snd_rawmidi_devices);
-	sprintf(name, "midiC%iD%i", rmidi->card->number, rmidi->device);
-	if ((err = snd_register_device(SNDRV_DEVICE_TYPE_RAWMIDI,
-				       rmidi->card, rmidi->device,
-				       &snd_rawmidi_f_ops, rmidi, name)) < 0) {
-		rmidi_err(rmidi, "unable to register rawmidi device %i:%i\n",
-			  rmidi->card->number, rmidi->device);
+	err = snd_register_device_for_dev(SNDRV_DEVICE_TYPE_RAWMIDI,
+					  rmidi->card, rmidi->device,
+					  &snd_rawmidi_f_ops, rmidi,
+					  &rmidi->dev, NULL, NULL);
+	if (err < 0) {
+		rmidi_err(rmidi, "unable to register\n");
 		list_del(&rmidi->list);
 		mutex_unlock(&register_mutex);
 		return err;
