@@ -417,8 +417,8 @@ static struct clk_rcg slimbus_src = {
 		.mnctr_en_bit = 8,
 		.mnctr_reset_bit = 7,
 		.mnctr_mode_shift = 5,
-		.n_val_shift = 16,
-		.m_val_shift = 16,
+		.n_val_shift = 24,
+		.m_val_shift = 8,
 		.width = 8,
 	},
 	.p = {
