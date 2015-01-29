@@ -170,6 +170,7 @@ struct rs_rate {
 	bool sgi;
 	bool ldpc;
 	bool stbc;
+	bool bfer;
 };
 
 
