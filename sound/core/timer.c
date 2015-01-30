@@ -1976,9 +1976,8 @@ static int __init alsa_timer_init(void)
 		return err;
 	}
 
-	err = snd_register_device_for_dev(SNDRV_DEVICE_TYPE_TIMER, NULL, 0,
-					  &snd_timer_f_ops, NULL,
-					  &timer_dev, NULL, NULL);
+	err = snd_register_device(SNDRV_DEVICE_TYPE_TIMER, NULL, 0,
+				  &snd_timer_f_ops, NULL, &timer_dev);
 	if (err < 0) {
 		pr_err("ALSA: unable to register timer device (%i)\n", err);
 		snd_timer_free_all();
@@ -1992,7 +1991,7 @@ static int __init alsa_timer_init(void)
 
 static void __exit alsa_timer_exit(void)
 {
-	snd_unregister_device(SNDRV_DEVICE_TYPE_TIMER, NULL, 0);
+	snd_unregister_device(&timer_dev);
 	snd_timer_free_all();
 	put_device(&timer_dev);
 	snd_timer_proc_done();

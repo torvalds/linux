@@ -187,7 +187,6 @@ struct snd_minor {
 	int type;			/* SNDRV_DEVICE_TYPE_XXX */
 	int card;			/* card number */
 	int device;			/* device number */
-	bool created;
 	const struct file_operations *f_ops;	/* file operations */
 	void *private_data;		/* private data for f_ops->open */
 	struct device *dev;		/* device for sysfs */
@@ -210,40 +209,10 @@ void snd_request_card(int card);
 
 void snd_device_initialize(struct device *dev, struct snd_card *card);
 
-int snd_register_device_for_dev(int type, struct snd_card *card, int dev,
-				const struct file_operations *f_ops,
-				void *private_data, struct device *device,
-				struct device *parent, const char *name);
-
-/**
- * snd_register_device - Register the ALSA device file for the card
- * @type: the device type, SNDRV_DEVICE_TYPE_XXX
- * @card: the card instance
- * @dev: the device index
- * @f_ops: the file operations
- * @private_data: user pointer for f_ops->open()
- * @name: the device file name
- *
- * Registers an ALSA device file for the given card.
- * The operators have to be set in reg parameter.
- *
- * This function uses the card's device pointer to link to the
- * correct &struct device.
- *
- * Return: Zero if successful, or a negative error code on failure.
- */
-static inline int snd_register_device(int type, struct snd_card *card, int dev,
-				      const struct file_operations *f_ops,
-				      void *private_data,
-				      const char *name)
-{
-	return snd_register_device_for_dev(type, card, dev, f_ops,
-					   private_data, NULL,
-					   snd_card_get_device_link(card),
-					   name);
-}
-
-int snd_unregister_device(int type, struct snd_card *card, int dev);
+int snd_register_device(int type, struct snd_card *card, int dev,
+			const struct file_operations *f_ops,
+			void *private_data, struct device *device);
+int snd_unregister_device(struct device *dev);
 void *snd_lookup_minor_data(unsigned int minor, int type);
 struct device *snd_get_device(int type, struct snd_card *card, int dev);
 

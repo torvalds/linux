@@ -2586,9 +2586,8 @@ int __init snd_sequencer_device_init(void)
 	if (mutex_lock_interruptible(&register_mutex))
 		return -ERESTARTSYS;
 
-	err = snd_register_device_for_dev(SNDRV_DEVICE_TYPE_SEQUENCER, NULL, 0,
-					  &snd_seq_f_ops, NULL,
-					  &seq_dev, NULL, NULL);
+	err = snd_register_device(SNDRV_DEVICE_TYPE_SEQUENCER, NULL, 0,
+				  &snd_seq_f_ops, NULL, &seq_dev);
 	if (err < 0) {
 		mutex_unlock(&register_mutex);
 		put_device(&seq_dev);
@@ -2607,6 +2606,6 @@ int __init snd_sequencer_device_init(void)
  */
 void __exit snd_sequencer_device_done(void)
 {
-	snd_unregister_device(SNDRV_DEVICE_TYPE_SEQUENCER, NULL, 0);
+	snd_unregister_device(&seq_dev);
 	put_device(&seq_dev);
 }

@@ -871,10 +871,9 @@ static int snd_compress_dev_register(struct snd_device *device)
 	pr_debug("reg %s for device %s, direction %d\n", str, compr->name,
 			compr->direction);
 	/* register compressed device */
-	ret = snd_register_device_for_dev(SNDRV_DEVICE_TYPE_COMPRESS,
-					  compr->card, compr->device,
-					  &snd_compr_file_ops, compr,
-					  &compr->dev, NULL, NULL);
+	ret = snd_register_device(SNDRV_DEVICE_TYPE_COMPRESS,
+				  compr->card, compr->device,
+				  &snd_compr_file_ops, compr, &compr->dev);
 	if (ret < 0) {
 		pr_err("snd_register_device failed\n %d", ret);
 		return ret;
@@ -888,8 +887,7 @@ static int snd_compress_dev_disconnect(struct snd_device *device)
 	struct snd_compr *compr;
 
 	compr = device->device_data;
-	snd_unregister_device(SNDRV_DEVICE_TYPE_COMPRESS, compr->card,
-		compr->device);
+	snd_unregister_device(&compr->dev);
 	return 0;
 }
 

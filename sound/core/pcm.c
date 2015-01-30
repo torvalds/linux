@@ -1105,11 +1105,9 @@ static int snd_pcm_dev_register(struct snd_device *device)
 			break;
 		}
 		/* register pcm */
-		err = snd_register_device_for_dev(devtype, pcm->card,
-						  pcm->device,
-						  &snd_pcm_f_ops[cidx],
-						  pcm, &pcm->streams[cidx].dev,
-						  NULL, NULL);
+		err = snd_register_device(devtype, pcm->card, pcm->device,
+					  &snd_pcm_f_ops[cidx], pcm,
+					  &pcm->streams[cidx].dev);
 		if (err < 0) {
 			list_del(&pcm->list);
 			mutex_unlock(&register_mutex);
@@ -1132,7 +1130,7 @@ static int snd_pcm_dev_disconnect(struct snd_device *device)
 	struct snd_pcm *pcm = device->device_data;
 	struct snd_pcm_notify *notify;
 	struct snd_pcm_substream *substream;
-	int cidx, devtype;
+	int cidx;
 
 	mutex_lock(&register_mutex);
 	if (list_empty(&pcm->list))
@@ -1155,16 +1153,7 @@ static int snd_pcm_dev_disconnect(struct snd_device *device)
 		notify->n_disconnect(pcm);
 	}
 	for (cidx = 0; cidx < 2; cidx++) {
-		devtype = -1;
-		switch (cidx) {
-		case SNDRV_PCM_STREAM_PLAYBACK:
-			devtype = SNDRV_DEVICE_TYPE_PCM_PLAYBACK;
-			break;
-		case SNDRV_PCM_STREAM_CAPTURE:
-			devtype = SNDRV_DEVICE_TYPE_PCM_CAPTURE;
-			break;
-		}
-		snd_unregister_device(devtype, pcm->card, pcm->device);
+		snd_unregister_device(&pcm->streams[cidx].dev);
 		if (pcm->streams[cidx].chmap_kctl) {
 			snd_ctl_remove(pcm->card, pcm->streams[cidx].chmap_kctl);
 			pcm->streams[cidx].chmap_kctl = NULL;

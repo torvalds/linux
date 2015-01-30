@@ -242,29 +242,29 @@ static int snd_kernel_minor(int type, struct snd_card *card, int dev)
 #endif
 
 /**
- * snd_register_device_for_dev - Register the ALSA device file for the card
+ * snd_register_device - Register the ALSA device file for the card
  * @type: the device type, SNDRV_DEVICE_TYPE_XXX
  * @card: the card instance
  * @dev: the device index
  * @f_ops: the file operations
  * @private_data: user pointer for f_ops->open()
- * @device: the device to register, NULL to create a new one
- * @parent: the &struct device to link this new device to (only for device=NULL)
- * @name: the device file name (only for device=NULL)
+ * @device: the device to register
  *
  * Registers an ALSA device file for the given card.
  * The operators have to be set in reg parameter.
  *
  * Return: Zero if successful, or a negative error code on failure.
  */
-int snd_register_device_for_dev(int type, struct snd_card *card, int dev,
-				const struct file_operations *f_ops,
-				void *private_data, struct device *device,
-				struct device *parent, const char *name)
+int snd_register_device(int type, struct snd_card *card, int dev,
+			const struct file_operations *f_ops,
+			void *private_data, struct device *device)
 {
 	int minor;
 	int err = 0;
 	struct snd_minor *preg;
+
+	if (snd_BUG_ON(!device))
+		return -EINVAL;
 
 	preg = kmalloc(sizeof *preg, GFP_KERNEL);
 	if (preg == NULL)
@@ -288,19 +288,9 @@ int snd_register_device_for_dev(int type, struct snd_card *card, int dev,
 		goto error;
 	}
 
-	if (device) {
-		preg->created = false;
-		preg->dev = device;
-		device->devt = MKDEV(major, minor);
-		err = device_add(device);
-	} else {
-		preg->created = true;
-		preg->dev = device_create(sound_class, parent,
-					  MKDEV(major, minor), private_data,
-					  "%s", name);
-		if (IS_ERR(preg->dev))
-			err = PTR_ERR(preg->dev);
-	}
+	preg->dev = device;
+	device->devt = MKDEV(major, minor);
+	err = device_add(device);
 	if (err < 0)
 		goto error;
 
@@ -311,8 +301,7 @@ int snd_register_device_for_dev(int type, struct snd_card *card, int dev,
 		kfree(preg);
 	return err;
 }
-
-EXPORT_SYMBOL(snd_register_device_for_dev);
+EXPORT_SYMBOL(snd_register_device);
 
 /* find the matching minor record
  * return the index of snd_minor, or -1 if not found
@@ -334,39 +323,33 @@ static int find_snd_minor(int type, struct snd_card *card, int dev)
 
 /**
  * snd_unregister_device - unregister the device on the given card
- * @type: the device type, SNDRV_DEVICE_TYPE_XXX
- * @card: the card instance
- * @dev: the device index
+ * @dev: the device instance
  *
  * Unregisters the device file already registered via
  * snd_register_device().
  *
  * Return: Zero if successful, or a negative error code on failure.
  */
-int snd_unregister_device(int type, struct snd_card *card, int dev)
+int snd_unregister_device(struct device *dev)
 {
 	int minor;
 	struct snd_minor *preg;
 
 	mutex_lock(&sound_mutex);
-	minor = find_snd_minor(type, card, dev);
-	if (minor < 0) {
-		mutex_unlock(&sound_mutex);
-		return -EINVAL;
+	for (minor = 0; minor < ARRAY_SIZE(snd_minors); ++minor) {
+		preg = snd_minors[minor];
+		if (preg && preg->dev == dev) {
+			snd_minors[minor] = NULL;
+			device_del(dev);
+			kfree(preg);
+			break;
+		}
 	}
-
-	preg = snd_minors[minor];
-	if (preg && !preg->created)
-		device_del(preg->dev);
-	else
-		device_destroy(sound_class, MKDEV(major, minor));
-
-	kfree(snd_minors[minor]);
-	snd_minors[minor] = NULL;
 	mutex_unlock(&sound_mutex);
+	if (minor >= ARRAY_SIZE(snd_minors))
+		return -ENOENT;
 	return 0;
 }
-
 EXPORT_SYMBOL(snd_unregister_device);
 
 /**
