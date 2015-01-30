@@ -1231,7 +1231,8 @@ static int enable_restore_fp_context(int msa)
 
 		/* Restore the scalar FP control & status register */
 		if (!was_fpu_owner)
-			asm volatile("ctc1 %0, $31" : : "r"(current->thread.fpu.fcr31));
+			write_32bit_cp1_register(CP1_STATUS,
+						 current->thread.fpu.fcr31);
 	}
 
 out:
