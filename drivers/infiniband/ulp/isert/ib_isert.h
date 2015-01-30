@@ -88,6 +88,7 @@ struct isert_conn {
 	char			*login_req_buf;
 	char			*login_rsp_buf;
 	u64			login_req_dma;
+	int			login_req_len;
 	u64			login_rsp_dma;
 	unsigned int		conn_rx_desc_head;
 	struct iser_rx_desc	*conn_rx_descs;
@@ -95,6 +96,7 @@ struct isert_conn {
 	struct iscsi_conn	*conn;
 	struct list_head	conn_accept_node;
 	struct completion	conn_login_comp;
+	struct completion	login_req_comp;
 	struct iser_tx_desc	conn_login_tx_desc;
 	struct rdma_cm_id	*conn_cm_id;
 	struct ib_pd		*conn_pd;
