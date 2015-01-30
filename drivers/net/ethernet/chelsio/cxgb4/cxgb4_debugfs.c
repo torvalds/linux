@@ -1229,6 +1229,28 @@ static const struct file_operations rss_vf_config_debugfs_fops = {
 	.release = seq_release_private
 };
 
+/**
+ * ethqset2pinfo - return port_info of an Ethernet Queue Set
+ * @adap: the adapter
+ * @qset: Ethernet Queue Set
+ */
+static inline struct port_info *ethqset2pinfo(struct adapter *adap, int qset)
+{
+	int pidx;
+
+	for_each_port(adap, pidx) {
+		struct port_info *pi = adap2pinfo(adap, pidx);
+
+		if (qset >= pi->first_qset &&
+		    qset < pi->first_qset + pi->nqsets)
+			return pi;
+	}
+
+	/* should never happen! */
+	BUG_ON(1);
+	return NULL;
+}
+
 static int sge_qinfo_show(struct seq_file *seq, void *v)
 {
 	struct adapter *adap = seq->private;
@@ -1272,7 +1294,7 @@ do { \
 		T("TxQ inuse:", q.in_use);
 		T("TxQ CIDX:", q.cidx);
 		T("TxQ PIDX:", q.pidx);
-#ifdef CONFIG_CXGB4_DCB
+#ifdef CONFIG_CHELSIO_T4_DCB
 		T("DCB Prio:", dcb_prio);
 		S3("u", "DCB PGID:",
 		   (ethqset2pinfo(adap, base_qset + i)->dcb.pgid >>
