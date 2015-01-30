@@ -566,11 +566,6 @@ static void s3c_hsotg_start_req(struct dwc2_hsotg *hsotg,
 	length = ureq->length - ureq->actual;
 	dev_dbg(hsotg->dev, "ureq->length:%d ureq->actual:%d\n",
 		ureq->length, ureq->actual);
-	if (0)
-		dev_dbg(hsotg->dev,
-			"REQ buf %p len %d dma %pad noi=%d zp=%d snok=%d\n",
-			ureq->buf, length, &ureq->dma,
-			ureq->no_interrupt, ureq->zero, ureq->short_not_ok);
 
 	maxreq = get_ep_limit(hs_ep);
 	if (length > maxreq) {
@@ -1566,8 +1561,7 @@ static void s3c_hsotg_handle_rx(struct dwc2_hsotg *hsotg)
 	size = grxstsr & GRXSTS_BYTECNT_MASK;
 	size >>= GRXSTS_BYTECNT_SHIFT;
 
-	if (1)
-		dev_dbg(hsotg->dev, "%s: GRXSTSP=0x%08x (%d@%d)\n",
+	dev_dbg(hsotg->dev, "%s: GRXSTSP=0x%08x (%d@%d)\n",
 			__func__, grxstsr, size, epnum);
 
 	switch ((status & GRXSTS_PKTSTS_MASK) >> GRXSTS_PKTSTS_SHIFT) {
@@ -2925,12 +2919,6 @@ static void s3c_hsotg_init(struct dwc2_hsotg *hsotg)
 
 	/* Be in disconnected state until gadget is registered */
 	__orr32(hsotg->regs + DCTL, DCTL_SFTDISCON);
-
-	if (0) {
-		/* post global nak until we're ready */
-		writel(DCTL_SGNPINNAK | DCTL_SGOUTNAK,
-		       hsotg->regs + DCTL);
-	}
 
 	/* setup fifos */
 
