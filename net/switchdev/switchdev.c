@@ -115,3 +115,113 @@ int call_netdev_switch_notifiers(unsigned long val, struct net_device *dev,
 	return err;
 }
 EXPORT_SYMBOL(call_netdev_switch_notifiers);
+
+/**
+ *	netdev_switch_port_bridge_setlink - Notify switch device port of bridge
+ *	port attributes
+ *
+ *	@dev: port device
+ *	@nlh: netlink msg with bridge port attributes
+ *	@flags: bridge setlink flags
+ *
+ *	Notify switch device port of bridge port attributes
+ */
+int netdev_switch_port_bridge_setlink(struct net_device *dev,
+				      struct nlmsghdr *nlh, u16 flags)
+{
+	const struct net_device_ops *ops = dev->netdev_ops;
+
+	if (!(dev->features & NETIF_F_HW_SWITCH_OFFLOAD))
+		return 0;
+
+	if (!ops->ndo_bridge_setlink)
+		return -EOPNOTSUPP;
+
+	return ops->ndo_bridge_setlink(dev, nlh, flags);
+}
+EXPORT_SYMBOL(netdev_switch_port_bridge_setlink);
+
+/**
+ *	netdev_switch_port_bridge_dellink - Notify switch device port of bridge
+ *	port attribute delete
+ *
+ *	@dev: port device
+ *	@nlh: netlink msg with bridge port attributes
+ *	@flags: bridge setlink flags
+ *
+ *	Notify switch device port of bridge port attribute delete
+ */
+int netdev_switch_port_bridge_dellink(struct net_device *dev,
+				      struct nlmsghdr *nlh, u16 flags)
+{
+	const struct net_device_ops *ops = dev->netdev_ops;
+
+	if (!(dev->features & NETIF_F_HW_SWITCH_OFFLOAD))
+		return 0;
+
+	if (!ops->ndo_bridge_dellink)
+		return -EOPNOTSUPP;
+
+	return ops->ndo_bridge_dellink(dev, nlh, flags);
+}
+EXPORT_SYMBOL(netdev_switch_port_bridge_dellink);
+
+/**
+ *	ndo_dflt_netdev_switch_port_bridge_setlink - default ndo bridge setlink
+ *						     op for master devices
+ *
+ *	@dev: port device
+ *	@nlh: netlink msg with bridge port attributes
+ *	@flags: bridge setlink flags
+ *
+ *	Notify master device slaves of bridge port attributes
+ */
+int ndo_dflt_netdev_switch_port_bridge_setlink(struct net_device *dev,
+					       struct nlmsghdr *nlh, u16 flags)
+{
+	struct net_device *lower_dev;
+	struct list_head *iter;
+	int ret = 0, err = 0;
+
+	if (!(dev->features & NETIF_F_HW_SWITCH_OFFLOAD))
+		return ret;
+
+	netdev_for_each_lower_dev(dev, lower_dev, iter) {
+		err = netdev_switch_port_bridge_setlink(lower_dev, nlh, flags);
+		if (err && err != -EOPNOTSUPP)
+			ret = err;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(ndo_dflt_netdev_switch_port_bridge_setlink);
+
+/**
+ *	ndo_dflt_netdev_switch_port_bridge_dellink - default ndo bridge dellink
+ *						     op for master devices
+ *
+ *	@dev: port device
+ *	@nlh: netlink msg with bridge port attributes
+ *	@flags: bridge dellink flags
+ *
+ *	Notify master device slaves of bridge port attribute deletes
+ */
+int ndo_dflt_netdev_switch_port_bridge_dellink(struct net_device *dev,
+					       struct nlmsghdr *nlh, u16 flags)
+{
+	struct net_device *lower_dev;
+	struct list_head *iter;
+	int ret = 0, err = 0;
+
+	if (!(dev->features & NETIF_F_HW_SWITCH_OFFLOAD))
+		return ret;
+
+	netdev_for_each_lower_dev(dev, lower_dev, iter) {
+		err = netdev_switch_port_bridge_dellink(lower_dev, nlh, flags);
+		if (err && err != -EOPNOTSUPP)
+			ret = err;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(ndo_dflt_netdev_switch_port_bridge_dellink);
