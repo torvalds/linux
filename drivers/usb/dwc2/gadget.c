@@ -1335,7 +1335,12 @@ static void s3c_hsotg_program_zlp(struct dwc2_hsotg *hsotg,
 	u32 epctl_reg = hs_ep->dir_in ? DIEPCTL(index) : DOEPCTL(index);
 	u32 epsiz_reg = hs_ep->dir_in ? DIEPTSIZ(index) : DOEPTSIZ(index);
 
-	dev_dbg(hsotg->dev, "Sending zero-length packet on ep%d\n", index);
+	if (hs_ep->dir_in)
+		dev_dbg(hsotg->dev, "Sending zero-length packet on ep%d\n",
+									index);
+	else
+		dev_dbg(hsotg->dev, "Receiving zero-length packet on ep%d\n",
+									index);
 
 	writel(DXEPTSIZ_MC(1) | DXEPTSIZ_PKTCNT(1) |
 			DXEPTSIZ_XFERSIZE(0), hsotg->regs +
