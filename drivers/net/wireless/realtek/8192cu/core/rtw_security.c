@@ -1988,46 +1988,15 @@ _func_enter_;
 
 			if(IS_MCAST(prxattrib->ra))
 			{
-				static u32 start = 0;
-				static u32 no_gkey_bc_cnt = 0;
-				static u32 no_gkey_mc_cnt = 0;
-
 				//in concurrent we should use sw descrypt in group key, so we remove this message			
 				//DBG_871X("rx bc/mc packets, to perform sw rtw_aes_decrypt\n");
 				//prwskey = psecuritypriv->dot118021XGrpKey[psecuritypriv->dot118021XGrpKeyid].skey;
 				if(psecuritypriv->binstallGrpkey==_FALSE)
 				{
-					res=_FAIL;
-
-					if (start == 0)
-						start = rtw_get_current_time();
-
-					if (is_broadcast_mac_addr(prxattrib->ra))
-						no_gkey_bc_cnt++;
-					else
-						no_gkey_mc_cnt++;
-
-					if (rtw_get_passing_time_ms(start) > 1000) {
-						if (no_gkey_bc_cnt || no_gkey_mc_cnt) {
-							DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" no_gkey_bc_cnt:%u, no_gkey_mc_cnt:%u\n",
-								FUNC_ADPT_ARG(padapter), no_gkey_bc_cnt, no_gkey_mc_cnt);
-						}
-						start = rtw_get_current_time();
-						no_gkey_bc_cnt = 0;
-						no_gkey_mc_cnt = 0;
-					}
-
+					res=_FAIL;				
+					DBG_8192C("%s:rx bc/mc packets,but didn't install group key!!!!!!!!!!\n",__FUNCTION__);
 					goto exit;
 				}
-
-				if (no_gkey_bc_cnt || no_gkey_mc_cnt) {
-					DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" gkey installed. no_gkey_bc_cnt:%u, no_gkey_mc_cnt:%u\n",
-						FUNC_ADPT_ARG(padapter), no_gkey_bc_cnt, no_gkey_mc_cnt);
-				}
-				start = 0;
-				no_gkey_bc_cnt = 0;
-				no_gkey_mc_cnt = 0;
-
 				prwskey = psecuritypriv->dot118021XGrpKey[prxattrib->key_index].skey;
 
 				if(psecuritypriv->dot118021XGrpKeyid != prxattrib->key_index)

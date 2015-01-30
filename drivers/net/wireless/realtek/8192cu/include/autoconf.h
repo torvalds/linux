@@ -31,9 +31,9 @@
 
 #define PLATFORM_LINUX	1
 
-#define CONFIG_IOCTL_CFG80211 1
+//#define CONFIG_IOCTL_CFG80211 1
 #ifdef CONFIG_IOCTL_CFG80211
-	#define RTW_USE_CFG80211_STA_EVENT /* Indecate new sta asoc through cfg80211_new_sta */
+	//#define RTW_USE_CFG80211_STA_EVENT /* Indecate new sta asoc through cfg80211_new_sta */
 	#define CONFIG_CFG80211_FORCE_COMPATIBLE_2_6_37_UNDER
 	//#define CONFIG_DEBUG_CFG80211 1
 	//#define CONFIG_DRV_ISSUE_PROV_REQ // IOT FOR S2
@@ -118,9 +118,9 @@
 	//#define CONFIG_DBG_P2P
 
 	//#define CONFIG_P2P_PS
-	#define CONFIG_P2P_IPS
+	//#define CONFIG_P2P_IPS
 
-	#define CONFIG_P2P_OP_CHK_SOCIAL_CH
+	#define P2P_OP_CHECK_SOCIAL_CH
 		// Added comment by Borg 2013/06/21
 		// Issue:  Nexus 4 is hard to do miracast.
 		// Root Cause: After group formation, 
@@ -128,8 +128,6 @@
 		// Patch: While scan OP channel, 
 		//		 not only scan OP channel of Invitation Resp/Nego Confirm, 
 		//		 but also scan social channel(1, 6, 11)
-	#define CONFIG_CFG80211_ONECHANNEL_UNDER_CONCURRENT  
-	#define CONFIG_P2P_INVITE_IOT
 #endif
 
 //	Added by Kurt 20110511
@@ -183,20 +181,14 @@
 #endif	// CONFIG_BR_EXT
 
 #define CONFIG_TX_MCAST2UNI	1	// Support IP multicast->unicast
+//#define CONFIG_DM_ADAPTIVITY
 //#define CONFIG_CHECK_AC_LIFETIME 1	// Check packet lifetime of 4 ACs.
 
-//#define CONFIG_AVOID_ALLOC_MGNT_FAIL		1
-#ifdef CONFIG_AVOID_ALLOC_MGNT_FAIL
-	#ifndef CONFIG_CHECK_AC_LIFETIME
-		#define CONFIG_CHECK_AC_LIFETIME 	1	// Check packet lifetime of 4 ACs.
-	#endif
-#endif
-
-#define CONFIG_CONCURRENT_MODE 1
+//#define CONFIG_CONCURRENT_MODE 1
 #ifdef CONFIG_CONCURRENT_MODE
 	#define CONFIG_TSF_RESET_OFFLOAD 1			// For 2 PORT TSF SYNC.
 	//#define CONFIG_HWPORT_SWAP				//Port0->Sec , Port1 -> Pri
-	#define CONFIG_STA_MODE_SCAN_UNDER_AP_MODE
+	//#define CONFIG_STA_MODE_SCAN_UNDER_AP_MODE
 	//#define CONFIG_MULTI_VIR_IFACES //besides primary&secondary interfaces, extend to support more interfaces
 #endif	// CONFIG_CONCURRENT_MODE
 
@@ -222,7 +214,7 @@
  * CONFIG_USE_USB_BUFFER_ALLOC_XX uses Linux USB Buffer alloc API and is for Linux platform only now!
  */
 //#define CONFIG_USE_USB_BUFFER_ALLOC_TX 1	// Trade-off: For TX path, improve stability on some platforms, but may cause performance degrade on other platforms.
-#define CONFIG_USE_USB_BUFFER_ALLOC_RX 1	// For RX path
+//#define CONFIG_USE_USB_BUFFER_ALLOC_RX 1	// For RX path
 #ifdef CONFIG_USE_USB_BUFFER_ALLOC_RX
 #undef CONFIG_PREALLOC_RECV_SKB
 #endif
@@ -256,7 +248,7 @@
 
 #define CONFIG_OUT_EP_WIFI_MODE	0
 
-#define ENABLE_USB_DROP_INCORRECT_OUT	1
+#define ENABLE_USB_DROP_INCORRECT_OUT	0
 
 #define RTL8192CU_ASIC_VERIFICATION	0	// For ASIC verification.
 
@@ -304,7 +296,7 @@
 //#define CONFIG_DEBUG_RTL871X
 
 #define DBG	0
-//#define CONFIG_DEBUG
+//#define CONFIG_DEBUG_RTL819X
 
 #define CONFIG_PROC_DEBUG	1
 

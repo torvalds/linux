@@ -195,6 +195,14 @@ static void update_BCNTIM(_adapter *padapter)
 		pnetwork_mlmeext->IELength = offset + remainder_ielen;
 	
 	}
+
+#ifndef CONFIG_INTERRUPT_BASED_TXBCN 
+#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
+	set_tx_beacon_cmd(padapter);
+#endif
+#endif //!CONFIG_INTERRUPT_BASED_TXBCN
+
+
 }
 
 void rtw_add_bcn_ie(_adapter *padapter, WLAN_BSSID_EX *pnetwork, u8 index, u8 *data, u8 len)
@@ -472,7 +480,7 @@ void	expire_timeout_chk(_adapter *padapter)
 
 					//to update bcn with tim_bitmap for this station
 					pstapriv->tim_bitmap |= BIT(psta->aid);
-					update_beacon(padapter, _TIM_IE_, NULL, _TRUE);
+					update_beacon(padapter, _TIM_IE_, NULL, _FALSE);
 
 					if(!pmlmeext->active_keep_alive_check)
 						continue;
@@ -793,7 +801,7 @@ static void add_RATid(_adapter *padapter, struct sta_info *psta)
 
 }
 
-void update_bmc_sta(_adapter *padapter)
+static void update_bmc_sta(_adapter *padapter)
 {
 	_irqL	irqL;
 	u32 init_rate=0;
@@ -1203,15 +1211,15 @@ static void start_bss_network(_adapter *padapter, u8 *pbuf)
 	{
 		set_channel_bwmode(padapter, cur_channel, cur_ch_offset, cur_bwmode);
 	}
-	else if(check_buddy_fwstate(padapter, _FW_LINKED)==_TRUE)
+	else if(check_buddy_fwstate(padapter, _FW_LINKED)==_TRUE)//only second adapter can enter AP Mode
 	{
 		_adapter *pbuddy_adapter = padapter->pbuddy_adapter;		
 		struct mlme_ext_priv *pbuddy_mlmeext = &pbuddy_adapter->mlmeextpriv;
-
-		//To sync cur_channel/cur_bwmode/cur_ch_offset with buddy adapter
-		DBG_871X(ADPT_FMT" is at linked state\n", ADPT_ARG(pbuddy_adapter));
-		DBG_871X(ADPT_FMT": CH=%d, BW=%d, offset=%d\n", ADPT_ARG(pbuddy_adapter), pbuddy_mlmeext->cur_channel, pbuddy_mlmeext->cur_bwmode, pbuddy_mlmeext->cur_ch_offset);
-		DBG_871X(ADPT_FMT": CH=%d, BW=%d, offset=%d\n", ADPT_ARG(padapter), cur_channel, cur_bwmode, cur_ch_offset);
+	
+		//To sync cur_channel/cur_bwmode/cur_ch_offset with primary adapter
+		DBG_871X("primary iface is at linked state, sync cur_channel/cur_bwmode/cur_ch_offset\n");
+		DBG_871X("primary adapter, CH=%d, BW=%d, offset=%d\n", pbuddy_mlmeext->cur_channel, pbuddy_mlmeext->cur_bwmode, pbuddy_mlmeext->cur_ch_offset);
+		DBG_871X("second adapter, CH=%d, BW=%d, offset=%d\n", cur_channel, cur_bwmode, cur_ch_offset);
 		
 		if((cur_channel <= 14 && pbuddy_mlmeext->cur_channel >= 36) ||
 		(cur_channel >= 36 && pbuddy_mlmeext->cur_channel <= 14))
@@ -1272,10 +1280,6 @@ static void start_bss_network(_adapter *padapter, u8 *pbuf)
 			}
 			
 		}
-		else
-		{
-			set_channel_bwmode(padapter, cur_channel, pbuddy_mlmeext->cur_ch_offset, pbuddy_mlmeext->cur_bwmode);
-		}
 
 		// to update channel value in beacon
 		pnetwork->Configuration.DSConfig = cur_channel;		
@@ -1299,7 +1303,7 @@ static void start_bss_network(_adapter *padapter, u8 *pbuf)
 	set_channel_bwmode(padapter, cur_channel, cur_ch_offset, cur_bwmode);
 #endif //CONFIG_CONCURRENT_MODE
 
-	DBG_871X(FUNC_ADPT_FMT" CH=%d, BW=%d, offset=%d\n", FUNC_ADPT_ARG(padapter), cur_channel, cur_bwmode, cur_ch_offset);
+	DBG_871X("CH=%d, BW=%d, offset=%d\n", cur_channel, cur_bwmode, cur_ch_offset);
 
 	//
 	pmlmeext->cur_channel = cur_channel;	
@@ -1307,9 +1311,6 @@ static void start_bss_network(_adapter *padapter, u8 *pbuf)
 	pmlmeext->cur_ch_offset = cur_ch_offset;
 #endif //CONFIG_DUALMAC_CONCURRENT
 	pmlmeext->cur_wireless_mode = pmlmepriv->cur_network.network_type;
-
-	//let pnetwork_mlmeext == pnetwork_mlme.
-	_rtw_memcpy(pnetwork_mlmeext, pnetwork, pnetwork->Length);
 
 	//update cur_wireless_mode
 	update_wireless_mode(padapter);
@@ -1321,6 +1322,9 @@ static void start_bss_network(_adapter *padapter, u8 *pbuf)
 	//udpate capability after cur_wireless_mode updated
 	update_capinfo(padapter, rtw_get_capability((WLAN_BSSID_EX *)pnetwork));
 	
+	//let pnetwork_mlmeext == pnetwork_mlme.
+	_rtw_memcpy(pnetwork_mlmeext, pnetwork, pnetwork->Length);
+
 #ifdef CONFIG_P2P
 	_rtw_memcpy(pwdinfo->p2p_group_ssid, pnetwork->Ssid.Ssid, pnetwork->Ssid.SsidLength);	
 	pwdinfo->p2p_group_ssid_len = pnetwork->Ssid.SsidLength;
@@ -1328,7 +1332,7 @@ static void start_bss_network(_adapter *padapter, u8 *pbuf)
 
 	if(_TRUE == pmlmeext->bstart_bss)
 	{
-		update_beacon(padapter, _TIM_IE_, NULL, _TRUE);
+		update_beacon(padapter, _TIM_IE_, NULL, _FALSE);
 
 #ifndef CONFIG_INTERRUPT_BASED_TXBCN //other case will  tx beacon when bcn interrupt coming in.
 #if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
@@ -1368,8 +1372,6 @@ int rtw_check_beacon_data(_adapter *padapter, u8 *pbuf,  int len)
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;	
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
-	struct mlme_ext_priv    *pmlmeext = &padapter->mlmeextpriv;
-	struct mlme_ext_info    *pmlmeinfo = &(pmlmeext->mlmext_info);
 	WLAN_BSSID_EX *pbss_network = (WLAN_BSSID_EX *)&pmlmepriv->cur_network.network;	
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	u8 *ie = pbss_network->IEs;
@@ -1674,7 +1676,7 @@ int rtw_check_beacon_data(_adapter *padapter, u8 *pbuf,  int len)
 		}
 
 		_rtw_memcpy(&pmlmepriv->htpriv.ht_cap, p+2, ie_len);		
-		_rtw_memcpy(&pmlmeinfo->HT_caps,p+2,ie_len);	
+		
 	}
 
 	//parsing HT_INFO_IE

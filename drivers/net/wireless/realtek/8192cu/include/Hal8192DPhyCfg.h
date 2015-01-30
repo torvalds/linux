@@ -425,13 +425,13 @@ BOOLEAN	PHY_CheckIsLegalRfPath8192D(IN	PADAPTER	pAdapter,
 //
 // IQ calibrate
 //
-void	rtl8192d_PHY_IQCalibrate(	IN	PADAPTER	pAdapter, IN	u8		FromPT);
+void	rtl8192d_PHY_IQCalibrate(	IN	PADAPTER	pAdapter);
 
 
 //
 // LC calibrate
 //
-void	rtl8192d_PHY_LCCalibrate(IN	PADAPTER	pAdapter, IN	BOOLEAN		bInit);
+void	rtl8192d_PHY_LCCalibrate(IN	PADAPTER	pAdapter);
 
 //
 // AP calibrate

@@ -224,7 +224,6 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 {
 	int	pull=0;
 	uint	qsel;
-	u8 data_rate;
 	_adapter			*padapter = pxmitframe->padapter;
 	struct mlme_priv	*pmlmepriv = &padapter->mlmepriv;		
 	struct pkt_attrib	*pattrib = &pxmitframe->attrib;
@@ -240,7 +239,7 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 #endif //CONFIG_P2P
 
 #ifndef CONFIG_USE_USB_BUFFER_ALLOC_TX
-	if((PACKET_OFFSET_SZ != 0) && (_FALSE == bagg_pkt) && (urb_zero_packet_chk(padapter, sz)==0))
+	if((_FALSE == bagg_pkt) && (urb_zero_packet_chk(padapter, sz)==0))
 	{
 		ptxdesc = (struct tx_desc *)(pmem+PACKET_OFFSET_SZ);
 		pull = 1;
@@ -289,21 +288,21 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 
 			ptxdesc->txdw4 |= cpu_to_le32(0x00000008);//RTS Rate=24M
 			ptxdesc->txdw5 |= cpu_to_le32(0x0001ff00);//
+			//ptxdesc->txdw5 |= cpu_to_le32(0x0000000b);//DataRate - 54M
 
 			//use REG_INIDATA_RATE_SEL value
-			data_rate = pdmpriv->INIDATA_RATE[pattrib->mac_id];
+			ptxdesc->txdw5 |= cpu_to_le32(pdmpriv->INIDATA_RATE[pattrib->mac_id]);
 
-			if (padapter->fix_rate != 0xFF) {
-				ptxdesc->txdw4 |= cpu_to_le32(USERATE);
-				ptxdesc->txdw4 |= cpu_to_le32(DISDATAFB);
-				if((padapter->fix_rate & BIT(7)))
-					ptxdesc->txdw5 |= cpu_to_le32(SGI);
-				else
-					ptxdesc->txdw5 &= ~(cpu_to_le32(SGI));
-				data_rate = padapter->fix_rate & 0x3F;
+              	if(0)//for driver dbg
+			{
+				ptxdesc->txdw4 |= cpu_to_le32(BIT(8));//driver uses rate
+				
+				if(pattrib->ht_en)
+					ptxdesc->txdw5 |= cpu_to_le32(BIT(6));//SGI
+
+				ptxdesc->txdw5 |= cpu_to_le32(0x00000013);//init rate - mcs7
 			}
 
-			ptxdesc->txdw5 |= cpu_to_le32(data_rate);
 		}
 		else
 		{
@@ -644,7 +643,7 @@ s32 rtl8192cu_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv
 		pxmitbuf->priv_data = pxmitframe;
 
 		//pxmitframe->agg_num = 1; // alloc xmitframe should assign to 1.
-		pxmitframe->pkt_offset = (PACKET_OFFSET_SZ/8); // 1; // first frame of aggregation, reserve offset
+		pxmitframe->pkt_offset = 1; // first frame of aggregation, reserve offset
 
 
 		if (rtw_xmitframe_coalesce(padapter, pxmitframe->pkt, pxmitframe) == _FALSE) {
@@ -793,7 +792,7 @@ s32 rtl8192cu_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv
 
 #ifndef CONFIG_USE_USB_BUFFER_ALLOC_TX
 	//3 3. update first frame txdesc
-	if ((PACKET_OFFSET_SZ != 0) && ((pbuf_tail % bulkSize) == 0)) {
+	if ((pbuf_tail % bulkSize) == 0) {
 		// remove pkt_offset
 		pbuf_tail -= PACKET_OFFSET_SZ;
 		pfirstframe->buf_addr += PACKET_OFFSET_SZ;

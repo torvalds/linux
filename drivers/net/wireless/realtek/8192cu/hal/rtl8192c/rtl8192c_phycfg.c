@@ -3755,9 +3755,9 @@ _PHY_PathAStandBy(
 {
 	//RTPRINT(FINIT, INIT_IQK, ("Path-A standby mode!\n"));
 
-	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x000000);
+	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x0);
 	PHY_SetBBReg(pAdapter, 0x840, bMaskDWord, 0x00010000);
-	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x808000);
+	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x80800000);
 }
 
 static VOID
@@ -3943,7 +3943,7 @@ _PHY_IQCalibrate(
 	
 	// IQ calibration setting
 	//RTPRINT(FINIT, INIT_IQK, ("IQK setting!\n"));		
-	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x808000);
+	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x80800000);
 	PHY_SetBBReg(pAdapter, rTx_IQK, bMaskDWord, 0x01007c00);
 	PHY_SetBBReg(pAdapter, rRx_IQK, bMaskDWord, 0x01004800);
 
@@ -4001,7 +4001,7 @@ _PHY_IQCalibrate(
 
 	//Back to BB mode, load original value
 	//RTPRINT(FINIT, INIT_IQK, ("IQK:Back to BB mode, load original value!\n"));
-	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x000000);
+	PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0);
 
 	if(t!=0)
 	{
@@ -4301,7 +4301,7 @@ _PHY_APCalibrate(
 			}	
 			
 			//page-B1
-			PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x400000);
+			PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x40000000);
 			
 			//path A
 			offset = rPdp_AntA;
@@ -4312,7 +4312,7 @@ _PHY_APCalibrate(
 				
 				offset += 0x04;
 			}				
-			PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x000000);							
+			PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x00000000);							
 		}
 		else if(path == RF_PATH_B)
 		{
@@ -4342,7 +4342,7 @@ _PHY_APCalibrate(
 			}	
 			
 			//page-B1
-			PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x400000);
+			PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x40000000);
 			
 			//path B
 			offset = 0xb60;
@@ -4353,7 +4353,7 @@ _PHY_APCalibrate(
 				
 				offset += 0x04;
 			}				
-			PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x000000);							
+			PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x00000000);							
 		}		
 
 		//save RF default value
@@ -4461,7 +4461,7 @@ _PHY_APCalibrate(
 			i = 0;
 			do
 			{
-				PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x800000);
+				PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x80000000);
 				{
 					PHY_SetBBReg(pAdapter, APK_offset[path], bMaskDWord, APK_value[0]);		
 					//RTPRINT(FINIT, INIT_IQK, ("PHY_APCalibrate() offset 0x%x value 0x%x\n", APK_offset[path], PHY_QueryBBReg(pAdapter, APK_offset[path], bMaskDWord)));
@@ -4474,7 +4474,7 @@ _PHY_APCalibrate(
 					rtw_mdelay_os(20);
 					#endif
 				}
-				PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskH3Bytes, 0x000000);
+				PHY_SetBBReg(pAdapter, rFPGA0_IQK, bMaskDWord, 0x00000000);
 				
 				if(path == RF_PATH_A)
 					tmpReg = PHY_QueryBBReg(pAdapter, rAPK, 0x03E00000);
@@ -4628,7 +4628,6 @@ rtl8192c_PHY_IQCalibrate(
 					rOFDM0_XATxIQImbalance, 	rOFDM0_XBTxIQImbalance, 
 					rOFDM0_XCTxAFE, 			rOFDM0_XDTxAFE, 
 					rOFDM0_RxIQExtAnta};
-	u32 IQK_process_time = 0;
 
 
 #if MP_DRIVER == 1	
@@ -4650,7 +4649,6 @@ rtl8192c_PHY_IQCalibrate(
 		_PHY_ReloadADDARegisters(pAdapter, IQK_BB_REG_92C, pdmpriv->IQK_BB_backup_recover, 9);
 		return;
 	}
-	IQK_process_time = rtw_get_current_time();
 	DBG_8192C("IQK:Start!!!\n");
 
 	for(i = 0; i < 8; i++)
@@ -4736,7 +4734,7 @@ rtl8192c_PHY_IQCalibrate(
 		RegEC4 = result[final_candidate][6];
 		RegECC = result[final_candidate][7];
 		DBG_8192C("IQK: final_candidate is %x\n", final_candidate);
-		DBG_8192C("IQK: RegE94=%x RegE9C=%x RegEA4=%x RegEAC=%x RegEB4=%x RegEBC=%x RegEC4=%x RegECC=%x\n", RegE94, RegE9C, RegEA4, RegEAC, RegEB4, RegEBC, RegEC4, RegECC);
+		DBG_8192C("IQK: RegE94=%x RegE9C=%x RegEA4=%x RegEAC=%x RegEB4=%x RegEBC=%x RegEC4=%x RegECC=%x\n ", RegE94, RegE9C, RegEA4, RegEAC, RegEB4, RegEBC, RegEC4, RegECC);
 		bPathAOK = bPathBOK = _TRUE;
 	}
 	else
@@ -4754,7 +4752,7 @@ rtl8192c_PHY_IQCalibrate(
 	}
 
 	_PHY_SaveADDARegisters(pAdapter, IQK_BB_REG_92C, pdmpriv->IQK_BB_backup_recover, 9);
-	DBG_871X("IQK: process time %u ms\n", rtw_get_passing_time_ms(IQK_process_time));
+
 }
 
 
@@ -4766,7 +4764,7 @@ rtl8192c_PHY_LCCalibrate(
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
 	struct mlme_ext_priv	*pmlmeext = &pAdapter->mlmeextpriv;
 	BOOLEAN 	bStartContTx = _FALSE, bSingleTone = _FALSE, bCarrierSuppression = _FALSE;
-	u32 LCK_process_time = 0;
+
 #if MP_DRIVER == 1
 	bStartContTx = pAdapter->mppriv.MptCtx.bStartContTx;
 	bSingleTone = pAdapter->mppriv.MptCtx.bSingleTone;
@@ -4783,7 +4781,7 @@ rtl8192c_PHY_LCCalibrate(
 
 	if(pmlmeext->sitesurvey_res.state == SCAN_PROCESS)
 		return;
-	LCK_process_time = rtw_get_current_time();
+
 	if(IS_92C_SERIAL( pHalData->VersionID)){
 		_PHY_LCCalibrate(pAdapter, _TRUE);
 	}
@@ -4791,7 +4789,6 @@ rtl8192c_PHY_LCCalibrate(
 		// For 88C 1T1R
 		_PHY_LCCalibrate(pAdapter, _FALSE);
 	}
-	DBG_871X("LCK: process time %u ms\n", rtw_get_passing_time_ms(LCK_process_time));
 }
 
 VOID

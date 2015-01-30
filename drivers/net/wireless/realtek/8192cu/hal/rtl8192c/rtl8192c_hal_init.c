@@ -419,7 +419,6 @@ int FirmwareDownload92C(
 {	
 	int	rtStatus = _SUCCESS;	
 	u8 writeFW_retry = 0;
-	u32 fwdl_start_time;
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
 	s8 			R92CFwImageFileName_TSMC[] ={RTL8192C_FW_TSMC_IMG};
 	s8 			R92CFwImageFileName_UMC[] ={RTL8192C_FW_UMC_IMG};
@@ -596,7 +595,6 @@ int FirmwareDownload92C(
 
 		
 	_FWDownloadEnable(Adapter, _TRUE);
-	fwdl_start_time = rtw_get_current_time();
 	while(1) {
 		u8 tmp8;
 		tmp8 = rtw_read8(Adapter, REG_MCUFWDL);
@@ -612,17 +610,10 @@ int FirmwareDownload92C(
 		//tmp8 = rtw_read8(Adapter, REG_MCUFWDL);
 		//DBG_8192C("After _WriteFW, REG_MCUFWDL:0x%02x, rtStatus:%d\n", tmp8, rtStatus);
 
-		if(rtStatus == _SUCCESS || Adapter->bDriverStopped || Adapter->bSurpriseRemoved
-			|| (writeFW_retry++ >= 3 && rtw_get_passing_time_ms(fwdl_start_time) > 500)
-		)
+		if(rtStatus == _SUCCESS || ++writeFW_retry>3)
 			break;
 	} 
 	_FWDownloadEnable(Adapter, _FALSE);
-
-	DBG_871X("%s writeFW_retry:%u, time after fwdl_start_time:%ums\n", __FUNCTION__
-		, writeFW_retry
-		, rtw_get_passing_time_ms(fwdl_start_time)
-	);
 
 	if(_SUCCESS != rtStatus){
 		DBG_8192C("DL Firmware failed!\n");
@@ -1056,7 +1047,7 @@ _func_enter_;
 	DBG_8192C("=====> rtl8192c_free_hal_data =====\n");
 
 	if(padapter->HalData)
-		rtw_vmfree(padapter->HalData, sizeof(HAL_DATA_TYPE));
+		rtw_mfree(padapter->HalData, sizeof(HAL_DATA_TYPE));
 	DBG_8192C("<===== rtl8192c_free_hal_data =====\n");
 
 _func_exit_;
@@ -3579,100 +3570,6 @@ static s32 c2h_handler_8192c(_adapter *padapter, struct c2h_evt_hdr *c2h_evt)
 
 exit:
 	return ret;
-}
-
-void SetHwReg8192C(_adapter *adapter, u8 variable, u8 *val)
-{
-	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
-
-	switch (variable) {
-	case HW_VAR_BASIC_RATE:
-	{
-		struct mlme_ext_info *mlmext_info = &adapter->mlmeextpriv.mlmext_info;
-		u16 input_b = 0, masked = 0, ioted = 0, BrateCfg = 0;
-		u16 rrsr_2g_force_mask = (RRSR_11M|RRSR_5_5M|RRSR_1M);
-		u16 rrsr_2g_allow_mask = (RRSR_24M|RRSR_12M|RRSR_6M|RRSR_11M|RRSR_5_5M|RRSR_1M);
-		u8 RateIndex = 0;
-	
-		HalSetBrateCfg(adapter, val, &BrateCfg);
-		input_b = BrateCfg;
-	
-		/* apply force and allow mask */
-		BrateCfg |= rrsr_2g_force_mask;
-		BrateCfg &= rrsr_2g_allow_mask;
-		masked = BrateCfg;
-	
-		/* IOT consideration */
-		if (mlmext_info->assoc_AP_vendor == ciscoAP) {
-			/* if peer is cisco and didn't use ofdm rate, we enable 6M ack */
-			if((BrateCfg & (RRSR_24M|RRSR_12M|RRSR_6M)) == 0)
-				BrateCfg |= RRSR_6M;
-		}
-		if (mlmext_info->assoc_AP_vendor == atherosAP)
-			BrateCfg |= RRSR_2M;
-		ioted = BrateCfg;
-	
-		hal_data->BasicRateSet = BrateCfg;
-	
-		DBG_8192C("HW_VAR_BASIC_RATE: %#x -> %#x -> %#x\n", input_b, masked, ioted);
-	
-		// Set RRSR rate table.
-		rtw_write16(adapter, REG_RRSR, BrateCfg);
-		rtw_write8(adapter, REG_RRSR+2, rtw_read8(adapter, REG_RRSR+2)&0xf0);
-	
-		// Set RTS initial rate
-		while(BrateCfg > 0x1)
-		{
-			BrateCfg = (BrateCfg>> 1);
-			RateIndex++;
-		}
-		// Ziv - Check
-		rtw_write8(adapter, REG_INIRTS_RATE_SEL, RateIndex);
-	}
-		break;
-	default:
-		SetHwReg(adapter, variable, val);
-		break;
-	}
-}
-
-void GetHwReg8192C(_adapter *adapter, u8 variable, u8 *val)
-{
-	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
-
-	switch (variable) {
-	default:
-		GetHwReg(adapter, variable, val);
-		break;
-	}
-}
-
-u8 SetHalDefVar8192C(_adapter *adapter, HAL_DEF_VARIABLE variable, void *val)
-{
-	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
-	u8 bResult = _SUCCESS;
-
-	switch(variable) {
-	default:
-		bResult = SetHalDefVar(adapter, variable, val);
-		break;
-	}
-
-	return bResult;
-}
-
-u8 GetHalDefVar8192C(_adapter *adapter, HAL_DEF_VARIABLE variable, void *val)
-{
-	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
-	u8 bResult = _SUCCESS;
-
-	switch(variable) {
-	default:
-		bResult = GetHalDefVar(adapter, variable, val);
-		break;
-	}
-
-	return bResult;
 }
 
 void rtl8192c_set_hal_ops(struct hal_ops *pHalFunc)

@@ -318,9 +318,11 @@ VOID dm_CtrlInitGainByRssi( IN PADAPTER pAdapter)
 	u32 isBT;
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
-	DM_ODM_T *odm = adapter_to_odm(pAdapter);
 	DIG_T	*pDigTable = &pdmpriv->DM_DigTable;
 	PFALSE_ALARM_STATISTICS FalseAlmCnt = &(pdmpriv->FalseAlmCnt);
+#ifdef CONFIG_DM_ADAPTIVITY
+	u8 Adap_IGI_Upper = pdmpriv->IGI_target + 30 + (u8) pdmpriv->TH_L2H_ini -(u8) pdmpriv->TH_EDCCA_HL_diff;
+#endif
 
 	 //modify DIG upper bound
 	if((pDigTable->Rssi_val_min + 20) > DM_DIG_MAX )
@@ -437,23 +439,21 @@ VOID dm_CtrlInitGainByRssi( IN PADAPTER pAdapter)
 	if(pDigTable->CurIGValue < pDigTable->rx_gain_range_min)
 		pDigTable->CurIGValue = pDigTable->rx_gain_range_min;
 
-#ifdef CONFIG_ODM_ADAPTIVITY
-	if((pdmpriv->DMFlag & DYNAMIC_FUNC_ADAPTIVITY) && odm->adaptivity_flag == _TRUE)
+#ifdef CONFIG_DM_ADAPTIVITY
+	if(pdmpriv->DMFlag & DYNAMIC_FUNC_ADAPTIVITY)
 	{
-		u8 Adap_IGI_Upper = odm->Adaptivity_IGI_upper;
-
 		if(pDigTable->CurIGValue > Adap_IGI_Upper)
 			pDigTable->CurIGValue = Adap_IGI_Upper;
 
-		if(odm->IGI_LowerBound != 0)
+		if(pdmpriv->IGI_LowerBound != 0)
 		{
-			if(pDigTable->CurIGValue < odm->IGI_LowerBound)
-				pDigTable->CurIGValue = odm->IGI_LowerBound;
+			if(pDigTable->CurIGValue < pdmpriv->IGI_LowerBound)
+				pDigTable->CurIGValue = pdmpriv->IGI_LowerBound;
 		}
-		LOG_LEVEL(_drv_info_, FUNC_ADPT_FMT": odm->IGI_LowerBound = %d\n",
-			FUNC_ADPT_ARG(pAdapter), odm->IGI_LowerBound);
+		LOG_LEVEL(_drv_info_, FUNC_ADPT_FMT": pdmpriv->IGI_LowerBound = %d\n",
+			FUNC_ADPT_ARG(pAdapter), pdmpriv->IGI_LowerBound);
 	}
-#endif /* CONFIG_ODM_ADAPTIVITY */
+#endif /* CONFIG_DM_ADAPTIVITY */
 
 	//printk("%s => rx_gain_range_max(0x%02x) rx_gain_range_min(0x%02x)\n",__FUNCTION__,
 	//	pDigTable->rx_gain_range_max,pDigTable->rx_gain_range_min);
@@ -468,10 +468,12 @@ static VOID dm_CtrlInitGainByRssi(IN	PADAPTER	pAdapter)
 	u32 isBT;
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
-	DM_ODM_T *odm = adapter_to_odm(pAdapter);
 	DIG_T	*pDigTable = &pdmpriv->DM_DigTable;
 	PFALSE_ALARM_STATISTICS FalseAlmCnt = &(pdmpriv->FalseAlmCnt);
 	u8 RSSI_tmp = dm_initial_gain_MinPWDB(pAdapter);
+#ifdef CONFIG_DM_ADAPTIVITY
+	u8 Adap_IGI_Upper = pdmpriv->IGI_target + 30 + (u8) pdmpriv->TH_L2H_ini -(u8) pdmpriv->TH_EDCCA_HL_diff;
+#endif
 
 	//modify DIG upper bound
 	if((pDigTable->Rssi_val_min + 20) > DM_DIG_MAX )
@@ -593,23 +595,21 @@ static VOID dm_CtrlInitGainByRssi(IN	PADAPTER	pAdapter)
 	if(pDigTable->CurIGValue < pDigTable->rx_gain_range_min)
 		pDigTable->CurIGValue = pDigTable->rx_gain_range_min;
 
-#ifdef CONFIG_ODM_ADAPTIVITY
-	if((pdmpriv->DMFlag & DYNAMIC_FUNC_ADAPTIVITY) && odm->adaptivity_flag == _TRUE)
+#ifdef CONFIG_DM_ADAPTIVITY
+	if(pdmpriv->DMFlag & DYNAMIC_FUNC_ADAPTIVITY)
 	{
-		u8 Adap_IGI_Upper = odm->Adaptivity_IGI_upper;
-
 		if(pDigTable->CurIGValue > Adap_IGI_Upper)
 			pDigTable->CurIGValue = Adap_IGI_Upper;
 
-		if(odm->IGI_LowerBound != 0)
+		if(pdmpriv->IGI_LowerBound != 0)
 		{
-			if(pDigTable->CurIGValue < odm->IGI_LowerBound)
-				pDigTable->CurIGValue = odm->IGI_LowerBound;
+			if(pDigTable->CurIGValue < pdmpriv->IGI_LowerBound)
+				pDigTable->CurIGValue = pdmpriv->IGI_LowerBound;
 		}
-		LOG_LEVEL(_drv_info_, FUNC_ADPT_FMT": odm->IGI_LowerBound = %d\n",
-			FUNC_ADPT_ARG(pAdapter), odm->IGI_LowerBound);
+		LOG_LEVEL(_drv_info_, FUNC_ADPT_FMT": pdmpriv->IGI_LowerBound = %d\n",
+			FUNC_ADPT_ARG(pAdapter), pdmpriv->IGI_LowerBound);
 	}
-#endif /* CONFIG_ODM_ADAPTIVITY */
+#endif /* CONFIG_DM_ADAPTIVITY */
 
 	//printk("%s => rx_gain_range_max(0x%02x) rx_gain_range_min(0x%02x)\n",__FUNCTION__,
 	//	pDigTable->rx_gain_range_max,pDigTable->rx_gain_range_min);
@@ -754,7 +754,7 @@ dm_initial_gain_STA(
 			dm_CtrlInitGainByRssi(pAdapter);
 		}	
 #if 0
-		else if(adapter_wdev_data(pAdapter)->p2p_enabled == _TRUE 
+		else if((wdev_to_priv(pAdapter->rtw_wdev))->p2p_enabled == _TRUE 
 				&& pAdapter->wdinfo.driver_interface == DRIVER_CFG80211)
 		{
 			//pDigTable->CurIGValue = 0x30;
@@ -857,7 +857,7 @@ dm_CtrlInitGainByTwoPort(
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY) == _TRUE)
 	{
 #ifdef CONFIG_IOCTL_CFG80211
-		if(adapter_wdev_data(pAdapter)->p2p_enabled == _TRUE)
+		if((wdev_to_priv(pAdapter->rtw_wdev))->p2p_enabled == _TRUE)
 		{
 		}
 		else
@@ -4722,7 +4722,6 @@ rtl8192c_InitHalDm(
 {
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
-	PDM_ODM_T odm = adapter_to_odm(Adapter);
 	u8	i;
 
 #ifdef CONFIG_USB_HCI
@@ -4781,12 +4780,11 @@ rtl8192c_InitHalDm(
 		pdmpriv->INIDATA_RATE[i] = rtw_read8(Adapter, REG_INIDATA_RATE_SEL+i) & 0x3f;
 	}
 
-#ifdef CONFIG_ODM_ADAPTIVITY
+#ifdef CONFIG_DM_ADAPTIVITY
 	pdmpriv->DMFlag |= DYNAMIC_FUNC_ADAPTIVITY;
-	odm_AdaptivityInit(odm);
+	dm_adaptivity_init(Adapter);
 #endif
 
-	odm->write_dig = DM_Write_DIG;
 }
 
 #ifdef CONFIG_CONCURRENT_MODE
@@ -4944,8 +4942,7 @@ rtl8192c_HalDmWatchDog(
 		//
 		dm_FalseAlarmCounterStatistics(Adapter);
 		dm_DIG(Adapter);
-		odm_Adaptivity(adapter_to_odm(Adapter));
-		rtw_dm_check_rxfifo_full(Adapter);
+		dm_adaptivity(Adapter);
 
 		//
 		//Dynamic BB Power Saving Mechanism

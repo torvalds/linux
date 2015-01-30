@@ -115,10 +115,13 @@ void rtw_unregister_netdevs(struct dvobj_priv *dvobj);
 u16 rtw_recv_select_queue(struct sk_buff *skb);
 #endif //LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,35)
 
-int rtw_ndev_notifier_register(void);
-void rtw_ndev_notifier_unregister(void);
-
-#include "../os_dep/linux/rtw_proc.h"
+#ifdef CONFIG_PROC_DEBUG
+void rtw_proc_init_one(struct net_device *dev);
+void rtw_proc_remove_one(struct net_device *dev);
+#else //!CONFIG_PROC_DEBUG
+static void rtw_proc_init_one(struct net_device *dev){}
+static void rtw_proc_remove_one(struct net_device *dev){}
+#endif //!CONFIG_PROC_DEBUG
 #endif //PLATFORM_LINUX
 
 

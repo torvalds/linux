@@ -401,11 +401,9 @@ u32 rtw_free_uc_swdec_pending_queue(_adapter *adapter)
 	union recv_frame *pending_frame;
 	while((pending_frame=rtw_alloc_recvframe(&adapter->recvpriv.uc_swdec_pending_queue))) {
 		rtw_free_recvframe(pending_frame, &adapter->recvpriv.free_recv_queue);
+		DBG_871X("%s: dequeue uc_swdec_pending_queue\n", __func__);
 		cnt++;
 	}
-
-	if (cnt)
-		DBG_871X(FUNC_ADPT_FMT" dequeue %d\n", FUNC_ADPT_ARG(adapter), cnt);
 
 	return cnt;
 }
@@ -1661,7 +1659,7 @@ sint validate_recv_ctrl_frame(_adapter *padapter, union recv_frame *precv_frame)
 
 					//upate BCN for TIM IE
 					//update_BCNTIM(padapter);		
-					update_beacon(padapter, _TIM_IE_, NULL, _TRUE);
+					update_beacon(padapter, _TIM_IE_, NULL, _FALSE);
 				}
 				
 				//_exit_critical_bh(&psta->sleep_q.lock, &irqL);
@@ -1693,7 +1691,7 @@ sint validate_recv_ctrl_frame(_adapter *padapter, union recv_frame *precv_frame)
 
 					//upate BCN for TIM IE
 					//update_BCNTIM(padapter);
-					update_beacon(padapter, _TIM_IE_, NULL, _TRUE);
+					update_beacon(padapter, _TIM_IE_, NULL, _FALSE);
 				}
 				
 			}				
@@ -2171,11 +2169,30 @@ _func_enter_;
 	pattrib->mdata = GetMData(ptr);
 	pattrib->privacy = GetPrivacy(ptr);
 	pattrib->order = GetOrder(ptr);
-#if 1 //for debug
-{
-	u8 bDumpRxPkt;
-	rtw_hal_get_def_var(adapter, HAL_DEF_DBG_DUMP_RXPKT, &(bDumpRxPkt));
-	if(bDumpRxPkt ==1){//dump all rx packets
+#if 0 //for debug
+
+if(pHalData->bDumpRxPkt ==1){
+	int i;
+	DBG_871X("############################# \n");
+	
+	for(i=0; i<64;i=i+8)
+		DBG_871X("%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:\n", *(ptr+i),
+		*(ptr+i+1), *(ptr+i+2) ,*(ptr+i+3) ,*(ptr+i+4),*(ptr+i+5), *(ptr+i+6), *(ptr+i+7));
+	DBG_871X("############################# \n");
+}
+else if(pHalData->bDumpRxPkt ==2){
+	if(type== WIFI_MGT_TYPE){
+		int i;
+		DBG_871X("############################# \n");
+
+		for(i=0; i<64;i=i+8)
+			DBG_871X("%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:\n", *(ptr+i),
+			*(ptr+i+1), *(ptr+i+2) ,*(ptr+i+3) ,*(ptr+i+4),*(ptr+i+5), *(ptr+i+6), *(ptr+i+7));
+		DBG_871X("############################# \n");
+	}
+}
+else if(pHalData->bDumpRxPkt ==3){
+	if(type== WIFI_DATA_TYPE){
 		int i;
 		DBG_871X("############################# \n");
 		
@@ -2184,29 +2201,8 @@ _func_enter_;
 			*(ptr+i+1), *(ptr+i+2) ,*(ptr+i+3) ,*(ptr+i+4),*(ptr+i+5), *(ptr+i+6), *(ptr+i+7));
 		DBG_871X("############################# \n");
 	}
-	else if(bDumpRxPkt ==2){
-		if(type== WIFI_MGT_TYPE){
-			int i;
-			DBG_871X("############################# \n");
-
-			for(i=0; i<64;i=i+8)
-				DBG_871X("%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:\n", *(ptr+i),
-				*(ptr+i+1), *(ptr+i+2) ,*(ptr+i+3) ,*(ptr+i+4),*(ptr+i+5), *(ptr+i+6), *(ptr+i+7));
-			DBG_871X("############################# \n");
-		}
-	}
-	else if(bDumpRxPkt ==3){
-		if(type== WIFI_DATA_TYPE){
-			int i;
-			DBG_871X("############################# \n");
-			
-			for(i=0; i<64;i=i+8)
-				DBG_871X("%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:\n", *(ptr+i),
-				*(ptr+i+1), *(ptr+i+2) ,*(ptr+i+3) ,*(ptr+i+4),*(ptr+i+5), *(ptr+i+6), *(ptr+i+7));
-			DBG_871X("############################# \n");
-		}
-	}
 }
+
 #endif
 	switch (type)
 	{
@@ -3325,9 +3321,6 @@ exit:
 int check_indicate_seq(struct recv_reorder_ctrl *preorder_ctrl, u16 seq_num);
 int check_indicate_seq(struct recv_reorder_ctrl *preorder_ctrl, u16 seq_num)
 {
-	PADAPTER padapter = preorder_ctrl->padapter;
-	struct dvobj_priv *psdpriv = padapter->dvobj;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
 	u8	wsize = preorder_ctrl->wsize_b;
 	u16	wend = (preorder_ctrl->indicate_seq + wsize -1) & 0xFFF;//% 4096;
 
@@ -3383,7 +3376,7 @@ int check_indicate_seq(struct recv_reorder_ctrl *preorder_ctrl, u16 seq_num)
 			preorder_ctrl->indicate_seq = seq_num + 1 -wsize;
 		else
 			preorder_ctrl->indicate_seq = 0xFFF - (wsize - (seq_num + 1)) + 1;
-		pdbgpriv->dbg_rx_ampdu_window_shift_cnt++;
+
 		#ifdef DBG_RX_SEQ
 		DBG_871X("DBG_RX_SEQ %s:%d SN_LESS(wend, seq_num) IndicateSeq: %d, NewSeq: %d\n", __FUNCTION__, __LINE__,
 			preorder_ctrl->indicate_seq, seq_num);
@@ -3457,20 +3450,6 @@ int enqueue_reorder_recvframe(struct recv_reorder_ctrl *preorder_ctrl, union rec
 
 }
 
-void recv_indicatepkts_pkt_loss_cnt(struct debug_priv *pdbgpriv, u64 prev_seq, u64 current_seq);
-void recv_indicatepkts_pkt_loss_cnt(struct debug_priv *pdbgpriv, u64 prev_seq, u64 current_seq)
-{
-	if(current_seq < prev_seq)
-	{
-		pdbgpriv->dbg_rx_ampdu_loss_count+= (4096 + current_seq - prev_seq);
-
-	}
-	else
-	{
-		pdbgpriv->dbg_rx_ampdu_loss_count+= (current_seq - prev_seq);
-	}
-}
-
 int recv_indicatepkts_in_order(_adapter *padapter, struct recv_reorder_ctrl *preorder_ctrl, int bforced);
 int recv_indicatepkts_in_order(_adapter *padapter, struct recv_reorder_ctrl *preorder_ctrl, int bforced)
 {
@@ -3483,9 +3462,7 @@ int recv_indicatepkts_in_order(_adapter *padapter, struct recv_reorder_ctrl *pre
 	int bPktInBuf = _FALSE;
 	struct recv_priv *precvpriv = &padapter->recvpriv;
 	_queue *ppending_recvframe_queue = &preorder_ctrl->pending_recvframe_queue;
-	struct dvobj_priv *psdpriv = padapter->dvobj;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
-	
+
 	//DbgPrint("+recv_indicatepkts_in_order\n");
 
 	//_enter_critical_ex(&ppending_recvframe_queue->lock, &irql);
@@ -3503,7 +3480,6 @@ int recv_indicatepkts_in_order(_adapter *padapter, struct recv_reorder_ctrl *pre
 	// Handling some condition for forced indicate case.
 	if(bforced==_TRUE)
 	{
-		pdbgpriv->dbg_rx_ampdu_forced_indicate_count++;
 		if(rtw_is_list_empty(phead))
 		{
 			// _exit_critical_ex(&ppending_recvframe_queue->lock, &irql);
@@ -3511,9 +3487,8 @@ int recv_indicatepkts_in_order(_adapter *padapter, struct recv_reorder_ctrl *pre
 			return _TRUE;
 		}
 	
-		prframe = LIST_CONTAINOR(plist, union recv_frame, u);
-		pattrib = &prframe->u.hdr.attrib;	
-		recv_indicatepkts_pkt_loss_cnt(pdbgpriv,preorder_ctrl->indicate_seq,pattrib->seq_num);
+		 prframe = LIST_CONTAINOR(plist, union recv_frame, u);
+	        pattrib = &prframe->u.hdr.attrib;	
 		preorder_ctrl->indicate_seq = pattrib->seq_num;		
 		#ifdef DBG_RX_SEQ
 		DBG_871X("DBG_RX_SEQ %s:%d IndicateSeq: %d, NewSeq: %d\n", __FUNCTION__, __LINE__,
@@ -3652,9 +3627,7 @@ int recv_indicatepkt_reorder(_adapter *padapter, union recv_frame *prframe)
 	struct rx_pkt_attrib *pattrib = &prframe->u.hdr.attrib;
 	struct recv_reorder_ctrl *preorder_ctrl = prframe->u.hdr.preorder_ctrl;
 	_queue *ppending_recvframe_queue = &preorder_ctrl->pending_recvframe_queue;
-	struct dvobj_priv *psdpriv = padapter->dvobj;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
-	
+
 	if(!pattrib->amsdu)
 	{
 		//s1.
@@ -3750,7 +3723,6 @@ int recv_indicatepkt_reorder(_adapter *padapter, union recv_frame *prframe)
 	//s2. check if winstart_b(indicate_seq) needs to been updated
 	if(!check_indicate_seq(preorder_ctrl, pattrib->seq_num))
 	{
-		pdbgpriv->dbg_rx_ampdu_drop_count++;
 		//pHTInfo->RxReorderDropCounter++;
 		//ReturnRFDList(Adapter, pRfd);
 		//RT_TRACE(COMP_RX_REORDER, DBG_TRACE, ("RxReorderIndicatePacket() ==> Packet Drop!!\n"));
@@ -4148,16 +4120,12 @@ int recv_func(_adapter *padapter, union recv_frame *rframe)
 	if (check_fwstate(mlmepriv, WIFI_STATION_STATE) && psecuritypriv->busetkipkey)
 	{
 		union recv_frame *pending_frame;
-		int cnt = 0;
+		_irqL irqL;
 
 		while((pending_frame=rtw_alloc_recvframe(&padapter->recvpriv.uc_swdec_pending_queue))) {
-			cnt++;
-			recv_func_posthandle(padapter, pending_frame);
+			if (recv_func_posthandle(padapter, pending_frame) == _SUCCESS)
+				DBG_871X("%s: dequeue uc_swdec_pending_queue\n", __func__);
 		}
-
-		if (cnt)
-			DBG_871X(FUNC_ADPT_FMT" dequeue %d from uc_swdec_pending_queue\n",
-				FUNC_ADPT_ARG(padapter), cnt);
 	}
 
 	ret = recv_func_prehandle(padapter, rframe);
@@ -4168,22 +4136,13 @@ int recv_func(_adapter *padapter, union recv_frame *rframe)
 		if (check_fwstate(mlmepriv, WIFI_STATION_STATE) &&
 			!IS_MCAST(prxattrib->ra) && prxattrib->encrypt>0 &&
 			(prxattrib->bdecrypted == 0 ||psecuritypriv->sw_decrypt == _TRUE) &&
-			psecuritypriv->ndisauthtype == Ndis802_11AuthModeWPAPSK &&
-			!psecuritypriv->busetkipkey)
-		{
+			!is_wep_enc(psecuritypriv->dot11PrivacyAlgrthm) &&
+			!psecuritypriv->busetkipkey) {
 			rtw_enqueue_recvframe(rframe, &padapter->recvpriv.uc_swdec_pending_queue);
-			//DBG_871X("%s: no key, enqueue uc_swdec_pending_queue\n", __func__);
-
-			if (recvpriv->free_recvframe_cnt < NR_RECVFRAME/4) {
-				/* to prevent from recvframe starvation, get recvframe from uc_swdec_pending_queue to free_recvframe_cnt  */
-				rframe = rtw_alloc_recvframe(&padapter->recvpriv.uc_swdec_pending_queue);
-				if (rframe)
-					goto do_posthandle;
-			}
+			DBG_871X("%s: no key, enqueue uc_swdec_pending_queue\n", __func__);
 			goto exit;
 		}
-
-do_posthandle:
+		
 		ret = recv_func_posthandle(padapter, rframe);
 	}
 

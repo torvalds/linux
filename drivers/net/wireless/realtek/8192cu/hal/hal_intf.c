@@ -183,8 +183,6 @@ success:
 
 	rtw_sec_restore_wep_key(padapter);
 
-	rtw_led_control(padapter, LED_CTL_POWER_ON);
-
 	init_hw_mlme_ext(padapter);
 
 fail:
@@ -203,7 +201,6 @@ _func_enter_;
 	status = padapter->HalFunc.hal_deinit(padapter);
 
 	if(status == _SUCCESS){
-		rtw_led_control(padapter, LED_CTL_POWER_OFF);
 		padapter->hw_init_completed = _FALSE;
 	}
 	else

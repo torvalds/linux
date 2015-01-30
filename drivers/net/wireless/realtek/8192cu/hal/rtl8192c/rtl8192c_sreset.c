@@ -50,15 +50,9 @@ void rtl8192c_sreset_xmit_status_check(_adapter *padapter)
 			else{
 				diff_time = rtw_get_passing_time_ms(psrtpriv->last_tx_complete_time);
 				if (diff_time > 4000) {
-					u8 ability;
 					//padapter->Wifi_Error_Status = WIFI_TX_HANG;
-					rtw_hal_get_def_var(padapter, HW_VAR_DM_FLAG, &ability);
-
-					DBG_871X("%s tx hang %s\n", __FUNCTION__,
-						(ability & DYNAMIC_FUNC_ADAPTIVITY)? "DYNAMIC_FUNC_ADAPTIVITY" : "");
-
-					if (!(ability & DYNAMIC_FUNC_ADAPTIVITY))
-						rtw_hal_sreset_reset(padapter);
+					DBG_871X("%s tx hang\n", __FUNCTION__);
+					rtw_hal_sreset_reset(padapter);
 				}
 			}
 		}

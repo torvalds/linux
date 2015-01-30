@@ -321,7 +321,6 @@ struct 	dm_priv
 
 	u8	ThermalMeter[2];	// ThermalMeter, index 0 for RFIC0, and 1 for RFIC1
 	u8	ThermalValue;
-	u8	ThermalValue_Variation; // 0: decrease 1:increase
 	u8	ThermalValue_LCK;
 	u8	ThermalValue_IQK;
 	u8	ThermalValue_AVG[AVG_THERMAL_NUM];
@@ -384,6 +383,21 @@ struct 	dm_priv
 
 	// Add for Reading Initial Data Rate SEL Register 0x484 during watchdog. Using for fill tx desc. 2011.3.21 by Thomas
 	u8	INIDATA_RATE[32];
+
+#ifdef CONFIG_DM_ADAPTIVITY
+	/* Ported from ODM, for ESTI Adaptivity test */
+	s8 TH_L2H_ini;
+	s8 TH_EDCCA_HL_diff;
+	s8 IGI_Base;
+	u8 IGI_target;
+	bool ForceEDCCA;
+	u8 AdapEn_RSSI;
+	s8 Force_TH_H;
+	s8 Force_TH_L;
+	u8 IGI_LowerBound;
+
+	bool	bPreEdccaEnable;
+#endif
 };
 
 

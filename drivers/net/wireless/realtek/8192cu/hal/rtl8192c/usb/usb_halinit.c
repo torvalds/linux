@@ -1960,32 +1960,6 @@ u32 rtl8192cu_hal_init(PADAPTER Adapter)
 
 _func_enter_;
 
-#ifdef CONFIG_WOWLAN
-	if(rtw_read8(Adapter, REG_MCUFWDL)&BIT7)
-	{
-		u8 reg_val=0;
-		rtl8192c_FirmwareSelfReset(Adapter);
-		rtw_write8(Adapter, REG_MCUFWDL, 0x00);
-		//before BB reset should do clock gated
-		rtw_write32(Adapter, rFPGA0_XCD_RFParameter, rtw_read32(Adapter, rFPGA0_XCD_RFParameter)|(BIT31));
-		//reset BB
-		reg_val = rtw_read8(Adapter, REG_SYS_FUNC_EN);
-		reg_val &= ~(BIT(0) | BIT(1));
-		rtw_write8(Adapter, REG_SYS_FUNC_EN, reg_val);
-		//reset RF
-		rtw_write8(Adapter, REG_RF_CTRL, 0);
-		//reset TRX path
-		rtw_write16(Adapter, REG_CR, 0);
-		//reset MAC, Digital Core
-		reg_val = rtw_read8(Adapter, REG_SYS_FUNC_EN+1);
-		reg_val &= ~(BIT(4) | BIT(7));
-		rtw_write8(Adapter, REG_SYS_FUNC_EN+1, reg_val);
-		reg_val = rtw_read8(Adapter, REG_SYS_FUNC_EN+1);
-		reg_val |= BIT(4) | BIT(7);
-		rtw_write8(Adapter, REG_SYS_FUNC_EN+1, reg_val);
-	}
-#endif //CONFIG_WOWLAN
-
 HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_BEGIN);
 	if(Adapter->pwrctrlpriv.bkeepfwalive)
 	{
@@ -4983,6 +4957,43 @@ _func_enter_;
 		case HW_VAR_BSSID:
 			hw_var_set_bssid(Adapter, variable, val);
 			break;
+		case HW_VAR_BASIC_RATE:
+			{
+				u16			BrateCfg = 0;
+				u8			RateIndex = 0;
+				
+				// 2007.01.16, by Emily
+				// Select RRSR (in Legacy-OFDM and CCK)
+				// For 8190, we select only 24M, 12M, 6M, 11M, 5.5M, 2M, and 1M from the Basic rate.
+				// We do not use other rates.
+				HalSetBrateCfg( Adapter, val, &BrateCfg );
+
+				//2011.03.30 add by Luke Lee
+				//CCK 2M ACK should be disabled for some BCM and Atheros AP IOT
+				//because CCK 2M has poor TXEVM
+				//CCK 5.5M & 11M ACK should be enabled for better performance
+
+				pHalData->BasicRateSet = BrateCfg = (BrateCfg |0xd) & 0x15d;
+
+				BrateCfg |= 0x01; // default enable 1M ACK rate
+
+				DBG_8192C("HW_VAR_BASIC_RATE: BrateCfg(%#x)\n", BrateCfg);
+				
+				// Set RRSR rate table.
+				rtw_write8(Adapter, REG_RRSR, BrateCfg&0xff);
+				rtw_write8(Adapter, REG_RRSR+1, (BrateCfg>>8)&0xff);
+				rtw_write8(Adapter, REG_RRSR+2, rtw_read8(Adapter, REG_RRSR+2)&0xf0);
+
+				// Set RTS initial rate
+				while(BrateCfg > 0x1)
+				{
+					BrateCfg = (BrateCfg>> 1);
+					RateIndex++;
+				}
+				// Ziv - Check
+				rtw_write8(Adapter, REG_INIRTS_RATE_SEL, RateIndex);
+			}
+			break;
 		case HW_VAR_TXPAUSE:
 			rtw_write8(Adapter, REG_TXPAUSE, *((u8 *)val));	
 			break;
@@ -5191,6 +5202,9 @@ _func_enter_;
 #else
 			rtw_write8(Adapter, REG_SECCFG, *((u8 *)val));
 #endif
+			break;
+		case HW_VAR_DM_FLAG:
+			pdmpriv->DMFlag = *((u8 *)val);
 			break;
 		case HW_VAR_DM_FUNC_OP:
 			if(val[0])
@@ -5605,9 +5619,8 @@ _func_enter_;
 	
 					case WOWLAN_DISABLE:
 						Adapter->pwrctrlpriv.wowlan_mode=_FALSE;
-						DBG_871X("wake on wlan reason 0x%02x\n", rtw_read8(Adapter, REG_WOWLAN_REASON));
-						//rtl8192c_set_wowlan_cmd(Adapter);
-						//rtw_msleep_os(10);
+						rtl8192c_set_wowlan_cmd(Adapter);
+						rtw_msleep_os(10);
 						break;
 					
 					case WOWLAN_STATUS:
@@ -5618,10 +5631,43 @@ _func_enter_;
 					default:
 						break;
 				}
+				if (Adapter->pwrctrlpriv.wowlan_unicast||Adapter->pwrctrlpriv.wowlan_magic || Adapter->pwrctrlpriv.wowlan_pattern)
+					Adapter->pwrctrlpriv.wowlan_mode =_TRUE;
+				else
+					Adapter->pwrctrlpriv.wowlan_mode =_FALSE;
 			}
 
 			break;
 #endif //CONFIG_WOWLAN
+		case HW_VAR_CHECK_TXBUF:
+#ifdef CONFIG_CONCURRENT_MODE				
+			{
+				int i;
+				u8	RetryLimit = 0x01;
+				
+				//rtw_write16(Adapter, REG_RL,0x0101);
+				rtw_write16(Adapter, REG_RL, RetryLimit << RETRY_LIMIT_SHORT_SHIFT | RetryLimit << RETRY_LIMIT_LONG_SHIFT);
+		
+				for(i=0;i<1000;i++)
+				{
+					if(rtw_read32(Adapter, 0x200) != rtw_read32(Adapter, 0x204))
+					{
+						//DBG_871X("packet in tx packet buffer - 0x204=%x, 0x200=%x (%d)\n", rtw_read32(Adapter, 0x204), rtw_read32(Adapter, 0x200), i);
+						rtw_msleep_os(10);
+					}
+					else
+					{
+						DBG_871X("no packet in tx packet buffer (%d)\n", i);
+						break;
+					}
+				}
+
+				RetryLimit = 0x30;	
+				rtw_write16(Adapter, REG_RL, RetryLimit << RETRY_LIMIT_SHORT_SHIFT | RetryLimit << RETRY_LIMIT_LONG_SHIFT);
+		
+			}
+#endif
+			break;
 		case HW_VAR_BCN_VALID:
 			//BCN_VALID, BIT16 of REG_TDECTRL = BIT0 of REG_TDECTRL+2, write 1 to clear, Clear by sw
 			rtw_write8(Adapter, REG_TDECTRL+2, rtw_read8(Adapter, REG_TDECTRL+2) | BIT0); 
@@ -5630,7 +5676,6 @@ _func_enter_;
 			rtw_write8(Adapter, REG_USB_DMA_AGG_TO, *((u8 *)val));
 			break;
 		default:
-			SetHwReg8192C(Adapter, variable, val);
 			break;
 	}
 
@@ -5653,6 +5698,9 @@ _func_enter_;
 		case HW_VAR_BCN_VALID:
 			//BCN_VALID, BIT16 of REG_TDECTRL = BIT0 of REG_TDECTRL+2
 			val[0] = (BIT0 & rtw_read8(Adapter, REG_TDECTRL+2))?_TRUE:_FALSE;
+			break;
+		case HW_VAR_DM_FLAG:
+			val[0] = pHalData->dmpriv.DMFlag;
 			break;
 		case HW_VAR_RF_TYPE:
 			val[0] = pHalData->rf_type;
@@ -5694,7 +5742,6 @@ _func_enter_;
 			*((u16 *)(val)) = pHalData->EEPROMPID;
 			break;
 		default:
-			GetHwReg8192C(Adapter, variable, val);
 			break;
 	}
 
@@ -5760,8 +5807,12 @@ GetHalDefVar8192CUsb(
 		case HAL_DEF_DBG_DUMP_RXPKT:
 			*(( u8*)pValue) = pHalData->bDumpRxPkt;
 			break;
+		case HAL_DEF_DBG_DM_FUNC:
+			*(( u8*)pValue) = pHalData->dmpriv.DMFlag;
+			break;
 		default:
-			bResult = GetHalDefVar8192C(Adapter, eVariable, pValue);
+			//RT_TRACE(COMP_INIT, DBG_WARNING, ("GetHalDefVar8192CUsb(): Unkown variable: %d!\n", eVariable));
+			bResult = _FALSE;
 			break;
 	}
 
@@ -5790,8 +5841,49 @@ SetHalDefVar8192CUsb(
 		case HAL_DEF_DBG_DUMP_RXPKT:
 			pHalData->bDumpRxPkt = *(( u8*)pValue);
 			break;
+		case HAL_DEF_DBG_DM_FUNC:
+			{
+				u8 dm_func = *(( u8*)pValue);
+				struct dm_priv	*pdmpriv = &pHalData->dmpriv;	
+				
+				if(dm_func == 0){ //disable all dynamic func
+					pdmpriv->DMFlag = DYNAMIC_FUNC_DISABLE;
+					DBG_8192C("==> Disable all dynamic function...\n");
+				}
+				else if(dm_func == 1){//disable DIG
+					pdmpriv->DMFlag &= (~DYNAMIC_FUNC_DIG);
+					DBG_8192C("==> Disable DIG...\n");
+				}
+				else if(dm_func == 2){//disable High power
+					pdmpriv->DMFlag &= (~DYNAMIC_FUNC_HP);
+				}
+				else if(dm_func == 3){//disable tx power tracking
+					pdmpriv->DMFlag &= (~DYNAMIC_FUNC_SS);
+					DBG_8192C("==> Disable tx power tracking...\n");
+				}
+				else if(dm_func == 4){//disable BT coexistence
+					pdmpriv->DMFlag &= (~DYNAMIC_FUNC_BT);
+				}
+				else if(dm_func == 5){//disable antenna diversity
+					pdmpriv->DMFlag &= (~DYNAMIC_FUNC_ANT_DIV);
+				}				
+				else if(dm_func == 6){//turn on all dynamic func
+					if(!(pdmpriv->DMFlag & DYNAMIC_FUNC_DIG))
+					{
+						struct dm_priv	*pdmpriv = &pHalData->dmpriv;
+						DIG_T	*pDigTable = &pdmpriv->DM_DigTable;
+						pDigTable->PreIGValue = rtw_read8(Adapter,0xc50);	
+					}
+						
+					pdmpriv->DMFlag |= (DYNAMIC_FUNC_DIG|DYNAMIC_FUNC_HP|DYNAMIC_FUNC_SS|
+						DYNAMIC_FUNC_BT|DYNAMIC_FUNC_ANT_DIV) ;
+					DBG_8192C("==> Turn on all dynamic function...\n");
+				}			
+			}
+			break;
 		default:
-			bResult = SetHalDefVar8192C(Adapter, eVariable, pValue);
+			//RT_TRACE(COMP_INIT, DBG_TRACE, ("SetHalDefVar819xUsb(): Unkown variable: %d!\n", eVariable));
+			bResult = _FALSE;
 			break;
 	}
 
@@ -6093,10 +6185,11 @@ void rtl8192cu_set_hal_ops(_adapter * padapter)
 
 _func_enter_;
 
-	padapter->HalData = rtw_zvmalloc(sizeof(HAL_DATA_TYPE));
+	padapter->HalData = rtw_zmalloc(sizeof(HAL_DATA_TYPE));
 	if(padapter->HalData == NULL){
 		DBG_8192C("cant not alloc memory for HAL DATA \n");
 	}
+	//_rtw_memset(padapter->HalData, 0, sizeof(HAL_DATA_TYPE));
 	padapter->hal_data_sz = sizeof(HAL_DATA_TYPE);
 
 	pHalFunc->hal_init = &rtl8192cu_hal_init;
