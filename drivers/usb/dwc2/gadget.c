@@ -2492,7 +2492,6 @@ irq_retry:
 							  -ECONNRESET);
 
 				s3c_hsotg_core_init_disconnected(hsotg, true);
-				s3c_hsotg_core_connect(hsotg);
 			}
 		}
 	}
