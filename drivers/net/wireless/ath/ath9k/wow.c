@@ -23,21 +23,21 @@ static const struct wiphy_wowlan_support ath9k_wowlan_support = {
 	.pattern_max_len = MAX_PATTERN_SIZE,
 };
 
-static void ath9k_wow_map_triggers(struct ath_softc *sc,
-				   struct cfg80211_wowlan *wowlan,
-				   u32 *wow_triggers)
+static u8 ath9k_wow_map_triggers(struct ath_softc *sc,
+				 struct cfg80211_wowlan *wowlan)
 {
+	u8 wow_triggers = 0;
+
 	if (wowlan->disconnect)
-		*wow_triggers |= AH_WOW_LINK_CHANGE |
-				 AH_WOW_BEACON_MISS;
+		wow_triggers |= AH_WOW_LINK_CHANGE |
+				AH_WOW_BEACON_MISS;
 	if (wowlan->magic_pkt)
-		*wow_triggers |= AH_WOW_MAGIC_PATTERN_EN;
+		wow_triggers |= AH_WOW_MAGIC_PATTERN_EN;
 
 	if (wowlan->n_patterns)
-		*wow_triggers |= AH_WOW_USER_PATTERN_EN;
+		wow_triggers |= AH_WOW_USER_PATTERN_EN;
 
-	sc->wow_enabled = *wow_triggers;
-
+	return wow_triggers;
 }
 
 static void ath9k_wow_add_disassoc_deauth_pattern(struct ath_softc *sc)
@@ -45,7 +45,7 @@ static void ath9k_wow_add_disassoc_deauth_pattern(struct ath_softc *sc)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	int pattern_count = 0;
-	int i, byte_cnt;
+	int i, byte_cnt = 0;
 	u8 dis_deauth_pattern[MAX_PATTERN_SIZE];
 	u8 dis_deauth_mask[MAX_PATTERN_SIZE];
 
@@ -80,12 +80,7 @@ static void ath9k_wow_add_disassoc_deauth_pattern(struct ath_softc *sc)
 	 *			    | x:x:x:x:x:x  -- 22 bytes
 	 */
 
-	/* Create Disassociate Pattern first */
-
-	byte_cnt = 0;
-
 	/* Fill out the mask with all FF's */
-
 	for (i = 0; i < MAX_PATTERN_MASK_SIZE; i++)
 		dis_deauth_mask[i] = 0xff;
 
@@ -108,16 +103,12 @@ static void ath9k_wow_add_disassoc_deauth_pattern(struct ath_softc *sc)
 	byte_cnt += 6;
 
 	/* copy the bssid, its same as the source mac address */
-
 	memcpy((dis_deauth_pattern + byte_cnt), common->curbssid, ETH_ALEN);
 
 	/* Create Disassociate pattern mask */
-
 	dis_deauth_mask[0] = 0xfe;
 	dis_deauth_mask[1] = 0x03;
 	dis_deauth_mask[2] = 0xc0;
-
-	ath_dbg(common, WOW, "Adding disassoc/deauth patterns for WoW\n");
 
 	ath9k_hw_wow_apply_pattern(ah, dis_deauth_pattern, dis_deauth_mask,
 				   pattern_count, byte_cnt);
@@ -131,7 +122,6 @@ static void ath9k_wow_add_disassoc_deauth_pattern(struct ath_softc *sc)
 
 	ath9k_hw_wow_apply_pattern(ah, dis_deauth_pattern, dis_deauth_mask,
 				   pattern_count, byte_cnt);
-
 }
 
 static void ath9k_wow_add_pattern(struct ath_softc *sc,
@@ -190,7 +180,7 @@ int ath9k_suspend(struct ieee80211_hw *hw,
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	u32 wow_triggers_enabled = 0;
+	u8 triggers;
 	int ret = 0;
 
 	ath9k_deinit_channel_context(sc);
@@ -230,13 +220,15 @@ int ath9k_suspend(struct ieee80211_hw *hw,
 		goto fail_wow;
 	}
 
+	triggers = ath9k_wow_map_triggers(sc, wowlan);
+	if (!triggers) {
+		ath_dbg(common, WOW, "No valid WoW triggers\n");
+		ret = 1;
+		goto fail_wow;
+	}
+
 	ath_cancel_work(sc);
 	ath_stop_ani(sc);
-
-	ath9k_wow_map_triggers(sc, wowlan, &wow_triggers_enabled);
-
-	ath_dbg(common, WOW, "WoW triggers enabled 0x%x\n",
-		wow_triggers_enabled);
 
 	ath9k_ps_wakeup(sc);
 
@@ -248,7 +240,7 @@ int ath9k_suspend(struct ieee80211_hw *hw,
 	 */
 	ath9k_wow_add_disassoc_deauth_pattern(sc);
 
-	if (wow_triggers_enabled & AH_WOW_USER_PATTERN_EN)
+	if (triggers & AH_WOW_USER_PATTERN_EN)
 		ath9k_wow_add_pattern(sc, wowlan);
 
 	spin_lock_bh(&sc->sc_pcu_lock);
@@ -273,12 +265,13 @@ int ath9k_suspend(struct ieee80211_hw *hw,
 	synchronize_irq(sc->irq);
 	tasklet_kill(&sc->intr_tq);
 
-	ath9k_hw_wow_enable(ah, wow_triggers_enabled);
+	ath9k_hw_wow_enable(ah, triggers);
 
 	ath9k_ps_restore(sc);
-	ath_dbg(common, ANY, "WoW enabled in ath9k\n");
+	ath_dbg(common, WOW, "Suspend with WoW triggers: 0x%x\n", triggers);
 	atomic_inc(&sc->wow_sleep_proc_intr);
 
+	set_bit(ATH_OP_WOW_ENABLED, &common->op_flags);
 fail_wow:
 	mutex_unlock(&sc->mutex);
 	return ret;
@@ -326,6 +319,8 @@ int ath9k_resume(struct ieee80211_hw *hw)
 
 	ath_restart_work(sc);
 	ath9k_start_btcoex(sc);
+
+	clear_bit(ATH_OP_WOW_ENABLED, &common->op_flags);
 
 	ath9k_ps_restore(sc);
 	mutex_unlock(&sc->mutex);
