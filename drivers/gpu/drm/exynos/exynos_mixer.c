@@ -583,8 +583,8 @@ static void mixer_graph_buffer(struct mixer_context *ctx, int win)
 	/* setup display size */
 	if (ctx->mxr_ver == MXR_VER_128_0_0_184 &&
 		win == MIXER_DEFAULT_WIN) {
-		val  = MXR_MXR_RES_HEIGHT(win_data->fb_height);
-		val |= MXR_MXR_RES_WIDTH(win_data->fb_width);
+		val  = MXR_MXR_RES_HEIGHT(win_data->mode_height);
+		val |= MXR_MXR_RES_WIDTH(win_data->mode_width);
 		mixer_reg_write(res, MXR_RESOLUTION, val);
 	}
 
