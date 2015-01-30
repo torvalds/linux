@@ -413,6 +413,7 @@
 #define __NR_getrandom			(__NR_SYSCALL_BASE+384)
 #define __NR_memfd_create		(__NR_SYSCALL_BASE+385)
 #define __NR_bpf			(__NR_SYSCALL_BASE+386)
+#define __NR_execveat			(__NR_SYSCALL_BASE+387)
 
 /*
  * The following SWIs are ARM private.
