@@ -346,6 +346,12 @@ __turn_mmu_on_loc:
 
 #if defined(CONFIG_SMP)
 	.text
+ENTRY(secondary_startup_arm)
+	.arm
+ THUMB(	adr	r9, BSYM(1f)	)	@ Kernel is entered in ARM.
+ THUMB(	bx	r9		)	@ If this is a Thumb-2 kernel,
+ THUMB(	.thumb			)	@ switch to Thumb now.
+ THUMB(1:			)
 ENTRY(secondary_startup)
 	/*
 	 * Common entry point for secondary CPUs.
@@ -385,6 +391,7 @@ ENTRY(secondary_startup)
  THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
  THUMB(	ret	r12				)
 ENDPROC(secondary_startup)
+ENDPROC(secondary_startup_arm)
 
 	/*
 	 * r6  = &secondary_data
