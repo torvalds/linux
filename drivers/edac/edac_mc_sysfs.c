@@ -157,7 +157,7 @@ struct dev_ch_attribute {
 };
 
 #define DEVICE_CHANNEL(_name, _mode, _show, _store, _var) \
-	struct dev_ch_attribute dev_attr_legacy_##_name = \
+	static struct dev_ch_attribute dev_attr_legacy_##_name = \
 		{ __ATTR(_name, _mode, _show, _store), (_var) }
 
 #define to_channel(k) (container_of(k, struct dev_ch_attribute, attr)->channel)
@@ -850,20 +850,20 @@ static const struct file_operations debug_fake_inject_fops = {
 #endif
 
 /* default Control file */
-DEVICE_ATTR(reset_counters, S_IWUSR, NULL, mci_reset_counters_store);
+static DEVICE_ATTR(reset_counters, S_IWUSR, NULL, mci_reset_counters_store);
 
 /* default Attribute files */
-DEVICE_ATTR(mc_name, S_IRUGO, mci_ctl_name_show, NULL);
-DEVICE_ATTR(size_mb, S_IRUGO, mci_size_mb_show, NULL);
-DEVICE_ATTR(seconds_since_reset, S_IRUGO, mci_seconds_show, NULL);
-DEVICE_ATTR(ue_noinfo_count, S_IRUGO, mci_ue_noinfo_show, NULL);
-DEVICE_ATTR(ce_noinfo_count, S_IRUGO, mci_ce_noinfo_show, NULL);
-DEVICE_ATTR(ue_count, S_IRUGO, mci_ue_count_show, NULL);
-DEVICE_ATTR(ce_count, S_IRUGO, mci_ce_count_show, NULL);
-DEVICE_ATTR(max_location, S_IRUGO, mci_max_location_show, NULL);
+static DEVICE_ATTR(mc_name, S_IRUGO, mci_ctl_name_show, NULL);
+static DEVICE_ATTR(size_mb, S_IRUGO, mci_size_mb_show, NULL);
+static DEVICE_ATTR(seconds_since_reset, S_IRUGO, mci_seconds_show, NULL);
+static DEVICE_ATTR(ue_noinfo_count, S_IRUGO, mci_ue_noinfo_show, NULL);
+static DEVICE_ATTR(ce_noinfo_count, S_IRUGO, mci_ce_noinfo_show, NULL);
+static DEVICE_ATTR(ue_count, S_IRUGO, mci_ue_count_show, NULL);
+static DEVICE_ATTR(ce_count, S_IRUGO, mci_ce_count_show, NULL);
+static DEVICE_ATTR(max_location, S_IRUGO, mci_max_location_show, NULL);
 
 /* memory scrubber attribute file */
-DEVICE_ATTR(sdram_scrub_rate, 0, NULL, NULL);
+static DEVICE_ATTR(sdram_scrub_rate, 0, NULL, NULL);
 
 static struct attribute *mci_attrs[] = {
 	&dev_attr_reset_counters.attr,
