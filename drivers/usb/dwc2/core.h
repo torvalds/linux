@@ -999,7 +999,8 @@ extern int s3c_hsotg_remove(struct dwc2_hsotg *hsotg);
 extern int s3c_hsotg_suspend(struct dwc2_hsotg *dwc2);
 extern int s3c_hsotg_resume(struct dwc2_hsotg *dwc2);
 extern int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq);
-extern void s3c_hsotg_core_init_disconnected(struct dwc2_hsotg *dwc2);
+extern void s3c_hsotg_core_init_disconnected(struct dwc2_hsotg *dwc2,
+		bool reset);
 extern void s3c_hsotg_core_connect(struct dwc2_hsotg *hsotg);
 extern void s3c_hsotg_disconnect(struct dwc2_hsotg *dwc2);
 #else
@@ -1011,7 +1012,8 @@ static inline int s3c_hsotg_resume(struct dwc2_hsotg *dwc2)
 { return 0; }
 static inline int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 { return 0; }
-static inline void s3c_hsotg_core_init_disconnected(struct dwc2_hsotg *dwc2) {}
+static inline void s3c_hsotg_core_init_disconnected(struct dwc2_hsotg *dwc2,
+		bool reset) {}
 static inline void s3c_hsotg_core_connect(struct dwc2_hsotg *hsotg) {}
 static inline void s3c_hsotg_disconnect(struct dwc2_hsotg *dwc2) {}
 #endif
