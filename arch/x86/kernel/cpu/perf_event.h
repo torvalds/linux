@@ -808,6 +808,8 @@ void intel_pmu_lbr_init_hsw(void);
 
 int intel_pmu_setup_lbr_filter(struct perf_event *event);
 
+void intel_pt_interrupt(void);
+
 int p4_pmu_init(void);
 
 int p6_pmu_init(void);

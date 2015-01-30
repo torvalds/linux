@@ -1590,6 +1590,14 @@ again:
 	}
 
 	/*
+	 * Intel PT
+	 */
+	if (__test_and_clear_bit(55, (unsigned long *)&status)) {
+		handled++;
+		intel_pt_interrupt();
+	}
+
+	/*
 	 * Checkpointed counters can lead to 'spurious' PMIs because the
 	 * rollback caused by the PMI will have cleared the overflow status
 	 * bit. Therefore always force probe these counters.
