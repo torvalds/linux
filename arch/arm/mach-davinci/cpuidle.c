@@ -19,8 +19,8 @@
 #include <linux/export.h>
 #include <asm/cpuidle.h>
 
-#include <mach/cpuidle.h>
-#include <mach/ddr2.h>
+#include "cpuidle.h"
+#include "ddr2.h"
 
 #define DAVINCI_CPUIDLE_MAX_STATES	2
 

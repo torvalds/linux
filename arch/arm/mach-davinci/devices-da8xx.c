@@ -22,8 +22,8 @@
 #include <mach/common.h>
 #include <mach/time.h>
 #include <mach/da8xx.h>
-#include <mach/cpuidle.h>
-#include <mach/sram.h>
+#include "cpuidle.h"
+#include "sram.h"
 
 #include "clock.h"
 #include "asp.h"

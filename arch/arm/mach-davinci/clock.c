@@ -23,7 +23,7 @@
 #include <mach/hardware.h>
 
 #include <mach/clock.h>
-#include <mach/psc.h>
+#include "psc.h"
 #include <mach/cputype.h>
 #include "clock.h"
 
