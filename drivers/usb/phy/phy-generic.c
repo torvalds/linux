@@ -218,12 +218,12 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop,
 			clk_rate = 0;
 
 		needs_vcc = of_property_read_bool(node, "vcc-supply");
-		nop->gpiod_reset = devm_gpiod_get_optional(dev, "reset-gpios");
-		err = PTR_ERR(nop->gpiod_reset);
+		nop->gpiod_reset = devm_gpiod_get_optional(dev, "reset");
+		err = PTR_ERR_OR_ZERO(nop->gpiod_reset);
 		if (!err) {
 			nop->gpiod_vbus = devm_gpiod_get_optional(dev,
-							 "vbus-detect-gpio");
-			err = PTR_ERR(nop->gpiod_vbus);
+							 "vbus-detect");
+			err = PTR_ERR_OR_ZERO(nop->gpiod_vbus);
 		}
 	} else if (pdata) {
 		type = pdata->type;
@@ -242,9 +242,11 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop,
 	if (err == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 	if (err) {
-		dev_err(dev, "Error requesting RESET GPIO\n");
+		dev_err(dev, "Error requesting RESET or VBUS GPIO\n");
 		return err;
 	}
+	if (nop->gpiod_reset)
+		gpiod_direction_output(nop->gpiod_reset, 1);
 
 	nop->phy.otg = devm_kzalloc(dev, sizeof(*nop->phy.otg),
 			GFP_KERNEL);
