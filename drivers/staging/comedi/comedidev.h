@@ -596,37 +596,4 @@ void comedi_pci_driver_unregister(struct comedi_driver *, struct pci_driver *);
 	module_driver(__comedi_driver, comedi_pci_driver_register, \
 			comedi_pci_driver_unregister, &(__pci_driver))
 
-/* comedi_pcmcia.c - comedi PCMCIA driver specific functions */
-
-struct pcmcia_driver;
-struct pcmcia_device;
-
-struct pcmcia_device *comedi_to_pcmcia_dev(struct comedi_device *);
-
-int comedi_pcmcia_enable(struct comedi_device *,
-			 int (*conf_check)(struct pcmcia_device *, void *));
-void comedi_pcmcia_disable(struct comedi_device *);
-
-int comedi_pcmcia_auto_config(struct pcmcia_device *, struct comedi_driver *);
-void comedi_pcmcia_auto_unconfig(struct pcmcia_device *);
-
-int comedi_pcmcia_driver_register(struct comedi_driver *,
-				  struct pcmcia_driver *);
-void comedi_pcmcia_driver_unregister(struct comedi_driver *,
-				     struct pcmcia_driver *);
-
-/**
- * module_comedi_pcmcia_driver() - Helper macro for registering a comedi PCMCIA driver
- * @__comedi_driver: comedi_driver struct
- * @__pcmcia_driver: pcmcia_driver struct
- *
- * Helper macro for comedi PCMCIA drivers which do not do anything special
- * in module init/exit. This eliminates a lot of boilerplate. Each
- * module may only use this macro once, and calling it replaces
- * module_init() and module_exit()
- */
-#define module_comedi_pcmcia_driver(__comedi_driver, __pcmcia_driver) \
-	module_driver(__comedi_driver, comedi_pcmcia_driver_register, \
-			comedi_pcmcia_driver_unregister, &(__pcmcia_driver))
-
 #endif /* _COMEDIDEV_H */
