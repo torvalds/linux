@@ -2763,7 +2763,6 @@ static struct platform_driver vpfe_driver = {
 	.remove		= vpfe_remove,
 	.driver = {
 		.name	= VPFE_MODULE_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= &vpfe_pm_ops,
 		.of_match_table = of_match_ptr(vpfe_of_match),
 	},
