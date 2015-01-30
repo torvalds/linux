@@ -968,3 +968,4 @@ static struct platform_driver hip04_mac_driver = {
 module_platform_driver(hip04_mac_driver);
 
 MODULE_DESCRIPTION("HISILICON P04 Ethernet driver");
+MODULE_LICENSE("GPL");
