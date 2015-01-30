@@ -4030,7 +4030,8 @@ static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 		       NAPI_POLL_WEIGHT);
 	rocker_carrier_init(rocker_port);
 
-	dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+	dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER |
+				NETIF_F_HW_SWITCH_OFFLOAD;
 
 	err = register_netdev(dev);
 	if (err) {
