@@ -250,14 +250,14 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"FM Transmitter", NULL, "LLOUT"},
 	{"FM Transmitter", NULL, "RLOUT"},
 
-	{"DMic Rate 64", NULL, "Mic Bias"},
-	{"Mic Bias", NULL, "DMic"},
+	{"DMic Rate 64", NULL, "DMic"},
+	{"DMic", NULL, "Mic Bias"},
 
 	{"b LINE2R", NULL, "MONO_LOUT"},
 	{"Earphone", NULL, "b HPLOUT"},
 
-	{"LINE1L", NULL, "b Mic Bias"},
-	{"b Mic Bias", NULL, "HS Mic"}
+	{"LINE1L", NULL, "HS Mic"},
+	{"HS Mic", NULL, "b Mic Bias"},
 };
 
 static const char * const spk_function[] = {"Off", "On"};
