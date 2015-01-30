@@ -548,6 +548,8 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm_dev = data;
 	int ret;
 
+	vidi_ctx_initialize(ctx, drm_dev);
+
 	ctx->crtc = exynos_drm_crtc_create(drm_dev, ctx->pipe,
 					   EXYNOS_DISPLAY_TYPE_VIDI,
 					   &vidi_crtc_ops, ctx);
@@ -555,8 +557,6 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 		DRM_ERROR("failed to create crtc.\n");
 		return PTR_ERR(ctx->crtc);
 	}
-
-	vidi_ctx_initialize(ctx, drm_dev);
 
 	ret = exynos_drm_create_enc_conn(drm_dev, &ctx->display);
 	if (ret) {

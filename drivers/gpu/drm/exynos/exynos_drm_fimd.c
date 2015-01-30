@@ -1065,18 +1065,19 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm_dev = data;
 	int ret;
 
-	ctx->crtc = exynos_drm_crtc_create(drm_dev, ctx->pipe,
-					   EXYNOS_DISPLAY_TYPE_LCD,
-					   &fimd_crtc_ops, ctx);
-	if (IS_ERR(ctx->crtc))
-		return PTR_ERR(ctx->crtc);
-
 	ret = fimd_ctx_initialize(ctx, drm_dev);
 	if (ret) {
 		DRM_ERROR("fimd_ctx_initialize failed.\n");
 		return ret;
 	}
 
+	ctx->crtc = exynos_drm_crtc_create(drm_dev, ctx->pipe,
+					   EXYNOS_DISPLAY_TYPE_LCD,
+					   &fimd_crtc_ops, ctx);
+	if (IS_ERR(ctx->crtc)) {
+		fimd_ctx_remove(ctx);
+		return PTR_ERR(ctx->crtc);
+	}
 
 	if (ctx->display)
 		exynos_drm_create_enc_conn(drm_dev, ctx->display);
