@@ -166,7 +166,12 @@ static void __init enable_periphs(void)
 	/* Release all peripherals, except for emacs, from reset.*/
 	u32 rstval;
 	rstval = RSTMGR_PERMODRST_EMAC0 | RSTMGR_PERMODRST_EMAC1;
-	writel(rstval, rst_manager_base_addr + SOCFPGA_RSTMGR_MODPERRST);
+
+	if (of_machine_is_compatible("altr,socfpga-arria10"))
+		/* temp hack to enable all periphs from reset for A10 */
+		writel(0x0, rst_manager_base_addr + SOCFPGA_RSTMGR_MODPERRST);
+	else
+		writel(rstval, rst_manager_base_addr + SOCFPGA_RSTMGR_MODPERRST);
 }
 
 #define MICREL_KSZ9021_EXTREG_CTRL 11
