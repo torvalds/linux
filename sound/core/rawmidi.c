@@ -57,11 +57,11 @@ static LIST_HEAD(snd_rawmidi_devices);
 static DEFINE_MUTEX(register_mutex);
 
 #define rmidi_err(rmidi, fmt, args...) \
-	dev_err((rmidi)->card->dev, fmt, ##args)
+	dev_err(&(rmidi)->dev, fmt, ##args)
 #define rmidi_warn(rmidi, fmt, args...) \
-	dev_warn((rmidi)->card->dev, fmt, ##args)
+	dev_warn(&(rmidi)->dev, fmt, ##args)
 #define rmidi_dbg(rmidi, fmt, args...) \
-	dev_dbg((rmidi)->card->dev, fmt, ##args)
+	dev_dbg(&(rmidi)->dev, fmt, ##args)
 
 static struct snd_rawmidi *snd_rawmidi_search(struct snd_card *card, int device)
 {
