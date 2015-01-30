@@ -214,6 +214,11 @@ static bool is_bwd_ioat(struct pci_dev *pdev)
 	case PCI_DEVICE_ID_INTEL_IOAT_BWD1:
 	case PCI_DEVICE_ID_INTEL_IOAT_BWD2:
 	case PCI_DEVICE_ID_INTEL_IOAT_BWD3:
+	/* even though not Atom, BDX-DE has same DMA silicon */
+	case PCI_DEVICE_ID_INTEL_IOAT_BDXDE0:
+	case PCI_DEVICE_ID_INTEL_IOAT_BDXDE1:
+	case PCI_DEVICE_ID_INTEL_IOAT_BDXDE2:
+	case PCI_DEVICE_ID_INTEL_IOAT_BDXDE3:
 		return true;
 	default:
 		return false;
