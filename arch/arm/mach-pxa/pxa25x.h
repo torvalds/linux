@@ -3,7 +3,7 @@
 
 #include <mach/hardware.h>
 #include <mach/pxa2xx-regs.h>
-#include <mach/mfp-pxa25x.h>
+#include "mfp-pxa25x.h"
 #include <mach/irqs.h>
 
 #endif /* __MACH_PXA25x_H */

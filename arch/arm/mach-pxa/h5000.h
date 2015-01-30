@@ -18,7 +18,7 @@
 #ifndef __ASM_ARCH_H5000_H
 #define __ASM_ARCH_H5000_H
 
-#include <mach/mfp-pxa25x.h>
+#include "mfp-pxa25x.h"
 
 /*
  * CPU GPIOs

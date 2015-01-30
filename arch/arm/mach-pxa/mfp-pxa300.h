@@ -15,7 +15,7 @@
 #ifndef __ASM_ARCH_MFP_PXA300_H
 #define __ASM_ARCH_MFP_PXA300_H
 
-#include <mach/mfp-pxa3xx.h>
+#include "mfp-pxa3xx.h"
 
 /* GPIO */
 #define GPIO46_GPIO		MFP_CFG(GPIO46, AF1)

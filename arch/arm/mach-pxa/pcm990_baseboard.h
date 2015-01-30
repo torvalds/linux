@@ -19,8 +19,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <mach/pcm027.h>
-#include "irqs.h" /* PXA_GPIO_TO_IRQ */
+#include "pcm027.h"
+#include <mach/irqs.h> /* PXA_GPIO_TO_IRQ */
 
 /*
  * definitions relevant only when the PCM-990

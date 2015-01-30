@@ -8,7 +8,7 @@
  * specific controller, and this should work in most cases.
  */
 
-#include <mach/mfp-pxa2xx.h>
+#include "mfp-pxa2xx.h"
 
 /* Note: GPIO3/GPIO4 will be driven by Power I2C when PCFR/PI2C_EN
  * bit is set, regardless of the GPIO configuration

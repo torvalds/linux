@@ -38,17 +38,17 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/pxa27x.h>
+#include "pxa27x.h"
 #include <mach/regs-uart.h>
 #include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <linux/platform_data/mmc-pxamci.h>
-#include <mach/pxa27x-udc.h>
-#include <mach/udc.h>
+#include "pxa27x-udc.h"
+#include "udc.h"
 #include <linux/platform_data/video-pxafb.h>
-#include <mach/pm.h>
+#include "pm.h"
 #include <mach/audio.h>
 #include <linux/platform_data/pcmcia-pxa2xx_viper.h>
-#include <mach/zeus.h>
+#include "zeus.h"
 #include <mach/smemc.h>
 
 #include "generic.h"

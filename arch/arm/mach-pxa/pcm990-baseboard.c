@@ -32,11 +32,11 @@
 
 #include <linux/platform_data/camera-pxa.h>
 #include <asm/mach/map.h>
-#include <mach/pxa27x.h>
+#include "pxa27x.h"
 #include <mach/audio.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/usb-ohci-pxa27x.h>
-#include <mach/pcm990_baseboard.h>
+#include "pcm990_baseboard.h"
 #include <linux/platform_data/video-pxafb.h>
 
 #include "devices.h"

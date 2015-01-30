@@ -4,7 +4,7 @@
 #include <linux/suspend.h>
 #include <mach/hardware.h>
 #include <mach/pxa2xx-regs.h>
-#include <mach/mfp-pxa27x.h>
+#include "mfp-pxa27x.h"
 #include <mach/irqs.h>
 
 #define ARB_CNTRL	__REG(0x48000048)  /* Arbiter Control Register */

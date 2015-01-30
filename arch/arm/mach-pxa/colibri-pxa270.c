@@ -27,8 +27,8 @@
 #include <asm/sizes.h>
 
 #include <mach/audio.h>
-#include <mach/colibri.h>
-#include <mach/pxa27x.h>
+#include "colibri.h"
+#include "pxa27x.h"
 
 #include "devices.h"
 #include "generic.h"

@@ -30,8 +30,8 @@
 #include <mach/hardware.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/usb-ohci-pxa27x.h>
-#include <mach/pxa27x.h>
-#include <mach/pxa27x-udc.h>
+#include "pxa27x.h"
+#include "pxa27x-udc.h"
 #include <linux/platform_data/video-pxafb.h>
 
 #include "devices.h"
