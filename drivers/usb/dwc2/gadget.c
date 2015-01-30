@@ -1007,16 +1007,22 @@ static int s3c_hsotg_process_req_feature(struct dwc2_hsotg *hsotg,
 					hs_req = ep->req;
 					ep->req = NULL;
 					list_del_init(&hs_req->queue);
-					usb_gadget_giveback_request(&ep->ep,
-								    &hs_req->req);
+					if (hs_req->req.complete) {
+						spin_unlock(&hsotg->lock);
+						usb_gadget_giveback_request(
+							&ep->ep, &hs_req->req);
+						spin_lock(&hsotg->lock);
+					}
 				}
 
 				/* If we have pending request, then start it */
-				restart = !list_empty(&ep->queue);
-				if (restart) {
-					hs_req = get_ep_head(ep);
-					s3c_hsotg_start_req(hsotg, ep,
-							    hs_req, false);
+				if (!ep->req) {
+					restart = !list_empty(&ep->queue);
+					if (restart) {
+						hs_req = get_ep_head(ep);
+						s3c_hsotg_start_req(hsotg, ep,
+								hs_req, false);
+					}
 				}
 			}
 
