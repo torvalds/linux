@@ -3833,11 +3833,145 @@ static void rocker_port_get_drvinfo(struct net_device *dev,
 	strlcpy(drvinfo->version, UTS_RELEASE, sizeof(drvinfo->version));
 }
 
+static struct rocker_port_stats {
+	char str[ETH_GSTRING_LEN];
+	int type;
+} rocker_port_stats[] = {
+	{ "rx_packets", ROCKER_TLV_CMD_PORT_STATS_RX_PKTS,    },
+	{ "rx_bytes",   ROCKER_TLV_CMD_PORT_STATS_RX_BYTES,   },
+	{ "rx_dropped", ROCKER_TLV_CMD_PORT_STATS_RX_DROPPED, },
+	{ "rx_errors",  ROCKER_TLV_CMD_PORT_STATS_RX_ERRORS,  },
+
+	{ "tx_packets", ROCKER_TLV_CMD_PORT_STATS_TX_PKTS,    },
+	{ "tx_bytes",   ROCKER_TLV_CMD_PORT_STATS_TX_BYTES,   },
+	{ "tx_dropped", ROCKER_TLV_CMD_PORT_STATS_TX_DROPPED, },
+	{ "tx_errors",  ROCKER_TLV_CMD_PORT_STATS_TX_ERRORS,  },
+};
+
+#define ROCKER_PORT_STATS_LEN  ARRAY_SIZE(rocker_port_stats)
+
+static void rocker_port_get_strings(struct net_device *netdev, u32 stringset,
+				    u8 *data)
+{
+	u8 *p = data;
+	int i;
+
+	switch (stringset) {
+	case ETH_SS_STATS:
+		for (i = 0; i < ARRAY_SIZE(rocker_port_stats); i++) {
+			memcpy(p, rocker_port_stats[i].str, ETH_GSTRING_LEN);
+			p += ETH_GSTRING_LEN;
+		}
+		break;
+	}
+}
+
+static int
+rocker_cmd_get_port_stats_prep(struct rocker *rocker,
+			       struct rocker_port *rocker_port,
+			       struct rocker_desc_info *desc_info,
+			       void *priv)
+{
+	struct rocker_tlv *cmd_stats;
+
+	if (rocker_tlv_put_u16(desc_info, ROCKER_TLV_CMD_TYPE,
+			       ROCKER_TLV_CMD_TYPE_GET_PORT_STATS))
+		return -EMSGSIZE;
+
+	cmd_stats = rocker_tlv_nest_start(desc_info, ROCKER_TLV_CMD_INFO);
+	if (!cmd_stats)
+		return -EMSGSIZE;
+
+	if (rocker_tlv_put_u32(desc_info, ROCKER_TLV_CMD_PORT_STATS_LPORT,
+			       rocker_port->lport))
+		return -EMSGSIZE;
+
+	rocker_tlv_nest_end(desc_info, cmd_stats);
+
+	return 0;
+}
+
+static int
+rocker_cmd_get_port_stats_ethtool_proc(struct rocker *rocker,
+				       struct rocker_port *rocker_port,
+				       struct rocker_desc_info *desc_info,
+				       void *priv)
+{
+	struct rocker_tlv *attrs[ROCKER_TLV_CMD_MAX + 1];
+	struct rocker_tlv *stats_attrs[ROCKER_TLV_CMD_PORT_STATS_MAX + 1];
+	struct rocker_tlv *pattr;
+	u32 lport;
+	u64 *data = priv;
+	int i;
+
+	rocker_tlv_parse_desc(attrs, ROCKER_TLV_CMD_MAX, desc_info);
+
+	if (!attrs[ROCKER_TLV_CMD_INFO])
+		return -EIO;
+
+	rocker_tlv_parse_nested(stats_attrs, ROCKER_TLV_CMD_PORT_STATS_MAX,
+				attrs[ROCKER_TLV_CMD_INFO]);
+
+	if (!stats_attrs[ROCKER_TLV_CMD_PORT_STATS_LPORT])
+		return -EIO;
+
+	lport = rocker_tlv_get_u32(stats_attrs[ROCKER_TLV_CMD_PORT_STATS_LPORT]);
+	if (lport != rocker_port->lport)
+		return -EIO;
+
+	for (i = 0; i < ARRAY_SIZE(rocker_port_stats); i++) {
+		pattr = stats_attrs[rocker_port_stats[i].type];
+		if (!pattr)
+			continue;
+
+		data[i] = rocker_tlv_get_u64(pattr);
+	}
+
+	return 0;
+}
+
+static int rocker_cmd_get_port_stats_ethtool(struct rocker_port *rocker_port,
+					     void *priv)
+{
+	return rocker_cmd_exec(rocker_port->rocker, rocker_port,
+			       rocker_cmd_get_port_stats_prep, NULL,
+			       rocker_cmd_get_port_stats_ethtool_proc,
+			       priv, false);
+}
+
+static void rocker_port_get_stats(struct net_device *dev,
+				  struct ethtool_stats *stats, u64 *data)
+{
+	struct rocker_port *rocker_port = netdev_priv(dev);
+
+	if (rocker_cmd_get_port_stats_ethtool(rocker_port, data) != 0) {
+		int i;
+
+		for (i = 0; i < ARRAY_SIZE(rocker_port_stats); ++i)
+			data[i] = 0;
+	}
+
+	return;
+}
+
+static int rocker_port_get_sset_count(struct net_device *netdev, int sset)
+{
+	switch (sset) {
+	case ETH_SS_STATS:
+		return ROCKER_PORT_STATS_LEN;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct ethtool_ops rocker_port_ethtool_ops = {
 	.get_settings		= rocker_port_get_settings,
 	.set_settings		= rocker_port_set_settings,
 	.get_drvinfo		= rocker_port_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
+	.get_strings		= rocker_port_get_strings,
+	.get_ethtool_stats	= rocker_port_get_stats,
+	.get_sset_count		= rocker_port_get_sset_count,
 };
 
 /*****************
