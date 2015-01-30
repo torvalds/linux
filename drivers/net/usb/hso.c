@@ -3114,17 +3114,17 @@ static void hso_serial_ref_free(struct kref *ref)
 
 static void hso_free_interface(struct usb_interface *interface)
 {
-	struct hso_serial *hso_dev;
+	struct hso_serial *serial;
 	int i;
 
 	for (i = 0; i < HSO_SERIAL_TTY_MINORS; i++) {
 		if (serial_table[i] &&
 		    (serial_table[i]->interface == interface)) {
-			hso_dev = dev2ser(serial_table[i]);
-			tty_port_tty_hangup(&hso_dev->port, false);
-			mutex_lock(&hso_dev->parent->mutex);
-			hso_dev->parent->usb_gone = 1;
-			mutex_unlock(&hso_dev->parent->mutex);
+			serial = dev2ser(serial_table[i]);
+			tty_port_tty_hangup(&serial->port, false);
+			mutex_lock(&serial->parent->mutex);
+			serial->parent->usb_gone = 1;
+			mutex_unlock(&serial->parent->mutex);
 			kref_put(&serial_table[i]->ref, hso_serial_ref_free);
 		}
 	}
