@@ -940,6 +940,31 @@ static bool nfs4_clear_cap_atomic_open_v1(struct nfs_server *server,
 	return true;
 }
 
+static u32
+nfs4_map_atomic_open_share(struct nfs_server *server,
+		fmode_t fmode, int openflags)
+{
+	u32 res = 0;
+
+	switch (fmode & (FMODE_READ | FMODE_WRITE)) {
+	case FMODE_READ:
+		res = NFS4_SHARE_ACCESS_READ;
+		break;
+	case FMODE_WRITE:
+		res = NFS4_SHARE_ACCESS_WRITE;
+		break;
+	case FMODE_READ|FMODE_WRITE:
+		res = NFS4_SHARE_ACCESS_BOTH;
+	}
+	if (!(server->caps & NFS_CAP_ATOMIC_OPEN_V1))
+		goto out;
+	/* Want no delegation if we're using O_DIRECT */
+	if (openflags & O_DIRECT)
+		res |= NFS4_SHARE_WANT_NO_DELEG;
+out:
+	return res;
+}
+
 static enum open_claim_type4
 nfs4_map_atomic_open_claim(struct nfs_server *server,
 		enum open_claim_type4 claim)
@@ -1002,6 +1027,8 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct dentry *dentry,
 	atomic_inc(&sp->so_count);
 	p->o_arg.open_flags = flags;
 	p->o_arg.fmode = fmode & (FMODE_READ|FMODE_WRITE);
+	p->o_arg.share_access = nfs4_map_atomic_open_share(server,
+			fmode, flags);
 	/* don't put an ACCESS op in OPEN compound if O_EXCL, because ACCESS
 	 * will return permission denied for all bits until close */
 	if (!(flags & O_EXCL)) {
@@ -2695,6 +2722,9 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 			goto out_wait;
 		    }
 	}
+	calldata->arg.share_access =
+		nfs4_map_atomic_open_share(NFS_SERVER(inode),
+				calldata->arg.fmode, 0);
 
 	nfs_fattr_init(calldata->res.fattr);
 	calldata->timestamp = jiffies;

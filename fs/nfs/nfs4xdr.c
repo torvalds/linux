@@ -1351,24 +1351,12 @@ static void encode_lookup(struct xdr_stream *xdr, const struct qstr *name, struc
 	encode_string(xdr, name->len, name->name);
 }
 
-static void encode_share_access(struct xdr_stream *xdr, fmode_t fmode)
+static void encode_share_access(struct xdr_stream *xdr, u32 share_access)
 {
 	__be32 *p;
 
 	p = reserve_space(xdr, 8);
-	switch (fmode & (FMODE_READ|FMODE_WRITE)) {
-	case FMODE_READ:
-		*p++ = cpu_to_be32(NFS4_SHARE_ACCESS_READ);
-		break;
-	case FMODE_WRITE:
-		*p++ = cpu_to_be32(NFS4_SHARE_ACCESS_WRITE);
-		break;
-	case FMODE_READ|FMODE_WRITE:
-		*p++ = cpu_to_be32(NFS4_SHARE_ACCESS_BOTH);
-		break;
-	default:
-		*p++ = cpu_to_be32(0);
-	}
+	*p++ = cpu_to_be32(share_access);
 	*p = cpu_to_be32(0);		/* for linux, share_deny = 0 always */
 }
 
@@ -1380,7 +1368,7 @@ static inline void encode_openhdr(struct xdr_stream *xdr, const struct nfs_opena
  * owner 4 = 32
  */
 	encode_nfs4_seqid(xdr, arg->seqid);
-	encode_share_access(xdr, arg->fmode);
+	encode_share_access(xdr, arg->share_access);
 	p = reserve_space(xdr, 36);
 	p = xdr_encode_hyper(p, arg->clientid);
 	*p++ = cpu_to_be32(24);
@@ -1535,7 +1523,7 @@ static void encode_open_downgrade(struct xdr_stream *xdr, const struct nfs_close
 	encode_op_hdr(xdr, OP_OPEN_DOWNGRADE, decode_open_downgrade_maxsz, hdr);
 	encode_nfs4_stateid(xdr, &arg->stateid);
 	encode_nfs4_seqid(xdr, arg->seqid);
-	encode_share_access(xdr, arg->fmode);
+	encode_share_access(xdr, arg->share_access);
 }
 
 static void
@@ -4935,20 +4923,13 @@ out_overflow:
 	return -EIO;
 }
 
-static int decode_delegation(struct xdr_stream *xdr, struct nfs_openres *res)
+static int decode_rw_delegation(struct xdr_stream *xdr,
+		uint32_t delegation_type,
+		struct nfs_openres *res)
 {
 	__be32 *p;
-	uint32_t delegation_type;
 	int status;
 
-	p = xdr_inline_decode(xdr, 4);
-	if (unlikely(!p))
-		goto out_overflow;
-	delegation_type = be32_to_cpup(p);
-	if (delegation_type == NFS4_OPEN_DELEGATE_NONE) {
-		res->delegation_type = 0;
-		return 0;
-	}
 	status = decode_stateid(xdr, &res->delegation);
 	if (unlikely(status))
 		return status;
@@ -4967,6 +4948,52 @@ static int decode_delegation(struct xdr_stream *xdr, struct nfs_openres *res)
 				return -EIO;
 	}
 	return decode_ace(xdr, NULL, res->server->nfs_client);
+out_overflow:
+	print_overflow_msg(__func__, xdr);
+	return -EIO;
+}
+
+static int decode_no_delegation(struct xdr_stream *xdr, struct nfs_openres *res)
+{
+	__be32 *p;
+	uint32_t why_no_delegation;
+
+	p = xdr_inline_decode(xdr, 4);
+	if (unlikely(!p))
+		goto out_overflow;
+	why_no_delegation = be32_to_cpup(p);
+	switch (why_no_delegation) {
+		case WND4_CONTENTION:
+		case WND4_RESOURCE:
+			xdr_inline_decode(xdr, 4);
+			/* Ignore for now */
+	}
+	return 0;
+out_overflow:
+	print_overflow_msg(__func__, xdr);
+	return -EIO;
+}
+
+static int decode_delegation(struct xdr_stream *xdr, struct nfs_openres *res)
+{
+	__be32 *p;
+	uint32_t delegation_type;
+
+	p = xdr_inline_decode(xdr, 4);
+	if (unlikely(!p))
+		goto out_overflow;
+	delegation_type = be32_to_cpup(p);
+	res->delegation_type = 0;
+	switch (delegation_type) {
+	case NFS4_OPEN_DELEGATE_NONE:
+		return 0;
+	case NFS4_OPEN_DELEGATE_READ:
+	case NFS4_OPEN_DELEGATE_WRITE:
+		return decode_rw_delegation(xdr, delegation_type, res);
+	case NFS4_OPEN_DELEGATE_NONE_EXT:
+		return decode_no_delegation(xdr, res);
+	}
+	return -EIO;
 out_overflow:
 	print_overflow_msg(__func__, xdr);
 	return -EIO;

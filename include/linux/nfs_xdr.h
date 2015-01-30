@@ -326,6 +326,7 @@ struct nfs_openargs {
 	struct nfs_seqid *	seqid;
 	int			open_flags;
 	fmode_t			fmode;
+	u32			share_access;
 	u32			access;
 	__u64                   clientid;
 	struct stateowner_id	id;
@@ -393,6 +394,7 @@ struct nfs_closeargs {
 	nfs4_stateid 		stateid;
 	struct nfs_seqid *	seqid;
 	fmode_t			fmode;
+	u32			share_access;
 	const u32 *		bitmask;
 };
 
