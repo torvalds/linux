@@ -240,7 +240,7 @@ static int do_open(char *name)
 		if (fd >= 0)
 			return fd;
 
-		pr_debug("dso open failed, mmap: %s\n",
+		pr_debug("dso open failed: %s\n",
 			 strerror_r(errno, sbuf, sizeof(sbuf)));
 		if (!dso__data_open_cnt || errno != EMFILE)
 			break;
