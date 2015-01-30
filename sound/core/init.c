@@ -181,7 +181,7 @@ void snd_device_initialize(struct device *dev, struct snd_card *card)
 EXPORT_SYMBOL_GPL(snd_device_initialize);
 
 static int snd_card_do_free(struct snd_card *card);
-static const struct attribute_group *card_dev_attr_groups[];
+static const struct attribute_group card_dev_attr_group;
 
 static void release_card_device(struct device *dev)
 {
@@ -269,7 +269,8 @@ int snd_card_new(struct device *parent, int idx, const char *xid,
 	card->card_dev.parent = parent;
 	card->card_dev.class = sound_class;
 	card->card_dev.release = release_card_device;
-	card->card_dev.groups = card_dev_attr_groups;
+	card->card_dev.groups = card->dev_groups;
+	card->dev_groups[0] = &card_dev_attr_group;
 	err = kobject_set_name(&card->card_dev.kobj, "card%d", idx);
 	if (err < 0)
 		goto __error;
@@ -700,14 +701,32 @@ static struct attribute *card_dev_attrs[] = {
 	NULL
 };
 
-static struct attribute_group card_dev_attr_group = {
+static const struct attribute_group card_dev_attr_group = {
 	.attrs	= card_dev_attrs,
 };
 
-static const struct attribute_group *card_dev_attr_groups[] = {
-	&card_dev_attr_group,
-	NULL
+/**
+ * snd_card_add_dev_attr - Append a new sysfs attribute group to card
+ * @card: card instance
+ * @group: attribute group to append
+ */
+int snd_card_add_dev_attr(struct snd_card *card,
+			  const struct attribute_group *group)
+{
+	int i;
+
+	/* loop for (arraysize-1) here to keep NULL at the last entry */
+	for (i = 0; i < ARRAY_SIZE(card->dev_groups) - 1; i++) {
+		if (!card->dev_groups[i]) {
+			card->dev_groups[i] = group;
+			return 0;
+		}
+	}
+
+	dev_err(card->dev, "Too many groups assigned\n");
+	return -ENOSPC;
 };
+EXPORT_SYMBOL_GPL(snd_card_add_dev_attr);
 
 /**
  *  snd_card_register - register the soundcard
