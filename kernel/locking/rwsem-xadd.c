@@ -14,8 +14,9 @@
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/sched/rt.h>
+#include <linux/osq_lock.h>
 
-#include "mcs_spinlock.h"
+#include "rwsem.h"
 
 /*
  * Guide to the rw_semaphore's count field for common values.
@@ -265,6 +266,7 @@ static inline bool rwsem_try_write_lock(long count, struct rw_semaphore *sem)
 		    RWSEM_ACTIVE_WRITE_BIAS) == RWSEM_WAITING_BIAS) {
 		if (!list_is_singular(&sem->wait_list))
 			rwsem_atomic_update(RWSEM_WAITING_BIAS, sem);
+		rwsem_set_owner(sem);
 		return true;
 	}
 
@@ -284,8 +286,10 @@ static inline bool rwsem_try_write_lock_unqueued(struct rw_semaphore *sem)
 			return false;
 
 		old = cmpxchg(&sem->count, count, count + RWSEM_ACTIVE_WRITE_BIAS);
-		if (old == count)
+		if (old == count) {
+			rwsem_set_owner(sem);
 			return true;
+		}
 
 		count = old;
 	}
