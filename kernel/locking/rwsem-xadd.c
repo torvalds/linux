@@ -337,21 +337,30 @@ static inline bool owner_running(struct rw_semaphore *sem,
 static noinline
 bool rwsem_spin_on_owner(struct rw_semaphore *sem, struct task_struct *owner)
 {
+	long count;
+
 	rcu_read_lock();
 	while (owner_running(sem, owner)) {
-		if (need_resched())
-			break;
+		/* abort spinning when need_resched */
+		if (need_resched()) {
+			rcu_read_unlock();
+			return false;
+		}
 
 		cpu_relax_lowlatency();
 	}
 	rcu_read_unlock();
 
+	if (READ_ONCE(sem->owner))
+		return true; /* new owner, continue spinning */
+
 	/*
-	 * We break out the loop above on need_resched() or when the
-	 * owner changed, which is a sign for heavy contention. Return
-	 * success only when sem->owner is NULL.
+	 * When the owner is not set, the lock could be free or
+	 * held by readers. Check the counter to verify the
+	 * state.
 	 */
-	return sem->owner == NULL;
+	count = READ_ONCE(sem->count);
+	return (count == 0 || count == RWSEM_WAITING_BIAS);
 }
 
 static bool rwsem_optimistic_spin(struct rw_semaphore *sem)
