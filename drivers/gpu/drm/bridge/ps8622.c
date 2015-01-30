@@ -504,7 +504,7 @@ static const struct drm_connector_funcs ps8622_connector_funcs = {
 	.destroy = ps8622_connector_destroy,
 };
 
-int ps8622_attach(struct drm_bridge *bridge)
+static int ps8622_attach(struct drm_bridge *bridge)
 {
 	struct ps8622_bridge *ps8622 = bridge_to_ps8622(bridge);
 	int ret;
@@ -667,7 +667,7 @@ static const struct i2c_device_id ps8622_i2c_table[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ps8622_i2c_table);
 
-struct i2c_driver ps8622_driver = {
+static struct i2c_driver ps8622_driver = {
 	.id_table	= ps8622_i2c_table,
 	.probe		= ps8622_probe,
 	.remove		= ps8622_remove,
