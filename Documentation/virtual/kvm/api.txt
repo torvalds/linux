@@ -3304,3 +3304,31 @@ Returns: 0 on success, negative value on error
 Allows use of the vector registers introduced with z13 processor, and
 provides for the synchronization between host and user space.  Will
 return -EINVAL if the machine does not support vectors.
+
+7.4 KVM_CAP_S390_USER_STSI
+
+Architectures: s390
+Parameters: none
+
+This capability allows post-handlers for the STSI instruction. After
+initial handling in the kernel, KVM exits to user space with
+KVM_EXIT_S390_STSI to allow user space to insert further data.
+
+Before exiting to userspace, kvm handlers should fill in s390_stsi field of
+vcpu->run:
+struct {
+	__u64 addr;
+	__u8 ar;
+	__u8 reserved;
+	__u8 fc;
+	__u8 sel1;
+	__u16 sel2;
+} s390_stsi;
+
+@addr - guest address of STSI SYSIB
+@fc   - function code
+@sel1 - selector 1
+@sel2 - selector 2
+@ar   - access register number
+
+KVM handlers should exit to userspace with rc = -EREMOTE.

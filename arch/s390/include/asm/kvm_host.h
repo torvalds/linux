@@ -565,6 +565,7 @@ struct kvm_arch{
 	int use_vectors;
 	int user_cpu_state_ctrl;
 	int user_sigp;
+	int user_stsi;
 	struct s390_io_adapter *adapters[MAX_S390_IO_ADAPTERS];
 	wait_queue_head_t ipte_wq;
 	int ipte_lock_count;

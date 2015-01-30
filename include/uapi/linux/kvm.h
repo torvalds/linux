@@ -172,6 +172,7 @@ struct kvm_pit_config {
 #define KVM_EXIT_S390_TSCH        22
 #define KVM_EXIT_EPR              23
 #define KVM_EXIT_SYSTEM_EVENT     24
+#define KVM_EXIT_S390_STSI        25
 
 /* For KVM_EXIT_INTERNAL_ERROR */
 /* Emulate instruction failed. */
@@ -309,6 +310,15 @@ struct kvm_run {
 			__u32 type;
 			__u64 flags;
 		} system_event;
+		/* KVM_EXIT_S390_STSI */
+		struct {
+			__u64 addr;
+			__u8 ar;
+			__u8 reserved;
+			__u8 fc;
+			__u8 sel1;
+			__u16 sel2;
+		} s390_stsi;
 		/* Fix the size of the union. */
 		char padding[256];
 	};
@@ -780,6 +790,7 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_S390_USER_SIGP 106
 #define KVM_CAP_S390_VECTOR_REGISTERS 107
 #define KVM_CAP_S390_MEM_OP 108
+#define KVM_CAP_S390_USER_STSI 109
 
 #ifdef KVM_CAP_IRQ_ROUTING
 

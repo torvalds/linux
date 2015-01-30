@@ -178,6 +178,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_VM_ATTRIBUTES:
 	case KVM_CAP_MP_STATE:
 	case KVM_CAP_S390_USER_SIGP:
+	case KVM_CAP_S390_USER_STSI:
 		r = 1;
 		break;
 	case KVM_CAP_S390_MEM_OP:
@@ -279,6 +280,10 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 	case KVM_CAP_S390_VECTOR_REGISTERS:
 		kvm->arch.use_vectors = MACHINE_HAS_VX;
 		r = MACHINE_HAS_VX ? 0 : -EINVAL;
+		break;
+	case KVM_CAP_S390_USER_STSI:
+		kvm->arch.user_stsi = 1;
+		r = 0;
 		break;
 	default:
 		r = -EINVAL;

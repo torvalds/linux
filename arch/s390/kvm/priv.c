@@ -496,6 +496,17 @@ static void handle_stsi_3_2_2(struct kvm_vcpu *vcpu, struct sysinfo_3_2_2 *mem)
 	ASCEBC(mem->vm[0].cpi, 16);
 }
 
+static void insert_stsi_usr_data(struct kvm_vcpu *vcpu, u64 addr, ar_t ar,
+				 u8 fc, u8 sel1, u16 sel2)
+{
+	vcpu->run->exit_reason = KVM_EXIT_S390_STSI;
+	vcpu->run->s390_stsi.addr = addr;
+	vcpu->run->s390_stsi.ar = ar;
+	vcpu->run->s390_stsi.fc = fc;
+	vcpu->run->s390_stsi.sel1 = sel1;
+	vcpu->run->s390_stsi.sel2 = sel2;
+}
+
 static int handle_stsi(struct kvm_vcpu *vcpu)
 {
 	int fc = (vcpu->run->s.regs.gprs[0] & 0xf0000000) >> 28;
@@ -556,11 +567,15 @@ static int handle_stsi(struct kvm_vcpu *vcpu)
 		rc = kvm_s390_inject_prog_cond(vcpu, rc);
 		goto out;
 	}
+	if (vcpu->kvm->arch.user_stsi) {
+		insert_stsi_usr_data(vcpu, operand2, ar, fc, sel1, sel2);
+		rc = -EREMOTE;
+	}
 	trace_kvm_s390_handle_stsi(vcpu, fc, sel1, sel2, operand2);
 	free_page(mem);
 	kvm_s390_set_psw_cc(vcpu, 0);
 	vcpu->run->s.regs.gprs[0] = 0;
-	return 0;
+	return rc;
 out_no_data:
 	kvm_s390_set_psw_cc(vcpu, 3);
 out:
