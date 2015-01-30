@@ -1072,7 +1072,11 @@ static void usbhsf_dma_init_pdev(struct usbhs_fifo *fifo)
 static void usbhsf_dma_init_dt(struct device *dev, struct usbhs_fifo *fifo)
 {
 	fifo->tx_chan = dma_request_slave_channel_reason(dev, "tx");
+	if (IS_ERR(fifo->tx_chan))
+		fifo->tx_chan = NULL;
 	fifo->rx_chan = dma_request_slave_channel_reason(dev, "rx");
+	if (IS_ERR(fifo->rx_chan))
+		fifo->rx_chan = NULL;
 }
 
 static void usbhsf_dma_init(struct usbhs_priv *priv,
