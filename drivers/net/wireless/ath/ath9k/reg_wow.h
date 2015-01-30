@@ -23,14 +23,9 @@
 #define AR_WOW_BCN_TIMO                 0x8274
 #define AR_WOW_KEEP_ALIVE_TIMO          0x8278
 #define AR_WOW_KEEP_ALIVE               0x827c
-#define AR_WOW_US_SCALAR                0x8284
 #define AR_WOW_KEEP_ALIVE_DELAY         0x8288
 #define AR_WOW_PATTERN_MATCH            0x828c
-#define AR_WOW_PATTERN_OFF1             0x8290  /* pattern bytes 0 -> 3 */
-#define AR_WOW_PATTERN_OFF2             0x8294  /* pattern bytes 4 -> 7 */
 
-/* for AR9285 or later version of chips */
-#define AR_WOW_EXACT                    0x829c
 #define AR_WOW_LENGTH1                  0x8360
 #define AR_WOW_LENGTH2                  0X8364
 /* register to enable match for less than 256 bytes packets */
