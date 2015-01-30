@@ -5872,10 +5872,9 @@ static inline void pr_drop_req(struct request_sock *req, __u16 port, int family)
  * TCP ECN negotiation.
  *
  * Exception: tcp_ca wants ECN. This is required for DCTCP
- * congestion control; it requires setting ECT on all packets,
- * including SYN. We inverse the test in this case: If our
- * local socket wants ECN, but peer only set ece/cwr (but not
- * ECT in IP header) its probably a non-DCTCP aware sender.
+ * congestion control: Linux DCTCP asserts ECT on all packets,
+ * including SYN, which is most optimal solution; however,
+ * others, such as FreeBSD do not.
  */
 static void tcp_ecn_create_request(struct request_sock *req,
 				   const struct sk_buff *skb,
@@ -5885,18 +5884,15 @@ static void tcp_ecn_create_request(struct request_sock *req,
 	const struct tcphdr *th = tcp_hdr(skb);
 	const struct net *net = sock_net(listen_sk);
 	bool th_ecn = th->ece && th->cwr;
-	bool ect, need_ecn, ecn_ok;
+	bool ect, ecn_ok;
 
 	if (!th_ecn)
 		return;
 
 	ect = !INET_ECN_is_not_ect(TCP_SKB_CB(skb)->ip_dsfield);
-	need_ecn = tcp_ca_needs_ecn(listen_sk);
 	ecn_ok = net->ipv4.sysctl_tcp_ecn || dst_feature(dst, RTAX_FEATURE_ECN);
 
-	if (!ect && !need_ecn && ecn_ok)
-		inet_rsk(req)->ecn_ok = 1;
-	else if (ect && need_ecn)
+	if ((!ect && ecn_ok) || tcp_ca_needs_ecn(listen_sk))
 		inet_rsk(req)->ecn_ok = 1;
 }
 
