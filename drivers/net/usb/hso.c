@@ -153,7 +153,7 @@ struct hso_net {
 	struct hso_device *parent;
 	struct net_device *net;
 	struct rfkill *rfkill;
-	char name[8];
+	char name[24];
 
 	struct usb_endpoint_descriptor *in_endp;
 	struct usb_endpoint_descriptor *out_endp;
@@ -2469,9 +2469,10 @@ static void hso_create_rfkill(struct hso_device *hso_dev,
 {
 	struct hso_net *hso_net = dev2net(hso_dev);
 	struct device *dev = &hso_net->net->dev;
+	static u32 rfkill_counter;
 
 	snprintf(hso_net->name, sizeof(hso_net->name), "hso-%d",
-		 interface->altsetting->desc.bInterfaceNumber);
+		 rfkill_counter++);
 
 	hso_net->rfkill = rfkill_alloc(hso_net->name,
 				       &interface_to_usbdev(interface)->dev,
