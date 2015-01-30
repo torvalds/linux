@@ -136,6 +136,22 @@
 	};
 };
 
+&gmac0 {
+	phy-mode = "rgmii";
+	phy-addr = <0xffffffff>; /* probe for phy addr */
+	rxd0-skew-ps = <0>;
+	rxd0-skew-ps = <0>;
+	rxd1-skew-ps = <0>;
+	rxd2-skew-ps = <0>;
+	rxd3-skew-ps = <0>;
+	txen-skew-ps = <0>;
+	txc-skew-ps = <0>;
+	rxdv-skew-ps = <0>;
+	rxc-skew-ps = <0>;
+	snps,max-mtu = <0>;
+	status = "okay";
+};
+
 &spi0 {
 	a10_sysctl: a10_sysctl@0 {
 		compatible = "altr,a10sycon";

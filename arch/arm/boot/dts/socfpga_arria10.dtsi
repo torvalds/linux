@@ -130,6 +130,8 @@
 			interrupt-names = "macirq";
 			/* Filled in by bootloader */
 			mac-address = [00 00 00 00 00 00];
+			clocks = <&l4_mp_clk>;
+			clock-names = "stmmaceth";
 			status = "disabled";
 		};
 
