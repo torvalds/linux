@@ -2290,8 +2290,9 @@ void s3c_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 	 */
 
 	/* set the PLL on, remove the HNP/SRP and set the PHY */
+	val = (hsotg->phyif == GUSBCFG_PHYIF8) ? 9 : 5;
 	writel(hsotg->phyif | GUSBCFG_TOUTCAL(7) |
-	       (0x5 << 10), hsotg->regs + GUSBCFG);
+	       (val << 10), hsotg->regs + GUSBCFG);
 
 	s3c_hsotg_init_fifo(hsotg);
 
@@ -2978,6 +2979,7 @@ static void s3c_hsotg_phy_disable(struct dwc2_hsotg *hsotg)
  */
 static void s3c_hsotg_init(struct dwc2_hsotg *hsotg)
 {
+	u32 trdtim;
 	/* unmask subset of endpoint interrupts */
 
 	writel(DIEPMSK_TIMEOUTMSK | DIEPMSK_AHBERRMSK |
@@ -3002,8 +3004,10 @@ static void s3c_hsotg_init(struct dwc2_hsotg *hsotg)
 	s3c_hsotg_init_fifo(hsotg);
 
 	/* set the PLL on, remove the HNP/SRP and set the PHY */
-	writel(GUSBCFG_PHYIF16 | GUSBCFG_TOUTCAL(7) | (0x5 << 10),
-	       hsotg->regs + GUSBCFG);
+	trdtim = (hsotg->phyif == GUSBCFG_PHYIF8) ? 9 : 5;
+	writel(hsotg->phyif | GUSBCFG_TOUTCAL(7) |
+		(trdtim << 10),
+		hsotg->regs + GUSBCFG);
 
 	if (using_dma(hsotg))
 		__orr32(hsotg->regs + GAHBCFG, GAHBCFG_DMA_EN);
