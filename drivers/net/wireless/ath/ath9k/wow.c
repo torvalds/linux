@@ -212,12 +212,6 @@ int ath9k_suspend(struct ieee80211_hw *hw,
 	ath_cancel_work(sc);
 	ath_stop_ani(sc);
 
-	if (!device_can_wakeup(sc->dev)) {
-		ath_dbg(common, WOW, "device_can_wakeup failed, WoW is not enabled\n");
-		ret = 1;
-		goto fail_wow;
-	}
-
 	/*
 	 * none of the sta vifs are associated
 	 * and we are not currently handling multivif
