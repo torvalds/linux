@@ -112,6 +112,7 @@
 					sdmmc_clk: sdmmc_clk {
 						#clock-cells = <0>;
 						compatible = "fixed-clock";
+						clock-frequency = <50000000>;
 					};
 
 					mpu_periph_clk: mpu_periph_clk {

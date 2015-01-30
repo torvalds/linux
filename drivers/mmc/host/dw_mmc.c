@@ -828,7 +828,8 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			slot->host->pdata->setpower(slot->id, mmc->ocr_avail);
 		regs = mci_readl(slot->host, PWREN);
 		regs |= (1 << slot->id);
-		mci_writel(slot->host, PWREN, regs);
+		/* TEMP HACK for A10. Don't turn on the PWREN. */
+		/*mci_writel(slot->host, PWREN, regs);*/
 		break;
 	case MMC_POWER_OFF:
 		/* Power down slot */

@@ -164,3 +164,18 @@
 		};
 	};
 };
+
+&mmc {
+	num-slots = <1>;
+	supports-highspeed;
+	broken-cd;
+	altr,dw-mshc-ciu-div = <3>;
+	altr,dw-mshc-sdr-timing = <0 3>;
+	clock-frequency = <50000000>;
+	clock-freq-min-max = <400000 25000000>;
+
+	slot@0 {
+		reg = <0>;
+		bus-width = <1>;
+	};
+};
