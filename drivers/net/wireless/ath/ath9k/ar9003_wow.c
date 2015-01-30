@@ -137,7 +137,7 @@ void ath9k_hw_wow_apply_pattern(struct ath_hw *ah, u8 *user_pattern,
 	 * other fields
 	 */
 
-	ah->wow_event_mask |= BIT(pattern_count + AR_WOW_PAT_FOUND_SHIFT);
+	ah->wow.wow_event_mask |= BIT(pattern_count + AR_WOW_PAT_FOUND_SHIFT);
 
 	if (pattern_count < 4) {
 		/* Pattern 0-3 uses AR_WOW_LENGTH1 register */
@@ -174,7 +174,7 @@ u32 ath9k_hw_wow_wakeup(struct ath_hw *ah)
 	 * register. This mask will clean it up.
 	 */
 
-	val &= ah->wow_event_mask;
+	val &= ah->wow.wow_event_mask;
 
 	if (val) {
 		if (val & AR_WOW_MAGIC_PAT_FOUND)
@@ -218,7 +218,7 @@ u32 ath9k_hw_wow_wakeup(struct ath_hw *ah)
 	if (ah->is_pciexpress)
 		ath9k_hw_configpcipowersave(ah, false);
 
-	ah->wow_event_mask = 0;
+	ah->wow.wow_event_mask = 0;
 
 	return wow_status;
 }
@@ -235,7 +235,7 @@ void ath9k_hw_wow_enable(struct ath_hw *ah, u32 pattern_enable)
 	 * are from the 'pattern_enable' in this function and
 	 * 'pattern_count' of ath9k_hw_wow_apply_pattern()
 	 */
-	wow_event_mask = ah->wow_event_mask;
+	wow_event_mask = ah->wow.wow_event_mask;
 
 	/*
 	 * Untie Power-on-Reset from the PCI-E-Reset. When we are in
@@ -402,6 +402,6 @@ void ath9k_hw_wow_enable(struct ath_hw *ah, u32 pattern_enable)
 	REG_CLR_BIT(ah, AR_PCU_MISC_MODE3, clr);
 
 	ath9k_hw_set_powermode_wow_sleep(ah);
-	ah->wow_event_mask = wow_event_mask;
+	ah->wow.wow_event_mask = wow_event_mask;
 }
 EXPORT_SYMBOL(ath9k_hw_wow_enable);

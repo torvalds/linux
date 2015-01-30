@@ -270,6 +270,10 @@ enum ath9k_hw_caps {
  * of those types.
  */
 
+struct ath9k_hw_wow {
+	u32 wow_event_mask;
+};
+
 struct ath9k_hw_capabilities {
 	u32 hw_caps; /* ATH9K_HW_CAP_* from ath9k_hw_caps */
 	u16 rts_aggr_limit;
@@ -928,7 +932,7 @@ struct ath_hw {
 	u32 ent_mode;
 
 #ifdef CONFIG_ATH9K_WOW
-	u32 wow_event_mask;
+	struct ath9k_hw_wow wow;
 #endif
 	bool is_clk_25mhz;
 	int (*get_mac_revision)(void);
