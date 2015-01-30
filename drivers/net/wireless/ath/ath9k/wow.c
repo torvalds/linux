@@ -40,12 +40,12 @@ static u8 ath9k_wow_map_triggers(struct ath_softc *sc,
 	return wow_triggers;
 }
 
-static void ath9k_wow_add_disassoc_deauth_pattern(struct ath_softc *sc)
+static int ath9k_wow_add_disassoc_deauth_pattern(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	int pattern_count = 0;
-	int i, byte_cnt = 0;
+	int ret, i, byte_cnt = 0;
 	u8 dis_deauth_pattern[MAX_PATTERN_SIZE];
 	u8 dis_deauth_mask[MAX_PATTERN_SIZE];
 
@@ -110,8 +110,10 @@ static void ath9k_wow_add_disassoc_deauth_pattern(struct ath_softc *sc)
 	dis_deauth_mask[1] = 0x03;
 	dis_deauth_mask[2] = 0xc0;
 
-	ath9k_hw_wow_apply_pattern(ah, dis_deauth_pattern, dis_deauth_mask,
-				   pattern_count, byte_cnt);
+	ret = ath9k_hw_wow_apply_pattern(ah, dis_deauth_pattern, dis_deauth_mask,
+					 pattern_count, byte_cnt);
+	if (ret)
+		goto exit;
 
 	pattern_count++;
 	/*
@@ -120,18 +122,20 @@ static void ath9k_wow_add_disassoc_deauth_pattern(struct ath_softc *sc)
 	 */
 	dis_deauth_pattern[0] = 0xC0;
 
-	ath9k_hw_wow_apply_pattern(ah, dis_deauth_pattern, dis_deauth_mask,
-				   pattern_count, byte_cnt);
+	ret = ath9k_hw_wow_apply_pattern(ah, dis_deauth_pattern, dis_deauth_mask,
+					 pattern_count, byte_cnt);
+exit:
+	return ret;
 }
 
-static void ath9k_wow_add_pattern(struct ath_softc *sc,
-				  struct cfg80211_wowlan *wowlan)
+static int ath9k_wow_add_pattern(struct ath_softc *sc,
+				 struct cfg80211_wowlan *wowlan)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct cfg80211_pkt_pattern *patterns = wowlan->patterns;
 	u8 wow_pattern[MAX_PATTERN_SIZE];
 	u8 wow_mask[MAX_PATTERN_SIZE];
-	int mask_len;
+	int mask_len, ret = 0;
 	s8 i = 0;
 
 	for (i = 0; i < wowlan->n_patterns; i++) {
@@ -141,12 +145,16 @@ static void ath9k_wow_add_pattern(struct ath_softc *sc,
 		memcpy(wow_pattern, patterns[i].pattern, patterns[i].pattern_len);
 		memcpy(wow_mask, patterns[i].mask, mask_len);
 
-		ath9k_hw_wow_apply_pattern(ah,
-					   wow_pattern,
-					   wow_mask,
-					   i + 2,
-					   patterns[i].pattern_len);
+		ret = ath9k_hw_wow_apply_pattern(ah,
+						 wow_pattern,
+						 wow_mask,
+						 i + 2,
+						 patterns[i].pattern_len);
+		if (ret)
+			break;
 	}
+
+	return ret;
 }
 
 int ath9k_suspend(struct ieee80211_hw *hw,
@@ -213,10 +221,21 @@ int ath9k_suspend(struct ieee80211_hw *hw,
 	 * Enable wake up on recieving disassoc/deauth
 	 * frame by default.
 	 */
-	ath9k_wow_add_disassoc_deauth_pattern(sc);
+	ret = ath9k_wow_add_disassoc_deauth_pattern(sc);
+	if (ret) {
+		ath_err(common,
+			"Unable to add disassoc/deauth pattern: %d\n", ret);
+		goto fail_wow;
+	}
 
-	if (triggers & AH_WOW_USER_PATTERN_EN)
-		ath9k_wow_add_pattern(sc, wowlan);
+	if (triggers & AH_WOW_USER_PATTERN_EN) {
+		ret = ath9k_wow_add_pattern(sc, wowlan);
+		if (ret) {
+			ath_err(common,
+				"Unable to add user pattern: %d\n", ret);
+			goto fail_wow;
+		}
+	}
 
 	spin_lock_bh(&sc->sc_pcu_lock);
 	/*

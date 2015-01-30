@@ -89,17 +89,16 @@ static void ath9k_wow_create_keep_alive_pattern(struct ath_hw *ah)
 
 }
 
-void ath9k_hw_wow_apply_pattern(struct ath_hw *ah, u8 *user_pattern,
-				u8 *user_mask, int pattern_count,
-				int pattern_len)
+int ath9k_hw_wow_apply_pattern(struct ath_hw *ah, u8 *user_pattern,
+			       u8 *user_mask, int pattern_count,
+			       int pattern_len)
 {
 	int i;
 	u32 pattern_val, mask_val;
 	u32 set, clr;
 
-	/* FIXME: should check count by querying the hardware capability */
-	if (pattern_count >= MAX_NUM_PATTERN)
-		return;
+	if (pattern_count >= ah->wow.max_patterns)
+		return -ENOSPC;
 
 	REG_SET_BIT(ah, AR_WOW_PATTERN, BIT(pattern_count));
 
@@ -154,6 +153,7 @@ void ath9k_hw_wow_apply_pattern(struct ath_hw *ah, u8 *user_pattern,
 		REG_RMW(ah, AR_WOW_LENGTH2, set, clr);
 	}
 
+	return 0;
 }
 EXPORT_SYMBOL(ath9k_hw_wow_apply_pattern);
 

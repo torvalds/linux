@@ -1152,18 +1152,19 @@ ath9k_hw_get_btcoex_scheme(struct ath_hw *ah)
 
 
 #ifdef CONFIG_ATH9K_WOW
-void ath9k_hw_wow_apply_pattern(struct ath_hw *ah, u8 *user_pattern,
-				u8 *user_mask, int pattern_count,
-				int pattern_len);
+int ath9k_hw_wow_apply_pattern(struct ath_hw *ah, u8 *user_pattern,
+			       u8 *user_mask, int pattern_count,
+			       int pattern_len);
 u32 ath9k_hw_wow_wakeup(struct ath_hw *ah);
 void ath9k_hw_wow_enable(struct ath_hw *ah, u32 pattern_enable);
 #else
-static inline void ath9k_hw_wow_apply_pattern(struct ath_hw *ah,
-					      u8 *user_pattern,
-					      u8 *user_mask,
-					      int pattern_count,
-					      int pattern_len)
+static inline int ath9k_hw_wow_apply_pattern(struct ath_hw *ah,
+					     u8 *user_pattern,
+					     u8 *user_mask,
+					     int pattern_count,
+					     int pattern_len)
 {
+	return 0;
 }
 static inline u32 ath9k_hw_wow_wakeup(struct ath_hw *ah)
 {
