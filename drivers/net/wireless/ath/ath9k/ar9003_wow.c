@@ -17,6 +17,7 @@
 #include <linux/export.h>
 #include "ath9k.h"
 #include "reg.h"
+#include "reg_wow.h"
 #include "hw-ops.h"
 
 static void ath9k_hw_set_powermode_wow_sleep(struct ath_hw *ah)
