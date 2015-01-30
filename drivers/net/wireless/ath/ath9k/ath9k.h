@@ -830,12 +830,6 @@ static inline void ath_fill_led_pin(struct ath_softc *sc)
 /* Wake on Wireless LAN */
 /************************/
 
-struct ath9k_wow_pattern {
-	u8 pattern_bytes[MAX_PATTERN_SIZE];
-	u8 mask_bytes[MAX_PATTERN_SIZE];
-	u32 pattern_len;
-};
-
 #ifdef CONFIG_ATH9K_WOW
 void ath9k_init_wow(struct ieee80211_hw *hw);
 void ath9k_deinit_wow(struct ieee80211_hw *hw);

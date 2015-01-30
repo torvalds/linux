@@ -128,50 +128,25 @@ static void ath9k_wow_add_pattern(struct ath_softc *sc,
 				  struct cfg80211_wowlan *wowlan)
 {
 	struct ath_hw *ah = sc->sc_ah;
-	struct ath9k_wow_pattern *wow_pattern = NULL;
 	struct cfg80211_pkt_pattern *patterns = wowlan->patterns;
+	u8 wow_pattern[MAX_PATTERN_SIZE];
+	u8 wow_mask[MAX_PATTERN_SIZE];
 	int mask_len;
 	s8 i = 0;
 
-	if (!wowlan->n_patterns)
-		return;
-
-	/*
-	 * Add the new user configured patterns
-	 */
 	for (i = 0; i < wowlan->n_patterns; i++) {
+		mask_len = DIV_ROUND_UP(patterns[i].pattern_len, 8);
+		memset(wow_pattern, 0, MAX_PATTERN_SIZE);
+		memset(wow_mask, 0, MAX_PATTERN_SIZE);
+		memcpy(wow_pattern, patterns[i].pattern, patterns[i].pattern_len);
+		memcpy(wow_mask, patterns[i].mask, mask_len);
 
-		wow_pattern = kzalloc(sizeof(*wow_pattern), GFP_KERNEL);
-
-		if (!wow_pattern)
-			return;
-
-		/*
-		 * TODO: convert the generic user space pattern to
-		 * appropriate chip specific/802.11 pattern.
-		 */
-
-		mask_len = DIV_ROUND_UP(wowlan->patterns[i].pattern_len, 8);
-		memset(wow_pattern->pattern_bytes, 0, MAX_PATTERN_SIZE);
-		memset(wow_pattern->mask_bytes, 0, MAX_PATTERN_SIZE);
-		memcpy(wow_pattern->pattern_bytes, patterns[i].pattern,
-		       patterns[i].pattern_len);
-		memcpy(wow_pattern->mask_bytes, patterns[i].mask, mask_len);
-		wow_pattern->pattern_len = patterns[i].pattern_len;
-
-		/*
-		 * just need to take care of deauth and disssoc pattern,
-		 * make sure we don't overwrite them.
-		 */
-
-		ath9k_hw_wow_apply_pattern(ah, wow_pattern->pattern_bytes,
-					   wow_pattern->mask_bytes,
+		ath9k_hw_wow_apply_pattern(ah,
+					   wow_pattern,
+					   wow_mask,
 					   i + 2,
-					   wow_pattern->pattern_len);
-		kfree(wow_pattern);
-
+					   patterns[i].pattern_len);
 	}
-
 }
 
 int ath9k_suspend(struct ieee80211_hw *hw,
