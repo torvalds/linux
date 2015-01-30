@@ -718,13 +718,15 @@ static int s3c24xx_dma_terminate_all(struct dma_chan *chan)
 	struct s3c24xx_dma_chan *s3cchan = to_s3c24xx_dma_chan(chan);
 	struct s3c24xx_dma_engine *s3cdma = s3cchan->host;
 	unsigned long flags;
+	int ret = 0;
 
 	spin_lock_irqsave(&s3cchan->vc.lock, flags);
 
 	if (!s3cchan->phy && !s3cchan->at) {
 		dev_err(&s3cdma->pdev->dev, "trying to terminate already stopped channel %d\n",
 			s3cchan->id);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto unlock;
 	}
 
 	s3cchan->state = S3C24XX_DMA_CHAN_IDLE;
@@ -741,10 +743,10 @@ static int s3c24xx_dma_terminate_all(struct dma_chan *chan)
 
 	/* Dequeue jobs not yet fired as well */
 	s3c24xx_dma_free_txd_list(s3cdma, s3cchan);
-
+unlock:
 	spin_unlock_irqrestore(&s3cchan->vc.lock, flags);
 
-	return 0;
+	return ret;
 }
 
 static int s3c24xx_dma_alloc_chan_resources(struct dma_chan *chan)
