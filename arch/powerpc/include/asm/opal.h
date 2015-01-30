@@ -304,7 +304,7 @@ enum OpalMessageType {
 					 */
 	OPAL_MSG_MEM_ERR,
 	OPAL_MSG_EPOW,
-	OPAL_MSG_SHUTDOWN,
+	OPAL_MSG_SHUTDOWN,		/* params[0] = 1 reboot, 0 shutdown */
 	OPAL_MSG_HMI_EVT,
 	OPAL_MSG_TYPE_MAX,
 };
