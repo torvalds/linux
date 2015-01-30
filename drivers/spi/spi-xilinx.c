@@ -95,6 +95,26 @@ struct xilinx_spi {
 	void (*write_fn)(u32, void __iomem *);
 };
 
+static void xspi_write32(u32 val, void __iomem *addr)
+{
+	iowrite32(val, addr);
+}
+
+static unsigned int xspi_read32(void __iomem *addr)
+{
+	return ioread32(addr);
+}
+
+static void xspi_write32_be(u32 val, void __iomem *addr)
+{
+	iowrite32be(val, addr);
+}
+
+static unsigned int xspi_read32_be(void __iomem *addr)
+{
+	return ioread32be(addr);
+}
+
 static void xilinx_spi_tx(struct xilinx_spi *xspi)
 {
 	if (!xspi->tx_ptr) {
@@ -388,15 +408,15 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 	 * Setup little endian helper functions first and try to use them
 	 * and check if bit was correctly setup or not.
 	 */
-	xspi->read_fn = ioread32;
-	xspi->write_fn = iowrite32;
+	xspi->read_fn = xspi_read32;
+	xspi->write_fn = xspi_write32;
 
 	xspi->write_fn(XSPI_CR_LOOP, xspi->regs + XSPI_CR_OFFSET);
 	tmp = xspi->read_fn(xspi->regs + XSPI_CR_OFFSET);
 	tmp &= XSPI_CR_LOOP;
 	if (tmp != XSPI_CR_LOOP) {
-		xspi->read_fn = ioread32be;
-		xspi->write_fn = iowrite32be;
+		xspi->read_fn = xspi_read32_be;
+		xspi->write_fn = xspi_write32_be;
 	}
 
 	master->bits_per_word_mask = SPI_BPW_MASK(bits_per_word);
