@@ -77,6 +77,7 @@
 #include <net/pkt_sched.h>
 #include <linux/rculist.h>
 #include <net/flow_keys.h>
+#include <net/switchdev.h>
 #include <net/bonding.h>
 #include <net/bond_3ad.h>
 #include <net/bond_alb.h>
@@ -979,7 +980,11 @@ static netdev_features_t bond_fix_features(struct net_device *dev,
 	netdev_features_t mask;
 	struct slave *slave;
 
-	mask = features;
+	/* If any slave has the offload feature flag set,
+	 * set the offload flag on the bond.
+	 */
+	mask = features | NETIF_F_HW_SWITCH_OFFLOAD;
+
 	features &= ~NETIF_F_ONE_FOR_ALL;
 	features |= NETIF_F_ALL_FOR_ALL;
 
@@ -3952,6 +3957,8 @@ static const struct net_device_ops bond_netdev_ops = {
 	.ndo_add_slave		= bond_enslave,
 	.ndo_del_slave		= bond_release,
 	.ndo_fix_features	= bond_fix_features,
+	.ndo_bridge_setlink	= ndo_dflt_netdev_switch_port_bridge_setlink,
+	.ndo_bridge_dellink	= ndo_dflt_netdev_switch_port_bridge_dellink,
 };
 
 static const struct device_type bond_type = {
