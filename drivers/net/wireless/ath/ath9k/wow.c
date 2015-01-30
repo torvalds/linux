@@ -281,7 +281,7 @@ int ath9k_resume(struct ieee80211_hw *hw)
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	u32 wow_status;
+	u8 status;
 
 	mutex_lock(&sc->mutex);
 
@@ -296,12 +296,8 @@ int ath9k_resume(struct ieee80211_hw *hw)
 
 	spin_unlock_bh(&sc->sc_pcu_lock);
 
-	wow_status = ath9k_hw_wow_wakeup(ah);
-
-	if (wow_status) {
-		ath_dbg(common, ANY, "Waking up due to WoW triggers %s with WoW status = %x\n",
-			ath9k_hw_wow_event_to_string(wow_status), wow_status);
-	}
+	status = ath9k_hw_wow_wakeup(ah);
+	ath_dbg(common, WOW, "Resume with WoW status: 0x%x\n", status);
 
 	ath_restart_work(sc);
 	ath9k_start_btcoex(sc);

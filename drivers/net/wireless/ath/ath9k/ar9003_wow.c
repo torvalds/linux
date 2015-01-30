@@ -19,21 +19,6 @@
 #include "reg.h"
 #include "hw-ops.h"
 
-const char *ath9k_hw_wow_event_to_string(u32 wow_event)
-{
-	if (wow_event & AH_WOW_MAGIC_PATTERN_EN)
-		return "Magic pattern";
-	if (wow_event & AH_WOW_USER_PATTERN_EN)
-		return "User pattern";
-	if (wow_event & AH_WOW_LINK_CHANGE)
-		return "Link change";
-	if (wow_event & AH_WOW_BEACON_MISS)
-		return "Beacon miss";
-
-	return  "unknown reason";
-}
-EXPORT_SYMBOL(ath9k_hw_wow_event_to_string);
-
 static void ath9k_hw_set_powermode_wow_sleep(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
