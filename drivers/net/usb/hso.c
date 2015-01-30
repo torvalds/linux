@@ -1270,7 +1270,6 @@ static int hso_serial_open(struct tty_struct *tty, struct file *filp)
 		goto err_out;
 
 	D1("Opening %d", serial->minor);
-	kref_get(&serial->parent->ref);
 
 	/* setup */
 	tty->driver_data = serial;
@@ -1289,7 +1288,8 @@ static int hso_serial_open(struct tty_struct *tty, struct file *filp)
 		if (result) {
 			hso_stop_serial_device(serial->parent);
 			serial->port.count--;
-			kref_put(&serial->parent->ref, hso_serial_ref_free);
+		} else {
+			kref_get(&serial->parent->ref);
 		}
 	} else {
 		D1("Port was already open");
@@ -1339,8 +1339,6 @@ static void hso_serial_close(struct tty_struct *tty, struct file *filp)
 		usb_autopm_put_interface(serial->parent->interface);
 
 	mutex_unlock(&serial->parent->mutex);
-
-	kref_put(&serial->parent->ref, hso_serial_ref_free);
 }
 
 /* close the requested serial port */
@@ -1389,6 +1387,16 @@ static int hso_serial_write_room(struct tty_struct *tty)
 
 	/* return free room */
 	return room;
+}
+
+static void hso_serial_cleanup(struct tty_struct *tty)
+{
+	struct hso_serial *serial = tty->driver_data;
+
+	if (!serial)
+		return;
+
+	kref_put(&serial->parent->ref, hso_serial_ref_free);
 }
 
 /* setup the term */
@@ -3214,6 +3222,7 @@ static const struct tty_operations hso_serial_ops = {
 	.close = hso_serial_close,
 	.write = hso_serial_write,
 	.write_room = hso_serial_write_room,
+	.cleanup = hso_serial_cleanup,
 	.ioctl = hso_serial_ioctl,
 	.set_termios = hso_serial_set_termios,
 	.chars_in_buffer = hso_serial_chars_in_buffer,
