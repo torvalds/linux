@@ -31,14 +31,16 @@ static void change_volume(struct urb *urb_out, int volume[],
 		return;		/* maximum volume - no change */
 
 	if (bytes_per_frame == 4) {
-		short *p, *buf_end;
+		__le16 *p, *buf_end;
 
-		p = (short *)urb_out->transfer_buffer;
+		p = (__le16 *)urb_out->transfer_buffer;
 		buf_end = p + urb_out->transfer_buffer_length / sizeof(*p);
 
 		for (; p < buf_end; ++p) {
-			int val = (*p * volume[chn & 1]) >> 8;
-			*p = clamp(val, 0x7fff, -0x8000);
+			short pv = le16_to_cpu(*p);
+			int val = (pv * volume[chn & 1]) >> 8;
+			pv = clamp(val, 0x7fff, -0x8000);
+			*p = cpu_to_le16(pv);
 			++chn;
 		}
 	} else if (bytes_per_frame == 6) {
@@ -114,15 +116,18 @@ static void add_monitor_signal(struct urb *urb_out, unsigned char *signal,
 		return;		/* zero volume - no change */
 
 	if (bytes_per_frame == 4) {
-		short *pi, *po, *buf_end;
+		__le16 *pi, *po, *buf_end;
 
-		pi = (short *)signal;
-		po = (short *)urb_out->transfer_buffer;
+		pi = (__le16 *)signal;
+		po = (__le16 *)urb_out->transfer_buffer;
 		buf_end = po + urb_out->transfer_buffer_length / sizeof(*po);
 
 		for (; po < buf_end; ++pi, ++po) {
-			int val = *po + ((*pi * volume) >> 8);
-			*po = clamp(val, 0x7fff, -0x8000);
+			short pov = le16_to_cpu(*po);
+			short piv = le16_to_cpu(*pi);
+			int val = pov + ((piv * volume) >> 8);
+			pov = clamp(val, 0x7fff, -0x8000);
+			*po = cpu_to_le16(pov);
 		}
 	}
 
@@ -143,10 +148,10 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 	int ret;
 	const int bytes_per_frame = line6pcm->properties->bytes_per_frame;
 	const int frame_increment =
-	    line6pcm->properties->snd_line6_rates.rats[0].num_min;
+		line6pcm->properties->rates.rats[0].num_min;
 	const int frame_factor =
-	    line6pcm->properties->snd_line6_rates.rats[0].den *
-	    (USB_INTERVALS_PER_SECOND / LINE6_ISO_INTERVAL);
+		line6pcm->properties->rates.rats[0].den *
+		(USB_INTERVALS_PER_SECOND / LINE6_ISO_INTERVAL);
 	struct urb *urb_out;
 
 	index =
@@ -365,12 +370,11 @@ static int snd_line6_playback_open(struct snd_pcm_substream *substream)
 	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
 
 	err = snd_pcm_hw_constraint_ratdens(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
-					    (&line6pcm->
-					     properties->snd_line6_rates));
+					    &line6pcm->properties->rates);
 	if (err < 0)
 		return err;
 
-	runtime->hw = line6pcm->properties->snd_line6_playback_hw;
+	runtime->hw = line6pcm->properties->playback_hw;
 	return 0;
 }
 

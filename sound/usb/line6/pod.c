@@ -21,7 +21,6 @@
 #include "capture.h"
 #include "driver.h"
 #include "playback.h"
-#include "usbdefs.h"
 
 /*
 	Locate name in binary program dump
@@ -58,44 +57,28 @@ enum {
 };
 
 struct usb_line6_pod {
-	/**
-		Generic Line 6 USB data.
-	*/
+	/* Generic Line 6 USB data */
 	struct usb_line6 line6;
 
-	/**
-		Instrument monitor level.
-	*/
+	/* Instrument monitor level */
 	int monitor_level;
 
-	/**
-		Timer for device initializaton.
-	*/
+	/* Timer for device initialization */
 	struct timer_list startup_timer;
 
-	/**
-		Work handler for device initializaton.
-	*/
+	/* Work handler for device initialization */
 	struct work_struct startup_work;
 
-	/**
-		Current progress in startup procedure.
-	*/
+	/* Current progress in startup procedure */
 	int startup_progress;
 
-	/**
-		Serial number of device.
-	*/
+	/* Serial number of device */
 	int serial_number;
 
-	/**
-		Firmware version (x 100).
-	*/
+	/* Firmware version (x 100) */
 	int firmware_version;
 
-	/**
-		Device ID.
-	*/
+	/* Device ID */
 	int device_id;
 };
 
@@ -146,7 +129,7 @@ static struct snd_ratden pod_ratden = {
 };
 
 static struct line6_pcm_properties pod_pcm_properties = {
-	.snd_line6_playback_hw = {
+	.playback_hw = {
 				  .info = (SNDRV_PCM_INFO_MMAP |
 					   SNDRV_PCM_INFO_INTERLEAVED |
 					   SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -164,7 +147,7 @@ static struct line6_pcm_properties pod_pcm_properties = {
 				  .period_bytes_max = 8192,
 				  .periods_min = 1,
 				  .periods_max = 1024},
-	.snd_line6_capture_hw = {
+	.capture_hw = {
 				 .info = (SNDRV_PCM_INFO_MMAP |
 					  SNDRV_PCM_INFO_INTERLEAVED |
 					  SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -181,7 +164,7 @@ static struct line6_pcm_properties pod_pcm_properties = {
 				 .period_bytes_max = 8192,
 				 .periods_min = 1,
 				 .periods_max = 1024},
-	.snd_line6_rates = {
+	.rates = {
 			    .nrats = 1,
 			    .rats = &pod_ratden},
 	.bytes_per_frame = POD_BYTES_PER_FRAME

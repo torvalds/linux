@@ -21,7 +21,6 @@
 #include "capture.h"
 #include "driver.h"
 #include "playback.h"
-#include "usbdefs.h"
 
 enum line6_device_type {
 	LINE6_GUITARPORT,
@@ -43,34 +42,22 @@ struct toneport_led {
 };
 
 struct usb_line6_toneport {
-	/**
-		Generic Line 6 USB data.
-	*/
+	/* Generic Line 6 USB data */
 	struct usb_line6 line6;
 
-	/**
-		Source selector.
-	*/
+	/* Source selector */
 	int source;
 
-	/**
-		Serial number of device.
-	*/
+	/* Serial number of device */
 	int serial_number;
 
-	/**
-		Firmware version (x 100).
-	*/
+	/* Firmware version (x 100) */
 	int firmware_version;
 
-	/**
-		 Timer for delayed PCM startup.
-	*/
+	/* Timer for delayed PCM startup */
 	struct timer_list timer;
 
-	/**
-		 Device type.
-	*/
+	/* Device type */
 	enum line6_device_type type;
 
 	/* LED instances */
@@ -89,7 +76,7 @@ static struct snd_ratden toneport_ratden = {
 };
 
 static struct line6_pcm_properties toneport_pcm_properties = {
-	.snd_line6_playback_hw = {
+	.playback_hw = {
 				  .info = (SNDRV_PCM_INFO_MMAP |
 					   SNDRV_PCM_INFO_INTERLEAVED |
 					   SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -107,7 +94,7 @@ static struct line6_pcm_properties toneport_pcm_properties = {
 				  .period_bytes_max = 8192,
 				  .periods_min = 1,
 				  .periods_max = 1024},
-	.snd_line6_capture_hw = {
+	.capture_hw = {
 				 .info = (SNDRV_PCM_INFO_MMAP |
 					  SNDRV_PCM_INFO_INTERLEAVED |
 					  SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -124,7 +111,7 @@ static struct line6_pcm_properties toneport_pcm_properties = {
 				 .period_bytes_max = 8192,
 				 .periods_min = 1,
 				 .periods_max = 1024},
-	.snd_line6_rates = {
+	.rates = {
 			    .nrats = 1,
 			    .rats = &toneport_ratden},
 	.bytes_per_frame = 4

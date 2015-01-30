@@ -19,7 +19,6 @@
 #include <sound/pcm.h>
 
 #include "driver.h"
-#include "usbdefs.h"
 
 /* number of URBs */
 #define LINE6_ISO_BUFFERS	2
@@ -66,8 +65,8 @@
 	the running flag indicates whether the stream is running.
 
 	For monitor or impulse operations, the driver needs to call
-	snd_line6_duplex_acquire() or snd_line6_duplex_release() with the
-	appropriate LINE6_STREAM_* flag.
+	line6_pcm_acquire() or line6_pcm_release() with the appropriate
+	LINE6_STREAM_* flag.
 */
 
 /* stream types */
@@ -84,8 +83,8 @@ enum {
 };
 
 struct line6_pcm_properties {
-	struct snd_pcm_hardware snd_line6_playback_hw, snd_line6_capture_hw;
-	struct snd_pcm_hw_constraint_ratdens snd_line6_rates;
+	struct snd_pcm_hardware playback_hw, capture_hw;
+	struct snd_pcm_hw_constraint_ratdens rates;
 	int bytes_per_frame;
 };
 
@@ -139,19 +138,13 @@ struct line6_pcm_stream {
 };
 
 struct snd_line6_pcm {
-	/**
-		 Pointer back to the Line 6 driver data structure.
-	*/
+	/* Pointer back to the Line 6 driver data structure */
 	struct usb_line6 *line6;
 
-	/**
-		 Properties.
-	*/
+	/* Properties. */
 	struct line6_pcm_properties *properties;
 
-	/**
-		 ALSA pcm stream
-	*/
+	/* ALSA pcm stream */
 	struct snd_pcm *pcm;
 
 	/* protection to state changes of in/out streams */
@@ -161,49 +154,31 @@ struct snd_line6_pcm {
 	struct line6_pcm_stream in;
 	struct line6_pcm_stream out;
 
-	/**
-		 Previously captured frame (for software monitoring).
-	*/
+	/* Previously captured frame (for software monitoring) */
 	unsigned char *prev_fbuf;
 
-	/**
-		 Size of previously captured frame (for software monitoring).
-	*/
+	/* Size of previously captured frame (for software monitoring) */
 	int prev_fsize;
 
-	/**
-		 Maximum size of USB packet.
-	*/
+	/* Maximum size of USB packet */
 	int max_packet_size;
 
-	/**
-		 PCM playback volume (left and right).
-	*/
+	/* PCM playback volume (left and right) */
 	int volume_playback[2];
 
-	/**
-		 PCM monitor volume.
-	*/
+	/* PCM monitor volume */
 	int volume_monitor;
 
-	/**
-		 Volume of impulse response test signal (if zero, test is disabled).
-	*/
+	/* Volume of impulse response test signal (if zero, test is disabled) */
 	int impulse_volume;
 
-	/**
-		 Period of impulse response test signal.
-	*/
+	/* Period of impulse response test signal */
 	int impulse_period;
 
-	/**
-		 Counter for impulse response test signal.
-	*/
+	/* Counter for impulse response test signal */
 	int impulse_count;
 
-	/**
-		 Several status bits (see LINE6_FLAG_*).
-	*/
+	/* Several status bits (see LINE6_FLAG_*) */
 	unsigned long flags;
 };
 

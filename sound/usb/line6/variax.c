@@ -17,7 +17,6 @@
 #include <sound/core.h>
 
 #include "driver.h"
-#include "usbdefs.h"
 
 #define VARIAX_STARTUP_DELAY1 1000
 #define VARIAX_STARTUP_DELAY3 100
@@ -42,30 +41,20 @@ enum {
 };
 
 struct usb_line6_variax {
-	/**
-		Generic Line 6 USB data.
-	*/
+	/* Generic Line 6 USB data */
 	struct usb_line6 line6;
 
-	/**
-		Buffer for activation code.
-	*/
+	/* Buffer for activation code */
 	unsigned char *buffer_activate;
 
-	/**
-		Handler for device initializaton.
-	*/
+	/* Handler for device initialization */
 	struct work_struct startup_work;
 
-	/**
-		Timers for device initializaton.
-	*/
+	/* Timers for device initialization */
 	struct timer_list startup_timer1;
 	struct timer_list startup_timer2;
 
-	/**
-		Current progress in startup procedure.
-	*/
+	/* Current progress in startup procedure */
 	int startup_progress;
 };
 
@@ -270,9 +259,7 @@ static const struct line6_properties variax_properties_table[] = {
 	[LINE6_PODXTLIVE_VARIAX] = {
 		.id = "PODxtLive",
 		.name = "PODxt Live",
-		.capabilities	= LINE6_CAP_CONTROL
-				| LINE6_CAP_PCM
-				| LINE6_CAP_HWMON,
+		.capabilities	= LINE6_CAP_CONTROL,
 		.altsetting = 1,
 		.ep_ctrl_r = 0x86,
 		.ep_ctrl_w = 0x05,

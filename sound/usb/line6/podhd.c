@@ -17,20 +17,12 @@
 
 #include "driver.h"
 #include "pcm.h"
-#include "usbdefs.h"
 
 enum {
 	LINE6_PODHD300,
 	LINE6_PODHD400,
 	LINE6_PODHD500_0,
 	LINE6_PODHD500_1,
-};
-
-struct usb_line6_podhd {
-	/**
-		Generic Line 6 USB data.
-	*/
-	struct usb_line6 line6;
 };
 
 #define PODHD_BYTES_PER_FRAME 6	/* 24bit audio (stereo) */
@@ -43,7 +35,7 @@ static struct snd_ratden podhd_ratden = {
 };
 
 static struct line6_pcm_properties podhd_pcm_properties = {
-	.snd_line6_playback_hw = {
+	.playback_hw = {
 				  .info = (SNDRV_PCM_INFO_MMAP |
 					   SNDRV_PCM_INFO_INTERLEAVED |
 					   SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -61,7 +53,7 @@ static struct line6_pcm_properties podhd_pcm_properties = {
 				  .period_bytes_max = 8192,
 				  .periods_min = 1,
 				  .periods_max = 1024},
-	.snd_line6_capture_hw = {
+	.capture_hw = {
 				 .info = (SNDRV_PCM_INFO_MMAP |
 					  SNDRV_PCM_INFO_INTERLEAVED |
 					  SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -78,7 +70,7 @@ static struct line6_pcm_properties podhd_pcm_properties = {
 				 .period_bytes_max = 8192,
 				 .periods_min = 1,
 				 .periods_max = 1024},
-	.snd_line6_rates = {
+	.rates = {
 			    .nrats = 1,
 			    .rats = &podhd_ratden},
 	.bytes_per_frame = PODHD_BYTES_PER_FRAME
@@ -179,7 +171,7 @@ static int podhd_probe(struct usb_interface *interface,
 {
 	return line6_probe(interface, id,
 			   &podhd_properties_table[id->driver_info],
-			   podhd_init, sizeof(struct usb_line6_podhd));
+			   podhd_init, sizeof(struct usb_line6));
 }
 
 static struct usb_driver podhd_driver = {
