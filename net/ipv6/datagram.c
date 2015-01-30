@@ -369,7 +369,7 @@ int ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len)
 
 	serr = SKB_EXT_ERR(skb);
 
-	if (sin) {
+	if (sin && skb->len) {
 		const unsigned char *nh = skb_network_header(skb);
 		sin->sin6_family = AF_INET6;
 		sin->sin6_flowinfo = 0;
@@ -394,8 +394,7 @@ int ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len)
 	memcpy(&errhdr.ee, &serr->ee, sizeof(struct sock_extended_err));
 	sin = &errhdr.offender;
 	memset(sin, 0, sizeof(*sin));
-
-	if (serr->ee.ee_origin != SO_EE_ORIGIN_LOCAL) {
+	if (serr->ee.ee_origin != SO_EE_ORIGIN_LOCAL && skb->len) {
 		sin->sin6_family = AF_INET6;
 		if (np->rxopt.all) {
 			if (serr->ee.ee_origin != SO_EE_ORIGIN_ICMP &&

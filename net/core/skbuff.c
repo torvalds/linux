@@ -3710,18 +3710,27 @@ void __skb_tstamp_tx(struct sk_buff *orig_skb,
 		     struct sock *sk, int tstype)
 {
 	struct sk_buff *skb;
+	bool tsonly = sk->sk_tsflags & SOF_TIMESTAMPING_OPT_TSONLY;
 
 	if (!sk)
 		return;
 
-	if (hwtstamps)
-		*skb_hwtstamps(orig_skb) = *hwtstamps;
+	if (tsonly)
+		skb = alloc_skb(0, GFP_ATOMIC);
 	else
-		orig_skb->tstamp = ktime_get_real();
-
-	skb = skb_clone(orig_skb, GFP_ATOMIC);
+		skb = skb_clone(orig_skb, GFP_ATOMIC);
 	if (!skb)
 		return;
+
+	if (tsonly) {
+		skb_shinfo(skb)->tx_flags = skb_shinfo(orig_skb)->tx_flags;
+		skb_shinfo(skb)->tskey = skb_shinfo(orig_skb)->tskey;
+	}
+
+	if (hwtstamps)
+		*skb_hwtstamps(skb) = *hwtstamps;
+	else
+		skb->tstamp = ktime_get_real();
 
 	__skb_complete_tx_timestamp(skb, sk, tstype);
 }
