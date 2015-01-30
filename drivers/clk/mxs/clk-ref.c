@@ -16,6 +16,8 @@
 #include <linux/slab.h>
 #include "clk.h"
 
+#define BF_CLKGATE	BIT(7)
+
 /**
  * struct clk_ref - mxs reference clock
  * @hw: clk_hw for the reference clock
@@ -39,7 +41,7 @@ static int clk_ref_enable(struct clk_hw *hw)
 {
 	struct clk_ref *ref = to_clk_ref(hw);
 
-	writel_relaxed(1 << ((ref->idx + 1) * 8 - 1), ref->reg + CLR);
+	writeb_relaxed(BF_CLKGATE, ref->reg + ref->idx + CLR);
 
 	return 0;
 }
@@ -48,7 +50,7 @@ static void clk_ref_disable(struct clk_hw *hw)
 {
 	struct clk_ref *ref = to_clk_ref(hw);
 
-	writel_relaxed(1 << ((ref->idx + 1) * 8 - 1), ref->reg + SET);
+	writeb_relaxed(BF_CLKGATE, ref->reg + ref->idx + SET);
 }
 
 static unsigned long clk_ref_recalc_rate(struct clk_hw *hw,
@@ -56,7 +58,7 @@ static unsigned long clk_ref_recalc_rate(struct clk_hw *hw,
 {
 	struct clk_ref *ref = to_clk_ref(hw);
 	u64 tmp = parent_rate;
-	u8 frac = (readl_relaxed(ref->reg) >> (ref->idx * 8)) & 0x3f;
+	u8 frac = readb_relaxed(ref->reg + ref->idx) & 0x3f;
 
 	tmp *= 18;
 	do_div(tmp, frac);
@@ -93,8 +95,7 @@ static int clk_ref_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct clk_ref *ref = to_clk_ref(hw);
 	unsigned long flags;
 	u64 tmp = parent_rate;
-	u32 val;
-	u8 frac, shift = ref->idx * 8;
+	u8 frac, val;
 
 	tmp = tmp * 18 + rate / 2;
 	do_div(tmp, rate);
@@ -107,10 +108,10 @@ static int clk_ref_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	spin_lock_irqsave(&mxs_lock, flags);
 
-	val = readl_relaxed(ref->reg);
-	val &= ~(0x3f << shift);
-	val |= frac << shift;
-	writel_relaxed(val, ref->reg);
+	val = readb_relaxed(ref->reg + ref->idx);
+	val &= ~0x3f;
+	val |= frac;
+	writeb_relaxed(val, ref->reg + ref->idx);
 
 	spin_unlock_irqrestore(&mxs_lock, flags);
 
