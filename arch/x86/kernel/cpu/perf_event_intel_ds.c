@@ -461,7 +461,8 @@ void intel_pmu_enable_bts(u64 config)
 
 	debugctlmsr |= DEBUGCTLMSR_TR;
 	debugctlmsr |= DEBUGCTLMSR_BTS;
-	debugctlmsr |= DEBUGCTLMSR_BTINT;
+	if (config & ARCH_PERFMON_EVENTSEL_INT)
+		debugctlmsr |= DEBUGCTLMSR_BTINT;
 
 	if (!(config & ARCH_PERFMON_EVENTSEL_OS))
 		debugctlmsr |= DEBUGCTLMSR_BTS_OFF_OS;

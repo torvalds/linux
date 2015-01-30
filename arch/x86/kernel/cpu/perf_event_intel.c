@@ -1242,6 +1242,8 @@ static void intel_pmu_disable_all(void)
 
 	if (test_bit(INTEL_PMC_IDX_FIXED_BTS, cpuc->active_mask))
 		intel_pmu_disable_bts();
+	else
+		intel_bts_disable_local();
 
 	intel_pmu_pebs_disable_all();
 	intel_pmu_lbr_disable_all();
@@ -1264,7 +1266,8 @@ static void intel_pmu_enable_all(int added)
 			return;
 
 		intel_pmu_enable_bts(event->hw.config);
-	}
+	} else
+		intel_bts_enable_local();
 }
 
 /*
@@ -1550,6 +1553,7 @@ static int intel_pmu_handle_irq(struct pt_regs *regs)
 		apic_write(APIC_LVTPC, APIC_DM_NMI);
 	intel_pmu_disable_all();
 	handled = intel_pmu_drain_bts_buffer();
+	handled += intel_bts_interrupt();
 	status = intel_pmu_get_status();
 	if (!status)
 		goto done;
