@@ -48,15 +48,10 @@ Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 */
 
 #include <linux/module.h>
-#include "../comedidev.h"
 #include <linux/semaphore.h>
-
-#include <pcmcia/cistpl.h>
-#include <pcmcia/cisreg.h>
-#include <pcmcia/ds.h>
-
 #include <linux/completion.h>
 
+#include "../comedi_pcmcia.h"
 #include "comedi_fc.h"
 
 struct daqp_private {
