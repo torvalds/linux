@@ -152,7 +152,9 @@
 	status = "okay";
 };
 
-&spi0 {
+&spi1 {
+	status = "okay";
+
 	a10_sysctl: a10_sysctl@0 {
 		compatible = "altr,a10sycon";
 		reg = <0>;
@@ -161,7 +163,7 @@
 		interrupts = <5 0x8>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
-		spi-max-frequency = <100000>;
+		spi-max-frequency = <1000000>;
 
 		gpio4: gpio-controller {
 			compatible = "altr,a10sycon-gpio";

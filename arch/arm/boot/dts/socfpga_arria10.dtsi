@@ -120,6 +120,12 @@
 						compatible = "fixed-clock";
 						clock-frequency = <200000000>;
 					};
+
+					l4_main_clk: l4_main_clk {
+						#clock-cells = <0>;
+						compatible = "fixed-clock";
+						clock-frequency = <400000000>;
+					};
 				};
 		};
 
@@ -257,16 +263,18 @@
 			status = "disabled";
 		};
 
-		spi0: spi@ffda4000 {
+		spi1: spi@ffda5000 {
 			compatible = "snps,dw-spi-mmio";
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <0xffda4000 0x100>;
-			interrupts = <0 101 4>;
+			reg = <0xffda5000 0x100>;
+			interrupts = <0 102 4>;
 			num-chipselect = <4>;
 			bus-num = <0>;
 			tx-dma-channel = <&pdma 16>;
 			rx-dma-channel = <&pdma 17>;
+			clocks = <&l4_main_clk>;
+			status = "disabled";
 		};
 
 		L2: l2-cache@fffff000 {
