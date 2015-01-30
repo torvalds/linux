@@ -41,7 +41,8 @@
 #include "phy-generic.h"
 
 #define VBUS_IRQ_FLAGS \
-	(IRQF_SHARED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING)
+	(IRQF_SHARED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | \
+		IRQF_ONESHOT)
 
 struct platform_device *usb_phy_generic_register(void)
 {
