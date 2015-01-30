@@ -21,6 +21,7 @@ enum iser_ib_op_code {
 enum iser_conn_state {
 	ISER_CONN_INIT,
 	ISER_CONN_UP,
+	ISER_CONN_FULL_FEATURE,
 	ISER_CONN_TERMINATING,
 	ISER_CONN_DOWN,
 };
@@ -100,7 +101,6 @@ struct isert_conn {
 	struct ib_mr		*conn_mr;
 	struct ib_qp		*conn_qp;
 	struct isert_device	*conn_device;
-	struct work_struct	conn_logout_work;
 	struct mutex		conn_mutex;
 	struct completion	conn_wait;
 	struct completion	conn_wait_comp_err;
