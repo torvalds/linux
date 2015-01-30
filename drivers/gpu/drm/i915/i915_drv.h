@@ -1756,8 +1756,6 @@ struct drm_i915_private {
 	 */
 	struct workqueue_struct *dp_wq;
 
-	uint32_t bios_vgacntr;
-
 	/* Abstract the submission mechanism (legacy ringbuffer or execlists) away */
 	struct {
 		int (*do_execbuf)(struct drm_device *dev, struct drm_file *file,

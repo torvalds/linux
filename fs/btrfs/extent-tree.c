@@ -3139,9 +3139,11 @@ static int write_one_cache_group(struct btrfs_trans_handle *trans,
 	struct extent_buffer *leaf;
 
 	ret = btrfs_search_slot(trans, extent_root, &cache->key, path, 0, 1);
-	if (ret < 0)
+	if (ret) {
+		if (ret > 0)
+			ret = -ENOENT;
 		goto fail;
-	BUG_ON(ret); /* Corruption */
+	}
 
 	leaf = path->nodes[0];
 	bi = btrfs_item_ptr_offset(leaf, path->slots[0]);
@@ -3149,11 +3151,9 @@ static int write_one_cache_group(struct btrfs_trans_handle *trans,
 	btrfs_mark_buffer_dirty(leaf);
 	btrfs_release_path(path);
 fail:
-	if (ret) {
+	if (ret)
 		btrfs_abort_transaction(trans, root, ret);
-		return ret;
-	}
-	return 0;
+	return ret;
 
 }
 
@@ -9422,7 +9422,6 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	 * are still on the list after taking the semaphore
 	 */
 	list_del_init(&block_group->list);
-	list_del_init(&block_group->ro_list);
 	if (list_empty(&block_group->space_info->block_groups[index])) {
 		kobj = block_group->space_info->block_group_kobjs[index];
 		block_group->space_info->block_group_kobjs[index] = NULL;
@@ -9464,6 +9463,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	btrfs_remove_free_space_cache(block_group);
 
 	spin_lock(&block_group->space_info->lock);
+	list_del_init(&block_group->ro_list);
 	block_group->space_info->total_bytes -= block_group->key.offset;
 	block_group->space_info->bytes_readonly -= block_group->key.offset;
 	block_group->space_info->disk_total -= block_group->key.offset * factor;

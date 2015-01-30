@@ -833,9 +833,6 @@ static void ocp_write_word(struct r8152 *tp, u16 type, u16 index, u32 data)
 		index &= ~3;
 	}
 
-	generic_ocp_read(tp, index, sizeof(tmp), &tmp, type);
-
-	data |= __le32_to_cpu(tmp) & ~mask;
 	tmp = __cpu_to_le32(data);
 
 	generic_ocp_write(tp, index, byen, sizeof(tmp), &tmp, type);
@@ -874,9 +871,6 @@ static void ocp_write_byte(struct r8152 *tp, u16 type, u16 index, u32 data)
 		index &= ~3;
 	}
 
-	generic_ocp_read(tp, index, sizeof(tmp), &tmp, type);
-
-	data |= __le32_to_cpu(tmp) & ~mask;
 	tmp = __cpu_to_le32(data);
 
 	generic_ocp_write(tp, index, byen, sizeof(tmp), &tmp, type);
@@ -924,12 +918,6 @@ static void sram_write(struct r8152 *tp, u16 addr, u16 data)
 {
 	ocp_reg_write(tp, OCP_SRAM_ADDR, addr);
 	ocp_reg_write(tp, OCP_SRAM_DATA, data);
-}
-
-static u16 sram_read(struct r8152 *tp, u16 addr)
-{
-	ocp_reg_write(tp, OCP_SRAM_ADDR, addr);
-	return ocp_reg_read(tp, OCP_SRAM_DATA);
 }
 
 static int read_mii_word(struct net_device *netdev, int phy_id, int reg)
@@ -1897,6 +1885,22 @@ static void _rtl8152_set_rx_mode(struct net_device *netdev)
 	netif_wake_queue(netdev);
 }
 
+static netdev_features_t
+rtl8152_features_check(struct sk_buff *skb, struct net_device *dev,
+		       netdev_features_t features)
+{
+	u32 mss = skb_shinfo(skb)->gso_size;
+	int max_offset = mss ? GTTCPHO_MAX : TCPHO_MAX;
+	int offset = skb_transport_offset(skb);
+
+	if ((mss || skb->ip_summed == CHECKSUM_PARTIAL) && offset > max_offset)
+		features &= ~(NETIF_F_ALL_CSUM | NETIF_F_GSO_MASK);
+	else if ((skb->len + sizeof(struct tx_desc)) > agg_buf_sz)
+		features &= ~NETIF_F_GSO_MASK;
+
+	return features;
+}
+
 static netdev_tx_t rtl8152_start_xmit(struct sk_buff *skb,
 				      struct net_device *netdev)
 {
@@ -2502,24 +2506,18 @@ static void r8153_hw_phy_cfg(struct r8152 *tp)
 	data = ocp_reg_read(tp, OCP_POWER_CFG);
 	data |= EN_10M_PLLOFF;
 	ocp_reg_write(tp, OCP_POWER_CFG, data);
-	data = sram_read(tp, SRAM_IMPEDANCE);
-	data &= ~RX_DRIVING_MASK;
-	sram_write(tp, SRAM_IMPEDANCE, data);
+	sram_write(tp, SRAM_IMPEDANCE, 0x0b13);
 
 	ocp_data = ocp_read_word(tp, MCU_TYPE_PLA, PLA_PHY_PWR);
 	ocp_data |= PFM_PWM_SWITCH;
 	ocp_write_word(tp, MCU_TYPE_PLA, PLA_PHY_PWR, ocp_data);
 
-	data = sram_read(tp, SRAM_LPF_CFG);
-	data |= LPF_AUTO_TUNE;
-	sram_write(tp, SRAM_LPF_CFG, data);
+	/* Enable LPF corner auto tune */
+	sram_write(tp, SRAM_LPF_CFG, 0xf70f);
 
-	data = sram_read(tp, SRAM_10M_AMP1);
-	data |= GDAC_IB_UPALL;
-	sram_write(tp, SRAM_10M_AMP1, data);
-	data = sram_read(tp, SRAM_10M_AMP2);
-	data |= AMP_DN;
-	sram_write(tp, SRAM_10M_AMP2, data);
+	/* Adjust 10M Amplitude */
+	sram_write(tp, SRAM_10M_AMP1, 0x00af);
+	sram_write(tp, SRAM_10M_AMP2, 0x0208);
 
 	set_bit(PHY_RESET, &tp->flags);
 }
@@ -3706,6 +3704,7 @@ static const struct net_device_ops rtl8152_netdev_ops = {
 	.ndo_set_mac_address	= rtl8152_set_mac_address,
 	.ndo_change_mtu		= rtl8152_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_features_check	= rtl8152_features_check,
 };
 
 static void r8152b_get_version(struct r8152 *tp)

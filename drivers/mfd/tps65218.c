@@ -125,10 +125,21 @@ int tps65218_clear_bits(struct tps65218 *tps, unsigned int reg,
 }
 EXPORT_SYMBOL_GPL(tps65218_clear_bits);
 
+static const struct regmap_range tps65218_yes_ranges[] = {
+	regmap_reg_range(TPS65218_REG_INT1, TPS65218_REG_INT2),
+	regmap_reg_range(TPS65218_REG_STATUS, TPS65218_REG_STATUS),
+};
+
+static const struct regmap_access_table tps65218_volatile_table = {
+	.yes_ranges = tps65218_yes_ranges,
+	.n_yes_ranges = ARRAY_SIZE(tps65218_yes_ranges),
+};
+
 static struct regmap_config tps65218_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.cache_type = REGCACHE_RBTREE,
+	.volatile_table = &tps65218_volatile_table,
 };
 
 static const struct regmap_irq tps65218_irqs[] = {
@@ -193,6 +204,7 @@ static struct regmap_irq_chip tps65218_irq_chip = {
 
 	.num_regs = 2,
 	.mask_base = TPS65218_REG_INT_MASK1,
+	.status_base = TPS65218_REG_INT1,
 };
 
 static const struct of_device_id of_tps65218_match_table[] = {

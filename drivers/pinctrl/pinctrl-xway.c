@@ -798,10 +798,8 @@ static int pinmux_xway_probe(struct platform_device *pdev)
 
 	/* load the gpio chip */
 	xway_chip.dev = &pdev->dev;
-	of_gpiochip_add(&xway_chip);
 	ret = gpiochip_add(&xway_chip);
 	if (ret) {
-		of_gpiochip_remove(&xway_chip);
 		dev_err(&pdev->dev, "Failed to register gpio chip\n");
 		return ret;
 	}

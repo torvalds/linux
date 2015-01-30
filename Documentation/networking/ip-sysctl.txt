@@ -66,6 +66,8 @@ fwmark_reflect - BOOLEAN
 route/max_size - INTEGER
 	Maximum number of routes allowed in the kernel.  Increase
 	this when using large numbers of interfaces and/or routes.
+	From linux kernel 3.6 onwards, this is deprecated for ipv4
+	as route cache is no longer used.
 
 neigh/default/gc_thresh1 - INTEGER
 	Minimum number of entries to keep.  Garbage collector will not

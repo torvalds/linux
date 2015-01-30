@@ -19,7 +19,7 @@ type of the connections, they just map their existence. Specific properties
 may be described by specialized bindings depending on the type of connection.
 
 To see how this binding applies to video pipelines, for example, see
-Documentation/device-tree/bindings/media/video-interfaces.txt.
+Documentation/devicetree/bindings/media/video-interfaces.txt.
 Here the ports describe data interfaces, and the links between them are
 the connecting data buses. A single port with multiple connections can
 correspond to multiple devices being connected to the same physical bus.
