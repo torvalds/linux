@@ -621,13 +621,13 @@ static void spi_hw_init(struct dw_spi *dws)
 	if (!dws->fifo_len) {
 		u32 fifo;
 
-		for (fifo = 2; fifo <= 257; fifo++) {
+		for (fifo = 2; fifo <= 256; fifo++) {
 			dw_writew(dws, DW_SPI_TXFLTR, fifo);
 			if (fifo != dw_readw(dws, DW_SPI_TXFLTR))
 				break;
 		}
 
-		dws->fifo_len = (fifo == 257) ? 0 : fifo;
+		dws->fifo_len = (fifo == 2) ? 0 : fifo - 1;
 		dw_writew(dws, DW_SPI_TXFLTR, 0);
 	}
 }
@@ -673,7 +673,7 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 	if (dws->dma_ops && dws->dma_ops->dma_init) {
 		ret = dws->dma_ops->dma_init(dws);
 		if (ret) {
-			dev_warn(&master->dev, "DMA init failed\n");
+			dev_warn(dev, "DMA init failed\n");
 			dws->dma_inited = 0;
 		}
 	}

@@ -4650,6 +4650,9 @@ int cpuset_cpumask_can_shrink(const struct cpumask *cur,
 	struct dl_bw *cur_dl_b;
 	unsigned long flags;
 
+	if (!cpumask_weight(cur))
+		return ret;
+
 	rcu_read_lock_sched();
 	cur_dl_b = dl_bw_of(cpumask_any(cur));
 	trial_cpus = cpumask_weight(trial);
