@@ -2544,9 +2544,6 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 			pCap->hw_caps |= ATH9K_HW_CAP_RTT;
 	}
 
-	if (AR_SREV_9462(ah))
-		pCap->hw_caps |= ATH9K_HW_WOW_DEVICE_CAPABLE;
-
 	if (AR_SREV_9300_20_OR_LATER(ah) &&
 	    ah->eep_ops->get_eeprom(ah, EEP_PAPRD))
 			pCap->hw_caps |= ATH9K_HW_CAP_PAPRD;

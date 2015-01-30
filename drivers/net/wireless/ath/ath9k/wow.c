@@ -352,9 +352,7 @@ void ath9k_init_wow(struct ieee80211_hw *hw)
 {
 	struct ath_softc *sc = hw->priv;
 
-	if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_WOW_DEVICE_CAPABLE) &&
-	    (sc->driver_data & ATH9K_PCI_WOW) &&
-	    device_can_wakeup(sc->dev))
+	if ((sc->driver_data & ATH9K_PCI_WOW) && device_can_wakeup(sc->dev))
 		hw->wiphy->wowlan = &ath9k_wowlan_support;
 
 	atomic_set(&sc->wow_sleep_proc_intr, -1);
