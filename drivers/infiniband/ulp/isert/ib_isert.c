@@ -40,6 +40,7 @@ static DEFINE_MUTEX(device_list_mutex);
 static LIST_HEAD(device_list);
 static struct workqueue_struct *isert_rx_wq;
 static struct workqueue_struct *isert_comp_wq;
+static struct workqueue_struct *isert_release_wq;
 static struct kmem_cache *isert_cmd_cache;
 
 static int
@@ -2379,6 +2380,24 @@ isert_free_np(struct iscsi_np *np)
 	kfree(isert_np);
 }
 
+static void isert_release_work(struct work_struct *work)
+{
+	struct isert_conn *isert_conn = container_of(work,
+						     struct isert_conn,
+						     release_work);
+
+	pr_info("Starting release conn %p\n", isert_conn);
+
+	wait_for_completion(&isert_conn->conn_wait);
+
+	mutex_lock(&isert_conn->conn_mutex);
+	isert_conn->state = ISER_CONN_DOWN;
+	mutex_unlock(&isert_conn->conn_mutex);
+
+	pr_info("Destroying conn %p\n", isert_conn);
+	isert_put_conn(isert_conn);
+}
+
 static void isert_wait_conn(struct iscsi_conn *conn)
 {
 	struct isert_conn *isert_conn = conn->context;
@@ -2398,14 +2417,9 @@ static void isert_wait_conn(struct iscsi_conn *conn)
 	mutex_unlock(&isert_conn->conn_mutex);
 
 	wait_for_completion(&isert_conn->conn_wait_comp_err);
-	wait_for_completion(&isert_conn->conn_wait);
 
-	mutex_lock(&isert_conn->conn_mutex);
-	isert_conn->state = ISER_CONN_DOWN;
-	mutex_unlock(&isert_conn->conn_mutex);
-
-	pr_info("Destroying conn %p\n", isert_conn);
-	isert_put_conn(isert_conn);
+	INIT_WORK(&isert_conn->release_work, isert_release_work);
+	queue_work(isert_release_wq, &isert_conn->release_work);
 }
 
 static void isert_free_conn(struct iscsi_conn *conn)
@@ -2451,20 +2465,30 @@ static int __init isert_init(void)
 		goto destroy_rx_wq;
 	}
 
+	isert_release_wq = alloc_workqueue("isert_release_wq", WQ_UNBOUND,
+					WQ_UNBOUND_MAX_ACTIVE);
+	if (!isert_release_wq) {
+		pr_err("Unable to allocate isert_release_wq\n");
+		ret = -ENOMEM;
+		goto destroy_comp_wq;
+	}
+
 	isert_cmd_cache = kmem_cache_create("isert_cmd_cache",
 			sizeof(struct isert_cmd), __alignof__(struct isert_cmd),
 			0, NULL);
 	if (!isert_cmd_cache) {
 		pr_err("Unable to create isert_cmd_cache\n");
 		ret = -ENOMEM;
-		goto destroy_tx_cq;
+		goto destroy_release_wq;
 	}
 
 	iscsit_register_transport(&iser_target_transport);
-	pr_debug("iSER_TARGET[0] - Loaded iser_target_transport\n");
+	pr_info("iSER_TARGET[0] - Loaded iser_target_transport\n");
 	return 0;
 
-destroy_tx_cq:
+destroy_release_wq:
+	destroy_workqueue(isert_release_wq);
+destroy_comp_wq:
 	destroy_workqueue(isert_comp_wq);
 destroy_rx_wq:
 	destroy_workqueue(isert_rx_wq);
@@ -2475,6 +2499,7 @@ static void __exit isert_exit(void)
 {
 	flush_scheduled_work();
 	kmem_cache_destroy(isert_cmd_cache);
+	destroy_workqueue(isert_release_wq);
 	destroy_workqueue(isert_comp_wq);
 	destroy_workqueue(isert_rx_wq);
 	iscsit_unregister_transport(&iser_target_transport);
