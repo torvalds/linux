@@ -327,7 +327,7 @@ void ath9k_init_wow(struct ieee80211_hw *hw)
 {
 	struct ath_softc *sc = hw->priv;
 
-	if (sc->driver_data & ATH9K_PCI_WOW) {
+	if ((sc->driver_data & ATH9K_PCI_WOW) || sc->force_wow) {
 		hw->wiphy->wowlan = &ath9k_wowlan_support;
 		device_init_wakeup(sc->dev, 1);
 	}
@@ -337,6 +337,6 @@ void ath9k_deinit_wow(struct ieee80211_hw *hw)
 {
 	struct ath_softc *sc = hw->priv;
 
-	if (sc->driver_data & ATH9K_PCI_WOW)
+	if ((sc->driver_data & ATH9K_PCI_WOW) || sc->force_wow)
 		device_init_wakeup(sc->dev, 0);
 }

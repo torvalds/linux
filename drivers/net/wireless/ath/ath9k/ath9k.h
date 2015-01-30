@@ -1044,6 +1044,7 @@ struct ath_softc {
 
 #ifdef CONFIG_ATH9K_WOW
 	u32 wow_intr_before_sleep;
+	bool force_wow;
 #endif
 };
 
