@@ -303,24 +303,6 @@ int snd_register_device(int type, struct snd_card *card, int dev,
 }
 EXPORT_SYMBOL(snd_register_device);
 
-/* find the matching minor record
- * return the index of snd_minor, or -1 if not found
- */
-static int find_snd_minor(int type, struct snd_card *card, int dev)
-{
-	int cardnum, minor;
-	struct snd_minor *mptr;
-
-	cardnum = card ? card->number : -1;
-	for (minor = 0; minor < ARRAY_SIZE(snd_minors); ++minor)
-		if ((mptr = snd_minors[minor]) != NULL &&
-		    mptr->type == type &&
-		    mptr->card == cardnum &&
-		    mptr->device == dev)
-			return minor;
-	return -1;
-}
-
 /**
  * snd_unregister_device - unregister the device on the given card
  * @dev: the device instance
@@ -351,31 +333,6 @@ int snd_unregister_device(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(snd_unregister_device);
-
-/**
- * snd_get_device - get the assigned device to the given type and device number
- * @type: the device type, SNDRV_DEVICE_TYPE_XXX
- * @card:the card instance
- * @dev: the device index
- *
- * The caller needs to release it via put_device() after using it.
- */
-struct device *snd_get_device(int type, struct snd_card *card, int dev)
-{
-	int minor;
-	struct device *d = NULL;
-
-	mutex_lock(&sound_mutex);
-	minor = find_snd_minor(type, card, dev);
-	if (minor >= 0) {
-		d = snd_minors[minor]->dev;
-		if (d)
-			get_device(d);
-	}
-	mutex_unlock(&sound_mutex);
-	return d;
-}
-EXPORT_SYMBOL(snd_get_device);
 
 #ifdef CONFIG_PROC_FS
 /*
