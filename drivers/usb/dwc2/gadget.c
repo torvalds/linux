@@ -726,6 +726,59 @@ dma_error:
 	return -EIO;
 }
 
+static int s3c_hsotg_handle_unaligned_buf_start(struct dwc2_hsotg *hsotg,
+	struct s3c_hsotg_ep *hs_ep, struct s3c_hsotg_req *hs_req)
+{
+	void *req_buf = hs_req->req.buf;
+
+	/* If dma is not being used or buffer is aligned */
+	if (!using_dma(hsotg) || !((long)req_buf & 3))
+		return 0;
+
+	WARN_ON(hs_req->saved_req_buf);
+
+	dev_dbg(hsotg->dev, "%s: %s: buf=%p length=%d\n", __func__,
+			hs_ep->ep.name, req_buf, hs_req->req.length);
+
+	hs_req->req.buf = kmalloc(hs_req->req.length, GFP_ATOMIC);
+	if (!hs_req->req.buf) {
+		hs_req->req.buf = req_buf;
+		dev_err(hsotg->dev,
+			"%s: unable to allocate memory for bounce buffer\n",
+			__func__);
+		return -ENOMEM;
+	}
+
+	/* Save actual buffer */
+	hs_req->saved_req_buf = req_buf;
+
+	if (hs_ep->dir_in)
+		memcpy(hs_req->req.buf, req_buf, hs_req->req.length);
+	return 0;
+}
+
+static void s3c_hsotg_handle_unaligned_buf_complete(struct dwc2_hsotg *hsotg,
+	struct s3c_hsotg_ep *hs_ep, struct s3c_hsotg_req *hs_req)
+{
+	/* If dma is not being used or buffer was aligned */
+	if (!using_dma(hsotg) || !hs_req->saved_req_buf)
+		return;
+
+	dev_dbg(hsotg->dev, "%s: %s: status=%d actual-length=%d\n", __func__,
+		hs_ep->ep.name, hs_req->req.status, hs_req->req.actual);
+
+	/* Copy data from bounce buffer on successful out transfer */
+	if (!hs_ep->dir_in && !hs_req->req.status)
+		memcpy(hs_req->saved_req_buf, hs_req->req.buf,
+							hs_req->req.actual);
+
+	/* Free bounce buffer */
+	kfree(hs_req->req.buf);
+
+	hs_req->req.buf = hs_req->saved_req_buf;
+	hs_req->saved_req_buf = NULL;
+}
+
 static int s3c_hsotg_ep_queue(struct usb_ep *ep, struct usb_request *req,
 			      gfp_t gfp_flags)
 {
@@ -733,6 +786,7 @@ static int s3c_hsotg_ep_queue(struct usb_ep *ep, struct usb_request *req,
 	struct s3c_hsotg_ep *hs_ep = our_ep(ep);
 	struct dwc2_hsotg *hs = hs_ep->parent;
 	bool first;
+	int ret;
 
 	dev_dbg(hs->dev, "%s: req %p: %d@%p, noi=%d, zero=%d, snok=%d\n",
 		ep->name, req, req->length, req->buf, req->no_interrupt,
@@ -743,9 +797,13 @@ static int s3c_hsotg_ep_queue(struct usb_ep *ep, struct usb_request *req,
 	req->actual = 0;
 	req->status = -EINPROGRESS;
 
+	ret = s3c_hsotg_handle_unaligned_buf_start(hs, hs_ep, hs_req);
+	if (ret)
+		return ret;
+
 	/* if we're using DMA, sync the buffers as necessary */
 	if (using_dma(hs)) {
-		int ret = s3c_hsotg_map_dma(hs, hs_ep, req);
+		ret = s3c_hsotg_map_dma(hs, hs_ep, req);
 		if (ret)
 			return ret;
 	}
@@ -1325,6 +1383,8 @@ static void s3c_hsotg_complete_request(struct dwc2_hsotg *hsotg,
 
 	if (hs_req->req.status == -EINPROGRESS)
 		hs_req->req.status = result;
+
+	s3c_hsotg_handle_unaligned_buf_complete(hsotg, hs_ep, hs_req);
 
 	hs_ep->req = NULL;
 	list_del_init(&hs_req->queue);

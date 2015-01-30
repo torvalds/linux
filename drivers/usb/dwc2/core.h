@@ -158,10 +158,12 @@ struct s3c_hsotg_ep {
  * struct s3c_hsotg_req - data transfer request
  * @req: The USB gadget request
  * @queue: The list of requests for the endpoint this is queued for.
+ * @saved_req_buf: variable to save req.buf when bounce buffers are used.
  */
 struct s3c_hsotg_req {
 	struct usb_request      req;
 	struct list_head        queue;
+	void *saved_req_buf;
 };
 
 #if IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL) || IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
