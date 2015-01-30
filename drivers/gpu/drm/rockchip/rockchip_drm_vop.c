@@ -893,7 +893,7 @@ static int vop_crtc_mode_set(struct drm_crtc *crtc,
 	u16 vsync_len = adjusted_mode->vsync_end - adjusted_mode->vsync_start;
 	u16 vact_st = adjusted_mode->vtotal - adjusted_mode->vsync_start;
 	u16 vact_end = vact_st + vdisplay;
-	int ret;
+	int ret, ret_clk;
 	uint32_t val;
 
 	/*
@@ -915,7 +915,8 @@ static int vop_crtc_mode_set(struct drm_crtc *crtc,
 	default:
 		DRM_ERROR("unsupport connector_type[%d]\n",
 			  vop->connector_type);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	};
 	VOP_CTRL_SET(vop, out_mode, vop->connector_out_mode);
 
@@ -938,7 +939,7 @@ static int vop_crtc_mode_set(struct drm_crtc *crtc,
 
 	ret = vop_crtc_mode_set_base(crtc, x, y, fb);
 	if (ret)
-		return ret;
+		goto out;
 
 	/*
 	 * reset dclk, take all mode config affect, so the clk would run in
@@ -949,13 +950,14 @@ static int vop_crtc_mode_set(struct drm_crtc *crtc,
 	reset_control_deassert(vop->dclk_rst);
 
 	clk_set_rate(vop->dclk, adjusted_mode->clock * 1000);
-	ret = clk_enable(vop->dclk);
-	if (ret < 0) {
-		dev_err(vop->dev, "failed to enable dclk - %d\n", ret);
-		return ret;
+out:
+	ret_clk = clk_enable(vop->dclk);
+	if (ret_clk < 0) {
+		dev_err(vop->dev, "failed to enable dclk - %d\n", ret_clk);
+		return ret_clk;
 	}
 
-	return 0;
+	return ret;
 }
 
 static void vop_crtc_commit(struct drm_crtc *crtc)
