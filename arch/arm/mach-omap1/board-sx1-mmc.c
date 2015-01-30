@@ -16,7 +16,7 @@
 #include <linux/platform_device.h>
 
 #include <mach/hardware.h>
-#include <mach/board-sx1.h>
+#include "board-sx1.h"
 
 #include "mmc.h"
 

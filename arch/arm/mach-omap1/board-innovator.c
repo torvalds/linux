@@ -32,7 +32,7 @@
 #include <asm/mach/map.h>
 
 #include <mach/mux.h>
-#include <mach/flash.h>
+#include "flash.h"
 #include <mach/tc.h>
 #include <linux/platform_data/keypad-omap.h>
 

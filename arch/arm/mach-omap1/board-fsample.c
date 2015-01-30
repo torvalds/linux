@@ -29,7 +29,7 @@
 
 #include <mach/tc.h>
 #include <mach/mux.h>
-#include <mach/flash.h>
+#include "flash.h"
 #include <linux/platform_data/keypad-omap.h>
 
 #include <mach/hardware.h>

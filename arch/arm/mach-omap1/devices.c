@@ -25,7 +25,7 @@
 #include <mach/mux.h>
 
 #include <mach/omap7xx.h>
-#include <mach/camera.h>
+#include "camera.h"
 #include <mach/hardware.h>
 
 #include "common.h"
