@@ -1407,6 +1407,11 @@ sub dodie {
 	print " See $opt{LOG_FILE} for more info.\n";
     }
 
+    if ($monitor_cnt) {
+	    # restore terminal settings
+	    system("stty $stty_orig");
+    }
+
     die @_, "\n";
 }
 
@@ -1449,7 +1454,7 @@ sub exec_console {
     close($pts);
 
     exec $console or
-	dodie "Can't open console $console";
+	die "Can't open console $console";
 }
 
 sub open_console {
