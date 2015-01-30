@@ -10,6 +10,9 @@
 #include <linux/cpuidle.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/consumer.h>
+#include <linux/regulator/driver.h>
+#include <linux/regulator/machine.h>
 #include <asm/cpuidle.h>
 #include <asm/fncpy.h>
 #include <asm/proc-fns.h>
@@ -48,6 +51,13 @@ static const u32 imx6sl_mmdc_io_offset[] __initconst = {
 	0x330, 0x334, 0x320,	    /*SDCKE0, SDCK1, RESET */
 };
 
+static struct regulator *vbus_ldo;
+static struct regulator_dev *ldo2p5_dummy_regulator_rdev;
+static struct regulator_init_data ldo2p5_dummy_initdata = {
+	.constraints = {
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+	},
+};
 static int ldo2p5_dummy_enable;
 
 static void (*imx6sl_wfi_in_iram_fn)(void __iomem *iram_vbase,
@@ -105,6 +115,10 @@ int __init imx6sl_cpuidle_init(void)
 	const u32 *mmdc_offset_array;
 	u32 wfi_code_size;
 
+	vbus_ldo = regulator_get(NULL, "ldo2p5-dummy");
+	if (IS_ERR(vbus_ldo))
+		vbus_ldo = NULL;
+
 	wfi_iram_base = (void *)(iram_tlb_base_addr + MX6_CPUIDLE_IRAM_ADDR_OFFSET);
 
 	/* Make sure wif_iram_base is 8 byte aligned. */
@@ -134,3 +148,68 @@ int __init imx6sl_cpuidle_init(void)
 
 	return cpuidle_register(&imx6sl_cpuidle_driver, NULL);
 }
+
+static int imx_ldo2p5_dummy_enable(struct regulator_dev *rdev)
+{
+	ldo2p5_dummy_enable = 1;
+	return 0;
+}
+
+static int imx_ldo2p5_dummy_disable(struct regulator_dev *rdev)
+{
+	ldo2p5_dummy_enable = 0;
+	return 0;
+}
+
+static int imx_ldo2p5_dummy_is_enable(struct regulator_dev *rdev)
+{
+	return ldo2p5_dummy_enable;
+}
+
+static struct regulator_ops ldo2p5_dummy_ops = {
+	.enable = imx_ldo2p5_dummy_enable,
+	.disable = imx_ldo2p5_dummy_disable,
+	.is_enabled = imx_ldo2p5_dummy_is_enable,
+};
+
+static struct regulator_desc ldo2p5_dummy_desc = {
+	.name = "ldo2p5-dummy",
+	.id = -1,
+	.type = REGULATOR_VOLTAGE,
+	.owner = THIS_MODULE,
+	.ops = &ldo2p5_dummy_ops,
+};
+
+static int ldo2p5_dummy_probe(struct platform_device *pdev)
+{
+	struct regulator_config config = { };
+	int ret;
+
+	config.dev = &pdev->dev;
+	config.init_data = &ldo2p5_dummy_initdata;
+	config.of_node = pdev->dev.of_node;
+
+	ldo2p5_dummy_regulator_rdev = regulator_register(&ldo2p5_dummy_desc, &config);
+	if (IS_ERR(ldo2p5_dummy_regulator_rdev)) {
+		ret = PTR_ERR(ldo2p5_dummy_regulator_rdev);
+		dev_err(&pdev->dev, "Failed to register dummy ldo2p5 regulator: %d\n", ret);
+		return ret;
+	}
+	return 0;
+}
+
+static const struct of_device_id imx_ldo2p5_dummy_ids[] = {
+	{ .compatible = "fsl,imx6-dummy-ldo2p5"},
+	};
+MODULE_DEVICE_TABLE(ofm, imx_ldo2p5_dummy_ids);
+
+static struct platform_driver ldo2p5_dummy_driver = {
+	.probe = ldo2p5_dummy_probe,
+	.driver = {
+		.name = "ldo2p5-dummy",
+		.owner = THIS_MODULE,
+		.of_match_table = imx_ldo2p5_dummy_ids,
+	},
+};
+
+module_platform_driver(ldo2p5_dummy_driver);
