@@ -197,20 +197,20 @@ int ath9k_suspend(struct ieee80211_hw *hw,
 
 	mutex_lock(&sc->mutex);
 
-	ath_cancel_work(sc);
-	ath_stop_ani(sc);
-
 	if (test_bit(ATH_OP_INVALID, &common->op_flags)) {
-		ath_dbg(common, ANY, "Device not present\n");
-		ret = -EINVAL;
+		ath_err(common, "Device not present\n");
+		ret = -ENODEV;
 		goto fail_wow;
 	}
 
 	if (WARN_ON(!wowlan)) {
-		ath_dbg(common, WOW, "None of the WoW triggers enabled\n");
+		ath_err(common, "None of the WoW triggers enabled\n");
 		ret = -EINVAL;
 		goto fail_wow;
 	}
+
+	ath_cancel_work(sc);
+	ath_stop_ani(sc);
 
 	if (!device_can_wakeup(sc->dev)) {
 		ath_dbg(common, WOW, "device_can_wakeup failed, WoW is not enabled\n");
