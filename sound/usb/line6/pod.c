@@ -330,6 +330,18 @@ static DEVICE_ATTR_RO(device_id);
 static DEVICE_ATTR_RO(firmware_version);
 static DEVICE_ATTR_RO(serial_number);
 
+static struct attribute *pod_dev_attrs[] = {
+	&dev_attr_device_id.attr,
+	&dev_attr_firmware_version.attr,
+	&dev_attr_serial_number.attr,
+	NULL
+};
+
+static const struct attribute_group pod_dev_attr_group = {
+	.name = "pod",
+	.attrs = pod_dev_attrs,
+};
+
 /* control info callback */
 static int snd_pod_control_monitor_info(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_info *uinfo)
@@ -387,32 +399,8 @@ static void line6_pod_disconnect(struct usb_line6 *line6)
 	struct usb_line6_pod *pod = (struct usb_line6_pod *)line6;
 	struct device *dev = line6->ifcdev;
 
-	/* remove sysfs entries: */
-	device_remove_file(dev, &dev_attr_device_id);
-	device_remove_file(dev, &dev_attr_firmware_version);
-	device_remove_file(dev, &dev_attr_serial_number);
-
 	del_timer_sync(&pod->startup_timer);
 	cancel_work_sync(&pod->startup_work);
-}
-
-/*
-	Create sysfs entries.
-*/
-static int pod_create_files2(struct device *dev)
-{
-	int err;
-
-	err = device_create_file(dev, &dev_attr_device_id);
-	if (err < 0)
-		return err;
-	err = device_create_file(dev, &dev_attr_firmware_version);
-	if (err < 0)
-		return err;
-	err = device_create_file(dev, &dev_attr_serial_number);
-	if (err < 0)
-		return err;
-	return 0;
 }
 
 /*
@@ -431,7 +419,7 @@ static int pod_init(struct usb_line6 *line6,
 	INIT_WORK(&pod->startup_work, pod_startup4);
 
 	/* create sysfs entries: */
-	err = pod_create_files2(line6->ifcdev);
+	err = snd_card_add_dev_attr(line6->card, &pod_dev_attr_group);
 	if (err < 0)
 		return err;
 
