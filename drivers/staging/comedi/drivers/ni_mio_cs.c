@@ -37,15 +37,11 @@ See the notes in the ni_atmio.o driver.
 */
 
 #include <linux/module.h>
-#include "../comedidev.h"
-
 #include <linux/delay.h>
 
+#include "../comedi_pcmcia.h"
 #include "ni_stc.h"
 #include "8255.h"
-
-#include <pcmcia/cistpl.h>
-#include <pcmcia/ds.h>
 
 /*
  *  AT specific setup
