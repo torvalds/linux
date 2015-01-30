@@ -2859,6 +2859,11 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 
 static int __init kvm_s390_init(void)
 {
+	if (!sclp.has_sief2) {
+		pr_info("SIE not available\n");
+		return -ENODEV;
+	}
+
 	return kvm_init(NULL, sizeof(struct kvm_vcpu), 0, THIS_MODULE);
 }
 
