@@ -2548,6 +2548,13 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	    ah->eep_ops->get_eeprom(ah, EEP_PAPRD))
 			pCap->hw_caps |= ATH9K_HW_CAP_PAPRD;
 
+#ifdef CONFIG_ATH9K_WOW
+	if (AR_SREV_9462_20_OR_LATER(ah) || AR_SREV_9565_11_OR_LATER(ah))
+		ah->wow.max_patterns = MAX_NUM_PATTERN;
+	else
+		ah->wow.max_patterns = MAX_NUM_PATTERN_LEGACY;
+#endif
+
 	return 0;
 }
 

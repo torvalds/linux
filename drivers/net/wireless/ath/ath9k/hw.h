@@ -204,7 +204,8 @@
 
 #define MAX_PATTERN_SIZE		256
 #define MAX_PATTERN_MASK_SIZE		32
-#define MAX_NUM_PATTERN			8
+#define MAX_NUM_PATTERN			16
+#define MAX_NUM_PATTERN_LEGACY		8
 #define MAX_NUM_USER_PATTERN		6 /*  deducting the disassociate and
 					      deauthenticate packets */
 
@@ -272,6 +273,7 @@ enum ath9k_hw_caps {
 
 struct ath9k_hw_wow {
 	u32 wow_event_mask;
+	u8 max_patterns;
 };
 
 struct ath9k_hw_capabilities {
