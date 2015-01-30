@@ -2206,8 +2206,8 @@ static int hso_stop_serial_device(struct hso_device *hso_dev)
 
 	for (i = 0; i < serial->num_rx_urbs; i++) {
 		if (serial->rx_urb[i]) {
-				usb_kill_urb(serial->rx_urb[i]);
-				serial->rx_urb_filled[i] = 0;
+			usb_kill_urb(serial->rx_urb[i]);
+			serial->rx_urb_filled[i] = 0;
 		}
 	}
 	serial->curr_rx_urb_idx = 0;
