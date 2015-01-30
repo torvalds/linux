@@ -28,6 +28,7 @@
 #include <net/genetlink.h>
 #include <net/netlink.h>
 #include <net/sch_generic.h>
+#include <net/switchdev.h>
 #include <generated/utsrelease.h>
 #include <linux/if_team.h>
 
@@ -1925,7 +1926,7 @@ static netdev_features_t team_fix_features(struct net_device *dev,
 	struct team *team = netdev_priv(dev);
 	netdev_features_t mask;
 
-	mask = features;
+	mask = features | NETIF_F_HW_SWITCH_OFFLOAD;
 	features &= ~NETIF_F_ONE_FOR_ALL;
 	features |= NETIF_F_ALL_FOR_ALL;
 
@@ -1975,6 +1976,8 @@ static const struct net_device_ops team_netdev_ops = {
 	.ndo_del_slave		= team_del_slave,
 	.ndo_fix_features	= team_fix_features,
 	.ndo_change_carrier     = team_change_carrier,
+	.ndo_bridge_setlink     = ndo_dflt_netdev_switch_port_bridge_setlink,
+	.ndo_bridge_dellink     = ndo_dflt_netdev_switch_port_bridge_dellink,
 };
 
 /***********************
