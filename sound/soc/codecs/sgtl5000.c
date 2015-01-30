@@ -1452,6 +1452,9 @@ static int sgtl5000_i2c_probe(struct i2c_client *client,
 	if (ret)
 		return ret;
 
+	/* Need 8 clocks before I2C accesses */
+	udelay(1);
+
 	/* read chip information */
 	ret = regmap_read(sgtl5000->regmap, SGTL5000_CHIP_ID, &reg);
 	if (ret)
