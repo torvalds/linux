@@ -269,7 +269,6 @@ int ath9k_suspend(struct ieee80211_hw *hw,
 
 	ath9k_ps_restore(sc);
 	ath_dbg(common, WOW, "Suspend with WoW triggers: 0x%x\n", triggers);
-	atomic_inc(&sc->wow_sleep_proc_intr);
 
 	set_bit(ATH_OP_WOW_ENABLED, &common->op_flags);
 fail_wow:
@@ -298,19 +297,6 @@ int ath9k_resume(struct ieee80211_hw *hw)
 	spin_unlock_bh(&sc->sc_pcu_lock);
 
 	wow_status = ath9k_hw_wow_wakeup(ah);
-
-	if (atomic_read(&sc->wow_got_bmiss_intr) == 0) {
-		/*
-		 * some devices may not pick beacon miss
-		 * as the reason they woke up so we add
-		 * that here for that shortcoming.
-		 */
-		wow_status |= AH_WOW_BEACON_MISS;
-		atomic_dec(&sc->wow_got_bmiss_intr);
-		ath_dbg(common, ANY, "Beacon miss interrupt picked up during WoW sleep\n");
-	}
-
-	atomic_dec(&sc->wow_sleep_proc_intr);
 
 	if (wow_status) {
 		ath_dbg(common, ANY, "Waking up due to WoW triggers %s with WoW status = %x\n",
@@ -347,10 +333,6 @@ void ath9k_init_wow(struct ieee80211_hw *hw)
 
 	if (sc->driver_data & ATH9K_PCI_WOW) {
 		hw->wiphy->wowlan = &ath9k_wowlan_support;
-
-		atomic_set(&sc->wow_sleep_proc_intr, -1);
-		atomic_set(&sc->wow_got_bmiss_intr, -1);
-
 		device_init_wakeup(sc->dev, 1);
 	}
 }

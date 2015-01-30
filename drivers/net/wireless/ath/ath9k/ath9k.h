@@ -1043,8 +1043,6 @@ struct ath_softc {
 	s16 tx99_power;
 
 #ifdef CONFIG_ATH9K_WOW
-	atomic_t wow_got_bmiss_intr;
-	atomic_t wow_sleep_proc_intr; /* in the middle of WoW sleep ? */
 	u32 wow_intr_before_sleep;
 #endif
 };
