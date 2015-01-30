@@ -215,6 +215,15 @@ int ath9k_suspend(struct ieee80211_hw *hw,
 		goto fail_wow;
 	}
 
+	if (ath9k_is_chanctx_enabled()) {
+		if (test_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags)) {
+			ath_dbg(common, WOW,
+				"Multi-channel WOW is not supported\n");
+			ret = 1;
+			goto fail_wow;
+		}
+	}
+
 	if (!test_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags)) {
 		ath_dbg(common, WOW, "None of the STA vifs are associated\n");
 		ret = 1;
