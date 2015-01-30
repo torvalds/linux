@@ -5879,16 +5879,16 @@ static __init int hardware_setup(void)
 	if (!cpu_has_vmx_unrestricted_guest())
 		enable_unrestricted_guest = 0;
 
-	if (!cpu_has_vmx_flexpriority()) {
+	if (!cpu_has_vmx_flexpriority())
 		flexpriority_enabled = 0;
 
-		/*
-		 * set_apic_access_page_addr() is used to reload apic access
-		 * page upon invalidation.  No need to do anything if the
-		 * processor does not have the APIC_ACCESS_ADDR VMCS field.
-		 */
+	/*
+	 * set_apic_access_page_addr() is used to reload apic access
+	 * page upon invalidation.  No need to do anything if not
+	 * using the APIC_ACCESS_ADDR VMCS field.
+	 */
+	if (!flexpriority_enabled)
 		kvm_x86_ops->set_apic_access_page_addr = NULL;
-	}
 
 	if (!cpu_has_vmx_tpr_shadow())
 		kvm_x86_ops->update_cr8_intercept = NULL;
