@@ -110,45 +110,6 @@ static const struct drm_encoder_funcs mdp5_encoder_funcs = {
 	.destroy = mdp5_encoder_destroy,
 };
 
-static void mdp5_encoder_dpms(struct drm_encoder *encoder, int mode)
-{
-	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
-	struct mdp5_kms *mdp5_kms = get_kms(encoder);
-	int intf = mdp5_encoder->intf;
-	bool enabled = (mode == DRM_MODE_DPMS_ON);
-	unsigned long flags;
-
-	DBG("mode=%d", mode);
-
-	if (enabled == mdp5_encoder->enabled)
-		return;
-
-	if (enabled) {
-		bs_set(mdp5_encoder, 1);
-		spin_lock_irqsave(&mdp5_encoder->intf_lock, flags);
-		mdp5_write(mdp5_kms, REG_MDP5_INTF_TIMING_ENGINE_EN(intf), 1);
-		spin_unlock_irqrestore(&mdp5_encoder->intf_lock, flags);
-	} else {
-		spin_lock_irqsave(&mdp5_encoder->intf_lock, flags);
-		mdp5_write(mdp5_kms, REG_MDP5_INTF_TIMING_ENGINE_EN(intf), 0);
-		spin_unlock_irqrestore(&mdp5_encoder->intf_lock, flags);
-
-		/*
-		 * Wait for a vsync so we know the ENABLE=0 latched before
-		 * the (connector) source of the vsync's gets disabled,
-		 * otherwise we end up in a funny state if we re-enable
-		 * before the disable latches, which results that some of
-		 * the settings changes for the new modeset (like new
-		 * scanout buffer) don't latch properly..
-		 */
-		mdp_irq_wait(&mdp5_kms->base, intf2vblank(intf));
-
-		bs_set(mdp5_encoder, 0);
-	}
-
-	mdp5_encoder->enabled = enabled;
-}
-
 static bool mdp5_encoder_mode_fixup(struct drm_encoder *encoder,
 		const struct drm_display_mode *mode,
 		struct drm_display_mode *adjusted_mode)
@@ -225,25 +186,61 @@ static void mdp5_encoder_mode_set(struct drm_encoder *encoder,
 	spin_unlock_irqrestore(&mdp5_encoder->intf_lock, flags);
 }
 
-static void mdp5_encoder_prepare(struct drm_encoder *encoder)
-{
-	mdp5_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
-}
-
-static void mdp5_encoder_commit(struct drm_encoder *encoder)
+static void mdp5_encoder_disable(struct drm_encoder *encoder)
 {
 	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
+	struct mdp5_kms *mdp5_kms = get_kms(encoder);
+	int intf = mdp5_encoder->intf;
+	unsigned long flags;
+
+	if (WARN_ON(!mdp5_encoder->enabled))
+		return;
+
+	spin_lock_irqsave(&mdp5_encoder->intf_lock, flags);
+	mdp5_write(mdp5_kms, REG_MDP5_INTF_TIMING_ENGINE_EN(intf), 0);
+	spin_unlock_irqrestore(&mdp5_encoder->intf_lock, flags);
+
+	/*
+	 * Wait for a vsync so we know the ENABLE=0 latched before
+	 * the (connector) source of the vsync's gets disabled,
+	 * otherwise we end up in a funny state if we re-enable
+	 * before the disable latches, which results that some of
+	 * the settings changes for the new modeset (like new
+	 * scanout buffer) don't latch properly..
+	 */
+	mdp_irq_wait(&mdp5_kms->base, intf2vblank(intf));
+
+	bs_set(mdp5_encoder, 0);
+
+	mdp5_encoder->enabled = false;
+}
+
+static void mdp5_encoder_enable(struct drm_encoder *encoder)
+{
+	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
+	struct mdp5_kms *mdp5_kms = get_kms(encoder);
+	int intf = mdp5_encoder->intf;
+	unsigned long flags;
+
+	if (WARN_ON(mdp5_encoder->enabled))
+		return;
+
 	mdp5_crtc_set_intf(encoder->crtc, mdp5_encoder->intf,
 			mdp5_encoder->intf_id);
-	mdp5_encoder_dpms(encoder, DRM_MODE_DPMS_ON);
+
+	bs_set(mdp5_encoder, 1);
+	spin_lock_irqsave(&mdp5_encoder->intf_lock, flags);
+	mdp5_write(mdp5_kms, REG_MDP5_INTF_TIMING_ENGINE_EN(intf), 1);
+	spin_unlock_irqrestore(&mdp5_encoder->intf_lock, flags);
+
+	mdp5_encoder->enabled = false;
 }
 
 static const struct drm_encoder_helper_funcs mdp5_encoder_helper_funcs = {
-	.dpms = mdp5_encoder_dpms,
 	.mode_fixup = mdp5_encoder_mode_fixup,
 	.mode_set = mdp5_encoder_mode_set,
-	.prepare = mdp5_encoder_prepare,
-	.commit = mdp5_encoder_commit,
+	.prepare = mdp5_encoder_disable,
+	.commit = mdp5_encoder_enable,
 };
 
 /* initialize encoder */

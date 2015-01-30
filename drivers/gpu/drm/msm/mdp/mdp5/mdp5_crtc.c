@@ -138,28 +138,6 @@ static void mdp5_crtc_destroy(struct drm_crtc *crtc)
 	kfree(mdp5_crtc);
 }
 
-static void mdp5_crtc_dpms(struct drm_crtc *crtc, int mode)
-{
-	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
-	struct mdp5_kms *mdp5_kms = get_kms(crtc);
-	bool enabled = (mode == DRM_MODE_DPMS_ON);
-
-	DBG("%s: mode=%d", mdp5_crtc->name, mode);
-
-	if (enabled != mdp5_crtc->enabled) {
-		if (enabled) {
-			mdp5_enable(mdp5_kms);
-			mdp_irq_register(&mdp5_kms->base, &mdp5_crtc->err);
-		} else {
-			/* set STAGE_UNUSED for all layers */
-			mdp5_ctl_blend(mdp5_crtc->ctl, mdp5_crtc->lm, 0x00000000);
-			mdp_irq_unregister(&mdp5_kms->base, &mdp5_crtc->err);
-			mdp5_disable(mdp5_kms);
-		}
-		mdp5_crtc->enabled = enabled;
-	}
-}
-
 static bool mdp5_crtc_mode_fixup(struct drm_crtc *crtc,
 		const struct drm_display_mode *mode,
 		struct drm_display_mode *adjusted_mode)
@@ -256,23 +234,41 @@ static void mdp5_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	spin_unlock_irqrestore(&mdp5_crtc->lm_lock, flags);
 }
 
-static void mdp5_crtc_prepare(struct drm_crtc *crtc)
+static void mdp5_crtc_disable(struct drm_crtc *crtc)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
+	struct mdp5_kms *mdp5_kms = get_kms(crtc);
+
 	DBG("%s", mdp5_crtc->name);
-	/* make sure we hold a ref to mdp clks while setting up mode: */
-	mdp5_enable(get_kms(crtc));
-	mdp5_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
+
+	if (WARN_ON(!mdp5_crtc->enabled))
+		return;
+
+	/* set STAGE_UNUSED for all layers */
+	mdp5_ctl_blend(mdp5_crtc->ctl, mdp5_crtc->lm, 0x00000000);
+
+	mdp_irq_unregister(&mdp5_kms->base, &mdp5_crtc->err);
+	mdp5_disable(mdp5_kms);
+
+	mdp5_crtc->enabled = false;
 }
 
-static void mdp5_crtc_commit(struct drm_crtc *crtc)
+static void mdp5_crtc_enable(struct drm_crtc *crtc)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
+	struct mdp5_kms *mdp5_kms = get_kms(crtc);
+
 	DBG("%s", mdp5_crtc->name);
-	mdp5_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
+
+	if (WARN_ON(mdp5_crtc->enabled))
+		return;
+
+	mdp5_enable(mdp5_kms);
+	mdp_irq_register(&mdp5_kms->base, &mdp5_crtc->err);
+
 	crtc_flush_all(crtc);
-	/* drop the ref to mdp clk's that we got in prepare: */
-	mdp5_disable(get_kms(crtc));
+
+	mdp5_crtc->enabled = true;
 }
 
 struct plane_state {
@@ -391,11 +387,10 @@ static const struct drm_crtc_funcs mdp5_crtc_funcs = {
 };
 
 static const struct drm_crtc_helper_funcs mdp5_crtc_helper_funcs = {
-	.dpms = mdp5_crtc_dpms,
 	.mode_fixup = mdp5_crtc_mode_fixup,
 	.mode_set_nofb = mdp5_crtc_mode_set_nofb,
-	.prepare = mdp5_crtc_prepare,
-	.commit = mdp5_crtc_commit,
+	.prepare = mdp5_crtc_disable,
+	.commit = mdp5_crtc_enable,
 	.atomic_check = mdp5_crtc_atomic_check,
 	.atomic_begin = mdp5_crtc_atomic_begin,
 	.atomic_flush = mdp5_crtc_atomic_flush,

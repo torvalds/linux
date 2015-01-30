@@ -68,6 +68,18 @@ static int mdp5_hw_init(struct msm_kms *kms)
 	return 0;
 }
 
+static void mdp5_prepare_commit(struct msm_kms *kms, struct drm_atomic_state *state)
+{
+	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
+	mdp5_enable(mdp5_kms);
+}
+
+static void mdp5_complete_commit(struct msm_kms *kms, struct drm_atomic_state *state)
+{
+	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
+	mdp5_disable(mdp5_kms);
+}
+
 static long mdp5_round_pixclk(struct msm_kms *kms, unsigned long rate,
 		struct drm_encoder *encoder)
 {
@@ -115,6 +127,8 @@ static const struct mdp_kms_funcs kms_funcs = {
 		.irq             = mdp5_irq,
 		.enable_vblank   = mdp5_enable_vblank,
 		.disable_vblank  = mdp5_disable_vblank,
+		.prepare_commit  = mdp5_prepare_commit,
+		.complete_commit = mdp5_complete_commit,
 		.get_format      = mdp_get_format,
 		.round_pixclk    = mdp5_round_pixclk,
 		.preclose        = mdp5_preclose,
