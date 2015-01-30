@@ -336,20 +336,34 @@ int ath9k_resume(struct ieee80211_hw *hw)
 void ath9k_set_wakeup(struct ieee80211_hw *hw, bool enabled)
 {
 	struct ath_softc *sc = hw->priv;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
 	mutex_lock(&sc->mutex);
-	device_init_wakeup(sc->dev, 1);
 	device_set_wakeup_enable(sc->dev, enabled);
 	mutex_unlock(&sc->mutex);
+
+	ath_dbg(common, WOW, "WoW wakeup source is %s\n",
+		(enabled) ? "enabled" : "disabled");
 }
 
 void ath9k_init_wow(struct ieee80211_hw *hw)
 {
 	struct ath_softc *sc = hw->priv;
 
-	if ((sc->driver_data & ATH9K_PCI_WOW) && device_can_wakeup(sc->dev))
+	if (sc->driver_data & ATH9K_PCI_WOW) {
 		hw->wiphy->wowlan = &ath9k_wowlan_support;
 
-	atomic_set(&sc->wow_sleep_proc_intr, -1);
-	atomic_set(&sc->wow_got_bmiss_intr, -1);
+		atomic_set(&sc->wow_sleep_proc_intr, -1);
+		atomic_set(&sc->wow_got_bmiss_intr, -1);
+
+		device_init_wakeup(sc->dev, 1);
+	}
+}
+
+void ath9k_deinit_wow(struct ieee80211_hw *hw)
+{
+	struct ath_softc *sc = hw->priv;
+
+	if (sc->driver_data & ATH9K_PCI_WOW)
+		device_init_wakeup(sc->dev, 0);
 }

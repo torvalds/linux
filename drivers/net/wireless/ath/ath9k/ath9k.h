@@ -838,12 +838,16 @@ struct ath9k_wow_pattern {
 
 #ifdef CONFIG_ATH9K_WOW
 void ath9k_init_wow(struct ieee80211_hw *hw);
+void ath9k_deinit_wow(struct ieee80211_hw *hw);
 int ath9k_suspend(struct ieee80211_hw *hw,
 		  struct cfg80211_wowlan *wowlan);
 int ath9k_resume(struct ieee80211_hw *hw);
 void ath9k_set_wakeup(struct ieee80211_hw *hw, bool enabled);
 #else
 static inline void ath9k_init_wow(struct ieee80211_hw *hw)
+{
+}
+static inline void ath9k_deinit_wow(struct ieee80211_hw *hw)
 {
 }
 static inline int ath9k_suspend(struct ieee80211_hw *hw,

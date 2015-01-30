@@ -996,6 +996,7 @@ void ath9k_deinit_device(struct ath_softc *sc)
 	ath9k_ps_restore(sc);
 
 	ath9k_deinit_debug(sc);
+	ath9k_deinit_wow(hw);
 	ieee80211_unregister_hw(hw);
 	ath_rx_cleanup(sc);
 	ath9k_deinit_softc(sc);
