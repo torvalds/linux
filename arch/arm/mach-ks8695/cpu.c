@@ -30,7 +30,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/regs-sys.h>
+#include "regs-sys.h"
 #include <mach/regs-misc.h>
 
 

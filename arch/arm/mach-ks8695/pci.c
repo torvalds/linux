@@ -33,8 +33,8 @@
 #include <asm/mach/pci.h>
 #include <mach/hardware.h>
 
-#include <mach/devices.h>
-#include <mach/regs-pci.h>
+#include "devices.h"
+#include "regs-pci.h"
 
 
 static int pci_dbg;

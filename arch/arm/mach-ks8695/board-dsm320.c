@@ -28,7 +28,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/devices.h>
+#include "devices.h"
 #include <mach/gpio-ks8695.h>
 
 #include "generic.h"

@@ -16,7 +16,7 @@
 #include <linux/mtd/partitions.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <mach/devices.h>
+#include "devices.h"
 #include "generic.h"
 
 /*
