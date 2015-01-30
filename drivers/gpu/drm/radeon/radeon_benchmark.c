@@ -34,7 +34,8 @@
 
 static int radeon_benchmark_do_move(struct radeon_device *rdev, unsigned size,
 				    uint64_t saddr, uint64_t daddr,
-				    int flag, int n)
+				    int flag, int n,
+				    struct reservation_object *resv)
 {
 	unsigned long start_jiffies;
 	unsigned long end_jiffies;
@@ -47,12 +48,12 @@ static int radeon_benchmark_do_move(struct radeon_device *rdev, unsigned size,
 		case RADEON_BENCHMARK_COPY_DMA:
 			fence = radeon_copy_dma(rdev, saddr, daddr,
 						size / RADEON_GPU_PAGE_SIZE,
-						NULL);
+						resv);
 			break;
 		case RADEON_BENCHMARK_COPY_BLIT:
 			fence = radeon_copy_blit(rdev, saddr, daddr,
 						 size / RADEON_GPU_PAGE_SIZE,
-						 NULL);
+						 resv);
 			break;
 		default:
 			DRM_ERROR("Unknown copy method\n");
@@ -120,7 +121,8 @@ static void radeon_benchmark_move(struct radeon_device *rdev, unsigned size,
 
 	if (rdev->asic->copy.dma) {
 		time = radeon_benchmark_do_move(rdev, size, saddr, daddr,
-						RADEON_BENCHMARK_COPY_DMA, n);
+						RADEON_BENCHMARK_COPY_DMA, n,
+						dobj->tbo.resv);
 		if (time < 0)
 			goto out_cleanup;
 		if (time > 0)
@@ -130,7 +132,8 @@ static void radeon_benchmark_move(struct radeon_device *rdev, unsigned size,
 
 	if (rdev->asic->copy.blit) {
 		time = radeon_benchmark_do_move(rdev, size, saddr, daddr,
-						RADEON_BENCHMARK_COPY_BLIT, n);
+						RADEON_BENCHMARK_COPY_BLIT, n,
+						dobj->tbo.resv);
 		if (time < 0)
 			goto out_cleanup;
 		if (time > 0)
