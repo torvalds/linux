@@ -628,7 +628,6 @@ static inline int sensor_focus_default_cb(struct soc_camera_device *icd, struct 
 			}
 		case V4L2_CID_FOCUS_AUTO:
 			{
-				/****************yzm**************
                 mutex_lock(&sensor->sensor_focus.focus_lock);
                 //get focuszone
                 sensor->sensor_focus.focus_zone.lx = ext_ctrl->rect[0];
@@ -652,7 +651,6 @@ static inline int sensor_focus_default_cb(struct soc_camera_device *icd, struct 
 					ret = -EINVAL;
 					printk(KERN_ERR"\n %s valure = %d is invalidate..	\n",__FUNCTION__,value);
 				}
-				*///*******************yzm*************end
 				break;
 				
 			}

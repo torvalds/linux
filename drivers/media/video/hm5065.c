@@ -24,8 +24,8 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define SENSOR_BUS_PARAM                     (V4L2_MBUS_MASTER |\
 															 V4L2_MBUS_PCLK_SAMPLE_RISING|V4L2_MBUS_HSYNC_ACTIVE_HIGH| V4L2_MBUS_VSYNC_ACTIVE_LOW|\
 															 V4L2_MBUS_DATA_ACTIVE_HIGH  |SOCAM_MCLK_24MHZ)
-#define SENSOR_PREVIEW_W					 800
-#define SENSOR_PREVIEW_H					 600
+#define SENSOR_PREVIEW_W					1280 //800
+#define SENSOR_PREVIEW_H					 960//600
 #define SENSOR_PREVIEW_FPS					 15000	   // 15fps 
 #define SENSOR_FULLRES_L_FPS				 7500	   // 7.5fps
 #define SENSOR_FULLRES_H_FPS				 7500	   // 7.5fps
@@ -34,10 +34,18 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 
 #define SENSOR_REGISTER_LEN 				 2		   // sensor register address bytes
 #define SENSOR_VALUE_LEN					 1		   // sensor register value bytes
-									
+
+#define  SENSOR_AF_CONFIG     1
+
+#ifdef 	SENSOR_AF_CONFIG								
 static unsigned int SensorConfiguration = (CFG_WhiteBalance|CFG_Effect
                                            |CFG_Scene|CFG_Focus|CFG_FocusContinues
                                            |CFG_FocusZone);
+
+#else
+static unsigned int SensorConfiguration = (CFG_WhiteBalance|CFG_Effect
+                                           |CFG_Scene);
+#endif
 
 static unsigned int SensorChipID[] = {SENSOR_ID};
 /* Sensor Driver Configuration End */
@@ -1639,19 +1647,19 @@ static struct rk_sensor_reg sensor_init_data[] = {
     {0x0016,0x00},
     {0x0046,0x00},
     {0x0041,0x00},
-    {0x00B5,0x02},
+   // {0x00B5,0x02},
     {0x7101,0x44},
-    {0x00ED,0x0A},
+    {0x00ED,0x0d},
     {0x00EE,0x1E},
-    {0x00B3,0x80},
+    //{0x00B3,0x80},
     {0x7104,0x00},
     {0x7105,0x80},
     {0x019C,0x4B},
     {0x019D,0x20},
-    {0x0129,0x00},
+    {0x0129,0x02},
     {0x0130,0x00},
-    {0x0083,0x01},
-    {0x0084,0x01},
+    {0x0083,0x00},
+    {0x0084,0x00},
     {0x01A1,0x80},
     {0x01A2,0x80},
     {0x01A3,0x80},
@@ -1678,7 +1686,7 @@ static struct rk_sensor_reg sensor_init_data[] = {
     {0x0143,0x5F},
     {0x0144,0x0D},
     {0x02C2,0x00},
-    {0x02C3,0xC0},
+    {0x02C3,0xc0},
     {0x015E,0x40},
     {0x015F,0x00},
     {0x0390,0x01},
@@ -1720,7 +1728,7 @@ static struct rk_sensor_reg sensor_init_data[] = {
     {0x03D5,0x49},
     {0x03D6,0x34},
     {0x03D7,0xD1},
-    {0x004C,0x08},
+    {0x004C,0x0D},//enoch
     {0x006C,0x08},
     {0x0350,0x00},
     {0x0351,0x5A},
@@ -1729,7 +1737,7 @@ static struct rk_sensor_reg sensor_init_data[] = {
     {0x0354,0x49},
     {0x0355,0x39},
     {0x0356,0x6D},
-    {0x0357,0x19},
+    {0x0357,0x3c},
     {0x0358,0x00},
     {0x0359,0x3C},
     {0x035A,0x5A},
@@ -1738,28 +1746,29 @@ static struct rk_sensor_reg sensor_init_data[] = {
     {0x035D,0x49},
     {0x035E,0x39},
     {0x035F,0x85},
-    {0x0049,0x14},
-    {0x004A,0x0D},
-    {0x0069,0x14},
-    {0x006A,0x0D},
-    {0x0090,0x00},
-    {0x0091,0x5A},
-    {0x0092,0xEE},
-    {0x0093,0x3E},
-    {0x0094,0x00},
-    {0x0095,0x69},
-    {0x0096,0x49},
-    {0x0097,0x39},
-    {0x0098,0xCF},
-    {0x00A0,0x00},
-    {0x00A1,0x5A},
-    {0x00A2,0xEE},
-    {0x00A3,0x3E},
-    {0x00A4,0x00},
-    {0x00A5,0x69},
-    {0x00A6,0x49},
-    {0x00A7,0x3B},
-    {0x00A8,0x80},
+	{0x0049,0x14},	// PipeSetupBank0 bGammaGain 
+	{0x004A,0x0E},	// PipeSetupBank0 bGammaInterpolationGain
+	{0x0069,0x14},	// PipeSetupBank1 bGammaGain 
+	{0x006A,0x0E},	// PipeSetupBank1 bGammaInterpolationGain
+	{0x0090,0x5A},	// GammaGainDamperControl fpX1 {MSB}   //24000
+	{0x0091,0xEE},	// GammaGainDamperControl fpX1 {LSB}
+	{0x0092,0x3E},	// GammaGainDamperControl fpY1 {MSB}   //1
+	{0x0093,0x00},	// GammaGainDamperControl fpY1 {LSB}
+	{0x0094,0x69},	// GammaGainDamperControl fpX2 {MSB}   //3444736
+	{0x0095,0x49},	// GammaGainDamperControl fpX2 {LSB}
+	{0x0096,0x39},	// GammaGainDamperControl fpY2 {MSB}   //0.238
+	{0x0097,0xCF},	// GammaGainDamperControl fpY2 {LSB}
+	{0x0098,0x01},	// GammaGainDamperControl fDisable
+	{0x00A0,0x5A},	// GammaInterpolationDamperControl fpX1 {MSB}	//24000 
+	{0x00A1,0xEE},	// GammaInterpolationDamperControl fpX1 {LSB} 
+	{0x00A2,0x3E},	// GammaInterpolationDamperControl fpY1 {MSB}	//1 
+	{0x00A3,0x00},	// GammaInterpolationDamperControl fpY1 {LSB} 
+	{0x00A4,0x69},	// GammaInterpolationDamperControl fpX2 {MSB}	//3444736 
+	{0x00A5,0x49},	// GammaInterpolationDamperControl fpX2 {LSB} 
+	{0x00A6,0x3B},	// GammaInterpolationDamperControl fpY2 {MSB}	//0.4375 
+	{0x00A7,0x80},	// GammaInterpolationDamperControl fpY2 {LSB} 
+	{0x00A8,0x01},	// GammaInterpolationDamperControl fDisable
+#if 0	
     {0x0420,0x00},     //new LSC start - 0306
     {0x0421,0x26},
     {0x0422,0xff},
@@ -2020,6 +2029,272 @@ static struct rk_sensor_reg sensor_init_data[] = {
     {0x050E,0xff},
     {0x050F,0x75},
     {0x0564,0x00}, //new LSC end
+#else
+
+{0x0420,0x00},   //C0_GreenRed_X
+{0x0421,0x1E},   //C0_GreenRed_X LSB
+{0x0422,0xFF},   //C0_GreenRed_Y
+{0x0423,0xF3},   //C0_GreenRed_Y LSB
+{0x0424,0x00},   //C0_GreenRed_X2
+{0x0425,0x6E},   //C0_GreenRed_X2 LSB
+{0x0426,0x00},   //C0_GreenRed_Y2
+{0x0427,0x96},   //C0_GreenRed_Y2 LSB
+{0x0428,0x00},   //C0_GreenRed_XY
+{0x0429,0x40},   //C0_GreenRed_XY LSB
+{0x042A,0x00},   //C0_GreenRed_X2Y
+{0x042B,0x3F},   //C0_GreenRed_X2Y LSB
+{0x042C,0x00},   //C0_GreenRed_XY2
+{0x042D,0x99},   //C0_GreenRed_XY2 LSB
+{0x042E,0xFF},   //C0_GreenRed_X2Y2
+{0x042F,0xCD},   //C0_GreenRed_X2Y2 LSB
+{0x0430,0xFF},   //C0_Red_X
+{0x0431,0xC1},   //C0_Red_X LSB
+{0x0432,0xFF},   //C0_Red_Y
+{0x0433,0x8C},   //C0_Red_Y LSB
+{0x0434,0x00},   //C0_Red_X2
+{0x0435,0xD1},   //C0_Red_X2 LSB
+{0x0436,0x00},   //C0_Red_Y2
+{0x0437,0xF9},   //C0_Red_Y2 LSB
+{0x0438,0xFF},   //C0_Red_XY
+{0x0439,0xD0},   //C0_Red_XY LSB
+{0x043A,0xFF},   //C0_Red_X2Y
+{0x043B,0xD4},   //C0_Red_X2Y LSB
+{0x043C,0x00},   //C0_Red_XY2
+{0x043D,0x46},   //C0_Red_XY2 LSB
+{0x043E,0xFF},   //C0_Red_X2Y2
+{0x043F,0x1F},   //C0_Red_X2Y2 LSB
+{0x0440,0x00},   //C0_GreenBlue_X
+{0x0441,0x00},   //C0_GreenBlue_X LSB
+{0x0442,0xFF},   //C0_GreenBlue_Y
+{0x0443,0xEC},   //C0_GreenBlue_Y LSB
+{0x0444,0x00},   //C0_GreenBlue_X2
+{0x0445,0x7D},   //C0_GreenBlue_X2 LSB
+{0x0446,0x00},   //C0_GreenBlue_Y2
+{0x0447,0x89},   //C0_GreenBlue_Y2 LSB
+{0x0448,0x00},   //C0_GreenBlue_XY
+{0x0449,0x4A},   //C0_GreenBlue_XY LSB
+{0x044A,0x00},   //C0_GreenBlue_X2Y
+{0x044B,0x00},   //C0_GreenBlue_X2Y LSB
+{0x044C,0x00},   //C0_GreenBlue_XY2
+{0x044D,0x6C},   //C0_GreenBlue_XY2 LSB
+{0x044E,0xFF},   //C0_GreenBlue_X2Y2
+{0x044F,0xB5},   //C0_GreenBlue_X2Y2 LSB	// C9
+{0x0450,0x00},   //C0_Blue_X
+{0x0451,0x03},   //C0_Blue_X LSB
+{0x0452,0xFF},   //C0_Blue_Y
+{0x0453,0xC8},   //C0_Blue_Y LSB
+{0x0454,0x00},   //C0_Blue_X2
+{0x0455,0x5D},   //C0_Blue_X2 LSB
+{0x0456,0x00},   //C0_Blue_Y2
+{0x0457,0x7F},   //C0_Blue_Y2 LSB
+{0x0458,0xFF},   //C0_Blue_XY
+{0x0459,0xD0},   //C0_Blue_XY LSB
+{0x045A,0x00},   //C0_Blue_X2Y
+{0x045B,0x1A},   //C0_Blue_X2Y LSB
+{0x045C,0xFF},   //C0_Blue_XY2
+{0x045D,0xC8},   //C0_Blue_XY2 LSB
+{0x045E,0xFF},   //C0_Blue_X2Y2
+{0x045F,0xDA},   //C0_Blue_X2Y2 LSB
+{0x0460,0x00},   //C1_GreenRed_X
+{0x0461,0x25},   //C1_GreenRed_X LSB
+{0x0462,0x00},   //C1_GreenRed_Y
+{0x0463,0x00},   //C1_GreenRed_Y LSB
+{0x0464,0x00},   //C1_GreenRed_X2
+{0x0465,0x65},   //C1_GreenRed_X2 LSB
+{0x0466,0x00},   //C1_GreenRed_Y2
+{0x0467,0x85},   //C1_GreenRed_Y2 LSB
+{0x0468,0x00},   //C1_GreenRed_XY
+{0x0469,0x41},   //C1_GreenRed_XY LSB
+{0x046A,0x00},   //C1_GreenRed_X2Y
+{0x046B,0x42},   //C1_GreenRed_X2Y LSB
+{0x046C,0x00},   //C1_GreenRed_XY2
+{0x046D,0x91},   //C1_GreenRed_XY2 LSB
+{0x046E,0xFF},   //C1_GreenRed_X2Y2
+{0x046F,0xDA},   //C1_GreenRed_X2Y2 LSB	// F0
+{0x0470,0xFF},   //C1_Red_X
+{0x0471,0xD7},   //C1_Red_X LSB
+{0x0472,0xFF},   //C1_Red_Y
+{0x0473,0xA0},   //C1_Red_Y LSB
+{0x0474,0x00},   //C1_Red_X2
+{0x0475,0x8C},   //C1_Red_X2 LSB
+{0x0476,0x00},   //C1_Red_Y2
+{0x0477,0xA5},   //C1_Red_Y2 LSB
+{0x0478,0xFF},   //C1_Red_XY
+{0x0479,0xD6},   //C1_Red_XY LSB
+{0x047A,0xFF},   //C1_Red_X2Y
+{0x047B,0xDA},   //C1_Red_X2Y LSB
+{0x047C,0x00},   //C1_Red_XY2
+{0x047D,0x58},   //C1_Red_XY2 LSB
+{0x047E,0xFF},   //C1_Red_X2Y2
+{0x047F,0xC4},   //C1_Red_X2Y2 LSB
+{0x0480,0x00},   //C1_GreenBlue_X
+{0x0481,0x04},   //C1_GreenBlue_X LSB
+{0x0482,0xFF},   //C1_GreenBlue_Y
+{0x0483,0xFA},   //C1_GreenBlue_Y LSB
+{0x0484,0x00},   //C1_GreenBlue_X2
+{0x0485,0x70},   //C1_GreenBlue_X2 LSB
+{0x0486,0x00},   //C1_GreenBlue_Y2
+{0x0487,0x7B},   //C1_GreenBlue_Y2 LSB
+{0x0488,0x00},   //C1_GreenBlue_XY
+{0x0489,0x4E},   //C1_GreenBlue_XY LSB
+{0x048A,0x00},   //C1_GreenBlue_X2Y
+{0x048B,0x00},   //C1_GreenBlue_X2Y LSB
+{0x048C,0x00},   //C1_GreenBlue_XY2
+{0x048D,0x8F},   //C1_GreenBlue_XY2 LSB
+{0x048E,0xFF},   //C1_GreenBlue_X2Y2
+{0x048F,0xEC},   //C1_GreenBlue_X2Y2 LSB
+{0x0490,0x00},   //C1_Blue_X
+{0x0491,0x08},   //C1_Blue_X LSB
+{0x0492,0xFF},   //C1_Blue_Y
+{0x0493,0xD0},   //C1_Blue_Y LSB
+{0x0494,0x00},   //C1_Blue_X2
+{0x0495,0x55},   //C1_Blue_X2 LSB
+{0x0496,0x00},   //C1_Blue_Y2
+{0x0497,0x70},   //C1_Blue_Y2 LSB
+{0x0498,0xFF},   //C1_Blue_XY
+{0x0499,0xC4},   //C1_Blue_XY LSB
+{0x049A,0x00},   //C1_Blue_X2Y
+{0x049B,0x03},   //C1_Blue_X2Y LSB
+{0x049C,0xFF},   //C1_Blue_XY2
+{0x049D,0xD2},   //C1_Blue_XY2 LSB
+{0x049E,0x00},   //C1_Blue_X2Y2
+{0x049F,0x04},   //C1_Blue_X2Y2 LSB
+{0x04A0,0x00},   //C2_GreenRed_X
+{0x04A1,0x28},   //C2_GreenRed_X LSB
+{0x04A2,0xFF},   //C2_GreenRed_Y
+{0x04A3,0xFA},   //C2_GreenRed_Y LSB
+{0x04A4,0x00},   //C2_GreenRed_X2
+{0x04A5,0x69},   //C2_GreenRed_X2 LSB
+{0x04A6,0x00},   //C2_GreenRed_Y2
+{0x04A7,0x88},   //C2_GreenRed_Y2 LSB
+{0x04A8,0x00},   //C2_GreenRed_XY
+{0x04A9,0x47},   //C2_GreenRed_XY LSB
+{0x04AA,0x00},   //C2_GreenRed_X2Y
+{0x04AB,0x46},   //C2_GreenRed_X2Y LSB
+{0x04AC,0x00},   //C2_GreenRed_XY2
+{0x04AD,0xA2},   //C2_GreenRed_XY2 LSB
+{0x04AE,0xFF},   //C2_GreenRed_X2Y2
+{0x04AF,0xCF},   //C2_GreenRed_X2Y2 LSB	// EA
+{0x04B0,0xFF},   //C2_Red_X
+{0x04B1,0xDC},   //C2_Red_X LSB
+{0x04B2,0xFF},   //C2_Red_Y
+{0x04B3,0xA4},   //C2_Red_Y LSB
+{0x04B4,0x00},   //C2_Red_X2
+{0x04B5,0x93},   //C2_Red_X2 LSB
+{0x04B6,0x00},   //C2_Red_Y2
+{0x04B7,0xB2},   //C2_Red_Y2 LSB
+{0x04B8,0xFF},   //C2_Red_XY
+{0x04B9,0xD8},   //C2_Red_XY LSB
+{0x04BA,0xFF},   //C2_Red_X2Y
+{0x04BB,0xCD},   //C2_Red_X2Y LSB
+{0x04BC,0x00},   //C2_Red_XY2
+{0x04BD,0x48},   //C2_Red_XY2 LSB
+{0x04BE,0xFF},   //C2_Red_X2Y2
+{0x04BF,0x9B},   //C2_Red_X2Y2 LSB
+{0x04C0,0x00},   //C2_GreenBlue_X
+{0x04C1,0x08},   //C2_GreenBlue_X LSB
+{0x04C2,0x00},   //C2_GreenBlue_Y
+{0x04C3,0x00},   //C2_GreenBlue_Y LSB
+{0x04C4,0x00},   //C2_GreenBlue_X2
+{0x04C5,0x73},   //C2_GreenBlue_X2 LSB
+{0x04C6,0x00},   //C2_GreenBlue_Y2
+{0x04C7,0x80},   //C2_GreenBlue_Y2 LSB
+{0x04C8,0x00},   //C2_GreenBlue_XY
+{0x04C9,0x4F},   //C2_GreenBlue_XY LSB
+{0x04CA,0xFF},   //C2_GreenBlue_X2Y
+{0x04CB,0xEF},   //C2_GreenBlue_X2Y LSB
+{0x04CC,0x00},   //C2_GreenBlue_XY2
+{0x04CD,0x89},   //C2_GreenBlue_XY2 LSB
+{0x04CE,0xFF},   //C2_GreenBlue_X2Y2
+{0x04CF,0xE2},   //C2_GreenBlue_X2Y2 LSB
+{0x04D0,0x00},   //C2_Blue_X
+{0x04D1,0x0C},   //C2_Blue_X LSB
+{0x04D2,0xFF},   //C2_Blue_Y
+{0x04D3,0xCE},   //C2_Blue_Y LSB
+{0x04D4,0x00},   //C2_Blue_X2
+{0x04D5,0x57},   //C2_Blue_X2 LSB
+{0x04D6,0x00},   //C2_Blue_Y2
+{0x04D7,0x72},   //C2_Blue_Y2 LSB
+{0x04D8,0xFF},   //C2_Blue_XY
+{0x04D9,0xC4},   //C2_Blue_XY LSB
+{0x04DA,0x00},   //C2_Blue_X2Y
+{0x04DB,0x09},   //C2_Blue_X2Y LSB
+{0x04DC,0xFF},   //C2_Blue_XY2
+{0x04DD,0xD2},   //C2_Blue_XY2 LSB
+{0x04DE,0xFF},   //C2_Blue_X2Y2
+{0x04DF,0xFC},   //C2_Blue_X2Y2 LSB
+{0x04E0,0x00},   //C3_GreenRed_X
+{0x04E1,0x2C},   //C3_GreenRed_X LSB
+{0x04E2,0xFF},   //C3_GreenRed_Y
+{0x04E3,0xFB},   //C3_GreenRed_Y LSB
+{0x04E4,0x00},   //C3_GreenRed_X2
+{0x04E5,0x69},   //C3_GreenRed_X2 LSB
+{0x04E6,0x00},   //C3_GreenRed_Y2
+{0x04E7,0x87},   //C3_GreenRed_Y2 LSB
+{0x04E8,0x00},   //C3_GreenRed_XY
+{0x04E9,0x4A},   //C3_GreenRed_XY LSB
+{0x04EA,0x00},   //C3_GreenRed_X2Y
+{0x04EB,0x56},   //C3_GreenRed_X2Y LSB
+{0x04EC,0x00},   //C3_GreenRed_XY2
+{0x04ED,0x9A},   //C3_GreenRed_XY2 LSB
+{0x04EE,0xFF},   //C3_GreenRed_X2Y2
+{0x04EF,0xBE},   //C3_GreenRed_X2Y2 LSB	// DC
+{0x04F0,0xFF},   //C3_Red_X
+{0x04F1,0xEB},   //C3_Red_X LSB
+{0x04F2,0xFF},   //C3_Red_Y
+{0x04F3,0x9B},   //C3_Red_Y LSB
+{0x04F4,0x00},   //C3_Red_X2
+{0x04F5,0xA5},   //C3_Red_X2 LSB
+{0x04F6,0x00},   //C3_Red_Y2
+{0x04F7,0xCC},   //C3_Red_Y2 LSB
+{0x04F8,0xFF},   //C3_Red_XY
+{0x04F9,0xE1},   //C3_Red_XY LSB
+{0x04FA,0xFF},   //C3_Red_X2Y
+{0x04FB,0xD9},   //C3_Red_X2Y LSB
+{0x04FC,0x00},   //C3_Red_XY2
+{0x04FD,0x6A},   //C3_Red_XY2 LSB
+{0x04FE,0xFF},   //C3_Red_X2Y2
+{0x04FF,0x5E},   //C3_Red_X2Y2 LSB
+{0x0500,0x00},   //C3_GreenBlue_X
+{0x0501,0x06},   //C3_GreenBlue_X LSB
+{0x0502,0xFF},   //C3_GreenBlue_Y
+{0x0503,0xFC},   //C3_GreenBlue_Y LSB
+{0x0504,0x00},   //C3_GreenBlue_X2
+{0x0505,0x6F},   //C3_GreenBlue_X2 LSB
+{0x0506,0x00},   //C3_GreenBlue_Y2
+{0x0507,0x83},   //C3_GreenBlue_Y2 LSB
+{0x0508,0x00},   //C3_GreenBlue_XY
+{0x0509,0x5A},   //C3_GreenBlue_XY LSB
+{0x050A,0xFF},   //C3_GreenBlue_X2Y
+{0x050B,0xF7},   //C3_GreenBlue_X2Y LSB
+{0x050C,0x00},   //C3_GreenBlue_XY2
+{0x050D,0x80},   //C3_GreenBlue_XY2 LSB
+{0x050E,0xFF},   //C3_GreenBlue_X2Y2
+{0x050F,0xD3},   //C3_GreenBlue_X2Y2 LSB
+{0x0510,0x00},   //C3_Blue_X
+{0x0511,0x0B},   //C3_Blue_X LSB
+{0x0512,0xFF},   //C3_Blue_Y
+{0x0513,0xCE},   //C3_Blue_Y LSB
+{0x0514,0x00},   //C3_Blue_X2
+{0x0515,0x58},   //C3_Blue_X2 LSB
+{0x0516,0x00},   //C3_Blue_Y2
+{0x0517,0x73},   //C3_Blue_Y2 LSB
+{0x0518,0xFF},   //C3_Blue_XY
+{0x0519,0xBE},   //C3_Blue_XY LSB
+{0x051A,0xFF},   //C3_Blue_X2Y
+{0x051B,0xFB},   //C3_Blue_X2Y LSB
+{0x051C,0xFF},   //C3_Blue_XY2
+{0x051D,0xD2},   //C3_Blue_XY2 LSB
+{0x051E,0xFF},   //C3_Blue_X2Y2
+{0x051F,0xFA},   //C3_Blue_X2Y2 LSB
+{0x0561,0x05},   //C0 Unity
+{0x0562,0x01},   //C1 Unity
+{0x0563,0x01},   //C2 Unity
+{0x0564,0x09},   //C3 Unity
+
+
+#endif
+
     {0x0324,0x39},
     {0x0325,0xAE},
     {0x0326,0x3A},
@@ -2109,8 +2384,8 @@ static struct rk_sensor_reg sensor_init_data[] = {
     {0x0570,0x42},
     {0x0571,0x00},
     {0x0572,0x42},
-    {0x0573,0x00},
-    {0x0081,0x55},  //6E->55
+    {0x0573,0x10},
+    {0x0081,0x64},  //6E->55
     {0x0588,0x00},
     {0x0589,0x5A},
     {0x058A,0xEE},
@@ -2118,11 +2393,11 @@ static struct rk_sensor_reg sensor_init_data[] = {
     {0x058C,0x49},
     {0x058D,0x3D},
     {0x058E,0x3D},
-    {0x0080,0x6C},
-    {0x0082,0x5A},
-    {0x0010,0x01},
+    {0x0080,0x64},
+    {0x0082,0x5a},
+  //  {0x0010,0x01},
 
-    SensorWaitMs(200),
+   // SensorWaitMs(200),
 
     {0x4708,0x00},
     {0x4709,0x00},
@@ -2135,11 +2410,17 @@ static struct rk_sensor_reg sensor_init_data[] = {
     {0x06CD,0x01},
     {0x06CE,0xBD},
     {0x06CF,0x00},
-    {0x06D0,0x93},
+    {0x06D0,0x60},
     {0x06D1,0x02},
     {0x06D2,0x30},
     {0x06D3,0xD4},
     {0x06D4,0x01},
+    {0x06D5,0x01},
+	{0x06D6,0xBD},//60->BC->66
+	{0x06D7,0x00},
+	{0x06D8,0x60},//93
+	{0x06D9,0x00},
+	{0x06DA,0x60},//93
     {0x06DB,0x59},
     {0x06DC,0x0d},
     {0x0730,0x00},
@@ -2184,23 +2465,34 @@ static struct rk_sensor_reg sensor_init_data[] = {
     {0x5200,0x09}, 
     {0x00B2,0x50}, 
     {0x00B3,0x80}, 
-    {0x00B5,0x01}, 
-    {0x0030,0x14}, 
-    {0x0040,0x01}, //AB2
-    {0x0041,0x03}, //SVGA mode
+    {0x00B5,0x02}, 
+    {0x0030,0x11}, 
+   // {0x0040,0x01}, //AB2
+   // {0x0041,0x03}, //SVGA mode
+	{0x0040,0x01},
+    {0x0041,0x0A},
+	{0x0042,0x05},
+	{0x0043,0x00},
+	{0x0044,0x03},
+	{0x0045,0xC0},
 
     {0x0010,0x01},
-    SensorWaitMs(200),
+    SensorWaitMs(150),
     SensorEnd
 };
 /* Senor full resolution setting: recommand for capture */
 static struct rk_sensor_reg sensor_fullres_lowfps_data[] ={
 
-    {0x7000,0x08},
-    {0x5200,0x09},
-    {0x0040,0x00},
-    {0x0041,0x00},
-    {0x0010,0x01},
+   // {0x0010,0x02},
+   // SensorWaitMs(100),    
+    //{0x00B5, 0x02}, 
+    //{0x0030, 0x11}, 
+  {0x0040, 0x00},
+	{0x0041, 0x00},
+	{0x004c, 0x12},
+	 //{0x0010, 0x01},
+   // SensorWaitMs(150),
+
 	SensorEnd
 };
 /* Senor full resolution setting: recommand for video */
@@ -2210,11 +2502,21 @@ static struct rk_sensor_reg sensor_fullres_highfps_data[] ={
 /* Preview resolution setting*/
 static struct rk_sensor_reg sensor_preview_data[] =
 {
-	{0x0040,0x01},
-    {0x0041,0x03},
 
-    {0x00ed,0x0A},
-    {0x00ee,0x1E},
+   // {0x0010,0x02},
+   // SensorWaitMs(100),    
+   // {0x00B5, 0x01}, 
+   // {0x0030, 0x12}, 
+	{0x0040,0x01},
+  {0x0041,0x0A},
+	{0x0042,0x05},
+	{0x0043,0x00},
+	{0x0044,0x03},
+	{0x0045,0xC0},
+	{0x004c,0x0e},
+	//{0x00ed,0x0d},
+	//{0x0010, 0x01},
+	// SensorWaitMs(150),
 
 	SensorEnd
 };
@@ -2522,7 +2824,6 @@ static struct sensor_v4l2ctrl_usr_s sensor_controls[] =
 static struct rk_sensor_datafmt sensor_colour_fmts[] = {
 	{V4L2_MBUS_FMT_UYVY8_2X8, V4L2_COLORSPACE_JPEG} 
 };
-/*static struct soc_camera_ops sensor_ops;*/
 
 
 /*
@@ -2582,14 +2883,15 @@ static int sensor_check_id_usr_cb(struct i2c_client *client,struct rk_sensor_reg
 */
 static int sensor_s_fmt_cb_bh (struct i2c_client *client,struct v4l2_mbus_framefmt *mf, bool capture)
 {
-    struct soc_camera_device *icd = client->dev.platform_data;
+	struct soc_camera_subdev_desc *ssdd = client->dev.platform_data;
+	struct soc_camera_device *icd = ssdd->socdev;
 	struct generic_sensor *gsensor = to_generic_sensor(client);
 	
     if (capture) {
         generic_sensor_af_workqueue_set(icd, WqCmd_af_special_pos,0,true);
     } else {
         if (gsensor->sensor_focus.focus_mode == V4L2_CID_FOCUS_AUTO) {
-            generic_sensor_af_workqueue_set(icd, WqCmd_af_close,0,false);
+          generic_sensor_af_workqueue_set(icd, WqCmd_af_close,0,false);
         } else if (gsensor->sensor_focus.focus_mode == V4L2_CID_FOCUS_CONTINUOUS) {
             generic_sensor_af_workqueue_set(icd,WqCmd_af_continues,0,false);    
         }
@@ -2598,7 +2900,8 @@ static int sensor_s_fmt_cb_bh (struct i2c_client *client,struct v4l2_mbus_framef
 }
 static int sensor_try_fmt_cb_th(struct i2c_client *client,struct v4l2_mbus_framefmt *mf)
 {
-    struct soc_camera_device *icd = client->dev.platform_data;
+	struct soc_camera_subdev_desc *ssdd = client->dev.platform_data;
+    struct soc_camera_device *icd = ssdd->socdev;
 	struct generic_sensor *gsensor = to_generic_sensor(client);
     
     if (gsensor->sensor_focus.focus_mode == V4L2_CID_FOCUS_CONTINUOUS) {
@@ -2684,28 +2987,32 @@ static int sensor_focus_init_usr_cb(struct i2c_client *client)
 static int sensor_focus_af_single_usr_cb(struct i2c_client *client) 
 {
 	int ret = 0;
-	char state,cnt=0;
+
+#ifdef 	SENSOR_AF_CONFIG  //xhh
     struct generic_sensor *sensor = to_generic_sensor(client);
     struct specific_sensor *ssensor = to_specific_sensor(sensor);
     
-	ret |= sensor_write(client,AF_MODES_REG,0x03);
+    sensor_write(client,0x0751,0x00);//add by jink 20141127
+	  ret |= sensor_write(client,AF_MODES_REG,0x03);
+    msleep(200); //add by jink 20141127
     ret |= sensor_write(client,AF_AUTOCMDS_REG,0x01);
-    msleep(200);
+    msleep(200);//add by jink 20141127
     ret |= sensor_write(client,AF_AUTOCMDS_REG,0x02);
+    msleep(300);
 
-    do  {
-        msleep(20);
-        sensor_read(client,AF_FINISHCHK_REG,&state);
-        cnt++;
-    }while ((state != 1) && (cnt<100));
+   // do  {
+   //     msleep(20);
+   //     sensor_read(client,AF_FINISHCHK_REG,&state);
+   //    cnt++;
+   // }while ((state != 1) && (cnt<100));
 
-    if (state == 1) {
+   // if (state == 1) {
         sensor_read(client, AF_LENSPOS_REG_H,(char*)&ssensor->parameter.af_pos[0]);
-        sensor_read(client, AF_LENSPOS_REG_L,(char*)&ssensor->parameter.af_pos[1]);
-    }
+       sensor_read(client, AF_LENSPOS_REG_L,(char*)&ssensor->parameter.af_pos[1]);
+   // }
 
-    SENSOR_DG("single focus, state: %d cnt: %d",state,cnt);
-    
+    //SENSOR_DG("single focus, state: %d cnt: %d",state,cnt);
+#endif    
 //sensor_af_single_end:
 	return ret;
 }
@@ -2725,52 +3032,59 @@ static int sensor_focus_af_specialpos_usr_cb(struct i2c_client *client,int pos)
 {
     struct generic_sensor *sensor = to_generic_sensor(client);
     struct specific_sensor *ssensor = to_specific_sensor(sensor);
-    
+ #ifdef 	SENSOR_AF_CONFIG //xhh    
     sensor_write(client,0x070A, 0x00);
 	sensor_write(client,0x0734, ssensor->parameter.af_pos[0]& 0xFF);
 	sensor_write(client,0x0735, ssensor->parameter.af_pos[1] & 0xFF);
 	sensor_write(client,0x070C, 0x00);
 	mdelay(100);
     sensor_write(client,0x070C, 0x05);
-
+#endif
 	return 0;
 }
 
 static int sensor_focus_af_const_usr_cb(struct i2c_client *client)
 {
     int ret;
-    
+ #ifdef 	SENSOR_AF_CONFIG //xhh
+     sensor_write(client,0x0751,0x00);//add by jink 20141127
     ret = sensor_write(client, AF_MODES_REG, 0x01);
+    #endif
 //sensor_af_const_end:
 	return ret;
 }
 static int sensor_focus_af_const_pause_usr_cb(struct i2c_client *client)
 {
     int ret = 0;
+    #ifdef 	SENSOR_AF_CONFIG //xhh
     char status = 0;
     struct generic_sensor *sensor = to_generic_sensor(client);
     struct specific_sensor *ssensor = to_specific_sensor(sensor);
     
-    sensor_read(client, 0x07ae, &status);
+    sensor_read(client, 0x07ae, &status);  //add by jink 20141127
 
     if (status == 1) {
         sensor_read(client, AF_LENSPOS_REG_H,(char*)&ssensor->parameter.af_pos[0]);
         sensor_read(client, AF_LENSPOS_REG_L,(char*)&ssensor->parameter.af_pos[1]);
     } else {
         sensor_focus_af_single_usr_cb(client);
-    }
-    
+   }
+  #endif  
 	return ret;
 }
 static int sensor_focus_af_close_usr_cb(struct i2c_client *client)
 {
     int ret =0;
-    
+    #ifdef 	SENSOR_AF_CONFIG  //xhh
+     sensor_write(client,0x0751,0x01);//add by jink 20141127
+    /*
     ret |= sensor_write(client,0x070A, 0x00);
     ret |= sensor_write(client,0x0700, 0x03);
     ret |= sensor_write(client,0x0701, 0xFF);	
     ret |= sensor_write(client,0x070C, 0x00);
     ret |= sensor_write(client,0x070C, 0x07);
+    */
+    #endif
     SENSOR_DG("%s",__FUNCTION__);
 	return ret;
 }
@@ -2778,6 +3092,7 @@ static int sensor_focus_af_close_usr_cb(struct i2c_client *client)
 static int sensor_focus_af_zoneupdate_usr_cb(struct i2c_client *client, int *zone_tm_pos)
 {
     int ret = 0;
+    #ifdef 	SENSOR_AF_CONFIG  //xhh
     int xstart,ystart;
     
     *zone_tm_pos += 1000;
@@ -2807,7 +3122,7 @@ static int sensor_focus_af_zoneupdate_usr_cb(struct i2c_client *client, int *zon
     ret |= sensor_write(client, AF_ZONE4_WEIGHT,0x00);	  
     ret |= sensor_write(client, AF_ZONE5_WEIGHT,0x00);
     ret |= sensor_write(client, AF_ZONE6_WEIGHT,0x00);    
-    ret |= sensor_write(client, FACE_LC,0x03); 
+    ret |= sensor_write(client, FACE_LC,0x01); 
 
     ret |= sensor_write(client, FACE_START_XH, ((xstart&0xff00)>>8));
     ret |= sensor_write(client, FACE_START_XL, xstart&0xff);
@@ -2818,6 +3133,7 @@ static int sensor_focus_af_zoneupdate_usr_cb(struct i2c_client *client, int *zon
 	ret |= sensor_write(client, FACE_SIZE_XL, 0x40);
 	ret |= sensor_write(client, FACE_SIZE_YH, 0x01);
 	ret |= sensor_write(client, FACE_SIZE_YL, 0x40);
+	#endif
 //sensor_af_zone_end:
 	return ret;
 }
