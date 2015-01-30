@@ -186,6 +186,13 @@ __rwsem_do_wake(struct rw_semaphore *sem, enum rwsem_wake_type wake_type)
 		waiter = list_entry(next, struct rwsem_waiter, list);
 		next = waiter->list.next;
 		tsk = waiter->task;
+		/*
+		 * Make sure we do not wakeup the next reader before
+		 * setting the nil condition to grant the next reader;
+		 * otherwise we could miss the wakeup on the other
+		 * side and end up sleeping again. See the pairing
+		 * in rwsem_down_read_failed().
+		 */
 		smp_mb();
 		waiter->task = NULL;
 		wake_up_process(tsk);
