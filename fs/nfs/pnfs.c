@@ -1788,10 +1788,16 @@ pnfs_generic_pg_test(struct nfs_pageio_descriptor *pgio,
 		seg_end = end_offset(pgio->pg_lseg->pls_range.offset,
 				     pgio->pg_lseg->pls_range.length);
 		req_start = req_offset(req);
-		WARN_ON_ONCE(req_start > seg_end);
+		WARN_ON_ONCE(req_start >= seg_end);
 		/* start of request is past the last byte of this segment */
-		if (req_start >= seg_end)
+		if (req_start >= seg_end) {
+			/* reference the new lseg */
+			if (pgio->pg_ops->pg_cleanup)
+				pgio->pg_ops->pg_cleanup(pgio);
+			if (pgio->pg_ops->pg_init)
+				pgio->pg_ops->pg_init(pgio, req);
 			return 0;
+		}
 
 		/* adjust 'size' iff there are fewer bytes left in the
 		 * segment than what nfs_generic_pg_test returned */
