@@ -1381,6 +1381,10 @@ static void f2fs_invalidate_node_page(struct page *page, unsigned int offset,
 
 static int f2fs_release_node_page(struct page *page, gfp_t wait)
 {
+	/* If this is dirty page, keep PagePrivate */
+	if (PageDirty(page))
+		return 0;
+
 	ClearPagePrivate(page);
 	return 1;
 }
