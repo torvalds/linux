@@ -2292,14 +2292,14 @@ void s3c_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 	/* set the PLL on, remove the HNP/SRP and set the PHY */
 	val = (hsotg->phyif == GUSBCFG_PHYIF8) ? 9 : 5;
 	writel(hsotg->phyif | GUSBCFG_TOUTCAL(7) |
-	       (val << 10), hsotg->regs + GUSBCFG);
+	       (val << GUSBCFG_USBTRDTIM_SHIFT), hsotg->regs + GUSBCFG);
 
 	s3c_hsotg_init_fifo(hsotg);
 
 	if (!is_usb_reset)
 		__orr32(hsotg->regs + DCTL, DCTL_SFTDISCON);
 
-	writel(1 << 18 | DCFG_DEVSPD_HS,  hsotg->regs + DCFG);
+	writel(DCFG_EPMISCNT(1) | DCFG_DEVSPD_HS,  hsotg->regs + DCFG);
 
 	/* Clear any pending OTG interrupts */
 	writel(0xffffffff, hsotg->regs + GOTGINT);
@@ -3006,7 +3006,7 @@ static void s3c_hsotg_init(struct dwc2_hsotg *hsotg)
 	/* set the PLL on, remove the HNP/SRP and set the PHY */
 	trdtim = (hsotg->phyif == GUSBCFG_PHYIF8) ? 9 : 5;
 	writel(hsotg->phyif | GUSBCFG_TOUTCAL(7) |
-		(trdtim << 10),
+		(trdtim << GUSBCFG_USBTRDTIM_SHIFT),
 		hsotg->regs + GUSBCFG);
 
 	if (using_dma(hsotg))
@@ -3295,7 +3295,7 @@ static int s3c_hsotg_hw_cfg(struct dwc2_hsotg *hsotg)
 	/* check hardware configuration */
 
 	cfg = readl(hsotg->regs + GHWCFG2);
-	hsotg->num_of_eps = (cfg >> 10) & 0xF;
+	hsotg->num_of_eps = (cfg >> GHWCFG2_NUM_DEV_EP_SHIFT) & 0xF;
 	/* Add ep0 */
 	hsotg->num_of_eps++;
 
@@ -3326,10 +3326,10 @@ static int s3c_hsotg_hw_cfg(struct dwc2_hsotg *hsotg)
 	}
 
 	cfg = readl(hsotg->regs + GHWCFG3);
-	hsotg->fifo_mem = (cfg >> 16);
+	hsotg->fifo_mem = (cfg >> GHWCFG3_DFIFO_DEPTH_SHIFT);
 
 	cfg = readl(hsotg->regs + GHWCFG4);
-	hsotg->dedicated_fifos = (cfg >> 25) & 1;
+	hsotg->dedicated_fifos = (cfg >> GHWCFG4_DED_FIFO_SHIFT) & 1;
 
 	dev_info(hsotg->dev, "EPs: %d, %s fifos, %d entries in SPRAM\n",
 		 hsotg->num_of_eps,
@@ -3354,8 +3354,8 @@ static void s3c_hsotg_dump(struct dwc2_hsotg *hsotg)
 		 readl(regs + DCFG), readl(regs + DCTL),
 		 readl(regs + DIEPMSK));
 
-	dev_info(dev, "GAHBCFG=0x%08x, 0x44=0x%08x\n",
-		 readl(regs + GAHBCFG), readl(regs + 0x44));
+	dev_info(dev, "GAHBCFG=0x%08x, GHWCFG1=0x%08x\n",
+		 readl(regs + GAHBCFG), readl(regs + GHWCFG1));
 
 	dev_info(dev, "GRXFSIZ=0x%08x, GNPTXFSIZ=0x%08x\n",
 		 readl(regs + GRXFSIZ), readl(regs + GNPTXFSIZ));
@@ -3715,7 +3715,7 @@ static void s3c_hsotg_create_debug(struct dwc2_hsotg *hsotg)
 
 	/* create general state file */
 
-	hsotg->debug_file = debugfs_create_file("state", 0444, root,
+	hsotg->debug_file = debugfs_create_file("state", S_IRUGO, root,
 						hsotg, &state_fops);
 
 	if (IS_ERR(hsotg->debug_file))
@@ -3729,7 +3729,7 @@ static void s3c_hsotg_create_debug(struct dwc2_hsotg *hsotg)
 		dev_err(hsotg->dev, "%s: failed to create testmode\n",
 				__func__);
 
-	hsotg->debug_fifo = debugfs_create_file("fifo", 0444, root,
+	hsotg->debug_fifo = debugfs_create_file("fifo", S_IRUGO, root,
 						hsotg, &fifo_fops);
 
 	if (IS_ERR(hsotg->debug_fifo))
@@ -3741,7 +3741,7 @@ static void s3c_hsotg_create_debug(struct dwc2_hsotg *hsotg)
 
 		ep = hsotg->eps_out[epidx];
 		if (ep) {
-			ep->debugfs = debugfs_create_file(ep->name, 0444,
+			ep->debugfs = debugfs_create_file(ep->name, S_IRUGO,
 							  root, ep, &ep_fops);
 
 			if (IS_ERR(ep->debugfs))
@@ -3755,7 +3755,7 @@ static void s3c_hsotg_create_debug(struct dwc2_hsotg *hsotg)
 
 		ep = hsotg->eps_in[epidx];
 		if (ep) {
-			ep->debugfs = debugfs_create_file(ep->name, 0444,
+			ep->debugfs = debugfs_create_file(ep->name, S_IRUGO,
 							  root, ep, &ep_fops);
 
 			if (IS_ERR(ep->debugfs))
