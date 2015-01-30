@@ -3722,7 +3722,7 @@ skip:
 }
 
 static int rocker_port_bridge_setlink(struct net_device *dev,
-				      struct nlmsghdr *nlh)
+				      struct nlmsghdr *nlh, u16 flags)
 {
 	struct rocker_port *rocker_port = netdev_priv(dev);
 	struct nlattr *protinfo;
