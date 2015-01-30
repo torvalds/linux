@@ -209,16 +209,11 @@ int ath9k_suspend(struct ieee80211_hw *hw,
 		goto fail_wow;
 	}
 
-	ath_cancel_work(sc);
-	ath_stop_ani(sc);
-
-	/*
-	 * none of the sta vifs are associated
-	 * and we are not currently handling multivif
-	 * cases, for instance we have to seperately
-	 * configure 'keep alive frame' for each
-	 * STA.
-	 */
+	if (sc->cur_chan->nvifs > 1) {
+		ath_dbg(common, WOW, "WoW for multivif is not yet supported\n");
+		ret = 1;
+		goto fail_wow;
+	}
 
 	if (!test_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags)) {
 		ath_dbg(common, WOW, "None of the STA vifs are associated\n");
@@ -226,11 +221,8 @@ int ath9k_suspend(struct ieee80211_hw *hw,
 		goto fail_wow;
 	}
 
-	if (sc->cur_chan->nvifs > 1) {
-		ath_dbg(common, WOW, "WoW for multivif is not yet supported\n");
-		ret = 1;
-		goto fail_wow;
-	}
+	ath_cancel_work(sc);
+	ath_stop_ani(sc);
 
 	ath9k_wow_map_triggers(sc, wowlan, &wow_triggers_enabled);
 
