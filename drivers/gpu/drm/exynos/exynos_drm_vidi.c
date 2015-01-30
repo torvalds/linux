@@ -97,17 +97,16 @@ static const char fake_edid_info[] = {
 	0x00, 0x00, 0x00, 0x06
 };
 
-static void vidi_apply(struct exynos_drm_crtc *crtc)
+static void vidi_apply(struct vidi_context *ctx)
 {
-	struct vidi_context *ctx = crtc->ctx;
-	struct exynos_drm_crtc_ops *crtc_ops = crtc->ops;
+	struct exynos_drm_crtc_ops *crtc_ops = ctx->crtc->ops;
 	struct vidi_win_data *win_data;
 	int i;
 
 	for (i = 0; i < WINDOWS_NR; i++) {
 		win_data = &ctx->win_data[i];
 		if (win_data->enabled && (crtc_ops && crtc_ops->win_commit))
-			crtc_ops->win_commit(crtc, i);
+			crtc_ops->win_commit(ctx->crtc, i);
 	}
 }
 
@@ -240,10 +239,8 @@ static void vidi_win_disable(struct exynos_drm_crtc *crtc, int zpos)
 	/* TODO. */
 }
 
-static int vidi_power_on(struct exynos_drm_crtc *crtc, bool enable)
+static int vidi_power_on(struct vidi_context *ctx, bool enable)
 {
-	struct vidi_context *ctx = crtc->ctx;
-
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	if (enable != false && enable != true)
@@ -254,9 +251,9 @@ static int vidi_power_on(struct exynos_drm_crtc *crtc, bool enable)
 
 		/* if vblank was enabled status, enable it again. */
 		if (test_and_clear_bit(0, &ctx->irq_flags))
-			vidi_enable_vblank(crtc);
+			vidi_enable_vblank(ctx->crtc);
 
-		vidi_apply(crtc);
+		vidi_apply(ctx);
 	} else {
 		ctx->suspended = true;
 	}
@@ -274,12 +271,12 @@ static void vidi_dpms(struct exynos_drm_crtc *crtc, int mode)
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
-		vidi_power_on(crtc, true);
+		vidi_power_on(ctx, true);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
-		vidi_power_on(crtc, false);
+		vidi_power_on(ctx, false);
 		break;
 	default:
 		DRM_DEBUG_KMS("unspecified mode %d\n", mode);

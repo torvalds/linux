@@ -1054,23 +1054,21 @@ static void mixer_wait_for_vblank(struct exynos_drm_crtc *crtc)
 	drm_vblank_put(mixer_ctx->drm_dev, mixer_ctx->pipe);
 }
 
-static void mixer_window_suspend(struct exynos_drm_crtc *crtc)
+static void mixer_window_suspend(struct mixer_context *ctx)
 {
-	struct mixer_context *ctx = crtc->ctx;
 	struct hdmi_win_data *win_data;
 	int i;
 
 	for (i = 0; i < MIXER_WIN_NR; i++) {
 		win_data = &ctx->win_data[i];
 		win_data->resume = win_data->enabled;
-		mixer_win_disable(crtc, i);
+		mixer_win_disable(ctx->crtc, i);
 	}
-	mixer_wait_for_vblank(crtc);
+	mixer_wait_for_vblank(ctx->crtc);
 }
 
-static void mixer_window_resume(struct exynos_drm_crtc *crtc)
+static void mixer_window_resume(struct mixer_context *ctx)
 {
-	struct mixer_context *ctx = crtc->ctx;
 	struct hdmi_win_data *win_data;
 	int i;
 
@@ -1079,13 +1077,12 @@ static void mixer_window_resume(struct exynos_drm_crtc *crtc)
 		win_data->enabled = win_data->resume;
 		win_data->resume = false;
 		if (win_data->enabled)
-			mixer_win_commit(crtc, i);
+			mixer_win_commit(ctx->crtc, i);
 	}
 }
 
-static void mixer_poweron(struct exynos_drm_crtc *crtc)
+static void mixer_poweron(struct mixer_context *ctx)
 {
-	struct mixer_context *ctx = crtc->ctx;
 	struct mixer_resources *res = &ctx->mixer_res;
 
 	mutex_lock(&ctx->mixer_mutex);
@@ -1115,12 +1112,11 @@ static void mixer_poweron(struct exynos_drm_crtc *crtc)
 	mixer_reg_write(res, MXR_INT_EN, ctx->int_en);
 	mixer_win_reset(ctx);
 
-	mixer_window_resume(crtc);
+	mixer_window_resume(ctx);
 }
 
-static void mixer_poweroff(struct exynos_drm_crtc *crtc)
+static void mixer_poweroff(struct mixer_context *ctx)
 {
-	struct mixer_context *ctx = crtc->ctx;
 	struct mixer_resources *res = &ctx->mixer_res;
 
 	mutex_lock(&ctx->mixer_mutex);
@@ -1131,7 +1127,7 @@ static void mixer_poweroff(struct exynos_drm_crtc *crtc)
 	mutex_unlock(&ctx->mixer_mutex);
 
 	mixer_stop(ctx);
-	mixer_window_suspend(crtc);
+	mixer_window_suspend(ctx);
 
 	ctx->int_en = mixer_reg_read(res, MXR_INT_EN);
 
@@ -1154,12 +1150,12 @@ static void mixer_dpms(struct exynos_drm_crtc *crtc, int mode)
 {
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
-		mixer_poweron(crtc);
+		mixer_poweron(crtc->ctx);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
-		mixer_poweroff(crtc);
+		mixer_poweroff(crtc->ctx);
 		break;
 	default:
 		DRM_DEBUG_KMS("unknown dpms mode: %d\n", mode);
