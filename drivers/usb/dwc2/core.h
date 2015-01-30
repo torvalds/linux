@@ -567,12 +567,14 @@ struct dwc2_hw_params {
  * @num_of_eps:         Number of available EPs (excluding EP0)
  * @debug_root:         Root directrory for debugfs.
  * @debug_file:         Main status file for debugfs.
+ * @debug_testmode:     Testmode status file for debugfs.
  * @debug_fifo:         FIFO status file for debugfs.
  * @ep0_reply:          Request used for ep0 reply.
  * @ep0_buff:           Buffer for EP0 reply data, if needed.
  * @ctrl_buff:          Buffer for EP0 control requests.
  * @ctrl_req:           Request for EP0 control packets.
  * @ep0_state:          EP0 control transfers state
+ * @test_mode:          USB test mode requested by the host
  * @last_rst:           Time of last reset
  * @eps:                The endpoints being supplied to the gadget framework
  * @g_using_dma:          Indicate if dma usage is enabled
@@ -610,6 +612,7 @@ struct dwc2_hsotg {
 
 	struct dentry *debug_root;
 	struct dentry *debug_file;
+	struct dentry *debug_testmode;
 	struct dentry *debug_fifo;
 
 	/* DWC OTG HW Release versions */
@@ -706,6 +709,7 @@ struct dwc2_hsotg {
 	void *ep0_buff;
 	void *ctrl_buff;
 	enum dwc2_ep0_state ep0_state;
+	u8 test_mode;
 
 	struct usb_gadget gadget;
 	unsigned int enabled:1;

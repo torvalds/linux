@@ -35,6 +35,7 @@
 #include <linux/usb/gadget.h>
 #include <linux/usb/phy.h>
 #include <linux/platform_data/s3c-hsotg.h>
+#include <linux/uaccess.h>
 
 #include "core.h"
 #include "hw.h"
@@ -835,6 +836,32 @@ static struct s3c_hsotg_ep *ep_from_windex(struct dwc2_hsotg *hsotg,
 }
 
 /**
+ * s3c_hsotg_set_test_mode - Enable usb Test Modes
+ * @hsotg: The driver state.
+ * @testmode: requested usb test mode
+ * Enable usb Test Mode requested by the Host.
+ */
+static int s3c_hsotg_set_test_mode(struct dwc2_hsotg *hsotg, int testmode)
+{
+	int dctl = readl(hsotg->regs + DCTL);
+
+	dctl &= ~DCTL_TSTCTL_MASK;
+	switch (testmode) {
+	case TEST_J:
+	case TEST_K:
+	case TEST_SE0_NAK:
+	case TEST_PACKET:
+	case TEST_FORCE_EN:
+		dctl |= testmode << DCTL_TSTCTL_SHIFT;
+		break;
+	default:
+		return -EINVAL;
+	}
+	writel(dctl, hsotg->regs + DCTL);
+	return 0;
+}
+
+/**
  * s3c_hsotg_send_reply - send reply to control request
  * @hsotg: The device state
  * @ep: Endpoint 0
@@ -968,19 +995,48 @@ static int s3c_hsotg_process_req_feature(struct dwc2_hsotg *hsotg,
 	struct s3c_hsotg_ep *ep;
 	int ret;
 	bool halted;
+	u32 recip;
+	u32 wValue;
+	u32 wIndex;
 
 	dev_dbg(hsotg->dev, "%s: %s_FEATURE\n",
 		__func__, set ? "SET" : "CLEAR");
 
-	if (ctrl->bRequestType == USB_RECIP_ENDPOINT) {
-		ep = ep_from_windex(hsotg, le16_to_cpu(ctrl->wIndex));
+	wValue = le16_to_cpu(ctrl->wValue);
+	wIndex = le16_to_cpu(ctrl->wIndex);
+	recip = ctrl->bRequestType & USB_RECIP_MASK;
+
+	switch (recip) {
+	case USB_RECIP_DEVICE:
+		switch (wValue) {
+		case USB_DEVICE_TEST_MODE:
+			if ((wIndex & 0xff) != 0)
+				return -EINVAL;
+			if (!set)
+				return -EINVAL;
+
+			hsotg->test_mode = wIndex >> 8;
+			ret = s3c_hsotg_send_reply(hsotg, ep0, NULL, 0);
+			if (ret) {
+				dev_err(hsotg->dev,
+					"%s: failed to send reply\n", __func__);
+				return ret;
+			}
+			break;
+		default:
+			return -ENOENT;
+		}
+		break;
+
+	case USB_RECIP_ENDPOINT:
+		ep = ep_from_windex(hsotg, wIndex);
 		if (!ep) {
 			dev_dbg(hsotg->dev, "%s: no endpoint for 0x%04x\n",
-				__func__, le16_to_cpu(ctrl->wIndex));
+				__func__, wIndex);
 			return -ENOENT;
 		}
 
-		switch (le16_to_cpu(ctrl->wValue)) {
+		switch (wValue) {
 		case USB_ENDPOINT_HALT:
 			halted = ep->halted;
 
@@ -1031,9 +1087,10 @@ static int s3c_hsotg_process_req_feature(struct dwc2_hsotg *hsotg,
 		default:
 			return -ENOENT;
 		}
-	} else
-		return -ENOENT;  /* currently only deal with endpoint */
-
+		break;
+	default:
+		return -ENOENT;
+	}
 	return 1;
 }
 
@@ -1734,6 +1791,17 @@ static void s3c_hsotg_complete_in(struct dwc2_hsotg *hsotg,
 	if (hs_ep->index == 0 && hsotg->ep0_state == DWC2_EP0_STATUS_IN) {
 		dev_dbg(hsotg->dev, "zlp packet sent\n");
 		s3c_hsotg_complete_request(hsotg, hs_ep, hs_req, 0);
+		if (hsotg->test_mode) {
+			int ret;
+
+			ret = s3c_hsotg_set_test_mode(hsotg, hsotg->test_mode);
+			if (ret < 0) {
+				dev_dbg(hsotg->dev, "Invalid Test #%d\n",
+						hsotg->test_mode);
+				s3c_hsotg_stall_ep0(hsotg);
+				return;
+			}
+		}
 		s3c_hsotg_enqueue_setup(hsotg);
 		return;
 	}
@@ -2045,6 +2113,7 @@ void s3c_hsotg_disconnect(struct dwc2_hsotg *hsotg)
 		return;
 
 	hsotg->connected = 0;
+	hsotg->test_mode = 0;
 
 	for (ep = 0; ep < hsotg->num_of_eps; ep++) {
 		if (hsotg->eps_in[ep])
@@ -3257,6 +3326,103 @@ static void s3c_hsotg_dump(struct dwc2_hsotg *hsotg)
 }
 
 /**
+ * testmode_write - debugfs: change usb test mode
+ * @seq: The seq file to write to.
+ * @v: Unused parameter.
+ *
+ * This debugfs entry modify the current usb test mode.
+ */
+static ssize_t testmode_write(struct file *file, const char __user *ubuf, size_t
+		count, loff_t *ppos)
+{
+	struct seq_file		*s = file->private_data;
+	struct dwc2_hsotg	*hsotg = s->private;
+	unsigned long		flags;
+	u32			testmode = 0;
+	char			buf[32];
+
+	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
+		return -EFAULT;
+
+	if (!strncmp(buf, "test_j", 6))
+		testmode = TEST_J;
+	else if (!strncmp(buf, "test_k", 6))
+		testmode = TEST_K;
+	else if (!strncmp(buf, "test_se0_nak", 12))
+		testmode = TEST_SE0_NAK;
+	else if (!strncmp(buf, "test_packet", 11))
+		testmode = TEST_PACKET;
+	else if (!strncmp(buf, "test_force_enable", 17))
+		testmode = TEST_FORCE_EN;
+	else
+		testmode = 0;
+
+	spin_lock_irqsave(&hsotg->lock, flags);
+	s3c_hsotg_set_test_mode(hsotg, testmode);
+	spin_unlock_irqrestore(&hsotg->lock, flags);
+	return count;
+}
+
+/**
+ * testmode_show - debugfs: show usb test mode state
+ * @seq: The seq file to write to.
+ * @v: Unused parameter.
+ *
+ * This debugfs entry shows which usb test mode is currently enabled.
+ */
+static int testmode_show(struct seq_file *s, void *unused)
+{
+	struct dwc2_hsotg *hsotg = s->private;
+	unsigned long flags;
+	int dctl;
+
+	spin_lock_irqsave(&hsotg->lock, flags);
+	dctl = readl(hsotg->regs + DCTL);
+	dctl &= DCTL_TSTCTL_MASK;
+	dctl >>= DCTL_TSTCTL_SHIFT;
+	spin_unlock_irqrestore(&hsotg->lock, flags);
+
+	switch (dctl) {
+	case 0:
+		seq_puts(s, "no test\n");
+		break;
+	case TEST_J:
+		seq_puts(s, "test_j\n");
+		break;
+	case TEST_K:
+		seq_puts(s, "test_k\n");
+		break;
+	case TEST_SE0_NAK:
+		seq_puts(s, "test_se0_nak\n");
+		break;
+	case TEST_PACKET:
+		seq_puts(s, "test_packet\n");
+		break;
+	case TEST_FORCE_EN:
+		seq_puts(s, "test_force_enable\n");
+		break;
+	default:
+		seq_printf(s, "UNKNOWN %d\n", dctl);
+	}
+
+	return 0;
+}
+
+static int testmode_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, testmode_show, inode->i_private);
+}
+
+static const struct file_operations testmode_fops = {
+	.owner		= THIS_MODULE,
+	.open		= testmode_open,
+	.write		= testmode_write,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+/**
  * state_show - debugfs: show overall driver and device state.
  * @seq: The seq file to write to.
  * @v: Unused parameter.
@@ -3490,6 +3656,14 @@ static void s3c_hsotg_create_debug(struct dwc2_hsotg *hsotg)
 	if (IS_ERR(hsotg->debug_file))
 		dev_err(hsotg->dev, "%s: failed to create state\n", __func__);
 
+	hsotg->debug_testmode = debugfs_create_file("testmode",
+					S_IRUGO | S_IWUSR, root,
+					hsotg, &testmode_fops);
+
+	if (IS_ERR(hsotg->debug_testmode))
+		dev_err(hsotg->dev, "%s: failed to create testmode\n",
+				__func__);
+
 	hsotg->debug_fifo = debugfs_create_file("fifo", 0444, root,
 						hsotg, &fifo_fops);
 
@@ -3544,6 +3718,7 @@ static void s3c_hsotg_delete_debug(struct dwc2_hsotg *hsotg)
 	}
 
 	debugfs_remove(hsotg->debug_file);
+	debugfs_remove(hsotg->debug_testmode);
 	debugfs_remove(hsotg->debug_fifo);
 	debugfs_remove(hsotg->debug_root);
 }
