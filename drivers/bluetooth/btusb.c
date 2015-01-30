@@ -1822,8 +1822,10 @@ static int btusb_recv_event_intel(struct hci_dev *hdev, struct sk_buff *skb)
 		 */
 		if (skb->len == 9 && hdr->evt == 0xff && hdr->plen == 0x07 &&
 		    skb->data[2] == 0x02) {
-			if (test_and_clear_bit(BTUSB_BOOTING, &data->flags))
-				wake_up_interruptible(&hdev->req_wait_q);
+			if (test_and_clear_bit(BTUSB_BOOTING, &data->flags)) {
+				smp_mb__after_atomic();
+				wake_up_bit(&data->flags, BTUSB_BOOTING);
+			}
 		}
 	}
 
@@ -2236,33 +2238,25 @@ done:
 
 	/* The bootloader will not indicate when the device is ready. This
 	 * is done by the operational firmware sending bootup notification.
+	 *
+	 * Booting into operational firmware should not take longer than
+	 * 1 second. However if that happens, then just fail the setup
+	 * since something went wrong.
 	 */
-	if (test_bit(BTUSB_BOOTING, &data->flags)) {
-		DECLARE_WAITQUEUE(wait, current);
-		signed long timeout;
+	BT_INFO("%s: Waiting for device to boot", hdev->name);
 
-		BT_INFO("%s: Waiting for device to boot", hdev->name);
+	err = btusb_wait_on_bit_timeout(&data->flags, BTUSB_BOOTING,
+					msecs_to_jiffies(1000),
+					TASK_INTERRUPTIBLE);
 
-		add_wait_queue(&hdev->req_wait_q, &wait);
-		set_current_state(TASK_INTERRUPTIBLE);
+	if (err == 1) {
+		BT_ERR("%s: Device boot interrupted", hdev->name);
+		return -EINTR;
+	}
 
-		/* Booting into operational firmware should not take
-		 * longer than 1 second. However if that happens, then
-		 * just fail the setup since something went wrong.
-		 */
-		timeout = schedule_timeout(msecs_to_jiffies(1000));
-
-		remove_wait_queue(&hdev->req_wait_q, &wait);
-
-		if (signal_pending(current)) {
-			BT_ERR("%s: Device boot interrupted", hdev->name);
-			return -EINTR;
-		}
-
-		if (!timeout) {
-			BT_ERR("%s: Device boot timeout", hdev->name);
-			return -ETIMEDOUT;
-		}
+	if (err) {
+		BT_ERR("%s: Device boot timeout", hdev->name);
+		return -ETIMEDOUT;
 	}
 
 	rettime = ktime_get();
