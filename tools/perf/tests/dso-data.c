@@ -112,6 +112,9 @@ int test__dso_data(void)
 
 	dso = dso__new((const char *)file);
 
+	TEST_ASSERT_VAL("Failed to access to dso",
+			dso__data_fd(dso, &machine) >= 0);
+
 	/* Basic 10 bytes tests. */
 	for (i = 0; i < ARRAY_SIZE(offsets); i++) {
 		struct test_data_offset *data = &offsets[i];
@@ -252,13 +255,13 @@ int test__dso_data_cache(void)
 		struct dso *dso = dsos[i];
 
 		/*
-		 * Open dsos via dso__data_fd or dso__data_read_offset.
-		 * Both opens the data file and keep it open.
+		 * Open dsos via dso__data_fd(), it opens the data
+		 * file and keep it open (unless open file limit).
 		 */
+		fd = dso__data_fd(dso, &machine);
+		TEST_ASSERT_VAL("failed to get fd", fd > 0);
+
 		if (i % 2) {
-			fd = dso__data_fd(dso, &machine);
-			TEST_ASSERT_VAL("failed to get fd", fd > 0);
-		} else {
 			#define BUFSIZE 10
 			u8 buf[BUFSIZE];
 			ssize_t n;
