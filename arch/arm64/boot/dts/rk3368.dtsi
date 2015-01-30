@@ -523,7 +523,7 @@
 			<&i2s_pll &clk_gpll>, <&spdif_8ch_pll &clk_gpll>,
 			<&i2s_2ch_pll &clk_gpll>, <&usbphy_480m &usbotg_480m_out>,
 			<&clk_uart_pll &clk_gpll>, <&aclk_gpu &clk_cpll>,
-			<&clk_cs &clk_gpll>;
+			<&clk_cs &clk_gpll>, <&clk_32k_mux &xin32k>;
 		rockchip,clocks-init-rate =
 			<&clk_gpll 576000000>,		<&clk_core_b 792000000>,
 			<&clk_core_l 600000000>,	<&clk_cpll 400000000>,
@@ -906,6 +906,8 @@
 	pvtm {
 		compatible = "rockchip,rk3368-pvtm";
 		rockchip,grf = <&grf>;
+		rockchip,pmugrf = <&pmugrf>;
+		rockchip,pvtm-clk-out = <0>;
 	};
 
 	cpufreq {

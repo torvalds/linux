@@ -46,6 +46,13 @@
 				#clock-cells = <0>;
 			};
 
+			pvtm_clkout: pvtm_clkout {
+				compatible = "rockchip,rk-fixed-clock";
+				clock-output-names = "pvtm_clkout";
+				clock-frequency = <32000>;
+				#clock-cells = <0>;
+			};
+
 			dummy: dummy {
 				compatible = "rockchip,rk-fixed-clock";
 				clock-output-names = "dummy";
@@ -2717,7 +2724,7 @@
 				compatible = "rockchip,rk3188-mux-con";
 				reg = <0x0 0xff738100 0x0 0x4>;
 				rockchip,bits = <6 1>;
-				clocks = <&xin32k>, <&clk_gates7 3>;
+				clocks = <&xin32k>, <&pvtm_clkout>;
 				clock-output-names = "clk_32k_mux";
 				#clock-cells = <0>;
 				#clock-init-cells = <1>;
