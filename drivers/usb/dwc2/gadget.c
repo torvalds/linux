@@ -981,7 +981,7 @@ static struct s3c_hsotg_req *get_ep_head(struct s3c_hsotg_ep *hs_ep)
 }
 
 /**
- * s3c_hsotg_process_req_featire - process request {SET,CLEAR}_FEATURE
+ * s3c_hsotg_process_req_feature - process request {SET,CLEAR}_FEATURE
  * @hsotg: The device state
  * @ctrl: USB control request
  */
