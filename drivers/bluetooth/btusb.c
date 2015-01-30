@@ -334,6 +334,16 @@ struct btusb_data {
 	int (*recv_bulk)(struct btusb_data *data, void *buffer, int count);
 };
 
+static int btusb_wait_on_bit_timeout(void *word, int bit, unsigned long timeout,
+				     unsigned mode)
+{
+	might_sleep();
+	if (!test_bit(bit, word))
+		return 0;
+	return out_of_line_wait_on_bit_timeout(word, bit, bit_wait_timeout,
+					       mode, timeout);
+}
+
 static inline void btusb_free_frags(struct btusb_data *data)
 {
 	unsigned long flags;
@@ -1800,8 +1810,10 @@ static int btusb_recv_event_intel(struct hci_dev *hdev, struct sk_buff *skb)
 
 			if (test_and_clear_bit(BTUSB_DOWNLOADING,
 					       &data->flags) &&
-			    test_bit(BTUSB_FIRMWARE_LOADED, &data->flags))
-				wake_up_interruptible(&hdev->req_wait_q);
+			    test_bit(BTUSB_FIRMWARE_LOADED, &data->flags)) {
+				smp_mb__after_atomic();
+				wake_up_bit(&data->flags, BTUSB_DOWNLOADING);
+			}
 		}
 
 		/* When switching to the operational firmware the device
@@ -2165,43 +2177,32 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 
 	set_bit(BTUSB_FIRMWARE_LOADED, &data->flags);
 
+	BT_INFO("%s: Waiting for firmware download to complete", hdev->name);
+
 	/* Before switching the device into operational mode and with that
 	 * booting the loaded firmware, wait for the bootloader notification
 	 * that all fragments have been successfully received.
 	 *
-	 * When the event processing receives the notification, then this
-	 * flag will be cleared. So just in case that happens really quickly,
-	 * check it first before adding the wait queue.
+	 * When the event processing receives the notification, then the
+	 * BTUSB_DOWNLOADING flag will be cleared.
+	 *
+	 * The firmware loading should not take longer than 5 seconds
+	 * and thus just timeout if that happens and fail the setup
+	 * of this device.
 	 */
-	if (test_bit(BTUSB_DOWNLOADING, &data->flags)) {
-		DECLARE_WAITQUEUE(wait, current);
-		signed long timeout;
+	err = btusb_wait_on_bit_timeout(&data->flags, BTUSB_DOWNLOADING,
+					msecs_to_jiffies(5000),
+					TASK_INTERRUPTIBLE);
+	if (err == 1) {
+		BT_ERR("%s: Firmware loading interrupted", hdev->name);
+		err = -EINTR;
+		goto done;
+	}
 
-		BT_INFO("%s: Waiting for firmware download to complete",
-			hdev->name);
-
-		add_wait_queue(&hdev->req_wait_q, &wait);
-		set_current_state(TASK_INTERRUPTIBLE);
-
-		/* The firmware loading should not take longer than 5 seconds
-		 * and thus just timeout if that happens and fail the setup
-		 * of this device.
-		 */
-		timeout = schedule_timeout(msecs_to_jiffies(5000));
-
-		remove_wait_queue(&hdev->req_wait_q, &wait);
-
-		if (signal_pending(current)) {
-			BT_ERR("%s: Firmware loading interrupted", hdev->name);
-			err = -EINTR;
-			goto done;
-		}
-
-		if (!timeout) {
-			BT_ERR("%s: Firmware loading timeout", hdev->name);
-			err = -ETIMEDOUT;
-			goto done;
-		}
+	if (err) {
+		BT_ERR("%s: Firmware loading timeout", hdev->name);
+		err = -ETIMEDOUT;
+		goto done;
 	}
 
 	if (test_bit(BTUSB_FIRMWARE_FAILED, &data->flags)) {
