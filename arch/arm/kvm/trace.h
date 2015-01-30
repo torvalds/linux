@@ -25,18 +25,22 @@ TRACE_EVENT(kvm_entry,
 );
 
 TRACE_EVENT(kvm_exit,
-	TP_PROTO(unsigned long vcpu_pc),
-	TP_ARGS(vcpu_pc),
+	TP_PROTO(unsigned int exit_reason, unsigned long vcpu_pc),
+	TP_ARGS(exit_reason, vcpu_pc),
 
 	TP_STRUCT__entry(
+		__field(	unsigned int,	exit_reason	)
 		__field(	unsigned long,	vcpu_pc		)
 	),
 
 	TP_fast_assign(
+		__entry->exit_reason		= exit_reason;
 		__entry->vcpu_pc		= vcpu_pc;
 	),
 
-	TP_printk("PC: 0x%08lx", __entry->vcpu_pc)
+	TP_printk("HSR_EC: 0x%04x, PC: 0x%08lx",
+		  __entry->exit_reason,
+		  __entry->vcpu_pc)
 );
 
 TRACE_EVENT(kvm_guest_fault,
