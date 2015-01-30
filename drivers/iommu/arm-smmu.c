@@ -1252,7 +1252,7 @@ static phys_addr_t arm_smmu_iova_to_phys_hard(struct iommu_domain *domain,
 	} else {
 		u32 reg = iova & ~0xfff;
 		writel_relaxed(reg, cb_base + ARM_SMMU_CB_ATS1PR_LO);
-		reg = (iova & ~0xfff) >> 32;
+		reg = ((u64)iova & ~0xfff) >> 32;
 		writel_relaxed(reg, cb_base + ARM_SMMU_CB_ATS1PR_HI);
 	}
 
