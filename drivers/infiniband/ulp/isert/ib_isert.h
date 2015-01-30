@@ -105,7 +105,6 @@ struct isert_conn {
 	struct completion	conn_wait;
 	struct completion	conn_wait_comp_err;
 	struct kref		conn_kref;
-	bool			disconnect;
 };
 
 #define ISERT_MAX_CQ 64
