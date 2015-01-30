@@ -610,6 +610,15 @@ config CRYPTO_SHA256
 	  This code also includes SHA-224, a 224 bit hash with 112 bits
 	  of security against collision attacks.
 
+config CRYPTO_SHA256_PPC_SPE
+	tristate "SHA224 and SHA256 digest algorithm (PPC SPE)"
+	depends on PPC && SPE
+	select CRYPTO_SHA256
+	select CRYPTO_HASH
+	help
+	  SHA224 and SHA256 secure hash standard (DFIPS 180-2)
+	  implemented using powerpc SPE SIMD instruction set.
+
 config CRYPTO_SHA256_SPARC64
 	tristate "SHA224 and SHA256 digest algorithm (SPARC64)"
 	depends on SPARC64
