@@ -61,76 +61,74 @@
 	chosen {
 		bootargs = "earlyprintk console=ttyS0,115200";
 	};
+};
 
-	soc@01c00000 {
-		mmc0: mmc@01c0f000 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_colombus>;
-			vmmc-supply = <&reg_vcc3v0>;
-			bus-width = <4>;
-			cd-gpios = <&pio 0 8 GPIO_ACTIVE_HIGH>; /* PA8 */
-			cd-inverted;
-			status = "okay";
-		};
+&ehci1 {
+	status = "okay";
+};
 
-		usbphy: phy@01c19400 {
-			usb2_vbus-supply = <&reg_usb2_vbus>;
-			status = "okay";
-		};
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins_a>;
+	status = "fail";
+};
 
-		ehci1: usb@01c1b000 {
-			status = "okay";
-		};
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins_a>;
+	status = "okay";
+};
 
-		pio: pinctrl@01c20800 {
-			mmc0_pins_a: mmc0@0 {
-				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
-			};
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_pins_a>;
+	status = "okay";
+};
 
-			mmc0_cd_pin_colombus: mmc0_cd_pin@0 {
-				allwinner,pins = "PA8";
-				allwinner,function = "gpio_in";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
-			};
+&mmc0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_colombus>;
+	vmmc-supply = <&reg_vcc3v0>;
+	bus-width = <4>;
+	cd-gpios = <&pio 0 8 GPIO_ACTIVE_HIGH>; /* PA8 */
+	cd-inverted;
+	status = "okay";
+};
 
-			usb2_vbus_pin_colombus: usb2_vbus_pin@0 {
-				allwinner,pins = "PH24";
-				allwinner,function = "gpio_out";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-			};
-		};
+&mmc0_pins_a {
+	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+};
 
-		uart0: serial@01c28000 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&uart0_pins_a>;
-			status = "okay";
-		};
-
-		i2c0: i2c@01c2ac00 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&i2c0_pins_a>;
-			status = "fail";
-		};
-
-		i2c1: i2c@01c2b000 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&i2c1_pins_a>;
-			status = "okay";
-		};
-
-		i2c2: i2c@01c2b400 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&i2c2_pins_a>;
-			status = "okay";
-		};
+&pio {
+	mmc0_cd_pin_colombus: mmc0_cd_pin@0 {
+		allwinner,pins = "PA8";
+		allwinner,function = "gpio_in";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 	};
 
-	reg_usb2_vbus: usb2-vbus {
-		pinctrl-names = "default";
-		pinctrl-0 = <&usb2_vbus_pin_colombus>;
-		gpio = <&pio 7 24 GPIO_ACTIVE_HIGH>;
-		status = "okay";
+	usb2_vbus_pin_colombus: usb2_vbus_pin@0 {
+		allwinner,pins = "PH24";
+		allwinner,function = "gpio_out";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
+};
+
+&reg_usb2_vbus {
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb2_vbus_pin_colombus>;
+	gpio = <&pio 7 24 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pins_a>;
+	status = "okay";
+};
+
+&usbphy {
+	usb2_vbus-supply = <&reg_usb2_vbus>;
+	status = "okay";
 };
