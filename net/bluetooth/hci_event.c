@@ -1489,6 +1489,21 @@ unlock:
 	hci_dev_unlock(hdev);
 }
 
+static void hci_cc_write_ssp_debug_mode(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	u8 status = *((u8 *) skb->data);
+	u8 *mode;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	if (status)
+		return;
+
+	mode = hci_sent_cmd_data(hdev, HCI_OP_WRITE_SSP_DEBUG_MODE);
+	if (mode)
+		hdev->ssp_debug_mode = *mode;
+}
+
 static void hci_cs_inquiry(struct hci_dev *hdev, __u8 status)
 {
 	BT_DBG("%s status 0x%2.2x", hdev->name, status);
@@ -2981,6 +2996,10 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_OP_READ_TX_POWER:
 		hci_cc_read_tx_power(hdev, skb);
+		break;
+
+	case HCI_OP_WRITE_SSP_DEBUG_MODE:
+		hci_cc_write_ssp_debug_mode(hdev, skb);
 		break;
 
 	default:
