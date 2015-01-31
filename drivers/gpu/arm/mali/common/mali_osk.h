@@ -16,6 +16,88 @@
 #ifndef __MALI_OSK_H__
 #define __MALI_OSK_H__
 
+/**
+*  Fundamental error macro. Reports an error code. This is abstracted to allow us to
+*  easily switch to a different error reporting method if we want, and also to allow
+*  us to search for error returns easily.
+*
+*  Note no closing semicolon - this is supplied in typical usage:
+*
+*  MALI_ERROR(MALI_ERROR_OUT_OF_MEMORY);
+*/
+#define MALI_ERROR(error_code) return (error_code)
+
+/**
+ *  Basic error macro, to indicate success.
+ *  Note no closing semicolon - this is supplied in typical usage:
+ *
+ *  MALI_SUCCESS;
+ */
+#define MALI_SUCCESS MALI_ERROR(_MALI_OSK_ERR_OK)
+
+/**
+ *	Basic error macro. This checks whether the given condition is true, and if not returns
+ *	from this function with the supplied error code. This is a macro so that we can override it
+ *	for stress testing.
+ *
+ *	Note that this uses the do-while-0 wrapping to ensure that we don't get problems with dangling
+ *	else clauses. Note also no closing semicolon - this is supplied in typical usage:
+ *
+ *	MALI_CHECK((p!=NULL), ERROR_NO_OBJECT);
+ */
+#define MALI_CHECK(condition, error_code) do { if(!(condition)) MALI_ERROR(error_code); } while(0)
+
+/**
+ *  Pointer check macro. Checks non-null pointer.
+ */
+#define MALI_CHECK_NON_NULL(pointer, error_code) MALI_CHECK( ((pointer)!=NULL), (error_code) )
+
+/**
+ *	Error propagation macro. If the expression given is anything other than _MALI_OSK_NO_ERROR,
+ *	then the value is returned from the enclosing function as an error code. This effectively
+ *	acts as a guard clause, and propagates error values up the call stack. This uses a
+ *	temporary value to ensure that the error expression is not evaluated twice.
+ *  If the counter for forcing a failure has been set using _mali_force_error, this error will be
+ *  returned without evaluating the expression in MALI_CHECK_NO_ERROR
+ */
+#define MALI_CHECK_NO_ERROR(expression) \
+    do { _mali_osk_errcode_t _check_no_error_result=(expression); \
+         if(_check_no_error_result != _MALI_OSK_ERR_OK) \
+         MALI_ERROR(_check_no_error_result); \
+    } while(0)
+
+/**
+ *	Error macro with goto. This checks whether the given condition is true, and if not jumps
+ *	to the specified label using a goto. The label must therefore be local to the function in
+ *	which this macro appears. This is most usually used to execute some clean-up code before
+ *	exiting with a call to ERROR.
+ *
+ *	Like the other macros, this is a macro to allow us to override the condition if we wish,
+ *	e.g. to force an error during stress testing.
+ */
+#define MALI_CHECK_GOTO(condition, label) do { if(!(condition)) goto label; } while(0)
+
+/**
+ *  Explicitly ignore a parameter passed into a function, to suppress compiler warnings.
+ *  Should only be used with parameter names.
+ */
+#define MALI_IGNORE(x) x=x
+
+#define MALI_PRINTF(args) _mali_osk_dbgmsg args;
+
+#define MALI_PRINT_ERROR(args) do{ \
+	MALI_PRINTF(("Mali: ERR: %s\n" ,__FILE__)); \
+	MALI_PRINTF(("           %s()%4d\n           ", __FUNCTION__, __LINE__)) ; \
+	MALI_PRINTF(args); \
+	MALI_PRINTF(("\n")); \
+	} while(0)
+
+#define MALI_PRINT(args) do{ \
+	MALI_PRINTF(("Mali: ")); \
+	MALI_PRINTF(args); \
+	} while (0)
+
+
 #include "mali_osk_types.h"
 #include "mali_osk_specific.h"           /* include any per-os specifics */
 #include "mali_osk_locks.h"
@@ -322,25 +404,37 @@ void _mali_osk_irq_term( _mali_osk_irq_t *irq );
  * @note It is an error to decrement the counter beyond -(1<<23)
  *
  * @param atom pointer to an atomic counter */
-void _mali_osk_atomic_dec( _mali_osk_atomic_t *atom );
+static inline void _mali_osk_atomic_dec( _mali_osk_atomic_t *atom )
+{
+	atomic_dec((atomic_t *)&atom->u.val);
+}
 
 /** @brief Decrement an atomic counter, return new value
  *
  * @param atom pointer to an atomic counter
  * @return The new value, after decrement */
-u32 _mali_osk_atomic_dec_return( _mali_osk_atomic_t *atom );
+static inline u32 _mali_osk_atomic_dec_return( _mali_osk_atomic_t *atom )
+{
+	return atomic_dec_return((atomic_t *)&atom->u.val);
+}
 
 /** @brief Increment an atomic counter
  *
  * @note It is an error to increment the counter beyond (1<<23)-1
  *
  * @param atom pointer to an atomic counter */
-void _mali_osk_atomic_inc( _mali_osk_atomic_t *atom );
+static inline void _mali_osk_atomic_inc( _mali_osk_atomic_t *atom )
+{
+	atomic_inc((atomic_t *)&atom->u.val);
+}
 
 /** @brief Increment an atomic counter, return new value
  *
  * @param atom pointer to an atomic counter */
-u32 _mali_osk_atomic_inc_return( _mali_osk_atomic_t *atom );
+static inline u32 _mali_osk_atomic_inc_return( _mali_osk_atomic_t *atom )
+{
+	return atomic_inc_return((atomic_t *)&atom->u.val);
+}
 
 /** @brief Initialize an atomic counter
  *
@@ -352,7 +446,12 @@ u32 _mali_osk_atomic_inc_return( _mali_osk_atomic_t *atom );
  * @return _MALI_OSK_ERR_OK on success, otherwise, a suitable
  * _mali_osk_errcode_t on failure.
  */
-_mali_osk_errcode_t _mali_osk_atomic_init( _mali_osk_atomic_t *atom, u32 val );
+static inline _mali_osk_errcode_t _mali_osk_atomic_init( _mali_osk_atomic_t *atom, u32 val )
+{
+	MALI_CHECK_NON_NULL(atom, _MALI_OSK_ERR_INVALID_ARGS);
+	atomic_set((atomic_t *)&atom->u.val, val);
+	return _MALI_OSK_ERR_OK;
+}
 
 /** @brief Read a value from an atomic counter
  *
@@ -362,13 +461,19 @@ _mali_osk_errcode_t _mali_osk_atomic_init( _mali_osk_atomic_t *atom, u32 val );
  *
  * @param atom pointer to an atomic counter
  */
-u32 _mali_osk_atomic_read( _mali_osk_atomic_t *atom );
+static inline u32 _mali_osk_atomic_read( _mali_osk_atomic_t *atom )
+{
+	return atomic_read((atomic_t *)&atom->u.val);
+}
 
 /** @brief Terminate an atomic counter
  *
  * @param atom pointer to an atomic counter
  */
-void _mali_osk_atomic_term( _mali_osk_atomic_t *atom );
+static inline void _mali_osk_atomic_term( _mali_osk_atomic_t *atom )
+{
+	MALI_IGNORE(atom);
+}
 
 /** @brief Assign a new val to atomic counter, and return the old atomic counter
  *
@@ -376,7 +481,10 @@ void _mali_osk_atomic_term( _mali_osk_atomic_t *atom );
  * @param val the new value assign to the atomic counter
  * @return the old value of the atomic counter
  */
-u32 _mali_osk_atomic_xchg( _mali_osk_atomic_t *atom, u32 val );
+static inline u32 _mali_osk_atomic_xchg( _mali_osk_atomic_t *atom, u32 val )
+{
+	return atomic_xchg((atomic_t*)&atom->u.val, val);
+}
 /** @} */  /* end group _mali_osk_atomic */
 
 

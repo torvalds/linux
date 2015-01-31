@@ -42,7 +42,6 @@ else
 endif
 
 mali-y += \
-	linux/mali_osk_atomics.o \
 	linux/mali_osk_irq.o \
 	linux/mali_osk_wq.o \
 	linux/mali_osk_locks.o \
