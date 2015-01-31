@@ -661,24 +661,11 @@ static int mali_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, 
 		err = mem_dump_mmu_page_table_wrapper(session_data, (_mali_uk_dump_mmu_page_table_s __user *)arg);
 		break;
 
-#if defined(CONFIG_MALI400_UMP)
-
-	case MALI_IOC_MEM_ATTACH_UMP:
-		err = mem_attach_ump_wrapper(session_data, (_mali_uk_attach_ump_mem_s __user *)arg);
-		break;
-
-	case MALI_IOC_MEM_RELEASE_UMP:
-		err = mem_release_ump_wrapper(session_data, (_mali_uk_release_ump_mem_s __user *)arg);
-		break;
-
-#else
-
 	case MALI_IOC_MEM_ATTACH_UMP:
 	case MALI_IOC_MEM_RELEASE_UMP: /* FALL-THROUGH */
 		MALI_DEBUG_PRINT(2, ("UMP not supported\n"));
 		err = -ENOTTY;
 		break;
-#endif
 
 #ifdef CONFIG_DMA_SHARED_BUFFER
 	case MALI_IOC_MEM_ATTACH_DMA_BUF:

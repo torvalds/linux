@@ -1,1 +1,1 @@
-obj-y			+= mali/ ump/ umplock/
+obj-y			+= mali/

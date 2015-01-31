@@ -36,12 +36,6 @@ config MALI400_INTERNAL_PROFILING
 	---help---
 	  This enables the internal legacy Mali profiling API.
 
-config MALI400_UMP
-	bool "Enable UMP support"
-	depends on MALI400
-	---help---
-	  This enables support for the UMP memory sharing API in the Mali driver.
-
 config MALI400_POWER_PERFORMANCE_POLICY
 	bool "Enable Mali power performance policy"
 	depends on ARM

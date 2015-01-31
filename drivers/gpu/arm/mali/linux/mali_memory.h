@@ -128,7 +128,6 @@ _mali_osk_errcode_t mali_memory_core_resource_os_memory(u32 size);
 _mali_osk_errcode_t mali_memory_core_resource_dedicated_memory(u32 start, u32 size);
 
 
-void mali_mem_ump_release(mali_mem_allocation *descriptor);
 void mali_mem_external_release(mali_mem_allocation *descriptor);
 
 #endif /* __MALI_MEMORY_H__ */

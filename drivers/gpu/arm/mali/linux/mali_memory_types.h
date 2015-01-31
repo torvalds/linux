@@ -11,17 +11,12 @@
 #ifndef __MALI_MEMORY_TYPES_H__
 #define __MALI_MEMORY_TYPES_H__
 
-#if defined(CONFIG_MALI400_UMP)
-#include <ump/ump_kernel_interface.h>
-#endif
-
 typedef u32 mali_address_t;
 
 typedef enum mali_mem_type {
 	MALI_MEM_OS,
 	MALI_MEM_EXTERNAL,
 	MALI_MEM_DMA_BUF,
-	MALI_MEM_UMP,
 	MALI_MEM_BLOCK,
 } mali_mem_type;
 
@@ -40,12 +35,6 @@ typedef struct mali_mem_external {
 	dma_addr_t phys;
 	u32 size;
 } mali_mem_external;
-
-typedef struct mali_mem_ump {
-#if defined(CONFIG_MALI400_UMP)
-	ump_dd_handle handle;
-#endif
-} mali_mem_ump;
 
 typedef struct block_allocator_allocation {
 	/* The list will be released in reverse order */
@@ -86,7 +75,6 @@ typedef struct mali_mem_allocation {
 		mali_mem_os_mem os_mem;       /**< MALI_MEM_OS */
 		mali_mem_external ext_mem;    /**< MALI_MEM_EXTERNAL */
 		mali_mem_dma_buf dma_buf;     /**< MALI_MEM_DMA_BUF */
-		mali_mem_ump ump_mem;         /**< MALI_MEM_UMP */
 		mali_mem_block_mem block_mem; /**< MALI_MEM_BLOCK */
 	};
 

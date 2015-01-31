@@ -111,65 +111,6 @@ int mem_unmap_ext_wrapper(struct mali_session_data *session_data, _mali_uk_unmap
 	return map_errcode(err_code);
 }
 
-#if defined(CONFIG_MALI400_UMP)
-int mem_release_ump_wrapper(struct mali_session_data *session_data, _mali_uk_release_ump_mem_s __user * argument)
-{
-	_mali_uk_release_ump_mem_s uk_args;
-	_mali_osk_errcode_t err_code;
-
-	/* validate input */
-	/* the session_data pointer was validated by caller */
-	MALI_CHECK_NON_NULL( argument, -EINVAL);
-
-	/* get call arguments from user space. copy_from_user returns how many bytes which where NOT copied */
-	if ( 0 != copy_from_user(&uk_args, (void __user *)argument, sizeof(_mali_uk_release_ump_mem_s)) ) {
-		return -EFAULT;
-	}
-
-	uk_args.ctx = session_data;
-	err_code = _mali_ukk_release_ump_mem( &uk_args );
-
-	/* Return the error that _mali_ukk_free_big_block produced */
-	return map_errcode(err_code);
-}
-
-int mem_attach_ump_wrapper(struct mali_session_data *session_data, _mali_uk_attach_ump_mem_s __user * argument)
-{
-	_mali_uk_attach_ump_mem_s uk_args;
-	_mali_osk_errcode_t err_code;
-
-	/* validate input */
-	/* the session_data pointer was validated by caller */
-	MALI_CHECK_NON_NULL( argument, -EINVAL);
-
-	/* get call arguments from user space. copy_from_user returns how many bytes which where NOT copied */
-	if ( 0 != copy_from_user(&uk_args, (void __user *)argument, sizeof(_mali_uk_attach_ump_mem_s)) ) {
-		return -EFAULT;
-	}
-
-	uk_args.ctx = session_data;
-	err_code = _mali_ukk_attach_ump_mem( &uk_args );
-
-	if (0 != put_user(uk_args.cookie, &argument->cookie)) {
-		if (_MALI_OSK_ERR_OK == err_code) {
-			/* Rollback */
-			_mali_uk_release_ump_mem_s uk_args_unmap;
-
-			uk_args_unmap.ctx = session_data;
-			uk_args_unmap.cookie = uk_args.cookie;
-			err_code = _mali_ukk_release_ump_mem( &uk_args_unmap );
-			if (_MALI_OSK_ERR_OK != err_code) {
-				MALI_DEBUG_PRINT(4, ("reverting _mali_ukk_attach_mem, as a result of failing put_user(), failed\n"));
-			}
-		}
-		return -EFAULT;
-	}
-
-	/* Return the error that _mali_ukk_map_external_ump_mem produced */
-	return map_errcode(err_code);
-}
-#endif /* CONFIG_MALI400_UMP */
-
 int mem_query_mmu_page_table_dump_size_wrapper(struct mali_session_data *session_data, _mali_uk_query_mmu_page_table_dump_size_s __user * uargs)
 {
 	_mali_uk_query_mmu_page_table_dump_size_s kargs;

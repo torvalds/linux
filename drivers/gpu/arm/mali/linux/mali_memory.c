@@ -45,11 +45,6 @@ static void mali_mem_release(mali_mem_allocation *descriptor)
 		mali_mem_dma_buf_release(descriptor);
 #endif
 		break;
-	case MALI_MEM_UMP:
-#if defined(CONFIG_MALI400_UMP)
-		mali_mem_ump_release(descriptor);
-#endif
-		break;
 	case MALI_MEM_EXTERNAL:
 		mali_mem_external_release(descriptor);
 		break;

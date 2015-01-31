@@ -64,18 +64,6 @@ $(error No KDIR found for platform $(TARGET_PLATFORM))
 endif
 
 
-ifeq ($(USING_UMP),1)
-export CONFIG_MALI400_UMP=y
-export EXTRA_DEFINES += -DCONFIG_MALI400_UMP=1
-ifeq ($(USE_UMPV2),1)
-UMP_SYMVERS_FILE ?= ../umpv2/Module.symvers
-else
-UMP_SYMVERS_FILE ?= ../ump/Module.symvers
-endif
-KBUILD_EXTRA_SYMBOLS = $(realpath $(UMP_SYMVERS_FILE))
-$(warning $(KBUILD_EXTRA_SYMBOLS))
-endif
-
 # Define host system directory
 KDIR-$(shell uname -m):=/lib/modules/$(shell uname -r)/build
 

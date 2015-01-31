@@ -352,19 +352,6 @@ _mali_osk_errcode_t _mali_ukk_map_external_mem( _mali_uk_map_external_mem_s *arg
  */
 _mali_osk_errcode_t _mali_ukk_unmap_external_mem( _mali_uk_unmap_external_mem_s *args );
 
-#if defined(CONFIG_MALI400_UMP)
-/** @brief Map UMP memory into Mali
- * @param args see _mali_uk_attach_ump_mem_s in mali_utgard_uk_types.h
- * @return _MALI_OSK_ERR_OK on success, otherwise a suitable _mali_osk_errcode_t on failure.
- */
-_mali_osk_errcode_t _mali_ukk_attach_ump_mem( _mali_uk_attach_ump_mem_s *args );
-/** @brief Unmap UMP memory from Mali
- * @param args see _mali_uk_release_ump_mem_s in mali_utgard_uk_types.h
- * @return _MALI_OSK_ERR_OK on success, otherwise a suitable _mali_osk_errcode_t on failure.
- */
-_mali_osk_errcode_t _mali_ukk_release_ump_mem( _mali_uk_release_ump_mem_s *args );
-#endif /* CONFIG_MALI400_UMP */
-
 /** @brief Determine virtual-to-physical mapping of a contiguous memory range
  * (optional)
  *
