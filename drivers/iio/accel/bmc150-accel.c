@@ -748,7 +748,7 @@ static int bmc150_accel_write_event_config(struct iio_dev *indio_dev,
 	struct bmc150_accel_data *data = iio_priv(indio_dev);
 	int ret;
 
-	if (state && data->ev_enable_state)
+	if (state == data->ev_enable_state)
 		return 0;
 
 	mutex_lock(&data->mutex);
@@ -983,6 +983,18 @@ static int bmc150_accel_data_rdy_trigger_set_state(struct iio_trigger *trig,
 	int ret;
 
 	mutex_lock(&data->mutex);
+
+	if (data->motion_trig == trig) {
+		if (data->motion_trigger_on == state) {
+			mutex_unlock(&data->mutex);
+			return 0;
+		}
+	} else {
+		if (data->dready_trigger_on == state) {
+			mutex_unlock(&data->mutex);
+			return 0;
+		}
+	}
 
 	if (!state && data->ev_enable_state && data->motion_trigger_on) {
 		data->motion_trigger_on = false;
