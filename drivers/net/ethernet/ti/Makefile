@@ -2,6 +2,9 @@
 # Makefile for the TI network device drivers.
 #
 
+obj-$(CONFIG_TI_CPSW) += cpsw-common.o
+obj-$(CONFIG_TI_DAVINCI_EMAC) += cpsw-common.o
+
 obj-$(CONFIG_TLAN) += tlan.o
 obj-$(CONFIG_CPMAC) += cpmac.o
 obj-$(CONFIG_TI_DAVINCI_EMAC) += davinci_emac.o
