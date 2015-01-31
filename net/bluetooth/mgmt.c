@@ -3672,7 +3672,7 @@ static int add_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 				   status, &cp->addr, sizeof(cp->addr));
 	} else if (len == MGMT_ADD_REMOTE_OOB_EXT_DATA_SIZE) {
 		struct mgmt_cp_add_remote_oob_ext_data *cp = data;
-		u8 *rand192, *hash192;
+		u8 *rand192, *hash192, *rand256, *hash256;
 		u8 status;
 
 		if (bdaddr_type_is_le(cp->addr.type)) {
@@ -3691,13 +3691,34 @@ static int add_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 			rand192 = NULL;
 			hash192 = NULL;
 		} else {
-			rand192 = cp->rand192;
-			hash192 = cp->hash192;
+			/* In case one of the P-192 values is set to zero,
+			 * then just disable OOB data for P-192.
+			 */
+			if (!memcmp(cp->rand192, ZERO_KEY, 16) ||
+			    !memcmp(cp->hash192, ZERO_KEY, 16)) {
+				rand192 = NULL;
+				hash192 = NULL;
+			} else {
+				rand192 = cp->rand192;
+				hash192 = cp->hash192;
+			}
+		}
+
+		/* In case one of the P-256 values is set to zero, then just
+		 * disable OOB data for P-256.
+		 */
+		if (!memcmp(cp->rand256, ZERO_KEY, 16) ||
+		    !memcmp(cp->hash256, ZERO_KEY, 16)) {
+			rand256 = NULL;
+			hash256 = NULL;
+		} else {
+			rand256 = cp->rand256;
+			hash256 = cp->hash256;
 		}
 
 		err = hci_add_remote_oob_data(hdev, &cp->addr.bdaddr,
 					      cp->addr.type, hash192, rand192,
-					      cp->hash256, cp->rand256);
+					      hash256, rand256);
 		if (err < 0)
 			status = MGMT_STATUS_FAILED;
 		else
