@@ -9801,6 +9801,13 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	crtc->primary->fb = fb;
 
+	/* Keep state structure in sync */
+	if (crtc->primary->state->fb)
+		drm_framebuffer_unreference(crtc->primary->state->fb);
+	crtc->primary->state->fb = fb;
+	if (crtc->primary->state->fb)
+		drm_framebuffer_reference(crtc->primary->state->fb);
+
 	work->pending_flip_obj = obj;
 
 	atomic_inc(&intel_crtc->unpin_work_count);
