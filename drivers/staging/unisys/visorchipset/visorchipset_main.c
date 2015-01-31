@@ -1594,7 +1594,7 @@ parahotplug_next_id(void)
 static unsigned long
 parahotplug_next_expiration(void)
 {
-	return jiffies + PARAHOTPLUG_TIMEOUT_MS * HZ / 1000;
+	return jiffies + msecs_to_jiffies(PARAHOTPLUG_TIMEOUT_MS);
 }
 
 /*
