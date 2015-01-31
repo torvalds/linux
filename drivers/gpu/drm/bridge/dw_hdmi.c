@@ -177,19 +177,16 @@ static void hdmi_mask_writeb(struct dw_hdmi *hdmi, u8 data, unsigned int reg,
 	hdmi_modb(hdmi, data << shift, mask, reg);
 }
 
-static void hdmi_set_clock_regenerator_n(struct dw_hdmi *hdmi,
-					 unsigned int value)
+static void hdmi_set_cts_n(struct dw_hdmi *hdmi, unsigned int cts,
+			   unsigned int n)
 {
-	hdmi_writeb(hdmi, value & 0xff, HDMI_AUD_N1);
-	hdmi_writeb(hdmi, (value >> 8) & 0xff, HDMI_AUD_N2);
-	hdmi_writeb(hdmi, (value >> 16) & 0x0f, HDMI_AUD_N3);
+	hdmi_writeb(hdmi, n & 0xff, HDMI_AUD_N1);
+	hdmi_writeb(hdmi, (n >> 8) & 0xff, HDMI_AUD_N2);
+	hdmi_writeb(hdmi, (n >> 16) & 0x0f, HDMI_AUD_N3);
 
 	/* nshift factor = 0 */
 	hdmi_modb(hdmi, 0, HDMI_AUD_CTS3_N_SHIFT_MASK, HDMI_AUD_CTS3);
-}
 
-static void hdmi_regenerate_cts(struct dw_hdmi *hdmi, unsigned int cts)
-{
 	/* Must be set/cleared first */
 	hdmi_modb(hdmi, 0, HDMI_AUD_CTS3_CTS_MANUAL, HDMI_AUD_CTS3);
 
@@ -355,8 +352,7 @@ static void hdmi_set_clk_regenerator(struct dw_hdmi *hdmi,
 		__func__, hdmi->sample_rate, hdmi->ratio,
 		pixel_clk, clk_n, clk_cts);
 
-	hdmi_set_clock_regenerator_n(hdmi, clk_n);
-	hdmi_regenerate_cts(hdmi, clk_cts);
+	hdmi_set_cts_n(hdmi, clk_cts, clk_n);
 }
 
 static void hdmi_init_clk_regenerator(struct dw_hdmi *hdmi)
