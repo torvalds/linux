@@ -40,6 +40,7 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->ndirty_dirs = sbi->n_dirty_dirs;
 	si->ndirty_meta = get_pages(sbi, F2FS_DIRTY_META);
 	si->inmem_pages = get_pages(sbi, F2FS_INMEM_PAGES);
+	si->wb_pages = get_pages(sbi, F2FS_WRITEBACK);
 	si->total_count = (int)sbi->user_block_count / sbi->blocks_per_seg;
 	si->rsvd_segs = reserved_segments(sbi);
 	si->overp_segs = overprovision_segments(sbi);
@@ -266,8 +267,8 @@ static int stat_show(struct seq_file *s, void *v)
 		seq_printf(s, "\nExtent Hit Ratio: %d / %d\n",
 			   si->hit_ext, si->total_ext);
 		seq_puts(s, "\nBalancing F2FS Async:\n");
-		seq_printf(s, "  - inmem: %4d\n",
-			   si->inmem_pages);
+		seq_printf(s, "  - inmem: %4d, wb: %4d\n",
+			   si->inmem_pages, si->wb_pages);
 		seq_printf(s, "  - nodes: %4d in %4d\n",
 			   si->ndirty_node, si->node_pages);
 		seq_printf(s, "  - dents: %4d in dirs:%4d\n",
