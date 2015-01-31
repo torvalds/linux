@@ -596,7 +596,7 @@ struct fm10k_vf_info {
 	u16			sw_vid;		/* Switch API assigned VLAN */
 	u16			pf_vid;		/* PF assigned Default VLAN */
 	u8			mac[ETH_ALEN];	/* PF Default MAC address */
-	u8			vsi;		/* VSI idenfifier */
+	u8			vsi;		/* VSI identifier */
 	u8			vf_idx;		/* which VF this is */
 	u8			vf_flags;	/* flags indicating what modes
 						 * are supported for the port

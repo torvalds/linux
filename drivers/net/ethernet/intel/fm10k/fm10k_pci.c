@@ -648,7 +648,7 @@ static void fm10k_configure_rx_ring(struct fm10k_intfc *interface,
 	/* Configure the Rx buffer size for one buff without split */
 	srrctl |= FM10K_RX_BUFSZ >> FM10K_SRRCTL_BSIZEPKT_SHIFT;
 
-	/* Configure the Rx ring to supress loopback packets */
+	/* Configure the Rx ring to suppress loopback packets */
 	srrctl |= FM10K_SRRCTL_LOOPBACK_SUPPRESS;
 	fm10k_write_reg(hw, FM10K_SRRCTL(reg_idx), srrctl);
 
