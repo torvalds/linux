@@ -269,6 +269,37 @@ static int bmc150_accel_set_bw(struct bmc150_accel_data *data, int val,
 	return -EINVAL;
 }
 
+static int bmc150_accel_update_slope(struct bmc150_accel_data *data)
+{
+	int ret, val;
+
+	ret = i2c_smbus_write_byte_data(data->client, BMC150_ACCEL_REG_INT_6,
+					data->slope_thres);
+	if (ret < 0) {
+		dev_err(&data->client->dev, "Error writing reg_int_6\n");
+		return ret;
+	}
+
+	ret = i2c_smbus_read_byte_data(data->client, BMC150_ACCEL_REG_INT_5);
+	if (ret < 0) {
+		dev_err(&data->client->dev, "Error reading reg_int_5\n");
+		return ret;
+	}
+
+	val = (ret & ~BMC150_ACCEL_SLOPE_DUR_MASK) | data->slope_dur;
+	ret = i2c_smbus_write_byte_data(data->client, BMC150_ACCEL_REG_INT_5,
+					val);
+	if (ret < 0) {
+		dev_err(&data->client->dev, "Error write reg_int_5\n");
+		return ret;
+	}
+
+	dev_dbg(&data->client->dev, "%s: %x %x\n", __func__, data->slope_thres,
+		data->slope_dur);
+
+	return ret;
+}
+
 static int bmc150_accel_chip_init(struct bmc150_accel_data *data)
 {
 	int ret;
@@ -307,32 +338,12 @@ static int bmc150_accel_chip_init(struct bmc150_accel_data *data)
 
 	data->range = BMC150_ACCEL_DEF_RANGE_4G;
 
-	/* Set default slope duration */
-	ret = i2c_smbus_read_byte_data(data->client, BMC150_ACCEL_REG_INT_5);
-	if (ret < 0) {
-		dev_err(&data->client->dev, "Error reading reg_int_5\n");
-		return ret;
-	}
-	data->slope_dur |= BMC150_ACCEL_DEF_SLOPE_DURATION;
-	ret = i2c_smbus_write_byte_data(data->client,
-					BMC150_ACCEL_REG_INT_5,
-					data->slope_dur);
-	if (ret < 0) {
-		dev_err(&data->client->dev, "Error writing reg_int_5\n");
-		return ret;
-	}
-	dev_dbg(&data->client->dev, "slope_dur %x\n", data->slope_dur);
-
-	/* Set default slope thresholds */
-	ret = i2c_smbus_write_byte_data(data->client,
-					BMC150_ACCEL_REG_INT_6,
-					BMC150_ACCEL_DEF_SLOPE_THRESHOLD);
-	if (ret < 0) {
-		dev_err(&data->client->dev, "Error writing reg_int_6\n");
-		return ret;
-	}
+	/* Set default slope duration and thresholds */
 	data->slope_thres = BMC150_ACCEL_DEF_SLOPE_THRESHOLD;
-	dev_dbg(&data->client->dev, "slope_thres %x\n", data->slope_thres);
+	data->slope_dur = BMC150_ACCEL_DEF_SLOPE_DURATION;
+	ret = bmc150_accel_update_slope(data);
+	if (ret < 0)
+		return ret;
 
 	/* Set default as latched interrupts */
 	ret = i2c_smbus_write_byte_data(data->client,
@@ -375,24 +386,6 @@ static int bmc150_accel_setup_any_motion_interrupt(
 	}
 
 	if (status) {
-		/* Set slope duration (no of samples) */
-		ret = i2c_smbus_write_byte_data(data->client,
-						BMC150_ACCEL_REG_INT_5,
-						data->slope_dur);
-		if (ret < 0) {
-			dev_err(&data->client->dev, "Error write reg_int_5\n");
-			return ret;
-		}
-
-		/* Set slope thresholds */
-		ret = i2c_smbus_write_byte_data(data->client,
-						BMC150_ACCEL_REG_INT_6,
-						data->slope_thres);
-		if (ret < 0) {
-			dev_err(&data->client->dev, "Error write reg_int_6\n");
-			return ret;
-		}
-
 		/*
 		 * New data interrupt is always non-latched,
 		 * which will have higher priority, so no need
@@ -732,7 +725,7 @@ static int bmc150_accel_read_event(struct iio_dev *indio_dev,
 		*val = data->slope_thres;
 		break;
 	case IIO_EV_INFO_PERIOD:
-		*val = data->slope_dur & BMC150_ACCEL_SLOPE_DUR_MASK;
+		*val = data->slope_dur;
 		break;
 	default:
 		return -EINVAL;
@@ -755,11 +748,10 @@ static int bmc150_accel_write_event(struct iio_dev *indio_dev,
 
 	switch (info) {
 	case IIO_EV_INFO_VALUE:
-		data->slope_thres = val;
+		data->slope_thres = val & 0xFF;
 		break;
 	case IIO_EV_INFO_PERIOD:
-		data->slope_dur &= ~BMC150_ACCEL_SLOPE_DUR_MASK;
-		data->slope_dur |= val & BMC150_ACCEL_SLOPE_DUR_MASK;
+		data->slope_dur = val & BMC150_ACCEL_SLOPE_DUR_MASK;
 		break;
 	default:
 		return -EINVAL;
@@ -1056,10 +1048,15 @@ static int bmc150_accel_data_rdy_trigger_set_state(struct iio_trigger *trig,
 		mutex_unlock(&data->mutex);
 		return ret;
 	}
-	if (data->motion_trig == trig)
-		ret =  bmc150_accel_setup_any_motion_interrupt(data, state);
-	else
+
+	if (data->motion_trig == trig) {
+		ret = bmc150_accel_update_slope(data);
+		if (!ret)
+			ret = bmc150_accel_setup_any_motion_interrupt(data,
+								      state);
+	} else {
 		ret = bmc150_accel_setup_new_data_interrupt(data, state);
+	}
 	if (ret < 0) {
 		bmc150_accel_set_power_state(data, false);
 		mutex_unlock(&data->mutex);
