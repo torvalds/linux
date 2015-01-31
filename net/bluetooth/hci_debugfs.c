@@ -212,6 +212,24 @@ static int conn_info_max_age_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(conn_info_max_age_fops, conn_info_max_age_get,
 			conn_info_max_age_set, "%llu\n");
 
+static ssize_t use_debug_keys_read(struct file *file, char __user *user_buf,
+				   size_t count, loff_t *ppos)
+{
+	struct hci_dev *hdev = file->private_data;
+	char buf[3];
+
+	buf[0] = test_bit(HCI_USE_DEBUG_KEYS, &hdev->dev_flags) ? 'Y': 'N';
+	buf[1] = '\n';
+	buf[2] = '\0';
+	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
+}
+
+static const struct file_operations use_debug_keys_fops = {
+	.open		= simple_open,
+	.read		= use_debug_keys_read,
+	.llseek		= default_llseek,
+};
+
 static ssize_t sc_only_mode_read(struct file *file, char __user *user_buf,
 				 size_t count, loff_t *ppos)
 {
@@ -248,6 +266,10 @@ void hci_debugfs_create_common(struct hci_dev *hdev)
 			    &conn_info_min_age_fops);
 	debugfs_create_file("conn_info_max_age", 0644, hdev->debugfs, hdev,
 			    &conn_info_max_age_fops);
+
+	if (lmp_ssp_capable(hdev) || lmp_le_capable(hdev))
+		debugfs_create_file("use_debug_keys", 0444, hdev->debugfs,
+				    hdev, &use_debug_keys_fops);
 
 	if (lmp_sc_capable(hdev) || lmp_le_capable(hdev))
 		debugfs_create_file("sc_only_mode", 0444, hdev->debugfs,
