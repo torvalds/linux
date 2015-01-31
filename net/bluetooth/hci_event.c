@@ -3881,8 +3881,25 @@ static u8 bredr_oob_data_present(struct hci_conn *conn)
 	     !memcmp(data->hash256, ZERO_KEY, 16)))
 		return 0x00;
 
-	if (conn->out || test_bit(HCI_CONN_REMOTE_OOB, &conn->flags))
+	if (conn->out || test_bit(HCI_CONN_REMOTE_OOB, &conn->flags)) {
+		/* When Secure Connections has been enabled, then just
+		 * return the present value stored with the OOB data. It
+		 * will contain the right information about which data
+		 * is present.
+		 */
+		if (bredr_sc_enabled(hdev))
+			return data->present;
+
+		/* When Secure Connections is not enabled or actually
+		 * not supported by the hardware, then check that if
+		 * P-192 data values are present.
+		 */
+		if (!memcmp(data->rand192, ZERO_KEY, 16) ||
+		    !memcmp(data->hash192, ZERO_KEY, 16))
+			return 0x00;
+
 		return 0x01;
+	}
 
 	return 0x00;
 }
