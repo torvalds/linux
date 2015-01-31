@@ -418,7 +418,7 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev)
 	if (child_nodes) {
 		for_each_child_of_node(dev->of_node, child) {
 			u32 port;
-			struct platform_device *port_dev;
+			struct platform_device *port_dev __maybe_unused;
 
 			if (!of_device_is_available(child))
 				continue;
@@ -434,6 +434,7 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev)
 			}
 			mask_port_map |= BIT(port);
 
+#ifdef CONFIG_OF_ADDRESS
 			of_platform_device_create(child, NULL, NULL);
 
 			port_dev = of_find_device_by_node(child);
@@ -444,6 +445,7 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev)
 				if (rc == -EPROBE_DEFER)
 					goto err_out;
 			}
+#endif
 
 			rc = ahci_platform_get_phy(hpriv, port, dev, child);
 			if (rc)
