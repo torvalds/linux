@@ -354,6 +354,24 @@ static int voice_setting_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(voice_setting_fops, voice_setting_get,
 			NULL, "0x%4.4llx\n");
 
+static ssize_t ssp_debug_mode_read(struct file *file, char __user *user_buf,
+				   size_t count, loff_t *ppos)
+{
+	struct hci_dev *hdev = file->private_data;
+	char buf[3];
+
+	buf[0] = hdev->ssp_debug_mode ? 'Y': 'N';
+	buf[1] = '\n';
+	buf[2] = '\0';
+	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
+}
+
+static const struct file_operations ssp_debug_mode_fops = {
+	.open		= simple_open,
+	.read		= ssp_debug_mode_read,
+	.llseek		= default_llseek,
+};
+
 static int auto_accept_delay_set(void *data, u64 val)
 {
 	struct hci_dev *hdev = data;
@@ -474,9 +492,12 @@ void hci_debugfs_create_bredr(struct hci_dev *hdev)
 	debugfs_create_file("voice_setting", 0444, hdev->debugfs, hdev,
 			    &voice_setting_fops);
 
-	if (lmp_ssp_capable(hdev))
+	if (lmp_ssp_capable(hdev)) {
+		debugfs_create_file("ssp_debug_mode", 0444, hdev->debugfs,
+				    hdev, &ssp_debug_mode_fops);
 		debugfs_create_file("auto_accept_delay", 0644, hdev->debugfs,
 				    hdev, &auto_accept_delay_fops);
+	}
 
 	if (lmp_sniff_capable(hdev)) {
 		debugfs_create_file("idle_timeout", 0644, hdev->debugfs,
