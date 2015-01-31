@@ -407,7 +407,10 @@ u32 _mali_osk_atomic_xchg( _mali_osk_atomic_t *atom, u32 val );
  * @param size Size of each element
  * @return On success, the zero-initialized buffer allocated. NULL on failure
  */
-void *_mali_osk_calloc( u32 n, u32 size );
+static inline void *_mali_osk_calloc( u32 n, u32 size )
+{
+	return kcalloc(n, size, GFP_KERNEL);
+}
 
 /** @brief Allocate memory.
  *
@@ -433,7 +436,10 @@ void *_mali_osk_calloc( u32 n, u32 size );
  * @param size Number of bytes to allocate
  * @return On success, the buffer allocated. NULL on failure.
  */
-void *_mali_osk_malloc( u32 size );
+static inline void *_mali_osk_malloc( u32 size )
+{
+	return kmalloc(size, GFP_KERNEL);
+}
 
 /** @brief Free memory.
  *
@@ -449,7 +455,10 @@ void *_mali_osk_malloc( u32 size );
  *
  * @param ptr Pointer to buffer to free
  */
-void _mali_osk_free( void *ptr );
+static inline void _mali_osk_free( void *ptr )
+{
+	kfree(ptr);
+}
 
 /** @brief Allocate memory.
  *
@@ -474,7 +483,10 @@ void _mali_osk_free( void *ptr );
  * @param size Number of bytes to allocate
  * @return On success, the buffer allocated. NULL on failure.
  */
-void *_mali_osk_valloc( u32 size );
+static inline void *_mali_osk_valloc( u32 size )
+{
+	return vmalloc(size);
+}
 
 /** @brief Free memory.
  *
@@ -489,7 +501,10 @@ void *_mali_osk_valloc( u32 size );
  *
  * @param ptr Pointer to buffer to free
  */
-void _mali_osk_vfree( void *ptr );
+static inline void _mali_osk_vfree( void *ptr )
+{
+	vfree(ptr);
+}
 
 /** @brief Copies memory.
  *
@@ -504,7 +519,10 @@ void _mali_osk_vfree( void *ptr );
  * @param len Number of bytes to copy.
  * @return \a dst is always passed through unmodified.
  */
-void *_mali_osk_memcpy( void *dst, const void *src, u32 len );
+static inline void *_mali_osk_memcpy( void *dst, const void *src, u32 len )
+{
+	return memcpy(dst, src, len);
+}
 
 /** @brief Fills memory.
  *
@@ -516,7 +534,10 @@ void *_mali_osk_memcpy( void *dst, const void *src, u32 len );
  * @param n Number of bytes to be set to the value.
  * @return \a s is always passed through unmodified
  */
-void *_mali_osk_memset( void *s, u32 c, u32 n );
+static inline void *_mali_osk_memset( void *s, u32 c, u32 n )
+{
+	return memset(s, c, n);
+}
 /** @} */ /* end group _mali_osk_memory */
 
 
