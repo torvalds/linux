@@ -1364,7 +1364,7 @@ static int soc_camera_i2c_init(struct soc_camera_device *icd,
 	snprintf(clk_name, sizeof(clk_name), "%d-%04x",
 		 shd->i2c_adapter_id, shd->board_info->addr);
 
-	icd->clk = v4l2_clk_register(&soc_camera_clk_ops, clk_name, "mclk", icd);
+	icd->clk = v4l2_clk_register(&soc_camera_clk_ops, clk_name, icd);
 	if (IS_ERR(icd->clk)) {
 		ret = PTR_ERR(icd->clk);
 		goto eclkreg;
@@ -1545,7 +1545,7 @@ static int scan_async_group(struct soc_camera_host *ici,
 	snprintf(clk_name, sizeof(clk_name), "%d-%04x",
 		 sasd->asd.match.i2c.adapter_id, sasd->asd.match.i2c.address);
 
-	icd->clk = v4l2_clk_register(&soc_camera_clk_ops, clk_name, "mclk", icd);
+	icd->clk = v4l2_clk_register(&soc_camera_clk_ops, clk_name, icd);
 	if (IS_ERR(icd->clk)) {
 		ret = PTR_ERR(icd->clk);
 		goto eclkreg;
@@ -1650,7 +1650,7 @@ static int soc_of_bind(struct soc_camera_host *ici,
 		snprintf(clk_name, sizeof(clk_name), "of-%s",
 			 of_node_full_name(remote));
 
-	icd->clk = v4l2_clk_register(&soc_camera_clk_ops, clk_name, "mclk", icd);
+	icd->clk = v4l2_clk_register(&soc_camera_clk_ops, clk_name, icd);
 	if (IS_ERR(icd->clk)) {
 		ret = PTR_ERR(icd->clk);
 		goto eclkreg;

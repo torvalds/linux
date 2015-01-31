@@ -330,7 +330,7 @@ int em28xx_init_camera(struct em28xx *dev)
 
 	v4l2_clk_name_i2c(clk_name, sizeof(clk_name),
 			  i2c_adapter_id(adap), client->addr);
-	v4l2->clk = v4l2_clk_register_fixed(clk_name, "mclk", -EINVAL);
+	v4l2->clk = v4l2_clk_register_fixed(clk_name, -EINVAL);
 	if (IS_ERR(v4l2->clk))
 		return PTR_ERR(v4l2->clk);
 
