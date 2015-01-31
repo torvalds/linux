@@ -47,7 +47,6 @@ mali-y += \
 	linux/mali_osk_locks.o \
 	linux/mali_osk_wait_queue.o \
 	linux/mali_osk_low_level_mem.o \
-	linux/mali_osk_math.o \
 	linux/mali_osk_misc.o \
 	linux/mali_osk_mali.o \
 	linux/mali_osk_notification.o \
