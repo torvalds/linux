@@ -1227,6 +1227,7 @@ static int __ip6_append_data(struct sock *sk,
 	u32 tskey = 0;
 	struct rt6_info *rt = (struct rt6_info *)cork->dst;
 	struct ipv6_txoptions *opt = v6_cork->opt;
+	int csummode = CHECKSUM_NONE;
 
 	skb = skb_peek_tail(queue);
 	if (!skb) {
@@ -1283,6 +1284,14 @@ emsgsize:
 			tskey = sk->sk_tskey++;
 	}
 
+	/* If this is the first and only packet and device
+	 * supports checksum offloading, let's use it.
+	 */
+	if (!skb &&
+	    length + fragheaderlen < mtu &&
+	    rt->dst.dev->features & NETIF_F_V6_CSUM &&
+	    !exthdrlen)
+		csummode = CHECKSUM_PARTIAL;
 	/*
 	 * Let's try using as much space as possible.
 	 * Use MTU if total length of the message fits into the MTU.
@@ -1395,7 +1404,7 @@ alloc_new_skb:
 			 *	Fill in the control structures
 			 */
 			skb->protocol = htons(ETH_P_IPV6);
-			skb->ip_summed = CHECKSUM_NONE;
+			skb->ip_summed = csummode;
 			skb->csum = 0;
 			/* reserve for fragmentation and ipsec header */
 			skb_reserve(skb, hh_len + sizeof(struct frag_hdr) +
