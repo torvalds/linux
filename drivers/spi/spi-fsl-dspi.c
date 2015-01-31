@@ -347,6 +347,13 @@ static int dspi_setup(struct spi_device *spi)
 	struct fsl_dspi *dspi = spi_master_get_devdata(spi->master);
 	unsigned char br = 0, pbr = 0, fmsz = 0;
 
+	if ((spi->bits_per_word >= 4) && (spi->bits_per_word <= 16)) {
+		fmsz = spi->bits_per_word - 1;
+	} else {
+		pr_err("Invalid wordsize\n");
+		return -ENODEV;
+	}
+
 	/* Only alloc on first setup */
 	chip = spi_get_ctldata(spi);
 	if (chip == NULL) {
@@ -357,12 +364,6 @@ static int dspi_setup(struct spi_device *spi)
 
 	chip->mcr_val = SPI_MCR_MASTER | SPI_MCR_PCSIS |
 		SPI_MCR_CLR_TXF | SPI_MCR_CLR_RXF;
-	if ((spi->bits_per_word >= 4) && (spi->bits_per_word <= 16)) {
-		fmsz = spi->bits_per_word - 1;
-	} else {
-		pr_err("Invalid wordsize\n");
-		return -ENODEV;
-	}
 
 	chip->void_write_data = 0;
 
