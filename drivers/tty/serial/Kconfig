@@ -835,7 +835,7 @@ config SERIAL_MCF_CONSOLE
 
 config SERIAL_PMACZILOG
 	tristate "Mac or PowerMac z85c30 ESCC support"
-	depends on (M68K && MAC) || (PPC_OF && PPC_PMAC)
+	depends on (M68K && MAC) || PPC_PMAC
 	select SERIAL_CORE
 	help
 	  This driver supports the Zilog z85C30 serial ports found on
@@ -1153,7 +1153,7 @@ config SERIAL_OMAP_CONSOLE
 
 config SERIAL_OF_PLATFORM_NWPSERIAL
 	tristate "NWP serial port driver"
-	depends on PPC_OF && PPC_DCR
+	depends on PPC_DCR
 	select SERIAL_OF_PLATFORM
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_CORE
