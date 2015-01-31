@@ -118,7 +118,7 @@ static ssize_t group_enabled_write(struct file *filp, const char __user *buf, si
 	}
 	buffer[count] = '\0';
 
-	r = strict_strtoul(&buffer[0], 10, &val);
+	r = kstrtoul(&buffer[0], 10, &val);
 	if (0 != r) {
 		return -EINVAL;
 	}
@@ -231,7 +231,7 @@ static ssize_t profiling_counter_src_write(struct file *filp, const char __user 
 
 	buf[cnt] = 0;
 
-	ret = strict_strtol(buf, 10, &val);
+	ret = kstrtol(buf, 10, &val);
 	if (ret < 0) {
 		return ret;
 	}
@@ -316,7 +316,7 @@ static ssize_t l2_l2x_counter_srcx_write(struct file *filp, const char __user *u
 
 	buf[cnt] = 0;
 
-	ret = strict_strtol(buf, 10, &val);
+	ret = kstrtol(buf, 10, &val);
 	if (ret < 0) {
 		return ret;
 	}
@@ -354,7 +354,7 @@ static ssize_t l2_all_counter_srcx_write(struct file *filp, const char __user *u
 
 	buf[cnt] = 0;
 
-	ret = strict_strtol(buf, 10, &val);
+	ret = kstrtol(buf, 10, &val);
 	if (ret < 0) {
 		return ret;
 	}
@@ -448,7 +448,7 @@ static ssize_t power_always_on_write(struct file *filp, const char __user *ubuf,
 	}
 	buf[cnt] = '\0';
 
-	ret = strict_strtoul(buf, 10, &val);
+	ret = kstrtoul(buf, 10, &val);
 	if (0 != ret) {
 		return ret;
 	}
@@ -574,7 +574,7 @@ static ssize_t profiling_record_write(struct file *filp, const char __user *ubuf
 
 	buf[cnt] = 0;
 
-	ret = strict_strtoul(buf, 10, &val);
+	ret = kstrtoul(buf, 10, &val);
 	if (ret < 0) {
 		return ret;
 	}
@@ -911,7 +911,7 @@ static ssize_t user_settings_write(struct file *filp, const char __user *ubuf, s
 	}
 	buf[cnt] = '\0';
 
-	ret = strict_strtoul(buf, 10, &val);
+	ret = kstrtoul(buf, 10, &val);
 	if (0 != ret) {
 		return ret;
 	}
@@ -976,7 +976,7 @@ static ssize_t pmu_power_down_write(struct file *filp, const char __user *buf, s
 	}
 	buffer[count] = '\0';
 
-	ret = strict_strtoul(&buffer[0], 10, &val);
+	ret = kstrtoul(&buffer[0], 10, &val);
 	if (0 != ret) {
 		return -EINVAL;
 	}
@@ -1010,7 +1010,7 @@ static ssize_t pmu_power_up_write(struct file *filp, const char __user *buf, siz
 	}
 	buffer[count] = '\0';
 
-	ret = strict_strtoul(&buffer[0], 10, &val);
+	ret = kstrtoul(&buffer[0], 10, &val);
 	if (0 != ret) {
 		return -EINVAL;
 	}
@@ -1052,7 +1052,7 @@ static ssize_t pp_num_cores_enabled_write(struct file *filp, const char __user *
 	}
 	buffer[count] = '\0';
 
-	ret = strict_strtoul(&buffer[0], 10, &val);
+	ret = kstrtoul(&buffer[0], 10, &val);
 	if (0 != ret) {
 		return -EINVAL;
 	}
@@ -1113,7 +1113,7 @@ static ssize_t pp_core_scaling_enabled_write(struct file *filp, const char __use
 	}
 	buffer[count] = '\0';
 
-	ret = strict_strtoul(&buffer[0], 10, &val);
+	ret = kstrtoul(&buffer[0], 10, &val);
 	if (0 != ret) {
 		return -EINVAL;
 	}
