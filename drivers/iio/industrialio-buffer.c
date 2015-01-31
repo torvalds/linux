@@ -761,6 +761,11 @@ static struct device_attribute dev_attr_length_ro = __ATTR(length,
 static DEVICE_ATTR(enable, S_IRUGO | S_IWUSR,
 		   iio_buffer_show_enable, iio_buffer_store_enable);
 
+static struct attribute *iio_buffer_attrs[] = {
+	&dev_attr_length.attr,
+	&dev_attr_enable.attr,
+};
+
 int iio_buffer_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 {
 	struct iio_dev_attr *p;
@@ -778,21 +783,23 @@ int iio_buffer_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 			attrcount++;
 	}
 
-	buffer->buffer_group.name = "buffer";
-	buffer->buffer_group.attrs = kcalloc(attrcount + 3,
-			sizeof(*buffer->buffer_group.attrs), GFP_KERNEL);
-	if (!buffer->buffer_group.attrs)
+	attr = kcalloc(attrcount + ARRAY_SIZE(iio_buffer_attrs) + 1,
+		       sizeof(struct attribute *), GFP_KERNEL);
+	if (!attr)
 		return -ENOMEM;
 
-	if (buffer->access->set_length)
-		buffer->buffer_group.attrs[0] = &dev_attr_length.attr;
-	else
-		buffer->buffer_group.attrs[0] = &dev_attr_length_ro.attr;
-	buffer->buffer_group.attrs[1] = &dev_attr_enable.attr;
+	memcpy(attr, iio_buffer_attrs, sizeof(iio_buffer_attrs));
+	if (!buffer->access->set_length)
+		attr[0] = &dev_attr_length_ro.attr;
+
 	if (buffer->attrs)
-		memcpy(&buffer->buffer_group.attrs[2], buffer->attrs,
-			sizeof(*&buffer->buffer_group.attrs) * attrcount);
-	buffer->buffer_group.attrs[attrcount+2] = NULL;
+		memcpy(&attr[ARRAY_SIZE(iio_buffer_attrs)], buffer->attrs,
+		       sizeof(struct attribute *) * attrcount);
+
+	attr[attrcount + ARRAY_SIZE(iio_buffer_attrs)] = NULL;
+
+	buffer->buffer_group.name = "buffer";
+	buffer->buffer_group.attrs = attr;
 
 	indio_dev->groups[indio_dev->groupcounter++] = &buffer->buffer_group;
 
