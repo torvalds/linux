@@ -32,6 +32,9 @@ enum iio_chan_type {
 	IIO_HUMIDITYRELATIVE,
 	IIO_ACTIVITY,
 	IIO_STEPS,
+	IIO_ENERGY,
+	IIO_DISTANCE,
+	IIO_VELOCITY,
 };
 
 enum iio_modifier {
@@ -66,6 +69,7 @@ enum iio_modifier {
 	IIO_MOD_JOGGING,
 	IIO_MOD_WALKING,
 	IIO_MOD_STILL,
+	IIO_MOD_ROOT_SUM_SQUARED_X_Y_Z,
 };
 
 enum iio_event_type {
@@ -74,7 +78,7 @@ enum iio_event_type {
 	IIO_EV_TYPE_ROC,
 	IIO_EV_TYPE_THRESH_ADAPTIVE,
 	IIO_EV_TYPE_MAG_ADAPTIVE,
-	IIO_EV_TYPE_INSTANCE,
+	IIO_EV_TYPE_CHANGE,
 };
 
 enum iio_event_info {

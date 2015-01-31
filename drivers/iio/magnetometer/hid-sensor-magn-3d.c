@@ -157,20 +157,12 @@ static int magn_3d_read_raw(struct iio_dev *indio_dev,
 	int report_id = -1;
 	u32 address;
 	int ret_type;
-	s32 poll_value;
 
 	*val = 0;
 	*val2 = 0;
 	switch (mask) {
 	case 0:
-		poll_value = hid_sensor_read_poll_value(
-					&magn_state->common_attributes);
-		if (poll_value < 0)
-				return -EINVAL;
-
 		hid_sensor_power_state(&magn_state->common_attributes, true);
-		msleep_interruptible(poll_value * 2);
-
 		report_id =
 			magn_state->magn[chan->address].report_id;
 		address = magn_3d_addresses[chan->address];
@@ -530,6 +522,7 @@ static struct platform_driver hid_magn_3d_platform_driver = {
 	.id_table = hid_magn_3d_ids,
 	.driver = {
 		.name	= KBUILD_MODNAME,
+		.pm	= &hid_sensor_pm_ops,
 	},
 	.probe		= hid_magn_3d_probe,
 	.remove		= hid_magn_3d_remove,

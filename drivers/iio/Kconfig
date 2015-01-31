@@ -27,7 +27,6 @@ boolean "IIO callback buffer used for push in-kernel interfaces"
 	  usage.  That is, those where the data is pushed to the consumer.
 
 config IIO_KFIFO_BUF
-	select IIO_TRIGGER
 	tristate "Industrial I/O buffering based on kfifo"
 	help
 	  A simple fifo based on kfifo.  Note that this currently provides

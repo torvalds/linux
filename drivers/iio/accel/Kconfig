@@ -111,9 +111,14 @@ config KXCJK1013
 	  To compile this driver as a module, choose M here: the module will
 	  be called kxcjk-1013.
 
+config MMA9551_CORE
+	tristate
+
 config MMA9551
 	tristate "Freescale MMA9551L Intelligent Motion-Sensing Platform Driver"
 	depends on I2C
+	select MMA9551_CORE
+
 	help
 	  Say yes here to build support for the Freescale MMA9551L
 	  Intelligent Motion-Sensing Platform Driver.
@@ -121,4 +126,14 @@ config MMA9551
 	  To compile this driver as a module, choose M here: the module
 	  will be called mma9551.
 
+config MMA9553
+	tristate "Freescale MMA9553L Intelligent Pedometer Platform Driver"
+	depends on I2C
+	select MMA9551_CORE
+	help
+	  Say yes here to build support for the Freescale MMA9553L
+	  Intelligent Pedometer Platform Driver.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called mma9553.
 endmenu
