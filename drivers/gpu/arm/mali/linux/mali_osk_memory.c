@@ -51,11 +51,3 @@ void inline *_mali_osk_memset( void *s, u32 c, u32 n )
 {
 	return memset(s, c, n);
 }
-
-mali_bool _mali_osk_mem_check_allocated( u32 max_allocated )
-{
-	/* No need to prevent an out-of-memory dialogue appearing on Linux,
-	 * so we always return MALI_TRUE.
-	 */
-	return MALI_TRUE;
-}

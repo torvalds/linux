@@ -520,22 +520,6 @@ void *_mali_osk_memset( void *s, u32 c, u32 n );
 /** @} */ /* end group _mali_osk_memory */
 
 
-/** @brief Checks the amount of memory allocated
- *
- * Checks that not more than \a max_allocated bytes are allocated.
- *
- * Some OS bring up an interactive out of memory dialogue when the
- * system runs out of memory. This can stall non-interactive
- * apps (e.g. automated test runs). This function can be used to
- * not trigger the OOM dialogue by keeping allocations
- * within a certain limit.
- *
- * @return MALI_TRUE when \a max_allocated bytes are not in use yet. MALI_FALSE
- * when at least \a max_allocated bytes are in use.
- */
-mali_bool _mali_osk_mem_check_allocated( u32 max_allocated );
-
-
 /** @addtogroup _mali_osk_low_level_memory
  * @{ */
 
