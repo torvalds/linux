@@ -103,8 +103,7 @@ static inline void sleep_schedulable(int ms)
 
 	delta = msecs_to_jiffies(ms);/*(ms)*/
 	set_current_state(TASK_INTERRUPTIBLE);
-	if (schedule_timeout(delta) != 0)
-		return;
+	schedule_timeout(delta);
 }
 
 static inline unsigned char _cancel_timer_ex(struct timer_list *ptimer)
