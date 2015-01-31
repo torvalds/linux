@@ -30,7 +30,7 @@
 }
 
 #define SSP_MS_PER_S			1000
-#define SSP_INVERTED_SCALING_FACTOR	1000000ULL
+#define SSP_INVERTED_SCALING_FACTOR	1000000U
 
 #define SSP_FACTOR_WITH_MS \
 	(SSP_INVERTED_SCALING_FACTOR * SSP_MS_PER_S)
@@ -53,7 +53,8 @@ static inline void ssp_convert_to_freq(u32 time, int *integer_part,
 	}
 
 	*integer_part = SSP_FACTOR_WITH_MS / time;
-	*fractional = do_div(*integer_part, SSP_INVERTED_SCALING_FACTOR);
+	*fractional = *integer_part % SSP_INVERTED_SCALING_FACTOR;
+	*integer_part = *integer_part / SSP_INVERTED_SCALING_FACTOR;
 }
 
 /* Converts frequency to time in ms */
@@ -61,10 +62,10 @@ static inline int ssp_convert_to_time(int integer_part, int fractional)
 {
 	u64 value;
 
-	value = integer_part * SSP_INVERTED_SCALING_FACTOR + fractional;
+	value = (u64)integer_part * SSP_INVERTED_SCALING_FACTOR + fractional;
 	if (value == 0)
 		return 0;
 
-	return div_u64(SSP_FACTOR_WITH_MS, value);
+	return div64_u64((u64)SSP_FACTOR_WITH_MS, value);
 }
 #endif /* __SSP_IIO_SENSOR_H__ */
