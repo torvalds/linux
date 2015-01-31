@@ -2581,9 +2581,15 @@ int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	if (hash192 && rand192) {
 		memcpy(data->hash192, hash192, sizeof(data->hash192));
 		memcpy(data->rand192, rand192, sizeof(data->rand192));
+		if (hash256 && rand256)
+			data->present = 0x03;
 	} else {
 		memset(data->hash192, 0, sizeof(data->hash192));
 		memset(data->rand192, 0, sizeof(data->rand192));
+		if (hash256 && rand256)
+			data->present = 0x02;
+		else
+			data->present = 0x00;
 	}
 
 	if (hash256 && rand256) {
@@ -2592,6 +2598,8 @@ int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	} else {
 		memset(data->hash256, 0, sizeof(data->hash256));
 		memset(data->rand256, 0, sizeof(data->rand256));
+		if (hash192 && rand192)
+			data->present = 0x01;
 	}
 
 	BT_DBG("%s for %pMR", hdev->name, bdaddr);

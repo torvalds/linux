@@ -145,6 +145,7 @@ struct oob_data {
 	struct list_head list;
 	bdaddr_t bdaddr;
 	u8 bdaddr_type;
+	u8 present;
 	u8 hash192[16];
 	u8 rand192[16];
 	u8 hash256[16];
