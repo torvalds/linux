@@ -1366,7 +1366,10 @@ void _mali_osk_abort(void);
  *
  * This function is only used in Debug builds, and is not used in Release builds.
  */
-void _mali_osk_break(void);
+static inline void _mali_osk_break(void)
+{
+	_mali_osk_abort();
+}
 
 /** @brief Return an identificator for calling process.
  *

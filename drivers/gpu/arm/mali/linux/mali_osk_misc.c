@@ -46,11 +46,6 @@ void _mali_osk_abort(void)
 	*(int *)0 = 0;
 }
 
-void _mali_osk_break(void)
-{
-	_mali_osk_abort();
-}
-
 u32 _mali_osk_get_pid(void)
 {
 	/* Thread group ID is the process ID on Linux */
