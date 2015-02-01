@@ -1797,8 +1797,6 @@ eadddev:
 		mutex_unlock(&ici->clk_lock);
 	}
 eadd:
-	video_device_release(icd->vdev);
-	icd->vdev = NULL;
 	if (icd->vdev) {
 		video_device_release(icd->vdev);
 		icd->vdev = NULL;
