@@ -752,6 +752,12 @@ exit:
 	nci_req_complete(ndev, status);
 }
 
+static void nci_nfcee_action_ntf_packet(struct nci_dev *ndev,
+					struct sk_buff *skb)
+{
+	pr_debug("\n");
+}
+
 void nci_ntf_packet(struct nci_dev *ndev, struct sk_buff *skb)
 {
 	__u16 ntf_opcode = nci_opcode(skb->data);
@@ -793,6 +799,11 @@ void nci_ntf_packet(struct nci_dev *ndev, struct sk_buff *skb)
 	case NCI_OP_NFCEE_DISCOVER_NTF:
 		nci_nfcee_discover_ntf_packet(ndev, skb);
 		break;
+
+	case NCI_OP_RF_NFCEE_ACTION_NTF:
+		nci_nfcee_action_ntf_packet(ndev, skb);
+		break;
+
 	default:
 		pr_err("unknown ntf opcode 0x%x\n", ntf_opcode);
 		break;

@@ -499,6 +499,14 @@ struct nci_rf_deactivate_ntf {
 	__u8	reason;
 } __packed;
 
+#define NCI_OP_RF_NFCEE_ACTION_NTF	nci_opcode_pack(NCI_GID_RF_MGMT, 0x09)
+struct nci_rf_nfcee_action_ntf {
+	__u8 nfcee_id;
+	__u8 trigger;
+	__u8 supported_data_length;
+	__u8 supported_data[0];
+} __packed;
+
 #define NCI_OP_NFCEE_DISCOVER_NTF nci_opcode_pack(NCI_GID_NFCEE_MGMT, 0x00)
 struct nci_nfcee_supported_protocol {
 	__u8	num_protocol;
