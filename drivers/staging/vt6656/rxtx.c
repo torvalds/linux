@@ -525,9 +525,6 @@ static u16 vnt_fill_cts_head(struct vnt_usb_send_context *tx_context,
 	u32 cts_frame_len = 14;
 	u16 current_rate = tx_context->tx_rate;
 
-	if (!head)
-		return 0;
-
 	if (tx_context->fb_option) {
 		/* Auto Fall back */
 		struct vnt_cts_fb *buf = &head->cts_g_fb;
