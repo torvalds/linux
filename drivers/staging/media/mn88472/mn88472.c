@@ -270,7 +270,7 @@ static int mn88472_init(struct dvb_frontend *fe)
 
 	ret = regmap_write(dev->regmap[0], 0xf5, 0x03);
 	if (ret)
-		goto err;
+		goto firmware_release;
 
 	for (remaining = fw->size; remaining > 0;
 			remaining -= (dev->i2c_wr_max - 1)) {
@@ -283,13 +283,13 @@ static int mn88472_init(struct dvb_frontend *fe)
 		if (ret) {
 			dev_err(&client->dev,
 					"firmware download failed=%d\n", ret);
-			goto err;
+			goto firmware_release;
 		}
 	}
 
 	ret = regmap_write(dev->regmap[0], 0xf5, 0x00);
 	if (ret)
-		goto err;
+		goto firmware_release;
 
 	release_firmware(fw);
 	fw = NULL;
@@ -298,9 +298,9 @@ static int mn88472_init(struct dvb_frontend *fe)
 	dev->warm = true;
 
 	return 0;
-err:
+firmware_release:
 	release_firmware(fw);
-
+err:
 	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
 }
