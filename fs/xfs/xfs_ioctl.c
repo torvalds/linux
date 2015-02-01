@@ -1016,7 +1016,6 @@ xfs_diflags_to_linux(
 #define FSX_PROJID	1
 #define FSX_EXTSIZE	2
 #define FSX_XFLAGS	4
-#define FSX_NONBLOCK	8
 
 STATIC int
 xfs_ioctl_setattr(
@@ -1299,8 +1298,6 @@ xfs_ioc_fssetxattr(
 		return -EFAULT;
 
 	mask = FSX_XFLAGS | FSX_EXTSIZE | FSX_PROJID;
-	if (filp->f_flags & (O_NDELAY|O_NONBLOCK))
-		mask |= FSX_NONBLOCK;
 
 	error = mnt_want_write_file(filp);
 	if (error)
@@ -1343,8 +1340,6 @@ xfs_ioc_setxflags(
 		return -EOPNOTSUPP;
 
 	mask = FSX_XFLAGS;
-	if (filp->f_flags & (O_NDELAY|O_NONBLOCK))
-		mask |= FSX_NONBLOCK;
 	fa.fsx_xflags = xfs_merge_ioc_xflags(flags, xfs_ip2xflags(ip));
 
 	error = mnt_want_write_file(filp);
