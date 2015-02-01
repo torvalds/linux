@@ -370,7 +370,6 @@ static struct i2c_driver cap11xx_i2c_driver = {
 
 module_i2c_driver(cap11xx_i2c_driver);
 
-MODULE_ALIAS("platform:cap11xx");
 MODULE_DESCRIPTION("Microchip CAP11XX driver");
 MODULE_AUTHOR("Daniel Mack <linux@zonque.org>");
 MODULE_LICENSE("GPL v2");
