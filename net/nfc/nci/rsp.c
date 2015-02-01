@@ -222,6 +222,45 @@ static void nci_nfcee_mode_set_rsp_packet(struct nci_dev *ndev,
 	nci_req_complete(ndev, status);
 }
 
+static void nci_core_conn_create_rsp_packet(struct nci_dev *ndev,
+					    struct sk_buff *skb)
+{
+	__u8 status = skb->data[0];
+	struct nci_conn_info *conn_info;
+	struct nci_core_conn_create_rsp *rsp;
+
+	pr_debug("status 0x%x\n", status);
+
+	if (status == NCI_STATUS_OK) {
+		rsp = (struct nci_core_conn_create_rsp *)skb->data;
+		list_for_each_entry(conn_info, &ndev->conn_info_list, list) {
+			if (conn_info->id == ndev->cur_id)
+				break;
+		}
+
+		if (!conn_info || conn_info->id != ndev->cur_id) {
+			status = NCI_STATUS_REJECTED;
+			goto exit;
+		}
+
+		conn_info->conn_id = rsp->conn_id;
+		conn_info->max_pkt_payload_len = rsp->max_ctrl_pkt_payload_len;
+		atomic_set(&conn_info->credits_cnt, rsp->credits);
+	}
+
+exit:
+	nci_req_complete(ndev, status);
+}
+
+static void nci_core_conn_close_rsp_packet(struct nci_dev *ndev,
+					   struct sk_buff *skb)
+{
+	__u8 status = skb->data[0];
+
+	pr_debug("status 0x%x\n", status);
+	nci_req_complete(ndev, status);
+}
+
 void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 {
 	__u16 rsp_opcode = nci_opcode(skb->data);
@@ -249,6 +288,14 @@ void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 
 	case NCI_OP_CORE_SET_CONFIG_RSP:
 		nci_core_set_config_rsp_packet(ndev, skb);
+		break;
+
+	case NCI_OP_CORE_CONN_CREATE_RSP:
+		nci_core_conn_create_rsp_packet(ndev, skb);
+		break;
+
+	case NCI_OP_CORE_CONN_CLOSE_RSP:
+		nci_core_conn_close_rsp_packet(ndev, skb);
 		break;
 
 	case NCI_OP_RF_DISCOVER_MAP_RSP:

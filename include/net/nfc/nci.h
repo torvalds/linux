@@ -243,6 +243,26 @@ struct nci_core_set_config_cmd {
 	struct	set_config_param param; /* support 1 param per cmd is enough */
 } __packed;
 
+#define NCI_OP_CORE_CONN_CREATE_CMD	nci_opcode_pack(NCI_GID_CORE, 0x04)
+struct dest_spec_params {
+	__u8	id;
+	__u8	protocol;
+} __packed;
+
+struct core_conn_create_dest_spec_params {
+	__u8	type;
+	__u8	length;
+	struct dest_spec_params value;
+} __packed;
+
+struct nci_core_conn_create_cmd {
+	__u8	destination_type;
+	__u8	number_destination_params;
+	struct core_conn_create_dest_spec_params params;
+} __packed;
+
+#define NCI_OP_CORE_CONN_CLOSE_CMD	nci_opcode_pack(NCI_GID_CORE, 0x05)
+
 #define NCI_OP_RF_DISCOVER_MAP_CMD	nci_opcode_pack(NCI_GID_RF_MGMT, 0x00)
 struct disc_map_config {
 	__u8	rf_protocol;
@@ -326,6 +346,16 @@ struct nci_core_set_config_rsp {
 	__u8	num_params;
 	__u8	params_id[0];	/* variable size array */
 } __packed;
+
+#define NCI_OP_CORE_CONN_CREATE_RSP	nci_opcode_pack(NCI_GID_CORE, 0x04)
+struct nci_core_conn_create_rsp {
+	__u8	status;
+	__u8	max_ctrl_pkt_payload_len;
+	__u8    credits;
+	__u8	conn_id;
+} __packed;
+
+#define NCI_OP_CORE_CONN_CLOSE_RSP	nci_opcode_pack(NCI_GID_CORE, 0x05)
 
 #define NCI_OP_RF_DISCOVER_MAP_RSP	nci_opcode_pack(NCI_GID_RF_MGMT, 0x00)
 

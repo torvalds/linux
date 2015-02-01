@@ -507,6 +507,44 @@ int nci_nfcee_mode_set(struct nci_dev *ndev, u8 nfcee_id, u8 nfcee_mode)
 }
 EXPORT_SYMBOL(nci_nfcee_mode_set);
 
+static void nci_core_conn_create_req(struct nci_dev *ndev, unsigned long opt)
+{
+	struct nci_core_conn_create_cmd cmd;
+	struct core_conn_create_dest_spec_params *params =
+				(struct core_conn_create_dest_spec_params *)opt;
+
+	cmd.destination_type = NCI_DESTINATION_NFCEE;
+	cmd.number_destination_params = 1;
+	memcpy(&cmd.params.type, params,
+	       sizeof(struct core_conn_create_dest_spec_params));
+	nci_send_cmd(ndev, NCI_OP_CORE_CONN_CREATE_CMD,
+		     sizeof(struct nci_core_conn_create_cmd), &cmd);
+}
+
+int nci_core_conn_create(struct nci_dev *ndev,
+			 struct core_conn_create_dest_spec_params *params)
+{
+	ndev->cur_id = params->value.id;
+	return nci_request(ndev, nci_core_conn_create_req,
+			(unsigned long)params,
+			msecs_to_jiffies(NCI_CMD_TIMEOUT));
+}
+EXPORT_SYMBOL(nci_core_conn_create);
+
+static void nci_core_conn_close_req(struct nci_dev *ndev, unsigned long opt)
+{
+	__u8 conn_id = opt;
+
+	nci_send_cmd(ndev, NCI_OP_CORE_CONN_CLOSE_CMD, 1, &conn_id);
+}
+
+int nci_core_conn_close(struct nci_dev *ndev, u8 conn_id)
+{
+	return nci_request(ndev, nci_core_conn_close_req, conn_id,
+				msecs_to_jiffies(NCI_CMD_TIMEOUT));
+}
+EXPORT_SYMBOL(nci_core_conn_close);
+
 static int nci_set_local_general_bytes(struct nfc_dev *nfc_dev)
 {
 	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
