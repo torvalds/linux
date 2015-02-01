@@ -541,6 +541,13 @@ static void nci_rf_intf_activated_ntf_packet(struct nci_dev *ndev,
 	pr_debug("rf_tech_specific_params_len %d\n",
 		 ntf.rf_tech_specific_params_len);
 
+	/* If this contains a value of 0x00 (NFCEE Direct RF
+	 * Interface) then all following parameters SHALL contain a
+	 * value of 0 and SHALL be ignored.
+	 */
+	if (ntf.rf_interface == NCI_RF_INTERFACE_NFCEE_DIRECT)
+		goto listen;
+
 	if (ntf.rf_tech_specific_params_len > 0) {
 		switch (ntf.activation_rf_tech_and_mode) {
 		case NCI_NFC_A_PASSIVE_POLL_MODE:
@@ -653,6 +660,7 @@ exit:
 			nci_req_complete(ndev, err);
 		}
 	} else {
+listen:
 		/* Listen mode */
 		atomic_set(&ndev->state, NCI_LISTEN_ACTIVE);
 		if (err == NCI_STATUS_OK &&
