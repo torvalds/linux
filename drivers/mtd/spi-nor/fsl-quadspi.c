@@ -460,8 +460,7 @@ fsl_qspi_runcmd(struct fsl_qspi *q, u8 cmd, unsigned int addr, int len)
 	writel((seqid << QUADSPI_IPCR_SEQID_SHIFT) | len, base + QUADSPI_IPCR);
 
 	/* Wait for the interrupt. */
-	err = wait_for_completion_timeout(&q->c, msecs_to_jiffies(1000));
-	if (!err) {
+	if (!wait_for_completion_timeout(&q->c, msecs_to_jiffies(1000))) {
 		dev_err(q->dev,
 			"cmd 0x%.2x timeout, addr@%.8x, FR:0x%.8x, SR:0x%.8x\n",
 			cmd, addr, readl(base + QUADSPI_FR),
