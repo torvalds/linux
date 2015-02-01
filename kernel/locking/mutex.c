@@ -81,7 +81,7 @@ __visible void __sched __mutex_lock_slowpath(atomic_t *lock_count);
  * The mutex must later on be released by the same task that
  * acquired it. Recursive locking is not allowed. The task
  * may not exit without first unlocking the mutex. Also, kernel
- * memory where the mutex resides mutex must not be freed with
+ * memory where the mutex resides must not be freed with
  * the mutex still locked. The mutex must first be initialized
  * (or statically defined) before it can be locked. memset()-ing
  * the mutex to 0 is not allowed.
