@@ -1679,8 +1679,7 @@ static int ican3_get_berr_counter(const struct net_device *ndev,
 	if (ret)
 		return ret;
 
-	ret = wait_for_completion_timeout(&mod->buserror_comp, HZ);
-	if (ret == 0) {
+	if (!wait_for_completion_timeout(&mod->buserror_comp, HZ)) {
 		netdev_info(mod->ndev, "%s timed out\n", __func__);
 		return -ETIMEDOUT;
 	}
@@ -1705,8 +1704,7 @@ static ssize_t ican3_sysfs_show_term(struct device *dev,
 	if (ret)
 		return ret;
 
-	ret = wait_for_completion_timeout(&mod->termination_comp, HZ);
-	if (ret == 0) {
+	if (!wait_for_completion_timeout(&mod->termination_comp, HZ)) {
 		netdev_info(mod->ndev, "%s timed out\n", __func__);
 		return -ETIMEDOUT;
 	}
