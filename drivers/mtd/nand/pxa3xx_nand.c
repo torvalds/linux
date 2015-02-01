@@ -38,8 +38,8 @@
 
 #include <linux/platform_data/mtd-nand-pxa3xx.h>
 
-#define	CHIP_DELAY_TIMEOUT	(2 * HZ/10)
-#define NAND_STOP_DELAY		(2 * HZ/50)
+#define	CHIP_DELAY_TIMEOUT	msecs_to_jiffies(200)
+#define NAND_STOP_DELAY		msecs_to_jiffies(40)
 #define PAGE_CHUNK_SIZE		(2048)
 
 /*
@@ -965,7 +965,7 @@ static void nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 {
 	struct pxa3xx_nand_host *host = mtd->priv;
 	struct pxa3xx_nand_info *info = host->info_data;
-	int ret, exec_cmd;
+	int exec_cmd;
 
 	/*
 	 * if this is a x16 device ,then convert the input
@@ -997,9 +997,8 @@ static void nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		info->need_wait = 1;
 		pxa3xx_nand_start(info);
 
-		ret = wait_for_completion_timeout(&info->cmd_complete,
-				CHIP_DELAY_TIMEOUT);
-		if (!ret) {
+		if (!wait_for_completion_timeout(&info->cmd_complete,
+		    CHIP_DELAY_TIMEOUT)) {
 			dev_err(&info->pdev->dev, "Wait time out!!!\n");
 			/* Stop State Machine for next command cycle */
 			pxa3xx_nand_stop(info);
@@ -1014,7 +1013,7 @@ static void nand_cmdfunc_extended(struct mtd_info *mtd,
 {
 	struct pxa3xx_nand_host *host = mtd->priv;
 	struct pxa3xx_nand_info *info = host->info_data;
-	int ret, exec_cmd, ext_cmd_type;
+	int exec_cmd, ext_cmd_type;
 
 	/*
 	 * if this is a x16 device then convert the input
@@ -1077,9 +1076,8 @@ static void nand_cmdfunc_extended(struct mtd_info *mtd,
 		init_completion(&info->cmd_complete);
 		pxa3xx_nand_start(info);
 
-		ret = wait_for_completion_timeout(&info->cmd_complete,
-				CHIP_DELAY_TIMEOUT);
-		if (!ret) {
+		if (!wait_for_completion_timeout(&info->cmd_complete,
+		    CHIP_DELAY_TIMEOUT)) {
 			dev_err(&info->pdev->dev, "Wait time out!!!\n");
 			/* Stop State Machine for next command cycle */
 			pxa3xx_nand_stop(info);
@@ -1212,13 +1210,11 @@ static int pxa3xx_nand_waitfunc(struct mtd_info *mtd, struct nand_chip *this)
 {
 	struct pxa3xx_nand_host *host = mtd->priv;
 	struct pxa3xx_nand_info *info = host->info_data;
-	int ret;
 
 	if (info->need_wait) {
-		ret = wait_for_completion_timeout(&info->dev_ready,
-				CHIP_DELAY_TIMEOUT);
 		info->need_wait = 0;
-		if (!ret) {
+		if (!wait_for_completion_timeout(&info->dev_ready,
+		    CHIP_DELAY_TIMEOUT)) {
 			dev_err(&info->pdev->dev, "Ready time out!!!\n");
 			return NAND_STATUS_FAIL;
 		}
