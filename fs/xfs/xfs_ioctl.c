@@ -1324,14 +1324,14 @@ xfs_ioc_getxflags(
 
 STATIC int
 xfs_ioc_setxflags(
-	xfs_inode_t		*ip,
+	struct xfs_inode	*ip,
 	struct file		*filp,
 	void			__user *arg)
 {
+	struct xfs_trans	*tp;
 	struct fsxattr		fa;
 	unsigned int		flags;
-	unsigned int		mask;
-	int error;
+	int			error;
 
 	if (copy_from_user(&flags, arg, sizeof(flags)))
 		return -EFAULT;
@@ -1341,13 +1341,26 @@ xfs_ioc_setxflags(
 		      FS_SYNC_FL))
 		return -EOPNOTSUPP;
 
-	mask = FSX_XFLAGS;
 	fa.fsx_xflags = xfs_merge_ioc_xflags(flags, xfs_ip2xflags(ip));
 
 	error = mnt_want_write_file(filp);
 	if (error)
 		return error;
-	error = xfs_ioctl_setattr(ip, &fa, mask);
+
+	tp = xfs_ioctl_setattr_get_trans(ip);
+	if (IS_ERR(tp)) {
+		error = PTR_ERR(tp);
+		goto out_drop_write;
+	}
+
+	error = xfs_ioctl_setattr_xflags(tp, ip, &fa);
+	if (error) {
+		xfs_trans_cancel(tp, 0);
+		goto out_drop_write;
+	}
+
+	error = xfs_trans_commit(tp, 0);
+out_drop_write:
 	mnt_drop_write_file(filp);
 	return error;
 }
