@@ -606,11 +606,8 @@ xfs_ioc_space(
 	unsigned int		cmd,
 	xfs_flock64_t		*bf)
 {
-	struct xfs_mount	*mp = ip->i_mount;
-	struct xfs_trans	*tp;
 	struct iattr		iattr;
-	bool			setprealloc = false;
-	bool			clrprealloc = false;
+	enum xfs_prealloc_flags	flags = 0;
 	int			error;
 
 	/*
@@ -629,6 +626,11 @@ xfs_ioc_space(
 
 	if (!S_ISREG(inode->i_mode))
 		return -EINVAL;
+
+	if (filp->f_flags & O_DSYNC)
+		flags |= XFS_PREALLOC_SYNC;
+	if (ioflags & XFS_IO_INVIS)	
+		flags |= XFS_PREALLOC_INVISIBLE;
 
 	error = mnt_want_write_file(filp);
 	if (error)
@@ -673,25 +675,23 @@ xfs_ioc_space(
 	}
 
 	if (bf->l_start < 0 ||
-	    bf->l_start > mp->m_super->s_maxbytes ||
+	    bf->l_start > inode->i_sb->s_maxbytes ||
 	    bf->l_start + bf->l_len < 0 ||
-	    bf->l_start + bf->l_len >= mp->m_super->s_maxbytes) {
+	    bf->l_start + bf->l_len >= inode->i_sb->s_maxbytes) {
 		error = -EINVAL;
 		goto out_unlock;
 	}
 
 	switch (cmd) {
 	case XFS_IOC_ZERO_RANGE:
+		flags |= XFS_PREALLOC_SET;
 		error = xfs_zero_file_space(ip, bf->l_start, bf->l_len);
-		if (!error)
-			setprealloc = true;
 		break;
 	case XFS_IOC_RESVSP:
 	case XFS_IOC_RESVSP64:
+		flags |= XFS_PREALLOC_SET;
 		error = xfs_alloc_file_space(ip, bf->l_start, bf->l_len,
 						XFS_BMAPI_PREALLOC);
-		if (!error)
-			setprealloc = true;
 		break;
 	case XFS_IOC_UNRESVSP:
 	case XFS_IOC_UNRESVSP64:
@@ -701,6 +701,7 @@ xfs_ioc_space(
 	case XFS_IOC_ALLOCSP64:
 	case XFS_IOC_FREESP:
 	case XFS_IOC_FREESP64:
+		flags |= XFS_PREALLOC_CLEAR;
 		if (bf->l_start > XFS_ISIZE(ip)) {
 			error = xfs_alloc_file_space(ip, XFS_ISIZE(ip),
 					bf->l_start - XFS_ISIZE(ip), 0);
@@ -712,8 +713,6 @@ xfs_ioc_space(
 		iattr.ia_size = bf->l_start;
 
 		error = xfs_setattr_size(ip, &iattr);
-		if (!error)
-			clrprealloc = true;
 		break;
 	default:
 		ASSERT(0);
@@ -723,32 +722,7 @@ xfs_ioc_space(
 	if (error)
 		goto out_unlock;
 
-	tp = xfs_trans_alloc(mp, XFS_TRANS_WRITEID);
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_writeid, 0, 0);
-	if (error) {
-		xfs_trans_cancel(tp, 0);
-		goto out_unlock;
-	}
-
-	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
-
-	if (!(ioflags & XFS_IO_INVIS)) {
-		ip->i_d.di_mode &= ~S_ISUID;
-		if (ip->i_d.di_mode & S_IXGRP)
-			ip->i_d.di_mode &= ~S_ISGID;
-		xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
-	}
-
-	if (setprealloc)
-		ip->i_d.di_flags |= XFS_DIFLAG_PREALLOC;
-	else if (clrprealloc)
-		ip->i_d.di_flags &= ~XFS_DIFLAG_PREALLOC;
-
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-	if (filp->f_flags & O_DSYNC)
-		xfs_trans_set_sync(tp);
-	error = xfs_trans_commit(tp, 0);
+	error = xfs_update_prealloc_flags(ip, flags);
 
 out_unlock:
 	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
