@@ -1042,13 +1042,60 @@ xfs_ioctl_setattr_xflags(
 	    !capable(CAP_LINUX_IMMUTABLE))
 		return -EPERM;
 
-	xfs_trans_ijoin(tp, ip, 0);
 	xfs_set_diflags(ip, fa->fsx_xflags);
 	xfs_diflags_to_linux(ip);
 	xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_CHG);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 	XFS_STATS_INC(xs_ig_attrchg);
 	return 0;
+}
+
+/*
+ * Set up the transaction structure for the setattr operation, checking that we
+ * have permission to do so. On success, return a clean transaction and the
+ * inode locked exclusively ready for further operation specific checks. On
+ * failure, return an error without modifying or locking the inode.
+ */
+static struct xfs_trans *
+xfs_ioctl_setattr_get_trans(
+	struct xfs_inode	*ip)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_trans	*tp;
+	int			error;
+
+	if (mp->m_flags & XFS_MOUNT_RDONLY)
+		return ERR_PTR(-EROFS);
+	if (XFS_FORCED_SHUTDOWN(mp))
+		return ERR_PTR(-EIO);
+
+	tp = xfs_trans_alloc(mp, XFS_TRANS_SETATTR_NOT_SIZE);
+	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_ichange, 0, 0);
+	if (error)
+		goto out_cancel;
+
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
+
+	/*
+	 * CAP_FOWNER overrides the following restrictions:
+	 *
+	 * The user ID of the calling process must be equal to the file owner
+	 * ID, except in cases where the CAP_FSETID capability is applicable.
+	 */
+	if (!inode_owner_or_capable(VFS_I(ip))) {
+		error = -EPERM;
+		goto out_cancel;
+	}
+
+	if (mp->m_flags & XFS_MOUNT_WSYNC)
+		xfs_trans_set_sync(tp);
+
+	return tp;
+
+out_cancel:
+	xfs_trans_cancel(tp, 0);
+	return ERR_PTR(error);
 }
 
 #define FSX_PROJID	1
@@ -1063,18 +1110,12 @@ xfs_ioctl_setattr(
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp;
-	unsigned int		lock_flags = 0;
 	struct xfs_dquot	*udqp = NULL;
 	struct xfs_dquot	*pdqp = NULL;
 	struct xfs_dquot	*olddquot = NULL;
 	int			code;
 
 	trace_xfs_ioctl_setattr(ip);
-
-	if (mp->m_flags & XFS_MOUNT_RDONLY)
-		return -EROFS;
-	if (XFS_FORCED_SHUTDOWN(mp))
-		return -EIO;
 
 	/*
 	 * Disallow 32bit project ids when projid32bit feature is not enabled.
@@ -1099,28 +1140,10 @@ xfs_ioctl_setattr(
 			return code;
 	}
 
-	/*
-	 * For the other attributes, we acquire the inode lock and
-	 * first do an error checking pass.
-	 */
-	tp = xfs_trans_alloc(mp, XFS_TRANS_SETATTR_NOT_SIZE);
-	code = xfs_trans_reserve(tp, &M_RES(mp)->tr_ichange, 0, 0);
-	if (code)
-		goto error_return;
-
-	lock_flags = XFS_ILOCK_EXCL;
-	xfs_ilock(ip, lock_flags);
-
-	/*
-	 * CAP_FOWNER overrides the following restrictions:
-	 *
-	 * The user ID of the calling process must be equal
-	 * to the file owner ID, except in cases where the
-	 * CAP_FSETID capability is applicable.
-	 */
-	if (!inode_owner_or_capable(VFS_I(ip))) {
-		code = -EPERM;
-		goto error_return;
+	tp = xfs_ioctl_setattr_get_trans(ip);
+	if (IS_ERR(tp)) {
+		code = PTR_ERR(tp);
+		goto error_free_dquots;
 	}
 
 	/*
@@ -1244,20 +1267,7 @@ xfs_ioctl_setattr(
 		ip->i_d.di_extsize = extsize;
 	}
 
-	/*
-	 * If this is a synchronous mount, make sure that the
-	 * transaction goes to disk before returning to the user.
-	 * This is slightly sub-optimal in that truncates require
-	 * two sync transactions instead of one for wsync filesystems.
-	 * One for the truncate and one for the timestamps since we
-	 * don't want to change the timestamps unless we're sure the
-	 * truncate worked.  Truncates are less than 1% of the laddis
-	 * mix so this probably isn't worth the trouble to optimize.
-	 */
-	if (mp->m_flags & XFS_MOUNT_WSYNC)
-		xfs_trans_set_sync(tp);
 	code = xfs_trans_commit(tp, 0);
-	xfs_iunlock(ip, lock_flags);
 
 	/*
 	 * Release any dquot(s) the inode had kept before chown.
@@ -1268,12 +1278,11 @@ xfs_ioctl_setattr(
 
 	return code;
 
- error_return:
+error_return:
+	xfs_trans_cancel(tp, 0);
+error_free_dquots:
 	xfs_qm_dqrele(udqp);
 	xfs_qm_dqrele(pdqp);
-	xfs_trans_cancel(tp, 0);
-	if (lock_flags)
-		xfs_iunlock(ip, lock_flags);
 	return code;
 }
 
