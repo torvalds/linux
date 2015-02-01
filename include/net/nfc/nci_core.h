@@ -100,6 +100,8 @@ struct nci_conn_info {
 	struct sk_buff *rx_skb;
 };
 
+#define NCI_INVALID_CONN_ID 0x80
+
 /* NCI Core structures */
 struct nci_dev {
 	struct nfc_dev		*nfc_dev;
@@ -181,6 +183,8 @@ int nci_register_device(struct nci_dev *ndev);
 void nci_unregister_device(struct nci_dev *ndev);
 int nci_recv_frame(struct nci_dev *ndev, struct sk_buff *skb);
 int nci_set_config(struct nci_dev *ndev, __u8 id, size_t len, __u8 *val);
+
+int nci_nfcee_discover(struct nci_dev *ndev, u8 action);
 
 static inline struct sk_buff *nci_skb_alloc(struct nci_dev *ndev,
 					    unsigned int len,

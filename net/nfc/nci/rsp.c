@@ -196,6 +196,23 @@ static void nci_rf_deactivate_rsp_packet(struct nci_dev *ndev,
 	}
 }
 
+static void nci_nfcee_discover_rsp_packet(struct nci_dev *ndev,
+					  struct sk_buff *skb)
+{
+	struct nci_nfcee_discover_rsp *discover_rsp;
+
+	if (skb->len != 2) {
+		nci_req_complete(ndev, NCI_STATUS_NFCEE_PROTOCOL_ERROR);
+		return;
+	}
+
+	discover_rsp = (struct nci_nfcee_discover_rsp *)skb->data;
+
+	if (discover_rsp->status != NCI_STATUS_OK ||
+	    discover_rsp->num_nfcee == 0)
+		nci_req_complete(ndev, discover_rsp->status);
+}
+
 void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 {
 	__u16 rsp_opcode = nci_opcode(skb->data);
@@ -239,6 +256,10 @@ void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 
 	case NCI_OP_RF_DEACTIVATE_RSP:
 		nci_rf_deactivate_rsp_packet(ndev, skb);
+		break;
+
+	case NCI_OP_NFCEE_DISCOVER_RSP:
+		nci_nfcee_discover_rsp_packet(ndev, skb);
 		break;
 
 	default:

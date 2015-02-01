@@ -713,6 +713,33 @@ static void nci_rf_deactivate_ntf_packet(struct nci_dev *ndev,
 	nci_req_complete(ndev, NCI_STATUS_OK);
 }
 
+static void nci_nfcee_discover_ntf_packet(struct nci_dev *ndev,
+					  struct sk_buff *skb)
+{
+	u8 status = NCI_STATUS_OK;
+	struct nci_conn_info    *conn_info;
+	struct nci_nfcee_discover_ntf   *nfcee_ntf =
+				(struct nci_nfcee_discover_ntf *)skb->data;
+
+	pr_debug("\n");
+
+	conn_info = devm_kzalloc(&ndev->nfc_dev->dev,
+				 sizeof(struct nci_conn_info), GFP_KERNEL);
+	if (!conn_info) {
+		status = NCI_STATUS_REJECTED;
+		goto exit;
+	}
+
+	conn_info->id = nfcee_ntf->nfcee_id;
+	conn_info->conn_id = NCI_INVALID_CONN_ID;
+
+	INIT_LIST_HEAD(&conn_info->list);
+	list_add(&conn_info->list, &ndev->conn_info_list);
+
+exit:
+	nci_req_complete(ndev, status);
+}
+
 void nci_ntf_packet(struct nci_dev *ndev, struct sk_buff *skb)
 {
 	__u16 ntf_opcode = nci_opcode(skb->data);
@@ -751,6 +778,9 @@ void nci_ntf_packet(struct nci_dev *ndev, struct sk_buff *skb)
 		nci_rf_deactivate_ntf_packet(ndev, skb);
 		break;
 
+	case NCI_OP_NFCEE_DISCOVER_NTF:
+		nci_nfcee_discover_ntf_packet(ndev, skb);
+		break;
 	default:
 		pr_err("unknown ntf opcode 0x%x\n", ntf_opcode);
 		break;

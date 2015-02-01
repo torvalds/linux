@@ -469,6 +469,23 @@ int nci_set_config(struct nci_dev *ndev, __u8 id, size_t len, __u8 *val)
 }
 EXPORT_SYMBOL(nci_set_config);
 
+static void nci_nfcee_discover_req(struct nci_dev *ndev, unsigned long opt)
+{
+	struct nci_nfcee_discover_cmd cmd;
+	__u8 action = opt;
+
+	cmd.discovery_action = action;
+
+	nci_send_cmd(ndev, NCI_OP_NFCEE_DISCOVER_CMD, 1, &cmd);
+}
+
+int nci_nfcee_discover(struct nci_dev *ndev, u8 action)
+{
+	return nci_request(ndev, nci_nfcee_discover_req, action,
+				msecs_to_jiffies(NCI_CMD_TIMEOUT));
+}
+EXPORT_SYMBOL(nci_nfcee_discover);
+
 static int nci_set_local_general_bytes(struct nfc_dev *nfc_dev)
 {
 	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
