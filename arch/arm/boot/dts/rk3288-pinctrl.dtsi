@@ -951,6 +951,20 @@
 				rockchip,pull = <VALUE_PULL_DISABLE>;
 			};
 		};
+
+		gpio7_cec {
+			hdmi_cec: hdmi-cec {
+				rockchip,pins = <EDPHDMI_CECINOUTRESERVED>;
+				rockchip,pull = <VALUE_PULL_NORMAL>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+			};
+
+			hdmi_cec_gpio: hdmi-cec-gpio {
+				rockchip,pins = <FUNC_TO_GPIO(EDPHDMI_CECINOUTRESERVED)>;
+				rockchip,pull = <VALUE_PULL_DISABLE>;
+				rockchip,drive = <VALUE_DRV_DEFAULT>;
+			};
+		};
 		//to add
 
 

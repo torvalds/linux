@@ -731,10 +731,10 @@
 		reg = <0xff980000 0x20000>;
 		interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default", "sleep";
-		pinctrl-0 = <&i2c5_sda &i2c5_scl>;
+		pinctrl-0 = <&i2c5_sda &i2c5_scl &hdmi_cec>;
 		pinctrl-1 = <&i2c5_gpio>;
-		clocks = <&clk_gates16 9>, <&clk_gates5 12>;
-		clock-names = "pclk_hdmi", "hdcp_clk_hdmi";
+		clocks = <&clk_gates16 9>, <&clk_gates5 12>, <&clk_gates5 11>;
+		clock-names = "pclk_hdmi", "hdcp_clk_hdmi", "cec_clk_hdmi";
 		status = "disabled";
 	};
 
