@@ -638,7 +638,6 @@ config HID_PICOLCD_CIR
 
 config HID_PLANTRONICS
 	tristate "Plantronics USB HID Driver"
-	default !EXPERT
 	depends on HID
 	---help---
 	Provides HID support for Plantronics telephony devices.
