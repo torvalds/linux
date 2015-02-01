@@ -256,6 +256,9 @@ void hci_debugfs_create_common(struct hci_dev *hdev)
 			   &hdev->manufacturer);
 	debugfs_create_u8("hci_version", 0444, hdev->debugfs, &hdev->hci_ver);
 	debugfs_create_u16("hci_revision", 0444, hdev->debugfs, &hdev->hci_rev);
+	debugfs_create_u8("hardware_error", 0444, hdev->debugfs,
+			  &hdev->hw_error_code);
+
 	debugfs_create_file("device_list", 0444, hdev->debugfs, hdev,
 			    &device_list_fops);
 	debugfs_create_file("blacklist", 0444, hdev->debugfs, hdev,
