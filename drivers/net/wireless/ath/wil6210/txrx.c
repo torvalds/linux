@@ -671,6 +671,7 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 	}
 
 	memset(txdata, 0, sizeof(*txdata));
+	spin_lock_init(&txdata->lock);
 	vring->size = size;
 	rc = wil_vring_alloc(wil, vring);
 	if (rc)
@@ -718,8 +719,10 @@ void wil_vring_fini_tx(struct wil6210_priv *wil, int id)
 
 	wil_dbg_misc(wil, "%s() id=%d\n", __func__, id);
 
+	spin_lock_bh(&txdata->lock);
+	txdata->enabled = 0; /* no Tx can be in progress or start anew */
+	spin_unlock_bh(&txdata->lock);
 	/* make sure NAPI won't touch this vring */
-	wil->vring_tx_data[id].enabled = 0;
 	if (test_bit(wil_status_napi_en, wil->status))
 		napi_synchronize(&wil->napi_tx);
 
@@ -935,8 +938,8 @@ static int wil_tx_desc_offload_cksum_set(struct wil6210_priv *wil,
 	return 0;
 }
 
-static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
-			struct sk_buff *skb)
+static int __wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
+			  struct sk_buff *skb)
 {
 	struct device *dev = wil_to_dev(wil);
 	struct vring_tx_desc dd, *d = &dd;
@@ -951,6 +954,9 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	dma_addr_t pa;
 
 	wil_dbg_txrx(wil, "%s()\n", __func__);
+
+	if (unlikely(!txdata->enabled))
+		return -EINVAL;
 
 	if (avail < 1 + nr_frags) {
 		wil_err_ratelimited(wil,
@@ -1048,6 +1054,19 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	}
 
 	return -EINVAL;
+}
+
+static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
+			struct sk_buff *skb)
+{
+	int vring_index = vring - wil->vring_tx;
+	struct vring_tx_data *txdata = &wil->vring_tx_data[vring_index];
+	int rc;
+
+	spin_lock(&txdata->lock);
+	rc = __wil_tx_vring(wil, vring, skb);
+	spin_unlock(&txdata->lock);
+	return rc;
 }
 
 netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
