@@ -435,7 +435,7 @@ static void alps_report_mt_data(struct psmouse *psmouse, int n)
 	struct alps_fields *f = &priv->f;
 	int i, slot[MAX_TOUCHES];
 
-	input_mt_assign_slots(dev, slot, f->mt, n);
+	input_mt_assign_slots(dev, slot, f->mt, n, 0);
 	for (i = 0; i < n; i++)
 		alps_set_slot(dev, slot[i], f->mt[i].x, f->mt[i].y);
 
