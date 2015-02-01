@@ -1098,6 +1098,51 @@ out_cancel:
 	return ERR_PTR(error);
 }
 
+int
+xfs_ioctl_setattr_check_extsize(
+	struct xfs_inode	*ip,
+	struct fsxattr		*fa)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+
+	/* Can't change extent size if any extents are allocated. */
+	if (ip->i_d.di_nextents &&
+	    ((ip->i_d.di_extsize << mp->m_sb.sb_blocklog) != fa->fsx_extsize))
+		return -EINVAL;
+
+	/*
+	 * Extent size must be a multiple of the appropriate block size, if set
+	 * at all. It must also be smaller than the maximum extent size
+	 * supported by the filesystem.
+	 *
+	 * Also, for non-realtime files, limit the extent size hint to half the
+	 * size of the AGs in the filesystem so alignment doesn't result in
+	 * extents larger than an AG.
+	 */
+	if (fa->fsx_extsize != 0) {
+		xfs_extlen_t    size;
+		xfs_fsblock_t   extsize_fsb;
+
+		extsize_fsb = XFS_B_TO_FSB(mp, fa->fsx_extsize);
+		if (extsize_fsb > MAXEXTLEN)
+			return -EINVAL;
+
+		if (XFS_IS_REALTIME_INODE(ip) ||
+		    (fa->fsx_xflags & XFS_XFLAG_REALTIME)) {
+			size = mp->m_sb.sb_rextsize << mp->m_sb.sb_blocklog;
+		} else {
+			size = mp->m_sb.sb_blocksize;
+			if (extsize_fsb > mp->m_sb.sb_agblocks / 2)
+				return -EINVAL;
+		}
+
+		if (fa->fsx_extsize % size)
+			return -EINVAL;
+	}
+	return 0;
+}
+
+
 STATIC int
 xfs_ioctl_setattr(
 	xfs_inode_t		*ip,
@@ -1160,49 +1205,16 @@ xfs_ioctl_setattr(
 		code = xfs_qm_vop_chown_reserve(tp, ip, udqp, NULL, pdqp,
 				capable(CAP_FOWNER) ?  XFS_QMOPT_FORCE_RES : 0);
 		if (code)	/* out of quota */
-			goto error_return;
+			goto error_trans_cancel;
 	}
 
-	/* Can't change extent size if any extents are allocated. */
-	code = -EINVAL;
-	if (ip->i_d.di_nextents &&
-	    ((ip->i_d.di_extsize << mp->m_sb.sb_blocklog) != fa->fsx_extsize))
-		goto error_return;
-
-	/*
-	 * Extent size must be a multiple of the appropriate block size, if set
-	 * at all. It must also be smaller than the maximum extent size
-	 * supported by the filesystem.
-	 *
-	 * Also, for non-realtime files, limit the extent size hint to half the
-	 * size of the AGs in the filesystem so alignment doesn't result in
-	 * extents larger than an AG.
-	 */
-	if (fa->fsx_extsize != 0) {
-		xfs_extlen_t    size;
-		xfs_fsblock_t   extsize_fsb;
-
-		extsize_fsb = XFS_B_TO_FSB(mp, fa->fsx_extsize);
-		if (extsize_fsb > MAXEXTLEN)
-			goto error_return;
-
-		if (XFS_IS_REALTIME_INODE(ip) ||
-		    (fa->fsx_xflags & XFS_XFLAG_REALTIME)) {
-			size = mp->m_sb.sb_rextsize << mp->m_sb.sb_blocklog;
-		} else {
-			size = mp->m_sb.sb_blocksize;
-			if (extsize_fsb > mp->m_sb.sb_agblocks / 2)
-				goto error_return;
-		}
-
-		if (fa->fsx_extsize % size)
-			goto error_return;
-	}
-
+	code = xfs_ioctl_setattr_check_extsize(ip, fa);
+	if (code)
+		goto error_trans_cancel;
 
 	code = xfs_ioctl_setattr_xflags(tp, ip, fa);
 	if (code)
-		goto error_return;
+		goto error_trans_cancel;
 
 	/*
 	 * Change file ownership.  Must be the owner or privileged.  CAP_FSETID
@@ -1247,7 +1259,7 @@ xfs_ioctl_setattr(
 
 	return code;
 
-error_return:
+error_trans_cancel:
 	xfs_trans_cancel(tp, 0);
 error_free_dquots:
 	xfs_qm_dqrele(udqp);
