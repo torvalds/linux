@@ -18,7 +18,7 @@ config DVB_MAX_ADAPTERS
 config DVB_DYNAMIC_MINORS
 	bool "Dynamic DVB minor allocation"
 	depends on DVB_CORE
-	default y
+	default n
 	help
 	  If you say Y here, the DVB subsystem will use dynamic minor
 	  allocation for any device that uses the DVB major number.

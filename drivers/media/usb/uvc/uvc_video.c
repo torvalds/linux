@@ -29,7 +29,7 @@
 /* ------------------------------------------------------------------------
  * UVC Controls
  */
-static int first_probe;
+
 static int __uvc_query_ctrl(struct uvc_device *dev, __u8 query, __u8 unit,
 			__u8 intfnum, __u8 cs, void *data, __u16 size,
 			int timeout)
@@ -1751,8 +1751,7 @@ int uvc_video_init(struct uvc_streaming *stream)
 	struct uvc_frame *frame = NULL;
 	unsigned int i;
 	int ret;
-	
-	first_probe =1;
+
 	if (stream->nformats == 0) {
 		uvc_printk(KERN_INFO, "No supported video formats found.\n");
 		return -EINVAL;
@@ -1892,30 +1891,6 @@ int uvc_video_enable(struct uvc_streaming *stream, int enable)
 	ret = uvc_init_video(stream, GFP_KERNEL);
 	if (ret < 0)
 		goto error_video;
-
-	if(stream->dev->udev->descriptor.idVendor == 0x046D && \
-			(stream->dev->udev->descriptor.idProduct == 0x081B||stream->dev->udev->descriptor.idProduct == 0x0825)){
-		if(first_probe){
-			first_probe = 0;
-			stream->frozen = 1;
-			uvc_uninit_video(stream, 0);
-			usb_set_interface(stream->dev->udev, stream->intfnum, 0);
-			stream->frozen = 0;
-			uvc_video_clock_reset(stream);
-			ret = uvc_commit_video(stream, &stream->ctrl);
-			if (ret < 0) {
-				uvc_queue_enable(&stream->queue, 0);
-				return ret;
-			}
-
-		if (!uvc_queue_streaming(&stream->queue))
-			return 0;
-
-		ret = uvc_init_video(stream, GFP_NOIO);
-		if (ret < 0)
-			uvc_queue_enable(&stream->queue, 0);
-		}
-	}
 
 	return 0;
 

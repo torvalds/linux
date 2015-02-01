@@ -2436,7 +2436,7 @@ struct uvc_driver uvc_driver = {
 		.resume		= uvc_resume,
 		.reset_resume	= uvc_reset_resume,
 		.id_table	= uvc_ids,
-		.supports_autosuspend = 0,
+		.supports_autosuspend = 1,
 	},
 };
 
