@@ -385,14 +385,14 @@
 		gpio7_i2c5 {
 			i2c5_sda:i2c5-sda {
 				rockchip,pins = <EDPHDMII2C_SDA>;
-				rockchip,pull = <VALUE_PULL_DISABLE>;
+				rockchip,pull = <VALUE_PULL_NORMAL>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
 
 			i2c5_scl:i2c5-scl {
 				rockchip,pins = <EDPHDMII2C_SCL>;
-				rockchip,pull = <VALUE_PULL_DISABLE>;
+				rockchip,pull = <VALUE_PULL_NORMAL>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
