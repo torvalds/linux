@@ -723,18 +723,30 @@ static void nci_nfcee_discover_ntf_packet(struct nci_dev *ndev,
 
 	pr_debug("\n");
 
-	conn_info = devm_kzalloc(&ndev->nfc_dev->dev,
-				 sizeof(struct nci_conn_info), GFP_KERNEL);
-	if (!conn_info) {
-		status = NCI_STATUS_REJECTED;
-		goto exit;
+	/* NFCForum NCI 9.2.1 HCI Network Specific Handling
+	 * If the NFCC supports the HCI Network, it SHALL return one,
+	 * and only one, NFCEE_DISCOVER_NTF with a Protocol type of
+	 * “HCI Access”, even if the HCI Network contains multiple NFCEEs.
+	 */
+	if (!ndev->hci_dev->conn_info) {
+		conn_info = devm_kzalloc(&ndev->nfc_dev->dev,
+					 sizeof(*conn_info), GFP_KERNEL);
+		if (!conn_info) {
+			status = NCI_STATUS_REJECTED;
+			goto exit;
+		}
+
+		conn_info->id = nfcee_ntf->nfcee_id;
+		conn_info->conn_id = NCI_INVALID_CONN_ID;
+
+		conn_info->data_exchange_cb = nci_hci_data_received_cb;
+		conn_info->data_exchange_cb_context = ndev;
+
+		INIT_LIST_HEAD(&conn_info->list);
+		list_add(&conn_info->list, &ndev->conn_info_list);
+
+		ndev->hci_dev->conn_info = conn_info;
 	}
-
-	conn_info->id = nfcee_ntf->nfcee_id;
-	conn_info->conn_id = NCI_INVALID_CONN_ID;
-
-	INIT_LIST_HEAD(&conn_info->list);
-	list_add(&conn_info->list, &ndev->conn_info_list);
 
 exit:
 	nci_req_complete(ndev, status);

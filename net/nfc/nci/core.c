@@ -122,10 +122,10 @@ static int __nci_request(struct nci_dev *ndev,
 	return rc;
 }
 
-static inline int nci_request(struct nci_dev *ndev,
-			      void (*req)(struct nci_dev *ndev,
-					  unsigned long opt),
-			      unsigned long opt, __u32 timeout)
+inline int nci_request(struct nci_dev *ndev,
+		       void (*req)(struct nci_dev *ndev,
+				   unsigned long opt),
+		       unsigned long opt, __u32 timeout)
 {
 	int rc;
 
@@ -901,7 +901,6 @@ static struct nfc_ops nci_nfc_ops = {
 };
 
 /* ---- Interface to NCI drivers ---- */
-
 /**
  * nci_allocate_device - allocate a new nci device
  *
@@ -936,13 +935,20 @@ struct nci_dev *nci_allocate_device(struct nci_ops *ops,
 					    tx_headroom + NCI_DATA_HDR_SIZE,
 					    tx_tailroom);
 	if (!ndev->nfc_dev)
-		goto free_exit;
+		goto free_nci;
+
+	ndev->hci_dev = nci_hci_allocate(ndev);
+	if (!ndev->hci_dev)
+		goto free_nfc;
 
 	nfc_set_drvdata(ndev->nfc_dev, ndev);
 
 	return ndev;
 
-free_exit:
+free_nfc:
+	kfree(ndev->nfc_dev);
+
+free_nci:
 	kfree(ndev);
 	return NULL;
 }
