@@ -245,17 +245,6 @@ int line6_midibuf_ignore(struct midi_buffer *this, int length)
 	return length;
 }
 
-int line6_midibuf_skip_message(struct midi_buffer *this, unsigned short mask)
-{
-	int cmd = this->command_prev;
-
-	if ((cmd >= 0x80) && (cmd < 0xf0))
-		if ((mask & (1 << (cmd & 0x0f))) == 0)
-			return 1;
-
-	return 0;
-}
-
 void line6_midibuf_destroy(struct midi_buffer *this)
 {
 	kfree(this->buf);
