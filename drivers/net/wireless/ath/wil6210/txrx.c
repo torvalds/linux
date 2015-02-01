@@ -981,8 +981,6 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 
 	vring->ctx[i].nr_frags = nr_frags;
 	wil_tx_desc_set_nr_frags(d, nr_frags);
-	if (nr_frags)
-		*_d = *d;
 
 	/* middle segments */
 	for (; f < nr_frags; f++) {
@@ -990,6 +988,7 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 				&skb_shinfo(skb)->frags[f];
 		int len = skb_frag_size(frag);
 
+		*_d = *d;
 		i = (swhead + f + 1) % vring->size;
 		_d = &vring->va[i].tx;
 		pa = skb_frag_dma_map(dev, frag, 0, skb_frag_size(frag),
@@ -1003,7 +1002,6 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 		 * it will succeed here too
 		 */
 		wil_tx_desc_offload_cksum_set(wil, d, skb);
-		*_d = *d;
 	}
 	/* for the last seg only */
 	d->dma.d0 |= BIT(DMA_CFG_DESC_TX_0_CMD_EOP_POS);
