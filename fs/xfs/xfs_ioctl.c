@@ -1013,6 +1013,44 @@ xfs_diflags_to_linux(
 		inode->i_flags &= ~S_NOATIME;
 }
 
+static int
+xfs_ioctl_setattr_xflags(
+	struct xfs_trans	*tp,
+	struct xfs_inode	*ip,
+	struct fsxattr		*fa)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+
+	/* Can't change realtime flag if any extents are allocated. */
+	if ((ip->i_d.di_nextents || ip->i_delayed_blks) &&
+	    XFS_IS_REALTIME_INODE(ip) != (fa->fsx_xflags & XFS_XFLAG_REALTIME))
+		return -EINVAL;
+
+	/* If realtime flag is set then must have realtime device */
+	if (fa->fsx_xflags & XFS_XFLAG_REALTIME) {
+		if (mp->m_sb.sb_rblocks == 0 || mp->m_sb.sb_rextsize == 0 ||
+		    (ip->i_d.di_extsize % mp->m_sb.sb_rextsize))
+			return -EINVAL;
+	}
+
+	/*
+	 * Can't modify an immutable/append-only file unless
+	 * we have appropriate permission.
+	 */
+	if (((ip->i_d.di_flags & (XFS_DIFLAG_IMMUTABLE | XFS_DIFLAG_APPEND)) ||
+	     (fa->fsx_xflags & (XFS_XFLAG_IMMUTABLE | XFS_XFLAG_APPEND))) &&
+	    !capable(CAP_LINUX_IMMUTABLE))
+		return -EPERM;
+
+	xfs_trans_ijoin(tp, ip, 0);
+	xfs_set_diflags(ip, fa->fsx_xflags);
+	xfs_diflags_to_linux(ip);
+	xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_CHG);
+	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+	XFS_STATS_INC(xs_ig_attrchg);
+	return 0;
+}
+
 #define FSX_PROJID	1
 #define FSX_EXTSIZE	2
 #define FSX_XFLAGS	4
@@ -1159,44 +1197,9 @@ xfs_ioctl_setattr(
 	}
 
 
-	if (mask & FSX_XFLAGS) {
-		/*
-		 * Can't change realtime flag if any extents are allocated.
-		 */
-		if ((ip->i_d.di_nextents || ip->i_delayed_blks) &&
-		    (XFS_IS_REALTIME_INODE(ip)) !=
-		    (fa->fsx_xflags & XFS_XFLAG_REALTIME)) {
-			code = -EINVAL;	/* EFBIG? */
-			goto error_return;
-		}
-
-		/*
-		 * If realtime flag is set then must have realtime data.
-		 */
-		if ((fa->fsx_xflags & XFS_XFLAG_REALTIME)) {
-			if ((mp->m_sb.sb_rblocks == 0) ||
-			    (mp->m_sb.sb_rextsize == 0) ||
-			    (ip->i_d.di_extsize % mp->m_sb.sb_rextsize)) {
-				code = -EINVAL;
-				goto error_return;
-			}
-		}
-
-		/*
-		 * Can't modify an immutable/append-only file unless
-		 * we have appropriate permission.
-		 */
-		if ((ip->i_d.di_flags &
-				(XFS_DIFLAG_IMMUTABLE|XFS_DIFLAG_APPEND) ||
-		     (fa->fsx_xflags &
-				(XFS_XFLAG_IMMUTABLE | XFS_XFLAG_APPEND))) &&
-		    !capable(CAP_LINUX_IMMUTABLE)) {
-			code = -EPERM;
-			goto error_return;
-		}
-	}
-
-	xfs_trans_ijoin(tp, ip, 0);
+	code = xfs_ioctl_setattr_xflags(tp, ip, fa);
+	if (code)
+		goto error_return;
 
 	/*
 	 * Change file ownership.  Must be the owner or privileged.
@@ -1227,11 +1230,6 @@ xfs_ioctl_setattr(
 
 	}
 
-	if (mask & FSX_XFLAGS) {
-		xfs_set_diflags(ip, fa->fsx_xflags);
-		xfs_diflags_to_linux(ip);
-	}
-
 	/*
 	 * Only set the extent size hint if we've already determined that the
 	 * extent size hint should be set on the inode. If no extent size flags
@@ -1245,11 +1243,6 @@ xfs_ioctl_setattr(
 			extsize = fa->fsx_extsize >> mp->m_sb.sb_blocklog;
 		ip->i_d.di_extsize = extsize;
 	}
-
-	xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_CHG);
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-
-	XFS_STATS_INC(xs_ig_attrchg);
 
 	/*
 	 * If this is a synchronous mount, make sure that the
