@@ -284,6 +284,14 @@ struct nci_nfcee_discover_cmd {
 	__u8	discovery_action;
 } __packed;
 
+#define NCI_OP_NFCEE_MODE_SET_CMD nci_opcode_pack(NCI_GID_NFCEE_MGMT, 0x01)
+#define NCI_NFCEE_DISABLE	0x00
+#define NCI_NFCEE_ENABLE	0x01
+struct nci_nfcee_mode_set_cmd {
+	__u8	nfcee_id;
+	__u8	nfcee_mode;
+} __packed;
+
 /* ----------------------- */
 /* ---- NCI Responses ---- */
 /* ----------------------- */
@@ -333,6 +341,7 @@ struct nci_nfcee_discover_rsp {
 	__u8	num_nfcee;
 } __packed;
 
+#define NCI_OP_NFCEE_MODE_SET_RSP nci_opcode_pack(NCI_GID_NFCEE_MGMT, 0x01)
 /* --------------------------- */
 /* ---- NCI Notifications ---- */
 /* --------------------------- */

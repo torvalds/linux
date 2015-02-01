@@ -213,6 +213,15 @@ static void nci_nfcee_discover_rsp_packet(struct nci_dev *ndev,
 		nci_req_complete(ndev, discover_rsp->status);
 }
 
+static void nci_nfcee_mode_set_rsp_packet(struct nci_dev *ndev,
+					  struct sk_buff *skb)
+{
+	__u8 status = skb->data[0];
+
+	pr_debug("status 0x%x\n", status);
+	nci_req_complete(ndev, status);
+}
+
 void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 {
 	__u16 rsp_opcode = nci_opcode(skb->data);
@@ -260,6 +269,10 @@ void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 
 	case NCI_OP_NFCEE_DISCOVER_RSP:
 		nci_nfcee_discover_rsp_packet(ndev, skb);
+		break;
+
+	case NCI_OP_NFCEE_MODE_SET_RSP:
+		nci_nfcee_mode_set_rsp_packet(ndev, skb);
 		break;
 
 	default:
