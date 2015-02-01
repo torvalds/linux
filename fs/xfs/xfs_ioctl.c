@@ -1120,6 +1120,19 @@ xfs_ioctl_setattr(
 		return -EINVAL;
 
 	/*
+	 * Project Quota ID state is only allowed to change from within the init
+	 * namespace. Enforce that restriction only if we are trying to change
+	 * the quota ID state. Everything else is allowed in user namespaces.
+	 */
+	if (current_user_ns() != &init_user_ns) {
+		if (xfs_get_projid(ip) != fa->fsx_projid)
+			return -EINVAL;
+		if ((fa->fsx_xflags & XFS_XFLAG_PROJINHERIT) !=
+		    (ip->i_d.di_flags & XFS_DIFLAG_PROJINHERIT))
+			return -EINVAL;
+	}
+
+	/*
 	 * If disk quotas is on, we make sure that the dquots do exist on disk,
 	 * before we start any other transactions. Trying to do this later
 	 * is messy. We don't care to take a readlock to look at the ids
@@ -1141,15 +1154,6 @@ xfs_ioctl_setattr(
 		goto error_free_dquots;
 	}
 
-	/*
-	 * Do a quota reservation only if projid is actually going to change.
-	 * Only allow changing of projid from init_user_ns since it is a
-	 * non user namespace aware identifier.
-	 */
-	if (current_user_ns() != &init_user_ns) {
-		code = -EINVAL;
-		goto error_return;
-	}
 
 	if (XFS_IS_QUOTA_RUNNING(mp) && XFS_IS_PQUOTA_ON(mp) &&
 	    xfs_get_projid(ip) != fa->fsx_projid) {
