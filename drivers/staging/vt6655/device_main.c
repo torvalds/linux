@@ -1234,12 +1234,13 @@ static int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	head_td->buff_addr = cpu_to_le32(head_td->pTDInfo->skb_dma);
 
-	head_td->pTDInfo->byFlags = TD_FLAGS_NETIF_SKB;
+	if (dma_idx == TYPE_AC0DMA) {
+		head_td->pTDInfo->byFlags = TD_FLAGS_NETIF_SKB;
 
-	if (dma_idx == TYPE_AC0DMA)
 		MACvTransmitAC0(priv->PortOffset);
-	else
+	} else {
 		MACvTransmit0(priv->PortOffset);
+	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
