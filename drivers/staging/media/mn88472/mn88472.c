@@ -299,8 +299,7 @@ static int mn88472_init(struct dvb_frontend *fe)
 
 	return 0;
 err:
-	if (fw)
-		release_firmware(fw);
+	release_firmware(fw);
 
 	dev_dbg(&client->dev, "failed=%d\n", ret);
 	return ret;
