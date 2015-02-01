@@ -873,9 +873,6 @@ static int wil_tx_desc_map(struct vring_tx_desc *d, dma_addr_t pa, u32 len,
 	d->mac.d[1] = 0;
 	d->mac.d[2] = 0;
 	d->mac.ucode_cmd = 0;
-	/* use dst index 0 */
-	d->mac.d[1] |= BIT(MAC_CFG_DESC_TX_1_DST_INDEX_EN_POS) |
-		       (0 << MAC_CFG_DESC_TX_1_DST_INDEX_POS);
 	/* translation type:  0 - bypass; 1 - 802.3; 2 - native wifi */
 	d->mac.d[2] = BIT(MAC_CFG_DESC_TX_2_SNAP_HDR_INSERTION_EN_POS) |
 		      (1 << MAC_CFG_DESC_TX_2_L2_TRANSLATION_TYPE_POS);
