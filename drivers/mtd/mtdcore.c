@@ -577,7 +577,15 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 			err = -ENODEV;
 	}
 
-	if (mtd->_reboot) {
+	/*
+	 * FIXME: some drivers unfortunately call this function more than once.
+	 * So we have to check if we've already assigned the reboot notifier.
+	 *
+	 * Generally, we can make multiple calls work for most cases, but it
+	 * does cause problems with parse_mtd_partitions() above (e.g.,
+	 * cmdlineparts will register partitions more than once).
+	 */
+	if (mtd->_reboot && !mtd->reboot_notifier.notifier_call) {
 		mtd->reboot_notifier.notifier_call = mtd_reboot_notifier;
 		register_reboot_notifier(&mtd->reboot_notifier);
 	}
