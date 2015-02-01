@@ -334,6 +334,30 @@ out:
 	return rc;
 }
 
+static void wil_print_crypto(struct wil6210_priv *wil,
+			     struct cfg80211_crypto_settings *c)
+{
+	int i, n;
+
+	wil_dbg_misc(wil, "WPA versions: 0x%08x cipher group 0x%08x\n",
+		     c->wpa_versions, c->cipher_group);
+	wil_dbg_misc(wil, "Pairwise ciphers [%d] {\n", c->n_ciphers_pairwise);
+	n = min_t(int, c->n_ciphers_pairwise, ARRAY_SIZE(c->ciphers_pairwise));
+	for (i = 0; i < n; i++)
+		wil_dbg_misc(wil, "  [%d] = 0x%08x\n", i,
+			     c->ciphers_pairwise[i]);
+	wil_dbg_misc(wil, "}\n");
+	wil_dbg_misc(wil, "AKM suites [%d] {\n", c->n_akm_suites);
+	n = min_t(int, c->n_akm_suites, ARRAY_SIZE(c->akm_suites));
+	for (i = 0; i < n; i++)
+		wil_dbg_misc(wil, "  [%d] = 0x%08x\n", i,
+			     c->akm_suites[i]);
+	wil_dbg_misc(wil, "}\n");
+	wil_dbg_misc(wil, "Control port : %d, eth_type 0x%04x no_encrypt %d\n",
+		     c->control_port, be16_to_cpu(c->control_port_ethertype),
+		     c->control_port_no_encrypt);
+}
+
 static void wil_print_connect_params(struct wil6210_priv *wil,
 				     struct cfg80211_connect_params *sme)
 {
@@ -348,6 +372,7 @@ static void wil_print_connect_params(struct wil6210_priv *wil,
 		print_hex_dump(KERN_INFO, "  SSID: ", DUMP_PREFIX_OFFSET,
 			       16, 1, sme->ssid, sme->ssid_len, true);
 	wil_info(wil, "  Privacy: %s\n", sme->privacy ? "secure" : "open");
+	wil_print_crypto(wil, &sme->crypto);
 }
 
 static int wil_cfg80211_connect(struct wiphy *wiphy,
@@ -617,18 +642,6 @@ static void wil_print_bcon_data(struct cfg80211_beacon_data *b)
 			     b->proberesp_ies, b->proberesp_ies_len);
 	print_hex_dump_bytes("ASSOC IE ", DUMP_PREFIX_OFFSET,
 			     b->assocresp_ies, b->assocresp_ies_len);
-}
-
-static void wil_print_crypto(struct wil6210_priv *wil,
-			     struct cfg80211_crypto_settings *c)
-{
-	wil_dbg_misc(wil, "WPA versions: 0x%08x cipher group 0x%08x\n",
-		     c->wpa_versions, c->cipher_group);
-	wil_dbg_misc(wil, "Pairwise ciphers [%d]\n", c->n_ciphers_pairwise);
-	wil_dbg_misc(wil, "AKM suites [%d]\n", c->n_akm_suites);
-	wil_dbg_misc(wil, "Control port : %d, eth_type 0x%04x no_encrypt %d\n",
-		     c->control_port, be16_to_cpu(c->control_port_ethertype),
-		     c->control_port_no_encrypt);
 }
 
 static int wil_fix_bcon(struct wil6210_priv *wil,
