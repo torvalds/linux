@@ -22,6 +22,7 @@
 struct module;
 struct device;
 
+struct clk;
 struct v4l2_clk {
 	struct list_head list;
 	const struct v4l2_clk_ops *ops;
@@ -29,6 +30,7 @@ struct v4l2_clk {
 	int enable;
 	struct mutex lock; /* Protect the enable count */
 	atomic_t use_count;
+	struct clk *clk;
 	void *priv;
 };
 

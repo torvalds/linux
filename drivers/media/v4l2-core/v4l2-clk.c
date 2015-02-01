@@ -9,6 +9,7 @@
  */
 
 #include <linux/atomic.h>
+#include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/list.h>
@@ -37,6 +38,21 @@ static struct v4l2_clk *v4l2_clk_find(const char *dev_id)
 struct v4l2_clk *v4l2_clk_get(struct device *dev, const char *id)
 {
 	struct v4l2_clk *clk;
+	struct clk *ccf_clk = clk_get(dev, id);
+
+	if (PTR_ERR(ccf_clk) == -EPROBE_DEFER)
+		return ERR_PTR(-EPROBE_DEFER);
+
+	if (!IS_ERR_OR_NULL(ccf_clk)) {
+		clk = kzalloc(sizeof(*clk), GFP_KERNEL);
+		if (!clk) {
+			clk_put(ccf_clk);
+			return ERR_PTR(-ENOMEM);
+		}
+		clk->clk = ccf_clk;
+
+		return clk;
+	}
 
 	mutex_lock(&clk_lock);
 	clk = v4l2_clk_find(dev_name(dev));
@@ -55,6 +71,12 @@ void v4l2_clk_put(struct v4l2_clk *clk)
 
 	if (IS_ERR(clk))
 		return;
+
+	if (clk->clk) {
+		clk_put(clk->clk);
+		kfree(clk);
+		return;
+	}
 
 	mutex_lock(&clk_lock);
 
@@ -93,8 +115,12 @@ static void v4l2_clk_unlock_driver(struct v4l2_clk *clk)
 
 int v4l2_clk_enable(struct v4l2_clk *clk)
 {
-	int ret = v4l2_clk_lock_driver(clk);
+	int ret;
 
+	if (clk->clk)
+		return clk_prepare_enable(clk->clk);
+
+	ret = v4l2_clk_lock_driver(clk);
 	if (ret < 0)
 		return ret;
 
@@ -120,6 +146,9 @@ void v4l2_clk_disable(struct v4l2_clk *clk)
 {
 	int enable;
 
+	if (clk->clk)
+		return clk_disable_unprepare(clk->clk);
+
 	mutex_lock(&clk->lock);
 
 	enable = --clk->enable;
@@ -137,8 +166,12 @@ EXPORT_SYMBOL(v4l2_clk_disable);
 
 unsigned long v4l2_clk_get_rate(struct v4l2_clk *clk)
 {
-	int ret = v4l2_clk_lock_driver(clk);
+	int ret;
 
+	if (clk->clk)
+		return clk_get_rate(clk->clk);
+
+	ret = v4l2_clk_lock_driver(clk);
 	if (ret < 0)
 		return ret;
 
@@ -157,7 +190,16 @@ EXPORT_SYMBOL(v4l2_clk_get_rate);
 
 int v4l2_clk_set_rate(struct v4l2_clk *clk, unsigned long rate)
 {
-	int ret = v4l2_clk_lock_driver(clk);
+	int ret;
+
+	if (clk->clk) {
+		long r = clk_round_rate(clk->clk, rate);
+		if (r < 0)
+			return r;
+		return clk_set_rate(clk->clk, r);
+	}
+
+	ret = v4l2_clk_lock_driver(clk);
 
 	if (ret < 0)
 		return ret;
