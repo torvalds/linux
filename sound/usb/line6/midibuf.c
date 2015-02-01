@@ -67,13 +67,6 @@ int line6_midibuf_init(struct midi_buffer *this, int size, int split)
 	return 0;
 }
 
-void line6_midibuf_status(struct midi_buffer *this)
-{
-	pr_debug("midibuf size=%d split=%d pos_read=%d pos_write=%d full=%d command_prev=%02x\n",
-		 this->size, this->split, this->pos_read, this->pos_write,
-		 this->full, this->command_prev);
-}
-
 int line6_midibuf_bytes_free(struct midi_buffer *this)
 {
 	return
