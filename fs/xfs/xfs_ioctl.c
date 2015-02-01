@@ -1142,6 +1142,34 @@ xfs_ioctl_setattr_check_extsize(
 	return 0;
 }
 
+int
+xfs_ioctl_setattr_check_projid(
+	struct xfs_inode	*ip,
+	struct fsxattr		*fa)
+{
+	/* Disallow 32bit project ids if projid32bit feature is not enabled. */
+	if (fa->fsx_projid > (__uint16_t)-1 &&
+	    !xfs_sb_version_hasprojid32bit(&ip->i_mount->m_sb))
+		return -EINVAL;
+
+	/*
+	 * Project Quota ID state is only allowed to change from within the init
+	 * namespace. Enforce that restriction only if we are trying to change
+	 * the quota ID state. Everything else is allowed in user namespaces.
+	 */
+	if (current_user_ns() == &init_user_ns)
+		return 0;
+
+	if (xfs_get_projid(ip) != fa->fsx_projid)
+		return -EINVAL;
+	if ((fa->fsx_xflags & XFS_XFLAG_PROJINHERIT) !=
+	    (ip->i_d.di_flags & XFS_DIFLAG_PROJINHERIT))
+		return -EINVAL;
+
+	return 0;
+}
+
+
 
 STATIC int
 xfs_ioctl_setattr(
@@ -1157,25 +1185,9 @@ xfs_ioctl_setattr(
 
 	trace_xfs_ioctl_setattr(ip);
 
-	/*
-	 * Disallow 32bit project ids when projid32bit feature is not enabled.
-	 */
-	if (fa->fsx_projid > (__uint16_t)-1 &&
-	    !xfs_sb_version_hasprojid32bit(&ip->i_mount->m_sb))
-		return -EINVAL;
-
-	/*
-	 * Project Quota ID state is only allowed to change from within the init
-	 * namespace. Enforce that restriction only if we are trying to change
-	 * the quota ID state. Everything else is allowed in user namespaces.
-	 */
-	if (current_user_ns() != &init_user_ns) {
-		if (xfs_get_projid(ip) != fa->fsx_projid)
-			return -EINVAL;
-		if ((fa->fsx_xflags & XFS_XFLAG_PROJINHERIT) !=
-		    (ip->i_d.di_flags & XFS_DIFLAG_PROJINHERIT))
-			return -EINVAL;
-	}
+	code = xfs_ioctl_setattr_check_projid(ip, fa);
+	if (code)
+		return code;
 
 	/*
 	 * If disk quotas is on, we make sure that the dquots do exist on disk,
