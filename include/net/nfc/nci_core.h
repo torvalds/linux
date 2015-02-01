@@ -82,6 +82,23 @@ struct nci_ops {
 
 #define NCI_MAX_SUPPORTED_RF_INTERFACES		4
 #define NCI_MAX_DISCOVERED_TARGETS		10
+#define NCI_MAX_NUM_NFCEE   255
+#define NCI_MAX_CONN_ID		7
+
+struct nci_conn_info {
+	struct list_head list;
+	__u8	id; /* can be an RF Discovery ID or an NFCEE ID */
+	__u8	conn_id;
+	__u8	max_pkt_payload_len;
+
+	atomic_t credits_cnt;
+	__u8	 initial_num_credits;
+
+	data_exchange_cb_t	data_exchange_cb;
+	void *data_exchange_cb_context;
+
+	struct sk_buff *rx_skb;
+};
 
 /* NCI Core structures */
 struct nci_dev {
@@ -95,7 +112,9 @@ struct nci_dev {
 	unsigned long		flags;
 
 	atomic_t		cmd_cnt;
-	atomic_t		credits_cnt;
+	__u8			cur_conn_id;
+
+	struct list_head	conn_info_list;
 
 	struct timer_list	cmd_timer;
 	struct timer_list	data_timer;
@@ -141,13 +160,10 @@ struct nci_dev {
 	__u8			manufact_id;
 	__u32			manufact_specific_info;
 
-	/* received during NCI_OP_RF_INTF_ACTIVATED_NTF */
-	__u8			max_data_pkt_payload_size;
-	__u8			initial_num_credits;
+	/* Save RF Discovery ID or NFCEE ID under conn_create */
+	__u8			cur_id;
 
 	/* stored during nci_data_exchange */
-	data_exchange_cb_t	data_exchange_cb;
-	void			*data_exchange_cb_context;
 	struct sk_buff		*rx_data_reassembly;
 
 	/* stored during intf_activated_ntf */
@@ -200,7 +216,7 @@ void nci_rx_data_packet(struct nci_dev *ndev, struct sk_buff *skb);
 int nci_send_cmd(struct nci_dev *ndev, __u16 opcode, __u8 plen, void *payload);
 int nci_send_data(struct nci_dev *ndev, __u8 conn_id, struct sk_buff *skb);
 void nci_data_exchange_complete(struct nci_dev *ndev, struct sk_buff *skb,
-				int err);
+				__u8 conn_id, int err);
 void nci_clear_target_list(struct nci_dev *ndev);
 
 /* ----- NCI requests ----- */
@@ -209,6 +225,8 @@ void nci_clear_target_list(struct nci_dev *ndev);
 #define NCI_REQ_CANCELED	2
 
 void nci_req_complete(struct nci_dev *ndev, int result);
+struct nci_conn_info *nci_get_conn_info_by_conn_id(struct nci_dev *ndev,
+						   int conn_id);
 
 /* ----- NCI status code ----- */
 int nci_to_errno(__u8 code);

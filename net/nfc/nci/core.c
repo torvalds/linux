@@ -45,6 +45,19 @@ static void nci_cmd_work(struct work_struct *work);
 static void nci_rx_work(struct work_struct *work);
 static void nci_tx_work(struct work_struct *work);
 
+struct nci_conn_info *nci_get_conn_info_by_conn_id(struct nci_dev *ndev,
+						   int conn_id)
+{
+	struct nci_conn_info *conn_info;
+
+	list_for_each_entry(conn_info, &ndev->conn_info_list, list) {
+		if (conn_info->conn_id == conn_id)
+			return conn_info;
+	}
+
+	return NULL;
+}
+
 /* ---- NCI requests ---- */
 
 void nci_req_complete(struct nci_dev *ndev, int result)
@@ -712,6 +725,11 @@ static int nci_transceive(struct nfc_dev *nfc_dev, struct nfc_target *target,
 {
 	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
 	int rc;
+	struct nci_conn_info    *conn_info;
+
+	conn_info = nci_get_conn_info_by_conn_id(ndev, NCI_STATIC_RF_CONN_ID);
+	if (!conn_info)
+		return -EPROTO;
 
 	pr_debug("target_idx %d, len %d\n", target->idx, skb->len);
 
@@ -724,8 +742,8 @@ static int nci_transceive(struct nfc_dev *nfc_dev, struct nfc_target *target,
 		return -EBUSY;
 
 	/* store cb and context to be used on receiving data */
-	ndev->data_exchange_cb = cb;
-	ndev->data_exchange_cb_context = cb_context;
+	conn_info->data_exchange_cb = cb;
+	conn_info->data_exchange_cb_context = cb_context;
 
 	rc = nci_send_data(ndev, NCI_STATIC_RF_CONN_ID, skb);
 	if (rc)
@@ -913,6 +931,7 @@ int nci_register_device(struct nci_dev *ndev)
 		    (unsigned long) ndev);
 
 	mutex_init(&ndev->req_lock);
+	INIT_LIST_HEAD(&ndev->conn_info_list);
 
 	rc = nfc_register_device(ndev->nfc_dev);
 	if (rc)
@@ -938,11 +957,18 @@ EXPORT_SYMBOL(nci_register_device);
  */
 void nci_unregister_device(struct nci_dev *ndev)
 {
+	struct nci_conn_info    *conn_info, *n;
+
 	nci_close_device(ndev);
 
 	destroy_workqueue(ndev->cmd_wq);
 	destroy_workqueue(ndev->rx_wq);
 	destroy_workqueue(ndev->tx_wq);
+
+	list_for_each_entry_safe(conn_info, n, &ndev->conn_info_list, list) {
+		list_del(&conn_info->list);
+		/* conn_info is allocated with devm_kzalloc */
+	}
 
 	nfc_unregister_device(ndev->nfc_dev);
 }
@@ -1027,20 +1053,25 @@ int nci_send_cmd(struct nci_dev *ndev, __u16 opcode, __u8 plen, void *payload)
 static void nci_tx_work(struct work_struct *work)
 {
 	struct nci_dev *ndev = container_of(work, struct nci_dev, tx_work);
+	struct nci_conn_info    *conn_info;
 	struct sk_buff *skb;
 
-	pr_debug("credits_cnt %d\n", atomic_read(&ndev->credits_cnt));
+	conn_info = nci_get_conn_info_by_conn_id(ndev, ndev->cur_conn_id);
+	if (!conn_info)
+		return;
+
+	pr_debug("credits_cnt %d\n", atomic_read(&conn_info->credits_cnt));
 
 	/* Send queued tx data */
-	while (atomic_read(&ndev->credits_cnt)) {
+	while (atomic_read(&conn_info->credits_cnt)) {
 		skb = skb_dequeue(&ndev->tx_q);
 		if (!skb)
 			return;
 
 		/* Check if data flow control is used */
-		if (atomic_read(&ndev->credits_cnt) !=
+		if (atomic_read(&conn_info->credits_cnt) !=
 		    NCI_DATA_FLOW_CONTROL_NOT_USED)
-			atomic_dec(&ndev->credits_cnt);
+			atomic_dec(&conn_info->credits_cnt);
 
 		pr_debug("NCI TX: MT=data, PBF=%d, conn_id=%d, plen=%d\n",
 			 nci_pbf(skb->data),
@@ -1092,7 +1123,9 @@ static void nci_rx_work(struct work_struct *work)
 	if (test_bit(NCI_DATA_EXCHANGE_TO, &ndev->flags)) {
 		/* complete the data exchange transaction, if exists */
 		if (test_bit(NCI_DATA_EXCHANGE, &ndev->flags))
-			nci_data_exchange_complete(ndev, NULL, -ETIMEDOUT);
+			nci_data_exchange_complete(ndev, NULL,
+						   ndev->cur_conn_id,
+						   -ETIMEDOUT);
 
 		clear_bit(NCI_DATA_EXCHANGE_TO, &ndev->flags);
 	}
