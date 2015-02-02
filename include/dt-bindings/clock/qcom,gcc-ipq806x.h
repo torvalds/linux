@@ -238,7 +238,6 @@
 #define PLL0_VOTE				221
 #define PLL3					222
 #define PLL3_VOTE				223
-#define PLL4					224
 #define PLL4_VOTE				225
 #define PLL8					226
 #define PLL8_VOTE				227

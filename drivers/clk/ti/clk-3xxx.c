@@ -327,7 +327,6 @@ enum {
 	OMAP3_SOC_OMAP3430_ES1,
 	OMAP3_SOC_OMAP3430_ES2_PLUS,
 	OMAP3_SOC_OMAP3630,
-	OMAP3_SOC_TI81XX,
 };
 
 static int __init omap3xxx_dt_clk_init(int soc_type)
@@ -370,7 +369,7 @@ static int __init omap3xxx_dt_clk_init(int soc_type)
 		(clk_get_rate(clk_get_sys(NULL, "core_ck")) / 1000000),
 		(clk_get_rate(clk_get_sys(NULL, "arm_fck")) / 1000000));
 
-	if (soc_type != OMAP3_SOC_TI81XX && soc_type != OMAP3_SOC_OMAP3430_ES1)
+	if (soc_type != OMAP3_SOC_OMAP3430_ES1)
 		omap3_clk_lock_dpll5();
 
 	return 0;
@@ -389,9 +388,4 @@ int __init omap3630_dt_clk_init(void)
 int __init am35xx_dt_clk_init(void)
 {
 	return omap3xxx_dt_clk_init(OMAP3_SOC_AM35XX);
-}
-
-int __init ti81xx_dt_clk_init(void)
-{
-	return omap3xxx_dt_clk_init(OMAP3_SOC_TI81XX);
 }
