@@ -1883,6 +1883,7 @@ enum {
 #define AR_FIRST_NDP_TIMER                  7
 #define AR_NDP2_PERIOD                      0x81a0
 #define AR_NDP2_TIMER_MODE                  0x81c0
+#define AR_GEN_TIMERS2_MODE_ENABLE_MASK     0x000000FF
 
 #define AR_GEN_TIMERS(_i)                   (0x8200 + ((_i) << 2))
 #define AR_NEXT_TBTT_TIMER                  AR_GEN_TIMERS(0)
@@ -1978,6 +1979,7 @@ enum {
 
 #define AR_DIRECT_CONNECT                              0x83a0
 #define AR_DC_AP_STA_EN                                0x00000001
+#define AR_DC_TSF2_ENABLE                              0x00000001
 
 #define AR_AES_MUTE_MASK0       0x805c
 #define AR_AES_MUTE_MASK0_FC    0x0000FFFF

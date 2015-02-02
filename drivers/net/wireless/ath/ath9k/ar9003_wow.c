@@ -35,6 +35,15 @@ static void ath9k_hw_set_powermode_wow_sleep(struct ath_hw *ah)
 		return;
 	}
 
+	if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
+		if (!REG_READ(ah, AR_MAC_PCU_GEN_TIMER_TSF_SEL))
+			REG_CLR_BIT(ah, AR_DIRECT_CONNECT, AR_DC_TSF2_ENABLE);
+	} else if (AR_SREV_9485(ah)){
+		if (!(REG_READ(ah, AR_NDP2_TIMER_MODE) &
+		      AR_GEN_TIMERS2_MODE_ENABLE_MASK))
+			REG_CLR_BIT(ah, AR_DIRECT_CONNECT, AR_DC_TSF2_ENABLE);
+	}
+
 	REG_WRITE(ah, AR_RTC_FORCE_WAKE, AR_RTC_FORCE_WAKE_ON_INT);
 }
 
