@@ -51,6 +51,7 @@ obj-$(CONFIG_SERIAL_MPSC) += mpsc.o
 obj-$(CONFIG_SERIAL_MESON) += meson_uart.o
 obj-$(CONFIG_SERIAL_SB1250_DUART) += sb1250-duart.o
 obj-$(CONFIG_ETRAX_SERIAL) += crisv10.o
+obj-$(CONFIG_SERIAL_ETRAXFS) += etraxfs-uart.o
 obj-$(CONFIG_SERIAL_SCCNXP) += sccnxp.o
 obj-$(CONFIG_SERIAL_SC16IS7XX) += sc16is7xx.o
 obj-$(CONFIG_SERIAL_JSM) += jsm/
