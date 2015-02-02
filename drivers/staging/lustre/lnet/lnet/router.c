@@ -84,7 +84,7 @@ static int check_routers_before_use;
 module_param(check_routers_before_use, int, 0444);
 MODULE_PARM_DESC(check_routers_before_use, "Assume routers are down and ping them before use");
 
-static int avoid_asym_router_failure = 1;
+int avoid_asym_router_failure = 1;
 module_param(avoid_asym_router_failure, int, 0644);
 MODULE_PARM_DESC(avoid_asym_router_failure, "Avoid asymmetrical router failures (0 to disable)");
 
@@ -780,6 +780,21 @@ lnet_wait_known_routerstate(void)
 
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(cfs_time_seconds(1));
+	}
+}
+
+void
+lnet_router_ni_update_locked(lnet_peer_t *gw, __u32 net)
+{
+	lnet_route_t *rte;
+
+	if ((gw->lp_ping_feats & LNET_PING_FEAT_NI_STATUS) != 0) {
+		list_for_each_entry(rte, &gw->lp_routes, lr_gwlist) {
+			if (rte->lr_net == net) {
+				rte->lr_downis = 0;
+				break;
+			}
+		}
 	}
 }
 
