@@ -303,6 +303,7 @@ bool acpi_dev_resource_interrupt(struct acpi_resource *ares, int index,
 struct resource_list_entry {
 	struct list_head node;
 	struct resource res;
+	resource_size_t offset;
 };
 
 void acpi_dev_free_resource_list(struct list_head *list);

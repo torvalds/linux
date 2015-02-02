@@ -472,6 +472,7 @@ static acpi_status acpi_dev_new_resource_entry(struct resource_win *win,
 		return AE_NO_MEMORY;
 	}
 	rentry->res = win->res;
+	rentry->offset = win->offset;
 	list_add_tail(&rentry->node, c->list);
 	c->count++;
 	return AE_OK;
