@@ -17,5 +17,8 @@ static inline int cpu_suspend(unsigned long arg)
 	return -EOPNOTSUPP;
 }
 #endif
-
+static inline int arm_cpuidle_suspend(int index)
+{
+	return cpu_suspend(index);
+}
 #endif
