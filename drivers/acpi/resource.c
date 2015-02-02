@@ -205,6 +205,21 @@ static bool acpi_decode_space(struct resource_win *win,
 	res->start = attr->minimum;
 	res->end = attr->maximum;
 
+	/*
+	 * For bridges that translate addresses across the bridge,
+	 * translation_offset is the offset that must be added to the
+	 * address on the secondary side to obtain the address on the
+	 * primary side. Non-bridge devices must list 0 for all Address
+	 * Translation offset bits.
+	 */
+	if (addr->producer_consumer == ACPI_PRODUCER) {
+		res->start += attr->translation_offset;
+		res->end += attr->translation_offset;
+	} else if (attr->translation_offset) {
+		pr_debug("ACPI: translation_offset(%lld) is invalid for non-bridge device.\n",
+			 attr->translation_offset);
+	}
+
 	switch (addr->resource_type) {
 	case ACPI_MEMORY_RANGE:
 		acpi_dev_memresource_flags(res, len, wp);
