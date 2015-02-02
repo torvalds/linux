@@ -182,6 +182,10 @@
 						atmel,pins =
 							<AT91_PIOE 6 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;
 					};
+					pinctrl_pck2_as_audio_mck: pck2_as_audio_mck {
+						atmel,pins =
+							<AT91_PIOB 10 AT91_PERIPH_B AT91_PINCTRL_NONE>;
+					};
 					pinctrl_usba_vbus: usba_vbus {
 						atmel,pins =
 							<AT91_PIOE 31 AT91_PERIPH_GPIO AT91_PINCTRL_DEGLITCH>;
@@ -287,5 +291,21 @@
 			gpios = <&pioE 8 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "heartbeat";
 		};
+	};
+
+	sound {
+		compatible = "atmel,asoc-wm8904";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pck2_as_audio_mck>;
+
+		atmel,model = "wm8904 @ SAMA5D4EK";
+		atmel,audio-routing =
+			"Headphone Jack", "HPOUTL",
+			"Headphone Jack", "HPOUTR",
+			"IN1L", "Line In Jack",
+			"IN1R", "Line In Jack";
+
+		atmel,ssc-controller = <&ssc0>;
+		atmel,audio-codec = <&wm8904>;
 	};
 };
