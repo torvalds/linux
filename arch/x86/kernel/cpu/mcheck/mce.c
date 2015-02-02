@@ -817,7 +817,7 @@ static void mce_reign(void)
 	 * other CPUs.
 	 */
 	if (m && global_worst >= MCE_PANIC_SEVERITY && mca_cfg.tolerant < 3)
-		mce_panic("Fatal Machine check", m, msg);
+		mce_panic("Fatal machine check", m, msg);
 
 	/*
 	 * For UC somewhere we let the CPU who detects it handle it.
@@ -830,7 +830,7 @@ static void mce_reign(void)
 	 * source or one CPU is hung. Panic.
 	 */
 	if (global_worst <= MCE_KEEP_SEVERITY && mca_cfg.tolerant < 3)
-		mce_panic("Machine check from unknown source", NULL, NULL);
+		mce_panic("Fatal machine check from unknown source", NULL, NULL);
 
 	/*
 	 * Now clear all the mces_seen so that they don't reappear on
