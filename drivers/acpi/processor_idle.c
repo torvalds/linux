@@ -681,15 +681,13 @@ static int acpi_idle_bm_check(void)
 }
 
 /**
- * acpi_idle_do_entry - a helper function that does C2 and C3 type entry
+ * acpi_idle_do_entry - enter idle state using the appropriate method
  * @cx: cstate data
  *
  * Caller disables interrupt before call and enables interrupt after return.
  */
-static inline void acpi_idle_do_entry(struct acpi_processor_cx *cx)
+static void acpi_idle_do_entry(struct acpi_processor_cx *cx)
 {
-	/* Don't trace irqs off for idle */
-	stop_critical_timings();
 	if (cx->entry_method == ACPI_CSTATE_FFH) {
 		/* Call into architectural FFH based C-state */
 		acpi_processor_ffh_cstate_enter(cx);
@@ -703,7 +701,6 @@ static inline void acpi_idle_do_entry(struct acpi_processor_cx *cx)
 		   gets asserted in time to freeze execution properly. */
 		inl(acpi_gbl_FADT.xpm_timer_block.address);
 	}
-	start_critical_timings();
 }
 
 /**
