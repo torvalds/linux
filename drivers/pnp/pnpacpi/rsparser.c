@@ -180,20 +180,21 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 	struct pnp_dev *dev = data;
 	struct acpi_resource_dma *dma;
 	struct acpi_resource_vendor_typed *vendor_typed;
-	struct resource r = {0};
+	struct resource_win win = {{0}, 0};
+	struct resource *r = &win.res;
 	int i, flags;
 
-	if (acpi_dev_resource_address_space(res, &r)
-	    || acpi_dev_resource_ext_address_space(res, &r)) {
-		pnp_add_resource(dev, &r);
+	if (acpi_dev_resource_address_space(res, &win)
+	    || acpi_dev_resource_ext_address_space(res, &win)) {
+		pnp_add_resource(dev, &win.res);
 		return AE_OK;
 	}
 
-	r.flags = 0;
-	if (acpi_dev_resource_interrupt(res, 0, &r)) {
-		pnpacpi_add_irqresource(dev, &r);
-		for (i = 1; acpi_dev_resource_interrupt(res, i, &r); i++)
-			pnpacpi_add_irqresource(dev, &r);
+	r->flags = 0;
+	if (acpi_dev_resource_interrupt(res, 0, r)) {
+		pnpacpi_add_irqresource(dev, r);
+		for (i = 1; acpi_dev_resource_interrupt(res, i, r); i++)
+			pnpacpi_add_irqresource(dev, r);
 
 		if (i > 1) {
 			/*
@@ -209,7 +210,7 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 			}
 		}
 		return AE_OK;
-	} else if (r.flags & IORESOURCE_DISABLED) {
+	} else if (r->flags & IORESOURCE_DISABLED) {
 		pnp_add_irq_resource(dev, 0, IORESOURCE_DISABLED);
 		return AE_OK;
 	}
@@ -218,13 +219,13 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 	case ACPI_RESOURCE_TYPE_MEMORY24:
 	case ACPI_RESOURCE_TYPE_MEMORY32:
 	case ACPI_RESOURCE_TYPE_FIXED_MEMORY32:
-		if (acpi_dev_resource_memory(res, &r))
-			pnp_add_resource(dev, &r);
+		if (acpi_dev_resource_memory(res, r))
+			pnp_add_resource(dev, r);
 		break;
 	case ACPI_RESOURCE_TYPE_IO:
 	case ACPI_RESOURCE_TYPE_FIXED_IO:
-		if (acpi_dev_resource_io(res, &r))
-			pnp_add_resource(dev, &r);
+		if (acpi_dev_resource_io(res, r))
+			pnp_add_resource(dev, r);
 		break;
 	case ACPI_RESOURCE_TYPE_DMA:
 		dma = &res->data.dma;

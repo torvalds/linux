@@ -184,13 +184,14 @@ bool acpi_dev_resource_io(struct acpi_resource *ares, struct resource *res)
 }
 EXPORT_SYMBOL_GPL(acpi_dev_resource_io);
 
-static bool acpi_decode_space(struct resource *res,
+static bool acpi_decode_space(struct resource_win *win,
 			      struct acpi_resource_address *addr,
 			      struct acpi_address64_attribute *attr)
 {
 	u8 iodec = attr->granularity == 0xfff ? ACPI_DECODE_10 : ACPI_DECODE_16;
 	bool wp = addr->info.mem.write_protect;
 	u64 len = attr->address_length;
+	struct resource *res = &win->res;
 
 	/*
 	 * Filter out invalid descriptor according to ACPI Spec 5.0, section
@@ -218,6 +219,8 @@ static bool acpi_decode_space(struct resource *res,
 		return false;
 	}
 
+	win->offset = attr->translation_offset;
+
 	if (addr->producer_consumer == ACPI_PRODUCER)
 		res->flags |= IORESOURCE_WINDOW;
 
@@ -230,27 +233,28 @@ static bool acpi_decode_space(struct resource *res,
 /**
  * acpi_dev_resource_address_space - Extract ACPI address space information.
  * @ares: Input ACPI resource object.
- * @res: Output generic resource object.
+ * @win: Output generic resource object.
  *
  * Check if the given ACPI resource object represents an address space resource
  * and if that's the case, use the information in it to populate the generic
- * resource object pointed to by @res.
+ * resource object pointed to by @win.
  *
  * Return:
- * 1) false with res->flags setting to zero: not the expected resource type
- * 2) false with IORESOURCE_DISABLED in res->flags: valid unassigned resource
+ * 1) false with win->res.flags setting to zero: not the expected resource type
+ * 2) false with IORESOURCE_DISABLED in win->res.flags: valid unassigned
+ *    resource
  * 3) true: valid assigned resource
  */
 bool acpi_dev_resource_address_space(struct acpi_resource *ares,
-				     struct resource *res)
+				     struct resource_win *win)
 {
 	struct acpi_resource_address64 addr;
 
-	res->flags = 0;
+	win->res.flags = 0;
 	if (ACPI_FAILURE(acpi_resource_to_address64(ares, &addr)))
 		return false;
 
-	return acpi_decode_space(res, (struct acpi_resource_address *)&addr,
+	return acpi_decode_space(win, (struct acpi_resource_address *)&addr,
 				 &addr.address);
 }
 EXPORT_SYMBOL_GPL(acpi_dev_resource_address_space);
@@ -258,29 +262,30 @@ EXPORT_SYMBOL_GPL(acpi_dev_resource_address_space);
 /**
  * acpi_dev_resource_ext_address_space - Extract ACPI address space information.
  * @ares: Input ACPI resource object.
- * @res: Output generic resource object.
+ * @win: Output generic resource object.
  *
  * Check if the given ACPI resource object represents an extended address space
  * resource and if that's the case, use the information in it to populate the
- * generic resource object pointed to by @res.
+ * generic resource object pointed to by @win.
  *
  * Return:
- * 1) false with res->flags setting to zero: not the expected resource type
- * 2) false with IORESOURCE_DISABLED in res->flags: valid unassigned resource
+ * 1) false with win->res.flags setting to zero: not the expected resource type
+ * 2) false with IORESOURCE_DISABLED in win->res.flags: valid unassigned
+ *    resource
  * 3) true: valid assigned resource
  */
 bool acpi_dev_resource_ext_address_space(struct acpi_resource *ares,
-					 struct resource *res)
+					 struct resource_win *win)
 {
 	struct acpi_resource_extended_address64 *ext_addr;
 
-	res->flags = 0;
+	win->res.flags = 0;
 	if (ares->type != ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64)
 		return false;
 
 	ext_addr = &ares->data.ext_address64;
 
-	return acpi_decode_space(res, (struct acpi_resource_address *)ext_addr,
+	return acpi_decode_space(win, (struct acpi_resource_address *)ext_addr,
 				 &ext_addr->address);
 }
 EXPORT_SYMBOL_GPL(acpi_dev_resource_ext_address_space);
@@ -441,7 +446,7 @@ struct res_proc_context {
 	int error;
 };
 
-static acpi_status acpi_dev_new_resource_entry(struct resource *r,
+static acpi_status acpi_dev_new_resource_entry(struct resource_win *win,
 					       struct res_proc_context *c)
 {
 	struct resource_list_entry *rentry;
@@ -451,7 +456,7 @@ static acpi_status acpi_dev_new_resource_entry(struct resource *r,
 		c->error = -ENOMEM;
 		return AE_NO_MEMORY;
 	}
-	rentry->res = *r;
+	rentry->res = win->res;
 	list_add_tail(&rentry->node, c->list);
 	c->count++;
 	return AE_OK;
@@ -461,7 +466,8 @@ static acpi_status acpi_dev_process_resource(struct acpi_resource *ares,
 					     void *context)
 {
 	struct res_proc_context *c = context;
-	struct resource r;
+	struct resource_win win;
+	struct resource *res = &win.res;
 	int i;
 
 	if (c->preproc) {
@@ -476,18 +482,18 @@ static acpi_status acpi_dev_process_resource(struct acpi_resource *ares,
 		}
 	}
 
-	memset(&r, 0, sizeof(r));
+	memset(&win, 0, sizeof(win));
 
-	if (acpi_dev_resource_memory(ares, &r)
-	    || acpi_dev_resource_io(ares, &r)
-	    || acpi_dev_resource_address_space(ares, &r)
-	    || acpi_dev_resource_ext_address_space(ares, &r))
-		return acpi_dev_new_resource_entry(&r, c);
+	if (acpi_dev_resource_memory(ares, res)
+	    || acpi_dev_resource_io(ares, res)
+	    || acpi_dev_resource_address_space(ares, &win)
+	    || acpi_dev_resource_ext_address_space(ares, &win))
+		return acpi_dev_new_resource_entry(&win, c);
 
-	for (i = 0; acpi_dev_resource_interrupt(ares, i, &r); i++) {
+	for (i = 0; acpi_dev_resource_interrupt(ares, i, res); i++) {
 		acpi_status status;
 
-		status = acpi_dev_new_resource_entry(&r, c);
+		status = acpi_dev_new_resource_entry(&win, c);
 		if (ACPI_FAILURE(status))
 			return status;
 	}
