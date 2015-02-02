@@ -1299,6 +1299,9 @@ static int rsnd_remove(struct platform_device *pdev)
 		ret |= rsnd_dai_call(remove, &rdai->capture, priv);
 	}
 
+	snd_soc_unregister_component(&pdev->dev);
+	snd_soc_unregister_platform(&pdev->dev);
+
 	return ret;
 }
 
