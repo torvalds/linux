@@ -39,4 +39,16 @@ config CHROMEOS_PSTORE
 	  The module will be called chromeos_pstore.
 
 
+config CROS_EC_LPC
+        tristate "ChromeOS Embedded Controller (LPC)"
+        depends on MFD_CROS_EC
+        help
+          If you say Y here, you get support for talking to the ChromeOS EC
+          over an LPC bus. This uses a simple byte-level protocol with a
+          checksum. This is used for userspace access only. The kernel
+          typically has its own communication methods.
+
+          To compile this driver as a module, choose M here: the
+          module will be called cros_ec_lpc.
+
 endif # CHROMEOS_PLATFORMS
