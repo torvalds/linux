@@ -96,6 +96,10 @@ struct msm_drm_private {
 	/* callbacks deferred until bo is inactive: */
 	struct list_head fence_cbs;
 
+	/* crtcs pending async atomic updates: */
+	uint32_t pending_crtcs;
+	wait_queue_head_t pending_crtcs_event;
+
 	/* registered MMUs: */
 	unsigned int num_mmus;
 	struct msm_mmu *mmus[NUM_DOMAINS];

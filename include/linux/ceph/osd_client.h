@@ -87,8 +87,8 @@ struct ceph_osd_req_op {
 			struct ceph_osd_data osd_data;
 		} extent;
 		struct {
-			__le32 name_len;
-			__le32 value_len;
+			u32 name_len;
+			u32 value_len;
 			__u8 cmp_op;       /* CEPH_OSD_CMPXATTR_OP_* */
 			__u8 cmp_mode;     /* CEPH_OSD_CMPXATTR_MODE_* */
 			struct ceph_osd_data osd_data;

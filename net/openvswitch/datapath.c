@@ -83,8 +83,7 @@ static bool ovs_must_notify(struct genl_family *family, struct genl_info *info,
 			    unsigned int group)
 {
 	return info->nlhdr->nlmsg_flags & NLM_F_ECHO ||
-	       genl_has_listeners(family, genl_info_net(info)->genl_sock,
-				  group);
+	       genl_has_listeners(family, genl_info_net(info), group);
 }
 
 static void ovs_notify(struct genl_family *family,
@@ -525,7 +524,7 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
 	struct vport *input_vport;
 	int len;
 	int err;
-	bool log = !a[OVS_FLOW_ATTR_PROBE];
+	bool log = !a[OVS_PACKET_ATTR_PROBE];
 
 	err = -EINVAL;
 	if (!a[OVS_PACKET_ATTR_PACKET] || !a[OVS_PACKET_ATTR_KEY] ||
@@ -611,6 +610,7 @@ static const struct nla_policy packet_policy[OVS_PACKET_ATTR_MAX + 1] = {
 	[OVS_PACKET_ATTR_PACKET] = { .len = ETH_HLEN },
 	[OVS_PACKET_ATTR_KEY] = { .type = NLA_NESTED },
 	[OVS_PACKET_ATTR_ACTIONS] = { .type = NLA_NESTED },
+	[OVS_PACKET_ATTR_PROBE] = { .type = NLA_FLAG },
 };
 
 static const struct genl_ops dp_packet_genl_ops[] = {

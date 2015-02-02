@@ -190,7 +190,6 @@ struct neigh_hash_table {
 
 
 struct neigh_table {
-	struct neigh_table	*next;
 	int			family;
 	int			entry_size;
 	int			key_len;

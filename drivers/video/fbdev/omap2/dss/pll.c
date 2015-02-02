@@ -97,7 +97,8 @@ int dss_pll_enable(struct dss_pll *pll)
 	return 0;
 
 err_enable:
-	regulator_disable(pll->regulator);
+	if (pll->regulator)
+		regulator_disable(pll->regulator);
 err_reg:
 	clk_disable_unprepare(pll->clkin);
 	return r;

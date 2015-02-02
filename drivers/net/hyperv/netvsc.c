@@ -161,8 +161,8 @@ static int netvsc_destroy_buf(struct netvsc_device *net_device)
 
 	/* Deal with the send buffer we may have setup.
 	 * If we got a  send section size, it means we received a
-	 * SendsendBufferComplete msg (ie sent
-	 * NvspMessage1TypeSendReceiveBuffer msg) therefore, we need
+	 * NVSP_MSG1_TYPE_SEND_SEND_BUF_COMPLETE msg (ie sent
+	 * NVSP_MSG1_TYPE_SEND_SEND_BUF msg) therefore, we need
 	 * to send a revoke msg here
 	 */
 	if (net_device->send_section_size) {
@@ -172,7 +172,8 @@ static int netvsc_destroy_buf(struct netvsc_device *net_device)
 
 		revoke_packet->hdr.msg_type =
 			NVSP_MSG1_TYPE_REVOKE_SEND_BUF;
-		revoke_packet->msg.v1_msg.revoke_recv_buf.id = 0;
+		revoke_packet->msg.v1_msg.revoke_send_buf.id =
+			NETVSC_SEND_BUFFER_ID;
 
 		ret = vmbus_sendpacket(net_device->dev->channel,
 				       revoke_packet,
@@ -204,7 +205,7 @@ static int netvsc_destroy_buf(struct netvsc_device *net_device)
 		net_device->send_buf_gpadl_handle = 0;
 	}
 	if (net_device->send_buf) {
-		/* Free up the receive buffer */
+		/* Free up the send buffer */
 		vfree(net_device->send_buf);
 		net_device->send_buf = NULL;
 	}
@@ -339,9 +340,9 @@ static int netvsc_init_buf(struct hv_device *device)
 	init_packet = &net_device->channel_init_pkt;
 	memset(init_packet, 0, sizeof(struct nvsp_message));
 	init_packet->hdr.msg_type = NVSP_MSG1_TYPE_SEND_SEND_BUF;
-	init_packet->msg.v1_msg.send_recv_buf.gpadl_handle =
+	init_packet->msg.v1_msg.send_send_buf.gpadl_handle =
 		net_device->send_buf_gpadl_handle;
-	init_packet->msg.v1_msg.send_recv_buf.id = 0;
+	init_packet->msg.v1_msg.send_send_buf.id = NETVSC_SEND_BUFFER_ID;
 
 	/* Send the gpadl notification request */
 	ret = vmbus_sendpacket(device->channel, init_packet,
@@ -364,7 +365,7 @@ static int netvsc_init_buf(struct hv_device *device)
 		netdev_err(ndev, "Unable to complete send buffer "
 			   "initialization with NetVsp - status %d\n",
 			   init_packet->msg.v1_msg.
-			   send_recv_buf_complete.status);
+			   send_send_buf_complete.status);
 		ret = -EINVAL;
 		goto cleanup;
 	}

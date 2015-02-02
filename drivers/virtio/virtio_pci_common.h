@@ -126,7 +126,6 @@ const char *vp_bus_name(struct virtio_device *vdev);
  * - ignore the affinity request if we're using INTX
  */
 int vp_set_vq_affinity(struct virtqueue *vq, int cpu);
-void virtio_pci_release_dev(struct device *);
 
 int virtio_pci_legacy_probe(struct pci_dev *pci_dev,
 			    const struct pci_device_id *id);

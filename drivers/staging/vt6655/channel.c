@@ -182,6 +182,14 @@ bool set_channel(void *pDeviceHandler, unsigned int uConnectionChannel)
 	if (pDevice->byCurrentCh == uConnectionChannel)
 		return bResult;
 
+	/* Set VGA to max sensitivity */
+	if (pDevice->bUpdateBBVGA &&
+	    pDevice->byBBVGACurrent != pDevice->abyBBVGA[0]) {
+		pDevice->byBBVGACurrent = pDevice->abyBBVGA[0];
+
+		BBvSetVGAGainOffset(pDevice, pDevice->byBBVGACurrent);
+	}
+
 	/* clear NAV */
 	MACvRegBitsOn(pDevice->PortOffset, MAC_REG_MACCR, MACCR_CLRNAV);
 

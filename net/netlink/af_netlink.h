@@ -39,8 +39,8 @@ struct netlink_sock {
 	struct mutex		*cb_mutex;
 	struct mutex		cb_def_mutex;
 	void			(*netlink_rcv)(struct sk_buff *skb);
-	int			(*netlink_bind)(int group);
-	void			(*netlink_unbind)(int group);
+	int			(*netlink_bind)(struct net *net, int group);
+	void			(*netlink_unbind)(struct net *net, int group);
 	struct module		*module;
 #ifdef CONFIG_NETLINK_MMAP
 	struct mutex		pg_vec_lock;
@@ -65,8 +65,8 @@ struct netlink_table {
 	unsigned int		groups;
 	struct mutex		*cb_mutex;
 	struct module		*module;
-	int			(*bind)(int group);
-	void			(*unbind)(int group);
+	int			(*bind)(struct net *net, int group);
+	void			(*unbind)(struct net *net, int group);
 	bool			(*compare)(struct net *net, struct sock *sock);
 	int			registered;
 };

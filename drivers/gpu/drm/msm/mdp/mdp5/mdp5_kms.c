@@ -216,17 +216,7 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 		goto fail;
 	}
 
-	/* NOTE: the vsync and error irq's are actually associated with
-	 * the INTF/encoder.. the easiest way to deal with this (ie. what
-	 * we do now) is assume a fixed relationship between crtc's and
-	 * encoders.  I'm not sure if there is ever a need to more freely
-	 * assign crtcs to encoders, but if there is then we need to take
-	 * care of error and vblank irq's that the crtc has registered,
-	 * and also update user-requested vblank_mask.
-	 */
-	encoder->possible_crtcs = BIT(0);
-	mdp5_crtc_set_intf(priv->crtcs[0], 3, INTF_HDMI);
-
+	encoder->possible_crtcs = (1 << priv->num_crtcs) - 1;;
 	priv->encoders[priv->num_encoders++] = encoder;
 
 	/* Construct bridge/connector for HDMI: */

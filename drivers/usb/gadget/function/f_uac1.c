@@ -897,7 +897,6 @@ static void f_audio_free_inst(struct usb_function_instance *f)
 	struct f_uac1_opts *opts;
 
 	opts = container_of(f, struct f_uac1_opts, func_inst);
-	gaudio_cleanup(opts->card);
 	if (opts->fn_play_alloc)
 		kfree(opts->fn_play);
 	if (opts->fn_cap_alloc)
@@ -935,6 +934,7 @@ static void f_audio_free(struct usb_function *f)
 	struct f_audio *audio = func_to_audio(f);
 	struct f_uac1_opts *opts;
 
+	gaudio_cleanup(&audio->card);
 	opts = container_of(f->fi, struct f_uac1_opts, func_inst);
 	kfree(audio);
 	mutex_lock(&opts->lock);

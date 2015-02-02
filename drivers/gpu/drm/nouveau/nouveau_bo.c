@@ -1572,8 +1572,10 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 	 * so use the DMA API for them.
 	 */
 	if (!nv_device_is_cpu_coherent(device) &&
-	    ttm->caching_state == tt_uncached)
+	    ttm->caching_state == tt_uncached) {
 		ttm_dma_unpopulate(ttm_dma, dev->dev);
+		return;
+	}
 
 #if __OS_HAS_AGP
 	if (drm->agp.stat == ENABLED) {

@@ -737,6 +737,7 @@ static void connect(struct backend_info *be)
 		}
 
 		queue->remaining_credit = credit_bytes;
+		queue->credit_usec = credit_usec;
 
 		err = connect_rings(be, queue);
 		if (err) {

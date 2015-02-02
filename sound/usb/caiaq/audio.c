@@ -816,7 +816,7 @@ int snd_usb_caiaq_audio_init(struct snd_usb_caiaqdev *cdev)
 		return -EINVAL;
 	}
 
-	if (cdev->n_streams < 2) {
+	if (cdev->n_streams < 1) {
 		dev_err(dev, "bogus number of streams: %d\n", cdev->n_streams);
 		return -EINVAL;
 	}

@@ -42,19 +42,19 @@ __clean-files	:= $(extra-y) $(extra-m) $(extra-)       \
 
 __clean-files   := $(filter-out $(no-clean-files), $(__clean-files))
 
-# as clean-files is given relative to the current directory, this adds
-# a $(obj) prefix, except for absolute paths
+# clean-files is given relative to the current directory, unless it
+# starts with $(objtree)/ (which means "./", so do not add "./" unless
+# you want to delete a file from the toplevel object directory).
 
 __clean-files   := $(wildcard                                               \
-                   $(addprefix $(obj)/, $(filter-out /%, $(__clean-files))) \
-		   $(filter /%, $(__clean-files)))
+		   $(addprefix $(obj)/, $(filter-out $(objtree)/%, $(__clean-files))) \
+		   $(filter $(objtree)/%, $(__clean-files)))
 
-# as clean-dirs is given relative to the current directory, this adds
-# a $(obj) prefix, except for absolute paths
+# same as clean-files
 
 __clean-dirs    := $(wildcard                                               \
-                   $(addprefix $(obj)/, $(filter-out /%, $(clean-dirs)))    \
-		   $(filter /%, $(clean-dirs)))
+		   $(addprefix $(obj)/, $(filter-out $(objtree)/%, $(clean-dirs)))    \
+		   $(filter $(objtree)/%, $(clean-dirs)))
 
 # ==========================================================================
 

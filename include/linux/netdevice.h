@@ -852,11 +852,11 @@ typedef u16 (*select_queue_fallback_t)(struct net_device *dev,
  *	3. Update dev->stats asynchronously and atomically, and define
  *	   neither operation.
  *
- * int (*ndo_vlan_rx_add_vid)(struct net_device *dev, __be16 proto, u16t vid);
+ * int (*ndo_vlan_rx_add_vid)(struct net_device *dev, __be16 proto, u16 vid);
  *	If device support VLAN filtering this function is called when a
  *	VLAN id is registered.
  *
- * int (*ndo_vlan_rx_kill_vid)(struct net_device *dev, unsigned short vid);
+ * int (*ndo_vlan_rx_kill_vid)(struct net_device *dev, __be16 proto, u16 vid);
  *	If device support VLAN filtering this function is called when a
  *	VLAN id is unregistered.
  *
@@ -1012,12 +1012,15 @@ typedef u16 (*select_queue_fallback_t)(struct net_device *dev,
  *	Callback to use for xmit over the accelerated station. This
  *	is used in place of ndo_start_xmit on accelerated net
  *	devices.
- * bool	(*ndo_gso_check) (struct sk_buff *skb,
- *			  struct net_device *dev);
+ * netdev_features_t (*ndo_features_check) (struct sk_buff *skb,
+ *					    struct net_device *dev
+ *					    netdev_features_t features);
  *	Called by core transmit path to determine if device is capable of
- *	performing GSO on a packet. The device returns true if it is
- *	able to GSO the packet, false otherwise. If the return value is
- *	false the stack will do software GSO.
+ *	performing offload operations on a given packet. This is to give
+ *	the device an opportunity to implement any restrictions that cannot
+ *	be otherwise expressed by feature flags. The check is called with
+ *	the set of features that the stack has calculated and it returns
+ *	those the driver believes to be appropriate.
  *
  * int (*ndo_switch_parent_id_get)(struct net_device *dev,
  *				   struct netdev_phys_item_id *psid);
@@ -1178,8 +1181,9 @@ struct net_device_ops {
 							struct net_device *dev,
 							void *priv);
 	int			(*ndo_get_lock_subclass)(struct net_device *dev);
-	bool			(*ndo_gso_check) (struct sk_buff *skb,
-						  struct net_device *dev);
+	netdev_features_t	(*ndo_features_check) (struct sk_buff *skb,
+						       struct net_device *dev,
+						       netdev_features_t features);
 #ifdef CONFIG_NET_SWITCHDEV
 	int			(*ndo_switch_parent_id_get)(struct net_device *dev,
 							    struct netdev_phys_item_id *psid);
@@ -2081,7 +2085,7 @@ extern rwlock_t				dev_base_lock;		/* Device list lock */
 	list_for_each_entry_continue_rcu(d, &(net)->dev_base_head, dev_list)
 #define for_each_netdev_in_bond_rcu(bond, slave)	\
 		for_each_netdev_rcu(&init_net, slave)	\
-			if (netdev_master_upper_dev_get_rcu(slave) == bond)
+			if (netdev_master_upper_dev_get_rcu(slave) == (bond))
 #define net_device_entry(lh)	list_entry(lh, struct net_device, dev_list)
 
 static inline struct net_device *next_net_device(struct net_device *dev)
@@ -3611,8 +3615,6 @@ static inline bool netif_needs_gso(struct net_device *dev, struct sk_buff *skb,
 				   netdev_features_t features)
 {
 	return skb_is_gso(skb) && (!skb_gso_ok(skb, features) ||
-		(dev->netdev_ops->ndo_gso_check &&
-		 !dev->netdev_ops->ndo_gso_check(skb, dev)) ||
 		unlikely((skb->ip_summed != CHECKSUM_PARTIAL) &&
 			 (skb->ip_summed != CHECKSUM_UNNECESSARY)));
 }

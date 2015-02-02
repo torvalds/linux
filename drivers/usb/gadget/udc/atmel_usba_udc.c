@@ -264,14 +264,17 @@ static void usba_init_debugfs(struct usba_udc *udc)
 		goto err_root;
 	udc->debugfs_root = root;
 
-	regs = debugfs_create_file("regs", 0400, root, udc, &regs_dbg_fops);
-	if (!regs)
-		goto err_regs;
-
 	regs_resource = platform_get_resource(udc->pdev, IORESOURCE_MEM,
 				CTRL_IOMEM_ID);
-	regs->d_inode->i_size = resource_size(regs_resource);
-	udc->debugfs_regs = regs;
+
+	if (regs_resource) {
+		regs = debugfs_create_file_size("regs", 0400, root, udc,
+						&regs_dbg_fops,
+						resource_size(regs_resource));
+		if (!regs)
+			goto err_regs;
+		udc->debugfs_regs = regs;
+	}
 
 	usba_ep_init_debugfs(udc, to_usba_ep(udc->gadget.ep0));
 
@@ -716,10 +719,10 @@ static int queue_dma(struct usba_udc *udc, struct usba_ep *ep,
 	req->using_dma = 1;
 	req->ctrl = USBA_BF(DMA_BUF_LEN, req->req.length)
 			| USBA_DMA_CH_EN | USBA_DMA_END_BUF_IE
-			| USBA_DMA_END_TR_EN | USBA_DMA_END_TR_IE;
+			| USBA_DMA_END_BUF_EN;
 
-	if (ep->is_in)
-		req->ctrl |= USBA_DMA_END_BUF_EN;
+	if (!ep->is_in)
+		req->ctrl |= USBA_DMA_END_TR_EN | USBA_DMA_END_TR_IE;
 
 	/*
 	 * Add this request to the queue and submit for DMA if
@@ -828,7 +831,7 @@ static int usba_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 {
 	struct usba_ep *ep = to_usba_ep(_ep);
 	struct usba_udc *udc = ep->udc;
-	struct usba_request *req = to_usba_req(_req);
+	struct usba_request *req;
 	unsigned long flags;
 	u32 status;
 
@@ -836,6 +839,16 @@ static int usba_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 			ep->ep.name, req);
 
 	spin_lock_irqsave(&udc->lock, flags);
+
+	list_for_each_entry(req, &ep->queue, queue) {
+		if (&req->req == _req)
+			break;
+	}
+
+	if (&req->req != _req) {
+		spin_unlock_irqrestore(&udc->lock, flags);
+		return -EINVAL;
+	}
 
 	if (req->using_dma) {
 		/*
@@ -1563,7 +1576,6 @@ static void usba_ep_irq(struct usba_udc *udc, struct usba_ep *ep)
 	if ((epstatus & epctrl) & USBA_RX_BK_RDY) {
 		DBG(DBG_BUS, "%s: RX data ready\n", ep->ep.name);
 		receive_data(ep);
-		usba_ep_writel(ep, CLR_STA, USBA_RX_BK_RDY);
 	}
 }
 

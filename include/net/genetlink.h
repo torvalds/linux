@@ -31,6 +31,9 @@ struct genl_info;
  *	do additional, common, filtering and return an error
  * @post_doit: called after an operation's doit callback, it may
  *	undo operations done by pre_doit, for example release locks
+ * @mcast_bind: a socket bound to the given multicast group (which
+ *	is given as the offset into the groups array)
+ * @mcast_unbind: a socket was unbound from the given multicast group
  * @attrbuf: buffer to store parsed attributes
  * @family_list: family list
  * @mcgrps: multicast groups used by this family (private)
@@ -53,6 +56,8 @@ struct genl_family {
 	void			(*post_doit)(const struct genl_ops *ops,
 					     struct sk_buff *skb,
 					     struct genl_info *info);
+	int			(*mcast_bind)(struct net *net, int group);
+	void			(*mcast_unbind)(struct net *net, int group);
 	struct nlattr **	attrbuf;	/* private */
 	const struct genl_ops *	ops;		/* private */
 	const struct genl_multicast_group *mcgrps; /* private */
@@ -395,11 +400,11 @@ static inline int genl_set_err(struct genl_family *family, struct net *net,
 }
 
 static inline int genl_has_listeners(struct genl_family *family,
-				     struct sock *sk, unsigned int group)
+				     struct net *net, unsigned int group)
 {
 	if (WARN_ON_ONCE(group >= family->n_mcgrps))
 		return -EINVAL;
 	group = family->mcgrp_offset + group;
-	return netlink_has_listeners(sk, group);
+	return netlink_has_listeners(net->genl_sock, group);
 }
 #endif	/* __NET_GENERIC_NETLINK_H */

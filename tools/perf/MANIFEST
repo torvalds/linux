@@ -6,12 +6,15 @@ tools/lib/symbol/kallsyms.c
 tools/lib/symbol/kallsyms.h
 tools/lib/util/find_next_bit.c
 tools/include/asm/bug.h
+tools/include/asm-generic/bitops/arch_hweight.h
 tools/include/asm-generic/bitops/atomic.h
+tools/include/asm-generic/bitops/const_hweight.h
 tools/include/asm-generic/bitops/__ffs.h
 tools/include/asm-generic/bitops/__fls.h
 tools/include/asm-generic/bitops/find.h
 tools/include/asm-generic/bitops/fls64.h
 tools/include/asm-generic/bitops/fls.h
+tools/include/asm-generic/bitops/hweight.h
 tools/include/asm-generic/bitops.h
 tools/include/linux/bitops.h
 tools/include/linux/compiler.h
@@ -19,6 +22,8 @@ tools/include/linux/export.h
 tools/include/linux/hash.h
 tools/include/linux/log2.h
 tools/include/linux/types.h
+include/asm-generic/bitops/arch_hweight.h
+include/asm-generic/bitops/const_hweight.h
 include/asm-generic/bitops/fls64.h
 include/asm-generic/bitops/__fls.h
 include/asm-generic/bitops/fls.h
@@ -29,6 +34,7 @@ include/linux/list.h
 include/linux/hash.h
 include/linux/stringify.h
 lib/find_next_bit.c
+lib/hweight.c
 lib/rbtree.c
 include/linux/swab.h
 arch/*/include/asm/unistd*.h

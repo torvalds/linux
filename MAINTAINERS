@@ -724,15 +724,15 @@ F:	include/uapi/linux/apm_bios.h
 F:	drivers/char/apm-emulation.c
 
 APPLE BCM5974 MULTITOUCH DRIVER
-M:	Henrik Rydberg <rydberg@euromail.se>
+M:	Henrik Rydberg <rydberg@bitmath.org>
 L:	linux-input@vger.kernel.org
-S:	Maintained
+S:	Odd fixes
 F:	drivers/input/mouse/bcm5974.c
 
 APPLE SMC DRIVER
-M:	Henrik Rydberg <rydberg@euromail.se>
+M:	Henrik Rydberg <rydberg@bitmath.org>
 L:	lm-sensors@lm-sensors.org
-S:	Maintained
+S:	Odd fixes
 F:	drivers/hwmon/applesmc.c
 
 APPLETALK NETWORK LAYER
@@ -2259,6 +2259,7 @@ F:	drivers/gpio/gpio-bt8xx.c
 BTRFS FILE SYSTEM
 M:	Chris Mason <clm@fb.com>
 M:	Josef Bacik <jbacik@fb.com>
+M:	David Sterba <dsterba@suse.cz>
 L:	linux-btrfs@vger.kernel.org
 W:	http://btrfs.wiki.kernel.org/
 Q:	http://patchwork.kernel.org/project/linux-btrfs/list/
@@ -3182,7 +3183,7 @@ L:	dmaengine@vger.kernel.org
 Q:	https://patchwork.kernel.org/project/linux-dmaengine/list/
 S:	Maintained
 F:	drivers/dma/
-F:	include/linux/dma*
+F:	include/linux/dmaengine.h
 F:	Documentation/dmaengine/
 T:	git git://git.infradead.org/users/vkoul/slave-dma.git
 
@@ -4748,7 +4749,7 @@ S:	Supported
 F:	drivers/scsi/ipr.*
 
 IBM Power Virtual Ethernet Device Driver
-M:	Santiago Leon <santil@linux.vnet.ibm.com>
+M:	Thomas Falcon <tlfalcon@linux.vnet.ibm.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/ibm/ibmveth.*
@@ -4940,10 +4941,10 @@ F:	include/uapi/linux/input.h
 F:	include/linux/input/
 
 INPUT MULTITOUCH (MT) PROTOCOL
-M:	Henrik Rydberg <rydberg@euromail.se>
+M:	Henrik Rydberg <rydberg@bitmath.org>
 L:	linux-input@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rydberg/input-mt.git
-S:	Maintained
+S:	Odd fixes
 F:	Documentation/input/multi-touch-protocol.txt
 F:	drivers/input/input-mt.c
 K:	\b(ABS|SYN)_MT_
@@ -5278,6 +5279,15 @@ W:	http://www.openfabrics.org
 W:	www.open-iscsi.org
 Q:	http://patchwork.kernel.org/project/linux-rdma/list/
 F:	drivers/infiniband/ulp/iser/
+
+ISCSI EXTENSIONS FOR RDMA (ISER) TARGET
+M:	Sagi Grimberg <sagig@mellanox.com>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/nab/target-pending.git master
+L:	linux-rdma@vger.kernel.org
+L:	target-devel@vger.kernel.org
+S:	Supported
+W:	http://www.linux-iscsi.org
+F:	drivers/infiniband/ulp/isert
 
 ISDN SUBSYSTEM
 M:	Karsten Keil <isdn@linux-pingi.de>
@@ -7737,8 +7747,7 @@ F:	Documentation/scsi/LICENSE.qla2xxx
 F:	drivers/scsi/qla2xxx/
 
 QLOGIC QLA4XXX iSCSI DRIVER
-M:	Vikas Chaudhary <vikas.chaudhary@qlogic.com>
-M:	iscsi-driver@qlogic.com
+M:	QLogic-Storage-Upstream@qlogic.com
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	Documentation/scsi/LICENSE.qla4xxx
@@ -9533,7 +9542,8 @@ F:	drivers/platform/x86/thinkpad_acpi.c
 TI BANDGAP AND THERMAL DRIVER
 M:	Eduardo Valentin <edubezval@gmail.com>
 L:	linux-pm@vger.kernel.org
-S:	Supported
+L:	linux-omap@vger.kernel.org
+S:	Maintained
 F:	drivers/thermal/ti-soc-thermal/
 
 TI CLOCK DRIVER

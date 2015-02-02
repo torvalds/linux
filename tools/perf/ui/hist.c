@@ -204,6 +204,9 @@ static int __hpp__sort_acc(struct hist_entry *a, struct hist_entry *b,
 		if (ret)
 			return ret;
 
+		if (a->thread != b->thread || !symbol_conf.use_callchain)
+			return 0;
+
 		ret = b->callchain->max_depth - a->callchain->max_depth;
 	}
 	return ret;

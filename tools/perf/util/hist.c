@@ -6,6 +6,7 @@
 #include "evlist.h"
 #include "evsel.h"
 #include "annotate.h"
+#include "ui/progress.h"
 #include <math.h>
 
 static bool hists__filter_entry_by_dso(struct hists *hists,
@@ -303,7 +304,7 @@ static struct hist_entry *hist_entry__new(struct hist_entry *template,
 	size_t callchain_size = 0;
 	struct hist_entry *he;
 
-	if (symbol_conf.use_callchain || symbol_conf.cumulate_callchain)
+	if (symbol_conf.use_callchain)
 		callchain_size = sizeof(struct callchain_root);
 
 	he = zalloc(sizeof(*he) + callchain_size);
@@ -736,7 +737,7 @@ iter_add_single_cumulative_entry(struct hist_entry_iter *iter,
 	iter->he = he;
 	he_cache[iter->curr++] = he;
 
-	callchain_append(he->callchain, &callchain_cursor, sample->period);
+	hist_entry__append_callchain(he, sample);
 
 	/*
 	 * We need to re-initialize the cursor since callchain_append()
@@ -809,7 +810,8 @@ iter_add_next_cumulative_entry(struct hist_entry_iter *iter,
 	iter->he = he;
 	he_cache[iter->curr++] = he;
 
-	callchain_append(he->callchain, &cursor, sample->period);
+	if (symbol_conf.use_callchain)
+		callchain_append(he->callchain, &cursor, sample->period);
 	return 0;
 }
 
@@ -945,6 +947,7 @@ void hist_entry__free(struct hist_entry *he)
 	zfree(&he->mem_info);
 	zfree(&he->stat_acc);
 	free_srcline(he->srcline);
+	free_callchain(he->callchain);
 	free(he);
 }
 
@@ -987,6 +990,7 @@ static bool hists__collapse_insert_entry(struct hists *hists __maybe_unused,
 		else
 			p = &(*p)->rb_right;
 	}
+	hists->nr_entries++;
 
 	rb_link_node(&he->rb_node_in, parent, p);
 	rb_insert_color(&he->rb_node_in, root);
@@ -1024,7 +1028,10 @@ void hists__collapse_resort(struct hists *hists, struct ui_progress *prog)
 	if (!sort__need_collapse)
 		return;
 
+	hists->nr_entries = 0;
+
 	root = hists__get_rotate_entries_in(hists);
+
 	next = rb_first(root);
 
 	while (next) {
@@ -1119,7 +1126,7 @@ static void __hists__insert_output_entry(struct rb_root *entries,
 	rb_insert_color(&he->rb_node, entries);
 }
 
-void hists__output_resort(struct hists *hists)
+void hists__output_resort(struct hists *hists, struct ui_progress *prog)
 {
 	struct rb_root *root;
 	struct rb_node *next;
@@ -1148,6 +1155,9 @@ void hists__output_resort(struct hists *hists)
 
 		if (!n->filtered)
 			hists__calc_col_len(hists, n);
+
+		if (prog)
+			ui_progress__update(prog, 1);
 	}
 }
 

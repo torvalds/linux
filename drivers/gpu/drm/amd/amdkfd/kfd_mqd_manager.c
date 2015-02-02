@@ -184,7 +184,7 @@ static bool is_occupied(struct mqd_manager *mm, void *mqd,
 			uint32_t queue_id)
 {
 
-	return kfd2kgd->hqd_is_occupies(mm->dev->kgd, queue_address,
+	return kfd2kgd->hqd_is_occupied(mm->dev->kgd, queue_address,
 					pipe_id, queue_id);
 
 }

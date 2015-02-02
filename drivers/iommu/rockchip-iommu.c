@@ -1009,7 +1009,6 @@ static struct platform_driver rk_iommu_driver = {
 	.remove = rk_iommu_remove,
 	.driver = {
 		   .name = "rk_iommu",
-		   .owner = THIS_MODULE,
 		   .of_match_table = of_match_ptr(rk_iommu_dt_ids),
 	},
 };

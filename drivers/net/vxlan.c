@@ -1579,8 +1579,10 @@ static int vxlan6_xmit_skb(struct vxlan_sock *vs,
 	bool udp_sum = !udp_get_no_check6_tx(vs->sock->sk);
 
 	skb = udp_tunnel_handle_offloads(skb, udp_sum);
-	if (IS_ERR(skb))
-		return -EINVAL;
+	if (IS_ERR(skb)) {
+		err = -EINVAL;
+		goto err;
+	}
 
 	skb_scrub_packet(skb, xnet);
 
@@ -1590,12 +1592,16 @@ static int vxlan6_xmit_skb(struct vxlan_sock *vs,
 
 	/* Need space for new headers (invalidates iph ptr) */
 	err = skb_cow_head(skb, min_headroom);
-	if (unlikely(err))
-		return err;
+	if (unlikely(err)) {
+		kfree_skb(skb);
+		goto err;
+	}
 
 	skb = vlan_hwaccel_push_inside(skb);
-	if (WARN_ON(!skb))
-		return -ENOMEM;
+	if (WARN_ON(!skb)) {
+		err = -ENOMEM;
+		goto err;
+	}
 
 	vxh = (struct vxlanhdr *) __skb_push(skb, sizeof(*vxh));
 	vxh->vx_flags = htonl(VXLAN_FLAGS);
@@ -1606,6 +1612,9 @@ static int vxlan6_xmit_skb(struct vxlan_sock *vs,
 	udp_tunnel6_xmit_skb(vs->sock, dst, skb, dev, saddr, daddr, prio,
 			     ttl, src_port, dst_port);
 	return 0;
+err:
+	dst_release(dst);
+	return err;
 }
 #endif
 
@@ -1621,7 +1630,7 @@ int vxlan_xmit_skb(struct vxlan_sock *vs,
 
 	skb = udp_tunnel_handle_offloads(skb, udp_sum);
 	if (IS_ERR(skb))
-		return -EINVAL;
+		return PTR_ERR(skb);
 
 	min_headroom = LL_RESERVED_SPACE(rt->dst.dev) + rt->dst.header_len
 			+ VXLAN_HLEN + sizeof(struct iphdr)
@@ -1629,8 +1638,10 @@ int vxlan_xmit_skb(struct vxlan_sock *vs,
 
 	/* Need space for new headers (invalidates iph ptr) */
 	err = skb_cow_head(skb, min_headroom);
-	if (unlikely(err))
+	if (unlikely(err)) {
+		kfree_skb(skb);
 		return err;
+	}
 
 	skb = vlan_hwaccel_push_inside(skb);
 	if (WARN_ON(!skb))
@@ -1776,9 +1787,12 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 				     tos, ttl, df, src_port, dst_port,
 				     htonl(vni << 8),
 				     !net_eq(vxlan->net, dev_net(vxlan->dev)));
-
-		if (err < 0)
+		if (err < 0) {
+			/* skb is already freed. */
+			skb = NULL;
 			goto rt_tx_error;
+		}
+
 		iptunnel_xmit_stats(err, &dev->stats, dev->tstats);
 #if IS_ENABLED(CONFIG_IPV6)
 	} else {

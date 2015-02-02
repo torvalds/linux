@@ -1892,6 +1892,21 @@ int fnic_abort_cmd(struct scsi_cmnd *sc)
 		goto fnic_abort_cmd_end;
 	}
 
+	/* IO out of order */
+
+	if (!(CMD_FLAGS(sc) & (FNIC_IO_ABORTED | FNIC_IO_DONE))) {
+		spin_unlock_irqrestore(io_lock, flags);
+		FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
+			"Issuing Host reset due to out of order IO\n");
+
+		if (fnic_host_reset(sc) == FAILED) {
+			FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
+				"fnic_host_reset failed.\n");
+		}
+		ret = FAILED;
+		goto fnic_abort_cmd_end;
+	}
+
 	CMD_STATE(sc) = FNIC_IOREQ_ABTS_COMPLETE;
 
 	/*

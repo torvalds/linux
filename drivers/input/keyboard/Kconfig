@@ -559,6 +559,7 @@ config KEYBOARD_SH_KEYSC
 config KEYBOARD_STMPE
 	tristate "STMPE keypad support"
 	depends on MFD_STMPE
+	depends on OF
 	select INPUT_MATRIXKMAP
 	help
 	  Say Y here if you want to use the keypad controller on STMPE I/O

@@ -330,18 +330,18 @@ create_netxbig_led(struct platform_device *pdev,
 	led_dat->sata = 0;
 	led_dat->cdev.brightness = LED_OFF;
 	led_dat->cdev.flags |= LED_CORE_SUSPENDRESUME;
-	/*
-	 * If available, expose the SATA activity blink capability through
-	 * a "sata" sysfs attribute.
-	 */
-	if (led_dat->mode_val[NETXBIG_LED_SATA] != NETXBIG_LED_INVALID_MODE)
-		led_dat->cdev.groups = netxbig_led_groups;
 	led_dat->mode_addr = template->mode_addr;
 	led_dat->mode_val = template->mode_val;
 	led_dat->bright_addr = template->bright_addr;
 	led_dat->bright_max = (1 << pdata->gpio_ext->num_data) - 1;
 	led_dat->timer = pdata->timer;
 	led_dat->num_timer = pdata->num_timer;
+	/*
+	 * If available, expose the SATA activity blink capability through
+	 * a "sata" sysfs attribute.
+	 */
+	if (led_dat->mode_val[NETXBIG_LED_SATA] != NETXBIG_LED_INVALID_MODE)
+		led_dat->cdev.groups = netxbig_led_groups;
 
 	return led_classdev_register(&pdev->dev, &led_dat->cdev);
 }

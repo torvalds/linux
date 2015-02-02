@@ -107,7 +107,7 @@ static void blk_mq_usage_counter_release(struct percpu_ref *ref)
 	wake_up_all(&q->mq_freeze_wq);
 }
 
-static void blk_mq_freeze_queue_start(struct request_queue *q)
+void blk_mq_freeze_queue_start(struct request_queue *q)
 {
 	bool freeze;
 
@@ -120,6 +120,7 @@ static void blk_mq_freeze_queue_start(struct request_queue *q)
 		blk_mq_run_queues(q, false);
 	}
 }
+EXPORT_SYMBOL_GPL(blk_mq_freeze_queue_start);
 
 static void blk_mq_freeze_queue_wait(struct request_queue *q)
 {
@@ -136,7 +137,7 @@ void blk_mq_freeze_queue(struct request_queue *q)
 	blk_mq_freeze_queue_wait(q);
 }
 
-static void blk_mq_unfreeze_queue(struct request_queue *q)
+void blk_mq_unfreeze_queue(struct request_queue *q)
 {
 	bool wake;
 
@@ -148,6 +149,24 @@ static void blk_mq_unfreeze_queue(struct request_queue *q)
 		percpu_ref_reinit(&q->mq_usage_counter);
 		wake_up_all(&q->mq_freeze_wq);
 	}
+}
+EXPORT_SYMBOL_GPL(blk_mq_unfreeze_queue);
+
+void blk_mq_wake_waiters(struct request_queue *q)
+{
+	struct blk_mq_hw_ctx *hctx;
+	unsigned int i;
+
+	queue_for_each_hw_ctx(q, hctx, i)
+		if (blk_mq_hw_queue_mapped(hctx))
+			blk_mq_tag_wakeup_all(hctx->tags, true);
+
+	/*
+	 * If we are called because the queue has now been marked as
+	 * dying, we need to ensure that processes currently waiting on
+	 * the queue are notified as well.
+	 */
+	wake_up_all(&q->mq_freeze_wq);
 }
 
 bool blk_mq_can_queue(struct blk_mq_hw_ctx *hctx)
@@ -258,8 +277,10 @@ struct request *blk_mq_alloc_request(struct request_queue *q, int rw, gfp_t gfp,
 		ctx = alloc_data.ctx;
 	}
 	blk_mq_put_ctx(ctx);
-	if (!rq)
+	if (!rq) {
+		blk_mq_queue_exit(q);
 		return ERR_PTR(-EWOULDBLOCK);
+	}
 	return rq;
 }
 EXPORT_SYMBOL(blk_mq_alloc_request);
@@ -383,6 +404,12 @@ void blk_mq_complete_request(struct request *rq)
 }
 EXPORT_SYMBOL(blk_mq_complete_request);
 
+int blk_mq_request_started(struct request *rq)
+{
+	return test_bit(REQ_ATOM_STARTED, &rq->atomic_flags);
+}
+EXPORT_SYMBOL_GPL(blk_mq_request_started);
+
 void blk_mq_start_request(struct request *rq)
 {
 	struct request_queue *q = rq->q;
@@ -500,11 +527,37 @@ void blk_mq_add_to_requeue_list(struct request *rq, bool at_head)
 }
 EXPORT_SYMBOL(blk_mq_add_to_requeue_list);
 
+void blk_mq_cancel_requeue_work(struct request_queue *q)
+{
+	cancel_work_sync(&q->requeue_work);
+}
+EXPORT_SYMBOL_GPL(blk_mq_cancel_requeue_work);
+
 void blk_mq_kick_requeue_list(struct request_queue *q)
 {
 	kblockd_schedule_work(&q->requeue_work);
 }
 EXPORT_SYMBOL(blk_mq_kick_requeue_list);
+
+void blk_mq_abort_requeue_list(struct request_queue *q)
+{
+	unsigned long flags;
+	LIST_HEAD(rq_list);
+
+	spin_lock_irqsave(&q->requeue_lock, flags);
+	list_splice_init(&q->requeue_list, &rq_list);
+	spin_unlock_irqrestore(&q->requeue_lock, flags);
+
+	while (!list_empty(&rq_list)) {
+		struct request *rq;
+
+		rq = list_first_entry(&rq_list, struct request, queuelist);
+		list_del_init(&rq->queuelist);
+		rq->errors = -EIO;
+		blk_mq_end_request(rq, rq->errors);
+	}
+}
+EXPORT_SYMBOL(blk_mq_abort_requeue_list);
 
 static inline bool is_flush_request(struct request *rq,
 		struct blk_flush_queue *fq, unsigned int tag)
@@ -566,13 +619,24 @@ void blk_mq_rq_timed_out(struct request *req, bool reserved)
 		break;
 	}
 }
-		
+
 static void blk_mq_check_expired(struct blk_mq_hw_ctx *hctx,
 		struct request *rq, void *priv, bool reserved)
 {
 	struct blk_mq_timeout_data *data = priv;
 
-	if (!test_bit(REQ_ATOM_STARTED, &rq->atomic_flags))
+	if (!test_bit(REQ_ATOM_STARTED, &rq->atomic_flags)) {
+		/*
+		 * If a request wasn't started before the queue was
+		 * marked dying, kill it here or it'll go unnoticed.
+		 */
+		if (unlikely(blk_queue_dying(rq->q))) {
+			rq->errors = -EIO;
+			blk_mq_complete_request(rq);
+		}
+		return;
+	}
+	if (rq->cmd_flags & REQ_NO_TIMEOUT)
 		return;
 
 	if (time_after_eq(jiffies, rq->deadline)) {
@@ -1601,7 +1665,6 @@ static int blk_mq_init_hctx(struct request_queue *q,
 	hctx->queue = q;
 	hctx->queue_num = hctx_idx;
 	hctx->flags = set->flags;
-	hctx->cmd_size = set->cmd_size;
 
 	blk_mq_init_cpu_notifier(&hctx->cpu_notifier,
 					blk_mq_hctx_notify, hctx);

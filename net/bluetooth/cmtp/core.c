@@ -334,6 +334,9 @@ int cmtp_add_connection(struct cmtp_connadd_req *req, struct socket *sock)
 
 	BT_DBG("");
 
+	if (!l2cap_is_socket(sock))
+		return -EBADFD;
+
 	session = kzalloc(sizeof(struct cmtp_session), GFP_KERNEL);
 	if (!session)
 		return -ENOMEM;

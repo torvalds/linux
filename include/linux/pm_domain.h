@@ -271,6 +271,8 @@ typedef struct generic_pm_domain *(*genpd_xlate_t)(struct of_phandle_args *args,
 int __of_genpd_add_provider(struct device_node *np, genpd_xlate_t xlate,
 			void *data);
 void of_genpd_del_provider(struct device_node *np);
+struct generic_pm_domain *of_genpd_get_from_provider(
+			struct of_phandle_args *genpdspec);
 
 struct generic_pm_domain *__of_genpd_xlate_simple(
 					struct of_phandle_args *genpdspec,
@@ -287,6 +289,12 @@ static inline int __of_genpd_add_provider(struct device_node *np,
 	return 0;
 }
 static inline void of_genpd_del_provider(struct device_node *np) {}
+
+static inline struct generic_pm_domain *of_genpd_get_from_provider(
+			struct of_phandle_args *genpdspec)
+{
+	return NULL;
+}
 
 #define __of_genpd_xlate_simple		NULL
 #define __of_genpd_xlate_onecell	NULL

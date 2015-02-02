@@ -70,6 +70,7 @@ void ovs_flow_stats_update(struct sw_flow *flow, __be16 tcp_flags,
 {
 	struct flow_stats *stats;
 	int node = numa_node_id();
+	int len = skb->len + (vlan_tx_tag_present(skb) ? VLAN_HLEN : 0);
 
 	stats = rcu_dereference(flow->stats[node]);
 
@@ -105,7 +106,7 @@ void ovs_flow_stats_update(struct sw_flow *flow, __be16 tcp_flags,
 				if (likely(new_stats)) {
 					new_stats->used = jiffies;
 					new_stats->packet_count = 1;
-					new_stats->byte_count = skb->len;
+					new_stats->byte_count = len;
 					new_stats->tcp_flags = tcp_flags;
 					spin_lock_init(&new_stats->lock);
 
@@ -120,7 +121,7 @@ void ovs_flow_stats_update(struct sw_flow *flow, __be16 tcp_flags,
 
 	stats->used = jiffies;
 	stats->packet_count++;
-	stats->byte_count += skb->len;
+	stats->byte_count += len;
 	stats->tcp_flags |= tcp_flags;
 unlock:
 	spin_unlock(&stats->lock);

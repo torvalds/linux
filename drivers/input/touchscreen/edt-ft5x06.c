@@ -850,9 +850,11 @@ static int edt_ft5x06_ts_identify(struct i2c_client *client,
 }
 
 #define EDT_ATTR_CHECKSET(name, reg) \
+do {								\
 	if (pdata->name >= edt_ft5x06_attr_##name.limit_low &&		\
 	    pdata->name <= edt_ft5x06_attr_##name.limit_high)		\
-		edt_ft5x06_register_write(tsdata, reg, pdata->name)
+		edt_ft5x06_register_write(tsdata, reg, pdata->name);	\
+} while (0)
 
 #define EDT_GET_PROP(name, reg) {				\
 	u32 val;						\

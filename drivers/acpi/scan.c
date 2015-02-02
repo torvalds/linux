@@ -1001,7 +1001,7 @@ static void acpi_free_power_resources_lists(struct acpi_device *device)
 	if (device->wakeup.flags.valid)
 		acpi_power_resources_list_free(&device->wakeup.resources);
 
-	if (!device->flags.power_manageable)
+	if (!device->power.flags.power_resources)
 		return;
 
 	for (i = ACPI_STATE_D0; i <= ACPI_STATE_D3_HOT; i++) {
@@ -1744,10 +1744,8 @@ static void acpi_bus_get_power_flags(struct acpi_device *device)
 			device->power.flags.power_resources)
 		device->power.states[ACPI_STATE_D3_COLD].flags.os_accessible = 1;
 
-	if (acpi_bus_init_power(device)) {
-		acpi_free_power_resources_lists(device);
+	if (acpi_bus_init_power(device))
 		device->flags.power_manageable = 0;
-	}
 }
 
 static void acpi_bus_get_flags(struct acpi_device *device)
@@ -2371,13 +2369,18 @@ static void acpi_bus_attach(struct acpi_device *device)
 	/* Skip devices that are not present. */
 	if (!acpi_device_is_present(device)) {
 		device->flags.visited = false;
+		device->flags.power_manageable = 0;
 		return;
 	}
 	if (device->handler)
 		goto ok;
 
 	if (!device->flags.initialized) {
-		acpi_bus_update_power(device, NULL);
+		device->flags.power_manageable =
+			device->power.states[ACPI_STATE_D0].flags.valid;
+		if (acpi_bus_init_power(device))
+			device->flags.power_manageable = 0;
+
 		device->flags.initialized = true;
 	}
 	device->flags.visited = false;

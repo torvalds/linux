@@ -390,7 +390,6 @@ static int recv_pkt(struct sk_buff *skb, struct net_device *dev,
 
 drop:
 	dev->stats.rx_dropped++;
-	kfree_skb(skb);
 	return NET_RX_DROP;
 }
 
