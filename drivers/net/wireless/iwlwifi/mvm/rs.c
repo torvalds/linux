@@ -2545,6 +2545,7 @@ static void *rs_alloc_sta(void *mvm_rate, struct ieee80211_sta *sta,
 #ifdef CONFIG_MAC80211_DEBUGFS
 	lq_sta->pers.dbg_fixed_rate = 0;
 	lq_sta->pers.dbg_fixed_txp_reduction = TPC_INVALID;
+	lq_sta->pers.ss_force = RS_SS_FORCE_NONE;
 #endif
 	lq_sta->pers.chains = 0;
 	memset(lq_sta->pers.chain_signal, 0, sizeof(lq_sta->pers.chain_signal));
@@ -3067,19 +3068,21 @@ static void rs_set_lq_ss_params(struct iwl_mvm *mvm,
 	if (!iwl_mvm_bt_coex_is_mimo_allowed(mvm, sta))
 		goto out;
 
+#ifdef CONFIG_MAC80211_DEBUGFS
 	/* Check if forcing the decision is configured.
 	 * Note that SISO is forced by not allowing STBC or BFER
 	 */
-	if (lq_sta->ss_force == RS_SS_FORCE_STBC)
+	if (lq_sta->pers.ss_force == RS_SS_FORCE_STBC)
 		ss_params |= (LQ_SS_STBC_1SS_ALLOWED | LQ_SS_FORCE);
-	else if (lq_sta->ss_force == RS_SS_FORCE_BFER)
+	else if (lq_sta->pers.ss_force == RS_SS_FORCE_BFER)
 		ss_params |= (LQ_SS_BFER_ALLOWED | LQ_SS_FORCE);
 
-	if (lq_sta->ss_force != RS_SS_FORCE_NONE) {
+	if (lq_sta->pers.ss_force != RS_SS_FORCE_NONE) {
 		IWL_DEBUG_RATE(mvm, "Forcing single stream Tx decision %d\n",
-			       lq_sta->ss_force);
+			       lq_sta->pers.ss_force);
 		goto out;
 	}
+#endif
 
 	if (lq_sta->stbc_capable)
 		ss_params |= LQ_SS_STBC_1SS_ALLOWED;
@@ -3542,7 +3545,7 @@ static ssize_t iwl_dbgfs_ss_force_read(struct file *file,
 	};
 
 	pos += scnprintf(buf+pos, bufsz-pos, "%s\n",
-			 ss_force_name[lq_sta->ss_force]);
+			 ss_force_name[lq_sta->pers.ss_force]);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
@@ -3553,12 +3556,12 @@ static ssize_t iwl_dbgfs_ss_force_write(struct iwl_lq_sta *lq_sta, char *buf,
 	int ret = 0;
 
 	if (!strncmp("none", buf, 4)) {
-		lq_sta->ss_force = RS_SS_FORCE_NONE;
+		lq_sta->pers.ss_force = RS_SS_FORCE_NONE;
 	} else if (!strncmp("siso", buf, 4)) {
-		lq_sta->ss_force = RS_SS_FORCE_SISO;
+		lq_sta->pers.ss_force = RS_SS_FORCE_SISO;
 	} else if (!strncmp("stbc", buf, 4)) {
 		if (lq_sta->stbc_capable) {
-			lq_sta->ss_force = RS_SS_FORCE_STBC;
+			lq_sta->pers.ss_force = RS_SS_FORCE_STBC;
 		} else {
 			IWL_ERR(mvm,
 				"can't force STBC. peer doesn't support\n");
@@ -3566,7 +3569,7 @@ static ssize_t iwl_dbgfs_ss_force_write(struct iwl_lq_sta *lq_sta, char *buf,
 		}
 	} else if (!strncmp("bfer", buf, 4)) {
 		if (lq_sta->bfer_capable) {
-			lq_sta->ss_force = RS_SS_FORCE_BFER;
+			lq_sta->pers.ss_force = RS_SS_FORCE_BFER;
 		} else {
 			IWL_ERR(mvm,
 				"can't force BFER. peer doesn't support\n");
