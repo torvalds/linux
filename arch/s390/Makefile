@@ -106,6 +106,7 @@ drivers-y	+= drivers/s390/
 drivers-$(CONFIG_OPROFILE)	+= arch/s390/oprofile/
 
 boot		:= arch/s390/boot
+tools		:= arch/s390/tools
 
 all: image bzImage
 
@@ -124,6 +125,10 @@ vdso_install:
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
+	$(Q)$(MAKE) $(clean)=$(tools)
+
+archprepare:
+	$(Q)$(MAKE) $(build)=$(tools) include/generated/facilities.h
 
 # Don't use tabs in echo arguments
 define archhelp
