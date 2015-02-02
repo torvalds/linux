@@ -1449,12 +1449,14 @@ retry_lookup:
 		}
 
 		if (!dn->d_inode) {
-			dn = splice_dentry(dn, in, NULL);
-			if (IS_ERR(dn)) {
-				err = PTR_ERR(dn);
+			struct dentry *realdn = splice_dentry(dn, in, NULL);
+			if (IS_ERR(realdn)) {
+				err = PTR_ERR(realdn);
+				d_drop(dn);
 				dn = NULL;
 				goto next_item;
 			}
+			dn = realdn;
 		}
 
 		di = dn->d_fsdata;

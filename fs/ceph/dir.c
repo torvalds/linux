@@ -676,6 +676,7 @@ int ceph_handle_notrace_create(struct inode *dir, struct dentry *dentry)
 		 */
 		BUG_ON(!result->d_inode);
 		d_instantiate(dentry, result->d_inode);
+		d_drop(result);
 		return 0;
 	}
 	return PTR_ERR(result);
