@@ -115,6 +115,10 @@
 				};
 			};
 
+			ssc0: ssc@f8008000 {
+				status = "okay";
+			};
+
 			spi0: spi@f8010000 {
 				cs-gpios = <&pioC 3 0>, <0>, <0>, <0>;
 				status = "okay";
