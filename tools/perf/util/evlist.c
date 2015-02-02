@@ -7,7 +7,6 @@
  * Released under the GPL v2. (and only v2, not any later version)
  */
 #include "util.h"
-#include <api/fs/debugfs.h>
 #include <api/fs/fs.h>
 #include <poll.h>
 #include "cpumap.h"

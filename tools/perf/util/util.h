@@ -75,6 +75,7 @@
 #include <linux/types.h>
 #include <sys/ttydefaults.h>
 #include <api/fs/debugfs.h>
+#include <api/fs/tracefs.h>
 #include <termios.h>
 #include <linux/bitops.h>
 #include <termios.h>
