@@ -636,8 +636,7 @@ static int sh_msiof_spi_txrx_once(struct sh_msiof_spi_priv *p,
 	}
 
 	/* wait for tx fifo to be emptied / rx fifo to be filled */
-	ret = wait_for_completion_timeout(&p->done, HZ);
-	if (!ret) {
+	if (!wait_for_completion_timeout(&p->done, HZ)) {
 		dev_err(&p->pdev->dev, "PIO timeout\n");
 		ret = -ETIMEDOUT;
 		goto stop_reset;
@@ -747,8 +746,7 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 	}
 
 	/* wait for tx fifo to be emptied / rx fifo to be filled */
-	ret = wait_for_completion_timeout(&p->done, HZ);
-	if (!ret) {
+	if (!wait_for_completion_timeout(&p->done, HZ)) {
 		dev_err(&p->pdev->dev, "DMA timeout\n");
 		ret = -ETIMEDOUT;
 		goto stop_reset;
