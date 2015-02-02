@@ -842,28 +842,25 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 	/*
 	 * disable bus master
 	 * bm_check implies we need ARB_DIS
-	 * !bm_check implies we need cache flush
 	 * bm_control implies whether we can do ARB_DIS
 	 *
 	 * That leaves a case where bm_check is set and bm_control is
 	 * not set. In that case we cannot do much, we enter C3
 	 * without doing anything.
 	 */
-	if (pr->flags.bm_check && pr->flags.bm_control) {
+	if (pr->flags.bm_control) {
 		raw_spin_lock(&c3_lock);
 		c3_cpu_count++;
 		/* Disable bus master arbitration when all CPUs are in C3 */
 		if (c3_cpu_count == num_online_cpus())
 			acpi_write_bit_register(ACPI_BITREG_ARB_DISABLE, 1);
 		raw_spin_unlock(&c3_lock);
-	} else if (!pr->flags.bm_check) {
-		ACPI_FLUSH_CPU_CACHE();
 	}
 
 	acpi_idle_do_entry(cx);
 
 	/* Re-enable bus master arbitration */
-	if (pr->flags.bm_check && pr->flags.bm_control) {
+	if (pr->flags.bm_control) {
 		raw_spin_lock(&c3_lock);
 		acpi_write_bit_register(ACPI_BITREG_ARB_DISABLE, 0);
 		c3_cpu_count--;
