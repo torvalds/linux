@@ -3896,6 +3896,9 @@ static void start_discovery_complete(struct hci_dev *hdev, u8 status,
 
 	hci_discovery_set_state(hdev, DISCOVERY_FINDING);
 
+	/* If the scan involves LE scan, pick proper timeout to schedule
+	 * hdev->le_scan_disable that will stop it.
+	 */
 	switch (hdev->discovery.type) {
 	case DISCOV_TYPE_LE:
 		timeout = msecs_to_jiffies(DISCOV_LE_TIMEOUT);
@@ -3912,9 +3915,23 @@ static void start_discovery_complete(struct hci_dev *hdev, u8 status,
 		break;
 	}
 
-	if (timeout)
+	if (timeout) {
+		/* When service discovery is used and the controller has
+		 * a strict duplicate filter, it is important to remember
+		 * the start and duration of the scan. This is required
+		 * for restarting scanning during the discovery phase.
+		 */
+		if (test_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER,
+			     &hdev->quirks) &&
+		    (hdev->discovery.uuid_count > 0 ||
+		     hdev->discovery.rssi != HCI_RSSI_INVALID)) {
+			hdev->discovery.scan_start = jiffies;
+			hdev->discovery.scan_duration = timeout;
+		}
+
 		queue_delayed_work(hdev->workqueue,
 				   &hdev->le_scan_disable, timeout);
+	}
 
 unlock:
 	hci_dev_unlock(hdev);

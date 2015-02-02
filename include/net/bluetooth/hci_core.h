@@ -79,6 +79,8 @@ struct discovery_state {
 	s8			rssi;
 	u16			uuid_count;
 	u8			(*uuids)[16];
+	unsigned long		scan_start;
+	unsigned long		scan_duration;
 };
 
 struct hci_conn_hash {
@@ -354,6 +356,7 @@ struct hci_dev {
 	unsigned long		dev_flags;
 
 	struct delayed_work	le_scan_disable;
+	struct delayed_work	le_scan_restart;
 
 	__s8			adv_tx_power;
 	__u8			adv_data[HCI_MAX_AD_LENGTH];
@@ -531,6 +534,8 @@ static inline void hci_discovery_filter_clear(struct hci_dev *hdev)
 	hdev->discovery.uuid_count = 0;
 	kfree(hdev->discovery.uuids);
 	hdev->discovery.uuids = NULL;
+	hdev->discovery.scan_start = 0;
+	hdev->discovery.scan_duration = 0;
 }
 
 bool hci_discovery_active(struct hci_dev *hdev);
