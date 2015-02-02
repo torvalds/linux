@@ -11,7 +11,7 @@
  * Copyright (C) 2002-2006 KVASER AB, Sweden. All rights reserved.
  * Copyright (C) 2010 Matthias Fuchs <matthias.fuchs@esd.eu>, esd gmbh
  * Copyright (C) 2012 Olivier Sobrie <olivier@sobrie.be>
- * Copyright (C) 2015 Valeo A.S.
+ * Copyright (C) 2015 Valeo S.A.
  */
 
 #include <linux/completion.h>
@@ -824,14 +824,15 @@ static void kvaser_usb_rx_error_update_can_state(struct kvaser_usb_net_priv *pri
 	else if (es->status & M16C_STATE_BUS_PASSIVE)
 		new_state = CAN_STATE_ERROR_PASSIVE;
 	else if (es->status & M16C_STATE_BUS_ERROR) {
-		if ((es->txerr >= 256) || (es->rxerr >= 256))
-			new_state = CAN_STATE_BUS_OFF;
-		else if ((es->txerr >= 128) || (es->rxerr >= 128))
-			new_state = CAN_STATE_ERROR_PASSIVE;
-		else if ((es->txerr >= 96) || (es->rxerr >= 96))
-			new_state = CAN_STATE_ERROR_WARNING;
-		else if (cur_state > CAN_STATE_ERROR_ACTIVE)
-			new_state = CAN_STATE_ERROR_ACTIVE;
+		/* Guard against spurious error events after a busoff */
+		if (cur_state < CAN_STATE_BUS_OFF) {
+			if ((es->txerr >= 128) || (es->rxerr >= 128))
+				new_state = CAN_STATE_ERROR_PASSIVE;
+			else if ((es->txerr >= 96) || (es->rxerr >= 96))
+				new_state = CAN_STATE_ERROR_WARNING;
+			else if (cur_state > CAN_STATE_ERROR_ACTIVE)
+				new_state = CAN_STATE_ERROR_ACTIVE;
+		}
 	}
 
 	if (!es->status)
