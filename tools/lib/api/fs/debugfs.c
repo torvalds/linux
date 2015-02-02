@@ -10,10 +10,14 @@
 
 #include "debugfs.h"
 
-char debugfs_mountpoint[PATH_MAX + 1] = "/sys/kernel/debug";
+#ifndef DEBUGFS_DEFAULT_PATH
+#define DEBUGFS_DEFAULT_PATH		"/sys/kernel/debug"
+#endif
+
+char debugfs_mountpoint[PATH_MAX + 1] = DEBUGFS_DEFAULT_PATH;
 
 static const char * const debugfs_known_mountpoints[] = {
-	"/sys/kernel/debug",
+	DEBUGFS_DEFAULT_PATH,
 	"/debug",
 	0,
 };
@@ -50,7 +54,7 @@ char *debugfs_mount(const char *mountpoint)
 		mountpoint = getenv(PERF_DEBUGFS_ENVIRONMENT);
 		/* if no environment variable, use default */
 		if (mountpoint == NULL)
-			mountpoint = "/sys/kernel/debug";
+			mountpoint = DEBUGFS_DEFAULT_PATH;
 	}
 
 	if (mount(NULL, mountpoint, "debugfs", 0, NULL) < 0)
