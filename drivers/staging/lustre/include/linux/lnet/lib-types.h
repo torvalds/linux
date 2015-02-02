@@ -622,7 +622,7 @@ typedef struct lnet_portal {
 	/* Match table for each CPT */
 	struct lnet_match_table	**ptl_mtables;
 	/* spread rotor of incoming "PUT" */
-	int			ptl_rotor;
+	unsigned int		ptl_rotor;
 	/* # active entries for this portal */
 	int		     ptl_mt_nmaps;
 	/* array of active entries' cpu-partition-id */
