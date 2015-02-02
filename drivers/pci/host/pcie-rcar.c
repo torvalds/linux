@@ -342,7 +342,8 @@ static void rcar_pcie_setup_window(int win, struct rcar_pcie *pcie)
 		res_start = res->start;
 
 	rcar_pci_write_reg(pcie, upper_32_bits(res_start), PCIEPARH(win));
-	rcar_pci_write_reg(pcie, lower_32_bits(res_start), PCIEPARL(win));
+	rcar_pci_write_reg(pcie, lower_32_bits(res_start) & ~0x7F,
+			   PCIEPARL(win));
 
 	/* First resource is for IO */
 	mask = PAR_ENABLE;
