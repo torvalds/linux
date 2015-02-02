@@ -147,8 +147,10 @@
 #define CLK_SCLK_UFSUNIPRO_FSYS		229
 #define CLK_SCLK_USBHOST30_FSYS		230
 #define CLK_SCLK_USBDRD30_FSYS		231
+#define CLK_ACLK_GSCL_111		232
+#define CLK_ACLK_GSCL_333		233
 
-#define TOP_NR_CLK			232
+#define TOP_NR_CLK			234
 
 /* CMU_CPIF */
 #define CLK_FOUT_MPHY_PLL		1
@@ -818,5 +820,38 @@
 #define CLK_SCLK_HPM_G3D				19
 
 #define G3D_NR_CLK					20
+
+/* CMU_GSCL */
+#define CLK_MOUT_ACLK_GSCL_111_USER			1
+#define CLK_MOUT_ACLK_GSCL_333_USER			2
+
+#define CLK_ACLK_BTS_GSCL2				3
+#define CLK_ACLK_BTS_GSCL1				4
+#define CLK_ACLK_BTS_GSCL0				5
+#define CLK_ACLK_AHB2APB_GSCLP				6
+#define CLK_ACLK_XIU_GSCLX				7
+#define CLK_ACLK_GSCLNP_111				8
+#define CLK_ACLK_GSCLRTND_333				9
+#define CLK_ACLK_GSCLBEND_333				10
+#define CLK_ACLK_GSD					11
+#define CLK_ACLK_GSCL2					12
+#define CLK_ACLK_GSCL1					13
+#define CLK_ACLK_GSCL0					14
+#define CLK_ACLK_SMMU_GSCL0				15
+#define CLK_ACLK_SMMU_GSCL1				16
+#define CLK_ACLK_SMMU_GSCL2				17
+#define CLK_PCLK_BTS_GSCL2				18
+#define CLK_PCLK_BTS_GSCL1				19
+#define CLK_PCLK_BTS_GSCL0				20
+#define CLK_PCLK_PMU_GSCL				21
+#define CLK_PCLK_SYSREG_GSCL				22
+#define CLK_PCLK_GSCL2					23
+#define CLK_PCLK_GSCL1					24
+#define CLK_PCLK_GSCL0					25
+#define CLK_PCLK_SMMU_GSCL0				26
+#define CLK_PCLK_SMMU_GSCL1				27
+#define CLK_PCLK_SMMU_GSCL2				28
+
+#define GSCL_NR_CLK					29
 
 #endif /* _DT_BINDINGS_CLOCK_EXYNOS5433_H */
