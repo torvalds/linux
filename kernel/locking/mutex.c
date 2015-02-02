@@ -217,44 +217,41 @@ ww_mutex_set_context_slowpath(struct ww_mutex *lock,
 }
 
 #ifdef CONFIG_MUTEX_SPIN_ON_OWNER
-static inline bool owner_running(struct mutex *lock, struct task_struct *owner)
-{
-	if (lock->owner != owner)
-		return false;
-
-	/*
-	 * Ensure we emit the owner->on_cpu, dereference _after_ checking
-	 * lock->owner still matches owner, if that fails, owner might
-	 * point to free()d memory, if it still matches, the rcu_read_lock()
-	 * ensures the memory stays valid.
-	 */
-	barrier();
-
-	return owner->on_cpu;
-}
-
 /*
  * Look out! "owner" is an entirely speculative pointer
  * access and not reliable.
  */
 static noinline
-int mutex_spin_on_owner(struct mutex *lock, struct task_struct *owner)
+bool mutex_spin_on_owner(struct mutex *lock, struct task_struct *owner)
 {
+	bool ret;
+
 	rcu_read_lock();
-	while (owner_running(lock, owner)) {
-		if (need_resched())
+	while (true) {
+		/* Return success when the lock owner changed */
+		if (lock->owner != owner) {
+			ret = true;
 			break;
+		}
+
+		/*
+		 * Ensure we emit the owner->on_cpu, dereference _after_
+		 * checking lock->owner still matches owner, if that fails,
+		 * owner might point to free()d memory, if it still matches,
+		 * the rcu_read_lock() ensures the memory stays valid.
+		 */
+		barrier();
+
+		if (!owner->on_cpu || need_resched()) {
+			ret = false;
+			break;
+		}
 
 		cpu_relax_lowlatency();
 	}
 	rcu_read_unlock();
 
-	/*
-	 * We break out of the loop above on either need_resched(), when
-	 * the owner is not running, or when the lock owner changed.
-	 * Return success only when the lock owner changed.
-	 */
-	return lock->owner != owner;
+	return ret;
 }
 
 /*
