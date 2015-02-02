@@ -2263,7 +2263,6 @@ static int net2280_start(struct usb_gadget *_gadget,
 		dev->ep[i].irqs = 0;
 
 	/* hook up the driver ... */
-	dev->softconnect = 1;
 	driver->driver.bus = NULL;
 	dev->driver = driver;
 
