@@ -891,6 +891,7 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 {
 	struct dma_async_tx_descriptor *desc_tx = NULL, *desc_rx = NULL;
 	int ret;
+	unsigned long timeout;
 	u32 dma;
 	int left;
 	struct spi_master *master = spi_imx->bitbang.master;
@@ -938,17 +939,17 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 	dma_async_issue_pending(master->dma_tx);
 	dma_async_issue_pending(master->dma_rx);
 	/* Wait SDMA to finish the data transfer.*/
-	ret = wait_for_completion_timeout(&spi_imx->dma_tx_completion,
+	timeout = wait_for_completion_timeout(&spi_imx->dma_tx_completion,
 						IMX_DMA_TIMEOUT);
-	if (!ret) {
+	if (!timeout) {
 		pr_warn("%s %s: I/O Error in DMA TX\n",
 			dev_driver_string(&master->dev),
 			dev_name(&master->dev));
 		dmaengine_terminate_all(master->dma_tx);
 	} else {
-		ret = wait_for_completion_timeout(&spi_imx->dma_rx_completion,
-				IMX_DMA_TIMEOUT);
-		if (!ret) {
+		timeout = wait_for_completion_timeout(
+				&spi_imx->dma_rx_completion, IMX_DMA_TIMEOUT);
+		if (!timeout) {
 			pr_warn("%s %s: I/O Error in DMA RX\n",
 				dev_driver_string(&master->dev),
 				dev_name(&master->dev));
@@ -963,9 +964,9 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 	spi_imx->dma_finished = 1;
 	spi_imx->devtype_data->trigger(spi_imx);
 
-	if (!ret)
+	if (!timeout)
 		ret = -ETIMEDOUT;
-	else if (ret > 0)
+	else
 		ret = transfer->len;
 
 	return ret;
