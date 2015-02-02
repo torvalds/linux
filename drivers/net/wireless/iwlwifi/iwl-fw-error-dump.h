@@ -241,11 +241,14 @@ iwl_fw_error_next_data(struct iwl_fw_error_dump_data *data)
  *	driver should set to indicate that the trigger was initiated by the
  *	user.
  * @FW_DBG_TRIGGER_FW_ASSERT: trigger log collection when the firmware asserts
+ * @FW_DBG_TRIGGER_MISSED_BEACONS: trigger log collection when beacons are
+ *	missed.
  */
 enum iwl_fw_dbg_trigger {
 	FW_DBG_TRIGGER_INVALID = 0,
 	FW_DBG_TRIGGER_USER,
 	FW_DBG_TRIGGER_FW_ASSERT,
+	FW_DBG_TRIGGER_MISSED_BEACONS,
 
 	/* must be last */
 	FW_DBG_TRIGGER_MAX,

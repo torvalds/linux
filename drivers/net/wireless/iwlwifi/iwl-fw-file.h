@@ -523,6 +523,24 @@ struct iwl_fw_dbg_trigger_tlv {
 #define FW_DBG_INVALID		0xff
 
 /**
+ * struct iwl_fw_dbg_trigger_missed_bcon - configures trigger for missed beacons
+ * @stop_consec_missed_bcon: stop recording if threshold is crossed.
+ * @stop_consec_missed_bcon_since_rx: stop recording if threshold is crossed.
+ * @start_consec_missed_bcon: start recording if threshold is crossed.
+ * @start_consec_missed_bcon_since_rx: start recording if threshold is crossed.
+ * @reserved1: reserved
+ * @reserved2: reserved
+ */
+struct iwl_fw_dbg_trigger_missed_bcon {
+	__le32 stop_consec_missed_bcon;
+	__le32 stop_consec_missed_bcon_since_rx;
+	__le32 reserved2[2];
+	__le32 start_consec_missed_bcon;
+	__le32 start_consec_missed_bcon_since_rx;
+	__le32 reserved1[2];
+} __packed;
+
+/**
  * struct iwl_fw_dbg_conf_tlv - a TLV that describes a debug configuration.
  * @id: conf id
  * @usniffer: should the uSniffer image be used
