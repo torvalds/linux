@@ -626,4 +626,57 @@
 
 #define DISP_NR_CLK					111
 
+/* CMU_AUD */
+#define CLK_MOUT_AUD_PLL_USER				1
+#define CLK_MOUT_SCLK_AUD_PCM				2
+#define CLK_MOUT_SCLK_AUD_I2S				3
+
+#define CLK_DIV_ATCLK_AUD				4
+#define CLK_DIV_PCLK_DBG_AUD				5
+#define CLK_DIV_ACLK_AUD				6
+#define CLK_DIV_AUD_CA5					7
+#define CLK_DIV_SCLK_AUD_SLIMBUS			8
+#define CLK_DIV_SCLK_AUD_UART				9
+#define CLK_DIV_SCLK_AUD_PCM				10
+#define CLK_DIV_SCLK_AUD_I2S				11
+
+#define CLK_ACLK_INTR_CTRL				12
+#define CLK_ACLK_AXIDS2_LPASSP				13
+#define CLK_ACLK_AXIDS1_LPASSP				14
+#define CLK_ACLK_AXI2APB1_LPASSP			15
+#define CLK_ACLK_AXI2APH_LPASSP				16
+#define CLK_ACLK_SMMU_LPASSX				17
+#define CLK_ACLK_AXIDS0_LPASSP				18
+#define CLK_ACLK_AXI2APB0_LPASSP			19
+#define CLK_ACLK_XIU_LPASSX				20
+#define CLK_ACLK_AUDNP_133				21
+#define CLK_ACLK_AUDND_133				22
+#define CLK_ACLK_SRAMC					23
+#define CLK_ACLK_DMAC					24
+#define CLK_PCLK_WDT1					25
+#define CLK_PCLK_WDT0					26
+#define CLK_PCLK_SFR1					27
+#define CLK_PCLK_SMMU_LPASSX				28
+#define CLK_PCLK_GPIO_AUD				29
+#define CLK_PCLK_PMU_AUD				30
+#define CLK_PCLK_SYSREG_AUD				31
+#define CLK_PCLK_AUD_SLIMBUS				32
+#define CLK_PCLK_AUD_UART				33
+#define CLK_PCLK_AUD_PCM				34
+#define CLK_PCLK_AUD_I2S				35
+#define CLK_PCLK_TIMER					36
+#define CLK_PCLK_SFR0_CTRL				37
+#define CLK_ATCLK_AUD					38
+#define CLK_PCLK_DBG_AUD				39
+#define CLK_SCLK_AUD_CA5				40
+#define CLK_SCLK_JTAG_TCK				41
+#define CLK_SCLK_SLIMBUS_CLKIN				42
+#define CLK_SCLK_AUD_SLIMBUS				43
+#define CLK_SCLK_AUD_UART				44
+#define CLK_SCLK_AUD_PCM				45
+#define CLK_SCLK_I2S_BCLK				46
+#define CLK_SCLK_AUD_I2S				47
+
+#define AUD_NR_CLK					48
+
 #endif /* _DT_BINDINGS_CLOCK_EXYNOS5433_H */
