@@ -1996,11 +1996,9 @@ static void usb_reinit_338x(struct net2280 *dev)
 			ep->regs = (struct net2280_ep_regs __iomem *)
 				(((void __iomem *)&dev->epregs[ne[i]]) +
 				ep_reg_addr[i]);
-			ep->fiforegs = &dev->fiforegs[i];
 		} else {
 			ep->cfg = &dev->epregs[i];
 			ep->regs = &dev->epregs[i];
-			ep->fiforegs = &dev->fiforegs[i];
 		}
 
 		ep->fifo_size = (i != 0) ? 2048 : 512;
@@ -3380,8 +3378,6 @@ static int net2280_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		u32 usbstat;
 		dev->usb_ext = (struct usb338x_usb_ext_regs __iomem *)
 							(base + 0x00b4);
-		dev->fiforegs = (struct usb338x_fifo_regs __iomem *)
-							(base + 0x0500);
 		dev->llregs = (struct usb338x_ll_regs __iomem *)
 							(base + 0x0700);
 		dev->ll_lfps_regs = (struct usb338x_ll_lfps_regs __iomem *)
