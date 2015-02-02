@@ -9055,9 +9055,9 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 	enum pipe pipe = to_intel_crtc(work->crtc)->pipe;
 
 	mutex_lock(&dev->struct_mutex);
-	intel_unpin_fb_obj(work->old_fb_obj);
+	intel_unpin_fb_obj(intel_fb_obj(work->old_fb));
 	drm_gem_object_unreference(&work->pending_flip_obj->base);
-	drm_gem_object_unreference(&work->old_fb_obj->base);
+	drm_framebuffer_unreference(work->old_fb);
 
 	intel_fbc_update(dev);
 
@@ -9760,7 +9760,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	work->event = event;
 	work->crtc = crtc;
-	work->old_fb_obj = intel_fb_obj(old_fb);
+	work->old_fb = old_fb;
 	INIT_WORK(&work->work, intel_unpin_work_fn);
 
 	ret = drm_crtc_vblank_get(crtc);
@@ -9796,7 +9796,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		goto cleanup;
 
 	/* Reference the objects for the scheduled work. */
-	drm_gem_object_reference(&work->old_fb_obj->base);
+	drm_framebuffer_reference(work->old_fb);
 	drm_gem_object_reference(&obj->base);
 
 	crtc->primary->fb = fb;
@@ -9818,7 +9818,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	if (IS_VALLEYVIEW(dev)) {
 		ring = &dev_priv->ring[BCS];
-		if (obj->tiling_mode != work->old_fb_obj->tiling_mode)
+		if (obj->tiling_mode != intel_fb_obj(work->old_fb)->tiling_mode)
 			/* vlv: DISPLAY_FLIP fails to change tiling */
 			ring = NULL;
 	} else if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev)) {
@@ -9859,7 +9859,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	work->flip_queued_vblank = drm_vblank_count(dev, intel_crtc->pipe);
 	work->enable_stall_check = true;
 
-	i915_gem_track_fb(work->old_fb_obj, obj,
+	i915_gem_track_fb(intel_fb_obj(work->old_fb), obj,
 			  INTEL_FRONTBUFFER_PRIMARY(pipe));
 
 	intel_fbc_disable(dev);
@@ -9875,7 +9875,7 @@ cleanup_unpin:
 cleanup_pending:
 	atomic_dec(&intel_crtc->unpin_work_count);
 	crtc->primary->fb = old_fb;
-	drm_gem_object_unreference(&work->old_fb_obj->base);
+	drm_framebuffer_unreference(work->old_fb);
 	drm_gem_object_unreference(&obj->base);
 	mutex_unlock(&dev->struct_mutex);
 

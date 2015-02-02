@@ -710,7 +710,7 @@ intel_get_crtc_for_plane(struct drm_device *dev, int plane)
 struct intel_unpin_work {
 	struct work_struct work;
 	struct drm_crtc *crtc;
-	struct drm_i915_gem_object *old_fb_obj;
+	struct drm_framebuffer *old_fb;
 	struct drm_i915_gem_object *pending_flip_obj;
 	struct drm_pending_vblank_event *event;
 	atomic_t pending;
