@@ -751,6 +751,14 @@
 #define MIPS_PWCTL_PSN_SHIFT	0
 #define MIPS_PWCTL_PSN_MASK	0x0000003f
 
+/* CDMMBase register bit definitions */
+#define MIPS_CDMMBASE_SIZE_SHIFT 0
+#define MIPS_CDMMBASE_SIZE	(_ULCAST_(511) << MIPS_CDMMBASE_SIZE_SHIFT)
+#define MIPS_CDMMBASE_CI	(_ULCAST_(1) << 9)
+#define MIPS_CDMMBASE_EN	(_ULCAST_(1) << 10)
+#define MIPS_CDMMBASE_ADDR_SHIFT 11
+#define MIPS_CDMMBASE_ADDR_START 15
+
 #ifndef __ASSEMBLY__
 
 /*
@@ -1281,6 +1289,9 @@ do {									\
 
 #define read_c0_ebase()		__read_32bit_c0_register($15, 1)
 #define write_c0_ebase(val)	__write_32bit_c0_register($15, 1, val)
+
+#define read_c0_cdmmbase()	__read_ulong_c0_register($15, 2)
+#define write_c0_cdmmbase(val)	__write_ulong_c0_register($15, 2, val)
 
 /* MIPSR3 */
 #define read_c0_segctl0()	__read_32bit_c0_register($5, 2)

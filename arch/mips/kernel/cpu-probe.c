@@ -441,6 +441,8 @@ static inline unsigned int decode_config3(struct cpuinfo_mips *c)
 		c->htw_seq = 0;
 		c->options |= MIPS_CPU_HTW;
 	}
+	if (config3 & MIPS_CONF3_CDMM)
+		c->options |= MIPS_CPU_CDMM;
 
 	return config3 & MIPS_CONF_M;
 }

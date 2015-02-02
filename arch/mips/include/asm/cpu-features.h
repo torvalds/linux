@@ -366,4 +366,8 @@
 # define cpu_has_fre		(cpu_data[0].options & MIPS_CPU_FRE)
 #endif
 
+#ifndef cpu_has_cdmm
+# define cpu_has_cdmm		(cpu_data[0].options & MIPS_CPU_CDMM)
+#endif
+
 #endif /* __ASM_CPU_FEATURES_H */
