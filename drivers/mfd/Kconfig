@@ -283,6 +283,18 @@ config HTC_I2CPLD
 	  This device provides input and output GPIOs through an I2C
 	  interface to one or more sub-chips.
 
+config MFD_INTEL_QUARK_I2C_GPIO
+	tristate "Intel Quark MFD I2C GPIO"
+	depends on PCI
+	depends on X86
+	depends on COMMON_CLK
+	select MFD_CORE
+	help
+	  This MFD provides support for I2C and GPIO that exist only
+	  in a single PCI device. It splits the 2 IO devices to
+	  their respective IO driver.
+	  The GPIO exports a total amount of 8 interrupt-capable GPIOs.
+
 config LPC_ICH
 	tristate "Intel ICH LPC"
 	depends on PCI
