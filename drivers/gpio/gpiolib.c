@@ -315,6 +315,7 @@ EXPORT_SYMBOL_GPL(gpiochip_add);
 
 /* Forward-declaration */
 static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip);
+static void gpiochip_free_hogs(struct gpio_chip *chip);
 
 /**
  * gpiochip_remove() - unregister a gpio_chip
@@ -333,6 +334,7 @@ void gpiochip_remove(struct gpio_chip *chip)
 
 	acpi_gpiochip_remove(chip);
 	gpiochip_remove_pin_ranges(chip);
+	gpiochip_free_hogs(chip);
 	of_gpiochip_remove(chip);
 
 	spin_lock_irqsave(&gpio_lock, flags);
@@ -866,6 +868,7 @@ static bool __gpiod_free(struct gpio_desc *desc)
 		clear_bit(FLAG_REQUESTED, &desc->flags);
 		clear_bit(FLAG_OPEN_DRAIN, &desc->flags);
 		clear_bit(FLAG_OPEN_SOURCE, &desc->flags);
+		clear_bit(FLAG_IS_HOGGED, &desc->flags);
 		ret = true;
 	}
 
@@ -1840,6 +1843,47 @@ struct gpio_desc *__must_check __gpiod_get_optional(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(__gpiod_get_optional);
 
+
+/**
+ * gpiod_configure_flags - helper function to configure a given GPIO
+ * @desc:	gpio whose value will be assigned
+ * @con_id:	function within the GPIO consumer
+ * @lflags:	gpio_lookup_flags - returned from of_find_gpio() or
+ *		of_get_gpio_hog()
+ * @dflags:	gpiod_flags - optional GPIO initialization flags
+ *
+ * Return 0 on success, -ENOENT if no GPIO has been assigned to the
+ * requested function and/or index, or another IS_ERR() code if an error
+ * occurred while trying to acquire the GPIO.
+ */
+static int gpiod_configure_flags(struct gpio_desc *desc, const char *con_id,
+		unsigned long lflags, enum gpiod_flags dflags)
+{
+	int status;
+
+	if (lflags & GPIO_ACTIVE_LOW)
+		set_bit(FLAG_ACTIVE_LOW, &desc->flags);
+	if (lflags & GPIO_OPEN_DRAIN)
+		set_bit(FLAG_OPEN_DRAIN, &desc->flags);
+	if (lflags & GPIO_OPEN_SOURCE)
+		set_bit(FLAG_OPEN_SOURCE, &desc->flags);
+
+	/* No particular flag request, return here... */
+	if (!(dflags & GPIOD_FLAGS_BIT_DIR_SET)) {
+		pr_debug("no flags found for %s\n", con_id);
+		return 0;
+	}
+
+	/* Process flags */
+	if (dflags & GPIOD_FLAGS_BIT_DIR_OUT)
+		status = gpiod_direction_output(desc,
+					      dflags & GPIOD_FLAGS_BIT_DIR_VAL);
+	else
+		status = gpiod_direction_input(desc);
+
+	return status;
+}
+
 /**
  * gpiod_get_index - obtain a GPIO from a multi-index GPIO function
  * @dev:	GPIO consumer, can be NULL for system-global GPIOs
@@ -1889,28 +1933,10 @@ struct gpio_desc *__must_check __gpiod_get_index(struct device *dev,
 	}
 
 	status = gpiod_request(desc, con_id);
-
 	if (status < 0)
 		return ERR_PTR(status);
 
-	if (lookupflags & GPIO_ACTIVE_LOW)
-		set_bit(FLAG_ACTIVE_LOW, &desc->flags);
-	if (lookupflags & GPIO_OPEN_DRAIN)
-		set_bit(FLAG_OPEN_DRAIN, &desc->flags);
-	if (lookupflags & GPIO_OPEN_SOURCE)
-		set_bit(FLAG_OPEN_SOURCE, &desc->flags);
-
-	/* No particular flag request, return here... */
-	if (!(flags & GPIOD_FLAGS_BIT_DIR_SET))
-		return desc;
-
-	/* Process flags */
-	if (flags & GPIOD_FLAGS_BIT_DIR_OUT)
-		status = gpiod_direction_output(desc,
-					      flags & GPIOD_FLAGS_BIT_DIR_VAL);
-	else
-		status = gpiod_direction_input(desc);
-
+	status = gpiod_configure_flags(desc, con_id, lookupflags, flags);
 	if (status < 0) {
 		dev_dbg(dev, "setup of GPIO %s failed\n", con_id);
 		gpiod_put(desc);
@@ -2004,6 +2030,66 @@ struct gpio_desc *__must_check __gpiod_get_index_optional(struct device *dev,
 	return desc;
 }
 EXPORT_SYMBOL_GPL(__gpiod_get_index_optional);
+
+/**
+ * gpiod_hog - Hog the specified GPIO desc given the provided flags
+ * @desc:	gpio whose value will be assigned
+ * @name:	gpio line name
+ * @lflags:	gpio_lookup_flags - returned from of_find_gpio() or
+ *		of_get_gpio_hog()
+ * @dflags:	gpiod_flags - optional GPIO initialization flags
+ */
+int gpiod_hog(struct gpio_desc *desc, const char *name,
+	      unsigned long lflags, enum gpiod_flags dflags)
+{
+	struct gpio_chip *chip;
+	struct gpio_desc *local_desc;
+	int hwnum;
+	int status;
+
+	chip = gpiod_to_chip(desc);
+	hwnum = gpio_chip_hwgpio(desc);
+
+	local_desc = gpiochip_request_own_desc(chip, hwnum, name);
+	if (IS_ERR(local_desc)) {
+		pr_debug("requesting own GPIO %s failed\n", name);
+		return PTR_ERR(local_desc);
+	}
+
+	status = gpiod_configure_flags(desc, name, lflags, dflags);
+	if (status < 0) {
+		pr_debug("setup of GPIO %s failed\n", name);
+		gpiochip_free_own_desc(desc);
+		return status;
+	}
+
+	/* Mark GPIO as hogged so it can be identified and removed later */
+	set_bit(FLAG_IS_HOGGED, &desc->flags);
+
+	pr_info("GPIO line %d (%s) hogged as %s%s\n",
+		desc_to_gpio(desc), name,
+		(dflags&GPIOD_FLAGS_BIT_DIR_OUT) ? "output" : "input",
+		(dflags&GPIOD_FLAGS_BIT_DIR_OUT) ?
+		  (dflags&GPIOD_FLAGS_BIT_DIR_VAL) ? "/high" : "/low":"");
+
+	return 0;
+}
+
+/**
+ * gpiochip_free_hogs - Scan gpio-controller chip and release GPIO hog
+ * @chip:	gpio chip to act on
+ *
+ * This is only used by of_gpiochip_remove to free hogged gpios
+ */
+static void gpiochip_free_hogs(struct gpio_chip *chip)
+{
+	int id;
+
+	for (id = 0; id < chip->ngpio; id++) {
+		if (test_bit(FLAG_IS_HOGGED, &chip->desc[id].flags))
+			gpiochip_free_own_desc(&chip->desc[id]);
+	}
+}
 
 /**
  * gpiod_put - dispose of a GPIO descriptor

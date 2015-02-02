@@ -78,6 +78,7 @@ struct gpio_desc {
 #define FLAG_OPEN_SOURCE 8	/* Gpio is open source type */
 #define FLAG_USED_AS_IRQ 9	/* GPIO is connected to an IRQ */
 #define FLAG_SYSFS_DIR	10	/* show sysfs direction attribute */
+#define FLAG_IS_HOGGED	11	/* GPIO is hogged */
 
 #define ID_SHIFT	16	/* add new flags before this one */
 
@@ -89,6 +90,8 @@ struct gpio_desc {
 
 int gpiod_request(struct gpio_desc *desc, const char *label);
 void gpiod_free(struct gpio_desc *desc);
+int gpiod_hog(struct gpio_desc *desc, const char *name,
+		unsigned long lflags, enum gpiod_flags dflags);
 
 /*
  * Return the GPIO number of the passed descriptor relative to its chip
