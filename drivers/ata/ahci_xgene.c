@@ -139,7 +139,8 @@ static unsigned int xgene_ahci_qc_issue(struct ata_queued_cmd *qc)
 	int rc = 0;
 
 	if (unlikely((ctx->last_cmd[ap->port_no] == ATA_CMD_ID_ATA) ||
-	    (ctx->last_cmd[ap->port_no] == ATA_CMD_PACKET)))
+	    (ctx->last_cmd[ap->port_no] == ATA_CMD_PACKET) ||
+	    (ctx->last_cmd[ap->port_no] == ATA_CMD_SMART)))
 		xgene_ahci_restart_engine(ap);
 
 	rc = ahci_qc_issue(qc);
