@@ -791,11 +791,7 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 	if (cx->type == ACPI_STATE_C3)
 		ACPI_FLUSH_CPU_CACHE();
 
-	/* Tell the scheduler that we are going deep-idle: */
-	sched_clock_idle_sleep_event();
 	acpi_idle_do_entry(cx);
-
-	sched_clock_idle_wakeup_event(0);
 
 	lapic_timer_state_broadcast(pr, cx, 0);
 	return index;
@@ -842,8 +838,6 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 
 	acpi_unlazy_tlb(smp_processor_id());
 
-	/* Tell the scheduler that we are going deep-idle: */
-	sched_clock_idle_sleep_event();
 	/*
 	 * Must be done before busmaster disable as we might need to
 	 * access HPET !
@@ -880,8 +874,6 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 		c3_cpu_count--;
 		raw_spin_unlock(&c3_lock);
 	}
-
-	sched_clock_idle_wakeup_event(0);
 
 	lapic_timer_state_broadcast(pr, cx, 0);
 	return index;
