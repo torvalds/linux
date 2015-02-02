@@ -729,7 +729,7 @@ static inline void rcu_preempt_sleep_check(void)
  * annotated as __rcu.
  */
 #define rcu_dereference_check(p, c) \
-	__rcu_dereference_check((p), rcu_read_lock_held() || (c), __rcu)
+	__rcu_dereference_check((p), (c) || rcu_read_lock_held(), __rcu)
 
 /**
  * rcu_dereference_bh_check() - rcu_dereference_bh with debug checking
@@ -739,7 +739,7 @@ static inline void rcu_preempt_sleep_check(void)
  * This is the RCU-bh counterpart to rcu_dereference_check().
  */
 #define rcu_dereference_bh_check(p, c) \
-	__rcu_dereference_check((p), rcu_read_lock_bh_held() || (c), __rcu)
+	__rcu_dereference_check((p), (c) || rcu_read_lock_bh_held(), __rcu)
 
 /**
  * rcu_dereference_sched_check() - rcu_dereference_sched with debug checking
@@ -749,7 +749,7 @@ static inline void rcu_preempt_sleep_check(void)
  * This is the RCU-sched counterpart to rcu_dereference_check().
  */
 #define rcu_dereference_sched_check(p, c) \
-	__rcu_dereference_check((p), rcu_read_lock_sched_held() || (c), \
+	__rcu_dereference_check((p), (c) || rcu_read_lock_sched_held(), \
 				__rcu)
 
 #define rcu_dereference_raw(p) rcu_dereference_check(p, 1) /*@@@ needed? @@@*/
