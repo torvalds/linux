@@ -16,6 +16,7 @@
 #include <linux/string.h>
 
 #include <asm/bootinfo.h>
+#include <asm/cdmm.h>
 #include <asm/maar.h>
 #include <asm/sections.h>
 #include <asm/fw/fw.h>
@@ -195,4 +196,10 @@ unsigned platform_maar_init(unsigned num_pairs)
 	}
 
 	return maar_config(cfg, num_cfg, num_pairs);
+}
+
+phys_addr_t mips_cdmm_phys_base(void)
+{
+	/* This address is "typically unused" */
+	return 0x1fc10000;
 }
