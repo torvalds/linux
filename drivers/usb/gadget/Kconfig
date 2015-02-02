@@ -424,7 +424,7 @@ config USB_CONFIGFS_F_HID
 	  For more information, see Documentation/usb/gadget_hid.txt.
 
 config USB_CONFIGFS_F_UVC
-	boolean "USB Webcam function"
+	bool "USB Webcam function"
 	depends on USB_CONFIGFS
 	depends on VIDEO_DEV
 	select VIDEOBUF2_VMALLOC
