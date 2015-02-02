@@ -2,8 +2,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <stdbool.h>
 #include <sys/vfs.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/mount.h>
 #include <linux/kernel.h>
 
@@ -24,6 +27,11 @@ static const char * const tracefs_known_mountpoints[] = {
 };
 
 static bool tracefs_found;
+
+bool tracefs_configured(void)
+{
+	return tracefs_find_mountpoint() != NULL;
+}
 
 /* find the path to the mounted tracefs */
 const char *tracefs_find_mountpoint(void)

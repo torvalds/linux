@@ -3,8 +3,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <stdbool.h>
 #include <sys/vfs.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/mount.h>
 #include <linux/kernel.h>
 
@@ -23,6 +26,11 @@ static const char * const debugfs_known_mountpoints[] = {
 };
 
 static bool debugfs_found;
+
+bool debugfs_configured(void)
+{
+	return debugfs_find_mountpoint() != NULL;
+}
 
 /* find the path to the mounted debugfs */
 const char *debugfs_find_mountpoint(void)

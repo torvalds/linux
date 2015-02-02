@@ -1,6 +1,8 @@
 #ifndef __API_FINDFS_H__
 #define __API_FINDFS_H__
 
+#include <stdbool.h>
+
 #define _STR(x) #x
 #define STR(x) _STR(x)
 

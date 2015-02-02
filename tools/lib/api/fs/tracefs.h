@@ -11,6 +11,7 @@
 #define PERF_TRACEFS_ENVIRONMENT "PERF_TRACEFS_DIR"
 #endif
 
+bool tracefs_configured(void);
 const char *tracefs_find_mountpoint(void);
 int tracefs_valid_mountpoint(const char *debugfs);
 char *tracefs_mount(const char *mountpoint);

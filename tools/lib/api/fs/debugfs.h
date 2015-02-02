@@ -11,6 +11,7 @@
 #define PERF_DEBUGFS_ENVIRONMENT "PERF_DEBUGFS_DIR"
 #endif
 
+bool debugfs_configured(void);
 const char *debugfs_find_mountpoint(void);
 char *debugfs_mount(const char *mountpoint);
 
