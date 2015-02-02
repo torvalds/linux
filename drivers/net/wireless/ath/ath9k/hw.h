@@ -273,6 +273,7 @@ enum ath9k_hw_caps {
 
 struct ath9k_hw_wow {
 	u32 wow_event_mask;
+	u32 wow_event_mask2;
 	u8 max_patterns;
 };
 

@@ -25,9 +25,39 @@
 #define AR_WOW_KEEP_ALIVE               0x827c
 #define AR_WOW_KEEP_ALIVE_DELAY         0x8288
 #define AR_WOW_PATTERN_MATCH            0x828c
+
+/*
+ * AR_WOW_LENGTH1
+ * bit 31:24 pattern 0 length
+ * bit 23:16 pattern 1 length
+ * bit 15:8 pattern 2 length
+ * bit 7:0 pattern 3 length
+ *
+ * AR_WOW_LENGTH2
+ * bit 31:24 pattern 4 length
+ * bit 23:16 pattern 5 length
+ * bit 15:8 pattern 6 length
+ * bit 7:0 pattern 7 length
+ *
+ * AR_WOW_LENGTH3
+ * bit 31:24 pattern 8 length
+ * bit 23:16 pattern 9 length
+ * bit 15:8 pattern 10 length
+ * bit 7:0 pattern 11 length
+ *
+ * AR_WOW_LENGTH4
+ * bit 31:24 pattern 12 length
+ * bit 23:16 pattern 13 length
+ * bit 15:8 pattern 14 length
+ * bit 7:0 pattern 15 length
+ */
 #define AR_WOW_LENGTH1                  0x8360
 #define AR_WOW_LENGTH2                  0X8364
+#define AR_WOW_LENGTH3                  0X8380
+#define AR_WOW_LENGTH4                  0X8384
+
 #define AR_WOW_PATTERN_MATCH_LT_256B    0x8368
+#define AR_MAC_PCU_WOW4                 0x8370
 
 #define AR_SW_WOW_CONTROL               0x20018
 #define AR_SW_WOW_ENABLE                0x1
@@ -89,5 +119,9 @@
 #define AR_WOW_LENGTH1_MASK(_i)         (AR_WOW_LENGTH_MAX << AR_WOW_LEN1_SHIFT(_i))
 #define AR_WOW_LEN2_SHIFT(_i)           ((0x7 - ((_i) & 0x7)) << 0x3)
 #define AR_WOW_LENGTH2_MASK(_i)         (AR_WOW_LENGTH_MAX << AR_WOW_LEN2_SHIFT(_i))
+#define AR_WOW_LEN3_SHIFT(_i)           ((0xb - ((_i) & 0xb)) << 0x3)
+#define AR_WOW_LENGTH3_MASK(_i)         (AR_WOW_LENGTH_MAX << AR_WOW_LEN3_SHIFT(_i))
+#define AR_WOW_LEN4_SHIFT(_i)           ((0xf - ((_i) & 0xf)) << 0x3)
+#define AR_WOW_LENGTH4_MASK(_i)         (AR_WOW_LENGTH_MAX << AR_WOW_LEN4_SHIFT(_i))
 
 #endif /* REG_WOW_H */
