@@ -528,6 +528,17 @@ static void fuse_release_user_pages(struct fuse_req *req, int write)
 	}
 }
 
+static ssize_t fuse_get_res_by_io(struct fuse_io_priv *io)
+{
+	if (io->err)
+		return io->err;
+
+	if (io->bytes >= 0 && io->write)
+		return -EIO;
+
+	return io->bytes < 0 ? io->size : io->bytes;
+}
+
 /**
  * In case of short read, the caller sets 'pos' to the position of
  * actual end of fuse request in IO request. Otherwise, if bytes_requested
@@ -546,6 +557,7 @@ static void fuse_release_user_pages(struct fuse_req *req, int write)
  */
 static void fuse_aio_complete(struct fuse_io_priv *io, int err, ssize_t pos)
 {
+	bool is_sync = is_sync_kiocb(io->iocb);
 	int left;
 
 	spin_lock(&io->lock);
@@ -555,27 +567,21 @@ static void fuse_aio_complete(struct fuse_io_priv *io, int err, ssize_t pos)
 		io->bytes = pos;
 
 	left = --io->reqs;
+	if (!left && is_sync)
+		complete(io->done);
 	spin_unlock(&io->lock);
 
-	if (!left) {
-		long res;
+	if (!left && !is_sync) {
+		ssize_t res = fuse_get_res_by_io(io);
 
-		if (io->err)
-			res = io->err;
-		else if (io->bytes >= 0 && io->write)
-			res = -EIO;
-		else {
-			res = io->bytes < 0 ? io->size : io->bytes;
+		if (res >= 0) {
+			struct inode *inode = file_inode(io->iocb->ki_filp);
+			struct fuse_conn *fc = get_fuse_conn(inode);
+			struct fuse_inode *fi = get_fuse_inode(inode);
 
-			if (!is_sync_kiocb(io->iocb)) {
-				struct inode *inode = file_inode(io->iocb->ki_filp);
-				struct fuse_conn *fc = get_fuse_conn(inode);
-				struct fuse_inode *fi = get_fuse_inode(inode);
-
-				spin_lock(&fc->lock);
-				fi->attr_version = ++fc->attr_version;
-				spin_unlock(&fc->lock);
-			}
+			spin_lock(&fc->lock);
+			fi->attr_version = ++fc->attr_version;
+			spin_unlock(&fc->lock);
 		}
 
 		aio_complete(io->iocb, res, 0);
@@ -2801,6 +2807,7 @@ static ssize_t
 fuse_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
 			loff_t offset)
 {
+	DECLARE_COMPLETION_ONSTACK(wait);
 	ssize_t ret = 0;
 	struct file *file = iocb->ki_filp;
 	struct fuse_file *ff = file->private_data;
@@ -2852,6 +2859,9 @@ fuse_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
 	if (!is_sync_kiocb(iocb) && (offset + count > i_size) && rw == WRITE)
 		io->async = false;
 
+	if (io->async && is_sync_kiocb(iocb))
+		io->done = &wait;
+
 	if (rw == WRITE)
 		ret = __fuse_direct_write(io, iter, &pos);
 	else
@@ -2864,10 +2874,11 @@ fuse_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
 		if (!is_sync_kiocb(iocb))
 			return -EIOCBQUEUED;
 
-		ret = wait_on_sync_kiocb(iocb);
-	} else {
-		kfree(io);
+		wait_for_completion(&wait);
+		ret = fuse_get_res_by_io(io);
 	}
+
+	kfree(io);
 
 	if (rw == WRITE) {
 		if (ret > 0)
