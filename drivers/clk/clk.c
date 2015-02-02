@@ -2055,15 +2055,17 @@ static int clk_core_set_parent(struct clk_core *clk, struct clk_core *parent)
 	if (!clk)
 		return 0;
 
-	/* verify ops for for multi-parent clks */
-	if ((clk->num_parents > 1) && (!clk->ops->set_parent))
-		return -ENOSYS;
-
 	/* prevent racing with updates to the clock topology */
 	clk_prepare_lock();
 
 	if (clk->parent == parent)
 		goto out;
+
+	/* verify ops for for multi-parent clks */
+	if ((clk->num_parents > 1) && (!clk->ops->set_parent)) {
+		ret = -ENOSYS;
+		goto out;
+	}
 
 	/* check that we are allowed to re-parent if the clock is in use */
 	if ((clk->flags & CLK_SET_PARENT_GATE) && clk->prepare_count) {
