@@ -245,6 +245,8 @@ PNAME(mout_sclk_audio1_p)	= { "ioclk_audiocdclk1", "oscclk",
 PNAME(mout_sclk_audio0_p)	= { "ioclk_audiocdclk0", "oscclk",
 				    "mout_aud_pll_user_t",};
 
+PNAME(mout_sclk_hdmi_spdif_p)	= { "sclk_audio1", "ioclk_spdif_extclk", };
+
 static struct samsung_fixed_factor_clock top_fixed_factor_clks[] __initdata = {
 	FFACTOR(0, "oscclk_efuse_common", "oscclk", 1, 1, 0),
 };
@@ -395,6 +397,10 @@ static struct samsung_mux_clock top_mux_clks[] __initdata = {
 			MUX_SEL_TOP_PERIC1, 4, 2),
 	MUX(CLK_MOUT_SCLK_AUDIO0, "mout_sclk_audio0", mout_sclk_audio0_p,
 			MUX_SEL_TOP_PERIC1, 0, 2),
+
+	/* MUX_SEL_TOP_DISP */
+	MUX(CLK_MOUT_SCLK_HDMI_SPDIF, "mout_sclk_hdmi_spdif",
+			mout_sclk_hdmi_spdif_p, MUX_SEL_TOP_DISP, 0, 1),
 };
 
 static struct samsung_div_clock top_div_clks[] __initdata = {
@@ -1360,6 +1366,11 @@ static struct samsung_gate_clock mif_gate_clks[] __initdata = {
 			ENABLE_SCLK_MIF, 1, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_SCLK_BUS_PLL_ATLAS, "sclk_bus_pll_atlas", "sclk_bus_pll",
 			ENABLE_SCLK_MIF, 0, CLK_IGNORE_UNUSED, 0),
+
+	/* ENABLE_SCLK_TOP_DISP */
+	GATE(CLK_SCLK_HDMI_SPDIF_DISP, "sclk_hdmi_spdif_disp",
+			"mout_sclk_hdmi_spdif", ENABLE_SCLK_TOP_DISP, 0,
+			CLK_IGNORE_UNUSED, 0),
 };
 
 static struct samsung_cmu_info mif_cmu_info __initdata = {
@@ -2022,3 +2033,429 @@ static void __init exynos5433_cmu_g2d_init(struct device_node *np)
 
 CLK_OF_DECLARE(exynos5433_cmu_g2d, "samsung,exynos5433-cmu-g2d",
 		exynos5433_cmu_g2d_init);
+
+/*
+ * Register offset definitions for CMU_DISP
+ */
+#define DISP_PLL_LOCK			0x0000
+#define DISP_PLL_CON0			0x0100
+#define DISP_PLL_CON1			0x0104
+#define DISP_PLL_FREQ_DET		0x0108
+#define MUX_SEL_DISP0			0x0200
+#define MUX_SEL_DISP1			0x0204
+#define MUX_SEL_DISP2			0x0208
+#define MUX_SEL_DISP3			0x020c
+#define MUX_SEL_DISP4			0x0210
+#define MUX_ENABLE_DISP0		0x0300
+#define MUX_ENABLE_DISP1		0x0304
+#define MUX_ENABLE_DISP2		0x0308
+#define MUX_ENABLE_DISP3		0x030c
+#define MUX_ENABLE_DISP4		0x0310
+#define MUX_STAT_DISP0			0x0400
+#define MUX_STAT_DISP1			0x0404
+#define MUX_STAT_DISP2			0x0408
+#define MUX_STAT_DISP3			0x040c
+#define MUX_STAT_DISP4			0x0410
+#define MUX_IGNORE_DISP2		0x0508
+#define DIV_DISP			0x0600
+#define DIV_DISP_PLL_FREQ_DET		0x0604
+#define DIV_STAT_DISP			0x0700
+#define DIV_STAT_DISP_PLL_FREQ_DET	0x0704
+#define ENABLE_ACLK_DISP0		0x0800
+#define ENABLE_ACLK_DISP1		0x0804
+#define ENABLE_PCLK_DISP		0x0900
+#define ENABLE_SCLK_DISP		0x0a00
+#define ENABLE_IP_DISP0			0x0b00
+#define ENABLE_IP_DISP1			0x0b04
+#define CLKOUT_CMU_DISP			0x0c00
+#define CLKOUT_CMU_DISP_DIV_STAT	0x0c04
+
+static unsigned long disp_clk_regs[] __initdata = {
+	DISP_PLL_LOCK,
+	DISP_PLL_CON0,
+	DISP_PLL_CON1,
+	DISP_PLL_FREQ_DET,
+	MUX_SEL_DISP0,
+	MUX_SEL_DISP1,
+	MUX_SEL_DISP2,
+	MUX_SEL_DISP3,
+	MUX_SEL_DISP4,
+	MUX_ENABLE_DISP0,
+	MUX_ENABLE_DISP1,
+	MUX_ENABLE_DISP2,
+	MUX_ENABLE_DISP3,
+	MUX_ENABLE_DISP4,
+	MUX_STAT_DISP0,
+	MUX_STAT_DISP1,
+	MUX_STAT_DISP2,
+	MUX_STAT_DISP3,
+	MUX_STAT_DISP4,
+	MUX_IGNORE_DISP2,
+	DIV_DISP,
+	DIV_DISP_PLL_FREQ_DET,
+	DIV_STAT_DISP,
+	DIV_STAT_DISP_PLL_FREQ_DET,
+	ENABLE_ACLK_DISP0,
+	ENABLE_ACLK_DISP1,
+	ENABLE_PCLK_DISP,
+	ENABLE_SCLK_DISP,
+	ENABLE_IP_DISP0,
+	ENABLE_IP_DISP1,
+	CLKOUT_CMU_DISP,
+	CLKOUT_CMU_DISP_DIV_STAT,
+};
+
+/* list of all parent clock list */
+PNAME(mout_disp_pll_p)			= { "oscclk", "fout_disp_pll", };
+PNAME(mout_sclk_dsim1_user_p)		= { "oscclk", "sclk_dsim1_disp", };
+PNAME(mout_sclk_dsim0_user_p)		= { "oscclk", "sclk_dsim0_disp", };
+PNAME(mout_sclk_dsd_user_p)		= { "oscclk", "sclk_dsd_disp", };
+PNAME(mout_sclk_decon_tv_eclk_user_p)	= { "oscclk",
+					    "sclk_decon_tv_eclk_disp", };
+PNAME(mout_sclk_decon_vclk_user_p)	= { "oscclk",
+					    "sclk_decon_vclk_disp", };
+PNAME(mout_sclk_decon_eclk_user_p)	= { "oscclk",
+					    "sclk_decon_eclk_disp", };
+PNAME(mout_sclk_decon_tv_vlkc_user_p)	= { "oscclk",
+					    "sclk_decon_tv_vclk_disp", };
+PNAME(mout_aclk_disp_333_user_p)	= { "oscclk", "aclk_disp_333", };
+
+PNAME(mout_phyclk_mipidphy1_bitclkdiv8_user_p)	= { "oscclk",
+					"phyclk_mipidphy1_bitclkdiv8_phy", };
+PNAME(mout_phyclk_mipidphy1_rxclkesc0_user_p)	= { "oscclk",
+					"phyclk_mipidphy1_rxclkesc0_phy", };
+PNAME(mout_phyclk_mipidphy0_bitclkdiv8_user_p)	= { "oscclk",
+					"phyclk_mipidphy0_bitclkdiv8_phy", };
+PNAME(mout_phyclk_mipidphy0_rxclkesc0_user_p)	= { "oscclk",
+					"phyclk_mipidphy0_rxclkesc0_phy", };
+PNAME(mout_phyclk_hdmiphy_tmds_clko_user_p)	= { "oscclk",
+					"phyclk_hdmiphy_tmds_clko_phy", };
+PNAME(mout_phyclk_hdmiphy_pixel_clko_user_p)	= { "oscclk",
+					"phyclk_hdmiphy_pixel_clko_phy", };
+
+PNAME(mout_sclk_dsim0_p)		= { "mout_disp_pll",
+					    "mout_sclk_dsim0_user", };
+PNAME(mout_sclk_decon_tv_eclk_p)	= { "mout_disp_pll",
+					    "mout_sclk_decon_tv_eclk_user", };
+PNAME(mout_sclk_decon_vclk_p)		= { "mout_disp_pll",
+					    "mout_sclk_decon_vclk_user", };
+PNAME(mout_sclk_decon_eclk_p)		= { "mout_disp_pll",
+					    "mout_sclk_decon_eclk_user", };
+
+PNAME(mout_sclk_dsim1_b_disp_p)		= { "mout_sclk_dsim1_a_disp",
+					    "mout_sclk_dsim1_user", };
+PNAME(mout_sclk_decon_tv_vclk_c_disp_p)	= {
+				"mout_phyclk_hdmiphy_pixel_clko_user",
+				"mout_sclk_decon_tv_vclk_b_disp", };
+PNAME(mout_sclk_decon_tv_vclk_b_disp_p)	= { "mout_sclk_decon_tv_vclk_a_disp",
+					    "mout_sclk_decon_tv_vclk_user", };
+
+static struct samsung_pll_clock disp_pll_clks[] __initdata = {
+	PLL(pll_35xx, CLK_FOUT_DISP_PLL, "fout_disp_pll", "oscclk",
+		DISP_PLL_LOCK, DISP_PLL_CON0, exynos5443_pll_rates),
+};
+
+static struct samsung_fixed_factor_clock disp_fixed_factor_clks[] __initdata = {
+	/*
+	 * sclk_rgb_{vclk|tv_vclk} is half clock of sclk_decon_{vclk|tv_vclk}.
+	 * The divider has fixed value (2) between sclk_rgb_{vclk|tv_vclk}
+	 * and sclk_decon_{vclk|tv_vclk}.
+	 */
+	FFACTOR(CLK_SCLK_RGB_VCLK, "sclk_rgb_vclk", "sclk_decon_vclk",
+			1, 2, 0),
+	FFACTOR(CLK_SCLK_RGB_TV_VCLK, "sclk_rgb_tv_vclk", "sclk_decon_tv_vclk",
+			1, 2, 0),
+};
+
+static struct samsung_fixed_rate_clock disp_fixed_clks[] __initdata = {
+	/* PHY clocks from MIPI_DPHY1 */
+	FRATE(0, "phyclk_mipidphy1_bitclkdiv8_phy", NULL, CLK_IS_ROOT,
+			188000000),
+	FRATE(0, "phyclk_mipidphy1_rxclkesc0_phy", NULL, CLK_IS_ROOT,
+			100000000),
+	/* PHY clocks from MIPI_DPHY0 */
+	FRATE(0, "phyclk_mipidphy0_bitclkdiv8_phy", NULL, CLK_IS_ROOT,
+			188000000),
+	FRATE(0, "phyclk_mipidphy0_rxclkesc0_phy", NULL, CLK_IS_ROOT,
+			100000000),
+	/* PHY clocks from HDMI_PHY */
+	FRATE(0, "phyclk_hdmiphy_tmds_clko_phy", NULL, CLK_IS_ROOT, 300000000),
+	FRATE(0, "phyclk_hdmiphy_pixel_clko_phy", NULL, CLK_IS_ROOT, 166000000),
+};
+
+static struct samsung_mux_clock disp_mux_clks[] __initdata = {
+	/* MUX_SEL_DISP0 */
+	MUX(CLK_MOUT_DISP_PLL, "mout_disp_pll", mout_disp_pll_p, MUX_SEL_DISP0,
+			0, 1),
+
+	/* MUX_SEL_DISP1 */
+	MUX(CLK_MOUT_SCLK_DSIM1_USER, "mout_sclk_dsim1_user",
+			mout_sclk_dsim1_user_p, MUX_SEL_DISP1, 28, 1),
+	MUX(CLK_MOUT_SCLK_DSIM0_USER, "mout_sclk_dsim0_user",
+			mout_sclk_dsim0_user_p, MUX_SEL_DISP1, 24, 1),
+	MUX(CLK_MOUT_SCLK_DSD_USER, "mout_sclk_dsd_user", mout_sclk_dsd_user_p,
+			MUX_SEL_DISP1, 20, 1),
+	MUX(CLK_MOUT_SCLK_DECON_TV_ECLK_USER, "mout_sclk_decon_tv_eclk_user",
+			mout_sclk_decon_tv_eclk_user_p, MUX_SEL_DISP1, 16, 1),
+	MUX(CLK_MOUT_SCLK_DECON_VCLK_USER, "mout_sclk_decon_vclk_user",
+			mout_sclk_decon_vclk_user_p, MUX_SEL_DISP1, 12, 1),
+	MUX(CLK_MOUT_SCLK_DECON_ECLK_USER, "mout_sclk_decon_eclk_user",
+			mout_sclk_decon_eclk_user_p, MUX_SEL_DISP1, 8, 1),
+	MUX(CLK_MOUT_SCLK_DECON_TV_VCLK_USER, "mout_sclk_decon_tv_vclk_user",
+			mout_sclk_decon_tv_vlkc_user_p, MUX_SEL_DISP1, 4, 1),
+	MUX(CLK_MOUT_ACLK_DISP_333_USER, "mout_aclk_disp_333_user",
+			mout_aclk_disp_333_user_p, MUX_SEL_DISP1, 0, 1),
+
+	/* MUX_SEL_DISP2 */
+	MUX(CLK_MOUT_PHYCLK_MIPIDPHY1_BITCLKDIV8_USER,
+			"mout_phyclk_mipidphy1_bitclkdiv8_user",
+			mout_phyclk_mipidphy1_bitclkdiv8_user_p, MUX_SEL_DISP2,
+			20, 1),
+	MUX(CLK_MOUT_PHYCLK_MIPIDPHY1_RXCLKESC0_USER,
+			"mout_phyclk_mipidphy1_rxclkesc0_user",
+			mout_phyclk_mipidphy1_rxclkesc0_user_p, MUX_SEL_DISP2,
+			16, 1),
+	MUX(CLK_MOUT_PHYCLK_MIPIDPHY0_BITCLKDIV8_USER,
+			"mout_phyclk_mipidphy0_bitclkdiv8_user",
+			mout_phyclk_mipidphy0_bitclkdiv8_user_p, MUX_SEL_DISP2,
+			12, 1),
+	MUX(CLK_MOUT_PHYCLK_MIPIDPHY0_RXCLKESC0_USER,
+			"mout_phyclk_mipidphy0_rxclkesc0_user",
+			mout_phyclk_mipidphy0_rxclkesc0_user_p, MUX_SEL_DISP2,
+			8, 1),
+	MUX(CLK_MOUT_PHYCLK_HDMIPHY_TMDS_CLKO_USER,
+			"mout_phyclk_hdmiphy_tmds_clko_user",
+			mout_phyclk_hdmiphy_tmds_clko_user_p, MUX_SEL_DISP2,
+			4, 1),
+	MUX(CLK_MOUT_PHYCLK_HDMIPHY_PIXEL_CLKO_USER,
+			"mout_phyclk_hdmiphy_pixel_clko_user",
+			mout_phyclk_hdmiphy_pixel_clko_user_p, MUX_SEL_DISP2,
+			0, 1),
+
+	/* MUX_SEL_DISP3 */
+	MUX(CLK_MOUT_SCLK_DSIM0, "mout_sclk_dsim0", mout_sclk_dsim0_p,
+			MUX_SEL_DISP3, 12, 1),
+	MUX(CLK_MOUT_SCLK_DECON_TV_ECLK, "mout_sclk_decon_tv_eclk",
+			mout_sclk_decon_tv_eclk_p, MUX_SEL_DISP3, 8, 1),
+	MUX(CLK_MOUT_SCLK_DECON_VCLK, "mout_sclk_decon_vclk",
+			mout_sclk_decon_vclk_p, MUX_SEL_DISP3, 4, 1),
+	MUX(CLK_MOUT_SCLK_DECON_ECLK, "mout_sclk_decon_eclk",
+			mout_sclk_decon_eclk_p, MUX_SEL_DISP3, 0, 1),
+
+	/* MUX_SEL_DISP4 */
+	MUX(CLK_MOUT_SCLK_DSIM1_B_DISP, "mout_sclk_dsim1_b_disp",
+			mout_sclk_dsim1_b_disp_p, MUX_SEL_DISP4, 16, 1),
+	MUX(CLK_MOUT_SCLK_DSIM1_A_DISP, "mout_sclk_dsim1_a_disp",
+			mout_sclk_dsim0_p, MUX_SEL_DISP4, 12, 1),
+	MUX(CLK_MOUT_SCLK_DECON_TV_VCLK_C_DISP,
+			"mout_sclk_decon_tv_vclk_c_disp",
+			mout_sclk_decon_tv_vclk_c_disp_p, MUX_SEL_DISP4, 8, 1),
+	MUX(CLK_MOUT_SCLK_DECON_TV_VCLK_B_DISP,
+			"mout_sclk_decon_tv_vclk_b_disp",
+			mout_sclk_decon_tv_vclk_b_disp_p, MUX_SEL_DISP4, 4, 1),
+	MUX(CLK_MOUT_SCLK_DECON_TV_VCLK_A_DISP,
+			"mout_sclk_decon_tv_vclk_a_disp",
+			mout_sclk_decon_vclk_p, MUX_SEL_DISP4, 0, 1),
+};
+
+static struct samsung_div_clock disp_div_clks[] __initdata = {
+	/* DIV_DISP */
+	DIV(CLK_DIV_SCLK_DSIM1_DISP, "div_sclk_dsim1_disp",
+			"mout_sclk_dsim1_b_disp", DIV_DISP, 24, 3),
+	DIV(CLK_DIV_SCLK_DECON_TV_VCLK_DISP, "div_sclk_decon_tv_vclk_disp",
+			"mout_sclk_decon_tv_vclk_c_disp", DIV_DISP, 20, 3),
+	DIV(CLK_DIV_SCLK_DSIM0_DISP, "div_sclk_dsim0_disp", "mout_sclk_dsim0",
+			DIV_DISP, 16, 3),
+	DIV(CLK_DIV_SCLK_DECON_TV_ECLK_DISP, "div_sclk_decon_tv_eclk_disp",
+			"mout_sclk_decon_tv_eclk", DIV_DISP, 12, 3),
+	DIV(CLK_DIV_SCLK_DECON_VCLK_DISP, "div_sclk_decon_vclk_disp",
+			"mout_sclk_decon_vclk", DIV_DISP, 8, 3),
+	DIV(CLK_DIV_SCLK_DECON_ECLK_DISP, "div_sclk_decon_eclk_disp",
+			"mout_sclk_decon_eclk", DIV_DISP, 4, 3),
+	DIV(CLK_DIV_PCLK_DISP, "div_pclk_disp", "mout_aclk_disp_333_user",
+			DIV_DISP, 0, 2),
+};
+
+static struct samsung_gate_clock disp_gate_clks[] __initdata = {
+	/* ENABLE_ACLK_DISP0 */
+	GATE(CLK_ACLK_DECON_TV, "aclk_decon_tv", "mout_aclk_disp_333_user",
+			ENABLE_ACLK_DISP0, 2, 0, 0),
+	GATE(CLK_ACLK_DECON, "aclk_decon", "mout_aclk_disp_333_user",
+			ENABLE_ACLK_DISP0, 0, 0, 0),
+
+	/* ENABLE_ACLK_DISP1 */
+	GATE(CLK_ACLK_SMMU_TV1X, "aclk_smmu_tv1x", "mout_aclk_disp_333_user",
+			ENABLE_ACLK_DISP1, 25, 0, 0),
+	GATE(CLK_ACLK_SMMU_TV0X, "aclk_smmu_tv0x", "mout_aclk_disp_333_user",
+			ENABLE_ACLK_DISP1, 24, 0, 0),
+	GATE(CLK_ACLK_SMMU_DECON1X, "aclk_smmu_decon1x",
+			"mout_aclk_disp_333_user", ENABLE_ACLK_DISP1, 23, 0, 0),
+	GATE(CLK_ACLK_SMMU_DECON0X, "aclk_smmu_decon0x",
+			"mout_aclk_disp_333_user", ENABLE_ACLK_DISP1, 22, 0, 0),
+	GATE(CLK_ACLK_BTS_DECON_TV_M3, "aclk_bts_decon_tv_m3",
+			"mout_aclk_disp_333_user", ENABLE_ACLK_DISP1, 21, 0, 0),
+	GATE(CLK_ACLK_BTS_DECON_TV_M2, "aclk_bts_decon_tv_m2",
+			"mout_aclk_disp_333_user", ENABLE_ACLK_DISP1, 20, 0, 0),
+	GATE(CLK_ACLK_BTS_DECON_TV_M1, "aclk_bts_decon_tv_m1",
+			"mout_aclk_disp_333_user", ENABLE_ACLK_DISP1, 19, 0, 0),
+	GATE(CLK_ACLK_BTS_DECON_TV_M0, "aclk-bts_decon_tv_m0",
+			"mout_aclk_disp_333_user", ENABLE_ACLK_DISP1, 18, 0, 0),
+	GATE(CLK_ACLK_BTS_DECON_NM4, "aclk_bts_decon_nm4",
+			"mout_aclk_disp_333_user", ENABLE_ACLK_DISP1, 17, 0, 0),
+	GATE(CLK_ACLK_BTS_DECON_NM3, "aclk_bts_decon_nm3",
+			"mout_aclk_disp_333_user", ENABLE_ACLK_DISP1, 16, 0, 0),
+	GATE(CLK_ACLK_BTS_DECON_NM2, "aclk_bts_decon_nm2",
+			"mout_aclk_disp_333_user", ENABLE_ACLK_DISP1, 15, 0, 0),
+	GATE(CLK_ACLK_BTS_DECON_NM1, "aclk_bts_decon_nm1",
+			"mout_aclk_disp_333_user", ENABLE_ACLK_DISP1, 14, 0, 0),
+	GATE(CLK_ACLK_BTS_DECON_NM0, "aclk_bts_decon_nm0",
+			"mout_aclk_disp_333_user", ENABLE_ACLK_DISP1, 13, 0, 0),
+	GATE(CLK_ACLK_AHB2APB_DISPSFR2P, "aclk_ahb2apb_dispsfr2p",
+			"div_pclk_disp", ENABLE_ACLK_DISP1,
+			12, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_AHB2APB_DISPSFR1P, "aclk_ahb2apb_dispsfr1p",
+			"div_pclk_disp", ENABLE_ACLK_DISP1,
+			11, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_AHB2APB_DISPSFR0P, "aclk_ahb2apb_dispsfr0p",
+			"div_pclk_disp", ENABLE_ACLK_DISP1,
+			10, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_AHB_DISPH, "aclk_ahb_disph", "div_pclk_disp",
+			ENABLE_ACLK_DISP1, 8, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_XIU_TV1X, "aclk_xiu_tv1x", "mout_aclk_disp_333_user",
+			ENABLE_ACLK_DISP1, 7, 0, 0),
+	GATE(CLK_ACLK_XIU_TV0X, "aclk_xiu_tv0x", "mout_aclk_disp_333_user",
+			ENABLE_ACLK_DISP1, 6, 0, 0),
+	GATE(CLK_ACLK_XIU_DECON1X, "aclk_xiu_decon1x",
+			"mout_aclk_disp_333_user", ENABLE_ACLK_DISP1, 5, 0, 0),
+	GATE(CLK_ACLK_XIU_DECON0X, "aclk_xiu_decon0x",
+			"mout_aclk_disp_333_user", ENABLE_ACLK_DISP1, 4, 0, 0),
+	GATE(CLK_ACLK_XIU_DISP1X, "aclk_xiu_disp1x", "mout_aclk_disp_333_user",
+			ENABLE_ACLK_DISP1, 3, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_XIU_DISPNP_100, "aclk_xiu_dispnp_100", "div_pclk_disp",
+			ENABLE_ACLK_DISP1, 2, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_DISP1ND_333, "aclk_disp1nd_333",
+			"mout_aclk_disp_333_user", ENABLE_ACLK_DISP1, 1,
+			CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_DISP0ND_333, "aclk_disp0nd_333",
+			"mout_aclk_disp_333_user", ENABLE_ACLK_DISP1,
+			0, CLK_IGNORE_UNUSED, 0),
+
+	/* ENABLE_PCLK_DISP */
+	GATE(CLK_PCLK_SMMU_TV1X, "pclk_smmu_tv1x", "div_pclk_disp",
+			ENABLE_PCLK_DISP, 23, 0, 0),
+	GATE(CLK_PCLK_SMMU_TV0X, "pclk_smmu_tv0x", "div_pclk_disp",
+			ENABLE_PCLK_DISP, 22, 0, 0),
+	GATE(CLK_PCLK_SMMU_DECON1X, "pclk_smmu_decon1x", "div_pclk_disp",
+			ENABLE_PCLK_DISP, 21, 0, 0),
+	GATE(CLK_PCLK_SMMU_DECON0X, "pclk_smmu_decon0x", "div_pclk_disp",
+			ENABLE_PCLK_DISP, 20, 0, 0),
+	GATE(CLK_PCLK_BTS_DECON_TV_M3, "pclk_bts_decon_tv_m3", "div_pclk_disp",
+			ENABLE_PCLK_DISP, 19, 0, 0),
+	GATE(CLK_PCLK_BTS_DECON_TV_M2, "pclk_bts_decon_tv_m2", "div_pclk_disp",
+			ENABLE_PCLK_DISP, 18, 0, 0),
+	GATE(CLK_PCLK_BTS_DECON_TV_M1, "pclk_bts_decon_tv_m1", "div_pclk_disp",
+			ENABLE_PCLK_DISP, 17, 0, 0),
+	GATE(CLK_PCLK_BTS_DECON_TV_M0, "pclk_bts_decon_tv_m0", "div_pclk_disp",
+			ENABLE_PCLK_DISP, 16, 0, 0),
+	GATE(CLK_PCLK_BTS_DECONM4, "pclk_bts_deconm4", "div_pclk_disp",
+			ENABLE_PCLK_DISP, 15, 0, 0),
+	GATE(CLK_PCLK_BTS_DECONM3, "pclk_bts_deconm3", "div_pclk_disp",
+			ENABLE_PCLK_DISP, 14, 0, 0),
+	GATE(CLK_PCLK_BTS_DECONM2, "pclk_bts_deconm2", "div_pclk_disp",
+			ENABLE_PCLK_DISP, 13, 0, 0),
+	GATE(CLK_PCLK_BTS_DECONM1, "pclk_bts_deconm1", "div_pclk_disp",
+			ENABLE_PCLK_DISP, 12, 0, 0),
+	GATE(CLK_PCLK_BTS_DECONM0, "pclk_bts_deconm0", "div_pclk_disp",
+			ENABLE_PCLK_DISP, 11, 0, 0),
+	GATE(CLK_PCLK_MIC1, "pclk_mic1", "div_pclk_disp",
+			ENABLE_PCLK_DISP, 10, 0, 0),
+	GATE(CLK_PCLK_PMU_DISP, "pclk_pmu_disp", "div_pclk_disp",
+			ENABLE_PCLK_DISP, 9, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_SYSREG_DISP, "pclk_sysreg_disp", "div_pclk_disp",
+			ENABLE_PCLK_DISP, 8, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_HDMIPHY, "pclk_hdmiphy", "div_pclk_disp",
+			ENABLE_PCLK_DISP, 7, 0, 0),
+	GATE(CLK_PCLK_HDMI, "pclk_hdmi", "div_pclk_disp",
+			ENABLE_PCLK_DISP, 6, 0, 0),
+	GATE(CLK_PCLK_MIC0, "pclk_mic0", "div_pclk_disp",
+			ENABLE_PCLK_DISP, 5, 0, 0),
+	GATE(CLK_PCLK_DSIM1, "pclk_dsim1", "div_pclk_disp",
+			ENABLE_PCLK_DISP, 3, 0, 0),
+	GATE(CLK_PCLK_DSIM0, "pclk_dsim0", "div_pclk_disp",
+			ENABLE_PCLK_DISP, 2, 0, 0),
+	GATE(CLK_PCLK_DECON_TV, "pclk_decon_tv", "div_pclk_disp",
+			ENABLE_PCLK_DISP, 1, 0, 0),
+
+	/* ENABLE_SCLK_DISP */
+	GATE(CLK_PHYCLK_MIPIDPHY1_BITCLKDIV8, "phyclk_mipidphy1_bitclkdiv8",
+			"mout_phyclk_mipidphy1_bitclkdiv8_user",
+			ENABLE_SCLK_DISP, 26, 0, 0),
+	GATE(CLK_PHYCLK_MIPIDPHY1_RXCLKESC0, "phyclk_mipidphy1_rxclkesc0",
+			"mout_phyclk_mipidphy1_rxclkesc0_user",
+			ENABLE_SCLK_DISP, 25, 0, 0),
+	GATE(CLK_SCLK_RGB_TV_VCLK_TO_DSIM1, "sclk_rgb_tv_vclk_to_dsim1",
+			"sclk_rgb_tv_vclk", ENABLE_SCLK_DISP, 24, 0, 0),
+	GATE(CLK_SCLK_RGB_TV_VCLK_TO_MIC1, "sclk_rgb_tv_vclk_to_mic1",
+			"sclk_rgb_tv_vclk", ENABLE_SCLK_DISP, 23, 0, 0),
+	GATE(CLK_SCLK_DSIM1, "sclk_dsim1", "div_sclk_dsim1_disp",
+			ENABLE_SCLK_DISP, 22, 0, 0),
+	GATE(CLK_SCLK_DECON_TV_VCLK, "sclk_decon_tv_vclk",
+			"div_sclk_decon_tv_vclk_disp",
+			ENABLE_SCLK_DISP, 21, 0, 0),
+	GATE(CLK_PHYCLK_MIPIDPHY0_BITCLKDIV8, "phyclk_mipidphy0_bitclkdiv8",
+			"mout_phyclk_mipidphy0_bitclkdiv8_user",
+			ENABLE_SCLK_DISP, 15, 0, 0),
+	GATE(CLK_PHYCLK_MIPIDPHY0_RXCLKESC0, "phyclk_mipidphy0_rxclkesc0",
+			"mout_phyclk_mipidphy0_rxclkesc0_user",
+			ENABLE_SCLK_DISP, 14, 0, 0),
+	GATE(CLK_PHYCLK_HDMIPHY_TMDS_CLKO, "phyclk_hdmiphy_tmds_clko",
+			"mout_phyclk_hdmiphy_tmds_clko_user",
+			ENABLE_SCLK_DISP, 13, 0, 0),
+	GATE(CLK_PHYCLK_HDMI_PIXEL, "phyclk_hdmi_pixel",
+			"sclk_rgb_tv_vclk", ENABLE_SCLK_DISP, 12, 0, 0),
+	GATE(CLK_SCLK_RGB_VCLK_TO_SMIES, "sclk_rgb_vclk_to_smies",
+			"sclk_rgb_vclk", ENABLE_SCLK_DISP, 11, 0, 0),
+	GATE(CLK_SCLK_RGB_VCLK_TO_DSIM0, "sclk_rgb_vclk_to_dsim0",
+			"sclk_rgb_vclk", ENABLE_SCLK_DISP, 9, 0, 0),
+	GATE(CLK_SCLK_RGB_VCLK_TO_MIC0, "sclk_rgb_vclk_to_mic0",
+			"sclk_rgb_vclk", ENABLE_SCLK_DISP, 8, 0, 0),
+	GATE(CLK_SCLK_DSD, "sclk_dsd", "mout_sclk_dsd_user",
+			ENABLE_SCLK_DISP, 7, 0, 0),
+	GATE(CLK_SCLK_HDMI_SPDIF, "sclk_hdmi_spdif", "sclk_hdmi_spdif_disp",
+			ENABLE_SCLK_DISP, 6, 0, 0),
+	GATE(CLK_SCLK_DSIM0, "sclk_dsim0", "div_sclk_dsim0_disp",
+			ENABLE_SCLK_DISP, 5, 0, 0),
+	GATE(CLK_SCLK_DECON_TV_ECLK, "sclk_decon_tv_eclk",
+			"div_sclk_decon_tv_eclk_disp",
+			ENABLE_SCLK_DISP, 4, 0, 0),
+	GATE(CLK_SCLK_DECON_VCLK, "sclk_decon_vclk",
+			"div_sclk_decon_vclk_disp", ENABLE_SCLK_DISP, 3, 0, 0),
+	GATE(CLK_SCLK_DECON_ECLK, "sclk_decon_eclk",
+			"div_sclk_decon_eclk_disp", ENABLE_SCLK_DISP, 2, 0, 0),
+};
+
+static struct samsung_cmu_info disp_cmu_info __initdata = {
+	.pll_clks		= disp_pll_clks,
+	.nr_pll_clks		= ARRAY_SIZE(disp_pll_clks),
+	.mux_clks		= disp_mux_clks,
+	.nr_mux_clks		= ARRAY_SIZE(disp_mux_clks),
+	.div_clks		= disp_div_clks,
+	.nr_div_clks		= ARRAY_SIZE(disp_div_clks),
+	.gate_clks		= disp_gate_clks,
+	.nr_gate_clks		= ARRAY_SIZE(disp_gate_clks),
+	.fixed_clks		= disp_fixed_clks,
+	.nr_fixed_clks		= ARRAY_SIZE(disp_fixed_clks),
+	.fixed_factor_clks	= disp_fixed_factor_clks,
+	.nr_fixed_factor_clks	= ARRAY_SIZE(disp_fixed_factor_clks),
+	.nr_clk_ids		= DISP_NR_CLK,
+	.clk_regs		= disp_clk_regs,
+	.nr_clk_regs		= ARRAY_SIZE(disp_clk_regs),
+};
+
+static void __init exynos5433_cmu_disp_init(struct device_node *np)
+{
+	samsung_cmu_register_one(np, &disp_cmu_info);
+}
+
+CLK_OF_DECLARE(exynos5433_cmu_disp, "samsung,exynos5433-cmu-disp",
+		exynos5433_cmu_disp_init);
