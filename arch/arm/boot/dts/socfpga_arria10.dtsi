@@ -376,6 +376,8 @@
 			compatible = "snps,dwc2";
 			reg = <0xffb00000 0xffff>;
 			interrupts = <0 95 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&l4_mp_clk>;
+			clock-names = "otg";
 			phys = <&usbphy0>;
 			phy-names = "usb2-phy";
 			status = "disabled";

@@ -197,3 +197,7 @@
 		bus-width = <1>;
 	};
 };
+
+&usb0 {
+	status = "okay";
+};
