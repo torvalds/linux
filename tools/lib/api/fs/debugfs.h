@@ -21,7 +21,6 @@
 #endif
 
 const char *debugfs_find_mountpoint(void);
-int debugfs_valid_mountpoint(const char *debugfs);
 char *debugfs_mount(const char *mountpoint);
 
 extern char debugfs_mountpoint[];

@@ -20,6 +20,20 @@ static const char * const debugfs_known_mountpoints[] = {
 
 static bool debugfs_found;
 
+/* verify that a mountpoint is actually a debugfs instance */
+
+static int debugfs_valid_mountpoint(const char *debugfs)
+{
+	struct statfs st_fs;
+
+	if (statfs(debugfs, &st_fs) < 0)
+		return -ENOENT;
+	else if ((long)st_fs.f_type != (long)DEBUGFS_MAGIC)
+		return -ENOENT;
+
+	return 0;
+}
+
 /* find the path to the mounted debugfs */
 const char *debugfs_find_mountpoint(void)
 {
@@ -58,20 +72,6 @@ const char *debugfs_find_mountpoint(void)
 	debugfs_found = true;
 
 	return debugfs_mountpoint;
-}
-
-/* verify that a mountpoint is actually a debugfs instance */
-
-int debugfs_valid_mountpoint(const char *debugfs)
-{
-	struct statfs st_fs;
-
-	if (statfs(debugfs, &st_fs) < 0)
-		return -ENOENT;
-	else if ((long)st_fs.f_type != (long)DEBUGFS_MAGIC)
-		return -ENOENT;
-
-	return 0;
 }
 
 /* mount the debugfs somewhere if it's not mounted */
