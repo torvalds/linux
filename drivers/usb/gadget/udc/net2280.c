@@ -80,6 +80,13 @@ static const char *const ep_name[] = {
 	"ep-e", "ep-f", "ep-g", "ep-h",
 };
 
+/* Endpoint names for usb3380 advance mode */
+static const char *const ep_name_adv[] = {
+	ep0name,
+	"ep1in", "ep2out", "ep3in", "ep4out",
+	"ep1out", "ep2in", "ep3out", "ep4in",
+};
+
 /* mode 0 == ep-{a,b,c,d} 1K fifo each
  * mode 1 == ep-{a,b} 2K fifo each, ep-{c,d} unavailable
  * mode 2 == ep-a 2K fifo, ep-{b,c} 1K each, ep-d unavailable
@@ -1977,7 +1984,7 @@ static void usb_reinit_338x(struct net2280 *dev)
 	for (i = 0; i < dev->n_ep; i++) {
 		struct net2280_ep *ep = &dev->ep[i];
 
-		ep->ep.name = ep_name[i];
+		ep->ep.name = dev->enhanced_mode ? ep_name_adv[i] : ep_name[i];
 		ep->dev = dev;
 		ep->num = i;
 
