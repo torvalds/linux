@@ -242,8 +242,7 @@ static int netlbl_mgmt_add_common(struct genl_info *info,
 	return 0;
 
 add_failure:
-	if (cipsov4)
-		cipso_v4_doi_putdef(cipsov4);
+	cipso_v4_doi_putdef(cipsov4);
 	if (entry)
 		kfree(entry->domain);
 	kfree(addrmap);
