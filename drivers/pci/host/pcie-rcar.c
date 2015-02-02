@@ -501,7 +501,7 @@ static int rcar_pcie_hw_init(struct rcar_pcie *pcie)
 
 	/* Enable MSI */
 	if (IS_ENABLED(CONFIG_PCI_MSI))
-		rcar_pci_write_reg(pcie, 0x101f0000, PCIEMSITXR);
+		rcar_pci_write_reg(pcie, 0x801f0000, PCIEMSITXR);
 
 	/* Finish initialization - establish a PCI Express link */
 	rcar_pci_write_reg(pcie, CFINIT, PCIETCTLR);
