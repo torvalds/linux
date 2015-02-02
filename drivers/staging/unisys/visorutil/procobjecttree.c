@@ -25,12 +25,12 @@
  *  need in order to call the callback function that supplies the /proc read
  *  info for that file.
  */
-typedef struct {
+struct proc_dir_entry_context {
 	void (*show_property)(struct seq_file *, void *, int);
 	MYPROCOBJECT *procObject;
 	int propertyIndex;
 
-} PROCDIRENTRYCONTEXT;
+};
 
 /** This describes the attributes of a tree rooted at
  *  <procDirRoot>/<name[0]>/<name[1]>/...
@@ -86,7 +86,7 @@ struct MYPROCOBJECT_Tag {
 
 	/** this is a holding area for the context information that is needed
 	 *  to run the /proc callback function */
-	PROCDIRENTRYCONTEXT *procDirPropertyContexts;
+	struct proc_dir_entry_context *procDirPropertyContexts;
 };
 
 
@@ -254,7 +254,8 @@ MYPROCOBJECT *visor_proc_CreateObject(MYPROCTYPE *type,
 			goto Away;
 	}
 	obj->procDirPropertyContexts =
-		kzalloc((type->nProperties + 1) * sizeof(PROCDIRENTRYCONTEXT),
+		kzalloc((type->nProperties + 1) *
+			sizeof(struct proc_dir_entry_context),
 			GFP_KERNEL | __GFP_NORETRY);
 	if (obj->procDirPropertyContexts == NULL) {
 		ERRDRV("out of memory\n");
@@ -340,7 +341,7 @@ EXPORT_SYMBOL_GPL(visor_proc_DestroyObject);
 
 static int seq_show(struct seq_file *seq, void *offset)
 {
-	PROCDIRENTRYCONTEXT *ctx = (PROCDIRENTRYCONTEXT *)(seq->private);
+	struct proc_dir_entry_context *ctx = seq->private;
 
 	if (ctx == NULL) {
 		ERRDRV("I don't have a freakin' clue...");
