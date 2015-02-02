@@ -2930,16 +2930,34 @@ static int need_this_block(struct stripe_head *sh, struct stripe_head_state *s,
 		 */
 		return 1;
 
+	/* Sometimes neither read-modify-write nor reconstruct-write
+	 * cycles can work.  In those cases we read every block we
+	 * can.  Then the parity-update is certain to have enough to
+	 * work with.
+	 * This can only be a problem when we need to write something,
+	 * and some device has failed.  If either of those tests
+	 * fail we need look no further.
+	 */
+	if (!s->failed || !s->to_write)
+		return 0;
+
+	if (test_bit(R5_Insync, &dev->flags) &&
+	    !test_bit(STRIPE_PREREAD_ACTIVE, &sh->state))
+		/* Pre-reads at not permitted until after short delay
+		 * to gather multiple requests.  However if this
+		 * device is no Insync, the block could only be be computed
+		 * and there is no need to delay that.
+		 */
+		return 0;
 	if (
-	     (sh->raid_conf->level <= 5 && s->failed && fdev[0]->towrite &&
-	      (!test_bit(R5_Insync, &dev->flags) || test_bit(STRIPE_PREREAD_ACTIVE, &sh->state)) &&
+	     (sh->raid_conf->level <= 5 && fdev[0]->towrite &&
 	      !test_bit(R5_OVERWRITE, &fdev[0]->flags)) ||
 	     ((sh->raid_conf->level == 6 ||
 	       sh->sector >= sh->raid_conf->mddev->recovery_cp)
-	      && s->failed && s->to_write &&
+	      &&
 	      (s->to_write - s->non_overwrite <
-	       sh->raid_conf->raid_disks - sh->raid_conf->max_degraded) &&
-	      (!test_bit(R5_Insync, &dev->flags) || test_bit(STRIPE_PREREAD_ACTIVE, &sh->state))))
+	       sh->raid_conf->raid_disks - sh->raid_conf->max_degraded)
+	      ))
 		return 1;
 	return 0;
 }
