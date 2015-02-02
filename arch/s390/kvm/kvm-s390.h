@@ -18,11 +18,9 @@
 #include <linux/hrtimer.h>
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
+#include <asm/facility.h>
 
 typedef int (*intercept_handler_t)(struct kvm_vcpu *vcpu);
-
-/* declare vfacilities extern */
-extern unsigned long *vfacilities;
 
 /* Transactional Memory Execution related macros */
 #define IS_TE_ENABLED(vcpu)	((vcpu->arch.sie_block->ecb & 0x10))
@@ -127,6 +125,12 @@ static inline void kvm_s390_set_psw_cc(struct kvm_vcpu *vcpu, unsigned long cc)
 	vcpu->arch.sie_block->gpsw.mask |= cc << 44;
 }
 
+/* test availability of facility in a kvm intance */
+static inline int test_kvm_facility(struct kvm *kvm, unsigned long nr)
+{
+	return __test_facility(nr, kvm->arch.model.fac->kvm);
+}
+
 /* are cpu states controlled by user space */
 static inline int kvm_s390_user_cpu_state_ctrl(struct kvm *kvm)
 {
@@ -183,7 +187,8 @@ int kvm_s390_vcpu_setup_cmma(struct kvm_vcpu *vcpu);
 void kvm_s390_vcpu_unsetup_cmma(struct kvm_vcpu *vcpu);
 /* is cmma enabled */
 bool kvm_s390_cmma_enabled(struct kvm *kvm);
-int test_vfacility(unsigned long nr);
+unsigned long kvm_s390_fac_list_mask_size(void);
+extern unsigned long kvm_s390_fac_list_mask[];
 
 /* implemented in diag.c */
 int kvm_s390_handle_diag(struct kvm_vcpu *vcpu);

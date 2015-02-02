@@ -506,6 +506,26 @@ struct s390_io_adapter {
 #define MAX_S390_IO_ADAPTERS ((MAX_ISC + 1) * 8)
 #define MAX_S390_ADAPTER_MAPS 256
 
+/* maximum size of facilities and facility mask is 2k bytes */
+#define S390_ARCH_FAC_LIST_SIZE_BYTE (1<<11)
+#define S390_ARCH_FAC_LIST_SIZE_U64 \
+	(S390_ARCH_FAC_LIST_SIZE_BYTE / sizeof(u64))
+#define S390_ARCH_FAC_MASK_SIZE_BYTE S390_ARCH_FAC_LIST_SIZE_BYTE
+#define S390_ARCH_FAC_MASK_SIZE_U64 \
+	(S390_ARCH_FAC_MASK_SIZE_BYTE / sizeof(u64))
+
+struct s390_model_fac {
+	/* facilities used in SIE context */
+	__u64 sie[S390_ARCH_FAC_LIST_SIZE_U64];
+	/* subset enabled by kvm */
+	__u64 kvm[S390_ARCH_FAC_LIST_SIZE_U64];
+};
+
+struct kvm_s390_cpu_model {
+	struct s390_model_fac *fac;
+	struct cpuid cpu_id;
+};
+
 struct kvm_s390_crypto {
 	struct kvm_s390_crypto_cb *crycb;
 	__u32 crycbd;
@@ -536,6 +556,7 @@ struct kvm_arch{
 	int ipte_lock_count;
 	struct mutex ipte_mutex;
 	spinlock_t start_stop_lock;
+	struct kvm_s390_cpu_model model;
 	struct kvm_s390_crypto crypto;
 	u64 epoch;
 };
