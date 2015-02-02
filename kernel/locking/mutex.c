@@ -250,11 +250,11 @@ int mutex_spin_on_owner(struct mutex *lock, struct task_struct *owner)
 	rcu_read_unlock();
 
 	/*
-	 * We break out the loop above on need_resched() and when the
-	 * owner changed, which is a sign for heavy contention. Return
-	 * success only when lock->owner is NULL.
+	 * We break out of the loop above on either need_resched(), when
+	 * the owner is not running, or when the lock owner changed.
+	 * Return success only when the lock owner changed.
 	 */
-	return lock->owner == NULL;
+	return lock->owner != owner;
 }
 
 /*
