@@ -1011,6 +1011,62 @@ drm_mode_validate_size(const struct drm_display_mode *mode,
 }
 EXPORT_SYMBOL(drm_mode_validate_size);
 
+#define MODE_STATUS(status) [MODE_ ## status + 3] = #status
+
+static const char * const drm_mode_status_names[] = {
+	MODE_STATUS(OK),
+	MODE_STATUS(HSYNC),
+	MODE_STATUS(VSYNC),
+	MODE_STATUS(H_ILLEGAL),
+	MODE_STATUS(V_ILLEGAL),
+	MODE_STATUS(BAD_WIDTH),
+	MODE_STATUS(NOMODE),
+	MODE_STATUS(NO_INTERLACE),
+	MODE_STATUS(NO_DBLESCAN),
+	MODE_STATUS(NO_VSCAN),
+	MODE_STATUS(MEM),
+	MODE_STATUS(VIRTUAL_X),
+	MODE_STATUS(VIRTUAL_Y),
+	MODE_STATUS(MEM_VIRT),
+	MODE_STATUS(NOCLOCK),
+	MODE_STATUS(CLOCK_HIGH),
+	MODE_STATUS(CLOCK_LOW),
+	MODE_STATUS(CLOCK_RANGE),
+	MODE_STATUS(BAD_HVALUE),
+	MODE_STATUS(BAD_VVALUE),
+	MODE_STATUS(BAD_VSCAN),
+	MODE_STATUS(HSYNC_NARROW),
+	MODE_STATUS(HSYNC_WIDE),
+	MODE_STATUS(HBLANK_NARROW),
+	MODE_STATUS(HBLANK_WIDE),
+	MODE_STATUS(VSYNC_NARROW),
+	MODE_STATUS(VSYNC_WIDE),
+	MODE_STATUS(VBLANK_NARROW),
+	MODE_STATUS(VBLANK_WIDE),
+	MODE_STATUS(PANEL),
+	MODE_STATUS(INTERLACE_WIDTH),
+	MODE_STATUS(ONE_WIDTH),
+	MODE_STATUS(ONE_HEIGHT),
+	MODE_STATUS(ONE_SIZE),
+	MODE_STATUS(NO_REDUCED),
+	MODE_STATUS(NO_STEREO),
+	MODE_STATUS(UNVERIFIED),
+	MODE_STATUS(BAD),
+	MODE_STATUS(ERROR),
+};
+
+#undef MODE_STATUS
+
+static const char *drm_get_mode_status_name(enum drm_mode_status status)
+{
+	int index = status + 3;
+
+	if (WARN_ON(index < 0 || index >= ARRAY_SIZE(drm_mode_status_names)))
+		return "";
+
+	return drm_mode_status_names[index];
+}
+
 /**
  * drm_mode_prune_invalid - remove invalid modes from mode list
  * @dev: DRM device
@@ -1032,8 +1088,9 @@ void drm_mode_prune_invalid(struct drm_device *dev,
 			list_del(&mode->head);
 			if (verbose) {
 				drm_mode_debug_printmodeline(mode);
-				DRM_DEBUG_KMS("Not using %s mode %d\n",
-					mode->name, mode->status);
+				DRM_DEBUG_KMS("Not using %s mode: %s\n",
+					      mode->name,
+					      drm_get_mode_status_name(mode->status));
 			}
 			drm_mode_destroy(dev, mode);
 		}
