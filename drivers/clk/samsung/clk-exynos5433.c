@@ -245,6 +245,10 @@ PNAME(mout_sclk_audio1_p)	= { "ioclk_audiocdclk1", "oscclk",
 PNAME(mout_sclk_audio0_p)	= { "ioclk_audiocdclk0", "oscclk",
 				    "mout_aud_pll_user_t",};
 
+static struct samsung_fixed_factor_clock top_fixed_factor_clks[] __initdata = {
+	FFACTOR(0, "oscclk_efuse_common", "oscclk", 1, 1, 0),
+};
+
 static struct samsung_fixed_rate_clock top_fixed_clks[] __initdata = {
 	/* Xi2s{0|1}CDCLK input clock for I2S/PCM */
 	FRATE(0, "ioclk_audiocdclk1", NULL, CLK_IS_ROOT, 100000000),
@@ -614,6 +618,8 @@ static struct samsung_cmu_info top_cmu_info __initdata = {
 	.nr_gate_clks		= ARRAY_SIZE(top_gate_clks),
 	.fixed_clks		= top_fixed_clks,
 	.nr_fixed_clks		= ARRAY_SIZE(top_fixed_clks),
+	.fixed_factor_clks	= top_fixed_factor_clks,
+	.nr_fixed_factor_clks	= ARRAY_SIZE(top_fixed_factor_clks),
 	.nr_clk_ids		= TOP_NR_CLK,
 	.clk_regs		= top_clk_regs,
 	.nr_clk_regs		= ARRAY_SIZE(top_clk_regs),
@@ -954,15 +960,69 @@ CLK_OF_DECLARE(exynos5433_cmu_peric, "samsung,exynos5433-cmu-peric",
 /*
  * Register offset definitions for CMU_PERIS
  */
-#define ENABLE_ACLK_PERIS		0x0800
-#define ENABLE_PCLK_PERIS		0x0900
+#define ENABLE_ACLK_PERIS				0x0800
+#define ENABLE_PCLK_PERIS				0x0900
+#define ENABLE_PCLK_PERIS_SECURE_TZPC			0x0904
+#define ENABLE_PCLK_PERIS_SECURE_SECKEY_APBIF		0x0908
+#define ENABLE_PCLK_PERIS_SECURE_CHIPID_APBIF		0x090c
+#define ENABLE_PCLK_PERIS_SECURE_TOPRTC			0x0910
+#define ENABLE_PCLK_PERIS_SECURE_CUSTOM_EFUSE_APBIF	0x0914
+#define ENABLE_PCLK_PERIS_SECURE_ANTIRBK_CNT_APBIF	0x0918
+#define ENABLE_PCLK_PERIS_SECURE_OTP_CON_APBIF		0x091c
+#define ENABLE_SCLK_PERIS				0x0a00
+#define ENABLE_SCLK_PERIS_SECURE_SECKEY			0x0a04
+#define ENABLE_SCLK_PERIS_SECURE_CHIPID			0x0a08
+#define ENABLE_SCLK_PERIS_SECURE_TOPRTC			0x0a0c
+#define ENABLE_SCLK_PERIS_SECURE_CUSTOM_EFUSE		0x0a10
+#define ENABLE_SCLK_PERIS_SECURE_ANTIRBK_CNT		0x0a14
+#define ENABLE_SCLK_PERIS_SECURE_OTP_CON		0x0a18
+#define ENABLE_IP_PERIS0				0x0b00
+#define ENABLE_IP_PERIS1				0x0b04
+#define ENABLE_IP_PERIS_SECURE_TZPC			0x0b08
+#define ENABLE_IP_PERIS_SECURE_SECKEY			0x0b0c
+#define ENABLE_IP_PERIS_SECURE_CHIPID			0x0b10
+#define ENABLE_IP_PERIS_SECURE_TOPRTC			0x0b14
+#define ENABLE_IP_PERIS_SECURE_CUSTOM_EFUSE		0x0b18
+#define ENABLE_IP_PERIS_SECURE_ANTIBRK_CNT		0x0b1c
+#define ENABLE_IP_PERIS_SECURE_OTP_CON			0x0b20
 
 static unsigned long peris_clk_regs[] __initdata = {
 	ENABLE_ACLK_PERIS,
 	ENABLE_PCLK_PERIS,
+	ENABLE_PCLK_PERIS_SECURE_TZPC,
+	ENABLE_PCLK_PERIS_SECURE_SECKEY_APBIF,
+	ENABLE_PCLK_PERIS_SECURE_CHIPID_APBIF,
+	ENABLE_PCLK_PERIS_SECURE_TOPRTC,
+	ENABLE_PCLK_PERIS_SECURE_CUSTOM_EFUSE_APBIF,
+	ENABLE_PCLK_PERIS_SECURE_ANTIRBK_CNT_APBIF,
+	ENABLE_PCLK_PERIS_SECURE_OTP_CON_APBIF,
+	ENABLE_SCLK_PERIS,
+	ENABLE_SCLK_PERIS_SECURE_SECKEY,
+	ENABLE_SCLK_PERIS_SECURE_CHIPID,
+	ENABLE_SCLK_PERIS_SECURE_TOPRTC,
+	ENABLE_SCLK_PERIS_SECURE_CUSTOM_EFUSE,
+	ENABLE_SCLK_PERIS_SECURE_ANTIRBK_CNT,
+	ENABLE_SCLK_PERIS_SECURE_OTP_CON,
+	ENABLE_IP_PERIS0,
+	ENABLE_IP_PERIS1,
+	ENABLE_IP_PERIS_SECURE_TZPC,
+	ENABLE_IP_PERIS_SECURE_SECKEY,
+	ENABLE_IP_PERIS_SECURE_CHIPID,
+	ENABLE_IP_PERIS_SECURE_TOPRTC,
+	ENABLE_IP_PERIS_SECURE_CUSTOM_EFUSE,
+	ENABLE_IP_PERIS_SECURE_ANTIBRK_CNT,
+	ENABLE_IP_PERIS_SECURE_OTP_CON,
 };
 
 static struct samsung_gate_clock peris_gate_clks[] __initdata = {
+	/* ENABLE_ACLK_PERIS */
+	GATE(CLK_ACLK_AHB2APB_PERIS1P, "aclk_ahb2apb_peris1p", "aclk_peris_66",
+			ENABLE_ACLK_PERIS, 2, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_AHB2APB_PERIS0P, "aclk_ahb2apb_peris0p", "aclk_peris_66",
+			ENABLE_ACLK_PERIS, 1, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_PERISNP_66, "aclk_perisnp_66", "aclk_peris_66",
+			ENABLE_ACLK_PERIS, 0, CLK_IGNORE_UNUSED, 0),
+
 	/* ENABLE_PCLK_PERIS */
 	GATE(CLK_PCLK_HPM_APBIF, "pclk_hpm_apbif", "aclk_peris_66",
 			ENABLE_PCLK_PERIS, 30, CLK_IGNORE_UNUSED, 0),
@@ -984,6 +1044,93 @@ static struct samsung_gate_clock peris_gate_clks[] __initdata = {
 			ENABLE_PCLK_PERIS, 15, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_PCLK_HDMI_CEC, "pclk_hdmi_cec", "aclk_peris_66",
 			ENABLE_PCLK_PERIS, 14, CLK_IGNORE_UNUSED, 0),
+
+	/* ENABLE_PCLK_PERIS_SECURE_TZPC */
+	GATE(CLK_PCLK_TZPC12, "pclk_tzpc12", "aclk_peris_66",
+			ENABLE_PCLK_PERIS_SECURE_TZPC, 12, 0, 0),
+	GATE(CLK_PCLK_TZPC11, "pclk_tzpc11", "aclk_peris_66",
+			ENABLE_PCLK_PERIS_SECURE_TZPC, 11, 0, 0),
+	GATE(CLK_PCLK_TZPC10, "pclk_tzpc10", "aclk_peris_66",
+			ENABLE_PCLK_PERIS_SECURE_TZPC, 10, 0, 0),
+	GATE(CLK_PCLK_TZPC9, "pclk_tzpc9", "aclk_peris_66",
+			ENABLE_PCLK_PERIS_SECURE_TZPC, 9, 0, 0),
+	GATE(CLK_PCLK_TZPC8, "pclk_tzpc8", "aclk_peris_66",
+			ENABLE_PCLK_PERIS_SECURE_TZPC, 8, 0, 0),
+	GATE(CLK_PCLK_TZPC7, "pclk_tzpc7", "aclk_peris_66",
+			ENABLE_PCLK_PERIS_SECURE_TZPC, 7, 0, 0),
+	GATE(CLK_PCLK_TZPC6, "pclk_tzpc6", "aclk_peris_66",
+			ENABLE_PCLK_PERIS_SECURE_TZPC, 6, 0, 0),
+	GATE(CLK_PCLK_TZPC5, "pclk_tzpc5", "aclk_peris_66",
+			ENABLE_PCLK_PERIS_SECURE_TZPC, 5, 0, 0),
+	GATE(CLK_PCLK_TZPC4, "pclk_tzpc4", "aclk_peris_66",
+			ENABLE_PCLK_PERIS_SECURE_TZPC, 4, 0, 0),
+	GATE(CLK_PCLK_TZPC3, "pclk_tzpc3", "aclk_peris_66",
+			ENABLE_PCLK_PERIS_SECURE_TZPC, 3, 0, 0),
+	GATE(CLK_PCLK_TZPC2, "pclk_tzpc2", "aclk_peris_66",
+			ENABLE_PCLK_PERIS_SECURE_TZPC, 2, 0, 0),
+	GATE(CLK_PCLK_TZPC1, "pclk_tzpc1", "aclk_peris_66",
+			ENABLE_PCLK_PERIS_SECURE_TZPC, 1, 0, 0),
+	GATE(CLK_PCLK_TZPC0, "pclk_tzpc0", "aclk_peris_66",
+			ENABLE_PCLK_PERIS_SECURE_TZPC, 0, 0, 0),
+
+	/* ENABLE_PCLK_PERIS_SECURE_SECKEY_APBIF */
+	GATE(CLK_PCLK_SECKEY_APBIF, "pclk_seckey_apbif", "aclk_peris_66",
+			ENABLE_PCLK_PERIS_SECURE_SECKEY_APBIF, 0, 0, 0),
+
+	/* ENABLE_PCLK_PERIS_SECURE_CHIPID_APBIF */
+	GATE(CLK_PCLK_CHIPID_APBIF, "pclk_chipid_apbif", "aclk_peris_66",
+			ENABLE_PCLK_PERIS_SECURE_CHIPID_APBIF, 0, 0, 0),
+
+	/* ENABLE_PCLK_PERIS_SECURE_TOPRTC */
+	GATE(CLK_PCLK_TOPRTC, "pclk_toprtc", "aclk_peris_66",
+			ENABLE_PCLK_PERIS_SECURE_TOPRTC, 0, 0, 0),
+
+	/* ENABLE_PCLK_PERIS_SECURE_CUSTOM_EFUSE_APBIF */
+	GATE(CLK_PCLK_CUSTOM_EFUSE_APBIF, "pclk_custom_efuse_apbif",
+			"aclk_peris_66",
+			ENABLE_PCLK_PERIS_SECURE_CUSTOM_EFUSE_APBIF, 0, 0, 0),
+
+	/* ENABLE_PCLK_PERIS_SECURE_ANTIRBK_CNT_APBIF */
+	GATE(CLK_PCLK_ANTIRBK_CNT_APBIF, "pclk_antirbk_cnt_apbif",
+			"aclk_peris_66",
+			ENABLE_PCLK_PERIS_SECURE_ANTIRBK_CNT_APBIF, 0, 0, 0),
+
+	/* ENABLE_PCLK_PERIS_SECURE_OTP_CON_APBIF */
+	GATE(CLK_PCLK_OTP_CON_APBIF, "pclk_otp_con_apbif",
+			"aclk_peris_66",
+			ENABLE_PCLK_PERIS_SECURE_OTP_CON_APBIF, 0, 0, 0),
+
+	/* ENABLE_SCLK_PERIS */
+	GATE(CLK_SCLK_ASV_TB, "sclk_asv_tb", "oscclk_efuse_common",
+			ENABLE_SCLK_PERIS, 10, 0, 0),
+	GATE(CLK_SCLK_TMU1, "sclk_tmu1", "oscclk_efuse_common",
+			ENABLE_SCLK_PERIS, 4, 0, 0),
+	GATE(CLK_SCLK_TMU0, "sclk_tmu0", "oscclk_efuse_common",
+			ENABLE_SCLK_PERIS, 3, 0, 0),
+
+	/* ENABLE_SCLK_PERIS_SECURE_SECKEY */
+	GATE(CLK_SCLK_SECKEY, "sclk_seckey", "oscclk_efuse_common",
+			ENABLE_SCLK_PERIS_SECURE_SECKEY, 0, 0, 0),
+
+	/* ENABLE_SCLK_PERIS_SECURE_CHIPID */
+	GATE(CLK_SCLK_CHIPID, "sclk_chipid", "oscclk_efuse_common",
+			ENABLE_SCLK_PERIS_SECURE_CHIPID, 0, 0, 0),
+
+	/* ENABLE_SCLK_PERIS_SECURE_TOPRTC */
+	GATE(CLK_SCLK_TOPRTC, "sclk_toprtc", "oscclk_efuse_common",
+			ENABLE_SCLK_PERIS_SECURE_TOPRTC, 0, 0, 0),
+
+	/* ENABLE_SCLK_PERIS_SECURE_CUSTOM_EFUSE */
+	GATE(CLK_SCLK_CUSTOM_EFUSE, "sclk_custom_efuse", "oscclk_efuse_common",
+			ENABLE_SCLK_PERIS_SECURE_CUSTOM_EFUSE, 0, 0, 0),
+
+	/* ENABLE_SCLK_PERIS_SECURE_ANTIRBK_CNT */
+	GATE(CLK_SCLK_ANTIRBK_CNT, "sclk_antirbk_cnt", "oscclk_efuse_common",
+			ENABLE_SCLK_PERIS_SECURE_ANTIRBK_CNT, 0, 0, 0),
+
+	/* ENABLE_SCLK_PERIS_SECURE_OTP_CON */
+	GATE(CLK_SCLK_OTP_CON, "sclk_otp_con", "oscclk_efuse_common",
+			ENABLE_SCLK_PERIS_SECURE_OTP_CON, 0, 0, 0),
 };
 
 static struct samsung_cmu_info peris_cmu_info __initdata = {
