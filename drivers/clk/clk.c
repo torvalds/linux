@@ -77,6 +77,9 @@ struct clk_core {
 	struct kref		ref;
 };
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/clk.h>
+
 struct clk {
 	struct clk_core	*core;
 	const char *dev_id;
@@ -492,10 +495,12 @@ static void clk_unprepare_unused_subtree(struct clk_core *clk)
 		return;
 
 	if (clk_core_is_prepared(clk)) {
+		trace_clk_unprepare(clk);
 		if (clk->ops->unprepare_unused)
 			clk->ops->unprepare_unused(clk->hw);
 		else if (clk->ops->unprepare)
 			clk->ops->unprepare(clk->hw);
+		trace_clk_unprepare_complete(clk);
 	}
 }
 
@@ -524,10 +529,12 @@ static void clk_disable_unused_subtree(struct clk_core *clk)
 	 * back to .disable
 	 */
 	if (clk_core_is_enabled(clk)) {
+		trace_clk_disable(clk);
 		if (clk->ops->disable_unused)
 			clk->ops->disable_unused(clk->hw);
 		else if (clk->ops->disable)
 			clk->ops->disable(clk->hw);
+		trace_clk_disable_complete(clk);
 	}
 
 unlock_out:
@@ -907,9 +914,12 @@ static void clk_core_unprepare(struct clk_core *clk)
 
 	WARN_ON(clk->enable_count > 0);
 
+	trace_clk_unprepare(clk);
+
 	if (clk->ops->unprepare)
 		clk->ops->unprepare(clk->hw);
 
+	trace_clk_unprepare_complete(clk);
 	clk_core_unprepare(clk->parent);
 }
 
@@ -947,12 +957,16 @@ static int clk_core_prepare(struct clk_core *clk)
 		if (ret)
 			return ret;
 
-		if (clk->ops->prepare) {
+		trace_clk_prepare(clk);
+
+		if (clk->ops->prepare)
 			ret = clk->ops->prepare(clk->hw);
-			if (ret) {
-				clk_core_unprepare(clk->parent);
-				return ret;
-			}
+
+		trace_clk_prepare_complete(clk);
+
+		if (ret) {
+			clk_core_unprepare(clk->parent);
+			return ret;
 		}
 	}
 
@@ -999,8 +1013,12 @@ static void clk_core_disable(struct clk_core *clk)
 	if (--clk->enable_count > 0)
 		return;
 
+	trace_clk_disable(clk);
+
 	if (clk->ops->disable)
 		clk->ops->disable(clk->hw);
+
+	trace_clk_disable_complete(clk);
 
 	clk_core_disable(clk->parent);
 }
@@ -1054,12 +1072,16 @@ static int clk_core_enable(struct clk_core *clk)
 		if (ret)
 			return ret;
 
-		if (clk->ops->enable) {
+		trace_clk_enable(clk);
+
+		if (clk->ops->enable)
 			ret = clk->ops->enable(clk->hw);
-			if (ret) {
-				clk_core_disable(clk->parent);
-				return ret;
-			}
+
+		trace_clk_enable_complete(clk);
+
+		if (ret) {
+			clk_core_disable(clk->parent);
+			return ret;
 		}
 	}
 
@@ -1490,9 +1512,13 @@ static int __clk_set_parent(struct clk_core *clk, struct clk_core *parent,
 
 	old_parent = __clk_set_parent_before(clk, parent);
 
+	trace_clk_set_parent(clk, parent);
+
 	/* change clock input source */
 	if (parent && clk->ops->set_parent)
 		ret = clk->ops->set_parent(clk->hw, p_index);
+
+	trace_clk_set_parent_complete(clk, parent);
 
 	if (ret) {
 		flags = clk_enable_lock();
@@ -1719,6 +1745,7 @@ static void clk_change_rate(struct clk_core *clk)
 
 	if (clk->new_parent && clk->new_parent != clk->parent) {
 		old_parent = __clk_set_parent_before(clk, clk->new_parent);
+		trace_clk_set_parent(clk, clk->new_parent);
 
 		if (clk->ops->set_rate_and_parent) {
 			skip_set_rate = true;
@@ -1729,11 +1756,16 @@ static void clk_change_rate(struct clk_core *clk)
 			clk->ops->set_parent(clk->hw, clk->new_parent_index);
 		}
 
+		trace_clk_set_parent_complete(clk, clk->new_parent);
 		__clk_set_parent_after(clk, clk->new_parent, old_parent);
 	}
 
+	trace_clk_set_rate(clk, clk->new_rate);
+
 	if (!skip_set_rate && clk->ops->set_rate)
 		clk->ops->set_rate(clk->hw, clk->new_rate, best_parent_rate);
+
+	trace_clk_set_rate_complete(clk, clk->new_rate);
 
 	clk->rate = clk_recalc(clk, best_parent_rate);
 
@@ -2135,8 +2167,12 @@ int clk_set_phase(struct clk *clk, int degrees)
 
 	clk_prepare_lock();
 
+	trace_clk_set_phase(clk->core, degrees);
+
 	if (clk->core->ops->set_phase)
 		ret = clk->core->ops->set_phase(clk->core->hw, degrees);
+
+	trace_clk_set_phase_complete(clk->core, degrees);
 
 	if (!ret)
 		clk->core->phase = degrees;
