@@ -2902,6 +2902,7 @@ static int need_this_block(struct stripe_head *sh, struct stripe_head_state *s,
 	struct r5dev *dev = &sh->dev[disk_idx];
 	struct r5dev *fdev[2] = { &sh->dev[s->failed_num[0]],
 				  &sh->dev[s->failed_num[1]] };
+	int i;
 
 
 	if (test_bit(R5_LOCKED, &dev->flags) ||
@@ -2949,16 +2950,37 @@ static int need_this_block(struct stripe_head *sh, struct stripe_head_state *s,
 		 * and there is no need to delay that.
 		 */
 		return 0;
-	if (
-	     (sh->raid_conf->level <= 5 && fdev[0]->towrite &&
-	      !test_bit(R5_OVERWRITE, &fdev[0]->flags)) ||
-	     ((sh->raid_conf->level == 6 ||
-	       sh->sector >= sh->raid_conf->mddev->recovery_cp)
-	      &&
-	      (s->to_write - s->non_overwrite <
-	       sh->raid_conf->raid_disks - sh->raid_conf->max_degraded)
-	      ))
-		return 1;
+
+	for (i = 0; i < s->failed; i++) {
+		if (fdev[i]->towrite &&
+		    !test_bit(R5_UPTODATE, &fdev[i]->flags) &&
+		    !test_bit(R5_OVERWRITE, &fdev[i]->flags))
+			/* If we have a partial write to a failed
+			 * device, then we will need to reconstruct
+			 * the content of that device, so all other
+			 * devices must be read.
+			 */
+			return 1;
+	}
+
+	/* If we are forced to do a reconstruct-write, either because
+	 * the current RAID6 implementation only supports that, or
+	 * or because parity cannot be trusted and we are currently
+	 * recovering it, there is extra need to be careful.
+	 * If one of the devices that we would need to read, because
+	 * it is not being overwritten (and maybe not written at all)
+	 * is missing/faulty, then we need to read everything we can.
+	 */
+	if (sh->raid_conf->level != 6 &&
+	    sh->sector < sh->raid_conf->mddev->recovery_cp)
+		/* reconstruct-write isn't being forced */
+		return 0;
+	for (i = 0; i < s->failed; i++) {
+		if (!test_bit(R5_UPTODATE, &fdev[i]->flags) &&
+		    !test_bit(R5_OVERWRITE, &fdev[i]->flags))
+			return 1;
+	}
+
 	return 0;
 }
 
