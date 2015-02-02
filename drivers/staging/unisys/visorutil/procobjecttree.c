@@ -260,9 +260,9 @@ MYPROCOBJECT *visor_proc_CreateObject(MYPROCTYPE *type,
 		ERRDRV("out of memory\n");
 		goto Away;
 	}
-	obj->procDirProperties =
-		kzalloc((type->nProperties + 1) * sizeof(struct proc_dir_entry *),
-			GFP_KERNEL | __GFP_NORETRY);
+	obj->procDirProperties = kzalloc((type->nProperties + 1) *
+					 sizeof(struct proc_dir_entry *),
+					 GFP_KERNEL | __GFP_NORETRY);
 	if (obj->procDirProperties == NULL) {
 		ERRDRV("out of memory\n");
 		goto Away;
@@ -276,8 +276,8 @@ MYPROCOBJECT *visor_proc_CreateObject(MYPROCTYPE *type,
 			/* only create properties that have names */
 			obj->procDirProperties[i] =
 				createProcFile(type->propertyNames[i],
-					       obj->procDir, &proc_fops,
-					       &obj->procDirPropertyContexts[i]);
+					obj->procDir, &proc_fops,
+					&obj->procDirPropertyContexts[i]);
 			if (obj->procDirProperties[i] == NULL) {
 				rc = NULL;
 				goto Away;
