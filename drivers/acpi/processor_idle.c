@@ -785,10 +785,6 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 	if (acpi_idle_fallback_to_c1(pr))
 		return acpi_idle_enter_c1(dev, drv, CPUIDLE_DRIVER_STATE_START);
 
-	/*
-	 * Must be done before busmaster disable as we might need to
-	 * access HPET !
-	 */
 	lapic_timer_state_broadcast(pr, cx, 1);
 
 	if (cx->type == ACPI_STATE_C3)
