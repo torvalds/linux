@@ -117,31 +117,30 @@ bool acpi_dev_resource_memory(struct acpi_resource *ares, struct resource *res)
 }
 EXPORT_SYMBOL_GPL(acpi_dev_resource_memory);
 
-static unsigned int acpi_dev_ioresource_flags(u64 start, u64 end, u8 io_decode,
-					      bool window)
+static void acpi_dev_ioresource_flags(struct resource *res, u64 len,
+				      u8 io_decode, bool window)
 {
-	int flags = IORESOURCE_IO;
+	res->flags = IORESOURCE_IO;
+
+	if (!acpi_dev_resource_len_valid(res->start, res->end, len, true))
+		res->flags |= IORESOURCE_DISABLED;
+
+	if (res->end >= 0x10003)
+		res->flags |= IORESOURCE_DISABLED;
 
 	if (io_decode == ACPI_DECODE_16)
-		flags |= IORESOURCE_IO_16BIT_ADDR;
-
-	if (start > end || end >= 0x10003)
-		flags |= IORESOURCE_DISABLED;
+		res->flags |= IORESOURCE_IO_16BIT_ADDR;
 
 	if (window)
-		flags |= IORESOURCE_WINDOW;
-
-	return flags;
+		res->flags |= IORESOURCE_WINDOW;
 }
 
 static void acpi_dev_get_ioresource(struct resource *res, u64 start, u64 len,
 				    u8 io_decode)
 {
-	u64 end = start + len - 1;
-
 	res->start = start;
-	res->end = end;
-	res->flags = acpi_dev_ioresource_flags(start, end, io_decode, false);
+	res->end = start + len - 1;
+	acpi_dev_ioresource_flags(res, len, io_decode, false);
 }
 
 /**
@@ -161,16 +160,12 @@ bool acpi_dev_resource_io(struct acpi_resource *ares, struct resource *res)
 	switch (ares->type) {
 	case ACPI_RESOURCE_TYPE_IO:
 		io = &ares->data.io;
-		if (!io->minimum && !io->address_length)
-			return false;
 		acpi_dev_get_ioresource(res, io->minimum,
 					io->address_length,
 					io->io_decode);
 		break;
 	case ACPI_RESOURCE_TYPE_FIXED_IO:
 		fixed_io = &ares->data.fixed_io;
-		if (!fixed_io->address && !fixed_io->address_length)
-			return false;
 		acpi_dev_get_ioresource(res, fixed_io->address,
 					fixed_io->address_length,
 					ACPI_DECODE_10);
@@ -178,7 +173,8 @@ bool acpi_dev_resource_io(struct acpi_resource *ares, struct resource *res)
 	default:
 		return false;
 	}
-	return true;
+
+	return !(res->flags & IORESOURCE_DISABLED);
 }
 EXPORT_SYMBOL_GPL(acpi_dev_resource_io);
 
@@ -216,9 +212,8 @@ bool acpi_dev_resource_address_space(struct acpi_resource *ares,
 	case ACPI_IO_RANGE:
 		io_decode = addr.address.granularity == 0xfff ?
 				ACPI_DECODE_10 : ACPI_DECODE_16;
-		res->flags = acpi_dev_ioresource_flags(addr.address.minimum,
-						       addr.address.maximum,
-						       io_decode, window);
+		acpi_dev_ioresource_flags(res, addr.address.address_length,
+					  io_decode, window);
 		break;
 	case ACPI_BUS_NUMBER_RANGE:
 		res->flags = IORESOURCE_BUS;
@@ -266,9 +261,8 @@ bool acpi_dev_resource_ext_address_space(struct acpi_resource *ares,
 	case ACPI_IO_RANGE:
 		io_decode = ext_addr->address.granularity == 0xfff ?
 				ACPI_DECODE_10 : ACPI_DECODE_16;
-		res->flags = acpi_dev_ioresource_flags(ext_addr->address.minimum,
-						       ext_addr->address.maximum,
-						       io_decode, window);
+		acpi_dev_ioresource_flags(res, ext_addr->address.address_length,
+					  io_decode, window);
 		break;
 	case ACPI_BUS_NUMBER_RANGE:
 		res->flags = IORESOURCE_BUS;
