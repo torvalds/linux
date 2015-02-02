@@ -265,7 +265,7 @@ static ssize_t dio_complete(struct dio *dio, loff_t offset, ssize_t ret,
 				ret = err;
 		}
 
-		aio_complete(dio->iocb, ret, 0);
+		dio->iocb->ki_complete(dio->iocb, ret, 0);
 	}
 
 	kmem_cache_free(dio_cache, dio);
@@ -1056,7 +1056,7 @@ static inline int drop_refcount(struct dio *dio)
 	 * operation.  AIO can if it was a broken operation described above or
 	 * in fact if all the bios race to complete before we get here.  In
 	 * that case dio_complete() translates the EIOCBQUEUED into the proper
-	 * return code that the caller will hand to aio_complete().
+	 * return code that the caller will hand to ->complete().
 	 *
 	 * This is managed by the bio_lock instead of being an atomic_t so that
 	 * completion paths can drop their ref and use the remaining count to

@@ -469,7 +469,7 @@ static void ep_user_copy_worker(struct work_struct *work)
 		ret = -EFAULT;
 
 	/* completing the iocb can drop the ctx and mm, don't touch mm after */
-	aio_complete(iocb, ret, ret);
+	iocb->ki_complete(iocb, ret, ret);
 
 	kfree(priv->buf);
 	kfree(priv->to_free);
@@ -497,7 +497,8 @@ static void ep_aio_complete(struct usb_ep *ep, struct usb_request *req)
 		kfree(priv);
 		iocb->private = NULL;
 		/* aio_complete() reports bytes-transferred _and_ faults */
-		aio_complete(iocb, req->actual ? req->actual : req->status,
+
+		iocb->ki_complete(iocb, req->actual ? req->actual : req->status,
 				req->status);
 	} else {
 		/* ep_copy_to_user() won't report both; we hide some faults */

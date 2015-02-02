@@ -584,7 +584,7 @@ static void fuse_aio_complete(struct fuse_io_priv *io, int err, ssize_t pos)
 			spin_unlock(&fc->lock);
 		}
 
-		aio_complete(io->iocb, res, 0);
+		io->iocb->ki_complete(io->iocb, res, 0);
 		kfree(io);
 	}
 }
