@@ -1583,7 +1583,7 @@ err_v4l2:
 	usb_set_intfdata(interface, NULL);
 err_if:
 	usb_put_dev(udev);
-	clear_bit(dev->devno, &cx231xx_devused);
+	clear_bit(nr, &cx231xx_devused);
 	return retval;
 }
 
