@@ -198,6 +198,9 @@ static int ec_device_probe(struct platform_device *pdev)
 		return retval;
 	}
 
+	/* Initialize extra interfaces */
+	ec_dev_sysfs_init(ec);
+
 	return 0;
 }
 
@@ -205,6 +208,7 @@ static int ec_device_remove(struct platform_device *pdev)
 {
 	struct cros_ec_device *ec = dev_get_drvdata(pdev->dev.parent);
 
+	ec_dev_sysfs_remove(ec);
 	device_destroy(cros_class, MKDEV(ec_major, 0));
 	cdev_del(&ec->cdev);
 	return 0;
