@@ -7262,6 +7262,21 @@ static bool eir_has_uuids(u8 *eir, u16 eir_len, u16 uuid_count, u8 (*uuids)[16])
 	return false;
 }
 
+static void restart_le_scan(struct hci_dev *hdev)
+{
+	/* If controller is not scanning we are done. */
+	if (!test_bit(HCI_LE_SCAN, &hdev->dev_flags))
+		return;
+
+	if (time_after(jiffies + DISCOV_LE_RESTART_DELAY,
+		       hdev->discovery.scan_start +
+		       hdev->discovery.scan_duration))
+		return;
+
+	queue_delayed_work(hdev->workqueue, &hdev->le_scan_restart,
+			   DISCOV_LE_RESTART_DELAY);
+}
+
 void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		       u8 addr_type, u8 *dev_class, s8 rssi, u32 flags,
 		       u8 *eir, u16 eir_len, u8 *scan_rsp, u8 scan_rsp_len)
@@ -7284,14 +7299,18 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 
 	/* When using service discovery with a RSSI threshold, then check
 	 * if such a RSSI threshold is specified. If a RSSI threshold has
-	 * been specified, then all results with a RSSI smaller than the
-	 * RSSI threshold will be dropped.
+	 * been specified, and HCI_QUIRK_STRICT_DUPLICATE_FILTER is not set,
+	 * then all results with a RSSI smaller than the RSSI threshold will be
+	 * dropped. If the quirk is set, let it through for further processing,
+	 * as we might need to restart the scan.
 	 *
 	 * For BR/EDR devices (pre 1.2) providing no RSSI during inquiry,
 	 * the results are also dropped.
 	 */
 	if (hdev->discovery.rssi != HCI_RSSI_INVALID &&
-	    (rssi < hdev->discovery.rssi || rssi == HCI_RSSI_INVALID))
+	    (rssi == HCI_RSSI_INVALID ||
+	    (rssi < hdev->discovery.rssi &&
+	     !test_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks))))
 		return;
 
 	/* Make sure that the buffer is big enough. The 5 extra bytes
@@ -7326,12 +7345,20 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		 * kept and checking possible scan response data
 		 * will be skipped.
 		 */
-		if (hdev->discovery.uuid_count > 0)
+		if (hdev->discovery.uuid_count > 0) {
 			match = eir_has_uuids(eir, eir_len,
 					      hdev->discovery.uuid_count,
 					      hdev->discovery.uuids);
-		else
+			/* If duplicate filtering does not report RSSI changes,
+			 * then restart scanning to ensure updated result with
+			 * updated RSSI values.
+			 */
+			if (match && test_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER,
+					      &hdev->quirks))
+				restart_le_scan(hdev);
+		} else {
 			match = true;
+		}
 
 		if (!match && !scan_rsp_len)
 			return;
@@ -7364,6 +7391,14 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 						     hdev->discovery.uuid_count,
 						     hdev->discovery.uuids))
 				return;
+
+			/* If duplicate filtering does not report RSSI changes,
+			 * then restart scanning to ensure updated result with
+			 * updated RSSI values.
+			 */
+			if (test_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER,
+				     &hdev->quirks))
+				restart_le_scan(hdev);
 		}
 
 		/* Append scan response data to event */
@@ -7376,6 +7411,14 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		if (hdev->discovery.uuid_count > 0 && !match)
 			return;
 	}
+
+	/* Validate the reported RSSI value against the RSSI threshold once more
+	 * incase HCI_QUIRK_STRICT_DUPLICATE_FILTER forced a restart of LE
+	 * scanning.
+	 */
+	if (hdev->discovery.rssi != HCI_RSSI_INVALID &&
+	    rssi < hdev->discovery.rssi)
+		return;
 
 	ev->eir_len = cpu_to_le16(eir_len + scan_rsp_len);
 	ev_size = sizeof(*ev) + eir_len + scan_rsp_len;
