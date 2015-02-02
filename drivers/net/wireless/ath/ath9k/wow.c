@@ -16,9 +16,16 @@
 
 #include "ath9k.h"
 
-static const struct wiphy_wowlan_support ath9k_wowlan_support = {
+static const struct wiphy_wowlan_support ath9k_wowlan_support_legacy = {
 	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT,
 	.n_patterns = MAX_NUM_USER_PATTERN,
+	.pattern_min_len = 1,
+	.pattern_max_len = MAX_PATTERN_SIZE,
+};
+
+static const struct wiphy_wowlan_support ath9k_wowlan_support = {
+	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT,
+	.n_patterns = MAX_NUM_PATTERN - 2,
 	.pattern_min_len = 1,
 	.pattern_max_len = MAX_PATTERN_SIZE,
 };
@@ -320,9 +327,14 @@ void ath9k_set_wakeup(struct ieee80211_hw *hw, bool enabled)
 void ath9k_init_wow(struct ieee80211_hw *hw)
 {
 	struct ath_softc *sc = hw->priv;
+	struct ath_hw *ah = sc->sc_ah;
 
 	if ((sc->driver_data & ATH9K_PCI_WOW) || sc->force_wow) {
-		hw->wiphy->wowlan = &ath9k_wowlan_support;
+		if (AR_SREV_9462_20_OR_LATER(ah) || AR_SREV_9565_11_OR_LATER(ah))
+			hw->wiphy->wowlan = &ath9k_wowlan_support;
+		else
+			hw->wiphy->wowlan = &ath9k_wowlan_support_legacy;
+
 		device_init_wakeup(sc->dev, 1);
 	}
 }
