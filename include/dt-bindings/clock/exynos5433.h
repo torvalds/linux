@@ -1,0 +1,199 @@
+/*
+ * Copyright (c) 2014 Samsung Electronics Co., Ltd.
+ * Author: Chanwoo Choi <cw00.choi@samsung.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#ifndef _DT_BINDINGS_CLOCK_EXYNOS5433_H
+#define _DT_BINDINGS_CLOCK_EXYNOS5433_H
+
+/* CMU_TOP */
+#define CLK_FOUT_ISP_PLL		1
+#define CLK_FOUT_AUD_PLL		2
+
+#define CLK_MOUT_AUD_PLL		10
+#define CLK_MOUT_ISP_PLL		11
+#define CLK_MOUT_AUD_PLL_USER_T		12
+#define CLK_MOUT_MPHY_PLL_USER		13
+#define CLK_MOUT_MFC_PLL_USER		14
+#define CLK_MOUT_BUS_PLL_USER		15
+#define CLK_MOUT_ACLK_HEVC_400		16
+#define CLK_MOUT_ACLK_CAM1_333		17
+#define CLK_MOUT_ACLK_CAM1_552_B	18
+#define CLK_MOUT_ACLK_CAM1_552_A	19
+#define CLK_MOUT_ACLK_ISP_DIS_400	20
+#define CLK_MOUT_ACLK_ISP_400		21
+#define CLK_MOUT_ACLK_BUS0_400		22
+#define CLK_MOUT_ACLK_MSCL_400_B	23
+#define CLK_MOUT_ACLK_MSCL_400_A	24
+#define CLK_MOUT_ACLK_GSCL_333		25
+#define CLK_MOUT_ACLK_G2D_400_B		26
+#define CLK_MOUT_ACLK_G2D_400_A		27
+#define CLK_MOUT_SCLK_JPEG_C		28
+#define CLK_MOUT_SCLK_JPEG_B		29
+#define CLK_MOUT_SCLK_JPEG_A		30
+#define CLK_MOUT_SCLK_MMC2_B		31
+#define CLK_MOUT_SCLK_MMC2_A		32
+#define CLK_MOUT_SCLK_MMC1_B		33
+#define CLK_MOUT_SCLK_MMC1_A		34
+#define CLK_MOUT_SCLK_MMC0_D		35
+#define CLK_MOUT_SCLK_MMC0_C		36
+#define CLK_MOUT_SCLK_MMC0_B		37
+#define CLK_MOUT_SCLK_MMC0_A		38
+#define CLK_MOUT_SCLK_SPI4		39
+#define CLK_MOUT_SCLK_SPI3		40
+#define CLK_MOUT_SCLK_UART2		41
+#define CLK_MOUT_SCLK_UART1		42
+#define CLK_MOUT_SCLK_UART0		43
+#define CLK_MOUT_SCLK_SPI2		44
+#define CLK_MOUT_SCLK_SPI1		45
+#define CLK_MOUT_SCLK_SPI0		46
+
+#define CLK_DIV_ACLK_FSYS_200		100
+#define CLK_DIV_ACLK_IMEM_SSSX_266	101
+#define CLK_DIV_ACLK_IMEM_200		102
+#define CLK_DIV_ACLK_IMEM_266		103
+#define CLK_DIV_ACLK_PERIC_66_B		104
+#define CLK_DIV_ACLK_PERIC_66_A		105
+#define CLK_DIV_ACLK_PERIS_66_B		106
+#define CLK_DIV_ACLK_PERIS_66_A		107
+#define CLK_DIV_SCLK_MMC1_B		108
+#define CLK_DIV_SCLK_MMC1_A		109
+#define CLK_DIV_SCLK_MMC0_B		110
+#define CLK_DIV_SCLK_MMC0_A		111
+#define CLK_DIV_SCLK_MMC2_B		112
+#define CLK_DIV_SCLK_MMC2_A		113
+#define CLK_DIV_SCLK_SPI1_B		114
+#define CLK_DIV_SCLK_SPI1_A		115
+#define CLK_DIV_SCLK_SPI0_B		116
+#define CLK_DIV_SCLK_SPI0_A		117
+#define CLK_DIV_SCLK_SPI2_B		118
+#define CLK_DIV_SCLK_SPI2_A		119
+#define CLK_DIV_SCLK_UART2		120
+#define CLK_DIV_SCLK_UART1		121
+#define CLK_DIV_SCLK_UART0		122
+#define CLK_DIV_SCLK_SPI4_B		123
+#define CLK_DIV_SCLK_SPI4_A		124
+#define CLK_DIV_SCLK_SPI3_B		125
+#define CLK_DIV_SCLK_SPI3_A		126
+
+#define CLK_ACLK_PERIC_66		200
+#define CLK_ACLK_PERIS_66		201
+#define CLK_ACLK_FSYS_200		202
+#define CLK_SCLK_MMC2_FSYS		203
+#define CLK_SCLK_MMC1_FSYS		204
+#define CLK_SCLK_MMC0_FSYS		205
+#define CLK_SCLK_SPI4_PERIC		206
+#define CLK_SCLK_SPI3_PERIC		207
+#define CLK_SCLK_UART2_PERIC		208
+#define CLK_SCLK_UART1_PERIC		209
+#define CLK_SCLK_UART0_PERIC		210
+#define CLK_SCLK_SPI2_PERIC		211
+#define CLK_SCLK_SPI1_PERIC		212
+#define CLK_SCLK_SPI0_PERIC		213
+
+#define TOP_NR_CLK			214
+
+/* CMU_CPIF */
+#define CLK_FOUT_MPHY_PLL		1
+
+#define CLK_MOUT_MPHY_PLL		2
+
+#define CLK_DIV_SCLK_MPHY		10
+
+#define CLK_SCLK_MPHY_PLL		11
+#define CLK_SCLK_UFS_MPHY		11
+
+#define CPIF_NR_CLK			12
+
+/* CMU_MIF */
+#define CLK_FOUT_MEM0_PLL		1
+#define CLK_FOUT_MEM1_PLL		2
+#define CLK_FOUT_BUS_PLL		3
+#define CLK_FOUT_MFC_PLL		4
+
+#define MIF_NR_CLK			5
+
+/* CMU_PERIC */
+#define CLK_PCLK_SPI2			1
+#define CLK_PCLK_SPI1			2
+#define CLK_PCLK_SPI0			3
+#define CLK_PCLK_UART2			4
+#define CLK_PCLK_UART1			5
+#define CLK_PCLK_UART0			6
+#define CLK_PCLK_HSI2C3			7
+#define CLK_PCLK_HSI2C2			8
+#define CLK_PCLK_HSI2C1			9
+#define CLK_PCLK_HSI2C0			10
+#define CLK_PCLK_I2C7			11
+#define CLK_PCLK_I2C6			12
+#define CLK_PCLK_I2C5			13
+#define CLK_PCLK_I2C4			14
+#define CLK_PCLK_I2C3			15
+#define CLK_PCLK_I2C2			16
+#define CLK_PCLK_I2C1			17
+#define CLK_PCLK_I2C0			18
+#define CLK_PCLK_SPI4			19
+#define CLK_PCLK_SPI3			20
+#define CLK_PCLK_HSI2C11		21
+#define CLK_PCLK_HSI2C10		22
+#define CLK_PCLK_HSI2C9			23
+#define CLK_PCLK_HSI2C8			24
+#define CLK_PCLK_HSI2C7			25
+#define CLK_PCLK_HSI2C6			26
+#define CLK_PCLK_HSI2C5			27
+#define CLK_PCLK_HSI2C4			28
+#define CLK_SCLK_SPI4			29
+#define CLK_SCLK_SPI3			30
+#define CLK_SCLK_SPI2			31
+#define CLK_SCLK_SPI1			32
+#define CLK_SCLK_SPI0			33
+#define CLK_SCLK_UART2			34
+#define CLK_SCLK_UART1			35
+#define CLK_SCLK_UART0			36
+
+#define PERIC_NR_CLK			37
+
+/* CMU_PERIS */
+#define CLK_PCLK_HPM_APBIF		1
+#define CLK_PCLK_TMU1_APBIF		2
+#define CLK_PCLK_TMU0_APBIF		3
+#define CLK_PCLK_PMU_PERIS		4
+#define CLK_PCLK_SYSREG_PERIS		5
+#define CLK_PCLK_CMU_TOP_APBIF		6
+#define CLK_PCLK_WDT_APOLLO		7
+#define CLK_PCLK_WDT_ATLAS		8
+#define CLK_PCLK_MCT			9
+#define CLK_PCLK_HDMI_CEC		10
+
+#define PERIS_NR_CLK			11
+
+/* CMU_FSYS */
+#define CLK_MOUT_ACLK_FSYS_200_USER	1
+#define CLK_MOUT_SCLK_MMC2_USER		2
+#define CLK_MOUT_SCLK_MMC1_USER		3
+#define CLK_MOUT_SCLK_MMC0_USER		4
+
+#define CLK_ACLK_PCIE			50
+#define CLK_ACLK_PDMA1			51
+#define CLK_ACLK_TSI			52
+#define CLK_ACLK_MMC2			53
+#define CLK_ACLK_MMC1			54
+#define CLK_ACLK_MMC0			55
+#define CLK_ACLK_UFS			56
+#define CLK_ACLK_USBHOST20		57
+#define CLK_ACLK_USBHOST30		58
+#define CLK_ACLK_USBDRD30		59
+#define CLK_ACLK_PDMA0			60
+#define CLK_SCLK_MMC2			61
+#define CLK_SCLK_MMC1			62
+#define CLK_SCLK_MMC0			63
+#define CLK_PDMA1			64
+#define CLK_PDMA0			65
+
+#define FSYS_NR_CLK			66
+
+#endif /* _DT_BINDINGS_CLOCK_EXYNOS5433_H */
