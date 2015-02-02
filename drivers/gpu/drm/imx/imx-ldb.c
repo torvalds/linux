@@ -163,24 +163,24 @@ static void imx_ldb_encoder_prepare(struct drm_encoder *encoder)
 {
 	struct imx_ldb_channel *imx_ldb_ch = enc_to_imx_ldb_ch(encoder);
 	struct imx_ldb *ldb = imx_ldb_ch->ldb;
-	u32 pixel_fmt;
+	u32 bus_format;
 
 	switch (imx_ldb_ch->chno) {
 	case 0:
-		pixel_fmt = (ldb->ldb_ctrl & LDB_DATA_WIDTH_CH0_24) ?
+		bus_format = (ldb->ldb_ctrl & LDB_DATA_WIDTH_CH0_24) ?
 			MEDIA_BUS_FMT_RGB888_1X24 : MEDIA_BUS_FMT_RGB666_1X18;
 		break;
 	case 1:
-		pixel_fmt = (ldb->ldb_ctrl & LDB_DATA_WIDTH_CH1_24) ?
+		bus_format = (ldb->ldb_ctrl & LDB_DATA_WIDTH_CH1_24) ?
 			MEDIA_BUS_FMT_RGB888_1X24 : MEDIA_BUS_FMT_RGB666_1X18;
 		break;
 	default:
 		dev_err(ldb->dev, "unable to config di%d panel format\n",
 			imx_ldb_ch->chno);
-		pixel_fmt = MEDIA_BUS_FMT_RGB888_1X24;
+		bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 	}
 
-	imx_drm_panel_format(encoder, pixel_fmt);
+	imx_drm_set_bus_format(encoder, bus_format);
 }
 
 static void imx_ldb_encoder_commit(struct drm_encoder *encoder)
