@@ -1857,6 +1857,7 @@ static struct platform_driver samsung_serial_driver = {
 
 module_platform_driver(samsung_serial_driver);
 
+#ifdef CONFIG_SERIAL_SAMSUNG_CONSOLE
 /*
  * Early console.
  */
@@ -1959,6 +1960,7 @@ OF_EARLYCON_DECLARE(exynos4210, "samsung,exynos4210-uart",
 			s5pv210_early_console_setup);
 EARLYCON_DECLARE(s5pv210, s5pv210_early_console_setup);
 EARLYCON_DECLARE(exynos4210, s5pv210_early_console_setup);
+#endif
 
 MODULE_ALIAS("platform:samsung-uart");
 MODULE_DESCRIPTION("Samsung SoC Serial port driver");
