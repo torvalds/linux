@@ -80,6 +80,11 @@ static void acpi_dev_get_memresource(struct resource *res, u64 start, u64 len,
  * Check if the given ACPI resource object represents a memory resource and
  * if that's the case, use the information in it to populate the generic
  * resource object pointed to by @res.
+ *
+ * Return:
+ * 1) false with res->flags setting to zero: not the expected resource type
+ * 2) false with IORESOURCE_DISABLED in res->flags: valid unassigned resource
+ * 3) true: valid assigned resource
  */
 bool acpi_dev_resource_memory(struct acpi_resource *ares, struct resource *res)
 {
@@ -107,6 +112,7 @@ bool acpi_dev_resource_memory(struct acpi_resource *ares, struct resource *res)
 					 fixed_memory32->write_protect);
 		break;
 	default:
+		res->flags = 0;
 		return false;
 	}
 
@@ -145,6 +151,11 @@ static void acpi_dev_get_ioresource(struct resource *res, u64 start, u64 len,
  * Check if the given ACPI resource object represents an I/O resource and
  * if that's the case, use the information in it to populate the generic
  * resource object pointed to by @res.
+ *
+ * Return:
+ * 1) false with res->flags setting to zero: not the expected resource type
+ * 2) false with IORESOURCE_DISABLED in res->flags: valid unassigned resource
+ * 3) true: valid assigned resource
  */
 bool acpi_dev_resource_io(struct acpi_resource *ares, struct resource *res)
 {
@@ -165,6 +176,7 @@ bool acpi_dev_resource_io(struct acpi_resource *ares, struct resource *res)
 					ACPI_DECODE_10);
 		break;
 	default:
+		res->flags = 0;
 		return false;
 	}
 
@@ -214,12 +226,18 @@ static bool acpi_decode_space(struct resource *res,
  * Check if the given ACPI resource object represents an address space resource
  * and if that's the case, use the information in it to populate the generic
  * resource object pointed to by @res.
+ *
+ * Return:
+ * 1) false with res->flags setting to zero: not the expected resource type
+ * 2) false with IORESOURCE_DISABLED in res->flags: valid unassigned resource
+ * 3) true: valid assigned resource
  */
 bool acpi_dev_resource_address_space(struct acpi_resource *ares,
 				     struct resource *res)
 {
 	struct acpi_resource_address64 addr;
 
+	res->flags = 0;
 	if (ACPI_FAILURE(acpi_resource_to_address64(ares, &addr)))
 		return false;
 
@@ -236,12 +254,18 @@ EXPORT_SYMBOL_GPL(acpi_dev_resource_address_space);
  * Check if the given ACPI resource object represents an extended address space
  * resource and if that's the case, use the information in it to populate the
  * generic resource object pointed to by @res.
+ *
+ * Return:
+ * 1) false with res->flags setting to zero: not the expected resource type
+ * 2) false with IORESOURCE_DISABLED in res->flags: valid unassigned resource
+ * 3) true: valid assigned resource
  */
 bool acpi_dev_resource_ext_address_space(struct acpi_resource *ares,
 					 struct resource *res)
 {
 	struct acpi_resource_extended_address64 *ext_addr;
 
+	res->flags = 0;
 	if (ares->type != ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64)
 		return false;
 
@@ -339,6 +363,11 @@ static void acpi_dev_get_irqresource(struct resource *res, u32 gsi,
  * represented by the resource and populate the generic resource object pointed
  * to by @res accordingly.  If the registration of the GSI is not successful,
  * IORESOURCE_DISABLED will be set it that object's flags.
+ *
+ * Return:
+ * 1) false with res->flags setting to zero: not the expected resource type
+ * 2) false with IORESOURCE_DISABLED in res->flags: valid unassigned resource
+ * 3) true: valid assigned resource
  */
 bool acpi_dev_resource_interrupt(struct acpi_resource *ares, int index,
 				 struct resource *res)
@@ -372,6 +401,7 @@ bool acpi_dev_resource_interrupt(struct acpi_resource *ares, int index,
 					 ext_irq->sharable, false);
 		break;
 	default:
+		res->flags = 0;
 		return false;
 	}
 
