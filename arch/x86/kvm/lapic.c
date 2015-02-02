@@ -1086,13 +1086,13 @@ static bool lapic_timer_int_injected(struct kvm_vcpu *vcpu)
 
 	if (kvm_apic_hw_enabled(apic)) {
 		int vec = reg & APIC_VECTOR_MASK;
+		void *bitmap = apic->regs + APIC_ISR;
 
-		if (kvm_x86_ops->test_posted_interrupt)
-			return kvm_x86_ops->test_posted_interrupt(vcpu, vec);
-		else {
-			if (apic_test_vector(vec, apic->regs + APIC_ISR))
-				return true;
-		}
+		if (kvm_x86_ops->deliver_posted_interrupt)
+			bitmap = apic->regs + APIC_IRR;
+
+		if (apic_test_vector(vec, bitmap))
+			return true;
 	}
 	return false;
 }
