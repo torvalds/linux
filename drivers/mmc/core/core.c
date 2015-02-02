@@ -1637,6 +1637,8 @@ void mmc_power_up(struct mmc_host *host, u32 ocr)
 	 */
 	mmc_delay(10);
 
+	mmc_pwrseq_post_power_on(host);
+
 	host->ios.clock = host->f_init;
 
 	host->ios.power_mode = MMC_POWER_ON;
@@ -1647,8 +1649,6 @@ void mmc_power_up(struct mmc_host *host, u32 ocr)
 	 * time required to reach a stable voltage.
 	 */
 	mmc_delay(10);
-
-	mmc_pwrseq_post_power_on(host);
 
 	mmc_host_clk_release(host);
 }
