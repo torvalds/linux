@@ -21,14 +21,6 @@
 #include "soc.h"
 #include "generic.h"
 
-static void at91rm9200_idle(void)
-{
-	/*
-	 * Disable the processor clock.  The processor will be automatically
-	 * re-enabled by an interrupt or by a reset.
-	 */
-	at91_pmc_write(AT91_PMC_SCDR, AT91_PMC_PCK);
-}
 
 static void at91rm9200_restart(enum reboot_mode reboot_mode, const char *cmd)
 {
@@ -42,11 +34,6 @@ static void at91rm9200_restart(enum reboot_mode reboot_mode, const char *cmd)
 /* --------------------------------------------------------------------
  *  AT91RM9200 processor initialization
  * -------------------------------------------------------------------- */
-static void __init at91rm9200_map_io(void)
-{
-	/* Map peripherals */
-	at91_init_sram(0, AT91RM9200_SRAM_BASE, AT91RM9200_SRAM_SIZE);
-}
 
 static void __init at91rm9200_initialize(void)
 {
@@ -54,8 +41,6 @@ static void __init at91rm9200_initialize(void)
 	arm_pm_restart = at91rm9200_restart;
 }
 
-
 AT91_SOC_START(at91rm9200)
-	.map_io = at91rm9200_map_io,
 	.init = at91rm9200_initialize,
 AT91_SOC_END

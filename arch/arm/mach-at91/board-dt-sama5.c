@@ -47,6 +47,7 @@ static void __init sama5_dt_device_init(void)
 	}
 
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+	at91_sam9x5_pm_init();
 }
 
 static const char *sama5_dt_board_compat[] __initconst = {
