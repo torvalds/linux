@@ -110,7 +110,7 @@ static int __init arm64_idle_init(void)
 	 * idle states suspend back-end specific data
 	 */
 	for_each_possible_cpu(cpu) {
-		ret = cpu_init_idle(cpu);
+		ret = arm_cpuidle_init(cpu);
 		if (ret) {
 			pr_err("CPU %d failed to init idle CPU ops\n", cpu);
 			return ret;

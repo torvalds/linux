@@ -4,10 +4,10 @@
 #include <asm/proc-fns.h>
 
 #ifdef CONFIG_CPU_IDLE
-extern int cpu_init_idle(unsigned int cpu);
+extern int arm_cpuidle_init(unsigned int cpu);
 extern int cpu_suspend(unsigned long arg);
 #else
-static inline int cpu_init_idle(unsigned int cpu)
+static inline int arm_cpuidle_init(unsigned int cpu)
 {
 	return -EOPNOTSUPP;
 }
