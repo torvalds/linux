@@ -299,11 +299,14 @@ static const struct file_operations rng_chrdev_ops = {
 	.llseek		= noop_llseek,
 };
 
+static const struct attribute_group *rng_dev_groups[];
+
 static struct miscdevice rng_miscdev = {
 	.minor		= RNG_MISCDEV_MINOR,
 	.name		= RNG_MODULE_NAME,
 	.nodename	= "hwrng",
 	.fops		= &rng_chrdev_ops,
+	.groups		= rng_dev_groups,
 };
 
 
@@ -376,37 +379,22 @@ static DEVICE_ATTR(rng_available, S_IRUGO,
 		   hwrng_attr_available_show,
 		   NULL);
 
+static struct attribute *rng_dev_attrs[] = {
+	&dev_attr_rng_current.attr,
+	&dev_attr_rng_available.attr,
+	NULL
+};
+
+ATTRIBUTE_GROUPS(rng_dev);
 
 static void __exit unregister_miscdev(void)
 {
-	device_remove_file(rng_miscdev.this_device, &dev_attr_rng_available);
-	device_remove_file(rng_miscdev.this_device, &dev_attr_rng_current);
 	misc_deregister(&rng_miscdev);
 }
 
 static int __init register_miscdev(void)
 {
-	int err;
-
-	err = misc_register(&rng_miscdev);
-	if (err)
-		goto out;
-	err = device_create_file(rng_miscdev.this_device,
-				 &dev_attr_rng_current);
-	if (err)
-		goto err_misc_dereg;
-	err = device_create_file(rng_miscdev.this_device,
-				 &dev_attr_rng_available);
-	if (err)
-		goto err_remove_current;
-out:
-	return err;
-
-err_remove_current:
-	device_remove_file(rng_miscdev.this_device, &dev_attr_rng_current);
-err_misc_dereg:
-	misc_deregister(&rng_miscdev);
-	goto out;
+	return misc_register(&rng_miscdev);
 }
 
 static int hwrng_fillfn(void *unused)
