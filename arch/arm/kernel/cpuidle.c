@@ -10,7 +10,7 @@
  */
 
 #include <linux/cpuidle.h>
-#include <asm/proc-fns.h>
+#include <asm/cpuidle.h>
 
 int arm_cpuidle_simple_enter(struct cpuidle_device *dev,
 		struct cpuidle_driver *drv, int index)
