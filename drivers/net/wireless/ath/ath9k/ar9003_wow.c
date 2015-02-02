@@ -62,10 +62,14 @@ static void ath9k_wow_create_keep_alive_pattern(struct ath_hw *ah)
 	/* set the transmit buffer */
 	ctl[0] = (KAL_FRAME_LEN | (MAX_RATE_POWER << 16));
 	ctl[1] = 0;
-	ctl[3] = 0xb;	/* OFDM_6M hardware value for this rate */
 	ctl[4] = 0;
 	ctl[7] = (ah->txchainmask) << 2;
 	ctl[2] = 0xf << 16; /* tx_tries 0 */
+
+	if (IS_CHAN_2GHZ(ah->curchan))
+		ctl[3] = 0x1b;	/* CCK_1M */
+	else
+		ctl[3] = 0xb;	/* OFDM_6M */
 
 	for (i = 0; i < KAL_NUM_DESC_WORDS; i++)
 		REG_WRITE(ah, (AR_WOW_KA_DESC_WORD2 + i * 4), ctl[i]);
