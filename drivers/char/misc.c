@@ -207,8 +207,9 @@ int misc_register(struct miscdevice * misc)
 
 	dev = MKDEV(MISC_MAJOR, misc->minor);
 
-	misc->this_device = device_create(misc_class, misc->parent, dev,
-					  misc, "%s", misc->name);
+	misc->this_device =
+		device_create_with_groups(misc_class, misc->parent, dev,
+					  misc, misc->groups, "%s", misc->name);
 	if (IS_ERR(misc->this_device)) {
 		int i = DYNAMIC_MINORS - misc->minor - 1;
 		if (i < DYNAMIC_MINORS && i >= 0)
