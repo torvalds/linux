@@ -3308,7 +3308,7 @@ static int s3c_hsotg_hw_cfg(struct dwc2_hsotg *hsotg)
 	hsotg->eps_out[0] = hsotg->eps_in[0];
 
 	cfg = readl(hsotg->regs + GHWCFG1);
-	for (i = 1; i < hsotg->num_of_eps; i++, cfg >>= 2) {
+	for (i = 1, cfg >>= 2; i < hsotg->num_of_eps; i++, cfg >>= 2) {
 		ep_type = cfg & 3;
 		/* Direction in or both */
 		if (!(ep_type & 2)) {
