@@ -117,11 +117,26 @@ static unsigned int xspi_read32_be(void __iomem *addr)
 
 static void xilinx_spi_tx(struct xilinx_spi *xspi)
 {
+	u32 data = 0;
+
 	if (!xspi->tx_ptr) {
 		xspi->write_fn(0, xspi->regs + XSPI_TXD_OFFSET);
 		return;
 	}
-	xspi->write_fn(*(u32 *)(xspi->tx_ptr), xspi->regs + XSPI_TXD_OFFSET);
+
+	switch (xspi->bytes_per_word) {
+	case 1:
+		data = *(u8 *)(xspi->tx_ptr);
+		break;
+	case 2:
+		data = *(u16 *)(xspi->tx_ptr);
+		break;
+	case 4:
+		data = *(u32 *)(xspi->tx_ptr);
+		break;
+	}
+
+	xspi->write_fn(data, xspi->regs + XSPI_TXD_OFFSET);
 	xspi->tx_ptr += xspi->bytes_per_word;
 }
 
