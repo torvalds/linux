@@ -4020,40 +4020,40 @@ static void pciserial_remove_one(struct pci_dev *dev)
 	pci_disable_device(dev);
 }
 
-#ifdef CONFIG_PM
-static int pciserial_suspend_one(struct pci_dev *dev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int pciserial_suspend_one(struct device *dev)
 {
-	struct serial_private *priv = pci_get_drvdata(dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct serial_private *priv = pci_get_drvdata(pdev);
 
 	if (priv)
 		pciserial_suspend_ports(priv);
 
-	pci_save_state(dev);
-	pci_set_power_state(dev, pci_choose_state(dev, state));
 	return 0;
 }
 
-static int pciserial_resume_one(struct pci_dev *dev)
+static int pciserial_resume_one(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct serial_private *priv = pci_get_drvdata(pdev);
 	int err;
-	struct serial_private *priv = pci_get_drvdata(dev);
-
-	pci_set_power_state(dev, PCI_D0);
-	pci_restore_state(dev);
 
 	if (priv) {
 		/*
 		 * The device may have been disabled.  Re-enable it.
 		 */
-		err = pci_enable_device(dev);
+		err = pci_enable_device(pdev);
 		/* FIXME: We cannot simply error out here */
 		if (err)
-			dev_err(&dev->dev, "Unable to re-enable ports, trying to continue.\n");
+			dev_err(dev, "Unable to re-enable ports, trying to continue.\n");
 		pciserial_resume_ports(priv);
 	}
 	return 0;
 }
 #endif
+
+static SIMPLE_DEV_PM_OPS(pciserial_pm_ops, pciserial_suspend_one,
+			 pciserial_resume_one);
 
 static struct pci_device_id serial_pci_tbl[] = {
 	/* Advantech use PCI_DEVICE_ID_ADVANTECH_PCI3620 (0x3620) as 'PCI_SUBVENDOR_ID' */
@@ -5528,10 +5528,9 @@ static struct pci_driver serial_pci_driver = {
 	.name		= "serial",
 	.probe		= pciserial_init_one,
 	.remove		= pciserial_remove_one,
-#ifdef CONFIG_PM
-	.suspend	= pciserial_suspend_one,
-	.resume		= pciserial_resume_one,
-#endif
+	.driver         = {
+		.pm     = &pciserial_pm_ops,
+	},
 	.id_table	= serial_pci_tbl,
 	.err_handler	= &serial8250_err_handler,
 };
