@@ -107,6 +107,9 @@
 #define CLK_DIV_ACLK_MFC_400		134
 #define CLK_DIV_ACLK_G2D_266		135
 #define CLK_DIV_ACLK_G2D_400		136
+#define CLK_DIV_ACLK_G3D_400		137
+#define CLK_DIV_ACLK_BUS0_400		138
+#define CLK_DIV_ACLK_BUS1_400		139
 
 #define CLK_ACLK_PERIC_66		200
 #define CLK_ACLK_PERIS_66		201
@@ -130,8 +133,14 @@
 #define CLK_SCLK_AUDIO0			219
 #define CLK_ACLK_G2D_266		220
 #define CLK_ACLK_G2D_400		221
+#define CLK_ACLK_G3D_400		222
+#define CLK_ACLK_IMEM_SSX_266		223
+#define CLK_ACLK_BUS0_400		224
+#define CLK_ACLK_BUS1_400		225
+#define CLK_ACLK_IMEM_200		226
+#define CLK_ACLK_IMEM_266		227
 
-#define TOP_NR_CLK			222
+#define TOP_NR_CLK			228
 
 /* CMU_CPIF */
 #define CLK_FOUT_MPHY_PLL		1
@@ -678,5 +687,21 @@
 #define CLK_SCLK_AUD_I2S				47
 
 #define AUD_NR_CLK					48
+
+/* CMU_BUS{0|1|2} */
+#define CLK_DIV_PCLK_BUS_133				1
+
+#define CLK_ACLK_AHB2APB_BUSP				2
+#define CLK_ACLK_BUSNP_133				3
+#define CLK_ACLK_BUSND_400				4
+#define CLK_PCLK_BUSSRVND_133				5
+#define CLK_PCLK_PMU_BUS				6
+#define CLK_PCLK_SYSREG_BUS				7
+
+#define CLK_MOUT_ACLK_BUS2_400_USER			8  /* Only CMU_BUS2 */
+#define CLK_ACLK_BUS2BEND_400				9  /* Only CMU_BUS2 */
+#define CLK_ACLK_BUS2RTND_400				10 /* Only CMU_BUS2 */
+
+#define BUSx_NR_CLK					11
 
 #endif /* _DT_BINDINGS_CLOCK_EXYNOS5433_H */
