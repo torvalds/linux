@@ -165,6 +165,7 @@ static void __extract_prog_irq(struct kvm_vcpu *vcpu,
 		pgm_info->mon_class_nr = vcpu->arch.sie_block->mcn;
 		pgm_info->mon_code = vcpu->arch.sie_block->tecmc;
 		break;
+	case PGM_VECTOR_PROCESSING:
 	case PGM_DATA:
 		pgm_info->data_exc_code = vcpu->arch.sie_block->dxc;
 		break;

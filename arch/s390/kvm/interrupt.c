@@ -544,6 +544,7 @@ static int __must_check __deliver_prog(struct kvm_vcpu *vcpu)
 		rc |= put_guest_lc(vcpu, pgm_info.mon_code,
 				   (u64 *)__LC_MON_CODE);
 		break;
+	case PGM_VECTOR_PROCESSING:
 	case PGM_DATA:
 		rc = put_guest_lc(vcpu, pgm_info.data_exc_code,
 				  (u32 *)__LC_DATA_EXC_CODE);

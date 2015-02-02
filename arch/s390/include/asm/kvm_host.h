@@ -276,6 +276,7 @@ struct kvm_vcpu_stat {
 #define PGM_SPECIAL_OPERATION		0x13
 #define PGM_OPERAND			0x15
 #define PGM_TRACE_TABEL			0x16
+#define PGM_VECTOR_PROCESSING		0x1b
 #define PGM_SPACE_SWITCH		0x1c
 #define PGM_HFP_SQUARE_ROOT		0x1d
 #define PGM_PC_TRANSLATION_SPEC		0x1f
