@@ -7168,28 +7168,21 @@ void mgmt_read_local_oob_data_complete(struct hci_dev *hdev, u8 *hash192,
 		cmd_status(cmd->sk, hdev->id, MGMT_OP_READ_LOCAL_OOB_DATA,
 			   mgmt_status(status));
 	} else {
+		struct mgmt_rp_read_local_oob_data rp;
+		size_t rp_size = sizeof(rp);
+
+		memcpy(rp.hash192, hash192, sizeof(rp.hash192));
+		memcpy(rp.rand192, rand192, sizeof(rp.rand192));
+
 		if (bredr_sc_enabled(hdev) && hash256 && rand256) {
-			struct mgmt_rp_read_local_oob_ext_data rp;
-
-			memcpy(rp.hash192, hash192, sizeof(rp.hash192));
-			memcpy(rp.rand192, rand192, sizeof(rp.rand192));
-
 			memcpy(rp.hash256, hash256, sizeof(rp.hash256));
 			memcpy(rp.rand256, rand256, sizeof(rp.rand256));
-
-			cmd_complete(cmd->sk, hdev->id,
-				     MGMT_OP_READ_LOCAL_OOB_DATA, 0,
-				     &rp, sizeof(rp));
 		} else {
-			struct mgmt_rp_read_local_oob_data rp;
-
-			memcpy(rp.hash, hash192, sizeof(rp.hash));
-			memcpy(rp.rand, rand192, sizeof(rp.rand));
-
-			cmd_complete(cmd->sk, hdev->id,
-				     MGMT_OP_READ_LOCAL_OOB_DATA, 0,
-				     &rp, sizeof(rp));
+			rp_size -= sizeof(rp.hash256) + sizeof(rp.rand256);
 		}
+
+		cmd_complete(cmd->sk, hdev->id, MGMT_OP_READ_LOCAL_OOB_DATA, 0,
+			     &rp, rp_size);
 	}
 
 	mgmt_pending_remove(cmd);
