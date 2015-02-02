@@ -758,6 +758,13 @@ static int acpi_idle_play_dead(struct cpuidle_device *dev, int index)
 	return 0;
 }
 
+static bool acpi_idle_fallback_to_c1(struct acpi_processor *pr)
+{
+	return IS_ENABLED(CONFIG_HOTPLUG_CPU) && num_online_cpus() > 1 &&
+		!(acpi_gbl_FADT.flags & ACPI_FADT_C2_MP_SUPPORTED) &&
+		!pr->flags.has_cst;
+}
+
 /**
  * acpi_idle_enter_simple - enters an ACPI state without BM handling
  * @dev: the target CPU
@@ -775,12 +782,8 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 	if (unlikely(!pr))
 		return -EINVAL;
 
-#ifdef CONFIG_HOTPLUG_CPU
-	if ((cx->type != ACPI_STATE_C1) && (num_online_cpus() > 1) &&
-	    !pr->flags.has_cst &&
-	    !(acpi_gbl_FADT.flags & ACPI_FADT_C2_MP_SUPPORTED))
+	if (acpi_idle_fallback_to_c1(pr))
 		return acpi_idle_enter_c1(dev, drv, CPUIDLE_DRIVER_STATE_START);
-#endif
 
 	/*
 	 * Must be done before busmaster disable as we might need to
@@ -819,12 +822,8 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 	if (unlikely(!pr))
 		return -EINVAL;
 
-#ifdef CONFIG_HOTPLUG_CPU
-	if ((cx->type != ACPI_STATE_C1) && (num_online_cpus() > 1) &&
-	    !pr->flags.has_cst &&
-	    !(acpi_gbl_FADT.flags & ACPI_FADT_C2_MP_SUPPORTED))
+	if (acpi_idle_fallback_to_c1(pr))
 		return acpi_idle_enter_c1(dev, drv, CPUIDLE_DRIVER_STATE_START);
-#endif
 
 	if (!cx->bm_sts_skip && acpi_idle_bm_check()) {
 		if (drv->safe_state_index >= 0) {
