@@ -68,7 +68,7 @@
 #define AR_CLR_MAC_INTERRUPT            0x20
 #define AR_CLR_KA_INTERRUPT             0x40
 
-#define AR_WOW_BACK_OFF_SHIFT(x)        ((x & 0xf) << 28) /* in usecs */
+#define AR_WOW_BACK_OFF_SHIFT(x)        ((x & 0xf) << 27) /* in usecs */
 #define AR_WOW_MAC_INTR_EN              0x00040000
 #define AR_WOW_MAGIC_EN                 0x00010000
 #define AR_WOW_PATTERN_EN(x)            (x & 0xff)
@@ -113,7 +113,8 @@
 #define AR_WOW_KA_DESC_WORD2            0xe000
 #define AR_WOW_TB_PATTERN(i)            (0xe100 + (i << 8))
 #define AR_WOW_TB_MASK(i)               (0xec00 + (i << 5))
-#define AR_WOW_PATTERN_SUPPORTED        0xff
+#define AR_WOW_PATTERN_SUPPORTED_LEGACY 0xff
+#define AR_WOW_PATTERN_SUPPORTED        0xffff
 #define AR_WOW_LENGTH_MAX               0xff
 #define AR_WOW_LEN1_SHIFT(_i)           ((0x3 - ((_i) & 0x3)) << 0x3)
 #define AR_WOW_LENGTH1_MASK(_i)         (AR_WOW_LENGTH_MAX << AR_WOW_LEN1_SHIFT(_i))

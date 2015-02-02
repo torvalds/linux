@@ -222,14 +222,9 @@ EXPORT_SYMBOL(ath9k_hw_wow_wakeup);
 void ath9k_hw_wow_enable(struct ath_hw *ah, u32 pattern_enable)
 {
 	u32 wow_event_mask;
+	u32 keep_alive, magic_pattern, host_pm_ctrl;
 	u32 set, clr;
 
-	/*
-	 * wow_event_mask is a mask to the AR_WOW_PATTERN register to
-	 * indicate which WoW events we have enabled. The WoW events
-	 * are from the 'pattern_enable' in this function and
-	 * 'pattern_count' of ath9k_hw_wow_apply_pattern()
-	 */
 	wow_event_mask = ah->wow.wow_event_mask;
 
 	/*
@@ -249,152 +244,154 @@ void ath9k_hw_wow_enable(struct ath_hw *ah, u32 pattern_enable)
 	}
 
 	/*
-	 * set the power states appropriately and enable PME
-	 */
-	set = AR_PMCTRL_HOST_PME_EN | AR_PMCTRL_PWR_PM_CTRL_ENA |
-	      AR_PMCTRL_AUX_PWR_DET | AR_PMCTRL_WOW_PME_CLR;
-
-	/*
-	 * set and clear WOW_PME_CLEAR registers for the chip
+	 * AR_PMCTRL_HOST_PME_EN - Override PME enable in configuration
+	 *                         space and allow MAC to generate WoW anyway.
+	 *
+	 * AR_PMCTRL_PWR_PM_CTRL_ENA - ???
+	 *
+	 * AR_PMCTRL_AUX_PWR_DET - PCI core SYS_AUX_PWR_DET signal,
+	 *                         needs to be set for WoW in PCI mode.
+	 *
+	 * AR_PMCTRL_WOW_PME_CLR - WoW Clear Signal going to the MAC.
+	 *
+	 * Set the power states appropriately and enable PME.
+	 *
+	 * Set and clear WOW_PME_CLEAR for the chip
 	 * to generate next wow signal.
 	 */
-	REG_SET_BIT(ah, AR_PCIE_PM_CTRL, set);
-	clr = AR_PMCTRL_WOW_PME_CLR;
-	REG_CLR_BIT(ah, AR_PCIE_PM_CTRL, clr);
+	REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PMCTRL_HOST_PME_EN |
+		    			 AR_PMCTRL_PWR_PM_CTRL_ENA |
+		    			 AR_PMCTRL_AUX_PWR_DET |
+		    			 AR_PMCTRL_WOW_PME_CLR);
+	REG_CLR_BIT(ah, AR_PCIE_PM_CTRL, AR_PMCTRL_WOW_PME_CLR);
 
 	/*
-	 * Setup for:
-	 *	- beacon misses
-	 *	- magic pattern
-	 *	- keep alive timeout
-	 *	- pattern matching
+	 * Random Backoff.
+	 *
+	 * 31:28 in AR_WOW_PATTERN : Indicates the number of bits used in the
+	 *                           contention window. For value N,
+	 *                           the random backoff will be selected between
+	 *                           0 and (2 ^ N) - 1.
 	 */
+	REG_SET_BIT(ah, AR_WOW_PATTERN,
+		    AR_WOW_BACK_OFF_SHIFT(AR_WOW_PAT_BACKOFF));
 
 	/*
-	 * Program default values for pattern backoff, aifs/slot/KAL count,
-	 * beacon miss timeout, KAL timeout, etc.
+	 * AIFS time, Slot time, Keep Alive count.
 	 */
-	set = AR_WOW_BACK_OFF_SHIFT(AR_WOW_PAT_BACKOFF);
-	REG_SET_BIT(ah, AR_WOW_PATTERN, set);
-
-	set = AR_WOW_AIFS_CNT(AR_WOW_CNT_AIFS_CNT) |
-	      AR_WOW_SLOT_CNT(AR_WOW_CNT_SLOT_CNT) |
-	      AR_WOW_KEEP_ALIVE_CNT(AR_WOW_CNT_KA_CNT);
-	REG_SET_BIT(ah, AR_WOW_COUNT, set);
-
+	REG_SET_BIT(ah, AR_WOW_COUNT, AR_WOW_AIFS_CNT(AR_WOW_CNT_AIFS_CNT) |
+		    		      AR_WOW_SLOT_CNT(AR_WOW_CNT_SLOT_CNT) |
+		    		      AR_WOW_KEEP_ALIVE_CNT(AR_WOW_CNT_KA_CNT));
+	/*
+	 * Beacon timeout.
+	 */
 	if (pattern_enable & AH_WOW_BEACON_MISS)
-		set = AR_WOW_BEACON_TIMO;
-	/* We are not using beacon miss, program a large value */
+		REG_WRITE(ah, AR_WOW_BCN_TIMO, AR_WOW_BEACON_TIMO);
 	else
-		set = AR_WOW_BEACON_TIMO_MAX;
-
-	REG_WRITE(ah, AR_WOW_BCN_TIMO, set);
+		REG_WRITE(ah, AR_WOW_BCN_TIMO, AR_WOW_BEACON_TIMO_MAX);
 
 	/*
-	 * Keep alive timo in ms except AR9280
+	 * Keep alive timeout in ms.
 	 */
 	if (!pattern_enable)
-		set = AR_WOW_KEEP_ALIVE_NEVER;
+		REG_WRITE(ah, AR_WOW_KEEP_ALIVE_TIMO, AR_WOW_KEEP_ALIVE_NEVER);
 	else
-		set = KAL_TIMEOUT * 32;
-
-	REG_WRITE(ah, AR_WOW_KEEP_ALIVE_TIMO, set);
+		REG_WRITE(ah, AR_WOW_KEEP_ALIVE_TIMO, KAL_TIMEOUT * 32);
 
 	/*
-	 * Keep alive delay in us. based on 'power on clock',
-	 * therefore in usec
+	 * Keep alive delay in us.
 	 */
-	set = KAL_DELAY * 1000;
-	REG_WRITE(ah, AR_WOW_KEEP_ALIVE_DELAY, set);
+	REG_WRITE(ah, AR_WOW_KEEP_ALIVE_DELAY, KAL_DELAY * 1000);
 
 	/*
-	 * Create keep alive pattern to respond to beacons
+	 * Create keep alive pattern to respond to beacons.
 	 */
 	ath9k_wow_create_keep_alive_pattern(ah);
 
 	/*
-	 * Configure MAC WoW Registers
+	 * Configure keep alive register.
 	 */
-	set = 0;
+	keep_alive = REG_READ(ah, AR_WOW_KEEP_ALIVE);
+
 	/* Send keep alive timeouts anyway */
-	clr = AR_WOW_KEEP_ALIVE_AUTO_DIS;
+	keep_alive &= ~AR_WOW_KEEP_ALIVE_AUTO_DIS;
 
-	if (pattern_enable & AH_WOW_LINK_CHANGE)
+	if (pattern_enable & AH_WOW_LINK_CHANGE) {
+		keep_alive &= ~AR_WOW_KEEP_ALIVE_FAIL_DIS;
 		wow_event_mask |= AR_WOW_KEEP_ALIVE_FAIL;
-	else
-		set = AR_WOW_KEEP_ALIVE_FAIL_DIS;
+	} else {
+		keep_alive |= AR_WOW_KEEP_ALIVE_FAIL_DIS;
+	}
 
-	set = AR_WOW_KEEP_ALIVE_FAIL_DIS;
-	REG_RMW(ah, AR_WOW_KEEP_ALIVE, set, clr);
+	REG_WRITE(ah, AR_WOW_KEEP_ALIVE, keep_alive);
 
 	/*
-	 * we are relying on a bmiss failure. ensure we have
-	 * enough threshold to prevent false positives
+	 * We are relying on a bmiss failure, ensure we have
+	 * enough threshold to prevent false positives.
 	 */
 	REG_RMW_FIELD(ah, AR_RSSI_THR, AR_RSSI_THR_BM_THR,
 		      AR_WOW_BMISSTHRESHOLD);
 
-	set = 0;
-	clr = 0;
-
 	if (pattern_enable & AH_WOW_BEACON_MISS) {
-		set = AR_WOW_BEACON_FAIL_EN;
 		wow_event_mask |= AR_WOW_BEACON_FAIL;
+		REG_SET_BIT(ah, AR_WOW_BCN_EN, AR_WOW_BEACON_FAIL_EN);
 	} else {
-		clr = AR_WOW_BEACON_FAIL_EN;
+		REG_CLR_BIT(ah, AR_WOW_BCN_EN, AR_WOW_BEACON_FAIL_EN);
 	}
 
-	REG_RMW(ah, AR_WOW_BCN_EN, set, clr);
-
-	set = 0;
-	clr = 0;
 	/*
-	 * Enable the magic packet registers
+	 * Enable the magic packet registers.
 	 */
+	magic_pattern = REG_READ(ah, AR_WOW_PATTERN);
+	magic_pattern |= AR_WOW_MAC_INTR_EN;
+
 	if (pattern_enable & AH_WOW_MAGIC_PATTERN_EN) {
-		set = AR_WOW_MAGIC_EN;
+		magic_pattern |= AR_WOW_MAGIC_EN;
 		wow_event_mask |= AR_WOW_MAGIC_PAT_FOUND;
 	} else {
-		clr = AR_WOW_MAGIC_EN;
+		magic_pattern &= ~AR_WOW_MAGIC_EN;
 	}
-	set |= AR_WOW_MAC_INTR_EN;
-	REG_RMW(ah, AR_WOW_PATTERN, set, clr);
 
+	REG_WRITE(ah, AR_WOW_PATTERN, magic_pattern);
+
+	/*
+	 * Enable pattern matching for packets which are less
+	 * than 256 bytes.
+	 */
 	REG_WRITE(ah, AR_WOW_PATTERN_MATCH_LT_256B,
 		  AR_WOW_PATTERN_SUPPORTED);
 
 	/*
-	 * Set the power states appropriately and enable PME
+	 * Set the power states appropriately and enable PME.
 	 */
-	clr = 0;
-	set = AR_PMCTRL_PWR_STATE_D1D3 | AR_PMCTRL_HOST_PME_EN |
-	      AR_PMCTRL_PWR_PM_CTRL_ENA;
+	host_pm_ctrl = REG_READ(ah, AR_PCIE_PM_CTRL);
+	host_pm_ctrl |= AR_PMCTRL_PWR_STATE_D1D3 |
+			AR_PMCTRL_HOST_PME_EN |
+			AR_PMCTRL_PWR_PM_CTRL_ENA;
+	host_pm_ctrl &= ~AR_PCIE_PM_CTRL_ENA;
 
-	clr = AR_PCIE_PM_CTRL_ENA;
-	REG_RMW(ah, AR_PCIE_PM_CTRL, set, clr);
+	if (AR_SREV_9462(ah)) {
+		/*
+		 * This is needed to prevent the chip waking up
+		 * the host within 3-4 seconds with certain
+		 * platform/BIOS.
+		 */
+		host_pm_ctrl &= ~AR_PMCTRL_PWR_STATE_D1D3;
+		host_pm_ctrl |= AR_PMCTRL_PWR_STATE_D1D3_REAL;
+	}
+
+	REG_WRITE(ah, AR_PCIE_PM_CTRL, host_pm_ctrl);
 
 	/*
-	 * this is needed to prevent the chip waking up
-	 * the host within 3-4 seconds with certain
-	 * platform/BIOS. The fix is to enable
-	 * D1 & D3 to match original definition and
-	 * also match the OTP value. Anyway this
-	 * is more related to SW WOW.
+	 * Enable sequence number generation when asleep.
 	 */
-	clr = AR_PMCTRL_PWR_STATE_D1D3;
-	REG_CLR_BIT(ah, AR_PCIE_PM_CTRL, clr);
-
-	set = AR_PMCTRL_PWR_STATE_D1D3_REAL;
-	REG_SET_BIT(ah, AR_PCIE_PM_CTRL, set);
-
 	REG_CLR_BIT(ah, AR_STA_ID1, AR_STA_ID1_PRESERVE_SEQNUM);
 
-	/* to bring down WOW power low margin */
-	set = BIT(13);
-	REG_SET_BIT(ah, AR_PCIE_PHY_REG3, set);
+	/* To bring down WOW power low margin */
+	REG_SET_BIT(ah, AR_PCIE_PHY_REG3, BIT(13));
+
 	/* HW WoW */
-	clr = BIT(5);
-	REG_CLR_BIT(ah, AR_PCU_MISC_MODE3, clr);
+	REG_CLR_BIT(ah, AR_PCU_MISC_MODE3, BIT(5));
 
 	ath9k_hw_set_powermode_wow_sleep(ah);
 	ah->wow.wow_event_mask = wow_event_mask;

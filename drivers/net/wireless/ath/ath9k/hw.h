@@ -199,7 +199,7 @@
 #define KAL_NUM_DESC_WORDS	12
 #define KAL_ANTENNA_MODE	1
 #define KAL_TO_DS		1
-#define KAL_DELAY		4	/*delay of 4ms between 2 KAL frames */
+#define KAL_DELAY		4	/* delay of 4ms between 2 KAL frames */
 #define KAL_TIMEOUT		900
 
 #define MAX_PATTERN_SIZE		256
