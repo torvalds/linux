@@ -398,6 +398,20 @@ static struct samsung_mux_clock top_mux_clks[] __initdata = {
 };
 
 static struct samsung_div_clock top_div_clks[] __initdata = {
+	/* DIV_TOP1 */
+	DIV(CLK_DIV_ACLK_GSCL_111, "div_aclk_gscl_111", "mout_aclk_gscl_333",
+			DIV_TOP1, 28, 3),
+	DIV(CLK_DIV_ACLK_GSCL_333, "div_aclk_gscl_333", "mout_aclk_gscl_333",
+			DIV_TOP1, 24, 3),
+	DIV(CLK_DIV_ACLK_HEVC_400, "div_aclk_hevc_400", "mout_aclk_hevc_400",
+			DIV_TOP1, 20, 3),
+	DIV(CLK_DIV_ACLK_MFC_400, "div_aclk_mfc_400", "mout_aclk_mfc_400_c",
+			DIV_TOP1, 12, 3),
+	DIV(CLK_DIV_ACLK_G2D_266, "div_aclk_g2d_266", "mout_bus_pll_user",
+			DIV_TOP1, 8, 3),
+	DIV(CLK_DIV_ACLK_G2D_400, "div_aclk_g2d_400", "mout_aclk_g2d_400_b",
+			DIV_TOP1, 0, 3),
+
 	/* DIV_TOP2 */
 	DIV(CLK_DIV_ACLK_FSYS_200, "div_aclk_fsys_200", "mout_bus_pll_user",
 			DIV_TOP2, 0, 3),
@@ -489,6 +503,12 @@ static struct samsung_gate_clock top_gate_clks[] __initdata = {
 			CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_ACLK_FSYS_200, "aclk_fsys_200", "div_aclk_fsys_200",
 			ENABLE_ACLK_TOP, 18,
+			CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_G2D_266, "aclk_g2d_266", "div_aclk_g2d_266",
+			ENABLE_ACLK_TOP, 2,
+			CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_G2D_400, "aclk_g2d_400", "div_aclk_g2d_400",
+			ENABLE_ACLK_TOP, 0,
 			CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0),
 
 	/* ENABLE_SCLK_TOP_FSYS */
@@ -1277,3 +1297,129 @@ static void __init exynos5433_cmu_fsys_init(struct device_node *np)
 
 CLK_OF_DECLARE(exynos5433_cmu_fsys, "samsung,exynos5433-cmu-fsys",
 		exynos5433_cmu_fsys_init);
+
+/*
+ * Register offset definitions for CMU_G2D
+ */
+#define MUX_SEL_G2D0				0x0200
+#define MUX_SEL_ENABLE_G2D0			0x0300
+#define MUX_SEL_STAT_G2D0			0x0400
+#define DIV_G2D					0x0600
+#define DIV_STAT_G2D				0x0700
+#define DIV_ENABLE_ACLK_G2D			0x0800
+#define DIV_ENABLE_ACLK_G2D_SECURE_SMMU_G2D	0x0804
+#define DIV_ENABLE_PCLK_G2D			0x0900
+#define DIV_ENABLE_PCLK_G2D_SECURE_SMMU_G2D	0x0904
+#define DIV_ENABLE_IP_G2D0			0x0b00
+#define DIV_ENABLE_IP_G2D1			0x0b04
+#define DIV_ENABLE_IP_G2D_SECURE_SMMU_G2D	0x0b08
+
+static unsigned long g2d_clk_regs[] __initdata = {
+	MUX_SEL_G2D0,
+	MUX_SEL_ENABLE_G2D0,
+	MUX_SEL_STAT_G2D0,
+	DIV_G2D,
+	DIV_STAT_G2D,
+	DIV_ENABLE_ACLK_G2D,
+	DIV_ENABLE_ACLK_G2D_SECURE_SMMU_G2D,
+	DIV_ENABLE_PCLK_G2D,
+	DIV_ENABLE_PCLK_G2D_SECURE_SMMU_G2D,
+	DIV_ENABLE_IP_G2D0,
+	DIV_ENABLE_IP_G2D1,
+	DIV_ENABLE_IP_G2D_SECURE_SMMU_G2D,
+};
+
+/* list of all parent clock list */
+PNAME(mout_aclk_g2d_266_user_p)		= { "oscclk", "aclk_g2d_266", };
+PNAME(mout_aclk_g2d_400_user_p)		= { "oscclk", "aclk_g2d_400", };
+
+static struct samsung_mux_clock g2d_mux_clks[] __initdata = {
+	/* MUX_SEL_G2D0 */
+	MUX(CLK_MUX_ACLK_G2D_266_USER, "mout_aclk_g2d_266_user",
+			mout_aclk_g2d_266_user_p, MUX_SEL_G2D0, 4, 1),
+	MUX(CLK_MUX_ACLK_G2D_400_USER, "mout_aclk_g2d_400_user",
+			mout_aclk_g2d_400_user_p, MUX_SEL_G2D0, 0, 1),
+};
+
+static struct samsung_div_clock g2d_div_clks[] __initdata = {
+	/* DIV_G2D */
+	DIV(CLK_DIV_PCLK_G2D, "div_pclk_g2d", "mout_aclk_g2d_266_user",
+			DIV_G2D, 0, 2),
+};
+
+static struct samsung_gate_clock g2d_gate_clks[] __initdata = {
+	/* DIV_ENABLE_ACLK_G2D */
+	GATE(CLK_ACLK_SMMU_MDMA1, "aclk_smmu_mdma1", "mout_aclk_g2d_266_user",
+			DIV_ENABLE_ACLK_G2D, 12, 0, 0),
+	GATE(CLK_ACLK_BTS_MDMA1, "aclk_bts_mdam1", "mout_aclk_g2d_266_user",
+			DIV_ENABLE_ACLK_G2D, 11, 0, 0),
+	GATE(CLK_ACLK_BTS_G2D, "aclk_bts_g2d", "mout_aclk_g2d_400_user",
+			DIV_ENABLE_ACLK_G2D, 10, 0, 0),
+	GATE(CLK_ACLK_ALB_G2D, "aclk_alb_g2d", "mout_aclk_g2d_400_user",
+			DIV_ENABLE_ACLK_G2D, 9, 0, 0),
+	GATE(CLK_ACLK_AXIUS_G2DX, "aclk_axius_g2dx", "mout_aclk_g2d_400_user",
+			DIV_ENABLE_ACLK_G2D, 8, 0, 0),
+	GATE(CLK_ACLK_ASYNCAXI_SYSX, "aclk_asyncaxi_sysx",
+			"mout_aclk_g2d_400_user", DIV_ENABLE_ACLK_G2D,
+			7, 0, 0),
+	GATE(CLK_ACLK_AHB2APB_G2D1P, "aclk_ahb2apb_g2d1p", "div_pclk_g2d",
+			DIV_ENABLE_ACLK_G2D, 6, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_AHB2APB_G2D0P, "aclk_ahb2apb_g2d0p", "div_pclk_g2d",
+			DIV_ENABLE_ACLK_G2D, 5, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_XIU_G2DX, "aclk_xiu_g2dx", "mout_aclk_g2d_400_user",
+			DIV_ENABLE_ACLK_G2D, 4, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_G2DNP_133, "aclk_g2dnp_133", "div_pclk_g2d",
+			DIV_ENABLE_ACLK_G2D, 3, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_G2DND_400, "aclk_g2dnd_400", "mout_aclk_g2d_400_user",
+			DIV_ENABLE_ACLK_G2D, 2, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_MDMA1, "aclk_mdma1", "mout_aclk_g2d_266_user",
+			DIV_ENABLE_ACLK_G2D, 1, 0, 0),
+	GATE(CLK_ACLK_G2D, "aclk_g2d", "mout_aclk_g2d_400_user",
+			DIV_ENABLE_ACLK_G2D, 0, 0, 0),
+
+	/* DIV_ENABLE_ACLK_G2D_SECURE_SMMU_G2D */
+	GATE(CLK_ACLK_SMMU_G2D, "aclk_smmu_g2d", "mout_aclk_g2d_400_user",
+		DIV_ENABLE_ACLK_G2D_SECURE_SMMU_G2D, 0, 0, 0),
+
+	/* DIV_ENABLE_PCLK_G2D */
+	GATE(CLK_PCLK_SMMU_MDMA1, "pclk_smmu_mdma1", "div_pclk_g2d",
+			DIV_ENABLE_PCLK_G2D, 7, 0, 0),
+	GATE(CLK_PCLK_BTS_MDMA1, "pclk_bts_mdam1", "div_pclk_g2d",
+			DIV_ENABLE_PCLK_G2D, 6, 0, 0),
+	GATE(CLK_PCLK_BTS_G2D, "pclk_bts_g2d", "div_pclk_g2d",
+			DIV_ENABLE_PCLK_G2D, 5, 0, 0),
+	GATE(CLK_PCLK_ALB_G2D, "pclk_alb_g2d", "div_pclk_g2d",
+			DIV_ENABLE_PCLK_G2D, 4, 0, 0),
+	GATE(CLK_PCLK_ASYNCAXI_SYSX, "pclk_asyncaxi_sysx", "div_pclk_g2d",
+			DIV_ENABLE_PCLK_G2D, 3, 0, 0),
+	GATE(CLK_PCLK_PMU_G2D, "pclk_pmu_g2d", "div_pclk_g2d",
+			DIV_ENABLE_PCLK_G2D, 2, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_SYSREG_G2D, "pclk_sysreg_g2d", "div_pclk_g2d",
+			DIV_ENABLE_PCLK_G2D, 1, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_G2D, "pclk_g2d", "div_pclk_g2d", DIV_ENABLE_PCLK_G2D,
+			0, 0, 0),
+
+	/* DIV_ENABLE_PCLK_G2D_SECURE_SMMU_G2D */
+	GATE(CLK_PCLK_SMMU_G2D, "pclk_smmu_g2d", "div_pclk_g2d",
+		DIV_ENABLE_PCLK_G2D_SECURE_SMMU_G2D, 0, 0, 0),
+};
+
+static struct samsung_cmu_info g2d_cmu_info __initdata = {
+	.mux_clks		= g2d_mux_clks,
+	.nr_mux_clks		= ARRAY_SIZE(g2d_mux_clks),
+	.div_clks		= g2d_div_clks,
+	.nr_div_clks		= ARRAY_SIZE(g2d_div_clks),
+	.gate_clks		= g2d_gate_clks,
+	.nr_gate_clks		= ARRAY_SIZE(g2d_gate_clks),
+	.nr_clk_ids		= G2D_NR_CLK,
+	.clk_regs		= g2d_clk_regs,
+	.nr_clk_regs		= ARRAY_SIZE(g2d_clk_regs),
+};
+
+static void __init exynos5433_cmu_g2d_init(struct device_node *np)
+{
+	samsung_cmu_register_one(np, &g2d_cmu_info);
+}
+
+CLK_OF_DECLARE(exynos5433_cmu_g2d, "samsung,exynos5433-cmu-g2d",
+		exynos5433_cmu_g2d_init);
