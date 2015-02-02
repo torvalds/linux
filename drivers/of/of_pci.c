@@ -140,6 +140,7 @@ int of_pci_get_host_bridge_resources(struct device_node *dev,
 			unsigned char busno, unsigned char bus_max,
 			struct list_head *resources, resource_size_t *io_base)
 {
+	struct pci_host_bridge_window *window;
 	struct resource *res;
 	struct resource *bus_range;
 	struct of_pci_range range;
@@ -225,7 +226,10 @@ int of_pci_get_host_bridge_resources(struct device_node *dev,
 conversion_failed:
 	kfree(res);
 parse_failed:
+	list_for_each_entry(window, resources, list)
+		kfree(window->res);
 	pci_free_resource_list(resources);
+	kfree(bus_range);
 	return err;
 }
 EXPORT_SYMBOL_GPL(of_pci_get_host_bridge_resources);
