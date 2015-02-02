@@ -259,7 +259,6 @@ static void vf610_adc_cfg_post_set(struct vf610_adc *info)
 static void vf610_adc_calibration(struct vf610_adc *info)
 {
 	int adc_gc, hc_cfg;
-	int timeout;
 
 	if (!info->adc_feature.calibration)
 		return;
@@ -271,9 +270,7 @@ static void vf610_adc_calibration(struct vf610_adc *info)
 	adc_gc = readl(info->regs + VF610_REG_ADC_GC);
 	writel(adc_gc | VF610_ADC_CAL, info->regs + VF610_REG_ADC_GC);
 
-	timeout = wait_for_completion_timeout
-			(&info->completion, VF610_ADC_TIMEOUT);
-	if (timeout == 0)
+	if (!wait_for_completion_timeout(&info->completion, VF610_ADC_TIMEOUT))
 		dev_err(info->dev, "Timeout for adc calibration\n");
 
 	adc_gc = readl(info->regs + VF610_REG_ADC_GS);
