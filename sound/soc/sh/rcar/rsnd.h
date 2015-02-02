@@ -436,6 +436,8 @@ struct rsnd_kctrl_cfg {
 	u32 *val;
 	const char * const *texts;
 	void (*update)(struct rsnd_mod *mod);
+	struct snd_card *card;
+	struct snd_kcontrol *kctrl;
 };
 
 #define RSND_DVC_CHANNELS	2
@@ -448,6 +450,9 @@ struct rsnd_kctrl_cfg_s {
 	struct rsnd_kctrl_cfg cfg;
 	u32 val;
 };
+
+void _rsnd_kctrl_remove(struct rsnd_kctrl_cfg *cfg);
+#define rsnd_kctrl_remove(_cfg)	_rsnd_kctrl_remove(&((_cfg).cfg))
 
 int rsnd_kctrl_new_m(struct rsnd_mod *mod,
 		     struct snd_soc_pcm_runtime *rtd,

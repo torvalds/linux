@@ -127,6 +127,20 @@ static int rsnd_dvc_probe_gen2(struct rsnd_mod *mod,
 	return 0;
 }
 
+static int rsnd_dvc_remove_gen2(struct rsnd_mod *mod,
+				struct rsnd_priv *priv)
+{
+	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
+
+	rsnd_kctrl_remove(dvc->volume);
+	rsnd_kctrl_remove(dvc->mute);
+	rsnd_kctrl_remove(dvc->ren);
+	rsnd_kctrl_remove(dvc->rup);
+	rsnd_kctrl_remove(dvc->rdown);
+
+	return 0;
+}
+
 static int rsnd_dvc_init(struct rsnd_mod *dvc_mod,
 			 struct rsnd_priv *priv)
 {
@@ -258,6 +272,7 @@ static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 static struct rsnd_mod_ops rsnd_dvc_ops = {
 	.name		= DVC_NAME,
 	.probe		= rsnd_dvc_probe_gen2,
+	.remove		= rsnd_dvc_remove_gen2,
 	.init		= rsnd_dvc_init,
 	.quit		= rsnd_dvc_quit,
 	.start		= rsnd_dvc_start,
