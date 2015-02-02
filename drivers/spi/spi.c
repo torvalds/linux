@@ -788,7 +788,7 @@ static int spi_transfer_one_message(struct spi_master *master,
 	struct spi_transfer *xfer;
 	bool keep_cs = false;
 	int ret = 0;
-	int ms = 1;
+	unsigned long ms = 1;
 
 	spi_set_cs(msg->spi, true);
 
