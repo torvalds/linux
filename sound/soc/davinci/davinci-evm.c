@@ -24,9 +24,6 @@
 #include <asm/dma.h>
 #include <asm/mach-types.h>
 
-#include "davinci-pcm.h"
-#include "davinci-i2s.h"
-
 struct snd_soc_card_drvdata_davinci {
 	struct clk *mclk;
 	unsigned sysclk;
