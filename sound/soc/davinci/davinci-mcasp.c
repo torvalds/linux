@@ -1461,7 +1461,8 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 					  dev_name(&pdev->dev));
 		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 						davinci_mcasp_common_irq_handler,
-						IRQF_ONESHOT, irq_name, mcasp);
+						IRQF_ONESHOT | IRQF_SHARED,
+						irq_name, mcasp);
 		if (ret) {
 			dev_err(&pdev->dev, "common IRQ request failed\n");
 			goto err;
