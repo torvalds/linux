@@ -192,6 +192,15 @@ static bool acpi_decode_space(struct resource *res,
 	bool wp = addr->info.mem.write_protect;
 	u64 len = attr->address_length;
 
+	/*
+	 * Filter out invalid descriptor according to ACPI Spec 5.0, section
+	 * 6.4.3.5 Address Space Resource Descriptors.
+	 */
+	if ((addr->min_address_fixed != addr->max_address_fixed && len) ||
+	    (addr->min_address_fixed && addr->max_address_fixed && !len))
+		pr_debug("ACPI: Invalid address space min_addr_fix %d, max_addr_fix %d, len %llx\n",
+			 addr->min_address_fixed, addr->max_address_fixed, len);
+
 	res->start = attr->minimum;
 	res->end = attr->maximum;
 
