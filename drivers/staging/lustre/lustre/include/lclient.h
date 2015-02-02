@@ -325,6 +325,7 @@ void ccc_lock_fini(const struct lu_env *env, struct cl_lock_slice *slice);
 int ccc_lock_enqueue(const struct lu_env *env,
 		     const struct cl_lock_slice *slice,
 		     struct cl_io *io, __u32 enqflags);
+int ccc_lock_use(const struct lu_env *env, const struct cl_lock_slice *slice);
 int ccc_lock_unuse(const struct lu_env *env, const struct cl_lock_slice *slice);
 int ccc_lock_wait(const struct lu_env *env, const struct cl_lock_slice *slice);
 int ccc_lock_fits_into(const struct lu_env *env,

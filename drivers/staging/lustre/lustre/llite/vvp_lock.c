@@ -71,6 +71,7 @@ static const struct cl_lock_operations vvp_lock_ops = {
 	.clo_fini      = ccc_lock_fini,
 	.clo_enqueue   = ccc_lock_enqueue,
 	.clo_wait      = ccc_lock_wait,
+	.clo_use       = ccc_lock_use,
 	.clo_unuse     = ccc_lock_unuse,
 	.clo_fits_into = ccc_lock_fits_into,
 	.clo_state     = ccc_lock_state,
