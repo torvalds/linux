@@ -9,11 +9,13 @@ LIB_H=
 LIB_OBJS=
 
 LIB_H += fs/debugfs.h
+LIB_H += fs/findfs.h
 LIB_H += fs/fs.h
 # See comment below about piggybacking...
 LIB_H += fd/array.h
 
 LIB_OBJS += $(OUTPUT)fs/debugfs.o
+LIB_OBJS += $(OUTPUT)fs/findfs.o
 LIB_OBJS += $(OUTPUT)fs/fs.o
 # XXX piggybacking here, need to introduce libapikfd, or rename this
 # to plain libapik.a and make it have it all api goodies

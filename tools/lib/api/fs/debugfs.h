@@ -1,16 +1,7 @@
 #ifndef __API_DEBUGFS_H__
 #define __API_DEBUGFS_H__
 
-#define _STR(x) #x
-#define STR(x) _STR(x)
-
-/*
- * On most systems <limits.h> would have given us this, but  not on some systems
- * (e.g. GNU/Hurd).
- */
-#ifndef PATH_MAX
-#define PATH_MAX 4096
-#endif
+#include "findfs.h"
 
 #ifndef DEBUGFS_MAGIC
 #define DEBUGFS_MAGIC          0x64626720

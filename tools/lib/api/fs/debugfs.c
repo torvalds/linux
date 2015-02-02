@@ -20,58 +20,21 @@ static const char * const debugfs_known_mountpoints[] = {
 
 static bool debugfs_found;
 
-/* verify that a mountpoint is actually a debugfs instance */
-
-static int debugfs_valid_mountpoint(const char *debugfs)
-{
-	struct statfs st_fs;
-
-	if (statfs(debugfs, &st_fs) < 0)
-		return -ENOENT;
-	else if ((long)st_fs.f_type != (long)DEBUGFS_MAGIC)
-		return -ENOENT;
-
-	return 0;
-}
-
 /* find the path to the mounted debugfs */
 const char *debugfs_find_mountpoint(void)
 {
-	const char * const *ptr;
-	char type[100];
-	FILE *fp;
+	const char *ret;
 
 	if (debugfs_found)
 		return (const char *)debugfs_mountpoint;
 
-	ptr = debugfs_known_mountpoints;
-	while (*ptr) {
-		if (debugfs_valid_mountpoint(*ptr) == 0) {
-			debugfs_found = true;
-			strcpy(debugfs_mountpoint, *ptr);
-			return debugfs_mountpoint;
-		}
-		ptr++;
-	}
+	ret = find_mountpoint("debugfs", (long) DEBUGFS_MAGIC,
+			      debugfs_mountpoint, PATH_MAX + 1,
+			      debugfs_known_mountpoints);
+	if (ret)
+		debugfs_found = true;
 
-	/* give up and parse /proc/mounts */
-	fp = fopen("/proc/mounts", "r");
-	if (fp == NULL)
-		return NULL;
-
-	while (fscanf(fp, "%*s %" STR(PATH_MAX) "s %99s %*s %*d %*d\n",
-		      debugfs_mountpoint, type) == 2) {
-		if (strcmp(type, "debugfs") == 0)
-			break;
-	}
-	fclose(fp);
-
-	if (strcmp(type, "debugfs") != 0)
-		return NULL;
-
-	debugfs_found = true;
-
-	return debugfs_mountpoint;
+	return ret;
 }
 
 /* mount the debugfs somewhere if it's not mounted */
