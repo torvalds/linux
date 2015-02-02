@@ -1133,6 +1133,23 @@
 #define	PACKET3_MEM_SEMAPHORE				0x39
 #define	PACKET3_MPEG_INDEX				0x3A
 #define	PACKET3_WAIT_REG_MEM				0x3C
+#define		WAIT_REG_MEM_FUNCTION(x)                ((x) << 0)
+                /* 0 - always
+		 * 1 - <
+		 * 2 - <=
+		 * 3 - ==
+		 * 4 - !=
+		 * 5 - >=
+		 * 6 - >
+		 */
+#define		WAIT_REG_MEM_MEM_SPACE(x)               ((x) << 4)
+                /* 0 - reg
+		 * 1 - mem
+		 */
+#define		WAIT_REG_MEM_ENGINE(x)                  ((x) << 8)
+                /* 0 - me
+		 * 1 - pfp
+		 */
 #define	PACKET3_MEM_WRITE				0x3D
 #define	PACKET3_PFP_SYNC_ME				0x42
 #define	PACKET3_SURFACE_SYNC				0x43
@@ -1271,6 +1288,13 @@
 					 (1 << 26) |			\
 					 (1 << 21) |			\
 					 (((n) & 0xFFFFF) << 0))
+
+#define DMA_SRBM_POLL_PACKET		((9 << 28) |			\
+					 (1 << 27) |			\
+					 (1 << 26))
+
+#define DMA_SRBM_READ_PACKET		((9 << 28) |			\
+					 (1 << 27))
 
 /* async DMA Packet types */
 #define	DMA_PACKET_WRITE				  0x2

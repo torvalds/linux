@@ -82,7 +82,7 @@ struct uinput_ff_erase {
  * The complete sysfs path is then /sys/devices/virtual/input/--NAME--
  * Usually, it is in the form "inputN"
  */
-#define UI_GET_SYSNAME(len)	_IOC(_IOC_READ, UINPUT_IOCTL_BASE, 300, len)
+#define UI_GET_SYSNAME(len)	_IOC(_IOC_READ, UINPUT_IOCTL_BASE, 44, len)
 
 /**
  * UI_GET_VERSION - Return version of uinput protocol
@@ -91,7 +91,7 @@ struct uinput_ff_erase {
  * the integer pointed to by the ioctl argument. The protocol version
  * is hard-coded in the kernel and is independent of the uinput device.
  */
-#define UI_GET_VERSION		_IOR(UINPUT_IOCTL_BASE, 301, unsigned int)
+#define UI_GET_VERSION		_IOR(UINPUT_IOCTL_BASE, 45, unsigned int)
 
 /*
  * To write a force-feedback-capable driver, the upload_effect

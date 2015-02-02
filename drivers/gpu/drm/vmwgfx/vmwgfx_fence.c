@@ -35,7 +35,7 @@ struct vmw_fence_manager {
 	struct vmw_private *dev_priv;
 	spinlock_t lock;
 	struct list_head fence_list;
-	struct work_struct work, ping_work;
+	struct work_struct work;
 	u32 user_fence_size;
 	u32 fence_size;
 	u32 event_fence_action_size;
@@ -134,14 +134,6 @@ static const char *vmw_fence_get_timeline_name(struct fence *f)
 	return "svga";
 }
 
-static void vmw_fence_ping_func(struct work_struct *work)
-{
-	struct vmw_fence_manager *fman =
-		container_of(work, struct vmw_fence_manager, ping_work);
-
-	vmw_fifo_ping_host(fman->dev_priv, SVGA_SYNC_GENERIC);
-}
-
 static bool vmw_fence_enable_signaling(struct fence *f)
 {
 	struct vmw_fence_obj *fence =
@@ -155,11 +147,7 @@ static bool vmw_fence_enable_signaling(struct fence *f)
 	if (seqno - fence->base.seqno < VMW_FENCE_WRAP)
 		return false;
 
-	if (mutex_trylock(&dev_priv->hw_mutex)) {
-		vmw_fifo_ping_host_locked(dev_priv, SVGA_SYNC_GENERIC);
-		mutex_unlock(&dev_priv->hw_mutex);
-	} else
-		schedule_work(&fman->ping_work);
+	vmw_fifo_ping_host(dev_priv, SVGA_SYNC_GENERIC);
 
 	return true;
 }
@@ -305,7 +293,6 @@ struct vmw_fence_manager *vmw_fence_manager_init(struct vmw_private *dev_priv)
 	INIT_LIST_HEAD(&fman->fence_list);
 	INIT_LIST_HEAD(&fman->cleanup_list);
 	INIT_WORK(&fman->work, &vmw_fence_work_func);
-	INIT_WORK(&fman->ping_work, &vmw_fence_ping_func);
 	fman->fifo_down = true;
 	fman->user_fence_size = ttm_round_pot(sizeof(struct vmw_user_fence));
 	fman->fence_size = ttm_round_pot(sizeof(struct vmw_fence_obj));
@@ -323,7 +310,6 @@ void vmw_fence_manager_takedown(struct vmw_fence_manager *fman)
 	bool lists_empty;
 
 	(void) cancel_work_sync(&fman->work);
-	(void) cancel_work_sync(&fman->ping_work);
 
 	spin_lock_irqsave(&fman->lock, irq_flags);
 	lists_empty = list_empty(&fman->fence_list) &&

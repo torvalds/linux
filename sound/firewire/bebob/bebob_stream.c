@@ -484,13 +484,6 @@ int snd_bebob_stream_init_duplex(struct snd_bebob *bebob)
 		amdtp_stream_destroy(&bebob->rx_stream);
 		destroy_both_connections(bebob);
 	}
-	/*
-	 * The firmware for these devices ignore MIDI messages in more than
-	 * first 8 data blocks of an received AMDTP packet.
-	 */
-	if (bebob->spec == &maudio_fw410_spec ||
-	    bebob->spec == &maudio_special_spec)
-		bebob->rx_stream.rx_blocks_for_midi = 8;
 end:
 	return err;
 }
