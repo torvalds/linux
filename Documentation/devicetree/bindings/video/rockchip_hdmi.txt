@@ -1,7 +1,7 @@
 Device-Tree bindings for rockchip hdmi driver
 
 Required properties:
-- compatible: value should be following value:
+- compatible: value should be following:
 	"rockchip,rk3288-hdmi",
 	"rockchip,rk3368-hdmi",
 	"rockchip,rk3036-hdmi",
