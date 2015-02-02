@@ -1553,6 +1553,11 @@ ll_get_grouplock(struct inode *inode, struct file *file, unsigned long arg)
 	struct ccc_grouplock    grouplock;
 	int		     rc;
 
+	if (arg == 0) {
+		CWARN("group id for group lock must not be 0\n");
+		return -EINVAL;
+	}
+
 	if (ll_file_nolock(file))
 		return -EOPNOTSUPP;
 
