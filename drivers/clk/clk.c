@@ -2123,10 +2123,10 @@ EXPORT_SYMBOL_GPL(clk_set_parent);
  */
 int clk_set_phase(struct clk *clk, int degrees)
 {
-	int ret = 0;
+	int ret = -EINVAL;
 
 	if (!clk)
-		goto out;
+		return 0;
 
 	/* sanity check degrees */
 	degrees %= 360;
@@ -2135,18 +2135,14 @@ int clk_set_phase(struct clk *clk, int degrees)
 
 	clk_prepare_lock();
 
-	if (!clk->core->ops->set_phase)
-		goto out_unlock;
-
-	ret = clk->core->ops->set_phase(clk->core->hw, degrees);
+	if (clk->core->ops->set_phase)
+		ret = clk->core->ops->set_phase(clk->core->hw, degrees);
 
 	if (!ret)
 		clk->core->phase = degrees;
 
-out_unlock:
 	clk_prepare_unlock();
 
-out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(clk_set_phase);
