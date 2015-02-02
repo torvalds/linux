@@ -22,7 +22,7 @@
 	};
 
 	chosen {
-		stdout-path = &soc_uart0;
+		stdout-path = "serial0:115200n8";
 	};
 
 	psci {

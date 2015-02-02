@@ -2118,7 +2118,7 @@ void btrfs_apply_pending_changes(struct btrfs_fs_info *fs_info)
 	unsigned long prev;
 	unsigned long bit;
 
-	prev = cmpxchg(&fs_info->pending_changes, 0, 0);
+	prev = xchg(&fs_info->pending_changes, 0);
 	if (!prev)
 		return;
 

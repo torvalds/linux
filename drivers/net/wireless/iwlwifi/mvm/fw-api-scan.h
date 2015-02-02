@@ -653,8 +653,11 @@ enum iwl_scan_channel_flags {
 };
 
 /* iwl_scan_channel_opt - CHANNEL_OPTIMIZATION_API_S
- * @flags: enum iwl_scan_channel_flgs
- * @non_ebs_ratio: how many regular scan iteration before EBS
+ * @flags: enum iwl_scan_channel_flags
+ * @non_ebs_ratio: defines the ratio of number of scan iterations where EBS is
+ *	involved.
+ *	1 - EBS is disabled.
+ *	2 - every second scan will be full scan(and so on).
  */
 struct iwl_scan_channel_opt {
 	__le16 flags;

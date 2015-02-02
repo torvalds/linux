@@ -1641,10 +1641,8 @@ static void blk_mq_free_hw_queues(struct request_queue *q,
 	struct blk_mq_hw_ctx *hctx;
 	unsigned int i;
 
-	queue_for_each_hw_ctx(q, hctx, i) {
+	queue_for_each_hw_ctx(q, hctx, i)
 		free_cpumask_var(hctx->cpumask);
-		kfree(hctx);
-	}
 }
 
 static int blk_mq_init_hctx(struct request_queue *q,
@@ -2002,11 +2000,9 @@ void blk_mq_free_queue(struct request_queue *q)
 
 	percpu_ref_exit(&q->mq_usage_counter);
 
-	free_percpu(q->queue_ctx);
 	kfree(q->queue_hw_ctx);
 	kfree(q->mq_map);
 
-	q->queue_ctx = NULL;
 	q->queue_hw_ctx = NULL;
 	q->mq_map = NULL;
 

@@ -978,6 +978,9 @@ static int selftest_probe(struct platform_device *pdev)
 	}
 
 	dev_dbg(dev, "%s for node @%s\n", __func__, np->full_name);
+
+	of_platform_populate(np, NULL, NULL, &pdev->dev);
+
 	return 0;
 }
 
@@ -1385,6 +1388,39 @@ static void of_selftest_overlay_8(void)
 	selftest(1, "overlay test %d passed\n", 8);
 }
 
+/* test insertion of a bus with parent devices */
+static void of_selftest_overlay_10(void)
+{
+	int ret;
+	char *child_path;
+
+	/* device should disable */
+	ret = of_selftest_apply_overlay_check(10, 10, 0, 1);
+	if (selftest(ret == 0, "overlay test %d failed; overlay application\n", 10))
+		return;
+
+	child_path = kasprintf(GFP_KERNEL, "%s/test-selftest101",
+			selftest_path(10));
+	if (selftest(child_path, "overlay test %d failed; kasprintf\n", 10))
+		return;
+
+	ret = of_path_platform_device_exists(child_path);
+	kfree(child_path);
+	if (selftest(ret, "overlay test %d failed; no child device\n", 10))
+		return;
+}
+
+/* test insertion of a bus with parent devices (and revert) */
+static void of_selftest_overlay_11(void)
+{
+	int ret;
+
+	/* device should disable */
+	ret = of_selftest_apply_revert_overlay_check(11, 11, 0, 1);
+	if (selftest(ret == 0, "overlay test %d failed; overlay application\n", 11))
+		return;
+}
+
 static void __init of_selftest_overlay(void)
 {
 	struct device_node *bus_np = NULL;
@@ -1432,6 +1468,9 @@ static void __init of_selftest_overlay(void)
 	of_selftest_overlay_5();
 	of_selftest_overlay_6();
 	of_selftest_overlay_8();
+
+	of_selftest_overlay_10();
+	of_selftest_overlay_11();
 
 out:
 	of_node_put(bus_np);
