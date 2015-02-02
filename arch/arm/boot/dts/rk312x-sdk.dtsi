@@ -78,7 +78,7 @@
 	ignore-pm-notify;
 	keep-power-in-suspend;
 	//poll-hw-reset
-	status = okay";
+	status = "okay";
 };
 
 &sdmmc {
