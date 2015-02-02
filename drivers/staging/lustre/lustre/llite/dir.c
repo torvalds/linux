@@ -183,7 +183,10 @@ static int ll_dir_filler(void *_hash, struct page *page0)
 	op_data->op_offset = hash;
 	rc = md_readpage(exp, op_data, page_pool, &request);
 	ll_finish_md_op_data(op_data);
-	if (rc == 0) {
+	if (rc < 0) {
+		/* page0 is special, which was added into page cache early */
+		delete_from_page_cache(page0);
+	} else if (rc == 0) {
 		body = req_capsule_server_get(&request->rq_pill, &RMF_MDT_BODY);
 		/* Checked by mdc_readpage() */
 		LASSERT(body != NULL);
