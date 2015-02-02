@@ -658,6 +658,7 @@ static u64 kvm_trap_emul_get_one_regs[] = {
 	KVM_REG_MIPS_CP0_ENTRYHI,
 	KVM_REG_MIPS_CP0_COMPARE,
 	KVM_REG_MIPS_CP0_STATUS,
+	KVM_REG_MIPS_CP0_INTCTL,
 	KVM_REG_MIPS_CP0_CAUSE,
 	KVM_REG_MIPS_CP0_EPC,
 	KVM_REG_MIPS_CP0_PRID,
@@ -740,6 +741,9 @@ static int kvm_trap_emul_get_one_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_MIPS_CP0_STATUS:
 		*v = (long)kvm_read_c0_guest_status(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_INTCTL:
+		*v = (long)kvm_read_c0_guest_intctl(cop0);
 		break;
 	case KVM_REG_MIPS_CP0_CAUSE:
 		*v = (long)kvm_read_c0_guest_cause(cop0);
@@ -854,6 +858,9 @@ static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_MIPS_CP0_STATUS:
 		kvm_write_c0_guest_status(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_INTCTL:
+		/* No VInt, so no VS, read-only for now */
 		break;
 	case KVM_REG_MIPS_CP0_EPC:
 		kvm_write_c0_guest_epc(cop0, v);
