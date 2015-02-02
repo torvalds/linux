@@ -1,0 +1,7 @@
+config  RK_HDMI_V1
+        bool "RockChip HDMI V1 support"
+        depends on RK_HDMI
+	default y
+        help
+           Support rockchip hdmi version 1 if you say y here.
+

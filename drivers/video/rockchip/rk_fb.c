@@ -35,7 +35,7 @@
 #include "bmp_helper.h"
 
 #if defined(CONFIG_RK_HDMI)
-#include "hdmi/rk_hdmi.h"
+#include "hdmi/rockchip-hdmi.h"
 #endif
 
 #if defined(CONFIG_ROCKCHIP_RGA) || defined(CONFIG_ROCKCHIP_RGA2)

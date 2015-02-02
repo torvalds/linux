@@ -763,6 +763,8 @@
 		pinctrl-1 = <&hdmi_gpio>;
 		clocks = <&clk_gates3 8>, <&pd_hdmi>;
 		clock-names = "pclk_hdmi", "pd_hdmi";
+		rockchip,hdcp_enable = <0>;
+		rockchip,cec_enable = <0>;
 		status = "disabled";
 	};
 

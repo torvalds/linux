@@ -735,6 +735,10 @@
 		pinctrl-1 = <&i2c5_gpio>;
 		clocks = <&clk_gates16 9>, <&clk_gates5 12>, <&clk_gates5 11>;
 		clock-names = "pclk_hdmi", "hdcp_clk_hdmi", "cec_clk_hdmi";
+		rockchip,hdmi_video_source = <DISPLAY_SOURCE_LCDC0>;
+		rockchip,hdmi_audio_source = <0>;
+		rockchip,hdcp_enable = <0>;
+		rockchip,cec_enable = <0>;
 		status = "disabled";
 	};
 

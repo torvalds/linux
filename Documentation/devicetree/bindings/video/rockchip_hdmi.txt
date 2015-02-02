@@ -1,7 +1,11 @@
 Device-Tree bindings for rockchip hdmi driver
 
 Required properties:
-- compatible: value should be "rockchip,rk3288-hdmi".
+- compatible: value should be following value:
+	"rockchip,rk3288-hdmi",
+	"rockchip,rk3368-hdmi",
+	"rockchip,rk3036-hdmi",
+	"rockchip,rk312x-hdmi",
 - reg: physical base address of the hdmi and length of memory mapped
         region.
 - interrupts: interrupt number to the cpu.
@@ -12,10 +16,18 @@ Required properties:
         clock-names property.
 - clocks-names: list of clock names sorted in the same order as the clocks
                property. Must contain "pclk_hdmi" and "hdcp_clk_hdmi".
-- rockchips,hdmi_audio_source: hdmi audio source that is described as follow
+- rockchip,hdmi_audio_source: hdmi audio source that is described as follow
 	<0>: hdmi audio source from the I2S interface
 	<1>: hdmi audio source from the SPDIF interface				
-
+- rockchip,hdmi_video_source: hdmi video source that is described as follow
+	<DISPLAY_SOURCE_LCDC0> hdmi video source from LCDC0/VOP0
+	<DISPLAY_SOURCE_LCDC1> hdmi video source from LCDC1/VOP1
+- rockchip,hdcp_enable: hdmi hdcp function is described as follow
+	<0>: hdcp function is disabled.
+	<1>: hdcp function is enabled.
+- rockchip,cec_enable: hdmi cec function is described as follow
+	<0>: cec function is disabled.
+	<1>: cec function is enabled.
 Example:
 
 	hdmi: hdmi@ff980000 {
@@ -27,6 +39,9 @@ Example:
                 pinctrl-1 = <&i2c5_gpio>;
                 clocks = <&clk_gates16 9>, <&clk_gates5 12>;
                 clock-names = "pclk_hdmi", "hdcp_clk_hdmi";
-		rockchips,hdmi_audio_source = <0>;
+		rockchip,hdmi_video_source = <DISPLAY_SOURCE_LCDC0>;
+		rockchip,hdmi_audio_source = <0>;
+		rockchip,hdcp_enable = <0>;
+		rockchip,cec_enable = <0>;
         };
 
