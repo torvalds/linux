@@ -1243,10 +1243,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 
 	dev_priv->rps.last_adj = new_delay - dev_priv->rps.cur_freq;
 
-	if (IS_VALLEYVIEW(dev_priv->dev))
-		valleyview_set_rps(dev_priv->dev, new_delay);
-	else
-		gen6_set_rps(dev_priv->dev, new_delay);
+	intel_set_rps(dev_priv->dev, new_delay);
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }

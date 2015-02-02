@@ -4214,10 +4214,7 @@ i915_max_freq_set(void *data, u64 val)
 
 	dev_priv->rps.max_freq_softlimit = val;
 
-	if (IS_VALLEYVIEW(dev))
-		valleyview_set_rps(dev, val);
-	else
-		gen6_set_rps(dev, val);
+	intel_set_rps(dev, val);
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
@@ -4292,10 +4289,7 @@ i915_min_freq_set(void *data, u64 val)
 
 	dev_priv->rps.min_freq_softlimit = val;
 
-	if (IS_VALLEYVIEW(dev))
-		valleyview_set_rps(dev, val);
-	else
-		gen6_set_rps(dev, val);
+	intel_set_rps(dev, val);
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
