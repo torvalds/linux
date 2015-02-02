@@ -89,7 +89,8 @@ struct kvm_s390_sie_block {
 	atomic_t cpuflags;		/* 0x0000 */
 	__u32 : 1;			/* 0x0004 */
 	__u32 prefix : 18;
-	__u32 : 13;
+	__u32 : 1;
+	__u32 ibc : 12;
 	__u8	reserved08[4];		/* 0x0008 */
 #define PROG_IN_SIE (1<<0)
 	__u32	prog0c;			/* 0x000c */
@@ -524,6 +525,7 @@ struct s390_model_fac {
 struct kvm_s390_cpu_model {
 	struct s390_model_fac *fac;
 	struct cpuid cpu_id;
+	unsigned short ibc;
 };
 
 struct kvm_s390_crypto {
