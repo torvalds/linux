@@ -794,4 +794,29 @@
 
 #define BUSx_NR_CLK					11
 
+/* CMU_G3D */
+#define CLK_FOUT_G3D_PLL				1
+
+#define CLK_MOUT_ACLK_G3D_400				2
+#define CLK_MOUT_G3D_PLL				3
+
+#define CLK_DIV_SCLK_HPM_G3D				4
+#define CLK_DIV_PCLK_G3D				5
+#define CLK_DIV_ACLK_G3D				6
+#define CLK_ACLK_BTS_G3D1				7
+#define CLK_ACLK_BTS_G3D0				8
+#define CLK_ACLK_ASYNCAPBS_G3D				9
+#define CLK_ACLK_ASYNCAPBM_G3D				10
+#define CLK_ACLK_AHB2APB_G3DP				11
+#define CLK_ACLK_G3DNP_150				12
+#define CLK_ACLK_G3DND_600				13
+#define CLK_ACLK_G3D					14
+#define CLK_PCLK_BTS_G3D1				15
+#define CLK_PCLK_BTS_G3D0				16
+#define CLK_PCLK_PMU_G3D				17
+#define CLK_PCLK_SYSREG_G3D				18
+#define CLK_SCLK_HPM_G3D				19
+
+#define G3D_NR_CLK					20
+
 #endif /* _DT_BINDINGS_CLOCK_EXYNOS5433_H */
