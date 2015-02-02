@@ -2430,7 +2430,7 @@ static void cfg_queues(struct adapter *adapter)
 	 */
 	n10g = 0;
 	for_each_port(adapter, pidx)
-		n10g += is_10g_port(&adap2pinfo(adapter, pidx)->link_cfg);
+		n10g += is_x_10g_port(&adap2pinfo(adapter, pidx)->link_cfg);
 
 	/*
 	 * We default to 1 queue per non-10G port and up to # of cores queues

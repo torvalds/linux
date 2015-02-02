@@ -98,7 +98,7 @@ nvkm_notify_send(struct nvkm_notify *notify, void *data, u32 size)
 	struct nvkm_event *event = notify->event;
 	unsigned long flags;
 
-	BUG_ON(!spin_is_locked(&event->list_lock));
+	assert_spin_locked(&event->list_lock);
 	BUG_ON(size != notify->size);
 
 	spin_lock_irqsave(&event->refs_lock, flags);

@@ -1552,7 +1552,6 @@ int tree_backref_for_extent(unsigned long *ptr, struct extent_buffer *eb,
 {
 	int ret;
 	int type;
-	struct btrfs_tree_block_info *info;
 	struct btrfs_extent_inline_ref *eiref;
 
 	if (*ptr == (unsigned long)-1)
@@ -1573,9 +1572,17 @@ int tree_backref_for_extent(unsigned long *ptr, struct extent_buffer *eb,
 	}
 
 	/* we can treat both ref types equally here */
-	info = (struct btrfs_tree_block_info *)(ei + 1);
 	*out_root = btrfs_extent_inline_ref_offset(eb, eiref);
-	*out_level = btrfs_tree_block_level(eb, info);
+
+	if (key->type == BTRFS_EXTENT_ITEM_KEY) {
+		struct btrfs_tree_block_info *info;
+
+		info = (struct btrfs_tree_block_info *)(ei + 1);
+		*out_level = btrfs_tree_block_level(eb, info);
+	} else {
+		ASSERT(key->type == BTRFS_METADATA_ITEM_KEY);
+		*out_level = (u8)key->offset;
+	}
 
 	if (ret == 1)
 		*ptr = (unsigned long)-1;

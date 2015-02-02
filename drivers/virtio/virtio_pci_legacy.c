@@ -211,6 +211,17 @@ static const struct virtio_config_ops virtio_pci_config_ops = {
 	.set_vq_affinity = vp_set_vq_affinity,
 };
 
+static void virtio_pci_release_dev(struct device *_d)
+{
+	struct virtio_device *vdev = dev_to_virtio(_d);
+	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
+
+	/* As struct device is a kobject, it's not safe to
+	 * free the memory (including the reference counter itself)
+	 * until it's release callback. */
+	kfree(vp_dev);
+}
+
 /* the PCI probing function */
 int virtio_pci_legacy_probe(struct pci_dev *pci_dev,
 			    const struct pci_device_id *id)
@@ -302,5 +313,4 @@ void virtio_pci_legacy_remove(struct pci_dev *pci_dev)
 	pci_iounmap(pci_dev, vp_dev->ioaddr);
 	pci_release_regions(pci_dev);
 	pci_disable_device(pci_dev);
-	kfree(vp_dev);
 }

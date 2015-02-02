@@ -259,8 +259,6 @@ static void sdhci_reinit(struct sdhci_host *host)
 
 		del_timer_sync(&host->tuning_timer);
 		host->flags &= ~SDHCI_NEEDS_RETUNING;
-		host->mmc->max_blk_count =
-			(host->quirks & SDHCI_QUIRK_NO_MULTIBLOCK) ? 1 : 65535;
 	}
 	sdhci_enable_card_detection(host);
 }
@@ -1273,6 +1271,12 @@ static void sdhci_set_power(struct sdhci_host *host, unsigned char mode,
 		spin_unlock_irq(&host->lock);
 		mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, vdd);
 		spin_lock_irq(&host->lock);
+
+		if (mode != MMC_POWER_OFF)
+			sdhci_writeb(host, SDHCI_POWER_ON, SDHCI_POWER_CONTROL);
+		else
+			sdhci_writeb(host, 0, SDHCI_POWER_CONTROL);
+
 		return;
 	}
 
@@ -1353,6 +1357,8 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	sdhci_runtime_pm_get(host);
 
+	present = mmc_gpio_get_cd(host->mmc);
+
 	spin_lock_irqsave(&host->lock, flags);
 
 	WARN_ON(host->mrq != NULL);
@@ -1381,7 +1387,6 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	 *     zero: cd-gpio is used, and card is removed
 	 *     one: cd-gpio is used, and card is present
 	 */
-	present = mmc_gpio_get_cd(host->mmc);
 	if (present < 0) {
 		/* If polling, assume that the card is always present. */
 		if (host->quirks & SDHCI_QUIRK_BROKEN_CARD_DETECTION)
@@ -1880,6 +1885,18 @@ static int sdhci_card_busy(struct mmc_host *mmc)
 	return !(present_state & SDHCI_DATA_LVL_MASK);
 }
 
+static int sdhci_prepare_hs400_tuning(struct mmc_host *mmc, struct mmc_ios *ios)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+	unsigned long flags;
+
+	spin_lock_irqsave(&host->lock, flags);
+	host->flags |= SDHCI_HS400_TUNING;
+	spin_unlock_irqrestore(&host->lock, flags);
+
+	return 0;
+}
+
 static int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
@@ -1887,9 +1904,17 @@ static int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	int tuning_loop_counter = MAX_TUNING_LOOP;
 	int err = 0;
 	unsigned long flags;
+	unsigned int tuning_count = 0;
+	bool hs400_tuning;
 
 	sdhci_runtime_pm_get(host);
 	spin_lock_irqsave(&host->lock, flags);
+
+	hs400_tuning = host->flags & SDHCI_HS400_TUNING;
+	host->flags &= ~SDHCI_HS400_TUNING;
+
+	if (host->tuning_mode == SDHCI_TUNING_MODE_1)
+		tuning_count = host->tuning_count;
 
 	/*
 	 * The Host Controller needs tuning only in case of SDR104 mode
@@ -1899,8 +1924,20 @@ static int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	 * tuning function has to be executed.
 	 */
 	switch (host->timing) {
+	/* HS400 tuning is done in HS200 mode */
 	case MMC_TIMING_MMC_HS400:
+		err = -EINVAL;
+		goto out_unlock;
+
 	case MMC_TIMING_MMC_HS200:
+		/*
+		 * Periodic re-tuning for HS400 is not expected to be needed, so
+		 * disable it here.
+		 */
+		if (hs400_tuning)
+			tuning_count = 0;
+		break;
+
 	case MMC_TIMING_UHS_SDR104:
 		break;
 
@@ -1911,9 +1948,7 @@ static int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		/* FALLTHROUGH */
 
 	default:
-		spin_unlock_irqrestore(&host->lock, flags);
-		sdhci_runtime_pm_put(host);
-		return 0;
+		goto out_unlock;
 	}
 
 	if (host->ops->platform_execute_tuning) {
@@ -2037,24 +2072,11 @@ static int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	}
 
 out:
-	/*
-	 * If this is the very first time we are here, we start the retuning
-	 * timer. Since only during the first time, SDHCI_NEEDS_RETUNING
-	 * flag won't be set, we check this condition before actually starting
-	 * the timer.
-	 */
-	if (!(host->flags & SDHCI_NEEDS_RETUNING) && host->tuning_count &&
-	    (host->tuning_mode == SDHCI_TUNING_MODE_1)) {
+	host->flags &= ~SDHCI_NEEDS_RETUNING;
+
+	if (tuning_count) {
 		host->flags |= SDHCI_USING_RETUNING_TIMER;
-		mod_timer(&host->tuning_timer, jiffies +
-			host->tuning_count * HZ);
-		/* Tuning mode 1 limits the maximum data length to 4MB */
-		mmc->max_blk_count = (4 * 1024 * 1024) / mmc->max_blk_size;
-	} else if (host->flags & SDHCI_USING_RETUNING_TIMER) {
-		host->flags &= ~SDHCI_NEEDS_RETUNING;
-		/* Reload the new initial value for timer */
-		mod_timer(&host->tuning_timer, jiffies +
-			  host->tuning_count * HZ);
+		mod_timer(&host->tuning_timer, jiffies + tuning_count * HZ);
 	}
 
 	/*
@@ -2070,6 +2092,7 @@ out:
 
 	sdhci_writel(host, host->ier, SDHCI_INT_ENABLE);
 	sdhci_writel(host, host->ier, SDHCI_SIGNAL_ENABLE);
+out_unlock:
 	spin_unlock_irqrestore(&host->lock, flags);
 	sdhci_runtime_pm_put(host);
 
@@ -2110,15 +2133,18 @@ static void sdhci_card_event(struct mmc_host *mmc)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
 	unsigned long flags;
+	int present;
 
 	/* First check if client has provided their own card event */
 	if (host->ops->card_event)
 		host->ops->card_event(host);
 
+	present = sdhci_do_get_cd(host);
+
 	spin_lock_irqsave(&host->lock, flags);
 
 	/* Check host->mrq first in case we are runtime suspended */
-	if (host->mrq && !sdhci_do_get_cd(host)) {
+	if (host->mrq && !present) {
 		pr_err("%s: Card removed during transfer!\n",
 			mmc_hostname(host->mmc));
 		pr_err("%s: Resetting controller.\n",
@@ -2142,6 +2168,7 @@ static const struct mmc_host_ops sdhci_ops = {
 	.hw_reset	= sdhci_hw_reset,
 	.enable_sdio_irq = sdhci_enable_sdio_irq,
 	.start_signal_voltage_switch	= sdhci_start_signal_voltage_switch,
+	.prepare_hs400_tuning		= sdhci_prepare_hs400_tuning,
 	.execute_tuning			= sdhci_execute_tuning,
 	.card_event			= sdhci_card_event,
 	.card_busy	= sdhci_card_busy,
@@ -3260,8 +3287,9 @@ int sdhci_add_host(struct sdhci_host *host)
 		mmc->max_segs = SDHCI_MAX_SEGS;
 
 	/*
-	 * Maximum number of sectors in one transfer. Limited by DMA boundary
-	 * size (512KiB).
+	 * Maximum number of sectors in one transfer. Limited by SDMA boundary
+	 * size (512KiB). Note some tuning modes impose a 4MiB limit, but this
+	 * is less anyway.
 	 */
 	mmc->max_req_size = 524288;
 

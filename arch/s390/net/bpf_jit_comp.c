@@ -431,8 +431,8 @@ static int bpf_jit_insn(struct bpf_jit *jit, struct sock_filter *filter,
 		EMIT4_DISP(0x88500000, K);
 		break;
 	case BPF_ALU | BPF_NEG: /* A = -A */
-		/* lnr %r5,%r5 */
-		EMIT2(0x1155);
+		/* lcr %r5,%r5 */
+		EMIT2(0x1355);
 		break;
 	case BPF_JMP | BPF_JA: /* ip += K */
 		offset = addrs[i + K] + jit->start - jit->prg;
@@ -502,8 +502,8 @@ branch:		if (filter->jt == filter->jf) {
 xbranch:	/* Emit compare if the branch targets are different */
 		if (filter->jt != filter->jf) {
 			jit->seen |= SEEN_XREG;
-			/* cr %r5,%r12 */
-			EMIT2(0x195c);
+			/* clr %r5,%r12 */
+			EMIT2(0x155c);
 		}
 		goto branch;
 	case BPF_JMP | BPF_JSET | BPF_X: /* ip += (A & X) ? jt : jf */

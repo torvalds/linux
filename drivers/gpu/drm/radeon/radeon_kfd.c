@@ -72,7 +72,7 @@ static int kgd_init_pipeline(struct kgd_dev *kgd, uint32_t pipe_id,
 static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 			uint32_t queue_id, uint32_t __user *wptr);
 
-static bool kgd_hqd_is_occupies(struct kgd_dev *kgd, uint64_t queue_address,
+static bool kgd_hqd_is_occupied(struct kgd_dev *kgd, uint64_t queue_address,
 				uint32_t pipe_id, uint32_t queue_id);
 
 static int kgd_hqd_destroy(struct kgd_dev *kgd, uint32_t reset_type,
@@ -92,7 +92,7 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.init_memory = kgd_init_memory,
 	.init_pipeline = kgd_init_pipeline,
 	.hqd_load = kgd_hqd_load,
-	.hqd_is_occupies = kgd_hqd_is_occupies,
+	.hqd_is_occupied = kgd_hqd_is_occupied,
 	.hqd_destroy = kgd_hqd_destroy,
 	.get_fw_version = get_fw_version
 };
@@ -101,6 +101,7 @@ static const struct kgd2kfd_calls *kgd2kfd;
 
 bool radeon_kfd_init(void)
 {
+#if defined(CONFIG_HSA_AMD_MODULE)
 	bool (*kgd2kfd_init_p)(unsigned, const struct kfd2kgd_calls*,
 				const struct kgd2kfd_calls**);
 
@@ -117,6 +118,17 @@ bool radeon_kfd_init(void)
 	}
 
 	return true;
+#elif defined(CONFIG_HSA_AMD)
+	if (!kgd2kfd_init(KFD_INTERFACE_VERSION, &kfd2kgd, &kgd2kfd)) {
+		kgd2kfd = NULL;
+
+		return false;
+	}
+
+	return true;
+#else
+	return false;
+#endif
 }
 
 void radeon_kfd_fini(void)
@@ -378,6 +390,10 @@ static int kgd_set_pasid_vmid_mapping(struct kgd_dev *kgd, unsigned int pasid,
 		cpu_relax();
 	write_register(kgd, ATC_VMID_PASID_MAPPING_UPDATE_STATUS, 1U << vmid);
 
+	/* Mapping vmid to pasid also for IH block */
+	write_register(kgd, IH_VMID_0_LUT + vmid * sizeof(uint32_t),
+			pasid_mapping);
+
 	return 0;
 }
 
@@ -517,7 +533,7 @@ static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 	return 0;
 }
 
-static bool kgd_hqd_is_occupies(struct kgd_dev *kgd, uint64_t queue_address,
+static bool kgd_hqd_is_occupied(struct kgd_dev *kgd, uint64_t queue_address,
 				uint32_t pipe_id, uint32_t queue_id)
 {
 	uint32_t act;
@@ -556,6 +572,7 @@ static int kgd_hqd_destroy(struct kgd_dev *kgd, uint32_t reset_type,
 		if (timeout == 0) {
 			pr_err("kfd: cp queue preemption time out (%dms)\n",
 				temp);
+			release_queue(kgd);
 			return -ETIME;
 		}
 		msleep(20);

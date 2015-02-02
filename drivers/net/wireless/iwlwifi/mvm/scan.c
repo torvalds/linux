@@ -171,15 +171,21 @@ static void iwl_mvm_scan_fill_ssids(struct iwl_ssid_ie *cmd_ssid,
  * already included in the probe template, so we need to set only
  * req->n_ssids - 1 bits in addition to the first bit.
  */
-static u16 iwl_mvm_get_active_dwell(enum ieee80211_band band, int n_ssids)
+static u16 iwl_mvm_get_active_dwell(struct iwl_mvm *mvm,
+				    enum ieee80211_band band, int n_ssids)
 {
+	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_BASIC_DWELL)
+		return 10;
 	if (band == IEEE80211_BAND_2GHZ)
 		return 20  + 3 * (n_ssids + 1);
 	return 10  + 2 * (n_ssids + 1);
 }
 
-static u16 iwl_mvm_get_passive_dwell(enum ieee80211_band band)
+static u16 iwl_mvm_get_passive_dwell(struct iwl_mvm *mvm,
+				     enum ieee80211_band band)
 {
+	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_BASIC_DWELL)
+			return 110;
 	return band == IEEE80211_BAND_2GHZ ? 100 + 20 : 100 + 10;
 }
 
@@ -331,7 +337,8 @@ static void iwl_mvm_scan_calc_params(struct iwl_mvm *mvm,
 		 */
 		if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
 			u32 passive_dwell =
-				iwl_mvm_get_passive_dwell(IEEE80211_BAND_2GHZ);
+				iwl_mvm_get_passive_dwell(mvm,
+							  IEEE80211_BAND_2GHZ);
 			params->max_out_time = passive_dwell;
 		} else {
 			params->passive_fragmented = true;
@@ -348,8 +355,8 @@ not_bound:
 			params->dwell[band].passive = frag_passive_dwell;
 		else
 			params->dwell[band].passive =
-				iwl_mvm_get_passive_dwell(band);
-		params->dwell[band].active = iwl_mvm_get_active_dwell(band,
+				iwl_mvm_get_passive_dwell(mvm, band);
+		params->dwell[band].active = iwl_mvm_get_active_dwell(mvm, band,
 								      n_ssids);
 	}
 }
@@ -1448,6 +1455,8 @@ int iwl_mvm_unified_sched_scan_lmac(struct iwl_mvm *mvm,
 
 	if (iwl_mvm_scan_pass_all(mvm, req))
 		flags |= IWL_MVM_LMAC_SCAN_FLAG_PASS_ALL;
+	else
+		flags |= IWL_MVM_LMAC_SCAN_FLAG_MATCH;
 
 	if (req->n_ssids == 1 && req->ssids[0].ssid_len != 0)
 		flags |= IWL_MVM_LMAC_SCAN_FLAG_PRE_CONNECTION;

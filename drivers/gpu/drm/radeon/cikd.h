@@ -2156,4 +2156,6 @@
 #define ATC_VM_APERTURE1_HIGH_ADDR				0x330Cu
 #define ATC_VM_APERTURE1_LOW_ADDR				0x3304u
 
+#define IH_VMID_0_LUT						0x3D40u
+
 #endif

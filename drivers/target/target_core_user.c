@@ -1118,7 +1118,6 @@ static struct configfs_attribute *tcmu_backend_dev_attrs[] = {
 	&tcmu_dev_attrib_hw_block_size.attr,
 	&tcmu_dev_attrib_block_size.attr,
 	&tcmu_dev_attrib_hw_max_sectors.attr,
-	&tcmu_dev_attrib_fabric_max_sectors.attr,
 	&tcmu_dev_attrib_optimal_sectors.attr,
 	&tcmu_dev_attrib_hw_queue_depth.attr,
 	&tcmu_dev_attrib_queue_depth.attr,

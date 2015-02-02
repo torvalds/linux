@@ -2023,11 +2023,8 @@ leave:
 	dlm_lockres_drop_inflight_ref(dlm, res);
 	spin_unlock(&res->spinlock);
 
-	if (ret < 0) {
+	if (ret < 0)
 		mlog_errno(ret);
-		if (newlock)
-			dlm_lock_put(newlock);
-	}
 
 	return ret;
 }

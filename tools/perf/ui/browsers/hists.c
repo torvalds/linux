@@ -550,7 +550,7 @@ static int hist_browser__show_callchain(struct hist_browser *browser,
 	bool need_percent;
 
 	node = rb_first(root);
-	need_percent = !!rb_next(node);
+	need_percent = node && rb_next(node);
 
 	while (node) {
 		struct callchain_node *child = rb_entry(node, struct callchain_node, rb_node);

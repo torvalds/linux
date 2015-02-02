@@ -1170,10 +1170,6 @@ tx_request_irq_error:
 init_error:
 	free_skbufs(dev);
 alloc_skbuf_error:
-	if (priv->phydev) {
-		phy_disconnect(priv->phydev);
-		priv->phydev = NULL;
-	}
 phy_error:
 	return ret;
 }
@@ -1186,12 +1182,9 @@ static int tse_shutdown(struct net_device *dev)
 	int ret;
 	unsigned long int flags;
 
-	/* Stop and disconnect the PHY */
-	if (priv->phydev) {
+	/* Stop the PHY */
+	if (priv->phydev)
 		phy_stop(priv->phydev);
-		phy_disconnect(priv->phydev);
-		priv->phydev = NULL;
-	}
 
 	netif_stop_queue(dev);
 	napi_disable(&priv->napi);
@@ -1525,6 +1518,10 @@ err_free_netdev:
 static int altera_tse_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct altera_tse_private *priv = netdev_priv(ndev);
+
+	if (priv->phydev)
+		phy_disconnect(priv->phydev);
 
 	platform_set_drvdata(pdev, NULL);
 	altera_tse_mdio_destroy(ndev);

@@ -323,6 +323,8 @@ int t4vf_port_init(struct adapter *adapter, int pidx)
 		return v;
 
 	v = be32_to_cpu(port_rpl.u.info.lstatus_to_modtype);
+	pi->mdio_addr = (v & FW_PORT_CMD_MDIOCAP_F) ?
+			FW_PORT_CMD_MDIOADDR_G(v) : -1;
 	pi->port_type = FW_PORT_CMD_PTYPE_G(v);
 	pi->mod_type = FW_PORT_MOD_TYPE_NA;
 

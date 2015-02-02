@@ -130,6 +130,8 @@ static int proc_thermal_add(struct device *dev,
 	int ret;
 
 	adev = ACPI_COMPANION(dev);
+	if (!adev)
+		return -ENODEV;
 
 	status = acpi_evaluate_object(adev->handle, "PPCC", NULL, &buf);
 	if (ACPI_FAILURE(status))

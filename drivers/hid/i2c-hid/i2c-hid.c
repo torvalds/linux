@@ -706,12 +706,7 @@ static int i2c_hid_start(struct hid_device *hid)
 
 static void i2c_hid_stop(struct hid_device *hid)
 {
-	struct i2c_client *client = hid->driver_data;
-	struct i2c_hid *ihid = i2c_get_clientdata(client);
-
 	hid->claimed = 0;
-
-	i2c_hid_free_buffers(ihid);
 }
 
 static int i2c_hid_open(struct hid_device *hid)

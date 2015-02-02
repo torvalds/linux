@@ -989,8 +989,24 @@ static int debuginfo__find_probes(struct debuginfo *dbg,
 	int ret = 0;
 
 #if _ELFUTILS_PREREQ(0, 142)
+	Elf *elf;
+	GElf_Ehdr ehdr;
+	GElf_Shdr shdr;
+
 	/* Get the call frame information from this dwarf */
-	pf->cfi = dwarf_getcfi_elf(dwarf_getelf(dbg->dbg));
+	elf = dwarf_getelf(dbg->dbg);
+	if (elf == NULL)
+		return -EINVAL;
+
+	if (gelf_getehdr(elf, &ehdr) == NULL)
+		return -EINVAL;
+
+	if (elf_section_by_name(elf, &ehdr, &shdr, ".eh_frame", NULL) &&
+	    shdr.sh_type == SHT_PROGBITS) {
+		pf->cfi = dwarf_getcfi_elf(elf);
+	} else {
+		pf->cfi = dwarf_getcfi(dbg->dbg);
+	}
 #endif
 
 	off = 0;

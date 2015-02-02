@@ -3043,18 +3043,6 @@ static int mem_cgroup_move_swap_account(swp_entry_t entry,
 	if (swap_cgroup_cmpxchg(entry, old_id, new_id) == old_id) {
 		mem_cgroup_swap_statistics(from, false);
 		mem_cgroup_swap_statistics(to, true);
-		/*
-		 * This function is only called from task migration context now.
-		 * It postpones page_counter and refcount handling till the end
-		 * of task migration(mem_cgroup_clear_mc()) for performance
-		 * improvement. But we cannot postpone css_get(to)  because if
-		 * the process that has been moved to @to does swap-in, the
-		 * refcount of @to might be decreased to 0.
-		 *
-		 * We are in attach() phase, so the cgroup is guaranteed to be
-		 * alive, so we can just call css_get().
-		 */
-		css_get(&to->css);
 		return 0;
 	}
 	return -EINVAL;
@@ -4679,6 +4667,7 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
 	if (parent_css == NULL) {
 		root_mem_cgroup = memcg;
 		page_counter_init(&memcg->memory, NULL);
+		memcg->soft_limit = PAGE_COUNTER_MAX;
 		page_counter_init(&memcg->memsw, NULL);
 		page_counter_init(&memcg->kmem, NULL);
 	}
@@ -4724,6 +4713,7 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
 
 	if (parent->use_hierarchy) {
 		page_counter_init(&memcg->memory, &parent->memory);
+		memcg->soft_limit = PAGE_COUNTER_MAX;
 		page_counter_init(&memcg->memsw, &parent->memsw);
 		page_counter_init(&memcg->kmem, &parent->kmem);
 
@@ -4733,6 +4723,7 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
 		 */
 	} else {
 		page_counter_init(&memcg->memory, NULL);
+		memcg->soft_limit = PAGE_COUNTER_MAX;
 		page_counter_init(&memcg->memsw, NULL);
 		page_counter_init(&memcg->kmem, NULL);
 		/*
@@ -4807,7 +4798,7 @@ static void mem_cgroup_css_reset(struct cgroup_subsys_state *css)
 	mem_cgroup_resize_limit(memcg, PAGE_COUNTER_MAX);
 	mem_cgroup_resize_memsw_limit(memcg, PAGE_COUNTER_MAX);
 	memcg_update_kmem_limit(memcg, PAGE_COUNTER_MAX);
-	memcg->soft_limit = 0;
+	memcg->soft_limit = PAGE_COUNTER_MAX;
 }
 
 #ifdef CONFIG_MMU

@@ -1616,7 +1616,7 @@ static int enic_open(struct net_device *netdev)
 		if (vnic_rq_desc_used(&enic->rq[i]) == 0) {
 			netdev_err(netdev, "Unable to alloc receive buffers\n");
 			err = -ENOMEM;
-			goto err_out_notify_unset;
+			goto err_out_free_rq;
 		}
 	}
 
@@ -1649,7 +1649,9 @@ static int enic_open(struct net_device *netdev)
 
 	return 0;
 
-err_out_notify_unset:
+err_out_free_rq:
+	for (i = 0; i < enic->rq_count; i++)
+		vnic_rq_clean(&enic->rq[i], enic_free_rq_buf);
 	enic_dev_notify_unset(enic);
 err_out_free_intr:
 	enic_free_intr(enic);

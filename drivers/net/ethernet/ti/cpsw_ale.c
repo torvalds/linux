@@ -234,7 +234,7 @@ static void cpsw_ale_flush_mcast(struct cpsw_ale *ale, u32 *ale_entry,
 		cpsw_ale_set_entry_type(ale_entry, ALE_TYPE_FREE);
 }
 
-int cpsw_ale_flush_multicast(struct cpsw_ale *ale, int port_mask)
+int cpsw_ale_flush_multicast(struct cpsw_ale *ale, int port_mask, int vid)
 {
 	u32 ale_entry[ALE_ENTRY_WORDS];
 	int ret, idx;
@@ -243,6 +243,14 @@ int cpsw_ale_flush_multicast(struct cpsw_ale *ale, int port_mask)
 		cpsw_ale_read(ale, idx, ale_entry);
 		ret = cpsw_ale_get_entry_type(ale_entry);
 		if (ret != ALE_TYPE_ADDR && ret != ALE_TYPE_VLAN_ADDR)
+			continue;
+
+		/* if vid passed is -1 then remove all multicast entry from
+		 * the table irrespective of vlan id, if a valid vlan id is
+		 * passed then remove only multicast added to that vlan id.
+		 * if vlan id doesn't match then move on to next entry.
+		 */
+		if (vid != -1 && cpsw_ale_get_vlan_id(ale_entry) != vid)
 			continue;
 
 		if (cpsw_ale_get_mcast(ale_entry)) {
