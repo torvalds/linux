@@ -162,6 +162,10 @@ static int mlx4_en_init_allocator(struct mlx4_en_priv *priv,
 		if (mlx4_alloc_pages(priv, &ring->page_alloc[i],
 				     frag_info, GFP_KERNEL | __GFP_COLD))
 			goto out;
+
+		en_dbg(DRV, priv, "  frag %d allocator: - size:%d frags:%d\n",
+		       i, ring->page_alloc[i].page_size,
+		       atomic_read(&ring->page_alloc[i].page->_count));
 	}
 	return 0;
 
