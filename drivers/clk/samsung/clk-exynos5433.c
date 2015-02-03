@@ -560,6 +560,9 @@ static struct samsung_gate_clock top_gate_clks[] __initdata = {
 	GATE(CLK_ACLK_GSCL_333, "aclk_gscl_333", "div_aclk_gscl_333",
 			ENABLE_ACLK_TOP, 14,
 			CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_HEVC_400, "aclk_hevc_400", "div_aclk_hevc_400",
+			ENABLE_ACLK_TOP, 5,
+			CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_ACLK_MFC_400, "aclk_mfc_400", "div_aclk_mfc_400",
 			ENABLE_ACLK_TOP, 3,
 			CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0),
@@ -4103,3 +4106,115 @@ static void __init exynos5433_cmu_mfc_init(struct device_node *np)
 }
 CLK_OF_DECLARE(exynos5433_cmu_mfc, "samsung,exynos5433-cmu-mfc",
 		exynos5433_cmu_mfc_init);
+
+/*
+ * Register offset definitions for CMU_HEVC
+ */
+#define MUX_SEL_HEVC				0x0200
+#define MUX_ENABLE_HEVC				0x0300
+#define MUX_STAT_HEVC				0x0400
+#define DIV_HEVC				0x0600
+#define DIV_STAT_HEVC				0x0700
+#define ENABLE_ACLK_HEVC			0x0800
+#define ENABLE_ACLK_HEVC_SECURE_SMMU_HEVC	0x0804
+#define ENABLE_PCLK_HEVC			0x0900
+#define ENABLE_PCLK_HEVC_SECURE_SMMU_HEVC	0x0904
+#define ENABLE_IP_HEVC0				0x0b00
+#define ENABLE_IP_HEVC1				0x0b04
+#define ENABLE_IP_HEVC_SECURE_SMMU_HEVC		0x0b08
+
+static unsigned long hevc_clk_regs[] __initdata = {
+	MUX_SEL_HEVC,
+	MUX_ENABLE_HEVC,
+	MUX_STAT_HEVC,
+	DIV_HEVC,
+	DIV_STAT_HEVC,
+	ENABLE_ACLK_HEVC,
+	ENABLE_ACLK_HEVC_SECURE_SMMU_HEVC,
+	ENABLE_PCLK_HEVC,
+	ENABLE_PCLK_HEVC_SECURE_SMMU_HEVC,
+	ENABLE_IP_HEVC0,
+	ENABLE_IP_HEVC1,
+	ENABLE_IP_HEVC_SECURE_SMMU_HEVC,
+};
+
+PNAME(mout_aclk_hevc_400_user_p)	= { "oscclk", "aclk_hevc_400", };
+
+static struct samsung_mux_clock hevc_mux_clks[] __initdata = {
+	/* MUX_SEL_HEVC */
+	MUX(CLK_MOUT_ACLK_HEVC_400_USER, "mout_aclk_hevc_400_user",
+			mout_aclk_hevc_400_user_p, MUX_SEL_HEVC, 0, 0),
+};
+
+static struct samsung_div_clock hevc_div_clks[] __initdata = {
+	/* DIV_HEVC */
+	DIV(CLK_DIV_PCLK_HEVC, "div_pclk_hevc", "mout_aclk_hevc_400_user",
+			DIV_HEVC, 0, 2),
+};
+
+static struct samsung_gate_clock hevc_gate_clks[] __initdata = {
+	/* ENABLE_ACLK_HEVC */
+	GATE(CLK_ACLK_BTS_HEVC_1, "aclk_bts_hevc_1", "mout_aclk_hevc_400_user",
+			ENABLE_ACLK_HEVC, 6, 0, 0),
+	GATE(CLK_ACLK_BTS_HEVC_0, "aclk_bts_hevc_0", "mout_aclk_hevc_400_user",
+			ENABLE_ACLK_HEVC, 5, 0, 0),
+	GATE(CLK_ACLK_AHB2APB_HEVCP, "aclk_ahb2apb_hevcp", "div_pclk_hevc",
+			ENABLE_ACLK_HEVC, 4, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_XIU_HEVCX, "aclk_xiu_hevcx", "mout_aclk_hevc_400_user",
+			ENABLE_ACLK_HEVC, 3, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_HEVCNP_100, "aclk_hevcnp_100", "div_pclk_hevc",
+			ENABLE_ACLK_HEVC, 2, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_HEVCND_400, "aclk_hevcnd_400", "mout_aclk_hevc_400_user",
+			ENABLE_ACLK_HEVC, 1, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_HEVC, "aclk_hevc", "mout_aclk_hevc_400_user",
+			ENABLE_ACLK_HEVC, 0, 0, 0),
+
+	/* ENABLE_ACLK_HEVC_SECURE_SMMU_HEVC */
+	GATE(CLK_ACLK_SMMU_HEVC_1, "aclk_smmu_hevc_1",
+			"mout_aclk_hevc_400_user",
+			ENABLE_ACLK_HEVC_SECURE_SMMU_HEVC,
+			1, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_SMMU_HEVC_0, "aclk_smmu_hevc_0",
+			"mout_aclk_hevc_400_user",
+			ENABLE_ACLK_HEVC_SECURE_SMMU_HEVC,
+			0, CLK_IGNORE_UNUSED, 0),
+
+	/* ENABLE_PCLK_HEVC */
+	GATE(CLK_PCLK_BTS_HEVC_1, "pclk_bts_hevc_1", "div_pclk_hevc",
+			ENABLE_PCLK_HEVC, 4, 0, 0),
+	GATE(CLK_PCLK_BTS_HEVC_0, "pclk_bts_hevc_0", "div_pclk_hevc",
+			ENABLE_PCLK_HEVC, 3, 0, 0),
+	GATE(CLK_PCLK_PMU_HEVC, "pclk_pmu_hevc", "div_pclk_hevc",
+			ENABLE_PCLK_HEVC, 2, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_SYSREG_HEVC, "pclk_sysreg_hevc", "div_pclk_hevc",
+			ENABLE_PCLK_HEVC, 1, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_HEVC, "pclk_hevc", "div_pclk_hevc",
+			ENABLE_PCLK_HEVC, 4, CLK_IGNORE_UNUSED, 0),
+
+	/* ENABLE_PCLK_HEVC_SECURE_SMMU_HEVC */
+	GATE(CLK_PCLK_SMMU_HEVC_1, "pclk_smmu_hevc_1", "div_pclk_hevc",
+			ENABLE_PCLK_HEVC_SECURE_SMMU_HEVC,
+			1, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_SMMU_HEVC_0, "pclk_smmu_hevc_0", "div_pclk_hevc",
+			ENABLE_PCLK_HEVC_SECURE_SMMU_HEVC,
+			0, CLK_IGNORE_UNUSED, 0),
+};
+
+static struct samsung_cmu_info hevc_cmu_info __initdata = {
+	.mux_clks		= hevc_mux_clks,
+	.nr_mux_clks		= ARRAY_SIZE(hevc_mux_clks),
+	.div_clks		= hevc_div_clks,
+	.nr_div_clks		= ARRAY_SIZE(hevc_div_clks),
+	.gate_clks		= hevc_gate_clks,
+	.nr_gate_clks		= ARRAY_SIZE(hevc_gate_clks),
+	.nr_clk_ids		= HEVC_NR_CLK,
+	.clk_regs		= hevc_clk_regs,
+	.nr_clk_regs		= ARRAY_SIZE(hevc_clk_regs),
+};
+
+static void __init exynos5433_cmu_hevc_init(struct device_node *np)
+{
+	samsung_cmu_register_one(np, &hevc_cmu_info);
+}
+CLK_OF_DECLARE(exynos5433_cmu_hevc, "samsung,exynos5433-cmu-hevc",
+		exynos5433_cmu_hevc_init);

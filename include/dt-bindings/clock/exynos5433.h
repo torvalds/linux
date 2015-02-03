@@ -154,8 +154,9 @@
 #define CLK_SCLK_JPEG_MSCL		234
 #define CLK_ACLK_MSCL_400		235
 #define CLK_ACLK_MFC_400		236
+#define CLK_ACLK_HEVC_400		237
 
-#define TOP_NR_CLK			237
+#define TOP_NR_CLK			238
 
 /* CMU_CPIF */
 #define CLK_FOUT_MPHY_PLL		1
@@ -1000,5 +1001,29 @@
 #define CLK_PCLK_SMMU_MFC_0				18
 
 #define MFC_NR_CLK					19
+
+/* CMU_HEVC */
+#define CLK_MOUT_ACLK_HEVC_400_USER			1
+
+#define CLK_DIV_PCLK_HEVC				2
+
+#define CLK_ACLK_BTS_HEVC_1				3
+#define CLK_ACLK_BTS_HEVC_0				4
+#define CLK_ACLK_AHB2APB_HEVCP				5
+#define CLK_ACLK_XIU_HEVCX				6
+#define CLK_ACLK_HEVCNP_100				7
+#define CLK_ACLK_HEVCND_400				8
+#define CLK_ACLK_HEVC					9
+#define CLK_ACLK_SMMU_HEVC_1				10
+#define CLK_ACLK_SMMU_HEVC_0				11
+#define CLK_PCLK_BTS_HEVC_1				12
+#define CLK_PCLK_BTS_HEVC_0				13
+#define CLK_PCLK_PMU_HEVC				14
+#define CLK_PCLK_SYSREG_HEVC				15
+#define CLK_PCLK_HEVC					16
+#define CLK_PCLK_SMMU_HEVC_1				17
+#define CLK_PCLK_SMMU_HEVC_0				18
+
+#define HEVC_NR_CLK					19
 
 #endif /* _DT_BINDINGS_CLOCK_EXYNOS5433_H */
