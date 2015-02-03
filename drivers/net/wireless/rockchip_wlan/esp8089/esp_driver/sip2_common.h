@@ -85,6 +85,7 @@ enum {
         SIP_EVT_SLEEP,
         SIP_EVT_TXIDLE,
         SIP_EVT_NOISEFLOOR,
+	SIP_EVT_NULLFUNC_REPORT,
         SIP_EVT_MAX
 };
 
@@ -341,7 +342,8 @@ struct sip_evt_bootup2 {
         u8 credit_to_reserve;
         u8 options;
 	s16 noise_floor;
-	u8 resv[2];
+	u8 mac_type;
+	u8 resv[1];
         /* anything else ? */
 } __packed;
 
@@ -424,6 +426,14 @@ struct sip_evt_noisefloor {
      s16 noise_floor;
      u16    pad;
 } __packed;
+
+struct sip_evt_nullfunc_report {
+     u8    ifidx;
+     u8    index;
+     u8    status;
+     u8    pad;
+} __packed;
+
 /*
  *  for mblk direct memory access, no need for sip_hdr. tx: first 2k for contrl msg,
  *  rest of 14k for data.  rx, same.

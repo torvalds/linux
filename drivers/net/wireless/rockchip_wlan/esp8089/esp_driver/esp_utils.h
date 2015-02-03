@@ -14,7 +14,7 @@
 
 u32 esp_ieee2mhz(u8 chan);
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 enum ieee80211_key_alg {
         ALG_WEP,
         ALG_TKIP,

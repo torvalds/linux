@@ -197,6 +197,9 @@ int sif_lldesc_write_sync(struct esp_pub *epub, u8 *buf, u32 len);
 int sif_lldesc_read_raw(struct esp_pub *epub, u8 *buf, u32 len, bool noround);
 int sif_lldesc_write_raw(struct esp_pub *epub, u8 *buf, u32 len);
 void sif_platform_check_r1_ready(struct esp_pub *epub);
+
+int esp_sdio_init(void);
+void esp_sdio_exit(void);
 #endif 
 
 #ifdef ESP_USE_SPI
@@ -232,7 +235,13 @@ void sif_platform_irq_deinit(void);
 int sif_spi_write_bytes(struct spi_device *spi, unsigned int addr,unsigned char *dst, int count, int check_idle);
 int sif_spi_read_bytes(struct spi_device *spi, unsigned int addr,unsigned char *dst, int count, int check_idle);
 struct esp_spi_resp *sif_get_spi_resp(void);
+
+int esp_spi_init(void);
+void esp_spi_exit(void);
 #endif
+
+int esp_common_init(void);
+void esp_common_exit(void);
 
 int esp_common_read(struct esp_pub *epub, u8 *buf, u32 len, int sync, bool noround);
 int esp_common_write(struct esp_pub *epub, u8 *buf, u32 len, int sync);
@@ -245,7 +254,7 @@ int esp_common_writebyte_with_addr(struct esp_pub *epub, u32 addr, u8 buf, int s
 int sif_read_reg_window(struct esp_pub *epub, unsigned int reg_addr, unsigned char *value);
 int sif_write_reg_window(struct esp_pub *epub, unsigned int reg_addr, unsigned char *value);
 int sif_ack_target_read_err(struct esp_pub *epub);
-int sif_had_io_enable(struct esp_pub *epub);
+int sif_hda_io_enable(struct esp_pub *epub);
 
 struct slc_host_regs * sif_get_regs(struct esp_pub *epub);
 
@@ -279,6 +288,15 @@ void sif_record_retry_config(void);
 int sif_get_retry_config(void);
 void sif_record_wakeup_gpio_config(int value);
 int sif_get_wakeup_gpio_config(void);
+
+#ifdef ESP_CLASS
+void sif_record_fccmode(int value);
+int sif_get_fccmode(void);
+#endif
+#if (defined(CONFIG_DEBUG_FS) && defined(DEBUGFS_BOOTMODE)) || defined(ESP_CLASS)
+void sif_record_esp_run(int value);
+int sif_get_esp_run(void);
+#endif
 
 #ifdef ESP_ACK_INTERRUPT
 //extern void sif_platform_ack_interrupt(struct mmc_host *mmc);
