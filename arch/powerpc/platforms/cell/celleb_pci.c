@@ -393,11 +393,10 @@ static int __init celleb_setup_fake_pci_device(struct device_node *node,
 
 error:
 	if (mem_init_done) {
-		if (config && *config)
+		if (config)
 			kfree(*config);
-		if (res && *res)
+		if (res)
 			kfree(*res);
-
 	} else {
 		if (config && *config) {
 			size = 256;
