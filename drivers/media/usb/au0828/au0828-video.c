@@ -899,12 +899,8 @@ void au0828_analog_unregister(struct au0828_dev *dev)
 {
 	dprintk(1, "au0828_analog_unregister called\n");
 	mutex_lock(&au0828_sysfs_lock);
-
-	if (dev->vdev)
-		video_unregister_device(dev->vdev);
-	if (dev->vbi_dev)
-		video_unregister_device(dev->vbi_dev);
-
+	video_unregister_device(dev->vdev);
+	video_unregister_device(dev->vbi_dev);
 	mutex_unlock(&au0828_sysfs_lock);
 }
 
