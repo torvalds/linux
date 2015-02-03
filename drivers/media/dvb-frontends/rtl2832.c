@@ -154,8 +154,8 @@ static const struct rtl2832_reg_entry registers[] = {
 };
 
 /* Our regmap is bypassing I2C adapter lock, thus we do it! */
-int rtl2832_bulk_write(struct i2c_client *client, unsigned int reg,
-		       const void *val, size_t val_count)
+static int rtl2832_bulk_write(struct i2c_client *client, unsigned int reg,
+			      const void *val, size_t val_count)
 {
 	struct rtl2832_dev *dev = i2c_get_clientdata(client);
 	int ret;
@@ -166,8 +166,8 @@ int rtl2832_bulk_write(struct i2c_client *client, unsigned int reg,
 	return ret;
 }
 
-int rtl2832_update_bits(struct i2c_client *client, unsigned int reg,
-			unsigned int mask, unsigned int val)
+static int rtl2832_update_bits(struct i2c_client *client, unsigned int reg,
+			       unsigned int mask, unsigned int val)
 {
 	struct rtl2832_dev *dev = i2c_get_clientdata(client);
 	int ret;
@@ -178,8 +178,8 @@ int rtl2832_update_bits(struct i2c_client *client, unsigned int reg,
 	return ret;
 }
 
-int rtl2832_bulk_read(struct i2c_client *client, unsigned int reg, void *val,
-		      size_t val_count)
+static int rtl2832_bulk_read(struct i2c_client *client, unsigned int reg,
+			     void *val, size_t val_count)
 {
 	struct rtl2832_dev *dev = i2c_get_clientdata(client);
 	int ret;
