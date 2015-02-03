@@ -3447,7 +3447,7 @@ sub patchcheck {
 	my $sha1 = $item;
 	$sha1 =~ s/^([[:xdigit:]]+).*/$1/;
 
-	doprint "\nProcessing commit $item\n\n";
+	doprint "\nProcessing commit \"$item\"\n\n";
 
 	run_command "git checkout $sha1" or
 	    die "Failed to checkout $sha1";
