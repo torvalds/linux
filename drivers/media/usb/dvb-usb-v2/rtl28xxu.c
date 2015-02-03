@@ -1055,10 +1055,13 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 	struct i2c_board_info info;
 	struct i2c_client *client;
 	struct v4l2_subdev *subdev = NULL;
+	struct platform_device *pdev;
+	struct rtl2832_sdr_platform_data pdata;
 
 	dev_dbg(&d->intf->dev, "\n");
 
 	memset(&info, 0, sizeof(struct i2c_board_info));
+	memset(&pdata, 0, sizeof(pdata));
 
 	switch (dev->tuner) {
 	case TUNER_RTL2832_FC0012:
@@ -1155,9 +1158,6 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 
 	/* register SDR */
 	switch (dev->tuner) {
-		struct platform_device *pdev;
-		struct rtl2832_sdr_platform_data pdata = {};
-
 	case TUNER_RTL2832_FC0012:
 	case TUNER_RTL2832_FC0013:
 	case TUNER_RTL2832_E4000:
