@@ -295,7 +295,7 @@ struct ccp_device *ccp_alloc_struct(struct device *dev)
 {
 	struct ccp_device *ccp;
 
-	ccp = kzalloc(sizeof(*ccp), GFP_KERNEL);
+	ccp = devm_kzalloc(dev, sizeof(*ccp), GFP_KERNEL);
 	if (!ccp)
 		return NULL;
 	ccp->dev = dev;

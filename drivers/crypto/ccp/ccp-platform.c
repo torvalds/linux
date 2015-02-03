@@ -103,7 +103,7 @@ static int ccp_platform_probe(struct platform_device *pdev)
 	ccp->io_map = devm_ioremap_resource(dev, ior);
 	if (IS_ERR(ccp->io_map)) {
 		ret = PTR_ERR(ccp->io_map);
-		goto e_free;
+		goto e_err;
 	}
 	ccp->io_regs = ccp->io_map;
 
@@ -112,7 +112,7 @@ static int ccp_platform_probe(struct platform_device *pdev)
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(48));
 	if (ret) {
 		dev_err(dev, "dma_set_mask_and_coherent failed (%d)\n", ret);
-		goto e_free;
+		goto e_err;
 	}
 
 	if (of_property_read_bool(dev->of_node, "dma-coherent"))
@@ -124,14 +124,11 @@ static int ccp_platform_probe(struct platform_device *pdev)
 
 	ret = ccp_init(ccp);
 	if (ret)
-		goto e_free;
+		goto e_err;
 
 	dev_notice(dev, "enabled\n");
 
 	return 0;
-
-e_free:
-	kfree(ccp);
 
 e_err:
 	dev_notice(dev, "initialization failed\n");
@@ -144,8 +141,6 @@ static int ccp_platform_remove(struct platform_device *pdev)
 	struct ccp_device *ccp = dev_get_drvdata(dev);
 
 	ccp_destroy(ccp);
-
-	kfree(ccp);
 
 	dev_notice(dev, "disabled\n");
 
