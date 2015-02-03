@@ -650,8 +650,10 @@ static void handle_rx(struct vhost_net *net)
 			break;
 		}
 		/* TODO: Should check and handle checksum. */
+
+		hdr.num_buffers = cpu_to_vhost16(vq, headcount);
 		if (likely(mergeable) &&
-		    memcpy_toiovecend(nvq->hdr, (unsigned char *)&headcount,
+		    memcpy_toiovecend(nvq->hdr, (void *)&hdr.num_buffers,
 				      offsetof(typeof(hdr), num_buffers),
 				      sizeof hdr.num_buffers)) {
 			vq_err(vq, "Failed num_buffers write");
