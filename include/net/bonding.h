@@ -490,6 +490,11 @@ static inline bool bond_is_slave_inactive(struct slave *slave)
 	return slave->inactive;
 }
 
+static inline void bond_set_slave_link_state(struct slave *slave, int state)
+{
+	slave->link = state;
+}
+
 static inline __be32 bond_confirm_addr(struct net_device *dev, __be32 dst, __be32 local)
 {
 	struct in_device *in_dev;
