@@ -22,6 +22,7 @@
 
 #include <stdbool.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <regex.h>
 #include <string.h>
 
@@ -91,6 +92,7 @@ extern int trace_seq_putc(struct trace_seq *s, unsigned char c);
 
 extern void trace_seq_terminate(struct trace_seq *s);
 
+extern int trace_seq_do_fprintf(struct trace_seq *s, FILE *fp);
 extern int trace_seq_do_printf(struct trace_seq *s);
 
 
