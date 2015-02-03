@@ -134,10 +134,17 @@ struct mlx4_ib_fmr {
 	struct mlx4_fmr         mfmr;
 };
 
+#define MAX_REGS_PER_FLOW 2
+
+struct mlx4_flow_reg_id {
+	u64 id;
+	u64 mirror;
+};
+
 struct mlx4_ib_flow {
 	struct ib_flow ibflow;
 	/* translating DMFS verbs sniffer rule to FW API requires two reg IDs */
-	u64 reg_id[2];
+	struct mlx4_flow_reg_id reg_id[MAX_REGS_PER_FLOW];
 };
 
 struct mlx4_ib_wq {
