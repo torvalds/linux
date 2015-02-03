@@ -2561,7 +2561,7 @@ static void tlan_phy_power_up(struct net_device *dev)
 	 * transceiver.  The TLAN docs say both 50 ms and
 	 * 500 ms, so do the longer, just in case.
 	 */
-	tlan_set_timer(dev, (HZ/20), TLAN_TIMER_PHY_RESET);
+	tlan_set_timer(dev, msecs_to_jiffies(500), TLAN_TIMER_PHY_RESET);
 
 }
 
