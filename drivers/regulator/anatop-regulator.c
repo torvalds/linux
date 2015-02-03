@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2011-2015 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 
 /*
@@ -53,6 +53,7 @@ struct anatop_regulator {
 	struct regulator_init_data *initdata;
 	bool bypass;
 	int sel;
+	u32 enable_bit;
 };
 
 static int anatop_regmap_set_voltage_time_sel(struct regulator_dev *reg,
@@ -81,7 +82,7 @@ static int anatop_regmap_set_voltage_time_sel(struct regulator_dev *reg,
 	return ret;
 }
 
-static int anatop_regmap_enable(struct regulator_dev *reg)
+static int anatop_core_regmap_enable(struct regulator_dev *reg)
 {
 	struct anatop_regulator *anatop_reg = rdev_get_drvdata(reg);
 	int sel;
@@ -90,12 +91,12 @@ static int anatop_regmap_enable(struct regulator_dev *reg)
 	return regulator_set_voltage_sel_regmap(reg, sel);
 }
 
-static int anatop_regmap_disable(struct regulator_dev *reg)
+static int anatop_core_regmap_disable(struct regulator_dev *reg)
 {
 	return regulator_set_voltage_sel_regmap(reg, LDO_POWER_GATE);
 }
 
-static int anatop_regmap_is_enabled(struct regulator_dev *reg)
+static int anatop_core_regmap_is_enabled(struct regulator_dev *reg)
 {
 	return regulator_get_voltage_sel_regmap(reg) != LDO_POWER_GATE;
 }
@@ -106,7 +107,7 @@ static int anatop_regmap_core_set_voltage_sel(struct regulator_dev *reg,
 	struct anatop_regulator *anatop_reg = rdev_get_drvdata(reg);
 	int ret;
 
-	if (anatop_reg->bypass || !anatop_regmap_is_enabled(reg)) {
+	if (anatop_reg->bypass || !anatop_core_regmap_is_enabled(reg)) {
 		anatop_reg->sel = selector;
 		return 0;
 	}
@@ -121,7 +122,7 @@ static int anatop_regmap_core_get_voltage_sel(struct regulator_dev *reg)
 {
 	struct anatop_regulator *anatop_reg = rdev_get_drvdata(reg);
 
-	if (anatop_reg->bypass || !anatop_regmap_is_enabled(reg))
+	if (anatop_reg->bypass || !anatop_core_regmap_is_enabled(reg))
 		return anatop_reg->sel;
 
 	return regulator_get_voltage_sel_regmap(reg);
@@ -156,7 +157,44 @@ static int anatop_regmap_set_bypass(struct regulator_dev *reg, bool enable)
 	return regulator_set_voltage_sel_regmap(reg, sel);
 }
 
+static int anatop_regmap_enable(struct regulator_dev *reg)
+{
+	u32 val;
+	struct anatop_regulator *anatop_reg = rdev_get_drvdata(reg);
+
+	regmap_read(anatop_reg->anatop, anatop_reg->control_reg, &val);
+	val |= (1 << anatop_reg->enable_bit);
+	regmap_write(anatop_reg->anatop, anatop_reg->control_reg, val);
+
+	return 0;
+}
+
+static int anatop_regmap_disable(struct regulator_dev *reg)
+{
+	u32 val;
+	struct anatop_regulator *anatop_reg = rdev_get_drvdata(reg);
+
+	regmap_read(anatop_reg->anatop, anatop_reg->control_reg, &val);
+	val &= ~(1 << anatop_reg->enable_bit);
+	regmap_write(anatop_reg->anatop, anatop_reg->control_reg, val);
+
+	return 0;
+}
+
+static int anatop_regmap_is_enabled(struct regulator_dev *reg)
+{
+	u32 val;
+	struct anatop_regulator *anatop_reg = rdev_get_drvdata(reg);
+
+	regmap_read(anatop_reg->anatop, anatop_reg->control_reg, &val);
+
+	return !!(val & (1 << anatop_reg->enable_bit));
+}
+
 static struct regulator_ops anatop_rops = {
+	.enable = anatop_regmap_enable,
+	.disable = anatop_regmap_disable,
+	.is_enabled = anatop_regmap_is_enabled,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.list_voltage = regulator_list_voltage_linear,
@@ -164,9 +202,9 @@ static struct regulator_ops anatop_rops = {
 };
 
 static struct regulator_ops anatop_core_rops = {
-	.enable = anatop_regmap_enable,
-	.disable = anatop_regmap_disable,
-	.is_enabled = anatop_regmap_is_enabled,
+	.enable = anatop_core_regmap_enable,
+	.disable = anatop_core_regmap_disable,
+	.is_enabled = anatop_core_regmap_is_enabled,
 	.set_voltage_sel = anatop_regmap_core_set_voltage_sel,
 	.set_voltage_time_sel = anatop_regmap_set_voltage_time_sel,
 	.get_voltage_sel = anatop_regmap_core_get_voltage_sel,
@@ -253,6 +291,9 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 			     &sreg->delay_bit_width);
 	of_property_read_u32(np, "anatop-delay-bit-shift",
 			     &sreg->delay_bit_shift);
+
+	/* Only 3p0, 2p5, and 1p1 has enable bit */
+	of_property_read_u32(np, "anatop-enable-bit", &sreg->enable_bit);
 
 	rdesc->n_voltages = (sreg->max_voltage - sreg->min_voltage) / 25000 + 1
 			    + sreg->min_bit_val;
