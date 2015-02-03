@@ -1728,8 +1728,7 @@ int dvb_ca_en50221_init(struct dvb_adapter *dvb_adapter,
 
 error:
 	if (ca != NULL) {
-		if (ca->dvbdev != NULL)
-			dvb_unregister_device(ca->dvbdev);
+		dvb_unregister_device(ca->dvbdev);
 		kfree(ca->slot_info);
 		kfree(ca);
 	}
