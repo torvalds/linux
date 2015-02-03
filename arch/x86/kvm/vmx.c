@@ -219,6 +219,10 @@ struct __packed vmcs12 {
 	u64 virtual_apic_page_addr;
 	u64 apic_access_addr;
 	u64 ept_pointer;
+	u64 eoi_exit_bitmap0;
+	u64 eoi_exit_bitmap1;
+	u64 eoi_exit_bitmap2;
+	u64 eoi_exit_bitmap3;
 	u64 xss_exit_bitmap;
 	u64 guest_physical_address;
 	u64 vmcs_link_pointer;
@@ -341,6 +345,7 @@ struct __packed vmcs12 {
 	u16 guest_gs_selector;
 	u16 guest_ldtr_selector;
 	u16 guest_tr_selector;
+	u16 guest_intr_status;
 	u16 host_es_selector;
 	u16 host_cs_selector;
 	u16 host_ss_selector;
@@ -626,6 +631,7 @@ static const unsigned short vmcs_field_to_offset_table[] = {
 	FIELD(GUEST_GS_SELECTOR, guest_gs_selector),
 	FIELD(GUEST_LDTR_SELECTOR, guest_ldtr_selector),
 	FIELD(GUEST_TR_SELECTOR, guest_tr_selector),
+	FIELD(GUEST_INTR_STATUS, guest_intr_status),
 	FIELD(HOST_ES_SELECTOR, host_es_selector),
 	FIELD(HOST_CS_SELECTOR, host_cs_selector),
 	FIELD(HOST_SS_SELECTOR, host_ss_selector),
@@ -643,6 +649,10 @@ static const unsigned short vmcs_field_to_offset_table[] = {
 	FIELD64(VIRTUAL_APIC_PAGE_ADDR, virtual_apic_page_addr),
 	FIELD64(APIC_ACCESS_ADDR, apic_access_addr),
 	FIELD64(EPT_POINTER, ept_pointer),
+	FIELD64(EOI_EXIT_BITMAP0, eoi_exit_bitmap0),
+	FIELD64(EOI_EXIT_BITMAP1, eoi_exit_bitmap1),
+	FIELD64(EOI_EXIT_BITMAP2, eoi_exit_bitmap2),
+	FIELD64(EOI_EXIT_BITMAP3, eoi_exit_bitmap3),
 	FIELD64(XSS_EXIT_BITMAP, xss_exit_bitmap),
 	FIELD64(GUEST_PHYSICAL_ADDRESS, guest_physical_address),
 	FIELD64(VMCS_LINK_POINTER, vmcs_link_pointer),
@@ -1140,6 +1150,11 @@ static inline bool nested_cpu_has_virt_x2apic_mode(struct vmcs12 *vmcs12)
 static inline bool nested_cpu_has_apic_reg_virt(struct vmcs12 *vmcs12)
 {
 	return nested_cpu_has2(vmcs12, SECONDARY_EXEC_APIC_REGISTER_VIRT);
+}
+
+static inline bool nested_cpu_has_vid(struct vmcs12 *vmcs12)
+{
+	return nested_cpu_has2(vmcs12, SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY);
 }
 
 static inline bool is_exception(u32 intr_info)
@@ -2436,6 +2451,7 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 		SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |
 		SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE |
 		SECONDARY_EXEC_APIC_REGISTER_VIRT |
+		SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY |
 		SECONDARY_EXEC_WBINVD_EXITING |
 		SECONDARY_EXEC_XSAVES;
 
@@ -7441,7 +7457,8 @@ static bool nested_vmx_exit_handled(struct kvm_vcpu *vcpu)
 		return nested_cpu_has2(vmcs12,
 			SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES);
 	case EXIT_REASON_APIC_WRITE:
-		/* apic_write should exit unconditionally. */
+	case EXIT_REASON_EOI_INDUCED:
+		/* apic_write and eoi_induced should exit unconditionally. */
 		return 1;
 	case EXIT_REASON_EPT_VIOLATION:
 		/*
@@ -8633,6 +8650,19 @@ static inline bool nested_vmx_merge_msr_bitmap(struct kvm_vcpu *vcpu,
 				vmx_msr_bitmap_nested,
 				APIC_BASE_MSR + (APIC_TASKPRI >> 4),
 				MSR_TYPE_R | MSR_TYPE_W);
+		if (nested_cpu_has_vid(vmcs12)) {
+			/* EOI and self-IPI are allowed */
+			nested_vmx_disable_intercept_for_msr(
+				msr_bitmap,
+				vmx_msr_bitmap_nested,
+				APIC_BASE_MSR + (APIC_EOI >> 4),
+				MSR_TYPE_W);
+			nested_vmx_disable_intercept_for_msr(
+				msr_bitmap,
+				vmx_msr_bitmap_nested,
+				APIC_BASE_MSR + (APIC_SELF_IPI >> 4),
+				MSR_TYPE_W);
+		}
 	} else {
 		/*
 		 * Enable reading intercept of all the x2apic
@@ -8650,6 +8680,14 @@ static inline bool nested_vmx_merge_msr_bitmap(struct kvm_vcpu *vcpu,
 				vmx_msr_bitmap_nested,
 				APIC_BASE_MSR + (APIC_TASKPRI >> 4),
 				MSR_TYPE_W);
+		__vmx_enable_intercept_for_msr(
+				vmx_msr_bitmap_nested,
+				APIC_BASE_MSR + (APIC_EOI >> 4),
+				MSR_TYPE_W);
+		__vmx_enable_intercept_for_msr(
+				vmx_msr_bitmap_nested,
+				APIC_BASE_MSR + (APIC_SELF_IPI >> 4),
+				MSR_TYPE_W);
 	}
 	kunmap(page);
 	nested_release_page_clean(page);
@@ -8661,7 +8699,8 @@ static int nested_vmx_check_apicv_controls(struct kvm_vcpu *vcpu,
 					   struct vmcs12 *vmcs12)
 {
 	if (!nested_cpu_has_virt_x2apic_mode(vmcs12) &&
-	    !nested_cpu_has_apic_reg_virt(vmcs12))
+	    !nested_cpu_has_apic_reg_virt(vmcs12) &&
+	    !nested_cpu_has_vid(vmcs12))
 		return 0;
 
 	/*
@@ -8670,6 +8709,14 @@ static int nested_vmx_check_apicv_controls(struct kvm_vcpu *vcpu,
 	 */
 	if (nested_cpu_has_virt_x2apic_mode(vmcs12) &&
 	    nested_cpu_has2(vmcs12, SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES))
+		return -EINVAL;
+
+	/*
+	 * If virtual interrupt delivery is enabled,
+	 * we must exit on external interrupts.
+	 */
+	if (nested_cpu_has_vid(vmcs12) &&
+	   !nested_exit_on_intr(vcpu))
 		return -EINVAL;
 
 	/* tpr shadow is needed by all apicv features. */
@@ -8977,6 +9024,19 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 			exec_control |=
 				SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES;
 			kvm_vcpu_reload_apic_access_page(vcpu);
+		}
+
+		if (exec_control & SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY) {
+			vmcs_write64(EOI_EXIT_BITMAP0,
+				vmcs12->eoi_exit_bitmap0);
+			vmcs_write64(EOI_EXIT_BITMAP1,
+				vmcs12->eoi_exit_bitmap1);
+			vmcs_write64(EOI_EXIT_BITMAP2,
+				vmcs12->eoi_exit_bitmap2);
+			vmcs_write64(EOI_EXIT_BITMAP3,
+				vmcs12->eoi_exit_bitmap3);
+			vmcs_write16(GUEST_INTR_STATUS,
+				vmcs12->guest_intr_status);
 		}
 
 		vmcs_write32(SECONDARY_VM_EXEC_CONTROL, exec_control);
@@ -9549,6 +9609,9 @@ static void prepare_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 		vmcs12->guest_pdptr2 = vmcs_read64(GUEST_PDPTR2);
 		vmcs12->guest_pdptr3 = vmcs_read64(GUEST_PDPTR3);
 	}
+
+	if (nested_cpu_has_vid(vmcs12))
+		vmcs12->guest_intr_status = vmcs_read16(GUEST_INTR_STATUS);
 
 	vmcs12->vm_entry_controls =
 		(vmcs12->vm_entry_controls & ~VM_ENTRY_IA32E_MODE) |
