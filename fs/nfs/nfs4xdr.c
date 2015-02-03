@@ -2011,11 +2011,11 @@ encode_layoutreturn(struct xdr_stream *xdr,
 	p = reserve_space(xdr, 16);
 	*p++ = cpu_to_be32(0);		/* reclaim. always 0 for now */
 	*p++ = cpu_to_be32(args->layout_type);
-	*p++ = cpu_to_be32(IOMODE_ANY);
+	*p++ = cpu_to_be32(args->range.iomode);
 	*p = cpu_to_be32(RETURN_FILE);
 	p = reserve_space(xdr, 16);
-	p = xdr_encode_hyper(p, 0);
-	p = xdr_encode_hyper(p, NFS4_MAX_UINT64);
+	p = xdr_encode_hyper(p, args->range.offset);
+	p = xdr_encode_hyper(p, args->range.length);
 	spin_lock(&args->inode->i_lock);
 	encode_nfs4_stateid(xdr, &args->stateid);
 	spin_unlock(&args->inode->i_lock);
@@ -6566,6 +6566,7 @@ static int nfs4_xdr_dec_read(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
 	int status;
 
 	status = decode_compound_hdr(xdr, &hdr);
+	res->op_status = hdr.status;
 	if (status)
 		goto out;
 	status = decode_sequence(xdr, &res->seq_res, rqstp);
@@ -6591,6 +6592,7 @@ static int nfs4_xdr_dec_write(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
 	int status;
 
 	status = decode_compound_hdr(xdr, &hdr);
+	res->op_status = hdr.status;
 	if (status)
 		goto out;
 	status = decode_sequence(xdr, &res->seq_res, rqstp);
@@ -6620,6 +6622,7 @@ static int nfs4_xdr_dec_commit(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
 	int status;
 
 	status = decode_compound_hdr(xdr, &hdr);
+	res->op_status = hdr.status;
 	if (status)
 		goto out;
 	status = decode_sequence(xdr, &res->seq_res, rqstp);
