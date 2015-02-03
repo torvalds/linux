@@ -322,6 +322,10 @@ get_matching_model_microcode(int cpu, unsigned long start,
 	int i;
 
 	while (leftover && mc_saved_count < ARRAY_SIZE(mc_saved_tmp)) {
+
+		if (leftover < sizeof(mc_header))
+			break;
+
 		mc_header = (struct microcode_header_intel *)ucode_ptr;
 
 		mc_size = get_totalsize(mc_header);
