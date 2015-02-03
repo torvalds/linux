@@ -18,8 +18,8 @@
 #include "rtl2830_priv.h"
 
 /* Our regmap is bypassing I2C adapter lock, thus we do it! */
-int rtl2830_bulk_write(struct i2c_client *client, unsigned int reg,
-		       const void *val, size_t val_count)
+static int rtl2830_bulk_write(struct i2c_client *client, unsigned int reg,
+			      const void *val, size_t val_count)
 {
 	struct rtl2830_dev *dev = i2c_get_clientdata(client);
 	int ret;
@@ -30,8 +30,8 @@ int rtl2830_bulk_write(struct i2c_client *client, unsigned int reg,
 	return ret;
 }
 
-int rtl2830_update_bits(struct i2c_client *client, unsigned int reg,
-			unsigned int mask, unsigned int val)
+static int rtl2830_update_bits(struct i2c_client *client, unsigned int reg,
+			       unsigned int mask, unsigned int val)
 {
 	struct rtl2830_dev *dev = i2c_get_clientdata(client);
 	int ret;
@@ -42,8 +42,8 @@ int rtl2830_update_bits(struct i2c_client *client, unsigned int reg,
 	return ret;
 }
 
-int rtl2830_bulk_read(struct i2c_client *client, unsigned int reg, void *val,
-		      size_t val_count)
+static int rtl2830_bulk_read(struct i2c_client *client, unsigned int reg,
+			     void *val, size_t val_count)
 {
 	struct rtl2830_dev *dev = i2c_get_clientdata(client);
 	int ret;
