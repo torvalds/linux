@@ -504,12 +504,16 @@ static int rk3288_pll_early_suspend_notifier_call(struct notifier_block *self,
 {
 	struct fb_event *event = data;
 	int blank_mode = *((int *)event->data);
+	static bool enable = false;
 
 	if (action == FB_EARLY_EVENT_BLANK) {
 		switch (blank_mode) {
 		case FB_BLANK_UNBLANK:
-			clk_prepare_enable(clk_get_sys(NULL, "clk_cpll"));
-			clk_prepare_enable(clk_get_sys(NULL, "clk_npll"));
+			if (!enable) {
+				clk_prepare_enable(clk_get_sys(NULL, "clk_cpll"));
+				clk_prepare_enable(clk_get_sys(NULL, "clk_npll"));
+				enable = true;
+			}
 			break;
 		default:
 			break;
@@ -517,8 +521,11 @@ static int rk3288_pll_early_suspend_notifier_call(struct notifier_block *self,
 	} else if (action == FB_EVENT_BLANK) {
 		switch (blank_mode) {
 		case FB_BLANK_POWERDOWN:
-			clk_disable_unprepare(clk_get_sys(NULL, "clk_cpll"));
-			clk_disable_unprepare(clk_get_sys(NULL, "clk_npll"));
+			if (enable) {
+				clk_disable_unprepare(clk_get_sys(NULL, "clk_cpll"));
+				clk_disable_unprepare(clk_get_sys(NULL, "clk_npll"));
+				enable = false;
+			}
 			break;
 		default:
 			break;
