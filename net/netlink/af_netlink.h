@@ -2,6 +2,7 @@
 #define _AF_NETLINK_H
 
 #include <linux/rhashtable.h>
+#include <linux/atomic.h>
 #include <net/sock.h>
 
 #define NLGRPSZ(x)	(ALIGN(x, sizeof(unsigned long) * 8) / 8)

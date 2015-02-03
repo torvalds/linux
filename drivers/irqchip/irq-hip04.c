@@ -381,7 +381,7 @@ hip04_of_init(struct device_node *node, struct device_node *parent)
 	 * It will be refined as each CPU probes its ID.
 	 */
 	for (i = 0; i < NR_HIP04_CPU_IF; i++)
-		hip04_cpu_map[i] = 0xff;
+		hip04_cpu_map[i] = 0xffff;
 
 	/*
 	 * Find out how many interrupts are supported.

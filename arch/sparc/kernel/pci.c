@@ -639,7 +639,10 @@ static void pci_claim_bus_resources(struct pci_bus *bus)
 				       (unsigned long long)r->end,
 				       (unsigned int)r->flags);
 
-			pci_claim_resource(dev, i);
+			if (pci_claim_resource(dev, i) == 0)
+				continue;
+
+			pci_claim_bridge_resource(dev, i);
 		}
 	}
 

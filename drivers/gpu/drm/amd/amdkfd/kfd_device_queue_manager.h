@@ -130,6 +130,7 @@ struct device_queue_manager {
 	struct list_head	queues;
 	unsigned int		processes_count;
 	unsigned int		queue_count;
+	unsigned int		total_queue_count;
 	unsigned int		next_pipe_to_allocate;
 	unsigned int		*allocated_queues;
 	unsigned int		vmid_bitmap;

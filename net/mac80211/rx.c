@@ -272,7 +272,7 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	else if (rate && rate->flags & IEEE80211_RATE_ERP_G)
 		channel_flags |= IEEE80211_CHAN_OFDM | IEEE80211_CHAN_2GHZ;
 	else if (rate)
-		channel_flags |= IEEE80211_CHAN_OFDM | IEEE80211_CHAN_2GHZ;
+		channel_flags |= IEEE80211_CHAN_CCK | IEEE80211_CHAN_2GHZ;
 	else
 		channel_flags |= IEEE80211_CHAN_2GHZ;
 	put_unaligned_le16(channel_flags, pos);

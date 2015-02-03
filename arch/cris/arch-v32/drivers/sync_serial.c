@@ -604,7 +604,7 @@ static ssize_t __sync_serial_read(struct file *file,
 				  struct timespec *ts)
 {
 	unsigned long flags;
-	int dev = MINOR(file->f_dentry->d_inode->i_rdev);
+	int dev = MINOR(file_inode(file)->i_rdev);
 	int avail;
 	struct sync_port *port;
 	unsigned char *start;

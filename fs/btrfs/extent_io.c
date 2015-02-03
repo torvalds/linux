@@ -2190,7 +2190,7 @@ void btrfs_free_io_failure_record(struct inode *inode, u64 start, u64 end)
 
 		next = next_state(state);
 
-		failrec = (struct io_failure_record *)state->private;
+		failrec = (struct io_failure_record *)(unsigned long)state->private;
 		free_extent_state(state);
 		kfree(failrec);
 
