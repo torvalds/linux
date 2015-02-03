@@ -552,13 +552,14 @@ void xgbe_get_all_hw_features(struct xgbe_prv_data *pdata)
 		break;
 	}
 
-	/* The Queue and Channel counts are zero based so increment them
+	/* The Queue, Channel and TC counts are zero based so increment them
 	 * to get the actual number
 	 */
 	hw_feat->rx_q_cnt++;
 	hw_feat->tx_q_cnt++;
 	hw_feat->rx_ch_cnt++;
 	hw_feat->tx_ch_cnt++;
+	hw_feat->tc_cnt++;
 
 	DBGPR("<--xgbe_get_all_hw_features\n");
 }
