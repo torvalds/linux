@@ -26,7 +26,6 @@
 
 #include "ccp-dev.h"
 
-
 static int ccp_get_irq(struct ccp_device *ccp)
 {
 	struct device *dev = ccp->dev;

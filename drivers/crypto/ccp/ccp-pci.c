@@ -204,7 +204,7 @@ static int ccp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ret = -EIO;
 	ccp->io_map = pci_iomap(pdev, bar, 0);
-	if (ccp->io_map == NULL) {
+	if (!ccp->io_map) {
 		dev_err(dev, "pci_iomap failed\n");
 		goto e_device;
 	}
