@@ -342,7 +342,6 @@ struct mlx4_ib_ah {
 enum mlx4_guid_alias_rec_status {
 	MLX4_GUID_INFO_STATUS_IDLE,
 	MLX4_GUID_INFO_STATUS_SET,
-	MLX4_GUID_INFO_STATUS_PENDING,
 };
 
 enum mlx4_guid_alias_rec_ownership {
@@ -360,8 +359,9 @@ struct mlx4_sriov_alias_guid_info_rec_det {
 	u8 all_recs[GUID_REC_SIZE * NUM_ALIAS_GUID_IN_REC];
 	ib_sa_comp_mask guid_indexes; /*indicates what from the 8 records are valid*/
 	enum mlx4_guid_alias_rec_status status; /*indicates the administraively status of the record.*/
-	u8 method; /*set or delete*/
 	enum mlx4_guid_alias_rec_ownership ownership; /*indicates who assign that alias_guid record*/
+	unsigned int guids_retry_schedule[NUM_ALIAS_GUID_IN_REC];
+	u64 time_to_run;
 };
 
 struct mlx4_sriov_alias_guid_port_rec_det {

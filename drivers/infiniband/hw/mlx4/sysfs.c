@@ -80,6 +80,7 @@ static ssize_t store_admin_alias_guid(struct device *dev,
 	struct mlx4_ib_iov_port *port = mlx4_ib_iov_dentry->ctx;
 	struct mlx4_ib_dev *mdev = port->dev;
 	u64 sysadmin_ag_val;
+	unsigned long flags;
 
 	record_num = mlx4_ib_iov_dentry->entry_num / 8;
 	guid_index_in_rec = mlx4_ib_iov_dentry->entry_num % 8;
@@ -87,6 +88,7 @@ static ssize_t store_admin_alias_guid(struct device *dev,
 		pr_err("GUID 0 block 0 is RO\n");
 		return count;
 	}
+	spin_lock_irqsave(&mdev->sriov.alias_guid.ag_work_lock, flags);
 	sscanf(buf, "%llx", &sysadmin_ag_val);
 	*(__be64 *)&mdev->sriov.alias_guid.ports_guid[port->num - 1].
 		all_rec_per_port[record_num].
@@ -96,14 +98,8 @@ static ssize_t store_admin_alias_guid(struct device *dev,
 	/* Change the state to be pending for update */
 	mdev->sriov.alias_guid.ports_guid[port->num - 1].all_rec_per_port[record_num].status
 		= MLX4_GUID_INFO_STATUS_IDLE ;
-
-	mdev->sriov.alias_guid.ports_guid[port->num - 1].all_rec_per_port[record_num].method
-		= MLX4_GUID_INFO_RECORD_SET;
-
 	switch (sysadmin_ag_val) {
 	case MLX4_GUID_FOR_DELETE_VAL:
-		mdev->sriov.alias_guid.ports_guid[port->num - 1].all_rec_per_port[record_num].method
-			= MLX4_GUID_INFO_RECORD_DELETE;
 		mdev->sriov.alias_guid.ports_guid[port->num - 1].all_rec_per_port[record_num].ownership
 			= MLX4_GUID_SYSADMIN_ASSIGN;
 		break;
@@ -121,8 +117,9 @@ static ssize_t store_admin_alias_guid(struct device *dev,
 
 	/* set the record index */
 	mdev->sriov.alias_guid.ports_guid[port->num - 1].all_rec_per_port[record_num].guid_indexes
-		= mlx4_ib_get_aguid_comp_mask_from_ix(guid_index_in_rec);
+		|= mlx4_ib_get_aguid_comp_mask_from_ix(guid_index_in_rec);
 
+	spin_unlock_irqrestore(&mdev->sriov.alias_guid.ag_work_lock, flags);
 	mlx4_ib_init_alias_guid_work(mdev, port->num - 1);
 
 	return count;
