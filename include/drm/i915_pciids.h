@@ -208,40 +208,41 @@
 #define INTEL_VLV_D_IDS(info) \
 	INTEL_VGA_DEVICE(0x0155, info)
 
-#define _INTEL_BDW_M(gt, id, info) \
-	INTEL_VGA_DEVICE((((gt) - 1) << 4) | (id), info)
-#define _INTEL_BDW_D(gt, id, info) \
-	INTEL_VGA_DEVICE((((gt) - 1) << 4) | (id), info)
-
-#define _INTEL_BDW_M_IDS(gt, info) \
-	_INTEL_BDW_M(gt, 0x1602, info), /* Halo */ \
-	_INTEL_BDW_M(gt, 0x1606, info), /* ULT */ \
-	_INTEL_BDW_M(gt, 0x160B, info), /* ULT */ \
-	_INTEL_BDW_M(gt, 0x160E, info) /* ULX */
-
-#define _INTEL_BDW_D_IDS(gt, info) \
-	_INTEL_BDW_D(gt, 0x160A, info), /* Server */ \
-	_INTEL_BDW_D(gt, 0x160D, info) /* Workstation */
-
-#define INTEL_BDW_GT12M_IDS(info) \
-	_INTEL_BDW_M_IDS(1, info), \
-	_INTEL_BDW_M_IDS(2, info)
+#define INTEL_BDW_GT12M_IDS(info)  \
+	INTEL_VGA_DEVICE(0x1602, info), /* GT1 ULT */ \
+	INTEL_VGA_DEVICE(0x1606, info), /* GT1 ULT */ \
+	INTEL_VGA_DEVICE(0x160B, info), /* GT1 Iris */ \
+	INTEL_VGA_DEVICE(0x160E, info), /* GT1 ULX */ \
+	INTEL_VGA_DEVICE(0x1612, info), /* GT2 Halo */ \
+	INTEL_VGA_DEVICE(0x1616, info), /* GT2 ULT */ \
+	INTEL_VGA_DEVICE(0x161B, info), /* GT2 ULT */ \
+	INTEL_VGA_DEVICE(0x161E, info)  /* GT2 ULX */
 
 #define INTEL_BDW_GT12D_IDS(info) \
-	_INTEL_BDW_D_IDS(1, info), \
-	_INTEL_BDW_D_IDS(2, info)
+	INTEL_VGA_DEVICE(0x160A, info), /* GT1 Server */ \
+	INTEL_VGA_DEVICE(0x160D, info), /* GT1 Workstation */ \
+	INTEL_VGA_DEVICE(0x161A, info), /* GT2 Server */ \
+	INTEL_VGA_DEVICE(0x161D, info)  /* GT2 Workstation */
 
 #define INTEL_BDW_GT3M_IDS(info) \
-	_INTEL_BDW_M_IDS(3, info)
+	INTEL_VGA_DEVICE(0x1622, info), /* ULT */ \
+	INTEL_VGA_DEVICE(0x1626, info), /* ULT */ \
+	INTEL_VGA_DEVICE(0x162B, info), /* Iris */ \
+	INTEL_VGA_DEVICE(0x162E, info)  /* ULX */
 
 #define INTEL_BDW_GT3D_IDS(info) \
-	_INTEL_BDW_D_IDS(3, info)
+	INTEL_VGA_DEVICE(0x162A, info), /* Server */ \
+	INTEL_VGA_DEVICE(0x162D, info)  /* Workstation */
 
 #define INTEL_BDW_RSVDM_IDS(info) \
-	_INTEL_BDW_M_IDS(4, info)
+	INTEL_VGA_DEVICE(0x1632, info), /* ULT */ \
+	INTEL_VGA_DEVICE(0x1636, info), /* ULT */ \
+	INTEL_VGA_DEVICE(0x163B, info), /* Iris */ \
+	INTEL_VGA_DEVICE(0x163E, info)  /* ULX */
 
 #define INTEL_BDW_RSVDD_IDS(info) \
-	_INTEL_BDW_D_IDS(4, info)
+	INTEL_VGA_DEVICE(0x163A, info), /* Server */ \
+	INTEL_VGA_DEVICE(0x163D, info)  /* Workstation */
 
 #define INTEL_BDW_M_IDS(info) \
 	INTEL_BDW_GT12M_IDS(info), \
