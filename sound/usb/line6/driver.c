@@ -166,7 +166,7 @@ void line6_start_timer(struct timer_list *timer, unsigned int msecs,
 		       void (*function)(unsigned long), unsigned long data)
 {
 	setup_timer(timer, function, data);
-	mod_timer(timer, jiffies + msecs * HZ / 1000);
+	mod_timer(timer, jiffies + msecs_to_jiffies(msecs));
 }
 EXPORT_SYMBOL_GPL(line6_start_timer);
 
