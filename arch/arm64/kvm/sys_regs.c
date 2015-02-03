@@ -69,68 +69,31 @@ static u32 get_ccsidr(u32 csselr)
 	return ccsidr;
 }
 
-static void do_dc_cisw(u32 val)
-{
-	asm volatile("dc cisw, %x0" : : "r" (val));
-	dsb(ish);
-}
-
-static void do_dc_csw(u32 val)
-{
-	asm volatile("dc csw, %x0" : : "r" (val));
-	dsb(ish);
-}
-
-/* See note at ARM ARM B1.14.4 */
+/*
+ * See note at ARMv7 ARM B1.14.4 (TL;DR: S/W ops are not easily virtualized).
+ */
 static bool access_dcsw(struct kvm_vcpu *vcpu,
 			const struct sys_reg_params *p,
 			const struct sys_reg_desc *r)
 {
-	unsigned long val;
-	int cpu;
-
 	if (!p->is_write)
 		return read_from_write_only(vcpu, p);
 
-	cpu = get_cpu();
-
-	cpumask_setall(&vcpu->arch.require_dcache_flush);
-	cpumask_clear_cpu(cpu, &vcpu->arch.require_dcache_flush);
-
-	/* If we were already preempted, take the long way around */
-	if (cpu != vcpu->arch.last_pcpu) {
-		flush_cache_all();
-		goto done;
-	}
-
-	val = *vcpu_reg(vcpu, p->Rt);
-
-	switch (p->CRm) {
-	case 6:			/* Upgrade DCISW to DCCISW, as per HCR.SWIO */
-	case 14:		/* DCCISW */
-		do_dc_cisw(val);
-		break;
-
-	case 10:		/* DCCSW */
-		do_dc_csw(val);
-		break;
-	}
-
-done:
-	put_cpu();
-
+	kvm_set_way_flush(vcpu);
 	return true;
 }
 
 /*
  * Generic accessor for VM registers. Only called as long as HCR_TVM
- * is set.
+ * is set. If the guest enables the MMU, we stop trapping the VM
+ * sys_regs and leave it in complete control of the caches.
  */
 static bool access_vm_reg(struct kvm_vcpu *vcpu,
 			  const struct sys_reg_params *p,
 			  const struct sys_reg_desc *r)
 {
 	unsigned long val;
+	bool was_enabled = vcpu_has_cache_enabled(vcpu);
 
 	BUG_ON(!p->is_write);
 
@@ -143,25 +106,7 @@ static bool access_vm_reg(struct kvm_vcpu *vcpu,
 		vcpu_cp15_64_low(vcpu, r->reg) = val & 0xffffffffUL;
 	}
 
-	return true;
-}
-
-/*
- * SCTLR_EL1 accessor. Only called as long as HCR_TVM is set.  If the
- * guest enables the MMU, we stop trapping the VM sys_regs and leave
- * it in complete control of the caches.
- */
-static bool access_sctlr(struct kvm_vcpu *vcpu,
-			 const struct sys_reg_params *p,
-			 const struct sys_reg_desc *r)
-{
-	access_vm_reg(vcpu, p, r);
-
-	if (vcpu_has_cache_enabled(vcpu)) {	/* MMU+Caches enabled? */
-		vcpu->arch.hcr_el2 &= ~HCR_TVM;
-		stage2_flush_vm(vcpu->kvm);
-	}
-
+	kvm_toggle_cache(vcpu, was_enabled);
 	return true;
 }
 
@@ -377,7 +322,7 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	  NULL, reset_mpidr, MPIDR_EL1 },
 	/* SCTLR_EL1 */
 	{ Op0(0b11), Op1(0b000), CRn(0b0001), CRm(0b0000), Op2(0b000),
-	  access_sctlr, reset_val, SCTLR_EL1, 0x00C50078 },
+	  access_vm_reg, reset_val, SCTLR_EL1, 0x00C50078 },
 	/* CPACR_EL1 */
 	{ Op0(0b11), Op1(0b000), CRn(0b0001), CRm(0b0000), Op2(0b010),
 	  NULL, reset_val, CPACR_EL1, 0 },
@@ -657,7 +602,7 @@ static const struct sys_reg_desc cp14_64_regs[] = {
  * register).
  */
 static const struct sys_reg_desc cp15_regs[] = {
-	{ Op1( 0), CRn( 1), CRm( 0), Op2( 0), access_sctlr, NULL, c1_SCTLR },
+	{ Op1( 0), CRn( 1), CRm( 0), Op2( 0), access_vm_reg, NULL, c1_SCTLR },
 	{ Op1( 0), CRn( 2), CRm( 0), Op2( 0), access_vm_reg, NULL, c2_TTBR0 },
 	{ Op1( 0), CRn( 2), CRm( 0), Op2( 1), access_vm_reg, NULL, c2_TTBR1 },
 	{ Op1( 0), CRn( 2), CRm( 0), Op2( 2), access_vm_reg, NULL, c2_TTBCR },

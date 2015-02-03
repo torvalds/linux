@@ -645,7 +645,6 @@ static struct snd_pcm_ops sst_platform_ops = {
 
 static void sst_pcm_free(struct snd_pcm *pcm)
 {
-	dev_dbg(pcm->dev, "sst_pcm_free called\n");
 	snd_pcm_lib_preallocate_free_for_all(pcm);
 }
 

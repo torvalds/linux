@@ -281,15 +281,6 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	vcpu->cpu = cpu;
 	vcpu->arch.host_cpu_context = this_cpu_ptr(kvm_host_cpu_state);
 
-	/*
-	 * Check whether this vcpu requires the cache to be flushed on
-	 * this physical CPU. This is a consequence of doing dcache
-	 * operations by set/way on this vcpu. We do it here to be in
-	 * a non-preemptible section.
-	 */
-	if (cpumask_test_and_clear_cpu(cpu, &vcpu->arch.require_dcache_flush))
-		flush_cache_all(); /* We'd really want v7_flush_dcache_all() */
-
 	kvm_arm_set_running_vcpu(vcpu);
 }
 
@@ -541,7 +532,6 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		ret = kvm_call_hyp(__kvm_vcpu_run, vcpu);
 
 		vcpu->mode = OUTSIDE_GUEST_MODE;
-		vcpu->arch.last_pcpu = smp_processor_id();
 		kvm_guest_exit();
 		trace_kvm_exit(*vcpu_pc(vcpu));
 		/*

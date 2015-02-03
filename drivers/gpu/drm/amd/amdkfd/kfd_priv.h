@@ -52,20 +52,19 @@
 #define kfd_alloc_struct(ptr_to_struct)	\
 	((typeof(ptr_to_struct)) kzalloc(sizeof(*ptr_to_struct), GFP_KERNEL))
 
-/* Kernel module parameter to specify maximum number of supported processes */
-extern int max_num_of_processes;
-
-#define KFD_MAX_NUM_OF_PROCESSES_DEFAULT 32
 #define KFD_MAX_NUM_OF_PROCESSES 512
+#define KFD_MAX_NUM_OF_QUEUES_PER_PROCESS 1024
 
 /*
- * Kernel module parameter to specify maximum number of supported queues
- * per process
+ * Kernel module parameter to specify maximum number of supported queues per
+ * device
  */
-extern int max_num_of_queues_per_process;
+extern int max_num_of_queues_per_device;
 
-#define KFD_MAX_NUM_OF_QUEUES_PER_PROCESS_DEFAULT 128
-#define KFD_MAX_NUM_OF_QUEUES_PER_PROCESS 1024
+#define KFD_MAX_NUM_OF_QUEUES_PER_DEVICE_DEFAULT 4096
+#define KFD_MAX_NUM_OF_QUEUES_PER_DEVICE		\
+	(KFD_MAX_NUM_OF_PROCESSES *			\
+			KFD_MAX_NUM_OF_QUEUES_PER_PROCESS)
 
 #define KFD_KERNEL_QUEUE_SIZE 2048
 

@@ -939,7 +939,8 @@ static int azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
 					      chip->card->dev,
 					      size, MAX_PREALLOC_SIZE);
 	/* link to codec */
-	pcm->dev = &codec->dev;
+	for (s = 0; s < 2; s++)
+		pcm->streams[s].dev.parent = &codec->dev;
 	return 0;
 }
 
