@@ -16,7 +16,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/rwsem.h>
-#include <linux/i2o.h>
+#include "i2o.h"
 #include <linux/workqueue.h>
 #include <linux/string.h>
 #include <linux/slab.h>

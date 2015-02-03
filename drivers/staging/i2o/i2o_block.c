@@ -52,7 +52,7 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/i2o.h>
+#include "i2o.h"
 #include <linux/mutex.h>
 
 #include <linux/mempool.h>

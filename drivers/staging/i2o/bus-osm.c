@@ -14,7 +14,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/i2o.h>
+#include "i2o.h"
 
 #define OSM_NAME	"bus-osm"
 #define OSM_VERSION	"1.317"

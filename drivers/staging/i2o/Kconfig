@@ -1,4 +1,3 @@
-
 menuconfig I2O
 	tristate "I2O device support"
 	depends on PCI

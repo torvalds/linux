@@ -53,7 +53,7 @@
 #include <linux/prefetch.h>
 #include <linux/pci.h>
 #include <linux/blkdev.h>
-#include <linux/i2o.h>
+#include "i2o.h"
 #include <linux/scatterlist.h>
 
 #include <asm/dma.h>

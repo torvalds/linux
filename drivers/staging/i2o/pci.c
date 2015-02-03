@@ -30,7 +30,7 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
-#include <linux/i2o.h>
+#include "i2o.h"
 #include <linux/module.h>
 #include "core.h"
 
