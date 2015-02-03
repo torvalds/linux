@@ -273,7 +273,7 @@ static struct platform_device_id imx_uart_devtype[] = {
 };
 MODULE_DEVICE_TABLE(platform, imx_uart_devtype);
 
-static struct of_device_id imx_uart_dt_ids[] = {
+static const struct of_device_id imx_uart_dt_ids[] = {
 	{ .compatible = "fsl,imx6q-uart", .data = &imx_uart_devdata[IMX6Q_UART], },
 	{ .compatible = "fsl,imx1-uart", .data = &imx_uart_devdata[IMX1_UART], },
 	{ .compatible = "fsl,imx21-uart", .data = &imx_uart_devdata[IMX21_UART], },
