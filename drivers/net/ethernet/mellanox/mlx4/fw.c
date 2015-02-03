@@ -142,7 +142,8 @@ static void dump_dev_cap_flags2(struct mlx4_dev *dev, u64 flags)
 		[17] = "Asymmetric EQs support",
 		[18] = "More than 80 VFs support",
 		[19] = "Performance optimized for limited rule configuration flow steering support",
-		[20] = "Recoverable error events support"
+		[20] = "Recoverable error events support",
+		[21] = "Port Remap support"
 	};
 	int i;
 
@@ -863,6 +864,8 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_EQE_STRIDE;
 	MLX4_GET(dev_cap->bmme_flags, outbox,
 		 QUERY_DEV_CAP_BMME_FLAGS_OFFSET);
+	if (dev_cap->bmme_flags & MLX4_FLAG_PORT_REMAP)
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_PORT_REMAP;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_CONFIG_DEV_OFFSET);
 	if (field & 0x20)
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_CONFIG_DEV;
@@ -1120,9 +1123,10 @@ int mlx4_QUERY_DEV_CAP_wrapper(struct mlx4_dev *dev, int slave,
 	field &= 0x7f;
 	MLX4_PUT(outbox->buf, field, QUERY_DEV_CAP_BF_OFFSET);
 
-	/* For guests, disable mw type 2 */
+	/* For guests, disable mw type 2 and port remap*/
 	MLX4_GET(bmme_flags, outbox->buf, QUERY_DEV_CAP_BMME_FLAGS_OFFSET);
 	bmme_flags &= ~MLX4_BMME_FLAG_TYPE_2_WIN;
+	bmme_flags &= ~MLX4_FLAG_PORT_REMAP;
 	MLX4_PUT(outbox->buf, bmme_flags, QUERY_DEV_CAP_BMME_FLAGS_OFFSET);
 
 	/* turn off device-managed steering capability if not enabled */
@@ -2100,13 +2104,16 @@ struct mlx4_config_dev {
 	__be32	rsvd1[3];
 	__be16	vxlan_udp_dport;
 	__be16	rsvd2;
-	__be32	rsvd3[27];
-	__be16	rsvd4;
-	u8	rsvd5;
+	__be32	rsvd3;
+	__be32	roce_flags;
+	__be32	rsvd4[25];
+	__be16	rsvd5;
+	u8	rsvd6;
 	u8	rx_checksum_val;
 };
 
 #define MLX4_VXLAN_UDP_DPORT (1 << 0)
+#define MLX4_DISABLE_RX_PORT BIT(18)
 
 static int mlx4_CONFIG_DEV_set(struct mlx4_dev *dev, struct mlx4_config_dev *config_dev)
 {
@@ -2208,6 +2215,45 @@ int mlx4_config_vxlan_port(struct mlx4_dev *dev, __be16 udp_port)
 	return mlx4_CONFIG_DEV_set(dev, &config_dev);
 }
 EXPORT_SYMBOL_GPL(mlx4_config_vxlan_port);
+
+#define CONFIG_DISABLE_RX_PORT BIT(15)
+int mlx4_disable_rx_port_check(struct mlx4_dev *dev, bool dis)
+{
+	struct mlx4_config_dev config_dev;
+
+	memset(&config_dev, 0, sizeof(config_dev));
+	config_dev.update_flags = cpu_to_be32(MLX4_DISABLE_RX_PORT);
+	if (dis)
+		config_dev.roce_flags =
+			cpu_to_be32(CONFIG_DISABLE_RX_PORT);
+
+	return mlx4_CONFIG_DEV_set(dev, &config_dev);
+}
+
+int mlx4_virt2phy_port_map(struct mlx4_dev *dev, u32 port1, u32 port2)
+{
+	struct mlx4_cmd_mailbox *mailbox;
+	struct {
+		__be32 v_port1;
+		__be32 v_port2;
+	} *v2p;
+	int err;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return -ENOMEM;
+
+	v2p = mailbox->buf;
+	v2p->v_port1 = cpu_to_be32(port1);
+	v2p->v_port2 = cpu_to_be32(port2);
+
+	err = mlx4_cmd(dev, mailbox->dma, 0,
+		       MLX4_SET_PORT_VIRT2PHY, MLX4_CMD_VIRT_PORT_MAP,
+		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
+
+	mlx4_free_cmd_mailbox(dev, mailbox);
+	return err;
+}
 
 
 int mlx4_SET_ICM_SIZE(struct mlx4_dev *dev, u64 icm_size, u64 *aux_pages)

@@ -71,6 +71,7 @@ enum {
 
 	/*master notify fw on finish for slave's flr*/
 	MLX4_CMD_INFORM_FLR_DONE = 0x5b,
+	MLX4_CMD_VIRT_PORT_MAP   = 0x5c,
 	MLX4_CMD_GET_OP_REQ      = 0x59,
 
 	/* TPT commands */
@@ -168,6 +169,12 @@ enum {
 	MLX4_CMD_TIME_CLASS_A	= 60000,
 	MLX4_CMD_TIME_CLASS_B	= 60000,
 	MLX4_CMD_TIME_CLASS_C	= 60000,
+};
+
+enum {
+	/* virtual to physical port mapping opcode modifiers */
+	MLX4_GET_PORT_VIRT2PHY = 0x0,
+	MLX4_SET_PORT_VIRT2PHY = 0x1,
 };
 
 enum {
