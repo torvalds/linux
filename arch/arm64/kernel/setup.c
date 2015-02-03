@@ -285,6 +285,9 @@ static void __init setup_processor(void)
 		case 2:
 			elf_hwcap |= HWCAP_ATOMICS;
 			cpus_set_cap(ARM64_CPU_FEAT_LSE_ATOMICS);
+			if (IS_ENABLED(CONFIG_AS_LSE) &&
+			    IS_ENABLED(CONFIG_ARM64_LSE_ATOMICS))
+				pr_info("LSE atomics supported\n");
 		case 1:
 			/* RESERVED */
 		case 0:

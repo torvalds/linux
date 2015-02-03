@@ -37,18 +37,6 @@
  * (the optimize attribute silently ignores these options).
  */
 
-#ifndef __LL_SC_INLINE
-#define __LL_SC_INLINE		static inline
-#endif
-
-#ifndef __LL_SC_PREFIX
-#define __LL_SC_PREFIX(x)	x
-#endif
-
-#ifndef __LL_SC_EXPORT
-#define __LL_SC_EXPORT(x)
-#endif
-
 #define ATOMIC_OP(op, asm_op)						\
 __LL_SC_INLINE void							\
 __LL_SC_PREFIX(atomic_##op(int i, atomic_t *v))				\

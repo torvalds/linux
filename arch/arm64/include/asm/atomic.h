@@ -21,11 +21,11 @@
 #define __ASM_ATOMIC_H
 
 #include <linux/compiler.h>
-#include <linux/stringify.h>
 #include <linux/types.h>
 
 #include <asm/barrier.h>
 #include <asm/cmpxchg.h>
+#include <asm/lse.h>
 
 #define ATOMIC_INIT(i)	{ (i) }
 
@@ -33,7 +33,7 @@
 
 #define __ARM64_IN_ATOMIC_IMPL
 
-#ifdef CONFIG_ARM64_LSE_ATOMICS
+#if defined(CONFIG_ARM64_LSE_ATOMICS) && defined(CONFIG_AS_LSE)
 #include <asm/atomic_lse.h>
 #else
 #include <asm/atomic_ll_sc.h>

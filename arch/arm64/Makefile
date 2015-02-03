@@ -17,7 +17,18 @@ GZFLAGS		:=-9
 
 KBUILD_DEFCONFIG := defconfig
 
-KBUILD_CFLAGS	+= -mgeneral-regs-only
+# Check for binutils support for specific extensions
+lseinstr := $(call as-instr,.arch_extension lse,-DCONFIG_AS_LSE=1)
+
+ifeq ($(CONFIG_ARM64_LSE_ATOMICS), y)
+  ifeq ($(lseinstr),)
+$(warning LSE atomics not supported by binutils)
+  endif
+endif
+
+KBUILD_CFLAGS	+= -mgeneral-regs-only $(lseinstr)
+KBUILD_AFLAGS	+= $(lseinstr)
+
 ifeq ($(CONFIG_CPU_BIG_ENDIAN), y)
 KBUILD_CPPFLAGS	+= -mbig-endian
 AS		+= -EB
