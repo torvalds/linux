@@ -110,15 +110,11 @@ static inline void preempt_conditional_cli(struct pt_regs *regs)
 
 enum ctx_state ist_enter(struct pt_regs *regs)
 {
-	/*
-	 * We are atomic because we're on the IST stack (or we're on x86_32,
-	 * in which case we still shouldn't schedule.
-	 */
-	preempt_count_add(HARDIRQ_OFFSET);
+	enum ctx_state prev_state;
 
 	if (user_mode_vm(regs)) {
 		/* Other than that, we're just an exception. */
-		return exception_enter();
+		prev_state = exception_enter();
 	} else {
 		/*
 		 * We might have interrupted pretty much anything.  In
@@ -127,12 +123,27 @@ enum ctx_state ist_enter(struct pt_regs *regs)
 		 * but we need to notify RCU.
 		 */
 		rcu_nmi_enter();
-		return IN_KERNEL;  /* the value is irrelevant. */
+		prev_state = IN_KERNEL;  /* the value is irrelevant. */
 	}
+
+	/*
+	 * We are atomic because we're on the IST stack (or we're on x86_32,
+	 * in which case we still shouldn't schedule).
+	 *
+	 * This must be after exception_enter(), because exception_enter()
+	 * won't do anything if in_interrupt() returns true.
+	 */
+	preempt_count_add(HARDIRQ_OFFSET);
+
+	/* This code is a bit fragile.  Test it. */
+	rcu_lockdep_assert(rcu_is_watching(), "ist_enter didn't work");
+
+	return prev_state;
 }
 
 void ist_exit(struct pt_regs *regs, enum ctx_state prev_state)
 {
+	/* Must be before exception_exit. */
 	preempt_count_sub(HARDIRQ_OFFSET);
 
 	if (user_mode_vm(regs))
