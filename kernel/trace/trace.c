@@ -4172,8 +4172,11 @@ static int tracing_set_tracer(struct trace_array *tr, const char *buf)
 		free_snapshot(tr);
 	}
 #endif
-	/* Currently, only the top instance has options */
-	if (tr->flags & TRACE_ARRAY_FL_GLOBAL) {
+	/*
+	 * Only enable if the directory has been created already.
+	 * Currently, only the top instance has options
+	 */
+	if (tr->dir && tr->flags & TRACE_ARRAY_FL_GLOBAL) {
 		destroy_trace_option_files(topts);
 		topts = create_trace_option_files(tr, t);
 	}
