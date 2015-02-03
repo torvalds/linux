@@ -475,7 +475,7 @@ static int disable_slot(struct hotplug_slot *bss_hotplug_slot)
 	struct slot *slot = bss_hotplug_slot->private;
 	struct pci_dev *dev, *temp;
 	int rc;
-	acpi_owner_id ssdt_id = 0;
+	acpi_handle ssdt_hdl = NULL;
 
 	/* Acquire update access to the bus */
 	mutex_lock(&sn_hotplug_mutex);
@@ -522,7 +522,7 @@ static int disable_slot(struct hotplug_slot *bss_hotplug_slot)
 			if (ACPI_SUCCESS(ret) &&
 			    (adr>>16) == (slot->device_num + 1)) {
 				/* retain the owner id */
-				acpi_get_id(chandle, &ssdt_id);
+				ssdt_hdl = chandle;
 
 				ret = acpi_bus_get_device(chandle,
 							  &device);
@@ -547,12 +547,13 @@ static int disable_slot(struct hotplug_slot *bss_hotplug_slot)
 	pci_unlock_rescan_remove();
 
 	/* Remove the SSDT for the slot from the ACPI namespace */
-	if (SN_ACPI_BASE_SUPPORT() && ssdt_id) {
+	if (SN_ACPI_BASE_SUPPORT() && ssdt_hdl) {
 		acpi_status ret;
-		ret = acpi_unload_table_id(ssdt_id);
+		ret = acpi_unload_parent_table(ssdt_hdl);
 		if (ACPI_FAILURE(ret)) {
-			printk(KERN_ERR "%s: acpi_unload_table_id failed (0x%x) for id %d\n",
-			       __func__, ret, ssdt_id);
+			acpi_handle_err(ssdt_hdl,
+					"%s: acpi_unload_parent_table failed (0x%x)\n",
+					__func__, ret);
 			/* try to continue on */
 		}
 	}

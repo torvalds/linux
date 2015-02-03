@@ -74,7 +74,7 @@ struct acpi_rsconvert_info acpi_rs_convert_address16[5] = {
 	 * Address Translation Offset
 	 * Address Length
 	 */
-	{ACPI_RSC_MOVE16, ACPI_RS_OFFSET(data.address16.granularity),
+	{ACPI_RSC_MOVE16, ACPI_RS_OFFSET(data.address16.address.granularity),
 	 AML_OFFSET(address16.granularity),
 	 5},
 
@@ -112,7 +112,7 @@ struct acpi_rsconvert_info acpi_rs_convert_address32[5] = {
 	 * Address Translation Offset
 	 * Address Length
 	 */
-	{ACPI_RSC_MOVE32, ACPI_RS_OFFSET(data.address32.granularity),
+	{ACPI_RSC_MOVE32, ACPI_RS_OFFSET(data.address32.address.granularity),
 	 AML_OFFSET(address32.granularity),
 	 5},
 
@@ -150,7 +150,7 @@ struct acpi_rsconvert_info acpi_rs_convert_address64[5] = {
 	 * Address Translation Offset
 	 * Address Length
 	 */
-	{ACPI_RSC_MOVE64, ACPI_RS_OFFSET(data.address64.granularity),
+	{ACPI_RSC_MOVE64, ACPI_RS_OFFSET(data.address64.address.granularity),
 	 AML_OFFSET(address64.granularity),
 	 5},
 
@@ -194,7 +194,8 @@ struct acpi_rsconvert_info acpi_rs_convert_ext_address64[5] = {
 	 * Address Length
 	 * Type-Specific Attribute
 	 */
-	{ACPI_RSC_MOVE64, ACPI_RS_OFFSET(data.ext_address64.granularity),
+	{ACPI_RSC_MOVE64,
+	 ACPI_RS_OFFSET(data.ext_address64.address.granularity),
 	 AML_OFFSET(ext_address64.granularity),
 	 6}
 };
