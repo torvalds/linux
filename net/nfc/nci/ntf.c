@@ -625,8 +625,7 @@ static void nci_rf_intf_activated_ntf_packet(struct nci_dev *ndev,
 
 exit:
 	if (err == NCI_STATUS_OK) {
-		conn_info = nci_get_conn_info_by_conn_id(ndev,
-							 NCI_STATIC_RF_CONN_ID);
+		conn_info = ndev->rf_conn_info;
 		if (!conn_info)
 			return;
 
@@ -684,8 +683,7 @@ static void nci_rf_deactivate_ntf_packet(struct nci_dev *ndev,
 
 	pr_debug("entry, type 0x%x, reason 0x%x\n", ntf->type, ntf->reason);
 
-	conn_info =
-		nci_get_conn_info_by_conn_id(ndev, NCI_STATIC_RF_CONN_ID);
+	conn_info = ndev->rf_conn_info;
 	if (!conn_info)
 		return;
 

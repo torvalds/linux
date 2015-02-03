@@ -803,7 +803,7 @@ static int nci_transceive(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	int rc;
 	struct nci_conn_info    *conn_info;
 
-	conn_info = nci_get_conn_info_by_conn_id(ndev, NCI_STATIC_RF_CONN_ID);
+	conn_info = ndev->rf_conn_info;
 	if (!conn_info)
 		return -EPROTO;
 

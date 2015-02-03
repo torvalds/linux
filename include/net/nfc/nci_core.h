@@ -189,6 +189,7 @@ struct nci_dev {
 	__u8			cur_conn_id;
 
 	struct list_head	conn_info_list;
+	struct nci_conn_info	*rf_conn_info;
 
 	struct timer_list	cmd_timer;
 	struct timer_list	data_timer;

@@ -148,8 +148,7 @@ static void nci_rf_disc_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 	if (status == NCI_STATUS_OK) {
 		atomic_set(&ndev->state, NCI_DISCOVERY);
 
-		conn_info = nci_get_conn_info_by_conn_id(ndev,
-							 NCI_STATIC_RF_CONN_ID);
+		conn_info = ndev->rf_conn_info;
 		if (!conn_info) {
 			conn_info = devm_kzalloc(&ndev->nfc_dev->dev,
 						 sizeof(struct nci_conn_info),
@@ -161,6 +160,7 @@ static void nci_rf_disc_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 			conn_info->conn_id = NCI_STATIC_RF_CONN_ID;
 			INIT_LIST_HEAD(&conn_info->list);
 			list_add(&conn_info->list, &ndev->conn_info_list);
+			ndev->rf_conn_info = conn_info;
 		}
 	}
 
