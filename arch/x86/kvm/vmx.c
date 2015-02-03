@@ -1137,6 +1137,11 @@ static inline bool nested_cpu_has_virt_x2apic_mode(struct vmcs12 *vmcs12)
 	return nested_cpu_has2(vmcs12, SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE);
 }
 
+static inline bool nested_cpu_has_apic_reg_virt(struct vmcs12 *vmcs12)
+{
+	return nested_cpu_has2(vmcs12, SECONDARY_EXEC_APIC_REGISTER_VIRT);
+}
+
 static inline bool is_exception(u32 intr_info)
 {
 	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VALID_MASK))
@@ -2430,6 +2435,7 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 	vmx->nested.nested_vmx_secondary_ctls_high &=
 		SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |
 		SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE |
+		SECONDARY_EXEC_APIC_REGISTER_VIRT |
 		SECONDARY_EXEC_WBINVD_EXITING |
 		SECONDARY_EXEC_XSAVES;
 
@@ -7434,6 +7440,9 @@ static bool nested_vmx_exit_handled(struct kvm_vcpu *vcpu)
 	case EXIT_REASON_APIC_ACCESS:
 		return nested_cpu_has2(vmcs12,
 			SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES);
+	case EXIT_REASON_APIC_WRITE:
+		/* apic_write should exit unconditionally. */
+		return 1;
 	case EXIT_REASON_EPT_VIOLATION:
 		/*
 		 * L0 always deals with the EPT violation. If nested EPT is
@@ -8593,6 +8602,7 @@ static int nested_vmx_check_msr_bitmap_controls(struct kvm_vcpu *vcpu,
 static inline bool nested_vmx_merge_msr_bitmap(struct kvm_vcpu *vcpu,
 					       struct vmcs12 *vmcs12)
 {
+	int msr;
 	struct page *page;
 	unsigned long *msr_bitmap;
 
@@ -8612,16 +8622,35 @@ static inline bool nested_vmx_merge_msr_bitmap(struct kvm_vcpu *vcpu,
 	}
 
 	if (nested_cpu_has_virt_x2apic_mode(vmcs12)) {
+		if (nested_cpu_has_apic_reg_virt(vmcs12))
+			for (msr = 0x800; msr <= 0x8ff; msr++)
+				nested_vmx_disable_intercept_for_msr(
+					msr_bitmap,
+					vmx_msr_bitmap_nested,
+					msr, MSR_TYPE_R);
 		/* TPR is allowed */
 		nested_vmx_disable_intercept_for_msr(msr_bitmap,
 				vmx_msr_bitmap_nested,
 				APIC_BASE_MSR + (APIC_TASKPRI >> 4),
 				MSR_TYPE_R | MSR_TYPE_W);
-	} else
+	} else {
+		/*
+		 * Enable reading intercept of all the x2apic
+		 * MSRs. We should not rely on vmcs12 to do any
+		 * optimizations here, it may have been modified
+		 * by L1.
+		 */
+		for (msr = 0x800; msr <= 0x8ff; msr++)
+			__vmx_enable_intercept_for_msr(
+				vmx_msr_bitmap_nested,
+				msr,
+				MSR_TYPE_R);
+
 		__vmx_enable_intercept_for_msr(
 				vmx_msr_bitmap_nested,
 				APIC_BASE_MSR + (APIC_TASKPRI >> 4),
-				MSR_TYPE_R | MSR_TYPE_W);
+				MSR_TYPE_W);
+	}
 	kunmap(page);
 	nested_release_page_clean(page);
 
@@ -8631,14 +8660,16 @@ static inline bool nested_vmx_merge_msr_bitmap(struct kvm_vcpu *vcpu,
 static int nested_vmx_check_apicv_controls(struct kvm_vcpu *vcpu,
 					   struct vmcs12 *vmcs12)
 {
-	if (!nested_cpu_has_virt_x2apic_mode(vmcs12))
+	if (!nested_cpu_has_virt_x2apic_mode(vmcs12) &&
+	    !nested_cpu_has_apic_reg_virt(vmcs12))
 		return 0;
 
 	/*
 	 * If virtualize x2apic mode is enabled,
 	 * virtualize apic access must be disabled.
 	 */
-	if (nested_cpu_has2(vmcs12, SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES))
+	if (nested_cpu_has_virt_x2apic_mode(vmcs12) &&
+	    nested_cpu_has2(vmcs12, SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES))
 		return -EINVAL;
 
 	/* tpr shadow is needed by all apicv features. */
