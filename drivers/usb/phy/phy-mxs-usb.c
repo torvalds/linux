@@ -23,6 +23,7 @@
 #include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
+#include <linux/regulator/consumer.h>
 
 #define DRIVER_NAME "mxs_phy"
 
@@ -159,6 +160,7 @@ struct mxs_phy {
 	const struct mxs_phy_data *data;
 	struct regmap *regmap_anatop;
 	int port_id;
+	struct regulator *phy_3p0;
 };
 
 static inline bool is_imx6q_phy(struct mxs_phy *mxs_phy)
@@ -188,6 +190,16 @@ static int mxs_phy_hw_init(struct mxs_phy *mxs_phy)
 	ret = stmp_reset_block(base + HW_USBPHY_CTRL);
 	if (ret)
 		return ret;
+
+	if (mxs_phy->phy_3p0) {
+		ret = regulator_enable(mxs_phy->phy_3p0);
+		if (ret) {
+			dev_err(mxs_phy->phy.dev,
+				"Failed to enable 3p0 regulator, ret=%d\n",
+				ret);
+			return ret;
+		}
+	}
 
 	/* Power up the PHY */
 	writel(0, base + HW_USBPHY_PWD);
@@ -330,6 +342,9 @@ static void mxs_phy_shutdown(struct usb_phy *phy)
 
 	writel(BM_USBPHY_CTRL_CLKGATE,
 	       phy->io_priv + HW_USBPHY_CTRL_SET);
+
+	if (mxs_phy->phy_3p0)
+		regulator_disable(mxs_phy->phy_3p0);
 
 	clk_disable_unprepare(mxs_phy->clk);
 }
@@ -546,6 +561,20 @@ static int mxs_phy_probe(struct platform_device *pdev)
 		mxs_phy->phy.notify_suspend = mxs_phy_on_suspend;
 		mxs_phy->phy.notify_resume = mxs_phy_on_resume;
 	}
+
+	mxs_phy->phy_3p0 = devm_regulator_get(&pdev->dev, "phy-3p0");
+	if (PTR_ERR(mxs_phy->phy_3p0) == -EPROBE_DEFER) {
+		return -EPROBE_DEFER;
+	} else if (PTR_ERR(mxs_phy->phy_3p0) == -ENODEV) {
+		/* not exist */
+		mxs_phy->phy_3p0 = NULL;
+	} else if (IS_ERR(mxs_phy->phy_3p0)) {
+		dev_err(&pdev->dev, "Getting regulator error: %ld\n",
+			PTR_ERR(mxs_phy->phy_3p0));
+		return PTR_ERR(mxs_phy->phy_3p0);
+	}
+	if (mxs_phy->phy_3p0)
+		regulator_set_voltage(mxs_phy->phy_3p0, 3200000, 3200000);
 
 	platform_set_drvdata(pdev, mxs_phy);
 
