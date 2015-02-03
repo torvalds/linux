@@ -499,10 +499,6 @@ static int st21nfcb_hci_network_init(struct nci_dev *ndev)
 	struct nci_conn_info    *conn_info;
 	int r, dev_num;
 
-	r = nci_nfcee_discover(ndev, NCI_NFCEE_DISCOVERY_ACTION_ENABLE);
-	if (r != NCI_STATUS_OK)
-		goto exit;
-
 	dest_params =
 		kzalloc(sizeof(struct core_conn_create_dest_spec_params) +
 			sizeof(struct dest_spec_params), GFP_KERNEL);

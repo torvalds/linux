@@ -880,10 +880,16 @@ static int nci_disable_se(struct nfc_dev *nfc_dev, u32 se_idx)
 
 static int nci_discover_se(struct nfc_dev *nfc_dev)
 {
+	int r;
 	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
 
-	if (ndev->ops->discover_se)
+	if (ndev->ops->discover_se) {
+		r = nci_nfcee_discover(ndev, NCI_NFCEE_DISCOVERY_ACTION_ENABLE);
+		if (r != NCI_STATUS_OK)
+			return -EPROTO;
+
 		return ndev->ops->discover_se(ndev);
+	}
 
 	return 0;
 }
