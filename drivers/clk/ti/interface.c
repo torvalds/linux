@@ -68,6 +68,7 @@ static struct clk *_register_interface(struct device *dev, const char *name,
 	return clk;
 }
 
+#if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_ATAGS)
 struct clk *ti_clk_register_interface(struct ti_clk *setup)
 {
 	const struct clk_hw_omap_ops *ops = &clkhwops_iclk_wait;
@@ -98,6 +99,7 @@ struct clk *ti_clk_register_interface(struct ti_clk *setup)
 	return _register_interface(NULL, setup->name, gate->parent,
 				   (void __iomem *)reg, gate->bit_shift, ops);
 }
+#endif
 
 static void __init _of_ti_interface_clk_setup(struct device_node *node,
 					      const struct clk_hw_omap_ops *ops)

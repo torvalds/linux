@@ -176,6 +176,7 @@ cleanup:
 	kfree(clk_hw);
 }
 
+#if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_ATAGS)
 void __iomem *_get_reg(u8 module, u16 offset)
 {
 	u32 reg;
@@ -271,6 +272,7 @@ cleanup:
 	kfree(clk_hw);
 	return clk;
 }
+#endif
 
 #if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5) || \
 	defined(CONFIG_SOC_DRA7XX) || defined(CONFIG_SOC_AM33XX) || \

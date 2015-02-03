@@ -186,6 +186,7 @@ void ti_dt_clk_init_retry_clks(void)
 	}
 }
 
+#if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_ATAGS)
 void __init ti_clk_patch_legacy_clks(struct ti_clk **patch)
 {
 	while (*patch) {
@@ -308,3 +309,4 @@ int __init ti_clk_register_legacy_clks(struct ti_clk_alias *clks)
 
 	return 0;
 }
+#endif

@@ -118,6 +118,7 @@ static inline struct clk_hw *_get_hw(struct clk_hw_omap_comp *clk, int idx)
 
 #define to_clk_hw_comp(_hw) container_of(_hw, struct clk_hw_omap_comp, hw)
 
+#if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_ATAGS)
 struct clk *ti_clk_register_composite(struct ti_clk *setup)
 {
 	struct ti_clk_composite *comp;
@@ -153,6 +154,7 @@ struct clk *ti_clk_register_composite(struct ti_clk *setup)
 
 	return clk;
 }
+#endif
 
 static void __init _register_composite(struct clk_hw *hw,
 				       struct device_node *node)

@@ -130,6 +130,7 @@ static struct clk *_register_gate(struct device *dev, const char *name,
 	return clk;
 }
 
+#if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_ATAGS)
 struct clk *ti_clk_register_gate(struct ti_clk *setup)
 {
 	const struct clk_ops *ops = &omap_gate_clk_ops;
@@ -208,6 +209,7 @@ struct clk_hw *ti_clk_build_component_gate(struct ti_clk_gate *setup)
 
 	return &gate->hw;
 }
+#endif
 
 static void __init _of_ti_gate_clk_setup(struct device_node *node,
 					 const struct clk_ops *ops,

@@ -360,9 +360,17 @@ extern const struct clk_hw_omap_ops clkhwops_omap3430es2_iclk_ssi_wait;
 extern const struct clk_hw_omap_ops clkhwops_omap3430es2_iclk_dss_usbhost_wait;
 extern const struct clk_hw_omap_ops clkhwops_omap3430es2_iclk_hsotgusb_wait;
 
+#ifdef CONFIG_ATAGS
 int omap3430_clk_legacy_init(void);
 int omap3430es1_clk_legacy_init(void);
 int omap36xx_clk_legacy_init(void);
 int am35xx_clk_legacy_init(void);
+#else
+static inline int omap3430_clk_legacy_init(void) { return -ENXIO; }
+static inline int omap3430es1_clk_legacy_init(void) { return -ENXIO; }
+static inline int omap36xx_clk_legacy_init(void) { return -ENXIO; }
+static inline int am35xx_clk_legacy_init(void) { return -ENXIO; }
+#endif
+
 
 #endif
