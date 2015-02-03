@@ -649,7 +649,9 @@ static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
 			break;
 		case STARTING_EVT:
 			l_ptr->flags |= LINK_STARTED;
-			/* fall through */
+			l_ptr->fsm_msg_cnt++;
+			link_set_timer(l_ptr, cont_intv);
+			break;
 		case TIMEOUT_EVT:
 			tipc_link_proto_xmit(l_ptr, RESET_MSG, 0, 0, 0, 0, 0);
 			l_ptr->fsm_msg_cnt++;
