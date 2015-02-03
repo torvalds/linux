@@ -17,7 +17,6 @@
 #include <linux/fs.h>
 #include <linux/uio.h>
 
-#include <net/ipv6.h>
 #include <net/net_namespace.h>
 #include <net/rtnetlink.h>
 #include <net/sock.h>
@@ -589,8 +588,6 @@ static int macvtap_skb_from_vnet_hdr(struct macvtap_queue *q,
 			pr_warn_once("macvtap: %s: using disabled UFO feature; please fix this program\n",
 				     current->comm);
 			gso_type = SKB_GSO_UDP;
-			if (skb->protocol == htons(ETH_P_IPV6))
-				ipv6_proxy_select_ident(skb);
 			break;
 		default:
 			return -EINVAL;
