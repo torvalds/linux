@@ -487,6 +487,9 @@ static void rht_deferred_worker(struct work_struct *work)
 
 	ht = container_of(work, struct rhashtable, run_work);
 	mutex_lock(&ht->mutex);
+	if (ht->being_destroyed)
+		goto unlock;
+
 	tbl = rht_dereference(ht->tbl, ht);
 
 	if (ht->p.grow_decision && ht->p.grow_decision(ht, tbl->size))
@@ -494,6 +497,7 @@ static void rht_deferred_worker(struct work_struct *work)
 	else if (ht->p.shrink_decision && ht->p.shrink_decision(ht, tbl->size))
 		rhashtable_shrink(ht);
 
+unlock:
 	mutex_unlock(&ht->mutex);
 }
 
