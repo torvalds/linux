@@ -353,7 +353,7 @@ struct nci_core_set_config_rsp {
 struct nci_core_conn_create_rsp {
 	__u8	status;
 	__u8	max_ctrl_pkt_payload_len;
-	__u8    credits;
+	__u8    credits_cnt;
 	__u8	conn_id;
 } __packed;
 
