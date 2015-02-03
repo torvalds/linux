@@ -3117,6 +3117,7 @@ static int nbu2ss_gad_wakeup(struct usb_gadget *pgadget)
 static int nbu2ss_gad_set_selfpowered(struct usb_gadget *pgadget,
 					int is_selfpowered)
 {
+	struct nbu2ss_udc       *udc;
 	unsigned long		flags;
 
 /*	INFO("=== %s()\n", __func__); */
@@ -3125,6 +3126,8 @@ static int nbu2ss_gad_set_selfpowered(struct usb_gadget *pgadget,
 		ERR("%s, bad param\n", __func__);
 		return -EINVAL;
 	}
+
+	udc = container_of(pgadget, struct nbu2ss_udc, gadget);
 
 	spin_lock_irqsave(&udc->lock, flags);
 	pgadget->is_selfpowered = (is_selfpowered != 0);
