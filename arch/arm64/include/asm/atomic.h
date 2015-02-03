@@ -21,6 +21,7 @@
 #define __ASM_ATOMIC_H
 
 #include <linux/compiler.h>
+#include <linux/stringify.h>
 #include <linux/types.h>
 
 #include <asm/barrier.h>
@@ -30,7 +31,15 @@
 
 #ifdef __KERNEL__
 
+#define __ARM64_IN_ATOMIC_IMPL
+
+#ifdef CONFIG_ARM64_LSE_ATOMICS
+#include <asm/atomic_lse.h>
+#else
 #include <asm/atomic_ll_sc.h>
+#endif
+
+#undef __ARM64_IN_ATOMIC_IMPL
 
 /*
  * On ARM, ordinary assignment (str instruction) doesn't clear the local

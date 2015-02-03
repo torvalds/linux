@@ -21,6 +21,10 @@
 #ifndef __ASM_ATOMIC_LL_SC_H
 #define __ASM_ATOMIC_LL_SC_H
 
+#ifndef __ARM64_IN_ATOMIC_IMPL
+#error "please don't include this file directly"
+#endif
+
 /*
  * AArch64 UP and SMP safe atomic ops.  We use load exclusive and
  * store exclusive to ensure that these are atomic.  We may loop
@@ -41,6 +45,10 @@
 #define __LL_SC_PREFIX(x)	x
 #endif
 
+#ifndef __LL_SC_EXPORT
+#define __LL_SC_EXPORT(x)
+#endif
+
 #define ATOMIC_OP(op, asm_op)						\
 __LL_SC_INLINE void							\
 __LL_SC_PREFIX(atomic_##op(int i, atomic_t *v))				\
@@ -56,6 +64,7 @@ __LL_SC_PREFIX(atomic_##op(int i, atomic_t *v))				\
 	: "=&r" (result), "=&r" (tmp), "+Q" (v->counter)		\
 	: "Ir" (i));							\
 }									\
+__LL_SC_EXPORT(atomic_##op);
 
 #define ATOMIC_OP_RETURN(op, asm_op)					\
 __LL_SC_INLINE int							\
@@ -75,7 +84,8 @@ __LL_SC_PREFIX(atomic_##op##_return(int i, atomic_t *v))		\
 									\
 	smp_mb();							\
 	return result;							\
-}
+}									\
+__LL_SC_EXPORT(atomic_##op##_return);
 
 #define ATOMIC_OPS(op, asm_op)						\
 	ATOMIC_OP(op, asm_op)						\
@@ -115,6 +125,7 @@ __LL_SC_PREFIX(atomic_cmpxchg(atomic_t *ptr, int old, int new))
 	smp_mb();
 	return oldval;
 }
+__LL_SC_EXPORT(atomic_cmpxchg);
 
 #define ATOMIC64_OP(op, asm_op)						\
 __LL_SC_INLINE void							\
@@ -131,6 +142,7 @@ __LL_SC_PREFIX(atomic64_##op(long i, atomic64_t *v))			\
 	: "=&r" (result), "=&r" (tmp), "+Q" (v->counter)		\
 	: "Ir" (i));							\
 }									\
+__LL_SC_EXPORT(atomic64_##op);
 
 #define ATOMIC64_OP_RETURN(op, asm_op)					\
 __LL_SC_INLINE long							\
@@ -150,7 +162,8 @@ __LL_SC_PREFIX(atomic64_##op##_return(long i, atomic64_t *v))		\
 									\
 	smp_mb();							\
 	return result;							\
-}
+}									\
+__LL_SC_EXPORT(atomic64_##op##_return);
 
 #define ATOMIC64_OPS(op, asm_op)					\
 	ATOMIC64_OP(op, asm_op)						\
@@ -190,6 +203,7 @@ __LL_SC_PREFIX(atomic64_cmpxchg(atomic64_t *ptr, long old, long new))
 	smp_mb();
 	return oldval;
 }
+__LL_SC_EXPORT(atomic64_cmpxchg);
 
 __LL_SC_INLINE long
 __LL_SC_PREFIX(atomic64_dec_if_positive(atomic64_t *v))
@@ -211,5 +225,6 @@ __LL_SC_PREFIX(atomic64_dec_if_positive(atomic64_t *v))
 
 	return result;
 }
+__LL_SC_EXPORT(atomic64_dec_if_positive);
 
 #endif	/* __ASM_ATOMIC_LL_SC_H */
