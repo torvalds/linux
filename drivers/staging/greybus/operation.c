@@ -734,6 +734,7 @@ int gb_operation_response_send(struct gb_operation *operation, int errno)
 
 	return gb_message_send(operation->response);
 }
+EXPORT_SYMBOL_GPL(gb_operation_response_send);
 
 /*
  * This function is called when a buffer send request has completed.
