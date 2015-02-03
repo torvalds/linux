@@ -560,6 +560,9 @@ static struct samsung_gate_clock top_gate_clks[] __initdata = {
 	GATE(CLK_ACLK_GSCL_333, "aclk_gscl_333", "div_aclk_gscl_333",
 			ENABLE_ACLK_TOP, 14,
 			CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_MFC_400, "aclk_mfc_400", "div_aclk_mfc_400",
+			ENABLE_ACLK_TOP, 3,
+			CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_ACLK_G2D_266, "aclk_g2d_266", "div_aclk_g2d_266",
 			ENABLE_ACLK_TOP, 2,
 			CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0),
@@ -3990,3 +3993,113 @@ static void __init exynos5433_cmu_mscl_init(struct device_node *np)
 }
 CLK_OF_DECLARE(exynos5433_cmu_mscl, "samsung,exynos5433-cmu-mscl",
 		exynos5433_cmu_mscl_init);
+
+/*
+ * Register offset definitions for CMU_MFC
+ */
+#define MUX_SEL_MFC				0x0200
+#define MUX_ENABLE_MFC				0x0300
+#define MUX_STAT_MFC				0x0400
+#define DIV_MFC					0x0600
+#define DIV_STAT_MFC				0x0700
+#define ENABLE_ACLK_MFC				0x0800
+#define ENABLE_ACLK_MFC_SECURE_SMMU_MFC		0x0804
+#define ENABLE_PCLK_MFC				0x0900
+#define ENABLE_PCLK_MFC_SECURE_SMMU_MFC		0x0904
+#define ENABLE_IP_MFC0				0x0b00
+#define ENABLE_IP_MFC1				0x0b04
+#define ENABLE_IP_MFC_SECURE_SMMU_MFC		0x0b08
+
+static unsigned long mfc_clk_regs[] __initdata = {
+	MUX_SEL_MFC,
+	MUX_ENABLE_MFC,
+	MUX_STAT_MFC,
+	DIV_MFC,
+	DIV_STAT_MFC,
+	ENABLE_ACLK_MFC,
+	ENABLE_ACLK_MFC_SECURE_SMMU_MFC,
+	ENABLE_PCLK_MFC,
+	ENABLE_PCLK_MFC_SECURE_SMMU_MFC,
+	ENABLE_IP_MFC0,
+	ENABLE_IP_MFC1,
+	ENABLE_IP_MFC_SECURE_SMMU_MFC,
+};
+
+PNAME(mout_aclk_mfc_400_user_p)		= { "oscclk", "aclk_mfc_400", };
+
+static struct samsung_mux_clock mfc_mux_clks[] __initdata = {
+	/* MUX_SEL_MFC */
+	MUX(CLK_MOUT_ACLK_MFC_400_USER, "mout_aclk_mfc_400_user",
+			mout_aclk_mfc_400_user_p, MUX_SEL_MFC, 0, 0),
+};
+
+static struct samsung_div_clock mfc_div_clks[] __initdata = {
+	/* DIV_MFC */
+	DIV(CLK_DIV_PCLK_MFC, "div_pclk_mfc", "mout_aclk_mfc_400_user",
+			DIV_MFC, 0, 2),
+};
+
+static struct samsung_gate_clock mfc_gate_clks[] __initdata = {
+	/* ENABLE_ACLK_MFC */
+	GATE(CLK_ACLK_BTS_MFC_1, "aclk_bts_mfc_1", "mout_aclk_mfc_400_user",
+			ENABLE_ACLK_MFC, 6, 0, 0),
+	GATE(CLK_ACLK_BTS_MFC_0, "aclk_bts_mfc_0", "mout_aclk_mfc_400_user",
+			ENABLE_ACLK_MFC, 5, 0, 0),
+	GATE(CLK_ACLK_AHB2APB_MFCP, "aclk_ahb2apb_mfcp", "div_pclk_mfc",
+			ENABLE_ACLK_MFC, 4, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_XIU_MFCX, "aclk_xiu_mfcx", "mout_aclk_mfc_400_user",
+			ENABLE_ACLK_MFC, 3, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_MFCNP_100, "aclk_mfcnp_100", "div_pclk_mfc",
+			ENABLE_ACLK_MFC, 2, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_MFCND_400, "aclk_mfcnd_400", "mout_aclk_mfc_400_user",
+			ENABLE_ACLK_MFC, 1, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_MFC, "aclk_mfc", "mout_aclk_mfc_400_user",
+			ENABLE_ACLK_MFC, 0, 0, 0),
+
+	/* ENABLE_ACLK_MFC_SECURE_SMMU_MFC */
+	GATE(CLK_ACLK_SMMU_MFC_1, "aclk_smmu_mfc_1", "mout_aclk_mfc_400_user",
+			ENABLE_ACLK_MFC_SECURE_SMMU_MFC,
+			1, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_SMMU_MFC_0, "aclk_smmu_mfc_0", "mout_aclk_mfc_400_user",
+			ENABLE_ACLK_MFC_SECURE_SMMU_MFC,
+			0, CLK_IGNORE_UNUSED, 0),
+
+	/* ENABLE_PCLK_MFC */
+	GATE(CLK_PCLK_BTS_MFC_1, "pclk_bts_mfc_1", "div_pclk_mfc",
+			ENABLE_PCLK_MFC, 4, 0, 0),
+	GATE(CLK_PCLK_BTS_MFC_0, "pclk_bts_mfc_0", "div_pclk_mfc",
+			ENABLE_PCLK_MFC, 3, 0, 0),
+	GATE(CLK_PCLK_PMU_MFC, "pclk_pmu_mfc", "div_pclk_mfc",
+			ENABLE_PCLK_MFC, 2, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_SYSREG_MFC, "pclk_sysreg_mfc", "div_pclk_mfc",
+			ENABLE_PCLK_MFC, 1, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_MFC, "pclk_mfc", "div_pclk_mfc",
+			ENABLE_PCLK_MFC, 4, CLK_IGNORE_UNUSED, 0),
+
+	/* ENABLE_PCLK_MFC_SECURE_SMMU_MFC */
+	GATE(CLK_PCLK_SMMU_MFC_1, "pclk_smmu_mfc_1", "div_pclk_mfc",
+			ENABLE_PCLK_MFC_SECURE_SMMU_MFC,
+			1, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_SMMU_MFC_0, "pclk_smmu_mfc_0", "div_pclk_mfc",
+			ENABLE_PCLK_MFC_SECURE_SMMU_MFC,
+			0, CLK_IGNORE_UNUSED, 0),
+};
+
+static struct samsung_cmu_info mfc_cmu_info __initdata = {
+	.mux_clks		= mfc_mux_clks,
+	.nr_mux_clks		= ARRAY_SIZE(mfc_mux_clks),
+	.div_clks		= mfc_div_clks,
+	.nr_div_clks		= ARRAY_SIZE(mfc_div_clks),
+	.gate_clks		= mfc_gate_clks,
+	.nr_gate_clks		= ARRAY_SIZE(mfc_gate_clks),
+	.nr_clk_ids		= MFC_NR_CLK,
+	.clk_regs		= mfc_clk_regs,
+	.nr_clk_regs		= ARRAY_SIZE(mfc_clk_regs),
+};
+
+static void __init exynos5433_cmu_mfc_init(struct device_node *np)
+{
+	samsung_cmu_register_one(np, &mfc_cmu_info);
+}
+CLK_OF_DECLARE(exynos5433_cmu_mfc, "samsung,exynos5433-cmu-mfc",
+		exynos5433_cmu_mfc_init);

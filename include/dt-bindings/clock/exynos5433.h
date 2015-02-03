@@ -153,8 +153,9 @@
 #define CLK_ACLK_GSCL_333		233
 #define CLK_SCLK_JPEG_MSCL		234
 #define CLK_ACLK_MSCL_400		235
+#define CLK_ACLK_MFC_400		236
 
-#define TOP_NR_CLK			236
+#define TOP_NR_CLK			237
 
 /* CMU_CPIF */
 #define CLK_FOUT_MPHY_PLL		1
@@ -975,5 +976,29 @@
 #define CLK_SCLK_JPEG					29
 
 #define MSCL_NR_CLK					30
+
+/* CMU_MFC */
+#define CLK_MOUT_ACLK_MFC_400_USER			1
+
+#define CLK_DIV_PCLK_MFC				2
+
+#define CLK_ACLK_BTS_MFC_1				3
+#define CLK_ACLK_BTS_MFC_0				4
+#define CLK_ACLK_AHB2APB_MFCP				5
+#define CLK_ACLK_XIU_MFCX				6
+#define CLK_ACLK_MFCNP_100				7
+#define CLK_ACLK_MFCND_400				8
+#define CLK_ACLK_MFC					9
+#define CLK_ACLK_SMMU_MFC_1				10
+#define CLK_ACLK_SMMU_MFC_0				11
+#define CLK_PCLK_BTS_MFC_1				12
+#define CLK_PCLK_BTS_MFC_0				13
+#define CLK_PCLK_PMU_MFC				14
+#define CLK_PCLK_SYSREG_MFC				15
+#define CLK_PCLK_MFC					16
+#define CLK_PCLK_SMMU_MFC_1				17
+#define CLK_PCLK_SMMU_MFC_0				18
+
+#define MFC_NR_CLK					19
 
 #endif /* _DT_BINDINGS_CLOCK_EXYNOS5433_H */
