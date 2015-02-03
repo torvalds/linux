@@ -1219,6 +1219,7 @@ struct trace {
 		struct syscall  *table;
 	} syscalls;
 	struct record_opts	opts;
+	struct perf_evlist	*evlist;
 	struct machine		*host;
 	struct thread		*current;
 	u64			base_time;
@@ -1833,6 +1834,24 @@ out_dump:
 	return 0;
 }
 
+static int trace__event_handler(struct trace *trace, struct perf_evsel *evsel,
+				union perf_event *event __maybe_unused,
+				struct perf_sample *sample)
+{
+	trace__printf_interrupted_entry(trace, sample);
+	trace__fprintf_tstamp(trace, sample->time, trace->output);
+	fprintf(trace->output, "(%9.9s): %s:", " ", evsel->name);
+
+	if (evsel->tp_format) {
+		event_format__fprintf(evsel->tp_format, sample->cpu,
+				      sample->raw_data, sample->raw_size,
+				      trace->output);
+	}
+
+	fprintf(trace->output, ")\n");
+	return 0;
+}
+
 static void print_location(FILE *f, struct perf_sample *sample,
 			   struct addr_location *al,
 			   bool print_dso, bool print_sym)
@@ -2067,7 +2086,7 @@ static int perf_evlist__add_pgfault(struct perf_evlist *evlist,
 
 static int trace__run(struct trace *trace, int argc, const char **argv)
 {
-	struct perf_evlist *evlist = perf_evlist__new();
+	struct perf_evlist *evlist = trace->evlist;
 	struct perf_evsel *evsel;
 	int err = -1, i;
 	unsigned long before;
@@ -2075,11 +2094,6 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	bool draining = false;
 
 	trace->live = true;
-
-	if (evlist == NULL) {
-		fprintf(trace->output, "Not enough memory to run!\n");
-		goto out;
-	}
 
 	if (trace->trace_syscalls &&
 	    perf_evlist__add_syscall_newtp(evlist, trace__sys_enter,
@@ -2227,7 +2241,7 @@ out_disable:
 
 out_delete_evlist:
 	perf_evlist__delete(evlist);
-out:
+	trace->evlist = NULL;
 	trace->live = false;
 	return err;
 {
@@ -2498,6 +2512,14 @@ static int parse_pagefaults(const struct option *opt, const char *str,
 	return 0;
 }
 
+static void evlist__set_evsel_handler(struct perf_evlist *evlist, void *handler)
+{
+	struct perf_evsel *evsel;
+
+	evlist__for_each(evlist, evsel)
+		evsel->handler = handler;
+}
+
 int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	const char * const trace_usage[] = {
@@ -2532,6 +2554,9 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	const char *output_name = NULL;
 	const char *ev_qualifier_str = NULL;
 	const struct option trace_options[] = {
+	OPT_CALLBACK(0, "event", &trace.evlist, "event",
+		     "event selector. use 'perf list' to list available events",
+		     parse_events_option),
 	OPT_BOOLEAN(0, "comm", &trace.show_comm,
 		    "show the thread COMM next to its id"),
 	OPT_BOOLEAN(0, "tool_stats", &trace.show_tool_stats, "show tool stats"),
@@ -2573,6 +2598,15 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	int err;
 	char bf[BUFSIZ];
 
+	trace.evlist = perf_evlist__new();
+	if (trace.evlist == NULL)
+		return -ENOMEM;
+
+	if (trace.evlist == NULL) {
+		pr_err("Not enough memory to run!\n");
+		goto out;
+	}
+
 	argc = parse_options(argc, argv, trace_options, trace_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
 
@@ -2580,6 +2614,9 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		trace.opts.sample_address = true;
 		trace.opts.sample_time = true;
 	}
+
+	if (trace.evlist->nr_entries > 0)
+		evlist__set_evsel_handler(trace.evlist, trace__event_handler);
 
 	if ((argc >= 1) && (strcmp(argv[0], "record") == 0))
 		return trace__record(&trace, argc-1, &argv[1]);
