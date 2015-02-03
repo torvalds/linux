@@ -1372,7 +1372,8 @@ csio_config_device_caps(struct csio_hw *hw)
 	}
 
 	/* Validate device capabilities */
-	if (csio_hw_validate_caps(hw, mbp))
+	rv = csio_hw_validate_caps(hw, mbp);
+	if (rv != 0)
 		goto out;
 
 	/* Don't config device capabilities if already configured */
@@ -1776,7 +1777,8 @@ csio_hw_use_fwconfig(struct csio_hw *hw, int reset, u32 *fw_cfg_param)
 	}
 
 	/* Validate device capabilities */
-	if (csio_hw_validate_caps(hw, mbp))
+	rv = csio_hw_validate_caps(hw, mbp);
+	if (rv != 0)
 		goto bye;
 	/*
 	 * Note that we're operating with parameters

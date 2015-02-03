@@ -45,11 +45,6 @@
 #define FW_FNAME_T5				"cxgb4/t5fw.bin"
 #define FW_CFG_NAME_T5				"cxgb4/t5-config.txt"
 
-#define T5FW_VERSION_MAJOR 0x01
-#define T5FW_VERSION_MINOR 0x0B
-#define T5FW_VERSION_MICRO 0x1B
-#define T5FW_VERSION_BUILD 0x00
-
 #define CHELSIO_CHIP_CODE(version, revision) (((version) << 4) | (revision))
 #define CHELSIO_CHIP_FPGA          0x100
 #define CHELSIO_CHIP_VERSION(code) (((code) >> 12) & 0xf)
@@ -74,6 +69,7 @@ static inline int csio_is_t5(uint16_t chip)
 	{ PCI_VENDOR_ID_CHELSIO, (devid), PCI_ANY_ID, PCI_ANY_ID, 0, 0, (idx) }
 
 #include "t4fw_api.h"
+#include "t4fw_version.h"
 
 #define FW_VERSION(chip) ( \
 		FW_HDR_FW_VER_MAJOR_G(chip##FW_VERSION_MAJOR) | \

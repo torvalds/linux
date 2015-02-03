@@ -327,7 +327,8 @@ csio_mb_caps_config(struct csio_hw *hw, struct csio_mb *mbp, uint32_t tmo,
 }
 
 #define CSIO_ADVERT_MASK     (FW_PORT_CAP_SPEED_100M | FW_PORT_CAP_SPEED_1G |\
-			      FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_ANEG)
+			      FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_SPEED_40G |\
+			      FW_PORT_CAP_ANEG)
 
 /*
  * csio_mb_port- FW PORT command helper
