@@ -405,6 +405,12 @@ static struct samsung_mux_clock top_mux_clks[] __initdata = {
 
 static struct samsung_div_clock top_div_clks[] __initdata = {
 	/* DIV_TOP0 */
+	DIV(CLK_DIV_ACLK_CAM1_333, "div_aclk_cam1_333", "mout_aclk_cam1_333",
+			DIV_TOP0, 28, 3),
+	DIV(CLK_DIV_ACLK_CAM1_400, "div_aclk_cam1_400", "mout_bus_pll_user",
+			DIV_TOP0, 24, 3),
+	DIV(CLK_DIV_ACLK_CAM1_552, "div_aclk_cam1_552", "mout_aclk_cam1_552_b",
+			DIV_TOP0, 20, 3),
 	DIV(CLK_DIV_ACLK_CAM0_333, "div_aclk_cam0_333", "mout_mfc_pll_user",
 			DIV_TOP0, 16, 3),
 	DIV(CLK_DIV_ACLK_CAM0_400, "div_aclk_cam0_400", "mout_bus_pll_user",
@@ -463,6 +469,32 @@ static struct samsung_div_clock top_div_clks[] __initdata = {
 	/* DIV_TOP_MSCL */
 	DIV(CLK_DIV_SCLK_JPEG, "div_sclk_jpeg", "mout_sclk_jpeg_c",
 			DIV_TOP_MSCL, 0, 4),
+
+	/* DIV_TOP_CAM10 */
+	DIV(CLK_DIV_SCLK_ISP_UART, "div_sclk_isp_uart", "mout_sclk_isp_uart",
+			DIV_TOP_CAM10, 24, 5),
+	DIV(CLK_DIV_SCLK_ISP_SPI1_B, "div_sclk_isp_spi1_b",
+			"div_sclk_isp_spi1_a", DIV_TOP_CAM10, 16, 8),
+	DIV(CLK_DIV_SCLK_ISP_SPI1_A, "div_sclk_isp_spi1_a",
+			"mout_sclk_isp_spi1", DIV_TOP_CAM10, 12, 4),
+	DIV(CLK_DIV_SCLK_ISP_SPI0_B, "div_sclk_isp_spi0_b",
+			"div_sclk_isp_spi0_a", DIV_TOP_CAM10, 4, 8),
+	DIV(CLK_DIV_SCLK_ISP_SPI0_A, "div_sclk_isp_spi0_a",
+			"mout_sclk_isp_spi0", DIV_TOP_CAM10, 0, 4),
+
+	/* DIV_TOP_CAM11 */
+	DIV(CLK_DIV_SCLK_ISP_SENSOR2_B, "div_sclk_isp_sensor2_b",
+			"div_sclk_isp_sensor2_a", DIV_TOP_CAM11, 20, 4),
+	DIV(CLK_DIV_SCLK_ISP_SENSOR2_A, "div_sclk_isp_sensor2_a",
+			"mout_sclk_isp_sensor2", DIV_TOP_CAM11, 16, 4),
+	DIV(CLK_DIV_SCLK_ISP_SENSOR1_B, "div_sclk_isp_sensor1_b",
+			"div_sclk_isp_sensor1_a", DIV_TOP_CAM11, 12, 4),
+	DIV(CLK_DIV_SCLK_ISP_SENSOR1_A, "div_sclk_isp_sensor1_a",
+			"mout_sclk_isp_sensor1", DIV_TOP_CAM11, 8, 4),
+	DIV(CLK_DIV_SCLK_ISP_SENSOR0_B, "div_sclk_isp_sensor0_b",
+			"div_sclk_isp_sensor0_a", DIV_TOP_CAM11, 12, 4),
+	DIV(CLK_DIV_SCLK_ISP_SENSOR0_A, "div_sclk_isp_sensor0_a",
+			"mout_sclk_isp_sensor0", DIV_TOP_CAM11, 8, 4),
 
 	/* DIV_TOP_FSYS0 */
 	DIV(CLK_DIV_SCLK_MMC1_B, "div_sclk_mmc1_b", "div_sclk_mmc1_a",
@@ -572,6 +604,15 @@ static struct samsung_gate_clock top_gate_clks[] __initdata = {
 	GATE(CLK_ACLK_GSCL_333, "aclk_gscl_333", "div_aclk_gscl_333",
 			ENABLE_ACLK_TOP, 14,
 			CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_CAM1_333, "aclk_cam1_333", "div_aclk_cam1_333",
+			ENABLE_ACLK_TOP, 13,
+			CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_CAM1_400, "aclk_cam1_400", "div_aclk_cam1_400",
+			ENABLE_ACLK_TOP, 12,
+			CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_CAM1_552, "aclk_cam1_552", "div_aclk_cam1_552",
+			ENABLE_ACLK_TOP, 11,
+			CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_ACLK_CAM0_333, "aclk_cam0_333", "div_aclk_cam0_333",
 			ENABLE_ACLK_TOP, 10,
 			CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0),
@@ -603,6 +644,22 @@ static struct samsung_gate_clock top_gate_clks[] __initdata = {
 	/* ENABLE_SCLK_TOP_MSCL */
 	GATE(CLK_SCLK_JPEG_MSCL, "sclk_jpeg_mscl", "div_sclk_jpeg",
 			ENABLE_SCLK_TOP_MSCL, 0, 0, 0),
+
+	/* ENABLE_SCLK_TOP_CAM1 */
+	GATE(CLK_SCLK_ISP_SENSOR2, "sclk_isp_sensor2", "div_sclk_isp_sensor2_b",
+			ENABLE_SCLK_TOP_CAM1, 7, 0, 0),
+	GATE(CLK_SCLK_ISP_SENSOR1, "sclk_isp_sensor1", "div_sclk_isp_sensor1_b",
+			ENABLE_SCLK_TOP_CAM1, 6, 0, 0),
+	GATE(CLK_SCLK_ISP_SENSOR0, "sclk_isp_sensor0", "div_sclk_isp_sensor0_b",
+			ENABLE_SCLK_TOP_CAM1, 5, 0, 0),
+	GATE(CLK_SCLK_ISP_MCTADC_CAM1, "sclk_isp_mctadc_cam1", "oscclk",
+			ENABLE_SCLK_TOP_CAM1, 4, 0, 0),
+	GATE(CLK_SCLK_ISP_UART_CAM1, "sclk_isp_uart_cam1", "div_sclk_isp_uart",
+			ENABLE_SCLK_TOP_CAM1, 2, 0, 0),
+	GATE(CLK_SCLK_ISP_SPI1_CAM1, "sclk_isp_spi1_cam1", "div_sclk_isp_spi1_b",
+			ENABLE_SCLK_TOP_CAM1, 1, 0, 0),
+	GATE(CLK_SCLK_ISP_SPI0_CAM1, "sclk_isp_spi0_cam1", "div_sclk_isp_spi0_b",
+			ENABLE_SCLK_TOP_CAM1, 0, 0, 0),
 
 	/* ENABLE_SCLK_TOP_FSYS */
 	GATE(CLK_SCLK_PCIE_100_FSYS, "sclk_pcie_100_fsys", "div_sclk_pcie_100",
@@ -4986,3 +5043,381 @@ static void __init exynos5433_cmu_cam0_init(struct device_node *np)
 }
 CLK_OF_DECLARE(exynos5433_cmu_cam0, "samsung,exynos5433-cmu-cam0",
 		exynos5433_cmu_cam0_init);
+
+/*
+ * Register offset definitions for CMU_CAM1
+ */
+#define MUX_SEL_CAM10			0x0200
+#define MUX_SEL_CAM11			0x0204
+#define MUX_SEL_CAM12			0x0208
+#define MUX_ENABLE_CAM10		0x0300
+#define MUX_ENABLE_CAM11		0x0304
+#define MUX_ENABLE_CAM12		0x0308
+#define MUX_STAT_CAM10			0x0400
+#define MUX_STAT_CAM11			0x0404
+#define MUX_STAT_CAM12			0x0408
+#define MUX_IGNORE_CAM11		0x0504
+#define DIV_CAM10			0x0600
+#define DIV_CAM11			0x0604
+#define DIV_STAT_CAM10			0x0700
+#define DIV_STAT_CAM11			0x0704
+#define ENABLE_ACLK_CAM10		0X0800
+#define ENABLE_ACLK_CAM11		0X0804
+#define ENABLE_ACLK_CAM12		0X0808
+#define ENABLE_PCLK_CAM1		0X0900
+#define ENABLE_SCLK_CAM1		0X0a00
+#define ENABLE_IP_CAM10			0X0b00
+#define ENABLE_IP_CAM11			0X0b04
+#define ENABLE_IP_CAM12			0X0b08
+
+static unsigned long cam1_clk_regs[] __initdata = {
+	MUX_SEL_CAM10,
+	MUX_SEL_CAM11,
+	MUX_SEL_CAM12,
+	MUX_ENABLE_CAM10,
+	MUX_ENABLE_CAM11,
+	MUX_ENABLE_CAM12,
+	MUX_STAT_CAM10,
+	MUX_STAT_CAM11,
+	MUX_STAT_CAM12,
+	MUX_IGNORE_CAM11,
+	DIV_CAM10,
+	DIV_CAM11,
+	DIV_STAT_CAM10,
+	DIV_STAT_CAM11,
+	ENABLE_ACLK_CAM10,
+	ENABLE_ACLK_CAM11,
+	ENABLE_ACLK_CAM12,
+	ENABLE_PCLK_CAM1,
+	ENABLE_SCLK_CAM1,
+	ENABLE_IP_CAM10,
+	ENABLE_IP_CAM11,
+	ENABLE_IP_CAM12,
+};
+
+PNAME(mout_sclk_isp_uart_user_p)	= { "oscclk", "sclk_isp_uart_cam1", };
+PNAME(mout_sclk_isp_spi1_user_p)	= { "oscclk", "sclk_isp_spi1_cam1", };
+PNAME(mout_sclk_isp_spi0_user_p)	= { "oscclk", "sclk_isp_spi0_cam1", };
+
+PNAME(mout_aclk_cam1_333_user_p)	= { "oscclk", "aclk_cam1_333", };
+PNAME(mout_aclk_cam1_400_user_p)	= { "oscclk", "aclk_cam1_400", };
+PNAME(mout_aclk_cam1_552_user_p)	= { "oscclk", "aclk_cam1_552", };
+
+PNAME(mout_phyclk_rxbyteclkhs0_s2b_user_p) = { "oscclk",
+					       "phyclk_rxbyteclkhs0_s2b_phy", };
+
+PNAME(mout_aclk_csis2_b_p)		= { "mout_aclk_csis2_a",
+					    "mout_aclk_cam1_333_user", };
+PNAME(mout_aclk_csis2_a_p)		= { "mout_aclk_cam1_552_user",
+					    "mout_aclk_cam1_400_user", };
+
+PNAME(mout_aclk_fd_b_p)			= { "mout_aclk_fd_a",
+					    "mout_aclk_cam1_333_user", };
+PNAME(mout_aclk_fd_a_p)			= { "mout_aclk_cam1_552_user",
+					    "mout_aclk_cam1_400_user", };
+
+PNAME(mout_aclk_lite_c_b_p)		= { "mout_aclk_lite_c_a",
+					    "mout_aclk_cam1_333_user", };
+PNAME(mout_aclk_lite_c_a_p)		= { "mout_aclk_cam1_552_user",
+					    "mout_aclk_cam1_400_user", };
+
+static struct samsung_fixed_rate_clock cam1_fixed_clks[] __initdata = {
+	FRATE(CLK_PHYCLK_RXBYTEECLKHS0_S2B, "phyclk_rxbyteclkhs0_s2b_phy", NULL,
+			CLK_IS_ROOT, 100000000),
+};
+
+static struct samsung_mux_clock cam1_mux_clks[] __initdata = {
+	/* MUX_SEL_CAM10 */
+	MUX(CLK_MOUT_SCLK_ISP_UART_USER, "mout_sclk_isp_uart_user",
+			mout_sclk_isp_uart_user_p, MUX_SEL_CAM10, 20, 1),
+	MUX(CLK_MOUT_SCLK_ISP_SPI1_USER, "mout_sclk_isp_spi1_user",
+			mout_sclk_isp_spi1_user_p, MUX_SEL_CAM10, 16, 1),
+	MUX(CLK_MOUT_SCLK_ISP_SPI0_USER, "mout_sclk_isp_spi0_user",
+			mout_sclk_isp_spi0_user_p, MUX_SEL_CAM10, 12, 1),
+	MUX(CLK_MOUT_ACLK_CAM1_333_USER, "mout_aclk_cam1_333_user",
+			mout_aclk_cam1_333_user_p, MUX_SEL_CAM10, 8, 1),
+	MUX(CLK_MOUT_ACLK_CAM1_400_USER, "mout_aclk_cam1_400_user",
+			mout_aclk_cam1_400_user_p, MUX_SEL_CAM01, 4, 1),
+	MUX(CLK_MOUT_ACLK_CAM1_552_USER, "mout_aclk_cam1_552_user",
+			mout_aclk_cam1_552_user_p, MUX_SEL_CAM01, 0, 1),
+
+	/* MUX_SEL_CAM11 */
+	MUX(CLK_MOUT_PHYCLK_RXBYTECLKHS0_S2B_USER,
+			"mout_phyclk_rxbyteclkhs0_s2b_user",
+			mout_phyclk_rxbyteclkhs0_s2b_user_p,
+			MUX_SEL_CAM11, 0, 1),
+
+	/* MUX_SEL_CAM12 */
+	MUX(CLK_MOUT_ACLK_CSIS2_B, "mout_aclk_csis2_b", mout_aclk_csis2_b_p,
+			MUX_SEL_CAM12, 20, 1),
+	MUX(CLK_MOUT_ACLK_CSIS2_A, "mout_aclk_csis2_a", mout_aclk_csis2_a_p,
+			MUX_SEL_CAM12, 16, 1),
+	MUX(CLK_MOUT_ACLK_FD_B, "mout_aclk_fd_b", mout_aclk_fd_b_p,
+			MUX_SEL_CAM12, 12, 1),
+	MUX(CLK_MOUT_ACLK_FD_A, "mout_aclk_fd_a", mout_aclk_fd_a_p,
+			MUX_SEL_CAM12, 8, 1),
+	MUX(CLK_MOUT_ACLK_LITE_C_B, "mout_aclk_lite_c_b", mout_aclk_lite_c_b_p,
+			MUX_SEL_CAM12, 4, 1),
+	MUX(CLK_MOUT_ACLK_LITE_C_A, "mout_aclk_lite_c_a", mout_aclk_lite_c_a_p,
+			MUX_SEL_CAM12, 0, 1),
+};
+
+static struct samsung_div_clock cam1_div_clks[] __initdata = {
+	/* DIV_CAM10 */
+	DIV(CLK_DIV_SCLK_ISP_WPWM, "div_sclk_isp_wpwm",
+			"div_pclk_cam1_83", DIV_CAM10, 16, 2),
+	DIV(CLK_DIV_PCLK_CAM1_83, "div_pclk_cam1_83",
+			"mout_aclk_cam1_333_user", DIV_CAM10, 12, 2),
+	DIV(CLK_DIV_PCLK_CAM1_166, "div_pclk_cam1_166",
+			"mout_aclk_cam1_333_user", DIV_CAM10, 8, 2),
+	DIV(CLK_DIV_PCLK_DBG_CAM1, "div_pclk_dbg_cam1",
+			"mout_aclk_cam1_552_user", DIV_CAM10, 4, 3),
+	DIV(CLK_DIV_ATCLK_CAM1, "div_atclk_cam1", "mout_aclk_cam1_552_user",
+			DIV_CAM10, 0, 3),
+
+	/* DIV_CAM11 */
+	DIV(CLK_DIV_ACLK_CSIS2, "div_aclk_csis2", "mout_aclk_csis2_b",
+			DIV_CAM11, 16, 3),
+	DIV(CLK_DIV_PCLK_FD, "div_pclk_fd", "div_aclk_fd", DIV_CAM11, 12, 2),
+	DIV(CLK_DIV_ACLK_FD, "div_aclk_fd", "mout_aclk_fd_b", DIV_CAM11, 8, 3),
+	DIV(CLK_DIV_PCLK_LITE_C, "div_pclk_lite_c", "div_aclk_lite_c",
+			DIV_CAM11, 4, 2),
+	DIV(CLK_DIV_ACLK_LITE_C, "div_aclk_lite_c", "mout_aclk_lite_c_b",
+			DIV_CAM11, 0, 3),
+};
+
+static struct samsung_gate_clock cam1_gate_clks[] __initdata = {
+	/* ENABLE_ACLK_CAM10 */
+	GATE(CLK_ACLK_ISP_GIC, "aclk_isp_gic", "mout_aclk_cam1_333_user",
+			ENABLE_ACLK_CAM10, 4, 0, 0),
+	GATE(CLK_ACLK_FD, "aclk_fd", "div_aclk_fd",
+			ENABLE_ACLK_CAM10, 3, 0, 0),
+	GATE(CLK_ACLK_LITE_C, "aclk_lite_c", "div_aclk_lite_c",
+			ENABLE_ACLK_CAM10, 1, 0, 0),
+	GATE(CLK_ACLK_CSIS2, "aclk_csis2", "div_aclk_csis2",
+			ENABLE_ACLK_CAM10, 0, 0, 0),
+
+	/* ENABLE_ACLK_CAM11 */
+	GATE(CLK_ACLK_ASYNCAPBM_FD, "aclk_asyncapbm_fd", "div_pclk_fd",
+			ENABLE_ACLK_CAM11, 29, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ASYNCAPBS_FD, "aclk_asyncapbs_fd", "div_pclk_cam1_166",
+			ENABLE_ACLK_CAM11, 28, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ASYNCAPBM_LITE_C, "aclk_asyncapbm_lite_c",
+			"div_pclk_lite_c", ENABLE_ACLK_CAM11,
+			27, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ASYNCAPBS_LITE_C, "aclk_asyncapbs_lite_c",
+			"div_pclk_cam1_166", ENABLE_ACLK_CAM11,
+			26, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ASYNCAHBS_SFRISP2H2, "aclk_asyncahbs_sfrisp2h2",
+			"div_pclk_cam1_83", ENABLE_ACLK_CAM11,
+			25, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ASYNCAHBS_SFRISP2H1, "aclk_asyncahbs_sfrisp2h1",
+			"div_pclk_cam1_83", ENABLE_ACLK_CAM11,
+			24, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ASYNCAXIM_CA5, "aclk_asyncaxim_ca5",
+			"mout_aclk_cam1_333_user", ENABLE_ACLK_CAM11,
+			23, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ASYNCAXIS_CA5, "aclk_asyncaxis_ca5",
+			"mout_aclk_cam1_552_user", ENABLE_ACLK_CAM11,
+			22, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ASYNCAXIS_ISPX2, "aclk_asyncaxis_ispx2",
+			"mout_aclk_cam1_333_user", ENABLE_ACLK_CAM11,
+			21, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ASYNCAXIS_ISPX1, "aclk_asyncaxis_ispx1",
+			"mout_aclk_cam1_333_user", ENABLE_ACLK_CAM11,
+			20, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ASYNCAXIS_ISPX0, "aclk_asyncaxis_ispx0",
+			"mout_aclk_cam1_333_user", ENABLE_ACLK_CAM11,
+			19, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ASYNCAXIM_ISPEX, "aclk_asyncaxim_ispex",
+			"mout_aclk_cam1_400_user", ENABLE_ACLK_CAM11,
+			18, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ASYNCAXIM_ISP3P, "aclk_asyncaxim_isp3p",
+			"mout_aclk_cam1_400_user", ENABLE_ACLK_CAM11,
+			17, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ASYNCAXIS_ISP3P, "aclk_asyncaxis_isp3p",
+			"mout_aclk_cam1_333_user", ENABLE_ACLK_CAM11,
+			16, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ASYNCAXIM_FD, "aclk_asyncaxim_fd",
+			"mout_aclk_cam1_400_user", ENABLE_ACLK_CAM11,
+			15, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ASYNCAXIS_FD, "aclk_asyncaxis_fd", "div_aclk_fd",
+			ENABLE_ACLK_CAM11, 14, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ASYNCAXIM_LITE_C, "aclk_asyncaxim_lite_c",
+			"mout_aclk_cam1_400_user", ENABLE_ACLK_CAM11,
+			13, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ASYNCAXIS_LITE_C, "aclk_asyncaxis_lite_c",
+			"div_aclk_lite_c", ENABLE_ACLK_CAM11,
+			12, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_AHB2APB_ISP5P, "aclk_ahb2apb_isp5p", "div_pclk_cam1_83",
+			ENABLE_ACLK_CAM11, 11, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_AHB2APB_ISP3P, "aclk_ahb2apb_isp3p", "div_pclk_cam1_83",
+			ENABLE_ACLK_CAM11, 10, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_AXI2APB_ISP3P, "aclk_axi2apb_isp3p",
+			"mout_aclk_cam1_333_user", ENABLE_ACLK_CAM11,
+			9, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_AHB_SFRISP2H, "aclk_ahb_sfrisp2h", "div_pclk_cam1_83",
+			ENABLE_ACLK_CAM11, 8, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_AXI_ISP_HX_R, "aclk_axi_isp_hx_r", "div_pclk_cam1_166",
+			ENABLE_ACLK_CAM11, 7, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_AXI_ISP_CX_R, "aclk_axi_isp_cx_r", "div_pclk_cam1_166",
+			ENABLE_ACLK_CAM11, 6, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_AXI_ISP_HX, "aclk_axi_isp_hx", "mout_aclk_cam1_333_user",
+			ENABLE_ACLK_CAM11, 5, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_AXI_ISP_CX, "aclk_axi_isp_cx", "mout_aclk_cam1_333_user",
+			ENABLE_ACLK_CAM11, 4, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_XIU_ISPX, "aclk_xiu_ispx", "mout_aclk_cam1_333_user",
+			ENABLE_ACLK_CAM11, 3, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_XIU_ISPEX, "aclk_xiu_ispex", "mout_aclk_cam1_400_user",
+			ENABLE_ACLK_CAM11, 2, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_CAM1NP_333, "aclk_cam1np_333", "mout_aclk_cam1_333_user",
+			ENABLE_ACLK_CAM11, 1, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_CAM1ND_400, "aclk_cam1nd_400", "mout_aclk_cam1_400_user",
+			ENABLE_ACLK_CAM11, 0, CLK_IGNORE_UNUSED, 0),
+
+	/* ENABLE_ACLK_CAM12 */
+	GATE(CLK_ACLK_SMMU_ISPCPU, "aclk_smmu_ispcpu",
+			"mout_aclk_cam1_400_user", ENABLE_ACLK_CAM12,
+			10, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_SMMU_FD, "aclk_smmu_fd", "mout_aclk_cam1_400_user",
+			ENABLE_ACLK_CAM12, 9, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_SMMU_LITE_C, "aclk_smmu_lite_c",
+			"mout_aclk_cam1_400_user", ENABLE_ACLK_CAM12,
+			8, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_BTS_ISP3P, "aclk_bts_isp3p", "mout_aclk_cam1_400_user",
+			ENABLE_ACLK_CAM12, 7, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_BTS_FD, "aclk_bts_fd", "mout_aclk_cam1_400_user",
+			ENABLE_ACLK_CAM12, 6, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_BTS_LITE_C, "aclk_bts_lite_c", "mout_aclk_cam1_400_user",
+			ENABLE_ACLK_CAM12, 5, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_AHBDN_SFRISP2H, "aclk_ahbdn_sfrisp2h",
+			"mout_aclk_cam1_333_user", ENABLE_ACLK_CAM12,
+			4, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_AHBDN_ISP5P, "aclk_aclk-shbdn_isp5p",
+			"mout_aclk_cam1_333_user", ENABLE_ACLK_CAM12,
+			3, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_AXIUS_ISP3P, "aclk_axius_isp3p",
+			"mout_aclk_cam1_400_user", ENABLE_ACLK_CAM12,
+			2, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_AXIUS_FD, "aclk_axius_fd", "mout_aclk_cam1_400_user",
+			ENABLE_ACLK_CAM12, 1, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_AXIUS_LITE_C, "aclk_axius_lite_c",
+			"mout_aclk_cam1_400_user", ENABLE_ACLK_CAM12,
+			0, CLK_IGNORE_UNUSED, 0),
+
+	/* ENABLE_PCLK_CAM1 */
+	GATE(CLK_PCLK_SMMU_ISPCPU, "pclk_smmu_ispcpu", "div_pclk_cam1_166",
+			ENABLE_PCLK_CAM1, 27, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_SMMU_FD, "pclk_smmu_fd", "div_pclk_cam1_166",
+			ENABLE_PCLK_CAM1, 26, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_SMMU_LITE_C, "pclk_smmu_lite_c", "div_pclk_cam1_166",
+			ENABLE_PCLK_CAM1, 25, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_BTS_ISP3P, "pclk_bts_isp3p", "div_pclk_cam1_83",
+			ENABLE_PCLK_CAM1, 24, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_BTS_FD, "pclk_bts_fd", "div_pclk_cam1_83",
+			ENABLE_PCLK_CAM1, 23, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_BTS_LITE_C, "pclk_bts_lite_c", "div_pclk_cam1_83",
+			ENABLE_PCLK_CAM1, 22, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_ASYNCAXIM_CA5, "pclk_asyncaxim_ca5", "div_pclk_cam1_166",
+			ENABLE_PCLK_CAM1, 21, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_ASYNCAXIM_ISPEX, "pclk_asyncaxim_ispex",
+			"div_pclk_cam1_83", ENABLE_PCLK_CAM1,
+			20, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_ASYNCAXIM_ISP3P, "pclk_asyncaxim_isp3p",
+			"div_pclk_cam1_83", ENABLE_PCLK_CAM1,
+			19, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_ASYNCAXIM_FD, "pclk_asyncaxim_fd", "div_pclk_cam1_83",
+			ENABLE_PCLK_CAM1, 18, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_ASYNCAXIM_LITE_C, "pclk_asyncaxim_lite_c",
+			"div_pclk_cam1_83", ENABLE_PCLK_CAM1,
+			17, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_PMU_CAM1, "pclk_pmu_cam1", "div_pclk_cam1_83",
+			ENABLE_PCLK_CAM1, 16, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_SYSREG_CAM1, "pclk_sysreg_cam1", "div_pclk_cam1_83",
+			ENABLE_PCLK_CAM1, 15, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_CMU_CAM1_LOCAL, "pclk_cmu_cam1_local",
+			"div_pclk_cam1_166", ENABLE_PCLK_CAM1,
+			14, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_ISP_MCTADC, "pclk_isp_mctadc", "div_pclk_cam1_83",
+			ENABLE_PCLK_CAM1, 13, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_ISP_WDT, "pclk_isp_wdt", "div_pclk_cam1_83",
+			ENABLE_PCLK_CAM1, 12, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_ISP_PWM, "pclk_isp_pwm", "div_pclk_cam1_83",
+			ENABLE_PCLK_CAM1, 11, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_ISP_UART, "pclk_isp_uart", "div_pclk_cam1_83",
+			ENABLE_PCLK_CAM1, 10, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_ISP_MCUCTL, "pclk_isp_mcuctl", "div_pclk_cam1_83",
+			ENABLE_PCLK_CAM1, 9, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_ISP_SPI1, "pclk_isp_spi1", "div_pclk_cam1_83",
+			ENABLE_PCLK_CAM1, 8, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_ISP_SPI0, "pclk_isp_spi0", "div_pclk_cam1_83",
+			ENABLE_PCLK_CAM1, 7, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_ISP_I2C2, "pclk_isp_i2c2", "div_pclk_cam1_83",
+			ENABLE_PCLK_CAM1, 6, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_ISP_I2C1, "pclk_isp_i2c1", "div_pclk_cam1_83",
+			ENABLE_PCLK_CAM1, 5, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_ISP_I2C0, "pclk_isp_i2c0", "div_pclk_cam1_83",
+			ENABLE_PCLK_CAM1, 4, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_ISP_MPWM, "pclk_isp_wpwm", "div_pclk_cam1_83",
+			ENABLE_PCLK_CAM1, 3, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_FD, "pclk_fd", "div_pclk_fd",
+			ENABLE_PCLK_CAM1, 3, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_LITE_C, "pclk_lite_c", "div_pclk_lite_c",
+			ENABLE_PCLK_CAM1, 1, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_CSIS2, "pclk_csis2", "div_pclk_cam1_166",
+			ENABLE_PCLK_CAM1, 0, CLK_IGNORE_UNUSED, 0),
+
+	/* ENABLE_SCLK_CAM1 */
+	GATE(CLK_SCLK_ISP_I2C2, "sclk_isp_i2c2", "oscclk", ENABLE_SCLK_CAM1,
+			15, 0, 0),
+	GATE(CLK_SCLK_ISP_I2C1, "sclk_isp_i2c1", "oscclk", ENABLE_SCLK_CAM1,
+			14, 0, 0),
+	GATE(CLK_SCLK_ISP_I2C0, "sclk_isp_i2c0", "oscclk", ENABLE_SCLK_CAM1,
+			13, 0, 0),
+	GATE(CLK_SCLK_ISP_PWM, "sclk_isp_pwm", "oscclk", ENABLE_SCLK_CAM1,
+			12, 0, 0),
+	GATE(CLK_PHYCLK_RXBYTECLKHS0_S2B, "phyclk_rxbyteclkhs0_s2b",
+			"mout_phyclk_rxbyteclkhs0_s2b_user",
+			ENABLE_SCLK_CAM1, 11, 0, 0),
+	GATE(CLK_SCLK_LITE_C_FREECNT, "sclk_lite_c_freecnt", "div_pclk_lite_c",
+			ENABLE_SCLK_CAM1, 10, 0, 0),
+	GATE(CLK_SCLK_PIXELASYNCM_FD, "sclk_pixelasyncm_fd", "div_aclk_fd",
+			ENABLE_SCLK_CAM1, 9, 0, 0),
+	GATE(CLK_SCLK_ISP_MCTADC, "sclk_isp_mctadc", "sclk_isp_mctadc_cam1",
+			ENABLE_SCLK_CAM1, 7, 0, 0),
+	GATE(CLK_SCLK_ISP_UART, "sclk_isp_uart", "mout_sclk_isp_uart_user",
+			ENABLE_SCLK_CAM1, 6, 0, 0),
+	GATE(CLK_SCLK_ISP_SPI1, "sclk_isp_spi1", "mout_sclk_isp_spi1_user",
+			ENABLE_SCLK_CAM1, 5, 0, 0),
+	GATE(CLK_SCLK_ISP_SPI0, "sclk_isp_spi0", "mout_sclk_isp_spi0_user",
+			ENABLE_SCLK_CAM1, 4, 0, 0),
+	GATE(CLK_SCLK_ISP_MPWM, "sclk_isp_wpwm", "div_sclk_isp_wpwm",
+			ENABLE_SCLK_CAM1, 3, 0, 0),
+	GATE(CLK_PCLK_DBG_ISP, "sclk_dbg_isp", "div_pclk_dbg_cam1",
+			ENABLE_SCLK_CAM1, 2, 0, 0),
+	GATE(CLK_ATCLK_ISP, "atclk_isp", "div_atclk_cam1",
+			ENABLE_SCLK_CAM1, 1, 0, 0),
+	GATE(CLK_SCLK_ISP_CA5, "sclk_isp_ca5", "mout_aclk_cam1_552_user",
+			ENABLE_SCLK_CAM1, 0, 0, 0),
+};
+
+static struct samsung_cmu_info cam1_cmu_info __initdata = {
+	.mux_clks		= cam1_mux_clks,
+	.nr_mux_clks		= ARRAY_SIZE(cam1_mux_clks),
+	.div_clks		= cam1_div_clks,
+	.nr_div_clks		= ARRAY_SIZE(cam1_div_clks),
+	.gate_clks		= cam1_gate_clks,
+	.nr_gate_clks		= ARRAY_SIZE(cam1_gate_clks),
+	.fixed_clks		= cam1_fixed_clks,
+	.nr_fixed_clks		= ARRAY_SIZE(cam1_fixed_clks),
+	.nr_clk_ids		= CAM1_NR_CLK,
+	.clk_regs		= cam1_clk_regs,
+	.nr_clk_regs		= ARRAY_SIZE(cam1_clk_regs),
+};
+
+static void __init exynos5433_cmu_cam1_init(struct device_node *np)
+{
+	samsung_cmu_register_one(np, &cam1_cmu_info);
+}
+CLK_OF_DECLARE(exynos5433_cmu_cam1, "samsung,exynos5433-cmu-cam1",
+		exynos5433_cmu_cam1_init);
