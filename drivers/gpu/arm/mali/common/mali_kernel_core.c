@@ -929,6 +929,8 @@ _mali_osk_errcode_t mali_initialize_subsystems(void)
 		if (_MALI_OSK_ERR_OK != err) goto pmu_reset_failed;
 	}
 
+	mali_platform_init();
+
 	/* Detect which Mali GPU we are dealing with */
 	err = mali_parse_product_info();
 	if (_MALI_OSK_ERR_OK != err) goto product_info_parsing_failed;
@@ -974,8 +976,6 @@ _mali_osk_errcode_t mali_initialize_subsystems(void)
 
 	/* Allowing the system to be turned off */
 	_mali_osk_pm_dev_ref_dec();
-
-	mali_platform_init();
 
 	MALI_SUCCESS; /* all ok */
 
