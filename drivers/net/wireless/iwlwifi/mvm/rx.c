@@ -345,6 +345,25 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 		struct iwl_mvm_sta *mvmsta;
 		mvmsta = iwl_mvm_sta_from_mac80211(sta);
 		rs_update_last_rssi(mvm, &mvmsta->lq_sta, rx_status);
+
+		if (iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_RSSI) &&
+		    ieee80211_is_beacon(hdr->frame_control)) {
+			struct iwl_fw_dbg_trigger_tlv *trig;
+			struct iwl_fw_dbg_trigger_low_rssi *rssi_trig;
+			bool trig_check;
+			s32 rssi;
+
+			trig = iwl_fw_dbg_get_trigger(mvm->fw,
+						      FW_DBG_TRIGGER_RSSI);
+			rssi_trig = (void *)trig->data;
+			rssi = le32_to_cpu(rssi_trig->rssi);
+
+			trig_check =
+				iwl_fw_dbg_trigger_check_stop(mvm, mvmsta->vif,
+							      trig);
+			if (trig_check && rx_status->signal < rssi)
+				iwl_mvm_fw_dbg_collect_trig(mvm, trig, NULL, 0);
+		}
 	}
 
 	rcu_read_unlock();

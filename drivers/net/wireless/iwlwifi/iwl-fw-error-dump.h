@@ -248,6 +248,8 @@ iwl_fw_error_next_data(struct iwl_fw_error_dump_data *data)
  *	command response or a notification.
  * @FW_DB_TRIGGER_RESERVED: reserved
  * @FW_DBG_TRIGGER_STATS: trigger log collection upon statistics threshold.
+ * @FW_DBG_TRIGGER_RSSI: trigger log collection when the rssi of the beacon
+ *	goes below a threshold.
  */
 enum iwl_fw_dbg_trigger {
 	FW_DBG_TRIGGER_INVALID = 0,
@@ -258,6 +260,7 @@ enum iwl_fw_dbg_trigger {
 	FW_DBG_TRIGGER_FW_NOTIF,
 	FW_DB_TRIGGER_RESERVED,
 	FW_DBG_TRIGGER_STATS,
+	FW_DBG_TRIGGER_RSSI,
 
 	/* must be last */
 	FW_DBG_TRIGGER_MAX,

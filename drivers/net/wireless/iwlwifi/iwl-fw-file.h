@@ -566,6 +566,14 @@ struct iwl_fw_dbg_trigger_stats {
 } __packed;
 
 /**
+ * struct iwl_fw_dbg_trigger_low_rssi - trigger for low beacon RSSI
+ * @rssi: RSSI value to trigger at
+ */
+struct iwl_fw_dbg_trigger_low_rssi {
+	__le32 rssi;
+} __packed;
+
+/**
  * struct iwl_fw_dbg_conf_tlv - a TLV that describes a debug configuration.
  * @id: conf id
  * @usniffer: should the uSniffer image be used
