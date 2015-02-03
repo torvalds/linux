@@ -5994,6 +5994,7 @@ enum skl_disp_power_wells {
 #define  HSW_IDICR				0x9008
 #define    IDIHASHMSK(x)			(((x) & 0x3f) << 16)
 #define  HSW_EDRAM_PRESENT			0x120010
+#define    EDRAM_ENABLED			0x1
 
 #define GEN6_UCGCTL1				0x9400
 # define GEN6_EU_TCUNIT_CLOCK_GATE_DISABLE		(1 << 16)
