@@ -746,8 +746,8 @@
 		status = "okay";
 		assigned-clocks = <&clock CLK_MOUT_CAM0>,
 				  <&clock CLK_MOUT_CAM1>;
-		assigned-clock-parents = <&clock CLK_MOUT_MPLL_USER_T>,
-					 <&clock CLK_MOUT_MPLL_USER_T>;
+		assigned-clock-parents = <&clock CLK_XUSBXTI>,
+					 <&clock CLK_XUSBXTI>;
 
 		fimc_0: fimc@11800000 {
 			status = "okay";
