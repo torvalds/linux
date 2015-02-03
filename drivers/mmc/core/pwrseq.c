@@ -26,6 +26,9 @@ static struct mmc_pwrseq_match pwrseq_match[] = {
 	{
 		.compatible = "mmc-pwrseq-simple",
 		.alloc = mmc_pwrseq_simple_alloc,
+	}, {
+		.compatible = "mmc-pwrseq-emmc",
+		.alloc = mmc_pwrseq_emmc_alloc,
 	},
 };
 
