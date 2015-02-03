@@ -419,6 +419,8 @@ static struct samsung_div_clock top_div_clks[] __initdata = {
 			DIV_TOP1, 0, 3),
 
 	/* DIV_TOP2 */
+	DIV(CLK_DIV_ACLK_MSCL_400, "div_aclk_mscl_400", "mout_aclk_mscl_400_b",
+			DIV_TOP2, 4, 3),
 	DIV(CLK_DIV_ACLK_FSYS_200, "div_aclk_fsys_200", "mout_bus_pll_user",
 			DIV_TOP2, 0, 3),
 
@@ -445,6 +447,10 @@ static struct samsung_div_clock top_div_clks[] __initdata = {
 			DIV_TOP4, 4, 3),
 	DIV(CLK_DIV_ACLK_BUS1_400, "div_aclk_bus1_400", "mout_bus_pll_user",
 			DIV_TOP4, 0, 3),
+
+	/* DIV_TOP_MSCL */
+	DIV(CLK_DIV_SCLK_JPEG, "div_sclk_jpeg", "mout_sclk_jpeg_c",
+			DIV_TOP_MSCL, 0, 4),
 
 	/* DIV_TOP_FSYS0 */
 	DIV(CLK_DIV_SCLK_MMC1_B, "div_sclk_mmc1_b", "div_sclk_mmc1_a",
@@ -542,6 +548,9 @@ static struct samsung_gate_clock top_gate_clks[] __initdata = {
 	GATE(CLK_ACLK_PERIS_66, "aclk_peris_66", "div_aclk_peris_66_b",
 			ENABLE_ACLK_TOP, 21,
 			CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_MSCL_400, "aclk_mscl_400", "div_aclk_mscl_400",
+			ENABLE_ACLK_TOP, 19,
+			CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_ACLK_FSYS_200, "aclk_fsys_200", "div_aclk_fsys_200",
 			ENABLE_ACLK_TOP, 18,
 			CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0),
@@ -557,6 +566,10 @@ static struct samsung_gate_clock top_gate_clks[] __initdata = {
 	GATE(CLK_ACLK_G2D_400, "aclk_g2d_400", "div_aclk_g2d_400",
 			ENABLE_ACLK_TOP, 0,
 			CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED, 0),
+
+	/* ENABLE_SCLK_TOP_MSCL */
+	GATE(CLK_SCLK_JPEG_MSCL, "sclk_jpeg_mscl", "div_sclk_jpeg",
+			ENABLE_SCLK_TOP_MSCL, 0, 0, 0),
 
 	/* ENABLE_SCLK_TOP_FSYS */
 	GATE(CLK_SCLK_PCIE_100_FSYS, "sclk_pcie_100_fsys", "div_sclk_pcie_100",
@@ -3805,3 +3818,175 @@ static void __init exynos5433_cmu_atlas_init(struct device_node *np)
 }
 CLK_OF_DECLARE(exynos5433_cmu_atlas, "samsung,exynos5433-cmu-atlas",
 		exynos5433_cmu_atlas_init);
+
+/*
+ * Register offset definitions for CMU_MSCL
+ */
+#define MUX_SEL_MSCL0					0x0200
+#define MUX_SEL_MSCL1					0x0204
+#define MUX_ENABLE_MSCL0				0x0300
+#define MUX_ENABLE_MSCL1				0x0304
+#define MUX_STAT_MSCL0					0x0400
+#define MUX_STAT_MSCL1					0x0404
+#define DIV_MSCL					0x0600
+#define DIV_STAT_MSCL					0x0700
+#define ENABLE_ACLK_MSCL				0x0800
+#define ENABLE_ACLK_MSCL_SECURE_SMMU_M2MSCALER0		0x0804
+#define ENABLE_ACLK_MSCL_SECURE_SMMU_M2MSCALER1		0x0808
+#define ENABLE_ACLK_MSCL_SECURE_SMMU_JPEG		0x080c
+#define ENABLE_PCLK_MSCL				0x0900
+#define ENABLE_PCLK_MSCL_SECURE_SMMU_M2MSCALER0		0x0904
+#define ENABLE_PCLK_MSCL_SECURE_SMMU_M2MSCALER1		0x0908
+#define ENABLE_PCLK_MSCL_SECURE_SMMU_JPEG		0x000c
+#define ENABLE_SCLK_MSCL				0x0a00
+#define ENABLE_IP_MSCL0					0x0b00
+#define ENABLE_IP_MSCL1					0x0b04
+#define ENABLE_IP_MSCL_SECURE_SMMU_M2MSCALER0		0x0b08
+#define ENABLE_IP_MSCL_SECURE_SMMU_M2MSCALER1		0x0b0c
+#define ENABLE_IP_MSCL_SECURE_SMMU_JPEG			0x0b10
+
+static unsigned long mscl_clk_regs[] __initdata = {
+	MUX_SEL_MSCL0,
+	MUX_SEL_MSCL1,
+	MUX_ENABLE_MSCL0,
+	MUX_ENABLE_MSCL1,
+	MUX_STAT_MSCL0,
+	MUX_STAT_MSCL1,
+	DIV_MSCL,
+	DIV_STAT_MSCL,
+	ENABLE_ACLK_MSCL,
+	ENABLE_ACLK_MSCL_SECURE_SMMU_M2MSCALER0,
+	ENABLE_ACLK_MSCL_SECURE_SMMU_M2MSCALER1,
+	ENABLE_ACLK_MSCL_SECURE_SMMU_JPEG,
+	ENABLE_PCLK_MSCL,
+	ENABLE_PCLK_MSCL_SECURE_SMMU_M2MSCALER0,
+	ENABLE_PCLK_MSCL_SECURE_SMMU_M2MSCALER1,
+	ENABLE_PCLK_MSCL_SECURE_SMMU_JPEG,
+	ENABLE_SCLK_MSCL,
+	ENABLE_IP_MSCL0,
+	ENABLE_IP_MSCL1,
+	ENABLE_IP_MSCL_SECURE_SMMU_M2MSCALER0,
+	ENABLE_IP_MSCL_SECURE_SMMU_M2MSCALER1,
+	ENABLE_IP_MSCL_SECURE_SMMU_JPEG,
+};
+
+/* list of all parent clock list */
+PNAME(mout_sclk_jpeg_user_p)		= { "oscclk", "sclk_jpeg_mscl", };
+PNAME(mout_aclk_mscl_400_user_p)	= { "oscclk", "aclk_mscl_400", };
+PNAME(mout_sclk_jpeg_p)			= { "mout_sclk_jpeg_user",
+					"mout_aclk_mscl_400_user", };
+
+static struct samsung_mux_clock mscl_mux_clks[] __initdata = {
+	/* MUX_SEL_MSCL0 */
+	MUX(CLK_MOUT_SCLK_JPEG_USER, "mout_sclk_jpeg_user",
+			mout_sclk_jpeg_user_p, MUX_SEL_MSCL0, 4, 1),
+	MUX(CLK_MOUT_ACLK_MSCL_400_USER, "mout_aclk_mscl_400_user",
+			mout_aclk_mscl_400_user_p, MUX_SEL_MSCL0, 0, 1),
+
+	/* MUX_SEL_MSCL1 */
+	MUX(CLK_MOUT_SCLK_JPEG, "mout_sclk_jpeg", mout_sclk_jpeg_p,
+			MUX_SEL_MSCL1, 0, 1),
+};
+
+static struct samsung_div_clock mscl_div_clks[] __initdata = {
+	/* DIV_MSCL */
+	DIV(CLK_DIV_PCLK_MSCL, "div_pclk_mscl", "mout_aclk_mscl_400_user",
+			DIV_MSCL, 0, 3),
+};
+
+static struct samsung_gate_clock mscl_gate_clks[] __initdata = {
+	/* ENABLE_ACLK_MSCL */
+	GATE(CLK_ACLK_BTS_JPEG, "aclk_bts_jpeg", "mout_aclk_mscl_400_user",
+			ENABLE_ACLK_MSCL, 9, 0, 0),
+	GATE(CLK_ACLK_BTS_M2MSCALER1, "aclk_bts_m2mscaler1",
+			"mout_aclk_mscl_400_user", ENABLE_ACLK_MSCL, 8, 0, 0),
+	GATE(CLK_ACLK_BTS_M2MSCALER0, "aclk_bts_m2mscaler0",
+			"mout_aclk_mscl_400_user", ENABLE_ACLK_MSCL, 7, 0, 0),
+	GATE(CLK_ACLK_AHB2APB_MSCL0P, "aclk_abh2apb_mscl0p", "div_pclk_mscl",
+			ENABLE_ACLK_MSCL, 6, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_XIU_MSCLX, "aclk_xiu_msclx", "mout_aclk_mscl_400_user",
+			ENABLE_ACLK_MSCL, 5, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_MSCLNP_100, "aclk_msclnp_100", "div_pclk_mscl",
+			ENABLE_ACLK_MSCL, 4, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_MSCLND_400, "aclk_msclnd_400", "mout_aclk_mscl_400_user",
+			ENABLE_ACLK_MSCL, 3, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_JPEG, "aclk_jpeg", "mout_aclk_mscl_400_user",
+			ENABLE_ACLK_MSCL, 2, 0, 0),
+	GATE(CLK_ACLK_M2MSCALER1, "aclk_m2mscaler1", "mout_aclk_mscl_400_user",
+			ENABLE_ACLK_MSCL, 1, 0, 0),
+	GATE(CLK_ACLK_M2MSCALER0, "aclk_m2mscaler0", "mout_aclk_mscl_400_user",
+			ENABLE_ACLK_MSCL, 0, 0, 0),
+
+	/* ENABLE_ACLK_MSCL_SECURE_SMMU_M2MSCALER0 */
+	GATE(CLK_ACLK_SMMU_M2MSCALER0, "aclk_smmu_m2mscaler0",
+			"mout_aclk_mscl_400_user",
+			ENABLE_ACLK_MSCL_SECURE_SMMU_M2MSCALER0,
+			0, CLK_IGNORE_UNUSED, 0),
+
+	/* ENABLE_ACLK_MSCL_SECURE_SMMU_M2MSCALER1 */
+	GATE(CLK_ACLK_SMMU_M2MSCALER1, "aclk_smmu_m2mscaler1",
+			"mout_aclk_mscl_400_user",
+			ENABLE_ACLK_MSCL_SECURE_SMMU_M2MSCALER1,
+			0, CLK_IGNORE_UNUSED, 0),
+
+	/* ENABLE_ACLK_MSCL_SECURE_SMMU_JPEG */
+	GATE(CLK_ACLK_SMMU_JPEG, "aclk_smmu_jpeg", "mout_aclk_mscl_400_user",
+			ENABLE_ACLK_MSCL_SECURE_SMMU_JPEG,
+			0, CLK_IGNORE_UNUSED, 0),
+
+	/* ENABLE_PCLK_MSCL */
+	GATE(CLK_PCLK_BTS_JPEG, "pclk_bts_jpeg", "div_pclk_mscl",
+			ENABLE_PCLK_MSCL, 7, 0, 0),
+	GATE(CLK_PCLK_BTS_M2MSCALER1, "pclk_bts_m2mscaler1", "div_pclk_mscl",
+			ENABLE_PCLK_MSCL, 6, 0, 0),
+	GATE(CLK_PCLK_BTS_M2MSCALER0, "pclk_bts_m2mscaler0", "div_pclk_mscl",
+			ENABLE_PCLK_MSCL, 5, 0, 0),
+	GATE(CLK_PCLK_PMU_MSCL, "pclk_pmu_mscl", "div_pclk_mscl",
+			ENABLE_PCLK_MSCL, 4, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_SYSREG_MSCL, "pclk_sysreg_mscl", "div_pclk_mscl",
+			ENABLE_PCLK_MSCL, 3, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_JPEG, "pclk_jpeg", "div_pclk_mscl",
+			ENABLE_PCLK_MSCL, 2, 0, 0),
+	GATE(CLK_PCLK_M2MSCALER1, "pclk_m2mscaler1", "div_pclk_mscl",
+			ENABLE_PCLK_MSCL, 1, 0, 0),
+	GATE(CLK_PCLK_M2MSCALER0, "pclk_m2mscaler0", "div_pclk_mscl",
+			ENABLE_PCLK_MSCL, 0, 0, 0),
+
+	/* ENABLE_PCLK_MSCL_SECURE_SMMU_M2MSCALER0 */
+	GATE(CLK_PCLK_SMMU_M2MSCALER0, "pclk_smmu_m2mscaler0", "div_pclk_mscl",
+			ENABLE_PCLK_MSCL_SECURE_SMMU_M2MSCALER0,
+			0, CLK_IGNORE_UNUSED, 0),
+
+	/* ENABLE_PCLK_MSCL_SECURE_SMMU_M2MSCALER1 */
+	GATE(CLK_PCLK_SMMU_M2MSCALER1, "pclk_smmu_m2mscaler1", "div_pclk_mscl",
+			ENABLE_PCLK_MSCL_SECURE_SMMU_M2MSCALER1,
+			0, CLK_IGNORE_UNUSED, 0),
+
+	/* ENABLE_PCLK_MSCL_SECURE_SMMU_JPEG */
+	GATE(CLK_PCLK_SMMU_JPEG, "pclk_smmu_jpeg", "div_pclk_mscl",
+			ENABLE_PCLK_MSCL_SECURE_SMMU_JPEG,
+			0, CLK_IGNORE_UNUSED, 0),
+
+	/* ENABLE_SCLK_MSCL */
+	GATE(CLK_SCLK_JPEG, "sclk_jpeg", "mout_sclk_jpeg", ENABLE_SCLK_MSCL, 0,
+			CLK_IGNORE_UNUSED | CLK_SET_RATE_PARENT, 0),
+};
+
+static struct samsung_cmu_info mscl_cmu_info __initdata = {
+	.mux_clks		= mscl_mux_clks,
+	.nr_mux_clks		= ARRAY_SIZE(mscl_mux_clks),
+	.div_clks		= mscl_div_clks,
+	.nr_div_clks		= ARRAY_SIZE(mscl_div_clks),
+	.gate_clks		= mscl_gate_clks,
+	.nr_gate_clks		= ARRAY_SIZE(mscl_gate_clks),
+	.nr_clk_ids		= MSCL_NR_CLK,
+	.clk_regs		= mscl_clk_regs,
+	.nr_clk_regs		= ARRAY_SIZE(mscl_clk_regs),
+};
+
+static void __init exynos5433_cmu_mscl_init(struct device_node *np)
+{
+	samsung_cmu_register_one(np, &mscl_cmu_info);
+}
+CLK_OF_DECLARE(exynos5433_cmu_mscl, "samsung,exynos5433-cmu-mscl",
+		exynos5433_cmu_mscl_init);
