@@ -1046,8 +1046,6 @@ static int v4l_g_priority(const struct v4l2_ioctl_ops *ops,
 	struct video_device *vfd;
 	u32 *p = arg;
 
-	if (ops->vidioc_g_priority)
-		return ops->vidioc_g_priority(file, fh, arg);
 	vfd = video_devdata(file);
 	*p = v4l2_prio_max(vfd->prio);
 	return 0;
@@ -1060,9 +1058,9 @@ static int v4l_s_priority(const struct v4l2_ioctl_ops *ops,
 	struct v4l2_fh *vfh;
 	u32 *p = arg;
 
-	if (ops->vidioc_s_priority)
-		return ops->vidioc_s_priority(file, fh, *p);
 	vfd = video_devdata(file);
+	if (!test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags))
+		return -ENOTTY;
 	vfh = file->private_data;
 	return v4l2_prio_change(vfd->prio, &vfh->prio, *p);
 }
