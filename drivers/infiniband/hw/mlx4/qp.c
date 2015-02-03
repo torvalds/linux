@@ -40,6 +40,7 @@
 #include <rdma/ib_addr.h>
 #include <rdma/ib_mad.h>
 
+#include <linux/mlx4/driver.h>
 #include <linux/mlx4/qp.h>
 
 #include "mlx4_ib.h"
@@ -93,17 +94,6 @@ enum {
 #ifndef ETH_ALEN
 #define ETH_ALEN        6
 #endif
-static inline u64 mlx4_mac_to_u64(u8 *addr)
-{
-	u64 mac = 0;
-	int i;
-
-	for (i = 0; i < ETH_ALEN; i++) {
-		mac <<= 8;
-		mac |= addr[i];
-	}
-	return mac;
-}
 
 static const __be32 mlx4_ib_opcode[] = {
 	[IB_WR_SEND]				= cpu_to_be32(MLX4_OPCODE_SEND),
