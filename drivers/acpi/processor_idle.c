@@ -704,34 +704,6 @@ static void acpi_idle_do_entry(struct acpi_processor_cx *cx)
 }
 
 /**
- * acpi_idle_enter_c1 - enters an ACPI C1 state-type
- * @dev: the target CPU
- * @drv: cpuidle driver containing cpuidle state info
- * @index: index of target state
- *
- * This is equivalent to the HALT instruction.
- */
-static int acpi_idle_enter_c1(struct cpuidle_device *dev,
-		struct cpuidle_driver *drv, int index)
-{
-	struct acpi_processor *pr;
-	struct acpi_processor_cx *cx = per_cpu(acpi_cstate[index], dev->cpu);
-
-	pr = __this_cpu_read(processors);
-
-	if (unlikely(!pr))
-		return -EINVAL;
-
-	lapic_timer_state_broadcast(pr, cx, 1);
-	acpi_idle_do_entry(cx);
-
-	lapic_timer_state_broadcast(pr, cx, 0);
-
-	return index;
-}
-
-
-/**
  * acpi_idle_play_dead - enters an ACPI state for long-term idle (i.e. off-lining)
  * @dev: the target CPU
  * @index: the index of suggested state
@@ -766,7 +738,7 @@ static bool acpi_idle_fallback_to_c1(struct acpi_processor *pr)
 }
 
 /**
- * acpi_idle_enter_simple - enters an ACPI state without BM handling
+ * acpi_idle_enter_simple - enters a CPU idle state without BM handling
  * @dev: the target CPU
  * @drv: cpuidle driver with cpuidle state information
  * @index: the index of suggested state
@@ -782,8 +754,10 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 	if (unlikely(!pr))
 		return -EINVAL;
 
-	if (acpi_idle_fallback_to_c1(pr))
-		return acpi_idle_enter_c1(dev, drv, CPUIDLE_DRIVER_STATE_START);
+	if (cx->type != ACPI_STATE_C1 && acpi_idle_fallback_to_c1(pr)) {
+		index = CPUIDLE_DRIVER_STATE_START;
+		cx = per_cpu(acpi_cstate[index], dev->cpu);
+	}
 
 	lapic_timer_state_broadcast(pr, cx, 1);
 
@@ -819,7 +793,7 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 		return -EINVAL;
 
 	if (acpi_idle_fallback_to_c1(pr))
-		return acpi_idle_enter_c1(dev, drv, CPUIDLE_DRIVER_STATE_START);
+		return acpi_idle_enter_simple(dev, drv, CPUIDLE_DRIVER_STATE_START);
 
 	if (!cx->bm_sts_skip && acpi_idle_bm_check()) {
 		if (drv->safe_state_index >= 0) {
@@ -967,11 +941,6 @@ static int acpi_processor_setup_cpuidle_states(struct acpi_processor *pr)
 		switch (cx->type) {
 
 		case ACPI_STATE_C1:
-			state->enter = acpi_idle_enter_c1;
-			state->enter_dead = acpi_idle_play_dead;
-			drv->safe_state_index = count;
-			break;
-
 		case ACPI_STATE_C2:
 			state->enter = acpi_idle_enter_simple;
 			state->enter_dead = acpi_idle_play_dead;
