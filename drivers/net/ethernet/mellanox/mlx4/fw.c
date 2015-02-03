@@ -2169,7 +2169,7 @@ static const u8 config_dev_csum_flags[] = {
 int mlx4_config_dev_retrieval(struct mlx4_dev *dev,
 			      struct mlx4_config_dev_params *params)
 {
-	struct mlx4_config_dev config_dev;
+	struct mlx4_config_dev config_dev = {0};
 	int err;
 	u8 csum_mask;
 
