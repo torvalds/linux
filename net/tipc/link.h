@@ -103,6 +103,7 @@ struct tipc_stats {
  * @media_addr: media address to use when sending messages over link
  * @timer: link timer
  * @owner: pointer to peer node
+ * @refcnt: reference counter for permanent references (owner node & timer)
  * @flags: execution state flags for link endpoint instance
  * @checkpoint: reference point for triggering link continuity checking
  * @peer_session: link session # being used by peer end of link
@@ -142,6 +143,7 @@ struct tipc_link {
 	struct tipc_media_addr media_addr;
 	struct timer_list timer;
 	struct tipc_node *owner;
+	struct kref ref;
 
 	/* Management and link supervision data */
 	unsigned int flags;
