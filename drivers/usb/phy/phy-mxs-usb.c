@@ -116,6 +116,16 @@
  */
 #define MXS_PHY_NEED_IP_FIX			BIT(3)
 
+/*
+ * At some versions, the PHY2's clock is controlled by hardware directly,
+ * eg, according to PHY's suspend status. In these PHYs, we only need to
+ * open the clock at the initialization and close it at its shutdown routine.
+ * It will be benefit for remote wakeup case which needs to send resume
+ * signal as soon as possible, and in this case, the resume signal can be sent
+ * out without software interfere.
+ */
+#define MXS_PHY_HARDWARE_CONTROL_PHY2_CLK	BIT(4)
+
 struct mxs_phy_data {
 	unsigned int flags;
 };
@@ -127,12 +137,14 @@ static const struct mxs_phy_data imx23_phy_data = {
 static const struct mxs_phy_data imx6q_phy_data = {
 	.flags = MXS_PHY_SENDING_SOF_TOO_FAST |
 		MXS_PHY_DISCONNECT_LINE_WITHOUT_VBUS |
-		MXS_PHY_NEED_IP_FIX,
+		MXS_PHY_NEED_IP_FIX |
+		MXS_PHY_HARDWARE_CONTROL_PHY2_CLK,
 };
 
 static const struct mxs_phy_data imx6sl_phy_data = {
 	.flags = MXS_PHY_DISCONNECT_LINE_WITHOUT_VBUS |
-		MXS_PHY_NEED_IP_FIX,
+		MXS_PHY_NEED_IP_FIX |
+		MXS_PHY_HARDWARE_CONTROL_PHY2_CLK,
 };
 
 static const struct mxs_phy_data vf610_phy_data = {
@@ -141,7 +153,8 @@ static const struct mxs_phy_data vf610_phy_data = {
 };
 
 static const struct mxs_phy_data imx6sx_phy_data = {
-	.flags = MXS_PHY_DISCONNECT_LINE_WITHOUT_VBUS,
+	.flags = MXS_PHY_DISCONNECT_LINE_WITHOUT_VBUS |
+		MXS_PHY_HARDWARE_CONTROL_PHY2_CLK,
 };
 
 static const struct of_device_id mxs_phy_dt_ids[] = {
@@ -161,6 +174,7 @@ struct mxs_phy {
 	struct regmap *regmap_anatop;
 	int port_id;
 	struct regulator *phy_3p0;
+	bool hardware_control_phy2_clk;
 };
 
 static inline bool is_imx6q_phy(struct mxs_phy *mxs_phy)
@@ -401,12 +415,17 @@ static int mxs_phy_suspend(struct usb_phy *x, int suspend)
 		}
 		writel(BM_USBPHY_CTRL_CLKGATE,
 		       x->io_priv + HW_USBPHY_CTRL_SET);
-		clk_disable_unprepare(mxs_phy->clk);
+		if (!(mxs_phy->port_id == 1 &&
+				mxs_phy->hardware_control_phy2_clk))
+			clk_disable_unprepare(mxs_phy->clk);
 	} else {
 		mxs_phy_clock_switch_delay();
-		ret = clk_prepare_enable(mxs_phy->clk);
-		if (ret)
-			return ret;
+		if (!(mxs_phy->port_id == 1 &&
+				mxs_phy->hardware_control_phy2_clk)) {
+			ret = clk_prepare_enable(mxs_phy->clk);
+			if (ret)
+				return ret;
+		}
 		writel(BM_USBPHY_CTRL_CLKGATE,
 		       x->io_priv + HW_USBPHY_CTRL_CLR);
 		writel(0, x->io_priv + HW_USBPHY_PWD);
@@ -575,6 +594,9 @@ static int mxs_phy_probe(struct platform_device *pdev)
 	}
 	if (mxs_phy->phy_3p0)
 		regulator_set_voltage(mxs_phy->phy_3p0, 3200000, 3200000);
+
+	if (mxs_phy->data->flags & MXS_PHY_HARDWARE_CONTROL_PHY2_CLK)
+		mxs_phy->hardware_control_phy2_clk = true;
 
 	platform_set_drvdata(pdev, mxs_phy);
 
