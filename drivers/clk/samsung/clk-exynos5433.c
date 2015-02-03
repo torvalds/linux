@@ -3393,3 +3393,196 @@ static void __init exynos5433_cmu_gscl_init(struct device_node *np)
 }
 CLK_OF_DECLARE(exynos5433_cmu_gscl, "samsung,exynos5433-cmu-gscl",
 		exynos5433_cmu_gscl_init);
+
+/*
+ * Register offset definitions for CMU_APOLLO
+ */
+#define APOLLO_PLL_LOCK				0x0000
+#define APOLLO_PLL_CON0				0x0100
+#define APOLLO_PLL_CON1				0x0104
+#define APOLLO_PLL_FREQ_DET			0x010c
+#define MUX_SEL_APOLLO0				0x0200
+#define MUX_SEL_APOLLO1				0x0204
+#define MUX_SEL_APOLLO2				0x0208
+#define MUX_ENABLE_APOLLO0			0x0300
+#define MUX_ENABLE_APOLLO1			0x0304
+#define MUX_ENABLE_APOLLO2			0x0308
+#define MUX_STAT_APOLLO0			0x0400
+#define MUX_STAT_APOLLO1			0x0404
+#define MUX_STAT_APOLLO2			0x0408
+#define DIV_APOLLO0				0x0600
+#define DIV_APOLLO1				0x0604
+#define DIV_APOLLO_PLL_FREQ_DET			0x0608
+#define DIV_STAT_APOLLO0			0x0700
+#define DIV_STAT_APOLLO1			0x0704
+#define DIV_STAT_APOLLO_PLL_FREQ_DET		0x0708
+#define ENABLE_ACLK_APOLLO			0x0800
+#define ENABLE_PCLK_APOLLO			0x0900
+#define ENABLE_SCLK_APOLLO			0x0a00
+#define ENABLE_IP_APOLLO0			0x0b00
+#define ENABLE_IP_APOLLO1			0x0b04
+#define CLKOUT_CMU_APOLLO			0x0c00
+#define CLKOUT_CMU_APOLLO_DIV_STAT		0x0c04
+#define ARMCLK_STOPCTRL				0x1000
+#define APOLLO_PWR_CTRL				0x1020
+#define APOLLO_PWR_CTRL2			0x1024
+#define APOLLO_INTR_SPREAD_ENABLE		0x1080
+#define APOLLO_INTR_SPREAD_USE_STANDBYWFI	0x1084
+#define APOLLO_INTR_SPREAD_BLOCKING_DURATION	0x1088
+
+static unsigned long apollo_clk_regs[] __initdata = {
+	APOLLO_PLL_LOCK,
+	APOLLO_PLL_CON0,
+	APOLLO_PLL_CON1,
+	APOLLO_PLL_FREQ_DET,
+	MUX_SEL_APOLLO0,
+	MUX_SEL_APOLLO1,
+	MUX_SEL_APOLLO2,
+	MUX_ENABLE_APOLLO0,
+	MUX_ENABLE_APOLLO1,
+	MUX_ENABLE_APOLLO2,
+	MUX_STAT_APOLLO0,
+	MUX_STAT_APOLLO1,
+	MUX_STAT_APOLLO2,
+	DIV_APOLLO0,
+	DIV_APOLLO1,
+	DIV_APOLLO_PLL_FREQ_DET,
+	DIV_STAT_APOLLO0,
+	DIV_STAT_APOLLO1,
+	DIV_STAT_APOLLO_PLL_FREQ_DET,
+	ENABLE_ACLK_APOLLO,
+	ENABLE_PCLK_APOLLO,
+	ENABLE_SCLK_APOLLO,
+	ENABLE_IP_APOLLO0,
+	ENABLE_IP_APOLLO1,
+	CLKOUT_CMU_APOLLO,
+	CLKOUT_CMU_APOLLO_DIV_STAT,
+	ARMCLK_STOPCTRL,
+	APOLLO_PWR_CTRL,
+	APOLLO_PWR_CTRL2,
+	APOLLO_INTR_SPREAD_ENABLE,
+	APOLLO_INTR_SPREAD_USE_STANDBYWFI,
+	APOLLO_INTR_SPREAD_BLOCKING_DURATION,
+};
+
+/* list of all parent clock list */
+PNAME(mout_apollo_pll_p)		= { "oscclk", "fout_apollo_pll", };
+PNAME(mout_bus_pll_apollo_user_p)	= { "oscclk", "sclk_bus_pll_apollo", };
+PNAME(mout_apollo_p)			= { "mout_apollo_pll",
+					    "mout_bus_pll_apollo_user", };
+
+static struct samsung_pll_clock apollo_pll_clks[] __initdata = {
+	PLL(pll_35xx, CLK_FOUT_APOLLO_PLL, "fout_apollo_pll", "oscclk",
+		APOLLO_PLL_LOCK, APOLLO_PLL_CON0, exynos5443_pll_rates),
+};
+
+static struct samsung_mux_clock apollo_mux_clks[] __initdata = {
+	/* MUX_SEL_APOLLO0 */
+	MUX_F(CLK_MOUT_APOLLO_PLL, "mout_apollo_pll", mout_apollo_pll_p,
+			MUX_SEL_APOLLO0, 0, 1, 0, CLK_MUX_READ_ONLY),
+
+	/* MUX_SEL_APOLLO1 */
+	MUX(CLK_MOUT_BUS_PLL_APOLLO_USER, "mout_bus_pll_apollo_user",
+			mout_bus_pll_apollo_user_p, MUX_SEL_APOLLO1, 0, 1),
+
+	/* MUX_SEL_APOLLO2 */
+	MUX_F(CLK_MOUT_APOLLO, "mout_apollo", mout_apollo_p, MUX_SEL_APOLLO2,
+			0, 1, 0, CLK_MUX_READ_ONLY),
+};
+
+static struct samsung_div_clock apollo_div_clks[] __initdata = {
+	/* DIV_APOLLO0 */
+	DIV_F(CLK_DIV_CNTCLK_APOLLO, "div_cntclk_apollo", "div_apollo2",
+			DIV_APOLLO0, 24, 3, CLK_GET_RATE_NOCACHE,
+			CLK_DIVIDER_READ_ONLY),
+	DIV_F(CLK_DIV_PCLK_DBG_APOLLO, "div_pclk_dbg_apollo", "div_apollo2",
+			DIV_APOLLO0, 20, 3, CLK_GET_RATE_NOCACHE,
+			CLK_DIVIDER_READ_ONLY),
+	DIV_F(CLK_DIV_ATCLK_APOLLO, "div_atclk_apollo", "div_apollo2",
+			DIV_APOLLO0, 16, 3, CLK_GET_RATE_NOCACHE,
+			CLK_DIVIDER_READ_ONLY),
+	DIV_F(CLK_DIV_PCLK_APOLLO, "div_pclk_apollo", "div_apollo2",
+			DIV_APOLLO0, 12, 3, CLK_GET_RATE_NOCACHE,
+			CLK_DIVIDER_READ_ONLY),
+	DIV_F(CLK_DIV_ACLK_APOLLO, "div_aclk_apollo", "div_apollo2",
+			DIV_APOLLO0, 8, 3, CLK_GET_RATE_NOCACHE,
+			CLK_DIVIDER_READ_ONLY),
+	DIV_F(CLK_DIV_APOLLO2, "div_apollo2", "div_apollo1",
+			DIV_APOLLO0, 4, 3, CLK_GET_RATE_NOCACHE,
+			CLK_DIVIDER_READ_ONLY),
+	DIV_F(CLK_DIV_APOLLO1, "div_apollo1", "mout_apollo",
+			DIV_APOLLO0, 0, 3, CLK_GET_RATE_NOCACHE,
+			CLK_DIVIDER_READ_ONLY),
+
+	/* DIV_APOLLO1 */
+	DIV_F(CLK_DIV_SCLK_HPM_APOLLO, "div_sclk_hpm_apollo", "mout_apollo",
+			DIV_APOLLO1, 4, 3, CLK_GET_RATE_NOCACHE,
+			CLK_DIVIDER_READ_ONLY),
+	DIV_F(CLK_DIV_APOLLO_PLL, "div_apollo_pll", "mout_apollo",
+			DIV_APOLLO1, 0, 3, CLK_GET_RATE_NOCACHE,
+			CLK_DIVIDER_READ_ONLY),
+};
+
+static struct samsung_gate_clock apollo_gate_clks[] __initdata = {
+	/* ENABLE_ACLK_APOLLO */
+	GATE(CLK_ACLK_ASATBSLV_APOLLO_3_CSSYS, "aclk_asatbslv_apollo_3_cssys",
+			"div_atclk_apollo", ENABLE_ACLK_APOLLO,
+			6, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ASATBSLV_APOLLO_2_CSSYS, "aclk_asatbslv_apollo_2_cssys",
+			"div_atclk_apollo", ENABLE_ACLK_APOLLO,
+			5, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ASATBSLV_APOLLO_1_CSSYS, "aclk_asatbslv_apollo_1_cssys",
+			"div_atclk_apollo", ENABLE_ACLK_APOLLO,
+			4, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ASATBSLV_APOLLO_0_CSSYS, "aclk_asatbslv_apollo_0_cssys",
+			"div_atclk_apollo", ENABLE_ACLK_APOLLO,
+			3, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ASYNCACES_APOLLO_CCI, "aclk_asyncaces_apollo_cci",
+			"div_aclk_apollo", ENABLE_ACLK_APOLLO,
+			2, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_AHB2APB_APOLLOP, "aclk_ahb2apb_apollop",
+			"div_pclk_apollo", ENABLE_ACLK_APOLLO,
+			1, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_APOLLONP_200, "aclk_apollonp_200",
+			"div_pclk_apollo", ENABLE_ACLK_APOLLO,
+			0, CLK_IGNORE_UNUSED, 0),
+
+	/* ENABLE_PCLK_APOLLO */
+	GATE(CLK_PCLK_ASAPBMST_CSSYS_APOLLO, "pclk_asapbmst_cssys_apollo",
+			"div_pclk_dbg_apollo", ENABLE_PCLK_APOLLO,
+			2, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_PMU_APOLLO, "pclk_pmu_apollo", "div_pclk_apollo",
+			ENABLE_PCLK_APOLLO, 1, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_SYSREG_APOLLO, "pclk_sysreg_apollo",
+			"div_pclk_apollo", ENABLE_PCLK_APOLLO,
+			0, CLK_IGNORE_UNUSED, 0),
+
+	/* ENABLE_SCLK_APOLLO */
+	GATE(CLK_CNTCLK_APOLLO, "cntclk_apollo", "div_cntclk_apollo",
+			ENABLE_SCLK_APOLLO, 3, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_SCLK_HPM_APOLLO, "sclk_hpm_apollo", "div_sclk_hpm_apollo",
+			ENABLE_SCLK_APOLLO, 1, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_SCLK_APOLLO, "sclk_apollo", "div_apollo_pll",
+			ENABLE_SCLK_APOLLO, 0, CLK_IGNORE_UNUSED, 0),
+};
+
+static struct samsung_cmu_info apollo_cmu_info __initdata = {
+	.pll_clks		= apollo_pll_clks,
+	.nr_pll_clks		= ARRAY_SIZE(apollo_pll_clks),
+	.mux_clks		= apollo_mux_clks,
+	.nr_mux_clks		= ARRAY_SIZE(apollo_mux_clks),
+	.div_clks		= apollo_div_clks,
+	.nr_div_clks		= ARRAY_SIZE(apollo_div_clks),
+	.gate_clks		= apollo_gate_clks,
+	.nr_gate_clks		= ARRAY_SIZE(apollo_gate_clks),
+	.nr_clk_ids		= APOLLO_NR_CLK,
+	.clk_regs		= apollo_clk_regs,
+	.nr_clk_regs		= ARRAY_SIZE(apollo_clk_regs),
+};
+
+static void __init exynos5433_cmu_apollo_init(struct device_node *np)
+{
+	samsung_cmu_register_one(np, &apollo_cmu_info);
+}
+CLK_OF_DECLARE(exynos5433_cmu_apollo, "samsung,exynos5433-cmu-apollo",
+		exynos5433_cmu_apollo_init);
