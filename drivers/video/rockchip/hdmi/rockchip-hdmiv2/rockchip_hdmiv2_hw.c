@@ -1483,7 +1483,7 @@ static int hdmi_dev_config_audio(struct hdmi *hdmi, struct hdmi_audio *audio)
 		     m_AUD_PACK_LAYOUT,
 		     v_AUD_PACK_LAYOUT((audio->channel > 2) ? 1 : 0));
 
-	if (hdmi_dev->audiosrc == HDMI_AUDIO_SRC_IIS) {
+	if (hdmi_dev->audiosrc == HDMI_AUDIO_SRC_SPDIF) {
 		hdmi_msk_reg(hdmi_dev, AUD_CONF0,
 			     m_I2S_SEL, v_I2S_SEL(AUDIO_SPDIF_GPA));
 		hdmi_msk_reg(hdmi_dev, AUD_SPDIF1,

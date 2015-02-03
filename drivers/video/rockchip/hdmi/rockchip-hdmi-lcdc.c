@@ -161,16 +161,20 @@ int hdmi_set_lcdc(struct hdmi *hdmi)
 	if (hdmi->autoset)
 		hdmi->vic = hdmi_find_best_mode(hdmi, 0);
 	else
-	hdmi->vic = hdmi_find_best_mode(hdmi, hdmi->vic);
+		hdmi->vic = hdmi_find_best_mode(hdmi, hdmi->vic);
 
 	if (hdmi->vic == 0)
 		hdmi->vic = HDMI_VIDEO_DEFAULT_MODE;
 
 	rc = hdmi_set_info(&screen, hdmi);
 
-	if (rc == 0)
+	if (rc == 0) {
 		rk_fb_switch_screen(&screen, 1, hdmi->lcdc->id);
-
+		if (rk_fb_get_display_policy() != DISPLAY_POLICY_BOX)
+			rk_fb_disp_scale(hdmi->xscale,
+					 hdmi->yscale,
+					 hdmi->lcdc->id);
+	}
 	return rc;
 }
 
