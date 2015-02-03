@@ -3586,3 +3586,222 @@ static void __init exynos5433_cmu_apollo_init(struct device_node *np)
 }
 CLK_OF_DECLARE(exynos5433_cmu_apollo, "samsung,exynos5433-cmu-apollo",
 		exynos5433_cmu_apollo_init);
+
+/*
+ * Register offset definitions for CMU_ATLAS
+ */
+#define ATLAS_PLL_LOCK				0x0000
+#define ATLAS_PLL_CON0				0x0100
+#define ATLAS_PLL_CON1				0x0104
+#define ATLAS_PLL_FREQ_DET			0x010c
+#define MUX_SEL_ATLAS0				0x0200
+#define MUX_SEL_ATLAS1				0x0204
+#define MUX_SEL_ATLAS2				0x0208
+#define MUX_ENABLE_ATLAS0			0x0300
+#define MUX_ENABLE_ATLAS1			0x0304
+#define MUX_ENABLE_ATLAS2			0x0308
+#define MUX_STAT_ATLAS0				0x0400
+#define MUX_STAT_ATLAS1				0x0404
+#define MUX_STAT_ATLAS2				0x0408
+#define DIV_ATLAS0				0x0600
+#define DIV_ATLAS1				0x0604
+#define DIV_ATLAS_PLL_FREQ_DET			0x0608
+#define DIV_STAT_ATLAS0				0x0700
+#define DIV_STAT_ATLAS1				0x0704
+#define DIV_STAT_ATLAS_PLL_FREQ_DET		0x0708
+#define ENABLE_ACLK_ATLAS			0x0800
+#define ENABLE_PCLK_ATLAS			0x0900
+#define ENABLE_SCLK_ATLAS			0x0a00
+#define ENABLE_IP_ATLAS0			0x0b00
+#define ENABLE_IP_ATLAS1			0x0b04
+#define CLKOUT_CMU_ATLAS			0x0c00
+#define CLKOUT_CMU_ATLAS_DIV_STAT		0x0c04
+#define ARMCLK_STOPCTRL				0x1000
+#define ATLAS_PWR_CTRL				0x1020
+#define ATLAS_PWR_CTRL2				0x1024
+#define ATLAS_INTR_SPREAD_ENABLE		0x1080
+#define ATLAS_INTR_SPREAD_USE_STANDBYWFI	0x1084
+#define ATLAS_INTR_SPREAD_BLOCKING_DURATION	0x1088
+
+static unsigned long atlas_clk_regs[] __initdata = {
+	ATLAS_PLL_LOCK,
+	ATLAS_PLL_CON0,
+	ATLAS_PLL_CON1,
+	ATLAS_PLL_FREQ_DET,
+	MUX_SEL_ATLAS0,
+	MUX_SEL_ATLAS1,
+	MUX_SEL_ATLAS2,
+	MUX_ENABLE_ATLAS0,
+	MUX_ENABLE_ATLAS1,
+	MUX_ENABLE_ATLAS2,
+	MUX_STAT_ATLAS0,
+	MUX_STAT_ATLAS1,
+	MUX_STAT_ATLAS2,
+	DIV_ATLAS0,
+	DIV_ATLAS1,
+	DIV_ATLAS_PLL_FREQ_DET,
+	DIV_STAT_ATLAS0,
+	DIV_STAT_ATLAS1,
+	DIV_STAT_ATLAS_PLL_FREQ_DET,
+	ENABLE_ACLK_ATLAS,
+	ENABLE_PCLK_ATLAS,
+	ENABLE_SCLK_ATLAS,
+	ENABLE_IP_ATLAS0,
+	ENABLE_IP_ATLAS1,
+	CLKOUT_CMU_ATLAS,
+	CLKOUT_CMU_ATLAS_DIV_STAT,
+	ARMCLK_STOPCTRL,
+	ATLAS_PWR_CTRL,
+	ATLAS_PWR_CTRL2,
+	ATLAS_INTR_SPREAD_ENABLE,
+	ATLAS_INTR_SPREAD_USE_STANDBYWFI,
+	ATLAS_INTR_SPREAD_BLOCKING_DURATION,
+};
+
+/* list of all parent clock list */
+PNAME(mout_atlas_pll_p)			= { "oscclk", "fout_atlas_pll", };
+PNAME(mout_bus_pll_atlas_user_p)	= { "oscclk", "sclk_bus_pll_atlas", };
+PNAME(mout_atlas_p)			= { "mout_atlas_pll",
+					    "mout_bus_pll_atlas_user", };
+
+static struct samsung_pll_clock atlas_pll_clks[] __initdata = {
+	PLL(pll_35xx, CLK_FOUT_ATLAS_PLL, "fout_atlas_pll", "oscclk",
+		ATLAS_PLL_LOCK, ATLAS_PLL_CON0, exynos5443_pll_rates),
+};
+
+static struct samsung_mux_clock atlas_mux_clks[] __initdata = {
+	/* MUX_SEL_ATLAS0 */
+	MUX_F(CLK_MOUT_ATLAS_PLL, "mout_atlas_pll", mout_atlas_pll_p,
+			MUX_SEL_ATLAS0, 0, 1, 0, CLK_MUX_READ_ONLY),
+
+	/* MUX_SEL_ATLAS1 */
+	MUX(CLK_MOUT_BUS_PLL_ATLAS_USER, "mout_bus_pll_atlas_user",
+			mout_bus_pll_atlas_user_p, MUX_SEL_ATLAS1, 0, 1),
+
+	/* MUX_SEL_ATLAS2 */
+	MUX_F(CLK_MOUT_ATLAS, "mout_atlas", mout_atlas_p, MUX_SEL_ATLAS2,
+			0, 1, 0, CLK_MUX_READ_ONLY),
+};
+
+static struct samsung_div_clock atlas_div_clks[] __initdata = {
+	/* DIV_ATLAS0 */
+	DIV_F(CLK_DIV_CNTCLK_ATLAS, "div_cntclk_atlas", "div_atlas2",
+			DIV_ATLAS0, 24, 3, CLK_GET_RATE_NOCACHE,
+			CLK_DIVIDER_READ_ONLY),
+	DIV_F(CLK_DIV_PCLK_DBG_ATLAS, "div_pclk_dbg_atlas", "div_atclk_atlas",
+			DIV_ATLAS0, 20, 3, CLK_GET_RATE_NOCACHE,
+			CLK_DIVIDER_READ_ONLY),
+	DIV_F(CLK_DIV_ATCLK_ATLASO, "div_atclk_atlas", "div_atlas2",
+			DIV_ATLAS0, 16, 3, CLK_GET_RATE_NOCACHE,
+			CLK_DIVIDER_READ_ONLY),
+	DIV_F(CLK_DIV_PCLK_ATLAS, "div_pclk_atlas", "div_atlas2",
+			DIV_ATLAS0, 12, 3, CLK_GET_RATE_NOCACHE,
+			CLK_DIVIDER_READ_ONLY),
+	DIV_F(CLK_DIV_ACLK_ATLAS, "div_aclk_atlas", "div_atlas2",
+			DIV_ATLAS0, 8, 3, CLK_GET_RATE_NOCACHE,
+			CLK_DIVIDER_READ_ONLY),
+	DIV_F(CLK_DIV_ATLAS2, "div_atlas2", "div_atlas1",
+			DIV_ATLAS0, 4, 3, CLK_GET_RATE_NOCACHE,
+			CLK_DIVIDER_READ_ONLY),
+	DIV_F(CLK_DIV_ATLAS1, "div_atlas1", "mout_atlas",
+			DIV_ATLAS0, 0, 3, CLK_GET_RATE_NOCACHE,
+			CLK_DIVIDER_READ_ONLY),
+
+	/* DIV_ATLAS1 */
+	DIV_F(CLK_DIV_SCLK_HPM_ATLAS, "div_sclk_hpm_atlas", "mout_atlas",
+			DIV_ATLAS1, 4, 3, CLK_GET_RATE_NOCACHE,
+			CLK_DIVIDER_READ_ONLY),
+	DIV_F(CLK_DIV_ATLAS_PLL, "div_atlas_pll", "mout_atlas",
+			DIV_ATLAS1, 0, 3, CLK_GET_RATE_NOCACHE,
+			CLK_DIVIDER_READ_ONLY),
+};
+
+static struct samsung_gate_clock atlas_gate_clks[] __initdata = {
+	/* ENABLE_ACLK_ATLAS */
+	GATE(CLK_ACLK_ATB_AUD_CSSYS, "aclk_atb_aud_cssys",
+			"div_atclk_atlas", ENABLE_ACLK_ATLAS,
+			9, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ATB_APOLLO3_CSSYS, "aclk_atb_apollo3_cssys",
+			"div_atclk_atlas", ENABLE_ACLK_ATLAS,
+			8, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ATB_APOLLO2_CSSYS, "aclk_atb_apollo2_cssys",
+			"div_atclk_atlas", ENABLE_ACLK_ATLAS,
+			7, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ATB_APOLLO1_CSSYS, "aclk_atb_apollo1_cssys",
+			"div_atclk_atlas", ENABLE_ACLK_ATLAS,
+			6, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ATB_APOLLO0_CSSYS, "aclk_atb_apollo0_cssys",
+			"div_atclk_atlas", ENABLE_ACLK_ATLAS,
+			5, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ASYNCAHBS_CSSYS_SSS, "aclk_asyncahbs_cssys_sss",
+			"div_atclk_atlas", ENABLE_ACLK_ATLAS,
+			4, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ASYNCAXIS_CSSYS_CCIX, "aclk_asyncaxis_cssys_ccix",
+			"div_pclk_dbg_atlas", ENABLE_ACLK_ATLAS,
+			3, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ASYNCACES_ATLAS_CCI, "aclk_asyncaces_atlas_cci",
+			"div_aclk_atlas", ENABLE_ACLK_ATLAS,
+			2, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_AHB2APB_ATLASP, "aclk_ahb2apb_atlasp", "div_pclk_atlas",
+			ENABLE_ACLK_ATLAS, 1, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ACLK_ATLASNP_200, "aclk_atlasnp_200", "div_pclk_atlas",
+			ENABLE_ACLK_ATLAS, 0, CLK_IGNORE_UNUSED, 0),
+
+	/* ENABLE_PCLK_ATLAS */
+	GATE(CLK_PCLK_ASYNCAPB_AUD_CSSYS, "pclk_asyncapb_aud_cssys",
+			"div_pclk_dbg_atlas", ENABLE_PCLK_ATLAS,
+			5, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_ASYNCAPB_ISP_CSSYS, "pclk_asyncapb_isp_cssys",
+			"div_pclk_dbg_atlas", ENABLE_PCLK_ATLAS,
+			4, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_ASYNCAPB_APOLLO_CSSYS, "pclk_asyncapb_apollo_cssys",
+			"div_pclk_dbg_atlas", ENABLE_PCLK_ATLAS,
+			3, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_PMU_ATLAS, "pclk_pmu_atlas", "div_pclk_atlas",
+			ENABLE_PCLK_ATLAS, 2, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_SYSREG_ATLAS, "pclk_sysreg_atlas", "div_pclk_atlas",
+			ENABLE_PCLK_ATLAS, 1, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_SECJTAG, "pclk_secjtag", "div_pclk_dbg_atlas",
+			ENABLE_PCLK_ATLAS, 0, CLK_IGNORE_UNUSED, 0),
+
+	/* ENABLE_SCLK_ATLAS */
+	GATE(CLK_CNTCLK_ATLAS, "cntclk_atlas", "div_cntclk_atlas",
+			ENABLE_SCLK_ATLAS, 10, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_SCLK_HPM_ATLAS, "sclk_hpm_atlas", "div_sclk_hpm_atlas",
+			ENABLE_SCLK_ATLAS, 7, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_TRACECLK, "traceclk", "div_atclk_atlas",
+			ENABLE_SCLK_ATLAS, 6, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_CTMCLK, "ctmclk", "div_atclk_atlas",
+			ENABLE_SCLK_ATLAS, 5, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_HCLK_CSSYS, "hclk_cssys", "div_atclk_atlas",
+			ENABLE_SCLK_ATLAS, 4, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_DBG_CSSYS, "pclk_dbg_cssys", "div_pclk_dbg_atlas",
+			ENABLE_SCLK_ATLAS, 3, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_PCLK_DBG, "pclk_dbg", "div_pclk_dbg_atlas",
+			ENABLE_SCLK_ATLAS, 2, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_ATCLK, "atclk", "div_atclk_atlas",
+			ENABLE_SCLK_ATLAS, 1, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_SCLK_ATLAS, "sclk_atlas", "div_atlas2",
+			ENABLE_SCLK_ATLAS, 0, CLK_IGNORE_UNUSED, 0),
+};
+
+static struct samsung_cmu_info atlas_cmu_info __initdata = {
+	.pll_clks		= atlas_pll_clks,
+	.nr_pll_clks		= ARRAY_SIZE(atlas_pll_clks),
+	.mux_clks		= atlas_mux_clks,
+	.nr_mux_clks		= ARRAY_SIZE(atlas_mux_clks),
+	.div_clks		= atlas_div_clks,
+	.nr_div_clks		= ARRAY_SIZE(atlas_div_clks),
+	.gate_clks		= atlas_gate_clks,
+	.nr_gate_clks		= ARRAY_SIZE(atlas_gate_clks),
+	.nr_clk_ids		= ATLAS_NR_CLK,
+	.clk_regs		= atlas_clk_regs,
+	.nr_clk_regs		= ARRAY_SIZE(atlas_clk_regs),
+};
+
+static void __init exynos5433_cmu_atlas_init(struct device_node *np)
+{
+	samsung_cmu_register_one(np, &atlas_cmu_info);
+}
+CLK_OF_DECLARE(exynos5433_cmu_atlas, "samsung,exynos5433-cmu-atlas",
+		exynos5433_cmu_atlas_init);
