@@ -737,74 +737,17 @@ static bool acpi_idle_fallback_to_c1(struct acpi_processor *pr)
 		!pr->flags.has_cst;
 }
 
-/**
- * acpi_idle_enter_simple - enters a CPU idle state without BM handling
- * @dev: the target CPU
- * @drv: cpuidle driver with cpuidle state information
- * @index: the index of suggested state
- */
-static int acpi_idle_enter_simple(struct cpuidle_device *dev,
-		struct cpuidle_driver *drv, int index)
-{
-	struct acpi_processor *pr;
-	struct acpi_processor_cx *cx = per_cpu(acpi_cstate[index], dev->cpu);
-
-	pr = __this_cpu_read(processors);
-
-	if (unlikely(!pr))
-		return -EINVAL;
-
-	if (cx->type != ACPI_STATE_C1 && acpi_idle_fallback_to_c1(pr)) {
-		index = CPUIDLE_DRIVER_STATE_START;
-		cx = per_cpu(acpi_cstate[index], dev->cpu);
-	}
-
-	lapic_timer_state_broadcast(pr, cx, 1);
-
-	if (cx->type == ACPI_STATE_C3)
-		ACPI_FLUSH_CPU_CACHE();
-
-	acpi_idle_do_entry(cx);
-
-	lapic_timer_state_broadcast(pr, cx, 0);
-	return index;
-}
-
 static int c3_cpu_count;
 static DEFINE_RAW_SPINLOCK(c3_lock);
 
 /**
  * acpi_idle_enter_bm - enters C3 with proper BM handling
- * @dev: the target CPU
- * @drv: cpuidle driver containing state data
- * @index: the index of suggested state
- *
- * If BM is detected, the deepest non-C3 idle state is entered instead.
+ * @pr: Target processor
+ * @cx: Target state context
  */
-static int acpi_idle_enter_bm(struct cpuidle_device *dev,
-		struct cpuidle_driver *drv, int index)
+static void acpi_idle_enter_bm(struct acpi_processor *pr,
+			       struct acpi_processor_cx *cx)
 {
-	struct acpi_processor *pr;
-	struct acpi_processor_cx *cx = per_cpu(acpi_cstate[index], dev->cpu);
-
-	pr = __this_cpu_read(processors);
-
-	if (unlikely(!pr))
-		return -EINVAL;
-
-	if (acpi_idle_fallback_to_c1(pr))
-		return acpi_idle_enter_simple(dev, drv, CPUIDLE_DRIVER_STATE_START);
-
-	if (!cx->bm_sts_skip && acpi_idle_bm_check()) {
-		if (drv->safe_state_index >= 0) {
-			return drv->states[drv->safe_state_index].enter(dev,
-						drv, drv->safe_state_index);
-		} else {
-			acpi_safe_halt();
-			return -EBUSY;
-		}
-	}
-
 	acpi_unlazy_tlb(smp_processor_id());
 
 	/*
@@ -842,6 +785,45 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 	}
 
 	lapic_timer_state_broadcast(pr, cx, 0);
+}
+
+static int acpi_idle_enter(struct cpuidle_device *dev,
+			   struct cpuidle_driver *drv, int index)
+{
+	struct acpi_processor_cx *cx = per_cpu(acpi_cstate[index], dev->cpu);
+	struct acpi_processor *pr;
+
+	pr = __this_cpu_read(processors);
+	if (unlikely(!pr))
+		return -EINVAL;
+
+	if (cx->type != ACPI_STATE_C1) {
+		if (acpi_idle_fallback_to_c1(pr)) {
+			index = CPUIDLE_DRIVER_STATE_START;
+			cx = per_cpu(acpi_cstate[index], dev->cpu);
+		} else if (cx->type == ACPI_STATE_C3 && pr->flags.bm_check) {
+			if (cx->bm_sts_skip || !acpi_idle_bm_check()) {
+				acpi_idle_enter_bm(pr, cx);
+				return index;
+			} else if (drv->safe_state_index >= 0) {
+				index = drv->safe_state_index;
+				cx = per_cpu(acpi_cstate[index], dev->cpu);
+			} else {
+				acpi_safe_halt();
+				return -EBUSY;
+			}
+		}
+	}
+
+	lapic_timer_state_broadcast(pr, cx, 1);
+
+	if (cx->type == ACPI_STATE_C3)
+		ACPI_FLUSH_CPU_CACHE();
+
+	acpi_idle_do_entry(cx);
+
+	lapic_timer_state_broadcast(pr, cx, 0);
+
 	return index;
 }
 
@@ -936,22 +918,12 @@ static int acpi_processor_setup_cpuidle_states(struct acpi_processor *pr)
 		strncpy(state->desc, cx->desc, CPUIDLE_DESC_LEN);
 		state->exit_latency = cx->latency;
 		state->target_residency = cx->latency * latency_factor;
+		state->enter = acpi_idle_enter;
 
 		state->flags = 0;
-		switch (cx->type) {
-
-		case ACPI_STATE_C1:
-		case ACPI_STATE_C2:
-			state->enter = acpi_idle_enter_simple;
+		if (cx->type == ACPI_STATE_C1 || cx->type == ACPI_STATE_C2) {
 			state->enter_dead = acpi_idle_play_dead;
 			drv->safe_state_index = count;
-			break;
-
-		case ACPI_STATE_C3:
-			state->enter = pr->flags.bm_check ?
-					acpi_idle_enter_bm :
-					acpi_idle_enter_simple;
-			break;
 		}
 
 		count++;
