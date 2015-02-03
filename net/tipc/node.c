@@ -96,14 +96,14 @@ struct tipc_node *tipc_node_create(struct net *net, u32 addr)
 	struct tipc_node *n_ptr, *temp_node;
 
 	spin_lock_bh(&tn->node_list_lock);
-
+	n_ptr = tipc_node_find(net, addr);
+	if (n_ptr)
+		goto exit;
 	n_ptr = kzalloc(sizeof(*n_ptr), GFP_ATOMIC);
 	if (!n_ptr) {
-		spin_unlock_bh(&tn->node_list_lock);
 		pr_warn("Node creation failed, no memory\n");
-		return NULL;
+		goto exit;
 	}
-
 	n_ptr->addr = addr;
 	n_ptr->net = net;
 	spin_lock_init(&n_ptr->lock);
@@ -123,9 +123,8 @@ struct tipc_node *tipc_node_create(struct net *net, u32 addr)
 	list_add_tail_rcu(&n_ptr->list, &temp_node->list);
 	n_ptr->action_flags = TIPC_WAIT_PEER_LINKS_DOWN;
 	n_ptr->signature = INVALID_NODE_SIG;
-
 	tn->num_nodes++;
-
+exit:
 	spin_unlock_bh(&tn->node_list_lock);
 	return n_ptr;
 }

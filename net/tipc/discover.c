@@ -1,7 +1,7 @@
 /*
  * net/tipc/discover.c
  *
- * Copyright (c) 2003-2006, 2014, Ericsson AB
+ * Copyright (c) 2003-2006, 2014-2015, Ericsson AB
  * Copyright (c) 2005-2006, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -46,7 +46,6 @@
 #define TIPC_LINK_REQ_SLOW	msecs_to_jiffies(60000)
 /* indicates no timer in use */
 #define TIPC_LINK_REQ_INACTIVE	0xffffffff
-
 
 /**
  * struct tipc_link_req - information about an ongoing link setup request
@@ -163,13 +162,9 @@ void tipc_disc_rcv(struct net *net, struct sk_buff *buf,
 	if (!tipc_in_scope(bearer->domain, onode))
 		return;
 
-	/* Locate, or if necessary, create, node: */
-	node = tipc_node_find(net, onode);
-	if (!node)
-		node = tipc_node_create(net, onode);
+	node = tipc_node_create(net, onode);
 	if (!node)
 		return;
-
 	tipc_node_lock(node);
 	link = node->links[bearer->identity];
 
