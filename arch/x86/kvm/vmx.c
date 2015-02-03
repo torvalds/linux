@@ -800,6 +800,7 @@ static unsigned long *vmx_msr_bitmap_legacy;
 static unsigned long *vmx_msr_bitmap_longmode;
 static unsigned long *vmx_msr_bitmap_legacy_x2apic;
 static unsigned long *vmx_msr_bitmap_longmode_x2apic;
+static unsigned long *vmx_msr_bitmap_nested;
 static unsigned long *vmx_vmread_bitmap;
 static unsigned long *vmx_vmwrite_bitmap;
 
@@ -5823,13 +5824,21 @@ static __init int hardware_setup(void)
 				(unsigned long *)__get_free_page(GFP_KERNEL);
 	if (!vmx_msr_bitmap_longmode_x2apic)
 		goto out4;
+
+	if (nested) {
+		vmx_msr_bitmap_nested =
+			(unsigned long *)__get_free_page(GFP_KERNEL);
+		if (!vmx_msr_bitmap_nested)
+			goto out5;
+	}
+
 	vmx_vmread_bitmap = (unsigned long *)__get_free_page(GFP_KERNEL);
 	if (!vmx_vmread_bitmap)
-		goto out5;
+		goto out6;
 
 	vmx_vmwrite_bitmap = (unsigned long *)__get_free_page(GFP_KERNEL);
 	if (!vmx_vmwrite_bitmap)
-		goto out6;
+		goto out7;
 
 	memset(vmx_vmread_bitmap, 0xff, PAGE_SIZE);
 	memset(vmx_vmwrite_bitmap, 0xff, PAGE_SIZE);
@@ -5845,10 +5854,12 @@ static __init int hardware_setup(void)
 
 	memset(vmx_msr_bitmap_legacy, 0xff, PAGE_SIZE);
 	memset(vmx_msr_bitmap_longmode, 0xff, PAGE_SIZE);
+	if (nested)
+		memset(vmx_msr_bitmap_nested, 0xff, PAGE_SIZE);
 
 	if (setup_vmcs_config(&vmcs_config) < 0) {
 		r = -EIO;
-		goto out7;
+		goto out8;
 	}
 
 	if (boot_cpu_has(X86_FEATURE_NX))
@@ -5968,10 +5979,13 @@ static __init int hardware_setup(void)
 
 	return alloc_kvm_area();
 
-out7:
+out8:
 	free_page((unsigned long)vmx_vmwrite_bitmap);
-out6:
+out7:
 	free_page((unsigned long)vmx_vmread_bitmap);
+out6:
+	if (nested)
+		free_page((unsigned long)vmx_msr_bitmap_nested);
 out5:
 	free_page((unsigned long)vmx_msr_bitmap_longmode_x2apic);
 out4:
@@ -5998,6 +6012,8 @@ static __exit void hardware_unsetup(void)
 	free_page((unsigned long)vmx_io_bitmap_a);
 	free_page((unsigned long)vmx_vmwrite_bitmap);
 	free_page((unsigned long)vmx_vmread_bitmap);
+	if (nested)
+		free_page((unsigned long)vmx_msr_bitmap_nested);
 
 	free_kvm_area();
 }
@@ -8455,6 +8471,38 @@ static void vmx_start_preemption_timer(struct kvm_vcpu *vcpu)
 		      ns_to_ktime(preemption_timeout), HRTIMER_MODE_REL);
 }
 
+static int nested_vmx_check_msr_bitmap_controls(struct kvm_vcpu *vcpu,
+						struct vmcs12 *vmcs12)
+{
+	int maxphyaddr;
+	u64 addr;
+
+	if (!nested_cpu_has(vmcs12, CPU_BASED_USE_MSR_BITMAPS))
+		return 0;
+
+	if (vmcs12_read_any(vcpu, MSR_BITMAP, &addr)) {
+		WARN_ON(1);
+		return -EINVAL;
+	}
+	maxphyaddr = cpuid_maxphyaddr(vcpu);
+
+	if (!PAGE_ALIGNED(vmcs12->msr_bitmap) ||
+	   ((addr + PAGE_SIZE) >> maxphyaddr))
+		return -EINVAL;
+
+	return 0;
+}
+
+/*
+ * Merge L0's and L1's MSR bitmap, return false to indicate that
+ * we do not use the hardware.
+ */
+static inline bool nested_vmx_merge_msr_bitmap(struct kvm_vcpu *vcpu,
+					       struct vmcs12 *vmcs12)
+{
+	return false;
+}
+
 static int nested_vmx_check_msr_switch(struct kvm_vcpu *vcpu,
 				       unsigned long count_field,
 				       unsigned long addr_field,
@@ -8787,11 +8835,17 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 		vmcs_write32(TPR_THRESHOLD, vmcs12->tpr_threshold);
 	}
 
+	if (cpu_has_vmx_msr_bitmap() &&
+	    exec_control & CPU_BASED_USE_MSR_BITMAPS &&
+	    nested_vmx_merge_msr_bitmap(vcpu, vmcs12)) {
+		vmcs_write64(MSR_BITMAP, __pa(vmx_msr_bitmap_nested));
+	} else
+		exec_control &= ~CPU_BASED_USE_MSR_BITMAPS;
+
 	/*
-	 * Merging of IO and MSR bitmaps not currently supported.
+	 * Merging of IO bitmap not currently supported.
 	 * Rather, exit every time.
 	 */
-	exec_control &= ~CPU_BASED_USE_MSR_BITMAPS;
 	exec_control &= ~CPU_BASED_USE_IO_BITMAPS;
 	exec_control |= CPU_BASED_UNCOND_IO_EXITING;
 
@@ -8942,15 +8996,13 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 		return 1;
 	}
 
-	if ((vmcs12->cpu_based_vm_exec_control & CPU_BASED_USE_MSR_BITMAPS) &&
-			!PAGE_ALIGNED(vmcs12->msr_bitmap)) {
+	if (!nested_get_vmcs12_pages(vcpu, vmcs12)) {
 		/*TODO: Also verify bits beyond physical address width are 0*/
 		nested_vmx_failValid(vcpu, VMXERR_ENTRY_INVALID_CONTROL_FIELD);
 		return 1;
 	}
 
-	if (!nested_get_vmcs12_pages(vcpu, vmcs12)) {
-		/*TODO: Also verify bits beyond physical address width are 0*/
+	if (nested_vmx_check_msr_bitmap_controls(vcpu, vmcs12)) {
 		nested_vmx_failValid(vcpu, VMXERR_ENTRY_INVALID_CONTROL_FIELD);
 		return 1;
 	}
@@ -9505,6 +9557,9 @@ static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 
 	kvm_set_dr(vcpu, 7, 0x400);
 	vmcs_write64(GUEST_IA32_DEBUGCTL, 0);
+
+	if (cpu_has_vmx_msr_bitmap())
+		vmx_set_msr_bitmap(vcpu);
 
 	if (nested_vmx_load_msr(vcpu, vmcs12->vm_exit_msr_load_addr,
 				vmcs12->vm_exit_msr_load_count))
