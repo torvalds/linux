@@ -1115,6 +1115,11 @@ static inline bool nested_cpu_has_xsaves(struct vmcs12 *vmcs12)
 		vmx_xsaves_supported();
 }
 
+static inline bool nested_cpu_has_virt_x2apic_mode(struct vmcs12 *vmcs12)
+{
+	return nested_cpu_has2(vmcs12, SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE);
+}
+
 static inline bool is_exception(u32 intr_info)
 {
 	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VALID_MASK))
@@ -2402,6 +2407,7 @@ static __init void nested_vmx_setup_ctls_msrs(void)
 	nested_vmx_secondary_ctls_low = 0;
 	nested_vmx_secondary_ctls_high &=
 		SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |
+		SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE |
 		SECONDARY_EXEC_WBINVD_EXITING |
 		SECONDARY_EXEC_XSAVES;
 
@@ -4159,6 +4165,52 @@ static void __vmx_enable_intercept_for_msr(unsigned long *msr_bitmap,
 		if (type & MSR_TYPE_W)
 			/* write-high */
 			__set_bit(msr, msr_bitmap + 0xc00 / f);
+
+	}
+}
+
+/*
+ * If a msr is allowed by L0, we should check whether it is allowed by L1.
+ * The corresponding bit will be cleared unless both of L0 and L1 allow it.
+ */
+static void nested_vmx_disable_intercept_for_msr(unsigned long *msr_bitmap_l1,
+					       unsigned long *msr_bitmap_nested,
+					       u32 msr, int type)
+{
+	int f = sizeof(unsigned long);
+
+	if (!cpu_has_vmx_msr_bitmap()) {
+		WARN_ON(1);
+		return;
+	}
+
+	/*
+	 * See Intel PRM Vol. 3, 20.6.9 (MSR-Bitmap Address). Early manuals
+	 * have the write-low and read-high bitmap offsets the wrong way round.
+	 * We can control MSRs 0x00000000-0x00001fff and 0xc0000000-0xc0001fff.
+	 */
+	if (msr <= 0x1fff) {
+		if (type & MSR_TYPE_R &&
+		   !test_bit(msr, msr_bitmap_l1 + 0x000 / f))
+			/* read-low */
+			__clear_bit(msr, msr_bitmap_nested + 0x000 / f);
+
+		if (type & MSR_TYPE_W &&
+		   !test_bit(msr, msr_bitmap_l1 + 0x800 / f))
+			/* write-low */
+			__clear_bit(msr, msr_bitmap_nested + 0x800 / f);
+
+	} else if ((msr >= 0xc0000000) && (msr <= 0xc0001fff)) {
+		msr &= 0x1fff;
+		if (type & MSR_TYPE_R &&
+		   !test_bit(msr, msr_bitmap_l1 + 0x400 / f))
+			/* read-high */
+			__clear_bit(msr, msr_bitmap_nested + 0x400 / f);
+
+		if (type & MSR_TYPE_W &&
+		   !test_bit(msr, msr_bitmap_l1 + 0xc00 / f))
+			/* write-high */
+			__clear_bit(msr, msr_bitmap_nested + 0xc00 / f);
 
 	}
 }
@@ -8500,7 +8552,59 @@ static int nested_vmx_check_msr_bitmap_controls(struct kvm_vcpu *vcpu,
 static inline bool nested_vmx_merge_msr_bitmap(struct kvm_vcpu *vcpu,
 					       struct vmcs12 *vmcs12)
 {
-	return false;
+	struct page *page;
+	unsigned long *msr_bitmap;
+
+	if (!nested_cpu_has_virt_x2apic_mode(vmcs12))
+		return false;
+
+	page = nested_get_page(vcpu, vmcs12->msr_bitmap);
+	if (!page) {
+		WARN_ON(1);
+		return false;
+	}
+	msr_bitmap = (unsigned long *)kmap(page);
+	if (!msr_bitmap) {
+		nested_release_page_clean(page);
+		WARN_ON(1);
+		return false;
+	}
+
+	if (nested_cpu_has_virt_x2apic_mode(vmcs12)) {
+		/* TPR is allowed */
+		nested_vmx_disable_intercept_for_msr(msr_bitmap,
+				vmx_msr_bitmap_nested,
+				APIC_BASE_MSR + (APIC_TASKPRI >> 4),
+				MSR_TYPE_R | MSR_TYPE_W);
+	} else
+		__vmx_enable_intercept_for_msr(
+				vmx_msr_bitmap_nested,
+				APIC_BASE_MSR + (APIC_TASKPRI >> 4),
+				MSR_TYPE_R | MSR_TYPE_W);
+	kunmap(page);
+	nested_release_page_clean(page);
+
+	return true;
+}
+
+static int nested_vmx_check_apicv_controls(struct kvm_vcpu *vcpu,
+					   struct vmcs12 *vmcs12)
+{
+	if (!nested_cpu_has_virt_x2apic_mode(vmcs12))
+		return 0;
+
+	/*
+	 * If virtualize x2apic mode is enabled,
+	 * virtualize apic access must be disabled.
+	 */
+	if (nested_cpu_has2(vmcs12, SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES))
+		return -EINVAL;
+
+	/* tpr shadow is needed by all apicv features. */
+	if (!nested_cpu_has(vmcs12, CPU_BASED_TPR_SHADOW))
+		return -EINVAL;
+
+	return 0;
 }
 
 static int nested_vmx_check_msr_switch(struct kvm_vcpu *vcpu,
@@ -8796,7 +8900,8 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 			else
 				vmcs_write64(APIC_ACCESS_ADDR,
 				  page_to_phys(vmx->nested.apic_access_page));
-		} else if (vm_need_virtualize_apic_accesses(vmx->vcpu.kvm)) {
+		} else if (!(nested_cpu_has_virt_x2apic_mode(vmcs12)) &&
+			    (vm_need_virtualize_apic_accesses(vmx->vcpu.kvm))) {
 			exec_control |=
 				SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES;
 			kvm_vcpu_reload_apic_access_page(vcpu);
@@ -9003,6 +9108,11 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	}
 
 	if (nested_vmx_check_msr_bitmap_controls(vcpu, vmcs12)) {
+		nested_vmx_failValid(vcpu, VMXERR_ENTRY_INVALID_CONTROL_FIELD);
+		return 1;
+	}
+
+	if (nested_vmx_check_apicv_controls(vcpu, vmcs12)) {
 		nested_vmx_failValid(vcpu, VMXERR_ENTRY_INVALID_CONTROL_FIELD);
 		return 1;
 	}
