@@ -2153,6 +2153,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	MLX4_INIT_DOORBELL_LOCK(&ibdev->uar_lock);
 
 	ibdev->dev = dev;
+	ibdev->bond_next_port	= 0;
 
 	strlcpy(ibdev->ib_dev.name, "mlx4_%d", IB_DEVICE_NAME_MAX);
 	ibdev->ib_dev.owner		= THIS_MODULE;

@@ -1905,6 +1905,22 @@ int mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		goto out;
 	}
 
+	if (mlx4_is_bonded(dev->dev) && (attr_mask & IB_QP_PORT)) {
+		if ((cur_state == IB_QPS_RESET) && (new_state == IB_QPS_INIT)) {
+			if ((ibqp->qp_type == IB_QPT_RC) ||
+			    (ibqp->qp_type == IB_QPT_UD) ||
+			    (ibqp->qp_type == IB_QPT_UC) ||
+			    (ibqp->qp_type == IB_QPT_RAW_PACKET) ||
+			    (ibqp->qp_type == IB_QPT_XRC_INI)) {
+				attr->port_num = mlx4_ib_bond_next_port(dev);
+			}
+		} else {
+			/* no sense in changing port_num
+			 * when ports are bonded */
+			attr_mask &= ~IB_QP_PORT;
+		}
+	}
+
 	if ((attr_mask & IB_QP_PORT) &&
 	    (attr->port_num == 0 || attr->port_num > dev->num_ports)) {
 		pr_debug("qpn 0x%x: invalid port number (%d) specified "
@@ -1954,6 +1970,9 @@ int mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	}
 
 	err = __mlx4_ib_modify_qp(ibqp, attr, attr_mask, cur_state, new_state);
+
+	if (mlx4_is_bonded(dev->dev) && (attr_mask & IB_QP_PORT))
+		attr->port_num = 1;
 
 out:
 	mutex_unlock(&qp->mutex);
