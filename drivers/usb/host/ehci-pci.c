@@ -42,18 +42,22 @@ static inline bool is_intel_quark_x1000(struct pci_dev *pdev)
 		pdev->device == PCI_DEVICE_ID_INTEL_QUARK_X1000_SOC;
 }
 
-static const struct pci_device_id ci_hdrc_pci_id_table[] = {
-	{ PCI_DEVICE(0x153F, 0x1004), },
-	{ PCI_DEVICE(0x153F, 0x1006), },
+/*
+ * This is the list of PCI IDs for the devices that have EHCI USB class and
+ * specific drivers for that. One of the example is a ChipIdea device installed
+ * on some Intel MID platforms.
+ */
+static const struct pci_device_id bypass_pci_id_table[] = {
+	/* ChipIdea on Intel MID platform */
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0811), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0829), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0xe006), },
 	{}
 };
 
-static inline bool is_ci_hdrc_pci(struct pci_dev *pdev)
+static inline bool is_bypassed_id(struct pci_dev *pdev)
 {
-	return !!pci_match_id(ci_hdrc_pci_id_table, pdev);
+	return !!pci_match_id(bypass_pci_id_table, pdev);
 }
 
 /*
@@ -368,7 +372,7 @@ static const struct ehci_driver_overrides pci_overrides __initconst = {
 
 static int ehci_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	if (is_ci_hdrc_pci(pdev))
+	if (is_bypassed_id(pdev))
 		return -ENODEV;
 	return usb_hcd_pci_probe(pdev, id);
 }
