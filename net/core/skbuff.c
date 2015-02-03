@@ -74,6 +74,8 @@
 #include <asm/uaccess.h>
 #include <trace/events/skb.h>
 #include <linux/highmem.h>
+#include <linux/capability.h>
+#include <linux/user_namespace.h>
 
 struct kmem_cache *skbuff_head_cache __read_mostly;
 static struct kmem_cache *skbuff_fclone_cache __read_mostly;
@@ -3690,10 +3692,27 @@ static void __skb_complete_tx_timestamp(struct sk_buff *skb,
 		kfree_skb(skb);
 }
 
+static bool skb_may_tx_timestamp(struct sock *sk, bool tsonly)
+{
+	bool ret;
+
+	if (likely(sysctl_tstamp_allow_data || tsonly))
+		return true;
+
+	read_lock_bh(&sk->sk_callback_lock);
+	ret = sk->sk_socket && sk->sk_socket->file &&
+	      file_ns_capable(sk->sk_socket->file, &init_user_ns, CAP_NET_RAW);
+	read_unlock_bh(&sk->sk_callback_lock);
+	return ret;
+}
+
 void skb_complete_tx_timestamp(struct sk_buff *skb,
 			       struct skb_shared_hwtstamps *hwtstamps)
 {
 	struct sock *sk = skb->sk;
+
+	if (!skb_may_tx_timestamp(sk, false))
+		return;
 
 	/* take a reference to prevent skb_orphan() from freeing the socket */
 	sock_hold(sk);
@@ -3710,18 +3729,27 @@ void __skb_tstamp_tx(struct sk_buff *orig_skb,
 		     struct sock *sk, int tstype)
 {
 	struct sk_buff *skb;
+	bool tsonly = sk->sk_tsflags & SOF_TIMESTAMPING_OPT_TSONLY;
 
-	if (!sk)
+	if (!sk || !skb_may_tx_timestamp(sk, tsonly))
 		return;
 
-	if (hwtstamps)
-		*skb_hwtstamps(orig_skb) = *hwtstamps;
+	if (tsonly)
+		skb = alloc_skb(0, GFP_ATOMIC);
 	else
-		orig_skb->tstamp = ktime_get_real();
-
-	skb = skb_clone(orig_skb, GFP_ATOMIC);
+		skb = skb_clone(orig_skb, GFP_ATOMIC);
 	if (!skb)
 		return;
+
+	if (tsonly) {
+		skb_shinfo(skb)->tx_flags = skb_shinfo(orig_skb)->tx_flags;
+		skb_shinfo(skb)->tskey = skb_shinfo(orig_skb)->tskey;
+	}
+
+	if (hwtstamps)
+		*skb_hwtstamps(skb) = *hwtstamps;
+	else
+		skb->tstamp = ktime_get_real();
 
 	__skb_complete_tx_timestamp(skb, sk, tstype);
 }
