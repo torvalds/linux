@@ -328,7 +328,8 @@ static void intel_uncore_ellc_detect(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if ((IS_HASWELL(dev) || IS_BROADWELL(dev)) &&
+	if ((IS_HASWELL(dev) || IS_BROADWELL(dev) ||
+	     INTEL_INFO(dev)->gen >= 9) &&
 	    (__raw_i915_read32(dev_priv, HSW_EDRAM_PRESENT) & EDRAM_ENABLED)) {
 		/* The docs do not explain exactly how the calculation can be
 		 * made. It is somewhat guessable, but for now, it's always
