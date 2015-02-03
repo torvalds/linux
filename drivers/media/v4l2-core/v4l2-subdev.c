@@ -93,8 +93,7 @@ static int subdev_open(struct file *file)
 
 err:
 #if defined(CONFIG_MEDIA_CONTROLLER)
-	if (entity)
-		media_entity_put(entity);
+	media_entity_put(entity);
 #endif
 	v4l2_fh_del(&subdev_fh->vfh);
 	v4l2_fh_exit(&subdev_fh->vfh);
