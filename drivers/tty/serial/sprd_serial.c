@@ -752,6 +752,7 @@ static int sprd_probe(struct platform_device *pdev)
 	return ret;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int sprd_suspend(struct device *dev)
 {
 	struct sprd_uart_port *sup = dev_get_drvdata(dev);
@@ -769,6 +770,7 @@ static int sprd_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(sprd_pm_ops, sprd_suspend, sprd_resume);
 
