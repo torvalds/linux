@@ -8928,12 +8928,13 @@ static inline bool nohz_kick_needed(struct rq *rq)
 	if (time_before(now, nohz.next_balance))
 		return false;
 
-	if (rq->nr_running >= 2)
+	if (rq->nr_running >= 2 &&
+	    (!energy_aware() || cpu_overutilized(cpu)))
 		return true;
 
 	rcu_read_lock();
 	sds = rcu_dereference(per_cpu(sd_llc_shared, cpu));
-	if (sds) {
+	if (sds && !energy_aware()) {
 		/*
 		 * XXX: write a coherent comment on why we do this.
 		 * See also: http://lkml.kernel.org/r/20111202010832.602203411@sbsiddha-desk.sc.intel.com
