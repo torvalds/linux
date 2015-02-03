@@ -723,7 +723,6 @@ static void nci_nfcee_discover_ntf_packet(struct nci_dev *ndev,
 					  struct sk_buff *skb)
 {
 	u8 status = NCI_STATUS_OK;
-	struct nci_conn_info    *conn_info;
 	struct nci_nfcee_discover_ntf   *nfcee_ntf =
 				(struct nci_nfcee_discover_ntf *)skb->data;
 
@@ -734,27 +733,9 @@ static void nci_nfcee_discover_ntf_packet(struct nci_dev *ndev,
 	 * and only one, NFCEE_DISCOVER_NTF with a Protocol type of
 	 * “HCI Access”, even if the HCI Network contains multiple NFCEEs.
 	 */
-	if (!ndev->hci_dev->conn_info) {
-		conn_info = devm_kzalloc(&ndev->nfc_dev->dev,
-					 sizeof(*conn_info), GFP_KERNEL);
-		if (!conn_info) {
-			status = NCI_STATUS_REJECTED;
-			goto exit;
-		}
+	ndev->hci_dev->nfcee_id = nfcee_ntf->nfcee_id;
+	ndev->cur_id = nfcee_ntf->nfcee_id;
 
-		conn_info->id = nfcee_ntf->nfcee_id;
-		conn_info->conn_id = NCI_INVALID_CONN_ID;
-
-		conn_info->data_exchange_cb = nci_hci_data_received_cb;
-		conn_info->data_exchange_cb_context = ndev;
-
-		INIT_LIST_HEAD(&conn_info->list);
-		list_add(&conn_info->list, &ndev->conn_info_list);
-
-		ndev->hci_dev->conn_info = conn_info;
-	}
-
-exit:
 	nci_req_complete(ndev, status);
 }
 

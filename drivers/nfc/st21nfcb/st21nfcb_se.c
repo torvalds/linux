@@ -513,7 +513,7 @@ static int st21nfcb_hci_network_init(struct nci_dev *ndev)
 
 	dest_params->type = NCI_DESTINATION_SPECIFIC_PARAM_NFCEE_TYPE;
 	dest_params->length = sizeof(struct dest_spec_params);
-	spec_params.id = ndev->hci_dev->conn_info->id;
+	spec_params.id = ndev->hci_dev->nfcee_id;
 	spec_params.protocol = NCI_NFCEE_INTERFACE_HCI_ACCESS;
 	memcpy(dest_params->value, &spec_params, sizeof(struct dest_spec_params));
 	r = nci_core_conn_create(ndev, NCI_DESTINATION_NFCEE, 1,

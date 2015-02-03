@@ -615,11 +615,19 @@ static int nci_hci_dev_connect_gates(struct nci_dev *ndev,
 
 int nci_hci_dev_session_init(struct nci_dev *ndev)
 {
+	struct nci_conn_info    *conn_info;
 	struct sk_buff *skb;
 	int r;
 
 	ndev->hci_dev->count_pipes = 0;
 	ndev->hci_dev->expected_pipes = 0;
+
+	conn_info = ndev->hci_dev->conn_info;
+	if (!conn_info)
+		return -EPROTO;
+
+	conn_info->data_exchange_cb = nci_hci_data_received_cb;
+	conn_info->data_exchange_cb_context = ndev;
 
 	nci_hci_reset_pipes(ndev->hci_dev);
 

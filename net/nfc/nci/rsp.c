@@ -233,15 +233,26 @@ static void nci_core_conn_create_rsp_packet(struct nci_dev *ndev,
 
 	if (status == NCI_STATUS_OK) {
 		rsp = (struct nci_core_conn_create_rsp *)skb->data;
-		list_for_each_entry(conn_info, &ndev->conn_info_list, list) {
-			if (conn_info->id == ndev->cur_id)
-				break;
-		}
 
-		if (!conn_info || conn_info->id != ndev->cur_id) {
+		conn_info = devm_kzalloc(&ndev->nfc_dev->dev,
+					 sizeof(*conn_info), GFP_KERNEL);
+		if (!conn_info) {
 			status = NCI_STATUS_REJECTED;
 			goto exit;
 		}
+
+		conn_info->id = ndev->cur_id;
+		conn_info->conn_id = rsp->conn_id;
+
+		/* Note: data_exchange_cb and data_exchange_cb_context need to
+		 * be specify out of nci_core_conn_create_rsp_packet
+		 */
+
+		INIT_LIST_HEAD(&conn_info->list);
+		list_add(&conn_info->list, &ndev->conn_info_list);
+
+		if (ndev->cur_id == ndev->hci_dev->nfcee_id)
+			ndev->hci_dev->conn_info = conn_info;
 
 		conn_info->conn_id = rsp->conn_id;
 		conn_info->max_pkt_payload_len = rsp->max_ctrl_pkt_payload_len;
@@ -255,9 +266,17 @@ exit:
 static void nci_core_conn_close_rsp_packet(struct nci_dev *ndev,
 					   struct sk_buff *skb)
 {
+	struct nci_conn_info *conn_info;
 	__u8 status = skb->data[0];
 
 	pr_debug("status 0x%x\n", status);
+	if (status == NCI_STATUS_OK) {
+		conn_info = nci_get_conn_info_by_conn_id(ndev, ndev->cur_id);
+		if (conn_info) {
+			list_del(&conn_info->list);
+			devm_kfree(&ndev->nfc_dev->dev, conn_info);
+		}
+	}
 	nci_req_complete(ndev, status);
 }
 

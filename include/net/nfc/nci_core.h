@@ -159,6 +159,7 @@ struct nci_hci_init_data {
 #define NCI_HCI_MAX_GATES          256
 
 struct nci_hci_dev {
+	u8 nfcee_id;
 	struct nci_dev *ndev;
 	struct nci_conn_info *conn_info;
 
