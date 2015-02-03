@@ -406,6 +406,10 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 		l_ptr->reset_checkpoint = l_ptr->next_in_no;
 		l_ptr->exp_msg_count = 0;
 		tipc_link_reset_fragments(l_ptr);
+
+		/* Link marked for deletion after failover? => do it now */
+		if (l_ptr->flags & LINK_STOPPED)
+			tipc_link_delete(l_ptr);
 	}
 
 	n_ptr->action_flags &= ~TIPC_WAIT_OWN_LINKS_DOWN;
