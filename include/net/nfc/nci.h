@@ -244,21 +244,23 @@ struct nci_core_set_config_cmd {
 } __packed;
 
 #define NCI_OP_CORE_CONN_CREATE_CMD	nci_opcode_pack(NCI_GID_CORE, 0x04)
+#define DEST_SPEC_PARAMS_ID_INDEX	0
+#define DEST_SPEC_PARAMS_PROTOCOL_INDEX	1
 struct dest_spec_params {
-	__u8	id;
-	__u8	protocol;
+	__u8    id;
+	__u8    protocol;
 } __packed;
 
 struct core_conn_create_dest_spec_params {
-	__u8	type;
-	__u8	length;
-	struct dest_spec_params value;
+	__u8    type;
+	__u8    length;
+	__u8    value[0];
 } __packed;
 
 struct nci_core_conn_create_cmd {
-	__u8	destination_type;
-	__u8	number_destination_params;
-	struct core_conn_create_dest_spec_params params;
+	__u8    destination_type;
+	__u8    number_destination_params;
+	struct core_conn_create_dest_spec_params params[0];
 } __packed;
 
 #define NCI_OP_CORE_CONN_CLOSE_CMD	nci_opcode_pack(NCI_GID_CORE, 0x05)

@@ -41,6 +41,11 @@
 #include <net/nfc/nci_core.h>
 #include <linux/nfc.h>
 
+struct core_conn_create_data {
+	int length;
+	struct nci_core_conn_create_cmd *cmd;
+};
+
 static void nci_cmd_work(struct work_struct *work);
 static void nci_rx_work(struct work_struct *work);
 static void nci_tx_work(struct work_struct *work);
@@ -509,25 +514,38 @@ EXPORT_SYMBOL(nci_nfcee_mode_set);
 
 static void nci_core_conn_create_req(struct nci_dev *ndev, unsigned long opt)
 {
-	struct nci_core_conn_create_cmd cmd;
-	struct core_conn_create_dest_spec_params *params =
-				(struct core_conn_create_dest_spec_params *)opt;
+	struct core_conn_create_data *data =
+					(struct core_conn_create_data *)opt;
 
-	cmd.destination_type = NCI_DESTINATION_NFCEE;
-	cmd.number_destination_params = 1;
-	memcpy(&cmd.params.type, params,
-	       sizeof(struct core_conn_create_dest_spec_params));
-	nci_send_cmd(ndev, NCI_OP_CORE_CONN_CREATE_CMD,
-		     sizeof(struct nci_core_conn_create_cmd), &cmd);
+	nci_send_cmd(ndev, NCI_OP_CORE_CONN_CREATE_CMD, data->length, data->cmd);
 }
 
-int nci_core_conn_create(struct nci_dev *ndev,
+int nci_core_conn_create(struct nci_dev *ndev, u8 destination_type,
+			 u8 number_destination_params,
+			 size_t params_len,
 			 struct core_conn_create_dest_spec_params *params)
 {
-	ndev->cur_id = params->value.id;
-	return nci_request(ndev, nci_core_conn_create_req,
-			(unsigned long)params,
-			msecs_to_jiffies(NCI_CMD_TIMEOUT));
+	int r;
+	struct nci_core_conn_create_cmd *cmd;
+	struct core_conn_create_data data;
+
+	data.length = params_len + sizeof(struct nci_core_conn_create_cmd);
+	cmd = kzalloc(data.length, GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	cmd->destination_type = destination_type;
+	cmd->number_destination_params = number_destination_params;
+	memcpy(cmd->params, params, params_len);
+
+	data.cmd = cmd;
+	ndev->cur_id = params->value[DEST_SPEC_PARAMS_ID_INDEX];
+
+	r = __nci_request(ndev, nci_core_conn_create_req,
+			  (unsigned long)&data,
+			  msecs_to_jiffies(NCI_CMD_TIMEOUT));
+	kfree(cmd);
+	return r;
 }
 EXPORT_SYMBOL(nci_core_conn_create);
 

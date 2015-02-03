@@ -494,7 +494,8 @@ EXPORT_SYMBOL_GPL(st21nfcb_nci_enable_se);
 
 static int st21nfcb_hci_network_init(struct nci_dev *ndev)
 {
-	struct core_conn_create_dest_spec_params dest_params;
+	struct core_conn_create_dest_spec_params *dest_params;
+	struct dest_spec_params spec_params;
 	struct nci_conn_info    *conn_info;
 	int r, dev_num;
 
@@ -502,17 +503,29 @@ static int st21nfcb_hci_network_init(struct nci_dev *ndev)
 	if (r != NCI_STATUS_OK)
 		goto exit;
 
-	dest_params.type = NCI_DESTINATION_SPECIFIC_PARAM_NFCEE_TYPE;
-	dest_params.length = sizeof(struct dest_spec_params);
-	dest_params.value.id = ndev->hci_dev->conn_info->id;
-	dest_params.value.protocol = NCI_NFCEE_INTERFACE_HCI_ACCESS;
-	r = nci_core_conn_create(ndev, &dest_params);
-	if (r != NCI_STATUS_OK)
+	dest_params =
+		kzalloc(sizeof(struct core_conn_create_dest_spec_params) +
+			sizeof(struct dest_spec_params), GFP_KERNEL);
+	if (dest_params == NULL) {
+		r = -ENOMEM;
 		goto exit;
+	}
+
+	dest_params->type = NCI_DESTINATION_SPECIFIC_PARAM_NFCEE_TYPE;
+	dest_params->length = sizeof(struct dest_spec_params);
+	spec_params.id = ndev->hci_dev->conn_info->id;
+	spec_params.protocol = NCI_NFCEE_INTERFACE_HCI_ACCESS;
+	memcpy(dest_params->value, &spec_params, sizeof(struct dest_spec_params));
+	r = nci_core_conn_create(ndev, NCI_DESTINATION_NFCEE, 1,
+				 sizeof(struct core_conn_create_dest_spec_params) +
+				 sizeof(struct dest_spec_params),
+				 dest_params);
+	if (r != NCI_STATUS_OK)
+		goto free_dest_params;
 
 	conn_info = ndev->hci_dev->conn_info;
 	if (!conn_info)
-		goto exit;
+		goto free_dest_params;
 
 	memcpy(ndev->hci_dev->init_data.gates, st21nfcb_gates,
 	       sizeof(st21nfcb_gates));
@@ -522,8 +535,10 @@ static int st21nfcb_hci_network_init(struct nci_dev *ndev)
 	 * persistent info to discriminate 2 identical chips
 	 */
 	dev_num = find_first_zero_bit(dev_mask, ST21NFCB_NUM_DEVICES);
-	if (dev_num >= ST21NFCB_NUM_DEVICES)
-		return -ENODEV;
+	if (dev_num >= ST21NFCB_NUM_DEVICES) {
+		r = -ENODEV;
+		goto free_dest_params;
+	}
 
 	scnprintf(ndev->hci_dev->init_data.session_id,
 		  sizeof(ndev->hci_dev->init_data.session_id),
@@ -539,6 +554,9 @@ static int st21nfcb_hci_network_init(struct nci_dev *ndev)
 		goto exit;
 
 	return 0;
+
+free_dest_params:
+	kfree(dest_params);
 
 exit:
 	return r;
