@@ -17,7 +17,6 @@
 
 #include <uapi/linux/nvme.h>
 #include <linux/pci.h>
-#include <linux/miscdevice.h>
 #include <linux/kref.h>
 #include <linux/blk-mq.h>
 
@@ -89,7 +88,7 @@ struct nvme_dev {
 	struct nvme_bar __iomem *bar;
 	struct list_head namespaces;
 	struct kref kref;
-	struct miscdevice miscdev;
+	struct device *device;
 	work_func_t reset_workfn;
 	struct work_struct reset_work;
 	char name[12];
