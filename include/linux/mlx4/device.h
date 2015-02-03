@@ -70,6 +70,7 @@ enum {
 	MLX4_FLAG_SLAVE		= 1 << 3,
 	MLX4_FLAG_SRIOV		= 1 << 4,
 	MLX4_FLAG_OLD_REG_MAC	= 1 << 6,
+	MLX4_FLAG_BONDED	= 1 << 7
 };
 
 enum {

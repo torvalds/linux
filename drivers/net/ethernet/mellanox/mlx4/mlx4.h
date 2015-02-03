@@ -885,6 +885,8 @@ struct mlx4_priv {
 	int			reserved_mtts;
 	int			fs_hash_mode;
 	u8 virt2phys_pkey[MLX4_MFUNC_MAX][MLX4_MAX_PORTS][MLX4_MAX_PORT_PKEYS];
+	struct mlx4_port_map	v2p; /* cached port mapping configuration */
+	struct mutex		bond_mutex; /* for bond mode */
 	__be64			slave_node_guids[MLX4_MFUNC_MAX];
 
 	atomic_t		opreq_count;
@@ -1364,6 +1366,7 @@ int mlx4_get_slave_num_gids(struct mlx4_dev *dev, int slave, int port);
 /* Returns the VF index of slave */
 int mlx4_get_vf_indx(struct mlx4_dev *dev, int slave);
 int mlx4_config_mad_demux(struct mlx4_dev *dev);
+int mlx4_do_bond(struct mlx4_dev *dev, bool enable);
 
 enum mlx4_zone_flags {
 	MLX4_ZONE_ALLOW_ALLOC_FROM_LOWER_PRIO	= 1UL << 0,
