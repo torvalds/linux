@@ -56,7 +56,7 @@ struct smtcfb_info {
 	u32 colreg[17];
 };
 
-void __iomem *smtc_RegBaseAddress;	/* Memory Map IO starting address */
+void __iomem *smtc_regbaseaddress;	/* Memory Map IO starting address */
 
 static struct fb_var_screeninfo smtcfb_var = {
 	.xres           = 1024,
@@ -711,8 +711,8 @@ static void smtc_free_fb_info(struct smtcfb_info *sfb)
 
 static void smtc_unmap_mmio(struct smtcfb_info *sfb)
 {
-	if (sfb && smtc_RegBaseAddress)
-		smtc_RegBaseAddress = NULL;
+	if (sfb && smtc_regbaseaddress)
+		smtc_regbaseaddress = NULL;
 }
 
 /*
@@ -823,7 +823,7 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 #else
 		sfb->lfb = ioremap(mmio_base, 0x00800000);
 #endif
-		sfb->mmio = (smtc_RegBaseAddress =
+		sfb->mmio = (smtc_regbaseaddress =
 		    sfb->lfb + 0x00700000);
 		sfb->dp_regs = sfb->lfb + 0x00408000;
 		sfb->vp_regs = sfb->lfb + 0x0040c000;
@@ -833,7 +833,7 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 			dev_info(&pdev->dev, "sfb->lfb=%p", sfb->lfb);
 		}
 #endif
-		if (!smtc_RegBaseAddress) {
+		if (!smtc_regbaseaddress) {
 			dev_err(&pdev->dev,
 				"%s: unable to map memory mapped IO!",
 				sfb->fb.fix.id);
@@ -859,7 +859,7 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 		smem_size = SM722_VIDEOMEMORYSIZE;
 		sfb->dp_regs = ioremap(mmio_base, 0x00a00000);
 		sfb->lfb = sfb->dp_regs + 0x00200000;
-		sfb->mmio = (smtc_RegBaseAddress =
+		sfb->mmio = (smtc_regbaseaddress =
 		    sfb->dp_regs + 0x000c0000);
 		sfb->vp_regs = sfb->dp_regs + 0x800;
 

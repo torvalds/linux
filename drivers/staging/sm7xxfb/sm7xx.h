@@ -29,14 +29,14 @@
 #define dac_reg	(0x3c8)
 #define dac_val	(0x3c9)
 
-extern void __iomem *smtc_RegBaseAddress;
-#define smtc_mmiowb(dat, reg)	writeb(dat, smtc_RegBaseAddress + reg)
-#define smtc_mmioww(dat, reg)	writew(dat, smtc_RegBaseAddress + reg)
-#define smtc_mmiowl(dat, reg)	writel(dat, smtc_RegBaseAddress + reg)
+extern void __iomem *smtc_regbaseaddress;
+#define smtc_mmiowb(dat, reg)	writeb(dat, smtc_regbaseaddress + reg)
+#define smtc_mmioww(dat, reg)	writew(dat, smtc_regbaseaddress + reg)
+#define smtc_mmiowl(dat, reg)	writel(dat, smtc_regbaseaddress + reg)
 
-#define smtc_mmiorb(reg)	readb(smtc_RegBaseAddress + reg)
-#define smtc_mmiorw(reg)	readw(smtc_RegBaseAddress + reg)
-#define smtc_mmiorl(reg)	readl(smtc_RegBaseAddress + reg)
+#define smtc_mmiorb(reg)	readb(smtc_regbaseaddress + reg)
+#define smtc_mmiorw(reg)	readw(smtc_regbaseaddress + reg)
+#define smtc_mmiorl(reg)	readl(smtc_regbaseaddress + reg)
 
 #define SIZE_SR00_SR04      (0x04 - 0x00 + 1)
 #define SIZE_SR10_SR24      (0x24 - 0x10 + 1)
