@@ -4105,9 +4105,24 @@ static void tracing_set_nop(struct trace_array *tr)
 	tr->current_trace = &nop_trace;
 }
 
-static int tracing_set_tracer(struct trace_array *tr, const char *buf)
+static void update_tracer_options(struct trace_array *tr, struct tracer *t)
 {
 	static struct trace_option_dentry *topts;
+
+	/* Only enable if the directory has been created already. */
+	if (!tr->dir)
+		return;
+
+	/* Currently, only the top instance has options */
+	if (!(tr->flags & TRACE_ARRAY_FL_GLOBAL))
+		return;
+
+	destroy_trace_option_files(topts);
+	topts = create_trace_option_files(tr, t);
+}
+
+static int tracing_set_tracer(struct trace_array *tr, const char *buf)
+{
 	struct tracer *t;
 #ifdef CONFIG_TRACER_MAX_TRACE
 	bool had_max_tr;
@@ -4172,14 +4187,7 @@ static int tracing_set_tracer(struct trace_array *tr, const char *buf)
 		free_snapshot(tr);
 	}
 #endif
-	/*
-	 * Only enable if the directory has been created already.
-	 * Currently, only the top instance has options
-	 */
-	if (tr->dir && tr->flags & TRACE_ARRAY_FL_GLOBAL) {
-		destroy_trace_option_files(topts);
-		topts = create_trace_option_files(tr, t);
-	}
+	update_tracer_options(tr, t);
 
 #ifdef CONFIG_TRACER_MAX_TRACE
 	if (t->use_max_tr && !had_max_tr) {
@@ -6577,6 +6585,10 @@ static __init int tracer_init_debugfs(void)
 	create_trace_instances(d_tracer);
 
 	create_trace_options_dir(&global_trace);
+
+	/* If the tracer was started via cmdline, create options for it here */
+	if (global_trace.current_trace != &nop_trace)
+		update_tracer_options(&global_trace, global_trace.current_trace);
 
 	return 0;
 }
