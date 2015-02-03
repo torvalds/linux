@@ -147,6 +147,13 @@ else
 	cp arch/$ARCH/boot/$KBUILD_IMAGE "$tmpdir/$installed_image_path"
 fi
 
+if grep -q "^CONFIG_OF=y" $KCONFIG_CONFIG ; then
+	# Only some architectures with OF support have this target
+	if grep -q dtbs_install "${srctree}/arch/$SRCARCH/Makefile"; then
+		$MAKE KBUILD_SRC= INSTALL_DTBS_PATH="$tmpdir/usr/lib/$packagename" dtbs_install
+	fi
+fi
+
 if grep -q '^CONFIG_MODULES=y' $KCONFIG_CONFIG ; then
 	INSTALL_MOD_PATH="$tmpdir" $MAKE KBUILD_SRC= modules_install
 	rm -f "$tmpdir/lib/modules/$version/build"
