@@ -558,7 +558,6 @@ static struct vxlanhdr *vxlan_gro_remcsum(struct sk_buff *skb,
 					  u32 data)
 {
 	size_t start, offset, plen;
-	__wsum delta;
 
 	if (skb->remcsum_offload)
 		return vh;
@@ -580,12 +579,7 @@ static struct vxlanhdr *vxlan_gro_remcsum(struct sk_buff *skb,
 			return NULL;
 	}
 
-	delta = remcsum_adjust((void *)vh + hdrlen,
-			       NAPI_GRO_CB(skb)->csum, start, offset);
-
-	/* Adjust skb->csum since we changed the packet */
-	skb->csum = csum_add(skb->csum, delta);
-	NAPI_GRO_CB(skb)->csum = csum_add(NAPI_GRO_CB(skb)->csum, delta);
+	skb_gro_remcsum_process(skb, (void *)vh + hdrlen, start, offset);
 
 	skb->remcsum_offload = 1;
 
@@ -1159,7 +1153,6 @@ static struct vxlanhdr *vxlan_remcsum(struct sk_buff *skb, struct vxlanhdr *vh,
 				      size_t hdrlen, u32 data)
 {
 	size_t start, offset, plen;
-	__wsum delta;
 
 	if (skb->remcsum_offload) {
 		/* Already processed in GRO path */
@@ -1179,14 +1172,7 @@ static struct vxlanhdr *vxlan_remcsum(struct sk_buff *skb, struct vxlanhdr *vh,
 
 	vh = (struct vxlanhdr *)(udp_hdr(skb) + 1);
 
-	if (unlikely(skb->ip_summed != CHECKSUM_COMPLETE))
-		__skb_checksum_complete(skb);
-
-	delta = remcsum_adjust((void *)vh + hdrlen,
-			       skb->csum, start, offset);
-
-	/* Adjust skb->csum since we changed the packet */
-	skb->csum = csum_add(skb->csum, delta);
+	skb_remcsum_process(skb, (void *)vh + hdrlen, start, offset);
 
 	return vh;
 }

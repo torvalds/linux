@@ -70,7 +70,6 @@ static struct guehdr *gue_remcsum(struct sk_buff *skb, struct guehdr *guehdr,
 	size_t start = ntohs(pd[0]);
 	size_t offset = ntohs(pd[1]);
 	size_t plen = hdrlen + max_t(size_t, offset + sizeof(u16), start);
-	__wsum delta;
 
 	if (skb->remcsum_offload) {
 		/* Already processed in GRO path */
@@ -82,14 +81,7 @@ static struct guehdr *gue_remcsum(struct sk_buff *skb, struct guehdr *guehdr,
 		return NULL;
 	guehdr = (struct guehdr *)&udp_hdr(skb)[1];
 
-	if (unlikely(skb->ip_summed != CHECKSUM_COMPLETE))
-		__skb_checksum_complete(skb);
-
-	delta = remcsum_adjust((void *)guehdr + hdrlen,
-			       skb->csum, start, offset);
-
-	/* Adjust skb->csum since we changed the packet */
-	skb->csum = csum_add(skb->csum, delta);
+	skb_remcsum_process(skb, (void *)guehdr + hdrlen, start, offset);
 
 	return guehdr;
 }
@@ -228,7 +220,6 @@ static struct guehdr *gue_gro_remcsum(struct sk_buff *skb, unsigned int off,
 	size_t start = ntohs(pd[0]);
 	size_t offset = ntohs(pd[1]);
 	size_t plen = hdrlen + max_t(size_t, offset + sizeof(u16), start);
-	__wsum delta;
 
 	if (skb->remcsum_offload)
 		return guehdr;
@@ -243,12 +234,7 @@ static struct guehdr *gue_gro_remcsum(struct sk_buff *skb, unsigned int off,
 			return NULL;
 	}
 
-	delta = remcsum_adjust((void *)guehdr + hdrlen,
-			       NAPI_GRO_CB(skb)->csum, start, offset);
-
-	/* Adjust skb->csum since we changed the packet */
-	skb->csum = csum_add(skb->csum, delta);
-	NAPI_GRO_CB(skb)->csum = csum_add(NAPI_GRO_CB(skb)->csum, delta);
+	skb_gro_remcsum_process(skb, (void *)guehdr + hdrlen, start, offset);
 
 	skb->remcsum_offload = 1;
 
