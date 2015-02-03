@@ -585,7 +585,7 @@ struct kvm_vcpu_arch {
 	pgd_t *pgdir;
 
 	u8 io_gpr; /* GPR used as IO source/target */
-	u8 mmio_is_bigendian;
+	u8 mmio_host_swabbed;
 	u8 mmio_sign_extend;
 	u8 osi_needed;
 	u8 osi_enabled;
