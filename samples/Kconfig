@@ -63,9 +63,9 @@ config SAMPLE_RPMSG_CLIENT
 	  to communicate with an AMP-configured remote processor over
 	  the rpmsg bus.
 
-config SAMPLE_LIVE_PATCHING
+config SAMPLE_LIVEPATCH
 	tristate "Build live patching sample -- loadable modules only"
-	depends on LIVE_PATCHING && m
+	depends on LIVEPATCH && m
 	help
 	  Builds a sample live patch that replaces the procfs handler
 	  for /proc/cmdline to print "this has been live patched".

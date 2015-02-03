@@ -1,3 +1,3 @@
-obj-$(CONFIG_LIVE_PATCHING) += livepatch.o
+obj-$(CONFIG_LIVEPATCH) += livepatch.o
 
 livepatch-objs := core.o

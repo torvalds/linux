@@ -1,1 +1,1 @@
-obj-$(CONFIG_SAMPLE_LIVE_PATCHING) += livepatch-sample.o
+obj-$(CONFIG_SAMPLE_LIVEPATCH) += livepatch-sample.o

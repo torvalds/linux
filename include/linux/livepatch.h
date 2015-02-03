@@ -24,7 +24,7 @@
 #include <linux/module.h>
 #include <linux/ftrace.h>
 
-#if IS_ENABLED(CONFIG_LIVE_PATCHING)
+#if IS_ENABLED(CONFIG_LIVEPATCH)
 
 #include <asm/livepatch.h>
 
@@ -128,6 +128,6 @@ extern int klp_unregister_patch(struct klp_patch *);
 extern int klp_enable_patch(struct klp_patch *);
 extern int klp_disable_patch(struct klp_patch *);
 
-#endif /* CONFIG_LIVE_PATCHING */
+#endif /* CONFIG_LIVEPATCH */
 
 #endif /* _LINUX_LIVEPATCH_H_ */
