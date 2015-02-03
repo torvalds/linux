@@ -252,7 +252,7 @@ struct dw_dma_chan {
 	u8			src_master;
 	u8			dst_master;
 
-	/* configuration passed via DMA_SLAVE_CONFIG */
+	/* configuration passed via .device_config */
 	struct dma_slave_config dma_sconfig;
 };
 

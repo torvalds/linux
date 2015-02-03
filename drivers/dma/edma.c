@@ -244,8 +244,9 @@ static void edma_execute(struct edma_chan *echan)
 	}
 }
 
-static int edma_terminate_all(struct edma_chan *echan)
+static int edma_terminate_all(struct dma_chan *chan)
 {
+	struct edma_chan *echan = to_edma_chan(chan);
 	unsigned long flags;
 	LIST_HEAD(head);
 
@@ -273,9 +274,11 @@ static int edma_terminate_all(struct edma_chan *echan)
 	return 0;
 }
 
-static int edma_slave_config(struct edma_chan *echan,
+static int edma_slave_config(struct dma_chan *chan,
 	struct dma_slave_config *cfg)
 {
+	struct edma_chan *echan = to_edma_chan(chan);
+
 	if (cfg->src_addr_width == DMA_SLAVE_BUSWIDTH_8_BYTES ||
 	    cfg->dst_addr_width == DMA_SLAVE_BUSWIDTH_8_BYTES)
 		return -EINVAL;
@@ -285,8 +288,10 @@ static int edma_slave_config(struct edma_chan *echan,
 	return 0;
 }
 
-static int edma_dma_pause(struct edma_chan *echan)
+static int edma_dma_pause(struct dma_chan *chan)
 {
+	struct edma_chan *echan = to_edma_chan(chan);
+
 	/* Pause/Resume only allowed with cyclic mode */
 	if (!echan->edesc || !echan->edesc->cyclic)
 		return -EINVAL;
@@ -295,44 +300,16 @@ static int edma_dma_pause(struct edma_chan *echan)
 	return 0;
 }
 
-static int edma_dma_resume(struct edma_chan *echan)
+static int edma_dma_resume(struct dma_chan *chan)
 {
+	struct edma_chan *echan = to_edma_chan(chan);
+
 	/* Pause/Resume only allowed with cyclic mode */
 	if (!echan->edesc->cyclic)
 		return -EINVAL;
 
 	edma_resume(echan->ch_num);
 	return 0;
-}
-
-static int edma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
-			unsigned long arg)
-{
-	int ret = 0;
-	struct dma_slave_config *config;
-	struct edma_chan *echan = to_edma_chan(chan);
-
-	switch (cmd) {
-	case DMA_TERMINATE_ALL:
-		edma_terminate_all(echan);
-		break;
-	case DMA_SLAVE_CONFIG:
-		config = (struct dma_slave_config *)arg;
-		ret = edma_slave_config(echan, config);
-		break;
-	case DMA_PAUSE:
-		ret = edma_dma_pause(echan);
-		break;
-
-	case DMA_RESUME:
-		ret = edma_dma_resume(echan);
-		break;
-
-	default:
-		ret = -ENOSYS;
-	}
-
-	return ret;
 }
 
 /*
@@ -994,19 +971,6 @@ static void __init edma_chan_init(struct edma_cc *ecc,
 				 BIT(DMA_SLAVE_BUSWIDTH_3_BYTES) | \
 				 BIT(DMA_SLAVE_BUSWIDTH_4_BYTES))
 
-static int edma_dma_device_slave_caps(struct dma_chan *dchan,
-				      struct dma_slave_caps *caps)
-{
-	caps->src_addr_widths = EDMA_DMA_BUSWIDTHS;
-	caps->dstn_addr_widths = EDMA_DMA_BUSWIDTHS;
-	caps->directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
-	caps->cmd_pause = true;
-	caps->cmd_terminate = true;
-	caps->residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
-
-	return 0;
-}
-
 static void edma_dma_init(struct edma_cc *ecc, struct dma_device *dma,
 			  struct device *dev)
 {
@@ -1017,8 +981,16 @@ static void edma_dma_init(struct edma_cc *ecc, struct dma_device *dma,
 	dma->device_free_chan_resources = edma_free_chan_resources;
 	dma->device_issue_pending = edma_issue_pending;
 	dma->device_tx_status = edma_tx_status;
-	dma->device_control = edma_control;
-	dma->device_slave_caps = edma_dma_device_slave_caps;
+	dma->device_config = edma_slave_config;
+	dma->device_pause = edma_dma_pause;
+	dma->device_resume = edma_dma_resume;
+	dma->device_terminate_all = edma_terminate_all;
+
+	dma->src_addr_widths = EDMA_DMA_BUSWIDTHS;
+	dma->dst_addr_widths = EDMA_DMA_BUSWIDTHS;
+	dma->directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
+	dma->residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
+
 	dma->dev = dev;
 
 	/*
