@@ -2612,9 +2612,6 @@ void i915_handle_error(struct drm_device *dev, bool wedged,
 	va_list args;
 	char error_msg[80];
 
-	if (WARN_ON(mutex_is_locked(&dev_priv->dev->struct_mutex)))
-		return;
-
 	va_start(args, fmt);
 	vscnprintf(error_msg, sizeof(error_msg), fmt, args);
 	va_end(args);
