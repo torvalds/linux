@@ -1678,14 +1678,14 @@ int dvb_ca_en50221_init(struct dvb_adapter *dvb_adapter,
 	/* initialise the system data */
 	if ((ca = kzalloc(sizeof(struct dvb_ca_private), GFP_KERNEL)) == NULL) {
 		ret = -ENOMEM;
-		goto error;
+		goto exit;
 	}
 	ca->pub = pubca;
 	ca->flags = flags;
 	ca->slot_count = slot_count;
 	if ((ca->slot_info = kcalloc(slot_count, sizeof(struct dvb_ca_slot), GFP_KERNEL)) == NULL) {
 		ret = -ENOMEM;
-		goto error;
+		goto free_ca;
 	}
 	init_waitqueue_head(&ca->wait_queue);
 	ca->open = 0;
@@ -1696,7 +1696,7 @@ int dvb_ca_en50221_init(struct dvb_adapter *dvb_adapter,
 	/* register the DVB device */
 	ret = dvb_register_device(dvb_adapter, &ca->dvbdev, &dvbdev_ca, ca, DVB_DEVICE_CA);
 	if (ret)
-		goto error;
+		goto free_slot_info;
 
 	/* now initialise each slot */
 	for (i = 0; i < slot_count; i++) {
@@ -1711,7 +1711,7 @@ int dvb_ca_en50221_init(struct dvb_adapter *dvb_adapter,
 
 	if (signal_pending(current)) {
 		ret = -EINTR;
-		goto error;
+		goto unregister_device;
 	}
 	mb();
 
@@ -1722,16 +1722,17 @@ int dvb_ca_en50221_init(struct dvb_adapter *dvb_adapter,
 		ret = PTR_ERR(ca->thread);
 		printk("dvb_ca_init: failed to start kernel_thread (%d)\n",
 			ret);
-		goto error;
+		goto unregister_device;
 	}
 	return 0;
 
-error:
-	if (ca != NULL) {
-		dvb_unregister_device(ca->dvbdev);
-		kfree(ca->slot_info);
-		kfree(ca);
-	}
+unregister_device:
+	dvb_unregister_device(ca->dvbdev);
+free_slot_info:
+	kfree(ca->slot_info);
+free_ca:
+	kfree(ca);
+exit:
 	pubca->private = NULL;
 	return ret;
 }
