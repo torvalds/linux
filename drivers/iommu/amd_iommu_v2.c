@@ -151,18 +151,6 @@ static void put_device_state(struct device_state *dev_state)
 		wake_up(&dev_state->wq);
 }
 
-static void put_device_state_wait(struct device_state *dev_state)
-{
-	DEFINE_WAIT(wait);
-
-	prepare_to_wait(&dev_state->wq, &wait, TASK_UNINTERRUPTIBLE);
-	if (!atomic_dec_and_test(&dev_state->count))
-		schedule();
-	finish_wait(&dev_state->wq, &wait);
-
-	free_device_state(dev_state);
-}
-
 /* Must be called under dev_state->lock */
 static struct pasid_state **__get_pasid_state_ptr(struct device_state *dev_state,
 						  int pasid, bool alloc)
@@ -851,7 +839,13 @@ void amd_iommu_free_device(struct pci_dev *pdev)
 	/* Get rid of any remaining pasid states */
 	free_pasid_states(dev_state);
 
-	put_device_state_wait(dev_state);
+	put_device_state(dev_state);
+	/*
+	 * Wait until the last reference is dropped before freeing
+	 * the device state.
+	 */
+	wait_event(dev_state->wq, !atomic_read(&dev_state->count));
+	free_device_state(dev_state);
 }
 EXPORT_SYMBOL(amd_iommu_free_device);
 
