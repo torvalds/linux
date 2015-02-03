@@ -109,8 +109,11 @@ static int ccp_platform_probe(struct platform_device *pdev)
 
 	if (!dev->dma_mask)
 		dev->dma_mask = &dev->coherent_dma_mask;
-	*(dev->dma_mask) = DMA_BIT_MASK(48);
-	dev->coherent_dma_mask = DMA_BIT_MASK(48);
+	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(48));
+	if (ret) {
+		dev_err(dev, "dma_set_mask_and_coherent failed (%d)\n", ret);
+		goto e_free;
+	}
 
 	if (of_property_read_bool(dev->of_node, "dma-coherent"))
 		ccp->axcache = CACHE_WB_NO_ALLOC;
