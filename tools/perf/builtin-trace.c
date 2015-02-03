@@ -2109,10 +2109,10 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (err < 0)
 		goto out_error_mmap;
 
-	perf_evlist__enable(evlist);
-
 	if (forks)
 		perf_evlist__start_workload(evlist);
+	else
+		perf_evlist__enable(evlist);
 
 	trace->multiple_threads = evlist->threads->map[0] == -1 || evlist->threads->nr > 1;
 again:
