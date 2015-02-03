@@ -192,6 +192,9 @@ static void recalculate_apic_map(struct kvm *kvm)
 		u16 cid, lid;
 		u32 ldr, aid;
 
+		if (!kvm_apic_present(vcpu))
+			continue;
+
 		aid = kvm_apic_id(apic);
 		ldr = kvm_apic_get_reg(apic, APIC_LDR);
 		cid = apic_cluster_id(new, ldr);

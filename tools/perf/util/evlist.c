@@ -1445,7 +1445,7 @@ int perf_evlist__strerror_tp(struct perf_evlist *evlist __maybe_unused,
 	case ENOENT:
 		scnprintf(buf, size, "%s",
 			  "Error:\tUnable to find debugfs\n"
-			  "Hint:\tWas your kernel was compiled with debugfs support?\n"
+			  "Hint:\tWas your kernel compiled with debugfs support?\n"
 			  "Hint:\tIs the debugfs filesystem mounted?\n"
 			  "Hint:\tTry 'sudo mount -t debugfs nodev /sys/kernel/debug'");
 		break;

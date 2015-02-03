@@ -21,6 +21,8 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
+#include <linux/irqchip/arm-gic.h>
 #include <linux/kernel.h>
 #include <linux/leds.h>
 #include <linux/mfd/tmio.h>
@@ -811,6 +813,16 @@ static void __init lager_init(void)
 					  lager_ksz8041_fixup);
 }
 
+static void __init lager_legacy_init_irq(void)
+{
+	void __iomem *gic_dist_base = ioremap_nocache(0xf1001000, 0x1000);
+	void __iomem *gic_cpu_base = ioremap_nocache(0xf1002000, 0x1000);
+
+	gic_init(0, 29, gic_dist_base, gic_cpu_base);
+
+	/* Do not invoke DT-based interrupt code via irqchip_init() */
+}
+
 static const char * const lager_boards_compat_dt[] __initconst = {
 	"renesas,lager",
 	NULL,
@@ -819,6 +831,7 @@ static const char * const lager_boards_compat_dt[] __initconst = {
 DT_MACHINE_START(LAGER_DT, "lager")
 	.smp		= smp_ops(r8a7790_smp_ops),
 	.init_early	= shmobile_init_delay,
+	.init_irq	= lager_legacy_init_irq,
 	.init_time	= rcar_gen2_timer_init,
 	.init_machine	= lager_init,
 	.init_late	= shmobile_init_late,

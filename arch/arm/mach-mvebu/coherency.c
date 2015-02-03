@@ -190,6 +190,13 @@ static void __init armada_375_380_coherency_init(struct device_node *np)
 	arch_ioremap_caller = armada_pcie_wa_ioremap_caller;
 
 	/*
+	 * We should switch the PL310 to I/O coherency mode only if
+	 * I/O coherency is actually enabled.
+	 */
+	if (!coherency_available())
+		return;
+
+	/*
 	 * Add the PL310 property "arm,io-coherent". This makes sure the
 	 * outer sync operation is not used, which allows to
 	 * workaround the system erratum that causes deadlocks when
