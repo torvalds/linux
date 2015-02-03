@@ -2202,6 +2202,10 @@ static int mlx4_en_set_features(struct net_device *netdev,
 			return ret;
 	}
 
+	if (DEV_FEATURE_CHANGED(netdev, features, NETIF_F_HW_VLAN_CTAG_TX))
+		en_info(priv, "Turn %s TX vlan strip offload\n",
+			(features & NETIF_F_HW_VLAN_CTAG_TX) ? "ON" : "OFF");
+
 	if (features & NETIF_F_LOOPBACK)
 		priv->ctrl_flags |= cpu_to_be32(MLX4_WQE_CTRL_FORCE_LOOPBACK);
 	else
