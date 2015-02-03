@@ -88,6 +88,14 @@ struct btrfs_delayed_ref_head {
 	struct rb_node href_node;
 
 	struct btrfs_delayed_extent_op *extent_op;
+
+	/*
+	 * This is used to track the final ref_mod from all the refs associated
+	 * with this head ref, this is not adjusted as delayed refs are run,
+	 * this is meant to track if we need to do the csum accounting or not.
+	 */
+	int total_ref_mod;
+
 	/*
 	 * when a new extent is allocated, it is just reserved in memory
 	 * The actual extent isn't inserted into the extent allocation tree
@@ -137,6 +145,8 @@ struct btrfs_delayed_ref_root {
 
 	/* total number of head nodes ready for processing */
 	unsigned long num_heads_ready;
+
+	u64 pending_csums;
 
 	/*
 	 * set when the tree is flushing before a transaction commit,

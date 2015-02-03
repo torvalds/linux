@@ -2538,6 +2538,12 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 		 * list before we release it.
 		 */
 		if (btrfs_delayed_ref_is_head(ref)) {
+			if (locked_ref->is_data &&
+			    locked_ref->total_ref_mod < 0) {
+				spin_lock(&delayed_refs->lock);
+				delayed_refs->pending_csums -= ref->num_bytes;
+				spin_unlock(&delayed_refs->lock);
+			}
 			btrfs_delayed_ref_unlock(locked_ref);
 			locked_ref = NULL;
 		}
@@ -2626,11 +2632,31 @@ static inline u64 heads_to_leaves(struct btrfs_root *root, u64 heads)
 	return div_u64(num_bytes, BTRFS_LEAF_DATA_SIZE(root));
 }
 
+/*
+ * Takes the number of bytes to be csumm'ed and figures out how many leaves it
+ * would require to store the csums for that many bytes.
+ */
+static u64 csum_bytes_to_leaves(struct btrfs_root *root, u64 csum_bytes)
+{
+	u64 csum_size;
+	u64 num_csums_per_leaf;
+	u64 num_csums;
+
+	csum_size = BTRFS_LEAF_DATA_SIZE(root) - sizeof(struct btrfs_item);
+	num_csums_per_leaf = div64_u64(csum_size,
+			(u64)btrfs_super_csum_size(root->fs_info->super_copy));
+	num_csums = div64_u64(csum_bytes, root->sectorsize);
+	num_csums += num_csums_per_leaf - 1;
+	num_csums = div64_u64(num_csums, num_csums_per_leaf);
+	return num_csums;
+}
+
 int btrfs_check_space_for_delayed_refs(struct btrfs_trans_handle *trans,
 				       struct btrfs_root *root)
 {
 	struct btrfs_block_rsv *global_rsv;
 	u64 num_heads = trans->transaction->delayed_refs.num_heads_ready;
+	u64 csum_bytes = trans->transaction->delayed_refs.pending_csums;
 	u64 num_bytes;
 	int ret = 0;
 
@@ -2639,6 +2665,7 @@ int btrfs_check_space_for_delayed_refs(struct btrfs_trans_handle *trans,
 	if (num_heads > 1)
 		num_bytes += (num_heads - 1) * root->nodesize;
 	num_bytes <<= 1;
+	num_bytes += csum_bytes_to_leaves(root, csum_bytes) * root->nodesize;
 	global_rsv = &root->fs_info->global_block_rsv;
 
 	/*
@@ -5065,30 +5092,19 @@ static u64 calc_csum_metadata_size(struct inode *inode, u64 num_bytes,
 				   int reserve)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	u64 csum_size;
-	int num_csums_per_leaf;
-	int num_csums;
-	int old_csums;
+	u64 old_csums, num_csums;
 
 	if (BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM &&
 	    BTRFS_I(inode)->csum_bytes == 0)
 		return 0;
 
-	old_csums = (int)div_u64(BTRFS_I(inode)->csum_bytes, root->sectorsize);
+	old_csums = csum_bytes_to_leaves(root, BTRFS_I(inode)->csum_bytes);
+
 	if (reserve)
 		BTRFS_I(inode)->csum_bytes += num_bytes;
 	else
 		BTRFS_I(inode)->csum_bytes -= num_bytes;
-	csum_size = BTRFS_LEAF_DATA_SIZE(root) - sizeof(struct btrfs_item);
-	num_csums_per_leaf = (int)div_u64(csum_size,
-					    sizeof(struct btrfs_csum_item) +
-					    sizeof(struct btrfs_disk_key));
-	num_csums = (int)div_u64(BTRFS_I(inode)->csum_bytes, root->sectorsize);
-	num_csums = num_csums + num_csums_per_leaf - 1;
-	num_csums = num_csums / num_csums_per_leaf;
-
-	old_csums = old_csums + num_csums_per_leaf - 1;
-	old_csums = old_csums / num_csums_per_leaf;
+	num_csums = csum_bytes_to_leaves(root, BTRFS_I(inode)->csum_bytes);
 
 	/* No change, no need to reserve more */
 	if (old_csums == num_csums)

@@ -4197,9 +4197,10 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	int extent_type = -1;
 	int ret;
 	int err = 0;
-	int be_nice = 0;
 	u64 ino = btrfs_ino(inode);
 	u64 bytes_deleted = 0;
+	bool be_nice = 0;
+	bool should_throttle = 0;
 
 	BUG_ON(new_size > 0 && min_type != BTRFS_EXTENT_DATA_KEY);
 
@@ -4405,19 +4406,20 @@ delete:
 						btrfs_header_owner(leaf),
 						ino, extent_offset, 0);
 			BUG_ON(ret);
-			if (be_nice && pending_del_nr &&
-			    (pending_del_nr % 16 == 0) &&
-			    bytes_deleted > 1024 * 1024) {
+			if (btrfs_should_throttle_delayed_refs(trans, root))
 				btrfs_async_run_delayed_refs(root,
 					trans->delayed_ref_updates * 2, 0);
-			}
 		}
 
 		if (found_type == BTRFS_INODE_ITEM_KEY)
 			break;
 
+		should_throttle =
+			btrfs_should_throttle_delayed_refs(trans, root);
+
 		if (path->slots[0] == 0 ||
-		    path->slots[0] != pending_del_slot) {
+		    path->slots[0] != pending_del_slot ||
+		    (be_nice && should_throttle)) {
 			if (pending_del_nr) {
 				ret = btrfs_del_items(trans, root, path,
 						pending_del_slot,
@@ -4430,6 +4432,15 @@ delete:
 				pending_del_nr = 0;
 			}
 			btrfs_release_path(path);
+			if (be_nice && should_throttle) {
+				unsigned long updates = trans->delayed_ref_updates;
+				if (updates) {
+					trans->delayed_ref_updates = 0;
+					ret = btrfs_run_delayed_refs(trans, root, updates * 2);
+					if (ret && !err)
+						err = ret;
+				}
+			}
 			goto search_again;
 		} else {
 			path->slots[0]--;
@@ -4449,7 +4460,7 @@ error:
 
 	btrfs_free_path(path);
 
-	if (be_nice && bytes_deleted > 32 * 1024 * 1024) {
+	if (be_nice && btrfs_should_throttle_delayed_refs(trans, root)) {
 		unsigned long updates = trans->delayed_ref_updates;
 		if (updates) {
 			trans->delayed_ref_updates = 0;
