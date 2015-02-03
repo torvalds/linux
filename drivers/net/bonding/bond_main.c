@@ -1196,6 +1196,47 @@ static void bond_fill_ifslave(struct slave *slave, struct ifslave *info)
 	info->link_failure_count = slave->link_failure_count;
 }
 
+static void bond_netdev_notify(struct slave *slave, struct net_device *dev)
+{
+	struct bonding *bond = slave->bond;
+	struct netdev_bonding_info bonding_info;
+
+	rtnl_lock();
+	/* make sure that slave is still valid */
+	if (dev->priv_flags & IFF_BONDING) {
+		bond_fill_ifslave(slave, &bonding_info.slave);
+		bond_fill_ifbond(bond, &bonding_info.master);
+		netdev_bonding_info_change(slave->dev, &bonding_info);
+	}
+	rtnl_unlock();
+}
+
+static void bond_netdev_notify_work(struct work_struct *_work)
+{
+	struct netdev_notify_work *w =
+		container_of(_work, struct netdev_notify_work, work.work);
+
+	bond_netdev_notify(w->slave, w->dev);
+	dev_put(w->dev);
+}
+
+void bond_queue_slave_event(struct slave *slave)
+{
+	struct netdev_notify_work *nnw = kzalloc(sizeof(*nnw), GFP_ATOMIC);
+
+	if (!nnw)
+		return;
+
+	INIT_DELAYED_WORK(&nnw->work, bond_netdev_notify_work);
+	nnw->slave = slave;
+	nnw->dev = slave->dev;
+
+	if (queue_delayed_work(slave->bond->wq, &nnw->work, 0))
+		dev_hold(slave->dev);
+	else
+		kfree(nnw);
+}
+
 /* enslave device <slave> to bond device <master> */
 int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 {
@@ -1590,6 +1631,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		    new_slave->link != BOND_LINK_DOWN ? "an up" : "a down");
 
 	/* enslave is successful */
+	bond_queue_slave_event(new_slave);
 	return 0;
 
 /* Undo stages on error */
