@@ -133,6 +133,7 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_N_SCAN_CHANNELS		= 31,
 	IWL_UCODE_TLV_SEC_RT_USNIFFER	= 34,
 	IWL_UCODE_TLV_SDIO_ADMA_ADDR	= 35,
+	IWL_UCODE_TLV_FW_VERSION	= 36,
 	IWL_UCODE_TLV_FW_DBG_DEST	= 38,
 	IWL_UCODE_TLV_FW_DBG_CONF	= 39,
 };
@@ -156,7 +157,8 @@ struct iwl_tlv_ucode_header {
 	__le32 zero;
 	__le32 magic;
 	u8 human_readable[FW_VER_HUMAN_READABLE_SZ];
-	__le32 ver;		/* major/minor/API/serial */
+	/* major/minor/API/serial or major in new format */
+	__le32 ver;
 	__le32 build;
 	__le64 ignore;
 	/*
@@ -250,6 +252,7 @@ enum iwl_ucode_tlv_flag {
  * @IWL_UCODE_TLV_API_ASYNC_DTM: Async temperature notifications are supported.
  * @IWL_UCODE_TLV_API_LQ_SS_PARAMS: Configure STBC/BFER via LQ CMD ss_params
  * @IWL_UCODE_TLV_API_STATS_V10: uCode supports/uses statistics API version 10
+ * @IWL_UCODE_TLV_API_NEW_VERSION: new versioning format
  */
 enum iwl_ucode_tlv_api {
 	IWL_UCODE_TLV_API_BT_COEX_SPLIT         = BIT(3),
@@ -263,6 +266,7 @@ enum iwl_ucode_tlv_api {
 	IWL_UCODE_TLV_API_ASYNC_DTM		= BIT(17),
 	IWL_UCODE_TLV_API_LQ_SS_PARAMS		= BIT(18),
 	IWL_UCODE_TLV_API_STATS_V10		= BIT(19),
+	IWL_UCODE_TLV_API_NEW_VERSION		= BIT(20),
 };
 
 /**
