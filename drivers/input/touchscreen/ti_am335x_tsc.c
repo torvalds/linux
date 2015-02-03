@@ -121,7 +121,7 @@ static void titsc_step_config(struct titsc *ts_dev)
 {
 	unsigned int	config;
 	int i;
-	int end_step;
+	int end_step, first_step, tsc_steps;
 	u32 stepenable;
 
 	config = STEPCONFIG_MODE_HWSYNC |
@@ -140,9 +140,11 @@ static void titsc_step_config(struct titsc *ts_dev)
 		break;
 	}
 
-	/* 1 … coordinate_readouts is for X */
-	end_step = ts_dev->coordinate_readouts;
-	for (i = 0; i < end_step; i++) {
+	tsc_steps = ts_dev->coordinate_readouts * 2 + 2;
+	first_step = TOTAL_STEPS - tsc_steps;
+	/* Steps 16 to 16-coordinate_readouts is for X */
+	end_step = first_step + tsc_steps;
+	for (i = end_step - ts_dev->coordinate_readouts; i < end_step; i++) {
 		titsc_writel(ts_dev, REG_STEPCONFIG(i), config);
 		titsc_writel(ts_dev, REG_STEPDELAY(i), STEPCONFIG_OPENDLY);
 	}
@@ -164,9 +166,9 @@ static void titsc_step_config(struct titsc *ts_dev)
 		break;
 	}
 
-	/* coordinate_readouts … coordinate_readouts * 2 is for Y */
-	end_step = ts_dev->coordinate_readouts * 2;
-	for (i = ts_dev->coordinate_readouts; i < end_step; i++) {
+	/* 1 ... coordinate_readouts is for Y */
+	end_step = first_step + ts_dev->coordinate_readouts;
+	for (i = first_step; i < end_step; i++) {
 		titsc_writel(ts_dev, REG_STEPCONFIG(i), config);
 		titsc_writel(ts_dev, REG_STEPDELAY(i), STEPCONFIG_OPENDLY);
 	}
@@ -179,7 +181,7 @@ static void titsc_step_config(struct titsc *ts_dev)
 	titsc_writel(ts_dev, REG_CHARGECONFIG, config);
 	titsc_writel(ts_dev, REG_CHARGEDELAY, CHARGEDLY_OPENDLY);
 
-	/* coordinate_readouts * 2 … coordinate_readouts * 2 + 2 is for Z */
+	/* coordinate_readouts + 1 ... coordinate_readouts + 2 is for Z */
 	config = STEPCONFIG_MODE_HWSYNC |
 			STEPCONFIG_AVG_16 | ts_dev->bit_yp |
 			ts_dev->bit_xn | STEPCONFIG_INM_ADCREFM |
@@ -194,8 +196,11 @@ static void titsc_step_config(struct titsc *ts_dev)
 	titsc_writel(ts_dev, REG_STEPDELAY(end_step),
 			STEPCONFIG_OPENDLY);
 
-	/* The steps1 … end and bit 0 for TS_Charge */
-	stepenable = (1 << (end_step + 2)) - 1;
+	/* The steps end ... end - readouts * 2 + 2 and bit 0 for TS_Charge */
+	stepenable = 1;
+	for (i = 0; i < tsc_steps; i++)
+		stepenable |= 1 << (first_step + i + 1);
+
 	ts_dev->step_mask = stepenable;
 	am335x_tsc_se_set_cache(ts_dev->mfd_tscadc, ts_dev->step_mask);
 }
@@ -209,6 +214,7 @@ static void titsc_read_coordinates(struct titsc *ts_dev,
 	unsigned int read, diff;
 	unsigned int i, channel;
 	unsigned int creads = ts_dev->coordinate_readouts;
+	unsigned int first_step = TOTAL_STEPS - (creads * 2 + 2);
 
 	*z1 = *z2 = 0;
 	if (fifocount % (creads * 2 + 2))
@@ -226,7 +232,7 @@ static void titsc_read_coordinates(struct titsc *ts_dev,
 
 		channel = (read & 0xf0000) >> 16;
 		read &= 0xfff;
-		if (channel < creads) {
+		if (channel > first_step + creads + 2) {
 			diff = abs(read - prev_val_x);
 			if (diff < prev_diff_x) {
 				prev_diff_x = diff;
@@ -234,19 +240,19 @@ static void titsc_read_coordinates(struct titsc *ts_dev,
 			}
 			prev_val_x = read;
 
-		} else if (channel < creads * 2) {
+		} else if (channel == first_step + creads + 1) {
+			*z1 = read;
+
+		} else if (channel == first_step + creads + 2) {
+			*z2 = read;
+
+		} else if (channel > first_step) {
 			diff = abs(read - prev_val_y);
 			if (diff < prev_diff_y) {
 				prev_diff_y = diff;
 				*y = read;
 			}
 			prev_val_y = read;
-
-		} else if (channel < creads * 2 + 1) {
-			*z1 = read;
-
-		} else if (channel < creads * 2 + 2) {
-			*z2 = read;
 		}
 	}
 }
