@@ -598,14 +598,11 @@ int mlx4_mr_rereg_mem_write(struct mlx4_dev *dev, struct mlx4_mr *mr,
 	if (err)
 		return err;
 
-	mpt_entry->start       = cpu_to_be64(mr->iova);
-	mpt_entry->length      = cpu_to_be64(mr->size);
-	mpt_entry->entity_size = cpu_to_be32(mr->mtt.page_shift);
-
-	mpt_entry->pd_flags &= cpu_to_be32(MLX4_MPT_PD_MASK |
-					   MLX4_MPT_PD_FLAG_EN_INV);
-	mpt_entry->flags    &= cpu_to_be32(MLX4_MPT_FLAG_FREE |
-					   MLX4_MPT_FLAG_SW_OWNS);
+	mpt_entry->start       = cpu_to_be64(iova);
+	mpt_entry->length      = cpu_to_be64(size);
+	mpt_entry->entity_size = cpu_to_be32(page_shift);
+	mpt_entry->flags    &= ~(cpu_to_be32(MLX4_MPT_FLAG_FREE |
+					   MLX4_MPT_FLAG_SW_OWNS));
 	if (mr->mtt.order < 0) {
 		mpt_entry->flags |= cpu_to_be32(MLX4_MPT_FLAG_PHYSICAL);
 		mpt_entry->mtt_addr = 0;
