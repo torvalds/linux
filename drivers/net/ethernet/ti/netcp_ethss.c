@@ -2011,12 +2011,10 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 quit:
 	if (gbe_dev->hw_stats)
 		devm_kfree(dev, gbe_dev->hw_stats);
-	if (gbe_dev->ale)
-		cpsw_ale_destroy(gbe_dev->ale);
+	cpsw_ale_destroy(gbe_dev->ale);
 	if (gbe_dev->ss_regs)
 		devm_iounmap(dev, gbe_dev->ss_regs);
-	if (interfaces)
-		of_node_put(interfaces);
+	of_node_put(interfaces);
 	devm_kfree(dev, gbe_dev);
 	return ret;
 }
