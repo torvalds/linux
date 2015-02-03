@@ -111,7 +111,7 @@ static struct vesa_mode vesa_mode_table[] = {
 	{"0x31B", 1280, 1024, 24},
 };
 
-struct screen_info smtc_scr_info;
+static struct screen_info smtc_scr_info;
 
 /* process command line options, get vga parameter */
 static int __init sm7xx_vga_setup(char *options)
