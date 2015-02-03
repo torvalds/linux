@@ -325,16 +325,23 @@ static u8 count_vectors(void *bitmap)
 	return count;
 }
 
-void kvm_apic_update_irr(struct kvm_vcpu *vcpu, u32 *pir)
+void __kvm_apic_update_irr(u32 *pir, void *regs)
 {
 	u32 i, pir_val;
-	struct kvm_lapic *apic = vcpu->arch.apic;
 
 	for (i = 0; i <= 7; i++) {
 		pir_val = xchg(&pir[i], 0);
 		if (pir_val)
-			*((u32 *)(apic->regs + APIC_IRR + i * 0x10)) |= pir_val;
+			*((u32 *)(regs + APIC_IRR + i * 0x10)) |= pir_val;
 	}
+}
+EXPORT_SYMBOL_GPL(__kvm_apic_update_irr);
+
+void kvm_apic_update_irr(struct kvm_vcpu *vcpu, u32 *pir)
+{
+	struct kvm_lapic *apic = vcpu->arch.apic;
+
+	__kvm_apic_update_irr(pir, apic->regs);
 }
 EXPORT_SYMBOL_GPL(kvm_apic_update_irr);
 

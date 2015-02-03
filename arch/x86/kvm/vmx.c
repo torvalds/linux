@@ -218,6 +218,7 @@ struct __packed vmcs12 {
 	u64 tsc_offset;
 	u64 virtual_apic_page_addr;
 	u64 apic_access_addr;
+	u64 posted_intr_desc_addr;
 	u64 ept_pointer;
 	u64 eoi_exit_bitmap0;
 	u64 eoi_exit_bitmap1;
@@ -337,6 +338,7 @@ struct __packed vmcs12 {
 	u32 vmx_preemption_timer_value;
 	u32 padding32[7]; /* room for future expansion */
 	u16 virtual_processor_id;
+	u16 posted_intr_nv;
 	u16 guest_es_selector;
 	u16 guest_cs_selector;
 	u16 guest_ss_selector;
@@ -409,6 +411,10 @@ struct nested_vmx {
 	 */
 	struct page *apic_access_page;
 	struct page *virtual_apic_page;
+	struct page *pi_desc_page;
+	struct pi_desc *pi_desc;
+	bool pi_pending;
+	u16 posted_intr_nv;
 	u64 msr_ia32_feature_control;
 
 	struct hrtimer preemption_timer;
@@ -623,6 +629,7 @@ static int max_shadow_read_write_fields =
 
 static const unsigned short vmcs_field_to_offset_table[] = {
 	FIELD(VIRTUAL_PROCESSOR_ID, virtual_processor_id),
+	FIELD(POSTED_INTR_NV, posted_intr_nv),
 	FIELD(GUEST_ES_SELECTOR, guest_es_selector),
 	FIELD(GUEST_CS_SELECTOR, guest_cs_selector),
 	FIELD(GUEST_SS_SELECTOR, guest_ss_selector),
@@ -648,6 +655,7 @@ static const unsigned short vmcs_field_to_offset_table[] = {
 	FIELD64(TSC_OFFSET, tsc_offset),
 	FIELD64(VIRTUAL_APIC_PAGE_ADDR, virtual_apic_page_addr),
 	FIELD64(APIC_ACCESS_ADDR, apic_access_addr),
+	FIELD64(POSTED_INTR_DESC_ADDR, posted_intr_desc_addr),
 	FIELD64(EPT_POINTER, ept_pointer),
 	FIELD64(EOI_EXIT_BITMAP0, eoi_exit_bitmap0),
 	FIELD64(EOI_EXIT_BITMAP1, eoi_exit_bitmap1),
@@ -800,6 +808,7 @@ static void kvm_cpu_vmxon(u64 addr);
 static void kvm_cpu_vmxoff(void);
 static bool vmx_mpx_supported(void);
 static bool vmx_xsaves_supported(void);
+static int vmx_vm_has_apicv(struct kvm *kvm);
 static int vmx_set_tss_addr(struct kvm *kvm, unsigned int addr);
 static void vmx_set_segment(struct kvm_vcpu *vcpu,
 			    struct kvm_segment *var, int seg);
@@ -1155,6 +1164,11 @@ static inline bool nested_cpu_has_apic_reg_virt(struct vmcs12 *vmcs12)
 static inline bool nested_cpu_has_vid(struct vmcs12 *vmcs12)
 {
 	return nested_cpu_has2(vmcs12, SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY);
+}
+
+static inline bool nested_cpu_has_posted_intr(struct vmcs12 *vmcs12)
+{
+	return vmcs12->pin_based_vm_exec_control & PIN_BASED_POSTED_INTR;
 }
 
 static inline bool is_exception(u32 intr_info)
@@ -2360,6 +2374,9 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 	vmx->nested.nested_vmx_pinbased_ctls_high |=
 		PIN_BASED_ALWAYSON_WITHOUT_TRUE_MSR |
 		PIN_BASED_VMX_PREEMPTION_TIMER;
+	if (vmx_vm_has_apicv(vmx->vcpu.kvm))
+		vmx->nested.nested_vmx_pinbased_ctls_high |=
+			PIN_BASED_POSTED_INTR;
 
 	/* exit controls */
 	rdmsr(MSR_IA32_VMX_EXIT_CTLS,
@@ -4312,6 +4329,64 @@ static int vmx_vm_has_apicv(struct kvm *kvm)
 	return enable_apicv && irqchip_in_kernel(kvm);
 }
 
+static int vmx_complete_nested_posted_interrupt(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	int max_irr;
+	void *vapic_page;
+	u16 status;
+
+	if (vmx->nested.pi_desc &&
+	    vmx->nested.pi_pending) {
+		vmx->nested.pi_pending = false;
+		if (!pi_test_and_clear_on(vmx->nested.pi_desc))
+			return 0;
+
+		max_irr = find_last_bit(
+			(unsigned long *)vmx->nested.pi_desc->pir, 256);
+
+		if (max_irr == 256)
+			return 0;
+
+		vapic_page = kmap(vmx->nested.virtual_apic_page);
+		if (!vapic_page) {
+			WARN_ON(1);
+			return -ENOMEM;
+		}
+		__kvm_apic_update_irr(vmx->nested.pi_desc->pir, vapic_page);
+		kunmap(vmx->nested.virtual_apic_page);
+
+		status = vmcs_read16(GUEST_INTR_STATUS);
+		if ((u8)max_irr > ((u8)status & 0xff)) {
+			status &= ~0xff;
+			status |= (u8)max_irr;
+			vmcs_write16(GUEST_INTR_STATUS, status);
+		}
+	}
+	return 0;
+}
+
+static int vmx_deliver_nested_posted_interrupt(struct kvm_vcpu *vcpu,
+						int vector)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	if (is_guest_mode(vcpu) &&
+	    vector == vmx->nested.posted_intr_nv) {
+		/* the PIR and ON have been set by L1. */
+		if (vcpu->mode == IN_GUEST_MODE)
+			apic->send_IPI_mask(get_cpu_mask(vcpu->cpu),
+				POSTED_INTR_VECTOR);
+		/*
+		 * If a posted intr is not recognized by hardware,
+		 * we will accomplish it in the next vmentry.
+		 */
+		vmx->nested.pi_pending = true;
+		kvm_make_request(KVM_REQ_EVENT, vcpu);
+		return 0;
+	}
+	return -1;
+}
 /*
  * Send interrupt to vcpu via posted interrupt way.
  * 1. If target vcpu is running(non-root mode), send posted interrupt
@@ -4323,6 +4398,10 @@ static void vmx_deliver_posted_interrupt(struct kvm_vcpu *vcpu, int vector)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	int r;
+
+	r = vmx_deliver_nested_posted_interrupt(vcpu, vector);
+	if (!r)
+		return;
 
 	if (pi_test_and_set_pir(vector, &vmx->pi_desc))
 		return;
@@ -6585,6 +6664,7 @@ static inline void nested_release_vmcs12(struct vcpu_vmx *vmx)
 		vmcs_write32(SECONDARY_VM_EXEC_CONTROL, exec_control);
 		vmcs_write64(VMCS_LINK_POINTER, -1ull);
 	}
+	vmx->nested.posted_intr_nv = -1;
 	kunmap(vmx->nested.current_vmcs12_page);
 	nested_release_page(vmx->nested.current_vmcs12_page);
 	vmx->nested.current_vmptr = -1ull;
@@ -6612,6 +6692,12 @@ static void free_nested(struct vcpu_vmx *vmx)
 	if (vmx->nested.virtual_apic_page) {
 		nested_release_page(vmx->nested.virtual_apic_page);
 		vmx->nested.virtual_apic_page = NULL;
+	}
+	if (vmx->nested.pi_desc_page) {
+		kunmap(vmx->nested.pi_desc_page);
+		nested_release_page(vmx->nested.pi_desc_page);
+		vmx->nested.pi_desc_page = NULL;
+		vmx->nested.pi_desc = NULL;
 	}
 
 	nested_free_all_saved_vmcss(vmx);
@@ -8320,6 +8406,7 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	if (nested)
 		nested_vmx_setup_ctls_msrs(vmx);
 
+	vmx->nested.posted_intr_nv = -1;
 	vmx->nested.current_vmptr = -1ull;
 	vmx->nested.current_vmcs12 = NULL;
 
@@ -8565,6 +8652,31 @@ static bool nested_get_vmcs12_pages(struct kvm_vcpu *vcpu,
 			return false;
 	}
 
+	if (nested_cpu_has_posted_intr(vmcs12)) {
+		if (!IS_ALIGNED(vmcs12->posted_intr_desc_addr, 64))
+			return false;
+
+		if (vmx->nested.pi_desc_page) { /* shouldn't happen */
+			kunmap(vmx->nested.pi_desc_page);
+			nested_release_page(vmx->nested.pi_desc_page);
+		}
+		vmx->nested.pi_desc_page =
+			nested_get_page(vcpu, vmcs12->posted_intr_desc_addr);
+		if (!vmx->nested.pi_desc_page)
+			return false;
+
+		vmx->nested.pi_desc =
+			(struct pi_desc *)kmap(vmx->nested.pi_desc_page);
+		if (!vmx->nested.pi_desc) {
+			nested_release_page_clean(vmx->nested.pi_desc_page);
+			return false;
+		}
+		vmx->nested.pi_desc =
+			(struct pi_desc *)((void *)vmx->nested.pi_desc +
+			(unsigned long)(vmcs12->posted_intr_desc_addr &
+			(PAGE_SIZE - 1)));
+	}
+
 	return true;
 }
 
@@ -8700,7 +8812,8 @@ static int nested_vmx_check_apicv_controls(struct kvm_vcpu *vcpu,
 {
 	if (!nested_cpu_has_virt_x2apic_mode(vmcs12) &&
 	    !nested_cpu_has_apic_reg_virt(vmcs12) &&
-	    !nested_cpu_has_vid(vmcs12))
+	    !nested_cpu_has_vid(vmcs12) &&
+	    !nested_cpu_has_posted_intr(vmcs12))
 		return 0;
 
 	/*
@@ -8717,6 +8830,17 @@ static int nested_vmx_check_apicv_controls(struct kvm_vcpu *vcpu,
 	 */
 	if (nested_cpu_has_vid(vmcs12) &&
 	   !nested_exit_on_intr(vcpu))
+		return -EINVAL;
+
+	/*
+	 * bits 15:8 should be zero in posted_intr_nv,
+	 * the descriptor address has been already checked
+	 * in nested_get_vmcs12_pages.
+	 */
+	if (nested_cpu_has_posted_intr(vmcs12) &&
+	   (!nested_cpu_has_vid(vmcs12) ||
+	    !nested_exit_intr_ack_set(vcpu) ||
+	    vmcs12->posted_intr_nv & 0xff00))
 		return -EINVAL;
 
 	/* tpr shadow is needed by all apicv features. */
@@ -8961,8 +9085,23 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 
 	exec_control = vmcs12->pin_based_vm_exec_control;
 	exec_control |= vmcs_config.pin_based_exec_ctrl;
-	exec_control &= ~(PIN_BASED_VMX_PREEMPTION_TIMER |
-                          PIN_BASED_POSTED_INTR);
+	exec_control &= ~PIN_BASED_VMX_PREEMPTION_TIMER;
+
+	if (nested_cpu_has_posted_intr(vmcs12)) {
+		/*
+		 * Note that we use L0's vector here and in
+		 * vmx_deliver_nested_posted_interrupt.
+		 */
+		vmx->nested.posted_intr_nv = vmcs12->posted_intr_nv;
+		vmx->nested.pi_pending = false;
+		vmcs_write64(POSTED_INTR_NV, POSTED_INTR_VECTOR);
+		vmcs_write64(POSTED_INTR_DESC_ADDR,
+			page_to_phys(vmx->nested.pi_desc_page) +
+			(unsigned long)(vmcs12->posted_intr_desc_addr &
+			(PAGE_SIZE - 1)));
+	} else
+		exec_control &= ~PIN_BASED_POSTED_INTR;
+
 	vmcs_write32(PIN_BASED_VM_EXEC_CONTROL, exec_control);
 
 	vmx->nested.preemption_timer_expired = false;
@@ -9498,9 +9637,10 @@ static int vmx_check_nested_events(struct kvm_vcpu *vcpu, bool external_intr)
 		if (vmx->nested.nested_run_pending)
 			return -EBUSY;
 		nested_vmx_vmexit(vcpu, EXIT_REASON_EXTERNAL_INTERRUPT, 0, 0);
+		return 0;
 	}
 
-	return 0;
+	return vmx_complete_nested_posted_interrupt(vcpu);
 }
 
 static u32 vmx_get_preemption_timer_value(struct kvm_vcpu *vcpu)
@@ -9877,6 +10017,12 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 	if (vmx->nested.virtual_apic_page) {
 		nested_release_page(vmx->nested.virtual_apic_page);
 		vmx->nested.virtual_apic_page = NULL;
+	}
+	if (vmx->nested.pi_desc_page) {
+		kunmap(vmx->nested.pi_desc_page);
+		nested_release_page(vmx->nested.pi_desc_page);
+		vmx->nested.pi_desc_page = NULL;
+		vmx->nested.pi_desc = NULL;
 	}
 
 	/*
