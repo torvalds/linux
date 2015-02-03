@@ -1329,7 +1329,7 @@ int perf_evlist__prepare_workload(struct perf_evlist *evlist, struct target *tar
 		 * writing exactly one byte, in workload.cork_fd, usually via
 		 * perf_evlist__start_workload().
 		 *
-		 * For cancelling the workload without actuallin running it,
+		 * For cancelling the workload without actually running it,
 		 * the parent will just close workload.cork_fd, without writing
 		 * anything, i.e. read will return zero and we just exit()
 		 * here.
