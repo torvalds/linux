@@ -49,7 +49,6 @@ unsigned int mali_gpu_vol = 1125000; /* 1.1125 V */
 #define MALI_DVFS_DEFAULT_STEP 0
 #endif
 
-int gpu_power_state;
 static int bPoweroff;
 
 #ifdef CONFIG_REGULATOR
@@ -169,8 +168,6 @@ static mali_bool init_mali_clock(void)
 {
 	static mali_bool initialized = MALI_FALSE;
 	mali_bool ret = MALI_TRUE;
-
-	gpu_power_state = 0;
 
 	if (initialized)
 		return ret; // already initialized
