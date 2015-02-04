@@ -70,16 +70,6 @@ _mali_osk_errcode_t mali_platform_deinit(void);
  */
 _mali_osk_errcode_t mali_platform_power_mode_change(mali_power_mode power_mode);
 
-
-/** @brief Platform specific handling of GPU utilization data
- *
- * When GPU utilization data is enabled, this function will be
- * periodically called.
- *
- * @param utilization The workload utilization of the Mali GPU. 0 = no utilization, 256 = full utilization.
- */
-void mali_gpu_utilization_handler(u32 utilization);
-
 /** @brief Setting the power domain of MALI
  *
  * This function sets the power domain of MALI if Linux run time power management is enabled
@@ -91,19 +81,6 @@ void mali_utilization_suspend(void);
 #ifdef MALI_PMM_RUNTIME_JOB_CONTROL_ON
 _mali_osk_errcode_t mali_platform_powerdown(u32 cores);
 _mali_osk_errcode_t mali_platform_powerup(u32 cores);
-#endif
-
-#ifdef CONFIG_MALI_DVFS
-#define MALI_DVFS_STEPS 5
-mali_bool init_mali_dvfs_status(int step);
-void deinit_mali_dvfs_status(void);
-mali_bool mali_dvfs_handler(u32 utilization);
-int mali_dvfs_is_running(void);
-void mali_dvfs_late_resume(void);
-int get_mali_dvfs_control_status(void);
-mali_bool set_mali_dvfs_current_step(unsigned int step);
-void mali_default_step_set(int step, mali_bool boostup);
-int change_dvfs_tableset(int change_clk, int change_step);
 #endif
 
 void mali_set_runtime_resume_params(int clk, int volt);

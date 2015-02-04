@@ -17,10 +17,6 @@
 #include "mali_osk.h"
 #include "mali_platform.h"
 
-#ifdef USING_MALI_PMM
-#include "mali_pmm.h"
-#endif
-
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
@@ -28,9 +24,6 @@
 #include <linux/regulator/driver.h>
 
 #include <asm/io.h>
-
-#define CLK_DIV_STAT_G3D 	0x1003C62C
-#define CLK_DESC 		"clk-divider-status"
 
 typedef struct mali_runtime_resumeTag {
 	int clk;
@@ -44,10 +37,6 @@ static struct clk *sclk_g3d_clock = NULL;
 /* Please take special care when lowering the voltage value, since it can *
  * cause system stability problems (random oops, etc.)                    */
 unsigned int mali_gpu_vol = 1125000; /* 1.1125 V */
-
-#ifdef CONFIG_MALI_DVFS
-#define MALI_DVFS_DEFAULT_STEP 0
-#endif
 
 static int bPoweroff;
 
@@ -93,10 +82,6 @@ static unsigned int mali_regulator_get_usecount(void)
 static void mali_regulator_set_voltage(int min_uV, int max_uV)
 {
 	int voltage;
-#ifndef CONFIG_MALI_DVFS
-	min_uV = mali_gpu_vol;
-	max_uV = mali_gpu_vol;
-#endif
 
 	_mali_osk_mutex_wait(mali_dvfs_lock);
 
@@ -182,13 +167,6 @@ err_regulator:
 _mali_osk_errcode_t mali_platform_init()
 {
 	MALI_CHECK(mali_platform_init_clk() == 0, _MALI_OSK_ERR_FAULT);
-#ifdef CONFIG_MALI_DVFS
-	if (!clk_register_map)
-		clk_register_map = _mali_osk_mem_mapioregion(CLK_DIV_STAT_G3D, 0x20, CLK_DESC);
-
-	if (!init_mali_dvfs_status(MALI_DVFS_DEFAULT_STEP))
-		MALI_DEBUG_PRINT(1, ("mali_platform_init failed\n"));
-#endif
 
 	MALI_SUCCESS;
 }
@@ -208,23 +186,5 @@ _mali_osk_errcode_t mali_platform_deinit()
 	}
 #endif
 
-#ifdef CONFIG_MALI_DVFS
-	deinit_mali_dvfs_status();
-	if (clk_register_map) {
-		_mali_osk_mem_unmapioregion(CLK_DIV_STAT_G3D, 0x20, clk_register_map);
-		clk_register_map = 0;
-	}
-#endif
-
 	MALI_SUCCESS;
-}
-
-void mali_gpu_utilization_handler(u32 utilization)
-{
-	if (bPoweroff == 0) {
-#ifdef CONFIG_MALI_DVFS
-		if (!mali_dvfs_handler(utilization))
-			MALI_DEBUG_PRINT(1,( "error on mali dvfs status in utilization\n"));
-#endif
-	}
 }
