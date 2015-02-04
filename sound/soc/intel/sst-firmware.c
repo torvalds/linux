@@ -786,6 +786,7 @@ int sst_module_alloc_blocks(struct sst_module *module)
 	struct sst_block_allocator ba;
 	int ret;
 
+	memset(&ba, 0, sizeof(ba));
 	ba.size = module->size;
 	ba.type = module->type;
 	ba.offset = module->offset;
@@ -859,6 +860,7 @@ int sst_module_runtime_alloc_blocks(struct sst_module_runtime *runtime,
 	if (module->persistent_size == 0)
 		return 0;
 
+	memset(&ba, 0, sizeof(ba));
 	ba.size = module->persistent_size;
 	ba.type = SST_MEM_DRAM;
 
