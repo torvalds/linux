@@ -360,5 +360,6 @@
 #define __NR_getrandom		352
 #define __NR_memfd_create	353
 #define __NR_bpf		354
+#define __NR_execveat		355
 
 #endif /* _UAPI_ASM_M68K_UNISTD_H_ */

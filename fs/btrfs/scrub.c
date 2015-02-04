@@ -3053,7 +3053,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 
 	ppath = btrfs_alloc_path();
 	if (!ppath) {
-		btrfs_free_path(ppath);
+		btrfs_free_path(path);
 		return -ENOMEM;
 	}
 

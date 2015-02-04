@@ -441,6 +441,7 @@ ep_write (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 	kbuf = memdup_user(buf, len);
 	if (IS_ERR(kbuf)) {
 		value = PTR_ERR(kbuf);
+		kbuf = NULL;
 		goto free1;
 	}
 
@@ -449,6 +450,7 @@ ep_write (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 		data->name, len, (int) value);
 free1:
 	mutex_unlock(&data->lock);
+	kfree (kbuf);
 	return value;
 }
 

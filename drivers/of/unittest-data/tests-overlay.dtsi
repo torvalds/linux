@@ -176,5 +176,60 @@
 			};
 		};
 
+		overlay10 {
+			fragment@0 {
+				target-path = "/testcase-data/overlay-node/test-bus";
+				__overlay__ {
+
+					/* suppress DTC warning */
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					test-selftest10 {
+						compatible = "selftest";
+						status = "okay";
+						reg = <10>;
+
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						test-selftest101 {
+							compatible = "selftest";
+							status = "okay";
+							reg = <1>;
+						};
+
+					};
+				};
+			};
+		};
+
+		overlay11 {
+			fragment@0 {
+				target-path = "/testcase-data/overlay-node/test-bus";
+				__overlay__ {
+
+					/* suppress DTC warning */
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					test-selftest11 {
+						compatible = "selftest";
+						status = "okay";
+						reg = <11>;
+
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						test-selftest111 {
+							compatible = "selftest";
+							status = "okay";
+							reg = <1>;
+						};
+
+					};
+				};
+			};
+		};
 	};
 };

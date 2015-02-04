@@ -211,6 +211,7 @@ extern struct device *omap2_get_iva_device(void);
 extern struct device *omap2_get_l3_device(void);
 extern struct device *omap4_get_dsp_device(void);
 
+unsigned int omap4_xlate_irq(unsigned int hwirq);
 void omap_gic_of_init(void);
 
 #ifdef CONFIG_CACHE_L2X0
@@ -249,6 +250,7 @@ extern void omap4_cpu_die(unsigned int cpu);
 extern struct smp_operations omap4_smp_ops;
 
 extern void omap5_secondary_startup(void);
+extern void omap5_secondary_hyp_startup(void);
 #endif
 
 #if defined(CONFIG_SMP) && defined(CONFIG_PM)

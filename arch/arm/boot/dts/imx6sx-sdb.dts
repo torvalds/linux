@@ -159,13 +159,28 @@
 	pinctrl-0 = <&pinctrl_enet1>;
 	phy-supply = <&reg_enet_3v3>;
 	phy-mode = "rgmii";
+	phy-handle = <&ethphy1>;
 	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethphy1: ethernet-phy@0 {
+			reg = <0>;
+		};
+
+		ethphy2: ethernet-phy@1 {
+			reg = <1>;
+		};
+	};
 };
 
 &fec2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet2>;
 	phy-mode = "rgmii";
+	phy-handle = <&ethphy2>;
 	status = "okay";
 };
 

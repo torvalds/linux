@@ -340,7 +340,7 @@ static int __init at91ether_probe(struct platform_device *pdev)
 		res = PTR_ERR(lp->pclk);
 		goto err_free_dev;
 	}
-	clk_enable(lp->pclk);
+	clk_prepare_enable(lp->pclk);
 
 	lp->hclk = ERR_PTR(-ENOENT);
 	lp->tx_clk = ERR_PTR(-ENOENT);
@@ -406,7 +406,7 @@ static int __init at91ether_probe(struct platform_device *pdev)
 err_out_unregister_netdev:
 	unregister_netdev(dev);
 err_disable_clock:
-	clk_disable(lp->pclk);
+	clk_disable_unprepare(lp->pclk);
 err_free_dev:
 	free_netdev(dev);
 	return res;
@@ -424,7 +424,7 @@ static int at91ether_remove(struct platform_device *pdev)
 	kfree(lp->mii_bus->irq);
 	mdiobus_free(lp->mii_bus);
 	unregister_netdev(dev);
-	clk_disable(lp->pclk);
+	clk_disable_unprepare(lp->pclk);
 	free_netdev(dev);
 
 	return 0;
@@ -440,7 +440,7 @@ static int at91ether_suspend(struct platform_device *pdev, pm_message_t mesg)
 		netif_stop_queue(net_dev);
 		netif_device_detach(net_dev);
 
-		clk_disable(lp->pclk);
+		clk_disable_unprepare(lp->pclk);
 	}
 	return 0;
 }
@@ -451,7 +451,7 @@ static int at91ether_resume(struct platform_device *pdev)
 	struct macb *lp = netdev_priv(net_dev);
 
 	if (netif_running(net_dev)) {
-		clk_enable(lp->pclk);
+		clk_prepare_enable(lp->pclk);
 
 		netif_device_attach(net_dev);
 		netif_start_queue(net_dev);

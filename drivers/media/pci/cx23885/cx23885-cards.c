@@ -614,13 +614,17 @@ struct cx23885_board cx23885_boards[] = {
 		.portb		= CX23885_MPEG_DVB,
 	},
 	[CX23885_BOARD_HAUPPAUGE_HVR4400] = {
-		.name		= "Hauppauge WinTV-HVR4400",
+		.name		= "Hauppauge WinTV-HVR4400/HVR5500",
 		.porta		= CX23885_ANALOG_VIDEO,
 		.portb		= CX23885_MPEG_DVB,
 		.portc		= CX23885_MPEG_DVB,
 		.tuner_type	= TUNER_NXP_TDA18271,
 		.tuner_addr	= 0x60, /* 0xc0 >> 1 */
 		.tuner_bus	= 1,
+	},
+	[CX23885_BOARD_HAUPPAUGE_STARBURST] = {
+		.name		= "Hauppauge WinTV Starburst",
+		.portb		= CX23885_MPEG_DVB,
 	},
 	[CX23885_BOARD_AVERMEDIA_HC81R] = {
 		.name		= "AVerTV Hybrid Express Slim HC81R",
@@ -936,19 +940,19 @@ struct cx23885_subid cx23885_subids[] = {
 	}, {
 		.subvendor = 0x0070,
 		.subdevice = 0xc108,
-		.card      = CX23885_BOARD_HAUPPAUGE_HVR4400,
+		.card      = CX23885_BOARD_HAUPPAUGE_HVR4400, /* Hauppauge WinTV HVR-4400 (Model 121xxx, Hybrid DVB-T/S2, IR) */
 	}, {
 		.subvendor = 0x0070,
 		.subdevice = 0xc138,
-		.card      = CX23885_BOARD_HAUPPAUGE_HVR4400,
+		.card      = CX23885_BOARD_HAUPPAUGE_HVR4400, /* Hauppauge WinTV HVR-5500 (Model 121xxx, Hybrid DVB-T/C/S2, IR) */
 	}, {
 		.subvendor = 0x0070,
 		.subdevice = 0xc12a,
-		.card      = CX23885_BOARD_HAUPPAUGE_HVR4400,
+		.card      = CX23885_BOARD_HAUPPAUGE_STARBURST, /* Hauppauge WinTV Starburst (Model 121x00, DVB-S2, IR) */
 	}, {
 		.subvendor = 0x0070,
 		.subdevice = 0xc1f8,
-		.card      = CX23885_BOARD_HAUPPAUGE_HVR4400,
+		.card      = CX23885_BOARD_HAUPPAUGE_HVR4400, /* Hauppauge WinTV HVR-5500 (Model 121xxx, Hybrid DVB-T/C/S2, IR) */
 	}, {
 		.subvendor = 0x1461,
 		.subdevice = 0xd939,
@@ -1545,8 +1549,9 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		cx_write(GPIO_ISM, 0x00000000);/* INTERRUPTS active low*/
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR4400:
+	case CX23885_BOARD_HAUPPAUGE_STARBURST:
 		/* GPIO-8 tda10071 demod reset */
-		/* GPIO-9 si2165 demod reset */
+		/* GPIO-9 si2165 demod reset (only HVR4400/HVR5500)*/
 
 		/* Put the parts into reset and back */
 		cx23885_gpio_enable(dev, GPIO_8 | GPIO_9, 1);
@@ -1872,6 +1877,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 	case CX23885_BOARD_HAUPPAUGE_HVR1290:
 	case CX23885_BOARD_HAUPPAUGE_HVR4400:
+	case CX23885_BOARD_HAUPPAUGE_STARBURST:
 	case CX23885_BOARD_HAUPPAUGE_IMPACTVCBE:
 		if (dev->i2c_bus[0].i2c_rc == 0)
 			hauppauge_eeprom(dev, eeprom+0xc0);
@@ -1979,6 +1985,11 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 		ts2->gen_ctrl_val  = 0xc; /* Serial bus + punctured clock */
 		ts2->ts_clk_en_val = 0x1; /* Enable TS_CLK */
 		ts2->src_sel_val   = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;
+		break;
+	case CX23885_BOARD_HAUPPAUGE_STARBURST:
+		ts1->gen_ctrl_val  = 0xc; /* Serial bus + punctured clock */
+		ts1->ts_clk_en_val = 0x1; /* Enable TS_CLK */
+		ts1->src_sel_val   = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;
 		break;
 	case CX23885_BOARD_DVBSKY_T9580:
 	case CX23885_BOARD_DVBSKY_T982:

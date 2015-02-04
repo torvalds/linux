@@ -10,7 +10,7 @@ util/ctype.c
 util/evlist.c
 util/evsel.c
 util/cpumap.c
-util/hweight.c
+../../lib/hweight.c
 util/thread_map.c
 util/util.c
 util/xyarray.c
