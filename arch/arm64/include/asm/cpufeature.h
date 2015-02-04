@@ -26,8 +26,9 @@
 #define ARM64_WORKAROUND_845719			2
 #define ARM64_HAS_SYSREG_GIC_CPUIF		3
 #define ARM64_HAS_PAN				4
+#define ARM64_CPU_FEAT_LSE_ATOMICS		5
 
-#define ARM64_NCAPS				5
+#define ARM64_NCAPS				6
 
 #ifndef __ASSEMBLY__
 

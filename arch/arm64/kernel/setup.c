@@ -284,6 +284,7 @@ static void __init setup_processor(void)
 		default:
 		case 2:
 			elf_hwcap |= HWCAP_ATOMICS;
+			cpus_set_cap(ARM64_CPU_FEAT_LSE_ATOMICS);
 		case 1:
 			/* RESERVED */
 		case 0:
