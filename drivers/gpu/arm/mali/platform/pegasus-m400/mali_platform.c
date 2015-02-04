@@ -38,21 +38,7 @@ static struct clk *sclk_g3d_clock = NULL;
  * cause system stability problems (random oops, etc.)                    */
 unsigned int mali_gpu_vol = 1125000; /* 1.1125 V */
 
-static int bPoweroff;
-
 #ifdef CONFIG_REGULATOR
-struct regulator {
-	struct device *dev;
-	struct list_head list;
-	unsigned int always_on:1;
-	int uA_load;
-	int min_uV;
-	int max_uV;
-	char *supply_name;
-	struct device_attribute dev_attr;
-	struct regulator_dev *rdev;
-	struct dentry *debugfs;
-};
 struct regulator *g3d_regulator = NULL;
 #endif
 
@@ -67,35 +53,27 @@ void mali_set_runtime_resume_params(int clk, int volt)
 }
 
 #ifdef CONFIG_REGULATOR
-static unsigned int mali_regulator_get_usecount(void)
-{
-	struct regulator_dev *rdev;
-
-	if ( IS_ERR_OR_NULL(g3d_regulator) ) {
-		MALI_PRINT_ERROR(("Mali platform: getting regulator use count failed\n"));
-		return 0;
-	}
-	rdev = g3d_regulator->rdev;
-	return rdev->use_count;
-}
-
-static void mali_regulator_set_voltage(int min_uV, int max_uV)
+static int mali_regulator_set_voltage(int min_uV, int max_uV)
 {
 	int voltage;
 
 	_mali_osk_mutex_wait(mali_dvfs_lock);
 
-	if( IS_ERR_OR_NULL(g3d_regulator) ) {
-		MALI_DEBUG_PRINT(1, ("error on mali_regulator_set_voltage : g3d_regulator is null\n"));
-		return;
+	if (IS_ERR_OR_NULL(g3d_regulator)) {
+		MALI_PRINT_ERROR(("Mali platform: invalid g3d regulator\n"));
+		return 1;
 	}
-	MALI_DEBUG_PRINT(2, ("= regulator_set_voltage: %d, %d \n", min_uV, max_uV));
+
+	MALI_DEBUG_PRINT(3, ("Mali platform: setting g3d regulator to: %d / %d uV\n", min_uV, max_uV));
 	regulator_set_voltage(g3d_regulator, min_uV, max_uV);
+
 	voltage = regulator_get_voltage(g3d_regulator);
 	mali_gpu_vol = voltage;
-	MALI_DEBUG_PRINT(1, ("= regulator_get_voltage: %d \n", mali_gpu_vol));
+	MALI_DEBUG_PRINT(3, ("Mali platform: g3d regulator set to: %d uV\n", mali_gpu_vol));
 
 	_mali_osk_mutex_signal(mali_dvfs_lock);
+
+	return 0;
 }
 #endif
 
@@ -150,8 +128,11 @@ static int mali_platform_init_clk(void)
 	}
 
 	regulator_enable(g3d_regulator);
-	MALI_DEBUG_PRINT(3, ("Mali platform: g3d regulator enabled (use count = %u)\n", mali_regulator_get_usecount()));
-	mali_regulator_set_voltage(mali_gpu_vol, mali_gpu_vol);
+	MALI_DEBUG_PRINT(3, ("Mali platform: g3d regulator enabled\n"));
+
+	if (mali_regulator_set_voltage(mali_gpu_vol, mali_gpu_vol)) {
+		goto err_regulator;
+	}
 #endif
 
 	initialized = 1;
