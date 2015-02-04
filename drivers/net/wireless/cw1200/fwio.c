@@ -246,8 +246,7 @@ static int cw1200_load_firmware_cw1200(struct cw1200_common *priv)
 
 error:
 	kfree(buf);
-	if (firmware)
-		release_firmware(firmware);
+	release_firmware(firmware);
 	return ret;
 
 #undef APB_WRITE
