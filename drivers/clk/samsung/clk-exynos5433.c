@@ -661,6 +661,11 @@ static struct samsung_gate_clock top_gate_clks[] __initdata = {
 	GATE(CLK_SCLK_ISP_SPI0_CAM1, "sclk_isp_spi0_cam1", "div_sclk_isp_spi0_b",
 			ENABLE_SCLK_TOP_CAM1, 0, 0, 0),
 
+	/* ENABLE_SCLK_TOP_DISP */
+	GATE(CLK_SCLK_HDMI_SPDIF_DISP, "sclk_hdmi_spdif_disp",
+			"mout_sclk_hdmi_spdif", ENABLE_SCLK_TOP_DISP, 0,
+			CLK_IGNORE_UNUSED, 0),
+
 	/* ENABLE_SCLK_TOP_FSYS */
 	GATE(CLK_SCLK_PCIE_100_FSYS, "sclk_pcie_100_fsys", "div_sclk_pcie_100",
 			ENABLE_SCLK_TOP_FSYS, 7, 0, 0),
@@ -1521,11 +1526,6 @@ static struct samsung_gate_clock mif_gate_clks[] __initdata = {
 			ENABLE_SCLK_MIF, 1, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_SCLK_BUS_PLL_ATLAS, "sclk_bus_pll_atlas", "sclk_bus_pll",
 			ENABLE_SCLK_MIF, 0, CLK_IGNORE_UNUSED, 0),
-
-	/* ENABLE_SCLK_TOP_DISP */
-	GATE(CLK_SCLK_HDMI_SPDIF_DISP, "sclk_hdmi_spdif_disp",
-			"mout_sclk_hdmi_spdif", ENABLE_SCLK_TOP_DISP, 0,
-			CLK_IGNORE_UNUSED, 0),
 };
 
 static struct samsung_cmu_info mif_cmu_info __initdata = {
