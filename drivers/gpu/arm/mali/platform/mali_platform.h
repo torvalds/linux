@@ -88,17 +88,6 @@ void mali_gpu_utilization_handler(u32 utilization);
  */
 void mali_utilization_suspend(void);
 
-#ifdef CONFIG_REGULATOR
-unsigned int mali_regulator_get_usecount(void);
-void mali_regulator_disable(void);
-void mali_regulator_enable(void);
-void mali_regulator_set_voltage(int min_uV, int max_uV);
-#endif
-
-mali_bool mali_clk_set_rate(unsigned int clk, unsigned int mhz);
-unsigned long mali_clk_get_rate(void);
-void mali_clk_put(mali_bool binc_mali_clk);
-
 #ifdef MALI_PMM_RUNTIME_JOB_CONTROL_ON
 _mali_osk_errcode_t mali_platform_powerdown(u32 cores);
 _mali_osk_errcode_t mali_platform_powerup(u32 cores);

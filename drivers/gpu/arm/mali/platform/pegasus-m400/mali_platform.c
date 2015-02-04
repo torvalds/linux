@@ -78,7 +78,7 @@ void mali_set_runtime_resume_params(int clk, int volt)
 }
 
 #ifdef CONFIG_REGULATOR
-unsigned int mali_regulator_get_usecount(void)
+static unsigned int mali_regulator_get_usecount(void)
 {
 	struct regulator_dev *rdev;
 
@@ -90,30 +90,7 @@ unsigned int mali_regulator_get_usecount(void)
 	return rdev->use_count;
 }
 
-void mali_regulator_disable(void)
-{
-	bPoweroff = 1;
-	if ( IS_ERR_OR_NULL(g3d_regulator) ) {
-		MALI_DEBUG_PRINT(1, ("error on mali_regulator_disable : g3d_regulator is null\n"));
-		return;
-	}
-	regulator_disable(g3d_regulator);
-	MALI_DEBUG_PRINT(3, ("regulator_disable -> use cnt: %d \n",mali_regulator_get_usecount()));
-}
-
-void mali_regulator_enable(void)
-{
-	bPoweroff = 0;
-	if( IS_ERR_OR_NULL(g3d_regulator) )
-	{
-		MALI_DEBUG_PRINT(1, ("error on mali_regulator_enable : g3d_regulator is null\n"));
-		return;
-	}
-	regulator_enable(g3d_regulator);
-	MALI_DEBUG_PRINT(3, ("regulator_enable -> use cnt: %d \n",mali_regulator_get_usecount()));
-}
-
-void mali_regulator_set_voltage(int min_uV, int max_uV)
+static void mali_regulator_set_voltage(int min_uV, int max_uV)
 {
 	int voltage;
 #ifndef CONFIG_MALI_DVFS
