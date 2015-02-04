@@ -16,12 +16,6 @@ config DRM_EXYNOS_IOMMU
 	depends on DRM_EXYNOS && EXYNOS_IOMMU && ARM_DMA_USE_IOMMU
 	default y
 
-config DRM_EXYNOS_DMABUF
-	bool "EXYNOS DRM DMABUF"
-	depends on DRM_EXYNOS
-	help
-	  Choose this option if you want to use DMABUF feature for DRM.
-
 config DRM_EXYNOS_FIMD
 	bool "Exynos DRM FIMD"
 	depends on DRM_EXYNOS && !FB_S3C
