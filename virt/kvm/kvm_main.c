@@ -66,6 +66,9 @@
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
 
+unsigned int halt_poll_ns = 0;
+module_param(halt_poll_ns, uint, S_IRUGO | S_IWUSR);
+
 /*
  * Ordering of locks:
  *
@@ -1813,29 +1816,60 @@ void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
 }
 EXPORT_SYMBOL_GPL(mark_page_dirty);
 
+static int kvm_vcpu_check_block(struct kvm_vcpu *vcpu)
+{
+	if (kvm_arch_vcpu_runnable(vcpu)) {
+		kvm_make_request(KVM_REQ_UNHALT, vcpu);
+		return -EINTR;
+	}
+	if (kvm_cpu_has_pending_timer(vcpu))
+		return -EINTR;
+	if (signal_pending(current))
+		return -EINTR;
+
+	return 0;
+}
+
 /*
  * The vCPU has executed a HLT instruction with in-kernel mode enabled.
  */
 void kvm_vcpu_block(struct kvm_vcpu *vcpu)
 {
+	ktime_t start, cur;
 	DEFINE_WAIT(wait);
+	bool waited = false;
+
+	start = cur = ktime_get();
+	if (halt_poll_ns) {
+		ktime_t stop = ktime_add_ns(ktime_get(), halt_poll_ns);
+		do {
+			/*
+			 * This sets KVM_REQ_UNHALT if an interrupt
+			 * arrives.
+			 */
+			if (kvm_vcpu_check_block(vcpu) < 0) {
+				++vcpu->stat.halt_successful_poll;
+				goto out;
+			}
+			cur = ktime_get();
+		} while (single_task_running() && ktime_before(cur, stop));
+	}
 
 	for (;;) {
 		prepare_to_wait(&vcpu->wq, &wait, TASK_INTERRUPTIBLE);
 
-		if (kvm_arch_vcpu_runnable(vcpu)) {
-			kvm_make_request(KVM_REQ_UNHALT, vcpu);
-			break;
-		}
-		if (kvm_cpu_has_pending_timer(vcpu))
-			break;
-		if (signal_pending(current))
+		if (kvm_vcpu_check_block(vcpu) < 0)
 			break;
 
+		waited = true;
 		schedule();
 	}
 
 	finish_wait(&vcpu->wq, &wait);
+	cur = ktime_get();
+
+out:
+	trace_kvm_vcpu_wakeup(ktime_to_ns(cur) - ktime_to_ns(start), waited);
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_block);
 
