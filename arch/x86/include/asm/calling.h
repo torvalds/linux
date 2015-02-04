@@ -83,7 +83,6 @@ For 32-bit we have the following conventions - kernel is built with
 #define SS		160
 
 #define ARGOFFSET	R11
-#define SWFRAME		ORIG_RAX
 
 	.macro SAVE_ARGS addskip=0, save_rcx=1, save_r891011=1, rax_enosys=0
 	subq  $9*8+\addskip, %rsp
