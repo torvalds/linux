@@ -651,11 +651,11 @@ static void hsw_notification_work(struct work_struct *work)
 	}
 
 	/* tell DSP that notification has been handled */
-	sst_dsp_shim_update_bits_unlocked(hsw->dsp, SST_IPCD,
+	sst_dsp_shim_update_bits(hsw->dsp, SST_IPCD,
 		SST_IPCD_BUSY | SST_IPCD_DONE, SST_IPCD_DONE);
 
 	/* unmask busy interrupt */
-	sst_dsp_shim_update_bits_unlocked(hsw->dsp, SST_IMRX, SST_IMRX_BUSY, 0);
+	sst_dsp_shim_update_bits(hsw->dsp, SST_IMRX, SST_IMRX_BUSY, 0);
 }
 
 static struct ipc_message *reply_find_msg(struct sst_hsw *hsw, u32 header)
