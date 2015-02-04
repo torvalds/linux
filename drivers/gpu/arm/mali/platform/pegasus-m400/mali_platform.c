@@ -41,10 +41,9 @@ mali_runtime_resume_table mali_runtime_resume = {400, 1100000};
 
 static struct clk *sclk_g3d_clock = NULL;
 
-/* Please take special care lowering these values, specially the voltage
- * as it can cause system stability problems: random oops, usb hub resets */
-int mali_gpu_clk = 533; /* 533 MHz */
-int mali_gpu_vol = 1125000; /* 1.1125 V */
+/* Please take special care when lowering the voltage value, since it can *
+ * cause system stability problems (random oops, etc.)                    */
+unsigned int mali_gpu_vol = 1125000; /* 1.1125 V */
 
 #ifdef CONFIG_MALI_DVFS
 #define MALI_DVFS_DEFAULT_STEP 0
