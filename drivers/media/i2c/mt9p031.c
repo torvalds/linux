@@ -251,7 +251,7 @@ static int mt9p031_clk_setup(struct mt9p031 *mt9p031)
 		div = DIV_ROUND_UP(pdata->ext_freq, pdata->target_freq);
 		div = roundup_pow_of_two(div) / 2;
 
-		mt9p031->clk_div = max_t(unsigned int, div, 64);
+		mt9p031->clk_div = min_t(unsigned int, div, 64);
 		mt9p031->use_pll = false;
 
 		return 0;
