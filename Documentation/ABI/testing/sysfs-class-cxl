@@ -81,6 +81,43 @@ Description:    read only
                 this this kernel supports.
 
 
+AFU configuration records (eg. /sys/class/cxl/afu0.0/cr0):
+
+An AFU may optionally export one or more PCIe like configuration records, known
+as AFU configuration records, which will show up here (if present).
+
+What:           /sys/class/cxl/<afu>/cr<config num>/vendor
+Date:           February 2015
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read only
+		Hexadecimal value of the vendor ID found in this AFU
+		configuration record.
+
+What:           /sys/class/cxl/<afu>/cr<config num>/device
+Date:           February 2015
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read only
+		Hexadecimal value of the device ID found in this AFU
+		configuration record.
+
+What:           /sys/class/cxl/<afu>/cr<config num>/vendor
+Date:           February 2015
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read only
+		Hexadecimal value of the class code found in this AFU
+		configuration record.
+
+What:           /sys/class/cxl/<afu>/cr<config num>/config
+Date:           February 2015
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read only
+		This binary file provides raw access to the AFU configuration
+		record. The format is expected to match the either the standard
+		or extended configuration space defined by the PCIe
+		specification.
+
+
+
 Master contexts (eg. /sys/class/cxl/afu0.0m)
 
 What:           /sys/class/cxl/<afu>m/mmio_size

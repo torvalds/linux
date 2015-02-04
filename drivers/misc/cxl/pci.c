@@ -114,6 +114,24 @@
 #define   AFUD_EB_LEN(val)		EXTRACT_PPC_BITS(val, 8, 63)
 #define AFUD_READ_EB_OFF(afu)		AFUD_READ(afu, 0x48)
 
+u16 cxl_afu_cr_read16(struct cxl_afu *afu, int cr, u64 off)
+{
+	u64 aligned_off = off & ~0x3L;
+	u32 val;
+
+	val = cxl_afu_cr_read32(afu, cr, aligned_off);
+	return (val >> ((off & 0x2) * 8)) & 0xffff;
+}
+
+u8 cxl_afu_cr_read8(struct cxl_afu *afu, int cr, u64 off)
+{
+	u64 aligned_off = off & ~0x3L;
+	u32 val;
+
+	val = cxl_afu_cr_read32(afu, cr, aligned_off);
+	return (val >> ((off & 0x3) * 8)) & 0xff;
+}
+
 static DEFINE_PCI_DEVICE_TABLE(cxl_pci_tbl) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_IBM, 0x0477), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_IBM, 0x044b), },
@@ -556,6 +574,7 @@ static int cxl_read_afu_descriptor(struct cxl_afu *afu)
 	val = AFUD_READ_INFO(afu);
 	afu->pp_irqs = AFUD_NUM_INTS_PER_PROC(val);
 	afu->max_procs_virtualised = AFUD_NUM_PROCS(val);
+	afu->crs_num = AFUD_NUM_CRS(val);
 
 	if (AFUD_AFU_DIRECTED(val))
 		afu->modes_supported |= CXL_MODE_DIRECTED;
@@ -569,6 +588,10 @@ static int cxl_read_afu_descriptor(struct cxl_afu *afu)
 	afu->psa = AFUD_PPPSA_PSA(val);
 	if ((afu->pp_psa = AFUD_PPPSA_PP(val)))
 		afu->pp_offset = AFUD_READ_PPPSA_OFF(afu);
+
+	val = AFUD_READ_CR(afu);
+	afu->crs_len = AFUD_CR_LEN(val) * 256;
+	afu->crs_offset = AFUD_READ_CR_OFF(afu);
 
 	return 0;
 }

@@ -382,6 +382,10 @@ struct cxl_afu {
 	int slice;
 	int modes_supported;
 	int current_mode;
+	int crs_num;
+	u64 crs_len;
+	u64 crs_offset;
+	struct list_head crs;
 	enum prefault_modes prefault_mode;
 	bool psa;
 	bool pp_psa;
@@ -550,6 +554,15 @@ static inline void __iomem *_cxl_p2n_addr(struct cxl_afu *afu, cxl_p2n_reg_t reg
 	out_be64(_cxl_p2n_addr(afu, reg), val)
 #define cxl_p2n_read(afu, reg) \
 	in_be64(_cxl_p2n_addr(afu, reg))
+
+
+#define cxl_afu_cr_read64(afu, cr, off) \
+	in_le64((afu)->afu_desc_mmio + (afu)->crs_offset + ((cr) * (afu)->crs_len) + (off))
+#define cxl_afu_cr_read32(afu, cr, off) \
+	in_le32((afu)->afu_desc_mmio + (afu)->crs_offset + ((cr) * (afu)->crs_len) + (off))
+u16 cxl_afu_cr_read16(struct cxl_afu *afu, int cr, u64 off);
+u8 cxl_afu_cr_read8(struct cxl_afu *afu, int cr, u64 off);
+
 
 struct cxl_calls {
 	void (*cxl_slbia)(struct mm_struct *mm);
