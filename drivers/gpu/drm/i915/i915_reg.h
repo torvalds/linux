@@ -586,6 +586,19 @@ enum punit_power_well {
 	PUNIT_POWER_WELL_NUM,
 };
 
+enum skl_disp_power_wells {
+	SKL_DISP_PW_MISC_IO,
+	SKL_DISP_PW_DDI_A_E,
+	SKL_DISP_PW_DDI_B,
+	SKL_DISP_PW_DDI_C,
+	SKL_DISP_PW_DDI_D,
+	SKL_DISP_PW_1 = 14,
+	SKL_DISP_PW_2,
+};
+
+#define SKL_POWER_WELL_STATE(pw) (1 << ((pw) * 2))
+#define SKL_POWER_WELL_REQ(pw) (1 << (((pw) * 2) + 1))
+
 #define PUNIT_REG_PWRGT_CTRL			0x60
 #define PUNIT_REG_PWRGT_STATUS			0x61
 #define   PUNIT_PWRGT_MASK(power_well)		(3 << ((power_well) * 2))
@@ -6350,6 +6363,13 @@ enum punit_power_well {
 #define   HSW_PWR_WELL_PWR_GATE_OVERRIDE	(1<<20)
 #define   HSW_PWR_WELL_FORCE_ON			(1<<19)
 #define HSW_PWR_WELL_CTL6			0x45414
+
+/* SKL Fuse Status */
+#define SKL_FUSE_STATUS				0x42000
+#define  SKL_FUSE_DOWNLOAD_STATUS              (1<<31)
+#define  SKL_FUSE_PG0_DIST_STATUS              (1<<27)
+#define  SKL_FUSE_PG1_DIST_STATUS              (1<<26)
+#define  SKL_FUSE_PG2_DIST_STATUS              (1<<25)
 
 /* Per-pipe DDI Function Control */
 #define TRANS_DDI_FUNC_CTL_A		0x60400
