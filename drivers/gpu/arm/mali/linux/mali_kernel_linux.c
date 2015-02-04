@@ -41,6 +41,8 @@
 #include "mali_profiling_internal.h"
 #endif
 
+#include <mali_platform.h>
+
 /* Streamline support for the Mali driver */
 #if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_MALI400_PROFILING)
 /* Ask Linux to create the tracepoints */
@@ -537,6 +539,12 @@ static int mali_probe(struct platform_device *pdev)
 		mali_parse_dt(pdev);
 	mali_platform_device = pdev;
 
+	if (mali_platform_init() != _MALI_OSK_ERR_OK)
+	{
+		MALI_PRINT_ERROR(("mali_probe(): mali_platform_init() failed."));
+		return -ENODEV;
+	}
+
 	if (_MALI_OSK_ERR_OK == _mali_osk_wq_init()) {
 		/* Initialize the Mali GPU HW specified by pdev */
 		if (_MALI_OSK_ERR_OK == mali_initialize_subsystems()) {
@@ -573,6 +581,7 @@ static int mali_remove(struct platform_device *pdev)
 	mali_miscdevice_unregister();
 	mali_terminate_subsystems();
 	_mali_osk_wq_term();
+	mali_platform_deinit();
 	mali_platform_device = NULL;
 	return 0;
 }

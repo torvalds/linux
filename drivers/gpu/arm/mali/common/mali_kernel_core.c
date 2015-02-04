@@ -929,8 +929,6 @@ _mali_osk_errcode_t mali_initialize_subsystems(void)
 		if (_MALI_OSK_ERR_OK != err) goto pmu_reset_failed;
 	}
 
-	mali_platform_init();
-
 	/* Detect which Mali GPU we are dealing with */
 	err = mali_parse_product_info();
 	if (_MALI_OSK_ERR_OK != err) goto product_info_parsing_failed;
@@ -1039,9 +1037,6 @@ void mali_terminate_subsystems(void)
 	struct mali_dma_core *dma = mali_dma_get_global_dma_core();
 
 	MALI_DEBUG_PRINT(2, ("terminate_subsystems() called\n"));
-
-	/* shut down subsystems in reverse order from startup */
-	mali_platform_deinit();
 
 	/* We need the GPU to be powered up for the terminate sequence */
 	_mali_osk_pm_dev_ref_add();
