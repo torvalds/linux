@@ -20,7 +20,7 @@
 
 #include <asm/smp_plat.h>
 
-#include "scm-boot.h"
+#include "scm.h"
 
 #define VDD_SC1_ARRAY_CLAMP_GFS_CTL	0x35a0
 #define SCSS_CPU1CORE_RESET		0x2d80
