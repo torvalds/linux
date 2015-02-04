@@ -34,7 +34,7 @@ static struct usb_phy *__usb_find_phy(struct list_head *list,
 		return phy;
 	}
 
-	return ERR_PTR(-EPROBE_DEFER);
+	return ERR_PTR(-ENODEV);
 }
 
 static struct usb_phy *__usb_find_phy_dev(struct device *dev,

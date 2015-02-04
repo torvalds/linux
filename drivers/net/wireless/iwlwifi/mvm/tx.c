@@ -90,8 +90,6 @@ void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	if (ieee80211_is_probe_resp(fc))
 		tx_flags |= TX_CMD_FLG_TSF;
-	else if (ieee80211_is_back_req(fc))
-		tx_flags |= TX_CMD_FLG_ACK | TX_CMD_FLG_BAR;
 
 	if (ieee80211_has_morefrags(fc))
 		tx_flags |= TX_CMD_FLG_MORE_FRAG;
@@ -100,6 +98,15 @@ void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 		u8 *qc = ieee80211_get_qos_ctl(hdr);
 		tx_cmd->tid_tspec = qc[0] & 0xf;
 		tx_flags &= ~TX_CMD_FLG_SEQ_CTL;
+	} else if (ieee80211_is_back_req(fc)) {
+		struct ieee80211_bar *bar = (void *)skb->data;
+		u16 control = le16_to_cpu(bar->control);
+
+		tx_flags |= TX_CMD_FLG_ACK | TX_CMD_FLG_BAR;
+		tx_cmd->tid_tspec = (control &
+				     IEEE80211_BAR_CTRL_TID_INFO_MASK) >>
+			IEEE80211_BAR_CTRL_TID_INFO_SHIFT;
+		WARN_ON_ONCE(tx_cmd->tid_tspec >= IWL_MAX_TID_COUNT);
 	} else {
 		tx_cmd->tid_tspec = IWL_TID_NON_QOS;
 		if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ)

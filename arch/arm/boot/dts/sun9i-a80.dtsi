@@ -52,16 +52,6 @@
 / {
 	interrupt-parent = <&gic>;
 
-	aliases {
-		serial0 = &uart0;
-		serial1 = &uart1;
-		serial2 = &uart2;
-		serial3 = &uart3;
-		serial4 = &uart4;
-		serial5 = &uart5;
-		serial6 = &r_uart;
-	};
-
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;

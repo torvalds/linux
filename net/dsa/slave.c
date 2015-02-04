@@ -46,6 +46,7 @@ void dsa_slave_mii_bus_init(struct dsa_switch *ds)
 	snprintf(ds->slave_mii_bus->id, MII_BUS_ID_SIZE, "dsa-%d:%.2x",
 			ds->index, ds->pd->sw_addr);
 	ds->slave_mii_bus->parent = ds->master_dev;
+	ds->slave_mii_bus->phy_mask = ~ds->phys_mii_mask;
 }
 
 
