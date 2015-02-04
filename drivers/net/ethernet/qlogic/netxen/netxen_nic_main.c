@@ -176,9 +176,7 @@ netxen_alloc_sds_rings(struct netxen_recv_context *recv_ctx, int count)
 static void
 netxen_free_sds_rings(struct netxen_recv_context *recv_ctx)
 {
-	if (recv_ctx->sds_rings != NULL)
-		kfree(recv_ctx->sds_rings);
-
+	kfree(recv_ctx->sds_rings);
 	recv_ctx->sds_rings = NULL;
 }
 
