@@ -42,8 +42,8 @@ static DEFINE_SPINLOCK(topology_lock);
 static struct mask_info socket_info;
 static struct mask_info book_info;
 
-struct cpu_topology_s390 cpu_topology[NR_CPUS];
-EXPORT_SYMBOL_GPL(cpu_topology);
+DEFINE_PER_CPU(struct cpu_topology_s390, cpu_topology);
+EXPORT_PER_CPU_SYMBOL_GPL(cpu_topology);
 
 static cpumask_t cpu_group_map(struct mask_info *info, unsigned int cpu)
 {
@@ -90,15 +90,15 @@ static struct mask_info *add_cpus_to_mask(struct topology_core *tl_core,
 		if (lcpu < 0)
 			continue;
 		for (i = 0; i <= smp_cpu_mtid; i++) {
-			cpu_topology[lcpu + i].book_id = book->id;
-			cpu_topology[lcpu + i].core_id = rcore;
-			cpu_topology[lcpu + i].thread_id = lcpu + i;
+			per_cpu(cpu_topology, lcpu + i).book_id = book->id;
+			per_cpu(cpu_topology, lcpu + i).core_id = rcore;
+			per_cpu(cpu_topology, lcpu + i).thread_id = lcpu + i;
 			cpumask_set_cpu(lcpu + i, &book->mask);
 			cpumask_set_cpu(lcpu + i, &socket->mask);
 			if (one_socket_per_cpu)
-				cpu_topology[lcpu + i].socket_id = rcore;
+				per_cpu(cpu_topology, lcpu + i).socket_id = rcore;
 			else
-				cpu_topology[lcpu + i].socket_id = socket->id;
+				per_cpu(cpu_topology, lcpu + i).socket_id = socket->id;
 			smp_cpu_set_polarization(lcpu + i, tl_core->pp);
 		}
 		if (one_socket_per_cpu)
@@ -249,14 +249,14 @@ static void update_cpu_masks(void)
 
 	spin_lock_irqsave(&topology_lock, flags);
 	for_each_possible_cpu(cpu) {
-		cpu_topology[cpu].thread_mask = cpu_thread_map(cpu);
-		cpu_topology[cpu].core_mask = cpu_group_map(&socket_info, cpu);
-		cpu_topology[cpu].book_mask = cpu_group_map(&book_info, cpu);
+		per_cpu(cpu_topology, cpu).thread_mask = cpu_thread_map(cpu);
+		per_cpu(cpu_topology, cpu).core_mask = cpu_group_map(&socket_info, cpu);
+		per_cpu(cpu_topology, cpu).book_mask = cpu_group_map(&book_info, cpu);
 		if (!MACHINE_HAS_TOPOLOGY) {
-			cpu_topology[cpu].thread_id = cpu;
-			cpu_topology[cpu].core_id = cpu;
-			cpu_topology[cpu].socket_id = cpu;
-			cpu_topology[cpu].book_id = cpu;
+			per_cpu(cpu_topology, cpu).thread_id = cpu;
+			per_cpu(cpu_topology, cpu).core_id = cpu;
+			per_cpu(cpu_topology, cpu).socket_id = cpu;
+			per_cpu(cpu_topology, cpu).book_id = cpu;
 		}
 	}
 	spin_unlock_irqrestore(&topology_lock, flags);
@@ -423,18 +423,18 @@ int topology_cpu_init(struct cpu *cpu)
 
 const struct cpumask *cpu_thread_mask(int cpu)
 {
-	return &cpu_topology[cpu].thread_mask;
+	return &per_cpu(cpu_topology, cpu).thread_mask;
 }
 
 
 const struct cpumask *cpu_coregroup_mask(int cpu)
 {
-	return &cpu_topology[cpu].core_mask;
+	return &per_cpu(cpu_topology, cpu).core_mask;
 }
 
 static const struct cpumask *cpu_book_mask(int cpu)
 {
-	return &cpu_topology[cpu].book_mask;
+	return &per_cpu(cpu_topology, cpu).book_mask;
 }
 
 static int __init early_parse_topology(char *p)
