@@ -666,7 +666,7 @@
 		/* mali dvfs */
 		utilization-interval = <1000>;
 
-		samsung,power-domain = <&pd_g3d>;
+		power-domains = <&pd_g3d>;
 		status = "okay";
 
 		/* Propagate VPLL output clock to SCLK_G3D and ensure that the DIV_G3D
