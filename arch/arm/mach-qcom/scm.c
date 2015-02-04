@@ -249,8 +249,8 @@ static void scm_inv_range(unsigned long start, unsigned long end)
  * response buffers is taken care of by scm_call; however, callers are
  * responsible for any other cached buffers passed over to the secure world.
  */
-int scm_call(u32 svc_id, u32 cmd_id, const void *cmd_buf, size_t cmd_len,
-		void *resp_buf, size_t resp_len)
+static int scm_call(u32 svc_id, u32 cmd_id, const void *cmd_buf, size_t cmd_len,
+			void *resp_buf, size_t resp_len)
 {
 	int ret;
 	struct scm_command *cmd;
@@ -287,7 +287,6 @@ out:
 	free_scm_command(cmd);
 	return ret;
 }
-EXPORT_SYMBOL(scm_call);
 
 u32 scm_get_version(void)
 {
@@ -325,6 +324,8 @@ u32 scm_get_version(void)
 }
 EXPORT_SYMBOL(scm_get_version);
 
+#define SCM_SVC_BOOT			0x1
+#define SCM_BOOT_ADDR			0x1
 /*
  * Set the cold/warm boot address for one of the CPU cores.
  */

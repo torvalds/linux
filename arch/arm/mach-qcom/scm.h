@@ -12,13 +12,6 @@
 #ifndef __MACH_SCM_H
 #define __MACH_SCM_H
 
-#define SCM_SVC_BOOT			0x1
-#define SCM_SVC_PIL			0x2
-
-extern int scm_call(u32 svc_id, u32 cmd_id, const void *cmd_buf, size_t cmd_len,
-		void *resp_buf, size_t resp_len);
-
-#define SCM_BOOT_ADDR			0x1
 #define SCM_FLAG_COLDBOOT_CPU1		0x01
 #define SCM_FLAG_COLDBOOT_CPU2		0x08
 #define SCM_FLAG_COLDBOOT_CPU3		0x20
