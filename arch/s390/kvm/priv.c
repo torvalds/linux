@@ -279,7 +279,10 @@ reinject_interrupt:
 	 * instruction is suppressed from the guest's view: reinject the
 	 * interrupt.
 	 */
-	kvm_s390_reinject_io_int(vcpu->kvm, inti);
+	if (kvm_s390_reinject_io_int(vcpu->kvm, inti)) {
+		kfree(inti);
+		rc = -EFAULT;
+	}
 	/* don't set the cc, a pgm irq was injected or we drop to user space */
 	return rc ? -EFAULT : 0;
 }
