@@ -1801,7 +1801,7 @@ sl811h_resume(struct platform_device *dev)
 
 
 /* this driver is exported so sl811_cs can depend on it */
-struct platform_driver sl811h_driver = {
+static struct platform_driver sl811h_driver = {
 	.probe =	sl811h_probe,
 	.remove =	sl811h_remove,
 
