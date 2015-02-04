@@ -5142,8 +5142,7 @@ static int adap_init0(struct adapter *adap)
 				 state, &reset);
 
 		/* Cleaning up */
-		if (fw != NULL)
-			release_firmware(fw);
+		release_firmware(fw);
 		t4_free_mem(card_fw);
 
 		if (ret < 0)
