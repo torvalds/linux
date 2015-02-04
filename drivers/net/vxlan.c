@@ -1667,6 +1667,9 @@ static void vxlan_build_gbp_hdr(struct vxlanhdr *vxh, u32 vxflags,
 {
 	struct vxlanhdr_gbp *gbp;
 
+	if (!md->gbp)
+		return;
+
 	gbp = (struct vxlanhdr_gbp *)vxh;
 	vxh->vx_flags |= htonl(VXLAN_HF_GBP);
 
