@@ -12,9 +12,9 @@
 #include <linux/platform_device.h>
 #include <linux/input.h>
 #include <linux/slab.h>
+#include <linux/platform_data/bfin_rotary.h>
 
 #include <asm/portmux.h>
-#include <asm/bfin_rotary.h>
 
 static const u16 per_cnt[] = {
 	P_CNT_CUD,

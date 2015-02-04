@@ -666,7 +666,7 @@ static struct platform_device bfin_sport1_uart_device = {
 #endif
 
 #if IS_ENABLED(CONFIG_INPUT_BFIN_ROTARY)
-#include <asm/bfin_rotary.h>
+#include <linux/platform_data/bfin_rotary.h>
 
 static struct bfin_rotary_platform_data bfin_rotary_data = {
 	/*.rotary_up_key     = KEY_UP,*/
