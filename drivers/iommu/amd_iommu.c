@@ -843,10 +843,10 @@ static void build_inv_iommu_pages(struct iommu_cmd *cmd, u64 address,
 				  size_t size, u16 domid, int pde)
 {
 	u64 pages;
-	int s;
+	bool s;
 
 	pages = iommu_num_pages(address, size, PAGE_SIZE);
-	s     = 0;
+	s     = false;
 
 	if (pages > 1) {
 		/*
@@ -854,7 +854,7 @@ static void build_inv_iommu_pages(struct iommu_cmd *cmd, u64 address,
 		 * TLB entries for this domain
 		 */
 		address = CMD_INV_IOMMU_ALL_PAGES_ADDRESS;
-		s = 1;
+		s = true;
 	}
 
 	address &= PAGE_MASK;
@@ -874,10 +874,10 @@ static void build_inv_iotlb_pages(struct iommu_cmd *cmd, u16 devid, int qdep,
 				  u64 address, size_t size)
 {
 	u64 pages;
-	int s;
+	bool s;
 
 	pages = iommu_num_pages(address, size, PAGE_SIZE);
-	s     = 0;
+	s     = false;
 
 	if (pages > 1) {
 		/*
@@ -885,7 +885,7 @@ static void build_inv_iotlb_pages(struct iommu_cmd *cmd, u16 devid, int qdep,
 		 * TLB entries for this domain
 		 */
 		address = CMD_INV_IOMMU_ALL_PAGES_ADDRESS;
-		s = 1;
+		s = true;
 	}
 
 	address &= PAGE_MASK;
