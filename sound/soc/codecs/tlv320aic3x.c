@@ -945,7 +945,7 @@ static const struct snd_soc_dapm_route intercon_extra[] = {
 	{"Right HPCOM Mixer", "Line2R Bypass Switch", "Right Line2R Mux"},
 };
 
-/* For other than tlv320aic3104 */
+/* For tlv320aic3104 */
 static const struct snd_soc_dapm_route intercon_extra_3104[] = {
 	/* Left Input */
 	{"Left PGA Mixer", "Mic2L Switch", "MIC2L"},
