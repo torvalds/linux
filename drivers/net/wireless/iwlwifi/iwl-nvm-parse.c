@@ -110,7 +110,8 @@ enum family_8000_nvm_offsets {
 
 	/* NVM REGULATORY -Section offset (in words) definitions */
 	NVM_CHANNELS_FAMILY_8000 = 0,
-	NVM_LAR_OFFSET_FAMILY_8000 = 0x4C7,
+	NVM_LAR_OFFSET_FAMILY_8000_OLD = 0x4C7,
+	NVM_LAR_OFFSET_FAMILY_8000 = 0x507,
 	NVM_LAR_ENABLED_FAMILY_8000 = 0x7,
 
 	/* NVM calibration section offset (in words) definitions */
@@ -656,8 +657,11 @@ iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 		iwl_init_sbands(dev, cfg, data, nvm_sw,
 				tx_chains, rx_chains, lar_fw_supported);
 	} else {
-		lar_config = le16_to_cpup(regulatory +
-					  NVM_LAR_OFFSET_FAMILY_8000);
+		u16 lar_offset = data->nvm_version < 0xE39 ?
+				 NVM_LAR_OFFSET_FAMILY_8000_OLD :
+				 NVM_LAR_OFFSET_FAMILY_8000;
+
+		lar_config = le16_to_cpup(regulatory + lar_offset);
 		data->lar_enabled = !!(lar_config &
 				       NVM_LAR_ENABLED_FAMILY_8000);
 
