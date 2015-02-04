@@ -22,6 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/driver.h>
+#include <linux/pm_runtime.h>
 
 #include <asm/io.h>
 
@@ -150,6 +151,10 @@ _mali_osk_errcode_t mali_platform_deinit(void)
 		regulator_put(g3d_regulator);
 		g3d_regulator = NULL;
 	}
+#endif
+
+#ifdef CONFIG_PM
+	pm_runtime_disable(&(mali_platform_device->dev));
 #endif
 
 	MALI_SUCCESS;
