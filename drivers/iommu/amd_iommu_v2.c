@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2010-2012 Advanced Micro Devices, Inc.
- * Author: Joerg Roedel <joerg.roedel@amd.com>
+ * Author: Joerg Roedel <jroedel@suse.de>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -31,7 +31,7 @@
 #include "amd_iommu_proto.h"
 
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Joerg Roedel <joerg.roedel@amd.com>");
+MODULE_AUTHOR("Joerg Roedel <jroedel@suse.de>");
 
 #define MAX_DEVICES		0x10000
 #define PRI_QUEUE_SIZE		512
@@ -921,7 +921,7 @@ static int __init amd_iommu_v2_init(void)
 {
 	int ret;
 
-	pr_info("AMD IOMMUv2 driver by Joerg Roedel <joerg.roedel@amd.com>\n");
+	pr_info("AMD IOMMUv2 driver by Joerg Roedel <jroedel@suse.de>\n");
 
 	if (!amd_iommu_v2_supported()) {
 		pr_info("AMD IOMMUv2 functionality not available on this system\n");
