@@ -898,6 +898,9 @@ static int iwl_pcie_load_given_ucode_8000b(struct iwl_trans *trans,
 	IWL_DEBUG_FW(trans, "working with %s CPU\n",
 		     image->is_dual_cpus ? "Dual" : "Single");
 
+	if (trans->dbg_dest_tlv)
+		iwl_pcie_apply_destination(trans);
+
 	/* configure the ucode to be ready to get the secured image */
 	/* release CPU reset */
 	iwl_write_prph(trans, RELEASE_CPU_RESET, RELEASE_CPU_RESET_BIT);
@@ -913,9 +916,6 @@ static int iwl_pcie_load_given_ucode_8000b(struct iwl_trans *trans,
 					       &first_ucode_section);
 	if (ret)
 		return ret;
-
-	if (trans->dbg_dest_tlv)
-		iwl_pcie_apply_destination(trans);
 
 	/* wait for image verification to complete  */
 	ret = iwl_poll_prph_bit(trans, LMPM_SECURE_BOOT_CPU1_STATUS_ADDR_B0,
