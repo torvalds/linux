@@ -1133,16 +1133,9 @@ static void FindMinimumRSSI(struct adapter *pAdapter)
 {
 	struct hal_data_8188e	*pHalData = GET_HAL_DATA(pAdapter);
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
-	struct mlme_priv	*pmlmepriv = &pAdapter->mlmepriv;
 
-	/* 1 1.Determine the minimum RSSI */
-	if ((check_fwstate(pmlmepriv, _FW_LINKED) == false) &&
-	    (pdmpriv->EntryMinUndecoratedSmoothedPWDB == 0))
-		pdmpriv->MinUndecoratedPWDBForDM = 0;
-	if (check_fwstate(pmlmepriv, _FW_LINKED) == true)	/*  Default port */
-		pdmpriv->MinUndecoratedPWDBForDM = pdmpriv->EntryMinUndecoratedSmoothedPWDB;
-	else /*  associated entry pwdb */
-		pdmpriv->MinUndecoratedPWDBForDM = pdmpriv->EntryMinUndecoratedSmoothedPWDB;
+	/* 1 1.Unconditionally set RSSI */
+	pdmpriv->MinUndecoratedPWDBForDM = pdmpriv->EntryMinUndecoratedSmoothedPWDB;
 }
 
 void odm_RSSIMonitorCheckCE(struct odm_dm_struct *pDM_Odm)
