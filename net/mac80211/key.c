@@ -24,6 +24,8 @@
 #include "debugfs_key.h"
 #include "aes_ccm.h"
 #include "aes_cmac.h"
+#include "aes_gmac.h"
+#include "aes_gcm.h"
 
 
 /**
@@ -90,7 +92,7 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 {
 	struct ieee80211_sub_if_data *sdata;
 	struct sta_info *sta;
-	int ret;
+	int ret = -EOPNOTSUPP;
 
 	might_sleep();
 
@@ -150,7 +152,7 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 		return 0;
 	}
 
-	if (ret != -ENOSPC && ret != -EOPNOTSUPP)
+	if (ret != -ENOSPC && ret != -EOPNOTSUPP && ret != 1)
 		sdata_err(sdata,
 			  "failed to set key (%d, %pM) to hardware (%d)\n",
 			  key->conf.keyidx,
@@ -162,8 +164,18 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 	case WLAN_CIPHER_SUITE_WEP104:
 	case WLAN_CIPHER_SUITE_TKIP:
 	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP_256:
 	case WLAN_CIPHER_SUITE_AES_CMAC:
-		/* all of these we can do in software */
+	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		/* all of these we can do in software - if driver can */
+		if (ret == 1)
+			return 0;
+		if (key->local->hw.flags & IEEE80211_HW_SW_CRYPTO_CONTROL)
+			return -EINVAL;
 		return 0;
 	default:
 		return -EINVAL;
@@ -382,7 +394,26 @@ ieee80211_key_alloc(u32 cipher, int idx, size_t key_len,
 		 * Initialize AES key state here as an optimization so that
 		 * it does not need to be initialized for every packet.
 		 */
-		key->u.ccmp.tfm = ieee80211_aes_key_setup_encrypt(key_data);
+		key->u.ccmp.tfm = ieee80211_aes_key_setup_encrypt(
+			key_data, key_len, IEEE80211_CCMP_MIC_LEN);
+		if (IS_ERR(key->u.ccmp.tfm)) {
+			err = PTR_ERR(key->u.ccmp.tfm);
+			kfree(key);
+			return ERR_PTR(err);
+		}
+		break;
+	case WLAN_CIPHER_SUITE_CCMP_256:
+		key->conf.iv_len = IEEE80211_CCMP_256_HDR_LEN;
+		key->conf.icv_len = IEEE80211_CCMP_256_MIC_LEN;
+		for (i = 0; seq && i < IEEE80211_NUM_TIDS + 1; i++)
+			for (j = 0; j < IEEE80211_CCMP_256_PN_LEN; j++)
+				key->u.ccmp.rx_pn[i][j] =
+					seq[IEEE80211_CCMP_256_PN_LEN - j - 1];
+		/* Initialize AES key state here as an optimization so that
+		 * it does not need to be initialized for every packet.
+		 */
+		key->u.ccmp.tfm = ieee80211_aes_key_setup_encrypt(
+			key_data, key_len, IEEE80211_CCMP_256_MIC_LEN);
 		if (IS_ERR(key->u.ccmp.tfm)) {
 			err = PTR_ERR(key->u.ccmp.tfm);
 			kfree(key);
@@ -390,8 +421,12 @@ ieee80211_key_alloc(u32 cipher, int idx, size_t key_len,
 		}
 		break;
 	case WLAN_CIPHER_SUITE_AES_CMAC:
+	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
 		key->conf.iv_len = 0;
-		key->conf.icv_len = sizeof(struct ieee80211_mmie);
+		if (cipher == WLAN_CIPHER_SUITE_AES_CMAC)
+			key->conf.icv_len = sizeof(struct ieee80211_mmie);
+		else
+			key->conf.icv_len = sizeof(struct ieee80211_mmie_16);
 		if (seq)
 			for (j = 0; j < IEEE80211_CMAC_PN_LEN; j++)
 				key->u.aes_cmac.rx_pn[j] =
@@ -401,9 +436,47 @@ ieee80211_key_alloc(u32 cipher, int idx, size_t key_len,
 		 * it does not need to be initialized for every packet.
 		 */
 		key->u.aes_cmac.tfm =
-			ieee80211_aes_cmac_key_setup(key_data);
+			ieee80211_aes_cmac_key_setup(key_data, key_len);
 		if (IS_ERR(key->u.aes_cmac.tfm)) {
 			err = PTR_ERR(key->u.aes_cmac.tfm);
+			kfree(key);
+			return ERR_PTR(err);
+		}
+		break;
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+		key->conf.iv_len = 0;
+		key->conf.icv_len = sizeof(struct ieee80211_mmie_16);
+		if (seq)
+			for (j = 0; j < IEEE80211_GMAC_PN_LEN; j++)
+				key->u.aes_gmac.rx_pn[j] =
+					seq[IEEE80211_GMAC_PN_LEN - j - 1];
+		/* Initialize AES key state here as an optimization so that
+		 * it does not need to be initialized for every packet.
+		 */
+		key->u.aes_gmac.tfm =
+			ieee80211_aes_gmac_key_setup(key_data, key_len);
+		if (IS_ERR(key->u.aes_gmac.tfm)) {
+			err = PTR_ERR(key->u.aes_gmac.tfm);
+			kfree(key);
+			return ERR_PTR(err);
+		}
+		break;
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		key->conf.iv_len = IEEE80211_GCMP_HDR_LEN;
+		key->conf.icv_len = IEEE80211_GCMP_MIC_LEN;
+		for (i = 0; seq && i < IEEE80211_NUM_TIDS + 1; i++)
+			for (j = 0; j < IEEE80211_GCMP_PN_LEN; j++)
+				key->u.gcmp.rx_pn[i][j] =
+					seq[IEEE80211_GCMP_PN_LEN - j - 1];
+		/* Initialize AES key state here as an optimization so that
+		 * it does not need to be initialized for every packet.
+		 */
+		key->u.gcmp.tfm = ieee80211_aes_gcm_key_setup_encrypt(key_data,
+								      key_len);
+		if (IS_ERR(key->u.gcmp.tfm)) {
+			err = PTR_ERR(key->u.gcmp.tfm);
 			kfree(key);
 			return ERR_PTR(err);
 		}
@@ -429,10 +502,24 @@ ieee80211_key_alloc(u32 cipher, int idx, size_t key_len,
 
 static void ieee80211_key_free_common(struct ieee80211_key *key)
 {
-	if (key->conf.cipher == WLAN_CIPHER_SUITE_CCMP)
+	switch (key->conf.cipher) {
+	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP_256:
 		ieee80211_aes_key_free(key->u.ccmp.tfm);
-	if (key->conf.cipher == WLAN_CIPHER_SUITE_AES_CMAC)
+		break;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
 		ieee80211_aes_cmac_key_free(key->u.aes_cmac.tfm);
+		break;
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+		ieee80211_aes_gmac_key_free(key->u.aes_gmac.tfm);
+		break;
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		ieee80211_aes_gcm_key_free(key->u.gcmp.tfm);
+		break;
+	}
 	kzfree(key);
 }
 
@@ -739,6 +826,7 @@ void ieee80211_get_key_tx_seq(struct ieee80211_key_conf *keyconf,
 		seq->tkip.iv16 = key->u.tkip.tx.iv16;
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP_256:
 		pn64 = atomic64_read(&key->u.ccmp.tx_pn);
 		seq->ccmp.pn[5] = pn64;
 		seq->ccmp.pn[4] = pn64 >> 8;
@@ -748,6 +836,7 @@ void ieee80211_get_key_tx_seq(struct ieee80211_key_conf *keyconf,
 		seq->ccmp.pn[0] = pn64 >> 40;
 		break;
 	case WLAN_CIPHER_SUITE_AES_CMAC:
+	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
 		pn64 = atomic64_read(&key->u.aes_cmac.tx_pn);
 		seq->ccmp.pn[5] = pn64;
 		seq->ccmp.pn[4] = pn64 >> 8;
@@ -755,6 +844,26 @@ void ieee80211_get_key_tx_seq(struct ieee80211_key_conf *keyconf,
 		seq->ccmp.pn[2] = pn64 >> 24;
 		seq->ccmp.pn[1] = pn64 >> 32;
 		seq->ccmp.pn[0] = pn64 >> 40;
+		break;
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+		pn64 = atomic64_read(&key->u.aes_gmac.tx_pn);
+		seq->ccmp.pn[5] = pn64;
+		seq->ccmp.pn[4] = pn64 >> 8;
+		seq->ccmp.pn[3] = pn64 >> 16;
+		seq->ccmp.pn[2] = pn64 >> 24;
+		seq->ccmp.pn[1] = pn64 >> 32;
+		seq->ccmp.pn[0] = pn64 >> 40;
+		break;
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		pn64 = atomic64_read(&key->u.gcmp.tx_pn);
+		seq->gcmp.pn[5] = pn64;
+		seq->gcmp.pn[4] = pn64 >> 8;
+		seq->gcmp.pn[3] = pn64 >> 16;
+		seq->gcmp.pn[2] = pn64 >> 24;
+		seq->gcmp.pn[1] = pn64 >> 32;
+		seq->gcmp.pn[0] = pn64 >> 40;
 		break;
 	default:
 		WARN_ON(1);
@@ -778,6 +887,7 @@ void ieee80211_get_key_rx_seq(struct ieee80211_key_conf *keyconf,
 		seq->tkip.iv16 = key->u.tkip.rx[tid].iv16;
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP_256:
 		if (WARN_ON(tid < -1 || tid >= IEEE80211_NUM_TIDS))
 			return;
 		if (tid < 0)
@@ -787,10 +897,28 @@ void ieee80211_get_key_rx_seq(struct ieee80211_key_conf *keyconf,
 		memcpy(seq->ccmp.pn, pn, IEEE80211_CCMP_PN_LEN);
 		break;
 	case WLAN_CIPHER_SUITE_AES_CMAC:
+	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
 		if (WARN_ON(tid != 0))
 			return;
 		pn = key->u.aes_cmac.rx_pn;
 		memcpy(seq->aes_cmac.pn, pn, IEEE80211_CMAC_PN_LEN);
+		break;
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+		if (WARN_ON(tid != 0))
+			return;
+		pn = key->u.aes_gmac.rx_pn;
+		memcpy(seq->aes_gmac.pn, pn, IEEE80211_GMAC_PN_LEN);
+		break;
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		if (WARN_ON(tid < -1 || tid >= IEEE80211_NUM_TIDS))
+			return;
+		if (tid < 0)
+			pn = key->u.gcmp.rx_pn[IEEE80211_NUM_TIDS];
+		else
+			pn = key->u.gcmp.rx_pn[tid];
+		memcpy(seq->gcmp.pn, pn, IEEE80211_GCMP_PN_LEN);
 		break;
 	}
 }
@@ -810,6 +938,7 @@ void ieee80211_set_key_tx_seq(struct ieee80211_key_conf *keyconf,
 		key->u.tkip.tx.iv16 = seq->tkip.iv16;
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP_256:
 		pn64 = (u64)seq->ccmp.pn[5] |
 		       ((u64)seq->ccmp.pn[4] << 8) |
 		       ((u64)seq->ccmp.pn[3] << 16) |
@@ -819,6 +948,7 @@ void ieee80211_set_key_tx_seq(struct ieee80211_key_conf *keyconf,
 		atomic64_set(&key->u.ccmp.tx_pn, pn64);
 		break;
 	case WLAN_CIPHER_SUITE_AES_CMAC:
+	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
 		pn64 = (u64)seq->aes_cmac.pn[5] |
 		       ((u64)seq->aes_cmac.pn[4] << 8) |
 		       ((u64)seq->aes_cmac.pn[3] << 16) |
@@ -826,6 +956,26 @@ void ieee80211_set_key_tx_seq(struct ieee80211_key_conf *keyconf,
 		       ((u64)seq->aes_cmac.pn[1] << 32) |
 		       ((u64)seq->aes_cmac.pn[0] << 40);
 		atomic64_set(&key->u.aes_cmac.tx_pn, pn64);
+		break;
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+		pn64 = (u64)seq->aes_gmac.pn[5] |
+		       ((u64)seq->aes_gmac.pn[4] << 8) |
+		       ((u64)seq->aes_gmac.pn[3] << 16) |
+		       ((u64)seq->aes_gmac.pn[2] << 24) |
+		       ((u64)seq->aes_gmac.pn[1] << 32) |
+		       ((u64)seq->aes_gmac.pn[0] << 40);
+		atomic64_set(&key->u.aes_gmac.tx_pn, pn64);
+		break;
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		pn64 = (u64)seq->gcmp.pn[5] |
+		       ((u64)seq->gcmp.pn[4] << 8) |
+		       ((u64)seq->gcmp.pn[3] << 16) |
+		       ((u64)seq->gcmp.pn[2] << 24) |
+		       ((u64)seq->gcmp.pn[1] << 32) |
+		       ((u64)seq->gcmp.pn[0] << 40);
+		atomic64_set(&key->u.gcmp.tx_pn, pn64);
 		break;
 	default:
 		WARN_ON(1);
@@ -850,6 +1000,7 @@ void ieee80211_set_key_rx_seq(struct ieee80211_key_conf *keyconf,
 		key->u.tkip.rx[tid].iv16 = seq->tkip.iv16;
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP_256:
 		if (WARN_ON(tid < -1 || tid >= IEEE80211_NUM_TIDS))
 			return;
 		if (tid < 0)
@@ -859,10 +1010,28 @@ void ieee80211_set_key_rx_seq(struct ieee80211_key_conf *keyconf,
 		memcpy(pn, seq->ccmp.pn, IEEE80211_CCMP_PN_LEN);
 		break;
 	case WLAN_CIPHER_SUITE_AES_CMAC:
+	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
 		if (WARN_ON(tid != 0))
 			return;
 		pn = key->u.aes_cmac.rx_pn;
 		memcpy(pn, seq->aes_cmac.pn, IEEE80211_CMAC_PN_LEN);
+		break;
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+		if (WARN_ON(tid != 0))
+			return;
+		pn = key->u.aes_gmac.rx_pn;
+		memcpy(pn, seq->aes_gmac.pn, IEEE80211_GMAC_PN_LEN);
+		break;
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		if (WARN_ON(tid < -1 || tid >= IEEE80211_NUM_TIDS))
+			return;
+		if (tid < 0)
+			pn = key->u.gcmp.rx_pn[IEEE80211_NUM_TIDS];
+		else
+			pn = key->u.gcmp.rx_pn[tid];
+		memcpy(pn, seq->gcmp.pn, IEEE80211_GCMP_PN_LEN);
 		break;
 	default:
 		WARN_ON(1);

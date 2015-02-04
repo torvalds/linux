@@ -1621,7 +1621,8 @@ int ieee80211_add_virtual_monitor(struct ieee80211_local *local);
 void ieee80211_del_virtual_monitor(struct ieee80211_local *local);
 
 bool __ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata);
-void ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata);
+void ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata,
+			      bool update_bss);
 
 static inline bool ieee80211_sdata_running(struct ieee80211_sub_if_data *sdata)
 {
@@ -1751,7 +1752,8 @@ static inline int __ieee80211_resume(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
-	WARN(test_bit(SCAN_HW_SCANNING, &local->scanning),
+	WARN(test_bit(SCAN_HW_SCANNING, &local->scanning) &&
+	     !test_bit(SCAN_COMPLETED, &local->scanning),
 		"%s: resume with hardware scan still in progress\n",
 		wiphy_name(hw->wiphy));
 
@@ -1884,6 +1886,36 @@ void ieee80211_flush_queues(struct ieee80211_local *local,
 void __ieee80211_flush_queues(struct ieee80211_local *local,
 			      struct ieee80211_sub_if_data *sdata,
 			      unsigned int queues, bool drop);
+
+static inline bool ieee80211_can_run_worker(struct ieee80211_local *local)
+{
+	/*
+	 * If quiescing is set, we are racing with __ieee80211_suspend.
+	 * __ieee80211_suspend flushes the workers after setting quiescing,
+	 * and we check quiescing / suspended before enqueing new workers.
+	 * We should abort the worker to avoid the races below.
+	 */
+	if (local->quiescing)
+		return false;
+
+	/*
+	 * We might already be suspended if the following scenario occurs:
+	 * __ieee80211_suspend		Control path
+	 *
+	 *				if (local->quiescing)
+	 *					return;
+	 * local->quiescing = true;
+	 * flush_workqueue();
+	 *				queue_work(...);
+	 * local->suspended = true;
+	 * local->quiescing = false;
+	 *				worker starts running...
+	 */
+	if (local->suspended)
+		return false;
+
+	return true;
+}
 
 void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 			 u16 transaction, u16 auth_alg, u16 status,

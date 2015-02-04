@@ -345,24 +345,24 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_sub_if_data *sdata,
 	 */
 	sband = local->hw.wiphy->bands[band];
 	memcpy(&ht_cap, &sband->ht_cap, sizeof(ht_cap));
-	if ((action_code == WLAN_TDLS_SETUP_REQUEST ||
-	     action_code == WLAN_TDLS_SETUP_RESPONSE) &&
-	    ht_cap.ht_supported && (!sta || sta->sta.ht_cap.ht_supported)) {
-		if (action_code == WLAN_TDLS_SETUP_REQUEST) {
-			ieee80211_apply_htcap_overrides(sdata, &ht_cap);
 
-			/* disable SMPS in TDLS initiator */
-			ht_cap.cap |= (WLAN_HT_CAP_SM_PS_DISABLED
-				       << IEEE80211_HT_CAP_SM_PS_SHIFT);
-		} else {
-			/* disable SMPS in TDLS responder */
-			sta->sta.ht_cap.cap |=
-				(WLAN_HT_CAP_SM_PS_DISABLED
-				 << IEEE80211_HT_CAP_SM_PS_SHIFT);
+	if (action_code == WLAN_TDLS_SETUP_REQUEST && ht_cap.ht_supported) {
+		ieee80211_apply_htcap_overrides(sdata, &ht_cap);
 
-			/* the peer caps are already intersected with our own */
-			memcpy(&ht_cap, &sta->sta.ht_cap, sizeof(ht_cap));
-		}
+		/* disable SMPS in TDLS initiator */
+		ht_cap.cap |= WLAN_HT_CAP_SM_PS_DISABLED
+				<< IEEE80211_HT_CAP_SM_PS_SHIFT;
+
+		pos = skb_put(skb, sizeof(struct ieee80211_ht_cap) + 2);
+		ieee80211_ie_build_ht_cap(pos, &ht_cap, ht_cap.cap);
+	} else if (action_code == WLAN_TDLS_SETUP_RESPONSE &&
+		   ht_cap.ht_supported && sta->sta.ht_cap.ht_supported) {
+		/* disable SMPS in TDLS responder */
+		sta->sta.ht_cap.cap |= WLAN_HT_CAP_SM_PS_DISABLED
+					<< IEEE80211_HT_CAP_SM_PS_SHIFT;
+
+		/* the peer caps are already intersected with our own */
+		memcpy(&ht_cap, &sta->sta.ht_cap, sizeof(ht_cap));
 
 		pos = skb_put(skb, sizeof(struct ieee80211_ht_cap) + 2);
 		ieee80211_ie_build_ht_cap(pos, &ht_cap, ht_cap.cap);
@@ -852,7 +852,6 @@ ieee80211_tdls_prep_mgmt_packet(struct wiphy *wiphy, struct net_device *dev,
 	 */
 	if ((action_code == WLAN_TDLS_TEARDOWN) &&
 	    (sdata->local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)) {
-		struct sta_info *sta = NULL;
 		bool try_resend; /* Should we keep skb for possible resend */
 
 		/* If not sending directly to peer - no point in keeping skb */

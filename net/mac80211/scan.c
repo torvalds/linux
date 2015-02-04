@@ -828,6 +828,11 @@ void ieee80211_scan_work(struct work_struct *work)
 
 	mutex_lock(&local->mtx);
 
+	if (!ieee80211_can_run_worker(local)) {
+		aborted = true;
+		goto out_complete;
+	}
+
 	sdata = rcu_dereference_protected(local->scan_sdata,
 					  lockdep_is_held(&local->mtx));
 	scan_req = rcu_dereference_protected(local->scan_req,

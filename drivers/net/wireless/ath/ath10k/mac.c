@@ -76,6 +76,9 @@ static int ath10k_send_key(struct ath10k_vif *arvif,
 		if (memcmp(macaddr, arvif->vif->addr, ETH_ALEN))
 			arg.key_flags = WMI_KEY_PAIRWISE;
 		break;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		/* this one needs to be done in software */
+		return 1;
 	default:
 		ath10k_warn(ar, "cipher %d is not supported\n", key->cipher);
 		return -EOPNOTSUPP;
@@ -5035,6 +5038,13 @@ struct ath10k_vif *ath10k_get_arvif(struct ath10k *ar, u32 vdev_id)
 
 int ath10k_mac_register(struct ath10k *ar)
 {
+	static const u32 cipher_suites[] = {
+		WLAN_CIPHER_SUITE_WEP40,
+		WLAN_CIPHER_SUITE_WEP104,
+		WLAN_CIPHER_SUITE_TKIP,
+		WLAN_CIPHER_SUITE_CCMP,
+		WLAN_CIPHER_SUITE_AES_CMAC,
+	};
 	struct ieee80211_supported_band *band;
 	struct ieee80211_sta_vht_cap vht_cap;
 	struct ieee80211_sta_ht_cap ht_cap;
@@ -5108,7 +5118,8 @@ int ath10k_mac_register(struct ath10k *ar)
 			IEEE80211_HW_REPORTS_TX_ACK_STATUS |
 			IEEE80211_HW_HAS_RATE_CONTROL |
 			IEEE80211_HW_AP_LINK_PS |
-			IEEE80211_HW_SPECTRUM_MGMT;
+			IEEE80211_HW_SPECTRUM_MGMT |
+			IEEE80211_HW_SW_CRYPTO_CONTROL;
 
 	ar->hw->wiphy->features |= NL80211_FEATURE_STATIC_SMPS;
 
@@ -5181,6 +5192,9 @@ int ath10k_mac_register(struct ath10k *ar)
 		ath10k_err(ar, "failed to initialise regulatory: %i\n", ret);
 		goto err_free;
 	}
+
+	ar->hw->wiphy->cipher_suites = cipher_suites;
+	ar->hw->wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
 
 	ret = ieee80211_register_hw(ar->hw);
 	if (ret) {

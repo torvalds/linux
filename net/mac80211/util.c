@@ -744,16 +744,19 @@ EXPORT_SYMBOL_GPL(wdev_to_ieee80211_vif);
 
 /*
  * Nothing should have been stuffed into the workqueue during
- * the suspend->resume cycle. If this WARN is seen then there
- * is a bug with either the driver suspend or something in
- * mac80211 stuffing into the workqueue which we haven't yet
- * cleared during mac80211's suspend cycle.
+ * the suspend->resume cycle. Since we can't check each caller
+ * of this function if we are already quiescing / suspended,
+ * check here and don't WARN since this can actually happen when
+ * the rx path (for example) is racing against __ieee80211_suspend
+ * and suspending / quiescing was set after the rx path checked
+ * them.
  */
 static bool ieee80211_can_queue_work(struct ieee80211_local *local)
 {
-	if (WARN(local->suspended && !local->resuming,
-		 "queueing ieee80211 work while going to suspend\n"))
+	if (local->quiescing || (local->suspended && !local->resuming)) {
+		pr_warn("queueing ieee80211 work while going to suspend\n");
 		return false;
+	}
 
 	return true;
 }
@@ -2056,6 +2059,18 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	local->suspended = false;
 	mb();
 	local->resuming = false;
+
+	/* It's possible that we don't handle the scan completion in
+	 * time during suspend, so if it's still marked as completed
+	 * here, queue the work and flush it to clean things up.
+	 * Instead of calling the worker function directly here, we
+	 * really queue it to avoid potential races with other flows
+	 * scheduling the same work.
+	 */
+	if (test_bit(SCAN_COMPLETED, &local->scanning)) {
+		ieee80211_queue_delayed_work(&local->hw, &local->scan_work, 0);
+		flush_delayed_work(&local->scan_work);
+	}
 
 	if (local->open_count && !reconfig_due_to_wowlan)
 		drv_reconfig_complete(local, IEEE80211_RECONFIG_TYPE_SUSPEND);
